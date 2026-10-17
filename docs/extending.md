@@ -101,15 +101,24 @@ tools join the assistant's catalogue once the session key `tools.extra` names th
 
 ## Prompts and behaviour
 
-`src/crews/main-loop/domain/prompt-assembly.ts` builds the static header (identity, tool policy, behaviour blocks,
-search playbook) and the user body (preferences, skills, memory, hooks, project context, history, gauge, request):
-one `build<Name>Block` renderer per block, a field of `PromptParts`, a place in `assemblePrompt`'s fixed order. The
-behaviour the blocks must produce is specified in [Architecture](architecture.md#prompt-assembly); write a change
-from that specification, in this project's own words, and `prompt-assembly.test.ts` pins it. A block's input is read
-in `application/context-gather.ts`, through the ports, and passed in `application/turn-prompt.ts`; the flags a
-session sets (`/effort`, `/passes`, `/fast`, `/proactive`, `/output-style`) travel the same way. The compaction prompt
-lives in `src/shared/application/compaction/`. `npm run check:provenance` refuses the markers of another product's
-material. The recipe: [Add a prompt block](architecture.md#add-a-prompt-block).
+Every prompt is written from a behaviour specification, [Architecture](architecture.md#prompt-assembly), in this
+project's own words ([ADR 0003](adr/0003-prompts-from-a-behaviour-specification.md)): change the specification first,
+then the text, then the marker phrases its test pins. `node scripts/render-prompts.mjs <dir>` writes every prompt as
+the model reads it, so a change is reviewed as the diff of two renders.
+
+- **The main loop.** `src/crews/main-loop/domain/prompt-assembly.ts` builds the static header (behaviour rules, tools
+  and what they can do, search playbook, the project's instructions file) and the user body (preferences, skills,
+  memory, hooks, environment, history, gauge, request): one `build<Name>Block` renderer per block, a field of
+  `PromptParts`, a place in `assemblePrompt`'s fixed order. A block's input is read in `application/context-gather.ts`,
+  through the ports, and passed in `application/turn-prompt.ts`; the flags a session sets (`/effort`, `/passes`,
+  `/fast`, `/proactive`, `/output-style`, `answer.language`) travel the same way.
+- **Compaction and memory.** `src/shared/domain/compaction.ts` holds the summary and memory-extraction prompts and
+  the markers the model later reads in its history; `src/shared/application/compaction/` runs them.
+- **The crews.** Each crew's prompts sit next to its use case (`application/prompts.ts`, or its domain module) and
+  have their own tests.
+
+`npm run check:provenance` refuses the markers of another product's material, and `tests/prompt-contract.test.ts`
+checks every rendered prompt. The recipe: [Add a prompt block](architecture.md#add-a-prompt-block).
 
 ## Permission modes
 
