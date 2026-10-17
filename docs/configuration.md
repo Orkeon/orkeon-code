@@ -63,8 +63,10 @@ Orkeon Code starts every crew with `runCrewAsync`, which it does not bound, so t
 
 Inside the REPL, `/config` lists, reads and writes the session keys (stored in the project's
 `.orkeon/config.json`), for example `permissions.fallback` (the mode used when neither a prefix nor `/mode` chose
-one), `tools.extra` (below), `voice.reply` ([speech output](#speech-output)) or `spinnerVerbs`. `/model`, `/effort`,
-`/passes`, `/fast`, `/proactive` and `/output-style` change how the next turns run.
+one), `tools.extra` (below), `voice.reply` ([speech output](#speech-output)), `answer.language` (the language the
+assistant answers in, `/config set answer.language French`, unless a request is written in another one) or
+`spinnerVerbs`. `/model`, `/effort`, `/passes`, `/fast`, `/proactive` and `/output-style` change how the next turns
+run.
 
 ## Extra tools: MCP servers and plugins
 

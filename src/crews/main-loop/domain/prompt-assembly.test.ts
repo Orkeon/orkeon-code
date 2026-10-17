@@ -22,7 +22,9 @@ import {
   buildSkillsBlock,
   buildHooksBlock,
   MAX_STATIC_HEADER_CHARS,
+  withoutCurrentRequest,
 } from "./prompt-assembly.ts";
+import { ERROR_THRESHOLD_BUFFER_TOKENS, WARNING_THRESHOLD_BUFFER_TOKENS } from "../../../shared/domain/compaction-thresholds.ts";
 import { toolsetFor } from "../../../shared/domain/agent-policy/permission.ts";
 import { PERMISSION_MODES } from "../../../shared/domain/permission-modes.ts";
 import { MEMORY_CATEGORIES } from "../../../shared/domain/agent-policy/memory-categories.ts";
@@ -30,7 +32,7 @@ import { OUTPUT_STYLES, isOutputStyle } from "../../../shared/domain/agent-polic
 
 describe("buildStaticHeader", () => {
   it("is byte-identical across calls with the same inputs (cache prefix)", () => {
-    const opts = { toolNames: ["file_read", "file_write"], claudeMd: "# Rules\nDo X." };
+    const opts = { toolNames: ["file_read", "file_write"], instructions: { file: "AGENTS.md", content: "# Rules\nDo X." } };
     strictEqual(buildStaticHeader(opts), buildStaticHeader(opts));
   });
 
@@ -40,15 +42,22 @@ describe("buildStaticHeader", () => {
     strictEqual(a, b);
   });
 
-  it("omits the CLAUDE.md block entirely when absent or blank", () => {
-    const withoutMd = buildStaticHeader({ toolNames: ["file_read"] });
-    ok(!withoutMd.includes("CLAUDE.md"));
-    const blankMd = buildStaticHeader({ toolNames: ["file_read"], claudeMd: "   " });
-    strictEqual(blankMd, withoutMd);
+  it("omits the instructions block entirely when absent or blank", () => {
+    const without = buildStaticHeader({ toolNames: ["file_read"] });
+    ok(!without.includes("## Project instructions"));
+    const blank = buildStaticHeader({ toolNames: ["file_read"], instructions: { file: "AGENTS.md", content: "   " } });
+    strictEqual(blank, without);
+  });
+
+  it("names the instructions file it carries", () => {
+    const agents = buildStaticHeader({ toolNames: ["file_read"], instructions: { file: "AGENTS.md", content: "Use pnpm." } });
+    ok(agents.includes("## Project instructions (AGENTS.md)\nUse pnpm."), agents);
+    const legacy = buildStaticHeader({ toolNames: ["file_read"], instructions: { file: "CLAUDE.md", content: "Use pnpm." } });
+    ok(legacy.includes("## Project instructions (CLAUDE.md)"), legacy);
   });
 
   it("contains no digits or dates (guard against gauges leaking into the prefix)", () => {
-    const header = buildStaticHeader({ toolNames: ["file_read", "shell_command"], claudeMd: "Use pnpm." });
+    const header = buildStaticHeader({ toolNames: ["file_read", "shell_command"], instructions: { file: "AGENTS.md", content: "Use pnpm." } });
     ok(!/\d/.test(header), `static header must stay number-free, got: ${header}`);
   });
 
@@ -56,9 +65,10 @@ describe("buildStaticHeader", () => {
     // The order of docs/architecture.md, "Prompt assembly": who the agent is, how it
     // reports, then how it works, then what it may trust, then its tools. All
     // unconditional, so byte-stability per mode is unchanged by their presence.
-    const header = buildStaticHeader({ toolNames: ["file_read"], claudeMd: "# Rules" });
+    const header = buildStaticHeader({ toolNames: ["file_read"], instructions: { file: "CLAUDE.md", content: "# Rules" } });
     const order = [
       "You are Orkeon Code",
+      "## This session",
       "## Reporting back",
       "## Tone",
       "## Scope",
@@ -82,7 +92,7 @@ describe("buildStaticHeader", () => {
     "reporting: the user's language": "Answer in the language the user writes in",
     "tone: no praise, no emoji": "no emoji",
     "tone: conclusions, not narration": "do not narrate your own thinking",
-    "scope: a request is carried out in the code": "rather than reply with the new name",
+    "scope: a request is carried out in the code": "not the new name",
     "scope: nothing speculative": "a few repeated lines beat a helper",
     "scope: validate at the boundaries only": "where it enters the system",
     "scope: dead code goes entirely": "no re-export",
@@ -92,18 +102,25 @@ describe("buildStaticHeader", () => {
     "finishing: act once the facts are known": "reopen a decision the user made",
     "finishing: a question gets an assessment, not a change": "change nothing until the user asks for a change",
     "finishing: no ending on a plan or a promise": "read your last paragraph",
+    "finishing: in a read-only session the plan is the deliverable": "in a read-only session the plan is the answer",
+    "finishing: what is left undone is named": "Name any part of the request you leave undone",
     "finishing: evidence before a state change": "a familiar symptom can have another cause",
     "asking: a question ends the turn": "writing a question ends it",
     "asking: a confirmation covers one call": "covers that call only",
+    "asking: a blocking point does not stop the rest": "end with that one question",
     "verification: narrowest check first": "the narrowest test that covers the change first",
-    "verification: no unrun check reported as passing": "never present a check you did not run as passing",
+    "verification: success only on observed output": "only on output you saw in this turn",
+    "verification: fix causes, not symptoms": "Fix the cause of a failure",
     "care: reversibility and reach": "how hard it is to undo",
-    "care: no bypassing a failing check": "disabling, skipping or forcing it",
+    "care: no bypassing a failing check": "weaken, skip or bypass a check",
+    "care: look before overwriting": "Look at a target before you overwrite or delete it",
     "care: git only on request, staged by name": "stage files by name",
     "care: secrets stay in the environment": "Secrets live in environment variables",
-    "trust: the instructions file ranks below the request": "ranks below",
+    "trust: the instructions file ranks below the request": "ranking below the request and these rules",
     "trust: marked history messages are material": "[restored-file]",
-    "trust: an embedded instruction is not followed": "do not; mention it",
+    "trust: an embedded instruction is not followed": "do not; say so in your answer",
+    "trust: advice and findings are claims to check": "claims to check before acting on them",
+    "trust: harness reminders are not the user": "<system-reminder> blocks come from the harness",
   };
   for (const [rule, marker] of Object.entries(RULE_MARKERS)) {
     it(`states the rule — ${rule}`, () => {
@@ -116,6 +133,28 @@ describe("buildStaticHeader", () => {
     const note = "change your approach instead of repeating the call";
     ok(buildStaticHeader({ toolNames: ["file_read"] }).includes(note));
     ok(!buildStaticHeader({ toolNames: [] }).includes(note));
+  });
+
+  it("states what the session may deliver, from the catalogue", () => {
+    const write = buildStaticHeader({ toolNames: ["file_read", "file_write"] });
+    ok(write.includes("You may change the project"));
+    ok(write.includes("goes into your answer as a proposal"), "destructive actions are proposed, not performed");
+    const read = buildStaticHeader({ toolNames: ["file_read"] });
+    ok(read.includes("Read-only: read and search, change nothing"));
+    ok(read.includes("a plan the user can approve"));
+    ok(!read.includes("You may change the project"));
+  });
+
+  it("names the shell as the search's last resort only where the shell is offered", () => {
+    const withShell = buildStaticHeader({ toolNames: ["codebase_search", "shell_command"] });
+    ok(withShell.includes("Shell `grep` is the LAST resort"));
+    const without = buildStaticHeader({ toolNames: ["codebase_search", "directory_read", "file_read"] });
+    ok(!without.includes("grep"), "a read-only catalogue has no shell to grep with");
+    ok(without.includes("`directory_read`"));
+  });
+
+  it("never lets a cut read feed a whole-file write", () => {
+    ok(buildStaticHeader({ toolNames: ["file_read", "file_write"] }).includes("Never rewrite a file whose read came back cut"));
   });
 
   it("describes what the offered tools can do, and only those tools", () => {
@@ -193,10 +232,49 @@ describe("buildGaugeBlock", () => {
     ok(gauge.includes("1200/167000"));
     ok(gauge.includes("$0.42"));
   });
+
+  it("adds the conduct of the pressure tier, and nothing at the ok tier", () => {
+    const at = (used: number) => buildGaugeBlock({ usedTokens: used, contextWindow: 200_000, costUsd: 0, totalTokens: 0, totalCalls: 0 });
+    ok(!at(1_000).includes("context window"), "the ok tier asks nothing");
+    ok(at(200_000 - WARNING_THRESHOLD_BUFFER_TOKENS).includes("nearly full"), "warning tier");
+    ok(at(200_000 - ERROR_THRESHOLD_BUFFER_TOKENS).includes("suggest /compact"), "error tier");
+  });
+});
+
+describe("buildMemoryBlock usage line", () => {
+  it("introduces the notes as possibly stale, and only when there are notes", () => {
+    ok(buildMemoryBlock({ user: ["u1"] }).includes("possibly out of date"));
+    strictEqual(buildMemoryBlock({}), "");
+  });
+});
+
+describe("buildUserContextBlock", () => {
+  it("states the date and dates the git status to the start of the turn", () => {
+    const block = buildUserContextBlock({ cwd: "/workspace", date: "2026-10-17", gitStatus: "## main\n M a.ts\n" });
+    ok(block.includes("date: 2026-10-17"), block);
+    ok(block.includes("git status at the start of this turn:\n## main"), block);
+    strictEqual(buildUserContextBlock({ cwd: "/workspace" }), "## Environment\ncwd: /workspace");
+  });
+});
+
+describe("withoutCurrentRequest", () => {
+  const history = [
+    { role: "user", content: "fix it" },
+    { role: "assistant", content: "fixed" },
+    { role: "user", content: "fix it" },
+  ];
+  it("drops the trailing entry when it is the request being answered", () => {
+    deepStrictEqual(withoutCurrentRequest(history, " fix it "), history.slice(0, 2));
+  });
+  it("keeps the buffer when its last entry is something else", () => {
+    deepStrictEqual(withoutCurrentRequest(history.slice(0, 2), "fix it"), history.slice(0, 2));
+    deepStrictEqual(withoutCurrentRequest(history, "another request"), history);
+    deepStrictEqual(withoutCurrentRequest([], "fix it"), []);
+  });
 });
 
 describe("assemblePrompt (the USER body)", () => {
-  it("orders blocks memory → context → history → gauge → task, task last", () => {
+  it("orders blocks memory → history → context → gauge → task, task last", () => {
     const prompt = assemblePrompt({
       memory: buildMemoryBlock({ user: ["u1"] }),
       userContext: buildUserContextBlock({ cwd: "/workspace", gitStatus: "## main" }),
@@ -204,7 +282,7 @@ describe("assemblePrompt (the USER body)", () => {
       gauge: buildGaugeBlock({ usedTokens: 1, contextWindow: 2, costUsd: 0, totalTokens: 0, totalCalls: 0 }),
       task: "THE TASK",
     });
-    const order = ["## Memory", "## Environment", "## Conversation so far", "<system-reminder>", "THE TASK"]
+    const order = ["## Memory", "## Conversation so far", "## Environment", "<system-reminder>", "THE TASK"]
       .map((marker) => prompt.indexOf(marker));
     ok(order.every((idx, i) => idx >= 0 && (i === 0 || idx > order[i - 1]!)), `bad order: ${order}`);
     ok(prompt.endsWith("THE TASK"));
@@ -227,9 +305,9 @@ describe("assemblePrompt (the USER body)", () => {
   });
 });
 
-// ── B-7 / B-13: the expanded block inventory ────────────────────────────
+// ── Preferences, skills and hooks ───────────────────────────────────────
 
-describe("buildPreferencesBlock (B-7)", () => {
+describe("buildPreferencesBlock", () => {
   it("renders NOTHING for an unconfigured session", () => {
     // ACCEPTANCE 1's real content: adding blocks must not change the prompt of a
     // session that set nothing. Otherwise every existing session's cache prefix
@@ -272,8 +350,8 @@ describe("buildPreferencesBlock (B-7)", () => {
   });
 });
 
-describe("buildSkillsBlock (B-13)", () => {
-  it("ACCEPTANCE 1 — registered skills' fragments appear when the registry is non-empty", () => {
+describe("buildSkillsBlock", () => {
+  it("renders the attached skills' fragments when the registry is non-empty", () => {
     const block = buildSkillsBlock([{ path: "/workspace/play.md", content: "Always run the tests." }]);
     ok(block.includes("## Attached skills"), block);
     ok(block.includes("/workspace/play.md"), block);
@@ -302,15 +380,15 @@ describe("buildSkillsBlock (B-13)", () => {
   });
 });
 
-describe("buildHooksBlock (B-7)", () => {
+describe("buildHooksBlock", () => {
   it("renders declared hooks AND their not-firing status", () => {
     // Telling the model a hook exists while nothing fires would make it reason
     // about a guarantee it does not have.
     const block = buildHooksBlock([{ event: "pre-tool", command: "npm test" }]);
     ok(block.includes("pre-tool"), block);
     ok(block.includes("npm test"), block);
-    ok(block.includes("G-6"), "the block must name why nothing fires");
-    ok(block.includes("declared, not firing"), block);
+    ok(block.includes("nothing runs them yet"), "the block must say that nothing fires");
+    ok(!/\b[A-Z]-\d/.test(block), "no ticket code: the model cannot use one");
   });
 
   it("is empty with no hooks, and ignores entries without an event", () => {
@@ -331,7 +409,7 @@ describe("assemblePrompt order with the new blocks", () => {
       gauge: "GAUGE",
       task: "TASK",
     });
-    const order = ["PREFS", "SKILLS", "MEM", "HOOKS", "ENV", "HIST", "GAUGE", "TASK"];
+    const order = ["PREFS", "SKILLS", "MEM", "HOOKS", "HIST", "ENV", "GAUGE", "TASK"];
     let cursor = -1;
     for (const marker of order) {
       const at = out.indexOf(marker);
@@ -340,7 +418,7 @@ describe("assemblePrompt order with the new blocks", () => {
     }
   });
 
-  it("ACCEPTANCE 1 — an unconfigured session's body is byte-identical to the pre-B-7 shape", () => {
+  it("an unconfigured session renders none of the optional blocks", () => {
     const legacy = assemblePrompt({
       memory: "MEM", userContext: "ENV",
       history: "HIST", gauge: "GAUGE", task: "TASK",
@@ -358,9 +436,9 @@ describe("assemblePrompt order with the new blocks", () => {
   it("the system prompt is untouched by any preference — the cache prefix holds", () => {
     // The load-bearing property of the whole module: /output-style must not move
     // a single byte of the system prompt. Structurally guaranteed now (the header
-    // is built from the catalogue and CLAUDE.md alone), pinned so a future
+    // is built from the catalogue and the instructions file alone), pinned so a future
     // "helpful" parameter cannot re-couple them.
-    const opts = { toolNames: ["file_read"], claudeMd: "# Rules" };
+    const opts = { toolNames: ["file_read"], instructions: { file: "CLAUDE.md", content: "# Rules" } };
     const header = buildStaticHeader(opts);
     for (const style of OUTPUT_STYLES) {
       void buildPreferencesBlock({ outputStyle: style });

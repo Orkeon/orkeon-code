@@ -1,13 +1,18 @@
-// Context gathering for the main-loop prompt assembly (F4) — orchestration + IO.
-// Collects the data the pure ../domain/prompt-assembly renders: CLAUDE.md, the
-// 4 memory categories, git context, and the budget/cost gauge. Every read is
-// best-effort: a missing tool or file yields an omitted block, never a crash.
+// Context gathering for the main-loop prompt assembly — orchestration + IO.
+// Collects the data the pure ../domain/prompt-assembly renders: the project's
+// instructions file, the memory categories, git context, the budget/cost gauge,
+// the session preferences and registries. Every read is best-effort: a missing
+// tool or file yields an omitted block, never a crash.
 //
-// No onCrewStart seeding: the body performs ONE act() per crew run, so a lazy
-// gather here costs the same — the DeepSeek cache plays on the byte-stability
-// of the assembled header, not on avoiding these reads.
+// The body performs ONE act() per crew run, so gathering here, lazily, costs the
+// same as seeding at crew start — the prefix cache plays on the byte-stability of
+// the assembled header, not on avoiding these reads.
 
 import type { Files, MemoryStore, SessionStore, Shell, Telemetry } from "../../../shared/application/ports.ts";
+import type { ConfigStore } from "../../../shared/application/config-store.ts";
+import { INSTRUCTIONS_FILES } from "../../../shared/domain/instructions-file.ts";
+import type { InstructionsFile } from "../../../shared/domain/instructions-file.ts";
+import { ANSWER_LANGUAGE_CONFIG_KEY } from "../../../shared/domain/agent-policy/output-styles.ts";
 import { readJsonArray } from "../../../shared/application/session-state.ts";
 import {
   OUTPUT_STYLE_STATE_KEY, HOOKS_STATE_KEY,
@@ -19,13 +24,25 @@ import { MEMORY_CATEGORIES } from "../../../shared/domain/agent-policy/memory-ca
 import { resolveBehaviorFlags } from "../../../shared/domain/agent-policy/behavior-flags.ts";
 import type { BehaviorFlags } from "../../../shared/domain/agent-policy/behavior-flags.ts";
 
-/** CLAUDE.md written by /init (project-init crew); undefined when absent. */
-export async function readClaudeMd(files: Files): Promise<string | undefined> {
+/** The project's instructions file: the first of INSTRUCTIONS_FILES present and
+ *  not blank (AGENTS.md, then CLAUDE.md); undefined when the project has none. */
+export async function readInstructionsFile(files: Files): Promise<InstructionsFile | undefined> {
+  for (const file of INSTRUCTIONS_FILES) {
+    try {
+      const content = await files.read("/workspace/" + file);
+      if (content.trim().length > 0) return { file, content };
+    } catch { /* absent or unreadable → the next one */ }
+  }
+  return undefined;
+}
+
+/** The `answer.language` setting; "" when unset, unreadable or without a store. */
+export async function readLanguage(config: Pick<ConfigStore, "readValue"> | undefined): Promise<string> {
+  if (config === undefined) return "";
   try {
-    const content = await files.read("/workspace/CLAUDE.md");
-    return content.trim().length > 0 ? content : undefined;
+    return String((await config.readValue(ANSWER_LANGUAGE_CONFIG_KEY)).value ?? "").trim();
   } catch {
-    return undefined;
+    return "";
   }
 }
 
@@ -80,7 +97,7 @@ export async function readGauge(session: SessionStore, telemetry: Telemetry): Pr
   return { usedTokens, contextWindow, costUsd, totalTokens, totalCalls };
 }
 
-// ── B-7: the session preferences and registries the assembly renders ──
+// ── The session preferences and registries the assembly renders ──
 //
 // These reads are best-effort in the same way as the rest of this module: an
 // unavailable session store yields an omitted block, never a failed turn. The
@@ -100,7 +117,7 @@ export async function readOutputStyle(session: SessionStore): Promise<string> {
 }
 
 /**
- * B-9 / B-10: the five behavior flags plus the /model override, in ONE read.
+ * The five behavior flags plus the /model override, in ONE read.
  *
  * Read together and resolved by the pure `resolveBehaviorFlags` so the turn gets
  * a consistent snapshot and every fallback lives in one tested place. A session
@@ -121,7 +138,7 @@ export async function readBehaviorFlags(session: SessionStore): Promise<Behavior
   return resolveBehaviorFlags({ effort, passes, fast, proactive, model });
 }
 
-/** The declared /hooks registry (B-7 — rendered with its not-firing status). */
+/** The declared /hooks registry (rendered with its not-running status). */
 export async function readHooks(session: SessionStore): Promise<Array<{ event?: string; command?: string }>> {
   return (await readJsonArray(session, HOOKS_STATE_KEY))
     .filter((h): h is { event?: string; command?: string } => !!h && typeof h === "object");

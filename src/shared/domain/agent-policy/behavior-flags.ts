@@ -96,8 +96,8 @@ export function fastModeDrops(fast: boolean): readonly DroppableBlock[] {
  * furthest thing from the task is the easiest for a model to lose.
  */
 export const PROACTIVE_CLAUSE =
-  "(Proactive mode: after answering, add a short 'Next steps' list of at most three " +
-  "concrete follow-ups you would suggest. Omit it when the task is self-contained.)";
+  "(Proactive mode: after the answer, suggest at most three concrete next steps under " +
+  "'Next steps'; leave the list out when the work is self-contained.)";
 
 export function proactiveSuffix(on: boolean): string {
   return on ? `\n\n${PROACTIVE_CLAUSE}` : "";

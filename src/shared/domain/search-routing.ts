@@ -68,10 +68,10 @@ export function describeSearchRouting(): string {
   return (
     `- Code (${TREE_CODE_EXTENSIONS.join(" ")}): \`codebase_search\` (hybrid), then ` +
     "`symbol_source`/`flow_trace` on the hits.\n" +
-    `- Everything else (docs, configs, data — ${RAG_DOCUMENT_EXTENSIONS.slice(0, 5).join(" ")}, ` +
+    `- Everything else (documents, configuration, data, other languages — ${RAG_DOCUMENT_EXTENSIONS.slice(0, 5).join(" ")}, ` +
     "unknown extensions): `rag_search` with `collection: \"" + WORKSPACE_DOCS_COLLECTION + "\"`. " +
-    "If it returns nothing for files you KNOW exist, ingest first — " +
-    "`rag_ingest {collection: \"" + WORKSPACE_DOCS_COLLECTION + "\", sources: [\"/workspace/**/*.md\"]}` — " +
-    "then search again. The code index cannot hold non-code files, so do not retry there."
+    "If it returns nothing for files you KNOW exist, ingest them first — " +
+    "`rag_ingest {collection: \"" + WORKSPACE_DOCS_COLLECTION + "\", sources: [globs of those files, such as " +
+    "\"/workspace/docs/**/*.md\"]}` — then search again. The code index cannot hold these files, so do not retry there."
   );
 }

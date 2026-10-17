@@ -26,7 +26,8 @@
 
 import { AgentBuilder, CrewBuilder, publishCrew, inputs } from "../../shared/infrastructure/globals.ts";
 import {
-  orkeonFiles, orkeonMemoryStore, orkeonProgress, orkeonSessionIo, orkeonShell, orkeonTelemetry, orkeonToolCalls,
+  orkeonConfigStore, orkeonFiles, orkeonMemoryStore, orkeonProgress, orkeonSessionIo, orkeonShell, orkeonTelemetry,
+  orkeonToolCalls,
 } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { createRunState } from "../../shared/infrastructure/orkeon/run-state.ts";
@@ -44,6 +45,7 @@ const files = orkeonFiles();
 const memory = orkeonMemoryStore();
 const ports = {
   shell: orkeonShell(), session, files, telemetry: orkeonTelemetry(), memory, tools: orkeonToolCalls(),
+  config: orkeonConfigStore(),
 };
 
 const coder = AgentBuilder()

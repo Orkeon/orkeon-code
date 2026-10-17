@@ -3,7 +3,7 @@
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 
-import { readClaudeMd, readGauge, readHooks, readMemoryByCategory } from "./context-gather.ts";
+import { readInstructionsFile, readGauge, readHooks, readLanguage, readMemoryByCategory } from "./context-gather.ts";
 import { MAX_MEMORY_ENTRIES_PER_CATEGORY } from "../domain/prompt-assembly.ts";
 import { HOOKS_STATE_KEY } from "../../../shared/domain/session-keys.ts";
 import { FakeFiles } from "../../../../tests/support/fake-files.ts";
@@ -11,18 +11,41 @@ import { FakeMemoryStore } from "../../../../tests/support/fake-memory-store.ts"
 import { FakeSessionStore } from "../../../../tests/support/fake-session-store.ts";
 import { FakeTelemetry } from "../../../../tests/support/fake-telemetry.ts";
 
-describe("readClaudeMd", () => {
-  it("reads the instructions file", async () => {
+describe("readInstructionsFile", () => {
+  it("reads AGENTS.md first", async () => {
+    const files = new FakeFiles();
+    files.files.set("/workspace/AGENTS.md", "# Agents\n");
+    files.files.set("/workspace/CLAUDE.md", "# Legacy\n");
+    deepStrictEqual(await readInstructionsFile(files), { file: "AGENTS.md", content: "# Agents\n" });
+  });
+
+  it("falls back to CLAUDE.md, past a blank AGENTS.md", async () => {
     const files = new FakeFiles();
     files.files.set("/workspace/CLAUDE.md", "# Project\n");
-    strictEqual(await readClaudeMd(files), "# Project\n");
+    deepStrictEqual(await readInstructionsFile(files), { file: "CLAUDE.md", content: "# Project\n" });
+    files.files.set("/workspace/AGENTS.md", " \n");
+    deepStrictEqual(await readInstructionsFile(files), { file: "CLAUDE.md", content: "# Project\n" });
   });
 
   it("omits an absent or blank file", async () => {
     const files = new FakeFiles();
-    strictEqual(await readClaudeMd(files), undefined);
+    strictEqual(await readInstructionsFile(files), undefined);
     files.files.set("/workspace/CLAUDE.md", " \n");
-    strictEqual(await readClaudeMd(files), undefined);
+    strictEqual(await readInstructionsFile(files), undefined);
+  });
+});
+
+describe("readLanguage", () => {
+  const store = (value: string | undefined) => ({
+    readValue: async (key: string) => ({ key, value, source: "file" as const }),
+  });
+  it("reads answer.language, trimmed", async () => {
+    strictEqual(await readLanguage(store(" French ")), "French");
+  });
+  it("is empty without a store, a value, or a readable store", async () => {
+    strictEqual(await readLanguage(undefined), "");
+    strictEqual(await readLanguage(store(undefined)), "");
+    strictEqual(await readLanguage({ readValue: async () => { throw new Error("unreadable"); } }), "");
   });
 });
 

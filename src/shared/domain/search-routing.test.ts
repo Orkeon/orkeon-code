@@ -1,5 +1,5 @@
 // Search routing by file type (tree vs rag). Run:
-//   node_modules/.bin/tsx --test shared/domain/search-routing.test.ts
+//   node --test src/shared/domain/search-routing.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, ok } from "node:assert";
 
@@ -84,5 +84,7 @@ describe("describeSearchRouting — the playbook renders THIS", () => {
     ok(text.includes("rag_ingest"));
     // The one instruction that stops the wrong-tool retry loop:
     ok(text.includes("do not retry there"));
+    // The ingest example names the files to ingest, not only Markdown.
+    ok(text.includes("globs of those files"));
   });
 });

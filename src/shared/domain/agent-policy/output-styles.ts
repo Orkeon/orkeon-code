@@ -6,3 +6,6 @@ export const OUTPUT_STYLES = ["default", "concise", "explanatory", "learning"] a
 export function isOutputStyle(token: unknown): boolean {
   return (OUTPUT_STYLES as readonly string[]).includes(String(token ?? ""));
 }
+
+/** The setting naming the language the assistant answers in (`/config set answer.language French`). */
+export const ANSWER_LANGUAGE_CONFIG_KEY = "answer.language";

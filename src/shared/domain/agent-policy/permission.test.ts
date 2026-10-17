@@ -118,8 +118,9 @@ describe("isReadOnly", () => {
 });
 
 describe("permissionNote / buildActPrompt", () => {
-  it("plan note forbids mutation", () => {
+  it("plan note forbids mutation and asks for an assessment or a plan", () => {
     ok(permissionNote("plan").includes("MUST NOT modify"));
+    ok(permissionNote("plan").includes("an assessment or a plan"));
   });
   it("dontAsk note forbids mutation", () => {
     ok(permissionNote("dontAsk").includes("MUST NOT modify"));
@@ -128,11 +129,12 @@ describe("permissionNote / buildActPrompt", () => {
     for (const mode of ["default", "acceptEdits", "bypassPermissions"]) {
       strictEqual(
         permissionNote(mode),
-        `(Permission mode: ${mode}. You may edit files, fetch over the network, and run shell commands.)`,
+        `(Permission mode: ${mode}. You may edit files, run shell commands and fetch over the network; ` +
+          "the host may ask the user before a call.)",
       );
     }
   });
-  it("the note tracks the network class it now grants or withholds (B-8)", () => {
+  it("the note tracks the network class it grants or withholds", () => {
     // The catalogue is the enforcement; the note is what the model is told. The
     // two drifting apart is how a model spends a turn planning a fetch it cannot make.
     ok(permissionNote("plan").includes("fetch anything over the network"));

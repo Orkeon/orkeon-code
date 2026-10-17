@@ -14,6 +14,7 @@
 import { PERMISSION_FALLBACK_CONFIG_KEY, PERMISSION_MODES } from "./permission-modes.ts";
 import { EXTRA_TOOLS_CONFIG_KEY, extraToolsProblem } from "./agent-policy/extra-tools.ts";
 import { VOICE_REPLY_CONFIG_KEY } from "./speech.ts";
+import { ANSWER_LANGUAGE_CONFIG_KEY } from "./agent-policy/output-styles.ts";
 
 export interface ConfigKeySpec {
   key: string;
@@ -89,6 +90,13 @@ export const CONFIG_KEYS: readonly ConfigKeySpec[] = [
       "Omitted = 'off'.",
     allowed: ["on", "off"],
     consumedBy: "/assistant, /summary, /transcribe --then, /voice send and /voice --go (each answer read aloud)",
+  },
+  {
+    key: ANSWER_LANGUAGE_CONFIG_KEY,
+    description:
+      "The language the assistant answers in, e.g. 'French', unless the user writes in another one. " +
+      "Omitted = the language of each request.",
+    consumedBy: "/assistant, /summary, /transcribe --then, /voice send and /voice --go (the main loop's prompt)",
   },
 ];
 
