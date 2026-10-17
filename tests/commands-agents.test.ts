@@ -32,7 +32,7 @@ describe("/agents list", () => {
     deepStrictEqual(view.table, describeAgentRows(["main-loop", "code-review"], [
       { name: "tester", role: "QA", goal: "find bugs", tools: [] },
     ]));
-    strictEqual(view.text, `file: ${AGENTS_FILE_PATH} (survives /reset-session)\n${NOT_DISPATCHED}`);
+    strictEqual(view.text, `file: ${AGENTS_FILE_PATH} (survives /clear)\n${NOT_DISPATCHED}`);
     deepStrictEqual(await run("list"), view);
   });
 

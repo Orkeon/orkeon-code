@@ -3,8 +3,8 @@
 import type { Finding } from "../../../shared/domain/types.ts";
 import type { ReviewLens } from "../domain/lenses.ts";
 
-// The lens list and its `review.lenses` selection moved to ../domain/lenses.ts
-// with B-9; re-exported so existing importers keep working.
+// The lens list and its `review.lenses` selection live in ../domain/lenses.ts,
+// with their own test; re-exported so existing importers keep working.
 export { LENSES, selectLenses, lensKeys, describeReviewPlan } from "../domain/lenses.ts";
 export type { ReviewLens, LensSelection } from "../domain/lenses.ts";
 

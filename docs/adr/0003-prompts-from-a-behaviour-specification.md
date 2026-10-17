@@ -32,14 +32,14 @@ Orkeon Code's prompts were in two states before the first release.
   release.
 - **Tell the model what the runtime does.** The header states the runtime's real limits: tool calls run one after the
   other, a long result is cut, `file_read` has no start position, the shell runs an allow-list. What only the
-  runtime can fix (tool descriptions, a notice in a cut result, parallel calls) is asked of Orkeon, not papered over
+  runtime can fix (tool descriptions, a start position for file_read, parallel calls) is asked of Orkeon, not papered
   in the prompt.
 - **The gate stays strict.** The provenance baseline is empty, and CI runs `npm run check:provenance -- --strict`, so
   a borrowed text cannot come back unnoticed.
 
 ## Consequences
 
-- The header grows from about 1 400 to about 2 200 tokens (5 566 to 8 961 characters in the writing modes, under the
+- The header grows from about 1 400 to about 2 200 tokens (5 566 to 8 985 characters in the writing modes, under the
   9 000-character ceiling). It stays identical per mode, so a provider's prefix cache pays for it once per session.
 - A prompt change is a specification change first: a review reads the specification, the pinned markers and the
   rendered diff.

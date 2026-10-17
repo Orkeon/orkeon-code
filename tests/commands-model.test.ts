@@ -93,7 +93,7 @@ describe("/model <name>", () => {
     deepStrictEqual(await run("deepseek-chat"), {
       text: "model set to 'deepseek-chat' — it applies from the next /assistant turn, no relaunch.\n" +
         "It travels over the configured provider, so it must be a model that provider serves; " +
-        "/reset-session (or /model reset) returns to the boot model.",
+        "/clear (or /model reset) returns to the boot model.",
     });
     strictEqual(session.state.get(MODEL_PREFERENCE_STATE_KEY), "deepseek-chat");
     deepStrictEqual(log.lines, []);

@@ -124,7 +124,7 @@ describe("layerConfig — ACCEPTANCE 2 & 3: session over file", () => {
   });
 
   it("ACCEPTANCE 3 — dropping the session layer restores the file value", () => {
-    // What /reset-session does: the bag goes, the file stays.
+    // What /clear does: the bag goes, the file stays.
     const file = { "permissions.fallback": "plan" };
     const before = resolveConfigEntry("permissions.fallback", file, { "permissions.fallback": "dontAsk" });
     const after = resolveConfigEntry("permissions.fallback", file, {});

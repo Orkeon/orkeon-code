@@ -31,7 +31,7 @@ defineCommand({
     return ctx.continue(
       `reasoning effort set to '${requested}' — the next /assistant turn gets ` +
       `${EFFORT_MAX_ITERATIONS[requested as (typeof LEVELS)[number]]} act() iterations ` +
-      "(tool-calling persistence, not a provider thinking budget). Session-scoped; /reset-session clears it.",
+      "(tool-calling persistence, not a provider thinking budget). Session-scoped; /clear clears it.",
     );
   },
 });

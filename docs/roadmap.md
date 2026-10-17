@@ -18,7 +18,7 @@ What Orkeon Code does not do yet, in the order we expect to address it. Items ma
 - **Persistent sessions.** Resume a conversation after the REPL exits; keep the session mode and the permission
   rules across sessions.
 - **Hooks that fire.** `/hooks` stores declarations; the engine that runs them is missing.
-- **Cost and usage.** Real cost figures per provider, cache ratio, token counting for `/ctx-viz` and `/extra-usage`.
+- **Cost and usage.** Real cost figures per provider, cache ratio, token counting for `/context` and `/usage`.
 
 ## Later
 

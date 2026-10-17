@@ -124,7 +124,7 @@ describe("createSessionStore — budget", () => {
     deepStrictEqual(await createSessionStore(tools).readBudget(), { used: 5, window: 10 });
   });
 
-  it("reads the counts as numbers, as /ctx-viz shows them", async () => {
+  it("reads the counts as numbers, as /context shows them", async () => {
     const tools = new FakeTools();
     tools.replies.tokenBudget = { used_tokens: "500", context_window_tokens: "2000" };
     deepStrictEqual(await createSessionStore(tools).readBudget(), { used: 500, window: 2000 });

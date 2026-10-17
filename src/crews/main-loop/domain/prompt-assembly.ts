@@ -160,8 +160,8 @@ const REFUSAL_NOTE =
 function describeToolRealities(tools: readonly string[]): string {
   const lines = [
     "Calls run one at a time, in the order you make them. A long result is cut before you " +
-      "see it, and a cut result can look complete: ask for less, narrow a search, filter a " +
-      "command's output, read a large file in parts.",
+      "see it, with a note saying how much was left out: when you see it, ask for less — " +
+      "narrow a search, filter a command's output, read a large file in parts.",
   ];
   if (tools.includes("file_read")) {
     const later = tools.includes("shell_command")

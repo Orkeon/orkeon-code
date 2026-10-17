@@ -2,7 +2,7 @@
 //
 // B-6: the original's `/config` operates over a VALIDATED key space with
 // settings-file persistence (baseline 04 §/config). Exp07's was a free-form
-// session map: any key was accepted, nothing survived `/reset-session`, and a
+// session map: any key was accepted, nothing survived `/clear`, and a
 // typo'd key was indistinguishable from a real one — it was simply stored and
 // never read by anything.
 //
@@ -170,7 +170,7 @@ export function validateConfigEntry(key: unknown, value: unknown): ValueVerdict 
  * Layers the session map over the file map, key by key.
  *
  * The session wins where it is set: a `/config set --session` is a deliberate,
- * temporary override of a persisted setting, and `/reset-session` drops it back to
+ * temporary override of a persisted setting, and `/clear` drops it back to
  * the file value. Unknown keys present in either map are NOT returned — they can
  * only be residue from before the schema existed, and surfacing them as effective
  * settings would suggest something reads them.

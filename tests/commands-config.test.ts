@@ -34,7 +34,7 @@ describe("/config list", () => {
       value: s.key === KEY ? "file-model" : s.key === "review.lenses" ? "security" : "(unset)",
       source: s.key === KEY ? "file" : s.key === "review.lenses" ? "session" : "unset",
     })));
-    strictEqual(view.text, `file: ${CONFIG_FILE_PATH} — session overrides it until /reset-session.`);
+    strictEqual(view.text, `file: ${CONFIG_FILE_PATH} — session overrides it until /clear.`);
     deepStrictEqual(await run("list"), view);
   });
 
@@ -96,7 +96,7 @@ describe("/config set", () => {
   it("writes the session layer with --session, wherever the flag sits", async () => {
     const { files, run, sessionMap } = setup();
     deepStrictEqual(await run("set", KEY, "--session", "m2"), {
-      text: `${KEY} = m2 [session] — overrides the file until /reset-session.`,
+      text: `${KEY} = m2 [session] — overrides the file until /clear.`,
     });
     deepStrictEqual(sessionMap(), { [KEY]: "m2" });
     deepStrictEqual(files.writes, []);

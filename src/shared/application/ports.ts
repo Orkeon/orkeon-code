@@ -90,7 +90,7 @@ export interface SnipResult {
 }
 
 /** The session: its conversation buffer, its state bag (string values that survive
- *  crew runs and are cleared by /reset-session), the context window's budget and
+ *  crew runs and are cleared by /clear), the context window's budget and
  *  the session's title. */
 export interface SessionStore {
   readMessages(): Promise<SessionMessages>;

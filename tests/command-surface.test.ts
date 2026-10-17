@@ -10,7 +10,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const COMMANDS_DIR = fileURLToPath(new URL("../src/commands", import.meta.url));
-// 49: twelve commands folded into others or retired, /verify added — /reset-session
+// 49: twelve commands folded into others or retired, /verify added — /clear
 // is an alias of /clear; /version, /env, /session and /upgrade of /status; /ctx-viz
 // of /context; /extra-usage of /usage; /bughunter became `/review --lens
 // correctness`, /force-snip `/compact --snip`; /tag (a /memory add), /sandbox-toggle

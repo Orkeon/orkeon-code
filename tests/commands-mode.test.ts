@@ -13,7 +13,7 @@ import { FakeFiles } from "./support/fake-files.ts";
 import { FakeLogger } from "./support/fake-logger.ts";
 import { FakeSessionStore } from "./support/fake-session-store.ts";
 
-const SET_NOTE = `(prompts without a "mode:" prefix now run in it; /reset-session restores 'default').`;
+const SET_NOTE = `(prompts without a "mode:" prefix now run in it; /clear restores 'default').`;
 const STRIPPED = (mode: string) =>
   `info: entering '${mode}': mutating tools (file_write, shell_command) stripped from the catalogue`;
 
@@ -85,7 +85,7 @@ describe("/plan — togglePlanMode", () => {
 
   it("LEAVES plan when already in it — the toggle the baseline specifies", () => {
     // Pre-B-11 this wrote "plan" unconditionally: /plan twice left the session
-    // read-only with no way out but /mode or /reset-session, reporting success both
+    // read-only with no way out but /mode or /clear, reporting success both
     // times.
     deepStrictEqual(togglePlanMode("plan"), { mode: "default", entering: false });
   });

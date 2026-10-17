@@ -1,7 +1,7 @@
 // Session-scoped toggles shared by the slash commands (/fast, /proactive). Values
 // live in the session state bag (session_store
 // get_state/set_state) so they survive crew runs and are cleared by
-// /reset-session. Each helper takes the session it works on, so a test runs it
+// /clear. Each helper takes the session it works on, so a test runs it
 // over FakeSessionStore; the entry points pass orkeonSessionIo(). Lives under
 // commands/_lib/ — the loader's SearchPattern is "*.cmd.ts", so this file is
 // never loaded as a command.
@@ -43,7 +43,7 @@ export function toggleCommand(
       const current = await readFlag(session, spec.key);
       const next = token === "on" ? true : token === "off" ? false : !current;
       await session.writeState(spec.key, String(next));
-      return ctx.continue(`${spec.name}: ${next ? "on" : "off"} (${spec.note}; /reset-session clears it).`);
+      return ctx.continue(`${spec.name}: ${next ? "on" : "off"} (${spec.note}; /clear clears it).`);
     },
   };
 }

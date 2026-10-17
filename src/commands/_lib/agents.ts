@@ -2,7 +2,7 @@
 // (baseline 04 §/agents: "…stored in `.orkeon/agents.json`").
 //
 // A FILE, not session state: a saved agent is meant to outlive the session, so
-// /reset-session must not take someone's definitions with it. It sits beside
+// /clear must not take someone's definitions with it. It sits beside
 // config.json (B-6) under /workspace/.orkeon/, hand-editable on purpose.
 //
 // The listing merges two sources and labels them, because only one is mutable:
@@ -63,7 +63,7 @@ export async function runAgents(tokens: string[], deps: AgentsDeps): Promise<Com
   switch (sub) {
     case "list": {
       const { agents, dropped, malformed } = await readRegistry(files);
-      const notes = [`file: ${AGENTS_FILE_PATH} (survives /reset-session)`];
+      const notes = [`file: ${AGENTS_FILE_PATH} (survives /clear)`];
       if (dropped.length > 0) {
         notes.push(`⚠ ${dropped.length} stored entr(y/ies) ignored — missing role or goal: ${dropped.join(", ")}`);
       }

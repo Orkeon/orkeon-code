@@ -4,7 +4,7 @@
 // below the cache boundary; baseline 04 §/output-style is the command).
 //
 // Shaped exactly like /mode: one session-state key, `show` displays without
-// changing, /reset-session restores the default. Deliberately NOT a /config key —
+// changing, /clear restores the default. Deliberately NOT a /config key —
 // two owners for one setting is how a value ends up read from the layer nobody
 // wrote to.
 import { rawTokens } from "./_lib/args.ts";
@@ -42,7 +42,7 @@ defineCommand({
     await session.writeState(OUTPUT_STYLE_STATE_KEY, requested);
     return ctx.continue(
       `output style set to '${requested}' — it applies from the next /assistant turn ` +
-      "(/reset-session restores 'default').",
+      "(/clear restores 'default').",
     );
   },
 });

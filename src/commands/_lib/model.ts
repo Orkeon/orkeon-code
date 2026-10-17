@@ -12,7 +12,7 @@
 //   - the override travels over the SAME provider, so it can only name a model
 //     that provider serves ('claude-…' on a DeepSeek endpoint is a 4xx from the
 //     API, not a local error);
-//   - the preference is session state, so /reset-session drops it back to the
+//   - the preference is session state, so /clear drops it back to the
 //     boot model.
 //
 // Framework note (the B-10 verification step): `LlmConfigOverride` — the Domain
@@ -118,6 +118,6 @@ export async function runModel(tokens: string[], deps: ModelDeps): Promise<Comma
   return {
     text: `model set to '${requested}' — it applies from the next /assistant turn, no relaunch.\n` +
       "It travels over the configured provider, so it must be a model that provider serves; " +
-      "/reset-session (or /model reset) returns to the boot model.",
+      "/clear (or /model reset) returns to the boot model.",
   };
 }
