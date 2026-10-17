@@ -8,7 +8,7 @@
 // (git-commit:45, project-init:79, init-verifiers:78). This centralises
 // that, and adds the thinking/preamble salvage DeepSeek output needs.
 //
-// Run tests: node_modules/.bin/tsx --test shared/domain/strip.test.ts
+// Run tests: node --test src/shared/domain/strip.test.ts
 
 // Remove a single pair of code fences WRAPPING the whole text, e.g. a model
 // that answered ```markdown\n<doc>\n``` instead of the bare document. Only the

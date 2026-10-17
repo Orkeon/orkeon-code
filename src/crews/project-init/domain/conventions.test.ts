@@ -1,4 +1,4 @@
-// Run: node_modules/.bin/tsx --test crews/project-init/domain/conventions.test.ts
+// Run: node --test src/crews/project-init/domain/conventions.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 

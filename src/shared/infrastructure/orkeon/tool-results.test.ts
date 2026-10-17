@@ -1,5 +1,5 @@
 // Unit tests for the tool-result normaliser (snake AND Pascal casing). Run:
-//   node_modules/.bin/tsx --test shared/infrastructure/orkeon/tool-results.test.ts
+//   node --test src/shared/infrastructure/orkeon/tool-results.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok } from "node:assert";
 

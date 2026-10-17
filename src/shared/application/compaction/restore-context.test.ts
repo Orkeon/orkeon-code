@@ -1,6 +1,6 @@
 // Post-compaction restoration of files and skills over FakeFiles and
 // FakeSessionStore. Run:
-//   node_modules/.bin/tsx --test shared/application/compaction/restore-context.test.ts
+//   node --test src/shared/application/compaction/restore-context.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual } from "node:assert";
 

@@ -1,5 +1,5 @@
 // The project-init reads over FakeFiles. Run:
-//   node_modules/.bin/tsx --test crews/project-init/application/detect.test.ts
+//   node --test src/crews/project-init/application/detect.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 

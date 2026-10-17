@@ -1,5 +1,5 @@
 // JSON values of the state bag over FakeSessionStore. Run:
-//   node_modules/.bin/tsx --test shared/application/session-state.test.ts
+//   node --test src/shared/application/session-state.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 

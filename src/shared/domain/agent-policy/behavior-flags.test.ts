@@ -1,5 +1,5 @@
 // B-9 — the five behavior flags' semantics. Run:
-//   node_modules/.bin/tsx --test shared/domain/agent-policy/behavior-flags.test.ts
+//   node --test src/shared/domain/agent-policy/behavior-flags.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok } from "node:assert";
 

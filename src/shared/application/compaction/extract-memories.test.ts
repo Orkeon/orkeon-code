@@ -1,5 +1,5 @@
 // Pre-compaction memory extraction over FakeLlm and FakeMemoryStore. Run:
-//   node_modules/.bin/tsx --test shared/application/compaction/extract-memories.test.ts
+//   node --test src/shared/application/compaction/extract-memories.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

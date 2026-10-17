@@ -1,5 +1,5 @@
 // Unit tests for severity ordering + dedup/rank. Run:
-//   node_modules/.bin/tsx --test shared/domain/severity.test.ts
+//   node --test src/shared/domain/severity.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 

@@ -1,5 +1,5 @@
 // Moved from crews/session-compact/domain/ (F3.2) + new memory-extraction cases.
-// Run: node_modules/.bin/tsx --test shared/domain/compaction.test.ts
+// Run: node --test src/shared/domain/compaction.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok } from "node:assert";
 

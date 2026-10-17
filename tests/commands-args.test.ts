@@ -1,6 +1,6 @@
 // Tests for command arg parsing. Lives in tests/ (outside the "*.cmd.ts" scan
 // AND outside commands/ for belt-and-suspenders). Run:
-//   node_modules/.bin/tsx --test tests/commands-args.test.ts
+//   node --test tests/commands-args.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok } from "node:assert";
 

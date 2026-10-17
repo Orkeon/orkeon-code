@@ -1,5 +1,5 @@
 // The commit use case over FakeShell, FakeFiles, FakeLlm and FakeCrewMemory. Run:
-//   node_modules/.bin/tsx --test crews/git-commit/application/draft.test.ts
+//   node --test src/crews/git-commit/application/draft.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok, rejects } from "node:assert";
 

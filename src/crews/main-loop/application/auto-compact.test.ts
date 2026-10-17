@@ -1,5 +1,5 @@
 // The auto-compaction breaker and its storage, over the session and run-state fakes. Run:
-//   node_modules/.bin/tsx --test crews/main-loop/application/auto-compact.test.ts
+//   node --test src/crews/main-loop/application/auto-compact.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 

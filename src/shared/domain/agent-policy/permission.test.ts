@@ -1,4 +1,4 @@
-// Run: node_modules/.bin/tsx --test shared/domain/agent-policy/permission.test.ts
+// Run: node --test src/shared/domain/agent-policy/permission.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, ok, deepStrictEqual } from "node:assert";
 

@@ -1,5 +1,5 @@
 // The MemoryStore adapter over a FakeTools memory_store. Run:
-//   node_modules/.bin/tsx --test shared/infrastructure/orkeon/memory-store.test.ts
+//   node --test src/shared/infrastructure/orkeon/memory-store.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, rejects } from "node:assert";
 

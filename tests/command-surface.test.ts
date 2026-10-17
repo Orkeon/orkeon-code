@@ -2,7 +2,7 @@
 // declares exactly one primary name, names are unique (the loader's
 // ValidateGlobalUniqueness would otherwise skip them as conflicts), match the
 // loader's kebab-case rule, and the surface holds the post-E-1 count.
-// Run: node_modules/.bin/tsx --test tests/command-surface.test.ts
+// Run: node --test tests/command-surface.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, ok, match } from "node:assert";
 import { readFileSync, readdirSync } from "node:fs";

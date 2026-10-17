@@ -1,5 +1,5 @@
 // The attached /skills over FakeSessionStore and FakeFiles. Run:
-//   node_modules/.bin/tsx --test shared/application/attached-skills.test.ts
+//   node --test src/shared/application/attached-skills.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual } from "node:assert";
 

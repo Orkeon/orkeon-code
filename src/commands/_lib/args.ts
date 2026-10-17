@@ -1,4 +1,4 @@
-// Pure argument parsing for slash commands — no IO, unit-tested under tsx
+// Pure argument parsing for slash commands — no IO, unit-tested with node --test
 // (tests live in ../../tests/, outside the "*.cmd.ts" scan). Extracted from
 // memory.cmd.ts:12-37 and assistant.cmd.ts:9-13.
 

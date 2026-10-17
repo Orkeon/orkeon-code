@@ -1,5 +1,5 @@
 // Context gathering over the fakes of the ports it receives. Run:
-//   node_modules/.bin/tsx --test crews/main-loop/application/context-gather.test.ts
+//   node --test src/crews/main-loop/application/context-gather.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 

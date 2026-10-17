@@ -1,4 +1,4 @@
-// Run: node_modules/.bin/tsx --test crews/code-review/domain/report.test.ts
+// Run: node --test src/crews/code-review/domain/report.test.ts
 // Covers the dedup→rank→render path end-to-end (rank via shared/severity).
 import { describe, it } from "node:test";
 import { strictEqual, ok } from "node:assert";

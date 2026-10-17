@@ -1,5 +1,5 @@
 // The CodeIndex adapter over the FakeTools code-intelligence tools. Run:
-//   node_modules/.bin/tsx --test shared/infrastructure/orkeon/code-index.test.ts
+//   node --test src/shared/infrastructure/orkeon/code-index.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, rejects } from "node:assert";
 
