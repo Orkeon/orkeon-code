@@ -1,0 +1,32 @@
+{
+  "_comment": "The markers of another product's material, read by scripts/check-provenance.mjs and tests/prompt-contract.test.ts. Each entry is a regular expression source and its flags.",
+  "markers": [
+    {
+      "source": "claude[ _-]?code",
+      "flags": "i"
+    },
+    {
+      "source": "claude-code-system-prompts",
+      "flags": "i"
+    },
+    {
+      "source": "@anthropic-ai\\/",
+      "flags": "i"
+    },
+    {
+      "source": "piebald",
+      "flags": "i"
+    },
+    {
+      "source": "\\btengu\\b",
+      "flags": "i"
+    },
+    {
+      "source": "\\b2\\.1\\.88\\b",
+      "flags": ""
+    }
+  ],
+  "references": [
+    "https://github.com/Piebald-AI/claude-code-system-prompts"
+  ]
+}
