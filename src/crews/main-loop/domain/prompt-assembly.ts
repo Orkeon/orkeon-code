@@ -17,6 +17,7 @@ import { MEMORY_CATEGORIES } from "../../../shared/domain/agent-policy/memory-ca
 import { isOutputStyle } from "../../../shared/domain/agent-policy/output-styles.ts";
 import { pressureTier } from "../../../shared/domain/compaction-thresholds.ts";
 import type { InstructionsFile } from "../../../shared/domain/instructions-file.ts";
+import { isCompactBoundary } from "../../../shared/domain/compaction.ts";
 
 /** Sliding window over the session history (what exceeds it is the compaction's job). */
 export const HISTORY_WINDOW = 50;
@@ -309,10 +310,13 @@ const HISTORY_INTRO =
   "Request. Only what was said is kept, not tool results: read a file again before editing " +
   "or quoting it. A [compacted] message stands for turns that were summarised.";
 
-/** Render the windowed history as a transcript block ("" when empty). */
+/** Render the windowed history as a transcript block ("" when empty). The
+ *  compaction boundary is bookkeeping for the host (counting compactions), left
+ *  out: the summary message that follows it says what it stands for. */
 export function buildHistoryBlock(messages: SessionMsg[]): string {
-  if (messages.length === 0) return "";
-  return "## Conversation so far\n" + HISTORY_INTRO + "\n" + messages.map((m) => `${m.role}: ${m.content}`).join("\n");
+  const shown = messages.filter((m) => !isCompactBoundary(m));
+  if (shown.length === 0) return "";
+  return "## Conversation so far\n" + HISTORY_INTRO + "\n" + shown.map((m) => `${m.role}: ${m.content}`).join("\n");
 }
 
 // ── Session preferences and registries ──────────────────────────────────

@@ -1,11 +1,12 @@
 // After a full synthesis, the compaction re-injects the working context the
-// summary would lose: the files the conversation touched last (E-4) and the
-// attached skills (B-13), each under its own token budget (chars/4 heuristic).
+// summary would lose: the files the conversation touched last and the attached
+// skills, each under its own token budget (chars/4 heuristic).
 
 import type { Files, SessionStore } from "../ports.ts";
 import type { SessionMsg } from "../../domain/types.ts";
 import {
   buildRestoredFileMessage,
+  buildRestoredFileNotice,
   buildRestoredSkillMessage,
   extractRecentFilePaths,
 } from "../../domain/compaction.ts";
@@ -20,10 +21,12 @@ import {
 import { readAttachedSkills } from "../attached-skills.ts";
 
 /**
- * E-4: read back up to POST_COMPACT_MAX_FILES_TO_RESTORE recently-mentioned
- * files (recency order) under the 50 k-token restore budget (5 k per file,
- * chars/4 heuristic). Unreadable/gone paths are skipped silently — the
- * harvest regex is conservative but the filesystem stays the arbiter.
+ * Read back up to POST_COMPACT_MAX_FILES_TO_RESTORE recently-mentioned files
+ * (recency order) under the restore budget. A file larger than the per-file cap,
+ * or than what the budget has left, comes back as its path with a note, never as
+ * a cut copy: a cut copy reads as the whole file and could feed a whole-file
+ * write. Unreadable/gone paths are skipped silently — the harvest regex is
+ * conservative but the filesystem stays the arbiter.
  */
 export async function restoreRecentFiles(
   files: Pick<Files, "read">,
@@ -34,20 +37,24 @@ export async function restoreRecentFiles(
   let budgetChars = POST_COMPACT_TOKEN_BUDGET * CHARS_PER_TOKEN;
   const perFileChars = POST_COMPACT_PER_FILE_TOKENS * CHARS_PER_TOKEN;
   for (const path of candidates) {
-    if (out.length >= POST_COMPACT_MAX_FILES_TO_RESTORE || budgetChars <= 0) break;
+    if (out.length >= POST_COMPACT_MAX_FILES_TO_RESTORE) break;
     try {
       const content = await files.read(path);
       if (content.length === 0) continue;
-      const capped = content.slice(0, Math.min(perFileChars, budgetChars));
-      budgetChars -= capped.length;
-      out.push(buildRestoredFileMessage(path, capped));
+      if (content.length > Math.min(perFileChars, budgetChars)) {
+        out.push(buildRestoredFileNotice(path));
+        continue;
+      }
+      budgetChars -= content.length;
+      out.push(buildRestoredFileMessage(path, content));
     } catch { /* not a real/readable file → skip */ }
   }
   return out;
 }
 
 /**
- * B-13: read back every attached skill under POST_COMPACT_SKILLS_TOKEN_BUDGET.
+ * Read back every attached skill under POST_COMPACT_SKILLS_TOKEN_BUDGET, each
+ * capped like the skills block of a turn.
  *
  * Reads the registry from the session bag rather than taking it as an argument:
  * this runs inside the compaction, which has no caller able to supply it. A gone,

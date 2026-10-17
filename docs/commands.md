@@ -16,7 +16,7 @@ An **async** command starts a crew and returns a ticket; its result is printed w
 | `/bughunter` | async | Hunt for bugs in the staged changes (code review, correctness lens only). |
 | `/clear` | sync | Clear the conversation buffer and the screen. |
 | `/commit` | async | Draft and create a conventional commit for the current changes (confirms first; --yes skips). |
-| `/compact` | async | Compact the session conversation buffer to free up context. |
+| `/compact` | async | Compact the session conversation buffer to free up context; text after it names what the summary must keep. |
 | `/config` | sync | List, get, set or unset settings over the declared key space (file + session layers). |
 | `/context` | sync | Show the current session context: title, model, messages, tokens, pressure. |
 | `/copy` | sync | Re-print the last assistant output in full (terminal copy; no OS clipboard). |

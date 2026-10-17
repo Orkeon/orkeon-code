@@ -1,16 +1,22 @@
-// F3.1 — threshold math. Run: node_modules/.bin/tsx --test shared/domain/compaction-thresholds.test.ts
+// Compaction thresholds: each number is pinned together with the fact it is derived
+// from, so changing the fact without the number (or the reverse) fails here.
+// Run: node --test src/shared/domain/compaction-thresholds.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, ok } from "node:assert";
 import {
+  ANSWER_RESERVE_TOKENS,
   AUTOCOMPACT_BUFFER_TOKENS,
+  CHARS_PER_TOKEN,
   DEFAULT_CONTEXT_WINDOW,
   ERROR_THRESHOLD_BUFFER_TOKENS,
+  FILE_READ_CUT_TOKENS,
   MAX_CONSECUTIVE_FAILURES,
   POST_COMPACT_MAX_FILES_TO_RESTORE,
   POST_COMPACT_PER_FILE_TOKENS,
   POST_COMPACT_TOKEN_BUDGET,
   SNIP_RETAIN_COUNT,
   TRANSCRIPT_CAP_CHARS,
+  TURN_FIXED_TOKENS,
   WARNING_THRESHOLD_BUFFER_TOKENS,
   computeTrigger,
   isAboveErrorThreshold,
@@ -22,12 +28,25 @@ import {
   POST_COMPACT_PER_SKILL_TOKENS,
 } from "./compaction-thresholds.ts";
 
+describe("the facts the thresholds are derived from", () => {
+  it("a file_read result is cut at 32 000 characters, 8 000 tokens", () => {
+    strictEqual(FILE_READ_CUT_TOKENS * CHARS_PER_TOKEN, 32_000);
+  });
+  it("an answer may reach the example settings' Llm:MaxTokens", () => {
+    strictEqual(ANSWER_RESERVE_TOKENS, 24_576);
+  });
+  it("the compaction buffer is one turn's room: fixed parts, one cut read, a full answer", () => {
+    strictEqual(AUTOCOMPACT_BUFFER_TOKENS, TURN_FIXED_TOKENS + FILE_READ_CUT_TOKENS + ANSWER_RESERVE_TOKENS);
+    strictEqual(AUTOCOMPACT_BUFFER_TOKENS, 36_576);
+  });
+});
+
 describe("computeTrigger", () => {
   it("is window minus the buffer", () => {
-    strictEqual(computeTrigger(180_000), 167_000);
+    strictEqual(computeTrigger(180_000), 180_000 - 36_576);
   });
-
   it("falls back to the default window when none is reported", () => {
+    strictEqual(DEFAULT_CONTEXT_WINDOW, 128_000);
     strictEqual(computeTrigger(0), DEFAULT_CONTEXT_WINDOW - AUTOCOMPACT_BUFFER_TOKENS);
     strictEqual(computeTrigger(-1), DEFAULT_CONTEXT_WINDOW - AUTOCOMPACT_BUFFER_TOKENS);
   });
@@ -35,38 +54,41 @@ describe("computeTrigger", () => {
 
 describe("shouldCompact", () => {
   it("fires at the boundary (equality) and above, not below", () => {
-    strictEqual(shouldCompact(166_999, 180_000), false);
-    strictEqual(shouldCompact(167_000, 180_000), true);
+    const trigger = computeTrigger(180_000);
+    strictEqual(shouldCompact(trigger - 1, 180_000), false);
+    strictEqual(shouldCompact(trigger, 180_000), true);
     strictEqual(shouldCompact(179_000, 180_000), true);
   });
 });
 
-describe("constants (source-verbatim)", () => {
-  it("holds the documented values", () => {
-    strictEqual(AUTOCOMPACT_BUFFER_TOKENS, 13_000);
+describe("the other limits", () => {
+  it("holds the breaker, transcript, snip and file-restore values", () => {
     strictEqual(MAX_CONSECUTIVE_FAILURES, 3);
-    strictEqual(TRANSCRIPT_CAP_CHARS, 16_000);
+    strictEqual(TRANSCRIPT_CAP_CHARS, 48_000);
     strictEqual(SNIP_RETAIN_COUNT, 5);
-  });
-  it("holds the E-4/E-5 values (baseline 07)", () => {
     strictEqual(POST_COMPACT_MAX_FILES_TO_RESTORE, 5);
-    strictEqual(POST_COMPACT_TOKEN_BUDGET, 50_000);
     strictEqual(POST_COMPACT_PER_FILE_TOKENS, 5_000);
-    strictEqual(WARNING_THRESHOLD_BUFFER_TOKENS, 30_000);
-    strictEqual(ERROR_THRESHOLD_BUFFER_TOKENS, 8_000);
+  });
+  it("restores a file whole only below file_read's own cut", () => {
+    ok(POST_COMPACT_PER_FILE_TOKENS < FILE_READ_CUT_TOKENS);
+  });
+  it("bounds the file restore by construction: every file at its cap fits the budget", () => {
+    strictEqual(POST_COMPACT_TOKEN_BUDGET, POST_COMPACT_MAX_FILES_TO_RESTORE * POST_COMPACT_PER_FILE_TOKENS);
   });
 });
 
-describe("pressure tiers (E-5)", () => {
-  it("warning fires at window − 30 k, error at window − 8 k (equality counts)", () => {
-    strictEqual(isAboveWarningThreshold(149_999, 180_000), false);
-    strictEqual(isAboveWarningThreshold(150_000, 180_000), true);
+describe("pressure tiers", () => {
+  it("warning fires when the room left is below the compaction buffer, error below one cut read", () => {
+    strictEqual(WARNING_THRESHOLD_BUFFER_TOKENS, AUTOCOMPACT_BUFFER_TOKENS);
+    strictEqual(ERROR_THRESHOLD_BUFFER_TOKENS, FILE_READ_CUT_TOKENS);
+    strictEqual(isAboveWarningThreshold(180_000 - 36_576 - 1, 180_000), false);
+    strictEqual(isAboveWarningThreshold(180_000 - 36_576, 180_000), true);
     strictEqual(isAboveErrorThreshold(171_999, 180_000), false);
     strictEqual(isAboveErrorThreshold(172_000, 180_000), true);
   });
   it("falls back to the default window when none is reported", () => {
-    strictEqual(isAboveWarningThreshold(150_000, 0), true);
-    strictEqual(isAboveErrorThreshold(150_000, 0), false);
+    strictEqual(isAboveWarningThreshold(100_000, 0), true);
+    strictEqual(isAboveErrorThreshold(100_000, 0), false);
   });
   it("pressureTier ranks error > warning > ok", () => {
     strictEqual(pressureTier(100_000, 180_000), "ok");
@@ -80,18 +102,17 @@ describe("pressure tiers (E-5)", () => {
   });
 });
 
-describe("post-compaction skills budget (B-13)", () => {
-  it("ACCEPTANCE 2 — the skills budget is 25 000 tokens, matching baseline 07 §1", () => {
-    strictEqual(POST_COMPACT_SKILLS_TOKEN_BUDGET, 25_000);
+describe("post-compaction skills budget", () => {
+  it("is five skills at their cap", () => {
+    strictEqual(POST_COMPACT_PER_SKILL_TOKENS, 1_000);
+    strictEqual(POST_COMPACT_SKILLS_TOKEN_BUDGET, 5 * POST_COMPACT_PER_SKILL_TOKENS);
   });
 
   it("is SEPARATE from the file-restore budget, not a share of it", () => {
     // Sharing one budget would let a handful of large files evict every playbook,
     // and the symptom would read as "the agent forgot the rules after a compaction".
-    // Both values are pinned rather than compared: tsc rightly points out that two
-    // literal types can never overlap, so a `!==` here asserts nothing at all.
-    strictEqual(POST_COMPACT_SKILLS_TOKEN_BUDGET, 25_000);
-    strictEqual(POST_COMPACT_TOKEN_BUDGET, 50_000, "the file budget must not have moved");
+    strictEqual(POST_COMPACT_SKILLS_TOKEN_BUDGET, 5_000);
+    strictEqual(POST_COMPACT_TOKEN_BUDGET, 25_000);
   });
 
   it("caps one skill below the whole budget, so a single playbook cannot take it all", () => {

@@ -1,7 +1,7 @@
 // The compaction pipeline over the fakes of its ports. Run:
 //   node_modules/.bin/tsx --test shared/application/compaction/compact-session.test.ts
 import { describe, it } from "node:test";
-import { deepStrictEqual, strictEqual } from "node:assert";
+import { ok, deepStrictEqual, strictEqual } from "node:assert";
 
 import { COMPACT_PROGRESS_LABEL, compactSession } from "./compact-session.ts";
 import {
@@ -119,11 +119,37 @@ describe("compactSession: the full pipeline", () => {
   });
 });
 
+describe("compactSession: the summary call", () => {
+  it("passes the operator's focus to the summary prompt and keeps only what the markers enclose", async () => {
+    const deps = setup();
+    deps.llm.completions = ["Sure.\n<summary>1. The request: ship it</summary>\nAnything else?"];
+    strictEqual((await compactSession({ force: true, focus: "the release steps" }, deps)).status, "compacted");
+    ok(deps.llm.completes[0].prompt.includes("keep above all: the release steps"), deps.llm.completes[0].prompt);
+    const summary = deps.session.messages.find((m) => String(m.content).startsWith("[compacted]"));
+    ok(String(summary?.content).endsWith("\n1. The request: ship it"), String(summary?.content));
+  });
+
+  it("lists what memory already holds in the extraction prompt", async () => {
+    const deps = setup();
+    await deps.memory.add("project", "releases are cut from main");
+    await compactSession({ force: true }, deps);
+    ok(deps.llm.extracts[0].prompt.includes("- releases are cut from main"), deps.llm.extracts[0].prompt);
+  });
+});
+
 describe("compactSession: failures are outcomes", () => {
   it("reports the model's failure, leaves the buffer and releases the progress", async () => {
     const deps = setup();
     deps.llm.completions = [new Error("model down")];
     deepStrictEqual(await compactSession({ force: true }, deps), { status: "failed", reason: "model down" });
+    deepStrictEqual(deps.session.messages, HISTORY);
+    deepStrictEqual(deps.progress.released, [COMPACT_PROGRESS_LABEL]);
+  });
+
+  it("fails on an empty summary rather than replace the history with nothing", async () => {
+    const deps = setup();
+    deps.llm.completions = ["<summary>   </summary>"];
+    deepStrictEqual(await compactSession({ force: true }, deps), { status: "failed", reason: "the summary came back empty" });
     deepStrictEqual(deps.session.messages, HISTORY);
     deepStrictEqual(deps.progress.released, [COMPACT_PROGRESS_LABEL]);
   });

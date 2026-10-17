@@ -395,9 +395,12 @@ prompt as the model reads it, to review a change as a diff.
 
 - **Automatic compaction** at the head and the tail of each turn when the buffer crosses its threshold, behind a
   circuit breaker kept in the session state so a failing compaction does not loop.
-- **`/compact`** snips first (head plus the last exchanges) and summarises only when that is not enough; the summary
-  keeps a fixed set of sections and moves durable facts into typed memory.
-- **File restore** re-reads, after a compaction, the files the conversation was working on, and the attached skills.
+- **`/compact [<focus>]`** snips first (head plus the last exchanges) and summarises only when that is not enough;
+  the summary keeps a fixed set of parts, weighted toward the focus when one is given, and durable facts move into
+  typed memory first. The thresholds and budgets are derived in `shared/domain/compaction-thresholds.ts` from the
+  facts they depend on (the runtime's cut of a file read, the example settings' answer size, the header's ceiling).
+- **File restore** re-reads, after a compaction, the files the conversation was working on (whole, or named with a
+  note to read them again when too large: never a cut copy), and the attached skills.
 - **Pressure tiers** (`/usage`, `/context`, and the gauge of every turn) tell the user and the model how full the
   window is.
 
