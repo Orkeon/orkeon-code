@@ -1,0 +1,26 @@
+version: 2
+updates:
+  # Dev tooling. esbuild is NOT bumped by Dependabot: it is pinned to the version
+  # the pinned Orkeon runtime bundles with (Orkeon/orkeon tools/scripting-esbuild),
+  # and moves only with .orkeon-version (see docs/development.md, "Upgrading Orkeon").
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      npm-minor-patch:
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: esbuild
+
+  # GitHub Actions pins (40-character SHA + version comment).
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      codeql-action:
+        patterns:
+          - "github/codeql-action*"

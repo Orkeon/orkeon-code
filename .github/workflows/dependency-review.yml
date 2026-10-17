@@ -1,0 +1,26 @@
+# Dependency review: blocks a pull request that adds a dependency with a known
+# high or critical vulnerability. Needs the dependency graph (on by default for a
+# public repository; enable it in Settings -> Code security while the repo is private).
+name: Dependency review
+on:
+  pull_request:
+    branches: [ main ]
+permissions:
+  contents: read
+concurrency:
+  group: dependency-review-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  dependency-review:
+    # Code scanning and dependency review need GitHub Advanced Security on a private
+    # repository: the job waits for the switch to public instead of failing red.
+    if: ${{ !github.event.repository.private }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Review the dependencies this PR adds
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: never

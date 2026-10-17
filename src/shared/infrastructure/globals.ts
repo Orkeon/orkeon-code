@@ -1,0 +1,44 @@
+// Typed bridge to the runtime globals injected by Orkeon.Scripting.Cli /
+// Orkeon.Cli.Scripting (Jint engine). Declared ONCE here and re-exported as
+// typed aliases so the rest of the codebase never writes `(globalThis as any)`.
+// Esbuild bundles every module into a single script for Jint, so these
+// declarations resolve at runtime against the engine's globalThis.
+//
+// This is the ONLY module allowed to reach into the runtime globals — the
+// source-layer analogue of the C# "all IO through IFileSystemService" rule.
+// (Mirrors exp 02 crews/unified/infrastructure/globals.ts.)
+//
+// `Tools` is typed (OrkeonTools plus the local declarations of orkeon/runtime-tools.ts)
+// and read by the adapters of orkeon/ and by entry points only.
+
+import type { RuntimeTools } from "./orkeon/runtime-tools.ts";
+
+declare const agentBuilder: () => any;
+declare const crewBuilder: () => any;
+
+/** `tools.<camelCase>(args)` namespace bridging IBaseTool implementations. The
+ *  runtime registers every tool of CalledTools; the generated OrkeonTools reaches
+ *  most of them only through its index signature, hence the one cast. */
+export const Tools: RuntimeTools = tools as RuntimeTools;
+/** Domain DSL: build an agent. */
+export const AgentBuilder: () => any = agentBuilder;
+/** Domain DSL: build a crew. */
+export const CrewBuilder: () => any = crewBuilder;
+
+/** Typed accessor for `globalThis.inputs` (crew/command invocation payload).
+ *
+ *  ⚠️ The implementation binding is deliberately NOT named `inputs`: esbuild
+ *  bundles to a flat esm script that Jint evaluates in SCRIPT mode, where a
+ *  top-level `function inputs()` becomes a GLOBAL binding and clobbers the
+ *  `globalThis.inputs` object the host injects before evaluation (`--inputs`
+ *  then reads back as the function itself → empty payload). Exporting under
+ *  the public name keeps every call site unchanged. */
+function readInputs<T = Record<string, any>>(): T {
+  return ((globalThis as any).inputs ?? {}) as T;
+}
+export { readInputs as inputs };
+
+/** Publish the assembled crew back to the runtime (`globalThis.crew = ...`). */
+export function publishCrew(crew: any): void {
+  (globalThis as any).crew = crew;
+}

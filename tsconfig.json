@@ -1,0 +1,19 @@
+{
+  "//": "Editor and type-check settings only (noEmit). The Orkeon runtime never reads this file: it bundles each command and crew with its own esbuild (scripts/bundle-check.mjs mirrors its flags). Every import carries an explicit .ts extension because the runtime bundler resolves specifiers verbatim; allowImportingTsExtensions makes that legal for tsc. Run the check with `npm run typecheck` (scripts/typecheck.mjs: the same check as `tsc`, one line per error and a count).",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "allowImportingTsExtensions": true,
+    "lib": ["ES2022"],
+    "strict": true,
+    "erasableSyntaxOnly": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts"],
+  "exclude": ["node_modules", "fixtures", ".crew-output", "dist"]
+}

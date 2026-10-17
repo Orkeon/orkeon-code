@@ -1,0 +1,6 @@
+# gitleaks configuration: the default ruleset, nothing allowlisted yet.
+# A reviewed false positive is allowlisted by exact path, with a comment saying why.
+title = "orkeon-code"
+
+[extend]
+useDefault = true

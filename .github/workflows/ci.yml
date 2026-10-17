@@ -1,0 +1,53 @@
+# CI: what has to be green before a change reaches main.
+#
+# Everything here runs without the Orkeon runtime and without an LLM: unit tests
+# (node --test, native type stripping), the type check, the bundle check (every
+# command and crew bundles with the runtime's own esbuild flags, which also proves
+# no runtime module imports a Node API: the runtime is Jint, not Node), the
+# provenance gate, the generated command reference (docs/commands.md), the committed
+# file modes, and the unit tests of the Whisper MCP server (mcp/whisper: the mcp SDK
+# and pytest only; the model is never loaded).
+#
+# The runtime smoke (the Orkeon host loading the command surface) lives in
+# runtime-smoke.yml: it needs the orkeon-runners image.
+name: CI
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install the dev tooling (esbuild, typescript, @types/node)
+        run: npm ci
+      - name: Unit tests
+        run: npm test
+      - name: Type check
+        run: npm run typecheck
+      - name: Bundle check (runtime esbuild flags)
+        run: npm run bundle:check
+      - name: Provenance gate
+        run: npm run check:provenance
+      - name: Command reference up to date
+        run: node scripts/gen-commands-doc.mjs --check
+      - name: Committed file modes
+        run: bash scripts/check-file-modes.sh
+      - name: Whisper MCP server (compiles, unit tests without a model)
+        run: |
+          python3 -m venv .venv-ci
+          .venv-ci/bin/python -m pip install --quiet 'mcp>=1.30,<2' 'pytest>=8'
+          .venv-ci/bin/python -m py_compile mcp/whisper/whisper_mcp.py mcp/whisper/smoke.py
+          .venv-ci/bin/python -m pytest -q mcp/whisper

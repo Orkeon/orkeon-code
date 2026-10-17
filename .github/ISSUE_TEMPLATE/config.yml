@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Question / discussion
+    url: https://github.com/Orkeon/orkeon-code/discussions
+    about: Ask questions and discuss ideas before they become issues.
+  - name: A bug in the Orkeon runtime (VFS, tools, LLM providers, REPL host)
+    url: https://github.com/Orkeon/orkeon/issues
+    about: Orkeon Code runs on Orkeon; runtime problems are tracked there.
+  - name: Security vulnerability
+    url: https://github.com/Orkeon/orkeon-code/blob/main/SECURITY.md
+    about: Please do NOT open a public issue for security reports. Follow the security policy.

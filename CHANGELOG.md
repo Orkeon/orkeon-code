@@ -1,0 +1,176 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+
+- **Speech output over OpenAI's API or a compatible server**: `TTS_BACKEND=openai` (OpenAI's speech API) or `http`
+  (speaches serving Kokoro on a GPU, for instance), the same client as the transcription's backends. A compatible
+  server gets a key only when `TTS_API_KEY_VAR` (`WHISPER_API_KEY_VAR` for transcription) names its variable
+  ([mcp/whisper/README.md](mcp/whisper/README.md#speech-output)).
+- **`voice.reply`**: `/config set voice.reply on` reads every answer of the assistant aloud (`/assistant`, `/summary`,
+  `/transcribe --then`, `/voice send` and `--go`: a spoken conversation). The main loop takes an **epilogue**, a call
+  the launching command asks it to make with the answer once it is stored; a failure is a warning, never a failed
+  turn ([Configuration](docs/configuration.md#speech-output)).
+- **`/say [<text>] [--voice] | --stop`** reads a text aloud, or the assistant's last answer with no text, through the
+  speech server's new `speak` and `stop_speaking`: the Markdown cleaned off (code and tables skipped), synthesized by
+  Piper (the `tts` extra, run as a subprocess, which the launchers add whenever Piper is the backend), played in the
+  background. `ORKEON_CODE_VOICE=1` now opens the speaker as well as the microphone. The crew behind `/transcribe`,
+  `/voice` and `/say` is renamed `speech` ([Configuration](docs/configuration.md#speech-output)).
+- **The Whisper server over HTTP** (`WHISPER_TRANSPORT=http`): Streamable HTTP in JSON-response mode, stateless,
+  host-checked, for docker mode, where the server runs on the host and the REPL in the container reaches it with
+  Orkeon's `Sse` transport; the server smooths over what that transport sends (no `Accept`, a modern protocol
+  probe). Calls are bounded at 100 s by the REPL's HTTP client
+  ([mcp/whisper/README.md](mcp/whisper/README.md#docker-mode-the-server-on-the-host)).
+- **`/voice`** dictates a request: it records the microphone until a silence and shows the text, `/voice send` sends
+  it to the assistant, `/voice --go` sends at once; `--prompt` takes words to spell right, as for `/transcribe`. The
+  Whisper server's new `record_and_transcribe` records
+  (sounddevice, the `voice` extra) only when the launcher runs with **`ORKEON_CODE_VOICE=1`**; a prelude may now
+  make its result the request itself ([Configuration](docs/configuration.md#dictation)).
+- **`/transcribe <file> [--lang] [--prompt] [--then "<instruction>"]`** and **`/transcribe --list`**: speech-to-text
+  through the Whisper server as the command's call (no question, no `tools.extra` entry), made by a crew, since a
+  transcription outlasts the 10 s a command's handler may wait. `--then` runs the instruction on the transcription:
+  the main loop takes a **prelude**, a tool call the launching command asks it to make before the turn, whose result
+  follows the request in the message the model reads. The vocabulary of `--prompt` reaches faster-whisper as
+  `hotwords`, which conditions every 30-second window: on a 16-minute French recording, `initial_prompt` fixed none of
+  the proper nouns, `hotwords` all of them ([Configuration](docs/configuration.md#speech-to-text)).
+- **`ORKEON_CODE_AUDIO_DIR`** turns speech-to-text on in tool and source modes (tool mode for `orkeon-code.ps1`): both launchers mount the folder on
+  `/audio` and `<state>/transcripts` on `/transcripts`, and declare the Whisper server to the REPL through the
+  environment, with the extras its backends need (`openai`, `cuda`, `tts`, `voice`) and no settings file to edit;
+  `config/appsettings.whisper.example.json` is the same declaration in a settings file, and a settings file or an
+  environment that already declares a `whisper` server wins, with a warning
+  ([Configuration](docs/configuration.md#speech-to-text)).
+- **Speech-to-text MCP server** (`mcp/whisper/`): `transcribe_audio`, `list_audio` and `whisper_info` over stdio on
+  faster-whisper, written for Orkeon's MCP client (virtual `/audio` and `/transcripts` paths, inline under 3 500
+  characters, parts under 30 000 for `file_read`, the model loaded at the first call), with `openai` and `http`
+  backends, unit tests on a fake model and `scripts/whisper-mcp-smoke.sh` on the `tiny` model. On an NVIDIA GPU the
+  `cuda` extra is enough: the server preloads its cuBLAS and cuDNN (45 minutes of audio in 95 s with `small` on a
+  laptop GPU, against 7 minutes on a CPU) ([mcp/whisper/README.md](mcp/whisper/README.md)).
+- **Argument patterns in permission rules**: `/permissions add <deny|allow> <tool> [<argument>=<pattern>]`, `*`
+  standing for any run of characters (`/permissions add allow shell_command command=npm test*`). Rules stored in the
+  old `effect:tool` form still read. `/permissions` also lists the rules the host gate holds
+  ([Permissions](docs/permissions.md)).
+- **Tools from MCP servers and plugins**: the session key `tools.extra` names the tools of Orkeon's `MCP:Servers`
+  and `Plugins` the assistant may use, each `<name>[:read|:write]` (a write by default). A `read` tool is offered in
+  every mode, a `write` tool in `default`, `acceptEdits` and `bypassPermissions`; a name the host does not register is
+  left out of the turn with a warning. `/config set` checks the entries, permission rules may name these tools, and
+  `/permissions` shows them ([Configuration](docs/configuration.md#extra-tools-mcp-servers-and-plugins)).
+
+### Changed
+
+- **The .NET SDK is pinned as in Orkeon**: `global.json` asks for `10.0.300` with `rollForward: latestFeature`,
+  the SDK that `dotnet tool restore` uses for the typings and `scripts/run-crew.sh`. A user's project keeps its
+  own `global.json`: the launcher never runs an SDK command there.
+- **Orkeon Code now requires Orkeon `1.0.0-rc.6`** (`.orkeon-version`, `.config/dotnet-tools.json`), with no rc.5 path
+  ([ADR 0002](docs/adr/0002-orkeon-rc6.md)). Until rc.6 is published, only the launcher's source mode
+  (`ORKEON_SOURCE`, an Orkeon checkout) runs it. The typings come from Orkeon's sources
+  (`ORKEON_SOURCE=<checkout> npm run typings`), the crews open with `// @orkeon-script 1.0`, the directive form `tsc`
+  reads as a comment, and `npm run typecheck` checks the project as it is.
+- **Permissions go through Orkeon's gate.** `/permissions` hands the session's rules to the host's permission gate,
+  and `/assistant` and `/summary` hand them again before each turn: a deny refuses a matching call in every mode, an
+  allow runs it without asking in every mode but `plan`. In `default` and `acceptEdits` the REPL now asks you about a
+  call the mode does not allow outright (`[y] once / [s] session / [n] no`) instead of refusing it. The tool catalogue
+  no longer imitates the rules: only a deny that covers every call of a tool removes it, and an allow never adds a
+  tool the mode withholds. The launchers turn the gate on (`Orkeon__Security__PermissionGate__Enabled=true`, under
+  the settings file).
+- **`acceptEdits` offers `shell_command`**: edits run without asking, and the gate asks before each command.
+- **The launcher** starts the REPL from the project with `ORKEON_ALLOW_EXTERNAL_MOUNTS=1` in tool and source modes,
+  instead of moving to a common parent of the checkout and the project; it no longer raises
+  `Orkeon:Cli:ScriptCommands:MaxScripts`, whose default (200) now covers the commands; the tool mode accepts the
+  `orkeon-repl` of the Orkeon Debian package, which brings its own esbuild; the docker mode runs the multi-arch
+  `orkeon-runners` image (amd64, arm64) of `.orkeon-version`.
+- The documentation describes installing `orkeon-repl` with apt or from a self-contained release archive, the
+  questions of the permission gate, and Orkeon's opt-in bubblewrap confinement of the shell
+  (`Orkeon:Tools:Shell:Confinement:Mode`, [SECURITY.md](SECURITY.md)).
+- The sources follow a layered architecture ([Architecture](docs/architecture.md),
+  [ADR 0001](docs/adr/0001-clean-architecture.md)):
+  - **Ports and adapters.** `src/shared/application/ports.ts` declares what the application needs (`Shell`, `Files`,
+    `SessionStore`, `Llm`...); the adapters of `src/shared/infrastructure/orkeon/` are the only code that calls the
+    runtime and reads its results, and the entry points (`*.cmd.ts`, `crew.ork.ts`) wire them.
+  - **Use cases out of the entry points**: `src/commands/_lib/` (`run<Name>(tokens, deps)`) for the commands,
+    `src/crews/<name>/application/run-<crew>.ts` for the crews. The agent policy (permission modes and catalogue,
+    behaviour flags, output styles, memory categories) moves to `src/shared/domain/agent-policy/`, with one
+    mode-policy table; the session and config services and the compaction pipeline
+    (`src/shared/application/compaction/`) run on the ports. The unused `json-extract.ts` is removed.
+  - **The dependency rule**: domain imports domain only, application never imports infrastructure nor `commands/`,
+    only `src/shared/infrastructure/` and the crew entry points import `globals.ts` or read the runtime globals,
+    `commands/_lib/` never imports infrastructure, only a `*.cmd.ts` calls `defineCommand`, and nothing calls
+    `require()`. `tests/architecture.test.ts` checks every import and every use of a runtime global.
+  - **Test doubles** live in `tests/support/` (`Fake*` classes with plain fields); the commands, the crews' use cases,
+    the services and the adapters are tested over them (436 tests before, 745 after).
+- The restructuring changes no behaviour, but for readers that now take more of what the runtime may hand back: a
+  file read given as a plain string or a `Text` field is read; a telemetry field reported as `null` counts as
+  unreported; a session buffer that is not a list reads as empty (the compaction skips it instead of failing), and the
+  token counts are numbers for every command; a runtime call that throws at once instead of rejecting is handled
+  where the command already handled a failed call; and `ctx.llm.complete` receives an explicit `undefined` second
+  argument.
+
+### Fixed
+
+- **`orkeon-code.ps1` with a one-word `ORKEON_REPL`, or none** (`orkeon-repl` found on the `PATH`): the command was
+  read character by character (`o not found`) and the REPL never started; so was a one-word argument of a longer
+  `ORKEON_REPL` (`dotnet C:\orkeon\Orkeon.ConsoleApp.dll`).
+- **The session's mode shapes the catalogue.** A request without a `mode:` prefix was offered the `default`
+  catalogue while the gate applied the session's mode: after `/mode plan`, the model was offered write tools whose
+  every call was refused. The launching command now resolves the mode before the crew loads.
+- **A failed model call is reported, never stored as an answer.** On Orkeon rc.6 a call the provider failed resolves
+  to `<undefined-llm:<error>>`: the turn now fails with the provider's error instead of storing that text as the
+  answer, and `/init`, `/init-verifiers`, `/commit` and the compaction summary no longer write it as content.
+- `/review`, `/bughunter` and `/security-review` named each lens `[object Object]` in their progress: they name it.
+- File listings sent `max_entries`, which `directory_read` ignores: they send `max_results`, so their cap applies.
+- `/config keys` named source files that had moved under "read by": it names the commands that read each key.
+- **`tools.extra` checks the names the host registers.** It compared the camelCase members of the `tools`
+  namespace, so an MCP tool registered as `get-file-contents` or `listIssues` was listed as `get_file_contents` or
+  `list_issues`, accepted under that name, and every turn then failed on it (`UnknownToolError`). The names now come
+  from the host's `tools` service, compared case-insensitively as Orkeon compares them, and the turn, `/permissions`
+  and `/debug-tool-call` use the registered spelling.
+- **A stored permission rule is never erased by another change.** A rule on an extra tool that `tools.extra` no
+  longer listed (or that a settings file which could not be read hid) stopped parsing, and the next `/permissions
+  add`, `remove` or `clear` rewrote the list without it. Every stored entry is now kept as written: such a rule is
+  dormant (listed, warned about, not handed to the gate) and applies again once the tool is listed; `remove` deletes
+  it. A settings file that cannot be read is reported.
+- **Rule patterns and arguments.** One pair of quotes around a pattern is taken off (`command="npm test*"` never
+  matched); an argument a built-in tool does not take is refused with the ones it does, and one on an extra tool is
+  accepted with a warning. `/permissions` reports every allow rule as without effect in `plan`, whose gate reads none,
+  and says that the rules hold only while `Orkeon:Security:PermissionGate:Enabled` is on.
+- **An `/assistant` turn gets the time the example settings meant.** The example set `Orkeon:Scripting:Limits`,
+  which only `orkeon run` reads: `orkeon-repl` ran its engines under `Orkeon:Cli:ScriptCommands:Limits` (5 minutes,
+  64 MB by default), which the example now sets to 30 minutes and 2 GiB. The main-loop crew's own budget allowed
+  10 minutes of wall time, on a clock that keeps running while a question waits for you, and a turn failed with
+  `Wall time exceeded (0:15:55 >= 0:10:00)`: it allows 30 minutes. Configuration says which limit is whose.
+- **The source mode works on a project that pins another SDK.** It ran `dotnet run` from the project, whose
+  `global.json` the SDK then read ("A compatible .NET SDK was not found"): it builds in the Orkeon checkout and runs
+  the built assembly from the project with `dotnet <dll>`, which reads no `global.json`.
+- `orkeon-code.ps1` left the variables it sets for the REPL (`ORKEON_ALLOW_EXTERNAL_MOUNTS`, the gate, esbuild, the
+  model) in the PowerShell session that ran it: it puts them back when it ends, and removes one that was not set
+  (set back empty, it reached the next run: an empty `whisper` server among them).
+
+## [0.1.0-alpha.1]
+
+First release as a standalone project, on Orkeon `1.0.0-rc.5`.
+
+### Added
+
+- The interactive coding loop (`/assistant`, the `main-loop` crew) under five permission modes, with per-tool
+  allow/deny rules and a session-default mode (`/mode`).
+- Crews: `project-init` (`/init`), `git-commit` (`/commit`), `code-review` (`/review`, `/bughunter`,
+  `/security-review`), `analyze` (`/analyze`), `session-compact` (`/compact`), `init-verifiers`, `advisor`.
+- Context management: automatic compaction with a persistent breaker, snip-first `/compact`, file restore after
+  compaction, pressure tiers, typed memory.
+- 57 slash commands ([docs/commands.md](docs/commands.md)).
+- The `orkeon-code` launcher (docker, tool and source modes) and its PowerShell twin.
+- The project mascot ([docs/assets/kama-surfer-docker.jpg](docs/assets/kama-surfer-docker.jpg)) in the READMEs and
+  the getting-started guide.
+- [docs/headless.md](docs/headless.md) (unattended turns, one-shot runs, schedulers and CI, your application) and
+  [docs/extending.md](docs/extending.md) (commands, crews, tools, prompts, modes, the limits); the READMEs present
+  the three ways to run the crews.
+- Checks: unit tests on Node's native type stripping, type check, bundle check with the runtime's esbuild flags,
+  provenance gate, runtime smoke.
+
+[Unreleased]: https://github.com/Orkeon/orkeon-code/compare/v0.1.0-alpha.1...HEAD
+[0.1.0-alpha.1]: https://github.com/Orkeon/orkeon-code/releases/tag/v0.1.0-alpha.1

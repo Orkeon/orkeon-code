@@ -1,0 +1,36 @@
+# Dependencies (dev tooling only: the Orkeon runtime never reads node_modules)
+node_modules/
+
+# Local settings carry API keys: provisioned out of band, never committed.
+# Only config/appsettings.example.json is tracked.
+config/*.local.json
+
+# Runtime output: the /output mount of a run, and the throwaway demo repository
+# seeded by scripts/setup-fixture.sh.
+.crew-output/
+fixtures/
+
+# Release staging
+dist/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.log
+
+# The Whisper MCP server (mcp/whisper): uv environment and Python caches
+mcp/whisper/.venv/
+.venv-ci/
+__pycache__/
+.pytest_cache/
+
+# Work folders of a session (plans, notes, reports, test campaigns): never part of the repository
+/todo/
+/temp/
+
+# Local IDE and assistant folders
+/.vs
+/.claude/

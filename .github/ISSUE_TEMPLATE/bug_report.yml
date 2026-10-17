@@ -1,0 +1,70 @@
+name: Bug report
+description: Orkeon Code does not behave as documented
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Redact API keys and anything private
+        from transcripts before pasting them. A problem in the Orkeon runtime itself
+        (VFS, tools, LLM providers, the REPL host) belongs to https://github.com/Orkeon/orkeon/issues.
+  - type: input
+    id: version
+    attributes:
+      label: Orkeon Code version
+      description: "Output of `/version` in the REPL, or the commit SHA."
+      placeholder: "e.g. 0.1.0-alpha.1"
+    validations:
+      required: true
+  - type: input
+    id: runtime
+    attributes:
+      label: Orkeon runtime version
+      description: "The content of `.orkeon-version`, or the image tag / tool version you run."
+      placeholder: "e.g. 1.0.0-rc.6"
+    validations:
+      required: true
+  - type: dropdown
+    id: launch
+    attributes:
+      label: How you launch it
+      options:
+        - ./orkeon-code --mode docker (orkeon-runners image)
+        - ./orkeon-code --mode tool (orkeon-repl from the orkeon Debian package)
+        - ./orkeon-code --mode tool (orkeon-repl from a release archive)
+        - ./orkeon-code --mode tool (orkeon-repl dotnet tool)
+        - ./orkeon-code --mode source (Orkeon built from source)
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, LLM provider and model.
+      placeholder: "Ubuntu 24.04 / DeepSeek deepseek-v4-flash"
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: The exact slash commands, in order, and the permission mode in use (`/mode`).
+      placeholder: |
+        1. `./orkeon-code --workspace ~/src/my-repo`
+        2. `/assistant plan: explain src/index.ts`
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happened instead, with the exact error line and the relevant part of the transcript.
+    validations:
+      required: true

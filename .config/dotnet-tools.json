@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "isRoot": true,
+  "tools": {
+    "orkeon.scripting.cli": {
+      "version": "1.0.0-rc.6",
+      "commands": [
+        "orkeon"
+      ],
+      "rollForward": false
+    }
+  }
+}

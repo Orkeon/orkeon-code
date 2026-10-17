@@ -1,0 +1,250 @@
+#!/usr/bin/env bash
+# orkeon-code: start the Orkeon Code REPL on a project.
+#
+#   ./orkeon-code                          # the current directory is the project
+#   ./orkeon-code --workspace ~/src/app    # another project
+#   ./orkeon-code --demo                   # the throwaway fixture (scripts/setup-fixture.sh)
+#   ./orkeon-code --mode docker|tool|source [--settings FILE] [-- extra REPL args]
+#
+# What runs: the Orkeon scripted-commands REPL (orkeon-repl) loads the slash
+# commands of src/commands and the crews of src/crews. The project is mounted on
+# the VFS path /workspace (read-write): every file tool, the shell tool and git
+# work there. /output and /tmp are scratch mounts under the state directory.
+#
+# Modes (auto-detected in this order, or forced with --mode / ORKEON_CODE_MODE):
+#   tool    orkeon-repl on PATH (from the orkeon Debian package, an Orkeon release archive, or the
+#           dotnet tool), or ORKEON_REPL="<command line>" (e.g. "dotnet /opt/orkeon/Orkeon.ConsoleApp.dll")
+#   docker  ghcr.io/orkeon/orkeon-runners:<.orkeon-version>, nothing else to install
+#   source  an Orkeon checkout named by ORKEON_SOURCE, built there with `dotnet build`, run from the project
+#
+# Settings: --settings, else ORKEON_CODE_SETTINGS, else config/appsettings.local.json,
+# else ${XDG_CONFIG_HOME:-~/.config}/orkeon-code/appsettings.json. Start from
+# config/appsettings.example.json. The API key stays in the environment: the
+# variable named by Llm:ApiKeyEnvVar, or ORKEON_Llm__ApiKey which wins.
+# ORKEON_CODE_MODEL overrides Llm:Model for this run.
+# ORKEON_CODE_AUDIO_DIR=<folder> turns speech-to-text on (tool and source modes): the folder is
+# mounted on /audio (read-only), <state>/transcripts on /transcripts (read-only), and the
+# Whisper MCP server of mcp/whisper is declared to the REPL, run by uv (mcp/whisper/README.md).
+# ORKEON_CODE_VOICE=1 also opens the microphone (/voice) and the speaker (/say, voice.reply).
+set -euo pipefail
+
+# Follow symlinks, so a link from ~/.local/bin still finds the checkout.
+SELF="${BASH_SOURCE[0]}"
+while [ -L "$SELF" ]; do
+  target="$(readlink "$SELF")"
+  case "$target" in /*) SELF="$target" ;; *) SELF="$(dirname "$SELF")/$target" ;; esac
+done
+ROOT="$(cd "$(dirname "$SELF")" && pwd)"
+ORKEON_VERSION="$(tr -d '[:space:]' < "$ROOT/.orkeon-version")"
+IMAGE="${ORKEON_CODE_IMAGE:-ghcr.io/orkeon/orkeon-runners:$ORKEON_VERSION}"
+
+die() { echo "orkeon-code: $*" >&2; exit 1; }
+warn() { echo "orkeon-code: warning: $*" >&2; }
+lowered() { printf '%s' "$1" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | tr '[:upper:]' '[:lower:]'; }
+
+MODE="${ORKEON_CODE_MODE:-}"
+WORKSPACE=""
+SETTINGS="${ORKEON_CODE_SETTINGS:-}"
+DEMO=0
+EXTRA=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --mode) MODE="${2:?--mode needs docker|tool|source}"; shift 2 ;;
+    --mode=*) MODE="${1#*=}"; shift ;;
+    --workspace) WORKSPACE="${2:?--workspace needs a directory}"; shift 2 ;;
+    --workspace=*) WORKSPACE="${1#*=}"; shift ;;
+    --settings) SETTINGS="${2:?--settings needs a file}"; shift 2 ;;
+    --settings=*) SETTINGS="${1#*=}"; shift ;;
+    --demo) DEMO=1; shift ;;
+    -h|--help) sed -n '2,28p' "$SELF" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    --) shift; EXTRA=("$@"); break ;;
+    *) EXTRA+=("$1"); shift ;;
+  esac
+done
+
+# ── Project ────────────────────────────────────────────────────────────────
+if [ "$DEMO" = 1 ]; then
+  bash "$ROOT/scripts/setup-fixture.sh" >/dev/null
+  WORKSPACE="$ROOT/fixtures/sample-repo"
+fi
+WORKSPACE="$(cd "${WORKSPACE:-$PWD}" 2>/dev/null && pwd)" || die "workspace not found: ${WORKSPACE:-$PWD}"
+
+# ── Settings ───────────────────────────────────────────────────────────────
+if [ -z "$SETTINGS" ]; then
+  for cand in "$ROOT/config/appsettings.local.json" "${XDG_CONFIG_HOME:-$HOME/.config}/orkeon-code/appsettings.json"; do
+    if [ -f "$cand" ]; then SETTINGS="$cand"; break; fi
+  done
+fi
+[ -n "$SETTINGS" ] && [ -f "$SETTINGS" ] \
+  || die "no settings file. Copy config/appsettings.example.json to config/appsettings.local.json, or pass --settings FILE."
+SETTINGS="$(cd "$(dirname "$SETTINGS")" && pwd)/$(basename "$SETTINGS")"
+
+# The host falls back to a keyless default provider when the Llm section is
+# missing, and every /assistant turn then returns nothing: say so up front.
+KEY_VAR="$(sed -n 's/.*"ApiKeyEnvVar"[[:space:]]*:[[:space:]]*"\([A-Za-z_][A-Za-z0-9_]*\)".*/\1/p' "$SETTINGS" | head -n 1)"
+if ! grep -q '"Llm"' "$SETTINGS"; then
+  warn "$SETTINGS has no \"Llm\" section: the host would use a keyless default and every turn would be empty."
+elif [ -z "${ORKEON_Llm__ApiKey:-}" ] && [ -n "$KEY_VAR" ] && [ -z "${!KEY_VAR:-}" ]; then
+  warn "no API key: export $KEY_VAR (named by Llm:ApiKeyEnvVar) or ORKEON_Llm__ApiKey."
+fi
+if [ -n "${ORKEON_CODE_MODEL:-}" ]; then export ORKEON_Llm__Model="$ORKEON_CODE_MODEL"; fi
+
+# The host's permission gate checks every tool call against the session's rules
+# (/permissions), then the mode, and asks you when the mode says so; off, no call
+# is checked. On by default here; a settings file can still turn it off.
+export Orkeon__Security__PermissionGate__Enabled="${Orkeon__Security__PermissionGate__Enabled:-true}"
+
+# ── Mode ───────────────────────────────────────────────────────────────────
+if [ -z "$MODE" ]; then
+  if [ -n "${ORKEON_REPL:-}" ] || command -v orkeon-repl >/dev/null 2>&1; then MODE=tool
+  elif command -v docker >/dev/null 2>&1; then MODE=docker
+  elif [ -n "${ORKEON_SOURCE:-}" ]; then MODE=source
+  else die "no Orkeon runtime found: install Docker, or the orkeon-repl tool, or set ORKEON_SOURCE (see docs/getting-started.md)."
+  fi
+fi
+
+STATE="${ORKEON_CODE_STATE:-$ROOT/.crew-output}"
+mkdir -p "$STATE/output" "$STATE/tmp"
+STATE="$(cd "$STATE" && pwd)"
+
+# ── Speech-to-text (optional) ──────────────────────────────────────────────
+# ORKEON_CODE_AUDIO_DIR names the folder of audio and video files. The Whisper
+# MCP server (mcp/whisper) runs on the host, started by the REPL over stdio: it
+# reads that folder and writes into <state>/transcripts, which the agents see as
+# /audio and /transcripts. The server is declared through the environment
+# (ORKEON_MCP__Servers__whisper__*), so no settings file names this checkout; a
+# settings file, or the environment, that declares a "whisper" server keeps it, and
+# this block stays out.
+AUDIO=""
+AUDIO_ARGS=()
+if [ -n "${ORKEON_CODE_AUDIO_DIR:-}" ]; then
+  if [ "$MODE" = docker ]; then
+    warn "ORKEON_CODE_AUDIO_DIR is ignored in docker mode: the Whisper server runs in tool and source modes (mcp/whisper/README.md)."
+  elif grep -qi '"whisper"[[:space:]]*:' "$SETTINGS"; then
+    warn "$SETTINGS declares a \"whisper\" MCP server: ORKEON_CODE_AUDIO_DIR is ignored, the settings file wins."
+  elif env | grep -q '^ORKEON_MCP__Servers__whisper__'; then
+    warn "the environment declares a \"whisper\" MCP server (ORKEON_MCP__Servers__whisper__*): ORKEON_CODE_AUDIO_DIR is ignored, that declaration wins."
+  elif ! UV="$(command -v uv)"; then
+    warn "ORKEON_CODE_AUDIO_DIR is set but uv is not on PATH: speech-to-text is off (mcp/whisper/README.md, 'Install')."
+  else
+    [ -d "$ORKEON_CODE_AUDIO_DIR" ] || die "ORKEON_CODE_AUDIO_DIR=$ORKEON_CODE_AUDIO_DIR is not a folder."
+    AUDIO="$(cd "$ORKEON_CODE_AUDIO_DIR" && pwd)"
+    mkdir -p "$STATE/transcripts"
+    export WHISPER_AUDIO_DIR="$AUDIO" WHISPER_OUT_DIR="$STATE/transcripts"
+    export ORKEON_MCP__Servers__whisper__Transport=Stdio
+    export ORKEON_MCP__Servers__whisper__Command="$UV"
+    # ORKEON_CODE_VOICE=1 opens the microphone to /voice and the speaker to /say and
+    # voice.reply: the server gets the `voice` extra (sounddevice), WHISPER_MICROPHONE=1
+    # and WHISPER_SPEAKER=1; without it, it refuses to record and only writes what it
+    # would say. Piper, the default speech backend, is the `tts` extra; a backend on
+    # OpenAI's API or a compatible server (WHISPER_BACKEND or TTS_BACKEND openai or http)
+    # needs the `openai` extra; WHISPER_DEVICE=cuda the cuBLAS and cuDNN wheels of the
+    # `cuda` extra, which the server preloads. The values are read as the server reads
+    # them: case and spaces aside.
+    tts_backend="$(lowered "${TTS_BACKEND:-}")"
+    stt_backend="$(lowered "${WHISPER_BACKEND:-}")"
+    whisper_args=(run --project "$ROOT/mcp/whisper")
+    if [ "${ORKEON_CODE_VOICE:-}" = 1 ]; then
+      whisper_args+=(--extra voice)
+      export WHISPER_MICROPHONE=1 WHISPER_SPEAKER=1
+    fi
+    if [ "${tts_backend:-piper}" = piper ]; then whisper_args+=(--extra tts); fi
+    case " $tts_backend $stt_backend " in *" openai "*|*" http "*) whisper_args+=(--extra openai) ;; esac
+    if [ "$(lowered "${WHISPER_DEVICE:-}")" = cuda ]; then whisper_args+=(--extra cuda); fi
+    whisper_args+=("$ROOT/mcp/whisper/whisper_mcp.py")
+    for i in "${!whisper_args[@]}"; do export "ORKEON_MCP__Servers__whisper__Args__$i=${whisper_args[$i]}"; done
+    AUDIO_ARGS=(--mount "$AUDIO:/audio:ro" --mount "$STATE/transcripts:/transcripts:ro")
+  fi
+fi
+
+echo "orkeon-code $(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$ROOT/package.json" | head -n 1) on Orkeon $ORKEON_VERSION ($MODE)"
+echo "  project  : $WORKSPACE -> /workspace"
+echo "  settings : $SETTINGS"
+if [ -n "$AUDIO" ]; then
+  model="${WHISPER_MODEL:-$([ "$stt_backend" = openai ] && echo whisper-1 || echo small)}"
+  echo "  audio    : $AUDIO -> /audio (transcripts: $STATE/transcripts, model $model$([ "$(lowered "${WHISPER_DEVICE:-}")" = cuda ] && echo ' on the GPU')$([ "${ORKEON_CODE_VOICE:-}" = 1 ] && echo ', microphone and speaker on'))"
+fi
+
+# Sets ARGS. A function filling an array rather than mapfile: macOS ships bash 3.2.
+repl_args() { # <commands> <crews> <settings> <workspace> <output> <tmp>
+  ARGS=(--runner=scripted-commands --commands-dir "$1" --crews-dir "$2" --settings "$3"
+    --mount "$4:/workspace:rw" --mount "$5:/output:rw" --mount "$6:/tmp:rw")
+}
+
+case "$MODE" in
+  docker)
+    command -v docker >/dev/null 2>&1 || die "docker not found."
+    # Everything the REPL reads sits under its working directory /work. The
+    # image is multi-arch (linux/amd64, linux/arm64): docker pulls the host's.
+    env_args=(-e ORKEON_RUNNER=repl -e HOME=/tmp -e DOTNET_CLI_HOME=/tmp
+      -e "Orkeon__Security__PermissionGate__Enabled=$Orkeon__Security__PermissionGate__Enabled")
+    for v in ORKEON_Llm__ApiKey ORKEON_Llm__Model "$KEY_VAR"; do
+      if [ -n "$v" ] && [ -n "${!v:-}" ]; then env_args+=(-e "$v"); fi
+    done
+    # Files the agent writes in the project belong to the caller, not to root.
+    user_args=()
+    if [ "$(uname -s)" = Linux ]; then user_args=(--user "$(id -u):$(id -g)"); fi
+    tty_args=(-i)
+    if [ -t 0 ] && [ -t 1 ]; then tty_args=(-it); fi
+    repl_args /work/agent/commands /work/agent/crews /work/settings.json \
+      /work/project /work/state/output /work/state/tmp
+    exec docker run --rm "${tty_args[@]}" ${user_args[@]+"${user_args[@]}"} "${env_args[@]}" -w /work \
+      -v "$WORKSPACE:/work/project" \
+      -v "$ROOT/src:/work/agent:ro" \
+      -v "$SETTINGS:/work/settings.json:ro" \
+      -v "$STATE:/work/state" \
+      "$IMAGE" "${ARGS[@]}" ${EXTRA[@]+"${EXTRA[@]}"}
+    ;;
+  tool|source)
+    if [ "$MODE" = tool ]; then
+      if [ -n "${ORKEON_REPL:-}" ]; then read -r -a REPL <<< "$ORKEON_REPL"; else REPL=(orkeon-repl); fi
+      command -v "${REPL[0]}" >/dev/null 2>&1 || die "${REPL[0]} not found (see docs/getting-started.md, 'Tool mode')."
+    else
+      [ -n "${ORKEON_SOURCE:-}" ] && [ -d "$ORKEON_SOURCE/src/apps/Orkeon.ConsoleApp" ] \
+        || die "ORKEON_SOURCE must name an Orkeon checkout (src/apps/Orkeon.ConsoleApp not found)."
+      ORKEON_SOURCE="$(cd "$ORKEON_SOURCE" && pwd)"
+      # The SDK runs in the Orkeon checkout, under its global.json, never in the
+      # project, whose global.json may pin another SDK ("A compatible .NET SDK was
+      # not found"). The REPL then starts as the built assembly: `dotnet <dll>`
+      # is a host command, which reads no global.json.
+      (cd "$ORKEON_SOURCE" && dotnet build src/apps/Orkeon.ConsoleApp -c Debug --no-restore -nologo -v quiet) >&2 \
+        || die "building src/apps/Orkeon.ConsoleApp in $ORKEON_SOURCE failed (restore it once: dotnet restore Orkeon.sln)."
+      dll="$ORKEON_SOURCE/src/apps/Orkeon.ConsoleApp/bin/Debug/net10.0/Orkeon.ConsoleApp.dll"
+      [ -f "$dll" ] || die "$dll not found after the build."
+      REPL=(dotnet "$dll")
+    fi
+    # The runtime bundles each command and crew with esbuild. The Debian package
+    # and a release-archive install carry their own: /usr/bin/orkeon-repl is a
+    # script that points the runtime at /usr/lib/orkeon/esbuild-bin, and an
+    # archive's wrapper at its libexec/esbuild-bin. The dotnet tool and a source
+    # build carry none: for them, use the one npm installed for this checkout.
+    bundled=""
+    if [ "$MODE" = tool ] && repl_bin="$(command -v "${REPL[0]}")"; then
+      while [ -L "$repl_bin" ]; do
+        target="$(readlink "$repl_bin")"
+        case "$target" in /*) repl_bin="$target" ;; *) repl_bin="$(dirname "$repl_bin")/$target" ;; esac
+      done
+      if [ -x "$(dirname "$(dirname "$repl_bin")")/libexec/esbuild-bin/esbuild" ]; then bundled=1
+      # A launcher script that sets ORKEON_ESBUILD_PATH itself (the Debian package's).
+      elif [ "$(head -c 2 "$repl_bin" 2>/dev/null)" = '#!' ] && grep -q ORKEON_ESBUILD_PATH "$repl_bin" 2>/dev/null; then
+        bundled=1
+      fi
+    fi
+    if [ -z "$bundled" ] && [ -z "${ORKEON_ESBUILD_PATH:-}" ] && ! command -v esbuild >/dev/null 2>&1; then
+      found="$(find "$ROOT/node_modules/@esbuild" -path '*/bin/esbuild' -type f 2>/dev/null | head -n 1 || true)"
+      [ -n "$found" ] || die "esbuild not found: run 'npm ci' in $ROOT, or set ORKEON_ESBUILD_PATH."
+      export ORKEON_ESBUILD_PATH="$found"
+    fi
+    # The REPL runs from the project. It reads its --commands-dir and --crews-dir
+    # wherever they are, and a --mount outside its working directory (here
+    # /output and /tmp, in the state directory) under ORKEON_ALLOW_EXTERNAL_MOUNTS
+    # (Orkeon GAP-49). The three roots are distinct, and none is one the REPL keeps
+    # (/sandbox, /credentials, /cli-commands..., /crews...).
+    export ORKEON_ALLOW_EXTERNAL_MOUNTS=1
+    repl_args "$ROOT/src/commands" "$ROOT/src/crews" "$SETTINGS" \
+      "$WORKSPACE" "$STATE/output" "$STATE/tmp"
+    cd "$WORKSPACE"
+    exec "${REPL[@]}" "${ARGS[@]}" ${AUDIO_ARGS[@]+"${AUDIO_ARGS[@]}"} ${EXTRA[@]+"${EXTRA[@]}"}
+    ;;
+  *) die "unknown mode '$MODE' (expected docker, tool or source)" ;;
+esac

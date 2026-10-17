@@ -1,0 +1,19 @@
+# Line endings: LF everywhere, Windows included. PowerShell and the Orkeon runtime
+# both read LF; a CRLF in a *.cmd.ts or crew.ork.ts would only add noise to diffs.
+* text=auto eol=lf
+*.sh text eol=lf
+*.ps1 text eol=lf
+*.ts text eol=lf
+*.mjs text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# The launcher (./orkeon-code) has no extension: keep it LF so `#!/usr/bin/env bash` works on a
+# checkout made on Windows and run in WSL or a container.
+orkeon-code text eol=lf
+
+package-lock.json linguist-generated=true
+src/commands/.orkeon/*.d.ts linguist-generated=true
+src/crews/.orkeon/*.d.ts linguist-generated=true

@@ -1,0 +1,69 @@
+# Release: a v* tag publishes a GitHub Release with the source archives, their
+# SHA256SUMS and a build provenance attestation (Sigstore, as Orkeon/orkeon does).
+#
+# The tag must match package.json (and meta.ts, which tests/version.test.ts keeps
+# equal to it), and the provenance gate runs in --strict mode: nothing adapted
+# from another product's text is ever released.
+name: Release
+on:
+  push:
+    tags: [ 'v*' ]
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write        # create the Release
+      id-token: write        # Sigstore certificate for the attestation
+      attestations: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: The tag matches package.json
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
+          [ "${GITHUB_REF_NAME}" = "v${version}" ] || { echo "tag ${GITHUB_REF_NAME} != v${version} (package.json)"; exit 1; }
+          echo "VERSION=${version}" >> "$GITHUB_ENV"
+      - run: npm ci
+      - run: npm run check
+      - name: Provenance gate (strict)
+        run: npm run check:provenance -- --strict
+      - name: Source archives
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          git archive --format=tar.gz --prefix="orkeon-code-${VERSION}/" -o "dist/orkeon-code-${VERSION}.tar.gz" HEAD
+          git archive --format=zip --prefix="orkeon-code-${VERSION}/" -o "dist/orkeon-code-${VERSION}.zip" HEAD
+          (cd dist && sha256sum orkeon-code-* > SHA256SUMS)
+          cat dist/SHA256SUMS
+      - name: Build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4
+        with:
+          subject-path: dist/orkeon-code-*
+      - name: Release notes from CHANGELOG.md
+        run: |
+          set -euo pipefail
+          awk -v v="$VERSION" '
+            $0 ~ "^## \\[" v "\\]" { on = 1; next }
+            on && /^## \[/ { exit }
+            on { print }' CHANGELOG.md > dist/NOTES.md
+          [ -s dist/NOTES.md ] || { echo "CHANGELOG.md has no section [${VERSION}]"; exit 1; }
+      - name: GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          prerelease=""
+          case "$VERSION" in *-*) prerelease="--prerelease" ;; esac
+          gh release create "$GITHUB_REF_NAME" --verify-tag $prerelease \
+            --title "Orkeon Code ${VERSION}" --notes-file dist/NOTES.md \
+            dist/orkeon-code-*.tar.gz dist/orkeon-code-*.zip dist/SHA256SUMS

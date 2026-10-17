@@ -1,0 +1,37 @@
+name: Feature request
+description: Propose an improvement or a new capability
+labels: ["enhancement", "triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to do that Orkeon Code makes hard or impossible today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: The command, crew or behaviour you would like. Sketches welcome.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Interactive loop (/assistant)
+        - Permissions and modes
+        - Context and compaction
+        - Code review / commit / init crews
+        - Slash commands
+        - Launcher and installation
+        - Documentation
+        - Other
+    validations:
+      required: true
