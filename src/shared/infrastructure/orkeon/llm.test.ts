@@ -82,6 +82,23 @@ describe("createLlm — complete and extract", () => {
     ]);
   });
 
+  it("sends a system message first through chat, with the model override", async () => {
+    const facade = new FakeLlmFacade();
+    facade.completion = "feat: x";
+    const llm = createLlm(facade);
+    strictEqual(await llm.complete("the diff", { system: "write the message", model: "m" }), "feat: x");
+    deepStrictEqual(facade.calls, [{
+      method: "chat",
+      args: [[{ role: "system", content: "write the message" }, { role: "user", content: "the diff" }], { llm: { model: "m" } }],
+    }]);
+  });
+
+  it("throws a chat reply that is the host's failure marker as an LlmFailure", async () => {
+    const facade = new FakeLlmFacade();
+    facade.completion = "<undefined-llm:chat:2 msgs>";
+    await rejects(createLlm(facade).complete("p", { system: "s" }), { name: "LlmFailure" });
+  });
+
   it("throws a completion that is the host's failure marker as an LlmFailure", async () => {
     const facade = new FakeLlmFacade();
     facade.completion = "<undefined-llm:invalid api key>";

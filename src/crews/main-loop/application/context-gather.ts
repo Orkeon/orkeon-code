@@ -10,8 +10,7 @@
 
 import type { Files, MemoryStore, SessionStore, Shell, Telemetry } from "../../../shared/application/ports.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
-import { INSTRUCTIONS_FILES } from "../../../shared/domain/instructions-file.ts";
-import type { InstructionsFile } from "../../../shared/domain/instructions-file.ts";
+import { readInstructionsFile } from "../../../shared/application/instructions-file.ts";
 import { ANSWER_LANGUAGE_CONFIG_KEY } from "../../../shared/domain/agent-policy/output-styles.ts";
 import { readJsonArray } from "../../../shared/application/session-state.ts";
 import {
@@ -24,17 +23,8 @@ import { MEMORY_CATEGORIES } from "../../../shared/domain/agent-policy/memory-ca
 import { resolveBehaviorFlags } from "../../../shared/domain/agent-policy/behavior-flags.ts";
 import type { BehaviorFlags } from "../../../shared/domain/agent-policy/behavior-flags.ts";
 
-/** The project's instructions file: the first of INSTRUCTIONS_FILES present and
- *  not blank (AGENTS.md, then CLAUDE.md); undefined when the project has none. */
-export async function readInstructionsFile(files: Files): Promise<InstructionsFile | undefined> {
-  for (const file of INSTRUCTIONS_FILES) {
-    try {
-      const content = await files.read("/workspace/" + file);
-      if (content.trim().length > 0) return { file, content };
-    } catch { /* absent or unreadable → the next one */ }
-  }
-  return undefined;
-}
+/** The project's instructions file (AGENTS.md, then CLAUDE.md), shared with the crews. */
+export { readInstructionsFile };
 
 /** The `answer.language` setting; "" when unset, unreadable or without a store. */
 export async function readLanguage(config: Pick<ConfigStore, "readValue"> | undefined): Promise<string> {

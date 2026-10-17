@@ -6,7 +6,7 @@
 //
 // Run tests: node --test src/shared/domain/compaction.test.ts
 
-import type { CompactBoundaryMessage, SessionMsg } from "./types.ts";
+import type { CompactBoundaryMessage, PromptPair, SessionMsg } from "./types.ts";
 import { MAX_EXTRACTED_MEMORIES, TRANSCRIPT_CAP_CHARS } from "./compaction-thresholds.ts";
 import { MEMORY_CATEGORIES } from "./agent-policy/memory-categories.ts";
 
@@ -58,9 +58,10 @@ function asMaterial(transcript: string): string {
  * the instructions file, the files read back) is named so the summary spends its
  * words on the state of the work. The answer goes between fixed markers so the
  * host stores the summary and nothing else. `focus` is the operator's
- * `/compact <focus>`.
+ * `/compact <focus>`. The instructions are the system message, the transcript the
+ * user message.
  */
-export function buildSummaryPrompt(transcript: string, focus?: string): string {
+export function buildSummaryPrompt(transcript: string, focus?: string): PromptPair {
   const lines = [
     "You are writing the compaction summary of a coding session. The conversation below " +
       "will be replaced by your summary, and the agent will carry on the work from it. " +
@@ -92,10 +93,8 @@ export function buildSummaryPrompt(transcript: string, focus?: string): string {
       "against the transcript before you finish. Answer with the summary alone, at most " +
       `${SUMMARY_MAX_WORDS} words, between ${SUMMARY_OPEN} and ${SUMMARY_CLOSE}; ` +
       "anything outside them is discarded.",
-    "",
-    asMaterial(transcript),
   );
-  return lines.join("\n");
+  return { system: lines.join("\n"), user: asMaterial(transcript) };
 }
 
 /**

@@ -93,5 +93,11 @@ describe("the synthesis prompts", () => {
     const user = buildSynthesisUser("# Codebase analysis harvest\nX");
     ok(user.includes("business/domain objects"));
     ok(user.indexOf("business/domain objects") < user.indexOf("# Codebase analysis harvest"));
+    ok(user.endsWith("<harvest>\n# Codebase analysis harvest\nX\n</harvest>"), "the harvest is material");
+  });
+
+  it("asks to say what the harvest does not hold rather than fill it, and to mark inferences", () => {
+    ok(buildSynthesisUser("X").includes("not in the harvest"));
+    ok(SYNTHESIS_SYSTEM.includes("word an inference as one"));
   });
 });

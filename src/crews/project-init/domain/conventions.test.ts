@@ -11,15 +11,15 @@ describe("CONFIG_CANDIDATES", () => {
 });
 
 describe("fallbackConventions", () => {
-  it("pulls scripts + devDependencies from package.json", () => {
+  it("pulls the scripts, as they are invoked, and the devDependencies from package.json", () => {
     const pkg = JSON.stringify({
       scripts: { build: "tsc", test: "vitest", lint: "eslint ." },
       devDependencies: { vitest: "1", typescript: "5" },
     });
     const c = fallbackConventions(pkg);
-    strictEqual(c.buildCommand, "tsc");
-    strictEqual(c.testCommand, "vitest");
-    strictEqual(c.lintCommand, "eslint .");
+    strictEqual(c.buildCommand, "npm run build");
+    strictEqual(c.testCommand, "npm test");
+    strictEqual(c.lintCommand, "npm run lint");
     deepStrictEqual(c.frameworks, ["vitest", "typescript"]);
   });
   it("returns empty conventions on unparseable input", () => {

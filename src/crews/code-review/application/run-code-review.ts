@@ -12,6 +12,12 @@ import { renderReport } from "../domain/report.ts";
 import { resolveReviewScope } from "../domain/scope.ts";
 import { resolveLensSelection, describeReviewPlan } from "../domain/lenses.ts";
 import { collectDiff, collectChangedFiles, runLenses, writeReport } from "./review.ts";
+import { cutDiff } from "./prompts.ts";
+import { readInstructionsFile } from "../../../shared/application/instructions-file.ts";
+
+/** The diff the lenses read, in characters: about 3 000 tokens, so three lenses per
+ *  pass stay cheap; a longer diff is cut and says so. */
+export const MAX_REVIEW_DIFF_CHARS = 12_000;
 
 /** Status-line headline of the /review progress. */
 export const REVIEW_PROGRESS_LABEL = "Reviewing changes";
@@ -68,7 +74,9 @@ export async function runCodeReview(input: CodeReviewInputs, deps: CodeReviewDep
   const plan = describeReviewPlan(selection.lenses, passes, selection.source);
   log.info(`review plan — ${plan}`);
 
-  const diffSlice = diff.slice(0, 12000);
+  const diffSlice = cutDiff(diff, MAX_REVIEW_DIFF_CHARS);
+  // The style lens judges conventions: give it the ones the project states.
+  const conventions = (await readInstructionsFile(files).catch(() => undefined))?.content ?? "";
   // Passes run in SEQUENCE (the lenses within a pass still fan out): pass n+1
   // is shown what the earlier ones found and asked for what they missed, which
   // only works if they have finished.
@@ -80,7 +88,7 @@ export async function runCodeReview(input: CodeReviewInputs, deps: CodeReviewDep
         message: `pass ${pass} — ${selection.lenses.map((l) => l.key).join("/")}`,
       });
       const prior = dedupAndRank(results);
-      const round = await runLenses(llm, diffSlice, selection.lenses, pass, prior);
+      const round = await runLenses(llm, diffSlice, selection.lenses, pass, prior, conventions);
       const added = round.reduce((n, r) => n + r.findings.length, 0);
       if (passes > 1) log.info(`review pass ${pass}/${passes}: ${added} raw finding(s)`);
       results.push(...round);

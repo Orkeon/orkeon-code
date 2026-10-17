@@ -70,7 +70,7 @@ cd ~/src/my-project && ~/orkeon-code/orkeon-code                   # or on your 
 Then, in the REPL:
 
 ```text
-/init                                    describe the project (writes CLAUDE.md)
+/init                                    describe the project (writes AGENTS.md)
 plan: how is the configuration loaded?   read-only question
 acceptEdits: add input validation to parseArgs and a test for it
 /diff

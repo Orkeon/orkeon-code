@@ -100,7 +100,7 @@ The banner prints the project, the settings and the mode. In the REPL:
 | Try | What happens |
 |---|---|
 | `/doctor` | Checks the LLM configuration, the tools and the mounts |
-| `/init` | Analyses the project and writes `CLAUDE.md`, the instructions the agent reads at every turn |
+| `/init` | Analyses the project and writes `AGENTS.md`, the instructions the agent reads at every turn (an existing `CLAUDE.md` is merged into it, and still read when there is no `AGENTS.md`) |
 | `plan: where are the HTTP routes defined?` | A read-only question |
 | `rename parseArgs to parseCliArgs` | In `default` mode, the REPL asks before each edit: `[y] once / [s] session / [n] no` |
 | `/mode acceptEdits` then `add a test for parseCliArgs` | Edits run without asking for the session; a command still asks |
@@ -129,7 +129,7 @@ models, backends and how the model calls the tools itself: [Configuration](confi
 
 ## What the agent writes in your project
 
-Besides the changes you ask for: `CLAUDE.md` (`/init`), `.orkeon/config.json` (`/config`), `.orkeon/agents.json`
+Besides the changes you ask for: `AGENTS.md` (`/init`), `.orkeon/config.json` (`/config`), `.orkeon/agents.json`
 (`/agents`) and `.git/ORKEON_COMMITMSG` (`/commit` writes the message there for `git commit -F`; git does not track
 it). Add `.orkeon/` to the project's `.gitignore` if you do not want to share them. Transcriptions go to the state
 directory (`.crew-output/transcripts` in this checkout), never to the project. The conversation, the

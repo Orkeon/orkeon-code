@@ -22,10 +22,11 @@ export const CONFIG_CANDIDATES = [
 export function fallbackConventions(packageJsonText: string): DetectedConventions {
   try {
     const pkg = JSON.parse(packageJsonText || "{}");
+    // A command as it is invoked, not the script's body: `npm run build`, not `tsc -p .`.
     return {
-      buildCommand: pkg.scripts?.build,
-      testCommand: pkg.scripts?.test,
-      lintCommand: pkg.scripts?.lint,
+      buildCommand: pkg.scripts?.build ? "npm run build" : undefined,
+      testCommand: pkg.scripts?.test ? "npm test" : undefined,
+      lintCommand: pkg.scripts?.lint ? "npm run lint" : undefined,
       frameworks: Object.keys(pkg.devDependencies ?? {}),
       conventions: [],
     };

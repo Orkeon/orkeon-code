@@ -36,7 +36,7 @@ An **async** command starts a crew and returns a ticket; its result is printed w
 | `/force-snip` | sync | Immediately truncate the conversation to the head plus the last N exchanges. |
 | `/hooks` | sync | List, add or remove declarative hooks (pre-tool\|post-tool\|stop). |
 | `/init-verifiers` | async | Detect test tooling and author verification skills for uncovered zones. |
-| `/init` | async | Analyse the workspace and generate a CLAUDE.md. |
+| `/init` | async | Analyse the workspace and write AGENTS.md, the instructions file (an existing CLAUDE.md is merged). |
 | `/memory` | sync | List, add, delete, or get typed memory entries (user/project/feedback/reference). |
 | `/mode` | sync | Cycle, show or set the session-default permission mode of the assistant. |
 | `/model` | sync | Show the effective model for the next turn, or switch it without relaunching. |

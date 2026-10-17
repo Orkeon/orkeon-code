@@ -3,7 +3,7 @@
 // An Error reply is thrown, as a failing provider (or an unparsable extraction)
 // throws. Every call lands in `acts`, `completes` or `extracts` with the prompt
 // and the settings it received.
-import type { ActRequest, Llm, ModelOverride } from "../../src/shared/application/ports.ts";
+import type { ActRequest, CompleteRequest, Llm } from "../../src/shared/application/ports.ts";
 
 function reply<T>(replies: readonly T[], index: number): T {
   const value = replies[Math.min(index, replies.length - 1)];
@@ -16,7 +16,7 @@ export class FakeLlm implements Llm {
   completions: Array<string | Error> = [""];
   extractions: unknown[] = [{}];
   acts: Array<{ prompt: string; request: ActRequest }> = [];
-  completes: Array<{ prompt: string; override?: ModelOverride }> = [];
+  completes: Array<{ prompt: string; override?: CompleteRequest }> = [];
   extracts: Array<{ prompt: string; schema: object }> = [];
 
   async act(prompt: string, request: ActRequest): Promise<string> {
@@ -24,7 +24,7 @@ export class FakeLlm implements Llm {
     return reply(this.answers, this.acts.length - 1) as string;
   }
 
-  async complete(prompt: string, override?: ModelOverride): Promise<string> {
+  async complete(prompt: string, override?: CompleteRequest): Promise<string> {
     this.completes.push({ prompt, override });
     return reply(this.completions, this.completes.length - 1) as string;
   }

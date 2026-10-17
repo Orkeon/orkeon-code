@@ -85,7 +85,8 @@ export async function compactSession(
       const remaining = await session.readMessages();
       if (remaining.stored.length === 0)
         return { status: "snipped", before: raw.stored.length, after: 0 };
-      const reply = await llm.complete(buildSummaryPrompt(buildTranscript(remaining.messages), opts.focus));
+      const prompt = buildSummaryPrompt(buildTranscript(remaining.messages), opts.focus);
+      const reply = await llm.complete(prompt.user, { system: prompt.system });
       const summary = extractSummary(String(reply ?? ""));
       if (summary.length === 0) return { status: "failed", reason: "the summary came back empty" };
       const buffer = buildCompactedBuffer(remaining.stored[0], summary);

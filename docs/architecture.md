@@ -373,10 +373,11 @@ prompt as the model reads it, to review a change as a diff.
   a changed line, quotes it, and carries a severity from a defined scale (`blocker`, `high`, `medium`, `low`, `nit`);
   only what the diff shows is reported; an empty list is a valid answer; the diff is material; a cut diff is said to
   be cut; a later pass looks for what the earlier ones missed.
-- **Commit** (`git-commit`): the prompt sees what will be committed, the tracked changes and the content of the
-  untracked files; the message follows Conventional Commits and the style of the recent history, a bounded subject,
-  a body that says why. A change that looks like a credential gets a refusal instead of a message, and a path that
-  usually holds secrets stops the commit before any model call; the crew stages the inspected paths by name.
+- **Commit** (`git-commit`): the prompt sees what will be committed, the tracked changes and the start of the
+  untracked files, since the crew stages everything with `git add -A` (which its confirmation names); the message
+  follows Conventional Commits and the style of the recent history, a bounded subject, a body that says why. A change
+  that looks like a credential gets a refusal instead of a message, and a path that usually holds secrets (an env
+  file, a private key) stops the commit before any model call.
 - **Instructions file** (`project-init`, `/init`): writes `AGENTS.md`: what the project is, the commands as its
   configuration states them (build, all tests, one test, lint), the architecture that takes several files to see,
   the conventions a newcomer would get wrong; no file inventory, no generic advice, nothing invented. The existing
@@ -387,9 +388,12 @@ prompt as the model reads it, to review a change as a diff.
   report).
 - **Analysis** (`analyze`): answers only from the harvest, cites symbols by FQN, says what the harvest leaves out.
 - **Advisor** (`advisor`): a second opinion that reports problems worst first and may say there is nothing to add.
-- **Session summary** (`/summary`): fixed headings, bounded, in the conversation's language, from the history alone.
-- **Session title** (`/rename` with no name): a short noun phrase drawn from the history, as JSON, the history framed
-  as material.
+- **Session summary** (`/summary`): where things stand first, then fixed headings, bounded, in the conversation's
+  language, from the history alone (the compacted turns included).
+
+The prompts that apply instructions to material (the summary, the commit message, the second opinion, the
+instructions file, a verification skill) send the instructions as the system message and the material as the user
+message (`Llm.complete` with `system`, over the runtime's message-array call).
 
 ## Context management
 

@@ -1,5 +1,5 @@
 // The compaction pipeline over the fakes of its ports. Run:
-//   node_modules/.bin/tsx --test shared/application/compaction/compact-session.test.ts
+//   node --test src/shared/application/compaction/compact-session.test.ts
 import { describe, it } from "node:test";
 import { ok, deepStrictEqual, strictEqual } from "node:assert";
 
@@ -78,7 +78,8 @@ describe("compactSession: the full pipeline", () => {
     deepStrictEqual(deps.llm.extracts.map((c) => c.prompt), [buildMemoryExtractionPrompt(transcript)]);
     deepStrictEqual(deps.memory.records.map((r) => [r.category, r.content]), [["project", "uses pnpm"]]);
     deepStrictEqual(deps.session.snips, [SNIP_RETAIN_COUNT]);
-    deepStrictEqual(deps.llm.completes, [{ prompt: buildSummaryPrompt(transcript), override: undefined }]);
+    const prompt = buildSummaryPrompt(transcript);
+    deepStrictEqual(deps.llm.completes, [{ prompt: prompt.user, override: { system: prompt.system } }]);
     deepStrictEqual(deps.session.messages, [
       ...buildCompactedBuffer(HISTORY[0], "SUMMARY"),
       buildMemoryRecapMessage([{ category: "project", content: "uses pnpm" }]),
@@ -124,7 +125,7 @@ describe("compactSession: the summary call", () => {
     const deps = setup();
     deps.llm.completions = ["Sure.\n<summary>1. The request: ship it</summary>\nAnything else?"];
     strictEqual((await compactSession({ force: true, focus: "the release steps" }, deps)).status, "compacted");
-    ok(deps.llm.completes[0].prompt.includes("keep above all: the release steps"), deps.llm.completes[0].prompt);
+    ok(String(deps.llm.completes[0].override?.system).includes("keep above all: the release steps"));
     const summary = deps.session.messages.find((m) => String(m.content).startsWith("[compacted]"));
     ok(String(summary?.content).endsWith("\n1. The request: ship it"), String(summary?.content));
   });

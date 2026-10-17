@@ -6,7 +6,7 @@ const ONBOARDING = [
   `Welcome to ${CLI_NAME} ${CLI_VERSION} — a coding agent on the Orkeon scripted stack.`,
   "",
   "Getting started:",
-  "  /init                     analyse the workspace and generate CLAUDE.md",
+  "  /init                     analyse the workspace and write AGENTS.md",
   "  /assistant <request>      ask the agent to explore or change code",
   "  mode: prefixes            plan: | acceptEdits: | bypassPermissions: | dontAsk:",
   "  /mode                     cycle the session-default permission mode",

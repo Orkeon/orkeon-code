@@ -46,17 +46,16 @@ describe("clipTranscript", () => {
 });
 
 describe("buildSummaryPrompt", () => {
-  it("frames the transcript as material, after the instructions, cut at the cap", () => {
+  it("puts the instructions in the system message and the transcript, framed and cut, in the user message", () => {
     const big = "x".repeat(TRANSCRIPT_CAP_CHARS + 1000);
     const p = buildSummaryPrompt(big);
-    ok(p.endsWith("\n</transcript>"));
-    ok(p.includes("<transcript>\n"));
-    ok(p.lastIndexOf("<transcript>\n") > p.indexOf("Do not call tools"), "instructions first, material last");
-    ok(p.length < TRANSCRIPT_CAP_CHARS + 4000, "the transcript is clipped");
+    ok(p.user.startsWith("<transcript>\n") && p.user.endsWith("\n</transcript>"), "the transcript is material");
+    ok(!p.system.includes("xxxx"), "no material in the instructions");
+    ok(p.user.length < TRANSCRIPT_CAP_CHARS + 200, "the transcript is clipped");
   });
 
   it("asks for the parts a cold reader needs to resume", () => {
-    const p = buildSummaryPrompt("t");
+    const p = buildSummaryPrompt("t").system;
     for (const part of [
       "The request:",
       "The user's own words that still apply",
@@ -70,7 +69,7 @@ describe("buildSummaryPrompt", () => {
   });
 
   it("asks for the answer between fixed markers, bounded, without tools", () => {
-    const p = buildSummaryPrompt("t");
+    const p = buildSummaryPrompt("t").system;
     ok(p.includes(`between ${SUMMARY_OPEN} and ${SUMMARY_CLOSE}`));
     ok(p.includes(`at most ${SUMMARY_MAX_WORDS} words`));
     ok(p.includes("Do not call tools"));
@@ -78,8 +77,8 @@ describe("buildSummaryPrompt", () => {
   });
 
   it("carries the operator's focus only when there is one", () => {
-    ok(buildSummaryPrompt("t", "the failing test names").includes("keep above all: the failing test names"));
-    strictEqual(buildSummaryPrompt("t", "  "), buildSummaryPrompt("t"));
+    ok(buildSummaryPrompt("t", "the failing test names").system.includes("keep above all: the failing test names"));
+    deepStrictEqual(buildSummaryPrompt("t", "  "), buildSummaryPrompt("t"));
   });
 });
 

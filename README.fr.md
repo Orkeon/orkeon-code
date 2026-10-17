@@ -74,7 +74,7 @@ cd ~/src/mon-projet && ~/orkeon-code/orkeon-code                   # ou sur votr
 Puis, dans le REPL :
 
 ```text
-/init                                         décrire le projet (écrit CLAUDE.md)
+/init                                         décrire le projet (écrit AGENTS.md)
 plan: comment la configuration est-elle chargée ?   question en lecture seule
 acceptEdits: valide les entrées de parseArgs et ajoute un test
 /diff

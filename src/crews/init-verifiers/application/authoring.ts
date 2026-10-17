@@ -35,11 +35,17 @@ export async function detectReadiness(
   }
 }
 
-/** Author one verifier skill per zone; returns the count written. */
-export async function authorVerifiers(llm: Pick<Llm, "complete">, zones: string[], files: Files): Promise<number> {
+/** Author one verifier skill per zone from the project's facts; returns the count written. */
+export async function authorVerifiers(
+  llm: Pick<Llm, "complete">,
+  zones: string[],
+  files: Files,
+  facts: { pkg?: string; readiness?: TestReadiness } = {},
+): Promise<number> {
   let written = 0;
   for (const zone of zones) {
-    const skill = await llm.complete(buildVerifierSkillPrompt(zone));
+    const prompt = buildVerifierSkillPrompt(zone, facts);
+    const skill = await llm.complete(prompt.user, { system: prompt.system });
     await files.write(`/output/verifiers/verify-${safeZoneName(zone)}.md`, cleanLlmMarkdown(skill) + "\n");
     written++;
   }

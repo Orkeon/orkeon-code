@@ -25,7 +25,8 @@ export async function collectChangedFiles(scope: ReviewScope, shell: Shell): Pro
 
 /**
  * Run one pass of the selected lenses concurrently; a lens that fails yields no
- * findings. `priorFindings` (pass ≥ 2, B-9) is what earlier passes already found.
+ * findings. `priorFindings` (pass ≥ 2) is what earlier passes already found;
+ * `conventions` the project's instructions file, for the style lens.
  */
 export async function runLenses(
   llm: Pick<Llm, "extract">,
@@ -33,9 +34,10 @@ export async function runLenses(
   lenses: readonly ReviewLens[] = LENSES,
   pass = 1,
   priorFindings: readonly Finding[] = [],
+  conventions = "",
 ): Promise<Array<{ lens: string; findings: Finding[] }>> {
   return await Promise.all(lenses.map((lens) =>
-    llm.extract(buildLensPrompt(lens, diffSlice, pass, priorFindings), FINDINGS_SCHEMA)
+    llm.extract(buildLensPrompt(lens, diffSlice, pass, priorFindings, conventions), FINDINGS_SCHEMA)
       .then((r) => ({ lens: lens.key, findings: ((r as { findings?: Finding[] } | null)?.findings ?? []) }))
       .catch(() => ({ lens: lens.key, findings: [] as Finding[] })),
   ));

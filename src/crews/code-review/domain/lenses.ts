@@ -1,24 +1,48 @@
-// B-9 — which review lenses run, and how many rounds of them. Pure, no IO.
+// Which review lenses run, and how many rounds of them. Pure, no IO.
 //
-// Two settings meet here, and both were declared before anything read them:
-//   `review.lenses` (B-6 key space, "consumed by crews/code-review") selected
-//   nothing, and `/passes` (E-1) was written and never read.
-//
-// Moved out of ../application/prompts.ts — that module is pure too, but the
-// selection is a decision, not a prompt, and it needs its own test file. The
-// prompts module re-exports LENSES so existing importers keep working, the same
-// way scope.ts kept resolveCommitRange re-exported when it moved.
+// Two settings meet here: `review.lenses` (the /config key space) selects the
+// lenses, `/passes` the rounds. Each lens says what it looks for and what it
+// leaves to the others, so three blind reviewers do not report the same thing
+// three times, nor what no lens should report at all.
 
 export interface ReviewLens {
   key: string;
-  instruction: string;
+  /** The defects this lens hunts, as concrete patterns. */
+  looksFor: string;
+  /** What it does not report: another lens's ground, or what no lens should report. */
+  leaves: string;
 }
 
 /** The three review lenses, each blind to the others (run via Promise.all). */
 export const LENSES: readonly ReviewLens[] = [
-  { key: "correctness", instruction: "logic errors, edge cases, broken contracts, missing error handling" },
-  { key: "security", instruction: "injection, secrets, unsafe IO, auth/authz gaps, unvalidated input" },
-  { key: "style", instruction: "readability, naming, dead code, convention violations" },
+  {
+    key: "correctness",
+    looksFor:
+      "behaviour the change gets wrong: an inverted or incomplete condition, an off-by-one, a value used " +
+      "before it is set, a case the new code does not handle although its inputs allow it, a caller or a " +
+      "contract the change breaks, a resource left open, steps that race",
+    leaves:
+      "style and naming, defensive checks for inputs the code cannot receive, security (another lens), " +
+      "performance unless the change makes something fail",
+  },
+  {
+    key: "security",
+    looksFor:
+      "a way in that the change opens: input reaching a shell, a query, a path or markup unescaped, a " +
+      "secret written into code, logs or output, an authorisation check missing or weakened, unsafe " +
+      "deserialisation, a file or network access wider than needed",
+    leaves:
+      "attacks with no input that reaches the code, hardening wishes, issues the change neither adds nor " +
+      "touches, style and plain bugs (other lenses)",
+  },
+  {
+    key: "style",
+    looksFor:
+      "what makes the change harder to read or maintain: a misleading name, dead or duplicated code the " +
+      "change adds, a comment that restates the code or narrates the change, a break with the conventions " +
+      "the project states or the surrounding code follows",
+    leaves: "what a formatter fixes, taste with no concrete cost, correctness and security (other lenses)",
+  },
 ];
 
 export function lensKeys(): string[] {

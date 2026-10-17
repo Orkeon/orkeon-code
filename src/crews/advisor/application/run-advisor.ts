@@ -4,7 +4,7 @@
 
 import type { Llm, Logger, SessionStore } from "../../../shared/application/ports.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
-import { lastExchange, buildAdvicePrompt, describeAdvisor } from "../domain/advice.ts";
+import { lastExchange, buildAdvicePrompt, describeAdvisor, earlierTurns } from "../domain/advice.ts";
 
 export interface AdvisorDeps {
   session: Pick<SessionStore, "readMessages">;
@@ -32,8 +32,9 @@ export async function runAdvisor(deps: AdvisorDeps): Promise<string> {
   else log.info(header);
 
   // The override is what makes this worth running: the reviewer is not the author.
-  const override = advisorModel.length > 0 ? { model: advisorModel } : undefined;
-  const advice = await llm.complete(buildAdvicePrompt(exchange), override);
+  const prompt = buildAdvicePrompt(exchange, earlierTurns(messages));
+  const request = advisorModel.length > 0 ? { system: prompt.system, model: advisorModel } : { system: prompt.system };
+  const advice = await llm.complete(prompt.user, request);
 
   return `── ${header}\n\n${String(advice ?? "").trim()}`;
 }

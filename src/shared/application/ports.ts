@@ -214,6 +214,14 @@ export interface ModelOverride {
   model?: string;
 }
 
+/** The settings of one completion. */
+export interface CompleteRequest extends ModelOverride {
+  /** The system message the completion starts with, the prompt then being the user
+   *  message: a crew's instructions at system authority, its material (a diff, a
+   *  transcript, an answer under review) as the user's. Absent: the prompt alone. */
+  system?: string;
+}
+
 /** The settings of one agentic call. */
 export interface ActRequest extends ModelOverride {
   /** The system message the conversation starts with. */
@@ -230,8 +238,8 @@ export interface Llm {
   /** The model ⇄ tool-call loop over the running agent's tools, under the crew's
    *  budget; resolves to the final answer's text. */
   act(prompt: string, request: ActRequest): Promise<string>;
-  /** One completion, without tools. */
-  complete(prompt: string, override?: ModelOverride): Promise<string>;
+  /** One completion, without tools; with `request.system`, a system message first. */
+  complete(prompt: string, request?: CompleteRequest): Promise<string>;
   /** A JSON answer shaped by `schema`; throws when the reply does not parse. */
   extract(prompt: string, schema: object): Promise<unknown>;
 }
