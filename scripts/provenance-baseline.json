@@ -1,11 +1,4 @@
 {
   "_comment": "Files whose content still needs an original rewrite before the repository goes public (see PLAN phase 2 and CONTRIBUTING, 'Original work only'). Remove an entry only once a reviewer has checked the rewrite. `npm run check:provenance -- --strict` fails while this list is not empty.",
-  "files": {
-    "src/crews/main-loop/domain/prompt-assembly.ts": "COMMUNICATION_BLOCK, DOING_TASKS_BLOCK, TURN_DISCIPLINE_BLOCK and PERMISSION_NOTE were adapted from another product's published prompts. Rewrite them from the behaviour they must produce (docs/architecture.md, 'Prompt assembly'), update the pinned phrases in prompt-assembly.test.ts, then validate a live /assistant session.",
-    "src/crews/main-loop/domain/prompt-assembly.test.ts": "Pins phrases of the adapted blocks: follows the rewrite of prompt-assembly.ts.",
-    "src/shared/domain/compaction.ts": "The five-section summary prompt is structured after another product's compaction template. Rewrite the prompt text; the section structure itself (what a summary must keep) can stay.",
-    "src/shared/application/compaction/compact-session.ts": "Header comment describes the pipeline by reference to another product: describe it in its own terms.",
-    "src/shared/domain/compaction-thresholds.ts": "Threshold constants and comments sourced from the analysis of another product: keep the numbers only if they are re-derived and justified here, and reword the comments.",
-    "src/shared/domain/compaction-thresholds.test.ts": "Suite title refers to the source analysis: follows compaction-thresholds.ts."
-  }
+  "files": {}
 }

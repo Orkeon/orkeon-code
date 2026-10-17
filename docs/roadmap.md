@@ -5,10 +5,6 @@ What Orkeon Code does not do yet, in the order we expect to address it. Items ma
 
 ## Before the first release
 
-- **Original prompts.** Rewrite the behaviour blocks of the main loop and the compaction prompt from the
-  specification in [Architecture](architecture.md#prompt-assembly); empty `scripts/provenance-baseline.json`.
-- **A vendor-neutral instructions file.** `/init` writes, and the loop reads, `AGENTS.md`; `CLAUDE.md` stays readable
-  for projects that already have one.
 - **Comments in the project's own terms.** The sources still cite the internal tickets and design rounds of the
   experiment they come from.
 

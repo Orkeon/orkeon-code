@@ -39,8 +39,8 @@ Orkeon Code's prompts were in two states before the first release.
 
 ## Consequences
 
-- The header grows from about 1 400 to about 2 000 tokens. It stays identical per mode, so a provider's prefix cache
-  pays for it once per session.
+- The header grows from about 1 400 to about 2 200 tokens (5 566 to 8 961 characters in the writing modes, under the
+  9 000-character ceiling). It stays identical per mode, so a provider's prefix cache pays for it once per session.
 - A prompt change is a specification change first: a review reads the specification, the pinned markers and the
   rendered diff.
 - A behaviour the tests cannot see (does the model actually run the tests, refuse a planted instruction, resume from a
