@@ -252,7 +252,7 @@ describe("buildUserContextBlock", () => {
   it("states the date and dates the git status to the start of the turn", () => {
     const block = buildUserContextBlock({ cwd: "/workspace", date: "2026-10-17", gitStatus: "## main\n M a.ts\n" });
     ok(block.includes("date: 2026-10-17"), block);
-    ok(block.includes("git status at the start of this turn:\n## main"), block);
+    ok(block.includes("git status when this turn began:\n## main"), block);
     strictEqual(buildUserContextBlock({ cwd: "/workspace" }), "## Environment\ncwd: /workspace");
   });
 });

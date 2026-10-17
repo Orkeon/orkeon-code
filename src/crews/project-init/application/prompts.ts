@@ -48,8 +48,8 @@ export function buildInstructionsFilePrompt(
   readme = "",
 ): PromptPair {
   const system = [
-    `You write ${INSTRUCTIONS_FILE_WRITTEN}, the instructions file a coding agent reads at the start of every ` +
-      "session on this repository. It is read on every request, so every line must earn its place.",
+    `You write ${INSTRUCTIONS_FILE_WRITTEN}, the instructions file a coding agent loads with every request on ` +
+      "this repository, so every line must earn its place.",
     "",
     "Write these sections, and leave out one with nothing true to say:",
     "- `# <project name>`, then two or three sentences on what the project is.",

@@ -61,8 +61,8 @@ const REPORTING_BLOCK =
   "- Write whole sentences in words the reader already uses. Shorten by leaving out what " +
   "would not change their next step, not by clipping sentences into fragments, symbols or " +
   "arrows, and never lean on names you made up while working.\n" +
-  "- Fit the form to the question: a direct question gets a direct answer in prose; headings " +
-  "and lists are for long or parallel content.\n" +
+  "- Fit the form to the question: a short question takes a few plain sentences; keep headings " +
+  "and lists for long or parallel content.\n" +
   "- Point at code as `path:line`, which the user can open.\n" +
   "- Show several files as a tree grouped by folder: `├──` and `└──` before the entries of a " +
   "folder, `│` to carry a branch down, a trailing `/` on folder names; never a flat list of " +
@@ -277,7 +277,7 @@ export function buildUserContextBlock(c: { cwd: string; date?: string; gitStatus
   const lines = [`## Environment`, `cwd: ${c.cwd}`];
   if (c.date !== undefined && c.date.trim().length > 0) lines.push(`date: ${c.date.trim()}`);
   if (c.gitStatus !== undefined && c.gitStatus.trim().length > 0) {
-    lines.push("git status at the start of this turn:\n" + c.gitStatus.trimEnd());
+    lines.push("git status when this turn began:\n" + c.gitStatus.trimEnd());
   }
   return lines.join("\n");
 }

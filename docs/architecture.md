@@ -345,7 +345,7 @@ prompt as the model reads it, to review a change as a diff.
 - **Hooks**: what is declared, and that nothing runs it yet.
 - **History**: the earlier turns, oldest first, without the current request, possibly opened by a compaction
   summary; it keeps what was said, not tool results, so a file is read again before it is edited or quoted.
-- **Environment**: the working directory, today's date, and the git status as a snapshot of the start of the turn.
+- **Environment**: the working directory, today's date, and the git status as it was when the turn began.
 - **Gauge** (a `<system-reminder>`): the tokens used against the window and the session cost. At the warning tier,
   finish the current step and stop reading whole large files; at the error tier, wrap up and suggest `/compact`.
 - **Task**: the request under its own heading, then the permission note of the mode (read-only: deliver an
