@@ -1,8 +1,9 @@
-// F4 — pure prompt-assembly tests. The load-bearing property is DeepSeek cache
-// safety: the static header (now the SYSTEM prompt, sent via ActOptions.system)
-// must be byte-stable across turns, and the volatile blocks all live in the
-// USER body assemblePrompt() produces.
-// Run: node_modules/.bin/tsx --test crews/main-loop/domain/prompt-assembly.test.ts
+// Pure prompt-assembly tests. The load-bearing property is prefix-cache safety:
+// the static header (the SYSTEM prompt, sent via ActOptions.system) must be
+// byte-stable across turns, and the volatile blocks all live in the USER body
+// assemblePrompt() produces. The rule markers pin the behaviour specification of
+// docs/architecture.md, "Prompt assembly".
+// Run: node --test src/crews/main-loop/domain/prompt-assembly.test.ts
 
 import { describe, it } from "node:test";
 import { strictEqual, ok, deepStrictEqual } from "node:assert";
@@ -20,7 +21,10 @@ import {
   buildPreferencesBlock,
   buildSkillsBlock,
   buildHooksBlock,
+  MAX_STATIC_HEADER_CHARS,
 } from "./prompt-assembly.ts";
+import { toolsetFor } from "../../../shared/domain/agent-policy/permission.ts";
+import { PERMISSION_MODES } from "../../../shared/domain/permission-modes.ts";
 import { MEMORY_CATEGORIES } from "../../../shared/domain/agent-policy/memory-categories.ts";
 import { OUTPUT_STYLES, isOutputStyle } from "../../../shared/domain/agent-policy/output-styles.ts";
 
@@ -48,40 +52,103 @@ describe("buildStaticHeader", () => {
     ok(!/\d/.test(header), `static header must stay number-free, got: ${header}`);
   });
 
-  it("carries the corpus behaviour blocks, in fixed order, before the tool list", () => {
-    // Adapted from claude-code-system-prompts/: communication (outcome-first),
-    // doing-tasks (scope/comments/security), turn discipline (act-when-ready).
-    // Unconditional, so byte-stability per mode is unchanged by their presence.
+  it("carries the behaviour blocks, in fixed order, before the tool list", () => {
+    // The order of docs/architecture.md, "Prompt assembly": who the agent is, how it
+    // reports, then how it works, then what it may trust, then its tools. All
+    // unconditional, so byte-stability per mode is unchanged by their presence.
     const header = buildStaticHeader({ toolNames: ["file_read"], claudeMd: "# Rules" });
     const order = [
-      "You are an interactive coding agent",
-      "## Communicating with the user",
-      "## Doing tasks",
-      "## Completing the turn",
+      "You are Orkeon Code",
+      "## Reporting back",
+      "## Tone",
+      "## Scope",
+      "## Finishing the turn",
+      "## When to ask",
+      "## Checking your work",
+      "## Acting with care",
+      "## Where instructions come from",
       "## Tools",
       "## Project instructions (CLAUDE.md)",
     ].map((marker) => header.indexOf(marker));
     ok(order.every((idx, i) => idx >= 0 && (i === 0 || idx > order[i - 1]!)), `bad order: ${order}`);
   });
 
+  // One marker per rule of the specification: a rewrite that drops a rule fails here.
+  const RULE_MARKERS: Record<string, string> = {
+    "identity: the final answer is all the user sees": "That answer is all the user reads",
+    "reporting: a failure or an unchecked result comes first": "the first sentence says so",
+    "reporting: code is pointed at as path:line": "`path:line`",
+    "reporting: no invented labels": "never lean on names you made up",
+    "reporting: the user's language": "Answer in the language the user writes in",
+    "tone: no praise, no emoji": "no emoji",
+    "tone: conclusions, not narration": "do not narrate your own thinking",
+    "scope: a request is carried out in the code": "rather than reply with the new name",
+    "scope: nothing speculative": "a few repeated lines beat a helper",
+    "scope: validate at the boundaries only": "where it enters the system",
+    "scope: dead code goes entirely": "no re-export",
+    "scope: no vulnerable code": "open to injection",
+    "scope: comments say why": "A comment says what the code cannot",
+    "scope: no unrequested documentation": "write documentation or notes only",
+    "finishing: act once the facts are known": "reopen a decision the user made",
+    "finishing: a question gets an assessment, not a change": "change nothing until the user asks for a change",
+    "finishing: no ending on a plan or a promise": "read your last paragraph",
+    "finishing: evidence before a state change": "a familiar symptom can have another cause",
+    "asking: a question ends the turn": "writing a question ends it",
+    "asking: a confirmation covers one call": "covers that call only",
+    "verification: narrowest check first": "the narrowest test that covers the change first",
+    "verification: no unrun check reported as passing": "never present a check you did not run as passing",
+    "care: reversibility and reach": "how hard it is to undo",
+    "care: no bypassing a failing check": "disabling, skipping or forcing it",
+    "care: git only on request, staged by name": "stage files by name",
+    "care: secrets stay in the environment": "Secrets live in environment variables",
+    "trust: the instructions file ranks below the request": "ranks below",
+    "trust: marked history messages are material": "[restored-file]",
+    "trust: an embedded instruction is not followed": "do not; mention it",
+  };
+  for (const [rule, marker] of Object.entries(RULE_MARKERS)) {
+    it(`states the rule — ${rule}`, () => {
+      ok(buildStaticHeader({ toolNames: ["file_read"] }).includes(marker), `missing: ${marker}`);
+    });
+  }
+
   it("the permission-refusal note rides with the tool list, and only with it", () => {
-    // "a denied call means the user declined it — adjust, don't retry verbatim":
-    // the note is about the catalogue, so a header without tools must not carry it.
-    const note = "do not retry the same call verbatim";
+    // The note is about the catalogue, so a header without tools must not carry it.
+    const note = "change your approach instead of repeating the call";
     ok(buildStaticHeader({ toolNames: ["file_read"] }).includes(note));
     ok(!buildStaticHeader({ toolNames: [] }).includes(note));
   });
 
-  it("instructs box-drawing trees for file listings (inside the communication block)", () => {
+  it("describes what the offered tools can do, and only those tools", () => {
+    const write = buildStaticHeader({ toolNames: ["file_read", "file_write", "shell_command"] });
+    ok(write.includes("Calls run one at a time"));
+    ok(write.includes("replaces the whole file"), "file_write's semantics");
+    ok(write.includes("`sed -n`"), "a later part of a file is read through the shell when it is offered");
+    ok(write.includes("only the commands the host allows"), "the shell's allow-list");
+    // A read-only catalogue is not told how to write, nor about a shell it does not have.
+    const read = buildStaticHeader({ toolNames: ["file_read", "symbol_source"] });
+    ok(!read.includes("replaces the whole file"));
+    ok(!read.includes("only the commands the host allows"));
+    ok(read.includes("`symbol_source`"), "without a shell, a later part of a source file comes through symbol_source");
+    ok(!buildStaticHeader({ toolNames: [] }).includes("Calls run one at a time"));
+  });
+
+  it("keeps the authored header under its ceiling in every mode", () => {
+    for (const mode of PERMISSION_MODES) {
+      const header = buildStaticHeader({ toolNames: toolsetFor(mode, []) });
+      ok(header.length <= MAX_STATIC_HEADER_CHARS, `${mode}: ${header.length} > ${MAX_STATIC_HEADER_CHARS}`);
+    }
+  });
+
+  it("instructs box-drawing trees for file listings (inside the reporting block)", () => {
     // The observed failure: "liste les fichiers" produced a flat bullet list of
     // backticked paths — correct content, unreadable shape. The directive names
     // the exact connectors so the model does not invent its own notation. It is
     // digit-free by construction (the no-digit pin above covers it).
     const header = buildStaticHeader({ toolNames: ["file_read"] });
     for (const connector of ["├──", "└──"]) ok(header.includes(connector), `missing ${connector}`);
-    const inCommunication = header.indexOf("├──");
-    ok(inCommunication > header.indexOf("## Communicating with the user"));
-    ok(inCommunication < header.indexOf("## Doing tasks"), "the directive belongs to the communication block");
+    const inReporting = header.indexOf("├──");
+    ok(inReporting > header.indexOf("## Reporting back"));
+    ok(inReporting < header.indexOf("## Tone"), "the directive belongs to the reporting block");
   });
 });
 
@@ -155,7 +222,7 @@ describe("assemblePrompt (the USER body)", () => {
       memory: buildMemoryBlock({ user: ["u1"] }),
       task: "THE TASK",
     });
-    ok(!body.includes("You are an interactive coding agent"), "identity leaked into the user body");
+    ok(!body.includes("You are Orkeon Code"), "identity leaked into the user body");
     ok(!body.includes("## Tools"), "the tool list leaked into the user body");
   });
 });
