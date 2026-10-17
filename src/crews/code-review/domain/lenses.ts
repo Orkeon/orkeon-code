@@ -94,7 +94,7 @@ export interface ResolvedLensSelection extends LensSelection {
 /**
  * The effective lens selection: crew INPUT beats the `review.lenses` setting.
  *
- * B-12 needs this: `/bughunter` and `/security-review` are the same crew narrowed
+ * `/review --lens` and `/security-review` need this: the same crew narrowed
  * to one lens, and they say so per invocation. A setting is a standing preference,
  * an input is a deliberate act on this run — so the input wins, the same way an
  * explicit `plan:` prefix beats the session's default permission mode.

@@ -1,8 +1,8 @@
 /// <reference path="./.orkeon/orkeon-cli.d.ts" />
-// /context — session metadata + buffer size (SPEC §5.2), graduated token
-// pressure (E-5: ok|warning|error + percentLeft) and compaction-boundary
-// count (E-9).
-import { pressureTier, percentLeft } from "../shared/domain/compaction-thresholds.ts";
+// /context — the session's context: metadata, buffer size, the tokens used against
+// the window, the pressure tier and the count of compaction boundaries. /ctx-viz,
+// which showed the window alone, is its alias.
+import { DEFAULT_CONTEXT_WINDOW, pressureTier, percentLeft } from "../shared/domain/compaction-thresholds.ts";
 import { countCompactBoundaries } from "../shared/domain/compaction.ts";
 import { orkeonSessionIo, orkeonTelemetry } from "../shared/infrastructure/orkeon/wiring.ts";
 
@@ -11,6 +11,7 @@ const telemetry = orkeonTelemetry();
 
 defineCommand({
   name: "context",
+  aliases: ["ctx-viz"],
   description: "Show the current session context: title, model, messages, tokens, pressure.",
   handler: async (_args, ctx) => {
     const md = await telemetry.readMetadata();
@@ -21,6 +22,9 @@ defineCommand({
       model: md.model ?? "?",
       messages: md.messageCount ?? 0,
       estTokens: md.estimatedTokens ?? 0,
+      usedTokens: used,
+      window: window || DEFAULT_CONTEXT_WINDOW,
+      remaining: Math.max(0, (window || DEFAULT_CONTEXT_WINDOW) - used),
       pressure: pressureTier(used, window),
       percentLeft: percentLeft(used, window) + "%",
       compactions: boundaries,

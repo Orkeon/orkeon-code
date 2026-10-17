@@ -21,7 +21,8 @@ import {
   buildTranscript,
   extractSummary,
 } from "../../domain/compaction.ts";
-import { SNIP_RETAIN_COUNT, shouldCompact } from "../../domain/compaction-thresholds.ts";
+import { COMPACTION_TRIGGER_CONFIG_KEY, SNIP_RETAIN_COUNT, parseTokenCount, shouldCompact } from "../../domain/compaction-thresholds.ts";
+import type { ConfigStore } from "../config-store.ts";
 import { extractMemories } from "./extract-memories.ts";
 import { restoreAttachedSkills, restoreRecentFiles } from "./restore-context.ts";
 
@@ -44,7 +45,7 @@ export interface CompactDeps {
  * breaker counts it) rather than replace the history with nothing.
  */
 export async function compactSession(
-  opts: { force?: boolean; focus?: string },
+  opts: { force?: boolean; focus?: string; trigger?: number },
   deps: CompactDeps,
 ): Promise<CompactOutcome> {
   const { progress, session, files, memory, llm, log } = deps;
@@ -55,7 +56,7 @@ export async function compactSession(
       return { status: "skipped", reason: "buffer too small" };
 
     const { used, window } = await session.readBudget();
-    if (!force && !shouldCompact(used, window))
+    if (!force && !shouldCompact(used, window, opts.trigger))
       return { status: "skipped", reason: "below trigger", usedTokens: used };
 
     // Progress: reported only past the threshold checks (a skipped compaction must
@@ -74,7 +75,7 @@ export async function compactSession(
       await progress.report(compactPhase(2, "micro-compacting (snip)"));
       await session.snip(SNIP_RETAIN_COUNT);
       const after = await session.readBudget();
-      if (!shouldCompact(after.used, after.window)) {
+      if (!shouldCompact(after.used, after.window, opts.trigger)) {
         note(log, "compaction path: snip-only sufficed (LLM synthesis skipped)");
         return { status: "snipped", before: raw.stored.length, usedTokens: after.used };
       }
@@ -118,6 +119,22 @@ export async function compactSession(
     }
   } catch (e: any) {
     return { status: "failed", reason: String(e?.message ?? e) };
+  }
+}
+
+/** `/compact --snip [N]`: the head and the last N exchanges kept, nothing summarised. */
+export async function snipBuffer(retain: number, deps: { session: Pick<SessionStore, "snip"> }): Promise<string> {
+  const { removed, retained } = await deps.session.snip(retain);
+  return `snipped: ${removed} removed, ${retained} kept.`;
+}
+
+/** The `compaction.trigger` setting as a token count; undefined when unset, invalid
+ *  or unreadable (the computed trigger then applies). */
+export async function readCompactionTrigger(config: Pick<ConfigStore, "readValue">): Promise<number | undefined> {
+  try {
+    return parseTokenCount((await config.readValue(COMPACTION_TRIGGER_CONFIG_KEY)).value);
+  } catch {
+    return undefined;
   }
 }
 

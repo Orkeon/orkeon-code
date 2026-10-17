@@ -103,14 +103,32 @@ function effectiveWindow(contextWindow: number): number {
   return contextWindow > 0 ? contextWindow : DEFAULT_CONTEXT_WINDOW;
 }
 
-/** Token count at which auto-compaction triggers for a given window. */
-export function computeTrigger(contextWindow: number): number {
+/** The setting that moves the automatic compaction's trigger (`/config set compaction.trigger 90k`). */
+export const COMPACTION_TRIGGER_CONFIG_KEY = "compaction.trigger";
+
+/** A token count as the setting writes it: `90000` or `90k`; undefined when it is not one. */
+export function parseTokenCount(value: unknown): number | undefined {
+  const m = /^\s*(\d+(?:\.\d+)?)\s*(k)?\s*$/i.exec(String(value ?? ""));
+  if (!m) return undefined;
+  const n = Math.round(Number(m[1]) * (m[2] ? 1_000 : 1));
+  return n > 0 ? n : undefined;
+}
+
+/** Why a compaction.trigger value is refused; undefined when it is a token count. */
+export function compactionTriggerProblem(value: string): string | undefined {
+  return parseTokenCount(value) === undefined ? "a token count such as 90000 or 90k" : undefined;
+}
+
+/** Token count at which auto-compaction triggers for a given window: the
+ *  `compaction.trigger` setting when one is given, else the window minus the buffer. */
+export function computeTrigger(contextWindow: number, trigger?: number): number {
+  if (trigger !== undefined && trigger > 0) return trigger;
   return effectiveWindow(contextWindow) - AUTOCOMPACT_BUFFER_TOKENS;
 }
 
 /** True when the used tokens have reached the trigger (equality counts). */
-export function shouldCompact(usedTokens: number, contextWindow: number): boolean {
-  return usedTokens >= computeTrigger(contextWindow);
+export function shouldCompact(usedTokens: number, contextWindow: number, trigger?: number): boolean {
+  return usedTokens >= computeTrigger(contextWindow, trigger);
 }
 
 /** Warning tier reached: used ≥ window − WARNING_THRESHOLD_BUFFER_TOKENS. */

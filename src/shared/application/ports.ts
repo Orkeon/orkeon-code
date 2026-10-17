@@ -157,7 +157,7 @@ export interface MemoryStore {
   /** The entries of one category, or of every category when none is named, in stored order. */
   list(category?: string): Promise<MemoryEntry[]>;
   /** Store an entry; resolves to its id as the host reports it, as text (`null` or
-   *  `undefined` when it reports none): /memory add and /tag print it as is. */
+   *  `undefined` when it reports none): /memory add prints it as is. */
   add(category: string, content: string): Promise<string>;
   /** The entry `id` as the host reports it, its own field casing included (/memory get
    *  prints it verbatim), else the host's error; undefined when it reports neither. */

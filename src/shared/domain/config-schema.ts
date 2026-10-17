@@ -15,6 +15,7 @@ import { PERMISSION_FALLBACK_CONFIG_KEY, PERMISSION_MODES } from "./permission-m
 import { EXTRA_TOOLS_CONFIG_KEY, extraToolsProblem } from "./agent-policy/extra-tools.ts";
 import { VOICE_REPLY_CONFIG_KEY } from "./speech.ts";
 import { ANSWER_LANGUAGE_CONFIG_KEY } from "./agent-policy/output-styles.ts";
+import { COMPACTION_TRIGGER_CONFIG_KEY, compactionTriggerProblem } from "./compaction-thresholds.ts";
 
 export interface ConfigKeySpec {
   key: string;
@@ -97,6 +98,14 @@ export const CONFIG_KEYS: readonly ConfigKeySpec[] = [
       "The language the assistant answers in, e.g. 'French', unless the user writes in another one. " +
       "Omitted = the language of each request.",
     consumedBy: "/assistant, /summary, /transcribe --then, /voice send and /voice --go (the main loop's prompt)",
+  },
+  {
+    key: COMPACTION_TRIGGER_CONFIG_KEY,
+    description:
+      "The token count at which the automatic compaction runs, e.g. '90000' or '90k'. Omitted = the " +
+      "context window minus the room one turn needs.",
+    problem: compactionTriggerProblem,
+    consumedBy: "/assistant (the automatic compaction at the head and the tail of a turn), /usage",
   },
 ];
 

@@ -229,12 +229,12 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 
 | Crew | Process | Started by | What it does |
 |---|---|---|---|
-| `main-loop` | autonomous, budget 200 tool calls / 1800 s / 400k tokens | `/assistant`, free text, `/summary`, `/transcribe --then`, `/voice send` and `--go` | The interactive loop |
+| `main-loop` | autonomous, budget 200 tool calls / 1800 s / 400k tokens | `/assistant`, free text, `/summary`, `/verify`, `/transcribe --then`, `/voice send` and `--go` | The interactive loop |
 | `project-init` | sequential | `/init` | Scans the layout, detects conventions, writes the instructions file |
 | `git-commit` | sequential | `/commit` | Drafts a conventional commit from the diff, commits after confirmation |
-| `code-review` | sequential | `/review`, `/bughunter`, `/security-review` | Multi-lens review of the staged changes, ranked findings |
+| `code-review` | sequential | `/review` (`--lens` for one lens), `/security-review` | Multi-lens review of the staged changes, ranked findings |
 | `analyze` | sequential | `/analyze` | Index, maps, dependency graph, then a synthesis (`--raw` skips the LLM) |
-| `session-compact` | sequential | `/compact`, automatic compaction | Saves durable facts to typed memory, snips, then summarises the buffer if still needed |
+| `session-compact` | sequential | `/compact` (`--snip` to truncate only), automatic compaction | Saves durable facts to typed memory, snips, then summarises the buffer if still needed |
 | `init-verifiers` | sequential | `/init-verifiers` | Detects test tooling, writes verification playbooks for uncovered zones |
 | `advisor` | sequential, no tools | `/advisor` | A second opinion on the last answer from another model |
 | `speech` | sequential, no tools, no LLM | `/transcribe`, `/voice`, `/say` | One call to the speech MCP server (`transcribe_audio`, `list_audio`, `record_and_transcribe`, `speak`), as the command's |

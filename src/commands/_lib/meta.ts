@@ -1,4 +1,4 @@
-// Static CLI metadata shared by /version, /release-notes, /upgrade and /onboarding. No IO.
+// Static CLI metadata shared by /status (version) and /release-notes. No IO.
 //
 // Orkeon Code versions independently of the Orkeon runtime it runs on: the
 // runtime version is pinned in .orkeon-version, this one follows package.json
@@ -16,7 +16,7 @@ export const RELEASE_NOTES = [
   "",
   "Crews: main-loop (the interactive loop behind /assistant), code-review, git-commit,",
   "       project-init, init-verifiers, session-compact, advisor, analyze, speech.",
-  "Commands: 60 slash commands; free text without a leading / goes to /assistant.",
+  "Commands: 49 slash commands; free text without a leading / goes to /assistant.",
   "Permissions: five modes (default, acceptEdits, plan, dontAsk, bypassPermissions),",
   "             deny/allow rules (argument patterns too) enforced by the host gate,",
   "             questions before writes and commands, /mode for the session default.",

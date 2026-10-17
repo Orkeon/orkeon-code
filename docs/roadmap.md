@@ -38,8 +38,7 @@ What Orkeon Code does not do yet, in the order we expect to address it. Items ma
   gate treats them as writes, even when they only read: asked in `default` and `acceptEdits`, refused in `plan`, and
   in `dontAsk` without an allow rule (runtime; [Permissions](permissions.md)).
 - The answer can be printed twice when console streaming is enabled.
-- `/tasks` is a manual to-do list, not a monitor of background work; `/tag` stores a note in memory rather than
-  labelling a message.
-- Six commands only partly do what their names promise: `/env` (no runtime version nor provider), `/summary` (not
-  saved to memory), `/onboarding` (static text), `/session` (one in-memory session), `/ctx-viz` and `/extra-usage`
-  (totals only, no per-category or cache figures).
+- `/tasks` is a manual to-do list, not a monitor of background work.
+- Some commands only partly do what their names promise: `/summary` (not saved to memory), `/status` (no runtime
+  version nor provider), `/resume` (one in-memory session), `/context` and `/usage` (totals only, no per-category
+  figures; cache hits only when the host reports them).

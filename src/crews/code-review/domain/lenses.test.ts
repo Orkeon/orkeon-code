@@ -73,7 +73,7 @@ describe("describeReviewPlan", () => {
 
 describe("resolveLensSelection — B-12: input beats the setting", () => {
   it("uses the input when it names a lens", () => {
-    // /bughunter and /security-review narrow on purpose; a standing preference
+    // /review --lens and /security-review narrow on purpose; a standing preference
     // must not override a deliberate act on this run.
     const r = resolveLensSelection({ input: "security", config: "style" });
     deepStrictEqual(r.lenses.map((l) => l.key), ["security"]);

@@ -1,4 +1,4 @@
-// CodeReview use case (/review, /bughunter, /security-review): resolve the scope
+// CodeReview use case (/review [--lens], /security-review): resolve the scope
 // and the review plan, run the lens passes, rank the findings and write the
 // report. The steps live in ./review, the decisions in ../domain.
 
@@ -65,7 +65,7 @@ export async function runCodeReview(input: CodeReviewInputs, deps: CodeReviewDep
     config.readValue("review.lenses").then((r) => r.value).catch(() => undefined),
   ]);
   const passes = resolvePasses(storedPasses);
-  // B-12: a crew INPUT narrows the lenses for this run (/bughunter,
+  // A crew INPUT narrows the lenses for this run (/review --lens,
   // /security-review) and beats the standing `review.lenses` setting.
   const selection = resolveLensSelection({ input: input.lenses, config: lensSetting });
   for (const u of selection.unknown) {

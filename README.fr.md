@@ -36,11 +36,11 @@ chaque prompt est un fichier source : modifiez-le, ou ajoutez le vôtre.
   l'active, et l'assistant transcrit notes vocales, réunions et vidéos d'écran sur votre machine ; `/voice` dicte une
   requête et `/say` lit à voix haute ([Configuration](docs/configuration.md#speech-to-text)).
 - **Des crews pour les tâches récurrentes** : `/init` (décrire le projet pour l'agent), `/commit` (un commit
-  conventionnel tiré du diff), `/review`, `/bughunter`, `/security-review` (revue de code multi-angles), `/analyze`
+  conventionnel tiré du diff), `/review`, `/security-review` (revue de code multi-angles), `/analyze`
   (analyse déterministe du code), `/compact` et `/summary` (gestion du contexte), `/init-verifiers`, `/advisor`.
 - **Gestion du contexte** : compaction automatique avec disjoncteur, `/compact` qui tronque d'abord, restauration des
   fichiers après compaction, paliers de pression du contexte, mémoire durable typée (`/memory`).
-- **60 commandes slash** au total : [docs/commands.md](docs/commands.md).
+- **49 commandes slash** au total : [docs/commands.md](docs/commands.md).
 
 ## Démarrage rapide
 

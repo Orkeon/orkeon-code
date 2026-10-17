@@ -1,5 +1,5 @@
-// Session-scoped toggles shared by the slash commands (/fast, /proactive,
-// /sandbox-toggle). Values live in the session state bag (session_store
+// Session-scoped toggles shared by the slash commands (/fast, /proactive). Values
+// live in the session state bag (session_store
 // get_state/set_state) so they survive crew runs and are cleared by
 // /reset-session. Each helper takes the session it works on, so a test runs it
 // over FakeSessionStore; the entry points pass orkeonSessionIo(). Lives under

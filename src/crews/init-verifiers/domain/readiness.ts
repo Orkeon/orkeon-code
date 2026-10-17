@@ -4,9 +4,7 @@
 import type { TestReadiness } from "../../../shared/domain/types.ts";
 
 /** Filesystem-safe slug for a verifier zone name. */
-export function safeZoneName(zone: string): string {
-  return zone.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
-}
+export { safeZoneName } from "../../../shared/domain/verifiers.ts";
 
 /**
  * Deterministic fallback when readiness extraction fails: a project with a

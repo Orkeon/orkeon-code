@@ -8,7 +8,6 @@ import {
   MIN_PASSES, MAX_PASSES, DEFAULT_PASSES, resolvePasses,
   FAST_MODE_DROPPED_BLOCKS, fastModeDrops,
   PROACTIVE_CLAUSE, proactiveSuffix,
-  SANDBOX_NOOP_NOTE,
   DEFAULT_BEHAVIOR_FLAGS, resolveBehaviorFlags, describeActiveFlags,
 } from "./behavior-flags.ts";
 
@@ -97,18 +96,6 @@ describe("/proactive → the follow-up clause", () => {
 
   it("bounds the suggestion list rather than inviting a second essay", () => {
     ok(PROACTIVE_CLAUSE.includes("at most three"));
-  });
-});
-
-describe("/sandbox-toggle → an honest no-op", () => {
-  it("says it enforces nothing", () => {
-    ok(SANDBOX_NOOP_NOTE.includes("enforces nothing"));
-  });
-
-  it("never promises a future enforcement", () => {
-    // The pre-B-9 wording ("gates future shell sandboxing") is exactly the claim
-    // an operator could relax their caution on.
-    ok(!/future|will |gates/i.test(SANDBOX_NOOP_NOTE), SANDBOX_NOOP_NOTE);
   });
 });
 

@@ -19,6 +19,8 @@ import {
   TURN_FIXED_TOKENS,
   WARNING_THRESHOLD_BUFFER_TOKENS,
   computeTrigger,
+  compactionTriggerProblem,
+  parseTokenCount,
   isAboveErrorThreshold,
   isAboveWarningThreshold,
   percentLeft,
@@ -118,5 +120,26 @@ describe("post-compaction skills budget", () => {
   it("caps one skill below the whole budget, so a single playbook cannot take it all", () => {
     ok(POST_COMPACT_PER_SKILL_TOKENS > 0);
     ok(POST_COMPACT_PER_SKILL_TOKENS < POST_COMPACT_SKILLS_TOKEN_BUDGET);
+  });
+});
+
+describe("the compaction.trigger setting", () => {
+  it("reads a token count, with or without a k", () => {
+    strictEqual(parseTokenCount("90000"), 90_000);
+    strictEqual(parseTokenCount(" 90k "), 90_000);
+    strictEqual(parseTokenCount("1.5k"), 1_500);
+    strictEqual(parseTokenCount("ninety"), undefined);
+    strictEqual(parseTokenCount("0"), undefined);
+    strictEqual(parseTokenCount(undefined), undefined);
+  });
+  it("refuses a value that is not one, for /config set", () => {
+    strictEqual(compactionTriggerProblem("90k"), undefined);
+    ok(compactionTriggerProblem("soon")?.includes("90k"));
+  });
+  it("moves the trigger when given, and only then", () => {
+    strictEqual(computeTrigger(180_000, 90_000), 90_000);
+    strictEqual(computeTrigger(180_000, undefined), 180_000 - AUTOCOMPACT_BUFFER_TOKENS);
+    strictEqual(shouldCompact(90_000, 180_000, 90_000), true);
+    strictEqual(shouldCompact(89_999, 180_000, 90_000), false);
   });
 });

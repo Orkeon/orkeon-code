@@ -1,13 +1,11 @@
-// B-9 — what the five persisted behavior flags actually DO. Pure, no IO.
+// What the persisted behavior flags actually DO. Pure, no IO.
 //
-// `/effort`, `/fast`, `/passes`, `/proactive` and `/sandbox-toggle` all shipped
-// with E-1 as persisted settings that nothing read: each command wrote its key,
-// confirmed success, and the next turn behaved identically. The coverage matrix
-// called them `shallow-commands`. This module is the semantics half — the loop
-// and the review crew are the consumption half.
+// `/effort`, `/fast`, `/passes` and `/proactive` are persisted settings; this
+// module is the semantics half — the loop and the review crew are the consumption
+// half.
 //
 // The governing constraint: an UNCONFIGURED session must behave exactly as it did
-// before B-9. Every default below is therefore the value that was hard-coded at
+// before the flags existed. Every default below is therefore the value that was hard-coded at
 // the call site (40 act iterations, one review pass, nothing dropped, no extra
 // clause), so turning a flag on is the only thing that changes anything.
 
@@ -102,22 +100,6 @@ export const PROACTIVE_CLAUSE =
 export function proactiveSuffix(on: boolean): string {
   return on ? `\n\n${PROACTIVE_CLAUSE}` : "";
 }
-
-// ── /sandbox-toggle → an honest no-op ────────────────────────────────────
-
-/**
- * What `/sandbox-toggle` is allowed to claim.
- *
- * Ground truth §4: Orkeon Code runs inside the container, and THAT is the sandbox.
- * Script-land has no second confinement to switch on — the VFS mounts bound
- * file IO and `shell_command` runs on the host either way. The pre-B-9 wording
- * ("gates future shell sandboxing") implied a switch that would one day bite;
- * a flag that implies enforcement it does not have is worse than no flag,
- * because an operator may relax their own caution on the strength of it.
- */
-export const SANDBOX_NOOP_NOTE =
-  "recorded only — it enforces nothing. The sandbox IS the container: VFS mounts " +
-  "already bound every file path, and shell_command runs on the host in both positions";
 
 // ── the flag set the loop reads in one go ────────────────────────────────
 

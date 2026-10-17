@@ -4,7 +4,8 @@
 import type { Files, Llm, Logger } from "../../../shared/application/ports.ts";
 import { cleanLlmMarkdown } from "../../../shared/domain/strip.ts";
 import type { TestReadiness } from "../../../shared/domain/types.ts";
-import { safeZoneName, fallbackReadiness } from "../domain/readiness.ts";
+import { fallbackReadiness } from "../domain/readiness.ts";
+import { verifierPath } from "../../../shared/domain/verifiers.ts";
 import { READINESS_SCHEMA, buildReadinessPrompt, buildVerifierSkillPrompt } from "./prompts.ts";
 
 /** Scan the workspace top level. */
@@ -46,7 +47,7 @@ export async function authorVerifiers(
   for (const zone of zones) {
     const prompt = buildVerifierSkillPrompt(zone, facts);
     const skill = await llm.complete(prompt.user, { system: prompt.system });
-    await files.write(`/output/verifiers/verify-${safeZoneName(zone)}.md`, cleanLlmMarkdown(skill) + "\n");
+    await files.write(verifierPath(zone), cleanLlmMarkdown(skill) + "\n");
     written++;
   }
   return written;

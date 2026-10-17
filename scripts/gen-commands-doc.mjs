@@ -20,7 +20,9 @@ for (const file of readdirSync(dir).filter((f) => f.endsWith(".cmd.ts")).sort())
   const raw = src.match(/\bdescription:\s*"((?:[^"\\]|\\.)*)"/)?.[1];
   const description = raw ? JSON.parse(`"${raw}"`) : "(no static description)";
   const kind = /\bdefineAsyncCommand\s*\(/.test(src) ? "async" : "sync";
-  rows.push(`| \`/${name}\` | ${kind} | ${description.replace(/\|/g, "\\|")} |`);
+  const aliases = [...(src.match(/\baliases:\s*\[([^\]]*)\]/)?.[1] ?? "").matchAll(/"([^"]+)"/g)].map((m) => `\`/${m[1]}\``);
+  const also = aliases.length > 0 ? ` Also ${aliases.join(", ")}.` : "";
+  rows.push(`| \`/${name}\` | ${kind} | ${(description + also).replace(/\|/g, "\\|")} |`);
 }
 
 const page = [

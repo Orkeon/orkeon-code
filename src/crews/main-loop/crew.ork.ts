@@ -31,7 +31,7 @@ import {
 } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { createRunState } from "../../shared/infrastructure/orkeon/run-state.ts";
-import { compactSession } from "../../shared/application/compaction/compact-session.ts";
+import { compactSession, readCompactionTrigger } from "../../shared/application/compaction/compact-session.ts";
 import { loadCatalogue, runMainLoop } from "./application/run-main-loop.ts";
 import { BREAKER_RUN_FIELD } from "./application/auto-compact.ts";
 
@@ -63,7 +63,10 @@ const coder = AgentBuilder()
       llm,
       log,
       run: createRunState(ctx),
-      compact: () => compactSession({ force: false }, { progress, session, files, memory, llm, log }),
+      compact: async () => compactSession(
+        { force: false, trigger: await readCompactionTrigger(ports.config) },
+        { progress, session, files, memory, llm, log },
+      ),
     });
   })
   .build();

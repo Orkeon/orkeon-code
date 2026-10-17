@@ -53,6 +53,16 @@ export function rawText(args: any): string {
   return ((args?.raw ?? []) as string[]).join(" ").trim();
 }
 
+/** `/compact [--snip [N] | <focus>]`: the snip-only path with how many exchanges to
+ *  keep (3 by default), or the focus of the summary. */
+export function parseCompactArgs(tokens: readonly string[]): { snip: number } | { focus: string } {
+  if (tokens[0] === "--snip") {
+    const n = Number(tokens[1]);
+    return { snip: Number.isInteger(n) && n > 0 ? n : 3 };
+  }
+  return { focus: tokens.join(" ").trim() };
+}
+
 /** A command's raw tokens as a string array. */
 export function rawTokens(args: any): string[] {
   return (args?.raw ?? []) as string[];

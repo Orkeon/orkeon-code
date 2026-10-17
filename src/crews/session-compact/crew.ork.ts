@@ -14,7 +14,7 @@ import {
   orkeonFiles, orkeonMemoryStore, orkeonProgress, orkeonSessionIo,
 } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
-import { compactSession } from "../../shared/application/compaction/compact-session.ts";
+import { compactSession, snipBuffer } from "../../shared/application/compaction/compact-session.ts";
 import { formatOutcome } from "../../shared/domain/compact-outcome.ts";
 
 const compactor = AgentBuilder()
@@ -28,6 +28,9 @@ const compactor = AgentBuilder()
       progress: orkeonProgress(), session: orkeonSessionIo(), files: orkeonFiles(), memory: orkeonMemoryStore(),
       llm: createLlm(ctx.llm), log: ctx.log,
     };
+    // /compact --snip [N]: truncate only, nothing summarised.
+    const snip = Number(inputs()?.snip ?? 0);
+    if (snip > 0) return await snipBuffer(snip, deps);
     const focus = String(inputs()?.focus ?? "").trim();
     return formatOutcome(await compactSession({ force: true, focus }, deps));
   })
