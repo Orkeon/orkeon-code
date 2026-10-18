@@ -1,5 +1,5 @@
-// Pure commit-message helpers — no IO. Extracted from the inline cleanup at
-// git-commit/crew.ork.ts:45-46 so it can be unit-tested without an LLM run.
+// Pure commit helpers — no IO: the message cleanup, what the status says the commit
+// will hold, the paths that must stop a commit, and the guards of the destructive step.
 
 import { unwrapFences } from "../../../shared/domain/strip.ts";
 import { policyFor } from "../../../shared/domain/agent-policy/mode-policy.ts";
@@ -10,6 +10,56 @@ const FALLBACK = "chore: update working tree";
 export function normalizeCommitMessage(raw: string): string {
   const msg = unwrapFences(String(raw ?? "")).trim();
   return msg.length === 0 ? FALLBACK : msg;
+}
+
+/** How the drafting model refuses: a reply starting with it is no message. */
+export const COMMIT_REFUSAL_PREFIX = "REFUSE:";
+
+/** The reason a drafted reply refuses to commit, or null when it is a message. */
+export function commitRefusal(message: string): string | null {
+  const text = String(message ?? "").trim();
+  return text.startsWith(COMMIT_REFUSAL_PREFIX) ? text.slice(COMMIT_REFUSAL_PREFIX.length).trim() || "no reason given" : null;
+}
+
+/** The paths a `git status --short` lists (the new path of a rename), quotes removed. */
+export function statusPaths(status: string): string[] {
+  return String(status ?? "")
+    .split("\n")
+    .filter((line) => line.length > 3)
+    .map((line) => {
+      const rest = line.slice(3);
+      const arrow = rest.indexOf(" -> ");
+      const path = arrow >= 0 ? rest.slice(arrow + 4) : rest;
+      return path.trim().replace(/^"(.*)"$/, "$1");
+    })
+    .filter((path) => path.length > 0);
+}
+
+/** The untracked files of a `git status --short` (`??` lines). */
+export function untrackedPaths(status: string): string[] {
+  return String(status ?? "").split("\n").filter((line) => line.startsWith("?? ")).flatMap((line) => statusPaths(line));
+}
+
+/** File names that usually hold a secret, and the safe variants of them. */
+const SECRET_EXTENSIONS = [".pem", ".key", ".p12", ".pfx", ".jks", ".keystore"];
+const SECRET_KEY_FILES = /^id_(rsa|dsa|ecdsa|ed25519)(\.|$)/;
+const SAFE_ENV_SUFFIXES = [".example", ".sample", ".template", ".dist"];
+
+/**
+ * The paths that usually hold a secret: an env file (but not its example), a key
+ * or certificate store, an SSH private key, a credentials file. Committing one by
+ * accident is the one mistake `git add -A` makes easy and history keeps forever,
+ * so /commit stops before any model call and lets the user decide.
+ */
+export function secretLikePaths(paths: readonly string[]): string[] {
+  return paths.filter((path) => {
+    const name = path.split("/").pop() ?? "";
+    const lower = name.toLowerCase();
+    if (lower === ".env" || (lower.startsWith(".env.") && !SAFE_ENV_SUFFIXES.some((s) => lower.endsWith(s)))) return true;
+    if (SECRET_EXTENSIONS.some((ext) => lower.endsWith(ext))) return true;
+    if (SECRET_KEY_FILES.test(lower) && !lower.endsWith(".pub")) return true;
+    return lower === "credentials" || lower === "credentials.json";
+  });
 }
 
 /** The subject line (first line) of a commit message. */
@@ -24,7 +74,7 @@ export function isConventionalCommit(message: string): boolean {
   return CONVENTIONAL.test(commitSubject(message).trim());
 }
 
-// ── B-1: the destructive step is a decision, not a side effect ───────────
+// ── The destructive step is a decision, not a side effect ───────────────
 //
 // `/commit` used to stage and commit the entire working tree with no gate
 // consultation whatsoever (round-40 finding `commit-no-confirmation`): the
@@ -108,6 +158,7 @@ export function buildCommitPlan(branch?: string): CommitPlan {
       "  1. git add -A            — stages every modification AND every untracked file",
       "  2. draft a Conventional-Commits message with the LLM",
       "  3. git commit -F <that message>",
+      "A file that usually holds a secret (.env, a private key) stops it before step 1.",
       "The message is drafted after this confirmation; it is echoed when the commit lands.",
     ].join("\n"),
   };

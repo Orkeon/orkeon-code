@@ -1,5 +1,5 @@
 // Unit tests for the strip-chain. Run:
-//   node_modules/.bin/tsx --test shared/domain/strip.test.ts
+//   node --test src/shared/domain/strip.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, ok } from "node:assert";
 

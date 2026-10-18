@@ -2,7 +2,7 @@
 // declares exactly one primary name, names are unique (the loader's
 // ValidateGlobalUniqueness would otherwise skip them as conflicts), match the
 // loader's kebab-case rule, and the surface holds the post-E-1 count.
-// Run: node_modules/.bin/tsx --test tests/command-surface.test.ts
+// Run: node --test tests/command-surface.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, ok, match } from "node:assert";
 import { readFileSync, readdirSync } from "node:fs";
@@ -10,15 +10,16 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const COMMANDS_DIR = fileURLToPath(new URL("../src/commands", import.meta.url));
-// 56 since B-12 shipped the remaining five of the six "implement now" commands
-// (/output-style was the sixth, in B-7): advisor, agents, bughunter,
-// debug-tool-call, security-review; 57 with /analyze (deterministic codebase
-// analysis); 58 with /transcribe (speech-to-text), 59 with /voice (dictation), 60 with /say (speech output). Bumping this deliberately: the count is the guard against a
-// command silently failing to load, so it must move only with a commit that
-// adds one.
-const EXPECTED_COMMAND_COUNT = 60;
+// 49: twelve commands folded into others or retired, /verify added — /clear
+// is an alias of /clear; /version, /env, /session and /upgrade of /status; /ctx-viz
+// of /context; /extra-usage of /usage; /bughunter became `/review --lens
+// correctness`, /force-snip `/compact --snip`; /tag (a /memory add), /sandbox-toggle
+// (it enforced nothing) and /onboarding (the native /help) are gone. Bumping this
+// deliberately: the count is the guard against a command silently failing to load,
+// so it must move only with a commit that adds or removes one.
+const EXPECTED_COMMAND_COUNT = 49;
 
-interface Cmd { file: string; name: string }
+interface Cmd { file: string; name: string; aliases: string[] }
 
 function collect(): Cmd[] {
   const out: Cmd[] = [];
@@ -28,7 +29,8 @@ function collect(): Cmd[] {
     // helpers (toggleCommand) pass it through a `name:` field too.
     const names = [...src.matchAll(/name:\s*"([^"]+)"/g)].map((m) => m[1]);
     strictEqual(names.length, 1, `${f}: expected exactly one name literal, found ${names.length}`);
-    out.push({ file: f, name: names[0] });
+    const aliases = [...(src.match(/aliases:\s*\[([^\]]*)\]/)?.[1] ?? "").matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+    out.push({ file: f, name: names[0], aliases });
   }
   return out;
 }
@@ -40,12 +42,22 @@ describe("command surface", () => {
     strictEqual(cmds.length, EXPECTED_COMMAND_COUNT);
   });
 
-  it("has zero name conflicts (loader ValidateGlobalUniqueness)", () => {
+  it("has zero name conflicts, aliases included (loader ValidateGlobalUniqueness)", () => {
     const seen = new Map<string, string>();
     for (const c of cmds) {
-      ok(!seen.has(c.name), `duplicate command name '${c.name}' in ${c.file} and ${seen.get(c.name)}`);
-      seen.set(c.name, c.file);
+      for (const n of [c.name, ...c.aliases]) {
+        ok(!seen.has(n), `duplicate command name '${n}' in ${c.file} and ${seen.get(n)}`);
+        seen.set(n, c.file);
+      }
     }
+  });
+
+  it("keeps the folded commands' names as aliases of the commands that absorbed them", () => {
+    const owner = new Map(cmds.flatMap((c) => c.aliases.map((a) => [a, c.name] as const)));
+    for (const [alias, name] of [
+      ["reset-session", "clear"], ["version", "status"], ["env", "status"], ["session", "status"],
+      ["upgrade", "status"], ["ctx-viz", "context"], ["extra-usage", "usage"],
+    ]) strictEqual(owner.get(alias), name, `/${alias} must stay an alias of /${name}`);
   });
 
   it("every name matches the loader's kebab-case rule", () => {
@@ -62,15 +74,15 @@ describe("command surface", () => {
     const names = new Set(cmds.map((c) => c.name));
     for (const n of [
       "clear", "exit", "config", "model", "plan", "permissions", "summary",
-      "resume", "rewind", "usage", "extra-usage", "feedback", "hooks",
-      "skills", "tasks", "copy", "sandbox-toggle", "onboarding", "upgrade",
-      "effort", "fast", "passes", "proactive",
+      "resume", "rewind", "usage", "feedback", "hooks",
+      "skills", "tasks", "copy",
+      "effort", "fast", "passes", "proactive", "verify",
     ]) ok(names.has(n), `missing E-1 command: ${n}`);
   });
 
   it("B-12 commands are all present", () => {
     const names = new Set(cmds.map((c) => c.name));
-    for (const n of ["advisor", "agents", "bughunter", "debug-tool-call", "security-review", "output-style"]) {
+    for (const n of ["advisor", "agents", "debug-tool-call", "security-review", "output-style"]) {
       ok(names.has(n), `missing B-12 command: ${n}`);
     }
   });

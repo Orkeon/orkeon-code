@@ -2,7 +2,7 @@
 // /mode + /assistant commands (prefix parsing) and the main-loop crew (session
 // default resolution). Mirrors the modes understood by the C# ModePermissionGate.
 //
-// Run tests: node_modules/.bin/tsx --test shared/domain/permission-modes.test.ts
+// Run tests: node --test src/shared/domain/permission-modes.test.ts
 
 // `dontAsk` (E-3): the 5th external mode of the original — denies every write
 // fail-closed WITHOUT asking. Catalogue-wise it is read-only like `plan`; the

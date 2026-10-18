@@ -1,9 +1,9 @@
 // The project-init reads over FakeFiles. Run:
-//   node_modules/.bin/tsx --test crews/project-init/application/detect.test.ts
+//   node --test src/crews/project-init/application/detect.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 
-import { scanLayout, readConfigs, writeClaudeMd } from "./detect.ts";
+import { scanLayout, readConfigs, writeInstructionsFile, readExistingInstructions } from "./detect.ts";
 import { FakeFiles } from "../../../../tests/support/fake-files.ts";
 
 describe("project-init IO", () => {
@@ -23,10 +23,21 @@ describe("project-init IO", () => {
     strictEqual(text.startsWith("--- package.json ---\n{}\n\n--- go.mod ---\n"), true);
   });
 
-  it("writes CLAUDE.md and summarises the run", async () => {
+  it("writes AGENTS.md and summarises the run", async () => {
     const files = new FakeFiles();
-    const out = await writeClaudeMd("# Project\n", { frameworks: [], conventions: [], buildCommand: "npm run build" }, files);
-    deepStrictEqual(files.writes, [{ path: "/workspace/CLAUDE.md", content: "# Project\n" }]);
-    strictEqual(out, "✓ wrote /workspace/CLAUDE.md (10 bytes; build='npm run build', test='?')");
+    const out = await writeInstructionsFile("# Project\n", { frameworks: [], conventions: [], buildCommand: "npm run build" }, files);
+    deepStrictEqual(files.writes, [{ path: "/workspace/AGENTS.md", content: "# Project\n" }]);
+    strictEqual(out, "✓ wrote /workspace/AGENTS.md (10 bytes; build='npm run build', test='?')");
+  });
+
+  it("reads the instruction files already there, in order, skipping the blank ones", async () => {
+    const files = new FakeFiles();
+    files.files.set("/workspace/.cursorrules", "tabs\n");
+    files.files.set("/workspace/CLAUDE.md", "pnpm\n");
+    files.files.set("/workspace/AGENTS.md", "  \n");
+    deepStrictEqual(await readExistingInstructions(files), [
+      { file: "CLAUDE.md", content: "pnpm\n" },
+      { file: ".cursorrules", content: "tabs\n" },
+    ]);
   });
 });

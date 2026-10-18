@@ -15,7 +15,6 @@ describe("session state-bag keys", () => {
       PASSES_STATE_KEY: "reasoning_passes",
       FAST_MODE_STATE_KEY: "fast_mode",
       PROACTIVE_STATE_KEY: "proactive_suggestions",
-      SANDBOX_MODE_STATE_KEY: "sandbox_mode",
       MODEL_PREFERENCE_STATE_KEY: "model_preference",
       DEFAULT_MODE_STATE_KEY: "default_permission_mode",
       PERMISSION_RULES_STATE_KEY: "permission_rules",

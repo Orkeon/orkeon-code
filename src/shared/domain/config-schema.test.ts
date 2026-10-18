@@ -1,5 +1,5 @@
 // B-6 — the /config key space and its two layers. Run:
-//   node_modules/.bin/tsx --test shared/domain/config-schema.test.ts
+//   node --test src/shared/domain/config-schema.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok } from "node:assert";
 import {
@@ -31,6 +31,8 @@ describe("the key space itself", () => {
       spinnerVerbs: "the orkeon-repl TUI status line (read by the host)",
       "tools.extra": "/assistant and /summary (the tools offered), /permissions (rules may name them)",
       "voice.reply": "/assistant, /summary, /transcribe --then, /voice send and /voice --go (each answer read aloud)",
+      "answer.language": "/assistant, /summary, /transcribe --then, /voice send and /voice --go (the main loop's prompt)",
+      "compaction.trigger": "/assistant (the automatic compaction at the head and the tail of a turn), /usage",
     });
   });
 
@@ -122,7 +124,7 @@ describe("layerConfig — ACCEPTANCE 2 & 3: session over file", () => {
   });
 
   it("ACCEPTANCE 3 — dropping the session layer restores the file value", () => {
-    // What /reset-session does: the bag goes, the file stays.
+    // What /clear does: the bag goes, the file stays.
     const file = { "permissions.fallback": "plan" };
     const before = resolveConfigEntry("permissions.fallback", file, { "permissions.fallback": "dontAsk" });
     const after = resolveConfigEntry("permissions.fallback", file, {});

@@ -4,7 +4,7 @@
 // consecutive FAILURES open the breaker: any successful pass (compacted or
 // snipped) resets it, a skip leaves it unchanged.
 //
-// Run tests: node_modules/.bin/tsx --test crews/main-loop/domain/autocompact.test.ts
+// Run tests: node --test src/crews/main-loop/domain/autocompact.test.ts
 
 import { MAX_CONSECUTIVE_FAILURES } from "../../../shared/domain/compaction-thresholds.ts";
 import type { CompactStatus } from "../../../shared/domain/compact-outcome.ts";

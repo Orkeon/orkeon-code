@@ -1,6 +1,6 @@
 // The session-default permission mode: the mode a prompt runs in when it carries
 // no explicit "mode:" prefix, persisted in the session state bag (survives crew
-// runs; /reset-session restores "default"). /mode cycles, shows or sets it; /plan
+// runs; /clear restores "default"). /mode cycles, shows or sets it; /plan
 // toggles it in and out of plan.
 
 import type { Logger } from "../../shared/application/ports.ts";
@@ -23,7 +23,7 @@ async function applyMode(deps: ModeDeps, next: string, how: string): Promise<Com
   }
   return {
     text: `session default permission mode ${how} '${next}' ` +
-      `(prompts without a "mode:" prefix now run in it; /reset-session restores 'default').`,
+      `(prompts without a "mode:" prefix now run in it; /clear restores 'default').`,
   };
 }
 
@@ -61,7 +61,7 @@ export async function runMode(tokens: string[], deps: ModeDeps): Promise<Command
  *
  * Baseline 04 §/plan: "Toggle plan mode … flip the boolean, persist the new
  * value". The pre-B-11 handler wrote "plan" unconditionally, so `/plan` twice left
- * the session read-only and the only way out was `/mode` or `/reset-session` —
+ * the session read-only and the only way out was `/mode` or `/clear` —
  * with the command still reporting success both times.
  *
  * Leaving plan returns to `default`, not to whatever preceded it: the mode before

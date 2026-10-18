@@ -3,7 +3,7 @@
 // boolean, persist the new value").
 //
 // B-11 deepening: this used to write "plan" unconditionally, so `/plan` twice left
-// the session read-only and the only way out was `/mode` or `/reset-session` — with
+// the session read-only and the only way out was `/mode` or `/clear` — with
 // the command reporting success both times. A toggle that cannot un-toggle is the
 // kind of defect that reads as a mode bug rather than a command bug.
 //

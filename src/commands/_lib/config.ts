@@ -2,13 +2,13 @@
 // DECLARED key space, in two layers (baseline 04 §/config).
 //
 // Before B-6 this was a free-form session map: any key was accepted, a typo was
-// stored and never read, and nothing survived /reset-session. That mattered as
+// stored and never read, and nothing survived /clear. That mattered as
 // soon as B-2 added `permissions.fallback`, a key whose job is to state the
 // session's permission posture — `/config set permissions.fallbck bypass…`
 // reported success and changed nothing.
 //
 //   file    /workspace/.orkeon/config.json   survives everything
-//   session state bag                        overrides the file until /reset-session
+//   session state bag                        overrides the file until /clear
 
 import {
   CONFIG_KEYS, configKeySpec, knownConfigKeys, validateConfigEntry,
@@ -39,7 +39,7 @@ export async function runConfig(tokens: string[], deps: ConfigDeps): Promise<Com
   switch ((sub ?? "list").toLowerCase()) {
     case "list": {
       const view = await config.readView();
-      const notes: string[] = [`file: ${CONFIG_FILE_PATH} — session overrides it until /reset-session.`];
+      const notes: string[] = [`file: ${CONFIG_FILE_PATH} — session overrides it until /clear.`];
       if (view.unknown.length > 0) {
         notes.push(
           `⚠ stored but NOT in the key space (pre-B-6 residue, nothing reads them): ${view.unknown.join(", ")}`,
@@ -87,7 +87,7 @@ export async function runConfig(tokens: string[], deps: ConfigDeps): Promise<Com
         const map = await config.readSession();
         map[key] = value;
         await config.writeSession(map);
-        return { text: `${key} = ${value} [session] — overrides the file until /reset-session.` };
+        return { text: `${key} = ${value} [session] — overrides the file until /clear.` };
       }
       const { map, malformed } = await config.readFile();
       if (malformed) {

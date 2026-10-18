@@ -2,7 +2,7 @@
 //
 // Baseline 04 §/agents: "List, create, delete, and edit saved agent configurations
 // stored in `.orkeon/agents.json`". So the registry is a FILE, not session state —
-// a saved agent is meant to outlive the session, and `/reset-session` must not take
+// a saved agent is meant to outlive the session, and `/clear` must not take
 // someone's agent definitions with it. It lives beside `config.json` (B-6), under
 // the same `/workspace/.orkeon/` directory the operator can read and edit by hand.
 //

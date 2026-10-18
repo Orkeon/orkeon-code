@@ -1,11 +1,12 @@
 // Post-compaction restoration of files and skills over FakeFiles and
 // FakeSessionStore. Run:
-//   node_modules/.bin/tsx --test shared/application/compaction/restore-context.test.ts
+//   node --test src/shared/application/compaction/restore-context.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual } from "node:assert";
 
 import { restoreAttachedSkills, restoreRecentFiles } from "./restore-context.ts";
-import { buildRestoredFileMessage, buildRestoredSkillMessage } from "../../domain/compaction.ts";
+import { buildRestoredFileMessage,
+  buildRestoredFileNotice, buildRestoredSkillMessage } from "../../domain/compaction.ts";
 import {
   CHARS_PER_TOKEN,
   POST_COMPACT_MAX_FILES_TO_RESTORE,
@@ -38,13 +39,23 @@ describe("restoreRecentFiles", () => {
     ]);
   });
 
-  it("caps each file and the number of files restored", async () => {
+  it("caps the number of files restored, and names a file too large instead of cutting it", async () => {
     const files = new FakeFiles();
     const paths = Array.from({ length: POST_COMPACT_MAX_FILES_TO_RESTORE + 2 }, (_, i) => `/workspace/f${i}.ts`);
     for (const p of paths) files.files.set(p, "x".repeat(PER_FILE_CHARS + 10));
     const restored = await restoreRecentFiles(files, paths.map((p) => ({ role: "user", content: `see ${p}` })));
     deepStrictEqual(restored.length, POST_COMPACT_MAX_FILES_TO_RESTORE);
-    deepStrictEqual(restored[0], buildRestoredFileMessage(paths[paths.length - 1], "x".repeat(PER_FILE_CHARS)));
+    // A cut copy reads as the whole file and could feed a whole-file write.
+    deepStrictEqual(restored[0], buildRestoredFileNotice(paths[paths.length - 1]));
+  });
+
+  it("restores a file that fits whole", async () => {
+    const files = new FakeFiles();
+    files.files.set("/workspace/small.ts", "x".repeat(PER_FILE_CHARS));
+    deepStrictEqual(
+      await restoreRecentFiles(files, [{ role: "user", content: "see /workspace/small.ts" }]),
+      [buildRestoredFileMessage("/workspace/small.ts", "x".repeat(PER_FILE_CHARS))],
+    );
   });
 });
 

@@ -99,8 +99,9 @@ export function toolsetFor(mode: string, extras: readonly ExtraTool[] = []): str
 /** The permission clause appended to the act() prompt. */
 export function permissionNote(mode: string): string {
   const clause = isReadOnly(mode)
-    ? "Read-only: you may inspect local files but MUST NOT modify them, run commands, or fetch anything over the network."
-    : "You may edit files, fetch over the network, and run shell commands.";
+    ? "Read-only: read and search the project, but MUST NOT modify files, run commands or fetch anything over the " +
+      "network; answer with an assessment or a plan."
+    : "You may edit files, run shell commands and fetch over the network; the host may ask the user before a call.";
   return `(Permission mode: ${mode}. ${clause})`;
 }
 

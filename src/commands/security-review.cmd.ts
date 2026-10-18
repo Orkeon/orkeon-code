@@ -1,11 +1,11 @@
 /// <reference path="./.orkeon/orkeon-cli.d.ts" />
-// /security-review (B-12) — the code-review crew narrowed to the SECURITY lens
-// (baseline 04 §/security-review, reusing baseline 03 §CodeReview Crew).
+// /security-review — the code-review crew narrowed to the SECURITY lens, the same as
+// `/review --lens security` under the name users look for.
 //
-// Same reasoning as /bughunter: one facet of the existing crew, passed as a crew
-// input so it outranks the `review.lenses` setting. Keeping it inside the review
-// crew also means a security pass inherits the scope validation (B-3) — a review
-// asked to look at two paths looks at those two paths.
+// Not a second crew: one facet of the existing one, passed as a crew input so it
+// outranks the `review.lenses` setting. Keeping it inside the review crew also means a
+// security pass inherits the scope validation — a review asked to look at two paths
+// looks at those two paths.
 import { launchCrew, writeCompleted } from "./_lib/dispatch.ts";
 import { createCrewHost } from "../shared/infrastructure/orkeon/crew-host.ts";
 

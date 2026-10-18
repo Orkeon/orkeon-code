@@ -1,9 +1,9 @@
 // Two-layer /config store (B-6): a VFS settings file that survives everything,
-// and the session state bag that overrides it until /reset-session.
+// and the session state bag that overrides it until /clear.
 //
 // The original persists `/config` to a settings file (baseline 04 §/config);
 // The first version had only the session bag, so nothing set with `/config` outlived a
-// `/reset-session` — including `permissions.fallback`, whose entire purpose is to
+// `/clear` — including `permissions.fallback`, whose entire purpose is to
 // state a durable posture.
 //
 // Built over the Files and SessionStore ports (createConfigStore); the instance

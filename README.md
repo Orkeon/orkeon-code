@@ -33,11 +33,11 @@ trimmed by the mode. Every command, crew and prompt is a source file: change it,
   assistant transcribes voice notes, meetings and screen recordings on your machine; `/voice` dictates a request
   and `/say` reads aloud ([Configuration](docs/configuration.md#speech-to-text)).
 - **Crews for the recurring jobs**: `/init` (describe the project for the agent), `/commit` (a conventional commit
-  from the diff), `/review`, `/bughunter`, `/security-review` (multi-lens code review), `/analyze` (deterministic
+  from the diff), `/review`, `/security-review` (multi-lens code review), `/analyze` (deterministic
   codebase analysis), `/compact` and `/summary` (context management), `/init-verifiers`, `/advisor`.
 - **Context management**: automatic compaction with a circuit breaker, snip-first `/compact`, file restore after
   compaction, context pressure tiers, typed durable memory (`/memory`).
-- **60 slash commands** in all: [docs/commands.md](docs/commands.md).
+- **49 slash commands** in all: [docs/commands.md](docs/commands.md).
 
 ## Quick start
 
@@ -70,7 +70,7 @@ cd ~/src/my-project && ~/orkeon-code/orkeon-code                   # or on your 
 Then, in the REPL:
 
 ```text
-/init                                    describe the project (writes CLAUDE.md)
+/init                                    describe the project (writes AGENTS.md)
 plan: how is the configuration loaded?   read-only question
 acceptEdits: add input validation to parseArgs and a test for it
 /diff

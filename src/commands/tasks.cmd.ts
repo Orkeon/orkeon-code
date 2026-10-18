@@ -1,7 +1,7 @@
 /// <reference path="./.orkeon/orkeon-cli.d.ts" />
 // /tasks (E-1) — session task list (baseline 04 §/tasks): add/list/done/clear
 // over one JSON array in the state bag. Survives /assistant runs; cleared by
-// /reset-session (or `/tasks clear`).
+// /clear (or `/tasks clear`).
 import { rawTokens } from "./_lib/args.ts";
 import { readJsonArray, writeJson } from "../shared/application/session-state.ts";
 import { orkeonSessionIo } from "../shared/infrastructure/orkeon/wiring.ts";

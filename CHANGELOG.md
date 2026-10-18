@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`/verify [<zone>]`**: the assistant checks the project by running it, following the verification skills
+  `/init-verifiers` wrote under `/output/verifiers/` (one zone's, or all of them), and reports as each skill says.
+- **`answer.language`**: `/config set answer.language French` makes the assistant answer in that language unless a
+  request is written in another one ([Configuration](docs/configuration.md#session-settings)).
+- **`compaction.trigger`**: `/config set compaction.trigger 90k` moves the token count at which the automatic
+  compaction runs; `/usage` shows it.
+- **`/compact <focus>`** names what the summary must keep above all; **`/compact --snip [N]`** only keeps the head
+  and the last N exchanges (it replaces `/force-snip`).
+- **`/review --lens correctness|security|style`** keeps one lens, outranking the `review.lenses` setting (it replaces
+  `/bughunter`).
+- **`node scripts/render-prompts.mjs <dir>`** writes every prompt as the model reads it, to review a prompt change as
+  a diff; **`tests/prompt-contract.test.ts`** checks the same catalogue (the header identical from turn to turn,
+  digit-free and under its ceiling in every mode, no provenance marker, instructions apart from material).
+
 - **Speech output over OpenAI's API or a compatible server**: `TTS_BACKEND=openai` (OpenAI's speech API) or `http`
   (speaches serving Kokoro on a GPU, for instance), the same client as the transcription's backends. A compatible
   server gets a key only when `TTS_API_KEY_VAR` (`WHISPER_API_KEY_VAR` for transcription) names its variable
@@ -63,6 +77,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Every prompt is written from a behaviour specification**, in this project's own words
+  ([Architecture](docs/architecture.md#prompt-assembly), [ADR 0003](docs/adr/0003-prompts-from-a-behaviour-specification.md)).
+  The main loop's header gains a contract per mode (read-only: a plan is the deliverable; otherwise a destructive or
+  outward-facing action the request does not call for is proposed, not performed), when to ask (a question ends the
+  turn), checking the work after a change, care with actions (git only on request, staged by name, secrets kept in the
+  environment), where instructions may come from (file contents, tool output and the marked history messages are
+  material), and what the tools can do (calls one at a time, cut results, no start position for `file_read`, whole-file
+  writes, an allow-listed shell). The provenance baseline is empty and CI runs the gate with `--strict`.
+- **The user body states each fact once**: the request under its own heading and no longer repeated in the history,
+  today's date, the git status dated to the start of the turn, the pressure tier with the conduct it calls for, memory
+  introduced as possibly stale; the blocks run from the most stable to the most volatile, so a prefix cache reaches
+  into it.
+- **The crews send their instructions as a system message** (`Llm.complete` with `system`, over the runtime's
+  message-array call) and their material (a diff, a transcript, an answer under review) as the user message. The review
+  defines its severities and asks for the changed line and the input that shows a finding; the commit message sees the
+  untracked files, follows the history's style and may refuse a credential; the second opinion reads the turns before
+  the exchange.
+- **`/init` writes `AGENTS.md`**, from evidence only, merging an existing `AGENTS.md`, `CLAUDE.md`, `.cursorrules` or
+  Copilot instructions and the README; the assistant reads `AGENTS.md`, else `CLAUDE.md`.
+- **The compaction summary** is written for a reader who resumes cold, between fixed markers, from a transcript framed
+  as material and cut in the middle rather than at its head; an empty summary fails the compaction. The thresholds are
+  re-derived from this project's facts: the buffer is one turn's room (36 576 tokens instead of 13 000), the warning
+  tier that room and the error tier one cut file read, the fallback window 128 000, the transcript cap 48 000
+  characters.
+- **Twelve commands fold into others** (60 → 49): `/version`, `/env`, `/session` and `/upgrade` are aliases of
+  `/status`, which shows the version, the platform and how to update; `/ctx-viz` of `/context`; `/extra-usage` of
+  `/usage`; `/reset-session` of `/clear`.
+
 - **The .NET SDK is pinned as in Orkeon**: `global.json` asks for `10.0.300` with `rollForward: latestFeature`,
   the SDK that `dotnet tool restore` uses for the typings and `scripts/run-crew.sh`. A user's project keeps its
   own `global.json`: the launcher never runs an SDK command there.
@@ -110,7 +152,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   where the command already handled a failed call; and `ctx.llm.complete` receives an explicit `undefined` second
   argument.
 
+### Removed
+
+- **`/tag`** (a `/memory add` under another name), **`/sandbox-toggle`** (it recorded a setting nothing enforced),
+  **`/onboarding`** (the REPL's native `/help` lists every command), **`/bughunter`** (now `/review --lens
+  correctness`) and **`/force-snip`** (now `/compact --snip`).
+
 ### Fixed
+
+- **Every turn sent the request twice**: the history ended with it, then the task repeated it.
+- **A long conversation lost its recent work in the compaction summary**: the transcript was cut at its head.
+- **A file too large to restore after a compaction came back cut**, reading as the whole file; it now comes back as
+  its path with a note to read it.
+- **`/commit` described changes whose untracked files the model never saw**; a file that usually holds a secret
+  (`.env`, a private key) now stops it before any model call.
+- **The documentation said the pressure tiers reached the model** (they now do) and placed the compaction prompt and
+  the instructions file where they were not.
 
 - **`orkeon-code.ps1` with a one-word `ORKEON_REPL`, or none** (`orkeon-repl` found on the `PATH`): the command was
   read character by character (`o not found`) and the REPL never started; so was a one-word argument of a longer

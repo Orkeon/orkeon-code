@@ -7,7 +7,7 @@
 // failed comes back as the host's failure marker: it is thrown as an LlmFailure,
 // never returned as an answer.
 
-import type { ActRequest, Llm, ModelOverride } from "../../application/ports.ts";
+import type { ActRequest, CompleteRequest, Llm, ModelOverride } from "../../application/ports.ts";
 import type { PermissionMode } from "../../domain/permission-modes.ts";
 import { llmFailureOf } from "../../domain/llm-failure.ts";
 
@@ -40,13 +40,21 @@ function answerOrThrow(text: string): string {
   return text;
 }
 
-export function createLlm(llm: Pick<LlmFacade, "act" | "complete" | "extract">): Llm {
+export function createLlm(llm: Pick<LlmFacade, "act" | "complete" | "extract" | "chat">): Llm {
   return {
     async act(prompt, request) {
       return answerOrThrow(answerOf(await llm.act(prompt, actOptions(request))));
     },
-    async complete(prompt, override) {
-      return answerOrThrow(await llm.complete(prompt, callOptions(override)));
+    async complete(prompt, request?: CompleteRequest) {
+      // A system message needs the message-array call: `complete` takes a prompt only.
+      if (request?.system) {
+        const reply = await llm.chat(
+          [{ role: "system", content: request.system }, { role: "user", content: prompt }],
+          callOptions(request),
+        );
+        return answerOrThrow(String(reply?.content ?? ""));
+      }
+      return answerOrThrow(await llm.complete(prompt, callOptions(request)));
     },
     extract: (prompt, schema) => llm.extract<unknown>(prompt, schema as JsonSchema),
   };

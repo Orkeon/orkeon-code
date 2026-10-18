@@ -2,7 +2,7 @@
 //
 // B-6: the original's `/config` operates over a VALIDATED key space with
 // settings-file persistence (baseline 04 §/config). Exp07's was a free-form
-// session map: any key was accepted, nothing survived `/reset-session`, and a
+// session map: any key was accepted, nothing survived `/clear`, and a
 // typo'd key was indistinguishable from a real one — it was simply stored and
 // never read by anything.
 //
@@ -14,6 +14,8 @@
 import { PERMISSION_FALLBACK_CONFIG_KEY, PERMISSION_MODES } from "./permission-modes.ts";
 import { EXTRA_TOOLS_CONFIG_KEY, extraToolsProblem } from "./agent-policy/extra-tools.ts";
 import { VOICE_REPLY_CONFIG_KEY } from "./speech.ts";
+import { ANSWER_LANGUAGE_CONFIG_KEY } from "./agent-policy/output-styles.ts";
+import { COMPACTION_TRIGGER_CONFIG_KEY, compactionTriggerProblem } from "./compaction-thresholds.ts";
 
 export interface ConfigKeySpec {
   key: string;
@@ -90,6 +92,21 @@ export const CONFIG_KEYS: readonly ConfigKeySpec[] = [
     allowed: ["on", "off"],
     consumedBy: "/assistant, /summary, /transcribe --then, /voice send and /voice --go (each answer read aloud)",
   },
+  {
+    key: ANSWER_LANGUAGE_CONFIG_KEY,
+    description:
+      "The language the assistant answers in, e.g. 'French', unless the user writes in another one. " +
+      "Omitted = the language of each request.",
+    consumedBy: "/assistant, /summary, /transcribe --then, /voice send and /voice --go (the main loop's prompt)",
+  },
+  {
+    key: COMPACTION_TRIGGER_CONFIG_KEY,
+    description:
+      "The token count at which the automatic compaction runs, e.g. '90000' or '90k'. Omitted = the " +
+      "context window minus the room one turn needs.",
+    problem: compactionTriggerProblem,
+    consumedBy: "/assistant (the automatic compaction at the head and the tail of a turn), /usage",
+  },
 ];
 
 /** Where an effective value came from. */
@@ -153,7 +170,7 @@ export function validateConfigEntry(key: unknown, value: unknown): ValueVerdict 
  * Layers the session map over the file map, key by key.
  *
  * The session wins where it is set: a `/config set --session` is a deliberate,
- * temporary override of a persisted setting, and `/reset-session` drops it back to
+ * temporary override of a persisted setting, and `/clear` drops it back to
  * the file value. Unknown keys present in either map are NOT returned — they can
  * only be residue from before the schema existed, and surfacing them as effective
  * settings would suggest something reads them.

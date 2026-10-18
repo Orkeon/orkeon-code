@@ -29,7 +29,7 @@ defineCommand({
     // n rounds × 3 lenses is n × 3 LLM calls: say so, the cost is the operator's.
     return ctx.continue(
       `reasoning passes set to ${n} — /review will make ${n * 3} lens calls per run ` +
-      "(session-scoped; /reset-session clears it).",
+      "(session-scoped; /clear clears it).",
     );
   },
 });

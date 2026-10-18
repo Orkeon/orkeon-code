@@ -1,10 +1,10 @@
-// Shared compaction pipeline (FINALIZE-PLAN F3) — called inline by BOTH the
-// session-compact crew (/compact, force) and the main-loop auto-compaction
-// (threshold-gated). NEVER via ctx.crew.run / ctx.delegate (Jint constraints):
-// plain function call. Pipeline mirrors the Claude Code two-phase design:
-// memory extraction first (nothing durable is
-// lost), deterministic micro-compaction (session_snip) before any LLM summary,
-// full synthesis only when still above the trigger.
+// The compaction pipeline, called inline by BOTH the session-compact crew
+// (/compact, forced) and the main loop's automatic compaction (above the trigger
+// only) — a plain function call, never a crew launch from a crew. In order: the
+// durable facts go to typed memory first, so nothing worth keeping is lost; a
+// deterministic snip (session_snip) comes next, free of any model call; a summary
+// is paid for only when the buffer is still above the trigger, and then the files
+// the conversation was working on and the attached skills are read back.
 //
 // The pipeline runs on the ports of CompactDeps: both entry points wire the Orkeon
 // adapters and the running agent's model and log. Memory extraction and the
@@ -19,8 +19,10 @@ import {
   buildMemoryRecapMessage,
   buildSummaryPrompt,
   buildTranscript,
+  extractSummary,
 } from "../../domain/compaction.ts";
-import { SNIP_RETAIN_COUNT, shouldCompact } from "../../domain/compaction-thresholds.ts";
+import { COMPACTION_TRIGGER_CONFIG_KEY, SNIP_RETAIN_COUNT, parseTokenCount, shouldCompact } from "../../domain/compaction-thresholds.ts";
+import type { ConfigStore } from "../config-store.ts";
 import { extractMemories } from "./extract-memories.ts";
 import { restoreAttachedSkills, restoreRecentFiles } from "./restore-context.ts";
 
@@ -36,12 +38,14 @@ export interface CompactDeps {
 
 /**
  * Run the compaction pipeline. `force: true` (the /compact crew) skips the
- * threshold check and always goes to full synthesis; `force: false` (main-loop
- * auto-compaction) only acts above the trigger and stops at `snipped` when the
- * micro-compaction alone brought usage back under it.
+ * threshold check; `force: false` (main-loop auto-compaction) only acts above the
+ * trigger. Both stop at `snipped` when the snip alone brought usage back under
+ * it. `focus` is what the operator asked the summary to keep above all
+ * (`/compact <focus>`). A summary that comes back empty fails the compaction (the
+ * breaker counts it) rather than replace the history with nothing.
  */
 export async function compactSession(
-  opts: { force?: boolean },
+  opts: { force?: boolean; focus?: string; trigger?: number },
   deps: CompactDeps,
 ): Promise<CompactOutcome> {
   const { progress, session, files, memory, llm, log } = deps;
@@ -52,7 +56,7 @@ export async function compactSession(
       return { status: "skipped", reason: "buffer too small" };
 
     const { used, window } = await session.readBudget();
-    if (!force && !shouldCompact(used, window))
+    if (!force && !shouldCompact(used, window, opts.trigger))
       return { status: "skipped", reason: "below trigger", usedTokens: used };
 
     // Progress: reported only past the threshold checks (a skipped compaction must
@@ -65,13 +69,13 @@ export async function compactSession(
       const memories = await extractMemories(llm, memory, transcript);
 
       // 2. Deterministic micro-compaction first: strip tool I/O bulk via
-      //    session_snip, then re-check. E-6: the FORCE path (/compact) also
-      //    takes this session-memory shortcut — when the snip alone brings
-      //    usage back under the trigger, no LLM synthesis is paid.
+      //    session_snip, then re-check. The FORCE path (/compact) also takes this
+      //    shortcut — when the snip alone brings usage back under the trigger, no
+      //    model call is paid.
       await progress.report(compactPhase(2, "micro-compacting (snip)"));
       await session.snip(SNIP_RETAIN_COUNT);
       const after = await session.readBudget();
-      if (!shouldCompact(after.used, after.window)) {
+      if (!shouldCompact(after.used, after.window, opts.trigger)) {
         note(log, "compaction path: snip-only sufficed (LLM synthesis skipped)");
         return { status: "snipped", before: raw.stored.length, usedTokens: after.used };
       }
@@ -82,18 +86,21 @@ export async function compactSession(
       const remaining = await session.readMessages();
       if (remaining.stored.length === 0)
         return { status: "snipped", before: raw.stored.length, after: 0 };
-      const summary = await llm.complete(buildSummaryPrompt(buildTranscript(remaining.messages)));
-      const buffer = buildCompactedBuffer(remaining.stored[0], String(summary ?? ""));
+      const prompt = buildSummaryPrompt(buildTranscript(remaining.messages), opts.focus);
+      const reply = await llm.complete(prompt.user, { system: prompt.system });
+      const summary = extractSummary(String(reply ?? ""));
+      if (summary.length === 0) return { status: "failed", reason: "the summary came back empty" };
+      const buffer = buildCompactedBuffer(remaining.stored[0], summary);
       if (memories.length > 0) buffer.push(buildMemoryRecapMessage(memories));
-      // 4. E-4: re-inject the recently-touched files so the agent keeps its
-      //    working context (paths harvested from the PRE-compaction buffer).
+      // 4. Re-inject the recently-touched files so the agent keeps its working
+      //    context (paths harvested from the PRE-compaction buffer).
       await progress.report(compactPhase(4, "restoring recent files"));
       const restored = await restoreRecentFiles(files, raw.messages);
       if (restored.length > 0) {
         buffer.push(...restored);
         note(log, `post-compaction restore: ${restored.length} file(s) re-injected`);
       }
-      // 5. B-13: re-inject the ATTACHED SKILLS under their own budget. Files came
+      // 5. Re-inject the ATTACHED SKILLS under their own budget. Files came
       //    back because the agent was touching them; skills come back because the
       //    operator attached them and expects them to outlive every compaction —
       //    which is exactly what "the agent forgot the rules" looks like when they
@@ -112,6 +119,22 @@ export async function compactSession(
     }
   } catch (e: any) {
     return { status: "failed", reason: String(e?.message ?? e) };
+  }
+}
+
+/** `/compact --snip [N]`: the head and the last N exchanges kept, nothing summarised. */
+export async function snipBuffer(retain: number, deps: { session: Pick<SessionStore, "snip"> }): Promise<string> {
+  const { removed, retained } = await deps.session.snip(retain);
+  return `snipped: ${removed} removed, ${retained} kept.`;
+}
+
+/** The `compaction.trigger` setting as a token count; undefined when unset, invalid
+ *  or unreadable (the computed trigger then applies). */
+export async function readCompactionTrigger(config: Pick<ConfigStore, "readValue">): Promise<number | undefined> {
+  try {
+    return parseTokenCount((await config.readValue(COMPACTION_TRIGGER_CONFIG_KEY)).value);
+  } catch {
+    return undefined;
   }
 }
 

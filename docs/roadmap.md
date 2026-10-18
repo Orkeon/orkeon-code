@@ -5,10 +5,6 @@ What Orkeon Code does not do yet, in the order we expect to address it. Items ma
 
 ## Before the first release
 
-- **Original prompts.** Rewrite the behaviour blocks of the main loop and the compaction prompt from the
-  specification in [Architecture](architecture.md#prompt-assembly); empty `scripts/provenance-baseline.json`.
-- **A vendor-neutral instructions file.** `/init` writes, and the loop reads, `AGENTS.md`; `CLAUDE.md` stays readable
-  for projects that already have one.
 - **Comments in the project's own terms.** The sources still cite the internal tickets and design rounds of the
   experiment they come from.
 
@@ -22,7 +18,7 @@ What Orkeon Code does not do yet, in the order we expect to address it. Items ma
 - **Persistent sessions.** Resume a conversation after the REPL exits; keep the session mode and the permission
   rules across sessions.
 - **Hooks that fire.** `/hooks` stores declarations; the engine that runs them is missing.
-- **Cost and usage.** Real cost figures per provider, cache ratio, token counting for `/ctx-viz` and `/extra-usage`.
+- **Cost and usage.** Real cost figures per provider, cache ratio, token counting for `/context` and `/usage`.
 
 ## Later
 
@@ -38,8 +34,7 @@ What Orkeon Code does not do yet, in the order we expect to address it. Items ma
   gate treats them as writes, even when they only read: asked in `default` and `acceptEdits`, refused in `plan`, and
   in `dontAsk` without an allow rule (runtime; [Permissions](permissions.md)).
 - The answer can be printed twice when console streaming is enabled.
-- `/tasks` is a manual to-do list, not a monitor of background work; `/tag` stores a note in memory rather than
-  labelling a message.
-- Six commands only partly do what their names promise: `/env` (no runtime version nor provider), `/summary` (not
-  saved to memory), `/onboarding` (static text), `/session` (one in-memory session), `/ctx-viz` and `/extra-usage`
-  (totals only, no per-category or cache figures).
+- `/tasks` is a manual to-do list, not a monitor of background work.
+- Some commands only partly do what their names promise: `/summary` (not saved to memory), `/status` (no runtime
+  version nor provider), `/resume` (one in-memory session), `/context` and `/usage` (totals only, no per-category
+  figures; cache hits only when the host reports them).

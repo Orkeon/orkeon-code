@@ -1,5 +1,5 @@
 // commands/_lib/session-config.ts over FakeSessionStore: the toggle commands
-// (/fast, /proactive, /sandbox-toggle). Run:
+// (/fast, /proactive). Run:
 //   node --test tests/commands-session-config.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
@@ -32,9 +32,9 @@ describe("toggleCommand", () => {
   it("flips the flag on a bare press, and says what consumes it", async () => {
     const session = new FakeSessionStore();
     const { press } = defineToggle(session);
-    strictEqual(await press(), "fast: on (turns skip two blocks; /reset-session clears it).");
+    strictEqual(await press(), "fast: on (turns skip two blocks; /clear clears it).");
     strictEqual(session.state.get("fast_mode"), "true");
-    strictEqual(await press(), "fast: off (turns skip two blocks; /reset-session clears it).");
+    strictEqual(await press(), "fast: off (turns skip two blocks; /clear clears it).");
     strictEqual(session.state.get("fast_mode"), "false");
   });
 
@@ -50,7 +50,7 @@ describe("toggleCommand", () => {
 
   it("reads an unreadable flag as off", async () => {
     const session = new UnreadableStateStore();
-    strictEqual(await defineToggle(session).press(), "fast: on (turns skip two blocks; /reset-session clears it).");
+    strictEqual(await defineToggle(session).press(), "fast: on (turns skip two blocks; /clear clears it).");
     strictEqual(session.state.get("fast_mode"), "true");
   });
 });

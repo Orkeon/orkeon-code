@@ -4,7 +4,8 @@
 import { describe, it } from "node:test";
 import { strictEqual, ok, deepStrictEqual } from "node:assert";
 
-import { buildStatusRows, runStatus } from "../src/commands/_lib/status.ts";
+import { buildStatusRows, runStatus, PLATFORM_COMMAND } from "../src/commands/_lib/status.ts";
+import { FakeShell } from "./support/fake-shell.ts";
 import { FakeCrewHost } from "./support/fake-crew-host.ts";
 import { FakeSessionStore } from "./support/fake-session-store.ts";
 import { FakeTelemetry } from "./support/fake-telemetry.ts";
@@ -76,5 +77,27 @@ describe("/status — runStatus", () => {
     const rows = new Map((await run()).table!.map((r: any) => [r.field, r.value]));
     strictEqual(rows.get("messages"), "7");
     strictEqual(rows.get("llm"), "1 call(s), 30 token(s)");
+  });
+});
+
+describe("/status — what /version, /env, /session and /upgrade showed", () => {
+  const rows = (o: any = {}) => new Map(buildStatusRows(o).map((r) => [r.field, r.value]));
+  it("carries the version, the platform and how to update", () => {
+    const r = rows({ platform: "linux  x64  node v24.21.0\n" });
+    ok(r.get("version")!.startsWith("orkeon-code "));
+    strictEqual(r.get("platform"), "linux  x64  node v24.21.0");
+    ok(r.get("updates")!.includes("no self-update"));
+    strictEqual(rows().get("platform"), "(unavailable)");
+  });
+  it("reads the platform through the shell, and degrades that row alone", async () => {
+    const shell = new FakeShell();
+    shell.results[PLATFORM_COMMAND] = { stdout: "linux  x64  node v24\n" };
+    const deps = { session: new FakeSessionStore(), telemetry: new FakeTelemetry(), crews: new FakeCrewHost(), shell };
+    const view = await runStatus(deps);
+    const table = new Map((view.table as Array<{ field: string; value: string }>).map((r) => [r.field, r.value]));
+    strictEqual(table.get("platform"), "linux  x64  node v24");
+    shell.errors[PLATFORM_COMMAND] = new Error("refused");
+    const degraded = new Map(((await runStatus(deps)).table as Array<{ field: string; value: string }>).map((r) => [r.field, r.value]));
+    strictEqual(degraded.get("platform"), "(unavailable)");
   });
 });

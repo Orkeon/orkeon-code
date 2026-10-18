@@ -24,6 +24,8 @@ export interface Finding {
 export interface DetectedConventions {
   buildCommand?: string;
   testCommand?: string;
+  /** How to run one test file or case, when the configuration shows it. */
+  singleTestCommand?: string;
   lintCommand?: string;
   frameworks: string[];
   conventions: string[];
@@ -51,4 +53,12 @@ export interface SessionMsg {
 export interface CompactBoundaryMessage extends SessionMsg {
   role: "system";
   subtype: "compact_boundary";
+}
+
+/** A prompt as two messages: the instructions (the system message) and the
+ *  material they apply to (the user message), so text inside the material never
+ *  carries the authority of an instruction. */
+export interface PromptPair {
+  system: string;
+  user: string;
 }

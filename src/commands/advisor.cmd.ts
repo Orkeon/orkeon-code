@@ -10,7 +10,7 @@
 //
 // The setting is a /config key (B-6), not a private state blob: it belongs to the
 // declared key space, it is validated on the way in, and it survives
-// /reset-session — the point of choosing a reviewer is that the choice sticks.
+// /clear — the point of choosing a reviewer is that the choice sticks.
 //
 // The model is checked against the host's declared catalogue and WARNED about, not
 // refused: `Llm:AvailableModels` is a hand-written hint that can lag the provider

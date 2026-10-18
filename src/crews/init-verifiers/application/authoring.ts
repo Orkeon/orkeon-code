@@ -4,7 +4,8 @@
 import type { Files, Llm, Logger } from "../../../shared/application/ports.ts";
 import { cleanLlmMarkdown } from "../../../shared/domain/strip.ts";
 import type { TestReadiness } from "../../../shared/domain/types.ts";
-import { safeZoneName, fallbackReadiness } from "../domain/readiness.ts";
+import { fallbackReadiness } from "../domain/readiness.ts";
+import { verifierPath } from "../../../shared/domain/verifiers.ts";
 import { READINESS_SCHEMA, buildReadinessPrompt, buildVerifierSkillPrompt } from "./prompts.ts";
 
 /** Scan the workspace top level. */
@@ -35,12 +36,18 @@ export async function detectReadiness(
   }
 }
 
-/** Author one verifier skill per zone; returns the count written. */
-export async function authorVerifiers(llm: Pick<Llm, "complete">, zones: string[], files: Files): Promise<number> {
+/** Author one verifier skill per zone from the project's facts; returns the count written. */
+export async function authorVerifiers(
+  llm: Pick<Llm, "complete">,
+  zones: string[],
+  files: Files,
+  facts: { pkg?: string; readiness?: TestReadiness } = {},
+): Promise<number> {
   let written = 0;
   for (const zone of zones) {
-    const skill = await llm.complete(buildVerifierSkillPrompt(zone));
-    await files.write(`/output/verifiers/verify-${safeZoneName(zone)}.md`, cleanLlmMarkdown(skill) + "\n");
+    const prompt = buildVerifierSkillPrompt(zone, facts);
+    const skill = await llm.complete(prompt.user, { system: prompt.system });
+    await files.write(verifierPath(zone), cleanLlmMarkdown(skill) + "\n");
     written++;
   }
   return written;

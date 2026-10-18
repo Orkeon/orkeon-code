@@ -1,6 +1,6 @@
 // B-14 — the code-intel contract, pinned against payloads captured from a LIVE run
 // on the fixture (2026-08-05, via /debug-tool-call). Run:
-//   node_modules/.bin/tsx --test shared/domain/code-intel-contract.test.ts
+//   node --test src/shared/domain/code-intel-contract.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok } from "node:assert";
 

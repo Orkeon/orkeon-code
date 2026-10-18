@@ -1,7 +1,7 @@
 // The init-verifiers use case over FakeFiles, FakeLlm and FakeLogger. Run:
-//   node_modules/.bin/tsx --test crews/init-verifiers/application/run-init-verifiers.test.ts
+//   node --test src/crews/init-verifiers/application/run-init-verifiers.test.ts
 import { describe, it } from "node:test";
-import { strictEqual, deepStrictEqual } from "node:assert";
+import { ok, strictEqual, deepStrictEqual } from "node:assert";
 
 import { runInitVerifiers } from "./run-init-verifiers.ts";
 import { READINESS_SCHEMA, buildReadinessPrompt, buildVerifierSkillPrompt } from "./prompts.ts";
@@ -34,7 +34,12 @@ describe("runInitVerifiers", () => {
     llm.extractions = [{ appTypes: [], frameworks: [], zonesNeedingVerifier: ["api", "Web UI"] }];
     llm.completions = ["# api checks", "# ui checks"];
     strictEqual(await runInitVerifiers(deps), "✓ authored 2 verifier skill(s) under /output/verifiers/ (zones: api, Web UI)");
-    deepStrictEqual(llm.completes.map((c) => c.prompt), [buildVerifierSkillPrompt("api"), buildVerifierSkillPrompt("Web UI")]);
+    const readiness = llm.extractions[0] as any;
+    deepStrictEqual(llm.completes.map((c) => c.override?.system), [
+      buildVerifierSkillPrompt("api").system, buildVerifierSkillPrompt("Web UI").system,
+    ]);
+    ok(llm.completes.every((c) => c.prompt === buildVerifierSkillPrompt("api", { pkg: PKG, readiness }).user),
+      "every skill is written from the project's facts");
     deepStrictEqual(files.writes, [
       { path: "/output/verifiers/verify-api.md", content: "# api checks\n" },
       { path: "/output/verifiers/verify-web-ui.md", content: "# ui checks\n" },
@@ -53,5 +58,19 @@ describe("runInitVerifiers", () => {
     const { llm, deps } = setup();
     llm.extractions = [null];
     strictEqual(await runInitVerifiers(deps), "No verifier gaps detected (types: unknown).");
+  });
+});
+
+describe("the verifier prompts", () => {
+  it("defines each program kind and lets a list stay empty", () => {
+    const p = buildReadinessPrompt([], "{}");
+    for (const kind of ["cli (", "web (", "api (", "library ("]) ok(p.includes(kind), kind);
+    ok(p.includes("true only when the inputs show them"));
+    ok(p.includes("Leave a list empty rather than guess"));
+  });
+  it("outlines a skill that ends on an observable signal and invents no command", () => {
+    const { system } = buildVerifierSkillPrompt("cli");
+    for (const s of ["## Prerequisites", "## Steps", "## Pass", "## Report"]) ok(system.includes(s), s);
+    ok(system.includes("Use only commands the facts show"));
   });
 });

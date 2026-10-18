@@ -1,13 +1,12 @@
 // Tests for command arg parsing. Lives in tests/ (outside the "*.cmd.ts" scan
 // AND outside commands/ for belt-and-suspenders). Run:
-//   node_modules/.bin/tsx --test tests/commands-args.test.ts
+//   node --test tests/commands-args.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok } from "node:assert";
 
 import {
   parseMemoryArgs, parseAssistantInput, rawText, rawTokens,
-  parseToolCallArgs, commandLine, splitWords, isOption, optionValue,
-} from "../src/commands/_lib/args.ts";
+  parseToolCallArgs, commandLine, splitWords, isOption, optionValue, parseCompactArgs } from "../src/commands/_lib/args.ts";
 import { MEMORY_CATEGORIES } from "../src/shared/domain/agent-policy/memory-categories.ts";
 
 describe("parseMemoryArgs", () => {
@@ -141,5 +140,17 @@ describe("splitWords and commandLine", () => {
     strictEqual(commandLine(["my note.m4a", "--lang", "fr"]), `"my note.m4a" --lang fr`);
     deepStrictEqual(texts(commandLine(["--then", "list the tasks"])), ["--then", "list the tasks"]);
     deepStrictEqual(texts(commandLine(["--then", `"list`, "the", `tasks"`])), ["--then", "list the tasks"]);
+  });
+});
+
+describe("parseCompactArgs", () => {
+  it("reads --snip with how many exchanges to keep, 3 by default", () => {
+    deepStrictEqual(parseCompactArgs(["--snip", "5"]), { snip: 5 });
+    deepStrictEqual(parseCompactArgs(["--snip"]), { snip: 3 });
+    deepStrictEqual(parseCompactArgs(["--snip", "zero"]), { snip: 3 });
+  });
+  it("reads anything else as the summary's focus", () => {
+    deepStrictEqual(parseCompactArgs(["keep", "the", "test", "names"]), { focus: "keep the test names" });
+    deepStrictEqual(parseCompactArgs([]), { focus: "" });
   });
 });

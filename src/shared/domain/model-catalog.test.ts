@@ -1,5 +1,5 @@
 // The declared model catalogue (/model list, /model <name>). Run:
-//   node_modules/.bin/tsx --test shared/domain/model-catalog.test.ts
+//   node --test src/shared/domain/model-catalog.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok } from "node:assert";
 

@@ -41,15 +41,12 @@ export const FAST_MODE_STATE_KEY = "fast_mode";
 /** `/proactive` — appends the follow-up-suggestion clause to the task (B-9). */
 export const PROACTIVE_STATE_KEY = "proactive_suggestions";
 
-/** `/sandbox-toggle` — recorded only; enforcement is the container (B-9). */
-export const SANDBOX_MODE_STATE_KEY = "sandbox_mode";
-
 /** `/model` — per-turn model override applied to act() (B-10). */
 export const MODEL_PREFERENCE_STATE_KEY = "model_preference";
 
 // ── Permissions, configuration, tasks and the compaction breaker ──────────
 
-/** `/mode` — the session-default permission mode (cleared by /reset-session). A
+/** `/mode` — the session-default permission mode (cleared by /clear). A
  *  contract with the host: Orkeon's `SessionStateKeys.DefaultPermissionMode`,
  *  which the REPL console shows and cycles. */
 export const DEFAULT_MODE_STATE_KEY = "default_permission_mode";

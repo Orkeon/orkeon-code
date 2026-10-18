@@ -13,18 +13,18 @@ import { orkeonFiles, orkeonShell } from "../../shared/infrastructure/orkeon/wir
 import { createCrewMemory } from "../../shared/infrastructure/orkeon/crew-memory.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { inspectWorkTree, draftCommitMessage, commitAll } from "./application/draft.ts";
-import { isCommitPermitted } from "./domain/commit.ts";
+import { commitRefusal, isCommitPermitted, secretLikePaths, statusPaths } from "./domain/commit.ts";
 
 const shell = orkeonShell();
 const files = orkeonFiles();
 
 const committer = AgentBuilder()
   .name("git-committer")
-  .role("Release Engineer")
+  .role("Commit Writer")
   .goal("Inspect the working tree, draft a Conventional-Commits message, and commit safely.")
   .tools(["shell_command"])
   .body(async (_input: any, ctx: any) => {
-    // B-1: the permission mode is threaded by /commit (dispatch), exactly as
+    // The permission mode is threaded by /commit (dispatch), exactly as
     // assistant.cmd.ts threads it to main-loop. Checked BEFORE inspecting the
     // tree so a read-only session spends nothing — not even an LLM draft.
     const mode = inputs().permissionMode;
@@ -34,11 +34,19 @@ const committer = AgentBuilder()
       return `✗ refused: ${permitted.reason}`;
     }
 
-    const tree = await inspectWorkTree(shell);
+    const tree = await inspectWorkTree(shell, files);
     if (tree.status.trim().length === 0) {
       return "Nothing to commit — working tree clean.";
     }
+    // A file that usually holds a secret stops the commit before any model call.
+    const secrets = secretLikePaths(statusPaths(tree.status));
+    if (secrets.length > 0) {
+      return `✗ refused: ${secrets.join(", ")} usually ${secrets.length === 1 ? "holds" : "hold"} a secret; ` +
+        "commit by hand if it is meant to be tracked, or add it to .gitignore";
+    }
     const message = await draftCommitMessage({ llm: createLlm(ctx.llm), memory: createCrewMemory(ctx) }, tree);
+    const refusal = commitRefusal(message);
+    if (refusal !== null) return `✗ refused: the drafted message flagged ${refusal}`;
     return await commitAll(tree, message, mode, { shell, files });
   })
   .build();

@@ -42,7 +42,7 @@ export async function writeBreakerFailures(deps: Pick<AutoCompactDeps, "session"
  * Threshold-gated auto-compaction with a circuit breaker (F3.2/F3.5): runs the
  * shared pipeline and tracks consecutive failures in SESSION state (F3 v2 — the
  * counter survives across /assistant invocations and is cleared by
- * /reset-session), mirrored in per-run agent state as the fallback for hosts
+ * /clear), mirrored in per-run agent state as the fallback for hosts
  * without session tools.
  */
 export async function autoCompactGuarded(deps: AutoCompactDeps): Promise<void> {

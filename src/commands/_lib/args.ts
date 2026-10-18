@@ -1,4 +1,4 @@
-// Pure argument parsing for slash commands — no IO, unit-tested under tsx
+// Pure argument parsing for slash commands — no IO, unit-tested with node --test
 // (tests live in ../../tests/, outside the "*.cmd.ts" scan). Extracted from
 // memory.cmd.ts:12-37 and assistant.cmd.ts:9-13.
 
@@ -51,6 +51,16 @@ export function parseAssistantInput(raw: string): { prompt: string; permissionMo
 /** Join a command's raw tokens back into a single trimmed string. */
 export function rawText(args: any): string {
   return ((args?.raw ?? []) as string[]).join(" ").trim();
+}
+
+/** `/compact [--snip [N] | <focus>]`: the snip-only path with how many exchanges to
+ *  keep (3 by default), or the focus of the summary. */
+export function parseCompactArgs(tokens: readonly string[]): { snip: number } | { focus: string } {
+  if (tokens[0] === "--snip") {
+    const n = Number(tokens[1]);
+    return { snip: Number.isInteger(n) && n > 0 ? n : 3 };
+  }
+  return { focus: tokens.join(" ").trim() };
 }
 
 /** A command's raw tokens as a string array. */

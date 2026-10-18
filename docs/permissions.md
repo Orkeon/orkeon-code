@@ -13,7 +13,7 @@ Every `/assistant` turn runs under a **permission mode**, and the session can ad
 
 **What the gate does not see.** Commands and crews also call tools from their own code, through Orkeon's `tools`
 namespace, which runs the tool directly: `/commit` stages and commits with `shell_command`, `/branch` checks a branch
-out, `/diff` and `/review`, `/bughunter`, `/security-review` run `git`, `/init` writes the instructions file,
+out, `/diff` and `/review`, `/security-review` run `git`, `/init` writes the instructions file,
 `/init-verifiers` and `/export` write their files, the compaction writes the session buffer and typed memory. Those
 calls are what the command you typed is for: no rule, mode or question applies to them. `/commit` checks the mode
 itself and refuses in `plan` and `dontAsk`. `/transcribe` calls the speech-to-text server's tools the same way, in
@@ -101,7 +101,7 @@ does not hand over a tool the mode withholds, so `plan` and `dontAsk` stay read-
 on a tool the mode does not offer), a turn one that has none in the mode its request names, and every turn logs the
 tools a rule removed.
 
-Rules live in the session state until `/reset-session` or the end of the REPL; persisting them across sessions is on
+Rules live in the session state until `/clear` or the end of the REPL; persisting them across sessions is on
 the [Roadmap](roadmap.md). The gate keeps its own copy, which `/permissions` replaces after every change and every
 `/assistant` replaces before the turn starts, so the gate always holds the session's rules. A `[s]` answer is not a
 rule: `/permissions` neither lists nor clears it.

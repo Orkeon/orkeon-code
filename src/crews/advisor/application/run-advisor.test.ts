@@ -1,5 +1,5 @@
 // The advisor use case over the session, config and model fakes. Run:
-//   node_modules/.bin/tsx --test crews/advisor/application/run-advisor.test.ts
+//   node --test src/crews/advisor/application/run-advisor.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 
@@ -31,7 +31,8 @@ describe("runAdvisor", () => {
     session.state.set(CONFIG_MAP_STATE_KEY, JSON.stringify({ "advisor.model": " gpt-big " }));
     const header = describeAdvisor("gpt-big");
     strictEqual(await runAdvisor(deps), `── ${header}\n\nlooks right`);
-    deepStrictEqual(llm.completes, [{ prompt: buildAdvicePrompt(EXCHANGE), override: { model: "gpt-big" } }]);
+    const prompt = buildAdvicePrompt(EXCHANGE);
+    deepStrictEqual(llm.completes, [{ prompt: prompt.user, override: { system: prompt.system, model: "gpt-big" } }]);
     deepStrictEqual(log.lines, [`info: ${header}`]);
   });
 
@@ -40,7 +41,7 @@ describe("runAdvisor", () => {
     llm.completions = [""];
     const header = describeAdvisor("");
     strictEqual(await runAdvisor(deps), `── ${header}\n\n`);
-    deepStrictEqual(llm.completes[0].override, undefined);
+    deepStrictEqual(llm.completes[0].override, { system: buildAdvicePrompt(EXCHANGE).system }, "no model override");
     deepStrictEqual(log.lines, [`warn: ${header}`]);
   });
 

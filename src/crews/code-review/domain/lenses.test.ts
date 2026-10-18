@@ -1,5 +1,5 @@
 // B-9 — lens selection (`review.lenses`) and the review plan line. Run:
-//   node_modules/.bin/tsx --test crews/code-review/domain/lenses.test.ts
+//   node --test src/crews/code-review/domain/lenses.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok } from "node:assert";
 
@@ -73,7 +73,7 @@ describe("describeReviewPlan", () => {
 
 describe("resolveLensSelection — B-12: input beats the setting", () => {
   it("uses the input when it names a lens", () => {
-    // /bughunter and /security-review narrow on purpose; a standing preference
+    // /review --lens and /security-review narrow on purpose; a standing preference
     // must not override a deliberate act on this run.
     const r = resolveLensSelection({ input: "security", config: "style" });
     deepStrictEqual(r.lenses.map((l) => l.key), ["security"]);

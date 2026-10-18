@@ -21,6 +21,6 @@ export async function runInitVerifiers(deps: InitVerifiersDeps): Promise<string>
   if (zones.length === 0) {
     return `No verifier gaps detected (types: ${(readiness?.appTypes ?? []).join(", ") || "unknown"}).`;
   }
-  const written = await authorVerifiers(llm, zones, files);
+  const written = await authorVerifiers(llm, zones, files, { pkg, readiness });
   return `✓ authored ${written} verifier skill(s) under /output/verifiers/ (zones: ${zones.join(", ")})`;
 }

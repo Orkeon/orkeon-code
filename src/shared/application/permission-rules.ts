@@ -3,7 +3,7 @@
 // holds its own copy. The gate keeps its rules until the REPL exits and removes
 // them only all at once, so a sync clears it and replays the stored list: the
 // gate then holds exactly what the bag holds, whatever an earlier command, an
-// earlier session or /reset-session left in either. /permissions syncs after
+// earlier session or /clear left in either. /permissions syncs after
 // every change, and every command that launches the main loop syncs first.
 //
 // Every stored entry is kept as written until the user removes it: a rule on a

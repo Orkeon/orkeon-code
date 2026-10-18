@@ -37,8 +37,8 @@ describe("/skills list", () => {
 describe("/skills attach", () => {
   it("attaches a readable file once", async () => {
     const { run, attached } = setup();
-    deepStrictEqual(await run("attach", SKILL), { text: `skill attached: ${SKILL} (1 attached; /reset-session clears).` });
-    deepStrictEqual(await run("attach", SKILL), { text: `skill attached: ${SKILL} (1 attached; /reset-session clears).` });
+    deepStrictEqual(await run("attach", SKILL), { text: `skill attached: ${SKILL} (1 attached; /clear clears).` });
+    deepStrictEqual(await run("attach", SKILL), { text: `skill attached: ${SKILL} (1 attached; /clear clears).` });
     deepStrictEqual(attached(), [SKILL]);
   });
 

@@ -5,7 +5,7 @@
 // project-init:9, session-compact:10, init-verifiers:10). Pure — no IO. The
 // adapters of this folder read every result through it.
 //
-// Run tests: node_modules/.bin/tsx --test shared/infrastructure/orkeon/tool-results.test.ts
+// Run tests: node --test src/shared/infrastructure/orkeon/tool-results.test.ts
 
 /** First defined property among the given candidate names (any casing). */
 export function pick(obj: any, ...names: string[]): any {

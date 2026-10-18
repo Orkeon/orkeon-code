@@ -1,5 +1,5 @@
 // The two-layer /config store over FakeFiles and FakeSessionStore. Run:
-//   node_modules/.bin/tsx --test shared/application/config-store.test.ts
+//   node --test src/shared/application/config-store.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok } from "node:assert";
 

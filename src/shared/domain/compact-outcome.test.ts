@@ -1,5 +1,5 @@
 // The compaction outcome line. Run:
-//   node_modules/.bin/tsx --test shared/domain/compact-outcome.test.ts
+//   node --test src/shared/domain/compact-outcome.test.ts
 import { describe, it } from "node:test";
 import { strictEqual } from "node:assert";
 

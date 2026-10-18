@@ -39,8 +39,8 @@ jobs:
         run: npm run typecheck
       - name: Bundle check (runtime esbuild flags)
         run: npm run bundle:check
-      - name: Provenance gate
-        run: npm run check:provenance
+      - name: Provenance gate (strict)
+        run: npm run check:provenance -- --strict
       - name: Command reference up to date
         run: node scripts/gen-commands-doc.mjs --check
       - name: Committed file modes

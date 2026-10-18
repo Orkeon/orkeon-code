@@ -1,6 +1,6 @@
 // /analyze — harvest rendering tests, on the payload shapes captured live
 // 2026-08-06 (see docs/b14-codeintel-probe-transcript.md). Run:
-//   node_modules/.bin/tsx --test crews/analyze/domain/harvest.test.ts
+//   node --test src/crews/analyze/domain/harvest.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, ok } from "node:assert";
 
@@ -93,5 +93,11 @@ describe("the synthesis prompts", () => {
     const user = buildSynthesisUser("# Codebase analysis harvest\nX");
     ok(user.includes("business/domain objects"));
     ok(user.indexOf("business/domain objects") < user.indexOf("# Codebase analysis harvest"));
+    ok(user.endsWith("<harvest>\n# Codebase analysis harvest\nX\n</harvest>"), "the harvest is material");
+  });
+
+  it("asks to say what the harvest does not hold rather than fill it, and to mark inferences", () => {
+    ok(buildSynthesisUser("X").includes("not in the harvest"));
+    ok(SYNTHESIS_SYSTEM.includes("word an inference as one"));
   });
 });

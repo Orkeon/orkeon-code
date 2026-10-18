@@ -1,5 +1,5 @@
 // The MemoryStore adapter over a FakeTools memory_store. Run:
-//   node_modules/.bin/tsx --test shared/infrastructure/orkeon/memory-store.test.ts
+//   node --test src/shared/infrastructure/orkeon/memory-store.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, rejects } from "node:assert";
 
@@ -50,7 +50,7 @@ describe("createMemoryStore — add, get, remove", () => {
     strictEqual(await createMemoryStore(tools).add("user", "x"), "8");
   });
 
-  it("reads an id the host reports as null, or not at all, as /tag and /memory add print it", async () => {
+  it("reads an id the host reports as null, or not at all, as /memory add prints it", async () => {
     const tools = new FakeTools();
     tools.replies.memoryStore = { id: null };
     strictEqual(await createMemoryStore(tools).add("reference", "x"), "null");

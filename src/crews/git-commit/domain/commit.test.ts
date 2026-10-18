@@ -1,11 +1,10 @@
-// Run: node_modules/.bin/tsx --test crews/git-commit/domain/commit.test.ts
+// Run: node --test src/crews/git-commit/domain/commit.test.ts
 import { describe, it } from "node:test";
-import { strictEqual, ok } from "node:assert";
+import { deepStrictEqual, strictEqual, ok } from "node:assert";
 
 import {
   normalizeCommitMessage, commitSubject, isConventionalCommit,
-  isCommitPermitted, buildCommitPlan, hasExplicitConfirm,
-} from "./commit.ts";
+  isCommitPermitted, buildCommitPlan, hasExplicitConfirm, commitRefusal, secretLikePaths, statusPaths, untrackedPaths } from "./commit.ts";
 
 describe("normalizeCommitMessage", () => {
   it("unwraps a fenced message", () => {
@@ -110,5 +109,35 @@ describe("hasExplicitConfirm (B-1)", () => {
     strictEqual(hasExplicitConfirm(["yes"]), false, "a bare 'yes' is not the flag");
     strictEqual(hasExplicitConfirm(["--force"]), false);
     strictEqual(hasExplicitConfirm([undefined, null]), false);
+  });
+});
+
+describe("what the status says the commit will hold", () => {
+  const status = " M src/a.ts\nR  old.ts -> src/new.ts\n?? notes/todo.md\n?? \"with space.txt\"\n";
+  it("lists every path, the new one of a rename, quotes removed", () => {
+    deepStrictEqual(statusPaths(status), ["src/a.ts", "src/new.ts", "notes/todo.md", "with space.txt"]);
+  });
+  it("lists the untracked files apart", () => {
+    deepStrictEqual(untrackedPaths(status), ["notes/todo.md", "with space.txt"]);
+  });
+});
+
+describe("secretLikePaths", () => {
+  it("flags env files, key and certificate stores, private keys and credentials files", () => {
+    deepStrictEqual(
+      secretLikePaths([".env", "app/.env.production", "certs/server.pem", "deploy/id_rsa", "credentials.json", "keys/x.p12"]),
+      [".env", "app/.env.production", "certs/server.pem", "deploy/id_rsa", "credentials.json", "keys/x.p12"],
+    );
+  });
+  it("lets the examples, public keys and ordinary code through", () => {
+    deepStrictEqual(secretLikePaths([".env.example", "id_rsa.pub", "src/secret-manager.ts", "src/keys.ts", "README.md"]), []);
+  });
+});
+
+describe("commitRefusal", () => {
+  it("reads a refusal and lets a message through", () => {
+    strictEqual(commitRefusal("REFUSE: config.ts: an API key"), "config.ts: an API key");
+    strictEqual(commitRefusal("REFUSE:"), "no reason given");
+    strictEqual(commitRefusal("feat: add flags"), null);
   });
 });

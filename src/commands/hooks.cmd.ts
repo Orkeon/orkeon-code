@@ -37,7 +37,7 @@ defineCommand({
           return ctx.continue(`usage: /hooks add <${EVENTS.join("|")}> <command>`);
         hooks.push({ event, command });
         await writeJson(session, HOOKS_STATE_KEY, hooks);
-        return ctx.continue(`hook #${hooks.length} added on '${event}' (engine pending — E-8/G-6; /reset-session clears).`);
+        return ctx.continue(`hook #${hooks.length} added on '${event}' (engine pending — E-8/G-6; /clear clears).`);
       }
       case "remove": {
         const n = Number(event);

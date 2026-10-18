@@ -1,9 +1,9 @@
 // The compaction pipeline over the fakes of its ports. Run:
-//   node_modules/.bin/tsx --test shared/application/compaction/compact-session.test.ts
+//   node --test src/shared/application/compaction/compact-session.test.ts
 import { describe, it } from "node:test";
-import { deepStrictEqual, strictEqual } from "node:assert";
+import { ok, deepStrictEqual, strictEqual } from "node:assert";
 
-import { COMPACT_PROGRESS_LABEL, compactSession } from "./compact-session.ts";
+import { COMPACT_PROGRESS_LABEL, compactSession, readCompactionTrigger, snipBuffer } from "./compact-session.ts";
 import {
   buildCompactedBuffer, buildMemoryExtractionPrompt, buildMemoryRecapMessage, buildRestoredFileMessage,
   buildRestoredSkillMessage, buildSummaryPrompt, buildTranscript,
@@ -78,7 +78,8 @@ describe("compactSession: the full pipeline", () => {
     deepStrictEqual(deps.llm.extracts.map((c) => c.prompt), [buildMemoryExtractionPrompt(transcript)]);
     deepStrictEqual(deps.memory.records.map((r) => [r.category, r.content]), [["project", "uses pnpm"]]);
     deepStrictEqual(deps.session.snips, [SNIP_RETAIN_COUNT]);
-    deepStrictEqual(deps.llm.completes, [{ prompt: buildSummaryPrompt(transcript), override: undefined }]);
+    const prompt = buildSummaryPrompt(transcript);
+    deepStrictEqual(deps.llm.completes, [{ prompt: prompt.user, override: { system: prompt.system } }]);
     deepStrictEqual(deps.session.messages, [
       ...buildCompactedBuffer(HISTORY[0], "SUMMARY"),
       buildMemoryRecapMessage([{ category: "project", content: "uses pnpm" }]),
@@ -119,11 +120,37 @@ describe("compactSession: the full pipeline", () => {
   });
 });
 
+describe("compactSession: the summary call", () => {
+  it("passes the operator's focus to the summary prompt and keeps only what the markers enclose", async () => {
+    const deps = setup();
+    deps.llm.completions = ["Sure.\n<summary>1. The request: ship it</summary>\nAnything else?"];
+    strictEqual((await compactSession({ force: true, focus: "the release steps" }, deps)).status, "compacted");
+    ok(String(deps.llm.completes[0].override?.system).includes("keep above all: the release steps"));
+    const summary = deps.session.messages.find((m) => String(m.content).startsWith("[compacted]"));
+    ok(String(summary?.content).endsWith("\n1. The request: ship it"), String(summary?.content));
+  });
+
+  it("lists what memory already holds in the extraction prompt", async () => {
+    const deps = setup();
+    await deps.memory.add("project", "releases are cut from main");
+    await compactSession({ force: true }, deps);
+    ok(deps.llm.extracts[0].prompt.includes("- releases are cut from main"), deps.llm.extracts[0].prompt);
+  });
+});
+
 describe("compactSession: failures are outcomes", () => {
   it("reports the model's failure, leaves the buffer and releases the progress", async () => {
     const deps = setup();
     deps.llm.completions = [new Error("model down")];
     deepStrictEqual(await compactSession({ force: true }, deps), { status: "failed", reason: "model down" });
+    deepStrictEqual(deps.session.messages, HISTORY);
+    deepStrictEqual(deps.progress.released, [COMPACT_PROGRESS_LABEL]);
+  });
+
+  it("fails on an empty summary rather than replace the history with nothing", async () => {
+    const deps = setup();
+    deps.llm.completions = ["<summary>   </summary>"];
+    deepStrictEqual(await compactSession({ force: true }, deps), { status: "failed", reason: "the summary came back empty" });
     deepStrictEqual(deps.session.messages, HISTORY);
     deepStrictEqual(deps.progress.released, [COMPACT_PROGRESS_LABEL]);
   });
@@ -139,5 +166,29 @@ describe("compactSession: failures are outcomes", () => {
     const deps = setup();
     deps.log.info = () => { throw new Error("log closed"); };
     strictEqual((await compactSession({ force: true }, deps)).status, "compacted");
+  });
+});
+
+describe("/compact --snip and the compaction.trigger setting", () => {
+  it("snips to the head and the last exchanges, and says what it did", async () => {
+    const session = new FakeSessionStore();
+    session.snipped = { removed: 12, retained: 4 };
+    strictEqual(await snipBuffer(3, { session }), "snipped: 12 removed, 4 kept.");
+    deepStrictEqual(session.snips, [3]);
+  });
+
+  it("reads the setting as a token count, and nothing when it is unset or wrong", async () => {
+    const store = (value: string | undefined) => ({ readValue: async (key: string) => ({ key, value, source: "file" as const }) });
+    strictEqual(await readCompactionTrigger(store("90k")), 90_000);
+    strictEqual(await readCompactionTrigger(store(undefined)), undefined);
+    strictEqual(await readCompactionTrigger(store("soon")), undefined);
+    strictEqual(await readCompactionTrigger({ readValue: async () => { throw new Error("down"); } }), undefined);
+  });
+
+  it("compacts at the trigger the setting gives", async () => {
+    const deps = setup();
+    deps.session.budget = { used: 50_000, window: 200_000 };
+    strictEqual((await compactSession({ force: false }, deps)).status, "skipped", "below the computed trigger");
+    strictEqual((await compactSession({ force: false, trigger: 40_000 }, deps)).status, "compacted");
   });
 });

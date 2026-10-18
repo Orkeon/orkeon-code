@@ -1,5 +1,5 @@
 // The RunState adapter over a FakeAgentContext. Run:
-//   node_modules/.bin/tsx --test shared/infrastructure/orkeon/run-state.test.ts
+//   node --test src/shared/infrastructure/orkeon/run-state.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 

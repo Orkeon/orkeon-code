@@ -19,22 +19,18 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const strict = process.argv.includes("--strict");
 
-const MARKERS = [
-  /claude[ _-]?code/i,
-  /claude-code-system-prompts/i,
-  /@anthropic-ai\//i,
-  /piebald/i,
-  /\btengu\b/i,
-  /\b2\.1\.88\b/,
-];
+// The markers and the one reference live in provenance-markers.json, which the prompt
+// contract test reads too: every rendered prompt is checked against the same list.
+const markerFile = JSON.parse(readFileSync(join(root, "scripts", "provenance-markers.json"), "utf8"));
+const MARKERS = markerFile.markers.map((m) => new RegExp(m.source, m.flags));
 const SCANNED_DIRS = ["src", "tests", "docs", "config", ".github"];
 const SCANNED_ROOT_FILES = ["README.md", "README.fr.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md", "NOTICE.md", "orkeon-code", "orkeon-code.ps1"];
 const EXTENSIONS = new Set([".ts", ".mjs", ".js", ".md", ".json", ".yml", ".yaml", ".sh", ".ps1", ""]);
 // This script and its baseline name the markers on purpose.
-const SELF = new Set(["scripts/check-provenance.mjs", "scripts/provenance-baseline.json"]);
+const SELF = new Set(["scripts/check-provenance.mjs", "scripts/provenance-baseline.json", "scripts/provenance-markers.json"]);
 // A reference a contributor may follow to study behaviour, never to copy text: named as is, it is no
 // marker. Only the URL itself is exempt; the rest of its line is still scanned.
-const REFERENCES = ["https://github.com/Piebald-AI/claude-code-system-prompts"];
+const REFERENCES = markerFile.references;
 
 function walk(dir, acc = []) {
   if (!existsSync(dir)) return acc;

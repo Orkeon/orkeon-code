@@ -34,7 +34,7 @@ export async function runSkills(tokens: string[], deps: SkillsDeps): Promise<Com
       }
       if (!skills.includes(arg)) skills.push(arg);
       await writeJson(session, SKILLS_STATE_KEY, skills);
-      return { text: `skill attached: ${arg} (${skills.length} attached; /reset-session clears).` };
+      return { text: `skill attached: ${arg} (${skills.length} attached; /clear clears).` };
     }
     case "detach": {
       const n = Number(arg);

@@ -96,13 +96,19 @@ request stacked on another branch gets no check until it is retargeted to `main`
 Orkeon Code was designed by studying how agentic coding tools behave. Behaviour can be studied; text cannot be
 copied. Prompts, documentation and comments are written for this project, in its own words: do not paste or closely
 paraphrase another product's prompts, documentation or source, even when they are publicly available.
-`npm run check:provenance` fails on markers of such material, and `scripts/provenance-baseline.json` lists the files
-still awaiting an original rewrite (the repository goes public, and releases are cut, only when it is empty).
+`npm run check:provenance` fails on markers of such material (`scripts/provenance-markers.json`), and
+`scripts/provenance-baseline.json` lists the files still awaiting an original rewrite: it is empty, and CI keeps it
+so (`--strict`).
 
 To improve the harness (the main loop's prompt, the compaction summary, the tool guidance), a collection of
 published agent system prompts is a useful reference for what such prompts cover and how they are structured:
 https://github.com/Piebald-AI/claude-code-system-prompts. Read it to understand the behaviour a block must produce,
 then write the block in this project's own words; the provenance gate accepts this link and no other marker.
+
+A prompt change follows [ADR 0003](docs/adr/0003-prompts-from-a-behaviour-specification.md): the behaviour first, in
+`docs/architecture.md` ("Prompt assembly"), then the text, then a marker phrase per rule in its test; render the
+prompts before and after (`node scripts/render-prompts.mjs <dir>`) and read the diff. The baseline is empty and CI
+runs the gate with `--strict`, so an adapted text cannot come back.
 
 ## Pull requests
 

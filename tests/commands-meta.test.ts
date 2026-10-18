@@ -1,5 +1,5 @@
-// The CLI metadata of commands/_lib/meta.ts (/version, /release-notes, /upgrade,
-// /onboarding), pinned to the sources so it cannot go stale (B-11 audit). Run:
+// The CLI metadata of commands/_lib/meta.ts (/status's version row, /release-notes),
+// pinned to the sources so it cannot go stale. Run:
 //   node --test tests/commands-meta.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, ok } from "node:assert";
