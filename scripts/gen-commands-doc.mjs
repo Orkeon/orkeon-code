@@ -22,7 +22,7 @@ for (const file of readdirSync(dir).filter((f) => f.endsWith(".cmd.ts")).sort())
   const kind = /\bdefineAsyncCommand\s*\(/.test(src) ? "async" : "sync";
   const aliases = [...(src.match(/\baliases:\s*\[([^\]]*)\]/)?.[1] ?? "").matchAll(/"([^"]+)"/g)].map((m) => `\`/${m[1]}\``);
   const also = aliases.length > 0 ? ` Also ${aliases.join(", ")}.` : "";
-  rows.push(`| \`/${name}\` | ${kind} | ${(description + also).replace(/\|/g, "\\|")} |`);
+  rows.push(`| \`/${name}\` | ${kind} | ${(description + also).replace(/\\/g, "\\\\").replace(/\|/g, "\\|")} |`);
 }
 
 const page = [
