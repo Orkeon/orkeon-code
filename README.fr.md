@@ -4,6 +4,7 @@
 
 [![CI](https://github.com/Orkeon/orkeon-code/actions/workflows/ci.yml/badge.svg)](https://github.com/Orkeon/orkeon-code/actions/workflows/ci.yml)
 [![Licence : MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md)
+[![Documentation](https://img.shields.io/badge/documentation-orkeon.github.io-blue.svg)](https://orkeon.github.io/orkeon-code/)
 
 <p align="center">
   <img src="docs/assets/kama-surfer-docker.jpg" alt="Mascotte d'Orkeon Code — un caméléon qui surfe sur une vague" width="320">
