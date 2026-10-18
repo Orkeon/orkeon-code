@@ -8,14 +8,14 @@
 | `npm run typecheck` | The whole project type-checks (`scripts/typecheck.mjs`, `tsc` over `tsconfig.json`, one line per error) | `npm ci` |
 | `npm run bundle:check` | Every command and crew bundles with the runtime's esbuild flags, without any Node API | `npm ci` |
 | `npm run check:provenance` | No marker of another product's material in the sources (`scripts/provenance-markers.json`); `-- --strict` also requires the baseline to be empty, as CI does | Node |
-| `npm run docs:commands -- --check` | `docs/commands.md` matches the commands | Node |
+| `npm run docs:commands -- --check` | `docs/commands.md` and `docs/fr/commands.md` match the commands | Node |
 | `npm run check` | All of the above | `npm ci` |
 | `bash scripts/smoke-runtime.sh [--mode ...]` | The real REPL loads every command (`N loaded, 0 skipped, 0 conflicts`) | a runtime |
 | `bash scripts/check-file-modes.sh` | Scripts are committed executable | git |
 | `node scripts/render-prompts.mjs <dir>` | Writes every prompt as the model reads it (`tests/support/prompt-catalogue.ts`), to review a prompt change as a `diff -r` of two renders; `tests/prompt-contract.test.ts` checks the same catalogue | Node 24 |
 
 CI (`.github/workflows/ci.yml`) runs, as separate steps on every pull request and push to `main`, the tests, the type
-check, the bundle check, the provenance gate, `docs/commands.md` up to date and the file modes (that is
+check, the bundle check, the provenance gate, the two command pages up to date and the file modes (that is
 `npm run check` plus the file modes). `runtime-smoke.yml` runs the smoke on the pinned image every Monday, on demand
 (`workflow_dispatch`), and on a pull request that touches `.orkeon-version`, `orkeon-code`,
 `scripts/smoke-runtime.sh` or `src/commands/**`. Until Orkeon `1.0.0-rc.6` is
