@@ -9,17 +9,18 @@
 | `npm run bundle:check` | Every command and crew bundles with the runtime's esbuild flags, without any Node API | `npm ci` |
 | `npm run check:provenance` | No marker of another product's material in the sources (`scripts/provenance-markers.json`); `-- --strict` also requires the baseline to be empty, as CI does | Node |
 | `npm run docs:commands -- --check` | `docs/commands.md` and `docs/fr/commands.md` match the commands | Node |
+| `node scripts/check-docs-parity.mjs` | `docs/fr/` mirrors `docs/`: every page has its French twin, with the same heading levels, the same code blocks and tables of the same length, and the two `toc.yml` list the same pages | Node |
 | `npm run check` | All of the above | `npm ci` |
 | `bash scripts/smoke-runtime.sh [--mode ...]` | The real REPL loads every command (`N loaded, 0 skipped, 0 conflicts`) | a runtime |
 | `bash scripts/check-file-modes.sh` | Scripts are committed executable | git |
 | `node scripts/render-prompts.mjs <dir>` | Writes every prompt as the model reads it (`tests/support/prompt-catalogue.ts`), to review a prompt change as a `diff -r` of two renders; `tests/prompt-contract.test.ts` checks the same catalogue | Node 24 |
 
 CI (`.github/workflows/ci.yml`) runs, as separate steps on every pull request and push to `main`, the tests, the type
-check, the bundle check, the provenance gate, the two command pages up to date and the file modes (that is
-`npm run check` plus the file modes). `runtime-smoke.yml` runs the smoke on the pinned image every Monday, on demand
-(`workflow_dispatch`), and on a pull request that touches `.orkeon-version`, `orkeon-code`,
-`scripts/smoke-runtime.sh` or `src/commands/**`. Until Orkeon `1.0.0-rc.6` is
-published, that image does not exist and the job fails: run the smoke in source mode instead,
+check, the bundle check, the provenance gate, the two command pages up to date, the documentation parity and the file
+modes (that is `npm run check` plus the file modes). `runtime-smoke.yml` runs the smoke on the pinned image every
+Monday, on demand (`workflow_dispatch`), and on a pull request that touches `.orkeon-version`, `orkeon-code`,
+`scripts/smoke-runtime.sh` or `src/commands/**`. Until Orkeon `1.0.0-rc.6` is published, that image does not exist and
+the job fails: run the smoke in source mode instead,
 `ORKEON_SOURCE=<path to an Orkeon checkout> bash scripts/smoke-runtime.sh --mode source`.
 
 ## Running a crew alone

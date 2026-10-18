@@ -23,7 +23,7 @@
     "bundle:check": "node scripts/bundle-check.mjs",
     "check:provenance": "node scripts/check-provenance.mjs",
     "docs:commands": "node scripts/gen-commands-doc.mjs",
-    "check": "npm test && npm run typecheck && npm run bundle:check && npm run check:provenance && node scripts/gen-commands-doc.mjs --check",
+    "check": "npm test && npm run typecheck && npm run bundle:check && npm run check:provenance && node scripts/gen-commands-doc.mjs --check && node scripts/check-docs-parity.mjs",
     "typings": "bash scripts/sync-typings.sh",
     "fixture": "bash scripts/setup-fixture.sh",
     "start": "bash orkeon-code"

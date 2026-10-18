@@ -9,18 +9,19 @@
 | `npm run bundle:check` | Chaque commande et chaque crew se bundle avec les options esbuild du runtime, sans aucune API Node | `npm ci` |
 | `npm run check:provenance` | Aucun marqueur du matériau d'un autre produit dans les sources (`scripts/provenance-markers.json`) ; `-- --strict` exige aussi que la baseline soit vide, comme le fait la CI | Node |
 | `npm run docs:commands -- --check` | `docs/commands.md` et `docs/fr/commands.md` correspondent aux commandes | Node |
+| `node scripts/check-docs-parity.mjs` | `docs/fr/` reflète `docs/` : chaque page a sa jumelle française, avec les mêmes niveaux de titres, les mêmes blocs de code et des tableaux de même longueur, et les deux `toc.yml` listent les mêmes pages | Node |
 | `npm run check` | Tout ce qui précède | `npm ci` |
 | `bash scripts/smoke-runtime.sh [--mode ...]` | Le vrai REPL charge chaque commande (`N loaded, 0 skipped, 0 conflicts`) | un runtime |
 | `bash scripts/check-file-modes.sh` | Les scripts sont commités exécutables | git |
 | `node scripts/render-prompts.mjs <dir>` | Écrit chaque prompt tel que le modèle le lit (`tests/support/prompt-catalogue.ts`), pour relire un changement de prompt comme un `diff -r` de deux rendus ; `tests/prompt-contract.test.ts` contrôle le même catalogue | Node 24 |
 
 La CI (`.github/workflows/ci.yml`) lance, en étapes séparées à chaque pull request et à chaque push sur `main`, les
-tests, le contrôle de types, la vérification de bundle, la garde de provenance, les deux pages des commandes à jour
-et les modes de fichiers (soit `npm run check` plus les modes de fichiers). `runtime-smoke.yml` lance le smoke sur
-l'image épinglée chaque lundi, à la demande (`workflow_dispatch`), et sur une pull request qui touche
-`.orkeon-version`, `orkeon-code`, `scripts/smoke-runtime.sh` ou `src/commands/**`. Tant qu'Orkeon `1.0.0-rc.6` n'est
-pas publié, cette image n'existe pas et le job échoue : lancez le smoke en mode source à la place,
-`ORKEON_SOURCE=<chemin d'un checkout d'Orkeon> bash scripts/smoke-runtime.sh --mode source`.
+tests, le contrôle de types, la vérification de bundle, la garde de provenance, les deux pages des commandes à jour,
+la parité de la documentation et les modes de fichiers (soit `npm run check` plus les modes de fichiers).
+`runtime-smoke.yml` lance le smoke sur l'image épinglée chaque lundi, à la demande (`workflow_dispatch`), et sur une
+pull request qui touche `.orkeon-version`, `orkeon-code`, `scripts/smoke-runtime.sh` ou `src/commands/**`. Tant
+qu'Orkeon `1.0.0-rc.6` n'est pas publié, cette image n'existe pas et le job échoue : lancez le smoke en mode source à
+la place, `ORKEON_SOURCE=<chemin d'un checkout d'Orkeon> bash scripts/smoke-runtime.sh --mode source`.
 
 ## Lancer un crew seul
 
