@@ -1,0 +1,258 @@
+# Configuration
+
+Orkeon Code n'a pas de format de configuration qui lui soit propre : le fichier de settings est un fichier de settings
+du runtime Orkeon, que le REPL lit par `--settings`. Partez de
+[`config/appsettings.example.json`](../../config/appsettings.example.json).
+
+## D'où viennent les settings
+
+1. `--settings FILE` sur le lanceur ;
+2. `ORKEON_CODE_SETTINGS` ;
+3. `config/appsettings.local.json` dans le checkout (ignoré par git) ;
+4. `~/.config/orkeon-code/appsettings.json` (`%APPDATA%\orkeon-code\appsettings.json` sous Windows).
+
+Les variables d'environnement préfixées `ORKEON_` l'emportent sur le fichier (`__` sépare les sections) :
+`ORKEON_Llm__Model`, `ORKEON_Llm__ApiKey`. `ORKEON_CODE_MODEL` est un raccourci du lanceur pour `ORKEON_Llm__Model`.
+
+## Le LLM
+
+| Clé | Signification |
+|---|---|
+| `Llm:Model` | Identifiant du modèle envoyé au point d'accès |
+| `Llm:BaseUrl` | Point d'accès compatible OpenAI (`https://api.deepseek.com`, `https://api.openai.com/v1`, un serveur local...) |
+| `Llm:ApiKeyEnvVar` | Nom de la variable d'environnement qui porte la clé. La clé elle-même ne va jamais dans le fichier |
+| `Llm:AvailableModels` | Les modèles que `/model` propose, pour en changer sans relancer |
+| `Llm:Temperature`, `Llm:MaxTokens`, `Llm:TimeoutSeconds` | Réglages de génération |
+| `Llm:Thinking:Enabled` | Mode raisonnement, pour les fournisseurs qui en ont un |
+
+Orkeon reconnaît les fournisseurs natifs d'après le point d'accès et le modèle (OpenAI, Anthropic, Gemini, Mistral,
+DeepSeek, Z.AI, Moonshot, serveurs locaux...) : la liste et leurs options sont dans la
+[documentation des fournisseurs LLM d'Orkeon](https://github.com/Orkeon/orkeon/blob/main/docs/architecture/llm-providers.md).
+Une option qu'un fournisseur ne peut pas honorer produit un avertissement, jamais un abandon silencieux.
+
+L'agent appelle des outils à travers chaque fournisseur : la boucle d'outils du runtime (`ctx.llm.act`) lit les appels
+d'outils des formats Anthropic et OpenAI, exécute chaque appel d'un tour du modèle l'un après l'autre (pas en
+parallèle), chacun à travers la garde de permission, et renvoie les résultats dans le protocole d'outils du
+fournisseur. Un résultat d'outil parvient au modèle coupé à 4000 caractères, 32 000 pour `file_read`.
+
+## Les settings dont Orkeon Code dépend
+
+| Clé | Pourquoi |
+|---|---|
+| `Orkeon:Security:PermissionGate:Enabled` = `true` | L'hôte confronte chaque appel d'outil du modèle aux règles de `/permissions` et au mode, et vous demande quand le mode le dit ([ce que la garde ne voit pas](permissions.md)). Le lanceur l'active sauf si le fichier de settings dit le contraire ; sans elle, aucun appel n'est contrôlé et les modes ne font que façonner le catalogue |
+| `Orkeon:Cli:ScriptCommands:Limits:ExecutionTimeout` | Limite de temps réel de chaque moteur de script d'`orkeon-repl` : celui d'une commande, et celui d'un crew, donc d'un tour d'`/assistant`. Elle s'arrête pendant qu'un appel d'outil attend votre réponse. 5 minutes par défaut ; un tour qui indexe un grand dépôt en demande plus : l'exemple met 30 minutes |
+| `Orkeon:Cli:ScriptCommands:Limits:MemoryLimitBytes` | Limite de mémoire de ces moteurs : 64 Mo par défaut, l'exemple met 2 Gio |
+| `Orkeon:Scripting:Limits:ExecutionTimeout`, `Orkeon:Scripting:Limits:MemoryLimitBytes` | Les mêmes limites pour `orkeon run`, l'outil avec lequel `scripts/run-crew.sh` lance un crew (30 secondes et 100 Mo par défaut ; l'exemple met 30 minutes et 2 Gio). `orkeon-repl` ne les lit pas |
+| `Orkeon:Tools:Shell:AllowInterpreters` | Laisse `shell_command` lancer des interpréteurs (`node`, `dotnet`, `npm`...), nécessaire pour construire et tester la plupart des projets |
+| `Orkeon:Tools:Shell:ExtraAllowedCommands` | Commandes ajoutées à la liste blanche du shell (`make`, `cargo`...) |
+| `Orkeon:Tools:Shell:Confinement:Mode` | `None` (défaut) ou `Bubblewrap` : exécute chaque commande shell sous `bwrap` (Linux, modes tool et source), réseau coupé sauf `Confinement:AllowNetwork`, les programmes hors des répertoires système à lister dans `Confinement:ReadOnlyPaths`. Une commande échoue quand `bwrap` ne peut pas la confiner. Voir [SECURITY.md](../../SECURITY.md) |
+| `Orkeon:Cli:ConsoleStreaming:Enabled` | Affiche la réponse au fil de sa génération. L'exemple l'active ; la réponse peut être imprimée deux fois ([problème connu](roadmap.md#problèmes-connus)) |
+| `Orkeon:Cli:ScriptCommands:MaxScripts` | Commandes que le chargeur garde : 200 par défaut, au-dessus de la surface de commandes de ce projet |
+| `RateLimiting:*` | Limites de débit des requêtes vers le fournisseur |
+
+**Combien de temps un tour peut durer.** Deux limites bornent un tour d'`/assistant`, et la première atteinte y met
+fin :
+
+- l'`ExecutionTimeout` du moteur de script ci-dessus, qui s'arrête pendant qu'une question vous attend ;
+- le budget propre du crew de la boucle principale, écrit dans son code (`src/crews/main-loop/crew.ork.ts`) : 200
+  appels d'outils, 400k tokens et 30 minutes de temps réel. Cette horloge est celle d'Orkeon et ne s'arrête **pas**
+  pendant qu'une question vous attend : une question laissée sans réponse consomme le temps du tour, et le tour
+  échoue avec `Wall time exceeded` à son étape suivante.
+
+`Orkeon:Cli:ScriptHost:RunCrewTimeout` (10 minutes par défaut) ne borne qu'un crew qu'une commande attend
+(`runCrew`) ; Orkeon Code lance chaque crew avec `runCrewAsync`, qu'il ne borne pas, donc l'exemple l'omet.
+
+## Réglages de session
+
+Dans le REPL, `/config` liste, lit et écrit les clés de session (rangées dans le `.orkeon/config.json` du projet),
+par exemple `permissions.fallback` (le mode utilisé quand ni un préfixe ni `/mode` n'en a choisi un), `tools.extra`
+(ci-dessous), `voice.reply` ([synthèse vocale](#synthèse-vocale)), `answer.language` (la langue dans laquelle
+l'assistant répond, `/config set answer.language French`, sauf si une requête est écrite dans une autre),
+`compaction.trigger` (le nombre de tokens auquel la compaction automatique se déclenche,
+`/config set compaction.trigger 90k` ; omis, la fenêtre moins la place dont un tour a besoin) ou `spinnerVerbs`.
+`/model`, `/effort`, `/passes`, `/fast`, `/proactive` et `/output-style` changent la façon dont les prochains tours
+s'exécutent.
+
+## Outils supplémentaires : serveurs MCP et plugins
+
+Le REPL connecte les serveurs MCP des settings `MCP:Servers` d'Orkeon et charge les plugins de sa section `Plugins`
+([documentation MCP d'Orkeon](https://github.com/Orkeon/orkeon/blob/main/docs/architecture/mcp.md)) ; leurs outils
+rejoignent ceux de l'hôte. L'assistant en utilise un dès que la clé de session `tools.extra` le nomme :
+
+| Clé | Valeur |
+|---|---|
+| `tools.extra` | Entrées séparées par des virgules ou des espaces, chacune `<name>` ou `<name>:<read\|write>`. Sans classe, un outil est une écriture. Omise : aucun outil supplémentaire |
+
+La classe décide quels modes proposent l'outil : `read` dans tous les modes, `write` dans `default`, `acceptEdits` et
+`bypassPermissions` seulement. Ne marquez `read` qu'un outil qui ne change rien et n'envoie rien hors de la machine.
+La [garde de permission](permissions.md#outils-supplémentaires) décide toujours de chaque appel. `/config set` refuse
+une entrée qui n'est pas dans la notation, qui nomme un outil intégré, ou qui nomme un outil deux fois.
+
+Par exemple, le serveur de parole que ce dépôt livre ([ci-dessous](#transcription-de-la-parole)) enregistre six
+outils, dont trois ont leur place dans la liste : `transcribe_audio`, `list_audio` et `whisper_info`. Les trois
+autres, `record_and_transcribe`, `speak` et `stop_speaking`, servent `/voice` et `/say` et en restent à l'écart. Une
+fois le serveur connecté :
+
+```text
+/config set tools.extra transcribe_audio:read,list_audio:read,whisper_info:read
+```
+
+Un nom est comparé aux noms que l'hôte enregistre, sans distinction de casse comme Orkeon les compare, et le tour
+utilise la graphie enregistrée : le `get-file-contents` d'un serveur MCP se liste `get-file-contents` (en n'importe
+quelle casse), pas `get_file_contents` ; `/debug-tool-call list` montre les noms enregistrés. `/permissions` montre
+les outils supplémentaires, ceux que l'hôte n'enregistre pas, et les entrées qu'il ignore ; chaque tour avertit d'un
+outil listé que l'hôte n'enregistre pas, et le laisse de côté. En mode docker, la commande d'un serveur `Stdio`
+s'exécute dans le conteneur.
+
+## Transcription de la parole
+
+`mcp/whisper/` contient un serveur MCP qui transcrit les fichiers audio et vidéo avec
+[faster-whisper](https://github.com/SYSTRAN/faster-whisper), sur cette machine par défaut. Il lui faut
+[uv](https://docs.astral.sh/uv/), rien d'autre : pas de `ffmpeg`, pas de paquet Python installé à la main. En modes
+tool et source, une variable l'active :
+
+```bash
+export ORKEON_CODE_AUDIO_DIR=~/audio      # the folder of audio and video files
+./orkeon-code
+```
+
+Le lanceur monte alors ce dossier sur `/audio` (lecture seule) et `<state>/transcripts` sur `/transcripts` (lecture
+seule, `.crew-output/transcripts` par défaut), et déclare le serveur au REPL par l'environnement
+(`ORKEON_MCP__Servers__whisper__*`), de sorte qu'aucun fichier de settings ne nomme ce checkout. La bannière affiche
+une ligne `audio`.
+
+`/transcribe` est la voie directe : l'appel est celui de la commande, il n'a donc besoin d'aucun réglage et la garde
+ne demande rien.
+
+| Commande | Ce qu'elle fait |
+|---|---|
+| `/transcribe --list` | Les fichiers audio et vidéo sous `/audio` |
+| `/transcribe daily.m4a --lang fr` | Affiche la transcription, ou l'endroit où elle a été écrite quand elle est longue |
+| `/transcribe daily.m4a --prompt "Orkeon, Jint, MCP"` | Orthographie ces mots correctement : noms de modules, acronymes, personnes |
+| `/transcribe daily.m4a --then "list the tasks I mention"` | Exécute l'instruction sur la transcription, comme `/assistant` le ferait ; un préfixe `plan:` choisit le mode |
+| `/transcribe "team review.mp4"` | Un nom qui contient un espace, entre guillemets |
+
+`--then` vient en dernier et prend le reste de la ligne telle que saisie ; `--lang` s'écrit aussi `--language`. La
+transcription tourne dans un crew, le temps qu'il faut : un `/transcribe` à la fois, et le REPL prend d'autres
+commandes entre-temps. Avec `--then`, elle est faite au début du tour et compte dans les 30 minutes du tour. Le modèle
+peut aussi appeler les outils lui-même, dans une requête telle que
+`transcris /audio/daily.m4a et liste les tâches que je mentionne`, une fois qu'ils lui sont proposés :
+
+| Étape | Commande |
+|---|---|
+| Vérifier la connexion, sans modèle | `/debug-tool-call whisper_info` |
+| Proposer les outils à l'assistant | `/config set tools.extra transcribe_audio:read,list_audio:read,whisper_info:read` |
+
+| Variable | Effet |
+|---|---|
+| `ORKEON_CODE_AUDIO_DIR` | Active la transcription de la parole : le dossier monté sur `/audio` |
+| `WHISPER_MODEL` | Le modèle : `tiny`, `base`, `small` (défaut), `medium`, `large-v3`, `turbo` |
+| `WHISPER_DEVICE=cuda`, `WHISPER_COMPUTE_TYPE=float16` | Un GPU NVIDIA : le lanceur ajoute l'extra `cuda` du serveur, seul le pilote est nécessaire ([GPU](../../mcp/whisper/README.md#settings)) |
+| `WHISPER_BACKEND`, `WHISPER_BASE_URL`, ... | Un autre backend : [mcp/whisper/README.md](../../mcp/whisper/README.md#settings) |
+
+`read` convient à ces trois outils avec le backend local par défaut : ils lisent `/audio` et n'écrivent que sous
+`/transcripts`, hors du projet. Avec `WHISPER_BACKEND=openai`, l'audio quitte la machine : marquez `transcribe_audio`
+`write`, ou laissez-le de côté et utilisez `/transcribe`. La garde de permission demande toujours confirmation de
+chaque appel du modèle en `default` et `acceptEdits`, puisqu'un outil MCP ne déclare aucun accès à Orkeon
+([Permissions](permissions.md#outils-supplémentaires)).
+
+Une transcription courte revient en ligne ; une longue est écrite dans `/transcripts/<name>.txt`, avec ses
+horodatages dans `<name>.segments.json` et, au-delà de 30 000 caractères, en parties `<name>.part-NN.txt` que
+`file_read` lit une à la fois. La première transcription avec un modèle le télécharge (462 Mo pour `small`) :
+`bash scripts/whisper-mcp-smoke.sh` avec `WHISPER_MODEL=small` le fait à l'avance. Un enregistrement de 45 minutes
+prend environ 7 minutes avec `small` sur un CPU, moins de 2 minutes sur le GPU d'un portable, où `turbo` est le
+meilleur modèle.
+
+### Dictée
+
+`/voice` dicte une requête au lieu de la taper. Le microphone et le haut-parleur restent fermés tant que le lanceur ne
+tourne pas aussi avec `ORKEON_CODE_VOICE=1` : le serveur reçoit alors l'extra `voice` (sounddevice, qui a besoin de
+PortAudio sous Linux : `libportaudio2`), et peut enregistrer et jouer ([synthèse vocale](#synthèse-vocale)). Modes
+tool et source seulement.
+
+```bash
+export ORKEON_CODE_AUDIO_DIR=~/audio ORKEON_CODE_VOICE=1
+./orkeon-code                                 # the banner's audio line says "microphone and speaker on"
+```
+
+| Commande | Ce qu'elle fait |
+|---|---|
+| `/voice` | Enregistre jusqu'à 2 s de silence (60 s au plus), puis affiche le texte ; rien n'est envoyé |
+| `/voice send` | Envoie le texte affiché à l'assistant, comme `/assistant` le ferait : un `plan:` en tête, en minuscules tel que saisi, choisit le mode |
+| `/voice --go` | Enregistre et envoie d'un coup, pour les mains occupées, sous le mode de la session (`/mode plan` d'abord : aucun préfixe dicté n'est lu) |
+| `/voice --lang fr --prompt "Orkeon, Jint"` | La langue, et les mots à bien orthographier, comme pour `/transcribe` |
+| `/voice --max 30 --silence 1.5` | L'enregistrement le plus long (1 à 600 s), le silence qui l'arrête (0,5 à 10 s) |
+
+L'enregistrement s'arrête après le silence une fois la parole entendue, après 10 s sans parole, ou au maximum. Le
+dernier enregistrement est conservé en `<state>/transcripts/dictation.wav`, son texte en `dictation.txt` (ce que
+`/voice send` envoie) ; chaque enregistrement les vide d'abord, de sorte qu'un enregistrement qui échoue ne laisse
+rien à envoyer, et il interrompt une lecture à voix haute encore en cours, que le microphone entendrait.
+`record_and_transcribe` est pour `/voice` : ne le listez jamais dans `tools.extra`, ce qui laisserait le modèle ouvrir
+le microphone. Une pièce bruyante peut demander un `WHISPER_SILENCE_RMS` plus élevé (`0.01` par défaut) pour que le
+silence soit entendu.
+
+### Synthèse vocale
+
+`/say` lit à voix haute, par le même serveur : un texte, ou sans rien la dernière réponse de l'assistant. Le serveur
+lit les mots, pas le Markdown : les blocs de code et les tableaux sont sautés, les liens gardent leur texte, et une
+réponse longue est coupée à la dernière fin de phrase dans la seconde moitié de `TTS_MAX_CHARS` (1 200
+caractères), sinon à la limite elle-même ; un texte où il n'y a rien d'autre à lire n'est pas lu. Il synthétise
+avec [Piper](https://github.com/OHF-Voice/piper1-gpl) sur le CPU, où une phrase commence à être jouée environ 4 s
+après l'appel, et joue en arrière-plan pendant que le REPL prend la commande suivante.
+
+| Commande | Ce qu'elle fait |
+|---|---|
+| `/say Bonjour à tous` | Lit le texte |
+| `/say` | Lit la dernière réponse de l'assistant |
+| `/say --voice en_US-lessac-medium <text>` | Une autre [voix Piper](https://huggingface.co/rhasspy/piper-voices), récupérée au premier usage |
+| `/say --stop` | Coupe la lecture |
+
+`/config set voice.reply on` lit chaque réponse à voix haute : `/assistant` et le texte libre, `/summary`,
+`/transcribe --then`, `/voice send` et `--go`. Avec `/voice --go`, c'est une conversation parlée : la requête est
+dictée, la réponse lue en retour. La réponse s'affiche quand sa lecture commence, une fois synthétisée (quelques
+secondes avec Piper, moins d'une avec Kokoro) ; `/say --stop` la coupe, `/config set voice.reply off` arrête la
+lecture.
+Un tour dont la lecture échoue garde sa réponse, avec un avertissement, et `voice.reply on` sans le serveur de parole
+avertit à chaque tour.
+
+La voix est `fr_FR-siwis-medium` sauf si `TTS_VOICE` en nomme une autre ; la première lecture la télécharge (environ
+60 Mo). Deux autres backends font de même : `TTS_BACKEND=openai` (l'API de parole d'OpenAI ; le texte quitte la
+machine) et `TTS_BACKEND=http`, un serveur compatible tel que [speaches](https://speaches.ai) servant Kokoro sur un
+GPU, une meilleure voix ([mcp/whisper/README.md](../../mcp/whisper/README.md#speech-output)).
+Chaque lecture est conservée en `<state>/transcripts/speech.wav`, écrasée par la suivante. Le lanceur donne au
+serveur l'extra `tts` de Piper quoi que dise `ORKEON_CODE_VOICE` : sans lui, le serveur écrit ce fichier et dit
+n'avoir rien joué. Piper est sous GPL-3.0 : le serveur l'exécute dans un processus séparé, depuis un extra
+optionnel, et ne l'importe jamais.
+
+- Un fichier de settings qui déclare un serveur `whisper` l'emporte : le lanceur laisse `ORKEON_CODE_AUDIO_DIR` de
+  côté, et `ORKEON_CODE_VOICE` avec, et le dit.
+  [config/appsettings.whisper.example.json](../../config/appsettings.whisper.example.json) est cette déclaration, pour
+  un backend ou des dossiers à vous ; elle porte alors tout : pour `/say`, `--extra` et `tts` dans ses `Args`, pour
+  `/voice`, `--extra` et `voice` aussi, avec `WHISPER_MICROPHONE` et `WHISPER_SPEAKER` à `1` dans son `Env`. Sans
+  eux, `/say` répond que Piper n'est pas installé et `/voice` que le microphone est fermé.
+- Un environnement qui en déclare déjà un (`ORKEON_MCP__Servers__whisper__*`, la déclaration HTTP du mode docker par
+  exemple) l'emporte de la même façon, avec le même avertissement.
+- Sans uv sur le `PATH`, le lanceur avertit et démarre sans le serveur.
+- En mode docker, un serveur `Stdio` tourne dans le conteneur, qui n'a ni uv ni le modèle : la variable y est ignorée,
+  avec un avertissement. Le serveur peut tourner sur l'hôte en HTTP à la place, pour des fichiers transcrits en moins
+  de 100 s ([mcp/whisper/README.md](../../mcp/whisper/README.md#docker-mode-the-server-on-the-host)).
+
+## L'environnement du lanceur
+
+| Variable | Effet |
+|---|---|
+| `ORKEON_CODE_MODE` | `docker`, `tool` ou `source` |
+| `ORKEON_CODE_SETTINGS` | Fichier de settings |
+| `ORKEON_CODE_MODEL` | Modèle pour cette exécution |
+| `ORKEON_CODE_AUDIO_DIR` | Dossier des fichiers audio et vidéo : active la [transcription de la parole](#transcription-de-la-parole) (modes tool et source) |
+| `ORKEON_CODE_VOICE` | `1` : ouvre le microphone à [`/voice`](#dictée) et le haut-parleur à [`/say`](#synthèse-vocale) (avec `ORKEON_CODE_AUDIO_DIR`) |
+| `ORKEON_CODE_STATE` | Où vivent `/output`, `/tmp` et les transcriptions (défaut `.crew-output/` dans le checkout) |
+| `ORKEON_CODE_IMAGE` | Une autre image du runtime (mode docker) |
+| `ORKEON_REPL` | La ligne de commande qui démarre le REPL (mode tool) |
+| `ORKEON_SOURCE` | Checkout d'Orkeon (mode source) |
+| `ORKEON_ESBUILD_PATH` | Binaire esbuild (modes tool et source) |
+
+Le lanceur exporte aussi `Orkeon__Security__PermissionGate__Enabled=true` sauf s'il est déjà défini (le fichier de
+settings l'emporte encore sur lui), et, en modes tool et source, `ORKEON_ALLOW_EXTERNAL_MOUNTS=1`, pour que le REPL,
+démarré depuis le projet, accepte les montages `/output` et `/tmp` du répertoire d'état. `/permissions` dit si la
+garde est active.
