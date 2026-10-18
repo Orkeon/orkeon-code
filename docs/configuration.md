@@ -240,4 +240,4 @@ nothing. Piper is GPL-3.0: the server runs it as a separate process, from an opt
 
 The launcher also exports `Orkeon__Security__PermissionGate__Enabled=true` unless it is set already (the settings
 file still wins over it), and, in tool and source modes, `ORKEON_ALLOW_EXTERNAL_MOUNTS=1`, so the REPL, started from
-the project, accepts the `/output` and `/tmp` mounts of the state directory.
+the project, accepts the `/output` and `/tmp` mounts of the state directory. `/permissions` says whether the gate is on.

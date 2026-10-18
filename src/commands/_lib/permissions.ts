@@ -11,8 +11,9 @@
 // the extra tools of `tools.extra`, registered by the host or not; a stored rule
 // whose tool `tools.extra` no longer lists stays, dormant, until it lists it again
 // or the rule is removed. The gate itself runs only when the host turned it on
-// (Orkeon:Security:PermissionGate:Enabled), which a script cannot see: the view
-// says so.
+// (Orkeon:Security:PermissionGate:Enabled); the host says whether it did
+// (PermissionRules.enabled, Orkeon #128) and the view reports it: on, off, or
+// unknown on a runtime without the field.
 
 import type { PermissionRules, ToolCatalogue } from "../../shared/application/ports.ts";
 import type { ConfigStore } from "../../shared/application/config-store.ts";
@@ -95,6 +96,7 @@ async function renderShow(deps: PermissionsDeps, extras: ExtraToolsResolution): 
   const { rules } = stored;
   const decision = catalogueFor(mode, rules, extras.present);
   const held = gate.available() ? gate.list() : null;
+  const gateOn = gate.enabled();
 
   const offered = toolsetFor(mode, extras.present);
   const vocabulary = [...RULEABLE_TOOLS, ...extras.present.map((t) => t.name)];
@@ -119,8 +121,7 @@ async function renderShow(deps: PermissionsDeps, extras: ExtraToolsResolution): 
     "                       2) host gate, at each call: a matching deny refuses; a matching allow runs",
     "                          without asking (not in plan); else the mode decides, and default and",
     "                          acceptEdits ask you: [y] once / [s] session / [n] no",
-    "                       the gate runs only when Orkeon:Security:PermissionGate:Enabled is true, which",
-    "                       the launcher sets: off, no rule above is enforced and nothing asks",
+    ...gateStateLines(gateOn),
   ];
 
   for (const r of decision.inert) {
@@ -131,6 +132,26 @@ async function renderShow(deps: PermissionsDeps, extras: ExtraToolsResolution): 
   }
   lines.push(...storedNotes(stored, extras));
   return lines.join("\n");
+}
+
+/** The closing lines of the enforcement block: what the host says of its gate. */
+function gateStateLines(on: boolean | undefined): string[] {
+  if (on === true) {
+    return [
+      "                       the gate is on (Orkeon:Security:PermissionGate:Enabled, the host says): the rules",
+      "                       and the modes above hold at each call",
+    ];
+  }
+  if (on === false) {
+    return [
+      "⚠ the gate is OFF (Orkeon:Security:PermissionGate:Enabled is not true, the host says): no rule above",
+      "                       is enforced and nothing asks",
+    ];
+  }
+  return [
+    "                       the gate runs only when Orkeon:Security:PermissionGate:Enabled is true, which",
+    "                       the launcher sets: off, no rule above is enforced and nothing asks",
+  ];
 }
 
 /** `/permissions [show|list|add|remove|clear] …`, from the command's raw tokens. */

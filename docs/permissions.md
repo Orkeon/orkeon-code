@@ -62,8 +62,9 @@ a prefix is offered the `plan` catalogue. `/summary` does not resolve the sessio
 in `plan`.
 
 `/permissions` shows the effective surface: the mode, the catalogue, the session's rules and the rules the gate holds.
-The rules are enforced only while `Orkeon:Security:PermissionGate:Enabled` is on (the launcher sets it): a command
-cannot read that setting, so `/permissions` says so rather than vouching for it.
+The rules are enforced only while `Orkeon:Security:PermissionGate:Enabled` is on (the launcher sets it):
+`/permissions` reads the host and says whether the gate is on, off (nothing above is enforced and nothing asks), or
+unknown on a runtime that does not expose it (Orkeon 1.0.0-rc.6; Orkeon #128 added the field).
 
 ## Rules
 

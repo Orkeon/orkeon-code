@@ -16,6 +16,11 @@ export function createPermissionRules(services: Pick<ServiceLocator, "get" | "ha
     available() {
       return services.has(PERMISSIONS);
     },
+    enabled() {
+      // Guarded: a runtime before Orkeon #128 serves the facade without the field.
+      const on = services.has(PERMISSIONS) ? facade().enabled : undefined;
+      return on === true || on === false ? on : undefined;
+    },
     add(rule) {
       const rules = facade();
       // A rule over every call passes the tool alone: the facade reads an absent

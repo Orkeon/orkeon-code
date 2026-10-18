@@ -21,7 +21,19 @@ import { FakeToolCatalogue } from "./support/fake-tool-catalogue.ts";
 const NO_GATE_RULES =
   "⚠ the host keeps no session rules (orkeon-repl does): the gate decides each call from the mode alone.";
 
-/** The closing lines of the enforcement block: the gate is the host's setting, which a script cannot read. */
+/** The closing lines of the enforcement block when the host says its gate is on. */
+const GATE_ON = [
+  "                       the gate is on (Orkeon:Security:PermissionGate:Enabled, the host says): the rules",
+  "                       and the modes above hold at each call",
+];
+
+/** The same lines when the host says its gate is off: the surface above is not enforced. */
+const GATE_OFF = [
+  "⚠ the gate is OFF (Orkeon:Security:PermissionGate:Enabled is not true, the host says): no rule above",
+  "                       is enforced and nothing asks",
+];
+
+/** The closing lines when the host cannot say (a runtime before Orkeon #128, or no session rules). */
 const GATE_SETTING = [
   "                       the gate runs only when Orkeon:Security:PermissionGate:Enabled is true, which",
   "                       the launcher sets: off, no rule above is enforced and nothing asks",
@@ -62,7 +74,7 @@ describe("/permissions show", () => {
     strictEqual(lines[6], "session rules        : (none)");
     strictEqual(lines[7], "in the host gate     : (none)");
     ok(lines[11].endsWith("acceptEdits ask you: [y] once / [s] session / [n] no"), lines[11]);
-    deepStrictEqual(lines.slice(12), GATE_SETTING, "the view says the rules hold only with the gate on");
+    deepStrictEqual(lines.slice(12), GATE_ON, "the host says its gate is on");
     deepStrictEqual(await run("show"), await run());
     deepStrictEqual(gate.calls, [], "show hands the gate nothing");
   });
@@ -360,5 +372,21 @@ describe("/permissions — anything else", () => {
       "usage: /permissions [show] | add <deny|allow> <tool> [<argument>=<pattern>] | " +
         "remove <deny|allow> <tool> [<argument>=<pattern>] | list | clear",
     );
+  });
+});
+
+describe("/permissions show: the host gate's state", () => {
+  it("warns when the host says its gate is off: nothing above is enforced", async () => {
+    const { gate, run } = setup();
+    gate.hostGate = false;
+    const lines = (await run()).text!.split("\n");
+    deepStrictEqual(lines.slice(12), GATE_OFF);
+  });
+
+  it("falls back to the setting's description when the host cannot say", async () => {
+    const { gate, run } = setup();
+    gate.hostGate = undefined;
+    const lines = (await run()).text!.split("\n");
+    deepStrictEqual(lines.slice(12), GATE_SETTING);
   });
 });
