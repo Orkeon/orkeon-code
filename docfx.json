@@ -1,0 +1,33 @@
+{
+  "build": {
+    "content": [
+      { "files": ["toc.yml", "*.md", "docs/**/toc.yml", "docs/**/*.md"], "src": "_site-src" }
+    ],
+    "resource": [
+      { "files": ["docs/assets/**"], "src": "_site-src" }
+    ],
+    "dest": "_site",
+    "globalMetadata": {
+      "_appName": "Orkeon Code",
+      "_appTitle": "Orkeon Code",
+      "_appLogoPath": "docs/assets/kama-surfer-docker.jpg",
+      "_appFaviconPath": "docs/assets/kama-surfer-docker.jpg",
+      "_lang": "en",
+      "_enableSearch": true
+    },
+    "fileMetadata": {
+      "_lang": {
+        "_site-src/index.fr.md": "fr"
+      },
+      "_appTitle": {
+        "_site-src/index.md": "",
+        "_site-src/index.fr.md": ""
+      }
+    },
+    "globalMetadataFiles": [],
+    "fileMetadataFiles": ["_site-src/file-metadata.json"],
+    "template": ["default", "modern", "scripts/docs-site/template"],
+    "postProcessors": [],
+    "noLangKeyword": false
+  }
+}

@@ -71,7 +71,7 @@ export DEEPSEEK_API_KEY=...                                        # la variable
 cd ~/src/mon-projet && ~/orkeon-code/orkeon-code                   # ou sur votre projet
 ```
 
-Puis, dans le REPL :
+Puis, dans le REPL (*Read–Eval–Print Loop* : la boucle interactive lire-évaluer-afficher) :
 
 ```text
 /init                                         décrire le projet (écrit AGENTS.md)
@@ -125,7 +125,8 @@ catalogue dès que `tools.extra` les nomme, sans une ligne de code. Ce qui bouge
 
 ## Documentation
 
-La documentation détaillée est en anglais :
+La documentation détaillée est en anglais, publiée en site consultable, avec recherche :
+<https://orkeon.github.io/orkeon-code/>.
 
 | | |
 |---|---|
