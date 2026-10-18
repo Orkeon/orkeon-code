@@ -1,59 +1,46 @@
 /// <reference path="../../../crews/.orkeon/orkeon.d.ts" />
 // The runtime's `tools` global as this code calls it.
 //
-// The generated typings (crews/.orkeon/orkeon.d.ts, `OrkeonTools`, still so in
-// Orkeon 1.0.0-rc.6) name fileRead, fileWrite and directoryRead, without
-// file_read's `max_length`, and reach every other tool through an index signature
-// whose input is `never`: a call to session_store or shell_command does not
-// type-check against them.
-// `CalledTools` is the narrow local declaration of the tools this code calls, with
-// the inputs it passes. Every result is `unknown`: its field casing varies
-// (PascalCase from .NET-bridged types, snake_case from the others), so only the
-// adapters of this folder read it, through tool-results.ts.
+// Every built-in tool is declared by the generated typings (crews/.orkeon/orkeon.d.ts,
+// `OrkeonBuiltInTools`, which `OrkeonTools` extends — Orkeon #125): the input the tool
+// deserializes and the result it hands back, in the tool's own snake_case. The adapters
+// of this folder take `Pick<OrkeonTools, ...>`. This file keeps only the shapes this
+// code passes that are STRICTER than the generated input: one union member per
+// operation where the tool declares a bare `operation?: string`. Each is checked
+// assignable to the generated input (`Fits`), so a parameter renamed on the .NET
+// side fails `tsc` here instead of the run.
+// Results are still read through tool-results.ts: see there for the casing.
+
+/** The input the generated typings declare for a built-in tool. */
+type Input<K extends keyof OrkeonBuiltInTools> = NonNullable<Parameters<OrkeonBuiltInTools[K]>[0]>;
+
+/** A local shape of the input of tool `K`, refused at its declaration when it stops fitting the generated one. */
+type Fits<T extends Input<K>, K extends keyof OrkeonBuiltInTools> = T;
 
 /** session_store, one input shape per operation this code sends. */
-export type SessionStoreInput =
+export type SessionStoreInput = Fits<
   | { operation: "read_messages" | "get_metadata" | "reset" }
   | { operation: "write_messages"; messages: readonly unknown[] }
   | { operation: "get_state"; key: string }
   | { operation: "set_state"; key: string; value: string | null }
-  | { operation: "set_title"; title: string };
+  | { operation: "set_title"; title: string },
+  "sessionStore"
+>;
 
 /** memory_store, one input shape per operation this code sends. */
-export type MemoryStoreInput =
+export type MemoryStoreInput = Fits<
   | { operation: "list"; category?: string }
   | { operation: "add"; category: string; content: string }
-  | { operation: "get" | "delete"; id: number };
+  | { operation: "get" | "delete"; id: number },
+  "memoryStore"
+>;
 
 /** progress_report: a progress line, or the release of its slot (`done`). */
-export interface ProgressReportInput {
+export type ProgressReportInput = Fits<{
   label: string;
   step?: number;
   total?: number;
   percent?: number;
   message?: string;
   done?: boolean;
-}
-
-export interface CalledTools {
-  fileRead(input: { path: string; max_length?: number }): Promise<unknown>;
-  fileWrite(input: { path: string; content: string }): Promise<unknown>;
-  directoryRead(input: { path: string; max_results?: number }): Promise<unknown>;
-  shellCommand(input: { command: string; working_directory?: string }): Promise<unknown>;
-  sessionStore(input: SessionStoreInput): Promise<unknown>;
-  sessionSnip(input: { retain_count: number }): Promise<unknown>;
-  sessionStats(): Promise<unknown>;
-  sessionCost(): Promise<unknown>;
-  tokenBudget(): Promise<unknown>;
-  memoryStore(input: MemoryStoreInput): Promise<unknown>;
-  progressReport(input: ProgressReportInput): Promise<unknown>;
-  listMounts(): Promise<unknown>;
-  indexStatus(input: Record<string, never>): Promise<unknown>;
-  indexCodebase(input: { root_path: string }): Promise<unknown>;
-  codebaseMap(input: { level: string; include_metrics?: boolean }): Promise<unknown>;
-  dependencyGraph(input: { scope: string; max_nodes?: number; include_mermaid?: boolean }): Promise<unknown>;
-  packageSummary(input: { fqn: string }): Promise<unknown>;
-}
-
-/** The `tools` global: the generated typings plus the local declarations above. */
-export type RuntimeTools = OrkeonTools & CalledTools;
+}, "progressReport">;

@@ -5,7 +5,6 @@
 
 import type { SessionMsg } from "../../domain/types.ts";
 import type { SessionStore, StoredMessage } from "../../application/ports.ts";
-import type { CalledTools } from "./runtime-tools.ts";
 import { asArray, pick } from "./tool-results.ts";
 
 /** The `{ role, content }` view of stored entries, for transcripts and history. */
@@ -20,7 +19,7 @@ function normalizeMessages(stored: StoredMessage[]): SessionMsg[] {
 const count = (r: unknown, ...names: string[]): number => Number(pick(r, ...names) ?? 0);
 
 export function createSessionStore(
-  tools: Pick<CalledTools, "sessionStore" | "sessionSnip" | "tokenBudget">,
+  tools: Pick<OrkeonTools, "sessionStore" | "sessionSnip" | "tokenBudget">,
 ): SessionStore {
   return {
     async readMessages() {

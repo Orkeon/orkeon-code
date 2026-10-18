@@ -2,7 +2,6 @@
 // (`entries` or `Entries`, `id` or `Id`, `content` or `Content`...).
 
 import type { MemoryStore } from "../../application/ports.ts";
-import type { CalledTools } from "./runtime-tools.ts";
 import { pick } from "./tool-results.ts";
 
 /** A reported number; null and absent both read as unreported. */
@@ -10,7 +9,7 @@ const num = (v: unknown): number | undefined => (v == null ? undefined : Number(
 /** A reported string; null and absent both read as unreported. */
 const str = (v: unknown): string | undefined => (v == null ? undefined : String(v));
 
-export function createMemoryStore(tools: Pick<CalledTools, "memoryStore">): MemoryStore {
+export function createMemoryStore(tools: Pick<OrkeonTools, "memoryStore">): MemoryStore {
   return {
     async list(category) {
       const resp = await tools.memoryStore({ operation: "list", category });

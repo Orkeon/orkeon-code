@@ -445,8 +445,9 @@ extraction, `shared/domain/compaction.ts` the prompts and buffers, `shared/domai
    `NETWORK_READ_TOOLS`, or the edit and shell classes): the mode-policy table decides which modes hand it to the
    model. Update `permission.test.ts`, and `docs/permissions.md` when a mode's surface changes. Another crew names
    it in its own `.tools([...])`.
-3. When application code calls the tool itself, it goes through a port: declare its input in
-   `orkeon/runtime-tools.ts` (`CalledTools`), add the call to an adapter (or a new port, below) that reads the result
+3. When application code calls the tool itself, it goes through a port: its input and result are typed by the
+   generated typings (`crews/.orkeon/orkeon.d.ts`, `OrkeonTools`; `orkeon/runtime-tools.ts` keeps a stricter local
+   shape only when the adapter wants one), add the call to an adapter (or a new port, below) that reads the result
    through `tool-results.ts`, test the adapter over `FakeTools`.
 
 ### Add a permission mode
