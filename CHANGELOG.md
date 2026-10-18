@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **[WSL tutorial](docs/wsl-tutorial.md)** (and [in French](docs/fr/wsl-tutorial.md)): Orkeon Code on WSL2 with an
+  NVIDIA GPU, step by step with what each step must show: WSLg's audio, Orkeon from its apt package, the speech
+  server on the CPU then the GPU, `/transcribe`, `/say` and `/voice`, Kokoro through speaches, and a local language
+  model (`qwen3.5:2b` through Ollama, with the context window Ollama must be given), with a troubleshooting table
+  and the removal of everything.
+- **`config/appsettings.ollama.example.json`**: the example settings on a model of this machine,
+  [Ollama](https://ollama.com) serving `qwen3.5:2b`, no key; the same file as `config/appsettings.example.json` but
+  for its `Llm` section, with the caveat Ollama's default window of 4,096 tokens puts on an agent whose system prompt
+  alone is about 2,250 (`OLLAMA_CONTEXT_LENGTH=16384` on the service). `config/appsettings.ollama-whisper.example.json`
+  adds the Whisper server declared in the file, on an NVIDIA GPU with Piper, the microphone and the speaker: the whole
+  machine in one settings file. The example-settings tests cover every `config/*.example.json`, and check that a file
+  declaring the Whisper server mounts the folders it reads ([Configuration](docs/configuration.md#the-llm)).
 - **Documentation in French**: every page of `docs/` has its twin under `docs/fr/`, page for page, with its own
   navigation, published on the site next to the English pages; the ADRs stay in English, and `docs/fr/commands.md`
   is generated with `docs/commands.md`. `npm run check` fails when the two languages drift apart

@@ -7,6 +7,7 @@ pages existent [en anglais](../README.md).
 | | |
 |---|---|
 | [Premiers pas](getting-started.md) | Modes docker, tool et source, première session |
+| [Tutoriel WSL](wsl-tutorial.md) | La voix et un modèle local sous WSL2, sur le GPU, pas à pas |
 | [Configuration](configuration.md) | Fournisseurs LLM, fichier de settings, variables d'environnement |
 | [Permissions](permissions.md) | Modes, règles, ce que l'agent peut toucher |
 | [Commandes](commands.md) | La liste complète (générée) |

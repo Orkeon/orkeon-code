@@ -2,6 +2,8 @@
 # a page of docs/ by its repository path; stage.py follows it to its staged name.
 - name: Getting started
   href: getting-started.md
+- name: WSL tutorial
+  href: wsl-tutorial.md
 - name: Configuration
   href: configuration.md
 - name: Permissions

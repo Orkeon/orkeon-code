@@ -128,6 +128,7 @@ are written in English only.
 | | |
 |---|---|
 | [Getting started](docs/getting-started.md) | Docker, tool and source modes, first session |
+| [WSL tutorial](docs/wsl-tutorial.md) | Speech and a local model on WSL2, on the GPU, step by step |
 | [Configuration](docs/configuration.md) | LLM providers, settings file, environment variables |
 | [Permissions](docs/permissions.md) | Modes, rules, what the agent can touch |
 | [Slash commands](docs/commands.md) | The full list (generated) |

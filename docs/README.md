@@ -7,6 +7,7 @@ Start with [Getting started](getting-started.md); the [README](../README.md) giv
 | | |
 |---|---|
 | [Getting started](getting-started.md) | Docker, tool and source modes, first session |
+| [WSL tutorial](wsl-tutorial.md) | Speech and a local model on WSL2, on the GPU, step by step |
 | [Configuration](configuration.md) | LLM providers, settings file, environment variables |
 | [Permissions](permissions.md) | Modes, rules, what the agent can touch |
 | [Slash commands](commands.md) | The full list (generated) |
