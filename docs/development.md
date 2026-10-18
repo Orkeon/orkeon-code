@@ -53,7 +53,7 @@ same variable the launcher's source mode reads.
 
 ## Upgrading Orkeon
 
-The runtime version lives in three places that must agree (`tests/version.test.ts` checks the first two):
+The runtime version lives in four places that must agree (`tests/version.test.ts` checks the first two):
 
 1. `.orkeon-version`: the image tag and the version the launcher announces;
 2. `.config/dotnet-tools.json`: `orkeon.scripting.cli`;
