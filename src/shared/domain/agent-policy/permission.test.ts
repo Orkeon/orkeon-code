@@ -86,7 +86,7 @@ describe("B-8 — the network-read class", () => {
 
 describe("the tool lists", () => {
   it("name each tool once: the write and ruleable lists derive from the classes", () => {
-    deepStrictEqual(WRITE_TOOLS, ["file_write", "shell_command"]);
+    deepStrictEqual(WRITE_TOOLS, ["file_write", "rag_ingest", "shell_command"]);
     deepStrictEqual(RULEABLE_TOOLS, [...READ_TOOLS, ...NETWORK_READ_TOOLS, ...WRITE_TOOLS]);
     strictEqual(new Set(RULEABLE_TOOLS).size, RULEABLE_TOOLS.length);
   });
@@ -405,5 +405,13 @@ describe("extra tools (tools.extra)", () => {
     strictEqual(ruleableTool("FILE_WRITE"), "file_write");
     strictEqual(ruleableTool("listissues", ["listIssues"]), "listIssues");
     strictEqual(ruleableTool("list_issues", ["listIssues"]), undefined);
+  });
+});
+
+describe("rag_ingest, an edit as the host gate classifies it (Orkeon #126)", () => {
+  it("is withheld from the read-only modes and offered with the edits", () => {
+    for (const mode of ["plan", "dontAsk"]) strictEqual(toolsetFor(mode).includes("rag_ingest"), false, mode);
+    for (const mode of ["default", "acceptEdits", "bypassPermissions"]) ok(toolsetFor(mode).includes("rag_ingest"), mode);
+    ok(READ_TOOLS.includes("rag_search") && !READ_TOOLS.includes("rag_ingest"));
   });
 });

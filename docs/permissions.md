@@ -26,12 +26,12 @@ main loop after the turn as the launching command's call.
 
 ## Modes
 
-| Mode | Offered to the model | Local reads | Network reads (`http_api`, web) | File edits | Shell |
+| Mode | Offered to the model | Local reads | Network reads (`http_api`, web) | File edits, `rag_ingest` | Shell |
 |---|---|---|---|---|---|
 | `plan` | local reads, `read` [extra tools](#extra-tools) | ✅ | ❌ | ❌ | ❌ |
 | `dontAsk` | local reads, `read` [extra tools](#extra-tools) | ✅ | ❌ | ❌ | ❌ |
-| `default` | every tool | ✅ | asks you | asks you | asks you |
-| `acceptEdits` | every tool | ✅ | asks you | ✅ | asks you |
+| `default` | every tool | ✅ | `http_api` asks you, web ✅ | asks you | asks you |
+| `acceptEdits` | every tool | ✅ | `http_api` asks you, web ✅ | ✅ | asks you |
 | `bypassPermissions` | every tool | ✅ | ✅ | ✅ | ✅ |
 
 `plan` and `dontAsk` promise that the turn changes nothing observable: no write, and no outbound request, since a
@@ -43,9 +43,11 @@ refuses anything else without asking.
 without asking until the REPL exits, `n` refuses it, and the model reads the refusal and adapts. A `/` line still
 runs its command while a question waits.
 
-Orkeon classifies a tool that declares no access as a write: `web_scrape`, `scrape_element`, `rag_search` and
-`rag_ingest` are asked about in `default` and `acceptEdits`, and refused in `plan` and `dontAsk`, although the
-catalogue offers `rag_search` and `rag_ingest` as reads.
+Orkeon classifies a tool that declares no access as a write: `http_api` and every MCP tool are asked about in
+`default` and `acceptEdits`, and refused in `plan` and `dontAsk`. `web_scrape`, `scrape_element` and `rag_search`
+declare a read (Orkeon #126): they run without a question wherever the catalogue offers them. `rag_ingest` declares an
+edit — it writes the knowledge index, not the workspace — so the catalogue offers it with the file edits: never in
+`plan` or `dontAsk`, asked in `default`, accepted in `acceptEdits`.
 
 ## Choosing the mode
 
