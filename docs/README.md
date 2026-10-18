@@ -1,7 +1,8 @@
 # Documentation
 
 Orkeon Code's documentation, published as a browsable site at <https://orkeon.github.io/orkeon-code/>.
-Start with [Getting started](getting-started.md); the [README](../README.md) gives the tour.
+Start with [Getting started](getting-started.md); the [README](../README.md) gives the tour. The same pages exist
+[in French](fr/README.md).
 
 | | |
 |---|---|

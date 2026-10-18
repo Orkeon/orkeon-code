@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Documentation in French**: every page of `docs/` has its twin under `docs/fr/`, page for page, with its own
+  navigation, published on the site next to the English pages; the ADRs stay in English, and `docs/fr/commands.md`
+  is generated with `docs/commands.md`. `npm run check` fails when the two languages drift apart
+  (`scripts/check-docs-parity.mjs`: a page without its twin, heading levels, code blocks, table lengths or
+  navigation entries that differ).
 - **`/permissions` says whether the host gate is on**: on, OFF with a warning that no rule and no mode is enforced,
   or unknown on a runtime that does not expose it (Orkeon `1.0.0-rc.6`; Orkeon #128 added the field). The main loop
   puts the same warning above its answer once per session when the gate is off, except in `bypassPermissions`.

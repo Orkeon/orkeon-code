@@ -32,16 +32,16 @@ chaque prompt est un fichier source : modifiez-le, ou ajoutez le vôtre.
   questions.
 - **Des outils de serveurs MCP et de plugins** : les outils qu'Orkeon connecte (`MCP:Servers`, `Plugins`) rejoignent
   le catalogue de l'assistant dès que `tools.extra` les nomme
-  ([Configuration](docs/configuration.md#extra-tools-mcp-servers-and-plugins)).
+  ([Configuration](docs/fr/configuration.md#outils-supplémentaires--serveurs-mcp-et-plugins)).
 - **La transcription de la parole** : un serveur MCP Whisper est livré dans `mcp/whisper/` ; `ORKEON_CODE_AUDIO_DIR`
   l'active, et l'assistant transcrit notes vocales, réunions et vidéos d'écran sur votre machine ; `/voice` dicte une
-  requête et `/say` lit à voix haute ([Configuration](docs/configuration.md#speech-to-text)).
+  requête et `/say` lit à voix haute ([Configuration](docs/fr/configuration.md#transcription-de-la-parole)).
 - **Des crews pour les tâches récurrentes** : `/init` (décrire le projet pour l'agent), `/commit` (un commit
   conventionnel tiré du diff), `/review`, `/security-review` (revue de code multi-angles), `/analyze`
   (analyse déterministe du code), `/compact` et `/summary` (gestion du contexte), `/init-verifiers`, `/advisor`.
 - **Gestion du contexte** : compaction automatique avec disjoncteur, `/compact` qui tronque d'abord, restauration des
   fichiers après compaction, paliers de pression du contexte, mémoire durable typée (`/memory`).
-- **49 commandes slash** au total : [docs/commands.md](docs/commands.md).
+- **49 commandes slash** au total : [docs/fr/commands.md](docs/fr/commands.md).
 
 ## Démarrage rapide
 
@@ -60,7 +60,7 @@ celui-ci publié, l'un ou l'autre fait tourner Orkeon Code :
 **Windows** : `orkeon-code.ps1` n'a ni mode source ni `--demo` (`-Mode` accepte `docker` ou `tool`) ; tant que
 `1.0.0-rc.6` n'est pas tagué, rien ne tourne donc nativement. Utilisez WSL avec le lanceur bash d'ici là.
 
-Détails : [Getting started](docs/getting-started.md).
+Détails : [Premiers pas](docs/fr/getting-started.md).
 
 ```bash
 git clone https://github.com/Orkeon/orkeon-code.git ~/orkeon-code
@@ -97,7 +97,7 @@ acceptEdits: valide les entrées de parseArgs et ajoute un test
 Orkeon Code est la couche TypeScript : les commandes slash, les crews et la logique de domaine partagée. Le runtime
 [Orkeon](https://github.com/Orkeon/orkeon) les exécute (Jint), fournit les outils, applique la garde de permission et
 confine tout accès fichier au projet monté. La version du runtime est épinglée dans [`.orkeon-version`](.orkeon-version).
-Détails : [Architecture](docs/architecture.md).
+Détails : [Architecture](docs/fr/architecture.md).
 
 ## Interactif, autonome, embarqué
 
@@ -113,7 +113,7 @@ Le REPL est une façon de lancer les crews, pas la seule.
   JSON ; le démon `orkeon-host` d'Orkeon peut héberger les crews derrière un canal de chat ou un point d'accès A2A.
   L'intégration .NET en processus attend que la couche de scripting soit publiée en paquet.
 
-Détails et limites : [Autonomous and embedded runs](docs/headless.md).
+Détails et limites : [Exécutions autonomes et embarquées](docs/fr/headless.md).
 
 ## Faites-en le vôtre
 
@@ -122,24 +122,25 @@ dans un crew, un prompt une chaîne avec son test, et les modes de permission un
 de build : le runtime bundle le TypeScript et l'exécute au prochain démarrage. Vos propres crews et commandes peuvent
 vivre hors du checkout (`--crews-dir`, `--commands-dir`), et les outils des serveurs MCP et des plugins rejoignent le
 catalogue dès que `tools.extra` les nomme, sans une ligne de code. Ce qui bouge à chaque changement, et les limites :
-[Extending Orkeon Code](docs/extending.md).
+[Étendre Orkeon Code](docs/fr/extending.md).
 
 ## Documentation
 
-La documentation détaillée est en anglais, publiée en site consultable, avec recherche :
-<https://orkeon.github.io/orkeon-code/>.
+La documentation est publiée en français et en anglais, en site consultable, avec recherche :
+<https://orkeon.github.io/orkeon-code/>. Les pages ci-dessous sont les françaises ; les mêmes existent
+[en anglais](docs/README.md), et les décisions (ADR) ne sont écrites qu'en anglais.
 
 | | |
 |---|---|
-| [Getting started](docs/getting-started.md) | Modes docker, tool et source, première session |
-| [Configuration](docs/configuration.md) | Fournisseurs LLM, fichier de settings, variables d'environnement |
-| [Permissions](docs/permissions.md) | Modes, règles, ce que l'agent peut toucher |
-| [Slash commands](docs/commands.md) | La liste complète (générée) |
-| [Architecture](docs/architecture.md) | Couches, ports, crews, la boucle, l'assemblage du prompt, recettes |
-| [Autonomous and embedded runs](docs/headless.md) | Tours sans opérateur, lancement en un coup, planificateurs et CI, votre application |
-| [Extending](docs/extending.md) | Commandes, crews, outils, prompts, modes, vos propres dossiers, les limites |
-| [Development](docs/development.md) | Tests, vérifications, typings, montée de version d'Orkeon, release |
-| [Roadmap](docs/roadmap.md) | Ce qui manque et ce qui vient |
+| [Premiers pas](docs/fr/getting-started.md) | Modes docker, tool et source, première session |
+| [Configuration](docs/fr/configuration.md) | Fournisseurs LLM, fichier de settings, variables d'environnement |
+| [Permissions](docs/fr/permissions.md) | Modes, règles, ce que l'agent peut toucher |
+| [Commandes](docs/fr/commands.md) | La liste complète (générée) |
+| [Architecture](docs/fr/architecture.md) | Couches, ports, crews, la boucle, l'assemblage du prompt, recettes |
+| [Exécutions autonomes et embarquées](docs/fr/headless.md) | Tours sans opérateur, lancement en un coup, planificateurs et CI, votre application |
+| [Étendre](docs/fr/extending.md) | Commandes, crews, outils, prompts, modes, vos propres dossiers, les limites |
+| [Développement](docs/fr/development.md) | Tests, vérifications, typings, montée de version d'Orkeon, release |
+| [Feuille de route](docs/fr/roadmap.md) | Ce qui manque et ce qui vient |
 
 ## Contribuer
 

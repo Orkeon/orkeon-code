@@ -122,7 +122,8 @@ checkout (`--crews-dir`, `--commands-dir`), and the tools of MCP servers and plu
 ## Documentation
 
 The pages below are published as a browsable site, with a search box:
-<https://orkeon.github.io/orkeon-code/>.
+<https://orkeon.github.io/orkeon-code/>. The same pages exist [in French](docs/fr/README.md); the decisions (ADR)
+are written in English only.
 
 | | |
 |---|---|

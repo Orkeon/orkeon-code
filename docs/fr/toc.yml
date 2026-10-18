@@ -1,0 +1,29 @@
+# Navigation of the French documentation pages (docfx), built by scripts/build-docs-site.sh: the
+# entries of docs/toc.yml, in the same order, which scripts/check-docs-parity.mjs verifies. The ADRs
+# are not translated: their entries open the English page and say so.
+- name: Premiers pas
+  href: getting-started.md
+- name: Configuration
+  href: configuration.md
+- name: Permissions
+  href: permissions.md
+- name: Commandes
+  href: commands.md
+- name: Architecture
+  href: architecture.md
+- name: Exécutions autonomes et embarquées
+  href: headless.md
+- name: Étendre
+  href: extending.md
+- name: Développement
+  href: development.md
+- name: Feuille de route
+  href: roadmap.md
+- name: Décisions (en anglais)
+  items:
+    - name: "ADR 0001 : ports, adaptateurs et points d'entrée (en anglais)"
+      href: ../adr/0001-clean-architecture.md
+    - name: "ADR 0002 : Orkeon 1.0.0-rc.6 seulement (en anglais)"
+      href: ../adr/0002-orkeon-rc6.md
+    - name: "ADR 0003 : les prompts d'après une spécification de comportement (en anglais)"
+      href: ../adr/0003-prompts-from-a-behaviour-specification.md

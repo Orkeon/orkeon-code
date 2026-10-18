@@ -4,8 +4,9 @@
 # (node --test, native type stripping), the type check, the bundle check (every
 # command and crew bundles with the runtime's own esbuild flags, which also proves
 # no runtime module imports a Node API: the runtime is Jint, not Node), the
-# provenance gate, the generated command reference (docs/commands.md), the committed
-# file modes, and the unit tests of the Whisper MCP server (mcp/whisper: the mcp SDK
+# provenance gate, the generated command reference (docs/commands.md, docs/fr/commands.md),
+# the parity of the French documentation (docs/fr/ mirrors docs/), the committed file modes,
+# and the unit tests of the Whisper MCP server (mcp/whisper: the mcp SDK
 # and pytest only; the model is never loaded).
 #
 # The runtime smoke (the Orkeon host loading the command surface) lives in
@@ -43,6 +44,8 @@ jobs:
         run: npm run check:provenance -- --strict
       - name: Command reference up to date
         run: node scripts/gen-commands-doc.mjs --check
+      - name: Documentation parity (docs/fr/ mirrors docs/)
+        run: node scripts/check-docs-parity.mjs
       - name: Committed file modes
         run: bash scripts/check-file-modes.sh
       - name: Whisper MCP server (compiles, unit tests without a model)

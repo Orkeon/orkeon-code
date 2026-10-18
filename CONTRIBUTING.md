@@ -15,7 +15,7 @@ Thanks for your interest. This guide covers the setup, the rules the code follow
 
 ```bash
 npm ci
-npm run check                 # unit tests, type check, bundle check, provenance gate, generated docs
+npm run check                 # unit tests, type check, bundle check, provenance gate, generated docs, docs parity
 bash scripts/smoke-runtime.sh # the real REPL loads every command (needs a runtime, no API key)
 ```
 
@@ -82,12 +82,13 @@ npm test                                  # every *.test.ts, the architecture te
 npm run typecheck
 npm run bundle:check                      # every entry point bundles with the runtime's esbuild flags
 npm run check:provenance
-node scripts/gen-commands-doc.mjs --check # docs/commands.md matches the commands
+node scripts/gen-commands-doc.mjs --check # docs/commands.md and docs/fr/commands.md match the commands
+node scripts/check-docs-parity.mjs        # docs/fr/ mirrors docs/: every page has its twin, of the same shape
 bash scripts/check-file-modes.sh          # scripts are committed executable
 uv run --project mcp/whisper pytest mcp/whisper   # the Whisper MCP server, a fake model (CI: mcp and pytest in a venv)
 ```
 
-`npm run check` runs the first five; `bash scripts/smoke-runtime.sh` loads every command in the real REPL, and
+`npm run check` runs the first six; `bash scripts/smoke-runtime.sh` loads every command in the real REPL, and
 `runtime-smoke.yml` runs it in CI (not `ci.yml`). Both workflows run on pushes and pull requests to `main`: a pull
 request stacked on another branch gets no check until it is retargeted to `main`.
 
@@ -116,7 +117,11 @@ runs the gate with `--strict`, so an adapted text cannot come back.
 - Commit messages in English, shaped `type(scope): summary` (`feat`, `fix`, `docs`, `test`, `chore`, `refactor`).
 - `npm run check` green; a user-visible change has a `CHANGELOG.md` entry under `[Unreleased]`.
 - A new or renamed command: `npm run docs:commands`.
-- `README.md` and `README.fr.md` change together.
+- `README.md` and `README.fr.md` change together, and so do `docs/` and `docs/fr/`: a page changed in English is
+  changed in French in the same pull request; a page added, renamed or removed is added, renamed or removed in both
+  `toc.yml` and both indexes. The ADRs stay in English. `npm run check` verifies that the twins keep the same shape
+  (`scripts/check-docs-parity.mjs`: every page has its twin, the same heading levels, the same code blocks, tables of
+  the same length, the same navigation entries).
 - Shell scripts and shebang scripts are committed executable: `git update-index --chmod=+x <path>`.
 - Never commit a key: settings with secrets live in `config/*.local.json` (ignored) and keys in the environment.
 
