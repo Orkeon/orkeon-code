@@ -4,7 +4,8 @@
   <img src="assets/kama-surfer-docker.jpg" alt="Orkeon Code mascot — a chameleon surfing a wave" width="200">
 </p>
 
-Orkeon Code is a set of TypeScript commands and crews; the [Orkeon](https://github.com/Orkeon/orkeon) REPL runs them.
+Orkeon Code is a set of TypeScript commands and crews; the [Orkeon](https://github.com/Orkeon/orkeon) REPL
+(Read–Eval–Print Loop — the interactive console) runs them.
 The `orkeon-code` launcher (and `orkeon-code.ps1` on Windows) finds a runtime, mounts your project and starts the
 REPL. It needs three things: a runtime, a settings file and an API key.
 

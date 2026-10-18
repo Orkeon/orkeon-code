@@ -67,7 +67,7 @@ export DEEPSEEK_API_KEY=...                                        # the variabl
 cd ~/src/my-project && ~/orkeon-code/orkeon-code                   # or on your project
 ```
 
-Then, in the REPL:
+Then, in the REPL (Read–Eval–Print Loop — the interactive console):
 
 ```text
 /init                                    describe the project (writes AGENTS.md)
@@ -119,6 +119,9 @@ checkout (`--crews-dir`, `--commands-dir`), and the tools of MCP servers and plu
 [Extending Orkeon Code](docs/extending.md).
 
 ## Documentation
+
+The pages below are published as a browsable site, with a search box:
+<https://orkeon.github.io/orkeon-code/>.
 
 | | |
 |---|---|
