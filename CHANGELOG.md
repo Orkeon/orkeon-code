@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`/permissions` says whether the host gate is on**: on, OFF with a warning that no rule and no mode is enforced,
+  or unknown on a runtime that does not expose it (Orkeon `1.0.0-rc.6`; Orkeon #128 added the field). The main loop
+  puts the same warning above its answer once per session when the gate is off, except in `bypassPermissions`.
 - **Documentation site**: the READMEs and `docs/` are published with docfx to
   <https://orkeon.github.io/orkeon-code/> on every push to `main` (`.github/workflows/docs.yml`,
   `scripts/build-docs-site.sh`); a pull request builds the site, and a broken link or anchor fails it.
@@ -79,6 +82,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `/permissions` shows them ([Configuration](docs/configuration.md#extra-tools-mcp-servers-and-plugins)).
 
 ### Changed
+
+- **Every built-in tool is typed from the generated typings** (Orkeon #125: `OrkeonBuiltInTools`, input and result
+  of each tool from its .NET records). The local copy of their inputs (`CalledTools`) is gone; the stricter shapes
+  that remain (`SessionStoreInput`, `MemoryStoreInput`, `ProgressReportInput`) are refused by `tsc` when they stop
+  fitting the generated input, so a parameter renamed on the .NET side fails the type check, not the run.
+- **`rag_ingest` is offered with the file edits**, never in `plan` or `dontAsk`: the host gate classifies it as an
+  edit since Orkeon #126 (it writes the knowledge index). `web_scrape`, `scrape_element` and `rag_search` declare a
+  read since the same change and ask nothing where the catalogue offers them ([Permissions](docs/permissions.md#modes)).
+- **The `wallTime` budget of a turn no longer counts the operator's answer** (Orkeon #127, runtime): 1800 s bound the
+  model's own work.
+- **Orkeon version**: the gate state and the typed tools come with Orkeon's `main` after Orkeon/orkeon#130; on
+  `1.0.0-rc.6` the gate state reads unknown and nothing else changes. The typings are generated from that `main`
+  (`ORKEON_SOURCE=<checkout> npm run typings`) until a release carries it.
 
 - **Every prompt is written from a behaviour specification**, in this project's own words
   ([Architecture](docs/architecture.md#prompt-assembly), [ADR 0003](docs/adr/0003-prompts-from-a-behaviour-specification.md)).
