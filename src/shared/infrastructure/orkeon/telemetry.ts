@@ -4,6 +4,7 @@
 // either casing, and the one place that turns the values into numbers and strings.
 
 import type { SessionCost, SessionMetadata, SessionStats, Telemetry } from "../../application/ports.ts";
+import type { SessionStoreInput } from "./runtime-tools.ts";
 import { normalizeModelList } from "../../domain/model-catalog.ts";
 import { pick } from "./tool-results.ts";
 
@@ -23,7 +24,7 @@ function costOf(r: unknown): SessionCost {
 export function createTelemetry(tools: Pick<OrkeonTools, "sessionStore" | "sessionCost" | "sessionStats">): Telemetry {
   return {
     async readMetadata(): Promise<SessionMetadata> {
-      const md = pick(await tools.sessionStore({ operation: "get_metadata" }), "metadata", "Metadata");
+      const md = pick(await tools.sessionStore({ operation: "get_metadata" } satisfies SessionStoreInput), "metadata", "Metadata");
       return {
         title: str(pick(md, "title", "Title")),
         model: str(pick(md, "model", "Model")),
