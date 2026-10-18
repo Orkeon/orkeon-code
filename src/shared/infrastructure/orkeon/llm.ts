@@ -40,8 +40,15 @@ function answerOrThrow(text: string): string {
   return text;
 }
 
-export function createLlm(llm: Pick<LlmFacade, "act" | "complete" | "extract" | "chat">): Llm {
+export function createLlm(
+  llm: Pick<LlmFacade, "act" | "complete" | "extract" | "chat"> & Partial<Pick<LlmFacade, "permissionGate">>,
+): Llm {
   return {
+    permissionGateEnabled() {
+      // Optional on the facade: a runtime before Orkeon #128 (1.0.0-rc.6) has no such field.
+      const on = llm.permissionGate?.enabled;
+      return on === true || on === false ? on : undefined;
+    },
     async act(prompt, request) {
       return answerOrThrow(answerOf(await llm.act(prompt, actOptions(request))));
     },

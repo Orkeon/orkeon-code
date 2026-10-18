@@ -246,6 +246,9 @@ export interface Llm {
   complete(prompt: string, request?: CompleteRequest): Promise<string>;
   /** A JSON answer shaped by `schema`; throws when the reply does not parse. */
   extract(prompt: string, schema: object): Promise<unknown>;
+  /** Whether the host's permission gate checks the tool calls of `act`: false, the mode and the
+   *  session's rules check nothing; undefined on a runtime that does not say (before Orkeon #128). */
+  permissionGateEnabled(): boolean | undefined;
 }
 
 /** The running crew's log. */

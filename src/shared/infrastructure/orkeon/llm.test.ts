@@ -115,3 +115,13 @@ describe("createLlm — complete and extract", () => {
     deepStrictEqual(facade.calls, [{ method: "extract", args: ["review", SCHEMA, undefined] }]);
   });
 });
+
+describe("createLlm — permissionGateEnabled", () => {
+  it("reads the host's gate state, and undefined on a runtime that does not expose it", () => {
+    strictEqual(createLlm(new FakeLlmFacade()).permissionGateEnabled(), undefined);
+    const off = Object.assign(new FakeLlmFacade(), { permissionGate: { enabled: false } });
+    strictEqual(createLlm(off).permissionGateEnabled(), false);
+    const on = Object.assign(new FakeLlmFacade(), { permissionGate: { enabled: true } });
+    strictEqual(createLlm(on).permissionGateEnabled(), true);
+  });
+});

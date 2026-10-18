@@ -317,3 +317,30 @@ describe("runMainLoop — auto-compaction", () => {
     deepStrictEqual(log.lines, [suppressed, suppressed]);
   });
 });
+
+describe("runMainLoop — the host gate's state", () => {
+  const loaded = loadCatalogue({ permissionMode: "default" });
+
+  it("warns the operator once per session when the host says its gate is off", async () => {
+    const { store, llm, log, deps } = setup();
+    llm.gateEnabled = false;
+    const first = await runMainLoop({ prompt: "hi" }, loaded, deps);
+    ok(first.startsWith("⚠ the host's permission gate is off"), first);
+    ok(first.endsWith("\n\nthe answer"), first);
+    strictEqual(store.state.get("gate.warned"), "1");
+    ok(log.lines.some((l) => l.startsWith("warn: ⚠ the host's permission gate is off")), log.lines.join("\n"));
+    strictEqual(await runMainLoop({ prompt: "again" }, loaded, deps), "the answer");
+    ok(store.messages.every((m) => !JSON.stringify(m).includes("permission gate is off")), "the transcript keeps the answers alone");
+  });
+
+  it("says nothing when the gate is on, when the host cannot say, and in bypassPermissions", async () => {
+    for (const gate of [true, undefined]) {
+      const { llm, deps } = setup();
+      llm.gateEnabled = gate;
+      strictEqual(await runMainLoop({ prompt: "hi" }, loaded, deps), "the answer");
+    }
+    const { llm, deps } = setup();
+    llm.gateEnabled = false;
+    strictEqual(await runMainLoop({ prompt: "hi" }, loadCatalogue({ permissionMode: "bypassPermissions" }), deps), "the answer");
+  });
+});

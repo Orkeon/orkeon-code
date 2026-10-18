@@ -133,7 +133,7 @@ export async function runAct(
 /** The ports one turn runs on. */
 export interface MainLoopDeps extends TurnContextDeps, Omit<AutoCompactDeps, "session"> {
   session: SessionIo;
-  llm: Pick<Llm, "act">;
+  llm: Pick<Llm, "act" | "permissionGateEnabled">;
   /** The calls of a prelude and an epilogue, by the registered name the launching command found. */
   tools: Pick<ToolCatalogue, "call">;
 }
@@ -160,6 +160,23 @@ async function runEpilogue(value: unknown, answer: string, deps: Pick<MainLoopDe
   } catch (error) {
     deps.log.warn(`${epilogue.label}: ${epilogue.tool} failed: ${failureText(error)}`);
   }
+}
+
+/** The session state key remembering that the operator was told the gate is off. */
+const GATE_WARNED_KEY = "gate.warned";
+
+/** The line the operator reads ONCE per session when the host says its permission gate
+ *  is off (Orkeon #128): every tool call of the turn runs unchecked, whatever the mode
+ *  promises. Nothing in bypassPermissions, which promises nothing, nor on a host that
+ *  cannot say. Shown above the answer, logged, never stored in the transcript. */
+async function gateWarning(mode: string, deps: Pick<MainLoopDeps, "llm" | "session" | "log">): Promise<string | null> {
+  if (mode === "bypassPermissions" || deps.llm.permissionGateEnabled() !== false) return null;
+  if (await deps.session.readState(GATE_WARNED_KEY) !== null) return null;
+  await deps.session.writeState(GATE_WARNED_KEY, "1");
+  const text = "⚠ the host's permission gate is off (Orkeon:Security:PermissionGate:Enabled is not true): " +
+    `mode '${mode}' and the session's rules check nothing, every tool call runs. /permissions shows it.`;
+  deps.log.warn(text);
+  return text;
 }
 
 /** One turn: the answer, or why there was none. */
@@ -189,6 +206,7 @@ export async function runMainLoop(input: MainLoopInputs, loaded: LoadedCatalogue
     log.warn(`permission rules removed: ${catalogue.deniedByRule.join(", ")}`);
   }
   for (const r of catalogue.inert) log.warn(`permission rule without effect: ${r.reason}`);
+  const warning = await gateWarning(mode, deps);
 
   // B-9 / B-10: the persisted behavior flags, read ONCE per turn so prompt
   // assembly and the act() call cannot disagree about them mid-turn.
@@ -207,5 +225,5 @@ export async function runMainLoop(input: MainLoopInputs, loaded: LoadedCatalogue
   await runEpilogue(input.epilogue, answer, deps);
   // Tail-of-turn: a verbose act() must not bequeath a saturated buffer.
   await autoCompactGuarded(deps);
-  return answer;
+  return warning === null ? answer : `${warning}\n\n${answer}`;
 }
