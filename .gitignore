@@ -31,6 +31,10 @@ __pycache__/
 /todo/
 /temp/
 
+# Documentation site (scripts/build-docs-site.sh)
+/_site/
+/_site-src/
+
 # Local IDE and assistant folders
 /.vs
 /.claude/

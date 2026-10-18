@@ -1,0 +1,7 @@
+# Navigation bar of the documentation site (docfx), built by scripts/build-docs-site.sh. The French
+# entry opens the French home page (README.fr.md); the documentation itself is in English
+# (docs/toc.yml is its navigation).
+- name: Documentation
+  href: docs/
+- name: Français
+  href: README.fr.md

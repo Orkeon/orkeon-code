@@ -1,0 +1,106 @@
+name: docs
+
+# Builds the documentation site with docfx and publishes it to GitHub Pages:
+# https://orkeon.github.io/orkeon-code/
+#
+#   push to main (documentation)   build, deploy
+#   pull request                   build only: a broken link, anchor or toc.yml entry fails here
+#   manual run                     as a push to the branch it is started on (deploys from main only)
+#
+# The site follows main, like the image's :latest. Its pages are the ones GitHub shows — README.md,
+# README.fr.md and docs/ — staged by scripts/build-docs-site.sh, which never modifies them, and
+# built with --warningsAsErrors.
+#
+# GitHub Pages must be enabled once on the repository, by an owner: Settings → Pages → Build and
+# deployment → Source: GitHub Actions. Until then the build job passes and the deploy job fails.
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+      - 'README.md'
+      - 'README.fr.md'
+      - 'docfx.json'
+      - 'toc.yml'
+      - 'scripts/build-docs-site.sh'
+      - 'scripts/docs-site/**'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'README.md'
+      - 'README.fr.md'
+      - 'docfx.json'
+      - 'toc.yml'
+      - 'scripts/build-docs-site.sh'
+      - 'scripts/docs-site/**'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A deployment is never cancelled half-way: only a newer commit of a pull request replaces its run.
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # The docfx the site is built with, here and by hand (scripts/build-docs-site.sh).
+  DOCFX_VERSION: 2.81.0
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up .NET (docfx is a .NET tool)
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install docfx
+        run: |
+          dotnet tool install docfx --version "$DOCFX_VERSION" --tool-path "$RUNNER_TEMP/docfx"
+          echo "DOCFX=$RUNNER_TEMP/docfx/docfx" >> "$GITHUB_ENV"
+
+      # Stages the pages to _site-src/, then `docfx build docfx.json --warningsAsErrors` into _site/.
+      - name: Build the site
+        run: bash scripts/build-docs-site.sh
+
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: _site
+
+  # Deploys from main of this repository only: never from a pull request, never from a fork.
+  deploy:
+    if: >-
+      ${{ github.repository == 'Orkeon/orkeon-code'
+      && github.event_name != 'pull_request'
+      && github.ref == 'refs/heads/main' }}
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Documentation site**: the READMEs and `docs/` are published with docfx to
+  <https://orkeon.github.io/orkeon-code/> on every push to `main` (`.github/workflows/docs.yml`,
+  `scripts/build-docs-site.sh`); a pull request builds the site, and a broken link or anchor fails it.
 - **`/verify [<zone>]`**: the assistant checks the project by running it, following the verification skills
   `/init-verifiers` wrote under `/output/verifiers/` (one zone's, or all of them), and reports as each skill says.
 - **`answer.language`**: `/config set answer.language French` makes the assistant answer in that language unless a
