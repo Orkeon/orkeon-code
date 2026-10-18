@@ -2,7 +2,7 @@
 // `answers` for act(), `completions` for complete(), `extractions` for extract().
 // An Error reply is thrown, as a failing provider (or an unparsable extraction)
 // throws. Every call lands in `acts`, `completes` or `extracts` with the prompt
-// and the settings it received.
+// and the settings it received. `gateEnabled` is what the host says of its gate.
 import type { ActRequest, CompleteRequest, Llm } from "../../src/shared/application/ports.ts";
 
 function reply<T>(replies: readonly T[], index: number): T {
@@ -18,6 +18,11 @@ export class FakeLlm implements Llm {
   acts: Array<{ prompt: string; request: ActRequest }> = [];
   completes: Array<{ prompt: string; override?: CompleteRequest }> = [];
   extracts: Array<{ prompt: string; schema: object }> = [];
+  gateEnabled: boolean | undefined = true;
+
+  permissionGateEnabled(): boolean | undefined {
+    return this.gateEnabled;
+  }
 
   async act(prompt: string, request: ActRequest): Promise<string> {
     this.acts.push({ prompt, request });

@@ -7,10 +7,10 @@
 // does not expose the tool. Every call degrades to a silent no-op.
 
 import type { Progress } from "../../application/ports.ts";
-import type { CalledTools, ProgressReportInput } from "./runtime-tools.ts";
+import type { ProgressReportInput } from "./runtime-tools.ts";
 
 /** `progressReport` is optional: the host may not register it. */
-export function createProgress(tools: Partial<Pick<CalledTools, "progressReport">>): Progress {
+export function createProgress(tools: Partial<Pick<OrkeonTools, "progressReport">>): Progress {
   const send = async (input: ProgressReportInput): Promise<void> => {
     try {
       if (typeof tools.progressReport !== "function") return;

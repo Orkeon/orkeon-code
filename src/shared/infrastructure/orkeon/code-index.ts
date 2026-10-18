@@ -7,11 +7,10 @@ import type { CodeIndex } from "../../application/ports.ts";
 import {
   readGraph, readIndexSummary, readMapEntries, readMapSymbolCount, readPackageSummary,
 } from "../../domain/code-intel-contract.ts";
-import type { CalledTools } from "./runtime-tools.ts";
 
 type CodeIndexTools = "indexStatus" | "indexCodebase" | "codebaseMap" | "dependencyGraph" | "packageSummary";
 
-export function createCodeIndex(tools: Pick<CalledTools, CodeIndexTools>): CodeIndex {
+export function createCodeIndex(tools: Pick<OrkeonTools, CodeIndexTools>): CodeIndex {
   return {
     async rootCount() {
       const status = (await tools.indexStatus({})) as { roots?: unknown } | null | undefined;

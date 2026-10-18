@@ -3,11 +3,10 @@
 // from an unreadable one by its message.
 
 import type { Files } from "../../application/ports.ts";
-import type { CalledTools } from "./runtime-tools.ts";
 import { entryNames, fileContent, pick } from "./tool-results.ts";
 
 export function createFiles(
-  tools: Pick<CalledTools, "fileRead" | "fileWrite" | "directoryRead" | "listMounts">,
+  tools: Pick<OrkeonTools, "fileRead" | "fileWrite" | "directoryRead" | "listMounts">,
 ): Files {
   return {
     async read(path, maxLength) {

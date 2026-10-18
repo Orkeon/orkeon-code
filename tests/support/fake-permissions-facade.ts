@@ -7,6 +7,8 @@ import type { PermissionRulesFacade } from "../../src/commands/.orkeon/orkeon-cl
 export class FakePermissionRulesFacade implements PermissionRulesFacade {
   calls: unknown[][] = [];
   lines: string[] = [];
+  /** What the host says of its gate; a test sets it to the case it exercises. */
+  enabled = true;
 
   allow(...args: [tool: string, argument?: string, pattern?: string]): void {
     this.calls.push(["allow", ...args]);

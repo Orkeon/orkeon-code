@@ -37,6 +37,8 @@ The launcher also looks for `~/.config/orkeon-code/appsettings.json`, or takes `
 Orkeon Code requires Orkeon `1.0.0-rc.6`, the version in `.orkeon-version`. **Until that version is tagged and
 published, only the [source mode](#source-mode-an-orkeon-checkout) works**: the tool mode needs its packages and the
 docker mode its image, and the CI runtime smoke, which pulls that image, fails until then.
+The host gate's state (`/permissions`) and the typed built-in tools need Orkeon's `main` after Orkeon/orkeon#130: on
+`1.0.0-rc.6` the gate state reads unknown and nothing else changes.
 
 The launcher picks the first available mode, in this order, unless `--mode` says otherwise.
 

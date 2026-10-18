@@ -71,11 +71,10 @@ const coder = AgentBuilder()
   })
   .build();
 
-// The budget bounds one turn. Its wall time (seconds) runs from the start of the
-// crew and does NOT stop while a tool call waits for the operator's answer (Orkeon's
-// AgentExecutionBudget keeps one clock; only the engine's ExecutionTimeout pauses
-// for the gate): 30 minutes, the example settings' ExecutionTimeout too, leave an
-// interactive turn room for its questions.
+// The budget bounds one turn. Its wall time (seconds) is the model's own work: the
+// clock stops while a tool call waits for the operator's answer (Orkeon #127; the
+// engine's ExecutionTimeout pauses the same way). 30 minutes, the example settings'
+// ExecutionTimeout too, bound a long interactive turn.
 publishCrew(
   CrewBuilder()
     .name("main-loop")

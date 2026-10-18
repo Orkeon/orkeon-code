@@ -30,9 +30,9 @@ What Orkeon Code does not do yet, in the order we expect to address it. Items ma
 ## Known issues
 
 - A tool result reaches the model cut at 4000 characters, 32,000 for `file_read` (runtime).
-- `web_scrape`, `scrape_element`, `rag_search`, `rag_ingest` and every MCP tool declare no access to Orkeon, so its
-  gate treats them as writes, even when they only read: asked in `default` and `acceptEdits`, refused in `plan`, and
-  in `dontAsk` without an allow rule (runtime; [Permissions](permissions.md)).
+- `http_api` and every MCP tool declare no access to Orkeon, so its gate treats them as writes, even when they only
+  read: asked in `default` and `acceptEdits`, refused in `plan`, and in `dontAsk` without an allow rule (runtime;
+  [Permissions](permissions.md)). The web and RAG tools declare theirs since Orkeon #126.
 - The answer can be printed twice when console streaming is enabled.
 - `/tasks` is a manual to-do list, not a monitor of background work.
 - Some commands only partly do what their names promise: `/summary` (not saved to memory), `/status` (no runtime

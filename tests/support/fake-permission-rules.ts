@@ -2,13 +2,15 @@
 // (a rule already held is kept once, as the host does); every call lands in
 // `calls` ("clear", "add deny file_write"), in order, spelt as the host lists
 // rules. `kept = false` plays a host that keeps no session rules: available()
-// answers false and the other calls throw.
+// answers false and the other calls throw. `hostGate` is what the host says of
+// its gate: on, off, or undefined when it cannot tell (a runtime before Orkeon #128).
 import type { PermissionRules } from "../../src/shared/application/ports.ts";
 import { gateLine, sameCalls } from "../../src/shared/domain/agent-policy/permission.ts";
 import type { PermissionRule } from "../../src/shared/domain/agent-policy/permission.ts";
 
 export class FakePermissionRules implements PermissionRules {
   kept = true;
+  hostGate: boolean | undefined = true;
   rules: PermissionRule[] = [];
   calls: string[] = [];
 
@@ -18,6 +20,10 @@ export class FakePermissionRules implements PermissionRules {
 
   available(): boolean {
     return this.kept;
+  }
+
+  enabled(): boolean | undefined {
+    return this.kept ? this.hostGate : undefined;
   }
 
   add(rule: PermissionRule): void {

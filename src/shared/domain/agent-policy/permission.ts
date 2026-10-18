@@ -20,11 +20,13 @@ export const READ_TOOLS = [
   // without them the model reconstructs a dependency view one flow_trace at a
   // time — dependency_graph/impact_analysis answer it in one call.
   "dependency_graph", "impact_analysis", "package_summary", "sub_graph", "symbol_detail",
-  // RAG (host wired since the hybrid-search work): rag_search reads; rag_ingest
-  // writes to the MEMORY document store, never to disk — read-side by the same
-  // reasoning as index_codebase. Names verified live (/debug-tool-call list,
-  // 60 registered) — an act call whose agent names an unknown tool fails.
-  "rag_search", "rag_ingest",
+  // RAG (host wired since the hybrid-search work): rag_search reads. rag_ingest is
+  // an EDIT (the class below): it writes the knowledge index, never the workspace,
+  // and the host gate classifies it so since Orkeon #126 — refused in plan and
+  // dontAsk, asked in default — so a read-only turn must not be offered it. Names
+  // verified live (/debug-tool-call list, 60 registered) — an act call whose agent
+  // names an unknown tool fails.
+  "rag_search",
 ];
 
 /**
@@ -54,7 +56,7 @@ export const NETWORK_READ_TOOLS = ["http_api", "web_scrape", "scrape_element"];
 const TOOLS_BY_CLASS: Readonly<Record<ToolClass, readonly string[]>> = {
   read: READ_TOOLS,
   network: NETWORK_READ_TOOLS,
-  edit: ["file_write"],
+  edit: ["file_write", "rag_ingest"],
   shell: ["shell_command"],
   extra: [],
 };

@@ -199,6 +199,10 @@ export interface PermissionRules {
   /** Whether the host keeps session rules (orkeon-repl does). When it does not,
    *  the gate decides from the mode alone and every other call throws. */
   available(): boolean;
+  /** Whether the host's gate is on (`Orkeon:Security:PermissionGate:Enabled`): false, no rule
+   *  and no mode is enforced; undefined when the host keeps no session rules or does not say
+   *  (Orkeon 1.0.0-rc.6 has no such field; Orkeon #128 added it). */
+  enabled(): boolean | undefined;
   /** Put a rule in force; a rule already in force is kept once. */
   add(rule: PermissionRule): void;
   /** Remove every rule. */
@@ -242,6 +246,9 @@ export interface Llm {
   complete(prompt: string, request?: CompleteRequest): Promise<string>;
   /** A JSON answer shaped by `schema`; throws when the reply does not parse. */
   extract(prompt: string, schema: object): Promise<unknown>;
+  /** Whether the host's permission gate checks the tool calls of `act`: false, the mode and the
+   *  session's rules check nothing; undefined on a runtime that does not say (before Orkeon #128). */
+  permissionGateEnabled(): boolean | undefined;
 }
 
 /** The running crew's log. */

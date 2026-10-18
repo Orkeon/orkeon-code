@@ -11,15 +11,12 @@
 // `Tools` is typed (OrkeonTools plus the local declarations of orkeon/runtime-tools.ts)
 // and read by the adapters of orkeon/ and by entry points only.
 
-import type { RuntimeTools } from "./orkeon/runtime-tools.ts";
-
 declare const agentBuilder: () => any;
 declare const crewBuilder: () => any;
 
-/** `tools.<camelCase>(args)` namespace bridging IBaseTool implementations. The
- *  runtime registers every tool of CalledTools; the generated OrkeonTools reaches
- *  most of them only through its index signature, hence the one cast. */
-export const Tools: RuntimeTools = tools as RuntimeTools;
+/** `tools.<camelCase>(args)` namespace bridging IBaseTool implementations, as the
+ *  generated typings declare it: every built-in tool typed (Orkeon #125). */
+export const Tools: OrkeonTools = tools;
 /** Domain DSL: build an agent. */
 export const AgentBuilder: () => any = agentBuilder;
 /** Domain DSL: build a crew. */
