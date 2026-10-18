@@ -27,7 +27,8 @@ export DEEPSEEK_API_KEY=...
 
 The example targets DeepSeek; any OpenAI-compatible endpoint, or another provider Orkeon supports (Anthropic
 included), works by changing `Llm:BaseUrl`, `Llm:Model` and `Llm:ApiKeyEnvVar` ([Configuration](configuration.md)).
-The launcher also looks for `~/.config/orkeon-code/appsettings.json`, or takes `--settings FILE`.
+The launcher also looks for `~/.config/orkeon-code/appsettings.json`, or takes `--settings FILE`. A model on this
+machine instead, no key: `config/appsettings.ollama.example.json`, on Ollama ([Configuration](configuration.md#the-llm)).
 
 ## 3. Choose a runtime
 
@@ -151,6 +152,8 @@ session mode (`/mode`) and the permission rules are kept in memory and end with 
 - **No `audio` line in the banner, or `no registered tool 'transcribe_audio'`**: the launcher says why at start
   (uv missing, a `whisper` server in the settings file, docker mode). A server that cannot start costs one `fail:` line
   naming it; `bash scripts/whisper-mcp-smoke.sh` runs it alone ([mcp/whisper/README.md](../mcp/whisper/README.md#troubleshooting)).
+  `MCP server 'whisper' could not be connected: no answer within 30 s` means the smoke script above was skipped:
+  the first `uv run` resolves the server's environment in minutes, and the REPL waits 30 s.
 - **A command is missing**: the loader keeps at most `Orkeon:Cli:ScriptCommands:MaxScripts` commands (200 by
   default). `bash scripts/smoke-runtime.sh` checks that every command loads.
 - **The REPL refuses a mount and exits at start**: it refuses a mount on `/sandbox`, `/credentials`,

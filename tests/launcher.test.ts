@@ -36,8 +36,10 @@ describe("the launchers enable the permission gate", () => {
   });
 
   it("the example settings turn it on", () => {
-    const settings = JSON.parse(read("config/appsettings.example.json"));
-    strictEqual(settings.Orkeon.Security.PermissionGate.Enabled, true);
+    for (const file of ["config/appsettings.example.json", "config/appsettings.ollama.example.json", "config/appsettings.ollama-whisper.example.json"]) {
+      const settings = JSON.parse(read(file));
+      strictEqual(settings.Orkeon.Security.PermissionGate.Enabled, true, file);
+    }
   });
 });
 

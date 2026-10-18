@@ -29,6 +29,13 @@ Z.AI, Moonshot, local servers...): the list and their options are in the
 [Orkeon LLM providers documentation](https://github.com/Orkeon/orkeon/blob/main/docs/architecture/llm-providers.md).
 An option a provider cannot honour produces a warning, never a silent drop.
 
+A model on this machine: [`config/appsettings.ollama.example.json`](../config/appsettings.ollama.example.json) is
+the example on [Ollama](https://ollama.com) serving `qwen3.5:2b` (`ollama pull qwen3.5:2b` first), no key and
+nothing leaving the machine; Orkeon recognises Ollama by its port, 11434. Ollama serves every model with a window
+of 4,096 tokens unless its environment says otherwise, and Orkeon does not widen it per request: the system prompt
+of a turn is about 2,250 tokens before the tool schemas and the conversation, so set `OLLAMA_CONTEXT_LENGTH=16384`
+on the Ollama service, or the model silently loses its instructions and its tools.
+
 The agent calls tools through every provider: the runtime's tool loop (`ctx.llm.act`) reads the tool calls of the
 Anthropic and OpenAI formats, runs every call of a model turn one after the other (not in parallel), each through the
 permission gate, and sends the results back in the provider's tool protocol. A tool result reaches the model cut at
@@ -216,9 +223,19 @@ nothing. Piper is GPL-3.0: the server runs it as a separate process, from an opt
   is that declaration, for a backend or folders of your own; it then carries everything: for `/say`, `--extra` and
   `tts` in its `Args`, for `/voice`, `--extra` and `voice` too, with `WHISPER_MICROPHONE` and `WHISPER_SPEAKER` at
   `1` in its `Env`. Without them, `/say` answers that Piper is not installed and `/voice` that the microphone is off.
+  Its two folders must exist before the REPL starts: the launcher creates `<state>/transcripts` itself, a
+  declaration by hand creates nothing.
+  [config/appsettings.ollama-whisper.example.json](../config/appsettings.ollama-whisper.example.json) is the whole
+  machine in one file: that declaration on an NVIDIA GPU with Piper, the microphone and the speaker, and the `Llm`
+  section of the Ollama example.
 - An environment that already declares one (`ORKEON_MCP__Servers__whisper__*`, docker mode's HTTP declaration
   for instance) wins the same way, with the same warning.
 - Without uv on the `PATH`, the launcher warns and starts without the server.
+- The REPL gives a server 30 s to start and answer, and the first `uv run` of `mcp/whisper` resolves its
+  environment first: one to two minutes, 2.5 GB more with the `cuda` extra. Run `bash scripts/whisper-mcp-smoke.sh`
+  once beforehand, with the `WHISPER_DEVICE` the REPL will use; otherwise the first REPL starts without the server
+  (`MCP server 'whisper' could not be connected: no answer within 30 s`), and the next ones too until the
+  environment is resolved.
 - In docker mode, a `Stdio` server runs inside the container, which has neither uv nor the model: the variable is
   ignored there, with a warning. The server can run on the host over HTTP instead, for files transcribed within
   100 s ([mcp/whisper/README.md](../mcp/whisper/README.md#docker-mode-the-server-on-the-host)).

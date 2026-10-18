@@ -3,6 +3,8 @@
 # are not translated: their entries open the English page and say so.
 - name: Premiers pas
   href: getting-started.md
+- name: Tutoriel WSL
+  href: wsl-tutorial.md
 - name: Configuration
   href: configuration.md
 - name: Permissions

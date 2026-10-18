@@ -28,7 +28,8 @@ export DEEPSEEK_API_KEY=...
 L'exemple vise DeepSeek ; tout point d'accès compatible OpenAI, ou un autre fournisseur pris en charge par Orkeon
 (Anthropic compris), fonctionne en changeant `Llm:BaseUrl`, `Llm:Model` et `Llm:ApiKeyEnvVar`
 ([Configuration](configuration.md)). Le lanceur cherche aussi `~/.config/orkeon-code/appsettings.json`, ou prend
-`--settings FILE`.
+`--settings FILE`. Un modèle sur cette machine à la place, sans clé : `config/appsettings.ollama.example.json`, sur
+Ollama ([Configuration](configuration.md#le-llm)).
 
 ## 3. Choisir un runtime
 
@@ -156,6 +157,8 @@ REPL.
   démarrage (uv absent, un serveur `whisper` dans le fichier de settings, mode docker). Un serveur qui ne peut pas
   démarrer coûte une ligne `fail:` qui le nomme ; `bash scripts/whisper-mcp-smoke.sh` le lance seul
   ([mcp/whisper/README.md](../../mcp/whisper/README.md#troubleshooting)).
+  `MCP server 'whisper' could not be connected: no answer within 30 s` veut dire que le script smoke ci-dessus a
+  été sauté : le premier `uv run` résout l'environnement du serveur en quelques minutes, et le REPL attend 30 s.
 - **Une commande manque** : le chargeur garde au plus `Orkeon:Cli:ScriptCommands:MaxScripts` commandes (200 par
   défaut). `bash scripts/smoke-runtime.sh` vérifie que chaque commande se charge.
 - **Le REPL refuse un montage et quitte au démarrage** : il refuse un montage sur `/sandbox`, `/credentials`,

@@ -31,6 +31,14 @@ curl -LsSf https://astral.sh/uv/install.sh | sh      # once
 bash scripts/whisper-mcp-smoke.sh                     # resolves the environment, downloads the tiny model, transcribes a 5 s fixture
 ```
 
+Run the smoke script before the first REPL, with the device the REPL will use (`WHISPER_DEVICE=cuda`
+on a GPU) and `--tts` for speech output: Orkeon gives an MCP server 30 s to start and answer the handshake,
+and the first `uv run` of this project resolves its environment first, one to two minutes, 2.5 GB more with
+the `cuda` extra. Started by the REPL at that moment, the server misses the 30 s, the REPL goes on without
+it (`MCP server 'whisper' could not be connected: no answer within 30 s`, then
+`no registered tool 'whisper_info'`), and it misses them again at the next start. Once resolved, the
+server starts in a few seconds.
+
 The first transcription with a model downloads it (`small`: 462 MB, `medium`: 1.5 GB, from the
 Hugging Face hub) and takes minutes; `whisper_info` says whether the model is on disk, and the smoke
 script with `WHISPER_MODEL=small` pre-downloads it.
@@ -39,7 +47,9 @@ script with `WHISPER_MODEL=small` pre-downloads it.
 
 In the settings file the launcher passes to the REPL (`config/appsettings.local.json`), two
 sections. The two folders appear twice and must match: as the physical side of a mount, and in `Env`.
-The agents know `/audio` and `/transcripts`; the server knows the folders.
+The agents know `/audio` and `/transcripts`; the server knows the folders. Both must exist before the REPL
+starts (`mkdir -p ~/audio ~/transcripts`): the launcher creates `<state>/transcripts` itself when it declares
+the server, a declaration by hand creates nothing.
 
 ```json
 {
@@ -53,7 +63,7 @@ The agents know `/audio` and `/transcripts`; the server knows the folders.
       "whisper": {
         "Transport": "Stdio",
         "Command": "/home/me/.local/bin/uv",
-        "Args": [ "run", "--project", "/home/me/src/orkeon-code/mcp/whisper", "/home/me/src/orkeon-code/mcp/whisper/whisper_mcp.py" ],
+        "Args": [ "run", "--project", "/home/me/orkeon-code/mcp/whisper", "/home/me/orkeon-code/mcp/whisper/whisper_mcp.py" ],
         "Env": {
           "WHISPER_AUDIO_DIR": "/home/me/audio",
           "WHISPER_OUT_DIR": "/home/me/transcripts",
@@ -257,6 +267,11 @@ transcription (and by `whisper_info`, to name the model's repository), and the t
   mcp/whisper` (the lock pins 1.x), not with a bare `--with mcp`.
 - `Failed to start MCP server process`: `Command` is not on the REPL's `PATH`: write the full path of
   `uv`.
+- `MCP server 'whisper' could not be connected: no answer within 30 s` at the REPL's start, then
+  `no registered tool 'whisper_info'`: the environment of `mcp/whisper` was not resolved yet, and its first
+  `uv run` takes minutes where Orkeon gives a server 30 s. Resolve it once outside the REPL:
+  `bash scripts/whisper-mcp-smoke.sh` with the same `WHISPER_DEVICE`, or the declared `Command` and `Args` run
+  by hand with `< /dev/null` (the server quits when its input closes). Then start the REPL again.
 - `Library libcublas.so.12 is not found`: `WHISPER_DEVICE=cuda` without the `cuda` extra. The launchers
   add it on `WHISPER_DEVICE=cuda`; a server declared by hand needs `--extra cuda` in its `Args`.
 - `no microphone access (PortAudio library not found)`: the server runs without the `voice` extra, or Linux lacks
