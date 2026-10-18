@@ -17,7 +17,8 @@
     },
     "fileMetadata": {
       "_lang": {
-        "_site-src/index.fr.md": "fr"
+        "_site-src/index.fr.md": "fr",
+        "_site-src/docs/fr/**": "fr"
       },
       "_appTitle": {
         "_site-src/index.md": "",
