@@ -58,6 +58,13 @@ describe("sheetAnchorPaths", () => {
     ]);
   });
 
+  it("keeps a path without a slash or an extension (Makefile), so two batches anchoring it share it", () => {
+    const sheet = (id: string) => `# X-PLAN-${id} — x\n\n## TDD sequence\n\n### Step 1 — a\n\n## Anchors\n\n| Step | T | D | P |\n|---|---|---|---|\n| 1 — a | \`t/${id}.test.ts\` — to create | — | \`Makefile\` — existing |\n`;
+    ok(sheetAnchorPaths(sheet("F1")).includes("Makefile"));
+    deepStrictEqual(batchWaves([b("F1", sheetAnchorPaths(sheet("F1"))), b("F2", sheetAnchorPaths(sheet("F2")))]),
+      { ok: true, waves: [["F1"], ["F2"]] });
+  });
+
   it("cuts ./ and a :line", () => {
     strictEqual(barePath("./src/a.ts:40"), "src/a.ts");
   });

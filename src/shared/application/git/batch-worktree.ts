@@ -6,7 +6,8 @@
 import type { Shell } from "../ports.ts";
 import { shellUnsafe } from "../../domain/git/close.ts";
 import {
-  gitBranchDelete, gitBranchExists, gitCommitsNotIn, gitIsMergedInto, gitWorktreeAdd, gitWorktreeRemove, gitWorktreeStatus,
+  gitBranchDelete, gitBranchExists, gitCommitsNotIn, gitIsIgnored, gitIsMergedInto, gitWorktreeAdd, gitWorktreeHead,
+  gitWorktreeRemove, gitWorktreeStatus,
   worktreePlace,
 } from "../../domain/git/worktree.ts";
 import type { WorktreePlace } from "../../domain/git/worktree.ts";
@@ -20,8 +21,9 @@ export type WorktreeOutcome =
 
 const refused = (line: string): { ok: false; line: string } => ({ ok: false, line: `refused: ${line}` });
 
+// A leading `-` would be read by git as an option (`--detach` for a base).
 function unsafeOf(values: readonly string[]): string | null {
-  const bad = values.filter(shellUnsafe);
+  const bad = values.filter((v) => shellUnsafe(v) || v.startsWith("-"));
   return bad.length === 0 ? null : `${bad.map((v) => `'${v}'`).join(", ")} cannot go through the shell`;
 }
 
@@ -35,6 +37,11 @@ export async function createBatchWorktree(
   if (unsafe !== null) return refused(unsafe);
   const exists = await runGit(shell, gitBranchExists(req.branch));
   if (exists.exitCode === 0) return refused(`branch ${req.branch} exists already: remove it or choose another name`);
+  // Not ignored, the worktree would sit in the checkout's own status as an embedded repository.
+  const ignored = await runGit(shell, gitIsIgnored(place.path));
+  if (ignored.exitCode !== 0) {
+    return refused(`${place.path} is not ignored by git: add \`.orkeon/\` to .gitignore or .git/info/exclude first`);
+  }
   const add = await runGit(shell, gitWorktreeAdd(place.path, req.branch, req.base));
   if (add.exitCode !== 0) return { ok: false, line: `worktree ${place.path} not created: ${gitReason(add)}` };
   return { ok: true, place, line: `✓ worktree ${place.path} on ${req.branch}, from ${req.base}` };
@@ -52,6 +59,11 @@ export async function removeBatchWorktree(
   if (status.exitCode !== 0) return refused(`the state of ${place.path} could not be read (${gitReason(status)})`);
   const changed = status.stdout.split("\n").filter((l) => l.trim() !== "").length;
   if (changed > 0) return refused(`${place.path} holds ${changed} uncommitted or untracked file(s): commit or discard them first`);
+  // The worktree must stand on its branch: commits on another HEAD would go with it, the merge check not seeing them.
+  const head = await runGit(shell, gitWorktreeHead(place.path));
+  if (head.exitCode !== 0 || head.stdout.trim() !== `refs/heads/${req.branch}`) {
+    return refused(`${place.path} is not on ${req.branch} (${head.exitCode === 0 ? head.stdout.trim() : "a detached HEAD"}): check it out there first`);
+  }
   const merged = await runGit(shell, gitIsMergedInto(req.branch, req.into));
   if (merged.exitCode === 1) {
     const count = await runGit(shell, gitCommitsNotIn(req.branch, req.into));

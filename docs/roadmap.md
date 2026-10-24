@@ -42,7 +42,7 @@ What Orkeon Code does not do yet, in the order we expect to address it. Items ma
   `documented_in`, `documents_of` and the Markdown intent operations wait for a crew that places text in a section.
 - Batches run in parallel, each in its own worktree (runtime): `/dev-batches` runs them one after the other, and
   refuses `--concurrency` above 1. The waves of batches with disjoint anchors, the worktrees under
-  `.orkeon/worktrees/` and the fast-forward merge of a VALID batch are ready; two batches at once wait for a working
+  `.orkeon/worktrees/` and the fast-forward merge of a VALID batch exist, not yet wired into a run; two batches at once wait for a working
   root a script agent can be given (`AgentBuilder().workingRoot(path)`), or both would write the same `/workspace`.
 - A plan/task list the loop maintains (`/tasks` is a manual list today).
 - Several sessions at once.

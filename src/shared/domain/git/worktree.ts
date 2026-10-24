@@ -26,6 +26,8 @@ export function worktreePlace(name: string): WorktreePlace | null {
 export const gitBranchExists = (branch: string): string => `git rev-parse --verify --quiet ${shellQuote(`refs/heads/${branch}`)}`;
 export const gitWorktreeAdd = (path: string, branch: string, base: string): string =>
   `git worktree add -b ${shellQuote(branch)} ${shellQuote(path)} ${shellQuote(base)}`;
+export const gitIsIgnored = (path: string): string => `git check-ignore -q ${shellQuote(path)}`;
+export const gitWorktreeHead = (path: string): string => `git -C ${shellQuote(path)} symbolic-ref -q HEAD`;
 export const gitWorktreeStatus = (path: string): string => `git -C ${shellQuote(path)} status --porcelain --untracked-files=all`;
 export const gitIsMergedInto = (branch: string, into: string): string =>
   `git merge-base --is-ancestor ${shellQuote(`refs/heads/${branch}`)} ${shellQuote(into)}`;

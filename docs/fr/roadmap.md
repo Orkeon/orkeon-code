@@ -46,7 +46,7 @@ demandent d'abord un changement dans [Orkeon](https://github.com/Orkeon/orkeon).
   attente d'un crew qui place du texte dans une section.
 - Des lots exécutés en parallèle, chacun dans son worktree (runtime) : `/dev-batches` les exécute l'un après
   l'autre, et refuse `--concurrency` au-delà de 1. Les vagues de lots aux ancres disjointes, les worktrees sous
-  `.orkeon/worktrees/` et la fusion en avance rapide d'un lot VALID sont prêts ; deux lots à la fois attendent une
+  `.orkeon/worktrees/` et la fusion en avance rapide d'un lot VALID existent, pas encore branchés sur une exécution ; deux lots à la fois attendent une
   racine de travail qu'un agent de script puisse recevoir (`AgentBuilder().workingRoot(path)`), sans quoi les deux
   écriraient le même `/workspace`.
 - Une liste de plan ou de tâches que la boucle tient à jour (`/tasks` est une liste manuelle aujourd'hui).

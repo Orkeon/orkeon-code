@@ -25,17 +25,16 @@ export function barePath(path: string): string {
   return path.trim().replace(/^(\.\/)+/, "").replace(/:\d+$/, "");
 }
 
-const LOOKS_LIKE_PATH = /\/|\.[A-Za-z0-9]+$/;
-
-/** The paths of a sheet's `## Anchors`: its test, doubles and production columns, bare, unique, sorted. */
+/** The paths of a sheet's `## Anchors`: its test, doubles and production columns, bare, unique, sorted. A doubles
+ *  part's note in parentheses (`(\`writes\` to add)`) names a member, not a path. */
 export function sheetAnchorPaths(sheet: string): string[] {
   const out = new Set<string>();
   for (const step of parseImplementSheet(sheet).steps) {
     if (step.anchor === null) continue;
-    const doubles = step.anchor.doubles.split(/[;(]/).flatMap((part) => anchorRefs(part));
+    const doubles = step.anchor.doubles.split(";").flatMap((part) => anchorRefs(part.split("(")[0]));
     for (const ref of [...step.anchor.testFiles, ...step.anchor.production, ...doubles]) {
       const path = barePath(ref.path);
-      if (path !== "" && LOOKS_LIKE_PATH.test(path)) out.add(path);
+      if (path !== "") out.add(path);
     }
   }
   return [...out].sort();
