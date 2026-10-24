@@ -21,25 +21,20 @@ dev="$root/.orkeon/dev"
 states=$(find "$dev" -mindepth 2 -maxdepth 2 -type f -name 'state-F*.md' -mtime -7 2>/dev/null | sort)
 logs=$(find "$dev" -mindepth 2 -maxdepth 2 -type f -name 'batches-state.md' 2>/dev/null | sort)
 
-said=0
-say_header() {
-  if [ "$said" = 0 ]; then
-    echo "Dev work in progress in this project (Orkeon Code's state under .orkeon/dev/):"
-    said=1
-  fi
-}
-
-for f in $states; do
+body=$(
+printf '%s\n' "$states" | while IFS= read -r f; do
+  [ -n "$f" ] || continue
   shown=${f#"$root"/}
   at=$(sed -n '1s/^# State of batch .* written at \([^ ]*\) before .*/\1/p' "$f")
   open=$(sed -n 's/^First open: //p' "$f" | head -n 1)
   [ -n "$open" ] || open="no open step"
-  say_header
   echo "- state of a batch: $shown (written ${at:-at an unknown time}); first open step: $open. Read it before going on with that batch."
 done
 
-for f in $logs; do
+printf '%s\n' "$logs" | while IFS= read -r f; do
+  [ -n "$f" ] || continue
   open=$(awk '
+    { sub(/\r$/, "") }
     /^- [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] [0-9][0-9]:[0-9][0-9] closed[ \t]*$/ { closed = NR; next }
     /^- [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] [0-9][0-9]:[0-9][0-9] F[0-9]+ (launched|relaunched|returned|merged|stopped|stall)([ \t].*)?$/ {
       if (!($4 in at)) order[++n] = $4
@@ -54,7 +49,10 @@ for f in $logs; do
       print out
     }' "$f")
   [ -n "$open" ] || continue
-  say_header
   echo "- open batch(es) in ${f#"$root"/}: $open"
 done
+)
+[ -n "$body" ] || exit 0
+echo "Dev work in progress in this project (Orkeon Code's state under .orkeon/dev/):"
+printf '%s\n' "$body"
 exit 0

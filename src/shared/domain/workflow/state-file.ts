@@ -58,6 +58,15 @@ export interface StateStep {
   open: boolean;
 }
 
+/** A step title, an event line: cut to this many characters, so a sheet cannot flood the prompt. */
+export const MAX_STATE_LINE_CHARS = 160;
+/** At most this many event lines go into the file (the last ones). */
+export const MAX_EVENT_LINES = 40;
+
+export function boundLine(line: string): string {
+  return line.length <= MAX_STATE_LINE_CHARS ? line : line.slice(0, MAX_STATE_LINE_CHARS - 1) + "…";
+}
+
 /** The steps of a sheet that carry a TDD line, in order. */
 export function sheetStateSteps(sheet: BatchSheet): StateStep[] {
   const box = (ticked: boolean): string => (ticked ? "[x]" : "[ ]");
@@ -66,7 +75,7 @@ export function sheetStateSteps(sheet: BatchSheet): StateStep[] {
     .map((s) => {
       const t = s.tdd!;
       return {
-        label: `Step ${s.number} — ${s.title}`,
+        label: boundLine(`Step ${s.number} — ${s.title}`),
         tdd: `RED ${box(t.red)} GREEN ${box(t.green)} COST ${box(t.cost)}`,
         open: !(t.red && t.green && t.cost),
       };
@@ -114,14 +123,16 @@ export function renderStateFile(f: StateFacts): string {
   for (const s of f.steps) out.push(`- ${s.label}: ${s.tdd}`);
   out.push("", first === null ? "No open step: every TDD line is ticked." : `First open: ${first}`, "");
   out.push(`## Events of ${f.phase} in \`${batchesStatePath(f.code)}\``, "");
-  out.push(...(f.events.length === 0 ? ["(none)"] : f.events), "");
+  const events = f.events.slice(-MAX_EVENT_LINES).map(boundLine);
+  if (f.events.length > MAX_EVENT_LINES) out.push(`(${f.events.length - MAX_EVENT_LINES} earlier line(s) left out)`);
+  out.push(...(events.length === 0 ? ["(none)"] : events), "");
   out.push(`## Reports recorded for ${f.phase}`, "");
-  out.push(...(f.reports.length === 0 ? ["(none)"] : f.reports.map((r) => `- ${r}`)), "");
+  out.push(...(f.reports.length === 0 ? ["(none)"] : f.reports.map((r) => `- ${boundLine(r)}`)), "");
   out.push("## Working tree (`git status --short`)", "");
   if ("note" in f.tree) {
     out.push(`(${f.tree.note})`);
   } else {
-    const shown = f.tree.lines.slice(0, MAX_TREE_LINES);
+    const shown = f.tree.lines.slice(0, MAX_TREE_LINES).map(boundLine);
     out.push("```text", ...(shown.length === 0 ? ["(clean)"] : shown), "```");
     if (f.tree.lines.length > MAX_TREE_LINES) out.push(`(${f.tree.lines.length - MAX_TREE_LINES} more line(s) left out)`);
   }

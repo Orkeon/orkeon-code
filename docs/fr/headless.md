@@ -94,24 +94,28 @@ Chaque crew se lance ainsi ; son `crew.ork.ts` dit dans son en-tête quels `inpu
 `scripts/run-crew.sh` (la variable `DEV_RUN_RUNNER` nomme une autre commande qui prend les mêmes arguments, comme
 `dotnet run --project …` tant que l'outil n'est pas sur NuGet). La sortie de chaque étape va dans
 `.orkeon/dev/<code>/runs/<crew>-<n>.log` dans le projet, jamais en entier au terminal, qui en montre la dernière ligne.
-Après chaque étape, le script lit la dernière ligne du journal d'événements du code de travail,
-`.orkeon/dev/<code>/batches-state.md` :
+Après chaque étape, le script lit la dernière ligne du journal d'événements du code de travail :
+`.orkeon/dev/<code>/batches-state.md`, ou le fichier du projet que nomme `--log`. Aucun crew n'écrit encore le journal
+propre à Code ; d'ici là, nommez le `<CODE>-BATCHES-STATE.md` du code de travail, sans quoi chaque chaîne s'arrête après
+sa première étape (rien n'a bougé) :
 
 ```bash
 ORKEON_CODE_WORKSPACE=~/src/app bash scripts/dev-run.sh dev-verify demo \
-  --inputs '{"batch":"F2","plan":"demo"}' --max-steps 10 --wait 60 --retries 2
+  --inputs '{"batch":"F2","plan":"demo"}' --log workbench/demo/DEMO-BATCHES-STATE.md --max-steps 10 --wait 60 --retries 2
 ```
 
 - `closed` : les lots sont clos, sortie `0` ;
-- une ligne avec `BLOCKED` ou `GAPS` : un humain décide, sortie `3` ;
+- un événement dont le détail commence par `BLOCKED` ou `GAPS` : un humain décide, sortie `3` ;
 - la même ligne qu'avant l'étape : rien n'a bougé, sortie `4`, jamais de boucle ;
 - `--max-steps` (10 par défaut) atteint : sortie `5` ;
 - une étape qui sort avec `1` ou `130` arrête la chaîne avec ce code ; une qui sort avec `2` et une limite de débit dans
   son journal (`429`, `rate limit`) est relancée après `--wait` secondes, `--retries` fois, puis l'arrête avec `2`.
 
-Les entrées par défaut sont `{"code":"<code>"}`. Chaque étape est un nouveau processus à la session vide : ce dont une
-étape a besoin (le lot, le plan, les règles de l'étape) voyage dans ses entrées ou vit dans les fichiers du code de
-travail.
+`--inputs` est obligatoire : les entrées propres au crew, que son `crew.ork.ts` nomme dans son en-tête. Chaque étape est
+un nouveau processus à la session vide : ce dont une étape a besoin (le lot, le plan) voyage dans ses entrées ou vit
+dans les fichiers du code de travail. Un crew lancé ainsi ne reçoit rien de ce que sa commande fait d'abord : la
+vérification par `/dev-verify` que la garde est active et ses jeux de règles ne s'appliquent pas ; donnez donc à
+l'exécution un fichier de settings dont vous avez choisi la garde et les règles.
 
 ## Planifié, dans un job de CI
 

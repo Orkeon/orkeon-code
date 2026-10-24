@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import {
-  MAX_TREE_LINES, batchesStatePath, firstOpenStep, formatActiveWorkflow, parseActiveWorkflow, renderStateFile,
+  MAX_EVENT_LINES, MAX_STATE_LINE_CHARS, MAX_TREE_LINES, batchesStatePath, boundLine, firstOpenStep, formatActiveWorkflow, parseActiveWorkflow, renderStateFile,
   sheetStateSteps, stateFilePath,
 } from "./state-file.ts";
 import type { StateFacts } from "./state-file.ts";
@@ -77,5 +77,16 @@ describe("renderStateFile", () => {
     ok(text.includes(`?? f${MAX_TREE_LINES - 1}\n\`\`\`\n(2 more line(s) left out)`));
     ok(!text.includes(`?? f${MAX_TREE_LINES}\n`));
     ok(renderStateFile({ ...facts, tree: { note: "git status failed: fatal" } }).includes("(git status failed: fatal)"));
+  });
+
+  it("bounds a long step title, a long event line and the number of events", () => {
+    const long = "x".repeat(400);
+    const steps = [{ label: boundLine(`Step 1 — ${long}`), tdd: "RED [ ] GREEN [ ] COST [ ]", open: true }];
+    strictEqual(steps[0].label.length, MAX_STATE_LINE_CHARS);
+    const events = Array.from({ length: MAX_EVENT_LINES + 5 }, (_, i) => `- 2026-10-24 09:00 F2 launched ${i}${i === MAX_EVENT_LINES + 4 ? long : ""}`);
+    const text = renderStateFile({ ...facts, steps, events });
+    ok(text.includes("(5 earlier line(s) left out)"));
+    ok(!text.includes("F2 launched 4\n") && text.includes("F2 launched 5\n"));
+    ok(text.split("\n").every((l) => l.length <= MAX_STATE_LINE_CHARS + 40), "no line runs unbounded");
   });
 });

@@ -69,4 +69,15 @@ describe("scripts/session-start.sh", () => {
       ".orkeon/dev/demo/batches-state.md": "- 2026-10-21 08:30 F1 launched\n- 2026-10-21 09:10 closed\n",
     }, (root) => strictEqual(run(root).stdout, ""), [".orkeon/dev/demo/state-F2.md"]);
   });
+
+  it("reads a log written with CRLF line ends, and prints its header once", () => {
+    withTree({
+      ".orkeon/dev/demo/state-F2.md": STATE,
+      ".orkeon/dev/other/batches-state.md": "- 2026-10-21 08:30 F4 launched\r\n",
+    }, (root) => {
+      const out = run(root).stdout;
+      strictEqual(out.split("Dev work in progress").length, 2, out);
+      strictEqual(out.endsWith("- open batch(es) in .orkeon/dev/other/batches-state.md: F4\n"), true, out);
+    });
+  });
 });

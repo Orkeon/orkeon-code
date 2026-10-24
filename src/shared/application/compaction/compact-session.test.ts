@@ -213,7 +213,7 @@ describe("compactSession: step 0, the state of the dev batch in progress", () =>
     const outcome = await compactSession({ force: false }, deps);
     deepStrictEqual(calls, [{ trigger: "auto", extracted: 0 }]);
     deepStrictEqual(outcome, { status: "compacted", before: 4, after: 5, usedTokens: ABOVE.used, state: { path: WRITTEN.path } });
-    deepStrictEqual(deps.session.messages.at(-1), buildRestoredStateMessage(WRITTEN.path, WRITTEN.firstOpen));
+    deepStrictEqual(deps.session.messages.at(-1), buildRestoredStateMessage(`/workspace/${WRITTEN.path}`, WRITTEN.firstOpen));
     ok(deps.log.lines.includes(`info: state of the batch in progress written to ${WRITTEN.path}`), JSON.stringify(deps.log.lines));
   });
 

@@ -123,7 +123,7 @@ export async function compactSession(
         note(log, `post-compaction restore: ${skills.length} skill(s) re-injected`);
       }
       // 6. The pointer to the state file written at step 0, last: what to read first.
-      if (state !== null && "path" in state) buffer.push(buildRestoredStateMessage(state.path, state.firstOpen));
+      if (state !== null && "path" in state) buffer.push(buildRestoredStateMessage(`/workspace/${state.path}`, state.firstOpen));
       await session.writeMessages(buffer);
 
       return withState({ status: "compacted", before: raw.stored.length, after: buffer.length, usedTokens: used });

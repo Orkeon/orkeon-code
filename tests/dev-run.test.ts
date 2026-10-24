@@ -32,7 +32,8 @@ function run(plan: string[], args: string[] = []) {
     spawnSync("mkdir", ["-p", project]);
     writeFileSync(join(dir, "plan"), plan.join("\n") + "\n");
     writeFileSync(join(dir, "runner.sh"), RUNNER, { mode: 0o755 });
-    const r = spawnSync("bash", [SCRIPT, "dev-verify", "demo", "--wait", "0", ...args], {
+    const withInputs = args.includes("--inputs") ? args : ["--inputs", `{"code":"demo"}`, ...args];
+    const r = spawnSync("bash", [SCRIPT, "dev-verify", "demo", "--wait", "0", ...withInputs], {
       encoding: "utf-8",
       env: { ...process.env, DEV_RUN_RUNNER: join(dir, "runner.sh"), FAKE_DIR: dir, ORKEON_CODE_WORKSPACE: project },
     });
@@ -60,17 +61,26 @@ describe("scripts/dev-run.sh", () => {
     strictEqual(r.firstLog, "working\nstep one done\n");
     ok(r.stdout.includes("  last line: step one done"), r.stdout);
     ok(!r.stdout.includes("working"), "the whole output stays in the log");
-    strictEqual(r.firstArgs, `src/crews/dev-verify/crew.ork.ts --inputs {"code":"demo"}`);
+    ok(r.firstArgs.endsWith(`/src/crews/dev-verify/crew.ork.ts --inputs {"code":"demo"}`), r.firstArgs);
   });
 
   it("passes the inputs given", () => {
     const r = run(["0|- 2026-10-24 09:30 closed|"], ["--inputs", `{"batch":"F2"}`]);
-    strictEqual(r.firstArgs, `src/crews/dev-verify/crew.ork.ts --inputs {"batch":"F2"}`);
+    strictEqual(r.status, 0, r.stdout + r.stderr);
+    ok(r.firstArgs.endsWith(`/src/crews/dev-verify/crew.ork.ts --inputs {"batch":"F2"}`), r.firstArgs);
   });
 
   it("stops with 3 when a human must decide (GAPS or BLOCKED)", () => {
     strictEqual(run(["0|- 2026-10-24 09:00 F1 returned GAPS|"]).status, 3);
     strictEqual(run(["0|- 2026-10-24 09:00 F1 stopped BLOCKED|"]).status, 3);
+    strictEqual(run(["0|- 2026-10-24 09:00 F3 launched after GAPS fix|", "0|- 2026-10-24 09:30 closed|"]).status, 0);
+  });
+
+  it("reads the event log --log names, inside the project only", () => {
+    const r = run(["0|- 2026-10-24 09:30 closed|"], ["--log", "workbench/demo/DEMO-BATCHES-STATE.md"]);
+    strictEqual(r.status, 4, "the fake writes Code's own log, not the one named: nothing moved there");
+    strictEqual(run(["0||"], ["--log", "/etc/passwd"]).status, 64);
+    strictEqual(run(["0||"], ["--log", "../x.md"]).status, 64);
   });
 
   it("stops with 4 when a step moved nothing, never looping", () => {
@@ -90,7 +100,7 @@ describe("scripts/dev-run.sh", () => {
     const limited = run(["2||rate limit", "2||rate limit", "2||rate limit", "0||"], ["--retries", "2"]);
     strictEqual(limited.status, 2);
     strictEqual(limited.count, 3);
-    const other = run(["2||the provider refused the key", "0||"]);
+    const other = run(["2||the provider refused the key after 1429 ms", "0||"]);
     strictEqual(other.status, 2);
     strictEqual(other.count, 1);
   });
@@ -107,11 +117,12 @@ describe("scripts/dev-run.sh", () => {
   });
 
   it("refuses bad arguments with 64, running nothing", () => {
-    for (const args of [["--max-steps", "x"], ["--bogus"], ["--max-steps", "0"]]) {
+    for (const args of [["--max-steps", "x"], ["--bogus"], ["--max-steps", "0"], ["--inputs", ""]]) {
       const r = run(["0||"], args);
       strictEqual(r.status, 64, args.join(" "));
       strictEqual(r.count, 0);
     }
     strictEqual(spawnSync("bash", [SCRIPT, "dev-verify", "../x"], { encoding: "utf-8" }).status, 64);
+    strictEqual(spawnSync("bash", [SCRIPT, "no-such-crew", "demo", "--inputs", "{}"], { encoding: "utf-8" }).status, 64);
   });
 });
