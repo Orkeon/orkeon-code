@@ -15,14 +15,15 @@ import type { ChainLaunch } from "./dev-implement.ts";
 
 export const DEV_BATCHES_USAGE =
   "usage: /dev-batches [<code>] [--pr] [--concurrency n]   (no code: the run in progress goes on; n from 1 to 4, above 1 in bypassPermissions)";
-/** `concurrency` only above 1: a sequential run's arguments, and so its launch, are the same as without the option. */
+/** `concurrency` only when the option is typed: without it the run goes on as the plan's run in progress was (one at a
+ *  time when none is); `--concurrency 1` goes back to one at a time. */
 export interface DevBatchesArgs { code: string | null; pr: boolean; concurrency?: number }
 
-/** The arguments; `--concurrency <n>` (or `=<n>`) is checked: 1 to 4, kept only above 1. */
+/** The arguments; `--concurrency <n>` (or `=<n>`) is checked: 1 to 4. */
 export function parseDevBatchesArgs(tokens: readonly string[]): { ok: true; args: DevBatchesArgs } | { ok: false; text: string } {
   let code: string | null = null;
   let pr = false;
-  let concurrency = 1;
+  let concurrency: number | undefined;
   for (let i = 0; i < tokens.length; i++) {
     const tok = tokens[i];
     if (tok === "--concurrency" || tok.startsWith("--concurrency=")) {
@@ -40,10 +41,10 @@ export function parseDevBatchesArgs(tokens: readonly string[]): { ok: true; args
     else if (code !== null) return { ok: false, text: `dev-batches: one code at most, not '${code}' and '${tok}'` };
     else code = tok;
   }
-  return { ok: true, args: concurrency > 1 ? { code, pr, concurrency } : { code, pr } };
+  return { ok: true, args: concurrency !== undefined ? { code, pr, concurrency } : { code, pr } };
 }
 
-/** What the command launches the crew with: the arguments, then what its dispatch read; `concurrency` only above 1. */
+/** What the command launches the crew with: the arguments, then what its dispatch read; `concurrency` when typed. */
 export function batchesLaunchInput(args: DevBatchesArgs, read: Record<string, unknown>): Record<string, unknown> {
   return {
     ...(args.code === null ? {} : { code: args.code }), pr: args.pr, ...read,
@@ -60,6 +61,9 @@ export function batchesModeRefusal(args: DevBatchesArgs, mode: string): string |
 /** The lines of an answer handed back to the dev-batches crew. */
 export const AFTER_LINES = 20;
 const DEV_BATCHES_AGAIN = "/dev-batches";
+/** What a refused hop of a parallel run is typed again as: the same concurrency, the record naming the plan. */
+const parallelAgain = (input: Record<string, unknown>): string =>
+  typeof input.concurrency === "number" && input.concurrency > 1 ? `${DEV_BATCHES_AGAIN} --concurrency ${input.concurrency}` : DEV_BATCHES_AGAIN;
 
 export interface BatchesChainStep { lines: string[]; launch?: ChainLaunch }
 
@@ -75,7 +79,7 @@ function batchesAnswer(payload: string): BatchesChainStep {
   const lines = a.lines.map(String);
   // The next wave of a parallel run: the crew again, with the input it gave.
   if (a.next?.crew === "dev-batches" && a.next.input !== undefined) {
-    return { lines, launch: { crew: "dev-batches", input: { ...a.next.input }, instead: DEV_BATCHES_AGAIN } };
+    return { lines, launch: { crew: "dev-batches", input: { ...a.next.input }, instead: parallelAgain(a.next.input) } };
   }
   if (a.next?.crew !== "dev-implement" || a.next.input === undefined) return { lines };
   const { batch, plan } = a.next.input;

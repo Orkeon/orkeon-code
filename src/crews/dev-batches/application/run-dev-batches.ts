@@ -25,6 +25,7 @@ import { checkConcurrency, concurrencyModeRefusal } from "../../../shared/domain
 import { readMemoryDir } from "../../../shared/application/shared-memory/memory-settings.ts";
 import { batchWaves, sheetAnchorPaths } from "../domain/batch-waves.ts";
 import { runWave } from "./run-wave.ts";
+import { batchWorktreeName, worktreePlace } from "../../../shared/domain/git/worktree.ts";
 import type { BatchOutcome, BatchRun } from "./run-wave.ts";
 import { parseBatchesState } from "../../../shared/domain/dev/batches-state.ts";
 import type { BatchesLogEntry } from "../../../shared/domain/dev/batches-state.ts";
@@ -78,7 +79,8 @@ export interface DevBatchesDeps {
   runBatch?(run: BatchRun, context: BatchesContext): Promise<BatchOutcome>;
   /** git's top as an agent under `root` sees it, before the first wave of a typed run (run-wave.ts). */
   probe?(root: string): Promise<{ exitCode: number; top: string }>;
-  /** After a batch's GAPS verdict in a parallel run, on the main checkout: the mistakes harvested (M-7). */
+  /** After a batch's GAPS verdict in a parallel run, over the work folder of its kept worktree (`vfsPath`), where its
+   *  verdict stays: the mistakes harvested (M-7). */
   afterGaps?(work: Pick<WorkFolder, "folder" | "vfsPath">): Promise<string[]>;
 }
 
@@ -270,6 +272,14 @@ async function nextWave(files: Pick<Files, "read">, dev: DevCode, nodes: readonl
   return waves.ok && waves.waves.length > 0 ? waves.waves[0].slice(0, n) : [];
 }
 
+async function listOrNone(files: Pick<Files, "list">, path: string): Promise<string[]> {
+  try {
+    return (await files.list(path, 200)).map((n) => n.replace(/\/+$/, "").split("/").pop() ?? "");
+  } catch {
+    return [];
+  }
+}
+
 export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDeps): Promise<string> {
   const lines: string[] = [];
   // 0. How many at once: nothing is read or written for a value out of 1..4.
@@ -283,6 +293,8 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
   // (`after`) reads it back. The record is written once the plan is found and the mode allows the run.
   const fresh = typeof input.permissionMode === "string";
   let record: ActiveRecord | null = null;
+  // The record of this plan's run in progress, read back by a typed run that names no --concurrency.
+  let prior: ActiveRecord | null = null;
   if (typeof input.code === "string" && input.code.trim() !== "") {
     code = input.code.trim();
     if (!isCode(code)) return answer([`BLOCKED — '${code}' is not a work code (a folder name of the work folder)`]);
@@ -296,6 +308,7 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
     }
     pr = flag(input.pr);
     context = contextOf(input);
+    if (active !== null && active.code === code && !await runClosed(deps.files, code)) prior = active;
   } else {
     record = await readRecord(deps.files);
     if (record === null || record.code === null) {
@@ -304,13 +317,15 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
     code = record.code;
     pr = record.pr || flag(input.pr);
     context = fresh ? contextOf(input) : record.context;
+    prior = record;
   }
   const mode = context.permissionMode.trim();
   if (mode !== "" && policyFor(mode).readOnly) {
     return answer([...lines, `BLOCKED — the session mode ${mode} is read-only: the batches write files and commit (/mode default, then /dev-batches ${code})`]);
   }
-  // A typed run takes the value it names (none: one); a chained one the value it was handed, else the record's.
-  const parallel = input.concurrency !== undefined || fresh || record === null ? concurrency.value : record.context.concurrency ?? 1;
+  // The value the run names (a typed --concurrency 1 included: back to one at a time); none, the value of the plan's
+  // run in progress, typed or chained (a refused hop typed again goes on as it was); else one.
+  const parallel = input.concurrency !== undefined ? concurrency.value : prior?.context.concurrency ?? 1;
   if (parallel > 1) {
     context = { ...context, concurrency: parallel };
     // Checked again here: a chained run's mode is the one the record kept (L8P-D14).
@@ -521,12 +536,21 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
       files: deps.files, shell: deps.shell,
       runBatch: (run) => deps.runBatch!(run, context),
       ...(deps.probe !== undefined ? { probe: deps.probe } : {}),
-      ...(deps.afterGaps !== undefined ? { afterGaps: () => deps.afterGaps!(ctx.work) } : {}),
+      ...(deps.afterGaps !== undefined ? { afterGaps: (vfsPath: string) => deps.afterGaps!({ folder: ctx.work.folder, vfsPath }) } : {}),
     });
     lines.push(...ran.lines);
     if (ran.refused) return finish(lines);
     if (ran.stopped) return finish([...lines, `→ a human decides: each stop above, its worktree kept; then /dev-batches ${code} --concurrency ${parallel} goes on`]);
     return finish([...lines, `→ the next wave follows: /dev-batches ${code} --concurrency ${parallel}`], { crew: "dev-batches", input: { concurrency: parallel } });
+  }
+  // A batch a parallel run stopped keeps its code, sheet and verdict in its worktree: run here, it would start over.
+  const kept = worktreePlace(batchWorktreeName(code, next));
+  if (kept !== null && (await listOrNone(deps.files, "/workspace/.orkeon/worktrees")).includes(kept.name)) {
+    return finish([
+      ...lines,
+      `BLOCKED — ${next} stays in ${kept.path}, kept by a parallel run: /dev-batches ${code} --concurrency 2 relaunches it there; ` +
+        `or remove it (git worktree remove --force ${kept.path}, then git branch -D batches/${code}/${next}) to run it here`,
+    ]);
   }
   const entry = lastEntryOf(book.entries(), next);
   const relaunch = entry !== undefined;

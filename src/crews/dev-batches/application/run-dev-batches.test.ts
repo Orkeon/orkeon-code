@@ -444,6 +444,32 @@ describe("runDevBatches — a parallel run", () => {
     deepStrictEqual(out.next, { crew: "dev-batches", input: { concurrency: 2 } });
   });
 
+  it("goes on in parallel when the plan's run is typed again without --concurrency (a refused hop typed again)", async () => {
+    const { files, deps, runs } = parallelSetup();
+    files.files.set(ACTIVE_RECORD, JSON.stringify({ code: "demo", pr: false, context: { permissionMode: "bypassPermissions", concurrency: 2 } }));
+    const out = parse(await runDevBatches({ code: "demo", permissionMode: "bypassPermissions" }, deps));
+    strictEqual(runs.length, 2, out.lines.join("\n"));
+    deepStrictEqual(out.next, { crew: "dev-batches", input: { concurrency: 2 } });
+  });
+
+  it("goes back to one at a time on a typed --concurrency 1, the record's concurrency dropped", async () => {
+    const { files, deps, runs } = parallelSetup();
+    files.files.set(ACTIVE_RECORD, JSON.stringify({ code: "demo", pr: false, context: { permissionMode: "bypassPermissions", concurrency: 2 } }));
+    const out = parse(await runDevBatches({ code: "demo", concurrency: 1, permissionMode: "bypassPermissions" }, deps));
+    deepStrictEqual(runs, []);
+    strictEqual(out.next?.crew, "dev-implement", out.lines.join("\n"));
+    strictEqual(JSON.parse(files.files.get(ACTIVE_RECORD)!).context.concurrency, undefined);
+  });
+
+  it("refuses to run here, one at a time, a batch a parallel run kept in its worktree, naming how to go on", async () => {
+    const { files, deps } = parallelSetup();
+    files.listings.set("/workspace/.orkeon/worktrees", ["demo-F2"]);
+    const out = parse(await runDevBatches({ code: "demo", permissionMode: "bypassPermissions" }, deps));
+    strictEqual(out.next, undefined);
+    strictEqual(out.lines.at(-1), "BLOCKED — F2 stays in .orkeon/worktrees/demo-F2, kept by a parallel run: /dev-batches demo --concurrency 2 relaunches it there; " +
+      "or remove it (git worktree remove --force .orkeon/worktrees/demo-F2, then git branch -D batches/demo/F2) to run it here");
+  });
+
   it("refuses a parallel run on a host without batch agents", async () => {
     const { deps } = parallelSetup();
     delete deps.runBatch;

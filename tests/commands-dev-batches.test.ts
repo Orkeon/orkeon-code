@@ -21,10 +21,11 @@ describe("parseDevBatchesArgs", () => {
     deepStrictEqual(parseDevBatchesArgs(["--help"]), { ok: false, text: DEV_BATCHES_USAGE });
   });
 
-  it("accepts --concurrency 1 (both spellings) as the sequential run: no concurrency in its arguments", () => {
+  it("keeps a typed --concurrency 1 (both spellings), which goes back to one at a time; none typed: no key", () => {
     for (const tokens of [["demo", "--concurrency", "1"], ["--concurrency=1", "demo"]]) {
-      deepStrictEqual(parseDevBatchesArgs(tokens), { ok: true, args: { code: "demo", pr: false } });
+      deepStrictEqual(parseDevBatchesArgs(tokens), { ok: true, args: { code: "demo", pr: false, concurrency: 1 } });
     }
+    deepStrictEqual(parseDevBatchesArgs(["demo"]), { ok: true, args: { code: "demo", pr: false } });
   });
 
   it("accepts 2 to 4 batches at once, and refuses above 4 or a bad value in one line", () => {
@@ -39,11 +40,11 @@ describe("batchesLaunchInput", () => {
   const read = { ruleSets: ["git-readonly"], effort: "high", permissionMode: "bypassPermissions", permissionRules: [], githubTool: true };
   const today = { code: "demo", pr: false, ...read };
 
-  it("is today's input with --concurrency 1 and without: no concurrency key", () => {
-    for (const tokens of [["demo"], ["demo", "--concurrency", "1"]]) {
-      const parsed = parseDevBatchesArgs(tokens);
-      deepStrictEqual(parsed.ok && batchesLaunchInput(parsed.args, read), today);
-    }
+  it("is today's input without the option: no concurrency key; a typed 1 is carried, to override the run in progress", () => {
+    const bare = parseDevBatchesArgs(["demo"]);
+    deepStrictEqual(bare.ok && batchesLaunchInput(bare.args, read), today);
+    const one = parseDevBatchesArgs(["demo", "--concurrency", "1"]);
+    deepStrictEqual(one.ok && batchesLaunchInput(one.args, read), { ...today, concurrency: 1 });
   });
 
   it("carries the concurrency above 1", () => {
@@ -95,7 +96,7 @@ describe("batchesChainStep", () => {
   it("launches the next wave the dev-batches crew names: the crew again, its input as given", () => {
     const input = { after: ["✓ F2 merged"], concurrency: 2 };
     deepStrictEqual(batchesChainStep("dev-batches", JSON.stringify({ lines: ["✓ F2 merged"], next: { crew: "dev-batches", input } })),
-      { lines: ["✓ F2 merged"], launch: { crew: "dev-batches", input, instead: "/dev-batches" } });
+      { lines: ["✓ F2 merged"], launch: { crew: "dev-batches", input, instead: "/dev-batches --concurrency 2" } });
   });
 
   it("prints an answer of another crew as is", () => {
