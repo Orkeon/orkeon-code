@@ -73,3 +73,25 @@ for (const name of examples.filter((name) => load(name).MCP?.Servers?.whisper?.E
     assert.equal(args[args.indexOf("--project") + 1] + "/whisper_mcp.py", args.at(-1));
   });
 }
+
+// The two settings of the runtime's resilience and of its result cuts, spelled out at their
+// defaults so a user sees where to change them (ToolResultLimitsOptions, ResilienceDefaults).
+for (const name of examples.filter((name) => load(name).Llm)) {
+  test(`${name} waits out a rate-limit window of five minutes at most`, () => {
+    assert.equal(load(name).Llm.MaxRateLimitWait, "00:05:00");
+  });
+}
+
+for (const name of examples.filter((name) => load(name).Orkeon?.Tools)) {
+  test(`${name} states the result cut of the shell and the read calls run at once`, () => {
+    assert.deepEqual(load(name).Orkeon.Tools.ResultLimits, { MaxParallelToolCalls: 4, Limits: { shell_command: 10000 } });
+  });
+}
+
+// orkeon run registers the analysis tools (node_*, edit_batch, structural_*) only while
+// RaggableTree is enabled: an act given the catalogue fails without them.
+for (const name of examples) {
+  test(`${name} keeps the analysis tools of orkeon run registered`, () => {
+    assert.notEqual(load(name).RaggableTree?.Enabled, false);
+  });
+}

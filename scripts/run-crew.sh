@@ -4,6 +4,7 @@
 #
 #   bash scripts/run-crew.sh src/crews/git-commit/crew.ork.ts
 #   bash scripts/run-crew.sh src/crews/code-review/crew.ork.ts --inputs '{"files":[]}'
+#   bash scripts/run-crew.sh src/crews/main-loop/crew.ork.ts --inputs '{"prompt":"…","permissionMode":"acceptEdits"}'
 #   ORKEON_CODE_WORKSPACE=~/src/app bash scripts/run-crew.sh src/crews/project-init/crew.ork.ts
 #
 # The project (default: the demo fixture) is mounted on /workspace and a scratch
