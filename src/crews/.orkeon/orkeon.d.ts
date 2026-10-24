@@ -83,7 +83,8 @@ readonly clr?: unknown;
 }
 /**
 * Thrown by `ctx.llm.act` when the agent's `.tools([...])` names a tool the host does not
-* offer — a typo is never run as a loop without that tool. Names match case-insensitively.
+* offer — a typo is never run as a loop without that tool. Also thrown by the `tools` option
+* of `act` for a name the agent does not hold. Names match case-insensitively.
 */
 class UnknownToolError extends Error implements HostError {
 /** The agent whose `.tools([...])` names them. */
@@ -142,6 +143,8 @@ withResponseSchema(name: string, schema: JsonSchema | string, strict?: boolean):
 allowDelegation(value: boolean): this;
 /** The turns the agent may take on a task. Default 20 — YAML parity `maxIter:`. Must be 1 or more. */
 maxIterations(value: number): this;
+/** Turns the provider's thinking on at this effort. */
+effort(level: "low" | "medium" | "high"): this;
 /**
 * YAML parity `maxRpm:` — the model requests this agent may make per minute, each of its
 * turns on the declarative shape: the request of too many waits its turn, it never fails the
@@ -335,6 +338,8 @@ interface LlmCallOptions {
 responseFormat?: ResponseFormatType;
 /** The per-call model: the host's provider keeps its credentials and endpoint. */
 llm?: { model?: string };
+/** Turns the provider's thinking on at this effort for the call. */
+effort?: "low" | "medium" | "high";
 }
 /**
 * What `ctx.llm.stream` returns: the chunk sequence, plus a side-channel for
@@ -379,6 +384,12 @@ interface ActOptions extends LlmCallOptions {
 /** Maximum number of tool-call iterations. Default: 10. `0` or `Infinity` = unlimited. */
 maxIterations?: number;
 /**
+* `"children"`: when the model answers while background children (`ctx.spawnBackground`) are
+* out, wait for their completions and take another turn, until every child has settled or
+* `maxIterations` is reached. The end of the call cancels the children still running.
+*/
+waitFor?: "children";
+/**
 * System prompt seeded as the first message of the tool-call conversation.
 * Wins over any `SystemMessage` set in the provider configuration (the
 * conversation-level message has precedence on every provider). Omitted:
@@ -397,6 +408,30 @@ permissionMode?: "default" | "acceptEdits" | "bypassPermissions" | "plan" | "don
 * supports SSE streaming). Keep it cheap — rendering/logging only.
 */
 onDelta?: (delta: string) => void;
+/**
+* Called before each tool call, after the permission gate allowed it. Answers `"allow"`
+* (run it), `"ask"` (hand the call to the approval channel, as a default-mode edit
+* would; a refusal denies), `{ deny: reason }` (block, the model reads `DENIED: <reason>`),
+* `{ input }` (run with this input, gated again) or `{ context }`. A callback that throws
+* denies the call with the exception message. Any other return value (nothing, `null`, a
+* non-object `input`, an unknown shape) denies the call; `"ask"` without a registered
+* permission gate denies too. The `act` call never rejects because of a returned value.
+*/
+onToolCall?: (call: { name: string; input: unknown }) =>
+"allow" | "ask" | { deny: string } | { input: unknown } | { context: string }
+| Promise<"allow" | "ask" | { deny: string } | { input: unknown } | { context: string }>;
+/**
+* Runs after each tool call, with the call and its result (the tool's JSON parsed, else
+* its text). A returned `{ context }` replaces the line the model is shown for that
+* result; a void return leaves it. Runs on the script's thread.
+*/
+onToolResult?: (call: { name: string; input: unknown }, result: unknown) =>
+void | { context: string } | Promise<void | { context: string }>;
+/**
+* Subset of the agent's tools to offer the model for this call. A name the agent does
+* not hold throws `UnknownToolError` before the model is asked. Omitted: all its tools.
+*/
+tools?: string[];
 }
 /** What `act(...)` resolves to. */
 interface ActResult {
@@ -487,6 +522,14 @@ readonly memory: { readonly agent: MemoryScope; readonly crew: MemoryScope };
 stateWith(mutate: (prev: Readonly<TState>) => TState | Promise<TState>): Promise<Readonly<TState>>;
 lock<T>(name: string, fn: () => Promise<T>): Promise<T>;
 spawn<TIn, TOut>(builder: AgentBuilder<TIn, TOut, unknown>): Agent<TIn, TOut>;
+/**
+* Starts a crew agent as a child in the background and returns its ticket at once. Its
+* completion reaches the next `ctx.llm.act` turn as a user message, `agent <name> completed: <text>`
+* (`agent <name> failed: <reason>` when it fails). At most `crew.concurrency(n)` children run at once.
+*/
+spawnBackground(agent: string, input: string): { readonly id: number; readonly agent: string };
+/** The id (`a1`…) of the agent instance this body runs as (`crew.instances()`); `undefined` outside one. */
+readonly instanceId: string | undefined;
 }
 /** `ctx.log`: extra arguments are joined to the message by a space, objects as JSON. */
 interface Logger {
@@ -548,6 +591,15 @@ has(agent: Agent<unknown, unknown> | string): boolean;
 findByName(name: string): Agent<unknown, unknown> | undefined;
 findById(id: string): Agent<unknown, unknown> | undefined;
 findByRole(role: string): readonly Agent<unknown, unknown>[];
+/** The kept agent instances (background tickets and `spawn_agent` calls), oldest first. */
+instances(): { readonly id: string; readonly agent: string; readonly state: "running" | "completed" | "failed" | "stopped" }[];
+/**
+* One more bare act on the instance's agent, seeded with its kept transcript; resolves to the reply
+* text. Refused for an unknown or evicted id, a running instance, and a spawn past the budget.
+*/
+send(id: string, message: string): Promise<string>;
+/** Cancels a running instance at once; `false` when none runs under `id`. */
+stop(id: string): boolean;
 }
 /**
 * One step of `crew.runStream()`: the procedural shape runs agents, not tasks or a graph,
@@ -606,6 +658,13 @@ planning(value?: boolean): this;
 * applies none, and says so.
 */
 maxRpm(value: number): this;
+/**
+* The most children (`ctx.spawnBackground`, the `spawn_agent` tool) the crew runs at once.
+* Default 4; must be 1 or more.
+*/
+concurrency(n: number): this;
+/** The most agent instances (`crew.instances()`) the crew keeps. Default 32; the oldest ended one goes first. */
+maxInstances(n: number): this;
 onCrewStart(hook: (ctx: ExecutionContext) => Promise<void> | void): this;
 onCrewComplete(hook: (ctx: ExecutionContext, result: CrewResult) => Promise<void> | void): this;
 /** `message` is the displayed message of the failure — the innermost CLR message, or a script error's own. */
@@ -953,6 +1012,8 @@ readonly sourcesAdded: number;
 readonly sourcesUnchanged: number;
 /** Sources re-ingested (modified, or forcibly rebuilt via `reindex`). */
 readonly sourcesReingested: number;
+/** Sources removed because absent from the request (`prune`). */
+readonly sourcesPruned: number;
 readonly durationMs: number;
 /** Non-fatal errors encountered during the run (empty when clean). */
 readonly errors: readonly string[];
@@ -973,6 +1034,32 @@ interface RagAnswer {
 readonly text: string;
 readonly citations: readonly RagCitation[];
 }
+/** One golden question of a `rag_eval` dataset (YAML `cases[]`). */
+interface RagEvalCase {
+/** Unique identifier of the case within the dataset. */
+id: string;
+/** Question asked to the pipeline. */
+question: string;
+/** Source references expected in the top-k retrieved (ground truth for recall/MRR). */
+relevant?: string[];
+/** Substrings the answer must contain (heuristic answer-relevance). */
+expected_substrings?: string[];
+/** Reference answer used by the LLM judge. */
+reference_answer?: string;
+/** Free tags used to filter cases in gates. */
+tags?: string[];
+}
+/** Golden dataset read by `rag_eval` (YAML file; a bare list of cases is accepted too). */
+interface RagEvalDataset {
+/** Dataset name (default: the file name). */
+name?: string;
+/** Virtual path of the corpus ingested before the evaluation. */
+corpus?: string;
+/** Collection evaluated (default: derived from the dataset name). */
+collection?: string;
+/** The questions; at least one. */
+cases: RagEvalCase[];
+}
 namespace rag {
 /**
 * Ingest sources into a collection (incremental: unchanged sources are
@@ -987,6 +1074,8 @@ sources: readonly string[] | string;
 chunkingStrategy?: string;
 /** Force a full reindex (required after an embedding model change). Default false. */
 reindex?: boolean;
+/** Delete previously ingested sources absent from `sources`. Default false. */
+prune?: boolean;
 }): Promise<RagIngestReport>;
 /**
 * Ask a question against a collection; returns the grounded answer with
@@ -1142,11 +1231,16 @@ withSchema(schema: ToolSchemaSpec): this;
 * pipeline, `ctx` is `undefined` — reach shared capabilities through the
 * `tools.*` / `rag.*` globals instead. A script calling
 * `myTool.execute(input, something)` forwards its own second argument.
+* Under `withAutonomousTool` in `act`, the permission gate is asked once
+* per model-initiated call: the `tools.*` calls made inside this body are
+* not asked a second time.
 */
 execute(fn: (input: TIn, ctx?: unknown) => Promise<TOut> | TOut): this;
 /**
 * Declared access class for permission gates. Undeclared tools are
-* treated fail-closed (as writes) by gated autonomous calls.
+* treated fail-closed (as writes) by gated autonomous calls: this
+* declaration is the only input of the gate for a script tool (`read`
+* allowed, `edit` denied in `plan` and asked in `default`).
 */
 access(value: "read" | "edit" | "execute"): this;
 build(): Tool<TIn, TOut>;
@@ -1760,6 +1854,26 @@ export { };
 declare global {
 /** The built-in tools, by their camelCase name: `tools` (`OrkeonTools`) extends this. */
 interface OrkeonBuiltInTools {
+/** `access_cost` - Port-access cost of members, mirroring the access-cost.py script. */
+accessCost(input?: {
+changed_files?: readonly string[] | null;
+fqns?: readonly string[] | null;
+receivers?: string | null;
+roots?: readonly string[] | null;
+}, ctx?: ExecutionContext): Promise<{
+readonly errors: readonly string[];
+readonly report?: Record<string, unknown>;
+}>;
+/** `affected_tests` - Test projects and classes reached through the graph by changed files. */
+affectedTests(input?: {
+base?: string | null;
+changed_files?: readonly string[] | null;
+}, ctx?: ExecutionContext): Promise<{
+readonly all: boolean;
+readonly test_classes: readonly string[];
+readonly test_projects: readonly string[];
+readonly unresolved: readonly string[];
+}>;
 /** `arcadedb_query` - Execute Cypher or SQL queries on ArcadeDB via Bolt protocol */
 arcadedbQuery(input: {
 /** Bolt protocol URI for ArcadeDB */
@@ -1787,6 +1901,22 @@ readonly record_count: number;
 readonly records?: readonly Record<string, unknown>[];
 readonly relationships_created: number;
 }>;
+/** `batch_anchors` - Closure of anchors (contains, callers, tests) and overlap of two anchor sets. */
+batchAnchors(input?: {
+a?: Record<string, unknown> | null;
+action?: string;
+b?: Record<string, unknown> | null;
+files?: readonly string[] | null;
+fqns?: readonly string[] | null;
+}, ctx?: ExecutionContext): Promise<{
+readonly disjoint: boolean;
+readonly nodes: readonly string[];
+readonly shared: readonly string[];
+readonly truncated: boolean;
+readonly unresolved: readonly string[];
+readonly unresolved_a: readonly string[];
+readonly unresolved_b: readonly string[];
+}>;
 /** `cache_search` - Semantic search over content previously stored in the RAG cache (e.g. by web_scrape with cached=true). source filter scopes by producing tool; url_filter scopes by URL substring; both are optional — empty means global search. */
 cacheSearch(input: {
 /** Minimum cosine-similarity score (0..1) for a chunk to be returned (default 0.0) */
@@ -1801,7 +1931,7 @@ top_k?: number;
 url_filter?: string | null;
 }, ctx?: ExecutionContext): Promise<{
 readonly hit_count: number;
-readonly hits: readonly Record<string, unknown>[];
+readonly hits: readonly { readonly content: string; readonly score: number; readonly source: string; readonly title: string; readonly url?: string; }[];
 readonly query: string;
 }>;
 /** `codebase_map` - Structural map of the codebase at a given zoom level (L0-L3). */
@@ -1811,7 +1941,7 @@ level?: string;
 max_entries?: number;
 root_fqn?: string | null;
 }, ctx?: ExecutionContext): Promise<{
-readonly entries: readonly Record<string, unknown>[];
+readonly entries: readonly { readonly children_count?: number; readonly cyclomatic?: number; readonly fqn: string; readonly kind: string; readonly language?: string; readonly lo_c?: number; readonly name: string; }[];
 readonly level: string;
 readonly totals: Record<string, unknown>;
 readonly truncated: boolean;
@@ -1828,7 +1958,7 @@ mode?: string;
 query?: string;
 top_k?: number;
 }, ctx?: ExecutionContext): Promise<{
-readonly hits: readonly Record<string, unknown>[];
+readonly hits: readonly { readonly fqn: string; readonly match_origin: string; readonly score: number; readonly signature?: string; readonly summary_short?: string; }[];
 readonly refreshed_files: number;
 readonly total_candidates: number;
 readonly truncated: boolean;
@@ -1843,7 +1973,7 @@ readonly evaluated_count: number;
 readonly median?: number;
 readonly metric: string;
 readonly p95?: number;
-readonly top: readonly Record<string, unknown>[];
+readonly top: readonly { readonly fqn: string; readonly metric: string; readonly value: number; }[];
 }>;
 /** `count_pattern` - Count regex occurrences in a file (deterministic, per-pattern). Use when verification requires exact counts rather than LLM estimation. */
 countPattern(input: {
@@ -1862,7 +1992,7 @@ patterns: readonly string[];
 }, ctx?: ExecutionContext): Promise<{
 readonly bom_stripped: boolean;
 readonly bytes_scanned: number;
-readonly counts: readonly Record<string, unknown>[];
+readonly counts: readonly { readonly count: number; readonly error?: string; readonly matches?: readonly string[]; readonly pattern: string; }[];
 }>;
 /** `csv_reader` - Read CSV files and return structured data. Supports custom delimiters and header detection. */
 csvReader(input: {
@@ -1893,26 +2023,29 @@ schema_scope?: string;
 table_filter?: string | null;
 }, ctx?: ExecutionContext): Promise<{
 readonly database_name: string;
-readonly foreign_keys?: readonly Record<string, unknown>[];
-readonly indexes?: readonly Record<string, unknown>[];
+readonly foreign_keys?: readonly { readonly name: string; readonly source_columns: readonly string[]; readonly source_table: string; readonly target_columns: readonly string[]; readonly target_table: string; }[];
+readonly indexes?: readonly { readonly columns: readonly string[]; readonly is_unique: boolean; readonly name: string; readonly table_name: string; readonly type?: string; }[];
 readonly provider_name: string;
-readonly tables: readonly Record<string, unknown>[];
+readonly tables: readonly { readonly columns: readonly { readonly data_type: string; readonly default_value?: string; readonly is_nullable: boolean; readonly is_primary_key: boolean; readonly max_length?: number; readonly name: string; }[]; readonly name: string; readonly row_count_estimate?: number; readonly schema?: string; }[];
 }>;
 /** `dependency_graph` - Dependency graph at a given scope (L1 packages, L2 modules, L3 symbols). */
 dependencyGraph(input?: {
+/** Edge kinds to follow, by name: contains, calls, imports, inherits, tests, documents, project_depends. Legacy enum names (Imports, Extends, Implements...) are still accepted. */
 edge_kinds?: readonly string[];
 include_dot?: boolean;
 include_external?: boolean;
 include_mermaid?: boolean;
 max_nodes?: number;
+/** Restrict nodes to these kinds, by name: file, project, namespace, type, member, doc_section, test. Empty keeps every node of the scope. */
+node_kinds?: readonly string[];
 root_fqn?: string | null;
 scope?: string;
 }, ctx?: ExecutionContext): Promise<{
 readonly dot?: string;
-readonly edges: readonly Record<string, unknown>[];
+readonly edges: readonly { readonly from: string; readonly kind: string; readonly to: string; }[];
 readonly mermaid_flowchart?: string;
 readonly metrics: Record<string, unknown>;
-readonly nodes: readonly Record<string, unknown>[];
+readonly nodes: readonly { readonly fqn: string; readonly is_seed: boolean; readonly kind: string; readonly level: string; readonly name: string; }[];
 readonly truncated: boolean;
 }>;
 /** `directory_read` - List directory contents including files and subdirectories. Supports recursive listing and glob pattern filtering. */
@@ -1926,8 +2059,8 @@ pattern?: string;
 /** Whether to list contents recursively (default: false) */
 recursive?: boolean;
 }, ctx?: ExecutionContext): Promise<{
-readonly directories: readonly Record<string, unknown>[];
-readonly files: readonly Record<string, unknown>[];
+readonly directories: readonly { readonly name: string; readonly path: string; readonly size?: number; readonly type: string; }[];
+readonly files: readonly { readonly name: string; readonly path: string; readonly size?: number; readonly type: string; }[];
 readonly path: string;
 readonly total_directories: number;
 readonly total_entries_before_truncation?: number;
@@ -1958,8 +2091,22 @@ readonly files_processed: number;
 readonly files_skipped: number;
 readonly query: string;
 readonly result_count: number;
-readonly results: readonly Record<string, unknown>[];
+readonly results: readonly { readonly approximate_line: number; readonly chunk_index: number; readonly content: string; readonly file_extension: string; readonly score: number; readonly source_file: string; }[];
 readonly total_chunks: number;
+}>;
+/** `documented_in` - Markdown sections that document a symbol. */
+documentedIn(input?: {
+fqn?: string;
+}, ctx?: ExecutionContext): Promise<{
+readonly sections: readonly { readonly heading_path: string; readonly path: string; readonly start_line: number; }[];
+readonly unresolved: readonly string[];
+}>;
+/** `documents_of` - Symbols documented by the sections of a Markdown file. */
+documentsOf(input?: {
+path?: string;
+}, ctx?: ExecutionContext): Promise<{
+readonly symbols: readonly { readonly file: string; readonly fqn: string; readonly heading_path: string; readonly kind: string; }[];
+readonly unresolved: readonly string[];
 }>;
 /** `docx_reader` - Read DOCX (Word) files and return structured data including text, tables, and metadata. */
 docxReader(input: {
@@ -1990,20 +2137,55 @@ readonly file_path: string;
 readonly file_size: number;
 readonly success: boolean;
 }>;
+/** `edit_batch` - Applies node_replace, node_insert and idempotent intent operations over several files as one transaction. Each operation is {kind, path, selector, text} plus expected_hash (required, node_replace only) or position (node_insert: 'inside', 'before' or 'after'). An intent operation is {kind, path} with kind ensure_using / ensure_import (name, module for TypeScript) or ensure_field / ensure_member (selector of the type, text): it adds the line or member only when absent and reports applied false when it was already there. Operations on one file apply in order, each on the bytes the previous one produced. validate 'parse' (default) refuses the batch when an operation introduces a parse error; 'build' also runs dotnet build on the project above the edited files and restores every file when it is red. On any failure all files are left as they were. */
+editBatch(input?: {
+operations?: readonly { readonly expected_hash?: string; readonly index?: number; readonly kind: string; readonly level?: number; readonly module?: string; readonly name?: string; readonly path: string; readonly position?: string; readonly selector: string; readonly text: string; }[];
+validate?: string;
+}, ctx?: ExecutionContext): Promise<{
+readonly operations: readonly { readonly applied: boolean; readonly path: string; readonly range: { readonly end_byte: number; readonly end_line: number; readonly start_byte: number; readonly start_line: number; }; }[];
+readonly validation: string;
+}>;
+/** `edit_file` - Replace a string in a file when it occurs exactly once. */
+editFile(input: {
+/** Create a backup before writing */
+create_backup?: boolean;
+/** The replacement text */
+new_string: string;
+/** The text to replace */
+old_string: string;
+/** The file to edit */
+path: string;
+/** Replace every occurrence */
+replace_all?: boolean;
+}, ctx?: ExecutionContext): Promise<{
+readonly backup_path?: string;
+readonly errors?: readonly string[];
+readonly file_info: Record<string, unknown>;
+readonly path: string;
+readonly replacements: number;
+readonly success: boolean;
+}>;
 /** `file_read` - Read content from files: text, JSON, XML and the like. Parse .eml e-mail files with email_parser. */
 fileRead(input: {
 /** The text encoding to use (default: UTF-8) */
 encoding?: "UTF-8" | "ASCII" | "Unicode" | "UTF-32";
-/** Maximum number of characters to read (default: no limit) */
+/** Maximum number of lines to return (default: up to the end of the file); max_length caps the result further */
+limit?: number | null;
+/** Maximum number of characters to read (default: no limit). Applied after offset/limit: when it cuts a line range, only whole lines are kept and has_more is true, except that when the first line alone exceeds max_length it is cut by characters. */
 max_length?: number | null;
+/** First line to return (1-based, default 1 when limit is given). With offset/limit the file is streamed and not read beyond the range; max_length then caps the range */
+offset?: number | null;
 /** The file path to read from */
 path: string;
 /** Serve from RaggableTree index when available (path + SHA-256 match); falls back to disk otherwise. */
 use_raggable_cache?: boolean;
 }, ctx?: ExecutionContext): Promise<{
 readonly content: string;
+readonly end_line?: number;
 readonly file_info: Record<string, unknown>;
+readonly has_more: boolean;
 readonly served_from_cache: boolean;
+readonly start_line?: number;
 readonly truncated: boolean;
 }>;
 /** `file_write` - Write content to files. Can create new files or overwrite existing ones. Creates directories if needed. */
@@ -2035,7 +2217,7 @@ max_depth?: number;
 max_paths?: number;
 to?: string | null;
 }, ctx?: ExecutionContext): Promise<{
-readonly paths: readonly Record<string, unknown>[];
+readonly paths: readonly { readonly call_sites: readonly { readonly end_line: number; readonly sha256: string; readonly start_line: number; readonly virtual_file_path: string; }[]; readonly fqns: readonly string[]; readonly length: number; }[];
 readonly truncated: boolean;
 }>;
 /** `get_last_value` - Read the last retained payload for a given key (LastValueCache). */
@@ -2049,12 +2231,16 @@ readonly found: boolean;
 readonly set_at?: string;
 readonly value?: unknown;
 }>;
-/** `github` - Interact with GitHub API v3: list/create issues, read PRs, search repos. */
+/** `github` - Interact with GitHub API v3: list/create issues, create/read PRs, search repos. create_pr (base, head, title, optional body) needs a token with pull-request write scope. */
 github(input: {
-/** Action to perform: list_issues, create_issue, get_pr, search_repos, get_repo */
+/** Action to perform: list_issues, create_issue, create_pr, get_pr, search_repos, get_repo */
 action: string;
+/** Base branch for create_pr */
+base?: string | null;
 /** Body content for create operations */
 body?: string | null;
+/** Head branch for create_pr */
+head?: string | null;
 /** Issue or PR number (for get operations) */
 number?: number | null;
 /** Repository owner (GitHub username or organization) */
@@ -2068,9 +2254,21 @@ title?: string | null;
 }, ctx?: ExecutionContext): Promise<{
 readonly action: string;
 readonly error?: string;
-readonly items: readonly Record<string, unknown>[];
+readonly items: readonly { readonly body: string; readonly created_at: string; readonly number: number; readonly state: string; readonly title: string; readonly url?: string; }[];
 readonly success: boolean;
 readonly total_count: number;
+}>;
+/** `glob` - Expand a wildcard pattern (relative to a mounted directory) and list the matching file paths, sorted and capped. */
+glob(input: {
+/** Maximum number of paths returned (default: 200) */
+max_results?: number;
+/** Root directory (virtual path): an existing mounted directory */
+path: string;
+/** Wildcard pattern relative to path; an absolute pattern is refused */
+pattern: string;
+}, ctx?: ExecutionContext): Promise<{
+readonly paths: readonly string[];
+readonly truncated: boolean;
 }>;
 /** `graph_schema` - Inspect graph database schema (vertex labels, edge labels, properties, indexes) */
 graphSchema(input: {
@@ -2085,11 +2283,32 @@ password?: string | null;
 /** Username for authentication */
 username?: string | null;
 }, ctx?: ExecutionContext): Promise<{
-readonly edge_labels: readonly Record<string, unknown>[];
+readonly edge_labels: readonly { readonly label: string; readonly properties: readonly string[]; readonly source_label?: string; readonly target_label?: string; }[];
 readonly graph_type: string;
-readonly indexes: readonly Record<string, unknown>[];
-readonly property_keys: readonly Record<string, unknown>[];
-readonly vertex_labels: readonly Record<string, unknown>[];
+readonly indexes: readonly { readonly index_type?: string; readonly is_unique: boolean; readonly name: string; readonly property_keys: readonly string[]; }[];
+readonly property_keys: readonly { readonly cardinality?: string; readonly data_type: string; readonly name: string; }[];
+readonly vertex_labels: readonly { readonly count_estimate?: number; readonly label: string; readonly properties: readonly string[]; }[];
+}>;
+/** `grep` - Search the lines of text files under a mounted directory (path) with a regex; glob filters files relative to path. Binary, unreadable and over-1-MiB files are skipped; regex timeout, max_results and max_files bound the scan. Returns path:line:text hits. */
+grep(input: {
+/** Case-insensitive matching */
+case_insensitive?: boolean;
+/** Optional file filter relative to path (never absolute); all files when absent */
+glob?: string | null;
+/** Maximum number of files scanned; binary or unreadable files are skipped and counted (default: 2000) */
+max_files?: number;
+/** Maximum number of hits (default: 200) */
+max_results?: number;
+/** Root directory searched (virtual path, a mounted directory inside the agent root) */
+path: string;
+/** Regular expression searched in each line (per-match timeout; the scan stops and timed_out is set on a timeout) */
+pattern: string;
+}, ctx?: ExecutionContext): Promise<{
+readonly files_scanned: number;
+readonly files_skipped: number;
+readonly hits: readonly { readonly line: number; readonly path: string; readonly text: string; }[];
+readonly timed_out: boolean;
+readonly truncated: boolean;
 }>;
 /** `http_api` - Make HTTP API calls with support for GET, POST, PUT, DELETE, PATCH methods. Returns response body, status code, and headers. */
 httpApi(input: {
@@ -2119,14 +2338,17 @@ choices?: readonly string[];
 default_value?: string | null;
 /** Optional virtual path the user may edit before approving. Capable providers open an inline editor when a choice whose value contains 'edit' is selected. Path semantics are owned by the caller; the provider routes I/O through IFileSystemService. */
 edit_file_path?: string | null;
-/** Input type: text (free text), approval (yes/no), or choice (one of options[]) */
+/** Input type: text (free text), approval (yes/no), choice (one of choices[]), or multi (several of choices[]) */
 input_type?: string;
 /** The prompt text shown to the user */
 prompt: string;
+/** Index into choices[] of the recommended option */
+recommended?: number | null;
 }, ctx?: ExecutionContext): Promise<{
 readonly input_type: string;
 readonly is_approved: boolean;
 readonly response: string;
+readonly values: readonly string[];
 readonly was_default: boolean;
 }>;
 /** `image_generation` - Generate images using OpenAI DALL-E API. Supports text-to-image generation with configurable size, quality, and format. */
@@ -2147,7 +2369,7 @@ save_to_path?: string | null;
 size?: string;
 }, ctx?: ExecutionContext): Promise<{
 readonly image_count: number;
-readonly images: readonly Record<string, unknown>[];
+readonly images: readonly { readonly base64?: string; readonly revised_prompt?: string; readonly saved_path?: string; readonly url?: string; }[];
 readonly model: string;
 }>;
 /** `impact_analysis` - Who is affected if we change this symbol? Direct + transitive callers, grouped by package. */
@@ -2160,11 +2382,11 @@ target?: string;
 readonly by_package: Record<string, number>;
 readonly direct_impact: readonly string[];
 readonly target: string;
-readonly top_callers: readonly Record<string, unknown>[];
+readonly top_callers: readonly { readonly fqn: string; readonly kind: string; readonly signature?: string; readonly summary_short?: string; }[];
 readonly transitive_impact: readonly string[];
 readonly truncated: boolean;
 }>;
-/** `incremental_reindex` - Reindex only files changed since a prior commit or from an explicit list. */
+/** `incremental_reindex` - Reindex only files changed since a prior commit or from an explicit list. Cost is proportional to the changed files, not the repository: one file of 2 000 lines reindexes in under 2 s. */
 incrementalReindex(input?: {
 changed_files?: readonly string[];
 enrich_with_llm?: boolean;
@@ -2207,7 +2429,7 @@ readonly statement_count: number;
 indexStatus(input?: Record<string, never>, ctx?: ExecutionContext): Promise<{
 readonly dirty_count: number;
 readonly dirty_paths: readonly string[];
-readonly roots: readonly Record<string, unknown>[];
+readonly roots: readonly { readonly edge_count: number; readonly indexed_at: string; readonly language_summary?: string; readonly node_count: number; readonly virtual_root: string; }[];
 }>;
 /** `is_path_indexed` - Check whether a virtual path is covered by any indexed root (longest match wins). */
 isPathIndexed(input?: {
@@ -2253,7 +2475,10 @@ readonly type?: string;
 readonly value?: unknown;
 }>;
 /** `list_mounts` - Lists all available file system mounts with their virtual paths and access rights. */
-listMounts(input?: Record<string, never>, ctx?: ExecutionContext): Promise<unknown>;
+listMounts(input?: Record<string, never>, ctx?: ExecutionContext): Promise<{
+readonly mounts: readonly { readonly access: string; readonly overrides: readonly { readonly access: string; readonly virtual_path: string; }[]; readonly virtual_path: string; }[];
+readonly success: boolean;
+}>;
 /** `local_embed_text` - Generate embeddings for one or more texts using the on-device BGE-micro-v2 model. */
 localEmbedText(input: {
 /** Texts to embed. One vector is returned per entry, in the same order. */
@@ -2311,7 +2536,7 @@ top_k?: number;
 readonly files_processed: number;
 readonly query: string;
 readonly result_count: number;
-readonly results: readonly Record<string, unknown>[];
+readonly results: readonly { readonly approximate_line: number; readonly chunk_index: number; readonly content: string; readonly score: number; readonly source_file: string; }[];
 readonly total_chunks: number;
 }>;
 /** `memory_store` - List, add, delete, and get typed memory entries (user/project/feedback/reference). */
@@ -2374,7 +2599,7 @@ database: string;
 /** Number of documents to sample for schema inference (default 100) */
 sample_size?: number;
 }, ctx?: ExecutionContext): Promise<{
-readonly collections: readonly Record<string, unknown>[];
+readonly collections: readonly { readonly document_count: number; readonly indexes: readonly { readonly is_sparse: boolean; readonly is_unique: boolean; readonly keys: Record<string, number>; readonly name: string; }[]; readonly inferred_fields: readonly { readonly bson_type: string; readonly frequency: number; readonly is_indexed: boolean; readonly name: string; readonly sample_values: readonly string[]; }[]; readonly name: string; }[];
 readonly database_name: string;
 }>;
 /** `mysql_query` - Execute SQL queries on MySQL databases */
@@ -2404,6 +2629,63 @@ readonly row_count?: number;
 readonly rows?: readonly Record<string, unknown>[];
 readonly scalar_result?: unknown;
 }>;
+/** `node_ensure` - Applies one idempotent intent operation on one file: ensure_using / ensure_import (name, plus module for TypeScript) adds the using or import line in its place only when absent; ensure_field / ensure_member (selector of the type, text) adds a field, property or method next to its peers only when no member of that name exists. On Markdown: ensure_section (name = heading path, optional level) creates the missing headings; insert_under_heading (selector, text) appends at the end of a section; replace_mermaid (selector, index 0-based, text) replaces the body of the n-th mermaid fence of a section. Calling it again changes nothing and writes nothing: applied is false and range is the existing line or member. The insert is refused when it introduces a parse error that was not there before, the file is then untouched. */
+nodeEnsure(input?: {
+index?: number | null;
+level?: number | null;
+module?: string | null;
+name?: string | null;
+op?: string;
+path?: string;
+selector?: string | null;
+text?: string | null;
+}, ctx?: ExecutionContext): Promise<{
+readonly applied: boolean;
+readonly new_hash: string;
+readonly range: Record<string, unknown>;
+}>;
+/** `node_insert` - Inserts text relative to an anchor node: position 'inside' appends to a type or namespace body (an enum member gets its separating comma) or to the end of a Markdown section, 'before' puts it above the anchor's leading comments and attributes, 'after' below the anchor. There is no expected_hash: no anchor hash is required for before/after, the anchor is only a location. The text is re-indented line by line to the siblings' indentation (tabs or spaces as the file does); the insert is refused when it introduces a parse error that was not there before, the file is then untouched. */
+nodeInsert(input?: {
+path?: string;
+position?: string;
+selector?: string;
+text?: string;
+}, ctx?: ExecutionContext): Promise<{
+readonly new_hash: string;
+readonly range: Record<string, unknown>;
+}>;
+/** `node_outline` - Outline of a file's members. */
+nodeOutline(input?: {
+path?: string;
+}, ctx?: ExecutionContext): Promise<{
+readonly members: readonly { readonly end_byte: number; readonly end_line: number; readonly kind: string; readonly selector: string; readonly start_byte: number; readonly start_line: number; }[];
+}>;
+/** `node_read` - Reads one member of a file by selector: text, range and SHA-256, uncut. */
+nodeRead(input: {
+path?: string;
+/** Member to read. Readable form: Ns.Type.Member(paramTypes), e.g. Demo.Calc.Add(int). Markdown form: Section/Sub; sibling headings of the same name take a 1-based ordinal, e.g. Section/Notes[2]. Fallback form: @ts:<node-path>, the tree-sitter path root/<index>/<kind>/... returned when a readable selector is ambiguous. */
+selector: string;
+}, ctx?: ExecutionContext): Promise<{
+readonly end_byte: number;
+readonly end_line: number;
+readonly kind: string;
+readonly path: string;
+readonly selector: string;
+readonly sha256: string;
+readonly start_byte: number;
+readonly start_line: number;
+readonly text: string;
+}>;
+/** `node_replace` - Replaces one node of a file by selector and expected SHA-256 (from node_read): refused when the hash is stale or when the replacement introduces a parse error that was not there before; the file is then untouched. The replaced span includes the node's leading comments and attributes, so a replacement that omits them removes them; a Markdown section replaces its sub-sections too. Line endings are normalised to the file's. */
+nodeReplace(input?: {
+expected_hash?: string;
+path?: string;
+selector?: string;
+text?: string;
+}, ctx?: ExecutionContext): Promise<{
+readonly new_hash: string;
+readonly range: Record<string, unknown>;
+}>;
 /** `package_summary` - Details about a package (L1): file count, symbol count, exports, dependencies. */
 packageSummary(input?: {
 fqn?: string;
@@ -2430,7 +2712,7 @@ path: string;
 }, ctx?: ExecutionContext): Promise<{
 readonly content: string;
 readonly page_range: string;
-readonly pages: readonly Record<string, unknown>[];
+readonly pages: readonly { readonly height: number; readonly page_number: number; readonly text: string; readonly width: number; }[];
 readonly pages_read: number;
 readonly total_pages: number;
 }>;
@@ -2452,7 +2734,7 @@ top_k?: number;
 readonly files_processed: number;
 readonly query: string;
 readonly result_count: number;
-readonly results: readonly Record<string, unknown>[];
+readonly results: readonly { readonly chunk_index: number; readonly content: string; readonly page_number: number; readonly score: number; readonly source_file: string; }[];
 readonly total_chunks: number;
 readonly total_pages: number;
 }>;
@@ -2525,42 +2807,41 @@ readonly event_id: string;
 readonly published_at: string;
 }>;
 /** `rag_eval` - Evaluate a RAG knowledge collection against a golden dataset (YAML): recall@k, precision@k, MRR, groundedness and answer-relevance (judge mode labelled: llm or heuristic). Writes markdown/JSON reports and returns the aggregate summary. */
-ragEval(input: {
-/** Collection to evaluate (default: the dataset's collection; for a dataset without corpus, the configured default collection; else 'rag-eval-{dataset name}') */
-collection?: string;
-/** Comma-separated profiles to compare (e.g. 'fast,balanced,quality'); overrides 'profile' */
-compare?: string;
-/** Virtual path of the golden dataset YAML (e.g. '/workspace/examples/rag/eval/golden.yaml') */
-dataset: string;
-/** Metric cutoff for recall@k / precision@k (default: 5) */
+ragEval(input?: {
+collection?: string | null;
+compare?: unknown;
+dataset?: string;
 k?: number;
-/** Profile to evaluate (default: 'default') */
-profile?: string;
-/** Force a full corpus reindex before evaluating (required after an embedding model change) */
+profile?: string | null;
 reindex?: boolean;
-/** Judge generation with the configured LLM (falls back to the deterministic heuristic, always labelled) */
 use_llm_judge?: boolean;
-}, ctx?: ExecutionContext): Promise<unknown>;
+}, ctx?: ExecutionContext): Promise<{
+readonly cases: readonly { readonly case_id: string; readonly profile: string; readonly recall_at_k?: number; readonly reciprocal_rank?: number; }[];
+readonly metrics: readonly { readonly answer_relevance?: number; readonly groundedness?: number; readonly judge: string; readonly k: number; readonly mrr?: number; readonly precision_at_k?: number; readonly profile: string; readonly recall_at_k?: number; }[];
+readonly reports: readonly string[];
+}>;
 /** `rag_ingest` - Ingest documents into a knowledge collection so they become searchable via rag_search. Accepts file paths, glob patterns and http(s) addresses; unchanged sources are skipped (incremental). */
 ragIngest(input: {
 /** Optional chunking strategy name (recursive, sentence, structural, semantic); pipeline default when omitted */
 chunking_strategy?: string;
 /** Target collection in the document store */
 collection: string;
+/** Delete the chunks and manifest entries of previously ingested sources absent from 'sources' */
+prune?: boolean;
 /** Force a full reindex of the collection (required after an embedding model change) */
 reindex?: boolean;
 /** File paths, glob patterns or http(s) addresses to ingest (e.g. '/workspace/docs/**//*.md') */
 sources: readonly unknown[];
 }, ctx?: ExecutionContext): Promise<unknown>;
 /** `rag_search` - Search knowledge bases and retrieve answers grounded in documents. Use this when you need factual information from the agent's knowledge sources. */
-ragSearch(input: {
-/** Optional collection selector (default: the configured default collection; 'raggable-tree' for the code index) */
-collection?: string;
-/** The question to search for in knowledge bases */
-question: string;
-/** Number of relevant chunks to retrieve (default: 3) */
+ragSearch(input?: {
+collection?: string | null;
+question?: string;
 top_k?: number;
-}, ctx?: ExecutionContext): Promise<unknown>;
+}, ctx?: ExecutionContext): Promise<{
+readonly answer: string;
+readonly citations: readonly { readonly chunk_id: string; readonly content?: string; readonly document_id?: string; readonly end_offset: number; readonly marker: number; readonly score: number; readonly snippet?: string; readonly source_id: string; readonly start_offset: number; }[];
+}>;
 /** `receive_message` - Pull the next message from a mailbox (default: current agent). Only mailboxes of the calling crew are readable — reading is destructive, and a mailbox belongs to its owner. Requires exactly one of timeout_ms / wait_forever. */
 receiveMessage(input?: {
 /** Optional mailbox URI, restricted to the calling crew's own mailboxes (agent:// or crew:// of this crew). Defaults to the calling agent's mailbox. */
@@ -2624,7 +2905,7 @@ url: string;
 }, ctx?: ExecutionContext): Promise<{
 readonly css_selector: string;
 readonly element_count: number;
-readonly elements: readonly Record<string, unknown>[];
+readonly elements: readonly { readonly attributes?: Record<string, string>; readonly html?: string; readonly index: number; readonly text: string; }[];
 readonly returned_count: number;
 readonly url?: string;
 }>;
@@ -2658,6 +2939,7 @@ readonly retained_count: number;
 /** `session_stats` - Report full session telemetry: message count, estimated tokens, cost, and call totals. */
 sessionStats(input?: Record<string, never>, ctx?: ExecutionContext): Promise<{
 readonly by_model: Record<string, string>;
+readonly by_model_tokens: readonly { readonly cache_read_tokens: number; readonly cache_write_tokens: number; readonly completion_tokens: number; readonly model: string; readonly prompt_tokens: number; }[];
 readonly estimated_tokens: number;
 readonly message_count: number;
 readonly total_calls: number;
@@ -2682,8 +2964,14 @@ readonly value?: string;
 }>;
 /** `shell_command` - Execute shell commands with security controls. Supports allowlist/blocklist, timeout, and output capture. */
 shellCommand(input: {
-/** Shell command to execute */
+/** run (default): run the command and wait; start_job: start it detached, output to a log file; job_status: running or exit code of a job; job_tail: last lines of a job's log */
+action?: string;
+/** Shell command to execute; required by the run and start_job actions */
 command: string;
+/** Id returned by start_job, for job_status and job_tail */
+job_id?: string;
+/** Lines job_tail returns from the end of the log */
+tail_lines?: number;
 /** Timeout in seconds */
 timeout_seconds?: number;
 /** Virtual working directory for command execution, e.g. /workspace. Defaults to the first mounted directory the command may use: readable for a read-only command, writable for any other. */
@@ -2691,8 +2979,12 @@ working_directory?: string;
 }, ctx?: ExecutionContext): Promise<{
 readonly completed: boolean;
 readonly exit_code: number;
+readonly job_id: string;
+readonly output_path: string;
+readonly status: string;
 readonly stderr: string;
 readonly stdout: string;
+readonly tail: string;
 }>;
 /** `sqlserver_query` - Execute SQL queries on Microsoft SQL Server databases */
 sqlserverQuery(input: {
@@ -2728,21 +3020,58 @@ parent_fqns?: readonly string[];
 semantic_query?: string | null;
 top_k?: number;
 }, ctx?: ExecutionContext): Promise<{
-readonly hits: readonly Record<string, unknown>[];
+readonly hits: readonly { readonly condition?: string; readonly end_line?: number; readonly expression?: string; readonly kind: string; readonly parent_fqn: string; readonly score?: number; readonly start_line: number; readonly statement_id: string; }[];
+readonly truncated: boolean;
+}>;
+/** `structural_rewrite` - Applies a rule's fix template to the matching files; dry run by default. */
+structuralRewrite(input?: {
+dry_run?: boolean;
+fix?: string | null;
+glob?: string | null;
+language?: string;
+max_files?: number;
+paths?: readonly string[];
+pattern?: string | null;
+rule?: unknown;
+rule_file?: string | null;
+}, ctx?: ExecutionContext): Promise<{
+readonly files: readonly { readonly applied: number; readonly diff: string; readonly matches: number; readonly path: string; readonly refused_reason?: string; readonly skipped: readonly string[]; }[];
+readonly files_scanned: number;
+readonly truncated: boolean;
+}>;
+/** `structural_search` - Searches C#, TypeScript or Markdown files for a code pattern parsed with the target grammar: $NAME matches one node and captures its text, $$$NAME matches zero or more sibling nodes. Returns path, line, column, text, captures and the enclosing symbol of each match. */
+structuralSearch(input?: {
+glob?: string | null;
+language?: string;
+max_files?: number;
+max_results?: number;
+paths?: readonly string[];
+/** Code pattern with $NAME / $$$NAME metavariables. Give exactly one of pattern, rule or rule_file. */
+pattern?: string | null;
+/** Structural rule object. Keys: kind, pattern, regex, field, inside, has, not, all, any, stopBy. Any other key is refused by name. */
+rule?: unknown;
+/** Virtual path of a YAML rule file (id, language, rule, message, severity, fix) under a mounted root. */
+rule_file?: string | null;
+}, ctx?: ExecutionContext): Promise<{
+readonly files_scanned: number;
+readonly matches: readonly { readonly captures: Record<string, string>; readonly column: number; readonly enclosing_symbol?: string; readonly line: number; readonly path: string; readonly text: string; }[];
 readonly truncated: boolean;
 }>;
 /** `sub_graph` - Sub-graph expansion around seeds, bounded by depth and node count. */
 subGraph(input?: {
 depth?: number;
 direction?: string;
+/** Edge kinds to follow, by name: contains, calls, imports, inherits, tests, documents, project_depends. Legacy enum names (Imports, Extends, Implements...) are still accepted. */
 edge_kinds?: readonly string[];
 include_mermaid?: boolean;
 max_nodes?: number;
+/** Keep only expanded nodes of these kinds, by name: file, project, namespace, type, member, doc_section, test. Empty keeps every node. */
+node_kinds?: readonly string[];
 seeds?: readonly string[];
 }, ctx?: ExecutionContext): Promise<{
-readonly edges: readonly Record<string, unknown>[];
+readonly edges: readonly { readonly from: string; readonly kind: string; readonly to: string; }[];
 readonly mermaid_flowchart?: string;
-readonly nodes: readonly Record<string, unknown>[];
+readonly nodes: readonly { readonly fqn: string; readonly is_seed: boolean; readonly kind: string; readonly level: string; readonly name: string; }[];
 readonly truncated: boolean;
 }>;
 /** `symbol_detail` - Expanded detail for an L3 symbol: signature, doc, body metrics, members, callers, callees, statements. */
@@ -2761,13 +3090,13 @@ readonly fqn: string;
 readonly implements: readonly string[];
 readonly kind?: string;
 readonly level?: string;
-readonly members: readonly Record<string, unknown>[];
+readonly members: readonly { readonly fqn: string; readonly kind: string; readonly signature?: string; readonly summary_short?: string; }[];
 readonly name?: string;
 readonly signature?: string;
-readonly statements: readonly Record<string, unknown>[];
+readonly statements: readonly { readonly children: readonly Record<string, unknown>[]; readonly condition?: string; readonly depth: number; readonly embedding?: Record<string, unknown>; readonly end_line?: number; readonly expression: string; readonly id: string; readonly in_lambda: boolean; readonly in_loop: boolean; readonly kind: string; readonly parent_symbol_id: string; readonly receiver?: string; readonly references: readonly { readonly kind: string; readonly name: string; readonly resolved_id?: string; }[]; readonly start_line: number; }[];
 readonly summary_short?: string;
-readonly top_callees: readonly Record<string, unknown>[];
-readonly top_callers: readonly Record<string, unknown>[];
+readonly top_callees: readonly { readonly fqn: string; readonly kind: string; readonly signature?: string; readonly summary_short?: string; }[];
+readonly top_callers: readonly { readonly fqn: string; readonly kind: string; readonly signature?: string; readonly summary_short?: string; }[];
 readonly truncated: boolean;
 }>;
 /** `symbol_source` - Deterministic source citation for a symbol. Returns file path, lines, code, SHA-256, and stable flag. */
@@ -2812,7 +3141,7 @@ top_k?: number;
 readonly files_processed: number;
 readonly query: string;
 readonly result_count: number;
-readonly results: readonly Record<string, unknown>[];
+readonly results: readonly { readonly approximate_line: number; readonly chunk_index: number; readonly content: string; readonly score: number; readonly source_file: string; }[];
 readonly total_chunks: number;
 }>;
 /** `wait_for_event` - Wait for the next event on a topic. Requires exactly one of timeout_ms / wait_forever. */
@@ -2861,7 +3190,7 @@ search_depth?: string;
 }, ctx?: ExecutionContext): Promise<{
 readonly query: string;
 readonly result_count: number;
-readonly results: readonly Record<string, unknown>[];
+readonly results: readonly { readonly content: string; readonly score: number; readonly title: string; readonly url?: string; }[];
 }>;
 /** `xlsx_reader` - Read Excel (.xlsx) files and return structured data including sheets, rows, columns, and metadata. */
 xlsxReader(input: {
@@ -2877,7 +3206,7 @@ sheet_name?: string;
 readonly metadata: Record<string, string>;
 readonly sheet_count: number;
 readonly sheet_names: readonly string[];
-readonly sheets: readonly Record<string, unknown>[];
+readonly sheets: readonly { readonly column_count: number; readonly headers: readonly string[]; readonly name: string; readonly row_count: number; readonly rows: readonly (readonly string[])[]; }[];
 }>;
 /** `xlsx_writer` - Create or update Excel (.xlsx) files with structured data including multiple sheets, headers, and rows. */
 xlsxWriter(input: {
@@ -2886,7 +3215,7 @@ append_to_existing?: boolean;
 /** Output file path for the .xlsx */
 file_path: string;
 /** Sheets to write (each with name, headers, rows) */
-sheets: readonly Record<string, unknown>[];
+sheets: readonly { readonly headers: readonly string[]; readonly name: string; readonly rows: readonly (readonly string[])[]; }[];
 }, ctx?: ExecutionContext): Promise<{
 readonly file_path: string;
 readonly file_size: number;
@@ -2905,10 +3234,10 @@ xpath?: string | null;
 readonly attribute_count?: number;
 readonly attributes?: Record<string, unknown>;
 readonly child_count?: number;
-readonly children?: readonly Record<string, unknown>[];
+readonly children?: readonly { readonly attributes: Record<string, unknown>; readonly name: string; readonly value: string; }[];
 readonly declaration?: string;
 readonly match_count?: number;
-readonly matches?: readonly Record<string, unknown>[];
+readonly matches?: readonly { readonly attributes: Record<string, unknown>; readonly name: string; readonly value: string; }[];
 readonly namespace?: string;
 readonly root_element?: string;
 readonly source?: string;
