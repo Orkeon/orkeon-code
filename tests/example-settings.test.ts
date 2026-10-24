@@ -95,3 +95,12 @@ for (const name of examples) {
     assert.notEqual(load(name).RaggableTree?.Enabled, false);
   });
 }
+
+// D-6: the session persists, outside the project (the launcher names the folder, /sessions): said in every example
+// that configures the REPL, so a user sees where to turn it off.
+for (const name of examples.filter((name) => load(name).Orkeon?.Cli)) {
+  test(`${name} keeps the session (Orkeon:Cli:Session:Persist)`, () => {
+    assert.equal(load(name).Orkeon.Cli.Session?.Persist, true);
+    assert.equal(load(name).Orkeon.Cli.Session?.SessionsDirectory, undefined, "the launcher names the folder");
+  });
+}

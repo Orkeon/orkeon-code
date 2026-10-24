@@ -8,6 +8,8 @@
   .\orkeon-code.ps1 -Workspace C:\src\app
   .\orkeon-code.ps1 -Mode docker -Settings .\config\appsettings.local.json
   .\orkeon-code.ps1 -Trust                       # this run only, without asking (nothing stored)
+  .\orkeon-code.ps1 -Continue                    # the last session of this project (--continue, -c)
+  .\orkeon-code.ps1 --resume [<n> | <id>]        # list the saved sessions of this project and pick one
   .\orkeon-code.ps1 trust list | add <path> | remove <path> | check <path> [--trust]
   .\orkeon-code.ps1 setup                        # write %USERPROFILE%\.orkeon-code\appsettings.json (never the key)
 
@@ -15,7 +17,7 @@
   Modes: tool (orkeon-repl on PATH, from the full Orkeon release .zip (the .msi has no orkeon-repl), the
   Debian package or the dotnet tool, or $env:ORKEON_REPL) and docker
   (ghcr.io/orkeon/orkeon-runners:<.orkeon-version>). The source mode is only in the
-  bash launcher. Folder trust, settings, API key, model and $env:ORKEON_CODE_AUDIO_DIR (speech-to-text,
+  bash launcher. Folder trust, per-project state, sessions, settings, API key, model and $env:ORKEON_CODE_AUDIO_DIR (speech-to-text,
   tool mode): see the header of ./orkeon-code.
 #>
 # No positional binding: a bare word (trust, setup, a REPL argument) lands in $Extra, never in -Mode.
@@ -26,6 +28,8 @@ param(
   [string] $Settings = $env:ORKEON_CODE_SETTINGS,
   [switch] $Version,
   [switch] $Trust,
+  [switch] $Continue,
+  [switch] $Resume,
   [Parameter(ValueFromRemainingArguments = $true)] [string[]] $Extra = @()
 )
 $ErrorActionPreference = 'Stop'
@@ -39,6 +43,7 @@ if ($Extra.Count -gt 0 -and $Extra[0] -cin @('trust', 'setup')) {
   $Extra = @()
 }
 
+$resumeChoice = ''
 # The long options of ./orkeon-code, as a .cmd wrapper passes them (%*): --settings x, --settings=x, --workspace,
 # --mode, --version and --trust bind the parameters above; a -- left in the arguments is dropped, and what follows
 # it goes to the REPL as is.
@@ -53,6 +58,12 @@ for ($i = 0; $i -lt $Extra.Count; $i++) {
   if ($a -match '^(--(?:settings|workspace|mode))=(.*)$') { $name = $Matches[1]; $value = $Matches[2] }
   if ($name -eq '--version') { $Version = [switch] $true }
   elseif ($name -eq '--trust') { $Trust = [switch] $true }
+  elseif ($name -cin @('--continue', '-c')) { $Continue = [switch] $true }
+  elseif ($name -match '^--resume(=(.*))?$') {
+    $Resume = [switch] $true
+    if ($Matches[1]) { $resumeChoice = $Matches[2] }
+    elseif ($i + 1 -lt $Extra.Count -and -not $Extra[$i + 1].StartsWith('-')) { $i++; $resumeChoice = $Extra[$i] }
+  }
   elseif ($name -in @('--settings', '--workspace', '--mode')) {
     if ($null -eq $value) {
       if ($i + 1 -ge $Extra.Count) { throw "$name needs a value." }
@@ -216,6 +227,56 @@ function Confirm-Trusted([string] $folder, [bool] $given, [int] $declined) {
   }
 }
 
+# ── Per-project state and sessions (as ./orkeon-code) ──
+# The runtime's folder name for a project (ProjectKey.Slug, Orkeon.Infrastructure/Session/ProjectKey.cs): the last
+# segment, each UTF-16 unit an ASCII letter or digit lowercased, else '-', then '-' and the first 12 hex of the
+# SHA-256 of the whole path, in UTF-8.
+function Get-ProjectSlug([string] $path) {
+  $name = ($path.TrimEnd('/', '\') -split '[/\\]')[-1]
+  $out = -join @(foreach ($c in $name.ToCharArray()) {
+    $n = [int] $c
+    if (($n -ge 48 -and $n -le 57) -or ($n -ge 65 -and $n -le 90) -or ($n -ge 97 -and $n -le 122)) { [char]::ToLowerInvariant($c) } else { '-' }
+  })
+  $sha = [System.Security.Cryptography.SHA256]::Create()
+  try { $bytes = $sha.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($path)) } finally { $sha.Dispose() }
+  "$out-" + (-join @($bytes | ForEach-Object { $_.ToString('x2') })).Substring(0, 12)
+}
+
+# A string field of a JSON file as stored (its escapes unread), or $null.
+function Get-JsonField([string] $file, [string] $field) {
+  $text = Get-Content -LiteralPath $file -Raw -Encoding UTF8 -ErrorAction SilentlyContinue
+  if ($text -match ('"' + $field + '"\s*:\s*"((?:[^"\\]|\\.)*)"')) { $Matches[1] } else { $null }
+}
+
+# Moves every last.json the runtime saved into history/, under <UTC time>-<session id>.json: those of sessions/
+# unless $sideOnly, and always those of side/<pid>/ (a start beside an open one, now ended). A session without a
+# message (a start and a quit) is dropped, so it never pushes a real one out of the history.
+function Move-SessionsToHistory([string] $sessions, [string] $history, [string] $side, [bool] $sideOnly) {
+  $folders = @()
+  if (-not $sideOnly) { $folders += @(Get-ChildItem -LiteralPath $sessions -Directory -ErrorAction SilentlyContinue) }
+  foreach ($pidDir in @(Get-ChildItem -LiteralPath $side -Directory -ErrorAction SilentlyContinue)) {
+    $folders += @(Get-ChildItem -LiteralPath $pidDir.FullName -Directory -ErrorAction SilentlyContinue)
+  }
+  foreach ($last in @($folders | ForEach-Object { Join-Path $_.FullName 'last.json' } | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf })) {
+    if ((Get-Content -LiteralPath $last -Raw -Encoding UTF8 -ErrorAction SilentlyContinue) -match '"Messages"\s*:\s*\[\s*\]') {
+      Remove-Item -LiteralPath $last -Force; continue
+    }
+    $id = "$(Get-JsonField $last 'SessionId')" -replace '[^A-Za-z0-9._-]', '_'
+    if (-not $id) { $id = 'session' }
+    $stamp = [DateTime]::UtcNow.ToString("yyyyMMdd'T'HHmmss'Z'", [System.Globalization.CultureInfo]::InvariantCulture)
+    $target = Join-Path $history "$stamp-$id.json"; $n = 2
+    while (Test-Path -LiteralPath $target) { $target = Join-Path $history "$stamp-$id-$n.json"; $n++ }
+    Move-Item -LiteralPath $last -Destination $target -Force
+  }
+  Get-ChildItem -LiteralPath $side -Directory -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
+}
+
+# The history, newest first.
+function Get-HistoryFiles([string] $history) {
+  @(Get-ChildItem -LiteralPath $history -File -Filter '*.json' -ErrorAction SilentlyContinue |
+    Sort-Object -Property Name -Descending -CaseSensitive)
+}
+
 # ── Settings: setup (as ./orkeon-code setup; the key is never asked) ──
 # One line asked on the terminal: the answer, trimmed, or <default> when empty; $null at the end of input.
 function Read-Answer([string] $question, [string] $default) {
@@ -282,6 +343,7 @@ function Invoke-Setup([string] $target) {
 # in the PowerShell session that ran it.
 $savedEnv = @{}
 foreach ($name in @('ORKEON_Llm__Model', 'Orkeon__Security__PermissionGate__Enabled', 'Orkeon__Cli__Session__StartScript',
+                    'Orkeon__Cli__Session__Persist', 'ORKEON_Orkeon__Cli__Session__SessionsDirectory',
                     'ORKEON_ESBUILD_PATH',
                     'ORKEON_ALLOW_EXTERNAL_MOUNTS', 'WHISPER_AUDIO_DIR', 'WHISPER_OUT_DIR',
                     'ORKEON_MCP__Servers__whisper__Transport', 'ORKEON_MCP__Servers__whisper__Command',
@@ -422,17 +484,113 @@ try {
   # can still turn it off.
   if (-not $env:Orkeon__Security__PermissionGate__Enabled) { $env:Orkeon__Security__PermissionGate__Enabled = 'true' }
 
+  if ($Continue -and $Resume) { throw '--continue and --resume do not go together: one brings the last session back, the other the one you pick.' }
+
   if (-not $Mode) {
     if ($env:ORKEON_REPL -or (Get-Command orkeon-repl -ErrorAction SilentlyContinue)) { $Mode = 'tool' }
     elseif (Get-Command docker -ErrorAction SilentlyContinue) { $Mode = 'docker' }
     else { throw 'No Orkeon runtime found: install Docker or the orkeon-repl tool (docs/getting-started.md).' }
   }
 
-  # One state folder for every project until each project gets its own.
-  $State = if ($env:ORKEON_CODE_STATE) { $env:ORKEON_CODE_STATE }
-           elseif ($IsClone) { Join-Path $Root '.crew-output' } else { Join-Path $CodeHome 'state' }
+  # An install keeps one folder per project, ~/.orkeon-code/projects/<slug>; a clone's .crew-output and an
+  # ORKEON_CODE_STATE may serve several projects, so their per-project part goes under projects/<slug>. Either way
+  # $projectState lies inside $State, which docker mode mounts on /work/state.
+  $slug = Get-ProjectSlug $Workspace
+  $projectRel = "projects/$slug"
+  if ($env:ORKEON_CODE_STATE) { $State = $env:ORKEON_CODE_STATE }
+  elseif ($IsClone) { $State = Join-Path $Root '.crew-output' }
+  else { $State = Join-Path $CodeHome $projectRel; $projectRel = '' }
   New-Item -ItemType Directory -Force -Path (Join-Path $State 'output'), (Join-Path $State 'tmp') | Out-Null
   $State = (Resolve-Path $State).Path
+  $projectState = if ($projectRel) { Join-Path $State $projectRel } else { $State }
+  # The runtime saves the session in <SessionsDirectory>/<its slug of the project>/last.json when the REPL ends, and
+  # reloads it at the next start. The folder is the /sessions mount, outside the project; the launcher keeps its own
+  # files beside it: history/ and project.json.
+  $sessions = Join-Path $projectState 'sessions'
+  $history = Join-Path $projectState 'history'
+  New-Item -ItemType Directory -Force -Path $sessions, $history | Out-Null
+  $runtimeSlug = if ($Mode -eq 'docker') { Get-ProjectSlug '/work/project' } else { $slug }
+  $projectFile = Join-Path $projectState 'project.json'
+  $now = [DateTime]::UtcNow.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", [System.Globalization.CultureInfo]::InvariantCulture)
+  $firstSeen = Get-JsonField $projectFile 'firstSeen'
+  if (-not $firstSeen) { $firstSeen = $now }
+  $escapedPath = ($Workspace -replace '\\', '\\') -replace '"', '\"'
+  [System.IO.File]::WriteAllText("$projectFile.tmp.$PID",
+    "{`n  `"path`": `"$escapedPath`",`n  `"slug`": `"$slug`",`n  `"runtimeSlug`": `"$runtimeSlug`",`n" +
+    "  `"firstSeen`": `"$firstSeen`",`n  `"lastSeen`": `"$now`"`n}`n")
+  Move-Item -LiteralPath "$projectFile.tmp.$PID" -Destination $projectFile -Force
+
+  # The starts open on this project, one pid a line (a launcher waits for its REPL). Another one still running: its
+  # session is left where it is, and this one is kept beside it, in side/<pid>/, archived at the next start that
+  # finds none open.
+  $lock = Join-Path $projectState '.lock'
+  $side = Join-Path $projectState 'side'
+  $other = $null
+  $livePids = @()
+  foreach ($line in @(Get-Content -LiteralPath $lock -ErrorAction SilentlyContinue)) {
+    $otherPid = "$line".Trim()
+    if ($otherPid -match '^[0-9]{1,9}$' -and [int] $otherPid -ne $PID -and (Get-Process -Id ([int] $otherPid) -ErrorAction SilentlyContinue)) {
+      if (-not $other) { $other = $otherPid }
+      $livePids += $otherPid
+    }
+  }
+  # Left when the REPL ends, as ./orkeon-code leaves it: a pid that no longer runs is a stale lock.
+  [System.IO.File]::WriteAllText($lock, ((@($livePids) + "$PID") -join "`n") + "`n")
+  $sessionsMount = $sessions
+  $sessionsSub = 'sessions'
+
+  # Fresh unless --continue (the runtime reloads the last itself) or --resume (the chosen one is put back).
+  $sessionNote = 'fresh; --continue brings the last back, --resume lists them'
+  if ($other) {
+    Write-Warning "another session is open on this project (pid $other): it is left as it is, and this one is kept beside it, in the history from the next start."
+    $sessionNote = 'beside the open one'
+    $sessionsMount = Join-Path $side "$PID"
+    $sessionsSub = "side/$PID"
+    New-Item -ItemType Directory -Force -Path $sessionsMount | Out-Null
+  } elseif ($Continue) { $sessionNote = 'continued'; Move-SessionsToHistory $sessions $history $side $true }
+  else { Move-SessionsToHistory $sessions $history $side $false }
+  $keep = 50
+  if ($null -ne $env:ORKEON_CODE_SESSIONS_KEEP) {
+    if ($env:ORKEON_CODE_SESSIONS_KEEP -match '^[0-9]{1,4}$' -and [int] $env:ORKEON_CODE_SESSIONS_KEEP -gt 0) { $keep = [int] $env:ORKEON_CODE_SESSIONS_KEEP }
+    else { Write-Warning "ORKEON_CODE_SESSIONS_KEEP=$($env:ORKEON_CODE_SESSIONS_KEEP) is not a whole number from 1 to 9999: 50 sessions are kept." }
+  }
+  Get-HistoryFiles $history | Select-Object -Skip $keep | Remove-Item -Force
+
+  if ($Resume) {
+    $files = @(Get-HistoryFiles $history)
+    if ($files.Count -eq 0) { throw "No saved session for $Workspace yet (they are kept in $history)." }
+    if (-not $resumeChoice) {
+      [Console]::Error.WriteLine("orkeon-code: sessions of $Workspace, newest first:")
+      for ($i = 0; $i -lt $files.Count; $i++) {
+        $saved = try { Get-Content -LiteralPath $files[$i].FullName -Raw -Encoding UTF8 | ConvertFrom-Json } catch { $null }
+        $title = if ($saved -and $saved.Title) { $saved.Title } else { '(untitled)' }
+        $count = if ($saved -and $saved.Messages) { @($saved.Messages).Count } else { 0 }
+        $stem = $files[$i].BaseName
+        [Console]::Error.WriteLine(('{0,3}  {1}  {2}  ({3} messages)  {4}' -f ($i + 1), $stem.Substring(0, [Math]::Min(16, $stem.Length)), $title, $count, $(if ($stem.Length -gt 17) { $stem.Substring(17) } else { '' })))
+      }
+      if ([Console]::IsInputRedirected) {
+        [Console]::Error.WriteLine('orkeon-code: no terminal to choose in: pass --resume <number or id>.')
+        exit 2
+      }
+      $resumeChoice = Read-Answer 'Session to resume [1]: ' '1'
+      if ($null -eq $resumeChoice) { $resumeChoice = '1' }
+    }
+    $chosen = $null
+    # A number of the list first (up to four digits), else the start of an id.
+    if ($resumeChoice -match '^[1-9][0-9]{0,3}$' -and [int] $resumeChoice -le $files.Count) { $chosen = $files[[int] $resumeChoice - 1] }
+    if (-not $chosen -and $resumeChoice) {
+      $matching = @($files | Where-Object { $_.BaseName.Length -gt 17 -and $_.BaseName.Substring(17).StartsWith($resumeChoice, [StringComparison]::Ordinal) })
+      if ($matching.Count -gt 1) { throw "More than one session starts with '$resumeChoice': give more of its id." }
+      if ($matching.Count -eq 1) { $chosen = $matching[0] }
+    }
+    if (-not $chosen) { throw "No saved session '$resumeChoice' (orkeon-code --resume lists them)." }
+    if ($other) { throw "Another session is open on this project (pid $other): end it before you resume one." }
+    # The chosen session lives in one place: back in sessions/, the history losing it (the last one was archived above).
+    $target = Join-Path $sessions $runtimeSlug
+    New-Item -ItemType Directory -Force -Path $target | Out-Null
+    Move-Item -LiteralPath $chosen.FullName -Destination (Join-Path $target 'last.json') -Force
+    $sessionNote = "resumed $($chosen.BaseName.Substring([Math]::Min(17, $chosen.BaseName.Length)))"
+  }
 
   # The session's start script (scripts/session-start.ork.ts), copied fresh into the agent's /tmp at every start:
   # the runtime runs it once at the REPL's start, through its script host, and puts what it prints before the
@@ -443,6 +601,10 @@ try {
   if ($null -eq [Environment]::GetEnvironmentVariable('Orkeon__Cli__Session__StartScript')) {
     $env:Orkeon__Cli__Session__StartScript = '/tmp/orkeon-code/session-start.ork.ts'
   }
+  # The session persists (the runtime's default in the REPL, said here; a settings file may still turn it off), in
+  # /sessions: the prefixed form wins over the settings file, since the archiving above reads that folder alone.
+  if (-not $env:Orkeon__Cli__Session__Persist) { $env:Orkeon__Cli__Session__Persist = 'true' }
+  $env:ORKEON_Orkeon__Cli__Session__SessionsDirectory = '/sessions'
 
   # Speech-to-text (optional): $env:ORKEON_CODE_AUDIO_DIR names the folder of audio and video files. The
   # Whisper MCP server (mcp/whisper), started by the REPL over stdio, reads it and writes into
@@ -507,6 +669,7 @@ try {
   Write-Host "orkeon-code on Orkeon $OrkeonVersion ($Mode)"
   Write-Host "  project  : $Workspace -> /workspace"
   if ($runtimeOwn) { Write-Host "  settings : $Settings (Orkeon's own, read by the REPL)" } else { Write-Host "  settings : $Settings" }
+  Write-Host "  sessions : $sessionsMount ($sessionNote)"
   if ($audio) {
     $model = if ($env:WHISPER_MODEL) { $env:WHISPER_MODEL } elseif ($sttBackend -eq 'openai') { 'whisper-1' } else { 'small' }
     $gpu = if ("$env:WHISPER_DEVICE".Trim() -eq 'cuda') { ' on the GPU' } else { '' }
@@ -531,24 +694,38 @@ try {
     Write-Warning "The orkeonCode block of $Settings could not be read: no user setting applies."
   }
 
-  # An empty <settings> passes none: the REPL then reads Orkeon's own file.
-  function Get-ReplArgs($commands, $crews, $settings, $workspace, $output, $tmp, $userConfig) {
+  # An empty <settings> passes none: the REPL then reads Orkeon's own file. <projectState> as the REPL sees it: its
+  # sessions/ on /sessions, its history/ on /session-history (read-only, for /resume).
+  function Get-ReplArgs($commands, $crews, $settings, $workspace, $output, $tmp, $userConfig, $projectState) {
     @('--runner=scripted-commands', '--commands-dir', $commands, '--crews-dir', $crews)
     if ($settings) { @('--settings', $settings) }
     @('--mount', "${workspace}:/workspace:rw", '--mount', "${output}:/output:rw", '--mount', "${tmp}:/tmp:rw",
-      '--mount', "${userConfig}:/user-config:ro")
+      '--mount', "${userConfig}:/user-config:ro",
+      '--mount', "${projectState}/${sessionsSub}:/sessions:rw", '--mount', "${projectState}/history:/session-history:ro")
+  }
+
+  # The exchange log (--llm-log) would land in ./llm-logs, the project: a bare --llm-log among the REPL's arguments
+  # is sent to <projectState>/llm-logs instead; an explicit --llm-log-path is passed as given.
+  function Get-LlmLogArgs($projectState) {
+    # An explicit --llm-log-path wins: a bare --llm-log beside it is dropped (the runtime keeps the last path it reads).
+    $named = @($Extra | Where-Object { "$_" -ceq '--llm-log-path' -or "$_".StartsWith('--llm-log-path=', [StringComparison]::Ordinal) }).Count -gt 0
+    foreach ($a in $Extra) { if ($a -ceq '--llm-log') { if (-not $named) { '--llm-log-path'; "$projectState/llm-logs" } } else { $a } }
   }
 
   if ($Mode -eq 'docker') {
     # Everything under the working directory /work. The image is multi-arch (linux/amd64, linux/arm64).
     $envArgs = @('-e', 'ORKEON_RUNNER=repl', '-e', 'HOME=/tmp', '-e', 'DOTNET_CLI_HOME=/tmp',
                  '-e', "Orkeon__Security__PermissionGate__Enabled=$env:Orkeon__Security__PermissionGate__Enabled",
-                 '-e', "Orkeon__Cli__Session__StartScript=$env:Orkeon__Cli__Session__StartScript")
+                 '-e', "Orkeon__Cli__Session__StartScript=$env:Orkeon__Cli__Session__StartScript",
+                 '-e', "Orkeon__Cli__Session__Persist=$env:Orkeon__Cli__Session__Persist",
+                 '-e', 'ORKEON_Orkeon__Cli__Session__SessionsDirectory=/sessions')
     foreach ($v in @('ORKEON_Llm__ApiKey', 'ORKEON_Llm__Model', $keyVar)) {
       if ($v -and [Environment]::GetEnvironmentVariable($v)) { $envArgs += @('-e', $v) }
     }
+    $inState = if ($projectRel) { "/work/state/$projectRel" } else { '/work/state' }
     $replArgs = Get-ReplArgs '/work/agent/commands' '/work/agent/crews' '/work/settings.json' `
-                             '/work/project' '/work/state/output' '/work/state/tmp' '/work/state/user-config'
+                             '/work/project' '/work/state/output' '/work/state/tmp' '/work/state/user-config' $inState
+    $Extra = @(Get-LlmLogArgs $inState)
     & docker run --rm -it @envArgs -w /work `
       -v "${Workspace}:/work/project" -v "$(Join-Path $Root 'src'):/work/agent:ro" `
       -v "${Settings}:/work/settings.json:ro" -v "${State}:/work/state" `
@@ -581,11 +758,12 @@ try {
     $env:ORKEON_ESBUILD_PATH = $found.FullName
   }
   $replArgs = Get-ReplArgs (Join-Path $Root 'src/commands') (Join-Path $Root 'src/crews') $(if ($runtimeOwn) { '' } else { $Settings }) `
-                           $Workspace (Join-Path $State 'output') (Join-Path $State 'tmp') $userConfigDir
+                           $Workspace (Join-Path $State 'output') (Join-Path $State 'tmp') $userConfigDir $projectState
+  $Extra = @(Get-LlmLogArgs $projectState)
   # The REPL runs from the project. It reads its --commands-dir and --crews-dir wherever they are, and
-  # a --mount outside its working directory (/output, /tmp and /user-config, in the state directory) under
-  # ORKEON_ALLOW_EXTERNAL_MOUNTS (Orkeon GAP-49). The four roots are distinct, and none is one the REPL
-  # keeps (/sandbox, /credentials, /cli-commands..., /crews...).
+  # a --mount outside its working directory (/output, /tmp, /user-config, /sessions and /session-history, in the
+  # state directory, and an --llm-log-path there) under ORKEON_ALLOW_EXTERNAL_MOUNTS (Orkeon GAP-49). The six roots
+  # are distinct, and none is one the REPL keeps (/sandbox, /credentials, /llm-logs, /cli-commands..., /crews...).
   $env:ORKEON_ALLOW_EXTERNAL_MOUNTS = '1'
   Push-Location $Workspace
   try {

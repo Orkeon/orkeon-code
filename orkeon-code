@@ -7,6 +7,8 @@
 #   ./orkeon-code --mode docker|tool|source [--settings FILE] [-- extra REPL args]
 #   ./orkeon-code --version                # Code's version, where it runs from, the Orkeon expected and found
 #   ./orkeon-code --trust                  # this run only, without asking (nothing stored)
+#   ./orkeon-code -c | --continue          # the last session of this project, its conversation back
+#   ./orkeon-code --resume [<n> | <id>]    # list the saved sessions of this project and pick one
 #   ./orkeon-code trust list | add <path> | remove <path> | check <path> [--trust]   # check: exit 0, 3 or 4
 #   ./orkeon-code setup                    # write ~/.orkeon-code/appsettings.json (never the key)
 #
@@ -23,8 +25,15 @@
 # user's own settings, which the project's .orkeon/config.json cannot widen.
 #
 # A clone (a .git or tests/ beside this script) keeps its state in .crew-output and its demo in
-# fixtures/. An install (scripts/install.sh, npm) never writes to its own folder: both go
-# under ORKEON_CODE_HOME (default ~/.orkeon-code), in state/ and demo/.
+# fixtures/. An install (scripts/install.sh, npm) never writes to its own folder: its demo goes
+# under ORKEON_CODE_HOME (default ~/.orkeon-code) in demo/, the state of each project in
+# projects/<slug>/ (<slug>: the folder's name and a hash of its path, the runtime's own).
+#
+# Sessions: every start is a fresh session. The runtime saves the conversation when the REPL ends,
+# outside the project (<state>/sessions, or .crew-output/projects/<slug>/sessions in a clone); the
+# next start moves it to history/ beside it, where the 50 newest are kept
+# (ORKEON_CODE_SESSIONS_KEEP). --continue brings the last one back, --resume <n or id> an older one;
+# /resume lists them inside the REPL. A bare --llm-log after -- goes to <state>/llm-logs.
 #
 # Modes (auto-detected in this order, or forced with --mode / ORKEON_CODE_MODE):
 #   tool    orkeon-repl on PATH (from the orkeon Debian package, an Orkeon release archive, or the
@@ -174,6 +183,69 @@ write_trust_store() {
 
 # The folder, physical (every symlink resolved), or nothing when it is not a folder.
 canonical_dir() { (cd "$1" 2>/dev/null && pwd -P); }
+
+# The runtime's folder name for a project (ProjectKey.Slug, Orkeon.Infrastructure/Session/ProjectKey.cs): the last
+# segment, each UTF-16 unit an ASCII letter or digit lowercased, else '-', then '-' and the first 12 hex of the
+# SHA-256 of the whole path. Bytes under LC_ALL=C: a 4-byte UTF-8 sequence is two UTF-16 units, any other one.
+project_slug() ( # <path>
+  LC_ALL=C
+  key="$1"; name="$1"; out=""; i=0
+  while case "$name" in */|*\\) true ;; *) false ;; esac; do name="${name%?}"; done
+  name="${name##*[/\\]}"
+  while [ "$i" -lt "${#name}" ]; do
+    case "${name:i:1}" in
+      [A-Za-z0-9]) out="$out${name:i:1}" ;;
+      [$'\x80'-$'\xbf']) ;;
+      [$'\xf0'-$'\xf7']) out="$out--" ;;
+      *) out="$out-" ;;
+    esac
+    i=$((i + 1))
+  done
+  if command -v sha256sum >/dev/null 2>&1; then hash="$(printf '%s' "$key" | sha256sum)"
+  else hash="$(printf '%s' "$key" | shasum -a 256)"; fi
+  printf '%s-%s\n' "$(printf '%s' "$out" | tr 'A-Z' 'a-z')" "${hash:0:12}"
+)
+
+# <string> as a JSON string, the trust store's escaping (\ and ").
+json_string() { local s="${1//\\/\\\\}"; printf '"%s"' "${s//\"/\\\"}"; }
+
+# A string field of a session file as stored (its escapes unread), or nothing.
+session_field() { # <file> <field>
+  { sed -nE 's/.*"'"$2"'"[[:space:]]*:[[:space:]]*"(([^"\\]|\\.)*)".*/\1/p' "$1" 2>/dev/null || true; } | head -n 1
+}
+
+# The messages of a session file: one "Role" per message.
+session_messages() { # <file>
+  { grep -oE '"Role"[[:space:]]*:' "$1" 2>/dev/null || true; } | wc -l | tr -d ' '
+}
+
+# 0 when a session file holds no message ("Messages":[]): a start and a quit.
+session_empty() { # <file>
+  grep -qE '"Messages"[[:space:]]*:[[:space:]]*\[[[:space:]]*\]' "$1" 2>/dev/null
+}
+
+# Moves every last.json the runtime saved into history/, under <UTC time>-<session id>.json: those of sessions/
+# unless <side only> is 1, and always those of side/<pid>/ (a start beside an open one, now ended). A session
+# without a message (a start and a quit) is dropped, so it never pushes a real one out of the history.
+archive_sessions() { # [<side only>]
+  local last id stamp target n found=()
+  [ "${1:-0}" = 1 ] || found=("$SESSIONS"/*/last.json)
+  found+=("$PROJECT_STATE"/side/*/*/last.json)
+  for last in "${found[@]}"; do
+    [ -f "$last" ] || continue
+    if session_empty "$last"; then rm -f "$last"; continue; fi
+    id="$(session_field "$last" SessionId)"; id="$(printf '%s' "$id" | tr -c 'A-Za-z0-9._-' '_')"
+    stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+    target="$HISTORY/$stamp-${id:-session}.json"; n=2
+    while [ -e "$target" ]; do target="$HISTORY/$stamp-${id:-session}-$n.json"; n=$((n + 1)); done
+    mv -f "$last" "$target" || die "could not move $last to $HISTORY."
+  done
+  for last in "$PROJECT_STATE"/side/*/; do [ -d "$last" ] && rm -rf "$last"; done
+  return 0
+}
+
+# The history, newest first, one file per line.
+history_files() { find "$HISTORY" -maxdepth 1 -type f -name '*.json' 2>/dev/null | LC_ALL=C sort -r; }
 
 # Prints the stored folder that covers <folder> (itself or an ancestor); 1 when none does.
 trusted_by() { # <canonical folder>
@@ -347,6 +419,9 @@ SETTINGS="${ORKEON_CODE_SETTINGS:-}"
 DEMO=0
 VERSION_ONLY=0
 TRUST_FLAG=0
+CONTINUE=0
+RESUME=0
+RESUME_CHOICE=""
 EXTRA=()
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -359,11 +434,18 @@ while [ $# -gt 0 ]; do
     --demo) DEMO=1; shift ;;
     --version) VERSION_ONLY=1; shift ;;
     --trust) TRUST_FLAG=1; shift ;;
+    -c|--continue) CONTINUE=1; shift ;;
+    --resume=*) RESUME=1; RESUME_CHOICE="${1#*=}"; shift ;;
+    --resume)
+      RESUME=1; shift
+      case "${1:-}" in ''|-*) ;; *) RESUME_CHOICE="$1"; shift ;; esac ;;
     -h|--help) awk 'NR > 1 && /^set -euo pipefail/ { exit } NR > 1' "$SELF" | sed 's/^# \{0,1\}//'; exit 0 ;;
     --) shift; EXTRA=("$@"); break ;;
     *) EXTRA+=("$1"); shift ;;
   esac
 done
+
+if [ "$CONTINUE" = 1 ] && [ "$RESUME" = 1 ]; then die "--continue and --resume do not go together: one brings the last session back, the other the one you pick."; fi
 
 if [ "$VERSION_ONLY" = 1 ]; then
   echo "orkeon-code $CODE_VERSION ($KIND: $ROOT)"
@@ -431,10 +513,108 @@ if [ -z "$MODE" ]; then
   fi
 fi
 
-# One state folder for every project until each project gets its own.
-if [ "$KIND" = clone ]; then STATE="${ORKEON_CODE_STATE:-$ROOT/.crew-output}"; else STATE="${ORKEON_CODE_STATE:-$CODE_HOME/state}"; fi
+# ── State and sessions ─────────────────────────────────────────────────────
+# An install keeps one folder per project, ~/.orkeon-code/projects/<slug>; a clone's .crew-output and an
+# ORKEON_CODE_STATE may serve several projects, so their per-project part goes under projects/<slug>.
+# Either way PROJECT_STATE lies inside STATE, which docker mode mounts on /work/state.
+SLUG="$(project_slug "$WORKSPACE")"
+if [ -n "${ORKEON_CODE_STATE:-}" ]; then STATE="$ORKEON_CODE_STATE"; PROJECT_REL="projects/$SLUG"
+elif [ "$KIND" = clone ]; then STATE="$ROOT/.crew-output"; PROJECT_REL="projects/$SLUG"
+else STATE="$CODE_HOME/projects/$SLUG"; PROJECT_REL=""; fi
 mkdir -p "$STATE/output" "$STATE/tmp"
 STATE="$(cd "$STATE" && pwd)"
+PROJECT_STATE="$STATE${PROJECT_REL:+/$PROJECT_REL}"
+# The runtime saves the session in <SessionsDirectory>/<its slug of the project>/last.json when the REPL ends
+# (FileSessionBufferService), and reloads it at the next start. The folder is the launcher's /sessions mount,
+# outside the project; the launcher keeps its own files beside it: history/ and project.json.
+SESSIONS="$PROJECT_STATE/sessions"
+HISTORY="$PROJECT_STATE/history"
+mkdir -p "$SESSIONS" "$HISTORY"
+if [ "$MODE" = docker ]; then RUNTIME_SLUG="$(project_slug /work/project)"; else RUNTIME_SLUG="$SLUG"; fi
+now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+first_seen="$(session_field "$PROJECT_STATE/project.json" firstSeen)"
+{
+  printf '{\n  "path": %s,\n  "slug": "%s",\n  "runtimeSlug": "%s",\n' "$(json_string "$WORKSPACE")" "$SLUG" "$RUNTIME_SLUG"
+  printf '  "firstSeen": "%s",\n  "lastSeen": "%s"\n}\n' "${first_seen:-$now}" "$now"
+} > "$PROJECT_STATE/project.json.tmp.$$" && mv -f "$PROJECT_STATE/project.json.tmp.$$" "$PROJECT_STATE/project.json" \
+  || die "could not write $PROJECT_STATE/project.json."
+
+# The starts open on this project, one pid a line (a launcher's pid is its REPL's: it execs it). Another one still
+# running: its session is left where it is, and this one is kept beside it, in side/<pid>/, archived at the next
+# start that finds none open.
+LOCK="$PROJECT_STATE/.lock"
+OTHER=""
+live_pids=""
+if [ -f "$LOCK" ]; then
+  while IFS= read -r other_pid; do
+    case "$other_pid" in ''|*[!0-9]*) continue ;; esac
+    if [ "$other_pid" != $$ ] && kill -0 "$other_pid" 2>/dev/null; then
+      OTHER="${OTHER:-$other_pid}"; live_pids="$live_pids$other_pid"$'\n'
+    fi
+  done < "$LOCK"
+fi
+printf '%s%s\n' "$live_pids" $$ > "$LOCK"
+SESSIONS_SUB=sessions
+
+# Fresh unless --continue (the runtime reloads the last itself) or --resume (the chosen one is put back).
+SESSION_NOTE="fresh; --continue brings the last back, --resume lists them"
+if [ -n "$OTHER" ]; then
+  warn "another session is open on this project (pid $OTHER): it is left as it is, and this one is kept beside it, in the history from the next start."
+  SESSION_NOTE="beside the open one"
+  SESSIONS_SUB="side/$$"
+  mkdir -p "$PROJECT_STATE/$SESSIONS_SUB"
+elif [ "$CONTINUE" = 1 ]; then SESSION_NOTE="continued"; archive_sessions 1
+else archive_sessions
+fi
+keep="${ORKEON_CODE_SESSIONS_KEEP:-50}"
+case "$keep" in
+  [0-9]|[0-9][0-9]|[0-9][0-9][0-9]|[0-9][0-9][0-9][0-9]) keep=$((10#$keep)) ;;
+  *) keep=0 ;;
+esac
+if [ "$keep" -lt 1 ]; then
+  warn "ORKEON_CODE_SESSIONS_KEEP=${ORKEON_CODE_SESSIONS_KEEP-} is not a whole number from 1 to 9999: 50 sessions are kept."; keep=50
+fi
+history_files | tail -n "+$((keep + 1))" | while IFS= read -r old; do rm -f "$old"; done
+
+if [ "$RESUME" = 1 ]; then
+  files=()
+  while IFS= read -r f; do files+=("$f"); done < <(history_files)
+  [ ${#files[@]} -gt 0 ] || die "no saved session for $WORKSPACE yet (they are kept in $HISTORY)."
+  list_sessions() {
+    local i=1 f title
+    for f in "${files[@]}"; do
+      title="$(session_field "$f" Title)"
+      printf '%3d  %s  %s  (%s messages)  %s\n' "$i" "$(basename "$f" .json | cut -c1-16)" "${title:-(untitled)}" \
+        "$(session_messages "$f")" "$(basename "$f" .json | cut -c18-)" >&2
+      i=$((i + 1))
+    done
+  }
+  if [ -z "$RESUME_CHOICE" ]; then
+    echo "orkeon-code: sessions of $WORKSPACE, newest first:" >&2
+    list_sessions
+    if [ ! -t 0 ]; then echo "orkeon-code: no terminal to choose in: pass --resume <number or id>." >&2; exit 2; fi
+    printf 'Session to resume [1]: ' >&2
+    read -r RESUME_CHOICE || RESUME_CHOICE=""
+    RESUME_CHOICE="${RESUME_CHOICE:-1}"
+  fi
+  chosen=""
+  # A number of the list first (up to four digits), else the start of an id.
+  case "$RESUME_CHOICE" in
+    [1-9]|[1-9][0-9]|[1-9][0-9][0-9]|[1-9][0-9][0-9][0-9])
+      if [ "$RESUME_CHOICE" -le ${#files[@]} ]; then chosen="${files[$((RESUME_CHOICE - 1))]}"; fi ;;
+  esac
+  if [ -z "$chosen" ] && [ -n "$RESUME_CHOICE" ]; then
+    for f in "${files[@]}"; do
+      case "$(basename "$f" .json | cut -c18-)" in "$RESUME_CHOICE"*) [ -z "$chosen" ] || die "more than one session starts with '$RESUME_CHOICE': give more of its id."; chosen="$f" ;; esac
+    done
+  fi
+  [ -n "$chosen" ] || die "no saved session '$RESUME_CHOICE' (orkeon-code --resume lists them)."
+  [ -z "$OTHER" ] || die "another session is open on this project (pid $OTHER): end it before you resume one."
+  # The chosen session lives in one place: back in sessions/, the history losing it (the last one was archived above).
+  mkdir -p "$SESSIONS/$RUNTIME_SLUG"
+  mv -f "$chosen" "$SESSIONS/$RUNTIME_SLUG/last.json" || die "could not put $chosen back."
+  SESSION_NOTE="resumed $(basename "$chosen" .json | cut -c18-)"
+fi
 
 # The session's start script (scripts/session-start.ork.ts): what a new session should know of
 # the dev work left in progress. Copied fresh at every start into the agent's /tmp; the runtime
@@ -443,6 +623,10 @@ STATE="$(cd "$STATE" && pwd)"
 mkdir -p "$STATE/tmp/orkeon-code"
 cp "$ROOT/scripts/session-start.ork.ts" "$STATE/tmp/orkeon-code/session-start.ork.ts"
 export Orkeon__Cli__Session__StartScript="${Orkeon__Cli__Session__StartScript-/tmp/orkeon-code/session-start.ork.ts}"
+# The session persists (the runtime's default in the REPL, said here; a settings file may still turn it off), in
+# /sessions: the prefixed form wins over the settings file, since the archiving above reads that folder alone.
+export Orkeon__Cli__Session__Persist="${Orkeon__Cli__Session__Persist:-true}"
+export ORKEON_Orkeon__Cli__Session__SessionsDirectory=/sessions
 
 # ── Speech-to-text (optional) ──────────────────────────────────────────────
 # ORKEON_CODE_AUDIO_DIR names the folder of audio and video files. The Whisper
@@ -503,6 +687,7 @@ fi
 echo "orkeon-code $CODE_VERSION on Orkeon $ORKEON_VERSION ($MODE)"
 echo "  project  : $WORKSPACE -> /workspace"
 if [ "$RUNTIME_OWN" = 1 ]; then echo "  settings : $SETTINGS (Orkeon's own, read by the REPL)"; else echo "  settings : $SETTINGS"; fi
+echo "  sessions : $PROJECT_STATE/$SESSIONS_SUB ($SESSION_NOTE)"
 if [ -n "$AUDIO" ]; then
   model="${WHISPER_MODEL:-$([ "$stt_backend" = openai ] && echo whisper-1 || echo small)}"
   echo "  audio    : $AUDIO -> /audio (transcripts: $STATE/transcripts, model $model$([ "$(lowered "${WHISPER_DEVICE:-}")" = cuda ] && echo ' on the GPU')$([ "${ORKEON_CODE_VOICE:-}" = 1 ] && echo ', microphone and speaker on'))"
@@ -523,10 +708,27 @@ fi
 
 # Sets ARGS. A function filling an array rather than mapfile: macOS ships bash 3.2.
 # An empty <settings> passes none: the REPL then reads Orkeon's own file.
-repl_args() { # <commands> <crews> <settings> <workspace> <output> <tmp> <user-config>
+# <project state> is PROJECT_STATE as the REPL sees it: its sessions/ (side/<pid>/ beside an open start) on /sessions, its history/ on /session-history
+# (read-only, for /resume).
+repl_args() { # <commands> <crews> <settings> <workspace> <output> <tmp> <user-config> <project state>
   ARGS=(--runner=scripted-commands --commands-dir "$1" --crews-dir "$2")
   if [ -n "$3" ]; then ARGS+=(--settings "$3"); fi
-  ARGS+=(--mount "$4:/workspace:rw" --mount "$5:/output:rw" --mount "$6:/tmp:rw" --mount "$7:/user-config:ro")
+  ARGS+=(--mount "$4:/workspace:rw" --mount "$5:/output:rw" --mount "$6:/tmp:rw" --mount "$7:/user-config:ro"
+    --mount "$8/$SESSIONS_SUB:/sessions:rw" --mount "$8/history:/session-history:ro")
+}
+
+# The exchange log (--llm-log) would land in ./llm-logs, the project: a bare --llm-log among the REPL's
+# arguments is sent to <project state>/llm-logs instead; an explicit --llm-log-path is passed as given (a bare
+# --llm-log beside it is then dropped, since the runtime keeps the last path it reads).
+llm_log_args() { # <project state as the REPL sees it>
+  local a out=() named=0
+  for a in ${EXTRA[@]+"${EXTRA[@]}"}; do case "$a" in --llm-log-path|--llm-log-path=*) named=1 ;; esac; done
+  for a in ${EXTRA[@]+"${EXTRA[@]}"}; do
+    if [ "$a" = --llm-log ]; then
+      [ "$named" = 1 ] || out+=(--llm-log-path "$1/llm-logs")
+    else out+=("$a"); fi
+  done
+  EXTRA=(${out[@]+"${out[@]}"})
 }
 
 case "$MODE" in
@@ -536,7 +738,9 @@ case "$MODE" in
     # image is multi-arch (linux/amd64, linux/arm64): docker pulls the host's.
     env_args=(-e ORKEON_RUNNER=repl -e HOME=/tmp -e DOTNET_CLI_HOME=/tmp
       -e "Orkeon__Security__PermissionGate__Enabled=$Orkeon__Security__PermissionGate__Enabled"
-      -e "Orkeon__Cli__Session__StartScript=$Orkeon__Cli__Session__StartScript")
+      -e "Orkeon__Cli__Session__StartScript=$Orkeon__Cli__Session__StartScript"
+      -e "Orkeon__Cli__Session__Persist=$Orkeon__Cli__Session__Persist"
+      -e ORKEON_Orkeon__Cli__Session__SessionsDirectory=/sessions)
     for v in ORKEON_Llm__ApiKey ORKEON_Llm__Model "$KEY_VAR"; do
       if [ -n "$v" ] && [ -n "${!v:-}" ]; then env_args+=(-e "$v"); fi
     done
@@ -545,8 +749,10 @@ case "$MODE" in
     if [ "$(uname -s)" = Linux ]; then user_args=(--user "$(id -u):$(id -g)"); fi
     tty_args=(-i)
     if [ -t 0 ] && [ -t 1 ]; then tty_args=(-it); fi
+    in_state="/work/state${PROJECT_REL:+/$PROJECT_REL}"
     repl_args /work/agent/commands /work/agent/crews /work/settings.json \
-      /work/project /work/state/output /work/state/tmp /work/state/user-config
+      /work/project /work/state/output /work/state/tmp /work/state/user-config "$in_state"
+    llm_log_args "$in_state"
     exec docker run --rm "${tty_args[@]}" ${user_args[@]+"${user_args[@]}"} "${env_args[@]}" -w /work \
       -v "$WORKSPACE:/work/project" \
       -v "$ROOT/src:/work/agent:ro" \
@@ -595,13 +801,15 @@ case "$MODE" in
       export ORKEON_ESBUILD_PATH="$found"
     fi
     # The REPL runs from the project. It reads its --commands-dir and --crews-dir
-    # wherever they are, and a --mount outside its working directory (here
-    # /output, /tmp and /user-config, in the state directory) under
-    # ORKEON_ALLOW_EXTERNAL_MOUNTS (Orkeon GAP-49). The four roots are distinct, and
-    # none is one the REPL keeps (/sandbox, /credentials, /cli-commands..., /crews...).
+    # wherever they are, and a --mount outside its working directory (here /output,
+    # /tmp, /user-config, /sessions and /session-history, in the state directory, and
+    # an --llm-log-path there) under ORKEON_ALLOW_EXTERNAL_MOUNTS (Orkeon GAP-49). The
+    # six roots are distinct, and none is one the REPL keeps (/sandbox, /credentials,
+    # /llm-logs, /cli-commands..., /crews...).
     export ORKEON_ALLOW_EXTERNAL_MOUNTS=1
     repl_args "$ROOT/src/commands" "$ROOT/src/crews" "$([ "$RUNTIME_OWN" = 1 ] || echo "$SETTINGS")" \
-      "$WORKSPACE" "$STATE/output" "$STATE/tmp" "$USER_CONFIG_DIR"
+      "$WORKSPACE" "$STATE/output" "$STATE/tmp" "$USER_CONFIG_DIR" "$PROJECT_STATE"
+    llm_log_args "$PROJECT_STATE"
     cd "$WORKSPACE"
     exec "${REPL[@]}" "${ARGS[@]}" ${AUDIO_ARGS[@]+"${AUDIO_ARGS[@]}"} ${EXTRA[@]+"${EXTRA[@]}"}
     ;;

@@ -51,7 +51,7 @@ Les descriptions sont celles que le REPL affiche, lues dans `src/commands/*.cmd.
 | `/proactive` | sync | Toggle proactive follow-up suggestions from the assistant. |
 | `/release-notes` | sync | Show the release notes for this build. |
 | `/rename` | sync | Set the current session's title. |
-| `/resume` | sync | Resume the current in-memory session (shows the recent turns). |
+| `/resume` | sync | List this project's saved sessions; quit, then orkeon-code --resume <id> brings one back. |
 | `/review` | async | Run a multi-lens code review on staged changes; --lens correctness\|security\|style keeps one lens. |
 | `/rewind` | sync | Rewind the session by one exchange (drops the last user turn and what followed). |
 | `/say` | async | Read a text aloud, or the assistant's last answer with no text (speech MCP server); --stop cuts the reading. |

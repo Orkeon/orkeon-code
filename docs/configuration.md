@@ -300,6 +300,32 @@ nothing. Piper is GPL-3.0: the server runs it as a separate process, from an opt
   ignored there, with a warning. The server can run on the host over HTTP instead, for files transcribed within
   100 s ([mcp/whisper/README.md](../mcp/whisper/README.md#docker-mode-the-server-on-the-host)).
 
+## Sessions
+
+The REPL saves the conversation after each turn and when it ends (`Orkeon:Cli:Session:Persist`, `true` in the example
+settings), and the launcher keeps it outside the project: in `~/.orkeon-code/projects/<project>/` once installed,
+`.crew-output/projects/<project>/` in a clone, `<ORKEON_CODE_STATE>/projects/<project>/` when that variable is set.
+`<project>` is the folder's name and a short hash of its path, so two projects of the same name never share it;
+`project.json` there names the path. Nothing is written under the project's `.orkeon/sessions` any more (`/doctor`
+warns when an older start left sessions there).
+
+| Start | What it brings back |
+|---|---|
+| `orkeon-code` | A fresh session: the last one moves to the project's `history/` first |
+| `orkeon-code --continue` (`-c`) | The session you quit |
+| `orkeon-code --resume` | The saved sessions, newest first (date, title, messages, id), then asks which one |
+| `orkeon-code --resume <number or id>` | That one, without asking (an id prefix that matches one session is enough) |
+
+Without a terminal, `--resume` alone prints the list and exits with code 2. The newest 50 saved sessions are kept
+(`ORKEON_CODE_SESSIONS_KEEP`, 1 to 9999); a session without a message is not kept. A second start while a session
+is open on the same project warns, leaves the open one alone and keeps its own beside it, in the history from the
+next start. Inside the REPL, `/resume` lists the saved sessions
+(the launcher mounts `history/` read-only on `/session-history`); a REPL cannot swap its own conversation, so quit,
+then start `orkeon-code --resume <id>`. The line editor's history (the up arrow) is not kept.
+
+`--llm-log` among the REPL arguments writes the LLM log to `<project state>/llm-logs`, never into the project;
+`--llm-log-path <folder>` is passed as given and wins over a bare `--llm-log`.
+
 ## Launcher environment
 
 | Variable | Effect |
@@ -309,7 +335,8 @@ nothing. Piper is GPL-3.0: the server runs it as a separate process, from an opt
 | `ORKEON_CODE_MODEL` | Model for this run |
 | `ORKEON_CODE_AUDIO_DIR` | Folder of audio and video files: turns [speech-to-text](#speech-to-text) on (tool and source modes) |
 | `ORKEON_CODE_VOICE` | `1`: opens the microphone to [`/voice`](#dictation) and the speaker to [`/say`](#speech-output) (with `ORKEON_CODE_AUDIO_DIR`) |
-| `ORKEON_CODE_STATE` | Where `/output`, `/tmp`, `/user-config` and the transcripts live (default `.crew-output/` in a clone, `<home>/state` in an install) |
+| `ORKEON_CODE_STATE` | Where `/output`, `/tmp`, `/user-config` and the transcripts live (default `.crew-output/` in a clone, `<home>/projects/<project>` in an install); the [sessions](#sessions) go under its `projects/<project>/` |
+| `ORKEON_CODE_SESSIONS_KEEP` | How many saved [sessions](#sessions) a project keeps (default 50) |
 | `ORKEON_CODE_HOME` | An install's own folder: its state and its demo repository (default `~/.orkeon-code`) |
 | `ORKEON_CODE_IMAGE` | Another runtime image (docker mode) |
 | `ORKEON_REPL` | The command line that starts the REPL (tool mode) |
@@ -317,6 +344,7 @@ nothing. Piper is GPL-3.0: the server runs it as a separate process, from an opt
 | `ORKEON_ESBUILD_PATH` | esbuild binary (tool and source modes) |
 | `ORKEON_CODE_TRUST` | `1`: starts an untrusted folder without a terminal, only when `CI=true`, storing nothing ([Trusted folders](permissions.md#trusted-folders)) |
 
-The launcher also exports `Orkeon__Security__PermissionGate__Enabled=true` unless it is set already (the settings
-file still wins over it), and, in tool and source modes, `ORKEON_ALLOW_EXTERNAL_MOUNTS=1`, so the REPL, started from
-the project, accepts the `/output`, `/tmp` and `/user-config` mounts of the state directory. `/permissions` says whether the gate is on.
+The launcher also exports `Orkeon__Security__PermissionGate__Enabled=true` and `Orkeon__Cli__Session__Persist=true` unless
+they are set already (the settings file still wins over them), `ORKEON_Orkeon__Cli__Session__SessionsDirectory=/sessions`
+(which wins over it), and, in tool and source modes, `ORKEON_ALLOW_EXTERNAL_MOUNTS=1`, so the REPL, started from
+the project, accepts the `/output`, `/tmp`, `/user-config`, `/sessions` and `/session-history` mounts of the state directory. `/permissions` says whether the gate is on.

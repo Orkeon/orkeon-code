@@ -3,9 +3,9 @@
 // verdict line. Run:
 //   node --test tests/commands-doctor.test.ts
 import { describe, it } from "node:test";
-import { strictEqual, deepStrictEqual } from "node:assert";
+import { ok, strictEqual, deepStrictEqual } from "node:assert";
 
-import { ESSENTIAL_TOOLS, FAIL, PASS, WARN, runDoctor } from "../src/commands/_lib/doctor.ts";
+import { ESSENTIAL_TOOLS, FAIL, OLD_SESSIONS_DIR, PASS, WARN, runDoctor } from "../src/commands/_lib/doctor.ts";
 import type { DoctorRow } from "../src/commands/_lib/doctor.ts";
 import { CODE_INTEL_TOOLS } from "../src/shared/domain/code-intel-contract.ts";
 import { FakeFiles } from "./support/fake-files.ts";
@@ -49,6 +49,7 @@ describe("/doctor — a healthy host", () => {
       { check: "tools: essential", result: PASS, detail: `${tools} registered, all ${ESSENTIAL_TOOLS.length} essentials present` },
       { check: "tools: code intelligence", result: PASS, detail: `all ${CODE_INTEL_TOOLS.length} present` },
       { check: "vfs: mounts", result: PASS, detail: "/workspace(rw) /crews(ro)" },
+      { check: "sessions: outside the project", result: PASS, detail: "nothing in .orkeon/sessions" },
     ]);
     strictEqual(view.text, "all checks passed.");
     deepStrictEqual(shell.commands, ["node --version", "git --version", "dotnet --version"]);
@@ -115,6 +116,23 @@ describe("/doctor — failures and warnings", () => {
     deepStrictEqual((await run()).rows.get("vfs: mounts"), {
       check: "vfs: mounts", result: WARN, detail: "list_mounts unavailable: listMounts is not a function",
     });
+  });
+});
+
+describe("/doctor — sessions left in the project", () => {
+  it("names a .orkeon/sessions folder of an older start, and leaves it alone", async () => {
+    const { files, run } = setup();
+    files.listings.set(OLD_SESSIONS_DIR, ["code-1a2b3c4d5e6f"]);
+    const row = (await run()).rows.get("sessions: outside the project")!;
+    strictEqual(row.result, WARN);
+    ok(row.detail.startsWith("/workspace/.orkeon/sessions holds sessions of an older start, left alone"), row.detail);
+    deepStrictEqual(files.writes, []);
+  });
+
+  it("passes when the folder cannot be listed (absent)", async () => {
+    const { files, run } = setup();
+    files.list = async () => { throw new Error("directory not found"); };
+    strictEqual((await run()).rows.get("sessions: outside the project")!.result, PASS);
   });
 });
 

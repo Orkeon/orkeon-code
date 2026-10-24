@@ -26,7 +26,7 @@ orkeon-code --version
 `install.sh --archive orkeon-code-<version>.tar.gz` installe une archive déjà téléchargée (vérifiée avec le
 `SHA256SUMS` posé à côté, quand il y en a un). Relancé, il ne change rien ; une nouvelle release va dans son propre dossier et devient
 `current`. `bash ~/.local/lib/orkeon-code/current/scripts/install.sh --uninstall` retire le programme et la commande,
-jamais `~/.orkeon-code/`, où une installation garde ce qui est à vous : son état (`state/`) et le dépôt de démo
+jamais `~/.orkeon-code/`, où une installation garde ce qui est à vous : l'état et les sessions de chaque projet (`projects/`) et le dépôt de démo
 (`demo/`) ; `ORKEON_CODE_HOME` désigne un autre dossier. Sous Windows, `install.ps1` fait de même dans
 `%LOCALAPPDATA%\Programs\orkeon-code` et écrit `bin\orkeon-code.cmd`, que `cmd.exe` et PowerShell trouvent tous deux.
 
@@ -179,9 +179,9 @@ Détails, modèles, backends et comment le modèle appelle les outils lui-même 
 Outre les changements que vous demandez : `AGENTS.md` (`/init`), `.orkeon/config.json` (`/config`),
 `.orkeon/agents.json` (`/agents`) et `.git/ORKEON_COMMITMSG` (`/commit` y écrit le message pour `git commit -F` ;
 git ne le suit pas). Ajoutez `.orkeon/` au `.gitignore` du projet si vous ne voulez pas les partager. Les
-transcriptions vont dans le dossier d'état (`.crew-output/transcripts` dans un clone, `~/.orkeon-code/state/transcripts` une fois installé), jamais dans le projet. La
-conversation, le mode de session (`/mode`) et les règles de permission sont gardés en mémoire et finissent avec le
-REPL.
+transcriptions vont dans le dossier d'état (`.crew-output/transcripts` dans un clone, `~/.orkeon-code/projects/<projet>/transcripts` une fois installé), jamais dans le projet. La
+conversation y est gardée aussi quand le REPL finit ([Sessions](configuration.md#sessions) : `--continue` la ramène) ;
+le mode de session (`/mode`) et les règles de permission sont gardés en mémoire et finissent avec le REPL.
 
 ## Dépannage
 

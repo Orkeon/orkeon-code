@@ -14,14 +14,17 @@
 import { after, describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 import { spawnSync } from "node:child_process";
-import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createHash } from "node:crypto";
 
 const read = (name: string) => readFileSync(fileURLToPath(new URL(`../${name}`, import.meta.url)), "utf-8");
 const GATE = "Orkeon__Security__PermissionGate__Enabled";
 const START_SCRIPT = "Orkeon__Cli__Session__StartScript";
+const PERSIST = "Orkeon__Cli__Session__Persist";
+const SESSIONS_DIR = "ORKEON_Orkeon__Cli__Session__SessionsDirectory";
 
 describe("the launchers enable the permission gate", () => {
   it("orkeon-code exports it, true unless the caller set it, and passes it to docker", () => {
@@ -174,7 +177,23 @@ function trustStore(folders: string[]): string {
 const mountRoots = (args: string[]) =>
   args.flatMap((a, i) => (args[i - 1] === "--mount" ? [a.split(":")[1]] : []));
 
-const RESERVED = /^\/(sandbox|credentials|cli-commands|crews)/;
+const RESERVED = /^\/(sandbox|credentials|llm-logs|cli-commands|crews)/;
+
+/** The roots every start mounts, in order. */
+const ROOTS = ["/workspace", "/output", "/tmp", "/user-config", "/sessions", "/session-history"];
+
+/** The runtime's ProjectKey.Slug (Orkeon.Infrastructure/Session/ProjectKey.cs), pinned below to values the runtime
+ *  computed: the last segment, each UTF-16 unit an ASCII letter or digit lowercased, else '-', then '-' and the first
+ *  12 hex of the SHA-256 of the whole path in UTF-8. */
+function slugOf(key: string): string {
+  const name = key.replace(/[/\\]+$/, "").split(/[/\\]/).pop()!;
+  let out = "";
+  for (let i = 0; i < name.length; i++) out += /[A-Za-z0-9]/.test(name[i]) ? name[i].toLowerCase() : "-";
+  return `${out}-${createHash("sha256").update(key, "utf8").digest("hex").slice(0, 12)}`;
+}
+
+/** Where a launch with ORKEON_CODE_STATE keeps the project's own part. */
+const projectState = (r: Run) => join(r.state, "projects", slugOf(r.project));
 
 describe("orkeon-code, tool and source modes on Orkeon rc.6", () => {
   it("tool mode starts the REPL from the project, external mounts allowed, four distinct roots", () => {
@@ -187,6 +206,7 @@ describe("orkeon-code, tool and source modes on Orkeon rc.6", () => {
       "--settings", join(r.root, "..", "settings.json"),
       "--mount", `${r.project}:/workspace:rw`, "--mount", `${r.state}/output:/output:rw`, "--mount", `${r.state}/tmp:/tmp:rw`,
       "--mount", `${r.state}/user-config:/user-config:ro`,
+      "--mount", `${projectState(r)}/sessions:/sessions:rw`, "--mount", `${projectState(r)}/history:/session-history:ro`,
     ]);
     const roots = mountRoots(r.args);
     strictEqual(new Set(roots).size, roots.length, "no root mounted twice");
@@ -274,7 +294,7 @@ describe("orkeon-code, docker mode", () => {
     ok(r.args.includes(`${GATE}=true`), r.args.join(" "));
     ok(r.args.includes(`${START_SCRIPT}=/tmp/orkeon-code/session-start.ork.ts`), r.args.join(" "));
     const roots = mountRoots(r.args);
-    deepStrictEqual(roots, ["/workspace", "/output", "/tmp", "/user-config"]);
+    deepStrictEqual(roots, ROOTS);
   });
 });
 
@@ -289,7 +309,7 @@ describe("orkeon-code, speech-to-text (ORKEON_CODE_AUDIO_DIR)", () => {
     strictEqual(r.status, 0, r.stderr);
     deepStrictEqual(r.args.slice(-4), ["--mount", `${audio}:/audio:ro`, "--mount", `${r.state}/transcripts:/transcripts:ro`]);
     const roots = mountRoots(r.args);
-    deepStrictEqual(roots, ["/workspace", "/output", "/tmp", "/user-config", "/audio", "/transcripts"]);
+    deepStrictEqual(roots, [...ROOTS, "/audio", "/transcripts"]);
     ok(!roots.some((root) => RESERVED.test(root)), roots.join(", "));
     strictEqual(r.env.get("WHISPER_AUDIO_DIR"), audio);
     strictEqual(r.env.get("WHISPER_OUT_DIR"), `${r.state}/transcripts`);
@@ -369,7 +389,7 @@ describe("orkeon-code, speech-to-text (ORKEON_CODE_AUDIO_DIR)", () => {
     const r = launch({ args: ["--mode", "tool"], bin: TOOL, env: { ORKEON_ESBUILD_PATH: "/opt/esbuild" } });
     strictEqual(r.status, 0, r.stderr);
     deepStrictEqual(whisperEnv(r), []);
-    deepStrictEqual(mountRoots(r.args), ["/workspace", "/output", "/tmp", "/user-config"]);
+    deepStrictEqual(mountRoots(r.args), ROOTS);
     ok(!r.stdout.includes("audio"), r.stdout);
   });
 
@@ -380,14 +400,14 @@ describe("orkeon-code, speech-to-text (ORKEON_CODE_AUDIO_DIR)", () => {
     });
     strictEqual(noUv.status, 0, noUv.stderr);
     ok(noUv.stderr.includes("uv is not on PATH: speech-to-text is off"), noUv.stderr);
-    deepStrictEqual([whisperEnv(noUv), mountRoots(noUv.args)], [[], ["/workspace", "/output", "/tmp", "/user-config"]]);
+    deepStrictEqual([whisperEnv(noUv), mountRoots(noUv.args)], [[], ROOTS]);
     const declared = launch({
       args: ["--mode", "tool"], bin: TOOL, env: { ORKEON_ESBUILD_PATH: "/opt/esbuild", ORKEON_CODE_AUDIO_DIR: audio },
       settings: { Llm: { Model: "m" }, MCP: { Servers: { whisper: { Command: "/opt/uv" } } } },
     });
     strictEqual(declared.status, 0, declared.stderr);
     ok(declared.stderr.includes('declares a "whisper" MCP server: ORKEON_CODE_AUDIO_DIR is ignored'), declared.stderr);
-    deepStrictEqual([whisperEnv(declared), mountRoots(declared.args)], [[], ["/workspace", "/output", "/tmp", "/user-config"]]);
+    deepStrictEqual([whisperEnv(declared), mountRoots(declared.args)], [[], ROOTS]);
     const anyCase = launch({
       args: ["--mode", "tool"], bin: TOOL, env: { ORKEON_ESBUILD_PATH: "/opt/esbuild", ORKEON_CODE_AUDIO_DIR: audio },
       settings: { Llm: { Model: "m" }, MCP: { Servers: { Whisper: { Command: "/opt/uv" } } } },
@@ -400,7 +420,7 @@ describe("orkeon-code, speech-to-text (ORKEON_CODE_AUDIO_DIR)", () => {
     });
     strictEqual(inEnv.status, 0, inEnv.stderr);
     ok(inEnv.stderr.includes('the environment declares a "whisper" MCP server (ORKEON_MCP__Servers__whisper__*)'), inEnv.stderr);
-    deepStrictEqual([whisperEnv(inEnv), mountRoots(inEnv.args)], [[`${WHISPER}Url`], ["/workspace", "/output", "/tmp", "/user-config"]], "left as it was");
+    deepStrictEqual([whisperEnv(inEnv), mountRoots(inEnv.args)], [[`${WHISPER}Url`], ROOTS], "left as it was");
   });
 
   it("stops on a folder that does not exist", () => {
@@ -537,15 +557,17 @@ describe("orkeon-code, a clone or an install", () => {
     const r = launch({ args: ["--mode", "tool"], bin: TOOL_REPL, env: ESBUILD, bare: true, install: true, files: USER_SETTINGS });
     strictEqual(r.status, 0, r.stderr);
     const home = join(r.root, "..", ".orkeon-code");
-    strictEqual(mountOf(r, "/output"), `${home}/state/output:/output:rw`);
-    strictEqual(mountOf(r, "/tmp"), `${home}/state/tmp:/tmp:rw`);
+    const own = join(home, "projects", slugOf(r.project));
+    strictEqual(mountOf(r, "/output"), `${own}/output:/output:rw`);
+    strictEqual(mountOf(r, "/tmp"), `${own}/tmp:/tmp:rw`);
+    strictEqual(mountOf(r, "/sessions"), `${own}/sessions:/sessions:rw`);
     ok(!existsSync(join(r.root, ".crew-output")), "nothing written beside the launcher");
     const other = scratchDir("orkeon-code-home-");
     const h = launch({
       args: ["--mode", "tool"], bin: TOOL_REPL, env: { ...ESBUILD, ORKEON_CODE_HOME: other }, bare: true, install: true, files: USER_SETTINGS,
     });
     strictEqual(h.status, 0, h.stderr);
-    strictEqual(mountOf(h, "/output"), `${other}/state/output:/output:rw`);
+    strictEqual(mountOf(h, "/output"), `${other}/projects/${slugOf(h.project)}/output:/output:rw`);
   });
 
   it("an install never reads a config/appsettings.local.json beside it, and says where the settings go", () => {
@@ -588,7 +610,7 @@ describe("orkeon-code.ps1 follows the same rules (read here; run below, where pw
     ok(script.includes("$IsClone = Test-Path (Join-Path $Root '.git')"), "a .git beside the launcher is a clone");
     ok(script.includes("$CodeHome = if ($env:ORKEON_CODE_HOME) { $env:ORKEON_CODE_HOME } else { Join-Path $HOME '.orkeon-code' }"),
       "ORKEON_CODE_HOME, else ~/.orkeon-code");
-    ok(script.includes("Join-Path $CodeHome 'state'"), "an install's state");
+    ok(script.includes("else { $State = Join-Path $CodeHome $projectRel; $projectRel = '' }"), "an install's state, per project");
     ok(script.includes("install Orkeon from its package or archive"), "the install's esbuild message");
   });
 
@@ -638,7 +660,7 @@ describe("orkeon-code.ps1 follows the same rules (read here; run below, where pw
 
   it("puts back every variable it sets, so none stays in the calling session", () => {
     const set = [...new Set([...script.matchAll(/\$env:(\w+)\s*=(?!=)/g)].map((m) => m[1]))].sort();
-    deepStrictEqual(set, ["ORKEON_ALLOW_EXTERNAL_MOUNTS", "ORKEON_ESBUILD_PATH", "ORKEON_Llm__Model", GATE, START_SCRIPT,
+    deepStrictEqual(set, ["ORKEON_ALLOW_EXTERNAL_MOUNTS", "ORKEON_ESBUILD_PATH", "ORKEON_Llm__Model", GATE, START_SCRIPT, PERSIST, SESSIONS_DIR,
       "WHISPER_AUDIO_DIR", "WHISPER_OUT_DIR", "WHISPER_MICROPHONE", "WHISPER_SPEAKER", "ORKEON_MCP__Servers__whisper__Transport",
       "ORKEON_MCP__Servers__whisper__Command", "UV_PROJECT_ENVIRONMENT"].sort());
     // The server's arguments are set in a loop, by name: Args__0 to Args__11 at most (run, --project, the folder,
@@ -1141,5 +1163,256 @@ describe("orkeon-code.ps1, trust and settings, run where pwsh is installed", { s
       files: { ".config/Orkeon/appsettings.json": RUNTIME_SETTINGS_TEXT } });
     strictEqual(r.status, 0, r.stderr + r.stdout);
     ok(!r.args.includes("--settings"), r.args.join(" "));
+  });
+});
+
+// ── Per-project state (LI-4) and sessions (LI-5) ────────────────────────────
+// The runtime saves the session in <SessionsDirectory>/<its slug of the project>/last.json when the REPL ends; the
+// launcher points SessionsDirectory at /sessions, a folder of the project's own state outside the project, moves the
+// saved file to history/ at the next start unless --continue, and puts a chosen one back on --resume.
+
+describe("the project slug is the runtime's ProjectKey.Slug", () => {
+  it("matches the values the runtime computed (dotnet fsi, Orkeon.Infrastructure.dll)", () => {
+    deepStrictEqual(
+      ["/home/u/src/app", "/home/u/work/app", "/home/u/My Project.v2", "/home/u/Café-😀", "/work/project", "C:\\Users\\u\\App"].map(slugOf),
+      ["app-bb40879b7896", "app-9abec9881c14", "my-project-v2-061072a7e265", "caf-----7f9fb81a28e4", "project-65d80d2c48b3", "app-d6c9eb3583f9"],
+    );
+  });
+
+  it("orkeon-code computes the same, two projects of one name getting two folders", () => {
+    for (const name of ["app", "My Project.v2", "Café-😀"]) {
+      const runs = [0, 1].map(() => launch({
+        args: ["--mode", "tool", "--workspace", join("sub", name)], bin: TOOL_REPL, env: ESBUILD, files: { [`sub/${name}/.keep`]: "" },
+      }));
+      for (const r of runs) {
+        strictEqual(r.status, 0, r.stderr);
+        const workspace = join(r.root, "..", "sub", name);
+        strictEqual(mountOf(r, "/sessions"), `${join(r.state, "projects", slugOf(workspace))}/sessions:/sessions:rw`);
+      }
+      ok(mountOf(runs[0], "/sessions") !== mountOf(runs[1], "/sessions"), "two paths, two slugs");
+    }
+  });
+
+  it("orkeon-code.ps1 computes it the same way", () => {
+    const script = read("orkeon-code.ps1");
+    ok(script.includes("$name = ($path.TrimEnd('/', '\\') -split '[/\\\\]')[-1]"), "the last segment");
+    ok(script.includes("($n -ge 48 -and $n -le 57) -or ($n -ge 65 -and $n -le 90) -or ($n -ge 97 -and $n -le 122)"), "ASCII letters and digits");
+    ok(script.includes("[System.Security.Cryptography.SHA256]::Create()") && script.includes("[System.Text.Encoding]::UTF8.GetBytes($path)"),
+      "SHA-256 of the UTF-8 path");
+    ok(script.includes(".Substring(0, 12)"), "12 hex");
+  });
+});
+
+/** A project and a state folder that outlive one launch, so that several launches see what the last one left. */
+function sessionScene() {
+  const project = scratchDir("orkeon-code-project-");
+  const state = scratchDir("orkeon-code-state-");
+  const own = join(state, "projects", slugOf(project));
+  const run = (args: string[], env: Record<string, string> = {}, bin: Record<string, string> = TOOL_REPL) =>
+    launch({ args: ["--mode", "tool", "--trust", "--workspace", project, ...args], bin, env: { ...ESBUILD, ORKEON_CODE_STATE: state, ...env } });
+  /** What the runtime leaves when the REPL ends. */
+  const save = (id: string, title: string, messages: number) => {
+    mkdirSync(join(own, "sessions", slugOf(project)), { recursive: true });
+    const list = Array.from({ length: messages }, (_, i) => `{"Role":"user","Content":"m${i}"}`).join(",");
+    writeFileSync(join(own, "sessions", slugOf(project), "last.json"), `{"SessionId":"${id}","Title":"${title}","Messages":[${list}],"State":{}}`);
+  };
+  const last = () => join(own, "sessions", slugOf(project), "last.json");
+  const history = () => readdirSync(join(own, "history")).sort();
+  return { project, state, own, run, save, last, history };
+}
+
+describe("orkeon-code, per-project state (LI-4)", () => {
+  it("mounts the project's sessions on /sessions and names it to the runtime, persistence on, nothing in the project", () => {
+    const s = sessionScene();
+    const r = s.run([]);
+    strictEqual(r.status, 0, r.stderr);
+    strictEqual(r.env.get(SESSIONS_DIR), "/sessions");
+    strictEqual(r.env.get(PERSIST), "true");
+    strictEqual(mountOf(r, "/sessions"), `${s.own}/sessions:/sessions:rw`);
+    ok(r.args.includes(`${s.own}/history:/session-history:ro`), r.args.join(" "));
+    ok(!existsSync(join(s.project, ".orkeon")), "nothing written in the project");
+    ok(r.stdout.includes(`  sessions : ${s.own}/sessions (fresh; --continue brings the last back, --resume lists them)`), r.stdout);
+    const off = s.run([], { [PERSIST]: "false" });
+    strictEqual(off.env.get(PERSIST), "false", "a value the user exported is kept");
+  });
+
+  it("writes project.json beside the sessions, its first start kept", () => {
+    const s = sessionScene();
+    s.run([]);
+    const first = JSON.parse(readFileSync(join(s.own, "project.json"), "utf-8"));
+    deepStrictEqual({ ...first, firstSeen: "", lastSeen: "" },
+      { path: s.project, slug: slugOf(s.project), runtimeSlug: slugOf(s.project), firstSeen: "", lastSeen: "" });
+    writeFileSync(join(s.own, "project.json"), JSON.stringify({ ...first, firstSeen: "2026-01-01T00:00:00Z" }));
+    s.run([]);
+    strictEqual(JSON.parse(readFileSync(join(s.own, "project.json"), "utf-8")).firstSeen, "2026-01-01T00:00:00Z");
+  });
+
+  it("docker mode mounts the same folders under /work/state, and the runtime's slug is that of /work/project", () => {
+    const s = sessionScene();
+    const r = s.run(["--mode", "docker"], {}, { docker: recorder() });
+    strictEqual(r.status, 0, r.stderr);
+    const inner = `/work/state/projects/${slugOf(s.project)}`;
+    ok(r.args.includes(`${inner}/sessions:/sessions:rw`) && r.args.includes(`${inner}/history:/session-history:ro`), r.args.join(" "));
+    ok(r.args.includes(`${SESSIONS_DIR}=/sessions`) && r.args.includes(`${PERSIST}=true`), r.args.join(" "));
+    strictEqual(JSON.parse(readFileSync(join(s.own, "project.json"), "utf-8")).runtimeSlug, "project-65d80d2c48b3");
+  });
+
+  it("sends a bare --llm-log to the project's state, and passes an explicit --llm-log-path as given", () => {
+    const s = sessionScene();
+    const r = s.run(["--", "--llm-log"]);
+    strictEqual(r.status, 0, r.stderr);
+    deepStrictEqual(r.args.slice(-2), ["--llm-log-path", `${s.own}/llm-logs`]);
+    ok(!r.args.includes("--llm-log"), r.args.join(" "));
+    deepStrictEqual(s.run(["--", "--llm-log-path", "/tmp/logs"]).args.slice(-2), ["--llm-log-path", "/tmp/logs"]);
+    const both = s.run(["--", "--llm-log-path", "/tmp/logs", "--llm-log"]);
+    deepStrictEqual(both.args.slice(-2), ["--llm-log-path", "/tmp/logs"], "the explicit path wins");
+    ok(!both.args.includes(`${s.own}/llm-logs`), both.args.join(" "));
+  });
+});
+
+describe("orkeon-code, sessions (LI-5)", () => {
+  it("starts fresh: the last session goes to history/; --continue leaves it for the runtime to reload", () => {
+    const s = sessionScene();
+    s.save("abc123", "Fix the parser", 2);
+    strictEqual(s.run([]).status, 0);
+    ok(!existsSync(s.last()), "moved away: the runtime starts fresh");
+    deepStrictEqual(s.history().map((f) => f.replace(/^\d{8}T\d{6}Z-/, "")), ["abc123.json"]);
+    s.save("def456", "Second", 1);
+    const c = s.run(["--continue"]);
+    strictEqual(c.status, 0, c.stderr);
+    ok(existsSync(s.last()), "left for the runtime");
+    ok(c.stdout.includes("(continued)"), c.stdout);
+    strictEqual(s.run(["-c"]).status, 0);
+    ok(existsSync(s.last()), "-c too");
+    strictEqual(s.history().length, 1);
+  });
+
+  it("--resume lists the sessions and, without a terminal, asks for a number or an id", () => {
+    const s = sessionScene();
+    s.save("abc123", "Fix the parser", 2);
+    s.run([]);
+    s.save("def456", "Second", 1);
+    const r = s.run(["--resume"]);
+    strictEqual(r.status, 2);
+    ok(/ {2}1 {2}\d{8}T\d{6}Z {2}Second {2}\(1 messages\) {2}def456\n/.test(r.stderr), r.stderr);
+    ok(/ {2}2 {2}\d{8}T\d{6}Z {2}Fix the parser {2}\(2 messages\) {2}abc123\n/.test(r.stderr), r.stderr);
+    ok(r.stderr.includes("no terminal to choose in: pass --resume <number or id>."), r.stderr);
+    strictEqual(r.cwd, "", "the REPL did not start");
+  });
+
+  it("--resume <n or id> puts the chosen one back where the runtime reads it, and refuses an unknown one", () => {
+    const s = sessionScene();
+    s.save("abc123", "Fix the parser", 2);
+    s.run([]);
+    s.save("def456", "Second", 1);
+    const r = s.run(["--resume", "abc"]);
+    strictEqual(r.status, 0, r.stderr);
+    ok(r.stdout.includes("(resumed abc123)"), r.stdout);
+    ok(readFileSync(s.last(), "utf-8").includes('"SessionId":"abc123"'));
+    deepStrictEqual(s.history().map((f) => f.replace(/^\d{8}T\d{6}Z-/, "")), ["def456.json"], "the open one archived, the chosen one out");
+    const n = s.run(["--resume=1"]);
+    strictEqual(n.status, 0, n.stderr);
+    ok(readFileSync(s.last(), "utf-8").includes('"SessionId":"def456"'));
+    const unknown = s.run(["--resume", "zzz"]);
+    strictEqual(unknown.status, 1);
+    ok(unknown.stderr.includes("no saved session 'zzz'"), unknown.stderr);
+    const both = s.run(["--continue", "--resume"]);
+    strictEqual(both.status, 1);
+    ok(both.stderr.includes("--continue and --resume do not go together"), both.stderr);
+  });
+
+  it("keeps the 50 newest, or ORKEON_CODE_SESSIONS_KEEP", () => {
+    const s = sessionScene();
+    mkdirSync(join(s.own, "history"), { recursive: true });
+    for (let i = 0; i < 51; i++) writeFileSync(join(s.own, "history", `2026${String(1001 + i).padStart(4, "0")}T000000Z-s${i}.json`), "{}");
+    strictEqual(s.run([]).status, 0);
+    strictEqual(s.history().length, 50);
+    ok(!s.history().includes("20261001T000000Z-s0.json"), "the oldest went");
+    strictEqual(s.run([], { ORKEON_CODE_SESSIONS_KEEP: "2" }).status, 0);
+    deepStrictEqual(s.history(), ["20261050T000000Z-s49.json", "20261051T000000Z-s50.json"]);
+    const bad = s.run([], { ORKEON_CODE_SESSIONS_KEEP: "lots" });
+    ok(bad.stderr.includes("ORKEON_CODE_SESSIONS_KEEP=lots is not a whole number from 1 to 9999: 50 sessions are kept."), bad.stderr);
+    for (const keep of ["0", "00", "99999999999999999999"]) {
+      const r = s.run([], { ORKEON_CODE_SESSIONS_KEEP: keep });
+      strictEqual(r.status, 0, r.stderr);
+      ok(r.stderr.includes(`ORKEON_CODE_SESSIONS_KEEP=${keep} is not a whole number from 1 to 9999`), r.stderr);
+      strictEqual(s.history().length, 2, `${keep}: nothing more deleted`);
+    }
+    const octal = s.run([], { ORKEON_CODE_SESSIONS_KEEP: "08" });
+    strictEqual(octal.status, 0, octal.stderr);
+    strictEqual(s.history().length, 2, "08 is eight");
+  });
+
+  it("drops a session without a message rather than archiving it", () => {
+    const s = sessionScene();
+    s.save("empty1", "", 0);
+    strictEqual(s.run([]).status, 0);
+    ok(!existsSync(s.last()));
+    deepStrictEqual(s.history(), []);
+  });
+
+  it("reads a number up to the list's length, else the start of an id", () => {
+    const s = sessionScene();
+    s.save("1234ab", "Digits first", 1);
+    s.run([]);
+    const r = s.run(["--resume", "1234"]);
+    strictEqual(r.status, 0, r.stderr);
+    ok(r.stdout.includes("(resumed 1234ab)"), r.stdout);
+  });
+
+  it("leaves the session of another start that still runs where it is", () => {
+    const s = sessionScene();
+    s.save("abc123", "Open elsewhere", 1);
+    mkdirSync(s.own, { recursive: true });
+    writeFileSync(join(s.own, ".lock"), `${process.pid}\n`);
+    const r = s.run([]);
+    strictEqual(r.status, 0, r.stderr);
+    ok(r.stderr.includes(`another session is open on this project (pid ${process.pid})`), r.stderr);
+    ok(existsSync(s.last()), "not moved");
+    const pid = readFileSync(join(s.own, ".lock"), "utf-8").trim().split("\n");
+    strictEqual(pid[0], String(process.pid), "the open start stays in the lock");
+    strictEqual(pid.length, 2);
+    strictEqual(mountOf(r, "/sessions"), `${s.own}/side/${pid[1]}:/sessions:rw`, "this one kept beside it");
+    // What that second REPL left when it ended: archived by the next start that finds none open.
+    mkdirSync(join(s.own, "side", pid[1], slugOf(s.project)), { recursive: true });
+    writeFileSync(join(s.own, "side", pid[1], slugOf(s.project), "last.json"), '{"SessionId":"side1","Title":"Beside","Messages":[{"Role":"user","Content":"x"}],"State":{}}');
+    writeFileSync(join(s.own, ".lock"), `${process.pid}\n`);
+    mkdirSync(join(s.own, "history"), { recursive: true });
+    writeFileSync(join(s.own, "history", "20261001T000000Z-old.json"), "{}");
+    const resume = s.run(["--resume", "1"]);
+    strictEqual(resume.status, 1);
+    ok(resume.stderr.includes("end it before you resume one"), resume.stderr);
+    ok(existsSync(s.last()), "still not moved");
+    writeFileSync(join(s.own, ".lock"), "999999999\n");
+    strictEqual(s.run([]).status, 0);
+    ok(!existsSync(s.last()), "a stale lock does not hold it");
+    ok(s.history().some((f) => f.endsWith("-side1.json")), s.history().join(" "));
+    ok(!existsSync(join(s.own, "side", pid[1])), "the side folder went");
+  });
+});
+
+describe("orkeon-code.ps1 keeps the state and the sessions as ./orkeon-code does (read here)", () => {
+  const script = read("orkeon-code.ps1");
+
+  it("mounts /sessions and /session-history and names /sessions to the runtime, in both modes", () => {
+    ok(script.includes(`'--mount', "\${projectState}/\${sessionsSub}:/sessions:rw", '--mount', "\${projectState}/history:/session-history:ro"`), "the mounts");
+    ok(script.includes(`$sessionsSub = "side/$PID"`), "beside an open start");
+    ok(script.includes("$env:ORKEON_Orkeon__Cli__Session__SessionsDirectory = '/sessions'"), "the folder");
+    ok(script.includes("if (-not $env:Orkeon__Cli__Session__Persist) { $env:Orkeon__Cli__Session__Persist = 'true' }"), "persistence");
+    ok(script.includes("'-e', 'ORKEON_Orkeon__Cli__Session__SessionsDirectory=/sessions'"), "docker mode");
+    ok(script.includes("$runtimeSlug = if ($Mode -eq 'docker') { Get-ProjectSlug '/work/project' } else { $slug }"), "the runtime's slug");
+  });
+
+  it("archives unless --continue, resumes by number or id, keeps 50, and steps aside for an open session", () => {
+    ok(script.includes("elseif ($Continue) { $sessionNote = 'continued'; Move-SessionsToHistory $sessions $history $side $true }\n  else { Move-SessionsToHistory $sessions $history $side $false }"), "fresh by default");
+    ok(script.includes("-match '\"Messages\"\\s*:\\s*\\[\\s*\\]'"), "an empty session dropped");
+    ok(script.includes("elseif ($name -cin @('--continue', '-c')) { $Continue = [switch] $true }"), "--continue and -c");
+    ok(script.includes("[Console]::Error.WriteLine('orkeon-code: no terminal to choose in: pass --resume <number or id>.')")
+      && script.includes("exit 2"), "no terminal");
+    ok(script.includes("Get-HistoryFiles $history | Select-Object -Skip $keep | Remove-Item -Force"), "retention");
+    ok(script.includes("is not a whole number from 1 to 9999: 50 sessions are kept.") && script.includes("-match '^[0-9]{1,4}$'"), "a bad ORKEON_CODE_SESSIONS_KEEP");
+    ok(script.includes("if ($resumeChoice -match '^[1-9][0-9]{0,3}$' -and [int] $resumeChoice -le $files.Count)"), "a number, else an id");
+    ok(script.includes("another session is open on this project (pid $other)"), "the lock");
+    ok(script.includes("if ($a -ceq '--llm-log') { if (-not $named) { '--llm-log-path'; \"$projectState/llm-logs\" } }"), "--llm-log");
   });
 });

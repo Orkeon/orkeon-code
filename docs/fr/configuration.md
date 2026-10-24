@@ -318,6 +318,33 @@ optionnel, et ne l'importe jamais.
   avec un avertissement. Le serveur peut tourner sur l'hôte en HTTP à la place, pour des fichiers transcrits en moins
   de 100 s ([mcp/whisper/README.md](../../mcp/whisper/README.md#docker-mode-the-server-on-the-host)).
 
+## Sessions
+
+Le REPL enregistre la conversation après chaque tour et quand il finit (`Orkeon:Cli:Session:Persist`, `true` dans les
+settings d'exemple), et le lanceur la garde hors du projet : dans `~/.orkeon-code/projects/<projet>/` une fois installé,
+`.crew-output/projects/<projet>/` dans un clone, `<ORKEON_CODE_STATE>/projects/<projet>/` quand cette variable est
+définie. `<projet>` est le nom du dossier et un court hash de son chemin, si bien que deux projets du même nom ne le
+partagent jamais ; `project.json` y nomme le chemin. Plus rien n'est écrit sous `.orkeon/sessions` du projet
+(`/doctor` avertit quand un démarrage plus ancien y a laissé des sessions).
+
+| Démarrage | Ce qu'il ramène |
+|---|---|
+| `orkeon-code` | Une session neuve : la dernière passe d'abord dans `history/` du projet |
+| `orkeon-code --continue` (`-c`) | La session que vous avez quittée |
+| `orkeon-code --resume` | Les sessions gardées, la plus récente d'abord (date, titre, messages, id), puis demande laquelle |
+| `orkeon-code --resume <numéro ou id>` | Celle-là, sans demander (un début d'id qui désigne une seule session suffit) |
+
+Sans terminal, `--resume` seul affiche la liste et sort avec le code 2. Les 50 sessions gardées les plus récentes
+restent (`ORKEON_CODE_SESSIONS_KEEP`, de 1 à 9999) ; une session sans message n'est pas gardée. Un second démarrage
+pendant qu'une session est ouverte sur le même projet avertit, laisse l'ouverte en paix et garde la sienne à côté,
+dans l'historique dès le démarrage suivant. Dans le REPL, `/resume`
+liste les sessions gardées (le lanceur monte `history/` en lecture seule sur `/session-history`) ; un REPL ne peut
+pas changer sa propre conversation : quittez, puis démarrez `orkeon-code --resume <id>`. L'historique de l'éditeur
+de ligne (la flèche du haut) n'est pas gardé.
+
+`--llm-log` parmi les arguments du REPL écrit le journal LLM dans `<état du projet>/llm-logs`, jamais dans le
+projet ; `--llm-log-path <dossier>` est passé tel quel et l'emporte sur un `--llm-log` seul.
+
 ## L'environnement du lanceur
 
 | Variable | Effet |
@@ -327,7 +354,8 @@ optionnel, et ne l'importe jamais.
 | `ORKEON_CODE_MODEL` | Modèle pour cette exécution |
 | `ORKEON_CODE_AUDIO_DIR` | Dossier des fichiers audio et vidéo : active la [transcription de la parole](#transcription-de-la-parole) (modes tool et source) |
 | `ORKEON_CODE_VOICE` | `1` : ouvre le microphone à [`/voice`](#dictée) et le haut-parleur à [`/say`](#synthèse-vocale) (avec `ORKEON_CODE_AUDIO_DIR`) |
-| `ORKEON_CODE_STATE` | Où vivent `/output`, `/tmp`, `/user-config` et les transcriptions (défaut `.crew-output/` dans un clone, `<home>/state` dans une installation) |
+| `ORKEON_CODE_STATE` | Où vivent `/output`, `/tmp`, `/user-config` et les transcriptions (défaut `.crew-output/` dans un clone, `<home>/projects/<projet>` dans une installation) ; les [sessions](#sessions) vont sous son `projects/<projet>/` |
+| `ORKEON_CODE_SESSIONS_KEEP` | Combien de [sessions](#sessions) gardées un projet conserve (défaut 50) |
 | `ORKEON_CODE_HOME` | Le dossier propre d'une installation : son état et son dépôt de démo (défaut `~/.orkeon-code`) |
 | `ORKEON_CODE_IMAGE` | Une autre image du runtime (mode docker) |
 | `ORKEON_REPL` | La ligne de commande qui démarre le REPL (mode tool) |
@@ -335,7 +363,8 @@ optionnel, et ne l'importe jamais.
 | `ORKEON_ESBUILD_PATH` | Binaire esbuild (modes tool et source) |
 | `ORKEON_CODE_TRUST` | `1` : démarre un dossier sans confiance sans terminal, seulement quand `CI=true`, sans rien enregistrer ([Dossiers de confiance](permissions.md#dossiers-de-confiance)) |
 
-Le lanceur exporte aussi `Orkeon__Security__PermissionGate__Enabled=true` sauf s'il est déjà défini (le fichier de
-settings l'emporte encore sur lui), et, en modes tool et source, `ORKEON_ALLOW_EXTERNAL_MOUNTS=1`, pour que le REPL,
-démarré depuis le projet, accepte les montages `/output`, `/tmp` et `/user-config` du répertoire d'état. `/permissions` dit si la
+Le lanceur exporte aussi `Orkeon__Security__PermissionGate__Enabled=true` et `Orkeon__Cli__Session__Persist=true` sauf
+s'ils sont déjà définis (le fichier de settings l'emporte encore sur eux), `ORKEON_Orkeon__Cli__Session__SessionsDirectory=/sessions`
+(qui l'emporte sur lui), et, en modes tool et source, `ORKEON_ALLOW_EXTERNAL_MOUNTS=1`, pour que le REPL,
+démarré depuis le projet, accepte les montages `/output`, `/tmp`, `/user-config`, `/sessions` et `/session-history` du répertoire d'état. `/permissions` dit si la
 garde est active.

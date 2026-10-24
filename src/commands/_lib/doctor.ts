@@ -22,6 +22,9 @@ import type { CommandView } from "./view.ts";
 /** Tools the coding agent cannot work without — absence is a FAIL, not a note. */
 export const ESSENTIAL_TOOLS = ["file_read", "file_write", "shell_command", "directory_read", "session_store"];
 
+/** Where the runtime kept the sessions before the launcher mounted them outside the project. */
+export const OLD_SESSIONS_DIR = "/workspace/.orkeon/sessions";
+
 export type DoctorRow = { check: string; result: string; detail: string };
 export const PASS = "✅";
 export const WARN = "⚠";
@@ -31,7 +34,7 @@ export interface DoctorDeps {
   shell: Shell;
   telemetry: Pick<Telemetry, "readMetadata">;
   catalogue: Pick<ToolCatalogue, "names">;
-  files: Pick<Files, "mounts">;
+  files: Pick<Files, "mounts" | "list">;
 }
 
 /** Every check, one row each, and the verdict over them. */
@@ -110,6 +113,18 @@ export async function runDoctor(deps: DoctorDeps): Promise<CommandView> {
   } catch (e: any) {
     rows.push({ check: "vfs: mounts", result: WARN, detail: `list_mounts unavailable: ${String(e?.message ?? e).split("\n")[0]}` });
   }
+
+  // 5. Sessions left in the project: the runtime kept them in /workspace/.orkeon/sessions
+  // before the launcher mounted /sessions outside the project (QL-04). Left alone, named here.
+  const inProject = await files.list(OLD_SESSIONS_DIR, 1).catch((): string[] => []);
+  rows.push({
+    check: "sessions: outside the project",
+    result: inProject.length === 0 ? PASS : WARN,
+    detail: inProject.length === 0
+      ? "nothing in .orkeon/sessions"
+      : `${OLD_SESSIONS_DIR} holds sessions of an older start, left alone: sessions now live in the launcher's state folder, outside the project ` +
+        "(orkeon-code --resume lists them); delete the folder once you no longer need it",
+  });
 
   const failed = rows.filter((r) => r.result === FAIL).length;
   const warned = rows.filter((r) => r.result === WARN).length;

@@ -26,7 +26,7 @@ orkeon-code --version
 `install.sh --archive orkeon-code-<version>.tar.gz` installs an archive already downloaded (checked against the
 `SHA256SUMS` beside it, when there is one). Run again, it changes nothing; a new release goes into its own folder and becomes
 `current`. `bash ~/.local/lib/orkeon-code/current/scripts/install.sh --uninstall` removes the program and the
-command, never `~/.orkeon-code/`, where an install keeps what is yours: its state (`state/`) and the demo repository
+command, never `~/.orkeon-code/`, where an install keeps what is yours: each project's state and sessions (`projects/`) and the demo repository
 (`demo/`), `ORKEON_CODE_HOME` names another folder. On Windows, `install.ps1` does the same into
 `%LOCALAPPDATA%\Programs\orkeon-code` and writes `bin\orkeon-code.cmd`, which `cmd.exe` and PowerShell both find.
 
@@ -177,8 +177,9 @@ models, backends and how the model calls the tools itself: [Configuration](confi
 Besides the changes you ask for: `AGENTS.md` (`/init`), `.orkeon/config.json` (`/config`), `.orkeon/agents.json`
 (`/agents`) and `.git/ORKEON_COMMITMSG` (`/commit` writes the message there for `git commit -F`; git does not track
 it). Add `.orkeon/` to the project's `.gitignore` if you do not want to share them. Transcriptions go to the state
-directory (`.crew-output/transcripts` in a clone, `~/.orkeon-code/state/transcripts` once installed), never to the project. The conversation, the
-session mode (`/mode`) and the permission rules are kept in memory and end with the REPL.
+directory (`.crew-output/transcripts` in a clone, `~/.orkeon-code/projects/<project>/transcripts` once installed), never to the project. The conversation is saved
+there too when the REPL ends ([Sessions](configuration.md#sessions): `--continue` brings it back); the session mode
+(`/mode`) and the permission rules are kept in memory and end with the REPL.
 
 ## Troubleshooting
 
