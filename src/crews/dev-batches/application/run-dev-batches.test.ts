@@ -436,20 +436,23 @@ describe("runDevBatches — a parallel run", () => {
     ok(out.lines.at(-1)!.startsWith("BLOCKED — concurrency 2 refused: the session mode acceptEdits"), out.lines.join("\n"));
   });
 
-  it("goes on from the record's concurrency when a chained run is handed none", async () => {
+  it("goes on from the record's concurrency when a chained run is handed none: handed on with it, its budget sized to it", async () => {
     const { files, deps, runs } = parallelSetup();
     files.files.set(ACTIVE_RECORD, JSON.stringify({ code: "demo", pr: false, context: { permissionMode: "bypassPermissions", concurrency: 2 } }));
     const out = parse(await runDevBatches({}, deps));
-    strictEqual(runs.length, 2);
+    strictEqual(runs.length, 0);
     deepStrictEqual(out.next, { crew: "dev-batches", input: { concurrency: 2 } });
+    strictEqual(parse(await runDevBatches({ concurrency: 2 }, deps)).next?.crew, "dev-batches");
+    strictEqual(runs.length, 2);
   });
 
   it("goes on in parallel when the plan's run is typed again without --concurrency (a refused hop typed again)", async () => {
     const { files, deps, runs } = parallelSetup();
     files.files.set(ACTIVE_RECORD, JSON.stringify({ code: "demo", pr: false, context: { permissionMode: "bypassPermissions", concurrency: 2 } }));
     const out = parse(await runDevBatches({ code: "demo", permissionMode: "bypassPermissions" }, deps));
-    strictEqual(runs.length, 2, out.lines.join("\n"));
-    deepStrictEqual(out.next, { crew: "dev-batches", input: { concurrency: 2 } });
+    deepStrictEqual(out.next, { crew: "dev-batches", input: { concurrency: 2 } }, out.lines.join("\n"));
+    strictEqual(out.lines.at(-1), "→ the run of demo goes on, 2 batches at once");
+    strictEqual(JSON.parse(files.files.get(ACTIVE_RECORD)!).context.concurrency, 2);
   });
 
   it("goes back to one at a time on a typed --concurrency 1, the record's concurrency dropped", async () => {

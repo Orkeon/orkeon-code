@@ -7,12 +7,19 @@
 // the runtime's and none a script can pass (runtime issue Orkeon/orkeon#189), so a batch is bounded in code
 // (batchLimits: its tool calls by the spend guard, its wall time by runAgent's timeout) and draws nothing from the
 // driver's. The driver waits for the wave: its wall time adds the largest batch's and a margin, not their sum.
+// Its own work grows with each batch of a wave: one review of its sheet (about 60 calls, as above) and the batch's
+// git and file calls (its worktree made or reused, the seed's reads and writes, the log, the merge and its rebase,
+// the harvest, the removal: about 16, 20 counted), so its tool calls and tokens add that much per batch.
 // No batch spawns and runAgent checks no depth: delegationDepth stays 0.
 import type { StepBudget } from "../../../shared/domain/dev/step-budget.ts";
-import { STEP_BUDGETS } from "../../../shared/domain/dev/step-budget.ts";
+import { STEP_BUDGETS, TOKENS_PER_CALL } from "../../../shared/domain/dev/step-budget.ts";
 import { CLOSE_BUDGET, MAX_STEPS, implementBudget } from "../../dev-implement/domain/implement-budget.ts";
 
 export const BATCHES_BUDGET: StepBudget = { toolCalls: 120, wallTime: 1800, tokens: 200_000, delegationDepth: 0 };
+
+/** One batch of a wave, for the driver: the review of its sheet, and its git and file calls. */
+export const WAVE_REVIEW_CALLS = 60;
+export const WAVE_BATCH_CALLS = 20;
 
 /** The driver's time beyond its own and the longest batch's: the harvest, the merges, the removals. */
 export const WAVE_MARGIN_SECONDS = 600;
@@ -34,5 +41,11 @@ export function batchLimits(steps: unknown): BatchLimits {
 export function driverBudget(concurrency: unknown): StepBudget {
   const n = typeof concurrency === "number" ? concurrency : Number(concurrency);
   if (!(Number.isFinite(n) && n > 1)) return BATCHES_BUDGET;
-  return { ...BATCHES_BUDGET, wallTime: BATCHES_BUDGET.wallTime + batchLimits(MAX_STEPS).wallTime + WAVE_MARGIN_SECONDS };
+  const calls = n * (WAVE_REVIEW_CALLS + WAVE_BATCH_CALLS);
+  return {
+    ...BATCHES_BUDGET,
+    toolCalls: BATCHES_BUDGET.toolCalls + calls,
+    tokens: BATCHES_BUDGET.tokens + calls * TOKENS_PER_CALL,
+    wallTime: BATCHES_BUDGET.wallTime + batchLimits(MAX_STEPS).wallTime + WAVE_MARGIN_SECONDS,
+  };
 }

@@ -357,6 +357,11 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
   if (record === null || fresh || flag(input.pr) !== record.pr || record.context.concurrency !== context.concurrency) {
     await writeRecord({ code, pr, context });
   }
+  // The crew's budget is sized when it is built, from the concurrency its input names (batches-budget.ts): a run
+  // that follows its record's hands itself on, the concurrency named, before any batch.
+  if (parallel > 1 && input.concurrency === undefined) {
+    return answer([...lines, `→ the run of ${code} goes on, ${parallel} batches at once`], { crew: "dev-batches", input: { concurrency: parallel } });
+  }
   const nodes = batchNodes(dev);
   const order = waveOrder(nodes);
   const now = deps.clock();
