@@ -145,7 +145,7 @@ describe("runDevLearn — proposals", () => {
       motifs: [
         motif({ title: "Two batches only", topic: "two-batches", rows: [T.ledger1, T.ledger3] }),
         motif({ title: "Help wording", topic: "wording-of-help" }),
-        motif({ title: "Rounding inside handlers", topic: "rounding" }),
+        motif({ title: "Rounding inside handlers", topic: "rounding", rows: [T.ledger1, T.ledger3, T.exports] }),
       ],
       dropped: [{ title: "Model's own", filter: "novelty", reason: "the guide says it" }],
     }];

@@ -216,6 +216,22 @@ describe("rules 13 to 17 and 26: anchors", () => {
     failsWith([], third(["F1"]));
     failsWith([], third(["F2"]));
   });
+  it("checks a path spelt with ./, a doubled / or a \\ as the path it names", () => {
+    for (const [path, shown] of [["./.claude/hooks/x.sh", ".claude/hooks/x.sh"], [".//workbench/prune/x.ts", "workbench/prune/x.ts"], ["src/./../x.ts", "src/../x.ts"]]) {
+      failsWith([`B1 S1: ${shown} cannot be anchored there`], (a) => { a.batches[0].steps[0].anchors.production[0] = { kind: "create", path }; });
+    }
+    failsWith(["B1 S1: src\\x.ts cannot be anchored there"], (a) => { a.batches[0].steps[0].anchors.production[0].path = "src\\x.ts"; });
+    failsWith(["B1 S2: src/shared/domain/memory.ts is in the inventory: use its ref"],
+      (a) => { a.batches[0].steps[1].anchors.production.push({ kind: "existing", path: "./src//shared/domain/memory.ts" }); });
+    const third = (a: PlanAnswer): void => {
+      const b = copy(a.batches[0]);
+      b.dependsOn = [];
+      b.steps.forEach((s) => s.tests.forEach((t) => { t.name = `${t.name} again`; }));
+      for (const s of b.steps) for (const x of s.anchors.production) if (x.path !== undefined) x.path = `./${x.path}`;
+      a.batches.push(b);
+    };
+    failsWith(["B1 and B3 share src/commands/_lib/memory.ts and neither depends on the other"], third);
+  });
   it("26: an existing anchor on a file the inventory holds", () => {
     failsWith(["B1 S2: src/shared/domain/memory.ts is in the inventory: use its ref"],
       (a) => { a.batches[0].steps[1].anchors.production.push({ kind: "existing", path: "src/shared/domain/memory.ts" }); });

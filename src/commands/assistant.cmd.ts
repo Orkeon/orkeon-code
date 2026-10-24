@@ -7,7 +7,12 @@
 // registers, the session's rules (handed to the host gate first) — and passes it
 // in `inputs`: the crew builds its catalogue at MODULE scope, which is synchronous
 // and cannot await the state bag.
+//
+// The first free-text turn of a session carries what the session's start script
+// printed (Orkeon:Cli:Session:StartScript), at the head of the raw input alone: it is
+// taken off there and passed as `sessionStart`, the request parsed from the tokens.
 import { parseAssistantInput, rawText } from "./_lib/args.ts";
+import { splitStartOutput } from "../shared/domain/session-start.ts";
 import { launchMainLoop, writeCompleted } from "./_lib/dispatch.ts";
 import { createCrewHost } from "../shared/infrastructure/orkeon/crew-host.ts";
 import { createPermissionRules } from "../shared/infrastructure/orkeon/permission-rules.ts";
@@ -25,10 +30,11 @@ defineAsyncCommand({
     // permissionMode is null when the prompt has no "mode:" prefix: launchMainLoop
     // then resolves the session's mode (/mode, else the fallback).
     const { prompt, permissionMode } = parseAssistantInput(rawText(args));
+    const { start } = splitStartOutput(String(ctx.command?.rawInput ?? ""));
     return await launchMainLoop({
       ...deps, catalogue: orkeonToolCatalogue(ctx.services), crews: createCrewHost(ctx.services),
       gate: createPermissionRules(ctx.services), log: ctx.log,
-    }, { prompt, permissionMode });
+    }, { prompt, permissionMode, ...(start ? { sessionStart: start } : {}) });
   },
   completed: (result, ctx) => writeCompleted(ctx, result, "assistant"),
 });

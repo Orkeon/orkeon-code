@@ -12,10 +12,12 @@
 // whose tool `tools.extra` no longer lists stays, dormant, until it lists it again
 // or the rule is removed. The gate itself runs only when the host turned it on
 // (Orkeon:Security:PermissionGate:Enabled); the host says whether it did
-// (PermissionRules.enabled, Orkeon #128) and the view reports it: on, off, or
-// unknown on a runtime without the field.
+// (PermissionRules.enabled, Orkeon #128, which the runtime always reports) and the
+// view says on or off. The last case of gateStateLines - no value - is for a fake
+// or a port that says nothing: it names the setting and the launcher instead.
 
 import type { PermissionRules, ToolCatalogue } from "../../shared/application/ports.ts";
+import { USER_CONFIG_FILE_PATH } from "../../shared/application/config-store.ts";
 import type { ConfigStore } from "../../shared/application/config-store.ts";
 import type { SessionIo } from "../../shared/application/session-io.ts";
 import { configuredNames, resolveExtraTools } from "../../shared/application/extra-tools.ts";
@@ -24,14 +26,21 @@ import {
   addPermissionRule, clearPermissionRules, readPermissionRules, removePermissionRule, syncPermissionRules,
 } from "../../shared/application/permission-rules.ts";
 import type { StoredRules } from "../../shared/application/permission-rules.ts";
-import { PERMISSION_MODES } from "../../shared/domain/permission-modes.ts";
+import { readMemoryDir } from "../../shared/application/shared-memory/memory-settings.ts";
+import { memoryWriteRules } from "../../shared/domain/shared-memory/layout.ts";
+import { PERMISSION_FALLBACK_CONFIG_KEY, PERMISSION_MODES } from "../../shared/domain/permission-modes.ts";
 import { EXTRA_TOOLS_CONFIG_KEY } from "../../shared/domain/agent-policy/extra-tools.ts";
 import {
   catalogueFor, checkRule, formatRule, gateLine, isReadOnly, readRule, sameCalls, toolsetFor, RULE_SYNTAX,
+  ACT_TOOLS,
+  MEMORY_TOOLS,
   RULEABLE_TOOLS,
+  scriptToolAccess,
+  scriptToolsFor,
 } from "../../shared/domain/agent-policy/permission.ts";
 import type { ExtraTool, PermissionRule } from "../../shared/domain/agent-policy/permission.ts";
 import { heldRuleSets } from "../../shared/domain/agent-policy/rule-sets.ts";
+import { nestedConfigKeys } from "../../shared/domain/config-schema.ts";
 import type { CommandView } from "./view.ts";
 
 export const PERMISSIONS_USAGE =
@@ -44,8 +53,9 @@ const NO_GATE_RULES =
 export interface PermissionsDeps {
   session: Pick<SessionIo, "readDefaultPermissionMode" | "resolveSessionFallbackMode" | "readState" | "writeState">;
   gate: PermissionRules;
-  /** Reads `tools.extra`, the extra tools a rule may name. */
-  config: Pick<ConfigStore, "readValue" | "readFile">;
+  /** Reads `tools.extra`, the extra tools a rule may name, and what the project file
+   *  could not widen (QL-06). */
+  config: Pick<ConfigStore, "readValue" | "readFile" | "readUserFile">;
   /** The tools the host registers: the catalogue offers the extra tools it has. */
   catalogue: Pick<ToolCatalogue, "find">;
 }
@@ -87,19 +97,55 @@ function syncNotes(sync: StoredRules & { applied: boolean }, extras: ExtraToolsR
   return [...(sync.applied ? [] : [NO_GATE_RULES]), ...storedNotes(sync, extras)];
 }
 
+/** What the project file set and could not widen (QL-06), and user settings that could not be read. */
+async function widenedNotes(config: PermissionsDeps["config"]): Promise<{ fallback: string[]; notes: string[] }> {
+  const [fallback, extra, user, project] = await Promise.all([
+    config.readValue(PERMISSION_FALLBACK_CONFIG_KEY).catch(() => undefined),
+    config.readValue(EXTRA_TOOLS_CONFIG_KEY).catch(() => undefined),
+    config.readUserFile().catch(() => ({ malformed: true, map: {} })),
+    config.readFile().catch(() => ({ map: {} })),
+  ]);
+  const nested = [...new Set([project.map, user.map].flatMap(nestedConfigKeys))]
+    .filter((key) => key === PERMISSION_FALLBACK_CONFIG_KEY || key === EXTRA_TOOLS_CONFIG_KEY);
+  return {
+    fallback: fallback?.ignored === undefined
+      ? []
+      : [`  ↳ ignored          : the project file sets ${PERMISSION_FALLBACK_CONFIG_KEY} '${fallback.ignored.value}': ` +
+        fallback.ignored.reason],
+    notes: [
+      ...(user.malformed
+        ? [`⚠ the user settings (${USER_CONFIG_FILE_PATH}) could not be read or parsed: no user setting applies.`]
+        : []),
+      ...nested.map((key) =>
+        `⚠ ${key} is written nested in a settings file ({"${key.split(".")[0]}": {…}}), so nothing reads it: ` +
+        `write it flat, "${key}": ….`),
+      ...(extra?.ignored === undefined
+        ? []
+        : [`⚠ ${EXTRA_TOOLS_CONFIG_KEY} of the project file names ${extra.ignored.value}, which ${extra.ignored.reason}: ` +
+          "not offered."]),
+    ],
+  };
+}
+
 /** The effective surface: mode, catalogue, rules and what the gate holds. */
 async function renderShow(deps: PermissionsDeps, extras: ExtraToolsResolution): Promise<string> {
   const { session, gate } = deps;
   const sessionDefault = await session.readDefaultPermissionMode();
   const fallback = await session.resolveSessionFallbackMode();
   const mode = sessionDefault ?? fallback.mode;
+  const widened = await widenedNotes(deps.config);
   const stored = await readPermissionRules(session, configuredNames(extras));
   const { rules } = stored;
   const decision = catalogueFor(mode, rules, extras.present);
-  const held = gate.available() ? gate.list() : null;
   const gateOn = gate.enabled();
-  // What the gate holds beyond the session's rules is grouped by built-in rule set (a dev step's).
+  // What the gate holds beyond the session's rules: the shared memory's guard every sync adds, then the
+  // built-in rule sets (a dev step's), grouped.
   const sessionLines = rules.map(gateLine);
+  const memoryDir = (await readMemoryDir(deps.config)).dir;
+  const memoryLines = memoryWriteRules(memoryDir).map(gateLine);
+  const all = gate.available() ? gate.list() : null;
+  const guarded = all === null ? [] : all.filter((l) => memoryLines.includes(l) && !sessionLines.includes(l));
+  const held = all === null ? null : all.filter((l) => !guarded.includes(l));
   const grouped = held === null ? null : heldRuleSets(held.filter((l) => !sessionLines.includes(l)));
   const setLines = new Set(held === null || grouped === null
     ? []
@@ -108,17 +154,29 @@ async function renderShow(deps: PermissionsDeps, extras: ExtraToolsResolution): 
   const setParts = grouped !== null && grouped.sets.length > 0
     ? [`rule sets of the last dev step: ${grouped.sets.map((g) => `${g.id} (${g.count} rules)`).join(", ")}`]
     : [];
-  const heldParts = plain === null ? [] : [...(plain.length > 0 ? [plain.join(", ")] : []), ...setParts];
+  const guardParts = guarded.length > 0
+    ? [`the shared memory's guard: no tool of the model writes under ${memoryDir}/candidates or ${memoryDir}/entries (${guarded.length} rules)`]
+    : [];
+  const heldParts = plain === null ? [] : [...(plain.length > 0 ? [plain.join(", ")] : []), ...setParts, ...guardParts];
 
-  const offered = toolsetFor(mode, extras.present);
-  const vocabulary = [...RULEABLE_TOOLS, ...extras.present.map((t) => t.name)];
+  // The shared memory's tools are the main loop's, offered by mode (memory_recall always, memory_push where the
+  // mode edits) less a deny rule on the whole tool; Orkeon Code's other tools (SCRIPT_TOOLS) belong to the dev
+  // crews that attach them, never to the session.
+  const memoryByMode = scriptToolsFor(mode, MEMORY_TOOLS);
+  const memory = scriptToolsFor(mode, MEMORY_TOOLS, rules);
+  const offered = [...toolsetFor(mode, extras.present), ...memoryByMode];
+  // The host offers the ACT_TOOLS to every act, and its gate refuses them in the read-only modes only.
+  const withheld = (t: string) => MEMORY_TOOLS.includes(t)
+    || ((isReadOnly(mode) || !ACT_TOOLS.includes(t)) && scriptToolAccess(t) === undefined);
+  const vocabulary = [...RULEABLE_TOOLS.filter(withheld), ...extras.present.map((t) => t.name)];
   const lines = [
     `session default mode : ${mode} ${isReadOnly(mode) ? "(read-only)" : ""}`,
     `  ↳ source           : ${sessionDefault ? "set by /mode (session state)" : fallback.explanation}`,
+    ...widened.fallback,
     `modes                : ${PERMISSION_MODES.join(", ")} (bare /mode cycles)`,
-    `tool catalogue       : ${decision.tools.join(", ") || "(empty)"}`,
+    `tool catalogue       : ${[...decision.tools, ...memory].join(", ") || "(empty)"}`,
     `  ↳ withheld by mode : ${vocabulary.filter((t) => !offered.includes(t)).join(", ") || "(none)"}`,
-    `  ↳ removed by rule  : ${decision.deniedByRule.join(", ") || "(none)"}`,
+    `  ↳ removed by rule  : ${[...decision.deniedByRule, ...memoryByMode.filter((t) => !memory.includes(t))].join(", ") || "(none)"}`,
     ...(extras.present.length + extras.missing.length + extras.invalid.length > 0
       ? [
         `  ↳ extra tools      : ${extras.present.map(describeExtra).join(", ") || "(none registered)"}` +
@@ -133,6 +191,11 @@ async function renderShow(deps: PermissionsDeps, extras: ExtraToolsResolution): 
     "                       2) host gate, at each call: a matching deny refuses; a matching allow runs",
     "                          without asking (not in plan); else the mode decides, and default and",
     "                          acceptEdits ask you: [y] once / [s] session / [n] no",
+    "                       3) dev crews' callback (/dev-spec, /dev-change, /dev-plan, /dev-implement,",
+    "                          /dev-batches, /dev-verify, a /tasks repair), after the gate allowed a call:",
+    "                          the step's rule sets and a role's roots again, glob/grep/count_pattern by",
+    "                          their whole input, the act's mode when the host has no gate, then the",
+    "                          pre-tool and post-tool hooks (/hooks); it can refuse, never allow more",
     ...gateStateLines(gateOn),
   ];
 
@@ -146,7 +209,7 @@ async function renderShow(deps: PermissionsDeps, extras: ExtraToolsResolution): 
       "⚠ the gate also holds the rule sets of the last dev step: the next /assistant turn or rule change hands it the session's rules alone.",
     );
   }
-  lines.push(...storedNotes(stored, extras));
+  lines.push(...widened.notes, ...storedNotes(stored, extras));
   return lines.join("\n");
 }
 
@@ -177,7 +240,8 @@ export async function runPermissions(tokens: string[], deps: PermissionsDeps): P
   const ruleText = ruleTokens.join(" ");
   const extras = await resolveExtraTools(deps);
   const extraNames = configuredNames(extras);
-  const sync = () => syncPermissionRules({ session, gate, extraNames });
+  const builtIn = memoryWriteRules((await readMemoryDir(deps.config)).dir);
+  const sync = () => syncPermissionRules({ session, gate, extraNames, builtIn });
   switch ((sub ?? "show").toLowerCase()) {
     case "show":
       return { text: await renderShow(deps, extras) };

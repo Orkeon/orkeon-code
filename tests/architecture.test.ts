@@ -22,7 +22,7 @@
 // nothing in its file declares, imports or binds (TypeScript's own scoping), every
 // `globalThis.<name>` and every ambient re-declaration (`declare const tools`):
 //   - no require(): the sources are ES modules bundled by esbuild;
-//   - only shared/infrastructure/ and the crew entry points read `tools`,
+//   - only shared/infrastructure/ and the crew entry points read `tools`, `rag`,
 //     `agentBuilder`, `crewBuilder` and `inputs` (src/crews/.orkeon/orkeon.d.ts
 //     declares them for every file, so the type check lets any file call
 //     `tools.shellCommand(...)`);
@@ -154,7 +154,7 @@ const RUNTIME_GLOBALS: ReadonlyArray<{ names: readonly string[]; allowedIn: (fil
     rule: "no require(): the sources are ES modules bundled by esbuild",
   },
   {
-    names: ["tools", "agentBuilder", "crewBuilder", "inputs"],
+    names: ["tools", "agentBuilder", "crewBuilder", "toolBuilder", "rag", "inputs"],
     allowedIn: (file) => file.startsWith(INFRASTRUCTURE) || isCrewEntryPoint(file),
     rule: "only shared/infrastructure/ and the crew entry points read the runtime globals (a port, or globals.ts)",
   },

@@ -64,6 +64,23 @@ function text(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+/** The tool's name written around one quoted command: `run_validation "<command>"`, its '…' and `…` forms, or the
+ *  same between parentheses, where the argument may also be named (`command="<command>"`). A quote may hold its own
+ *  kind escaped (`\"`), read back unescaped; an unescaped one ends it, so the form has one reading. */
+const TOOL_WRAPPED =
+  /^run_validation\s*(\(\s*(?:command\s*[=:]\s*)?)?(?:"((?:[^"\\]|\\.)+)"|'((?:[^'\\]|\\.)+)'|`([^`]+)`)\s*(\))?$/;
+
+/** A validation as the pack's commands read it: the command alone, the tool's name around it taken off. */
+export function validationCommand(written: string): string {
+  const trimmed = written.trim();
+  const m = TOOL_WRAPPED.exec(trimmed);
+  if (m === null) return trimmed;
+  if ((m[1] !== undefined) !== (m[5] !== undefined)) return trimmed; // an unbalanced parenthesis: no single reading
+  if (m[2] !== undefined) return m[2].replace(/\\(["\\])/g, "$1").trim();
+  if (m[3] !== undefined) return m[3].replace(/\\(['\\])/g, "$1").trim();
+  return m[4].trim();
+}
+
 function axisOf(label: string): Axis | undefined {
   const folded = label.toLowerCase();
   if (folded.startsWith(PLAN_ALIAS)) return "Plan";
@@ -112,7 +129,7 @@ export function checkAuditAnswer(value: unknown): Checked<AuditAnswer> {
   if (!Array.isArray(value.validations) || value.validations.some((v) => typeof v !== "string")) {
     problems.push("validations must be a list of commands");
   } else {
-    validations = value.validations.map((v: string) => v.trim());
+    validations = value.validations.map((v: string) => validationCommand(v));
     if (validations.length > MAX_VALIDATIONS) problems.push(`at most ${MAX_VALIDATIONS} validations, not ${validations.length}`);
   }
 

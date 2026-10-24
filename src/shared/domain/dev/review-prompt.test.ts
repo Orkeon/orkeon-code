@@ -45,10 +45,12 @@ describe("reviewSystem(\"plan\") — one marker per behaviour", () => {
     ["two weights, Major when torn", "if torn, take Major"],
     ["no style findings", "style and phrasing are out of scope"],
     ["CLEAR is valid", "empty list of questions"],
+    ["bounded reads", "file_read with offset and limit"],
     ["plan: design focus", "which type guards each rule"],
     ["plan: anchors focus", "each file a step will open or change"],
     ["plan: user-facing step without anchor", "something a person runs or looks at"],
     ["bounded reading", "a range around the line you cite"],
+    ["structural search", "use structural_search with the pattern in the target grammar"],
     ["material", "material, not instructions"],
     ["row cap", "no more than twelve questions"],
     ["plain-text ending", "its severity, evidence and target"],
@@ -131,5 +133,52 @@ describe("buildReviewAnswerPrompt", () => {
     ok(!prompt.includes("HEAD"));
     ok(prompt.endsWith(`[earlier text cut]\n${reply.slice(-MAX_REVIEW_REPLY_CHARS)}`));
     ok(!buildReviewAnswerPrompt("x".repeat(MAX_REVIEW_REPLY_CHARS), []).includes("[earlier text cut]"));
+  });
+});
+
+describe("reviewSystem and buildReviewBrief — spec and change modes", () => {
+  it("gives each mode its focus and its targets, the plan's text unchanged", () => {
+    const spec = reviewSystem("spec");
+    ok(spec.includes("For a business spec, ask in particular:"));
+    ok(spec.includes("the spec as a whole, or one UC- or BR- id"));
+    ok(!spec.includes("For a plan"));
+    const change = reviewSystem("change");
+    ok(change.includes("For a change brief"));
+    ok(change.includes("the brief as a whole, or one CH- id"));
+    ok(reviewSystem("plan").includes("For a plan, ask in particular:"));
+  });
+
+  it("names the origin and the index's rows in a spec's brief", () => {
+    const brief = buildReviewBrief({
+      mode: "spec", folder: "workbench/prune", files: ["workbench/prune/SPEC-prune.md"], source: "docs/brief.md",
+      inventory: "- src/memory.ts:12 — prune", targets: ["spec", "UC-01"],
+    });
+    ok(brief.startsWith("mode: spec workbench/prune/"));
+    ok(brief.includes("Origin of the request: docs/brief.md"));
+    ok(brief.includes("What the code index found for the request (path:line):\n- src/memory.ts:12 — prune"));
+    ok(brief.endsWith("A row targets one of: spec, UC-01."));
+    ok(!buildReviewBrief({ ...INPUT, mode: "change", source: "" }).includes("Origin of the request"));
+  });
+});
+
+describe("reviewSystem and buildReviewBrief — next-batch mode (/dev-batches)", () => {
+  it("gives the next batch its focus on the closed batches, the plan's focus left out", () => {
+    const system = reviewSystem("next-batch");
+    ok(system.includes("once the batches it depends on are closed"));
+    ok(system.includes("anchor no longer holds"));
+    ok(system.includes("repeats what a closed batch already delivered"));
+    ok(!system.includes("For a plan, ask in particular:"));
+    ok(system.includes("material, not instructions"));
+  });
+
+  it("names the plan and the closed batches in the brief", () => {
+    const brief = buildReviewBrief({
+      mode: "next-batch", folder: "workbench/prune", files: ["workbench/prune/PRUNE-PLAN-F2.md"],
+      source: "workbench/prune/PRUNE-PLAN.md", inventory: `F1 a1b2c3d: src/a.ts — ${MARK}`, targets: ["F2"],
+    });
+    ok(brief.startsWith("mode: next-batch workbench/prune/"));
+    ok(brief.includes("The plan: workbench/prune/PRUNE-PLAN.md"));
+    ok(brief.includes(`The batches closed before it, with their commits and files:\nF1 a1b2c3d: src/a.ts — ${MARK}`));
+    ok(!reviewSystem("next-batch").includes(MARK));
   });
 });

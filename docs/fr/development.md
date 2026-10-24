@@ -28,14 +28,14 @@ la place, `ORKEON_SOURCE=<chemin d'un checkout d'Orkeon> bash scripts/smoke-runt
 ```bash
 bash scripts/run-crew.sh src/crews/git-commit/crew.ork.ts
 ORKEON_CODE_WORKSPACE=~/src/app bash scripts/run-crew.sh src/crews/project-init/crew.ork.ts
-bash scripts/run-crew.sh src/crews/_probe-codeintel/probe.ork.ts     # the code-intelligence probe
 ```
 
 Le script utilise l'outil `orkeon` (`Orkeon.Scripting.Cli`, nuget.org, épinglé dans `.config/dotnet-tools.json` ; le
 SDK .NET qui le restaure et le lance est épinglé par `global.json`, comme celui d'Orkeon : `10.0.300` avec
 `rollForward: latestFeature`) ou l'image `orkeon-runners`, sur la fixture de démonstration sauf si
 `ORKEON_CODE_WORKSPACE` en décide autrement. Les deux sont la release épinglée : tant que `1.0.0-rc.6` n'est pas
-publiée, le script ne peut pas tourner. Cet outil lit ses limites de script dans `Orkeon:Scripting:Limits`, pas dans
+publiée, le script ne peut pas tourner dans ces deux modes ; `ORKEON_CODE_MODE=source ORKEON_SOURCE=<checkout>` le
+lance depuis un checkout d'Orkeon, construit sur place. Cet outil lit ses limites de script dans `Orkeon:Scripting:Limits`, pas dans
 le `Orkeon:Cli:ScriptCommands:Limits` du REPL
 ([Configuration](configuration.md#les-settings-dont-orkeon-code-dépend)).
 
@@ -75,8 +75,16 @@ esbuild pour cette raison.
 1. Déplacez les entrées `[Unreleased]` de `CHANGELOG.md` sous `## [x.y.z] - YYYY-MM-DD`.
 2. Montez `version` dans `package.json` et `CLI_VERSION` dans `src/commands/_lib/meta.ts` (le test les garde
    égaux), ainsi que les notes de release dans ce même fichier.
-3. Fusionnez, puis taguez `vx.y.z` sur `main` et poussez le tag : `release.yml` vérifie que le tag correspond, lance
-   les vérifications et la garde de provenance stricte, et publie la GitHub Release avec les archives des sources,
-   `SHA256SUMS` et une attestation de provenance du build (`gh attestation verify <file> --repo Orkeon/orkeon-code`).
+3. Lancez `bash scripts/check-shared-memory.sh` dans un terminal (il demande `rag_eval`) : le rappel de la mémoire
+   partagée sur son jeu de référence doit finir sur `check-shared-memory: thresholds met` (recall@5 >= 0.85, MRR >= 0.70).
+   La question sans réponse (q13) ne passe que si les réglages du runtime donnent `Orkeon:Rag:Retrieval:MinScore` :
+   sans ce plancher, toute requête renvoie des passages, q13 échoue et la vérification aussi.
+4. Fusionnez, puis taguez `vx.y.z` sur `main` et poussez le tag : `release.yml` vérifie que le tag correspond, lance
+   les vérifications et la garde de provenance stricte, et publie la GitHub Release avec les archives exécutables
+   (`orkeon-code-<v>.tar.gz` et `.zip`, ce que les installeurs téléchargent), `install.sh` et `install.ps1`, les
+   archives des sources, `SHA256SUMS` et une attestation de provenance du build (`gh attestation verify <file> --repo
+   Orkeon/orkeon-code`). Son job `npm` publie ensuite le paquet sur npm avec sa provenance : par la publication de
+   confiance (configurée sur npmjs.com pour ce dépôt), ou avec le secret `NPM_TOKEN` quand le dépôt en définit un ;
+   une version avec un suffixe va sur le dist-tag `next`, toute autre sur `latest`.
 
 Une version avec un suffixe (`-alpha.1`, `-rc.1`) est publiée en pré-release.

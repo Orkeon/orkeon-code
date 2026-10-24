@@ -8,6 +8,9 @@
 export const CLI_NAME = "orkeon-code";
 export const CLI_VERSION = "0.1.0-alpha.1";
 export const CLI_BUILD = "source";
+/** The Orkeon runtime this version runs on: the pin of .orkeon-version, which the launcher checks
+ *  (tests/version.test.ts keeps the two equal). The runtime exposes no version of its own to a command. */
+export const ORKEON_RUNTIME_VERSION = "1.0.0-rc.6";
 
 export const RELEASE_NOTES = [
   `${CLI_NAME} ${CLI_VERSION} (${CLI_BUILD})`,
@@ -16,8 +19,9 @@ export const RELEASE_NOTES = [
   "",
   "Crews: main-loop (the interactive loop behind /assistant), code-review, git-commit,",
   "       project-init, init-verifiers, session-compact, advisor, analyze, speech,",
-  "       dev-verify, dev-learn, dev-plan.",
-  "Commands: 53 slash commands; free text without a leading / goes to /assistant.",
+  "       dev-verify, dev-learn, dev-plan, dev-spec, dev-change, dev-implement, dev-batches,",
+  "       shared-memory-admit, agent-run.",
+  "Commands: 58 slash commands; free text without a leading / goes to /assistant.",
   "Permissions: five modes (default, acceptEdits, plan, dontAsk, bypassPermissions),",
   "             deny/allow rules (argument patterns too) enforced by the host gate,",
   "             questions before writes and commands, /mode for the session default.",

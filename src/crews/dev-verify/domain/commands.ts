@@ -34,7 +34,6 @@ export function excludePathspecs(buildOutputs: readonly string[]): string[] {
 
 export const GIT_CHANGED_TRACKED = "git diff --name-only HEAD";
 export const GIT_DIFF_CHECK = "git diff --check HEAD";
-export const GIT_ORIGIN_HEAD = "git rev-parse --abbrev-ref origin/HEAD";
 
 function line(parts: ReadonlyArray<string | readonly string[]>): string {
   return parts.flat().filter((p) => p !== "").join(" ");

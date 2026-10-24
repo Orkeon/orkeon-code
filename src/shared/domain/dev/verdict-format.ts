@@ -4,6 +4,14 @@
 import type { FormatProblem } from "./plan-format.ts";
 
 export type Verdict = "VALID" | "GAPS";
+
+/** The gap of the row /dev-verify writes when the step's budget stopped the audit: not a finding of the code, so
+ *  neither the learning harvest nor a resumed audit takes it as one. Its reason goes in the evidence. */
+export const AUDIT_UNFINISHED_GAP = "the audit did not finish: the step's budget ran out";
+
+export function isAuditUnfinishedGap(gap: string): boolean {
+  return gap.trim() === AUDIT_UNFINISHED_GAP;
+}
 export type Severity = "Blocking" | "Major" | "Minor";
 /** The axes, as the verdict files spell them (LC:34-35). Moved here from crews/dev-verify/domain/audit-answer.ts. */
 export const AXES = [
@@ -82,6 +90,20 @@ export function parseVerdictFile(text: string): VerdictFile {
 /** The last section that carries a verdict heading; null when none. */
 export function lastVerdict(file: VerdictFile): VerdictSection | null {
   for (let i = file.sections.length - 1; i >= 0; i--) if (file.sections[i].verdict !== null) return file.sections[i];
+  return null;
+}
+
+/** A section an audit the step's budget stopped wrote: its row judges nothing of the code. */
+export function isUnfinishedSection(section: VerdictSection): boolean {
+  return section.rows.some((r) => isAuditUnfinishedGap(r.gap));
+}
+
+/** The last verdict a finished audit wrote, skipping the sections of audits the budget stopped; null when none. */
+export function lastFinishedVerdict(file: VerdictFile): VerdictSection | null {
+  for (let i = file.sections.length - 1; i >= 0; i--) {
+    const s = file.sections[i];
+    if (s.verdict !== null && !isUnfinishedSection(s)) return s;
+  }
   return null;
 }
 

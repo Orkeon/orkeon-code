@@ -1,14 +1,26 @@
 // The start of a dev step, in its command's dispatch: the host's gate must be on, then the gate is
 // handed the session's rules and the step's rule sets (shared/domain/dev/step-rules.ts), just before
-// the crew is launched. Not a command file: the loader reads *.cmd.ts only.
+// the crew is launched; the /hooks registry is read for the crew's input (its tool callbacks run the hooks). Not a
+// command file: the loader reads *.cmd.ts only.
 import type { PermissionRules, SessionStore, ToolCatalogue } from "../../shared/application/ports.ts";
+import type { SessionIo } from "../../shared/application/session-io.ts";
 import type { ConfigStore } from "../../shared/application/config-store.ts";
 import { configuredNames, resolveExtraTools } from "../../shared/application/extra-tools.ts";
 import { syncStepRules } from "../../shared/application/permission-rules.ts";
-import { formatRule } from "../../shared/domain/agent-policy/permission.ts";
+import { readMemoryDir } from "../../shared/application/shared-memory/memory-settings.ts";
+import { memoryWriteRules } from "../../shared/domain/shared-memory/layout.ts";
+import { readJsonArray } from "../../shared/application/session-state.ts";
+import { HOOKS_STATE_KEY } from "../../shared/domain/session-keys.ts";
+import { deniesEveryCall, formatRule } from "../../shared/domain/agent-policy/permission.ts";
+import { parseSessionRules } from "../../shared/domain/git/pull-request.ts";
 import type { RuleSetId } from "../../shared/domain/agent-policy/rule-sets.ts";
 import { STEP_RULE_SETS, gateProblem, stepRules } from "../../shared/domain/dev/step-rules.ts";
 import type { DevStep } from "../../shared/domain/dev/step-rules.ts";
+import { isCode } from "../../shared/domain/dev/artefacts.ts";
+import { policyFor } from "../../shared/domain/agent-policy/mode-policy.ts";
+import { isPermissionMode } from "../../shared/domain/permission-modes.ts";
+import type { ActiveWorkflow } from "../../shared/domain/workflow/state-file.ts";
+import { writeActiveWorkflow } from "../../shared/application/workflow/workflow-state.ts";
 
 export interface DevStepDeps {
   session: Pick<SessionStore, "readState">;
@@ -18,7 +30,12 @@ export interface DevStepDeps {
 }
 
 export type DevStepStart =
-  | { ok: true; lines: string[]; sets: readonly RuleSetId[]; rules: number }
+  | {
+    ok: true; lines: string[]; sets: readonly RuleSetId[]; rules: number; hooks: unknown[];
+    /** What the crew's input carries besides the step's own arguments: the /hooks registry, and
+     *  `memoryRecall: false` when a rule in the gate denies every call of memory_recall. */
+    input: { hooks: unknown[]; memoryRecall?: false };
+  }
   | { ok: false; line: string };
 
 /** The step /dev-verify runs: none with --gate-only, which runs no model. */
@@ -27,7 +44,8 @@ export function devVerifyStep(args: { gateOnly: boolean }): DevStep | null {
 }
 
 /** Refuses when the host says its gate is off; otherwise puts the session's rules, then the step's
- *  rule sets, in the gate, and returns the warning lines the command prints before launching. */
+ *  rule sets, in the gate, and returns the warning lines the command prints before launching and the
+ *  /hooks registry the crew's input carries. */
 export async function startDevStep(step: DevStep, deps: DevStepDeps): Promise<DevStepStart> {
   const problem = gateProblem(deps.gate.enabled(), step);
   if (problem?.refuse) return { ok: false, line: problem.line };
@@ -35,12 +53,90 @@ export async function startDevStep(step: DevStep, deps: DevStepDeps): Promise<De
   const extras = await resolveExtraTools(deps);
   const sync = await syncStepRules({
     session: deps.session, gate: deps.gate, extraNames: configuredNames(extras), rules: stepRules(step),
+    builtIn: memoryWriteRules((await readMemoryDir(deps.config)).dir),
   });
   if (!sync.applied) {
-    lines.push(`warning: the host keeps no session rules: /${step}'s rule sets are not in force, the mode alone decides each call.`);
+    lines.push(`warning: the host keeps no session rules: /${step}'s rule sets are not in the host's gate, the crew's callback alone checks them.`);
   }
   for (const r of sync.overridden) {
     lines.push(`warning: the session's rule '${formatRule(r)}' is left out of the gate during /${step}: the step denies the same calls.`);
   }
-  return { ok: true, lines, sets: STEP_RULE_SETS[step], rules: sync.step.length };
+  const hooks = await readJsonArray(deps.session, HOOKS_STATE_KEY);
+  const memoryDenied = deniesEveryCall(gateRules(deps.gate), "memory_recall");
+  return {
+    ok: true, lines, sets: STEP_RULE_SETS[step], rules: sync.step.length, hooks,
+    input: { hooks, ...(memoryDenied ? { memoryRecall: false as const } : {}) },
+  };
+}
+
+/** The rules in the gate, parsed; none when the host keeps none. */
+function gateRules(gate: PermissionRules) {
+  try {
+    return gate.available() ? parseSessionRules(gate.list()) : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * The line refusing a step that writes files when the session's mode is read-only, or could not be read (`""`:
+ * a step never writes on a mode it does not know); null when it may run. `writes` says what the step writes.
+ */
+export function writeModeRefusal(mode: string, step: string, writes: string): string | null {
+  if (mode === "") return `✗ refused: the session mode could not be read, and /${step} ${writes}: run it again`;
+  if (!isPermissionMode(mode)) return `✗ refused: the session mode ${mode} is not one Orkeon Code knows, and /${step} ${writes}: /mode default, then run it again`;
+  if (!policyFor(mode).readOnly) return null;
+  return `✗ refused: the session mode ${mode} is read-only, and /${step} ${writes}: /mode default, then run it again`;
+}
+
+/** writeModeRefusal over the session's effective mode, read here: a read that fails refuses. */
+export async function readWriteModeRefusal(
+  session: Pick<SessionIo, "resolveEffectiveSessionMode">, step: string, writes: string,
+): Promise<string | null> {
+  let mode = "";
+  try {
+    mode = String((await session.resolveEffectiveSessionMode()).mode ?? "");
+  } catch { /* unknown: refused below */ }
+  return writeModeRefusal(mode, step, writes);
+}
+
+/** Before a launch of /dev-implement's chain (the audit, then the close), which runs no dispatch of its own: the
+ *  gate must still be on, and the step's rules are put back on top of whatever the gate holds (an /assistant turn
+ *  in between hands it the session's rules alone). The gate is not cleared: `completed` is synchronous and cannot
+ *  read the session's rules again, so the rules an earlier hop added stay until the next sync (the next command,
+ *  the next /assistant turn): an earlier hop's allows with them, but the gate puts every deny before an allow, so
+ *  this step's denies still win. Null when the
+ *  launch may go, else the line refusing it. */
+export function reapplyStepRules(gate: PermissionRules, step: DevStep): string | null {
+  const problem = gateProblem(gate.enabled(), step);
+  if (problem?.refuse) return problem.line;
+  if (!gate.available()) return null;
+  for (const rule of stepRules(step)) gate.add(rule);
+  return null;
+}
+
+/** The batch a step works on, for the state file a compaction writes: the code is the plan
+ *  token when it is a code, the folder of a `.../<CODE>-PLAN.md` path, else null (the writer
+ *  then looks for the batch's open sheet). */
+export function activeWorkflowOf(args: { batch: string; plan: string | null }): ActiveWorkflow {
+  const plan = args.plan;
+  if (plan === null) return { code: null, phase: args.batch };
+  if (!plan.endsWith("-PLAN.md")) return { code: isCode(plan) ? plan : null, phase: args.batch };
+  const parts = plan.replace(/\\/g, "/").split("/").filter((p) => p.length > 0);
+  const folder = parts.length >= 2 ? parts[parts.length - 2] : "";
+  return { code: isCode(folder) ? folder : null, phase: args.batch };
+}
+
+/** Records the batch in progress in the session; a session that cannot keep it costs the
+ *  state file only, so the failure comes back as a warning line, never a refusal. */
+export async function markActiveWorkflow(
+  session: Pick<SessionStore, "writeState">, args: { batch: string; plan: string | null },
+): Promise<string | null> {
+  try {
+    await writeActiveWorkflow(session, activeWorkflowOf(args));
+    return null;
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    return `warning: the batch in progress could not be recorded (${reason}): a compaction will write no state file for it.`;
+  }
 }

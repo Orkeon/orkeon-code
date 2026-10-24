@@ -15,11 +15,24 @@ without a question:
 | `bypassPermissions` | Everything in the tool catalogue, shell included |
 
 Choose it per request (`bypassPermissions: migrate the tests to node:test`), for the session
-(`/mode bypassPermissions`), or for the project (`/config permissions.fallback bypassPermissions`, kept in the
-project's `.orkeon/config.json`, so every session on that project starts there). In the REPL, `default` and
+(`/mode bypassPermissions`), or for every session (`"permissions.fallback": "bypassPermissions"` in the `orkeonCode`
+block of your user settings: a project's `.orkeon/config.json` sets only `default`, `plan` or `acceptEdits`,
+[Permissions](permissions.md)). In the REPL, `default` and
 `acceptEdits` ask you before a call the mode does not allow outright; in a run without an operator nobody answers, and
 the gate refuses what it would have asked about (the model reads `DENIED: …`). Give an unattended run a mode that
 never asks: `bypassPermissions`, or `plan` and `dontAsk` for read-only work ([Permissions](permissions.md)).
+
+Under `orkeon run` (`scripts/run-crew.sh`) the gate has no one to ask, and decides each call by the mode alone:
+
+| Mode | Under `orkeon run` |
+|---|---|
+| `default` | Reads only: every other call is refused (the edits, `github`, `rag_eval`, `spawn_agent`, the shell, `http_api`) |
+| `acceptEdits` | Reads and edits (`file_write`, `edit_file`, `node_*`, `edit_batch`, `structural_rewrite`, `spawn_agent`); `github`, `rag_eval`, the shell and `http_api` are refused |
+| `plan`, `dontAsk` | Reads only |
+| `bypassPermissions` | Everything |
+
+An act given no `permissionMode` runs in `default`. An `onToolCall` hook sees only the calls the gate allowed, and an
+`"ask"` it returns is checked again as an edit in `default`, so it is refused here.
 
 What bounds a turn, whatever the mode:
 
@@ -38,12 +51,22 @@ is the only directory of your machine it can write ([SECURITY.md](../SECURITY.md
 
 `scripts/run-crew.sh` runs one crew outside the REPL: with the `orkeon` tool (`Orkeon.Scripting.Cli` from nuget.org,
 pinned in `.config/dotnet-tools.json`, needs the .NET 10 SDK) or, without an SDK, with the `orkeon-runners` image.
-Until Orkeon `1.0.0-rc.6` is published, neither exists at the pinned version and the script cannot run
-([Development](development.md)). The crew reads its input from the JSON of `--inputs`. For `main-loop` it is what
+Until Orkeon `1.0.0-rc.6` is published, neither exists at the pinned version and the script cannot run in those two
+modes; `ORKEON_CODE_MODE=source ORKEON_SOURCE=<checkout>` runs it from an Orkeon checkout ([Development](development.md)).
+It reads the settings file `ORKEON_CODE_SETTINGS` names, else `config/appsettings.local.json`, and mounts no
+`/user-config`: neither `~/.orkeon-code/appsettings.json` nor the `orkeonCode` block of your user settings applies to
+a crew run this way. The crew reads its input from the JSON of `--inputs`. For `main-loop` it is what
 `/assistant` passes: the request and the mode. `permissionRules` (the session's rules, as `/permissions` lists them:
 `deny http_api`, `allow shell_command command=npm test*`) and `extraTools` (the tools of MCP servers and plugins, as
 `tools.extra` names them) are what the launching command resolves in the REPL; a standalone run has no session to take
-them from, so pass them only when you know what the catalogue should hold.
+them from, so pass them only when you know what the catalogue should hold. No session rule exists outside the REPL:
+`permissionRules` only shapes the catalogue (a deny rule on a whole tool removes it), and an allow rule spares no
+question. No flag of `orkeon run` sets the mode; it belongs to the crew's inputs
+(`--inputs '{"prompt":"…","permissionMode":"acceptEdits"}'`), and the gate needs
+`Orkeon:Security:PermissionGate:Enabled: true` in the settings file. `orkeon run` registers the analysis tools
+(`node_*`, `edit_batch`, `structural_rewrite`, `batch_anchors`, `structural_search`…) only while
+`RaggableTree:Enabled` is not `false`; with it `false`, an act given the `main-loop` catalogue fails with
+`UnknownToolError`.
 
 ```bash
 export DEEPSEEK_API_KEY=...                       # the variable named by Llm:ApiKeyEnvVar
@@ -54,12 +77,47 @@ ORKEON_CODE_WORKSPACE=~/src/app bash scripts/run-crew.sh src/crews/main-loop/cre
 
 The script mounts the project read-write on `/workspace` and a scratch directory on `/output`, as the REPL does. The
 runner prints the crew's result as JSON on stdout and exits with `0` when the script completed, `1` on a script
-error, `2` on a runtime error, `130` when cancelled. The session primitives exist in a standalone run too, but the
+error, `2` on a runtime error, `130` when cancelled. A call the gate refuses is not an error: the model reads the
+refusal as the tool's result and the run still exits `0`, so read the JSON to know what was done. The session primitives exist in a standalone run too, but the
 conversation buffer, the state bag and the typed memory start empty and end with the process: one run is one turn.
 
 Every crew runs this way; its `crew.ork.ts` says in its header which `inputs` it reads (`code-review`:
 `{ files?, commit? }`; `advisor`: none). CI checks that every command and crew loads (`scripts/smoke-runtime.sh`);
 an unattended turn of `main-loop` against a model is exercised by hand, not by CI.
+
+## A dev crew, step after step
+
+`scripts/dev-run.sh` chains the steps of a dev crew without anyone at the keyboard: one fresh `orkeon run` per step,
+through `scripts/run-crew.sh`, which passes the settings, the model and the mounts (`ORKEON_CODE_SETTINGS`,
+`ORKEON_CODE_MODEL`; with `ORKEON_CODE_MODE=source` and `ORKEON_SOURCE`, the tool built from that Orkeon checkout while
+it is not on NuGet). The variable `DEV_RUN_RUNNER` names another command, given the crew and `--inputs` alone: it
+passes its own `-s` and `-m`, or the crew runs on no settings and no mount. Each step's output goes to
+`.orkeon/dev/<code>/runs/<crew>-<n>.log` in the project, never whole to the terminal, which shows its last line. After
+each step the script reads the last line of the work code's event log: `.orkeon/dev/<code>/batches-state.md`, or the
+file `--log` names in the project. `/dev-batches` writes Code's own log, in the REPL, where its `completed` launches each
+batch; the crews this script runs one by one do not, so name a log they move (the work code's `<CODE>-BATCHES-STATE.md`),
+or every chain stops after its first step (nothing moved). The dev-batches crew would only name the next batch and log it
+launched, so the script refuses it (exit `64`): a run of a whole plan without anyone at the keyboard stays the REPL's
+`/dev-batches`. Without `DEV_RUN_RUNNER`, the project's trust is checked once, before the first step, where the
+terminal can answer; each step then runs with its standard input on `/dev/null`, so nothing it asks can hold the chain.
+
+```bash
+ORKEON_CODE_WORKSPACE=~/src/app bash scripts/dev-run.sh dev-verify demo \
+  --inputs '{"batch":"F2","plan":"demo"}' --log workbench/demo/DEMO-BATCHES-STATE.md --max-steps 10 --wait 60 --retries 2
+```
+
+- the project declined at the trust question: nothing runs, exit `0`; refused without a terminal: exit `2`;
+- `closed` (the line `- <date> <time> closed`, a trailing blank or CR aside): the batches are closed, exit `0`;
+- an event whose detail starts with `BLOCKED` or `GAPS`: a human decides, exit `3`;
+- the same line as before the step: nothing moved, exit `4`, never a loop;
+- `--max-steps` (default 10) reached: exit `5`;
+- a step that exits `1` or `130` stops the chain with that code; one that exits `2` with a rate limit in its log
+  (`429`, `rate limit`) is run again after `--wait` seconds, `--retries` times, then stops it with `2`.
+
+`--inputs` is required: the crew's own inputs, which its `crew.ork.ts` names in its header. Each step is a new process
+with an empty session: what a step needs (the batch, the plan) travels in its inputs or lives in the files of the work
+code. A crew run this way gets none of what its command does first: the dev steps' check that the gate is on
+(`/dev-verify`, `/dev-plan`, `/dev-spec`, `/dev-change`, `/dev-implement`) and their rule sets are not applied, so give the run a settings file whose gate and rules you chose.
 
 ## On a schedule, in a CI job
 

@@ -1,4 +1,4 @@
-// The reviewer's charter runs, offers its six read tools and nothing that writes,
+// The reviewer's charter runs, offers its nine read tools and nothing that writes,
 // runs a command or builds the index. Run:
 //   node --test src/shared/domain/dev/reviewer-charter.test.ts
 import { describe, it } from "node:test";
@@ -18,9 +18,10 @@ describe("REVIEWER_CHARTER", () => {
     strictEqual(REVIEWER_CHARTER.maxIterations, 20);
   });
 
-  it("offers exactly the six read tools", () => {
+  it("offers exactly the nine read tools", () => {
     deepStrictEqual(REVIEWER_TOOLS, [
-      "file_read", "directory_read", "codebase_search", "symbol_source", "symbol_detail", "impact_analysis",
+      "file_read", "node_outline", "node_read", "directory_read", "codebase_search", "structural_search", "symbol_source",
+      "symbol_detail", "impact_analysis",
     ]);
     deepStrictEqual(charterCatalogue(REVIEWER_CHARTER), [...REVIEWER_TOOLS]);
   });

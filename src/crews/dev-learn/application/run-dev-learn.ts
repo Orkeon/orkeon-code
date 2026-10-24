@@ -4,18 +4,23 @@
 // axis whose untreated gaps span three batches or more (three axes at most), asks the
 // model once - once more on a wrong answer - to group them into motifs, filters the
 // motifs by code, reconciles them with their owner file and writes proposals.json and
-// PROPOSALS.md under <work>/learn-<date>/. It never writes a state, a harness file or
-// an owner file: the decisions are /dev-learn --accept and --refuse.
-import type { Files, Llm, Logger, Shell } from "../../../shared/application/ports.ts";
+// PROPOSALS.md under <work>/learn-<date>/. Then, when a person answers, it takes the
+// decisions in the same run: one multi-select per axis with motifs, the selected motifs
+// accepted and the others refused, as /dev-learn --accept and --refuse would (Orkeon
+// Code's state, refused.md). Unanswered, nothing is decided and the end message names
+// both commands. It never writes a harness file or an owner file.
+import type { Files, HumanInput, Llm, Logger, Shell } from "../../../shared/application/ports.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import { loadDevContext } from "../../../shared/application/dev/load-dev-context.ts";
+import { decideMotifs } from "../../../shared/application/dev/learn-decision.ts";
+import { readMemoryDir } from "../../../shared/application/shared-memory/memory-settings.ts";
 import { GIT_TOPLEVEL, workFolderLabel } from "../../../shared/application/dev/resolve-work-folder.ts";
 import type { WorkFolder } from "../../../shared/application/dev/resolve-work-folder.ts";
 import {
   MIN_MOTIF_BATCHES, axisListing, backlogByAxis, canonicalAxis, foldText,
 } from "../../../shared/domain/shared-memory/verdict-rows.ts";
 import type { AxisBacklog, LearnRow } from "../../../shared/domain/shared-memory/verdict-rows.ts";
-import { REFUSED_FILE, topicOf } from "../../../shared/domain/shared-memory/refused.ts";
+import { topicOf } from "../../../shared/domain/shared-memory/refused.ts";
 import {
   LEARN_FOLDER_PATTERN, PROPOSALS_JSON, PROPOSALS_MD, deployedHarnessPath, learnFolderName, motifId,
   parseProposalsFile, serializeProposalsFile,
@@ -34,6 +39,8 @@ export interface DevLearnInputs { axis?: unknown; list?: unknown }
 export interface DevLearnDeps {
   files: Files; shell: Pick<Shell, "run">; config: Pick<ConfigStore, "readValue">;
   llm: Pick<Llm, "extract">; log: Logger; clock: () => Date;
+  /** Asks the person to decide on the motifs; absent, nothing is decided in the run. */
+  human?: Pick<HumanInput, "multi">;
 }
 export const MAX_AXES_PER_RUN = 3;
 export const MAX_ROWS_PER_AXIS = 40;
@@ -46,6 +53,7 @@ const LIST_CAP = 1000;
 const TESTS_LIST_CAP = 500;
 const OWNER_READ_CHARS = 400_000;
 const REMOVED_SHOWN = 60;
+const MAX_OPTION_CHARS = 150;
 /** Repository guidance files offered to the model as owners, when the checkout holds them. */
 const OWNER_CANDIDATES: readonly string[] = [
   "CONTRIBUTING.md", "AGENTS.md", "CLAUDE.md", "docs/architecture.md", "docs/CONTRIBUTING.md", ".editorconfig",
@@ -264,7 +272,7 @@ function filterMotifs(
     }
     const refused = backlog.refused.find((r) => r.topic === motif.topic);
     if (refused) {
-      dropped.push({ title: motif.title, filter: "novelty", reason: `refused on ${refused.date} (${REFUSED_FILE})` });
+      dropped.push({ title: motif.title, filter: "novelty", reason: `refused on ${refused.date} (${backlog.refusedFile})` });
       continue;
     }
     if (harnessTexts.some((t) => foldText(t.trim()) === foldText(motif.title) || topicOf(t) === motif.topic)) {
@@ -327,6 +335,40 @@ function axisOutcomeLine(a: AxisProposal): string {
   return `${head}no proposal (${a.reason ?? "no answer"})`;
 }
 
+/** One line per motif: `<id> — <title> (<n> batches, <status>, <owner>)`. */
+function motifOption(m: Motif): string {
+  return cut(`${m.id} — ${m.title.replace(/\s+/g, " ")} (${m.batches.length} batches, ${m.status}, ${m.owner.path})`, MAX_OPTION_CHARS);
+}
+
+interface Decided { accept: string[]; refuse: string[]; ids: Set<string> }
+
+/** One multi-select per axis with motifs: the selected ones accepted and the others refused. The human_input
+ *  adapter offers "Decide later" first and reads it, or an empty selection, as no answer (an unattended provider
+ *  must refuse nothing on the person's behalf): an axis left so decides nothing. */
+async function askDecisions(
+  human: Pick<HumanInput, "multi"> | undefined, proposals: readonly AxisProposal[], shown: string,
+): Promise<Decided> {
+  const decided: Decided = { accept: [], refuse: [], ids: new Set() };
+  if (human === undefined) return decided;
+  for (const axis of proposals) {
+    if (axis.motifs.length === 0) continue;
+    const byOption = new Map(axis.motifs.map((m) => [motifOption(m), m.id]));
+    const answer = await human.multi(
+      `dev-learn — axis ${axis.axis}: select the motifs to accept; the others are refused. ` +
+        `Decide later, or nothing selected, decides nothing (read ${shown} first)`,
+      [...byOption.keys()],
+    );
+    if (!answer.answered) continue;
+    const picked = new Set(answer.values.map((v) => byOption.get(v)).filter((id): id is string => id !== undefined));
+    if (picked.size === 0) continue;
+    for (const m of axis.motifs) {
+      (picked.has(m.id) ? decided.accept : decided.refuse).push(m.id);
+      decided.ids.add(m.id);
+    }
+  }
+  return decided;
+}
+
 export async function runDevLearn(input: DevLearnInputs, deps: DevLearnDeps): Promise<string> {
   const args = checkInputs(input);
   if (typeof args === "string") return args;
@@ -344,8 +386,11 @@ export async function runDevLearn(input: DevLearnInputs, deps: DevLearnDeps): Pr
     return [...warningLines(ctx.warnings), `dev-learn: no work folder ${work.folder}/: nothing to learn from`].join("\n");
   }
 
-  const backlog = await readBacklog(deps.files, work);
-  const out = [...warningLines([...ctx.warnings, ...backlog.warnings]), headLine(work, ctx.pack?.shown ?? null, backlog)];
+  // refused.md under memory.dir, as /memory-admit and memory_push read it; a value set aside is said.
+  const memoryDir = await readMemoryDir(deps.config);
+  const backlog = await readBacklog(deps.files, work, `${memoryDir.dir}/refused.md`);
+  const memoryWarnings = memoryDir.warning === undefined ? [] : [memoryDir.warning];
+  const out = [...warningLines([...ctx.warnings, ...memoryWarnings, ...backlog.warnings]), headLine(work, ctx.pack?.shown ?? null, backlog)];
   const done = (...lines: string[]): string => [...out, ...lines].join("\n");
 
   const wanted = args.axis === null ? null : canonicalAxis(args.axis);
@@ -433,16 +478,21 @@ export async function runDevLearn(input: DevLearnInputs, deps: DevLearnDeps): Pr
   }
   deps.log.info(`dev-learn: proposals written to ${work.folder}/${folder}/`);
 
-  const ids = proposals.flatMap((a) => a.motifs.map((m) => m.id));
   const lines = proposals.map(axisOutcomeLine);
   if (left.length > 0) lines.push(`next run: ${left.map((a) => a.axis).join(", ")}`);
   lines.push(`written: ${work.folder}/${folder}/${PROPOSALS_MD}`);
+  const decided = await askDecisions(deps.human, proposals, `${work.folder}/${folder}/${PROPOSALS_MD}`);
+  if (decided.accept.length + decided.refuse.length > 0) {
+    const lookup = { files: [{ folder, file }], warnings: [] };
+    lines.push(...await decideMotifs(decided.accept, decided.refuse, lookup, work, deps));
+  }
+  const ids = proposals.flatMap((a) => a.motifs.map((m) => m.id)).filter((id) => !decided.ids.has(id));
   if (ids.length > 0) {
     lines.push(
       `→ /dev-learn --accept ${ids.join(",")}`,
       "  or /dev-learn --refuse <id> for each one you reject — read the lines first in PROPOSALS.md",
     );
-  } else {
+  } else if (decided.ids.size === 0) {
     lines.push("→ nothing to decide: the axes return once new gaps arrive");
   }
   return done(...lines);

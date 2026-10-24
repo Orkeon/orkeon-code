@@ -155,7 +155,8 @@ quelle clé ([Configuration](configuration.md)). Une nouvelle clé de session es
 - `.tools([...])` nomme des outils de l'hôte, et un nom inconnu fait échouer chaque appel `act` de l'agent avant que
   le modèle soit sollicité : un outil qui manque au runtime ne peut pas être ajouté d'ici. `/debug-tool-call list`
   montre ce que l'hôte propose.
-- Le runtime n'exécute que le premier appel d'outil d'un tour, et un résultat d'outil arrive au modèle tronqué à 4000
-  caractères.
-- Les hooks déclarés (`/hooks`) et les agents sauvegardés (`/agents`) sont stockés, pas exécutés : le moteur qui les
-  déclenche et la délégation qui les utilise sont sur la [Feuille de route](roadmap.md).
+- Un résultat d'outil arrive au modèle tronqué à 4000 caractères, avec une coupe plus large pour certains outils
+  (`Orkeon:Tools:ResultLimits`, [Configuration](configuration.md)).
+- Les hooks déclarés (`/hooks`) s'exécutent autour des appels d'outils des étapes dev, pas dans `/assistant`, et aucun
+  hook `stop` ne s'exécute ([Hooks](hooks.md)). Les agents sauvegardés (`/agents`) sont stockés, pas exécutés : la
+  délégation qui les utiliserait est sur la [Feuille de route](roadmap.md).

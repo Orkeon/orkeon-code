@@ -6,6 +6,7 @@
 
 import type { SessionMsg } from "../domain/types.ts";
 import type { PermissionRule } from "../domain/agent-policy/permission.ts";
+import type { AccessCostReport } from "../domain/dev/access-cost.ts";
 import type {
   GraphSummary, ImpactSummary, IndexSummary, MapEntry, PackageSummary,
 } from "../domain/code-intel-contract.ts";
@@ -32,7 +33,23 @@ export interface Shell {
   run(command: string, options?: ShellOptions): Promise<ShellResult>;
 }
 
-/** One VFS mount: its virtual path, and its access rights as the host spells them. */
+/** Where a detached job stands: running, or exited with its code (-1 when it ended without one). */
+export interface ShellJobStatus { running: boolean; exitCode: number }
+
+/** Commands run detached (the runtime's shell jobs): a long suite outlives no shell timeout, its whole
+ *  output goes to a log file, and the caller reads its tail. A job belongs to the running crew and is
+ *  stopped when the crew's run ends. A call the runtime refuses throws. */
+export interface ShellJobs {
+  /** Starts `command` in /workspace; its id and the virtual path of its log. */
+  start(command: string): Promise<{ id: string; log: string }>;
+  status(id: string): Promise<ShellJobStatus>;
+  /** The last `lines` lines of the job's log (500 at most). */
+  tail(id: string, lines: number): Promise<string>;
+  /** Waits about `seconds` (code has no timer of its own); false when it cannot wait here. */
+  wait(seconds: number): Promise<boolean>;
+}
+
+/** One VFS mount: its virtual path, and its access as the host spells it (`ro`, `rw`, `rwnd`). */
 export interface Mount {
   path: string;
   /** Undefined when the host reports none. */
@@ -138,8 +155,10 @@ export interface SessionCost {
 export interface SessionStats extends SessionCost {
   messageCount?: number;
   estimatedTokens?: number;
-  /** Prompt-cache hits, when the host maps them. */
+  /** Prompt tokens read from the provider's cache (the hits), over every model, when the host reports them. */
   cacheHitTokens?: number;
+  /** Prompt tokens written to the provider's cache, over every model, when the host reports them. */
+  cacheWriteTokens?: number;
 }
 
 /** The host's account of the session. Each read throws when the host cannot
@@ -208,8 +227,7 @@ export interface PermissionRules {
    *  the gate decides from the mode alone and every other call throws. */
   available(): boolean;
   /** Whether the host's gate is on (`Orkeon:Security:PermissionGate:Enabled`): false, no rule
-   *  and no mode is enforced; undefined when the host keeps no session rules or does not say
-   *  (Orkeon 1.0.0-rc.6 has no such field; Orkeon #128 added it). */
+   *  and no mode is enforced; undefined when the host keeps no session rules. */
   enabled(): boolean | undefined;
   /** Put a rule in force; a rule already in force is kept once. */
   add(rule: PermissionRule): void;
@@ -242,6 +260,10 @@ export interface ActRequest extends ModelOverride {
   maxIterations?: number;
   /** The mode the host's permission gate applies to each tool call. */
   permissionMode?: string;
+  /** The provider's thinking at this level (`act({effort})`); none when absent. */
+  effort?: "low" | "medium" | "high";
+  /** The agent's tools offered for this call (a role's subset); all of them when absent. */
+  tools?: readonly string[];
 }
 
 /** The model, as the crews call it. Every call throws when the host's provider
@@ -255,8 +277,34 @@ export interface Llm {
   /** A JSON answer shaped by `schema`; throws when the reply does not parse. */
   extract(prompt: string, schema: object): Promise<unknown>;
   /** Whether the host's permission gate checks the tool calls of `act`: false, the mode and the
-   *  session's rules check nothing; undefined on a runtime that does not say (before Orkeon #128). */
+   *  session's rules check nothing; undefined when the facade does not say (a test's). */
   permissionGateEnabled(): boolean | undefined;
+}
+
+/** The children of the running crew (A-3): one background agent per call, its reply left in the crew's
+ *  memory, its instance listed, stopped and sent to by id (`crew.instances()`, `stop`, `send`). */
+export interface ChildRuntime {
+  /** Starts `agent`, an agent of the crew, as a background child with `input`; throws when the host refuses. */
+  spawn(agent: string, input: string): void;
+  /** The crew's kept instances, oldest first. */
+  instances(): ReadonlyArray<{ id: string; agent: string; state: string }>;
+  /** Cancels a running instance; false when none runs under `id`. */
+  stop(id: string): boolean;
+  /** What a child left under `key` in the crew's memory; undefined until it does. */
+  read(key: string): Promise<unknown>;
+  /** Waits about `ms` milliseconds. */
+  pause(ms: number): Promise<void>;
+}
+
+/** A question to the person at the terminal (`human_input`). Each call says whether a person answered: an
+ *  unattended host answers on nobody's behalf, and that answer is never taken (`answered: false`). */
+export interface HumanInput {
+  /** One of `options`, the first one recommended; `value` is the option picked. */
+  choice(prompt: string, options: readonly string[]): Promise<{ answered: true; value: string } | { answered: false }>;
+  /** Free text; an empty answer is no answer. */
+  text(prompt: string): Promise<{ answered: true; value: string } | { answered: false }>;
+  /** Several of `options`, none recommended: the options picked, in the order given. */
+  multi(prompt: string, options: readonly string[]): Promise<{ answered: true; values: string[] } | { answered: false }>;
 }
 
 /** The running crew's log. */
@@ -327,4 +375,59 @@ export interface CodeIndex {
   symbolSource(fqn: string): Promise<SymbolLocation>;
   /** The callers of `target`, `maxDepth` levels up. */
   impact(target: string, maxDepth: number): Promise<ImpactSummary>;
+}
+
+/** The closure of anchors: the FQNs they contain, and the callers and tests of them and of what
+ *  they contain, distinct and sorted; `unresolved` the anchors the index does not know. */
+export interface AnchorClosure {
+  nodes: string[];
+  unresolved: string[];
+  truncated: boolean;
+}
+
+/** The anchors of the code index (`batch_anchors`), apart from CodeIndex. Throws when the host cannot answer. */
+export interface AnchorIndex {
+  closure(fqns: readonly string[]): Promise<AnchorClosure>;
+}
+
+/** What `/dev-verify` asks of the code index for the access cost (`index_status`, `incremental_reindex`,
+ *  `access_cost`), apart from CodeIndex. Each call throws when the host cannot answer it. */
+export interface CostIndex {
+  /** The virtual roots the index holds; none before the first indexing. */
+  roots(): Promise<string[]>;
+  /** Re-parse `files` (virtual paths) under `root`; the errors the tool reports. */
+  refresh(root: string, files: readonly string[]): Promise<string[]>;
+  /** The access cost of the members of `files` (virtual paths): the report, or null and the tool's errors. */
+  accessCost(files: readonly string[], receivers: string | undefined): Promise<{ report: AccessCostReport | null; errors: string[] }>;
+  /** The tests the graph reaches from `files` (paths relative to the indexed root, as git names them: the runtime
+   *  looks each up as `<root>/<file>`), by `affected_tests`; absent when it is not wired. */
+  affected?(files: readonly string[]): Promise<AffectedTests>;
+}
+
+/** What `affected_tests` answers: the test projects and classes reached, `all` when the graph cannot bound them,
+ *  and the files it could not resolve. */
+export interface AffectedTests { all: boolean; projects: string[]; classes: string[]; unresolved: string[] }
+
+/** A passage of the shared memory's index: the file it comes from (virtual path) and its score. */
+export interface SharedHit {
+  sourceId: string;
+  score: number;
+}
+
+/** What an ingestion of the shared memory's index did, by source. */
+export interface SharedIngest {
+  added: number;
+  reingested: number;
+  unchanged: number;
+  pruned: number;
+  errors: string[];
+}
+
+/** The RAG index of the shared memory (one collection per project, `memory-<project>`); its files are read and
+ *  written through Files. Each call throws when the host cannot answer it (no RAG subsystem). */
+export interface SharedMemory {
+  /** The best passages for `query`, one per source file, best first. */
+  search(collection: string, query: string, topN: number): Promise<SharedHit[]>;
+  /** Index `sources` (virtual paths or globs); `prune` drops the sources of the collection absent from them. */
+  ingest(collection: string, sources: readonly string[], options: { prune: boolean }): Promise<SharedIngest>;
 }

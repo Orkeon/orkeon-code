@@ -63,3 +63,15 @@ export const TASKS_STATE_KEY = "task_list";
 
 /** The main-loop auto-compaction circuit breaker: consecutive failures (F3 v2). */
 export const AUTOCOMPACT_BREAKER_STATE_KEY = "autocompact_consecutive_failures";
+
+/** The dev batch in progress, `{"code": …, "phase": "F<n>"}`: written by the step command
+ *  that starts on a batch (/dev-verify), read by the state file written before a compaction. */
+export const WORKFLOW_ACTIVE_STATE_KEY = "workflow_active";
+
+/** The agent instances of a crew's run, `agent_instances:<crew>` (A-3): written by the crew while its children run,
+ *  read by /tasks. One key per crew, so two crews never write the same one. */
+export const AGENT_INSTANCES_STATE_PREFIX = "agent_instances:";
+
+/** A request of /tasks to one instance, `agent_request:<crew>:<id>` (A-3): written by /tasks, read and cleared by the
+ *  crew that holds the instance. */
+export const AGENT_REQUEST_STATE_PREFIX = "agent_request:";

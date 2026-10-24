@@ -117,7 +117,21 @@ describe("syncPermissionRules", () => {
     deepStrictEqual(gate.list(), [
       "deny shell_command command=git push*", "allow file_write", "allow shell_command command=npm test*",
     ]);
-    deepStrictEqual(sync, { rules: gate.rules, dormant: ["deny create_issue"], invalid: ["bogus"], applied: true });
+    deepStrictEqual(sync, {
+      rules: gate.rules, dormant: ["deny create_issue"], invalid: ["bogus"], applied: true, builtIn: [], overridden: [],
+    });
+  });
+
+  it("adds the built-in denies after the session's rules, never stores them, and leaves out a stored allow they deny", async () => {
+    const gate = new FakePermissionRules();
+    const deny = { effect: "deny" as const, tool: "file_write", argument: "path", pattern: "m/entries/*" };
+    const session = seeded("allow file_write path=m/entries/*", "deny http_api");
+    const sync = await syncPermissionRules({ session, gate, builtIn: [deny] });
+    deepStrictEqual(gate.calls, ["clear", "add deny http_api", "add deny file_write path=m/entries/*"]);
+    deepStrictEqual(sync.builtIn, [deny]);
+    deepStrictEqual(sync.overridden, [{ effect: "allow", tool: "file_write", argument: "path", pattern: "m/entries/*" }]);
+    strictEqual(sync.rules.length, 2);
+    deepStrictEqual(storedOf(session), ["allow file_write path=m/entries/*", "deny http_api"]);
   });
 
   it("hands the gate the rules on the configured extra tools", async () => {
@@ -131,7 +145,7 @@ describe("syncPermissionRules", () => {
     const gate = new FakePermissionRules();
     gate.rules = [{ effect: "deny", tool: "http_api" }];
     deepStrictEqual(await syncPermissionRules({ session: new FakeSessionStore(), gate }), {
-      rules: [], dormant: [], invalid: [], applied: true,
+      rules: [], dormant: [], invalid: [], applied: true, builtIn: [], overridden: [],
     });
     deepStrictEqual(gate.calls, ["clear"]);
     deepStrictEqual(gate.rules, []);
@@ -141,7 +155,7 @@ describe("syncPermissionRules", () => {
     const gate = new FakePermissionRules();
     gate.kept = false;
     deepStrictEqual(await syncPermissionRules({ session: seeded("deny file_write"), gate }), {
-      rules: [{ effect: "deny", tool: "file_write" }], dormant: [], invalid: [], applied: false,
+      rules: [{ effect: "deny", tool: "file_write" }], dormant: [], invalid: [], applied: false, builtIn: [], overridden: [],
     });
     deepStrictEqual(gate.calls, []);
     strictEqual(gate.rules.length, 0);
@@ -169,6 +183,15 @@ describe("syncStepRules", () => {
     deepStrictEqual(sync.step, rules);
     deepStrictEqual(sync.overridden, []);
     deepStrictEqual(sync.rules, [{ effect: "deny", tool: "http_api" }, NPM_TEST]);
+  });
+
+  it("adds the built-in denies after the step's rules", async () => {
+    const gate = new FakePermissionRules();
+    const sync = await syncStepRules({
+      session: seeded("deny http_api"), gate, rules: [R("deny file_read path=*/bin/*")], builtIn: [R("deny file_write path=m/entries/*")],
+    });
+    deepStrictEqual(gate.calls, ["clear", "add deny http_api", "add deny file_read path=*/bin/*", "add deny file_write path=m/entries/*"]);
+    deepStrictEqual(sync.builtIn, [R("deny file_write path=m/entries/*")]);
   });
 
   it("leaves out a session allow on the same calls as a step deny, and reports it", async () => {

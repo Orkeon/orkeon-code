@@ -27,6 +27,7 @@ const EXPECTED: Record<string, string | string[] | undefined> = {
   "layout.work": "backstage/tasks",
   "layout.build_outputs": ["bin", "obj"],
   "layout.shared": ["packages"],
+  "layout.test_files": undefined,
   "commands.restore": "dotnet restore Orkeon.sln -p:NuGetAudit=false",
   "commands.build": "dotnet build Orkeon.sln -c Release --no-restore -warnaserror",
   "commands.build_test": "dotnet build <test project> -c Release --no-restore",
@@ -45,7 +46,7 @@ const EXPECTED: Record<string, string | string[] | undefined> = {
 };
 
 describe("REPO_PACK_KEYS", () => {
-  it("lists the 22 keys in the order of the design", () => {
+  it("lists the 23 keys in the order of the design", () => {
     deepStrictEqual([...REPO_PACK_KEYS], Object.keys(EXPECTED));
   });
 });
@@ -60,7 +61,7 @@ describe("parseRepoPack on repo-orkeon.yaml", () => {
     deepStrictEqual(pack.layout, {
       domain: "src/core/Orkeon.Domain", application: "src/core/Orkeon.Application",
       infrastructure: "src/core/Orkeon.Infrastructure", tests: "tests", work: "backstage/tasks",
-      shared: ["packages"], buildOutputs: ["bin", "obj"],
+      shared: ["packages"], buildOutputs: ["bin", "obj"], testFiles: [],
     });
     strictEqual(pack.commands.testClass, EXPECTED["commands.test_class"]);
     strictEqual(pack.tests.traitPattern, undefined);

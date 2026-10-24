@@ -6,7 +6,7 @@
 // then has the read-only reviewer question the plan once and writes its rows into the
 // files. The model writes no file; nothing is written outside the code's folder, and
 // nothing under .claude/.
-import type { CodeIndex, Files, Llm, Logger, Shell } from "../../../shared/application/ports.ts";
+import type { AnchorIndex, CodeIndex, Files, Llm, Logger, Shell } from "../../../shared/application/ports.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import { loadDevContext } from "../../../shared/application/dev/load-dev-context.ts";
 import { GIT_TOPLEVEL } from "../../../shared/application/dev/resolve-work-folder.ts";
@@ -31,19 +31,22 @@ import type { RenderInput, RenderedPlan } from "../domain/plan-render.ts";
 import { MAX_PLAN_PROMPT_CHARS, SOURCE_CHARS, buildPlanPrompt } from "./plan-prompt.ts";
 import type { PlanPromptInput } from "./plan-prompt.ts";
 import { buildInventory } from "./inventory.ts";
+import { noPrecedents, precedentsLine, recallQuery } from "../../../shared/application/dev/step-precedents.ts";
+import type { StepPrecedents } from "../../../shared/application/dev/step-precedents.ts";
 import { checkAnchorPaths } from "./anchor-paths.ts";
 import type { AnchorListings } from "./anchor-paths.ts";
 
 export interface DevPlanInputs { source?: unknown; replace?: unknown }   // source: the token, null for none
 export interface DevPlanDeps {
   files: Files; shell: Pick<Shell, "run">; config: Pick<ConfigStore, "readValue">;
-  index: CodeIndex; llm: Pick<Llm, "extract" | "act" | "permissionGateEnabled">;
+  index: CodeIndex; anchors: AnchorIndex; llm: Pick<Llm, "extract" | "act" | "permissionGateEnabled">;
   log: Logger; clock: () => Date;
+  /** The shared memory's code-triggered recall (T2); absent, nothing is recalled. */
+  precedents?: StepPrecedents;
 }
 export const PLAN_JSON = "plan.json";
-/** The last line of a plan ready to implement; `{command}` names the harness's step until L-6 ships its own. */
-export const END_LINE =
-  "→ Read and validate the plan. Then implement batch by batch: {command} (the harness's command until Orkeon Code ships it).";
+/** The last line of a plan ready to implement; `{command}` names the next step. */
+export const END_LINE = "→ Read and validate the plan. Then implement batch by batch: {command}";
 
 const WORKSPACE = "/workspace";
 const MAX_SOURCE_TOKEN = 300;
@@ -236,12 +239,11 @@ function batchLines(rendered: RenderedPlan, answer: PlanAnswer): string[] {
   });
 }
 
-function nextCommand(answer: PlanAnswer, planShown: string): string {
-  const roots = answer.batches.map((b, k) => ({ id: `F${k + 1}`, free: b.dependsOn.length === 0 })).filter((b) => b.free);
-  const command = roots.length >= 2
-    ? `/dev-batches ${roots.map((r) => r.id).join(" ")} ${planShown}`
-    : `/dev-implement F1 ${planShown}`;
-  return END_LINE.replace("{command}", command);
+/** The next step: the first batch, and with more than one /dev-batches, which runs them all in their order (L-7). */
+function nextCommand(answer: PlanAnswer, planShown: string, code: string): string {
+  const first = `/dev-implement F1 ${planShown}`;
+  if (answer.batches.length < 2) return END_LINE.replace("{command}", first);
+  return END_LINE.replace("{command}", `${first}, or /dev-batches ${code} for every batch in their dependencies' order`);
 }
 
 function reviewLines(review: ReviewAnswer): string[] {
@@ -299,7 +301,7 @@ export async function runDevPlan(input: DevPlanInputs, deps: DevPlanDeps): Promi
 
   // 8. Inventory.
   const pack = ctx.pack;
-  const built = await buildInventory(deps.index, {
+  const built = await buildInventory(deps.index, deps.anchors, {
     titles: parsed.ids.map((i) => ({ id: i.id, title: i.title })),
     workShown: ctx.work.folder,
     layout: pack?.pack.layout ?? null,
@@ -308,7 +310,8 @@ export async function runDevPlan(input: DevPlanInputs, deps: DevPlanDeps): Promi
   if (!built.ok) return built.text;
   const inventory = built.inventory;
 
-  // 9. Prompt.
+  // 9. Prompt. T2: the decisions and code structures of earlier work on these use cases, after the inventory.
+  const recalled = await (deps.precedents ?? noPrecedents)("T2", recallQuery([source.code, ...parsed.ids.map((i) => i.title)]));
   const repo = repoLines(pack?.pack ?? null, pack?.shown ?? null);
   const unpinned = parsed.mustNotChange.filter((r) => r.pinnedBy === null).map((r, i) => ({ key: `U${i + 1}`, behaviour: r.behaviour }));
   const pinned = parsed.mustNotChange.flatMap((r) => (r.pinnedBy === null ? [] : [r.pinnedBy]));
@@ -319,12 +322,17 @@ export async function runDevPlan(input: DevPlanInputs, deps: DevPlanDeps): Promi
     sourceText: read.text.slice(0, SOURCE_CHARS),
     ids: parsed.ids, pinned, unpinned,
     repoCommands: repo.commands, repoLayout: repo.layout,
-    inventory: shownInventory.text, workShown: ctx.work.folder,
+    inventory: shownInventory.text, workShown: ctx.work.folder, precedents: recalled.block,
   };
   const fixed = buildPlanPrompt({ ...promptInput, sourceText: "", inventory: "" }, []).length;
   const room = MAX_PLAN_PROMPT_CHARS - fixed - REASK_RESERVE;
+  // Below the floor the prompt's cut would drop inventory lines the plan's check still counts as shown: refused.
+  if (room < MIN_INVENTORY_CHARS) {
+    return `dev-plan: the prompt leaves no room for the inventory: its instructions, ids, commands and precedents take ${fixed} ` +
+      `of ${MAX_PLAN_PROMPT_CHARS} characters; nothing is written. Split the source, or run it again with fewer precedents.`;
+  }
   if (shownInventory.text.length > room) {
-    shownInventory = renderInventory(inventory, Math.max(MIN_INVENTORY_CHARS, room));
+    shownInventory = renderInventory(inventory, room);
     promptInput.inventory = shownInventory.text;
   }
 
@@ -428,6 +436,7 @@ export async function runDevPlan(input: DevPlanInputs, deps: DevPlanDeps): Promi
     `files: ${[planShown, ...rendered.sheets.map((s) => s.name), PLAN_JSON].join(", ")}`,
     `inventory: ${inventory.entries.length} entries from ${inventory.titlesSearched} titles (index ${inventory.index}, ${inventory.calls} calls)`,
     ...reviewText,
+    ...[precedentsLine([recalled])].filter((l) => l !== ""),
     ...warningLines(warnings),
   ];
   const blocking = review?.rows.filter((r) => r.severity === "Blocking").length ?? 0;
@@ -435,12 +444,12 @@ export async function runDevPlan(input: DevPlanInputs, deps: DevPlanDeps): Promi
     const settle = source.kind === "change" ? "the change brief: /dev-change" : "the spec: /dev-spec";
     lines.push(
       `dev-plan: the plan is blocked: ${plural(blocking, "Blocking question", "Blocking questions")} in ${planShown} § 4; every batch reads — blocked.`,
-      `→ Answer ${blocking === 1 ? "it" : "them"} in ${settle} ${source.code} (the harness's until Orkeon Code ships it), then /dev-plan ${source.code} --replace. Do not implement before.`,
+      `→ Answer ${blocking === 1 ? "it" : "them"} in ${settle} ${source.code}, then /dev-plan ${source.code} --replace. Do not implement before.`,
     );
   } else if (!outcome.ok) {
     lines.push(`→ The plan is written but unreviewed: read it closely before implementing, or /dev-plan ${source.code} --replace to plan and review again.`);
   } else {
-    lines.push(nextCommand(answer, planShown));
+    lines.push(nextCommand(answer, planShown, source.code));
   }
   return lines.join("\n");
 }

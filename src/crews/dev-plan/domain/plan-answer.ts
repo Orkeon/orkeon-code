@@ -301,10 +301,18 @@ function readAnswer(value: Obj, r: Reader): PlanAnswer {
 const trimAll = (xs: readonly string[]): string[] => xs.map((x) => x.trim());
 const trimNote = (note: string): string => note.trim().split(LINE_BREAK).map((l) => l.trimEnd()).join("\n");
 
+/** A path in one spelling, so every rule compares the same string: no `./` segment, no doubled or trailing `/`
+ *  (a leading `/` is kept, for rule 14 to refuse it). */
+function normalPath(raw: string): string {
+  const path = raw.trim();
+  const segments = path.split("/").filter((s) => s !== "" && s !== ".");
+  return (path.startsWith("/") ? "/" : "") + segments.join("/");
+}
+
 function trimAnchor(a: AnchorRef): AnchorRef {
   const out: AnchorRef = { kind: a.kind };
   if (a.ref !== undefined) out.ref = a.ref.trim();
-  if (a.path !== undefined) out.path = a.path.trim();
+  if (a.path !== undefined) out.path = normalPath(a.path);
   if (a.member !== undefined) out.member = a.member.trim();
   return out;
 }
@@ -467,7 +475,7 @@ function anchorProblems(a: AnchorRef, at: string, ctx: PlanCheckContext, invento
   const path = a.path;
   const work = ctx.workFolder?.replace(/^\/+|\/+$/g, "");
   const banned = [".claude/", ".orkeon/", ...(work ? [`${work}/`] : [])];
-  if (path === "" || path.startsWith("/") || /^[A-Za-z]:/.test(path) || path.split(/[\\/]/).includes("..") ||
+  if (path === "" || path.startsWith("/") || /^[A-Za-z]:/.test(path) || path.includes("\\") || path.split("/").includes("..") ||
       banned.some((p) => path.startsWith(p))) {
     return [`${at}: ${path} cannot be anchored there`];
   }

@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs";
 import { FakeFiles } from "../../../../tests/support/fake-files.ts";
 import type { Files } from "../../../shared/application/ports.ts";
 import type { PlanAnswer } from "../domain/plan-answer.ts";
-import { MAX_ANCHOR_FOLDERS, checkAnchorPaths } from "./anchor-paths.ts";
+import { LIST_CAP, MAX_ANCHOR_FOLDERS, checkAnchorPaths } from "./anchor-paths.ts";
 import type { AnchorListings } from "./anchor-paths.ts";
 
 const ANSWER = JSON.parse(readFileSync(new URL("../../../../tests/fixtures/dev/plan/answer.json", import.meta.url), "utf8")) as PlanAnswer;
@@ -45,6 +45,12 @@ describe("checkAnchorPaths", () => {
       "B1 S2: src/shared/domain/memory-prune.ts exists: anchor it as existing, or by its ref",
       "B2 S1: docs/fr/commands.md does not exist",
     ]);
+  });
+
+  it("refuses as not checked an existing anchor a listing cut at its cap leaves out", async () => {
+    const files = repository();
+    files.listings.set("/workspace/docs/fr", [...Array.from({ length: LIST_CAP }, (_, i) => `a${i}.md`), "commands.md"]);
+    deepStrictEqual(await checkAnchorPaths(files, ANSWER), [`B2 S1: anchor "docs/fr/commands.md" not checked: its folder lists more than ${LIST_CAP} entries`]);
   });
 
   it("lists each folder once, and a listing that throws reads as empty", async () => {

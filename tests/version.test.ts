@@ -7,13 +7,17 @@ import { strictEqual, match, ok } from "node:assert";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { CLI_VERSION } from "../src/commands/_lib/meta.ts";
+import { CLI_VERSION, ORKEON_RUNTIME_VERSION } from "../src/commands/_lib/meta.ts";
 
 const read = (rel: string) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf-8");
 
 describe("versions", () => {
   it("meta.ts CLI_VERSION equals package.json version", () => {
     strictEqual(CLI_VERSION, JSON.parse(read("../package.json")).version);
+  });
+
+  it("meta.ts ORKEON_RUNTIME_VERSION equals .orkeon-version, the runtime /status names", () => {
+    strictEqual(ORKEON_RUNTIME_VERSION, read("../.orkeon-version").trim());
   });
 
   it(".orkeon-version is one exact Orkeon version", () => {

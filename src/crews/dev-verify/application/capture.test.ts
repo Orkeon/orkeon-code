@@ -15,6 +15,7 @@ import {
 import { MAX_SECTION_CHARS } from "../domain/capture-sections.ts";
 import type { DevVerifyTarget, GateRun } from "./run-gate.ts";
 import { BUILD_TIMEOUT_SECONDS, writeCapture } from "./capture.ts";
+import type { CostIndex } from "../../../shared/application/ports.ts";
 
 const DIR = "/workspace/workbench/demo/capture-F2";
 const BUILD = "dotnet build Demo.sln -c Release";
@@ -169,11 +170,20 @@ describe("writeCapture", () => {
     ok(written(files, "changed-files.txt").includes("src/F40.cs → no diff captured (beyond the first 40 files)\n"));
   });
 
-  it("flags a diff the runtime may have cut", async () => {
+  it("flags a diff the runtime cut, and keeps the diff without its notice", async () => {
     const { files, shell } = fakes();
-    shell.results[gitDiffTracked("src/Order.cs") as string] = { stdout: "d".repeat(4_000) };
+    const notice = "\n\n[... truncated, 1234 chars omitted. Use more specific parameters to narrow results.]";
+    shell.results[gitDiffTracked("src/Order.cs") as string] = { stdout: `+a\n+b${notice}` };
     await writeCapture({ files, shell }, target(), gate(CHANGED), "w");
-    ok(written(files, "changed-files.txt").startsWith("src/Order.cs → diff-001.txt (1 lines) (possibly cut by the runtime)\n"));
+    ok(written(files, "changed-files.txt").startsWith("src/Order.cs → diff-001.txt (2 lines) (cut by the runtime, 1234 characters omitted)\n"));
+    strictEqual(written(files, "diff-001.txt"), "# diff src/Order.cs (2 lines)\n+a\n+b");
+  });
+
+  it("does not flag a long diff that carries no notice", async () => {
+    const { files, shell } = fakes();
+    shell.results[gitDiffTracked("src/Order.cs") as string] = { stdout: "d".repeat(10_000) };
+    await writeCapture({ files, shell }, target(), gate(CHANGED), "w");
+    ok(written(files, "changed-files.txt").startsWith("src/Order.cs → diff-001.txt (1 lines)\n"));
   });
 
   it("writes a failed section as not captured, and the row that depends on it not checked", async () => {
@@ -232,5 +242,56 @@ describe("writeCapture", () => {
       () => { throw new Error("expected a throw"); },
       (error: Error) => strictEqual(error.message, "read-only"),
     );
+  });
+
+  it("blocks the cost only on a line the captured diff adds, and counts a file without a captured diff as added", async () => {
+    const { files, shell } = fakes();
+    shell.results[gitDiffTracked("src/Order.cs") as string] =
+      { stdout: "--- a/src/Order.cs\n+++ b/src/Order.cs\n@@ -3,0 +4,1 @@\n+  await _repository.Save(o);\n" };
+    shell.errors[gitDiffTracked("src/Line.cs") as string] = new Error("refused");
+    const loop = (member: string, line: number) => ({
+      member, memoryFilters: [], cost: { reads: 0, writes: 0, loops: 1, lambdas: 0, memoryFilters: 0 },
+      portCalls: [{ receiver: "_repository", method: "Save", line, inLoop: true, inLambda: false }],
+    });
+    const costIndex: CostIndex = {
+      roots: async () => ["/workspace"],
+      refresh: async () => [],
+      accessCost: async () => ({
+        report: {
+          members: [loop("/workspace/src/Order.cs::Order::Place", 4), loop("/workspace/src/Order.cs::Order::Old", 9),
+            loop("/workspace/src/Line.cs::Line::Add", 2)],
+          cost: { reads: 0, writes: 0, loops: 3, lambdas: 0, memoryFilters: 0 },
+        },
+        errors: [],
+      }),
+    };
+    const capture = await writeCapture({ files, shell, costIndex }, target(), gate(["src/Order.cs", "src/Line.cs"]), "w");
+    deepStrictEqual(capture.cost.state === "measured" && capture.cost.flagged, [
+      "src/Order.cs::Order::Place L4 _repository.Save in a loop",
+      "src/Line.cs::Line::Add L2 _repository.Save in a loop",
+    ]);
+    ok(written(files, "cost.txt").includes("Ports in a loop (1): _repository.Save L9 (pre-existing)"), written(files, "cost.txt"));
+    ok(written(files, "table.md").includes("| Cost | capture `cost` | gap | `exit: 2` src/Order.cs::Order::Place L4"));
+  });
+
+  it("counts a captured diff without a hunk as unknown lines, so its blocking call is flagged", async () => {
+    const { files, shell } = fakes();
+    const costIndex: CostIndex = {
+      roots: async () => ["/workspace"],
+      refresh: async () => [],
+      accessCost: async () => ({
+        report: {
+          members: [{
+            member: "/workspace/src/Order.cs::Order::Place", memoryFilters: [],
+            cost: { reads: 0, writes: 0, loops: 1, lambdas: 0, memoryFilters: 0 },
+            portCalls: [{ receiver: "_repository", method: "Save", line: 9, inLoop: true, inLambda: false }],
+          }],
+          cost: { reads: 0, writes: 0, loops: 1, lambdas: 0, memoryFilters: 0 },
+        },
+        errors: [],
+      }),
+    };
+    const capture = await writeCapture({ files, shell, costIndex }, target(), gate(CHANGED), "w");
+    strictEqual(capture.cost.state === "measured" && capture.cost.exit, 2);
   });
 });

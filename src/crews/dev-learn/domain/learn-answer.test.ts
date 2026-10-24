@@ -102,9 +102,15 @@ describe("checkLearnAnswer — each refusal", () => {
     deepStrictEqual(problemsOf({ motifs: [], dropped: "x" }), ["dropped 1: title, filter and reason are needed"]);
   });
 
+  it("two motifs on the same rows, in any order", () => {
+    const rows = (motif() as { rows: string[] }).rows;
+    deepStrictEqual(problemsOf({ motifs: [motif(), motif({ title: "Another title", rows: [...rows].reverse() })] }),
+      ["motif 2: the same rows as motif 1: merge them into one motif"]);
+  });
+
   it("collects every problem, numbered from 1, motif by motif", () => {
-    deepStrictEqual(problemsOf({ motifs: [motif(), motif({ title: "", key_term: "" })] }), [
-      "motif 2: title must be 1 to 80 characters", "motif 2: key_term is empty",
+    deepStrictEqual(problemsOf({ motifs: [motif(), motif({ title: "", key_term: "" }), motif()] }), [
+      "motif 2: title must be 1 to 80 characters", "motif 2: key_term is empty", "motif 3: the same rows as motif 1: merge them into one motif",
     ]);
   });
 });

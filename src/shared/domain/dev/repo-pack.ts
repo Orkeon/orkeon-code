@@ -10,6 +10,8 @@ import { ruleTraitProblem, traitPatternProblem } from "./trait-pattern.ts";
 export interface RepoPackLayout {
   domain?: string; application?: string; infrastructure?: string; tests?: string; work?: string;
   shared: string[]; buildOutputs: string[];
+  /** Test files a folder cannot name (`x.test.ts` beside `x.ts`): gate patterns, `*` spanning folders. */
+  testFiles?: string[];
 }
 export interface RepoPackCommands {
   restore?: string; build?: string; buildTest?: string; testClass?: string; test?: string;
@@ -32,7 +34,7 @@ export type RepoPackParse =
 /** The dotted YAML keys of temp/04 § 6, in this order. */
 export const REPO_PACK_KEYS: readonly string[] = [
   "layout.domain", "layout.application", "layout.infrastructure", "layout.tests", "layout.work",
-  "layout.build_outputs", "layout.shared",
+  "layout.build_outputs", "layout.shared", "layout.test_files",
   "commands.restore", "commands.build", "commands.build_test", "commands.test_class", "commands.test",
   "commands.test_project", "commands.test_integration", "commands.cli",
   "tests.rule_trait", "tests.trait_pattern",
@@ -40,7 +42,7 @@ export const REPO_PACK_KEYS: readonly string[] = [
   "contrib.branch", "contrib.commit", "contrib.pr_template",
 ];
 
-const LIST_KEYS = new Set(["layout.build_outputs", "layout.shared", "tools.access_cost.roots"]);
+const LIST_KEYS = new Set(["layout.build_outputs", "layout.shared", "layout.test_files", "tools.access_cost.roots"]);
 
 function isMap(v: YamlValue | undefined): v is YamlMap {
   return typeof v === "object" && v !== null && !Array.isArray(v);
@@ -152,6 +154,7 @@ export function parseRepoPack(text: string): RepoPackParse {
       work: r.text("layout.work"),
       buildOutputs: r.list("layout.build_outputs"),
       shared: r.list("layout.shared"),
+      testFiles: r.list("layout.test_files"),
     },
     commands: {
       restore: r.text("commands.restore"),
@@ -183,6 +186,7 @@ const FIELDS: Record<string, (p: RepoPack) => string | string[] | undefined> = {
   "layout.work": (p) => p.layout.work,
   "layout.build_outputs": (p) => p.layout.buildOutputs,
   "layout.shared": (p) => p.layout.shared,
+  "layout.test_files": (p) => p.layout.testFiles,
   "commands.restore": (p) => p.commands.restore,
   "commands.build": (p) => p.commands.build,
   "commands.build_test": (p) => p.commands.buildTest,

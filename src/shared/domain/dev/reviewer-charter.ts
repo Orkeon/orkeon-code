@@ -1,12 +1,13 @@
-// The adversarial reviewer's charter: a read-only sub-agent in plan mode with six
-// read tools — files, folders, the code index and its impact view — and no shell,
+// The adversarial reviewer's charter: a read-only sub-agent in plan mode with nine read tools — files,
+// their nodes, folders, the code index, a structural pattern search and its impact view — and no shell,
 // no write and no index build. It lives in the shared domain because more than one
 // crew reviews (a plan now; a specification, a change brief and the next batch later).
 
 import type { Charter } from "../agents/charter.ts";
 
 export const REVIEWER_TOOLS: readonly string[] = [
-  "file_read", "directory_read", "codebase_search", "symbol_source", "symbol_detail", "impact_analysis",
+  "file_read", "node_outline", "node_read", "directory_read", "codebase_search", "structural_search", "symbol_source",
+  "symbol_detail", "impact_analysis",
 ];
 
 export const REVIEWER_CHARTER: Charter = {

@@ -146,7 +146,8 @@ Any OpenAI-compatible endpoint, chosen in the settings file (`Llm:BaseUrl`, `Llm
   and any use of a runtime global, that breaks the dependency rule.
 - `.tools([...])` names host tools, and an unknown name fails every `act` call of the agent before the model is
   asked: a tool the runtime lacks cannot be added from here. `/debug-tool-call list` shows what the host offers.
-- The runtime executes the first tool call of a turn only, and a tool result reaches the model cut at 4000
-  characters.
-- Declared hooks (`/hooks`) and saved agents (`/agents`) are stored, not run: the engine that fires them and the
-  delegation that uses them are on the [Roadmap](roadmap.md).
+- A tool result reaches the model cut at 4000 characters, with a larger cut for some tools
+  (`Orkeon:Tools:ResultLimits`, [Configuration](configuration.md)).
+- Declared hooks (`/hooks`) run around the tool calls of the dev steps, not in `/assistant`, and no `stop` hook runs
+  ([Hooks](hooks.md)). Saved agents (`/agents`) are stored, not run: the delegation that would use them is on the
+  [Roadmap](roadmap.md).

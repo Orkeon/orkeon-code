@@ -1,8 +1,11 @@
 // The rule sets Orkeon Code ships — pure data, no IO. Each set is a list of deny rules in the
 // /permissions syntax, handed to the host gate by the commands that run a dev step
-// (shared/domain/dev/step-rules.ts says which step gets which set). The gate enforces them on the
+// (shared/domain/dev/step-rules.ts says which step gets which set), and checked again by the dev crews'
+// onToolCall (shared/domain/dev/call-guard.ts), the only check of them under `orkeon run`. Both see the
 // model's calls only; a call made from Orkeon Code's own code is not checked (docs/permissions.md).
-// Every rule here names an argument, so no set removes a tool from a catalogue.
+// Every rule here names an argument but the whole-tool denies of the writing tools whose paths sit in an
+// array the gate cannot read (UNSCOPED_WRITE_TOOLS): those remove their tool from the catalogue. edit_batch is
+// not one of them: the crews' callback checks each of its operations as the editor it stands for (call-guard.ts).
 
 import { gateLine, sameCalls } from "./permission.ts";
 import type { PermissionRule } from "./permission.ts";
@@ -28,8 +31,13 @@ export interface GitVerb { verb: string; bareLists: boolean; subcommands?: reado
 
 const LISTING_VERBS = new Set(["branch", "notes", "reflog", "remote", "replace", "submodule", "tag"]);
 const VERB_SUBCOMMANDS: Readonly<Record<string, readonly string[]>> = {
-  // Two arguments or more set or unset a key (git config key value, git config --global key); one reads it.
-  config: ["* *", "--edit", "-e"],
+  // The options and subcommands that change the file. A key then a value (git config user.name x) sets one too,
+  // but a glob cannot tell it from a read whose file name holds a dot (git config --file a.cfg --list): the code
+  // reads that one (gitConfigSets). `--get a.b`, `-l`, `a.b` alone and `get` only read.
+  config: [
+    "--add", "--unset", "--replace-all", "--rename-section", "--remove-section", "--edit", "-e",
+    "set", "unset", "rename-section", "remove-section", "edit",
+  ],
   remote: ["add", "remove", "rm", "rename", "set-url", "set-head", "set-branches", "prune", "update"],
   // `-*`: a push given by its options alone (git stash -u).
   stash: ["push", "pop", "apply", "drop", "clear", "save", "store", "branch", "-*"],
@@ -46,6 +54,103 @@ export const GIT_MUTATING_VERBS: readonly GitVerb[] = [
   const entry: GitVerb = { verb, bareLists: LISTING_VERBS.has(verb) };
   return subcommands === undefined ? entry : { ...entry, subcommands };
 });
+
+/** The git global options that take the next word as their value (`git -C /x config`). */
+const GIT_VALUE_OPTIONS = new Set(["-C", "-c", "--git-dir", "--work-tree", "--namespace", "--super-prefix", "--config-env", "--exec-path"]);
+/** The git config options that take the next word as their value (`--file a.cfg`). */
+const CONFIG_VALUE_OPTIONS = new Set(["-f", "--file", "--blob", "-t", "--type", "--default", "--comment", "--value"]);
+/** The git config actions that only read; `get` and `list` are the subcommand forms. */
+const CONFIG_READS = /^(--get(-all|-regexp|-urlmatch|-color|-colorbool)?|--list|-l|get|list)$/;
+/** The git config options and subcommands that change the file, wherever they stand after `config`. */
+const CONFIG_WRITES = /^(--add|--unset(-all)?|--replace-all|--rename-section|--remove-section|--edit|-e|set|unset|rename-section|remove-section|edit)$/;
+/** The characters that start another command outside quotes: a chain, a pipe, a subshell, a group, a substitution. */
+const COMMAND_BREAKS = new Set([";", "&", "|", "(", ")", "`", "{", "}", "\n"]);
+
+/** What deny rule a git config that sets a value stands under, in a refusal: no gate pattern holds it. */
+export const GIT_CONFIG_SET_RULE: PermissionRule = {
+  effect: "deny", tool: "shell_command", argument: "command", pattern: "*git config <key> <value>*",
+};
+
+/** The rule of git-readonly the code's reading of git config goes with: a list of rules that holds it holds the set. */
+const GIT_CONFIG_ADD_PATTERN = "*git config --add*";
+
+/** Whether these rules hold git-readonly, whose git config reading is the code's (gitConfigSets). */
+export function holdsGitReadonly(rules: readonly PermissionRule[]): boolean {
+  return rules.some((r) => r.effect === "deny" && r.tool === "shell_command" && r.pattern === GIT_CONFIG_ADD_PATTERN);
+}
+
+/**
+ * The commands of a shell line, each as the words its program receives: quotes dropped, backslash escapes resolved,
+ * a new command at each break outside single quotes (`;`, `&`, `|`, `(`, `)`, `{`, `}`, a backtick, a line break; a
+ * `$(` or a backtick inside double quotes too). A quoted value keeps its breaks (`';evil'` stays one word), and a word
+ * that holds a blank is read again as a line of its own (`eval 'git config a b'`): more commands, never fewer.
+ */
+function shellCommandsOf(line: string, depth = 0): string[][] {
+  const commands: string[][] = [[]];
+  let word = "";
+  let quoted = false;
+  let quote: "'" | "\"" | null = null;
+  const end = (): void => {
+    if (word !== "" || quoted) commands[commands.length - 1].push(word);
+    word = "";
+    quoted = false;
+  };
+  const breakHere = (): void => { end(); commands.push([]); };
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (quote === "'") { if (c === "'") quote = null; else word += c; continue; }
+    if (c === "\\" && i + 1 < line.length) { word += line[++i]; continue; }
+    if (quote === "\"") {
+      if (c === "\"") quote = null;
+      else if (c === "$" && line[i + 1] === "(") { breakHere(); i++; }
+      else if (c === "`" || c === ")") breakHere();
+      else word += c;
+      continue;
+    }
+    if (c === "'" || c === "\"") { quote = c; quoted = true; continue; }
+    if (/\s/.test(c) && c !== "\n") { end(); continue; }
+    if (COMMAND_BREAKS.has(c)) { breakHere(); continue; }
+    word += c;
+  }
+  end();
+  const nested = depth >= 3 ? [] : commands.flat().filter((w) => /\s/.test(w)).flatMap((w) => shellCommandsOf(w, depth + 1));
+  return [...commands.filter((c) => c.length > 0), ...nested];
+}
+
+/**
+ * Whether one of the commands of a shell line is a git config that changes the file: a changing option or
+ * subcommand anywhere after `config` (git config --global --unset a.b), or two words or more after its options
+ * with no reading action before them (git config user.name x, whatever file `--file` names). `git config --file
+ * a.cfg --list` and `git config a.b` read. The gate's own patterns hold the changing options right after `config`,
+ * and `git -c`. Each command of a chain, a subshell, a group or a substitution is read apart (shellCommandsOf).
+ */
+export function gitConfigSets(command: string): boolean {
+  return shellCommandsOf(command).some(configSets);
+}
+
+/** Whether a command's words, from any `git` among them (`env git`, `/usr/bin/git`, `xargs git`), run a git config
+ *  that changes the file. */
+function configSets(words: readonly string[]): boolean {
+  return words.some((w, i) => (w === "git" || w.endsWith("/git")) && gitConfigWrites(words, i + 1));
+}
+
+function gitConfigWrites(words: readonly string[], from: number): boolean {
+  let at = from;
+  for (; at < words.length && words[at].startsWith("-"); at++) {
+    if (GIT_VALUE_OPTIONS.has(words[at])) at++;
+  }
+  if (words[at] !== "config") return false;
+  const positionals: string[] = [];
+  for (let i = at + 1; i < words.length; i++) {
+    const w = words[i];
+    if (CONFIG_WRITES.test(w) && (w.startsWith("-") || positionals.length === 0)) return true;
+    // A reading action counts before the key only: what follows a key may be read as its value.
+    if (positionals.length === 0 && CONFIG_READS.test(w)) return false;
+    if (CONFIG_VALUE_OPTIONS.has(w)) i++;
+    else if (!w.startsWith("-") || w === "-" || positionals.length > 0) positionals.push(w);
+  }
+  return positionals.length >= 2;
+}
 
 /** A word and the same word with arguments after it; a word that already ends with `*` stands alone. */
 function withArguments(head: string): string[] {
@@ -78,6 +183,46 @@ function denyAll(tool: string, argument: string, patterns: readonly string[]): P
   return patterns.map((pattern): PermissionRule => ({ effect: "deny", tool, argument, pattern }));
 }
 
+/** The tools that read one file or folder named by `path`. */
+export const PATH_READ_TOOLS: readonly string[] = [
+  "file_read", "glob", "grep", "node_outline", "node_read", "count_pattern", "documents_of", "directory_search",
+];
+/** The tools of PATH_READ_TOOLS whose `path` may name a folder, the denied root itself included. */
+export const FOLDER_READ_TOOLS: readonly string[] = ["glob", "grep", "count_pattern", "directory_search"];
+/** The reading tools that name no path the gate could match (a pattern over the project, a symbol's fqn): denied
+ *  whole once a root is closed to reading. */
+export const UNSCOPED_READ_TOOLS: readonly string[] = ["structural_search", "symbol_source"];
+/** The tools that write one file named by `path`. */
+export const PATH_WRITE_TOOLS: readonly string[] = ["file_write", "edit_file", "node_replace", "node_insert", "node_ensure"];
+/** The written text of each writing tool that takes it as one string. */
+export const WRITTEN_TEXT: ReadonlyArray<readonly [tool: string, argument: string]> = [
+  ["file_write", "content"], ["edit_file", "new_string"], ["node_replace", "text"], ["node_insert", "text"],
+  ["node_ensure", "text"], ["node_ensure", "name"], ["node_ensure", "module"], ["structural_rewrite", "fix"],
+];
+/** Writing tools whose paths sit in an array the gate reads as its type name, never an element: denied whole
+ *  where paths are protected. */
+export const UNSCOPED_WRITE_TOOLS: readonly string[] = ["structural_rewrite"];
+/** The writing tool whose paths and texts sit in its `operations`: the gate cannot read them, the dev crews'
+ *  callback reads each operation as the editor of OPERATION_TOOLS it stands for and applies the rules of that
+ *  editor to it. Every call of it runs under that callback during a step, so no set denies it whole. */
+export const OPERATIONS_TOOL = "edit_batch";
+/** The editor each `kind` of an edit_batch operation stands for: the intent operations are node_ensure's. */
+export const OPERATION_TOOLS: Readonly<Record<string, string>> = {
+  node_replace: "node_replace", node_insert: "node_insert",
+  ensure_using: "node_ensure", ensure_import: "node_ensure", ensure_field: "node_ensure", ensure_member: "node_ensure",
+  ensure_section: "node_ensure", insert_under_heading: "node_ensure", replace_mermaid: "node_ensure",
+};
+
+/** A deny on every call of each tool. */
+function denyWhole(tools: readonly string[]): PermissionRule[] {
+  return tools.map((tool): PermissionRule => ({ effect: "deny", tool }));
+}
+
+/** The same patterns on `argument` of each tool, tool by tool. */
+function denyEach(tools: readonly string[], argument: string, patterns: readonly string[]): PermissionRule[] {
+  return tools.flatMap((tool) => denyAll(tool, argument, patterns));
+}
+
 export const RULE_SETS: Readonly<Record<RuleSetId, RuleSet>> = {
   "git-readonly": {
     id: "git-readonly",
@@ -93,12 +238,14 @@ export const RULE_SETS: Readonly<Record<RuleSetId, RuleSet>> = {
     title: "code handed inline to an interpreter, which could run what the other rules refuse",
     // `*sh -c*` covers bash, sh, zsh, dash, ksh and fish behind a path or an `env`; `*sh -*c *` a flag cluster
     // (bash -xc), `*sh -* -c*` a flag before `-c`; the same for the other interpreters. `ssh -c <cipher>` is
-    // refused too, a side effect of matching any word ending with `sh`.
+    // refused too, a side effect of matching any word ending with `sh`. `python3.*` names a versioned python
+    // (python3.12). The dev crews' callback also matches the command as the program receives it, quotes and
+    // repeated spaces gone and option clusters split (python3 -Ic, perl -we): shellCommandForms.
     rules: denyAll("shell_command", "command", [
       "*sh -c*", "*sh -*c *", "*sh -* -c*",
       "*node -e*", "*node --eval*", "*node -p*", "*node --print*", "*node -* -e*", "*node -* -p*", "*node --input-type*",
-      "*python -c*", "*python3 -c*", "*python -* -c*", "*python3 -* -c*",
-      "*perl -e*", "*perl -E*", "*ruby -e*", "*php -r*",
+      "*python -c*", "*python3 -c*", "*python3.* -c*", "*python -* -c*", "*python3 -* -c*", "*python3.* -* -c*",
+      "*perl -e*", "*perl -E*", "*perl -* -e*", "*perl -* -E*", "*ruby -e*", "*ruby -* -e*", "*php -r*",
       "*tsx -e*", "*tsx --eval*", "*ts-node -e*", "*deno eval*", "*bun -e*",
     ]),
   },
@@ -106,7 +253,7 @@ export const RULE_SETS: Readonly<Record<RuleSetId, RuleSet>> = {
     id: "read-noise",
     title: "reads under build outputs, version-control internals and installed packages",
     // Each folder twice: inside a path, and as the start of a path relative to the project.
-    rules: denyAll("file_read", "path", [
+    rules: denyEach(PATH_READ_TOOLS, "path", [
       "*/bin/*", "bin/*", "*/obj/*", "obj/*", "*/.git/*", ".git/*", "*/node_modules/*", "node_modules/*",
     ]),
   },
@@ -114,24 +261,28 @@ export const RULE_SETS: Readonly<Record<RuleSetId, RuleSet>> = {
     id: "secrets",
     title: "a private key block or a token with a known prefix in written content",
     // The prefixes of SECRET_PATTERNS (secret-patterns.ts) a whole-content pattern can hold without refusing
-    // ordinary text; the others need a check of the content itself.
-    rules: denyAll("file_write", "content", [
+    // ordinary text; the others need a check of the content itself. edit_batch's texts sit in its
+    // operations, which the crews' callback reads as node_replace, node_insert or node_ensure texts.
+    rules: WRITTEN_TEXT.flatMap(([tool, argument]) => denyAll(tool, argument, [
       "*-----BEGIN *PRIVATE KEY-----*",
       "*ghp_*", "*gho_*", "*ghu_*", "*ghs_*", "*ghr_*", "*github_pat_*",
       "*xoxa-*", "*xoxb-*", "*xoxp-*", "*xoxo-*", "*xoxs-*", "*xoxr-*",
       "*AKIA*",
       "*AIza*",
       "*sk-ant-*",
-    ]),
+    ])),
   },
   "state-files": {
     id: "state-files",
     title: "files only Orkeon Code's own code writes",
     // Batch logs, batch states, verdicts and audit captures; the state folder; the harness's deployed files.
-    rules: denyAll("file_write", "path", [
-      "*-BATCHES-STATE.md", "*-STATE-F*.md", "*-VERIFY-F*.md", "*/capture-F*/*",
-      "*/.orkeon/*", ".orkeon/*", "*/.claude/*", ".claude/*",
-    ]),
+    rules: [
+      ...denyEach(PATH_WRITE_TOOLS, "path", [
+        "*-BATCHES-STATE.md", "*-STATE-F*.md", "*-VERIFY-F*.md", "*/capture-F*/*",
+        "*/.orkeon/*", ".orkeon/*", "*/.claude/*", ".claude/*",
+      ]),
+      ...denyWhole(UNSCOPED_WRITE_TOOLS),
+    ],
   },
 };
 
@@ -145,7 +296,7 @@ export function rulesOf(ids: readonly RuleSetId[]): PermissionRule[] {
   return out;
 }
 
-/** Deny rules on the folders `roots` for `tool`, and why a root got none. */
+/** Deny rules on the folders `roots` for the tools of one access, and why a root got none. */
 export interface PathRules { rules: PermissionRule[]; problems: string[] }
 
 const PROJECT = "/workspace";
@@ -168,7 +319,12 @@ function rootProblem(raw: string, root: string): string | undefined {
   return undefined;
 }
 
-export function pathRules(tool: "file_read" | "file_write", roots: readonly string[]): PathRules {
+/** For each kept root, two rules (absolute, relative) per tool of PATH_READ_TOOLS or PATH_WRITE_TOOLS, and for
+ *  `read` two more per tool of FOLDER_READ_TOOLS on the root itself (`<root>/*` does not match `<root>`); then,
+ *  once a root is kept, a deny on the tools whose paths the gate cannot read: UNSCOPED_READ_TOOLS for `read`,
+ *  UNSCOPED_WRITE_TOOLS for `write` (edit_batch's operations are checked one by one, as their editors). */
+export function pathRules(access: "read" | "write", roots: readonly string[]): PathRules {
+  const tools = access === "read" ? PATH_READ_TOOLS : PATH_WRITE_TOOLS;
   const rules: PermissionRule[] = [];
   const problems: string[] = [];
   const seen = new Set<string>();
@@ -181,8 +337,50 @@ export function pathRules(tool: "file_read" | "file_write", roots: readonly stri
     }
     if (seen.has(root)) continue;
     seen.add(root);
-    rules.push(...denyAll(tool, "path", [`${PROJECT}/${root}/*`, `${root}/*`]));
+    rules.push(...denyEach(tools, "path", [`${PROJECT}/${root}/*`, `${root}/*`]));
+    if (access === "read") rules.push(...denyEach(FOLDER_READ_TOOLS, "path", [`${PROJECT}/${root}`, root]));
   }
+  if (seen.size > 0) rules.push(...denyWhole(access === "read" ? UNSCOPED_READ_TOOLS : UNSCOPED_WRITE_TOOLS));
+  return { rules, problems };
+}
+
+/** The tool the rewrite rule denies: a whole write of a file. */
+export const REWRITE_TOOL = "file_write";
+
+/** The rewrite rule of a writing role: `file_write` denied (absolute and relative) under every kept root and on every
+ *  kept file pattern, so that an existing source file is changed by node or with edit_file, never written whole. The
+ *  dev crews' callback lifts it for a file that does not exist yet (call-guard.ts): a new file is still created.
+ *  What a root or a pattern gets no rule for is said by pathRules and patternWriteRules already. */
+export function rewriteRules(roots: readonly string[], patterns: readonly string[]): PermissionRule[] {
+  const kept = new Set<string>();
+  for (const raw of roots) {
+    const root = normaliseRoot(raw);
+    if (rootProblem(raw, root) === undefined) kept.add(`${root}/*`);
+  }
+  for (const raw of patterns) {
+    const pattern = normaliseRoot(raw);
+    if (pattern !== "" && pattern !== "*" && !pattern.startsWith("/") && !pattern.split("/").includes("..")) kept.add(pattern);
+  }
+  return [...kept].flatMap((p) => denyAll(REWRITE_TOOL, "path", [`${PROJECT}/${p}`, p]));
+}
+
+/** Write denies on file patterns rather than folders (a pack's `layout.test_files`, `*` spanning folders): two rules
+ *  (absolute, relative) per tool of PATH_WRITE_TOOLS for each kept pattern, then the deny on UNSCOPED_WRITE_TOOLS.
+ *  A pattern that is empty, outside the project or climbing out with `..` gets no rule. */
+export function patternWriteRules(patterns: readonly string[]): PathRules {
+  const rules: PermissionRule[] = [];
+  const problems: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of patterns) {
+    const pattern = normaliseRoot(raw);
+    if (pattern === "" || pattern === "*") { problems.push(`pattern '${raw}' covers the whole project: no rule`); continue; }
+    if (pattern.startsWith("/")) { problems.push(`pattern '${raw}' is outside ${PROJECT}: no rule`); continue; }
+    if (pattern.split("/").includes("..")) { problems.push(`pattern '${raw}' climbs out with '..': no rule`); continue; }
+    if (seen.has(pattern)) continue;
+    seen.add(pattern);
+    rules.push(...denyEach(PATH_WRITE_TOOLS, "path", [`${PROJECT}/${pattern}`, pattern]));
+  }
+  if (seen.size > 0) rules.push(...denyWhole(UNSCOPED_WRITE_TOOLS));
   return { rules, problems };
 }
 

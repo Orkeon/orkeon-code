@@ -3,26 +3,31 @@
 // hands the batch to the read-only auditor and writes the verdict file. It returns the
 // completion text the command prints. --gate-only stops after the gate: no model call,
 // no write.
-import type { Files, Llm, Logger, Shell } from "../../../shared/application/ports.ts";
+import type { CostIndex, Files, Llm, Logger, Shell } from "../../../shared/application/ports.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import { loadDevContext } from "../../../shared/application/dev/load-dev-context.ts";
 import type { DevContext } from "../../../shared/application/dev/load-dev-context.ts";
 import { GIT_TOPLEVEL, workFolderLabel } from "../../../shared/application/dev/resolve-work-folder.ts";
+import { costSummary } from "../../../shared/domain/dev/access-cost.ts";
 import { classifyArtefact, isCode } from "../../../shared/domain/dev/artefacts.ts";
 import type { RepoPack } from "../../../shared/domain/dev/repo-pack.ts";
-import { lastVerdict, parseVerdictFile } from "../../../shared/domain/dev/verdict-format.ts";
+import { AUDIT_UNFINISHED_GAP, isAuditUnfinishedGap, isUnfinishedSection, lastFinishedVerdict, lastVerdict, parseVerdictFile } from "../../../shared/domain/dev/verdict-format.ts";
 import type { GapRow } from "../../../shared/domain/dev/verdict-format.ts";
 import { AXES } from "../domain/audit-answer.ts";
 import type { AuditRow, Axis } from "../domain/audit-answer.ts";
 import { testRunSummary } from "../domain/capture-sections.ts";
-import { GIT_ORIGIN_HEAD } from "../domain/commands.ts";
 import { cut, firstLine } from "../domain/text.ts";
 import {
   carriedRows, formatWhen, renderVerdictSection, verdictFileName, writeVerdictFile,
 } from "../domain/verdict.ts";
-import { outputTail, runAudit, shellValidationRunner } from "./audit.ts";
+import { outputTail, recordingRunner, runAudit, shellValidationRunner } from "./audit.ts";
+import type { UnfinishedAudit, ValidationRunner } from "./audit.ts";
+import { stepRules } from "../../../shared/domain/dev/step-rules.ts";
 import type { AuditBriefInput } from "./auditor-prompt.ts";
 import { writeCapture } from "./capture.ts";
+import { noPrecedents, precedentsLine, recallQuery, sheetTitle } from "../../../shared/application/dev/step-precedents.ts";
+import type { StepPrecedents } from "../../../shared/application/dev/step-precedents.ts";
+import type { WorkFolder } from "../../../shared/application/dev/resolve-work-folder.ts";
 import { WORKSPACE, runGate } from "./run-gate.ts";
 import type { DevVerifyTarget } from "./run-gate.ts";
 
@@ -30,6 +35,14 @@ export interface DevVerifyInputs { batch?: unknown; plan?: unknown; mode?: unkno
 export interface DevVerifyDeps {
   files: Files; shell: Shell; config: Pick<ConfigStore, "readValue">;
   llm: Pick<Llm, "act" | "extract">; log: Logger; clock: () => Date;
+  /** The run_validation tool's slot, when the crew offers the tool: bound to this audit's runner. */
+  validationSlot?: { bind(runner: ValidationRunner): () => void };
+  /** The access cost's code index; without it the Cost line says the crew wires none. */
+  costIndex?: CostIndex;
+  /** The shared memory's code-triggered recall (T4, before the audit); absent, nothing is recalled. */
+  precedents?: StepPrecedents;
+  /** After a GAPS verdict: the mistakes harvested into candidates and the /dev-learn nudge (M-7); absent, none. */
+  harvest?: (work: Pick<WorkFolder, "folder" | "vfsPath">) => Promise<string[]>;
 }
 const FULL_SUITE_TIMEOUT_SECONDS = 900;
 
@@ -44,6 +57,16 @@ const MAX_GAP_CHARS = 120;
 const MODES: readonly string[] = ["fast", "full", "resume"];
 /** The exit code a shell result carries when the process reported none. */
 const NO_EXIT_CODE = -1;
+
+/** The row of an audit the step's budget stopped: Blocking, since nothing vouches for the batch; the replies are its evidence. */
+export function unfinishedRow(unfinished: UnfinishedAudit, captureShown: string, batch: string): AuditRow {
+  return {
+    severity: "Blocking", axis: "Correctness",
+    gap: AUDIT_UNFINISHED_GAP,
+    evidence: `${unfinished.reason} — ${captureShown}/auditor-replies.txt`,
+    fix: `audit the batch again (/dev-verify ${batch} resume), or split it if it spends the budget again`,
+  };
+}
 
 const reasonOf = (error: unknown): string => firstLine(error instanceof Error ? error.message : String(error));
 
@@ -146,6 +169,10 @@ async function resolveSheet(files: Pick<Files, "read" | "list">, work: string, a
   const relative = plan.startsWith(`${WORKSPACE}/`) ? plan.slice(WORKSPACE.length + 1) : plan;
   const slash = relative.lastIndexOf("/");
   if (relative.startsWith("/") || relative.split("/").includes("..") || slash <= 0) return neither;
+  // The capture and the verdict are written beside the plan: a plan outside the work folder would put them elsewhere.
+  if (!relative.startsWith(`${work}/`) || relative.split("/").some((s) => s === "" || s === ".")) {
+    return `dev-verify: '${plan}' is not under the work folder ${work}/`;
+  }
   const classified = classifyArtefact(relative.slice(slash + 1));
   if (classified === null || classified.kind !== "plan") return neither;
   const sheet: Sheet = { planDir: relative.slice(0, slash), name: `${classified.prefix}-PLAN-${batch}.md`, prefix: classified.prefix };
@@ -207,16 +234,6 @@ async function runSuite(shell: Pick<Shell, "run">, pack: RepoPack | null): Promi
   return { validation: `whole fast suite — ${exitText}`, notRun: null, row, brief: { command, outcome: exitText, tail } };
 }
 
-async function defaultBranch(shell: Pick<Shell, "run">): Promise<string> {
-  try {
-    const r = await shell.run(GIT_ORIGIN_HEAD);
-    const name = r.stdout.trim().replace(/^origin\//, "");
-    return r.exitCode === 0 && name !== "" ? name : "<default branch>";
-  } catch {
-    return "<default branch>";
-  }
-}
-
 function filesLine(changed: readonly string[], work: string): string {
   const outside = changed.filter((f) => !f.startsWith(`${work}/`));
   if (outside.length === 0) return "  files: none";
@@ -270,13 +287,26 @@ export async function runDevVerify(input: DevVerifyInputs, deps: DevVerifyDeps):
   const verdictShown = `${t.planDirShown}/${verdictFileName(t.prefix, args.batch)}`;
   let previous: string | null = null;
   let previousGaps: AuditRow[] | null = null;
+  /** The audit's own mode: a resume with no finished audit to resume audits the whole batch, and still appends. */
+  let auditMode: Mode = args.mode;
   if (args.mode === "resume" && !args.gateOnly) {
     try {
       previous = await deps.files.read(`${WORKSPACE}/${verdictShown}`);
     } catch {
       return done(`dev-verify: resume needs ${verdictShown}: run /dev-verify ${args.batch} first`);
     }
-    previousGaps = (lastVerdict(parseVerdictFile(previous))?.rows ?? []).map(auditRowOf);
+    // An unfinished audit's row is no gap of the code: the resumed audit is not asked to judge it. After an audit the
+    // budget stopped, the resume takes the gaps of the last audit that finished; with none, the whole batch is audited.
+    const parsed = parseVerdictFile(previous);
+    const last = lastVerdict(parsed);
+    const finished = last !== null && isUnfinishedSection(last) ? lastFinishedVerdict(parsed) : last;
+    if (finished === null) {
+      auditMode = "fast";
+      out.push("resume: no audit of this batch finished — the whole batch is audited (fast), the section appended");
+    } else {
+      if (finished !== last) out.push(`resume: the last audit did not finish — the gaps of the audit of ${finished.when ?? "before"} are resumed`);
+      previousGaps = finished.rows.filter((r) => !isAuditUnfinishedGap(r.gap)).map(auditRowOf);
+    }
   }
 
   const gate = await runGate(deps, t);
@@ -289,24 +319,54 @@ export async function runDevVerify(input: DevVerifyInputs, deps: DevVerifyDeps):
   const files = recordingWriter(deps.files);
   const when = formatWhen(deps.clock());
   try {
-    const capture = await writeCapture({ files, shell: deps.shell }, t, gate.run, when);
+    const capture = await writeCapture({ files, shell: deps.shell, costIndex: deps.costIndex }, t, gate.run, when);
+    const costLine = costSummary(capture.cost);
     const suite = args.mode === "full" ? await runSuite(deps.shell, t.pack) : null;
     const commands = t.pack?.commands ?? {};
+    // T4: the mistakes earlier audits found, from the sheet's title and the changed paths, before the auditor reads.
+    const recalled = await (deps.precedents ?? noPrecedents)("T4", recallQuery([
+      sheetTitle(gate.run.sheet), ...gate.run.changedFiles.filter((f) => !f.startsWith(`${work}/`)),
+    ]));
     const brief: AuditBriefInput = {
-      mode: args.mode, batch: args.batch, sheetPath: t.sheetShown, captureFiles: capture.files, table: capture.table,
+      mode: auditMode, batch: args.batch, sheetPath: t.sheetShown, captureFiles: capture.files, table: capture.table,
       appliedRules: gate.run.facts.appliedIds.length > 0 ? gate.run.facts.appliedIds.join(", ") : "none",
       commands: { testClass: commands.testClass, testProject: commands.testProject, testIntegration: commands.testIntegration },
       previousGaps,
       ...(suite?.brief === undefined ? {} : { suite: suite.brief }),
+      precedents: recalled.block,
     };
-    const audit = await runAudit(
-      { llm: deps.llm, files, runner: shellValidationRunner(deps.shell, commands) }, brief, capture.folder, capture.folderShown,
-    );
-    if (!audit.ok) return done(greenLine, audit.text);
+    // One runner for the tool and for code: a command the auditor ran through run_validation is not run again.
+    // The step's rules apply to a validation as to the auditor's own shell_command (the gate does not see it).
+    const runner = recordingRunner(shellValidationRunner(deps.shell, commands, stepRules("dev-verify")));
+    const release = deps.validationSlot?.bind(runner);
+    let audit: Awaited<ReturnType<typeof runAudit>>;
+    try {
+      audit = await runAudit({ llm: deps.llm, files, runner }, brief, capture.folder, capture.folderShown);
+    } finally {
+      release?.();
+    }
+    if (!audit.ok) {
+      if (audit.unfinished === undefined) return done(greenLine, costLine, audit.text);
+      const unfinished = audit.unfinished;
+      // The budget ran out mid-audit: the verdict still says so, with the validations that ran, never a silent BLOCKED.
+      const stopped = unfinishedRow(unfinished, capture.folderShown, args.batch);
+      // The stopped row covers no mechanical gap: each one is carried, as no auditor weighed it.
+      const answered = suite?.row ? [suite.row] : [];
+      const section = renderVerdictSection({
+        prefix: t.prefix, batch: args.batch, when, mode: auditMode,
+        rows: [stopped, ...answered, ...carriedRows(answered, capture.rows)],
+        validations: [...(suite?.validation ? [suite.validation] : []), ...unfinished.validations],
+        notRun: [...(suite?.notRun ? [suite.notRun] : []), ...unfinished.notRun],
+      });
+      await files.write(`${WORKSPACE}/${verdictShown}`, writeVerdictFile(previous, section.text, args.mode));
+      deps.log.info(`dev-verify: ${section.verdict} written to ${verdictShown} (the audit did not finish)`);
+      return done(greenLine, costLine, ...section.text.trimEnd().split("\n"),
+        `${audit.text}; ${section.verdict} written to ${verdictShown}: the audit did not finish`);
+    }
 
-    const answered = [...audit.answer.rows, ...(suite?.row ? [suite.row] : [])];
+    const answered = [...audit.answer.rows, ...audit.redRows, ...(suite?.row ? [suite.row] : [])];
     const section = renderVerdictSection({
-      prefix: t.prefix, batch: args.batch, when, mode: args.mode,
+      prefix: t.prefix, batch: args.batch, when, mode: auditMode,
       rows: [...answered, ...carriedRows(answered, capture.rows)],
       validations: [...(suite?.validation ? [suite.validation] : []), ...audit.validations],
       notRun: [...(suite?.notRun ? [suite.notRun] : []), ...audit.notRun],
@@ -317,20 +377,23 @@ export async function runDevVerify(input: DevVerifyInputs, deps: DevVerifyDeps):
     await files.write(`${WORKSPACE}/${verdictShown}`, writeVerdictFile(previous, section.text, args.mode));
     deps.log.info(`dev-verify: ${section.verdict} written to ${verdictShown}`);
 
-    const lines = [greenLine, ...section.text.trimEnd().split("\n"), `written: ${verdictShown} — capture: ${capture.folderShown}/`];
+    const lines = [greenLine, costLine, ...section.text.trimEnd().split("\n"), `written: ${verdictShown} — capture: ${capture.folderShown}/`];
+    const recalledLine = precedentsLine([recalled]);
+    if (recalledLine !== "") lines.push(recalledLine);
     if (section.verdict === "VALID") {
-      const convention = t.pack?.contrib.commit ?? "git log --oneline -5";
       lines.push(
-        `→ Batch ${args.batch} VALID. Orkeon Code does not commit yet: commit the batch's files with the repository's ` +
-          `convention (${convention}), push, then open the pull request (gh pr create --base ${await defaultBranch(deps.shell)}).`,
+        `→ Batch ${args.batch} VALID. The close commits the batch's files: /dev-implement ${args.batch} <code> --close ` +
+          `(run by itself when /dev-implement launched this audit).`,
         filesLine(gate.run.changedFiles, work),
       );
     } else {
       const first = section.shown[0];
       lines.push(
         `→ /dev-implement ${args.batch} — correction: ${first.severity} ${first.axis}: ${cut(first.gap, MAX_GAP_CHARS)}`,
-        `  then /dev-verify ${args.batch} resume (the correction runs in the harness until Orkeon Code has its own /dev-implement)`,
+        `  it appends the gap to the sheet as a new step and runs it; the audit follows by itself (/dev-verify ${args.batch} resume)`,
       );
+      // M-7: the verdict is written; the harvest reads it with the others and can only add lines.
+      if (deps.harvest !== undefined) lines.push(...await deps.harvest(ctx.work));
     }
     return done(...lines);
   } catch (error) {

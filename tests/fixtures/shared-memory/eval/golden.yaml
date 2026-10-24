@@ -1,0 +1,65 @@
+# The reference set of the shared memory's recall (rag_eval, RagEvalDataset). The probe
+# src/crews/_probe-shared-memory/probe.ork.ts runs it on a copy of this folder staged as
+# /workspace/.orkeon/memory by scripts/check-shared-memory.sh. `relevant` names source path
+# suffixes (entries/<type>/<id>.md). q13 has no answer in the memory: it carries no `relevant`
+# and is left out of recall@5 and MRR. q08's target supersedes an entry that is never expected.
+name: memory-golden
+corpus: /workspace/.orkeon/memory/entries
+collection: memory-eval-golden
+cases:
+  - id: q01
+    question: "How should currency amounts be stored?"
+    relevant: [entries/decision/billing-decision-20261012-money-as-minor-units.md]
+    tags: [decision]
+  - id: q02
+    question: "Two projects disagree on money storage: what did each decide?"
+    relevant: [entries/decision/billing-decision-20261012-money-as-minor-units.md, entries/decision/shop-decision-20261014-money-as-decimal.md]
+    tags: [decision, cross-project]
+  - id: q03
+    question: "How does TypeScript code under Jint reach a runtime tool?"
+    relevant: [entries/code-structure/orkeon-code-code-structure-20261015-port-adapter-fake.md]
+    tags: [code-structure]
+  - id: q04
+    question: "Where do test doubles of a port live?"
+    relevant: [entries/code-structure/orkeon-code-code-structure-20261015-port-adapter-fake.md]
+    tags: [code-structure]
+  - id: q05
+    question: "How to justify a performance change?"
+    relevant: [entries/method/billing-method-20261018-measure-before-perf-change.md]
+    tags: [method]
+  - id: q06
+    question: "An audit flagged an N+1 on the Cost axis: what is the fix?"
+    relevant: [entries/mistake/billing-mistake-20261020-port-call-in-loop.md]
+    tags: [mistake]
+  - id: q07
+    question: "Which symptom reveals a repository call inside a loop?"
+    relevant: [entries/mistake/billing-mistake-20261020-port-call-in-loop.md]
+    tags: [mistake]
+  - id: q08
+    question: "What replaced the old retry policy decision in shop?"
+    relevant: [entries/decision/shop-decision-20261016-retry-exponential-backoff.md]
+    tags: [decision, supersession]
+  - id: q09
+    question: "How are commit messages kept from leaking credentials?"
+    relevant: [entries/mistake/orkeon-code-mistake-20261023-secret-path-staged.md]
+    tags: [mistake]
+  - id: q10
+    question: "How is a red test made to fail on its assertion?"
+    relevant: [entries/method/orkeon-code-method-20261021-red-fails-on-assertion.md]
+    tags: [method]
+  - id: q11
+    question: "How do we partition code search and document search?"
+    relevant: [entries/code-structure/orkeon-code-code-structure-20261017-search-routing-tree-vs-rag.md]
+    tags: [code-structure]
+  - id: q12
+    question: "What do we do when a whole integration suite is too long?"
+    relevant: [entries/method/shop-method-20261022-filtered-integration-runs.md]
+    tags: [method]
+  - id: q13
+    question: "Which brand of espresso machine does the office kitchen use?"
+    relevant: []
+    tags: [negative]
+  - id: q14
+    question: "What layer may import runtime globals?"
+    relevant: [entries/code-structure/orkeon-code-code-structure-20261019-runtime-globals-layer.md]
+    tags: [code-structure]

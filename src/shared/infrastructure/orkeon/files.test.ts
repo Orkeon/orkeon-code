@@ -63,22 +63,28 @@ describe("createFiles — write and list", () => {
 });
 
 describe("createFiles — mounts", () => {
-  it("reads the PascalCase mount table as the tool emits it", async () => {
+  it("reads the mount table as the tool emits it", async () => {
     const tools = new FakeTools();
-    tools.replies.listMounts = { Mounts: [{ Path: "/workspace", Rights: "rw" }, { Path: "/crews", Rights: "r" }] };
+    tools.replies.listMounts = {
+      success: true,
+      mounts: [
+        { virtual_path: "/workspace", access: "rw", overrides: [] },
+        { virtual_path: "/crews", access: "ro", overrides: [] },
+      ],
+    };
     deepStrictEqual(await createFiles(tools).mounts(), [
       { path: "/workspace", rights: "rw" },
-      { path: "/crews", rights: "r" },
+      { path: "/crews", rights: "ro" },
     ]);
     deepStrictEqual(tools.inputsOf("listMounts"), [undefined]);
   });
 
-  it("reads the lower-case shapes, and a mount without rights", async () => {
+  it("reads a mount without access as unknown rights", async () => {
     const tools = new FakeTools();
-    tools.replies.listMounts = { mounts: [{ virtual_path: "/tmp" }, { path: "/output", rights: "ReadWrite" }] };
+    tools.replies.listMounts = { mounts: [{ virtual_path: "/tmp" }, { virtual_path: "/output", access: "rwnd" }] };
     deepStrictEqual(await createFiles(tools).mounts(), [
       { path: "/tmp", rights: undefined },
-      { path: "/output", rights: "ReadWrite" },
+      { path: "/output", rights: "rwnd" },
     ]);
   });
 

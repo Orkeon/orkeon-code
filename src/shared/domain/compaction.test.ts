@@ -17,7 +17,7 @@ import {
   extractRecentFilePaths,
   isCompactBoundary,
   sanitizeExtractedMemories,
-  buildRestoredSkillMessage,
+  buildRestoredSkillMessage, buildRestoredStateMessage,
   clipTranscript, extractSummary, SUMMARY_OPEN, SUMMARY_CLOSE, SUMMARY_MAX_WORDS, COMPACTED_HEADER, buildRestoredFileNotice,
 } from "./compaction.ts";
 import { TRANSCRIPT_CAP_CHARS } from "./compaction-thresholds.ts";
@@ -246,5 +246,16 @@ describe("buildRestoredSkillMessage (B-13)", () => {
     ok(skill.content.startsWith("[restored-skill] /workspace/play.md"), skill.content);
     ok(skill.content.includes("Always run tests."));
     ok(!skill.content.includes("[restored-file]"));
+  });
+});
+
+describe("buildRestoredStateMessage", () => {
+  it("names the state file and the step to resume at, as a marked system message", () => {
+    const msg = buildRestoredStateMessage(".orkeon/dev/demo/state-F2.md", "Step 2 — Refuse");
+    strictEqual(msg.role, "system");
+    ok(String(msg.content).startsWith("[restored-state] "));
+    ok(String(msg.content).includes("its first open step is Step 2 — Refuse"));
+    ok(String(msg.content).includes("is in .orkeon/dev/demo/state-F2.md: read it before going on"));
+    ok(String(buildRestoredStateMessage("s.md", null).content).includes("every TDD line of its sheet is ticked"));
   });
 });

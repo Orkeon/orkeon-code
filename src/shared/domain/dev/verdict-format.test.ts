@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 import { readFileSync } from "node:fs";
 
-import { parseVerdictFile, lastVerdict, severityCounts } from "./verdict-format.ts";
+import { AUDIT_UNFINISHED_GAP, isUnfinishedSection, lastFinishedVerdict, parseVerdictFile, lastVerdict, severityCounts } from "./verdict-format.ts";
 
 const fixture = (name: string): string =>
   readFileSync(new URL(`../../../../tests/fixtures/dev/workbench/demo/${name}`, import.meta.url), "utf8");
@@ -76,6 +76,14 @@ describe("parseVerdictFile inline", () => {
   it("has no last verdict without a heading", () => {
     strictEqual(lastVerdict(parseVerdictFile("# X-VERIFY-F1 — 2026-01-02 03:04 — fast\n")), null);
     strictEqual(lastVerdict(parseVerdictFile("")), null);
+  });
+
+  it("skips the sections of audits the budget stopped for the last finished verdict", () => {
+    const f = parseVerdictFile("# X-VERIFY-F1 — 2026-01-02 03:04 — fast\n## Verdict — GAPS\n| Major | A | g | e | f |\n" +
+      `# X-VERIFY-F1 — 2026-01-02 04:04 — resume\n## Verdict — GAPS\n| Blocking | Correctness | ${AUDIT_UNFINISHED_GAP} | e | f |\n`);
+    strictEqual(isUnfinishedSection(lastVerdict(f)!), true);
+    strictEqual(lastFinishedVerdict(f)?.when, "2026-01-02 03:04");
+    strictEqual(lastFinishedVerdict(parseVerdictFile(`## Verdict — GAPS\n| Blocking | Correctness | ${AUDIT_UNFINISHED_GAP} | e | f |\n`)), null);
   });
 
   it("reports an unknown severity and a short row", () => {

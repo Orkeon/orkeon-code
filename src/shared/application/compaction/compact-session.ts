@@ -13,10 +13,12 @@
 
 import type { Files, Llm, Logger, MemoryStore, Progress, SessionStore } from "../ports.ts";
 import type { CompactOutcome } from "../../domain/compact-outcome.ts";
+import type { StateWritten } from "../workflow/workflow-state.ts";
 import {
   MIN_COMPACTABLE,
   buildCompactedBuffer,
   buildMemoryRecapMessage,
+  buildRestoredStateMessage,
   buildSummaryPrompt,
   buildTranscript,
   extractSummary,
@@ -34,6 +36,8 @@ export interface CompactDeps {
   memory: MemoryStore;
   llm: Llm;
   log: Logger;
+  /** Step 0: writes the state file of the dev batch in progress (null: none is). Absent, no step 0. */
+  workflow?: (trigger: "manual" | "auto") => Promise<StateWritten | null>;
 }
 
 /**
@@ -50,14 +54,21 @@ export async function compactSession(
 ): Promise<CompactOutcome> {
   const { progress, session, files, memory, llm, log } = deps;
   const force = opts.force === true;
+  let state: StateWritten | null = null;
+  const withState = (o: CompactOutcome): CompactOutcome =>
+    state === null ? o : { ...o, state: "path" in state ? { path: state.path } : { skipped: state.skipped } };
   try {
     const raw = await session.readMessages();
+    // 0. The state of the dev batch in progress goes to its file first, from files and
+    //    git alone. /compact (force) refreshes it whatever the buffer holds.
+    if (force) state = await writeState(deps, "manual");
     if (raw.stored.length <= MIN_COMPACTABLE)
-      return { status: "skipped", reason: "buffer too small" };
+      return withState({ status: "skipped", reason: "buffer too small" });
 
     const { used, window } = await session.readBudget();
     if (!force && !shouldCompact(used, window, opts.trigger))
       return { status: "skipped", reason: "below trigger", usedTokens: used };
+    if (!force) state = await writeState(deps, "auto");
 
     // Progress: reported only past the threshold checks (a skipped compaction must
     // not flash a bar), released on EVERY exit below — snip-only included.
@@ -77,7 +88,7 @@ export async function compactSession(
       const after = await session.readBudget();
       if (!shouldCompact(after.used, after.window, opts.trigger)) {
         note(log, "compaction path: snip-only sufficed (LLM synthesis skipped)");
-        return { status: "snipped", before: raw.stored.length, usedTokens: after.used };
+        return withState({ status: "snipped", before: raw.stored.length, usedTokens: after.used });
       }
 
       // 3. Full synthesis on the POST-snip buffer.
@@ -85,11 +96,11 @@ export async function compactSession(
       await progress.report(compactPhase(3, "synthesizing the summary"));
       const remaining = await session.readMessages();
       if (remaining.stored.length === 0)
-        return { status: "snipped", before: raw.stored.length, after: 0 };
+        return withState({ status: "snipped", before: raw.stored.length, after: 0 });
       const prompt = buildSummaryPrompt(buildTranscript(remaining.messages), opts.focus);
       const reply = await llm.complete(prompt.user, { system: prompt.system });
       const summary = extractSummary(String(reply ?? ""));
-      if (summary.length === 0) return { status: "failed", reason: "the summary came back empty" };
+      if (summary.length === 0) return withState({ status: "failed", reason: "the summary came back empty" });
       const buffer = buildCompactedBuffer(remaining.stored[0], summary);
       if (memories.length > 0) buffer.push(buildMemoryRecapMessage(memories));
       // 4. Re-inject the recently-touched files so the agent keeps its working
@@ -111,14 +122,32 @@ export async function compactSession(
         buffer.push(...skills);
         note(log, `post-compaction restore: ${skills.length} skill(s) re-injected`);
       }
+      // 6. The pointer to the state file written at step 0, last: what to read first.
+      if (state !== null && "path" in state) buffer.push(buildRestoredStateMessage(`/workspace/${state.path}`, state.firstOpen));
       await session.writeMessages(buffer);
 
-      return { status: "compacted", before: raw.stored.length, after: buffer.length, usedTokens: used };
+      return withState({ status: "compacted", before: raw.stored.length, after: buffer.length, usedTokens: used });
     } finally {
       await progress.done(COMPACT_PROGRESS_LABEL);
     }
   } catch (e: any) {
-    return { status: "failed", reason: String(e?.message ?? e) };
+    return withState({ status: "failed", reason: String(e?.message ?? e) });
+  }
+}
+
+/** Step 0, best-effort: a state that cannot be written is logged, and the compaction goes on. */
+async function writeState(deps: CompactDeps, trigger: "manual" | "auto"): Promise<StateWritten | null> {
+  if (deps.workflow === undefined) return null;
+  try {
+    const state = await deps.workflow(trigger);
+    if (state !== null) {
+      note(deps.log, "path" in state ? `state of the batch in progress written to ${state.path}` : `no state file written: ${state.skipped}`);
+    }
+    return state;
+  } catch (e: any) {
+    const reason = String(e?.message ?? e).split("\n")[0];
+    try { deps.log.warn(`the state of the batch in progress could not be written: ${reason}`); } catch { /* best-effort */ }
+    return { skipped: `it could not be written (${reason})` };
   }
 }
 

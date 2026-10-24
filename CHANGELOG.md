@@ -9,35 +9,99 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Rule sets for the dev steps**: `/dev-verify` (except `--gate-only`) and `/dev-plan` now put five sets of deny
-  rules in the permission gate before their crew starts. `git-readonly` refuses git commands that change the
-  repository, also behind a path, an `env`, a chain or `-C`. `inline-interpreters` refuses `bash -c`, `node -e` and
-  the like. `read-noise` refuses reads under `bin/`, `obj/`, `.git/` and `node_modules/`. `secrets` refuses written
-  content holding a private key or a token with a known prefix. `state-files` refuses writes to the batch logs, verdicts, captures, `.orkeon/` and
-  `.claude/`. The sets are not stored with the session's rules. `/permissions` shows them grouped while they stay in
-  the gate, until the next `/assistant` turn or rule change. Both steps now **refuse to start when the host says its
-  permission gate is off** (`/dev-plan` warned before), and warn when the host cannot say.
+- **An installed `orkeon-code`.** `install.sh` and `install.ps1` install it from a release (the checksum is checked
+  when the release has one), `npm install -g orkeon-code@next` installs the npm package and its command shim, and
+  `orkeon-code --version` names Code's version, where it runs from, and the Orkeon expected and found. An install
+  never reads a `config/appsettings.local.json` (the settings it reads are below), and keeps each project's state
+  under `ORKEON_CODE_HOME/projects/<name>-<hash>/` and its demo repository in `demo/` (default `~/.orkeon-code`); a
+  clone keeps its state in `.crew-output/` and its demo in `fixtures/`
+  ([Getting started](docs/getting-started.md), [Configuration](docs/configuration.md#launcher-environment)).
+- **The user's own settings**: the `orkeonCode` block of the settings file the launcher reads. The launcher copies
+  the block alone, never the `Llm` section, to `<state>/user-config/config.json` at each start and mounts it
+  read-only on `/user-config`, in every mode; `/config list` shows its values as `[user]`
+  ([Permissions](docs/permissions.md#what-a-project-file-may-set)).
+- **`/commit` commits a file list and can push**: it stages the changed files, or the paths named, by name (`git add
+  -- <files>`, never `-A`), leaves the work folder (`dev.workDir`) out unless a path inside it is named, checks
+  git's identity first, and refuses while a merge or a cherry-pick is in progress. `--push` pushes the branch
+  (`git push -u origin <branch>`) and `--pr` pushes it too; after either, or under the new key `dev.prAuto`, the pull
+  request body is written under `<work>/pr-<slug>/PR.md` and the pull request opened, or its `gh pr create` command
+  printed, as described below ([Configuration](docs/configuration.md#session-settings)).
+- **The tools of Orkeon #180 in the catalogue.** Read: `glob`, `grep`, `count_pattern`, `list_mounts`,
+  `node_outline`, `node_read` and the graph queries (`access_cost`, `affected_tests`, `batch_anchors`,
+  `documented_in`, `documents_of`, `structural_search`, `incremental_reindex`, `statement_query`,
+  `complexity_report`). Edit: `edit_file`, `node_replace`, `node_insert`, `node_ensure`, `edit_batch`,
+  `structural_rewrite`, and `github` and `rag_eval`, which declare no access and are asked in `acceptEdits` too. A
+  rule may name `spawn_agent`, which the host offers to every act; `/permissions` warns on an allow rule on it.
+- **Rule sets over the new tools**: `read-noise` covers every tool that reads one `path`, `secrets` the written text
+  of every editing tool, `state-files` the `path` of every tool that writes one file. `structural_rewrite`, whose
+  paths the gate cannot read, is denied whole; `edit_batch` is checked operation by operation by the crews' callback,
+  as the editor each operation stands for, every `validate` but "parse" refused, and an import's `name` and `module`
+  read by `secrets`. A dev step holds 479 rules, 481 with the two allows of `/dev-implement`.
+- **`Orkeon:Tools:ResultLimits` and `Llm:MaxRateLimitWait` in the example settings**: the cut of a tool's result per
+  tool (10,000 characters for `shell_command`), four read calls of a turn at once, and a rate-limit wait of five
+  minutes ([Configuration](docs/configuration.md)).
+
+- **Rule sets for the dev steps**: `/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement` and `/dev-verify` (except
+  `--gate-only`) now put five sets of deny rules in the permission gate before their crew starts. `git-readonly`
+  refuses git commands that change the repository, also behind a path, an `env`, a chain or `-C`.
+  `inline-interpreters` refuses `bash -c`, `node -e` and the like. `read-noise` refuses reads under `bin/`, `obj/`,
+  `.git/` and `node_modules/`. `secrets` refuses written content holding a private key or a token with a known prefix.
+  `state-files` refuses writes to the batch logs, verdicts, captures, `.orkeon/` and `.claude/`. The sets are not
+  stored with the session's rules. `/permissions` shows them grouped while they stay in the gate, until the next
+  `/assistant` turn or rule change. The steps now **refuse to start when the host says its permission gate is off**
+  (`/dev-plan` warned before), and warn on a host that keeps no session rules, where the crew's callback alone checks
+  the sets.
+- **`/dev-spec <code> [<brief> | <path>.md | <request>]`**: a business spec written by code from the model's JSON
+  (template sections 1-12, § 13 Decisions), its open questions asked one at a time through `human_input` - Blocking
+  first, the recommended option first, each answer written to the file before the next question - then folded into
+  the body; one read-only review whose Blocking rows are asked too. Unattended, the questions stay in the file and the
+  step reads `BLOCKED`, never a default answer. An existing spec is revised, its decisions kept.
+- **`/dev-change <code> bug|refactor|perf [--run "<command>"] [<#issue | path | text>]`**: a change brief; a bug is
+  reproduced by running a narrow test command of the pack (or the CLI) before anything is written and stops when it
+  does not fail, a perf change is measured, the output kept in `repro-<code>.txt`; an issue is read by
+  `gh issue view`; a request that is a feature is sent to `/dev-spec`; a pin the code index does not show reads
+  `unpinned`. Questions, fold and review as `/dev-spec`.
 - **`/dev-plan [<code> | <path>/SPEC-<code>.md | <path>/CHANGE-<code>.md] [--replace]`**: plans a settled spec or
   change brief as batches. A Blocking row in the source's open questions stops it at once, before any crew starts,
   with the rows and the command that settles them. Otherwise an inventory of the existing code is drawn from the code
   index, the model answers once with the plan as JSON, and code renders `<work>/<code>/<CODE>-PLAN.md`, one
   `<CODE>-PLAN-F<n>.md` sheet per batch and `plan.json`, in the format the harness reads, so its own commands take
-  the files as they are. A read-only reviewer (plan mode, six read tools) then questions the plan: its Major rows
+  the files as they are. A read-only reviewer (plan mode, nine read tools, `structural_search` among them) then questions the plan: its Major rows
   go under the batch they target, a Blocking row marks the plan blocked. An existing plan is refused; `--replace`
   writes over it only while no batch is done and nothing is ticked, and never with fewer batches than before, since
   a stale sheet cannot be removed for you. Pack keys that are missing (`commands.build_test`, `commands.test_project`,
-  `commands.test_integration`) are named in a warning, to fill in the plan or the pack. The next step is printed as
-  the harness's `/dev-implement` (or `/dev-batches`) until Orkeon Code ships its own. A run, with the index build,
+  `commands.test_integration`) are named in a warning, to fill in the plan or the pack. The next step is printed:
+  `/dev-implement F1`, and with two batches or more `/dev-batches <code>` too. A run, with the index build,
   two model calls and a review of up to 20 turns, may outlast the REPL's script time limit of 5 minutes: the example
   settings' 30 minutes (`Orkeon:Cli:ScriptCommands:Limits:ExecutionTimeout`) leave room for it.
+- **`/dev-implement F<n> [<code> | <path>/<CODE>-PLAN.md] [--close] [--pr]`**: runs one batch sheet test-first. For
+  each open step, the test author writes the step's red tests (test files, and signature stubs of the production
+  files the step's Anchors marks `to create`) and the implementer the least code that turns them green (test files
+  read-only), two acts of one agent, each with its own tools and its own deny rules. Consecutive steps on one test
+  file run as one cycle: every red test first, then one GREEN and one Cost for them all. Code writes the briefs from
+  the sheet and the pack, looks at the tree before and after each act, runs the narrow test command itself, measures
+  the access cost of the production lines the cycle added (`access_cost` over the code index), and ticks `RED`,
+  `GREEN` and `COST` only once it saw what each box stands for: a production file written before a red test, a test
+  green at once or green with no file changed, a test file changed while turning it green, or a port call in a loop,
+  stated or measured, stops the batch with `BLOCKED`, nothing ticked past it. A role's `Assumption:` lines land under
+  the sheet's `## Assumptions`, to be validated by the user. A run resumes at the first open step. The pack's restore
+  runs once; the build and the whole suite (the projects the run touched, once the suite went green for the batch)
+  then run as shell jobs, looked at every 20 s for an hour at most, their logs under `<work>/<code>/logs/`
+  (`F<n>-build.txt`, `F<n>-test.txt`, `F<n>-test-affected.txt`), where `/dev-verify` reads them. A batch all ticked
+  and green goes on to `/dev-verify` (`resume` after a GAPS verdict), and a VALID verdict to the close: on the default
+  branch with `contrib.branch` it creates `<prefix>/<code>-f<n>`, the files the roles changed are committed by name,
+  pushed, the pull request opened or handed over, and the sheet and the plan's batch marked done. `--close` runs the
+  close alone. `F<n> — correction: <finding>` appends an audit's gap to the sheet as a new step, then runs it; a finding
+  that names an id the sheet does not carry is sent to `/dev-change` or `/dev-plan`. The repository pack's
+  `layout.test_files` names test files that sit beside the code.
 - **`/dev-learn [<axis>] [--list] | --accept <id>[,<id>…] | --refuse <id | motif text>`**: learns from the audits.
   It reads the Blocking and Major rows of the `GAPS` sections of every `<CODE>-VERIFY-F<n>.md` in the work folder,
   keeps those not treated yet, and per axis asks the model, in one call, to group them into motifs; a motif must
   span three batches or more, which code checks. The proposals land in `<work>/learn-<date>/PROPOSALS.md`.
   `--list` prints the untreated gaps per axis, or the rows of one axis, with no model call and no write. `--accept`
   marks a motif's gaps treated and prints the change to make (for a harness file, the patch for the orkeon-workshop
-  repository); it edits no file. `--refuse` records the motif in `.orkeon/memory/refused.md`, which later runs leave
-  out. The harness's own learning state is read, never written: the gaps it treated and the motifs it refused are
+  repository); it edits no file. `--refuse` records the motif in `refused.md` under `memory.dir` (`.orkeon/memory/` by
+  default), which later runs leave out. The harness's own learning state is read, never written: the gaps it treated and the motifs it refused are
   honoured, and a gap's id is the same as the harness's. A run makes up to six model calls (three axes, one retry
   each), which may outlast the REPL's script time limit of 5 minutes: the example settings' 30 minutes
   (`Orkeon:Cli:ScriptCommands:Limits:ExecutionTimeout`) leave room for it.
@@ -45,10 +109,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a dev plan. A gate first checks the sheet's TDD ticks, the design ids, the scope, the test traits and whitespace,
   and prints the same ok/FAIL lines as the harness's gate; a red gate stops there. On a green gate the command writes
   a capture under `<work>/<code>/capture-F<n>/` (status, diffs, build, traits, last test run, test classes and a
-  mechanical table), runs the whole suite under `full`, and hands the batch to a read-only auditor (plan mode, four
+  mechanical table), runs the whole suite under `full`, and hands the batch to a read-only auditor (plan mode, five
   read tools) whose narrow test commands code runs for it. The verdict lands in `<CODE>-VERIFY-F<n>.md`, in the
   format the harness reads back; `resume` appends a dated section. `--gate-only` runs the gate alone, with no
-  model call and no write. It does not commit or push yet, and the access cost is not computed yet. A `full` run
+  model call and no write. It commits nothing; the close of `/dev-implement` does, after a VALID verdict. A `full` run
   can take about an hour at worst (build 900 s, whole suite 900 s, three validations of 300 s each, plus the model's
   time), past the REPL's script time limit (`Orkeon:Cli:ScriptCommands:Limits:ExecutionTimeout`, 5 minutes by
   default, 30 minutes in the example settings): raise it to 60 minutes or more before a `full` run. A test names the
@@ -75,8 +139,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is generated with `docs/commands.md`. `npm run check` fails when the two languages drift apart
   (`scripts/check-docs-parity.mjs`: a page without its twin, heading levels, code blocks, table lengths or
   navigation entries that differ).
-- **`/permissions` says whether the host gate is on**: on, OFF with a warning that no rule and no mode is enforced,
-  or unknown on a runtime that does not expose it (Orkeon `1.0.0-rc.6`; Orkeon #128 added the field). The main loop
+- **`/permissions` says whether the host gate is on**: on, or OFF with a warning that no rule and no mode is
+  enforced; the runtime always reports it (Orkeon #128). The main loop
   puts the same warning above its answer once per session when the gate is off, except in `bypassPermissions`.
 - **Documentation site**: the READMEs and `docs/` are published with docfx to
   <https://orkeon.github.io/orkeon-code/> on every push to `main` (`.github/workflows/docs.yml`,
@@ -146,8 +210,137 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   every mode, a `write` tool in `default`, `acceptEdits` and `bypassPermissions`; a name the host does not register is
   left out of the turn with a warning. `/config set` checks the entries, permission rules may name these tools, and
   `/permissions` shows them ([Configuration](docs/configuration.md#extra-tools-mcp-servers-and-plugins)).
+- **Hooks that fire.** In the dev steps (`/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement`, `/dev-verify`,
+  `/dev-batches`, and the agent `/tasks repair` starts again),
+  each `pre-tool` hook of `/hooks` runs before a tool call of the model the host gate allowed, and the first that
+  fails refuses the call; each `post-tool` hook runs after it, and one that fails adds a line to the result the model
+  reads. `{tool}`, `{event}` and `{path}` in the command are replaced by the call's; a hook is one program and its
+  arguments, as the shell tool runs it, so `/hooks add` refuses a command holding a shell operator. The assistant does
+  not run them yet, and nothing runs a `stop` hook ([Hooks](docs/hooks.md)).
+- **The dev crews' tool callback.** After the host gate allowed a call, the crews of the dev steps check it again: the
+  step's rule sets (their only check under `orkeon run`, which keeps no session rules), `glob`, `grep` and
+  `count_pattern` by their whole input, a path as written and normalised (`./`, `//`, `..`), and, when the host has no
+  gate, the act's mode. It refuses with the rule, its set and what to do instead; it never allows a call the gate
+  refused. A role of a batch adds its roots ([Permissions](docs/permissions.md)).
+- The dev steps' own tools: `run_validation` lets the `/dev-verify` auditor run up to three narrow test commands of
+  the repository pack itself, and the verdict cites each run; `run_tests` and `run_build` serve the writing roles of
+  `/dev-implement`, each command checked against the pack, the integration and restore rules and the step's rules
+  before it runs, its whole output in a log file.
+- `/dev-verify` measures the access cost of a batch: it refreshes the batch's changed files in the code index
+  (`incremental_reindex`), runs `access_cost` over them and prints the `Cost:` line under the gate; a port call or an
+  in-memory filter in a loop or a lambda on an added line makes the capture's Cost row a gap. Without a `/workspace`
+  index it says `not indexed` (run `/analyze` first). The pack's `tools.access_cost.roots` choose the files (else every changed
+  file but the tests) and its `receivers` add to the runtime's port names.
+- The main loop runs two chains of checks around each turn: at its start (a guard may refuse the turn or add context
+  lines, stored as a `[turn-context]` message before the request) and on its answer (a blank answer, or one without
+  the closing line its command names, goes back to the model once with the reason).
+- A compaction (automatic or `/compact`) first writes the state of the dev batch in progress to
+  `.orkeon/dev/<code>/state-F<n>.md` — the sheet's TDD lines and the first open step, the batch's events, the
+  reports recorded, `git status --short` — from files and git only, then points at it in the new buffer
+  (`[restored-state]`); `/dev-verify F<n>` records the batch in progress. The outcome line names the file.
+- The first turn of a session carries what the session's start script printed (`Orkeon:Cli:Session:StartScript`):
+  `scripts/session-start.ork.ts`, which the launchers install, names the recent state files and the open batches
+  (`scripts/session-start.sh` prints the same lines in a terminal).
+- `scripts/dev-run.sh <crew> <code> --inputs '<json>'` chains the steps of a dev crew headless, one `orkeon run` per step, each output
+  in `.orkeon/dev/<code>/runs/`, until the event log says closed (0), a human decides (3), nothing moved (4) or
+  `--max-steps` is reached (5); a rate-limited step is run again after `--wait` seconds. The dev crews do not append
+  to that log themselves, so name one the steps move (`--log`), or the chain stops after its first step. It refuses the crew `dev-batches` (exit 64): a whole plan without anyone at
+  the keyboard stays the REPL's `/dev-batches` ([Autonomous and embedded runs](docs/headless.md)).
+- `/status` names the Orkeon runtime it runs on (the `.orkeon-version` pin) and the host's LLM provider.
+- `/usage` and `/context` show the prompt-cache tokens read and written (`cacheRead`, `cacheWrite`), summed over the
+  session's models from `session_stats`; `-` when the host reports none.
+- `/commit --pr` (and `dev.prAuto` after a push) opens the pull request itself with the runtime's `github` tool
+  (`create_pr`) when the host offers it, origin is on github.com, the base branch is known and the session allows it:
+  an allow rule `allow github action=create_pr`, `bypassPermissions`, or a yes to the `/commit` plan that named the
+  pull request; otherwise it prints the `gh pr create` command and says why.
+- Folder trust: the first start in a folder asks whether you trust it, before anything of it is read or mounted;
+  `y` stores it in `~/.orkeon-code/trusted-folders.json` and every folder below it starts without asking. Without a
+  terminal an untrusted folder is refused with exit code 3 unless `--trust` is given (this run only) or
+  `ORKEON_CODE_TRUST=1` with `CI=true`. `orkeon-code trust list | add | remove | check` manage the store;
+  `scripts/run-crew.sh` checks the same way.
+- Settings: `~/.orkeon-code/appsettings.json` is the user's settings file; `~/.config/orkeon-code/appsettings.json` is
+  still read, with a warning naming the new place; with neither, Orkeon's own `~/.config/Orkeon/appsettings.json`
+  (`orkeon init`) is used and the REPL reads it itself. `orkeon-code setup` writes the file (mode 600) from an example,
+  asking the model and the name of the key's variable, never the key; it runs by itself on a first start in a
+  terminal with no settings.
+
+- **The shared memory** ([Shared memory](docs/shared-memory.md)): admitted decisions, code structures, methods and
+  mistakes kept under `memory.dir` (default `.orkeon/memory`), one file per entry, indexed in the collection
+  `memory-<project>`. Nothing is admitted without the operator: `memory_push` writes candidates,
+  `/memory-admit` asks once per candidate (a headless session admits nothing; `memory.autoAdmitAudited` admits an
+  audited one unasked), `--refuse` keeps a topic out for good. `memory.dir`, `memory.project` and
+  `memory.autoAdmitAudited` are new settings; a project file's `memory.autoAdmitAudited true` needs the user's.
+- **`memory_recall` and `memory_push`**, Orkeon Code's own tools in the REPL's turns: the recall reads, in every
+  mode; the push writes a candidate file, offered only where the mode edits, asked in `default`
+  ([Permissions](docs/permissions.md#modes)). Both are ruleable on their arguments (`deny memory_push topic=auth*`).
+  The agents of the dev steps, and their children, are given `memory_recall` too, never `memory_push`, and none
+  when a session rule denies every call of it.
+- **Sub-agents as background children.** The adversarial reviews of `/dev-spec`, `/dev-change` and `/dev-plan` and
+  the audit of `/dev-verify` run in a child agent of their crew (`ctx.spawnBackground`), read-only, with the charter's tools; the step's own agent
+  keeps the extraction and falls back to the act inline on a host without background children. `/tasks` lists the
+  children while they run and after (`show <id>`), stops a running one (`stop <id>`), and answers a send to an
+  ended one by a new run of its charter (`send <id> <message>`, `repair <id> [note]`: crew `agent-run`, whose brief
+  carries the previous report). A send to a running child is refused. `/agents` lists the two built-in charters.
+- **`/effort` reaches the provider.** The level `/effort` stored is sent as the act's `effort` (provider thinking)
+  by `/assistant`, `/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement`, `/dev-verify` and `/dev-batches` (the
+  audit `/dev-implement` chains too) and their children; an unset level sends none. The log of the act
+  says `act — effort: <level>`.
+- `/dev-learn` asks, after `PROPOSALS.md` is written, one multi-select per axis: the motifs picked are accepted, the
+  others refused, as `--accept`/`--refuse` do; "Decide later", nothing selected or nobody answering decides nothing.
+- `/dev-plan` and its Blocking stop name `/dev-spec` and `/dev-change` as Orkeon Code's own steps.
+- Sessions are kept per project, outside it: `orkeon-code` starts fresh and moves the last session to the project's
+  history, `--continue` (`-c`) brings back the session you quit, `--resume` lists the saved ones and brings one back
+  (`--resume <number or id>` without asking); the newest 50 are kept (`ORKEON_CODE_SESSIONS_KEEP`).
+- `/resume` lists this project's saved sessions and says how to bring one back.
+- `/doctor` warns when an older start left sessions in the project's `.orkeon/sessions`.
+- `/dev-batches [<code>] [--pr]` runs a plan's batches one at a time, in the order their dependencies allow: each
+  batch goes through `/dev-implement`'s chain (red tests, the least code, the audit, on VALID a commit not
+  pushed); the run logs each batch in `.orkeon/dev/<code>/batches-state.md`, reviews a batch whose dependencies
+  just closed before its first launch, stops on BLOCKED, GAPS or a Blocking review question, and closes the plan
+  with one push and one pull request. Typed again (or `/dev-batches` alone after the runtime's chain limit), it
+  goes on from the first batch not done; a batch's close, typed or chained, never pushes while the run is in
+  progress. The start scripts name `/dev-batches <code>` beside an open batch.
+- `/dev-batches` takes `--concurrency <n>`: 1, the default, is the run above; above 1 is refused in one line, before
+  anything is launched, until the runtime lets a script agent run under a working root of its own (two batches at
+  once would write the same `/workspace`). Its pieces exist, not yet wired into a run: the waves of open batches
+  whose anchors are disjoint, a batch's worktree under `.orkeon/worktrees/<name>` (created only where git ignores it,
+  removed only on its branch with nothing uncommitted or unmerged in it), and the fast-forward merge of a VALID batch
+  into the work branch, the plan's close still pushing once.
+- The dev steps recall the shared memory on their own: `/dev-spec` and `/dev-change` at the start (decisions,
+  methods), `/dev-plan` before the plan (decisions, code structure), `/dev-implement` before each batch's red tests
+  (code structures, mistakes) and on a correction (mistakes), `/dev-verify` before the audit (mistakes); the end of
+  the step names the entries recalled.
+- `/dev-verify` harvests mistake candidates from the audits after a verdict that is not VALID (a gap recurring in
+  three batches), for `/memory-admit` to decide, and says `/dev-learn` is due once untreated gaps span two batches.
+- `scripts/check-shared-memory.sh`: a live check of the shared memory's recall before a release (reference set of
+  12 entries and 14 questions, recall@5 >= 0.85, MRR >= 0.70).
+- **`/memory-admit --import`.** It lifts the harness's agent memory into the shared memory's candidates: each
+  top-level entry of a `.claude/agent-memory/<agent>/MEMORY.md` (with the note it links to) becomes a `method`
+  candidate that `/memory-admit` then asks about; an entry whose topic a candidate, an entry or an earlier entry
+  already holds writes nothing, so a second import adds nothing. Nothing is written under `.claude/`.
 
 ### Changed
+
+- **A project's `.orkeon/config.json` no longer widens what the user allows.** Its `permissions.fallback` applies
+  only as `default`, `plan` or `acceptEdits`, never wider than the user settings' mode; its `tools.extra` offers only
+  the tools the user settings list too (`*` lists them all). `/permissions` names what is set aside (`↳ ignored`),
+  and `/config set` of such a value still writes it, then says it is ignored and where the user setting goes.
+  **Upgrade:** a project that set `permissions.fallback` to `bypassPermissions` or `dontAsk`, or listed tools in
+  `tools.extra`, in `.orkeon/config.json` loses them until you copy them into the `orkeonCode` block of your user
+  settings file ([Permissions](docs/permissions.md#what-a-project-file-may-set)).
+- **The release archives are renamed**: `orkeon-code-<version>.tar.gz` and `.zip` are now the runnable archive, and
+  the source archives are `orkeon-code-<version>-source.*`.
+- **`/doctor` reads the `access` of the mounts** from the host.
+- **`/dev-verify` detects a cut output by the runtime's notice** (`[... truncated, N chars omitted. …]`, 10,000
+  characters for the shell).
+- **`/dev-plan` takes its callers from `batch_anchors`**, tests included.
+- **An extra tool may no longer bear the name of a new built-in tool** (`glob`, `github`…): it is refused at launch,
+  in the start report.
+- **The dev steps no longer warn that the host cannot say whether its gate is on**; the warning for a host that keeps
+  no session rules remains.
+- **A root denied to a reading role is denied to `glob`, `grep` and `count_pattern` by its own name too**, not only
+  below it; `/mode` names the classes a read-only mode strips, and `/permissions show` withholds `spawn_agent` in the
+  read-only modes only.
 
 - **Every built-in tool is typed from the generated typings** (Orkeon #125: `OrkeonBuiltInTools`, input and result
   of each tool from its .NET records). The local copy of their inputs (`CalledTools`) is gone; the stricter shapes
@@ -158,9 +351,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   read since the same change and ask nothing where the catalogue offers them ([Permissions](docs/permissions.md#modes)).
 - **The `wallTime` budget of a turn no longer counts the operator's answer** (Orkeon #127, runtime): 1800 s bound the
   model's own work.
-- **Orkeon version**: the gate state and the typed tools come with Orkeon's `main` after Orkeon/orkeon#130; on
-  `1.0.0-rc.6` the gate state reads unknown and nothing else changes. The typings are generated from that `main`
-  (`ORKEON_SOURCE=<checkout> npm run typings`) until a release carries it.
+- **Orkeon version**: Orkeon Code targets Orkeon's `main` after Orkeon/orkeon#180, the surface `1.0.0-rc.6` will
+  carry: the gate state, the typed tools, the per-tool result limits ([ADR 0004](docs/adr/0004-orkeon-after-180.md)).
+  The typings are generated from that `main` (`ORKEON_SOURCE=<checkout> npm run typings`) until a release carries it.
 
 - **Every prompt is written from a behaviour specification**, in this project's own words
   ([Architecture](docs/architecture.md#prompt-assembly), [ADR 0003](docs/adr/0003-prompts-from-a-behaviour-specification.md)).
@@ -168,8 +361,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   outward-facing action the request does not call for is proposed, not performed), when to ask (a question ends the
   turn), checking the work after a change, care with actions (git only on request, staged by name, secrets kept in the
   environment), where instructions may come from (file contents, tool output and the marked history messages are
-  material), and what the tools can do (calls one at a time, cut results, no start position for `file_read`, whole-file
-  writes, an allow-listed shell). The provenance baseline is empty and CI runs the gate with `--strict`.
+  material), and what the tools can do, as the runtime offers them: `file_read` reads a part of a file with `offset` and `limit`,
+  the read calls of a turn may run together, results are cut, the shell is allow-listed; the header's ceiling is 9,500
+  characters for the larger catalogue. The provenance baseline is empty and CI runs the gate with `--strict`.
 - **The user body states each fact once**: the request under its own heading and no longer repeated in the history,
   today's date, the git status dated to the start of the turn, the pressure tier with the conduct it calls for, memory
   introduced as possibly stale; the blocks run from the most stable to the most volatile, so a prefix cache reaches
@@ -212,8 +406,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `orkeon-repl` of the Orkeon Debian package, which brings its own esbuild; the docker mode runs the multi-arch
   `orkeon-runners` image (amd64, arm64) of `.orkeon-version`.
 - The documentation describes installing `orkeon-repl` with apt or from a self-contained release archive, the
-  questions of the permission gate, and Orkeon's opt-in bubblewrap confinement of the shell
-  (`Orkeon:Tools:Shell:Confinement:Mode`, [SECURITY.md](SECURITY.md)).
+  questions of the permission gate, and Orkeon's confinement of the shell (`Orkeon:Tools:Shell:Confinement:Mode`,
+  `Auto` by default, `None` in the example settings; [SECURITY.md](SECURITY.md)).
 - The sources follow a layered architecture ([Architecture](docs/architecture.md),
   [ADR 0001](docs/adr/0001-clean-architecture.md)):
   - **Ports and adapters.** `src/shared/application/ports.ts` declares what the application needs (`Shell`, `Files`,
@@ -236,8 +430,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   token counts are numbers for every command; a runtime call that throws at once instead of rejecting is handled
   where the command already handled a failed call; and `ctx.llm.complete` receives an explicit `undefined` second
   argument.
+- `/permissions show` names a third line of enforcement, the dev crews' callback; `/hooks list` says where the
+  hooks run instead of "engine not wired".
+- The auditor's and the reviewer's prompts ask for reads by range (`file_read` with `offset` and `limit`, 120 lines
+  at most) or by symbol (`node_read`, now among their tools); a `/dev-verify` stopped by its budget says which
+  budget was spent instead of "the model call failed".
+- `/usage`: the `cacheHit` column is now `cacheRead`, next to the new `cacheWrite`.
+- `docs/configuration.md`: `Llm:MaxRateLimitWait` and `Llm:Profiles:<name>:MaxRateLimitWait` detailed
+  (`LlmRateLimitException`), and the prompt cache (`orkeon:cache_ttl`, not set by Orkeon Code).
+
+- `/tasks` is an async command: the task list (`add`, `done`, `clear`) as before, the agent instances under it.
+- A crew launched from a command's completion past the chain's limit (`Orkeon:Cli:ScriptCommands:MaxChainDepth`,
+  default 8) is refused with a line that says so, instead of an unexplained failure.
+- An install keeps each project's state under `~/.orkeon-code/projects/<name>-<hash>/` (was `~/.orkeon-code/state/`,
+  shared by every project); a clone and `ORKEON_CODE_STATE` keep each project's sessions, history and `project.json` under
+  `projects/<name>-<hash>/`, and share their `output/`, `tmp/` and `transcripts/` between projects. The old
+  `~/.orkeon-code/state/` is left alone.
+- A bare `--llm-log` writes the LLM log to the project's state folder (`llm-logs/`), never into the project (#181).
+- The example settings set `Orkeon:Cli:Session:Persist: true`.
+- `/dev-implement`: the test author and the implementer read a source file by node (`node_outline`, then
+  `node_read`) and change it with `node_replace`, `node_insert`, `node_ensure` or one `edit_batch` (`validate`
+  "parse", all or nothing); `file_write` on an existing file under the pack's source roots is refused (the rewrite
+  rule), a new file is still created with it. After the batch the touched files are refreshed in the code index
+  (`index: <n> files of F<n> refreshed`), and on a later run the graph's `affected_tests` adds its test projects to
+  the sheet's, or runs the whole suite when it reaches every test (the per-operation check of `edit_batch`: Rule sets
+  over the new tools, above).
+- The reviewer of `/dev-spec`, `/dev-change`, `/dev-plan` and `/dev-batches` also holds `node_outline` and
+  `structural_search`, and its prompt sends a search for a code pattern to `structural_search` rather than grep.
+- `/dev-plan` ends on `/dev-implement F1 <plan>`, and with two batches or more on `/dev-batches <code>` too (it named
+  the harness's `/dev-batches` with the batch ids, a form Orkeon Code's command refuses).
 
 ### Removed
+
+- **The probe crews `_probe-codeintel`, `_probe-raggable` and `_probe-budget`**: what they established is recorded in
+  [Architecture](docs/architecture.md#what-the-probes-established).
 
 - **`/tag`** (a `/memory add` under another name), **`/sandbox-toggle`** (it recorded a setting nothing enforced),
   **`/onboarding`** (the REPL's native `/help` lists every command), **`/bughunter`** (now `/review --lens
@@ -245,6 +471,100 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The documentation says what the runtime and the code do, and the wave-7 audit's findings are fixed.**
+  - Documentation: the main loop's wall time stops while the gate waits for your answer; the read calls of a turn
+    run up to `MaxParallelToolCalls` at once; the shell's confinement defaults to `Auto` (bubblewrap on Linux,
+    Seatbelt on macOS, AppContainer on Windows, none inside a container), the examples setting `None`; `http_api`
+    declares an execute; hooks run in every dev step, `/dev-batches` and `/tasks repair` included; `/permissions`
+    never reads the gate as unknown on the targeted runtime; the auditor has five read tools; `/effort` reaches every
+    dev step; `scripts/run-crew.sh` runs in source mode before rc.6 is published, reads no user settings, and
+    `release.yml`'s runnable archives, installers and npm job are described. Getting started lists what the dev
+    workflow writes in a project and every mount, the commit message of a linked worktree included; the README
+    presents the dev workflow, the shared memory and the installers; the roadmap drops what is delivered, records the
+    structural-editor parts still waiting, and keeps the pull-request question of `/commit` a command prompt.
+    `/agents` names the verbs its usage line takes, and the steps that run the reviewer (`/dev-spec`, `/dev-change`,
+    `/dev-plan`).
+  - Security and permissions: in the rule sets of a dev step, `git-readonly`
+    218 (the reads of `git config` - `--get`, `--get-regexp`, `--list`, `-l`, a bare key, on any `--file` - run; its
+    writes stay refused, a key then a value and a changing option behind another one by the crews' code, in a
+    subshell, a group, a substitution or an `eval` too, which a glob cannot tell from `--file a.cfg --list`), `inline-interpreters` 28 (a versioned `python3.12 -c`, and an option before `-c` or `-e`: `python3 -I
+    -c`, `perl -w -e`, `ruby -w -e`; a `-c` after a script, `python3 x.py -c`, runs), `read-noise` 64 (`directory_search` among the path read tools), `state-files`
+    41, `secrets` 128. A pilot kept out of the source roots is refused `structural_search` and `symbol_source`
+    whole. The shell check of the dev crews and of the step guards reads the command as the host does - quotes
+    dropped, blanks and tabs joined, backslash escapes resolved, option clusters split (`git "push"`, `bash  -c`,
+    `python3 -Ic`, `git pu\sh`) - and a relative path that climbs out and back as the project path; a plan source
+    spelt with `.` or `//` segments is checked as the path it names. The shared memory's guard: in every mode, the
+    file tools of the model that name one path are refused under `<memory.dir>/candidates/` and `entries/`, and a shell
+    command naming `<memory.dir>/candidates` or `/entries`; the callback of the main loop and of every dev crew,
+    under `orkeon run` too, refuses what the gate cannot read: a path in another letter case, each `edit_batch`
+    operation, a `structural_rewrite` that writes, a shell command reaching the folder segment by segment in any
+    case (`cd .orkeon/memory && … > entries/x`, `.orkeon//memory/entries`; a glob such as `mem*` is not read). A stored allow it
+    covers is dropped with a warning, and `/permissions` lists it. `dev.prAuto` from a
+    project file is narrowed as `memory.autoAdmitAudited` is, and an invalid `tools.extra` project entry naming a
+    tool the file also declares validly is dropped. `memory.dir` is refused under `.claude/` or `.git/` in any
+    letter case; a multi-line front-matter field is joined on one line; `/memory-admit --import` refuses an item
+    holding a secret anywhere, before its note is cut; a `memory_push` whose candidate a concurrent push overwrote
+    writes it again under the next id.
+  - Dev steps: the review of `/dev-spec` and `/dev-change` runs in a background child `dev-reviewer`, as
+    `/dev-plan`'s, which `/tasks` lists and stops (inline on a host without background children). `/dev-spec`,
+    `/dev-change`, `/dev-plan`, `/dev-implement` and `/dev-batches` refuse in a read-only mode, an unknown mode, and
+    when the mode cannot be read. Budgets have one source: `/dev-verify` 700 000 tokens, `/dev-plan` 840 000 (240
+    calls of 3 500, its reviewer child inside), `/dev-spec` and `/dev-change` 700 000 (200 calls, their reviewer child inside) with one level of children;
+    a `/tasks repair` (crew `agent-run`) runs under the step of the instance's run - its rule sets, hooks and
+    budget, with no child of its own - else the charter's step (was 300 000 tokens). `/dev-plan`: an anchor spelt
+    `./a/b` or `a//b` is checked as the path it names and one holding a `\` is refused; an anchor in a folder
+    listing 1000 entries or more is said "not checked"; a prompt that leaves no room for the inventory refuses,
+    nothing written. `/dev-change`: an evidence command naming a path out of the checkout through an option
+    (`-o/etc/x`, `--dir=..`, `out=../x`, `-C~`) is refused; a symbol is known by its exact name, path or basename,
+    or by its last segment when the name also names its file (`Bank.AccountTests.X`), never when another class
+    holds it. `/dev-spec`, `/dev-change`: a write that fails says "could not be written (<reason>)", and
+    another error (a cancelled question) is no longer reported as one. `/dev-verify`: a validation the gate ran red
+    is a Blocking Test row, so a VALID answer over a red run is GAPS; a verdict file left empty resumes the whole
+    batch; a plan path outside the work folder is refused; a cancelled audit says `the audit was cancelled`; a
+    budget spent while the answer is extracted reads as the spent budget; `run_validation "x \"y\""` and
+    `run_validation(command="...")` are read as the command. `/dev-implement`: a rerun after a BLOCKED cycle runs
+    the suite once before the first new RED, and its baseline leaves out the red tests the BLOCKED step's own RED
+    wrote (the count each RED tick records in `<batch>-red-failures.json` of the run's log folder); the affected tests are asked with paths relative to the indexed root;
+    the graph's projects no command can name are said; the index is refreshed before the build; `--close` chains on
+    the VALID line of the batch it wrote only. `/dev-batches`: the launch line carries `audits <n>`; a batch whose
+    close was refused at the chain's depth limit is relaunched when its audit did not run; a `/dev-batches` typed
+    while a chain may still close a batch (an audit since its launch says VALID, no commit yet) logs nothing and
+    names the close as the way out. `/dev-learn`: two motifs
+    over the same rows are refused; "Decide later", or nothing selected, decides nothing; it and `--refuse` read and
+    write `refused.md` under `memory.dir`, the file `/memory-admit` and `memory_push` read.
+  - Git and launchers: `/commit` and the dev close work in a linked worktree (the message goes under
+    `.orkeon/ORKEON_COMMITMSG`, removed after, and a removal that fails is said with the commit); a pull-request body that cannot be written is said, never thrown
+    after the push; `/dev-batches` refuses a second plan while a run is in progress (a record whose run's log ends `closed`
+    no longer counts), takes a batch committed but
+    not marked done for done, and refuses the plan's close on the default branch when the pack sets
+    `contrib.branch`; `orkeon-code.ps1` passes `-it` only on a terminal and `--user` on Linux, refuses an unknown
+    mode, has `--help`, and says `--demo` is bash-only; `install.ps1 -Uninstall` never removes a git clone;
+    `session-start.sh` picks state files by their header date, as its twin; `run-crew.sh`'s source mode says when
+    `dotnet` is missing; `scripts/dev-run.sh` refuses the crew `dev-batches`, checks the trust once before the
+    first step and creates nothing in the project before it and runs each step with its standard input on `/dev/null`; the CI npm-shim step passes `--trust`.
+  - Commands: `/doctor` shows a `version` row first and a row `settings: project file` - "widens nothing", or a WARN
+    naming every key the project file set and that was ignored (`permissions.fallback`, `tools.extra`,
+    `memory.autoAdmitAudited`, `dev.prAuto`); `/stats` has a `cacheWrite` column and its `cacheHit` is now
+    `cacheRead`; `/hooks` and `/permissions` name every step that runs the hooks and the rule sets; `/memory-admit`
+    keeps the admissions already confirmed when a question is left unanswered and says which candidates stay;
+    `/tasks` lists the children of `/dev-spec` and `/dev-change`, and settles as dead an open run whose `updatedAt`
+    does not parse; the main loop keeps a non-blank first answer, with a warning, when a stop-check retry throws.
+    Dead exports are un-exported or removed, `hasExplicitConfirm` of `/commit` among them (`parseCommitArgs` reads
+    the flag).
+- `/dev-verify`: an audit the step's budget stops still writes its verdict, `GAPS` with one Blocking row that says the
+  audit did not finish and why, and the validations that ran before; the step's token budget is 700 000 (a live audit
+  of a 3-file batch spent 307 528 of the former 300 000). Its resume takes the gaps of the last audit that finished, or
+  audits the whole batch when none did, and the stopped audit counts as no round of GAPS. A validation the auditor names wrapped in the tool's name
+  (`run_validation "<command>"`) is read as the command alone.
+- A pre-tool hook whose command line the runtime's mount check refuses (an argument naming a mount its program may not
+  write) is reported as that refusal, no longer as the hook refusing the call.
+- The dev agents are told that a path shown relative goes to a tool as `/workspace/<path>`.
+- `scripts/run-crew.sh` passes `ORKEON_CODE_MODEL` (as `Llm:Model`) and, with `ORKEON_CODE_MODE=source`, runs the tool
+  built from `ORKEON_SOURCE` with the same settings and mounts; `scripts/dev-run.sh`'s `DEV_RUN_RUNNER` gets neither.
+- A known key written nested in `.orkeon/config.json` or the user settings (`{"permissions": {"fallback": …}}`)
+  is read by nothing: `/config list` and `/permissions` now name it with its flat spelling (`"permissions.fallback"`).
+- `docs/headless.md`: a run whose calls the gate refused still exits `0` (the refusal is the tool's result), and a
+  project file no longer sets `bypassPermissions`.
 - **Every turn sent the request twice**: the history ended with it, then the task repeated it.
 - **A long conversation lost its recent work in the compaction summary**: the transcript was cut at its head.
 - **A file too large to restore after a compaction came back cut**, reading as the whole file; it now comes back as
@@ -283,7 +603,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **An `/assistant` turn gets the time the example settings meant.** The example set `Orkeon:Scripting:Limits`,
   which only `orkeon run` reads: `orkeon-repl` ran its engines under `Orkeon:Cli:ScriptCommands:Limits` (5 minutes,
   64 MB by default), which the example now sets to 30 minutes and 2 GiB. The main-loop crew's own budget allowed
-  10 minutes of wall time, on a clock that keeps running while a question waits for you, and a turn failed with
+  10 minutes of wall time, on a clock that then kept running while a question waited for you (Orkeon #127 since stops it), and a turn failed with
   `Wall time exceeded (0:15:55 >= 0:10:00)`: it allows 30 minutes. Configuration says which limit is whose.
 - **The source mode works on a project that pins another SDK.** It ran `dotnet run` from the project, whose
   `global.json` the SDK then read ("A compatible .NET SDK was not found"): it builds in the Orkeon checkout and runs

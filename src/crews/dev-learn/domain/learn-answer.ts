@@ -190,9 +190,16 @@ export function checkLearnAnswer(value: unknown, shownIds: ReadonlySet<string>):
   const problems: string[] = [];
   if (value.motifs.length > MAX_MOTIFS_PER_AXIS) problems.push(`at most 3 motifs, not ${value.motifs.length}`);
   const motifs: AnswerMotif[] = [];
+  // A motif's id hashes its axis and its rows: two motifs of one set of rows would share it, and one decision.
+  const rowSets = new Map<string, number>();
   value.motifs.forEach((m, i) => {
     const motif = checkMotif(m, i + 1, shownIds, problems);
-    if (motif) motifs.push(motif);
+    if (!motif) return;
+    motifs.push(motif);
+    const key = [...motif.rows].sort().join(",");
+    const first = rowSets.get(key);
+    if (first === undefined) rowSets.set(key, i + 1);
+    else problems.push(`motif ${i + 1}: the same rows as motif ${first}: merge them into one motif`);
   });
   const dropped = checkDropped(value.dropped, problems);
   return problems.length > 0 ? { ok: false, problems } : { ok: true, value: { motifs, dropped } };

@@ -10,29 +10,52 @@
 // global for the calls, the context's `tools` service for the registered names.
 
 import type {
-  CodeIndex, Files, MemoryStore, Progress, SessionStore, Shell, Telemetry, ToolCatalogue,
+  AnchorIndex, CodeIndex, CostIndex, Files, HumanInput, MemoryStore, Progress, SessionStore, SharedMemory, Shell,
+  ShellJobs, Telemetry, ToolCatalogue,
 } from "../../application/ports.ts";
 import { createConfigStore } from "../../application/config-store.ts";
 import type { ConfigStore } from "../../application/config-store.ts";
 import { createSessionIo } from "../../application/session-io.ts";
 import type { SessionIo } from "../../application/session-io.ts";
 import type { ServiceLocator } from "../../../commands/.orkeon/orkeon-cli.d.ts";
-import { Tools } from "../globals.ts";
-import { createCodeIndex } from "./code-index.ts";
+import { Rag, Tools } from "../globals.ts";
+import { createAnchorIndex, createCodeIndex, createCostIndex } from "./code-index.ts";
 import { createFiles } from "./files.ts";
+import { createHumanInput } from "./human-input.ts";
 import { createMemoryStore } from "./memory-store.ts";
 import { createProgress } from "./progress.ts";
 import { createSessionStore } from "./session-store.ts";
 import { createShell } from "./shell.ts";
+import { createShellJobs } from "./shell-jobs.ts";
 import { createTelemetry } from "./telemetry.ts";
+import { createGitHubPullRequests } from "./github-pull-requests.ts";
+import { createPullRequestOpener } from "../../application/git/open-pull-request.ts";
+import type { PullRequestPolicy } from "../../application/git/open-pull-request.ts";
+import type { PullRequestOpener } from "../../application/git/commit-files.ts";
 import { createToolCalls, createToolCatalogue } from "./tool-catalogue.ts";
+import type { MemoryToolPorts } from "./memory-tools.ts";
+import { createSharedMemory } from "./shared-memory.ts";
 
 export const orkeonShell = (): Shell => createShell(Tools);
+export const orkeonShellJobs = (): ShellJobs => createShellJobs(Tools);
 export const orkeonFiles = (): Files => createFiles(Tools);
 export const orkeonProgress = (): Progress => createProgress(Tools);
 export const orkeonTelemetry = (): Telemetry => createTelemetry(Tools);
 export const orkeonMemoryStore = (): MemoryStore => createMemoryStore(Tools);
 export const orkeonCodeIndex = (): CodeIndex => createCodeIndex(Tools);
+export const orkeonAnchorIndex = (): AnchorIndex => createAnchorIndex(Tools);
+export const orkeonCostIndex = (): CostIndex => createCostIndex(Tools);
+/** The shared memory's RAG index: the `rag` namespace, else the rag tools. */
+export const orkeonSharedMemory = (): SharedMemory => createSharedMemory(Rag, Tools);
+/** What memory_recall and memory_push call, built when the model calls one. */
+export const orkeonMemoryToolPorts = (): MemoryToolPorts => ({
+  files: orkeonFiles(), shell: orkeonShell(), config: orkeonConfigStore(), memory: orkeonSharedMemory(), clock: () => new Date(),
+});
+/** human_input: a question to the person at the terminal, never answered on their behalf. */
+export const orkeonHumanInput = (): HumanInput => createHumanInput(Tools);
+/** The pull request opened with the github tool, under the session's mode and rules (W0-C). */
+export const orkeonPullRequestOpener = (policy: PullRequestPolicy): PullRequestOpener =>
+  createPullRequestOpener({ shell: orkeonShell(), github: createGitHubPullRequests(Tools) }, policy);
 /** The registered tools: built in a handler, from the `ctx.services` it receives. */
 export const orkeonToolCatalogue = (services: Pick<ServiceLocator, "get">): ToolCatalogue =>
   createToolCatalogue(Tools, services);

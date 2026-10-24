@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 import { readFileSync } from "node:fs";
 
-import { parseVerdictFile } from "../dev/verdict-format.ts";
+import { AUDIT_UNFINISHED_GAP, parseVerdictFile } from "../dev/verdict-format.ts";
 import {
   LEARN_FILE, MIN_MOTIF_BATCHES, axisListing, backlogByAxis, canonicalAxis, collectLearnRows, foldText,
   learnRowsOf, rowId, rowIdSource, shortCell, untreated,
@@ -48,6 +48,13 @@ describe("ids", () => {
     ]);
     strictEqual(rowId("demo/F2", "Test", "The refusal of `a/b` is never exercised"), "68abc1ec48");
     strictEqual(rows[0].line, 7);
+  });
+
+  it("leaves out the row of an audit the budget stopped", () => {
+    const text = "# DEMO-VERIFY-F3 — 2026-10-22 14:05 — fast\n\n## Verdict — GAPS\n\n" +
+      "| Severity | Axis | Gap | Evidence | Expected fix |\n|---|---|---|---|---|\n" +
+      `| Blocking | Correctness | ${AUDIT_UNFINISHED_GAP} | tokens: x — capture-F3/auditor-replies.txt | audit again |\n`;
+    deepStrictEqual(learnRowsOf(parseVerdictFile(text), "demo", "DEMO-VERIFY-F3.md"), []);
   });
 
   it("uses the folder name for the batch, not the file prefix", () => {

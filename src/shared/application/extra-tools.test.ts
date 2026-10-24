@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { configuredNames, readExtraTools, resolveExtraTools } from "./extra-tools.ts";
-import { createConfigStore } from "./config-store.ts";
+import { USER_CONFIG_FILE_PATH, createConfigStore } from "./config-store.ts";
 import { FakeFiles } from "../../../tests/support/fake-files.ts";
 import { FakeSessionStore } from "../../../tests/support/fake-session-store.ts";
 import { FakeToolCatalogue } from "../../../tests/support/fake-tool-catalogue.ts";
@@ -13,7 +13,7 @@ import { FakeToolCatalogue } from "../../../tests/support/fake-tool-catalogue.ts
 function setup(setting?: string) {
   const files = new FakeFiles();
   const config = createConfigStore({ files, session: new FakeSessionStore() });
-  if (setting !== undefined) files.files.set("/workspace/.orkeon/config.json", JSON.stringify({ "tools.extra": setting }));
+  if (setting !== undefined) files.files.set(USER_CONFIG_FILE_PATH, JSON.stringify({ "tools.extra": setting }));
   return { files, config, catalogue: new FakeToolCatalogue() };
 }
 

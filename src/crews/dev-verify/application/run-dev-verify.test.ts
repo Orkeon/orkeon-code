@@ -13,9 +13,15 @@ import { FakeShell } from "../../../../tests/support/fake-shell.ts";
 import { createConfigStore } from "../../../shared/application/config-store.ts";
 import { GIT_TOPLEVEL } from "../../../shared/application/dev/resolve-work-folder.ts";
 import { ORKEON_IGNORE_PROBE, checkIgnoreCommand } from "../../../shared/application/dev/load-dev-context.ts";
-import { GIT_DIFF_CHECK, GIT_ORIGIN_HEAD, excludePathspecs, gitMethodGrep } from "../domain/commands.ts";
+import { GIT_DIFF_CHECK, excludePathspecs, gitMethodGrep } from "../domain/commands.ts";
+import type { CostIndex } from "../../../shared/application/ports.ts";
+import { COST_NOT_WIRED, costSummary } from "../../../shared/domain/dev/access-cost.ts";
 import { runDevVerify } from "./run-dev-verify.ts";
+import { AUDIT_UNFINISHED_GAP } from "../../../shared/domain/dev/verdict-format.ts";
 import type { DevVerifyInputs } from "./run-dev-verify.ts";
+import { scriptToolSlot } from "../../../shared/application/dev/script-tool-slot.ts";
+import type { ValidationRunner } from "./audit.ts";
+import { FakePrecedents, PRECEDENTS_SAMPLE } from "../../../../tests/doubles/fake-precedents.ts";
 
 const DIR = "/workspace/workbench/demo";
 const VERDICT = `${DIR}/DEMO-VERIFY-F2.md`;
@@ -29,6 +35,7 @@ const SHEET = "# DEMO-PLAN-F2 — Command\n| Applied rules | DDD-01 |\n## TDD se
 const PLAN = "# DEMO-PLAN\nNon-applicable rules: DDD-02 DDD-03 DDD-04 DDD-05 DDD-06 DDD-07 DDD-08 DDD-09 DDD-10 DDD-11 " +
   "APP-01 APP-02 APP-03 APP-04 APP-05 PERF-01\n";
 const GREEN_LINE = "GATE — batch F2: GREEN";
+const COST_LINE = costSummary(COST_NOT_WIRED);
 
 function setup() {
   const files = new FakeFiles();
@@ -44,7 +51,6 @@ function setup() {
   shell.results["git diff --name-only HEAD"] = { stdout: "src/a.ts\nworkbench/demo/DEMO-PLAN-F2.md\n" };
   shell.results[UNTRACKED] = { stdout: "tests/a.test.ts\n" };
   shell.results[TRAIT_GREP] = { stdout: 'tests/a.test.ts:3:[Trait("BR", "BR-01")]\n' };
-  shell.results[GIT_ORIGIN_HEAD] = { stdout: "origin/main\n" };
   shell.results[checkIgnoreCommand([ORKEON_IGNORE_PROBE, "workbench/"])] = { stdout: ".orkeon/config.json\nworkbench/\n" };
   shell.results[gitMethodGrep(["ShowsTheState"], ["tests"], excludePathspecs(["bin", "obj"])) ?? ""] =
     { stdout: "tests/a.test.ts:1:ShowsTheState\n" };
@@ -95,13 +101,80 @@ describe("runDevVerify — the verdict", () => {
     deepStrictEqual(text.split("\n"), [
       TARGET,
       GREEN_LINE,
+      COST_LINE,
       ...written.trimEnd().split("\n"),
       "written: workbench/demo/DEMO-VERIFY-F2.md — capture: workbench/demo/capture-F2/",
-      "→ Batch F2 VALID. Orkeon Code does not commit yet: commit the batch's files with the repository's convention " +
-        "(conventional commits), push, then open the pull request (gh pr create --base main).",
+      "→ Batch F2 VALID. The close commits the batch's files: /dev-implement F2 <code> --close " +
+        "(run by itself when /dev-implement launched this audit).",
       "  files: src/a.ts, tests/a.test.ts",
     ]);
     strictEqual(f.llm.acts.length, 1);
+  });
+
+  it("binds the run_validation tool's slot for the audit, cites the run the auditor made through it, then releases it", async () => {
+    const f = setup();
+    const slot = scriptToolSlot<ValidationRunner>();
+    const command = "node --test tests/a.test.ts";
+    f.shell.results[command] = { exitCode: 0, stdout: "# pass 3\n# fail 0\n" };
+    const results: unknown[] = [];
+    const act = f.llm.act.bind(f.llm);
+    f.llm.act = async (prompt, request) => {
+      const bound = slot.get(); // what run_validation's body calls
+      results.push(bound === undefined ? "unbound" : (await bound.run(command)).report);
+      return act(prompt, request);
+    };
+    f.llm.answers = ["the test ran green"];
+    f.llm.extractions = [answer([MINOR])];
+    await runDevVerify({ batch: "F2" }, { ...f.deps, validationSlot: slot });
+    deepStrictEqual(results, [{ command, outcome: "exit 0", tail: "# pass 3\n# fail 0" }]);
+    strictEqual(f.llm.acts.length, 1);
+    strictEqual(f.shell.commands.filter((c) => c === command).length, 1);
+    const written = f.files.files.get(VERDICT) ?? "";
+    ok(written.includes(`\`${command}\` — exit 0`), written);
+    strictEqual(slot.get(), undefined);
+  });
+
+  it("writes GAPS with a Blocking Test row when a validation code ran is red, whatever the auditor answers", async () => {
+    const f = setup();
+    const command = "node --test tests/a.test.ts";
+    f.shell.results[command] = { exitCode: 1, stdout: "# pass 1\n# fail 2\n" };
+    f.llm.answers = ["I doubt a.test.ts", "all good"];
+    f.llm.extractions = [answer([], [command]), { verdict: "VALID", rows: [], validations: [] }];
+    const text = await run(f.deps, { batch: "F2" });
+    const written = f.files.files.get(VERDICT) ?? "";
+    ok(written.includes("## Verdict — GAPS"), written);
+    ok(written.includes(`| Blocking | Test | a validation is red: exit 1, 2 failed | \`${command}\` exit 1, 2 failed, run by /dev-verify |`),
+      written);
+    ok(!text.includes("→ Batch F2 VALID."), text);
+  });
+
+  it("prints the Cost line the code index measures, and writes it in the capture", async () => {
+    const f = setup();
+    f.llm.answers = ["fine"];
+    f.llm.extractions = [answer([])];
+    const asked: string[] = [];
+    const costIndex: CostIndex = {
+      roots: async () => ["/workspace"],
+      refresh: async (_root, files) => { asked.push(...files); return []; },
+      accessCost: async () => ({
+        report: {
+          members: [{
+            member: "/workspace/src/a.ts::show",
+            portCalls: [{ receiver: "this.store", method: "load", line: 2, inLoop: false, inLambda: false }],
+            memoryFilters: [], cost: { reads: 1, writes: 0, loops: 0, lambdas: 0, memoryFilters: 0 },
+          }],
+          cost: { reads: 1, writes: 0, loops: 0, lambdas: 0, memoryFilters: 0 },
+        },
+        errors: [],
+      }),
+    };
+    const lines = (await runDevVerify({ batch: "F2" }, { ...f.deps, costIndex })).split("\n");
+    const measured = "Cost: 1 read + 0 writes through ports outside loops; in a loop, a lambda or a memory filter: none";
+    deepStrictEqual(lines.slice(1, 3), [GREEN_LINE, measured]);
+    deepStrictEqual(asked, ["/workspace/src/a.ts"]);
+    strictEqual(f.files.files.get(`${DIR}/capture-F2/cost.txt`),
+      `exit: 0\n[src/a.ts::show]\nPorts outside loops (1): this.store.load L2\n${measured}\n`);
+    ok((f.files.files.get(`${DIR}/capture-F2/table.md`) ?? "").includes(`| Cost | capture \`cost\` | ok | \`exit: 0\` — ${measured} |`));
   });
 
   it("points a GAPS verdict at the correction of its first row", async () => {
@@ -112,8 +185,50 @@ describe("runDevVerify — the verdict", () => {
     ok(lines.includes("## Verdict — GAPS"));
     deepStrictEqual(lines.slice(-2), [
       "→ /dev-implement F2 — correction: Major Reuse: parses dates by hand",
-      "  then /dev-verify F2 resume (the correction runs in the harness until Orkeon Code has its own /dev-implement)",
+      "  it appends the gap to the sheet as a new step and runs it; the audit follows by itself (/dev-verify F2 resume)",
     ]);
+  });
+
+  it("T4: recalls mistakes from the sheet's title and the changed code paths, the block in the auditor's brief", async () => {
+    const f = setup();
+    f.llm.answers = ["gaps"];
+    f.llm.extractions = [answer([MAJOR])];
+    const precedents = FakePrecedents.hits();
+    const text = await runDevVerify({ batch: "F2" }, { ...f.deps, precedents: precedents.recall });
+    deepStrictEqual(precedents.calls, [{ trigger: "T4", query: "DEMO-PLAN-F2 — Command — src/a.ts — tests/a.test.ts" }]);
+    const brief = f.llm.acts[0].prompt;
+    ok(brief.includes(PRECEDENTS_SAMPLE), brief);
+    ok(brief.indexOf(PRECEDENTS_SAMPLE) < brief.indexOf("The mechanical table (table.md):"));
+    ok(text.split("\n").includes("precedents recalled: shop-mistake-20261022-n-plus-one"), text);
+  });
+
+  it("T4: no block and no line when nothing is recalled", async () => {
+    const f = setup();
+    f.llm.answers = ["fine"];
+    f.llm.extractions = [answer([MINOR])];
+    const text = await runDevVerify({ batch: "F2" }, { ...f.deps, precedents: new FakePrecedents().recall });
+    ok(!f.llm.acts[0].prompt.includes("## Precedents"));
+    ok(!text.includes("precedents recalled"), text);
+  });
+
+  it("M-7: after a GAPS verdict written, the harvest's lines close the message; a VALID one harvests nothing", async () => {
+    const f = setup();
+    f.llm.answers = ["gaps"];
+    f.llm.extractions = [answer([MAJOR])];
+    const seen: Array<{ folder: string; verdict: boolean }> = [];
+    const harvest = async (work: { folder: string; vfsPath: string | null }) => {
+      seen.push({ folder: work.folder, verdict: f.files.files.has(VERDICT) });
+      return ["shared memory: 1 mistake candidate harvested from the audits (x) → /memory-admit decides each one."];
+    };
+    const lines = (await runDevVerify({ batch: "F2" }, { ...f.deps, harvest })).split("\n");
+    deepStrictEqual(seen, [{ folder: "workbench", verdict: true }]);
+    strictEqual(lines[lines.length - 1], "shared memory: 1 mistake candidate harvested from the audits (x) → /memory-admit decides each one.");
+    const v = setup();
+    v.llm.answers = ["fine"];
+    v.llm.extractions = [answer([MINOR])];
+    let called = 0;
+    await runDevVerify({ batch: "F2" }, { ...v.deps, harvest: async () => { called++; return ["x"]; } });
+    strictEqual(called, 0);
   });
 
   it("warns when the auditor's verdict differs from the one its rows make, and keeps the rows' verdict", async () => {
@@ -135,13 +250,38 @@ describe("runDevVerify — the verdict", () => {
     f.llm.answers = ["rambling"];
     f.llm.extractions = [{ verdict: "PERHAPS" }];
     const lines = (await run(f.deps, { batch: "F2" })).split("\n");
-    deepStrictEqual(lines.slice(-2), [
+    deepStrictEqual(lines.slice(-3), [
       GREEN_LINE,
+      COST_LINE,
       "dev-verify: BLOCKED — the auditor's answer did not parse after one re-ask (verdict must be VALID or GAPS): " +
         "its replies are in workbench/demo/capture-F2/auditor-replies.txt; no verdict written",
     ]);
     strictEqual(f.files.files.has(VERDICT), false);
     ok(f.files.files.has(`${DIR}/capture-F2/auditor-replies.txt`));
+  });
+
+  it("writes a GAPS verdict that says the audit did not finish when the budget runs out after a validation", async () => {
+    const f = setup();
+    const slot = scriptToolSlot<ValidationRunner>();
+    const command = "node --test tests/a.test.ts";
+    f.shell.results[command] = { exitCode: 0, stdout: "# pass 3\n# fail 0\n" };
+    const act = f.llm.act.bind(f.llm);
+    f.llm.act = async (prompt, request) => {
+      await slot.get()?.run(command);
+      return act(prompt, request);
+    };
+    f.llm.answers = [new Error("Token budget exhausted (307528/300000).")];
+    const text = await runDevVerify({ batch: "F2" }, { ...f.deps, validationSlot: slot });
+    const written = f.files.files.get(VERDICT) ?? "";
+    ok(written.startsWith("# DEMO-VERIFY-F2 — 2026-10-22 14:05 — fast\n\n## Verdict — GAPS\n"), written);
+    ok(written.includes("| Blocking | Correctness | the audit did not finish: the step's budget ran out | " +
+      "tokens: Token budget exhausted (307528/300000). — workbench/demo/capture-F2/auditor-replies.txt |"), written);
+    ok(written.includes(`Validations: \`${command}\` — exit 0`), written);
+    ok(f.files.files.get(`${DIR}/capture-F2/validations.txt`)?.startsWith(`$ ${command}\nexit 0`));
+    strictEqual(text.split("\n").at(-1),
+      "dev-verify: BLOCKED — the step's budget is spent (tokens: Token budget exhausted (307528/300000).): the capture " +
+        "stays in workbench/demo/capture-F2/; GAPS written to workbench/demo/DEMO-VERIFY-F2.md: the audit did not finish");
+    ok(!text.includes("correction:"), text);
   });
 
   it("is BLOCKED when the verdict cannot be written", async () => {
@@ -174,6 +314,46 @@ describe("runDevVerify — resume", () => {
     const written = f.files.files.get(VERDICT) ?? "";
     ok(written.startsWith(EARLIER.trimEnd()), written);
     ok(written.includes("\n\n# DEMO-VERIFY-F2 — 2026-10-22 14:05 — resume\n\n## Verdict — VALID\n"), written);
+  });
+
+  const UNFINISHED = "# DEMO-VERIFY-F2 — 2026-10-21 10:10 — resume\n\n## Verdict — GAPS\n\n" +
+    "| Severity | Axis | Gap | Evidence | Expected fix |\n|----------|------|-----|----------|--------------|\n" +
+    `| Blocking | Correctness | ${AUDIT_UNFINISHED_GAP} | tokens: spent — capture-F2/auditor-replies.txt | audit again |\n`;
+
+  it("after an audit the budget stopped, resumes the gaps of the last audit that finished", async () => {
+    const f = setup();
+    f.files.files.set(VERDICT, `${EARLIER}\n${UNFINISHED}`);
+    f.llm.answers = ["fixed now"];
+    f.llm.extractions = [answer([])];
+    const text = await run(f.deps, { batch: "F2", mode: "resume" });
+    ok(text.includes("resume: the last audit did not finish — the gaps of the audit of 2026-10-21 09:40 are resumed"), text);
+    ok(f.llm.acts[0].prompt.includes("Scope: the previous gaps and what changed since."), f.llm.acts[0].prompt);
+    ok(f.llm.acts[0].prompt.includes("- Major · Reuse · parses dates by hand"), f.llm.acts[0].prompt);
+  });
+
+  it("after an audit the budget stopped and none finished, audits the whole batch and appends", async () => {
+    const f = setup();
+    f.files.files.set(VERDICT, UNFINISHED);
+    f.llm.answers = ["fine"];
+    f.llm.extractions = [answer([])];
+    const text = await run(f.deps, { batch: "F2", mode: "resume" });
+    ok(text.includes("resume: no audit of this batch finished — the whole batch is audited (fast), the section appended"), text);
+    ok(f.llm.acts[0].prompt.includes("Scope: the whole batch."), f.llm.acts[0].prompt);
+    ok(!f.llm.acts[0].prompt.includes("The previous gaps:"), f.llm.acts[0].prompt);
+    const written = f.files.files.get(VERDICT) ?? "";
+    ok(written.startsWith(UNFINISHED.trimEnd()), written);
+    ok(written.includes("\n\n# DEMO-VERIFY-F2 — 2026-10-22 14:05 — fast\n\n## Verdict — VALID\n"), written);
+  });
+
+  it("audits the whole batch when the verdict file holds no section that parses", async () => {
+    const f = setup();
+    f.files.files.set(VERDICT, "");
+    f.llm.answers = ["fine"];
+    f.llm.extractions = [answer([])];
+    const text = await run(f.deps, { batch: "F2", mode: "resume" });
+    ok(text.includes("resume: no audit of this batch finished — the whole batch is audited (fast), the section appended"), text);
+    ok(f.llm.acts[0].prompt.includes("Scope: the whole batch."), f.llm.acts[0].prompt);
+    ok(!f.llm.acts[0].prompt.includes("Scope: the previous gaps"), f.llm.acts[0].prompt);
   });
 
   it("runs resume --gate-only without an earlier verdict", async () => {
@@ -220,6 +400,17 @@ describe("runDevVerify — refusals", () => {
       "dev-verify: no workbench/demo/DEMO-PLAN-F3.md beside workbench/demo/DEMO-PLAN.md");
     strictEqual(await run(f.deps, { batch: "F2", plan: "../demo/DEMO-PLAN.md" }),
       "dev-verify: '../demo/DEMO-PLAN.md' is neither a code nor a <CODE>-PLAN.md path");
+  });
+
+  it("refuses a plan path outside the work folder, where the capture and the verdict would be written", async () => {
+    const f = setup();
+    f.files.files.set("/workspace/.claude/x/X-PLAN.md", "# X-PLAN\n");
+    f.files.files.set("/workspace/.claude/x/X-PLAN-F2.md", SHEET);
+    strictEqual(await run(f.deps, { batch: "F2", plan: ".claude/x/X-PLAN.md" }),
+      "dev-verify: '.claude/x/X-PLAN.md' is not under the work folder workbench/");
+    strictEqual(await run(f.deps, { batch: "F2", plan: "workbench/./demo/DEMO-PLAN.md" }),
+      "dev-verify: 'workbench/./demo/DEMO-PLAN.md' is not under the work folder workbench/");
+    strictEqual(f.files.files.has("/workspace/.claude/x/X-VERIFY-F2.md"), false);
   });
 
   it("refuses inputs that are not a batch", async () => {

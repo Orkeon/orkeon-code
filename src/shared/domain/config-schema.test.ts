@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok } from "node:assert";
 import {
   CONFIG_KEYS, configKeySpec, isKnownConfigKey, knownConfigKeys,
-  validateConfigEntry, layerConfig, resolveConfigEntry, unknownStoredKeys,
+  validateConfigEntry, layerConfig, resolveConfigEntry, unknownStoredKeys, nestedConfigKeys,
 } from "./config-schema.ts";
 import { PERMISSION_MODES } from "./permission-modes.ts";
 
@@ -33,7 +33,11 @@ describe("the key space itself", () => {
       "voice.reply": "/assistant, /summary, /transcribe --then, /voice send and /voice --go (each answer read aloud)",
       "answer.language": "/assistant, /summary, /transcribe --then, /voice send and /voice --go (the main loop's prompt)",
       "compaction.trigger": "/assistant (the automatic compaction at the head and the tail of a turn), /usage",
-      "dev.workDir": "/dev-status (the work folder it reads)",
+      "dev.workDir": "/dev-status (the work folder it reads), /commit (the work folder it leaves out)",
+      "dev.prAuto": "/commit (the pull request of the branch)",
+      "memory.dir": "/memory-admit, /assistant (the memory_recall and memory_push tools)",
+      "memory.project": "/memory-admit, /assistant (the memory_recall and memory_push tools)",
+      "memory.autoAdmitAudited": "/memory-admit",
     });
   });
 
@@ -109,7 +113,7 @@ describe("validateConfigEntry — ACCEPTANCE 1: unknown keys are rejected with t
 
 describe("layerConfig — ACCEPTANCE 2 & 3: session over file", () => {
   it("returns the file value when the session has none", () => {
-    const r = resolveConfigEntry("permissions.fallback", { "permissions.fallback": "plan" }, {});
+    const r = resolveConfigEntry("permissions.fallback", { "permissions.fallback": "plan" }, {}, {});
     strictEqual(r.value, "plan");
     strictEqual(r.source, "file");
   });
@@ -119,6 +123,7 @@ describe("layerConfig — ACCEPTANCE 2 & 3: session over file", () => {
       "permissions.fallback",
       { "permissions.fallback": "plan" },
       { "permissions.fallback": "bypassPermissions" },
+      {},
     );
     strictEqual(r.value, "bypassPermissions");
     strictEqual(r.source, "session");
@@ -127,15 +132,15 @@ describe("layerConfig — ACCEPTANCE 2 & 3: session over file", () => {
   it("ACCEPTANCE 3 — dropping the session layer restores the file value", () => {
     // What /clear does: the bag goes, the file stays.
     const file = { "permissions.fallback": "plan" };
-    const before = resolveConfigEntry("permissions.fallback", file, { "permissions.fallback": "dontAsk" });
-    const after = resolveConfigEntry("permissions.fallback", file, {});
+    const before = resolveConfigEntry("permissions.fallback", file, { "permissions.fallback": "dontAsk" }, {});
+    const after = resolveConfigEntry("permissions.fallback", file, {}, {});
     strictEqual(before.value, "dontAsk");
     strictEqual(after.value, "plan");
     strictEqual(after.source, "file");
   });
 
   it("reports unset when neither layer has it", () => {
-    const r = resolveConfigEntry("permissions.fallback", {}, {});
+    const r = resolveConfigEntry("permissions.fallback", {}, {}, {});
     strictEqual(r.value, undefined);
     strictEqual(r.source, "unset");
   });
@@ -143,23 +148,23 @@ describe("layerConfig — ACCEPTANCE 2 & 3: session over file", () => {
   it("treats a blank stored value as unset in both layers", () => {
     // A blank cannot mean "override with nothing": it would shadow the file with
     // an absence, which no /config path can produce and no consumer can read.
-    strictEqual(resolveConfigEntry("review.lenses", { "review.lenses": "a" }, { "review.lenses": "  " }).value, "a");
-    strictEqual(resolveConfigEntry("review.lenses", { "review.lenses": "  " }, {}).source, "unset");
+    strictEqual(resolveConfigEntry("review.lenses", { "review.lenses": "a" }, { "review.lenses": "  " }, {}).value, "a");
+    strictEqual(resolveConfigEntry("review.lenses", { "review.lenses": "  " }, {}, {}).source, "unset");
   });
 
   it("ignores non-string stored values instead of coercing them", () => {
     for (const junk of [42, true, {}, [], null]) {
-      strictEqual(resolveConfigEntry("review.lenses", { "review.lenses": junk } as any, {}).source, "unset", String(junk));
+      strictEqual(resolveConfigEntry("review.lenses", { "review.lenses": junk } as any, {}, {}).source, "unset", String(junk));
     }
   });
 
   it("returns one entry per declared key, and only declared keys", () => {
-    const entries = layerConfig({ "not.a.key": "x" }, { "also.not": "y" });
+    const entries = layerConfig({ "not.a.key": "x" }, { "also.not": "y" }, { "nor.this": "z" });
     deepStrictEqual(entries.map((e) => e.key), knownConfigKeys());
   });
 
   it("tolerates null/undefined maps", () => {
-    strictEqual(layerConfig(null, undefined).length, CONFIG_KEYS.length);
+    strictEqual(layerConfig(null, undefined, null).length, CONFIG_KEYS.length);
   });
 });
 
@@ -175,5 +180,201 @@ describe("unknownStoredKeys", () => {
   it("is empty for a clean map", () => {
     deepStrictEqual(unknownStoredKeys({ "permissions.fallback": "plan" }), []);
     deepStrictEqual(unknownStoredKeys(null), []);
+  });
+});
+
+describe("nestedConfigKeys", () => {
+  it("names the known keys written nested, in their flat spelling", () => {
+    deepStrictEqual(nestedConfigKeys({
+      permissions: { fallback: "bypassPermissions" },
+      tools: { extra: "search_issues" },
+      legacy: { thing: "x" },
+    }), ["permissions.fallback", "tools.extra"]);
+  });
+
+  it("is empty for a flat map, a scalar residue and no map", () => {
+    deepStrictEqual(nestedConfigKeys({ "permissions.fallback": "plan", legacy: "x" }), []);
+    deepStrictEqual(nestedConfigKeys(null), []);
+  });
+});
+
+describe("the user layer: a project file widens nothing (QL-06)", () => {
+  const fallback = (file: Record<string, unknown>, user: Record<string, unknown>, session = {}) =>
+    resolveConfigEntry("permissions.fallback", file, session, user);
+  const extra = (file: Record<string, unknown>, user: Record<string, unknown>, session = {}) =>
+    resolveConfigEntry("tools.extra", file, session, user);
+
+  it("reads a key the project leaves unset from the user layer", () => {
+    deepStrictEqual(fallback({}, { "permissions.fallback": "bypassPermissions" }),
+      { key: "permissions.fallback", value: "bypassPermissions", source: "user" });
+  });
+
+  it("lets the project set default, plan or acceptEdits over the user's mode", () => {
+    for (const mode of ["default", "plan", "acceptEdits"]) {
+      deepStrictEqual(fallback({ "permissions.fallback": mode }, { "permissions.fallback": "bypassPermissions" }),
+        { key: "permissions.fallback", value: mode, source: "file" }, mode);
+    }
+  });
+
+  it("ignores a wider mode from the project, keeps the user's, and names the value set aside", () => {
+    for (const mode of ["bypassPermissions", "dontAsk", "nonsense"]) {
+      const r = fallback({ "permissions.fallback": ` ${mode} ` }, { "permissions.fallback": "plan" });
+      strictEqual(r.value, "plan", mode);
+      strictEqual(r.source, "user", mode);
+      strictEqual(r.ignored?.value, mode, mode);
+      ok(r.ignored?.reason.includes("default, plan or acceptEdits"), r.ignored?.reason);
+    }
+  });
+
+  it("never lets the project set a mode wider than the one the user settings set", () => {
+    const r = fallback({ "permissions.fallback": "acceptEdits" }, { "permissions.fallback": "plan" });
+    strictEqual(r.value, "plan");
+    strictEqual(r.source, "user");
+    strictEqual(r.ignored?.value, "acceptEdits");
+    ok(r.ignored?.reason.includes("wider than the user settings' 'plan'"), r.ignored?.reason);
+    strictEqual(fallback({ "permissions.fallback": "default" }, { "permissions.fallback": "dontAsk" }).value, "dontAsk");
+    strictEqual(fallback({ "permissions.fallback": "plan" }, { "permissions.fallback": "default" }).value, "plan");
+    strictEqual(fallback({ "permissions.fallback": "acceptEdits" }, {}).value, "acceptEdits");
+    strictEqual(fallback({ "permissions.fallback": "acceptEdits" }, { "permissions.fallback": "typo" }).value, "typo");
+  });
+
+  it("leaves the fallback unset when the project's wide value is ignored and the user sets none", () => {
+    const r = fallback({ "permissions.fallback": "bypassPermissions" }, {});
+    strictEqual(r.value, undefined);
+    strictEqual(r.source, "unset");
+    strictEqual(r.ignored?.value, "bypassPermissions");
+  });
+
+  it("lets the session set any mode: the user types it in the REPL, as /mode", () => {
+    const r = fallback({ "permissions.fallback": "bypassPermissions" }, {}, { "permissions.fallback": "dontAsk" });
+    deepStrictEqual(r, { key: "permissions.fallback", value: "dontAsk", source: "session" });
+  });
+
+  it("offers a project's extra tool only when the user lists it, and names the others", () => {
+    const r = extra({ "tools.extra": "search_issues, deploy_prod" }, { "tools.extra": "Search_Issues:write" });
+    strictEqual(r.value, "search_issues:write");
+    strictEqual(r.source, "file");
+    strictEqual(r.ignored?.value, "deploy_prod:write");
+  });
+
+  it("keeps a tool read only when both lists say read: a read tool is offered in plan and dontAsk too", () => {
+    strictEqual(extra({ "tools.extra": "a" }, { "tools.extra": "a:read" }).value, "a:write");
+    strictEqual(extra({ "tools.extra": "a:read" }, { "tools.extra": "a:write" }).value, "a:write");
+    strictEqual(extra({ "tools.extra": "a:read" }, { "tools.extra": "a:read" }).value, "a:read");
+  });
+
+  it("accepts every project tool when the user lists *, as write: * grants the tools, not their class", () => {
+    const r = extra({ "tools.extra": "a:read, b" }, { "tools.extra": "*" });
+    deepStrictEqual(r, { key: "tools.extra", value: "a:write, b:write", source: "file" });
+  });
+
+  it("drops the second entry of a dropped tool: once its twin is gone, it would parse as a grant", () => {
+    const r = extra({ "tools.extra": "evil_tool:write, evil_tool:read" }, {});
+    strictEqual(r.value, undefined);
+    strictEqual(r.ignored?.value, "evil_tool:write");
+    strictEqual(extra({ "tools.extra": "evil_tool:write, Evil_Tool:read" }, { "tools.extra": "other:read" }).value, undefined);
+    strictEqual(extra({ "tools.extra": "a:write, a:read" }, { "tools.extra": "a:read" }).value, "a:write");
+    strictEqual(extra({ "tools.extra": "a, file_read:read" }, { "tools.extra": "a" }).value, "a:write, file_read:read");
+  });
+
+  it("does not take *:read as *", () => {
+    const r = extra({ "tools.extra": "a:read" }, { "tools.extra": "*:read" });
+    strictEqual(r.value, undefined);
+    strictEqual(r.ignored?.value, "a:read");
+  });
+
+  it("offers no tool when the project lists only tools the user does not: the user's list does not take over", () => {
+    const r = extra({ "tools.extra": "deploy_prod" }, { "tools.extra": "search_issues" });
+    strictEqual(r.value, undefined);
+    strictEqual(r.source, "unset");
+    strictEqual(r.ignored?.value, "deploy_prod:write");
+  });
+
+  it("offers no project tool at all when the user layer is empty", () => {
+    const r = extra({ "tools.extra": "search_issues" }, {});
+    strictEqual(r.value, undefined);
+    strictEqual(r.ignored?.value, "search_issues:write");
+  });
+
+  it("takes the user's list, less *, when the project sets none", () => {
+    deepStrictEqual(extra({}, { "tools.extra": "*, search_issues:read" }),
+      { key: "tools.extra", value: "search_issues:read", source: "user" });
+    strictEqual(extra({}, { "tools.extra": "*" }).source, "unset");
+  });
+
+  it("keeps a project entry that does not parse, as written, for the reader to warn about", () => {
+    const r = extra({ "tools.extra": "a:read, bad:exec" }, { "tools.extra": "*" });
+    strictEqual(r.value, "a:write, bad:exec");
+    strictEqual(r.ignored, undefined);
+  });
+
+  it("lets the session list any tool", () => {
+    deepStrictEqual(extra({ "tools.extra": "x" }, {}, { "tools.extra": "deploy_prod" }),
+      { key: "tools.extra", value: "deploy_prod", source: "session" });
+  });
+
+  it("lets the project override the user on every other key", () => {
+    deepStrictEqual(resolveConfigEntry("review.lenses", { "review.lenses": "style" }, {}, { "review.lenses": "security" }),
+      { key: "review.lenses", value: "style", source: "file" });
+    strictEqual(layerConfig({}, {}, { "advisor.model": "m" }).find((e) => e.key === "advisor.model")?.source, "user");
+  });
+});
+
+describe("the shared memory's keys (M-2)", () => {
+  it("refuses a memory.* key the schema does not declare, with the list", () => {
+    for (const key of ["memory.typo", "memory.Dir", "memory.autoAdmit", "memory"]) {
+      const v = validateConfigEntry(key, "x");
+      strictEqual(v.ok, false, key);
+      ok(v.reason.startsWith(`unknown config key '${key}'`), v.reason);
+      ok(v.reason.includes("memory.dir, memory.project, memory.autoAdmitAudited"), v.reason);
+    }
+  });
+
+  it("takes a relative folder as memory.dir, never one outside the project nor the agent memory's", () => {
+    for (const dir of [".orkeon/memory", "docs/memory", "./.orkeon/shared/"]) ok(validateConfigEntry("memory.dir", dir).ok, dir);
+    for (const [dir, why] of [
+      ["/shared-memory", "an absolute path"], ["../other/memory", "'..'"], [".claude/memory", "under .claude/ or .git/"],
+      [".git/memory", "under .claude/ or .git/"], [".orkeon/agent-memory", "agent memory"], [".orkeon/agent-memory/x", "agent memory"],
+      [".orkeon", "agent memory"], ["./", "an empty folder"],
+    ]) {
+      const v = validateConfigEntry("memory.dir", dir);
+      strictEqual(v.ok, false, dir);
+      ok(v.reason.includes(why), `${dir}: ${v.reason}`);
+    }
+  });
+
+  it("takes a kebab-case memory.project, and true or false as memory.autoAdmitAudited", () => {
+    ok(validateConfigEntry("memory.project", "orkeon-code").ok);
+    for (const name of ["Orkeon Code", "orkeon_code", "-x"]) strictEqual(validateConfigEntry("memory.project", name).ok, false, name);
+    ok(validateConfigEntry("memory.autoAdmitAudited", "true").ok);
+    strictEqual(validateConfigEntry("memory.autoAdmitAudited", "yes").ok, false);
+  });
+
+  it("sets dev.prAuto true from a project file only when the user settings do (QL-06)", () => {
+    const auto = (file: Record<string, unknown>, user: Record<string, unknown>) =>
+      resolveConfigEntry("dev.prAuto", file, {}, user);
+    const r = auto({ "dev.prAuto": "true" }, {});
+    strictEqual(r.value, undefined);
+    strictEqual(r.source, "unset");
+    strictEqual(r.ignored?.value, "true");
+    ok(r.ignored?.reason.includes("user settings"), r.ignored?.reason);
+    strictEqual(auto({ "dev.prAuto": "true" }, { "dev.prAuto": "false" }).value, "false");
+    deepStrictEqual(auto({ "dev.prAuto": "true" }, { "dev.prAuto": "true" }), { key: "dev.prAuto", value: "true", source: "file" });
+    deepStrictEqual(auto({ "dev.prAuto": "false" }, { "dev.prAuto": "true" }), { key: "dev.prAuto", value: "false", source: "file" });
+  });
+
+  it("sets memory.autoAdmitAudited true from a project file only when the user settings do (QL-06)", () => {
+    const auto = (file: Record<string, unknown>, user: Record<string, unknown>) =>
+      resolveConfigEntry("memory.autoAdmitAudited", file, {}, user);
+    const r = auto({ "memory.autoAdmitAudited": "true" }, {});
+    strictEqual(r.value, undefined);
+    strictEqual(r.source, "unset");
+    strictEqual(r.ignored?.value, "true");
+    ok(r.ignored?.reason.includes("user settings"), r.ignored?.reason);
+    strictEqual(auto({ "memory.autoAdmitAudited": "true" }, { "memory.autoAdmitAudited": "false" }).value, "false");
+    deepStrictEqual(auto({ "memory.autoAdmitAudited": "true" }, { "memory.autoAdmitAudited": "true" }),
+      { key: "memory.autoAdmitAudited", value: "true", source: "file" });
+    deepStrictEqual(auto({ "memory.autoAdmitAudited": "false" }, { "memory.autoAdmitAudited": "true" }),
+      { key: "memory.autoAdmitAudited", value: "false", source: "file" });
   });
 });

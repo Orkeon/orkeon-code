@@ -14,13 +14,17 @@
 import { after, describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 import { spawnSync } from "node:child_process";
-import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createHash } from "node:crypto";
 
 const read = (name: string) => readFileSync(fileURLToPath(new URL(`../${name}`, import.meta.url)), "utf-8");
 const GATE = "Orkeon__Security__PermissionGate__Enabled";
+const START_SCRIPT = "Orkeon__Cli__Session__StartScript";
+const PERSIST = "Orkeon__Cli__Session__Persist";
+const SESSIONS_DIR = "ORKEON_Orkeon__Cli__Session__SessionsDirectory";
 
 describe("the launchers enable the permission gate", () => {
   it("orkeon-code exports it, true unless the caller set it, and passes it to docker", () => {
@@ -96,6 +100,16 @@ const PWSH = spawnSync("sh", ["-c", "command -v pwsh"], { encoding: "utf-8" }).s
 function launch(opts: {
   args: string[]; bin: Record<string, string>; env?: Record<string, string>; projectFiles?: Record<string, string>;
   settings?: Record<string, unknown>; shell?: "bash" | "pwsh";
+  /** An install (no `.git` beside the launcher) rather than a clone (the default). */
+  install?: boolean;
+  /** No --settings, --workspace nor ORKEON_CODE_STATE: the launcher's own defaults apply, from the project. */
+  bare?: boolean;
+  /** More files, by path under the scratch folder (beside `bin/`, `checkout/`, `project/`). */
+  files?: Record<string, string>;
+  /** false: the scratch folder is not in the trust store (by default it is, so the start is silent). */
+  trusted?: boolean;
+  /** Runs the launcher on a pseudo-terminal (`script`), these lines typed on it. */
+  tty?: string;
 }): Run {
   const base = scratchDir("orkeon-code-launcher-");
   const root = join(base, "checkout");
@@ -103,10 +117,20 @@ function launch(opts: {
   const project = join(base, "project");
   const state = join(base, "state");
   const record = join(base, "record");
-  for (const dir of [root, bin, project, record]) mkdirSync(dir, { recursive: true });
+  for (const dir of [root, bin, project, record, join(root, "scripts")]) mkdirSync(dir, { recursive: true });
   for (const [name, content] of Object.entries(opts.projectFiles ?? {})) writeFileSync(join(project, name), content);
-  for (const file of ["orkeon-code", "orkeon-code.ps1", ".orkeon-version", "package.json"]) {
+  for (const file of ["orkeon-code", "orkeon-code.ps1", ".orkeon-version", "package.json", "scripts/setup-fixture.sh", "scripts/session-start.ork.ts"]) {
     copyFileSync(fileURLToPath(new URL(`../${file}`, import.meta.url)), join(root, file));
+  }
+  if (!opts.install) mkdirSync(join(root, ".git"));
+  for (const [name, content] of Object.entries(opts.files ?? {})) {
+    mkdirSync(join(base, name, ".."), { recursive: true });
+    writeFileSync(join(base, name), content);
+  }
+  if (opts.trusted !== false) {
+    const codeHome = opts.env?.ORKEON_CODE_HOME ?? join(base, ".orkeon-code");
+    mkdirSync(codeHome, { recursive: true });
+    writeFileSync(join(codeHome, "trusted-folders.json"), trustStore([base]));
   }
   const settings = join(base, "settings.json");
   writeFileSync(settings, JSON.stringify(opts.settings ?? { Llm: { Model: "m", BaseUrl: "http://127.0.0.1:9/v1" } }));
@@ -114,13 +138,19 @@ function launch(opts: {
     writeFileSync(join(bin, name), body);
     chmodSync(join(bin, name), 0o755);
   }
+  const given = opts.bare ? []
+    : opts.shell === "pwsh" ? ["-Settings", settings, "-Workspace", project] : ["--settings", settings, "--workspace", project];
   const [command, args] = opts.shell === "pwsh"
-    ? [PWSH, ["-NoProfile", "-File", join(root, "orkeon-code.ps1"), "-Settings", settings, "-Workspace", project, ...opts.args]]
-    : ["bash", [join(root, "orkeon-code"), "--settings", settings, "--workspace", project, ...opts.args]];
-  const run = spawnSync(command, args, {
-    cwd: base,
+    ? [PWSH, ["-NoProfile", "-File", join(root, "orkeon-code.ps1"), ...given, ...opts.args]]
+    : ["bash", [join(root, "orkeon-code"), ...given, ...opts.args]];
+  const [file, argv] = opts.tty === undefined ? [command, args] : ["script", ["-qec", [command, ...args].map(shq).join(" "), "/dev/null"]];
+  const run = spawnSync(file, argv, {
+    cwd: opts.bare ? project : base,
     encoding: "utf-8",
-    env: { PATH: `${bin}:/usr/bin:/bin`, HOME: base, ORKEON_CODE_STATE: state, RECORD: record, ...opts.env },
+    input: opts.tty,
+    env: {
+      PATH: `${bin}:/usr/bin:/bin`, HOME: base, ...(opts.bare ? {} : { ORKEON_CODE_STATE: state }), RECORD: record, ...opts.env,
+    },
   });
   const recorded = (name: string) => { try { return readFileSync(join(record, name), "utf-8"); } catch { return ""; } };
   const env = new Map(recorded("env").split("\n").filter((l) => l.includes("=")).map((l) => {
@@ -134,14 +164,39 @@ function launch(opts: {
   };
 }
 
+/** A word for sh -c, quoted. */
+const shq = (word: string) => `'${word.replace(/'/g, "'\\''")}'`;
+
+/** A trust store in the launchers' layout, every folder trusted on the same date. */
+function trustStore(folders: string[]): string {
+  const lines = folders.map((f) => `    { "path": ${JSON.stringify(f)}, "trustedAt": "2026-10-24T00:00:00Z" }`);
+  return `{\n  "version": 1,\n  "folders": [\n${lines.join(",\n")}\n  ]\n}\n`;
+}
+
 /** The virtual roots of the --mount arguments. */
 const mountRoots = (args: string[]) =>
   args.flatMap((a, i) => (args[i - 1] === "--mount" ? [a.split(":")[1]] : []));
 
-const RESERVED = /^\/(sandbox|credentials|cli-commands|crews)/;
+const RESERVED = /^\/(sandbox|credentials|llm-logs|cli-commands|crews)/;
+
+/** The roots every start mounts, in order. */
+const ROOTS = ["/workspace", "/output", "/tmp", "/user-config", "/sessions", "/session-history"];
+
+/** The runtime's ProjectKey.Slug (Orkeon.Infrastructure/Session/ProjectKey.cs), pinned below to values the runtime
+ *  computed: the last segment, each UTF-16 unit an ASCII letter or digit lowercased, else '-', then '-' and the first
+ *  12 hex of the SHA-256 of the whole path in UTF-8. */
+function slugOf(key: string): string {
+  const name = key.replace(/[/\\]+$/, "").split(/[/\\]/).pop()!;
+  let out = "";
+  for (let i = 0; i < name.length; i++) out += /[A-Za-z0-9]/.test(name[i]) ? name[i].toLowerCase() : "-";
+  return `${out}-${createHash("sha256").update(key, "utf8").digest("hex").slice(0, 12)}`;
+}
+
+/** Where a launch with ORKEON_CODE_STATE keeps the project's own part. */
+const projectState = (r: Run) => join(r.state, "projects", slugOf(r.project));
 
 describe("orkeon-code, tool and source modes on Orkeon rc.6", () => {
-  it("tool mode starts the REPL from the project, external mounts allowed, three distinct roots", () => {
+  it("tool mode starts the REPL from the project, external mounts allowed, four distinct roots", () => {
     const r = launch({ args: ["--mode", "tool"], bin: { "orkeon-repl": recorder() }, env: { ORKEON_ESBUILD_PATH: "/opt/esbuild" } });
     strictEqual(r.status, 0, r.stderr);
     strictEqual(r.cwd, r.project);
@@ -150,10 +205,22 @@ describe("orkeon-code, tool and source modes on Orkeon rc.6", () => {
       "--runner=scripted-commands", "--commands-dir", join(r.root, "src/commands"), "--crews-dir", join(r.root, "src/crews"),
       "--settings", join(r.root, "..", "settings.json"),
       "--mount", `${r.project}:/workspace:rw`, "--mount", `${r.state}/output:/output:rw`, "--mount", `${r.state}/tmp:/tmp:rw`,
+      "--mount", `${r.state}/user-config:/user-config:ro`,
+      "--mount", `${projectState(r)}/sessions:/sessions:rw`, "--mount", `${projectState(r)}/history:/session-history:ro`,
     ]);
     const roots = mountRoots(r.args);
     strictEqual(new Set(roots).size, roots.length, "no root mounted twice");
     ok(!roots.some((root) => RESERVED.test(root)), roots.join(", "));
+  });
+
+  it("copies the session's start script into the agent's /tmp and names it, an empty value the user exported kept", () => {
+    const r = launch({ args: ["--mode", "tool"], bin: { "orkeon-repl": recorder() }, env: { ORKEON_ESBUILD_PATH: "/opt/esbuild" } });
+    strictEqual(r.status, 0, r.stderr);
+    strictEqual(r.env.get(START_SCRIPT), "/tmp/orkeon-code/session-start.ork.ts");
+    strictEqual(readFileSync(join(r.state, "tmp/orkeon-code/session-start.ork.ts"), "utf-8"), read("scripts/session-start.ork.ts"));
+    const none = launch({ args: ["--mode", "tool"], bin: { "orkeon-repl": recorder() }, env: { ORKEON_ESBUILD_PATH: "/opt/esbuild", [START_SCRIPT]: "" } });
+    strictEqual(none.status, 0, none.stderr);
+    strictEqual(none.env.get(START_SCRIPT), "");
   });
 
   it("source mode builds in the Orkeon checkout, then runs the assembly from the project", () => {
@@ -225,8 +292,9 @@ describe("orkeon-code, docker mode", () => {
     ok(!r.args.some((a) => a.startsWith("--platform")), r.args.join(" "));
     ok(!r.args.some((a) => a.includes("MaxScripts")), r.args.join(" "));
     ok(r.args.includes(`${GATE}=true`), r.args.join(" "));
+    ok(r.args.includes(`${START_SCRIPT}=/tmp/orkeon-code/session-start.ork.ts`), r.args.join(" "));
     const roots = mountRoots(r.args);
-    deepStrictEqual(roots, ["/workspace", "/output", "/tmp"]);
+    deepStrictEqual(roots, ROOTS);
   });
 });
 
@@ -241,7 +309,7 @@ describe("orkeon-code, speech-to-text (ORKEON_CODE_AUDIO_DIR)", () => {
     strictEqual(r.status, 0, r.stderr);
     deepStrictEqual(r.args.slice(-4), ["--mount", `${audio}:/audio:ro`, "--mount", `${r.state}/transcripts:/transcripts:ro`]);
     const roots = mountRoots(r.args);
-    deepStrictEqual(roots, ["/workspace", "/output", "/tmp", "/audio", "/transcripts"]);
+    deepStrictEqual(roots, [...ROOTS, "/audio", "/transcripts"]);
     ok(!roots.some((root) => RESERVED.test(root)), roots.join(", "));
     strictEqual(r.env.get("WHISPER_AUDIO_DIR"), audio);
     strictEqual(r.env.get("WHISPER_OUT_DIR"), `${r.state}/transcripts`);
@@ -321,7 +389,7 @@ describe("orkeon-code, speech-to-text (ORKEON_CODE_AUDIO_DIR)", () => {
     const r = launch({ args: ["--mode", "tool"], bin: TOOL, env: { ORKEON_ESBUILD_PATH: "/opt/esbuild" } });
     strictEqual(r.status, 0, r.stderr);
     deepStrictEqual(whisperEnv(r), []);
-    deepStrictEqual(mountRoots(r.args), ["/workspace", "/output", "/tmp"]);
+    deepStrictEqual(mountRoots(r.args), ROOTS);
     ok(!r.stdout.includes("audio"), r.stdout);
   });
 
@@ -332,14 +400,14 @@ describe("orkeon-code, speech-to-text (ORKEON_CODE_AUDIO_DIR)", () => {
     });
     strictEqual(noUv.status, 0, noUv.stderr);
     ok(noUv.stderr.includes("uv is not on PATH: speech-to-text is off"), noUv.stderr);
-    deepStrictEqual([whisperEnv(noUv), mountRoots(noUv.args)], [[], ["/workspace", "/output", "/tmp"]]);
+    deepStrictEqual([whisperEnv(noUv), mountRoots(noUv.args)], [[], ROOTS]);
     const declared = launch({
       args: ["--mode", "tool"], bin: TOOL, env: { ORKEON_ESBUILD_PATH: "/opt/esbuild", ORKEON_CODE_AUDIO_DIR: audio },
       settings: { Llm: { Model: "m" }, MCP: { Servers: { whisper: { Command: "/opt/uv" } } } },
     });
     strictEqual(declared.status, 0, declared.stderr);
     ok(declared.stderr.includes('declares a "whisper" MCP server: ORKEON_CODE_AUDIO_DIR is ignored'), declared.stderr);
-    deepStrictEqual([whisperEnv(declared), mountRoots(declared.args)], [[], ["/workspace", "/output", "/tmp"]]);
+    deepStrictEqual([whisperEnv(declared), mountRoots(declared.args)], [[], ROOTS]);
     const anyCase = launch({
       args: ["--mode", "tool"], bin: TOOL, env: { ORKEON_ESBUILD_PATH: "/opt/esbuild", ORKEON_CODE_AUDIO_DIR: audio },
       settings: { Llm: { Model: "m" }, MCP: { Servers: { Whisper: { Command: "/opt/uv" } } } },
@@ -352,7 +420,7 @@ describe("orkeon-code, speech-to-text (ORKEON_CODE_AUDIO_DIR)", () => {
     });
     strictEqual(inEnv.status, 0, inEnv.stderr);
     ok(inEnv.stderr.includes('the environment declares a "whisper" MCP server (ORKEON_MCP__Servers__whisper__*)'), inEnv.stderr);
-    deepStrictEqual([whisperEnv(inEnv), mountRoots(inEnv.args)], [[`${WHISPER}Url`], ["/workspace", "/output", "/tmp"]], "left as it was");
+    deepStrictEqual([whisperEnv(inEnv), mountRoots(inEnv.args)], [[`${WHISPER}Url`], ROOTS], "left as it was");
   });
 
   it("stops on a folder that does not exist", () => {
@@ -372,8 +440,185 @@ describe("orkeon-code, speech-to-text (ORKEON_CODE_AUDIO_DIR)", () => {
   });
 });
 
+// ── The user settings (LI-6) ────────────────────────────────────────────────
+// The scripts read no settings and no environment (V-04): the launcher hands them the orkeonCode block of the
+// settings file as <state>/user-config/config.json, mounted read-only on /user-config, in every mode.
+
+describe("orkeon-code, the user settings on /user-config", () => {
+  // node reads the block: a stand-in on PATH that runs this test's node, wherever it is installed.
+  const NODE = { node: `#!/bin/sh\nexec "${process.execPath}" "$@"\n` };
+  const BLOCK = { "permissions.fallback": "acceptEdits", "tools.extra": "search_issues:read" };
+  const SETTINGS = { Llm: { Model: "m", BaseUrl: "http://127.0.0.1:9/v1", ApiKey: "never-copied" }, orkeonCode: BLOCK };
+  const userFile = (r: Run) => join(r.state, "user-config", "config.json");
+  const launchWithNode = (o: Parameters<typeof launch>[0]) => launch({ ...o, bin: { ...o.bin, ...NODE } });
+
+  for (const mode of ["tool", "source", "docker"] as const) {
+    it(`${mode} mode mounts the folder read-only and the file holds the orkeonCode block alone`, () => {
+      const env: Record<string, string> = { ORKEON_ESBUILD_PATH: "/opt/esbuild" };
+      if (mode === "source") env.ORKEON_SOURCE = orkeonCheckout();
+      const bin: Record<string, string> = { tool: { "orkeon-repl": recorder() }, source: { dotnet: DOTNET }, docker: { docker: recorder() } }[mode];
+      const r = launchWithNode({ args: ["--mode", mode], bin, env, settings: SETTINGS });
+      strictEqual(r.status, 0, r.stderr);
+      const host = mode === "docker" ? "/work/state/user-config" : `${r.state}/user-config`;
+      ok(r.args.join("\n").includes(`--mount\n${host}:/user-config:ro`), r.args.join(" "));
+      const text = readFileSync(userFile(r), "utf-8");
+      deepStrictEqual(JSON.parse(text), BLOCK);
+      ok(!text.includes("Llm") && !text.includes("never-copied"), text);
+    });
+  }
+
+  it("writes an empty block as it is, and no file for a block that is not an object or a key of another case", () => {
+    const tool = { "orkeon-repl": recorder() };
+    const env = { ORKEON_ESBUILD_PATH: "/opt/esbuild" };
+    const empty = launchWithNode({ args: ["--mode", "tool"], bin: tool, env, settings: { ...SETTINGS, orkeonCode: {} } });
+    strictEqual(empty.status, 0, empty.stderr);
+    deepStrictEqual(JSON.parse(readFileSync(userFile(empty), "utf-8")), {});
+    for (const settings of [{ ...SETTINGS, orkeonCode: [BLOCK] }, { Llm: SETTINGS.Llm, OrkeonCode: BLOCK }]) {
+      const r = launchWithNode({ args: ["--mode", "tool"], bin: tool, env, settings });
+      strictEqual(r.status, 0, r.stderr);
+      ok(!existsSync(userFile(r)), JSON.stringify(settings));
+    }
+  });
+
+  it("warns, and still starts, when the settings file cannot be parsed", () => {
+    const r = launchWithNode({
+      args: ["--mode", "tool", "--settings", "broken.json"], bin: { "orkeon-repl": recorder() },
+      env: { ORKEON_ESBUILD_PATH: "/opt/esbuild" }, files: { "broken.json": '{ "Llm": {}, "orkeonCode": ' },
+    });
+    strictEqual(r.status, 0, r.stderr);
+    ok(r.stderr.includes("the orkeonCode block of") && r.stderr.includes("could not be read: no user setting applies."), r.stderr);
+    ok(!existsSync(userFile(r)));
+  });
+
+  it("leaves the folder empty, and still mounts it, when the settings have no block", () => {
+    const tool = { "orkeon-repl": recorder() };
+    const none = launchWithNode({ args: ["--mode", "tool"], bin: tool, env: { ORKEON_ESBUILD_PATH: "/opt/esbuild" } });
+    strictEqual(none.status, 0, none.stderr);
+    ok(!existsSync(userFile(none)), "no block, no file");
+    strictEqual(none.stderr.includes("orkeonCode"), false, none.stderr);
+    ok(mountRoots(none.args).includes("/user-config"), none.args.join(" "));
+    // A file from an earlier start never outlives a block taken out of the settings.
+    mkdirSync(join(none.state, "user-config"), { recursive: true });
+    writeFileSync(userFile(none), JSON.stringify(BLOCK));
+    const again = launchWithNode({ args: ["--mode", "tool"], bin: tool, env: { ORKEON_ESBUILD_PATH: "/opt/esbuild", ORKEON_CODE_STATE: none.state } });
+    strictEqual(again.status, 0, again.stderr);
+    ok(!existsSync(userFile(none)), "the stale file is gone");
+  });
+});
+
+// ── A clone or an install ───────────────────────────────────────────────────
+// A `.git` beside the launcher is a clone: today's behaviour. Without it the launcher runs from an install (an
+// archive under ~/.local/lib/orkeon-code, or an npm prefix), whose folder it never writes to: its state, and the
+// demo repository, go under ORKEON_CODE_HOME (~/.orkeon-code).
+
+const CODE_VERSION = JSON.parse(read("package.json")).version as string;
+const RUNTIME_VERSION = read(".orkeon-version").trim();
+const SETTINGS_TEXT = JSON.stringify({ Llm: { Model: "m", BaseUrl: "http://127.0.0.1:9/v1" } });
+/** The user's settings file the launchers read today, under the scratch HOME. */
+const USER_SETTINGS = { ".config/orkeon-code/appsettings.json": SETTINGS_TEXT };
+const TOOL_REPL = { "orkeon-repl": recorder() };
+const ESBUILD = { ORKEON_ESBUILD_PATH: "/opt/esbuild" };
+const mountOf = (r: Run, root: string) => r.args.find((a, i) => r.args[i - 1] === "--mount" && a.endsWith(`:${root}:rw`));
+
+describe("orkeon-code, a clone or an install", () => {
+  it("--version names Code's version, where it runs from and the Orkeon expected, with nothing configured", () => {
+    const clone = launch({ args: ["--version"], bin: {}, bare: true });
+    strictEqual(clone.status, 0, clone.stderr);
+    const [first, second] = clone.stdout.split("\n");
+    strictEqual(first, `orkeon-code ${CODE_VERSION} (clone: ${clone.root})`);
+    ok(second.startsWith(`Orkeon ${RUNTIME_VERSION} expected, found: `), second);
+    const install = launch({ args: ["--version"], bin: {}, bare: true, install: true });
+    strictEqual(install.status, 0, install.stderr);
+    strictEqual(install.stdout.split("\n")[0], `orkeon-code ${CODE_VERSION} (install: ${install.root})`);
+    // An unpacked source archive has no .git, but its tests: a clone still.
+    const source = launch({ args: ["--version"], bin: {}, bare: true, install: true, files: { "checkout/tests/a.test.ts": "" } });
+    strictEqual(source.stdout.split("\n")[0], `orkeon-code ${CODE_VERSION} (clone: ${source.root})`);
+  });
+
+  it("--version reads the version of an Orkeon archive install beside orkeon-repl, and never starts the REPL", () => {
+    const r = launch({ args: ["--version"], bin: TOOL_REPL, bare: true, files: { VERSION: "1.0.0-rc.6\n" } });
+    strictEqual(r.status, 0, r.stderr);
+    strictEqual(r.stdout.split("\n")[1], `Orkeon ${RUNTIME_VERSION} expected, found: 1.0.0-rc.6 (orkeon-repl, ${join(r.root, "..", "VERSION")})`);
+    strictEqual(r.cwd, "", "the REPL did not start");
+  });
+
+  it("a clone keeps its state in .crew-output and reads config/appsettings.local.json first", () => {
+    const r = launch({
+      args: ["--mode", "tool"], bin: TOOL_REPL, env: ESBUILD, bare: true,
+      files: { "checkout/config/appsettings.local.json": SETTINGS_TEXT },
+    });
+    strictEqual(r.status, 0, r.stderr);
+    strictEqual(mountOf(r, "/output"), `${join(r.root, ".crew-output")}/output:/output:rw`);
+    ok(r.args.includes(join(r.root, "config/appsettings.local.json")), r.args.join(" "));
+    strictEqual(r.cwd, r.project);
+  });
+
+  it("an install keeps its state under ~/.orkeon-code, or ORKEON_CODE_HOME, never beside the launcher", () => {
+    const r = launch({ args: ["--mode", "tool"], bin: TOOL_REPL, env: ESBUILD, bare: true, install: true, files: USER_SETTINGS });
+    strictEqual(r.status, 0, r.stderr);
+    const home = join(r.root, "..", ".orkeon-code");
+    const own = join(home, "projects", slugOf(r.project));
+    strictEqual(mountOf(r, "/output"), `${own}/output:/output:rw`);
+    strictEqual(mountOf(r, "/tmp"), `${own}/tmp:/tmp:rw`);
+    strictEqual(mountOf(r, "/sessions"), `${own}/sessions:/sessions:rw`);
+    ok(!existsSync(join(r.root, ".crew-output")), "nothing written beside the launcher");
+    const other = scratchDir("orkeon-code-home-");
+    const h = launch({
+      args: ["--mode", "tool"], bin: TOOL_REPL, env: { ...ESBUILD, ORKEON_CODE_HOME: other }, bare: true, install: true, files: USER_SETTINGS,
+    });
+    strictEqual(h.status, 0, h.stderr);
+    strictEqual(mountOf(h, "/output"), `${other}/projects/${slugOf(h.project)}/output:/output:rw`);
+  });
+
+  it("an install never reads a config/appsettings.local.json beside it, and says where the settings go", () => {
+    const r = launch({
+      args: ["--mode", "tool"], bin: TOOL_REPL, env: ESBUILD, bare: true, install: true,
+      files: { "checkout/config/appsettings.local.json": SETTINGS_TEXT },
+    });
+    strictEqual(r.status, 1);
+    ok(r.stderr.includes("no settings file. Run 'orkeon-code setup' in a terminal"), r.stderr);
+    ok(r.stderr.includes(join(r.root, "..", ".orkeon-code/appsettings.json")), r.stderr);
+    ok(r.stderr.includes(join(r.root, "config/appsettings.example.json")), r.stderr);
+    strictEqual(r.cwd, "", "the REPL did not start");
+  });
+
+  it("--demo seeds the sample repository under the checkout for a clone, under ~/.orkeon-code/demo for an install", () => {
+    const clone = launch({ args: ["--demo", "--mode", "tool"], bin: TOOL_REPL, env: ESBUILD, bare: true, files: USER_SETTINGS });
+    strictEqual(clone.status, 0, clone.stderr);
+    strictEqual(clone.cwd, join(clone.root, "fixtures/sample-repo"));
+    const install = launch({
+      args: ["--demo", "--mode", "tool"], bin: TOOL_REPL, env: ESBUILD, bare: true, install: true, files: USER_SETTINGS,
+    });
+    strictEqual(install.status, 0, install.stderr);
+    strictEqual(install.cwd, join(install.root, "..", ".orkeon-code/demo/sample-repo"));
+    ok(existsSync(join(install.cwd, ".git")), "the demo repository has its history");
+    ok(!existsSync(join(install.root, "fixtures")), "nothing written beside the launcher");
+  });
+
+  it("an install without esbuild names the Orkeon package or archive, not npm ci", () => {
+    const r = launch({ args: ["--mode", "tool"], bin: TOOL_REPL, install: true });
+    strictEqual(r.status, 1);
+    ok(r.stderr.includes("esbuild not found: install Orkeon from its package or archive"), r.stderr);
+    ok(!r.stderr.includes("npm ci"), r.stderr);
+  });
+});
+
 describe("orkeon-code.ps1 follows the same rules (read here; run below, where pwsh is installed)", () => {
   const script = read("orkeon-code.ps1");
+
+  it("tells a clone from an install, and keeps an install's state under ORKEON_CODE_HOME", () => {
+    ok(script.includes("$IsClone = Test-Path (Join-Path $Root '.git')"), "a .git beside the launcher is a clone");
+    ok(script.includes("$CodeHome = if ($env:ORKEON_CODE_HOME) { $env:ORKEON_CODE_HOME } else { Join-Path $HOME '.orkeon-code' }"),
+      "ORKEON_CODE_HOME, else ~/.orkeon-code");
+    ok(script.includes("else { $State = Join-Path $CodeHome $projectRel; $projectRel = '' }"), "an install's state, per project");
+    ok(script.includes("install Orkeon from its package or archive"), "the install's esbuild message");
+  });
+
+  it("prints the same --version lines before reading any settings", () => {
+    ok(script.includes("orkeon-code $codeVersion ($kind`: $Root)"), "the first line");
+    ok(script.includes("Orkeon $OrkeonVersion expected, found: $found"), "the second line");
+    ok(script.indexOf("if ($Version") < script.indexOf("$Settings = (Resolve-Path $Settings).Path"), "before the settings");
+  });
 
   it("runs the REPL from the project with external mounts allowed, no common parent", () => {
     ok(script.includes("$env:ORKEON_ALLOW_EXTERNAL_MOUNTS = '1'"), "orkeon-code.ps1 must allow external mounts");
@@ -401,19 +646,44 @@ describe("orkeon-code.ps1 follows the same rules (read here; run below, where pw
       && script.includes("$env:WHISPER_SPEAKER = '1'"), "the microphone and the speaker on ORKEON_CODE_VOICE=1 only");
   });
 
+  it("hands the user settings over as ./orkeon-code does: the orkeonCode block alone, read-only on /user-config", () => {
+    ok(script.includes(`'--mount', "\${userConfig}:/user-config:ro"`), "the read-only mount");
+    ok(script.includes("Where-Object { $_.Name -ceq 'orkeonCode' }"), "the block alone, its key case for case");
+    ok(script.includes("Get-Content $Settings -Raw -Encoding UTF8"), "read as UTF-8 by Windows PowerShell 5.1 too");
+    ok(script.includes("Remove-Item $userConfigFile"), "written afresh at each start");
+    ok(script.includes("'/work/state/user-config'") && script.includes("(Join-Path $State 'tmp') $userConfigDir"), "every mode");
+  });
+
   it("keeps a one-word ORKEON_REPL argument an array (an if statement would unroll it into characters)", () => {
     ok(script.includes("$rest = @($repl | Select-Object -Skip 1)"), "orkeon-code.ps1 must build $rest as an array");
   });
 
+  it("passes -t to docker only on a terminal, and --user on Linux, as ./orkeon-code", () => {
+    ok(script.includes("$ttyArgs = if ([Console]::IsInputRedirected -or [Console]::IsOutputRedirected) { @('-i') } else { @('-it') }"), "-it on a tty only");
+    ok(script.includes("if ($IsLinux) { $userArgs = @('--user', \"$(& id -u):$(& id -g)\") }"), "--user on Linux");
+    ok(script.includes("& docker run --rm @ttyArgs @userArgs @envArgs -w /work"), "both passed");
+    ok(!script.includes("docker run --rm -it"), "never -it whatever the input");
+  });
+
+  it("refuses a mode it does not have, from the environment too, and answers --help and --demo", () => {
+    ok(script.includes("if (-not $Sub -and $Mode -and $Mode -notin @('docker', 'tool')) {"), "ORKEON_CODE_MODE=source is refused, never run as tool");
+    ok(script.includes("elseif ($value -notin @('docker', 'tool')) {"), "--mode=source is refused with the launcher's message, before -Mode's ValidateSet");
+    ok(script.includes("elseif ($name -cin @('-h', '--help')) { $Help = $true }"), "--help read");
+    ok(script.includes("if ($Help) { Get-Help $PSCommandPath -Detailed; exit 0 }"), "--help printed");
+    ok(script.includes("elseif ($name -eq '--demo') { throw '--demo is only in the bash launcher"), "--demo said, not passed to the REPL");
+  });
+
   it("puts back every variable it sets, so none stays in the calling session", () => {
     const set = [...new Set([...script.matchAll(/\$env:(\w+)\s*=(?!=)/g)].map((m) => m[1]))].sort();
-    deepStrictEqual(set, ["ORKEON_ALLOW_EXTERNAL_MOUNTS", "ORKEON_ESBUILD_PATH", "ORKEON_Llm__Model", GATE,
+    deepStrictEqual(set, ["ORKEON_ALLOW_EXTERNAL_MOUNTS", "ORKEON_ESBUILD_PATH", "ORKEON_Llm__Model", GATE, START_SCRIPT, PERSIST, SESSIONS_DIR,
       "WHISPER_AUDIO_DIR", "WHISPER_OUT_DIR", "WHISPER_MICROPHONE", "WHISPER_SPEAKER", "ORKEON_MCP__Servers__whisper__Transport",
-      "ORKEON_MCP__Servers__whisper__Command"].sort());
-    // The server's arguments are set in a loop, by name: Args__0 to Args__11 at most (run, --project, the folder,
-    // --extra voice, --extra tts, --extra openai, --extra cuda, the script).
+      "ORKEON_MCP__Servers__whisper__Command", "UV_PROJECT_ENVIRONMENT"].sort());
+    // The server's arguments are set in a loop, by name: Args__0 to Args__12 at most (run, --project, the folder,
+    // --frozen for an install, --extra voice, --extra tts, --extra openai, --extra cuda, the script: 13).
     ok(script.includes('[Environment]::SetEnvironmentVariable("ORKEON_MCP__Servers__whisper__Args__$i", $whisperArgs[$i])'), "the loop");
-    const args = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((i) => `ORKEON_MCP__Servers__whisper__Args__${i}`);
+    const most = 3 + 1 + [...script.matchAll(/\$whisperArgs \+= @\('--extra', '\w+'\)/g)].length * 2 + 1;
+    strictEqual(most, 13);
+    const args = Array.from({ length: most }, (_, i) => `ORKEON_MCP__Servers__whisper__Args__${i}`);
     const saved = /foreach \(\$name in @\(([^)]*)\)\) \{\s*\$savedEnv\[\$name\] = \[Environment\]::GetEnvironmentVariable\(\$name\)/
       .exec(script);
     ok(saved !== null, "orkeon-code.ps1 must save the variables before it sets them");
@@ -432,6 +702,25 @@ describe("orkeon-code.ps1, run where pwsh is installed", { skip: PWSH ? false : 
     args: [...r.env].filter(([k]) => k.startsWith(`${WHISPER}Args__`))
       .sort(([a], [b]) => Number(a.split("__").pop()) - Number(b.split("__").pop())).map(([, v]) => v.replace(r.root, "<root>")),
     switches: [...r.env].filter(([k]) => /^WHISPER_(MICROPHONE|SPEAKER)$/.test(k)).map(([k, v]) => `${k}=${v}`).sort(),
+  });
+
+  it("writes the orkeonCode block alone to the read-only /user-config mount, as ./orkeon-code does", () => {
+    const settings = { Llm: { Model: "m", BaseUrl: "http://127.0.0.1:9/v1" }, orkeonCode: { "tools.extra": "search_issues:read" } };
+    const r = launch({ shell: "pwsh", args: ["-Mode", "tool"], bin: TOOL, env: { ORKEON_ESBUILD_PATH: "/opt/esbuild" }, settings });
+    strictEqual(r.status, 0, r.stderr + r.stdout);
+    ok(r.args.includes(`${r.state}/user-config:/user-config:ro`), r.args.join(" "));
+    deepStrictEqual(JSON.parse(readFileSync(join(r.state, "user-config", "config.json"), "utf-8")), settings.orkeonCode);
+  });
+
+  it("prints --version as ./orkeon-code does, with nothing configured, and starts nothing", () => {
+    for (const flag of ["--version", "-Version"]) {
+      const r = launch({ shell: "pwsh", args: [flag], bin: TOOL, bare: true, install: true, files: { VERSION: "1.0.0-rc.6\n" } });
+      strictEqual(r.status, 0, r.stderr + r.stdout);
+      const lines = r.stdout.split("\n");
+      strictEqual(lines[0], `orkeon-code ${CODE_VERSION} (install: ${r.root})`);
+      strictEqual(lines[1], `Orkeon ${RUNTIME_VERSION} expected, found: 1.0.0-rc.6 (orkeon-repl, ${join(r.root, "..", "VERSION")})`);
+      strictEqual(r.cwd, "", "the REPL did not start");
+    }
   });
 
   it("starts the REPL named by a one-word ORKEON_REPL or found on PATH, from the project", () => {
@@ -495,7 +784,7 @@ describe("orkeon-code.ps1, run where pwsh is installed", { skip: PWSH ? false : 
     const script = fileURLToPath(new URL("../orkeon-code.ps1", import.meta.url));
     const names = ["WHISPER_AUDIO_DIR", "WHISPER_MICROPHONE", "WHISPER_SPEAKER", `${WHISPER}Command`, `${WHISPER}Args__0`, `${WHISPER}Args__6`];
     const after = spawnSync(PWSH, ["-NoProfile", "-Command",
-      `& '${script}' -Mode tool -Settings '${settings}' -Workspace '${base}' *> $null; ` +
+      `& '${script}' -Mode tool -Settings '${settings}' -Workspace '${base}' -Trust *> $null; ` +
       `foreach ($n in @(${names.map((n) => `'${n}'`).join(", ")})) { "$n=$(Test-Path "env:$n")=$([Environment]::GetEnvironmentVariable($n))" }`], {
       cwd: base, encoding: "utf-8",
       env: { PATH: `${bin}:/usr/bin:/bin`, HOME: base, ORKEON_CODE_STATE: join(base, "state"), RECORD: base, ORKEON_ESBUILD_PATH: "/opt/esbuild",
@@ -503,5 +792,689 @@ describe("orkeon-code.ps1, run where pwsh is installed", { skip: PWSH ? false : 
     });
     strictEqual(after.status, 0, after.stderr);
     deepStrictEqual(after.stdout.trim().split("\n"), names.map((n) => (n === "WHISPER_SPEAKER" ? `${n}=True=kept` : `${n}=False=`)));
+  });
+});
+
+// ── Folder trust (LI-3) ─────────────────────────────────────────────────────
+// The first start in a folder asks, before anything of it is read or mounted; `y` stores it in
+// <ORKEON_CODE_HOME>/trusted-folders.json and every folder below it starts silently. Without a terminal an
+// untrusted folder is refused (exit 3) unless --trust, or ORKEON_CODE_TRUST=1 with CI=true; neither stores anything.
+
+/** util-linux `script`, which gives the launcher a pseudo-terminal; the prompt cases are Linux-only. */
+const PTY = process.platform === "linux" && spawnSync("sh", ["-c", "script --version"], { encoding: "utf-8" }).stdout.includes("util-linux");
+const storeOf = (r: Run) => join(r.root, "..", ".orkeon-code", "trusted-folders.json");
+const storedFolders = (r: Run) => (JSON.parse(readFileSync(storeOf(r), "utf-8")) as { folders: { path: string }[] }).folders.map((f) => f.path);
+const TOOL_START = { args: ["--mode", "tool"], bin: TOOL_REPL, env: ESBUILD };
+
+describe("orkeon-code, folder trust", () => {
+  it("refuses an untrusted folder without a terminal: exit 3, --trust named, nothing started", () => {
+    const r = launch({ ...TOOL_START, trusted: false });
+    strictEqual(r.status, 3, r.stderr);
+    ok(r.stderr.includes(`${r.project} is not a trusted folder`) && r.stderr.includes("--trust"), r.stderr);
+    ok(r.stderr.includes(`orkeon-code trust add ${r.project}`), r.stderr);
+    strictEqual(r.cwd, "", "the REPL did not start");
+    ok(!existsSync(join(r.state, "output")), "no state folder made");
+  });
+
+  it("--trust starts this run and stores nothing", () => {
+    const r = launch({ ...TOOL_START, args: ["--mode", "tool", "--trust"], trusted: false });
+    strictEqual(r.status, 0, r.stderr);
+    strictEqual(r.cwd, r.project);
+    ok(!r.args.includes("--trust"), "not forwarded to the REPL");
+    ok(!existsSync(storeOf(r)), "nothing stored");
+  });
+
+  it("honours ORKEON_CODE_TRUST=1 only with CI=true, and stores nothing", () => {
+    const alone = launch({ ...TOOL_START, env: { ...ESBUILD, ORKEON_CODE_TRUST: "1" }, trusted: false });
+    strictEqual(alone.status, 3, alone.stderr);
+    const ci = launch({ ...TOOL_START, env: { ...ESBUILD, ORKEON_CODE_TRUST: "1", CI: "true" }, trusted: false });
+    strictEqual(ci.status, 0, ci.stderr);
+    ok(!existsSync(storeOf(ci)), "nothing stored");
+    const other = launch({ ...TOOL_START, env: { ...ESBUILD, ORKEON_CODE_TRUST: "1", CI: "1" }, trusted: false });
+    strictEqual(other.status, 3, "CI must be exactly true");
+  });
+
+  it("starts silently in a folder below a trusted one", () => {
+    const nested = scratchDir("orkeon-code-nested-");
+    mkdirSync(join(nested, "deep/er"), { recursive: true });
+    const home = scratchDir("orkeon-code-home-");
+    writeFileSync(join(home, "trusted-folders.json"), trustStore([nested]));
+    const t = launch({ ...TOOL_START, args: ["--mode", "tool", "--workspace", join(nested, "deep/er")], env: { ...ESBUILD, ORKEON_CODE_HOME: home }, trusted: false });
+    strictEqual(t.status, 0, t.stderr);
+    strictEqual(t.cwd, join(nested, "deep/er"));
+    ok(!t.stderr.includes("trust"), t.stderr);
+    // A sibling whose name starts like the trusted folder is not below it.
+    mkdirSync(`${nested}-other`);
+    scratch.push(`${nested}-other`);
+    const u = launch({ ...TOOL_START, args: ["--mode", "tool", "--workspace", `${nested}-other`], env: { ...ESBUILD, ORKEON_CODE_HOME: home }, trusted: false });
+    strictEqual(u.status, 3, u.stderr);
+  });
+
+  it("checks a symlinked folder as its target, and mounts the target", () => {
+    const real = scratchDir("orkeon-code-real-");
+    const links = scratchDir("orkeon-code-links-");
+    symlinkSync(real, join(links, "link"));
+    const home = scratchDir("orkeon-code-home-");
+    writeFileSync(join(home, "trusted-folders.json"), trustStore([real]));
+    const r = launch({ ...TOOL_START, args: ["--mode", "tool", "--workspace", join(links, "link")], env: { ...ESBUILD, ORKEON_CODE_HOME: home }, trusted: false });
+    strictEqual(r.status, 0, r.stderr);
+    strictEqual(mountOf(r, "/workspace"), `${real}:/workspace:rw`);
+    writeFileSync(join(home, "trusted-folders.json"), trustStore([join(links, "link")]));
+    const s = launch({ ...TOOL_START, args: ["--mode", "tool", "--workspace", join(links, "link")], env: { ...ESBUILD, ORKEON_CODE_HOME: home }, trusted: false });
+    strictEqual(s.status, 3, "the link's own name is not the folder");
+  });
+
+  it("refuses a corrupt store, names it and keeps it as it was", () => {
+    for (const text of ["{ not json", '{\n  "version": 2,\n  "folders": []\n}\n', '{"version":1,"folders":[]}']) {
+      const home = scratchDir("orkeon-code-home-");
+      writeFileSync(join(home, "trusted-folders.json"), text);
+      const r = launch({ ...TOOL_START, env: { ...ESBUILD, ORKEON_CODE_HOME: home }, trusted: false });
+      strictEqual(r.status, 1, r.stderr);
+      ok(r.stderr.includes(`${join(home, "trusted-folders.json")} is not a trust store this launcher wrote`), r.stderr);
+      strictEqual(r.cwd, "", "the REPL did not start");
+      const add = spawnSync("bash", [join(r.root, "orkeon-code"), "trust", "add", r.project], { encoding: "utf-8", env: { PATH: "/usr/bin:/bin", HOME: home, ORKEON_CODE_HOME: home } });
+      strictEqual(add.status, 1, add.stderr);
+      strictEqual(readFileSync(join(home, "trusted-folders.json"), "utf-8"), text, "kept as it was");
+    }
+  });
+
+  it("--demo trusts its own fixture", () => {
+    const r = launch({ args: ["--demo", "--mode", "tool"], bin: TOOL_REPL, env: ESBUILD, bare: true, files: USER_SETTINGS, trusted: false });
+    strictEqual(r.status, 0, r.stderr);
+    strictEqual(r.cwd, join(r.root, "fixtures/sample-repo"));
+    ok(!existsSync(storeOf(r)), "nothing stored");
+  });
+
+  it("docker mode checks on the host, before docker runs", () => {
+    const r = launch({ args: ["--mode", "docker"], bin: { docker: recorder() }, trusted: false });
+    strictEqual(r.status, 3, r.stderr);
+    strictEqual(r.cwd, "", "docker did not run");
+  });
+
+  it("trust add, list and remove keep the store in the launchers' layout, valid JSON whatever the path", () => {
+    const home = scratchDir("orkeon-code-home-");
+    const odd = join(scratchDir("orkeon-code-odd-"), 'a "quoted" \\ folder');
+    mkdirSync(odd);
+    const plain = scratchDir("orkeon-code-plain-");
+    const env = { PATH: "/usr/bin:/bin", HOME: home, ORKEON_CODE_HOME: home };
+    const L = fileURLToPath(new URL("../orkeon-code", import.meta.url));
+    const trust = (...a: string[]) => spawnSync("bash", [L, "trust", ...a], { encoding: "utf-8", env });
+    strictEqual(trust("list").stdout, "", "an absent store is empty");
+    strictEqual(trust("add", odd).status, 0);
+    strictEqual(trust("add", plain).status, 0);
+    ok(trust("add", join(plain, ".")).stdout.includes("already trusted"), "a folder is stored once");
+    mkdirSync(join(plain, "sub"));
+    ok(trust("add", join(plain, "sub")).stdout.includes(`already trusted, through ${plain}`));
+    const store = JSON.parse(readFileSync(join(home, "trusted-folders.json"), "utf-8"));
+    strictEqual(store.version, 1);
+    deepStrictEqual(store.folders.map((f: { path: string }) => f.path), [odd, plain]);
+    ok(store.folders.every((f: { trustedAt: string }) => /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/.test(f.trustedAt)));
+    strictEqual(statSync(join(home, "trusted-folders.json")).mode & 0o777, 0o600);
+    deepStrictEqual(trust("list").stdout.split("\n").filter(Boolean).map((l) => l.replace(/ {2}\(trusted .*\)$/, "")), [odd, plain]);
+    strictEqual(trust("remove", join(plain, "sub")).status, 1, "trusted through its parent, not in the store");
+    strictEqual(trust("remove", odd).status, 0);
+    deepStrictEqual(JSON.parse(readFileSync(join(home, "trusted-folders.json"), "utf-8")).folders.map((f: { path: string }) => f.path), [plain]);
+    rmSync(plain, { recursive: true });
+    strictEqual(trust("remove", plain).status, 0, "a folder gone is removed by its stored name");
+    deepStrictEqual(JSON.parse(readFileSync(join(home, "trusted-folders.json"), "utf-8")).folders, []);
+    strictEqual(trust("check", odd).status, 3);
+    strictEqual(trust("check", odd, "--trust").status, 0);
+    strictEqual(trust("frobnicate").status, 1);
+  });
+
+  describe("asked in a terminal", { skip: PTY ? false : "util-linux script is not available" }, () => {
+    it("n: exit 0, nothing stored, nothing mounted; y: stored, and the next start is silent", () => {
+      const n = launch({ ...TOOL_START, trusted: false, tty: "n\n" });
+      strictEqual(n.status, 0, n.stdout);
+      ok(n.stdout.includes("do you trust the files in this folder?") && n.stdout.includes(n.project), n.stdout);
+      ok(n.stdout.includes("AGENTS.md") && n.stdout.includes(".orkeon/repo.yaml"), n.stdout);
+      ok(n.stdout.includes("nothing started"), n.stdout);
+      ok(!n.stdout.includes("This trusts every folder below it"), "not $HOME");
+      strictEqual(n.cwd, "", "the REPL was never called");
+      ok(!existsSync(storeOf(n)) && !existsSync(join(n.state, "output")), "nothing stored, no state made");
+      const eof = launch({ ...TOOL_START, trusted: false, tty: "" });
+      strictEqual(eof.status, 0, "no answer is a no");
+      strictEqual(eof.cwd, "");
+
+      const y = launch({ ...TOOL_START, trusted: false, tty: "y\n" });
+      strictEqual(y.status, 0, y.stdout);
+      strictEqual(y.cwd, y.project);
+      deepStrictEqual(storedFolders(y), [y.project]);
+      // The next start in the same folder, without a terminal: silent, through the store.
+      const base = join(y.root, "..");
+      rmSync(join(base, "record"), { recursive: true });
+      mkdirSync(join(base, "record"));
+      const again = spawnSync("bash", [join(y.root, "orkeon-code"), "--settings", join(base, "settings.json"), "--workspace", y.project, "--mode", "tool"], {
+        cwd: base, encoding: "utf-8",
+        env: { PATH: `${join(base, "bin")}:/usr/bin:/bin`, HOME: base, ORKEON_CODE_STATE: y.state, RECORD: join(base, "record"), ...ESBUILD },
+      });
+      strictEqual(again.status, 0, again.stderr);
+      ok(!again.stderr.includes("trust"), again.stderr);
+      strictEqual(readFileSync(join(base, "record", "cwd"), "utf-8").trim(), y.project);
+    });
+
+    it("says that trusting $HOME trusts every folder below it", () => {
+      const r = launch({ ...TOOL_START, args: ["--mode", "tool", "--workspace", "."], trusted: false, tty: "n\n" });
+      // The scratch base is both the launcher's cwd and HOME.
+      strictEqual(r.status, 0, r.stdout);
+      ok(r.stdout.includes("This trusts every folder below it."), r.stdout);
+    });
+
+    it("--trust in a terminal starts without asking", () => {
+      const r = launch({ ...TOOL_START, args: ["--mode", "tool", "--trust"], trusted: false, tty: "" });
+      strictEqual(r.status, 0, r.stdout);
+      ok(!r.stdout.includes("do you trust"), r.stdout);
+      ok(!existsSync(storeOf(r)));
+    });
+  });
+});
+
+describe("the CI's npm-shim step starts the REPL without a terminal", () => {
+  it("passes --trust, or the launcher refuses its untrusted folder with 3 before the REPL", () => {
+    const ci = readFileSync(fileURLToPath(new URL("../.github/workflows/ci.yml", import.meta.url)), "utf-8");
+    const starts = ci.split("\n").filter((l) => /orkeon-code --mode tool /.test(l));
+    ok(starts.length > 0, "the step is there");
+    for (const line of starts) ok(line.includes(" --trust "), line);
+  });
+});
+
+describe("scripts/run-crew.sh checks the folder as the launcher does", () => {
+  function runCrew(extra: string[], opts: { trusted?: boolean; noDotnet?: boolean; env?: Record<string, string> } = {}) {
+    const base = scratchDir("orkeon-code-run-crew-");
+    const root = join(base, "checkout");
+    for (const dir of ["scripts", "config", ".git", "src", "bin", "record"].map((d) => (d === "bin" || d === "record" ? join(base, d) : join(root, d)))) mkdirSync(dir, { recursive: true });
+    mkdirSync(join(base, "project"));
+    for (const file of ["orkeon-code", ".orkeon-version", "package.json", "scripts/run-crew.sh", "scripts/setup-fixture.sh"]) {
+      copyFileSync(fileURLToPath(new URL(`../${file}`, import.meta.url)), join(root, file));
+    }
+    writeFileSync(join(root, "config/appsettings.local.json"), SETTINGS_TEXT);
+    writeFileSync(join(root, "src/crew.ork.ts"), "");
+    if (!opts.noDotnet) {
+      writeFileSync(join(base, "bin/dotnet"), DOTNET);
+      chmodSync(join(base, "bin/dotnet"), 0o755);
+    }
+    if (opts.trusted) {
+      mkdirSync(join(base, ".orkeon-code"));
+      writeFileSync(join(base, ".orkeon-code/trusted-folders.json"), trustStore([join(base, "project")]));
+    }
+    const r = spawnSync("bash", [join(root, "scripts/run-crew.sh"), join(root, "src/crew.ork.ts"), ...extra], {
+      encoding: "utf-8", cwd: base,
+      env: { PATH: `${join(base, "bin")}:/usr/bin:/bin`, HOME: base, RECORD: join(base, "record"), ORKEON_CODE_WORKSPACE: join(base, "project"), ...opts.env },
+    });
+    let calls: string[] = [];
+    try { calls = readFileSync(join(base, "record/calls"), "utf-8").split("\n").filter(Boolean); } catch { /* never called */ }
+    let env = "";
+    try { env = readFileSync(join(base, "record/env"), "utf-8"); } catch { /* never called */ }
+    return { ...r, calls, env, project: join(base, "project"), base, root };
+  }
+
+  it("refuses an untrusted project without a terminal, before dotnet runs", () => {
+    const r = runCrew([]);
+    strictEqual(r.status, 3, r.stderr);
+    ok(r.stderr.includes("is not a trusted folder"), r.stderr);
+    deepStrictEqual(r.calls, []);
+  });
+
+  it("runs a trusted project, and --trust for one run, never forwarded to orkeon run", () => {
+    const t = runCrew(["--inputs", "{}"], { trusted: true });
+    strictEqual(t.status, 0, t.stderr);
+    ok(t.calls.some((c) => c.includes("tool run orkeon run") && c.includes(`${t.project}:/workspace:rw`)), t.calls.join("\n"));
+    const once = runCrew(["--trust", "--inputs", "{}"]);
+    strictEqual(once.status, 0, once.stderr);
+    const run = once.calls.find((c) => c.includes("tool run orkeon run")) ?? "";
+    ok(run.includes("--inputs {}") && !run.includes("--trust"), run);
+  });
+
+  it("passes the settings, the mounts and ORKEON_CODE_MODEL to the tool built from ORKEON_SOURCE in the source mode", () => {
+    const source = scratchDir("orkeon-code-run-crew-source-");
+    mkdirSync(join(source, "src/scripting/Orkeon.Scripting.Cli"), { recursive: true });
+    const r = runCrew(["--inputs", "{}"], { trusted: true, env: { ORKEON_CODE_MODE: "source", ORKEON_SOURCE: source, ORKEON_CODE_MODEL: "m-live" } });
+    strictEqual(r.status, 0, r.stderr);
+    ok(r.calls.some((c) => c.includes(`build ${source}/src/scripting/Orkeon.Scripting.Cli -c Debug`)), r.calls.join("\n"));
+    const run = r.calls.find((c) => c.includes(" run --no-build --project ")) ?? "";
+    ok(run.includes(`run --no-build --project ${source}/src/scripting/Orkeon.Scripting.Cli -- run ${r.root}/src/crew.ork.ts`), r.calls.join("\n"));
+    ok(run.includes(`-s ${r.root}/config/appsettings.local.json`) && run.includes(`-m ${r.project}:/workspace:rw`), run);
+    ok(run.endsWith("--inputs {}"), run);
+    ok(r.env.split("\n").includes("ORKEON_Llm__Model=m-live"), r.env);
+    const missing = runCrew([], { trusted: true, env: { ORKEON_CODE_MODE: "source", ORKEON_SOURCE: join(source, "nowhere") } });
+    strictEqual(missing.status, 1);
+    ok(missing.stderr.includes("ORKEON_CODE_MODE=source needs ORKEON_SOURCE"), missing.stderr);
+    deepStrictEqual(missing.calls, []);
+  });
+
+  it("says the source mode needs dotnet when it is not on PATH, building nothing", { skip: existsSync("/usr/bin/dotnet") || existsSync("/bin/dotnet") }, () => {
+    const source = scratchDir("orkeon-code-run-crew-source-");
+    mkdirSync(join(source, "src/scripting/Orkeon.Scripting.Cli"), { recursive: true });
+    const r = runCrew([], { trusted: true, noDotnet: true, env: { ORKEON_CODE_MODE: "source", ORKEON_SOURCE: source } });
+    strictEqual(r.status, 1, r.stderr);
+    ok(r.stderr.includes("needs the .NET SDK: dotnet is not on PATH"), r.stderr);
+    deepStrictEqual(r.calls, []);
+  });
+});
+
+// ── The settings (LI-2) ─────────────────────────────────────────────────────
+// First found: --settings, ORKEON_CODE_SETTINGS, config/appsettings.local.json (a clone), ~/.orkeon-code/appsettings.json,
+// ~/.config/orkeon-code/appsettings.json (the old place, with a warning), Orkeon's own ~/.config/Orkeon/appsettings.json
+// (then no --settings: the REPL reads it itself). None and a terminal: setup.
+
+const RUNTIME_SETTINGS_TEXT = JSON.stringify({ Llm: { Model: "m", BaseUrl: "http://127.0.0.1:9/v1", ApiKeyEnvVar: "RUNTIME_KEY" } });
+
+describe("orkeon-code, where the settings come from", () => {
+  it("with Orkeon's own file alone, passes no --settings and still finds the key's variable", () => {
+    const r = launch({ ...TOOL_START, bare: true, install: true, files: { ".config/Orkeon/appsettings.json": RUNTIME_SETTINGS_TEXT } });
+    strictEqual(r.status, 0, r.stderr);
+    ok(!r.args.includes("--settings"), r.args.join(" "));
+    ok(r.stderr.includes("export RUNTIME_KEY"), r.stderr);
+    ok(r.stdout.includes(`settings : ${join(r.root, "..", ".config/Orkeon/appsettings.json")} (Orkeon's own, read by the REPL)`), r.stdout);
+    const x = launch({ ...TOOL_START, bare: true, install: true, env: { ...ESBUILD, XDG_CONFIG_HOME: "/elsewhere-xdg", RUNTIME_KEY: "set" },
+      files: { ".config/Orkeon/appsettings.json": RUNTIME_SETTINGS_TEXT } });
+    strictEqual(x.status, 1, "an absolute XDG_CONFIG_HOME moves the place, as for the runtime");
+  });
+
+  it("docker mode mounts Orkeon's own file and names it: the container has no host HOME", () => {
+    const r = launch({ args: ["--mode", "docker"], bin: { docker: recorder() }, bare: true, install: true,
+      files: { ".config/Orkeon/appsettings.json": RUNTIME_SETTINGS_TEXT } });
+    strictEqual(r.status, 0, r.stderr);
+    ok(r.args.includes(`${join(r.root, "..", ".config/Orkeon/appsettings.json")}:/work/settings.json:ro`), r.args.join(" "));
+    ok(r.args.join(" ").includes("--settings /work/settings.json"), r.args.join(" "));
+  });
+
+  it("reads the old ~/.config/orkeon-code file with a warning, and ~/.orkeon-code/appsettings.json before it", () => {
+    const old = launch({ ...TOOL_START, bare: true, install: true, files: { ...USER_SETTINGS, ".config/Orkeon/appsettings.json": RUNTIME_SETTINGS_TEXT } });
+    strictEqual(old.status, 0, old.stderr);
+    const legacy = join(old.root, "..", ".config/orkeon-code/appsettings.json");
+    ok(old.args.includes(legacy), old.args.join(" "));
+    ok(old.stderr.includes(`${legacy} is the old place of the settings: move it to ${join(old.root, "..", ".orkeon-code/appsettings.json")}`), old.stderr);
+    const home = launch({ ...TOOL_START, bare: true, install: true, files: { ...USER_SETTINGS, ".orkeon-code/appsettings.json": SETTINGS_TEXT } });
+    strictEqual(home.status, 0, home.stderr);
+    ok(home.args.includes(join(home.root, "..", ".orkeon-code/appsettings.json")), home.args.join(" "));
+    ok(!home.stderr.includes("old place"), home.stderr);
+    const clone = launch({ ...TOOL_START, bare: true, files: { "checkout/config/appsettings.local.json": SETTINGS_TEXT, ".orkeon-code/appsettings.json": SETTINGS_TEXT } });
+    ok(clone.args.includes(join(clone.root, "config/appsettings.local.json")), "a clone's local file first");
+  });
+
+  it("setup refuses to run without a terminal", () => {
+    const r = launch({ args: ["setup"], bin: {}, bare: true, install: true });
+    strictEqual(r.status, 1);
+    ok(r.stderr.includes("setup asks its questions in a terminal"), r.stderr);
+    ok(!existsSync(join(r.root, "..", ".orkeon-code/appsettings.json")));
+  });
+
+  describe("setup, in a terminal", { skip: PTY ? false : "util-linux script is not available" }, () => {
+    const written = (r: Run) => join(r.root, "..", ".orkeon-code/appsettings.json");
+
+    it("writes ~/.orkeon-code/appsettings.json, mode 600, with the model and the name of the key's variable, never a key", () => {
+      const r = launch({ args: ["setup"], bin: {}, bare: true, install: true, files: { "checkout/config/appsettings.example.json": read("config/appsettings.example.json") },
+        tty: "1\nsk-abcdef0123456789abcdef\nA1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6\nmy-model\nsk-live-123secret\nA1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6\nMY_KEY\n" });
+      strictEqual(r.status, 0, r.stdout);
+      const text = readFileSync(written(r), "utf-8");
+      const settings = JSON.parse(text);
+      strictEqual(settings.Llm.Model, "my-model");
+      strictEqual(settings.Llm.ApiKeyEnvVar, "MY_KEY");
+      strictEqual(settings.Llm.BaseUrl, "https://api.deepseek.com");
+      // Keys pasted at the model and at the variable questions: refused, never stored, never said back (the terminal
+      // echoes what is typed, once per answer).
+      for (const [key, typed] of [["sk-abcdef0123456789abcdef", 1], ["sk-live-123secret", 1], ["A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6", 2]] as const) {
+        ok(!text.includes(key), `${key} is not in the file`);
+        strictEqual(r.stdout.split(key).length - 1, typed, r.stdout);
+      }
+      ok(r.stdout.includes("not a model id"), r.stdout);
+      ok(r.stdout.includes("not a variable name"), r.stdout);
+      ok(r.stdout.includes("export MY_KEY=<your key>"), r.stdout);
+      strictEqual(statSync(written(r)).mode & 0o777, 0o600);
+    });
+
+    it("keeps an existing file unless told to replace it, and the Ollama example asks no variable", () => {
+      const files = { "checkout/config/appsettings.ollama.example.json": read("config/appsettings.ollama.example.json"), ".orkeon-code/appsettings.json": "{}" };
+      const kept = launch({ args: ["setup"], bin: {}, bare: true, install: true, files, tty: "\n" });
+      strictEqual(kept.status, 1, kept.stdout);
+      strictEqual(readFileSync(written(kept), "utf-8"), "{}");
+      const replaced = launch({ args: ["setup"], bin: {}, bare: true, install: true, files, tty: "y\n2\n\n" });
+      strictEqual(replaced.status, 0, replaced.stdout);
+      const settings = JSON.parse(readFileSync(written(replaced), "utf-8"));
+      strictEqual(settings.Llm.Model, "qwen3.5:2b");
+      strictEqual(settings.Llm.ApiKeyEnvVar, undefined);
+      ok(!replaced.stdout.includes("environment variable that holds the API key ["), replaced.stdout);
+    });
+
+    it("runs on a first start with no settings, then starts the REPL with the file written", () => {
+      const r = launch({ ...TOOL_START, bare: true, install: true, files: { "checkout/config/appsettings.example.json": read("config/appsettings.example.json") },
+        tty: "\n\n\n" });
+      strictEqual(r.status, 0, r.stdout);
+      ok(r.args.includes(written(r)), r.args.join(" "));
+      strictEqual(r.cwd, r.project);
+    });
+  });
+});
+
+describe("orkeon-code.ps1 checks the folder and finds the settings as ./orkeon-code does (read here)", () => {
+  const script = read("orkeon-code.ps1");
+
+  it("binds no argument by position, so trust and setup reach the script", () => {
+    ok(script.includes("[CmdletBinding(PositionalBinding = $false)]"), "no positional binding");
+    ok(script.includes("$Extra[0] -cin @('trust', 'setup')"), "the subcommands");
+    ok(script.includes("elseif ($name -eq '--trust') { $Trust = [switch] $true }"), "--trust as a long option");
+  });
+
+  it("checks the folder before the settings, refuses without a terminal with exit 3, a decline with 0", () => {
+    ok(script.indexOf("Confirm-Trusted $Workspace $Trust.IsPresent 0") > 0, "the check");
+    ok(script.indexOf("Confirm-Trusted $Workspace $Trust.IsPresent 0") < script.indexOf("$runtimeOwn = $false"), "before the settings");
+    ok(script.includes("if ([Console]::IsInputRedirected) {") && script.includes("    exit 3"), "no terminal: 3");
+    ok(script.includes("$env:ORKEON_CODE_TRUST -eq '1' -and $env:CI -ceq 'true'"), "CI only");
+    ok(script.includes("'  This trusts every folder below it.'"), "the $HOME line");
+  });
+
+  it("writes the store in the bash launcher's layout", () => {
+    ok(script.includes(`'    { "path": "' + (& $escape $_.Path) + '", "trustedAt": "' + (& $escape $_.TrustedAt) + '" }'`), "one folder per line");
+    ok(script.includes(`"{\`n  \`"version\`": 1,\`n$folders}\`n"`), "the frame");
+    ok(script.includes("Move-Item -LiteralPath $tmp -Destination $file -Force"), "a rename");
+  });
+
+  it("falls back on Orkeon's own file without passing --settings, and warns on the old place", () => {
+    ok(script.includes("$runtimeSettings = Join-Path $configBase 'Orkeon/appsettings.json'"), "Orkeon's own");
+    ok(script.includes("if ($settings) { @('--settings', $settings) }"), "--settings only when one is passed");
+    ok(script.includes("$(if ($runtimeOwn) { '' } else { $Settings })"), "tool mode passes none for Orkeon's own");
+    ok(script.includes("is the old place of the settings: move it to $homeSettings."), "the warning");
+    ok(script.includes("Invoke-Setup $homeSettings"), "setup");
+  });
+});
+
+describe("orkeon-code.ps1, trust and settings, run where pwsh is installed", { skip: PWSH ? false : "pwsh is not on PATH" }, () => {
+  it("refuses the corrupt stores ./orkeon-code refuses, and keeps them", () => {
+    for (const text of ["{ not json", '{"version":1,"folders":[]}']) {
+      const home = scratchDir("orkeon-code-home-");
+      writeFileSync(join(home, "trusted-folders.json"), text);
+      const r = launch({ shell: "pwsh", ...TOOL_START, args: ["-Mode", "tool"], env: { ...ESBUILD, ORKEON_CODE_HOME: home }, trusted: false });
+      strictEqual(r.status, 1, r.stderr + r.stdout);
+      strictEqual(readFileSync(join(home, "trusted-folders.json"), "utf-8"), text);
+    }
+  });
+
+  it("refuses an untrusted folder without a terminal, starts with -Trust, and storing nothing", () => {
+    const r = launch({ shell: "pwsh", ...TOOL_START, args: ["-Mode", "tool"], trusted: false });
+    strictEqual(r.status, 3, r.stderr + r.stdout);
+    strictEqual(r.cwd, "");
+    const t = launch({ shell: "pwsh", ...TOOL_START, args: ["-Mode", "tool", "--trust"], trusted: false });
+    strictEqual(t.status, 0, t.stderr + t.stdout);
+    ok(!existsSync(storeOf(t)));
+  });
+
+  it("reads and writes the store as ./orkeon-code does", () => {
+    const r = launch({ shell: "pwsh", args: ["trust", "add", "project"], bin: {}, trusted: false });
+    strictEqual(r.status, 0, r.stderr + r.stdout);
+    const check = spawnSync("bash", [join(r.root, "orkeon-code"), "trust", "list"], {
+      encoding: "utf-8", env: { PATH: "/usr/bin:/bin", HOME: join(r.root, ".."), ORKEON_CODE_HOME: join(r.root, "..", ".orkeon-code") },
+    });
+    strictEqual(check.status, 0, check.stderr);
+    ok(check.stdout.startsWith(`${r.project}  (trusted `), check.stdout);
+    // And the store it wrote lets the folder start (its dates are read as strings).
+    const again = spawnSync(PWSH, ["-NoProfile", "-File", join(r.root, "orkeon-code.ps1"), "trust", "check", r.project], {
+      encoding: "utf-8", env: { PATH: "/usr/bin:/bin", HOME: join(r.root, ".."), ORKEON_CODE_HOME: join(r.root, "..", ".orkeon-code") },
+    });
+    strictEqual(again.status, 0, again.stderr + again.stdout);
+  });
+
+  it("with Orkeon's own file alone, passes no --settings", () => {
+    const r = launch({ shell: "pwsh", ...TOOL_START, args: ["-Mode", "tool"], bare: true, install: true,
+      files: { ".config/Orkeon/appsettings.json": RUNTIME_SETTINGS_TEXT } });
+    strictEqual(r.status, 0, r.stderr + r.stdout);
+    ok(!r.args.includes("--settings"), r.args.join(" "));
+  });
+});
+
+// ── Per-project state (LI-4) and sessions (LI-5) ────────────────────────────
+// The runtime saves the session in <SessionsDirectory>/<its slug of the project>/last.json when the REPL ends; the
+// launcher points SessionsDirectory at /sessions, a folder of the project's own state outside the project, moves the
+// saved file to history/ at the next start unless --continue, and puts a chosen one back on --resume.
+
+describe("the project slug is the runtime's ProjectKey.Slug", () => {
+  it("matches the values the runtime computed (dotnet fsi, Orkeon.Infrastructure.dll)", () => {
+    deepStrictEqual(
+      ["/home/u/src/app", "/home/u/work/app", "/home/u/My Project.v2", "/home/u/Café-😀", "/work/project", "C:\\Users\\u\\App"].map(slugOf),
+      ["app-bb40879b7896", "app-9abec9881c14", "my-project-v2-061072a7e265", "caf-----7f9fb81a28e4", "project-65d80d2c48b3", "app-d6c9eb3583f9"],
+    );
+  });
+
+  it("orkeon-code computes the same, two projects of one name getting two folders", () => {
+    for (const name of ["app", "My Project.v2", "Café-😀"]) {
+      const runs = [0, 1].map(() => launch({
+        args: ["--mode", "tool", "--workspace", join("sub", name)], bin: TOOL_REPL, env: ESBUILD, files: { [`sub/${name}/.keep`]: "" },
+      }));
+      for (const r of runs) {
+        strictEqual(r.status, 0, r.stderr);
+        const workspace = join(r.root, "..", "sub", name);
+        strictEqual(mountOf(r, "/sessions"), `${join(r.state, "projects", slugOf(workspace))}/sessions:/sessions:rw`);
+      }
+      ok(mountOf(runs[0], "/sessions") !== mountOf(runs[1], "/sessions"), "two paths, two slugs");
+    }
+  });
+
+  it("orkeon-code.ps1 computes it the same way", () => {
+    const script = read("orkeon-code.ps1");
+    ok(script.includes("$name = ($path.TrimEnd('/', '\\') -split '[/\\\\]')[-1]"), "the last segment");
+    ok(script.includes("($n -ge 48 -and $n -le 57) -or ($n -ge 65 -and $n -le 90) -or ($n -ge 97 -and $n -le 122)"), "ASCII letters and digits");
+    ok(script.includes("[System.Security.Cryptography.SHA256]::Create()") && script.includes("[System.Text.Encoding]::UTF8.GetBytes($path)"),
+      "SHA-256 of the UTF-8 path");
+    ok(script.includes(".Substring(0, 12)"), "12 hex");
+  });
+});
+
+/** A project and a state folder that outlive one launch, so that several launches see what the last one left. */
+function sessionScene() {
+  const project = scratchDir("orkeon-code-project-");
+  const state = scratchDir("orkeon-code-state-");
+  const own = join(state, "projects", slugOf(project));
+  const run = (args: string[], env: Record<string, string> = {}, bin: Record<string, string> = TOOL_REPL) =>
+    launch({ args: ["--mode", "tool", "--trust", "--workspace", project, ...args], bin, env: { ...ESBUILD, ORKEON_CODE_STATE: state, ...env } });
+  /** What the runtime leaves when the REPL ends. */
+  const save = (id: string, title: string, messages: number) => {
+    mkdirSync(join(own, "sessions", slugOf(project)), { recursive: true });
+    const list = Array.from({ length: messages }, (_, i) => `{"Role":"user","Content":"m${i}"}`).join(",");
+    writeFileSync(join(own, "sessions", slugOf(project), "last.json"), `{"SessionId":"${id}","Title":"${title}","Messages":[${list}],"State":{}}`);
+  };
+  const last = () => join(own, "sessions", slugOf(project), "last.json");
+  const history = () => readdirSync(join(own, "history")).sort();
+  return { project, state, own, run, save, last, history };
+}
+
+describe("orkeon-code, per-project state (LI-4)", () => {
+  it("mounts the project's sessions on /sessions and names it to the runtime, persistence on, nothing in the project", () => {
+    const s = sessionScene();
+    const r = s.run([]);
+    strictEqual(r.status, 0, r.stderr);
+    strictEqual(r.env.get(SESSIONS_DIR), "/sessions");
+    strictEqual(r.env.get(PERSIST), "true");
+    strictEqual(mountOf(r, "/sessions"), `${s.own}/sessions:/sessions:rw`);
+    ok(r.args.includes(`${s.own}/history:/session-history:ro`), r.args.join(" "));
+    ok(!existsSync(join(s.project, ".orkeon")), "nothing written in the project");
+    ok(r.stdout.includes(`  sessions : ${s.own}/sessions (fresh; --continue brings the last back, --resume lists them)`), r.stdout);
+    const off = s.run([], { [PERSIST]: "false" });
+    strictEqual(off.env.get(PERSIST), "false", "a value the user exported is kept");
+  });
+
+  it("writes project.json beside the sessions, its first start kept", () => {
+    const s = sessionScene();
+    s.run([]);
+    const first = JSON.parse(readFileSync(join(s.own, "project.json"), "utf-8"));
+    deepStrictEqual({ ...first, firstSeen: "", lastSeen: "" },
+      { path: s.project, slug: slugOf(s.project), runtimeSlug: slugOf(s.project), firstSeen: "", lastSeen: "" });
+    writeFileSync(join(s.own, "project.json"), JSON.stringify({ ...first, firstSeen: "2026-01-01T00:00:00Z" }));
+    s.run([]);
+    strictEqual(JSON.parse(readFileSync(join(s.own, "project.json"), "utf-8")).firstSeen, "2026-01-01T00:00:00Z");
+  });
+
+  it("docker mode mounts the same folders under /work/state, and the runtime's slug is that of /work/project", () => {
+    const s = sessionScene();
+    const r = s.run(["--mode", "docker"], {}, { docker: recorder() });
+    strictEqual(r.status, 0, r.stderr);
+    const inner = `/work/state/projects/${slugOf(s.project)}`;
+    ok(r.args.includes(`${inner}/sessions:/sessions:rw`) && r.args.includes(`${inner}/history:/session-history:ro`), r.args.join(" "));
+    ok(r.args.includes(`${SESSIONS_DIR}=/sessions`) && r.args.includes(`${PERSIST}=true`), r.args.join(" "));
+    strictEqual(JSON.parse(readFileSync(join(s.own, "project.json"), "utf-8")).runtimeSlug, "project-65d80d2c48b3");
+  });
+
+  it("sends a bare --llm-log to the project's state, and passes an explicit --llm-log-path as given", () => {
+    const s = sessionScene();
+    const r = s.run(["--", "--llm-log"]);
+    strictEqual(r.status, 0, r.stderr);
+    deepStrictEqual(r.args.slice(-2), ["--llm-log-path", `${s.own}/llm-logs`]);
+    ok(!r.args.includes("--llm-log"), r.args.join(" "));
+    deepStrictEqual(s.run(["--", "--llm-log-path", "/tmp/logs"]).args.slice(-2), ["--llm-log-path", "/tmp/logs"]);
+    const both = s.run(["--", "--llm-log-path", "/tmp/logs", "--llm-log"]);
+    deepStrictEqual(both.args.slice(-2), ["--llm-log-path", "/tmp/logs"], "the explicit path wins");
+    ok(!both.args.includes(`${s.own}/llm-logs`), both.args.join(" "));
+  });
+});
+
+describe("orkeon-code, sessions (LI-5)", () => {
+  it("starts fresh: the last session goes to history/; --continue leaves it for the runtime to reload", () => {
+    const s = sessionScene();
+    s.save("abc123", "Fix the parser", 2);
+    strictEqual(s.run([]).status, 0);
+    ok(!existsSync(s.last()), "moved away: the runtime starts fresh");
+    deepStrictEqual(s.history().map((f) => f.replace(/^\d{8}T\d{6}Z-/, "")), ["abc123.json"]);
+    s.save("def456", "Second", 1);
+    const c = s.run(["--continue"]);
+    strictEqual(c.status, 0, c.stderr);
+    ok(existsSync(s.last()), "left for the runtime");
+    ok(c.stdout.includes("(continued)"), c.stdout);
+    strictEqual(s.run(["-c"]).status, 0);
+    ok(existsSync(s.last()), "-c too");
+    strictEqual(s.history().length, 1);
+  });
+
+  it("--resume lists the sessions and, without a terminal, asks for a number or an id", () => {
+    const s = sessionScene();
+    s.save("abc123", "Fix the parser", 2);
+    s.run([]);
+    s.save("def456", "Second", 1);
+    const r = s.run(["--resume"]);
+    strictEqual(r.status, 2);
+    ok(/ {2}1 {2}\d{8}T\d{6}Z {2}Second {2}\(1 messages\) {2}def456\n/.test(r.stderr), r.stderr);
+    ok(/ {2}2 {2}\d{8}T\d{6}Z {2}Fix the parser {2}\(2 messages\) {2}abc123\n/.test(r.stderr), r.stderr);
+    ok(r.stderr.includes("no terminal to choose in: pass --resume <number or id>."), r.stderr);
+    strictEqual(r.cwd, "", "the REPL did not start");
+  });
+
+  it("--resume <n or id> puts the chosen one back where the runtime reads it, and refuses an unknown one", () => {
+    const s = sessionScene();
+    s.save("abc123", "Fix the parser", 2);
+    s.run([]);
+    s.save("def456", "Second", 1);
+    const r = s.run(["--resume", "abc"]);
+    strictEqual(r.status, 0, r.stderr);
+    ok(r.stdout.includes("(resumed abc123)"), r.stdout);
+    ok(readFileSync(s.last(), "utf-8").includes('"SessionId":"abc123"'));
+    deepStrictEqual(s.history().map((f) => f.replace(/^\d{8}T\d{6}Z-/, "")), ["def456.json"], "the open one archived, the chosen one out");
+    // The REPL resumed abc123 ended on a new session: archived now, it heads the list. Its id sorts after def456's
+    // too, so number 1 is ghi789 whether or not this launch falls in a later second than the last one (the
+    // history is named <UTC second>-<id> and read newest first: abc123 archived again would head it only when
+    // the second changed between the two launches, as under a loaded test run).
+    s.save("ghi789", "Third", 3);
+    const n = s.run(["--resume=1"]);
+    strictEqual(n.status, 0, n.stderr);
+    ok(readFileSync(s.last(), "utf-8").includes('"SessionId":"ghi789"'));
+    ok(n.stdout.includes("(resumed ghi789)"), n.stdout);
+    const unknown = s.run(["--resume", "zzz"]);
+    strictEqual(unknown.status, 1);
+    ok(unknown.stderr.includes("no saved session 'zzz'"), unknown.stderr);
+    const both = s.run(["--continue", "--resume"]);
+    strictEqual(both.status, 1);
+    ok(both.stderr.includes("--continue and --resume do not go together"), both.stderr);
+  });
+
+  it("keeps the 50 newest, or ORKEON_CODE_SESSIONS_KEEP", () => {
+    const s = sessionScene();
+    mkdirSync(join(s.own, "history"), { recursive: true });
+    for (let i = 0; i < 51; i++) writeFileSync(join(s.own, "history", `2026${String(1001 + i).padStart(4, "0")}T000000Z-s${i}.json`), "{}");
+    strictEqual(s.run([]).status, 0);
+    strictEqual(s.history().length, 50);
+    ok(!s.history().includes("20261001T000000Z-s0.json"), "the oldest went");
+    strictEqual(s.run([], { ORKEON_CODE_SESSIONS_KEEP: "2" }).status, 0);
+    deepStrictEqual(s.history(), ["20261050T000000Z-s49.json", "20261051T000000Z-s50.json"]);
+    const bad = s.run([], { ORKEON_CODE_SESSIONS_KEEP: "lots" });
+    ok(bad.stderr.includes("ORKEON_CODE_SESSIONS_KEEP=lots is not a whole number from 1 to 9999: 50 sessions are kept."), bad.stderr);
+    for (const keep of ["0", "00", "99999999999999999999"]) {
+      const r = s.run([], { ORKEON_CODE_SESSIONS_KEEP: keep });
+      strictEqual(r.status, 0, r.stderr);
+      ok(r.stderr.includes(`ORKEON_CODE_SESSIONS_KEEP=${keep} is not a whole number from 1 to 9999`), r.stderr);
+      strictEqual(s.history().length, 2, `${keep}: nothing more deleted`);
+    }
+    const octal = s.run([], { ORKEON_CODE_SESSIONS_KEEP: "08" });
+    strictEqual(octal.status, 0, octal.stderr);
+    strictEqual(s.history().length, 2, "08 is eight");
+  });
+
+  it("drops a session without a message rather than archiving it", () => {
+    const s = sessionScene();
+    s.save("empty1", "", 0);
+    strictEqual(s.run([]).status, 0);
+    ok(!existsSync(s.last()));
+    deepStrictEqual(s.history(), []);
+  });
+
+  it("reads a number up to the list's length, else the start of an id", () => {
+    const s = sessionScene();
+    s.save("1234ab", "Digits first", 1);
+    s.run([]);
+    const r = s.run(["--resume", "1234"]);
+    strictEqual(r.status, 0, r.stderr);
+    ok(r.stdout.includes("(resumed 1234ab)"), r.stdout);
+  });
+
+  it("leaves the session of another start that still runs where it is", () => {
+    const s = sessionScene();
+    s.save("abc123", "Open elsewhere", 1);
+    mkdirSync(s.own, { recursive: true });
+    writeFileSync(join(s.own, ".lock"), `${process.pid}\n`);
+    const r = s.run([]);
+    strictEqual(r.status, 0, r.stderr);
+    ok(r.stderr.includes(`another session is open on this project (pid ${process.pid})`), r.stderr);
+    ok(existsSync(s.last()), "not moved");
+    const pid = readFileSync(join(s.own, ".lock"), "utf-8").trim().split("\n");
+    strictEqual(pid[0], String(process.pid), "the open start stays in the lock");
+    strictEqual(pid.length, 2);
+    strictEqual(mountOf(r, "/sessions"), `${s.own}/side/${pid[1]}:/sessions:rw`, "this one kept beside it");
+    // What that second REPL left when it ended: archived by the next start that finds none open.
+    mkdirSync(join(s.own, "side", pid[1], slugOf(s.project)), { recursive: true });
+    writeFileSync(join(s.own, "side", pid[1], slugOf(s.project), "last.json"), '{"SessionId":"side1","Title":"Beside","Messages":[{"Role":"user","Content":"x"}],"State":{}}');
+    writeFileSync(join(s.own, ".lock"), `${process.pid}\n`);
+    mkdirSync(join(s.own, "history"), { recursive: true });
+    writeFileSync(join(s.own, "history", "20261001T000000Z-old.json"), "{}");
+    const resume = s.run(["--resume", "1"]);
+    strictEqual(resume.status, 1);
+    ok(resume.stderr.includes("end it before you resume one"), resume.stderr);
+    ok(existsSync(s.last()), "still not moved");
+    writeFileSync(join(s.own, ".lock"), "999999999\n");
+    strictEqual(s.run([]).status, 0);
+    ok(!existsSync(s.last()), "a stale lock does not hold it");
+    ok(s.history().some((f) => f.endsWith("-side1.json")), s.history().join(" "));
+    ok(!existsSync(join(s.own, "side", pid[1])), "the side folder went");
+  });
+});
+
+describe("orkeon-code.ps1 keeps the state and the sessions as ./orkeon-code does (read here)", () => {
+  const script = read("orkeon-code.ps1");
+
+  it("mounts /sessions and /session-history and names /sessions to the runtime, in both modes", () => {
+    ok(script.includes(`'--mount', "\${projectState}/\${sessionsSub}:/sessions:rw", '--mount', "\${projectState}/history:/session-history:ro"`), "the mounts");
+    ok(script.includes(`$sessionsSub = "side/$PID"`), "beside an open start");
+    ok(script.includes("$env:ORKEON_Orkeon__Cli__Session__SessionsDirectory = '/sessions'"), "the folder");
+    ok(script.includes("if (-not $env:Orkeon__Cli__Session__Persist) { $env:Orkeon__Cli__Session__Persist = 'true' }"), "persistence");
+    ok(script.includes("'-e', 'ORKEON_Orkeon__Cli__Session__SessionsDirectory=/sessions'"), "docker mode");
+    ok(script.includes("$runtimeSlug = if ($Mode -eq 'docker') { Get-ProjectSlug '/work/project' } else { $slug }"), "the runtime's slug");
+  });
+
+  it("archives unless --continue, resumes by number or id, keeps 50, and steps aside for an open session", () => {
+    ok(script.includes("elseif ($Continue) { $sessionNote = 'continued'; Move-SessionsToHistory $sessions $history $side $true }\n  else { Move-SessionsToHistory $sessions $history $side $false }"), "fresh by default");
+    ok(script.includes("-match '\"Messages\"\\s*:\\s*\\[\\s*\\]'"), "an empty session dropped");
+    ok(script.includes("elseif ($name -cin @('--continue', '-c')) { $Continue = [switch] $true }"), "--continue and -c");
+    ok(script.includes("[Console]::Error.WriteLine('orkeon-code: no terminal to choose in: pass --resume <number or id>.')")
+      && script.includes("exit 2"), "no terminal");
+    ok(script.includes("Get-HistoryFiles $history | Select-Object -Skip $keep | Remove-Item -Force"), "retention");
+    ok(script.includes("is not a whole number from 1 to 9999: 50 sessions are kept.") && script.includes("-match '^[0-9]{1,4}$'"), "a bad ORKEON_CODE_SESSIONS_KEEP");
+    ok(script.includes("if ($resumeChoice -match '^[1-9][0-9]{0,3}$' -and [int] $resumeChoice -le $files.Count)"), "a number, else an id");
+    ok(script.includes("another session is open on this project (pid $other)"), "the lock");
+    ok(script.includes("if ($a -ceq '--llm-log') { if (-not $named) { '--llm-log-path'; \"$projectState/llm-logs\" } }"), "--llm-log");
   });
 });

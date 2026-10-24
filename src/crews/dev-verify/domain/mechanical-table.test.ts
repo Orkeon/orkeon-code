@@ -3,7 +3,7 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
-import { COST_NOT_COMPUTED } from "../../../shared/domain/dev/access-cost.ts";
+import { COST_NOT_WIRED } from "../../../shared/domain/dev/access-cost.ts";
 import { traitMarker } from "../../../shared/domain/dev/trait-pattern.ts";
 import type { TableInput, TableRow } from "./mechanical-table.ts";
 import { escapeCell, mechanicalRows, renderTable } from "./mechanical-table.ts";
@@ -16,7 +16,7 @@ function input(over: Partial<TableInput> = {}): TableInput {
     methodHits: ["tests/A.cs:10:Adds_a_line", "tests/A.cs:22:Refuses_zero"],
     testLog: { name: "F2-test.txt", summary: { passed: 12, failed: 0, exit: 0 } }, testLogLooked: "workbench/demo/logs/",
     roots: ["src", "tests"],
-    cost: COST_NOT_COMPUTED,
+    cost: COST_NOT_WIRED,
     tickedLines: 3, planDirName: "demo",
     appliedRulesRow: "| Applied rules | DDD-01, APP-02 |", appliedIds: ["DDD-01", "APP-02"],
     ...over,
@@ -94,11 +94,14 @@ describe("mechanicalRows", () => {
   });
 
   it("row 6, the cost", () => {
-    deepStrictEqual(at({}, 5), { result: "not checked", evidence: `not computed — ${COST_NOT_COMPUTED.state === "not-computed" ? COST_NOT_COMPUTED.reason : ""}` });
-    deepStrictEqual(at({ cost: { state: "measured", exit: 0, flagged: [], costLine: "", detail: "" } }, 5),
-      { result: "ok", evidence: "`exit: 0`" });
+    deepStrictEqual(at({}, 5), { result: "not checked", evidence: `not computed — ${COST_NOT_WIRED.state === "not-computed" ? COST_NOT_WIRED.reason : ""}` });
+    deepStrictEqual(at({ cost: { state: "measured", exit: 0, flagged: [], costLine: "Cost: 1 read + 0 writes", detail: "" } }, 5),
+      { result: "ok", evidence: "`exit: 0` — Cost: 1 read + 0 writes" });
     deepStrictEqual(at({ cost: { state: "measured", exit: 2, flagged: ["a loop", "a lambda"], costLine: "", detail: "" } }, 5),
       { result: "gap", evidence: "`exit: 2` a loop · a lambda" });
+    const many = Array.from({ length: 14 }, (_, i) => `f${i + 1}`);
+    strictEqual(at({ cost: { state: "measured", exit: 2, flagged: many, costLine: "", detail: "" } }, 5).evidence,
+      `\`exit: 2\` ${many.slice(0, 12).join(" · ")} · … +2`);
   });
 
   it("rows 7 to 9", () => {

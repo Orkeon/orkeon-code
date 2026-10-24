@@ -75,6 +75,14 @@ describe("loadCatalogue", () => {
     deepStrictEqual(loaded.catalogue.deniedByRule, ["file_read"]);
   });
 
+  it("offers the shared memory's recall in every mode, its push only where the mode edits, less a whole deny", () => {
+    deepStrictEqual(loadCatalogue({ permissionMode: "plan" }).scriptTools, ["memory_recall"]);
+    deepStrictEqual(loadCatalogue({ permissionMode: "dontAsk" }).scriptTools, ["memory_recall"]);
+    deepStrictEqual(loadCatalogue({}).scriptTools, ["memory_recall", "memory_push"]);
+    deepStrictEqual(loadCatalogue({ permissionMode: "acceptEdits", permissionRules: ["deny memory_push"] }).scriptTools, ["memory_recall"]);
+    deepStrictEqual(loadCatalogue({ permissionRules: ["deny memory_push topic=secret*"] }).scriptTools, ["memory_recall", "memory_push"]);
+  });
+
   it("offers acceptEdits the shell: the host gate asks before each command", () => {
     ok(loadCatalogue({ permissionMode: "acceptEdits" }).catalogue.tools.includes("shell_command"));
   });
@@ -254,6 +262,7 @@ describe("runMainLoop — the turn", () => {
         deniedByRule: ["file_read"],
         inert: [{ rule: { effect: "allow", tool: "file_write" }, reason: "mode 'plan' does not offer 'file_write'" }],
       },
+      scriptTools: ["memory_recall"],
     };
     await runMainLoop({ prompt: "go", permissionMode: "plan" }, loaded, deps);
     deepStrictEqual(log.lines, [
@@ -268,9 +277,25 @@ describe("runMainLoop — the turn", () => {
     store.state.set(MODEL_PREFERENCE_STATE_KEY, "gpt-x");
     await runMainLoop({ prompt: "go", permissionMode: "plan" }, EXPLICIT_PLAN, deps);
     strictEqual(llm.acts[0].request.maxIterations, maxIterationsFor("high"));
+    strictEqual(llm.acts[0].request.effort, "high");
     strictEqual(llm.acts[0].request.model, "gpt-x");
     const flags = resolveBehaviorFlags({ effort: "high", model: "gpt-x" });
-    deepStrictEqual(log.lines, [`info: session flags — ${describeActiveFlags(flags)}`]);
+    deepStrictEqual(log.lines, [
+      `info: session flags — ${describeActiveFlags(flags)}`,
+      "info: act — effort: high, maxIterations: 80",
+    ]);
+  });
+
+  it("forwards /effort low to the act and logs it; an unset level forwards none", async () => {
+    const low = setup();
+    low.store.state.set(EFFORT_STATE_KEY, "low");
+    await runMainLoop({ prompt: "go", permissionMode: "plan" }, EXPLICIT_PLAN, low.deps);
+    strictEqual(low.llm.acts[0].request.effort, "low");
+    strictEqual(low.llm.acts[0].request.maxIterations, 10);
+    ok(low.log.lines.includes("info: act — effort: low, maxIterations: 10"), low.log.lines.join("\n"));
+    const unset = setup();
+    await runMainLoop({ prompt: "go", permissionMode: "plan" }, EXPLICIT_PLAN, unset.deps);
+    strictEqual("effort" in unset.llm.acts[0].request, false);
   });
 
   it("fails a turn the provider failed: no answer stored, no tail compaction, the error out", async () => {
@@ -342,5 +367,75 @@ describe("runMainLoop — the host gate's state", () => {
     const { llm, deps } = setup();
     llm.gateEnabled = false;
     strictEqual(await runMainLoop({ prompt: "hi" }, loadCatalogue({ permissionMode: "bypassPermissions" }), deps), "the answer");
+  });
+});
+
+describe("runMainLoop — the turn-start and stop chains", () => {
+  const START = { script: "/tmp/orkeon-code/session-start.sh", lines: ["state: .orkeon/dev/demo/state-F2.md (First open: Step 2 — Refuse)"] };
+
+  it("stores the start script's lines as [turn-context] just before the request, once", async () => {
+    const { store, llm, deps } = setup();
+    strictEqual(await runMainLoop({ prompt: "hello", sessionStart: START }, EXPLICIT_PLAN, deps), "the answer");
+    strictEqual(store.messages.length, 3);
+    strictEqual(store.messages[0].role, "user");
+    ok(store.messages[0].content.startsWith("[turn-context] "), store.messages[0].content);
+    ok(store.messages[0].content.includes("(/tmp/orkeon-code/session-start.sh) printed:"));
+    ok(store.messages[0].content.includes("  state: .orkeon/dev/demo/state-F2.md"));
+    deepStrictEqual(store.messages[1], { role: "user", content: "hello" });
+    strictEqual(llm.acts.length, 1);
+  });
+
+  it("stores no context message without start lines, nor for a malformed sessionStart", async () => {
+    const { store, deps } = setup();
+    await runMainLoop({ prompt: "hello", sessionStart: { script: "", lines: ["x"] } }, EXPLICIT_PLAN, deps);
+    deepStrictEqual(store.messages[0], { role: "user", content: "hello" });
+  });
+
+  it("ends a turn a turn-start guard denies: nothing stored, no model call, the refusal as the answer", async () => {
+    const { store, llm, log, deps } = setup();
+    const chains = { turnStart: [{ id: "one-batch", check: () => ({ decision: "deny" as const, reason: "F2 is running" }) }] };
+    const text = await runMainLoop({ prompt: "hello" }, EXPLICIT_PLAN, { ...deps, chains });
+    strictEqual(text, "turn refused (one-batch): F2 is running");
+    deepStrictEqual([store.messages, llm.acts], [[], []]);
+    ok(log.lines.some((w) => w.includes("turn refused (one-batch)")), JSON.stringify(log.lines));
+  });
+
+  it("sends an empty answer back once with the reason, and keeps the second answer", async () => {
+    const { store, llm, deps } = setup();
+    llm.answers = ["   ", "the second answer"];
+    strictEqual(await runMainLoop({ prompt: "explain" }, EXPLICIT_PLAN, deps), "the second answer");
+    strictEqual(llm.acts.length, 2);
+    ok(llm.acts[1].prompt.includes("[stop-check] Your previous answer to this request was sent back: the answer was empty"));
+    deepStrictEqual(store.messages.at(-1), { role: "assistant", content: "the second answer" });
+  });
+
+  it("retries once only: a second empty answer stands", async () => {
+    const { llm, deps } = setup();
+    llm.answers = ["", ""];
+    strictEqual(await runMainLoop({ prompt: "explain" }, EXPLICIT_PLAN, deps), "");
+    strictEqual(llm.acts.length, 2);
+  });
+
+  it("keeps the first answer, with a warning, when the retry the stop check asked for fails", async () => {
+    const { store, llm, log, deps } = setup();
+    llm.answers = ["done", new Error("provider down")];
+    strictEqual(await runMainLoop({ prompt: "audit", closingLine: "VERDICT:" }, EXPLICIT_PLAN, deps), "done");
+    strictEqual(llm.acts.length, 2);
+    deepStrictEqual(store.messages.at(-1), { role: "assistant", content: "done" });
+    ok(log.lines.some((w) => w.includes("the retry failed (provider down); the first answer stands")), JSON.stringify(log.lines));
+    const blank = setup();
+    blank.llm.answers = ["  ", new Error("provider down")];
+    await rejects(runMainLoop({ prompt: "explain" }, EXPLICIT_PLAN, blank.deps), /provider down/);
+  });
+
+  it("sends back an answer without the closing line the command names, and not one that holds it", async () => {
+    const missing = setup();
+    missing.llm.answers = ["done", "done\nVERDICT: VALID"];
+    strictEqual(await runMainLoop({ prompt: "audit", closingLine: "VERDICT:" }, EXPLICIT_PLAN, missing.deps), "done\nVERDICT: VALID");
+    ok(missing.llm.acts[1].prompt.includes("no line starting with 'VERDICT:'"));
+    const present = setup();
+    present.llm.answers = ["  VERDICT: GAPS"];
+    await runMainLoop({ prompt: "audit", closingLine: "VERDICT:" }, EXPLICIT_PLAN, present.deps);
+    strictEqual(present.llm.acts.length, 1);
   });
 });

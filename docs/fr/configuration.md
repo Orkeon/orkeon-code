@@ -8,8 +8,26 @@ du runtime Orkeon, que le REPL lit par `--settings`. Partez de
 
 1. `--settings FILE` sur le lanceur ;
 2. `ORKEON_CODE_SETTINGS` ;
-3. `config/appsettings.local.json` dans le checkout (ignoré par git) ;
-4. `~/.config/orkeon-code/appsettings.json` (`%APPDATA%\orkeon-code\appsettings.json` sous Windows).
+3. `config/appsettings.local.json` dans le checkout (ignoré par git), dans un clone seulement : une installation ne le
+   lit jamais ;
+4. `~/.orkeon-code/appsettings.json` (`%USERPROFILE%\.orkeon-code\appsettings.json` sous Windows ; `ORKEON_CODE_HOME`
+   déplace le dossier) ;
+5. `~/.config/orkeon-code/appsettings.json` (`%APPDATA%\orkeon-code\appsettings.json` sous Windows), l'ancien
+   emplacement : encore lu, avec un avertissement qui nomme le nouveau ;
+6. le fichier d'Orkeon, `~/.config/Orkeon/appsettings.json` (`%APPDATA%\Orkeon\appsettings.json` sous Windows), celui
+   qu'écrit `orkeon init`. Le lanceur ne passe alors aucun `--settings` : le REPL le lit lui-même (le mode docker le
+   monte, le conteneur n'ayant pas votre dossier personnel). Un `XDG_CONFIG_HOME` absolu remplace `~/.config` en 5 et 6.
+
+Sans aucun d'eux et avec un terminal, `orkeon-code setup` se lance : il demande le fournisseur (l'exemple DeepSeek ou
+celui d'Ollama), le modèle et le **nom** de la variable d'environnement qui tient la clé, jamais la clé ; il écrit
+`~/.orkeon-code/appsettings.json`, lisible par vous seul, et dit quelle variable exporter. `orkeon-code setup` le
+relance à tout moment, et demande avant de remplacer un fichier existant. Sans terminal, le lanceur s'arrête et nomme
+ces choix.
+
+Le bloc `orkeonCode` de ce fichier porte vos propres réglages de session, que le `.orkeon/config.json` d'un projet ne
+peut pas élargir ([ce qu'un fichier du projet peut régler](permissions.md#ce-quun-fichier-du-projet-peut-régler)). Le
+lanceur copie le bloc seul, jamais la section `Llm`, dans `<state>/user-config/config.json` à chaque démarrage et le
+remet à la session en lecture seule, sur `/user-config`, dans tous les modes.
 
 Les variables d'environnement préfixées `ORKEON_` l'emportent sur le fichier (`__` sépare les sections) :
 `ORKEON_Llm__Model`, `ORKEON_Llm__ApiKey`. `ORKEON_CODE_MODEL` est un raccourci du lanceur pour `ORKEON_Llm__Model`.
@@ -23,12 +41,21 @@ Les variables d'environnement préfixées `ORKEON_` l'emportent sur le fichier (
 | `Llm:ApiKeyEnvVar` | Nom de la variable d'environnement qui porte la clé. La clé elle-même ne va jamais dans le fichier |
 | `Llm:AvailableModels` | Les modèles que `/model` propose, pour en changer sans relancer |
 | `Llm:Temperature`, `Llm:MaxTokens`, `Llm:TimeoutSeconds` | Réglages de génération |
+| `Llm:MaxRateLimitWait` | La plus longue fenêtre de limite de débit qu'un appel attend avant d'échouer, `00:05:00` par défaut. Un 429, ou un 529 avec un en-tête de réinitialisation, attend que la fenêtre annoncée par le fournisseur se rouvre au lieu de faire échouer le tour ; une fenêtre plus longue fait échouer l'appel aussitôt avec `LlmRateLimitException`, l'attente dans son message. `00:00:00` n'attend rien |
+| `Llm:Profiles:<name>:MaxRateLimitWait` | La même borne pour un profil nommé de l'hôte, `00:05:00` par défaut |
 | `Llm:Thinking:Enabled` | Mode raisonnement, pour les fournisseurs qui en ont un |
 
 Orkeon reconnaît les fournisseurs natifs d'après le point d'accès et le modèle (OpenAI, Anthropic, Gemini, Mistral,
 DeepSeek, Z.AI, Moonshot, serveurs locaux...) : la liste et leurs options sont dans la
 [documentation des fournisseurs LLM d'Orkeon](https://github.com/Orkeon/orkeon/blob/main/docs/architecture/llm-providers.md).
 Une option qu'un fournisseur ne peut pas honorer produit un avertissement, jamais un abandon silencieux.
+
+**Cache du prompt.** Un fournisseur qui met le prompt en cache (DeepSeek et OpenAI d'eux-mêmes, Anthropic avec
+`cache_control`) rapporte les jetons lus dans son cache et écrits dedans ; Orkeon les garde par modèle et `/usage`, `/stats` et
+`/context` en montrent la somme dans `cacheRead` et `cacheWrite` (`0` d'un fournisseur qui ne rapporte aucun cache, `-` d'un hôte qui ne rapporte aucun chiffre). La durée de
+vie du cache est une option d'appel d'Orkeon, `orkeon:cache_ttl` (`5m` ou `1h`, d'après le réglage de cache d'un
+agent) : Anthropic l'honore, les fournisseurs compatibles OpenAI et Ollama journalisent qu'ils ne le peuvent pas.
+Orkeon Code n'en fixe aucune, chaque fournisseur garde donc sa durée par défaut.
 
 Un modèle sur cette machine : [`config/appsettings.ollama.example.json`](../../config/appsettings.ollama.example.json)
 est l'exemple sur [Ollama](https://ollama.com) servant `qwen3.5:2b` (`ollama pull qwen3.5:2b` d'abord), sans clé et
@@ -38,8 +65,8 @@ prompt système d'un tour fait environ 2 250 tokens avant les schémas d'outils 
 `OLLAMA_CONTEXT_LENGTH=16384` sur le service Ollama, sinon le modèle perd en silence ses consignes et ses outils.
 
 L'agent appelle des outils à travers chaque fournisseur : la boucle d'outils du runtime (`ctx.llm.act`) lit les appels
-d'outils des formats Anthropic et OpenAI, exécute chaque appel d'un tour du modèle l'un après l'autre (pas en
-parallèle), chacun à travers la garde de permission, et renvoie les résultats dans le protocole d'outils du
+d'outils des formats Anthropic et OpenAI, exécute les appels de lecture d'un tour du modèle jusqu'à
+`MaxParallelToolCalls` à la fois et les autres l'un après l'autre, chaque appel à travers la garde de permission, et renvoie les résultats dans le protocole d'outils du
 fournisseur. Un résultat d'outil parvient au modèle coupé à 4000 caractères, 32 000 pour `file_read`.
 
 ## Les settings dont Orkeon Code dépend
@@ -52,7 +79,9 @@ fournisseur. Un résultat d'outil parvient au modèle coupé à 4000 caractères
 | `Orkeon:Scripting:Limits:ExecutionTimeout`, `Orkeon:Scripting:Limits:MemoryLimitBytes` | Les mêmes limites pour `orkeon run`, l'outil avec lequel `scripts/run-crew.sh` lance un crew (30 secondes et 100 Mo par défaut ; l'exemple met 30 minutes et 2 Gio). `orkeon-repl` ne les lit pas |
 | `Orkeon:Tools:Shell:AllowInterpreters` | Laisse `shell_command` lancer des interpréteurs (`node`, `dotnet`, `npm`...), nécessaire pour construire et tester la plupart des projets |
 | `Orkeon:Tools:Shell:ExtraAllowedCommands` | Commandes ajoutées à la liste blanche du shell (`make`, `cargo`...) |
-| `Orkeon:Tools:Shell:Confinement:Mode` | `None` (défaut) ou `Bubblewrap` : exécute chaque commande shell sous `bwrap` (Linux, modes tool et source), réseau coupé sauf `Confinement:AllowNetwork`, les programmes hors des répertoires système à lister dans `Confinement:ReadOnlyPaths`. Une commande échoue quand `bwrap` ne peut pas la confiner. Voir [SECURITY.md](../../SECURITY.md) |
+| `Orkeon:Tools:Shell:Confinement:Mode` | `Auto` (défaut : bubblewrap sous Linux, Seatbelt sous macOS, AppContainer sous Windows, aucun dans un conteneur), `None`, `Bubblewrap`, `Seatbelt` ou `AppContainer`. Confinée, chaque commande shell s'exécute sous `bwrap` (Linux, modes tool et source), réseau coupé sauf `Confinement:AllowNetwork`, les programmes hors des répertoires système à lister dans `Confinement:ReadOnlyPaths`. Une commande échoue quand elle ne peut pas être confinée. Les exemples mettent `None` ; un fichier de settings sans la clé confine, hors d'un conteneur. Voir [SECURITY.md](../../SECURITY.md) |
+| `Orkeon:Tools:ResultLimits:Limits:<tool>` | La coupe du résultat d'un outil, en caractères : 4000, `file_read` 32000, `node_read` 256000, `shell_command` 10000. Un résultat coupé finit par `[... truncated, N chars omitted. …]` ; `/dev-verify` lit cette mention |
+| `Orkeon:Tools:ResultLimits:MaxParallelToolCalls` | Les appels de lecture d'un même tour du modèle qui tournent en même temps : 4 |
 | `Orkeon:Cli:ConsoleStreaming:Enabled` | Affiche la réponse au fil de sa génération. L'exemple l'active ; la réponse peut être imprimée deux fois ([problème connu](roadmap.md#problèmes-connus)) |
 | `Orkeon:Cli:ScriptCommands:MaxScripts` | Commandes que le chargeur garde : 200 par défaut, au-dessus de la surface de commandes de ce projet |
 | `RateLimiting:*` | Limites de débit des requêtes vers le fournisseur |
@@ -62,9 +91,9 @@ fin :
 
 - l'`ExecutionTimeout` du moteur de script ci-dessus, qui s'arrête pendant qu'une question vous attend ;
 - le budget propre du crew de la boucle principale, écrit dans son code (`src/crews/main-loop/crew.ork.ts`) : 200
-  appels d'outils, 400k tokens et 30 minutes de temps réel. Cette horloge est celle d'Orkeon et ne s'arrête **pas**
-  pendant qu'une question vous attend : une question laissée sans réponse consomme le temps du tour, et le tour
-  échoue avec `Wall time exceeded` à son étape suivante.
+  appels d'outils, 400k tokens et 30 minutes de temps réel. Cette horloge est celle d'Orkeon et, comme celle du
+  moteur, elle s'arrête pendant que la garde attend votre réponse : seul le travail du modèle compte, et une question
+  laissée sans réponse ne met pas fin au tour.
 
 `Orkeon:Cli:ScriptHost:RunCrewTimeout` (10 minutes par défaut) ne borne qu'un crew qu'une commande attend
 (`runCrew`) ; Orkeon Code lance chaque crew avec `runCrewAsync`, qu'il ne borne pas, donc l'exemple l'omet.
@@ -77,10 +106,39 @@ par exemple `permissions.fallback` (le mode utilisé quand ni un préfixe ni `/m
 l'assistant répond, `/config set answer.language French`, sauf si une requête est écrite dans une autre),
 `compaction.trigger` (le nombre de tokens auquel la compaction automatique se déclenche,
 `/config set compaction.trigger 90k` ; omis, la fenêtre moins la place dont un tour a besoin), `dev.workDir` (le
-dossier de travail que lisent `/dev-status`, `/dev-verify`, `/dev-learn` et `/dev-plan`, relatif au checkout, `/config set dev.workDir backstage/tasks` ; omis, le
-`layout.work` du pack du dépôt, sinon `workbench`) ou `spinnerVerbs`.
+dossier de travail que lisent et écrivent les étapes dev, `/dev-status` et `/dev-learn` compris, relatif au checkout, `/config set dev.workDir backstage/tasks` ; omis, le
+`layout.work` du pack du dépôt, sinon `workbench` ; `/commit` le lit aussi, et laisse le dossier de travail hors d'un
+commit sauf si un chemin qu'il contient est nommé), `dev.prAuto` (`true` ou `false`, omis = `false` : `/commit` et
+la clôture d'une étape dev préparent la pull request comme le fait `--pr` sans qu'on le demande, son corps sous
+`<work>/pr-<slug>/PR.md`, puis l'ouvrent avec l'outil `github` du runtime quand l'hôte le propose et que la session le
+permet, sinon affichent la commande `gh pr create` à taper et disent pourquoi),
+`memory.dir` (le dossier de la [mémoire partagée](shared-memory.md), relatif au projet, `/config set memory.dir
+docs/memory` ; omis, `.orkeon/memory` ; jamais sous `.claude/` ni `.git/`, jamais le `.orkeon/agent-memory` de la
+mémoire d'agent), `memory.project` (le projet que nomment les entrées et la collection d'index `memory-<project>`, un
+nom kebab-case ; omis, le nom du remote `origin`, sinon `local`), `memory.autoAdmitAudited` (`true` ou `false`, omis
+= `false` : `/memory-admit` admet sans demander un candidat qu'un audit appuie), `review.lenses` (les angles de `/review`, séparés par des virgules parmi `correctness`,
+`security` et `style` ; omis, les trois), `advisor.model` (le modèle du second avis d'`/advisor` ; omis, celui de la
+session, ce qui en fait une auto-revue), `commit.requireConfirm` (`false` laisse `/commit` s'exécuter sans sa
+confirmation ; omis = `true`) ou `spinnerVerbs`. `/config keys` les liste toutes.
 `/model`, `/effort`, `/passes`, `/fast`, `/proactive` et `/output-style` changent la façon dont les prochains tours
-s'exécutent.
+s'exécutent. `/effort` règle aussi la réflexion du fournisseur : le niveau enregistré est envoyé comme `effort` de
+l'act par `/assistant`, chaque étape dev (`/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement`, `/dev-verify`,
+`/dev-batches`) et les agents qu'elles lancent, et rien n'est envoyé tant qu'aucun niveau n'est enregistré.
+
+`permissions.fallback`, `tools.extra`, `memory.autoAdmitAudited` et `dev.prAuto` réglés dans le fichier du projet sont restreints par le bloc `orkeonCode` des
+réglages de l'utilisateur (un `true` du projet sur un `false` ou une absence chez l'utilisateur est écarté, avec un avertissement) : `/config set` écrit une telle valeur, puis dit, sous "persisted", qu'elle est ignorée et
+où va votre propre réglage, et la ligne `settings: project file` de `/doctor` la nomme. `/config set --session` n'est pas restreint.
+
+Au démarrage du REPL, le runtime exécute une fois le fichier que nomme sa clé `Orkeon:Cli:Session:StartScript`, et
+place ce qu'il imprime avant la première requête que vous tapez. Le lanceur la règle sur
+`/tmp/orkeon-code/session-start.ork.ts`, une copie de `scripts/session-start.ork.ts` faite à chaque démarrage : il nomme les
+fichiers d'état des lots de dev qu'une compaction a écrits ces 7 derniers jours (`.orkeon/dev/<code>/state-F<n>.md`,
+avec la première étape ouverte) et les lots que le journal d'événements de Code laisse ouverts. Il n'imprime rien
+quand il n'y en a pas. Réglez `Orkeon__Cli__Session__StartScript` sur un autre chemin virtuel pour exécuter le vôtre
+ou, sous Linux et macOS, sur une valeur vide pour n'en exécuter aucun. Faites-en un `.ork.ts`, que le runtime exécute
+par son hôte de scripts : tout autre fichier passe à `sh` par `shell_command`, ce qui échoue ici (les fichiers `.sh`
+sont refusés, `sh` n'est pas parmi les commandes du shell, et en modes tool et source le shell lit le `/tmp` de
+l'hôte). `sh scripts/session-start.sh <projet>` imprime les mêmes lignes dans un terminal.
 
 Le pack du dépôt (`.orkeon/repo.yaml`, sinon celui du harness) peut aussi donner `tests.trait_pattern`, une clé
 d'Orkeon Code que le harness ignore : la façon dont un test nomme l'id de fiche qu'il couvre, que la porte de
@@ -94,6 +152,18 @@ seul donne le motif par défaut `[Trait("<name>", "<id>")]`. Un dépôt Node, do
 tests:
   rule_trait: rule
   trait_pattern: "// <name>: <id>"
+```
+
+Il peut aussi donner `layout.test_files`, une autre clé que le harness ignore : les fichiers de test posés à côté du
+code, en motifs de la porte (`*` correspond à toute suite de caractères, `/` compris). `/dev-implement` tient un chemin
+pour un fichier de test quand il est sous `layout.tests` ou correspond à un motif : l'implémenteur ne peut pas
+l'écrire, l'auteur des tests le peut, et une exécution exige l'une des deux clés. Un dépôt Node dont les tests sont à
+côté du code :
+
+```yaml
+layout:
+  domain: src
+  test_files: ["src/*.test.ts"]
 ```
 
 ## Outils supplémentaires : serveurs MCP et plugins
@@ -270,6 +340,33 @@ optionnel, et ne l'importe jamais.
   avec un avertissement. Le serveur peut tourner sur l'hôte en HTTP à la place, pour des fichiers transcrits en moins
   de 100 s ([mcp/whisper/README.md](../../mcp/whisper/README.md#docker-mode-the-server-on-the-host)).
 
+## Sessions
+
+Le REPL enregistre la conversation après chaque tour et quand il finit (`Orkeon:Cli:Session:Persist`, `true` dans les
+settings d'exemple), et le lanceur la garde hors du projet : dans `~/.orkeon-code/projects/<projet>/` une fois installé,
+`.crew-output/projects/<projet>/` dans un clone, `<ORKEON_CODE_STATE>/projects/<projet>/` quand cette variable est
+définie. `<projet>` est le nom du dossier et un court hash de son chemin, si bien que deux projets du même nom ne le
+partagent jamais ; `project.json` y nomme le chemin. Plus rien n'est écrit sous `.orkeon/sessions` du projet
+(`/doctor` avertit quand un démarrage plus ancien y a laissé des sessions).
+
+| Démarrage | Ce qu'il ramène |
+|---|---|
+| `orkeon-code` | Une session neuve : la dernière passe d'abord dans `history/` du projet |
+| `orkeon-code --continue` (`-c`) | La session que vous avez quittée |
+| `orkeon-code --resume` | Les sessions gardées, la plus récente d'abord (date, titre, messages, id), puis demande laquelle |
+| `orkeon-code --resume <numéro ou id>` | Celle-là, sans demander (un début d'id qui désigne une seule session suffit) |
+
+Sans terminal, `--resume` seul affiche la liste et sort avec le code 2. Les 50 sessions gardées les plus récentes
+restent (`ORKEON_CODE_SESSIONS_KEEP`, de 1 à 9999) ; une session sans message n'est pas gardée. Un second démarrage
+pendant qu'une session est ouverte sur le même projet avertit, laisse l'ouverte en paix et garde la sienne à côté,
+dans l'historique dès le démarrage suivant. Dans le REPL, `/resume`
+liste les sessions gardées (le lanceur monte `history/` en lecture seule sur `/session-history`) ; un REPL ne peut
+pas changer sa propre conversation : quittez, puis démarrez `orkeon-code --resume <id>`. L'historique de l'éditeur
+de ligne (la flèche du haut) n'est pas gardé.
+
+`--llm-log` parmi les arguments du REPL écrit le journal LLM dans `<état du projet>/llm-logs`, jamais dans le
+projet ; `--llm-log-path <dossier>` est passé tel quel et l'emporte sur un `--llm-log` seul.
+
 ## L'environnement du lanceur
 
 | Variable | Effet |
@@ -279,13 +376,17 @@ optionnel, et ne l'importe jamais.
 | `ORKEON_CODE_MODEL` | Modèle pour cette exécution |
 | `ORKEON_CODE_AUDIO_DIR` | Dossier des fichiers audio et vidéo : active la [transcription de la parole](#transcription-de-la-parole) (modes tool et source) |
 | `ORKEON_CODE_VOICE` | `1` : ouvre le microphone à [`/voice`](#dictée) et le haut-parleur à [`/say`](#synthèse-vocale) (avec `ORKEON_CODE_AUDIO_DIR`) |
-| `ORKEON_CODE_STATE` | Où vivent `/output`, `/tmp` et les transcriptions (défaut `.crew-output/` dans le checkout) |
+| `ORKEON_CODE_STATE` | Où vivent `/output`, `/tmp`, `/user-config` et les transcriptions (défaut `.crew-output/` dans un clone, `<home>/projects/<projet>` dans une installation) ; les [sessions](#sessions) vont sous son `projects/<projet>/` |
+| `ORKEON_CODE_SESSIONS_KEEP` | Combien de [sessions](#sessions) gardées un projet conserve (défaut 50) |
+| `ORKEON_CODE_HOME` | Le dossier propre d'une installation : son `appsettings.json`, son `trusted-folders.json`, son état et son dépôt de démo (défaut `~/.orkeon-code`). Un clone y lit aussi son `appsettings.json` et son `trusted-folders.json` |
 | `ORKEON_CODE_IMAGE` | Une autre image du runtime (mode docker) |
 | `ORKEON_REPL` | La ligne de commande qui démarre le REPL (mode tool) |
 | `ORKEON_SOURCE` | Checkout d'Orkeon (mode source) |
 | `ORKEON_ESBUILD_PATH` | Binaire esbuild (modes tool et source) |
+| `ORKEON_CODE_TRUST` | `1` : démarre un dossier sans confiance sans terminal, seulement quand `CI=true`, sans rien enregistrer ([Dossiers de confiance](permissions.md#dossiers-de-confiance)) |
 
-Le lanceur exporte aussi `Orkeon__Security__PermissionGate__Enabled=true` sauf s'il est déjà défini (le fichier de
-settings l'emporte encore sur lui), et, en modes tool et source, `ORKEON_ALLOW_EXTERNAL_MOUNTS=1`, pour que le REPL,
-démarré depuis le projet, accepte les montages `/output` et `/tmp` du répertoire d'état. `/permissions` dit si la
+Le lanceur exporte aussi `Orkeon__Security__PermissionGate__Enabled=true` et `Orkeon__Cli__Session__Persist=true` sauf
+s'ils sont déjà définis (le fichier de settings l'emporte encore sur eux), `ORKEON_Orkeon__Cli__Session__SessionsDirectory=/sessions`
+(qui l'emporte sur lui), et, en modes tool et source, `ORKEON_ALLOW_EXTERNAL_MOUNTS=1`, pour que le REPL,
+démarré depuis le projet, accepte les montages `/output`, `/tmp`, `/user-config`, `/sessions` et `/session-history` du répertoire d'état. `/permissions` dit si la
 garde est active.

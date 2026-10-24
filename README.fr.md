@@ -39,9 +39,18 @@ chaque prompt est un fichier source : modifiez-le, ou ajoutez le vôtre.
 - **Des crews pour les tâches récurrentes** : `/init` (décrire le projet pour l'agent), `/commit` (un commit
   conventionnel tiré du diff), `/review`, `/security-review` (revue de code multi-angles), `/analyze`
   (analyse déterministe du code), `/compact` et `/summary` (gestion du contexte), `/init-verifiers`, `/advisor`.
+- **Un workflow dev, étape par étape** : `/dev-spec` ou `/dev-change` écrit la spec ou la fiche de changement,
+  `/dev-plan` la découpe en lots qu'un relecteur en lecture seule questionne, `/dev-implement` exécute un lot en
+  test d'abord (tests rouges, puis le moindre code, puis un audit en lecture seule) et le clôt par un commit,
+  `/dev-verify` audite un lot, `/dev-batches` exécute les lots d'un plan l'un après l'autre, `/dev-status` dit où en
+  est un travail et `/dev-learn` propose des règles à partir des écarts récurrents des audits. Chaque étape s'exécute
+  sous des règles de refus que son crew vérifie à nouveau
+  ([Permissions](docs/fr/permissions.md#jeux-de-règles-des-étapes-dev)).
+- **Une mémoire partagée** : décisions, structures, méthodes et erreurs que les étapes retrouvent, admises seulement
+  par `/memory-admit` ([Mémoire partagée](docs/fr/shared-memory.md)).
 - **Gestion du contexte** : compaction automatique avec disjoncteur, `/compact` qui tronque d'abord, restauration des
   fichiers après compaction, paliers de pression du contexte, mémoire durable typée (`/memory`).
-- **53 commandes slash** au total : [docs/fr/commands.md](docs/fr/commands.md).
+- **58 commandes slash** au total : [docs/fr/commands.md](docs/fr/commands.md).
 
 ## Démarrage rapide
 
@@ -52,7 +61,7 @@ commandes ci-dessous ; les modes docker et tool, ainsi que le smoke runtime de l
 celui-ci publié, l'un ou l'autre fait tourner Orkeon Code :
 
 - **Docker** : l'image `orkeon-runners` (amd64 et arm64), rien d'autre à installer ;
-- **`orkeon-repl`**, du paquet Debian/Ubuntu `orkeon` (amd64 et arm64 ; `rc.6` est sur le canal apt `rc`, le canal
+- **`orkeon-repl`**, du paquet Debian/Ubuntu `orkeon` (amd64 et arm64 ; une release candidate est publiée sur le canal apt `rc`, le canal
   `stable` par défaut ne porte que les versions finales) ou de
   l'[archive de release d'Orkeon](https://github.com/Orkeon/orkeon/releases) de votre plateforme (Linux x64 et arm64,
   macOS x64 et arm64, `.zip` Windows x64), autonome : aucun .NET à installer.
@@ -60,7 +69,8 @@ celui-ci publié, l'un ou l'autre fait tourner Orkeon Code :
 **Windows** : `orkeon-code.ps1` n'a ni mode source ni `--demo` (`-Mode` accepte `docker` ou `tool`) ; tant que
 `1.0.0-rc.6` n'est pas tagué, rien ne tourne donc nativement. Utilisez WSL avec le lanceur bash d'ici là.
 
-Détails : [Premiers pas](docs/fr/getting-started.md).
+Orkeon Code lui-même s'installe depuis une release (`install.sh`, `install.ps1`) ou depuis npm (`npm install -g
+orkeon-code@next`), ou tourne depuis un clone comme ci-dessous. Détails : [Premiers pas](docs/fr/getting-started.md).
 
 ```bash
 git clone https://github.com/Orkeon/orkeon-code.git ~/orkeon-code
@@ -136,6 +146,8 @@ La documentation est publiée en français et en anglais, en site consultable, a
 | [Tutoriel WSL](docs/fr/wsl-tutorial.md) | La voix et un modèle local sous WSL2, sur le GPU, pas à pas |
 | [Configuration](docs/fr/configuration.md) | Fournisseurs LLM, fichier de settings, variables d'environnement |
 | [Permissions](docs/fr/permissions.md) | Modes, règles, ce que l'agent peut toucher |
+| [Hooks](docs/fr/hooks.md) | Vos commandes autour des appels d'outils du modèle dans les étapes dev |
+| [Mémoire partagée](docs/fr/shared-memory.md) | Décisions, structures, méthodes et erreurs admises que les agents rappellent |
 | [Commandes](docs/fr/commands.md) | La liste complète (générée) |
 | [Architecture](docs/fr/architecture.md) | Couches, ports, crews, la boucle, l'assemblage du prompt, recettes |
 | [Exécutions autonomes et embarquées](docs/fr/headless.md) | Tours sans opérateur, lancement en un coup, planificateurs et CI, votre application |

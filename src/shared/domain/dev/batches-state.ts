@@ -2,6 +2,20 @@
 // A batch is open when its last entry is `launched`, `relaunched` or `stall` and no
 // `closed` line follows it; any other line (a table, prose) is ignored.
 
+/** The record of the /dev-batches run in progress (its `code`), cleared when the run closes. A close of one of its
+ *  batches, typed or chained, commits without pushing: the run's close pushes the plan's branch once. */
+export const BATCHES_ACTIVE_RECORD = "/workspace/.orkeon/dev/batches-active.json";
+
+/** The code the record names, or null (no record, unreadable). Pure: the record's text. */
+export function batchesRunCode(text: string): string | null {
+  try {
+    const code = (JSON.parse(text) as { code?: unknown } | null)?.code;
+    return typeof code === "string" && code !== "" ? code : null;
+  } catch {
+    return null;
+  }
+}
+
 export interface BatchesLogEntry { date: string; time: string; batch?: string; event: string; detail: string; line: number }
 export interface BatchesState { entries: BatchesLogEntry[]; closed: boolean; open: string[] }
 

@@ -1,4 +1,4 @@
-// runDevPlan over FakeFiles (the plan fixtures), FakeShell, FakeCodeIndex, FakeLlm and a
+// runDevPlan over FakeFiles (the plan fixtures), FakeShell, FakeCodeIndex, a batch_anchors stub, FakeLlm and a
 // fixed clock: the plan written then rewritten after the review, the golden renders, the
 // blocked plan, the refusals before any model call, the re-ask, the replace rules, the
 // review that fails, the warnings, and no write under .claude/ nor outside the code
@@ -15,12 +15,14 @@ import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
 import { FakeSessionStore } from "../../../../tests/support/fake-session-store.ts";
 import { FakeShell } from "../../../../tests/support/fake-shell.ts";
 import { createConfigStore } from "../../../shared/application/config-store.ts";
+import type { AnchorIndex } from "../../../shared/application/ports.ts";
 import { GIT_TOPLEVEL } from "../../../shared/application/dev/resolve-work-folder.ts";
 import { ORKEON_IGNORE_PROBE, checkIgnoreCommand } from "../../../shared/application/dev/load-dev-context.ts";
 import type { PlanAnswer } from "../domain/plan-answer.ts";
 import type { Inventory } from "../domain/inventory-model.ts";
 import { END_LINE, PLAN_JSON, runDevPlan } from "./run-dev-plan.ts";
 import type { DevPlanInputs } from "./run-dev-plan.ts";
+import { FakePrecedents, PRECEDENTS_SAMPLE } from "../../../../tests/doubles/fake-precedents.ts";
 
 const FIXTURES = new URL("../../../../tests/fixtures/dev/plan/", import.meta.url);
 const fixture = (name: string): string => readFileSync(new URL(name, FIXTURES), "utf8");
@@ -60,6 +62,20 @@ function indexOfFixture(): FakeCodeIndex {
   return index;
 }
 
+/** batch_anchors answers each fixture entry with its own member and its callers, the calls kept in order. */
+function anchorsOfFixture(): AnchorIndex & { calls: string[] } {
+  const calls: string[] = [];
+  return {
+    calls,
+    async closure(fqns) {
+      calls.push(`closure ${fqns.join(" ")}`);
+      const entry = INVENTORY.entries.find((e) => `/workspace/${e.fqn}` === fqns[0]);
+      const callers = (entry?.callers ?? []).map((c) => `/workspace/${c}`);
+      return { nodes: [`${fqns[0]}::member`, ...callers], unresolved: [], truncated: false };
+    },
+  };
+}
+
 function setup(source = "SPEC-prune.md") {
   const files = new FakeFiles();
   files.listings.set("/workspace", ["workbench/", ".orkeon/", "src/", "docs/", "tests/"]);
@@ -79,8 +95,9 @@ function setup(source = "SPEC-prune.md") {
   const index = indexOfFixture();
   const log = new FakeLogger();
   const config = createConfigStore({ files, session: new FakeSessionStore() });
-  const deps = { files, shell, llm, config, index, log, clock: () => new Date(2026, 9, 22, 14, 5) };
-  return { files, shell, llm, index, log, deps };
+  const anchors = anchorsOfFixture();
+  const deps = { files, shell, llm, config, index, anchors, log, clock: () => new Date(2026, 9, 22, 14, 5) };
+  return { files, shell, llm, index, anchors, log, deps };
 }
 type Setup = ReturnType<typeof setup>;
 const run = (f: Setup, input: DevPlanInputs = { source: "prune" }) => runDevPlan(input, f.deps);
@@ -103,6 +120,7 @@ describe("runDevPlan — a plan written and reviewed", () => {
     strictEqual(f.llm.extracts.length, 2);
     strictEqual(f.llm.acts.length, 1);
     strictEqual(f.llm.acts[0].request.permissionMode, "plan");
+    strictEqual(f.anchors.calls.length, 5);
     strictEqual(text, [
       "dev-plan: workbench/prune/PRUNE-PLAN.md — 2 batches, 4 ids traced (UC-01, BR-01, BR-02, BR-03)",
       "  F1 — Prune by age — 3 steps — BR-01, BR-02, BR-03 / UC-01 — depends on —",
@@ -111,7 +129,7 @@ describe("runDevPlan — a plan written and reviewed", () => {
       "inventory: 5 entries from 4 titles (index present, 16 calls)",
       "review: CLEAR",
       ABSENT,
-      END_LINE.replace("{command}", "/dev-implement F1 workbench/prune/PRUNE-PLAN.md"),
+      END_LINE.replace("{command}", "/dev-implement F1 workbench/prune/PRUNE-PLAN.md, or /dev-batches prune for every batch in their dependencies' order"),
     ].join("\n"));
     const pj = JSON.parse(f.files.files.get(PJ) ?? "{}");
     deepStrictEqual([pj.version, pj.source, pj.prefix, pj.review], [1, "workbench/prune/SPEC-prune.md", "PRUNE", CLEAR]);
@@ -131,7 +149,7 @@ describe("runDevPlan — a plan written and reviewed", () => {
     }
     ok(text.includes("review: GAPS — 0 Blocking, 1 Major (F1: under ## Decisions)\n" +
       "  Major F1 — Does a prune with no cut-off refuse, or use a default age? (workbench/prune/SPEC-prune.md:31)"), text);
-    ok(text.endsWith(END_LINE.replace("{command}", "/dev-implement F1 workbench/prune/PRUNE-PLAN.md")));
+    ok(text.endsWith(END_LINE.replace("{command}", "/dev-implement F1 workbench/prune/PRUNE-PLAN.md, or /dev-batches prune for every batch in their dependencies' order")));
     deepStrictEqual(JSON.parse(f.files.files.get(PJ) ?? "{}").review, REVIEW_MAJOR);
   });
 
@@ -147,7 +165,7 @@ describe("runDevPlan — a plan written and reviewed", () => {
     const lines = text.split("\n");
     deepStrictEqual(lines.slice(-2), [
       "dev-plan: the plan is blocked: 1 Blocking question in workbench/prune/PRUNE-PLAN.md § 4; every batch reads — blocked.",
-      "→ Answer it in the spec: /dev-spec prune (the harness's until Orkeon Code ships it), then /dev-plan prune --replace. Do not implement before.",
+      "→ Answer it in the spec: /dev-spec prune, then /dev-plan prune --replace. Do not implement before.",
     ]);
     ok(!text.includes("/dev-implement"));
   });
@@ -182,6 +200,36 @@ describe("runDevPlan — a plan written and reviewed", () => {
     ok(brief.includes("Source it was planned from: workbench/prune/SPEC-prune.md"));
     ok(brief.includes("I1 · src/shared/domain/memory.ts:18"));
     ok(brief.includes("A row targets one of: plan, F1, F2."));
+  });
+});
+
+describe("runDevPlan — a prompt with no room for the inventory", () => {
+  it("refuses before any model call and writes nothing", async () => {
+    const f = setup();
+    const text = await runDevPlan({ source: "prune" }, { ...f.deps, precedents: FakePrecedents.hits("p".repeat(26_000)).recall });
+    ok(text.startsWith("dev-plan: the prompt leaves no room for the inventory"), text);
+    strictEqual(f.deps.llm.extracts.length, 0);
+    strictEqual(f.deps.files.writes.length, 0);
+  });
+});
+
+describe("runDevPlan — T2, the shared memory's precedents", () => {
+  it("recalls decisions and code structures from the code and the source's titles, the block in the planner's prompt", async () => {
+    const f = setup();
+    const precedents = FakePrecedents.hits();
+    const text = await runDevPlan({ source: "prune" }, { ...f.deps, precedents: precedents.recall });
+    deepStrictEqual(precedents.calls.map((c) => c.trigger), ["T2"]);
+    ok(precedents.calls[0].query.startsWith("prune — "), precedents.calls[0].query);
+    ok(f.llm.extracts[0].prompt.includes(PRECEDENTS_SAMPLE));
+    ok(f.llm.extracts[0].prompt.indexOf(PRECEDENTS_SAMPLE) < f.llm.extracts[0].prompt.indexOf("Inventory (anchor refs I<n>):"));
+    ok(text.includes("precedents recalled: shop-mistake-20261022-n-plus-one"), text);
+  });
+
+  it("no block and no line when nothing is recalled", async () => {
+    const f = setup();
+    const text = await runDevPlan({ source: "prune" }, { ...f.deps, precedents: new FakePrecedents().recall });
+    for (const e of f.llm.extracts) ok(!e.prompt.includes("## Precedents"));
+    ok(!text.includes("precedents recalled"), text);
   });
 });
 
