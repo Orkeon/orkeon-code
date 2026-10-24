@@ -200,7 +200,8 @@ async function gateWarning(mode: string, deps: Pick<MainLoopDeps, "llm" | "sessi
 }
 
 /** The answer once the stop chain read it: a refused answer goes back to the model ONCE,
- *  with the reason, and the second answer stands whatever the chain would say of it. */
+ *  with the reason, and the second answer stands whatever the chain would say of it. When that
+ *  retry throws, a first answer that is not blank stands, with a warning. */
 async function stopChecked(
   deps: Pick<MainLoopDeps, "llm" | "log" | "chains">, turn: TurnPrompt, mode: string, flags: BehaviorFlags,
   request: string, closingLine: string | null,
@@ -209,7 +210,14 @@ async function stopChecked(
   const stop = runChain("stop", deps.chains?.stop ?? STOP_GUARDS, { request, answer, closingLine });
   if (stop.refusedBy === undefined) return answer;
   deps.log.info(`stop check '${stop.refusedBy}': the answer goes back once (${stop.reason})`);
-  return await runAct(deps, { ...turn, user: buildStopRetryPrompt(turn.user, answer, stop.reason ?? "") }, mode, flags);
+  try {
+    return await runAct(deps, { ...turn, user: buildStopRetryPrompt(turn.user, answer, stop.reason ?? "") }, mode, flags);
+  } catch (error) {
+    // A retry that fails (a provider error) never costs the turn an answer it had: the first one stands, said.
+    if (answer.trim().length === 0) throw error;
+    deps.log.warn(`stop check '${stop.refusedBy}': the retry failed (${failureText(error)}); the first answer stands`);
+    return answer;
+  }
 }
 
 /** One turn: the answer, or why there was none. */

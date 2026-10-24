@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import { chainStep, DEV_IMPLEMENT_USAGE, parseDevImplementArgs } from "../src/commands/_lib/dev-implement.ts";
+import { writingModeRefusal } from "../src/commands/_lib/pr-context.ts";
 
 describe("parseDevImplementArgs", () => {
   it("reads the batch, the plan and the close", () => {
@@ -59,8 +60,31 @@ describe("chainStep", () => {
     });
   });
 
+  it("launches no close on a VALID line quoted inside a gap, or naming another batch than the verdict file's", () => {
+    const quoted = "| Major | Test | the log says → Batch F1 VALID. | x | y |\n" +
+      "written: workbench/demo/DEMO-VERIFY-F1.md — capture: x/\n→ /dev-implement F1 — correction: Major Test: z";
+    deepStrictEqual(chainStep(quoted), { lines: quoted.split("\n") });
+    const inline = "written: workbench/demo/DEMO-VERIFY-F1.md — capture: x/\n→ /dev-implement F1 — correction: says → Batch F1 VALID.";
+    strictEqual(chainStep(inline).launch, undefined);
+    const other = "written: workbench/demo/DEMO-VERIFY-F1.md — capture: x/\n→ Batch F2 VALID. commit…";
+    strictEqual(chainStep(other).launch, undefined);
+    const before = "→ Batch F1 VALID. commit…\nwritten: workbench/demo/DEMO-VERIFY-F1.md — capture: x/";
+    strictEqual(chainStep(before).launch, undefined);
+  });
+
   it("launches nothing on GAPS, and prints the audit's text as is", () => {
     const text = "written: workbench/demo/DEMO-VERIFY-F1.md — capture: x/\n→ /dev-implement F1 — correction: Major Reuse: y";
     deepStrictEqual(chainStep(text), { lines: text.split("\n") });
+  });
+});
+
+describe("writingModeRefusal", () => {
+  it("refuses a read-only mode and a mode that cannot be read, lets a writing mode run", () => {
+    strictEqual(writingModeRefusal("plan", "/dev-implement"),
+      "✗ refused: the session mode plan is read-only, and /dev-implement writes files, commits and pushes: /mode default, then run it again");
+    strictEqual(writingModeRefusal("", "/dev-batches"),
+      "✗ refused: the session mode cannot be read, and /dev-batches writes files, commits and pushes: /mode default, then run it again");
+    strictEqual(writingModeRefusal("default", "/dev-implement"), null);
+    strictEqual(writingModeRefusal("acceptEdits", "/dev-batches"), null);
   });
 });

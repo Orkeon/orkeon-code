@@ -31,4 +31,10 @@ describe("the roles of a batch step", () => {
     ok(NODE_EDIT_RULE.includes("one edit_batch (validate \"parse\"): all of it applies or none"));
     ok(NODE_EDIT_RULE.includes("file_write only creates a new file"));
   });
+
+  it("let the test author write the signature stubs its brief allows, as the RED contract does", () => {
+    ok(!TEST_AUTHOR.system.includes("no stub"), TEST_AUTHOR.system);
+    ok(TEST_AUTHOR.system.includes("signature stubs the brief allows"), TEST_AUTHOR.system);
+    ok(TEST_AUTHOR.system.includes("no production line"), TEST_AUTHOR.system);
+  });
 });

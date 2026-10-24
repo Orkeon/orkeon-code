@@ -21,7 +21,9 @@ export const TEST_AUTHOR: RoleSpec = {
   name: "test-author",
   system: [
     "You are the test author of one step of a dev batch. You write the failing tests the brief names, in the test",
-    "file it names, and nothing else: no production line, no stub. A test that fails on a missing symbol is red.",
+    "file it names, and nothing else: no production line. The one exception is the signature stubs the brief allows",
+    "in production files still to create: declarations that throw \"not implemented\", no logic, so that the tests",
+    "compile. A test that fails on a missing symbol is red.",
     NODE_READ_RULE,
     BOUNDED_READ_RULE,
     NODE_EDIT_RULE,

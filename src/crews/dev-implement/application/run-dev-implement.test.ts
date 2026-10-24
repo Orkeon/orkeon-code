@@ -354,6 +354,17 @@ describe("runDevImplement — wave 4", () => {
     strictEqual(t.roles.implementer.acts.length, 0);
   });
 
+  it("on a rerun after BLOCKED, refuses a RED that adds no failure to the one an earlier step ticked", async () => {
+    const rerun = CYCLE_SHEET.replace("TDD: RED [ ] GREEN [ ] COST [ ]", "TDD: RED [x] GREEN [ ] COST [ ]");
+    const t = setup([(_p, tree) => { tree.write("tests/a.test.ts", "test a, two passing at once"); return "more"; }],
+      [writesCode("src/a.ts", "tests/a.test.ts")], rerun);
+    t.tree.write("tests/a.test.ts", "test a");
+    t.tree.failures.set("tests/a.test.ts", 1);
+    const a = parse(await runDevImplement({ batch: "F1", plan: "demo" }, t.deps));
+    ok(blockedLine(a)?.includes("step 2 RED: the new tests add no failure (failures 1 → 1)"), a.lines.join("\n"));
+    strictEqual(t.roles.implementer.acts.length, 0);
+  });
+
   it("accepts a later RED of a cycle that adds a failure", async () => {
     const t = setup([
       (_p, tree) => { tree.write("tests/a.test.ts", "test a"); tree.failures.set("tests/a.test.ts", 1); return "red"; },
@@ -540,11 +551,14 @@ describe("runDevImplement — wave 4", () => {
     ok(c.lines.some((l) => l.includes("; measured: not computed — ")), c.lines.join("\n"));
   });
 
-  const graphIndex = (roots: string[], affected: Partial<AffectedTests> | Error, refreshed: string[][] = []): CostIndex => ({
+  const graphIndex = (
+    roots: string[], affected: Partial<AffectedTests> | Error, refreshed: string[][] = [], asked: string[][] = [],
+  ): CostIndex => ({
     ...costIndex(false),
     roots: async () => roots,
     refresh: async (_root, files) => { refreshed.push([...files]); return []; },
-    affected: async () => {
+    affected: async (files) => {
+      asked.push([...files]);
       if (affected instanceof Error) throw affected;
       return { all: false, projects: [], classes: [], unresolved: [], ...affected };
     },
@@ -559,10 +573,15 @@ describe("runDevImplement — wave 4", () => {
 
   it("refreshes the batch's files in the index, then adds the graph's test projects to the sheet's", async () => {
     const refreshed: string[][] = [];
-    const t = later(graphIndex(["/workspace/"], { projects: ["tests/integration", "tests", "a;b"], classes: ["A"] }, refreshed));
+    const asked: string[][] = [];
+    const t = later(graphIndex(["/workspace/"], { projects: ["tests/integration", "tests", "a;b"], classes: ["A"] }, refreshed, asked));
     const a = parse(await runDevImplement({ batch: "F1", plan: "demo" }, t.deps));
     strictEqual(blockedLine(a), undefined, a.lines.join("\n"));
     deepStrictEqual(refreshed.at(-1), ["/workspace/src/a.ts", "/workspace/tests/a.test.ts"]);
+    // affected_tests looks each file up under the indexed root: relative paths, never absolute ones.
+    deepStrictEqual(asked, [["src/a.ts", "tests/a.test.ts"]]);
+    ok(a.lines.includes("affected tests: the graph's projects left out, no command can be named for them — " +
+      "a;b (<Project>: the value 'a;b' is not one plain relative name)"), a.lines.join("\n"));
     ok(a.lines.includes("index: 2 files of F1 refreshed"), a.lines.join("\n"));
     deepStrictEqual(t.jobs.started, ["npm run build", "node --test tests", "node --test tests/integration"]);
     ok(a.lines.some((l) => l.startsWith("affected tests ✓ — node --test tests; node --test tests/integration (the whole suite went green once for F1; the graph added tests/integration (1 test class reached))")), a.lines.join("\n"));
@@ -573,6 +592,23 @@ describe("runDevImplement — wave 4", () => {
     const a = parse(await runDevImplement({ batch: "F1", plan: "demo" }, t.deps));
     deepStrictEqual(t.jobs.started, ["npm run build", "npm test"]);
     ok(a.lines.some((l) => l.startsWith("test ✓ — npm test (the whole suite again: the graph reaches every test from these changes)")), a.lines.join("\n"));
+  });
+
+  it("refreshes the index before the build, so a red build leaves no stale graph", async () => {
+    const refreshed: string[][] = [];
+    const t = later(graphIndex(["/workspace"], {}, refreshed));
+    t.jobs.exit["npm run build"] = 1;
+    const a = parse(await runDevImplement({ batch: "F1", plan: "demo" }, t.deps));
+    ok(blockedLine(a) !== undefined, a.lines.join("\n"));
+    deepStrictEqual(refreshed.at(-1), ["/workspace/src/a.ts", "/workspace/tests/a.test.ts"]);
+    ok(a.lines.includes("index: 2 files of F1 refreshed"), a.lines.join("\n"));
+  });
+
+  it("names the files the graph could not place when it falls back to the whole suite", async () => {
+    const t = later(graphIndex(["/workspace"], { all: true, unresolved: ["src/a.ts"] }));
+    const a = parse(await runDevImplement({ batch: "F1", plan: "demo" }, t.deps));
+    deepStrictEqual(t.jobs.started, ["npm run build", "npm test"]);
+    ok(a.lines.some((l) => l.startsWith("test ✓ — npm test (the whole suite again: the graph could not place src/a.ts)")), a.lines.join("\n"));
   });
 
   it("keeps the sheet's projects alone when the index is absent or the graph fails, and says so", async () => {

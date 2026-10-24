@@ -109,6 +109,21 @@ describe("createCodeIndex", () => {
     await rejects(index.impact("x", 2), /impact down/);
   });
 
+  it("asks affected_tests with the paths as given, relative to the indexed root, and reads its answer", async () => {
+    const tools = costTools({});
+    const asked: unknown[] = [];
+    const index = createCostIndex({
+      ...tools,
+      affectedTests: async (input: unknown) => {
+        asked.push(input);
+        return { all: false, test_projects: ["tests"], test_classes: ["ATests"], unresolved: [] };
+      },
+    } as Parameters<typeof createCostIndex>[0]);
+    deepStrictEqual(await index.affected?.(["src/a.ts", "tests/a.test.ts"]),
+      { all: false, projects: ["tests"], classes: ["ATests"], unresolved: [] });
+    deepStrictEqual(asked, [{ changed_files: ["src/a.ts", "tests/a.test.ts"] }]);
+  });
+
   it("lets a failing tool reject", async () => {
     const tools = new FakeTools();
     tools.replies.indexStatus = new Error("no index tool");

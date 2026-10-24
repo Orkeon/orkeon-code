@@ -18,11 +18,10 @@ import { batchesChainStep, parseDevBatchesArgs } from "./_lib/dev-batches.ts";
 import { reapplyStepRules, startDevStep } from "./_lib/dev-step.ts";
 import { launchCrew } from "./_lib/dispatch.ts";
 import { storedEffort } from "./_lib/effort.ts";
-import { readPullRequestContext } from "./_lib/pr-context.ts";
+import { readPullRequestContext, writingModeRefusal } from "./_lib/pr-context.ts";
 import { createCrewHost } from "../shared/infrastructure/orkeon/crew-host.ts";
 import { createPermissionRules } from "../shared/infrastructure/orkeon/permission-rules.ts";
 import { orkeonConfigStore, orkeonSessionIo, orkeonToolCatalogue } from "../shared/infrastructure/orkeon/wiring.ts";
-import { policyFor } from "../shared/domain/agent-policy/mode-policy.ts";
 
 const deps = { session: orkeonSessionIo(), config: orkeonConfigStore() };
 
@@ -39,9 +38,8 @@ defineAsyncCommand({
     const prContext = await readPullRequestContext({
       catalogue: () => orkeonToolCatalogue(ctx.services), rules: () => createPermissionRules(ctx.services), session: deps.session,
     });
-    const mode = prContext.permissionMode;
-    if (mode !== "" && policyFor(mode).readOnly) {
-      const line = `✗ refused: the session mode ${mode} is read-only, and /dev-batches writes files, commits and pushes: /mode default, then run it again`;
+    const line = writingModeRefusal(String(prContext.permissionMode ?? ""), "/dev-batches");
+    if (line !== null) {
       ctx.writeLine(line);
       return { refused: line };
     }

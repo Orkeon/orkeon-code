@@ -10,6 +10,7 @@
 // Input (globalThis.inputs): { charter: "dev-reviewer" | "dev-auditor", system?: string, brief: string,
 //                              effort?: "low" | "medium" | "high" | null, hooks?: the /hooks registry,
 //                              memoryRecall?: false (a session rule denies it) }  (the step is the charter's)
+// Budget: repairBudget(step), the step's own, so that a repaired audit or review stops where the original would.
 // Run standalone:  bash scripts/run-crew.sh src/crews/agent-run/crew.ork.ts --inputs '{"charter":"dev-reviewer","brief":"…"}'
 
 import { AgentBuilder, CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infrastructure/globals.ts";
@@ -20,6 +21,7 @@ import { devToolCallbacks } from "../../shared/infrastructure/orkeon/tool-callba
 import { charterCatalogue } from "../../shared/domain/agents/charter.ts";
 import type { Charter } from "../../shared/domain/agents/charter.ts";
 import { builtInCharter } from "../../shared/domain/agents/built-in-charters.ts";
+import { repairBudget } from "../../shared/domain/dev/step-budget.ts";
 import { providerEffort } from "../../shared/domain/agent-policy/behavior-flags.ts";
 import { REVIEWER_CHARTER } from "../../shared/domain/dev/reviewer-charter.ts";
 import { AUDITOR_CHARTER } from "../dev-verify/domain/auditor-charter.ts";
@@ -52,7 +54,7 @@ publishCrew(
   CrewBuilder()
     .name("agent-run")
     .process("sequential")
-    .budget({ toolCalls: 120, wallTime: 1800, tokens: 300_000, delegationDepth: 0 })
+    .budget(repairBudget(step))
     .withAgent((effort === undefined ? builder : builder.effort(effort)).build())
     .build(),
 );

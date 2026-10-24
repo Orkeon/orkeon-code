@@ -306,8 +306,13 @@ async function runCycle(run: Run, cycle: Cycle): Promise<string | null> {
   if (!command.ok) return `${label}: ${command.reason}`;
   const production = new Set<string>();
 
-  let red: WrappedRun | null = null;
-  for (const step of steps.filter((s) => !s.tdd?.red)) {
+  const toRed = steps.filter((s) => !s.tdd?.red);
+  // A rerun after BLOCKED: a step of the cycle is RED-ticked already and its tests fail. One run before the first new
+  // RED is the baseline its tests must add a failure to, as the run of that step would have been.
+  let red: WrappedRun | null = toRed.length > 0 && toRed.length < steps.length
+    ? await run.tools.runTests({ command: command.command })
+    : null;
+  for (const step of toRed) {
     const stubs = await openStubs(run, step);
     const t3 = await recallForRed(run, step);
     const done = await act(run, "test-author", withPrecedents(redContract(contractInput(run, step, command.command)), [t3, run.correction]), stubs);
@@ -412,8 +417,10 @@ async function oneSuite(run: Run, label: string, command: string, log: string | 
 
 /** The affected tests: `commands.test_project` once per distinct Project cell of the steps this run ran (of every
  *  step when it ran none), then once per test project the graph adds, their logs written together to
- *  `F<n>-test-affected.txt`. Null when the sheet's cannot be named; a graph project that cannot be is left out. */
-function affectedCommands(run: Run, graph: readonly string[] = []): { commands: string[]; fromGraph: string[] } | null {
+ *  `F<n>-test-affected.txt`. Null when the sheet's cannot be named; a graph project that cannot be is left out, and named. */
+function affectedCommands(
+  run: Run, graph: readonly string[] = [],
+): { commands: string[]; fromGraph: string[]; leftOut: string[] } | null {
   if (!run.pack.commands.testProject?.trim()) return null;
   const steps = run.ran.length > 0 ? run.ran : run.sheet.steps.filter((s) => s.tdd !== null);
   const projects = [...new Set(steps.flatMap((s) => s.tests.map((t) => t.project.trim())).filter((p) => p !== ""))];
@@ -425,11 +432,13 @@ function affectedCommands(run: Run, graph: readonly string[] = []): { commands: 
   }
   if (commands.length === 0) return null;
   const fromGraph: string[] = [];
+  const leftOut: string[] = [];
   for (const project of graph) {
     const c = projectCommandFor(run.pack.commands, project.trim());
-    if (c.ok && !commands.includes(c.command)) { commands.push(c.command); fromGraph.push(project.trim()); }
+    if (!c.ok) leftOut.push(`${project.trim()} (${c.reason})`);
+    else if (!commands.includes(c.command)) { commands.push(c.command); fromGraph.push(project.trim()); }
   }
-  return { commands, fromGraph };
+  return { commands, fromGraph, leftOut };
 }
 
 /** The batch's touched files refreshed in the code index (incremental_reindex), so that the graph the affected tests,
@@ -464,7 +473,8 @@ async function graphAffected(run: Run): Promise<AffectedTests | null> {
   const index = run.deps.costIndex;
   if (index?.affected === undefined) return null;
   try {
-    return await index.affected([...run.touched].sort().map((p) => `${INDEX_ROOT}/${p}`));
+    // Relative to the indexed root: affected_tests looks each file up as `<root>/<file>`, an absolute path never resolves.
+    return await index.affected([...run.touched].sort());
   } catch (e) {
     run.lines.push(`affected tests: the graph was not read — ${reasonOf(e)}; the sheet's projects alone`);
     return null;
@@ -477,6 +487,8 @@ async function suites(run: Run, suiteGreen: boolean): Promise<SuiteResult> {
   const batch = run.sheet.batch;
   const affectedLog = `${run.logFolder}/${batch}-test-affected.txt`;
 
+  // The tree changed whatever the build says: the index is refreshed first, so a red build leaves no stale graph.
+  const indexed = await refreshIndex(run);
   const build = run.pack.commands.build?.trim();
   if (!build) run.lines.push("build: not run — the pack has no commands.build");
   else {
@@ -489,9 +501,11 @@ async function suites(run: Run, suiteGreen: boolean): Promise<SuiteResult> {
     run.lines.push(`build ✓ — ${build}${outcome.how === "blocking" ? " (run blocking)" : ""}${shownPath(outcome.log)}`);
   }
 
-  const indexed = await refreshIndex(run);
   const graph = suiteGreen && indexed ? await graphAffected(run) : null;
   const affected = suiteGreen && graph?.all !== true ? affectedCommands(run, graph?.projects ?? []) : null;
+  if (affected !== null && affected.leftOut.length > 0) {
+    run.lines.push(`affected tests: the graph's projects left out, no command can be named for them — ${affected.leftOut.join("; ")}`);
+  }
   if (affected !== null) {
     const texts: string[] = [];
     let exit = 0;
@@ -532,10 +546,18 @@ async function suites(run: Run, suiteGreen: boolean): Promise<SuiteResult> {
   if (outcome.status === "running") return { problem: `test still running after ${outcome.seconds} s${shownPath(outcome.log)}` };
   if (outcome.status === "failed") return { problem: `test: '${test}' exited ${outcome.exit}${shownPath(outcome.log)}\n${outcome.tail}` };
   const again = !suiteGreen ? ""
+    : graph?.all === true && graph.unresolved.length > 0
+      ? ` (the whole suite again: the graph could not place ${cutList(graph.unresolved)})`
     : graph?.all === true ? " (the whole suite again: the graph reaches every test from these changes)"
     : " (the whole suite again: the pack has no commands.test_project)";
   run.lines.push(`test ✓ — ${test}${outcome.how === "blocking" ? " (run blocking)" : ""}${again}${shownPath(outcome.log)}`);
   return { ok: true, whole: true };
+}
+
+/** At most three paths, then how many more. */
+function cutList(paths: readonly string[]): string {
+  const shown = paths.slice(0, 3).join(", ");
+  return paths.length > 3 ? `${shown} and ${paths.length - 3} more` : shown;
 }
 
 async function writeLogQuietly(run: Run, path: string, text: string): Promise<void> {

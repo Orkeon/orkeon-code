@@ -9,7 +9,7 @@ import type { Files, Llm, Shell } from "../../../shared/application/ports.ts";
 import { runSubAgent } from "../../../shared/application/agents/run-sub-agent.ts";
 import type { SubAgentOutcome } from "../../../shared/application/agents/run-sub-agent.ts";
 import type { RepoPackCommands } from "../../../shared/domain/dev/repo-pack.ts";
-import type { AuditAnswer } from "../domain/audit-answer.ts";
+import type { AuditAnswer, AuditRow } from "../domain/audit-answer.ts";
 import { AUDIT_ANSWER_SCHEMA, MAX_VALIDATIONS, checkAuditAnswer } from "../domain/audit-answer.ts";
 import { AUDITOR_CHARTER } from "../domain/auditor-charter.ts";
 import { testRunSummary } from "../domain/capture-sections.ts";
@@ -111,11 +111,33 @@ export function shellValidationRunner(
 export interface UnfinishedAudit { reason: string; validations: string[]; notRun: string[] }
 
 export type AuditOutcome =
-  | { ok: true; answer: AuditAnswer; validations: string[]; notRun: string[]; rounds: 1 | 2 }
+  | { ok: true; answer: AuditAnswer; validations: string[]; notRun: string[]; rounds: 1 | 2; redRows: AuditRow[] }
   | { ok: false; text: string; unfinished?: UnfinishedAudit };
 
 const linesOf = (runs: readonly ValidationRun[]): string[] => runs.map((r) => r.line).filter((l): l is string => l !== null);
 const notRunsOf = (runs: readonly ValidationRun[]): string[] => runs.map((r) => r.notRun).filter((n): n is string => n !== null);
+
+/**
+ * A Blocking row (Test) for each validation that ran red - an exit other than 0, or failures in its summary - as the
+ * whole suite of /dev-verify full gets one: the verdict never takes the auditor's word over a run code made itself.
+ */
+export function redRunRows(runs: readonly ValidationRun[]): AuditRow[] {
+  const rows: AuditRow[] = [];
+  for (const { report } of runs) {
+    const exit = /^exit (-?[0-9]+)$/.exec(report.outcome);
+    if (exit === null) continue; // refused, not run or timed out: a Not run line already says so
+    const failed = testRunSummary(report.tail.split("\n")).failed ?? 0;
+    if (exit[1] === "0" && failed === 0) continue;
+    const counted = failed > 0 ? `, ${failed} failed` : "";
+    rows.push({
+      severity: "Blocking", axis: "Test",
+      gap: `a validation is red: ${report.outcome}${counted}`,
+      evidence: `\`${report.command}\` ${report.outcome}${counted}, run by /dev-verify`,
+      fix: "make the validation pass",
+    });
+  }
+  return rows;
+}
 
 type Deps = { llm: Pick<Llm, "act" | "extract">; files: Pick<Files, "write">; runner: ValidationRunner };
 
@@ -155,6 +177,12 @@ async function blocked(
       ok: false,
       text: `dev-verify: BLOCKED — the step's budget is spent (${spent}: ${first}): the capture stays in ${captureShown}/`,
       unfinished: { reason: `${spent}: ${first}`, validations: linesOf(runs), notRun: notRunsOf(runs) },
+    };
+  }
+  if (outcome.reason === "cancelled") {
+    return {
+      ok: false,
+      text: `dev-verify: BLOCKED — the audit was cancelled (${first}): the capture stays in ${captureShown}/; no verdict written`,
     };
   }
   if (outcome.reason === "model-failed") {
@@ -198,7 +226,7 @@ export async function runAudit(
     }
     return {
       ok: true, answer: first.value, validations: linesOf(runs),
-      notRun: [...notRunsOf(runs), ...undecidedNotRun(first.value.undecided)], rounds: 1,
+      notRun: [...notRunsOf(runs), ...undecidedNotRun(first.value.undecided)], rounds: 1, redRows: redRunRows(runs),
     };
   }
 
@@ -226,5 +254,6 @@ export async function runAudit(
     validations: linesOf(runs),
     notRun: [...notRunsOf(runs), ...late, ...undecidedNotRun(answer.undecided)],
     rounds: 2,
+    redRows: redRunRows(runs),
   };
 }

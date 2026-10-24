@@ -53,6 +53,14 @@ describe("/tasks — the agent instances", () => {
     ]);
   });
 
+  it("lists the children of /dev-spec and /dev-change too", async () => {
+    const { run, seed } = setup();
+    seed("dev-spec", {}, record({ id: "s1" }));
+    seed("dev-change", {}, record({ id: "c1" }));
+    const { view } = await run();
+    deepStrictEqual(view.table!.map((r: any) => [r.crew, r.id]).sort(), [["dev-change", "c1"], ["dev-spec", "s1"]]);
+  });
+
   it("an unreadable snapshot is no instance", async () => {
     const { session, run } = setup();
     session.state.set(snapshotKey("dev-plan"), "{");

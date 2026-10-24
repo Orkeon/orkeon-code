@@ -112,6 +112,11 @@ describe("settleSnapshot", () => {
     ok(!stopVerdict({ snapshot: dead, record: dead.instances[0] }).ok);
     strictEqual(sendVerdict({ snapshot: dead, record: dead.instances[0] }).kind, "repair");
   });
+
+  it("takes an open run whose updatedAt does not parse for dead", () => {
+    const dead = settleSnapshot(snapshot({ updatedAt: "not a date", instances: [record({ state: "running" })] }), now);
+    deepStrictEqual([dead.serving, dead.open, dead.instances[0].state], [false, false, "failed"]);
+  });
 });
 
 describe("buildRepairBrief", () => {

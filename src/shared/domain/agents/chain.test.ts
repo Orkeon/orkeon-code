@@ -3,7 +3,7 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
-import { MAX_CHAIN_DEPTH, chainDepthLine, chainDepthRefusal } from "./chain.ts";
+import { chainDepthLine, chainDepthRefusal } from "./chain.ts";
 
 describe("chainDepthRefusal", () => {
   it("reads the depth and the limit from the runtime's message, as an error or a string", () => {
@@ -16,8 +16,7 @@ describe("chainDepthRefusal", () => {
     strictEqual(chainDepthRefusal(undefined), null);
   });
 
-  it("names the default limit, and the line says what to do", () => {
-    strictEqual(MAX_CHAIN_DEPTH, 8);
+  it("says what to do, with the depth and the limit the refusal gave", () => {
     const line = chainDepthLine("dev-verify", { depth: 9, limit: 8 });
     ok(line.startsWith("dev-verify not launched"));
     ok(line.includes("depth 9, limit 8") && line.includes("MaxChainDepth"));

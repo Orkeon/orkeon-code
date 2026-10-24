@@ -116,10 +116,17 @@ describe("validationCommand", () => {
     deepStrictEqual(validationCommand(`run_validation 'dotnet test --filter "X"'`), 'dotnet test --filter "X"');
   });
 
+  it("reads a quote that holds its own kind escaped, and an argument named command", () => {
+    deepStrictEqual(validationCommand('run_validation "x --filter \\"X\\""'), 'x --filter "X"');
+    deepStrictEqual(validationCommand("run_validation 'grep -E \\'a\\.b\\''"), "grep -E 'a\\.b'");
+    deepStrictEqual(validationCommand(`run_validation(command="${cmd}")`), cmd);
+    deepStrictEqual(validationCommand(`run_validation( command: '${cmd}' )`), cmd);
+  });
+
   it("leaves a form with more than one reading as written", () => {
     for (const written of [`run_validation "a" "b"`, `run_validation("${cmd}"`, `run_validation "${cmd}")`,
-      `run_validation ${cmd}`, `echo run_validation "${cmd}"`, 'run_validation "x --filter \\"X\\""',
-      `run_validation(command="${cmd}")`]) {
+      `run_validation ${cmd}`, `echo run_validation "${cmd}"`, 'run_validation "x "X""',
+      `run_validation(command="${cmd}"`, `run_validation command="${cmd}"`, `run_validation(cmd="${cmd}")`]) {
       deepStrictEqual(validationCommand(written), written.trim(), written);
     }
   });

@@ -15,23 +15,34 @@ export interface StepBudget {
 }
 
 /**
+ * The tokens a tool call costs, rounded up: a live audit of a 3-file batch spent 307 528 tokens over 92 calls (about
+ * 3 300 a call, each turn resending the context). A step whose calls run long sizes its tokens from its calls, so that
+ * the tool calls stay the limit it meets first.
+ */
+export const TOKENS_PER_CALL = 3_500;
+
+/**
  * dev-verify: under full, the build (900 s), the whole suite (900 s) and three validations (300 s
- * each), whether code or run_validation runs them, plus the auditor's own time. Its tokens follow its
- * tool calls: a live audit of a 3-file batch spent 307 528 tokens over 92 calls (about 3 300 a call, each
- * turn resending the context), so 200 calls ask for about 670 000; 700 000 leaves the tool calls the
- * limit an audit meets first. dev-plan: the
- * inventory's index queries, the planner and the reviewer. delegationDepth 1: the reviewer and the
+ * each), whether code or run_validation runs them, plus the auditor's own time; its 200 calls ask for
+ * 700 000 tokens. dev-plan: the inventory's index queries, the planner and the reviewer, whose calls count
+ * against the step's (A-3 Q3): 240 calls ask for 840 000 tokens. delegationDepth 1: the reviewer and the
  * auditor run as background children of the step's agent (A-3), one level down, never deeper. dev-spec and
  * dev-change: the inventory (about 40 index calls), three extract calls, the reproduction (600 s at most) and one
  * review of 20 iterations, inline (no child); the wall time counts the time a person takes to answer the
  * questions, hence an hour.
  */
 export const STEP_BUDGETS: Readonly<Record<"dev-verify" | "dev-plan" | "dev-spec" | "dev-change", StepBudget>> = {
-  "dev-verify": { toolCalls: 200, wallTime: 3600, tokens: 700_000, delegationDepth: 1 },
-  "dev-plan": { toolCalls: 240, wallTime: 1800, tokens: 400_000, delegationDepth: 1 },
+  "dev-verify": { toolCalls: 200, wallTime: 3600, tokens: 200 * TOKENS_PER_CALL, delegationDepth: 1 },
+  "dev-plan": { toolCalls: 240, wallTime: 1800, tokens: 240 * TOKENS_PER_CALL, delegationDepth: 1 },
   "dev-spec": { toolCalls: 200, wallTime: 3600, tokens: 400_000, delegationDepth: 0 },
   "dev-change": { toolCalls: 200, wallTime: 3600, tokens: 400_000, delegationDepth: 0 },
 };
+
+/** The budget of a repair by a new run (/tasks repair, crew agent-run): the step's own that runs the charter as a
+ *  child, so that a repaired audit or review stops where the original would; no child of its own. */
+export function repairBudget(step: "dev-plan" | "dev-verify"): StepBudget {
+  return { ...STEP_BUDGETS[step], delegationDepth: 0 };
+}
 
 const DIMENSIONS: readonly BudgetDimension[] = ["toolCalls", "delegationDepth", "wallTime", "tokens", "spawnedAgents"];
 

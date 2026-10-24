@@ -399,7 +399,8 @@ export interface CostIndex {
   refresh(root: string, files: readonly string[]): Promise<string[]>;
   /** The access cost of the members of `files` (virtual paths): the report, or null and the tool's errors. */
   accessCost(files: readonly string[], receivers: string | undefined): Promise<{ report: AccessCostReport | null; errors: string[] }>;
-  /** The tests the graph reaches from `files` (virtual paths), by `affected_tests`; absent when it is not wired. */
+  /** The tests the graph reaches from `files` (paths relative to the indexed root, as git names them: the runtime
+   *  looks each up as `<root>/<file>`), by `affected_tests`; absent when it is not wired. */
   affected?(files: readonly string[]): Promise<AffectedTests>;
 }
 

@@ -11,15 +11,6 @@ export function verdictMarkOf(text: string | null): string {
   return text === null ? "none" : contentHash(text);
 }
 
-/** The mark of the batch's verdict file as it is now. */
-export async function currentVerdictMark(files: Pick<Files, "read">, verdictPath: string): Promise<string> {
-  try {
-    return verdictMarkOf(await files.read(verdictPath));
-  } catch {
-    return verdictMarkOf(null);
-  }
-}
-
 export function touchedPath(code: string, batch: string): string {
   return `/workspace/.orkeon/dev/${code}/implement-${batch}.json`;
 }
@@ -63,10 +54,6 @@ export function prContextOf(raw: unknown): PrContext | null {
     permissionMode: typeof r.permissionMode === "string" ? r.permissionMode : "",
     permissionRules: Array.isArray(r.permissionRules) ? r.permissionRules.filter((x): x is string => typeof x === "string") : [],
   };
-}
-
-export async function readTouched(files: Pick<Files, "read">, code: string, batch: string): Promise<string[]> {
-  return (await readTouchedRecord(files, code, batch)).touched;
 }
 
 /** Writes the record, the list sorted; a write that fails is said by the close, which then finds none. */

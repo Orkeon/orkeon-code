@@ -134,6 +134,20 @@ describe("runDevVerify — the verdict", () => {
     strictEqual(slot.get(), undefined);
   });
 
+  it("writes GAPS with a Blocking Test row when a validation code ran is red, whatever the auditor answers", async () => {
+    const f = setup();
+    const command = "node --test tests/a.test.ts";
+    f.shell.results[command] = { exitCode: 1, stdout: "# pass 1\n# fail 2\n" };
+    f.llm.answers = ["I doubt a.test.ts", "all good"];
+    f.llm.extractions = [answer([], [command]), { verdict: "VALID", rows: [], validations: [] }];
+    const text = await run(f.deps, { batch: "F2" });
+    const written = f.files.files.get(VERDICT) ?? "";
+    ok(written.includes("## Verdict — GAPS"), written);
+    ok(written.includes(`| Blocking | Test | a validation is red: exit 1, 2 failed | \`${command}\` exit 1, 2 failed, run by /dev-verify |`),
+      written);
+    ok(!text.includes("→ Batch F2 VALID."), text);
+  });
+
   it("prints the Cost line the code index measures, and writes it in the capture", async () => {
     const f = setup();
     f.llm.answers = ["fine"];
@@ -331,6 +345,17 @@ describe("runDevVerify — resume", () => {
     ok(written.includes("\n\n# DEMO-VERIFY-F2 — 2026-10-22 14:05 — fast\n\n## Verdict — VALID\n"), written);
   });
 
+  it("audits the whole batch when the verdict file holds no section that parses", async () => {
+    const f = setup();
+    f.files.files.set(VERDICT, "");
+    f.llm.answers = ["fine"];
+    f.llm.extractions = [answer([])];
+    const text = await run(f.deps, { batch: "F2", mode: "resume" });
+    ok(text.includes("resume: no audit of this batch finished — the whole batch is audited (fast), the section appended"), text);
+    ok(f.llm.acts[0].prompt.includes("Scope: the whole batch."), f.llm.acts[0].prompt);
+    ok(!f.llm.acts[0].prompt.includes("Scope: the previous gaps"), f.llm.acts[0].prompt);
+  });
+
   it("runs resume --gate-only without an earlier verdict", async () => {
     const f = setup();
     const text = await run(f.deps, { batch: "F2", mode: "resume", gateOnly: true });
@@ -375,6 +400,17 @@ describe("runDevVerify — refusals", () => {
       "dev-verify: no workbench/demo/DEMO-PLAN-F3.md beside workbench/demo/DEMO-PLAN.md");
     strictEqual(await run(f.deps, { batch: "F2", plan: "../demo/DEMO-PLAN.md" }),
       "dev-verify: '../demo/DEMO-PLAN.md' is neither a code nor a <CODE>-PLAN.md path");
+  });
+
+  it("refuses a plan path outside the work folder, where the capture and the verdict would be written", async () => {
+    const f = setup();
+    f.files.files.set("/workspace/.claude/x/X-PLAN.md", "# X-PLAN\n");
+    f.files.files.set("/workspace/.claude/x/X-PLAN-F2.md", SHEET);
+    strictEqual(await run(f.deps, { batch: "F2", plan: ".claude/x/X-PLAN.md" }),
+      "dev-verify: '.claude/x/X-PLAN.md' is not under the work folder workbench/");
+    strictEqual(await run(f.deps, { batch: "F2", plan: "workbench/./demo/DEMO-PLAN.md" }),
+      "dev-verify: 'workbench/./demo/DEMO-PLAN.md' is not under the work folder workbench/");
+    strictEqual(f.files.files.has("/workspace/.claude/x/X-VERIFY-F2.md"), false);
   });
 
   it("refuses inputs that are not a batch", async () => {

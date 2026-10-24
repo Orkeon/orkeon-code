@@ -169,6 +169,10 @@ async function resolveSheet(files: Pick<Files, "read" | "list">, work: string, a
   const relative = plan.startsWith(`${WORKSPACE}/`) ? plan.slice(WORKSPACE.length + 1) : plan;
   const slash = relative.lastIndexOf("/");
   if (relative.startsWith("/") || relative.split("/").includes("..") || slash <= 0) return neither;
+  // The capture and the verdict are written beside the plan: a plan outside the work folder would put them elsewhere.
+  if (!relative.startsWith(`${work}/`) || relative.split("/").some((s) => s === "" || s === ".")) {
+    return `dev-verify: '${plan}' is not under the work folder ${work}/`;
+  }
   const classified = classifyArtefact(relative.slice(slash + 1));
   if (classified === null || classified.kind !== "plan") return neither;
   const sheet: Sheet = { planDir: relative.slice(0, slash), name: `${classified.prefix}-PLAN-${batch}.md`, prefix: classified.prefix };
@@ -296,12 +300,12 @@ export async function runDevVerify(input: DevVerifyInputs, deps: DevVerifyDeps):
     const parsed = parseVerdictFile(previous);
     const last = lastVerdict(parsed);
     const finished = last !== null && isUnfinishedSection(last) ? lastFinishedVerdict(parsed) : last;
-    if (last !== null && finished === null) {
+    if (finished === null) {
       auditMode = "fast";
       out.push("resume: no audit of this batch finished — the whole batch is audited (fast), the section appended");
     } else {
-      if (finished !== last && finished !== null) out.push(`resume: the last audit did not finish — the gaps of the audit of ${finished.when ?? "before"} are resumed`);
-      previousGaps = (finished?.rows ?? []).filter((r) => !isAuditUnfinishedGap(r.gap)).map(auditRowOf);
+      if (finished !== last) out.push(`resume: the last audit did not finish — the gaps of the audit of ${finished.when ?? "before"} are resumed`);
+      previousGaps = finished.rows.filter((r) => !isAuditUnfinishedGap(r.gap)).map(auditRowOf);
     }
   }
 
@@ -360,7 +364,7 @@ export async function runDevVerify(input: DevVerifyInputs, deps: DevVerifyDeps):
         `${audit.text}; ${section.verdict} written to ${verdictShown}: the audit did not finish`);
     }
 
-    const answered = [...audit.answer.rows, ...(suite?.row ? [suite.row] : [])];
+    const answered = [...audit.answer.rows, ...audit.redRows, ...(suite?.row ? [suite.row] : [])];
     const section = renderVerdictSection({
       prefix: t.prefix, batch: args.batch, when, mode: auditMode,
       rows: [...answered, ...carriedRows(answered, capture.rows)],

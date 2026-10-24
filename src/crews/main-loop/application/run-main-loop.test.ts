@@ -416,6 +416,18 @@ describe("runMainLoop — the turn-start and stop chains", () => {
     strictEqual(llm.acts.length, 2);
   });
 
+  it("keeps the first answer, with a warning, when the retry the stop check asked for fails", async () => {
+    const { store, llm, log, deps } = setup();
+    llm.answers = ["done", new Error("provider down")];
+    strictEqual(await runMainLoop({ prompt: "audit", closingLine: "VERDICT:" }, EXPLICIT_PLAN, deps), "done");
+    strictEqual(llm.acts.length, 2);
+    deepStrictEqual(store.messages.at(-1), { role: "assistant", content: "done" });
+    ok(log.lines.some((w) => w.includes("the retry failed (provider down); the first answer stands")), JSON.stringify(log.lines));
+    const blank = setup();
+    blank.llm.answers = ["  ", new Error("provider down")];
+    await rejects(runMainLoop({ prompt: "explain" }, EXPLICIT_PLAN, blank.deps), /provider down/);
+  });
+
   it("sends back an answer without the closing line the command names, and not one that holds it", async () => {
     const missing = setup();
     missing.llm.answers = ["done", "done\nVERDICT: VALID"];

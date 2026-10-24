@@ -370,8 +370,9 @@ export function buildHooksBlock(hooks: ReadonlyArray<{ event?: string; command?:
   const rows = valid.map((h) => `- ${h.event}: ${String(h.command ?? "").trim()}`);
   return (
     "## Declared hooks\n" + rows.join("\n") +
-    "\nThese hooks are declared, but nothing runs them yet around your own tool calls (only the dev steps /dev-plan " +
-    "and /dev-verify run them): do not count on one having run."
+    "\nThese hooks are declared, but nothing runs them yet around your own tool calls (only the dev steps run them, " +
+    "around their agents' calls: /dev-spec, /dev-change, /dev-plan, /dev-implement, /dev-batches, /dev-verify and a " +
+    "/tasks repair): do not count on one having run."
   );
 }
 

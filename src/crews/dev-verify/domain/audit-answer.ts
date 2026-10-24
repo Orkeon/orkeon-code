@@ -65,17 +65,20 @@ function text(value: unknown): string {
 }
 
 /** The tool's name written around one quoted command: `run_validation "<command>"`, its '…' and `…` forms, or the
- *  same between parentheses. The quote holds the whole command and none of its own kind, so it has one reading. */
-const TOOL_WRAPPED = /^run_validation\s*(?:\(\s*)?(?:"([^"]+)"|'([^']+)'|`([^`]+)`)\s*(\))?$/;
+ *  same between parentheses, where the argument may also be named (`command="<command>"`). A quote may hold its own
+ *  kind escaped (`\"`), read back unescaped; an unescaped one ends it, so the form has one reading. */
+const TOOL_WRAPPED =
+  /^run_validation\s*(\(\s*(?:command\s*[=:]\s*)?)?(?:"((?:[^"\\]|\\.)+)"|'((?:[^'\\]|\\.)+)'|`([^`]+)`)\s*(\))?$/;
 
 /** A validation as the pack's commands read it: the command alone, the tool's name around it taken off. */
 export function validationCommand(written: string): string {
   const trimmed = written.trim();
   const m = TOOL_WRAPPED.exec(trimmed);
   if (m === null) return trimmed;
-  const opened = /^run_validation\s*\(/.test(trimmed);
-  if (opened !== (m[4] !== undefined)) return trimmed; // an unbalanced parenthesis: no single reading
-  return (m[1] ?? m[2] ?? m[3]).trim();
+  if ((m[1] !== undefined) !== (m[5] !== undefined)) return trimmed; // an unbalanced parenthesis: no single reading
+  if (m[2] !== undefined) return m[2].replace(/\\(["\\])/g, "$1").trim();
+  if (m[3] !== undefined) return m[3].replace(/\\(['\\])/g, "$1").trim();
+  return m[4].trim();
 }
 
 function axisOf(label: string): Axis | undefined {

@@ -273,6 +273,34 @@ describe("runDevBatches — what comes back and the close", () => {
       out.lines.join("\n"));
   });
 
+  it("typed after a hop the chain's depth refused, logs what the audit written since the launch says", async () => {
+    const gaps = setup();
+    await runDevBatches({ code: "demo" }, gaps.deps);
+    const verdict = `${DIR}/DEMO-VERIFY-F2.md`;
+    // The fixture's verdict file holds two GAPS audits before the launch: a third one is written since.
+    gaps.files.files.set(verdict, `${gaps.files.files.get(verdict)}\n${gaps.files.files.get(verdict)?.split("\n\n# ")[1].replace(/^/, "# ")}`);
+    const out = parse(await runDevBatches({}, gaps.deps));
+    strictEqual(out.next, undefined);
+    ok(out.lines.includes("F2 returned GAPS"), out.lines.join("\n"));
+    deepStrictEqual(events(gaps.files), ["F2 launched", "F2 returned"]);
+    const valid = setup();
+    await runDevBatches({ code: "demo" }, valid.deps);
+    valid.files.files.set(verdict, `${valid.files.files.get(verdict)}\n${VALID_F2}`);
+    const stopped = parse(await runDevBatches({}, valid.deps));
+    ok(stopped.lines.includes("F2 stopped BLOCKED — close: the batch was not committed"), stopped.lines.join("\n"));
+    ok(stopped.lines.includes("→ a human decides: the close (/dev-implement F2 demo --close), then /dev-batches demo goes on"),
+      stopped.lines.join("\n"));
+  });
+
+  it("typed after a cut with no audit since the launch, relaunches the batch; an audit before the launch is not one", async () => {
+    const { files, deps } = setup();
+    files.files.set(`${DIR}/DEMO-VERIFY-F2.md`, VALID_F2);
+    await runDevBatches({ code: "demo" }, deps);
+    ok((files.files.get(LOG) ?? "").includes("F2 launched audits 1"), files.files.get(LOG));
+    strictEqual(parse(await runDevBatches({}, deps)).next?.input.batch, "F2");
+    deepStrictEqual(events(files), ["F2 launched", "F2 relaunched"]);
+  });
+
   it("logs a VALID batch its close did not commit as a stop, with the close's ✗ line", async () => {
     const { files, deps } = setup();
     files.files.set(`${DIR}/DEMO-VERIFY-F2.md`, VALID_F2);

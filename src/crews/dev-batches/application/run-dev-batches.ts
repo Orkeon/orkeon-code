@@ -156,6 +156,20 @@ function stopOf(dev: DevCode, batch: string, after: readonly string[]): { event:
   return { event: "stopped", detail: `BLOCKED — ${first ?? "the chain answered nothing"}` };
 }
 
+/** The launch's detail: the audits the batch's verdict file held then, so that a typed run can tell an audit since. */
+const AUDITS_DETAIL = "audits";
+
+/** The audits (dated sections) of the batch's verdict file now. */
+function auditsOf(dev: DevCode, batch: string): number {
+  return dev.verdicts.filter((v) => v.batch === batch).reduce((n, v) => n + v.file.sections.length, 0);
+}
+
+/** The audits a launch line recorded; a line without the count (an older log) counts every audit as before it. */
+function auditsAtLaunch(detail: string): number {
+  const m = /(?:^|\s)audits (\d+)\b/.exec(detail);
+  return m === null ? Number.POSITIVE_INFINITY : Number(m[1]);
+}
+
 /** The work branch of a run: the pattern's first alternative before `/`, then the code. */
 export function batchesBranchName(pattern: string, code: string): string | null {
   return workBranchFromPattern(pattern, code);
@@ -299,7 +313,9 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
       lines.push(`✓ ${node.id} done and committed`);
       continue;
     }
-    if (input.after === undefined) continue;
+    // Typed, not back from the chain: a hop refused at the chain's depth (or a killed run) lost the batch's answer.
+    // An audit written since the launch says what came of it, as that answer would have; with none, it is relaunched.
+    if (input.after === undefined && auditsOf(dev, node.id) <= auditsAtLaunch(last.detail)) continue;
     // Committed, but its sheet or the plan could not be marked done: the commit stands, the marking is the human's.
     const committed = after.map((l) => /^✓ committed ([0-9a-f]{4,40}) on /i.exec(l.trim())?.[1]).find((h) => h !== undefined);
     if (committed !== undefined) {
@@ -317,6 +333,9 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
         // A relaunch carries no correction: the audit's own `/dev-implement <batch> — correction: …` line fixes the
         // batch; its close commits without a push while this run is in progress (run-dev-implement.ts).
         ? `→ a human decides: the correction the audit names (/dev-implement ${node.id} ${code} — correction: <finding>), then /dev-batches ${code} goes on`
+        : stop.detail.startsWith("BLOCKED — close:")
+        // The audit said VALID: what is left is the close, not a new run of the batch.
+        ? `→ a human decides: the close (/dev-implement ${node.id} ${code} --close), then /dev-batches ${code} goes on`
         : `→ a human decides; then /dev-batches ${code} goes on (${node.id} again, from its sheet's ticks)`,
     ]);
   }
@@ -403,7 +422,7 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
   if (!branch.ok) return finish([...lines, `BLOCKED — branch: ${branch.line}, then /dev-batches ${code}`]);
   if (branch.line !== null) lines.push(branch.line);
   const relaunch = entry !== undefined;
-  book.add(eventLine(now, next, relaunch ? "relaunched" : "launched"));
+  book.add(eventLine(now, next, relaunch ? "relaunched" : "launched", `${AUDITS_DETAIL} ${auditsOf(dev, next)}`));
   const sheet = sheetOf(next)!.sheet;
   const openSteps = sheet.steps.filter((s) => s.tdd !== null && !(s.tdd.red && s.tdd.green && s.tdd.cost)).length;
   const position = order.ok ? order.order.indexOf(next) + 1 : 0;

@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import {
-  buildCallGuard, checkToolCall, denyText, guardSummary, hookCommand, normalisePath, shellOperatorIn, toolHooks,
+  buildCallGuard, checkToolCall, denyText, hookCommand, normalisePath, shellOperatorIn, toolHooks,
 } from "./call-guard.ts";
 import type { CallVerdict } from "./call-guard.ts";
 import { stepRules } from "./step-rules.ts";
@@ -34,8 +34,6 @@ describe("buildCallGuard", () => {
     deepStrictEqual(guard.problems, ["the pack gives no layout.tests: no rule on it"]);
     const author = buildCallGuard({ step: "dev-verify", role: "test-author", layout: LAYOUT });
     ok(author.rules.some((r) => r.origin.kind === "role" && r.rule.tool === "file_write" && r.rule.pattern === "src/domain/*"));
-    strictEqual(guardSummary(author).startsWith(`${author.rules.length} deny rules (git-readonly, `), true);
-    ok(guardSummary(author).endsWith("test-author's roots), 0 pre-tool and 0 post-tool hooks"));
   });
 });
 

@@ -94,6 +94,29 @@ describe("runAudit", () => {
     deepStrictEqual(out.notRun, ["`dotnet test --filter FullyQualifiedName~OrderTests` — named after the validations had run"]);
   });
 
+  it("gives a Blocking Test row for a validation that ran red, even under a VALID answer", async () => {
+    const f = fakes();
+    f.llm.answers = ["I doubt LineTests", "fine after all"];
+    f.llm.extractions = [answer([VALIDATION]), { verdict: "VALID", rows: [], validations: [], undecided: [] }];
+    f.shell.results[VALIDATION] = { exitCode: 1, stdout: "Failed!  - Failed: 2, Passed: 10\n" };
+    const out = await runAudit(f.deps, brief, FOLDER, SHOWN);
+    ok(out.ok);
+    deepStrictEqual(out.redRows, [{
+      severity: "Blocking", axis: "Test", gap: "a validation is red: exit 1, 2 failed",
+      evidence: `\`${VALIDATION}\` exit 1, 2 failed, run by /dev-verify`, fix: "make the validation pass",
+    }]);
+  });
+
+  it("gives no red row for a green run, and none for a run that was refused", async () => {
+    const f = fakes();
+    f.llm.answers = ["I doubt LineTests", "fine"];
+    f.llm.extractions = [answer([VALIDATION, "rm -rf /"]), answer()];
+    f.shell.results[VALIDATION] = { exitCode: 0, stdout: "Passed!  - Failed: 0, Passed: 12\n" };
+    const out = await runAudit(f.deps, brief, FOLDER, SHOWN);
+    ok(out.ok);
+    deepStrictEqual(out.redRows, []);
+  });
+
   it("marks a timed out or throwing validation as not run", async () => {
     const f = fakes();
     const other = "dotnet test --filter FullyQualifiedName~OrderTests";
@@ -132,6 +155,17 @@ describe("runAudit", () => {
     strictEqual(out.ok, false);
     if (!out.ok) {
       strictEqual(out.text, `dev-verify: BLOCKED — the model call failed (provider down): the capture stays in ${SHOWN}/; no verdict written`);
+    }
+  });
+
+  it("returns the cancelled line when the act is cancelled", async () => {
+    const f = fakes();
+    f.llm.answers = [new Error("The operation was canceled.")];
+    const out = await runAudit(f.deps, brief, FOLDER, SHOWN);
+    strictEqual(out.ok, false);
+    if (!out.ok) {
+      strictEqual(out.text,
+        `dev-verify: BLOCKED — the audit was cancelled (The operation was canceled.): the capture stays in ${SHOWN}/; no verdict written`);
     }
   });
 });

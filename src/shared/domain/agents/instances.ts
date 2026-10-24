@@ -11,13 +11,11 @@ export const INSTANCE_STATES = ["running", "completed", "failed", "stopped"] as 
 export type InstanceState = (typeof INSTANCE_STATES)[number];
 
 /** The crews that run children and publish them: one snapshot key each. */
-export const CHILD_CREWS = ["dev-plan", "dev-verify"] as const;
+export const CHILD_CREWS = ["dev-spec", "dev-change", "dev-plan", "dev-verify"] as const;
 
-/**
- * What the runtime keeps of an ended instance for `crew.send` (`ScriptAgentInstanceOptions`, defaults).
- * Orkeon Code sends nothing in place (sendVerdict): a repair carries the report instead.
- */
-export const INSTANCE_TRANSCRIPT = { messages: 40, characters: 32_000 } as const;
+// The runtime keeps a transcript of an ended instance for `crew.send` (`ScriptAgentInstanceOptions`, 40 messages
+// and 32 000 characters by default). Orkeon Code sends nothing in place (sendVerdict): a repair is a new run whose
+// brief carries the report (buildRepairBrief, within MAX_BRIEF_CHARS), so those limits bind nothing here.
 
 /** The runtime's defaults for `crew.concurrency(n)` and `crew.maxInstances(n)`, and the bounds a crew input is held to. */
 export const INSTANCE_LIMITS = {
@@ -122,7 +120,8 @@ export function parseRequest(raw: string | null): InstanceRequest | null {
  */
 export function settleSnapshot(s: RunSnapshot, now: Date): RunSnapshot {
   const age = now.getTime() - Date.parse(s.updatedAt);
-  if (!s.open || !(age > SNAPSHOT_STALE_MS)) return s;
+  // An updatedAt that does not parse dates nothing: the run cannot be shown to answer, so it is taken for dead.
+  if (!s.open || (Number.isFinite(age) && age <= SNAPSHOT_STALE_MS)) return s;
   return {
     ...s, serving: false, open: false,
     instances: s.instances.map((r) => r.state !== "running" ? r : { ...r, state: "failed", error: "its run stopped answering" }),

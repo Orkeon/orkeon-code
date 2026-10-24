@@ -12,7 +12,7 @@ import { rawTokens } from "./_lib/args.ts";
 import { chainStep, parseDevImplementArgs } from "./_lib/dev-implement.ts";
 import { markActiveWorkflow, reapplyStepRules, startDevStep } from "./_lib/dev-step.ts";
 import { launchCrew } from "./_lib/dispatch.ts";
-import { readPullRequestContext } from "./_lib/pr-context.ts";
+import { readPullRequestContext, writingModeRefusal } from "./_lib/pr-context.ts";
 import { storedEffort } from "./_lib/effort.ts";
 import { createCrewHost } from "../shared/infrastructure/orkeon/crew-host.ts";
 import { createPermissionRules } from "../shared/infrastructure/orkeon/permission-rules.ts";
@@ -20,7 +20,6 @@ import {
   orkeonConfigStore, orkeonFiles, orkeonSessionIo, orkeonShell, orkeonToolCatalogue,
 } from "../shared/infrastructure/orkeon/wiring.ts";
 import { countOpenSteps } from "../crews/dev-implement/application/count-open-steps.ts";
-import { policyFor } from "../shared/domain/agent-policy/mode-policy.ts";
 
 const deps = { session: orkeonSessionIo(), config: orkeonConfigStore() };
 
@@ -37,9 +36,8 @@ defineAsyncCommand({
     const prContext = await readPullRequestContext({
       catalogue: () => orkeonToolCatalogue(ctx.services), rules: () => createPermissionRules(ctx.services), session: deps.session,
     });
-    const mode = String(prContext.permissionMode ?? "");
-    if (mode !== "" && policyFor(mode).readOnly) {
-      const line = `✗ refused: the session mode ${mode} is read-only, and /dev-implement writes files, commits and pushes: /mode default, then run it again`;
+    const line = writingModeRefusal(String(prContext.permissionMode ?? ""), "/dev-implement");
+    if (line !== null) {
       ctx.writeLine(line);
       return { refused: line };
     }

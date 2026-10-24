@@ -26,11 +26,6 @@ export const NODE_EDIT_RULE =
   "node. A change over several places or files is one edit_batch (validate \"parse\"): all of it applies or none. " +
   "file_write only creates a new file: writing an existing source file whole is refused.";
 
-/** The editing rule, for an agent that changes files. */
-export const EXACT_EDIT_RULE =
-  "Change a file with edit_file (old_string, unique in the file, and new_string), never by writing it whole with " +
-  "file_write: a file over 32 000 characters comes back cut from file_read, and a whole write from a cut read loses its end.";
-
 /** The reviewer's search for a pattern (the reviewer charter holds structural_search). */
 export const STRUCTURAL_SEARCH_RULE =
   "To find every place a pattern occurs (a call shape, a construct), use structural_search with the pattern in the " +

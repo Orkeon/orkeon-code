@@ -3,15 +3,23 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
-import { readBudgetExhausted, STEP_BUDGETS } from "./step-budget.ts";
+import { readBudgetExhausted, repairBudget, STEP_BUDGETS } from "./step-budget.ts";
 
 describe("STEP_BUDGETS", () => {
   it("keeps the figures of each dev step crew, one level of children for verify and plan", () => {
     deepStrictEqual(STEP_BUDGETS["dev-verify"], { toolCalls: 200, wallTime: 3600, tokens: 700_000, delegationDepth: 1 });
-    deepStrictEqual(STEP_BUDGETS["dev-plan"], { toolCalls: 240, wallTime: 1800, tokens: 400_000, delegationDepth: 1 });
+    // The reviewer child's calls count against dev-plan's: its tokens follow its 240 calls, as dev-verify's follow its 200.
+    deepStrictEqual(STEP_BUDGETS["dev-plan"], { toolCalls: 240, wallTime: 1800, tokens: 840_000, delegationDepth: 1 });
     // The wall time of a spec or a brief counts the person's answers to its questions.
     deepStrictEqual(STEP_BUDGETS["dev-spec"], { toolCalls: 200, wallTime: 3600, tokens: 400_000, delegationDepth: 0 });
     deepStrictEqual(STEP_BUDGETS["dev-change"], { toolCalls: 200, wallTime: 3600, tokens: 400_000, delegationDepth: 0 });
+  });
+});
+
+describe("repairBudget", () => {
+  it("gives a repair the budget of the step that runs the charter, with no child of its own", () => {
+    deepStrictEqual(repairBudget("dev-verify"), { toolCalls: 200, wallTime: 3600, tokens: 700_000, delegationDepth: 0 });
+    deepStrictEqual(repairBudget("dev-plan"), { toolCalls: 240, wallTime: 1800, tokens: 840_000, delegationDepth: 0 });
   });
 });
 

@@ -326,12 +326,3 @@ function leftWritable(guard: CallGuard, entry: GuardRule, path: string | undefin
 export function denyText(verdict: Extract<CallVerdict, { allow: false }>): string {
   return `${verdict.reason}\n${verdict.context}`;
 }
-
-/** One line for /permissions and the logs: what the guard holds. */
-export function guardSummary(guard: CallGuard): string {
-  const sets = STEP_RULE_SETS[guard.step].join(", ");
-  const role = guard.role === undefined ? "" : `, ${guard.role}'s roots`;
-  const pre = guard.hooks.filter((h) => h.event === "pre-tool").length;
-  const post = guard.hooks.length - pre;
-  return `${guard.rules.length} deny rules (${sets}${role}), ${pre} pre-tool and ${post} post-tool hooks`;
-}

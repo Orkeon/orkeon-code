@@ -390,6 +390,9 @@ describe("buildHooksBlock", () => {
     ok(block.includes("pre-tool"), block);
     ok(block.includes("npm test"), block);
     ok(block.includes("nothing runs them yet"), "the block must say that nothing fires");
+    for (const step of ["/dev-spec", "/dev-change", "/dev-plan", "/dev-implement", "/dev-batches", "/dev-verify", "/tasks repair"]) {
+      ok(block.includes(step), `the dev steps that run them: ${step}`);
+    }
     ok(!/\b[A-Z]-\d/.test(block), "no ticket code: the model cannot use one");
   });
 

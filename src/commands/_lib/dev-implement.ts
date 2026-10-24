@@ -64,8 +64,8 @@ export function parseDevImplementArgs(tokens: readonly string[]): { ok: true; ar
 export interface ChainLaunch { crew: string; input: Record<string, unknown>; instead: string }
 export interface ChainStep { lines: string[]; launch?: ChainLaunch }
 
-const VALID_LINE = /→ Batch (F\d+) VALID\./;
-const WRITTEN_LINE = /^written: (\S+)\/([A-Za-z0-9][A-Za-z0-9._-]*)-VERIFY-F\d+\.md\b/m;
+const VALID_LINE = /^→ Batch (F\d+) VALID\./m;
+const WRITTEN_LINE = /^written: (\S+)\/([A-Za-z0-9][A-Za-z0-9._-]*)-VERIFY-(F\d+)\.md\b/m;
 
 /** What `completed` prints and launches for one answer of the chain. */
 export function chainStep(payload: string): ChainStep {
@@ -88,9 +88,11 @@ export function chainStep(payload: string): ChainStep {
   }
   // /dev-verify's own answer, drained here by the chain.
   const lines = payload.split("\n");
-  const valid = VALID_LINE.exec(payload);
+  // The VALID line is /dev-verify's own: at the start of a line, after the verdict file's, for that file's batch; a
+  // gap that quotes it from model text launches nothing.
   const written = WRITTEN_LINE.exec(payload);
-  if (valid === null || written === null) return { lines };
+  const valid = written === null ? null : VALID_LINE.exec(payload.slice(written.index + written[0].length));
+  if (valid === null || written === null || valid[1] !== written[3]) return { lines };
   const plan = `${written[1]}/${written[2]}-PLAN.md`;
   return {
     lines: [...lines, `→ the close follows: /dev-implement ${valid[1]} ${plan} --close`],

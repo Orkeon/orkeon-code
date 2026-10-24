@@ -74,6 +74,31 @@ describe("runSubAgent", () => {
     strictEqual(llm.extracts.length, 0);
   });
 
+  it("reports a cancelled act as cancelled: the host's cancellation, or a child /tasks stop stopped", async () => {
+    const canceled = Object.assign(new Error("The operation was canceled."), { name: "OperationCanceledException" });
+    for (const error of [canceled, new Error("dev-auditor ab12 stopped: stopped by /tasks stop")]) {
+      const llm = new FakeLlm();
+      llm.answers = [error];
+      const outcome = await runSubAgent(llm, call());
+      deepStrictEqual(outcome, { ok: false, reason: "cancelled", reply: "", problems: [error.message] });
+    }
+  });
+
+  it("reports a budget spent or a cancel during the extraction as such, without a re-ask", async () => {
+    const cases: Array<[Error, string]> = [
+      [new Error("token budget exhausted: 700000 tokens"), "model-failed"],
+      [new Error("The operation was cancelled."), "cancelled"],
+    ];
+    for (const [error, reason] of cases) {
+      const llm = new FakeLlm();
+      llm.answers = ["the reply"];
+      llm.extractions = [error, { count: 7 }];
+      const outcome = await runSubAgent(llm, call());
+      deepStrictEqual(outcome, { ok: false, reason, reply: "the reply", problems: [error.message] });
+      strictEqual(llm.extracts.length, 1);
+    }
+  });
+
   it("re-asks once without a new act when the first extraction throws", async () => {
     const llm = new FakeLlm();
     llm.answers = ["the reply"];
