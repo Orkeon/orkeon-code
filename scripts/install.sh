@@ -61,6 +61,8 @@ main() {
     case "$self" in */lib/orkeon-code/*/scripts) prefix="${self%/lib/orkeon-code/*}" ;; esac
   fi
   mkdir -p "$prefix"
+  local logical_bin
+  logical_bin="$(cd "$prefix" && pwd)/bin"
   prefix="$(cd "$prefix" && pwd -P)"
   local lib="$prefix/lib/orkeon-code" bin="$prefix/bin"
   local cmd="$bin/orkeon-code"
@@ -74,6 +76,10 @@ main() {
   fi
 
   [ ! -e "$cmd" ] || [ -L "$cmd" ] || die "$cmd exists and is not a link: move it away, or choose another --prefix."
+  # Another program's link (npm's own command, under an npm prefix of ~/.local) is never taken over.
+  if [ -L "$cmd" ] && [ "$(readlink "$cmd")" != ../lib/orkeon-code/current/orkeon-code ]; then
+    die "$cmd is a link to $(readlink "$cmd"), not to this install: remove it (npm uninstall -g orkeon-code, if npm installed it), or choose another --prefix."
+  fi
 
   # ── The files to install ──────────────────────────────────────────────────
   local src="" here
@@ -127,13 +133,13 @@ main() {
   link ../lib/orkeon-code/current/orkeon-code "$cmd"
 
   case ":$PATH:" in
-    *":$bin:"*) ;;
+    *":$bin:"*|*":$logical_bin:"*) ;;
     *) echo "$bin is not on your PATH. Add it, in ~/.bashrc or ~/.zshrc:"
        echo "  export PATH=\"$bin:\$PATH\"" ;;
   esac
   local first
   first="$(command -v orkeon-code 2>/dev/null || true)"
-  if [ -n "$first" ] && [ "$first" != "$cmd" ]; then
+  if [ -n "$first" ] && ! [ "$first" -ef "$cmd" ]; then
     echo "install.sh: warning: $first comes first on your PATH, before $cmd ('orkeon-code --version' says which runs)." >&2
   fi
   echo "Run: orkeon-code --version"

@@ -24,11 +24,24 @@ orkeon-code --version
 ```
 
 `install.sh --archive orkeon-code-<version>.tar.gz` installe une archive déjà téléchargée (vérifiée avec le
-`SHA256SUMS` posé à côté). Relancé, il ne change rien ; une nouvelle release va dans son propre dossier et devient
+`SHA256SUMS` posé à côté, quand il y en a un). Relancé, il ne change rien ; une nouvelle release va dans son propre dossier et devient
 `current`. `bash ~/.local/lib/orkeon-code/current/scripts/install.sh --uninstall` retire le programme et la commande,
 jamais `~/.orkeon-code/`, où une installation garde ce qui est à vous : son état (`state/`) et le dépôt de démo
 (`demo/`) ; `ORKEON_CODE_HOME` désigne un autre dossier. Sous Windows, `install.ps1` fait de même dans
 `%LOCALAPPDATA%\Programs\orkeon-code` et écrit `bin\orkeon-code.cmd`, que `cmd.exe` et PowerShell trouvent tous deux.
+
+**Depuis npm** (Linux, macOS, Windows ; Node 22 ou plus récent) : le paquet porte les mêmes fichiers que l'archive de
+la release, et esbuild avec eux.
+
+```bash
+npm install -g orkeon-code@next                                  # a prerelease; orkeon-code once 1.0 is out
+orkeon-code --version
+```
+
+`npm update -g orkeon-code` et `npm uninstall -g orkeon-code` laissent eux aussi `~/.orkeon-code/` intact. En mode
+Docker sous macOS, le programme doit se trouver dans un dossier que Docker Desktop partage avec ses conteneurs
+(`/Users` par défaut) : un préfixe npm sous `/opt/homebrew` ou `/usr/local` n'en est pas un ; ajoutez-le dans
+Settings > Resources > File sharing, ou utilisez `install.sh`.
 
 `orkeon-code --version` affiche la version d'Orkeon Code, d'où il s'exécute (`install:` ou `clone:`), la version
 d'Orkeon attendue et celle trouvée, sans rien démarrer.

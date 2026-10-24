@@ -194,6 +194,12 @@ if [ -n "${ORKEON_CODE_AUDIO_DIR:-}" ]; then
     tts_backend="$(lowered "${TTS_BACKEND:-}")"
     stt_backend="$(lowered "${WHISPER_BACKEND:-}")"
     whisper_args=(run --project "$ROOT/mcp/whisper")
+    # An install's folder is never written to: uv keeps the server's environment under ORKEON_CODE_HOME and
+    # reads uv.lock as shipped.
+    if [ "$KIND" = install ]; then
+      whisper_args+=(--frozen)
+      export UV_PROJECT_ENVIRONMENT="${UV_PROJECT_ENVIRONMENT:-$CODE_HOME/whisper/.venv}"
+    fi
     if [ "${ORKEON_CODE_VOICE:-}" = 1 ]; then
       whisper_args+=(--extra voice)
       export WHISPER_MICROPHONE=1 WHISPER_SPEAKER=1

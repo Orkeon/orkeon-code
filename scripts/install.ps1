@@ -9,8 +9,10 @@
   command (as Orkeon's own wrappers do): cmd.exe and PowerShell both find `orkeon-code`. The files come from, the
   first that applies: -Archive (a .zip, checked against the SHA256SUMS beside it when there is one); the extracted
   archive this script sits in; else the archive of the release this script was published with, downloaded with its
-  SHA256SUMS and checked. Run twice, it changes nothing. -Uninstall removes <Prefix>, never
-  %USERPROFILE%\.orkeon-code (your settings, trust decisions and state).
+  SHA256SUMS and checked. Run twice, it changes nothing. -Uninstall removes the versions this script installed in
+  <Prefix> and its own bin\orkeon-code.cmd, nothing else there, and never %USERPROFILE%\.orkeon-code (your
+  settings, trust decisions and state). The installed copy (<Prefix>\<version>\scripts\install.ps1) knows its
+  own <Prefix>.
 
 .EXAMPLE
   .\install.ps1
@@ -38,11 +40,30 @@ function Test-Sum([string] $file, [string] $sums) {
   if ($actual -ne $expected) { throw "checksum mismatch for $file (SHA256SUMS says $expected)." }
 }
 
+# The installed copy (<Prefix>\<version>\scripts\install.ps1) knows its own prefix.
+if (-not $PSBoundParameters.ContainsKey('Prefix')) {
+  $selfPrefix = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+  if ((Test-Path (Join-Path (Split-Path $PSScriptRoot -Parent) 'orkeon-code.ps1')) -and
+      (Test-Path (Join-Path $selfPrefix 'bin\orkeon-code.cmd'))) { $Prefix = $selfPrefix }
+}
+$Prefix = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Prefix)
 $bin = Join-Path $Prefix 'bin'
 $cmd = Join-Path $bin 'orkeon-code.cmd'
+$marker = 'written by install.ps1'
 
 if ($Uninstall) {
-  if (Test-Path -LiteralPath $Prefix) { Remove-Item -LiteralPath $Prefix -Recurse -Force }
+  # Only what this script put there: the version folders (a launcher and the package.json of orkeon-code), their
+  # staging copies and its own .cmd; the folders are removed when that leaves them empty.
+  if (Test-Path -LiteralPath $Prefix) {
+    Get-ChildItem -LiteralPath $Prefix -Directory -Force | Where-Object {
+      (Test-Path (Join-Path $_.FullName 'orkeon-code.ps1')) -and (Test-Path (Join-Path $_.FullName 'package.json')) -and
+      ((Get-Content (Join-Path $_.FullName 'package.json') -Raw | ConvertFrom-Json).name -eq 'orkeon-code')
+    } | ForEach-Object { Remove-Item -LiteralPath $_.FullName -Recurse -Force }
+    if ((Test-Path -LiteralPath $cmd) -and ([IO.File]::ReadAllText($cmd).Contains($marker))) { Remove-Item -LiteralPath $cmd -Force }
+    foreach ($dir in @($bin, $Prefix)) {
+      if ((Test-Path -LiteralPath $dir) -and -not (Get-ChildItem -LiteralPath $dir -Force)) { Remove-Item -LiteralPath $dir -Force }
+    }
+  }
   $codeHome = if ($env:ORKEON_CODE_HOME) { $env:ORKEON_CODE_HOME } else { Join-Path $HOME '.orkeon-code' }
   Write-Host "Orkeon Code removed from $Prefix. Your settings and state in $codeHome are kept."
   exit 0
@@ -107,12 +128,17 @@ try {
     Write-Host "Orkeon Code $version installed in $target."
   }
 
-  # The command: a .cmd only, so PowerShell never finds a .ps1 here that its execution policy would refuse.
-  $wrapper = "@echo off`r`nrem Orkeon Code $version, written by install.ps1.`r`n" +
-    "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$target\orkeon-code.ps1`" %*`r`n" +
+  # The command: a .cmd only, so PowerShell never finds a .ps1 here that its execution policy would refuse. It
+  # names the launcher relative to itself (%~dp0), so the file stays ASCII whatever the profile path holds, and
+  # orkeon-code.ps1 takes the long options (--settings x) as typed.
+  if ((Test-Path -LiteralPath $cmd) -and -not ([IO.File]::ReadAllText($cmd).Contains($marker))) {
+    throw "$cmd was not written by install.ps1: move it away, or choose another -Prefix."
+  }
+  $wrapper = "@echo off`r`nrem Orkeon Code $version, $marker.`r`n" +
+    "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"%~dp0..\$version\orkeon-code.ps1`" %*`r`n" +
     "exit /b %errorlevel%`r`n"
   $current = if (Test-Path -LiteralPath $cmd) { [IO.File]::ReadAllText($cmd) } else { $null }
-  if ($current -ne $wrapper) { [IO.File]::WriteAllText($cmd, $wrapper) }
+  if ($current -ne $wrapper) { [IO.File]::WriteAllText($cmd, $wrapper, [Text.Encoding]::ASCII) }
 
   $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
   if (-not (($userPath -split ';') -contains $bin)) {

@@ -1,7 +1,6 @@
 {
   "name": "orkeon-code",
   "version": "0.1.0-alpha.1",
-  "private": true,
   "description": "Agentic coding assistant in TypeScript on the Orkeon runtime. Pair with it in the terminal under permission modes, run it fully autonomous in a pipeline, or call its crews from your own application. Every command, crew and prompt is a source file you can change or add to.",
   "license": "MIT",
   "author": "Orkeon Contributors",
@@ -14,9 +13,13 @@
     "url": "https://github.com/Orkeon/orkeon-code/issues"
   },
   "type": "module",
+  "bin": {
+    "orkeon-code": "orkeon-code.mjs"
+  },
   "files": [
     "orkeon-code",
     "orkeon-code.ps1",
+    "orkeon-code.mjs",
     "src/",
     "!src/**/*.test.ts",
     "config/*.example.json",
@@ -42,11 +45,14 @@
     "check": "npm test && npm run typecheck && npm run bundle:check && npm run check:provenance && node scripts/gen-commands-doc.mjs --check && node scripts/check-docs-parity.mjs",
     "typings": "bash scripts/sync-typings.sh",
     "fixture": "bash scripts/setup-fixture.sh",
-    "start": "bash orkeon-code"
+    "start": "bash orkeon-code",
+    "prepublishOnly": "node scripts/check-publish.mjs"
+  },
+  "dependencies": {
+    "esbuild": "0.25.12"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
-    "esbuild": "0.25.12",
     "typescript": "5.9.3"
   }
 }

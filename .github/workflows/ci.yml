@@ -48,9 +48,65 @@ jobs:
         run: node scripts/check-docs-parity.mjs
       - name: Committed file modes
         run: bash scripts/check-file-modes.sh
+      - name: npm package file list (package.json "files")
+        run: npm pack --dry-run
       - name: Whisper MCP server (compiles, unit tests without a model)
         run: |
           python3 -m venv .venv-ci
           .venv-ci/bin/python -m pip install --quiet 'mcp>=1.30,<2' 'pytest>=8'
           .venv-ci/bin/python -m py_compile mcp/whisper/whisper_mcp.py mcp/whisper/smoke.py
           .venv-ci/bin/python -m pytest -q mcp/whisper
+  # The npm channel: the packed package installed globally on Linux and Windows, on the oldest Node the
+  # published package accepts (the release job sets engines to >=22 the same way), then `orkeon-code --version`
+  # through npm's own command shim. Nothing is published.
+  npm-shim:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, windows-latest ]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v4
+        with:
+          node-version: 22
+      - name: Pack and install globally
+        run: |
+          set -euo pipefail
+          npm pkg set engines.node='>=22'
+          npm pack --pack-destination "$RUNNER_TEMP"
+          npm install -g "$RUNNER_TEMP"/orkeon-code-*.tgz
+      - name: orkeon-code --version
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
+          out="$(orkeon-code --version)"
+          echo "$out"
+          case "$out" in "orkeon-code ${version} (install:"*) ;; *) echo "unexpected --version output"; exit 1 ;; esac
+      # Tool mode against a stand-in orkeon-repl that records its environment: the launcher hands it the esbuild
+      # npm installed beside the package, with no npm ci anywhere.
+      - name: The package's esbuild reaches the REPL (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          t="$RUNNER_TEMP/shim"; mkdir -p "$t/fake" "$t/proj"
+          printf '#!/bin/sh\nenv > %s/env\nexit 5\n' "$t" > "$t/fake/orkeon-repl"; chmod +x "$t/fake/orkeon-repl"
+          echo '{"Llm":{"Model":"m","BaseUrl":"http://127.0.0.1:9/v1"}}' > "$t/settings.json"
+          set +e; PATH="$t/fake:$PATH" orkeon-code --mode tool --settings "$t/settings.json" --workspace "$t/proj"; code=$?; set -e
+          [ "$code" = 5 ] || { echo "exit code $code, expected the REPL's 5"; exit 1; }
+          esb="$(sed -n 's/^ORKEON_ESBUILD_PATH=//p' "$t/env")"
+          case "$esb" in "$(npm root -g)/orkeon-code/node_modules/@esbuild/"*) "$esb" --version ;; *) echo "esbuild: '$esb'"; exit 1 ;; esac
+      # Windows PowerShell 5.1, which the .cmd of install.ps1 starts (the shim prefers pwsh), with the long options
+      # as typed.
+      - name: orkeon-code.ps1 on Windows PowerShell (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
+          out="$(powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$(npm root -g)/orkeon-code/orkeon-code.ps1" --version)"
+          echo "$out"
+          case "$out" in "orkeon-code ${version} (install:"*) ;; *) echo "unexpected --version output"; exit 1 ;; esac

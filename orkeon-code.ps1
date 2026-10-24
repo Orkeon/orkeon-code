@@ -25,6 +25,31 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 
+# The long options of ./orkeon-code, as a .cmd wrapper passes them (%*): --settings x, --settings=x, --workspace,
+# --mode and --version bind the parameters above; a -- left in the arguments is dropped, and what follows it goes
+# to the REPL as is.
+$rest = @()
+for ($i = 0; $i -lt $Extra.Count; $i++) {
+  $a = $Extra[$i]
+  if ($a -eq '--') {
+    if ($i + 1 -lt $Extra.Count) { $rest += $Extra[($i + 1)..($Extra.Count - 1)] }
+    break
+  }
+  $name = $a; $value = $null
+  if ($a -match '^(--(?:settings|workspace|mode))=(.*)$') { $name = $Matches[1]; $value = $Matches[2] }
+  if ($name -eq '--version') { $Version = [switch] $true }
+  elseif ($name -in @('--settings', '--workspace', '--mode')) {
+    if ($null -eq $value) {
+      if ($i + 1 -ge $Extra.Count) { throw "$name needs a value." }
+      $i++; $value = $Extra[$i]
+    }
+    if ($name -eq '--settings') { $Settings = $value }
+    elseif ($name -eq '--workspace') { $Workspace = $value }
+    else { $Mode = $value }
+  } else { $rest += $a }
+}
+$Extra = $rest
+
 # The variables set below for the REPL are put back as they were when the script ends, so that none of them stays
 # in the PowerShell session that ran it.
 $savedEnv = @{}
@@ -37,7 +62,7 @@ foreach ($name in @('ORKEON_Llm__Model', 'Orkeon__Security__PermissionGate__Enab
                     'ORKEON_MCP__Servers__whisper__Args__6', 'ORKEON_MCP__Servers__whisper__Args__7',
                     'ORKEON_MCP__Servers__whisper__Args__8', 'ORKEON_MCP__Servers__whisper__Args__9',
                     'ORKEON_MCP__Servers__whisper__Args__10', 'ORKEON_MCP__Servers__whisper__Args__11',
-                    'WHISPER_MICROPHONE', 'WHISPER_SPEAKER')) {
+                    'WHISPER_MICROPHONE', 'WHISPER_SPEAKER', 'UV_PROJECT_ENVIRONMENT')) {
   $savedEnv[$name] = [Environment]::GetEnvironmentVariable($name)
 }
 try {
@@ -139,6 +164,12 @@ try {
       $env:ORKEON_MCP__Servers__whisper__Transport = 'Stdio'
       $env:ORKEON_MCP__Servers__whisper__Command = $uv.Source
       $whisperArgs = @('run', '--project', (Join-Path $Root 'mcp/whisper'))
+      # An install's folder is never written to: uv keeps the server's environment under ORKEON_CODE_HOME and
+      # reads uv.lock as shipped.
+      if (-not $IsClone) {
+        $whisperArgs += @('--frozen')
+        if (-not $env:UV_PROJECT_ENVIRONMENT) { $env:UV_PROJECT_ENVIRONMENT = Join-Path $CodeHome 'whisper\.venv' }
+      }
       # The values are read as the server reads them: case and spaces aside.
       $ttsBackend = "$env:TTS_BACKEND".Trim().ToLowerInvariant()
       $sttBackend = "$env:WHISPER_BACKEND".Trim().ToLowerInvariant()
