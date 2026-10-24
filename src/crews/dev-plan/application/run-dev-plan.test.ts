@@ -164,7 +164,7 @@ describe("runDevPlan — a plan written and reviewed", () => {
     const lines = text.split("\n");
     deepStrictEqual(lines.slice(-2), [
       "dev-plan: the plan is blocked: 1 Blocking question in workbench/prune/PRUNE-PLAN.md § 4; every batch reads — blocked.",
-      "→ Answer it in the spec: /dev-spec prune (the harness's until Orkeon Code ships it), then /dev-plan prune --replace. Do not implement before.",
+      "→ Answer it in the spec: /dev-spec prune, then /dev-plan prune --replace. Do not implement before.",
     ]);
     ok(!text.includes("/dev-implement"));
   });

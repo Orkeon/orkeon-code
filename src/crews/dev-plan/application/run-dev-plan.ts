@@ -435,7 +435,7 @@ export async function runDevPlan(input: DevPlanInputs, deps: DevPlanDeps): Promi
     const settle = source.kind === "change" ? "the change brief: /dev-change" : "the spec: /dev-spec";
     lines.push(
       `dev-plan: the plan is blocked: ${plural(blocking, "Blocking question", "Blocking questions")} in ${planShown} § 4; every batch reads — blocked.`,
-      `→ Answer ${blocking === 1 ? "it" : "them"} in ${settle} ${source.code} (the harness's until Orkeon Code ships it), then /dev-plan ${source.code} --replace. Do not implement before.`,
+      `→ Answer ${blocking === 1 ? "it" : "them"} in ${settle} ${source.code}, then /dev-plan ${source.code} --replace. Do not implement before.`,
     );
   } else if (!outcome.ok) {
     lines.push(`→ The plan is written but unreviewed: read it closely before implementing, or /dev-plan ${source.code} --replace to plan and review again.`);

@@ -90,7 +90,7 @@ let any module call `tools.shellCommand(...)`:
 
 ```text
 src/
-├── commands/          54 *.cmd.ts (parse, wire, render)
+├── commands/          56 *.cmd.ts (parse, wire, render)
 │   ├── _lib/          one module per command family: run<Name>(tokens, deps) → CommandView, or
 │   │                  dispatch<Name>(tokens, deps) → a ticket or a message when the command launches a
 │   │                  crew (say, transcribe, voice), and its pure helpers (agents, branch, config, dev, diff, doctor,
@@ -258,6 +258,8 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 | `dev-verify` | sequential, four read tools in `plan` | `/dev-verify` (`--gate-only` skips the LLM) | The gate, the capture, one read-only audit, the verdict file |
 | `dev-learn` | sequential, no tool, one extract per axis | `/dev-learn` (`--list` skips the LLM) | Recurring verdict gaps into proposals, `PROPOSALS.md` |
 | `dev-plan` | sequential, six read tools in `plan`, one extract | `/dev-plan` | Blocking gate, inventory by the index, plan and sheets written by code, one read-only review |
+| `dev-spec` | sequential, six read tools in `plan`, extracts | `/dev-spec` | Business spec written by code from JSON, its questions asked one at a time through `human_input`, one read-only review |
+| `dev-change` | sequential, six read tools in `plan`, extracts | `/dev-change` | Bug reproduced or cost measured by running, change brief written by code, questions through `human_input`, one review |
 
 A folder starting with `_` holds a development probe (`probe.ork.ts`), run with `scripts/run-crew.sh`; none ships
 today.
@@ -422,6 +424,16 @@ prompt as the model reads it, to review a change as a diff.
   the scope's list and never settle an open question; the labels the gate reads are left to code; the source, the
   inventory and the repository values are material, not instructions. A plan with a Blocking question keeps every
   batch line at `— blocked`, so no batch runs, until `/dev-plan <code> --replace` rewrites it `— open`.
+- **Spec** (`dev-spec`): business words only, never a class, a file, a status code or a call; each use case names its
+  actor, its intent, where the actor meets it and one to seven steps; each rule is one yes-or-no statement with its
+  origin and severity, applied to use cases that exist; a fact the code index answers is stated, never asked; the
+  model answers in JSON and code writes the file. Its open questions are asked one at a time, Blocking first, the
+  recommended option first, each answer written under `## 13. Decisions` before the next question; nobody to answer
+  (an unattended run) leaves them in the file and the step reads `BLOCKED`, never a default answer.
+- **Change** (`dev-change`): facts first; a bug is reproduced by running a narrow test command of the pack or the CLI
+  before anything is written, and one that does not fail stops the step; a perf change is measured; no design (no new
+  type, file, pattern or library); each criterion has its proof; what must not change names the test the index shows,
+  or `unpinned`, never an invented one; a new promise goes to `/dev-spec`. Questions as for a spec (§ 9 Decisions).
 - **Review** (`dev-reviewer`): the reviewer hunts for the gaps the author left open and only looks: it changes no file
   and runs no command, and code records what it reports; each finding is one sentence ending in a question that a
   yes, a no or a choice among listed options settles, and it cites a `path:line` it opened or a section of the files,

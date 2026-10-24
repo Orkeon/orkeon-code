@@ -178,6 +178,6 @@ export function blockingStop(shown: string, kind: SourceKind, code: string, rows
     `dev-plan: ${shown} has ${rows.length} open Blocking question(s); no plan is written.`,
     ...shownRows,
     ...more,
-    `→ Settle them first: ${settle} ${code} (the harness's until Orkeon Code ships it), or edit the file; then /dev-plan ${code}.`,
+    `→ Settle them first: ${settle} ${code}, or edit the file; then /dev-plan ${code}.`,
   ].join("\n");
 }

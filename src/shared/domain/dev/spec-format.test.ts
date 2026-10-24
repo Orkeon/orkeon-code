@@ -136,7 +136,7 @@ describe("blockingStop", () => {
     strictEqual(blockingStop("workbench/trim/SPEC-trim.md", "spec", "trim", [row(1)]), [
       "dev-plan: workbench/trim/SPEC-trim.md has 1 open Blocking question(s); no plan is written.",
       "  | 1 | Blocking | q1 |",
-      "→ Settle them first: /dev-spec trim (the harness's until Orkeon Code ships it), or edit the file; then /dev-plan trim.",
+      "→ Settle them first: /dev-spec trim, or edit the file; then /dev-plan trim.",
     ].join("\n"));
   });
   it("shows 8 rows of 9 then the count left, cuts a row at 200 characters, and points a brief to /dev-change", () => {
@@ -147,6 +147,6 @@ describe("blockingStop", () => {
     strictEqual(out[1].length, 202);
     strictEqual(out[8], "  | 8 | Blocking | q8 |");
     strictEqual(out[9], "  … 1 more");
-    strictEqual(out[10], "→ Settle them first: /dev-change s (the harness's until Orkeon Code ships it), or edit the file; then /dev-plan s.");
+    strictEqual(out[10], "→ Settle them first: /dev-change s, or edit the file; then /dev-plan s.");
   });
 });

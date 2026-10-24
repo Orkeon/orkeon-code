@@ -10,8 +10,8 @@
 // global for the calls, the context's `tools` service for the registered names.
 
 import type {
-  AnchorIndex, CodeIndex, CostIndex, Files, MemoryStore, Progress, SessionStore, SharedMemory, Shell, Telemetry,
-  ToolCatalogue,
+  AnchorIndex, CodeIndex, CostIndex, Files, HumanInput, MemoryStore, Progress, SessionStore, SharedMemory, Shell,
+  Telemetry, ToolCatalogue,
 } from "../../application/ports.ts";
 import { createConfigStore } from "../../application/config-store.ts";
 import type { ConfigStore } from "../../application/config-store.ts";
@@ -21,6 +21,7 @@ import type { ServiceLocator } from "../../../commands/.orkeon/orkeon-cli.d.ts";
 import { Rag, Tools } from "../globals.ts";
 import { createAnchorIndex, createCodeIndex, createCostIndex } from "./code-index.ts";
 import { createFiles } from "./files.ts";
+import { createHumanInput } from "./human-input.ts";
 import { createMemoryStore } from "./memory-store.ts";
 import { createProgress } from "./progress.ts";
 import { createSessionStore } from "./session-store.ts";
@@ -48,6 +49,8 @@ export const orkeonSharedMemory = (): SharedMemory => createSharedMemory(Rag, To
 export const orkeonMemoryToolPorts = (): MemoryToolPorts => ({
   files: orkeonFiles(), shell: orkeonShell(), config: orkeonConfigStore(), memory: orkeonSharedMemory(), clock: () => new Date(),
 });
+/** human_input: a question to the person at the terminal, never answered on their behalf. */
+export const orkeonHumanInput = (): HumanInput => createHumanInput(Tools);
 /** The pull request opened with the github tool, under the session's mode and rules (W0-C). */
 export const orkeonPullRequestOpener = (policy: PullRequestPolicy): PullRequestOpener =>
   createPullRequestOpener({ shell: orkeonShell(), github: createGitHubPullRequests(Tools) }, policy);

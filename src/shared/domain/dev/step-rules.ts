@@ -7,8 +7,8 @@ import type { PermissionRule } from "../agent-policy/permission.ts";
 import type { RepoPackLayout } from "./repo-pack.ts";
 
 /** A dev step whose crew runs a model under the gate and its callback. L-6 adds its steps here. */
-export type DevStep = "dev-verify" | "dev-plan";
-export const DEV_STEPS: readonly DevStep[] = ["dev-verify", "dev-plan"];
+export type DevStep = "dev-verify" | "dev-plan" | "dev-spec" | "dev-change";
+export const DEV_STEPS: readonly DevStep[] = ["dev-verify", "dev-plan", "dev-spec", "dev-change"];
 
 /** The sets every dev step holds today. */
 export const DEV_STEP_RULE_SETS: readonly RuleSetId[] = [
@@ -17,6 +17,8 @@ export const DEV_STEP_RULE_SETS: readonly RuleSetId[] = [
 export const STEP_RULE_SETS: Readonly<Record<DevStep, readonly RuleSetId[]>> = {
   "dev-verify": DEV_STEP_RULE_SETS,
   "dev-plan": DEV_STEP_RULE_SETS,
+  "dev-spec": DEV_STEP_RULE_SETS,
+  "dev-change": DEV_STEP_RULE_SETS,
 };
 
 /** rulesOf(STEP_RULE_SETS[step]): 407 rules for each step today (the deny on edit_batch that secrets and

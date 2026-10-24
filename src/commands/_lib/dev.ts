@@ -5,14 +5,10 @@
 import type { CommandView } from "./view.ts";
 import type { CodeSummary, DevCode, DevContext, DevContextDeps } from "../../shared/application/dev/load-dev-context.ts";
 import { loadDevCode, loadDevContext, probeDevCodes } from "../../shared/application/dev/load-dev-context.ts";
-import { WORKSPACE_ROOT, workFolderLabel } from "../../shared/application/dev/resolve-work-folder.ts";
-import type { WorkFolder } from "../../shared/application/dev/resolve-work-folder.ts";
-import type { Files, Shell } from "../../shared/application/ports.ts";
-import { LEARN_FOLDER_PATTERN, PROPOSALS_JSON, acceptLines, parseProposalsFile } from "../../shared/domain/dev/learn-proposals.ts";
-import type { AxisProposal, Motif, ProposalsFile } from "../../shared/domain/dev/learn-proposals.ts";
-import { LEARN_STATE_FILE, decisionOf, parseLearnState, serializeLearnState, withDecision } from "../../shared/domain/dev/learn-state.ts";
-import type { LearnState } from "../../shared/domain/dev/learn-state.ts";
-import { REFUSED_FILE, appendRefused, parseRefused, projectFromRemote, topicOf } from "../../shared/domain/shared-memory/refused.ts";
+import { workFolderLabel } from "../../shared/application/dev/resolve-work-folder.ts";
+import { PROPOSAL_ID, runDevLearnDecision } from "../../shared/application/dev/learn-decision.ts";
+export { runDevLearnDecision };
+export type { DevLearnDecisionDeps } from "../../shared/application/dev/learn-decision.ts";
 import { compareBatchIds, isCode } from "../../shared/domain/dev/artefacts.ts";
 import { sheetProgress } from "../../shared/domain/dev/plan-format.ts";
 import type { BatchState, PlanBatch } from "../../shared/domain/dev/plan-format.ts";
@@ -273,7 +269,8 @@ export function parseDevVerifyArgs(tokens: readonly string[]): { ok: true; args:
 
 // /dev-learn: the arguments, and the two decisions (--accept, --refuse). Proposing and
 // listing read every verdict file, so they run in crews/dev-learn; a decision is a few
-// reads and one or two writes, answered by the command itself. Nothing here edits the
+// reads and one or two writes, answered by the command itself through
+// shared/application/dev/learn-decision.ts (re-exported here). Nothing there edits the
 // file a proposal names: --accept prints the change to make.
 export const DEV_LEARN_USAGE = "usage: /dev-learn [<axis>] [--list] | --accept <id>[,<id>…] | --refuse <id | motif text>";
 export type DevLearnArgs =
@@ -281,15 +278,10 @@ export type DevLearnArgs =
   | { kind: "list"; axis: string | null }
   | { kind: "accept"; ids: string[] }
   | { kind: "refuse"; target: string };
-export type DevLearnDecisionDeps = DevContextDeps & { files: Pick<Files, "read" | "list" | "write">; clock: () => Date };
 
-const PROPOSAL_ID = /^[0-9a-f]{8}([0-9a-f]{2})?$/;
 const MAX_AXIS_CHARS = 40;
 const MAX_REFUSED_CHARS = 200;
-const PROPOSALS_LOOKED_UP = 10;
-const LEARN_LIST_CAP = 1000;
 const ALONE = "dev-learn: --accept and --refuse each come alone";
-const GIT_REMOTE_ORIGIN = "git remote get-url origin";
 
 type DevLearnParse = { ok: true; args: DevLearnArgs } | { ok: false; text: string };
 
@@ -345,205 +337,6 @@ export function parseDevLearnArgs(tokens: readonly string[]): DevLearnParse {
   return { ok: true, args: list ? { kind: "list", axis } : { kind: "propose", axis } };
 }
 
-const isNotFound = (e: unknown): boolean => /not found/i.test(messageOf(e));
-const firstLineOf = (e: unknown): string => messageOf(e).split("\n")[0];
-
-function two(n: number): string {
-  return String(n).padStart(2, "0");
-}
-
-function dayOf(date: Date): string {
-  return `${date.getFullYear()}-${two(date.getMonth() + 1)}-${two(date.getDate())}`;
-}
-
-/** The file's text, null when it does not exist; any other read failure throws. */
-async function readOrNull(files: Pick<Files, "read">, path: string): Promise<string | null> {
-  try {
-    return await files.read(path);
-  } catch (e) {
-    if (isNotFound(e)) return null;
-    throw e;
-  }
-}
-
-interface FoundMotif { motif: Motif; axis: AxisProposal; key: string }
-interface ProposalsLookup { files: Array<{ folder: string; file: ProposalsFile }>; warnings: string[] }
-
-/** The proposals.json of the 10 newest learn-<date>/ folders, newest first; a bad one is a warning. */
-async function readProposals(files: Pick<Files, "read" | "list">, work: WorkFolder, vfsPath: string): Promise<ProposalsLookup> {
-  const lookup: ProposalsLookup = { files: [], warnings: [] };
-  let names: string[];
-  try {
-    names = await files.list(vfsPath, LEARN_LIST_CAP);
-  } catch (e) {
-    lookup.warnings.push(`${work.folder}/ cannot be listed (${firstLineOf(e)})`);
-    return lookup;
-  }
-  const folders = names.filter((n) => LEARN_FOLDER_PATTERN.test(n)).sort().reverse().slice(0, PROPOSALS_LOOKED_UP);
-  for (const folder of folders) {
-    const shown = `${work.folder}/${folder}/${PROPOSALS_JSON}`;
-    let text: string;
-    try {
-      text = await files.read(`${vfsPath}/${folder}/${PROPOSALS_JSON}`);
-    } catch (e) {
-      lookup.warnings.push(`${shown} cannot be read (${firstLineOf(e)})`);
-      continue;
-    }
-    const parsed = parseProposalsFile(text);
-    if (!parsed.ok) lookup.warnings.push(`${shown} cannot be read (${parsed.problem})`);
-    else lookup.files.push({ folder, file: parsed.file });
-  }
-  return lookup;
-}
-
-function findMotif(lookup: ProposalsLookup, id: string): FoundMotif | null {
-  for (const { folder, file } of lookup.files) {
-    for (const axis of file.axes) {
-      const motif = axis.motifs.find((m) => m.id === id);
-      if (motif) return { motif, axis, key: `${folder}\n${axis.axis}` };
-    }
-  }
-  return null;
-}
-
-/** The port of --treat-axis: an axis whose every motif is decided has its shown rows treated. */
-function completeAxes(state: LearnState, touched: ReadonlyMap<string, AxisProposal>, lines: string[]): LearnState {
-  let next = state;
-  for (const axis of touched.values()) {
-    if (axis.motifs.length === 0 || !axis.motifs.every((m) => decisionOf(next, m.id) !== undefined)) continue;
-    next = { ...next, treated: [...new Set([...next.treated, ...axis.shownRows])].sort() };
-    lines.push(`axis ${axis.axis} done: ${axis.shownRows.length} gaps marked treated`);
-  }
-  return next;
-}
-
-type StateLoad = { ok: true; state: LearnState } | { ok: false; text: string };
-
-async function loadLearnState(files: Pick<Files, "read">): Promise<StateLoad> {
-  let text: string | null;
-  try {
-    text = await readOrNull(files, `${WORKSPACE_ROOT}/${LEARN_STATE_FILE}`);
-  } catch (e) {
-    return { ok: false, text: `dev-learn: ${LEARN_STATE_FILE} cannot be read (${firstLineOf(e)}): fix or delete it; nothing was written` };
-  }
-  const read = parseLearnState(text);
-  return read.ok ? { ok: true, state: read.state } : { ok: false, text: `dev-learn: ${read.problem}: fix or delete it; nothing was written` };
-}
-
-/** Writes the state; the BLOCKED text when the write throws, null when it went through. */
-async function saveLearnState(files: Pick<Files, "write">, state: LearnState): Promise<string | null> {
-  try {
-    await files.write(`${WORKSPACE_ROOT}/${LEARN_STATE_FILE}`, serializeLearnState(state));
-    return null;
-  } catch (e) {
-    return `dev-learn: BLOCKED — ${LEARN_STATE_FILE} cannot be written (${firstLineOf(e)})`;
-  }
-}
-
-const notFoundText = (work: WorkFolder, id: string): string =>
-  `dev-learn: no proposal ${id} in the 10 newest ${work.folder}/learn-*/ folders`;
-const stateLine = (state: LearnState): string => `state: ${LEARN_STATE_FILE} — ${state.treated.length} gaps treated in all`;
-
-async function acceptMotifs(ids: readonly string[], lookup: ProposalsLookup, work: WorkFolder, deps: DevLearnDecisionDeps): Promise<string[]> {
-  const load = await loadLearnState(deps.files);
-  if (!load.ok) return [load.text];
-  const date = dayOf(deps.clock());
-  let state = load.state;
-  const lines: string[] = [];
-  const touched = new Map<string, AxisProposal>();
-  for (const id of ids) {
-    const found = findMotif(lookup, id);
-    const earlier = decisionOf(state, id);
-    if (found === null) {
-      lines.push(notFoundText(work, id));
-    } else if (earlier !== undefined) {
-      lines.push(`${id} was already ${earlier.decision} on ${earlier.date}`);
-    } else {
-      const { motif, axis } = found;
-      lines.push(...acceptLines(motif));
-      state = withDecision(state, { motif: id, decision: "accepted", date, axis: axis.axis, title: motif.title }, motif.rows);
-      touched.set(found.key, axis);
-    }
-  }
-  state = completeAxes(state, touched, lines);
-  if (state !== load.state) {
-    const blocked = await saveLearnState(deps.files, state);
-    if (blocked !== null) return [...lines, blocked];
-  }
-  return [...lines, stateLine(state)];
-}
-
-async function projectName(shell: Pick<Shell, "run">): Promise<string> {
-  try {
-    const result = await shell.run(GIT_REMOTE_ORIGIN);
-    return result.exitCode === 0 ? projectFromRemote(result.stdout) ?? "local" : "local";
-  } catch {
-    return "local";
-  }
-}
-
-/** Appends the topic to refused.md unless it is there already; the line to print. */
-async function recordRefusal(topic: string, motifText: string, date: string, deps: DevLearnDecisionDeps): Promise<{ ok: boolean; line: string }> {
-  const path = `${WORKSPACE_ROOT}/${REFUSED_FILE}`;
-  let previous: string | null;
-  try {
-    previous = await readOrNull(deps.files, path);
-  } catch (e) {
-    return { ok: false, line: `dev-learn: ${REFUSED_FILE} cannot be read (${firstLineOf(e)}): nothing was written` };
-  }
-  const already = previous === null ? undefined : parseRefused(previous).motifs.find((m) => m.topic === topic);
-  if (already !== undefined) return { ok: true, line: `${topic} was already refused on ${already.date}` };
-  const project = await projectName(deps.shell);
-  try {
-    await deps.files.write(path, appendRefused(previous, { topic, project, date, motif: motifText }));
-  } catch (e) {
-    return { ok: false, line: `dev-learn: BLOCKED — ${REFUSED_FILE} cannot be written (${firstLineOf(e)})` };
-  }
-  return { ok: true, line: `refused: ${topic} — left out of future proposals (${REFUSED_FILE})` };
-}
-
-async function refuseMotif(target: string, lookup: ProposalsLookup, work: WorkFolder, deps: DevLearnDecisionDeps): Promise<string[]> {
-  const date = dayOf(deps.clock());
-  if (!PROPOSAL_ID.test(target)) {
-    return [(await recordRefusal(topicOf(target), target, date, deps)).line];
-  }
-  const found = findMotif(lookup, target);
-  if (found === null) return [`${notFoundText(work, target)} (to refuse a motif by its words, write more than an id)`];
-  const load = await loadLearnState(deps.files);
-  if (!load.ok) return [load.text];
-  const earlier = decisionOf(load.state, target);
-  if (earlier !== undefined) return [`${target} was already ${earlier.decision} on ${earlier.date}`];
-  const { motif, axis } = found;
-  const refusal = await recordRefusal(motif.topic, motif.title, date, deps);
-  if (!refusal.ok) return [refusal.line];
-  const lines = [refusal.line];
-  let state = withDecision(load.state, { motif: target, decision: "refused", date, axis: axis.axis, title: motif.title }, motif.rows);
-  state = completeAxes(state, new Map([[found.key, axis]]), lines);
-  const blocked = await saveLearnState(deps.files, state);
-  return blocked !== null ? [...lines, blocked] : [...lines, stateLine(state)];
-}
-
-/** --accept / --refuse: reads the proposals and the states, writes Orkeon Code's state or refused.md, returns the text. */
-export async function runDevLearnDecision(
-  args: Extract<DevLearnArgs, { kind: "accept" | "refuse" }>,
-  deps: DevLearnDecisionDeps,
-): Promise<string> {
-  const ctx = await loadDevContext(deps);
-  const work = ctx.work;
-  if (work.vfsPath === null) {
-    return `dev-learn: the work folder ${work.folder} is in the main worktree, outside the mounts: run /dev-learn from the main checkout`;
-  }
-  if (!work.exists) return `dev-learn: no work folder ${work.folder}/: nothing to learn from`;
-  const lookup = await readProposals(deps.files, work, work.vfsPath);
-  const lines = args.kind === "accept"
-    ? await acceptMotifs(args.ids, lookup, work, deps)
-    : await refuseMotif(args.target, lookup, work, deps);
-  return [...warningLines([...ctx.warnings, ...lookup.warnings], MAX_WARNING_LINES), ...lines].join("\n");
-}
-
-// /dev-plan: the arguments, and the Blocking gate. The gate is a bounded read (the context,
-// the listings of the work folder, one source file), so it answers in the handler and no
-// crew starts for a source that cannot be planned yet; the inventory, the model call, the
 // files and the review run in crews/dev-plan, which runs the same gate again.
 export const DEV_PLAN_USAGE = "usage: /dev-plan [<code> | <path>/SPEC-<code>.md | <path>/CHANGE-<code>.md] [--replace]";
 export interface DevPlanArgs { source: string | null; replace: boolean }

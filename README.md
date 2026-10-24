@@ -38,7 +38,7 @@ trimmed by the mode. Every command, crew and prompt is a source file: change it,
   codebase analysis), `/compact` and `/summary` (context management), `/init-verifiers`, `/advisor`.
 - **Context management**: automatic compaction with a circuit breaker, snip-first `/compact`, file restore after
   compaction, context pressure tiers, typed durable memory (`/memory`).
-- **54 slash commands** in all: [docs/commands.md](docs/commands.md).
+- **56 slash commands** in all: [docs/commands.md](docs/commands.md).
 
 ## Quick start
 

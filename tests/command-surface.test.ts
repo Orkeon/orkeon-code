@@ -10,6 +10,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const COMMANDS_DIR = fileURLToPath(new URL("../src/commands", import.meta.url));
+// 56: /dev-spec and /dev-change added (L-5).
 // 54: /memory-admit added (M-4).
 // 53: /dev-plan added (L-4).
 // 52: /dev-learn added (L-3).
@@ -22,7 +23,7 @@ const COMMANDS_DIR = fileURLToPath(new URL("../src/commands", import.meta.url));
 // (it enforced nothing) and /onboarding (the native /help) are gone. Bumping this
 // deliberately: the count is the guard against a command silently failing to load,
 // so it must move only with a commit that adds or removes one.
-const EXPECTED_COMMAND_COUNT = 54;
+const EXPECTED_COMMAND_COUNT = 56;
 
 interface Cmd { file: string; name: string; aliases: string[] }
 

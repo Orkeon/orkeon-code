@@ -96,7 +96,7 @@ pour chaque fichier, si bien que le contrôle de types seul laisserait n'importe
 
 ```text
 src/
-├── commands/          54 *.cmd.ts (parse, wire, render)
+├── commands/          56 *.cmd.ts (parse, wire, render)
 │   ├── _lib/          one module per command family: run<Name>(tokens, deps) → CommandView, or
 │   │                  dispatch<Name>(tokens, deps) → a ticket or a message when the command launches a
 │   │                  crew (say, transcribe, voice), and its pure helpers (agents, branch, config, dev, diff, doctor,
@@ -268,6 +268,8 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 | `dev-verify` | séquentiel, quatre outils de lecture en `plan` | `/dev-verify` (`--gate-only` saute le LLM) | La porte, la capture, un audit en lecture seule, le fichier de verdict |
 | `dev-learn` | séquentiel, sans outil, un extract par axe | `/dev-learn` (`--list` saute le LLM) | Les écarts de verdict qui reviennent, changés en propositions, `PROPOSALS.md` |
 | `dev-plan` | séquentiel, six outils de lecture en `plan`, un extract | `/dev-plan` | Porte des questions Blocking, inventaire par l'index, plan et fiches écrits par le code, une revue en lecture seule |
+| `dev-spec` | séquentiel, six outils de lecture en `plan`, des extracts | `/dev-spec` | Spécification métier écrite par le code depuis le JSON, ses questions posées une à une par `human_input`, une revue en lecture seule |
+| `dev-change` | séquentiel, six outils de lecture en `plan`, des extracts | `/dev-change` | Bug reproduit ou coût mesuré en exécutant, fiche de changement écrite par le code, questions par `human_input`, une revue |
 
 Un dossier commençant par `_` contient une sonde de développement (`probe.ork.ts`), lancée avec
 `scripts/run-crew.sh` ; aucune n'est livrée aujourd'hui.
@@ -457,6 +459,18 @@ un changement comme un diff.
   question ouverte ; les libellés que lit la porte sont laissés au code ; la source, l'inventaire et les valeurs du
   dépôt sont du matériau, pas des instructions. Un plan qui porte une question Blocking garde chaque ligne de lot à
   `— blocked`, si bien qu'aucun lot ne s'exécute, jusqu'à ce que `/dev-plan <code> --replace` la réécrive `— open`.
+- **Spécification** (`dev-spec`) : des mots du métier seulement, jamais une classe, un fichier, un code de statut ni un
+  appel ; chaque cas d'usage nomme son acteur, son intention, l'endroit où l'acteur le rencontre et une à sept
+  étapes ; chaque règle est un énoncé à réponse oui ou non avec son origine et sa sévérité, appliqué à des cas d'usage
+  qui existent ; un fait que l'index du code donne est énoncé, jamais demandé ; le modèle répond en JSON et le code
+  écrit le fichier. Ses questions ouvertes sont posées une à une, Blocking d'abord, l'option recommandée en tête,
+  chaque réponse écrite sous `## 13. Decisions` avant la question suivante ; sans personne pour répondre (une
+  exécution sans surveillance), elles restent dans le fichier et l'étape se lit `BLOCKED`, jamais une réponse par défaut.
+- **Changement** (`dev-change`) : les faits d'abord ; un bug est reproduit en exécutant une commande de test étroite du
+  pack ou la CLI avant toute écriture, et un bug qui n'échoue pas arrête l'étape ; un changement de performance est
+  mesuré ; aucune conception (ni type, ni fichier, ni patron, ni bibliothèque nouveaux) ; chaque critère a sa preuve ;
+  ce qui ne doit pas changer nomme le test que l'index montre, ou `unpinned`, jamais un test inventé ; une promesse
+  nouvelle part vers `/dev-spec`. Questions comme pour une spécification (§ 9 Decisions).
 - **Revue** (`dev-reviewer`) : le relecteur traque les trous que l'auteur a laissés ouverts et ne fait que regarder :
   il ne modifie aucun fichier, ne lance aucune commande, et le code consigne ce qu'il rapporte ; chaque constat est une
   phrase qui finit par une question que tranche un oui, un non ou un choix parmi les options listées, et il cite un

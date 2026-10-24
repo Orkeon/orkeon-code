@@ -134,3 +134,28 @@ describe("buildReviewAnswerPrompt", () => {
     ok(!buildReviewAnswerPrompt("x".repeat(MAX_REVIEW_REPLY_CHARS), []).includes("[earlier text cut]"));
   });
 });
+
+describe("reviewSystem and buildReviewBrief — spec and change modes", () => {
+  it("gives each mode its focus and its targets, the plan's text unchanged", () => {
+    const spec = reviewSystem("spec");
+    ok(spec.includes("For a business spec, ask in particular:"));
+    ok(spec.includes("the spec as a whole, or one UC- or BR- id"));
+    ok(!spec.includes("For a plan"));
+    const change = reviewSystem("change");
+    ok(change.includes("For a change brief"));
+    ok(change.includes("the brief as a whole, or one CH- id"));
+    ok(reviewSystem("plan").includes("For a plan, ask in particular:"));
+  });
+
+  it("names the origin and the index's rows in a spec's brief", () => {
+    const brief = buildReviewBrief({
+      mode: "spec", folder: "workbench/prune", files: ["workbench/prune/SPEC-prune.md"], source: "docs/brief.md",
+      inventory: "- src/memory.ts:12 — prune", targets: ["spec", "UC-01"],
+    });
+    ok(brief.startsWith("mode: spec workbench/prune/"));
+    ok(brief.includes("Origin of the request: docs/brief.md"));
+    ok(brief.includes("What the code index found for the request (path:line):\n- src/memory.ts:12 — prune"));
+    ok(brief.endsWith("A row targets one of: spec, UC-01."));
+    ok(!buildReviewBrief({ ...INPUT, mode: "change", source: "" }).includes("Origin of the request"));
+  });
+});

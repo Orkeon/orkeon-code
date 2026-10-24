@@ -41,7 +41,7 @@ chaque prompt est un fichier source : modifiez-le, ou ajoutez le vôtre.
   (analyse déterministe du code), `/compact` et `/summary` (gestion du contexte), `/init-verifiers`, `/advisor`.
 - **Gestion du contexte** : compaction automatique avec disjoncteur, `/compact` qui tronque d'abord, restauration des
   fichiers après compaction, paliers de pression du contexte, mémoire durable typée (`/memory`).
-- **54 commandes slash** au total : [docs/fr/commands.md](docs/fr/commands.md).
+- **56 commandes slash** au total : [docs/fr/commands.md](docs/fr/commands.md).
 
 ## Démarrage rapide
 

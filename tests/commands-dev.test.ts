@@ -521,7 +521,7 @@ describe("devPlanGate", () => {
     strictEqual(await devPlanGate({ source: "demo", replace: true }, deps), [
       "dev-plan: workbench/demo/SPEC-demo.md has 1 open Blocking question(s); no plan is written.",
       "  | 1 | Blocking | Which clock rounds the cut-off? |",
-      "→ Settle them first: /dev-spec demo (the harness's until Orkeon Code ships it), or edit the file; then /dev-plan demo.",
+      "→ Settle them first: /dev-spec demo, or edit the file; then /dev-plan demo.",
     ].join("\n"));
     deepStrictEqual(deps.files.writes, []);
   });

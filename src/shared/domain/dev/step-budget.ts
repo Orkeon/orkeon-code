@@ -18,11 +18,16 @@ export interface StepBudget {
  * dev-verify: under full, the build (900 s), the whole suite (900 s) and three validations (300 s
  * each), whether code or run_validation runs them, plus the auditor's own time. dev-plan: the
  * inventory's index queries, the planner and the reviewer. delegationDepth 1: the reviewer and the
- * auditor run as background children of the step's agent (A-3), one level down, never deeper.
+ * auditor run as background children of the step's agent (A-3), one level down, never deeper. dev-spec and
+ * dev-change: the inventory (about 40 index calls), three extract calls, the reproduction (600 s at most) and one
+ * review of 20 iterations, inline (no child); the wall time counts the time a person takes to answer the
+ * questions, hence an hour.
  */
-export const STEP_BUDGETS: Readonly<Record<"dev-verify" | "dev-plan", StepBudget>> = {
+export const STEP_BUDGETS: Readonly<Record<"dev-verify" | "dev-plan" | "dev-spec" | "dev-change", StepBudget>> = {
   "dev-verify": { toolCalls: 200, wallTime: 3600, tokens: 300_000, delegationDepth: 1 },
   "dev-plan": { toolCalls: 240, wallTime: 1800, tokens: 400_000, delegationDepth: 1 },
+  "dev-spec": { toolCalls: 200, wallTime: 3600, tokens: 400_000, delegationDepth: 0 },
+  "dev-change": { toolCalls: 200, wallTime: 3600, tokens: 400_000, delegationDepth: 0 },
 };
 
 const DIMENSIONS: readonly BudgetDimension[] = ["toolCalls", "delegationDepth", "wallTime", "tokens", "spawnedAgents"];
