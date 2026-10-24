@@ -21,7 +21,7 @@ An **async** command starts a crew and returns a ticket; its result is printed w
 | `/copy` | sync | Re-print the last assistant output in full (terminal copy; no OS clipboard). |
 | `/cost` | sync | Show cumulative session cost in USD and token usage. |
 | `/debug-tool-call` | sync | Invoke a registered tool with JSON arguments and print its raw result. |
-| `/dev-batches` | async | Run a plan's batches one after the other in their dependencies' order (implement, audit, commit each), then one pull request for the plan; no code: go on with the run in progress. |
+| `/dev-batches` | async | Run a plan's batches in their dependencies' order (implement, audit, commit each), one at a time or --concurrency n at once in worktrees, then one pull request; no code: the run in progress goes on. |
 | `/dev-change` | async | Write or revise a change brief (bug, refactor, perf): evidence by running, questions one at a time, a read-only review. |
 | `/dev-implement` | async | Run a dev batch test-first: red tests, then the least code, each checked by code; then the audit and, on VALID, the close (--close: the close alone; — correction: <finding> adds a gap as a step). |
 | `/dev-learn` | async | Turn gaps that recur across dev batches into proposals (--list: the backlog; --accept/--refuse: decide). |

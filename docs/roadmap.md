@@ -44,10 +44,12 @@ What Orkeon Code does not do yet, in the order we expect to address it. Items ma
     extraction, without a tool loop, so it would have nothing to call them with.
   - The Markdown intent operations, for the French twins and the work folder's files: no crew places text in a
     section yet.
-- Batches run in parallel, each in its own worktree (runtime): `/dev-batches` runs them one after the other, and
-  refuses `--concurrency` above 1. The waves of batches with disjoint anchors, the worktrees under
-  `.orkeon/worktrees/` and the fast-forward merge of a VALID batch exist, not yet wired into a run; two batches at once wait for a working
-  root a script agent can be given (`AgentBuilder().workingRoot(path)`), or both would write the same `/workspace`.
+- Two limits of the parallel batches (`/dev-batches --concurrency`, runtime). Git fails inside a batch's worktree
+  under the Bubblewrap confinement, the main checkout's `.git` not being bound there (Orkeon/orkeon#188): a parallel
+  run needs `Tools:Shell:Confinement:Mode` `None` or a container, and refuses itself in one line otherwise. And the
+  runtime gives an agent run by `crew.runAgent` no budget (Orkeon/orkeon#189): each batch is bounded in code by its
+  tool calls and its wall time, not yet by its tokens. A batch's audit runs inline in its agent, so `/tasks` does not
+  list it.
 - A plan/task list the loop maintains (`/tasks` is a manual list today).
 - Several sessions at once.
 - Kept as is: the pull-request question of `/commit` stays a command prompt (`ctx.prompt`), asked before any

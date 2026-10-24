@@ -300,12 +300,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with one push and one pull request. Typed again (or `/dev-batches` alone after the runtime's chain limit), it
   goes on from the first batch not done; a batch's close, typed or chained, never pushes while the run is in
   progress. The start scripts name `/dev-batches <code>` beside an open batch.
-- `/dev-batches` takes `--concurrency <n>`: 1, the default, is the run above; above 1 is refused in one line, before
-  anything is launched, until the runtime lets a script agent run under a working root of its own (two batches at
-  once would write the same `/workspace`). Its pieces exist, not yet wired into a run: the waves of open batches
-  whose anchors are disjoint, a batch's worktree under `.orkeon/worktrees/<name>` (created only where git ignores it,
-  removed only on its branch with nothing uncommitted or unmerged in it), and the fast-forward merge of a VALID batch
-  into the work branch, the plan's close still pushing once.
+- `/dev-batches` takes `--concurrency <n>`, 1 to 4: 1, the default, is the run above. Above 1, each run takes the
+  next wave of open batches whose anchors are disjoint and runs them at once, each in a batch agent under the working
+  root of its own worktree (`.orkeon/worktrees/<code>-F<n>`, branch `batches/<code>/F<n>`, made with
+  `git worktree add --relative-paths`, git 2.48 or later): its steps, its audit inline and its close, committed there
+  and never pushed. The driver seeds each worktree with the work folder, the dev state, the config, the packs and the
+  shared memory, then merges each VALID batch fast-forward into the work branch in id order, brings its sheet, verdict,
+  capture and logs back and removes the worktree; a batch that stops (GAPS, BLOCKED, its tool calls spent, a merge
+  refused) keeps its worktree for a human. The next wave chains itself, and the plan's close still pushes once. Above 1
+  needs `bypassPermissions` and `Tools:Shell:Confinement:Mode` `None` or a container (git fails in a worktree under
+  Bubblewrap, Orkeon/orkeon#188); each batch is bounded in code by its tool calls and wall time, not by tokens, the
+  runtime giving `crew.runAgent` no budget (Orkeon/orkeon#189). The ports of the dev crews are built from the calling
+  agent's own tools, and a batch keeps naming the checkout `/workspace`, rebased on its root (Orkeon/orkeon#186,
+  delivered by #187).
 - The dev steps recall the shared memory on their own: `/dev-spec` and `/dev-change` at the start (decisions,
   methods), `/dev-plan` before the plan (decisions, code structure), `/dev-implement` before each batch's red tests
   (code structures, mistakes) and on a correction (mistakes), `/dev-verify` before the audit (mistakes); the end of

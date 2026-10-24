@@ -60,7 +60,13 @@ vérification de la garde et ses règles avant chaque lancement de sa chaîne (l
 exécute cette chaîne pour chaque lot d'un plan sous les jeux de règles de `/dev-implement` ; la clôture de chaque lot
 commite sans pousser (une clôture tapée pendant l'exécution aussi), et celle du plan pousse la branche une seule fois,
 sauf si une règle de session refuse le push, et ouvre une seule pull request (`--pr` ou `dev.prAuto`), sinon en remet la
-commande ; sur la branche par défaut, elle ne pousse rien et remet le push. `/dev-spec`, `/dev-change`, `/dev-plan`,
+commande ; sur la branche par défaut, elle ne pousse rien et remet le push. Avec `--concurrency` de 2 à 4, il exécute une vague
+de lots à la fois, chacun dans un agent de lot sous son propre worktree (`.orkeon/worktrees/<code>-F<n>`, sur la
+branche `batches/<code>/F<n>`) : seulement en `bypassPermissions`, puisque deux lots demanderaient à la fois, et
+seulement avec `Tools:Shell:Confinement:Mode` `None` ou dans un conteneur, puisque git échoue dans un worktree sous
+Bubblewrap (Orkeon/orkeon#188) ; chaque refus tient en une ligne, avant tout lot. Chaque lot est borné par ses propres
+appels d'outils et son temps réel ; celui qui s'arrête garde son worktree, nommé dans les dernières lignes de
+l'exécution, pour qu'un humain décide. `/dev-spec`, `/dev-change`, `/dev-plan`,
 `/dev-implement` et `/dev-batches` refusent de démarrer dans un mode en lecture seule (`plan`, `dontAsk`), dans un mode
 qu'Orkeon Code ne connaît pas, et quand le mode de la session ne peut pas être lu. Les six placent d'abord dans la garde les
 [jeux de règles des étapes dev](#jeux-de-règles-des-étapes-dev), et refusent de démarrer tant que la garde est inactive
