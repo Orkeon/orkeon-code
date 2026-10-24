@@ -3,7 +3,7 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
-import { fromRoot, mapStrings, textFromRoot, textToRoot, toRoot } from "./path-rebase.ts";
+import { briefToRoot, fromRoot, mapStrings, textFromRoot, textToRoot, toRoot } from "./path-rebase.ts";
 
 const ROOT = "/workspace/.orkeon/worktrees/prune-F2";
 
@@ -60,6 +60,26 @@ describe("textToRoot", () => {
 
   it("leaves a text without a root as it is", () => {
     strictEqual(textToRoot("/workspace/a", undefined), "/workspace/a");
+  });
+});
+
+describe("briefToRoot", () => {
+  it("maps the paths a brief names, plain or in backticks, as textToRoot does", () => {
+    strictEqual(briefToRoot("Read `/workspace/todo/prune/PRUNE-PLAN-F2.md`, then /workspace/src/a.ts.", ROOT),
+      `Read \`${ROOT}/todo/prune/PRUNE-PLAN-F2.md\`, then ${ROOT}/src/a.ts.`);
+  });
+
+  it("keeps a quoted /workspace (a constant of the code) and everything inside a fenced block", () => {
+    const quoted = 'Step 1: keep `const WORKING_DIRECTORY = "/workspace";` and \'/workspace/a\' as they are; edit /workspace/src/a.ts';
+    strictEqual(briefToRoot(quoted, ROOT),
+      `Step 1: keep \`const WORKING_DIRECTORY = "/workspace";\` and '/workspace/a' as they are; edit ${ROOT}/src/a.ts`);
+    const fenced = "Diff of /workspace/src/a.ts:\n```diff\n+ const root = /workspace/x;\n```\n~~~\n/workspace/y\n~~~\nThen /workspace/z";
+    strictEqual(briefToRoot(fenced, ROOT),
+      `Diff of ${ROOT}/src/a.ts:\n\`\`\`diff\n+ const root = /workspace/x;\n\`\`\`\n~~~\n/workspace/y\n~~~\nThen ${ROOT}/z`);
+  });
+
+  it("leaves a brief without a root as it is", () => {
+    strictEqual(briefToRoot("/workspace/a", undefined), "/workspace/a");
   });
 });
 

@@ -31,14 +31,38 @@ function isUnder(path: string, folder: string): boolean {
   return path.startsWith(folder) && (path.length === folder.length || path[folder.length] === "/");
 }
 
-/** Every `/workspace` path of a text (a prompt, a command, a tool's result) on the root, but one already under it. */
+/** Every `/workspace` path of a text (a command, a tool's result) on the root, but one already under it. */
 export function textToRoot(text: string, root?: Root): string {
   if (!root || !text.includes(WORKSPACE)) return text;
+  return rebase(text, root, false);
+}
+
+/**
+ * A brief (a prompt, a system text) with the paths it names on the root, as textToRoot, but for what it quotes of
+ * the files: a `/workspace` right after a quote (a constant of the code, `"/workspace"`) and everything inside a
+ * fenced block (``` or ~~~: code, a diff) are kept as the files hold them.
+ */
+export function briefToRoot(text: string, root?: Root): string {
+  if (!root || !text.includes(WORKSPACE)) return text;
+  let fence: string | null = null;
+  return text.split("\n").map((line) => {
+    const mark = /^\s*(```|~~~)/.exec(line)?.[1];
+    if (mark !== undefined) {
+      if (fence === null) fence = mark;
+      else if (fence === mark) fence = null;
+      return line;
+    }
+    return fence !== null || !line.includes(WORKSPACE) ? line : rebase(line, root, true);
+  }).join("\n");
+}
+
+function rebase(text: string, root: string, keepQuoted: boolean): string {
   let out = "";
   let from = 0;
   for (let at = text.indexOf(WORKSPACE); at >= 0; at = text.indexOf(WORKSPACE, at + 1)) {
     const starts = at === 0 || !/[\w./-]/.test(text[at - 1]);
     if (!starts || !ends(text, at + WORKSPACE.length)) continue;
+    if (keepQuoted && at > 0 && (text[at - 1] === '"' || text[at - 1] === "'")) continue;
     if (text.startsWith(root, at) && ends(text, at + root.length)) continue;
     out += text.slice(from, at) + root;
     from = at + WORKSPACE.length;

@@ -13,7 +13,7 @@ import type { WorkFolder } from "../../application/dev/resolve-work-folder.ts";
 import { stepPrecedents } from "../../application/dev/step-precedents.ts";
 import { harvestAfterGaps } from "../../application/shared-memory/harvest-after-gaps.ts";
 import { memoryDirOf } from "../../application/shared-memory/memory-settings.ts";
-import { mapStrings, textToRoot } from "../../domain/dev/path-rebase.ts";
+import { briefToRoot, mapStrings } from "../../domain/dev/path-rebase.ts";
 import { parseSessionRules } from "../../domain/git/pull-request.ts";
 import type { DevImplementDeps } from "../../../crews/dev-implement/application/run-dev-implement.ts";
 import type { DevVerifyDeps } from "../../../crews/dev-verify/application/run-dev-verify.ts";
@@ -77,10 +77,11 @@ export function spendGuard<C extends Pick<ToolCallbacks, "forAct">>(callbacks: C
   };
 }
 
-/** `llm` with every `/workspace` path of its prompts and system texts on the root; `llm` itself without one. */
+/** `llm` with the `/workspace` paths its prompts and system texts name on the root; `llm` itself without one. */
 export function rootedLlm(llm: Llm, root: string | undefined): Llm {
   if (root === undefined || root === "") return llm;
-  const out = (text: string) => textToRoot(text, root);
+  // A brief's own paths only: what it quotes of the files (a constant, a fenced diff) stays as the files hold it.
+  const out = (text: string) => briefToRoot(text, root);
   return {
     ...llm,
     act: (prompt: string, request: ActRequest) => llm.act(out(prompt), mapStrings(request, out)),

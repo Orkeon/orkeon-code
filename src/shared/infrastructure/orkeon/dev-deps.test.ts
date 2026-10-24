@@ -82,6 +82,15 @@ describe("implementDeps and verifyDeps", () => {
     ok(text.includes(`${ROOT}/todo/prune/PRUNE-PLAN-F2.md`) && text.includes(`${ROOT}/todo/prune/capture-F2/`), text);
   });
 
+  it("keep what a batch's brief quotes of the files: a quoted /workspace constant, a fenced diff", async () => {
+    const { ctx, asked } = context();
+    const deps = m.implementDeps(ctx, { hooks: [], effort: undefined, memoryOn: false, toolSlot: undefined, root: ROOT });
+    const brief = 'Step 1 of /workspace/todo/prune/PRUNE-PLAN-F2.md: keep `const WORKING_DIRECTORY = "/workspace";`\n```diff\n+ cd /workspace\n```';
+    await deps.roleLlm("implementer", LAYOUT, () => undefined, []).act(brief, {});
+    strictEqual(asked[0].prompt,
+      `Step 1 of ${ROOT}/todo/prune/PRUNE-PLAN-F2.md: keep \`const WORKING_DIRECTORY = "/workspace";\`\n\`\`\`diff\n+ cd /workspace\n\`\`\``);
+  });
+
   it("hand the act's callbacks the logical path of a call under the root", async () => {
     const { ctx, asked } = context();
     const wrote: string[] = [];
