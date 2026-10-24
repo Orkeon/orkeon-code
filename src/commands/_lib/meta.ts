@@ -19,7 +19,7 @@ export const RELEASE_NOTES = [
   "",
   "Crews: main-loop (the interactive loop behind /assistant), code-review, git-commit,",
   "       project-init, init-verifiers, session-compact, advisor, analyze, speech,",
-  "       dev-verify, dev-learn, dev-plan, shared-memory-admit.",
+  "       dev-verify, dev-learn, dev-plan, shared-memory-admit, agent-run.",
   "Commands: 54 slash commands; free text without a leading / goes to /assistant.",
   "Permissions: five modes (default, acceptEdits, plan, dontAsk, bypassPermissions),",
   "             deny/allow rules (argument patterns too) enforced by the host gate,",

@@ -7,8 +7,8 @@ import { readBudgetExhausted, STEP_BUDGETS } from "./step-budget.ts";
 
 describe("STEP_BUDGETS", () => {
   it("keeps the figures of each dev step crew, delegation off", () => {
-    deepStrictEqual(STEP_BUDGETS["dev-verify"], { toolCalls: 200, wallTime: 3600, tokens: 300_000, delegationDepth: 0 });
-    deepStrictEqual(STEP_BUDGETS["dev-plan"], { toolCalls: 240, wallTime: 1800, tokens: 400_000, delegationDepth: 0 });
+    deepStrictEqual(STEP_BUDGETS["dev-verify"], { toolCalls: 200, wallTime: 3600, tokens: 300_000, delegationDepth: 1 });
+    deepStrictEqual(STEP_BUDGETS["dev-plan"], { toolCalls: 240, wallTime: 1800, tokens: 400_000, delegationDepth: 1 });
   });
 });
 

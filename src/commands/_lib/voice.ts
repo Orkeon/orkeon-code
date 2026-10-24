@@ -14,7 +14,7 @@ import type { Files, ToolCatalogue } from "../../shared/application/ports.ts";
 import { failureText, nothingReturned } from "../../shared/domain/prelude.ts";
 import { commandLine, isOption, optionValue, parseAssistantInput, splitWords } from "./args.ts";
 import { launchCrew, launchMainLoop } from "./dispatch.ts";
-import type { CrewCompletion, MainLoopLaunchDeps } from "./dispatch.ts";
+import type { CrewCompletion, LaunchResult, MainLoopLaunchDeps } from "./dispatch.ts";
 import { missingToolMessage } from "./transcribe.ts";
 
 export const RECORD_TOOL = "record_and_transcribe";
@@ -100,7 +100,7 @@ export type VoiceDeps = MainLoopLaunchDeps & {
 const NOTHING_TO_SEND = `no dictation to send: /voice records one (it is kept in ${DICTATION_FILE})`;
 
 /** Launch what the request asks and return its ticket, or the message to show when it launches nothing. */
-export async function dispatchVoice(tokens: readonly string[], deps: VoiceDeps): Promise<{ ticket: string } | { message: string }> {
+export async function dispatchVoice(tokens: readonly string[], deps: VoiceDeps): Promise<LaunchResult | { message: string }> {
   const parsed = parseVoiceArgs(tokens);
   if (!parsed.ok) return { message: `${parsed.error}\n${VOICE_USAGE}` };
   const { request } = parsed;

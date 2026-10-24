@@ -277,9 +277,25 @@ describe("runMainLoop — the turn", () => {
     store.state.set(MODEL_PREFERENCE_STATE_KEY, "gpt-x");
     await runMainLoop({ prompt: "go", permissionMode: "plan" }, EXPLICIT_PLAN, deps);
     strictEqual(llm.acts[0].request.maxIterations, maxIterationsFor("high"));
+    strictEqual(llm.acts[0].request.effort, "high");
     strictEqual(llm.acts[0].request.model, "gpt-x");
     const flags = resolveBehaviorFlags({ effort: "high", model: "gpt-x" });
-    deepStrictEqual(log.lines, [`info: session flags — ${describeActiveFlags(flags)}`]);
+    deepStrictEqual(log.lines, [
+      `info: session flags — ${describeActiveFlags(flags)}`,
+      "info: act — effort: high, maxIterations: 80",
+    ]);
+  });
+
+  it("forwards /effort low to the act and logs it; an unset level forwards none", async () => {
+    const low = setup();
+    low.store.state.set(EFFORT_STATE_KEY, "low");
+    await runMainLoop({ prompt: "go", permissionMode: "plan" }, EXPLICIT_PLAN, low.deps);
+    strictEqual(low.llm.acts[0].request.effort, "low");
+    strictEqual(low.llm.acts[0].request.maxIterations, 10);
+    ok(low.log.lines.includes("info: act — effort: low, maxIterations: 10"), low.log.lines.join("\n"));
+    const unset = setup();
+    await runMainLoop({ prompt: "go", permissionMode: "plan" }, EXPLICIT_PLAN, unset.deps);
+    strictEqual("effort" in unset.llm.acts[0].request, false);
   });
 
   it("fails a turn the provider failed: no answer stored, no tail compaction, the error out", async () => {

@@ -5,7 +5,7 @@
 // writeCompleted, the line its completion writes. Run:
 //   node --test tests/commands-dispatch.test.ts
 import { describe, it } from "node:test";
-import { deepStrictEqual, strictEqual } from "node:assert";
+import { deepStrictEqual, strictEqual, throws } from "node:assert";
 
 import { parseAssistantInput } from "../src/commands/_lib/args.ts";
 import { launchCrew, launchMainLoop, writeCompleted } from "../src/commands/_lib/dispatch.ts";
@@ -16,6 +16,7 @@ import { loadCatalogue, runMainLoop } from "../src/crews/main-loop/application/r
 import type { MainLoopInputs } from "../src/crews/main-loop/application/run-main-loop.ts";
 import { createConfigStore } from "../src/shared/application/config-store.ts";
 import { createSessionIo } from "../src/shared/application/session-io.ts";
+import { chainDepthLine } from "../src/shared/domain/agents/chain.ts";
 import { toolsetFor } from "../src/shared/domain/agent-policy/permission.ts";
 import { resolveFallbackMode } from "../src/shared/domain/permission-modes.ts";
 import { DEFAULT_MODE_STATE_KEY, PERMISSION_RULES_STATE_KEY } from "../src/shared/domain/session-keys.ts";
@@ -73,6 +74,16 @@ describe("launchCrew", () => {
       message: "main-loop launched",
       data: { ticket: "ticket-1", permissionMode: "(session default)", permissionRules: 0 },
     }]);
+  });
+
+  it("turns a hop past the chain's limit into a refusal that says so (V-A5), and lets any other failure throw", () => {
+    const { crews, deps, logged } = setup();
+    crews.launch = () => { throw new Error("Async command chain refused at depth 9, limit 8."); };
+    const result = launchCrew(deps, "dev-verify", {}, { batch: "b1" });
+    deepStrictEqual(result, { refused: chainDepthLine("dev-verify", { depth: 9, limit: 8 }) });
+    deepStrictEqual(logged[0].data, { depth: 9, limit: 8, batch: "b1" });
+    crews.launch = () => { throw new Error("crew not found"); };
+    throws(() => launchCrew(deps, "dev-verify"), /crew not found/);
   });
 });
 

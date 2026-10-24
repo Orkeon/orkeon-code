@@ -7,7 +7,8 @@
 // failed comes back as the host's failure marker: it is thrown as an LlmFailure,
 // never returned as an answer. A crew that guards its tool calls hands its callbacks
 // (tool-callbacks.ts) as the second argument: each act then carries the
-// onToolCall/onToolResult built for its own mode.
+// onToolCall/onToolResult built for its own mode. The request's `effort` is the runtime's
+// `act({effort})` as it is; the crew's own level, when it has one, fills a request that names none.
 
 import type { ActRequest, CompleteRequest, Llm, ModelOverride } from "../../application/ports.ts";
 import type { PermissionMode } from "../../domain/permission-modes.ts";
@@ -50,6 +51,7 @@ function answerOrThrow(text: string): string {
 export function createLlm(
   llm: Pick<LlmFacade, "act" | "complete" | "extract" | "chat"> & Partial<Pick<LlmFacade, "permissionGate">>,
   callbacks?: ToolCallbacks,
+  defaults: Pick<ActRequest, "effort"> = {},
 ): Llm {
   const permissionGateEnabled = (): boolean | undefined => {
     // The runtime always sets it; a facade without it (a test's) cannot say.
@@ -59,7 +61,10 @@ export function createLlm(
   return {
     permissionGateEnabled,
     async act(prompt, request) {
-      return answerOrThrow(answerOf(await llm.act(prompt, actOptions(request, callbacks, permissionGateEnabled()))));
+      // The crew's effort (/effort, handed as an input) when the request names none.
+      const effort = request.effort ?? defaults.effort;
+      const withEffort = effort === undefined ? request : { ...request, effort };
+      return answerOrThrow(answerOf(await llm.act(prompt, actOptions(withEffort, callbacks, permissionGateEnabled()))));
     },
     async complete(prompt, request?: CompleteRequest) {
       // A system message needs the message-array call: `complete` takes a prompt only.

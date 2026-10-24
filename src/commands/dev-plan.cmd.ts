@@ -6,6 +6,7 @@
 import { rawTokens } from "./_lib/args.ts";
 import { devPlanGate, parseDevPlanArgs } from "./_lib/dev.ts";
 import { startDevStep } from "./_lib/dev-step.ts";
+import { storedEffort } from "./_lib/effort.ts";
 import { launchCrew, writeCompleted } from "./_lib/dispatch.ts";
 import { createCrewHost } from "../shared/infrastructure/orkeon/crew-host.ts";
 import { createPermissionRules } from "../shared/infrastructure/orkeon/permission-rules.ts";
@@ -37,7 +38,8 @@ defineAsyncCommand({
     for (const line of start.lines) ctx.writeLine(line);
     const details = { ruleSets: start.sets.join(" "), rules: start.rules, hooks: start.hooks.length };
     return launchCrew(
-      { crews: createCrewHost(ctx.services), log: ctx.log }, "dev-plan", { ...parsed.args, hooks: start.hooks }, details,
+      { crews: createCrewHost(ctx.services), log: ctx.log }, "dev-plan",
+      { ...parsed.args, hooks: start.hooks, effort: await storedEffort(deps.session) }, details,
     );
   },
   completed: (result, ctx) => writeCompleted(ctx, result, "dev-plan"),

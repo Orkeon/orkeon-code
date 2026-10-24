@@ -56,7 +56,7 @@ An **async** command starts a crew and returns a ticket; its result is printed w
 | `/stats` | sync | Show full session telemetry: message count, tokens, cost, calls. |
 | `/status` | sync | Show the session status: model, provider, workspace, context, cost, crews, version, runtime and platform. Also `/version`, `/env`, `/session`, `/upgrade`. |
 | `/summary` | async | Generate an LLM summary of the session (read-only; does not rewrite the buffer). |
-| `/tasks` | sync | Manage the session task list: add, list, done, clear. |
+| `/tasks` | async | Session task list (add, done, clear) and the agent instances of the dev crews: list, show, stop, send, repair by a new run. |
 | `/transcribe` | async | Transcribe an audio or video file under /audio (Whisper MCP server); --then runs an instruction on the transcription, --list shows the files. |
 | `/usage` | sync | Show token usage against the context window (pressure tier, compaction trigger), calls, tokens, cost and the cache tokens read and written. Also `/extra-usage`. |
 | `/verify` | async | Check the project by running it, following the verification skills /init-verifiers wrote (one zone, or all). |

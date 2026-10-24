@@ -4,12 +4,13 @@
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 
-import { AGENTS_FILE_PATH, AGENTS_USAGE, runAgents } from "../src/commands/_lib/agents.ts";
+import { AGENTS_FILE_PATH, AGENTS_USAGE, SAVED_AGENTS_NOTE, runAgents } from "../src/commands/_lib/agents.ts";
 import { describeAgentRows } from "../src/shared/domain/agent-registry.ts";
+import { builtInCharterRows } from "../src/shared/domain/agents/built-in-charters.ts";
 import { FakeCrewHost } from "./support/fake-crew-host.ts";
 import { FakeFiles } from "./support/fake-files.ts";
 
-const NOT_DISPATCHED = "saved agents are storage only — this host cannot dispatch one (spawn_agent is not registered).";
+const NOT_DISPATCHED = SAVED_AGENTS_NOTE;
 const MALFORMED_REFUSAL =
   `refusing to write: ${AGENTS_FILE_PATH} exists but could not be parsed, and overwriting ` +
   "it would discard whatever it holds. Fix or delete it, then retry.";
@@ -29,9 +30,10 @@ describe("/agents list", () => {
     const { run, seed } = setup();
     seed({ tester: { role: "QA", goal: "find bugs", tools: [] } });
     const view = await run();
-    deepStrictEqual(view.table, describeAgentRows(["main-loop", "code-review"], [
-      { name: "tester", role: "QA", goal: "find bugs", tools: [] },
-    ]));
+    deepStrictEqual(view.table, [
+      ...describeAgentRows(["main-loop", "code-review"], [{ name: "tester", role: "QA", goal: "find bugs", tools: [] }]),
+      ...builtInCharterRows(),
+    ]);
     strictEqual(view.text, `file: ${AGENTS_FILE_PATH} (survives /clear)\n${NOT_DISPATCHED}`);
     deepStrictEqual(await run("list"), view);
   });

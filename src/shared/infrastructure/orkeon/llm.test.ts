@@ -150,3 +150,14 @@ describe("createLlm — permissionGateEnabled", () => {
     strictEqual(createLlm(on).permissionGateEnabled(), true);
   });
 });
+
+describe("createLlm — the crew's effort (A-3)", () => {
+  it("fills the act's effort from the defaults when the request names none, and keeps the request's own", async () => {
+    const facade = new FakeLlmFacade();
+    const llm = createLlm(facade, undefined, { effort: "low" });
+    await llm.act("p1", {});
+    await llm.act("p2", { effort: "high" });
+    await createLlm(facade).act("p3", {});
+    deepStrictEqual(facade.calls.map((c) => (c.args[1] as { effort?: string }).effort), ["low", "high", undefined]);
+  });
+});

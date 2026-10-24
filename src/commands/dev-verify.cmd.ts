@@ -7,6 +7,7 @@ import { rawTokens } from "./_lib/args.ts";
 import { parseDevVerifyArgs } from "./_lib/dev.ts";
 import { devVerifyStep, markActiveWorkflow, startDevStep } from "./_lib/dev-step.ts";
 import { launchCrew, writeCompleted } from "./_lib/dispatch.ts";
+import { storedEffort } from "./_lib/effort.ts";
 import { createCrewHost } from "../shared/infrastructure/orkeon/crew-host.ts";
 import { createPermissionRules } from "../shared/infrastructure/orkeon/permission-rules.ts";
 import { orkeonConfigStore, orkeonSessionIo, orkeonToolCatalogue } from "../shared/infrastructure/orkeon/wiring.ts";
@@ -40,7 +41,8 @@ defineAsyncCommand({
     }
     const unrecorded = await markActiveWorkflow(deps.session, parsed.args);
     if (unrecorded !== null) ctx.writeLine(unrecorded);
-    return launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "dev-verify", { ...parsed.args, hooks }, details);
+    return launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "dev-verify",
+      { ...parsed.args, hooks, effort: await storedEffort(deps.session) }, details);
   },
   completed: (result, ctx) => writeCompleted(ctx, result, "dev-verify"),
 });

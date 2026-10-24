@@ -12,6 +12,7 @@ import type { SessionIo } from "../../shared/application/session-io.ts";
 import { configuredNames, resolveExtraTools } from "../../shared/application/extra-tools.ts";
 import { syncPermissionRules } from "../../shared/application/permission-rules.ts";
 import { formatRule } from "../../shared/domain/agent-policy/permission.ts";
+import { chainDepthLine, chainDepthRefusal } from "../../shared/domain/agents/chain.ts";
 import { failureText } from "../../shared/domain/prelude.ts";
 import type { EpilogueCall, PreludeCall } from "../../shared/domain/prelude.ts";
 import type { StartOutput } from "../../shared/domain/session-start.ts";
@@ -39,15 +40,29 @@ export interface CrewCompletion {
   error?: string;
 }
 
+/** What a launch hands back to the runtime: the ticket, or the refusal of a hop past MaxChainDepth. */
+export type LaunchResult = { ticket: string } | { refused: string };
+
 /** Launch a crew on the script-host and return its ticket (async commands). The
- *  launch is logged with the ticket, plus `details` when the caller has any. */
+ *  launch is logged with the ticket, plus `details` when the caller has any. A
+ *  launch from a `completed` past the chain's limit (V-A5, shared/domain/agents/chain.ts)
+ *  comes back as `{ refused }` with the line saying so; any other failure throws. */
 export function launchCrew(
   deps: LaunchDeps,
   crew: string,
   input: Record<string, unknown> = {},
   details: Record<string, unknown> = {},
-): { ticket: string } {
-  const ticket = deps.crews.launch(crew, input);
+): LaunchResult {
+  let ticket: string;
+  try {
+    ticket = deps.crews.launch(crew, input);
+  } catch (error) {
+    const refusal = chainDepthRefusal(error);
+    if (refusal === null) throw error;
+    const line = chainDepthLine(crew, refusal);
+    deps.log.info(line, { ...refusal, ...details });
+    return { refused: line };
+  }
   deps.log.info(crew + " launched", { ticket, ...details });
   return { ticket };
 }
@@ -80,7 +95,7 @@ export interface MainLoopLaunchDeps extends LaunchDeps {
 export async function launchMainLoop(
   deps: MainLoopLaunchDeps,
   input: { prompt: string; permissionMode: string | null; prelude?: PreludeCall; sessionStart?: StartOutput | null },
-): Promise<{ ticket: string }> {
+): Promise<LaunchResult> {
   const { session, log } = deps;
   const resolved = input.permissionMode === null ? await session.resolveEffectiveSessionMode() : null;
   const permissionMode = resolved ? resolved.mode : input.permissionMode;

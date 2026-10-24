@@ -22,6 +22,8 @@ describe("session state-bag keys", () => {
       TASKS_STATE_KEY: "task_list",
       AUTOCOMPACT_BREAKER_STATE_KEY: "autocompact_consecutive_failures",
       WORKFLOW_ACTIVE_STATE_KEY: "workflow_active",
+      AGENT_INSTANCES_STATE_PREFIX: "agent_instances:",
+      AGENT_REQUEST_STATE_PREFIX: "agent_request:",
     });
   });
 

@@ -244,6 +244,8 @@ export interface ActRequest extends ModelOverride {
   maxIterations?: number;
   /** The mode the host's permission gate applies to each tool call. */
   permissionMode?: string;
+  /** The provider's thinking at this level (`act({effort})`); none when absent. */
+  effort?: "low" | "medium" | "high";
 }
 
 /** The model, as the crews call it. Every call throws when the host's provider
@@ -259,6 +261,23 @@ export interface Llm {
   /** Whether the host's permission gate checks the tool calls of `act`: false, the mode and the
    *  session's rules check nothing; undefined when the facade does not say (a test's). */
   permissionGateEnabled(): boolean | undefined;
+}
+
+/** The children of the running crew (A-3): one background agent per call, its reply left in the crew's
+ *  memory, its instance listed, stopped and sent to by id (`crew.instances()`, `stop`, `send`). */
+export interface ChildRuntime {
+  /** Starts `agent`, an agent of the crew, as a background child with `input`; throws when the host refuses. */
+  spawn(agent: string, input: string): void;
+  /** The crew's kept instances, oldest first. */
+  instances(): ReadonlyArray<{ id: string; agent: string; state: string }>;
+  /** Cancels a running instance; false when none runs under `id`. */
+  stop(id: string): boolean;
+  /** One more turn of an ended instance over its kept transcript; rejects for a running or evicted one. */
+  send(id: string, message: string): Promise<string>;
+  /** What a child left under `key` in the crew's memory; undefined until it does. */
+  read(key: string): Promise<unknown>;
+  /** Waits about `ms` milliseconds. */
+  pause(ms: number): Promise<void>;
 }
 
 /** The running crew's log. */

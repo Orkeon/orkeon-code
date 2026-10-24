@@ -11,7 +11,7 @@ import type { ToolCatalogue } from "../../shared/application/ports.ts";
 import type { PreludeCall } from "../../shared/domain/prelude.ts";
 import { commandLine, isOption, optionValue, parseAssistantInput, splitWords } from "./args.ts";
 import { launchCrew, launchMainLoop } from "./dispatch.ts";
-import type { MainLoopLaunchDeps } from "./dispatch.ts";
+import type { LaunchResult, MainLoopLaunchDeps } from "./dispatch.ts";
 
 export const TRANSCRIBE_TOOL = "transcribe_audio";
 export const LIST_AUDIO_TOOL = "list_audio";
@@ -110,7 +110,7 @@ export type TranscribeDeps = MainLoopLaunchDeps & { catalogue: Pick<ToolCatalogu
 export async function dispatchTranscribe(
   tokens: readonly string[],
   deps: TranscribeDeps,
-): Promise<{ ticket: string } | { message: string }> {
+): Promise<LaunchResult | { message: string }> {
   const parsed = parseTranscribeArgs(tokens);
   if (!parsed.ok) return { message: `${parsed.error}\n${TRANSCRIBE_USAGE}` };
   const { request } = parsed;

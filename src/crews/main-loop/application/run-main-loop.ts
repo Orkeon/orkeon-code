@@ -115,7 +115,8 @@ export async function appendTurn(session: Pick<SessionIo, "appendMessage">, role
  * Run the autonomous tool-use loop and return its text output.
  *
  * `permissionMode` is consumed by the host's per-tool-call gate, which reads the
- * session's rules first and asks the operator when the mode says so. `maxIterations` comes from `/effort` (B-9) and the optional
+ * session's rules first and asks the operator when the mode says so. `maxIterations` and, when /effort stored a level,
+ * the provider's `effort` come from `/effort` (B-9, A-3), and the optional
  * model from `/model` (B-10) — the latter PATCHES the provider's own
  * configuration, so the boot credentials and endpoint are preserved and only the
  * model name changes for this call.
@@ -130,9 +131,13 @@ export async function runAct(
   // Anything off-default is announced: a turn that stops after 10 iterations, or
   // answers from a different model, must not read as the model being erratic.
   if (active) deps.log.info(`session flags — ${active}`);
+  const maxIterations = maxIterationsFor(flags.effort);
+  // A level /effort stored reaches the provider (A-3); the line says what this act was given.
+  if (flags.thinking !== null) deps.log.info(`act — effort: ${flags.thinking}, maxIterations: ${maxIterations}`);
 
   return await deps.llm.act(turn.user, {
-    maxIterations: maxIterationsFor(flags.effort),
+    maxIterations,
+    ...(flags.thinking === null ? {} : { effort: flags.thinking }),
     permissionMode: mode,
     // The static header rides as a REAL system message (ActOptions.system):
     // identity and tool policy outrank user text and tool results, and the
