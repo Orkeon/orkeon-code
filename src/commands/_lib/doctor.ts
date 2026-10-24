@@ -98,7 +98,7 @@ export async function runDoctor(deps: DoctorDeps): Promise<CommandView> {
     const described = list.map((m) => `${m.path}(${m.rights ?? "?"})`);
     const workspace = list.find((m) => m.path === "/workspace");
     const hasWorkspace = workspace !== undefined
-      && String(workspace.rights ?? "").toLowerCase().includes("w");
+      && (workspace.rights === "rw" || workspace.rights === "rwnd");
     rows.push({
       check: "vfs: mounts",
       result: hasWorkspace ? PASS : FAIL,

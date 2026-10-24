@@ -21,17 +21,14 @@ export function createFiles(
       return entryNames(await tools.directoryRead({ path, max_results: maxEntries }));
     },
     async mounts() {
-      const list: any[] = pick(await tools.listMounts(), "mounts", "Mounts") ?? [];
-      // `Path` / `Rights`, PascalCase — read off a live call, not guessed. The first
-      // reader of this tool asked for `virtual_path` and printed "undefined(rw)" four
-      // times: a successful call whose reader looked for a field the tool never emits.
-      return list.map((m) => {
-        const rights = pick(m, "Rights", "rights");
-        return {
-          path: String(pick(m, "Path", "path", "virtual_path") ?? ""),
-          rights: rights == null ? undefined : String(rights),
-        };
-      });
+      const list: any[] = pick(await tools.listMounts(), "mounts") ?? [];
+      // `{ mounts: [{ virtual_path, access, overrides }] }`, as the typings of the
+      // runtime declare it (tools.generated.d.ts, `listMounts`); `access` is `ro`, `rw`
+      // or `rwnd`, else the rights enum's own name.
+      return list.map((m) => ({
+        path: String(m.virtual_path ?? ""),
+        rights: m.access == null ? undefined : String(m.access),
+      }));
     },
   };
 }

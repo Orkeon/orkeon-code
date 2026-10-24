@@ -26,7 +26,7 @@ function setup() {
   const catalogue = new FakeToolCatalogue();
   for (const t of [...ESSENTIAL_TOOLS, ...CODE_INTEL_TOOLS]) catalogue.tools.set(t, {});
   const files = new FakeFiles();
-  files.mountTable = [{ path: "/workspace", rights: "rw" }, { path: "/crews", rights: "r" }];
+  files.mountTable = [{ path: "/workspace", rights: "rw" }, { path: "/crews", rights: "ro" }];
   const run = async () => {
     const view = await runDoctor({ shell, telemetry, catalogue, files });
     const rows = new Map((view.table as DoctorRow[]).map((r) => [r.check, r]));
@@ -48,7 +48,7 @@ describe("/doctor — a healthy host", () => {
       { check: "llm: declared catalogue", result: PASS, detail: "kimi-k3, deepseek-chat" },
       { check: "tools: essential", result: PASS, detail: `${tools} registered, all ${ESSENTIAL_TOOLS.length} essentials present` },
       { check: "tools: code intelligence", result: PASS, detail: `all ${CODE_INTEL_TOOLS.length} present` },
-      { check: "vfs: mounts", result: PASS, detail: "/workspace(rw) /crews(r)" },
+      { check: "vfs: mounts", result: PASS, detail: "/workspace(rw) /crews(ro)" },
     ]);
     strictEqual(view.text, "all checks passed.");
     deepStrictEqual(shell.commands, ["node --version", "git --version", "dotnet --version"]);
@@ -90,12 +90,21 @@ describe("/doctor — failures and warnings", () => {
     });
   });
 
+  it("passes a /workspace the host spells rwnd (writable, no delete)", async () => {
+    const { files, run } = setup();
+    files.mountTable = [{ path: "/workspace", rights: "rwnd" }];
+    deepStrictEqual((await run()).rows.get("vfs: mounts"), { check: "vfs: mounts", result: PASS, detail: "/workspace(rwnd)" });
+  });
+
   it("fails a read-only or absent /workspace, and shows unknown rights as '?'", async () => {
     const { files, run } = setup();
-    files.mountTable = [{ path: "/workspace", rights: "r" }, { path: "/tmp" }];
+    files.mountTable = [{ path: "/workspace", rights: "ro" }, { path: "/tmp" }];
     deepStrictEqual((await run()).rows.get("vfs: mounts"), {
-      check: "vfs: mounts", result: FAIL, detail: "/workspace(r) /tmp(?)  ← /workspace is missing or not writable",
+      check: "vfs: mounts", result: FAIL, detail: "/workspace(ro) /tmp(?)  ← /workspace is missing or not writable",
     });
+    // Rights outside the mount grammar (the enum's own name) are not read as writable.
+    files.mountTable = [{ path: "/workspace", rights: "Write" }];
+    strictEqual((await run()).rows.get("vfs: mounts")!.result, FAIL);
     files.mountTable = [];
     strictEqual((await run()).rows.get("vfs: mounts")!.detail, "(none)  ← /workspace is missing or not writable");
   });

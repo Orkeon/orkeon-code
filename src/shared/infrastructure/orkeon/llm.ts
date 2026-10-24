@@ -45,7 +45,7 @@ export function createLlm(
 ): Llm {
   return {
     permissionGateEnabled() {
-      // Optional on the facade: a runtime before Orkeon #128 (1.0.0-rc.6) has no such field.
+      // The runtime always sets it; a facade without it (a test's) cannot say.
       const on = llm.permissionGate?.enabled;
       return on === true || on === false ? on : undefined;
     },
