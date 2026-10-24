@@ -10,14 +10,15 @@
 // global for the calls, the context's `tools` service for the registered names.
 
 import type {
-  AnchorIndex, CodeIndex, CostIndex, Files, MemoryStore, Progress, SessionStore, Shell, Telemetry, ToolCatalogue,
+  AnchorIndex, CodeIndex, CostIndex, Files, MemoryStore, Progress, SessionStore, SharedMemory, Shell, Telemetry,
+  ToolCatalogue,
 } from "../../application/ports.ts";
 import { createConfigStore } from "../../application/config-store.ts";
 import type { ConfigStore } from "../../application/config-store.ts";
 import { createSessionIo } from "../../application/session-io.ts";
 import type { SessionIo } from "../../application/session-io.ts";
 import type { ServiceLocator } from "../../../commands/.orkeon/orkeon-cli.d.ts";
-import { Tools } from "../globals.ts";
+import { Rag, Tools } from "../globals.ts";
 import { createAnchorIndex, createCodeIndex, createCostIndex } from "./code-index.ts";
 import { createFiles } from "./files.ts";
 import { createMemoryStore } from "./memory-store.ts";
@@ -30,6 +31,7 @@ import { createPullRequestOpener } from "../../application/git/open-pull-request
 import type { PullRequestPolicy } from "../../application/git/open-pull-request.ts";
 import type { PullRequestOpener } from "../../application/git/commit-files.ts";
 import { createToolCalls, createToolCatalogue } from "./tool-catalogue.ts";
+import { createSharedMemory } from "./shared-memory.ts";
 
 export const orkeonShell = (): Shell => createShell(Tools);
 export const orkeonFiles = (): Files => createFiles(Tools);
@@ -39,6 +41,8 @@ export const orkeonMemoryStore = (): MemoryStore => createMemoryStore(Tools);
 export const orkeonCodeIndex = (): CodeIndex => createCodeIndex(Tools);
 export const orkeonAnchorIndex = (): AnchorIndex => createAnchorIndex(Tools);
 export const orkeonCostIndex = (): CostIndex => createCostIndex(Tools);
+/** The shared memory's RAG index: the `rag` namespace, else the rag tools. */
+export const orkeonSharedMemory = (): SharedMemory => createSharedMemory(Rag, Tools);
 /** The pull request opened with the github tool, under the session's mode and rules (W0-C). */
 export const orkeonPullRequestOpener = (policy: PullRequestPolicy): PullRequestOpener =>
   createPullRequestOpener({ shell: orkeonShell(), github: createGitHubPullRequests(Tools) }, policy);
