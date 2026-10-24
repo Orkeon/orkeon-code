@@ -40,8 +40,9 @@ changes the surface Orkeon Code runs on:
   text of each editing tool, and `edit_batch` and `structural_rewrite` denied whole where paths are protected, since
   the gate cannot read their paths. A step holds 407 rules ([Permissions](../permissions.md#rule-sets-of-the-dev-steps)).
   *Note (2026-10-24):* `edit_batch` is no longer denied whole: the crews' callback checks each
-  operation as the editor it stands for, so a step holds 438 rules
-  ([Permissions](../permissions.md#rule-sets-of-the-dev-steps)).
+  operation as the editor it stands for, so a step held 438 rules. *Note (wave 7):* with the reads of `git config`,
+  the versioned and option-led interpreters and `directory_search`, a step holds 481 rules, 483 with the two allows
+  of `/dev-implement` ([Permissions](../permissions.md#rule-sets-of-the-dev-steps)).
 - `orkeon run` keeps no session rules: a headless turn is decided by its mode alone
   ([Autonomous and embedded runs](../headless.md)).
 - `/dev-verify` detects a cut result by the runtime's notice; the example settings set `ResultLimits` and

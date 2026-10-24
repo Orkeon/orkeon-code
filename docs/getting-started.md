@@ -145,7 +145,7 @@ The banner prints the project, the settings and the mode. In the REPL:
 
 | Try | What happens |
 |---|---|
-| `/doctor` | Checks the LLM configuration, the tools and the mounts |
+| `/doctor` | Shows the version, checks the LLM configuration, the tools, the mounts and what the project file set |
 | `/init` | Analyses the project and writes `AGENTS.md`, the instructions the agent reads at every turn (an existing `CLAUDE.md` is merged into it, and still read when there is no `AGENTS.md`) |
 | `plan: where are the HTTP routes defined?` | A read-only question |
 | `rename parseArgs to parseCliArgs` | In `default` mode, the REPL asks before each edit: `[y] once / [s] session / [n] no` |
@@ -177,7 +177,8 @@ models, backends and how the model calls the tools itself: [Configuration](confi
 
 Besides the changes you ask for: `AGENTS.md` (`/init`), `.orkeon/config.json` (`/config`), `.orkeon/agents.json`
 (`/agents`) and `.git/ORKEON_COMMITMSG` (`/commit` writes the message there for `git commit -F`; git does not track
-it). The dev workflow adds `.orkeon/dev/` (each work's state files and logs), the work folder (`workbench/` by
+it; in a linked worktree, whose `.git` is a file, the message goes to `.orkeon/ORKEON_COMMITMSG`, removed after the
+commit). The dev workflow adds `.orkeon/dev/` (each work's state files and logs), the work folder (`workbench/` by
 default, `dev.workDir`: specs, plans, batch sheets, verdicts), `.orkeon/worktrees/` (the worktrees of the batches),
 `.orkeon/dev-learn-state.json` (`/dev-learn`) and the [shared memory](shared-memory.md)'s folder (`.orkeon/memory/`
 unless `memory.dir` names another); the hook scripts you write (`.orkeon/hooks/` in the [examples](hooks.md)) are

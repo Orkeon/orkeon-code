@@ -40,7 +40,7 @@ mode), and `--go` to a turn under the session's mode, chosen before the recordin
 main loop after the turn as the launching command's call. `/dev-verify` runs `git`, the pack's build and the test
 commands it accepts from its own code, in every mode; its auditor only reads, in `plan`, with five read tools.
 `/dev-learn` reads the verdict files and both learning states. It writes only `<work>/learn-<date>/`,
-`.orkeon/dev-learn-state.json` and `.orkeon/memory/refused.md`, never a file under `.claude/` nor the file a proposal
+`.orkeon/dev-learn-state.json` and `refused.md` under `memory.dir`, never a file under `.claude/` nor the file a proposal
 names.
 `/dev-plan` reads the spec or change brief, the pack and the code index. It writes only `<work>/<code>/<CODE>-PLAN.md`,
 the batch sheets and `plan.json`, never a file under `.claude/`; its reviewer only reads, in `plan`, with nine read
@@ -49,12 +49,13 @@ and write only `<work>/<code>/SPEC-<code>.md`, or `CHANGE-<code>.md` and `repro-
 reproduction or measure command, a narrow test command of the pack, from its own code, once the step's rule sets
 allow it. `/dev-implement` runs the pack's restore, build and suite from its own code; its two roles write in
 `acceptEdits`, each inside its roots, and after a VALID verdict its close commits the files the roles changed, by
-name, and pushes the branch, unless a session rule denies the push. It refuses to start in `plan` or `dontAsk`, and
-puts the gate check and its rules back before each launch of its chain (the audit, then the close). `/dev-batches` runs
+name, and pushes the branch, unless a session rule denies the push. It puts the gate check and its rules back before each launch of its chain (the audit, then the close). `/dev-batches` runs
 that chain for each batch of a plan under `/dev-implement`'s rule sets; each batch's close commits without pushing (a
 close typed while the run is in progress too), and the plan's close pushes the branch once, unless a session rule denies
 the push, and opens one pull request (`--pr` or `dev.prAuto`), else hands its command over; on the default branch it
-pushes nothing and hands the push over. All six first put the [rule sets of the dev steps](#rule-sets-of-the-dev-steps)
+pushes nothing and hands the push over. `/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement` and `/dev-batches`
+refuse to start in a read-only mode (`plan`, `dontAsk`), in a mode Orkeon Code does not know, and when the session's
+mode cannot be read. All six first put the [rule sets of the dev steps](#rule-sets-of-the-dev-steps)
 in the gate, and refuse to start while the gate is off; their crew's callback checks the same sets again, the only check
 of them under `orkeon run`.
 
@@ -94,6 +95,16 @@ The [shared memory](shared-memory.md)'s two tools are Orkeon Code's own, offered
 never in `plan` or `dontAsk` (the tool also refuses by itself there), asked in `default`, accepted in `acceptEdits`. A
 rule may name them, whole or on an argument of their schema: `/permissions add deny memory_push`, `deny memory_push
 topic=auth*`, `deny memory_recall query=*secret*`. A deny rule on the whole tool also takes it out of the catalogue.
+
+**The shared memory's guard.** In every mode, `bypassPermissions` included, the session adds deny rules to the gate
+so that no file tool of the model (`file_write`, `edit_file`, `node_replace`, `node_insert`, `node_ensure`) writes
+under `<memory.dir>/candidates/` or `<memory.dir>/entries/`: candidates come from `memory_push` and the harvests,
+entries from `/memory-admit` alone. A stored allow rule the guard covers is dropped, with a warning. The patterns
+match however the path is spelt (`./`, `//`, `src/../`, `/workspace/`), and a `shell_command` naming
+`<memory.dir>/candidates` or `<memory.dir>/entries` is refused too. `/permissions` lists them on its own line, "the
+shared memory's guard: … (N rules)". Their limits: `edit_batch` and `structural_rewrite` are not covered (the gate
+cannot read their paths), nor a shell command that reaches the folder in steps (`cd`), nor a path in another letter
+case; headless `orkeon run` applies no session rules.
 
 ## Choosing the mode
 
@@ -168,7 +179,8 @@ rule: `/permissions` neither lists nor clears it.
 
 `/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement` and `/dev-verify` (unless `--gate-only`) hand the gate
 rule sets of their own just before their crew
-starts, and the crew's callback checks them again at each call the gate allows. A call the gate refuses reads the
+starts (a `/tasks repair` hands it those of the step of the instance's run: a reviewer of `/dev-spec` or `/dev-change`
+is repaired under that step's sets, hooks and budget, else under its charter's step), and the crew's callback checks them again at each call the gate allows. A call the gate refuses reads the
 gate's own refusal; one only the callback refuses (a `glob` or `grep` reaching a refused path, a path written with
 `./` or `..`, every call under `orkeon run`) names the rule, its set and what to do instead. A set is a list of deny rules built into Orkeon Code, the same in every repository; no setting turns one on or
 off. Every step puts all five sets in force:
@@ -177,11 +189,11 @@ off. Every step puts all five sets in force:
 |---|---|---|
 | `git-readonly` | `shell_command`, `command` | a git command that changes the repository, its branches or its remotes, also behind a global option (`git -C <dir> push`) |
 | `inline-interpreters` | `shell_command`, `command` | code handed inline to an interpreter, which could run what the other rules refuse |
-| `read-noise` | `path` of `file_read`, `glob`, `grep`, `node_outline`, `node_read`, `count_pattern`, `documents_of` | a read under a `bin/`, `obj/`, `.git/` or `node_modules/` folder, anywhere in the project |
+| `read-noise` | `path` of `file_read`, `glob`, `grep`, `node_outline`, `node_read`, `count_pattern`, `documents_of`, `directory_search` | a read under a `bin/`, `obj/`, `.git/` or `node_modules/` folder, anywhere in the project |
 | `secrets` | the written text: `file_write` `content`, `edit_file` `new_string`, `text` of `node_replace`, `node_insert` and `node_ensure`, `name` and `module` of `node_ensure`, `structural_rewrite` `fix`; each `edit_batch` operation's `text`, by the callback | content that holds a private key block or a token with a known prefix |
 | `state-files` | `path` of `file_write`, `edit_file`, `node_replace`, `node_insert`, `node_ensure`, each `edit_batch` operation's `path` by the callback; `structural_rewrite` whole | a file only Orkeon Code's own code writes: the batch logs, states and verdicts, the audit captures, `.orkeon/` and `.claude/` |
 
-`git-readonly` holds 190 rules, three for most of the verbs `add`, `am`, `apply`, `branch`, `checkout`, `cherry-pick`,
+`git-readonly` holds 220 rules, three for most of the verbs `add`, `am`, `apply`, `branch`, `checkout`, `cherry-pick`,
 `clean`, `commit`, `fetch`, `filter-branch`, `gc`, `merge`, `mv`, `notes`, `pull`, `push`, `rebase`, `reflog`,
 `remote`, `reset`, `restore`, `revert`, `rm`, `stash`, `submodule`, `switch`, `tag`, `update-ref` and `worktree`,
 here for `push`:
@@ -202,10 +214,12 @@ options), so `git remote -v` and `git stash list` run. Reading the history stays
 The rules match the word `git` anywhere on the line, so a path (`/usr/bin/git push`), an `env`, a variable
 (`GIT_DIR=.git git push`) or a chain (`cd x && git push`) before it does not help. The same rules refuse the verbs
 that write below the everyday ones: `init`, `clone`, `config`, `update-index`, `symbolic-ref`, `prune`, `repack`, `read-tree`, `checkout-index`, `commit-tree`, `write-tree`, `mktag`, `mktree`, `fast-import`, `maintenance`, `update-server-info` and `replace` (`git replace` alone
-lists, and runs). `git config` with two arguments or more (`git config key value`, `git config --global key`,
-`git config --unset key`) or with `--edit` is refused, and so is the global option `git -c key=value`, which sets a
-config for one command and can run a program through `core.pager`; read a key with one argument instead:
-`git config user.name`, `git config --list`.
+lists, and runs). `git config` is refused when it writes: a key then a value (`git config user.name x`,
+`git config --global a.b x`), `--add`, `--unset`, `--replace-all`, `--rename-section`, `--remove-section`, `--edit` or
+`-e`, and the subcommands `set`, `unset`, `rename-section`, `remove-section` and `edit`; so is the global option
+`git -c key=value`, which sets a config for one command and can run a program through `core.pager`. Its reads run:
+`git config user.name`, `git config --get user.name`, `git config --get-regexp`, `git config --list` or `-l`.
+A dotted name followed by a word reads as a write, so `git config --file a.cfg --list` is refused too.
 
 The other four sets, each pattern on the first tool of its set:
 
@@ -222,11 +236,16 @@ deny shell_command command=*node -* -p*
 deny shell_command command=*node --input-type*
 deny shell_command command=*python -c*
 deny shell_command command=*python3 -c*
+deny shell_command command=*python3.* -c*
 deny shell_command command=*python -* -c*
 deny shell_command command=*python3 -* -c*
+deny shell_command command=*python3.* -* -c*
 deny shell_command command=*perl -e*
 deny shell_command command=*perl -E*
+deny shell_command command=*perl -* -e*
+deny shell_command command=*perl -* -E*
 deny shell_command command=*ruby -e*
+deny shell_command command=*ruby -* -e*
 deny shell_command command=*php -r*
 deny shell_command command=*tsx -e*
 deny shell_command command=*tsx --eval*
@@ -267,19 +286,22 @@ deny file_write path=*/.claude/*
 deny file_write path=.claude/*
 ```
 
-`inline-interpreters` holds 23 rules. They refuse `-c` handed to any shell whose name ends with `sh` (`bash`,
+`inline-interpreters` holds 28 rules. They refuse `-c` handed to any shell whose name ends with `sh` (`bash`,
 `sh`, `zsh`, `dash`, `ksh`, `fish`), also in a flag cluster (`bash -xc`) or after another flag (`bash -e -c`), and
-the inline forms of `node`, `python`, `python3`, `perl`, `ruby`, `php`, `tsx`, `ts-node`, `deno` and `bun`, behind a
-path, an `env` or `npx`. Since a rule reads `sh -c` at the end of any word, `ssh -c <cipher>` is refused too.
+the inline forms of `node`, `python`, `python3` and a versioned `python3.12`, `perl`, `ruby`, `php`, `tsx`, `ts-node`,
+`deno` and `bun`, behind a path, an `env` or `npx`, also after another option (`python3 -I -c`, `perl -w -e`,
+`ruby -w -e`). A rule reads `-c` anywhere after the interpreter, so `python3 x.py -c` is refused too. Since a rule reads `sh -c` at the end of any word, `ssh -c <cipher>` is refused too.
 
-The three file sets repeat their patterns on every tool of their row, tool by tool: `read-noise` holds 56 rules (8
-patterns on 7 tools, on `path`), `secrets` 128 (16 patterns on 8 written arguments of 6 tools), `state-files` 41 (8
-patterns on 5 tools, on `path`, then `deny structural_rewrite`). A step holds 438 rules. The gate cannot read the
+The three file sets repeat their patterns on every tool of their row, tool by tool: `read-noise` holds 64 rules (8
+patterns on 8 tools, on `path`), `secrets` 128 (16 patterns on 8 written arguments of 6 tools), `state-files` 41 (8
+patterns on 5 tools, on `path`, then `deny structural_rewrite`). A step holds 481 rules (483 with the two allow rules of `/dev-implement`). The gate cannot read the
 paths or the text inside `edit_batch` and `structural_rewrite`. `structural_rewrite` is refused whole. `edit_batch` is
 left to the crews' callback, which runs on every act of a step: it reads each operation as the editor it stands for
 and applies the sets and the role's rules to it, and refuses a batch with no operations, an operation without a
 `path` or of an unknown kind, and any `validate` but `"parse"` (`"build"` runs `dotnet build`; the step's build is
-`run_build`).
+`run_build`). The pilot of a batch, kept out of the source roots the pack names, gets the same deny rules on every
+path read tool, `directory_search` included, and `structural_search` and `symbol_source`, which name no path, are
+refused whole.
 
 **When they hold.** At launch the step clears the gate, hands it the session's rules, then its own sets. A session
 allow rule on the same calls as one of the step's deny rules is left out for the run, with a warning. The sets are not
@@ -305,8 +327,12 @@ still runs. On a host that keeps no session rules, the step runs with a warning:
 callback alone checks them.
 
 **What a rule cannot see.** A rule reads one argument as text. A script file run by an interpreter
-(`bash scripts/build.sh`) is not inline code, and runs. A rule matches words separated by one space, so a tab between two words,
-or an option order it does not list, passes. `secrets` knows fixed prefixes only: a JSON web token, a
+(`bash scripts/build.sh`) is not inline code, and runs. A rule matches words separated by one space, so in the gate a tab between two
+words, or an option order it does not list, passes. The dev crews' callback and the steps' guards close part of that:
+they also match the command as the host reads it, quotes dropped, runs of blanks and tabs joined, backslash escapes
+resolved and option clusters split (`git "push"`, `bash  -c`, `git pu\sh`, `python3 -Ic"print(1)"` read as
+`python3 -I -c print(1)` are refused like their plain form), and a relative path that climbs out and back
+(`../workspace/tests/x`) as the project path. `secrets` knows fixed prefixes only: a JSON web token, a
 password in a URL or an `api_key = …` line needs a check of the whole content, which waits for a file tool of Orkeon
 Code's own. Content that mentions a prefix, such as a page or a test about tokens, is refused as well. `read-noise`
 also refuses a source folder that happens to be named `bin/`.
@@ -359,7 +385,7 @@ the session's rules, so `/permissions add deny shell_command ...` does not reach
 validations `/dev-verify` runs from its own code. To stop one, deny the tool itself (`/permissions add deny
 run_validation`), which the gate sees.
 
-The agents of the dev steps but `/dev-learn` (whose agent has no tool), and the children of `/dev-plan` and `/dev-verify`, are also given
+The agents of the dev steps but `/dev-learn` (whose agent has no tool), and the children of `/dev-spec`, `/dev-change`, `/dev-plan` and `/dev-verify`, are also given
 [`memory_recall`](shared-memory.md) (`read`), to look for precedents in the shared memory; none is given `memory_push`.
 
 ## What a project file may set
@@ -377,9 +403,13 @@ to the session read-only, on `/user-config`:
 - `permissions.fallback` from the project applies only as `default`, `plan` or `acceptEdits`, and never wider than
   the mode the user settings set; `bypassPermissions` and `dontAsk` come from the user settings or `/mode`.
 - `tools.extra` from the project offers only the tools the user settings list too (`*` lists them all); a tool
-  stays read-only (`:read`) only when both lists say so.
+  stays read-only (`:read`) only when both lists say so. An invalid project entry naming a tool the project file also
+  declares validly (`evil:write, evil:read`) is dropped, not reported as invalid.
+- `memory.autoAdmitAudited` and `dev.prAuto` from the project apply as `true` only when the user settings say `true`
+  too: admitting without asking and opening a pull request without asking come from the user.
 - What the project file set and could not apply, `/permissions` names: `↳ ignored` under the mode, and a note for
-  the tools not offered. `/config set` of such a value still writes it, then says it is ignored. `/config set
+  the tools not offered; `/doctor`'s row `settings: project file` names every such key. `/config set` of such a value
+  still writes it, then says it is ignored. `/config set
   --session` is the user's own, and is not narrowed.
 
 ## Trusted folders

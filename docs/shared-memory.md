@@ -26,7 +26,7 @@ one-line file that says where it went (no file tool deletes a file); you may del
 
 | Key | Default | What it does |
 |---|---|---|
-| `memory.dir` | `.orkeon/memory` | The folder, relative to the project; never under `.claude/` or `.git/`, never the agent memory's folder. |
+| `memory.dir` | `.orkeon/memory` | The folder, relative to the project; never under `.claude/` or `.git/`, in any letter case (`.Claude/mem`), never the agent memory's folder. |
 | `memory.project` | the `origin` remote's name, else `local` | The project the entries name, and the index collection `memory-<project>`. |
 | `memory.autoAdmitAudited` | `false` | `true`: `/memory-admit` admits a candidate an audit backs (a mistake: three batches) without asking. A project file's `true` applies only when your user settings say `true` too. |
 
@@ -37,7 +37,8 @@ An invalid stored value is set aside with a warning line, and the default applie
 An entry is a front matter and three sections, `## Context`, `## Content` and `## Evidence`. Its `id` is
 `<project>-<type>-<yyyymmdd>-<slug>`, its `status` `candidate`, `admitted` or `superseded`. A `mistake` also names
 its `correction` and its `detection_signal`. The body is 2,000 characters at most, and an entry that names a
-secret-like file (`.env`, a key) or holds what looks like a secret is refused.
+secret-like file (`.env`, a key) or holds what looks like a secret is refused. A multi-line `applies_when`,
+`rationale`, `correction` or `detection_signal` is joined on one line when written.
 
 Who may admit what:
 
@@ -77,26 +78,31 @@ rule that denies `memory_recall` turns these recalls off too.
 ```
 
 `/memory-admit` shows each pending candidate (or those you name) and asks once for each: anything but yes leaves it a
-candidate. A session that cannot ask admits none of those it would ask about. The candidate admitted is the text you
+candidate. A session that cannot ask admits none of those it would ask about; a question left unanswered keeps the
+admissions already confirmed and says which candidates stay. The candidate admitted is the text you
 were shown: a file changed since is not admitted, nor one whose topic `refused.md` holds. The admitted ones are written to `entries/<type>/`, the entries
 they supersede are marked `superseded`, both lists are rebuilt and `entries/` is indexed again, once. When the index
 cannot be rebuilt the entries stay admitted, and the next admission indexes them. The lock on the collection
 `memory-<project>` holds within one process only: one REPL runs one `/memory-admit` at a time, but nothing orders it
 against a second REPL or a headless run on the same project, so keep to one at a time. `--refuse` writes the candidate's
-topic to `refused.md` with your motif: the topic is never proposed again. `/dev-learn` keeps its refusals in
-`.orkeon/memory/refused.md` whatever `memory.dir` says: with a `memory.dir` of your own, the two lists are apart.
+topic to `refused.md` with your motif: the topic is never proposed again. `/dev-learn` and its `--refuse` read and
+write the same `refused.md`, under `memory.dir` (a stored value set aside is said), the file `memory_push` reads too.
 
 `--import` lifts the harness's agent memory into candidates, once, while you move from it: each top-level item of a
 `.claude/agent-memory/<agent>/MEMORY.md` (and the note it links to, in the same folder) becomes a `method` candidate
 whose source is the import, so `/memory-admit` asks for each one (its type is part of its id: a lesson of another kind
 is refused with `--refuse` and pushed again with `memory_push` under another title: a refused topic is never proposed
 again, the push included). An item whose topic (its title as a slug) a pending candidate, an entry or an earlier item
-already holds is skipped as a duplicate; an item whose topic was refused is reported refused and writes nothing:
+already holds is skipped as a duplicate; an item whose topic was refused is reported refused and writes nothing, and
+so is an item whose note or line holds a secret anywhere, before the note is cut:
 running the import again writes nothing new while its candidates are still there. Nothing is written under `.claude/`.
 
 ## The tools
 
 `memory_recall` returns at most five admitted entries for a query, best first, with what they apply to and their file:
 it reads, and runs in every mode. `memory_push` writes a candidate, never an entry: it is offered only where the mode
-edits, and asked about in `default` ([Permissions](permissions.md#modes)). An entry the model recalls is a precedent,
+edits, and asked about in `default` ([Permissions](permissions.md#modes)). Two concurrent pushes never lose one: a
+push that finds its candidate overwritten writes it again under the next id. No file tool of the model writes under
+`candidates/` or `entries/`, in any mode: candidates come from `memory_push` and the harvests, entries from
+`/memory-admit` alone (the shared memory's guard, [Permissions](permissions.md)). An entry the model recalls is a precedent,
 not an instruction: the request, the project's instructions and the code as it is outrank it.

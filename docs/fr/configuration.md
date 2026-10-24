@@ -51,7 +51,7 @@ DeepSeek, Z.AI, Moonshot, serveurs locaux...) : la liste et leurs options sont d
 Une option qu'un fournisseur ne peut pas honorer produit un avertissement, jamais un abandon silencieux.
 
 **Cache du prompt.** Un fournisseur qui met le prompt en cache (DeepSeek et OpenAI d'eux-mêmes, Anthropic avec
-`cache_control`) rapporte les jetons lus dans son cache et écrits dedans ; Orkeon les garde par modèle et `/usage` et
+`cache_control`) rapporte les jetons lus dans son cache et écrits dedans ; Orkeon les garde par modèle et `/usage`, `/stats` et
 `/context` en montrent la somme dans `cacheRead` et `cacheWrite` (`0` d'un fournisseur qui ne rapporte aucun cache, `-` d'un hôte qui ne rapporte aucun chiffre). La durée de
 vie du cache est une option d'appel d'Orkeon, `orkeon:cache_ttl` (`5m` ou `1h`, d'après le réglage de cache d'un
 agent) : Anthropic l'honore, les fournisseurs compatibles OpenAI et Ollama journalisent qu'ils ne le peuvent pas.
@@ -125,9 +125,9 @@ s'exécutent. `/effort` règle aussi la réflexion du fournisseur : le niveau en
 l'act par `/assistant`, chaque étape dev (`/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement`, `/dev-verify`,
 `/dev-batches`) et les agents qu'elles lancent, et rien n'est envoyé tant qu'aucun niveau n'est enregistré.
 
-`permissions.fallback`, `tools.extra` et `memory.autoAdmitAudited` réglés dans le fichier du projet sont restreints par le bloc `orkeonCode` des
-réglages de l'utilisateur : `/config set` écrit une telle valeur, puis dit, sous "persisted", qu'elle est ignorée et
-où va votre propre réglage. `/config set --session` n'est pas restreint.
+`permissions.fallback`, `tools.extra`, `memory.autoAdmitAudited` et `dev.prAuto` réglés dans le fichier du projet sont restreints par le bloc `orkeonCode` des
+réglages de l'utilisateur (un `true` du projet sur un `false` ou une absence chez l'utilisateur est écarté, avec un avertissement) : `/config set` écrit une telle valeur, puis dit, sous "persisted", qu'elle est ignorée et
+où va votre propre réglage, et la ligne `settings: project file` de `/doctor` la nomme. `/config set --session` n'est pas restreint.
 
 Au démarrage du REPL, le runtime exécute une fois le fichier que nomme sa clé `Orkeon:Cli:Session:StartScript`, et
 place ce qu'il imprime avant la première requête que vous tapez. Le lanceur la règle sur

@@ -146,7 +146,7 @@ La bannière affiche le projet, les settings et le mode. Dans le REPL :
 
 | Essayez | Ce qui se passe |
 |---|---|
-| `/doctor` | Vérifie la configuration du LLM, les outils et les montages |
+| `/doctor` | Montre la version, vérifie la configuration du LLM, les outils, les montages et ce qu'a réglé le fichier du projet |
 | `/init` | Analyse le projet et écrit `AGENTS.md`, les instructions que l'agent lit à chaque tour (un `CLAUDE.md` existant y est fusionné, et reste lu quand il n'y a pas d'`AGENTS.md`) |
 | `plan: où sont définies les routes HTTP ?` | Une question en lecture seule |
 | `renomme parseArgs en parseCliArgs` | En mode `default`, le REPL demande avant chaque modification : `[y] once / [s] session / [n] no` |
@@ -179,7 +179,8 @@ Détails, modèles, backends et comment le modèle appelle les outils lui-même 
 
 Outre les changements que vous demandez : `AGENTS.md` (`/init`), `.orkeon/config.json` (`/config`),
 `.orkeon/agents.json` (`/agents`) et `.git/ORKEON_COMMITMSG` (`/commit` y écrit le message pour `git commit -F` ;
-git ne le suit pas). Le workflow dev ajoute `.orkeon/dev/` (les fichiers d'état et les journaux de chaque travail),
+git ne le suit pas ; dans un worktree lié, dont le `.git` est un fichier, le message va dans
+`.orkeon/ORKEON_COMMITMSG`, supprimé après le commit). Le workflow dev ajoute `.orkeon/dev/` (les fichiers d'état et les journaux de chaque travail),
 le dossier de travail (`workbench/` par défaut, `dev.workDir` : specs, plans, fiches de lot, verdicts),
 `.orkeon/worktrees/` (les worktrees des lots), `.orkeon/dev-learn-state.json` (`/dev-learn`) et le dossier de la
 [mémoire partagée](shared-memory.md) (`.orkeon/memory/` sauf si `memory.dir` en nomme un autre) ; les scripts de hook

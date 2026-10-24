@@ -30,8 +30,8 @@ What Orkeon Code does not do yet, in the order we expect to address it. Items ma
 
 ## Later
 
-- Sub-agents beyond the dev steps: the review of `/dev-plan` and the audit of `/dev-verify` run as background
-  children (`ctx.spawnBackground`) that `/tasks` monitors; a saved agent of `/agents` is still storage only, and the
+- Sub-agents beyond the dev steps: the reviews of `/dev-spec`, `/dev-change` and `/dev-plan` and the audit of
+  `/dev-verify` run as background children (`ctx.spawnBackground`) that `/tasks` monitors; a saved agent of `/agents` is still storage only, and the
   assistant does not delegate.
 - The structural editor (`node_*`, `edit_batch`, `structural_rewrite`) in the assistant's prompts: the tools are in
   the catalogue, the assistant's prompts do not teach them yet. The dev steps use part of it: the roles of `/dev-implement` read
@@ -50,6 +50,8 @@ What Orkeon Code does not do yet, in the order we expect to address it. Items ma
   root a script agent can be given (`AgentBuilder().workingRoot(path)`), or both would write the same `/workspace`.
 - A plan/task list the loop maintains (`/tasks` is a manual list today).
 - Several sessions at once.
+- Kept as is (W0-C): the pull-request question of `/commit` stays a command prompt (`ctx.prompt`), asked before any
+  crew runs; `human_input` serves the questions a model asks during an act.
 
 ## Known issues
 
@@ -61,7 +63,7 @@ What Orkeon Code does not do yet, in the order we expect to address it. Items ma
   even when they only read: asked in `default` and `acceptEdits`, refused in `plan`, and in `dontAsk` without an allow rule (runtime;
   [Permissions](permissions.md)). The web and RAG tools declare theirs since Orkeon #126.
 - The answer can be printed twice when console streaming is enabled.
-- `/tasks` monitors the children of `/dev-plan` and `/dev-verify` only, through the session state: a stop waits for
+- `/tasks` monitors the children of `/dev-spec`, `/dev-change`, `/dev-plan` and `/dev-verify` only, through the session state: a stop waits for
   the crew's next look (about a second), and a send to an ended instance is a new run that knows the previous report
   only, not its context.
 - Some commands only partly do what their names promise: `/summary` (not saved to memory), `/status` (the runtime

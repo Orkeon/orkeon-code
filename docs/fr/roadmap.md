@@ -33,8 +33,8 @@ demandent d'abord un changement dans [Orkeon](https://github.com/Orkeon/orkeon).
 
 ## Plus tard
 
-- Des sous-agents au-delà des étapes dev : la revue de `/dev-plan` et l'audit de `/dev-verify` tournent en enfants
-  d'arrière-plan (`ctx.spawnBackground`) que `/tasks` suit ; un agent enregistré par `/agents` n'est encore que
+- Des sous-agents au-delà des étapes dev : les revues de `/dev-spec`, `/dev-change` et `/dev-plan` et l'audit de
+  `/dev-verify` tournent en enfants d'arrière-plan (`ctx.spawnBackground`) que `/tasks` suit ; un agent enregistré par `/agents` n'est encore que
   stocké, et l'assistant ne délègue pas.
 - L'éditeur structurel (`node_*`, `edit_batch`, `structural_rewrite`) dans les prompts de l'assistant : les outils
   sont au catalogue, les prompts de l'assistant ne les enseignent pas encore. Les étapes dev en utilisent une partie, branchée dans
@@ -55,6 +55,8 @@ demandent d'abord un changement dans [Orkeon](https://github.com/Orkeon/orkeon).
   écriraient le même `/workspace`.
 - Une liste de plan ou de tâches que la boucle tient à jour (`/tasks` est une liste manuelle aujourd'hui).
 - Plusieurs sessions à la fois.
+- Gardé tel quel (W0-C) : la question de pull request de `/commit` reste une invite de la commande (`ctx.prompt`), posée
+  avant qu'aucun crew ne tourne ; `human_input` sert les questions qu'un modèle pose pendant un act.
 
 ## Problèmes connus
 
@@ -68,7 +70,7 @@ demandent d'abord un changement dans [Orkeon](https://github.com/Orkeon/orkeon).
   `dontAsk` sans règle d'autorisation (runtime ; [Permissions](permissions.md)). Les outils web et RAG déclarent le
   leur depuis Orkeon #126.
 - La réponse peut être affichée deux fois quand le streaming console est activé.
-- `/tasks` ne suit que les enfants de `/dev-plan` et `/dev-verify`, par l'état de session : un arrêt attend le
+- `/tasks` ne suit que les enfants de `/dev-spec`, `/dev-change`, `/dev-plan` et `/dev-verify`, par l'état de session : un arrêt attend le
   prochain regard du crew (environ une seconde), et un envoi à une instance finie est un nouveau run qui ne connaît
   que le rapport précédent, pas son contexte.
 - Certaines commandes ne font qu'en partie ce que leur nom promet : `/summary` (pas enregistré en mémoire), `/status`

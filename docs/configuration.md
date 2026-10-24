@@ -50,7 +50,7 @@ An option a provider cannot honour produces a warning, never a silent drop.
 
 **Prompt cache.** A provider that caches the prompt (DeepSeek and OpenAI by themselves, Anthropic with
 `cache_control`) reports the tokens read from its cache and written to it; Orkeon keeps them per model and
-`/usage` and `/context` show their sum in `cacheRead` and `cacheWrite` (`0` from a provider that reports no cache, `-` from a host that reports no figure). The cache's
+`/usage`, `/stats` and `/context` show their sum in `cacheRead` and `cacheWrite` (`0` from a provider that reports no cache, `-` from a host that reports no figure). The cache's
 lifetime is a per-call option of Orkeon, `orkeon:cache_ttl` (`5m` or `1h`, from an agent's cache setting): Anthropic
 honours it, the OpenAI-compatible providers and Ollama log that they cannot. Orkeon Code sets none, so each provider
 keeps its own default lifetime.
@@ -120,9 +120,9 @@ how the next turns run. `/effort` also sets the provider's thinking: the stored 
 `/assistant`, every dev step (`/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement`, `/dev-verify`, `/dev-batches`)
 and the agents these start, and nothing is sent while no level is stored.
 
-`permissions.fallback`, `tools.extra` and `memory.autoAdmitAudited` set in the project file are narrowed by the `orkeonCode` block of the user
-settings: `/config set` writes such a value, then says, under "persisted", that it is ignored and where your own setting
-goes. `/config set --session` is not narrowed.
+`permissions.fallback`, `tools.extra`, `memory.autoAdmitAudited` and `dev.prAuto` set in the project file are narrowed by the `orkeonCode` block of the user
+settings (a project `true` over a user `false` or no value is dropped, with a warning): `/config set` writes such a value, then says, under "persisted", that it is ignored and where your own setting
+goes, and `/doctor`'s row `settings: project file` names it. `/config set --session` is not narrowed.
 
 At the REPL's start the runtime runs the file its key `Orkeon:Cli:Session:StartScript` names, once, and puts what it
 prints before the first request you type. The launcher sets it to `/tmp/orkeon-code/session-start.ork.ts`, a copy of

@@ -36,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of every editing tool, `state-files` the `path` of every tool that writes one file. `structural_rewrite`, whose
   paths the gate cannot read, is denied whole; `edit_batch` is checked operation by operation by the crews' callback,
   as the editor each operation stands for, every `validate` but "parse" refused, and an import's `name` and `module`
-  read by `secrets`. A dev step holds 438 rules.
+  read by `secrets`. A dev step holds 481 rules, 483 with the two allows of `/dev-implement`.
 - **`Orkeon:Tools:ResultLimits` and `Llm:MaxRateLimitWait` in the example settings**: the cut of a tool's result per
   tool (10,000 characters for `shell_command`), four read calls of a turn at once, and a rate-limit wait of five
   minutes ([Configuration](docs/configuration.md)).
@@ -100,8 +100,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   span three batches or more, which code checks. The proposals land in `<work>/learn-<date>/PROPOSALS.md`.
   `--list` prints the untreated gaps per axis, or the rows of one axis, with no model call and no write. `--accept`
   marks a motif's gaps treated and prints the change to make (for a harness file, the patch for the orkeon-workshop
-  repository); it edits no file. `--refuse` records the motif in `.orkeon/memory/refused.md`, which later runs leave
-  out. The harness's own learning state is read, never written: the gaps it treated and the motifs it refused are
+  repository); it edits no file. `--refuse` records the motif in `refused.md` under `memory.dir` (`.orkeon/memory/` by
+  default), which later runs leave out. The harness's own learning state is read, never written: the gaps it treated and the motifs it refused are
   honoured, and a gap's id is the same as the harness's. A run makes up to six model calls (three axes, one retry
   each), which may outlast the REPL's script time limit of 5 minutes: the example settings' 30 minutes
   (`Orkeon:Cli:ScriptCommands:Limits:ExecutionTimeout`) leave room for it.
@@ -275,8 +275,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([Permissions](docs/permissions.md#modes)). Both are ruleable on their arguments (`deny memory_push topic=auth*`).
   The agents of the dev steps, and their children, are given `memory_recall` too, never `memory_push`, and none
   when a session rule denies every call of it.
-- **Sub-agents as background children.** The adversarial review of `/dev-plan` and the audit of `/dev-verify` run in
-  a child agent of their crew (`ctx.spawnBackground`), read-only, with the charter's tools; the step's own agent
+- **Sub-agents as background children.** The adversarial reviews of `/dev-spec`, `/dev-change` and `/dev-plan` and
+  the audit of `/dev-verify` run in a child agent of their crew (`ctx.spawnBackground`), read-only, with the charter's tools; the step's own agent
   keeps the extraction and falls back to the act inline on a host without background children. `/tasks` lists the
   children while they run and after (`show <id>`), stops a running one (`stop <id>`), and answers a send to an
   ended one by a new run of its charter (`send <id> <message>`, `repair <id> [note]`: crew `agent-run`, whose brief
@@ -286,7 +286,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   audit `/dev-implement` chains too) and their children; an unset level sends none. The log of the act
   says `act — effort: <level>`.
 - `/dev-learn` asks, after `PROPOSALS.md` is written, one multi-select per axis: the motifs picked are accepted, the
-  others refused, as `--accept`/`--refuse` do; nobody answering decides nothing.
+  others refused, as `--accept`/`--refuse` do; "Decide later", nothing selected or nobody answering decides nothing.
 - `/dev-plan` and its Blocking stop name `/dev-spec` and `/dev-change` as Orkeon Code's own steps.
 - Sessions are kept per project, outside it: `orkeon-code` starts fresh and moves the last session to the project's
   history, `--continue` (`-c`) brings back the session you quit, `--resume` lists the saved ones and brings one back
@@ -471,25 +471,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **The documentation says what the runtime and the code do.** The main loop's wall time stops while the gate waits
-  for your answer; the read calls of a turn run up to `MaxParallelToolCalls` at once; the shell's confinement
-  defaults to `Auto` (bubblewrap on Linux, Seatbelt on macOS, AppContainer on Windows, none inside a container), the
-  examples setting `None`; `http_api` declares an
-  execute; hooks run in every dev step, `/dev-batches` and `/tasks repair` included; `/permissions` never reads the
-  gate as unknown on the targeted runtime; the auditor has five read tools; `/effort` reaches every dev step;
-  `scripts/run-crew.sh` runs in source mode before rc.6 is published, reads no user settings, and `release.yml`'s
-  runnable archives, installers and npm job are described. Getting started lists what the dev workflow writes in a
-  project and every mount; the README presents the dev workflow, the shared memory and the installers; the roadmap
-  drops what is delivered and records the structural-editor parts still waiting. `/agents` names the verbs its usage
-  line takes. Also fixed: `/commit` and the dev close work in a linked worktree (the message goes under
-  `.orkeon/ORKEON_COMMITMSG`, removed after); a pull-request body that cannot be written is said, never thrown after
-  the push; `/dev-batches` refuses a second plan while a run is in progress, takes a batch committed but not marked
-  done for done, and refuses the plan's close on the default branch when the pack sets `contrib.branch`; `/doctor`
-  shows the version and the `permissions.fallback` it applies; `orkeon-code.ps1` passes `-it` only on a terminal and
-  `--user` on Linux, refuses an unknown mode, has `--help`, and says `--demo` is bash-only; `install.ps1 -Uninstall`
-  never removes a git clone; `session-start.sh` picks state files by their header date, as its twin; `run-crew.sh`'s
-  source mode says when `dotnet` is missing; `scripts/dev-run.sh` refuses the crew `dev-batches`, checks the trust
-  once before the first step and runs each step with no input.
+- **The documentation says what the runtime and the code do, and the wave-7 audit's findings are fixed.**
+  - Documentation: the main loop's wall time stops while the gate waits for your answer; the read calls of a turn
+    run up to `MaxParallelToolCalls` at once; the shell's confinement defaults to `Auto` (bubblewrap on Linux,
+    Seatbelt on macOS, AppContainer on Windows, none inside a container), the examples setting `None`; `http_api`
+    declares an execute; hooks run in every dev step, `/dev-batches` and `/tasks repair` included; `/permissions`
+    never reads the gate as unknown on the targeted runtime; the auditor has five read tools; `/effort` reaches every
+    dev step; `scripts/run-crew.sh` runs in source mode before rc.6 is published, reads no user settings, and
+    `release.yml`'s runnable archives, installers and npm job are described. Getting started lists what the dev
+    workflow writes in a project and every mount, the commit message of a linked worktree included; the README
+    presents the dev workflow, the shared memory and the installers; the roadmap drops what is delivered, records the
+    structural-editor parts still waiting, and keeps the pull-request question of `/commit` a command prompt (W0-C).
+    `/agents` names the verbs its usage line takes, and the steps that run the reviewer (`/dev-spec`, `/dev-change`,
+    `/dev-plan`).
+  - Security and permissions: a dev step holds 481 rules (483 with `/dev-implement`'s two allows): `git-readonly`
+    220 (the reads of `git config` - `--get`, `--get-regexp`, `--list`, `-l`, a bare key - run; its writes stay
+    refused), `inline-interpreters` 28 (a versioned `python3.12 -c`, and an option before `-c` or `-e`: `python3 -I
+    -c`, `perl -w -e`, `ruby -w -e`), `read-noise` 64 (`directory_search` among the path read tools), `state-files`
+    41, `secrets` 128. A pilot kept out of the source roots is refused `structural_search` and `symbol_source`
+    whole. The shell check of the dev crews and of the step guards reads the command as the host does - quotes
+    dropped, blanks and tabs joined, backslash escapes resolved, option clusters split (`git "push"`, `bash  -c`,
+    `python3 -Ic`, `git pu\sh`) - and a relative path that climbs out and back as the project path; a plan source
+    spelt with `.` or `//` segments is checked as the path it names. The shared memory's guard: in every mode, no
+    file tool of the model writes under `<memory.dir>/candidates/` or `entries/` (entries come from `/memory-admit`
+    alone), a stored allow it covers is dropped with a warning, and `/permissions` lists it. `dev.prAuto` from a
+    project file is narrowed as `memory.autoAdmitAudited` is, and an invalid `tools.extra` project entry naming a
+    tool the file also declares validly is dropped. `memory.dir` is refused under `.claude/` or `.git/` in any
+    letter case; a multi-line front-matter field is joined on one line; `/memory-admit --import` refuses an item
+    holding a secret anywhere, before its note is cut; a `memory_push` whose candidate a concurrent push overwrote
+    writes it again under the next id.
+  - Dev steps: the review of `/dev-spec` and `/dev-change` runs in a background child `dev-reviewer`, as
+    `/dev-plan`'s, which `/tasks` lists and stops (inline on a host without background children). `/dev-spec`,
+    `/dev-change`, `/dev-plan`, `/dev-implement` and `/dev-batches` refuse in a read-only mode, an unknown mode, and
+    when the mode cannot be read. Budgets have one source: `/dev-verify` 700 000 tokens, `/dev-plan` 840 000 (240
+    calls of 3 500, its reviewer child inside), `/dev-spec` and `/dev-change` 400 000 with one level of children;
+    a `/tasks repair` (crew `agent-run`) runs under the step of the instance's run - its rule sets, hooks and
+    budget, with no child of its own - else the charter's step (was 300 000 tokens). `/dev-plan`: an anchor spelt
+    `./a/b` or `a//b` is checked as the path it names and one holding a `\` is refused; an anchor in a folder
+    listing 1000 entries or more is said "not checked"; a prompt that leaves no room for the inventory refuses,
+    nothing written. `/dev-change`: an evidence command naming a path out of the checkout through an option
+    (`-o/etc/x`, `--dir=..`, `out=../x`, `-C~`) is refused; a symbol is known by its exact name, last segment, path
+    or basename only. `/dev-spec`, `/dev-change`: a write that fails says "could not be written (<reason>)", and
+    another error (a cancelled question) is no longer reported as one. `/dev-verify`: a validation the gate ran red
+    is a Blocking Test row, so a VALID answer over a red run is GAPS; a verdict file left empty resumes the whole
+    batch; a plan path outside the work folder is refused; a cancelled audit says `the audit was cancelled`; a
+    budget spent while the answer is extracted reads as the spent budget; `run_validation "x \"y\""` and
+    `run_validation(command="...")` are read as the command. `/dev-implement`: a rerun after a BLOCKED cycle runs
+    the suite once before the first new RED; the affected tests are asked with paths relative to the indexed root;
+    the graph's projects no command can name are said; the index is refreshed before the build; `--close` chains on
+    the VALID line of the batch it wrote only. `/dev-batches`: the launch line carries `audits <n>`; a batch whose
+    close was refused at the chain's depth limit is relaunched when its audit did not run. `/dev-learn`: two motifs
+    over the same rows are refused; "Decide later", or nothing selected, decides nothing; it and `--refuse` read and
+    write `refused.md` under `memory.dir`, the file `/memory-admit` and `memory_push` read.
+  - Git and launchers: `/commit` and the dev close work in a linked worktree (the message goes under
+    `.orkeon/ORKEON_COMMITMSG`, removed after); a pull-request body that cannot be written is said, never thrown
+    after the push; `/dev-batches` refuses a second plan while a run is in progress, takes a batch committed but
+    not marked done for done, and refuses the plan's close on the default branch when the pack sets
+    `contrib.branch`; `orkeon-code.ps1` passes `-it` only on a terminal and `--user` on Linux, refuses an unknown
+    mode, has `--help`, and says `--demo` is bash-only; `install.ps1 -Uninstall` never removes a git clone;
+    `session-start.sh` picks state files by their header date, as its twin; `run-crew.sh`'s source mode says when
+    `dotnet` is missing; `scripts/dev-run.sh` refuses the crew `dev-batches`, checks the trust once before the
+    first step and runs each step with no input; the CI npm-shim step passes `--trust`.
+  - Commands: `/doctor` shows a `version` row first and a row `settings: project file` - "widens nothing", or a WARN
+    naming every key the project file set and that was ignored (`permissions.fallback`, `tools.extra`,
+    `memory.autoAdmitAudited`, `dev.prAuto`); `/stats` has a `cacheWrite` column and its `cacheHit` is now
+    `cacheRead`; `/hooks` and `/permissions` name every step that runs the hooks and the rule sets; `/memory-admit`
+    keeps the admissions already confirmed when a question is left unanswered and says which candidates stay;
+    `/tasks` lists the children of `/dev-spec` and `/dev-change`, and settles as dead an open run whose `updatedAt`
+    does not parse; the main loop keeps a non-blank first answer, with a warning, when a stop-check retry throws.
+    Dead exports are un-exported or removed.
 - `/dev-verify`: an audit the step's budget stops still writes its verdict, `GAPS` with one Blocking row that says the
   audit did not finish and why, and the validations that ran before; the step's token budget is 700 000 (a live audit
   of a 3-file batch spent 307 528 of the former 300 000). Its resume takes the gaps of the last audit that finished, or

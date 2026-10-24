@@ -131,8 +131,8 @@ export async function commitSelected(
   const permitted = isCommitPermitted(mode);
   if (!permitted.allowed) return `✗ refused: ${permitted.reason}`;
 
-  // The message goes under the workspace's own .git/ (rw mount, never tracked, no
-  // shell escaping); cwd=/workspace so the relative -F path resolves.
+  // The message goes to a file for `git commit -F` (no shell escaping): under the workspace's .git/, or, in a linked
+  // worktree whose .git is a file, under .orkeon/ and removed after (commit-files.ts).
   const commit = await commitFiles(deps, { files: selection.files, status: selection.status, message });
   if (!commit.ok) return `✗ ${commit.line}`;
   return `✓ committed ${commit.hash} on ${t.branch}\n${commitSubject(message)}`;
