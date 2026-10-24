@@ -19,8 +19,9 @@ import { AgentBuilder, CrewBuilder, publishCrew, inputs, ToolBuilder } from "../
 import { runBuildTool, runTestsTool, scriptToolSlot } from "../../shared/infrastructure/orkeon/script-tools.ts";
 import type { WrappedTools } from "../../shared/application/dev/wrapped-tools.ts";
 import {
-  orkeonConfigStore, orkeonFiles, orkeonPullRequestOpener, orkeonShell, orkeonShellJobs,
+  orkeonConfigStore, orkeonFiles, orkeonMemoryToolPorts, orkeonPullRequestOpener, orkeonShell, orkeonShellJobs,
 } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { MEMORY_RECALL, memoryRecallTool } from "../../shared/infrastructure/orkeon/memory-tools.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { devToolCallbacks } from "../../shared/infrastructure/orkeon/tool-callbacks.ts";
 import { parseSessionRules } from "../../shared/domain/git/pull-request.ts";
@@ -41,6 +42,7 @@ const implementer = AgentBuilder()
   .tools([...CREW_TOOLS])
   .withAutonomousTool(runTestsTool(ToolBuilder, toolSlot))
   .withAutonomousTool(runBuildTool(ToolBuilder, toolSlot))
+  .withAutonomousTool(memoryRecallTool(ToolBuilder, orkeonMemoryToolPorts))
   .maxIterations(60)
   .body(async (_input: any, ctx: any) => {
     const args = inputs();
@@ -55,7 +57,7 @@ const implementer = AgentBuilder()
         // role's roots and the /hooks the command passed. run_tests and run_build check their own commands.
         // `wrote` hears each write those callbacks let through: code keeps a role's own changes, not its runs' output.
         roleLlm: (role, layout, wrote) => createLlm(ctx.llm, reportingWrites(devToolCallbacks(
-          { step: "dev-implement", role, layout, hooks: args.hooks, readTools: [] }, { shell: ports.shell, log: ctx.log },
+          { step: "dev-implement", role, layout, hooks: args.hooks, readTools: [MEMORY_RECALL.name] }, { shell: ports.shell, log: ctx.log },
         ), wrote)),
       },
     );

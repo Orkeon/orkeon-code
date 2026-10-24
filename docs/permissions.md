@@ -11,7 +11,7 @@ and a dev step adds a third:
    execute). When the mode says to ask, it asks you. The gate is `Orkeon:Security:PermissionGate:Enabled`: the
    launcher turns it on unless your settings file turns it off, and without it neither the modes nor the rules are
    enforced. Keep it on.
-3. **The crew's callback**, in `/dev-plan` and `/dev-verify` only. Once the gate has allowed a call, the crew's
+3. **The crew's callback**, in the dev steps only (`/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement` and `/dev-verify`). Once the gate has allowed a call, the crew's
    `onToolCall` checks it again: the step's [rule sets](#rule-sets-of-the-dev-steps) (and a role's roots, for the roles
    of a batch), `glob`, `grep` and `count_pattern` by their whole input, then the `pre-tool` [hooks](hooks.md); after
    the call, the `post-tool` hooks. It can refuse a call, never allow one the gate refused. A call the gate refuses,
@@ -44,8 +44,13 @@ commands it accepts from its own code, in every mode; its auditor only reads, in
 names.
 `/dev-plan` reads the spec or change brief, the pack and the code index. It writes only `<work>/<code>/<CODE>-PLAN.md`,
 the batch sheets and `plan.json`, never a file under `.claude/`; its reviewer only reads, in `plan`, with six read
-tools. Both first put the [rule sets of the dev steps](#rule-sets-of-the-dev-steps) in the gate, and refuse to start
-while the gate is off; their crew's callback checks the same sets again, the only check of them under `orkeon run`.
+tools. `/dev-spec` and `/dev-change` read the request (an issue through `gh issue view`), the pack and the code index,
+and write only `<work>/<code>/SPEC-<code>.md`, or `CHANGE-<code>.md` and `repro-<code>.txt`; `/dev-change` runs the
+reproduction or measure command, a narrow test command of the pack, from its own code. `/dev-implement` runs the
+pack's restore, build and suite from its own code; its two roles write in `acceptEdits`, each inside its roots, and
+after a VALID verdict its close commits the files the roles changed, by name, and pushes the branch. All five first
+put the [rule sets of the dev steps](#rule-sets-of-the-dev-steps) in the gate, and refuse to start while the gate is
+off; their crew's callback checks the same sets again, the only check of them under `orkeon run`.
 
 ## Modes
 
@@ -153,11 +158,12 @@ rule: `/permissions` neither lists nor clears it.
 
 ## Rule sets of the dev steps
 
-`/dev-verify` (unless `--gate-only`) and `/dev-plan` hand the gate rule sets of their own just before their crew
+`/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement` and `/dev-verify` (unless `--gate-only`) hand the gate
+rule sets of their own just before their crew
 starts, and the crew's callback checks them again at each call the gate allows. A call the gate refuses reads the
 gate's own refusal; one only the callback refuses (a `glob` or `grep` reaching a refused path, a path written with
 `./` or `..`, every call under `orkeon run`) names the rule, its set and what to do instead. A set is a list of deny rules built into Orkeon Code, the same in every repository; no setting turns one on or
-off. Both steps put all five sets in force:
+off. Every step puts all five sets in force:
 
 | Set | Rules on | Refuses |
 |---|---|---|
@@ -271,7 +277,11 @@ stored with the session's rules: `/permissions list` does not show them, and `/p
 or the next `/permissions add`, `remove` or `clear`, which hand the gate the session's rules alone. Like every rule,
 they are session-wide: a turn started while a step runs replaces them for the rest of the step.
 
-**The gate must be on.** When the host says its gate is off, both steps refuse to start, because every rule above and
+`/dev-implement` puts the same five sets in the gate, and two allow rules of its own: `run_tests` and `run_build`
+(each checks its command against the pack and the deny rules itself), so the roles, which act in `acceptEdits`, are
+not asked at each test run. The allow rules leave the gate with the step's sets.
+
+**The gate must be on.** When the host says its gate is off, the steps refuse to start, because every rule above and
 the `plan` mode of their auditor or reviewer would check nothing; `/dev-verify F<n> --gate-only` runs no model and
 still runs. On a host that keeps no session rules, the step runs with a warning: the sets are not in force.
 
@@ -329,6 +339,9 @@ The command a tool runs obeys the step's rule sets, not the deny rules of your s
 the session's rules, so `/permissions add deny shell_command ...` does not reach a validation, as it never reached the
 validations `/dev-verify` runs from its own code. To stop one, deny the tool itself (`/permissions add deny
 run_validation`), which the gate sees.
+
+The agents of the dev steps, and the children of `/dev-plan` and `/dev-verify`, are also given
+[`memory_recall`](shared-memory.md) (`read`), to look for precedents in the shared memory; none is given `memory_push`.
 
 ## What a project file may set
 

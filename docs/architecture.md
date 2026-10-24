@@ -256,12 +256,14 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 | `init-verifiers` | sequential | `/init-verifiers` | Detects test tooling, writes verification playbooks for uncovered zones |
 | `advisor` | sequential, no tools | `/advisor` | A second opinion on the last answer from another model |
 | `speech` | sequential, no tools, no LLM | `/transcribe`, `/voice`, `/say` | One call to the speech MCP server (`transcribe_audio`, `list_audio`, `record_and_transcribe`, `speak`), as the command's |
-| `dev-verify` | sequential, four read tools in `plan` | `/dev-verify` (`--gate-only` skips the LLM) | The gate, the capture, one read-only audit, the verdict file |
+| `dev-verify` | sequential, the gate and capture in `dev-verifier`, the audit in a background child `dev-auditor` (four read tools in `plan`, `run_validation`) | `/dev-verify` (`--gate-only` skips the LLM) | The gate, the capture, one read-only audit, the verdict file |
 | `dev-learn` | sequential, no tool, one extract per axis | `/dev-learn` (`--list` skips the LLM) | Recurring verdict gaps into proposals, `PROPOSALS.md` |
-| `dev-plan` | sequential, six read tools in `plan`, one extract | `/dev-plan` | Blocking gate, inventory by the index, plan and sheets written by code, one read-only review |
+| `dev-plan` | sequential, one extract in `dev-planner`, the review in a background child `dev-reviewer` (six read tools in `plan`) | `/dev-plan` | Blocking gate, inventory by the index, plan and sheets written by code, one read-only review |
+| `agent-run` | sequential, one act of a built-in charter (`dev-reviewer`, `dev-auditor`) | `/tasks send`, `/tasks repair` | A new run of an ended child, its brief carrying the previous report and the operator's message |
 | `dev-spec` | sequential, six read tools in `plan`, extracts | `/dev-spec` | Business spec written by code from JSON, its questions asked one at a time through `human_input`, one read-only review |
 | `dev-change` | sequential, six read tools in `plan`, extracts | `/dev-change` | Bug reproduced or cost measured by running, change brief written by code, questions through `human_input`, one review |
 | `dev-implement` | sequential, one agent, two roles in `acceptEdits` (four read tools, two write tools, `run_tests`, `run_build`) | `/dev-implement` (`--close` the close alone) | Each step red then green, checked by code; the build and the suite as jobs; then `/dev-verify` and, on VALID, the commit |
+| `shared-memory-admit` | sequential, no tool, no LLM | `/memory-admit` | Writes the candidates the operator confirmed to the shared memory's entries, the lists, and re-ingests the index |
 
 A folder starting with `_` holds a development probe (`probe.ork.ts`), run with `scripts/run-crew.sh`; none ships
 today.

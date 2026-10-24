@@ -101,15 +101,22 @@ Inside the REPL, `/config` lists, reads and writes the session keys (stored in t
 one), `tools.extra` (below), `voice.reply` ([speech output](#speech-output)), `answer.language` (the language the
 assistant answers in, `/config set answer.language French`, unless a request is written in another one),
 `compaction.trigger` (the token count at which the automatic compaction runs, `/config set compaction.trigger 90k`;
-omitted, the window minus the room one turn needs), `dev.workDir` (the work folder `/dev-status`, `/dev-verify`, `/dev-learn` and `/dev-plan` read, relative to
-the checkout, `/config set dev.workDir backstage/tasks`; omitted, the repository pack's `layout.work`, else
+omitted, the window minus the room one turn needs), `dev.workDir` (the work folder the dev steps read and write, `/dev-status` and `/dev-learn` included,
+relative to the checkout, `/config set dev.workDir backstage/tasks`; omitted, the repository pack's `layout.work`, else
 `workbench`; `/commit` reads it too, and leaves the work folder out of a commit unless a path inside it is named),
 `dev.prAuto` (`true` or `false`, omitted = `false`: `/commit` and the close of a dev step prepare the pull request as
 `--pr` does without being asked, its body under `<work>/pr-<slug>/PR.md`, then open it with the runtime's `github` tool
-when the host offers it and the session allows it, else print the `gh pr create` command to type and say why) or `spinnerVerbs`. `/model`, `/effort`, `/passes`, `/fast`, `/proactive` and `/output-style` change how the next turns
-run.
+when the host offers it and the session allows it, else print the `gh pr create` command to type and say why),
+`memory.dir` (the [shared memory](shared-memory.md)'s folder, relative to the project, `/config set memory.dir
+docs/memory`; omitted, `.orkeon/memory`; never under `.claude/` or `.git/`, never the agent memory's
+`.orkeon/agent-memory`), `memory.project` (the project the entries name and the index collection
+`memory-<project>`, a kebab-case name; omitted, the `origin` remote's name, else `local`),
+`memory.autoAdmitAudited` (`true` or `false`, omitted = `false`: `/memory-admit` admits a candidate an audit backs
+without asking), or `spinnerVerbs`. `/model`, `/effort`, `/passes`, `/fast`, `/proactive` and `/output-style` change
+how the next turns run. `/effort` also sets the provider's thinking: the stored level is sent as the act's `effort` by
+`/assistant`, `/dev-plan` and `/dev-verify`, and nothing is sent while no level is stored.
 
-`permissions.fallback` and `tools.extra` set in the project file are narrowed by the `orkeonCode` block of the user
+`permissions.fallback`, `tools.extra` and `memory.autoAdmitAudited` set in the project file are narrowed by the `orkeonCode` block of the user
 settings: `/config set` writes such a value, then says, under "persisted", that it is ignored and where your own setting
 goes. `/config set --session` is not narrowed.
 

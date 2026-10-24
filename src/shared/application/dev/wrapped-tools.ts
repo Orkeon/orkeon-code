@@ -40,6 +40,8 @@ export interface WrappedToolsSetup {
   rules: readonly PermissionRule[];
   /** Where the logs go, e.g. `/workspace/todo/<code>/logs`. */
   logFolder: string;
+  /** The step restored the tree itself already: run_build then never restores a cold tree again. */
+  restored?: boolean;
 }
 
 export interface WrappedTools {
@@ -56,7 +58,7 @@ function output(command: string, result: ShellResult): string {
 
 export function createWrappedTools(deps: { shell: Pick<Shell, "run">; files: Pick<Files, "write"> }, setup: WrappedToolsSetup): WrappedTools {
   let runs = 0;
-  let restoreTried = false; // the one restore of the step, whatever came of it
+  let restoreTried = setup.restored === true; // the one restore of the step, whatever came of it
   const notRestore: Guard<string> = (command) =>
     isRestore(command, setup.commands) ? `'${command}' restores: no role restores, the step did it once` : null;
   const shellGuards: ReadonlyArray<Guard<string>> = [notRestore, shellRuleGuard(setup.rules)];

@@ -24,7 +24,7 @@ export const TEST_AUTHOR: RoleSpec = {
     BOUNDED_READ_RULE,
     EXACT_EDIT_RULE,
   ].join(" "),
-  tools: [...READ_TOOLS, ...WRITE_TOOLS, "run_tests"],
+  tools: [...READ_TOOLS, ...WRITE_TOOLS, "run_tests", "memory_recall"],
   maxIterations: 40,
 };
 
@@ -37,9 +37,10 @@ export const IMPLEMENTER: RoleSpec = {
     BOUNDED_READ_RULE,
     EXACT_EDIT_RULE,
   ].join(" "),
-  tools: [...READ_TOOLS, ...WRITE_TOOLS, "run_tests", "run_build"],
+  tools: [...READ_TOOLS, ...WRITE_TOOLS, "run_tests", "run_build", "memory_recall"],
   maxIterations: 60,
 };
 
-/** Every tool the crew's agent holds: the union of the two roles' tools, the two script tools apart. */
+/** Every tool the crew's agent holds: the union of the two roles' tools, the script tools apart
+ *  (run_tests, run_build, memory_recall: attached, never named). */
 export const CREW_TOOLS: readonly string[] = [...READ_TOOLS, ...WRITE_TOOLS];

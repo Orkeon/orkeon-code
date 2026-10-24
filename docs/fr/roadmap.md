@@ -16,20 +16,24 @@ demandent d'abord un changement dans [Orkeon](https://github.com/Orkeon/orkeon).
   ([Exécutions autonomes et embarquées](headless.md)).
 - **Intégration en processus** (runtime). La couche de scripting publiée en paquet NuGet, pour qu'une application
   .NET charge les crews sans lancer un processus ; et les crews éprouvés sous le démon `orkeon-host`.
-- **Sessions persistantes.** Reprendre une conversation après la sortie du REPL ; garder le mode de session et les
-  règles de permission d'une session à l'autre. Le runtime sait déjà persister une session (`Persist`) ; Orkeon Code
-  ne le câble pas encore.
+- **Les sessions depuis le REPL.** Une session est gardée par projet et revient au démarrage (`orkeon-code
+  --continue`, `--resume [<numéro ou id>]`) ; `/resume` liste celles qui sont enregistrées mais ne peut pas remplacer
+  la session du REPL lui-même, et changer de session sans redémarrer vient ensuite.
 - **Les hooks dans l'assistant.** Les hooks `pre-tool` et `post-tool` s'exécutent autour des appels d'outils du modèle
-  dans `/dev-plan` et `/dev-verify` ([Hooks](hooks.md)) ; `/assistant` ne les exécute pas encore, et rien n'exécute un
+  dans les étapes dev ([Hooks](hooks.md)) ; `/assistant` ne les exécute pas encore, et rien n'exécute un
   hook `stop`.
+- **Corrections et regroupement dans `/dev-implement`.** La correction d'un verdict GAPS, les étapes d'une même classe
+  de test jouées en un cycle, les tests touchés entre deux tours et le coût d'accès mesuré viennent ensuite ;
+  `/dev-implement` joue pour l'instant des étapes simples.
 - **Coût et usage.** De vrais chiffres de coût par fournisseur, le taux de cache, le comptage des tokens pour
   `/context` et `/usage`. Le runtime rapporte les tokens de cache (`session_stats`) ; les commandes ne les lisent pas
   encore.
 
 ## Plus tard
 
-- Les sous-agents par `spawn_agent` et `ctx.spawnBackground` : le runtime offre les deux, Orkeon Code n'en utilise
-  encore aucun (`/agents` enregistre des configurations ; la délégation n'est pas câblée).
+- Des sous-agents au-delà des étapes dev : la revue de `/dev-plan` et l'audit de `/dev-verify` tournent en enfants
+  d'arrière-plan (`ctx.spawnBackground`) que `/tasks` suit ; un agent enregistré par `/agents` n'est encore que
+  stocké, et l'assistant ne délègue pas.
 - L'éditeur structurel (`node_*`, `edit_batch`, `structural_rewrite`) dans les prompts de l'assistant : les outils
   sont au catalogue, les prompts ne les enseignent pas encore.
 - Une liste de plan ou de tâches que la boucle tient à jour (`/tasks` est une liste manuelle aujourd'hui).
@@ -47,9 +51,11 @@ demandent d'abord un changement dans [Orkeon](https://github.com/Orkeon/orkeon).
   `dontAsk` sans règle d'autorisation (runtime ; [Permissions](permissions.md)). Les outils web et RAG déclarent le
   leur depuis Orkeon #126.
 - La réponse peut être affichée deux fois quand le streaming console est activé.
-- `/tasks` est une liste de choses à faire tenue à la main, pas un moniteur du travail en arrière-plan.
+- `/tasks` ne suit que les enfants de `/dev-plan` et `/dev-verify`, par l'état de session : un arrêt attend le
+  prochain regard du crew (environ une seconde), et un envoi à une instance finie est un nouveau run qui ne connaît
+  que le rapport précédent, pas son contexte.
 - Certaines commandes ne font qu'en partie ce que leur nom promet : `/summary` (pas enregistré en mémoire), `/status`
-  (la version du runtime est l'épinglage, non lue sur l'hôte qui tourne), `/resume` (une session en mémoire),
-  `/context` et `/usage` (totaux seulement, pas de chiffres par catégorie).
+  (la version du runtime est l'épinglage, non lue sur l'hôte qui tourne), `/context` et `/usage` (totaux seulement,
+  pas de chiffres par catégorie).
 - Le runtime enregistre son outil `github` sans jeton : `/commit --pr` reçoit le refus de GitHub (401) tant que l'hôte
   ne peut pas en recevoir un, puis affiche la commande `gh pr create`.

@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
 import {
-  GIT_CHANGED_TRACKED, GIT_DIFF_CHECK, GIT_ORIGIN_HEAD, buildOutputProblem, excludePathspecs, findNewer,
+  GIT_CHANGED_TRACKED, GIT_DIFF_CHECK, buildOutputProblem, excludePathspecs, findNewer,
   gitDiffTracked, gitDiffUntracked, gitMethodGrep, gitStatusShort, gitTestFilesNaming, gitTraitGrep, gitUntracked,
   shellWord,
 } from "./commands.ts";
@@ -37,10 +37,9 @@ describe("buildOutputProblem and excludePathspecs", () => {
 });
 
 describe("the frozen lines", () => {
-  it("GIT_CHANGED_TRACKED, GIT_DIFF_CHECK, GIT_ORIGIN_HEAD", () => {
+  it("GIT_CHANGED_TRACKED, GIT_DIFF_CHECK", () => {
     strictEqual(GIT_CHANGED_TRACKED, "git diff --name-only HEAD");
     strictEqual(GIT_DIFF_CHECK, "git diff --check HEAD");
-    strictEqual(GIT_ORIGIN_HEAD, "git rev-parse --abbrev-ref origin/HEAD");
   });
   it("gitUntracked", () => {
     strictEqual(gitUntracked(EX),

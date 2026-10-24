@@ -266,12 +266,14 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 | `init-verifiers` | séquentiel | `/init-verifiers` | Détecte l'outillage de test, écrit des guides de vérification pour les zones non couvertes |
 | `advisor` | séquentiel, sans outil | `/advisor` | Un second avis sur la dernière réponse, par un autre modèle |
 | `speech` | séquentiel, sans outil, sans LLM | `/transcribe`, `/voice`, `/say` | Un appel au serveur MCP de parole (`transcribe_audio`, `list_audio`, `record_and_transcribe`, `speak`), au nom de la commande |
-| `dev-verify` | séquentiel, quatre outils de lecture en `plan` | `/dev-verify` (`--gate-only` saute le LLM) | La porte, la capture, un audit en lecture seule, le fichier de verdict |
+| `dev-verify` | séquentiel, la porte et la capture dans `dev-verifier`, l'audit dans un enfant d'arrière-plan `dev-auditor` (quatre outils de lecture en `plan`, `run_validation`) | `/dev-verify` (`--gate-only` saute le LLM) | La porte, la capture, un audit en lecture seule, le fichier de verdict |
 | `dev-learn` | séquentiel, sans outil, un extract par axe | `/dev-learn` (`--list` saute le LLM) | Les écarts de verdict qui reviennent, changés en propositions, `PROPOSALS.md` |
-| `dev-plan` | séquentiel, six outils de lecture en `plan`, un extract | `/dev-plan` | Porte des questions Blocking, inventaire par l'index, plan et fiches écrits par le code, une revue en lecture seule |
+| `dev-plan` | séquentiel, un extract dans `dev-planner`, la revue dans un enfant d'arrière-plan `dev-reviewer` (six outils de lecture en `plan`) | `/dev-plan` | Porte des questions Blocking, inventaire par l'index, plan et fiches écrits par le code, une revue en lecture seule |
+| `agent-run` | séquentiel, un act d'une charte intégrée (`dev-reviewer`, `dev-auditor`) | `/tasks send`, `/tasks repair` | Un nouveau run d'un enfant fini, son brief portant le rapport précédent et le message de l'opérateur |
 | `dev-spec` | séquentiel, six outils de lecture en `plan`, des extracts | `/dev-spec` | Spécification métier écrite par le code depuis le JSON, ses questions posées une à une par `human_input`, une revue en lecture seule |
 | `dev-change` | séquentiel, six outils de lecture en `plan`, des extracts | `/dev-change` | Bug reproduit ou coût mesuré en exécutant, fiche de changement écrite par le code, questions par `human_input`, une revue |
 | `dev-implement` | séquentiel, un agent, deux rôles en `acceptEdits` (quatre outils de lecture, deux d'écriture, `run_tests`, `run_build`) | `/dev-implement` (`--close` : la clôture seule) | Chaque étape rouge puis verte, vérifiée par le code ; le build et la suite en jobs ; puis `/dev-verify` et, sur VALID, le commit |
+| `shared-memory-admit` | séquentiel, sans outil, sans LLM | `/memory-admit` | Écrit dans les entrées de la mémoire partagée les candidats que l'opérateur a confirmés, les listes, et réindexe |
 
 Un dossier commençant par `_` contient une sonde de développement (`probe.ork.ts`), lancée avec
 `scripts/run-crew.sh` ; aucune n'est livrée aujourd'hui.

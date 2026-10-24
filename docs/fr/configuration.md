@@ -106,16 +106,22 @@ par exemple `permissions.fallback` (le mode utilisé quand ni un préfixe ni `/m
 l'assistant répond, `/config set answer.language French`, sauf si une requête est écrite dans une autre),
 `compaction.trigger` (le nombre de tokens auquel la compaction automatique se déclenche,
 `/config set compaction.trigger 90k` ; omis, la fenêtre moins la place dont un tour a besoin), `dev.workDir` (le
-dossier de travail que lisent `/dev-status`, `/dev-verify`, `/dev-learn` et `/dev-plan`, relatif au checkout, `/config set dev.workDir backstage/tasks` ; omis, le
+dossier de travail que lisent et écrivent les étapes dev, `/dev-status` et `/dev-learn` compris, relatif au checkout, `/config set dev.workDir backstage/tasks` ; omis, le
 `layout.work` du pack du dépôt, sinon `workbench` ; `/commit` le lit aussi, et laisse le dossier de travail hors d'un
 commit sauf si un chemin qu'il contient est nommé), `dev.prAuto` (`true` ou `false`, omis = `false` : `/commit` et
 la clôture d'une étape dev préparent la pull request comme le fait `--pr` sans qu'on le demande, son corps sous
 `<work>/pr-<slug>/PR.md`, puis l'ouvrent avec l'outil `github` du runtime quand l'hôte le propose et que la session le
-permet, sinon affichent la commande `gh pr create` à taper et disent pourquoi) ou `spinnerVerbs`.
+permet, sinon affichent la commande `gh pr create` à taper et disent pourquoi),
+`memory.dir` (le dossier de la [mémoire partagée](shared-memory.md), relatif au projet, `/config set memory.dir
+docs/memory` ; omis, `.orkeon/memory` ; jamais sous `.claude/` ni `.git/`, jamais le `.orkeon/agent-memory` de la
+mémoire d'agent), `memory.project` (le projet que nomment les entrées et la collection d'index `memory-<project>`, un
+nom kebab-case ; omis, le nom du remote `origin`, sinon `local`), `memory.autoAdmitAudited` (`true` ou `false`, omis
+= `false` : `/memory-admit` admet sans demander un candidat qu'un audit appuie) ou `spinnerVerbs`.
 `/model`, `/effort`, `/passes`, `/fast`, `/proactive` et `/output-style` changent la façon dont les prochains tours
-s'exécutent.
+s'exécutent. `/effort` règle aussi la réflexion du fournisseur : le niveau enregistré est envoyé comme `effort` de
+l'act par `/assistant`, `/dev-plan` et `/dev-verify`, et rien n'est envoyé tant qu'aucun niveau n'est enregistré.
 
-`permissions.fallback` et `tools.extra` réglés dans le fichier du projet sont restreints par le bloc `orkeonCode` des
+`permissions.fallback`, `tools.extra` et `memory.autoAdmitAudited` réglés dans le fichier du projet sont restreints par le bloc `orkeonCode` des
 réglages de l'utilisateur : `/config set` écrit une telle valeur, puis dit, sous "persisted", qu'elle est ignorée et
 où va votre propre réglage. `/config set --session` n'est pas restreint.
 

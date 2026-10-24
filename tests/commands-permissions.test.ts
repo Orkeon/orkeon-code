@@ -10,7 +10,7 @@ import { strictEqual, deepStrictEqual, ok } from "node:assert";
 import { PERMISSIONS_USAGE, runPermissions } from "../src/commands/_lib/permissions.ts";
 import { CONFIG_FILE_PATH, USER_CONFIG_FILE_PATH, createConfigStore } from "../src/shared/application/config-store.ts";
 import { createSessionIo } from "../src/shared/application/session-io.ts";
-import { RULEABLE_TOOLS, readRule, scriptToolAccess, toolsetFor } from "../src/shared/domain/agent-policy/permission.ts";
+import { MEMORY_TOOLS, RULEABLE_TOOLS, readRule, scriptToolAccess, toolsetFor } from "../src/shared/domain/agent-policy/permission.ts";
 import type { PermissionRule } from "../src/shared/domain/agent-policy/permission.ts";
 import { RULE_SETS } from "../src/shared/domain/agent-policy/rule-sets.ts";
 import { resolveFallbackMode } from "../src/shared/domain/permission-modes.ts";
@@ -87,7 +87,8 @@ describe("/permissions show", () => {
     const lines = (await run()).text!.split("\n");
     strictEqual(lines[0], "session default mode : default ");
     strictEqual(lines[1], `  ↳ source           : ${resolveFallbackMode(undefined).explanation}`);
-    strictEqual(lines[3], `tool catalogue       : ${toolsetFor("default").join(", ")}`);
+    // The shared memory's tools follow the catalogue: both in default.
+    strictEqual(lines[3], `tool catalogue       : ${[...toolsetFor("default"), ...MEMORY_TOOLS].join(", ")}`);
     // spawn_agent is in no catalogue, yet no mode withholds it: the script host appends it to every act.
     strictEqual(lines[4], "  ↳ withheld by mode : (none)");
     strictEqual(lines[5], "  ↳ removed by rule  : (none)");
@@ -98,6 +99,14 @@ describe("/permissions show", () => {
     deepStrictEqual(lines.slice(16), GATE_ON, "the host says its gate is on");
     deepStrictEqual(await run("show"), await run());
     deepStrictEqual(gate.calls, [], "show hands the gate nothing");
+  });
+
+  it("lists the shared memory's tools the mode offers, and one a deny rule removes whole", async () => {
+    const { run, seedRules } = setup();
+    seedRules("deny:memory_push");
+    const lines = (await run("show")).text!.split("\n");
+    strictEqual(lines[3], `tool catalogue       : ${[...toolsetFor("default"), "memory_recall"].join(", ")}`);
+    strictEqual(lines[5], "  ↳ removed by rule  : memory_push");
   });
 
   it("shows the /mode default, what it withholds, what the rules change, and why a rule is inert", async () => {
@@ -111,8 +120,9 @@ describe("/permissions show", () => {
     const lines = (await run("show")).text!.split("\n");
     strictEqual(lines[0], "session default mode : plan (read-only)");
     strictEqual(lines[1], "  ↳ source           : set by /mode (session state)");
-    // Orkeon Code's own tools belong to the dev crews that attach them: never listed for the session.
-    const withheld = RULEABLE_TOOLS.filter((t) => !toolsetFor("plan").includes(t) && scriptToolAccess(t) === undefined);
+    // Orkeon Code's own tools belong to the dev crews that attach them: never listed for the session, except the
+    // shared memory's, which plan offers memory_recall of and withholds memory_push.
+    const withheld = RULEABLE_TOOLS.filter((t) => !toolsetFor("plan").includes(t) && (scriptToolAccess(t) === undefined || t === "memory_push"));
     strictEqual(lines[4], `  ↳ withheld by mode : ${withheld.join(", ")}`);
     strictEqual(lines[5], "  ↳ removed by rule  : file_read");
     strictEqual(lines[6], "session rules        : deny file_read, allow shell_command command=npm test*");
@@ -305,7 +315,7 @@ describe("/permissions — the extra tools of tools.extra", () => {
     const { store, run, extraTools } = setup();
     await extraTools("transcribe_audio:read, search_issues, gone:read, bad:exec", "transcribe_audio", "search_issues");
     let lines = (await run("show")).text!.split("\n");
-    strictEqual(lines[3], `tool catalogue       : ${toolsetFor("default", EXTRAS).join(", ")}`);
+    strictEqual(lines[3], `tool catalogue       : ${[...toolsetFor("default", EXTRAS), ...MEMORY_TOOLS].join(", ")}`);
     // spawn_agent is in no catalogue, yet no mode withholds it: the script host appends it to every act.
     strictEqual(lines[4], "  ↳ withheld by mode : (none)");
     strictEqual(lines[6],
@@ -313,7 +323,7 @@ describe("/permissions — the extra tools of tools.extra", () => {
     strictEqual(lines.length, 19);
     store.state.set(DEFAULT_MODE_STATE_KEY, "dontAsk");
     lines = (await run("show")).text!.split("\n");
-    strictEqual(lines[3], `tool catalogue       : ${toolsetFor("dontAsk", EXTRAS).join(", ")}`);
+    strictEqual(lines[3], `tool catalogue       : ${[...toolsetFor("dontAsk", EXTRAS), "memory_recall"].join(", ")}`);
     ok(lines[3].includes("transcribe_audio") && !lines[3].includes("search_issues"), lines[3]);
     ok(lines[4].endsWith(", search_issues"), lines[4]);
   });

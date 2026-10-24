@@ -38,14 +38,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tool (10,000 characters for `shell_command`), four read calls of a turn at once, and a rate-limit wait of five
   minutes ([Configuration](docs/configuration.md)).
 
-- **Rule sets for the dev steps**: `/dev-verify` (except `--gate-only`) and `/dev-plan` now put five sets of deny
-  rules in the permission gate before their crew starts. `git-readonly` refuses git commands that change the
-  repository, also behind a path, an `env`, a chain or `-C`. `inline-interpreters` refuses `bash -c`, `node -e` and
-  the like. `read-noise` refuses reads under `bin/`, `obj/`, `.git/` and `node_modules/`. `secrets` refuses written
-  content holding a private key or a token with a known prefix. `state-files` refuses writes to the batch logs, verdicts, captures, `.orkeon/` and
-  `.claude/`. The sets are not stored with the session's rules. `/permissions` shows them grouped while they stay in
-  the gate, until the next `/assistant` turn or rule change. Both steps now **refuse to start when the host says its
-  permission gate is off** (`/dev-plan` warned before), and warn when the host cannot say.
+- **Rule sets for the dev steps**: `/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement` and `/dev-verify` (except
+  `--gate-only`) now put five sets of deny rules in the permission gate before their crew starts. `git-readonly`
+  refuses git commands that change the repository, also behind a path, an `env`, a chain or `-C`.
+  `inline-interpreters` refuses `bash -c`, `node -e` and the like. `read-noise` refuses reads under `bin/`, `obj/`,
+  `.git/` and `node_modules/`. `secrets` refuses written content holding a private key or a token with a known prefix.
+  `state-files` refuses writes to the batch logs, verdicts, captures, `.orkeon/` and `.claude/`. The sets are not
+  stored with the session's rules. `/permissions` shows them grouped while they stay in the gate, until the next
+  `/assistant` turn or rule change. The steps now **refuse to start when the host says its permission gate is off**
+  (`/dev-plan` warned before), and warn when the host cannot say.
+- **`/dev-spec <code> [<brief> | <path>.md | <request>]`**: a business spec written by code from the model's JSON
+  (template sections 1-12, § 13 Decisions), its open questions asked one at a time through `human_input` - Blocking
+  first, the recommended option first, each answer written to the file before the next question - then folded into
+  the body; one read-only review whose Blocking rows are asked too. Unattended, the questions stay in the file and the
+  step reads `BLOCKED`, never a default answer. An existing spec is revised, its decisions kept.
+- **`/dev-change <code> bug|refactor|perf [--run "<command>"] [<#issue | path | text>]`**: a change brief; a bug is
+  reproduced by running a narrow test command of the pack (or the CLI) before anything is written and stops when it
+  does not fail, a perf change is measured, the output kept in `repro-<code>.txt`; an issue is read by
+  `gh issue view`; a request that is a feature is sent to `/dev-spec`; a pin the code index does not show reads
+  `unpinned`. Questions, fold and review as `/dev-spec`.
 - **`/dev-plan [<code> | <path>/SPEC-<code>.md | <path>/CHANGE-<code>.md] [--replace]`**: plans a settled spec or
   change brief as batches. A Blocking row in the source's open questions stops it at once, before any crew starts,
   with the rows and the command that settles them. Otherwise an inventory of the existing code is drawn from the code
@@ -55,10 +66,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   go under the batch they target, a Blocking row marks the plan blocked. An existing plan is refused; `--replace`
   writes over it only while no batch is done and nothing is ticked, and never with fewer batches than before, since
   a stale sheet cannot be removed for you. Pack keys that are missing (`commands.build_test`, `commands.test_project`,
-  `commands.test_integration`) are named in a warning, to fill in the plan or the pack. The next step is printed as
-  the harness's `/dev-implement` (or `/dev-batches`) until Orkeon Code ships its own. A run, with the index build,
+  `commands.test_integration`) are named in a warning, to fill in the plan or the pack. The next step is printed:
+  `/dev-implement F1`, or the harness's `/dev-batches` when several batches can start. A run, with the index build,
   two model calls and a review of up to 20 turns, may outlast the REPL's script time limit of 5 minutes: the example
   settings' 30 minutes (`Orkeon:Cli:ScriptCommands:Limits:ExecutionTimeout`) leave room for it.
+- **`/dev-implement F<n> [<code> | <path>/<CODE>-PLAN.md] [--close] [--pr]`**: runs one batch sheet test-first. For
+  each open step, the test author writes the step's red tests (test files only) and the implementer the least code
+  that turns them green (test files read-only), two acts of one agent, each with its own tools and its own deny
+  rules. Code writes both briefs from the sheet and the pack, looks at the tree before and after each act, runs the
+  step's narrow test command itself, and ticks `RED`, `GREEN` and `COST` only once it saw what each box stands for:
+  a production file written before a red test, a test green at once, a test file changed while turning it green or
+  a port call in a loop stops the batch with `BLOCKED`, nothing ticked past it. A run resumes at the first open step.
+  The pack's restore runs once; the build and the whole suite then run as shell jobs, looked at every 20 s for an
+  hour at most, their log under `<work>/<code>/logs/`. A batch all ticked and green goes on to `/dev-verify`, and a
+  VALID verdict to the close: the files the roles changed are committed by name, pushed, and the pull request opened
+  or handed over. `--close` runs the close alone; a correction (`F<n> — correction: …`) is not run yet.
 - **`/dev-learn [<axis>] [--list] | --accept <id>[,<id>…] | --refuse <id | motif text>`**: learns from the audits.
   It reads the Blocking and Major rows of the `GAPS` sections of every `<CODE>-VERIFY-F<n>.md` in the work folder,
   keeps those not treated yet, and per axis asks the model, in one call, to group them into motifs; a motif must
@@ -77,7 +99,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   mechanical table), runs the whole suite under `full`, and hands the batch to a read-only auditor (plan mode, four
   read tools) whose narrow test commands code runs for it. The verdict lands in `<CODE>-VERIFY-F<n>.md`, in the
   format the harness reads back; `resume` appends a dated section. `--gate-only` runs the gate alone, with no
-  model call and no write. It does not commit or push yet. A `full` run
+  model call and no write. It commits nothing; the close of `/dev-implement` does, after a VALID verdict. A `full` run
   can take about an hour at worst (build 900 s, whole suite 900 s, three validations of 300 s each, plus the model's
   time), past the REPL's script time limit (`Orkeon:Cli:ScriptCommands:Limits:ExecutionTimeout`, 5 minutes by
   default, 30 minutes in the example settings): raise it to 60 minutes or more before a `full` run. A test names the
@@ -175,21 +197,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   every mode, a `write` tool in `default`, `acceptEdits` and `bypassPermissions`; a name the host does not register is
   left out of the turn with a warning. `/config set` checks the entries, permission rules may name these tools, and
   `/permissions` shows them ([Configuration](docs/configuration.md#extra-tools-mcp-servers-and-plugins)).
-- **Hooks that fire.** In `/dev-plan` and `/dev-verify`, each `pre-tool` hook of `/hooks` runs before a tool call
-  of the model the host gate allowed, and the first that fails refuses the call; each `post-tool` hook runs after it,
-  and one that fails adds a line to the result the model reads. `{tool}`, `{event}` and `{path}` in the command are
-  replaced by the call's; a hook is one program and its arguments, as the shell tool runs it, so `/hooks add` refuses
-  a command holding a shell operator. The assistant does not run them yet, and nothing runs a `stop` hook
-  ([Hooks](docs/hooks.md)).
-- **The dev crews' tool callback.** After the host gate allowed a call, the crews of `/dev-plan` and `/dev-verify`
-  check it again: the step's rule sets (their only check under `orkeon run`, which keeps no session rules), `glob`,
-  `grep` and `count_pattern` by their whole input, a path as written and normalised (`./`, `//`, `..`), and, when
-  the host has no gate, the act's mode. It refuses with
-  the rule, its set and what to do instead; it never allows a call the gate refused. A role of a batch (L-6) adds
-  its roots ([Permissions](docs/permissions.md)).
-- The dev steps' own tools: `run_validation` lets the `/dev-verify` auditor run up to three narrow test commands
-  of the repository pack itself, and the verdict cites each run; `run_tests` and `run_build` are ready for the
-  writing roles, each command checked against the pack, the integration and restore rules and the step's rules
+- **Hooks that fire.** In the dev steps (`/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement`, `/dev-verify`),
+  each `pre-tool` hook of `/hooks` runs before a tool call of the model the host gate allowed, and the first that
+  fails refuses the call; each `post-tool` hook runs after it, and one that fails adds a line to the result the model
+  reads. `{tool}`, `{event}` and `{path}` in the command are replaced by the call's; a hook is one program and its
+  arguments, as the shell tool runs it, so `/hooks add` refuses a command holding a shell operator. The assistant does
+  not run them yet, and nothing runs a `stop` hook ([Hooks](docs/hooks.md)).
+- **The dev crews' tool callback.** After the host gate allowed a call, the crews of the dev steps check it again: the
+  step's rule sets (their only check under `orkeon run`, which keeps no session rules), `glob`, `grep` and
+  `count_pattern` by their whole input, a path as written and normalised (`./`, `//`, `..`), and, when the host has no
+  gate, the act's mode. It refuses with the rule, its set and what to do instead; it never allows a call the gate
+  refused. A role of a batch (L-6) adds its roots ([Permissions](docs/permissions.md)).
+- The dev steps' own tools: `run_validation` lets the `/dev-verify` auditor run up to three narrow test commands of
+  the repository pack itself, and the verdict cites each run; `run_tests` and `run_build` serve the writing roles of
+  `/dev-implement`, each command checked against the pack, the integration and restore rules and the step's rules
   before it runs, its whole output in a log file.
 - `/dev-verify` measures the access cost of a batch: it refreshes the batch's changed files in the code index
   (`incremental_reindex`), runs `access_cost` over them and prints the `Cost:` line under the gate; a port call or an
@@ -226,6 +247,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`orkeon init`) is used and the REPL reads it itself. `orkeon-code setup` writes the file (mode 600) from an example,
   asking the model and the name of the key's variable, never the key; it runs by itself on a first start in a
   terminal with no settings.
+
+- **The shared memory** ([Shared memory](docs/shared-memory.md)): admitted decisions, code structures, methods and
+  mistakes kept under `memory.dir` (default `.orkeon/memory`), one file per entry, indexed in the collection
+  `memory-<project>`. Nothing enters it without the operator: `memory_push` and the audit harvest write candidates,
+  `/memory-admit` asks once per candidate (a headless session admits nothing; `memory.autoAdmitAudited` admits an
+  audited one unasked), `--refuse` keeps a topic out for good. `memory.dir`, `memory.project` and
+  `memory.autoAdmitAudited` are new settings; a project file's `memory.autoAdmitAudited true` needs the user's.
+- **`memory_recall` and `memory_push`**, Orkeon Code's own tools in the REPL's turns: the recall reads, in every
+  mode; the push writes a candidate file, offered only where the mode edits, asked in `default`
+  ([Permissions](docs/permissions.md#modes)). Both are ruleable on their arguments (`deny memory_push topic=auth*`).
+  The agents of the dev steps, and their children, are given `memory_recall` too, never `memory_push`.
+- **Sub-agents as background children.** The adversarial review of `/dev-plan` and the audit of `/dev-verify` run in
+  a child agent of their crew (`ctx.spawnBackground`), read-only, with the charter's tools; the step's own agent
+  keeps the extraction and falls back to the act inline on a host without background children. `/tasks` lists the
+  children while they run and after (`show <id>`), stops a running one (`stop <id>`), and answers a send to an
+  ended one by a new run of its charter (`send <id> <message>`, `repair <id> [note]`: crew `agent-run`, whose brief
+  carries the previous report). A send to a running child is refused. `/agents` lists the two built-in charters.
+- **`/effort` reaches the provider.** The level `/effort` stored is sent as the act's `effort` (provider thinking)
+  by `/assistant`, `/dev-plan` and `/dev-verify` and their children; an unset level sends none. The log of the act
+  says `act — effort: <level>`.
+- `/dev-learn` asks, after `PROPOSALS.md` is written, one multi-select per axis: the motifs picked are accepted, the
+  others refused, as `--accept`/`--refuse` do; nobody answering decides nothing.
+- `/dev-plan` and its Blocking stop name `/dev-spec` and `/dev-change` as Orkeon Code's own steps.
+- Sessions are kept per project, outside it: `orkeon-code` starts fresh and moves the last session to the project's
+  history, `--continue` (`-c`) brings back the session you quit, `--resume` lists the saved ones and brings one back
+  (`--resume <number or id>` without asking); the newest 50 are kept (`ORKEON_CODE_SESSIONS_KEEP`).
+- `/resume` lists this project's saved sessions and says how to bring one back.
+- `/doctor` warns when an older start left sessions in the project's `.orkeon/sessions`.
 
 ### Changed
 
@@ -347,6 +396,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `/usage`: the `cacheHit` column is now `cacheRead`, next to the new `cacheWrite`.
 - `docs/configuration.md`: `Llm:MaxRateLimitWait` and `Llm:Profiles:<name>:MaxRateLimitWait` detailed
   (`LlmRateLimitException`), and the prompt cache (`orkeon:cache_ttl`, not set by Orkeon Code).
+
+- `/tasks` is an async command: the task list (`add`, `done`, `clear`) as before, the agent instances under it.
+- A crew launched from a command's completion past the chain's limit (`Orkeon:Cli:ScriptCommands:MaxChainDepth`,
+  default 8) is refused with a line that says so, instead of an unexplained failure.
+- An install keeps each project's state under `~/.orkeon-code/projects/<name>-<hash>/` (was `~/.orkeon-code/state/`,
+  shared by every project); a clone and `ORKEON_CODE_STATE` keep theirs under `projects/<name>-<hash>/`. The old
+  `~/.orkeon-code/state/` is left alone.
+- A bare `--llm-log` writes the LLM log to the project's state folder (`llm-logs/`), never into the project (#181).
+- The example settings set `Orkeon:Cli:Session:Persist: true`.
 
 ### Removed
 

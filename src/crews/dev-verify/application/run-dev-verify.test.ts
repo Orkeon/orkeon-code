@@ -13,7 +13,7 @@ import { FakeShell } from "../../../../tests/support/fake-shell.ts";
 import { createConfigStore } from "../../../shared/application/config-store.ts";
 import { GIT_TOPLEVEL } from "../../../shared/application/dev/resolve-work-folder.ts";
 import { ORKEON_IGNORE_PROBE, checkIgnoreCommand } from "../../../shared/application/dev/load-dev-context.ts";
-import { GIT_DIFF_CHECK, GIT_ORIGIN_HEAD, excludePathspecs, gitMethodGrep } from "../domain/commands.ts";
+import { GIT_DIFF_CHECK, excludePathspecs, gitMethodGrep } from "../domain/commands.ts";
 import type { CostIndex } from "../../../shared/application/ports.ts";
 import { COST_NOT_WIRED, costSummary } from "../../../shared/domain/dev/access-cost.ts";
 import { runDevVerify } from "./run-dev-verify.ts";
@@ -49,7 +49,6 @@ function setup() {
   shell.results["git diff --name-only HEAD"] = { stdout: "src/a.ts\nworkbench/demo/DEMO-PLAN-F2.md\n" };
   shell.results[UNTRACKED] = { stdout: "tests/a.test.ts\n" };
   shell.results[TRAIT_GREP] = { stdout: 'tests/a.test.ts:3:[Trait("BR", "BR-01")]\n' };
-  shell.results[GIT_ORIGIN_HEAD] = { stdout: "origin/main\n" };
   shell.results[checkIgnoreCommand([ORKEON_IGNORE_PROBE, "workbench/"])] = { stdout: ".orkeon/config.json\nworkbench/\n" };
   shell.results[gitMethodGrep(["ShowsTheState"], ["tests"], excludePathspecs(["bin", "obj"])) ?? ""] =
     { stdout: "tests/a.test.ts:1:ShowsTheState\n" };
@@ -103,8 +102,8 @@ describe("runDevVerify — the verdict", () => {
       COST_LINE,
       ...written.trimEnd().split("\n"),
       "written: workbench/demo/DEMO-VERIFY-F2.md — capture: workbench/demo/capture-F2/",
-      "→ Batch F2 VALID. Orkeon Code does not commit yet: commit the batch's files with the repository's convention " +
-        "(conventional commits), push, then open the pull request (gh pr create --base main).",
+      "→ Batch F2 VALID. The close commits the batch's files: /dev-implement F2 <code> --close " +
+        "(run by itself when /dev-implement launched this audit).",
       "  files: src/a.ts, tests/a.test.ts",
     ]);
     strictEqual(f.llm.acts.length, 1);
@@ -170,7 +169,7 @@ describe("runDevVerify — the verdict", () => {
     ok(lines.includes("## Verdict — GAPS"));
     deepStrictEqual(lines.slice(-2), [
       "→ /dev-implement F2 — correction: Major Reuse: parses dates by hand",
-      "  then /dev-verify F2 resume (the correction runs in the harness until Orkeon Code has its own /dev-implement)",
+      "  then /dev-verify F2 resume (a correction runs in the harness until /dev-implement runs one)",
     ]);
   });
 

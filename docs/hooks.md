@@ -13,8 +13,8 @@ They last until `/clear` or the end of the REPL, like the [permission rules](per
 
 ## Where they run
 
-The dev steps `/dev-plan` and `/dev-verify` hand the registry to their crew. For each tool call the model makes in
-that crew, once the [host gate](permissions.md) has allowed it:
+The dev steps `/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement` and `/dev-verify` hand the registry to
+their crew. For each tool call the model makes in that crew, once the [host gate](permissions.md) has allowed it:
 
 1. the crew's callback checks the call again against the step's rule sets (and, for a role of a batch, against its
    roots); a call they refuse runs no hook;

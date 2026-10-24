@@ -95,6 +95,15 @@ describe("run_build", () => {
     ok(log.includes(`$ ${COMMANDS.restore}`) && log.includes("NETSDK1004"), log);
   });
 
+  it("never restores when the step restored the tree itself", async () => {
+    const shell = new FakeShell();
+    const tools = createWrappedTools({ shell, files: new FakeFiles() }, { commands: COMMANDS, rules: [], logFolder: LOGS, restored: true });
+    shell.results[COMMANDS.build as string] = { exitCode: 1, stdout: COLD };
+    const out = await tools.runBuild({});
+    strictEqual(out.ok && out.restored, false);
+    deepStrictEqual(shell.commands, [COMMANDS.build]);
+  });
+
   it("restores at most once for the step, even when the tree stays cold", async () => {
     const f = setup();
     const build = "dotnet build Orkeon.sln --no-restore";

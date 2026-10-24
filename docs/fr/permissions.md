@@ -11,7 +11,7 @@ agissent à deux niveaux, et une étape dev en ajoute un troisième :
    outil déclare (lecture, modification, exécution). Quand le mode dit de demander, il vous demande. La garde est
    `Orkeon:Security:PermissionGate:Enabled` : le lanceur l'active sauf si votre fichier de settings la désactive, et
    sans elle ni les modes ni les règles ne sont appliqués. Laissez-la active.
-3. **Le callback du crew**, dans `/dev-plan` et `/dev-verify` seulement. Une fois l'appel permis par la garde, le
+3. **Le callback du crew**, dans les étapes dev seulement (`/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement` et `/dev-verify`). Une fois l'appel permis par la garde, le
    `onToolCall` du crew le contrôle à nouveau : les [jeux de règles](#jeux-de-règles-des-étapes-dev) de l'étape (et les
    racines d'un rôle, pour les rôles d'un lot), `glob`, `grep` et `count_pattern` sur toute leur entrée, puis les
    [hooks](hooks.md) `pre-tool` ; après l'appel, les hooks `post-tool`. Il peut refuser un appel, jamais permettre un
@@ -49,7 +49,12 @@ lire, en `plan`, avec quatre outils de lecture.
 proposition nomme.
 `/dev-plan` lit la spec ou la fiche de changement, le pack et l'index du code. Il n'écrit que
 `<work>/<code>/<CODE>-PLAN.md`, les fiches de lot et `plan.json`, jamais un fichier sous `.claude/` ; son relecteur ne
-fait que lire, en `plan`, avec six outils de lecture. Les deux placent d'abord dans la garde les
+fait que lire, en `plan`, avec six outils de lecture. `/dev-spec` et `/dev-change` lisent la demande (une issue par
+`gh issue view`), le pack et l'index du code, et n'écrivent que `<work>/<code>/SPEC-<code>.md`, ou `CHANGE-<code>.md`
+et `repro-<code>.txt` ; `/dev-change` lance la commande de reproduction ou de mesure, une commande de test étroite du
+pack, depuis son propre code. `/dev-implement` lance le restore, le build et la suite du pack depuis son propre code ;
+ses deux rôles écrivent en `acceptEdits`, chacun dans ses racines, et après un verdict VALID sa clôture commite par
+leur nom les fichiers que les rôles ont changés, et pousse la branche. Les cinq placent d'abord dans la garde les
 [jeux de règles des étapes dev](#jeux-de-règles-des-étapes-dev), et refusent de démarrer tant que la garde est inactive ;
 le callback de leur crew contrôle à nouveau les mêmes jeux, seul contrôle de ceux-ci sous `orkeon run`.
 
@@ -165,12 +170,13 @@ règles de la session. Une réponse `[s]` n'est pas une règle : `/permissions` 
 
 ## Jeux de règles des étapes dev
 
-`/dev-verify` (sauf avec `--gate-only`) et `/dev-plan` remettent à la garde des jeux de règles qui leur sont propres
+`/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement` et `/dev-verify` (sauf avec `--gate-only`) remettent à la
+garde des jeux de règles qui leur sont propres
 juste avant le démarrage de leur crew, et le callback du crew les contrôle à nouveau à chaque appel que la garde
 permet. Un appel que la garde refuse lit le refus de la garde ; celui que seul le callback refuse (un `glob` ou un
 `grep` qui atteint un chemin refusé, un chemin écrit avec `./` ou `..`, chaque appel sous `orkeon run`) nomme la
 règle, son jeu et ce qu'il faut faire à la place. Un jeu est une liste de règles deny intégrée à Orkeon Code, la même dans tous
-les dépôts ; aucun réglage ne l'active ni ne le désactive. Les deux étapes mettent en vigueur les cinq jeux :
+les dépôts ; aucun réglage ne l'active ni ne le désactive. Chaque étape met en vigueur les cinq jeux :
 
 | Jeu | Règles sur | Refuse |
 |---|---|---|
@@ -287,7 +293,12 @@ jusqu'au prochain tour `/assistant` ou au prochain `/permissions add`, `remove` 
 seules règles de la session. Comme toute règle, ils valent pour toute la session : un tour lancé pendant qu'une étape
 s'exécute les remplace pour le reste de l'étape.
 
-**La garde doit être active.** Quand l'hôte dit que sa garde est inactive, les deux étapes refusent de démarrer, car
+`/dev-implement` place les mêmes cinq jeux dans la garde, et deux règles allow qui lui sont propres : `run_tests` et
+`run_build` (chacun vérifie lui-même sa commande contre le pack et les règles deny), pour que les rôles, qui agissent
+en `acceptEdits`, ne soient pas interrogés à chaque passage des tests. Les règles allow quittent la garde avec les
+jeux de l'étape.
+
+**La garde doit être active.** Quand l'hôte dit que sa garde est inactive, les étapes refusent de démarrer, car
 aucune règle ci-dessus ni le mode `plan` de leur auditeur ou de leur relecteur ne vérifierait quoi que ce soit ;
 `/dev-verify F<n> --gate-only` n'appelle aucun modèle et s'exécute toujours. Sur un hôte qui ne garde aucune règle de
 session, l'étape s'exécute avec un avertissement : les jeux ne sont pas en vigueur.
@@ -350,6 +361,10 @@ La commande qu'un outil lance obéit aux jeux de règles de l'étape, pas aux r�
 crew ne peut pas lire les règles de la session, donc `/permissions add deny shell_command ...` n'atteint pas une
 validation, pas plus qu'il n'atteignait les validations que `/dev-verify` lance depuis son propre code. Pour en
 arrêter une, refusez l'outil lui-même (`/permissions add deny run_validation`), que la garde voit.
+
+Les agents des étapes dev, et les enfants de `/dev-plan` et `/dev-verify`, reçoivent aussi
+[`memory_recall`](shared-memory.md) (`read`), pour chercher des précédents dans la mémoire partagée ; aucun ne reçoit
+`memory_push`.
 
 ## Ce qu'un fichier du projet peut régler
 

@@ -16,7 +16,6 @@ import type { GapRow } from "../../../shared/domain/dev/verdict-format.ts";
 import { AXES } from "../domain/audit-answer.ts";
 import type { AuditRow, Axis } from "../domain/audit-answer.ts";
 import { testRunSummary } from "../domain/capture-sections.ts";
-import { GIT_ORIGIN_HEAD } from "../domain/commands.ts";
 import { cut, firstLine } from "../domain/text.ts";
 import {
   carriedRows, formatWhen, renderVerdictSection, verdictFileName, writeVerdictFile,
@@ -214,16 +213,6 @@ async function runSuite(shell: Pick<Shell, "run">, pack: RepoPack | null): Promi
   return { validation: `whole fast suite — ${exitText}`, notRun: null, row, brief: { command, outcome: exitText, tail } };
 }
 
-async function defaultBranch(shell: Pick<Shell, "run">): Promise<string> {
-  try {
-    const r = await shell.run(GIT_ORIGIN_HEAD);
-    const name = r.stdout.trim().replace(/^origin\//, "");
-    return r.exitCode === 0 && name !== "" ? name : "<default branch>";
-  } catch {
-    return "<default branch>";
-  }
-}
-
 function filesLine(changed: readonly string[], work: string): string {
   const outside = changed.filter((f) => !f.startsWith(`${work}/`));
   if (outside.length === 0) return "  files: none";
@@ -334,17 +323,16 @@ export async function runDevVerify(input: DevVerifyInputs, deps: DevVerifyDeps):
 
     const lines = [greenLine, costLine, ...section.text.trimEnd().split("\n"), `written: ${verdictShown} — capture: ${capture.folderShown}/`];
     if (section.verdict === "VALID") {
-      const convention = t.pack?.contrib.commit ?? "git log --oneline -5";
       lines.push(
-        `→ Batch ${args.batch} VALID. Orkeon Code does not commit yet: commit the batch's files with the repository's ` +
-          `convention (${convention}), push, then open the pull request (gh pr create --base ${await defaultBranch(deps.shell)}).`,
+        `→ Batch ${args.batch} VALID. The close commits the batch's files: /dev-implement ${args.batch} <code> --close ` +
+          `(run by itself when /dev-implement launched this audit).`,
         filesLine(gate.run.changedFiles, work),
       );
     } else {
       const first = section.shown[0];
       lines.push(
         `→ /dev-implement ${args.batch} — correction: ${first.severity} ${first.axis}: ${cut(first.gap, MAX_GAP_CHARS)}`,
-        `  then /dev-verify ${args.batch} resume (the correction runs in the harness until Orkeon Code has its own /dev-implement)`,
+        `  then /dev-verify ${args.batch} resume (a correction runs in the harness until /dev-implement runs one)`,
       );
     }
     return done(...lines);

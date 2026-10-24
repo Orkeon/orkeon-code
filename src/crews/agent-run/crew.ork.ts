@@ -11,8 +11,9 @@
 //                              effort?: "low" | "medium" | "high" | null }  (the step is the charter's)
 // Run standalone:  bash scripts/run-crew.sh src/crews/agent-run/crew.ork.ts --inputs '{"charter":"dev-reviewer","brief":"…"}'
 
-import { AgentBuilder, CrewBuilder, publishCrew, inputs } from "../../shared/infrastructure/globals.ts";
-import { orkeonShell } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { AgentBuilder, CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infrastructure/globals.ts";
+import { orkeonMemoryToolPorts, orkeonShell } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { MEMORY_RECALL, memoryRecallTool } from "../../shared/infrastructure/orkeon/memory-tools.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { devToolCallbacks } from "../../shared/infrastructure/orkeon/tool-callbacks.ts";
 import { charterCatalogue } from "../../shared/domain/agents/charter.ts";
@@ -36,10 +37,11 @@ const builder = AgentBuilder()
   .role(charter.role)
   .goal(charter.goal)
   .tools(charterCatalogue(charter))
+  .withAutonomousTool(memoryRecallTool(ToolBuilder, orkeonMemoryToolPorts))
   .maxIterations(charter.maxIterations)
   .body(async (_input: any, ctx: any) => {
     // The host's gate first, then the callbacks of the charter's step: its rule sets, no /hooks.
-    const callbacks = devToolCallbacks({ step, hooks: [] }, { shell, log: ctx.log });
+    const callbacks = devToolCallbacks({ step, hooks: [], readTools: [MEMORY_RECALL.name] }, { shell, log: ctx.log });
     return await runAgentRun(inputs(), { llm: createLlm(ctx.llm, callbacks, { effort }), log: ctx.log, charters: CHARTERS });
   });
 

@@ -30,8 +30,10 @@ import { EXTRA_TOOLS_CONFIG_KEY } from "../../shared/domain/agent-policy/extra-t
 import {
   catalogueFor, checkRule, formatRule, gateLine, isReadOnly, readRule, sameCalls, toolsetFor, RULE_SYNTAX,
   ACT_TOOLS,
+  MEMORY_TOOLS,
   RULEABLE_TOOLS,
   scriptToolAccess,
+  scriptToolsFor,
 } from "../../shared/domain/agent-policy/permission.ts";
 import type { ExtraTool, PermissionRule } from "../../shared/domain/agent-policy/permission.ts";
 import { heldRuleSets } from "../../shared/domain/agent-policy/rule-sets.ts";
@@ -146,19 +148,24 @@ async function renderShow(deps: PermissionsDeps, extras: ExtraToolsResolution): 
     : [];
   const heldParts = plain === null ? [] : [...(plain.length > 0 ? [plain.join(", ")] : []), ...setParts];
 
-  const offered = toolsetFor(mode, extras.present);
+  // The shared memory's tools are the main loop's, offered by mode (memory_recall always, memory_push where the
+  // mode edits) less a deny rule on the whole tool; Orkeon Code's other tools (SCRIPT_TOOLS) belong to the dev
+  // crews that attach them, never to the session.
+  const memoryByMode = scriptToolsFor(mode, MEMORY_TOOLS);
+  const memory = scriptToolsFor(mode, MEMORY_TOOLS, rules);
+  const offered = [...toolsetFor(mode, extras.present), ...memoryByMode];
   // The host offers the ACT_TOOLS to every act, and its gate refuses them in the read-only modes only.
-  // Orkeon Code's own tools (SCRIPT_TOOLS) belong to the dev crews that attach them, never to the session.
-  const withheld = (t: string) => (isReadOnly(mode) || !ACT_TOOLS.includes(t)) && scriptToolAccess(t) === undefined;
+  const withheld = (t: string) => MEMORY_TOOLS.includes(t)
+    || ((isReadOnly(mode) || !ACT_TOOLS.includes(t)) && scriptToolAccess(t) === undefined);
   const vocabulary = [...RULEABLE_TOOLS.filter(withheld), ...extras.present.map((t) => t.name)];
   const lines = [
     `session default mode : ${mode} ${isReadOnly(mode) ? "(read-only)" : ""}`,
     `  ↳ source           : ${sessionDefault ? "set by /mode (session state)" : fallback.explanation}`,
     ...widened.fallback,
     `modes                : ${PERMISSION_MODES.join(", ")} (bare /mode cycles)`,
-    `tool catalogue       : ${decision.tools.join(", ") || "(empty)"}`,
+    `tool catalogue       : ${[...decision.tools, ...memory].join(", ") || "(empty)"}`,
     `  ↳ withheld by mode : ${vocabulary.filter((t) => !offered.includes(t)).join(", ") || "(none)"}`,
-    `  ↳ removed by rule  : ${decision.deniedByRule.join(", ") || "(none)"}`,
+    `  ↳ removed by rule  : ${[...decision.deniedByRule, ...memoryByMode.filter((t) => !memory.includes(t))].join(", ") || "(none)"}`,
     ...(extras.present.length + extras.missing.length + extras.invalid.length > 0
       ? [
         `  ↳ extra tools      : ${extras.present.map(describeExtra).join(", ") || "(none registered)"}` +
