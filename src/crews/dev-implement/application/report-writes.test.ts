@@ -32,5 +32,8 @@ describe("reportingWrites", () => {
     await act.onToolCall({ name: "edit_batch", input: { operations: "src/c.ts" } });
     deepStrictEqual(heard, ["src/node_replace.ts", "src/node_insert.ts", "src/node_ensure.ts", "src/a.ts", "docs/b.md"]);
     deepStrictEqual(writtenPaths("edit_batch", null), []);
+    // The guard compares tool names without case: so does the report.
+    deepStrictEqual(writtenPaths("Edit_Batch", { operations: [{ path: "src/d.ts" }] }), ["src/d.ts"]);
+    deepStrictEqual(writtenPaths("NODE_REPLACE", { path: "src/e.ts" }), ["src/e.ts"]);
   });
 });

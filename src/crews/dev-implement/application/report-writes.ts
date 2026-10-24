@@ -2,6 +2,8 @@
 // the callbacks let through reports its `path`, and an edit_batch the path of each operation, so code
 // tells a role's own changes from what its runs of run_tests or run_build left in the tree. The verdicts
 // themselves are unchanged.
+import { sameToolName } from "../../../shared/domain/agent-policy/permission.ts";
+
 type Call = { name: string; input: unknown };
 interface ActLike { onToolCall(call: Call): Promise<unknown> }
 interface CallbacksLike { forAct(mode: string, gateEnabled: boolean | undefined): ActLike }
@@ -12,8 +14,8 @@ export const BATCH_TOOL = "edit_batch";
 /** The paths a write call names: its `path`, or each operation's of an edit_batch. */
 export function writtenPaths(name: string, input: unknown): string[] {
   const args = input as { path?: unknown; operations?: unknown } | null;
-  if (WRITE_TOOLS.includes(name)) return typeof args?.path === "string" ? [args.path] : [];
-  if (name !== BATCH_TOOL || !Array.isArray(args?.operations)) return [];
+  if (WRITE_TOOLS.some((t) => sameToolName(t, name))) return typeof args?.path === "string" ? [args.path] : [];
+  if (!sameToolName(name, BATCH_TOOL) || !Array.isArray(args?.operations)) return [];
   return args.operations.flatMap((op: unknown) => {
     const path = (op as { path?: unknown } | null)?.path;
     return typeof path === "string" ? [path] : [];

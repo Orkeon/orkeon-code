@@ -92,7 +92,7 @@ export const PATH_WRITE_TOOLS: readonly string[] = ["file_write", "edit_file", "
 /** The written text of each writing tool that takes it as one string. */
 export const WRITTEN_TEXT: ReadonlyArray<readonly [tool: string, argument: string]> = [
   ["file_write", "content"], ["edit_file", "new_string"], ["node_replace", "text"], ["node_insert", "text"],
-  ["node_ensure", "text"], ["structural_rewrite", "fix"],
+  ["node_ensure", "text"], ["node_ensure", "name"], ["node_ensure", "module"], ["structural_rewrite", "fix"],
 ];
 /** Writing tools whose paths sit in an array the gate reads as its type name, never an element: denied whole
  *  where paths are protected. */

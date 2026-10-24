@@ -3,7 +3,7 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
-import { HOOK_TIMEOUT_SECONDS, devToolCallbacks, isNewFile } from "./tool-callbacks.ts";
+import { HOOK_TIMEOUT_SECONDS, devToolCallbacks, hookInputs, isNewFile } from "./tool-callbacks.ts";
 import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
 import { FakeShell } from "../../../../tests/support/fake-shell.ts";
 
@@ -25,6 +25,15 @@ describe("onToolCall", () => {
       { command: "bash pre.sh file_read src/a.ts", options: { timeoutSeconds: HOOK_TIMEOUT_SECONDS } },
       { command: "bash two.sh", options: { timeoutSeconds: HOOK_TIMEOUT_SECONDS } },
     ]);
+  });
+
+  it("runs a pre-tool hook once per operation of an edit_batch, with that operation's path", async () => {
+    const { shell, act } = setup([PRE]);
+    const input = { operations: [{ kind: "node_replace", path: "src/a.ts", text: "x" }, { kind: "node_insert", path: "docs/b.md", text: "y" }] };
+    strictEqual(await act.onToolCall({ name: "edit_batch", input }), "allow");
+    deepStrictEqual(shell.calls.map((c) => c.command), ["bash pre.sh edit_batch src/a.ts", "bash pre.sh edit_batch docs/b.md"]);
+    deepStrictEqual(hookInputs("file_read", { path: "a" }), [{ path: "a" }]);
+    deepStrictEqual(hookInputs("edit_batch", { operations: [] }), [{ operations: [] }]);
   });
 
   it("refuses a call a rule covers with the reason and its context line, and runs no hook", async () => {

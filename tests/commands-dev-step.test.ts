@@ -62,16 +62,16 @@ describe("startDevStep", () => {
     deepStrictEqual(deps.gate.calls, []);
   });
 
-  it("puts the session's rules first, then the 406 rules of the step, and prints nothing", async () => {
+  it("puts the session's rules first, then the 438 rules of the step, and prints nothing", async () => {
     const deps = setup("allow shell_command command=npm test*");
     const start = started(await startDevStep("dev-plan", deps));
     deepStrictEqual(start.lines, []);
     deepStrictEqual(start.sets, RULE_SET_IDS);
-    strictEqual(start.rules, 406);
+    strictEqual(start.rules, 438);
     strictEqual(deps.gate.calls[0], "clear");
     strictEqual(deps.gate.calls[1], "add allow shell_command command=npm test*");
     strictEqual(deps.gate.calls[2], "add deny shell_command command=*git add*");
-    strictEqual(deps.gate.calls.length, 408);
+    strictEqual(deps.gate.calls.length, 440);
   });
 
   it("prints nothing when the facade does not say whether the gate is on, and still puts the sets in force", async () => {
@@ -80,7 +80,7 @@ describe("startDevStep", () => {
     const start = started(await startDevStep("dev-plan", deps));
     deepStrictEqual(start.lines, []);
     strictEqual(gateProblem(undefined, "dev-plan"), null);
-    strictEqual(deps.gate.calls.length, 407);
+    strictEqual(deps.gate.calls.length, 439);
   });
 
   it("warns once when the host keeps no session rules", async () => {

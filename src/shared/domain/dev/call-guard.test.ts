@@ -164,6 +164,12 @@ describe("checkToolCall — edit_batch, operation by operation", () => {
       "dev-implement: refused by 'deny node_insert path=tests/*' of the implementer's roots (edit_batch operation 2, node_insert on 'tests/a.test.ts')");
     const secret = refused(checkToolCall(implementer, "edit_batch", { operations: [op("ensure_member", "src/domain/a.ts", "k = 'ghp_x'")] }, ON));
     ok(secret.reason.includes("of the rule set secrets (edit_batch operation 1, ensure_member"), secret.reason);
+    // An import's name and module are written text too.
+    for (const field of ["name", "module"]) {
+      const named = refused(checkToolCall(implementer, "edit_batch", { operations: [{ kind: "ensure_import", path: "src/app/b.ts", [field]: "ghp_x" }] }, ON));
+      ok(named.reason.includes(`node_ensure ${field}=*ghp_*`), named.reason);
+      refused(checkToolCall(implementer, "node_ensure", { op: "ensure_import", path: "src/app/b.ts", [field]: "ghp_x" }, ON));
+    }
     const state = refused(checkToolCall(buildCallGuard({ step: "dev-plan" }), "edit_batch", { operations: [op("replace_mermaid", ".orkeon/x.md")] }, ON));
     ok(state.reason.includes("of the rule set state-files"), state.reason);
     // A path normalised back under a denied root is still refused.

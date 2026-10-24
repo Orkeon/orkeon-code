@@ -174,7 +174,7 @@ off. Every step puts all five sets in force:
 | `git-readonly` | `shell_command`, `command` | a git command that changes the repository, its branches or its remotes, also behind a global option (`git -C <dir> push`) |
 | `inline-interpreters` | `shell_command`, `command` | code handed inline to an interpreter, which could run what the other rules refuse |
 | `read-noise` | `path` of `file_read`, `glob`, `grep`, `node_outline`, `node_read`, `count_pattern`, `documents_of` | a read under a `bin/`, `obj/`, `.git/` or `node_modules/` folder, anywhere in the project |
-| `secrets` | the written text: `file_write` `content`, `edit_file` `new_string`, `text` of `node_replace`, `node_insert` and `node_ensure`, `structural_rewrite` `fix`; each `edit_batch` operation's `text`, by the callback | content that holds a private key block or a token with a known prefix |
+| `secrets` | the written text: `file_write` `content`, `edit_file` `new_string`, `text` of `node_replace`, `node_insert` and `node_ensure`, `name` and `module` of `node_ensure`, `structural_rewrite` `fix`; each `edit_batch` operation's `text`, by the callback | content that holds a private key block or a token with a known prefix |
 | `state-files` | `path` of `file_write`, `edit_file`, `node_replace`, `node_insert`, `node_ensure`, each `edit_batch` operation's `path` by the callback; `structural_rewrite` whole | a file only Orkeon Code's own code writes: the batch logs, states and verdicts, the audit captures, `.orkeon/` and `.claude/` |
 
 `git-readonly` holds 190 rules, three for most of the verbs `add`, `am`, `apply`, `branch`, `checkout`, `cherry-pick`,
@@ -269,12 +269,13 @@ the inline forms of `node`, `python`, `python3`, `perl`, `ruby`, `php`, `tsx`, `
 path, an `env` or `npx`. Since a rule reads `sh -c` at the end of any word, `ssh -c <cipher>` is refused too.
 
 The three file sets repeat their patterns on every tool of their row, tool by tool: `read-noise` holds 56 rules (8
-patterns on 7 tools, on `path`), `secrets` 96 (16 patterns on 6 tools, on the written text), `state-files` 41 (8
-patterns on 5 tools, on `path`, then `deny structural_rewrite`). A step holds 406 rules. The gate cannot read the
+patterns on 7 tools, on `path`), `secrets` 128 (16 patterns on 8 written arguments of 6 tools), `state-files` 41 (8
+patterns on 5 tools, on `path`, then `deny structural_rewrite`). A step holds 438 rules. The gate cannot read the
 paths or the text inside `edit_batch` and `structural_rewrite`. `structural_rewrite` is refused whole. `edit_batch` is
 left to the crews' callback, which runs on every act of a step: it reads each operation as the editor it stands for
 and applies the sets and the role's rules to it, and refuses a batch with no operations, an operation without a
-`path` or of an unknown kind, and `validate: "build"` (the step's build is `run_build`).
+`path` or of an unknown kind, and any `validate` but `"parse"` (`"build"` runs `dotnet build`; the step's build is
+`run_build`).
 
 **When they hold.** At launch the step clears the gate, hands it the session's rules, then its own sets. A session
 allow rule on the same calls as one of the step's deny rules is left out for the run, with a warning. The sets are not

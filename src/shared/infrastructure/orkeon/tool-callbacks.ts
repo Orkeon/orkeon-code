@@ -7,7 +7,7 @@
 // this module bundles its own copy; nothing is shared between runs.
 import type { Files, Logger, Shell } from "../../application/ports.ts";
 import { buildCallGuard, checkToolCall, denyText, hookCommand } from "../../domain/dev/call-guard.ts";
-import { REWRITE_TOOL } from "../../domain/agent-policy/rule-sets.ts";
+import { OPERATIONS_TOOL, REWRITE_TOOL } from "../../domain/agent-policy/rule-sets.ts";
 import { sameToolName } from "../../domain/agent-policy/permission.ts";
 import type { CallGuard, CallGuardSpec, ToolHook } from "../../domain/dev/call-guard.ts";
 
@@ -56,6 +56,22 @@ function firstLine(stderr: string, stdout: string): string {
 }
 
 /** Runs one hook; undefined when it exited 0, else what went wrong in one line. */
+/** The inputs a hook sees for one call: the call's own, or one `{ path }` per operation of an edit_batch, so a
+ *  per-file hook hears every file the batch writes. */
+export function hookInputs(tool: string, input: unknown): unknown[] {
+  const ops = (input as { operations?: unknown } | null)?.operations;
+  if (!sameToolName(tool, OPERATIONS_TOOL) || !Array.isArray(ops) || ops.length === 0) return [input];
+  return ops.map((op: unknown) => ({ path: (op as { path?: unknown } | null)?.path }));
+}
+
+async function runHooks(deps: ToolCallbackDeps, hook: ToolHook, tool: string, input: unknown): Promise<string | undefined> {
+  for (const one of hookInputs(tool, input)) {
+    const failed = await runHook(deps, hook, tool, one);
+    if (failed !== undefined) return failed;
+  }
+  return undefined;
+}
+
 async function runHook(deps: ToolCallbackDeps, hook: ToolHook, tool: string, input: unknown): Promise<string | undefined> {
   const command = hookCommand(hook, tool, input);
   const label = `${hook.event} hook #${hook.n} (${command})`;
@@ -100,7 +116,7 @@ export function createToolCallbacks(guard: CallGuard, deps: ToolCallbackDeps): T
               return { deny: denyText(verdict) };
             }
             for (const hook of pre) {
-              const failed = await runHook(deps, hook, call.name, call.input);
+              const failed = await runHooks(deps, hook, call.name, call.input);
               if (failed !== undefined) {
                 deps.log?.info(`${guard.step}: pre-tool hook #${hook.n} refused ${call.name}`);
                 return { deny: `${guard.step}: refused by ${failed}\nThe call did not run: change it, or ask the user to fix the hook.` };
@@ -115,7 +131,7 @@ export function createToolCallbacks(guard: CallGuard, deps: ToolCallbackDeps): T
           if (post.length === 0) return undefined;
           const notes: string[] = [];
           for (const hook of post) {
-            const failed = await runHook(deps, hook, call.name, call.input);
+            const failed = await runHooks(deps, hook, call.name, call.input);
             if (failed !== undefined) notes.push(`[${failed}]`);
           }
           if (notes.length === 0) return undefined;

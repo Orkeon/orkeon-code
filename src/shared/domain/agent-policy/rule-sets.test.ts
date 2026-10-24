@@ -40,10 +40,10 @@ describe("the rule sets", () => {
     for (const [tool, argument] of WRITTEN_TEXT) ok(TOOL_ARGUMENTS[tool].includes(argument), `${tool}.${argument}`);
   });
 
-  it("holds 190, 23, 56, 96 and 41 rules, 406 in all, none of them on edit_batch", () => {
-    deepStrictEqual(RULE_SET_IDS.map((id) => RULE_SETS[id].rules.length), [190, 23, 56, 96, 41]);
+  it("holds 190, 23, 56, 128 and 41 rules, 438 in all, none of them on edit_batch", () => {
+    deepStrictEqual(RULE_SET_IDS.map((id) => RULE_SETS[id].rules.length), [190, 23, 56, 128, 41]);
     const all = rulesOf(RULE_SET_IDS);
-    strictEqual(all.length, 406);
+    strictEqual(all.length, 438);
     ok(!all.some((r) => r.tool === "edit_batch"));
     for (let i = 0; i < all.length; i++) {
       for (let j = i + 1; j < all.length; j++) ok(!sameCalls(all[i], all[j]), gateLine(all[i]));
@@ -53,7 +53,7 @@ describe("the rule sets", () => {
     strictEqual(gateLine(RULE_SETS["read-noise"].rules[7]), "deny file_read path=node_modules/*");
     strictEqual(gateLine(RULE_SETS["read-noise"].rules[8]), "deny glob path=*/bin/*");
     strictEqual(gateLine(RULE_SETS.secrets.rules[15]), "deny file_write content=*sk-ant-*");
-    strictEqual(gateLine(RULE_SETS.secrets.rules[95]), "deny structural_rewrite fix=*sk-ant-*");
+    strictEqual(gateLine(RULE_SETS.secrets.rules[127]), "deny structural_rewrite fix=*sk-ant-*");
     strictEqual(gateLine(RULE_SETS["state-files"].rules[7]), "deny file_write path=.claude/*");
     deepStrictEqual(RULE_SETS["state-files"].rules.slice(-1).map(gateLine), ["deny structural_rewrite"]);
   });
