@@ -19,6 +19,9 @@ import { ANSWER_LANGUAGE_CONFIG_KEY } from "./agent-policy/output-styles.ts";
 import { COMPACTION_TRIGGER_CONFIG_KEY, compactionTriggerProblem } from "./compaction-thresholds.ts";
 import { DEV_WORK_DIR_CONFIG_KEY, workFolderProblem } from "./dev/work-folder.ts";
 import { DEV_PR_AUTO_CONFIG_KEY } from "./git/close.ts";
+import {
+  MEMORY_AUTO_ADMIT_CONFIG_KEY, MEMORY_DIR_CONFIG_KEY, MEMORY_PROJECT_CONFIG_KEY, memoryDirProblem, memoryProjectProblem,
+} from "./shared-memory/layout.ts";
 
 export interface ConfigKeySpec {
   key: string;
@@ -126,6 +129,30 @@ export const CONFIG_KEYS: readonly ConfigKeySpec[] = [
     allowed: ["true", "false"],
     consumedBy: "/commit (the pull request of the branch)",
   },
+  {
+    key: MEMORY_DIR_CONFIG_KEY,
+    description:
+      "The folder of the shared memory, relative to the project: its candidates, admitted entries and refused " +
+      "topics. Omitted = '.orkeon/memory'. Never the agent memory's '.orkeon/agent-memory'.",
+    problem: memoryDirProblem,
+    consumedBy: "/memory-admit, /assistant (the memory_recall and memory_push tools)",
+  },
+  {
+    key: MEMORY_PROJECT_CONFIG_KEY,
+    description:
+      "The project name the shared memory's entries carry and its index is named after (memory-<project>), " +
+      "e.g. 'orkeon-code'. Omitted = the name of the origin remote, else 'local'.",
+    problem: memoryProjectProblem,
+    consumedBy: "/memory-admit, /assistant (the memory_recall and memory_push tools)",
+  },
+  {
+    key: MEMORY_AUTO_ADMIT_CONFIG_KEY,
+    description:
+      "'true' lets /memory-admit admit a candidate an audit verdict backs without asking. Omitted = 'false': " +
+      "every candidate is confirmed. A project file may set it to 'true' only when the user settings do.",
+    allowed: ["true", "false"],
+    consumedBy: "/memory-admit",
+  },
 ];
 
 /** Where an effective value came from: the session bag, the project's settings file
@@ -219,10 +246,20 @@ function userValue(key: string, user: string): string | undefined {
   return rest.length > 0 ? rest.join(", ") : undefined;
 }
 
+/** The project's memory.autoAdmitAudited: 'true' asks nothing, so it applies only when the user's says 'true'. */
+function narrowAutoAdmit(project: string, user: string | undefined): Narrowed {
+  if (project !== "true" || user === "true") return { value: project, fallThrough: false };
+  return {
+    value: undefined, fallThrough: true,
+    ignored: { value: project, reason: "admitting without asking comes from the user settings (orkeonCode); a project file may only narrow it" },
+  };
+}
+
 /** The project value as it applies over the user's: narrowed for the keys that widen. */
 function narrowProject(key: string, project: string, user: string | undefined): Narrowed {
   if (key === PERMISSION_FALLBACK_CONFIG_KEY) return narrowFallback(project, user);
   if (key === EXTRA_TOOLS_CONFIG_KEY) return narrowExtraTools(project, user);
+  if (key === MEMORY_AUTO_ADMIT_CONFIG_KEY) return narrowAutoAdmit(project, user);
   return { value: project, fallThrough: false };
 }
 

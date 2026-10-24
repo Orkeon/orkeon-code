@@ -35,6 +35,9 @@ describe("the key space itself", () => {
       "compaction.trigger": "/assistant (the automatic compaction at the head and the tail of a turn), /usage",
       "dev.workDir": "/dev-status (the work folder it reads), /commit (the work folder it leaves out)",
       "dev.prAuto": "/commit (the pull request of the branch)",
+      "memory.dir": "/memory-admit, /assistant (the memory_recall and memory_push tools)",
+      "memory.project": "/memory-admit, /assistant (the memory_recall and memory_push tools)",
+      "memory.autoAdmitAudited": "/memory-admit",
     });
   });
 
@@ -305,5 +308,51 @@ describe("the user layer: a project file widens nothing (QL-06)", () => {
     deepStrictEqual(resolveConfigEntry("review.lenses", { "review.lenses": "style" }, {}, { "review.lenses": "security" }),
       { key: "review.lenses", value: "style", source: "file" });
     strictEqual(layerConfig({}, {}, { "advisor.model": "m" }).find((e) => e.key === "advisor.model")?.source, "user");
+  });
+});
+
+describe("the shared memory's keys (M-2)", () => {
+  it("refuses a memory.* key the schema does not declare, with the list", () => {
+    for (const key of ["memory.typo", "memory.Dir", "memory.autoAdmit", "memory"]) {
+      const v = validateConfigEntry(key, "x");
+      strictEqual(v.ok, false, key);
+      ok(v.reason.startsWith(`unknown config key '${key}'`), v.reason);
+      ok(v.reason.includes("memory.dir, memory.project, memory.autoAdmitAudited"), v.reason);
+    }
+  });
+
+  it("takes a relative folder as memory.dir, never one outside the project nor the agent memory's", () => {
+    for (const dir of [".orkeon/memory", "docs/memory", "./.orkeon/shared/"]) ok(validateConfigEntry("memory.dir", dir).ok, dir);
+    for (const [dir, why] of [
+      ["/shared-memory", "an absolute path"], ["../other/memory", "'..'"], [".claude/memory", "under .claude/ or .git/"],
+      [".git/memory", "under .claude/ or .git/"], [".orkeon/agent-memory", "agent memory"], [".orkeon/agent-memory/x", "agent memory"],
+      [".orkeon", "agent memory"], ["./", "an empty folder"],
+    ]) {
+      const v = validateConfigEntry("memory.dir", dir);
+      strictEqual(v.ok, false, dir);
+      ok(v.reason.includes(why), `${dir}: ${v.reason}`);
+    }
+  });
+
+  it("takes a kebab-case memory.project, and true or false as memory.autoAdmitAudited", () => {
+    ok(validateConfigEntry("memory.project", "orkeon-code").ok);
+    for (const name of ["Orkeon Code", "orkeon_code", "-x"]) strictEqual(validateConfigEntry("memory.project", name).ok, false, name);
+    ok(validateConfigEntry("memory.autoAdmitAudited", "true").ok);
+    strictEqual(validateConfigEntry("memory.autoAdmitAudited", "yes").ok, false);
+  });
+
+  it("sets memory.autoAdmitAudited true from a project file only when the user settings do (QL-06)", () => {
+    const auto = (file: Record<string, unknown>, user: Record<string, unknown>) =>
+      resolveConfigEntry("memory.autoAdmitAudited", file, {}, user);
+    const r = auto({ "memory.autoAdmitAudited": "true" }, {});
+    strictEqual(r.value, undefined);
+    strictEqual(r.source, "unset");
+    strictEqual(r.ignored?.value, "true");
+    ok(r.ignored?.reason.includes("user settings"), r.ignored?.reason);
+    strictEqual(auto({ "memory.autoAdmitAudited": "true" }, { "memory.autoAdmitAudited": "false" }).value, "false");
+    deepStrictEqual(auto({ "memory.autoAdmitAudited": "true" }, { "memory.autoAdmitAudited": "true" }),
+      { key: "memory.autoAdmitAudited", value: "true", source: "file" });
+    deepStrictEqual(auto({ "memory.autoAdmitAudited": "false" }, { "memory.autoAdmitAudited": "true" }),
+      { key: "memory.autoAdmitAudited", value: "false", source: "file" });
   });
 });
