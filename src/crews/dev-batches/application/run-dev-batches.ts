@@ -16,6 +16,7 @@ import type { DevCode } from "../../../shared/application/dev/load-dev-context.t
 import { preflight } from "../../../shared/application/dev/preflight.ts";
 import { runSubAgent } from "../../../shared/application/agents/run-sub-agent.ts";
 import { isCode } from "../../../shared/domain/dev/artefacts.ts";
+import { checkConcurrency } from "../../../shared/domain/dev/batches-concurrency.ts";
 import { parseBatchesState } from "../../../shared/domain/dev/batches-state.ts";
 import type { BatchesLogEntry } from "../../../shared/domain/dev/batches-state.ts";
 import { lastVerdict } from "../../../shared/domain/dev/verdict-format.ts";
@@ -49,6 +50,8 @@ export interface DevBatchesInputs {
   pr?: unknown;
   /** The last lines of what the batch's chain answered: this run logs what came of it. */
   after?: unknown;
+  /** How many batches at once: 1 (absent); above 1 refused until a script agent can be given a working root. */
+  concurrency?: unknown;
   permissionMode?: unknown; permissionRules?: unknown; githubTool?: unknown;
   hooks?: unknown; effort?: unknown; memoryRecall?: unknown;
 }
@@ -208,6 +211,9 @@ function everyDone(order: readonly string[], merged: readonly MergedBatch[]): Me
 
 export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDeps): Promise<string> {
   const lines: string[] = [];
+  // 0. One batch at a time: nothing is read or written for a concurrency this run cannot keep.
+  const concurrency = checkConcurrency(input.concurrency);
+  if (!concurrency.ok) return answer([`BLOCKED — ${concurrency.line}`]);
   // 1. The run: the code named, kept with the dispatch's context; else the one the record names.
   let code: string;
   let pr: boolean;

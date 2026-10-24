@@ -294,6 +294,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with one push and one pull request. Typed again (or `/dev-batches` alone after the runtime's chain limit), it
   goes on from the first batch not done; a batch's close, typed or chained, never pushes while the run is in
   progress. The start scripts name `/dev-batches <code>` beside an open batch.
+- `/dev-batches` takes `--concurrency <n>`: 1, the default, is the run above; above 1 is refused in one line, before
+  anything is launched, until the runtime lets a script agent run under a working root of its own (two batches at
+  once would write the same `/workspace`). What a parallel run needs on Code's side is in place: the waves of open
+  batches whose anchors are disjoint, a batch's worktree under `.orkeon/worktrees/<name>` (removed only with nothing
+  uncommitted or unmerged in it), and the fast-forward merge of a VALID batch into the work branch, the plan's close
+  still pushing once.
 - The dev steps recall the shared memory on their own: `/dev-spec` and `/dev-change` at the start (decisions,
   methods), `/dev-plan` before the plan (decisions, code structure), `/dev-implement` before each batch's red tests
   (code structures, mistakes) and on a correction (mistakes), `/dev-verify` before the audit (mistakes); the end of

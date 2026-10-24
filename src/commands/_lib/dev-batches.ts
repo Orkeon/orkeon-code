@@ -7,19 +7,30 @@
 // that launches nothing (the batch committed, a stop, a GAPS verdict) launches the dev-batches crew again with
 // the answer's last lines: it logs what came of the batch and names the next one. Pure.
 import { isCode } from "../../shared/domain/dev/artefacts.ts";
+import { checkConcurrency } from "../../shared/domain/dev/batches-concurrency.ts";
 import { chainStep } from "./dev-implement.ts";
 import type { ChainLaunch } from "./dev-implement.ts";
 
-export const DEV_BATCHES_USAGE = "usage: /dev-batches [<code>] [--pr]   (no code: the run in progress goes on)";
+export const DEV_BATCHES_USAGE =
+  "usage: /dev-batches [<code>] [--pr] [--concurrency 1]   (no code: the run in progress goes on; above 1 waits for the runtime)";
 export interface DevBatchesArgs { code: string | null; pr: boolean }
 
+/** The arguments; `--concurrency <n>` (or `=<n>`) is checked and only 1 passes: the run stays sequential (L-7). */
 export function parseDevBatchesArgs(tokens: readonly string[]): { ok: true; args: DevBatchesArgs } | { ok: false; text: string } {
   let code: string | null = null;
   let pr = false;
-  for (const tok of tokens) {
+  for (let i = 0; i < tokens.length; i++) {
+    const tok = tokens[i];
+    if (tok === "--concurrency" || tok.startsWith("--concurrency=")) {
+      const value = tok === "--concurrency" ? tokens[++i] : tok.slice("--concurrency=".length);
+      if (value === undefined) return { ok: false, text: "dev-batches: --concurrency needs a number" };
+      const c = checkConcurrency(value);
+      if (!c.ok) return { ok: false, text: `dev-batches: ${c.line}` };
+      continue;
+    }
     if (tok === "--pr") pr = true;
     else if (tok === "--help" || tok === "-h") return { ok: false, text: DEV_BATCHES_USAGE };
-    else if (tok.startsWith("-")) return { ok: false, text: `dev-batches: unknown option '${tok}' (--pr)` };
+    else if (tok.startsWith("-")) return { ok: false, text: `dev-batches: unknown option '${tok}' (--pr, --concurrency)` };
     else if (!isCode(tok)) return { ok: false, text: `dev-batches: '${tok}' is not a work code (a folder name of the work folder)` };
     else if (code !== null) return { ok: false, text: `dev-batches: one code at most, not '${code}' and '${tok}'` };
     else code = tok;

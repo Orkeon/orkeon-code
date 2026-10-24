@@ -107,6 +107,25 @@ describe("runDevBatches — a run", () => {
     ok(parse(await runDevBatches({ code: "../x" }, deps)).lines[0].startsWith("BLOCKED — '../x' is not a work code"));
   });
 
+  it("runs concurrency 1 as the sequential run, and refuses above 1 or a bad value before reading or writing anything", async () => {
+    const one = setup();
+    const out = parse(await runDevBatches({ code: "demo", concurrency: 1 }, one.deps));
+    strictEqual(out.next?.input.batch, "F2");
+    ok(!("concurrency" in (out.next?.input ?? {})));
+    for (const concurrency of [2, "4", 0, "x"]) {
+      const { files, shell, deps } = setup();
+      const before = new Map(files.files);
+      const refused = parse(await runDevBatches({ code: "demo", concurrency }, deps));
+      strictEqual(refused.lines.length, 1);
+      ok(refused.lines[0].startsWith("BLOCKED — concurrency "), refused.lines[0]);
+      strictEqual(refused.next, undefined);
+      deepStrictEqual(files.files, before);
+      deepStrictEqual(shell.commands, []);
+    }
+    ok(parse(await runDevBatches({ code: "demo", concurrency: 2 }, setup().deps)).lines[0]
+      .includes('parallel runs wait for a runtime working root for script agents (follow-up issue "working root for script agents")'));
+  });
+
   it("killed during a batch and run again, relaunches the first batch not done, without a second review", async () => {
     const { files, deps } = setup();
     const llm = new FakeLlm();

@@ -10,6 +10,7 @@
 //
 // Input (globalThis.inputs): { code?: string (absent: the run .orkeon/dev/batches-active.json names),
 //                              pr?: boolean, after?: string[] (the last lines the batch's chain answered),
+//                              concurrency?: 1 (default; above 1 refused until a script agent can be given a working root),
 //                              permissionMode?, permissionRules?, githubTool?, hooks?, effort?, memoryRecall? }
 // Answer: JSON { lines: string[], next?: { crew: "dev-implement", input } }, read by the command's completed.
 // Run standalone:  bash scripts/run-crew.sh src/crews/dev-batches/crew.ork.ts --inputs '{"code":"prune"}'

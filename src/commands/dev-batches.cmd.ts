@@ -1,6 +1,7 @@
 /// <reference path="./.orkeon/orkeon-cli.d.ts" />
-// /dev-batches [<code>] [--pr] — run a plan's batches one after the other, in the order their dependencies allow,
-// and close the plan with one push and one pull request. The crew (crews/dev-batches) reads the plan and its log
+// /dev-batches [<code>] [--pr] [--concurrency 1] — run a plan's batches one after the other, in the order their
+// dependencies allow, and close the plan with one push and one pull request. A concurrency above 1 is refused
+// before any launch: a script agent cannot be given a working root yet (the runtime's follow-up issue). The crew (crews/dev-batches) reads the plan and its log
 // `.orkeon/dev/<code>/batches-state.md` and names the next batch; this command's `completed` launches it:
 // /dev-implement on the batch, its audit (/dev-verify), on VALID its close (a commit, sent push: false), then the crew
 // again, which logs the batch and names the next one. The answers are told apart by the crew that gave them

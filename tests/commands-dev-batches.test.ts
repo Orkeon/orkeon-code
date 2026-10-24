@@ -18,6 +18,17 @@ describe("parseDevBatchesArgs", () => {
     strictEqual(parseDevBatchesArgs(["--fast"]).ok, false);
     deepStrictEqual(parseDevBatchesArgs(["--help"]), { ok: false, text: DEV_BATCHES_USAGE });
   });
+
+  it("accepts --concurrency 1 (both spellings) as the sequential run, and refuses above 1 in one line naming the follow-up issue", () => {
+    for (const tokens of [["demo", "--concurrency", "1"], ["--concurrency=1", "demo"]]) {
+      deepStrictEqual(parseDevBatchesArgs(tokens), { ok: true, args: { code: "demo", pr: false } });
+    }
+    deepStrictEqual(parseDevBatchesArgs(["demo", "--concurrency", "2"]), {
+      ok: false,
+      text: 'dev-batches: concurrency 2 refused: parallel runs wait for a runtime working root for script agents (follow-up issue "working root for script agents"); run with concurrency 1',
+    });
+    for (const tokens of [["--concurrency"], ["--concurrency", "0"], ["--concurrency=x"]]) strictEqual(parseDevBatchesArgs(tokens).ok, false);
+  });
 });
 
 describe("batchesChainStep", () => {
