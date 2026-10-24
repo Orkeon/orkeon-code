@@ -116,7 +116,7 @@ function launch(opts: {
   const record = join(base, "record");
   for (const dir of [root, bin, project, record, join(root, "scripts")]) mkdirSync(dir, { recursive: true });
   for (const [name, content] of Object.entries(opts.projectFiles ?? {})) writeFileSync(join(project, name), content);
-  for (const file of ["orkeon-code", "orkeon-code.ps1", ".orkeon-version", "package.json", "scripts/setup-fixture.sh", "scripts/session-start.sh"]) {
+  for (const file of ["orkeon-code", "orkeon-code.ps1", ".orkeon-version", "package.json", "scripts/setup-fixture.sh", "scripts/session-start.ork.ts"]) {
     copyFileSync(fileURLToPath(new URL(`../${file}`, import.meta.url)), join(root, file));
   }
   if (!opts.install) mkdirSync(join(root, ".git"));
@@ -196,8 +196,8 @@ describe("orkeon-code, tool and source modes on Orkeon rc.6", () => {
   it("copies the session's start script into the agent's /tmp and names it, an empty value the user exported kept", () => {
     const r = launch({ args: ["--mode", "tool"], bin: { "orkeon-repl": recorder() }, env: { ORKEON_ESBUILD_PATH: "/opt/esbuild" } });
     strictEqual(r.status, 0, r.stderr);
-    strictEqual(r.env.get(START_SCRIPT), "/tmp/orkeon-code/session-start.sh");
-    strictEqual(readFileSync(join(r.state, "tmp/orkeon-code/session-start.sh"), "utf-8"), read("scripts/session-start.sh"));
+    strictEqual(r.env.get(START_SCRIPT), "/tmp/orkeon-code/session-start.ork.ts");
+    strictEqual(readFileSync(join(r.state, "tmp/orkeon-code/session-start.ork.ts"), "utf-8"), read("scripts/session-start.ork.ts"));
     const none = launch({ args: ["--mode", "tool"], bin: { "orkeon-repl": recorder() }, env: { ORKEON_ESBUILD_PATH: "/opt/esbuild", [START_SCRIPT]: "" } });
     strictEqual(none.status, 0, none.stderr);
     strictEqual(none.env.get(START_SCRIPT), "");
@@ -272,7 +272,7 @@ describe("orkeon-code, docker mode", () => {
     ok(!r.args.some((a) => a.startsWith("--platform")), r.args.join(" "));
     ok(!r.args.some((a) => a.includes("MaxScripts")), r.args.join(" "));
     ok(r.args.includes(`${GATE}=true`), r.args.join(" "));
-    ok(r.args.includes(`${START_SCRIPT}=/tmp/orkeon-code/session-start.sh`), r.args.join(" "));
+    ok(r.args.includes(`${START_SCRIPT}=/tmp/orkeon-code/session-start.ork.ts`), r.args.join(" "));
     const roots = mountRoots(r.args);
     deepStrictEqual(roots, ["/workspace", "/output", "/tmp", "/user-config"]);
   });

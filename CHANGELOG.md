@@ -204,7 +204,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reports recorded, `git status --short` — from files and git only, then points at it in the new buffer
   (`[restored-state]`); `/dev-verify F<n>` records the batch in progress. The outcome line names the file. Lot W0-B.
 - The first turn of a session carries what the session's start script printed (`Orkeon:Cli:Session:StartScript`):
-  `scripts/session-start.sh` names the recent state files and the open batches. Lot W0-B.
+  `scripts/session-start.ork.ts`, which the launchers install, names the recent state files and the open batches
+  (`scripts/session-start.sh` prints the same lines in a terminal). Lot W0-B.
 - `scripts/dev-run.sh <crew> <code>` chains the steps of a dev crew headless, one `orkeon run` per step, each output
   in `.orkeon/dev/<code>/runs/`, until the event log says closed (0), a human decides (3), nothing moved (4) or
   `--max-steps` is reached (5); a rate-limited step is run again after `--wait` seconds. Lot W0-B.

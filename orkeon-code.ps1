@@ -434,13 +434,14 @@ try {
   New-Item -ItemType Directory -Force -Path (Join-Path $State 'output'), (Join-Path $State 'tmp') | Out-Null
   $State = (Resolve-Path $State).Path
 
-  # The session's start script (scripts/session-start.sh), copied fresh into the agent's /tmp at every start:
-  # the runtime runs it once at the REPL's start and puts what it prints before the first free-text turn.
+  # The session's start script (scripts/session-start.ork.ts), copied fresh into the agent's /tmp at every start:
+  # the runtime runs it once at the REPL's start, through its script host, and puts what it prints before the
+  # first free-text turn.
   $startDir = Join-Path $State 'tmp/orkeon-code'
   New-Item -ItemType Directory -Force -Path $startDir | Out-Null
-  Copy-Item -Force (Join-Path $Root 'scripts/session-start.sh') (Join-Path $startDir 'session-start.sh')
+  Copy-Item -Force (Join-Path $Root 'scripts/session-start.ork.ts') (Join-Path $startDir 'session-start.ork.ts')
   if ($null -eq [Environment]::GetEnvironmentVariable('Orkeon__Cli__Session__StartScript')) {
-    $env:Orkeon__Cli__Session__StartScript = '/tmp/orkeon-code/session-start.sh'
+    $env:Orkeon__Cli__Session__StartScript = '/tmp/orkeon-code/session-start.ork.ts'
   }
 
   # Speech-to-text (optional): $env:ORKEON_CODE_AUDIO_DIR names the folder of audio and video files. The

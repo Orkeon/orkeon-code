@@ -436,13 +436,13 @@ if [ "$KIND" = clone ]; then STATE="${ORKEON_CODE_STATE:-$ROOT/.crew-output}"; e
 mkdir -p "$STATE/output" "$STATE/tmp"
 STATE="$(cd "$STATE" && pwd)"
 
-# The session's start script (scripts/session-start.sh): what a new session should know of the
-# dev work left in progress. Copied fresh at every start into the agent's /tmp, where `sh` may
-# run it (the source mounts are read-only); the runtime runs it once, at the REPL's start, and
-# puts what it prints before the first free-text turn.
+# The session's start script (scripts/session-start.ork.ts): what a new session should know of
+# the dev work left in progress. Copied fresh at every start into the agent's /tmp; the runtime
+# runs it once, at the REPL's start, through its script host (a `.ork.ts`, never `sh`), and puts
+# what it prints before the first free-text turn.
 mkdir -p "$STATE/tmp/orkeon-code"
-cp "$ROOT/scripts/session-start.sh" "$STATE/tmp/orkeon-code/session-start.sh"
-export Orkeon__Cli__Session__StartScript="${Orkeon__Cli__Session__StartScript-/tmp/orkeon-code/session-start.sh}"
+cp "$ROOT/scripts/session-start.ork.ts" "$STATE/tmp/orkeon-code/session-start.ork.ts"
+export Orkeon__Cli__Session__StartScript="${Orkeon__Cli__Session__StartScript-/tmp/orkeon-code/session-start.ork.ts}"
 
 # ── Speech-to-text (optional) ──────────────────────────────────────────────
 # ORKEON_CODE_AUDIO_DIR names the folder of audio and video files. The Whisper

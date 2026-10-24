@@ -25,6 +25,7 @@
     "config/*.example.json",
     "scripts/setup-fixture.sh",
     "scripts/session-start.sh",
+    "scripts/session-start.ork.ts",
     "scripts/install.sh",
     "scripts/install.ps1",
     "mcp/whisper/whisper_mcp.py",

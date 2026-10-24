@@ -121,12 +121,14 @@ où va votre propre réglage. `/config set --session` n'est pas restreint.
 
 Au démarrage du REPL, le runtime exécute une fois le fichier que nomme sa clé `Orkeon:Cli:Session:StartScript`, et
 place ce qu'il imprime avant la première requête que vous tapez. Le lanceur la règle sur
-`/tmp/orkeon-code/session-start.sh`, une copie de `scripts/session-start.sh` faite à chaque démarrage : il nomme les
+`/tmp/orkeon-code/session-start.ork.ts`, une copie de `scripts/session-start.ork.ts` faite à chaque démarrage : il nomme les
 fichiers d'état des lots de dev qu'une compaction a écrits ces 7 derniers jours (`.orkeon/dev/<code>/state-F<n>.md`,
 avec la première étape ouverte) et les lots que le journal d'événements de Code laisse ouverts. Il n'imprime rien
 quand il n'y en a pas. Réglez `Orkeon__Cli__Session__StartScript` sur un autre chemin virtuel pour exécuter le vôtre
-(un `.ork.ts`, ou un fichier que `sh` lance depuis un montage en écriture), ou, sous Linux et macOS, sur une valeur
-vide pour n'en exécuter aucun.
+ou, sous Linux et macOS, sur une valeur vide pour n'en exécuter aucun. Faites-en un `.ork.ts`, que le runtime exécute
+par son hôte de scripts : tout autre fichier passe à `sh` par `shell_command`, ce qui échoue ici (les fichiers `.sh`
+sont refusés, `sh` n'est pas parmi les commandes du shell, et en modes tool et source le shell lit le `/tmp` de
+l'hôte). `sh scripts/session-start.sh <projet>` imprime les mêmes lignes dans un terminal.
 
 Le pack du dépôt (`.orkeon/repo.yaml`, sinon celui du harness) peut aussi donner `tests.trait_pattern`, une clé
 d'Orkeon Code que le harness ignore : la façon dont un test nomme l'id de fiche qu'il couvre, que la porte de

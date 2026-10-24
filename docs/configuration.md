@@ -114,12 +114,14 @@ settings: `/config set` writes such a value, then says, under "persisted", that 
 goes. `/config set --session` is not narrowed.
 
 At the REPL's start the runtime runs the file its key `Orkeon:Cli:Session:StartScript` names, once, and puts what it
-prints before the first request you type. The launcher sets it to `/tmp/orkeon-code/session-start.sh`, a copy of
-`scripts/session-start.sh` made at every start: it names the state files of the dev batches a compaction wrote in the
+prints before the first request you type. The launcher sets it to `/tmp/orkeon-code/session-start.ork.ts`, a copy of
+`scripts/session-start.ork.ts` made at every start: it names the state files of the dev batches a compaction wrote in the
 last 7 days (`.orkeon/dev/<code>/state-F<n>.md`, with the first open step) and the batches Code's event log leaves
 open. It prints nothing when there is none. Set `Orkeon__Cli__Session__StartScript` to another virtual path to run
-your own (a `.ork.ts`, or a file `sh` runs from a writable mount), or, on Linux and macOS, to an empty value to run
-none.
+your own, or, on Linux and macOS, to an empty value to run none. Make it a `.ork.ts`, which the runtime runs through
+its script host: any other file goes to `sh` through `shell_command`, which fails here (`.sh` files are refused, `sh`
+is not among the shell's commands, and in tool and source modes the shell reads the host's `/tmp`).
+`sh scripts/session-start.sh <project>` prints the same lines in a terminal.
 
 The repository pack (`.orkeon/repo.yaml`, else the harness's) can also give `tests.trait_pattern`, an Orkeon Code key
 the harness ignores: how a test names the sheet id it covers, which the gate of `/dev-verify` looks for under the test

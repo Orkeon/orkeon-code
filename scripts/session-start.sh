@@ -1,10 +1,10 @@
 #!/bin/sh
 # Orkeon Code's session start script: what a new session should know about the dev work
-# left in progress in the project, printed once at the REPL's start. The runtime runs the
-# file Orkeon:Cli:Session:StartScript names (`sh <file>`, in the project, /workspace) and
-# puts what it prints before the first free-text turn; /assistant hands it to the main
-# loop, which keeps it as a [turn-context] message. The launcher copies this file to
-# /tmp/orkeon-code/session-start.sh at every start and sets the key.
+# left in progress in the project, the twin for a terminal of scripts/session-start.ork.ts,
+# the one the launcher installs as Orkeon:Cli:Session:StartScript (the runtime cannot run a
+# shell start script: a `.sh` file is refused and `sh` is not in its shell allowlist). The
+# REPL puts what that one prints before the first free-text turn; /assistant hands it to the
+# main loop, which keeps it as a [turn-context] message. Keep the two printing the same lines.
 #
 #   sh scripts/session-start.sh [<project dir>]      (default: the working directory)
 #
