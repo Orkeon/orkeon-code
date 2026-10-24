@@ -6,7 +6,7 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual, ok } from "node:assert";
 
 import { MEMORY_TOOLS, SCRIPT_TOOLS, TOOL_ARGUMENTS } from "../../domain/agent-policy/permission.ts";
-import { MEMORY_PUSH, MEMORY_RECALL, memoryPushTool, memoryRecallTool, memoryTools } from "./memory-tools.ts";
+import { MEMORY_PUSH, MEMORY_RECALL, memoryPushTool, memoryRecallTool, memoryRecallTools, memoryTools } from "./memory-tools.ts";
 import type { MemoryToolPorts } from "./memory-tools.ts";
 import type { ToolBuilderFactory } from "./script-tools.ts";
 import { memoryLayout } from "../../domain/shared-memory/layout.ts";
@@ -74,6 +74,18 @@ describe("the memory tools", () => {
       [[kept.id, "admitted", "a red test on the edge case", path, 0.8]]);
     strictEqual(out.truncated, false);
     ok(!(await run(memoryRecallTool(recorder().builder, ports), {})).ok);
+  });
+
+  it("recall under a working root names each entry's file under the root (outbound)", async () => {
+    const ROOT = "/workspace/.orkeon/worktrees/prune-F2";
+    const { files, memory, ports } = world();
+    const kept = sampleEntry("mistake", "loop");
+    const path = `${layout.entries}/mistake/${kept.id}.md`;
+    files.files.set(path, entryText(kept));
+    memory.hits = [{ sourceId: path, score: 0.8 }];
+    const out = await run(memoryRecallTool(recorder().builder, ports, ROOT), { query: "a retry loop" });
+    strictEqual(out.entries[0].path, path.replace(/^\/workspace/, ROOT));
+    strictEqual(JSON.stringify(memoryRecallTools(recorder().builder, ports, true, ROOT).length), "1");
   });
 
   it("push a candidate, and refuse in a read-only mode with nothing written", async () => {

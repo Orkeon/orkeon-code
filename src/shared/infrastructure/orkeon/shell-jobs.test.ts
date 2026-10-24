@@ -64,4 +64,19 @@ describe("createShellJobs", () => {
   it("refuses a wait that is not whole seconds", async () => {
     await rejects(createShellJobs(new FakeTools()).wait(0.5), /whole number/);
   });
+
+  it("under a working root, starts and reads its jobs in the root, the waiter written there", async () => {
+    const ROOT = "/workspace/.orkeon/worktrees/prune-F2";
+    const tools = new FakeTools();
+    tools.replies.shellCommand = (input: { action?: string }) =>
+      input.action === "job_tail" ? { tail: `${ROOT}/src/a.ts failed` } : { job_id: "j1", output_path: "/output/jobs/j1.log", status: "running", exit_code: 0 };
+    const jobs = createShellJobs(tools, ROOT);
+    deepStrictEqual(await jobs.start("npm test -- /workspace/src"), { id: "j1", log: "/output/jobs/j1.log" });
+    strictEqual(await jobs.tail("j1", 10), "/workspace/src/a.ts failed");
+    await jobs.wait(1);
+    const inputs = tools.inputsOf("shellCommand") as Array<{ command: string; working_directory: string }>;
+    deepStrictEqual(inputs.map((i) => i.working_directory), [ROOT, ROOT, ROOT]);
+    strictEqual(inputs[0].command, `npm test -- ${ROOT}/src`);
+    deepStrictEqual(tools.inputsOf("fileWrite").map((i) => (i as { path: string }).path), [`${ROOT}/${WAIT_SCRIPT}`]);
+  });
 });

@@ -4,7 +4,8 @@
 // reads (every mode); the push writes a candidate file, never entries/ (an edit: not offered in
 // plan or dontAsk, asked in default). The gate decides from the declared access; the push also
 // refuses by itself in a read-only mode. Their ports are built when the model calls them, from the
-// wiring: `ctx` is undefined in a tool's execute.
+// wiring: `ctx` is undefined in a tool's execute. Under a batch's working root, the recall's
+// file paths go out on the root (scriptTool's `root`).
 
 import { ENTRY_TYPES } from "../../domain/shared-memory/entry.ts";
 import type { EntryType } from "../../domain/shared-memory/entry.ts";
@@ -69,7 +70,7 @@ export const MEMORY_PUSH: ScriptToolSpec = {
 const typesOf = (value: unknown): EntryType[] =>
   Array.isArray(value) ? value.filter((t): t is EntryType => (ENTRY_TYPES as readonly unknown[]).includes(t)) : [];
 
-export function memoryRecallTool(builder: ToolBuilderFactory, ports: () => MemoryToolPorts): Tool<unknown, unknown> {
+export function memoryRecallTool(builder: ToolBuilderFactory, ports: () => MemoryToolPorts, root?: string): Tool<unknown, unknown> {
   return scriptTool(builder, MEMORY_RECALL, async (input) => {
     const raw = (input !== null && typeof input === "object" ? input : {}) as Record<string, unknown>;
     const query = typeof raw.query === "string" ? raw.query.trim() : "";
@@ -88,7 +89,7 @@ export function memoryRecallTool(builder: ToolBuilderFactory, ports: () => Memor
       })),
       truncated: recall.truncated,
     };
-  });
+  }, root);
 }
 
 export function memoryPushTool(builder: ToolBuilderFactory, ports: () => MemoryToolPorts, mode: string): Tool<unknown, unknown> {
@@ -118,8 +119,10 @@ export function memoryRecallOn(input: unknown): boolean {
 }
 
 /** memory_recall for a dev agent's `withAutonomousTools`, none when it is off. */
-export function memoryRecallTools(builder: ToolBuilderFactory, ports: () => MemoryToolPorts, on: boolean): Array<Tool<unknown, unknown>> {
-  return on ? [memoryRecallTool(builder, ports)] : [];
+export function memoryRecallTools(
+  builder: ToolBuilderFactory, ports: () => MemoryToolPorts, on: boolean, root?: string,
+): Array<Tool<unknown, unknown>> {
+  return on ? [memoryRecallTool(builder, ports, root)] : [];
 }
 
 /** The read tools a dev agent's callbacks let through on a host without a gate: memory_recall when it is on. */

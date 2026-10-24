@@ -3,7 +3,7 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
-import { HOOK_TIMEOUT_SECONDS, devToolCallbacks, hookInputs, isNewFile, memoryGuardCallbacks } from "./tool-callbacks.ts";
+import { HOOK_TIMEOUT_SECONDS, devToolCallbacks, hookInputs, isNewFile, memoryGuardCallbacks, rootedCallbacks } from "./tool-callbacks.ts";
 import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
 import { FakeShell } from "../../../../tests/support/fake-shell.ts";
 
@@ -167,6 +167,29 @@ describe("onToolCall — the rewrite rule", () => {
     strictEqual(await isNewFile(files({ "/workspace/src/a.ts": "" }), "/workspace/src/a.ts"), false);
     strictEqual(await isNewFile(files({}, "timeout"), "src/a.ts"), undefined);
     strictEqual(await isNewFile(files({}), "  "), undefined);
+  });
+});
+
+describe("rootedCallbacks — a batch under its working root", () => {
+  const ROOT = "/workspace/.orkeon/worktrees/prune-F2";
+  const LAYOUT = { domain: "src/domain", application: "src/app", infrastructure: "src/infra", tests: "tests" };
+
+  it("judges <root>/src/x.ts as /workspace/src/x.ts, and hands the hooks the logical path", async () => {
+    const reads: string[] = [];
+    const reader = { async read(path: string) { reads.push(path); return "x"; } };
+    const shell = new FakeShell();
+    const inner = devToolCallbacks({ step: "dev-implement", role: "implementer", layout: LAYOUT, hooks: [PRE] }, { shell, files: reader });
+    const act = rootedCallbacks(inner, ROOT).forAct("acceptEdits", true);
+    const refused = await act.onToolCall({ name: "file_write", input: { path: `${ROOT}/src/domain/big.ts`, content: "y" } });
+    ok(typeof refused === "object" && refused.deny.includes("of the implementer's rewrite rule"), JSON.stringify(refused));
+    deepStrictEqual(reads, ["/workspace/src/domain/big.ts"]);
+    strictEqual(await act.onToolCall({ name: "file_read", input: { path: `${ROOT}/src/a.ts` } }), "allow");
+    deepStrictEqual(shell.commands, ["bash pre.sh file_read /workspace/src/a.ts"]);
+  });
+
+  it("is the callbacks themselves without a root", () => {
+    const inner = devToolCallbacks({ step: "dev-plan" }, { shell: new FakeShell() });
+    strictEqual(rootedCallbacks(inner, undefined), inner);
   });
 });
 

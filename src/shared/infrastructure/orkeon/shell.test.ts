@@ -85,3 +85,23 @@ describe("createShell", () => {
     }
   });
 });
+
+describe("createShell — under a working root", () => {
+  const ROOT = "/workspace/.orkeon/worktrees/prune-F2";
+
+  it("runs in the root, its command's /workspace paths on the root, its output's root paths back on /workspace", async () => {
+    const tools = new FakeTools();
+    tools.replies.shellCommand = { stdout: `${ROOT}\n`, stderr: `${ROOT}/src/a.ts:1 error`, exit_code: 0 };
+    const r = await createShell(tools, ROOT).run("git -C /workspace rev-parse --show-toplevel", { timeoutSeconds: 5 });
+    deepStrictEqual(tools.inputsOf("shellCommand"), [
+      { command: `git -C ${ROOT} rev-parse --show-toplevel`, working_directory: ROOT, timeout_seconds: 5 },
+    ]);
+    deepStrictEqual(r, { stdout: "/workspace\n", stderr: "/workspace/src/a.ts:1 error", exitCode: 0 });
+  });
+
+  it("calls shell_command exactly as before without a root", async () => {
+    const tools = new FakeTools();
+    await createShell(tools, undefined).run("cat /workspace/a");
+    deepStrictEqual(tools.inputsOf("shellCommand"), [{ command: "cat /workspace/a", working_directory: "/workspace" }]);
+  });
+});

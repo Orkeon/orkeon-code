@@ -104,4 +104,23 @@ describe("the tools and their slots", () => {
     await build.execute({ project: "p" });
     deepStrictEqual(calls, ['tests {"command":"c"}', 'build {"project":"p"}']);
   });
+
+  it("under a working root, hand the model root paths and the body /workspace paths (outbound)", async () => {
+    const ROOT = "/workspace/.orkeon/worktrees/prune-F2";
+    const slot = scriptToolSlot<WrappedTools>();
+    const vslot = scriptToolSlot<ValidationCalls>();
+    const seen: unknown[] = [];
+    slot.bind({
+      async runTests(input) { seen.push(input); return { ok: false, exitCode: 1, tail: "/workspace/tests/a.test.ts failed", log: "/workspace/workbench/prune/logs/t.log" } as any; },
+      async runBuild() { return { ok: true, log: "/workspace/workbench/prune/logs/b.log" } as any; },
+    });
+    vslot.bind({ async run(command) { return { report: { command, outcome: "exit 1", tail: "at /workspace/src/a.ts:3" }, line: null }; } });
+    const tests = await runTestsTool(recorder().builder, slot, ROOT).execute({ command: `npm test -- ${ROOT}/tests/a.test.ts` });
+    const build = await runBuildTool(recorder().builder, slot, ROOT).execute({});
+    const validation = await runValidationTool(recorder().builder, vslot, ROOT).execute({ command: "npm test -- tests/a.test.ts" });
+    deepStrictEqual(seen, [{ command: "npm test -- /workspace/tests/a.test.ts" }]);
+    const shown = JSON.stringify([tests, build, validation]);
+    strictEqual(/\/workspace\/(?!\.orkeon\/worktrees\/prune-F2)/.test(shown), false, shown);
+    strictEqual((tests as any).log, `${ROOT}/workbench/prune/logs/t.log`);
+  });
 });

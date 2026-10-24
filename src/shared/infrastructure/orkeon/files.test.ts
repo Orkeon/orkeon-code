@@ -95,3 +95,29 @@ describe("createFiles — mounts", () => {
     await rejects(createFiles(tools).mounts(), /not registered/);
   });
 });
+
+describe("createFiles — under a working root", () => {
+  const ROOT = "/workspace/.orkeon/worktrees/prune-F2";
+
+  it("reads, writes and lists a /workspace path under the root, and keeps the others", async () => {
+    const tools = new FakeTools();
+    tools.replies.fileRead = { content: "x" };
+    const files = createFiles(tools, ROOT);
+    await files.read("/workspace/src/a.ts");
+    await files.write("/workspace/.orkeon/dev/prune/implement-F2.json", "{}");
+    await files.list("/workspace/workbench/prune", 10);
+    await files.read(`${ROOT}/src/b.ts`);
+    await files.read("/output/jobs/1.log");
+    deepStrictEqual(tools.calls.map((c) => (c.input as { path: string }).path), [
+      `${ROOT}/src/a.ts`, `${ROOT}/.orkeon/dev/prune/implement-F2.json`, `${ROOT}/workbench/prune`, `${ROOT}/src/b.ts`, "/output/jobs/1.log",
+    ]);
+  });
+
+  it("calls the tools exactly as before without a root", async () => {
+    const tools = new FakeTools();
+    tools.replies.fileRead = { content: "x" };
+    await createFiles(tools).read("/workspace/src/a.ts");
+    await createFiles(tools, undefined).write("/workspace/a", "y");
+    deepStrictEqual(tools.calls.map((c) => c.input), [{ path: "/workspace/src/a.ts" }, { path: "/workspace/a", content: "y" }]);
+  });
+});

@@ -10,6 +10,7 @@ import { buildCallGuard, checkToolCall, denyText, hookCommand } from "../../doma
 import { OPERATIONS_TOOL, REWRITE_TOOL } from "../../domain/agent-policy/rule-sets.ts";
 import { sameToolName } from "../../domain/agent-policy/permission.ts";
 import { memoryWriteRefusal } from "../../domain/shared-memory/layout.ts";
+import { mapStrings, textFromRoot } from "../../domain/dev/path-rebase.ts";
 import type { CallGuard, CallGuardSpec, ToolHook } from "../../domain/dev/call-guard.ts";
 
 /** A hook is stopped after this many seconds, and refuses (pre) or is reported (post). */
@@ -214,4 +215,26 @@ export function devToolCallbacks(spec: CallGuardSpec, deps: ToolCallbackDeps): T
   const guard = buildCallGuard(spec);
   for (const problem of guard.problems) deps.log?.warn(`${spec.step}: ${problem}`);
   return createToolCallbacks(guard, deps);
+}
+
+/**
+ * The callbacks of a batch run under its working root (a parallel /dev-batches): every string of a call's input
+ * comes back from the root to `/workspace` before `callbacks` see it, so the rule sets, the rewrite rule, the hooks
+ * and the writes a role reports name the logical checkout (a relative path already lands under the root). Without
+ * a root, `callbacks` themselves.
+ */
+export function rootedCallbacks<C extends Pick<ToolCallbacks, "forAct">>(callbacks: C, root: string | undefined): C {
+  if (root === undefined || root === "") return callbacks;
+  const logical = (call: { name: string; input: unknown }) => ({ name: call.name, input: mapStrings(call.input, (t) => textFromRoot(t, root)) });
+  return {
+    ...callbacks,
+    forAct(mode: string, gateEnabled: boolean | undefined) {
+      const inner = callbacks.forAct(mode, gateEnabled);
+      return {
+        ...inner,
+        onToolCall: (call) => inner.onToolCall(logical(call)),
+        onToolResult: (call, result) => inner.onToolResult(logical(call), result),
+      };
+    },
+  };
 }
