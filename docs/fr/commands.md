@@ -15,7 +15,7 @@ Les descriptions sont celles que le REPL affiche, lues dans `src/commands/*.cmd.
 | `/branch` | sync | Show the current git branch, or check out the given one (refuses on a dirty tree). |
 | `/btw` | sync | Inject a side note into the session context ("by the way…"). |
 | `/clear` | sync | Clear the conversation buffer and the screen. Aussi `/reset-session`. |
-| `/commit` | async | Draft and create a conventional commit of the changed files or the paths named, the work folder left out unless named (confirms first; --yes skips; --push pushes; --pr opens the pull request with the github tool when allowed, else prints its command). |
+| `/commit` | async | Draft and create a conventional commit of the changed files or the paths named, the work folder left out unless named (confirms first; --yes skips; --push pushes; --pr opens the pull request). |
 | `/compact` | async | Compact the session buffer to free up context; text after it names what the summary must keep; --snip [N] only keeps the head and the last N exchanges. |
 | `/config` | sync | List, get, set or unset settings over the declared key space (file + session layers). |
 | `/context` | sync | Show the current session context: title, model, messages, tokens, pressure, cache tokens. Aussi `/ctx-viz`. |

@@ -84,7 +84,7 @@ function pullRequestContext(ctx: any): { githubTool: boolean; permissionRules: s
 
 defineAsyncCommand({
   name: "commit",
-  description: "Draft and create a conventional commit of the changed files or the paths named, the work folder left out unless named (confirms first; --yes skips; --push pushes; --pr opens the pull request with the github tool when allowed, else prints its command).",
+  description: "Draft and create a conventional commit of the changed files or the paths named, the work folder left out unless named (confirms first; --yes skips; --push pushes; --pr opens the pull request).",
   maxConcurrent: 1,
   dispatch: async (args, ctx) => {
     const parsed = parseCommitArgs(rawTokens(args));
