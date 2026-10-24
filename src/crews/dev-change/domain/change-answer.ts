@@ -26,7 +26,7 @@ export interface ChangeAnswer {
   questions: DraftQuestion[];
 }
 
-export const CRITERION_SEVERITIES: readonly CriterionSeverity[] = ["blocking", "warning"];
+const CRITERION_SEVERITIES: readonly CriterionSeverity[] = ["blocking", "warning"];
 export const MAX_CRITERIA = 12;
 const MAX_NAME_CHARS = 80;
 const MAX_STATEMENT_CHARS = 200;
@@ -75,7 +75,7 @@ function rows<K extends string>(v: unknown, keys: readonly K[]): Array<Record<K,
 
 export const criterionId = (k: number): string => `CH-${String(k + 1).padStart(2, "0")}`;
 
-export function readChangeAnswer(value: unknown): ChangeAnswer {
+function readChangeAnswer(value: unknown): ChangeAnswer {
   const o = isObject(value) ? value : {};
   return {
     route: text(o.route) === "feature" ? "feature" : "change",

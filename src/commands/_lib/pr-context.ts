@@ -28,7 +28,7 @@ export async function readPullRequestContext(ports: PullRequestContextPorts): Pr
   } catch { /* no rules service: none */ }
   try {
     permissionMode = (await ports.session.resolveEffectiveSessionMode()).mode;
-  } catch { /* unknown mode: the opener refuses and hands the command over */ }
+  } catch { /* unknown mode, "": the opener refuses and hands the command over, and writeModeRefusal (dev-step.ts) refuses the step */ }
   return { githubTool, permissionRules, permissionMode };
 }
 

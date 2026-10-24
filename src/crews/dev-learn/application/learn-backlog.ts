@@ -21,6 +21,7 @@ export interface Backlog {
   untreated: LearnRow[];
   files: number;
   orkeon: LearnState; harness: HarnessLearnState; refused: RefusedMotif[];
+  refusedFile: string;         // refused.md under memory.dir, relative to the project
   warnings: string[];
 }
 
@@ -33,7 +34,8 @@ async function readOrNull(files: Pick<Files, "read">, path: string): Promise<str
   }
 }
 
-export async function readBacklog(files: Pick<Files, "read" | "list">, work: WorkFolder): Promise<Backlog> {
+/** `refusedFile`: refused.md under memory.dir, relative to the project (readRefusedFile). */
+export async function readBacklog(files: Pick<Files, "read" | "list">, work: WorkFolder, refusedFile: string = REFUSED_FILE): Promise<Backlog> {
   const { sources, warnings } = await readVerdictSources(files, work);
   const rows = collectLearnRows(sources);
 
@@ -44,13 +46,13 @@ export async function readBacklog(files: Pick<Files, "read" | "list">, work: Wor
 
   const harness = parseHarnessLearnState(await readOrNull(files, `${WORKSPACE}/${HARNESS_LEARN_STATE_FILE}`));
 
-  const refusedText = await readOrNull(files, `${WORKSPACE}/${REFUSED_FILE}`);
+  const refusedText = await readOrNull(files, `${WORKSPACE}/${refusedFile}`);
   const list = refusedText === null ? { motifs: [], problems: [] } : parseRefused(refusedText);
-  for (const p of list.problems) warnings.push(`${REFUSED_FILE}:${p.message}`);
+  for (const p of list.problems) warnings.push(`${refusedFile}:${p.message}`);
 
   const treated = new Set([...orkeon.treated, ...harness.treated]);
   return {
     rows, untreated: untreatedRows(rows, treated), files: sources.length,
-    orkeon, harness, refused: list.motifs, warnings,
+    orkeon, harness, refused: list.motifs, refusedFile, warnings,
   };
 }

@@ -13,13 +13,14 @@ import type { Files, HumanInput, Llm, Logger, Shell } from "../../../shared/appl
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import { loadDevContext } from "../../../shared/application/dev/load-dev-context.ts";
 import { decideMotifs } from "../../../shared/application/dev/learn-decision.ts";
+import { readMemoryDir } from "../../../shared/application/shared-memory/memory-settings.ts";
 import { GIT_TOPLEVEL, workFolderLabel } from "../../../shared/application/dev/resolve-work-folder.ts";
 import type { WorkFolder } from "../../../shared/application/dev/resolve-work-folder.ts";
 import {
   MIN_MOTIF_BATCHES, axisListing, backlogByAxis, canonicalAxis, foldText,
 } from "../../../shared/domain/shared-memory/verdict-rows.ts";
 import type { AxisBacklog, LearnRow } from "../../../shared/domain/shared-memory/verdict-rows.ts";
-import { REFUSED_FILE, topicOf } from "../../../shared/domain/shared-memory/refused.ts";
+import { topicOf } from "../../../shared/domain/shared-memory/refused.ts";
 import {
   LEARN_FOLDER_PATTERN, PROPOSALS_JSON, PROPOSALS_MD, deployedHarnessPath, learnFolderName, motifId,
   parseProposalsFile, serializeProposalsFile,
@@ -271,7 +272,7 @@ function filterMotifs(
     }
     const refused = backlog.refused.find((r) => r.topic === motif.topic);
     if (refused) {
-      dropped.push({ title: motif.title, filter: "novelty", reason: `refused on ${refused.date} (${REFUSED_FILE})` });
+      dropped.push({ title: motif.title, filter: "novelty", reason: `refused on ${refused.date} (${backlog.refusedFile})` });
       continue;
     }
     if (harnessTexts.some((t) => foldText(t.trim()) === foldText(motif.title) || topicOf(t) === motif.topic)) {
@@ -341,7 +342,9 @@ function motifOption(m: Motif): string {
 
 interface Decided { accept: string[]; refuse: string[]; ids: Set<string> }
 
-/** One multi-select per axis with motifs; an axis left unanswered decides nothing. */
+/** One multi-select per axis with motifs: the selected ones accepted and the others refused. The human_input
+ *  adapter offers "Decide later" first and reads it, or an empty selection, as no answer (an unattended provider
+ *  must refuse nothing on the person's behalf): an axis left so decides nothing. */
 async function askDecisions(
   human: Pick<HumanInput, "multi"> | undefined, proposals: readonly AxisProposal[], shown: string,
 ): Promise<Decided> {
@@ -351,7 +354,8 @@ async function askDecisions(
     if (axis.motifs.length === 0) continue;
     const byOption = new Map(axis.motifs.map((m) => [motifOption(m), m.id]));
     const answer = await human.multi(
-      `dev-learn — axis ${axis.axis}: select the motifs to accept; the others are refused (read ${shown} first)`,
+      `dev-learn — axis ${axis.axis}: select the motifs to accept; the others are refused. ` +
+        `Decide later, or nothing selected, decides nothing (read ${shown} first)`,
       [...byOption.keys()],
     );
     if (!answer.answered) continue;
@@ -382,8 +386,11 @@ export async function runDevLearn(input: DevLearnInputs, deps: DevLearnDeps): Pr
     return [...warningLines(ctx.warnings), `dev-learn: no work folder ${work.folder}/: nothing to learn from`].join("\n");
   }
 
-  const backlog = await readBacklog(deps.files, work);
-  const out = [...warningLines([...ctx.warnings, ...backlog.warnings]), headLine(work, ctx.pack?.shown ?? null, backlog)];
+  // refused.md under memory.dir, as /memory-admit and memory_push read it; a value set aside is said.
+  const memoryDir = await readMemoryDir(deps.config);
+  const backlog = await readBacklog(deps.files, work, `${memoryDir.dir}/refused.md`);
+  const memoryWarnings = memoryDir.warning === undefined ? [] : [memoryDir.warning];
+  const out = [...warningLines([...ctx.warnings, ...memoryWarnings, ...backlog.warnings]), headLine(work, ctx.pack?.shown ?? null, backlog)];
   const done = (...lines: string[]): string => [...out, ...lines].join("\n");
 
   const wanted = args.axis === null ? null : canonicalAxis(args.axis);

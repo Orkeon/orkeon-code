@@ -12,8 +12,9 @@
 // whose tool `tools.extra` no longer lists stays, dormant, until it lists it again
 // or the rule is removed. The gate itself runs only when the host turned it on
 // (Orkeon:Security:PermissionGate:Enabled); the host says whether it did
-// (PermissionRules.enabled, Orkeon #128) and the view reports it: on, off, or
-// unknown on a runtime without the field.
+// (PermissionRules.enabled, Orkeon #128, which the runtime always reports) and the
+// view says on or off. The last case of gateStateLines - no value - is for a fake
+// or a port that says nothing: it names the setting and the launcher instead.
 
 import type { PermissionRules, ToolCatalogue } from "../../shared/application/ports.ts";
 import { USER_CONFIG_FILE_PATH } from "../../shared/application/config-store.ts";
@@ -190,7 +191,8 @@ async function renderShow(deps: PermissionsDeps, extras: ExtraToolsResolution): 
     "                       2) host gate, at each call: a matching deny refuses; a matching allow runs",
     "                          without asking (not in plan); else the mode decides, and default and",
     "                          acceptEdits ask you: [y] once / [s] session / [n] no",
-    "                       3) dev crews' callback (/dev-plan, /dev-verify), after the gate allowed a call:",
+    "                       3) dev crews' callback (/dev-spec, /dev-change, /dev-plan, /dev-implement,",
+    "                          /dev-batches, /dev-verify, a /tasks repair), after the gate allowed a call:",
     "                          the step's rule sets and a role's roots again, glob/grep/count_pattern by",
     "                          their whole input, the act's mode when the host has no gate, then the",
     "                          pre-tool and post-tool hooks (/hooks); it can refuse, never allow more",

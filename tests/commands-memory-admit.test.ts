@@ -86,9 +86,20 @@ describe("runMemoryAdmit", () => {
 
   it("admits nothing in a session that cannot prompt", async () => {
     for (const answer of [new Error("no console"), undefined]) {
-      const { run } = setup({}, [true, answer]);
+      const { run } = setup({}, [answer]);
       const r = await run({ kind: "admit", ids: [] });
       ok("refused" in r && r.refused.includes("cannot prompt"));
+    }
+  });
+
+  it("keeps a confirmed admission when a later question is cancelled", async () => {
+    for (const answer of [new Error("cancelled"), undefined]) {
+      const { run, asked } = setup({}, [true, answer]);
+      const r = await run({ kind: "admit", ids: [] });
+      strictEqual(asked.length, 2);
+      strictEqual(ids(r).length, 1);
+      ok((r as any).refusedQuestions.includes("got no answer"), JSON.stringify(r));
+      strictEqual((r as any).refusedQuestions.includes("cannot prompt"), false);
     }
   });
 

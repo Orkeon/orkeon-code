@@ -203,6 +203,16 @@ describe("runDevPlan — a plan written and reviewed", () => {
   });
 });
 
+describe("runDevPlan — a prompt with no room for the inventory", () => {
+  it("refuses before any model call and writes nothing", async () => {
+    const f = setup();
+    const text = await runDevPlan({ source: "prune" }, { ...f.deps, precedents: FakePrecedents.hits("p".repeat(26_000)).recall });
+    ok(text.startsWith("dev-plan: the prompt leaves no room for the inventory"), text);
+    strictEqual(f.deps.llm.extracts.length, 0);
+    strictEqual(f.deps.files.writes.length, 0);
+  });
+});
+
 describe("runDevPlan — T2, the shared memory's precedents", () => {
   it("recalls decisions and code structures from the code and the source's titles, the block in the planner's prompt", async () => {
     const f = setup();

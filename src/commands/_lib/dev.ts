@@ -18,7 +18,7 @@ import { blockingStop } from "../../shared/domain/dev/spec-format.ts";
 
 export type DevStatusDeps = DevContextDeps;
 export const DEV_STATUS_USAGE = "usage: /dev-status [<code>]";
-export const MAX_BATCH_LINES = 20;
+const MAX_BATCH_LINES = 20;
 export const MAX_WARNING_LINES = 5;
 export const MAX_LINE_CHARS = 160;
 
@@ -138,7 +138,7 @@ function codeLine(code: DevCode): string {
 }
 
 /** The lines of § 3.1; adds the consistency warnings to code.warnings. */
-export function renderDevStatus(ctx: DevContext, code: DevCode): string[] {
+function renderDevStatus(ctx: DevContext, code: DevCode): string[] {
   const batches = batchLines(code);
   for (const w of batches.warnings) if (!code.warnings.includes(w)) code.warnings.push(w);
   const warnings = [...ctx.warnings, ...code.warnings];
@@ -180,7 +180,7 @@ function codesLine(codes: readonly CodeSummary[]): string {
 }
 
 /** The lines of § 3.2; `notProbed` counts the folders the probe cap left out. */
-export function renderCodeList(ctx: DevContext, codes: readonly CodeSummary[], notProbed = 0): string[] {
+function renderCodeList(ctx: DevContext, codes: readonly CodeSummary[], notProbed = 0): string[] {
   const lines = contextLines(ctx);
   if (codes.length === 0 && notProbed === 0) {
     lines.push(`no code under ${ctx.work.folder}/ (a code is a folder holding SPEC-, CHANGE- or *-PLAN.md files)`);

@@ -7,7 +7,9 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
-import { activeWorkflowOf, devVerifyStep, markActiveWorkflow, reapplyStepRules, startDevStep } from "../src/commands/_lib/dev-step.ts";
+import {
+  activeWorkflowOf, devVerifyStep, markActiveWorkflow, readWriteModeRefusal, reapplyStepRules, startDevStep, writeModeRefusal,
+} from "../src/commands/_lib/dev-step.ts";
 import { WORKFLOW_ACTIVE_STATE_KEY } from "../src/shared/domain/session-keys.ts";
 import type { DevStepStart } from "../src/commands/_lib/dev-step.ts";
 import { createConfigStore } from "../src/shared/application/config-store.ts";
@@ -90,7 +92,7 @@ describe("startDevStep", () => {
     deps.gate.kept = false;
     const start = started(await startDevStep("dev-plan", deps));
     deepStrictEqual(start.lines, [
-      "warning: the host keeps no session rules: /dev-plan's rule sets are not in force, the mode alone decides each call.",
+      "warning: the host keeps no session rules: /dev-plan's rule sets are not in the host's gate, the crew's callback alone checks them.",
     ]);
     strictEqual(start.rules, 0);
   });
@@ -157,5 +159,30 @@ describe("reapplyStepRules", () => {
     strictEqual(reapplyStepRules(gate, "dev-implement"), null);
     strictEqual(gate.calls.includes("clear"), false);
     ok(gate.calls.some((c) => c.startsWith("add allow run_tests")), gate.calls.slice(-3).join(" | "));
+  });
+});
+
+describe("writeModeRefusal", () => {
+  it("lets a writing step run in a mode that writes", () => {
+    strictEqual(writeModeRefusal("default", "dev-spec", "writes files"), null);
+    strictEqual(writeModeRefusal("acceptEdits", "dev-plan", "writes files"), null);
+  });
+
+  it("refuses a read-only mode, and a mode that could not be read", () => {
+    strictEqual(writeModeRefusal("plan", "dev-plan", "writes files"),
+      "✗ refused: the session mode plan is read-only, and /dev-plan writes files: /mode default, then run it again");
+    strictEqual(writeModeRefusal("", "dev-change", "writes files"),
+      "✗ refused: the session mode could not be read, and /dev-change writes files: run it again");
+    strictEqual(writeModeRefusal("bogus", "dev-spec", "writes files"),
+      "✗ refused: the session mode bogus is not one Orkeon Code knows, and /dev-spec writes files: /mode default, then run it again");
+  });
+
+  it("reads the session's mode, and refuses when the read fails", async () => {
+    const read = (mode: string | Error) => ({
+      resolveEffectiveSessionMode: async () => { if (mode instanceof Error) throw mode; return { mode, via: "test" }; },
+    });
+    strictEqual(await readWriteModeRefusal(read("default"), "dev-spec", "writes files"), null);
+    ok((await readWriteModeRefusal(read("plan"), "dev-spec", "writes files"))?.includes("plan is read-only"));
+    ok((await readWriteModeRefusal(read(new Error("no session")), "dev-spec", "writes files"))?.includes("could not be read"));
   });
 });

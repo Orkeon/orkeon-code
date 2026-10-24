@@ -90,6 +90,16 @@ describe("readBacklog", () => {
     deepStrictEqual(b.warnings, ['.orkeon/memory/refused.md:line 4: not "topic | project | date | motif"']);
   });
 
+  it("reads refused.md where memory.dir puts it, and only there", async () => {
+    const files = fixtureFiles();
+    files.files.set(REFUSED, "rounding-in-handlers | ledger | 2026-10-01 | Rounding inside handlers\n");
+    files.files.set("/workspace/docs/memory/refused.md", "empty-exports | ledger | 2026-10-02 | Exports skip the empty case\nbad\n");
+    const b = await readBacklog(files, WORK, "docs/memory/refused.md");
+    deepStrictEqual(b.refused.map((m) => m.topic), ["empty-exports"]);
+    strictEqual(b.refusedFile, "docs/memory/refused.md");
+    deepStrictEqual(b.warnings, ['docs/memory/refused.md:line 2: not "topic | project | date | motif"']);
+  });
+
   it("warns when the work folder's listing reaches its cap", async () => {
     const files = new FakeFiles();
     files.listings.set(W, Array.from({ length: WORK_LIST_CAP + 5 }, (_, i) => `c${i}/`));

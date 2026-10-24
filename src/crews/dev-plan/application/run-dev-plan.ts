@@ -326,8 +326,13 @@ export async function runDevPlan(input: DevPlanInputs, deps: DevPlanDeps): Promi
   };
   const fixed = buildPlanPrompt({ ...promptInput, sourceText: "", inventory: "" }, []).length;
   const room = MAX_PLAN_PROMPT_CHARS - fixed - REASK_RESERVE;
+  // Below the floor the prompt's cut would drop inventory lines the plan's check still counts as shown: refused.
+  if (room < MIN_INVENTORY_CHARS) {
+    return `dev-plan: the prompt leaves no room for the inventory: its instructions, ids, commands and precedents take ${fixed} ` +
+      `of ${MAX_PLAN_PROMPT_CHARS} characters; nothing is written. Split the source, or run it again with fewer precedents.`;
+  }
   if (shownInventory.text.length > room) {
-    shownInventory = renderInventory(inventory, Math.max(MIN_INVENTORY_CHARS, room));
+    shownInventory = renderInventory(inventory, room);
     promptInput.inventory = shownInventory.text;
   }
 

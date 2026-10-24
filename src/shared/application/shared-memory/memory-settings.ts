@@ -54,22 +54,25 @@ export async function defaultProject(shell: Pick<Shell, "run">): Promise<string>
   return validProject(remote === null || remote === "" ? null : projectFromRemote(remote)) ?? LOCAL_PROJECT;
 }
 
-/** memory.dir as it applies, and the warning when the stored value was set aside for the default. */
+/** memory.dir as it applies, relative to the project, and the line saying a stored value was set aside. */
 export async function readMemoryDir(config: Pick<ConfigStore, "readValue">): Promise<{ dir: string; warning?: string }> {
-  const rawDir = await valueOf(config, MEMORY_DIR_CONFIG_KEY);
-  if (rawDir === undefined) return { dir: DEFAULT_MEMORY_DIR };
-  const check = checkMemoryDir(rawDir);
-  return check.ok
-    ? { dir: check.dir }
-    : { dir: DEFAULT_MEMORY_DIR, warning: `${MEMORY_DIR_CONFIG_KEY} '${rawDir}' set aside (${check.reason}): ${DEFAULT_MEMORY_DIR} applies` };
+  const raw = await valueOf(config, MEMORY_DIR_CONFIG_KEY);
+  if (raw === undefined) return { dir: DEFAULT_MEMORY_DIR };
+  const check = checkMemoryDir(raw);
+  return check.ok ? { dir: check.dir } : { dir: DEFAULT_MEMORY_DIR, warning: `${MEMORY_DIR_CONFIG_KEY} '${raw}' set aside (${check.reason}): ${DEFAULT_MEMORY_DIR} applies` };
+}
+
+/** The refused motifs' file of the shared memory, relative to the project: refused.md under memory.dir. */
+export async function readRefusedFile(config: Pick<ConfigStore, "readValue">): Promise<string> {
+  return `${(await readMemoryDir(config)).dir}/refused.md`;
 }
 
 export async function readMemorySettings(
   deps: { config: Pick<ConfigStore, "readValue">; shell: Pick<Shell, "run"> },
 ): Promise<MemorySettings> {
-  const warnings: string[] = [];
-  const { dir, warning } = await readMemoryDir(deps.config);
-  if (warning !== undefined) warnings.push(warning);
+  const read = await readMemoryDir(deps.config);
+  const warnings: string[] = read.warning === undefined ? [] : [read.warning];
+  const dir = read.dir;
   const rawProject = await valueOf(deps.config, MEMORY_PROJECT_CONFIG_KEY);
   let project: string | null = null;
   if (rawProject !== undefined) {

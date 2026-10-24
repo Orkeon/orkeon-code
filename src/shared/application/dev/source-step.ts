@@ -20,6 +20,23 @@ const PATH_TOKEN = /^[A-Za-z0-9._\-/]+\.(md|txt)$/;
 
 export const firstLine = (e: unknown): string => (e instanceof Error ? e.message : String(e)).split("\n")[0];
 const pad2 = (n: number): string => String(n).padStart(2, "0");
+/** A write of the source file that failed: the one failure the step reports as "could not be written"; any other
+ *  (a question cancelled, a model call that failed) goes up as it is. */
+export class SourceWriteFailure extends Error {
+  constructor(cause: unknown) {
+    super(firstLine(cause));
+  }
+}
+
+/** The write of a source file, its failure a SourceWriteFailure. */
+export const sourceWriter = (files: Pick<Files, "write">, vfs: string) => async (text: string): Promise<void> => {
+  try {
+    await files.write(vfs, text);
+  } catch (e) {
+    throw new SourceWriteFailure(e);
+  }
+};
+
 export const dateOf = (d: Date): string => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 export const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
 

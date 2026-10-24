@@ -17,8 +17,8 @@ import type { Folded, RoundState } from "../../../shared/application/dev/questio
 import { reviewLine, reviewSource } from "../../../shared/application/dev/source-review.ts";
 import type { SourceReviewOutcome } from "../../../shared/application/dev/source-review.ts";
 import {
-  codeFolder, dateOf, firstLine, inputCode, inputText, openLine, plural, problemLines, sourceSelfCheck, toplevelRefusal,
-  warningLines,
+  codeFolder, dateOf, firstLine, inputCode, inputText, openLine, plural, problemLines, sourceSelfCheck,
+  SourceWriteFailure, sourceWriter, toplevelRefusal, warningLines,
 } from "../../../shared/application/dev/source-step.ts";
 import { numberQuestions, parseDecisions, parseOpenQuestions } from "../../../shared/domain/dev/questions.ts";
 import type { Decision, Question } from "../../../shared/domain/dev/questions.ts";
@@ -51,9 +51,23 @@ export const FEATURE_LINE = "→ This is a feature, not a change of what exists:
 
 type Drafted = { feature: true } | { feature: false; text: string; open: Question[]; unknown: string[] };
 
-/** True when the inventory shows a test of that name (a path or a symbol holding it). */
-const knownIn = (inventory: BriefInventory) => (name: string): boolean =>
-  inventory.entries.some((e) => e.name.includes(name) || name.includes(e.name) || e.path.includes(name));
+/** The last segment of a qualified name (`AccountTests.loads` → `loads`, `a/b.ts::loads` → `loads`), or a path's
+ *  file name whole (`tests/a.test.ts` → `a.test.ts`). */
+function lastSegment(name: string): string {
+  const tail = name.split(/::|#/).filter((s) => s !== "").pop() ?? name;
+  const parts = /[/\\]/.test(tail) ? tail.split(/[/\\]/) : tail.split(".");
+  return parts.filter((s) => s !== "").pop() ?? tail;
+}
+
+/**
+ * True when the inventory shows a test of that name: an entry named so, or the last segment of the name (a qualified
+ * name), or a file of that path or name. Never a part of a name: `Account` does not show `AccountTests.never_written`.
+ */
+export const knownIn = (inventory: Pick<BriefInventory, "entries">) => (name: string): boolean => {
+  const names = new Set([name, lastSegment(name)]);
+  return inventory.entries.some((e) =>
+    names.has(e.name) || name === e.path || name === e.path.slice(e.path.lastIndexOf("/") + 1));
+};
 
 export async function runDevChange(input: DevChangeInputs, deps: DevChangeDeps): Promise<string> {
   // 1. Inputs and checkout.
@@ -174,7 +188,7 @@ export async function runDevChange(input: DevChangeInputs, deps: DevChangeDeps):
   const questionsOf = (decisions: readonly Decision[], kept: readonly Question[]) =>
     (c: ReturnType<typeof checkChangeAnswer>): Question[] => (c.ok ? numberQuestions(c.value.questions, decisions, kept) : [...kept]);
 
-  const write = async (text: string): Promise<void> => { await deps.files.write(brief.vfs, text); };
+  const write = sourceWriter(deps.files, brief.vfs);
   const decisions0 = existing === null ? [] : parseDecisions(existing);
   const open0 = existing === null ? [] : parseOpenQuestions(existing, decisions0.map((d) => d.id));
   const factsText = facts.join("\n");
@@ -264,6 +278,7 @@ export async function runDevChange(input: DevChangeInputs, deps: DevChangeDeps):
     }
     return lines.join("\n");
   } catch (e) {
-    return `${STEP}: ${brief.shown} could not be written (${firstLine(e)}); the answers given so far are in the file when it was written before`;
+    if (!(e instanceof SourceWriteFailure)) throw e;
+    return `${STEP}: ${brief.shown} could not be written (${e.message}); the answers given so far are in the file when it was written before`;
   }
 }

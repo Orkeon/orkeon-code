@@ -20,10 +20,10 @@ export interface SpecPromptInput {
   precedents?: string;
 }
 
-export const MAX_SPEC_PROMPT_CHARS = 60_000;
+const MAX_SPEC_PROMPT_CHARS = 60_000;
 const MIN_PART = 2_000;
 
-export const SPEC_INSTRUCTIONS: string = [
+const SPEC_INSTRUCTIONS: string = [
   "You write a business specification: what a feature does and the rules it follows, never how it is built. Answer " +
     "in the JSON schema given; code writes the file from it, you never write a file.",
   "",

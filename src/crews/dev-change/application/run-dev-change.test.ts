@@ -5,7 +5,7 @@
 // routed to /dev-spec; an issue read by gh; the unattended run BLOCKED.
 // Run:  node --test src/crews/dev-change/application/run-dev-change.test.ts
 import { describe, it } from "node:test";
-import { deepStrictEqual, ok, strictEqual } from "node:assert";
+import { deepStrictEqual, ok, rejects, strictEqual } from "node:assert";
 import { readFileSync } from "node:fs";
 import { FakePrecedents, PRECEDENTS_SAMPLE } from "../../../../tests/doubles/fake-precedents.ts";
 
@@ -22,7 +22,7 @@ import { ORKEON_IGNORE_PROBE, checkIgnoreCommand } from "../../../shared/applica
 import { parseDecisions, parseOpenQuestions } from "../../../shared/domain/dev/questions.ts";
 import { parsePlanSource } from "../../../shared/domain/dev/spec-format.ts";
 import type { ChangeAnswer } from "../domain/change-answer.ts";
-import { DEV_CHANGE_NEXT, FEATURE_LINE, runDevChange } from "./run-dev-change.ts";
+import { DEV_CHANGE_NEXT, FEATURE_LINE, knownIn, runDevChange } from "./run-dev-change.ts";
 import type { DevChangeInputs } from "./run-dev-change.ts";
 import { REPRO_TIMEOUT_SECONDS, issueCommand } from "./evidence.ts";
 
@@ -145,6 +145,20 @@ describe("runDevChange — a bug", () => {
   });
 });
 
+describe("runDevChange — failures", () => {
+  it("reports a write of the brief that fails as such, and lets a question that fails go up as it is", async () => {
+    const refactor: DevChangeInputs = { code: "cache", kind: "refactor", text: "The symbol map is read from disk on every call." };
+    const f = setup(["Yes"]);
+    f.deps.llm.extractions = [answer(), CLEAR];
+    f.files.write = async () => { throw new Error("disk full"); };
+    ok((await runDevChange(refactor, f.deps)).startsWith("dev-change: workbench/cache/CHANGE-cache.md could not be written (disk full)"));
+    const g = setup();
+    g.deps.llm.extractions = [answer(), CLEAR];
+    g.deps.human.choice = async () => { throw new Error("the question was cancelled"); };
+    await rejects(runDevChange(refactor, g.deps), /the question was cancelled/);
+  });
+});
+
 describe("runDevChange — other kinds and origins", () => {
   it("measures a perf change and needs a number in a criterion", async () => {
     const f = setup([null]);
@@ -206,5 +220,30 @@ describe("runDevChange — other kinds and origins", () => {
     const text = await runDevChange(bug, { ...f.deps, precedents: new FakePrecedents().recall });
     for (const e of f.llm.extracts) ok(!e.prompt.includes("## Precedents"));
     ok(!text.includes("precedents recalled"), text);
+  });
+});
+
+describe("knownIn", () => {
+  const known = knownIn({ entries: [
+    { path: "src/account.ts", line: 3, name: "Account" },
+    { path: "tests/run.test.ts", line: 9, name: "loads an absent map" },
+    { path: "tests/AccountTests.cs", line: 12, name: "Withdraw_refuses_an_overdraft" },
+  ] });
+
+  it("knows a test by its name, the last segment of its qualified name, or its file", () => {
+    strictEqual(known("loads an absent map"), true);
+    strictEqual(known("AccountTests.Withdraw_refuses_an_overdraft"), true);
+    strictEqual(known("tests/run.test.ts"), true);
+    strictEqual(known("run.test.ts"), true);
+  });
+
+  it("does not take a part of a name for the name", () => {
+    strictEqual(known("AccountTests.never_written"), false);
+    strictEqual(known("Acc"), false);
+    strictEqual(known("loads an absent map twice"), false);
+    strictEqual(known("run"), false);
+    // A path is one name: its extension is not a segment (`ts` would match an entry named so).
+    strictEqual(knownIn({ entries: [{ path: "src/x.ts", line: 1, name: "ts" }] })("tests/a.test.ts"), false);
+    strictEqual(known("tests/run.test.ts::loads an absent map"), true);
   });
 });

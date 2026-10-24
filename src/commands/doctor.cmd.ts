@@ -1,7 +1,7 @@
 /// <reference path="./.orkeon/orkeon-cli.d.ts" />
-// /doctor — health check: versions, toolchain, LLM configuration, tool catalogue,
-// VFS mounts and a project setting set aside, one pass/fail row per check (baseline 04 §/doctor). Entry point: wires
-// the shell, the telemetry, the tool catalogue and the files into _lib/doctor.ts
+// /doctor — health check: version, toolchain, LLM configuration, tool catalogue, VFS
+// mounts and the project values set aside, one pass/fail row per check (baseline 04 §/doctor). Entry point: wires
+// the shell, the telemetry, the tool catalogue, the files and the settings into _lib/doctor.ts
 // (runDoctor), which holds the checks.
 import { runDoctor } from "./_lib/doctor.ts";
 import { showView } from "./_lib/view.ts";

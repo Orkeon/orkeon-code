@@ -5,14 +5,15 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, rejects, strictEqual } from "node:assert";
 
-import { childAgentBody, createChildRuntime, withChildAct } from "./child-agents.ts";
+import { childAgentBody, createChildRuntime, openChildAct, withChildAct } from "./child-agents.ts";
+import { parseSnapshot, snapshotKey } from "../../domain/agents/instances.ts";
 import { createChildBoard } from "../../application/agents/child-agent.ts";
 import type { Llm } from "../../application/ports.ts";
 import { FakeLlmFacade } from "../../../../tests/support/fake-llm-facade.ts";
 import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
 import { FakeSessionStore } from "../../../../tests/support/fake-session-store.ts";
 
-function fakeRun() {
+function fakeRun(crewName = "dev-plan") {
   const memory = new Map<string, unknown>();
   const rows: Array<{ id: string; agent: string; state: string }> = [];
   const spawned: Array<[string, unknown]> = [];
@@ -37,7 +38,7 @@ function fakeRun() {
       // The child settles during the parent's first pause.
       const last = rows[rows.length - 1];
       if (last && last.state === "running") {
-        memory.set(`dev-plan:child:${rows.length}`, { ok: true, reply: `reply of ${last.id}` });
+        memory.set(`${crewName}:child:${rows.length}`, { ok: true, reply: `reply of ${last.id}` });
         last.state = "completed";
       }
       throw receiveError;
@@ -119,4 +120,24 @@ describe("withChildAct", () => {
     strictEqual(await llm.act("p", {}), "inline");
     strictEqual(log.lines[0].startsWith("warn: dev-reviewer: this host runs no background child"), true);
   });
+});
+
+describe("openChildAct", () => {
+  for (const step of ["dev-spec", "dev-change"]) {
+    it(`runs ${step}'s review in a child that /tasks reads under ${step}, and closes the run`, async () => {
+      const run = fakeRun(step);
+      const state = new FakeSessionStore();
+      let t = 0;
+      const base = { act: async () => "inline" } as unknown as Llm;
+      const child = openChildAct(base, run.ctx, run.crew, { state, clock: () => new Date(Date.UTC(2026, 9, 24) + (t += 1000)), log: new FakeLogger(), effort: "low" },
+        { crew: step, step }, { agent: "dev-reviewer", charter: "dev-reviewer", task: `review of the ${step}`, builder: () => ({ name: "dev-reviewer" }) as any });
+      strictEqual(await child.llm.act("p", {}), "reply of a1");
+      deepStrictEqual(run.added, ["dev-reviewer"]);
+      const live = parseSnapshot(await state.readState(snapshotKey(step)));
+      deepStrictEqual([live?.crew, live?.step, live?.open], [step, step, true]);
+      deepStrictEqual(live?.instances.map((i) => [i.charter, i.task, i.state]), [["dev-reviewer", `review of the ${step}`, "completed"]]);
+      await child.close();
+      strictEqual(parseSnapshot(await state.readState(snapshotKey(step)))?.open, false);
+    });
+  }
 });

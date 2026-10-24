@@ -3,6 +3,7 @@
 // the crew is launched; the /hooks registry is read for the crew's input (its tool callbacks run the hooks). Not a
 // command file: the loader reads *.cmd.ts only.
 import type { PermissionRules, SessionStore, ToolCatalogue } from "../../shared/application/ports.ts";
+import type { SessionIo } from "../../shared/application/session-io.ts";
 import type { ConfigStore } from "../../shared/application/config-store.ts";
 import { configuredNames, resolveExtraTools } from "../../shared/application/extra-tools.ts";
 import { syncStepRules } from "../../shared/application/permission-rules.ts";
@@ -16,6 +17,8 @@ import type { RuleSetId } from "../../shared/domain/agent-policy/rule-sets.ts";
 import { STEP_RULE_SETS, gateProblem, stepRules } from "../../shared/domain/dev/step-rules.ts";
 import type { DevStep } from "../../shared/domain/dev/step-rules.ts";
 import { isCode } from "../../shared/domain/dev/artefacts.ts";
+import { policyFor } from "../../shared/domain/agent-policy/mode-policy.ts";
+import { isPermissionMode } from "../../shared/domain/permission-modes.ts";
 import type { ActiveWorkflow } from "../../shared/domain/workflow/state-file.ts";
 import { writeActiveWorkflow } from "../../shared/application/workflow/workflow-state.ts";
 
@@ -53,7 +56,7 @@ export async function startDevStep(step: DevStep, deps: DevStepDeps): Promise<De
     builtIn: memoryWriteRules((await readMemoryDir(deps.config)).dir),
   });
   if (!sync.applied) {
-    lines.push(`warning: the host keeps no session rules: /${step}'s rule sets are not in force, the mode alone decides each call.`);
+    lines.push(`warning: the host keeps no session rules: /${step}'s rule sets are not in the host's gate, the crew's callback alone checks them.`);
   }
   for (const r of sync.overridden) {
     lines.push(`warning: the session's rule '${formatRule(r)}' is left out of the gate during /${step}: the step denies the same calls.`);
@@ -75,9 +78,35 @@ function gateRules(gate: PermissionRules) {
   }
 }
 
+/**
+ * The line refusing a step that writes files when the session's mode is read-only, or could not be read (`""`:
+ * a step never writes on a mode it does not know); null when it may run. `writes` says what the step writes.
+ */
+export function writeModeRefusal(mode: string, step: string, writes: string): string | null {
+  if (mode === "") return `✗ refused: the session mode could not be read, and /${step} ${writes}: run it again`;
+  if (!isPermissionMode(mode)) return `✗ refused: the session mode ${mode} is not one Orkeon Code knows, and /${step} ${writes}: /mode default, then run it again`;
+  if (!policyFor(mode).readOnly) return null;
+  return `✗ refused: the session mode ${mode} is read-only, and /${step} ${writes}: /mode default, then run it again`;
+}
+
+/** writeModeRefusal over the session's effective mode, read here: a read that fails refuses. */
+export async function readWriteModeRefusal(
+  session: Pick<SessionIo, "resolveEffectiveSessionMode">, step: string, writes: string,
+): Promise<string | null> {
+  let mode = "";
+  try {
+    mode = String((await session.resolveEffectiveSessionMode()).mode ?? "");
+  } catch { /* unknown: refused below */ }
+  return writeModeRefusal(mode, step, writes);
+}
+
 /** Before a launch of /dev-implement's chain (the audit, then the close), which runs no dispatch of its own: the
  *  gate must still be on, and the step's rules are put back on top of whatever the gate holds (an /assistant turn
- *  in between hands it the session's rules alone). Null when the launch may go, else the line refusing it. */
+ *  in between hands it the session's rules alone). The gate is not cleared: `completed` is synchronous and cannot
+ *  read the session's rules again, so the rules an earlier hop added stay until the next sync (the next command,
+ *  the next /assistant turn): an earlier hop's allows with them, but the gate puts every deny before an allow, so
+ *  this step's denies still win. Null when the
+ *  launch may go, else the line refusing it. */
 export function reapplyStepRules(gate: PermissionRules, step: DevStep): string | null {
   const problem = gateProblem(gate.enabled(), step);
   if (problem?.refuse) return problem.line;

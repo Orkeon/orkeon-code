@@ -5,7 +5,7 @@
 // in it before the crew (_lib/dev-step.ts), and the crew's tool callbacks check them again and run the /hooks.
 import { rawTokens } from "./_lib/args.ts";
 import { parseDevSpecArgs } from "./_lib/dev-source.ts";
-import { startDevStep } from "./_lib/dev-step.ts";
+import { readWriteModeRefusal, startDevStep } from "./_lib/dev-step.ts";
 import { launchCrew, writeCompleted } from "./_lib/dispatch.ts";
 import { storedEffort } from "./_lib/effort.ts";
 import { createCrewHost } from "../shared/infrastructure/orkeon/crew-host.ts";
@@ -25,6 +25,12 @@ defineAsyncCommand({
     if (!parsed.ok) {
       ctx.writeLine(parsed.text);
       return { refused: parsed.text };
+    }
+    // The crew writes files through its own port, which no mode gates: a read-only mode refuses it here.
+    const readOnly = await readWriteModeRefusal(deps.session, "dev-spec", "writes files");
+    if (readOnly !== null) {
+      ctx.writeLine(readOnly);
+      return { refused: readOnly };
     }
     const start = await startDevStep("dev-spec", {
       ...deps, gate: createPermissionRules(ctx.services), catalogue: orkeonToolCatalogue(ctx.services),

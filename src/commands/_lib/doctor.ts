@@ -17,9 +17,9 @@
 
 import type { Files, SessionMetadata, Shell, Telemetry, ToolCatalogue } from "../../shared/application/ports.ts";
 import type { ConfigStore } from "../../shared/application/config-store.ts";
-import { PERMISSION_FALLBACK_CONFIG_KEY } from "../../shared/domain/permission-modes.ts";
-import { CLI_NAME, CLI_VERSION, ORKEON_RUNTIME_VERSION } from "./meta.ts";
 import { CODE_INTEL_TOOLS } from "../../shared/domain/code-intel-contract.ts";
+import { knownConfigKeys } from "../../shared/domain/config-schema.ts";
+import { CLI_BUILD, CLI_NAME, CLI_VERSION, ORKEON_RUNTIME_VERSION } from "./meta.ts";
 import type { CommandView } from "./view.ts";
 
 /** Tools the coding agent cannot work without — absence is a FAIL, not a note. */
@@ -38,21 +38,19 @@ export interface DoctorDeps {
   telemetry: Pick<Telemetry, "readMetadata">;
   catalogue: Pick<ToolCatalogue, "names">;
   files: Pick<Files, "mounts" | "list">;
-  /** The settings: a project value set aside (QL-06) is named. Absent, that check is not made. */
-  config?: Pick<ConfigStore, "readValue">;
+  config: Pick<ConfigStore, "readValue">;
 }
+
+/** The version row: Code's own and the Orkeon it expects. The Orkeon found is the launcher's to say: the
+ *  runtime exposes no version of its own to a command. */
+export const VERSION_DETAIL =
+  `${CLI_NAME} ${CLI_VERSION} (${CLI_BUILD}); Orkeon expected ${ORKEON_RUNTIME_VERSION} (.orkeon-version), ` +
+  "the one found: orkeon-code --version in a terminal";
 
 /** Every check, one row each, and the verdict over them. */
 export async function runDoctor(deps: DoctorDeps): Promise<CommandView> {
   const { shell, telemetry, catalogue, files } = deps;
-  const rows: DoctorRow[] = [];
-
-  // 0. The versions, as `orkeon-code --version` prints them (temp/15 § 4.1); the runtime gives a command none of its own.
-  rows.push({
-    check: "version",
-    result: PASS,
-    detail: `${CLI_NAME} ${CLI_VERSION}, on Orkeon ${ORKEON_RUNTIME_VERSION} (expected; the one found: orkeon-code --version)`,
-  });
+  const rows: DoctorRow[] = [{ check: "version", result: PASS, detail: VERSION_DETAIL }];
 
   // 1. Toolchain (unchanged in intent, now one row per binary with the version).
   for (const p of [
@@ -138,17 +136,17 @@ export async function runDoctor(deps: DoctorDeps): Promise<CommandView> {
         "(orkeon-code --resume lists them); delete the folder once you no longer need it",
   });
 
-  // 6. A project value a project file cannot set (QL-06, temp/15 § 4.6): /permissions says it too.
-  if (deps.config !== undefined) {
-    const fallback = await deps.config.readValue(PERMISSION_FALLBACK_CONFIG_KEY).catch(() => undefined);
-    if (fallback?.ignored !== undefined) {
-      rows.push({
-        check: "settings: project values",
-        result: WARN,
-        detail: `the project file sets ${PERMISSION_FALLBACK_CONFIG_KEY} '${fallback.ignored.value}', ignored: ${fallback.ignored.reason}`,
-      });
-    }
+  // 6. What the project file set and could not widen (QL-06): said here as /permissions says it.
+  const ignored: string[] = [];
+  for (const key of knownConfigKeys()) {
+    const r = await deps.config.readValue(key).catch(() => undefined);
+    if (r?.ignored !== undefined) ignored.push(`the project file sets ${key} '${r.ignored.value}': ignored, ${r.ignored.reason}`);
   }
+  rows.push({
+    check: "settings: project file",
+    result: ignored.length === 0 ? PASS : WARN,
+    detail: ignored.length === 0 ? "widens nothing" : ignored.join("; "),
+  });
 
   const failed = rows.filter((r) => r.result === FAIL).length;
   const warned = rows.filter((r) => r.result === WARN).length;

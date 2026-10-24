@@ -28,9 +28,9 @@ export interface SpecAnswer {
   questions: DraftQuestion[];
 }
 
-export const RULE_SEVERITIES: readonly RuleSeverity[] = ["blocking", "warning", "informational"];
-export const DATA_SOURCES = ["entered", "computed", "imported", "catalogue"] as const;
-export const DATA_IMPORTANCE = ["essential", "secondary", "expert"] as const;
+const RULE_SEVERITIES: readonly RuleSeverity[] = ["blocking", "warning", "informational"];
+const DATA_SOURCES = ["entered", "computed", "imported", "catalogue"] as const;
+const DATA_IMPORTANCE = ["essential", "secondary", "expert"] as const;
 export const MAX_USE_CASES = 12;
 export const MAX_RULES = 24;
 export const MAX_SCENARIO_STEPS = 7;
@@ -99,11 +99,6 @@ const TECHNICAL: ReadonlyArray<[RegExp, string]> = [
   [/\b(class|interface|enum|DTO|repository pattern|framework)\b/, "a type or a framework"],
 ];
 
-export interface SpecCheckContext {
-  /** Re-asked answers keep the decisions: a question repeating one is dropped by code, not refused. */
-  decisions?: readonly string[];
-}
-
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const text = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
 const list = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
@@ -117,7 +112,7 @@ function rows<K extends string>(v: unknown, keys: readonly K[]): Array<Record<K,
 }
 
 /** The value read leniently: every field present, strings trimmed, missing lists empty. */
-export function readSpecAnswer(value: unknown): SpecAnswer {
+function readSpecAnswer(value: unknown): SpecAnswer {
   const o = isObject(value) ? value : {};
   return {
     name: text(o.name), summary: text(o.summary), context: text(o.context),
@@ -180,7 +175,7 @@ function cellProblems(name: string, items: ReadonlyArray<Record<string, string>>
   });
 }
 
-export function checkSpecAnswer(value: unknown, _ctx: SpecCheckContext = {}): Checked<SpecAnswer> {
+export function checkSpecAnswer(value: unknown): Checked<SpecAnswer> {
   if (!isObject(value)) return { ok: false, problems: ["the answer is not an object"] };
   const a = readSpecAnswer(value);
   const problems: string[] = [];

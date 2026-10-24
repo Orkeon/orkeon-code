@@ -15,7 +15,7 @@ import { reviewLine, reviewSource } from "../../../shared/application/dev/source
 import type { SourceReviewOutcome } from "../../../shared/application/dev/source-review.ts";
 import {
   codeFolder, dateOf, firstLine, inputCode, inputText, openLine, plural, problemLines, readRequest, sourceSelfCheck,
-  toplevelRefusal, warningLines,
+  SourceWriteFailure, sourceWriter, toplevelRefusal, warningLines,
 } from "../../../shared/application/dev/source-step.ts";
 import { numberQuestions, parseDecisions, parseOpenQuestions } from "../../../shared/domain/dev/questions.ts";
 import type { Decision, Question } from "../../../shared/domain/dev/questions.ts";
@@ -114,7 +114,7 @@ export async function runDevSpec(input: DevSpecInputs, deps: DevSpecDeps): Promi
   // T1: the decisions and methods of earlier work on the same topic, before the draft; the same block in every ask.
   const recalled = await (deps.precedents ?? noPrecedents)("T1", recallQuery([code, shownPhrase]));
 
-  const write = async (text: string): Promise<void> => { await deps.files.write(spec.vfs, text); };
+  const write = sourceWriter(deps.files, spec.vfs);
   const today = dateOf(deps.clock());
   const decisions0 = existing === null ? [] : parseDecisions(existing);
   const open0 = existing === null ? [] : parseOpenQuestions(existing, decisions0.map((d) => d.id));
@@ -200,6 +200,7 @@ export async function runDevSpec(input: DevSpecInputs, deps: DevSpecDeps): Promi
     }
     return lines.join("\n");
   } catch (e) {
-    return `${STEP}: ${spec.shown} could not be written (${firstLine(e)}); the answers given so far are in the file when it was written before`;
+    if (!(e instanceof SourceWriteFailure)) throw e;
+    return `${STEP}: ${spec.shown} could not be written (${e.message}); the answers given so far are in the file when it was written before`;
   }
 }

@@ -69,7 +69,7 @@ export type MemoryAdmitResult =
   | { admit: Confirmed[]; settings: MemorySettings; refusedQuestions?: string };
 
 /** What the operator reads before deciding: the candidate's fields and the first lines of its body. */
-export function candidateNotice(c: StoredEntry): string {
+function candidateNotice(c: StoredEntry): string {
   const e = c.entry;
   const lines = [`${e.id} (${e.type}, topic ${e.topic})`, `  title: ${e.title}`, `  applies when: ${e.appliesWhen}`,
     `  rationale: ${e.rationale}`];
@@ -84,10 +84,14 @@ export function candidateNotice(c: StoredEntry): string {
 const HEADLESS = "refused: /memory-admit asks before admitting and this session cannot prompt: no asked candidate was admitted. " +
   "Run it in an interactive session (an audited candidate admits unasked when memory.autoAdmitAudited is true).";
 
-/** No prompt: the questions are refused, the audited admissions that needed none still go. */
-function headless(admit: Confirmed[], settings: MemorySettings): MemoryAdmitResult {
-  return admit.length === 0 ? { refused: HEADLESS } : { admit, settings, refusedQuestions: HEADLESS };
+/** No answer: the questions left are refused, the admissions already made - unasked or confirmed - still go. */
+function headless(admit: Confirmed[], settings: MemorySettings, why: string): MemoryAdmitResult {
+  return admit.length === 0 ? { refused: why } : { admit, settings, refusedQuestions: why };
 }
+
+/** A question cancelled after another was answered: the session can prompt, the person stopped. */
+const stoppedAt = (id: string): string =>
+  `refused: the question about ${id} got no answer: it and the candidates after it stay candidates. Run /memory-admit again for them.`;
 
 export async function runMemoryAdmit(args: MemoryAdmitArgs, deps: MemoryAdmitDeps, io: MemoryAdmitIo): Promise<MemoryAdmitResult> {
   const settings = await readMemorySettings(deps);
@@ -122,6 +126,7 @@ export async function runMemoryAdmit(args: MemoryAdmitArgs, deps: MemoryAdmitDep
     io.writeLine("  admitted without a question (audited, memory.autoAdmitAudited is true)");
     admit.push(confirmed(c));
   }
+  let answered = false;
   for (const c of asked.filter((x) => !unasked.includes(x))) {
     io.writeLine(candidateNotice(c));
     const problem = admissionProblem(c.entry);
@@ -130,9 +135,11 @@ export async function runMemoryAdmit(args: MemoryAdmitArgs, deps: MemoryAdmitDep
     try {
       answer = await io.confirm(`Admit ${c.entry.id} into the shared memory?`);
     } catch {
-      return headless(admit.slice(0, unasked.length), settings);
+      answer = undefined;
     }
-    if (typeof answer !== "boolean") return headless(admit.slice(0, unasked.length), settings);
+    // Every admission confirmed so far is kept: only the first question tells a session that cannot prompt.
+    if (typeof answer !== "boolean") return headless(admit, settings, answered ? stoppedAt(c.entry.id) : HEADLESS);
+    answered = true;
     if (answer) admit.push(confirmed(c));
     else io.writeLine("  left as a candidate");
   }

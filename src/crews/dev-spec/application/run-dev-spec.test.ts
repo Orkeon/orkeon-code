@@ -4,7 +4,7 @@
 // revision that keeps the decisions; the refusals before any model call; nothing written outside the code folder.
 // Run:  node --test src/crews/dev-spec/application/run-dev-spec.test.ts
 import { describe, it } from "node:test";
-import { deepStrictEqual, ok, strictEqual } from "node:assert";
+import { deepStrictEqual, ok, rejects, strictEqual } from "node:assert";
 import { readFileSync } from "node:fs";
 
 import { FakeCodeIndex } from "../../../../tests/support/fake-code-index.ts";
@@ -172,6 +172,15 @@ describe("runDevSpec — refusals", () => {
     await run(f, { code: "prune", request: "docs/brief.md" });
     ok(f.llm.extracts[0].prompt.includes("Prune old memory entries before a cut-off."));
     ok((await run(setup(), { code: "prune", request: "../etc/brief.md" })).includes("is outside the checkout"));
+  });
+
+  it("reports a write that fails as such, and lets a question that fails go up as it is", async () => {
+    const f = setup(["No"]);
+    f.files.write = async () => { throw new Error("disk full"); };
+    ok((await run(f)).startsWith("dev-spec: workbench/prune/SPEC-prune.md could not be written (disk full)"));
+    const g = setup();
+    g.person.human.choice = async () => { throw new Error("the question was cancelled"); };
+    await rejects(run(g), /the question was cancelled/);
   });
 
   it("writes nothing when the spec is refused twice", async () => {

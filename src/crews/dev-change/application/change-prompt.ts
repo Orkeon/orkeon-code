@@ -15,10 +15,10 @@ export interface ChangePromptInput {
   precedents?: string;
 }
 
-export const MAX_CHANGE_PROMPT_CHARS = 60_000;
+const MAX_CHANGE_PROMPT_CHARS = 60_000;
 const MIN_PART = 2_000;
 
-export const CHANGE_INSTRUCTIONS: string = [
+const CHANGE_INSTRUCTIONS: string = [
   "You write a change brief: a bug, a refactor or a performance change of code that exists. Answer in the JSON " +
     "schema given; code writes the file from it, you never write a file.",
   "",

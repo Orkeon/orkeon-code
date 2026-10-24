@@ -26,8 +26,7 @@ import {
 import { memoryReadTools, memoryRecallOn, memoryRecallTools } from "../../shared/infrastructure/orkeon/memory-tools.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { devToolCallbacks } from "../../shared/infrastructure/orkeon/tool-callbacks.ts";
-import { childAgentBody, withChildAct } from "../../shared/infrastructure/orkeon/child-agents.ts";
-import { createChildBoard } from "../../shared/application/agents/child-agent.ts";
+import { childAgentBody, openChildAct } from "../../shared/infrastructure/orkeon/child-agents.ts";
 import { charterCatalogue } from "../../shared/domain/agents/charter.ts";
 import { instanceLimits } from "../../shared/domain/agents/instances.ts";
 import { providerEffort } from "../../shared/domain/agent-policy/behavior-flags.ts";
@@ -74,17 +73,17 @@ const planner = AgentBuilder()
   .maxIterations(REVIEWER_CHARTER.maxIterations)
   .body(async (_input: any, ctx: any) => {
     const clock = () => new Date();
-    const board = createChildBoard({ state: session, clock, log: ctx.log }, { crew: "dev-plan", step: "dev-plan" });
-    const llm = withChildAct(
-      createLlm(ctx.llm, callbacksFor(ctx), { effort }), ctx, crew, { board, clock, log: ctx.log, effort },
+    const child = openChildAct(
+      createLlm(ctx.llm, callbacksFor(ctx), { effort }), ctx, crew, { state: session, clock, log: ctx.log, effort },
+      { crew: "dev-plan", step: "dev-plan" },
       { agent: REVIEWER_CHARTER.name, charter: REVIEWER_CHARTER.name, task: "review of the plan", builder: reviewer },
     );
     try {
       // T2: the shared memory's precedents in the planner's prompt, unless memory_recall is denied.
       const precedents = stepPrecedents({ ...ports, memory: orkeonSharedMemory(), log: ctx.log }, { on: memoryOn });
-      return await runDevPlan(inputs(), { ...ports, llm, log: ctx.log, clock, precedents });
+      return await runDevPlan(inputs(), { ...ports, llm: child.llm, log: ctx.log, clock, precedents });
     } finally {
-      await board.close();
+      await child.close();
     }
   })
   .build();

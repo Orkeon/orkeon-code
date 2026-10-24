@@ -42,6 +42,19 @@ export async function readOrigin(step: string, deps: { shell: Pick<Shell, "run">
   }
 }
 
+/** The values a word of the CLI may carry a path in: the word, what follows each `=` (`--out=x`, `out=x`,
+ *  `--a=b=/x`) and, for short options, what follows each letter of the cluster (`-o/x`, `-xf/x`). */
+function pathValues(word: string): string[] {
+  const values = [word];
+  for (let i = word.indexOf("="); i >= 0; i = word.indexOf("=", i + 1)) values.push(word.slice(i + 1));
+  const cluster = /^-[A-Za-z]+/.exec(word);
+  if (cluster !== null) for (let i = 2; i <= cluster[0].length; i++) values.push(word.slice(i));
+  return values;
+}
+
+const outOfCheckout = (value: string): boolean =>
+  value.split(/[\\/]/).includes("..") || value.startsWith("/") || value.startsWith("~") || /^[A-Za-z]:/.test(value) || value.includes("\\");
+
 /** Why a command may not run, null when it may: a narrow test command of the pack, or the CLI and plain words. */
 export function commandProblem(command: string, commands: RepoPackCommands): string | null {
   const c = command.trim();
@@ -56,9 +69,7 @@ export function commandProblem(command: string, commands: RepoPackCommands): str
       else if (/[$`]/.test(ch) || (!quoted && /[*?[\]{}]/.test(ch))) return "a glob or an expansion after the CLI";
     }
     for (const word of tail.trim().split(/\s+/).filter((w) => w !== "")) {
-      const value = word.replace(/^"|"$/g, "").replace(/^--?[A-Za-z][\w-]*=/, "");
-      if (value === ".." || value.startsWith("../") || value.includes("/../") || value.endsWith("/..")) return "a path out of the checkout";
-      if (value.startsWith("/") || value.startsWith("~") || /^[A-Za-z]:[\\/]/.test(value) || value.includes("\\")) return "a path out of the checkout";
+      if (pathValues(word.replace(/"/g, "")).some(outOfCheckout)) return "a path out of the checkout";
     }
     return null;
   }
@@ -66,7 +77,7 @@ export function commandProblem(command: string, commands: RepoPackCommands): str
   return check.ok ? null : check.reason;
 }
 
-export function packCommandList(commands: RepoPackCommands): string[] {
+function packCommandList(commands: RepoPackCommands): string[] {
   return [commands.testClass, commands.testProject, commands.testIntegration, commands.cli === undefined ? undefined : `${commands.cli} <arguments>`]
     .filter((c): c is string => c !== undefined && c.trim() !== "");
 }

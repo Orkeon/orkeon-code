@@ -92,6 +92,7 @@ describe("runDevLearn — decisions in the run", () => {
       `${ID_A} — Refusal paths go untested (3 batches, new, CONTRIBUTING.md)`,
       `${ID_B} — Exports skip the empty case (3 batches, new, CONTRIBUTING.md)`,
     ]);
+    ok(q.asked[0].prompt.includes("Decide later, or nothing selected, decides nothing"), q.asked[0].prompt);
     const lines = text.split("\n");
     ok(lines.some((l) => l.startsWith(`accepted ${ID_A} — Refusal paths go untested`)), text);
     ok(lines.includes("refused: empty-exports — left out of future proposals (.orkeon/memory/refused.md)"), text);
@@ -110,6 +111,32 @@ describe("runDevLearn — decisions in the run", () => {
       f.files.files.get(REFUSED));
   });
 
+  it("writes the refusal to refused.md under memory.dir, and a later run drops that motif naming the same file", async () => {
+    const q = stub((options) => ({ answered: true, values: options.filter((o) => o.startsWith(ID_A)) }));
+    const f = setup(q.human);
+    f.files.files.set("/workspace/.orkeon/config.json", JSON.stringify({ "memory.dir": "docs/memory" }));
+    const text = await runDevLearn({}, f.deps);
+    ok(text.includes("refused: empty-exports — left out of future proposals (docs/memory/refused.md)"), text);
+    ok(!f.files.files.has(REFUSED), "nothing under the default memory folder");
+    ok((f.files.files.get("/workspace/docs/memory/refused.md") ?? "").includes("empty-exports | ledger | 2026-10-22"));
+
+    const again = setup(stub(() => ({ answered: false })).human);
+    again.files.files.set("/workspace/.orkeon/config.json", JSON.stringify({ "memory.dir": "docs/memory" }));
+    again.files.files.set("/workspace/docs/memory/refused.md", f.files.files.get("/workspace/docs/memory/refused.md") ?? "");
+    await runDevLearn({}, again.deps);
+    const proposals = again.files.files.get(OUT_FILES[0]) ?? "";
+    ok(proposals.includes("refused on 2026-10-22 (docs/memory/refused.md)"), proposals);
+  });
+
+  it("says a memory.dir set aside, and keeps refused.md in the default memory folder", async () => {
+    const q = stub((options) => ({ answered: true, values: options.filter((o) => o.startsWith(ID_A)) }));
+    const f = setup(q.human);
+    f.files.files.set("/workspace/.orkeon/config.json", JSON.stringify({ "memory.dir": "../outside" }));
+    const text = await runDevLearn({}, f.deps);
+    ok(text.includes("memory.dir '../outside' set aside"), text);
+    ok(text.includes("left out of future proposals (.orkeon/memory/refused.md)"), text);
+  });
+
   it("decides nothing when the person does not answer: only the proposals written, the --accept hint kept", async () => {
     const q = stub(() => ({ answered: false }));
     const f = setup(q.human);
@@ -118,6 +145,14 @@ describe("runDevLearn — decisions in the run", () => {
     deepStrictEqual(f.files.writes.map((w) => w.path), OUT_FILES);
     ok(text.endsWith(`→ /dev-learn --accept ${ID_A},${ID_B}\n` +
       "  or /dev-learn --refuse <id> for each one you reject — read the lines first in PROPOSALS.md"), text);
+  });
+
+  it("decides nothing on an empty selection, as the prompt says", async () => {
+    const q = stub(() => ({ answered: true, values: [] }));
+    const f = setup(q.human);
+    const text = await runDevLearn({}, f.deps);
+    deepStrictEqual(f.files.writes.map((w) => w.path), OUT_FILES);
+    ok(text.includes(`→ /dev-learn --accept ${ID_A},${ID_B}`), text);
   });
 
   it("decides nothing without a human port, as before", async () => {

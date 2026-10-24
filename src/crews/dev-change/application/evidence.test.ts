@@ -16,6 +16,7 @@ describe("commandProblem", () => {
   it("accepts the CLI with plain words inside the checkout, and a narrow test command", () => {
     strictEqual(commandProblem("node bin/orkeon.mjs run src/crews/x/crew.ork.ts --inputs \"{}\"", PACK), null);
     strictEqual(commandProblem("node bin/orkeon.mjs --version", PACK), null);
+    strictEqual(commandProblem("node bin/orkeon.mjs -o out/x.txt level=2 --dir=src/a", PACK), null);
     strictEqual(commandProblem("node --test tests/a.test.ts", PACK), null);
   });
 
@@ -24,6 +25,8 @@ describe("commandProblem", () => {
       "node bin/orkeon.mjs run /tmp/x.ork.ts", "node bin/orkeon.mjs --config=/etc/passwd", "node bin/orkeon.mjs run ~/x.ts",
       "node bin/orkeon.mjs run ../x.ts", "node bin/orkeon.mjs run a/../../x.ts", "node bin/orkeon.mjs run src/*.ts",
       "node bin/orkeon.mjs run $HOME", "node bin/orkeon.mjs run x; rm -rf .",
+      "node bin/orkeon.mjs -o/etc/passwd", "node bin/orkeon.mjs out=..", "node bin/orkeon.mjs dir=a/../../x", "node bin/orkeon.mjs -C~",
+      "node bin/orkeon.mjs -xf/etc/x", "node bin/orkeon.mjs --a=b=/etc",
     ]) ok(commandProblem(c, PACK) !== null, c);
     ok(commandProblem("npm test", PACK) !== null, "the whole suite is no narrow command");
     ok(commandProblem("node bin/orkeon.mjs\nrm x", PACK) !== null, "one line");

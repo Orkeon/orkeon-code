@@ -6,8 +6,8 @@
 // withChildAct hands the use cases an Llm whose act runs in such a child, the rest unchanged.
 
 import type { ActRequest, ChildRuntime, Llm, Logger } from "../../application/ports.ts";
-import { instanceKey, parseChildInput, runChildAct } from "../../application/agents/child-agent.ts";
-import type { ChildBoard } from "../../application/agents/child-agent.ts";
+import { createChildBoard, instanceKey, parseChildInput, runChildAct } from "../../application/agents/child-agent.ts";
+import type { BoardDeps, ChildBoard } from "../../application/agents/child-agent.ts";
 import { createLlm } from "./llm.ts";
 import type { ToolCallbacks } from "./tool-callbacks.ts";
 
@@ -104,4 +104,22 @@ export function withChildAct(
       );
     },
   };
+}
+
+/**
+ * A step run whose act goes to a background child (A2), from its board to its close: the board
+ * /tasks reads under `run.crew`, and withChildAct over it. The caller closes it once the run ended,
+ * whatever the outcome (`finally`), so /tasks no longer shows the run as open.
+ */
+export function openChildAct(
+  base: Llm,
+  ctx: ChildContext & Pick<AgentContext, "crew" | "spawn">,
+  crew: ChildCrew,
+  deps: BoardDeps & { effort?: ActRequest["effort"] },
+  run: { crew: string; step: string },
+  spec: ChildActSpec,
+): { llm: Llm; close: () => Promise<void> } {
+  const board = createChildBoard({ state: deps.state, clock: deps.clock, log: deps.log }, run);
+  const llm = withChildAct(base, ctx, crew, { board, clock: deps.clock, log: deps.log, effort: deps.effort }, spec);
+  return { llm, close: () => board.close() };
 }

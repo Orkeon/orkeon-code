@@ -1,8 +1,8 @@
 // The anchors of a checked plan answer against the repository: a path given as existing
 // must be there, a path given as a file to create must not be. One listing per folder and
 // per run (40 folders at most, the cache shared by the two attempts of a run); it reads
-// listings only and writes nothing. Past the cap an existing anchor is refused as not
-// checked, never let through. Its problems join the answer's, for the one re-ask.
+// listings only and writes nothing. Past the cap, or in a folder whose listing the entry cap
+// cut short, an existing anchor it cannot see is refused as not checked, never let through. Its problems join the answer's, for the one re-ask.
 import type { Files } from "../../../shared/application/ports.ts";
 import type { AnchorRef, PlanAnswer } from "../domain/plan-answer.ts";
 
@@ -12,7 +12,7 @@ export const MAX_ANCHOR_FOLDERS = 40;
 export type AnchorListings = Map<string, ReadonlySet<string>>;
 
 const WORKSPACE = "/workspace";
-const LIST_CAP = 1000;
+export const LIST_CAP = 1000;
 
 const folderOf = (path: string): string => {
   const cut = path.lastIndexOf("/");
@@ -59,7 +59,10 @@ export async function checkAnchorPaths(
             if (a.kind === "existing") problem = `${at}: anchor "${path}" not checked: more than ${MAX_ANCHOR_FOLDERS} folders`;
           } else {
             const present = names.has(nameOf(path));
-            if (a.kind === "existing" && !present) problem = `${at}: ${path} does not exist`;
+            // A listing the cap cut short may leave the name out: that is no proof it is absent.
+            if (a.kind === "existing" && !present && names.size >= LIST_CAP) {
+              problem = `${at}: anchor "${path}" not checked: its folder lists more than ${LIST_CAP} entries`;
+            } else if (a.kind === "existing" && !present) problem = `${at}: ${path} does not exist`;
             if (a.kind === "create" && present) problem = `${at}: ${path} exists: anchor it as existing, or by its ref`;
           }
         }

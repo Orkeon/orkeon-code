@@ -11,7 +11,8 @@ import { LEARN_FOLDER_PATTERN, PROPOSALS_JSON, acceptLines, parseProposalsFile }
 import type { AxisProposal, Motif, ProposalsFile } from "../../domain/dev/learn-proposals.ts";
 import { LEARN_STATE_FILE, decisionOf, parseLearnState, serializeLearnState, withDecision } from "../../domain/dev/learn-state.ts";
 import type { LearnState } from "../../domain/dev/learn-state.ts";
-import { REFUSED_FILE, appendRefused, parseRefused, projectFromRemote, topicOf } from "../../domain/shared-memory/refused.ts";
+import { appendRefused, parseRefused, projectFromRemote, topicOf } from "../../domain/shared-memory/refused.ts";
+import { readRefusedFile } from "../shared-memory/memory-settings.ts";
 
 export type DevLearnDecisionArgs = { kind: "accept"; ids: string[] } | { kind: "refuse"; target: string };
 export type DevLearnDecisionDeps = DevContextDeps & { files: Pick<Files, "read" | "list" | "write">; clock: () => Date };
@@ -175,12 +176,14 @@ async function projectName(shell: Pick<Shell, "run">): Promise<string> {
 
 /** Appends the topic to refused.md unless it is there already; the line to print. */
 async function recordRefusal(topic: string, motifText: string, date: string, deps: DevLearnDecisionDeps): Promise<{ ok: boolean; line: string }> {
-  const path = `${WORKSPACE_ROOT}/${REFUSED_FILE}`;
+  // refused.md of memory.dir, the one /memory-admit reads too.
+  const refusedFile = await readRefusedFile(deps.config);
+  const path = `${WORKSPACE_ROOT}/${refusedFile}`;
   let previous: string | null;
   try {
     previous = await readOrNull(deps.files, path);
   } catch (e) {
-    return { ok: false, line: `dev-learn: ${REFUSED_FILE} cannot be read (${firstLineOf(e)}): nothing was written` };
+    return { ok: false, line: `dev-learn: ${refusedFile} cannot be read (${firstLineOf(e)}): nothing was written` };
   }
   const already = previous === null ? undefined : parseRefused(previous).motifs.find((m) => m.topic === topic);
   if (already !== undefined) return { ok: true, line: `${topic} was already refused on ${already.date}` };
@@ -188,9 +191,9 @@ async function recordRefusal(topic: string, motifText: string, date: string, dep
   try {
     await deps.files.write(path, appendRefused(previous, { topic, project, date, motif: motifText }));
   } catch (e) {
-    return { ok: false, line: `dev-learn: BLOCKED — ${REFUSED_FILE} cannot be written (${firstLineOf(e)})` };
+    return { ok: false, line: `dev-learn: BLOCKED — ${refusedFile} cannot be written (${firstLineOf(e)})` };
   }
-  return { ok: true, line: `refused: ${topic} — left out of future proposals (${REFUSED_FILE})` };
+  return { ok: true, line: `refused: ${topic} — left out of future proposals (${refusedFile})` };
 }
 
 async function refuseMotif(target: string, lookup: ProposalsLookup, work: WorkFolder, deps: DevLearnDecisionDeps): Promise<string[]> {

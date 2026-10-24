@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 import { strictEqual, ok, deepStrictEqual } from "node:assert";
 
 import { buildStatusRows, runStatus, PLATFORM_COMMAND } from "../src/commands/_lib/status.ts";
-import { cacheColumns } from "../src/commands/_lib/cache.ts";
+import { cacheColumns, statsRow } from "../src/commands/_lib/cache.ts";
 import { ORKEON_RUNTIME_VERSION } from "../src/commands/_lib/meta.ts";
 import { readHostProvider } from "../src/shared/infrastructure/orkeon/host-provider.ts";
 import { FakeShell } from "./support/fake-shell.ts";
@@ -137,5 +137,19 @@ describe("/usage and /context — the cache columns (A-4a)", () => {
     deepStrictEqual(cacheColumns({ cacheHitTokens: 700, cacheWriteTokens: 50 }), { cacheRead: 700, cacheWrite: 50 });
     deepStrictEqual(cacheColumns({ cacheHitTokens: 0, cacheWriteTokens: 0 }), { cacheRead: 0, cacheWrite: 0 });
     deepStrictEqual(cacheColumns({}), { cacheRead: "-", cacheWrite: "-" });
+  });
+});
+
+describe("/stats — the cache columns of /usage (A-4a)", () => {
+  it("shows the read and the write tokens, and the share read from the cache", () => {
+    deepStrictEqual(statsRow({ messageCount: 3, estimatedTokens: 900, costUsd: 0.01, totalTokens: 1000, totalCalls: 2, cacheHitTokens: 700, cacheWriteTokens: 50 }), {
+      messages: 3, estTokens: 900, costUsd: 0.01, tokens: 1000, calls: 2, cacheRead: 700, cacheWrite: 50, cacheRatio: "0.70",
+    });
+  });
+
+  it("shows `-` for what the host does not report", () => {
+    deepStrictEqual(statsRow({}), {
+      messages: 0, estTokens: 0, costUsd: 0, tokens: 0, calls: 0, cacheRead: "-", cacheWrite: "-", cacheRatio: "-",
+    });
   });
 });

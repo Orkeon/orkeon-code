@@ -8,7 +8,7 @@
 // the motifs, checks their owner file and writes <work>/learn-<date>/PROPOSALS.md and
 // proposals.json, then asks the person, one multi-select per axis with motifs, which to
 // accept: the selected ones are accepted and the others refused, as /dev-learn --accept
-// and --refuse would; "Decide later" (or no answer) decides nothing. With list, it prints
+// and --refuse would; "Decide later", nothing selected, or no answer decides nothing. With list, it prints
 // the backlog per axis: no model call, no question, no write.
 //
 // Input (globalThis.inputs): { axis?: string | null, list?: boolean }
