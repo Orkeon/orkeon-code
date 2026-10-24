@@ -52,9 +52,11 @@ proposition nomme.
 fait que lire, en `plan`, avec six outils de lecture. `/dev-spec` et `/dev-change` lisent la demande (une issue par
 `gh issue view`), le pack et l'index du code, et n'écrivent que `<work>/<code>/SPEC-<code>.md`, ou `CHANGE-<code>.md`
 et `repro-<code>.txt` ; `/dev-change` lance la commande de reproduction ou de mesure, une commande de test étroite du
-pack, depuis son propre code. `/dev-implement` lance le restore, le build et la suite du pack depuis son propre code ;
-ses deux rôles écrivent en `acceptEdits`, chacun dans ses racines, et après un verdict VALID sa clôture commite par
-leur nom les fichiers que les rôles ont changés, et pousse la branche. Les cinq placent d'abord dans la garde les
+pack, depuis son propre code, une fois que les jeux de règles de l'étape l'autorisent. `/dev-implement` lance le
+restore, le build et la suite du pack depuis son propre code ; ses deux rôles écrivent en `acceptEdits`, chacun dans ses
+racines, et après un verdict VALID sa clôture commite par leur nom les fichiers que les rôles ont changés, et pousse la
+branche, sauf si une règle de session refuse le push. Il refuse de démarrer en `plan` ou `dontAsk`, et remet la
+vérification de la garde et ses règles avant chaque lancement de sa chaîne (l'audit, puis la clôture). Les cinq placent d'abord dans la garde les
 [jeux de règles des étapes dev](#jeux-de-règles-des-étapes-dev), et refusent de démarrer tant que la garde est inactive ;
 le callback de leur crew contrôle à nouveau les mêmes jeux, seul contrôle de ceux-ci sous `orkeon run`.
 
@@ -362,7 +364,7 @@ crew ne peut pas lire les règles de la session, donc `/permissions add deny she
 validation, pas plus qu'il n'atteignait les validations que `/dev-verify` lance depuis son propre code. Pour en
 arrêter une, refusez l'outil lui-même (`/permissions add deny run_validation`), que la garde voit.
 
-Les agents des étapes dev, et les enfants de `/dev-plan` et `/dev-verify`, reçoivent aussi
+Les agents des étapes dev sauf `/dev-learn` (dont l'agent n'a aucun outil), et les enfants de `/dev-plan` et `/dev-verify`, reçoivent aussi
 [`memory_recall`](shared-memory.md) (`read`), pour chercher des précédents dans la mémoire partagée ; aucun ne reçoit
 `memory_push`.
 

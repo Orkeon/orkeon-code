@@ -7,7 +7,7 @@
 // (commit, push, pull request). --close runs the close alone.
 import { rawTokens } from "./_lib/args.ts";
 import { chainStep, parseDevImplementArgs } from "./_lib/dev-implement.ts";
-import { markActiveWorkflow, startDevStep } from "./_lib/dev-step.ts";
+import { markActiveWorkflow, reapplyStepRules, startDevStep } from "./_lib/dev-step.ts";
 import { launchCrew } from "./_lib/dispatch.ts";
 import { createCrewHost } from "../shared/infrastructure/orkeon/crew-host.ts";
 import { createPermissionRules } from "../shared/infrastructure/orkeon/permission-rules.ts";
@@ -16,6 +16,7 @@ import {
 } from "../shared/infrastructure/orkeon/wiring.ts";
 import { countOpenSteps } from "../crews/dev-implement/application/count-open-steps.ts";
 import { GITHUB_TOOL } from "../shared/domain/git/pull-request.ts";
+import { policyFor } from "../shared/domain/agent-policy/mode-policy.ts";
 
 const deps = { session: orkeonSessionIo(), config: orkeonConfigStore() };
 
@@ -52,6 +53,13 @@ defineAsyncCommand({
       ctx.writeLine(parsed.text);
       return { refused: parsed.text };
     }
+    prContext = await readPullRequestContext(ctx);
+    const mode = String(prContext.permissionMode ?? "");
+    if (mode !== "" && policyFor(mode).readOnly) {
+      const line = `✗ refused: the session mode ${mode} is read-only, and /dev-implement writes files, commits and pushes: /mode default, then run it again`;
+      ctx.writeLine(line);
+      return { refused: line };
+    }
     const start = await startDevStep("dev-implement", {
       ...deps, gate: createPermissionRules(ctx.services), catalogue: orkeonToolCatalogue(ctx.services),
     });
@@ -62,14 +70,13 @@ defineAsyncCommand({
     for (const line of start.lines) ctx.writeLine(line);
     const unrecorded = await markActiveWorkflow(deps.session, parsed.args);
     if (unrecorded !== null) ctx.writeLine(unrecorded);
-    prContext = await readPullRequestContext(ctx);
     chainHooks = start.hooks;
     // The budget is sized to the open steps of the sheet (the crew sizes for its default when they cannot be counted).
     const steps = parsed.args.close
       ? undefined
       : await countOpenSteps({ files: orkeonFiles(), shell: orkeonShell(), config: deps.config }, parsed.args.batch, parsed.args.plan);
     const input = {
-      ...parsed.args, hooks: start.hooks, ...(steps === undefined ? {} : { steps }), ...(parsed.args.close ? prContext : {}),
+      ...parsed.args, hooks: start.hooks, ...(steps === undefined ? {} : { steps }), ...prContext,
     };
     return launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "dev-implement", input, {
       ruleSets: start.sets.join(" "), rules: start.rules, hooks: start.hooks.length,
@@ -83,6 +90,13 @@ defineAsyncCommand({
     const step = chainStep(String(result.payload ?? ""));
     for (const line of step.lines) ctx.writeLine(line);
     if (step.launch === undefined) return;
+    // No dispatch runs before a chained launch: the gate is checked and the step's rules put back here.
+    const refusal = reapplyStepRules(createPermissionRules(ctx.services), step.launch.crew === "dev-verify" ? "dev-verify" : "dev-implement");
+    if (refusal !== null) {
+      ctx.writeLine(`✗ ${refusal}`);
+      ctx.writeLine(`then type ${step.launch.instead}`);
+      return;
+    }
     const input = step.launch.crew === "dev-implement"
       ? { ...step.launch.input, ...prContext, hooks: chainHooks }
       : { ...step.launch.input, hooks: chainHooks };

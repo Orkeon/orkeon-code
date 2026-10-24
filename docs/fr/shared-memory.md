@@ -48,7 +48,9 @@ Qui peut admettre quoi :
 | `audit:` (fichiers de verdict des audits dev) | `code-structure`, `mistake` |
 | `verdict:` (un arrêt du workflow dev) | `method`, `decision` |
 
-Une erreur n'est récoltée dans les audits qu'une fois son écart revenu dans trois lots ou plus.
+Une erreur n'est récoltée dans les audits qu'une fois son écart revenu dans trois lots ou plus. La récolte n'est pas
+encore branchée : `/dev-verify` l'appellera après un verdict GAPS (lot M-7) ; d'ici là, `memory_push` et `/memory-admit`
+remplissent la mémoire.
 
 ## Décider des candidats
 
@@ -66,7 +68,8 @@ candidat dont `refused.md` contient le sujet. Les admis sont écrits dans
 `entries/<type>/`, les entrées qu'ils remplacent sont marquées `superseded`, les deux listes sont reconstruites et
 `entries/` est réindexé, une fois. Quand l'index ne peut pas être reconstruit, les entrées restent admises, et la
 prochaine admission les indexe. `--refuse` écrit le sujet du candidat dans `refused.md` avec votre motif : le sujet
-n'est plus jamais proposé.
+n'est plus jamais proposé. `/dev-learn` garde ses refus dans `.orkeon/memory/refused.md` quel que soit `memory.dir` :
+avec un `memory.dir` à vous, les deux listes sont séparées.
 
 ## Les outils
 

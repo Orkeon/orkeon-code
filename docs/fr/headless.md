@@ -114,7 +114,8 @@ ORKEON_CODE_WORKSPACE=~/src/app bash scripts/dev-run.sh dev-verify demo \
 `--inputs` est obligatoire : les entrées propres au crew, que son `crew.ork.ts` nomme dans son en-tête. Chaque étape est
 un nouveau processus à la session vide : ce dont une étape a besoin (le lot, le plan) voyage dans ses entrées ou vit
 dans les fichiers du code de travail. Un crew lancé ainsi ne reçoit rien de ce que sa commande fait d'abord : la
-vérification par `/dev-verify` que la garde est active et ses jeux de règles ne s'appliquent pas ; donnez donc à
+vérification par les étapes dev (`/dev-verify`, `/dev-plan`, `/dev-spec`, `/dev-change`, `/dev-implement`) que la
+garde est active et leurs jeux de règles ne s'appliquent pas ; donnez donc à
 l'exécution un fichier de settings dont vous avez choisi la garde et les règles.
 
 ## Planifié, dans un job de CI

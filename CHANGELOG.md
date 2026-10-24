@@ -250,7 +250,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **The shared memory** ([Shared memory](docs/shared-memory.md)): admitted decisions, code structures, methods and
   mistakes kept under `memory.dir` (default `.orkeon/memory`), one file per entry, indexed in the collection
-  `memory-<project>`. Nothing enters it without the operator: `memory_push` and the audit harvest write candidates,
+  `memory-<project>`. Nothing enters it without the operator: `memory_push` writes candidates (the audit harvest is
+  written, not yet wired: lot M-7 calls it from `/dev-verify`),
   `/memory-admit` asks once per candidate (a headless session admits nothing; `memory.autoAdmitAudited` admits an
   audited one unasked), `--refuse` keeps a topic out for good. `memory.dir`, `memory.project` and
   `memory.autoAdmitAudited` are new settings; a project file's `memory.autoAdmitAudited true` needs the user's.

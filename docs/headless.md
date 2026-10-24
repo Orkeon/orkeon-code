@@ -106,8 +106,8 @@ ORKEON_CODE_WORKSPACE=~/src/app bash scripts/dev-run.sh dev-verify demo \
 
 `--inputs` is required: the crew's own inputs, which its `crew.ork.ts` names in its header. Each step is a new process
 with an empty session: what a step needs (the batch, the plan) travels in its inputs or lives in the files of the work
-code. A crew run this way gets none of what its command does first: `/dev-verify`'s check that the gate is on and its
-rule sets are not applied, so give the run a settings file whose gate and rules you chose.
+code. A crew run this way gets none of what its command does first: the dev steps' check that the gate is on
+(`/dev-verify`, `/dev-plan`, `/dev-spec`, `/dev-change`, `/dev-implement`) and their rule sets are not applied, so give the run a settings file whose gate and rules you chose.
 
 ## On a schedule, in a CI job
 

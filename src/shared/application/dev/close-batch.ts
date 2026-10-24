@@ -11,7 +11,9 @@
 
 import type { Files, Shell } from "../ports.ts";
 import type { PrSummary } from "../../domain/git/close.ts";
-import { GIT_STATUS_COMMAND, identityStop, selectCommitFiles } from "../../domain/git/close.ts";
+import { GIT_STATUS_COMMAND, gitPushCommand, identityStop, selectCommitFiles } from "../../domain/git/close.ts";
+import type { PermissionRule } from "../../domain/agent-policy/permission.ts";
+import { ruleDecision } from "../../domain/agent-policy/permission.ts";
 import type { PullRequestOpener } from "../git/commit-files.ts";
 import {
   commitFiles, defaultBranch, gitReason, handOverPullRequest, pushBranch, readIdentity, runGit,
@@ -25,6 +27,8 @@ export interface CloseBatchRequest {
   work: { folder: string; vfsPath: string | null };
   /** False in a batch worktree: the orchestrator merges and pushes once (D79). */
   push: boolean;
+  /** The session's rules at the launch: a deny on the push keeps the commit local. */
+  rules?: readonly PermissionRule[];
   openPr: boolean;
   summary: PrSummary;
   /** How the step is re-run, for the identity hand-over. */
@@ -59,6 +63,11 @@ export async function closeBatch(
   if (!commit.ok) return { committed: false, lines: [...notes, `✗ ${commit.line}`] };
   const lines = [...notes, `✓ committed ${commit.hash} on ${req.branch}: ${selection.files.length} file(s)`];
   if (!req.push) return { committed: true, hash: commit.hash, lines };
+  const pushCommand = gitPushCommand(req.branch);
+  if (req.rules !== undefined && ruleDecision(req.rules, "shell_command", { command: pushCommand, working_directory: "/workspace" }) === "deny") {
+    lines.push(`✗ not pushed: a session rule denies '${pushCommand}'; the commit stays local`);
+    return { committed: true, hash: commit.hash, lines };
+  }
 
   const pushed = await pushBranch(deps.shell, req.branch);
   lines.push(pushed.ok ? `✓ pushed ${req.branch} to origin` : `✗ ${pushed.line}`);

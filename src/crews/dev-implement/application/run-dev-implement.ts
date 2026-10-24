@@ -13,6 +13,8 @@ import { loadDevContext } from "../../../shared/application/dev/load-dev-context
 import { createWrappedTools } from "../../../shared/application/dev/wrapped-tools.ts";
 import type { WrappedRun, WrappedTools } from "../../../shared/application/dev/wrapped-tools.ts";
 import { stepRules } from "../../../shared/domain/dev/step-rules.ts";
+import { policyFor } from "../../../shared/domain/agent-policy/mode-policy.ts";
+import { parseSessionRules } from "../../../shared/domain/git/pull-request.ts";
 import { shellRuleGuard } from "../../../shared/domain/dev/tool-guards.ts";
 import type { RepoPack, RepoPackLayout } from "../../../shared/domain/dev/repo-pack.ts";
 import { greenContract, redContract, testCommandFor } from "../domain/contracts.ts";
@@ -33,7 +35,11 @@ import type { LocatedSheet } from "./locate-sheet.ts";
 import { currentVerdictMark, readTouchedRecord, recordTouched } from "./touched.ts";
 import { closeDevBatch } from "./close.ts";
 
-export interface DevImplementInputs { batch?: unknown; plan?: unknown; close?: unknown; pr?: unknown; push?: unknown }
+export interface DevImplementInputs {
+  batch?: unknown; plan?: unknown; close?: unknown; pr?: unknown; push?: unknown;
+  /** The session's mode and rules at the launch: a read-only mode is refused, a deny on the push keeps the commit local. */
+  permissionMode?: unknown; permissionRules?: unknown;
+}
 
 export interface DevImplementDeps {
   files: Files; shell: Shell; config: Pick<ConfigStore, "readValue">; jobs: ShellJobs;
@@ -259,6 +265,10 @@ export async function runDevImplement(input: DevImplementInputs, deps: DevImplem
   const batch = String(input.batch ?? "").trim();
   if (!BATCH.test(batch)) return blocked([], `the batch is F<n>, e.g. /dev-implement F1 <code>: got '${batch}'`);
   const plan = typeof input.plan === "string" && input.plan.trim() !== "" ? input.plan.trim() : null;
+  const mode = typeof input.permissionMode === "string" ? input.permissionMode.trim() : "";
+  if (mode !== "" && policyFor(mode).readOnly) {
+    return blocked([], `the session mode ${mode} is read-only: /dev-implement writes files and commits (/mode default, then run it again)`);
+  }
 
   const context = await loadDevContext({ files: deps.files, shell: deps.shell, config: deps.config });
   const lines = context.warnings.slice(0, 5).map((w) => `⚠ ${w}`);
@@ -275,6 +285,7 @@ export async function runDevImplement(input: DevImplementInputs, deps: DevImplem
     return answer([...lines, ...await closeDevBatch(deps, {
       pack, work: context.work, located, batch, touched: record.touched, verdictMark: record.verdictMark,
       openPr: input.pr === true, push: input.push !== false,
+      ...(input.permissionRules === undefined ? {} : { rules: parseSessionRules(input.permissionRules) }),
     })]);
   }
 

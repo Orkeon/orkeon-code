@@ -46,9 +46,11 @@ names.
 the batch sheets and `plan.json`, never a file under `.claude/`; its reviewer only reads, in `plan`, with six read
 tools. `/dev-spec` and `/dev-change` read the request (an issue through `gh issue view`), the pack and the code index,
 and write only `<work>/<code>/SPEC-<code>.md`, or `CHANGE-<code>.md` and `repro-<code>.txt`; `/dev-change` runs the
-reproduction or measure command, a narrow test command of the pack, from its own code. `/dev-implement` runs the
-pack's restore, build and suite from its own code; its two roles write in `acceptEdits`, each inside its roots, and
-after a VALID verdict its close commits the files the roles changed, by name, and pushes the branch. All five first
+reproduction or measure command, a narrow test command of the pack, from its own code, once the step's rule sets
+allow it. `/dev-implement` runs the pack's restore, build and suite from its own code; its two roles write in
+`acceptEdits`, each inside its roots, and after a VALID verdict its close commits the files the roles changed, by
+name, and pushes the branch, unless a session rule denies the push. It refuses to start in `plan` or `dontAsk`, and
+puts the gate check and its rules back before each launch of its chain (the audit, then the close). All five first
 put the [rule sets of the dev steps](#rule-sets-of-the-dev-steps) in the gate, and refuse to start while the gate is
 off; their crew's callback checks the same sets again, the only check of them under `orkeon run`.
 
@@ -340,7 +342,7 @@ the session's rules, so `/permissions add deny shell_command ...` does not reach
 validations `/dev-verify` runs from its own code. To stop one, deny the tool itself (`/permissions add deny
 run_validation`), which the gate sees.
 
-The agents of the dev steps, and the children of `/dev-plan` and `/dev-verify`, are also given
+The agents of the dev steps but `/dev-learn` (whose agent has no tool), and the children of `/dev-plan` and `/dev-verify`, are also given
 [`memory_recall`](shared-memory.md) (`read`), to look for precedents in the shared memory; none is given `memory_push`.
 
 ## What a project file may set

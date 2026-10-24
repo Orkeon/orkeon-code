@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import { closeBatch } from "./close-batch.ts";
+import { parseSessionRules } from "../../domain/git/pull-request.ts";
 import type { CloseBatchRequest } from "./close-batch.ts";
 import { FakeFiles } from "../../../../tests/support/fake-files.ts";
 import { FakeShell } from "../../../../tests/support/fake-shell.ts";
@@ -64,6 +65,14 @@ describe("closeBatch", () => {
     const shell = gitShell();
     const out = await closeBatch({ shell, files: new FakeFiles() }, { ...REQ, branch: "main" });
     strictEqual(out.lines.some((l) => l.includes("gh pr")), false);
+  });
+
+  it("a session rule denying the push keeps the commit local and pushes nothing", async () => {
+    const shell = gitShell();
+    const out = await closeBatch({ shell, files: new FakeFiles() }, { ...REQ, rules: parseSessionRules(["deny shell_command command=git push*"]) });
+    strictEqual(out.committed, true);
+    strictEqual(shell.commands.some((c) => c.startsWith("git push")), false);
+    ok(out.lines.includes("✗ not pushed: a session rule denies 'git push -u origin 'feat/a''; the commit stays local"), out.lines.join("\n"));
   });
 
   it("a refused push keeps the commit and hands the push over with the PR command", async () => {

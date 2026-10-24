@@ -50,7 +50,10 @@ const implementer = AgentBuilder()
       ? orkeonPullRequestOpener({ mode: String(args.permissionMode ?? ""), rules: parseSessionRules(args.permissionRules), asked: false })
       : undefined;
     return await runDevImplement(
-      { batch: args.batch, plan: args.plan, close: flag(args.close), pr: flag(args.pr) },
+      {
+        batch: args.batch, plan: args.plan, close: flag(args.close), pr: flag(args.pr),
+        permissionMode: args.permissionMode, permissionRules: args.permissionRules,
+      },
       {
         ...ports, log: ctx.log, toolSlot, opener,
         // Each role's act runs under its own callbacks: the host's gate first, then the step's rule sets, the

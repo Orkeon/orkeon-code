@@ -13,6 +13,7 @@ import { parseBatchSheet } from "../../../shared/domain/dev/plan-format.ts";
 import type { RepoPack } from "../../../shared/domain/dev/repo-pack.ts";
 import { DEV_PR_AUTO_CONFIG_KEY, GIT_CURRENT_BRANCH_COMMAND, GIT_DEFAULT_BRANCH_COMMAND, parseDefaultBranch } from "../../../shared/domain/git/close.ts";
 import type { PrSummary } from "../../../shared/domain/git/close.ts";
+import type { PermissionRule } from "../../../shared/domain/agent-policy/permission.ts";
 import { under } from "../domain/step-checks.ts";
 import { openSteps, parseImplementSheet } from "../domain/step-section.ts";
 import { WORKSPACE } from "./locate-sheet.ts";
@@ -29,6 +30,8 @@ export interface CloseInput {
   verdictMark: string | null;
   openPr: boolean;
   push: boolean;
+  /** The session's rules at the launch (a deny on the push keeps the commit local). */
+  rules?: readonly PermissionRule[];
 }
 
 const LAYERS = ["domain", "application", "infrastructure", "tests"] as const;
@@ -113,7 +116,7 @@ export async function closeDevBatch(
     { shell: deps.shell, files: deps.files, opener: deps.opener },
     {
       touched: input.touched, message, branch, work: { folder: input.work.folder, vfsPath: input.work.vfsPath },
-      push: input.push, openPr: input.openPr || (await prAuto(deps.config)), summary, rerun,
+      push: input.push, ...(input.rules === undefined ? {} : { rules: input.rules }), openPr: input.openPr || (await prAuto(deps.config)), summary, rerun,
     },
   );
   return result.lines;

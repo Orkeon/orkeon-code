@@ -8,7 +8,7 @@
 // the brief in the charter's mode, under the callbacks of the charter's step, and returns the reply.
 //
 // Input (globalThis.inputs): { charter: "dev-reviewer" | "dev-auditor", system?: string, brief: string,
-//                              effort?: "low" | "medium" | "high" | null }  (the step is the charter's)
+//                              effort?: "low" | "medium" | "high" | null, hooks?: the /hooks registry }  (the step is the charter's)
 // Run standalone:  bash scripts/run-crew.sh src/crews/agent-run/crew.ork.ts --inputs '{"charter":"dev-reviewer","brief":"…"}'
 
 import { AgentBuilder, CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infrastructure/globals.ts";
@@ -40,8 +40,8 @@ const builder = AgentBuilder()
   .withAutonomousTool(memoryRecallTool(ToolBuilder, orkeonMemoryToolPorts))
   .maxIterations(charter.maxIterations)
   .body(async (_input: any, ctx: any) => {
-    // The host's gate first, then the callbacks of the charter's step: its rule sets, no /hooks.
-    const callbacks = devToolCallbacks({ step, hooks: [], readTools: [MEMORY_RECALL.name] }, { shell, log: ctx.log });
+    // The host's gate first, then the callbacks of the charter's step: its rule sets and the /hooks /tasks passed.
+    const callbacks = devToolCallbacks({ step, hooks: inputs().hooks, readTools: [MEMORY_RECALL.name] }, { shell, log: ctx.log });
     return await runAgentRun(inputs(), { llm: createLlm(ctx.llm, callbacks, { effort }), log: ctx.log, charters: CHARTERS });
   });
 

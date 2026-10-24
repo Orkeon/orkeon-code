@@ -180,7 +180,7 @@ Outre les changements que vous demandez : `AGENTS.md` (`/init`), `.orkeon/config
 `.orkeon/agents.json` (`/agents`) et `.git/ORKEON_COMMITMSG` (`/commit` y écrit le message pour `git commit -F` ;
 git ne le suit pas). Ajoutez `.orkeon/` au `.gitignore` du projet si vous ne voulez pas les partager. Les
 transcriptions vont dans le dossier d'état (`.crew-output/transcripts` dans un clone, `~/.orkeon-code/projects/<projet>/transcripts` une fois installé), jamais dans le projet. La
-conversation y est gardée aussi quand le REPL finit ([Sessions](configuration.md#sessions) : `--continue` la ramène) ;
+conversation y est gardée aussi après chaque tour et quand le REPL finit ([Sessions](configuration.md#sessions) : `--continue` la ramène) ;
 le mode de session (`/mode`) et les règles de permission sont gardés en mémoire et finissent avec le REPL.
 
 ## Dépannage

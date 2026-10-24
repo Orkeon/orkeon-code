@@ -47,7 +47,9 @@ Who may admit what:
 | `audit:` (verdict files of the dev audits) | `code-structure`, `mistake` |
 | `verdict:` (a stop of the dev workflow) | `method`, `decision` |
 
-A mistake is harvested from the audits only once its gap recurs in three batches or more.
+A mistake is harvested from the audits only once its gap recurs in three batches or more. The harvest is not wired
+yet: `/dev-verify` will call it after a GAPS verdict (lot M-7); until then, `memory_push` and `/memory-admit` fill the
+memory.
 
 ## Deciding the candidates
 
@@ -63,7 +65,8 @@ candidate. A session that cannot ask admits none of those it would ask about. Th
 were shown: a file changed since is not admitted, nor one whose topic `refused.md` holds. The admitted ones are written to `entries/<type>/`, the entries
 they supersede are marked `superseded`, both lists are rebuilt and `entries/` is indexed again, once. When the index
 cannot be rebuilt the entries stay admitted, and the next admission indexes them. `--refuse` writes the candidate's
-topic to `refused.md` with your motif: the topic is never proposed again.
+topic to `refused.md` with your motif: the topic is never proposed again. `/dev-learn` keeps its refusals in
+`.orkeon/memory/refused.md` whatever `memory.dir` says: with a `memory.dir` of your own, the two lists are apart.
 
 ## The tools
 

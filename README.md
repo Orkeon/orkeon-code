@@ -132,6 +132,7 @@ are written in English only.
 | [Configuration](docs/configuration.md) | LLM providers, settings file, environment variables |
 | [Permissions](docs/permissions.md) | Modes, rules, what the agent can touch |
 | [Hooks](docs/hooks.md) | Your commands around the model's tool calls in the dev steps |
+| [Shared memory](docs/shared-memory.md) | Admitted decisions, structures, methods and mistakes the agents recall |
 | [Slash commands](docs/commands.md) | The full list (generated) |
 | [Architecture](docs/architecture.md) | Layers, ports, crews, the loop, prompt assembly, recipes |
 | [Autonomous and embedded runs](docs/headless.md) | Unattended turns, one-shot runs, schedulers and CI, your application |

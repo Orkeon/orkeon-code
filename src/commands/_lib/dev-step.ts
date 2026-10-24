@@ -53,6 +53,17 @@ export async function startDevStep(step: DevStep, deps: DevStepDeps): Promise<De
   return { ok: true, lines, sets: STEP_RULE_SETS[step], rules: sync.step.length, hooks };
 }
 
+/** Before a launch of /dev-implement's chain (the audit, then the close), which runs no dispatch of its own: the
+ *  gate must still be on, and the step's rules are put back on top of whatever the gate holds (an /assistant turn
+ *  in between hands it the session's rules alone). Null when the launch may go, else the line refusing it. */
+export function reapplyStepRules(gate: PermissionRules, step: DevStep): string | null {
+  const problem = gateProblem(gate.enabled(), step);
+  if (problem?.refuse) return problem.line;
+  if (!gate.available()) return null;
+  for (const rule of stepRules(step)) gate.add(rule);
+  return null;
+}
+
 /** The batch a step works on, for the state file a compaction writes: the code is the plan
  *  token when it is a code, the folder of a `.../<CODE>-PLAN.md` path, else null (the writer
  *  then looks for the batch's open sheet). */

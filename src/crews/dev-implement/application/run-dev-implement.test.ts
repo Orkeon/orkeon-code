@@ -252,6 +252,14 @@ describe("runDevImplement — the close", () => {
     ok(blockedLine(a)?.includes("not VALID: nothing is committed"));
   });
 
+  it("refuses a read-only session mode before anything is read or run", async () => {
+    const t = setup([], []);
+    t.files.files.set(`${DIR}/DEMO-VERIFY-F1.md`, VALID);
+    const a = parse(await runDevImplement({ batch: "F1", plan: "demo", close: true, permissionMode: "plan" }, t.deps));
+    ok(blockedLine(a)?.includes("the session mode plan is read-only"), a.lines.join("\n"));
+    deepStrictEqual(t.shell.commands, []);
+  });
+
   it("refuses when no file was recorded", async () => {
     const t = setup([], []);
     t.files.files.set(`${DIR}/DEMO-VERIFY-F1.md`, VALID);

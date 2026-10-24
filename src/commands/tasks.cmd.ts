@@ -5,9 +5,12 @@
 // prints the new run's answer.
 import { rawTokens } from "./_lib/args.ts";
 import { launchCrew, writeCompleted } from "./_lib/dispatch.ts";
+import { startDevStep } from "./_lib/dev-step.ts";
 import { runTasks } from "./_lib/tasks.ts";
 import { createCrewHost } from "../shared/infrastructure/orkeon/crew-host.ts";
-import { orkeonSessionIo } from "../shared/infrastructure/orkeon/wiring.ts";
+import { createPermissionRules } from "../shared/infrastructure/orkeon/permission-rules.ts";
+import { orkeonConfigStore, orkeonSessionIo, orkeonToolCatalogue } from "../shared/infrastructure/orkeon/wiring.ts";
+import { builtInCharter } from "../shared/domain/agents/built-in-charters.ts";
 
 const deps = { session: orkeonSessionIo(), clock: () => new Date() };
 
@@ -20,7 +23,20 @@ defineAsyncCommand({
     if (view.table) ctx.table(view.table);
     if (launch === undefined) return { message: view.text ?? "" };
     if (view.text !== undefined) ctx.writeLine(view.text);
-    return launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, launch.crew, launch.input, launch.details);
+    // A repair is a run of the charter's step: the gate must be on, its rule sets go in it, its /hooks with it.
+    const step = builtInCharter(String(launch.input.charter ?? ""))?.step ?? "dev-plan";
+    const start = await startDevStep(step, {
+      session: deps.session, config: orkeonConfigStore(), gate: createPermissionRules(ctx.services), catalogue: orkeonToolCatalogue(ctx.services),
+    });
+    if (!start.ok) {
+      ctx.writeLine(start.line);
+      return { refused: start.line };
+    }
+    for (const line of start.lines) ctx.writeLine(line);
+    return launchCrew(
+      { crews: createCrewHost(ctx.services), log: ctx.log }, launch.crew, { ...launch.input, hooks: start.hooks },
+      { ...launch.details, ruleSets: start.sets.join(" "), rules: start.rules, hooks: start.hooks.length },
+    );
   },
   completed: (result, ctx) => writeCompleted(ctx, result, "tasks repair", "repair — "),
 });

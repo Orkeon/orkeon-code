@@ -133,6 +133,9 @@ the two calls that show a raw result on purpose (`MemoryStore.get`, `ToolCatalog
 |---|---|---|---|
 | `Shell` | Shell commands in `/workspace` (`shell_command`) | `shell.ts` | `fake-shell.ts` |
 | `ShellJobs` | A long command run detached, its status, the tail of its log, and a wait between two looks (`shell_command` `start_job`, `job_status`, `job_tail`) | `shell-jobs.ts` | none: fakes in `suite-job.test.ts` and `run-dev-implement.test.ts` |
+| `SharedMemory` | The RAG index of the [shared memory](shared-memory.md): search a collection, ingest with prune (the `rag` namespace, else `rag_search`, `rag_ingest`) | `shared-memory.ts` | none: fakes in the shared-memory tests |
+| `ChildRuntime` | The children of a crew run (A-3): spawn one in the background, list, stop, read what it left (`ctx.spawnBackground`, the crew's `instances()`/`stop()`, its memory) | `child-agents.ts` | none: fakes in `child-agent.test.ts` |
+| `HumanInput` | A question to the person: a choice, a text, a multi-select; nobody answering is an answer of its own (`human_input`) | `human-input.ts` | none: fakes in the tests of the dev steps |
 | `Files` | Read, write and list by virtual path, the VFS mounts (`file_read`, `file_write`, `directory_read`, `list_mounts`) | `files.ts` | `fake-files.ts` |
 | `Progress` | The host's progress line, best effort (`progress_report`) | `progress.ts` | `fake-progress.ts` |
 | `SessionStore` | The conversation buffer, the state bag, the title, the snip, the token budget (`session_store`, `session_snip`, `token_budget`) | `session-store.ts` | `fake-session-store.ts` |
@@ -256,13 +259,13 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 | `init-verifiers` | sequential | `/init-verifiers` | Detects test tooling, writes verification playbooks for uncovered zones |
 | `advisor` | sequential, no tools | `/advisor` | A second opinion on the last answer from another model |
 | `speech` | sequential, no tools, no LLM | `/transcribe`, `/voice`, `/say` | One call to the speech MCP server (`transcribe_audio`, `list_audio`, `record_and_transcribe`, `speak`), as the command's |
-| `dev-verify` | sequential, the gate and capture in `dev-verifier`, the audit in a background child `dev-auditor` (four read tools in `plan`, `run_validation`) | `/dev-verify` (`--gate-only` skips the LLM) | The gate, the capture, one read-only audit, the verdict file |
+| `dev-verify` | sequential, the gate and capture in `dev-verifier`, the audit in a background child `dev-auditor` (four read tools in `plan`, `run_validation`, `memory_recall`) | `/dev-verify` (`--gate-only` skips the LLM) | The gate, the capture, one read-only audit, the verdict file |
 | `dev-learn` | sequential, no tool, one extract per axis | `/dev-learn` (`--list` skips the LLM) | Recurring verdict gaps into proposals, `PROPOSALS.md` |
 | `dev-plan` | sequential, one extract in `dev-planner`, the review in a background child `dev-reviewer` (six read tools in `plan`) | `/dev-plan` | Blocking gate, inventory by the index, plan and sheets written by code, one read-only review |
 | `agent-run` | sequential, one act of a built-in charter (`dev-reviewer`, `dev-auditor`) | `/tasks send`, `/tasks repair` | A new run of an ended child, its brief carrying the previous report and the operator's message |
 | `dev-spec` | sequential, six read tools in `plan`, extracts | `/dev-spec` | Business spec written by code from JSON, its questions asked one at a time through `human_input`, one read-only review |
 | `dev-change` | sequential, six read tools in `plan`, extracts | `/dev-change` | Bug reproduced or cost measured by running, change brief written by code, questions through `human_input`, one review |
-| `dev-implement` | sequential, one agent, two roles in `acceptEdits` (four read tools, two write tools, `run_tests`, `run_build`) | `/dev-implement` (`--close` the close alone) | Each step red then green, checked by code; the build and the suite as jobs; then `/dev-verify` and, on VALID, the commit |
+| `dev-implement` | sequential, one agent, two roles in `acceptEdits` (four read tools, two write tools, `run_tests`, `run_build`, `memory_recall`) | `/dev-implement` (`--close` the close alone) | Each step red then green, checked by code; the build and the suite as jobs; then `/dev-verify` and, on VALID, the commit |
 | `shared-memory-admit` | sequential, no tool, no LLM | `/memory-admit` | Writes the candidates the operator confirmed to the shared memory's entries, the lists, and re-ingests the index |
 
 A folder starting with `_` holds a development probe (`probe.ork.ts`), run with `scripts/run-crew.sh`; none ships

@@ -6,6 +6,8 @@
 // written before the next question - folds them in, and has the read-only reviewer question the brief once. With
 // nobody to answer, the questions stay in the file and the run ends BLOCKED. An existing brief is revised.
 import type { CodeIndex, Files, HumanInput, Llm, Logger, Shell } from "../../../shared/application/ports.ts";
+import { stepRules } from "../../../shared/domain/dev/step-rules.ts";
+import { shellRuleGuard } from "../../../shared/domain/dev/tool-guards.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import { loadDevContext } from "../../../shared/application/dev/load-dev-context.ts";
 import { briefInventory, briefPhrases, renderBriefInventory } from "../../../shared/application/dev/brief-inventory.ts";
@@ -110,6 +112,8 @@ export async function runDevChange(input: DevChangeInputs, deps: DevChangeDeps):
   if (kind !== "refactor" && (existing === null || given !== "")) {
     const picked = await pickCommand(STEP, deps.llm, kind, given, originText, commands);
     if ("refused" in picked) return picked.refused;
+    const denied = shellRuleGuard(stepRules("dev-change"))(picked.command);
+    if (denied !== null) return `${STEP}: ${denied}; nothing is written`;
     const result = await runEvidence(deps.shell, picked.command, deps.clock);
     const repro = folder.file(reproFileName(code));
     try {

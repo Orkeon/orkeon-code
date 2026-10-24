@@ -41,9 +41,10 @@ export interface DevPlanDeps {
   log: Logger; clock: () => Date;
 }
 export const PLAN_JSON = "plan.json";
-/** The last line of a plan ready to implement; `{command}` names the harness's step until L-6 ships its own. */
-export const END_LINE =
-  "→ Read and validate the plan. Then implement batch by batch: {command} (the harness's command until Orkeon Code ships it).";
+/** The last line of a plan ready to implement; `{command}` names the next step. */
+export const END_LINE = "→ Read and validate the plan. Then implement batch by batch: {command}";
+/** Added after /dev-batches only: the harness's command, which Orkeon Code does not ship yet. */
+export const BATCHES_SUFFIX = " (the harness's command until Orkeon Code ships it).";
 
 const WORKSPACE = "/workspace";
 const MAX_SOURCE_TOKEN = 300;
@@ -238,10 +239,10 @@ function batchLines(rendered: RenderedPlan, answer: PlanAnswer): string[] {
 
 function nextCommand(answer: PlanAnswer, planShown: string): string {
   const roots = answer.batches.map((b, k) => ({ id: `F${k + 1}`, free: b.dependsOn.length === 0 })).filter((b) => b.free);
-  const command = roots.length >= 2
-    ? `/dev-batches ${roots.map((r) => r.id).join(" ")} ${planShown}`
-    : `/dev-implement F1 ${planShown}`;
-  return END_LINE.replace("{command}", command);
+  if (roots.length >= 2) {
+    return END_LINE.replace("{command}", `/dev-batches ${roots.map((r) => r.id).join(" ")} ${planShown}`) + BATCHES_SUFFIX;
+  }
+  return END_LINE.replace("{command}", `/dev-implement F1 ${planShown}`);
 }
 
 function reviewLines(review: ReviewAnswer): string[] {

@@ -122,6 +122,16 @@ describe("runDevChange — a bug", () => {
     strictEqual(g.files.writes.length, 0);
   });
 
+  it("refuses a command of the pack the step's rule sets deny, before running it", async () => {
+    const f = setup();
+    f.files.files.set("/workspace/.orkeon/repo.yaml", PACK.replace("  test: npm test\n", "  test: npm test\n  cli: node bin/cli.js\n"));
+    const denied = "node bin/cli.js git add src";
+    const text = await run(f, { ...bug, run: denied });
+    strictEqual(text, `dev-change: the rules of this step deny the shell command '${denied}'; nothing is written`);
+    ok(!f.shell.commands.includes(denied));
+    strictEqual(f.files.writes.length, 0);
+  });
+
   it("asks the model for the command when --run is absent, and checks it", async () => {
     const f = setup([null]);
     f.llm.extractions = [{ command: "npm test", why: "all" }, { command: CMD, why: "the map test" }, answer(), CLEAR];

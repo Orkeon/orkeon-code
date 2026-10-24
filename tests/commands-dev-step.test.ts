@@ -7,7 +7,7 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
-import { activeWorkflowOf, devVerifyStep, markActiveWorkflow, startDevStep } from "../src/commands/_lib/dev-step.ts";
+import { activeWorkflowOf, devVerifyStep, markActiveWorkflow, reapplyStepRules, startDevStep } from "../src/commands/_lib/dev-step.ts";
 import { WORKFLOW_ACTIVE_STATE_KEY } from "../src/shared/domain/session-keys.ts";
 import type { DevStepStart } from "../src/commands/_lib/dev-step.ts";
 import { createConfigStore } from "../src/shared/application/config-store.ts";
@@ -133,5 +133,21 @@ describe("the batch a step records as in progress", () => {
     session.writeState = async () => { throw new Error("no state bag"); };
     strictEqual(await markActiveWorkflow(session, { batch: "F2", plan: null }),
       "warning: the batch in progress could not be recorded (no state bag): a compaction will write no state file for it.");
+  });
+});
+
+describe("reapplyStepRules", () => {
+  it("refuses a chained launch when the gate is off, and leaves the gate alone", () => {
+    const { gate } = setup();
+    gate.hostGate = false;
+    strictEqual(reapplyStepRules(gate, "dev-verify"), gateProblem(false, "dev-verify")!.line);
+    deepStrictEqual(gate.calls, []);
+  });
+
+  it("puts the step's rules back on top of what the gate holds, without clearing it", () => {
+    const { gate } = setup();
+    strictEqual(reapplyStepRules(gate, "dev-implement"), null);
+    strictEqual(gate.calls.includes("clear"), false);
+    ok(gate.calls.some((c) => c.startsWith("add allow run_tests")), gate.calls.slice(-3).join(" | "));
   });
 });
