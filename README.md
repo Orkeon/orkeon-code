@@ -36,6 +36,14 @@ trimmed by the mode. Every command, crew and prompt is a source file: change it,
 - **Crews for the recurring jobs**: `/init` (describe the project for the agent), `/commit` (a conventional commit
   from the diff), `/review`, `/security-review` (multi-lens code review), `/analyze` (deterministic
   codebase analysis), `/compact` and `/summary` (context management), `/init-verifiers`, `/advisor`.
+- **A dev workflow, step by step**: `/dev-spec` or `/dev-change` writes the spec or the change brief, `/dev-plan`
+  cuts it into batches a read-only reviewer questions, `/dev-implement` runs a batch test-first (red tests, then the
+  least code, then a read-only audit) and closes it with a commit, `/dev-verify` audits a batch, `/dev-batches` runs a
+  plan's batches one after the other, `/dev-status` says where a piece of work stands and `/dev-learn` proposes rules
+  from the audits' recurring gaps. Each step runs under deny rules its crew checks again
+  ([Permissions](docs/permissions.md#rule-sets-of-the-dev-steps)).
+- **A shared memory**: decisions, structures, methods and mistakes the steps recall, admitted only through
+  `/memory-admit` ([Shared memory](docs/shared-memory.md)).
 - **Context management**: automatic compaction with a circuit breaker, snip-first `/compact`, file restore after
   compaction, context pressure tiers, typed durable memory (`/memory`).
 - **58 slash commands** in all: [docs/commands.md](docs/commands.md).
@@ -48,7 +56,7 @@ endpoint, Anthropic...). **Until Orkeon `1.0.0-rc.6` is tagged, only the launche
 CI runtime smoke, wait for the tag. Once it is out, either of these runs Orkeon Code:
 
 - **Docker**: the `orkeon-runners` image (amd64 and arm64), nothing else to install;
-- **`orkeon-repl`** from the `orkeon` Debian/Ubuntu package (amd64 and arm64; `rc.6` is on the apt `rc` channel, the
+- **`orkeon-repl`** from the `orkeon` Debian/Ubuntu package (amd64 and arm64; a release candidate is published on the apt `rc` channel, the
   default `stable` channel carries finals only) or from the
   [Orkeon release archive](https://github.com/Orkeon/orkeon/releases) of your platform (Linux x64 and arm64, macOS x64
   and arm64, Windows x64 `.zip`), self-contained: no .NET to install.
@@ -56,7 +64,8 @@ CI runtime smoke, wait for the tag. Once it is out, either of these runs Orkeon 
 **Windows**: `orkeon-code.ps1` has no source mode and no `--demo` (`-Mode` takes `docker` or `tool`), so until
 `1.0.0-rc.6` is tagged nothing runs natively there. Use WSL with the bash launcher until then.
 
-Details: [Getting started](docs/getting-started.md).
+Orkeon Code itself installs from a release (`install.sh`, `install.ps1`) or from npm (`npm install -g
+orkeon-code@next`), or runs from a clone as below. Details: [Getting started](docs/getting-started.md).
 
 ```bash
 git clone https://github.com/Orkeon/orkeon-code.git ~/orkeon-code

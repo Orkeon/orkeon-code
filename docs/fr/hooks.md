@@ -14,8 +14,8 @@ Ils durent jusqu'à `/clear` ou la fin du REPL, comme les [règles de permission
 
 ## Où ils s'exécutent
 
-Les étapes dev `/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement` et `/dev-verify` remettent le registre à
-leur crew. Pour chaque appel d'outil que le modèle fait dans ce crew, une fois que la [garde de l'hôte](permissions.md) l'a permis :
+Les étapes dev `/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement`, `/dev-verify` et `/dev-batches` remettent
+le registre à leur crew, comme `/tasks repair` à l'agent qu'il relance. Pour chaque appel d'outil que le modèle fait dans ce crew, une fois que la [garde de l'hôte](permissions.md) l'a permis :
 
 1. le callback du crew contrôle à nouveau l'appel avec les jeux de règles de l'étape (et, pour un rôle d'un lot, avec
    ses racines) ; un appel qu'ils refusent n'exécute aucun hook ;

@@ -78,8 +78,9 @@ Ollama ([Configuration](configuration.md#le-llm)).
 Orkeon Code exige Orkeon `1.0.0-rc.6`, la version de `.orkeon-version`. **Tant que cette version n'est pas taguée et
 publiée, seul le [mode source](#mode-source--un-checkout-dorkeon) fonctionne** : le mode tool a besoin de ses paquets
 et le mode docker de son image, et le smoke runtime de la CI, qui tire cette image, échoue d'ici là.
-L'état de la garde de l'hôte (`/permissions`) et les outils intégrés typés demandent le `main` d'Orkeon après
-Orkeon/orkeon#130 : sur `1.0.0-rc.6`, l'état de la garde se lit « unknown » et rien d'autre ne change.
+Orkeon Code vise le `main` d'Orkeon après Orkeon/orkeon#180, la surface que portera `1.0.0-rc.6` : l'état de la
+garde de l'hôte (`/permissions`), les outils intégrés typés et les limites de résultat par outil
+([ADR 0004](../adr/0004-orkeon-after-180.md)).
 
 Le lanceur prend le premier mode disponible, dans cet ordre, sauf si `--mode` en décide autrement.
 
@@ -178,7 +179,13 @@ Détails, modèles, backends et comment le modèle appelle les outils lui-même 
 
 Outre les changements que vous demandez : `AGENTS.md` (`/init`), `.orkeon/config.json` (`/config`),
 `.orkeon/agents.json` (`/agents`) et `.git/ORKEON_COMMITMSG` (`/commit` y écrit le message pour `git commit -F` ;
-git ne le suit pas). Ajoutez `.orkeon/` au `.gitignore` du projet si vous ne voulez pas les partager. Les
+git ne le suit pas). Le workflow dev ajoute `.orkeon/dev/` (les fichiers d'état et les journaux de chaque travail),
+le dossier de travail (`workbench/` par défaut, `dev.workDir` : specs, plans, fiches de lot, verdicts),
+`.orkeon/worktrees/` (les worktrees des lots), `.orkeon/dev-learn-state.json` (`/dev-learn`) et le dossier de la
+[mémoire partagée](shared-memory.md) (`.orkeon/memory/` sauf si `memory.dir` en nomme un autre) ; les scripts de hook
+que vous écrivez (`.orkeon/hooks/` dans les [exemples](hooks.md)) sont les vôtres. Ajoutez `.orkeon/` et `workbench/`
+au `.gitignore` du projet si vous ne voulez pas les partager : `/dev-status` avertit tant qu'ils ne sont pas ignorés.
+Une mémoire partagée destinée à l'équipe va dans un dossier suivi (`memory.dir`, `docs/memory` par exemple). Les
 transcriptions vont dans le dossier d'état (`.crew-output/transcripts` dans un clone, `~/.orkeon-code/projects/<projet>/transcripts` une fois installé), jamais dans le projet. La
 conversation y est gardée aussi après chaque tour et quand le REPL finit ([Sessions](configuration.md#sessions) : `--continue` la ramène) ;
 le mode de session (`/mode`) et les règles de permission sont gardés en mémoire et finissent avec le REPL.
@@ -190,9 +197,10 @@ le mode de session (`/mode`) et les règles de permission sont gardés en mémoi
 - **Le tour attend sur `approve <tool>? [y] once / [s] session / [n] no`** : le mode vous interroge sur cet appel ;
   répondez sur la ligne suivante. `acceptEdits:` ou `/mode acceptEdits` arrête les questions sur les modifications,
   et une règle d'autorisation celles sur les appels qu'elle couvre ([Permissions](permissions.md)).
-- **Toutes les commandes shell échouent avec une erreur de confinement** : les settings mettent
-  `Orkeon:Tools:Shell:Confinement:Mode` à `Bubblewrap`, et `bwrap` manque ou ne peut pas créer ses espaces de noms
-  (un autre OS, un conteneur). Installez bubblewrap, ou remettez le mode à `None` ([SECURITY.md](../../SECURITY.md)).
+- **Toutes les commandes shell échouent avec une erreur de confinement** : `Orkeon:Tools:Shell:Confinement:Mode`
+  vaut `Auto` (le défaut quand les settings omettent la clé) ou `Bubblewrap`, et la commande ne peut pas être confinée
+  (`bwrap` absent ou incapable de créer ses espaces de noms). Installez bubblewrap, ou mettez le mode à `None` comme
+  les exemples ([SECURITY.md](../../SECURITY.md)).
 - **Pas de ligne `audio` dans la bannière, ou `no registered tool 'transcribe_audio'`** : le lanceur dit pourquoi au
   démarrage (uv absent, un serveur `whisper` dans le fichier de settings, mode docker). Un serveur qui ne peut pas
   démarrer coûte une ligne `fail:` qui le nomme ; `bash scripts/whisper-mcp-smoke.sh` le lance seul
@@ -202,6 +210,7 @@ le mode de session (`/mode`) et les règles de permission sont gardés en mémoi
 - **Une commande manque** : le chargeur garde au plus `Orkeon:Cli:ScriptCommands:MaxScripts` commandes (200 par
   défaut). `bash scripts/smoke-runtime.sh` vérifie que chaque commande se charge.
 - **Le REPL refuse un montage et quitte au démarrage** : il refuse un montage sur `/sandbox`, `/credentials`,
-  `/cli-commands...` ou `/crews...`, et une racine montée deux fois. Le lanceur ne monte que `/workspace`, `/output`
-  et `/tmp`, et démarre le REPL depuis le projet avec `ORKEON_ALLOW_EXTERNAL_MOUNTS=1` : vérifiez les arguments
+  `/cli-commands...` ou `/crews...`, et une racine montée deux fois. Le lanceur monte `/workspace`, `/output`, `/tmp`,
+  `/user-config`, `/sessions` et `/session-history`, plus `/audio` et `/transcripts` quand la transcription est
+  active, et démarre le REPL depuis le projet avec `ORKEON_ALLOW_EXTERNAL_MOUNTS=1` : vérifiez les arguments
   `--mount` passés après `--` et les `Orkeon:FileSystem:Mounts` du fichier de settings.

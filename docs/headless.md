@@ -51,8 +51,11 @@ is the only directory of your machine it can write ([SECURITY.md](../SECURITY.md
 
 `scripts/run-crew.sh` runs one crew outside the REPL: with the `orkeon` tool (`Orkeon.Scripting.Cli` from nuget.org,
 pinned in `.config/dotnet-tools.json`, needs the .NET 10 SDK) or, without an SDK, with the `orkeon-runners` image.
-Until Orkeon `1.0.0-rc.6` is published, neither exists at the pinned version and the script cannot run
-([Development](development.md)). The crew reads its input from the JSON of `--inputs`. For `main-loop` it is what
+Until Orkeon `1.0.0-rc.6` is published, neither exists at the pinned version and the script cannot run in those two
+modes; `ORKEON_CODE_MODE=source ORKEON_SOURCE=<checkout>` runs it from an Orkeon checkout ([Development](development.md)).
+It reads the settings file `ORKEON_CODE_SETTINGS` names, else `config/appsettings.local.json`, and mounts no
+`/user-config`: neither `~/.orkeon-code/appsettings.json` nor the `orkeonCode` block of your user settings applies to
+a crew run this way. The crew reads its input from the JSON of `--inputs`. For `main-loop` it is what
 `/assistant` passes: the request and the mode. `permissionRules` (the session's rules, as `/permissions` lists them:
 `deny http_api`, `allow shell_command command=npm test*`) and `extraTools` (the tools of MCP servers and plugins, as
 `tools.extra` names them) are what the launching command resolves in the REPL; a standalone run has no session to take
@@ -93,15 +96,18 @@ passes its own `-s` and `-m`, or the crew runs on no settings and no mount. Each
 each step the script reads the last line of the work code's event log: `.orkeon/dev/<code>/batches-state.md`, or the
 file `--log` names in the project. `/dev-batches` writes Code's own log, in the REPL, where its `completed` launches each
 batch; the crews this script runs one by one do not, so name a log they move (the work code's `<CODE>-BATCHES-STATE.md`),
-or every chain stops after its first step (nothing moved). The dev-batches crew run here would only name the next batch
-and log it launched: a run of a whole plan without anyone at the keyboard stays the REPL's `/dev-batches`.
+or every chain stops after its first step (nothing moved). The dev-batches crew would only name the next batch and log it
+launched, so the script refuses it (exit `64`): a run of a whole plan without anyone at the keyboard stays the REPL's
+`/dev-batches`. Without `DEV_RUN_RUNNER`, the project's trust is checked once, before the first step, where the
+terminal can answer; each step then runs with no input, so nothing it asks can hold the chain.
 
 ```bash
 ORKEON_CODE_WORKSPACE=~/src/app bash scripts/dev-run.sh dev-verify demo \
   --inputs '{"batch":"F2","plan":"demo"}' --log workbench/demo/DEMO-BATCHES-STATE.md --max-steps 10 --wait 60 --retries 2
 ```
 
-- `closed`: the batches are closed, exit `0`;
+- the project declined at the trust question: nothing runs, exit `0`; refused without a terminal: exit `2`;
+- `closed` (the line `- <date> <time> closed`, a trailing blank or CR aside): the batches are closed, exit `0`;
 - an event whose detail starts with `BLOCKED` or `GAPS`: a human decides, exit `3`;
 - the same line as before the step: nothing moved, exit `4`, never a loop;
 - `--max-steps` (default 10) reached: exit `5`;

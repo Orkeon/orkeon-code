@@ -8,7 +8,7 @@ An **async** command starts a crew and returns a ticket; its result is printed w
 | Command | Kind | Description |
 |---|---|---|
 | `/advisor` | async | Show, set or disable the advisor model, or run a second opinion on the last answer. |
-| `/agents` | sync | List, create, edit or delete saved agent configurations (.orkeon/agents.json). |
+| `/agents` | sync | List, add, show or remove saved agent configurations (.orkeon/agents.json). |
 | `/analyze` | async | Analyze the codebase deterministically (index → maps → dependency graph) and synthesize business objects + dependencies; --raw prints the harvest without any LLM call. |
 | `/assistant` | async | Ask the interactive coding agent to work on a request. |
 | `/branch` | sync | Show the current git branch, or check out the given one (refuses on a dirty tree). |

@@ -33,7 +33,8 @@ ORKEON_CODE_WORKSPACE=~/src/app bash scripts/run-crew.sh src/crews/project-init/
 It uses the `orkeon` tool (`Orkeon.Scripting.Cli`, nuget.org, pinned in `.config/dotnet-tools.json`; the .NET SDK
 that restores and runs it is pinned by `global.json`, like Orkeon's: `10.0.300` with `rollForward: latestFeature`) or the
 `orkeon-runners` image, on the demo fixture unless `ORKEON_CODE_WORKSPACE` says otherwise. Both are the pinned
-release: until `1.0.0-rc.6` is published, the script cannot run. That tool reads its script limits from
+release: until `1.0.0-rc.6` is published, the script cannot run in those two modes;
+`ORKEON_CODE_MODE=source ORKEON_SOURCE=<checkout>` runs it from an Orkeon checkout, built on the spot. That tool reads its script limits from
 `Orkeon:Scripting:Limits`, not from the REPL's `Orkeon:Cli:ScriptCommands:Limits`
 ([Configuration](configuration.md#settings-orkeon-code-relies-on)).
 
@@ -75,7 +76,11 @@ fixture (`/init`, `/assistant`, `/commit`, `/review`) before merging. Dependabot
    with no answer (q13) passes only when the runtime's settings give `Orkeon:Rag:Retrieval:MinScore`: without that
    floor every query returns passages, q13 fails and so does the check.
 4. Merge, then tag `vx.y.z` on `main` and push the tag: `release.yml` checks that the tag matches, runs the checks
-   and the strict provenance gate, and publishes the GitHub Release with the source archives, `SHA256SUMS` and a
-   build provenance attestation (`gh attestation verify <file> --repo Orkeon/orkeon-code`).
+   and the strict provenance gate, and publishes the GitHub Release with the runnable archives
+   (`orkeon-code-<v>.tar.gz` and `.zip`, what the installers fetch), `install.sh` and `install.ps1`, the source
+   archives, `SHA256SUMS` and a build provenance attestation (`gh attestation verify <file> --repo
+   Orkeon/orkeon-code`). Its `npm` job then publishes the package to npm with provenance: through trusted publishing
+   (configured on npmjs.com for this repository), or with the `NPM_TOKEN` secret when the repository sets one; a
+   version with a suffix goes to the `next` dist-tag, any other to `latest`.
 
 A version with a suffix (`-alpha.1`, `-rc.1`) is published as a pre-release.

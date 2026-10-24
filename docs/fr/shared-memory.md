@@ -84,7 +84,9 @@ demanderait. Le candidat admis est le texte qu'on vous a montré : un fichier mo
 candidat dont `refused.md` contient le sujet. Les admis sont écrits dans
 `entries/<type>/`, les entrées qu'ils remplacent sont marquées `superseded`, les deux listes sont reconstruites et
 `entries/` est réindexé, une fois. Quand l'index ne peut pas être reconstruit, les entrées restent admises, et la
-prochaine admission les indexe. `--refuse` écrit le sujet du candidat dans `refused.md` avec votre motif : le sujet
+prochaine admission les indexe. Le verrou sur la collection `memory-<project>` ne vaut qu'au sein d'un processus : un
+REPL n'exécute qu'un `/memory-admit` à la fois, mais rien ne l'ordonne face à un second REPL ou à une exécution
+autonome sur le même projet, donc tenez-vous-en à un à la fois. `--refuse` écrit le sujet du candidat dans `refused.md` avec votre motif : le sujet
 n'est plus jamais proposé. `/dev-learn` garde ses refus dans `.orkeon/memory/refused.md` quel que soit `memory.dir` :
 avec un `memory.dir` à vous, les deux listes sont séparées.
 

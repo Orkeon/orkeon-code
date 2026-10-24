@@ -78,8 +78,9 @@ machine instead, no key: `config/appsettings.ollama.example.json`, on Ollama ([C
 Orkeon Code requires Orkeon `1.0.0-rc.6`, the version in `.orkeon-version`. **Until that version is tagged and
 published, only the [source mode](#source-mode-an-orkeon-checkout) works**: the tool mode needs its packages and the
 docker mode its image, and the CI runtime smoke, which pulls that image, fails until then.
-The host gate's state (`/permissions`) and the typed built-in tools need Orkeon's `main` after Orkeon/orkeon#130: on
-`1.0.0-rc.6` the gate state reads unknown and nothing else changes.
+Orkeon Code targets Orkeon's `main` after Orkeon/orkeon#180, the surface `1.0.0-rc.6` will carry: the host gate's
+state (`/permissions`), the typed built-in tools and the per-tool result limits
+([ADR 0004](adr/0004-orkeon-after-180.md)).
 
 The launcher picks the first available mode, in this order, unless `--mode` says otherwise.
 
@@ -176,7 +177,13 @@ models, backends and how the model calls the tools itself: [Configuration](confi
 
 Besides the changes you ask for: `AGENTS.md` (`/init`), `.orkeon/config.json` (`/config`), `.orkeon/agents.json`
 (`/agents`) and `.git/ORKEON_COMMITMSG` (`/commit` writes the message there for `git commit -F`; git does not track
-it). Add `.orkeon/` to the project's `.gitignore` if you do not want to share them. Transcriptions go to the state
+it). The dev workflow adds `.orkeon/dev/` (each work's state files and logs), the work folder (`workbench/` by
+default, `dev.workDir`: specs, plans, batch sheets, verdicts), `.orkeon/worktrees/` (the worktrees of the batches),
+`.orkeon/dev-learn-state.json` (`/dev-learn`) and the [shared memory](shared-memory.md)'s folder (`.orkeon/memory/`
+unless `memory.dir` names another); the hook scripts you write (`.orkeon/hooks/` in the [examples](hooks.md)) are
+yours. Add `.orkeon/` and `workbench/` to the project's `.gitignore` if you do not want to share them: `/dev-status`
+warns while they are not ignored. A shared memory meant for the team goes in a tracked folder (`memory.dir`,
+`docs/memory` for instance). Transcriptions go to the state
 directory (`.crew-output/transcripts` in a clone, `~/.orkeon-code/projects/<project>/transcripts` once installed), never to the project. The conversation is saved
 there too after each turn and when the REPL ends ([Sessions](configuration.md#sessions): `--continue` brings it back); the session mode
 (`/mode`) and the permission rules are kept in memory and end with the REPL.
@@ -188,9 +195,10 @@ there too after each turn and when the REPL ends ([Sessions](configuration.md#se
 - **The turn waits on `approve <tool>? [y] once / [s] session / [n] no`**: the mode asks you about that call; answer
   on the next line. `acceptEdits:` or `/mode acceptEdits` stops the questions about edits, and an allow rule about the
   calls it matches ([Permissions](permissions.md)).
-- **Every shell command fails with a confinement error**: the settings set `Orkeon:Tools:Shell:Confinement:Mode` to
-  `Bubblewrap`, and `bwrap` is missing or cannot create its namespaces (another OS, a container). Install bubblewrap,
-  or set the mode back to `None` ([SECURITY.md](../SECURITY.md)).
+- **Every shell command fails with a confinement error**: `Orkeon:Tools:Shell:Confinement:Mode` is `Auto` (the
+  default when the settings leave the key out) or `Bubblewrap`, and the command cannot be confined (`bwrap` missing or
+  unable to create its namespaces). Install bubblewrap, or set the mode to `None` as the examples do
+  ([SECURITY.md](../SECURITY.md)).
 - **No `audio` line in the banner, or `no registered tool 'transcribe_audio'`**: the launcher says why at start
   (uv missing, a `whisper` server in the settings file, docker mode). A server that cannot start costs one `fail:` line
   naming it; `bash scripts/whisper-mcp-smoke.sh` runs it alone ([mcp/whisper/README.md](../mcp/whisper/README.md#troubleshooting)).
@@ -199,6 +207,6 @@ there too after each turn and when the REPL ends ([Sessions](configuration.md#se
 - **A command is missing**: the loader keeps at most `Orkeon:Cli:ScriptCommands:MaxScripts` commands (200 by
   default). `bash scripts/smoke-runtime.sh` checks that every command loads.
 - **The REPL refuses a mount and exits at start**: it refuses a mount on `/sandbox`, `/credentials`,
-  `/cli-commands...` or `/crews...`, and a root mounted twice. The launcher mounts `/workspace`, `/output` and `/tmp`
-  only, and starts the REPL from the project with `ORKEON_ALLOW_EXTERNAL_MOUNTS=1`: check the `--mount` arguments
+  `/cli-commands...` or `/crews...`, and a root mounted twice. The launcher mounts `/workspace`, `/output`, `/tmp`,
+  `/user-config`, `/sessions` and `/session-history`, plus `/audio` and `/transcripts` when speech-to-text is on, and starts the REPL from the project with `ORKEON_ALLOW_EXTERNAL_MOUNTS=1`: check the `--mount` arguments
   passed after `--` and the `Orkeon:FileSystem:Mounts` of the settings file.

@@ -11,7 +11,7 @@ and a dev step adds a third:
    execute). When the mode says to ask, it asks you. The gate is `Orkeon:Security:PermissionGate:Enabled`: the
    launcher turns it on unless your settings file turns it off, and without it neither the modes nor the rules are
    enforced. Keep it on.
-3. **The crew's callback**, in the dev steps only (`/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement` and `/dev-verify`). Once the gate has allowed a call, the crew's
+3. **The crew's callback**, in the dev steps only (`/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement`, `/dev-verify` and `/dev-batches`, and the agent `/tasks repair` starts again). Once the gate has allowed a call, the crew's
    `onToolCall` checks it again: the step's [rule sets](#rule-sets-of-the-dev-steps) (and a role's roots, for the roles
    of a batch), `glob`, `grep` and `count_pattern` by their whole input, then the `pre-tool` [hooks](hooks.md); after
    the call, the `post-tool` hooks. It can refuse a call, never allow one the gate refused. A call the gate refuses,
@@ -29,8 +29,8 @@ out, `/diff` and `/review`, `/security-review` run `git`, `/init` writes the ins
 `/init-verifiers` and `/export` write their files, the compaction writes the session buffer and typed memory. Those
 calls are what the command you typed is for: no rule, mode or question applies to them. `/commit` checks the mode
 itself and refuses in `plan` and `dontAsk`. Its git commands (`git -c core.quotePath=false status`, `git --literal-pathspecs add`
-and `commit`, `git var`, `git rev-parse`, `git symbolic-ref`, `git push -u origin <branch>`, and for the close of a dev
-step `git merge --ff-only` and `git -C <worktree> rebase`) run only under `Orkeon:Tools:Shell:AllowInterpreters`:
+and `commit`, `git var`, `git rev-parse`, `git symbolic-ref`, `git push -u origin <branch>`, and, once batches run in
+worktrees (not wired yet), `git merge --ff-only` and `git -C <worktree> rebase`) run only under `Orkeon:Tools:Shell:AllowInterpreters`:
 without it the shell tool lets git run `status`, `log`, `diff` and `show` alone, with no option before them. `/transcribe` calls the speech-to-text server's tools the same way, in
 every mode and with no `tools.extra` entry; with `--then`, the main loop makes that call before the turn, as the
 command's, and the model then works on the transcription under the turn's mode. `/voice` records the same way, and
@@ -38,7 +38,7 @@ command's, and the model then works on the transcription under the turn's mode. 
 mode), and `--go` to a turn under the session's mode, chosen before the recording: no dictated prefix is read.
 `/say` reads aloud the same way, and so does the reading of each answer under `voice.reply on`, made by the
 main loop after the turn as the launching command's call. `/dev-verify` runs `git`, the pack's build and the test
-commands it accepts from its own code, in every mode; its auditor only reads, in `plan`, with four read tools.
+commands it accepts from its own code, in every mode; its auditor only reads, in `plan`, with five read tools.
 `/dev-learn` reads the verdict files and both learning states. It writes only `<work>/learn-<date>/`,
 `.orkeon/dev-learn-state.json` and `.orkeon/memory/refused.md`, never a file under `.claude/` nor the file a proposal
 names.
@@ -77,8 +77,8 @@ refuses anything else without asking.
 without asking until the REPL exits, `n` refuses it, and the model reads the refusal and adapts. A `/` line still
 runs its command while a question waits.
 
-Orkeon classifies a tool that declares no access as a write: `http_api` and every MCP tool are asked about in
-`default` and `acceptEdits`, and refused in `plan` and `dontAsk`. `web_scrape`, `scrape_element` and `rag_search`
+Orkeon treats a tool that declares neither a read nor an edit as a write: `http_api` declares an execute and every MCP
+tool declares none, so both are asked about in `default` and `acceptEdits`, and refused in `plan` and `dontAsk`. `web_scrape`, `scrape_element` and `rag_search`
 declare a read (Orkeon #126): they run without a question wherever the catalogue offers them. `rag_ingest` declares an
 edit — it writes the knowledge index, not the workspace — so the catalogue offers it with the file edits: never in
 `plan` or `dontAsk`, asked in `default`, accepted in `acceptEdits`.
@@ -111,8 +111,8 @@ in `plan`.
 
 `/permissions` shows the effective surface: the mode, the catalogue, the session's rules and the rules the gate holds.
 The rules are enforced only while `Orkeon:Security:PermissionGate:Enabled` is on (the launcher sets it):
-`/permissions` reads the host and says whether the gate is on, off (nothing above is enforced and nothing asks), or
-unknown on a host that keeps no session rules.
+`/permissions` reads the host and says whether the gate is on or off (nothing above is enforced and nothing asks); the
+runtime always reports it.
 
 ## Rules
 
@@ -301,7 +301,8 @@ call, so a new file (a stub, a new test file) is still created with `file_write`
 
 **The gate must be on.** When the host says its gate is off, the steps refuse to start, because every rule above and
 the `plan` mode of their auditor or reviewer would check nothing; `/dev-verify F<n> --gate-only` runs no model and
-still runs. On a host that keeps no session rules, the step runs with a warning: the sets are not in force.
+still runs. On a host that keeps no session rules, the step runs with a warning: the sets are not in the host gate, and the crew's
+callback alone checks them.
 
 **What a rule cannot see.** A rule reads one argument as text. A script file run by an interpreter
 (`bash scripts/build.sh`) is not inline code, and runs. A rule matches words separated by one space, so a tab between two words,

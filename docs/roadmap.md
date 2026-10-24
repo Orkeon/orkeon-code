@@ -10,7 +10,6 @@ What Orkeon Code does not do yet, in the order we expect to address it. Items ma
 
 ## Next
 
-- **Distribution.** An `orkeon-code` image or .NET tool that carries these sources, so no clone is needed.
 - **One-shot launcher.** `orkeon-code --run "<request>"`: an unattended turn with the modes, settings and mounts of a
   session, from the launcher itself rather than `scripts/run-crew.sh` ([Autonomous and embedded runs](headless.md)).
 - **In-process embedding** (runtime). The scripting layer published as a NuGet package, so a .NET application loads
@@ -27,8 +26,7 @@ What Orkeon Code does not do yet, in the order we expect to address it. Items ma
   batch takes four (`/dev-batches`, `/dev-implement`, `/dev-verify`, the close): a plan of more than about two
   batches needs `/dev-batches` typed again after each refusal. A deeper limit, or a launch from a command's
   `completed` that starts a new chain, would remove it.
-- **Cost and usage.** Real cost figures per provider, cache ratio, token counting for `/context` and `/usage`. The
-  runtime reports the cache tokens (`session_stats`); the commands do not read them yet.
+- **Cost and usage.** Real cost figures per provider, and token counts per category for `/context` and `/usage`.
 
 ## Later
 
@@ -39,7 +37,13 @@ What Orkeon Code does not do yet, in the order we expect to address it. Items ma
   the catalogue, the assistant's prompts do not teach them yet. The dev steps use part of it: the roles of `/dev-implement` read
   and change a file by node (`node_replace`, `node_insert`, `node_ensure`, `edit_batch`) and the batch reads
   `affected_tests` and refreshes the index (`incremental_reindex`); the reviewers search with `structural_search`.
-  `documented_in`, `documents_of` and the Markdown intent operations wait for a crew that places text in a section.
+  Three parts wait:
+  - `structural_rewrite` stays denied whole in the dev steps, a dry run included: it takes its paths as an array
+    plus a `glob`, and a rewrite of many files is not a step's change. It remains an edit tool of the assistant.
+  - `documented_in` and `documents_of` for the placement `/dev-learn` proposes: the learner asks the model with one
+    extraction, without a tool loop, so it would have nothing to call them with.
+  - The Markdown intent operations, for the French twins and the work folder's files: no crew places text in a
+    section yet.
 - Batches run in parallel, each in its own worktree (runtime): `/dev-batches` runs them one after the other, and
   refuses `--concurrency` above 1. The waves of batches with disjoint anchors, the worktrees under
   `.orkeon/worktrees/` and the fast-forward merge of a VALID batch exist, not yet wired into a run; two batches at once wait for a working
@@ -53,8 +57,8 @@ What Orkeon Code does not do yet, in the order we expect to address it. Items ma
   `shell_command`. The cut is set per tool by `Orkeon:Tools:ResultLimits` ([Configuration](configuration.md)).
 - `github` and `rag_eval` declare no access to Orkeon: asked in `acceptEdits` too, refused in `plan` and `dontAsk`
   ([Permissions](permissions.md)).
-- `http_api` and every MCP tool declare no access to Orkeon, so its gate treats them as writes, even when they only
-  read: asked in `default` and `acceptEdits`, refused in `plan`, and in `dontAsk` without an allow rule (runtime;
+- `http_api` declares an execute and every MCP tool declares no access to Orkeon, so its gate treats both as writes,
+  even when they only read: asked in `default` and `acceptEdits`, refused in `plan`, and in `dontAsk` without an allow rule (runtime;
   [Permissions](permissions.md)). The web and RAG tools declare theirs since Orkeon #126.
 - The answer can be printed twice when console streaming is enabled.
 - `/tasks` monitors the children of `/dev-plan` and `/dev-verify` only, through the session state: a stop waits for

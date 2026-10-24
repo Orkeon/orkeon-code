@@ -141,7 +141,7 @@ sauf les deux appels qui montrent un résultat brut à dessein (`MemoryStore.get
 | `Shell` | Les commandes shell dans `/workspace` (`shell_command`) | `shell.ts` | `fake-shell.ts` |
 | `ShellJobs` | Une commande longue lancée détachée, son état, la fin de son journal, et une attente entre deux regards (`shell_command` `start_job`, `job_status`, `job_tail`) | `shell-jobs.ts` | aucun : des faux dans `suite-job.test.ts` et `run-dev-implement.test.ts` |
 | `SharedMemory` | L'index RAG de la [mémoire partagée](shared-memory.md) : chercher dans une collection, indexer avec élagage (l'espace `rag`, sinon `rag_search`, `rag_ingest`) | `shared-memory.ts` | aucun : des faux dans les tests de la mémoire partagée |
-| `ChildRuntime` | Les enfants d'une exécution de crew (A-3) : en lancer un en arrière-plan, lister, arrêter, lire ce qu'il a laissé (`ctx.spawnBackground`, `instances()`/`stop()` du crew, sa mémoire) | `child-agents.ts` | aucun : des faux dans `child-agent.test.ts` |
+| `ChildRuntime` | Les enfants d'une exécution de crew : en lancer un en arrière-plan, lister, arrêter, lire ce qu'il a laissé (`ctx.spawnBackground`, `instances()`/`stop()` du crew, sa mémoire) | `child-agents.ts` | aucun : des faux dans `child-agent.test.ts` |
 | `HumanInput` | Une question à la personne : un choix, un texte, une sélection multiple ; personne ne répondant est une réponse en soi (`human_input`) | `human-input.ts` | aucun : des faux dans les tests des étapes dev |
 | `Files` | Lire, écrire et lister par chemin virtuel, les montages du VFS (`file_read`, `file_write`, `directory_read`, `list_mounts`) | `files.ts` | `fake-files.ts` |
 | `Progress` | La ligne de progression de l'hôte, au mieux (`progress_report`) | `progress.ts` | `fake-progress.ts` |
@@ -150,7 +150,7 @@ sauf les deux appels qui montrent un résultat brut à dessein (`MemoryStore.get
 | `MemoryStore` | La mémoire typée : lister, ajouter, lire, retirer (`memory_store`) | `memory-store.ts` | `fake-memory-store.ts` |
 | `ToolCatalogue` | Les outils enregistrés sous leurs noms d'enregistrement, trouvés sans tenir compte de la casse comme Orkeon les trouve, pour les diagnostics et la vérification des outils supplémentaires (le service `tools` de `ctx.services` pour les noms, l'espace de noms `tools` pour les appels) | `tool-catalogue.ts` | `fake-tool-catalogue.ts` |
 | `CodeIndex` | L'index du code tel que `/analyze` le récolte (`index_status`, `index_codebase`, `codebase_map`, `dependency_graph`, `package_summary`) | `code-index.ts` | `fake-code-index.ts` |
-| `CostIndex` | Le coût d'accès que `/dev-verify` mesure : les racines indexées, le rafraîchissement des fichiers du lot, le rapport (`index_status`, `incremental_reindex`, `access_cost`) | `code-index.ts` | aucun : un faux dans `cost.test.ts` |
+| `CostIndex` | Le coût d'accès que `/dev-verify` et `/dev-implement` mesurent : les racines indexées, le rafraîchissement des fichiers du lot, le rapport (`index_status`, `incremental_reindex`, `access_cost`) | `code-index.ts` | aucun : un faux dans `measure-access-cost.test.ts` |
 | `CrewHost` | Lister et lancer des crews (le service `script-host`, `ctx.services`) | `crew-host.ts` | `fake-crew-host.ts` |
 | `PermissionRules` | Les règles de session de la garde de permission de l'hôte : ajouter, effacer, lister (le service `permissions`, `ctx.services`) | `permission-rules.ts` | `fake-permission-rules.ts` |
 | `Llm` | Le modèle : `act` (la boucle d'outils), `complete`, `extract` (`ctx.llm` de l'agent en cours) ; un `act` ou un `complete` qui échoue lève une `LlmFailure` | `llm.ts` | `fake-llm.ts` |
@@ -269,7 +269,7 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 | `init-verifiers` | séquentiel | `/init-verifiers` | Détecte l'outillage de test, écrit des guides de vérification pour les zones non couvertes |
 | `advisor` | séquentiel, sans outil | `/advisor` | Un second avis sur la dernière réponse, par un autre modèle |
 | `speech` | séquentiel, sans outil, sans LLM | `/transcribe`, `/voice`, `/say` | Un appel au serveur MCP de parole (`transcribe_audio`, `list_audio`, `record_and_transcribe`, `speak`), au nom de la commande |
-| `dev-verify` | séquentiel, la porte et la capture dans `dev-verifier`, l'audit dans un enfant d'arrière-plan `dev-auditor` (quatre outils de lecture en `plan`, `run_validation`, `memory_recall`) | `/dev-verify` (`--gate-only` saute le LLM) | La porte, la capture, un audit en lecture seule, le fichier de verdict |
+| `dev-verify` | séquentiel, la porte et la capture dans `dev-verifier`, l'audit dans un enfant d'arrière-plan `dev-auditor` (cinq outils de lecture en `plan`, `run_validation`, `memory_recall`) | `/dev-verify` (`--gate-only` saute le LLM) | La porte, la capture, un audit en lecture seule, le fichier de verdict |
 | `dev-learn` | séquentiel, sans outil, un extract par axe | `/dev-learn` (`--list` saute le LLM) | Les écarts de verdict qui reviennent, changés en propositions, `PROPOSALS.md` |
 | `dev-plan` | séquentiel, un extract dans `dev-planner`, la revue dans un enfant d'arrière-plan `dev-reviewer` (neuf outils de lecture en `plan`) | `/dev-plan` | Porte des questions Blocking, inventaire par l'index, plan et fiches écrits par le code, une revue en lecture seule |
 | `agent-run` | séquentiel, un act d'une charte intégrée (`dev-reviewer`, `dev-auditor`) | `/tasks send`, `/tasks repair` | Un nouveau run d'un enfant fini, son brief portant le rapport précédent et le message de l'opérateur |
@@ -498,8 +498,10 @@ un changement comme un diff.
   ailleurs reste dehors ; l'identité propre à git (`git var GIT_AUTHOR_IDENT`, puis celle du committer) est vérifiée
   avant tout appel au modèle, et quand git n'en a pas le crew s'arrête et remet les deux commandes
   `git config --global`, sans jamais en inventer une. `--push` pousse avec `git push -u origin <branche>` ; hors de la
-  branche par défaut, le corps de la pull request est écrit dans `<work>/pr-<slug>/PR.md` et la commande
-  `gh pr create` affichée (`--pr` ou `dev.prAuto` demandent de l'ouvrir, ce qui attend l'outil github). La même
+  branche par défaut, le corps de la pull request est écrit dans `<work>/pr-<slug>/PR.md` et elle est
+  ouverte avec l'outil `github` du runtime (`create_pr`) quand `--pr` ou `dev.prAuto` le demandent, que l'hôte offre
+  l'outil et que la session le permet ; sinon la commande `gh pr create` est affichée avec la raison. Le runtime
+  enregistre cet outil sans jeton pour l'instant, donc GitHub le refuse ([Problèmes connus](roadmap.md#problèmes-connus)). La même
   clôture (`shared/application/git/`) sert la clôture dev et la fusion en avance rapide d'un lot. Le message suit
   Conventional Commits et le style de l'historique récent, un sujet borné, un corps qui dit pourquoi. Un changement
   qui ressemble à des identifiants d'accès reçoit un refus au lieu d'un message, et un chemin qui contient d'ordinaire

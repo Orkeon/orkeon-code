@@ -39,7 +39,7 @@ changes the surface Orkeon Code runs on:
 - The rule sets of the dev steps cover the new file tools: a path rule per tool that takes one `path`, the written
   text of each editing tool, and `edit_batch` and `structural_rewrite` denied whole where paths are protected, since
   the gate cannot read their paths. A step holds 407 rules ([Permissions](../permissions.md#rule-sets-of-the-dev-steps)).
-  *Note (2026-10-24):* since lot L-9, `edit_batch` is no longer denied whole: the crews' callback checks each
+  *Note (2026-10-24):* `edit_batch` is no longer denied whole: the crews' callback checks each
   operation as the editor it stands for, so a step holds 438 rules
   ([Permissions](../permissions.md#rule-sets-of-the-dev-steps)).
 - `orkeon run` keeps no session rules: a headless turn is decided by its mode alone

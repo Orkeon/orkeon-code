@@ -65,8 +65,8 @@ prompt système d'un tour fait environ 2 250 tokens avant les schémas d'outils 
 `OLLAMA_CONTEXT_LENGTH=16384` sur le service Ollama, sinon le modèle perd en silence ses consignes et ses outils.
 
 L'agent appelle des outils à travers chaque fournisseur : la boucle d'outils du runtime (`ctx.llm.act`) lit les appels
-d'outils des formats Anthropic et OpenAI, exécute chaque appel d'un tour du modèle l'un après l'autre (pas en
-parallèle), chacun à travers la garde de permission, et renvoie les résultats dans le protocole d'outils du
+d'outils des formats Anthropic et OpenAI, exécute les appels de lecture d'un tour du modèle jusqu'à
+`MaxParallelToolCalls` à la fois et les autres l'un après l'autre, chaque appel à travers la garde de permission, et renvoie les résultats dans le protocole d'outils du
 fournisseur. Un résultat d'outil parvient au modèle coupé à 4000 caractères, 32 000 pour `file_read`.
 
 ## Les settings dont Orkeon Code dépend
@@ -79,7 +79,7 @@ fournisseur. Un résultat d'outil parvient au modèle coupé à 4000 caractères
 | `Orkeon:Scripting:Limits:ExecutionTimeout`, `Orkeon:Scripting:Limits:MemoryLimitBytes` | Les mêmes limites pour `orkeon run`, l'outil avec lequel `scripts/run-crew.sh` lance un crew (30 secondes et 100 Mo par défaut ; l'exemple met 30 minutes et 2 Gio). `orkeon-repl` ne les lit pas |
 | `Orkeon:Tools:Shell:AllowInterpreters` | Laisse `shell_command` lancer des interpréteurs (`node`, `dotnet`, `npm`...), nécessaire pour construire et tester la plupart des projets |
 | `Orkeon:Tools:Shell:ExtraAllowedCommands` | Commandes ajoutées à la liste blanche du shell (`make`, `cargo`...) |
-| `Orkeon:Tools:Shell:Confinement:Mode` | `None` (défaut) ou `Bubblewrap` : exécute chaque commande shell sous `bwrap` (Linux, modes tool et source), réseau coupé sauf `Confinement:AllowNetwork`, les programmes hors des répertoires système à lister dans `Confinement:ReadOnlyPaths`. Une commande échoue quand `bwrap` ne peut pas la confiner. Voir [SECURITY.md](../../SECURITY.md) |
+| `Orkeon:Tools:Shell:Confinement:Mode` | `Auto` (défaut : bubblewrap sous Linux, Seatbelt sous macOS, AppContainer sous Windows, aucun dans un conteneur), `None`, `Bubblewrap`, `Seatbelt` ou `AppContainer`. Confinée, chaque commande shell s'exécute sous `bwrap` (Linux, modes tool et source), réseau coupé sauf `Confinement:AllowNetwork`, les programmes hors des répertoires système à lister dans `Confinement:ReadOnlyPaths`. Une commande échoue quand elle ne peut pas être confinée. Les exemples mettent `None` ; un fichier de settings sans la clé confine, hors d'un conteneur. Voir [SECURITY.md](../../SECURITY.md) |
 | `Orkeon:Tools:ResultLimits:Limits:<tool>` | La coupe du résultat d'un outil, en caractères : 4000, `file_read` 32000, `node_read` 256000, `shell_command` 10000. Un résultat coupé finit par `[... truncated, N chars omitted. …]` ; `/dev-verify` lit cette mention |
 | `Orkeon:Tools:ResultLimits:MaxParallelToolCalls` | Les appels de lecture d'un même tour du modèle qui tournent en même temps : 4 |
 | `Orkeon:Cli:ConsoleStreaming:Enabled` | Affiche la réponse au fil de sa génération. L'exemple l'active ; la réponse peut être imprimée deux fois ([problème connu](roadmap.md#problèmes-connus)) |
@@ -91,9 +91,9 @@ fin :
 
 - l'`ExecutionTimeout` du moteur de script ci-dessus, qui s'arrête pendant qu'une question vous attend ;
 - le budget propre du crew de la boucle principale, écrit dans son code (`src/crews/main-loop/crew.ork.ts`) : 200
-  appels d'outils, 400k tokens et 30 minutes de temps réel. Cette horloge est celle d'Orkeon et ne s'arrête **pas**
-  pendant qu'une question vous attend : une question laissée sans réponse consomme le temps du tour, et le tour
-  échoue avec `Wall time exceeded` à son étape suivante.
+  appels d'outils, 400k tokens et 30 minutes de temps réel. Cette horloge est celle d'Orkeon et, comme celle du
+  moteur, elle s'arrête pendant que la garde attend votre réponse : seul le travail du modèle compte, et une question
+  laissée sans réponse ne met pas fin au tour.
 
 `Orkeon:Cli:ScriptHost:RunCrewTimeout` (10 minutes par défaut) ne borne qu'un crew qu'une commande attend
 (`runCrew`) ; Orkeon Code lance chaque crew avec `runCrewAsync`, qu'il ne borne pas, donc l'exemple l'omet.
@@ -116,10 +116,14 @@ permet, sinon affichent la commande `gh pr create` à taper et disent pourquoi),
 docs/memory` ; omis, `.orkeon/memory` ; jamais sous `.claude/` ni `.git/`, jamais le `.orkeon/agent-memory` de la
 mémoire d'agent), `memory.project` (le projet que nomment les entrées et la collection d'index `memory-<project>`, un
 nom kebab-case ; omis, le nom du remote `origin`, sinon `local`), `memory.autoAdmitAudited` (`true` ou `false`, omis
-= `false` : `/memory-admit` admet sans demander un candidat qu'un audit appuie) ou `spinnerVerbs`.
+= `false` : `/memory-admit` admet sans demander un candidat qu'un audit appuie), `review.lenses` (les angles de `/review`, séparés par des virgules parmi `correctness`,
+`security` et `style` ; omis, les trois), `advisor.model` (le modèle du second avis d'`/advisor` ; omis, celui de la
+session, ce qui en fait une auto-revue), `commit.requireConfirm` (`false` laisse `/commit` s'exécuter sans sa
+confirmation ; omis = `true`) ou `spinnerVerbs`. `/config keys` les liste toutes.
 `/model`, `/effort`, `/passes`, `/fast`, `/proactive` et `/output-style` changent la façon dont les prochains tours
 s'exécutent. `/effort` règle aussi la réflexion du fournisseur : le niveau enregistré est envoyé comme `effort` de
-l'act par `/assistant`, `/dev-plan` et `/dev-verify`, et rien n'est envoyé tant qu'aucun niveau n'est enregistré.
+l'act par `/assistant`, chaque étape dev (`/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement`, `/dev-verify`,
+`/dev-batches`) et les agents qu'elles lancent, et rien n'est envoyé tant qu'aucun niveau n'est enregistré.
 
 `permissions.fallback`, `tools.extra` et `memory.autoAdmitAudited` réglés dans le fichier du projet sont restreints par le bloc `orkeonCode` des
 réglages de l'utilisateur : `/config set` écrit une telle valeur, puis dit, sous "persisted", qu'elle est ignorée et
@@ -374,7 +378,7 @@ projet ; `--llm-log-path <dossier>` est passé tel quel et l'emporte sur un `--l
 | `ORKEON_CODE_VOICE` | `1` : ouvre le microphone à [`/voice`](#dictée) et le haut-parleur à [`/say`](#synthèse-vocale) (avec `ORKEON_CODE_AUDIO_DIR`) |
 | `ORKEON_CODE_STATE` | Où vivent `/output`, `/tmp`, `/user-config` et les transcriptions (défaut `.crew-output/` dans un clone, `<home>/projects/<projet>` dans une installation) ; les [sessions](#sessions) vont sous son `projects/<projet>/` |
 | `ORKEON_CODE_SESSIONS_KEEP` | Combien de [sessions](#sessions) gardées un projet conserve (défaut 50) |
-| `ORKEON_CODE_HOME` | Le dossier propre d'une installation : son état et son dépôt de démo (défaut `~/.orkeon-code`) |
+| `ORKEON_CODE_HOME` | Le dossier propre d'une installation : son `appsettings.json`, son `trusted-folders.json`, son état et son dépôt de démo (défaut `~/.orkeon-code`). Un clone y lit aussi son `appsettings.json` et son `trusted-folders.json` |
 | `ORKEON_CODE_IMAGE` | Une autre image du runtime (mode docker) |
 | `ORKEON_REPL` | La ligne de commande qui démarre le REPL (mode tool) |
 | `ORKEON_SOURCE` | Checkout d'Orkeon (mode source) |

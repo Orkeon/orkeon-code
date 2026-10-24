@@ -13,7 +13,7 @@ const files = orkeonFiles();
 
 defineCommand({
   name: "agents",
-  description: "List, create, edit or delete saved agent configurations (.orkeon/agents.json).",
+  description: "List, add, show or remove saved agent configurations (.orkeon/agents.json).",
   handler: async (args, ctx) =>
     showView(ctx, await runAgents(rawTokens(args), { files, crews: createCrewHost(ctx.services) })),
 });

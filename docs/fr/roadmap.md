@@ -10,7 +10,6 @@ demandent d'abord un changement dans [Orkeon](https://github.com/Orkeon/orkeon).
 
 ## Ensuite
 
-- **Distribution.** Une image ou un outil .NET `orkeon-code` qui embarque ces sources, pour se passer du clone.
 - **Lanceur en un coup.** `orkeon-code --run "<request>"` : un tour sans opérateur avec les modes, les settings et
   les montages d'une session, depuis le lanceur lui-même plutôt que `scripts/run-crew.sh`
   ([Exécutions autonomes et embarquées](headless.md)).
@@ -29,9 +28,8 @@ demandent d'abord un changement dans [Orkeon](https://github.com/Orkeon/orkeon).
   runtime (8), et un lot en prend quatre (`/dev-batches`, `/dev-implement`, `/dev-verify`, la clôture) : un plan de
   plus de deux lots environ demande de retaper `/dev-batches` après chaque refus. Une limite plus profonde, ou un
   lancement depuis le `completed` d'une commande qui ouvre une nouvelle chaîne, la lèverait.
-- **Coût et usage.** De vrais chiffres de coût par fournisseur, le taux de cache, le comptage des tokens pour
-  `/context` et `/usage`. Le runtime rapporte les tokens de cache (`session_stats`) ; les commandes ne les lisent pas
-  encore.
+- **Coût et usage.** De vrais chiffres de coût par fournisseur, et des comptes de tokens par catégorie pour
+  `/context` et `/usage`.
 
 ## Plus tard
 
@@ -42,8 +40,14 @@ demandent d'abord un changement dans [Orkeon](https://github.com/Orkeon/orkeon).
   sont au catalogue, les prompts de l'assistant ne les enseignent pas encore. Les étapes dev en utilisent une partie, branchée dans
   `/dev-implement` : ses rôles lisent et modifient un fichier par nœud (`node_replace`, `node_insert`, `node_ensure`,
   `edit_batch`) et le lot lit `affected_tests` et rafraîchit l'index (`incremental_reindex`) ; les relecteurs
-  cherchent avec `structural_search`. `documented_in`, `documents_of` et les opérations Markdown d'intention sont en
-  attente d'un crew qui place du texte dans une section.
+  cherchent avec `structural_search`. Trois parties attendent :
+  - `structural_rewrite` reste refusé en entier dans les étapes dev, essai à blanc compris : il prend ses chemins en
+    tableau plus un `glob`, et une réécriture de nombreux fichiers n'est pas le changement d'une étape. Il reste un
+    outil d'édition de l'assistant.
+  - `documented_in` et `documents_of` pour le placement que `/dev-learn` propose : l'apprenant interroge le modèle par
+    une seule extraction, sans boucle d'outils, et n'aurait donc rien pour les appeler.
+  - Les opérations Markdown d'intention, pour les jumeaux français et les fichiers du dossier de travail : aucun crew
+    ne place encore du texte dans une section.
 - Des lots exécutés en parallèle, chacun dans son worktree (runtime) : `/dev-batches` les exécute l'un après
   l'autre, et refuse `--concurrency` au-delà de 1. Les vagues de lots aux ancres disjointes, les worktrees sous
   `.orkeon/worktrees/` et la fusion en avance rapide d'un lot VALID existent, pas encore branchés sur une exécution ; deux lots à la fois attendent une
@@ -59,8 +63,8 @@ demandent d'abord un changement dans [Orkeon](https://github.com/Orkeon/orkeon).
   ([Configuration](configuration.md)).
 - `github` et `rag_eval` ne déclarent aucun accès à Orkeon : demandés aussi en `acceptEdits`, refusés en `plan` et
   `dontAsk` ([Permissions](permissions.md)).
-- `http_api` et chaque outil MCP ne déclarent aucun accès à Orkeon, dont la garde les traite donc comme des
-  écritures, même quand ils ne font que lire : demandés en `default` et `acceptEdits`, refusés en `plan`, et en
+- `http_api` déclare une exécution et chaque outil MCP ne déclare aucun accès à Orkeon, dont la garde les traite donc
+  tous deux comme des écritures, même quand ils ne font que lire : demandés en `default` et `acceptEdits`, refusés en `plan`, et en
   `dontAsk` sans règle d'autorisation (runtime ; [Permissions](permissions.md)). Les outils web et RAG déclarent le
   leur depuis Orkeon #126.
 - La réponse peut être affichée deux fois quand le streaming console est activé.

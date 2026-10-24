@@ -63,8 +63,8 @@ of a turn is about 2,250 tokens before the tool schemas and the conversation, so
 on the Ollama service, or the model silently loses its instructions and its tools.
 
 The agent calls tools through every provider: the runtime's tool loop (`ctx.llm.act`) reads the tool calls of the
-Anthropic and OpenAI formats, runs every call of a model turn one after the other (not in parallel), each through the
-permission gate, and sends the results back in the provider's tool protocol. A tool result reaches the model cut at
+Anthropic and OpenAI formats, runs the read calls of a model turn up to `MaxParallelToolCalls` at once and the
+others one after the other, each call through the permission gate, and sends the results back in the provider's tool protocol. A tool result reaches the model cut at
 4000 characters, 32,000 for `file_read`.
 
 ## Settings Orkeon Code relies on
@@ -77,7 +77,7 @@ permission gate, and sends the results back in the provider's tool protocol. A t
 | `Orkeon:Scripting:Limits:ExecutionTimeout`, `Orkeon:Scripting:Limits:MemoryLimitBytes` | The same limits for `orkeon run`, the tool `scripts/run-crew.sh` runs a crew with (30 seconds and 100 MB by default; the example sets 30 minutes and 2 GiB). `orkeon-repl` does not read them |
 | `Orkeon:Tools:Shell:AllowInterpreters` | Lets `shell_command` run interpreters (`node`, `dotnet`, `npm`...), needed to build and test most projects |
 | `Orkeon:Tools:Shell:ExtraAllowedCommands` | Commands added to the shell allow-list (`make`, `cargo`...) |
-| `Orkeon:Tools:Shell:Confinement:Mode` | `None` (default) or `Bubblewrap`: runs each shell command under `bwrap` (Linux, tool and source modes), network off unless `Confinement:AllowNetwork`, programs outside the system directories listed in `Confinement:ReadOnlyPaths`. A command fails when `bwrap` cannot confine it. See [SECURITY.md](../SECURITY.md) |
+| `Orkeon:Tools:Shell:Confinement:Mode` | `Auto` (default: bubblewrap on Linux, Seatbelt on macOS, AppContainer on Windows, none inside a container), `None`, `Bubblewrap`, `Seatbelt` or `AppContainer`. Confined, each shell command runs under `bwrap` (Linux, tool and source modes), network off unless `Confinement:AllowNetwork`, programs outside the system directories listed in `Confinement:ReadOnlyPaths`. A command fails when it cannot be confined. The examples set `None`; a settings file without the key confines, outside a container. See [SECURITY.md](../SECURITY.md) |
 | `Orkeon:Tools:ResultLimits:Limits:<tool>` | The cut of a tool's result, in characters: 4000, `file_read` 32000, `node_read` 256000, `shell_command` 10000. A cut result ends with `[... truncated, N chars omitted. …]`; `/dev-verify` reads that notice |
 | `Orkeon:Tools:ResultLimits:MaxParallelToolCalls` | The read calls of one model turn that run at once: 4 |
 | `Orkeon:Cli:ConsoleStreaming:Enabled` | Streams the answer as it is generated. The example enables it; the answer can be printed twice ([known issue](roadmap.md#known-issues)) |
@@ -88,8 +88,8 @@ permission gate, and sends the results back in the provider's tool protocol. A t
 
 - the script engine's `ExecutionTimeout` above, which stops while a question waits for you;
 - the main-loop crew's own budget, written in its code (`src/crews/main-loop/crew.ork.ts`): 200 tool calls, 400k
-  tokens and 30 minutes of wall time. That clock is Orkeon's and does **not** stop while a question waits for you:
-  a question left unanswered uses the turn's time, and the turn fails with `Wall time exceeded` at its next step.
+  tokens and 30 minutes of wall time. That clock is Orkeon's and, like the engine's, it stops while the gate waits
+  for your answer: only the model's own work counts, and a question left unanswered does not end the turn.
 
 `Orkeon:Cli:ScriptHost:RunCrewTimeout` (10 minutes by default) bounds only a crew a command waits for (`runCrew`);
 Orkeon Code starts every crew with `runCrewAsync`, which it does not bound, so the example leaves it out.
@@ -112,9 +112,13 @@ docs/memory`; omitted, `.orkeon/memory`; never under `.claude/` or `.git/`, neve
 `.orkeon/agent-memory`), `memory.project` (the project the entries name and the index collection
 `memory-<project>`, a kebab-case name; omitted, the `origin` remote's name, else `local`),
 `memory.autoAdmitAudited` (`true` or `false`, omitted = `false`: `/memory-admit` admits a candidate an audit backs
-without asking), or `spinnerVerbs`. `/model`, `/effort`, `/passes`, `/fast`, `/proactive` and `/output-style` change
+without asking), `review.lenses` (the lenses of `/review`, comma-separated among `correctness`, `security` and
+`style`; omitted, all three), `advisor.model` (the model of `/advisor`'s second opinion; omitted, the session's own,
+which makes it a self-review), `commit.requireConfirm` (`false` lets `/commit` run without its confirmation; omitted =
+`true`), or `spinnerVerbs`. `/config keys` lists them all. `/model`, `/effort`, `/passes`, `/fast`, `/proactive` and `/output-style` change
 how the next turns run. `/effort` also sets the provider's thinking: the stored level is sent as the act's `effort` by
-`/assistant`, `/dev-plan` and `/dev-verify`, and nothing is sent while no level is stored.
+`/assistant`, every dev step (`/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement`, `/dev-verify`, `/dev-batches`)
+and the agents these start, and nothing is sent while no level is stored.
 
 `permissions.fallback`, `tools.extra` and `memory.autoAdmitAudited` set in the project file are narrowed by the `orkeonCode` block of the user
 settings: `/config set` writes such a value, then says, under "persisted", that it is ignored and where your own setting
@@ -355,7 +359,7 @@ then start `orkeon-code --resume <id>`. The line editor's history (the up arrow)
 | `ORKEON_CODE_VOICE` | `1`: opens the microphone to [`/voice`](#dictation) and the speaker to [`/say`](#speech-output) (with `ORKEON_CODE_AUDIO_DIR`) |
 | `ORKEON_CODE_STATE` | Where `/output`, `/tmp`, `/user-config` and the transcripts live (default `.crew-output/` in a clone, `<home>/projects/<project>` in an install); the [sessions](#sessions) go under its `projects/<project>/` |
 | `ORKEON_CODE_SESSIONS_KEEP` | How many saved [sessions](#sessions) a project keeps (default 50) |
-| `ORKEON_CODE_HOME` | An install's own folder: its state and its demo repository (default `~/.orkeon-code`) |
+| `ORKEON_CODE_HOME` | An install's own folder: its `appsettings.json`, its `trusted-folders.json`, its state and its demo repository (default `~/.orkeon-code`). A clone reads its `appsettings.json` and `trusted-folders.json` there too |
 | `ORKEON_CODE_IMAGE` | Another runtime image (docker mode) |
 | `ORKEON_REPL` | The command line that starts the REPL (tool mode) |
 | `ORKEON_SOURCE` | Orkeon checkout (source mode) |

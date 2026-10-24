@@ -80,7 +80,9 @@ rule that denies `memory_recall` turns these recalls off too.
 candidate. A session that cannot ask admits none of those it would ask about. The candidate admitted is the text you
 were shown: a file changed since is not admitted, nor one whose topic `refused.md` holds. The admitted ones are written to `entries/<type>/`, the entries
 they supersede are marked `superseded`, both lists are rebuilt and `entries/` is indexed again, once. When the index
-cannot be rebuilt the entries stay admitted, and the next admission indexes them. `--refuse` writes the candidate's
+cannot be rebuilt the entries stay admitted, and the next admission indexes them. The lock on the collection
+`memory-<project>` holds within one process only: one REPL runs one `/memory-admit` at a time, but nothing orders it
+against a second REPL or a headless run on the same project, so keep to one at a time. `--refuse` writes the candidate's
 topic to `refused.md` with your motif: the topic is never proposed again. `/dev-learn` keeps its refusals in
 `.orkeon/memory/refused.md` whatever `memory.dir` says: with a `memory.dir` of your own, the two lists are apart.
 

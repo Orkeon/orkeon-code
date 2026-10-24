@@ -134,7 +134,7 @@ the two calls that show a raw result on purpose (`MemoryStore.get`, `ToolCatalog
 | `Shell` | Shell commands in `/workspace` (`shell_command`) | `shell.ts` | `fake-shell.ts` |
 | `ShellJobs` | A long command run detached, its status, the tail of its log, and a wait between two looks (`shell_command` `start_job`, `job_status`, `job_tail`) | `shell-jobs.ts` | none: fakes in `suite-job.test.ts` and `run-dev-implement.test.ts` |
 | `SharedMemory` | The RAG index of the [shared memory](shared-memory.md): search a collection, ingest with prune (the `rag` namespace, else `rag_search`, `rag_ingest`) | `shared-memory.ts` | none: fakes in the shared-memory tests |
-| `ChildRuntime` | The children of a crew run (A-3): spawn one in the background, list, stop, read what it left (`ctx.spawnBackground`, the crew's `instances()`/`stop()`, its memory) | `child-agents.ts` | none: fakes in `child-agent.test.ts` |
+| `ChildRuntime` | The children of a crew run: spawn one in the background, list, stop, read what it left (`ctx.spawnBackground`, the crew's `instances()`/`stop()`, its memory) | `child-agents.ts` | none: fakes in `child-agent.test.ts` |
 | `HumanInput` | A question to the person: a choice, a text, a multi-select; nobody answering is an answer of its own (`human_input`) | `human-input.ts` | none: fakes in the tests of the dev steps |
 | `Files` | Read, write and list by virtual path, the VFS mounts (`file_read`, `file_write`, `directory_read`, `list_mounts`) | `files.ts` | `fake-files.ts` |
 | `Progress` | The host's progress line, best effort (`progress_report`) | `progress.ts` | `fake-progress.ts` |
@@ -143,7 +143,7 @@ the two calls that show a raw result on purpose (`MemoryStore.get`, `ToolCatalog
 | `MemoryStore` | Typed memory: list, add, get, remove (`memory_store`) | `memory-store.ts` | `fake-memory-store.ts` |
 | `ToolCatalogue` | The registered tools under their registered names, found case-insensitively as Orkeon finds them, for diagnostics and the extra tools' check (the `tools` service of `ctx.services` for the names, the `tools` namespace for the calls) | `tool-catalogue.ts` | `fake-tool-catalogue.ts` |
 | `CodeIndex` | The code index as `/analyze` harvests it (`index_status`, `index_codebase`, `codebase_map`, `dependency_graph`, `package_summary`) | `code-index.ts` | `fake-code-index.ts` |
-| `CostIndex` | The access cost `/dev-verify` measures: the indexed roots, the refresh of the batch's files, the report (`index_status`, `incremental_reindex`, `access_cost`) | `code-index.ts` | none: a fake in `cost.test.ts` |
+| `CostIndex` | The access cost `/dev-verify` and `/dev-implement` measure: the indexed roots, the refresh of the batch's files, the report (`index_status`, `incremental_reindex`, `access_cost`) | `code-index.ts` | none: a fake in `measure-access-cost.test.ts` |
 | `CrewHost` | List and launch crews (the `script-host` service, `ctx.services`) | `crew-host.ts` | `fake-crew-host.ts` |
 | `PermissionRules` | The session rules of the host's permission gate: add, clear, list (the `permissions` service, `ctx.services`) | `permission-rules.ts` | `fake-permission-rules.ts` |
 | `Llm` | The model: `act` (the tool loop), `complete`, `extract` (`ctx.llm` of the running agent); a failed `act` or `complete` throws an `LlmFailure` | `llm.ts` | `fake-llm.ts` |
@@ -259,7 +259,7 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 | `init-verifiers` | sequential | `/init-verifiers` | Detects test tooling, writes verification playbooks for uncovered zones |
 | `advisor` | sequential, no tools | `/advisor` | A second opinion on the last answer from another model |
 | `speech` | sequential, no tools, no LLM | `/transcribe`, `/voice`, `/say` | One call to the speech MCP server (`transcribe_audio`, `list_audio`, `record_and_transcribe`, `speak`), as the command's |
-| `dev-verify` | sequential, the gate and capture in `dev-verifier`, the audit in a background child `dev-auditor` (four read tools in `plan`, `run_validation`, `memory_recall`) | `/dev-verify` (`--gate-only` skips the LLM) | The gate, the capture, one read-only audit, the verdict file |
+| `dev-verify` | sequential, the gate and capture in `dev-verifier`, the audit in a background child `dev-auditor` (five read tools in `plan`, `run_validation`, `memory_recall`) | `/dev-verify` (`--gate-only` skips the LLM) | The gate, the capture, one read-only audit, the verdict file |
 | `dev-learn` | sequential, no tool, one extract per axis | `/dev-learn` (`--list` skips the LLM) | Recurring verdict gaps into proposals, `PROPOSALS.md` |
 | `dev-plan` | sequential, one extract in `dev-planner`, the review in a background child `dev-reviewer` (nine read tools in `plan`) | `/dev-plan` | Blocking gate, inventory by the index, plan and sheets written by code, one read-only review |
 | `agent-run` | sequential, one act of a built-in charter (`dev-reviewer`, `dev-auditor`) | `/tasks send`, `/tasks repair` | A new run of an ended child, its brief carrying the previous report and the operator's message |
@@ -457,9 +457,10 @@ prompt as the model reads it, to review a change as a diff.
   and committed with `git commit -- <files>`, so what was staged elsewhere stays out; git's own identity
   (`git var GIT_AUTHOR_IDENT`, then the committer's) is checked before any model call, and when it has none the crew
   stops and hands over the two `git config --global` commands, never inventing one. `--push` pushes with
-  `git push -u origin <branch>`; off the default branch the pull request body is written to `<work>/pr-<slug>/PR.md`
-  and the `gh pr create` command printed (`--pr` or `dev.prAuto` ask for it to be opened, which waits for the github
-  tool). The same close (`shared/application/git/`) serves the dev close and the fast-forward merge of a batch. The
+  `git push -u origin <branch>`; off the default branch the pull request body is written to `<work>/pr-<slug>/PR.md`,
+  and the pull request opened with the runtime's `github` tool (`create_pr`) when `--pr` or `dev.prAuto` ask for it, the host offers the
+  tool and the session allows it; otherwise the `gh pr create` command is printed with the reason. The runtime
+  registers that tool without a token for now, so GitHub refuses it ([Known issues](roadmap.md#known-issues)). The same close (`shared/application/git/`) serves the dev close and the fast-forward merge of a batch. The
   message follows Conventional Commits and the style of the recent history, a bounded subject, a body that says why.
   A change that looks like a credential gets a refusal instead of a message, and a path that usually holds secrets
   (an env file, a private key) stops the commit before any model call.

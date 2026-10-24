@@ -11,7 +11,7 @@ agissent à deux niveaux, et une étape dev en ajoute un troisième :
    outil déclare (lecture, modification, exécution). Quand le mode dit de demander, il vous demande. La garde est
    `Orkeon:Security:PermissionGate:Enabled` : le lanceur l'active sauf si votre fichier de settings la désactive, et
    sans elle ni les modes ni les règles ne sont appliqués. Laissez-la active.
-3. **Le callback du crew**, dans les étapes dev seulement (`/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement` et `/dev-verify`). Une fois l'appel permis par la garde, le
+3. **Le callback du crew**, dans les étapes dev seulement (`/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement`, `/dev-verify` et `/dev-batches`, et l'agent que `/tasks repair` relance). Une fois l'appel permis par la garde, le
    `onToolCall` du crew le contrôle à nouveau : les [jeux de règles](#jeux-de-règles-des-étapes-dev) de l'étape (et les
    racines d'un rôle, pour les rôles d'un lot), `glob`, `grep` et `count_pattern` sur toute leur entrée, puis les
    [hooks](hooks.md) `pre-tool` ; après l'appel, les hooks `post-tool`. Il peut refuser un appel, jamais permettre un
@@ -32,8 +32,8 @@ d'instructions, `/init-verifiers` et `/export` écrivent leurs fichiers, la comp
 mémoire typée. Ces appels sont ce pour quoi la commande que vous avez tapée existe : aucune règle, aucun mode, aucune
 question ne s'y applique. `/commit` vérifie lui-même le mode et refuse en `plan` et en `dontAsk`. Ses commandes git
 (`git -c core.quotePath=false status`, `git --literal-pathspecs add` et `commit`, `git var`, `git rev-parse`,
-`git symbolic-ref`, `git push -u origin <branch>`, et pour la clôture d'une étape dev `git merge --ff-only` et
-`git -C <worktree> rebase`) ne s'exécutent que sous `Orkeon:Tools:Shell:AllowInterpreters` : sans lui, l'outil shell ne
+`git symbolic-ref`, `git push -u origin <branch>`, et, une fois les lots exécutés dans des worktrees (pas encore
+branché), `git merge --ff-only` et `git -C <worktree> rebase`) ne s'exécutent que sous `Orkeon:Tools:Shell:AllowInterpreters` : sans lui, l'outil shell ne
 laisse git lancer que `status`, `log`, `diff` et `show`, sans option avant eux. `/transcribe`
 appelle de la même façon les outils du serveur de transcription de la parole, dans tous les modes et sans entrée
 `tools.extra` ; avec `--then`, la boucle principale fait cet appel avant le tour, comme celui de la commande, et le
@@ -43,7 +43,7 @@ le mode), et `--go` à un tour sous le mode de la session, choisi avant l'enregi
 `/say` lit à voix haute de la même façon, et de même la lecture de chaque réponse sous `voice.reply on`, faite par la
 boucle principale après le tour comme appel de la commande qui l'a lancée. `/dev-verify` lance `git`, le build du
 pack et les commandes de test qu'il accepte depuis son propre code, dans tous les modes ; son auditeur ne fait que
-lire, en `plan`, avec quatre outils de lecture.
+lire, en `plan`, avec cinq outils de lecture.
 `/dev-learn` lit les fichiers de verdict et les deux états d'apprentissage. Il n'écrit que `<work>/learn-<date>/`,
 `.orkeon/dev-learn-state.json` et `.orkeon/memory/refused.md`, jamais un fichier sous `.claude/` ni le fichier qu'une
 proposition nomme.
@@ -83,8 +83,8 @@ REPL : `approve <tool>? [y] once / [s] session / [n] no`. `y` exécute l'appel, 
 suivants de cet outil sans demander jusqu'à la sortie du REPL, `n` le refuse, et le modèle lit le refus et s'adapte.
 Une ligne `/` exécute toujours sa commande pendant qu'une question attend.
 
-Orkeon classe comme écriture un outil qui ne déclare aucun accès : `http_api` et tous les outils MCP font l'objet d'une
-question en `default` et en `acceptEdits`, et sont refusés en `plan` et en `dontAsk`. `web_scrape`, `scrape_element` et
+Orkeon traite comme écriture un outil qui ne déclare ni lecture ni modification : `http_api` déclare une exécution et
+tous les outils MCP n'en déclarent aucun, donc les deux font l'objet d'une question en `default` et en `acceptEdits`, et sont refusés en `plan` et en `dontAsk`. `web_scrape`, `scrape_element` et
 `rag_search` déclarent une lecture (Orkeon #126) : ils s'exécutent sans question partout où le catalogue les offre.
 `rag_ingest` déclare une modification — il écrit l'index de connaissances, pas le projet monté — si bien que le
 catalogue l'offre avec les modifications de fichiers : jamais en `plan` ni en `dontAsk`, demandé en `default`, accepté
@@ -119,8 +119,8 @@ principal en `plan`.
 
 `/permissions` montre la surface effective : le mode, le catalogue, les règles de la session et les règles que la garde
 détient. Les règles ne sont appliquées que tant que `Orkeon:Security:PermissionGate:Enabled` est actif (le lanceur
-l'active) : `/permissions` interroge l'hôte et dit si la garde est active, inactive (rien de ce qui précède n'est
-appliqué et rien ne demande), ou inconnue sur un hôte qui ne garde aucune règle de session.
+l'active) : `/permissions` interroge l'hôte et dit si la garde est active ou inactive (rien de ce qui précède n'est
+appliqué et rien ne demande) ; le runtime le dit toujours.
 
 ## Règles
 
@@ -319,7 +319,8 @@ tests) se crée toujours avec `file_write`. Toute autre réponse garde la règle
 **La garde doit être active.** Quand l'hôte dit que sa garde est inactive, les étapes refusent de démarrer, car
 aucune règle ci-dessus ni le mode `plan` de leur auditeur ou de leur relecteur ne vérifierait quoi que ce soit ;
 `/dev-verify F<n> --gate-only` n'appelle aucun modèle et s'exécute toujours. Sur un hôte qui ne garde aucune règle de
-session, l'étape s'exécute avec un avertissement : les jeux ne sont pas en vigueur.
+session, l'étape s'exécute avec un avertissement : les jeux ne sont pas dans la garde de l'hôte, et le
+callback du crew est seul à les vérifier.
 
 **Ce qu'une règle ne voit pas.** Une règle lit un argument comme du texte. Un fichier de script lancé par un
 interpréteur (`bash scripts/build.sh`) n'est pas du code en ligne, et s'exécute. Une règle reconnaît des mots séparés par une espace, si

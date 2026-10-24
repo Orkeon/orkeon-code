@@ -12,9 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **An installed `orkeon-code`.** `install.sh` and `install.ps1` install it from a release (the checksum is checked
   when the release has one), `npm install -g orkeon-code@next` installs the npm package and its command shim, and
   `orkeon-code --version` names Code's version, where it runs from, and the Orkeon expected and found. An install
-  reads `~/.config/orkeon-code/appsettings.json` (or `--settings`) only, never a `config/appsettings.local.json`, and
-  keeps its state and its demo repository under `ORKEON_CODE_HOME` (default `~/.orkeon-code`, state in `state/`
-  until each project gets its own); a clone keeps them in `.crew-output/` and `fixtures/`
+  never reads a `config/appsettings.local.json` (the settings it reads are below), and keeps each project's state
+  under `ORKEON_CODE_HOME/projects/<name>-<hash>/` and its demo repository in `demo/` (default `~/.orkeon-code`); a
+  clone keeps its state in `.crew-output/` and its demo in `fixtures/`
   ([Getting started](docs/getting-started.md), [Configuration](docs/configuration.md#launcher-environment)).
 - **The user's own settings**: the `orkeonCode` block of the settings file the launcher reads. The launcher copies
   the block alone, never the `Llm` section, to `<state>/user-config/config.json` at each start and mounts it
@@ -24,7 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   -- <files>`, never `-A`), leaves the work folder (`dev.workDir`) out unless a path inside it is named, checks
   git's identity first, and refuses while a merge or a cherry-pick is in progress. `--push` pushes the branch
   (`git push -u origin <branch>`) and `--pr` pushes it too; after either, or under the new key `dev.prAuto`, the pull
-  request body is written under `<work>/pr-<slug>/PR.md` and the `gh pr create` command to type is printed ([Configuration](docs/configuration.md#session-settings)).
+  request body is written under `<work>/pr-<slug>/PR.md` and the pull request opened, or its `gh pr create` command
+  printed, as described below ([Configuration](docs/configuration.md#session-settings)).
 - **The tools of Orkeon #180 in the catalogue.** Read: `glob`, `grep`, `count_pattern`, `list_mounts`,
   `node_outline`, `node_read` and the graph queries (`access_cost`, `affected_tests`, `batch_anchors`,
   `documented_in`, `documents_of`, `structural_search`, `incremental_reindex`, `statement_query`,
@@ -32,8 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `structural_rewrite`, and `github` and `rag_eval`, which declare no access and are asked in `acceptEdits` too. A
   rule may name `spawn_agent`, which the host offers to every act; `/permissions` warns on an allow rule on it.
 - **Rule sets over the new tools**: `read-noise` covers every tool that reads one `path`, `secrets` the written text
-  of every editing tool, `state-files` the `path` of every tool that writes one file; `edit_batch` and
-  `structural_rewrite`, whose paths the gate cannot read, are denied whole. A dev step holds 407 rules.
+  of every editing tool, `state-files` the `path` of every tool that writes one file. `structural_rewrite`, whose
+  paths the gate cannot read, is denied whole; `edit_batch` is checked operation by operation by the crews' callback,
+  as the editor each operation stands for, every `validate` but "parse" refused, and an import's `name` and `module`
+  read by `secrets`. A dev step holds 438 rules.
 - **`Orkeon:Tools:ResultLimits` and `Llm:MaxRateLimitWait` in the example settings**: the cut of a tool's result per
   tool (10,000 characters for `shell_command`), four read calls of a turn at once, and a rate-limit wait of five
   minutes ([Configuration](docs/configuration.md)).
@@ -46,7 +49,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `state-files` refuses writes to the batch logs, verdicts, captures, `.orkeon/` and `.claude/`. The sets are not
   stored with the session's rules. `/permissions` shows them grouped while they stay in the gate, until the next
   `/assistant` turn or rule change. The steps now **refuse to start when the host says its permission gate is off**
-  (`/dev-plan` warned before), and warn when the host cannot say.
+  (`/dev-plan` warned before), and warn on a host that keeps no session rules, where the crew's callback alone checks
+  the sets.
 - **`/dev-spec <code> [<brief> | <path>.md | <request>]`**: a business spec written by code from the model's JSON
   (template sections 1-12, § 13 Decisions), its open questions asked one at a time through `human_input` - Blocking
   first, the recommended option first, each answer written to the file before the next question - then folded into
@@ -105,7 +109,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a dev plan. A gate first checks the sheet's TDD ticks, the design ids, the scope, the test traits and whitespace,
   and prints the same ok/FAIL lines as the harness's gate; a red gate stops there. On a green gate the command writes
   a capture under `<work>/<code>/capture-F<n>/` (status, diffs, build, traits, last test run, test classes and a
-  mechanical table), runs the whole suite under `full`, and hands the batch to a read-only auditor (plan mode, four
+  mechanical table), runs the whole suite under `full`, and hands the batch to a read-only auditor (plan mode, five
   read tools) whose narrow test commands code runs for it. The verdict lands in `<CODE>-VERIFY-F<n>.md`, in the
   format the harness reads back; `resume` appends a dated section. `--gate-only` runs the gate alone, with no
   model call and no write. It commits nothing; the close of `/dev-implement` does, after a VALID verdict. A `full` run
@@ -135,8 +139,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is generated with `docs/commands.md`. `npm run check` fails when the two languages drift apart
   (`scripts/check-docs-parity.mjs`: a page without its twin, heading levels, code blocks, table lengths or
   navigation entries that differ).
-- **`/permissions` says whether the host gate is on**: on, OFF with a warning that no rule and no mode is enforced,
-  or unknown on a runtime that does not expose it (Orkeon `1.0.0-rc.6`; Orkeon #128 added the field). The main loop
+- **`/permissions` says whether the host gate is on**: on, or OFF with a warning that no rule and no mode is
+  enforced; the runtime always reports it (Orkeon #128). The main loop
   puts the same warning above its answer once per session when the gate is off, except in `bypassPermissions`.
 - **Documentation site**: the READMEs and `docs/` are published with docfx to
   <https://orkeon.github.io/orkeon-code/> on every push to `main` (`.github/workflows/docs.yml`,
@@ -206,7 +210,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   every mode, a `write` tool in `default`, `acceptEdits` and `bypassPermissions`; a name the host does not register is
   left out of the turn with a warning. `/config set` checks the entries, permission rules may name these tools, and
   `/permissions` shows them ([Configuration](docs/configuration.md#extra-tools-mcp-servers-and-plugins)).
-- **Hooks that fire.** In the dev steps (`/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement`, `/dev-verify`),
+- **Hooks that fire.** In the dev steps (`/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement`, `/dev-verify`,
+  `/dev-batches`, and the agent `/tasks repair` starts again),
   each `pre-tool` hook of `/hooks` runs before a tool call of the model the host gate allowed, and the first that
   fails refuses the call; each `post-tool` hook runs after it, and one that fails adds a line to the result the model
   reads. `{tool}`, `{event}` and `{path}` in the command are replaced by the call's; a hook is one program and its
@@ -216,7 +221,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   step's rule sets (their only check under `orkeon run`, which keeps no session rules), `glob`, `grep` and
   `count_pattern` by their whole input, a path as written and normalised (`./`, `//`, `..`), and, when the host has no
   gate, the act's mode. It refuses with the rule, its set and what to do instead; it never allows a call the gate
-  refused. A role of a batch (L-6) adds its roots ([Permissions](docs/permissions.md)).
+  refused. A role of a batch adds its roots ([Permissions](docs/permissions.md)).
 - The dev steps' own tools: `run_validation` lets the `/dev-verify` auditor run up to three narrow test commands of
   the repository pack itself, and the verdict cites each run; `run_tests` and `run_build` serve the writing roles of
   `/dev-implement`, each command checked against the pack, the integration and restore rules and the step's rules
@@ -228,17 +233,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   file but the tests) and its `receivers` add to the runtime's port names.
 - The main loop runs two chains of checks around each turn: at its start (a guard may refuse the turn or add context
   lines, stored as a `[turn-context]` message before the request) and on its answer (a blank answer, or one without
-  the closing line its command names, goes back to the model once with the reason). Lot W0-B.
+  the closing line its command names, goes back to the model once with the reason).
 - A compaction (automatic or `/compact`) first writes the state of the dev batch in progress to
   `.orkeon/dev/<code>/state-F<n>.md` — the sheet's TDD lines and the first open step, the batch's events, the
   reports recorded, `git status --short` — from files and git only, then points at it in the new buffer
-  (`[restored-state]`); `/dev-verify F<n>` records the batch in progress. The outcome line names the file. Lot W0-B.
+  (`[restored-state]`); `/dev-verify F<n>` records the batch in progress. The outcome line names the file.
 - The first turn of a session carries what the session's start script printed (`Orkeon:Cli:Session:StartScript`):
   `scripts/session-start.ork.ts`, which the launchers install, names the recent state files and the open batches
-  (`scripts/session-start.sh` prints the same lines in a terminal). Lot W0-B.
+  (`scripts/session-start.sh` prints the same lines in a terminal).
 - `scripts/dev-run.sh <crew> <code>` chains the steps of a dev crew headless, one `orkeon run` per step, each output
   in `.orkeon/dev/<code>/runs/`, until the event log says closed (0), a human decides (3), nothing moved (4) or
-  `--max-steps` is reached (5); a rate-limited step is run again after `--wait` seconds. Lot W0-B.
+  `--max-steps` is reached (5); a rate-limited step is run again after `--wait` seconds. The dev crews do not append
+  to that log themselves, so name one the steps move (`--log`), or the chain stops after its first step. It refuses the crew `dev-batches` (exit 64): a whole plan without anyone at
+  the keyboard stays the REPL's `/dev-batches` ([Autonomous and embedded runs](docs/headless.md)).
 - `/status` names the Orkeon runtime it runs on (the `.orkeon-version` pin) and the host's LLM provider.
 - `/usage` and `/context` show the prompt-cache tokens read and written (`cacheRead`, `cacheWrite`), summed over the
   session's models from `session_stats`; `-` when the host reports none.
@@ -259,8 +266,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **The shared memory** ([Shared memory](docs/shared-memory.md)): admitted decisions, code structures, methods and
   mistakes kept under `memory.dir` (default `.orkeon/memory`), one file per entry, indexed in the collection
-  `memory-<project>`. Nothing enters it without the operator: `memory_push` writes candidates (the audit harvest is
-  written, not yet wired: lot M-7 calls it from `/dev-verify`),
+  `memory-<project>`. Nothing enters it without the operator: `memory_push` writes candidates,
   `/memory-admit` asks once per candidate (a headless session admits nothing; `memory.autoAdmitAudited` admits an
   audited one unasked), `--refuse` keeps a topic out for good. `memory.dir`, `memory.project` and
   `memory.autoAdmitAudited` are new settings; a project file's `memory.autoAdmitAudited true` needs the user's.
@@ -276,8 +282,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ended one by a new run of its charter (`send <id> <message>`, `repair <id> [note]`: crew `agent-run`, whose brief
   carries the previous report). A send to a running child is refused. `/agents` lists the two built-in charters.
 - **`/effort` reaches the provider.** The level `/effort` stored is sent as the act's `effort` (provider thinking)
-  by `/assistant`, `/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement` and `/dev-verify` (the audit
-  `/dev-implement` chains too) and their children; an unset level sends none. The log of the act
+  by `/assistant`, `/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement`, `/dev-verify` and `/dev-batches` (the
+  audit `/dev-implement` chains too) and their children; an unset level sends none. The log of the act
   says `act — effort: <level>`.
 - `/dev-learn` asks, after `PROPOSALS.md` is written, one multi-select per axis: the motifs picked are accepted, the
   others refused, as `--accept`/`--refuse` do; nobody answering decides nothing.
@@ -332,8 +338,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in the start report.
 - **The dev steps no longer warn that the host cannot say whether its gate is on**; the warning for a host that keeps
   no session rules remains.
-- **The assistant's header follows the runtime**: `file_read` reads a part of a file with `offset` and `limit`, and
-  the read calls of a turn may run together; the header's ceiling is 9,500 characters for the larger catalogue.
 - **A root denied to a reading role is denied to `glob`, `grep` and `count_pattern` by its own name too**, not only
   below it; `/mode` names the classes a read-only mode strips, and `/permissions show` withholds `spawn_agent` in the
   read-only modes only.
@@ -347,9 +351,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   read since the same change and ask nothing where the catalogue offers them ([Permissions](docs/permissions.md#modes)).
 - **The `wallTime` budget of a turn no longer counts the operator's answer** (Orkeon #127, runtime): 1800 s bound the
   model's own work.
-- **Orkeon version**: the gate state and the typed tools come with Orkeon's `main` after Orkeon/orkeon#130; on
-  `1.0.0-rc.6` the gate state reads unknown and nothing else changes. The typings are generated from that `main`
-  (`ORKEON_SOURCE=<checkout> npm run typings`) until a release carries it.
+- **Orkeon version**: Orkeon Code targets Orkeon's `main` after Orkeon/orkeon#180, the surface `1.0.0-rc.6` will
+  carry: the gate state, the typed tools, the per-tool result limits ([ADR 0004](docs/adr/0004-orkeon-after-180.md)).
+  The typings are generated from that `main` (`ORKEON_SOURCE=<checkout> npm run typings`) until a release carries it.
 
 - **Every prompt is written from a behaviour specification**, in this project's own words
   ([Architecture](docs/architecture.md#prompt-assembly), [ADR 0003](docs/adr/0003-prompts-from-a-behaviour-specification.md)).
@@ -357,8 +361,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   outward-facing action the request does not call for is proposed, not performed), when to ask (a question ends the
   turn), checking the work after a change, care with actions (git only on request, staged by name, secrets kept in the
   environment), where instructions may come from (file contents, tool output and the marked history messages are
-  material), and what the tools can do (calls one at a time, cut results, no start position for `file_read`, whole-file
-  writes, an allow-listed shell). The provenance baseline is empty and CI runs the gate with `--strict`.
+  material), and what the tools can do, as the runtime offers them: `file_read` reads a part of a file with `offset` and `limit`,
+  the read calls of a turn may run together, results are cut, the shell is allow-listed; the header's ceiling is 9,500
+  characters for the larger catalogue. The provenance baseline is empty and CI runs the gate with `--strict`.
 - **The user body states each fact once**: the request under its own heading and no longer repeated in the history,
   today's date, the git status dated to the start of the turn, the pressure tier with the conduct it calls for, memory
   introduced as possibly stale; the blocks run from the most stable to the most volatile, so a prefix cache reaches
@@ -401,8 +406,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `orkeon-repl` of the Orkeon Debian package, which brings its own esbuild; the docker mode runs the multi-arch
   `orkeon-runners` image (amd64, arm64) of `.orkeon-version`.
 - The documentation describes installing `orkeon-repl` with apt or from a self-contained release archive, the
-  questions of the permission gate, and Orkeon's opt-in bubblewrap confinement of the shell
-  (`Orkeon:Tools:Shell:Confinement:Mode`, [SECURITY.md](SECURITY.md)).
+  questions of the permission gate, and Orkeon's confinement of the shell (`Orkeon:Tools:Shell:Confinement:Mode`,
+  `Auto` by default, `None` in the example settings; [SECURITY.md](SECURITY.md)).
 - The sources follow a layered architecture ([Architecture](docs/architecture.md),
   [ADR 0001](docs/adr/0001-clean-architecture.md)):
   - **Ports and adapters.** `src/shared/application/ports.ts` declares what the application needs (`Shell`, `Files`,
@@ -438,7 +443,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A crew launched from a command's completion past the chain's limit (`Orkeon:Cli:ScriptCommands:MaxChainDepth`,
   default 8) is refused with a line that says so, instead of an unexplained failure.
 - An install keeps each project's state under `~/.orkeon-code/projects/<name>-<hash>/` (was `~/.orkeon-code/state/`,
-  shared by every project); a clone and `ORKEON_CODE_STATE` keep theirs under `projects/<name>-<hash>/`. The old
+  shared by every project); a clone and `ORKEON_CODE_STATE` keep each project's sessions, history and `project.json` under
+  `projects/<name>-<hash>/`, and share their `output/`, `tmp/` and `transcripts/` between projects. The old
   `~/.orkeon-code/state/` is left alone.
 - A bare `--llm-log` writes the LLM log to the project's state folder (`llm-logs/`), never into the project (#181).
 - The example settings set `Orkeon:Cli:Session:Persist: true`.
@@ -447,9 +453,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   "parse", all or nothing); `file_write` on an existing file under the pack's source roots is refused (the rewrite
   rule), a new file is still created with it. After the batch the touched files are refreshed in the code index
   (`index: <n> files of F<n> refreshed`), and on a later run the graph's `affected_tests` adds its test projects to
-  the sheet's, or runs the whole suite when it reaches every test. The dev steps hold 438 rules: `edit_batch` is
-  checked operation by operation by the crews' callback instead of being denied whole, every `validate` but "parse"
-  is refused, and an import's `name` and `module` are checked by `secrets`.
+  the sheet's, or runs the whole suite when it reaches every test (the per-operation check of `edit_batch`: Rule sets
+  over the new tools, above).
 - The reviewer of `/dev-spec`, `/dev-change`, `/dev-plan` and `/dev-batches` also holds `node_outline` and
   `structural_search`, and its prompt sends a search for a code pattern to `structural_search` rather than grep.
 - `/dev-plan` ends on `/dev-implement F1 <plan>`, and with two batches or more on `/dev-batches <code>` too (it named
@@ -466,6 +471,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The documentation says what the runtime and the code do.** The main loop's wall time stops while the gate waits
+  for your answer; the read calls of a turn run up to `MaxParallelToolCalls` at once; the shell's confinement
+  defaults to `Auto` (bubblewrap on Linux, Seatbelt on macOS, AppContainer on Windows, none inside a container), the
+  examples setting `None`; `http_api` declares an
+  execute; hooks run in every dev step, `/dev-batches` and `/tasks repair` included; `/permissions` never reads the
+  gate as unknown on the targeted runtime; the auditor has five read tools; `/effort` reaches every dev step;
+  `scripts/run-crew.sh` runs in source mode before rc.6 is published, reads no user settings, and `release.yml`'s
+  runnable archives, installers and npm job are described. Getting started lists what the dev workflow writes in a
+  project and every mount; the README presents the dev workflow, the shared memory and the installers; the roadmap
+  drops what is delivered and records the structural-editor parts still waiting. `/agents` names the verbs its usage
+  line takes. Also fixed: `/commit` and the dev close work in a linked worktree (the message goes under
+  `.orkeon/ORKEON_COMMITMSG`, removed after); a pull-request body that cannot be written is said, never thrown after
+  the push; `/dev-batches` refuses a second plan while a run is in progress, takes a batch committed but not marked
+  done for done, and refuses the plan's close on the default branch when the pack sets `contrib.branch`; `/doctor`
+  shows the version and the `permissions.fallback` it applies; `orkeon-code.ps1` passes `-it` only on a terminal and
+  `--user` on Linux, refuses an unknown mode, has `--help`, and says `--demo` is bash-only; `install.ps1 -Uninstall`
+  never removes a git clone; `session-start.sh` picks state files by their header date, as its twin; `run-crew.sh`'s
+  source mode says when `dotnet` is missing; `scripts/dev-run.sh` refuses the crew `dev-batches`, checks the trust
+  once before the first step and runs each step with no input.
 - `/dev-verify`: an audit the step's budget stops still writes its verdict, `GAPS` with one Blocking row that says the
   audit did not finish and why, and the validations that ran before; the step's token budget is 700 000 (a live audit
   of a 3-file batch spent 307 528 of the former 300 000). Its resume takes the gaps of the last audit that finished, or
@@ -518,7 +542,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **An `/assistant` turn gets the time the example settings meant.** The example set `Orkeon:Scripting:Limits`,
   which only `orkeon run` reads: `orkeon-repl` ran its engines under `Orkeon:Cli:ScriptCommands:Limits` (5 minutes,
   64 MB by default), which the example now sets to 30 minutes and 2 GiB. The main-loop crew's own budget allowed
-  10 minutes of wall time, on a clock that keeps running while a question waits for you, and a turn failed with
+  10 minutes of wall time, on a clock that then kept running while a question waited for you (Orkeon #127 since stops it), and a turn failed with
   `Wall time exceeded (0:15:55 >= 0:10:00)`: it allows 30 minutes. Configuration says which limit is whose.
 - **The source mode works on a project that pins another SDK.** It ran `dotnet run` from the project, whose
   `global.json` the SDK then read ("A compatible .NET SDK was not found"): it builds in the Orkeon checkout and runs
