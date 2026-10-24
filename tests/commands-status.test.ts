@@ -5,6 +5,9 @@ import { describe, it } from "node:test";
 import { strictEqual, ok, deepStrictEqual } from "node:assert";
 
 import { buildStatusRows, runStatus, PLATFORM_COMMAND } from "../src/commands/_lib/status.ts";
+import { cacheColumns } from "../src/commands/_lib/cache.ts";
+import { ORKEON_RUNTIME_VERSION } from "../src/commands/_lib/meta.ts";
+import { readHostProvider } from "../src/shared/infrastructure/orkeon/host-provider.ts";
 import { FakeShell } from "./support/fake-shell.ts";
 import { FakeCrewHost } from "./support/fake-crew-host.ts";
 import { FakeSessionStore } from "./support/fake-session-store.ts";
@@ -99,5 +102,40 @@ describe("/status — what /version, /env, /session and /upgrade showed", () => 
     shell.errors[PLATFORM_COMMAND] = new Error("refused");
     const degraded = new Map(((await runStatus(deps)).table as Array<{ field: string; value: string }>).map((r) => [r.field, r.value]));
     strictEqual(degraded.get("platform"), "(unavailable)");
+  });
+});
+
+describe("/status — the runtime and the provider (A-4a)", () => {
+  const rows = (o: any = {}) => new Map(buildStatusRows(o).map((r) => [r.field, r.value]));
+
+  it("names the pinned runtime, and the provider or its absence", () => {
+    strictEqual(rows().get("runtime"), `Orkeon ${ORKEON_RUNTIME_VERSION} (pinned by .orkeon-version)`);
+    strictEqual(rows({ provider: "deepseek" }).get("provider"), "deepseek");
+    strictEqual(rows().get("provider"), "(unreported by the host)");
+  });
+
+  it("reads the provider through its reader", async () => {
+    const deps = {
+      session: new FakeSessionStore(), telemetry: new FakeTelemetry(), crews: new FakeCrewHost(), provider: () => "anthropic",
+    };
+    const table = new Map(((await runStatus(deps)).table as Array<{ field: string; value: string }>).map((r) => [r.field, r.value]));
+    strictEqual(table.get("provider"), "anthropic");
+  });
+
+  it("reads the llm service's CLR Name, and nothing when the host wires none or the read throws", () => {
+    const services = (llm: unknown, has = true) => ({ has: () => has, get: <T>() => llm as T });
+    strictEqual(readHostProvider(services({ Name: "deepseek" })), "deepseek");
+    strictEqual(readHostProvider(services({ name: " OpenAI " })), "OpenAI");
+    strictEqual(readHostProvider(services({ Name: "" })), undefined);
+    strictEqual(readHostProvider(services({ Name: "x" }, false)), undefined);
+    strictEqual(readHostProvider({ has: () => true, get: () => { throw new Error("not whitelisted"); } }), undefined);
+  });
+});
+
+describe("/usage and /context — the cache columns (A-4a)", () => {
+  it("shows the read and write tokens, `-` when unreported", () => {
+    deepStrictEqual(cacheColumns({ cacheHitTokens: 700, cacheWriteTokens: 50 }), { cacheRead: 700, cacheWrite: 50 });
+    deepStrictEqual(cacheColumns({ cacheHitTokens: 0, cacheWriteTokens: 0 }), { cacheRead: 0, cacheWrite: 0 });
+    deepStrictEqual(cacheColumns({}), { cacheRead: "-", cacheWrite: "-" });
   });
 });

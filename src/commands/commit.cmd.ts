@@ -20,7 +20,9 @@ import { launchCrew, writeCompleted } from "./_lib/dispatch.ts";
 import { createCrewHost } from "../shared/infrastructure/orkeon/crew-host.ts";
 import { rawTokens } from "./_lib/args.ts";
 import { buildCommitPlan, isCommitPermitted, parseCommitArgs } from "../crews/git-commit/domain/commit.ts";
-import { orkeonSessionIo } from "../shared/infrastructure/orkeon/wiring.ts";
+import { orkeonSessionIo, orkeonToolCatalogue } from "../shared/infrastructure/orkeon/wiring.ts";
+import { createPermissionRules } from "../shared/infrastructure/orkeon/permission-rules.ts";
+import { GITHUB_TOOL } from "../shared/domain/git/pull-request.ts";
 
 const session = orkeonSessionIo();
 
@@ -61,9 +63,28 @@ async function confirmOrRefuse(ctx: any, notice: string, question: string): Prom
   return { ok: false, message: "cancelled — nothing was staged and nothing was committed." };
 }
 
+/**
+ * What the crew needs to open the pull request itself (W0-C): whether the host
+ * registers the github tool, and the session's rules, which the crew cannot read.
+ * A read that fails leaves the tool out and the rules empty: the command is then
+ * handed over, nothing is opened on a guess.
+ */
+function pullRequestContext(ctx: any): { githubTool: boolean; permissionRules: string[] } {
+  let githubTool = false;
+  let permissionRules: string[] = [];
+  try {
+    githubTool = orkeonToolCatalogue(ctx.services).find(GITHUB_TOOL) !== undefined;
+  } catch { /* no tools service: the tool is not offered */ }
+  try {
+    const rules = createPermissionRules(ctx.services);
+    if (rules.available()) permissionRules = rules.list();
+  } catch { /* no rules service: none */ }
+  return { githubTool, permissionRules };
+}
+
 defineAsyncCommand({
   name: "commit",
-  description: "Draft and create a conventional commit of the changed files or the paths named, the work folder left out unless named (confirms first; --yes skips; --push pushes; --pr asks for the pull request).",
+  description: "Draft and create a conventional commit of the changed files or the paths named, the work folder left out unless named (confirms first; --yes skips; --push pushes; --pr opens the pull request with the github tool when allowed, else prints its command).",
   maxConcurrent: 1,
   dispatch: async (args, ctx) => {
     const parsed = parseCommitArgs(rawTokens(args));
@@ -83,7 +104,7 @@ defineAsyncCommand({
     }
 
     if (!yes) {
-      const plan = buildCommitPlan({ push, paths });
+      const plan = buildCommitPlan({ push, pr, paths });
       const verdict = await confirmOrRefuse(ctx, plan.notice, plan.question);
       if (!verdict.ok) {
         ctx.writeLine(`✗ ${verdict.message}`);
@@ -92,7 +113,11 @@ defineAsyncCommand({
     }
 
     ctx.log.info(`commit approved — permission mode '${mode}' (${via})`);
-    return launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "git-commit", { permissionMode: mode, paths, push, pr });
+    // A yes to a plan that named the pull request is the question the github call needs; --yes asked nothing.
+    const prAsked = pr && !yes;
+    return launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "git-commit", {
+      permissionMode: mode, paths, push, pr, prAsked, ...(pr || push ? pullRequestContext(ctx) : {}),
+    });
   },
   completed: (result, ctx) => writeCompleted(ctx, result, "commit"),
 });

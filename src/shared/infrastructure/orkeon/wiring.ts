@@ -25,6 +25,10 @@ import { createProgress } from "./progress.ts";
 import { createSessionStore } from "./session-store.ts";
 import { createShell } from "./shell.ts";
 import { createTelemetry } from "./telemetry.ts";
+import { createGitHubPullRequests } from "./github-pull-requests.ts";
+import { createPullRequestOpener } from "../../application/git/open-pull-request.ts";
+import type { PullRequestPolicy } from "../../application/git/open-pull-request.ts";
+import type { PullRequestOpener } from "../../application/git/commit-files.ts";
 import { createToolCalls, createToolCatalogue } from "./tool-catalogue.ts";
 
 export const orkeonShell = (): Shell => createShell(Tools);
@@ -35,6 +39,9 @@ export const orkeonMemoryStore = (): MemoryStore => createMemoryStore(Tools);
 export const orkeonCodeIndex = (): CodeIndex => createCodeIndex(Tools);
 export const orkeonAnchorIndex = (): AnchorIndex => createAnchorIndex(Tools);
 export const orkeonCostIndex = (): CostIndex => createCostIndex(Tools);
+/** The pull request opened with the github tool, under the session's mode and rules (W0-C). */
+export const orkeonPullRequestOpener = (policy: PullRequestPolicy): PullRequestOpener =>
+  createPullRequestOpener({ shell: orkeonShell(), github: createGitHubPullRequests(Tools) }, policy);
 /** The registered tools: built in a handler, from the `ctx.services` it receives. */
 export const orkeonToolCatalogue = (services: Pick<ServiceLocator, "get">): ToolCatalogue =>
   createToolCatalogue(Tools, services);

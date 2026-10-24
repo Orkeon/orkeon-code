@@ -29,13 +29,21 @@ Les variables d'environnement préfixées `ORKEON_` l'emportent sur le fichier (
 | `Llm:ApiKeyEnvVar` | Nom de la variable d'environnement qui porte la clé. La clé elle-même ne va jamais dans le fichier |
 | `Llm:AvailableModels` | Les modèles que `/model` propose, pour en changer sans relancer |
 | `Llm:Temperature`, `Llm:MaxTokens`, `Llm:TimeoutSeconds` | Réglages de génération |
-| `Llm:MaxRateLimitWait` | La plus longue fenêtre de limite de débit qu'un appel attend avant d'échouer : `00:05:00` |
+| `Llm:MaxRateLimitWait` | La plus longue fenêtre de limite de débit qu'un appel attend avant d'échouer, `00:05:00` par défaut. Un 429, ou un 529 avec un en-tête de réinitialisation, attend que la fenêtre annoncée par le fournisseur se rouvre au lieu de faire échouer le tour ; une fenêtre plus longue fait échouer l'appel aussitôt avec `LlmRateLimitException`, l'attente dans son message. `00:00:00` n'attend rien |
+| `Llm:Profiles:<name>:MaxRateLimitWait` | La même borne pour un profil nommé de l'hôte, `00:05:00` par défaut |
 | `Llm:Thinking:Enabled` | Mode raisonnement, pour les fournisseurs qui en ont un |
 
 Orkeon reconnaît les fournisseurs natifs d'après le point d'accès et le modèle (OpenAI, Anthropic, Gemini, Mistral,
 DeepSeek, Z.AI, Moonshot, serveurs locaux...) : la liste et leurs options sont dans la
 [documentation des fournisseurs LLM d'Orkeon](https://github.com/Orkeon/orkeon/blob/main/docs/architecture/llm-providers.md).
 Une option qu'un fournisseur ne peut pas honorer produit un avertissement, jamais un abandon silencieux.
+
+**Cache du prompt.** Un fournisseur qui met le prompt en cache (DeepSeek et OpenAI d'eux-mêmes, Anthropic avec
+`cache_control`) rapporte les jetons lus dans son cache et écrits dedans ; Orkeon les garde par modèle et `/usage` et
+`/context` en montrent la somme dans `cacheRead` et `cacheWrite` (`-` quand l'hôte n'en rapporte aucun). La durée de
+vie du cache est une option d'appel d'Orkeon, `orkeon:cache_ttl` (`5m` ou `1h`, d'après le réglage de cache d'un
+agent) : Anthropic l'honore, les fournisseurs compatibles OpenAI et Ollama journalisent qu'ils ne le peuvent pas.
+Orkeon Code n'en fixe aucune, chaque fournisseur garde donc sa durée par défaut.
 
 Un modèle sur cette machine : [`config/appsettings.ollama.example.json`](../../config/appsettings.ollama.example.json)
 est l'exemple sur [Ollama](https://ollama.com) servant `qwen3.5:2b` (`ollama pull qwen3.5:2b` d'abord), sans clé et
@@ -90,8 +98,8 @@ dossier de travail que lisent `/dev-status`, `/dev-verify`, `/dev-learn` et `/de
 `layout.work` du pack du dépôt, sinon `workbench` ; `/commit` le lit aussi, et laisse le dossier de travail hors d'un
 commit sauf si un chemin qu'il contient est nommé), `dev.prAuto` (`true` ou `false`, omis = `false` : `/commit` et
 la clôture d'une étape dev préparent la pull request comme le fait `--pr` sans qu'on le demande, son corps sous
-`<work>/pr-<slug>/PR.md` ; tant que l'ouvreur n'est pas livré, ils affichent la commande `gh pr create` à taper et le
-disent) ou `spinnerVerbs`.
+`<work>/pr-<slug>/PR.md`, puis l'ouvrent avec l'outil `github` du runtime quand l'hôte le propose et que la session le
+permet, sinon affichent la commande `gh pr create` à taper et disent pourquoi) ou `spinnerVerbs`.
 `/model`, `/effort`, `/passes`, `/fast`, `/proactive` et `/output-style` changent la façon dont les prochains tours
 s'exécutent.
 

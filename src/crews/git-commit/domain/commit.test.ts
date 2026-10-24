@@ -94,6 +94,14 @@ describe("buildCommitPlan (B-1)", () => {
     ok(plan.question.endsWith("and push?"));
   });
 
+  it("names the pull request when --pr asks for it: the yes is the question the github call needs", () => {
+    const plan = buildCommitPlan({ pr: true });
+    deepStrictEqual(plan.steps.slice(-2), ["git push -u origin <branch>", "github create_pr"]);
+    ok(plan.notice.includes("open the pull request with the github tool"));
+    ok(plan.question.endsWith("and push, then open the pull request?"));
+    ok(!buildCommitPlan({ push: true }).steps.includes("github create_pr"));
+  });
+
   it("works without a known branch", () => {
     const plan = buildCommitPlan();
     ok(plan.question.length > 0);

@@ -7,7 +7,7 @@
 import type {
   CrewHost, SessionCost, SessionMetadata, SessionStats, SessionStore, Shell, Telemetry,
 } from "../../shared/application/ports.ts";
-import { CLI_BUILD, CLI_NAME, CLI_VERSION } from "./meta.ts";
+import { CLI_BUILD, CLI_NAME, CLI_VERSION, ORKEON_RUNTIME_VERSION } from "./meta.ts";
 import type { CommandView } from "./view.ts";
 
 export interface StatusInputs {
@@ -23,6 +23,8 @@ export interface StatusInputs {
   workspace?: unknown;
   /** OS, architecture and node version, as the shell reports them. */
   platform?: unknown;
+  /** The host's LLM provider, as its `llm` service names it. */
+  provider?: unknown;
 }
 
 /** How Orkeon Code is updated: there is no self-update channel. */
@@ -47,6 +49,7 @@ export function buildStatusRows(i: StatusInputs): Array<{ field: string; value: 
 
   return [
     { field: "model", value: String(i.model ?? "").trim() || "(unreported by the host — see /model)" },
+    { field: "provider", value: String(i.provider ?? "").trim() || "(unreported by the host)" },
     { field: "workspace", value: String(i.workspace ?? "/workspace") },
     { field: "session", value: String(i.title ?? "").trim() || "(untitled)" },
     { field: "messages", value: String(Number(i.messages ?? 0) || 0) },
@@ -58,6 +61,7 @@ export function buildStatusRows(i: StatusInputs): Array<{ field: string; value: 
       value: (i.crews?.length ?? 0) > 0 ? [...i.crews!].sort().join(", ") : "(none discovered)",
     },
     { field: "version", value: `${CLI_NAME} ${CLI_VERSION} (${CLI_BUILD})` },
+    { field: "runtime", value: `Orkeon ${ORKEON_RUNTIME_VERSION} (pinned by .orkeon-version)` },
     { field: "platform", value: String(i.platform ?? "").trim() || "(unavailable)" },
     { field: "updates", value: UPDATE_NOTE },
   ];
@@ -69,6 +73,8 @@ export interface StatusDeps {
   crews: Pick<CrewHost, "listCrews">;
   /** For the platform row; absent: the row says unavailable. */
   shell?: Pick<Shell, "run">;
+  /** The provider row's reader; absent, or answering nothing: the row says unreported. */
+  provider?: () => string | undefined;
 }
 
 /** One allow-listed command (node), no shell operator: the shell tool refuses them. */
@@ -99,6 +105,7 @@ export async function runStatus(deps: StatusDeps): Promise<CommandView> {
       crews: deps.crews.listCrews(),
       workspace: "/workspace",
       platform,
+      provider: deps.provider?.(),
     }),
   };
 }

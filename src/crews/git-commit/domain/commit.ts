@@ -129,7 +129,9 @@ export interface CommitPlan {
  * the confirmation — and the confirmation must precede the launch. The subject is
  * reported on the completion line instead.
  */
-export function buildCommitPlan(opts: { branch?: string; push?: boolean; paths?: readonly string[] } = {}): CommitPlan {
+export function buildCommitPlan(
+  opts: { branch?: string; push?: boolean; pr?: boolean; paths?: readonly string[] } = {},
+): CommitPlan {
   const branch = (opts.branch ?? "").trim();
   const where = branch.length > 0 ? ` on '${branch}'` : "";
   const paths = opts.paths ?? [];
@@ -137,17 +139,23 @@ export function buildCommitPlan(opts: { branch?: string; push?: boolean; paths?:
     ? `the changes under ${paths.join(", ")}`
     : "EVERY change the status lists (untracked files included), the work folder left out";
   const steps = ["git add -- <files>", "git commit -F <drafted message> -- <files>"];
-  if (opts.push === true) steps.push("git push -u origin <branch>");
+  const push = opts.push === true || opts.pr === true;
+  if (push) steps.push("git push -u origin <branch>");
+  // Answering yes to this plan is the question the host gate would ask before the github call (W0-C).
+  if (opts.pr === true) steps.push("github create_pr");
   return {
     steps,
-    question: `Commit ${paths.length > 0 ? "the changes under the paths named" : "EVERY change"}${where}${opts.push === true ? " and push" : ""}?`,
+    question: `Commit ${paths.length > 0 ? "the changes under the paths named" : "EVERY change"}${where}${push ? " and push" : ""}${opts.pr === true ? ", then open the pull request" : ""}?`,
     notice: [
       `/commit will, ${branch.length > 0 ? `on branch '${branch}'` : "on the current branch"}:`,
       "  1. check that git has an identity (git var), and stop if it has none",
       `  2. git add -- <files>    — ${what}`,
       "  3. draft a Conventional-Commits message with the LLM",
       "  4. git commit -F <that message> -- <files>   (changes staged elsewhere stay out)",
-      ...(opts.push === true ? ["  5. git push -u origin <branch>, then print the pull request command"] : []),
+      ...(opts.pr === true
+        ? ["  5. git push -u origin <branch>, then open the pull request with the github tool",
+          "     (or print the gh pr create command when it cannot)"]
+        : push ? ["  5. git push -u origin <branch>, then print the pull request command"] : []),
       "A file that usually holds a secret (.env, a private key) stops it before step 2.",
       "The message is drafted after this confirmation; it is echoed when the commit lands.",
     ].join("\n"),

@@ -94,9 +94,18 @@ export async function defaultBranch(shell: Pick<Shell, "run">): Promise<string |
   return r.exitCode === 0 ? parseDefaultBranch(r.stdout) : null;
 }
 
-export interface PullRequest { base: string | null; head: string; title: string; bodyFile: string }
+export interface PullRequest {
+  base: string | null;
+  head: string;
+  title: string;
+  /** The body file as the user reads it (the handed-over command names it). */
+  bodyFile: string;
+  /** The body itself, which the opener sends. */
+  body: string;
+}
 
-/** The seam of the pull request opened by Orkeon Code itself (the github tool, wave 2). No adapter yet. */
+/** The pull request opened by Orkeon Code itself: open-pull-request.ts, over the github tool.
+ *  A throw is the reason it was not opened; the command is then handed over. */
 export interface PullRequestOpener {
   open(pr: PullRequest): Promise<{ url: string }>;
 }
@@ -121,13 +130,14 @@ export async function handOverPullRequest(
   const slug = prSlug(req.branch);
   const bodyFile = prBodyPath(req.work.folder, slug);
   const lines: string[] = [];
+  const body = renderPrBody(req.summary);
   if (req.work.vfsPath === null) {
     lines.push(`the body could not be written (${req.work.folder} is outside the mounts): write ${bodyFile} first`);
   } else {
-    await deps.files.write(`${req.work.vfsPath.replace(/\/+$/, "")}/pr-${slug}/PR.md`, renderPrBody(req.summary));
+    await deps.files.write(`${req.work.vfsPath.replace(/\/+$/, "")}/pr-${slug}/PR.md`, body);
     lines.push(`pull request body: ${bodyFile}`);
   }
-  const pr: PullRequest = { base: req.base, head: req.branch, title: req.title, bodyFile };
+  const pr: PullRequest = { base: req.base, head: req.branch, title: req.title, bodyFile, body };
   if (req.open && req.pushed && deps.opener !== undefined) {
     try {
       return [...lines, `✓ pull request opened: ${(await deps.opener.open(pr)).url}`];
@@ -138,6 +148,8 @@ export async function handOverPullRequest(
   lines.push("to open the pull request, in a terminal:");
   if (!req.pushed) lines.push(`  ${gitPushCommand(req.branch)}`);
   lines.push(`  ${ghPrCreateCommand(pr)}`);
-  if (req.open && deps.opener === undefined) lines.push("the pull request is not opened here yet: run the command above");
+  if (req.open && deps.opener === undefined) {
+    lines.push("the pull request is opened here only through the github tool, which this host does not offer: run the command above");
+  }
   return lines;
 }

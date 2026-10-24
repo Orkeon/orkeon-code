@@ -6,18 +6,23 @@
 // git close shared with the dev close (shared/application/git/commit-files).
 // Status → the file list (the work folder left out) → git's identity → draft a
 // Conventional-Commits message → commit those files alone → push when asked →
-// the pull request handed over.
+// the pull request opened with the github tool when the host offers it and the
+// session's mode and rules allow it, else its command handed over.
 //
 // Run standalone:  bash scripts/run-crew.sh src/crews/git-commit/crew.ork.ts
 // Via REPL:        /commit  →  script-host.runCrewAsync("git-commit", {})
 
 import { AgentBuilder, CrewBuilder, publishCrew, inputs } from "../../shared/infrastructure/globals.ts";
-import { orkeonConfigStore, orkeonFiles, orkeonShell } from "../../shared/infrastructure/orkeon/wiring.ts";
+import {
+  orkeonConfigStore, orkeonFiles, orkeonPullRequestOpener, orkeonShell,
+} from "../../shared/infrastructure/orkeon/wiring.ts";
 import { createCrewMemory } from "../../shared/infrastructure/orkeon/crew-memory.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { loadDevContext } from "../../shared/application/dev/load-dev-context.ts";
 import { defaultBranch, handOverPullRequest, pushBranch, readIdentity } from "../../shared/application/git/commit-files.ts";
 import { DEV_PR_AUTO_CONFIG_KEY, identityStop, selectCommitFiles } from "../../shared/domain/git/close.ts";
+import { parseStoredRule } from "../../shared/domain/agent-policy/permission.ts";
+import type { PermissionRule } from "../../shared/domain/agent-policy/permission.ts";
 import { inspectWorkTree, draftCommitMessage, commitSelected, readStatus } from "./application/draft.ts";
 import { commitRefusal, commitSubject, isCommitPermitted, secretLikePaths } from "./domain/commit.ts";
 
@@ -29,6 +34,11 @@ const config = orkeonConfigStore();
 function namedPaths(raw: unknown): string[] {
   const list = Array.isArray(raw) ? raw : String(raw ?? "").split("\n");
   return list.map((p) => String(p ?? "").trim()).filter((p) => p.length > 0);
+}
+
+/** The session's rules threaded by /commit, as the gate reads them; a line that is no rule is left out. */
+function sessionRules(raw: unknown): PermissionRule[] {
+  return namedPaths(raw).map((line) => parseStoredRule(line)).filter((r): r is PermissionRule => r !== null);
 }
 
 async function prAuto(): Promise<boolean> {
@@ -104,7 +114,11 @@ const committer = AgentBuilder()
     const open = wantPr || (await prAuto());
     const base = push || open ? await defaultBranch(shell) : null;
     if ((push || open) && tree.branch.length > 0 && base !== tree.branch) {
-      lines.push(...await handOverPullRequest({ files }, {
+      // The github tool, when /commit found it registered; the decision is the gate's, mirrored (W0-C).
+      const opener = flag(args.githubTool)
+        ? orkeonPullRequestOpener({ mode: String(mode ?? ""), rules: sessionRules(args.permissionRules), asked: flag(args.prAsked) })
+        : undefined;
+      lines.push(...await handOverPullRequest({ files, opener }, {
         work: { folder: dev.work.folder, vfsPath: dev.work.vfsPath }, branch: tree.branch, base,
         title: commitSubject(message), pushed, open,
         summary: {

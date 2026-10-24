@@ -15,10 +15,10 @@ Les descriptions sont celles que le REPL affiche, lues dans `src/commands/*.cmd.
 | `/branch` | sync | Show the current git branch, or check out the given one (refuses on a dirty tree). |
 | `/btw` | sync | Inject a side note into the session context ("by the way…"). |
 | `/clear` | sync | Clear the conversation buffer and the screen. Aussi `/reset-session`. |
-| `/commit` | async | Draft and create a conventional commit of the changed files or the paths named, the work folder left out unless named (confirms first; --yes skips; --push pushes; --pr asks for the pull request). |
+| `/commit` | async | Draft and create a conventional commit of the changed files or the paths named, the work folder left out unless named (confirms first; --yes skips; --push pushes; --pr opens the pull request with the github tool when allowed, else prints its command). |
 | `/compact` | async | Compact the session buffer to free up context; text after it names what the summary must keep; --snip [N] only keeps the head and the last N exchanges. |
 | `/config` | sync | List, get, set or unset settings over the declared key space (file + session layers). |
-| `/context` | sync | Show the current session context: title, model, messages, tokens, pressure. Aussi `/ctx-viz`. |
+| `/context` | sync | Show the current session context: title, model, messages, tokens, pressure, cache tokens. Aussi `/ctx-viz`. |
 | `/copy` | sync | Re-print the last assistant output in full (terminal copy; no OS clipboard). |
 | `/cost` | sync | Show cumulative session cost in USD and token usage. |
 | `/debug-tool-call` | sync | Invoke a registered tool with JSON arguments and print its raw result. |
@@ -54,10 +54,10 @@ Les descriptions sont celles que le REPL affiche, lues dans `src/commands/*.cmd.
 | `/security-review` | async | Review the staged changes for security issues (security lens only). |
 | `/skills` | sync | List, attach or detach skill files (workspace markdown playbooks). |
 | `/stats` | sync | Show full session telemetry: message count, tokens, cost, calls. |
-| `/status` | sync | Show the session status: model, workspace, context, cost, crews, version and platform. Aussi `/version`, `/env`, `/session`, `/upgrade`. |
+| `/status` | sync | Show the session status: model, provider, workspace, context, cost, crews, version, runtime and platform. Aussi `/version`, `/env`, `/session`, `/upgrade`. |
 | `/summary` | async | Generate an LLM summary of the session (read-only; does not rewrite the buffer). |
 | `/tasks` | sync | Manage the session task list: add, list, done, clear. |
 | `/transcribe` | async | Transcribe an audio or video file under /audio (Whisper MCP server); --then runs an instruction on the transcription, --list shows the files. |
-| `/usage` | sync | Show token usage against the context window (pressure tier, compaction trigger), calls, tokens, cost and cache. Aussi `/extra-usage`. |
+| `/usage` | sync | Show token usage against the context window (pressure tier, compaction trigger), calls, tokens, cost and the cache tokens read and written. Aussi `/extra-usage`. |
 | `/verify` | async | Check the project by running it, following the verification skills /init-verifiers wrote (one zone, or all). |
 | `/voice` | async | Dictate a request: record the microphone until a silence and show the text; /voice send sends it, --go sends at once. |

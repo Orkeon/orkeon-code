@@ -150,9 +150,11 @@ describe("handOverPullRequest", () => {
     deepStrictEqual(lines.slice(2), ["  git push -u origin 'feat/x'", GH]);
   });
 
-  it("asked to open it without an opener (Q-10, wave 2): the command printed, and said so", async () => {
+  it("asked to open it without an opener (no github tool): the command printed, and said so", async () => {
     const lines = await handOverPullRequest({ files: new FakeFiles() }, { ...REQ, open: true });
-    deepStrictEqual(lines.slice(-2), [GH, "the pull request is not opened here yet: run the command above"]);
+    deepStrictEqual(lines.slice(-2), [
+      GH, "the pull request is opened here only through the github tool, which this host does not offer: run the command above",
+    ]);
   });
 
   it("opens it through the seam when one is given, and falls back to the command when it fails", async () => {
@@ -161,10 +163,19 @@ describe("handOverPullRequest", () => {
     deepStrictEqual((await handOverPullRequest({ files: new FakeFiles(), opener }, { ...REQ, open: true })).slice(-1), [
       "✓ pull request opened: https://example.com/pr/1",
     ]);
-    deepStrictEqual(opened, [{ base: "main", head: "feat/x", title: "fix: x", bodyFile: "workbench/pr-feat-x/PR.md" }]);
+    deepStrictEqual(opened.map((pr: any) => ({ ...pr, body: pr.body.split("\n")[0] })), [
+      { base: "main", head: "feat/x", title: "fix: x", bodyFile: "workbench/pr-feat-x/PR.md", body: "## Batch" },
+    ]);
     const broken = { open: async () => { throw new Error("401"); } };
     const lines = await handOverPullRequest({ files: new FakeFiles(), opener: broken }, { ...REQ, open: true });
     deepStrictEqual(lines.slice(1), ["✗ the pull request was not opened: 401", "to open the pull request, in a terminal:", GH]);
+  });
+
+  it("does not open it before the push, even with an opener", async () => {
+    const opened: unknown[] = [];
+    const opener = { open: async (pr: unknown) => { opened.push(pr); return { url: "u" }; } };
+    const lines = await handOverPullRequest({ files: new FakeFiles(), opener }, { ...REQ, open: true, pushed: false });
+    deepStrictEqual([opened.length, lines.slice(-1)], [0, [GH]]);
   });
 
   it("says the body could not be written when the work folder lies outside the mounts", async () => {

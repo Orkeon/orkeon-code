@@ -73,14 +73,42 @@ describe("createTelemetry — cost and stats", () => {
     };
     deepStrictEqual(await createTelemetry(tools).readStats(), {
       costUsd: 0.5, totalTokens: 900, totalCalls: 2, messageCount: 6, estimatedTokens: 800, cacheHitTokens: 300,
+      cacheWriteTokens: undefined,
     });
+  });
+
+  it("sums the cache read and write tokens of every model (RT-12), over the older hit figure", async () => {
+    const tools = new FakeTools();
+    tools.replies.sessionStats = {
+      total_calls: 2, prompt_cache_hit_tokens: 999,
+      by_model_tokens: [
+        { model: "a", prompt_tokens: 1000, completion_tokens: 10, cache_read_tokens: 600, cache_write_tokens: 50 },
+        { model: "b", prompt_tokens: 500, completion_tokens: 5, cache_read_tokens: 100, cache_write_tokens: 0 },
+      ],
+    };
+    const s = await createTelemetry(tools).readStats();
+    deepStrictEqual([s.cacheHitTokens, s.cacheWriteTokens], [700, 50]);
+  });
+
+  it("reads the PascalCase entries, and zero as reported", async () => {
+    const tools = new FakeTools();
+    tools.replies.sessionStats = { byModelTokens: [{ Model: "a", cacheReadTokens: 0, cacheWriteTokens: 0 }] };
+    const s = await createTelemetry(tools).readStats();
+    deepStrictEqual([s.cacheHitTokens, s.cacheWriteTokens], [0, 0]);
+  });
+
+  it("leaves the cache counts unreported when no model entry carries them", async () => {
+    const tools = new FakeTools();
+    tools.replies.sessionStats = { by_model_tokens: [{ model: "a", prompt_tokens: 3 }] };
+    const s = await createTelemetry(tools).readStats();
+    deepStrictEqual([s.cacheHitTokens, s.cacheWriteTokens], [undefined, undefined]);
   });
 
   it("reads an empty result as unreported counters", async () => {
     const tools = new FakeTools();
     deepStrictEqual(await createTelemetry(tools).readStats(), {
       costUsd: undefined, totalTokens: undefined, totalCalls: undefined,
-      messageCount: undefined, estimatedTokens: undefined, cacheHitTokens: undefined,
+      messageCount: undefined, estimatedTokens: undefined, cacheHitTokens: undefined, cacheWriteTokens: undefined,
     });
   });
 

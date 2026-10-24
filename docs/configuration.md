@@ -27,13 +27,21 @@ Environment variables prefixed `ORKEON_` override the file (`__` separates secti
 | `Llm:ApiKeyEnvVar` | Name of the environment variable that holds the key. The key itself never goes in the file |
 | `Llm:AvailableModels` | Models `/model` offers to switch to without relaunching |
 | `Llm:Temperature`, `Llm:MaxTokens`, `Llm:TimeoutSeconds` | Generation settings |
-| `Llm:MaxRateLimitWait` | Longest rate-limit window a call waits out before it fails: `00:05:00` |
+| `Llm:MaxRateLimitWait` | Longest rate-limit window a call waits out before it fails, `00:05:00` by default. A 429, or a 529 with a reset header, waits until the window the provider announces resets instead of failing the turn; a window longer than this fails the call at once with `LlmRateLimitException`, the wait in its message. `00:00:00` waits for nothing |
+| `Llm:Profiles:<name>:MaxRateLimitWait` | The same bound for one named profile of the host, `00:05:00` by default |
 | `Llm:Thinking:Enabled` | Reasoning mode, for the providers that have one |
 
 Orkeon recognises the native providers from the endpoint and the model (OpenAI, Anthropic, Gemini, Mistral, DeepSeek,
 Z.AI, Moonshot, local servers...): the list and their options are in the
 [Orkeon LLM providers documentation](https://github.com/Orkeon/orkeon/blob/main/docs/architecture/llm-providers.md).
 An option a provider cannot honour produces a warning, never a silent drop.
+
+**Prompt cache.** A provider that caches the prompt (DeepSeek and OpenAI by themselves, Anthropic with
+`cache_control`) reports the tokens read from its cache and written to it; Orkeon keeps them per model and
+`/usage` and `/context` show their sum in `cacheRead` and `cacheWrite` (`-` when the host reports none). The cache's
+lifetime is a per-call option of Orkeon, `orkeon:cache_ttl` (`5m` or `1h`, from an agent's cache setting): Anthropic
+honours it, the OpenAI-compatible providers and Ollama log that they cannot. Orkeon Code sets none, so each provider
+keeps its own default lifetime.
 
 A model on this machine: [`config/appsettings.ollama.example.json`](../config/appsettings.ollama.example.json) is
 the example on [Ollama](https://ollama.com) serving `qwen3.5:2b` (`ollama pull qwen3.5:2b` first), no key and
@@ -85,8 +93,8 @@ omitted, the window minus the room one turn needs), `dev.workDir` (the work fold
 the checkout, `/config set dev.workDir backstage/tasks`; omitted, the repository pack's `layout.work`, else
 `workbench`; `/commit` reads it too, and leaves the work folder out of a commit unless a path inside it is named),
 `dev.prAuto` (`true` or `false`, omitted = `false`: `/commit` and the close of a dev step prepare the pull request as
-`--pr` does without being asked, its body under `<work>/pr-<slug>/PR.md`; until the opener lands, they print the
-`gh pr create` command to type and say so) or `spinnerVerbs`. `/model`, `/effort`, `/passes`, `/fast`, `/proactive` and `/output-style` change how the next turns
+`--pr` does without being asked, its body under `<work>/pr-<slug>/PR.md`, then open it with the runtime's `github` tool
+when the host offers it and the session allows it, else print the `gh pr create` command to type and say why) or `spinnerVerbs`. `/model`, `/effort`, `/passes`, `/fast`, `/proactive` and `/output-style` change how the next turns
 run.
 
 `permissions.fallback` and `tools.extra` set in the project file are narrowed by the `orkeonCode` block of the user

@@ -139,8 +139,10 @@ export interface SessionCost {
 export interface SessionStats extends SessionCost {
   messageCount?: number;
   estimatedTokens?: number;
-  /** Prompt-cache hits, when the host maps them. */
+  /** Prompt tokens read from the provider's cache (the hits), over every model, when the host reports them. */
   cacheHitTokens?: number;
+  /** Prompt tokens written to the provider's cache, over every model, when the host reports them. */
+  cacheWriteTokens?: number;
 }
 
 /** The host's account of the session. Each read throws when the host cannot
