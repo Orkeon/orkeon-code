@@ -28,7 +28,6 @@ la place, `ORKEON_SOURCE=<chemin d'un checkout d'Orkeon> bash scripts/smoke-runt
 ```bash
 bash scripts/run-crew.sh src/crews/git-commit/crew.ork.ts
 ORKEON_CODE_WORKSPACE=~/src/app bash scripts/run-crew.sh src/crews/project-init/crew.ork.ts
-bash scripts/run-crew.sh src/crews/_probe-codeintel/probe.ork.ts     # the code-intelligence probe
 ```
 
 Le script utilise l'outil `orkeon` (`Orkeon.Scripting.Cli`, nuget.org, épinglé dans `.config/dotnet-tools.json` ; le

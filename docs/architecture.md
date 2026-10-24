@@ -41,6 +41,12 @@ The runtime runs the sources under rules that shape everything below:
   `namespace`, no parameter property.
 - **An unknown name in `.tools([...])` fails the turn**: `act` throws `UnknownToolError` before the model is asked,
   so a catalogue names only tools the host registers (the extra tools are checked against them at launch).
+- **The host's gate runs first.** An `onToolCall` hook sees only the calls the gate allowed; an `"ask"` it returns is
+  checked again as an edit in the `default` mode.
+- **The read calls of a turn run together.** `Orkeon:Tools:ResultLimits:MaxParallelToolCalls` (4) read calls of one
+  model turn run at once; every other call runs alone, one after the other.
+- **`spawn_agent` is the host's own.** The script host offers it to every act; naming it in `.tools([...])`, or in
+  `act({ tools })`, throws `UnknownToolError`.
 
 So each entry point is its own composition root: it builds the adapters it needs and hands them to a use case that
 takes its dependencies as parameters. The ports are interfaces, erased from every bundle, and a test imports a use
@@ -252,8 +258,8 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 | `dev-learn` | sequential, no tool, one extract per axis | `/dev-learn` (`--list` skips the LLM) | Recurring verdict gaps into proposals, `PROPOSALS.md` |
 | `dev-plan` | sequential, six read tools in `plan`, one extract | `/dev-plan` | Blocking gate, inventory by the index, plan and sheets written by code, one read-only review |
 
-Folders starting with `_` (`_probe-budget`, `_probe-codeintel`, `_probe-raggable`) are development probes, run with
-`scripts/run-crew.sh`.
+A folder starting with `_` holds a development probe (`probe.ork.ts`), run with `scripts/run-crew.sh`; none ships
+today.
 
 ## One turn of the loop
 
@@ -562,7 +568,9 @@ the mode too (Orkeon classifies an unknown mode fail-closed). Update `mode-polic
    and inspect, and the adapter's test over the runtime stand-in.
 4. A port lands with its first production caller, never ahead of it.
 
-## Known remainders
+## What the probes established
 
-- The probes `_probe-codeintel` and `_probe-raggable` reach `globalThis` directly rather than through `globals.ts`.
-  They are development tools and crew entry points, which the architecture test lets read the runtime globals.
+Three probes ran against the runtime before they were removed. Code intelligence: every tool name and field the
+adapters use was read off live calls, and is pinned by `shared/domain/code-intel-contract.ts` and its test.
+Raggable: `index_codebase` then `codebase_map` work end to end, the languages detected without being named. Budget:
+a `toolCalls` budget stops `act` with a typed `BudgetExhaustedException`.

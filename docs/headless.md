@@ -21,6 +21,18 @@ project's `.orkeon/config.json`, so every session on that project starts there).
 the gate refuses what it would have asked about (the model reads `DENIED: …`). Give an unattended run a mode that
 never asks: `bypassPermissions`, or `plan` and `dontAsk` for read-only work ([Permissions](permissions.md)).
 
+Under `orkeon run` (`scripts/run-crew.sh`) the gate has no one to ask, and decides each call by the mode alone:
+
+| Mode | Under `orkeon run` |
+|---|---|
+| `default` | Reads only: every other call is refused (the edits, `github`, `rag_eval`, `spawn_agent`, the shell, `http_api`) |
+| `acceptEdits` | Reads and edits (`file_write`, `edit_file`, `node_*`, `edit_batch`, `structural_rewrite`, `spawn_agent`); `github`, `rag_eval`, the shell and `http_api` are refused |
+| `plan`, `dontAsk` | Reads only |
+| `bypassPermissions` | Everything |
+
+An act given no `permissionMode` runs in `default`. An `onToolCall` hook sees only the calls the gate allowed, and an
+`"ask"` it returns is checked again as an edit in `default`, so it is refused here.
+
 What bounds a turn, whatever the mode:
 
 - the crew budget of `main-loop`: 200 tool calls, 30 minutes, 400k tokens, 40 iterations of the loop;
@@ -43,7 +55,14 @@ Until Orkeon `1.0.0-rc.6` is published, neither exists at the pinned version and
 `/assistant` passes: the request and the mode. `permissionRules` (the session's rules, as `/permissions` lists them:
 `deny http_api`, `allow shell_command command=npm test*`) and `extraTools` (the tools of MCP servers and plugins, as
 `tools.extra` names them) are what the launching command resolves in the REPL; a standalone run has no session to take
-them from, so pass them only when you know what the catalogue should hold.
+them from, so pass them only when you know what the catalogue should hold. No session rule exists outside the REPL:
+`permissionRules` only shapes the catalogue (a deny rule on a whole tool removes it), and an allow rule spares no
+question. No flag of `orkeon run` sets the mode; it belongs to the crew's inputs
+(`--inputs '{"prompt":"…","permissionMode":"acceptEdits"}'`), and the gate needs
+`Orkeon:Security:PermissionGate:Enabled: true` in the settings file. `orkeon run` registers the analysis tools
+(`node_*`, `edit_batch`, `structural_rewrite`, `batch_anchors`, `structural_search`…) only while
+`RaggableTree:Enabled` is not `false`; with it `false`, an act given the `main-loop` catalogue fails with
+`UnknownToolError`.
 
 ```bash
 export DEEPSEEK_API_KEY=...                       # the variable named by Llm:ApiKeyEnvVar

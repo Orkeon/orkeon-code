@@ -28,7 +28,6 @@ the job fails: run the smoke in source mode instead,
 ```bash
 bash scripts/run-crew.sh src/crews/git-commit/crew.ork.ts
 ORKEON_CODE_WORKSPACE=~/src/app bash scripts/run-crew.sh src/crews/project-init/crew.ork.ts
-bash scripts/run-crew.sh src/crews/_probe-codeintel/probe.ork.ts     # the code-intelligence probe
 ```
 
 It uses the `orkeon` tool (`Orkeon.Scripting.Cli`, nuget.org, pinned in `.config/dotnet-tools.json`; the .NET SDK

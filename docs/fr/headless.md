@@ -23,6 +23,19 @@ personne ne répond, et la garde refuse ce qu'elle aurait demandé (le modèle l
 sans opérateur un mode qui ne demande jamais : `bypassPermissions`, ou `plan` et `dontAsk` pour un travail en lecture
 seule ([Permissions](permissions.md)).
 
+Sous `orkeon run` (`scripts/run-crew.sh`), la garde n'a personne à qui demander, et décide chaque appel par le seul
+mode :
+
+| Mode | Sous `orkeon run` |
+|---|---|
+| `default` | Lectures seulement : tout autre appel est refusé (les modifications, `github`, `rag_eval`, `spawn_agent`, le shell, `http_api`) |
+| `acceptEdits` | Lectures et modifications (`file_write`, `edit_file`, `node_*`, `edit_batch`, `structural_rewrite`, `spawn_agent`) ; `github`, `rag_eval`, le shell et `http_api` sont refusés |
+| `plan`, `dontAsk` | Lectures seulement |
+| `bypassPermissions` | Tout |
+
+Un act sans `permissionMode` tourne en `default`. Un hook `onToolCall` ne voit que les appels que la garde a
+autorisés, et un `"ask"` qu'il renvoie est vérifié à nouveau comme une modification en `default`, donc refusé ici.
+
 Ce qui borne un tour, quel que soit le mode :
 
 - le budget du crew `main-loop` : 200 appels d'outils, 30 minutes, 400k tokens, 40 itérations de la boucle ;
@@ -46,7 +59,14 @@ ce que `/assistant` lui passe : la requête et le mode. `permissionRules` (les r
 `/permissions` les liste : `deny http_api`, `allow shell_command command=npm test*`) et `extraTools` (les outils des
 serveurs MCP et des plugins, tels que `tools.extra` les nomme) sont ce que la commande de lancement résout dans le
 REPL ; une exécution indépendante n'a pas de session où les prendre : ne les passez que si vous savez ce que le
-catalogue doit contenir.
+catalogue doit contenir. Aucune règle de session n'existe hors du REPL : `permissionRules` ne fait que façonner le
+catalogue (une règle deny sur un outil entier le retire), et une règle allow n'épargne aucune question. Aucune option
+d'`orkeon run` ne fixe le mode ; il appartient aux entrées du crew
+(`--inputs '{"prompt":"…","permissionMode":"acceptEdits"}'`), et la garde demande
+`Orkeon:Security:PermissionGate:Enabled: true` dans le fichier de settings. `orkeon run` n'enregistre les outils
+d'analyse (`node_*`, `edit_batch`, `structural_rewrite`, `batch_anchors`, `structural_search`…) que tant que
+`RaggableTree:Enabled` n'est pas `false` ; s'il vaut `false`, un act qui reçoit le catalogue de `main-loop` échoue avec
+`UnknownToolError`.
 
 ```bash
 export DEEPSEEK_API_KEY=...                       # the variable named by Llm:ApiKeyEnvVar

@@ -37,7 +37,7 @@ fait que lire, en `plan`, avec six outils de lecture. Les deux placent d'abord d
 
 ## Modes
 
-| Mode | Offert au modèle | Lectures locales | Lectures réseau (`http_api`, web) | Modifications de fichiers, `rag_ingest` | Shell |
+| Mode | Offert au modèle | Lectures locales | Lectures réseau (`http_api`, web) | Modifications de fichiers (`file_write`, `edit_file`, `node_*`, `edit_batch`, `structural_rewrite`), `rag_ingest` | Shell |
 |---|---|---|---|---|---|
 | `plan` | lectures locales, [outils supplémentaires](#outils-supplémentaires) `read` | ✅ | ❌ | ❌ | ❌ |
 | `dontAsk` | lectures locales, [outils supplémentaires](#outils-supplémentaires) `read` | ✅ | ❌ | ❌ | ❌ |
@@ -61,6 +61,11 @@ question en `default` et en `acceptEdits`, et sont refusés en `plan` et en `don
 catalogue l'offre avec les modifications de fichiers : jamais en `plan` ni en `dontAsk`, demandé en `default`, accepté
 en `acceptEdits`.
 
+`github` et `rag_eval` sont offerts avec les modifications de fichiers, mais ne déclarent aucun accès : l'hôte pose la
+question aussi en `acceptEdits`, et les refuse en `plan` et en `dontAsk`. L'hôte offre `spawn_agent` à chaque act, quel
+que soit le catalogue : c'est une modification, demandée en `default` et refusée en `plan` et en `dontAsk`. Une règle
+peut le nommer, et une règle allow sur lui vaut aussi en `dontAsk` (`/permissions` avertit quand vous en ajoutez une).
+
 ## Choisir le mode
 
 - **Par requête** : préfixez le texte, `plan: explique la couche de cache`, `acceptEdits: corrige le test qui échoue`.
@@ -78,8 +83,7 @@ principal en `plan`.
 `/permissions` montre la surface effective : le mode, le catalogue, les règles de la session et les règles que la garde
 détient. Les règles ne sont appliquées que tant que `Orkeon:Security:PermissionGate:Enabled` est actif (le lanceur
 l'active) : `/permissions` interroge l'hôte et dit si la garde est active, inactive (rien de ce qui précède n'est
-appliqué et rien ne demande), ou inconnue sur un runtime qui ne l'expose pas (Orkeon 1.0.0-rc.6 ; Orkeon #128 a
-ajouté le champ).
+appliqué et rien ne demande), ou inconnue sur un hôte qui ne garde aucune règle de session.
 
 ## Règles
 
@@ -92,6 +96,12 @@ vaut `command=npm test*`). L'argument est nommé comme Orkeon le lie, en snake_c
 `http_api` : `url`, `method`, `headers`, `body`, `content_type`). Les arguments d'un outil supplémentaire sont ceux de
 son serveur ou de son plugin : la règle est acceptée avec un avertissement, et ne correspond que si l'outil prend un
 argument de ce nom exact.
+
+Les arguments de chaque outil intégré sont les champs de premier niveau de son entrée (`TOOL_ARGUMENTS` dans
+`shared/domain/agent-policy/permission.ts`). Une règle ne lit qu'un argument de premier niveau, comme du texte : elle
+n'atteint pas un chemin à l'intérieur des opérations d'`edit_batch` ni des chemins de `structural_rewrite`, et sur
+`glob` et `grep` elle ne compare que `path`, si bien qu'un `pattern` (ou le `glob` de `grep`) donné depuis un dossier
+parent peut encore atteindre le dessous d'un dossier qu'une règle refuse.
 
 ```text
 /permissions add deny shell_command command=git push*
@@ -135,9 +145,9 @@ les dépôts ; aucun réglage ne l'active ni ne le désactive. Les deux étapes 
 |---|---|---|
 | `git-readonly` | `shell_command`, `command` | une commande git qui modifie le dépôt, ses branches ou ses remotes, y compris derrière une option globale (`git -C <dir> push`) |
 | `inline-interpreters` | `shell_command`, `command` | du code passé en ligne à un interpréteur, qui pourrait exécuter ce que les autres règles refusent |
-| `read-noise` | `file_read`, `path` | une lecture sous un dossier `bin/`, `obj/`, `.git/` ou `node_modules/`, n'importe où dans le projet |
-| `secrets` | `file_write`, `content` | un contenu qui porte un bloc de clé privée ou un jeton à préfixe connu |
-| `state-files` | `file_write`, `path` | un fichier que seul le code d'Orkeon Code écrit : journaux, états et verdicts des lots, captures d'audit, `.orkeon/` et `.claude/` |
+| `read-noise` | `path` de `file_read`, `glob`, `grep`, `node_outline`, `node_read`, `count_pattern`, `documents_of` | une lecture sous un dossier `bin/`, `obj/`, `.git/` ou `node_modules/`, n'importe où dans le projet |
+| `secrets` | le texte écrit : `content` de `file_write`, `new_string` d'`edit_file`, `text` de `node_replace`, `node_insert` et `node_ensure`, `fix` de `structural_rewrite` ; `edit_batch` en entier | un contenu qui porte un bloc de clé privée ou un jeton à préfixe connu |
+| `state-files` | `path` de `file_write`, `edit_file`, `node_replace`, `node_insert`, `node_ensure` ; `edit_batch` et `structural_rewrite` en entier | un fichier que seul le code d'Orkeon Code écrit : journaux, états et verdicts des lots, captures d'audit, `.orkeon/` et `.claude/` |
 
 `git-readonly` contient 190 règles, trois pour la plupart des verbes `add`, `am`, `apply`, `branch`, `checkout`, `cherry-pick`,
 `clean`, `commit`, `fetch`, `filter-branch`, `gc`, `merge`, `mv`, `notes`, `pull`, `push`, `rebase`, `reflog`,
@@ -165,7 +175,7 @@ règles refusent les verbes qui écrivent sous les verbes courants : `init`, `cl
 `git -c key=value`, qui fixe une configuration pour une seule commande et peut lancer un programme par `core.pager` ;
 pour lire une clé, donnez un seul argument : `git config user.name`, `git config --list`.
 
-Les quatre autres jeux :
+Les quatre autres jeux, chaque motif sur le premier outil de son jeu :
 
 ```text
 deny shell_command command=*sh -c*
@@ -231,6 +241,13 @@ deny file_write path=.claude/*
 et `bun`, derrière un chemin, un `env` ou `npx`. Comme une règle lit `sh -c` à la fin de n'importe quel mot,
 `ssh -c <cipher>` est refusé lui aussi.
 
+Les trois jeux de fichiers répètent leurs motifs sur chaque outil de leur ligne, outil par outil : `read-noise`
+contient 56 règles (8 motifs sur 7 outils, sur `path`), `secrets` 97 (16 motifs sur 6 outils, sur le texte écrit, puis
+`deny edit_batch`), `state-files` 42 (8 motifs sur 5 outils, sur `path`, puis `deny edit_batch` et
+`deny structural_rewrite`). La garde ne peut pas lire les chemins ni le texte à l'intérieur d'`edit_batch` et de
+`structural_rewrite`, si bien que ces deux-là sont refusés en entier. Une étape détient 407 règles : le
+`deny edit_batch` de `secrets` et de `state-files` n'est gardé qu'une fois.
+
 **Quand ils s'appliquent.** Au lancement, l'étape vide la garde, lui remet les règles de la session, puis ses propres
 jeux. Une règle allow de la session sur les mêmes appels qu'une règle deny de l'étape est écartée pour l'exécution,
 avec un avertissement. Les jeux ne sont pas rangés avec les règles de la session : `/permissions list` ne les montre
@@ -241,9 +258,8 @@ s'exécute les remplace pour le reste de l'étape.
 
 **La garde doit être active.** Quand l'hôte dit que sa garde est inactive, les deux étapes refusent de démarrer, car
 aucune règle ci-dessus ni le mode `plan` de leur auditeur ou de leur relecteur ne vérifierait quoi que ce soit ;
-`/dev-verify F<n> --gate-only` n'appelle aucun modèle et s'exécute toujours. Sur un runtime qui ne sait pas le dire
-(Orkeon 1.0.0-rc.6), l'étape s'exécute avec un avertissement, et avec un second sur un hôte qui ne garde aucune règle
-de session, où les jeux ne sont pas en vigueur.
+`/dev-verify F<n> --gate-only` n'appelle aucun modèle et s'exécute toujours. Sur un hôte qui ne garde aucune règle de
+session, l'étape s'exécute avec un avertissement : les jeux ne sont pas en vigueur.
 
 **Ce qu'une règle ne voit pas.** Une règle lit un argument comme du texte. Un fichier de script lancé par un
 interpréteur (`bash scripts/build.sh`) n'est pas du code en ligne, et s'exécute. Une règle reconnaît des mots séparés par une espace, si

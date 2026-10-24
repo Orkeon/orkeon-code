@@ -34,7 +34,7 @@ while the gate is off.
 
 ## Modes
 
-| Mode | Offered to the model | Local reads | Network reads (`http_api`, web) | File edits, `rag_ingest` | Shell |
+| Mode | Offered to the model | Local reads | Network reads (`http_api`, web) | File edits (`file_write`, `edit_file`, `node_*`, `edit_batch`, `structural_rewrite`), `rag_ingest` | Shell |
 |---|---|---|---|---|---|
 | `plan` | local reads, `read` [extra tools](#extra-tools) | ✅ | ❌ | ❌ | ❌ |
 | `dontAsk` | local reads, `read` [extra tools](#extra-tools) | ✅ | ❌ | ❌ | ❌ |
@@ -57,6 +57,11 @@ declare a read (Orkeon #126): they run without a question wherever the catalogue
 edit — it writes the knowledge index, not the workspace — so the catalogue offers it with the file edits: never in
 `plan` or `dontAsk`, asked in `default`, accepted in `acceptEdits`.
 
+`github` and `rag_eval` are offered with the file edits, but declare no access: the host asks about them in
+`acceptEdits` too, and refuses them in `plan` and `dontAsk`. The host offers `spawn_agent` to every act, whatever the
+catalogue: it is an edit, asked about in `default` and refused in `plan` and `dontAsk`. A rule may name it, and an
+allow rule on it holds in `dontAsk` too (`/permissions` warns when you add one).
+
 ## Choosing the mode
 
 - **Per request**: prefix the text, `plan: explain the cache layer`, `acceptEdits: fix the failing test`.
@@ -74,7 +79,7 @@ in `plan`.
 `/permissions` shows the effective surface: the mode, the catalogue, the session's rules and the rules the gate holds.
 The rules are enforced only while `Orkeon:Security:PermissionGate:Enabled` is on (the launcher sets it):
 `/permissions` reads the host and says whether the gate is on, off (nothing above is enforced and nothing asks), or
-unknown on a runtime that does not expose it (Orkeon 1.0.0-rc.6; Orkeon #128 added the field).
+unknown on a host that keeps no session rules.
 
 ## Rules
 
@@ -86,6 +91,11 @@ lists the ones it does (`shell_command`: `command`, `working_directory`, `timeou
 `content`, `encoding`, `append`, `create_backup`; `http_api`: `url`, `method`, `headers`, `body`, `content_type`). The
 arguments of an extra tool are its server's or plugin's: the rule is accepted with a warning, and matches only if the
 tool takes an argument of exactly that name.
+
+The arguments of every built-in tool are its input's top-level fields (`TOOL_ARGUMENTS` in
+`shared/domain/agent-policy/permission.ts`). A rule reads a top-level argument only, as text: it cannot reach a path
+inside the `edit_batch` operations or the `structural_rewrite` paths, and on `glob` and `grep` it matches `path`
+alone, so a `pattern` (or `grep`'s `glob`) given from a parent folder can still reach below a folder a rule denies.
 
 ```text
 /permissions add deny shell_command command=git push*
@@ -127,9 +137,9 @@ off. Both steps put all five sets in force:
 |---|---|---|
 | `git-readonly` | `shell_command`, `command` | a git command that changes the repository, its branches or its remotes, also behind a global option (`git -C <dir> push`) |
 | `inline-interpreters` | `shell_command`, `command` | code handed inline to an interpreter, which could run what the other rules refuse |
-| `read-noise` | `file_read`, `path` | a read under a `bin/`, `obj/`, `.git/` or `node_modules/` folder, anywhere in the project |
-| `secrets` | `file_write`, `content` | content that holds a private key block or a token with a known prefix |
-| `state-files` | `file_write`, `path` | a file only Orkeon Code's own code writes: the batch logs, states and verdicts, the audit captures, `.orkeon/` and `.claude/` |
+| `read-noise` | `path` of `file_read`, `glob`, `grep`, `node_outline`, `node_read`, `count_pattern`, `documents_of` | a read under a `bin/`, `obj/`, `.git/` or `node_modules/` folder, anywhere in the project |
+| `secrets` | the written text: `file_write` `content`, `edit_file` `new_string`, `text` of `node_replace`, `node_insert` and `node_ensure`, `structural_rewrite` `fix`; `edit_batch` whole | content that holds a private key block or a token with a known prefix |
+| `state-files` | `path` of `file_write`, `edit_file`, `node_replace`, `node_insert`, `node_ensure`; `edit_batch` and `structural_rewrite` whole | a file only Orkeon Code's own code writes: the batch logs, states and verdicts, the audit captures, `.orkeon/` and `.claude/` |
 
 `git-readonly` holds 190 rules, three for most of the verbs `add`, `am`, `apply`, `branch`, `checkout`, `cherry-pick`,
 `clean`, `commit`, `fetch`, `filter-branch`, `gc`, `merge`, `mv`, `notes`, `pull`, `push`, `rebase`, `reflog`,
@@ -157,7 +167,7 @@ lists, and runs). `git config` with two arguments or more (`git config key value
 config for one command and can run a program through `core.pager`; read a key with one argument instead:
 `git config user.name`, `git config --list`.
 
-The other four sets:
+The other four sets, each pattern on the first tool of its set:
 
 ```text
 deny shell_command command=*sh -c*
@@ -222,6 +232,12 @@ deny file_write path=.claude/*
 the inline forms of `node`, `python`, `python3`, `perl`, `ruby`, `php`, `tsx`, `ts-node`, `deno` and `bun`, behind a
 path, an `env` or `npx`. Since a rule reads `sh -c` at the end of any word, `ssh -c <cipher>` is refused too.
 
+The three file sets repeat their patterns on every tool of their row, tool by tool: `read-noise` holds 56 rules (8
+patterns on 7 tools, on `path`), `secrets` 97 (16 patterns on 6 tools, on the written text, then `deny edit_batch`),
+`state-files` 42 (8 patterns on 5 tools, on `path`, then `deny edit_batch` and `deny structural_rewrite`). The gate
+cannot read the paths or the text inside `edit_batch` and `structural_rewrite`, so these two are refused whole. A step
+holds 407 rules: the `deny edit_batch` of `secrets` and of `state-files` is kept once.
+
 **When they hold.** At launch the step clears the gate, hands it the session's rules, then its own sets. A session
 allow rule on the same calls as one of the step's deny rules is left out for the run, with a warning. The sets are not
 stored with the session's rules: `/permissions list` does not show them, and `/permissions` shows them on its
@@ -231,8 +247,7 @@ they are session-wide: a turn started while a step runs replaces them for the re
 
 **The gate must be on.** When the host says its gate is off, both steps refuse to start, because every rule above and
 the `plan` mode of their auditor or reviewer would check nothing; `/dev-verify F<n> --gate-only` runs no model and
-still runs. On a runtime that cannot say (Orkeon 1.0.0-rc.6), the step runs with a warning, and with a second one on a
-host that keeps no session rules, where the sets are not in force.
+still runs. On a host that keeps no session rules, the step runs with a warning: the sets are not in force.
 
 **What a rule cannot see.** A rule reads one argument as text. A script file run by an interpreter
 (`bash scripts/build.sh`) is not inline code, and runs. A rule matches words separated by one space, so a tab between two words,

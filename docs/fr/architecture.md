@@ -44,6 +44,12 @@ Le runtime exécute les sources sous des règles qui façonnent tout ce qui suit
 - **Un nom inconnu dans `.tools([...])` fait échouer le tour** : `act` lève `UnknownToolError` avant d'interroger le
   modèle, donc un catalogue ne nomme que des outils que l'hôte enregistre (les outils supplémentaires sont vérifiés
   contre eux au lancement).
+- **La garde de l'hôte passe d'abord.** Un hook `onToolCall` ne voit que les appels que la garde a autorisés ; un
+  `"ask"` qu'il renvoie est vérifié à nouveau comme une modification en mode `default`.
+- **Les appels de lecture d'un tour tournent ensemble.** `Orkeon:Tools:ResultLimits:MaxParallelToolCalls` (4) appels
+  de lecture d'un même tour du modèle tournent en même temps ; tout autre appel tourne seul, l'un après l'autre.
+- **`spawn_agent` appartient à l'hôte.** L'hôte de scripts l'offre à chaque act ; le nommer dans `.tools([...])`, ou
+  dans `act({ tools })`, lève `UnknownToolError`.
 
 Chaque point d'entrée est donc sa propre racine de composition : il construit les adaptateurs dont il a besoin et les
 remet à un cas d'usage qui reçoit ses dépendances en paramètres. Les ports sont des interfaces, effacées de chaque
@@ -262,8 +268,8 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 | `dev-learn` | séquentiel, sans outil, un extract par axe | `/dev-learn` (`--list` saute le LLM) | Les écarts de verdict qui reviennent, changés en propositions, `PROPOSALS.md` |
 | `dev-plan` | séquentiel, six outils de lecture en `plan`, un extract | `/dev-plan` | Porte des questions Blocking, inventaire par l'index, plan et fiches écrits par le code, une revue en lecture seule |
 
-Les dossiers commençant par `_` (`_probe-budget`, `_probe-codeintel`, `_probe-raggable`) sont des sondes de
-développement, lancées avec `scripts/run-crew.sh`.
+Un dossier commençant par `_` contient une sonde de développement (`probe.ork.ts`), lancée avec
+`scripts/run-crew.sh` ; aucune n'est livrée aujourd'hui.
 
 ## Un tour de la boucle
 
@@ -612,8 +618,10 @@ Mettre à jour `mode-policy.test.ts` et `docs/permissions.md`.
    configurer et à inspecter, et le test de l'adaptateur au-dessus du substitut du runtime.
 4. Un port arrive avec son premier appelant de production, jamais avant lui.
 
-## Restes connus
+## Ce que les sondes ont établi
 
-- Les sondes `_probe-codeintel` et `_probe-raggable` atteignent `globalThis` directement plutôt que par `globals.ts`.
-  Ce sont des outils de développement et des points d'entrée de crew, que le test d'architecture autorise à lire les
-  globales du runtime.
+Trois sondes ont tourné contre le runtime avant d'être retirées. Intelligence du code : chaque nom d'outil et chaque
+champ que les adaptateurs utilisent a été relevé sur des appels réels, et est fixé par
+`shared/domain/code-intel-contract.ts` et son test. Raggable : `index_codebase` puis `codebase_map` fonctionnent de
+bout en bout, les langages détectés sans être nommés. Budget : un budget `toolCalls` arrête `act` avec une
+`BudgetExhaustedException` typée.

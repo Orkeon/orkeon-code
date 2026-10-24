@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The tools of Orkeon #180 in the catalogue.** Read: `glob`, `grep`, `count_pattern`, `list_mounts`,
+  `node_outline`, `node_read` and the graph queries (`access_cost`, `affected_tests`, `batch_anchors`,
+  `documented_in`, `documents_of`, `structural_search`, `incremental_reindex`, `statement_query`,
+  `complexity_report`). Edit: `edit_file`, `node_replace`, `node_insert`, `node_ensure`, `edit_batch`,
+  `structural_rewrite`, and `github` and `rag_eval`, which declare no access and are asked in `acceptEdits` too. A
+  rule may name `spawn_agent`, which the host offers to every act; `/permissions` warns on an allow rule on it.
+- **Rule sets over the new tools**: `read-noise` covers every tool that reads one `path`, `secrets` the written text
+  of every editing tool, `state-files` the `path` of every tool that writes one file; `edit_batch` and
+  `structural_rewrite`, whose paths the gate cannot read, are denied whole. A dev step holds 407 rules.
+- **`Orkeon:Tools:ResultLimits` and `Llm:MaxRateLimitWait` in the example settings**: the cut of a tool's result per
+  tool (10,000 characters for `shell_command`), four read calls of a turn at once, and a rate-limit wait of five
+  minutes ([Configuration](docs/configuration.md)).
+
 - **Rule sets for the dev steps**: `/dev-verify` (except `--gate-only`) and `/dev-plan` now put five sets of deny
   rules in the permission gate before their crew starts. `git-readonly` refuses git commands that change the
   repository, also behind a path, an `env`, a chain or `-C`. `inline-interpreters` refuses `bash -c`, `node -e` and
@@ -149,6 +162,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`/doctor` reads the `access` of the mounts** from the host.
+- **`/dev-verify` detects a cut output by the runtime's notice** (`[... truncated, N chars omitted. …]`, 10,000
+  characters for the shell).
+- **`/dev-plan` takes its callers from `batch_anchors`**, tests included.
+- **An extra tool may no longer bear the name of a new built-in tool** (`glob`, `github`…): it is refused at launch,
+  in the start report.
+- **The dev steps no longer warn that the host cannot say whether its gate is on**; the warning for a host that keeps
+  no session rules remains.
+
 - **Every built-in tool is typed from the generated typings** (Orkeon #125: `OrkeonBuiltInTools`, input and result
   of each tool from its .NET records). The local copy of their inputs (`CalledTools`) is gone; the stricter shapes
   that remain (`SessionStoreInput`, `MemoryStoreInput`, `ProgressReportInput`) are refused by `tsc` when they stop
@@ -238,6 +260,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   argument.
 
 ### Removed
+
+- **The probe crews `_probe-codeintel`, `_probe-raggable` and `_probe-budget`**: what they established is recorded in
+  [Architecture](docs/architecture.md#what-the-probes-established).
 
 - **`/tag`** (a `/memory add` under another name), **`/sandbox-toggle`** (it recorded a setting nothing enforced),
   **`/onboarding`** (the REPL's native `/help` lists every command), **`/bughunter`** (now `/review --lens

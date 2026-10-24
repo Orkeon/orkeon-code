@@ -17,21 +17,29 @@ demandent d'abord un changement dans [Orkeon](https://github.com/Orkeon/orkeon).
 - **Intégration en processus** (runtime). La couche de scripting publiée en paquet NuGet, pour qu'une application
   .NET charge les crews sans lancer un processus ; et les crews éprouvés sous le démon `orkeon-host`.
 - **Sessions persistantes.** Reprendre une conversation après la sortie du REPL ; garder le mode de session et les
-  règles de permission d'une session à l'autre.
+  règles de permission d'une session à l'autre. Le runtime sait déjà persister une session (`Persist`) ; Orkeon Code
+  ne le câble pas encore.
 - **Des hooks qui se déclenchent.** `/hooks` enregistre des déclarations ; le moteur qui les exécute manque.
 - **Coût et usage.** De vrais chiffres de coût par fournisseur, le taux de cache, le comptage des tokens pour
-  `/context` et `/usage`.
+  `/context` et `/usage`. Le runtime rapporte les tokens de cache (`session_stats`) ; les commandes ne les lisent pas
+  encore.
 
 ## Plus tard
 
-- Les appels d'outils en parallèle (le runtime exécute les appels d'un tour du modèle l'un après l'autre) et les
-  sous-agents (`/agents` enregistre des configurations ; la délégation n'est pas câblée).
+- Les sous-agents par `spawn_agent` et `ctx.spawnBackground` : le runtime offre les deux, Orkeon Code n'en utilise
+  encore aucun (`/agents` enregistre des configurations ; la délégation n'est pas câblée).
+- L'éditeur structurel (`node_*`, `edit_batch`, `structural_rewrite`) dans les prompts de l'assistant : les outils
+  sont au catalogue, les prompts ne les enseignent pas encore.
 - Une liste de plan ou de tâches que la boucle tient à jour (`/tasks` est une liste manuelle aujourd'hui).
 - Plusieurs sessions à la fois.
 
 ## Problèmes connus
 
-- Un résultat d'outil arrive au modèle coupé à 4000 caractères, 32 000 pour `file_read` (runtime).
+- Un résultat d'outil arrive au modèle coupé à 4000 caractères : 32 000 pour `file_read`, 256 000 pour `node_read`,
+  10 000 pour `shell_command`. La coupe se règle par outil avec `Orkeon:Tools:ResultLimits`
+  ([Configuration](configuration.md)).
+- `github` et `rag_eval` ne déclarent aucun accès à Orkeon : demandés aussi en `acceptEdits`, refusés en `plan` et
+  `dontAsk` ([Permissions](permissions.md)).
 - `http_api` et chaque outil MCP ne déclarent aucun accès à Orkeon, dont la garde les traite donc comme des
   écritures, même quand ils ne font que lire : demandés en `default` et `acceptEdits`, refusés en `plan`, et en
   `dontAsk` sans règle d'autorisation (runtime ; [Permissions](permissions.md)). Les outils web et RAG déclarent le
