@@ -5,7 +5,7 @@
 // which stops on a Blocking open question, inventories the code by the index, asks the model for the plan as
 // JSON (once more on a refused answer), writes <CODE>-PLAN.md, one sheet per batch and plan.json, then has the
 // read-only reviewer question the plan once. The reviewer's act runs in a background child, `dev-reviewer`
-// (the reviewer's charter: read tools only, plan mode), which /tasks lists, stops and sends to while it runs
+// (the reviewer's charter: read tools only, plan mode), which /tasks lists and stops while it runs, and repairs by a new run once it has ended
 // (A-3, shared/application/agents/child-agent.ts); on a host without background children it runs inline.
 //
 // Input (globalThis.inputs): { source: string | null, replace?: boolean, hooks?: the /hooks registry,
@@ -15,7 +15,8 @@
 // Budget: up to 59 index and batch_anchors calls by code, at most 40 folder listings for the anchors (one per folder for the run,
 // both attempts sharing them), about 30 other file and git calls, two extract calls and one review of 20
 // iterations (about 3 tool calls each): 59 + 40 + 30 + 2 + 60 = 191, so toolCalls 240 leaves a margin that 200
-// did not.
+// did not. The reviewer runs as a child: the runtime gives it what the parent has left at its spawn
+// (SpawnAgentScriptTool CreateChildBudget), so the 60 is its own estimate, not a cap.
 
 import { AgentBuilder, CrewBuilder, publishCrew, inputs } from "../../shared/infrastructure/globals.ts";
 import {

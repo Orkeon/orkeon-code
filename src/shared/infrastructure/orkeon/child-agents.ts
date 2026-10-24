@@ -1,18 +1,18 @@
 /// <reference path="../../../crews/.orkeon/orkeon.d.ts" />
 // The children of a crew run (A-3) over the runtime: `ctx.spawnBackground`, the crew's
-// `instances()`/`stop()`/`send()`, the crew's memory and `ctx.receive({ timeout })` as the pause (it
+// `instances()`/`stop()`, the crew's memory and `ctx.receive({ timeout })` as the pause (it
 // rejects with a ReceiveTimeoutError when nothing arrives, which is the whole point here). The
 // crew entry builds them from the context its body receives and the crew object it published;
 // withChildAct hands the use cases an Llm whose act runs in such a child, the rest unchanged.
 
 import type { ActRequest, ChildRuntime, Llm, Logger } from "../../application/ports.ts";
-import { parseChildInput, runChildAct } from "../../application/agents/child-agent.ts";
+import { instanceKey, parseChildInput, runChildAct } from "../../application/agents/child-agent.ts";
 import type { ChildBoard } from "../../application/agents/child-agent.ts";
 import { createLlm } from "./llm.ts";
 import type { ToolCallbacks } from "./tool-callbacks.ts";
 
 type ChildContext = Pick<AgentContext, "spawnBackground" | "memory" | "receive">;
-type ChildCrew = Pick<Crew, "instances" | "send" | "stop">;
+type ChildCrew = Pick<Crew, "instances" | "stop">;
 
 const firstLine = (error: unknown): string => String((error as Error)?.message ?? error).split("\n")[0];
 
@@ -31,10 +31,10 @@ export function createChildRuntime(ctx: ChildContext, crew: ChildCrew): ChildRun
     },
     instances: () => [...crew.instances()].map((i) => ({ id: String(i.id), agent: String(i.agent), state: String(i.state) })),
     stop: (id) => id !== "" && crew.stop(id) === true,
-    send: (id, message) => crew.send(id, message),
     read: (key) => ctx.memory.crew.get(key),
     async pause(ms) {
       try {
+        // Nothing sends the parent an event; one that arrives anyway is left unread.
         await ctx.receive({ timeout: ms });
       } catch (error) {
         if (!isTimeout(error)) throw error;
@@ -53,6 +53,8 @@ export function childAgentBody(
   return async (input, ctx) => {
     const call = parseChildInput(input);
     if (call === null) throw new Error("child agent: its input is not a child call");
+    // The parent cannot match the runtime's rows by agent name (they hold the agent's id): say which instance this is.
+    if (typeof ctx.instanceId === "string") await ctx.memory.crew.store(instanceKey(call.key), ctx.instanceId).catch(() => undefined);
     try {
       const reply = await createLlm(ctx.llm, callbacksFor(ctx)).act(call.prompt, call.request);
       await ctx.memory.crew.store(call.key, { ok: true, reply });

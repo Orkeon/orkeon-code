@@ -41,7 +41,7 @@ export interface CrewCompletion {
 }
 
 /** What a launch hands back to the runtime: the ticket, or the refusal of a hop past MaxChainDepth. */
-export type LaunchResult = { ticket: string } | { refused: string };
+export type LaunchResult = { ticket: string } | { refused: string; message: string };
 
 /** Launch a crew on the script-host and return its ticket (async commands). The
  *  launch is logged with the ticket, plus `details` when the caller has any. A
@@ -61,7 +61,7 @@ export function launchCrew(
     if (refusal === null) throw error;
     const line = chainDepthLine(crew, refusal);
     deps.log.info(line, { ...refusal, ...details });
-    return { refused: line };
+    return { refused: line, message: line };
   }
   deps.log.info(crew + " launched", { ticket, ...details });
   return { ticket };

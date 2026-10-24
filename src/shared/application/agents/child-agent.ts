@@ -1,12 +1,13 @@
 // A sub-agent's act run as a background child of the crew (A-3, approach A2 of temp/03 § A). The
 // child is an agent of the crew holding the charter's tools; it acts on the prompt and leaves its
 // reply in the crew's memory under a key the parent chose. Meanwhile the parent body keeps the run's
-// board — the snapshot /tasks reads in the session's state bag — and serves what /tasks asks of one
-// instance: stop a running one, send to an ended one in place. An act with `waitFor: "children"`
-// would wait as well, but no script runs during its wait, so nothing could answer /tasks.
+// board — the snapshot /tasks reads in the session's state bag — and serves the stop /tasks asks
+// for a running one. An act with `waitFor: "children"` would wait as well, but no script runs
+// during its wait, so nothing could answer /tasks. The runtime's instance rows name the agent by
+// its id, not its name: the child says its instance id (`ctx.instanceId`) under instanceKey first.
 
 import type { ActRequest, ChildRuntime, Logger, SessionStore } from "../ports.ts";
-import { INSTANCE_STATES, parseRequest, requestKey, snapshotKey } from "../../domain/agents/instances.ts";
+import { INSTANCE_STATES, SNAPSHOT_HEARTBEAT_MS, parseRequest, requestKey, snapshotKey } from "../../domain/agents/instances.ts";
 import type { InstanceRecord, InstanceState, RunSnapshot } from "../../domain/agents/instances.ts";
 
 type StateBag = Pick<SessionStore, "readState" | "writeState">;
@@ -39,6 +40,9 @@ export function parseChildInput(raw: unknown): ChildInput | null {
   return { key: v.key, prompt: v.prompt, request };
 }
 
+/** Where the child leaves its instance id (`a1`…) beside its reply. */
+export const instanceKey = (key: string): string => `${key}:instance`;
+
 /** A stored outcome; undefined while the child has left none. */
 export function readChildOutcome(raw: unknown): ChildOutcome | undefined {
   const v = raw as Record<string, unknown> | null | undefined;
@@ -58,8 +62,10 @@ export interface ChildBoard {
   records(): readonly InstanceRecord[];
   /** Writes the snapshot when it changed; a failed write is logged once and never fails the run. */
   publish(serving: boolean): Promise<void>;
-  /** Reads and clears the pending request of each child, and does what it asks. */
-  serve(runtime: Pick<ChildRuntime, "stop" | "send">): Promise<void>;
+  /** Reads and clears the pending stop of each running child of this run, and stops it. */
+  serve(runtime: Pick<ChildRuntime, "stop">): Promise<void>;
+  /** Clears what /tasks left for `id`: a request of an earlier run, or one this run no longer serves. */
+  clearRequest(id: string): Promise<void>;
   /** The run has ended: the snapshot says so. */
   close(): Promise<void>;
 }
@@ -75,6 +81,7 @@ export function createChildBoard(deps: BoardDeps, run: { crew: string; step: str
   const startedAt = deps.clock().toISOString();
   let serial = 0;
   let written = "";
+  let writtenAt = 0;
   let warned = false;
   let open = true;
   const now = () => deps.clock().toISOString();
@@ -82,44 +89,37 @@ export function createChildBoard(deps: BoardDeps, run: { crew: string; step: str
   async function write(serving: boolean): Promise<void> {
     const body: Omit<RunSnapshot, "updatedAt"> = { crew: run.crew, step: run.step, startedAt, serving, open, instances: records };
     const text = JSON.stringify(body);
-    if (text === written) return;
+    const at = deps.clock().getTime();
+    // Unchanged, it is written again while the run answers, so /tasks can tell a live run from a dead one.
+    if (text === written && !(serving && at - writtenAt >= SNAPSHOT_HEARTBEAT_MS)) return;
     try {
       await deps.state.writeState(snapshotKey(run.crew), JSON.stringify({ ...body, updatedAt: now() }));
       written = text;
+      writtenAt = at;
     } catch (error) {
       if (!warned) deps.log.warn(`${run.crew}: the agent instances could not be written for /tasks: ${firstLine(error)}`);
       warned = true;
     }
   }
 
-  async function serveOne(runtime: Pick<ChildRuntime, "stop" | "send">, record: InstanceRecord): Promise<void> {
-    const key = requestKey(run.crew, record.id);
+  async function clearRequest(id: string): Promise<void> {
+    if (id !== "") await deps.state.writeState(requestKey(run.crew, id), "").catch(() => undefined);
+  }
+
+  async function serveOne(runtime: Pick<ChildRuntime, "stop">, record: InstanceRecord): Promise<void> {
     let raw: string | null;
     try {
-      raw = await deps.state.readState(key);
+      raw = await deps.state.readState(requestKey(run.crew, record.id));
     } catch {
       return;
     }
     const request = parseRequest(raw);
     if (request === null) return;
-    await deps.state.writeState(key, "").catch(() => undefined);
-    if (request.action === "stop") {
-      if (record.state !== "running") return;
-      record.stopRequested = runtime.stop(record.id) || undefined;
-      deps.log.info(`${run.crew}: /tasks stop ${record.id} (${record.agent})${record.stopRequested ? "" : ": it was no longer running"}`);
-      return;
-    }
-    const send = { message: request.message, at: now() } as InstanceRecord["sends"][number];
-    record.sends.push(send);
-    if (record.state === "running") {
-      send.refused = "the instance is running";
-      return;
-    }
-    try {
-      send.reply = await runtime.send(record.id, request.message);
-    } catch (error) {
-      send.refused = firstLine(error);
-    }
+    await clearRequest(record.id);
+    // Ids restart at a1 in every run: a stop meant for another run is dropped, never served here.
+    if (request.run !== startedAt) return;
+    record.stopRequested = runtime.stop(record.id) || undefined;
+    deps.log.info(`${run.crew}: /tasks stop ${record.id} (${record.agent})${record.stopRequested ? "" : ": it was no longer running"}`);
   }
 
   return {
@@ -130,8 +130,9 @@ export function createChildBoard(deps: BoardDeps, run: { crew: string; step: str
     records: () => records,
     publish: write,
     async serve(runtime) {
-      for (const record of records) if (record.id !== "") await serveOne(runtime, record);
+      for (const record of records) if (record.id !== "" && record.state === "running") await serveOne(runtime, record);
     },
+    clearRequest,
     async close() {
       open = false;
       // A run that started no child leaves the last run's snapshot alone: its instances can still be repaired.
@@ -161,11 +162,17 @@ export interface ChildDeps {
 const asState = (s: string): InstanceState =>
   (INSTANCE_STATES as readonly string[]).includes(s) ? (s as InstanceState) : "failed";
 
-/** The newest instance of `agent` no record of the board holds: the one spawnBackground just registered. */
-function newInstanceId(runtime: Pick<ChildRuntime, "instances">, board: ChildBoard, agent: string): string {
+/**
+ * The instance id of the child under `key`: the one it said, else the newest running instance no
+ * record of the board holds (the parent starts one child at a time, so that is the one it just
+ * started; the rows name the agent by its id, not its name, so they cannot be matched by name).
+ */
+async function childInstanceId(runtime: Pick<ChildRuntime, "instances" | "read">, board: ChildBoard, key: string): Promise<string> {
+  const said = await runtime.read(instanceKey(key));
+  if (typeof said === "string" && said !== "") return said;
   const held = new Set(board.records().map((r) => r.id));
-  const mine = runtime.instances().filter((i) => i.agent === agent && !held.has(i.id));
-  return mine.length > 0 ? mine[mine.length - 1].id : "";
+  const fresh = runtime.instances().filter((i) => i.state === "running" && !held.has(i.id));
+  return fresh.length > 0 ? fresh[fresh.length - 1].id : "";
 }
 
 /**
@@ -178,27 +185,41 @@ export async function runChildAct(deps: ChildDeps, call: ChildCall): Promise<str
   const input: ChildInput = { key, prompt: call.prompt, request: call.request };
   runtime.spawn(call.agent, JSON.stringify(input));
   const record: InstanceRecord = {
-    id: newInstanceId(runtime, board, call.agent), agent: call.agent, charter: call.charter, task: call.task,
+    id: "", agent: call.agent, charter: call.charter, task: call.task,
     state: "running", startedAt: clock().toISOString(), effort: call.request.effort, system: call.request.system ?? "",
-    brief: call.prompt, sends: [],
+    brief: call.prompt,
   };
+  const resolveId = async () => {
+    if (record.id !== "") return;
+    record.id = await childInstanceId(runtime, board, key);
+    // A request an earlier run left for this id is not this child's.
+    await board.clearRequest(record.id);
+  };
+  await resolveId();
   board.add(record);
   log.info(`${call.agent} ${record.id || "?"} started in the background: ${call.task}`);
   let early = 0;
   try {
     for (;;) {
-      if (record.id === "") record.id = newInstanceId(runtime, board, call.agent);
+      await resolveId();
       const outcome = readChildOutcome(await runtime.read(key));
+      const row = runtime.instances().find((i) => i.id === record.id);
+      const stopped = row?.state === "stopped" || (record.stopRequested === true && outcome?.ok !== true);
+      if (stopped && (outcome !== undefined || (row !== undefined && row.state !== "running"))) {
+        // A stopped child's act rejects, and its body leaves that failure: the stop is what happened.
+        record.state = "stopped";
+        record.error = "stopped by /tasks stop";
+        break;
+      }
       if (outcome !== undefined) {
         record.state = outcome.ok ? "completed" : "failed";
         if (outcome.ok) record.reply = outcome.reply;
         else record.error = outcome.error;
         break;
       }
-      const row = runtime.instances().find((i) => i.id === record.id);
       if (row !== undefined && row.state !== "running") {
         record.state = asState(row.state);
-        record.error = record.state === "stopped" ? "stopped by /tasks stop" : "the child ended without leaving a reply";
+        record.error = "the child ended without leaving a reply";
         break;
       }
       await board.serve(runtime);
@@ -225,6 +246,7 @@ export async function runChildAct(deps: ChildDeps, call: ChildCall): Promise<str
     throw error;
   } finally {
     record.endedAt = clock().toISOString();
+    await board.clearRequest(record.id);
     await board.publish(false);
   }
   log.info(`${call.agent} ${record.id || "?"} ${record.state}${record.error ? `: ${record.error}` : ""}`);

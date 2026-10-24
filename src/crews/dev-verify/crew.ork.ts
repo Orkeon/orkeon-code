@@ -7,7 +7,7 @@
 // (index_status, incremental_reindex, access_cost), runs the whole suite under full, asks
 // the read-only auditor (its read tools and run_validation, plan mode) and writes <CODE>-VERIFY-F<n>.md.
 // A red gate or --gate-only returns the gate lines without any model call. The auditor's act runs in a
-// background child, `dev-auditor`, which /tasks lists, stops and sends to while it runs (A-3,
+// background child, `dev-auditor`, which /tasks lists and stops while it runs (A-3,
 // shared/application/agents/child-agent.ts); on a host without background children it runs inline.
 //
 // Input (globalThis.inputs): { batch: "F<n>", plan?: string | null, mode?: "fast" | "full" | "resume", gateOnly?: boolean,

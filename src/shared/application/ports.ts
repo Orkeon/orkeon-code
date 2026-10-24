@@ -272,8 +272,6 @@ export interface ChildRuntime {
   instances(): ReadonlyArray<{ id: string; agent: string; state: string }>;
   /** Cancels a running instance; false when none runs under `id`. */
   stop(id: string): boolean;
-  /** One more turn of an ended instance over its kept transcript; rejects for a running or evicted one. */
-  send(id: string, message: string): Promise<string>;
   /** What a child left under `key` in the crew's memory; undefined until it does. */
   read(key: string): Promise<unknown>;
   /** Waits about `ms` milliseconds. */

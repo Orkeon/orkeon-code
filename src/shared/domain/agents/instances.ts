@@ -1,7 +1,7 @@
 // The agent instances of a crew run as /tasks sees them (A-3). The runtime keeps a crew's
 // children (`crew.instances()`, `send`, `stop`) on the crew object of ONE run, which no command
 // reaches: the crew writes a snapshot of its run in the session's state bag while its children
-// run, and reads there the requests /tasks leaves for one instance. This module holds the two
+// run, and reads there the stop /tasks leaves for one instance. This module holds the two
 // shapes, their reading, and what /tasks decides and shows from them. Pure, no IO.
 
 import { AGENT_INSTANCES_STATE_PREFIX, AGENT_REQUEST_STATE_PREFIX } from "../session-keys.ts";
@@ -13,7 +13,10 @@ export type InstanceState = (typeof INSTANCE_STATES)[number];
 /** The crews that run children and publish them: one snapshot key each. */
 export const CHILD_CREWS = ["dev-plan", "dev-verify"] as const;
 
-/** What the runtime keeps of an instance for `crew.send` (`ScriptAgentInstanceOptions`, defaults). */
+/**
+ * What the runtime keeps of an ended instance for `crew.send` (`ScriptAgentInstanceOptions`, defaults).
+ * Orkeon Code sends nothing in place (sendVerdict): a repair carries the report instead.
+ */
 export const INSTANCE_TRANSCRIPT = { messages: 40, characters: 32_000 } as const;
 
 /** The runtime's defaults for `crew.concurrency(n)` and `crew.maxInstances(n)`, and the bounds a crew input is held to. */
@@ -21,14 +24,6 @@ export const INSTANCE_LIMITS = {
   concurrency: { fallback: 4, max: 16 },
   maxInstances: { fallback: 32, max: 64 },
 } as const;
-
-/** One message /tasks sent to an instance, and what came of it. */
-export interface InstanceSend {
-  message: string;
-  at: string;
-  reply?: string;
-  refused?: string;
-}
 
 /** One child of the run. `system` and `brief` are what it was asked, kept for a repair by a new run. */
 export interface InstanceRecord {
@@ -47,10 +42,13 @@ export interface InstanceRecord {
   reply?: string;
   error?: string;
   stopRequested?: boolean;
-  sends: InstanceSend[];
 }
 
-/** One run of a crew: `serving` while its body answers requests, `open` until the body ends. */
+/**
+ * One run of a crew: `serving` while its body answers requests, `open` until the body ends. A run
+ * that answers writes it again at least every SNAPSHOT_HEARTBEAT_MS, so a snapshot older than
+ * SNAPSHOT_STALE_MS is a run that died (settleSnapshot).
+ */
 export interface RunSnapshot {
   crew: string;
   /** The dev step whose rule sets apply to the children (and to a repair). */
@@ -62,21 +60,19 @@ export interface RunSnapshot {
   instances: InstanceRecord[];
 }
 
-export type InstanceRequest =
-  | { action: "stop"; at: string }
-  | { action: "send"; message: string; at: string };
+/** How often a run that answers writes its snapshot, changed or not. */
+export const SNAPSHOT_HEARTBEAT_MS = 5_000;
+/** How old the snapshot of a run that says it answers may be before /tasks takes the run for dead. */
+export const SNAPSHOT_STALE_MS = 30_000;
+
+/** What /tasks asks of one instance: stop it. `run` is the run's `startedAt`, so a request never reaches the next run's `a1`. */
+export interface InstanceRequest { action: "stop"; run: string; at: string }
 
 export const snapshotKey = (crew: string): string => `${AGENT_INSTANCES_STATE_PREFIX}${crew}`;
 export const requestKey = (crew: string, id: string): string => `${AGENT_REQUEST_STATE_PREFIX}${crew}:${id}`;
 
 const text = (v: unknown): string => (typeof v === "string" ? v : "");
 const optional = (v: unknown): string | undefined => (typeof v === "string" && v !== "" ? v : undefined);
-
-function parseSend(raw: unknown): InstanceSend | null {
-  const r = raw as Record<string, unknown> | null;
-  if (r === null || typeof r !== "object" || typeof r.message !== "string") return null;
-  return { message: r.message, at: text(r.at), reply: optional(r.reply), refused: optional(r.refused) };
-}
 
 function parseRecord(raw: unknown): InstanceRecord | null {
   const r = raw as Record<string, unknown> | null;
@@ -87,7 +83,6 @@ function parseRecord(raw: unknown): InstanceRecord | null {
     startedAt: text(r.startedAt), endedAt: optional(r.endedAt), effort: optional(r.effort),
     system: text(r.system), brief: text(r.brief), reply: optional(r.reply), error: optional(r.error),
     stopRequested: r.stopRequested === true ? true : undefined,
-    sends: Array.isArray(r.sends) ? r.sends.map(parseSend).filter((s): s is InstanceSend => s !== null) : [],
   };
 }
 
@@ -113,14 +108,25 @@ export function parseRequest(raw: string | null): InstanceRequest | null {
   if (!raw) return null;
   try {
     const v = JSON.parse(raw);
-    if (v?.action === "stop") return { action: "stop", at: text(v.at) };
-    if (v?.action === "send" && typeof v.message === "string" && v.message.trim() !== "") {
-      return { action: "send", message: v.message, at: text(v.at) };
-    }
+    if (v?.action === "stop") return { action: "stop", run: text(v.run), at: text(v.at) };
   } catch {
     // unreadable: no request
   }
   return null;
+}
+
+/**
+ * The snapshot as /tasks may trust it at `now`: a run that says it is open but has not written for
+ * SNAPSHOT_STALE_MS died (the host was stopped mid-run): it no longer answers, and its running
+ * children are failed, which a repair can take up.
+ */
+export function settleSnapshot(s: RunSnapshot, now: Date): RunSnapshot {
+  const age = now.getTime() - Date.parse(s.updatedAt);
+  if (!s.open || !(age > SNAPSHOT_STALE_MS)) return s;
+  return {
+    ...s, serving: false, open: false,
+    instances: s.instances.map((r) => r.state !== "running" ? r : { ...r, state: "failed", error: "its run stopped answering" }),
+  };
 }
 
 /** A crew input as an integer within 1..max, else the runtime's default. */
@@ -172,14 +178,15 @@ export function stopVerdict(l: Located): { ok: true } | { ok: false; text: strin
 }
 
 /**
- * What a send to the instance becomes: refused while it runs; sent in place (`crew.send`, its kept
- * transcript) while its run still answers; a repair by a new run once the run no longer answers.
+ * What a send to the instance becomes: refused while it runs; once it has ended, a repair by a new
+ * run. A send in place (`crew.send` over the kept transcript) is not offered: the parent stops
+ * answering as soon as its child settles, so no command would ever reach the crew object in time.
  */
-export function sendVerdict(l: Located): { kind: "refused"; text: string } | { kind: "in-place" } | { kind: "repair" } {
+export function sendVerdict(l: Located): { kind: "refused"; text: string } | { kind: "repair" } {
   if (l.record.state === "running") {
     return { kind: "refused", text: `${label(l)} is running: a send is refused until it ends (/tasks stop ${l.record.id} ends it)` };
   }
-  return l.snapshot.serving ? { kind: "in-place" } : { kind: "repair" };
+  return { kind: "repair" };
 }
 
 const CUT_MARK = "[… the start is left out]\n";
@@ -239,9 +246,5 @@ export function describeInstance(l: Located): string[] {
   ];
   if (r.error) lines.push(`error: ${r.error}`);
   if (r.reply) lines.push("report:", r.reply);
-  for (const send of r.sends) {
-    lines.push(`sent ${send.at}: ${send.message}`);
-    lines.push(send.refused ? `  refused: ${send.refused}` : send.reply ? `  reply: ${send.reply}` : "  (waiting for the crew)");
-  }
   return lines;
 }

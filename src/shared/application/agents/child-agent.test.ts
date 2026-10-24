@@ -5,21 +5,23 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, ok, rejects, strictEqual } from "node:assert";
 
 import {
-  CHILD_POLL_MS, MAX_EARLY_WAKES, createChildBoard, parseChildInput, readChildOutcome, runChildAct,
+  CHILD_POLL_MS, MAX_EARLY_WAKES, createChildBoard, instanceKey, parseChildInput, readChildOutcome, runChildAct,
 } from "./child-agent.ts";
 import type { ChildRuntime } from "../ports.ts";
-import { parseSnapshot, requestKey, snapshotKey } from "../../domain/agents/instances.ts";
+import { SNAPSHOT_HEARTBEAT_MS, parseSnapshot, requestKey, snapshotKey } from "../../domain/agents/instances.ts";
 import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
 import { FakeSessionStore } from "../../../../tests/support/fake-session-store.ts";
 
-/** A runtime whose children run until `script` says otherwise; each pause moves the clock by `ms`. */
+/**
+ * A runtime whose children run until `script` says otherwise; each pause moves the clock by `ms`.
+ * As the runtime's, its rows name the agent by its id, never its name.
+ */
 class FakeRuntime implements ChildRuntime {
   now = Date.parse("2026-10-24T10:00:00.000Z");
   rows: Array<{ id: string; agent: string; state: string }> = [];
   memory = new Map<string, unknown>();
   spawned: Array<{ agent: string; input: string }> = [];
   stops: string[] = [];
-  sends: Array<[string, string]> = [];
   pauses = 0;
   advance = true;
   /** Called after each pause with its number: what the child does meanwhile. */
@@ -28,18 +30,19 @@ class FakeRuntime implements ChildRuntime {
 
   spawn(agent: string, input: string): void {
     this.spawned.push({ agent, input });
-    this.rows.push({ id: `a${this.rows.length + 1}`, agent, state: "running" });
+    this.rows.push({ id: `a${this.rows.length + 1}`, agent: `01JAGENTID${agent.length}`, state: "running" });
   }
   instances() { return this.rows; }
+  /** What a stopped child's row becomes, and whether its body leaves its rejected act behind (the real path). */
+  stoppedAs = "stopped";
+  stopLeavesFailure = true;
   stop(id: string): boolean {
     this.stops.push(id);
-    const row = this.rows.find((r) => r.id === id && r.state === "running");
-    if (row) row.state = "stopped";
-    return row !== undefined;
-  }
-  async send(id: string, message: string): Promise<string> {
-    this.sends.push([id, message]);
-    return `answer to ${message}`;
+    const n = this.rows.findIndex((r) => r.id === id && r.state === "running");
+    if (n < 0) return false;
+    this.rows[n].state = this.stoppedAs;
+    if (this.stopLeavesFailure) this.memory.set(`dev-plan:child:${n + 1}`, { ok: false, error: "The operation was canceled." });
+    return true;
   }
   async read(key: string): Promise<unknown> { return this.memory.get(key); }
   async pause(ms: number): Promise<void> {
@@ -105,10 +108,11 @@ describe("runChildAct", () => {
     strictEqual(snap().instances[0].state, "failed");
   });
 
-  it("serves a /tasks stop: the child is stopped, the act throws, the board says stopped", async () => {
+  it("serves a /tasks stop: the child is stopped, the act throws, the board says stopped, not failed", async () => {
     const { runtime, state, deps, call, snap } = setup();
+    runtime.stoppedAs = "failed";
     runtime.script = (n) => {
-      if (n === 1) void state.writeState(requestKey("dev-plan", "a1"), JSON.stringify({ action: "stop", at: "t" }));
+      if (n === 1) void state.writeState(requestKey("dev-plan", "a1"), JSON.stringify({ action: "stop", run: snap().startedAt, at: "t" }));
     };
     await rejects(runChildAct(deps, call), /dev-reviewer a1 stopped: stopped by \/tasks stop/);
     deepStrictEqual(runtime.stops, ["a1"]);
@@ -117,15 +121,32 @@ describe("runChildAct", () => {
     deepStrictEqual([r.state, r.stopRequested], ["stopped", true]);
   });
 
-  it("refuses a send while the child runs, and records it", async () => {
-    const { runtime, state, deps, call, snap } = setup();
+  it("clears a stop an earlier run left for the same id, and drops one stamped with another run", async () => {
+    const { runtime, state, deps, call } = setup();
+    const key = requestKey("dev-plan", "a1");
+    await state.writeState(key, JSON.stringify({ action: "stop", run: "an earlier run", at: "t" }));
+    let atStart = "";
     runtime.script = (n, rt) => {
-      if (n === 1) void state.writeState(requestKey("dev-plan", "a1"), JSON.stringify({ action: "send", message: "hi", at: "t" }));
+      if (n === 1) {
+        atStart = state.state.get(key) ?? "";
+        void state.writeState(key, JSON.stringify({ action: "stop", run: "yet another run", at: "t" }));
+      }
       if (n === 2) rt.finish(1, { ok: true, reply: "done" });
     };
+    strictEqual(await runChildAct(deps, call), "done");
+    deepStrictEqual([atStart, runtime.stops, state.state.get(key)], ["", [], ""]);
+  });
+
+  it("takes the instance id the child said over the runtime's rows", async () => {
+    const { runtime, deps, call, snap } = setup();
+    runtime.spawn = (agent) => {
+      runtime.rows.push({ id: "a1", agent: "x", state: "running" }, { id: "a2", agent: "y", state: "running" });
+      runtime.memory.set(instanceKey("dev-plan:child:1"), "a1");
+      void agent;
+    };
+    runtime.script = (_n, rt) => rt.memory.set("dev-plan:child:1", { ok: true, reply: "r" });
     await runChildAct(deps, call);
-    deepStrictEqual(runtime.sends, []);
-    deepStrictEqual(snap().instances[0].sends.map((s) => [s.message, s.refused]), [["hi", "the instance is running"]]);
+    strictEqual(snap().instances[0].id, "a1");
   });
 
   it("says when the child ended without a reply", async () => {
@@ -159,14 +180,21 @@ describe("runChildAct", () => {
 });
 
 describe("the board", () => {
-  it("serves a send to an ended child in place while the run answers", async () => {
-    const { runtime, state, board, snap } = setup();
-    board.add({ id: "a1", agent: "dev-reviewer", charter: "dev-reviewer", task: "t", state: "completed", startedAt: "", system: "", brief: "", sends: [] });
-    await state.writeState(requestKey("dev-plan", "a1"), JSON.stringify({ action: "send", message: "why?", at: "t" }));
-    await board.serve(runtime);
+  it("writes an unchanged snapshot again every SNAPSHOT_HEARTBEAT_MS while the run answers, never once it does not", async () => {
+    const { runtime, state, board } = setup();
+    board.add({ id: "a1", agent: "x", charter: "x", task: "t", state: "running", startedAt: "", system: "", brief: "" });
     await board.publish(true);
-    deepStrictEqual(runtime.sends, [["a1", "why?"]]);
-    strictEqual(snap().instances[0].sends[0].reply, "answer to why?");
+    const first = JSON.parse(state.state.get(snapshotKey("dev-plan"))!).updatedAt;
+    runtime.now += SNAPSHOT_HEARTBEAT_MS;
+    await board.publish(true);
+    const second = JSON.parse(state.state.get(snapshotKey("dev-plan"))!).updatedAt;
+    ok(second > first);
+    runtime.now += SNAPSHOT_HEARTBEAT_MS;
+    await board.publish(false);
+    await board.publish(false);
+    runtime.now += SNAPSHOT_HEARTBEAT_MS;
+    await board.publish(false);
+    strictEqual(JSON.parse(state.state.get(snapshotKey("dev-plan"))!).serving, false);
   });
 
   it("close says the run ended, and leaves the last run's snapshot when this one started no child", async () => {
@@ -174,14 +202,14 @@ describe("the board", () => {
     await state.writeState(snapshotKey("dev-plan"), "previous");
     await board.close();
     strictEqual(state.state.get(snapshotKey("dev-plan")), "previous");
-    board.add({ id: "a1", agent: "x", charter: "x", task: "t", state: "completed", startedAt: "", system: "", brief: "", sends: [] });
+    board.add({ id: "a1", agent: "x", charter: "x", task: "t", state: "completed", startedAt: "", system: "", brief: "" });
     await board.close();
     strictEqual(parseSnapshot(state.state.get(snapshotKey("dev-plan"))!)!.open, false);
   });
 
   it("writes only what changed, and warns once when the state bag refuses", async () => {
     const { state, board, log } = setup();
-    board.add({ id: "a1", agent: "x", charter: "x", task: "t", state: "running", startedAt: "", system: "", brief: "", sends: [] });
+    board.add({ id: "a1", agent: "x", charter: "x", task: "t", state: "running", startedAt: "", system: "", brief: "" });
     await board.publish(true);
     const first = state.state.get(snapshotKey("dev-plan"));
     await board.publish(true);

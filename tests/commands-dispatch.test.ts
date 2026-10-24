@@ -80,7 +80,8 @@ describe("launchCrew", () => {
     const { crews, deps, logged } = setup();
     crews.launch = () => { throw new Error("Async command chain refused at depth 9, limit 8."); };
     const result = launchCrew(deps, "dev-verify", {}, { batch: "b1" });
-    deepStrictEqual(result, { refused: chainDepthLine("dev-verify", { depth: 9, limit: 8 }) });
+    const line = chainDepthLine("dev-verify", { depth: 9, limit: 8 });
+    deepStrictEqual(result, { refused: line, message: line });
     deepStrictEqual(logged[0].data, { depth: 9, limit: 8, batch: "b1" });
     crews.launch = () => { throw new Error("crew not found"); };
     throws(() => launchCrew(deps, "dev-verify"), /crew not found/);

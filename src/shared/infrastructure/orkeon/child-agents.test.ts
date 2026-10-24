@@ -22,7 +22,8 @@ function fakeRun() {
   const ctx: any = {
     spawnBackground(agent: string, input: unknown) {
       spawned.push([agent, input]);
-      rows.push({ id: `a${rows.length + 1}`, agent, state: "running" });
+      // As the runtime's rows: the agent's id, not its name.
+      rows.push({ id: `a${rows.length + 1}`, agent: `01JID-${agent}`, state: "running" });
       return { id: rows.length };
     },
     memory: {
@@ -47,7 +48,6 @@ function fakeRun() {
   const crew: any = {
     instances: () => rows,
     stop: (id: string) => id === "a1",
-    send: async (id: string, m: string) => `${id}:${m}`,
   };
   return { ctx, crew, memory, rows, spawned, added, receives, setReceiveError: (e: Error) => { receiveError = e; } };
 }
@@ -57,13 +57,12 @@ describe("createChildRuntime", () => {
     strictEqual(createChildRuntime({} as any, {} as any), null);
   });
 
-  it("maps the crew's instances, stop, send and memory; the pause swallows only the timeout", async () => {
+  it("maps the crew's instances, stop and memory; the pause swallows only the timeout", async () => {
     const run = fakeRun();
     const rt = createChildRuntime(run.ctx, run.crew)!;
     rt.spawn("dev-reviewer", "{}");
-    deepStrictEqual(rt.instances(), [{ id: "a1", agent: "dev-reviewer", state: "running" }]);
+    deepStrictEqual(rt.instances(), [{ id: "a1", agent: "01JID-dev-reviewer", state: "running" }]);
     deepStrictEqual([rt.stop("a1"), rt.stop(""), rt.stop("a2")], [true, false, false]);
-    strictEqual(await rt.send("a1", "hi"), "a1:hi");
     await rt.pause(1000);
     deepStrictEqual(run.receives, [{ timeout: 1000 }]);
     strictEqual(await rt.read("dev-plan:child:1"), run.memory.get("dev-plan:child:1"));
@@ -79,8 +78,9 @@ describe("childAgentBody", () => {
     facade.actResult = { output: "the review", iterations: 2 };
     const body = childAgentBody(() => undefined);
     const input = JSON.stringify({ key: "k1", prompt: "review", request: { system: "S", effort: "high" } });
-    strictEqual(await body(input, { ...run.ctx, llm: facade }), "the review");
+    strictEqual(await body(input, { ...run.ctx, llm: facade, instanceId: "a3" }), "the review");
     deepStrictEqual(run.memory.get("k1"), { ok: true, reply: "the review" });
+    strictEqual(run.memory.get("k1:instance"), "a3");
     deepStrictEqual(facade.calls[0].args, ["review", { system: "S", effort: "high" }]);
   });
 

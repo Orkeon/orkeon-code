@@ -5,14 +5,14 @@ import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import {
   buildRepairBrief, describeInstance, instanceLimits, instanceRows, locateInstance, parseRequest, parseSnapshot,
-  requestKey, sendVerdict, snapshotKey, stopVerdict,
+  SNAPSHOT_STALE_MS, requestKey, sendVerdict, settleSnapshot, snapshotKey, stopVerdict,
 } from "./instances.ts";
 import type { InstanceRecord, RunSnapshot } from "./instances.ts";
 import { MAX_BRIEF_CHARS } from "./charter.ts";
 
 const record = (over: Partial<InstanceRecord> = {}): InstanceRecord => ({
   id: "a1", agent: "dev-reviewer", charter: "dev-reviewer", task: "review of the plan", state: "completed",
-  startedAt: "2026-10-24T10:00:00.000Z", system: "sys", brief: "the brief", sends: [], ...over,
+  startedAt: "2026-10-24T10:00:00.000Z", system: "sys", brief: "the brief", ...over,
 });
 const snapshot = (over: Partial<RunSnapshot> = {}): RunSnapshot => ({
   crew: "dev-plan", step: "dev-plan", startedAt: "2026-10-24T10:00:00.000Z", updatedAt: "", serving: true,
@@ -43,11 +43,10 @@ describe("parseSnapshot", () => {
 });
 
 describe("parseRequest", () => {
-  it("reads stop and send; a cleared, empty or blank send is no request", () => {
-    deepStrictEqual(parseRequest(JSON.stringify({ action: "stop", at: "t" })), { action: "stop", at: "t" });
-    deepStrictEqual(parseRequest(JSON.stringify({ action: "send", message: "hi", at: "t" })), { action: "send", message: "hi", at: "t" });
+  it("reads a stop with its run; a cleared value, a send or bad JSON is no request", () => {
+    deepStrictEqual(parseRequest(JSON.stringify({ action: "stop", run: "r", at: "t" })), { action: "stop", run: "r", at: "t" });
     strictEqual(parseRequest(""), null);
-    strictEqual(parseRequest(JSON.stringify({ action: "send", message: "  " })), null);
+    strictEqual(parseRequest(JSON.stringify({ action: "send", message: "hi" })), null);
     strictEqual(parseRequest("nope"), null);
   });
 });
@@ -88,10 +87,30 @@ describe("stopVerdict and sendVerdict", () => {
     ok(!stopVerdict(at({ state: "running" }, { serving: false })).ok);
   });
 
-  it("a send refused while running, in place while the run answers, a repair once it does not", () => {
+  it("a send refused while running, a repair once ended, whether its run answers or not", () => {
     strictEqual(sendVerdict(at({ state: "running" })).kind, "refused");
-    strictEqual(sendVerdict(at({ state: "completed" })).kind, "in-place");
+    strictEqual(sendVerdict(at({ state: "completed" })).kind, "repair");
     strictEqual(sendVerdict(at({ state: "failed" }, { serving: false })).kind, "repair");
+  });
+});
+
+describe("settleSnapshot", () => {
+  const now = new Date("2026-10-24T10:10:00.000Z");
+  const written = (ms: number) => new Date(now.getTime() - ms).toISOString();
+
+  it("keeps a run that wrote lately, and an ended one", () => {
+    const fresh = snapshot({ updatedAt: written(SNAPSHOT_STALE_MS) });
+    strictEqual(settleSnapshot(fresh, now), fresh);
+    const ended = snapshot({ open: false, serving: false, updatedAt: written(10 * SNAPSHOT_STALE_MS) });
+    strictEqual(settleSnapshot(ended, now), ended);
+  });
+
+  it("takes a silent open run for dead: not answering, its running children failed", () => {
+    const dead = settleSnapshot(snapshot({ updatedAt: written(SNAPSHOT_STALE_MS + 1), instances: [record({ state: "running" }), record({ id: "a2" })] }), now);
+    deepStrictEqual([dead.serving, dead.open], [false, false]);
+    deepStrictEqual(dead.instances.map((r) => [r.state, r.error]), [["failed", "its run stopped answering"], ["completed", undefined]]);
+    ok(!stopVerdict({ snapshot: dead, record: dead.instances[0] }).ok);
+    strictEqual(sendVerdict({ snapshot: dead, record: dead.instances[0] }).kind, "repair");
   });
 });
 
@@ -130,14 +149,10 @@ describe("instanceRows and describeInstance", () => {
     ]);
   });
 
-  it("shows the report and each send with what came of it", () => {
-    const lines = describeInstance({
-      snapshot: snapshot(),
-      record: record({ reply: "R", sends: [{ message: "m1", at: "t1", reply: "ok" }, { message: "m2", at: "t2", refused: "no" }, { message: "m3", at: "t3" }] }),
-    });
+  it("shows the instance, its error and its report", () => {
+    const lines = describeInstance({ snapshot: snapshot(), record: record({ reply: "R", error: "E", effort: "low" }) });
     ok(lines[0].startsWith("dev-plan:a1 — dev-reviewer (dev-reviewer), completed"));
-    deepStrictEqual(lines.slice(-8), [
-      "report:", "R", "sent t1: m1", "  reply: ok", "sent t2: m2", "  refused: no", "sent t3: m3", "  (waiting for the crew)",
-    ]);
+    ok(lines[2].endsWith(", effort low"));
+    deepStrictEqual(lines.slice(-3), ["error: E", "report:", "R"]);
   });
 });
