@@ -4,11 +4,15 @@
 // then the least code by the implementer, each checked by code; the build and the whole suite as jobs. The host's
 // gate must be on, and the dev rule sets with the step's two allow rules (run_tests, run_build) are put in it
 // first (_lib/dev-step.ts). The chain then runs in `completed`: the audit (/dev-verify), and on VALID the close
-// (commit, push, pull request). --close runs the close alone.
+// (commit, push, pull request). --close runs the close alone; `— correction: <finding>` appends the finding to the
+// sheet as a new step, then runs it. The chain keeps no state here: the crew's answer carries the audit's input
+// (mode, hooks, effort), and the pull-request context read at dispatch is saved by the crew in the batch record,
+// where the chained close reads it. Every chained launch goes through launchCrew (its chain-depth refusal).
 import { rawTokens } from "./_lib/args.ts";
 import { chainStep, parseDevImplementArgs } from "./_lib/dev-implement.ts";
 import { markActiveWorkflow, reapplyStepRules, startDevStep } from "./_lib/dev-step.ts";
 import { launchCrew } from "./_lib/dispatch.ts";
+import { storedEffort } from "./_lib/effort.ts";
 import { createCrewHost } from "../shared/infrastructure/orkeon/crew-host.ts";
 import { createPermissionRules } from "../shared/infrastructure/orkeon/permission-rules.ts";
 import {
@@ -21,11 +25,8 @@ import { policyFor } from "../shared/domain/agent-policy/mode-policy.ts";
 const deps = { session: orkeonSessionIo(), config: orkeonConfigStore() };
 
 /** What the close needs to open the pull request itself: the github tool, the session's mode and rules. Read at
- *  dispatch, kept for the close the chain launches from `completed`, which the runtime does not await. */
-let prContext: Record<string, unknown> = {};
-/** The /hooks registry read at dispatch, carried to every crew of the chain (the audit runs under it too). */
-let chainHooks: unknown[] = [];
-
+ *  dispatch; the crew keeps it in the batch record for the close the chain launches from `completed`, which is
+ *  synchronous and cannot read the session's mode again. */
 async function readPullRequestContext(ctx: any): Promise<Record<string, unknown>> {
   let githubTool = false;
   let permissionRules: string[] = [];
@@ -45,7 +46,7 @@ async function readPullRequestContext(ctx: any): Promise<Record<string, unknown>
 
 defineAsyncCommand({
   name: "dev-implement",
-  description: "Run a dev batch test-first: red tests, then the least code, each checked by code; then the audit and, on VALID, the close (--close: the close alone).",
+  description: "Run a dev batch test-first: red tests, then the least code, each checked by code; then the audit and, on VALID, the close (--close: the close alone; — correction: <finding> adds a gap as a step).",
   maxConcurrent: 1,
   dispatch: async (args, ctx) => {
     const parsed = parseDevImplementArgs(rawTokens(args));
@@ -53,7 +54,7 @@ defineAsyncCommand({
       ctx.writeLine(parsed.text);
       return { refused: parsed.text };
     }
-    prContext = await readPullRequestContext(ctx);
+    const prContext = await readPullRequestContext(ctx);
     const mode = String(prContext.permissionMode ?? "");
     if (mode !== "" && policyFor(mode).readOnly) {
       const line = `✗ refused: the session mode ${mode} is read-only, and /dev-implement writes files, commits and pushes: /mode default, then run it again`;
@@ -70,13 +71,12 @@ defineAsyncCommand({
     for (const line of start.lines) ctx.writeLine(line);
     const unrecorded = await markActiveWorkflow(deps.session, parsed.args);
     if (unrecorded !== null) ctx.writeLine(unrecorded);
-    chainHooks = start.hooks;
     // The budget is sized to the open steps of the sheet (the crew sizes for its default when they cannot be counted).
     const steps = parsed.args.close
       ? undefined
       : await countOpenSteps({ files: orkeonFiles(), shell: orkeonShell(), config: deps.config }, parsed.args.batch, parsed.args.plan);
     const input = {
-      ...parsed.args, hooks: start.hooks, ...(steps === undefined ? {} : { steps }), ...prContext,
+      ...parsed.args, ...start.input, effort: await storedEffort(deps.session), ...(steps === undefined ? {} : { steps }), ...prContext,
     };
     return launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "dev-implement", input, {
       ruleSets: start.sets.join(" "), rules: start.rules, hooks: start.hooks.length,
@@ -97,11 +97,12 @@ defineAsyncCommand({
       ctx.writeLine(`then type ${step.launch.instead}`);
       return;
     }
-    const input = step.launch.crew === "dev-implement"
-      ? { ...step.launch.input, ...prContext, hooks: chainHooks }
-      : { ...step.launch.input, hooks: chainHooks };
     try {
-      createCrewHost(ctx.services).launch(step.launch.crew, input);
+      const launched = launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, step.launch.crew, step.launch.input);
+      if ("refused" in launched) {
+        ctx.writeLine(`✗ ${launched.refused}`);
+        ctx.writeLine(`then type ${step.launch.instead}`);
+      }
     } catch (e) {
       ctx.writeLine(`✗ ${step.launch.crew} could not be launched (${String((e as Error)?.message ?? e).split("\n")[0]}): type ${step.launch.instead}`);
     }

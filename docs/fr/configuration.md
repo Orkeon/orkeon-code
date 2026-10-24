@@ -150,6 +150,18 @@ tests:
   trait_pattern: "// <name>: <id>"
 ```
 
+Il peut aussi donner `layout.test_files`, une autre clé que le harness ignore : les fichiers de test posés à côté du
+code, en motifs de la porte (`*` correspond à toute suite de caractères, `/` compris). `/dev-implement` tient un chemin
+pour un fichier de test quand il est sous `layout.tests` ou correspond à un motif : l'implémenteur ne peut pas
+l'écrire, l'auteur des tests le peut, et une exécution exige l'une des deux clés. Un dépôt Node dont les tests sont à
+côté du code :
+
+```yaml
+layout:
+  domain: src
+  test_files: ["src/*.test.ts"]
+```
+
 ## Outils supplémentaires : serveurs MCP et plugins
 
 Le REPL connecte les serveurs MCP des settings `MCP:Servers` d'Orkeon et charge les plugins de sa section `Plugins`

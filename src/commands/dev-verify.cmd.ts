@@ -26,7 +26,7 @@ defineAsyncCommand({
     }
     const step = devVerifyStep(parsed.args);
     let details: Record<string, unknown> = {};
-    let hooks: unknown[] = [];
+    let crewInput: Record<string, unknown> = { hooks: [] };
     if (step !== null) {
       const start = await startDevStep(step, {
         ...deps, gate: createPermissionRules(ctx.services), catalogue: orkeonToolCatalogue(ctx.services),
@@ -37,12 +37,12 @@ defineAsyncCommand({
       }
       for (const line of start.lines) ctx.writeLine(line);
       details = { ruleSets: start.sets.join(" "), rules: start.rules, hooks: start.hooks.length };
-      hooks = start.hooks;
+      crewInput = start.input;
     }
     const unrecorded = await markActiveWorkflow(deps.session, parsed.args);
     if (unrecorded !== null) ctx.writeLine(unrecorded);
     return launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "dev-verify",
-      { ...parsed.args, hooks, effort: await storedEffort(deps.session) }, details);
+      { ...parsed.args, ...crewInput, effort: await storedEffort(deps.session) }, details);
   },
   completed: (result, ctx) => writeCompleted(ctx, result, "dev-verify"),
 });

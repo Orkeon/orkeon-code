@@ -22,9 +22,9 @@ demandent d'abord un changement dans [Orkeon](https://github.com/Orkeon/orkeon).
 - **Les hooks dans l'assistant.** Les hooks `pre-tool` et `post-tool` s'exécutent autour des appels d'outils du modèle
   dans les étapes dev ([Hooks](hooks.md)) ; `/assistant` ne les exécute pas encore, et rien n'exécute un
   hook `stop`.
-- **Corrections et regroupement dans `/dev-implement`.** La correction d'un verdict GAPS, les étapes d'une même classe
-  de test jouées en un cycle, les tests touchés entre deux tours et le coût d'accès mesuré viennent ensuite ;
-  `/dev-implement` joue pour l'instant des étapes simples.
+- **La clôture qui relit le mode de la session** (runtime). La clôture que `/dev-implement` enchaîne après un audit
+  VALID prend le mode et les règles lus au lancement du lot : le `completed` d'une commande est synchrone et le mode ne
+  se lit que de façon asynchrone.
 - **Coût et usage.** De vrais chiffres de coût par fournisseur, le taux de cache, le comptage des tokens pour
   `/context` et `/usage`. Le runtime rapporte les tokens de cache (`session_stats`) ; les commandes ne les lisent pas
   encore.

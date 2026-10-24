@@ -7,9 +7,9 @@ import { chainStep, DEV_IMPLEMENT_USAGE, parseDevImplementArgs } from "../src/co
 
 describe("parseDevImplementArgs", () => {
   it("reads the batch, the plan and the close", () => {
-    deepStrictEqual(parseDevImplementArgs(["F2", "prune"]), { ok: true, args: { batch: "F2", plan: "prune", close: false, pr: false } });
+    deepStrictEqual(parseDevImplementArgs(["F2", "prune"]), { ok: true, args: { batch: "F2", plan: "prune", close: false, pr: false, correction: null } });
     deepStrictEqual(parseDevImplementArgs(["F2", "workbench/prune/PRUNE-PLAN.md", "--close", "--pr"]),
-      { ok: true, args: { batch: "F2", plan: "workbench/prune/PRUNE-PLAN.md", close: true, pr: true } });
+      { ok: true, args: { batch: "F2", plan: "workbench/prune/PRUNE-PLAN.md", close: true, pr: true, correction: null } });
   });
 
   it("refuses no batch, a bad one, two plans, an unknown option, and --pr without --close", () => {
@@ -21,9 +21,19 @@ describe("parseDevImplementArgs", () => {
     strictEqual(parseDevImplementArgs(["F1", "../x/X-PLAN.md"]).ok, false);
   });
 
-  it("refuses a correction with the line to type in the harness", () => {
-    const r = parseDevImplementArgs(["F1", "—", "correction:", "Major", "Reuse"]);
-    ok(!r.ok && r.text.includes("not run by Orkeon Code yet"));
+  it("reads a correction's finding, after the dash or the word alone, the plan before it", () => {
+    deepStrictEqual(parseDevImplementArgs(["F1", "—", "correction:", "Major", "Reuse:", "a", "copy"]),
+      { ok: true, args: { batch: "F1", plan: null, close: false, pr: false, correction: "Major Reuse: a copy" } });
+    deepStrictEqual(parseDevImplementArgs(["F1", "demo", "correction:Blocking", "Test:", "x"]),
+      { ok: true, args: { batch: "F1", plan: "demo", close: false, pr: false, correction: "Blocking Test: x" } });
+    deepStrictEqual(parseDevImplementArgs(["F1", "correction"]),
+      { ok: true, args: { batch: "F1", plan: "correction", close: false, pr: false, correction: null } });
+  });
+
+  it("refuses a correction without its finding, or with --close", () => {
+    const empty = parseDevImplementArgs(["F1", "—", "correction:"]);
+    ok(!empty.ok && empty.text.includes("names its finding"));
+    strictEqual(parseDevImplementArgs(["F1", "--close", "—", "correction:", "x"]).ok, false);
   });
 });
 
@@ -32,6 +42,12 @@ describe("chainStep", () => {
     const step = chainStep(JSON.stringify({ lines: ["a", "b"], next: { crew: "dev-verify", input: { batch: "F1", plan: "demo" } } }));
     deepStrictEqual(step, { lines: ["a", "b"], launch: { crew: "dev-verify", input: { batch: "F1", plan: "demo" }, instead: "/dev-verify F1 demo" } });
     deepStrictEqual(chainStep(JSON.stringify({ lines: ["BLOCKED — x"] })), { lines: ["BLOCKED — x"] });
+  });
+
+  it("carries the input the crew wrote to the audit: its mode, the hooks, the effort", () => {
+    const input = { batch: "F1", plan: "demo", mode: "resume", hooks: [{ event: "pre" }], effort: "high" };
+    const step = chainStep(JSON.stringify({ lines: [], next: { crew: "dev-verify", input } }));
+    deepStrictEqual(step.launch, { crew: "dev-verify", input, instead: "/dev-verify F1 demo resume" });
   });
 
   it("launches the close on the audit's VALID line, its plan read off the verdict file", () => {

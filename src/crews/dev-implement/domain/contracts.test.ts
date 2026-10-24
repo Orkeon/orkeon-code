@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 import { readFileSync } from "node:fs";
 
-import { classOf, greenContract, redContract, testCommandFor } from "./contracts.ts";
+import { classOf, greenContract, redContract, stubsOf, testCommandFor } from "./contracts.ts";
 import { parseImplementSheet } from "./step-section.ts";
 
 const SHEET = parseImplementSheet(
@@ -40,7 +40,7 @@ describe("redContract / greenContract", () => {
     ok(red.includes("Ids: BR-02."));
     ok(red.includes("`keeps feedback entries older than the cut-off`"));
     ok(red.includes("`src/shared/domain/memory.ts:18` — `MemoryEntry` (read that member by range, never the file whole)"));
-    ok(red.includes("Write under `tests` only"));
+    ok(red.includes("Write test files only (under `tests`)"));
     ok(red.includes("file_read with offset and limit"));
   });
 
@@ -48,7 +48,29 @@ describe("redContract / greenContract", () => {
     const green = greenContract(input, { tail: "not ok 1", log: "/workspace/workbench/prune/logs/x.log" });
     ok(green.includes("not ok 1"));
     ok(green.includes("Expected access cost: 1 read + 1 write"));
-    ok(green.includes("Never write under `tests`"));
+    ok(green.includes("Never write a test file (under `tests`)"));
     ok(green.includes("`Cost: <reads> reads"));
+  });
+
+  it("lets the test author stub the files the step creates, and no other", () => {
+    const step = {
+      ...SHEET.steps[1],
+      anchor: { testFiles: [{ path: "tests/a.test.ts", state: "to create" as const }], doubles: "", production: [
+        { path: "src/a.ts", state: "to create" as const }, { path: "src/b.ts", state: "existing" as const }] },
+    };
+    deepStrictEqual(stubsOf(step), ["src/a.ts"]);
+    const red = redContract({ ...input, step });
+    ok(red.includes("signature stubs in `src/a.ts`"));
+    ok(red.includes("- production it will drive (read only, never write): `src/b.ts` — existing"));
+  });
+
+  it("names the test files beside the code, a correction's finding, and every step of a cycle", () => {
+    const layout = { ...LAYOUT, tests: undefined, testFiles: ["src/*.test.ts"] };
+    ok(redContract({ ...input, layout }).includes("Write test files only (`src/*.test.ts`)"));
+    const correction = { ...SHEET.steps[1], title: "Correction C1 — the cut-off is inclusive" };
+    ok(redContract({ ...input, step: correction }).includes("A correction (C1) of an audit's finding: the cut-off is inclusive"));
+    const green = greenContract({ ...input, step: SHEET.steps[0], cycle: [SHEET.steps[0], SHEET.steps[1]] }, { tail: "", log: null });
+    ok(green.includes("steps 1, 2 (one behaviour)"));
+    ok(green.includes(`Step 2 — ${SHEET.steps[1].title}:`));
   });
 });

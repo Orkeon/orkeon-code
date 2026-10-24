@@ -1,15 +1,16 @@
-// The access cost of a batch: the changed files under the cost roots, refreshed in the code
-// index, then measured by `access_cost`. The index is a precondition, never built here: without
+// The access cost of a batch, or of one /dev-implement cycle: the changed files under the cost roots,
+// refreshed in the code index, then measured by `access_cost` (/dev-verify's capture, /dev-implement's COST). The index is a precondition, never built here: without
 // a /workspace root the cost is "not indexed" (the tool would answer an empty report). A call
 // that fails leaves the cost not computed; nothing here refuses the step.
-import type { CostIndex } from "../../../shared/application/ports.ts";
-import type { AccessCost } from "../../../shared/domain/dev/access-cost.ts";
+import type { CostIndex } from "../ports.ts";
+import type { AccessCost } from "../../domain/dev/access-cost.ts";
 import {
-  COST_NOT_WIRED, INDEX_ROOT, measuredCost, notComputed, notIndexed, nothingChanged, receiversArgument, underRoots,
-} from "../../../shared/domain/dev/access-cost.ts";
-import type { RepoPack } from "../../../shared/domain/dev/repo-pack.ts";
-import { isTestFile, isTestRoot } from "../domain/capture-sections.ts";
-import { firstLine } from "../domain/text.ts";
+  COST_NOT_WIRED, INDEX_ROOT, isTestFile, isTestRoot, measuredCost, notComputed, notIndexed, nothingChanged,
+  receiversArgument, underRoots,
+} from "../../domain/dev/access-cost.ts";
+import type { RepoPack } from "../../domain/dev/repo-pack.ts";
+
+const firstLine = (text: string): string => (text.split("\n")[0] ?? "").trim();
 
 /** A changed file outside the plan folder, and the lines its captured diff adds (null: not known). */
 export interface CostFile { path: string; added: Set<number> | null }

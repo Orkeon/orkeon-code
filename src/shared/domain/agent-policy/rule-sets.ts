@@ -229,6 +229,26 @@ export function pathRules(access: "read" | "write", roots: readonly string[]): P
   return { rules, problems };
 }
 
+/** Write denies on file patterns rather than folders (a pack's `layout.test_files`, `*` spanning folders): two rules
+ *  (absolute, relative) per tool of PATH_WRITE_TOOLS for each kept pattern, then the deny on UNSCOPED_WRITE_TOOLS.
+ *  A pattern that is empty, outside the project or climbing out with `..` gets no rule. */
+export function patternWriteRules(patterns: readonly string[]): PathRules {
+  const rules: PermissionRule[] = [];
+  const problems: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of patterns) {
+    const pattern = normaliseRoot(raw);
+    if (pattern === "" || pattern === "*") { problems.push(`pattern '${raw}' covers the whole project: no rule`); continue; }
+    if (pattern.startsWith("/")) { problems.push(`pattern '${raw}' is outside ${PROJECT}: no rule`); continue; }
+    if (pattern.split("/").includes("..")) { problems.push(`pattern '${raw}' climbs out with '..': no rule`); continue; }
+    if (seen.has(pattern)) continue;
+    seen.add(pattern);
+    rules.push(...denyEach(PATH_WRITE_TOOLS, "path", [`${PROJECT}/${pattern}`, pattern]));
+  }
+  if (seen.size > 0) rules.push(...denyWhole(UNSCOPED_WRITE_TOOLS));
+  return { rules, problems };
+}
+
 /** The gate's lines that belong to a built-in set, counted per set (RULE_SET_IDS order, sets with
  *  count 0 left out), and the lines that belong to none, in their order. */
 export interface HeldSets { sets: Array<{ id: RuleSetId; count: number }>; rest: string[] }

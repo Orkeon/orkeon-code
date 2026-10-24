@@ -7,6 +7,7 @@ import { changedPaths, greenProblem, readCost, redProblem, statusPaths, under } 
 
 const red = { ran: true as const, exit: 1, timedOut: false, log: null };
 const green = { ran: true as const, exit: 0, timedOut: false, log: null };
+const isTest = (p: string): boolean => under(p, "tests") || p.endsWith(".test.ts");
 
 describe("statusPaths", () => {
   it("reads both sides of a rename, unquotes, and leaves .orkeon/ out", () => {
@@ -32,24 +33,37 @@ describe("under", () => {
 
 describe("redProblem", () => {
   it("holds when only tests changed and they fail", () => {
-    strictEqual(redProblem(["tests/a.test.ts"], "tests", red), null);
+    strictEqual(redProblem(["tests/a.test.ts"], isTest, red), null);
   });
   it("refuses a production path, a green run, a run that did not happen, and no change", () => {
-    strictEqual(redProblem(["tests/a.test.ts", "src/a.ts"], "tests", red), "a production path changed before a red test: src/a.ts");
-    strictEqual(redProblem(["tests/a.test.ts"], "tests", green), "the new tests pass at once: a test green before its code is never kept");
-    strictEqual(redProblem(["tests/a.test.ts"], "tests", { ran: false, reason: "refused" }), "the step's tests did not run: refused");
-    strictEqual(redProblem([], "tests", red), "the test author changed no file");
+    strictEqual(redProblem(["tests/a.test.ts", "src/a.ts"], isTest, red), "a production path changed before a red test: src/a.ts");
+    strictEqual(redProblem(["tests/a.test.ts"], isTest, green), "the new tests pass at once: a test green before its code is never kept");
+    strictEqual(redProblem(["tests/a.test.ts"], isTest, { ran: false, reason: "refused" }), "the step's tests did not run: refused");
+    strictEqual(redProblem([], isTest, red), "the test author changed no file");
+  });
+  it("lets the step's stubs through with a test, never alone, and no other production file", () => {
+    strictEqual(redProblem(["tests/a.test.ts", "src/a.ts"], isTest, red, ["src/a.ts"]), null);
+    strictEqual(redProblem(["src/a.ts"], isTest, red, ["src/a.ts"]), "the test author changed no test file, only stubs: src/a.ts");
+    strictEqual(redProblem(["tests/a.test.ts", "src/b.ts"], isTest, red, ["src/a.ts"]), "a production path changed before a red test: src/b.ts");
+  });
+  it("counts a test file beside the code as a test", () => {
+    strictEqual(redProblem(["src/a.test.ts"], isTest, red), null);
   });
 });
 
 describe("greenProblem", () => {
   it("holds when no test changed and the tests pass", () => {
-    strictEqual(greenProblem(["src/a.ts"], "tests", green), null);
+    strictEqual(greenProblem(["src/a.ts"], isTest, green), null);
   });
   it("refuses a test change, a red run and a timeout", () => {
-    strictEqual(greenProblem(["src/a.ts", "tests/a.test.ts"], "tests", green), "a test file changed while turning it green: tests/a.test.ts");
-    strictEqual(greenProblem(["src/a.ts"], "tests", red), "the step's tests still fail (exit 1)");
-    strictEqual(greenProblem(["src/a.ts"], "tests", { ...green, timedOut: true }), "the step's tests timed out");
+    strictEqual(greenProblem(["src/a.ts", "tests/a.test.ts"], isTest, green), "a test file changed while turning it green: tests/a.test.ts");
+    strictEqual(greenProblem(["src/a.ts"], isTest, red), "the step's tests still fail (exit 1)");
+    strictEqual(greenProblem(["src/a.ts"], isTest, { ...green, timedOut: true }), "the step's tests timed out");
+  });
+  it("refuses tests that turn green with no change after a red run, and keeps a resumed green", () => {
+    strictEqual(greenProblem([], isTest, green, red),
+      "the implementer changed no file, yet the tests that failed before now pass: a test that turns green by itself is flaky");
+    strictEqual(greenProblem([], isTest, green, green), null);
   });
 });
 

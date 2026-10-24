@@ -1,15 +1,15 @@
 // measureAccessCost over a fake CostIndex: the index as a precondition, the refresh of the
 // changed files, the roots and receivers of the pack, the failures. Run:
-//   node --test src/crews/dev-verify/application/cost.test.ts
+//   node --test src/shared/application/dev/measure-access-cost.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
-import type { CostIndex } from "../../../shared/application/ports.ts";
-import type { AccessCostReport } from "../../../shared/domain/dev/access-cost.ts";
-import { COST_NOT_WIRED, DEFAULT_RECEIVERS } from "../../../shared/domain/dev/access-cost.ts";
-import { parseRepoPack } from "../../../shared/domain/dev/repo-pack.ts";
-import type { RepoPack } from "../../../shared/domain/dev/repo-pack.ts";
-import { costRoots, measureAccessCost } from "./cost.ts";
+import type { CostIndex } from "../ports.ts";
+import type { AccessCostReport } from "../../domain/dev/access-cost.ts";
+import { COST_NOT_WIRED, DEFAULT_RECEIVERS } from "../../domain/dev/access-cost.ts";
+import { parseRepoPack } from "../../domain/dev/repo-pack.ts";
+import type { RepoPack } from "../../domain/dev/repo-pack.ts";
+import { costRoots, measureAccessCost } from "./measure-access-cost.ts";
 
 const ZERO = { reads: 0, writes: 0, loops: 0, lambdas: 0, memoryFilters: 0 };
 

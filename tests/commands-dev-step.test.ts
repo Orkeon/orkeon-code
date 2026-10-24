@@ -93,6 +93,12 @@ describe("startDevStep", () => {
     strictEqual(start.rules, 0);
   });
 
+  it("hands the crew memoryRecall: false when a session rule denies every call of memory_recall", async () => {
+    deepStrictEqual(started(await startDevStep("dev-plan", setup())).input, { hooks: [] });
+    deepStrictEqual(started(await startDevStep("dev-plan", setup("deny memory_recall"))).input, { hooks: [], memoryRecall: false });
+    deepStrictEqual(started(await startDevStep("dev-plan", setup("deny memory_recall query=secret*"))).input, { hooks: [] });
+  });
+
   it("names a session allow the step leaves out", async () => {
     const deps = setup("allow shell_command command=*git push*");
     const start = started(await startDevStep("dev-plan", deps));

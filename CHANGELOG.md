@@ -71,16 +71,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   two model calls and a review of up to 20 turns, may outlast the REPL's script time limit of 5 minutes: the example
   settings' 30 minutes (`Orkeon:Cli:ScriptCommands:Limits:ExecutionTimeout`) leave room for it.
 - **`/dev-implement F<n> [<code> | <path>/<CODE>-PLAN.md] [--close] [--pr]`**: runs one batch sheet test-first. For
-  each open step, the test author writes the step's red tests (test files only) and the implementer the least code
-  that turns them green (test files read-only), two acts of one agent, each with its own tools and its own deny
-  rules. Code writes both briefs from the sheet and the pack, looks at the tree before and after each act, runs the
-  step's narrow test command itself, and ticks `RED`, `GREEN` and `COST` only once it saw what each box stands for:
-  a production file written before a red test, a test green at once, a test file changed while turning it green or
-  a port call in a loop stops the batch with `BLOCKED`, nothing ticked past it. A run resumes at the first open step.
-  The pack's restore runs once; the build and the whole suite then run as shell jobs, looked at every 20 s for an
-  hour at most, their log under `<work>/<code>/logs/`. A batch all ticked and green goes on to `/dev-verify`, and a
-  VALID verdict to the close: the files the roles changed are committed by name, pushed, and the pull request opened
-  or handed over. `--close` runs the close alone; a correction (`F<n> — correction: …`) is not run yet.
+  each open step, the test author writes the step's red tests (test files, and signature stubs of the production
+  files the step's Anchors marks `to create`) and the implementer the least code that turns them green (test files
+  read-only), two acts of one agent, each with its own tools and its own deny rules. Consecutive steps on one test
+  file run as one cycle: every red test first, then one GREEN and one Cost for them all. Code writes the briefs from
+  the sheet and the pack, looks at the tree before and after each act, runs the narrow test command itself, measures
+  the access cost of the production lines the cycle added (`access_cost` over the code index), and ticks `RED`,
+  `GREEN` and `COST` only once it saw what each box stands for: a production file written before a red test, a test
+  green at once or green with no file changed, a test file changed while turning it green, or a port call in a loop,
+  stated or measured, stops the batch with `BLOCKED`, nothing ticked past it. A role's `Assumption:` lines land under
+  the sheet's `## Assumptions`, to be validated by the user. A run resumes at the first open step. The pack's restore
+  runs once; the build and the whole suite (the projects the run touched, once the suite went green for the batch)
+  then run as shell jobs, looked at every 20 s for an hour at most, their logs under `<work>/<code>/logs/`
+  (`F<n>-build.txt`, `F<n>-test.txt`, `F<n>-test-affected.txt`), where `/dev-verify` reads them. A batch all ticked
+  and green goes on to `/dev-verify` (`resume` after a GAPS verdict), and a VALID verdict to the close: on the default
+  branch with `contrib.branch` it creates `<prefix>/<code>-f<n>`, the files the roles changed are committed by name,
+  pushed, the pull request opened or handed over, and the sheet and the plan's batch marked done. `--close` runs the
+  close alone. `F<n> — correction: <finding>` appends an audit's gap to the sheet as a new step, then runs it; a finding
+  that names an id the sheet does not carry is sent to `/dev-change` or `/dev-plan`. The repository pack's
+  `layout.test_files` names test files that sit beside the code.
 - **`/dev-learn [<axis>] [--list] | --accept <id>[,<id>…] | --refuse <id | motif text>`**: learns from the audits.
   It reads the Blocking and Major rows of the `GAPS` sections of every `<CODE>-VERIFY-F<n>.md` in the work folder,
   keeps those not treated yet, and per axis asks the model, in one call, to group them into motifs; a motif must
@@ -258,7 +267,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`memory_recall` and `memory_push`**, Orkeon Code's own tools in the REPL's turns: the recall reads, in every
   mode; the push writes a candidate file, offered only where the mode edits, asked in `default`
   ([Permissions](docs/permissions.md#modes)). Both are ruleable on their arguments (`deny memory_push topic=auth*`).
-  The agents of the dev steps, and their children, are given `memory_recall` too, never `memory_push`.
+  The agents of the dev steps, and their children, are given `memory_recall` too, never `memory_push`, and none
+  when a session rule denies every call of it.
 - **Sub-agents as background children.** The adversarial review of `/dev-plan` and the audit of `/dev-verify` run in
   a child agent of their crew (`ctx.spawnBackground`), read-only, with the charter's tools; the step's own agent
   keeps the extraction and falls back to the act inline on a host without background children. `/tasks` lists the
@@ -266,7 +276,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ended one by a new run of its charter (`send <id> <message>`, `repair <id> [note]`: crew `agent-run`, whose brief
   carries the previous report). A send to a running child is refused. `/agents` lists the two built-in charters.
 - **`/effort` reaches the provider.** The level `/effort` stored is sent as the act's `effort` (provider thinking)
-  by `/assistant`, `/dev-plan` and `/dev-verify` and their children; an unset level sends none. The log of the act
+  by `/assistant`, `/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement` and `/dev-verify` (the audit
+  `/dev-implement` chains too) and their children; an unset level sends none. The log of the act
   says `act — effort: <level>`.
 - `/dev-learn` asks, after `PROPOSALS.md` is written, one multi-select per axis: the motifs picked are accepted, the
   others refused, as `--accept`/`--refuse` do; nobody answering decides nothing.

@@ -1,7 +1,10 @@
 // The close of a batch the audit found VALID (`/dev-implement F<n> <code> --close`, or the chain
 // after /dev-verify): the last verdict of `<CODE>-VERIFY-F<n>.md` must be VALID, then the files the
 // roles changed (touched.ts) are committed by name, pushed, and the pull request opened or handed
-// over (shared/application/dev/close-batch.ts). Nothing is committed without that verdict.
+// over (shared/application/dev/close-batch.ts). Nothing is committed without that verdict. On the default
+// branch, when the pack asks for a work branch, the close creates `<prefix>/<code>-f<n>` first. Once
+// committed, the batch is marked done: the sheet's title and the global plan's batch (never committed,
+// the work folder stays out of git).
 import type { Files, Shell } from "../../../shared/application/ports.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import type { PullRequestOpener } from "../../../shared/application/git/commit-files.ts";
@@ -16,6 +19,8 @@ import type { PrSummary } from "../../../shared/domain/git/close.ts";
 import type { PermissionRule } from "../../../shared/domain/agent-policy/permission.ts";
 import { under } from "../domain/step-checks.ts";
 import { openSteps, parseImplementSheet } from "../domain/step-section.ts";
+import { markPlanBatchDone, markSheetDone } from "../domain/sheet-edits.ts";
+import { shellQuote } from "../../../shared/domain/git/close.ts";
 import { WORKSPACE } from "./locate-sheet.ts";
 import { verdictMarkOf } from "./touched.ts";
 import type { LocatedSheet } from "./locate-sheet.ts";
@@ -32,6 +37,8 @@ export interface CloseInput {
   push: boolean;
   /** The session's rules at the launch (a deny on the push keeps the commit local). */
   rules?: readonly PermissionRule[];
+  /** Today, `YYYY-MM-DD`: the date of the done marks. */
+  today: string;
 }
 
 const LAYERS = ["domain", "application", "infrastructure", "tests"] as const;
@@ -99,8 +106,13 @@ export async function closeDevBatch(
   const base = await runGit(deps.shell, GIT_DEFAULT_BRANCH_COMMAND);
   const defaultBranch = base.exitCode === 0 ? parseDefaultBranch(base.stdout) : null;
   const wanted = input.pack.contrib.branch?.trim();
+  let onBranch = branch;
+  const notes: string[] = [];
   if (wanted && defaultBranch !== null && branch === defaultBranch) {
-    return [`BLOCKED — close: ${branch} is the default branch and the pack asks for a work branch (${wanted}): create it, then ${rerun}`];
+    const made = await createWorkBranch(deps.shell, wanted, located.code, batch);
+    if (!made.ok) return [`BLOCKED — close: ${branch} is the default branch and the pack asks for a work branch (${wanted}): ${made.reason}, then ${rerun}`];
+    onBranch = made.branch;
+    notes.push(`✓ branch ${made.branch} created from ${branch} (contrib.branch ${wanted})`);
   }
 
   const sheetName = parseBatchSheet(sheetText).name ?? located.name;
@@ -115,9 +127,61 @@ export async function closeDevBatch(
   const result = await closeBatch(
     { shell: deps.shell, files: deps.files, opener: deps.opener },
     {
-      touched: input.touched, message, branch, work: { folder: input.work.folder, vfsPath: input.work.vfsPath },
+      touched: input.touched, message, branch: onBranch, work: { folder: input.work.folder, vfsPath: input.work.vfsPath },
       push: input.push, ...(input.rules === undefined ? {} : { rules: input.rules }), openPr: input.openPr || (await prAuto(deps.config)), summary, rerun,
     },
   );
-  return result.lines;
+  if (!result.committed) return [...notes, ...result.lines];
+  return [...notes, ...result.lines, ...await markDone(deps.files, located, batch, sheetText, input.today)];
+}
+
+const BRANCH_WORD = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+
+/** The work branch's name from the pack's pattern: its first alternative before `/`, then `<code>-f<n>`. */
+export function workBranchName(pattern: string, code: string, batch: string): string | null {
+  const slash = pattern.indexOf("/");
+  if (slash <= 0) return null;
+  const prefix = pattern.slice(0, slash).split("|")[0].trim();
+  if (!BRANCH_WORD.test(prefix)) return null;
+  return `${prefix}/${code}-${batch.toLowerCase()}`;
+}
+
+async function createWorkBranch(
+  shell: Pick<Shell, "run">, pattern: string, code: string, batch: string,
+): Promise<{ ok: true; branch: string } | { ok: false; reason: string }> {
+  const name = workBranchName(pattern, code, batch);
+  if (name === null) return { ok: false, reason: `no branch name can be made from '${pattern}' (<prefix>/<slug>): create it` };
+  const exists = await runGit(shell, `git rev-parse --verify --quiet ${shellQuote(`refs/heads/${name}`)}`);
+  if (exists.exitCode === 0) return { ok: false, reason: `the branch ${name} exists already: switch to it (git switch ${name})` };
+  const made = await runGit(shell, `git switch -c ${shellQuote(name)}`);
+  if (made.exitCode !== 0) {
+    return { ok: false, reason: `git switch -c ${name} failed (${(made.stderr || made.stdout).trim().split("\n")[0] || `exit ${made.exitCode}`}): create it` };
+  }
+  return { ok: true, branch: name };
+}
+
+/** The sheet's title and the global plan's batch marked done; a file that cannot be written is said. */
+async function markDone(files: Files, located: LocatedSheet, batch: string, sheetText: string, today: string): Promise<string[]> {
+  const out: string[] = [];
+  const sheetPath = `${WORKSPACE}/${located.dir}/${located.name}`;
+  const planName = `${located.prefix}-PLAN.md`;
+  try {
+    const now = await files.read(sheetPath).catch(() => sheetText);
+    const marked = markSheetDone(now, today);
+    if (marked !== now) await files.write(sheetPath, marked);
+    out.push(`✓ ${located.name} marked done (${today})`);
+  } catch (e) {
+    out.push(`⚠ ${located.name} could not be marked done: ${String((e as Error)?.message ?? e).split("\n")[0]}`);
+  }
+  try {
+    const plan = await files.read(`${WORKSPACE}/${located.dir}/${planName}`);
+    const marked = markPlanBatchDone(plan, batch, today);
+    if (marked !== plan) {
+      await files.write(`${WORKSPACE}/${located.dir}/${planName}`, marked);
+      out.push(`✓ ${planName}: batch ${batch} marked done`);
+    }
+  } catch {
+    out.push(`⚠ ${planName} not found beside the sheet: its batch ${batch} is not marked done`);
+  }
+  return out;
 }

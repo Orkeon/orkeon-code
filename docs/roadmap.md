@@ -20,9 +20,9 @@ What Orkeon Code does not do yet, in the order we expect to address it. Items ma
   and switching sessions without a restart comes next.
 - **Hooks in the assistant.** `pre-tool` and `post-tool` hooks run around the model's tool calls in the dev steps
   ([Hooks](hooks.md)); `/assistant` does not run them yet, and nothing runs a `stop` hook.
-- **`/dev-implement` corrections and grouping.** A correction from a GAPS verdict, the steps sharing one test class run
-  as one cycle, the affected tests between rounds and the measured access cost come next; `/dev-implement` runs plain
-  steps for now.
+- **The close re-reading the session's mode** (runtime). The close `/dev-implement` chains after a VALID audit uses
+  the mode and rules read when the batch was launched: a command's `completed` is synchronous and the mode can only
+  be read asynchronously.
 - **Cost and usage.** Real cost figures per provider, cache ratio, token counting for `/context` and `/usage`. The
   runtime reports the cache tokens (`session_stats`); the commands do not read them yet.
 

@@ -90,6 +90,25 @@ describe("checkToolCall — rules", () => {
   });
 });
 
+describe("checkToolCall — what a role's roots leave writable", () => {
+  it("lets the test author write a test file beside the code and a named stub, nothing else of its roots", () => {
+    const guard = buildCallGuard({
+      step: "dev-implement", role: "test-author", layout: { ...LAYOUT, testFiles: ["src/*.test.ts"] }, writable: ["src/domain/a.ts"],
+    });
+    strictEqual(checkToolCall(guard, "file_write", { path: "/workspace/src/domain/a.test.ts" }, ON).allow, true);
+    strictEqual(checkToolCall(guard, "edit_file", { path: "./src/domain/a.ts" }, ON).allow, true);
+    refused(checkToolCall(guard, "file_write", { path: "src/domain/b.ts" }, ON));
+    // A rule set's deny holds whatever the role leaves writable.
+    const sets = buildCallGuard({ step: "dev-implement", role: "test-author", layout: LAYOUT, writable: [".orkeon/state.json"] });
+    refused(checkToolCall(sets, "file_write", { path: ".orkeon/state.json" }, ON));
+  });
+  it("leaves the implementer nothing of its own denies", () => {
+    const guard = buildCallGuard({ step: "dev-implement", role: "implementer", layout: { ...LAYOUT, testFiles: ["src/*.test.ts"] }, writable: ["tests/a.ts"] });
+    deepStrictEqual(guard.writable, ["tests/a.ts"]);
+    refused(checkToolCall(guard, "file_write", { path: "src/domain/a.test.ts" }, ON));
+  });
+});
+
 describe("checkToolCall — the whole input of the folder readers", () => {
   it("refuses a glob pattern that names a denied folder from a parent path", () => {
     const guard = buildCallGuard({ step: "dev-plan" });

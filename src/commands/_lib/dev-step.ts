@@ -8,7 +8,8 @@ import { configuredNames, resolveExtraTools } from "../../shared/application/ext
 import { syncStepRules } from "../../shared/application/permission-rules.ts";
 import { readJsonArray } from "../../shared/application/session-state.ts";
 import { HOOKS_STATE_KEY } from "../../shared/domain/session-keys.ts";
-import { formatRule } from "../../shared/domain/agent-policy/permission.ts";
+import { deniesEveryCall, formatRule } from "../../shared/domain/agent-policy/permission.ts";
+import { parseSessionRules } from "../../shared/domain/git/pull-request.ts";
 import type { RuleSetId } from "../../shared/domain/agent-policy/rule-sets.ts";
 import { STEP_RULE_SETS, gateProblem, stepRules } from "../../shared/domain/dev/step-rules.ts";
 import type { DevStep } from "../../shared/domain/dev/step-rules.ts";
@@ -24,7 +25,12 @@ export interface DevStepDeps {
 }
 
 export type DevStepStart =
-  | { ok: true; lines: string[]; sets: readonly RuleSetId[]; rules: number; hooks: unknown[] }
+  | {
+    ok: true; lines: string[]; sets: readonly RuleSetId[]; rules: number; hooks: unknown[];
+    /** What the crew's input carries besides the step's own arguments: the /hooks registry, and
+     *  `memoryRecall: false` when a rule in the gate denies every call of memory_recall. */
+    input: { hooks: unknown[]; memoryRecall?: false };
+  }
   | { ok: false; line: string };
 
 /** The step /dev-verify runs: none with --gate-only, which runs no model. */
@@ -50,7 +56,20 @@ export async function startDevStep(step: DevStep, deps: DevStepDeps): Promise<De
     lines.push(`warning: the session's rule '${formatRule(r)}' is left out of the gate during /${step}: the step denies the same calls.`);
   }
   const hooks = await readJsonArray(deps.session, HOOKS_STATE_KEY);
-  return { ok: true, lines, sets: STEP_RULE_SETS[step], rules: sync.step.length, hooks };
+  const memoryDenied = deniesEveryCall(gateRules(deps.gate), "memory_recall");
+  return {
+    ok: true, lines, sets: STEP_RULE_SETS[step], rules: sync.step.length, hooks,
+    input: { hooks, ...(memoryDenied ? { memoryRecall: false as const } : {}) },
+  };
+}
+
+/** The rules in the gate, parsed; none when the host keeps none. */
+function gateRules(gate: PermissionRules) {
+  try {
+    return gate.available() ? parseSessionRules(gate.list()) : [];
+  } catch {
+    return [];
+  }
 }
 
 /** Before a launch of /dev-implement's chain (the audit, then the close), which runs no dispatch of its own: the

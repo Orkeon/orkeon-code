@@ -143,6 +143,17 @@ tests:
   trait_pattern: "// <name>: <id>"
 ```
 
+It can also give `layout.test_files`, another key the harness ignores: the test files that sit beside the code, as
+gate patterns (`*` matches any run of characters, `/` included). `/dev-implement` counts a path as a test file when
+it lies under `layout.tests` or matches one pattern: the implementer may not write it, the test author may, and a run
+needs one of the two keys. A Node repository whose tests sit beside the code:
+
+```yaml
+layout:
+  domain: src
+  test_files: ["src/*.test.ts"]
+```
+
 ## Extra tools: MCP servers and plugins
 
 The REPL connects the MCP servers of Orkeon's `MCP:Servers` settings and loads the plugins of its `Plugins` section

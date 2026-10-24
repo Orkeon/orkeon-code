@@ -41,11 +41,10 @@ export function changedPaths(before: Snapshot, after: Snapshot): string[] {
   }).sort();
 }
 
-/** Whether `path` lies under `folder` (a relative folder of the pack's layout). */
-export function under(path: string, folder: string): boolean {
-  const f = folder.replace(/^\.\//, "").replace(/\/+$/, "");
-  return f === "" || f === "." || path === f || path.startsWith(`${f}/`);
-}
+export { under } from "../../../shared/domain/dev/test-paths.ts";
+
+/** Tells a test file from a production one, by the pack (shared/domain/dev/test-paths.ts). */
+export type IsTest = (path: string) => boolean;
 
 function runProblem(run: ObservedRun): string | null {
   if (!run.ran) return `the step's tests did not run: ${run.reason}`;
@@ -53,24 +52,30 @@ function runProblem(run: ObservedRun): string | null {
   return null;
 }
 
-/** Why RED does not hold; null when it does. */
-export function redProblem(changed: readonly string[], testsFolder: string, run: ObservedRun): string | null {
+/** Why RED does not hold; null when it does. `stubs` are the production files the step marks `to create`, which
+ *  the test author may write as signature stubs. */
+export function redProblem(changed: readonly string[], isTest: IsTest, run: ObservedRun, stubs: readonly string[] = []): string | null {
   if (changed.length === 0) return "the test author changed no file";
-  const outside = changed.filter((p) => !under(p, testsFolder));
+  const outside = changed.filter((p) => !isTest(p) && !stubs.includes(p));
   if (outside.length > 0) return `a production path changed before a red test: ${outside.join(", ")}`;
+  if (!changed.some(isTest)) return `the test author changed no test file, only stubs: ${changed.join(", ")}`;
   const problem = runProblem(run);
   if (problem !== null) return problem;
   if (run.ran && run.exit === 0) return "the new tests pass at once: a test green before its code is never kept";
   return null;
 }
 
-/** Why GREEN does not hold; null when it does. */
-export function greenProblem(changed: readonly string[], testsFolder: string, run: ObservedRun): string | null {
-  const tests = changed.filter((p) => under(p, testsFolder));
+/** Why GREEN does not hold; null when it does. `before` is code's run just before the act: tests that failed then
+ *  and pass now with no file changed turned green by themselves (flaky), which is never kept. */
+export function greenProblem(changed: readonly string[], isTest: IsTest, run: ObservedRun, before?: ObservedRun): string | null {
+  const tests = changed.filter(isTest);
   if (tests.length > 0) return `a test file changed while turning it green: ${tests.join(", ")}`;
   const problem = runProblem(run);
   if (problem !== null) return problem;
   if (run.ran && run.exit !== 0) return `the step's tests still fail (exit ${run.exit})`;
+  if (changed.length === 0 && before?.ran === true && before.exit !== 0) {
+    return "the implementer changed no file, yet the tests that failed before now pass: a test that turns green by itself is flaky";
+  }
   return null;
 }
 

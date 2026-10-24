@@ -14,6 +14,17 @@ export interface CostTotals { reads: number; writes: number; loops: number; lamb
 export interface MemberCost { member: string; portCalls: PortCall[]; memoryFilters: MemoryFilter[]; cost: CostTotals }
 export interface AccessCostReport { members: MemberCost[]; cost: CostTotals }
 
+/** A root is a test root when its lower-case path holds "test" (AC:92,324). */
+export function isTestRoot(root: string): boolean {
+  return root.toLowerCase().includes("test");
+}
+
+/** Under a test root, or a path that says test (AC:326-331). */
+export function isTestFile(path: string, testRoots: readonly string[]): boolean {
+  for (const r of testRoots) if (path.startsWith(`${r.replace(/\/+$/, "")}/`)) return true;
+  return path.toLowerCase().includes("test");
+}
+
 /** The cost when the crew wires no code index. */
 export const COST_NOT_WIRED: AccessCost = {
   state: "not-computed",

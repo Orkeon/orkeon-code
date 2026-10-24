@@ -110,3 +110,19 @@ export function memoryTools(
   return names.flatMap((name) => name === MEMORY_RECALL.name ? [memoryRecallTool(builder, ports)]
     : name === MEMORY_PUSH.name ? [memoryPushTool(builder, ports, mode)] : []);
 }
+
+/** A dev crew attaches memory_recall unless its command said a session rule denies every call of it
+ *  (`memoryRecall: false` in the input): the gate would refuse each call the agent tried. */
+export function memoryRecallOn(input: unknown): boolean {
+  return !(input !== null && typeof input === "object" && (input as { memoryRecall?: unknown }).memoryRecall === false);
+}
+
+/** memory_recall for a dev agent's `withAutonomousTools`, none when it is off. */
+export function memoryRecallTools(builder: ToolBuilderFactory, ports: () => MemoryToolPorts, on: boolean): Array<Tool<unknown, unknown>> {
+  return on ? [memoryRecallTool(builder, ports)] : [];
+}
+
+/** The read tools a dev agent's callbacks let through on a host without a gate: memory_recall when it is on. */
+export function memoryReadTools(on: boolean): string[] {
+  return on ? [MEMORY_RECALL.name] : [];
+}

@@ -169,7 +169,7 @@ describe("runDevVerify — the verdict", () => {
     ok(lines.includes("## Verdict — GAPS"));
     deepStrictEqual(lines.slice(-2), [
       "→ /dev-implement F2 — correction: Major Reuse: parses dates by hand",
-      "  then /dev-verify F2 resume (a correction runs in the harness until /dev-implement runs one)",
+      "  it appends the gap to the sheet as a new step and runs it; the audit follows by itself (/dev-verify F2 resume)",
     ]);
   });
 

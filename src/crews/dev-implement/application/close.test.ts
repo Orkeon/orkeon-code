@@ -1,10 +1,10 @@
 // The close's grouping of the files per layer. Run:
 //   node --test src/crews/dev-implement/application/close.test.ts
 import { describe, it } from "node:test";
-import { deepStrictEqual } from "node:assert";
+import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { parseRepoPack } from "../../../shared/domain/dev/repo-pack.ts";
-import { layersOf } from "./close.ts";
+import { layersOf, workBranchName } from "./close.ts";
 
 describe("layersOf", () => {
   it("groups the paths under the pack's roots, the rest last", () => {
@@ -15,5 +15,13 @@ describe("layersOf", () => {
       { layer: "tests", paths: ["tests/a.test.ts"] },
       { layer: "other", paths: ["README.md"] },
     ]);
+  });
+});
+
+describe("workBranchName", () => {
+  it("takes the pattern's first alternative before the slash, then <code>-f<n>", () => {
+    strictEqual(workBranchName("feature|fix/<slug>", "demo", "F2"), "feature/demo-f2");
+    strictEqual(workBranchName("feat/<slug>", "demo", "F1"), "feat/demo-f1");
+    strictEqual(workBranchName("<slug>", "demo", "F1"), null);
   });
 });

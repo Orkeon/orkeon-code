@@ -11,7 +11,7 @@ import { FakeSessionStore } from "../../../../tests/support/fake-session-store.t
 import { FakeShell } from "../../../../tests/support/fake-shell.ts";
 import { createConfigStore } from "../../../shared/application/config-store.ts";
 import { GIT_TOPLEVEL } from "../../../shared/application/dev/resolve-work-folder.ts";
-import type { ActRequest, ShellJobs, ShellOptions, ShellResult } from "../../../shared/application/ports.ts";
+import type { ActRequest, CostIndex, ShellJobs, ShellOptions, ShellResult } from "../../../shared/application/ports.ts";
 import { GIT_IDENT_COMMAND } from "../../../shared/domain/git/close.ts";
 import { STATUS_COMMAND } from "./observe.ts";
 import { touchedPath, verdictMarkOf } from "./touched.ts";
@@ -78,13 +78,14 @@ class TreeShell extends FakeShell {
 type Act = (prompt: string, tree: Tree) => string;
 
 class Role {
-  acts: Array<{ prompt: string; request: ActRequest }> = [];
+  acts: Array<{ prompt: string; request: ActRequest; writable: readonly string[] }> = [];
   wrote: (path: string) => void = () => {};
+  writable: readonly string[] = [];
   readonly tree: Tree;
   readonly script: Act[];
   constructor(tree: Tree, script: Act[]) { this.tree = tree; this.script = script; }
   async act(prompt: string, request: ActRequest): Promise<string> {
-    this.acts.push({ prompt, request });
+    this.acts.push({ prompt, request, writable: this.writable });
     const step = this.script[Math.min(this.acts.length - 1, this.script.length - 1)];
     this.tree.onWrite = this.wrote;
     try {
@@ -125,10 +126,16 @@ function setup(author: Act[], implementer: Act[], sheet = SHEET) {
   const jobs = new FakeJobs();
   const deps = {
     files, shell, jobs, log: new FakeLogger(), config: createConfigStore({ files, session: new FakeSessionStore() }),
-    roleLlm: (role: "test-author" | "implementer", _layout: unknown, wrote: (path: string) => void) => {
+    roleLlm: (role: "test-author" | "implementer", _layout: unknown, wrote: (path: string) => void, writable: readonly string[]) => {
       roles[role].wrote = wrote;
+      roles[role].writable = writable;
       return roles[role];
     },
+    today: () => "2026-10-24",
+  } as {
+    files: FakeFiles; shell: TreeShell; jobs: FakeJobs; log: FakeLogger; config: ReturnType<typeof createConfigStore>;
+    roleLlm: (role: "test-author" | "implementer", layout: unknown, wrote: (path: string) => void, writable: readonly string[]) => Role;
+    today: () => string; costIndex?: CostIndex; openerFor?: (context: unknown) => undefined;
   };
   return { files, shell, tree, roles, jobs, deps };
 }
@@ -142,7 +149,7 @@ describe("runDevImplement — the steps", () => {
       [writesCode("src/a.ts", "tests/a.test.ts"), writesCode("src/b.ts", "tests/b.test.ts")]);
     const a = parse(await runDevImplement({ batch: "F1", plan: "demo" }, t.deps));
     strictEqual(blockedLine(a), undefined, a.lines.join("\n"));
-    deepStrictEqual(a.next, { crew: "dev-verify", input: { batch: "F1", plan: "demo" } });
+    deepStrictEqual(a.next, { crew: "dev-verify", input: { batch: "F1", plan: "demo", mode: "fast" } });
     strictEqual((t.files.files.get(SHEET_PATH) ?? "").split(TICKED).length - 1, 2);
     deepStrictEqual(t.jobs.started, ["npm run build", "npm test"]);
     strictEqual(t.shell.commands.filter((c) => c === "npm ci").length, 1); // restored once, for both steps
@@ -163,10 +170,10 @@ describe("runDevImplement — the steps", () => {
     });
   });
 
-  it("blocks a production write at RED and ticks nothing", async () => {
-    const t = setup([(_p, tree) => { tree.write("tests/a.test.ts", "t"); tree.write("src/a.ts", "stub"); return "done"; }], []);
+  it("blocks a production write at RED outside the step's stubs, and ticks nothing", async () => {
+    const t = setup([(_p, tree) => { tree.write("tests/a.test.ts", "t"); tree.write("src/other.ts", "stub"); return "done"; }], []);
     const a = parse(await runDevImplement({ batch: "F1", plan: "demo" }, t.deps));
-    strictEqual(blockedLine(a), "BLOCKED — step 1 RED: a production path changed before a red test: src/a.ts" +
+    strictEqual(blockedLine(a), "BLOCKED — step 1 RED: a production path changed before a red test: src/other.ts" +
       " (log: workbench/demo/logs/run_tests-1.log)");
     strictEqual(t.files.files.get(SHEET_PATH), SHEET);
     strictEqual(a.next, undefined);
@@ -210,7 +217,8 @@ describe("runDevImplement — the steps", () => {
       [writesCode("src/a.ts", "tests/a.test.ts"), writesCode("src/b.ts", "tests/b.test.ts")]);
     t.jobs.exit["npm test"] = 1;
     const a = parse(await runDevImplement({ batch: "F1", plan: "demo" }, t.deps));
-    ok(blockedLine(a)?.startsWith("BLOCKED — test: 'npm test' exited 1 (log: workbench/demo/logs/test-F1.log)"));
+    ok(blockedLine(a)?.startsWith("BLOCKED — test: 'npm test' exited 1 (log: workbench/demo/logs/F1-test.txt)"), a.lines.join("\n"));
+    ok((t.files.files.get(`${DIR}/logs/F1-test.txt`) ?? "").endsWith("exit=1\n"));
     strictEqual(a.next, undefined);
   });
 
@@ -309,5 +317,195 @@ describe("runDevImplement — the close", () => {
     const a = parse(await runDevImplement({ batch: "F1", plan: "demo", close: true }, t.deps));
     ok(a.lines.some((l) => /identity|git config/i.test(l)), a.lines.join("\n"));
     strictEqual(t.shell.commands.some((c) => c.startsWith("git commit")), false);
+  });
+});
+
+describe("runDevImplement — wave 4", () => {
+  const CYCLE_SHEET = SHEET.replace("| 2 — Two | `tests/b.test.ts` — to create | — | `src/b.ts` — to create |",
+    "| 2 — Two | `tests/a.test.ts` — existing | — | `src/a.ts` — existing |");
+  const ONE_STEP = SHEET.replace(/### Step 2[\s\S]*?TDD: RED \[ \] GREEN \[ \] COST \[ \]/, (m) => m.replace("TDD: RED [ ] GREEN [ ] COST [ ]", TICKED));
+
+  it("runs two steps on one test file as one cycle: both REDs, one GREEN, one Cost", async () => {
+    const t = setup([writesTest("tests/a.test.ts"), (_p, tree) => { tree.write("tests/a.test.ts", "test a, two"); return "more"; }],
+      [writesCode("src/a.ts", "tests/a.test.ts")], CYCLE_SHEET);
+    const a = parse(await runDevImplement({ batch: "F1", plan: "demo" }, t.deps));
+    strictEqual(blockedLine(a), undefined, a.lines.join("\n"));
+    ok(a.lines.includes("cycle 1/1 — steps 1-2 (tests/a.test.ts)"), a.lines.join("\n"));
+    strictEqual(t.roles["test-author"].acts.length, 2);
+    strictEqual(t.roles.implementer.acts.length, 1);
+    ok(t.roles.implementer.acts[0].prompt.includes("does two"));
+    ok(a.lines.some((l) => l.startsWith("steps 1-2 GREEN ✓")) && a.lines.some((l) => l.startsWith("steps 1-2 COST ✓")));
+    strictEqual((t.files.files.get(SHEET_PATH) ?? "").split(TICKED).length - 1, 2);
+  });
+
+  it("lets the test author write the step's `to create` production files as stubs, and no other", async () => {
+    const t = setup([(_p, tree) => { tree.write("tests/a.test.ts", "t"); tree.write("src/a.ts", "throw"); return "done"; }],
+      [writesCode("src/a.ts", "tests/a.test.ts")], ONE_STEP);
+    const a = parse(await runDevImplement({ batch: "F1", plan: "demo" }, t.deps));
+    strictEqual(blockedLine(a), undefined, a.lines.join("\n"));
+    deepStrictEqual(t.roles["test-author"].acts[0].writable, ["src/a.ts"]);
+    deepStrictEqual(t.roles.implementer.acts[0].writable, []);
+    ok(a.lines.includes("step 1 RED ✓ — tests/a.test.ts (stubs: src/a.ts)"), a.lines.join("\n"));
+  });
+
+  it("tells a co-located test file by the pack's layout.test_files", async () => {
+    const sheet = ONE_STEP.replaceAll("tests/a.test.ts", "src/a.test.ts");
+    const t = setup([writesTest("src/a.test.ts")], [writesCode("src/a.ts", "src/a.test.ts")], sheet);
+    t.files.files.set("/workspace/.orkeon/repo.yaml", PACK.replace("  tests: tests\n", "  test_files: [\"src/*.test.ts\"]\n"));
+    const a = parse(await runDevImplement({ batch: "F1", plan: "demo" }, t.deps));
+    strictEqual(blockedLine(a), undefined, a.lines.join("\n"));
+    ok(a.lines.includes("step 1 RED ✓ — src/a.test.ts"), a.lines.join("\n"));
+  });
+
+  it("refuses GREEN when no file changed yet the tests turned green (m3)", async () => {
+    const t = setup([writesTest("tests/a.test.ts")], [(_p, tree) => { tree.passing.add("tests/a.test.ts"); return "Cost: 0 reads, 0 writes; none"; }], ONE_STEP);
+    const a = parse(await runDevImplement({ batch: "F1", plan: "demo" }, t.deps));
+    ok(blockedLine(a)?.includes("a test that turns green by itself is flaky"), a.lines.join("\n"));
+  });
+
+  it("writes a role's assumptions under ## Assumptions, to be validated by the user", async () => {
+    const t = setup([writesTest("tests/a.test.ts")],
+      [(p, tree) => `${writesCode("src/a.ts", "tests/a.test.ts")(p, tree)}\nAssumption: the ids are unique`], ONE_STEP);
+    const a = parse(await runDevImplement({ batch: "F1", plan: "demo" }, t.deps));
+    strictEqual(blockedLine(a), undefined, a.lines.join("\n"));
+    ok((t.files.files.get(SHEET_PATH) ?? "").includes("## Assumptions\n- H1 — the ids are unique — to be validated by the user"));
+  });
+
+  it("appends a correction as a new step and runs it; the audit then resumes", async () => {
+    const done = SHEET.replaceAll("TDD: RED [ ] GREEN [ ] COST [ ]", TICKED);
+    const t = setup([writesTest("tests/a.test.ts")], [writesCode("src/a.ts", "tests/a.test.ts")], done);
+    t.files.files.set(`${DIR}/DEMO-VERIFY-F1.md`, "# DEMO-VERIFY-F1 — 2026-10-24 10:00 — fast\n\n## Verdict — GAPS\n\n" +
+      "| Severity | Axis | Gap | Evidence | Expected fix |\n|---|---|---|---|---|\n| Major | Test | step 1 misses the empty case | a | b |\n");
+    const a = parse(await runDevImplement({ batch: "F1", plan: "demo", correction: "Major Test: step 1 misses the empty case" }, t.deps));
+    strictEqual(blockedLine(a), undefined, a.lines.join("\n"));
+    ok(a.lines.some((l) => l.startsWith("correction appended to DEMO-PLAN-F1.md as step 4")), a.lines.join("\n"));
+    const sheet = t.files.files.get(SHEET_PATH) ?? "";
+    ok(sheet.includes("### Step 4 — Correction C1 — Major Test: step 1 misses the empty case"), sheet);
+    strictEqual(sheet.split(TICKED).length - 1, 3);
+    strictEqual(a.next?.input.mode, "resume");
+    ok(t.roles["test-author"].acts[0].prompt.includes("step 1 misses the empty case"));
+  });
+
+  it("refuses a correction naming an id the sheet does not carry", async () => {
+    const t = setup([], []);
+    const a = parse(await runDevImplement({ batch: "F1", plan: "demo", correction: "Major Scope: BR-99 is missing" }, t.deps));
+    ok(blockedLine(a)?.startsWith("BLOCKED — correction:") && blockedLine(a)?.includes("/dev-change"), a.lines.join("\n"));
+    strictEqual(t.files.files.get(SHEET_PATH), SHEET);
+  });
+
+  it("runs the affected projects once the whole suite went green for the batch", async () => {
+    const t = setup([writesTest("tests/a.test.ts")], [writesCode("src/a.ts", "tests/a.test.ts")], ONE_STEP);
+    t.files.files.set("/workspace/.orkeon/repo.yaml", `${PACK}  test_project: node --test <Project>\n`);
+    t.files.files.set(touchedPath("demo", "F1"), JSON.stringify({ touched: [], verdictMark: "none", suiteGreen: true }));
+    const a = parse(await runDevImplement({ batch: "F1", plan: "demo" }, t.deps));
+    strictEqual(blockedLine(a), undefined, a.lines.join("\n"));
+    deepStrictEqual(t.jobs.started, ["npm run build", "node --test tests"]);
+    ok((t.files.files.get(`${DIR}/logs/F1-test-affected.txt`) ?? "").endsWith("exit=0\n"));
+    strictEqual(JSON.parse(t.files.files.get(touchedPath("demo", "F1")) ?? "{}").suiteGreen, true);
+  });
+
+  it("records the whole suite green, and empties the affected log", async () => {
+    const t = setup([writesTest("tests/a.test.ts")], [writesCode("src/a.ts", "tests/a.test.ts")], ONE_STEP);
+    const a = parse(await runDevImplement({ batch: "F1", plan: "demo", githubTool: true, permissionMode: "default", permissionRules: ["deny git_push"] }, t.deps));
+    strictEqual(blockedLine(a), undefined, a.lines.join("\n"));
+    strictEqual(t.files.files.get(`${DIR}/logs/F1-test-affected.txt`), "");
+    ok((t.files.files.get(`${DIR}/logs/F1-build.txt`) ?? "").endsWith("exit=0\n"));
+    const record = JSON.parse(t.files.files.get(touchedPath("demo", "F1")) ?? "{}");
+    strictEqual(record.suiteGreen, true);
+    deepStrictEqual(record.pr, { githubTool: true, permissionMode: "default", permissionRules: ["deny git_push"] });
+  });
+
+  const costIndex = (inLoop: boolean): CostIndex => ({
+    roots: async () => ["/workspace"],
+    refresh: async () => [],
+    accessCost: async () => ({
+      report: {
+        members: [{
+          member: "/workspace/src/a.ts::A::run", memoryFilters: [],
+          cost: { reads: 1, writes: 0, loops: inLoop ? 1 : 0, lambdas: 0, memoryFilters: 0 },
+          portCalls: [{ receiver: "repo", method: "get", line: 1, inLoop, inLambda: false }],
+        }],
+        cost: { reads: 1, writes: 0, loops: inLoop ? 1 : 0, lambdas: 0, memoryFilters: 0 },
+      },
+      errors: [],
+    }),
+  });
+
+  it("measures the cycle's cost: flagged sends it back to /dev-plan, clean is said beside the stated line", async () => {
+    const flagged = setup([writesTest("tests/a.test.ts")], [writesCode("src/a.ts", "tests/a.test.ts")], ONE_STEP);
+    flagged.deps.costIndex = costIndex(true);
+    const a = parse(await runDevImplement({ batch: "F1", plan: "demo" }, flagged.deps));
+    ok(blockedLine(a)?.includes("COST: measured Cost: 1 read") && blockedLine(a)?.includes("back to /dev-plan"), a.lines.join("\n"));
+    ok(flagged.shell.commands.includes("git diff -U0 HEAD -- 'src/a.ts'"));
+    ok((flagged.files.files.get(SHEET_PATH) ?? "").includes("TDD: RED [x] GREEN [x] COST [ ]"));
+
+    const clean = setup([writesTest("tests/a.test.ts")], [writesCode("src/a.ts", "tests/a.test.ts")], ONE_STEP);
+    clean.deps.costIndex = costIndex(false);
+    const b = parse(await runDevImplement({ batch: "F1", plan: "demo" }, clean.deps));
+    strictEqual(blockedLine(b), undefined, b.lines.join("\n"));
+    ok(b.lines.some((l) => l.startsWith("step 1 COST ✓ — Cost: 1 reads, 0 writes; none; measured: Cost: 1 read")), b.lines.join("\n"));
+
+    const none = setup([writesTest("tests/a.test.ts")], [writesCode("src/a.ts", "tests/a.test.ts")], ONE_STEP);
+    const c = parse(await runDevImplement({ batch: "F1", plan: "demo" }, none.deps));
+    ok(c.lines.some((l) => l.includes("; measured: not computed — ")), c.lines.join("\n"));
+  });
+
+  it("builds the wrapped tools after the restore, which run_build then never runs again", async () => {
+    const t = setup([(_p, tree) => { tree.write("tests/a.test.ts", "t"); return "done"; }], [], ONE_STEP);
+    await runDevImplement({ batch: "F1", plan: "demo" }, t.deps);
+    ok((t.files.files.get(`${DIR}/logs/F1-restore.txt`) ?? "").startsWith("# $ npm ci\n"));
+  });
+});
+
+describe("runDevImplement — the close marks and the branch", () => {
+  const VALID = "# DEMO-VERIFY-F1 — 2026-10-24 10:00 — fast\n\n## Verdict — VALID\n\nNone.\n";
+  const DONE_SHEET = SHEET.replaceAll("TDD: RED [ ] GREEN [ ] COST [ ]", TICKED);
+  const GLOBAL = "# DEMO-PLAN — Demo\n\n### Batch F1 — Demo — open\n- [ ] 1. One\n- [ ] 2. Two\n\n### Batch F2 — Next — open\n- [ ] 1. Later\n";
+
+  function closing(branch: string, pack = PACK) {
+    const t = setup([], [], DONE_SHEET);
+    t.files.files.set("/workspace/.orkeon/repo.yaml", pack);
+    t.files.files.set(`${DIR}/DEMO-VERIFY-F1.md`, VALID);
+    t.files.files.set(`${DIR}/DEMO-PLAN.md`, GLOBAL);
+    t.files.files.set(touchedPath("demo", "F1"), JSON.stringify({
+      touched: ["src/a.ts"], verdictMark: "none", pr: { githubTool: true, permissionMode: "default", permissionRules: [] },
+    }));
+    t.shell.results["git -c core.quotePath=false status --short --untracked-files=all"] = { stdout: " M src/a.ts\n" };
+    t.shell.results["git branch --show-current"] = { stdout: `${branch}\n` };
+    t.shell.results["git symbolic-ref --short refs/remotes/origin/HEAD"] = { stdout: "origin/main\n" };
+    t.shell.results["git rev-parse --verify --quiet 'refs/heads/feature/demo-f1'"] = { exitCode: 1 };
+    t.shell.results[GIT_IDENT_COMMAND] = { stdout: "Ada <ada@example.com> 1 +0000" };
+    t.shell.results["git var GIT_COMMITTER_IDENT"] = { stdout: "Ada <ada@example.com> 1 +0000" };
+    t.shell.results["git rev-parse --short HEAD"] = { stdout: "abc1234\n" };
+    const contexts: unknown[] = [];
+    t.deps.openerFor = (context) => { contexts.push(context); return undefined; };
+    return { ...t, contexts };
+  }
+
+  it("marks the sheet and the plan's batch done once committed, the context read back from the record", async () => {
+    const t = closing("feat/demo");
+    const a = parse(await runDevImplement({ batch: "F1", plan: "demo", close: true, push: false }, t.deps));
+    strictEqual(blockedLine(a), undefined, a.lines.join("\n"));
+    ok((t.files.files.get(SHEET_PATH) ?? "").startsWith("# DEMO-PLAN-F1 — Demo — done (2026-10-24)\n"));
+    const plan = t.files.files.get(`${DIR}/DEMO-PLAN.md`) ?? "";
+    ok(plan.includes("### Batch F1 — Demo — done (2026-10-24)\n- [x] 1. One\n- [x] 2. Two"), plan);
+    ok(plan.includes("### Batch F2 — Next — open\n- [ ] 1. Later"));
+    deepStrictEqual(t.contexts, [{ githubTool: true, permissionMode: "default", permissionRules: [] }]);
+  });
+
+  it("creates the work branch on the default branch when the pack asks for one", async () => {
+    const t = closing("main", `${PACK}contrib:\n  branch: feature|fix/<slug>\n`);
+    const a = parse(await runDevImplement({ batch: "F1", plan: "demo", close: true, push: false }, t.deps));
+    strictEqual(blockedLine(a), undefined, a.lines.join("\n"));
+    ok(t.shell.commands.includes("git switch -c 'feature/demo-f1'"), t.shell.commands.join("\n"));
+    ok(a.lines.some((l) => l.startsWith("✓ branch feature/demo-f1 created from main")));
+  });
+
+  it("stops when that branch exists already", async () => {
+    const t = closing("main", `${PACK}contrib:\n  branch: feature|fix/<slug>\n`);
+    t.shell.results["git rev-parse --verify --quiet 'refs/heads/feature/demo-f1'"] = { exitCode: 0, stdout: "abc\n" };
+    const a = parse(await runDevImplement({ batch: "F1", plan: "demo", close: true, push: false }, t.deps));
+    ok(blockedLine(a)?.includes("the branch feature/demo-f1 exists already"), a.lines.join("\n"));
+    strictEqual(t.shell.commands.some((c) => c.includes(" commit ")), false);
   });
 });

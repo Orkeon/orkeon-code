@@ -87,4 +87,16 @@ describe("roleRules", () => {
     strictEqual(author.length, 3 * 10 + 2);
     strictEqual(implementer.length, 10 + 2);
   });
+
+  it("keeps the implementer off the test files beside the code, and leaves them to the test author", () => {
+    const layout = { domain: "src", testFiles: ["src/*.test.ts"] };
+    const author = roleRules("test-author", layout);
+    const implementer = roleRules("implementer", layout);
+    deepStrictEqual(author.writable, ["src/*.test.ts"]);
+    deepStrictEqual(implementer.missing, []);
+    strictEqual(ruleDecision(implementer.rules, "file_write", { path: "/workspace/src/a/x.test.ts" }), "deny");
+    strictEqual(ruleDecision(implementer.rules, "file_write", { path: "src/a/x.ts" }), undefined);
+    deepStrictEqual(implementer.rules.slice(-2).map(formatRule), ["deny edit_batch", "deny structural_rewrite"]);
+    deepStrictEqual(roleRules("implementer", { testFiles: ["/etc/*", "../x/*"] }).problems.length, 2);
+  });
 });

@@ -34,7 +34,7 @@ defineAsyncCommand({
     }
     for (const line of start.lines) ctx.writeLine(line);
     return launchCrew(
-      { crews: createCrewHost(ctx.services), log: ctx.log }, launch.crew, { ...launch.input, hooks: start.hooks },
+      { crews: createCrewHost(ctx.services), log: ctx.log }, launch.crew, { ...launch.input, ...start.input },
       { ...launch.details, ruleSets: start.sets.join(" "), rules: start.rules, hooks: start.hooks.length },
     );
   },

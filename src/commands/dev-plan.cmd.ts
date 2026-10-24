@@ -39,7 +39,7 @@ defineAsyncCommand({
     const details = { ruleSets: start.sets.join(" "), rules: start.rules, hooks: start.hooks.length };
     return launchCrew(
       { crews: createCrewHost(ctx.services), log: ctx.log }, "dev-plan",
-      { ...parsed.args, hooks: start.hooks, effort: await storedEffort(deps.session) }, details,
+      { ...parsed.args, ...start.input, effort: await storedEffort(deps.session) }, details,
     );
   },
   completed: (result, ctx) => writeCompleted(ctx, result, "dev-plan"),

@@ -8,12 +8,13 @@
 // the brief in the charter's mode, under the callbacks of the charter's step, and returns the reply.
 //
 // Input (globalThis.inputs): { charter: "dev-reviewer" | "dev-auditor", system?: string, brief: string,
-//                              effort?: "low" | "medium" | "high" | null, hooks?: the /hooks registry }  (the step is the charter's)
+//                              effort?: "low" | "medium" | "high" | null, hooks?: the /hooks registry,
+//                              memoryRecall?: false (a session rule denies it) }  (the step is the charter's)
 // Run standalone:  bash scripts/run-crew.sh src/crews/agent-run/crew.ork.ts --inputs '{"charter":"dev-reviewer","brief":"…"}'
 
 import { AgentBuilder, CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infrastructure/globals.ts";
 import { orkeonMemoryToolPorts, orkeonShell } from "../../shared/infrastructure/orkeon/wiring.ts";
-import { MEMORY_RECALL, memoryRecallTool } from "../../shared/infrastructure/orkeon/memory-tools.ts";
+import { memoryReadTools, memoryRecallOn, memoryRecallTools } from "../../shared/infrastructure/orkeon/memory-tools.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { devToolCallbacks } from "../../shared/infrastructure/orkeon/tool-callbacks.ts";
 import { charterCatalogue } from "../../shared/domain/agents/charter.ts";
@@ -26,6 +27,8 @@ import { runAgentRun } from "./application/run-agent-run.ts";
 
 const CHARTERS: Readonly<Record<string, Charter>> = { [REVIEWER_CHARTER.name]: REVIEWER_CHARTER, [AUDITOR_CHARTER.name]: AUDITOR_CHARTER };
 const shell = orkeonShell();
+// memory_recall is attached unless a session rule denies every call of it (the command says so).
+const memoryOn = memoryRecallOn(inputs());
 const effort = providerEffort(inputs().effort);
 // The agent's tools are fixed at build: the named charter's, the reviewer's when the name is unknown
 // (the body refuses it before any model call).
@@ -37,11 +40,11 @@ const builder = AgentBuilder()
   .role(charter.role)
   .goal(charter.goal)
   .tools(charterCatalogue(charter))
-  .withAutonomousTool(memoryRecallTool(ToolBuilder, orkeonMemoryToolPorts))
+  .withAutonomousTools(memoryRecallTools(ToolBuilder, orkeonMemoryToolPorts, memoryOn))
   .maxIterations(charter.maxIterations)
   .body(async (_input: any, ctx: any) => {
     // The host's gate first, then the callbacks of the charter's step: its rule sets and the /hooks /tasks passed.
-    const callbacks = devToolCallbacks({ step, hooks: inputs().hooks, readTools: [MEMORY_RECALL.name] }, { shell, log: ctx.log });
+    const callbacks = devToolCallbacks({ step, hooks: inputs().hooks, readTools: memoryReadTools(memoryOn) }, { shell, log: ctx.log });
     return await runAgentRun(inputs(), { llm: createLlm(ctx.llm, callbacks, { effort }), log: ctx.log, charters: CHARTERS });
   });
 

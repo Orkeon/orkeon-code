@@ -8,7 +8,7 @@ import { firstLine, stdoutLines } from "../domain/text.ts";
 import { runtimeCut } from "../domain/runtime-cut.ts";
 import { addedLines, costSection } from "../../../shared/domain/dev/access-cost.ts";
 import type { AccessCost } from "../../../shared/domain/dev/access-cost.ts";
-import { measureAccessCost } from "./cost.ts";
+import { measureAccessCost } from "../../../shared/application/dev/measure-access-cost.ts";
 import type { DevVerifyTarget, GateRun } from "./run-gate.ts";
 import { WORKSPACE } from "./run-gate.ts";
 import type { BuildState, TableRow } from "../domain/mechanical-table.ts";

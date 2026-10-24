@@ -22,7 +22,7 @@ import { AgentBuilder, CrewBuilder, publishCrew, inputs, ToolBuilder } from "../
 import {
   orkeonAnchorIndex, orkeonCodeIndex, orkeonConfigStore, orkeonFiles, orkeonMemoryToolPorts, orkeonSessionIo, orkeonShell,
 } from "../../shared/infrastructure/orkeon/wiring.ts";
-import { MEMORY_RECALL, memoryRecallTool } from "../../shared/infrastructure/orkeon/memory-tools.ts";
+import { memoryReadTools, memoryRecallOn, memoryRecallTools } from "../../shared/infrastructure/orkeon/memory-tools.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { devToolCallbacks } from "../../shared/infrastructure/orkeon/tool-callbacks.ts";
 import { childAgentBody, withChildAct } from "../../shared/infrastructure/orkeon/child-agents.ts";
@@ -37,13 +37,15 @@ import { STEP_BUDGETS } from "../../shared/domain/dev/step-budget.ts";
 const ports = {
   shell: orkeonShell(), files: orkeonFiles(), config: orkeonConfigStore(), index: orkeonCodeIndex(), anchors: orkeonAnchorIndex(),
 };
+// memory_recall is attached unless a session rule denies every call of it (the command says so).
+const memoryOn = memoryRecallOn(inputs());
 const session = orkeonSessionIo();
 const effort = providerEffort(inputs().effort);
 const limits = instanceLimits(inputs());
 // The host's gate first, then these callbacks: the step's rule sets again and the /hooks the command passed.
 // memory_recall (the shared memory's precedents) declares `read`: named in readTools, as run_validation in dev-verify.
 const callbacksFor = (ctx: any) => devToolCallbacks(
-  { step: "dev-plan", hooks: inputs().hooks, readTools: [MEMORY_RECALL.name] }, { shell: ports.shell, log: ctx.log },
+  { step: "dev-plan", hooks: inputs().hooks, readTools: memoryReadTools(memoryOn) }, { shell: ports.shell, log: ctx.log },
 );
 
 /** The reviewer, added to the crew by its first act (a sequential crew would run an agent it holds from the start). */
@@ -53,7 +55,7 @@ const reviewer = () => {
     .role(REVIEWER_CHARTER.role)
     .goal(REVIEWER_CHARTER.goal)
     .tools(charterCatalogue(REVIEWER_CHARTER))
-    .withAutonomousTool(memoryRecallTool(ToolBuilder, orkeonMemoryToolPorts))
+    .withAutonomousTools(memoryRecallTools(ToolBuilder, orkeonMemoryToolPorts, memoryOn))
     .maxIterations(REVIEWER_CHARTER.maxIterations)
     .body(childAgentBody(callbacksFor));
   return effort === undefined ? builder : builder.effort(effort);
@@ -66,7 +68,7 @@ const planner = AgentBuilder()
   // The catalogue is the reviewer's: read tools only, for the inline review on a host without background
   // children. The plan itself is an extract call, which offers none.
   .tools(charterCatalogue(REVIEWER_CHARTER))
-  .withAutonomousTool(memoryRecallTool(ToolBuilder, orkeonMemoryToolPorts))
+  .withAutonomousTools(memoryRecallTools(ToolBuilder, orkeonMemoryToolPorts, memoryOn))
   .maxIterations(REVIEWER_CHARTER.maxIterations)
   .body(async (_input: any, ctx: any) => {
     const clock = () => new Date();

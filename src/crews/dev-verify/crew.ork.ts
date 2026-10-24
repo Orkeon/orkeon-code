@@ -12,7 +12,7 @@
 //
 // Input (globalThis.inputs): { batch: "F<n>", plan?: string | null, mode?: "fast" | "full" | "resume", gateOnly?: boolean,
 //                              hooks?: the /hooks registry, effort?: "low" | "medium" | "high" | null,
-//                              concurrency?: number, maxInstances?: number }
+//                              concurrency?: number, maxInstances?: number, memoryRecall?: false (a session rule denies it) }
 // Run standalone:  bash scripts/run-crew.sh src/crews/dev-verify/crew.ork.ts --inputs '{"batch":"F1","gateOnly":true}'
 //
 // Budget: under full, the build (900 s), the whole suite (900 s) and three validations
@@ -25,7 +25,7 @@ import { STEP_BUDGETS } from "../../shared/domain/dev/step-budget.ts";
 import {
   orkeonConfigStore, orkeonCostIndex, orkeonFiles, orkeonMemoryToolPorts, orkeonSessionIo, orkeonShell,
 } from "../../shared/infrastructure/orkeon/wiring.ts";
-import { MEMORY_RECALL, memoryRecallTool } from "../../shared/infrastructure/orkeon/memory-tools.ts";
+import { memoryReadTools, memoryRecallOn, memoryRecallTools } from "../../shared/infrastructure/orkeon/memory-tools.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { devToolCallbacks } from "../../shared/infrastructure/orkeon/tool-callbacks.ts";
 import { childAgentBody, withChildAct } from "../../shared/infrastructure/orkeon/child-agents.ts";
@@ -37,6 +37,8 @@ import { AUDITOR_CHARTER } from "./domain/auditor-charter.ts";
 import { runDevVerify } from "./application/run-dev-verify.ts";
 
 const ports = { shell: orkeonShell(), files: orkeonFiles(), config: orkeonConfigStore(), costIndex: orkeonCostIndex() };
+// memory_recall is attached unless a session rule denies every call of it (the command says so).
+const memoryOn = memoryRecallOn(inputs());
 const session = orkeonSessionIo();
 const effort = providerEffort(inputs().effort);
 const limits = instanceLimits(inputs());
@@ -46,7 +48,7 @@ const validationSlot = scriptToolSlot<ValidationCalls>();
 // The host's gate first, then these callbacks: the step's rule sets again and the /hooks the command passed.
 // run_validation and memory_recall declare `read`: named in readTools, the callback lets it through when the host has no gate.
 const callbacksFor = (ctx: any) => devToolCallbacks(
-  { step: "dev-verify", hooks: inputs().hooks, readTools: [RUN_VALIDATION.name, MEMORY_RECALL.name] }, { shell: ports.shell, log: ctx.log },
+  { step: "dev-verify", hooks: inputs().hooks, readTools: [RUN_VALIDATION.name, ...memoryReadTools(memoryOn)] }, { shell: ports.shell, log: ctx.log },
 );
 
 /** The auditor as a child, added to the crew by its first act (a sequential crew would run an agent it holds from the start). */
@@ -57,7 +59,7 @@ const auditorChild = () => {
     .goal(AUDITOR_CHARTER.goal)
     .tools(charterCatalogue(AUDITOR_CHARTER))
     .withAutonomousTool(runValidationTool(ToolBuilder, validationSlot))
-    .withAutonomousTool(memoryRecallTool(ToolBuilder, orkeonMemoryToolPorts))
+    .withAutonomousTools(memoryRecallTools(ToolBuilder, orkeonMemoryToolPorts, memoryOn))
     .maxIterations(AUDITOR_CHARTER.maxIterations)
     .body(childAgentBody(callbacksFor));
   return effort === undefined ? builder : builder.effort(effort);
@@ -70,7 +72,7 @@ const verifier = AgentBuilder()
   // The auditor's tools, for the inline audit on a host without background children.
   .tools(charterCatalogue(AUDITOR_CHARTER))
   .withAutonomousTool(runValidationTool(ToolBuilder, validationSlot))
-  .withAutonomousTool(memoryRecallTool(ToolBuilder, orkeonMemoryToolPorts))
+  .withAutonomousTools(memoryRecallTools(ToolBuilder, orkeonMemoryToolPorts, memoryOn))
   .maxIterations(AUDITOR_CHARTER.maxIterations)
   .body(async (_input: any, ctx: any) => {
     const clock = () => new Date();

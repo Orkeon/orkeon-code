@@ -34,7 +34,7 @@ defineCommand({
     return ctx.continue(
       `reasoning effort set to '${requested}' — the next /assistant turn gets ` +
       `${EFFORT_MAX_ITERATIONS[requested as (typeof LEVELS)[number]]} act() iterations and the provider's ` +
-      `thinking at '${requested}' (act effort; /dev-plan and /dev-verify children too). Session-scoped; /clear clears it.`,
+      `thinking at '${requested}' (act effort; the dev steps and their children too). Session-scoped; /clear clears it.`,
     );
   },
 });

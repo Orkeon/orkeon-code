@@ -329,6 +329,11 @@ export function coversEveryCall(rule: PermissionRule): boolean {
   return rule.argument === undefined;
 }
 
+/** Whether a deny rule covers every call of `tool` (an agent offered it would be refused at each call). */
+export function deniesEveryCall(rules: readonly PermissionRule[], tool: string): boolean {
+  return rules.some((r) => r.effect === "deny" && coversEveryCall(r) && sameToolName(r.tool, tool));
+}
+
 /** Whether the host offers `tool` to every act (ACT_TOOLS), whatever the catalogue. */
 function isActTool(tool: string): boolean {
   return ACT_TOOLS.some((name) => sameToolName(name, tool));

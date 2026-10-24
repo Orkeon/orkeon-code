@@ -332,7 +332,7 @@ export async function runDevVerify(input: DevVerifyInputs, deps: DevVerifyDeps):
       const first = section.shown[0];
       lines.push(
         `→ /dev-implement ${args.batch} — correction: ${first.severity} ${first.axis}: ${cut(first.gap, MAX_GAP_CHARS)}`,
-        `  then /dev-verify ${args.batch} resume (a correction runs in the harness until /dev-implement runs one)`,
+        `  it appends the gap to the sheet as a new step and runs it; the audit follows by itself (/dev-verify ${args.batch} resume)`,
       );
     }
     return done(...lines);

@@ -1,6 +1,7 @@
 // The sections of a /dev-verify capture: how one section text is split into files the
 // model can read whole, and the small readings each section is made of (a build log, a
 // test tail, the classes of a test file). Pure.
+export { isTestFile, isTestRoot } from "../../../shared/domain/dev/access-cost.ts";
 
 export const MAX_SECTION_CHARS = 32_000;
 export const SECTION_CUT_CHARS = 31_000;
@@ -106,17 +107,6 @@ export function classesIn(source: string): string[] {
   const out = [...classes];
   for (const m of source.matchAll(DESCRIBE_CALL)) if (!out.includes(m[1])) out.push(m[1]);
   return out;
-}
-
-/** A root is a test root when its lower-case path holds "test" (AC:92,324). */
-export function isTestRoot(root: string): boolean {
-  return root.toLowerCase().includes("test");
-}
-
-/** Under a test root, or a path that says test (AC:326-331). */
-export function isTestFile(path: string, testRoots: readonly string[]): boolean {
-  for (const r of testRoots) if (path.startsWith(`${r.replace(/\/+$/, "")}/`)) return true;
-  return path.toLowerCase().includes("test");
 }
 
 /** The basename up to its first "." (AC:341). */

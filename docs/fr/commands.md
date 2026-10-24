@@ -23,7 +23,7 @@ Les descriptions sont celles que le REPL affiche, lues dans `src/commands/*.cmd.
 | `/cost` | sync | Show cumulative session cost in USD and token usage. |
 | `/debug-tool-call` | sync | Invoke a registered tool with JSON arguments and print its raw result. |
 | `/dev-change` | async | Write or revise a change brief (bug, refactor, perf): evidence by running, questions one at a time, a read-only review. |
-| `/dev-implement` | async | Run a dev batch test-first: red tests, then the least code, each checked by code; then the audit and, on VALID, the close (--close: the close alone). |
+| `/dev-implement` | async | Run a dev batch test-first: red tests, then the least code, each checked by code; then the audit and, on VALID, the close (--close: the close alone; — correction: <finding> adds a gap as a step). |
 | `/dev-learn` | async | Turn gaps that recur across dev batches into proposals (--list: the backlog; --accept/--refuse: decide). |
 | `/dev-plan` | async | Plan a settled spec or change brief as batches: plan, one sheet per batch, a read-only review (--replace: plan again). |
 | `/dev-spec` | async | Write or revise a business spec, ask its open questions one at a time, then a read-only review. |

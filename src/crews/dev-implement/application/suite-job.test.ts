@@ -6,7 +6,7 @@ import { deepStrictEqual, ok, strictEqual } from "node:assert";
 import { FakeFiles } from "../../../../tests/support/fake-files.ts";
 import { FakeShell } from "../../../../tests/support/fake-shell.ts";
 import type { ShellJobs } from "../../../shared/application/ports.ts";
-import { runSuite } from "./suite-job.ts";
+import { logText, runSuite } from "./suite-job.ts";
 
 class Jobs implements ShellJobs {
   looks = 0;
@@ -20,7 +20,7 @@ class Jobs implements ShellJobs {
   async wait(s: number) { this.waits.push(s); return this.canWait; }
 }
 
-const REQ = { label: "test", command: "npm test", log: "/workspace/w/logs/test-F1.log", limitSeconds: 60, sliceSeconds: 20 };
+const REQ = { label: "test", command: "npm test", log: "/workspace/w/logs/F1-test.txt", limitSeconds: 60, sliceSeconds: 20 };
 
 describe("runSuite", () => {
   it("looks at the job slice by slice until it exits, writes the tail, passes on 15 lines", async () => {
@@ -31,7 +31,9 @@ describe("runSuite", () => {
     deepStrictEqual(jobs.waits, [1, 20, 20]);
     if (r.status !== "passed") return;
     strictEqual(r.tail.split("\n").length, 15);
-    ok((files.files.get(REQ.log) ?? "").includes("its whole log at /output/jobs/j1.log"));
+    const log = files.files.get(REQ.log) ?? "";
+    ok(log.includes("its whole log at /output/jobs/j1.log"));
+    ok(log.endsWith("line 30\nexit=0\n"), log);
   });
 
   it("gives no verdict on a suite still running at its limit", async () => {
@@ -52,5 +54,27 @@ describe("runSuite", () => {
     const started = new Jobs();
     started.startError = new Error("start_job needs a running agent run");
     strictEqual((await runSuite({ jobs: started, shell: new FakeShell(), files: new FakeFiles() }, REQ)).status, "passed");
+  });
+
+  it("runs blocking when the first look at the job fails, and stops when a later one does", async () => {
+    const first = new Jobs();
+    first.status = async () => { throw new Error("no such job"); };
+    const shell = new FakeShell();
+    shell.results["npm test"] = { exitCode: 0, stdout: "ok" };
+    const files = new FakeFiles();
+    const r = await runSuite({ jobs: first, shell, files }, REQ);
+    strictEqual(r.status, "passed");
+    ok((files.files.get(REQ.log) ?? "").includes("# run blocking (job j1 could not be read: no such job)"));
+    const later = new Jobs();
+    later.runningFor = 9;
+    const status = later.status.bind(later);
+    later.status = async () => { if (later.looks >= 1) throw new Error("gone"); return status(); };
+    const lost = await runSuite({ jobs: later, shell: new FakeShell(), files: new FakeFiles() }, REQ);
+    deepStrictEqual(lost, { status: "not-run", reason: "test: job j1 cannot be read: gone" });
+  });
+
+  it("writes the harness's shape: the header as comments, the output, exit= last", () => {
+    strictEqual(logText("npm test", ["h"], "out\n", 1), "# $ npm test\n# h\nout\nexit=1\n");
+    strictEqual(logText("npm test", [], "", null), "# $ npm test\n");
   });
 });

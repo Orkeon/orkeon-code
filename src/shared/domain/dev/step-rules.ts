@@ -1,7 +1,7 @@
 // Which rule sets each dev step puts in the gate before its crew runs (and its crew's callback checks
 // again, call-guard.ts), the rules of a role on the repository pack's roots, and what a step does when
 // the host's gate is off — pure, no IO.
-import { pathRules, rulesOf } from "../agent-policy/rule-sets.ts";
+import { pathRules, patternWriteRules, rulesOf } from "../agent-policy/rule-sets.ts";
 import type { PathRules, RuleSetId } from "../agent-policy/rule-sets.ts";
 import type { PermissionRule } from "../agent-policy/permission.ts";
 import type { RepoPackLayout } from "./repo-pack.ts";
@@ -50,19 +50,29 @@ export const ROLE_ROOTS: Readonly<Record<DevRole, { access: "read" | "write"; ke
   implementer: { access: "write", keys: ["tests"] },
 };
 
-/** pathRules over the role's roots the pack gives, and the pack keys it lacks (`layout.tests`). */
-export interface RoleRules extends PathRules { missing: string[] }
+/** pathRules over the role's roots the pack gives, the pack keys it lacks (`layout.tests`), and the patterns its
+ *  root denies leave writable: the test author writes the test files beside the code (`layout.test_files`). */
+export interface RoleRules extends PathRules { missing: string[]; writable: string[] }
 
-export function roleRules(role: DevRole, layout: Pick<RepoPackLayout, LayoutRootKey>): RoleRules {
+export function roleRules(role: DevRole, layout: Pick<RepoPackLayout, LayoutRootKey | "testFiles">): RoleRules {
   const { access, keys } = ROLE_ROOTS[role];
+  const testFiles = (layout.testFiles ?? []).map((p) => p.trim()).filter((p) => p !== "");
   const roots: string[] = [];
   const missing: string[] = [];
   for (const key of keys) {
     const value = layout[key];
-    if (value === undefined || value === "") missing.push(`layout.${key}`);
+    // A pack that names its tests by pattern only lacks no test folder.
+    if (value === undefined || value === "") { if (!(key === "tests" && testFiles.length > 0)) missing.push(`layout.${key}`); }
     else roots.push(value);
   }
-  return { ...pathRules(access, roots), missing };
+  const own = pathRules(access, roots);
+  if (role === "implementer" && testFiles.length > 0) {
+    const byPattern = patternWriteRules(testFiles);
+    const unscoped = new Set(own.rules.filter((r) => r.argument === undefined).map((r) => r.tool));
+    own.rules.push(...byPattern.rules.filter((r) => r.argument !== undefined || !unscoped.has(r.tool)));
+    own.problems.push(...byPattern.problems);
+  }
+  return { ...own, missing, writable: role === "test-author" ? testFiles : [] };
 }
 
 export const GATE_SETTING = "Orkeon:Security:PermissionGate:Enabled";
