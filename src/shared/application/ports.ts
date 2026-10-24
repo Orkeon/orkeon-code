@@ -208,8 +208,7 @@ export interface PermissionRules {
    *  the gate decides from the mode alone and every other call throws. */
   available(): boolean;
   /** Whether the host's gate is on (`Orkeon:Security:PermissionGate:Enabled`): false, no rule
-   *  and no mode is enforced; undefined when the host keeps no session rules or does not say
-   *  (Orkeon 1.0.0-rc.6 has no such field; Orkeon #128 added it). */
+   *  and no mode is enforced; undefined when the host keeps no session rules. */
   enabled(): boolean | undefined;
   /** Put a rule in force; a rule already in force is kept once. */
   add(rule: PermissionRule): void;
@@ -255,7 +254,7 @@ export interface Llm {
   /** A JSON answer shaped by `schema`; throws when the reply does not parse. */
   extract(prompt: string, schema: object): Promise<unknown>;
   /** Whether the host's permission gate checks the tool calls of `act`: false, the mode and the
-   *  session's rules check nothing; undefined on a runtime that does not say (before Orkeon #128). */
+   *  session's rules check nothing; undefined when the facade does not say (a test's). */
   permissionGateEnabled(): boolean | undefined;
 }
 
@@ -327,4 +326,17 @@ export interface CodeIndex {
   symbolSource(fqn: string): Promise<SymbolLocation>;
   /** The callers of `target`, `maxDepth` levels up. */
   impact(target: string, maxDepth: number): Promise<ImpactSummary>;
+}
+
+/** The closure of anchors: the FQNs they contain, and the callers and tests of them and of what
+ *  they contain, distinct and sorted; `unresolved` the anchors the index does not know. */
+export interface AnchorClosure {
+  nodes: string[];
+  unresolved: string[];
+  truncated: boolean;
+}
+
+/** The anchors of the code index (`batch_anchors`), apart from CodeIndex. Throws when the host cannot answer. */
+export interface AnchorIndex {
+  closure(fqns: readonly string[]): Promise<AnchorClosure>;
 }

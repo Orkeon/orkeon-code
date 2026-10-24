@@ -3,6 +3,7 @@
 // Fast and side-effect free: no build, no write (`--gate-only` relies on it).
 import type { Files, Shell } from "../../../shared/application/ports.ts";
 import { firstLine, stdoutLines } from "../domain/text.ts";
+import { runtimeCut } from "../domain/runtime-cut.ts";
 import type { RepoPack } from "../../../shared/domain/dev/repo-pack.ts";
 import type { TraitMarker } from "../../../shared/domain/dev/trait-pattern.ts";
 import { traitMarker } from "../../../shared/domain/dev/trait-pattern.ts";
@@ -61,12 +62,9 @@ function byCodeUnit(a: string, b: string): number {
 
 class GateCommandError extends Error {}
 
-/** RT-10: a result handed to code may be cut at 4 000 characters (§ 7 L2-Q04). */
-const RUNTIME_CUT_CHARS = 4_000;
-
 /**
- * The stdout of a git call; a throw or an exit outside `okExits` (-1: none reported) refuses
- * the gate. `cut` is a FAIL line when the stdout may have been cut by the runtime.
+ * The stdout of a git call, without the runtime's cut notice; a throw or an exit outside `okExits`
+ * (-1: none reported) refuses the gate. `cut` is a FAIL line when the runtime cut the stdout.
  */
 async function runOrRefuse(
   shell: Pick<Shell, "run">, command: string, okExits: readonly number[] = [0],
@@ -81,11 +79,11 @@ async function runOrRefuse(
     const why = firstLine(result.stderr);
     throw new GateCommandError(`the gate could not run '${command}': exit ${result.exitCode}${why === "" ? "" : ` (${why})`}`);
   }
-  const { stdout } = result;
-  const cut = stdout.length === RUNTIME_CUT_CHARS && !stdout.endsWith("\n")
-    ? { kind: "FAIL" as const, text: `the output of '${command}' stops at ${RUNTIME_CUT_CHARS} characters without a final newline: the list may be cut, run the gate again on a smaller change` }
+  const { kept, omitted } = runtimeCut(result.stdout);
+  const cut = omitted > 0
+    ? { kind: "FAIL" as const, text: `the output of '${command}' was cut by the runtime (${omitted} characters omitted): the list is incomplete, run the gate again on a smaller change` }
     : null;
-  return { stdout, cut };
+  return { stdout: kept, cut };
 }
 
 /** The report with the run's own lines added after the checks, green and the last line recomputed. */

@@ -6,7 +6,7 @@
 // then has the read-only reviewer question the plan once and writes its rows into the
 // files. The model writes no file; nothing is written outside the code's folder, and
 // nothing under .claude/.
-import type { CodeIndex, Files, Llm, Logger, Shell } from "../../../shared/application/ports.ts";
+import type { AnchorIndex, CodeIndex, Files, Llm, Logger, Shell } from "../../../shared/application/ports.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import { loadDevContext } from "../../../shared/application/dev/load-dev-context.ts";
 import { GIT_TOPLEVEL } from "../../../shared/application/dev/resolve-work-folder.ts";
@@ -37,7 +37,7 @@ import type { AnchorListings } from "./anchor-paths.ts";
 export interface DevPlanInputs { source?: unknown; replace?: unknown }   // source: the token, null for none
 export interface DevPlanDeps {
   files: Files; shell: Pick<Shell, "run">; config: Pick<ConfigStore, "readValue">;
-  index: CodeIndex; llm: Pick<Llm, "extract" | "act" | "permissionGateEnabled">;
+  index: CodeIndex; anchors: AnchorIndex; llm: Pick<Llm, "extract" | "act" | "permissionGateEnabled">;
   log: Logger; clock: () => Date;
 }
 export const PLAN_JSON = "plan.json";
@@ -299,7 +299,7 @@ export async function runDevPlan(input: DevPlanInputs, deps: DevPlanDeps): Promi
 
   // 8. Inventory.
   const pack = ctx.pack;
-  const built = await buildInventory(deps.index, {
+  const built = await buildInventory(deps.index, deps.anchors, {
     titles: parsed.ids.map((i) => ({ id: i.id, title: i.title })),
     workShown: ctx.work.folder,
     layout: pack?.pack.layout ?? null,

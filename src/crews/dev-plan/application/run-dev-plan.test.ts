@@ -1,4 +1,4 @@
-// runDevPlan over FakeFiles (the plan fixtures), FakeShell, FakeCodeIndex, FakeLlm and a
+// runDevPlan over FakeFiles (the plan fixtures), FakeShell, FakeCodeIndex, a batch_anchors stub, FakeLlm and a
 // fixed clock: the plan written then rewritten after the review, the golden renders, the
 // blocked plan, the refusals before any model call, the re-ask, the replace rules, the
 // review that fails, the warnings, and no write under .claude/ nor outside the code
@@ -15,6 +15,7 @@ import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
 import { FakeSessionStore } from "../../../../tests/support/fake-session-store.ts";
 import { FakeShell } from "../../../../tests/support/fake-shell.ts";
 import { createConfigStore } from "../../../shared/application/config-store.ts";
+import type { AnchorIndex } from "../../../shared/application/ports.ts";
 import { GIT_TOPLEVEL } from "../../../shared/application/dev/resolve-work-folder.ts";
 import { ORKEON_IGNORE_PROBE, checkIgnoreCommand } from "../../../shared/application/dev/load-dev-context.ts";
 import type { PlanAnswer } from "../domain/plan-answer.ts";
@@ -60,6 +61,20 @@ function indexOfFixture(): FakeCodeIndex {
   return index;
 }
 
+/** batch_anchors answers each fixture entry with its own member and its callers, the calls kept in order. */
+function anchorsOfFixture(): AnchorIndex & { calls: string[] } {
+  const calls: string[] = [];
+  return {
+    calls,
+    async closure(fqns) {
+      calls.push(`closure ${fqns.join(" ")}`);
+      const entry = INVENTORY.entries.find((e) => `/workspace/${e.fqn}` === fqns[0]);
+      const callers = (entry?.callers ?? []).map((c) => `/workspace/${c}`);
+      return { nodes: [`${fqns[0]}::member`, ...callers], unresolved: [], truncated: false };
+    },
+  };
+}
+
 function setup(source = "SPEC-prune.md") {
   const files = new FakeFiles();
   files.listings.set("/workspace", ["workbench/", ".orkeon/", "src/", "docs/", "tests/"]);
@@ -79,8 +94,9 @@ function setup(source = "SPEC-prune.md") {
   const index = indexOfFixture();
   const log = new FakeLogger();
   const config = createConfigStore({ files, session: new FakeSessionStore() });
-  const deps = { files, shell, llm, config, index, log, clock: () => new Date(2026, 9, 22, 14, 5) };
-  return { files, shell, llm, index, log, deps };
+  const anchors = anchorsOfFixture();
+  const deps = { files, shell, llm, config, index, anchors, log, clock: () => new Date(2026, 9, 22, 14, 5) };
+  return { files, shell, llm, index, anchors, log, deps };
 }
 type Setup = ReturnType<typeof setup>;
 const run = (f: Setup, input: DevPlanInputs = { source: "prune" }) => runDevPlan(input, f.deps);
@@ -103,6 +119,7 @@ describe("runDevPlan — a plan written and reviewed", () => {
     strictEqual(f.llm.extracts.length, 2);
     strictEqual(f.llm.acts.length, 1);
     strictEqual(f.llm.acts[0].request.permissionMode, "plan");
+    strictEqual(f.anchors.calls.length, 5);
     strictEqual(text, [
       "dev-plan: workbench/prune/PRUNE-PLAN.md — 2 batches, 4 ids traced (UC-01, BR-01, BR-02, BR-03)",
       "  F1 — Prune by age — 3 steps — BR-01, BR-02, BR-03 / UC-01 — depends on —",

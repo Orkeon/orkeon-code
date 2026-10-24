@@ -104,22 +104,26 @@ describe("runGate", () => {
     deepStrictEqual(await runGate({ files, shell }, target()),
       { ok: false, error: `the gate could not run '${UNTRACKED}': exit 128 (fatal: not a git repository)` });
   });
-  it("fails the gate when a git output stops at 4 000 characters without a final newline", async () => {
+  it("fails the gate when the runtime cut a git output, and does not take the notice for a path", async () => {
     const { files, shell } = fakes();
-    const cut = `${"src/x.ts\n".repeat(444)}src/`;
-    strictEqual(cut.length, 4_000);
-    shell.results["git diff --name-only HEAD"] = { stdout: cut };
+    const notice = "\n\n[... truncated, 1234 chars omitted. Use more specific parameters to narrow results.]";
+    shell.results["git diff --name-only HEAD"] = { stdout: `src/a.ts\nsrc/b.ts${notice}` };
     const out = await runGate({ files, shell }, target());
     strictEqual(out.ok, true);
     if (!out.ok) return;
+    strictEqual(out.run.changedFiles.some((f) => f === "" || f.includes("truncated")), false);
+    strictEqual(out.run.changedFiles.includes("src/b.ts"), true);
     strictEqual(out.run.report.green, false);
-    const line = "  FAIL the output of 'git diff --name-only HEAD' stops at 4000 characters without a final newline: " +
-      "the list may be cut, run the gate again on a smaller change";
+    const line = "  FAIL the output of 'git diff --name-only HEAD' was cut by the runtime (1234 characters omitted): " +
+      "the list is incomplete, run the gate again on a smaller change";
     strictEqual(out.run.report.lines.at(-2), line);
     strictEqual(out.run.report.lines.at(-1), "GATE — batch F2: RED — fix and run again, no audit before");
-    shell.results["git diff --name-only HEAD"] = { stdout: `${cut.slice(0, 3_999)}\n` };
-    const whole = await runGate({ files, shell }, target());
-    strictEqual(whole.ok && whole.run.report.lines.includes(line), false);
+  });
+  it("does not fail the gate on a long git output that carries no notice", async () => {
+    const { files, shell } = fakes();
+    shell.results["git diff --name-only HEAD"] = { stdout: "src/x.ts".repeat(1_250) };
+    const out = await runGate({ files, shell }, target());
+    strictEqual(out.ok && out.run.report.lines.some((l) => l.includes("cut by the runtime")), false);
   });
   it("fails the rule-trait check when no root can be quoted", async () => {
     const { files, shell } = fakes();

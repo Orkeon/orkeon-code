@@ -1,9 +1,10 @@
-// The CodeIndex adapter over the FakeTools code-intelligence tools. Run:
+// The CodeIndex adapter over the FakeTools code-intelligence tools, and the AnchorIndex adapter over a
+// batch_anchors stub (FakeTools fakes no batch_anchors). Run:
 //   node --test src/shared/infrastructure/orkeon/code-index.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, rejects } from "node:assert";
 
-import { createCodeIndex } from "./code-index.ts";
+import { createAnchorIndex, createCodeIndex } from "./code-index.ts";
 import { FakeTools } from "../../../../tests/support/fake-tools.ts";
 
 describe("createCodeIndex", () => {
@@ -112,5 +113,38 @@ describe("createCodeIndex", () => {
     const tools = new FakeTools();
     tools.replies.indexStatus = new Error("no index tool");
     await rejects(createCodeIndex(tools).rootCount(), /no index tool/);
+  });
+});
+
+/** A batch_anchors tool answering `reply` (thrown when an Error), its inputs kept in order. */
+function anchorTools(reply: unknown): Pick<OrkeonTools, "batchAnchors"> & { inputs: unknown[] } {
+  const inputs: unknown[] = [];
+  return {
+    inputs,
+    batchAnchors: async (input) => {
+      inputs.push(input);
+      if (reply instanceof Error) throw reply;
+      return reply as Awaited<ReturnType<OrkeonTools["batchAnchors"]>>;
+    },
+  };
+}
+
+describe("createAnchorIndex", () => {
+  it("asks the closure of the anchors and reads its nodes, unresolved anchors and truncation", async () => {
+    const tools = anchorTools({ nodes: ["/workspace/b.ts::B"], unresolved: ["/workspace/x.ts::X"], truncated: true, shared: [], disjoint: false });
+    deepStrictEqual(await createAnchorIndex(tools).closure(["/workspace/a.ts::A", "/workspace/x.ts::X"]), {
+      nodes: ["/workspace/b.ts::B"], unresolved: ["/workspace/x.ts::X"], truncated: true,
+    });
+    deepStrictEqual(tools.inputs, [{ action: "closure", fqns: ["/workspace/a.ts::A", "/workspace/x.ts::X"] }]);
+  });
+
+  it("reads a PascalCase result, and an empty one as no node", async () => {
+    deepStrictEqual(await createAnchorIndex(anchorTools({ Nodes: ["n"], Unresolved: [], Truncated: false })).closure(["a"]),
+      { nodes: ["n"], unresolved: [], truncated: false });
+    deepStrictEqual(await createAnchorIndex(anchorTools({})).closure(["a"]), { nodes: [], unresolved: [], truncated: false });
+  });
+
+  it("lets a failing tool reject", async () => {
+    await rejects(createAnchorIndex(anchorTools(new Error("anchors down"))).closure(["a"]), /anchors down/);
   });
 });

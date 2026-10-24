@@ -1,10 +1,9 @@
-// interim until RT-36 (L-9): the graph answers the anchors of a batch
-//
 // The inventory of a /dev-plan run: the code the index finds for the titles of the
-// source, located, with its direct callers and the modules each file imports. It is the
-// only module of the crew that calls the code index, and the single entry L-9 replaces.
-// It reads the index and builds it when it holds no root; it writes nothing else.
-import type { CodeIndex, CodeSearchHit, Logger } from "../../../shared/application/ports.ts";
+// source, located, with its callers and tests - from the batch_anchors closure of each
+// best entry - and the modules each file imports. It is the only module of the crew that
+// calls the code index. It reads the index and builds it when it holds no root; it writes
+// nothing else.
+import type { AnchorIndex, CodeIndex, CodeSearchHit, Logger } from "../../../shared/application/ports.ts";
 import { INVENTORY_CAPS, keepPath, layerOf } from "../domain/inventory-model.ts";
 import type { Inventory, InventoryEntry } from "../domain/inventory-model.ts";
 
@@ -70,8 +69,11 @@ async function search(
   return [...kept.values()];
 }
 
+/** Whether `fqn` is `owner` or one of its members (`<owner>::<member>`, as the index forms them). */
+const inSubtree = (fqn: string, owner: string): boolean => fqn === owner || fqn.startsWith(`${owner}::`);
+
 export async function buildInventory(
-  index: CodeIndex, request: InventoryRequest, log: Logger,
+  index: CodeIndex, anchors: AnchorIndex, request: InventoryRequest, log: Logger,
 ): Promise<{ ok: true; inventory: Inventory } | { ok: false; text: string }> {
   const state = { calls: 0, warnings: [] as string[] };
   const refuse = (e: unknown) => ({
@@ -130,15 +132,18 @@ export async function buildInventory(
   log.info(`dev-plan: ${entries.length} entries located`);
 
   if (entries.length > 0) {
-    // 4. Direct callers of the best entries.
+    // 4. The callers and tests of the best entries: their closure without their own subtree.
     const best = [...entries].sort((a, b) => b.score - a.score).slice(0, INVENTORY_CAPS.impacts);
     for (const e of best) {
       state.calls++;
       try {
-        const impact = await index.impact(e.fqn, 1);
-        e.callers = impact.direct.map(relative).slice(0, INVENTORY_CAPS.callers);
+        const closure = await anchors.closure([e.fqn]);
+        const own = relative(e.fqn);
+        e.callers = closure.nodes.map(relative).filter((n) => !inSubtree(n, own)).slice(0, INVENTORY_CAPS.callers);
+        if (closure.truncated) state.warnings.push(`closure of ${e.fqn} truncated`);
+        if (closure.unresolved.length > 0) state.warnings.push(`${e.fqn} unknown to batch_anchors`);
       } catch (err) {
-        state.warnings.push(`impact failed for ${e.fqn}: ${firstLine(err)}`);
+        state.warnings.push(`anchors failed for ${e.fqn}: ${firstLine(err)}`);
       }
     }
     log.info(`dev-plan: callers asked for ${best.length} entries`);

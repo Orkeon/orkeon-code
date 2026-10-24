@@ -9,19 +9,21 @@
 // Input (globalThis.inputs): { source: string | null, replace?: boolean }
 // Run standalone:  bash scripts/run-crew.sh src/crews/dev-plan/crew.ork.ts --inputs '{"source":"prune"}'
 //
-// Budget: up to 59 index calls by code, at most 40 folder listings for the anchors (one per folder for the run,
+// Budget: up to 59 index and batch_anchors calls by code, at most 40 folder listings for the anchors (one per folder for the run,
 // both attempts sharing them), about 30 other file and git calls, two extract calls and one review of 20
 // iterations (about 3 tool calls each): 59 + 40 + 30 + 2 + 60 = 191, so toolCalls 240 leaves a margin that 200
 // did not.
 
 import { AgentBuilder, CrewBuilder, publishCrew, inputs } from "../../shared/infrastructure/globals.ts";
-import { orkeonCodeIndex, orkeonConfigStore, orkeonFiles, orkeonShell } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { orkeonAnchorIndex, orkeonCodeIndex, orkeonConfigStore, orkeonFiles, orkeonShell } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { charterCatalogue } from "../../shared/domain/agents/charter.ts";
 import { REVIEWER_CHARTER } from "../../shared/domain/dev/reviewer-charter.ts";
 import { runDevPlan } from "./application/run-dev-plan.ts";
 
-const ports = { shell: orkeonShell(), files: orkeonFiles(), config: orkeonConfigStore(), index: orkeonCodeIndex() };
+const ports = {
+  shell: orkeonShell(), files: orkeonFiles(), config: orkeonConfigStore(), index: orkeonCodeIndex(), anchors: orkeonAnchorIndex(),
+};
 
 const planner = AgentBuilder()
   .name("dev-planner")

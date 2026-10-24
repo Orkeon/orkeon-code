@@ -169,11 +169,20 @@ describe("writeCapture", () => {
     ok(written(files, "changed-files.txt").includes("src/F40.cs → no diff captured (beyond the first 40 files)\n"));
   });
 
-  it("flags a diff the runtime may have cut", async () => {
+  it("flags a diff the runtime cut, and keeps the diff without its notice", async () => {
     const { files, shell } = fakes();
-    shell.results[gitDiffTracked("src/Order.cs") as string] = { stdout: "d".repeat(4_000) };
+    const notice = "\n\n[... truncated, 1234 chars omitted. Use more specific parameters to narrow results.]";
+    shell.results[gitDiffTracked("src/Order.cs") as string] = { stdout: `+a\n+b${notice}` };
     await writeCapture({ files, shell }, target(), gate(CHANGED), "w");
-    ok(written(files, "changed-files.txt").startsWith("src/Order.cs → diff-001.txt (1 lines) (possibly cut by the runtime)\n"));
+    ok(written(files, "changed-files.txt").startsWith("src/Order.cs → diff-001.txt (2 lines) (cut by the runtime, 1234 characters omitted)\n"));
+    strictEqual(written(files, "diff-001.txt"), "# diff src/Order.cs (2 lines)\n+a\n+b");
+  });
+
+  it("does not flag a long diff that carries no notice", async () => {
+    const { files, shell } = fakes();
+    shell.results[gitDiffTracked("src/Order.cs") as string] = { stdout: "d".repeat(10_000) };
+    await writeCapture({ files, shell }, target(), gate(CHANGED), "w");
+    ok(written(files, "changed-files.txt").startsWith("src/Order.cs → diff-001.txt (1 lines)\n"));
   });
 
   it("writes a failed section as not captured, and the row that depends on it not checked", async () => {

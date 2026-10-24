@@ -52,3 +52,6 @@ export type ProgressReportInput = Fits<{
   message?: string;
   done?: boolean;
 }, "progressReport">;
+
+/** batch_anchors, the closure of a set of anchors by FQN. */
+export type BatchAnchorsClosureInput = Fits<{ action: "closure"; fqns: readonly string[] }, "batchAnchors">;

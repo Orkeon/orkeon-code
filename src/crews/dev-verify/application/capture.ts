@@ -5,6 +5,7 @@
 // only a failed write stops the capture.
 import type { Files, Shell } from "../../../shared/application/ports.ts";
 import { firstLine, stdoutLines } from "../domain/text.ts";
+import { runtimeCut } from "../domain/runtime-cut.ts";
 import { COST_NOT_COMPUTED, costSection } from "../../../shared/domain/dev/access-cost.ts";
 import type { DevVerifyTarget, GateRun } from "./run-gate.ts";
 import { WORKSPACE } from "./run-gate.ts";
@@ -33,8 +34,6 @@ export interface Capture {
 
 type Deps = { files: Pick<Files, "read" | "write" | "list">; shell: Pick<Shell, "run"> };
 
-/** RT-10: a result handed to code may be cut at 4 000 characters (§ 7 L2-Q04). */
-const RUNTIME_CUT_CHARS = 4_000;
 const SOURCE_FILE = /\.(cs|ts|py|fs|vb)$/;
 const TEST_FILES_SHOWN = 5;
 
@@ -100,16 +99,17 @@ async function diffs(deps: Deps, target: DevVerifyTarget, gate: GateRun): Promis
     if (i >= MAX_DIFF_FILES) { entries.push({ path, line: `${path} → no diff captured (beyond the first ${MAX_DIFF_FILES} files)` }); continue; }
     const command = gate.untrackedFiles.includes(path) ? gitDiffUntracked(path) : gitDiffTracked(path);
     if (command === null) { entries.push({ path, line: `${path} → no diff captured (a quote in the path)` }); continue; }
-    let stdout: string;
+    let raw: string;
     try {
-      stdout = (await deps.shell.run(command)).stdout;
+      raw = (await deps.shell.run(command)).stdout;
     } catch (error) {
       entries.push({ path, line: `${path} → no diff captured ('${command}' failed (${errorLine(error)}))` });
       continue;
     }
+    const { kept: stdout, omitted } = runtimeCut(raw);
     const base = diffBase(i + 1);
     const lines = lineCount(stdout);
-    const doubt = stdout.length === RUNTIME_CUT_CHARS && !stdout.endsWith("\n") ? " (possibly cut by the runtime)" : "";
+    const doubt = omitted > 0 ? ` (cut by the runtime, ${omitted} characters omitted)` : "";
     entries.push({
       path, base,
       line: `${path} → ${base}.txt (${lines} lines)${doubt}`,

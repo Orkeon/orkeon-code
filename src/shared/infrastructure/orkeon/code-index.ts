@@ -2,9 +2,12 @@
 // dependency_graph, package_summary, codebase_search, symbol_source and
 // impact_analysis. The payloads are read once, here,
 // through the readers of shared/domain/code-intel-contract.ts, which pin the
-// field names of the live tools.
+// field names of the live tools. The AnchorIndex adapter over batch_anchors
+// reads its result through tool-results.ts.
 
-import type { CodeIndex } from "../../application/ports.ts";
+import type { AnchorIndex, CodeIndex } from "../../application/ports.ts";
+import type { BatchAnchorsClosureInput } from "./runtime-tools.ts";
+import { asArray, pick } from "./tool-results.ts";
 import {
   readGraph, readImpact, readIndexSummary, readMapEntries, readMapSymbolCount, readPackageSummary,
   readSearchHitsWithOrigin, readSymbolLocation,
@@ -44,6 +47,21 @@ export function createCodeIndex(tools: Pick<OrkeonTools, CodeIndexTools>): CodeI
     },
     async impact(target, maxDepth) {
       return readImpact(await tools.impactAnalysis({ target, direction: "Backward", max_depth: maxDepth }));
+    },
+  };
+}
+
+/** The closure of `fqns` by batch_anchors: its nodes, the anchors it did not find, and whether it was cut. */
+export function createAnchorIndex(tools: Pick<OrkeonTools, "batchAnchors">): AnchorIndex {
+  return {
+    async closure(fqns) {
+      const input: BatchAnchorsClosureInput = { action: "closure", fqns };
+      const raw = await tools.batchAnchors(input);
+      return {
+        nodes: asArray(pick(raw, "nodes", "Nodes")).map(String),
+        unresolved: asArray(pick(raw, "unresolved", "Unresolved")).map(String),
+        truncated: pick(raw, "truncated", "Truncated") === true,
+      };
     },
   };
 }
