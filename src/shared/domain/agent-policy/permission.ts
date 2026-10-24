@@ -553,6 +553,57 @@ export function matchesRule(rule: PermissionRule, tool: string, args: Readonly<R
   return text !== undefined && globMatches(rule.pattern ?? "", text);
 }
 
+/** The words of a shell command as the host's shell tool splits them (ShellCommandTool.TokenizeCommand): on
+ *  whitespace outside quotes, the quotes themselves dropped, nothing expanded. */
+export function shellWords(command: string): string[] {
+  const words: string[] = [];
+  let current = "";
+  let single = false;
+  let double = false;
+  for (const c of command) {
+    if (c === "'" && !double) { single = !single; continue; }
+    if (c === "\"" && !single) { double = !double; continue; }
+    if (/\s/.test(c) && !single && !double) {
+      if (current !== "") words.push(current);
+      current = "";
+      continue;
+    }
+    current += c;
+  }
+  if (current !== "") words.push(current);
+  return words;
+}
+
+/**
+ * A cluster of short options read as separate flags: `-Ic` as `-I -c`, `-we` as `-w -e`; code attached to the
+ * cluster after its first `c`, `e` or `E` stands apart (`-Icprint(1)` read `-I -c print(1)`). A long option, or a
+ * word that is not a cluster, is kept whole.
+ */
+function splitCluster(word: string): string[] {
+  const match = /^-([A-Za-z]+)(.*)$/s.exec(word);
+  if (match === null) return [word];
+  const [, letters, rest] = match;
+  const at = letters.search(/[ceE]/);
+  if (at < 0) return rest === "" && letters.length > 1 ? [...letters].map((letter) => `-${letter}`) : [word];
+  const flags = [...letters.slice(0, at + 1)].map((letter) => `-${letter}`);
+  const tail = letters.slice(at + 1) + rest;
+  return tail === "" ? flags : [...flags, tail];
+}
+
+/**
+ * The texts a shell command is matched in by a deny rule: as written, then as the program receives it, which a
+ * pattern on the raw text misses. The words rejoined by one space (`git "push"`, `git<TAB>push`, `bash  -c`); the
+ * same with each backslash escape resolved, as `/bin/sh` reads it under a sandbox (`git pu\sh`); and with each
+ * cluster of short options split (`python3 -Ic x` read `python3 -I -c x`, `perl -we"p 1"` read `perl -w -e p 1`), so the
+ * patterns on a flag before `-c` or `-e` hold. Each form once, the raw one first.
+ */
+export function shellCommandForms(command: string): string[] {
+  const words = shellWords(command);
+  const unescaped = words.map((w) => w.replace(/\\(.)/g, "$1"));
+  const split = unescaped.flatMap(splitCluster);
+  return [...new Set([command, words.join(" "), unescaped.join(" "), split.join(" ")])];
+}
+
 /** What `rules` decide for this call: "deny" when a deny rule covers it (deny wins in every mode),
  *  else "allow" when an allow rule does, else undefined (the mode decides). */
 export function ruleDecision(

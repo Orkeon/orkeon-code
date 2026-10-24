@@ -7,6 +7,7 @@ import type { Files } from "../ports.ts";
 import { ENTRY_TYPES, entryIdPrefix, entryProblems } from "../../domain/shared-memory/entry.ts";
 import type { EntryType, MemoryEntry } from "../../domain/shared-memory/entry.ts";
 import { topicOf } from "../../domain/shared-memory/refused.ts";
+import { serializeEntry } from "../../domain/shared-memory/front-matter.ts";
 import { candidatePath, entryPath } from "../../domain/shared-memory/layout.ts";
 import type { MemoryLayout } from "../../domain/shared-memory/layout.ts";
 import { secretLikePaths } from "../../domain/secret-patterns.ts";
@@ -89,6 +90,9 @@ async function freeId(files: Pick<Files, "read">, layout: MemoryLayout, entry: M
   return null;
 }
 
+/** The text read back is the one written, line endings and a trailing blank aside (a host may normalise them). */
+const sameText = (a: string, b: string): boolean => a.replace(/\r\n/g, "\n").trimEnd() === b.replace(/\r\n/g, "\n").trimEnd();
+
 const firstLine = (error: unknown): string => String((error as Error)?.message ?? error).split("\n")[0];
 
 /** Writes `entry` as a candidate after the checks: refused topic, validity, a free id. */
@@ -104,24 +108,32 @@ export async function writeCandidate(
   }
   const problems = entryProblems(entry);
   if (problems.length > 0) return { ok: false, refused: `not a valid entry: ${problems.join("; ")}` };
-  let id: string | null;
-  try {
-    id = await freeId(deps.files, memory.layout, entry);
-  } catch (error) {
-    return { ok: false, refused: `${memory.layout.candidates} cannot be read (${firstLine(error)})` };
+  // The Files port has no exclusive create: a concurrent push of the same title may write the same id between
+  // freeId and the write. The candidate is read back, and a file another push overwrote is written again under the
+  // next free id; a push whose write came last still wins its id (no lock without module state).
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    let id: string | null;
+    try {
+      id = await freeId(deps.files, memory.layout, entry);
+    } catch (error) {
+      return { ok: false, refused: `${memory.layout.candidates} cannot be read (${firstLine(error)})` };
+    }
+    if (id === null) return { ok: false, refused: `nine candidates or entries already hold the id ${entry.id}` };
+    if (id !== entry.id && (await readOrNull(deps.files, entryPath(memory.layout, entry.type, entry.id)).catch(() => null)) !== null) {
+      return { ok: false, refused: `an admitted entry already holds ${entry.id}: supersede it rather than push it again` };
+    }
+    let path: string;
+    try {
+      path = await writeCandidateFile(deps.files, memory.layout, { ...entry, id });
+    } catch (error) {
+      return { ok: false, refused: `${memory.layout.candidates} is not writable (${firstLine(error)}): nothing was written` };
+    }
+    const kept = await readOrNull(deps.files, path).catch(() => null);
+    if (kept !== null && sameText(kept, serializeEntry({ ...entry, id, status: "candidate" })) === false) continue;
+    const listed = await refreshCandidatesList(deps.files, memory.layout);
+    return { ok: true, id, path, warnings: listed === null ? [] : [listed] };
   }
-  if (id === null) return { ok: false, refused: `nine candidates or entries already hold the id ${entry.id}` };
-  if (id !== entry.id && (await readOrNull(deps.files, entryPath(memory.layout, entry.type, entry.id)).catch(() => null)) !== null) {
-    return { ok: false, refused: `an admitted entry already holds ${entry.id}: supersede it rather than push it again` };
-  }
-  let path: string;
-  try {
-    path = await writeCandidateFile(deps.files, memory.layout, { ...entry, id });
-  } catch (error) {
-    return { ok: false, refused: `${memory.layout.candidates} is not writable (${firstLine(error)}): nothing was written` };
-  }
-  const listed = await refreshCandidatesList(deps.files, memory.layout);
-  return { ok: true, id, path, warnings: listed === null ? [] : [listed] };
+  return { ok: false, refused: `another push overwrote ${entry.id} twice: nothing was kept, push again` };
 }
 
 /** memory_push: the input read, the candidate built and written. */

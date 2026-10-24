@@ -268,6 +268,15 @@ describe("the user layer: a project file widens nothing (QL-06)", () => {
     deepStrictEqual(r, { key: "tools.extra", value: "a:write, b:write", source: "file" });
   });
 
+  it("drops the second entry of a dropped tool: once its twin is gone, it would parse as a grant", () => {
+    const r = extra({ "tools.extra": "evil_tool:write, evil_tool:read" }, {});
+    strictEqual(r.value, undefined);
+    strictEqual(r.ignored?.value, "evil_tool:write");
+    strictEqual(extra({ "tools.extra": "evil_tool:write, Evil_Tool:read" }, { "tools.extra": "other:read" }).value, undefined);
+    strictEqual(extra({ "tools.extra": "a:write, a:read" }, { "tools.extra": "a:read" }).value, "a:write");
+    strictEqual(extra({ "tools.extra": "a, file_read:read" }, { "tools.extra": "a" }).value, "a:write, file_read:read");
+  });
+
   it("does not take *:read as *", () => {
     const r = extra({ "tools.extra": "a:read" }, { "tools.extra": "*:read" });
     strictEqual(r.value, undefined);
@@ -339,6 +348,19 @@ describe("the shared memory's keys (M-2)", () => {
     for (const name of ["Orkeon Code", "orkeon_code", "-x"]) strictEqual(validateConfigEntry("memory.project", name).ok, false, name);
     ok(validateConfigEntry("memory.autoAdmitAudited", "true").ok);
     strictEqual(validateConfigEntry("memory.autoAdmitAudited", "yes").ok, false);
+  });
+
+  it("sets dev.prAuto true from a project file only when the user settings do (QL-06)", () => {
+    const auto = (file: Record<string, unknown>, user: Record<string, unknown>) =>
+      resolveConfigEntry("dev.prAuto", file, {}, user);
+    const r = auto({ "dev.prAuto": "true" }, {});
+    strictEqual(r.value, undefined);
+    strictEqual(r.source, "unset");
+    strictEqual(r.ignored?.value, "true");
+    ok(r.ignored?.reason.includes("user settings"), r.ignored?.reason);
+    strictEqual(auto({ "dev.prAuto": "true" }, { "dev.prAuto": "false" }).value, "false");
+    deepStrictEqual(auto({ "dev.prAuto": "true" }, { "dev.prAuto": "true" }), { key: "dev.prAuto", value: "true", source: "file" });
+    deepStrictEqual(auto({ "dev.prAuto": "false" }, { "dev.prAuto": "true" }), { key: "dev.prAuto", value: "false", source: "file" });
   });
 
   it("sets memory.autoAdmitAudited true from a project file only when the user settings do (QL-06)", () => {

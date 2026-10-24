@@ -153,12 +153,16 @@ export function entryFromFrontMatter(
   return { ok: true, entry };
 }
 
-/** The entry's front matter, keys in ENTRY_KEYS order, optional absent keys omitted. */
+/** A prose value on one line: a wrapped rationale is joined, since a front-matter scalar holds no line break. */
+const joined = (text: string | undefined): string | undefined =>
+  text === undefined || !/[\r\n]/.test(text) ? text : text.split(/\r\n|\r|\n/).map((part) => part.trim()).filter(Boolean).join(" ");
+
+/** The entry's front matter, keys in ENTRY_KEYS order, optional absent keys omitted; prose values joined on one line. */
 export function entryToFrontMatter(entry: MemoryEntry): FrontMatter {
   const values: Record<string, FlatValue | undefined> = {
     id: entry.id, type: entry.type, title: entry.title, project: entry.project, date: entry.date, topic: entry.topic,
-    applies_when: entry.appliesWhen, rationale: entry.rationale, correction: entry.correction,
-    detection_signal: entry.detectionSignal, source: entry.source, status: entry.status, supersedes: entry.supersedes,
+    applies_when: joined(entry.appliesWhen), rationale: joined(entry.rationale), correction: joined(entry.correction),
+    detection_signal: joined(entry.detectionSignal), source: entry.source, status: entry.status, supersedes: entry.supersedes,
     superseded_by: entry.supersededBy, tags: entry.tags, stack: entry.stack,
   };
   const fields: FrontMatter["fields"] = [];

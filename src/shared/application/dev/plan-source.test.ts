@@ -71,7 +71,10 @@ describe("resolvePlanSource with a path", () => {
     }
   });
   it("refuses a source under .claude/", async () => {
-    for (const token of [".claude/local/SPEC-trim.md", "/workspace/.claude/SPEC-trim.md"]) {
+    for (const token of [
+      ".claude/local/SPEC-trim.md", "/workspace/.claude/SPEC-trim.md", "/workspace/./.claude/SPEC-trim.md",
+      "/workspace//.claude/SPEC-trim.md", "././.claude/SPEC-trim.md",
+    ]) {
       strictEqual(await refusal(setup(), token), "dev-plan: a source under .claude/ is the harness's own: copy it to the work folder first");
     }
   });

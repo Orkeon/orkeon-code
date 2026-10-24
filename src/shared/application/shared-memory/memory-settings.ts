@@ -54,17 +54,22 @@ export async function defaultProject(shell: Pick<Shell, "run">): Promise<string>
   return validProject(remote === null || remote === "" ? null : projectFromRemote(remote)) ?? LOCAL_PROJECT;
 }
 
+/** memory.dir as it applies, and the warning when the stored value was set aside for the default. */
+export async function readMemoryDir(config: Pick<ConfigStore, "readValue">): Promise<{ dir: string; warning?: string }> {
+  const rawDir = await valueOf(config, MEMORY_DIR_CONFIG_KEY);
+  if (rawDir === undefined) return { dir: DEFAULT_MEMORY_DIR };
+  const check = checkMemoryDir(rawDir);
+  return check.ok
+    ? { dir: check.dir }
+    : { dir: DEFAULT_MEMORY_DIR, warning: `${MEMORY_DIR_CONFIG_KEY} '${rawDir}' set aside (${check.reason}): ${DEFAULT_MEMORY_DIR} applies` };
+}
+
 export async function readMemorySettings(
   deps: { config: Pick<ConfigStore, "readValue">; shell: Pick<Shell, "run"> },
 ): Promise<MemorySettings> {
   const warnings: string[] = [];
-  const rawDir = await valueOf(deps.config, MEMORY_DIR_CONFIG_KEY);
-  let dir = DEFAULT_MEMORY_DIR;
-  if (rawDir !== undefined) {
-    const check = checkMemoryDir(rawDir);
-    if (check.ok) dir = check.dir;
-    else warnings.push(`${MEMORY_DIR_CONFIG_KEY} '${rawDir}' set aside (${check.reason}): ${DEFAULT_MEMORY_DIR} applies`);
-  }
+  const { dir, warning } = await readMemoryDir(deps.config);
+  if (warning !== undefined) warnings.push(warning);
   const rawProject = await valueOf(deps.config, MEMORY_PROJECT_CONFIG_KEY);
   let project: string | null = null;
   if (rawProject !== undefined) {

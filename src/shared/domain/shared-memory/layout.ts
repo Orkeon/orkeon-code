@@ -3,6 +3,8 @@
 // Nothing here reads a file or a setting; application/shared-memory/memory-settings.ts does.
 
 import { normalizeWorkDir } from "../dev/work-folder.ts";
+import { PATH_WRITE_TOOLS } from "../agent-policy/rule-sets.ts";
+import type { PermissionRule } from "../agent-policy/permission.ts";
 import { MEMORY_DIR, TOPIC_PATTERN } from "./refused.ts";
 import type { EntryType } from "./entry.ts";
 
@@ -23,6 +25,10 @@ export function checkMemoryDir(raw: string): { ok: true; dir: string } | { ok: f
   const check = normalizeWorkDir(raw);
   if (!check.ok) return { ok: false, reason: check.reason };
   if (check.folder === "") return { ok: false, reason: "an empty folder" };
+  // normalizeWorkDir compares the first segment as written; a case-insensitive file system (macOS, Windows)
+  // reads `.Claude/` as the harness's folder.
+  const first = check.folder.split("/")[0].toLowerCase();
+  if (first === ".claude" || first === ".git") return { ok: false, reason: "under .claude/ or .git/" };
   if (within(check.folder, AGENT_MEMORY_DIR) || within(AGENT_MEMORY_DIR, check.folder)) {
     return { ok: false, reason: `the agent memory's folder ${AGENT_MEMORY_DIR} (the two stay apart)` };
   }
@@ -71,6 +77,25 @@ export function memoryLayout(dir: string): MemoryLayout {
     golden: `${root}/eval/golden.yaml`,
     entriesGlob: `${root}/entries/**/*.md`,
   };
+}
+
+/**
+ * The deny rules every sync of the session's gate adds, whatever the mode (a deny holds in bypassPermissions too):
+ * no tool of the model writes a candidate or an entry. A candidate comes from memory_push or Orkeon Code's own
+ * harvests, an entry from /memory-admit, both Orkeon Code's code, which the gate does not see; so a forged
+ * `status: admitted` file or an `audit:` source the model wrote itself never reaches the memory. The gate matches
+ * the raw text, so each pattern lets any text stand between the folder's segments (`./`, `//`, `src/../`) and
+ * before them after a `/` (`/workspace/`, `../workspace/`): two rules per tool of PATH_WRITE_TOOLS and folder, and
+ * one shell_command rule per folder, which refuses a command naming it. edit_batch and structural_rewrite are not
+ * covered: the gate cannot read their paths; nor is a shell command reaching the folder in steps (`cd`).
+ */
+export function memoryWriteRules(dir: string): PermissionRule[] {
+  const segments = dir.split("/").join("/*");
+  const folders = ["entries", "candidates"].map((leaf) => `${segments}/*${leaf}`);
+  const paths = PATH_WRITE_TOOLS.flatMap((tool) => folders.flatMap((folder) =>
+    [`${folder}/*`, `*/${folder}/*`].map((pattern): PermissionRule => ({ effect: "deny", tool, argument: "path", pattern }))));
+  const shell = folders.map((folder): PermissionRule => ({ effect: "deny", tool: "shell_command", argument: "command", pattern: `*${folder}*` }));
+  return [...paths, ...shell];
 }
 
 export const candidatePath = (layout: MemoryLayout, id: string): string => `${layout.candidates}/${id}.md`;

@@ -6,6 +6,8 @@ import type { PermissionRules, SessionStore, ToolCatalogue } from "../../shared/
 import type { ConfigStore } from "../../shared/application/config-store.ts";
 import { configuredNames, resolveExtraTools } from "../../shared/application/extra-tools.ts";
 import { syncStepRules } from "../../shared/application/permission-rules.ts";
+import { readMemoryDir } from "../../shared/application/shared-memory/memory-settings.ts";
+import { memoryWriteRules } from "../../shared/domain/shared-memory/layout.ts";
 import { readJsonArray } from "../../shared/application/session-state.ts";
 import { HOOKS_STATE_KEY } from "../../shared/domain/session-keys.ts";
 import { deniesEveryCall, formatRule } from "../../shared/domain/agent-policy/permission.ts";
@@ -48,6 +50,7 @@ export async function startDevStep(step: DevStep, deps: DevStepDeps): Promise<De
   const extras = await resolveExtraTools(deps);
   const sync = await syncStepRules({
     session: deps.session, gate: deps.gate, extraNames: configuredNames(extras), rules: stepRules(step),
+    builtIn: memoryWriteRules((await readMemoryDir(deps.config)).dir),
   });
   if (!sync.applied) {
     lines.push(`warning: the host keeps no session rules: /${step}'s rule sets are not in force, the mode alone decides each call.`);

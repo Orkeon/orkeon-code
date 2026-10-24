@@ -1,9 +1,11 @@
 // The shared memory's folder layout and collection name (M-2). Run:
 //   node --test src/shared/domain/shared-memory/layout.test.ts
 import { describe, it } from "node:test";
-import { deepStrictEqual, strictEqual } from "node:assert";
+import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
-import { candidatePath, checkMemoryDir, entryPath, memoryCollection, memoryLayout } from "./layout.ts";
+import { candidatePath, checkMemoryDir, entryPath, memoryCollection, memoryLayout, memoryWriteRules } from "./layout.ts";
+import { ruleDecision } from "../agent-policy/permission.ts";
+import { PATH_WRITE_TOOLS } from "../agent-policy/rule-sets.ts";
 
 describe("memoryLayout", () => {
   it("places every file of the layout under /workspace/<memory.dir>", () => {
@@ -34,5 +36,34 @@ describe("checkMemoryDir", () => {
       strictEqual(checkMemoryDir(dir).ok, false, dir);
     }
     strictEqual(checkMemoryDir(".orkeon/agent-memory-x").ok, true);
+  });
+
+  it("refuses a folder under .claude/ or .git/, in any case: a case-insensitive file system reads .Claude as .claude", () => {
+    for (const dir of [".claude", ".claude/memory", "./.claude/memory", ".Claude/memory", ".CLAUDE", ".Git/x", ".git"]) {
+      deepStrictEqual(checkMemoryDir(dir), { ok: false, reason: "under .claude/ or .git/" }, dir);
+    }
+    strictEqual(checkMemoryDir("docs/.claude-notes").ok, true);
+  });
+});
+
+describe("memoryWriteRules", () => {
+  it("denies the writing tools under the memory's candidates and entries, however the path is spelt, nothing else", () => {
+    const rules = memoryWriteRules(".orkeon/memory");
+    strictEqual(rules.length, PATH_WRITE_TOOLS.length * 4 + 2);
+    const spellings = [
+      "/workspace/.orkeon/memory/entries/decision/x.md", ".orkeon/memory/entries/x.md", ".orkeon/memory/candidates/CANDIDATES.md",
+      "./.orkeon/memory/candidates/x.md", "/workspace/./.orkeon/memory/candidates/x.md", "/workspace//.orkeon/memory/candidates/x.md",
+      ".orkeon/memory//candidates/x.md", "src/../.orkeon/memory/candidates/x.md", "../workspace/.orkeon/memory/entries/x.md",
+    ];
+    for (const tool of PATH_WRITE_TOOLS) {
+      for (const path of spellings) strictEqual(ruleDecision(rules, tool, { path }), "deny", `${tool} ${path}`);
+      for (const path of [".orkeon/memory/refused.md", ".orkeon/memory/INDEX.md", "src/entries/x.md", "my.orkeon/memory/entries/x.md"]) {
+        strictEqual(ruleDecision(rules, tool, { path }), undefined, path);
+      }
+    }
+    strictEqual(ruleDecision(rules, "file_read", { path: ".orkeon/memory/entries/x.md" }), undefined);
+    strictEqual(ruleDecision(rules, "shell_command", { command: "printf x > .orkeon/memory/candidates/x.md" }), "deny");
+    strictEqual(ruleDecision(rules, "shell_command", { command: "cp a.md ./.orkeon/memory/entries/decision/" }), "deny");
+    strictEqual(ruleDecision(rules, "shell_command", { command: "cat .orkeon/memory/refused.md" }), undefined);
   });
 });

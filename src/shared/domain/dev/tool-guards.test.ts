@@ -2,7 +2,7 @@
 // refuses; the rule guard reads the rules as the gate does; arguments and tails. Run:
 //   node --test src/shared/domain/dev/tool-guards.test.ts
 import { describe, it } from "node:test";
-import { deepStrictEqual, strictEqual } from "node:assert";
+import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import { outputTail, runGuards, shellRuleGuard, stringArgument } from "./tool-guards.ts";
 import type { Guard } from "./tool-guards.ts";
@@ -29,6 +29,16 @@ describe("shellRuleGuard", () => {
     const guard = shellRuleGuard(rulesOf(["git-readonly"]));
     strictEqual(guard("git push origin main"), "the rules of this step deny the shell command 'git push origin main'");
     strictEqual(guard("dotnet test tests/A.Tests"), null);
+  });
+
+  it("refuses the command in the form the program receives it: quotes and repeated spaces gone", () => {
+    const guard = shellRuleGuard(rulesOf(["git-readonly", "inline-interpreters"]));
+    strictEqual(guard('git "push" origin'), "the rules of this step deny the shell command 'git \"push\" origin'");
+    ok(guard("python3 -Ic x") !== null);
+    for (const command of ['python3 -Ic"print(1)"', "python3 -Icprint(1)", 'perl -we"print 1"', 'perl -wE"say 1"', 'ruby -we"p 1"']) {
+      ok(guard(command) !== null, command);
+    }
+    strictEqual(guard("ls -la"), null);
   });
 
   it("does not refuse what an allow rule alone covers", () => {

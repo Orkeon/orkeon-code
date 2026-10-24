@@ -124,8 +124,9 @@ export const CONFIG_KEYS: readonly ConfigKeySpec[] = [
   {
     key: DEV_PR_AUTO_CONFIG_KEY,
     description:
-      "'true' asks /commit to open the pull request of a pushed branch, as --pr does. Omitted = 'false': the " +
-      "gh pr create command is printed. Until Orkeon Code opens pull requests itself, the command is printed either way.",
+      "'true' asks /commit to open the pull request of a pushed branch, as --pr does: through the github tool when " +
+      "it is registered and the permission gate lets it, else the gh pr create command is printed. Omitted = 'false': " +
+      "the command is printed. Set in the user settings; a project file may only narrow it to 'false'.",
     allowed: ["true", "false"],
     consumedBy: "/commit (the pull request of the branch)",
   },
@@ -212,8 +213,9 @@ function userToolEntries(user: string | undefined): { all: boolean; rest: string
  *  only when both lists say `read` — a read tool is the wider grant, offered in plan and
  *  dontAsk too — and `write` under `*`, which grants the tools, not their class; the
  *  others set aside. An entry that does not parse stays, as written, for the reader to
- *  warn about: it never becomes a tool. Never the user's list in place of the
- *  project's: narrowing a list never widens it. */
+ *  warn about, unless it names a tool the project lists in a valid entry: a second
+ *  entry of a dropped tool would parse once its twin is gone. Never the user's list in
+ *  place of the project's: narrowing a list never widens it. */
 function narrowExtraTools(project: string, user: string | undefined): Narrowed {
   const { all, rest } = userToolEntries(user);
   const allowed = parseExtraTools(rest).tools;
@@ -229,7 +231,9 @@ function narrowExtraTools(project: string, user: string | undefined): Narrowed {
     const read = listed?.access === "read" && tool.access === "read";
     kept.push(formatExtraTool({ name: tool.name, access: read ? "read" : "write" }));
   }
-  const value = [...kept, ...invalid];
+  // `evil:write, evil:read`: the read twin is invalid only while the write one stands.
+  const named = (entry: string): boolean => tools.some((t) => sameToolName(t.name, entry.split(":", 1)[0]));
+  const value = [...kept, ...invalid.filter((entry) => !named(entry))];
   return {
     value: value.length > 0 ? value.join(", ") : undefined,
     fallThrough: false,
@@ -255,8 +259,18 @@ function narrowAutoAdmit(project: string, user: string | undefined): Narrowed {
   };
 }
 
+/** The project's dev.prAuto: 'true' opens a pull request without asking, so it applies only when the user's says 'true'. */
+function narrowPrAuto(project: string, user: string | undefined): Narrowed {
+  if (project !== "true" || user === "true") return { value: project, fallThrough: false };
+  return {
+    value: undefined, fallThrough: true,
+    ignored: { value: project, reason: "opening a pull request without asking comes from the user settings (orkeonCode); a project file may only narrow it" },
+  };
+}
+
 /** The project value as it applies over the user's: narrowed for the keys that widen. */
 function narrowProject(key: string, project: string, user: string | undefined): Narrowed {
+  if (key === DEV_PR_AUTO_CONFIG_KEY) return narrowPrAuto(project, user);
   if (key === PERMISSION_FALLBACK_CONFIG_KEY) return narrowFallback(project, user);
   if (key === EXTRA_TOOLS_CONFIG_KEY) return narrowExtraTools(project, user);
   if (key === MEMORY_AUTO_ADMIT_CONFIG_KEY) return narrowAutoAdmit(project, user);
@@ -319,8 +333,9 @@ export function validateConfigEntry(key: unknown, value: unknown): ValueVerdict 
  * temporary override of a persisted setting, and `/clear` drops it back to
  * the file value. The project file comes next, but widens nothing (QL-06): its
  * `permissions.fallback` applies only as default, plan or acceptEdits, its
- * `tools.extra` only for the tools the user settings list; what it loses is
- * returned as `ignored`. The user map is a required argument: a caller that forgets
+ * `tools.extra` only for the tools the user settings list, its `dev.prAuto` and
+ * `memory.autoAdmitAudited` 'true' only when the user settings say 'true'; what it
+ * loses is returned as `ignored`. The user map is a required argument: a caller that forgets
  * it must not read a project value unnarrowed. Unknown keys present in any map are
  * NOT returned — they can only be residue from before the schema existed, and
  * surfacing them as effective settings would suggest something reads them.

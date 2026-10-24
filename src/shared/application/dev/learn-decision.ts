@@ -232,10 +232,6 @@ export async function runDevLearnDecision(
   return [...warningLines([...ctx.warnings, ...lookup.warnings], MAX_WARNING_LINES), ...lines].join("\n");
 }
 
-// /dev-plan: the arguments, and the Blocking gate. The gate is a bounded read (the context,
-// the listings of the work folder, one source file), so it answers in the handler and no
-// crew starts for a source that cannot be planned yet; the inventory, the model call, the
-
 const isStateLine = (line: string): boolean => line.startsWith("state: ");
 
 /**

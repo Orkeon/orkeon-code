@@ -77,6 +77,33 @@ describe("pushCandidate", () => {
     ok(!stopped.ok && stopped.refused.includes("refused.md cannot be read"));
   });
 
+  it("writes a wrapped rationale on one line rather than calling candidates unwritable", async () => {
+    const files = new LiveListingFiles();
+    const out = await pushCandidate({ files, clock }, memory, { ...input, rationale: "the slow suite\nhides the contract failure" });
+    ok(out.ok, JSON.stringify(out));
+    const parsed = parseEntry(files.files.get(out.path)!);
+    ok(parsed.ok);
+    strictEqual(parsed.entry.rationale, "the slow suite hides the contract failure");
+  });
+
+  it("writes again under the next id when a concurrent push overwrote its candidate", async () => {
+    const files = new LiveListingFiles();
+    const id = "shop-method-20261024-run-the-contract-tests-first";
+    const path = `${layout.candidates}/${id}.md`;
+    let raced = false;
+    const racing = Object.assign(Object.create(files), {
+      write: async (p: string, content: string) => {
+        await files.write(p, content);
+        if (p === path && !raced) { raced = true; await files.write(p, content.replace("the slow suite", "another push")); }
+      },
+    });
+    const out = await pushCandidate({ files: racing, clock }, memory, input);
+    ok(out.ok, JSON.stringify(out));
+    strictEqual(out.id, `${id}-2`);
+    ok(files.files.get(path)!.includes("another push"));
+    ok(files.files.get(`${layout.candidates}/${id}-2.md`)!.includes("the slow suite"));
+  });
+
   it("reads the tool's input: type, evidence and the optional mistake fields", () => {
     ok(!readPushInput({ ...input, type: "rule" }).ok);
     ok(!readPushInput({ ...input, evidence: [] }).ok);

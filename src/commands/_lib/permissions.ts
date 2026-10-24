@@ -25,6 +25,8 @@ import {
   addPermissionRule, clearPermissionRules, readPermissionRules, removePermissionRule, syncPermissionRules,
 } from "../../shared/application/permission-rules.ts";
 import type { StoredRules } from "../../shared/application/permission-rules.ts";
+import { readMemoryDir } from "../../shared/application/shared-memory/memory-settings.ts";
+import { memoryWriteRules } from "../../shared/domain/shared-memory/layout.ts";
 import { PERMISSION_FALLBACK_CONFIG_KEY, PERMISSION_MODES } from "../../shared/domain/permission-modes.ts";
 import { EXTRA_TOOLS_CONFIG_KEY } from "../../shared/domain/agent-policy/extra-tools.ts";
 import {
@@ -134,10 +136,15 @@ async function renderShow(deps: PermissionsDeps, extras: ExtraToolsResolution): 
   const stored = await readPermissionRules(session, configuredNames(extras));
   const { rules } = stored;
   const decision = catalogueFor(mode, rules, extras.present);
-  const held = gate.available() ? gate.list() : null;
   const gateOn = gate.enabled();
-  // What the gate holds beyond the session's rules is grouped by built-in rule set (a dev step's).
+  // What the gate holds beyond the session's rules: the shared memory's guard every sync adds, then the
+  // built-in rule sets (a dev step's), grouped.
   const sessionLines = rules.map(gateLine);
+  const memoryDir = (await readMemoryDir(deps.config)).dir;
+  const memoryLines = memoryWriteRules(memoryDir).map(gateLine);
+  const all = gate.available() ? gate.list() : null;
+  const guarded = all === null ? [] : all.filter((l) => memoryLines.includes(l) && !sessionLines.includes(l));
+  const held = all === null ? null : all.filter((l) => !guarded.includes(l));
   const grouped = held === null ? null : heldRuleSets(held.filter((l) => !sessionLines.includes(l)));
   const setLines = new Set(held === null || grouped === null
     ? []
@@ -146,7 +153,10 @@ async function renderShow(deps: PermissionsDeps, extras: ExtraToolsResolution): 
   const setParts = grouped !== null && grouped.sets.length > 0
     ? [`rule sets of the last dev step: ${grouped.sets.map((g) => `${g.id} (${g.count} rules)`).join(", ")}`]
     : [];
-  const heldParts = plain === null ? [] : [...(plain.length > 0 ? [plain.join(", ")] : []), ...setParts];
+  const guardParts = guarded.length > 0
+    ? [`the shared memory's guard: no tool of the model writes under ${memoryDir}/candidates or ${memoryDir}/entries (${guarded.length} rules)`]
+    : [];
+  const heldParts = plain === null ? [] : [...(plain.length > 0 ? [plain.join(", ")] : []), ...setParts, ...guardParts];
 
   // The shared memory's tools are the main loop's, offered by mode (memory_recall always, memory_push where the
   // mode edits) less a deny rule on the whole tool; Orkeon Code's other tools (SCRIPT_TOOLS) belong to the dev
@@ -228,7 +238,8 @@ export async function runPermissions(tokens: string[], deps: PermissionsDeps): P
   const ruleText = ruleTokens.join(" ");
   const extras = await resolveExtraTools(deps);
   const extraNames = configuredNames(extras);
-  const sync = () => syncPermissionRules({ session, gate, extraNames });
+  const builtIn = memoryWriteRules((await readMemoryDir(deps.config)).dir);
+  const sync = () => syncPermissionRules({ session, gate, extraNames, builtIn });
   switch ((sub ?? "show").toLowerCase()) {
     case "show":
       return { text: await renderShow(deps, extras) };

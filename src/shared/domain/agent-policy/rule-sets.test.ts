@@ -40,10 +40,10 @@ describe("the rule sets", () => {
     for (const [tool, argument] of WRITTEN_TEXT) ok(TOOL_ARGUMENTS[tool].includes(argument), `${tool}.${argument}`);
   });
 
-  it("holds 190, 23, 56, 128 and 41 rules, 438 in all, none of them on edit_batch", () => {
-    deepStrictEqual(RULE_SET_IDS.map((id) => RULE_SETS[id].rules.length), [190, 23, 56, 128, 41]);
+  it("holds 220, 28, 64, 128 and 41 rules, 481 in all, none of them on edit_batch", () => {
+    deepStrictEqual(RULE_SET_IDS.map((id) => RULE_SETS[id].rules.length), [220, 28, 64, 128, 41]);
     const all = rulesOf(RULE_SET_IDS);
-    strictEqual(all.length, 438);
+    strictEqual(all.length, 481);
     ok(!all.some((r) => r.tool === "edit_batch"));
     for (let i = 0; i < all.length; i++) {
       for (let j = i + 1; j < all.length; j++) ok(!sameCalls(all[i], all[j]), gateLine(all[i]));
@@ -105,6 +105,20 @@ describe("the rule sets", () => {
     ], false);
   });
 
+  it("git-readonly refuses git config when it changes the file, and lets its reads run", () => {
+    assertRefused("git-readonly", "shell_command", "command", [
+      "git config user.name x", "git config --local a.b c", "git config --add a.b c", "git config --unset a.b",
+      "git config --unset-all a.b", "git config --replace-all a.b c", "git config --rename-section a b",
+      "git config --remove-section a", "git config --edit", "git config -e", "git config set a.b c",
+      "git config unset a.b", "git config edit", "git -C /x config a.b c", "git -C /x config --unset a.b",
+    ], true);
+    assertRefused("git-readonly", "shell_command", "command", [
+      "git config --get user.name", "git config --global --get user.name", "git config --get-all a.b",
+      "git config --get-regexp remote", "git config --list --show-origin", "git config get user.name",
+      "git -C /x config --get user.email",
+    ], false);
+  });
+
   it("git-readonly lets the reads run", () => {
     assertRefused("git-readonly", "shell_command", "command", [
       "git status", "git log --oneline -5", "git diff --stat", "git diff -- src/address.ts",
@@ -130,7 +144,8 @@ describe("the rule sets", () => {
   it("inline-interpreters refuses inline code behind a path, an env, a flag cluster or a flag before it", () => {
     assertRefused("inline-interpreters", "shell_command", "command", [
       "bash -xc 'x'", "bash -e -c x", "/bin/bash -c x", "env bash -c x", "zsh -c x", "perl -e 1", "npx tsx -e 1",
-      "node --input-type=module -e 1", "node -r x -e 1", "python3 -u -c 1",
+      "node --input-type=module -e 1", "node -r x -e 1", "python3 -u -c 1", "python3.12 -c 1", "python3.12 -u -c 1",
+      "perl -w -e 1", "perl -Mstrict -E 1", "ruby -w -e 1",
     ], true);
     assertRefused("inline-interpreters", "shell_command", "command", [
       "bash scripts/build.sh", "node script.js", "python3 -m pytest", "sh -x build.sh",
@@ -214,14 +229,16 @@ describe("the rule sets", () => {
     strictEqual(made.rules[0].tool, "file_write");
   });
 
-  it("pathRules makes two rules per root and reading tool, the root itself for the folder readers, then denies structural_search once", () => {
+  it("pathRules makes two rules per root and reading tool, the root itself for the folder readers, then denies structural_search and symbol_source once", () => {
     const made = pathRules("read", ["tests"]);
     deepStrictEqual(made.rules.map(formatRule), [
       ...PATH_READ_TOOLS.flatMap((tool) => [`deny ${tool} path=/workspace/tests/*`, `deny ${tool} path=tests/*`]),
       ...FOLDER_READ_TOOLS.flatMap((tool) => [`deny ${tool} path=/workspace/tests`, `deny ${tool} path=tests`]),
-      "deny structural_search",
+      "deny structural_search", "deny symbol_source",
     ]);
-    strictEqual(made.rules.length, 14 + 6 + 1);
+    strictEqual(made.rules.length, 16 + 8 + 2);
+    strictEqual(ruleDecision(made.rules, "directory_search", { path: "tests", query: "x" }), "deny");
+    strictEqual(ruleDecision(made.rules, "symbol_source", { fqn: "a.b" }), "deny");
     strictEqual(ruleDecision(made.rules, "grep", { path: "tests/a", pattern: "x" }), "deny");
     strictEqual(ruleDecision(made.rules, "grep", { path: "tests", pattern: "x" }), "deny");
     strictEqual(ruleDecision(made.rules, "glob", { path: "/workspace/tests", pattern: "*.ts" }), "deny");
@@ -247,7 +264,7 @@ describe("the rule sets", () => {
   it("heldRuleSets counts the lines of each set and keeps the others", () => {
     const lines = ["allow shell_command command=npm test*", ...RULE_SETS["read-noise"].rules.map(gateLine)];
     deepStrictEqual(heldRuleSets(lines), {
-      sets: [{ id: "read-noise", count: 56 }],
+      sets: [{ id: "read-noise", count: 64 }],
       rest: ["allow shell_command command=npm test*"],
     });
     deepStrictEqual(heldRuleSets([]), { sets: [], rest: [] });

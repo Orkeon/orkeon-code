@@ -54,7 +54,8 @@ function byPath(token: string): Resolution {
     if (!relative.startsWith(`${WORKSPACE_ROOT}/`)) return notSource;
     relative = relative.slice(WORKSPACE_ROOT.length + 1);
   }
-  const segments = relative.split("/");
+  // `/workspace/./.claude/x` and `/workspace//.claude/x` name `.claude/x`: the `.` and empty segments go first.
+  const segments = relative.split("/").filter((s) => s !== "" && s !== ".");
   if (segments.some((s) => s === "..")) return notSource;
   const fileName = segments.at(-1) ?? "";
   const artefact = classifyArtefact(fileName);

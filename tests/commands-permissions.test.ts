@@ -19,6 +19,12 @@ import { FakeFiles } from "./support/fake-files.ts";
 import { FakePermissionRules } from "./support/fake-permission-rules.ts";
 import { FakeSessionStore } from "./support/fake-session-store.ts";
 import { FakeToolCatalogue } from "./support/fake-tool-catalogue.ts";
+import { DEFAULT_MEMORY_DIR, memoryWriteRules } from "../src/shared/domain/shared-memory/layout.ts";
+import { gateLine as memoryGateLine } from "../src/shared/domain/agent-policy/permission.ts";
+
+/** The built-in denies every sync adds after the session's rules: no model tool writes the memory's candidates or entries. */
+const MEMORY_LINES = memoryWriteRules(DEFAULT_MEMORY_DIR).map(memoryGateLine);
+const MEMORY_GATE = MEMORY_LINES.map((line) => `add ${line}`);
 
 const NO_GATE_RULES =
   "⚠ the host keeps no session rules (orkeon-repl does): the gate decides each call from the mode alone.";
@@ -151,8 +157,18 @@ describe("/permissions show", () => {
     seedRules("deny file_write");
     gate.rules = [R("deny file_write"), ...RULE_SETS["read-noise"].rules];
     const lines = (await run("show")).text!.split("\n");
-    strictEqual(lines[7], "in the host gate     : deny file_write; rule sets of the last dev step: read-noise (56 rules)");
+    strictEqual(lines[7], "in the host gate     : deny file_write; rule sets of the last dev step: read-noise (64 rules)");
     ok(lines.includes(SETS_HELD));
+    ok(!lines.includes(OTHER_RULES));
+  });
+
+  it("names the shared memory's guard a sync adds, apart from the session's rules", async () => {
+    const { run, seedRules } = setup();
+    seedRules("deny file_write");
+    await run("add", "deny", "http_api");
+    const lines = (await run("show")).text!.split("\n");
+    strictEqual(lines[7], "in the host gate     : deny file_write, deny http_api; the shared memory's guard: no tool of the " +
+      `model writes under .orkeon/memory/candidates or .orkeon/memory/entries (${MEMORY_LINES.length} rules)`);
     ok(!lines.includes(OTHER_RULES));
   });
 
@@ -160,7 +176,7 @@ describe("/permissions show", () => {
     const { gate, run } = setup();
     gate.rules = [...RULE_SETS["git-readonly"].rules];
     const lines = (await run("show")).text!.split("\n");
-    strictEqual(lines[7], "in the host gate     : rule sets of the last dev step: git-readonly (190 rules)");
+    strictEqual(lines[7], "in the host gate     : rule sets of the last dev step: git-readonly (220 rules)");
   });
 });
 
@@ -196,7 +212,7 @@ describe("/permissions add", () => {
       text: `rule deny shell_command added.\ncatalogue for 'default': ${catalogue.join(", ")}`,
     });
     deepStrictEqual(rules(), ["deny shell_command"]);
-    deepStrictEqual(gate.calls, ["clear", "add deny shell_command"]);
+    deepStrictEqual(gate.calls, ["clear", "add deny shell_command", ...MEMORY_GATE]);
   });
 
   it("stores a rule with an argument pattern, spaces included, and leaves the catalogue whole", async () => {
@@ -208,7 +224,7 @@ describe("/permissions add", () => {
     });
     // Every other stored entry is kept as written, the old `effect:tool` form included.
     deepStrictEqual(rules(), ["deny:file_write", "allow shell_command command=npm test*"]);
-    deepStrictEqual(gate.calls, ["clear", "add deny file_write", "add allow shell_command command=npm test*"]);
+    deepStrictEqual(gate.calls, ["clear", "add deny file_write", "add allow shell_command command=npm test*", ...MEMORY_GATE]);
   });
 
   it("replaces the opposite effect on the same calls, and keeps rules on other calls of the tool", async () => {
@@ -261,7 +277,7 @@ describe("/permissions add", () => {
     const lines = (await run("add", "allow", "Shell_Command", "command=\"npm", "test*\"")).text!.split("\n");
     strictEqual(lines[0], "rule allow shell_command command=npm test* added.");
     deepStrictEqual(rules(), ["allow shell_command command=npm test*"]);
-    deepStrictEqual(gate.calls, ["clear", "add allow shell_command command=npm test*"]);
+    deepStrictEqual(gate.calls, ["clear", "add allow shell_command command=npm test*", ...MEMORY_GATE]);
   });
 });
 
@@ -277,7 +293,7 @@ describe("/permissions remove and clear", () => {
     });
     deepStrictEqual(await run("remove", "deny", "file_read"), { text: "rule deny file_read removed." });
     deepStrictEqual(rules(), ["deny:shell_command"]);
-    deepStrictEqual(gate.list(), ["deny shell_command"]);
+    deepStrictEqual(gate.list(), ["deny shell_command", ...MEMORY_LINES]);
   });
 
   it("refuses a text that is not a rule", async () => {
@@ -292,8 +308,8 @@ describe("/permissions remove and clear", () => {
     gate.rules = [{ effect: "deny", tool: "file_read" }];
     deepStrictEqual(await run("clear"), { text: "all permission rules cleared (the mode decides alone)." });
     deepStrictEqual(rules(), []);
-    deepStrictEqual(gate.calls, ["clear"]);
-    deepStrictEqual(gate.rules, []);
+    deepStrictEqual(gate.calls, ["clear", ...MEMORY_GATE]);
+    deepStrictEqual(gate.list(), MEMORY_LINES);
   });
 
   it("clears the session's rules and says so when the host keeps none", async () => {
@@ -337,7 +353,7 @@ describe("/permissions — the extra tools of tools.extra", () => {
     strictEqual(lines[2], `catalogue for 'default': ${toolsetFor("default", [EXTRAS[1]]).join(", ")}`);
     strictEqual((await run("add", "allow", "gone_tool")).text!.split("\n")[0], "rule allow gone_tool added.");
     deepStrictEqual(rules(), ["deny search_issues query=secret*", "allow gone_tool"]);
-    deepStrictEqual(gate.list(), ["deny search_issues query=secret*", "allow gone_tool"]);
+    deepStrictEqual(gate.list(), ["deny search_issues query=secret*", "allow gone_tool", ...MEMORY_LINES]);
     deepStrictEqual(await run("add", "deny", "never_configured"), {
       text: "invalid rule: 'never_configured' is no tool a rule may name: one of " +
         `${[...RULEABLE_TOOLS, "search_issues", "gone_tool"].join(", ")}.\n${PERMISSIONS_USAGE}`,
@@ -352,7 +368,7 @@ describe("/permissions — the extra tools of tools.extra", () => {
     const { gate, run, rules, extraTools } = setup();
     await extraTools("create_issue", "create_issue");
     await run("add", "deny", "create_issue");
-    deepStrictEqual(gate.list(), ["deny create_issue"]);
+    deepStrictEqual(gate.list(), ["deny create_issue", ...MEMORY_LINES]);
 
     // create_issue leaves tools.extra: the rule stays stored, out of the gate, and says so.
     await extraTools("transcribe_audio:read", "transcribe_audio");
@@ -361,7 +377,7 @@ describe("/permissions — the extra tools of tools.extra", () => {
     await run("remove", "deny", "http_api");
     await run("add", "allow", "file_write");
     deepStrictEqual(rules(), ["deny create_issue", "allow file_write"]);
-    deepStrictEqual(gate.list(), ["allow file_write"]);
+    deepStrictEqual(gate.list(), ["allow file_write", ...MEMORY_LINES]);
     lines = (await run("show")).text!.split("\n");
     strictEqual(lines[7], "session rules        : allow file_write; dormant: deny create_issue");
     ok(lines.includes(dormant("deny create_issue")), lines.join("\n"));
@@ -374,7 +390,7 @@ describe("/permissions — the extra tools of tools.extra", () => {
     await extraTools("create_issue", "create_issue");
     await run("remove", "allow", "file_write");
     deepStrictEqual(rules(), ["deny create_issue"]);
-    deepStrictEqual(gate.list(), ["deny create_issue"]);
+    deepStrictEqual(gate.list(), ["deny create_issue", ...MEMORY_LINES]);
   });
 
   it("removes a dormant rule by name, and clears it with the rest", async () => {
@@ -387,7 +403,7 @@ describe("/permissions — the extra tools of tools.extra", () => {
     deepStrictEqual(rules(), ["deny file_write", "bogus"]);
     await run("clear");
     deepStrictEqual(rules(), []);
-    deepStrictEqual(gate.rules, []);
+    deepStrictEqual(gate.list(), MEMORY_LINES);
   });
 
   it("rewrites no rule away when tools.extra cannot be read, and says why the extra tools are unknown", async () => {
@@ -408,7 +424,7 @@ describe("/permissions — the extra tools of tools.extra", () => {
     deepStrictEqual(JSON.parse(store.state.get(PERMISSION_RULES_STATE_KEY)!), [
       "deny create_issue", "deny file_write", "deny http_api",
     ]);
-    deepStrictEqual(gate.list(), ["deny file_write", "deny http_api"]);
+    deepStrictEqual(gate.list(), ["deny file_write", "deny http_api", ...MEMORY_LINES]);
   });
 });
 

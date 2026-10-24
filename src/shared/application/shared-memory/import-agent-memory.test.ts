@@ -77,6 +77,18 @@ describe("importAgentMemory", () => {
     ok(!outcome.written.some((w) => w.id.includes("name-the-port")));
   });
 
+  it("refuses an item whose note holds a secret where the body cuts it, rather than write part of it", async () => {
+    // The body keeps at most MAX_BODY_CHARS: a token across that cut left a stub too short for its pattern.
+    for (let n = 1_500; n <= 2_100; n += 20) {
+      const { files, run } = setup();
+      const note = `${"word ".repeat(500).slice(0, n)} ghp_${"A1b2".repeat(10)} end\n`;
+      files.files.set(`${root}/dev-auditor/contract.md`, `---\nname: c\n---\n${note}`);
+      const outcome = await run();
+      ok(outcome.refused.some((r) => r.agent === "dev-auditor" && r.line === 1 && /secret \(GitHub token\)/.test(r.reason)), `at ${n}`);
+      ok(!candidateFiles(files).some((p) => files.files.get(p)!.includes("ghp_")), `no candidate holds part of the token at ${n}`);
+    }
+  });
+
   it("skips a refused topic and reports it", async () => {
     const { files, run } = setup();
     files.files.set(layout.refused, appendRefused(null, { topic: "contract-tests-first", project: "shop", date: "2026-10-20", motif: "too local" }));

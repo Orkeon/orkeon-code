@@ -14,6 +14,7 @@ import type { AgentNote } from "../../domain/shared-memory/agent-memory-import.t
 import { MAX_LISTED, pendingCandidates, readOrNull, storedEntries } from "./memory-files.ts";
 import { writeCandidate } from "./push-candidate.ts";
 import { topicOf } from "../../domain/shared-memory/refused.ts";
+import { secretPatternsIn } from "../../domain/secret-patterns.ts";
 
 export const HARNESS_AGENT_MEMORY_ROOT = `${MEMORY_WORKSPACE}/${HARNESS_AGENT_MEMORY_DIR}`;
 
@@ -65,13 +66,22 @@ export async function importAgentMemory(
     outcome.agents.push({ agent, entries: items.length });
     for (const item of items) {
       let note: AgentNote | null = null;
+      let uncut = `${item.title}\n${item.hook}`;
       if (item.note !== undefined) {
         try {
           const text = await readOrNull(deps.files, `${folder}/${item.note}`);
           note = text === null ? null : parseAgentNote(text.slice(0, MAX_NOTE_CHARS));
+          if (text !== null) uncut += `\n${text}`;
         } catch (error) {
           outcome.warnings.push(`${folder}/${item.note} cannot be read (${firstLine(error)}): the line alone is imported`);
         }
+      }
+      // The entry cuts the note and the line: a secret cut at the boundary would slip past entryProblems,
+      // so the uncut text is scanned first.
+      const secrets = secretPatternsIn(uncut);
+      if (secrets.length > 0) {
+        outcome.refused.push({ agent, line: item.line, reason: `the item looks like it holds a secret (${secrets.join(", ")})` });
+        continue;
       }
       const entry = importedEntry(item, note, { agent, project: memory.project, date });
       if (held.has(entry.topic)) {

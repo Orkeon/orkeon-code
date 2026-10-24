@@ -4,7 +4,7 @@
 // role's roots and its rewrite rule, the whole input of the folder readers, each operation of an edit_batch as the
 // editor it stands for, and the act's mode when the host has no gate. The callbacks
 // themselves, and the hooks' shell commands, are shared/infrastructure/orkeon/tool-callbacks.ts's.
-import { ACT_TOOLS, READ_TOOLS, formatRule, matchesRule, sameToolName } from "../agent-policy/permission.ts";
+import { ACT_TOOLS, READ_TOOLS, formatRule, matchesRule, sameToolName, shellCommandForms } from "../agent-policy/permission.ts";
 import type { PermissionRule } from "../agent-policy/permission.ts";
 import { OPERATION_TOOLS, OPERATIONS_TOOL, PATH_WRITE_TOOLS, RULE_SETS, UNSCOPED_WRITE_TOOLS } from "../agent-policy/rule-sets.ts";
 import type { RuleSetId } from "../agent-policy/rule-sets.ts";
@@ -158,10 +158,16 @@ export function normalisePath(path: string): string {
   return absolute ? `/${text}` : text === "" ? "." : text;
 }
 
-/** The forms a path is matched in: as written, and normalised when that differs. */
+/** Where the host resolves a relative path. */
+const PROJECT = "/workspace";
+
+/** The forms a path is matched in: as written, normalised, and for a relative path the absolute one the host
+ *  resolves it to under the project, where a leading `..` cannot climb above the root
+ *  (`../workspace/tests/a.test.ts` reads `/workspace/tests/a.test.ts`). Each form once. */
 function pathForms(path: string): string[] {
-  const normal = normalisePath(path);
-  return normal === path ? [path] : [path, normal];
+  const forms = [path, normalisePath(path)];
+  if (!path.startsWith("/")) forms.push(normalisePath(`${PROJECT}/${path}`));
+  return [...new Set(forms)];
 }
 
 function joinPath(base: string | undefined, tail: string): string {
@@ -171,7 +177,7 @@ function joinPath(base: string | undefined, tail: string): string {
 }
 
 /** The paths a folder reader reaches beyond its `path`: glob's pattern under it, grep's glob under it (or the
- *  whole folder), count_pattern's whole folder. */
+ *  whole folder), count_pattern's and directory_search's whole folder. */
 function reachedPaths(tool: string, input: Readonly<Record<string, unknown>>): string[] {
   const base = plainText(input.path);
   if (tool === "glob") {
@@ -179,7 +185,7 @@ function reachedPaths(tool: string, input: Readonly<Record<string, unknown>>): s
     return pattern === undefined ? [] : [joinPath(base, pattern)];
   }
   if (tool === "grep") return [joinPath(base, plainText(input.glob) ?? "**")];
-  if (tool === "count_pattern") return [joinPath(base, "**")];
+  if (tool === "count_pattern" || tool === "directory_search") return [joinPath(base, "**")];
   return [];
 }
 
@@ -245,6 +251,13 @@ export function checkToolCall(
     for (const entry of guard.rules) {
       if (leftWritable(guard, entry, path) || (entry.origin.kind === "rewrite" && act.newFile === true)) continue;
       if (matchesRule(entry.rule, tool, asked)) return ruleVerdict(guard, entry, path === args.path ? "" : `, which '${path}' is`);
+    }
+  }
+  // The command as the program receives it: a pattern on the raw text misses `git "push"` or `python3 -Ic`.
+  const command = sameToolName(tool, "shell_command") && typeof args.command === "string" ? args.command : undefined;
+  for (const form of command === undefined ? [] : shellCommandForms(command).slice(1)) {
+    for (const entry of guard.rules) {
+      if (matchesRule(entry.rule, tool, { ...args, command: form })) return ruleVerdict(guard, entry, `, which '${form}' runs`);
     }
   }
   const reached = reachedPaths(tool, args).flatMap(pathForms);

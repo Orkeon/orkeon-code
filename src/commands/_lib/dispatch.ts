@@ -11,6 +11,8 @@ import type { ConfigStore } from "../../shared/application/config-store.ts";
 import type { SessionIo } from "../../shared/application/session-io.ts";
 import { configuredNames, resolveExtraTools } from "../../shared/application/extra-tools.ts";
 import { syncPermissionRules } from "../../shared/application/permission-rules.ts";
+import { readMemoryDir } from "../../shared/application/shared-memory/memory-settings.ts";
+import { memoryWriteRules } from "../../shared/domain/shared-memory/layout.ts";
 import { formatRule } from "../../shared/domain/agent-policy/permission.ts";
 import { chainDepthLine, chainDepthRefusal } from "../../shared/domain/agents/chain.ts";
 import { failureText } from "../../shared/domain/prelude.ts";
@@ -86,7 +88,8 @@ export interface MainLoopLaunchDeps extends LaunchDeps {
  *  - the extra tools the host registers, each configured one it does not
  *    register warned about and left out;
  *  - the session's rules, handed to the host gate first, so the turn runs under
- *    the rules the session holds whatever the gate kept from an earlier command.
+ *    the rules the session holds whatever the gate kept from an earlier command,
+ *    then the built-in denies on the shared memory's candidates and entries.
  * A `prelude` (a tool call the crew makes before the turn: /transcribe --then,
  * /voice --go) rides along as it is. With voice.reply on, an epilogue has the crew read the
  * answer aloud with the speech server's speak, when the host registers it. The start
@@ -114,7 +117,11 @@ export async function launchMainLoop(
     log.warn(`${EXTRA_TOOLS_CONFIG_KEY} could not be read (${extras.unreadable}): no extra tool this turn`);
   }
 
-  const sync = await syncPermissionRules({ session, gate: deps.gate, extraNames: configuredNames(extras) });
+  const builtIn = memoryWriteRules((await readMemoryDir(deps.config)).dir);
+  const sync = await syncPermissionRules({ session, gate: deps.gate, extraNames: configuredNames(extras), builtIn });
+  for (const rule of sync.overridden) {
+    log.warn(`permission rule '${formatRule(rule)}' is left out of the gate: no tool of the model writes the shared memory's candidates or entries`);
+  }
   for (const rule of sync.dormant) {
     log.warn(
       `permission rule '${rule}' is dormant: ${EXTRA_TOOLS_CONFIG_KEY} does not list its tool, the gate does not get it`,

@@ -31,8 +31,12 @@ export interface GitVerb { verb: string; bareLists: boolean; subcommands?: reado
 
 const LISTING_VERBS = new Set(["branch", "notes", "reflog", "remote", "replace", "submodule", "tag"]);
 const VERB_SUBCOMMANDS: Readonly<Record<string, readonly string[]>> = {
-  // Two arguments or more set or unset a key (git config key value, git config --global key); one reads it.
-  config: ["* *", "--edit", "-e"],
+  // A key then a value sets it (git config user.name x, git config --global a.b x): a dot, then a space after it;
+  // the options and subcommands that change the file. `--get a.b`, `-l`, `a.b` alone and `get` only read.
+  config: [
+    "*.* *", "--add", "--unset", "--replace-all", "--rename-section", "--remove-section", "--edit", "-e",
+    "set", "unset", "rename-section", "remove-section", "edit",
+  ],
   remote: ["add", "remove", "rm", "rename", "set-url", "set-head", "set-branches", "prune", "update"],
   // `-*`: a push given by its options alone (git stash -u).
   stash: ["push", "pop", "apply", "drop", "clear", "save", "store", "branch", "-*"],
@@ -83,10 +87,13 @@ function denyAll(tool: string, argument: string, patterns: readonly string[]): P
 
 /** The tools that read one file or folder named by `path`. */
 export const PATH_READ_TOOLS: readonly string[] = [
-  "file_read", "glob", "grep", "node_outline", "node_read", "count_pattern", "documents_of",
+  "file_read", "glob", "grep", "node_outline", "node_read", "count_pattern", "documents_of", "directory_search",
 ];
 /** The tools of PATH_READ_TOOLS whose `path` may name a folder, the denied root itself included. */
-export const FOLDER_READ_TOOLS: readonly string[] = ["glob", "grep", "count_pattern"];
+export const FOLDER_READ_TOOLS: readonly string[] = ["glob", "grep", "count_pattern", "directory_search"];
+/** The reading tools that name no path the gate could match (a pattern over the project, a symbol's fqn): denied
+ *  whole once a root is closed to reading. */
+export const UNSCOPED_READ_TOOLS: readonly string[] = ["structural_search", "symbol_source"];
 /** The tools that write one file named by `path`. */
 export const PATH_WRITE_TOOLS: readonly string[] = ["file_write", "edit_file", "node_replace", "node_insert", "node_ensure"];
 /** The written text of each writing tool that takes it as one string. */
@@ -133,12 +140,14 @@ export const RULE_SETS: Readonly<Record<RuleSetId, RuleSet>> = {
     title: "code handed inline to an interpreter, which could run what the other rules refuse",
     // `*sh -c*` covers bash, sh, zsh, dash, ksh and fish behind a path or an `env`; `*sh -*c *` a flag cluster
     // (bash -xc), `*sh -* -c*` a flag before `-c`; the same for the other interpreters. `ssh -c <cipher>` is
-    // refused too, a side effect of matching any word ending with `sh`.
+    // refused too, a side effect of matching any word ending with `sh`. `python3.*` names a versioned python
+    // (python3.12). The dev crews' callback also matches the command as the program receives it, quotes and
+    // repeated spaces gone and option clusters split (python3 -Ic, perl -we): shellCommandForms.
     rules: denyAll("shell_command", "command", [
       "*sh -c*", "*sh -*c *", "*sh -* -c*",
       "*node -e*", "*node --eval*", "*node -p*", "*node --print*", "*node -* -e*", "*node -* -p*", "*node --input-type*",
-      "*python -c*", "*python3 -c*", "*python -* -c*", "*python3 -* -c*",
-      "*perl -e*", "*perl -E*", "*ruby -e*", "*php -r*",
+      "*python -c*", "*python3 -c*", "*python3.* -c*", "*python -* -c*", "*python3 -* -c*", "*python3.* -* -c*",
+      "*perl -e*", "*perl -E*", "*perl -* -e*", "*perl -* -E*", "*ruby -e*", "*ruby -* -e*", "*php -r*",
       "*tsx -e*", "*tsx --eval*", "*ts-node -e*", "*deno eval*", "*bun -e*",
     ]),
   },
@@ -214,7 +223,7 @@ function rootProblem(raw: string, root: string): string | undefined {
 
 /** For each kept root, two rules (absolute, relative) per tool of PATH_READ_TOOLS or PATH_WRITE_TOOLS, and for
  *  `read` two more per tool of FOLDER_READ_TOOLS on the root itself (`<root>/*` does not match `<root>`); then,
- *  once a root is kept, a deny on the tools whose paths the gate cannot read: structural_search for `read`,
+ *  once a root is kept, a deny on the tools whose paths the gate cannot read: UNSCOPED_READ_TOOLS for `read`,
  *  UNSCOPED_WRITE_TOOLS for `write` (edit_batch's operations are checked one by one, as their editors). */
 export function pathRules(access: "read" | "write", roots: readonly string[]): PathRules {
   const tools = access === "read" ? PATH_READ_TOOLS : PATH_WRITE_TOOLS;
@@ -233,7 +242,7 @@ export function pathRules(access: "read" | "write", roots: readonly string[]): P
     rules.push(...denyEach(tools, "path", [`${PROJECT}/${root}/*`, `${root}/*`]));
     if (access === "read") rules.push(...denyEach(FOLDER_READ_TOOLS, "path", [`${PROJECT}/${root}`, root]));
   }
-  if (seen.size > 0) rules.push(...denyWhole(access === "read" ? ["structural_search"] : UNSCOPED_WRITE_TOOLS));
+  if (seen.size > 0) rules.push(...denyWhole(access === "read" ? UNSCOPED_READ_TOOLS : UNSCOPED_WRITE_TOOLS));
   return { rules, problems };
 }
 

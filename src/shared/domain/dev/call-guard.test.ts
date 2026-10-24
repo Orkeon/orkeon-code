@@ -75,6 +75,30 @@ describe("checkToolCall — rules", () => {
     deepStrictEqual(checkToolCall(guard, "file_write", { path: "./tests/x.test.ts", content: "x" }, NEW), { allow: true });
   });
 
+  it("refuses a relative path that climbs out and back in with a leading .., by the path the host resolves", () => {
+    const guard = buildCallGuard({ step: "dev-verify", role: "implementer", layout: LAYOUT });
+    for (const path of ["../workspace/tests/a.test.ts", "../../workspace/tests/a.test.ts", "src/../../workspace/tests/a.test.ts"]) {
+      const verdict = refused(checkToolCall(guard, "edit_file", { path, old_string: "a", new_string: "b" }, ON));
+      ok(verdict.reason.endsWith("which '/workspace/tests/a.test.ts' is"), verdict.reason);
+    }
+    deepStrictEqual(checkToolCall(guard, "edit_file", { path: "../workspace/src/a.ts", old_string: "a", new_string: "b" }, ON), { allow: true });
+  });
+
+  it("refuses a shell command a set covers once its quotes, repeated spaces and option clusters are read", () => {
+    const guard = buildCallGuard({ step: "dev-plan" });
+    for (const command of [
+      'git "push" origin', "git\tpush", "git 'commit' -m x", "bash  -c x", "python3 -Ic x", "perl -we x",
+      "python3.12 -c x", "git pu\\sh", "node -pe 1",
+    ]) {
+      refused(checkToolCall(guard, "shell_command", { command }, ON));
+    }
+    const verdict = refused(checkToolCall(guard, "shell_command", { command: 'git "push" origin' }, ON));
+    ok(verdict.reason.endsWith("of the rule set git-readonly, which 'git push origin' runs"), verdict.reason);
+    for (const command of ["git status", 'git log --format="%h %s"', "python3 -m pytest -x", "npm test"]) {
+      deepStrictEqual(checkToolCall(guard, "shell_command", { command }, ON), { allow: true }, command);
+    }
+  });
+
   it("normalises a path by its text", () => {
     strictEqual(normalisePath("/workspace/./src//x.ts"), "/workspace/src/x.ts");
     strictEqual(normalisePath("/workspace/tests/../src/x.ts"), "/workspace/src/x.ts");

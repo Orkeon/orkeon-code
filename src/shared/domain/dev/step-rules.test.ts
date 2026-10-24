@@ -13,15 +13,15 @@ describe("STEP_RULE_SETS", () => {
     deepStrictEqual(Object.keys(STEP_RULE_SETS).sort(), [...DEV_STEPS].sort());
     for (const step of DEV_STEPS) deepStrictEqual(STEP_RULE_SETS[step], RULE_SET_IDS);
     deepStrictEqual(stepRules("dev-plan"), rulesOf(RULE_SET_IDS));
-    strictEqual(stepRules("dev-plan").length, 438);
-    strictEqual(stepRules("dev-verify").length, 438);
+    strictEqual(stepRules("dev-plan").length, 481);
+    strictEqual(stepRules("dev-verify").length, 481);
   });
 
   it("lets /dev-implement's roles run their two tools without a question, after the same deny rules", () => {
     const rules = stepRules("dev-implement");
-    strictEqual(rules.length, 440);
-    deepStrictEqual(rules.slice(0, 438), rulesOf(RULE_SET_IDS));
-    deepStrictEqual(rules.slice(438).map(formatRule), ["allow run_tests", "allow run_build"]);
+    strictEqual(rules.length, 483);
+    deepStrictEqual(rules.slice(0, 481), rulesOf(RULE_SET_IDS));
+    deepStrictEqual(rules.slice(481).map(formatRule), ["allow run_tests", "allow run_build"]);
     deepStrictEqual(STEP_ALLOW_RULES["dev-plan"], []);
     deepStrictEqual(STEP_ALLOW_RULES["dev-verify"], []);
     strictEqual(ruleDecision(rules, "run_tests", { command: "npm test" }), "allow");
@@ -57,10 +57,10 @@ describe("roleRules", () => {
       "deny glob path=/workspace/src/core/Orkeon.Domain/*",
       "deny glob path=src/core/Orkeon.Domain/*",
     ]);
-    strictEqual(pilot.rules.length, 2 * (14 + 6) + 1);
-    strictEqual(formatRule(pilot.rules[pilot.rules.length - 1]), "deny structural_search");
+    strictEqual(pilot.rules.length, 2 * (16 + 8) + 2);
+    deepStrictEqual(pilot.rules.slice(-2).map(formatRule), ["deny structural_search", "deny symbol_source"]);
     deepStrictEqual(pilot.missing, ["layout.application", "layout.infrastructure"]);
-    for (const tool of ["file_read", "grep", "node_outline", "documents_of"]) {
+    for (const tool of ["file_read", "grep", "node_outline", "documents_of", "directory_search"]) {
       strictEqual(ruleDecision(pilot.rules, tool, { path: "tests/a.test.ts" }), "deny", tool);
     }
     strictEqual(ruleDecision(pilot.rules, "file_write", { path: "tests/a.test.ts" }), undefined);

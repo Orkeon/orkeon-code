@@ -9,7 +9,7 @@ import {
   resolvePermissionMode, isReadOnly,
   toolsetFor, permissionNote, buildActPrompt,
   catalogueFor, coversEveryCall, readRule, checkRule, formatRule, gateLine, parseStoredRule, sameCalls,
-  ruleableTool, TOOL_ARGUMENTS, globMatches, matchesRule, ruleDecision,
+  ruleableTool, TOOL_ARGUMENTS, globMatches, matchesRule, ruleDecision, shellCommandForms, shellWords,
 } from "./permission.ts";
 import { PERMISSION_MODES } from "../permission-modes.ts";
 
@@ -548,6 +548,25 @@ describe("rag_ingest, an edit as the host gate classifies it (Orkeon #126)", () 
     for (const mode of ["plan", "dontAsk"]) strictEqual(toolsetFor(mode).includes("rag_ingest"), false, mode);
     for (const mode of ["default", "acceptEdits", "bypassPermissions"]) ok(toolsetFor(mode).includes("rag_ingest"), mode);
     ok(READ_TOOLS.includes("rag_search") && !READ_TOOLS.includes("rag_ingest"));
+  });
+});
+
+describe("shellWords and shellCommandForms", () => {
+  it("splits a command as the host's shell tool does: whitespace outside quotes, the quotes dropped", () => {
+    deepStrictEqual(shellWords('git  "push"\t\'origin main\''), ["git", "push", "origin main"]);
+    deepStrictEqual(shellWords('a"b c"d'), ["ab cd"]);
+    deepStrictEqual(shellWords("   "), []);
+  });
+
+  it("gives the raw command first, then the words rejoined, unescaped and with option clusters split, each once", () => {
+    deepStrictEqual(shellCommandForms("git status"), ["git status"]);
+    deepStrictEqual(shellCommandForms('git "push"'), ['git "push"', "git push"]);
+    deepStrictEqual(shellCommandForms("git pu\\sh"), ["git pu\\sh", "git push"]);
+    deepStrictEqual(shellCommandForms("python3 -Ic x"), ["python3 -Ic x", "python3 -I -c x"]);
+    deepStrictEqual(shellCommandForms("ls --all -1"), ["ls --all -1"]);
+    deepStrictEqual(shellCommandForms('python3 -Ic"print(1)"'), ['python3 -Ic"print(1)"', "python3 -Icprint(1)", "python3 -I -c print(1)"]);
+    deepStrictEqual(shellCommandForms("perl -wE'say 1'"), ["perl -wE'say 1'", "perl -wEsay 1", "perl -w -E say 1"]);
+    deepStrictEqual(shellCommandForms("ls -la"), ["ls -la", "ls -l -a"]);
   });
 });
 
