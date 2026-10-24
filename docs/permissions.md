@@ -126,7 +126,9 @@ The arguments of every built-in tool are its input's top-level fields (`TOOL_ARG
 inside the `edit_batch` operations or the `structural_rewrite` paths, and on `glob` and `grep` it matches `path`
 alone, so a `pattern` (or `grep`'s `glob`) given from a parent folder can still reach below a folder a rule denies.
 The dev crews' callback closes that gap for the rules it holds: it also matches `glob` with `<path>/<pattern>`,
-`grep` with `<path>/<glob>` (or `<path>/**`) and `count_pattern` with `<path>/**`.
+`grep` with `<path>/<glob>` (or `<path>/**`) and `count_pattern` with `<path>/**`, and it checks each `edit_batch`
+operation as the editor it stands for (`node_replace`, `node_insert`, or `node_ensure` for the intent kinds), with its
+own `path` and `text`.
 
 ```text
 /permissions add deny shell_command command=git push*
@@ -172,8 +174,8 @@ off. Every step puts all five sets in force:
 | `git-readonly` | `shell_command`, `command` | a git command that changes the repository, its branches or its remotes, also behind a global option (`git -C <dir> push`) |
 | `inline-interpreters` | `shell_command`, `command` | code handed inline to an interpreter, which could run what the other rules refuse |
 | `read-noise` | `path` of `file_read`, `glob`, `grep`, `node_outline`, `node_read`, `count_pattern`, `documents_of` | a read under a `bin/`, `obj/`, `.git/` or `node_modules/` folder, anywhere in the project |
-| `secrets` | the written text: `file_write` `content`, `edit_file` `new_string`, `text` of `node_replace`, `node_insert` and `node_ensure`, `structural_rewrite` `fix`; `edit_batch` whole | content that holds a private key block or a token with a known prefix |
-| `state-files` | `path` of `file_write`, `edit_file`, `node_replace`, `node_insert`, `node_ensure`; `edit_batch` and `structural_rewrite` whole | a file only Orkeon Code's own code writes: the batch logs, states and verdicts, the audit captures, `.orkeon/` and `.claude/` |
+| `secrets` | the written text: `file_write` `content`, `edit_file` `new_string`, `text` of `node_replace`, `node_insert` and `node_ensure`, `structural_rewrite` `fix`; each `edit_batch` operation's `text`, by the callback | content that holds a private key block or a token with a known prefix |
+| `state-files` | `path` of `file_write`, `edit_file`, `node_replace`, `node_insert`, `node_ensure`, each `edit_batch` operation's `path` by the callback; `structural_rewrite` whole | a file only Orkeon Code's own code writes: the batch logs, states and verdicts, the audit captures, `.orkeon/` and `.claude/` |
 
 `git-readonly` holds 190 rules, three for most of the verbs `add`, `am`, `apply`, `branch`, `checkout`, `cherry-pick`,
 `clean`, `commit`, `fetch`, `filter-branch`, `gc`, `merge`, `mv`, `notes`, `pull`, `push`, `rebase`, `reflog`,
@@ -267,10 +269,12 @@ the inline forms of `node`, `python`, `python3`, `perl`, `ruby`, `php`, `tsx`, `
 path, an `env` or `npx`. Since a rule reads `sh -c` at the end of any word, `ssh -c <cipher>` is refused too.
 
 The three file sets repeat their patterns on every tool of their row, tool by tool: `read-noise` holds 56 rules (8
-patterns on 7 tools, on `path`), `secrets` 97 (16 patterns on 6 tools, on the written text, then `deny edit_batch`),
-`state-files` 42 (8 patterns on 5 tools, on `path`, then `deny edit_batch` and `deny structural_rewrite`). The gate
-cannot read the paths or the text inside `edit_batch` and `structural_rewrite`, so these two are refused whole. A step
-holds 407 rules: the `deny edit_batch` of `secrets` and of `state-files` is kept once.
+patterns on 7 tools, on `path`), `secrets` 96 (16 patterns on 6 tools, on the written text), `state-files` 41 (8
+patterns on 5 tools, on `path`, then `deny structural_rewrite`). A step holds 406 rules. The gate cannot read the
+paths or the text inside `edit_batch` and `structural_rewrite`. `structural_rewrite` is refused whole. `edit_batch` is
+left to the crews' callback, which runs on every act of a step: it reads each operation as the editor it stands for
+and applies the sets and the role's rules to it, and refuses a batch with no operations, an operation without a
+`path` or of an unknown kind, and `validate: "build"` (the step's build is `run_build`).
 
 **When they hold.** At launch the step clears the gate, hands it the session's rules, then its own sets. A session
 allow rule on the same calls as one of the step's deny rules is left out for the run, with a warning. The sets are not
@@ -282,6 +286,13 @@ they are session-wide: a turn started while a step runs replaces them for the re
 `/dev-implement` puts the same five sets in the gate, and two allow rules of its own: `run_tests` and `run_build`
 (each checks its command against the pack and the deny rules itself), so the roles, which act in `acceptEdits`, are
 not asked at each test run. The allow rules leave the gate with the step's sets.
+
+The two writing roles (the test author and the implementer) also hold a **rewrite rule**: `deny file_write` on every
+source root the pack's `layout` names (`domain`, `application`, `infrastructure`, `tests`) and every
+`layout.test_files` pattern. An existing source file is changed by node (`node_read` for its `sha256`, then
+`node_replace`, `node_insert` or `node_ensure`) or with `edit_file`, never written whole. Before a `file_write` there,
+the callback reads the path once: when the runtime answers that the file does not exist, the rule is lifted for that
+call, so a new file (a stub, a new test file) is still created with `file_write`. Any other answer keeps the rule.
 
 **The gate must be on.** When the host says its gate is off, the steps refuse to start, because every rule above and
 the `plan` mode of their auditor or reviewer would check nothing; `/dev-verify F<n> --gate-only` runs no model and

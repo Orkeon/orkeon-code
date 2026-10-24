@@ -3,21 +3,22 @@
 // steps on one test file are one cycle: every RED first, then one GREEN and one Cost for them all.
 // Code makes each brief from the sheet, observes the tree before and after each act, runs the
 // tests itself, measures the cost of what changed, and ticks a box only once what it stands for was
-// seen. After the last cycle the build, then the whole suite once per batch (the affected projects
-// after), run as shell jobs and write the logs /dev-verify reads; a batch all ticked and green hands
+// seen. After the last cycle the batch's files are refreshed in the code index, then the build, then
+// the whole suite once per batch (the affected projects after, the sheet's and the graph's), run as
+// shell jobs and write the logs /dev-verify reads; a batch all ticked and green hands
 // over to /dev-verify (the `next` of its answer, `resume` after a GAPS verdict). A correction
 // (`— correction: <finding>`) is first appended to the sheet as a new step. Any failed check stops
 // the batch with BLOCKED and ticks nothing more.
 //
 // The answer is JSON: `{ lines, next? }`, read by the command's `completed`.
-import type { CostIndex, Files, Llm, Logger, Shell, ShellJobs } from "../../../shared/application/ports.ts";
+import type { AffectedTests, CostIndex, Files, Llm, Logger, Shell, ShellJobs } from "../../../shared/application/ports.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import type { PullRequestOpener } from "../../../shared/application/git/commit-files.ts";
 import { loadDevContext } from "../../../shared/application/dev/load-dev-context.ts";
 import { createWrappedTools } from "../../../shared/application/dev/wrapped-tools.ts";
 import { measureAccessCost } from "../../../shared/application/dev/measure-access-cost.ts";
 import type { CostFile } from "../../../shared/application/dev/measure-access-cost.ts";
-import { addedLines } from "../../../shared/domain/dev/access-cost.ts";
+import { addedLines, INDEX_ROOT } from "../../../shared/domain/dev/access-cost.ts";
 import { hasTestLayout, isTestPath } from "../../../shared/domain/dev/test-paths.ts";
 import { lastVerdict, parseVerdictFile } from "../../../shared/domain/dev/verdict-format.ts";
 import { shellQuote } from "../../../shared/domain/git/close.ts";
@@ -73,7 +74,8 @@ export interface DevImplementDeps {
   toolSlot?: { bind(tools: WrappedTools): () => void };
   /** The close's pull-request opener, for the context read at the launch; none: the command is handed over. */
   openerFor?(context: PrContext): PullRequestOpener | undefined;
-  /** The code index the measured cost reads; none: the cost is not computed, the stated line decides. */
+  /** The code index the measured cost reads, refreshed after the batch, and asked for the affected tests; none: the
+   *  cost is not computed (the stated line decides) and the affected tests are the sheet's. */
   costIndex?: CostIndex;
   /** Today, `YYYY-MM-DD` (the close's done marks). */
   today?: () => string;
@@ -372,8 +374,9 @@ async function oneSuite(run: Run, label: string, command: string, log: string | 
 }
 
 /** The affected tests: `commands.test_project` once per distinct Project cell of the steps this run ran (of every
- *  step when it ran none), their logs written together to `F<n>-test-affected.txt`. Null when they cannot be named. */
-function affectedCommands(run: Run): string[] | null {
+ *  step when it ran none), then once per test project the graph adds, their logs written together to
+ *  `F<n>-test-affected.txt`. Null when the sheet's cannot be named; a graph project that cannot be is left out. */
+function affectedCommands(run: Run, graph: readonly string[] = []): { commands: string[]; fromGraph: string[] } | null {
   if (!run.pack.commands.testProject?.trim()) return null;
   const steps = run.ran.length > 0 ? run.ran : run.sheet.steps.filter((s) => s.tdd !== null);
   const projects = [...new Set(steps.flatMap((s) => s.tests.map((t) => t.project.trim())).filter((p) => p !== ""))];
@@ -383,7 +386,52 @@ function affectedCommands(run: Run): string[] | null {
     if (!c.ok) return null;
     if (!commands.includes(c.command)) commands.push(c.command);
   }
-  return commands.length === 0 ? null : commands;
+  if (commands.length === 0) return null;
+  const fromGraph: string[] = [];
+  for (const project of graph) {
+    const c = projectCommandFor(run.pack.commands, project.trim());
+    if (c.ok && !commands.includes(c.command)) { commands.push(c.command); fromGraph.push(project.trim()); }
+  }
+  return { commands, fromGraph };
+}
+
+/** The batch's touched files refreshed in the code index (incremental_reindex), so that the graph the affected tests,
+ *  the next batch and the audit read holds the tree as it is now. True when it was; never blocks: a line says what
+ *  happened, none when no index is wired or nothing was touched. */
+async function refreshIndex(run: Run): Promise<boolean> {
+  const index = run.deps.costIndex;
+  if (index === undefined || run.touched.size === 0) return false;
+  const files = [...run.touched].sort().map((p) => `${INDEX_ROOT}/${p}`);
+  try {
+    const roots = (await index.roots()).map((r) => (r.length > 1 ? r.replace(/\/+$/, "") : r));
+    if (!roots.includes(INDEX_ROOT)) {
+      run.lines.push(`index: not refreshed — ${INDEX_ROOT} is not indexed`);
+      return false;
+    }
+    const errors = await index.refresh(INDEX_ROOT, files);
+    if (errors.length > 0) {
+      run.lines.push(`index: not refreshed — incremental_reindex: ${reasonOf(errors[0])}`);
+      return false;
+    }
+  } catch (e) {
+    run.lines.push(`index: not refreshed — ${reasonOf(e)}`);
+    return false;
+  }
+  run.lines.push(`index: ${files.length} file${files.length === 1 ? "" : "s"} of ${run.sheet.batch} refreshed`);
+  return true;
+}
+
+/** What the graph says the batch's touched files reach (affected_tests), on a refreshed index; null when it cannot be
+ *  asked or fails, said in a line: the sheet's Project cells then decide alone. */
+async function graphAffected(run: Run): Promise<AffectedTests | null> {
+  const index = run.deps.costIndex;
+  if (index?.affected === undefined) return null;
+  try {
+    return await index.affected([...run.touched].sort().map((p) => `${INDEX_ROOT}/${p}`));
+  } catch (e) {
+    run.lines.push(`affected tests: the graph was not read — ${reasonOf(e)}; the sheet's projects alone`);
+    return null;
+  }
 }
 
 /** The build, then the whole suite (the first time the batch goes green) or its affected projects, as jobs. */
@@ -404,11 +452,13 @@ async function suites(run: Run, suiteGreen: boolean): Promise<SuiteResult> {
     run.lines.push(`build ✓ — ${build}${outcome.how === "blocking" ? " (run blocking)" : ""}${shownPath(outcome.log)}`);
   }
 
-  const affected = suiteGreen ? affectedCommands(run) : null;
+  const indexed = await refreshIndex(run);
+  const graph = suiteGreen && indexed ? await graphAffected(run) : null;
+  const affected = suiteGreen && graph?.all !== true ? affectedCommands(run, graph?.projects ?? []) : null;
   if (affected !== null) {
     const texts: string[] = [];
     let exit = 0;
-    for (const command of affected) {
+    for (const command of affected.commands) {
       const refusal = guard(command);
       if (refusal !== null) return { problem: `affected tests: ${refusal}` };
       const outcome = await oneSuite(run, "affected tests", command, null);
@@ -425,7 +475,9 @@ async function suites(run: Run, suiteGreen: boolean): Promise<SuiteResult> {
       }
     }
     await writeLogQuietly(run, affectedLog, `${texts.join("\n")}\nexit=${exit}\n`);
-    run.lines.push(`affected tests ✓ — ${affected.join("; ")} (the whole suite went green once for ${batch})${shownPath(affectedLog)}`);
+    const byGraph = graph === null ? ""
+      : `; the graph added ${affected.fromGraph.length === 0 ? "no project" : affected.fromGraph.join(", ")}${graph.classes.length === 0 ? "" : ` (${graph.classes.length} test class${graph.classes.length === 1 ? "" : "es"} reached)`}`;
+    run.lines.push(`affected tests ✓ — ${affected.commands.join("; ")} (the whole suite went green once for ${batch}${byGraph})${shownPath(affectedLog)}`);
     return { ok: true, whole: false };
   }
 
@@ -442,7 +494,9 @@ async function suites(run: Run, suiteGreen: boolean): Promise<SuiteResult> {
   if (outcome.status === "not-run") return { problem: outcome.reason };
   if (outcome.status === "running") return { problem: `test still running after ${outcome.seconds} s${shownPath(outcome.log)}` };
   if (outcome.status === "failed") return { problem: `test: '${test}' exited ${outcome.exit}${shownPath(outcome.log)}\n${outcome.tail}` };
-  const again = suiteGreen ? " (the whole suite again: the pack has no commands.test_project)" : "";
+  const again = !suiteGreen ? ""
+    : graph?.all === true ? " (the whole suite again: the graph reaches every test from these changes)"
+    : " (the whole suite again: the pack has no commands.test_project)";
   run.lines.push(`test ✓ — ${test}${outcome.how === "blocking" ? " (run blocking)" : ""}${again}${shownPath(outcome.log)}`);
   return { ok: true, whole: true };
 }

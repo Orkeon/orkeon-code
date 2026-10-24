@@ -11,7 +11,7 @@ import { FakeSessionStore } from "../../../../tests/support/fake-session-store.t
 import { FakeShell } from "../../../../tests/support/fake-shell.ts";
 import { createConfigStore } from "../../../shared/application/config-store.ts";
 import { GIT_TOPLEVEL } from "../../../shared/application/dev/resolve-work-folder.ts";
-import type { ActRequest, CostIndex, ShellJobs, ShellOptions, ShellResult } from "../../../shared/application/ports.ts";
+import type { ActRequest, AffectedTests, CostIndex, ShellJobs, ShellOptions, ShellResult } from "../../../shared/application/ports.ts";
 import { GIT_IDENT_COMMAND } from "../../../shared/domain/git/close.ts";
 import { STATUS_COMMAND } from "./observe.ts";
 import { touchedPath, verdictMarkOf } from "./touched.ts";
@@ -478,6 +478,52 @@ describe("runDevImplement — wave 4", () => {
     const none = setup([writesTest("tests/a.test.ts")], [writesCode("src/a.ts", "tests/a.test.ts")], ONE_STEP);
     const c = parse(await runDevImplement({ batch: "F1", plan: "demo" }, none.deps));
     ok(c.lines.some((l) => l.includes("; measured: not computed — ")), c.lines.join("\n"));
+  });
+
+  const graphIndex = (roots: string[], affected: Partial<AffectedTests> | Error, refreshed: string[][] = []): CostIndex => ({
+    ...costIndex(false),
+    roots: async () => roots,
+    refresh: async (_root, files) => { refreshed.push([...files]); return []; },
+    affected: async () => {
+      if (affected instanceof Error) throw affected;
+      return { all: false, projects: [], classes: [], unresolved: [], ...affected };
+    },
+  });
+  const later = (index: CostIndex) => {
+    const t = setup([writesTest("tests/a.test.ts")], [writesCode("src/a.ts", "tests/a.test.ts")], ONE_STEP);
+    t.files.files.set("/workspace/.orkeon/repo.yaml", `${PACK}  test_project: node --test <Project>\n`);
+    t.files.files.set(touchedPath("demo", "F1"), JSON.stringify({ touched: [], verdictMark: "none", suiteGreen: true }));
+    t.deps.costIndex = index;
+    return t;
+  };
+
+  it("refreshes the batch's files in the index, then adds the graph's test projects to the sheet's", async () => {
+    const refreshed: string[][] = [];
+    const t = later(graphIndex(["/workspace/"], { projects: ["tests/integration", "tests", "a;b"], classes: ["A"] }, refreshed));
+    const a = parse(await runDevImplement({ batch: "F1", plan: "demo" }, t.deps));
+    strictEqual(blockedLine(a), undefined, a.lines.join("\n"));
+    deepStrictEqual(refreshed.at(-1), ["/workspace/src/a.ts", "/workspace/tests/a.test.ts"]);
+    ok(a.lines.includes("index: 2 files of F1 refreshed"), a.lines.join("\n"));
+    deepStrictEqual(t.jobs.started, ["npm run build", "node --test tests", "node --test tests/integration"]);
+    ok(a.lines.some((l) => l.startsWith("affected tests ✓ — node --test tests; node --test tests/integration (the whole suite went green once for F1; the graph added tests/integration (1 test class reached))")), a.lines.join("\n"));
+  });
+
+  it("runs the whole suite again when the graph reaches every test", async () => {
+    const t = later(graphIndex(["/workspace"], { all: true }));
+    const a = parse(await runDevImplement({ batch: "F1", plan: "demo" }, t.deps));
+    deepStrictEqual(t.jobs.started, ["npm run build", "npm test"]);
+    ok(a.lines.some((l) => l.startsWith("test ✓ — npm test (the whole suite again: the graph reaches every test from these changes)")), a.lines.join("\n"));
+  });
+
+  it("keeps the sheet's projects alone when the index is absent or the graph fails, and says so", async () => {
+    const absent = later(graphIndex([], { projects: ["tests/integration"] }));
+    const a = parse(await runDevImplement({ batch: "F1", plan: "demo" }, absent.deps));
+    ok(a.lines.includes("index: not refreshed — /workspace is not indexed"), a.lines.join("\n"));
+    deepStrictEqual(absent.jobs.started, ["npm run build", "node --test tests"]);
+    const failing = later(graphIndex(["/workspace"], new Error("graph down\nmore")));
+    const b = parse(await runDevImplement({ batch: "F1", plan: "demo" }, failing.deps));
+    ok(b.lines.includes("affected tests: the graph was not read — graph down; the sheet's projects alone"), b.lines.join("\n"));
+    deepStrictEqual(failing.jobs.started, ["npm run build", "node --test tests"]);
   });
 
   it("restores once, before any act, and logs it (run_build's `restored` is wrapped-tools.test.ts's)", async () => {

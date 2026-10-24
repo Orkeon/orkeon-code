@@ -1,11 +1,14 @@
 // The dev crews' onToolCall and onToolResult (RT-04), built from a crew's inputs and handed to every act through
 // createLlm(ctx.llm, callbacks). The host's gate runs first and the callback sees only the calls it allowed: the
 // callback re-checks the call against the crew's guard (shared/domain/dev/call-guard.ts), then runs the pre-tool
-// hooks; after the call, the post-tool hooks. It answers "allow" or { deny } only: no "ask" (an approval asked in
+// hooks; after the call, the post-tool hooks. Before a file_write under a writing role's rewrite rule, it reads the
+// path once: a file the runtime says is not found is a new one, which file_write may create. It answers "allow" or { deny } only: no "ask" (an approval asked in
 // the middle of a crew's turn may not be answered by the REPL) and no rewritten input. Each crew that imports
 // this module bundles its own copy; nothing is shared between runs.
-import type { Logger, Shell } from "../../application/ports.ts";
+import type { Files, Logger, Shell } from "../../application/ports.ts";
 import { buildCallGuard, checkToolCall, denyText, hookCommand } from "../../domain/dev/call-guard.ts";
+import { REWRITE_TOOL } from "../../domain/agent-policy/rule-sets.ts";
+import { sameToolName } from "../../domain/agent-policy/permission.ts";
 import type { CallGuard, CallGuardSpec, ToolHook } from "../../domain/dev/call-guard.ts";
 
 /** A hook is stopped after this many seconds, and refuses (pre) or is reported (post). */
@@ -27,6 +30,23 @@ export interface ToolCallbacks {
 export interface ToolCallbackDeps {
   shell: Pick<Shell, "run">;
   log?: Pick<Logger, "info" | "warn">;
+  /** Reads a file_write's path under a rewrite rule; none: the rule holds on every path. */
+  files?: Pick<Files, "read">;
+}
+
+const PROJECT = "/workspace";
+
+/** True when the runtime says `path` names no file (its "not found"), false when it reads; undefined otherwise. */
+export async function isNewFile(files: Pick<Files, "read">, path: string): Promise<boolean | undefined> {
+  const trimmed = path.trim();
+  if (trimmed === "") return undefined;
+  const virtual = trimmed.startsWith("/") ? trimmed : `${PROJECT}/${trimmed.replace(/^(\.\/)+/, "")}`;
+  try {
+    await files.read(virtual, 1);
+    return false;
+  } catch (e) {
+    return /not found|no such file|does not exist/i.test(String((e as Error)?.message ?? e)) ? true : undefined;
+  }
 }
 
 /** The first line of what a hook printed, its error output first, at most 200 characters. */
@@ -70,7 +90,11 @@ export function createToolCallbacks(guard: CallGuard, deps: ToolCallbackDeps): T
         async onToolCall(call) {
           // A throw would deny too, with the bare message: the catch keeps the step's name in front.
           try {
-            const verdict = checkToolCall(guard, call.name, call.input, { mode, gateEnabled });
+            const path = (call.input as { path?: unknown } | null)?.path;
+            const rewrite = sameToolName(call.name, REWRITE_TOOL) && typeof path === "string" && deps.files !== undefined
+              && guard.rules.some((r) => r.origin.kind === "rewrite");
+            const newFile = rewrite ? await isNewFile(deps.files as Pick<Files, "read">, path as string) : undefined;
+            const verdict = checkToolCall(guard, call.name, call.input, { mode, gateEnabled, ...(newFile === undefined ? {} : { newFile }) });
             if (!verdict.allow) {
               deps.log?.info(`${guard.step}: callback refused ${call.name}: ${verdict.reason}`);
               return { deny: denyText(verdict) };

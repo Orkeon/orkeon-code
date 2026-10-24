@@ -3,7 +3,7 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
-import { HOOK_TIMEOUT_SECONDS, devToolCallbacks } from "./tool-callbacks.ts";
+import { HOOK_TIMEOUT_SECONDS, devToolCallbacks, isNewFile } from "./tool-callbacks.ts";
 import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
 import { FakeShell } from "../../../../tests/support/fake-shell.ts";
 
@@ -94,6 +94,53 @@ describe("onToolResult", () => {
     deepStrictEqual(await act.onToolResult({ name: "shell_command", input: {} }, "plain"), {
       context: "plain\n[post-tool hook #1 (bash post.sh shell_command) exited 3]",
     });
+  });
+});
+
+describe("onToolCall — the rewrite rule", () => {
+  const LAYOUT = { domain: "src/domain", application: "src/app", infrastructure: "src/infra", tests: "tests" };
+  // A file reader over a map: an absent path throws the runtime's message.
+  const files = (present: Record<string, string>, fail?: string) => ({
+    reads: [] as string[],
+    async read(path: string) {
+      this.reads.push(path);
+      if (fail !== undefined) throw new Error(fail);
+      if (!(path in present)) throw new Error(`File not found: ${path}`);
+      return present[path];
+    },
+  });
+  const implementer = (reader?: ReturnType<typeof files>) => devToolCallbacks(
+    { step: "dev-implement", role: "implementer", layout: LAYOUT }, { shell: new FakeShell(), ...(reader === undefined ? {} : { files: reader }) },
+  ).forAct("acceptEdits", true);
+
+  it("refuses file_write on a source file that exists, and lets it create one that does not", async () => {
+    const reader = files({ "/workspace/src/domain/big.ts": "x".repeat(40_000) });
+    const act = implementer(reader);
+    const refused = await act.onToolCall({ name: "file_write", input: { path: "src/domain/big.ts", content: "y" } });
+    ok(typeof refused === "object" && refused.deny.includes("of the implementer's rewrite rule"), JSON.stringify(refused));
+    strictEqual(await act.onToolCall({ name: "file_write", input: { path: "./src/domain/new.ts", content: "y" } }), "allow");
+    strictEqual(await act.onToolCall({ name: "node_replace", input: { path: "src/domain/big.ts", selector: "A.b()", text: "y", expected_hash: "h" } }), "allow");
+    deepStrictEqual(reader.reads, ["/workspace/src/domain/big.ts", "/workspace/src/domain/new.ts"]);
+  });
+
+  it("keeps the rule when the file cannot be told absent, or no reader is given", async () => {
+    const act = implementer(files({}, "access denied"));
+    ok(typeof await act.onToolCall({ name: "file_write", input: { path: "src/domain/a.ts", content: "y" } }) === "object");
+    ok(typeof await implementer().onToolCall({ name: "file_write", input: { path: "src/domain/a.ts", content: "y" } }) === "object");
+  });
+
+  it("reads nothing for a step without a writing role", async () => {
+    const reader = files({});
+    const act = devToolCallbacks({ step: "dev-plan" }, { shell: new FakeShell(), files: reader }).forAct("acceptEdits", true);
+    strictEqual(await act.onToolCall({ name: "file_write", input: { path: "src/domain/a.ts", content: "y" } }), "allow");
+    deepStrictEqual(reader.reads, []);
+  });
+
+  it("tells a new file by the runtime's not-found message only", async () => {
+    strictEqual(await isNewFile(files({}), "src/a.ts"), true);
+    strictEqual(await isNewFile(files({ "/workspace/src/a.ts": "" }), "/workspace/src/a.ts"), false);
+    strictEqual(await isNewFile(files({}, "timeout"), "src/a.ts"), undefined);
+    strictEqual(await isNewFile(files({}), "  "), undefined);
   });
 });
 

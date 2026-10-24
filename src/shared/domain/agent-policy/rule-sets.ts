@@ -4,7 +4,8 @@
 // onToolCall (shared/domain/dev/call-guard.ts), the only check of them under `orkeon run`. Both see the
 // model's calls only; a call made from Orkeon Code's own code is not checked (docs/permissions.md).
 // Every rule here names an argument but the whole-tool denies of the writing tools whose paths sit in an
-// array the gate cannot read (UNSCOPED_WRITE_TOOLS): those remove their tool from the catalogue.
+// array the gate cannot read (UNSCOPED_WRITE_TOOLS): those remove their tool from the catalogue. edit_batch is
+// not one of them: the crews' callback checks each of its operations as the editor it stands for (call-guard.ts).
 
 import { gateLine, sameCalls } from "./permission.ts";
 import type { PermissionRule } from "./permission.ts";
@@ -95,7 +96,17 @@ export const WRITTEN_TEXT: ReadonlyArray<readonly [tool: string, argument: strin
 ];
 /** Writing tools whose paths sit in an array the gate reads as its type name, never an element: denied whole
  *  where paths are protected. */
-export const UNSCOPED_WRITE_TOOLS: readonly string[] = ["edit_batch", "structural_rewrite"];
+export const UNSCOPED_WRITE_TOOLS: readonly string[] = ["structural_rewrite"];
+/** The writing tool whose paths and texts sit in its `operations`: the gate cannot read them, the dev crews'
+ *  callback reads each operation as the editor of OPERATION_TOOLS it stands for and applies the rules of that
+ *  editor to it. Every call of it runs under that callback during a step, so no set denies it whole. */
+export const OPERATIONS_TOOL = "edit_batch";
+/** The editor each `kind` of an edit_batch operation stands for: the intent operations are node_ensure's. */
+export const OPERATION_TOOLS: Readonly<Record<string, string>> = {
+  node_replace: "node_replace", node_insert: "node_insert",
+  ensure_using: "node_ensure", ensure_import: "node_ensure", ensure_field: "node_ensure", ensure_member: "node_ensure",
+  ensure_section: "node_ensure", insert_under_heading: "node_ensure", replace_mermaid: "node_ensure",
+};
 
 /** A deny on every call of each tool. */
 function denyWhole(tools: readonly string[]): PermissionRule[] {
@@ -144,18 +155,15 @@ export const RULE_SETS: Readonly<Record<RuleSetId, RuleSet>> = {
     title: "a private key block or a token with a known prefix in written content",
     // The prefixes of SECRET_PATTERNS (secret-patterns.ts) a whole-content pattern can hold without refusing
     // ordinary text; the others need a check of the content itself. edit_batch's texts sit in its
-    // operations, which the gate cannot read: it is denied whole.
-    rules: [
-      ...WRITTEN_TEXT.flatMap(([tool, argument]) => denyAll(tool, argument, [
-        "*-----BEGIN *PRIVATE KEY-----*",
-        "*ghp_*", "*gho_*", "*ghu_*", "*ghs_*", "*ghr_*", "*github_pat_*",
-        "*xoxa-*", "*xoxb-*", "*xoxp-*", "*xoxo-*", "*xoxs-*", "*xoxr-*",
-        "*AKIA*",
-        "*AIza*",
-        "*sk-ant-*",
-      ])),
-      ...denyWhole(["edit_batch"]),
-    ],
+    // operations, which the crews' callback reads as node_replace, node_insert or node_ensure texts.
+    rules: WRITTEN_TEXT.flatMap(([tool, argument]) => denyAll(tool, argument, [
+      "*-----BEGIN *PRIVATE KEY-----*",
+      "*ghp_*", "*gho_*", "*ghu_*", "*ghs_*", "*ghr_*", "*github_pat_*",
+      "*xoxa-*", "*xoxb-*", "*xoxp-*", "*xoxo-*", "*xoxs-*", "*xoxr-*",
+      "*AKIA*",
+      "*AIza*",
+      "*sk-ant-*",
+    ])),
   },
   "state-files": {
     id: "state-files",
@@ -207,7 +215,7 @@ function rootProblem(raw: string, root: string): string | undefined {
 /** For each kept root, two rules (absolute, relative) per tool of PATH_READ_TOOLS or PATH_WRITE_TOOLS, and for
  *  `read` two more per tool of FOLDER_READ_TOOLS on the root itself (`<root>/*` does not match `<root>`); then,
  *  once a root is kept, a deny on the tools whose paths the gate cannot read: structural_search for `read`,
- *  UNSCOPED_WRITE_TOOLS for `write`. */
+ *  UNSCOPED_WRITE_TOOLS for `write` (edit_batch's operations are checked one by one, as their editors). */
 export function pathRules(access: "read" | "write", roots: readonly string[]): PathRules {
   const tools = access === "read" ? PATH_READ_TOOLS : PATH_WRITE_TOOLS;
   const rules: PermissionRule[] = [];
@@ -227,6 +235,26 @@ export function pathRules(access: "read" | "write", roots: readonly string[]): P
   }
   if (seen.size > 0) rules.push(...denyWhole(access === "read" ? ["structural_search"] : UNSCOPED_WRITE_TOOLS));
   return { rules, problems };
+}
+
+/** The tool the rewrite rule denies: a whole write of a file. */
+export const REWRITE_TOOL = "file_write";
+
+/** The rewrite rule of a writing role: `file_write` denied (absolute and relative) under every kept root and on every
+ *  kept file pattern, so that an existing source file is changed by node or with edit_file, never written whole. The
+ *  dev crews' callback lifts it for a file that does not exist yet (call-guard.ts): a new file is still created.
+ *  What a root or a pattern gets no rule for is said by pathRules and patternWriteRules already. */
+export function rewriteRules(roots: readonly string[], patterns: readonly string[]): PermissionRule[] {
+  const kept = new Set<string>();
+  for (const raw of roots) {
+    const root = normaliseRoot(raw);
+    if (rootProblem(raw, root) === undefined) kept.add(`${root}/*`);
+  }
+  for (const raw of patterns) {
+    const pattern = normaliseRoot(raw);
+    if (pattern !== "" && pattern !== "*" && !pattern.startsWith("/") && !pattern.split("/").includes("..")) kept.add(pattern);
+  }
+  return [...kept].flatMap((p) => denyAll(REWRITE_TOOL, "path", [`${PROJECT}/${p}`, p]));
 }
 
 /** Write denies on file patterns rather than folders (a pack's `layout.test_files`, `*` spanning folders): two rules

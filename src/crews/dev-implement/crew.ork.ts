@@ -68,9 +68,10 @@ const builder = AgentBuilder()
         // role's roots and the /hooks the command passed. run_tests and run_build check their own commands.
         // `wrote` hears each write those callbacks let through: code keeps a role's own changes, not its runs' output.
         // `writable`: the test author's stubs, which its own root denies leave open (never a rule set's or the gate's).
+        // `files`: the callbacks read a file_write's path, so that the rewrite rule lets a new file be created.
         roleLlm: (role, layout, wrote, writable) => createLlm(ctx.llm, reportingWrites(devToolCallbacks(
           { step: "dev-implement", role, layout, writable, hooks: args.hooks, readTools: memoryReadTools(memoryOn) },
-          { shell: ports.shell, log: ctx.log },
+          { shell: ports.shell, log: ctx.log, files: ports.files },
         ), wrote), { effort }),
       },
     );

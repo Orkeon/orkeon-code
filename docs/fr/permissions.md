@@ -136,7 +136,9 @@ n'atteint pas un chemin à l'intérieur des opérations d'`edit_batch` ni des ch
 `glob` et `grep` elle ne compare que `path`, si bien qu'un `pattern` (ou le `glob` de `grep`) donné depuis un dossier
 parent peut encore atteindre le dessous d'un dossier qu'une règle refuse.
 Le callback des crews dev comble cet écart pour les règles qu'il porte : il compare aussi `glob` avec
-`<path>/<pattern>`, `grep` avec `<path>/<glob>` (ou `<path>/**`) et `count_pattern` avec `<path>/**`.
+`<path>/<pattern>`, `grep` avec `<path>/<glob>` (ou `<path>/**`) et `count_pattern` avec `<path>/**`, et il
+contrôle chaque opération d'`edit_batch` comme l'éditeur qu'elle représente (`node_replace`, `node_insert`, ou
+`node_ensure` pour les types d'intention), avec son propre `path` et son propre `text`.
 
 ```text
 /permissions add deny shell_command command=git push*
@@ -185,8 +187,8 @@ les dépôts ; aucun réglage ne l'active ni ne le désactive. Chaque étape met
 | `git-readonly` | `shell_command`, `command` | une commande git qui modifie le dépôt, ses branches ou ses remotes, y compris derrière une option globale (`git -C <dir> push`) |
 | `inline-interpreters` | `shell_command`, `command` | du code passé en ligne à un interpréteur, qui pourrait exécuter ce que les autres règles refusent |
 | `read-noise` | `path` de `file_read`, `glob`, `grep`, `node_outline`, `node_read`, `count_pattern`, `documents_of` | une lecture sous un dossier `bin/`, `obj/`, `.git/` ou `node_modules/`, n'importe où dans le projet |
-| `secrets` | le texte écrit : `content` de `file_write`, `new_string` d'`edit_file`, `text` de `node_replace`, `node_insert` et `node_ensure`, `fix` de `structural_rewrite` ; `edit_batch` en entier | un contenu qui porte un bloc de clé privée ou un jeton à préfixe connu |
-| `state-files` | `path` de `file_write`, `edit_file`, `node_replace`, `node_insert`, `node_ensure` ; `edit_batch` et `structural_rewrite` en entier | un fichier que seul le code d'Orkeon Code écrit : journaux, états et verdicts des lots, captures d'audit, `.orkeon/` et `.claude/` |
+| `secrets` | le texte écrit : `content` de `file_write`, `new_string` d'`edit_file`, `text` de `node_replace`, `node_insert` et `node_ensure`, `fix` de `structural_rewrite` ; le `text` de chaque opération d'`edit_batch`, par le callback | un contenu qui porte un bloc de clé privée ou un jeton à préfixe connu |
+| `state-files` | `path` de `file_write`, `edit_file`, `node_replace`, `node_insert`, `node_ensure`, le `path` de chaque opération d'`edit_batch` par le callback ; `structural_rewrite` en entier | un fichier que seul le code d'Orkeon Code écrit : journaux, états et verdicts des lots, captures d'audit, `.orkeon/` et `.claude/` |
 
 `git-readonly` contient 190 règles, trois pour la plupart des verbes `add`, `am`, `apply`, `branch`, `checkout`, `cherry-pick`,
 `clean`, `commit`, `fetch`, `filter-branch`, `gc`, `merge`, `mv`, `notes`, `pull`, `push`, `rebase`, `reflog`,
@@ -281,11 +283,13 @@ et `bun`, derrière un chemin, un `env` ou `npx`. Comme une règle lit `sh -c` �
 `ssh -c <cipher>` est refusé lui aussi.
 
 Les trois jeux de fichiers répètent leurs motifs sur chaque outil de leur ligne, outil par outil : `read-noise`
-contient 56 règles (8 motifs sur 7 outils, sur `path`), `secrets` 97 (16 motifs sur 6 outils, sur le texte écrit, puis
-`deny edit_batch`), `state-files` 42 (8 motifs sur 5 outils, sur `path`, puis `deny edit_batch` et
-`deny structural_rewrite`). La garde ne peut pas lire les chemins ni le texte à l'intérieur d'`edit_batch` et de
-`structural_rewrite`, si bien que ces deux-là sont refusés en entier. Une étape détient 407 règles : le
-`deny edit_batch` de `secrets` et de `state-files` n'est gardé qu'une fois.
+contient 56 règles (8 motifs sur 7 outils, sur `path`), `secrets` 96 (16 motifs sur 6 outils, sur le texte écrit),
+`state-files` 41 (8 motifs sur 5 outils, sur `path`, puis `deny structural_rewrite`). Une étape détient 406 règles. La
+garde ne peut pas lire les chemins ni le texte à l'intérieur d'`edit_batch` et de `structural_rewrite`.
+`structural_rewrite` est refusé en entier. `edit_batch` est laissé au callback des crews, qui s'exécute à chaque act
+d'une étape : il lit chaque opération comme l'éditeur qu'elle représente et lui applique les jeux et les règles du
+rôle, et refuse un lot sans opération, une opération sans `path` ou d'un type inconnu, et `validate: "build"` (le build
+de l'étape est `run_build`).
 
 **Quand ils s'appliquent.** Au lancement, l'étape vide la garde, lui remet les règles de la session, puis ses propres
 jeux. Une règle allow de la session sur les mêmes appels qu'une règle deny de l'étape est écartée pour l'exécution,
@@ -299,6 +303,14 @@ s'exécute les remplace pour le reste de l'étape.
 `run_build` (chacun vérifie lui-même sa commande contre le pack et les règles deny), pour que les rôles, qui agissent
 en `acceptEdits`, ne soient pas interrogés à chaque passage des tests. Les règles allow quittent la garde avec les
 jeux de l'étape.
+
+Les deux rôles qui écrivent (l'auteur des tests et l'implémenteur) portent aussi une **règle de réécriture** :
+`deny file_write` sur chaque racine de sources que nomme le `layout` du pack (`domain`, `application`,
+`infrastructure`, `tests`) et sur chaque motif de `layout.test_files`. Un fichier source existant se change par nœud
+(`node_read` pour son `sha256`, puis `node_replace`, `node_insert` ou `node_ensure`) ou avec `edit_file`, jamais réécrit
+en entier. Avant un `file_write` à cet endroit, le callback lit le chemin une fois : quand le runtime répond que le
+fichier n'existe pas, la règle est levée pour cet appel, si bien qu'un nouveau fichier (un stub, un nouveau fichier de
+tests) se crée toujours avec `file_write`. Toute autre réponse garde la règle.
 
 **La garde doit être active.** Quand l'hôte dit que sa garde est inactive, les étapes refusent de démarrer, car
 aucune règle ci-dessus ni le mode `plan` de leur auditeur ou de leur relecteur ne vérifierait quoi que ce soit ;

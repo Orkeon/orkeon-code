@@ -5,7 +5,7 @@
 // field names of the live tools. The AnchorIndex adapter over batch_anchors
 // reads its result through tool-results.ts; the CostIndex adapter over
 // index_status, incremental_reindex and access_cost reads the report through
-// shared/domain/dev/access-cost.ts.
+// shared/domain/dev/access-cost.ts, and asks affected_tests when the host has it.
 
 import type { AnchorIndex, CodeIndex, CostIndex } from "../../application/ports.ts";
 import { readAccessCostReport } from "../../domain/dev/access-cost.ts";
@@ -69,9 +69,25 @@ export function createAnchorIndex(tools: Pick<OrkeonTools, "batchAnchors">): Anc
   };
 }
 
-/** The access cost of /dev-verify: the indexed roots, the refresh of the changed files, the report. */
-export function createCostIndex(tools: Pick<OrkeonTools, "indexStatus" | "incrementalReindex" | "accessCost">): CostIndex {
+/** The access cost of /dev-verify and /dev-implement: the indexed roots, the refresh of the changed files, the
+ *  report; and the tests the graph reaches from them (affected_tests), when the tools hold it. */
+export function createCostIndex(
+  tools: Pick<OrkeonTools, "indexStatus" | "incrementalReindex" | "accessCost"> & Partial<Pick<OrkeonTools, "affectedTests">>,
+): CostIndex {
   return {
+    ...(tools.affectedTests === undefined ? {} : {
+      async affected(files: readonly string[]) {
+        // Called on `tools`, never detached from it.
+        const raw = await (tools as Pick<OrkeonTools, "affectedTests">).affectedTests({ changed_files: [...files] });
+        const strings = (v: unknown): string[] => asArray(v).map(String).filter((s) => s !== "");
+        return {
+          all: pick(raw, "all", "All") === true,
+          projects: strings(pick(raw, "test_projects", "TestProjects")),
+          classes: strings(pick(raw, "test_classes", "TestClasses")),
+          unresolved: strings(pick(raw, "unresolved", "Unresolved")),
+        };
+      },
+    }),
     async roots() {
       const status = (await tools.indexStatus({})) as { roots?: unknown } | null | undefined;
       if (!Array.isArray(status?.roots)) return [];

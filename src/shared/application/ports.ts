@@ -399,7 +399,13 @@ export interface CostIndex {
   refresh(root: string, files: readonly string[]): Promise<string[]>;
   /** The access cost of the members of `files` (virtual paths): the report, or null and the tool's errors. */
   accessCost(files: readonly string[], receivers: string | undefined): Promise<{ report: AccessCostReport | null; errors: string[] }>;
+  /** The tests the graph reaches from `files` (virtual paths), by `affected_tests`; absent when it is not wired. */
+  affected?(files: readonly string[]): Promise<AffectedTests>;
 }
+
+/** What `affected_tests` answers: the test projects and classes reached, `all` when the graph cannot bound them,
+ *  and the files it could not resolve. */
+export interface AffectedTests { all: boolean; projects: string[]; classes: string[]; unresolved: string[] }
 
 /** A passage of the shared memory's index: the file it comes from (virtual path) and its score. */
 export interface SharedHit {

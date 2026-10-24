@@ -5,6 +5,7 @@ import { deepStrictEqual, ok, strictEqual } from "node:assert";
 import { readFileSync } from "node:fs";
 
 import { classOf, greenContract, redContract, stubsOf, testCommandFor } from "./contracts.ts";
+import { NODE_EDIT_RULE, NODE_READ_RULE } from "../../../shared/domain/dev/reading-rule.ts";
 import { parseImplementSheet } from "./step-section.ts";
 
 const SHEET = parseImplementSheet(
@@ -39,9 +40,23 @@ describe("redContract / greenContract", () => {
     const red = redContract(input);
     ok(red.includes("Ids: BR-02."));
     ok(red.includes("`keeps feedback entries older than the cut-off`"));
-    ok(red.includes("`src/shared/domain/memory.ts:18` — `MemoryEntry` (read that member by range, never the file whole)"));
+    ok(red.includes("`src/shared/domain/memory.ts:18` — `MemoryEntry` (read that member with node_read, never the file whole)"));
     ok(red.includes("Write test files only (under `tests`)"));
     ok(red.includes("file_read with offset and limit"));
+  });
+
+  it("asks both roles to read and edit by node, file_write for a new file only", () => {
+    const red = redContract(input);
+    const green = greenContract(input, { tail: "", log: null });
+    for (const text of [red, green]) {
+      ok(text.includes(`- ${NODE_READ_RULE}`), "node read rule");
+      ok(text.includes(`- ${NODE_EDIT_RULE}`), "node edit rule");
+      ok(!text.includes("never by writing it whole with file_write"), "the old editing rule is gone");
+    }
+    const kept = { ...SHEET.steps[1], anchor: { testFiles: [{ path: "tests/old.test.ts", state: "existing" as const }], doubles: "", production: [] } };
+    ok(redContract({ ...input, step: kept }).includes("add the tests with node_insert inside its suite, never rewrite it whole"));
+    const fresh = { ...SHEET.steps[1], anchor: { testFiles: [{ path: "tests/new.test.ts", state: "to create" as const }], doubles: "", production: [] } };
+    ok(redContract({ ...input, step: fresh }).includes("`tests/new.test.ts` — to create — create it with file_write; once it exists, add to it by node"));
   });
 
   it("gives the implementer the red run, the elements, the expected cost and the Cost line to answer", () => {

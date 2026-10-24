@@ -1,7 +1,7 @@
 // Which rule sets each dev step puts in the gate before its crew runs (and its crew's callback checks
 // again, call-guard.ts), the rules of a role on the repository pack's roots, and what a step does when
 // the host's gate is off — pure, no IO.
-import { pathRules, patternWriteRules, rulesOf } from "../agent-policy/rule-sets.ts";
+import { pathRules, patternWriteRules, rewriteRules, rulesOf } from "../agent-policy/rule-sets.ts";
 import type { PathRules, RuleSetId } from "../agent-policy/rule-sets.ts";
 import type { PermissionRule } from "../agent-policy/permission.ts";
 import type { RepoPackLayout } from "./repo-pack.ts";
@@ -34,8 +34,8 @@ export const STEP_ALLOW_RULES: Readonly<Record<DevStep, readonly PermissionRule[
   "dev-implement": [{ effect: "allow", tool: "run_tests" }, { effect: "allow", tool: "run_build" }],
 };
 
-/** rulesOf(STEP_RULE_SETS[step]) then the step's allow rules: 407 deny rules for each step today (the deny on
- *  edit_batch that secrets and state-files both hold is kept once), and two allow rules for /dev-implement. */
+/** rulesOf(STEP_RULE_SETS[step]) then the step's allow rules: 406 deny rules for each step today, and two allow
+ *  rules for /dev-implement. */
 export function stepRules(step: DevStep): PermissionRule[] {
   return [...rulesOf(STEP_RULE_SETS[step]), ...STEP_ALLOW_RULES[step]];
 }
@@ -50,9 +50,13 @@ export const ROLE_ROOTS: Readonly<Record<DevRole, { access: "read" | "write"; ke
   implementer: { access: "write", keys: ["tests"] },
 };
 
+/** The pack keys a writing role's rewrite rule covers: every source root, whatever the role writes. */
+export const REWRITE_KEYS: readonly LayoutRootKey[] = ["domain", "application", "infrastructure", "tests"];
+
 /** pathRules over the role's roots the pack gives, the pack keys it lacks (`layout.tests`), and the patterns its
- *  root denies leave writable: the test author writes the test files beside the code (`layout.test_files`). */
-export interface RoleRules extends PathRules { missing: string[]; writable: string[] }
+ *  root denies leave writable: the test author writes the test files beside the code (`layout.test_files`). A
+ *  writing role also gets its `rewrite` rules: no whole write of an existing source file (rewriteRules). */
+export interface RoleRules extends PathRules { missing: string[]; writable: string[]; rewrite: PermissionRule[] }
 
 export function roleRules(role: DevRole, layout: Pick<RepoPackLayout, LayoutRootKey | "testFiles">): RoleRules {
   const { access, keys } = ROLE_ROOTS[role];
@@ -72,7 +76,10 @@ export function roleRules(role: DevRole, layout: Pick<RepoPackLayout, LayoutRoot
     own.rules.push(...byPattern.rules.filter((r) => r.argument !== undefined || !unscoped.has(r.tool)));
     own.problems.push(...byPattern.problems);
   }
-  return { ...own, missing, writable: role === "test-author" ? testFiles : [] };
+  const rewrite = access === "write"
+    ? rewriteRules(REWRITE_KEYS.flatMap((key) => layout[key]?.trim() ? [layout[key] as string] : []), testFiles)
+    : [];
+  return { ...own, missing, writable: role === "test-author" ? testFiles : [], rewrite };
 }
 
 export const GATE_SETTING = "Orkeon:Security:PermissionGate:Enabled";

@@ -11,6 +11,8 @@ import type { CallVerdict } from "./call-guard.ts";
 import { stepRules } from "./step-rules.ts";
 
 const ON = { mode: "plan", gateEnabled: true };
+/** A file_write whose path the callbacks found absent: the rewrite rule does not hold on it. */
+const NEW = { ...ON, newFile: true };
 const LAYOUT = { domain: "src/domain", application: "src/app", infrastructure: "src/infra", tests: "tests" };
 
 function refused(verdict: CallVerdict): Extract<CallVerdict, { allow: false }> {
@@ -21,8 +23,7 @@ function refused(verdict: CallVerdict): Extract<CallVerdict, { allow: false }> {
 describe("buildCallGuard", () => {
   it("holds the deny rules of the step's sets, as the gate gets them, each with its set", () => {
     const guard = buildCallGuard({ step: "dev-plan" });
-    // stepRules keeps once the deny on edit_batch that secrets and state-files both hold; the guard keeps both.
-    strictEqual(guard.rules.length, stepRules("dev-plan").length + 1);
+    strictEqual(guard.rules.length, stepRules("dev-plan").length);
     ok(guard.rules.every((r) => r.rule.effect === "deny" && r.origin.kind === "set"));
     deepStrictEqual(guard.hooks, []);
     deepStrictEqual(guard.problems, []);
@@ -59,7 +60,7 @@ describe("checkToolCall — rules", () => {
     const verdict = refused(checkToolCall(guard, "file_write", { path: "src/domain/x.ts", content: "x" }, ON));
     strictEqual(verdict.reason, "dev-verify: refused by 'deny file_write path=src/domain/*' of the test-author's roots");
     strictEqual(verdict.context, "The test-author writes outside these roots only: write the tests, no source file.");
-    deepStrictEqual(checkToolCall(guard, "file_write", { path: "tests/x.test.ts", content: "x" }, ON), { allow: true });
+    deepStrictEqual(checkToolCall(guard, "file_write", { path: "tests/x.test.ts", content: "x" }, NEW), { allow: true });
     refused(checkToolCall(guard, "edit_batch", { operations: [] }, ON));
   });
 
@@ -71,7 +72,7 @@ describe("checkToolCall — rules", () => {
     const verdict = refused(checkToolCall(guard, "file_write", { path: "./src/domain/x.ts", content: "x" }, ON));
     strictEqual(verdict.reason,
       "dev-verify: refused by 'deny file_write path=src/domain/*' of the test-author's roots, which 'src/domain/x.ts' is");
-    deepStrictEqual(checkToolCall(guard, "file_write", { path: "./tests/x.test.ts", content: "x" }, ON), { allow: true });
+    deepStrictEqual(checkToolCall(guard, "file_write", { path: "./tests/x.test.ts", content: "x" }, NEW), { allow: true });
   });
 
   it("normalises a path by its text", () => {
@@ -95,7 +96,7 @@ describe("checkToolCall — what a role's roots leave writable", () => {
     const guard = buildCallGuard({
       step: "dev-implement", role: "test-author", layout: { ...LAYOUT, testFiles: ["src/*.test.ts"] }, writable: ["src/domain/a.ts"],
     });
-    strictEqual(checkToolCall(guard, "file_write", { path: "/workspace/src/domain/a.test.ts" }, ON).allow, true);
+    strictEqual(checkToolCall(guard, "file_write", { path: "/workspace/src/domain/a.test.ts" }, NEW).allow, true);
     strictEqual(checkToolCall(guard, "edit_file", { path: "./src/domain/a.ts" }, ON).allow, true);
     refused(checkToolCall(guard, "file_write", { path: "src/domain/b.ts" }, ON));
     // A rule set's deny holds whatever the role leaves writable.
@@ -111,7 +112,79 @@ describe("checkToolCall — what a role's roots leave writable", () => {
   it("compares the test author's stubs as paths, never as patterns", () => {
     const guard = buildCallGuard({ step: "dev-implement", role: "test-author", layout: LAYOUT, writable: ["src/domain/*", "src/domain/a.ts"] });
     refused(checkToolCall(guard, "file_write", { path: "src/domain/core.ts" }, ON));
-    strictEqual(checkToolCall(guard, "file_write", { path: "/workspace/src/domain/a.ts" }, ON).allow, true);
+    strictEqual(checkToolCall(guard, "file_write", { path: "/workspace/src/domain/a.ts" }, NEW).allow, true);
+  });
+});
+
+describe("checkToolCall — the rewrite rule of a writing role", () => {
+  const big = "src/domain/Orders.ts";
+
+  it("refuses file_write on an existing source file, the node editors and edit_file not", () => {
+    const guard = buildCallGuard({ step: "dev-implement", role: "implementer", layout: LAYOUT });
+    for (const facts of [ON, { ...ON, newFile: false }]) {
+      const verdict = refused(checkToolCall(guard, "file_write", { path: big, content: "x" }, facts));
+      strictEqual(verdict.reason, "dev-implement: refused by 'deny file_write path=src/domain/*' of the implementer's rewrite rule");
+      ok(verdict.context.startsWith("This source file exists: change it by node (node_read for its sha256, then node_replace"), verdict.context);
+    }
+    for (const tool of ["node_replace", "node_insert", "node_ensure", "edit_file"]) {
+      deepStrictEqual(checkToolCall(guard, tool, { path: big, text: "x" }, ON), { allow: true }, tool);
+    }
+    deepStrictEqual(checkToolCall(guard, "file_write", { path: `/workspace/${big}`, content: "x" }, NEW), { allow: true });
+    deepStrictEqual(checkToolCall(guard, "file_write", { path: "docs/notes.md", content: "x" }, ON), { allow: true });
+  });
+
+  it("holds for the test author on the test root, and never lifts a role's or a set's own deny", () => {
+    const guard = buildCallGuard({ step: "dev-implement", role: "test-author", layout: LAYOUT });
+    strictEqual(refused(checkToolCall(guard, "file_write", { path: "tests/a.test.ts" }, ON)).reason,
+      "dev-implement: refused by 'deny file_write path=tests/*' of the test-author's rewrite rule");
+    ok(refused(checkToolCall(guard, "file_write", { path: big }, NEW)).reason.endsWith("of the test-author's roots"));
+    ok(refused(checkToolCall(guard, "file_write", { path: ".orkeon/x.json" }, NEW)).reason.endsWith("of the rule set state-files"));
+  });
+
+  it("is no rule of the pilot, nor of a step without a role", () => {
+    for (const guard of [buildCallGuard({ step: "dev-plan" }), buildCallGuard({ step: "dev-verify", role: "pilot", layout: LAYOUT })]) {
+      ok(!guard.rules.some((r) => r.origin.kind === "rewrite"));
+    }
+  });
+});
+
+describe("checkToolCall — edit_batch, operation by operation", () => {
+  const implementer = buildCallGuard({ step: "dev-implement", role: "implementer", layout: LAYOUT });
+  const op = (kind: string, path: string, text = "x") => ({ kind, path, selector: "A.b()", text, expected_hash: "h" });
+
+  it("lets a batch through when every operation is one its editor may make", () => {
+    const batch = { operations: [op("node_replace", "src/domain/a.ts"), op("ensure_import", "src/app/b.ts"), op("node_insert", "docs/x.md")] };
+    deepStrictEqual(checkToolCall(implementer, "edit_batch", batch, ON), { allow: true });
+    deepStrictEqual(checkToolCall(implementer, "edit_batch", { ...batch, validate: "parse" }, ON), { allow: true });
+  });
+
+  it("refuses the whole batch on the first operation a rule covers, naming it", () => {
+    const onTests = refused(checkToolCall(implementer, "edit_batch", { operations: [op("node_replace", "src/domain/a.ts"), op("node_insert", "tests/a.test.ts")] }, ON));
+    strictEqual(onTests.reason,
+      "dev-implement: refused by 'deny node_insert path=tests/*' of the implementer's roots (edit_batch operation 2, node_insert on 'tests/a.test.ts')");
+    const secret = refused(checkToolCall(implementer, "edit_batch", { operations: [op("ensure_member", "src/domain/a.ts", "k = 'ghp_x'")] }, ON));
+    ok(secret.reason.includes("of the rule set secrets (edit_batch operation 1, ensure_member"), secret.reason);
+    const state = refused(checkToolCall(buildCallGuard({ step: "dev-plan" }), "edit_batch", { operations: [op("replace_mermaid", ".orkeon/x.md")] }, ON));
+    ok(state.reason.includes("of the rule set state-files"), state.reason);
+    // A path normalised back under a denied root is still refused.
+    refused(checkToolCall(implementer, "edit_batch", { operations: [op("node_replace", "src/../tests/a.test.ts")] }, ON));
+  });
+
+  it("refuses a batch it cannot read, and validate build", () => {
+    for (const input of [{}, { operations: [] }, { operations: "x" }, { operations: [null] }, { operations: [{ kind: "node_replace" }] },
+      { operations: [op("delete_file", "src/domain/a.ts")] }, "x"]) {
+      ok(refused(checkToolCall(implementer, "edit_batch", input, ON)).reason.startsWith("dev-implement: edit_batch refused: "), JSON.stringify(input));
+    }
+    const build = refused(checkToolCall(implementer, "edit_batch", { operations: [op("node_replace", "src/domain/a.ts")], validate: "build" }, ON));
+    strictEqual(build.reason, "dev-implement: edit_batch refused: validate 'build' is not run in a dev step");
+    ok(build.context.includes("run_build"), build.context);
+  });
+
+  it("is an editor acceptEdits runs when the host has no gate, and still checked", () => {
+    const off = { mode: "acceptEdits", gateEnabled: false };
+    deepStrictEqual(checkToolCall(implementer, "edit_batch", { operations: [op("node_replace", "src/domain/a.ts")] }, off), { allow: true });
+    refused(checkToolCall(implementer, "edit_batch", { operations: [op("node_replace", "tests/a.ts")] }, off));
+    refused(checkToolCall(implementer, "edit_batch", { operations: [op("node_replace", "src/domain/a.ts")] }, { mode: "plan", gateEnabled: false }));
   });
 });
 

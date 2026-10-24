@@ -40,10 +40,11 @@ describe("the rule sets", () => {
     for (const [tool, argument] of WRITTEN_TEXT) ok(TOOL_ARGUMENTS[tool].includes(argument), `${tool}.${argument}`);
   });
 
-  it("holds 190, 23, 56, 97 and 42 rules, 407 once the deny on edit_batch both secrets and state-files hold is kept once", () => {
-    deepStrictEqual(RULE_SET_IDS.map((id) => RULE_SETS[id].rules.length), [190, 23, 56, 97, 42]);
+  it("holds 190, 23, 56, 96 and 41 rules, 406 in all, none of them on edit_batch", () => {
+    deepStrictEqual(RULE_SET_IDS.map((id) => RULE_SETS[id].rules.length), [190, 23, 56, 96, 41]);
     const all = rulesOf(RULE_SET_IDS);
-    strictEqual(all.length, 407);
+    strictEqual(all.length, 406);
+    ok(!all.some((r) => r.tool === "edit_batch"));
     for (let i = 0; i < all.length; i++) {
       for (let j = i + 1; j < all.length; j++) ok(!sameCalls(all[i], all[j]), gateLine(all[i]));
     }
@@ -52,9 +53,9 @@ describe("the rule sets", () => {
     strictEqual(gateLine(RULE_SETS["read-noise"].rules[7]), "deny file_read path=node_modules/*");
     strictEqual(gateLine(RULE_SETS["read-noise"].rules[8]), "deny glob path=*/bin/*");
     strictEqual(gateLine(RULE_SETS.secrets.rules[15]), "deny file_write content=*sk-ant-*");
-    strictEqual(gateLine(RULE_SETS.secrets.rules[96]), "deny edit_batch");
+    strictEqual(gateLine(RULE_SETS.secrets.rules[95]), "deny structural_rewrite fix=*sk-ant-*");
     strictEqual(gateLine(RULE_SETS["state-files"].rules[7]), "deny file_write path=.claude/*");
-    deepStrictEqual(RULE_SETS["state-files"].rules.slice(-2).map(gateLine), ["deny edit_batch", "deny structural_rewrite"]);
+    deepStrictEqual(RULE_SETS["state-files"].rules.slice(-1).map(gateLine), ["deny structural_rewrite"]);
   });
 
   it("lists the sets by their own ids, in order", () => {
@@ -73,7 +74,7 @@ describe("the rule sets", () => {
       deepStrictEqual(decision.deniedByRule, unscoped, mode);
       deepStrictEqual(decision.tools, toolsetFor(mode).filter((t) => !unscoped.includes(t)), mode);
     }
-    deepStrictEqual(catalogueFor("default", rules).deniedByRule, ["edit_batch", "structural_rewrite"]);
+    deepStrictEqual(catalogueFor("default", rules).deniedByRule, ["structural_rewrite"]);
     const plan = catalogueFor("plan", rules).tools;
     for (const tool of REVIEWER_TOOLS) ok(plan.includes(tool), tool);
   });
@@ -168,14 +169,14 @@ describe("the rule sets", () => {
     strictEqual(refused("secrets", "file_read", { path: keyBlock }), false);
   });
 
-  it("secrets refuses a token in the text of every writing tool, and edit_batch whole", () => {
+  it("secrets refuses a token in the text of every writing tool, and leaves edit_batch to the crews' callback", () => {
     for (const [tool, argument] of WRITTEN_TEXT) {
       assertRefused("secrets", tool, argument, ["ghp_x", "a sk-ant-api03-x b"], true);
       assertRefused("secrets", tool, argument, ["export const x = 1;\n"], false);
     }
     strictEqual(refused("secrets", "node_replace", { path: "src/a.ts", selector: "f", text: "ghp_x" }), true);
     strictEqual(refused("secrets", "edit_file", { old_string: "ghp_x", new_string: "y" }), false);
-    strictEqual(refused("secrets", "edit_batch", { operations: [] }), true);
+    strictEqual(refused("secrets", "edit_batch", { operations: [] }), false);
   });
 
   it("state-files refuses writes to the files code owns", () => {
@@ -206,9 +207,9 @@ describe("the rule sets", () => {
       ...PATH_WRITE_TOOLS.flatMap((tool) => [
         `deny ${tool} path=/workspace/src/shared/domain/*`, `deny ${tool} path=src/shared/domain/*`,
       ]),
-      "deny edit_batch", "deny structural_rewrite",
+      "deny structural_rewrite",
     ]);
-    strictEqual(made.rules.length, 2 * 10 + 2);
+    strictEqual(made.rules.length, 2 * 10 + 1);
     deepStrictEqual(made.problems, []);
     strictEqual(made.rules[0].tool, "file_write");
   });

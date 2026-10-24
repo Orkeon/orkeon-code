@@ -13,15 +13,15 @@ describe("STEP_RULE_SETS", () => {
     deepStrictEqual(Object.keys(STEP_RULE_SETS).sort(), [...DEV_STEPS].sort());
     for (const step of DEV_STEPS) deepStrictEqual(STEP_RULE_SETS[step], RULE_SET_IDS);
     deepStrictEqual(stepRules("dev-plan"), rulesOf(RULE_SET_IDS));
-    strictEqual(stepRules("dev-plan").length, 407);
-    strictEqual(stepRules("dev-verify").length, 407);
+    strictEqual(stepRules("dev-plan").length, 406);
+    strictEqual(stepRules("dev-verify").length, 406);
   });
 
   it("lets /dev-implement's roles run their two tools without a question, after the same deny rules", () => {
     const rules = stepRules("dev-implement");
-    strictEqual(rules.length, 409);
-    deepStrictEqual(rules.slice(0, 407), rulesOf(RULE_SET_IDS));
-    deepStrictEqual(rules.slice(407).map(formatRule), ["allow run_tests", "allow run_build"]);
+    strictEqual(rules.length, 408);
+    deepStrictEqual(rules.slice(0, 406), rulesOf(RULE_SET_IDS));
+    deepStrictEqual(rules.slice(406).map(formatRule), ["allow run_tests", "allow run_build"]);
     deepStrictEqual(STEP_ALLOW_RULES["dev-plan"], []);
     deepStrictEqual(STEP_ALLOW_RULES["dev-verify"], []);
     strictEqual(ruleDecision(rules, "run_tests", { command: "npm test" }), "allow");
@@ -82,10 +82,11 @@ describe("roleRules", () => {
       strictEqual(ruleDecision(author, tool, test), undefined, tool);
     }
     for (const rules of [author, implementer]) {
-      deepStrictEqual(rules.slice(-2).map(formatRule), ["deny edit_batch", "deny structural_rewrite"]);
+      deepStrictEqual(rules.slice(-1).map(formatRule), ["deny structural_rewrite"]);
+      strictEqual(ruleDecision(rules, "edit_batch", { operations: [] }), undefined);
     }
-    strictEqual(author.length, 3 * 10 + 2);
-    strictEqual(implementer.length, 10 + 2);
+    strictEqual(author.length, 3 * 10 + 1);
+    strictEqual(implementer.length, 10 + 1);
   });
 
   it("keeps the implementer off the test files beside the code, and leaves them to the test author", () => {
@@ -96,7 +97,25 @@ describe("roleRules", () => {
     deepStrictEqual(implementer.missing, []);
     strictEqual(ruleDecision(implementer.rules, "file_write", { path: "/workspace/src/a/x.test.ts" }), "deny");
     strictEqual(ruleDecision(implementer.rules, "file_write", { path: "src/a/x.ts" }), undefined);
-    deepStrictEqual(implementer.rules.slice(-2).map(formatRule), ["deny edit_batch", "deny structural_rewrite"]);
+    deepStrictEqual(implementer.rules.slice(-1).map(formatRule), ["deny structural_rewrite"]);
     deepStrictEqual(roleRules("implementer", { testFiles: ["/etc/*", "../x/*"] }).problems.length, 2);
+  });
+
+  it("gives each writing role the rewrite rule: no file_write on any source root or test pattern, the other editors free", () => {
+    const layout = { domain: "src/d", application: "src/a", infrastructure: "", tests: "./tests/", testFiles: ["src/*.test.ts", "../x/*"] };
+    for (const role of ["test-author", "implementer"] as const) {
+      const { rewrite } = roleRules(role, layout);
+      deepStrictEqual(rewrite.map(formatRule), [
+        "deny file_write path=/workspace/src/d/*", "deny file_write path=src/d/*",
+        "deny file_write path=/workspace/src/a/*", "deny file_write path=src/a/*",
+        "deny file_write path=/workspace/tests/*", "deny file_write path=tests/*",
+        "deny file_write path=/workspace/src/*.test.ts", "deny file_write path=src/*.test.ts",
+      ], role);
+      for (const tool of ["edit_file", "node_replace", "node_insert", "node_ensure"]) {
+        strictEqual(ruleDecision(rewrite, tool, { path: "src/d/x.ts" }), undefined, tool);
+      }
+      strictEqual(ruleDecision(rewrite, "file_write", { path: "docs/x.md" }), undefined);
+    }
+    deepStrictEqual(roleRules("pilot", layout).rewrite, []);
   });
 });
