@@ -96,7 +96,7 @@ pour chaque fichier, si bien que le contrôle de types seul laisserait n'importe
 
 ```text
 src/
-├── commands/          56 *.cmd.ts (parse, wire, render)
+├── commands/          57 *.cmd.ts (parse, wire, render)
 │   ├── _lib/          one module per command family: run<Name>(tokens, deps) → CommandView, or
 │   │                  dispatch<Name>(tokens, deps) → a ticket or a message when the command launches a
 │   │                  crew (say, transcribe, voice), and its pure helpers (agents, branch, config, dev, diff, doctor,

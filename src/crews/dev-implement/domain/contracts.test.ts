@@ -1,0 +1,54 @@
+// The RED and GREEN briefs made by code. Run:
+//   node --test src/crews/dev-implement/domain/contracts.test.ts
+import { describe, it } from "node:test";
+import { deepStrictEqual, ok, strictEqual } from "node:assert";
+import { readFileSync } from "node:fs";
+
+import { classOf, greenContract, redContract, testCommandFor } from "./contracts.ts";
+import { parseImplementSheet } from "./step-section.ts";
+
+const SHEET = parseImplementSheet(
+  readFileSync(new URL("../../../../tests/fixtures/dev/plan/expected/PRUNE-PLAN-F1.md", import.meta.url), "utf8"),
+);
+const LAYOUT = { tests: "tests", domain: "src/shared/domain", shared: [], buildOutputs: [] };
+
+describe("testCommandFor", () => {
+  it("fills test_class with the test file for a script, its base name for C#", () => {
+    deepStrictEqual(testCommandFor({ testClass: "node --test <Class>" }, SHEET.steps[0]),
+      { ok: true, command: "node --test src/shared/domain/memory-prune.test.ts" });
+    strictEqual(classOf("tests/Unit/PruneTests.cs"), "PruneTests");
+  });
+
+  it("fills the project and the class of a .NET template", () => {
+    const step = { ...SHEET.steps[0], anchor: { testFiles: [{ path: "tests/Unit/PruneTests.cs", state: "to create" as const }], doubles: "", production: [] } };
+    deepStrictEqual(testCommandFor({ testClass: "dotnet test <test project> --no-build --filter FullyQualifiedName~<Class>" }, step),
+      { ok: true, command: "dotnet test src/shared/domain --no-build --filter FullyQualifiedName~PruneTests" });
+  });
+
+  it("falls back on test_project, and refuses a pack with neither", () => {
+    deepStrictEqual(testCommandFor({ testProject: "dotnet test <test project>" }, SHEET.steps[0]),
+      { ok: true, command: "dotnet test src/shared/domain" });
+    strictEqual(testCommandFor({ test: "npm test" }, SHEET.steps[0]).ok, false);
+  });
+});
+
+describe("redContract / greenContract", () => {
+  const input = { code: "prune", sheetPath: "workbench/prune/PRUNE-PLAN-F1.md", sheet: SHEET, step: SHEET.steps[1], layout: LAYOUT, testCommand: "node --test x" };
+
+  it("names the ids, the tests, the files and the rules of the test author", () => {
+    const red = redContract(input);
+    ok(red.includes("Ids: BR-02."));
+    ok(red.includes("`keeps feedback entries older than the cut-off`"));
+    ok(red.includes("`src/shared/domain/memory.ts:18` — `MemoryEntry` (read that member by range, never the file whole)"));
+    ok(red.includes("Write under `tests` only"));
+    ok(red.includes("file_read with offset and limit"));
+  });
+
+  it("gives the implementer the red run, the elements, the expected cost and the Cost line to answer", () => {
+    const green = greenContract(input, { tail: "not ok 1", log: "/workspace/workbench/prune/logs/x.log" });
+    ok(green.includes("not ok 1"));
+    ok(green.includes("Expected access cost: 1 read + 1 write"));
+    ok(green.includes("Never write under `tests`"));
+    ok(green.includes("`Cost: <reads> reads"));
+  });
+});
