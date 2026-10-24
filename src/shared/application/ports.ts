@@ -32,7 +32,7 @@ export interface Shell {
   run(command: string, options?: ShellOptions): Promise<ShellResult>;
 }
 
-/** One VFS mount: its virtual path, and its access rights as the host spells them. */
+/** One VFS mount: its virtual path, and its access as the host spells it (`ro`, `rw`, `rwnd`). */
 export interface Mount {
   path: string;
   /** Undefined when the host reports none. */

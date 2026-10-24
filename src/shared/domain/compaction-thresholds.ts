@@ -18,7 +18,7 @@ export const FILE_READ_CUT_TOKENS = 32_000 / CHARS_PER_TOKEN;
 export const ANSWER_RESERVE_TOKENS = 24_576;
 
 /** The parts of a turn that are not the history: the system header (at most
- *  9 000 characters, MAX_STATIC_HEADER_CHARS) and the user body's fixed blocks,
+ *  9 500 characters, MAX_STATIC_HEADER_CHARS) and the user body's fixed blocks,
  *  rounded up. */
 export const TURN_FIXED_TOKENS = 4_000;
 

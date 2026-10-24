@@ -29,6 +29,7 @@ import { PERMISSION_FALLBACK_CONFIG_KEY, PERMISSION_MODES } from "../../shared/d
 import { EXTRA_TOOLS_CONFIG_KEY } from "../../shared/domain/agent-policy/extra-tools.ts";
 import {
   catalogueFor, checkRule, formatRule, gateLine, isReadOnly, readRule, sameCalls, toolsetFor, RULE_SYNTAX,
+  ACT_TOOLS,
   RULEABLE_TOOLS,
 } from "../../shared/domain/agent-policy/permission.ts";
 import type { ExtraTool, PermissionRule } from "../../shared/domain/agent-policy/permission.ts";
@@ -138,7 +139,9 @@ async function renderShow(deps: PermissionsDeps, extras: ExtraToolsResolution): 
   const heldParts = plain === null ? [] : [...(plain.length > 0 ? [plain.join(", ")] : []), ...setParts];
 
   const offered = toolsetFor(mode, extras.present);
-  const vocabulary = [...RULEABLE_TOOLS, ...extras.present.map((t) => t.name)];
+  // The host offers the ACT_TOOLS to every act, and its gate refuses them in the read-only modes only.
+  const withheld = (t: string) => isReadOnly(mode) || !ACT_TOOLS.includes(t);
+  const vocabulary = [...RULEABLE_TOOLS.filter(withheld), ...extras.present.map((t) => t.name)];
   const lines = [
     `session default mode : ${mode} ${isReadOnly(mode) ? "(read-only)" : ""}`,
     `  ↳ source           : ${sessionDefault ? "set by /mode (session state)" : fallback.explanation}`,

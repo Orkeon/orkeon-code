@@ -80,9 +80,8 @@ describe("/permissions show", () => {
     strictEqual(lines[0], "session default mode : default ");
     strictEqual(lines[1], `  ↳ source           : ${resolveFallbackMode(undefined).explanation}`);
     strictEqual(lines[3], `tool catalogue       : ${toolsetFor("default").join(", ")}`);
-    // spawn_agent is in no catalogue (the script host appends it to every act): commands/_lib/permissions.ts
-    // still lists it here.
-    strictEqual(lines[4], "  ↳ withheld by mode : spawn_agent");
+    // spawn_agent is in no catalogue, yet no mode withholds it: the script host appends it to every act.
+    strictEqual(lines[4], "  ↳ withheld by mode : (none)");
     strictEqual(lines[5], "  ↳ removed by rule  : (none)");
     strictEqual(lines[6], "session rules        : (none)");
     strictEqual(lines[7], "in the host gate     : (none)");
@@ -296,9 +295,8 @@ describe("/permissions — the extra tools of tools.extra", () => {
     await extraTools("transcribe_audio:read, search_issues, gone:read, bad:exec", "transcribe_audio", "search_issues");
     let lines = (await run("show")).text!.split("\n");
     strictEqual(lines[3], `tool catalogue       : ${toolsetFor("default", EXTRAS).join(", ")}`);
-    // spawn_agent is in no catalogue (the script host appends it to every act): commands/_lib/permissions.ts
-    // still lists it here.
-    strictEqual(lines[4], "  ↳ withheld by mode : spawn_agent");
+    // spawn_agent is in no catalogue, yet no mode withholds it: the script host appends it to every act.
+    strictEqual(lines[4], "  ↳ withheld by mode : (none)");
     strictEqual(lines[6],
       "  ↳ extra tools      : transcribe_audio (read), search_issues (write); not registered: gone (read); ignored: bad:exec");
     strictEqual(lines.length, 15);

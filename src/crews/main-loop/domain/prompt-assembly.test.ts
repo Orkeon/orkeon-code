@@ -159,16 +159,16 @@ describe("buildStaticHeader", () => {
 
   it("describes what the offered tools can do, and only those tools", () => {
     const write = buildStaticHeader({ toolNames: ["file_read", "file_write", "shell_command"] });
-    ok(write.includes("Calls run one at a time"));
+    ok(write.includes("A long result is cut before you see it"));
     ok(write.includes("replaces the whole file"), "file_write's semantics");
-    ok(write.includes("`sed -n`"), "a later part of a file is read through the shell when it is offered");
+    ok(write.includes("with `offset` and `limit`"), "a later part of a file is read by file_read itself");
     ok(write.includes("only the commands the host allows"), "the shell's allow-list");
     // A read-only catalogue is not told how to write, nor about a shell it does not have.
     const read = buildStaticHeader({ toolNames: ["file_read", "symbol_source"] });
     ok(!read.includes("replaces the whole file"));
     ok(!read.includes("only the commands the host allows"));
-    ok(read.includes("`symbol_source`"), "without a shell, a later part of a source file comes through symbol_source");
-    ok(!buildStaticHeader({ toolNames: [] }).includes("Calls run one at a time"));
+    ok(read.includes("with `offset` and `limit`"), "the read-only modes read a later part the same way");
+    ok(!buildStaticHeader({ toolNames: [] }).includes("A long result is cut before you see it"));
   });
 
   it("keeps the authored header under its ceiling in every mode", () => {
