@@ -24,7 +24,16 @@ modèle travaille ensuite sur la transcription sous le mode du tour. `/voice` en
 `/voice send` remet le texte dicté à un tour comme le ferait un texte tapé (un `plan:` en tête, en minuscules, choisit
 le mode), et `--go` à un tour sous le mode de la session, choisi avant l'enregistrement : aucun préfixe dicté n'est lu.
 `/say` lit à voix haute de la même façon, et de même la lecture de chaque réponse sous `voice.reply on`, faite par la
-boucle principale après le tour comme appel de la commande qui l'a lancée.
+boucle principale après le tour comme appel de la commande qui l'a lancée. `/dev-verify` lance `git`, le build du
+pack et les commandes de test qu'il accepte depuis son propre code, dans tous les modes ; son auditeur ne fait que
+lire, en `plan`, avec quatre outils de lecture.
+`/dev-learn` lit les fichiers de verdict et les deux états d'apprentissage. Il n'écrit que `<work>/learn-<date>/`,
+`.orkeon/dev-learn-state.json` et `.orkeon/memory/refused.md`, jamais un fichier sous `.claude/` ni le fichier qu'une
+proposition nomme.
+`/dev-plan` lit la spec ou la fiche de changement, le pack et l'index du code. Il n'écrit que
+`<work>/<code>/<CODE>-PLAN.md`, les fiches de lot et `plan.json`, jamais un fichier sous `.claude/` ; son relecteur ne
+fait que lire, en `plan`, avec six outils de lecture. Les deux placent d'abord dans la garde les
+[jeux de règles des étapes dev](#jeux-de-règles-des-étapes-dev), et refusent de démarrer tant que la garde est inactive.
 
 ## Modes
 
@@ -115,6 +124,134 @@ Les règles vivent dans l'état de la session jusqu'à `/clear` ou la fin du REP
 est sur la [feuille de route](roadmap.md). La garde en conserve sa propre copie, que `/permissions` remplace après
 chaque changement et que chaque `/assistant` remplace avant le début du tour, si bien que la garde détient toujours les
 règles de la session. Une réponse `[s]` n'est pas une règle : `/permissions` ne la liste ni ne l'efface.
+
+## Jeux de règles des étapes dev
+
+`/dev-verify` (sauf avec `--gate-only`) et `/dev-plan` remettent à la garde des jeux de règles qui leur sont propres
+juste avant le démarrage de leur crew. Un jeu est une liste de règles deny intégrée à Orkeon Code, la même dans tous
+les dépôts ; aucun réglage ne l'active ni ne le désactive. Les deux étapes mettent en vigueur les cinq jeux :
+
+| Jeu | Règles sur | Refuse |
+|---|---|---|
+| `git-readonly` | `shell_command`, `command` | une commande git qui modifie le dépôt, ses branches ou ses remotes, y compris derrière une option globale (`git -C <dir> push`) |
+| `inline-interpreters` | `shell_command`, `command` | du code passé en ligne à un interpréteur, qui pourrait exécuter ce que les autres règles refusent |
+| `read-noise` | `file_read`, `path` | une lecture sous un dossier `bin/`, `obj/`, `.git/` ou `node_modules/`, n'importe où dans le projet |
+| `secrets` | `file_write`, `content` | un contenu qui porte un bloc de clé privée ou un jeton à préfixe connu |
+| `state-files` | `file_write`, `path` | un fichier que seul le code d'Orkeon Code écrit : journaux, états et verdicts des lots, captures d'audit, `.orkeon/` et `.claude/` |
+
+`git-readonly` contient 190 règles, trois pour la plupart des verbes `add`, `am`, `apply`, `branch`, `checkout`, `cherry-pick`,
+`clean`, `commit`, `fetch`, `filter-branch`, `gc`, `merge`, `mv`, `notes`, `pull`, `push`, `rebase`, `reflog`,
+`remote`, `reset`, `restore`, `revert`, `rm`, `stash`, `submodule`, `switch`, `tag`, `update-ref` et `worktree`,
+ici pour `push` :
+
+```text
+deny shell_command command=*git push*
+deny shell_command command=*git * push
+deny shell_command command=*git * push *
+```
+
+Juste après `git`, le verbe est un préfixe, si bien que `git push;` et un `git commit` suivi d'un saut de ligne sont refusés aussi ; derrière une option, le verbe doit être un mot à part entière, si bien que `git diff -- src/address.ts` s'exécute toujours. Pour `branch`,
+`notes`, `reflog`, `remote`, `submodule` et `tag`, qui ne font que lister quand on les tape seuls, les deux formes sans
+argument sont omises : `git branch` s'exécute, `git branch -a` est refusé, puisqu'aucune règle ne peut faire d'exception
+à un deny. `remote` et `stash` ne sont refusés que par leurs sous-commandes qui modifient (`git remote add`,
+`git stash pop`, et `git stash` seul ou avec des options), si bien que `git remote -v` et `git stash list` s'exécutent.
+La lecture de l'historique reste ouverte : `git status`, `git log`, `git diff`, `git show`.
+
+Les règles reconnaissent le mot `git` n'importe où sur la ligne : un chemin (`/usr/bin/git push`), un `env`, une
+variable (`GIT_DIR=.git git push`) ou un enchaînement (`cd x && git push`) placé devant n'y change rien. Les mêmes
+règles refusent les verbes qui écrivent sous les verbes courants : `init`, `clone`, `config`, `update-index`, `symbolic-ref`, `prune`, `repack`, `read-tree`, `checkout-index`, `commit-tree`, `write-tree`, `mktag`, `mktree`, `fast-import`, `maintenance`, `update-server-info` et `replace`
+(`git replace` seul liste, et s'exécute). `git config` avec deux arguments ou plus (`git config key value`,
+`git config --global key`, `git config --unset key`) ou avec `--edit` est refusé, tout comme l'option globale
+`git -c key=value`, qui fixe une configuration pour une seule commande et peut lancer un programme par `core.pager` ;
+pour lire une clé, donnez un seul argument : `git config user.name`, `git config --list`.
+
+Les quatre autres jeux :
+
+```text
+deny shell_command command=*sh -c*
+deny shell_command command=*sh -*c *
+deny shell_command command=*sh -* -c*
+deny shell_command command=*node -e*
+deny shell_command command=*node --eval*
+deny shell_command command=*node -p*
+deny shell_command command=*node --print*
+deny shell_command command=*node -* -e*
+deny shell_command command=*node -* -p*
+deny shell_command command=*node --input-type*
+deny shell_command command=*python -c*
+deny shell_command command=*python3 -c*
+deny shell_command command=*python -* -c*
+deny shell_command command=*python3 -* -c*
+deny shell_command command=*perl -e*
+deny shell_command command=*perl -E*
+deny shell_command command=*ruby -e*
+deny shell_command command=*php -r*
+deny shell_command command=*tsx -e*
+deny shell_command command=*tsx --eval*
+deny shell_command command=*ts-node -e*
+deny shell_command command=*deno eval*
+deny shell_command command=*bun -e*
+deny file_read path=*/bin/*
+deny file_read path=bin/*
+deny file_read path=*/obj/*
+deny file_read path=obj/*
+deny file_read path=*/.git/*
+deny file_read path=.git/*
+deny file_read path=*/node_modules/*
+deny file_read path=node_modules/*
+deny file_write content=*-----BEGIN *PRIVATE KEY-----*
+deny file_write content=*ghp_*
+deny file_write content=*gho_*
+deny file_write content=*ghu_*
+deny file_write content=*ghs_*
+deny file_write content=*ghr_*
+deny file_write content=*github_pat_*
+deny file_write content=*xoxa-*
+deny file_write content=*xoxb-*
+deny file_write content=*xoxp-*
+deny file_write content=*xoxo-*
+deny file_write content=*xoxs-*
+deny file_write content=*xoxr-*
+deny file_write content=*AKIA*
+deny file_write content=*AIza*
+deny file_write content=*sk-ant-*
+deny file_write path=*-BATCHES-STATE.md
+deny file_write path=*-STATE-F*.md
+deny file_write path=*-VERIFY-F*.md
+deny file_write path=*/capture-F*/*
+deny file_write path=*/.orkeon/*
+deny file_write path=.orkeon/*
+deny file_write path=*/.claude/*
+deny file_write path=.claude/*
+```
+
+`inline-interpreters` contient 23 règles. Elles refusent `-c` passé à tout shell dont le nom finit par `sh`
+(`bash`, `sh`, `zsh`, `dash`, `ksh`, `fish`), y compris dans un groupe d'options (`bash -xc`) ou après une autre option
+(`bash -e -c`), et les formes en ligne de `node`, `python`, `python3`, `perl`, `ruby`, `php`, `tsx`, `ts-node`, `deno`
+et `bun`, derrière un chemin, un `env` ou `npx`. Comme une règle lit `sh -c` à la fin de n'importe quel mot,
+`ssh -c <cipher>` est refusé lui aussi.
+
+**Quand ils s'appliquent.** Au lancement, l'étape vide la garde, lui remet les règles de la session, puis ses propres
+jeux. Une règle allow de la session sur les mêmes appels qu'une règle deny de l'étape est écartée pour l'exécution,
+avec un avertissement. Les jeux ne sont pas rangés avec les règles de la session : `/permissions list` ne les montre
+pas, et `/permissions` les montre sur sa ligne `in the host gate`, groupés par jeu, tant qu'ils y restent. Ils y restent
+jusqu'au prochain tour `/assistant` ou au prochain `/permissions add`, `remove` ou `clear`, qui remettent à la garde les
+seules règles de la session. Comme toute règle, ils valent pour toute la session : un tour lancé pendant qu'une étape
+s'exécute les remplace pour le reste de l'étape.
+
+**La garde doit être active.** Quand l'hôte dit que sa garde est inactive, les deux étapes refusent de démarrer, car
+aucune règle ci-dessus ni le mode `plan` de leur auditeur ou de leur relecteur ne vérifierait quoi que ce soit ;
+`/dev-verify F<n> --gate-only` n'appelle aucun modèle et s'exécute toujours. Sur un runtime qui ne sait pas le dire
+(Orkeon 1.0.0-rc.6), l'étape s'exécute avec un avertissement, et avec un second sur un hôte qui ne garde aucune règle
+de session, où les jeux ne sont pas en vigueur.
+
+**Ce qu'une règle ne voit pas.** Une règle lit un argument comme du texte. Un fichier de script lancé par un
+interpréteur (`bash scripts/build.sh`) n'est pas du code en ligne, et s'exécute. Une règle reconnaît des mots séparés par une espace, si
+bien qu'une tabulation entre deux mots, ou un ordre d'options qu'elle ne liste pas, passe. `secrets` ne connaît que des préfixes
+fixes : un jeton web JSON, un mot de passe dans une URL ou une ligne `api_key = …` demandent une vérification du
+contenu entier, qui attend un outil de fichier propre à Orkeon Code. Un contenu qui mentionne un préfixe, comme une
+page ou un test sur les jetons, est refusé lui aussi. `read-noise` refuse aussi un dossier source qui se trouverait
+s'appeler `bin/`.
 
 ## Outils supplémentaires
 

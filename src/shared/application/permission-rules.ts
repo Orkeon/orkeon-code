@@ -103,3 +103,36 @@ export async function syncPermissionRules(deps: {
   for (const rule of stored.rules) deps.gate.add(rule);
   return { ...stored, applied: true };
 }
+
+/** What a step's sync left in force. `rules`, `dormant`, `invalid` are the session's, as syncPermissionRules
+ *  reports them; `step` the step's rules handed over (empty when not applied); `overridden` the session's
+ *  allow rules left out of the gate because a step rule denies the same calls. */
+export interface StepRuleSync extends RuleSync {
+  step: PermissionRule[];
+  overridden: PermissionRule[];
+}
+
+/**
+ * Makes the gate hold the session's rules, then a step's: clear it, add each stored rule in stored order
+ * (less a stored allow on the same calls as a step deny), then add each step rule in order. The step's
+ * rules are never stored: the next syncPermissionRules (the next /assistant turn, the next /permissions
+ * change) hands the gate the session's rules alone.
+ */
+export async function syncStepRules(deps: {
+  session: Pick<SessionStore, "readState">;
+  gate: PermissionRules;
+  extraNames?: readonly string[];
+  rules: readonly PermissionRule[];
+}): Promise<StepRuleSync> {
+  const stored = await readPermissionRules(deps.session, deps.extraNames);
+  if (!deps.gate.available()) return { ...stored, applied: false, step: [], overridden: [] };
+  deps.gate.clear();
+  const overridden: PermissionRule[] = [];
+  for (const rule of stored.rules) {
+    const denied = rule.effect === "allow" && deps.rules.some((s) => s.effect === "deny" && sameCalls(s, rule));
+    if (denied) overridden.push(rule);
+    else deps.gate.add(rule);
+  }
+  for (const rule of deps.rules) deps.gate.add(rule);
+  return { ...stored, applied: true, step: [...deps.rules], overridden };
+}

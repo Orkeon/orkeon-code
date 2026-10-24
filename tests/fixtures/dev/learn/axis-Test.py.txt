@@ -1,0 +1,10 @@
+- [Major] la règle « refus » n'est jamais testée — export CSV
+  fix: ajouter le cas du refus et le voir échouer · exports/F4 · `tests/exports.test.ts:12`
+- [Major] the refusal text for an unknown currency is never asserted
+  fix: assert the exact refusal text · invoices/F2 · `tests/invoices.test.ts:88`
+- [Major] the refusal of a negative amount has no test
+  fix: add a case that withdraws -5 and expects the refusal · ledger/F1 · `src/ledger/withdraw.ts:14`
+- [Major] the fee of a transfer is never checked against zero
+  fix: add a zero-fee case · ledger/F1 · `tests/ledger.test.ts:70`
+- [Blocking] no test triggers the overdraft refusal
+  fix: write the overdraft case and watch it fail first · ledger/F3 · `tests/ledger.test.ts` has no overdraft case

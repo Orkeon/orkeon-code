@@ -1,0 +1,118 @@
+{
+ "product": "Orkeon",
+ "origin": "github.com/Orkeon/orkeon",
+ "docs": "https://orkeon.github.io/orkeon/",
+ "layout": {
+  "domain": "src/core/Orkeon.Domain",
+  "application": "src/core/Orkeon.Application",
+  "infrastructure": "src/core/Orkeon.Infrastructure",
+  "tests": "tests",
+  "work": "backstage/tasks",
+  "shared": [
+   "packages"
+  ],
+  "build_outputs": [
+   "bin",
+   "obj"
+  ],
+  "worktree_gb": 30
+ },
+ "commands": {
+  "restore": "dotnet restore Orkeon.sln -p:NuGetAudit=false",
+  "build": "dotnet build Orkeon.sln -c Release --no-restore -warnaserror",
+  "build_test": "dotnet build <test project> -c Release --no-restore",
+  "test_class": "dotnet test <test project> -c Release --no-build --filter \"FullyQualifiedName~<Class>\"",
+  "test": "dotnet test Orkeon.sln -c Release --no-build --filter \"Category!=Integration&Category!=Slow\"",
+  "test_project": "dotnet test <test project> -c Release --no-build --filter \"Category!=Integration&Category!=Slow\" -- --ignore-exit-code 8",
+  "test_integration": "dotnet test Orkeon.sln -c Release --no-build --filter \"Category=Integration|Category=Slow\" -- --ignore-exit-code 8",
+  "coverage": "T=\"${XDG_CACHE_HOME:-$HOME/.cache}/quality-tools\"; { test -x \"$T/dotnet-coverage\" || dotnet tool install --tool-path \"$T\" dotnet-coverage --version 18.11.0; } && { test -x \"$T/reportgenerator\" || dotnet tool install --tool-path \"$T\" dotnet-reportgenerator-globaltool --version 5.5.11; } && \"$T/dotnet-coverage\" collect --settings dotnet-coverage.settings.xml --output coverage/coverage.cobertura.xml --output-format cobertura -- dotnet test Orkeon.sln -c Release --no-build --filter \"Category!=Integration&Category!=Slow\" && \"$T/reportgenerator\" -reports:coverage/coverage.cobertura.xml -targetdir:coverage/report -reporttypes:TextSummary \"-assemblyfilters:-*.Tests;-Orkeon.Tests.Shared;-Orkeon.Examples*\"",
+  "sonar": "SONAR_NO_DOCKER=1 bash scripts/sonar-analyze.sh",
+  "docs_checks": [
+   "bash scripts/check-docs-parity.sh",
+   "python3 scripts/check-doc-claims.py",
+   "docfx metadata docfx.json && docfx build docfx.json --warningsAsErrors"
+  ],
+  "release_readiness": "python3 scripts/check-release-readiness.py",
+  "cli": "dotnet run --project src/scripting/Orkeon.Scripting.Cli --"
+ },
+ "tests": {
+  "rule_trait": "BR"
+ },
+ "tools": {
+  "access_cost": {
+   "receivers": "toolInvocation|checkpoint|coordinator|orchestrator|shortTerm|longTerm|llm|embedding|a2a|eventHub",
+   "roots": [
+    "src"
+   ]
+  }
+ },
+ "contrib": {
+  "branch": "feature|fix|chore/<slug>",
+  "commit": "type(scope): summary",
+  "issue_templates": {
+   "bug": ".github/ISSUE_TEMPLATE/bug_report.yml",
+   "docs": ".github/ISSUE_TEMPLATE/documentation.yml",
+   "feature": ".github/ISSUE_TEMPLATE/feature_request.yml"
+  },
+  "pr_template": ".github/PULL_REQUEST_TEMPLATE.md",
+  "checklist": [
+   "The branch is not main and follows feature|fix|chore/<slug>",
+   "dotnet build Orkeon.sln -warnaserror is green; a new public API is declared in its project's PublicAPI.Unshipped.txt (RS0016/RS0017)",
+   "A changed public signature also builds examples/Orkeon.Examples.sln with -warnaserror",
+   "Tests added or updated for a behaviour change, and the fast suite passes (Category!=Integration&Category!=Slow)",
+   "Docs updated when behaviour or configuration changes, French mirror included (bash scripts/check-docs-parity.sh)",
+   "CHANGELOG.md has an entry under [Unreleased] for anything user-visible",
+   "New shell or shebang scripts carry the executable bit in the index (git update-index --chmod=+x)",
+   "No credential, token or key in the diff (the secret scan runs gitleaks over the PR history)",
+   "No direct System.IO in framework code (IFileSystemService; the VFS analyzer enforces it)",
+   "Comments are English and carry no accented letter (python3 scripts/check-comment-accents.py)",
+   "Commit messages follow type(scope) summary, in English",
+   "First contribution - the CLA check asks for one sentence"
+  ]
+ },
+ "release": {
+  "version_file": "src/Directory.Build.props",
+  "tag": "v<version>",
+  "changelog": "CHANGELOG.md",
+  "workflows": {
+   "release": "release.yml",
+   "verify": "release-verify.yml",
+   "publish": "publish.yml"
+  },
+  "windows_jobs": [
+   "smoke-windows",
+   "smoke-windows-service",
+   "msi"
+  ],
+  "channels": [
+   {
+    "name": "github-release",
+    "check": "gh release view v<version> --repo Orkeon/orkeon --json isDraft,isPrerelease,assets - published, prerelease when the version holds '-', every asset named once in SHA256SUMS or SHA256SUMS.msi (bash scripts/check-release-assets.sh --assets <names file> --no-hash <dir> SHA256SUMS SHA256SUMS.msi)"
+   },
+   {
+    "name": "release-verify",
+    "check": "jobs verify-published / verify-deb, verify-macos, verify-checksums of the release.yml run on the tag - all success"
+   },
+   {
+    "name": "apt",
+    "check": "jobs verify-apt / verify-apt (<channel>, ...) of the release.yml run - channel rc for every tag, stable too when the version holds no '-'"
+   },
+   {
+    "name": "msi",
+    "check": "assets orkeon-<version>-win-x64.msi and orkeon-host-<version>-win-x64.msi listed in SHA256SUMS.msi; an install from the published MSI is pasted by the user (no verify job runs on Windows)"
+   },
+   {
+    "name": "archives",
+    "check": "assets orkeon-<version>-<rid>.tar.gz|zip and orkeon-cli-<version>-<rid>.tar.gz|zip, the .deb, orkeon-<version>.sbom.cdx.json and orkeon-typings-<version>.tar.gz listed in SHA256SUMS"
+   },
+   {
+    "name": "nuget",
+    "check": "curl -s https://api.nuget.org/v3-flatcontainer/<id lowercased>/index.json lists <version> for Orkeon, Orkeon.Tools, Orkeon.Rag.Onnx, Orkeon.Rag.Onnx.Model, Orkeon.Tools.Embeddings.Local, Orkeon.Scripting.Cli, Orkeon.Compliance.Vfs, Orkeon.Interop.AgentFramework, Orkeon.Hosting.Aspire"
+   },
+   {
+    "name": "ghcr",
+    "check": "ghcr.io/orkeon/orkeon-runners:<version> resolves (anonymous pull token from https://ghcr.io/token?scope=repository:orkeon/orkeon-runners:pull, then HEAD /v2/orkeon/orkeon-runners/manifests/<version>); the tag is an index of linux/amd64 and linux/arm64, which release.yml checks itself after the push"
+   }
+  ]
+ }
+}

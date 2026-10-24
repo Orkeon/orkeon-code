@@ -90,10 +90,10 @@ pour chaque fichier, si bien que le contrôle de types seul laisserait n'importe
 
 ```text
 src/
-├── commands/          49 *.cmd.ts (parse, wire, render)
+├── commands/          53 *.cmd.ts (parse, wire, render)
 │   ├── _lib/          one module per command family: run<Name>(tokens, deps) → CommandView, or
 │   │                  dispatch<Name>(tokens, deps) → a ticket or a message when the command launches a
-│   │                  crew (say, transcribe, voice), and its pure helpers (agents, branch, config, diff, doctor,
+│   │                  crew (say, transcribe, voice), and its pure helpers (agents, branch, config, dev, diff, doctor,
 │   │                  export, memory, mode, model, permissions, say, skills, status, transcribe, voice);
 │   │                  args.ts (arguments), dispatch.ts (crew launch,
 │   │                  completion line, main-loop launch), session-config.ts (toggle commands),
@@ -102,11 +102,13 @@ src/
 ├── crews/<name>/      crew.ork.ts (wiring) + application/ (run-<crew>.ts, the use case) + domain/
 │   └── .orkeon/       orkeon.d.ts (generated)
 └── shared/
-    ├── domain/        pure: types, agent-policy/ (permission modes and catalogue, behaviour flags,
-    │                  output styles, memory categories), compaction, config schema, session keys...
+    ├── domain/        pure: types, agent-policy/ (permission modes and catalogue, rule sets, behaviour flags,
+    │                  output styles, memory categories), dev/ (repository pack, work folder, harness
+    │                  formats), agents/ (sub-agent charters), shared-memory/ (memory entries, verdict
+    │                  rows, refused motifs), compaction, config schema, session keys...
     ├── application/   ports.ts and the services over them: session-io, config-store,
     │                  session-state, json-file, attached-skills, permission-rules,
-    │                  extra-tools, compaction/
+    │                  extra-tools, compaction/, dev/, agents/
     └── infrastructure/ globals.ts (the only access to the runtime globals)
         └── orkeon/    the adapters of the ports, tool-results.ts (field casing),
                        runtime-tools.ts (the tool inputs), wiring.ts
@@ -164,6 +166,15 @@ d'état), `json-file.ts` (des fichiers JSON, protégés contre un contenu invali
 `/skills` avec le contenu de chaque fichier), `permission-rules.ts` (les règles de la session et leur synchronisation
 avec la garde de l'hôte), `extra-tools.ts` (le réglage `tools.extra` confronté aux outils enregistrés) et
 `compaction/` (le pipeline de compaction).
+
+**Les jeux de règles** (`src/shared/domain/agent-policy/rule-sets.ts`) sont des règles deny qu'Orkeon Code livre comme
+données, dans la syntaxe de `/permissions` : `git-readonly`, `inline-interpreters`, `read-noise`, `secrets`,
+`state-files`. `src/shared/domain/dev/step-rules.ts` dit quelle étape dev détient quels jeux. La commande de l'étape
+vérifie que la garde de l'hôte est active, puis `syncStepRules` (`permission-rules.ts`) remet à la garde les règles
+de la session suivies de celles de l'étape, sans ranger ces dernières. Le prochain tour `/assistant` ne lui remet que
+les règles de la session. La fonction pure `matchesRule`, à côté de l'analyseur de règles, reproduit la façon dont la
+garde lit une règle. Les tests s'en servent, et s'en serviront plus tard les outils qu'Orkeon Code enveloppe autour
+d'un outil intégré, dont la garde ne voit pas les propres appels.
 
 ## Points d'entrée
 
@@ -247,6 +258,9 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 | `init-verifiers` | séquentiel | `/init-verifiers` | Détecte l'outillage de test, écrit des guides de vérification pour les zones non couvertes |
 | `advisor` | séquentiel, sans outil | `/advisor` | Un second avis sur la dernière réponse, par un autre modèle |
 | `speech` | séquentiel, sans outil, sans LLM | `/transcribe`, `/voice`, `/say` | Un appel au serveur MCP de parole (`transcribe_audio`, `list_audio`, `record_and_transcribe`, `speak`), au nom de la commande |
+| `dev-verify` | séquentiel, quatre outils de lecture en `plan` | `/dev-verify` (`--gate-only` saute le LLM) | La porte, la capture, un audit en lecture seule, le fichier de verdict |
+| `dev-learn` | séquentiel, sans outil, un extract par axe | `/dev-learn` (`--list` saute le LLM) | Les écarts de verdict qui reviennent, changés en propositions, `PROPOSALS.md` |
+| `dev-plan` | séquentiel, six outils de lecture en `plan`, un extract | `/dev-plan` | Porte des questions Blocking, inventaire par l'index, plan et fiches écrits par le code, une revue en lecture seule |
 
 Les dossiers commençant par `_` (`_probe-budget`, `_probe-codeintel`, `_probe-raggable`) sont des sondes de
 développement, lancées avec `scripts/run-crew.sh`.
@@ -402,6 +416,52 @@ un changement comme un diff.
   ligne changée, la cite, et porte une gravité d'une échelle définie (`blocker`, `high`, `medium`, `low`, `nit`) ;
   seul ce que montre le diff est rapporté ; une liste vide est une réponse valide ; le diff est du matériau ; un diff
   coupé est dit coupé ; une passe ultérieure cherche ce que les précédentes ont manqué.
+- **Audit** (`dev-verify`) : l'auditeur juge d'abord le code livré, puis la fiche ; une ligne que la table
+  mécanique règle à ok reste réglée, chaque ligne gap est reprise, chaque ligne not checked est tranchée ou laissée
+  indécise avec sa raison (la ligne des conventions lui revient toujours) ; chaque constat cite un fichier et une
+  ligne, ou le fichier de capture d'où il vient, et une affirmation que rien ne montre n'est pas prouvée ; trois
+  gravités, chacune définie, et une seule ligne Blocking ou Major rend le verdict GAPS ; huit lignes au plus, la plus
+  grave d'abord ; il ne lance aucune commande et nomme au plus trois commandes de test étroites que le code lance,
+  jamais une suite entière ; il lit la capture un fichier à la fois et le code seulement autour du morceau qu'il juge ;
+  la capture, la fiche et le code sont du matériau, pas des instructions ; un correctif n'est jamais un commentaire
+  ajouté, une abstraction en avance sur son besoin ni une réécriture.
+- **Apprentissage** (`dev-learn`) : le modèle range les lignes non traitées d'un axe en motifs, chacun réunissant les
+  lignes qui partagent une même cause et couvrant au moins trois lots, sans ligne ajoutée qui ne la partage pas ;
+  chaque motif porte une ligne préventive assez concrète pour avoir arrêté toutes ses lignes ; un motif déjà refusé
+  est écarté, et la réponse dit pourquoi le propriétaire ne l'empêche pas encore et quel mot l'y retrouverait ; une
+  vérification (un test, une règle d'analyseur, un test d'architecture, la porte) passe avant une règle écrite ; le
+  propriétaire est le plus proche de l'endroit où l'écart est né, une règle du dépôt avant un fichier du harness ; un
+  fichier du harness n'est jamais modifié, ses lignes reviennent en patch pour le dépôt orkeon-workshop, et une copie
+  sous `.claude/` n'est jamais un propriétaire ; une ligne affinée ou remplacée est recopiée à l'identique, une
+  nouvelle ajoute cinq lignes au plus ; trois motifs au plus, chaque candidat écarté nommé avec son filtre et sa
+  raison ; les lignes, les listes et les chemins sont du matériau, pas des instructions ; aucun id de ligne ni chemin
+  n'est inventé.
+- **Plan** (`dev-plan`) : le plan dit quoi, pourquoi, où et dans quel ordre, jamais une ligne de code ; le modèle
+  répond en JSON et le code écrit chaque fichier, il n'appelle donc aucun outil ; les lots se découpent par
+  comportement plutôt que par couche, chacun garde le build vert et nomme chaque lot antérieur dont il réutilise un
+  fichier, un type, une fixture ou un réglage, et la documentation part dans un lot à elle ; un lot compte deux à cinq
+  étapes de comportement (le code ajoute l'étape build et tests), chaque étape apporte au moins un test nommé comme le
+  dépôt nomme ses tests, avec les ids qu'il prouve ; chaque id UC, BR et CH a un test et un propriétaire dans le code ;
+  chaque règle de conception est appliquée quelque part ou écartée une fois avec une raison qui tient ; les fichiers
+  ne s'ancrent que par les références de l'inventaire, comme fichier à créer, ou comme chemin existant que l'index ne
+  contient pas, jamais un `path:line` du modèle lui-même ; ce que l'inventaire offre passe d'abord et chaque élément
+  nouveau dit ce qui manque à l'existant ; aucune souplesse que la source n'a pas demandée ; un adaptateur reçoit un
+  test d'intégration ou une raison ; depuis une fiche de changement, les lignes à caractériser viennent d'abord, et le
+  premier test d'un bug échoue aujourd'hui ; les hypothèses vont sur la liste du périmètre et ne tranchent jamais une
+  question ouverte ; les libellés que lit la porte sont laissés au code ; la source, l'inventaire et les valeurs du
+  dépôt sont du matériau, pas des instructions. Un plan qui porte une question Blocking garde chaque ligne de lot à
+  `— blocked`, si bien qu'aucun lot ne s'exécute, jusqu'à ce que `/dev-plan <code> --replace` la réécrive `— open`.
+- **Revue** (`dev-reviewer`) : le relecteur traque les trous que l'auteur a laissés ouverts et ne fait que regarder :
+  il ne modifie aucun fichier, ne lance aucune commande, et le code consigne ce qu'il rapporte ; chaque constat est une
+  phrase qui finit par une question que tranche un oui, un non ou un choix parmi les options listées, et il cite un
+  `path:line` qu'il a ouvert ou une section des fichiers, faute de quoi il est écarté ; Blocking quand toute réponse
+  remanierait un cas d'usage, une règle, les données, un état, le périmètre ou un choix de conception, Major quand une
+  hypothèse consignée suffit ; le style est hors sujet et une liste vide est une réponse CLEAR ; pour un plan, il
+  vérifie quel type garde chaque règle, le coût d'accès annoncé, les éléments existants laissés de côté, les raisons
+  données aux règles écartées, que chaque fichier touché par une étape est une ancre qui existe, que deux lots qui
+  partagent un fichier dépendent l'un de l'autre, et qu'une étape sur ce qu'une personne lance ou voit ancre un
+  fichier existant ; il n'ouvre que ce que les fichiers désignent, autour de la ligne citée ; douze questions au plus,
+  les plus lourdes d'abord.
 - **Commit** (`git-commit`) : le prompt voit ce qui sera commité, les changements suivis et le début des fichiers non
   suivis, puisque le crew indexe tout avec `git add -A` (ce que sa confirmation nomme) ; le message suit Conventional
   Commits et le style de l'historique récent, un sujet borné, un corps qui dit pourquoi. Un changement qui ressemble à

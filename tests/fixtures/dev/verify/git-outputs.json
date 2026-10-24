@@ -1,0 +1,164 @@
+{
+  "green": {
+    "git diff --name-only HEAD": {
+      "stdout": "src/Ledger/Account.cs\ntests/Ledger.Tests/AccountTests.cs\n",
+      "exitCode": 0
+    },
+    "git ls-files --others --exclude-standard -- . ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'": {
+      "stdout": "src/Ledger/Overdraft.cs\nworkbench/vdemo/VDEMO-PLAN-F1.md\n",
+      "exitCode": 0
+    },
+    "git grep --untracked -I -noE -e '\\[Trait\\(\"BR\", *\"(BR|UC|CH)-[0-9]+\"\\)\\]' -- src tests ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'": {
+      "stdout": "tests/Ledger.Tests/AccountTests.cs:6:[Trait(\"BR\", \"BR-01\")]\ntests/Ledger.Tests/AccountTests.cs:15:[Trait(\"BR\", \"BR-02\")]\ntests/Ledger.Tests/AccountTests.cs:25:[Trait(\"BR\", \"BR-03\")]\n",
+      "exitCode": 0
+    },
+    "git diff --check HEAD": {
+      "stdout": "",
+      "exitCode": 0
+    }
+  },
+  "open-tdd": {
+    "git diff --name-only HEAD": {
+      "stdout": "src/Ledger/Account.cs\ntests/Ledger.Tests/AccountTests.cs\n",
+      "exitCode": 0
+    },
+    "git ls-files --others --exclude-standard -- . ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'": {
+      "stdout": "src/Ledger/Overdraft.cs\nworkbench/vdemo/VDEMO-PLAN-F1.md\n",
+      "exitCode": 0
+    },
+    "git grep --untracked -I -noE -e '\\[Trait\\(\"BR\", *\"(BR|UC|CH)-[0-9]+\"\\)\\]' -- src tests ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'": {
+      "stdout": "tests/Ledger.Tests/AccountTests.cs:6:[Trait(\"BR\", \"BR-01\")]\ntests/Ledger.Tests/AccountTests.cs:15:[Trait(\"BR\", \"BR-02\")]\ntests/Ledger.Tests/AccountTests.cs:25:[Trait(\"BR\", \"BR-03\")]\n",
+      "exitCode": 0
+    },
+    "git diff --check HEAD": {
+      "stdout": "",
+      "exitCode": 0
+    }
+  },
+  "unclassified-id": {
+    "git diff --name-only HEAD": {
+      "stdout": "src/Ledger/Account.cs\ntests/Ledger.Tests/AccountTests.cs\nworkbench/vdemo/VDEMO-PLAN.md\n",
+      "exitCode": 0
+    },
+    "git ls-files --others --exclude-standard -- . ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'": {
+      "stdout": "src/Ledger/Overdraft.cs\nworkbench/vdemo/VDEMO-PLAN-F1.md\n",
+      "exitCode": 0
+    },
+    "git grep --untracked -I -noE -e '\\[Trait\\(\"BR\", *\"(BR|UC|CH)-[0-9]+\"\\)\\]' -- src tests ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'": {
+      "stdout": "tests/Ledger.Tests/AccountTests.cs:6:[Trait(\"BR\", \"BR-01\")]\ntests/Ledger.Tests/AccountTests.cs:15:[Trait(\"BR\", \"BR-02\")]\ntests/Ledger.Tests/AccountTests.cs:25:[Trait(\"BR\", \"BR-03\")]\n",
+      "exitCode": 0
+    },
+    "git diff --check HEAD": {
+      "stdout": "",
+      "exitCode": 0
+    }
+  },
+  "out-of-scope": {
+    "git diff --name-only HEAD": {
+      "stdout": "src/Ledger/Account.cs\ntests/Ledger.Tests/AccountTests.cs\n",
+      "exitCode": 0
+    },
+    "git ls-files --others --exclude-standard -- . ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'": {
+      "stdout": "docs/notes.md\nsrc/Ledger/Overdraft.cs\nworkbench/vdemo/VDEMO-PLAN-F1.md\n",
+      "exitCode": 0
+    },
+    "git grep --untracked -I -noE -e '\\[Trait\\(\"BR\", *\"(BR|UC|CH)-[0-9]+\"\\)\\]' -- src tests ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'": {
+      "stdout": "tests/Ledger.Tests/AccountTests.cs:6:[Trait(\"BR\", \"BR-01\")]\ntests/Ledger.Tests/AccountTests.cs:15:[Trait(\"BR\", \"BR-02\")]\ntests/Ledger.Tests/AccountTests.cs:25:[Trait(\"BR\", \"BR-03\")]\n",
+      "exitCode": 0
+    },
+    "git diff --check HEAD": {
+      "stdout": "",
+      "exitCode": 0
+    }
+  },
+  "untested-id": {
+    "git diff --name-only HEAD": {
+      "stdout": "src/Ledger/Account.cs\ntests/Ledger.Tests/AccountTests.cs\n",
+      "exitCode": 0
+    },
+    "git ls-files --others --exclude-standard -- . ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'": {
+      "stdout": "src/Ledger/Overdraft.cs\nworkbench/vdemo/VDEMO-PLAN-F1.md\n",
+      "exitCode": 0
+    },
+    "git grep --untracked -I -noE -e '\\[Trait\\(\"BR\", *\"(BR|UC|CH)-[0-9]+\"\\)\\]' -- src tests ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'": {
+      "stdout": "tests/Ledger.Tests/AccountTests.cs:6:[Trait(\"BR\", \"BR-01\")]\ntests/Ledger.Tests/AccountTests.cs:15:[Trait(\"BR\", \"BR-02\")]\ntests/Ledger.Tests/AccountTests.cs:25:[Trait(\"BR\", \"BR-03\")]\n",
+      "exitCode": 0
+    },
+    "git diff --check HEAD": {
+      "stdout": "",
+      "exitCode": 0
+    }
+  },
+  "whitespace": {
+    "git diff --name-only HEAD": {
+      "stdout": "src/Ledger/Account.cs\ntests/Ledger.Tests/AccountTests.cs\n",
+      "exitCode": 0
+    },
+    "git ls-files --others --exclude-standard -- . ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'": {
+      "stdout": "src/Ledger/Overdraft.cs\nworkbench/vdemo/VDEMO-PLAN-F1.md\n",
+      "exitCode": 0
+    },
+    "git grep --untracked -I -noE -e '\\[Trait\\(\"BR\", *\"(BR|UC|CH)-[0-9]+\"\\)\\]' -- src tests ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'": {
+      "stdout": "tests/Ledger.Tests/AccountTests.cs:6:[Trait(\"BR\", \"BR-01\")]\ntests/Ledger.Tests/AccountTests.cs:15:[Trait(\"BR\", \"BR-02\")]\ntests/Ledger.Tests/AccountTests.cs:25:[Trait(\"BR\", \"BR-03\")]\n",
+      "exitCode": 0
+    },
+    "git diff --check HEAD": {
+      "stdout": "src/Ledger/Account.cs:16: trailing whitespace.\n+        Balance -= amount; \n",
+      "exitCode": 2
+    }
+  },
+  "stray-trait": {
+    "git diff --name-only HEAD": {
+      "stdout": "src/Ledger/Account.cs\ntests/Ledger.Tests/AccountTests.cs\n",
+      "exitCode": 0
+    },
+    "git ls-files --others --exclude-standard -- . ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'": {
+      "stdout": "src/Ledger/Overdraft.cs\nworkbench/vdemo/VDEMO-PLAN-F1.md\n",
+      "exitCode": 0
+    },
+    "git grep --untracked -I -noE -e '\\[Trait\\(\"BR\", *\"(BR|UC|CH)-[0-9]+\"\\)\\]' -- src tests ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'": {
+      "stdout": "tests/Ledger.Tests/AccountTests.cs:6:[Trait(\"BR\", \"BR-01\")]\ntests/Ledger.Tests/AccountTests.cs:15:[Trait(\"BR\", \"BR-02\")]\ntests/Ledger.Tests/AccountTests.cs:25:[Trait(\"BR\", \"BR-03\")]\ntests/Ledger.Tests/AccountTests.cs:26:[Trait(\"BR\", \"BR-09\")]\n",
+      "exitCode": 0
+    },
+    "git diff --check HEAD": {
+      "stdout": "",
+      "exitCode": 0
+    }
+  },
+  "untracked-build-output": {
+    "git diff --name-only HEAD": {
+      "stdout": "src/Ledger/Account.cs\ntests/Ledger.Tests/AccountTests.cs\n",
+      "exitCode": 0
+    },
+    "git ls-files --others --exclude-standard -- . ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'": {
+      "stdout": "src/Ledger/Overdraft.cs\nworkbench/vdemo/VDEMO-PLAN-F1.md\n",
+      "exitCode": 0
+    },
+    "git grep --untracked -I -noE -e '\\[Trait\\(\"BR\", *\"(BR|UC|CH)-[0-9]+\"\\)\\]' -- src tests ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'": {
+      "stdout": "tests/Ledger.Tests/AccountTests.cs:6:[Trait(\"BR\", \"BR-01\")]\ntests/Ledger.Tests/AccountTests.cs:15:[Trait(\"BR\", \"BR-02\")]\ntests/Ledger.Tests/AccountTests.cs:25:[Trait(\"BR\", \"BR-03\")]\n",
+      "exitCode": 0
+    },
+    "git diff --check HEAD": {
+      "stdout": "",
+      "exitCode": 0
+    }
+  },
+  "named-outside-roots": {
+    "git diff --name-only HEAD": {
+      "stdout": "src/Ledger/Account.cs\ntests/Ledger.Tests/AccountTests.cs\n",
+      "exitCode": 0
+    },
+    "git ls-files --others --exclude-standard -- . ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'": {
+      "stdout": "docs/overdraft.md\nsrc/Ledger/Overdraft.cs\nworkbench/vdemo/VDEMO-PLAN-F1.md\n",
+      "exitCode": 0
+    },
+    "git grep --untracked -I -noE -e '\\[Trait\\(\"BR\", *\"(BR|UC|CH)-[0-9]+\"\\)\\]' -- src tests ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'": {
+      "stdout": "tests/Ledger.Tests/AccountTests.cs:6:[Trait(\"BR\", \"BR-01\")]\ntests/Ledger.Tests/AccountTests.cs:15:[Trait(\"BR\", \"BR-02\")]\ntests/Ledger.Tests/AccountTests.cs:25:[Trait(\"BR\", \"BR-03\")]\n",
+      "exitCode": 0
+    },
+    "git diff --check HEAD": {
+      "stdout": "",
+      "exitCode": 0
+    }
+  }
+}

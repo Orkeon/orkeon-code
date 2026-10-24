@@ -46,7 +46,7 @@ permission gate, and sends the results back in the provider's tool protocol. A t
 | Key | Why |
 |---|---|
 | `Orkeon:Security:PermissionGate:Enabled` = `true` | The host checks every tool call the model makes against the `/permissions` rules and the mode, and asks you when the mode says so ([what it does not see](permissions.md)). The launcher turns it on unless the settings file says otherwise; without it no call is checked and the modes only shape the catalogue |
-| `Orkeon:Cli:ScriptCommands:Limits:ExecutionTimeout` | Wall-clock limit of each script engine of `orkeon-repl`: a command's, and a crew's, so an `/assistant` turn's. It stops while a tool call waits for your answer. 5 minutes by default; a turn that indexes a large repository needs more: the example sets 30 minutes |
+| `Orkeon:Cli:ScriptCommands:Limits:ExecutionTimeout` | Wall-clock limit of each script engine of `orkeon-repl`: a command's, and a crew's, so an `/assistant` turn's. It stops while a tool call waits for your answer. 5 minutes by default; a turn that indexes a large repository needs more: the example sets 30 minutes. A `/dev-verify full` run can take about an hour (build 900 s, whole suite 900 s, three validations of 300 s each, plus the model's time): set 60 minutes or more for it |
 | `Orkeon:Cli:ScriptCommands:Limits:MemoryLimitBytes` | Memory limit of those engines: 64 MB by default, the example sets 2 GiB |
 | `Orkeon:Scripting:Limits:ExecutionTimeout`, `Orkeon:Scripting:Limits:MemoryLimitBytes` | The same limits for `orkeon run`, the tool `scripts/run-crew.sh` runs a crew with (30 seconds and 100 MB by default; the example sets 30 minutes and 2 GiB). `orkeon-repl` does not read them |
 | `Orkeon:Tools:Shell:AllowInterpreters` | Lets `shell_command` run interpreters (`node`, `dotnet`, `npm`...), needed to build and test most projects |
@@ -73,8 +73,23 @@ Inside the REPL, `/config` lists, reads and writes the session keys (stored in t
 one), `tools.extra` (below), `voice.reply` ([speech output](#speech-output)), `answer.language` (the language the
 assistant answers in, `/config set answer.language French`, unless a request is written in another one),
 `compaction.trigger` (the token count at which the automatic compaction runs, `/config set compaction.trigger 90k`;
-omitted, the window minus the room one turn needs) or `spinnerVerbs`. `/model`, `/effort`, `/passes`, `/fast`, `/proactive` and `/output-style` change how the next turns
+omitted, the window minus the room one turn needs), `dev.workDir` (the work folder `/dev-status`, `/dev-verify`, `/dev-learn` and `/dev-plan` read, relative to
+the checkout, `/config set dev.workDir backstage/tasks`; omitted, the repository pack's `layout.work`, else
+`workbench`) or `spinnerVerbs`. `/model`, `/effort`, `/passes`, `/fast`, `/proactive` and `/output-style` change how the next turns
 run.
+
+The repository pack (`.orkeon/repo.yaml`, else the harness's) can also give `tests.trait_pattern`, an Orkeon Code key
+the harness ignores: how a test names the sheet id it covers, which the gate of `/dev-verify` looks for under the test
+roots. It is one line holding `<id>` exactly once and `<name>` at most once; `<name>` stands for `tests.rule_trait`,
+which it then needs. At most 80 characters, no tab and no single quote; a run of spaces matches any number of
+spaces. Without it, `tests.rule_trait` alone gives the default `[Trait("<name>", "<id>")]`. A Node repository, whose
+tests then carry `// rule: BR-01`:
+
+```yaml
+tests:
+  rule_trait: rule
+  trait_pattern: "// <name>: <id>"
+```
 
 ## Extra tools: MCP servers and plugins
 

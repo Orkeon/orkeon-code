@@ -9,6 +9,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Rule sets for the dev steps**: `/dev-verify` (except `--gate-only`) and `/dev-plan` now put five sets of deny
+  rules in the permission gate before their crew starts. `git-readonly` refuses git commands that change the
+  repository, also behind a path, an `env`, a chain or `-C`. `inline-interpreters` refuses `bash -c`, `node -e` and
+  the like. `read-noise` refuses reads under `bin/`, `obj/`, `.git/` and `node_modules/`. `secrets` refuses written
+  content holding a private key or a token with a known prefix. `state-files` refuses writes to the batch logs, verdicts, captures, `.orkeon/` and
+  `.claude/`. The sets are not stored with the session's rules. `/permissions` shows them grouped while they stay in
+  the gate, until the next `/assistant` turn or rule change. Both steps now **refuse to start when the host says its
+  permission gate is off** (`/dev-plan` warned before), and warn when the host cannot say.
+- **`/dev-plan [<code> | <path>/SPEC-<code>.md | <path>/CHANGE-<code>.md] [--replace]`**: plans a settled spec or
+  change brief as batches. A Blocking row in the source's open questions stops it at once, before any crew starts,
+  with the rows and the command that settles them. Otherwise an inventory of the existing code is drawn from the code
+  index, the model answers once with the plan as JSON, and code renders `<work>/<code>/<CODE>-PLAN.md`, one
+  `<CODE>-PLAN-F<n>.md` sheet per batch and `plan.json`, in the format the harness reads, so its own commands take
+  the files as they are. A read-only reviewer (plan mode, six read tools) then questions the plan: its Major rows
+  go under the batch they target, a Blocking row marks the plan blocked. An existing plan is refused; `--replace`
+  writes over it only while no batch is done and nothing is ticked, and never with fewer batches than before, since
+  a stale sheet cannot be removed for you. Pack keys that are missing (`commands.build_test`, `commands.test_project`,
+  `commands.test_integration`) are named in a warning, to fill in the plan or the pack. The next step is printed as
+  the harness's `/dev-implement` (or `/dev-batches`) until Orkeon Code ships its own. A run, with the index build,
+  two model calls and a review of up to 20 turns, may outlast the REPL's script time limit of 5 minutes: the example
+  settings' 30 minutes (`Orkeon:Cli:ScriptCommands:Limits:ExecutionTimeout`) leave room for it.
+- **`/dev-learn [<axis>] [--list] | --accept <id>[,<id>…] | --refuse <id | motif text>`**: learns from the audits.
+  It reads the Blocking and Major rows of the `GAPS` sections of every `<CODE>-VERIFY-F<n>.md` in the work folder,
+  keeps those not treated yet, and per axis asks the model, in one call, to group them into motifs; a motif must
+  span three batches or more, which code checks. The proposals land in `<work>/learn-<date>/PROPOSALS.md`.
+  `--list` prints the untreated gaps per axis, or the rows of one axis, with no model call and no write. `--accept`
+  marks a motif's gaps treated and prints the change to make (for a harness file, the patch for the orkeon-workshop
+  repository); it edits no file. `--refuse` records the motif in `.orkeon/memory/refused.md`, which later runs leave
+  out. The harness's own learning state is read, never written: the gaps it treated and the motifs it refused are
+  honoured, and a gap's id is the same as the harness's. A run makes up to six model calls (three axes, one retry
+  each), which may outlast the REPL's script time limit of 5 minutes: the example settings' 30 minutes
+  (`Orkeon:Cli:ScriptCommands:Limits:ExecutionTimeout`) leave room for it.
+- **`/dev-verify F<n> [<code> | <path>/<CODE>-PLAN.md] [fast | full | resume] [--gate-only]`**: audits one batch of
+  a dev plan. A gate first checks the sheet's TDD ticks, the design ids, the scope, the test traits and whitespace,
+  and prints the same ok/FAIL lines as the harness's gate; a red gate stops there. On a green gate the command writes
+  a capture under `<work>/<code>/capture-F<n>/` (status, diffs, build, traits, last test run, test classes and a
+  mechanical table), runs the whole suite under `full`, and hands the batch to a read-only auditor (plan mode, four
+  read tools) whose narrow test commands code runs for it. The verdict lands in `<CODE>-VERIFY-F<n>.md`, in the
+  format the harness reads back; `resume` appends a dated section. `--gate-only` runs the gate alone, with no
+  model call and no write. It does not commit or push yet, and the access cost is not computed yet. A `full` run
+  can take about an hour at worst (build 900 s, whole suite 900 s, three validations of 300 s each, plus the model's
+  time), past the REPL's script time limit (`Orkeon:Cli:ScriptCommands:Limits:ExecutionTimeout`, 5 minutes by
+  default, 30 minutes in the example settings): raise it to 60 minutes or more before a `full` run. A test names the
+  sheet id it covers with the pack's `tests.rule_trait`, or with `tests.trait_pattern`, an Orkeon Code key
+  (Configuration, Session settings). The words `fast`, `full` and `resume` are modes: a code spelt so is named by its plan path.
+- **`/dev-status [<code>]`**: where a piece of dev work stands, read from the harness files (`<CODE>-PLAN.md`,
+  the batch sheets, `<CODE>-VERIFY-F<n>.md`): per batch the plan state, the TDD ticks and the last verdict. It shows
+  the work folder (`dev.workDir`, then the repository pack's `layout.work`, then `workbench/`) and the repository pack
+  (`.orkeon/repo.yaml`, else the harness's), and warns when `.orkeon/` or `workbench/` is not git-ignored. Read-only.
 - **[WSL tutorial](docs/wsl-tutorial.md)** (and [in French](docs/fr/wsl-tutorial.md)): Orkeon Code on WSL2 with an
   NVIDIA GPU, step by step with what each step must show: WSLg's audio, Orkeon from its apt package, the speech
   server on the CPU then the GPU, `/transcribe`, `/say` and `/voice`, Kokoro through speaches, and a local language

@@ -58,6 +58,56 @@ describe("createCodeIndex", () => {
     deepStrictEqual(tools.inputsOf("packageSummary"), [{ fqn: "pkg.a" }]);
   });
 
+  it("searches in the default hybrid mode, keeping each origin on its hit", async () => {
+    const tools = new FakeTools();
+    tools.replies.codebaseSearch = {
+      hits: [
+        { fqn: "", score: 0.05, match_origin: "hybrid" },
+        { fqn: "/workspace/src/math.ts::add", score: 0.03, match_origin: "bm25" },
+        { fqn: "/workspace/src/index.ts::greet", score: 0.02, match_origin: "vector" },
+      ],
+    };
+    deepStrictEqual(await createCodeIndex(tools).search("add numbers", 8), [
+      { fqn: "/workspace/src/math.ts::add", score: 0.03, origin: "bm25" },
+      { fqn: "/workspace/src/index.ts::greet", score: 0.02, origin: "vector" },
+    ]);
+    deepStrictEqual(tools.inputsOf("codebaseSearch"), [{ query: "add numbers", top_k: 8 }]);
+  });
+
+  it("locates a symbol from a short source, the requested fqn standing in", async () => {
+    const tools = new FakeTools();
+    tools.replies.symbolSource = {
+      virtual_file_path: "/workspace/src/math.ts", start_line: 4, end_line: 9, language: "typescript",
+    };
+    deepStrictEqual(await createCodeIndex(tools).symbolSource("/workspace/src/math.ts::add"), {
+      fqn: "/workspace/src/math.ts::add", path: "/workspace/src/math.ts",
+      startLine: 4, endLine: 9, language: "typescript", firstLine: "",
+    });
+    deepStrictEqual(tools.inputsOf("symbolSource"), [{ fqn: "/workspace/src/math.ts::add", max_lines: 20 }]);
+  });
+
+  it("reads the callers of a symbol, looking backward", async () => {
+    const tools = new FakeTools();
+    tools.replies.impactAnalysis = {
+      target: "pkg.add", direct_impact: ["pkg.sum"], transitive_impact: ["pkg.main"], by_package: { pkg: 2 },
+    };
+    deepStrictEqual(await createCodeIndex(tools).impact("pkg.add", 2), {
+      target: "pkg.add", direct: ["pkg.sum"], transitive: ["pkg.main"], byPackage: { pkg: 2 },
+    });
+    deepStrictEqual(tools.inputsOf("impactAnalysis"), [{ target: "pkg.add", direction: "Backward", max_depth: 2 }]);
+  });
+
+  it("lets a failing search, source or impact reject", async () => {
+    const tools = new FakeTools();
+    tools.replies.codebaseSearch = new Error("search down");
+    tools.replies.symbolSource = new Error("no such symbol");
+    tools.replies.impactAnalysis = new Error("impact down");
+    const index = createCodeIndex(tools);
+    await rejects(index.search("q", 8), /search down/);
+    await rejects(index.symbolSource("x"), /no such symbol/);
+    await rejects(index.impact("x", 2), /impact down/);
+  });
+
   it("lets a failing tool reject", async () => {
     const tools = new FakeTools();
     tools.replies.indexStatus = new Error("no index tool");

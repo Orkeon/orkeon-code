@@ -26,6 +26,28 @@
       "flags": ""
     }
   ],
+  "promptMarkers": [
+    {
+      "source": "AskUserQuestion",
+      "flags": ""
+    },
+    {
+      "source": "SendMessage",
+      "flags": ""
+    },
+    {
+      "source": "subagent_type",
+      "flags": ""
+    },
+    {
+      "source": "HARNESS_",
+      "flags": ""
+    },
+    {
+      "source": "/clear",
+      "flags": ""
+    }
+  ],
   "references": [
     "https://github.com/Piebald-AI/claude-code-system-prompts"
   ]

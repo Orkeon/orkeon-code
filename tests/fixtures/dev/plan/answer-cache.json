@@ -1,0 +1,80 @@
+{
+  "feature": "Load the symbol map once",
+  "layers": ["src/shared/infrastructure", "tests"],
+  "reuse": [],
+  "outOfScope": ["the format of the map file"],
+  "assumptions": ["the map file is small enough to keep in memory"],
+  "nonApplicable": [
+    { "id": "DDD-02", "reason": "no business rule changes owner" },
+    { "id": "DDD-03", "reason": "no command alters business state" },
+    { "id": "DDD-04", "reason": "no value gains a rule of its own" },
+    { "id": "DDD-05", "reason": "no entity designates another" },
+    { "id": "DDD-06", "reason": "nothing is created or restored" },
+    { "id": "DDD-07", "reason": "nothing is published as an event" },
+    { "id": "DDD-08", "reason": "no aggregate boundary moves" },
+    { "id": "DDD-09", "reason": "no business vocabulary is added" },
+    { "id": "DDD-10", "reason": "no invariant is added or moved" },
+    { "id": "DDD-11", "reason": "no domain type changes" },
+    { "id": "APP-02", "reason": "the reader port is kept as it is" },
+    { "id": "APP-03", "reason": "the persistence of the map is unchanged" },
+    { "id": "APP-04", "reason": "no use case is added or split" },
+    { "id": "APP-05", "reason": "no transaction boundary changes" }
+  ],
+  "traceability": [
+    { "id": "CH-01", "owners": ["SymbolMapCache.get()"] },
+    { "id": "CH-02", "owners": ["SymbolMapCache.get()"] }
+  ],
+  "design": [],
+  "batches": [
+    {
+      "name": "Load the map once",
+      "intent": "The symbol map is read once per session and again only when its file changes",
+      "reason": "one behaviour, pinned first",
+      "documentation": false,
+      "dependsOn": [],
+      "design": {
+        "appliedRules": ["DDD-01", "APP-01", "PERF-01"],
+        "aggregate": "none — an adapter keeps the map",
+        "invariants": "none — the symbols are those of the file",
+        "consistency": "the map and its file date change together",
+        "events": "N/A — nothing is published",
+        "accessCost": "1 read per session, 1 more per change of the file"
+      },
+      "decisions": [],
+      "declarative": [],
+      "steps": [
+        {
+          "title": "What must not change is pinned",
+          "tests": [
+            { "name": "loads the cached map once", "level": "pinned", "project": "tests", "ids": ["CH-01"], "covers": [] },
+            { "name": "an absent map file gives an empty map", "level": "unit", "project": "tests", "ids": [], "covers": ["U1"] },
+            { "name": "a malformed map file is reported, not thrown", "level": "unit", "project": "tests", "ids": [], "covers": ["U2"] }
+          ],
+          "note": "",
+          "anchors": {
+            "tests": [{ "kind": "create", "path": "tests/symbol-map-cache.test.ts" }],
+            "doubles": [],
+            "production": [{ "kind": "create", "path": "src/shared/infrastructure/symbol-map-cache.ts" }]
+          }
+        },
+        {
+          "title": "A changed file reloads the map",
+          "tests": [
+            { "name": "reads the map again after its file changed", "level": "unit", "project": "tests", "ids": ["CH-02"], "covers": [] }
+          ],
+          "note": "",
+          "anchors": {
+            "tests": [{ "kind": "create", "path": "tests/symbol-map-cache.test.ts" }],
+            "doubles": [],
+            "production": [{ "kind": "create", "path": "src/shared/infrastructure/symbol-map-cache.ts" }]
+          }
+        }
+      ],
+      "buildScope": "npm test",
+      "testPolicy": { "fast": "`npm test`", "integration": "none", "notRun": "none" },
+      "elements": [
+        { "layer": "adapter", "signature": "SymbolMapCache.get(): SymbolMap", "rule": "reads the file only when its date moved" }
+      ]
+    }
+  ]
+}

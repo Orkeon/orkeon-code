@@ -47,7 +47,7 @@ fournisseur. Un résultat d'outil parvient au modèle coupé à 4000 caractères
 | Clé | Pourquoi |
 |---|---|
 | `Orkeon:Security:PermissionGate:Enabled` = `true` | L'hôte confronte chaque appel d'outil du modèle aux règles de `/permissions` et au mode, et vous demande quand le mode le dit ([ce que la garde ne voit pas](permissions.md)). Le lanceur l'active sauf si le fichier de settings dit le contraire ; sans elle, aucun appel n'est contrôlé et les modes ne font que façonner le catalogue |
-| `Orkeon:Cli:ScriptCommands:Limits:ExecutionTimeout` | Limite de temps réel de chaque moteur de script d'`orkeon-repl` : celui d'une commande, et celui d'un crew, donc d'un tour d'`/assistant`. Elle s'arrête pendant qu'un appel d'outil attend votre réponse. 5 minutes par défaut ; un tour qui indexe un grand dépôt en demande plus : l'exemple met 30 minutes |
+| `Orkeon:Cli:ScriptCommands:Limits:ExecutionTimeout` | Limite de temps réel de chaque moteur de script d'`orkeon-repl` : celui d'une commande, et celui d'un crew, donc d'un tour d'`/assistant`. Elle s'arrête pendant qu'un appel d'outil attend votre réponse. 5 minutes par défaut ; un tour qui indexe un grand dépôt en demande plus : l'exemple met 30 minutes. Un `/dev-verify full` peut prendre environ une heure (build 900 s, suite entière 900 s, trois validations de 300 s chacune, plus le temps du modèle) : mettez-y 60 minutes ou plus |
 | `Orkeon:Cli:ScriptCommands:Limits:MemoryLimitBytes` | Limite de mémoire de ces moteurs : 64 Mo par défaut, l'exemple met 2 Gio |
 | `Orkeon:Scripting:Limits:ExecutionTimeout`, `Orkeon:Scripting:Limits:MemoryLimitBytes` | Les mêmes limites pour `orkeon run`, l'outil avec lequel `scripts/run-crew.sh` lance un crew (30 secondes et 100 Mo par défaut ; l'exemple met 30 minutes et 2 Gio). `orkeon-repl` ne les lit pas |
 | `Orkeon:Tools:Shell:AllowInterpreters` | Laisse `shell_command` lancer des interpréteurs (`node`, `dotnet`, `npm`...), nécessaire pour construire et tester la plupart des projets |
@@ -76,9 +76,25 @@ par exemple `permissions.fallback` (le mode utilisé quand ni un préfixe ni `/m
 (ci-dessous), `voice.reply` ([synthèse vocale](#synthèse-vocale)), `answer.language` (la langue dans laquelle
 l'assistant répond, `/config set answer.language French`, sauf si une requête est écrite dans une autre),
 `compaction.trigger` (le nombre de tokens auquel la compaction automatique se déclenche,
-`/config set compaction.trigger 90k` ; omis, la fenêtre moins la place dont un tour a besoin) ou `spinnerVerbs`.
+`/config set compaction.trigger 90k` ; omis, la fenêtre moins la place dont un tour a besoin), `dev.workDir` (le
+dossier de travail que lisent `/dev-status`, `/dev-verify`, `/dev-learn` et `/dev-plan`, relatif au checkout, `/config set dev.workDir backstage/tasks` ; omis, le
+`layout.work` du pack du dépôt, sinon `workbench`) ou `spinnerVerbs`.
 `/model`, `/effort`, `/passes`, `/fast`, `/proactive` et `/output-style` changent la façon dont les prochains tours
 s'exécutent.
+
+Le pack du dépôt (`.orkeon/repo.yaml`, sinon celui du harness) peut aussi donner `tests.trait_pattern`, une clé
+d'Orkeon Code que le harness ignore : la façon dont un test nomme l'id de fiche qu'il couvre, que la porte de
+`/dev-verify` cherche sous les racines de test. C'est une ligne qui contient `<id>` exactement une fois et `<name>` une
+fois au plus ; `<name>` tient la place de `tests.rule_trait`, qu'il exige alors. 80 caractères au plus, ni tabulation
+ni apostrophe droite ; une suite d'espaces correspond à un nombre quelconque d'espaces. Sans elle, `tests.rule_trait`
+seul donne le motif par défaut `[Trait("<name>", "<id>")]`. Un dépôt Node, dont les tests portent alors
+`// rule: BR-01` :
+
+```yaml
+tests:
+  rule_trait: rule
+  trait_pattern: "// <name>: <id>"
+```
 
 ## Outils supplémentaires : serveurs MCP et plugins
 

@@ -10,7 +10,9 @@ import { strictEqual, deepStrictEqual, ok } from "node:assert";
 import { PERMISSIONS_USAGE, runPermissions } from "../src/commands/_lib/permissions.ts";
 import { createConfigStore } from "../src/shared/application/config-store.ts";
 import { createSessionIo } from "../src/shared/application/session-io.ts";
-import { RULEABLE_TOOLS, toolsetFor } from "../src/shared/domain/agent-policy/permission.ts";
+import { RULEABLE_TOOLS, readRule, toolsetFor } from "../src/shared/domain/agent-policy/permission.ts";
+import type { PermissionRule } from "../src/shared/domain/agent-policy/permission.ts";
+import { RULE_SETS } from "../src/shared/domain/agent-policy/rule-sets.ts";
 import { resolveFallbackMode } from "../src/shared/domain/permission-modes.ts";
 import { DEFAULT_MODE_STATE_KEY, PERMISSION_RULES_STATE_KEY } from "../src/shared/domain/session-keys.ts";
 import { FakeFiles } from "./support/fake-files.ts";
@@ -43,6 +45,15 @@ const GATE_SETTING = [
 const dormant = (rule: string) =>
   `⚠ rule ${rule} is dormant: its tool is neither built in nor listed in tools.extra. It is kept, not handed to ` +
   "the gate, and applies again once the tool is listed (/permissions remove deletes it).";
+
+/** A rule read from its line, as /permissions add reads it. */
+const R = (line: string): PermissionRule => readRule(line)!;
+
+/** The line /permissions show adds while a dev step's rule sets are in the gate. */
+const SETS_HELD =
+  "⚠ the gate also holds the rule sets of the last dev step: the next /assistant turn or rule change hands it the " +
+  "session's rules alone.";
+const OTHER_RULES = "⚠ the gate holds other rules than the session: the next change or /assistant hands it these.";
 
 function setup() {
   const files = new FakeFiles();
@@ -111,6 +122,23 @@ describe("/permissions show", () => {
     lines = (await run("show")).text!.split("\n");
     strictEqual(lines[7], "in the host gate     : (the host keeps no session rules)");
     strictEqual(lines.length, 14);
+  });
+
+  it("groups the rule sets a dev step left in the gate, and says the next turn hands it the session's alone", async () => {
+    const { gate, run, seedRules } = setup();
+    seedRules("deny file_write");
+    gate.rules = [R("deny file_write"), ...RULE_SETS["read-noise"].rules];
+    const lines = (await run("show")).text!.split("\n");
+    strictEqual(lines[7], "in the host gate     : deny file_write; rule sets of the last dev step: read-noise (8 rules)");
+    ok(lines.includes(SETS_HELD));
+    ok(!lines.includes(OTHER_RULES));
+  });
+
+  it("shows only the sets when the session holds no rule", async () => {
+    const { gate, run } = setup();
+    gate.rules = [...RULE_SETS["git-readonly"].rules];
+    const lines = (await run("show")).text!.split("\n");
+    strictEqual(lines[7], "in the host gate     : rule sets of the last dev step: git-readonly (190 rules)");
   });
 });
 

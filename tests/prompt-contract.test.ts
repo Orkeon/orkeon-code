@@ -19,7 +19,9 @@ import {
 } from "../src/shared/domain/compaction-thresholds.ts";
 
 const markerFile = JSON.parse(readFileSync(fileURLToPath(new URL("../scripts/provenance-markers.json", import.meta.url)), "utf8"));
-const MARKERS: RegExp[] = markerFile.markers.map((m: { source: string; flags: string }) => new RegExp(m.source, m.flags));
+/** The markers every scanned file avoids, then those only a rendered prompt must avoid (the host vocabulary of another harness). */
+const MARKERS: RegExp[] = [...markerFile.markers, ...(markerFile.promptMarkers ?? [])]
+  .map((m: { source: string; flags: string }) => new RegExp(m.source, m.flags));
 
 /** The scope identifiers the search playbook must name (`dependency_graph`'s values). */
 const IDENTIFIERS_WITH_DIGITS = /L[123]_(Package|Module|Symbol)/g;

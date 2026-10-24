@@ -31,6 +31,7 @@ import {
   RULEABLE_TOOLS,
 } from "../../shared/domain/agent-policy/permission.ts";
 import type { ExtraTool, PermissionRule } from "../../shared/domain/agent-policy/permission.ts";
+import { heldRuleSets } from "../../shared/domain/agent-policy/rule-sets.ts";
 import type { CommandView } from "./view.ts";
 
 export const PERMISSIONS_USAGE =
@@ -97,6 +98,17 @@ async function renderShow(deps: PermissionsDeps, extras: ExtraToolsResolution): 
   const decision = catalogueFor(mode, rules, extras.present);
   const held = gate.available() ? gate.list() : null;
   const gateOn = gate.enabled();
+  // What the gate holds beyond the session's rules is grouped by built-in rule set (a dev step's).
+  const sessionLines = rules.map(gateLine);
+  const grouped = held === null ? null : heldRuleSets(held.filter((l) => !sessionLines.includes(l)));
+  const setLines = new Set(held === null || grouped === null
+    ? []
+    : held.filter((l) => !sessionLines.includes(l) && !grouped.rest.includes(l)));
+  const plain = held === null ? null : held.filter((l) => !setLines.has(l));
+  const setParts = grouped !== null && grouped.sets.length > 0
+    ? [`rule sets of the last dev step: ${grouped.sets.map((g) => `${g.id} (${g.count} rules)`).join(", ")}`]
+    : [];
+  const heldParts = plain === null ? [] : [...(plain.length > 0 ? [plain.join(", ")] : []), ...setParts];
 
   const offered = toolsetFor(mode, extras.present);
   const vocabulary = [...RULEABLE_TOOLS, ...extras.present.map((t) => t.name)];
@@ -116,7 +128,7 @@ async function renderShow(deps: PermissionsDeps, extras: ExtraToolsResolution): 
       : []),
     `session rules        : ${rules.map(formatRule).join(", ") || "(none)"}` +
       (stored.dormant.length > 0 ? `; dormant: ${stored.dormant.join(", ")}` : ""),
-    `in the host gate     : ${held === null ? "(the host keeps no session rules)" : held.join(", ") || "(none)"}`,
+    `in the host gate     : ${plain === null ? "(the host keeps no session rules)" : heldParts.join("; ") || "(none)"}`,
     "enforcement          : 1) catalogue: what the mode offers, less the tools a deny rule covers whole",
     "                       2) host gate, at each call: a matching deny refuses; a matching allow runs",
     "                          without asking (not in plan); else the mode decides, and default and",
@@ -127,8 +139,12 @@ async function renderShow(deps: PermissionsDeps, extras: ExtraToolsResolution): 
   for (const r of decision.inert) {
     lines.push(`⚠ rule ${formatRule(r.rule)} has NO effect in '${mode}': ${r.reason}`);
   }
-  if (held !== null && held.join("\n") !== rules.map(gateLine).join("\n")) {
+  if (plain !== null && plain.join("\n") !== sessionLines.join("\n")) {
     lines.push("⚠ the gate holds other rules than the session: the next change or /assistant hands it these.");
+  } else if (setParts.length > 0) {
+    lines.push(
+      "⚠ the gate also holds the rule sets of the last dev step: the next /assistant turn or rule change hands it the session's rules alone.",
+    );
   }
   lines.push(...storedNotes(stored, extras));
   return lines.join("\n");

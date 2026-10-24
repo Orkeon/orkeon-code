@@ -16,6 +16,7 @@ import { EXTRA_TOOLS_CONFIG_KEY, extraToolsProblem } from "./agent-policy/extra-
 import { VOICE_REPLY_CONFIG_KEY } from "./speech.ts";
 import { ANSWER_LANGUAGE_CONFIG_KEY } from "./agent-policy/output-styles.ts";
 import { COMPACTION_TRIGGER_CONFIG_KEY, compactionTriggerProblem } from "./compaction-thresholds.ts";
+import { DEV_WORK_DIR_CONFIG_KEY, workFolderProblem } from "./dev/work-folder.ts";
 
 export interface ConfigKeySpec {
   key: string;
@@ -106,6 +107,14 @@ export const CONFIG_KEYS: readonly ConfigKeySpec[] = [
       "context window minus the room one turn needs.",
     problem: compactionTriggerProblem,
     consumedBy: "/assistant (the automatic compaction at the head and the tail of a turn), /usage",
+  },
+  {
+    key: DEV_WORK_DIR_CONFIG_KEY,
+    description:
+      "The work folder of the dev workflow, relative to the checkout, e.g. 'backstage/tasks'. Omitted = the " +
+      "repository pack's layout.work, else 'workbench'. A folder absent from the checkout falls back to 'workbench'.",
+    problem: workFolderProblem,
+    consumedBy: "/dev-status (the work folder it reads)",
   },
 ];
 

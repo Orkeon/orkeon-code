@@ -1,0 +1,128 @@
+[
+ {
+  "id": "abb9e2e801",
+  "batch": "_archive/F1",
+  "severity": "Major",
+  "axis": "Scope",
+  "gap": "an archived batch touched a file outside its plan",
+  "evidence": "`src/old/report.ts:3`",
+  "fix": "revert the stray file"
+ },
+ {
+  "id": "0081f1e1c0",
+  "batch": "a-b/F1",
+  "severity": "Major",
+  "axis": "Reuse",
+  "gap": "the date parser is written again instead of the shared one",
+  "evidence": "`src/a-b/parse.ts:7`",
+  "fix": "call the shared date parser"
+ },
+ {
+  "id": "c9998e96c9",
+  "batch": "a/F1",
+  "severity": "Major",
+  "axis": "Reuse",
+  "gap": "the date parser is written again instead of the shared one",
+  "evidence": "`src/a/parse.ts:7`",
+  "fix": "call the shared date parser"
+ },
+ {
+  "id": "7b3b561c93",
+  "batch": "exports/F4",
+  "severity": "Major",
+  "axis": "Test",
+  "gap": "la règle « refus » n'est jamais testée — export CSV",
+  "evidence": "`tests/exports.test.ts:12`",
+  "fix": "ajouter le cas du refus et le voir échouer"
+ },
+ {
+  "id": "3a59a45e69",
+  "batch": "invoices/F2",
+  "severity": "Major",
+  "axis": "Test",
+  "gap": "the refusal text for an unknown currency is never asserted",
+  "evidence": "`tests/invoices.test.ts:88`",
+  "fix": "assert the exact refusal text"
+ },
+ {
+  "id": "2f98907efc",
+  "batch": "invoices/F2",
+  "severity": "Major",
+  "axis": "Conventions",
+  "gap": "the status field mixes `open | closed` in one string",
+  "evidence": "`src/invoices/status.ts:9`",
+  "fix": "give each status its own literal"
+ },
+ {
+  "id": "4e865d8344",
+  "batch": "invoices/F2",
+  "severity": "Major",
+  "axis": "Placement",
+  "gap": "an amount is rounded inside the controller",
+  "evidence": "`src/invoices/controller.ts:61`",
+  "fix": "round in the invoice domain"
+ },
+ {
+  "id": "c936075d95",
+  "batch": "ledger/F1",
+  "severity": "Major",
+  "axis": "Test",
+  "gap": "the refusal of a negative amount has no test",
+  "evidence": "`src/ledger/withdraw.ts:14`",
+  "fix": "add a case that withdraws -5 and expects the refusal"
+ },
+ {
+  "id": "e61ec378db",
+  "batch": "ledger/F1",
+  "severity": "Major",
+  "axis": "Placement",
+  "gap": "the rounding helper sits in the command",
+  "evidence": "`src/commands/ledger.cmd.ts:52`",
+  "fix": "move it to the ledger domain"
+ },
+ {
+  "id": "2bfca0aab4",
+  "batch": "ledger/F1",
+  "severity": "Major",
+  "axis": "Test",
+  "gap": "the fee  of a transfer is never checked against zero",
+  "evidence": "`tests/ledger.test.ts:70`",
+  "fix": "add a zero-fee case"
+ },
+ {
+  "id": "64c0e92eb9",
+  "batch": "ledger/F1",
+  "severity": "Blocking",
+  "axis": "Placement",
+  "gap": "the currency table is loaded by the shell adapter",
+  "evidence": "`src/ledger/shell.ts:12`",
+  "fix": "load it from the ledger domain"
+ },
+ {
+  "id": "dc5a41545b",
+  "batch": "ledger/F1",
+  "severity": "Major",
+  "axis": "Placement",
+  "gap": "the overdraft  threshold lives in the CLI flags",
+  "evidence": "`src/commands/ledger.cmd.ts:20`",
+  "fix": "keep the threshold in the ledger domain"
+ },
+ {
+  "id": "b983faad38",
+  "batch": "ledger/F3",
+  "severity": "Blocking",
+  "axis": "Test",
+  "gap": "no test triggers the overdraft refusal",
+  "evidence": "`tests/ledger.test.ts` has no overdraft case",
+  "fix": "write the overdraft case and watch it fail first"
+ },
+ {
+  "id": "f1ce47ae23",
+  "batch": "ledger/F3",
+  "severity": "Major",
+  "axis": "Plan",
+  "gap": "the plan still lists `src/ledger/legacy.ts`",
+  "evidence": "`LEDGER-PLAN.md:41`",
+  "fix": "drop the line from the plan"
+ }
+]

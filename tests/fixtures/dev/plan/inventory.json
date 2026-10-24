@@ -1,0 +1,39 @@
+{
+  "entries": [
+    {
+      "ref": "I1", "fqn": "src/shared/domain/memory.ts::MemoryEntry", "name": "MemoryEntry",
+      "path": "src/shared/domain/memory.ts", "line": 18, "endLine": 26, "language": "typescript",
+      "firstLine": "export interface MemoryEntry {", "layer": "domain", "forIds": ["UC-01", "BR-01", "BR-02"],
+      "score": 0.82, "origin": "symbol", "callers": [], "imports": []
+    },
+    {
+      "ref": "I2", "fqn": "src/commands/_lib/memory.ts::runMemory", "name": "runMemory",
+      "path": "src/commands/_lib/memory.ts", "line": 40, "endLine": 96, "language": "typescript",
+      "firstLine": "export async function runMemory(tokens: string[], deps: MemoryDeps): Promise<CommandView> {",
+      "layer": "other", "forIds": ["UC-01", "BR-03"], "score": 0.77, "origin": "symbol",
+      "callers": ["src/commands/memory.cmd.ts::run"], "imports": ["src/shared/domain/memory.ts"]
+    },
+    {
+      "ref": "I3", "fqn": "tests/commands-memory.test.ts::memory command", "name": "memory command",
+      "path": "tests/commands-memory.test.ts", "line": 12, "endLine": 60, "language": "typescript",
+      "firstLine": "describe(\"memory command\", () => {", "layer": "tests", "forIds": ["BR-03"],
+      "score": 0.61, "origin": "text", "callers": [], "imports": ["src/commands/_lib/memory.ts"]
+    },
+    {
+      "ref": "I4", "fqn": "tests/support/fake-memory-store.ts::FakeMemoryStore", "name": "FakeMemoryStore",
+      "path": "tests/support/fake-memory-store.ts", "line": 9, "endLine": 44, "language": "typescript",
+      "firstLine": "export class FakeMemoryStore implements MemoryStore {", "layer": "tests", "forIds": ["BR-03"],
+      "score": 0.58, "origin": "symbol", "callers": [], "imports": ["src/shared/application/ports.ts"]
+    },
+    {
+      "ref": "I5", "fqn": "src/shared/application/ports.ts::MemoryStore", "name": "MemoryStore",
+      "path": "src/shared/application/ports.ts", "line": 120, "endLine": 131, "language": "typescript",
+      "firstLine": "export interface MemoryStore {", "layer": "application", "forIds": ["BR-01"],
+      "score": 0.54, "origin": "symbol", "callers": [], "imports": []
+    }
+  ],
+  "index": "present",
+  "titlesSearched": 4,
+  "calls": 31,
+  "warnings": []
+}

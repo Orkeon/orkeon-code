@@ -10,6 +10,7 @@ import {
   readIndexSummary, readMapEntries, readMapSymbolCount, readSearchHits,
   readSymbolSource, readFlowPathCount, firstSymbolFqn, readMatchOrigin, readRefreshedFiles,
   readGraph, readImpact, readPackageSummary, readSymbolDetail,
+  readSearchHitsWithOrigin, readSymbolLocation,
 } from "./code-intel-contract.ts";
 import { READ_TOOLS } from "./agent-policy/permission.ts";
 
@@ -348,5 +349,62 @@ describe("rag_search parameter names", () => {
 
   it("names the code-index collection", () => {
     strictEqual(RAG_RAGGABLE_TREE_COLLECTION, "raggable-tree");
+  });
+});
+
+describe("readSearchHitsWithOrigin — the hits /dev-plan ranks", () => {
+  it("reads the live capture, whose hit predates match_origin, as vector", () => {
+    deepStrictEqual(readSearchHitsWithOrigin(SEARCH_RAW), [
+      { fqn: "/workspace/src/math.ts::add", score: 0.7067228684325768, origin: "vector" },
+    ]);
+  });
+
+  it("keeps a bm25 origin on its own hit after a hit without fqn is dropped", () => {
+    const raw = {
+      hits: [
+        { fqn: "", score: 0.04, match_origin: "hybrid" },
+        { fqn: "/workspace/src/math.ts::add", score: 0.03, match_origin: "bm25" },
+        { score: 0.02, match_origin: "vector" },
+        { fqn: "/workspace/src/index.ts::greet", score: "0.01", match_origin: "hybrid" },
+      ],
+    };
+    deepStrictEqual(readSearchHitsWithOrigin(raw), [
+      { fqn: "/workspace/src/math.ts::add", score: 0.03, origin: "bm25" },
+      { fqn: "/workspace/src/index.ts::greet", score: 0.01, origin: "hybrid" },
+    ]);
+  });
+
+  it("answers nothing for a missing or malformed payload", () => {
+    deepStrictEqual(readSearchHitsWithOrigin(undefined), []);
+    deepStrictEqual(readSearchHitsWithOrigin({ results: [{ fqn: "x" }] }), []);
+  });
+});
+
+describe("readSymbolLocation — where an anchor points", () => {
+  it("reads the live capture, taking the requested fqn it does not carry", () => {
+    deepStrictEqual(readSymbolLocation(SOURCE_RAW, "/workspace/src/math.ts::add"), {
+      fqn: "/workspace/src/math.ts::add",
+      path: "/workspace/src/math.ts",
+      startLine: 1,
+      endLine: 3,
+      language: "typescript",
+      firstLine: "export function add(a: number, b: number): number {",
+    });
+  });
+
+  it("prefers the fqn the payload names", () => {
+    strictEqual(readSymbolLocation({ ...SOURCE_RAW, fqn: "pkg.add" }, "asked").fqn, "pkg.add");
+    strictEqual(readSymbolLocation({ ...SOURCE_RAW, fqn: "" }, "asked").fqn, "asked");
+  });
+
+  it("skips blank lines, trims, and cuts the first line at 160 characters", () => {
+    strictEqual(readSymbolLocation({ source: "\n   \n  const x = 1;  \nnext" }, "f").firstLine, "const x = 1;");
+    strictEqual(readSymbolLocation({ source: "a".repeat(200) }, "f").firstLine, "a".repeat(160));
+  });
+
+  it("answers empty fields and zero lines when the payload has none", () => {
+    deepStrictEqual(readSymbolLocation({}, "f"), {
+      fqn: "f", path: "", startLine: 0, endLine: 0, language: "", firstLine: "",
+    });
   });
 });

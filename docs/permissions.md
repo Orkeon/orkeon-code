@@ -22,7 +22,15 @@ command's, and the model then works on the transcription under the turn's mode. 
 `/voice send` hands the dictated text to a turn as typed text would (a leading `plan:`, in lower case, picks the
 mode), and `--go` to a turn under the session's mode, chosen before the recording: no dictated prefix is read.
 `/say` reads aloud the same way, and so does the reading of each answer under `voice.reply on`, made by the
-main loop after the turn as the launching command's call.
+main loop after the turn as the launching command's call. `/dev-verify` runs `git`, the pack's build and the test
+commands it accepts from its own code, in every mode; its auditor only reads, in `plan`, with four read tools.
+`/dev-learn` reads the verdict files and both learning states. It writes only `<work>/learn-<date>/`,
+`.orkeon/dev-learn-state.json` and `.orkeon/memory/refused.md`, never a file under `.claude/` nor the file a proposal
+names.
+`/dev-plan` reads the spec or change brief, the pack and the code index. It writes only `<work>/<code>/<CODE>-PLAN.md`,
+the batch sheets and `plan.json`, never a file under `.claude/`; its reviewer only reads, in `plan`, with six read
+tools. Both first put the [rule sets of the dev steps](#rule-sets-of-the-dev-steps) in the gate, and refuse to start
+while the gate is off.
 
 ## Modes
 
@@ -108,6 +116,130 @@ Rules live in the session state until `/clear` or the end of the REPL; persistin
 the [Roadmap](roadmap.md). The gate keeps its own copy, which `/permissions` replaces after every change and every
 `/assistant` replaces before the turn starts, so the gate always holds the session's rules. A `[s]` answer is not a
 rule: `/permissions` neither lists nor clears it.
+
+## Rule sets of the dev steps
+
+`/dev-verify` (unless `--gate-only`) and `/dev-plan` hand the gate rule sets of their own just before their crew
+starts. A set is a list of deny rules built into Orkeon Code, the same in every repository; no setting turns one on or
+off. Both steps put all five sets in force:
+
+| Set | Rules on | Refuses |
+|---|---|---|
+| `git-readonly` | `shell_command`, `command` | a git command that changes the repository, its branches or its remotes, also behind a global option (`git -C <dir> push`) |
+| `inline-interpreters` | `shell_command`, `command` | code handed inline to an interpreter, which could run what the other rules refuse |
+| `read-noise` | `file_read`, `path` | a read under a `bin/`, `obj/`, `.git/` or `node_modules/` folder, anywhere in the project |
+| `secrets` | `file_write`, `content` | content that holds a private key block or a token with a known prefix |
+| `state-files` | `file_write`, `path` | a file only Orkeon Code's own code writes: the batch logs, states and verdicts, the audit captures, `.orkeon/` and `.claude/` |
+
+`git-readonly` holds 190 rules, three for most of the verbs `add`, `am`, `apply`, `branch`, `checkout`, `cherry-pick`,
+`clean`, `commit`, `fetch`, `filter-branch`, `gc`, `merge`, `mv`, `notes`, `pull`, `push`, `rebase`, `reflog`,
+`remote`, `reset`, `restore`, `revert`, `rm`, `stash`, `submodule`, `switch`, `tag`, `update-ref` and `worktree`,
+here for `push`:
+
+```text
+deny shell_command command=*git push*
+deny shell_command command=*git * push
+deny shell_command command=*git * push *
+```
+
+Directly after `git`, the verb is a prefix, so `git push;` and a `git commit` followed by a line break are refused too; behind an option the verb must be a word of its own, so `git diff -- src/address.ts` still runs. For `branch`, `notes`, `reflog`,
+`remote`, `submodule` and `tag`, which only list when typed alone, the two forms without arguments are left out:
+`git branch` runs, `git branch -a` is refused, since no rule can make an exception to a deny. `remote` and `stash`
+are refused by their changing subcommands only (`git remote add`, `git stash pop`, and `git stash` alone or with
+options), so `git remote -v` and `git stash list` run. Reading the history stays open: `git status`, `git log`,
+`git diff`, `git show`.
+
+The rules match the word `git` anywhere on the line, so a path (`/usr/bin/git push`), an `env`, a variable
+(`GIT_DIR=.git git push`) or a chain (`cd x && git push`) before it does not help. The same rules refuse the verbs
+that write below the everyday ones: `init`, `clone`, `config`, `update-index`, `symbolic-ref`, `prune`, `repack`, `read-tree`, `checkout-index`, `commit-tree`, `write-tree`, `mktag`, `mktree`, `fast-import`, `maintenance`, `update-server-info` and `replace` (`git replace` alone
+lists, and runs). `git config` with two arguments or more (`git config key value`, `git config --global key`,
+`git config --unset key`) or with `--edit` is refused, and so is the global option `git -c key=value`, which sets a
+config for one command and can run a program through `core.pager`; read a key with one argument instead:
+`git config user.name`, `git config --list`.
+
+The other four sets:
+
+```text
+deny shell_command command=*sh -c*
+deny shell_command command=*sh -*c *
+deny shell_command command=*sh -* -c*
+deny shell_command command=*node -e*
+deny shell_command command=*node --eval*
+deny shell_command command=*node -p*
+deny shell_command command=*node --print*
+deny shell_command command=*node -* -e*
+deny shell_command command=*node -* -p*
+deny shell_command command=*node --input-type*
+deny shell_command command=*python -c*
+deny shell_command command=*python3 -c*
+deny shell_command command=*python -* -c*
+deny shell_command command=*python3 -* -c*
+deny shell_command command=*perl -e*
+deny shell_command command=*perl -E*
+deny shell_command command=*ruby -e*
+deny shell_command command=*php -r*
+deny shell_command command=*tsx -e*
+deny shell_command command=*tsx --eval*
+deny shell_command command=*ts-node -e*
+deny shell_command command=*deno eval*
+deny shell_command command=*bun -e*
+deny file_read path=*/bin/*
+deny file_read path=bin/*
+deny file_read path=*/obj/*
+deny file_read path=obj/*
+deny file_read path=*/.git/*
+deny file_read path=.git/*
+deny file_read path=*/node_modules/*
+deny file_read path=node_modules/*
+deny file_write content=*-----BEGIN *PRIVATE KEY-----*
+deny file_write content=*ghp_*
+deny file_write content=*gho_*
+deny file_write content=*ghu_*
+deny file_write content=*ghs_*
+deny file_write content=*ghr_*
+deny file_write content=*github_pat_*
+deny file_write content=*xoxa-*
+deny file_write content=*xoxb-*
+deny file_write content=*xoxp-*
+deny file_write content=*xoxo-*
+deny file_write content=*xoxs-*
+deny file_write content=*xoxr-*
+deny file_write content=*AKIA*
+deny file_write content=*AIza*
+deny file_write content=*sk-ant-*
+deny file_write path=*-BATCHES-STATE.md
+deny file_write path=*-STATE-F*.md
+deny file_write path=*-VERIFY-F*.md
+deny file_write path=*/capture-F*/*
+deny file_write path=*/.orkeon/*
+deny file_write path=.orkeon/*
+deny file_write path=*/.claude/*
+deny file_write path=.claude/*
+```
+
+`inline-interpreters` holds 23 rules. They refuse `-c` handed to any shell whose name ends with `sh` (`bash`,
+`sh`, `zsh`, `dash`, `ksh`, `fish`), also in a flag cluster (`bash -xc`) or after another flag (`bash -e -c`), and
+the inline forms of `node`, `python`, `python3`, `perl`, `ruby`, `php`, `tsx`, `ts-node`, `deno` and `bun`, behind a
+path, an `env` or `npx`. Since a rule reads `sh -c` at the end of any word, `ssh -c <cipher>` is refused too.
+
+**When they hold.** At launch the step clears the gate, hands it the session's rules, then its own sets. A session
+allow rule on the same calls as one of the step's deny rules is left out for the run, with a warning. The sets are not
+stored with the session's rules: `/permissions list` does not show them, and `/permissions` shows them on its
+`in the host gate` line, grouped by set, for as long as they stay there. They stay until the next `/assistant` turn
+or the next `/permissions add`, `remove` or `clear`, which hand the gate the session's rules alone. Like every rule,
+they are session-wide: a turn started while a step runs replaces them for the rest of the step.
+
+**The gate must be on.** When the host says its gate is off, both steps refuse to start, because every rule above and
+the `plan` mode of their auditor or reviewer would check nothing; `/dev-verify F<n> --gate-only` runs no model and
+still runs. On a runtime that cannot say (Orkeon 1.0.0-rc.6), the step runs with a warning, and with a second one on a
+host that keeps no session rules, where the sets are not in force.
+
+**What a rule cannot see.** A rule reads one argument as text. A script file run by an interpreter
+(`bash scripts/build.sh`) is not inline code, and runs. A rule matches words separated by one space, so a tab between two words,
+or an option order it does not list, passes. `secrets` knows fixed prefixes only: a JSON web token, a
+password in a URL or an `api_key = …` line needs a check of the whole content, which waits for a file tool of Orkeon
+Code's own. Content that mentions a prefix, such as a page or a test about tokens, is refused as well. `read-noise`
+also refuses a source folder that happens to be named `bin/`.
 
 ## Extra tools
 

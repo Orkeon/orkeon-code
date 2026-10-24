@@ -1,0 +1,143 @@
+{
+  "feature": "Prune old memory entries",
+  "layers": ["src/shared/domain", "src/commands/_lib", "docs"],
+  "reuse": ["I1", "I2"],
+  "outOfScope": ["pruning by category other than feedback (a later spec)"],
+  "assumptions": [],
+  "nonApplicable": [
+    { "id": "DDD-04", "reason": "the cut-off is a date with no rule of its own" },
+    { "id": "DDD-05", "reason": "no entry designates another" },
+    { "id": "DDD-06", "reason": "no entry is created or restored" },
+    { "id": "DDD-07", "reason": "nothing is published as an event" },
+    { "id": "APP-02", "reason": "the existing memory store port is reused" },
+    { "id": "APP-03", "reason": "the store's removal is reused and its persistence is unchanged" }
+  ],
+  "traceability": [
+    { "id": "UC-01", "owners": ["runMemory()", "pruneEntries()"] },
+    { "id": "BR-01", "owners": ["pruneEntries()"] },
+    { "id": "BR-02", "owners": ["pruneEntries()"] },
+    { "id": "BR-03", "owners": ["runMemory()"] }
+  ],
+  "design": [
+    {
+      "ids": ["BR-01", "BR-02"],
+      "aggregate": "MemoryEntries",
+      "invariant": "feedback is filtered by the owner, so the command never tests a category",
+      "consistency": "one call removes and saves the entries once",
+      "batch": 1
+    }
+  ],
+  "batches": [
+    {
+      "name": "Prune by age",
+      "intent": "/memory prune removes the entries older than a cut-off, keeps feedback, and can list without removing",
+      "reason": "foundation: the rule and the command in one deliverable",
+      "documentation": false,
+      "dependsOn": [],
+      "design": {
+        "appliedRules": ["DDD-01", "DDD-02", "DDD-03", "DDD-08", "DDD-09", "DDD-10", "DDD-11", "APP-01", "APP-04", "APP-05", "PERF-01"],
+        "aggregate": "`MemoryEntries`; the command only parses and prints",
+        "invariants": "BR-02; removes the category test the command would otherwise repeat",
+        "consistency": "one prune changes and saves the entry list once",
+        "events": "N/A — nothing is published",
+        "accessCost": "1 read + 1 write, whatever the number of entries"
+      },
+      "decisions": ["The age is read from the entry's saved date; an entry without one is kept and counted apart."],
+      "declarative": ["the prune usage line in src/commands/_lib/memory.ts"],
+      "steps": [
+        {
+          "title": "An entry older than the cut-off is removed",
+          "tests": [
+            { "name": "removes the entries saved before the cut-off", "level": "unit", "project": "src/shared/domain", "ids": ["BR-01", "UC-01"], "covers": [] },
+            { "name": "refuses a cut-off in the future", "level": "unit", "project": "src/shared/domain", "ids": ["BR-01"], "covers": [] }
+          ],
+          "note": "",
+          "anchors": {
+            "tests": [{ "kind": "create", "path": "src/shared/domain/memory-prune.test.ts" }],
+            "doubles": [],
+            "production": [{ "kind": "create", "path": "src/shared/domain/memory-prune.ts" }]
+          }
+        },
+        {
+          "title": "Feedback entries survive a prune",
+          "tests": [
+            { "name": "keeps feedback entries older than the cut-off", "level": "unit", "project": "src/shared/domain", "ids": ["BR-02"], "covers": [] }
+          ],
+          "note": "",
+          "anchors": {
+            "tests": [{ "kind": "create", "path": "src/shared/domain/memory-prune.test.ts" }],
+            "doubles": [],
+            "production": [
+              { "kind": "create", "path": "src/shared/domain/memory-prune.ts" },
+              { "kind": "ref", "ref": "I1", "member": "MemoryEntry" }
+            ]
+          }
+        },
+        {
+          "title": "A dry run lists what would go and removes nothing",
+          "tests": [
+            { "name": "prune --dry-run prints the entries and writes nothing", "level": "unit", "project": "tests", "ids": ["BR-03", "UC-01"], "covers": [] }
+          ],
+          "note": "",
+          "anchors": {
+            "tests": [{ "kind": "ref", "ref": "I3" }],
+            "doubles": [{ "kind": "ref", "ref": "I4", "member": "writes" }],
+            "production": [{ "kind": "ref", "ref": "I2", "member": "runMemory" }]
+          }
+        }
+      ],
+      "buildScope": "npm test (whole suite), then the memory tests alone in later rounds",
+      "testPolicy": {
+        "fast": "`npm test`, every suite once",
+        "integration": "none — the memory store is doubled by FakeMemoryStore",
+        "notRun": "the runtime smoke run — it needs a host"
+      },
+      "elements": [
+        { "layer": "domain", "signature": "pruneEntries(entries: MemoryEntry[], cutoff: Date): PruneResult", "rule": "removes what is older than the cut-off, never feedback" },
+        { "layer": "domain", "signature": "PruneResult", "rule": "the kept entries, the removed entries and the count of undated ones: what a prune would do, for the dry run" },
+        { "layer": "application", "signature": "runMemory(tokens: string[], deps: MemoryDeps): Promise<CommandView>", "rule": "gains the prune and --dry-run branch" }
+      ]
+    },
+    {
+      "name": "Command reference",
+      "intent": "The command reference and the memory page describe /memory prune",
+      "reason": "documents the behaviour F1 delivers",
+      "documentation": true,
+      "dependsOn": ["F1"],
+      "design": {
+        "appliedRules": [],
+        "aggregate": "none — the batch changes documentation only",
+        "invariants": "none — no rule is enforced by a page",
+        "consistency": "none — no state changes",
+        "events": "N/A — nothing is published",
+        "accessCost": "none — no port is called"
+      },
+      "decisions": [],
+      "declarative": [],
+      "steps": [
+        {
+          "title": "The reference lists /memory prune with its options",
+          "tests": [
+            { "name": "the generated command table matches the command files", "level": "unit", "project": "tests", "ids": ["UC-01"], "covers": [] }
+          ],
+          "note": "The English page and its French twin change together: the parity check reads both.",
+          "anchors": {
+            "tests": [],
+            "doubles": [],
+            "production": [
+              { "kind": "existing", "path": "docs/commands.md" },
+              { "kind": "existing", "path": "docs/fr/commands.md" }
+            ]
+          }
+        }
+      ],
+      "buildScope": "npm run check (generated docs and docs parity)",
+      "testPolicy": {
+        "fast": "`npm run check`, the generated docs and the docs parity included",
+        "integration": "none",
+        "notRun": "none"
+      },
+      "elements": []
+    }
+  ]
+}

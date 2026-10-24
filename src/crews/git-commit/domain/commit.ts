@@ -40,27 +40,8 @@ export function untrackedPaths(status: string): string[] {
   return String(status ?? "").split("\n").filter((line) => line.startsWith("?? ")).flatMap((line) => statusPaths(line));
 }
 
-/** File names that usually hold a secret, and the safe variants of them. */
-const SECRET_EXTENSIONS = [".pem", ".key", ".p12", ".pfx", ".jks", ".keystore"];
-const SECRET_KEY_FILES = /^id_(rsa|dsa|ecdsa|ed25519)(\.|$)/;
-const SAFE_ENV_SUFFIXES = [".example", ".sample", ".template", ".dist"];
-
-/**
- * The paths that usually hold a secret: an env file (but not its example), a key
- * or certificate store, an SSH private key, a credentials file. Committing one by
- * accident is the one mistake `git add -A` makes easy and history keeps forever,
- * so /commit stops before any model call and lets the user decide.
- */
-export function secretLikePaths(paths: readonly string[]): string[] {
-  return paths.filter((path) => {
-    const name = path.split("/").pop() ?? "";
-    const lower = name.toLowerCase();
-    if (lower === ".env" || (lower.startsWith(".env.") && !SAFE_ENV_SUFFIXES.some((s) => lower.endsWith(s)))) return true;
-    if (SECRET_EXTENSIONS.some((ext) => lower.endsWith(ext))) return true;
-    if (SECRET_KEY_FILES.test(lower) && !lower.endsWith(".pub")) return true;
-    return lower === "credentials" || lower === "credentials.json";
-  });
-}
+/** Moved to the shared domain, so the shared memory can reuse it; re-exported for this crew. */
+export { secretLikePaths } from "../../../shared/domain/secret-patterns.ts";
 
 /** The subject line (first line) of a commit message. */
 export function commitSubject(message: string): string {

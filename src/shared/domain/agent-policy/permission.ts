@@ -376,3 +376,58 @@ export function gateLine(rule: PermissionRule): string {
 export function sameCalls(a: PermissionRule, b: PermissionRule): boolean {
   return sameToolName(a.tool, b.tool) && a.argument === b.argument && a.pattern === b.pattern;
 }
+
+/**
+ * Whether `text` matches `pattern` whole, as the host gate reads a rule's pattern: `*` stands for any run of
+ * characters (none, or many, line breaks included); every other character stands for itself, case counting.
+ * No other wildcard exists: `?`, `[`, `.`, `(` are literal.
+ */
+export function globMatches(pattern: string, text: string): boolean {
+  const parts = pattern.split("*");
+  if (parts.length === 1) return pattern === text;
+  const first = parts[0];
+  const last = parts[parts.length - 1];
+  if (text.length < first.length + last.length) return false;
+  if (!text.startsWith(first) || !text.endsWith(last)) return false;
+  // The middle parts, in order and without overlap, between the first part and the last.
+  const end = text.length - last.length;
+  let at = first.length;
+  for (const part of parts.slice(1, -1)) {
+    const found = text.indexOf(part, at);
+    if (found < 0 || found + part.length > end) return false;
+    at = found + part.length;
+  }
+  return true;
+}
+
+/**
+ * Whether `rule` covers this call, by the gate's own reading (docs/permissions.md, "Rules"): the tool by
+ * sameToolName; a rule without argument covers every call; otherwise the argument named exactly
+ * `rule.argument` (own property of `args`) must be present and its text match `rule.pattern` whole.
+ * A string argument is its text; a number or a boolean its String(); anything else (absent, null, object,
+ * array) matches nothing. The effect is not read: this says "covered", not "refused".
+ * It mirrors the gate and is NOT the gate: the gate enforces the session's rules on the model's calls;
+ * this function serves the tests and the tools Orkeon Code wraps around built-ins (W1), whose own
+ * calls the gate does not see.
+ */
+export function matchesRule(rule: PermissionRule, tool: string, args: Readonly<Record<string, unknown>>): boolean {
+  if (!sameToolName(rule.tool, tool)) return false;
+  if (coversEveryCall(rule)) return true;
+  const name = rule.argument as string;
+  if (!Object.prototype.hasOwnProperty.call(args, name)) return false;
+  const value = args[name];
+  const text = typeof value === "string"
+    ? value
+    : typeof value === "number" || typeof value === "boolean" ? String(value) : undefined;
+  return text !== undefined && globMatches(rule.pattern ?? "", text);
+}
+
+/** What `rules` decide for this call: "deny" when a deny rule covers it (deny wins in every mode),
+ *  else "allow" when an allow rule does, else undefined (the mode decides). */
+export function ruleDecision(
+  rules: readonly PermissionRule[], tool: string, args: Readonly<Record<string, unknown>>,
+): RuleEffect | undefined {
+  const covering = rules.filter((rule) => matchesRule(rule, tool, args));
+  if (covering.some((rule) => rule.effect === "deny")) return "deny";
+  return covering.length > 0 ? "allow" : undefined;
+}

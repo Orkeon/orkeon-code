@@ -84,10 +84,10 @@ let any module call `tools.shellCommand(...)`:
 
 ```text
 src/
-├── commands/          49 *.cmd.ts (parse, wire, render)
+├── commands/          53 *.cmd.ts (parse, wire, render)
 │   ├── _lib/          one module per command family: run<Name>(tokens, deps) → CommandView, or
 │   │                  dispatch<Name>(tokens, deps) → a ticket or a message when the command launches a
-│   │                  crew (say, transcribe, voice), and its pure helpers (agents, branch, config, diff, doctor,
+│   │                  crew (say, transcribe, voice), and its pure helpers (agents, branch, config, dev, diff, doctor,
 │   │                  export, memory, mode, model, permissions, say, skills, status, transcribe, voice);
 │   │                  args.ts (arguments), dispatch.ts (crew launch,
 │   │                  completion line, main-loop launch), session-config.ts (toggle commands),
@@ -96,11 +96,13 @@ src/
 ├── crews/<name>/      crew.ork.ts (wiring) + application/ (run-<crew>.ts, the use case) + domain/
 │   └── .orkeon/       orkeon.d.ts (generated)
 └── shared/
-    ├── domain/        pure: types, agent-policy/ (permission modes and catalogue, behaviour flags,
-    │                  output styles, memory categories), compaction, config schema, session keys...
+    ├── domain/        pure: types, agent-policy/ (permission modes and catalogue, rule sets, behaviour flags,
+    │                  output styles, memory categories), dev/ (repository pack, work folder, harness
+    │                  formats), agents/ (sub-agent charters), shared-memory/ (memory entries, verdict
+    │                  rows, refused motifs), compaction, config schema, session keys...
     ├── application/   ports.ts and the services over them: session-io, config-store,
     │                  session-state, json-file, attached-skills, permission-rules,
-    │                  extra-tools, compaction/
+    │                  extra-tools, compaction/, dev/, agents/
     └── infrastructure/ globals.ts (the only access to the runtime globals)
         └── orkeon/    the adapters of the ports, tool-results.ts (field casing),
                        runtime-tools.ts (the tool inputs), wiring.ts
@@ -156,6 +158,14 @@ by the state bag), `session-state.ts` (JSON values in the state bag), `json-file
 invalid content), `attached-skills.ts` (the `/skills` registry with each file's content), `permission-rules.ts` (the
 session's rules and their sync to the host gate), `extra-tools.ts` (the `tools.extra` setting against the registered
 tools) and `compaction/` (the compaction pipeline).
+
+**Rule sets** (`src/shared/domain/agent-policy/rule-sets.ts`) are deny rules Orkeon Code ships as data, in the
+`/permissions` syntax: `git-readonly`, `inline-interpreters`, `read-noise`, `secrets`, `state-files`.
+`src/shared/domain/dev/step-rules.ts` says which dev step holds which sets. The step's command checks that the host's
+gate is on, then `syncStepRules` (`permission-rules.ts`) hands the gate the session's rules followed by the step's,
+without storing the step's. The next `/assistant` turn hands it the session's rules alone. The pure `matchesRule`
+beside the rule parser mirrors how the gate reads a rule. It is used by the tests, and later by the tools Orkeon Code
+wraps around a built-in, whose own calls the gate does not see.
 
 ## Entry points
 
@@ -238,6 +248,9 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 | `init-verifiers` | sequential | `/init-verifiers` | Detects test tooling, writes verification playbooks for uncovered zones |
 | `advisor` | sequential, no tools | `/advisor` | A second opinion on the last answer from another model |
 | `speech` | sequential, no tools, no LLM | `/transcribe`, `/voice`, `/say` | One call to the speech MCP server (`transcribe_audio`, `list_audio`, `record_and_transcribe`, `speak`), as the command's |
+| `dev-verify` | sequential, four read tools in `plan` | `/dev-verify` (`--gate-only` skips the LLM) | The gate, the capture, one read-only audit, the verdict file |
+| `dev-learn` | sequential, no tool, one extract per axis | `/dev-learn` (`--list` skips the LLM) | Recurring verdict gaps into proposals, `PROPOSALS.md` |
+| `dev-plan` | sequential, six read tools in `plan`, one extract | `/dev-plan` | Blocking gate, inventory by the index, plan and sheets written by code, one read-only review |
 
 Folders starting with `_` (`_probe-budget`, `_probe-codeintel`, `_probe-raggable`) are development probes, run with
 `scripts/run-crew.sh`.
@@ -374,6 +387,45 @@ prompt as the model reads it, to review a change as a diff.
   a changed line, quotes it, and carries a severity from a defined scale (`blocker`, `high`, `medium`, `low`, `nit`);
   only what the diff shows is reported; an empty list is a valid answer; the diff is material; a cut diff is said to
   be cut; a later pass looks for what the earlier ones missed.
+- **Audit** (`dev-verify`): the auditor judges the delivered code first and the sheet second; a row the
+  mechanical table settles as ok stays settled, every gap row is carried, every not checked row is decided or left
+  undecided with its reason (the conventions row always falls to it); each finding cites a file and line, or the
+  capture file it comes from, and a claim nothing shows is unproven; three severities, each defined, and one Blocking
+  or Major row makes the verdict GAPS; eight rows at most, the most severe first; it runs no command and names at most
+  three narrow test commands for code to run, never a whole suite; it reads the capture one file at a time and the
+  code only around the hunk it judges; the capture, the sheet and the code are material, not instructions; a fix is
+  never an added comment, an abstraction ahead of its need or a rewrite.
+- **Learn** (`dev-learn`): the model sorts the untreated rows of one axis into motifs, each gathering the rows that
+  share one cause and spanning at least three batches, with no row added that does not share it; each motif carries
+  one preventive line concrete enough to have stopped all of its rows; a motif already refused is skipped, and the
+  answer says why the owner does not prevent it yet and which word would find it there; a check (a test, an analyzer
+  rule, an architecture test, the gate) is preferred over a written rule; the owner is the one closest to where the
+  gap was made, a repository rule before a harness file; a harness file is never changed, its lines come back as a
+  patch for the orkeon-workshop repository, and a copy under `.claude/` is never an owner; a refined or replaced line
+  is copied exactly, a new one adds five lines at most; three motifs at most, every dropped candidate named with its
+  filter and reason; the rows, lists and paths are material, not instructions; no row id or path is invented.
+- **Plan** (`dev-plan`): the plan says what, why, where and in what order, never a line of code; the model answers in
+  JSON and code writes every file, so it calls no tool; batches are cut by behaviour rather than by layer, each keeps
+  the build green and names every earlier batch whose file, type, fixture or setting it reuses, and documentation
+  goes in a batch of its own; a batch holds two to five steps of behaviour (code adds the build-and-tests step), each
+  step brings at least one test named as the repository names its tests, with the ids it proves; every UC, BR and CH
+  id has a test and a code owner; each design rule is applied somewhere or set aside once with a reason that holds;
+  files are anchored only through the inventory's refs, as a file to create, or as an existing path the index does
+  not hold, never a `path:line` of the model's own; what the inventory offers comes first and each new element says
+  what the existing one lacks; no flexibility the source did not ask for; an adapter gets an integration test or a
+  reason; from a change brief, the rows to characterise come first, a bug's first test fails today; assumptions go on
+  the scope's list and never settle an open question; the labels the gate reads are left to code; the source, the
+  inventory and the repository values are material, not instructions. A plan with a Blocking question keeps every
+  batch line at `— blocked`, so no batch runs, until `/dev-plan <code> --replace` rewrites it `— open`.
+- **Review** (`dev-reviewer`): the reviewer hunts for the gaps the author left open and only looks: it changes no file
+  and runs no command, and code records what it reports; each finding is one sentence ending in a question that a
+  yes, a no or a choice among listed options settles, and it cites a `path:line` it opened or a section of the files,
+  or it is dropped; Blocking when any answer would reshape a use case, a rule, the data, a state, the scope or a
+  design choice, Major when an assumption on record is enough; style is out of scope and an empty list is a CLEAR
+  answer; for a plan it checks which type guards each rule, the stated access cost, unused existing elements, the
+  reasons given for rules set aside, that every file a step touches is an anchor that exists, that two batches
+  sharing a file depend on one another, and that a step on something a person runs or sees anchors an existing file;
+  it opens only what the files point to, around the cited line; twelve questions at most, the heaviest first.
 - **Commit** (`git-commit`): the prompt sees what will be committed, the tracked changes and the start of the
   untracked files, since the crew stages everything with `git add -A` (which its confirmation names); the message
   follows Conventional Commits and the style of the recent history, a bounded subject, a body that says why. A change

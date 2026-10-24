@@ -1,14 +1,20 @@
 // CodeIndex adapter over index_status, index_codebase, codebase_map,
-// dependency_graph and package_summary. The payloads are read once, here,
+// dependency_graph, package_summary, codebase_search, symbol_source and
+// impact_analysis. The payloads are read once, here,
 // through the readers of shared/domain/code-intel-contract.ts, which pin the
 // field names of the live tools.
 
 import type { CodeIndex } from "../../application/ports.ts";
 import {
-  readGraph, readIndexSummary, readMapEntries, readMapSymbolCount, readPackageSummary,
+  readGraph, readImpact, readIndexSummary, readMapEntries, readMapSymbolCount, readPackageSummary,
+  readSearchHitsWithOrigin, readSymbolLocation,
 } from "../../domain/code-intel-contract.ts";
 
-type CodeIndexTools = "indexStatus" | "indexCodebase" | "codebaseMap" | "dependencyGraph" | "packageSummary";
+type CodeIndexTools = "indexStatus" | "indexCodebase" | "codebaseMap" | "dependencyGraph" | "packageSummary"
+  | "codebaseSearch" | "symbolSource" | "impactAnalysis";
+
+/** Lines of source `symbol_source` returns: only the first one is kept, so the payload stays small. */
+const SOURCE_LINES = 20;
 
 export function createCodeIndex(tools: Pick<OrkeonTools, CodeIndexTools>): CodeIndex {
   return {
@@ -28,6 +34,16 @@ export function createCodeIndex(tools: Pick<OrkeonTools, CodeIndexTools>): CodeI
     },
     async packageSummary(fqn) {
       return readPackageSummary(await tools.packageSummary({ fqn }));
+    },
+    async search(query, topK) {
+      // No `mode`: the tool's default is the hybrid search.
+      return readSearchHitsWithOrigin(await tools.codebaseSearch({ query, top_k: topK }));
+    },
+    async symbolSource(fqn) {
+      return readSymbolLocation(await tools.symbolSource({ fqn, max_lines: SOURCE_LINES }), fqn);
+    },
+    async impact(target, maxDepth) {
+      return readImpact(await tools.impactAnalysis({ target, direction: "Backward", max_depth: maxDepth }));
     },
   };
 }

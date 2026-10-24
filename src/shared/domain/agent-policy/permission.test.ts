@@ -7,7 +7,7 @@ import {
   resolvePermissionMode, isReadOnly,
   toolsetFor, permissionNote, buildActPrompt,
   catalogueFor, coversEveryCall, readRule, checkRule, formatRule, gateLine, parseStoredRule, sameCalls,
-  ruleableTool, TOOL_ARGUMENTS,
+  ruleableTool, TOOL_ARGUMENTS, globMatches, matchesRule, ruleDecision,
 } from "./permission.ts";
 import { PERMISSION_MODES } from "../permission-modes.ts";
 
@@ -413,5 +413,55 @@ describe("rag_ingest, an edit as the host gate classifies it (Orkeon #126)", () 
     for (const mode of ["plan", "dontAsk"]) strictEqual(toolsetFor(mode).includes("rag_ingest"), false, mode);
     for (const mode of ["default", "acceptEdits", "bypassPermissions"]) ok(toolsetFor(mode).includes("rag_ingest"), mode);
     ok(READ_TOOLS.includes("rag_search") && !READ_TOOLS.includes("rag_ingest"));
+  });
+});
+
+describe("globMatches, matchesRule and ruleDecision", () => {
+  const R = (text: string) => readRule(text)!;
+
+  it("matches a pattern whole, `*` standing for any run, line breaks included", () => {
+    strictEqual(globMatches("git push*", "git push"), true);
+    strictEqual(globMatches("git push*", "git push origin main"), true);
+    strictEqual(globMatches("git push", "git push --force"), false);
+    strictEqual(globMatches("git push*", "xgit push"), false);
+    strictEqual(globMatches("*BEGIN*", "a\nBEGIN\nb"), true);
+    strictEqual(globMatches("*", ""), true);
+  });
+
+  it("reads every other character literally, case counting", () => {
+    strictEqual(globMatches("a.b(c)*", "a.b(c)d"), true);
+    strictEqual(globMatches("a.b(c)*", "axb(c)d"), false);
+    strictEqual(globMatches("Git push*", "git push"), false);
+    strictEqual(globMatches("a?c", "abc"), false);
+  });
+
+  it("covers a call by the tool, case aside, and by the argument named exactly", () => {
+    const rule = R("deny shell_command command=git push*");
+    strictEqual(matchesRule(rule, "Shell_Command", { command: "git push" }), true);
+    strictEqual(matchesRule(rule, "shell_command", { Command: "git push" }), false);
+    strictEqual(matchesRule(rule, "file_write", { command: "git push" }), false);
+  });
+
+  it("covers every call when the rule names no argument", () => {
+    strictEqual(matchesRule(R("deny file_write"), "file_write", {}), true);
+  });
+
+  it("matches nothing when the argument is absent, null or not a scalar", () => {
+    const rule = R("deny file_read path=*");
+    for (const args of [{}, { path: null }, { path: ["a"] }, { path: { a: 1 } }]) {
+      strictEqual(matchesRule(rule, "file_read", args), false, JSON.stringify(args));
+    }
+  });
+
+  it("reads a number or a boolean as its text", () => {
+    strictEqual(matchesRule(R("deny shell_command timeout_seconds=600"), "shell_command", { timeout_seconds: 600 }), true);
+    strictEqual(matchesRule(R("deny file_write append=true"), "file_write", { append: true }), true);
+  });
+
+  it("lets a deny win over an allow on the same call, and leaves the rest to the mode", () => {
+    const rules = [R("allow shell_command command=git *"), R("deny shell_command command=git push*")];
+    strictEqual(ruleDecision(rules, "shell_command", { command: "git push" }), "deny");
+    strictEqual(ruleDecision(rules, "shell_command", { command: "git status" }), "allow");
+    strictEqual(ruleDecision(rules, "shell_command", { command: "npm test" }), undefined);
   });
 });

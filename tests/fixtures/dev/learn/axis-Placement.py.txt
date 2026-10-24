@@ -1,0 +1,6 @@
+- [Major] the rounding helper sits in the command
+  fix: move it to the ledger domain · ledger/F1 · `src/commands/ledger.cmd.ts:52`
+- [Blocking] the currency table is loaded by the shell adapter
+  fix: load it from the ledger domain · ledger/F1 · `src/ledger/shell.ts:12`
+- [Major] the overdraft threshold lives in the CLI flags
+  fix: keep the threshold in the ledger domain · ledger/F1 · `src/commands/ledger.cmd.ts:20`

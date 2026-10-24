@@ -7,7 +7,7 @@
 import type { SessionMsg } from "../domain/types.ts";
 import type { PermissionRule } from "../domain/agent-policy/permission.ts";
 import type {
-  GraphSummary, IndexSummary, MapEntry, PackageSummary,
+  GraphSummary, ImpactSummary, IndexSummary, MapEntry, PackageSummary,
 } from "../domain/code-intel-contract.ts";
 
 /** The outcome of one shell command. */
@@ -16,12 +16,20 @@ export interface ShellResult {
   stderr: string;
   /** -1 when the runtime reported none. */
   exitCode: number;
+  /** True when the runtime stopped the command at its timeout; absent otherwise. */
+  timedOut?: boolean;
+}
+
+/** How one command runs. */
+export interface ShellOptions {
+  /** Whole seconds before the runtime stops the command; the runtime's default when absent. */
+  timeoutSeconds?: number;
 }
 
 /** Runs shell commands in the project's working directory, /workspace. A command
  *  the runtime refuses or cannot run throws; a failing one returns its exit code. */
 export interface Shell {
-  run(command: string): Promise<ShellResult>;
+  run(command: string, options?: ShellOptions): Promise<ShellResult>;
 }
 
 /** One VFS mount: its virtual path, and its access rights as the host spells them. */
@@ -278,8 +286,31 @@ export interface CodeMap {
   symbolCount: number;
 }
 
-/** The code index (RaggableTree), as /analyze harvests it. Each call throws when
- *  the host cannot answer it. */
+/** One hit of the hybrid code search. */
+export interface CodeSearchHit {
+  /** The symbol, e.g. "/workspace/src/math.ts::add". */
+  fqn: string;
+  /** A rank aggregate in hybrid mode (about 0.03): an order, not a probability. */
+  score: number;
+  /** Why the hit ranked: "hybrid", "vector" or "bm25". */
+  origin: string;
+}
+
+/** Where a symbol lives: the file and the lines the index cites for it. */
+export interface SymbolLocation {
+  fqn: string;
+  /** The file path as the index returns it, e.g. "/workspace/src/math.ts". */
+  path: string;
+  /** 1-based; 0 when the index reports none. */
+  startLine: number;
+  endLine: number;
+  language: string;
+  /** The first non-blank line of the source, trimmed, at most 160 characters. */
+  firstLine: string;
+}
+
+/** The code index (RaggableTree), as /analyze harvests it and /dev-plan searches it.
+ *  Each call throws when the host cannot answer it. */
 export interface CodeIndex {
   /** How many roots the index holds; 0 before the first indexing. */
   rootCount(): Promise<number>;
@@ -290,4 +321,10 @@ export interface CodeIndex {
   /** The dependency graph of `scope`, at most `maxNodes` nodes, without its mermaid rendering. */
   dependencyGraph(scope: string, maxNodes: number): Promise<GraphSummary>;
   packageSummary(fqn: string): Promise<PackageSummary>;
+  /** The hybrid code search: at most `topK` hits, best first. */
+  search(query: string, topK: number): Promise<CodeSearchHit[]>;
+  /** Where `fqn` lives: its file and lines. Throws when the index has no such symbol. */
+  symbolSource(fqn: string): Promise<SymbolLocation>;
+  /** The callers of `target`, `maxDepth` levels up. */
+  impact(target: string, maxDepth: number): Promise<ImpactSummary>;
 }

@@ -1,0 +1,11 @@
+{
+  "verdict": "GAPS",
+  "rows": [
+    {
+      "severity": "Major",
+      "question": "Does a prune with no cut-off refuse, or use a default age?",
+      "evidence": "workbench/prune/SPEC-prune.md:31",
+      "target": "F1"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+# A repository pack for the plan fixtures: four layout roots, four commands, the covers trait.
+layout:
+  domain: src/shared/domain
+  application: src/shared/application
+  infrastructure: src/shared/infrastructure
+  tests: tests
+  work: workbench
+commands:
+  restore: npm ci
+  build: npm run build
+  test_class: node --test <Class>
+  test: npm test
+tests:
+  rule_trait: covers

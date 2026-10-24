@@ -1,11 +1,16 @@
 // FakeCodeIndex: the CodeIndex port answering its fields: `roots` (how many the
 // index holds), `indexed` (what index() reports), `maps` per level (an unset level
-// is empty), `graph`, and `packages` per fqn (an unknown fqn summarises as empty).
+// is empty), `graph`, `packages` per fqn (an unknown fqn summarises as empty),
+// `hits` per exact query (an unknown query finds nothing), `sources` per fqn (an
+// unknown fqn throws, as the index does) and `impacts` per fqn (an unknown fqn has
+// no caller).
 // A `failure` makes every call throw it. Every call lands in `calls` as
 // "<method> <arguments>".
-import type { CodeIndex, CodeMap } from "../../src/shared/application/ports.ts";
 import type {
-  GraphSummary, IndexSummary, PackageSummary,
+  CodeIndex, CodeMap, CodeSearchHit, SymbolLocation,
+} from "../../src/shared/application/ports.ts";
+import type {
+  GraphSummary, ImpactSummary, IndexSummary, PackageSummary,
 } from "../../src/shared/domain/code-intel-contract.ts";
 
 export class FakeCodeIndex implements CodeIndex {
@@ -14,6 +19,9 @@ export class FakeCodeIndex implements CodeIndex {
   maps: Record<string, CodeMap> = {};
   graph: GraphSummary = { nodes: [], edges: [], nodeCount: 0, edgeCount: 0, cycleCount: 0 };
   packages: Record<string, PackageSummary> = {};
+  hits: Record<string, CodeSearchHit[]> = {};
+  sources: Record<string, SymbolLocation> = {};
+  impacts: Record<string, ImpactSummary> = {};
   failure: Error | null = null;
   calls: string[] = [];
 
@@ -45,5 +53,22 @@ export class FakeCodeIndex implements CodeIndex {
   async packageSummary(fqn: string): Promise<PackageSummary> {
     this.record(`packageSummary ${fqn}`);
     return this.packages[fqn] ?? { fqn, name: "", files: 0, symbols: 0, dependencies: [] };
+  }
+
+  async search(query: string, topK: number): Promise<CodeSearchHit[]> {
+    this.record(`search ${query} ${topK}`);
+    return this.hits[query] ?? [];
+  }
+
+  async symbolSource(fqn: string): Promise<SymbolLocation> {
+    this.record(`symbolSource ${fqn}`);
+    const source = this.sources[fqn];
+    if (!source) throw new Error(`no symbol ${fqn}`);
+    return source;
+  }
+
+  async impact(fqn: string, maxDepth: number): Promise<ImpactSummary> {
+    this.record(`impact ${fqn} ${maxDepth}`);
+    return this.impacts[fqn] ?? { target: fqn, direct: [], transitive: [], byPackage: {} };
   }
 }
