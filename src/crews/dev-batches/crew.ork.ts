@@ -27,12 +27,8 @@ import { orkeonConfigStore, orkeonFiles, orkeonPullRequestOpener, orkeonShell } 
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { memoryDirOf } from "../../shared/application/shared-memory/memory-settings.ts";
 import { harvestAfterGaps } from "../../shared/application/shared-memory/harvest-after-gaps.ts";
-import type { WrappedTools } from "../../shared/application/dev/wrapped-tools.ts";
 import { devToolCallbacks } from "../../shared/infrastructure/orkeon/tool-callbacks.ts";
-import { runBuildTool, runTestsTool, runValidationTool, scriptToolSlot } from "../../shared/infrastructure/orkeon/script-tools.ts";
-import type { ValidationCalls } from "../../shared/infrastructure/orkeon/script-tools.ts";
-import { memoryRecallTools } from "../../shared/infrastructure/orkeon/memory-tools.ts";
-import { agentTools, createSpend, gitTopUnder, implementDeps, verifyDeps } from "../../shared/infrastructure/orkeon/dev-deps.ts";
+import { batchAgentParts, gitTopUnder, implementDeps, verifyDeps } from "../../shared/infrastructure/orkeon/dev-deps.ts";
 import { charterCatalogue } from "../../shared/domain/agents/charter.ts";
 import { providerEffort } from "../../shared/domain/agent-policy/behavior-flags.ts";
 import { REVIEWER_CHARTER } from "../../shared/domain/dev/reviewer-charter.ts";
@@ -54,11 +50,8 @@ const BATCH_TOOLS = [...new Set([...CREW_TOOLS, ...charterCatalogue(AUDITOR_CHAR
 /** One batch's agent, under its worktree: its own script-tool slots, spend and tools bound by its body. */
 function batchAgent(run: BatchRun, context: BatchesContext) {
   const limits = batchLimits(run.steps);
-  const spend = createSpend(limits.toolCalls);
-  const toolSlot = scriptToolSlot<WrappedTools>();
-  const validationSlot = scriptToolSlot<ValidationCalls>();
-  const bodyTools = agentTools();
   const memoryOn = context.memoryRecall !== false;
+  const { spend, toolSlot, validationSlot, bodyTools, tools } = batchAgentParts(ToolBuilder, { root: run.root, toolCalls: limits.toolCalls, memoryOn });
   const batchEffort = providerEffort(context.effort ?? undefined);
   const options = { hooks: context.hooks, effort: batchEffort, memoryOn, root: run.root, spend };
   // What the sequential run hands /dev-implement (run-dev-batches.ts): no github tool, its close never pushed.
@@ -73,10 +66,7 @@ function batchAgent(run: BatchRun, context: BatchesContext) {
     .goal(`Run batch ${run.batch} of ${run.code} test-first under its worktree, audit it and commit it there`)
     .workingRoot(run.root)
     .tools(BATCH_TOOLS)
-    .withAutonomousTool(runTestsTool(ToolBuilder, toolSlot, run.root))
-    .withAutonomousTool(runBuildTool(ToolBuilder, toolSlot, run.root))
-    .withAutonomousTool(runValidationTool(ToolBuilder, validationSlot, run.root))
-    .withAutonomousTools(memoryRecallTools(ToolBuilder, bodyTools.memoryPorts(run.root), memoryOn, run.root))
+    .withAutonomousTools(tools)
     .maxIterations(Math.max(60, AUDITOR_CHARTER.maxIterations))
     .body(async (_input: any, ctx: any) => {
       bodyTools.bind(ctx.tools);

@@ -122,9 +122,58 @@ describe("createSpend and spendGuard", () => {
     deepStrictEqual([reached, spend.calls(), spend.exhausted()], [2, 2, true]);
   });
 
+  it("is not spent by a batch whose calls reached the bound with none denied", async () => {
+    const spend = m.createSpend(2);
+    const act = m.spendGuard({
+      forAct: (_mode: string, _gate: boolean | undefined) => ({
+        onToolCall: async (_call: { name: string; input: unknown }) => "allow" as const, onToolResult: async () => undefined,
+      }),
+    }, spend).forAct("bypassPermissions", undefined);
+    await act.onToolCall({ name: "file_read", input: {} });
+    await act.onToolCall({ name: "file_read", input: {} });
+    deepStrictEqual([spend.calls(), spend.exhausted()], [2, false]);
+  });
+
   it("is the callbacks themselves without a spend", () => {
     const callbacks = { forAct: () => ({ onToolCall: async () => "allow" as const, onToolResult: async () => undefined }) };
     strictEqual(m.spendGuard(callbacks, undefined), callbacks);
+  });
+});
+
+/** A builder that records each tool's name and builds one whose execute calls the body. */
+function recorder(): () => ToolBuilder<unknown, unknown> {
+  return () => {
+    const b: { name?: string; fn?: (input: unknown) => unknown } = {};
+    const api: any = {
+      name: (v: string) => { b.name = v; return api; },
+      description: () => api, withSchema: () => api, access: () => api,
+      execute: (fn: (input: unknown) => unknown) => { b.fn = fn; return api; },
+      build: () => ({ name: b.name, execute: (input: unknown) => b.fn!(input) }),
+    };
+    return api as ToolBuilder<unknown, unknown>;
+  };
+}
+
+describe("batchAgentParts", () => {
+  it("gives each batch agent its own slots and spend: two audits at once each reach their own run_validation runner", async () => {
+    const parts = ["F2", "F3"].map((b) => m.batchAgentParts(recorder(), { root: `/workspace/.orkeon/worktrees/prune-${b}`, toolCalls: 5, memoryOn: false }));
+    const seen: string[] = [];
+    const releases = parts.map((p, i) => p.validationSlot.bind({
+      async run(command) {
+        seen.push(`${i === 0 ? "F2" : "F3"} ${command}`);
+        return { report: { command, outcome: "exit 0", tail: "" }, line: "" };
+      },
+    }));
+    const validation = (p: (typeof parts)[number]) => p.tools.find((t) => (t as { name?: string }).name === "run_validation")!;
+    await Promise.all([validation(parts[0]).execute({ command: "npm test" }), validation(parts[1]).execute({ command: "npm run build" })]);
+    deepStrictEqual(seen.sort(), ["F2 npm test", "F3 npm run build"]);
+    releases.forEach((r) => r());
+    parts[0].spend.take();
+    deepStrictEqual([parts[0].spend.calls(), parts[1].spend.calls()], [1, 0]);
+    ok(parts[0].toolSlot !== parts[1].toolSlot && parts[0].bodyTools !== parts[1].bodyTools);
+    deepStrictEqual(parts[0].tools.map((t) => (t as { name?: string }).name), ["run_tests", "run_build", "run_validation"]);
+    deepStrictEqual(m.batchAgentParts(recorder(), { root: "/r", toolCalls: 1, memoryOn: true }).tools.map((t) => (t as { name?: string }).name),
+      ["run_tests", "run_build", "run_validation", "memory_recall"]);
   });
 });
 

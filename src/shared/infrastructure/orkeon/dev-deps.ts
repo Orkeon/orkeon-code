@@ -19,9 +19,11 @@ import type { DevImplementDeps } from "../../../crews/dev-implement/application/
 import type { DevVerifyDeps } from "../../../crews/dev-verify/application/run-dev-verify.ts";
 import { reportingWrites } from "../../../crews/dev-implement/application/report-writes.ts";
 import { createLlm } from "./llm.ts";
-import { memoryReadTools } from "./memory-tools.ts";
+import { memoryReadTools, memoryRecallTools } from "./memory-tools.ts";
 import type { MemoryToolPorts } from "./memory-tools.ts";
-import { RUN_VALIDATION } from "./script-tools.ts";
+import { RUN_VALIDATION, runBuildTool, runTestsTool, runValidationTool, scriptToolSlot } from "./script-tools.ts";
+import type { ScriptToolSlot, ToolBuilderFactory, ValidationCalls } from "./script-tools.ts";
+import type { WrappedTools } from "../../application/dev/wrapped-tools.ts";
 import { shCode, shOut } from "./tool-results.ts";
 import { devToolCallbacks, rootedCallbacks } from "./tool-callbacks.ts";
 import type { ToolCallbacks } from "./tool-callbacks.ts";
@@ -41,6 +43,7 @@ export interface BodyContext {
 export interface Spend {
   readonly limit: number;
   calls(): number;
+  /** True once a call was refused: a batch that used exactly its `limit`, none refused, is not stopped. */
   exhausted(): boolean;
   /** Counts one call; false, and nothing counted, once the limit is reached. */
   take(): boolean;
@@ -48,11 +51,12 @@ export interface Spend {
 
 export function createSpend(limit: number): Spend {
   let calls = 0;
+  let denied = 0;
   return {
     limit,
     calls: () => calls,
-    exhausted: () => calls >= limit,
-    take: () => (calls >= limit ? false : (calls++, true)),
+    exhausted: () => denied > 0,
+    take: () => (calls >= limit ? (denied++, false) : (calls++, true)),
   };
 }
 
@@ -93,6 +97,28 @@ export function agentTools(): { bind(tools: OrkeonTools): void; memoryPorts(root
     // Unbound (a host that calls the tool before the body), the global: the crews' own single agent.
     memoryPorts: (root) => () => orkeonMemoryToolPorts(bound, root),
   };
+}
+
+/** What one batch agent of a parallel /dev-batches is built with: its own script-tool slots, spend and body tools,
+ *  never shared with another batch agent, and the script tools bound to them (rooted on its worktree). */
+export interface BatchAgentParts {
+  spend: Spend;
+  toolSlot: ScriptToolSlot<WrappedTools>;
+  validationSlot: ScriptToolSlot<ValidationCalls>;
+  bodyTools: ReturnType<typeof agentTools>;
+  tools: Array<Tool<unknown, unknown>>;
+}
+
+export function batchAgentParts(builder: ToolBuilderFactory, opts: { root: string; toolCalls: number; memoryOn: boolean }): BatchAgentParts {
+  const spend = createSpend(opts.toolCalls);
+  const toolSlot = scriptToolSlot<WrappedTools>();
+  const validationSlot = scriptToolSlot<ValidationCalls>();
+  const bodyTools = agentTools();
+  const tools = [
+    runTestsTool(builder, toolSlot, opts.root), runBuildTool(builder, toolSlot, opts.root), runValidationTool(builder, validationSlot, opts.root),
+    ...memoryRecallTools(builder, bodyTools.memoryPorts(opts.root), opts.memoryOn, opts.root),
+  ];
+  return { spend, toolSlot, validationSlot, bodyTools, tools };
 }
 
 /** git's top as an agent under `root` sees it: the raw output, never mapped back to `/workspace`, so that a
