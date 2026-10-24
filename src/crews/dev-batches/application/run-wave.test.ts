@@ -5,7 +5,7 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
-import { runWave } from "./run-wave.ts";
+import { runBatchChain, runWave } from "./run-wave.ts";
 import type { BatchOutcome, BatchRun, WaveDeps, WaveRequest } from "./run-wave.ts";
 import { harvestCommand, seedCommand } from "./seed-harvest.ts";
 import { appendToLog } from "../domain/batches-log.ts";
@@ -262,5 +262,57 @@ describe("runWave", () => {
       files: new FakeFiles(), shell, runBatch: async (r) => { steps.push(r.steps); return valid(r.batch); },
     });
     deepStrictEqual(steps, [3, undefined]);
+  });
+});
+
+describe("runBatchChain", () => {
+  const RUN = { code: "prune", batch: "F2", name: "prune-F2", root: "/workspace/.orkeon/worktrees/prune-F2", branch: "batches/prune/F2", steps: 2 };
+  const LAUNCH = { plan: "prune", hooks: [], effort: "high", permissionMode: "bypassPermissions", permissionRules: [], githubTool: false };
+  const VERIFY_INPUT = { batch: "F2", plan: "todo/prune/PRUNE-PLAN.md", mode: "fast" };
+  const implemented = JSON.stringify({ lines: ["F2 step 1 green"], next: { crew: "dev-verify", input: VERIFY_INPUT } });
+  const VALID = "written: todo/prune/PRUNE-VERIFY-F2.md — capture: todo/prune/capture-F2/\n→ Batch F2 VALID. The close commits the batch's files";
+  const GAPS = "written: todo/prune/PRUNE-VERIFY-F2.md — capture: todo/prune/capture-F2/\n→ /dev-implement F2 — correction: Major tests: none";
+  const spend = (calls = 10, limit = 100) => ({ limit, calls: () => calls, exhausted: () => calls >= limit });
+
+  it("runs implement, the audit, then the close without a push, and answers VALID with the commit", async () => {
+    const inputs: unknown[] = [];
+    const out = await runBatchChain(RUN, LAUNCH, {
+      implement: async (input) => {
+        inputs.push(input);
+        return (input as { close?: boolean }).close ? JSON.stringify({ lines: ["✓ committed 1a2b3c4 on batches/prune/F2: 3 file(s)"] }) : implemented;
+      },
+      verify: async (input) => { inputs.push(input); return VALID; },
+      spend: spend(),
+    });
+    deepStrictEqual(inputs, [
+      { ...LAUNCH, batch: "F2", steps: 2 },
+      VERIFY_INPUT,
+      { ...LAUNCH, batch: "F2", close: true, push: false },
+    ]);
+    strictEqual(out.verdict, "VALID");
+    strictEqual(out.hash, "1a2b3c4");
+    strictEqual(out.spent, 10);
+  });
+
+  it("answers GAPS without a close, and BLOCKED when the implement names no audit or the close commits nothing", async () => {
+    let closes = 0;
+    const implement = async (input: Record<string, unknown>) => {
+      if (input.close) { closes++; return JSON.stringify({ lines: ["✗ git commit failed (nothing to commit)"] }); }
+      return implemented;
+    };
+    strictEqual((await runBatchChain(RUN, LAUNCH, { implement, verify: async () => GAPS, spend: spend() })).verdict, "GAPS");
+    strictEqual(closes, 0);
+    const none = await runBatchChain(RUN, LAUNCH, { implement: async () => JSON.stringify({ lines: ["BLOCKED — step 1: the red tests did not fail"] }), verify: async () => VALID, spend: spend() });
+    deepStrictEqual([none.verdict, none.lines[0]], ["BLOCKED", "BLOCKED — step 1: the red tests did not fail"]);
+    const unclosed = await runBatchChain(RUN, LAUNCH, { implement, verify: async () => VALID, spend: spend() });
+    deepStrictEqual([unclosed.verdict, unclosed.lines.at(-1)], ["BLOCKED", "BLOCKED — close: git commit failed (nothing to commit)"]);
+  });
+
+  it("stops the batch once its tool calls are spent: stopped BLOCKED — budget", async () => {
+    let audits = 0;
+    const out = await runBatchChain(RUN, LAUNCH, {
+      implement: async () => implemented, verify: async () => { audits++; return VALID; }, spend: spend(120, 120),
+    });
+    deepStrictEqual([out.verdict, out.lines.at(-1), out.spent, audits], ["BLOCKED", "stopped BLOCKED — budget: 120 tool calls", 120, 0]);
   });
 });

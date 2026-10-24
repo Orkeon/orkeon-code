@@ -21,41 +21,33 @@
 // (300 s each) can all run, plus the model's own time: one hour of wall time.
 
 import { AgentBuilder, CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infrastructure/globals.ts";
-import { RUN_VALIDATION, runValidationTool, scriptToolSlot } from "../../shared/infrastructure/orkeon/script-tools.ts";
+import { runValidationTool, scriptToolSlot } from "../../shared/infrastructure/orkeon/script-tools.ts";
 import type { ValidationCalls } from "../../shared/infrastructure/orkeon/script-tools.ts";
 import { STEP_BUDGETS } from "../../shared/domain/dev/step-budget.ts";
-import {
-  orkeonConfigStore, orkeonCostIndex, orkeonFiles, orkeonMemoryToolPorts, orkeonSessionIo, orkeonSharedMemory, orkeonShell,
-} from "../../shared/infrastructure/orkeon/wiring.ts";
-import { memoryReadTools, memoryRecallOn, memoryRecallTools } from "../../shared/infrastructure/orkeon/memory-tools.ts";
-import type { WorkFolder } from "../../shared/application/dev/resolve-work-folder.ts";
-import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
-import { memoryDirOf } from "../../shared/application/shared-memory/memory-settings.ts";
-import { devToolCallbacks } from "../../shared/infrastructure/orkeon/tool-callbacks.ts";
+import { orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { memoryRecallOn, memoryRecallTools } from "../../shared/infrastructure/orkeon/memory-tools.ts";
+import { agentTools, verifyCallbacks, verifyDeps } from "../../shared/infrastructure/orkeon/dev-deps.ts";
 import { childAgentBody, withChildAct } from "../../shared/infrastructure/orkeon/child-agents.ts";
 import { createChildBoard } from "../../shared/application/agents/child-agent.ts";
-import { stepPrecedents } from "../../shared/application/dev/step-precedents.ts";
-import { harvestAfterGaps } from "../../shared/application/shared-memory/harvest-after-gaps.ts";
 import { charterCatalogue } from "../../shared/domain/agents/charter.ts";
 import { instanceLimits } from "../../shared/domain/agents/instances.ts";
 import { providerEffort } from "../../shared/domain/agent-policy/behavior-flags.ts";
 import { AUDITOR_CHARTER } from "./domain/auditor-charter.ts";
 import { runDevVerify } from "./application/run-dev-verify.ts";
 
-const ports = { shell: orkeonShell(), files: orkeonFiles(), config: orkeonConfigStore(), costIndex: orkeonCostIndex() };
 // memory_recall is attached unless a session rule denies every call of it (the command says so).
 const memoryOn = memoryRecallOn(inputs());
-const session = orkeonSessionIo();
 const effort = providerEffort(inputs().effort);
 const limits = instanceLimits(inputs());
 // The auditor's run_validation: built here, bound by the body to the run's recording runner (audit.ts) and
 // released when the audit ends; two runs bound at once make it refuse (script-tool-slot.ts).
 const validationSlot = scriptToolSlot<ValidationCalls>();
-// The host's gate first, then these callbacks: the step's rule sets again and the /hooks the command passed.
-// run_validation and memory_recall declare `read`: named in readTools, the callback lets it through when the host has no gate.
-const callbacksFor = (ctx: any) => devToolCallbacks(
-  { step: "dev-verify", hooks: inputs().hooks, readTools: [RUN_VALIDATION.name, ...memoryReadTools(memoryOn)] }, { shell: ports.shell, log: ctx.log, memoryDir: memoryDirOf(ports.config) },
-);
+// memory_recall's ports: over the tools of the verifier's body (dev-deps.ts), never the global's.
+const bodyTools = agentTools();
+// The host's gate first, then these callbacks: the step's rule sets again and the /hooks the command passed,
+// over the tools of the body that acts (the verifier's, or the background auditor's own).
+const options = { hooks: inputs().hooks, effort, memoryOn };
+const callbacksFor = (ctx: any) => verifyCallbacks(ctx, options);
 
 /** The auditor as a child, added to the crew by its first act (a sequential crew would run an agent it holds from the start). */
 const auditorChild = () => {
@@ -65,7 +57,7 @@ const auditorChild = () => {
     .goal(AUDITOR_CHARTER.goal)
     .tools(charterCatalogue(AUDITOR_CHARTER))
     .withAutonomousTool(runValidationTool(ToolBuilder, validationSlot))
-    .withAutonomousTools(memoryRecallTools(ToolBuilder, orkeonMemoryToolPorts, memoryOn))
+    .withAutonomousTools(memoryRecallTools(ToolBuilder, bodyTools.memoryPorts(), memoryOn))
     .maxIterations(AUDITOR_CHARTER.maxIterations)
     .body(childAgentBody(callbacksFor));
   return effort === undefined ? builder : builder.effort(effort);
@@ -78,21 +70,21 @@ const verifier = AgentBuilder()
   // The auditor's tools, for the inline audit on a host without background children.
   .tools(charterCatalogue(AUDITOR_CHARTER))
   .withAutonomousTool(runValidationTool(ToolBuilder, validationSlot))
-  .withAutonomousTools(memoryRecallTools(ToolBuilder, orkeonMemoryToolPorts, memoryOn))
+  .withAutonomousTools(memoryRecallTools(ToolBuilder, bodyTools.memoryPorts(), memoryOn))
   .maxIterations(AUDITOR_CHARTER.maxIterations)
   .body(async (_input: any, ctx: any) => {
+    bodyTools.bind(ctx.tools);
     const clock = () => new Date();
-    const board = createChildBoard({ state: session, clock, log: ctx.log }, { crew: "dev-verify", step: "dev-verify" });
-    const llm = withChildAct(
-      createLlm(ctx.llm, callbacksFor(ctx), { effort }), ctx, crew, { board, clock, log: ctx.log, effort },
-      { agent: AUDITOR_CHARTER.name, charter: AUDITOR_CHARTER.name, task: `audit of ${String(inputs().batch ?? "the batch")}`, builder: auditorChild },
-    );
+    const board = createChildBoard({ state: orkeonSessionIo(ctx.tools), clock, log: ctx.log }, { crew: "dev-verify", step: "dev-verify" });
     try {
-      // T4: the shared memory's precedents in the auditor's brief, unless memory_recall is denied; after a GAPS
-      // verdict, the mistakes that recur become candidates (M-7).
-      const precedents = stepPrecedents({ ...ports, memory: orkeonSharedMemory(), log: ctx.log }, { on: memoryOn });
-      const harvest = (work: Pick<WorkFolder, "folder" | "vfsPath">) => harvestAfterGaps({ ...ports, clock, log: ctx.log }, work);
-      return await runDevVerify(inputs(), { ...ports, llm, log: ctx.log, clock, validationSlot, precedents, harvest });
+      // The ports over this body's tools (dev-deps.ts); the audit's act in a background child, /tasks listing it;
+      // T4's precedents in its brief, and after a GAPS verdict the mistakes that recur become candidates (M-7).
+      const deps = verifyDeps(ctx, {
+        ...options, validationSlot, harvest: true,
+        wrapLlm: (llm) => withChildAct(llm, ctx, crew, { board, clock, log: ctx.log, effort },
+          { agent: AUDITOR_CHARTER.name, charter: AUDITOR_CHARTER.name, task: `audit of ${String(inputs().batch ?? "the batch")}`, builder: auditorChild }),
+      });
+      return await runDevVerify(inputs(), deps);
     } finally {
       await board.close();
     }

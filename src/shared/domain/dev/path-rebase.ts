@@ -11,7 +11,9 @@ type Root = string | null | undefined;
 /** A character that continues a path segment: `/workspace` followed by one is another name (`/workspaces`). */
 const SEGMENT = /[\w.-]/;
 
-const ends = (text: string, at: number): boolean => at >= text.length || !SEGMENT.test(text[at]);
+/** True when the path ends at `at`: nothing that continues its name, or a dot that ends a sentence. */
+const ends = (text: string, at: number): boolean =>
+  at >= text.length || !SEGMENT.test(text[at]) || (text[at] === "." && (at + 1 >= text.length || /[\s"'`)\]]/.test(text[at + 1])));
 
 /** `path` with its leading `/workspace` on the root; anything else as it is. */
 export function toRoot(path: string, root?: Root): string {

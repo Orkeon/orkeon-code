@@ -28,7 +28,7 @@ const deps = { session: orkeonSessionIo(), config: orkeonConfigStore() };
 
 defineAsyncCommand({
   name: "dev-batches",
-  description: "Run a plan's batches in their dependencies' order (implement, audit, commit each), one at a time or --concurrency n at once in worktrees, then one pull request for the plan; no code: go on with the run in progress.",
+  description: "Run a plan's batches in their dependencies' order (implement, audit, commit each), one at a time or --concurrency n at once in worktrees, then one pull request; no code: the run in progress goes on.",
   maxConcurrent: 1,
   dispatch: async (args, ctx) => {
     const parsed = parseDevBatchesArgs(rawTokens(args));

@@ -22,6 +22,8 @@ import type { SeedTarget } from "./seed-harvest.ts";
 
 /** What the crew's batch agent is run with. */
 export interface BatchRun {
+  /** The work code: the plan its chain runs. */
+  code: string;
   batch: string;
   /** The worktree's name, `<code>-F<n>`. */
   name: string;
@@ -187,7 +189,7 @@ export async function runWave(req: WaveRequest, deps: WaveDeps): Promise<WaveRes
 
   // 3. Every batch at once; a rejected run is a stop of its batch alone.
   const settled = await Promise.allSettled(running.map((slot) => deps.runBatch({
-    batch: slot.batch, name: slot.place.name, root: slot.place.root, branch: slot.branch,
+    code: req.code, batch: slot.batch, name: slot.place.name, root: slot.place.root, branch: slot.branch,
     ...(req.steps(slot.batch) !== undefined ? { steps: req.steps(slot.batch) } : {}),
   })));
   const outcomes = new Map<string, BatchOutcome>();
@@ -240,4 +242,62 @@ export async function runWave(req: WaveRequest, deps: WaveDeps): Promise<WaveRes
     lines.push(keptLine(slot.place));
   }
   return { lines, stopped };
+}
+
+/** What a batch agent's body runs, in its own agent and under its worktree: the crews' use cases, and its spend. */
+export interface BatchChain {
+  /** /dev-implement's use case: its JSON answer. */
+  implement(input: Record<string, unknown>): Promise<string>;
+  /** /dev-verify's, its audit inline in the batch agent (L8P-D2): its lines. */
+  verify(input: Record<string, unknown>): Promise<string>;
+  /** The tool calls the batch made and the bound past which its callbacks deny them (L8P-D12). */
+  spend: { limit: number; calls(): number; exhausted(): boolean };
+}
+
+const WRITTEN = /^written: \S+-VERIFY-(F\d+)\.md\b/m;
+const COMMITTED = /^✓ committed ([0-9a-f]{4,40}) on /m;
+
+function parsed(payload: string): { lines: string[]; next?: { crew?: unknown; input?: Record<string, unknown> } } {
+  try {
+    const value = JSON.parse(payload) as { lines?: unknown; next?: { crew?: unknown; input?: Record<string, unknown> } };
+    if (value !== null && Array.isArray(value.lines)) return { lines: value.lines.map(String), ...(value.next ? { next: value.next } : {}) };
+  } catch {
+    // Not the use case's JSON: its text as lines.
+  }
+  return { lines: payload.split("\n") };
+}
+
+/**
+ * The chain one batch runs in code, as the command's `completed` chains it for a sequential run: its steps
+ * (/dev-implement), its audit (/dev-verify), and on VALID its close, committed on the batch's branch, never pushed.
+ * A batch that spent its tool calls stops there.
+ */
+export async function runBatchChain(run: BatchRun, launch: Readonly<Record<string, unknown>>, chain: BatchChain): Promise<BatchOutcome> {
+  const lines: string[] = [];
+  const answer = (verdict: BatchOutcome["verdict"], extra: string[] = [], hash?: string): BatchOutcome =>
+    ({ batch: run.batch, verdict, ...(hash === undefined ? {} : { hash }), lines: [...lines, ...extra], spent: chain.spend.calls() });
+  const spent = (): BatchOutcome | null =>
+    chain.spend.exhausted() ? answer("BLOCKED", [`stopped BLOCKED — budget: ${chain.spend.limit} tool calls`]) : null;
+
+  const implemented = parsed(await chain.implement({ ...launch, batch: run.batch, ...(run.steps !== undefined ? { steps: run.steps } : {}) }));
+  lines.push(...implemented.lines);
+  const after = spent();
+  if (after !== null) return after;
+  if (implemented.next?.crew !== "dev-verify" || implemented.next.input === undefined) return answer("BLOCKED");
+
+  const verified = await chain.verify({ ...implemented.next.input });
+  lines.push(...verified.split("\n"));
+  const audited = spent();
+  if (audited !== null) return audited;
+  const written = WRITTEN.exec(verified);
+  if (written === null || written[1] !== run.batch) return answer("BLOCKED");
+  const rest = verified.slice(written.index + written[0].length);
+  if (!new RegExp(`^→ Batch ${run.batch} VALID\\.`, "m").test(rest)) return answer("GAPS");
+
+  const closed = parsed(await chain.implement({ ...launch, batch: run.batch, close: true, push: false }));
+  lines.push(...closed.lines);
+  const hash = COMMITTED.exec(closed.lines.join("\n"))?.[1];
+  if (hash !== undefined) return answer("VALID", [], hash);
+  const failed = closed.lines.map((l) => l.trim()).find((l) => l.startsWith("✗"));
+  return spent() ?? answer("BLOCKED", [`BLOCKED — close: ${failed?.replace(/^✗\s*/, "") ?? "the batch was not committed"}`]);
 }

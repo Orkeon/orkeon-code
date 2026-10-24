@@ -52,6 +52,12 @@ describe("textToRoot", () => {
     strictEqual(textToRoot("x=/workspace/a:/workspace/b", ROOT), `x=${ROOT}/a:${ROOT}/b`);
   });
 
+  it("maps a path that ends a sentence, and keeps a name that goes on after a dot", () => {
+    strictEqual(textToRoot("Work in /workspace. Then /workspace/a.ts.", ROOT), `Work in ${ROOT}. Then ${ROOT}/a.ts.`);
+    strictEqual(textToRoot("not /workspace.old/a", ROOT), "not /workspace.old/a");
+    strictEqual(textFromRoot(`in ${ROOT}.`, ROOT), "in /workspace.");
+  });
+
   it("leaves a text without a root as it is", () => {
     strictEqual(textToRoot("/workspace/a", undefined), "/workspace/a");
   });
