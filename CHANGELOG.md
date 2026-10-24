@@ -170,6 +170,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in the start report.
 - **The dev steps no longer warn that the host cannot say whether its gate is on**; the warning for a host that keeps
   no session rules remains.
+- **The assistant's header follows the runtime**: `file_read` reads a part of a file with `offset` and `limit`, and
+  the read calls of a turn may run together; the header's ceiling is 9,500 characters for the larger catalogue.
+- **A root denied to a reading role is denied to `glob`, `grep` and `count_pattern` by its own name too**, not only
+  below it; `/mode` names the classes a read-only mode strips, and `/permissions show` withholds `spawn_agent` in the
+  read-only modes only.
 
 - **Every built-in tool is typed from the generated typings** (Orkeon #125: `OrkeonBuiltInTools`, input and result
   of each tool from its .NET records). The local copy of their inputs (`CalledTools`) is gone; the stricter shapes
