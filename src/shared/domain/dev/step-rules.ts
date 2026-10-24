@@ -29,6 +29,8 @@ export const STEP_RULE_SETS: Readonly<Record<DevStep, readonly RuleSetId[]>> = {
 export const STEP_ALLOW_RULES: Readonly<Record<DevStep, readonly PermissionRule[]>> = {
   "dev-verify": [],
   "dev-plan": [],
+  "dev-spec": [],
+  "dev-change": [],
   "dev-implement": [{ effect: "allow", tool: "run_tests" }, { effect: "allow", tool: "run_build" }],
 };
 
