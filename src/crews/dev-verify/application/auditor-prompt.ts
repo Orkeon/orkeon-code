@@ -38,7 +38,8 @@ export const AUDITOR_SYSTEM = [
   "cause share one row.",
   "",
   "Validations: you have no shell. When you doubt that a test proves what it claims, run one with run_validation",
-  "when you are offered it, or else name it under validations and code runs it for you:",
+  "when you are offered it, or else name the command alone under validations, without the tool's name, and code",
+  "runs it for you:",
   "one test class, never a whole suite, or one integration run narrowed by a filter, built from the commands the",
   "brief lists. Three at most in all, and none when nothing is in doubt; cite what a run showed in the row it settles.",
   "",
@@ -219,7 +220,8 @@ export function buildAnswerPrompt(reply: string, problems: readonly string[]): s
   const lines = [
     "Turn the audit below into the JSON answer. Take the verdict, the rows, the validations and the undecided checks",
     "from the audit as written; invent nothing absent from it. A row's severity is Blocking, Major or Minor, its axis",
-    `one of ${AXES.join(", ")}, and its evidence a path:line or a capture file.`,
+    `one of ${AXES.join(", ")}, and its evidence a path:line or a capture file. A validation is the command alone,`,
+    "never wrapped in run_validation.",
   ];
   if (problems.length > 0) {
     lines.push("", "The previous answer was refused; fix each of these:", ...problems.map((p) => `- ${p}`));

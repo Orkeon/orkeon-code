@@ -3,7 +3,8 @@
 // bound to the tool); those it names in its answer and has not run, code runs through the same
 // runner and asks it once more with their outputs, and that second answer is final. Every run,
 // by the tool or by code, is cited in the verdict. A failed run leaves the auditor's replies in
-// the capture folder and returns the BLOCKED line; no verdict is decided here.
+// the capture folder and returns the BLOCKED line; no verdict is decided here. A run the step's
+// budget stopped also returns the validations made before, for the verdict the caller writes.
 import type { Files, Llm, Shell } from "../../../shared/application/ports.ts";
 import { runSubAgent } from "../../../shared/application/agents/run-sub-agent.ts";
 import type { SubAgentOutcome } from "../../../shared/application/agents/run-sub-agent.ts";
@@ -106,9 +107,15 @@ export function shellValidationRunner(
   };
 }
 
+/** An audit the step's budget stopped: what spent it, and the validations that ran before, for the verdict. */
+export interface UnfinishedAudit { reason: string; validations: string[]; notRun: string[] }
+
 export type AuditOutcome =
   | { ok: true; answer: AuditAnswer; validations: string[]; notRun: string[]; rounds: 1 | 2 }
-  | { ok: false; text: string };
+  | { ok: false; text: string; unfinished?: UnfinishedAudit };
+
+const linesOf = (runs: readonly ValidationRun[]): string[] => runs.map((r) => r.line).filter((l): l is string => l !== null);
+const notRunsOf = (runs: readonly ValidationRun[]): string[] => runs.map((r) => r.notRun).filter((n): n is string => n !== null);
 
 type Deps = { llm: Pick<Llm, "act" | "extract">; files: Pick<Files, "write">; runner: ValidationRunner };
 
@@ -121,7 +128,7 @@ function ask(llm: Pick<Llm, "act" | "extract">, brief: string): Promise<SubAgent
 
 async function blocked(
   files: Pick<Files, "write">, outcome: Extract<SubAgentOutcome<AuditAnswer>, { ok: false }>,
-  captureFolder: string, captureShown: string,
+  captureFolder: string, captureShown: string, runs: readonly ValidationRun[],
 ): Promise<AuditOutcome> {
   const name = "auditor-replies.txt";
   try {
@@ -139,10 +146,15 @@ async function blocked(
   }
   const spent = outcome.reason === "model-failed" ? readBudgetExhausted(first) : null;
   if (spent !== null) {
+    // The runs made before the budget ran out stand: the caller writes a verdict that says the audit did not finish.
+    if (runs.length > 0) {
+      const failed = await writeValidations(files, runs, captureFolder, captureShown);
+      if (failed !== null) return { ok: false, text: `${failed}; no verdict written` };
+    }
     return {
       ok: false,
-      text: `dev-verify: BLOCKED — the step's budget is spent (${spent}: ${first}): the capture stays in ` +
-        `${captureShown}/; no verdict written`,
+      text: `dev-verify: BLOCKED — the step's budget is spent (${spent}: ${first}): the capture stays in ${captureShown}/`,
+      unfinished: { reason: `${spent}: ${first}`, validations: linesOf(runs), notRun: notRunsOf(runs) },
     };
   }
   if (outcome.reason === "model-failed") {
@@ -171,13 +183,11 @@ export async function runAudit(
   deps: Deps, brief: AuditBriefInput, captureFolder: string, captureShown: string,
 ): Promise<AuditOutcome> {
   const runner = isRecording(deps.runner) ? deps.runner : recordingRunner(deps.runner);
-  const lines = (runs: readonly ValidationRun[]) => runs.map((r) => r.line).filter((l): l is string => l !== null);
-  const notRuns = (runs: readonly ValidationRun[]) => runs.map((r) => r.notRun).filter((n): n is string => n !== null);
   const ranAlready = (command: string) => runner.runs().some((r) => sameCommand(r.report.command, command));
 
   const text = buildAuditBrief(brief);
   const first = await ask(deps.llm, text);
-  if (!first.ok) return blocked(deps.files, first, captureFolder, captureShown);
+  if (!first.ok) return blocked(deps.files, first, captureFolder, captureShown, runner.runs());
   // The validations the answer names that the auditor did not run itself through run_validation.
   const pending = first.value.validations.slice(0, MAX_VALIDATIONS).filter((c) => !ranAlready(c));
   if (pending.length === 0) {
@@ -187,8 +197,8 @@ export async function runAudit(
       if (failed !== null) return { ok: false, text: failed };
     }
     return {
-      ok: true, answer: first.value, validations: lines(runs),
-      notRun: [...notRuns(runs), ...undecidedNotRun(first.value.undecided)], rounds: 1,
+      ok: true, answer: first.value, validations: linesOf(runs),
+      notRun: [...notRunsOf(runs), ...undecidedNotRun(first.value.undecided)], rounds: 1,
     };
   }
 
@@ -199,7 +209,7 @@ export async function runAudit(
   if (failed !== null) return { ok: false, text: failed };
 
   const second = await ask(deps.llm, buildValidationFollowUp(brief, first.value, reports));
-  if (!second.ok) return blocked(deps.files, second, captureFolder, captureShown);
+  if (!second.ok) return blocked(deps.files, second, captureFolder, captureShown, runner.runs());
   const answer = second.value;
   const runs = runner.runs();
   if (runs.length > written) {
@@ -213,8 +223,8 @@ export async function runAudit(
   return {
     ok: true,
     answer,
-    validations: lines(runs),
-    notRun: [...notRuns(runs), ...late, ...undecidedNotRun(answer.undecided)],
+    validations: linesOf(runs),
+    notRun: [...notRunsOf(runs), ...late, ...undecidedNotRun(answer.undecided)],
     rounds: 2,
   };
 }

@@ -161,6 +161,16 @@ describe("runDevBatches — back from a batch", () => {
     strictEqual(parse(await runDevBatches({ code: "demo" }, deps)).next?.input.batch, "F2");
   });
 
+  it("stops on the audit's own BLOCKED line, even with a GAPS verdict written for an unfinished audit", async () => {
+    const { files, deps } = setup();
+    await runDevBatches({ code: "demo" }, deps);
+    const line = "dev-verify: BLOCKED — the step's budget is spent (tokens: x): the capture stays in c/; GAPS written to v";
+    const out = parse(await runDevBatches({ after: ["", line] }, deps));
+    ok(out.lines.includes("F2 stopped BLOCKED — the step's budget is spent (tokens: x): the capture stays in c/; GAPS written to v"),
+      out.lines.join("\n"));
+    deepStrictEqual(events(files), ["F2 launched", "F2 stopped"]);
+  });
+
   it("does not launch a batch whose review raises a Blocking question", async () => {
     const { files, deps } = setup();
     const llm = new FakeLlm();

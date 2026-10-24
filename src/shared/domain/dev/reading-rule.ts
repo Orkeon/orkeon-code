@@ -10,7 +10,8 @@ export const MAX_READ_LINES = 120;
 export const BOUNDED_READ_RULE =
   `Read a file by range: file_read with offset and limit, ${MAX_READ_LINES} lines at most per read, and the next range ` +
   "only while has_more says more follows and you need it; node_read for one symbol or one heading. Never read a whole " +
-  "file for its own sake.";
+  "file for its own sake. The project is mounted on /workspace: a path shown relative (src/…, workbench/…) goes to a " +
+  "tool as /workspace/<path>, never as written.";
 
 /** The reading rule of a source file, for an agent that holds the node readers: by node first. */
 export const NODE_READ_RULE =

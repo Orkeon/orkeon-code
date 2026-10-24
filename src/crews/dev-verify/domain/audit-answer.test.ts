@@ -3,7 +3,7 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok } from "node:assert";
 
-import { AUDIT_ANSWER_SCHEMA, AXES, MAX_ANSWER_ROWS, MAX_VALIDATIONS, SEVERITY_ORDER, checkAuditAnswer } from "./audit-answer.ts";
+import { AUDIT_ANSWER_SCHEMA, AXES, MAX_ANSWER_ROWS, MAX_VALIDATIONS, SEVERITY_ORDER, checkAuditAnswer, validationCommand } from "./audit-answer.ts";
 
 const row = (over: Record<string, unknown> = {}) => ({
   severity: "Major", axis: "Reuse", gap: "Parses dates by hand", evidence: "src/a/Clock.cs:12",
@@ -103,6 +103,31 @@ describe("checkAuditAnswer", () => {
       "at most 3 validations, not 4",
       "undecided 1: check and reason are needed",
     ]);
+  });
+});
+
+describe("validationCommand", () => {
+  const cmd = "dotnet test --filter FullyQualifiedName~AccountTests";
+  it("takes the tool's name off a command it wraps in one quote, in each form", () => {
+    for (const written of [`run_validation "${cmd}"`, `run_validation '${cmd}'`, `run_validation \`${cmd}\``,
+      `run_validation("${cmd}")`, ` run_validation ( '${cmd}' ) `]) {
+      deepStrictEqual(validationCommand(written), cmd, written);
+    }
+    deepStrictEqual(validationCommand(`run_validation 'dotnet test --filter "X"'`), 'dotnet test --filter "X"');
+  });
+
+  it("leaves a form with more than one reading as written", () => {
+    for (const written of [`run_validation "a" "b"`, `run_validation("${cmd}"`, `run_validation "${cmd}")`,
+      `run_validation ${cmd}`, `echo run_validation "${cmd}"`, 'run_validation "x --filter \\"X\\""',
+      `run_validation(command="${cmd}")`]) {
+      deepStrictEqual(validationCommand(written), written.trim(), written);
+    }
+  });
+
+  it("is what checkAuditAnswer keeps", () => {
+    const checked = checkAuditAnswer({ verdict: "VALID", rows: [], validations: [`run_validation "${cmd}"`] });
+    ok(checked.ok);
+    deepStrictEqual(checked.ok && checked.value.validations, [cmd]);
   });
 });
 

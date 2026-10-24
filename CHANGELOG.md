@@ -456,6 +456,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `/dev-verify`: an audit the step's budget stops still writes its verdict, `GAPS` with one Blocking row that says the
+  audit did not finish and why, and the validations that ran before; the step's token budget is 700 000 (a live audit
+  of a 3-file batch spent 307 528 of the former 300 000). A validation the auditor names wrapped in the tool's name
+  (`run_validation "<command>"`) is read as the command alone.
+- A pre-tool hook whose command line the runtime's mount check refuses (an argument naming a mount its program may not
+  write) is reported as that refusal, no longer as the hook refusing the call.
+- The dev agents are told that a path shown relative goes to a tool as `/workspace/<path>`.
+- `scripts/run-crew.sh` passes `ORKEON_CODE_MODEL` (as `Llm:Model`) and, with `ORKEON_CODE_MODE=source`, runs the tool
+  built from `ORKEON_SOURCE` with the same settings and mounts; `scripts/dev-run.sh`'s `DEV_RUN_RUNNER` gets neither.
 - A known key written nested in `.orkeon/config.json` or the user settings (`{"permissions": {"fallback": …}}`)
   is read by nothing: `/config list` and `/permissions` now name it with its flat spelling (`"permissions.fallback"`).
 - `docs/headless.md`: a run whose calls the gate refused still exits `0` (the refusal is the tool's result), and a

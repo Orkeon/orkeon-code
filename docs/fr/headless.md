@@ -91,8 +91,10 @@ Chaque crew se lance ainsi ; son `crew.ork.ts` dit dans son en-tête quels `inpu
 ## Un crew de dev, étape après étape
 
 `scripts/dev-run.sh` enchaîne les étapes d'un crew de dev sans personne au clavier : un `orkeon run` neuf par étape, via
-`scripts/run-crew.sh` (la variable `DEV_RUN_RUNNER` nomme une autre commande qui prend les mêmes arguments, comme
-`dotnet run --project …` tant que l'outil n'est pas sur NuGet). La sortie de chaque étape va dans
+`scripts/run-crew.sh`, qui passe les réglages, le modèle et les montages (`ORKEON_CODE_SETTINGS`, `ORKEON_CODE_MODEL` ;
+avec `ORKEON_CODE_MODE=source` et `ORKEON_SOURCE`, l'outil construit depuis ce checkout d'Orkeon tant qu'il n'est pas sur
+NuGet). La variable `DEV_RUN_RUNNER` nomme une autre commande, qui ne reçoit que le crew et `--inputs` : elle passe ses
+propres `-s` et `-m`, sinon le crew tourne sans réglages ni montage. La sortie de chaque étape va dans
 `.orkeon/dev/<code>/runs/<crew>-<n>.log` dans le projet, jamais en entier au terminal, qui en montre la dernière ligne.
 Après chaque étape, le script lit la dernière ligne du journal d'événements du code de travail :
 `.orkeon/dev/<code>/batches-state.md`, ou le fichier du projet que nomme `--log`. `/dev-batches` écrit le journal propre

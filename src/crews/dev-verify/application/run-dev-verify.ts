@@ -11,7 +11,7 @@ import { GIT_TOPLEVEL, workFolderLabel } from "../../../shared/application/dev/r
 import { costSummary } from "../../../shared/domain/dev/access-cost.ts";
 import { classifyArtefact, isCode } from "../../../shared/domain/dev/artefacts.ts";
 import type { RepoPack } from "../../../shared/domain/dev/repo-pack.ts";
-import { lastVerdict, parseVerdictFile } from "../../../shared/domain/dev/verdict-format.ts";
+import { AUDIT_UNFINISHED_GAP, isAuditUnfinishedGap, lastVerdict, parseVerdictFile } from "../../../shared/domain/dev/verdict-format.ts";
 import type { GapRow } from "../../../shared/domain/dev/verdict-format.ts";
 import { AXES } from "../domain/audit-answer.ts";
 import type { AuditRow, Axis } from "../domain/audit-answer.ts";
@@ -21,7 +21,7 @@ import {
   carriedRows, formatWhen, renderVerdictSection, verdictFileName, writeVerdictFile,
 } from "../domain/verdict.ts";
 import { outputTail, recordingRunner, runAudit, shellValidationRunner } from "./audit.ts";
-import type { ValidationRunner } from "./audit.ts";
+import type { UnfinishedAudit, ValidationRunner } from "./audit.ts";
 import { stepRules } from "../../../shared/domain/dev/step-rules.ts";
 import type { AuditBriefInput } from "./auditor-prompt.ts";
 import { writeCapture } from "./capture.ts";
@@ -57,6 +57,16 @@ const MAX_GAP_CHARS = 120;
 const MODES: readonly string[] = ["fast", "full", "resume"];
 /** The exit code a shell result carries when the process reported none. */
 const NO_EXIT_CODE = -1;
+
+/** The row of an audit the step's budget stopped: Blocking, since nothing vouches for the batch; the replies are its evidence. */
+export function unfinishedRow(unfinished: UnfinishedAudit, captureShown: string, batch: string): AuditRow {
+  return {
+    severity: "Blocking", axis: "Correctness",
+    gap: AUDIT_UNFINISHED_GAP,
+    evidence: `${unfinished.reason} — ${captureShown}/auditor-replies.txt`,
+    fix: `audit the batch again (/dev-verify ${batch} resume), or split it if it spends the budget again`,
+  };
+}
 
 const reasonOf = (error: unknown): string => firstLine(error instanceof Error ? error.message : String(error));
 
@@ -279,7 +289,8 @@ export async function runDevVerify(input: DevVerifyInputs, deps: DevVerifyDeps):
     } catch {
       return done(`dev-verify: resume needs ${verdictShown}: run /dev-verify ${args.batch} first`);
     }
-    previousGaps = (lastVerdict(parseVerdictFile(previous))?.rows ?? []).map(auditRowOf);
+    // An unfinished audit's row is no gap of the code: the resumed audit is not asked to judge it.
+    previousGaps = (lastVerdict(parseVerdictFile(previous))?.rows ?? []).filter((r) => !isAuditUnfinishedGap(r.gap)).map(auditRowOf);
   }
 
   const gate = await runGate(deps, t);
@@ -318,7 +329,24 @@ export async function runDevVerify(input: DevVerifyInputs, deps: DevVerifyDeps):
     } finally {
       release?.();
     }
-    if (!audit.ok) return done(greenLine, costLine, audit.text);
+    if (!audit.ok) {
+      if (audit.unfinished === undefined) return done(greenLine, costLine, audit.text);
+      const unfinished = audit.unfinished;
+      // The budget ran out mid-audit: the verdict still says so, with the validations that ran, never a silent BLOCKED.
+      const stopped = unfinishedRow(unfinished, capture.folderShown, args.batch);
+      // The stopped row covers no mechanical gap: each one is carried, as no auditor weighed it.
+      const answered = suite?.row ? [suite.row] : [];
+      const section = renderVerdictSection({
+        prefix: t.prefix, batch: args.batch, when, mode: args.mode,
+        rows: [stopped, ...answered, ...carriedRows(answered, capture.rows)],
+        validations: [...(suite?.validation ? [suite.validation] : []), ...unfinished.validations],
+        notRun: [...(suite?.notRun ? [suite.notRun] : []), ...unfinished.notRun],
+      });
+      await files.write(`${WORKSPACE}/${verdictShown}`, writeVerdictFile(previous, section.text, args.mode));
+      deps.log.info(`dev-verify: ${section.verdict} written to ${verdictShown} (the audit did not finish)`);
+      return done(greenLine, costLine, ...section.text.trimEnd().split("\n"),
+        `${audit.text}; ${section.verdict} written to ${verdictShown}: the audit did not finish`);
+    }
 
     const answered = [...audit.answer.rows, ...(suite?.row ? [suite.row] : [])];
     const section = renderVerdictSection({

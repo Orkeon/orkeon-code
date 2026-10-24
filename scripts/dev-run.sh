@@ -9,9 +9,11 @@
 # Each step runs `bash scripts/run-crew.sh src/crews/<crew>/crew.ork.ts --inputs <json>`;
 # the inputs are the crew's own (its crew.ork.ts header names them), required. A crew run
 # this way gets none of what its command does first: /dev-verify's check that the gate is
-# on and its rule sets are not applied. DEV_RUN_RUNNER names another command taking the
-# same arguments (`dotnet run --project …` while the tool is not on NuGet, a fake in the
-# tests). A step's output goes to <project>/.orkeon/dev/<code>/runs/<crew>-<n>.log, never
+# on and its rule sets are not applied. run-crew.sh passes the settings, the model and the
+# mounts (ORKEON_CODE_SETTINGS, ORKEON_CODE_MODEL; ORKEON_CODE_MODE=source with ORKEON_SOURCE
+# runs the tool from an Orkeon checkout while it is not on NuGet). DEV_RUN_RUNNER names another
+# command, given the crew and --inputs alone (a fake in the tests): it passes its own `-s` and
+# `-m`, or the crew runs on no settings and no mount. A step's output goes to <project>/.orkeon/dev/<code>/runs/<crew>-<n>.log, never
 # whole to the terminal: its last line is shown. <project> is ORKEON_CODE_WORKSPACE, else
 # the working directory. After each step:
 #   exit 130 (cancelled) or 1 (script error)        -> stop with that code

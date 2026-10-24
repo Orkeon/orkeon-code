@@ -68,6 +68,23 @@ describe("onToolCall", () => {
       JSON.stringify(thrown));
   });
 
+  it("names the runtime's mount check, not the hook, when the shell refuses the hook's command line", async () => {
+    const { shell, log, act } = setup([PRE]);
+    const denial = "Command argument denied by file system: Access denied to '/cli-commands'";
+    shell.errors["bash pre.sh directory_read /cli-commands"] = new Error(`${denial}\nsecond line`);
+    deepStrictEqual(await act.onToolCall({ name: "directory_read", input: { path: "/cli-commands" } }), {
+      deny: "dev-plan: the runtime's mount check refused the command line of pre-tool hook #1 " +
+        `(bash pre.sh directory_read /cli-commands), which did not run: ${denial}\n` +
+        "The call did not run: a hook's command line may name no path its program may not write; ask the user to change the hook.",
+    });
+    deepStrictEqual(log.lines, ["info: dev-plan: the runtime's mount check refused pre-tool hook #1 for directory_read"]);
+    // The same refusal returned as a result not completed, which reads as a timeout otherwise.
+    shell.results["bash pre.sh directory_read /crews"] = { exitCode: -1, timedOut: true, stderr: "Argument denied: Access denied to '/crews'" };
+    const second = await act.onToolCall({ name: "directory_read", input: { path: "/crews" } });
+    ok(typeof second === "object" && second.deny.includes("the runtime's mount check refused") && !second.deny.includes("stopped after"),
+      JSON.stringify(second));
+  });
+
   it("applies the act's mode itself when the host has no gate", async () => {
     const { callbacks } = setup();
     const verdict = await callbacks.forAct("plan", false).onToolCall({ name: "file_write", input: { path: "a" } });

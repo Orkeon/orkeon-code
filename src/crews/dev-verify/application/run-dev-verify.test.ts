@@ -245,6 +245,30 @@ describe("runDevVerify — the verdict", () => {
     ok(f.files.files.has(`${DIR}/capture-F2/auditor-replies.txt`));
   });
 
+  it("writes a GAPS verdict that says the audit did not finish when the budget runs out after a validation", async () => {
+    const f = setup();
+    const slot = scriptToolSlot<ValidationRunner>();
+    const command = "node --test tests/a.test.ts";
+    f.shell.results[command] = { exitCode: 0, stdout: "# pass 3\n# fail 0\n" };
+    const act = f.llm.act.bind(f.llm);
+    f.llm.act = async (prompt, request) => {
+      await slot.get()?.run(command);
+      return act(prompt, request);
+    };
+    f.llm.answers = [new Error("Token budget exhausted (307528/300000).")];
+    const text = await runDevVerify({ batch: "F2" }, { ...f.deps, validationSlot: slot });
+    const written = f.files.files.get(VERDICT) ?? "";
+    ok(written.startsWith("# DEMO-VERIFY-F2 — 2026-10-22 14:05 — fast\n\n## Verdict — GAPS\n"), written);
+    ok(written.includes("| Blocking | Correctness | the audit did not finish: the step's budget ran out | " +
+      "tokens: Token budget exhausted (307528/300000). — workbench/demo/capture-F2/auditor-replies.txt |"), written);
+    ok(written.includes(`Validations: \`${command}\` — exit 0`), written);
+    ok(f.files.files.get(`${DIR}/capture-F2/validations.txt`)?.startsWith(`$ ${command}\nexit 0`));
+    strictEqual(text.split("\n").at(-1),
+      "dev-verify: BLOCKED — the step's budget is spent (tokens: Token budget exhausted (307528/300000).): the capture " +
+        "stays in workbench/demo/capture-F2/; GAPS written to workbench/demo/DEMO-VERIFY-F2.md: the audit did not finish");
+    ok(!text.includes("correction:"), text);
+  });
+
   it("is BLOCKED when the verdict cannot be written", async () => {
     const f = setup();
     f.llm.answers = ["fine"];

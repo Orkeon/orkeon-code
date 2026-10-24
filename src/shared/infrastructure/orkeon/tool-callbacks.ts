@@ -55,7 +55,6 @@ function firstLine(stderr: string, stdout: string): string {
   return line.length > 200 ? `${line.slice(0, 200)}…` : line;
 }
 
-/** Runs one hook; undefined when it exited 0, else what went wrong in one line. */
 /** The inputs a hook sees for one call: the call's own, or one `{ path }` per operation of an edit_batch, so a
  *  per-file hook hears every file the batch writes. */
 export function hookInputs(tool: string, input: unknown): unknown[] {
@@ -64,7 +63,19 @@ export function hookInputs(tool: string, input: unknown): unknown[] {
   return ops.map((op: unknown) => ({ path: (op as { path?: unknown } | null)?.path }));
 }
 
-async function runHooks(deps: ToolCallbackDeps, hook: ToolHook, tool: string, input: unknown): Promise<string | undefined> {
+/** What stopped a hook: the hook itself (its exit, its time, its start), or the runtime's mount check, which refuses a
+ *  command line naming a mount path the shell may not hand to its program, before the hook runs. */
+export interface HookFailure { by: "hook" | "mount-check"; text: string }
+
+/** The runtime shell's refusal of a command line by its mount check (ShellCommandTool), else null. */
+const MOUNT_DENIAL = /^(?:Command argument denied by file system|Argument denied):/;
+
+function mountDenial(text: string): string | null {
+  const line = text.trim().split("\n")[0] ?? "";
+  return MOUNT_DENIAL.test(line) ? line : null;
+}
+
+async function runHooks(deps: ToolCallbackDeps, hook: ToolHook, tool: string, input: unknown): Promise<HookFailure | undefined> {
   for (const one of hookInputs(tool, input)) {
     const failed = await runHook(deps, hook, tool, one);
     if (failed !== undefined) return failed;
@@ -72,17 +83,26 @@ async function runHooks(deps: ToolCallbackDeps, hook: ToolHook, tool: string, in
   return undefined;
 }
 
-async function runHook(deps: ToolCallbackDeps, hook: ToolHook, tool: string, input: unknown): Promise<string | undefined> {
+/** Runs one hook; undefined when it exited 0, else what went wrong in one line and who stopped it. */
+async function runHook(deps: ToolCallbackDeps, hook: ToolHook, tool: string, input: unknown): Promise<HookFailure | undefined> {
   const command = hookCommand(hook, tool, input);
   const label = `${hook.event} hook #${hook.n} (${command})`;
+  const refused = (denial: string): HookFailure =>
+    ({ by: "mount-check", text: `the runtime's mount check refused the command line of ${label}, which did not run: ${denial}` });
   try {
     const r = await deps.shell.run(command, { timeoutSeconds: HOOK_TIMEOUT_SECONDS });
-    if (r.timedOut) return `${label} stopped after ${HOOK_TIMEOUT_SECONDS} s`;
+    // A refused command line comes back not completed: read as a timeout, it would hide the refusal.
+    const denial = r.exitCode === 0 ? null : mountDenial(r.stderr);
+    if (denial !== null) return refused(denial);
+    if (r.timedOut) return { by: "hook", text: `${label} stopped after ${HOOK_TIMEOUT_SECONDS} s` };
     if (r.exitCode === 0) return undefined;
     const said = firstLine(r.stderr, r.stdout);
-    return `${label} exited ${r.exitCode}${said ? `: ${said}` : ""}`;
+    return { by: "hook", text: `${label} exited ${r.exitCode}${said ? `: ${said}` : ""}` };
   } catch (e) {
-    return `${label} could not run: ${String((e as Error)?.message ?? e).split("\n")[0]}`;
+    const message = String((e as Error)?.message ?? e);
+    const denial = mountDenial(message);
+    if (denial !== null) return refused(denial);
+    return { by: "hook", text: `${label} could not run: ${message.split("\n")[0]}` };
   }
 }
 
@@ -117,9 +137,16 @@ export function createToolCallbacks(guard: CallGuard, deps: ToolCallbackDeps): T
             }
             for (const hook of pre) {
               const failed = await runHooks(deps, hook, call.name, call.input);
+              if (failed?.by === "mount-check") {
+                deps.log?.info(`${guard.step}: the runtime's mount check refused pre-tool hook #${hook.n} for ${call.name}`);
+                return {
+                  deny: `${guard.step}: ${failed.text}\nThe call did not run: a hook's command line may name no path its ` +
+                    "program may not write; ask the user to change the hook.",
+                };
+              }
               if (failed !== undefined) {
                 deps.log?.info(`${guard.step}: pre-tool hook #${hook.n} refused ${call.name}`);
-                return { deny: `${guard.step}: refused by ${failed}\nThe call did not run: change it, or ask the user to fix the hook.` };
+                return { deny: `${guard.step}: refused by ${failed.text}\nThe call did not run: change it, or ask the user to fix the hook.` };
               }
             }
             return "allow";
@@ -132,7 +159,7 @@ export function createToolCallbacks(guard: CallGuard, deps: ToolCallbackDeps): T
           const notes: string[] = [];
           for (const hook of post) {
             const failed = await runHooks(deps, hook, call.name, call.input);
-            if (failed !== undefined) notes.push(`[${failed}]`);
+            if (failed !== undefined) notes.push(`[${failed.text}]`);
           }
           if (notes.length === 0) return undefined;
           deps.log?.warn(`${guard.step}: ${notes.length} post-tool hook(s) failed after ${call.name}`);

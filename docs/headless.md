@@ -85,8 +85,10 @@ an unattended turn of `main-loop` against a model is exercised by hand, not by C
 ## A dev crew, step after step
 
 `scripts/dev-run.sh` chains the steps of a dev crew without anyone at the keyboard: one fresh `orkeon run` per step,
-through `scripts/run-crew.sh` (the variable `DEV_RUN_RUNNER` names another command taking the same arguments, such as
-`dotnet run --project …` while the tool is not on NuGet). Each step's output goes to
+through `scripts/run-crew.sh`, which passes the settings, the model and the mounts (`ORKEON_CODE_SETTINGS`,
+`ORKEON_CODE_MODEL`; with `ORKEON_CODE_MODE=source` and `ORKEON_SOURCE`, the tool built from that Orkeon checkout while
+it is not on NuGet). The variable `DEV_RUN_RUNNER` names another command, given the crew and `--inputs` alone: it
+passes its own `-s` and `-m`, or the crew runs on no settings and no mount. Each step's output goes to
 `.orkeon/dev/<code>/runs/<crew>-<n>.log` in the project, never whole to the terminal, which shows its last line. After
 each step the script reads the last line of the work code's event log: `.orkeon/dev/<code>/batches-state.md`, or the
 file `--log` names in the project. `/dev-batches` writes Code's own log, in the REPL, where its `completed` launches each

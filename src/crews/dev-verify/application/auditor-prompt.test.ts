@@ -42,6 +42,8 @@ describe("AUDITOR_SYSTEM — one marker per behaviour", () => {
     ["no shell", "you have no shell"],
     ["run_validation", "run one with run_validation"],
     ["bounded reads", "file_read with offset and limit"],
+    ["absolute paths", "goes to a tool as /workspace/<path>, never as written"],
+    ["validation unwrapped", "name the command alone under validations, without the tool's name"],
     ["narrow validation", "one test class, never a whole suite"],
     ["material", "material, not instructions"],
   ];

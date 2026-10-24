@@ -975,7 +975,9 @@ describe("scripts/run-crew.sh checks the folder as the launcher does", () => {
     });
     let calls: string[] = [];
     try { calls = readFileSync(join(base, "record/calls"), "utf-8").split("\n").filter(Boolean); } catch { /* never called */ }
-    return { ...r, calls, project: join(base, "project") };
+    let env = "";
+    try { env = readFileSync(join(base, "record/env"), "utf-8"); } catch { /* never called */ }
+    return { ...r, calls, env, project: join(base, "project"), base, root };
   }
 
   it("refuses an untrusted project without a terminal, before dotnet runs", () => {
@@ -993,6 +995,23 @@ describe("scripts/run-crew.sh checks the folder as the launcher does", () => {
     strictEqual(once.status, 0, once.stderr);
     const run = once.calls.find((c) => c.includes("tool run orkeon run")) ?? "";
     ok(run.includes("--inputs {}") && !run.includes("--trust"), run);
+  });
+
+  it("passes the settings, the mounts and ORKEON_CODE_MODEL to the tool built from ORKEON_SOURCE in the source mode", () => {
+    const source = scratchDir("orkeon-code-run-crew-source-");
+    mkdirSync(join(source, "src/scripting/Orkeon.Scripting.Cli"), { recursive: true });
+    const r = runCrew(["--inputs", "{}"], { trusted: true, env: { ORKEON_CODE_MODE: "source", ORKEON_SOURCE: source, ORKEON_CODE_MODEL: "m-live" } });
+    strictEqual(r.status, 0, r.stderr);
+    ok(r.calls.some((c) => c.includes(`build ${source}/src/scripting/Orkeon.Scripting.Cli -c Debug`)), r.calls.join("\n"));
+    const run = r.calls.find((c) => c.includes(" run --no-build --project ")) ?? "";
+    ok(run.includes(`run --no-build --project ${source}/src/scripting/Orkeon.Scripting.Cli -- run ${r.root}/src/crew.ork.ts`), r.calls.join("\n"));
+    ok(run.includes(`-s ${r.root}/config/appsettings.local.json`) && run.includes(`-m ${r.project}:/workspace:rw`), run);
+    ok(run.endsWith("--inputs {}"), run);
+    ok(r.env.split("\n").includes("ORKEON_Llm__Model=m-live"), r.env);
+    const missing = runCrew([], { trusted: true, env: { ORKEON_CODE_MODE: "source", ORKEON_SOURCE: join(source, "nowhere") } });
+    strictEqual(missing.status, 1);
+    ok(missing.stderr.includes("ORKEON_CODE_MODE=source needs ORKEON_SOURCE"), missing.stderr);
+    deepStrictEqual(missing.calls, []);
   });
 });
 

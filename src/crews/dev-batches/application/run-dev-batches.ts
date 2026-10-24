@@ -139,7 +139,8 @@ export function batchNodes(dev: DevCode): BatchNode[] {
 
 /** What came of a batch the chain ran and did not close: the event logged, the line said. */
 function stopOf(dev: DevCode, batch: string, after: readonly string[]): { event: BatchEvent; detail: string } {
-  const blocked = after.map((l) => l.trim()).find((l) => l.startsWith("BLOCKED"));
+  // The audit's own BLOCKED line too: a GAPS verdict written by an audit the budget stopped names no correction.
+  const blocked = after.map((l) => l.trim().replace(/^dev-verify: (?=BLOCKED)/, "")).find((l) => l.startsWith("BLOCKED"));
   if (blocked !== undefined) return { event: "stopped", detail: `BLOCKED — ${blocked.replace(/^BLOCKED\s*—?\s*/, "")}` };
   const verdicts = dev.verdicts.filter((v) => v.batch === batch);
   const verdict = verdicts.length === 0 ? null : lastVerdict(verdicts[verdicts.length - 1].file);

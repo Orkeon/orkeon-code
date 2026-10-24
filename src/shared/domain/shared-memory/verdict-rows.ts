@@ -9,7 +9,7 @@
 // - Python's strip() and String.prototype.trim() disagree on U+FEFF, U+001C-U+001F and
 //   U+0085 at the edge of a cell;
 // - toLowerCase() and Python's lower() disagree on a few special casings (e.g. U+0130).
-import { AXES, parseVerdictFile } from "../dev/verdict-format.ts";
+import { AXES, isAuditUnfinishedGap, parseVerdictFile } from "../dev/verdict-format.ts";
 import type { Severity, VerdictFile } from "../dev/verdict-format.ts";
 import { sha1Hex } from "../sha1.ts";
 
@@ -61,7 +61,7 @@ function isLearnSeverity(severity: Severity): severity is LearnSeverity {
   return severity === "Blocking" || severity === "Major";
 }
 
-/** The learning rows of one parsed verdict file: GAPS sections only, Blocking/Major only. */
+/** The learning rows of one parsed verdict file: GAPS sections only, Blocking/Major only, an unfinished audit's row left out. */
 export function learnRowsOf(file: VerdictFile, code: string, name: string): LearnRow[] {
   const m = LEARN_FILE.exec(name);
   if (!m) return [];
@@ -71,7 +71,7 @@ export function learnRowsOf(file: VerdictFile, code: string, name: string): Lear
   for (const section of file.sections) {
     if (section.verdict !== "GAPS") continue;
     for (const r of section.rows) {
-      if (!isLearnSeverity(r.severity)) continue;
+      if (!isLearnSeverity(r.severity) || isAuditUnfinishedGap(r.gap)) continue;
       const axis = canonicalAxis(r.axis);
       out.push({
         id: rowId(batch, axis, r.gap), batch, severity: r.severity, axis,

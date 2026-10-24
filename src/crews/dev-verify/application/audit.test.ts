@@ -217,6 +217,44 @@ describe("recordingRunner and run_validation", () => {
     const out = await runAudit(f.deps, brief, FOLDER, SHOWN);
     ok(!out.ok);
     strictEqual(out.text, `dev-verify: BLOCKED — the step's budget is spent (toolCalls: Agent exceeded 200 tool calls.): ` +
-      `the capture stays in ${SHOWN}/; no verdict written`);
+      `the capture stays in ${SHOWN}/`);
+    deepStrictEqual(out.unfinished, { reason: "toolCalls: Agent exceeded 200 tool calls.", validations: [], notRun: [] });
+  });
+
+  it("keeps the validations run before the budget ran out, for the verdict, and writes them down", async () => {
+    const f = fakes();
+    const runner = recordingRunner(shellValidationRunner(f.shell, COMMANDS));
+    toolCalling(f.llm, runner, [[VALIDATION, "rm -rf /"]]);
+    f.shell.results[VALIDATION] = { exitCode: 0, stdout: "Passed!  - Failed: 0, Passed: 12\n" };
+    f.llm.answers = [new Error("Token budget exhausted (307528/300000).")];
+    const out = await runAudit({ ...f.deps, runner }, brief, FOLDER, SHOWN);
+    ok(!out.ok);
+    strictEqual(out.unfinished?.reason, "tokens: Token budget exhausted (307528/300000).");
+    deepStrictEqual(out.unfinished?.validations, [`\`${VALIDATION}\` — exit 0, scope LineTests, 12 tests`]);
+    strictEqual(out.unfinished?.notRun.length, 1);
+    ok((f.files.files.get(`${FOLDER}/validations.txt`) ?? "").startsWith(`$ ${VALIDATION}\nexit 0`));
+  });
+
+  it("gives no unfinished audit for a failure other than a spent budget", async () => {
+    const f = fakes();
+    f.llm.answers = [new Error("connection reset")];
+    const out = await runAudit(f.deps, brief, FOLDER, SHOWN);
+    ok(!out.ok);
+    strictEqual(out.unfinished, undefined);
+    ok(out.text.endsWith("no verdict written"), out.text);
+  });
+
+  it("runs once a validation the answer wraps in the tool's name after the tool ran it", async () => {
+    const f = fakes();
+    const runner = recordingRunner(shellValidationRunner(f.shell, COMMANDS));
+    toolCalling(f.llm, runner, [[VALIDATION]]);
+    f.shell.results[VALIDATION] = { exitCode: 0, stdout: "Passed!  - Failed: 0, Passed: 12\n" };
+    f.llm.answers = ["ran it"];
+    f.llm.extractions = [answer([`run_validation "${VALIDATION}"`])];
+    const out = await runAudit({ ...f.deps, runner }, brief, FOLDER, SHOWN);
+    ok(out.ok);
+    strictEqual(out.rounds, 1);
+    deepStrictEqual(f.shell.commands, [VALIDATION]);
+    deepStrictEqual(out.notRun, []);
   });
 });
