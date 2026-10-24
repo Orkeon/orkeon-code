@@ -6,6 +6,14 @@
 #   ./orkeon-code --demo                   # the throwaway fixture (scripts/setup-fixture.sh)
 #   ./orkeon-code --mode docker|tool|source [--settings FILE] [-- extra REPL args]
 #   ./orkeon-code --version                # Code's version, where it runs from, the Orkeon expected and found
+#   ./orkeon-code --trust                  # this run only, without asking (nothing stored)
+#   ./orkeon-code trust list | add <path> | remove <path> | check <path> [--trust]   # check: exit 0, 3 or 4
+#   ./orkeon-code setup                    # write ~/.orkeon-code/appsettings.json (never the key)
+#
+# Folder trust: the first start in a folder asks whether you trust it, before anything of it is read
+# or mounted; `y` stores it in ~/.orkeon-code/trusted-folders.json, and every folder below it starts
+# without asking. Without a terminal an untrusted folder is refused (exit 3) unless --trust is given,
+# or ORKEON_CODE_TRUST=1 with CI=true; neither stores anything. --demo trusts its own fixture.
 #
 # What runs: the Orkeon scripted-commands REPL (orkeon-repl) loads the slash
 # commands of src/commands and the crews of src/crews. The project is mounted on
@@ -25,7 +33,9 @@
 #   source  an Orkeon checkout named by ORKEON_SOURCE, built there with `dotnet build`, run from the project
 #
 # Settings: --settings, else ORKEON_CODE_SETTINGS, else config/appsettings.local.json (a clone),
-# else ${XDG_CONFIG_HOME:-~/.config}/orkeon-code/appsettings.json. Start from
+# else ~/.orkeon-code/appsettings.json, else ${XDG_CONFIG_HOME:-~/.config}/orkeon-code/appsettings.json
+# (the old place, read with a warning), else Orkeon's own ${XDG_CONFIG_HOME:-~/.config}/Orkeon/appsettings.json,
+# which the REPL then reads itself. None and a terminal: `setup` runs. Start from
 # config/appsettings.example.json. The API key stays in the environment: the
 # variable named by Llm:ApiKeyEnvVar, or ORKEON_Llm__ApiKey which wins.
 # ORKEON_CODE_MODEL overrides Llm:Model for this run.
@@ -34,6 +44,8 @@
 # Whisper MCP server of mcp/whisper is declared to the REPL, run by uv (mcp/whisper/README.md).
 # ORKEON_CODE_VOICE=1 also opens the microphone (/voice) and the speaker (/say, voice.reply).
 set -euo pipefail
+# A CDPATH from the caller would make cd print the folder it enters, into the paths read from it.
+unset CDPATH
 
 # Prints <path> with every symlink of its last component followed.
 resolve_links() { # <path>
@@ -78,11 +90,263 @@ runtime_found() {
   fi
 }
 
+# ── Folder trust ───────────────────────────────────────────────────────────
+# The store holds what the user trusted, one folder per line in the layout write_trust_store gives it: read
+# without node (docker mode needs none), any other layout is refused, never trusted and never rewritten.
+TRUST_FILE="$CODE_HOME/trusted-folders.json"
+
+# Prints the stored folders, `<path><TAB><trustedAt>` per line; exits 1, naming the file, on a store it cannot read.
+trust_entries() {
+  [ -s "$TRUST_FILE" ] || return 0
+  awk '
+    function bad() { failed = 1; exit 1 }
+    # A JSON string from its first character after the opening quote; sets STR and REST, 0 when it is not one.
+    function string(s,    i, c, n) {
+      STR = ""
+      for (i = 1; i <= length(s); i++) {
+        c = substr(s, i, 1)
+        if (c == "\"") { REST = substr(s, i + 1); return 1 }
+        if (c == "\\") {
+          n = substr(s, i + 1, 1)
+          if (n == "\\" || n == "\"" || n == "/") { STR = STR n; i++; continue }
+          return 0
+        }
+        if (c ~ /[[:cntrl:]]/) return 0
+        STR = STR c
+      }
+      return 0
+    }
+    { sub(/\r$/, "") }
+    /^[ \t]*$/ { next }
+    step == 0 { if ($0 !~ /^[ \t]*\{[ \t]*$/) bad(); step = 1; next }
+    step == 1 { if ($0 !~ /^[ \t]*"version"[ \t]*:[ \t]*1[ \t]*,[ \t]*$/) bad(); step = 2; next }
+    step == 2 {
+      if ($0 ~ /^[ \t]*"folders"[ \t]*:[ \t]*\[[ \t]*\][ \t]*$/) { step = 4; next }
+      if ($0 !~ /^[ \t]*"folders"[ \t]*:[ \t]*\[[ \t]*$/) bad(); step = 3; next
+    }
+    step == 3 && /^[ \t]*\][ \t]*$/ { if (count > 0 && comma) bad(); step = 4; next }
+    step == 3 {
+      if (count > 0 && !comma) bad()
+      line = $0
+      if (!sub(/^[ \t]*\{[ \t]*"path"[ \t]*:[ \t]*"/, "", line) || !string(line) || STR == "") bad()
+      path = STR; line = REST
+      if (!sub(/^[ \t]*,[ \t]*"trustedAt"[ \t]*:[ \t]*"/, "", line) || !string(line)) bad()
+      date = STR; line = REST
+      if (line ~ /^[ \t]*\}[ \t]*,[ \t]*$/) comma = 1
+      else if (line ~ /^[ \t]*\}[ \t]*$/) comma = 0
+      else bad()
+      count++; out[count] = path "\t" date; next
+    }
+    step == 4 { if ($0 !~ /^[ \t]*\}[ \t]*$/) bad(); step = 5; next }
+    { bad() }
+    END {
+      if (failed || step != 5) exit 1
+      for (i = 1; i <= count; i++) print out[i]
+    }
+  ' "$TRUST_FILE" || die "$TRUST_FILE is not a trust store this launcher wrote: nothing is trusted, and the file is kept as it is. Fix it, or move it away and trust your folders again (orkeon-code trust add <path>)."
+}
+
+# Writes the store from `<path><TAB><trustedAt>` lines on stdin: a temporary file, then a rename.
+write_trust_store() {
+  local entries=() line path date first=1 tmp
+  while IFS= read -r line; do [ -n "$line" ] && entries+=("$line"); done
+  [ -d "$CODE_HOME" ] || { mkdir -p "$CODE_HOME" && chmod 700 "$CODE_HOME"; } || die "could not create $CODE_HOME."
+  tmp="$TRUST_FILE.tmp.$$"
+  (
+    umask 077
+    {
+      printf '{\n  "version": 1,\n'
+      if [ ${#entries[@]} -eq 0 ]; then printf '  "folders": []\n'
+      else
+        printf '  "folders": [\n'
+        for line in "${entries[@]}"; do
+          path="${line%%$'\t'*}"; date="${line#*$'\t'}"
+          path="${path//\\/\\\\}"; path="${path//\"/\\\"}"
+          if [ "$first" = 1 ]; then first=0; else printf ',\n'; fi
+          printf '    { "path": "%s", "trustedAt": "%s" }' "$path" "$date"
+        done
+        printf '\n  ]\n'
+      fi
+      printf '}\n'
+    } > "$tmp"
+  ) && mv -f "$tmp" "$TRUST_FILE" || { rm -f "$tmp"; die "could not write $TRUST_FILE."; }
+}
+
+# The folder, physical (every symlink resolved), or nothing when it is not a folder.
+canonical_dir() { (cd "$1" 2>/dev/null && pwd -P); }
+
+# Prints the stored folder that covers <folder> (itself or an ancestor); 1 when none does.
+trusted_by() { # <canonical folder>
+  local entries path
+  entries="$(trust_entries)" || exit 1
+  while IFS= read -r path; do
+    path="${path%%$'\t'*}"
+    [ -n "$path" ] || continue
+    if [ "$path" = "$1" ] || [ "$path" = / ]; then printf '%s\n' "$path"; return 0; fi
+    case "$1" in "$path"/*) printf '%s\n' "$path"; return 0 ;; esac
+  done <<< "$entries"
+  return 1
+}
+
+trust_add() { # <canonical folder>
+  local entries
+  case "$1" in *[[:cntrl:]]*) die "a folder whose path holds a control character cannot be trusted: $1" ;; esac
+  entries="$(trust_entries)" || exit 1
+  { [ -n "$entries" ] && printf '%s\n' "$entries"; printf '%s\t%s\n' "$1" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"; } | write_trust_store
+}
+
+# Returns when <folder> may start: trusted, --trust or CI, or trusted now in a terminal; exits otherwise
+# (DECLINED on a decline, 0 for a start, 3 without a terminal). Nothing of the folder is read here.
+DECLINED=0
+ensure_trusted() { # <canonical folder> <1 when --trust was given>
+  local answer
+  if [ "$2" = 1 ] || { [ "${ORKEON_CODE_TRUST:-}" = 1 ] && [ "${CI:-}" = true ]; }; then return 0; fi
+  trusted_by "$1" >/dev/null && return 0
+  if [ ! -t 0 ]; then
+    echo "orkeon-code: $1 is not a trusted folder, and there is no terminal to ask in. Trust it once with" \
+      "'orkeon-code trust add $1', or pass --trust for this run only." >&2
+    exit 3
+  fi
+  {
+    echo "orkeon-code: do you trust the files in this folder?"
+    echo "  $1"
+    echo "  The agent reads its AGENTS.md, .orkeon/config.json and .orkeon/repo.yaml, may run the commands"
+    echo "  .orkeon/repo.yaml names, and git runs the folder's hooks through the shell."
+    if [ "$1" = / ] || [ "$1" = "$(canonical_dir "$HOME")" ]; then echo "  This trusts every folder below it."; fi
+    printf '[y] trust  [n] quit: '
+  } >&2
+  read -r answer || answer=""
+  case "$(lowered "$answer")" in
+    y|yes) trust_add "$1"; echo "orkeon-code: trusted $1 (orkeon-code trust remove $1 takes it back)." >&2 ;;
+    *) echo "orkeon-code: not trusted, nothing started." >&2; exit "$DECLINED" ;;
+  esac
+}
+
+if [ "${1:-}" = trust ]; then
+  shift
+  case "${1:-}" in
+    list)
+      entries="$(trust_entries)" || exit 1
+      if [ -n "$entries" ]; then
+        while IFS=$'\t' read -r path date; do printf '%s  (trusted %s)\n' "$path" "$date"; done <<< "$entries"
+      fi
+      exit 0 ;;
+    add)
+      entries="$(trust_entries)" || exit 1
+      folder="$(canonical_dir "${2:?trust add needs a folder}")" || die "not a folder: $2"
+      if by="$(trusted_by "$folder")"; then
+        if [ "$by" = "$folder" ]; then echo "orkeon-code: $folder is already trusted."; else echo "orkeon-code: $folder is already trusted, through $by."; fi
+        exit 0
+      fi
+      trust_add "$folder"; echo "orkeon-code: trusted $folder."; exit 0 ;;
+    remove)
+      target="${2:?trust remove needs a folder}"
+      target="$(canonical_dir "$target")" || { target="${2%/}"; [ -n "$target" ] || target=/; }
+      entries="$(trust_entries)" || exit 1
+      kept="$(printf '%s\n' "$entries" | TARGET="$target" awk -F '\t' '$0 != "" && $1 != ENVIRON["TARGET"]')" || true
+      if [ "$kept" = "$entries" ]; then
+        if by="$(trusted_by "$target")"; then die "$target is not in the store: it is trusted through $by."; fi
+        die "$target is not a trusted folder."
+      fi
+      printf '%s\n' "$kept" | write_trust_store; echo "orkeon-code: $target is no longer trusted."; exit 0 ;;
+    check) # 0: it may start; 3: refused, no terminal; 4: declined in the terminal (scripts/run-crew.sh).
+      DECLINED=4
+      folder="$(canonical_dir "${2:?trust check needs a folder}")" || die "not a folder: $2"
+      ensure_trusted "$folder" "$([ "${3:-}" = --trust ] && echo 1 || echo 0)"; exit 0 ;;
+    *) die "usage: orkeon-code trust list | add <path> | remove <path> | check <path> [--trust]" ;;
+  esac
+fi
+
+# ── Settings: where they are looked for, and setup ─────────────────────────
+# The XDG base the runtime itself uses (an absolute XDG_CONFIG_HOME, else ~/.config).
+case "${XDG_CONFIG_HOME:-}" in /*) CONFIG_BASE="$XDG_CONFIG_HOME" ;; *) CONFIG_BASE="$HOME/.config" ;; esac
+HOME_SETTINGS="$CODE_HOME/appsettings.json"
+LEGACY_SETTINGS="$CONFIG_BASE/orkeon-code/appsettings.json"
+# What `orkeon init` writes and the REPL reads when no --settings is given (RunnerSettings.GetGlobalSettingsPath).
+RUNTIME_SETTINGS="$CONFIG_BASE/Orkeon/appsettings.json"
+
+# Asks one line on the terminal; the answer, trimmed, or <default> when it is empty; 1 on end of input.
+ask() { # <question> <default>
+  local answer
+  printf '%s' "$1" >&2
+  read -r answer || return 1
+  answer="$(printf '%s' "$answer" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+  printf '%s\n' "${answer:-$2}"
+}
+
+# Writes $HOME_SETTINGS from one of the examples, with the model and the name of the key's variable asked on
+# the terminal; never the key. 1 when the user stops or keeps the existing file.
+run_setup() {
+  local answer example model var default_model default_var tmp
+  [ -t 0 ] || die "setup asks its questions in a terminal: run 'orkeon-code setup' in one."
+  if [ -f "$HOME_SETTINGS" ]; then
+    answer="$(ask "orkeon-code: $HOME_SETTINGS exists. Replace it? [y/N] " n)" || answer=n
+    case "$(lowered "$answer")" in y|yes) ;; *) echo "orkeon-code: $HOME_SETTINGS kept." >&2; return 1 ;; esac
+  fi
+  {
+    echo "orkeon-code setup: the settings go to $HOME_SETTINGS. The API key never does: only the name of the"
+    echo "environment variable that holds it."
+    echo "  [1] a hosted, OpenAI-compatible endpoint (config/appsettings.example.json: DeepSeek)"
+    echo "  [2] Ollama on this machine, no key (config/appsettings.ollama.example.json)"
+  } >&2
+  while :; do
+    answer="$(ask "Provider [1]: " 1)" || return 1
+    case "$answer" in
+      1) example="$ROOT/config/appsettings.example.json"; break ;;
+      2) example="$ROOT/config/appsettings.ollama.example.json"; break ;;
+      *) echo "orkeon-code: answer 1 or 2." >&2 ;;
+    esac
+  done
+  [ -f "$example" ] || die "$example not found."
+  default_model="$(sed -n 's/^[[:space:]]*"Model"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$example" | head -n 1)"
+  default_var="$(sed -n 's/.*"ApiKeyEnvVar"[[:space:]]*:[[:space:]]*"\([A-Za-z_][A-Za-z0-9_]*\)".*/\1/p' "$example" | head -n 1)"
+  while :; do
+    model="$(ask "Model [$default_model]: " "$default_model")" || return 1
+    # Never said back, and refused when it looks like a key: a key pasted at the wrong question.
+    if [[ "$model" =~ ^[A-Za-z0-9._:/@+-]+$ ]] && ! [[ "$model" =~ ^sk- ]] && ! [[ "$model" =~ ^[A-Za-z0-9_-]{32,}$ ]]; then break; fi
+    echo "orkeon-code: that is not a model id (letters, digits and . _ : / @ + -, not a key)." >&2
+  done
+  var=""
+  if [ -n "$default_var" ]; then
+    while :; do
+      var="$(ask "Name of the environment variable that holds the API key [$default_var]: " "$default_var")" || return 1
+      if [[ "$var" =~ ^[A-Z_][A-Z0-9_]{0,63}$ ]]; then break; fi
+      # Never said back: what was typed may be the key itself.
+      echo "orkeon-code: that is not a variable name (capitals, digits and _). Type the name of the variable, never the key." >&2
+    done
+  fi
+  [ -d "$CODE_HOME" ] || { mkdir -p "$CODE_HOME" && chmod 700 "$CODE_HOME"; } || die "could not create $CODE_HOME."
+  tmp="$HOME_SETTINGS.tmp.$$"
+  (
+    umask 077
+    MODEL="$model" KEY_VAR="$var" awk '
+      !c && /^[ \t]*"_comment"[ \t]*:/ {
+        print "  \"_comment\": \"Written by orkeon-code setup. The API key never goes in this file: ApiKeyEnvVar names the environment variable that holds it, and ORKEON_Llm__ApiKey, when set, wins over everything. Every key is explained in docs/configuration.md.\","
+        c = 1; next
+      }
+      !m && /^[ \t]*"Model"[ \t]*:/ { sub(/"Model"[ \t]*:[ \t]*"[^"]*"/, "\"Model\": \"" ENVIRON["MODEL"] "\""); m = 1 }
+      !k && ENVIRON["KEY_VAR"] != "" && /^[ \t]*"ApiKeyEnvVar"[ \t]*:/ {
+        sub(/"ApiKeyEnvVar"[ \t]*:[ \t]*"[^"]*"/, "\"ApiKeyEnvVar\": \"" ENVIRON["KEY_VAR"] "\""); k = 1
+      }
+      { print }
+    ' "$example" > "$tmp"
+  ) && chmod 600 "$tmp" && mv -f "$tmp" "$HOME_SETTINGS" || { rm -f "$tmp"; die "could not write $HOME_SETTINGS."; }
+  echo "orkeon-code: wrote $HOME_SETTINGS (model $model, mode 600)." >&2
+  if [ -n "$var" ]; then echo "orkeon-code: export the key before you start: export $var=<your key>" >&2; fi
+  return 0
+}
+
+if [ "${1:-}" = setup ]; then
+  run_setup || exit 1
+  exit 0
+fi
+
 MODE="${ORKEON_CODE_MODE:-}"
 WORKSPACE=""
 SETTINGS="${ORKEON_CODE_SETTINGS:-}"
 DEMO=0
 VERSION_ONLY=0
+TRUST_FLAG=0
 EXTRA=()
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -94,6 +358,7 @@ while [ $# -gt 0 ]; do
     --settings=*) SETTINGS="${1#*=}"; shift ;;
     --demo) DEMO=1; shift ;;
     --version) VERSION_ONLY=1; shift ;;
+    --trust) TRUST_FLAG=1; shift ;;
     -h|--help) awk 'NR > 1 && /^set -euo pipefail/ { exit } NR > 1' "$SELF" | sed 's/^# \{0,1\}//'; exit 0 ;;
     --) shift; EXTRA=("$@"); break ;;
     *) EXTRA+=("$1"); shift ;;
@@ -111,22 +376,34 @@ if [ "$DEMO" = 1 ]; then
   if [ "$KIND" = clone ]; then WORKSPACE="$ROOT/fixtures/sample-repo"; else WORKSPACE="$CODE_HOME/demo/sample-repo"; fi
   bash "$ROOT/scripts/setup-fixture.sh" "$WORKSPACE" >/dev/null
 fi
-WORKSPACE="$(cd "${WORKSPACE:-$PWD}" 2>/dev/null && pwd)" || die "workspace not found: ${WORKSPACE:-$PWD}"
+# Physical: the folder checked, stored and mounted is the same one, whatever link led to it.
+WORKSPACE="$(canonical_dir "${WORKSPACE:-$PWD}")" || die "workspace not found: ${WORKSPACE:-$PWD}"
+# Before anything of the project is read or mounted; the demo fixture is the launcher's own.
+if [ "$DEMO" = 0 ]; then ensure_trusted "$WORKSPACE" "$TRUST_FLAG"; fi
 
 # ── Settings ───────────────────────────────────────────────────────────────
-USER_SETTINGS="${XDG_CONFIG_HOME:-$HOME/.config}/orkeon-code/appsettings.json"
+# RUNTIME_OWN=1: Orkeon's own file, which the REPL reads itself when no --settings is passed.
+RUNTIME_OWN=0
 if [ -z "$SETTINGS" ]; then
-  cands=("$USER_SETTINGS")
-  if [ "$KIND" = clone ]; then cands=("$ROOT/config/appsettings.local.json" "$USER_SETTINGS"); fi
+  cands=("$HOME_SETTINGS" "$LEGACY_SETTINGS")
+  if [ "$KIND" = clone ]; then cands=("$ROOT/config/appsettings.local.json" "${cands[@]}"); fi
   for cand in "${cands[@]}"; do
     if [ -f "$cand" ]; then SETTINGS="$cand"; break; fi
   done
+  if [ -z "$SETTINGS" ] && [ -f "$RUNTIME_SETTINGS" ]; then SETTINGS="$RUNTIME_SETTINGS"; RUNTIME_OWN=1; fi
+  if [ "$SETTINGS" = "$LEGACY_SETTINGS" ]; then
+    warn "$LEGACY_SETTINGS is the old place of the settings: move it to $HOME_SETTINGS."
+  fi
+  if [ -z "$SETTINGS" ] && [ -t 0 ]; then
+    echo "orkeon-code: no settings file yet." >&2
+    if run_setup; then SETTINGS="$HOME_SETTINGS"; fi
+  fi
 fi
 if [ -z "$SETTINGS" ] || [ ! -f "$SETTINGS" ]; then
   if [ "$KIND" = clone ]; then
-    die "no settings file. Copy config/appsettings.example.json to config/appsettings.local.json, or pass --settings FILE."
+    die "no settings file. Run 'orkeon-code setup' in a terminal, copy config/appsettings.example.json to config/appsettings.local.json, or pass --settings FILE."
   fi
-  die "no settings file. Copy $ROOT/config/appsettings.example.json to $USER_SETTINGS, or pass --settings FILE."
+  die "no settings file. Run 'orkeon-code setup' in a terminal, copy $ROOT/config/appsettings.example.json to $HOME_SETTINGS, or pass --settings FILE."
 fi
 SETTINGS="$(cd "$(dirname "$SETTINGS")" && pwd)/$(basename "$SETTINGS")"
 
@@ -217,7 +494,7 @@ fi
 
 echo "orkeon-code $CODE_VERSION on Orkeon $ORKEON_VERSION ($MODE)"
 echo "  project  : $WORKSPACE -> /workspace"
-echo "  settings : $SETTINGS"
+if [ "$RUNTIME_OWN" = 1 ]; then echo "  settings : $SETTINGS (Orkeon's own, read by the REPL)"; else echo "  settings : $SETTINGS"; fi
 if [ -n "$AUDIO" ]; then
   model="${WHISPER_MODEL:-$([ "$stt_backend" = openai ] && echo whisper-1 || echo small)}"
   echo "  audio    : $AUDIO -> /audio (transcripts: $STATE/transcripts, model $model$([ "$(lowered "${WHISPER_DEVICE:-}")" = cuda ] && echo ' on the GPU')$([ "${ORKEON_CODE_VOICE:-}" = 1 ] && echo ', microphone and speaker on'))"
@@ -237,9 +514,11 @@ elif grep -q '"orkeonCode"' "$SETTINGS"; then
 fi
 
 # Sets ARGS. A function filling an array rather than mapfile: macOS ships bash 3.2.
+# An empty <settings> passes none: the REPL then reads Orkeon's own file.
 repl_args() { # <commands> <crews> <settings> <workspace> <output> <tmp> <user-config>
-  ARGS=(--runner=scripted-commands --commands-dir "$1" --crews-dir "$2" --settings "$3"
-    --mount "$4:/workspace:rw" --mount "$5:/output:rw" --mount "$6:/tmp:rw" --mount "$7:/user-config:ro")
+  ARGS=(--runner=scripted-commands --commands-dir "$1" --crews-dir "$2")
+  if [ -n "$3" ]; then ARGS+=(--settings "$3"); fi
+  ARGS+=(--mount "$4:/workspace:rw" --mount "$5:/output:rw" --mount "$6:/tmp:rw" --mount "$7:/user-config:ro")
 }
 
 case "$MODE" in
@@ -312,7 +591,7 @@ case "$MODE" in
     # ORKEON_ALLOW_EXTERNAL_MOUNTS (Orkeon GAP-49). The four roots are distinct, and
     # none is one the REPL keeps (/sandbox, /credentials, /cli-commands..., /crews...).
     export ORKEON_ALLOW_EXTERNAL_MOUNTS=1
-    repl_args "$ROOT/src/commands" "$ROOT/src/crews" "$SETTINGS" \
+    repl_args "$ROOT/src/commands" "$ROOT/src/crews" "$([ "$RUNTIME_OWN" = 1 ] || echo "$SETTINGS")" \
       "$WORKSPACE" "$STATE/output" "$STATE/tmp" "$USER_CONFIG_DIR"
     cd "$WORKSPACE"
     exec "${REPL[@]}" "${ARGS[@]}" ${AUDIO_ARGS[@]+"${AUDIO_ARGS[@]}"} ${EXTRA[@]+"${EXTRA[@]}"}

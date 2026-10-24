@@ -12,7 +12,13 @@
 # config/appsettings.local.json. The tool is Orkeon.Scripting.Cli from nuget.org,
 # pinned by .config/dotnet-tools.json; without a .NET SDK the orkeon-runners
 # image is used instead.
+#
+# A project named by ORKEON_CODE_WORKSPACE must be a trusted folder, as for ./orkeon-code (which
+# checks it: `orkeon-code trust check`): asked in a terminal, refused without one (exit 3) unless
+# --trust is given among the arguments (this run only, taken out of what orkeon run gets) or
+# ORKEON_CODE_TRUST=1 with CI=true. The demo fixture is this checkout's own.
 set -euo pipefail
+unset CDPATH
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VERSION="$(tr -d '[:space:]' < "$ROOT/.orkeon-version")"
 
@@ -20,6 +26,12 @@ script="${1:?usage: scripts/run-crew.sh <crew.ork.ts> [orkeon run args]}"
 shift
 script="$(cd "$(dirname "$script")" && pwd)/$(basename "$script")"
 [ -f "$script" ] || { echo "run-crew: not found: $script" >&2; exit 1; }
+trust=""
+args=()
+for a in "$@"; do
+  if [ "$a" = --trust ]; then trust=--trust; else args+=("$a"); fi
+done
+set -- ${args[@]+"${args[@]}"}
 
 settings="${ORKEON_CODE_SETTINGS:-$ROOT/config/appsettings.local.json}"
 [ -f "$settings" ] || { echo "run-crew: settings not found: $settings (start from config/appsettings.example.json)" >&2; exit 1; }
@@ -27,7 +39,12 @@ if [ -z "${ORKEON_CODE_WORKSPACE:-}" ]; then
   bash "$ROOT/scripts/setup-fixture.sh" >/dev/null
   workspace="$ROOT/fixtures/sample-repo"
 else
-  workspace="$(cd "$ORKEON_CODE_WORKSPACE" && pwd)"
+  workspace="$(cd "$ORKEON_CODE_WORKSPACE" && pwd -P)"
+  # Before anything of the project is read or mounted.
+  # 0: it may start; 3: refused, no terminal; 4: declined, so nothing runs and the exit is 0.
+  rc=0
+  bash "$ROOT/orkeon-code" trust check "$workspace" $trust || rc=$?
+  case "$rc" in 0) ;; 4) exit 0 ;; *) exit "$rc" ;; esac
 fi
 output="${ORKEON_CODE_STATE:-$ROOT/.crew-output}/output"
 mkdir -p "$output"

@@ -7,27 +7,41 @@
   .\orkeon-code.ps1                              # the current directory is the project
   .\orkeon-code.ps1 -Workspace C:\src\app
   .\orkeon-code.ps1 -Mode docker -Settings .\config\appsettings.local.json
+  .\orkeon-code.ps1 -Trust                       # this run only, without asking (nothing stored)
+  .\orkeon-code.ps1 trust list | add <path> | remove <path> | check <path> [--trust]
+  .\orkeon-code.ps1 setup                        # write %USERPROFILE%\.orkeon-code\appsettings.json (never the key)
 
 .NOTES
   Modes: tool (orkeon-repl on PATH, from the full Orkeon release .zip (the .msi has no orkeon-repl), the
   Debian package or the dotnet tool, or $env:ORKEON_REPL) and docker
   (ghcr.io/orkeon/orkeon-runners:<.orkeon-version>). The source mode is only in the
-  bash launcher. Settings, API key, model and $env:ORKEON_CODE_AUDIO_DIR (speech-to-text, tool mode):
-  see the header of ./orkeon-code.
+  bash launcher. Folder trust, settings, API key, model and $env:ORKEON_CODE_AUDIO_DIR (speech-to-text,
+  tool mode): see the header of ./orkeon-code.
 #>
-[CmdletBinding()]
+# No positional binding: a bare word (trust, setup, a REPL argument) lands in $Extra, never in -Mode.
+[CmdletBinding(PositionalBinding = $false)]
 param(
   [ValidateSet('', 'docker', 'tool')] [string] $Mode = $env:ORKEON_CODE_MODE,
   [string] $Workspace = (Get-Location).Path,
   [string] $Settings = $env:ORKEON_CODE_SETTINGS,
   [switch] $Version,
+  [switch] $Trust,
   [Parameter(ValueFromRemainingArguments = $true)] [string[]] $Extra = @()
 )
 $ErrorActionPreference = 'Stop'
 
+# A subcommand of ./orkeon-code (trust, setup) is the first argument, and takes the rest as its own.
+$Sub = $null
+$SubArgs = @()
+if ($Extra.Count -gt 0 -and $Extra[0] -cin @('trust', 'setup')) {
+  $Sub = $Extra[0]
+  $SubArgs = @($Extra | Select-Object -Skip 1)
+  $Extra = @()
+}
+
 # The long options of ./orkeon-code, as a .cmd wrapper passes them (%*): --settings x, --settings=x, --workspace,
-# --mode and --version bind the parameters above; a -- left in the arguments is dropped, and what follows it goes
-# to the REPL as is.
+# --mode, --version and --trust bind the parameters above; a -- left in the arguments is dropped, and what follows
+# it goes to the REPL as is.
 $rest = @()
 for ($i = 0; $i -lt $Extra.Count; $i++) {
   $a = $Extra[$i]
@@ -38,6 +52,7 @@ for ($i = 0; $i -lt $Extra.Count; $i++) {
   $name = $a; $value = $null
   if ($a -match '^(--(?:settings|workspace|mode))=(.*)$') { $name = $Matches[1]; $value = $Matches[2] }
   if ($name -eq '--version') { $Version = [switch] $true }
+  elseif ($name -eq '--trust') { $Trust = [switch] $true }
   elseif ($name -in @('--settings', '--workspace', '--mode')) {
     if ($null -eq $value) {
       if ($i + 1 -ge $Extra.Count) { throw "$name needs a value." }
@@ -49,6 +64,219 @@ for ($i = 0; $i -lt $Extra.Count; $i++) {
   } else { $rest += $a }
 }
 $Extra = $rest
+
+# ── Folder trust (as ./orkeon-code: the same store, the same layout, the same answers) ──
+# Windows compares paths without case; elsewhere as they are.
+$onWindows = [Environment]::OSVersion.Platform -eq 'Win32NT'
+
+function Get-TrustFile { Join-Path $CodeHome 'trusted-folders.json' }
+
+# The stored folders, as { Path; TrustedAt }; throws, naming the file, on a store it cannot read. The layout is
+# the one Write-TrustStore gives, checked line by line as ./orkeon-code's awk does (no ConvertFrom-Json: pwsh 7 would
+# turn the dates into DateTime, and would take a layout the bash launcher refuses).
+function Get-TrustEntries {
+  $file = Get-TrustFile
+  if (-not (Test-Path -LiteralPath $file) -or (Get-Item -LiteralPath $file).Length -eq 0) { return }
+  $bad = "$file is not a trust store this launcher wrote: nothing is trusted, and the file is kept as it is. " +
+         'Fix it, or move it away and trust your folders again (orkeon-code trust add <path>).'
+  $str = '"((?:[^"\\\x00-\x1f]|\\["\\/])*)"'
+  $entry = '^[ \t]*\{[ \t]*"path"[ \t]*:[ \t]*' + $str + '[ \t]*,[ \t]*"trustedAt"[ \t]*:[ \t]*' + $str + '[ \t]*\}[ \t]*(,?)[ \t]*$'
+  $unescape = { param($v) [regex]::Replace($v, '\\(["\\/])', '$1') }
+  $lines = @([System.IO.File]::ReadAllLines($file) | ForEach-Object { $_ -replace "`r$", '' } | Where-Object { $_ -notmatch '^[ \t]*$' })
+  $out = @()
+  $step = 0; $comma = $false
+  foreach ($line in $lines) {
+    switch ($step) {
+      0 { if ($line -cnotmatch '^[ \t]*\{[ \t]*$') { throw $bad }; $step = 1 }
+      1 { if ($line -cnotmatch '^[ \t]*"version"[ \t]*:[ \t]*1[ \t]*,[ \t]*$') { throw $bad }; $step = 2 }
+      2 {
+        if ($line -cmatch '^[ \t]*"folders"[ \t]*:[ \t]*\[[ \t]*\][ \t]*$') { $step = 4 }
+        elseif ($line -cmatch '^[ \t]*"folders"[ \t]*:[ \t]*\[[ \t]*$') { $step = 3 }
+        else { throw $bad }
+      }
+      3 {
+        if ($line -cmatch '^[ \t]*\][ \t]*$') { if ($out.Count -gt 0 -and $comma) { throw $bad }; $step = 4 }
+        else {
+          if ($out.Count -gt 0 -and -not $comma) { throw $bad }
+          $m = [regex]::Match($line, $entry)
+          if (-not $m.Success -or -not $m.Groups[1].Value) { throw $bad }
+          $out += [pscustomobject]@{ Path = (& $unescape $m.Groups[1].Value); TrustedAt = (& $unescape $m.Groups[2].Value) }
+          $comma = $m.Groups[3].Value -eq ','
+        }
+      }
+      4 { if ($line -cnotmatch '^[ \t]*\}[ \t]*$') { throw $bad }; $step = 5 }
+      default { throw $bad }
+    }
+  }
+  if ($step -ne 5) { throw $bad }
+  $out
+}
+
+# Readable and writable by the user alone where modes exist: SetUnixFileMode from .NET 7 (PowerShell 7.3), else chmod.
+function Set-OwnerOnly([string] $path, [string] $mode) {
+  if ($onWindows) { return }
+  try { [System.IO.File]::SetUnixFileMode($path, $(if ($mode -eq '700') { 'UserRead, UserWrite, UserExecute' } else { 'UserRead, UserWrite' })) }
+  catch { & chmod $mode -- $path 2>$null }
+}
+
+# Writes the store in ./orkeon-code's layout, one folder per line: a temporary file, then a rename.
+function Write-TrustStore($entries) {
+  $file = Get-TrustFile
+  if (-not (Test-Path -LiteralPath $CodeHome)) { New-Item -ItemType Directory -Force -Path $CodeHome | Out-Null; Set-OwnerOnly $CodeHome '700' }
+  $escape = { param($s) ($s -replace '\\', '\\') -replace '"', '\"' }
+  $lines = @($entries | ForEach-Object { '    { "path": "' + (& $escape $_.Path) + '", "trustedAt": "' + (& $escape $_.TrustedAt) + '" }' })
+  $folders = if ($lines.Count -eq 0) { "  `"folders`": []`n" } else { "  `"folders`": [`n" + ($lines -join ",`n") + "`n  ]`n" }
+  $tmp = "$file.tmp.$PID"
+  [System.IO.File]::WriteAllText($tmp, "{`n  `"version`": 1,`n$folders}`n")
+  Set-OwnerOnly $tmp '600'
+  Move-Item -LiteralPath $tmp -Destination $file -Force
+}
+
+# The folder, full and with every link on its path resolved (bash's `pwd -P`), or $null when it is not a folder
+# or a link on its path cannot be resolved.
+function Get-CanonicalDir([string] $path) {
+  $item = Get-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue
+  if (-not $item -or -not $item.PSIsContainer) { return $null }
+  $full = $item.FullName
+  if (-not $onWindows) {
+    $real = & sh -c 'cd -- "$1" && pwd -P' sh $full 2>$null
+    if ($LASTEXITCODE -ne 0 -or -not $real) { return $null }
+    return "$real"
+  }
+  # Windows: each component in turn; a link (symbolic link, junction) replaces the path up to it by its target.
+  for ($n = 0; $n -lt 40; $n++) {
+    $full = [System.IO.Path]::GetFullPath($full)
+    $root = [System.IO.Path]::GetPathRoot($full)
+    $parts = @($full.Substring($root.Length).Split([char[]] @('\', '/'), [StringSplitOptions]::RemoveEmptyEntries))
+    $cur = $root
+    $changed = $false
+    for ($i = 0; $i -lt $parts.Count; $i++) {
+      $cur = Join-Path $cur $parts[$i]
+      $link = Get-Item -LiteralPath $cur -Force -ErrorAction SilentlyContinue
+      if ($link -and $link.LinkType) {
+        $target = "$(@($link.Target)[0])" -replace '^\\\\\?\\', ''
+        if (-not $target) { return $null }
+        if (-not [System.IO.Path]::IsPathRooted($target)) { $target = Join-Path (Split-Path $cur -Parent) $target }
+        $full = if ($i + 1 -lt $parts.Count) { Join-Path $target ($parts[($i + 1)..($parts.Count - 1)] -join '\') } else { $target }
+        $changed = $true
+        break
+      }
+    }
+    if (-not $changed) {
+      if ($full.Length -gt $root.Length) { $full = $full.TrimEnd('\', '/') }
+      return $full
+    }
+  }
+  $null
+}
+
+# The stored folder that covers <folder> (itself or an ancestor), or $null.
+function Get-TrustedBy([string] $folder) {
+  $cmp = if ($onWindows) { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }
+  $sep = [string] [System.IO.Path]::DirectorySeparatorChar
+  foreach ($e in @(Get-TrustEntries)) {
+    if ([string]::Equals($e.Path, $folder, $cmp)) { return $e.Path }
+    $prefix = if ($e.Path.EndsWith($sep)) { $e.Path } else { $e.Path + $sep }  # a root (/, C:\) ends with one already
+    if ($folder.StartsWith($prefix, $cmp)) { return $e.Path }
+  }
+  $null
+}
+
+function Add-TrustedFolder([string] $folder) {
+  if ($folder -match '[\x00-\x1f]') { throw "A folder whose path holds a control character cannot be trusted: $folder" }
+  $entries = @(Get-TrustEntries)
+  Write-TrustStore ($entries + [pscustomobject]@{ Path = $folder; TrustedAt = [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ') })
+}
+
+# Returns when <folder> may start: trusted, -Trust or CI, or trusted now in a terminal; exits otherwise
+# (<declined> on a decline, 3 without a terminal). Nothing of the folder is read here.
+function Confirm-Trusted([string] $folder, [bool] $given, [int] $declined) {
+  if ($given -or ($env:ORKEON_CODE_TRUST -eq '1' -and $env:CI -ceq 'true')) { return }
+  if (Get-TrustedBy $folder) { return }
+  if ([Console]::IsInputRedirected) {
+    [Console]::Error.WriteLine("orkeon-code: $folder is not a trusted folder, and there is no terminal to ask in. Trust it once with " +
+                               "'orkeon-code trust add $folder', or pass --trust for this run only.")
+    exit 3
+  }
+  [Console]::Error.WriteLine('orkeon-code: do you trust the files in this folder?')
+  [Console]::Error.WriteLine("  $folder")
+  [Console]::Error.WriteLine('  The agent reads its AGENTS.md, .orkeon/config.json and .orkeon/repo.yaml, may run the commands')
+  [Console]::Error.WriteLine("  .orkeon/repo.yaml names, and git runs the folder's hooks through the shell.")
+  if ([System.IO.Path]::GetPathRoot($folder) -eq $folder -or $folder -eq (Get-CanonicalDir $HOME)) {
+    [Console]::Error.WriteLine('  This trusts every folder below it.')
+  }
+  [Console]::Error.Write('[y] trust  [n] quit: ')
+  $answer = [Console]::In.ReadLine()
+  if ("$answer".Trim().ToLowerInvariant() -in @('y', 'yes')) {
+    Add-TrustedFolder $folder
+    [Console]::Error.WriteLine("orkeon-code: trusted $folder (orkeon-code trust remove $folder takes it back).")
+  } else {
+    [Console]::Error.WriteLine('orkeon-code: not trusted, nothing started.')
+    exit $declined
+  }
+}
+
+# ── Settings: setup (as ./orkeon-code setup; the key is never asked) ──
+# One line asked on the terminal: the answer, trimmed, or <default> when empty; $null at the end of input.
+function Read-Answer([string] $question, [string] $default) {
+  [Console]::Error.Write($question)
+  $answer = [Console]::In.ReadLine()
+  if ($null -eq $answer) { return $null }
+  $answer = $answer.Trim()
+  if ($answer) { $answer } else { $default }
+}
+
+# Writes <target> from one of the examples, with the model and the name of the key's variable; $false when the
+# user stops or keeps the existing file.
+function Invoke-Setup([string] $target) {
+  if ([Console]::IsInputRedirected) { throw "setup asks its questions in a terminal: run 'orkeon-code setup' in one." }
+  if (Test-Path -LiteralPath $target) {
+    $answer = Read-Answer "orkeon-code: $target exists. Replace it? [y/N] " 'n'
+    if ("$answer".ToLowerInvariant() -notin @('y', 'yes')) { [Console]::Error.WriteLine("orkeon-code: $target kept."); return $false }
+  }
+  [Console]::Error.WriteLine("orkeon-code setup: the settings go to $target. The API key never does: only the name of the")
+  [Console]::Error.WriteLine('environment variable that holds it.')
+  [Console]::Error.WriteLine('  [1] a hosted, OpenAI-compatible endpoint (config/appsettings.example.json: DeepSeek)')
+  [Console]::Error.WriteLine('  [2] Ollama on this machine, no key (config/appsettings.ollama.example.json)')
+  while ($true) {
+    $answer = Read-Answer 'Provider [1]: ' '1'
+    if ($null -eq $answer) { return $false }
+    if ($answer -eq '1') { $example = Join-Path $Root 'config/appsettings.example.json'; break }
+    if ($answer -eq '2') { $example = Join-Path $Root 'config/appsettings.ollama.example.json'; break }
+    [Console]::Error.WriteLine('orkeon-code: answer 1 or 2.')
+  }
+  $settings = Get-Content -LiteralPath $example -Raw -Encoding UTF8 | ConvertFrom-Json
+  $defaultVar = $settings.Llm.ApiKeyEnvVar
+  while ($true) {
+    $model = Read-Answer "Model [$($settings.Llm.Model)]: " $settings.Llm.Model
+    if ($null -eq $model) { return $false }
+    # Never said back, and refused when it looks like a key: a key pasted at the wrong question.
+    if ($model -cmatch '^[A-Za-z0-9._:/@+-]+$' -and $model -cnotmatch '^sk-' -and $model -cnotmatch '^[A-Za-z0-9_-]{32,}$') { break }
+    [Console]::Error.WriteLine('orkeon-code: that is not a model id (letters, digits and . _ : / @ + -, not a key).')
+  }
+  $var = $null
+  if ($defaultVar) {
+    while ($true) {
+      $var = Read-Answer "Name of the environment variable that holds the API key [$defaultVar]: " $defaultVar
+      if ($null -eq $var) { return $false }
+      if ($var -cmatch '^[A-Z_][A-Z0-9_]{0,63}$') { break }
+      # Never said back: what was typed may be the key itself.
+      [Console]::Error.WriteLine('orkeon-code: that is not a variable name (capitals, digits and _). Type the name of the variable, never the key.')
+    }
+    $settings.Llm.ApiKeyEnvVar = $var
+  }
+  $settings.Llm.Model = $model
+  $settings._comment = 'Written by orkeon-code setup. The API key never goes in this file: ApiKeyEnvVar names the environment ' +
+                       'variable that holds it, and ORKEON_Llm__ApiKey, when set, wins over everything. Every key is explained in docs/configuration.md.'
+  if (-not (Test-Path -LiteralPath $CodeHome)) { New-Item -ItemType Directory -Force -Path $CodeHome | Out-Null; Set-OwnerOnly $CodeHome '700' }
+  $tmp = "$target.tmp.$PID"
+  [System.IO.File]::WriteAllText($tmp, ($settings | ConvertTo-Json -Depth 20) + "`n")
+  Set-OwnerOnly $tmp '600'
+  Move-Item -LiteralPath $tmp -Destination $target -Force
+  [Console]::Error.WriteLine("orkeon-code: wrote $target (model $model).")
+  if ($var) { [Console]::Error.WriteLine("orkeon-code: set the key before you start: `$env:$var = '<your key>'") }
+  $true
+}
 
 # The variables set below for the REPL are put back as they were when the script ends, so that none of them stays
 # in the PowerShell session that ran it.
@@ -75,6 +303,64 @@ try {
   $IsClone = Test-Path (Join-Path $Root '.git')
   if (-not $IsClone) { $IsClone = Test-Path (Join-Path $Root 'tests') -PathType Container }
   $CodeHome = if ($env:ORKEON_CODE_HOME) { $env:ORKEON_CODE_HOME } else { Join-Path $HOME '.orkeon-code' }
+  # Where the settings are looked for: %APPDATA% on Windows; elsewhere the XDG base the runtime uses (an absolute
+  # XDG_CONFIG_HOME, else ~/.config), as ./orkeon-code does.
+  $configBase = if ($env:APPDATA) { $env:APPDATA }
+                elseif ($env:XDG_CONFIG_HOME -and [System.IO.Path]::IsPathRooted($env:XDG_CONFIG_HOME)) { $env:XDG_CONFIG_HOME }
+                else { Join-Path $HOME '.config' }
+  $homeSettings = Join-Path $CodeHome 'appsettings.json'
+  $legacySettings = Join-Path $configBase 'orkeon-code/appsettings.json'
+  # What `orkeon init` writes and the REPL reads when no --settings is given (RunnerSettings.GetGlobalSettingsPath).
+  $runtimeSettings = Join-Path $configBase 'Orkeon/appsettings.json'
+
+  if ($Sub -eq 'setup') { if (Invoke-Setup $homeSettings) { exit 0 } else { exit 1 } }
+  if ($Sub -eq 'trust') {
+    $verb = if ($SubArgs.Count -gt 0) { $SubArgs[0] } else { '' }
+    $arg = if ($SubArgs.Count -gt 1) { $SubArgs[1] } else { $null }
+    $usage = 'usage: orkeon-code trust list | add <path> | remove <path> | check <path> [--trust]'
+    switch -CaseSensitive ($verb) {
+      'list' {
+        foreach ($e in @(Get-TrustEntries)) { Write-Output "$($e.Path)  (trusted $($e.TrustedAt))" }
+        exit 0
+      }
+      'add' {
+        if (-not $arg) { throw 'trust add needs a folder.' }
+        $folder = Get-CanonicalDir $arg
+        if (-not $folder) { throw "Not a folder: $arg" }
+        $by = Get-TrustedBy $folder
+        if ($by -eq $folder) { Write-Output "orkeon-code: $folder is already trusted."; exit 0 }
+        if ($by) { Write-Output "orkeon-code: $folder is already trusted, through $by."; exit 0 }
+        Add-TrustedFolder $folder
+        Write-Output "orkeon-code: trusted $folder."
+        exit 0
+      }
+      'remove' {
+        if (-not $arg) { throw 'trust remove needs a folder.' }
+        $target = Get-CanonicalDir $arg
+        if (-not $target) { $target = if ($arg.Length -gt [System.IO.Path]::GetPathRoot($arg).Length) { $arg.TrimEnd('\', '/') } else { $arg } }
+        $cmp = if ($onWindows) { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }
+        $entries = @(Get-TrustEntries)
+        $kept = @($entries | Where-Object { -not [string]::Equals($_.Path, $target, $cmp) })
+        if ($kept.Count -eq $entries.Count) {
+          $by = Get-TrustedBy $target
+          if ($by) { throw "$target is not in the store: it is trusted through $by." }
+          throw "$target is not a trusted folder."
+        }
+        Write-TrustStore $kept
+        Write-Output "orkeon-code: $target is no longer trusted."
+        exit 0
+      }
+      'check' {
+        # 0: it may start; 3: refused, no terminal; 4: declined in the terminal.
+        if (-not $arg) { throw 'trust check needs a folder.' }
+        $folder = Get-CanonicalDir $arg
+        if (-not $folder) { throw "Not a folder: $arg" }
+        Confirm-Trusted $folder ($Trust.IsPresent -or (($SubArgs.Count -gt 2) -and $SubArgs[2] -eq '--trust')) 4
+        exit 0
+      }
+      default { throw $usage }
+    }
+  }
 
   if ($Version -or ($Extra -contains '--version')) {
     # The Orkeon found, said without starting anything: the REPL has no --version flag, and docker pulls nothing.
@@ -96,17 +382,29 @@ try {
     exit 0
   }
 
-  $Workspace = (Resolve-Path $Workspace).Path
-  # %APPDATA% on Windows; pwsh elsewhere has none, and reads ~/.config as ./orkeon-code does.
-  $configHome = if ($env:APPDATA) { $env:APPDATA } else { Join-Path $HOME '.config' }
-  $userSettings = Join-Path $configHome 'orkeon-code/appsettings.json'
+  # Full, its link resolved: the folder checked, stored and mounted is the same one.
+  $given = $Workspace
+  $Workspace = Get-CanonicalDir $Workspace
+  if (-not $Workspace) { throw "Workspace not found: $given" }
+  # Before anything of the project is read or mounted.
+  Confirm-Trusted $Workspace $Trust.IsPresent 0
+
+  # $runtimeOwn: Orkeon's own file, which the REPL reads itself when no --settings is passed.
+  $runtimeOwn = $false
   if (-not $Settings) {
-    $candidates = if ($IsClone) { @((Join-Path $Root 'config/appsettings.local.json'), $userSettings) } else { @($userSettings) }
-    $Settings = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+    $candidates = @($homeSettings, $legacySettings)
+    if ($IsClone) { $candidates = @((Join-Path $Root 'config/appsettings.local.json')) + $candidates }
+    $Settings = $candidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+    if (-not $Settings -and (Test-Path -LiteralPath $runtimeSettings)) { $Settings = $runtimeSettings; $runtimeOwn = $true }
+    if ($Settings -eq $legacySettings) { Write-Warning "$legacySettings is the old place of the settings: move it to $homeSettings." }
+    if (-not $Settings -and -not [Console]::IsInputRedirected) {
+      [Console]::Error.WriteLine('orkeon-code: no settings file yet.')
+      if (Invoke-Setup $homeSettings) { $Settings = $homeSettings }
+    }
   }
   if (-not $Settings -or -not (Test-Path $Settings)) {
-    if ($IsClone) { throw 'No settings file. Copy config/appsettings.example.json to config/appsettings.local.json, or pass -Settings.' }
-    throw "No settings file. Copy $(Join-Path $Root 'config/appsettings.example.json') to $userSettings, or pass -Settings."
+    if ($IsClone) { throw "No settings file. Run 'orkeon-code setup' in a terminal, copy config/appsettings.example.json to config/appsettings.local.json, or pass -Settings." }
+    throw "No settings file. Run 'orkeon-code setup' in a terminal, copy $(Join-Path $Root 'config/appsettings.example.json') to $homeSettings, or pass -Settings."
   }
   $Settings = (Resolve-Path $Settings).Path
 
@@ -197,7 +495,7 @@ try {
 
   Write-Host "orkeon-code on Orkeon $OrkeonVersion ($Mode)"
   Write-Host "  project  : $Workspace -> /workspace"
-  Write-Host "  settings : $Settings"
+  if ($runtimeOwn) { Write-Host "  settings : $Settings (Orkeon's own, read by the REPL)" } else { Write-Host "  settings : $Settings" }
   if ($audio) {
     $model = if ($env:WHISPER_MODEL) { $env:WHISPER_MODEL } elseif ($sttBackend -eq 'openai') { 'whisper-1' } else { 'small' }
     $gpu = if ("$env:WHISPER_DEVICE".Trim() -eq 'cuda') { ' on the GPU' } else { '' }
@@ -222,9 +520,11 @@ try {
     Write-Warning "The orkeonCode block of $Settings could not be read: no user setting applies."
   }
 
+  # An empty <settings> passes none: the REPL then reads Orkeon's own file.
   function Get-ReplArgs($commands, $crews, $settings, $workspace, $output, $tmp, $userConfig) {
-    @('--runner=scripted-commands', '--commands-dir', $commands, '--crews-dir', $crews, '--settings', $settings,
-      '--mount', "${workspace}:/workspace:rw", '--mount', "${output}:/output:rw", '--mount', "${tmp}:/tmp:rw",
+    @('--runner=scripted-commands', '--commands-dir', $commands, '--crews-dir', $crews)
+    if ($settings) { @('--settings', $settings) }
+    @('--mount', "${workspace}:/workspace:rw", '--mount', "${output}:/output:rw", '--mount', "${tmp}:/tmp:rw",
       '--mount', "${userConfig}:/user-config:ro")
   }
 
@@ -268,7 +568,7 @@ try {
     if (-not $found) { throw 'esbuild not found: install Orkeon from its package or archive (it carries esbuild), or set ORKEON_ESBUILD_PATH.' }
     $env:ORKEON_ESBUILD_PATH = $found.FullName
   }
-  $replArgs = Get-ReplArgs (Join-Path $Root 'src/commands') (Join-Path $Root 'src/crews') $Settings `
+  $replArgs = Get-ReplArgs (Join-Path $Root 'src/commands') (Join-Path $Root 'src/crews') $(if ($runtimeOwn) { '' } else { $Settings }) `
                            $Workspace (Join-Path $State 'output') (Join-Path $State 'tmp') $userConfigDir
   # The REPL runs from the project. It reads its --commands-dir and --crews-dir wherever they are, and
   # a --mount outside its working directory (/output, /tmp and /user-config, in the state directory) under
