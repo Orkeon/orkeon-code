@@ -7,7 +7,7 @@
 import type { Files, Shell, ShellResult } from "../ports.ts";
 import type { GitIdent, PrSummary } from "../../domain/git/close.ts";
 import {
-  COMMIT_MESSAGE_FILE, GIT_COMMITTER_IDENT_COMMAND, GIT_IN_PROGRESS_PROBES, GIT_DEFAULT_BRANCH_COMMAND, GIT_HEAD_COMMAND, GIT_IDENT_COMMAND,
+  COMMIT_MESSAGE_FALLBACK, COMMIT_MESSAGE_FILE, GIT_COMMITTER_IDENT_COMMAND, GIT_IN_PROGRESS_PROBES, GIT_DEFAULT_BRANCH_COMMAND, GIT_HEAD_COMMAND, GIT_IDENT_COMMAND,
   ghPrCreateCommand, gitAddCommand, gitCommitCommand, gitPushCommand, indexDeletedPaths, parseDefaultBranch,
   parseGitIdent, prBodyPath, prSlug, renderPrBody, shellUnsafe,
 } from "../../domain/git/close.ts";
@@ -68,16 +68,33 @@ export async function commitFiles(
       return { ok: false, line: "a merge or a cherry-pick is in progress: conclude it with git commit in a terminal" };
     }
   }
+  // The message is written before anything is staged: a write that fails leaves the index as it was.
+  const messageFile = await writeMessage(deps.files, req.message);
+  if (!messageFile.ok) return messageFile;
   const gone = indexDeletedPaths(req.status);
   const toAdd = req.files.filter((p) => !gone.includes(p));
   if (toAdd.length > 0) {
     const add = await runGit(deps.shell, gitAddCommand(toAdd));
     if (add.exitCode !== 0) return { ok: false, line: `git add failed: ${gitReason(add)}` };
   }
-  await deps.files.write(`/workspace/${COMMIT_MESSAGE_FILE}`, req.message);
-  const commit = await runGit(deps.shell, gitCommitCommand(req.files));
+  const commit = await runGit(deps.shell, gitCommitCommand(req.files, messageFile.path));
+  if (messageFile.path === COMMIT_MESSAGE_FALLBACK) await runGit(deps.shell, `rm -f ${COMMIT_MESSAGE_FALLBACK}`);
   if (commit.exitCode !== 0) return { ok: false, line: `git commit failed: ${gitReason(commit)}` };
   return { ok: true, hash: (await runGit(deps.shell, GIT_HEAD_COMMAND)).stdout.trim() };
+}
+
+/** The message under `.git/`, else - a linked worktree, whose `.git` is a file - under `.orkeon/`. */
+async function writeMessage(files: Pick<Files, "write">, message: string): Promise<{ ok: true; path: string } | { ok: false; line: string }> {
+  let reason = "";
+  for (const path of [COMMIT_MESSAGE_FILE, COMMIT_MESSAGE_FALLBACK]) {
+    try {
+      await files.write(`/workspace/${path}`, message);
+      return { ok: true, path };
+    } catch (e) {
+      reason = firstLine((e as Error)?.message ?? e);
+    }
+  }
+  return { ok: false, line: `the commit message could not be written (${COMMIT_MESSAGE_FILE}, ${COMMIT_MESSAGE_FALLBACK}): ${reason}` };
 }
 
 /** `git push -u origin <branch>`; a refusal is said with git's line, nothing is forced. */
@@ -134,8 +151,13 @@ export async function handOverPullRequest(
   if (req.work.vfsPath === null) {
     lines.push(`the body could not be written (${req.work.folder} is outside the mounts): write ${bodyFile} first`);
   } else {
-    await deps.files.write(`${req.work.vfsPath.replace(/\/+$/, "")}/pr-${slug}/PR.md`, body);
-    lines.push(`pull request body: ${bodyFile}`);
+    // After the commit and the push: a body that cannot be written is said, never thrown.
+    try {
+      await deps.files.write(`${req.work.vfsPath.replace(/\/+$/, "")}/pr-${slug}/PR.md`, body);
+      lines.push(`pull request body: ${bodyFile}`);
+    } catch (e) {
+      lines.push(`⚠ the body could not be written (${firstLine((e as Error)?.message ?? e)}): write ${bodyFile} first`);
+    }
   }
   const pr: PullRequest = { base: req.base, head: req.branch, title: req.title, bodyFile, body };
   if (req.open && req.pushed && deps.opener !== undefined) {

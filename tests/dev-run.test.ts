@@ -18,6 +18,7 @@ set -u
 dir="$FAKE_DIR"
 n=$(( $(cat "$dir/count" 2>/dev/null || echo 0) + 1 )); echo "$n" > "$dir/count"
 printf '%s\\n' "$*" >> "$dir/args"
+if [ "$(readlink -f /dev/stdin 2>/dev/null)" = /dev/null ] || { [ ! -d /proc/self ] && [ -c /dev/stdin ]; }; then echo device >> "$dir/stdin"; else echo other >> "$dir/stdin"; fi
 spec=$(sed -n "\${n}p" "$dir/plan")
 rc="\${spec%%|*}"; rest="\${spec#*|}"; line="\${rest%%|*}"; out="\${rest#*|}"
 if [ -n "$line" ]; then mkdir -p "$ORKEON_CODE_WORKSPACE/.orkeon/dev/demo"; printf '%s\\n' "$line" >> "$ORKEON_CODE_WORKSPACE/.orkeon/dev/demo/batches-state.md"; fi
@@ -25,7 +26,7 @@ printf 'working\\n%s\\n' "$out"
 exit "$rc"
 `;
 
-function run(plan: string[], args: string[] = []) {
+function run(plan: string[], args: string[] = [], crew = "dev-verify") {
   const dir = mkdtempSync(join(tmpdir(), "dev-run-"));
   try {
     const project = join(dir, "project");
@@ -33,7 +34,7 @@ function run(plan: string[], args: string[] = []) {
     writeFileSync(join(dir, "plan"), plan.join("\n") + "\n");
     writeFileSync(join(dir, "runner.sh"), RUNNER, { mode: 0o755 });
     const withInputs = args.includes("--inputs") ? args : ["--inputs", `{"code":"demo"}`, ...args];
-    const r = spawnSync("bash", [SCRIPT, "dev-verify", "demo", "--wait", "0", ...withInputs], {
+    const r = spawnSync("bash", [SCRIPT, crew, "demo", "--wait", "0", ...withInputs], {
       encoding: "utf-8",
       env: { ...process.env, DEV_RUN_RUNNER: join(dir, "runner.sh"), FAKE_DIR: dir, ORKEON_CODE_WORKSPACE: project },
     });
@@ -42,7 +43,8 @@ function run(plan: string[], args: string[] = []) {
     const count = existsSync(join(dir, "count")) ? Number(readFileSync(join(dir, "count"), "utf-8")) : 0;
     const firstArgs = existsSync(join(dir, "args")) ? readFileSync(join(dir, "args"), "utf-8").split("\n")[0] : "";
     const firstLog = logs.length > 0 ? readFileSync(join(runs, logs[0]), "utf-8") : "";
-    return { status: r.status, stdout: r.stdout, stderr: r.stderr, logs, count, firstArgs, firstLog };
+    const stdin = existsSync(join(dir, "stdin")) ? readFileSync(join(dir, "stdin"), "utf-8").trim().split("\n") : [];
+    return { status: r.status, stdout: r.stdout, stderr: r.stderr, logs, count, firstArgs, firstLog, stdin };
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -62,6 +64,41 @@ describe("scripts/dev-run.sh", () => {
     ok(r.stdout.includes("  last line: step one done"), r.stdout);
     ok(!r.stdout.includes("working"), "the whole output stays in the log");
     ok(r.firstArgs.endsWith(`/src/crews/dev-verify/crew.ork.ts --inputs {"code":"demo"}`), r.firstArgs);
+  });
+
+  it("runs each step with no stdin (/dev/null), so nothing a step asks can hang the chain", () => {
+    const r = run(["0|- 2026-10-24 09:00 F1 launched|", "0|- 2026-10-24 09:30 closed|"]);
+    deepStrictEqual(r.stdin, ["device", "device"]);
+  });
+
+  it("reads `closed` with a CR or trailing blanks, and never an event whose detail ends in ' closed'", () => {
+    strictEqual(run(["0|- 2026-10-24 09:30 closed\r|"]).status, 0);
+    strictEqual(run(["0|- 2026-10-24 09:30 closed  |"]).status, 0);
+    const detail = run(["0|- 2026-10-24 09:00 F1 stopped the PR was closed|", "0||"]);
+    strictEqual(detail.status, 4, detail.stdout);
+  });
+
+  it("refuses the crew dev-batches with 64, running nothing", () => {
+    const r = run(["0|- 2026-10-24 09:30 closed|"], [], "dev-batches");
+    strictEqual(r.status, 64);
+    strictEqual(r.count, 0);
+    ok(r.stderr.includes("stays the REPL's /dev-batches"), r.stderr);
+  });
+
+  it("without DEV_RUN_RUNNER, checks the project's trust once before any step: refused without a terminal, exit 2", () => {
+    const dir = mkdtempSync(join(tmpdir(), "dev-run-trust-"));
+    try {
+      const project = join(dir, "project");
+      spawnSync("mkdir", ["-p", project]);
+      const env: NodeJS.ProcessEnv = { ...process.env, ORKEON_CODE_WORKSPACE: project, ORKEON_CODE_HOME: join(dir, "home") };
+      for (const k of ["DEV_RUN_RUNNER", "ORKEON_CODE_TRUST", "CI"]) delete env[k];
+      const r = spawnSync("bash", [SCRIPT, "dev-verify", "demo", "--inputs", "{}"], { encoding: "utf-8", env, input: "" });
+      strictEqual(r.status, 2, r.stdout + r.stderr);
+      ok(r.stderr.includes(`trust ${project} first`), r.stderr);
+      ok(!existsSync(join(project, ".orkeon/dev/demo/runs/dev-verify-1.log")), "no step ran");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it("passes the inputs given", () => {

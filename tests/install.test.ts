@@ -279,6 +279,7 @@ describe("scripts/install.ps1 and the long options of orkeon-code.ps1", () => {
     const script = ps();
     ok(!/Remove-Item -LiteralPath \$Prefix -Recurse/.test(script), "the prefix is never removed whole");
     ok(script.includes(".name -eq 'orkeon-code'"), "a version folder is one holding the package.json of orkeon-code");
+    ok(script.includes("-not (Test-Path -LiteralPath (Join-Path $_.FullName '.git')) -and"), "never a git clone under the prefix");
     ok(script.includes("[IO.File]::ReadAllText($cmd).Contains($marker))) { Remove-Item -LiteralPath $cmd -Force }"),
       "only its own .cmd");
     ok(script.includes("-not (Get-ChildItem -LiteralPath $dir -Force)) { Remove-Item -LiteralPath $dir -Force }"),

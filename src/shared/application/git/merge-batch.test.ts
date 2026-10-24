@@ -85,4 +85,12 @@ describe("mergeFastForward", () => {
     deepStrictEqual((await mergeFastForward(unsafe, { ref: "a;b", workBranch: "feat/x" })).merged, false);
     deepStrictEqual(unsafe.commands, []);
   });
+
+  it("8. a name with a leading '-', which git would read as an option: nothing run", async () => {
+    for (const req of [{ ref: "--detach", workBranch: "feat/x" }, { ref: "agent-1", workBranch: "-b" }]) {
+      const shell = onWorkBranch();
+      const out = await mergeFastForward(shell, req);
+      deepStrictEqual([out.merged, out.line, shell.commands], [false, `not merged: ${req.ref.startsWith("-") ? req.ref : req.workBranch} cannot go through the shell`, []]);
+    }
+  });
 });

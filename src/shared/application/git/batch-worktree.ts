@@ -3,6 +3,8 @@
 // once its audit is VALID. The removal is refused while the worktree holds uncommitted or untracked files or
 // its branch commits the work branch lacks, as the harness's `worktree-create.sh --remove`. Never `--force`,
 // never a push: the plan's close pushes once (crews/dev-batches/application/plan-close.ts).
+// Not wired into a run yet: /dev-batches runs one batch at a time in /workspace (concurrency 1) and nothing
+// but the tests calls these, until the runtime gives a script agent a working root of its own (D79).
 import type { Shell } from "../ports.ts";
 import { shellUnsafe } from "../../domain/git/close.ts";
 import {

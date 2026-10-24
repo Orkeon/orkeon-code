@@ -3,8 +3,9 @@
 // The pull request's body lists the files of each batch's commit (`merged <hash>` in the log), grouped by
 // the pack's layout roots, each audit's validations, and is written to `<work>/pr-<slug>/PR.md`; it is
 // opened through the github tool under --pr or dev.prAuto, else its command is handed over. On the
-// default branch nothing is pushed for review. A push that fails leaves the run open: the next
-// /dev-batches tries the close again.
+// default branch nothing is pushed for review, and the close is refused when the pack asks for a work
+// branch (the run's commits are on it). A push that fails leaves the run open: the next /dev-batches
+// tries the close again.
 import type { Files, Shell } from "../../../shared/application/ports.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import type { PullRequestOpener } from "../../../shared/application/git/commit-files.ts";
@@ -16,9 +17,10 @@ import type { RepoPack } from "../../../shared/domain/dev/repo-pack.ts";
 import type { PermissionRule } from "../../../shared/domain/agent-policy/permission.ts";
 import { ruleDecision } from "../../../shared/domain/agent-policy/permission.ts";
 import {
-  DEV_PR_AUTO_CONFIG_KEY, GIT_CURRENT_BRANCH_COMMAND, gitPushCommand, shellQuote,
+  DEV_PR_AUTO_CONFIG_KEY, GIT_CURRENT_BRANCH_COMMAND, gitPushCommand, shellQuote, workBranchFromPattern,
 } from "../../../shared/domain/git/close.ts";
 import type { PrSummary } from "../../../shared/domain/git/close.ts";
+import { gitBranchExists } from "../../../shared/domain/git/worktree.ts";
 
 export interface MergedBatch { batch: string; hash: string }
 
@@ -118,9 +120,23 @@ export async function closePlan(
   }
   const base = await defaultBranch(deps.shell);
   if (base !== null && base === branch) {
+    // The pack asks for a work branch: the run made `<prefix>/<code>` (L7-D7), so HEAD went back to the default one.
+    // When that branch does not exist, the commits really are on the default one: the close goes on, said.
+    const wanted = input.pack?.contrib.branch?.trim();
+    const work = wanted ? workBranchFromPattern(wanted, input.code) : null;
+    if (wanted && work !== null && (await runGit(deps.shell, gitBranchExists(work))).exitCode === 0) {
+      return {
+        closed: false,
+        lines: [`✗ close: ${branch} is the default branch and the pack asks for a work branch (${wanted}): ` +
+          `git switch ${work}, then /dev-batches ${input.code}`],
+      };
+    }
     return {
       closed: true,
-      lines: [`✓ every batch is committed on ${branch}, the default branch: no pull request; pushing it is yours (${gitPushCommand(branch)})`],
+      lines: [
+        ...(wanted ? [`⚠ the pack asks for a work branch (${wanted}), but the batches are committed on ${branch}`] : []),
+        `✓ every batch is committed on ${branch}, the default branch: no pull request; pushing it is yours (${gitPushCommand(branch)})`,
+      ],
     };
   }
   const lines: string[] = [];

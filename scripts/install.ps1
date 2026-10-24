@@ -52,10 +52,11 @@ $cmd = Join-Path $bin 'orkeon-code.cmd'
 $marker = 'written by install.ps1'
 
 if ($Uninstall) {
-  # Only what this script put there: the version folders (a launcher and the package.json of orkeon-code), their
-  # staging copies and its own .cmd; the folders are removed when that leaves them empty.
+  # Only what this script put there: the version folders (a launcher and the package.json of orkeon-code, never a
+  # git clone: no .git), their staging copies and its own .cmd; the folders are removed when that leaves them empty.
   if (Test-Path -LiteralPath $Prefix) {
     Get-ChildItem -LiteralPath $Prefix -Directory -Force | Where-Object {
+      -not (Test-Path -LiteralPath (Join-Path $_.FullName '.git')) -and
       (Test-Path (Join-Path $_.FullName 'orkeon-code.ps1')) -and (Test-Path (Join-Path $_.FullName 'package.json')) -and
       ((Get-Content (Join-Path $_.FullName 'package.json') -Raw | ConvertFrom-Json).name -eq 'orkeon-code')
     } | ForEach-Object { Remove-Item -LiteralPath $_.FullName -Recurse -Force }

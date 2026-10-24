@@ -101,6 +101,17 @@ describe("runDevBatches — a run", () => {
     strictEqual(again.next?.input.effort, "low");
   });
 
+  it("refuses another plan while a run is in progress, its record kept", async () => {
+    const { files, deps } = setup();
+    await runDevBatches({ code: "demo" }, deps);
+    const out = parse(await runDevBatches({ code: "other" }, deps));
+    deepStrictEqual(out.lines, [
+      "BLOCKED — the run of demo is in progress (.orkeon/dev/batches-active.json): take it to its close (/dev-batches demo), " +
+      "or delete that file to drop it, then /dev-batches other",
+    ]);
+    strictEqual(JSON.parse(files.files.get(ACTIVE_RECORD)!).code, "demo");
+  });
+
   it("refuses a read-only session mode, and a code that is not a folder name", async () => {
     const { deps } = setup();
     ok(parse(await runDevBatches({ code: "demo", permissionMode: "plan" }, deps)).lines.at(-1)!.startsWith("BLOCKED — the session mode plan"));
@@ -190,6 +201,18 @@ describe("runDevBatches — back from a batch", () => {
     deepStrictEqual(events(files), ["F2 launched", "F2 stopped"]);
   });
 
+  it("takes a batch committed but not marked done for done: logged merged, said, never launched again", async () => {
+    const { files, deps } = setup();
+    await runDevBatches({ code: "demo" }, deps);
+    const after = ["✓ committed 3333333 on feat/demo: 1 file(s)", "⚠ DEMO-PLAN-F2.md could not be marked done: EACCES"];
+    const out = parse(await runDevBatches({ after }, deps));
+    ok(out.lines.includes("⚠ F2 is not marked done in its sheet or the plan: mark it by hand"), out.lines.join("\n"));
+    strictEqual(out.next?.input.batch, "F3");
+    deepStrictEqual(events(files), ["F2 launched", "F2 returned", "F2 merged", "F3 launched"]);
+    // Typed again later, F2 (its sheet still open) is not relaunched.
+    strictEqual(parse(await runDevBatches({ code: "demo" }, deps)).next?.input.batch, "F3");
+  });
+
   it("does not launch a batch whose review raises a Blocking question", async () => {
     const { files, deps } = setup();
     const llm = new FakeLlm();
@@ -201,6 +224,32 @@ describe("runDevBatches — back from a batch", () => {
     // Settled and typed again: launched without a second review.
     strictEqual(parse(await runDevBatches({ code: "demo" }, { ...deps, reviewerFor: () => llm })).next?.input.batch, "F2");
     strictEqual(llm.acts.length, 1);
+  });
+
+  it("closes on the default branch without contrib.branch, and refuses it with one while the run's branch exists", async () => {
+    const plain = setup("main");
+    const closed = await toTheClose(plain.files, plain.deps);
+    ok(closed.lines.some((l) => l.startsWith("✓ every batch is committed on main, the default branch")), closed.lines.join("\n"));
+    const absent = setup("main");
+    absent.files.files.set("/workspace/.orkeon/repo.yaml", "contrib:\n  branch: feat|fix/<slug>\n");
+    absent.shell.results["git rev-parse --verify --quiet 'refs/heads/feat/demo'"] = { exitCode: 1 };
+    const said = await toTheClose(absent.files, absent.deps);
+    ok(said.lines.includes("⚠ the pack asks for a work branch (feat|fix/<slug>), but the batches are committed on main"), said.lines.join("\n"));
+    ok(said.lines.some((l) => l.startsWith("✓ every batch is committed on main, the default branch")), said.lines.join("\n"));
+    const packed = setup("main");
+    packed.files.files.set("/workspace/.orkeon/repo.yaml", "contrib:\n  branch: feat|fix/<slug>\n");
+    packed.shell.results["git rev-parse --verify --quiet 'refs/heads/feat/demo'"] = { exitCode: 1 };
+    await runDevBatches({ code: "demo" }, packed.deps);
+    packed.shell.results["git rev-parse --verify --quiet 'refs/heads/feat/demo'"] = { exitCode: 0 };
+    markDone(packed.files, "F2");
+    await runDevBatches({ after: [] }, packed.deps);
+    markDone(packed.files, "F3");
+    const refused = parse(await runDevBatches({ after: [] }, packed.deps));
+    ok(refused.lines.includes(
+      "✗ close: main is the default branch and the pack asks for a work branch (feat|fix/<slug>): git switch feat/demo, then /dev-batches demo",
+    ), refused.lines.join("\n"));
+    ok(!events(packed.files).includes("closed"));
+    strictEqual(JSON.parse(packed.files.files.get(ACTIVE_RECORD)!).code, "demo");
   });
 
   it("on the default branch with contrib.branch, creates the run's branch before the launch", async () => {
@@ -254,7 +303,8 @@ describe("runDevBatches — what comes back and the close", () => {
   it("does not overwrite the run in progress for a code that has no plan", async () => {
     const { files, deps } = setup();
     await runDevBatches({ code: "demo" }, deps);
-    ok(parse(await runDevBatches({ code: "demi" }, deps)).lines.at(-1)!.startsWith("BLOCKED — no plan"));
+    // Refused before the plan is even looked for: another run is in progress.
+    ok(parse(await runDevBatches({ code: "demi" }, deps)).lines.at(-1)!.startsWith("BLOCKED — the run of demo is in progress"));
     strictEqual(JSON.parse(files.files.get(ACTIVE_RECORD)!).code, "demo");
   });
 

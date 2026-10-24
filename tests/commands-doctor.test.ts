@@ -8,6 +8,9 @@ import { ok, strictEqual, deepStrictEqual } from "node:assert";
 import { ESSENTIAL_TOOLS, FAIL, OLD_SESSIONS_DIR, PASS, WARN, runDoctor } from "../src/commands/_lib/doctor.ts";
 import type { DoctorRow } from "../src/commands/_lib/doctor.ts";
 import { CODE_INTEL_TOOLS } from "../src/shared/domain/code-intel-contract.ts";
+import { CONFIG_FILE_PATH, createConfigStore } from "../src/shared/application/config-store.ts";
+import { CLI_VERSION, ORKEON_RUNTIME_VERSION } from "../src/commands/_lib/meta.ts";
+import { FakeSessionStore } from "./support/fake-session-store.ts";
 import { FakeFiles } from "./support/fake-files.ts";
 import { FakeShell } from "./support/fake-shell.ts";
 import { FakeTelemetry } from "./support/fake-telemetry.ts";
@@ -41,6 +44,7 @@ describe("/doctor — a healthy host", () => {
     const { view } = await run();
     const tools = new Set([...ESSENTIAL_TOOLS, ...CODE_INTEL_TOOLS]).size;
     deepStrictEqual(view.table, [
+      { check: "version", result: PASS, detail: `orkeon-code ${CLI_VERSION}, on Orkeon ${ORKEON_RUNTIME_VERSION} (expected; the one found: orkeon-code --version)` },
       { check: "toolchain: node", result: PASS, detail: "v24.1.0" },
       { check: "toolchain: git", result: PASS, detail: "git version 2.47.0" },
       { check: "toolchain: dotnet", result: PASS, detail: "10.0.100" },
@@ -53,6 +57,21 @@ describe("/doctor — a healthy host", () => {
     ]);
     strictEqual(view.text, "all checks passed.");
     deepStrictEqual(shell.commands, ["node --version", "git --version", "dotnet --version"]);
+  });
+});
+
+describe("/doctor — a project value set aside", () => {
+  it("names a permissions.fallback the project file cannot set, as /permissions does, and nothing when there is none", async () => {
+    const { shell, telemetry, catalogue, files } = setup();
+    const config = createConfigStore({ files, session: new FakeSessionStore() });
+    const quiet = await runDoctor({ shell, telemetry, catalogue, files, config });
+    ok(!(quiet.table as DoctorRow[]).some((r) => r.check === "settings: project values"));
+    files.files.set(CONFIG_FILE_PATH, JSON.stringify({ "permissions.fallback": "bypassPermissions" }));
+    const view = await runDoctor({ shell, telemetry, catalogue, files, config });
+    const row = (view.table as DoctorRow[]).find((r) => r.check === "settings: project values");
+    strictEqual(row?.result, WARN);
+    ok(row!.detail.startsWith("the project file sets permissions.fallback 'bypassPermissions', ignored: "), row!.detail);
+    strictEqual(view.text, "all checks passed, 1 warning(s).");
   });
 });
 

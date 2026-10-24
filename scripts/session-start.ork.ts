@@ -10,11 +10,13 @@
 //
 // The same lines as scripts/session-start.sh (the shell twin, for a terminal), read through the
 // file tools only, under /workspace/.orkeon/dev/<code>/ (Code's own state, never committed):
-//   - each state-F<n>.md whose header says it was written in the last 7 days, with that date and
-//     its First open line (the file a compaction wrote for the batch in progress);
+//   - each state-F<n>.md whose header says it was written in the last 7 days (a header date that
+//     does not parse keeps it, as the twin does), with that date and its First open line (the file a
+//     compaction wrote for the batch in progress);
 //   - each batches-state.md whose event log leaves batches open (last event of the batch
 //     launched, relaunched or stall, with no `closed` line after it).
-// Read-only, silent when there is nothing to say; a failure prints nothing.
+// Read-only, silent when there is nothing to say; a failure prints nothing. A change of what is
+// printed, or of which file is picked, is made in both twins (tests/session-start-script.test.ts).
 //
 // Self-contained (no import): the script host runs this one file.
 

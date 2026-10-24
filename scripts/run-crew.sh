@@ -57,6 +57,8 @@ echo "workspace : $workspace -> /workspace"
 if [ "${ORKEON_CODE_MODE:-}" = source ]; then
   [ -n "${ORKEON_SOURCE:-}" ] && [ -d "$ORKEON_SOURCE/src/scripting/Orkeon.Scripting.Cli" ] \
     || { echo "run-crew: ORKEON_CODE_MODE=source needs ORKEON_SOURCE naming an Orkeon checkout (src/scripting/Orkeon.Scripting.Cli not found)" >&2; exit 1; }
+  command -v dotnet >/dev/null 2>&1 \
+    || { echo "run-crew: ORKEON_CODE_MODE=source builds the tool from ORKEON_SOURCE and needs the .NET SDK: dotnet is not on PATH" >&2; exit 1; }
   cli="$(cd "$ORKEON_SOURCE" && pwd)/src/scripting/Orkeon.Scripting.Cli"
   # Built once, quietly and to stderr as the launcher builds the REPL, so the crew's output stays its own.
   dotnet build "$cli" -c Debug -nologo -v quiet >&2 \

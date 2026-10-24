@@ -1,18 +1,19 @@
 /// <reference path="./.orkeon/orkeon-cli.d.ts" />
-// /doctor — health check: toolchain, LLM configuration, tool catalogue and VFS
-// mounts, one pass/fail row per check (baseline 04 §/doctor). Entry point: wires
+// /doctor — health check: versions, toolchain, LLM configuration, tool catalogue,
+// VFS mounts and a project setting set aside, one pass/fail row per check (baseline 04 §/doctor). Entry point: wires
 // the shell, the telemetry, the tool catalogue and the files into _lib/doctor.ts
 // (runDoctor), which holds the checks.
 import { runDoctor } from "./_lib/doctor.ts";
 import { showView } from "./_lib/view.ts";
 import {
-  orkeonFiles, orkeonShell, orkeonTelemetry, orkeonToolCatalogue,
+  orkeonConfigStore, orkeonFiles, orkeonShell, orkeonTelemetry, orkeonToolCatalogue,
 } from "../shared/infrastructure/orkeon/wiring.ts";
 
 const deps = {
   shell: orkeonShell(),
   telemetry: orkeonTelemetry(),
   files: orkeonFiles(),
+  config: orkeonConfigStore(),
 };
 
 defineCommand({

@@ -8,6 +8,8 @@ export const DEV_PR_AUTO_CONFIG_KEY = "dev.prAuto";
 
 /** Where the message goes for `git commit -F` (relative to /workspace; never tracked). */
 export const COMMIT_MESSAGE_FILE = ".git/ORKEON_COMMITMSG";
+/** In a linked worktree `.git` is a file: the message goes there instead, and is removed after the commit. */
+export const COMMIT_MESSAGE_FALLBACK = ".orkeon/ORKEON_COMMITMSG";
 export const GIT_IDENT_COMMAND = "git var GIT_AUTHOR_IDENT";
 /** A commit needs the committer too: with only GIT_AUTHOR_* set it would fail after the draft was paid for. */
 export const GIT_COMMITTER_IDENT_COMMAND = "git var GIT_COMMITTER_IDENT";
@@ -166,9 +168,20 @@ export function gitAddCommand(files: readonly string[]): string {
   return `git --literal-pathspecs add -- ${quoted(files)}`;
 }
 
+const BRANCH_WORD = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+
+/** A work branch from the pack's `contrib.branch` pattern: its first alternative before `/`, then `slug`
+ *  (`<code>` for a /dev-batches run, `<code>-f<n>` for a typed close of one batch). Null when no prefix can be read. */
+export function workBranchFromPattern(pattern: string, slug: string): string | null {
+  const slash = pattern.indexOf("/");
+  if (slash <= 0) return null;
+  const prefix = pattern.slice(0, slash).split("|")[0].trim();
+  return BRANCH_WORD.test(prefix) ? `${prefix}/${slug}` : null;
+}
+
 /** A path list on the commit itself: changes staged elsewhere stay staged and out of it. */
-export function gitCommitCommand(files: readonly string[]): string {
-  return `git --literal-pathspecs commit -F ${COMMIT_MESSAGE_FILE} -- ${quoted(files)}`;
+export function gitCommitCommand(files: readonly string[], messageFile: string = COMMIT_MESSAGE_FILE): string {
+  return `git --literal-pathspecs commit -F ${messageFile} -- ${quoted(files)}`;
 }
 
 export function gitDiffCommand(files: readonly string[]): string {

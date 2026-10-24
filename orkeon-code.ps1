@@ -44,6 +44,7 @@ if ($Extra.Count -gt 0 -and $Extra[0] -cin @('trust', 'setup')) {
 }
 
 $resumeChoice = ''
+$Help = $false
 # The long options of ./orkeon-code, as a .cmd wrapper passes them (%*): --settings x, --settings=x, --workspace,
 # --mode, --version and --trust bind the parameters above; a -- left in the arguments is dropped, and what follows
 # it goes to the REPL as is.
@@ -57,6 +58,8 @@ for ($i = 0; $i -lt $Extra.Count; $i++) {
   $name = $a; $value = $null
   if ($a -match '^(--(?:settings|workspace|mode))=(.*)$') { $name = $Matches[1]; $value = $Matches[2] }
   if ($name -eq '--version') { $Version = [switch] $true }
+  elseif ($name -cin @('-h', '--help')) { $Help = $true }
+  elseif ($name -eq '--demo') { throw '--demo is only in the bash launcher (./orkeon-code --demo): it builds its fixture with scripts/setup-fixture.sh.' }
   elseif ($name -eq '--trust') { $Trust = [switch] $true }
   elseif ($name -cin @('--continue', '-c')) { $Continue = [switch] $true }
   elseif ($name -match '^--resume(=(.*))?$') {
@@ -71,10 +74,21 @@ for ($i = 0; $i -lt $Extra.Count; $i++) {
     }
     if ($name -eq '--settings') { $Settings = $value }
     elseif ($name -eq '--workspace') { $Workspace = $value }
+    elseif ($value -notin @('docker', 'tool')) {
+      # Checked before the assignment: -Mode's ValidateSet would refuse it with its own message.
+      throw "Unknown mode '$value' (--mode): docker or tool. The source mode is only in the bash launcher."
+    }
     else { $Mode = $value }
   } else { $rest += $a }
 }
 $Extra = $rest
+# -h / --help: this file's help, as ./orkeon-code prints its header.
+if ($Help) { Get-Help $PSCommandPath -Detailed; exit 0 }
+# ValidateSet does not check its default ($env:ORKEON_CODE_MODE): an unknown mode is refused
+# here rather than run as another one (./orkeon-code's source mode is not in this launcher).
+if (-not $Sub -and $Mode -and $Mode -notin @('docker', 'tool')) {
+  throw "Unknown mode '$Mode' (-Mode, --mode or `$env:ORKEON_CODE_MODE): docker or tool. The source mode is only in the bash launcher."
+}
 
 # ── Folder trust (as ./orkeon-code: the same store, the same layout, the same answers) ──
 # Windows compares paths without case; elsewhere as they are.
@@ -353,6 +367,7 @@ foreach ($name in @('ORKEON_Llm__Model', 'Orkeon__Security__PermissionGate__Enab
                     'ORKEON_MCP__Servers__whisper__Args__6', 'ORKEON_MCP__Servers__whisper__Args__7',
                     'ORKEON_MCP__Servers__whisper__Args__8', 'ORKEON_MCP__Servers__whisper__Args__9',
                     'ORKEON_MCP__Servers__whisper__Args__10', 'ORKEON_MCP__Servers__whisper__Args__11',
+                    'ORKEON_MCP__Servers__whisper__Args__12',
                     'WHISPER_MICROPHONE', 'WHISPER_SPEAKER', 'UV_PROJECT_ENVIRONMENT')) {
   $savedEnv[$name] = [Environment]::GetEnvironmentVariable($name)
 }
@@ -658,7 +673,8 @@ try {
       # WHISPER_DEVICE=cuda: the cuBLAS and cuDNN wheels, which the server preloads.
       if ("$env:WHISPER_DEVICE".Trim() -eq 'cuda') { $whisperArgs += @('--extra', 'cuda') }
       $whisperArgs += (Join-Path $Root 'mcp/whisper/whisper_mcp.py')
-      # Args__0 to Args__11, each saved above and put back when the script ends.
+      # Args__0 to Args__12 (13 at most: run, --project, the folder, --frozen, four --extra pairs, the script), each
+      # saved above and put back when the script ends.
       for ($i = 0; $i -lt $whisperArgs.Count; $i++) {
         [Environment]::SetEnvironmentVariable("ORKEON_MCP__Servers__whisper__Args__$i", $whisperArgs[$i])
       }
@@ -726,7 +742,12 @@ try {
     $replArgs = Get-ReplArgs '/work/agent/commands' '/work/agent/crews' '/work/settings.json' `
                              '/work/project' '/work/state/output' '/work/state/tmp' '/work/state/user-config' $inState
     $Extra = @(Get-LlmLogArgs $inState)
-    & docker run --rm -it @envArgs -w /work `
+    # -t only on a terminal, as ./orkeon-code: with stdin or stdout redirected docker refuses it ("not a TTY").
+    $ttyArgs = if ([Console]::IsInputRedirected -or [Console]::IsOutputRedirected) { @('-i') } else { @('-it') }
+    # Files the agent writes in the project belong to the caller, not to root (Linux; Docker Desktop maps them itself).
+    $userArgs = @()
+    if ($IsLinux) { $userArgs = @('--user', "$(& id -u):$(& id -g)") }
+    & docker run --rm @ttyArgs @userArgs @envArgs -w /work `
       -v "${Workspace}:/work/project" -v "$(Join-Path $Root 'src'):/work/agent:ro" `
       -v "${Settings}:/work/settings.json:ro" -v "${State}:/work/state" `
       $Image @replArgs @Extra

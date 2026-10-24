@@ -24,7 +24,7 @@ import { REVIEWER_CHARTER } from "../../../shared/domain/dev/reviewer-charter.ts
 import { REVIEW_ANSWER_SCHEMA, checkReviewAnswer } from "../../../shared/domain/dev/review-answer.ts";
 import { buildReviewAnswerPrompt, buildReviewBrief, reviewSystem } from "../../../shared/domain/dev/review-prompt.ts";
 import { parseSessionRules } from "../../../shared/domain/git/pull-request.ts";
-import { GIT_CURRENT_BRANCH_COMMAND, GIT_HEAD_COMMAND, shellQuote } from "../../../shared/domain/git/close.ts";
+import { GIT_CURRENT_BRANCH_COMMAND, GIT_HEAD_COMMAND, shellQuote, workBranchFromPattern } from "../../../shared/domain/git/close.ts";
 import { policyFor } from "../../../shared/domain/agent-policy/mode-policy.ts";
 import { nextBatch, waveOrder } from "../domain/wave-order.ts";
 import type { BatchNode } from "../domain/wave-order.ts";
@@ -156,14 +156,9 @@ function stopOf(dev: DevCode, batch: string, after: readonly string[]): { event:
   return { event: "stopped", detail: `BLOCKED — ${first ?? "the chain answered nothing"}` };
 }
 
-const BRANCH_WORD = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
-
 /** The work branch of a run: the pattern's first alternative before `/`, then the code. */
 export function batchesBranchName(pattern: string, code: string): string | null {
-  const slash = pattern.indexOf("/");
-  if (slash <= 0) return null;
-  const prefix = pattern.slice(0, slash).split("|")[0].trim();
-  return BRANCH_WORD.test(prefix) ? `${prefix}/${code}` : null;
+  return workBranchFromPattern(pattern, code);
 }
 
 /** On the default branch with `contrib.branch`, the run's work branch is created; the line, or the refusal. */
@@ -225,6 +220,14 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
   if (typeof input.code === "string" && input.code.trim() !== "") {
     code = input.code.trim();
     if (!isCode(code)) return answer([`BLOCKED — '${code}' is not a work code (a folder name of the work folder)`]);
+    // Another plan's run in progress keeps its record: overwritten, a typed close of one of its batches would push.
+    const active = await readRecord(deps.files);
+    if (active !== null && active.code !== null && active.code !== code) {
+      return answer([
+        `BLOCKED — the run of ${active.code} is in progress (${ACTIVE_RECORD.replace(/^\/workspace\//, "")}): ` +
+        `take it to its close (/dev-batches ${active.code}), or delete that file to drop it, then /dev-batches ${code}`,
+      ]);
+    }
     pr = flag(input.pr);
     context = contextOf(input);
   } else {
@@ -270,6 +273,8 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
     logText = null;
   }
   const book = new LogBook(logPath, code, logText);
+  // A batch the log has merged is done, even when its sheet could not be marked: never launched again.
+  for (const n of nodes) if (!n.done && lastEntryOf(book.entries(), n.id)?.event === "merged") n.done = true;
   const logShown = logPath.replace(/^\/workspace\//, "");
   const finish = async (out: string[], next?: BatchesAnswer["next"]): Promise<string> => {
     const failed = await book.save(deps.files);
@@ -295,6 +300,15 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
       continue;
     }
     if (input.after === undefined) continue;
+    // Committed, but its sheet or the plan could not be marked done: the commit stands, the marking is the human's.
+    const committed = after.map((l) => /^✓ committed ([0-9a-f]{4,40}) on /i.exec(l.trim())?.[1]).find((h) => h !== undefined);
+    if (committed !== undefined) {
+      book.add(eventLine(now, node.id, "returned", "VALID"));
+      book.add(eventLine(now, node.id, "merged", committed));
+      node.done = true;
+      lines.push(`✓ ${node.id} committed (${committed})`, `⚠ ${node.id} is not marked done in its sheet or the plan: mark it by hand`);
+      continue;
+    }
     const stop = stopOf(dev, node.id, after);
     book.add(eventLine(now, node.id, stop.event, stop.detail));
     return finish([

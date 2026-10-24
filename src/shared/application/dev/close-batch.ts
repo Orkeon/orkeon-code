@@ -4,10 +4,10 @@
 // (../git/commit-files.ts) and never calls /commit. A crew cannot
 // ask: the pull request is opened only under `openPr` (--pr or dev.prAuto, Q-10),
 // through the opener when one is wired, else its command is handed over (04 § 7).
-// The opener over the github tool (../git/open-pull-request.ts) is to be built by
-// L-6 with `asked: false`: only an allow rule on github, or bypassPermissions, opens it.
-// L-6 builds the dev-implement crew around this use case; it sits in the shared
-// dev layer until that crew exists (a crew folder without its crew is refused).
+// The opener over the github tool is ../git/open-pull-request.ts, which the
+// dev-implement crew wires with `asked: false`: only an allow rule on github, or
+// bypassPermissions, opens it. Its caller is that crew's close
+// (crews/dev-implement/application/close.ts).
 
 import type { Files, Shell } from "../ports.ts";
 import type { PrSummary } from "../../domain/git/close.ts";

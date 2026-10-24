@@ -4,6 +4,7 @@
 // aborts the rebase and the merge is handed over. Without a worktree nothing is
 // rewritten here (a rebase would check the batch branch out in the user's own
 // checkout): the merge is handed over. Never a forced update, never a push.
+// Reached only through batch-worktree.ts (mergeValidBatch), which no run calls yet.
 
 import type { Shell } from "../ports.ts";
 import {
@@ -21,7 +22,9 @@ export async function mergeFastForward(
   req: { ref: string; workBranch: string; worktree?: string },
 ): Promise<MergeOutcome> {
   const merge = gitMergeFfOnly(req.ref);
-  const unsafe = [req.ref, req.workBranch, req.worktree ?? "-"].filter(shellUnsafe);
+  // A leading `-` would be read by git as an option, as batch-worktree.ts refuses it.
+  const unsafe = [req.ref, req.workBranch, ...(req.worktree === undefined ? [] : [req.worktree])]
+    .filter((v) => shellUnsafe(v) || v.startsWith("-"));
   if (unsafe.length > 0) {
     return { merged: false, line: `not merged: ${unsafe.join(", ")} cannot go through the shell`, handOver: [merge] };
   }

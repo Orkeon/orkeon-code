@@ -24,9 +24,14 @@
 #   exit 0 -> the last line of the event log, .orkeon/dev/<code>/batches-state.md, or the
 #             file --log names (relative to the project). /dev-batches writes Code's own log; a
 #             step that drives one batch alone (/dev-implement) does not: name a log it moves.
-#     `closed` -> exit 0; an event whose detail starts with BLOCKED or GAPS -> exit 3 (a human decides);
+#     `closed` (the line `- <date> <time> closed`, a trailing blank or CR aside) -> exit 0; an event whose
+#     detail starts with BLOCKED or GAPS -> exit 3 (a human decides);
 #     the same line as before the step -> exit 4 (no progress: never loop); else the next step.
-# --max-steps (default 10) reached -> exit 5. Usage errors -> exit 64.
+# --max-steps (default 10) reached -> exit 5. Usage errors -> exit 64; the crew dev-batches is refused (64): a run
+# of a whole plan without anyone at the keyboard stays the REPL's /dev-batches (docs/headless.md).
+# Without DEV_RUN_RUNNER the project's trust is checked once, before the first step, where a terminal can answer:
+# declined -> exit 0, nothing run; refused (no terminal) -> exit 2. Each step then runs with no stdin, so
+# nothing it asks can hang the chain.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
@@ -35,6 +40,11 @@ usage() { echo "usage: scripts/dev-run.sh <crew> <code> --inputs '<json>' [--log
 crew="$1"; code="$2"; shift 2
 case "$crew" in ''|*[!a-z0-9-]*) echo "dev-run: '$crew' is not a crew name" >&2; exit 64 ;; esac
 case "$code" in ''|.*|*[!A-Za-z0-9._-]*) echo "dev-run: '$code' is not a work code" >&2; exit 64 ;; esac
+if [ "$crew" = dev-batches ]; then
+  echo "dev-run: the crew dev-batches only names the next batch and logs it launched: a run of a whole plan without" \
+    "anyone at the keyboard stays the REPL's /dev-batches" >&2
+  exit 64
+fi
 inputs=""; log_file=""; max_steps=10; wait_s=60; retries=2
 number() { case "$2" in ''|*[!0-9]*) echo "dev-run: $1 takes a whole number, not '$2'" >&2; exit 64 ;; esac; }
 while [ $# -gt 0 ]; do
@@ -59,7 +69,8 @@ mkdir -p "$runs"
 crew_file="$ROOT/src/crews/$crew/crew.ork.ts"
 [ -f "$crew_file" ] || { echo "dev-run: no crew '$crew' ($crew_file)" >&2; exit 64; }
 
-last_line() { [ -f "$state" ] && grep -v '^[[:space:]]*$' "$state" | tail -n 1 || true; }
+# The last line not blank, without its CR or trailing blanks (a log edited on Windows).
+last_line() { [ -f "$state" ] && tr -d '\r' <"$state" | sed 's/[[:space:]]*$//' | grep -v '^$' | tail -n 1 || true; }
 next_log() {
   local n=1
   while [ -e "$runs/$crew-$n.log" ]; do n=$((n + 1)); done
@@ -68,12 +79,22 @@ next_log() {
 run_once() {
   local log="$1" rc=0
   if [ -n "${DEV_RUN_RUNNER:-}" ]; then
-    $DEV_RUN_RUNNER "$crew_file" --inputs "$inputs" >"$log" 2>&1 || rc=$?
+    $DEV_RUN_RUNNER "$crew_file" --inputs "$inputs" </dev/null >"$log" 2>&1 || rc=$?
   else
-    bash "$ROOT/scripts/run-crew.sh" "$crew_file" --inputs "$inputs" >"$log" 2>&1 || rc=$?
+    bash "$ROOT/scripts/run-crew.sh" "$crew_file" --inputs "$inputs" </dev/null >"$log" 2>&1 || rc=$?
   fi
   return "$rc"
 }
+
+# The trust question asked here, once, with the terminal: in a step it would land in the step's log.
+if [ -z "${DEV_RUN_RUNNER:-}" ]; then
+  rc=0; bash "$ROOT/orkeon-code" trust check "$project" || rc=$?
+  case "$rc" in
+    0) ;;
+    4) echo "dev-run: $project is not trusted: nothing run"; exit 0 ;;
+    *) echo "dev-run: trust $project first (orkeon-code trust add $project), then run this again" >&2; exit 2 ;;
+  esac
+fi
 
 step=0
 while [ "$step" -lt "$max_steps" ]; do
@@ -100,9 +121,7 @@ while [ "$step" -lt "$max_steps" ]; do
     *) echo "dev-run: the run failed (exit $rc): see the log"; exit 2 ;;
   esac
   after="$(last_line)"
-  case "$after" in
-    *" closed") echo "dev-run: closed"; exit 0 ;;
-  esac
+  if printf '%s\n' "$after" | grep -qE '^- [0-9-]+ [0-9:]+ closed$'; then echo "dev-run: closed"; exit 0; fi
   if printf '%s\n' "$after" | grep -qE '^- [0-9-]+ [0-9:]+ F[0-9]+ [a-z]+ (BLOCKED|GAPS)([^A-Za-z]|$)'; then
     echo "dev-run: a human decides: $after"; exit 3
   fi

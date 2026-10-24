@@ -84,7 +84,8 @@ describe("commitFiles", () => {
     deepStrictEqual(await commitFiles({ shell, files }, { files: ["a.ts"], status: " M a.ts", message: "m" }), {
       ok: false, line: "git add failed: fatal: pathspec 'a.ts' did not match any files",
     });
-    deepStrictEqual([shell.commands.length, files.writes.length], [3, 0]);
+    // The message is written first, so a failed write never leaves files staged.
+    deepStrictEqual([shell.commands.length, files.writes.length], [3, 1]);
     const merging = new FakeShell();
     merging.results[PROBES[0]] = { stdout: "4b825dc642cb6eb9a060e54bf8d69288fbee4904\n" };
     deepStrictEqual(await commitFiles({ shell: merging, files: new FakeFiles() }, { files: ["a.ts"], status: " M a.ts", message: "m" }), {
@@ -96,6 +97,43 @@ describe("commitFiles", () => {
     deepStrictEqual(await commitFiles({ shell: failing, files: new FakeFiles() }, { files: ["a.ts"], status: " M a.ts", message: "m" }), {
       ok: false, line: "git commit failed: nothing added to commit",
     });
+  });
+});
+
+/** FakeFiles whose writes under the given prefixes fail, as a linked worktree's `.git` file makes them. */
+class RefusingFiles extends FakeFiles {
+  readonly refused: readonly string[];
+  constructor(refused: readonly string[]) { super(); this.refused = refused; }
+  override async write(path: string, content: string): Promise<void> {
+    if (this.refused.some((p) => path.startsWith(p))) throw new Error(`ENOTDIR: not a directory, open '${path}'`);
+    return super.write(path, content);
+  }
+}
+
+describe("commitFiles in a linked worktree (.git is a file)", () => {
+  it("writes the message under .orkeon/, commits with it, then removes it", async () => {
+    const shell = new FakeShell();
+    shell.results["git rev-parse --short HEAD"] = { stdout: "abc1234\n" };
+    const files = new RefusingFiles(["/workspace/.git/"]);
+    deepStrictEqual(await commitFiles({ shell, files }, { files: ["a.ts"], status: " M a.ts", message: "fix: x" }), { ok: true, hash: "abc1234" });
+    deepStrictEqual(files.writes, [{ path: "/workspace/.orkeon/ORKEON_COMMITMSG", content: "fix: x" }]);
+    deepStrictEqual(shell.commands.slice(2), [
+      "git --literal-pathspecs add -- 'a.ts'",
+      "git --literal-pathspecs commit -F .orkeon/ORKEON_COMMITMSG -- 'a.ts'",
+      "rm -f .orkeon/ORKEON_COMMITMSG",
+      "git rev-parse --short HEAD",
+    ]);
+  });
+
+  it("says so, and stages nothing, when no message file can be written", async () => {
+    const shell = new FakeShell();
+    const files = new RefusingFiles(["/workspace/.git/", "/workspace/.orkeon/"]);
+    const out = await commitFiles({ shell, files }, { files: ["a.ts"], status: " M a.ts", message: "m" });
+    deepStrictEqual(out, {
+      ok: false,
+      line: "the commit message could not be written (.git/ORKEON_COMMITMSG, .orkeon/ORKEON_COMMITMSG): ENOTDIR: not a directory, open '/workspace/.orkeon/ORKEON_COMMITMSG'",
+    });
+    deepStrictEqual(shell.commands, PROBES);
   });
 });
 
@@ -176,6 +214,14 @@ describe("handOverPullRequest", () => {
     const opener = { open: async (pr: unknown) => { opened.push(pr); return { url: "u" }; } };
     const lines = await handOverPullRequest({ files: new FakeFiles(), opener }, { ...REQ, open: true, pushed: false });
     deepStrictEqual([opened.length, lines.slice(-1)], [0, [GH]]);
+  });
+
+  it("says the body could not be written when its write fails, and still hands the command over", async () => {
+    const lines = await handOverPullRequest({ files: new RefusingFiles(["/workspace/workbench/"]) }, REQ);
+    deepStrictEqual(lines, [
+      "⚠ the body could not be written (ENOTDIR: not a directory, open '/workspace/workbench/pr-feat-x/PR.md'): write workbench/pr-feat-x/PR.md first",
+      "to open the pull request, in a terminal:", GH,
+    ]);
   });
 
   it("says the body could not be written when the work folder lies outside the mounts", async () => {

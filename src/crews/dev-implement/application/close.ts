@@ -20,7 +20,7 @@ import type { PermissionRule } from "../../../shared/domain/agent-policy/permiss
 import { under } from "../domain/step-checks.ts";
 import { openSteps, parseImplementSheet } from "../domain/step-section.ts";
 import { markPlanBatchDone, markSheetDone } from "../domain/sheet-edits.ts";
-import { shellQuote } from "../../../shared/domain/git/close.ts";
+import { shellQuote, workBranchFromPattern } from "../../../shared/domain/git/close.ts";
 import { WORKSPACE } from "./locate-sheet.ts";
 import { verdictMarkOf } from "./touched.ts";
 import type { LocatedSheet } from "./locate-sheet.ts";
@@ -135,15 +135,9 @@ export async function closeDevBatch(
   return [...notes, ...result.lines, ...await markDone(deps.files, located, batch, sheetText, input.today)];
 }
 
-const BRANCH_WORD = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
-
 /** The work branch's name from the pack's pattern: its first alternative before `/`, then `<code>-f<n>`. */
 export function workBranchName(pattern: string, code: string, batch: string): string | null {
-  const slash = pattern.indexOf("/");
-  if (slash <= 0) return null;
-  const prefix = pattern.slice(0, slash).split("|")[0].trim();
-  if (!BRANCH_WORD.test(prefix)) return null;
-  return `${prefix}/${code}-${batch.toLowerCase()}`;
+  return workBranchFromPattern(pattern, `${code}-${batch.toLowerCase()}`);
 }
 
 async function createWorkBranch(

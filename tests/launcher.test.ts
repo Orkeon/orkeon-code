@@ -658,15 +658,32 @@ describe("orkeon-code.ps1 follows the same rules (read here; run below, where pw
     ok(script.includes("$rest = @($repl | Select-Object -Skip 1)"), "orkeon-code.ps1 must build $rest as an array");
   });
 
+  it("passes -t to docker only on a terminal, and --user on Linux, as ./orkeon-code", () => {
+    ok(script.includes("$ttyArgs = if ([Console]::IsInputRedirected -or [Console]::IsOutputRedirected) { @('-i') } else { @('-it') }"), "-it on a tty only");
+    ok(script.includes("if ($IsLinux) { $userArgs = @('--user', \"$(& id -u):$(& id -g)\") }"), "--user on Linux");
+    ok(script.includes("& docker run --rm @ttyArgs @userArgs @envArgs -w /work"), "both passed");
+    ok(!script.includes("docker run --rm -it"), "never -it whatever the input");
+  });
+
+  it("refuses a mode it does not have, from the environment too, and answers --help and --demo", () => {
+    ok(script.includes("if (-not $Sub -and $Mode -and $Mode -notin @('docker', 'tool')) {"), "ORKEON_CODE_MODE=source is refused, never run as tool");
+    ok(script.includes("elseif ($value -notin @('docker', 'tool')) {"), "--mode=source is refused with the launcher's message, before -Mode's ValidateSet");
+    ok(script.includes("elseif ($name -cin @('-h', '--help')) { $Help = $true }"), "--help read");
+    ok(script.includes("if ($Help) { Get-Help $PSCommandPath -Detailed; exit 0 }"), "--help printed");
+    ok(script.includes("elseif ($name -eq '--demo') { throw '--demo is only in the bash launcher"), "--demo said, not passed to the REPL");
+  });
+
   it("puts back every variable it sets, so none stays in the calling session", () => {
     const set = [...new Set([...script.matchAll(/\$env:(\w+)\s*=(?!=)/g)].map((m) => m[1]))].sort();
     deepStrictEqual(set, ["ORKEON_ALLOW_EXTERNAL_MOUNTS", "ORKEON_ESBUILD_PATH", "ORKEON_Llm__Model", GATE, START_SCRIPT, PERSIST, SESSIONS_DIR,
       "WHISPER_AUDIO_DIR", "WHISPER_OUT_DIR", "WHISPER_MICROPHONE", "WHISPER_SPEAKER", "ORKEON_MCP__Servers__whisper__Transport",
       "ORKEON_MCP__Servers__whisper__Command", "UV_PROJECT_ENVIRONMENT"].sort());
-    // The server's arguments are set in a loop, by name: Args__0 to Args__11 at most (run, --project, the folder,
-    // --frozen for an install, --extra voice, --extra tts, --extra openai, --extra cuda, the script).
+    // The server's arguments are set in a loop, by name: Args__0 to Args__12 at most (run, --project, the folder,
+    // --frozen for an install, --extra voice, --extra tts, --extra openai, --extra cuda, the script: 13).
     ok(script.includes('[Environment]::SetEnvironmentVariable("ORKEON_MCP__Servers__whisper__Args__$i", $whisperArgs[$i])'), "the loop");
-    const args = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((i) => `ORKEON_MCP__Servers__whisper__Args__${i}`);
+    const most = 3 + 1 + [...script.matchAll(/\$whisperArgs \+= @\('--extra', '\w+'\)/g)].length * 2 + 1;
+    strictEqual(most, 13);
+    const args = Array.from({ length: most }, (_, i) => `ORKEON_MCP__Servers__whisper__Args__${i}`);
     const saved = /foreach \(\$name in @\(([^)]*)\)\) \{\s*\$savedEnv\[\$name\] = \[Environment\]::GetEnvironmentVariable\(\$name\)/
       .exec(script);
     ok(saved !== null, "orkeon-code.ps1 must save the variables before it sets them");
@@ -952,8 +969,17 @@ describe("orkeon-code, folder trust", () => {
   });
 });
 
+describe("the CI's npm-shim step starts the REPL without a terminal", () => {
+  it("passes --trust, or the launcher refuses its untrusted folder with 3 before the REPL", () => {
+    const ci = readFileSync(fileURLToPath(new URL("../.github/workflows/ci.yml", import.meta.url)), "utf-8");
+    const starts = ci.split("\n").filter((l) => /orkeon-code --mode tool /.test(l));
+    ok(starts.length > 0, "the step is there");
+    for (const line of starts) ok(line.includes(" --trust "), line);
+  });
+});
+
 describe("scripts/run-crew.sh checks the folder as the launcher does", () => {
-  function runCrew(extra: string[], opts: { trusted?: boolean; env?: Record<string, string> } = {}) {
+  function runCrew(extra: string[], opts: { trusted?: boolean; noDotnet?: boolean; env?: Record<string, string> } = {}) {
     const base = scratchDir("orkeon-code-run-crew-");
     const root = join(base, "checkout");
     for (const dir of ["scripts", "config", ".git", "src", "bin", "record"].map((d) => (d === "bin" || d === "record" ? join(base, d) : join(root, d)))) mkdirSync(dir, { recursive: true });
@@ -963,8 +989,10 @@ describe("scripts/run-crew.sh checks the folder as the launcher does", () => {
     }
     writeFileSync(join(root, "config/appsettings.local.json"), SETTINGS_TEXT);
     writeFileSync(join(root, "src/crew.ork.ts"), "");
-    writeFileSync(join(base, "bin/dotnet"), DOTNET);
-    chmodSync(join(base, "bin/dotnet"), 0o755);
+    if (!opts.noDotnet) {
+      writeFileSync(join(base, "bin/dotnet"), DOTNET);
+      chmodSync(join(base, "bin/dotnet"), 0o755);
+    }
     if (opts.trusted) {
       mkdirSync(join(base, ".orkeon-code"));
       writeFileSync(join(base, ".orkeon-code/trusted-folders.json"), trustStore([join(base, "project")]));
@@ -1012,6 +1040,15 @@ describe("scripts/run-crew.sh checks the folder as the launcher does", () => {
     strictEqual(missing.status, 1);
     ok(missing.stderr.includes("ORKEON_CODE_MODE=source needs ORKEON_SOURCE"), missing.stderr);
     deepStrictEqual(missing.calls, []);
+  });
+
+  it("says the source mode needs dotnet when it is not on PATH, building nothing", { skip: existsSync("/usr/bin/dotnet") || existsSync("/bin/dotnet") }, () => {
+    const source = scratchDir("orkeon-code-run-crew-source-");
+    mkdirSync(join(source, "src/scripting/Orkeon.Scripting.Cli"), { recursive: true });
+    const r = runCrew([], { trusted: true, noDotnet: true, env: { ORKEON_CODE_MODE: "source", ORKEON_SOURCE: source } });
+    strictEqual(r.status, 1, r.stderr);
+    ok(r.stderr.includes("needs the .NET SDK: dotnet is not on PATH"), r.stderr);
+    deepStrictEqual(r.calls, []);
   });
 });
 

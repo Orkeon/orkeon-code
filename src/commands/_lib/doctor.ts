@@ -16,6 +16,9 @@
 // says what it verified and what it did not rather than implying a ping.
 
 import type { Files, SessionMetadata, Shell, Telemetry, ToolCatalogue } from "../../shared/application/ports.ts";
+import type { ConfigStore } from "../../shared/application/config-store.ts";
+import { PERMISSION_FALLBACK_CONFIG_KEY } from "../../shared/domain/permission-modes.ts";
+import { CLI_NAME, CLI_VERSION, ORKEON_RUNTIME_VERSION } from "./meta.ts";
 import { CODE_INTEL_TOOLS } from "../../shared/domain/code-intel-contract.ts";
 import type { CommandView } from "./view.ts";
 
@@ -35,12 +38,21 @@ export interface DoctorDeps {
   telemetry: Pick<Telemetry, "readMetadata">;
   catalogue: Pick<ToolCatalogue, "names">;
   files: Pick<Files, "mounts" | "list">;
+  /** The settings: a project value set aside (QL-06) is named. Absent, that check is not made. */
+  config?: Pick<ConfigStore, "readValue">;
 }
 
 /** Every check, one row each, and the verdict over them. */
 export async function runDoctor(deps: DoctorDeps): Promise<CommandView> {
   const { shell, telemetry, catalogue, files } = deps;
   const rows: DoctorRow[] = [];
+
+  // 0. The versions, as `orkeon-code --version` prints them (temp/15 § 4.1); the runtime gives a command none of its own.
+  rows.push({
+    check: "version",
+    result: PASS,
+    detail: `${CLI_NAME} ${CLI_VERSION}, on Orkeon ${ORKEON_RUNTIME_VERSION} (expected; the one found: orkeon-code --version)`,
+  });
 
   // 1. Toolchain (unchanged in intent, now one row per binary with the version).
   for (const p of [
@@ -125,6 +137,18 @@ export async function runDoctor(deps: DoctorDeps): Promise<CommandView> {
       : `${OLD_SESSIONS_DIR} holds sessions of an older start, left alone: sessions now live in the launcher's state folder, outside the project ` +
         "(orkeon-code --resume lists them); delete the folder once you no longer need it",
   });
+
+  // 6. A project value a project file cannot set (QL-06, temp/15 § 4.6): /permissions says it too.
+  if (deps.config !== undefined) {
+    const fallback = await deps.config.readValue(PERMISSION_FALLBACK_CONFIG_KEY).catch(() => undefined);
+    if (fallback?.ignored !== undefined) {
+      rows.push({
+        check: "settings: project values",
+        result: WARN,
+        detail: `the project file sets ${PERMISSION_FALLBACK_CONFIG_KEY} '${fallback.ignored.value}', ignored: ${fallback.ignored.reason}`,
+      });
+    }
+  }
 
   const failed = rows.filter((r) => r.result === FAIL).length;
   const warned = rows.filter((r) => r.result === WARN).length;

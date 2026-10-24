@@ -30,8 +30,10 @@ function withTree(files: Record<string, string>, check: (root: string) => void, 
 
 const run = (root: string) => spawnSync("sh", [SCRIPT, root], { encoding: "utf-8" });
 
+// Dated now: the script keeps a state file its header dates in the last 7 days.
+const NOW = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 const STATE = renderStateFile({
-  code: "demo", phase: "F2", at: "2026-10-24T10:00:00Z", trigger: "auto", sheet: "workbench/demo/DEMO-PLAN-F2.md",
+  code: "demo", phase: "F2", at: NOW, trigger: "auto", sheet: "workbench/demo/DEMO-PLAN-F2.md",
   steps: [{ label: "Step 2 — Refuse a code", tdd: "RED [ ] GREEN [ ] COST [ ]", open: true }],
   events: [], reports: [], tree: { lines: [] },
 });
@@ -57,17 +59,26 @@ describe("scripts/session-start.sh", () => {
       strictEqual(r.status, 0);
       strictEqual(r.stdout,
         "Dev work in progress in this project (Orkeon Code's state under .orkeon/dev/):\n" +
-        "- state of a batch: .orkeon/dev/demo/state-F2.md (written 2026-10-24T10:00:00Z); first open step: Step 2 — Refuse a code. " +
+        `- state of a batch: .orkeon/dev/demo/state-F2.md (written ${NOW}); first open step: Step 2 — Refuse a code. ` +
         "Read it before going on with that batch.\n" +
         "- open batch(es) in .orkeon/dev/demo/batches-state.md: F2 (/dev-batches demo goes on)\n");
     });
   });
 
-  it("leaves out a state file older than 7 days, and a batch a later `closed` closes", () => {
+  it("leaves out a state file its header dates more than 7 days back, and a batch a later `closed` closes", () => {
     withTree({
-      ".orkeon/dev/demo/state-F2.md": STATE,
+      ".orkeon/dev/demo/state-F2.md": STATE.replace(/written at \S+/, "written at 2020-01-01T00:00:00Z"),
       ".orkeon/dev/demo/batches-state.md": "- 2026-10-21 08:30 F1 launched\n- 2026-10-21 09:10 closed\n",
-    }, (root) => strictEqual(run(root).stdout, ""), [".orkeon/dev/demo/state-F2.md"]);
+    }, (root) => strictEqual(run(root).stdout, ""));
+  });
+
+  it("picks state files as its twin does: by the header's date, never the file's age; undated, kept", () => {
+    withTree({ ".orkeon/dev/demo/state-F2.md": STATE }, (root) => {
+      strictEqual(run(root).stdout.includes("- state of a batch: .orkeon/dev/demo/state-F2.md"), true);
+    }, [".orkeon/dev/demo/state-F2.md"]);
+    withTree({ ".orkeon/dev/demo/state-F3.md": STATE.replace(/written at \S+/, "written at yesterday") }, (root) => {
+      strictEqual(run(root).stdout.includes("- state of a batch: .orkeon/dev/demo/state-F3.md (written yesterday)"), true);
+    }, [".orkeon/dev/demo/state-F3.md"]);
   });
 
   it("reads a log written with CRLF line ends, and prints its header once", () => {

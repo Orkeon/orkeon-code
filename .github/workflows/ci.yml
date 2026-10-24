@@ -96,7 +96,8 @@ jobs:
           t="$RUNNER_TEMP/shim"; mkdir -p "$t/fake" "$t/proj"
           printf '#!/bin/sh\nenv > %s/env\nexit 5\n' "$t" > "$t/fake/orkeon-repl"; chmod +x "$t/fake/orkeon-repl"
           echo '{"Llm":{"Model":"m","BaseUrl":"http://127.0.0.1:9/v1"}}' > "$t/settings.json"
-          set +e; PATH="$t/fake:$PATH" orkeon-code --mode tool --settings "$t/settings.json" --workspace "$t/proj"; code=$?; set -e
+          # --trust: without a terminal the launcher refuses a folder it was never told to trust (exit 3).
+          set +e; PATH="$t/fake:$PATH" orkeon-code --mode tool --trust --settings "$t/settings.json" --workspace "$t/proj"; code=$?; set -e
           [ "$code" = 5 ] || { echo "exit code $code, expected the REPL's 5"; exit 1; }
           esb="$(sed -n 's/^ORKEON_ESBUILD_PATH=//p' "$t/env")"
           case "$esb" in "$(npm root -g)/orkeon-code/node_modules/@esbuild/"*) "$esb" --version ;; *) echo "esbuild: '$esb'"; exit 1 ;; esac
