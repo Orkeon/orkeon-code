@@ -54,6 +54,22 @@ const markDone = (files: FakeFiles, batch: string): void => {
   const plan = files.files.get(PLAN)!;
   files.files.set(PLAN, plan.replace(new RegExp(`(### Batch ${batch} — [^\\n]*?) — open`), "$1 — done (2026-10-24)"));
 };
+/** F1 open again, in the plan and its sheet: the plan's three batches all to run. */
+const reopenF1 = (files: FakeFiles): void => {
+  files.files.set(PLAN, files.files.get(PLAN)!.replace("### Batch F1 — Parsers — done (2026-10-20)", "### Batch F1 — Parsers — open"));
+  const sheet = `${DIR}/DEMO-PLAN-F1.md`;
+  files.files.set(sheet, files.files.get(sheet)!.replace("# DEMO-PLAN-F1 — Parsers — done (2026-10-20)", "# DEMO-PLAN-F1 — Parsers")
+    .replace(/^Done \(2026-10-20\).*$/m, ""));
+};
+const VALID_F2 = "# DEMO-VERIFY-F2 — 2026-10-24 09:00 — fast\n\n## Verdict — VALID\n\nValidations: `npm test` — exit 0, whole suite\n";
+/** F2 done, F3 launched: back from F3, the plan closes. */
+async function toTheClose(files: FakeFiles, deps: DevBatchesDeps, first: Record<string, unknown> = {}): Promise<BatchesAnswer> {
+  await runDevBatches({ code: "demo", ...first }, deps);
+  markDone(files, "F2");
+  await runDevBatches({ after: [] }, deps);
+  markDone(files, "F3");
+  return parse(await runDevBatches({ after: [] }, deps));
+}
 const events = (files: FakeFiles): string[] =>
   parseBatchesState(files.files.get(LOG) ?? "").entries.map((e) => `${e.batch ?? ""} ${e.event}`.trim());
 
@@ -67,7 +83,7 @@ describe("runDevBatches — a run", () => {
     strictEqual(out.next?.crew, "dev-implement");
     deepStrictEqual(out.next?.input, {
       batch: "F2", plan: "demo", hooks: [], effort: "high", permissionMode: "default", permissionRules: ["Bash(git push*)"],
-      githubTool: true, steps: 2,
+      githubTool: false, steps: 2,
     });
     ok(out.lines.includes("review of F2: not run (no reviewer on this host)"), out.lines.join("\n"));
     ok(out.lines.some((l) => l.startsWith("→ F2 launched (2/3)")), out.lines.join("\n"));
@@ -95,9 +111,9 @@ describe("runDevBatches — a run", () => {
     const { files, deps } = setup();
     const llm = new FakeLlm();
     llm.extractions = [{ verdict: "CLEAR", rows: [] }];
-    await runDevBatches({ code: "demo" }, { ...deps, reviewer: llm });
+    await runDevBatches({ code: "demo" }, { ...deps, reviewerFor: () => llm });
     strictEqual(llm.acts.length, 1);
-    const again = parse(await runDevBatches({ code: "demo" }, { ...deps, reviewer: llm }));
+    const again = parse(await runDevBatches({ code: "demo" }, { ...deps, reviewerFor: () => llm }));
     strictEqual(again.next?.input.batch, "F2");
     ok(again.lines.some((l) => l.startsWith("→ F2 relaunched")), again.lines.join("\n"));
     strictEqual(llm.acts.length, 1);
@@ -106,17 +122,24 @@ describe("runDevBatches — a run", () => {
 });
 
 describe("runDevBatches — back from a batch", () => {
-  it("runs a three-batch plan to one push and one pull request", async () => {
+  it("runs a three-batch plan to one push and one pull request, each commit named by its close", async () => {
     const { files, shell, deps } = setup();
-    await runDevBatches({ code: "demo" }, deps);
+    reopenF1(files);
+    strictEqual(parse(await runDevBatches({ code: "demo" }, deps)).next?.input.batch, "F1");
+    markDone(files, "F1");
+    const second = parse(await runDevBatches({ after: ["✓ committed 1111111 on feat/demo: 2 file(s)"] }, deps));
+    strictEqual(second.next?.input.batch, "F2");
     markDone(files, "F2");
-    const second = parse(await runDevBatches({ after: ["→ F2 committed"] }, deps));
-    strictEqual(second.next?.input.batch, "F3");
-    ok(second.lines.includes("✓ F2 done and committed"));
+    const third = parse(await runDevBatches({ after: ["✓ committed 2222222 on feat/demo: 1 file(s)"] }, deps));
+    strictEqual(third.next?.input.batch, "F3");
+    ok(third.lines.includes("✓ F2 done and committed"));
     markDone(files, "F3");
     const last = parse(await runDevBatches({ after: ["→ F3 committed"] }, deps));
     strictEqual(last.next, undefined);
-    deepStrictEqual(events(files), ["F2 launched", "F2 returned", "F2 merged", "F3 launched", "F3 returned", "F3 merged", "closed"]);
+    deepStrictEqual(events(files), ["F1 launched", "F1 returned", "F1 merged", "F2 launched", "F2 returned", "F2 merged",
+      "F3 launched", "F3 returned", "F3 merged", "closed"]);
+    deepStrictEqual(parseBatchesState(files.files.get(LOG)!).entries.filter((e) => e.event === "merged").map((e) => e.detail),
+      ["1111111", "2222222", "abc1234"]);
     strictEqual(shell.commands.filter((c) => c === gitPushCommand("feat/demo")).length, 1);
     ok(last.lines.includes("✓ pushed feat/demo to origin"), last.lines.join("\n"));
     ok(files.writes.some((w) => w.path.endsWith("/PR.md")), "the pull request's body is written");
@@ -142,12 +165,12 @@ describe("runDevBatches — back from a batch", () => {
     const { files, deps } = setup();
     const llm = new FakeLlm();
     llm.extractions = [{ verdict: "GAPS", rows: [{ severity: "Blocking", question: "Does F2 still read the parsers F1 gave?", evidence: "DEMO-PLAN-F2.md:6", target: "F2" }] }];
-    const out = parse(await runDevBatches({ code: "demo" }, { ...deps, reviewer: llm }));
+    const out = parse(await runDevBatches({ code: "demo" }, { ...deps, reviewerFor: () => llm }));
     strictEqual(out.next, undefined);
     ok(out.lines.includes("review of F2: GAPS — 1 Blocking, 0 Major"), out.lines.join("\n"));
     deepStrictEqual(events(files), ["F2 stopped"]);
     // Settled and typed again: launched without a second review.
-    strictEqual(parse(await runDevBatches({ code: "demo" }, { ...deps, reviewer: llm })).next?.input.batch, "F2");
+    strictEqual(parse(await runDevBatches({ code: "demo" }, { ...deps, reviewerFor: () => llm })).next?.input.batch, "F2");
     strictEqual(llm.acts.length, 1);
   });
 
@@ -158,6 +181,68 @@ describe("runDevBatches — back from a batch", () => {
     const out = parse(await runDevBatches({ code: "demo" }, deps));
     ok(shell.commands.includes("git switch -c 'feat/demo'"), shell.commands.join("\n"));
     strictEqual(out.next?.input.batch, "F2");
+  });
+});
+
+describe("runDevBatches — what comes back and the close", () => {
+  it("logs a GAPS verdict as returned, and stops", async () => {
+    const { files, deps } = setup();
+    await runDevBatches({ code: "demo" }, deps);
+    const out = parse(await runDevBatches({ after: ["→ /dev-implement F2 — correction: Major Scope: y"] }, deps));
+    strictEqual(out.next, undefined);
+    ok(out.lines.includes("F2 returned GAPS"), out.lines.join("\n"));
+  });
+
+  it("logs a VALID batch its close did not commit as a stop, with the close's ✗ line", async () => {
+    const { files, deps } = setup();
+    files.files.set(`${DIR}/DEMO-VERIFY-F2.md`, VALID_F2);
+    await runDevBatches({ code: "demo" }, deps);
+    const out = parse(await runDevBatches({ after: ["✗ git commit failed: hook refused"] }, deps));
+    ok(out.lines.includes("F2 stopped BLOCKED — close: git commit failed: hook refused"), out.lines.join("\n"));
+  });
+
+  it("keeps the commits local under a rule that denies the push, and closes the run", async () => {
+    const { files, shell, deps } = setup();
+    const out = await toTheClose(files, deps, { permissionMode: "default", permissionRules: ["deny shell_command command=git push*"] });
+    ok(out.lines.includes("✗ not pushed: a session rule denies 'git push -u origin 'feat/demo''; the commits stay local"), out.lines.join("\n"));
+    strictEqual(shell.commands.some((c) => c.startsWith("git push")), false);
+    strictEqual(events(files).at(-1), "closed");
+  });
+
+  it("leaves the run open when the push fails, and tries again at the next run", async () => {
+    const { files, shell, deps } = setup();
+    shell.results[gitPushCommand("feat/demo")] = { exitCode: 1, stderr: "rejected\n" };
+    const out = await toTheClose(files, deps);
+    ok(out.lines.includes("the run stays open: /dev-batches demo tries the push again"), out.lines.join("\n"));
+    strictEqual(events(files).includes("closed"), false);
+    shell.results[gitPushCommand("feat/demo")] = { exitCode: 0 };
+    await runDevBatches({ code: "demo" }, deps);
+    strictEqual(events(files).at(-1), "closed");
+  });
+
+  it("does not overwrite the run in progress for a code that has no plan", async () => {
+    const { files, deps } = setup();
+    await runDevBatches({ code: "demo" }, deps);
+    ok(parse(await runDevBatches({ code: "demi" }, deps)).lines.at(-1)!.startsWith("BLOCKED — no plan"));
+    strictEqual(JSON.parse(files.files.get(ACTIVE_RECORD)!).code, "demo");
+  });
+
+  it("takes the context of a typed run without a code, and keeps the record's for a chained one", async () => {
+    const { files, deps } = setup();
+    await runDevBatches({ code: "demo", permissionMode: "default", effort: "low" }, deps);
+    strictEqual(parse(await runDevBatches({ permissionMode: "default", effort: "high" }, deps)).next?.input.effort, "high");
+    strictEqual(JSON.parse(files.files.get(ACTIVE_RECORD)!).context.effort, "high");
+    ok(parse(await runDevBatches({ permissionMode: "plan" }, deps)).lines.at(-1)!.startsWith("BLOCKED — the session mode plan"));
+    strictEqual(JSON.parse(files.files.get(ACTIVE_RECORD)!).context.permissionMode, "default");
+  });
+
+  it("launches nothing when its log cannot be written", async () => {
+    const { files, deps } = setup();
+    const write = files.write.bind(files);
+    files.write = async (path: string, content: string) => { if (path === LOG) throw new Error("read-only"); return write(path, content); };
+    const out = parse(await runDevBatches({ code: "demo" }, deps));
+    strictEqual(out.next, undefined);
+    ok(out.lines.at(-1)!.startsWith("BLOCKED — the log must be writable"), out.lines.join("\n"));
   });
 });
 

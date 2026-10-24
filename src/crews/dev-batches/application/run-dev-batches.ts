@@ -55,8 +55,8 @@ export interface DevBatchesInputs {
 export interface DevBatchesDeps {
   files: Files; shell: Shell; config: Pick<ConfigStore, "readValue">; log: Pick<Logger, "info" | "warn">;
   clock: () => Date;
-  /** The reviewer of the next batch (read tools only); none: the review is not run, and said. */
-  reviewer?: Pick<Llm, "act" | "extract">;
+  /** The reviewer of the next batch (read tools only), under the run's hooks and effort; none: not run, and said. */
+  reviewerFor?(context: BatchesContext): Pick<Llm, "act" | "extract">;
   /** The pull-request opener for the context read at the dispatch; none: the command is handed over. */
   openerFor?(context: BatchesContext): PullRequestOpener | undefined;
 }
@@ -174,12 +174,11 @@ async function ensureWorkBranch(
   const name = batchesBranchName(wanted, code);
   if (name === null) return { ok: false, line: `no branch name can be made from contrib.branch '${wanted}' (<prefix>/<slug>): create the work branch` };
   const exists = await runGit(shell, `git rev-parse --verify --quiet ${shellQuote(`refs/heads/${name}`)}`);
-  if (exists.exitCode === 0) return { ok: false, line: `${branch} is the default branch and ${name} exists already: switch to it (git switch ${name})` };
-  const made = await runGit(shell, `git switch -c ${shellQuote(name)}`);
+  const made = await runGit(shell, exists.exitCode === 0 ? `git switch ${shellQuote(name)}` : `git switch -c ${shellQuote(name)}`);
   if (made.exitCode !== 0) {
-    return { ok: false, line: `git switch -c ${name} failed (${(made.stderr || made.stdout).trim().split("\n")[0] || `exit ${made.exitCode}`})` };
+    return { ok: false, line: `git switch ${exists.exitCode === 0 ? "" : "-c "}${name} failed (${(made.stderr || made.stdout).trim().split("\n")[0] || `exit ${made.exitCode}`})` };
   }
-  return { ok: true, line: `✓ branch ${name} created from ${branch} (contrib.branch ${wanted})` };
+  return { ok: true, line: exists.exitCode === 0 ? `✓ back on ${name}, the run's branch` : `✓ branch ${name} created from ${branch} (contrib.branch ${wanted})` };
 }
 
 /** The closed batches a review is told about: each one's commit and its files. */
@@ -200,30 +199,34 @@ function mergedOf(entries: readonly BatchesLogEntry[]): MergedBatch[] {
   return [...out].map(([batch, hash]) => ({ batch, hash }));
 }
 
+/** Every batch of the plan in its order, with the commit the log names (none for one closed before the run). */
+function everyDone(order: readonly string[], merged: readonly MergedBatch[]): MergedBatch[] {
+  return order.map((batch) => merged.find((m) => m.batch === batch) ?? { batch, hash: "" });
+}
+
 export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDeps): Promise<string> {
   const lines: string[] = [];
   // 1. The run: the code named, kept with the dispatch's context; else the one the record names.
   let code: string;
   let pr: boolean;
   let context: BatchesContext;
+  // A typed /dev-batches (its dispatch passes the session's mode) brings the context as it is now; a chained run
+  // (`after`) reads it back. The record is written once the plan is found and the mode allows the run.
+  const fresh = typeof input.permissionMode === "string";
+  let record: ActiveRecord | null = null;
   if (typeof input.code === "string" && input.code.trim() !== "") {
     code = input.code.trim();
     if (!isCode(code)) return answer([`BLOCKED — '${code}' is not a work code (a folder name of the work folder)`]);
     pr = flag(input.pr);
     context = contextOf(input);
-    try {
-      await deps.files.write(ACTIVE_RECORD, `${JSON.stringify({ code, pr, context }, null, 2)}\n`);
-    } catch (e) {
-      lines.push(`⚠ the run record could not be written (${reasonOf(e)}): after a refused hop, type /dev-batches ${code}`);
-    }
   } else {
-    const record = await readRecord(deps.files);
+    record = await readRecord(deps.files);
     if (record === null || record.code === null) {
       return answer(["no /dev-batches run to go on with: /dev-batches <code>"]);
     }
     code = record.code;
     pr = record.pr || flag(input.pr);
-    context = record.context;
+    context = fresh ? contextOf(input) : record.context;
   }
   const mode = context.permissionMode.trim();
   if (mode !== "" && policyFor(mode).readOnly) {
@@ -240,6 +243,14 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
     return answer([...lines, `BLOCKED — no plan under ${ctx.work.folder}/${code}/${known}: /dev-plan first`]);
   }
   const dev = lookup.found;
+  const writeRecord = async (value: object): Promise<void> => {
+    try {
+      await deps.files.write(ACTIVE_RECORD, `${JSON.stringify(value, null, 2)}\n`);
+    } catch (e) {
+      lines.push(`⚠ the run record could not be written (${reasonOf(e)}): after a refused hop, type /dev-batches ${code}`);
+    }
+  };
+  if (record === null || fresh || flag(input.pr) !== record.pr) await writeRecord({ code, pr, context });
   const nodes = batchNodes(dev);
   const order = waveOrder(nodes);
   const now = deps.clock();
@@ -254,7 +265,9 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
   const logShown = logPath.replace(/^\/workspace\//, "");
   const finish = async (out: string[], next?: BatchesAnswer["next"]): Promise<string> => {
     const failed = await book.save(deps.files);
-    return answer(failed === null ? out : [...out, failed], next);
+    if (failed === null) return answer(out, next);
+    // Without its log the run cannot tell a batch it launched: nothing is launched.
+    return answer(next === undefined ? [...out, failed] : [...out, failed, `BLOCKED — the log must be writable before a launch, then /dev-batches ${code}`]);
   };
 
   // 3. What came of the batches the log leaves launched: a batch done since is logged returned and merged;
@@ -264,9 +277,12 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
     const last = lastEntryOf(book.entries(), node.id);
     if (last === undefined || !OPENING.has(last.event)) continue;
     if (node.done) {
-      const head = await runGit(deps.shell, GIT_HEAD_COMMAND);
+      // The close's own line names the batch's commit; a batch closed by hand is read at HEAD.
+      const said = after.map((l) => /^✓ committed ([0-9a-f]{4,40}) on /i.exec(l.trim())?.[1]).find((h) => h !== undefined);
+      const head = said === undefined ? await runGit(deps.shell, GIT_HEAD_COMMAND) : null;
+      const hash = said ?? (head !== null && head.exitCode === 0 ? head.stdout.trim() : "(hash not read)");
       book.add(eventLine(now, node.id, "returned", "VALID"));
-      book.add(eventLine(now, node.id, "merged", head.exitCode === 0 ? head.stdout.trim() : "(hash not read)"));
+      book.add(eventLine(now, node.id, "merged", hash));
       lines.push(`✓ ${node.id} done and committed`);
       continue;
     }
@@ -282,18 +298,19 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
   // 4. Every batch done: the close of the plan, once.
   const next = order.ok ? nextBatch(order.order, nodes) : null;
   if (order.ok && next === null) {
-    if (book.closed()) return finish([...lines, `${code}: every batch is done and the run is closed (${logShown})`]);
+    if (book.closed()) {
+      await writeRecord({ code: null });
+      return finish([...lines, `${code}: every batch is done and the run is closed (${logShown})`]);
+    }
     const opener = context.githubTool ? deps.openerFor?.(context) : undefined;
     const close = await closePlan(
       { files: deps.files, shell: deps.shell, config: deps.config, opener },
-      { code, dev, pack: ctx.pack?.pack ?? null, work: ctx.work, merged: mergedOf(book.entries()), pr, rules: parseSessionRules(context.permissionRules) },
+      { code, dev, pack: ctx.pack?.pack ?? null, work: ctx.work, merged: everyDone(order.order, mergedOf(book.entries())), pr, rules: parseSessionRules(context.permissionRules) },
     );
     lines.push(...close.lines);
     if (close.closed) {
       book.add(closedLine(now));
-      try {
-        await deps.files.write(ACTIVE_RECORD, `${JSON.stringify({ code: null }, null, 2)}\n`);
-      } catch { /* a stale record names a closed run: the next /dev-batches without a code says so */ }
+      await writeRecord({ code: null });
       lines.push(`→ ${code}: every batch done, the run closed (${logShown})`);
     }
     return finish(lines);
@@ -320,10 +337,11 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
   const entry = lastEntryOf(book.entries(), next);
   if (entry === undefined && node.dependsOn.length > 0) {
     const sheet = sheetOf(next)!;
-    if (deps.reviewer === undefined) {
+    const reviewer = deps.reviewerFor?.(context);
+    if (reviewer === undefined) {
       lines.push(`review of ${next}: not run (no reviewer on this host)`);
     } else {
-      const outcome = await runSubAgent(deps.reviewer, {
+      const outcome = await runSubAgent(reviewer, {
         charter: REVIEWER_CHARTER,
         system: reviewSystem("next-batch"),
         brief: buildReviewBrief({
@@ -369,7 +387,8 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
       crew: "dev-implement",
       input: {
         batch: next, plan: code, hooks: context.hooks, effort: context.effort,
-        permissionMode: context.permissionMode, permissionRules: context.permissionRules, githubTool: context.githubTool,
+        // No github tool for a batch: its close never opens a pull request (dev.prAuto included); the plan's does.
+        permissionMode: context.permissionMode, permissionRules: context.permissionRules, githubTool: false,
         ...(context.memoryRecall === false ? { memoryRecall: false } : {}),
         ...(openSteps > 0 ? { steps: openSteps } : {}),
       },

@@ -2,13 +2,15 @@
 // /dev-batches [<code>] [--pr] — run a plan's batches one after the other, in the order their dependencies allow,
 // and close the plan with one push and one pull request. The crew (crews/dev-batches) reads the plan and its log
 // `.orkeon/dev/<code>/batches-state.md` and names the next batch; this command's `completed` launches it:
-// /dev-implement on the batch, its audit (/dev-verify), on VALID its close (a commit, not pushed), then the crew
+// /dev-implement on the batch, its audit (/dev-verify), on VALID its close (a commit, sent push: false), then the crew
 // again, which logs the batch and names the next one. The answers are told apart by the crew that gave them
 // (_lib/dev-batches.ts). A stop (BLOCKED, a GAPS verdict, a Blocking review question) hands over to the user;
 // `/dev-batches` again goes on from the first batch not done, its sheet's ticks kept. The chain is bounded by
 // the runtime (MaxChainDepth, 8 crews from a typed command: about two batches): past it, the refusal says to type
 // `/dev-batches`, which goes on with the run the crew recorded. No state here: the crew keeps the run's code and
-// what this dispatch read (mode, rules, github tool, hooks, effort) in its run record. Every launch goes through
+// what this dispatch read (mode, rules, github tool, hooks, effort) in its run record. Until the dev-implement
+// crew forwards `push` to its close, each batch's close still pushes the branch; the plan's close opens the one
+// pull request (a batch's close is given no github tool). Every launch goes through
 // launchCrew (its chain-depth refusal); the gate is checked and the step's rules put back before each one.
 import { rawTokens } from "./_lib/args.ts";
 import { batchesChainStep, parseDevBatchesArgs } from "./_lib/dev-batches.ts";
@@ -25,7 +27,7 @@ const deps = { session: orkeonSessionIo(), config: orkeonConfigStore() };
 
 defineAsyncCommand({
   name: "dev-batches",
-  description: "Run a plan's batches one after the other in their dependencies' order (implement, audit, commit each), then push once and open one pull request; no code: go on with the run in progress.",
+  description: "Run a plan's batches one after the other in their dependencies' order (implement, audit, commit each), then one pull request for the plan; no code: go on with the run in progress.",
   maxConcurrent: 1,
   dispatch: async (args, ctx) => {
     const parsed = parseDevBatchesArgs(rawTokens(args));
@@ -51,10 +53,12 @@ defineAsyncCommand({
       return { refused: start.line };
     }
     for (const line of start.lines) ctx.writeLine(line);
-    // A run named by its code carries what was read here; without one, the crew reads its run record back.
-    const input = parsed.args.code === null
-      ? { pr: parsed.args.pr }
-      : { code: parsed.args.code, pr: parsed.args.pr, ...start.input, effort: await storedEffort(deps.session), ...prContext };
+    // What was read here goes with every typed run, a run without a code too: the crew keeps it in its run
+    // record for the runs the chain launches (a mode or a rule changed since the first run counts).
+    const input = {
+      ...(parsed.args.code === null ? {} : { code: parsed.args.code }), pr: parsed.args.pr,
+      ...start.input, effort: await storedEffort(deps.session), ...prContext,
+    };
     return launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "dev-batches", input, {
       ruleSets: start.sets.join(" "), rules: start.rules, hooks: start.hooks.length,
     });

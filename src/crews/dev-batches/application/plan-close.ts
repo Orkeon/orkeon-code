@@ -99,7 +99,7 @@ export function planSummary(input: PlanCloseInput, files: readonly string[]): Pr
   }
   return {
     batch: `${plan?.plan.prefix ?? input.code.toUpperCase()} — ${feature}: batches ${ids.join(", ") || "none"}, ` +
-      `from \`${dev.shown}/${plan?.name ?? "?"}\`, one commit each (${input.merged.map((m) => `${m.batch} ${m.hash}`).join(", ")}).`,
+      `from \`${dev.shown}/${plan?.name ?? "?"}\`, one commit each (${input.merged.map((m) => `${m.batch} ${m.hash || "before this run"}`).join(", ")}).`,
     layers: filesPerLayer(input.pack, files),
     validations,
     audit: audits.join("; "),

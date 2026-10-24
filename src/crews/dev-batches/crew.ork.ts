@@ -39,12 +39,12 @@ const builder = AgentBuilder()
   .tools(charterCatalogue(REVIEWER_CHARTER))
   .maxIterations(REVIEWER_CHARTER.maxIterations)
   .body(async (_input: any, ctx: any) => {
-    // The host's gate first, then these callbacks: the dev rule sets again and the /hooks the command passed.
-    // The reviewer only reads: the plan step's guard is the one that fits it.
-    const callbacks = devToolCallbacks({ step: "dev-plan", hooks: inputs().hooks }, { shell: ports.shell, log: ctx.log });
     return await runDevBatches(inputs(), {
       ...ports, log: ctx.log, clock: () => new Date(),
-      reviewer: createLlm(ctx.llm, callbacks, { effort }),
+      // The host's gate first, then these callbacks: the dev rule sets again and the run's /hooks (a chained run
+      // reads them from its record, as it does the /effort). The reviewer only reads: the plan step's guard fits it.
+      reviewerFor: (c) => createLlm(ctx.llm, devToolCallbacks({ step: "dev-plan", hooks: c.hooks }, { shell: ports.shell, log: ctx.log }),
+        { effort: providerEffort(c.effort ?? undefined) }),
       openerFor: (c) => orkeonPullRequestOpener({ mode: c.permissionMode, rules: parseSessionRules(c.permissionRules), asked: false }),
     });
   });
