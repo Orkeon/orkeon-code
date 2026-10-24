@@ -105,7 +105,7 @@ async function runOrk(files: Record<string, string>, options: { globFails?: bool
   g.tools = {
     glob: async ({ path, pattern }: { path: string; pattern: string }) => {
       if (options.globFails) throw new Error(`no such directory: ${path}`);
-      const re = new RegExp(`^${pattern.replace(/[.]/g, "\\.").replace(/\*/g, "[^/]*")}$`);
+      const re = new RegExp(`^${pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, "[^/]*")}$`);
       return { paths: Object.keys(files).filter((f) => f.startsWith(`${path}/`) && re.test(f.slice(path.length + 1))), truncated: false };
     },
     fileRead: async ({ path }: { path: string }) => ({ content: files[path] ?? "" }),

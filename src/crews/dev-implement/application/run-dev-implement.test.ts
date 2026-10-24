@@ -242,7 +242,7 @@ describe("runDevImplement — the steps", () => {
   it("keeps what a role's own test runs leave in the tree out of its changes", async () => {
     const t = setup([(_p, tree) => { tree.write("tests/a.test.ts", "t"); tree.output("src/obj/cache.bin", "x"); return "done"; }],
       [(_p, tree) => { tree.write("src/a.ts", "c"); tree.output("src/obj/cache2.bin", "y"); tree.passing.add("tests/a.test.ts"); return "Cost: 1 reads, 0 writes; none"; }],
-      SHEET.replace("TDD: RED [ ] GREEN [ ] COST [ ]\n\n### Step 2", "TDD: RED [ ] GREEN [ ] COST [ ]\n\n### Step 2").replace(/### Step 2[\s\S]*?TDD: RED \[ \] GREEN \[ \] COST \[ \]/, (m) => m.replace("TDD: RED [ ] GREEN [ ] COST [ ]", TICKED)));
+      SHEET.replace(/### Step 2[\s\S]*?TDD: RED \[ \] GREEN \[ \] COST \[ \]/, (m) => m.replace("TDD: RED [ ] GREEN [ ] COST [ ]", TICKED)));
     const a = parse(await runDevImplement({ batch: "F1", plan: "demo" }, t.deps));
     strictEqual(blockedLine(a), undefined, a.lines.join("\n"));
     deepStrictEqual(JSON.parse(t.files.files.get(touchedPath("demo", "F1")) ?? "{}").touched, ["src/a.ts", "tests/a.test.ts"]);

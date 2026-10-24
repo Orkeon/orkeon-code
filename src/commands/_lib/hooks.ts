@@ -37,7 +37,7 @@ export async function runHooks(tokens: readonly string[], session: Pick<SessionS
       const operator = shellOperatorIn(command);
       if (operator !== undefined) {
         return {
-          text: `refused: the command holds '${operator.replace("\n", "\\n")}', which the shell tool refuses: a hook is one program ` +
+          text: `refused: the command holds '${operator.replace(/\n/g, "\\n")}', which the shell tool refuses: a hook is one program ` +
             "and its arguments. Put the steps in a script: /hooks add pre-tool node .orkeon/hooks/pre.mjs {tool} {path}",
         };
       }

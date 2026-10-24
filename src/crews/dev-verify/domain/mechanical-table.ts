@@ -144,9 +144,9 @@ export function mechanicalRows(input: TableInput): TableRow[] {
   ];
 }
 
-/** "|" → "\|", line breaks → " · " (AC:361). */
+/** "\" → "\\", "|" → "\|", line breaks → " · " (AC:361). */
 export function escapeCell(text: string): string {
-  return text.replace(/\|/g, "\\|").replace(/\r?\n/g, " · ");
+  return text.replace(/\\/g, "\\\\").replace(/\|/g, "\\|").replace(/\r?\n/g, " · ");
 }
 
 /** The content of table.md (§ 3.3). */
