@@ -1310,9 +1310,15 @@ describe("orkeon-code, sessions (LI-5)", () => {
     ok(r.stdout.includes("(resumed abc123)"), r.stdout);
     ok(readFileSync(s.last(), "utf-8").includes('"SessionId":"abc123"'));
     deepStrictEqual(s.history().map((f) => f.replace(/^\d{8}T\d{6}Z-/, "")), ["def456.json"], "the open one archived, the chosen one out");
+    // The REPL resumed abc123 ended on a new session: archived now, it heads the list. Its id sorts after def456's
+    // too, so number 1 is ghi789 whether or not this launch falls in a later second than the last one (the
+    // history is named <UTC second>-<id> and read newest first: abc123 archived again would head it only when
+    // the second changed between the two launches, as under a loaded test run).
+    s.save("ghi789", "Third", 3);
     const n = s.run(["--resume=1"]);
     strictEqual(n.status, 0, n.stderr);
-    ok(readFileSync(s.last(), "utf-8").includes('"SessionId":"def456"'));
+    ok(readFileSync(s.last(), "utf-8").includes('"SessionId":"ghi789"'));
+    ok(n.stdout.includes("(resumed ghi789)"), n.stdout);
     const unknown = s.run(["--resume", "zzz"]);
     strictEqual(unknown.status, 1);
     ok(unknown.stderr.includes("no saved session 'zzz'"), unknown.stderr);
