@@ -69,6 +69,14 @@ describe("importAgentMemory", () => {
     deepStrictEqual(candidateFiles(files), before);
   });
 
+  it("holds a pushed candidate's title as well as its own topic", async () => {
+    const { files, run } = setup();
+    const pushed = sampleEntry("method", "port-naming", { status: "candidate", title: "Name the port before the adapter" });
+    files.files.set(`${layout.candidates}/${pushed.id}.md`, entryText(pushed));
+    const outcome = await run();
+    ok(!outcome.written.some((w) => w.id.includes("name-the-port")));
+  });
+
   it("skips a refused topic and reports it", async () => {
     const { files, run } = setup();
     files.files.set(layout.refused, appendRefused(null, { topic: "contract-tests-first", project: "shop", date: "2026-10-20", motif: "too local" }));

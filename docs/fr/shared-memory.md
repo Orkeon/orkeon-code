@@ -90,10 +90,11 @@ avec un `memory.dir` à vous, les deux listes sont séparées.
 
 `--import` reprend la mémoire d'agents du harness en candidats, une fois, pendant que vous la quittez : chaque élément
 de premier niveau d'un `.claude/agent-memory/<agent>/MEMORY.md` (et la note qu'il lie, dans le même dossier) devient
-un candidat `method` dont la source est l'import, donc `/memory-admit` demande pour chacun ; changez le type d'un
-fichier avant de l'admettre si c'est une autre sorte d'entrée. Un élément dont un candidat, une entrée ou un élément
-précédent porte déjà le sujet est sauté comme doublon, de même qu'un sujet refusé : relancer l'import n'écrit rien de
-nouveau. Rien n'est écrit sous `.claude/`.
+un candidat `method` dont la source est l'import, donc `/memory-admit` demande pour chacun (son type fait partie de
+son id : une leçon d'une autre sorte est refusée avec `--refuse` et proposée à nouveau avec `memory_push`). Un élément
+dont un candidat en attente, une entrée ou un élément précédent porte déjà le sujet (son titre en slug) est sauté
+comme doublon, de même qu'un sujet refusé : relancer l'import n'écrit rien de nouveau tant que ses candidats sont là.
+Rien n'est écrit sous `.claude/`.
 
 ## Les outils
 

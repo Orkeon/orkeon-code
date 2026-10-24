@@ -30,6 +30,10 @@ describe("parseAgentMemoryIndex", () => {
     ]);
   });
 
+  it("skips a thematic break and strips emphasis from a title", () => {
+    deepStrictEqual(parseAgentMemoryIndex("* * *\n- **Bold:** text"), [{ line: 2, title: "Bold: text", hook: "**Bold:** text" }]);
+  });
+
   it("cuts a long title at a word", () => {
     const title = shortTitle("word ".repeat(40));
     ok(Array.from(title).length <= MAX_TITLE_CHARS);
@@ -43,6 +47,10 @@ describe("parseAgentNote", () => {
     strictEqual(note.why, "saves a search.");
     strictEqual(note.howToApply, "check the case first.");
     ok(note.body.startsWith("Body line."));
+  });
+
+  it("keeps a bold word inside a sentence", () => {
+    strictEqual(parseAgentNote("**Why:** we must **never** skip it.").why, "we must **never** skip it.");
   });
 
   it("has neither when the note does not say them", () => {
@@ -66,6 +74,11 @@ describe("importedEntry", () => {
     ok(entry.body.includes("`.claude/agent-memory/adversarial-reviewer/MEMORY.md:3`"));
     ok(entry.body.includes("`.claude/agent-memory/adversarial-reviewer/dev-learn-port-review.md`"));
     ok(!entry.body.includes("## A heading"));
+  });
+
+  it("keeps a long free-text item valid", () => {
+    const [item] = parseAgentMemoryIndex(`- ${"lesson ".repeat(400)}`);
+    deepStrictEqual(entryProblems(importedEntry(item, null, ctx)), []);
   });
 
   it("keeps a long note within the body bound", () => {

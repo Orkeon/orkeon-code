@@ -13,6 +13,7 @@ import {
 import type { AgentNote } from "../../domain/shared-memory/agent-memory-import.ts";
 import { MAX_LISTED, pendingCandidates, readOrNull, storedEntries } from "./memory-files.ts";
 import { writeCandidate } from "./push-candidate.ts";
+import { topicOf } from "../../domain/shared-memory/refused.ts";
 
 export const HARNESS_AGENT_MEMORY_ROOT = `${MEMORY_WORKSPACE}/${HARNESS_AGENT_MEMORY_DIR}`;
 
@@ -46,7 +47,8 @@ export async function importAgentMemory(
   }
   const held = new Set<string>();
   for (const stored of [...await pendingCandidates(deps.files, memory.layout), ...await storedEntries(deps.files, memory.layout)]) {
-    held.add(stored.entry.topic);
+    // Its topic, and the one its title gives (a pushed candidate names its own topic).
+    held.add(stored.entry.topic).add(topicOf(stored.entry.title));
   }
   const date = deps.clock().toISOString().slice(0, 10);
   for (const agent of [...new Set(agents)]) {
