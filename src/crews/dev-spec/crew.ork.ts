@@ -18,7 +18,7 @@
 
 import { AgentBuilder, CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infrastructure/globals.ts";
 import {
-  orkeonCodeIndex, orkeonConfigStore, orkeonFiles, orkeonHumanInput, orkeonMemoryToolPorts, orkeonShell,
+  orkeonCodeIndex, orkeonConfigStore, orkeonFiles, orkeonHumanInput, orkeonMemoryToolPorts, orkeonSharedMemory, orkeonShell,
 } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { memoryReadTools, memoryRecallOn, memoryRecallTools } from "../../shared/infrastructure/orkeon/memory-tools.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
@@ -27,6 +27,7 @@ import { devToolCallbacks } from "../../shared/infrastructure/orkeon/tool-callba
 import { charterCatalogue } from "../../shared/domain/agents/charter.ts";
 import { REVIEWER_CHARTER } from "../../shared/domain/dev/reviewer-charter.ts";
 import { STEP_BUDGETS } from "../../shared/domain/dev/step-budget.ts";
+import { stepPrecedents } from "../../shared/application/dev/step-precedents.ts";
 import { runDevSpec } from "./application/run-dev-spec.ts";
 
 const ports = { shell: orkeonShell(), files: orkeonFiles(), config: orkeonConfigStore(), index: orkeonCodeIndex(), human: orkeonHumanInput() };
@@ -45,7 +46,9 @@ const builder = AgentBuilder()
   .body(async (_input: any, ctx: any) => {
     // The host's gate first, then this callback: the step's rule sets again and the /hooks the command passed.
     const callbacks = devToolCallbacks({ step: "dev-spec", hooks: inputs().hooks, readTools: memoryReadTools(memoryOn) }, { shell: ports.shell, log: ctx.log });
-    return await runDevSpec(inputs(), { ...ports, llm: createLlm(ctx.llm, callbacks, { effort }), log: ctx.log, clock: () => new Date() });
+    // T1: the shared memory's precedents in the draft's prompt, unless memory_recall is denied.
+    const precedents = stepPrecedents({ ...ports, memory: orkeonSharedMemory(), log: ctx.log }, { on: memoryOn });
+    return await runDevSpec(inputs(), { ...ports, llm: createLlm(ctx.llm, callbacks, { effort }), log: ctx.log, clock: () => new Date(), precedents });
   });
 const writer = (effort === undefined ? builder : builder.effort(effort)).build();
 

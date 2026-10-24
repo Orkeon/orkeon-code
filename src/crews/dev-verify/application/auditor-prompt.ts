@@ -67,6 +67,8 @@ export interface AuditBriefInput {
   previousGaps: readonly AuditRow[] | null;
   /** Under full: the whole fast suite as code ran it, before the audit. */
   suite?: { command: string; outcome: string; tail: string };
+  /** The "## Precedents" block the step recalled (T4: mistakes whose signal to check), "" or absent when none. */
+  precedents?: string;
 }
 
 function rowLine(row: AuditRow): string {
@@ -113,6 +115,11 @@ function previousLines(input: AuditBriefInput, line: (row: AuditRow) => string):
   return ["", "The previous gaps:", ...(gaps.length ? gaps.map(line) : ["- none recorded"])];
 }
 
+function precedentLines({ precedents }: AuditBriefInput): string[] {
+  const block = (precedents ?? "").trimEnd();
+  return block === "" ? [] : ["", block];
+}
+
 export function buildAuditBrief(input: AuditBriefInput): string {
   return [
     ...scopeLines(input),
@@ -123,6 +130,7 @@ export function buildAuditBrief(input: AuditBriefInput): string {
     ...commandLines(input),
     ...suiteLines(input),
     ...previousLines(input, rowLine),
+    ...precedentLines(input),
     "",
     "The mechanical table (table.md):",
     "",

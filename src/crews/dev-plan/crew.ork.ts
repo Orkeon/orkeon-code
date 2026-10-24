@@ -20,7 +20,8 @@
 
 import { AgentBuilder, CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infrastructure/globals.ts";
 import {
-  orkeonAnchorIndex, orkeonCodeIndex, orkeonConfigStore, orkeonFiles, orkeonMemoryToolPorts, orkeonSessionIo, orkeonShell,
+  orkeonAnchorIndex, orkeonCodeIndex, orkeonConfigStore, orkeonFiles, orkeonMemoryToolPorts, orkeonSessionIo, orkeonSharedMemory,
+  orkeonShell,
 } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { memoryReadTools, memoryRecallOn, memoryRecallTools } from "../../shared/infrastructure/orkeon/memory-tools.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
@@ -33,6 +34,7 @@ import { providerEffort } from "../../shared/domain/agent-policy/behavior-flags.
 import { REVIEWER_CHARTER } from "../../shared/domain/dev/reviewer-charter.ts";
 import { runDevPlan } from "./application/run-dev-plan.ts";
 import { STEP_BUDGETS } from "../../shared/domain/dev/step-budget.ts";
+import { stepPrecedents } from "../../shared/application/dev/step-precedents.ts";
 
 const ports = {
   shell: orkeonShell(), files: orkeonFiles(), config: orkeonConfigStore(), index: orkeonCodeIndex(), anchors: orkeonAnchorIndex(),
@@ -78,7 +80,9 @@ const planner = AgentBuilder()
       { agent: REVIEWER_CHARTER.name, charter: REVIEWER_CHARTER.name, task: "review of the plan", builder: reviewer },
     );
     try {
-      return await runDevPlan(inputs(), { ...ports, llm, log: ctx.log, clock });
+      // T2: the shared memory's precedents in the planner's prompt, unless memory_recall is denied.
+      const precedents = stepPrecedents({ ...ports, memory: orkeonSharedMemory(), log: ctx.log }, { on: memoryOn });
+      return await runDevPlan(inputs(), { ...ports, llm, log: ctx.log, clock, precedents });
     } finally {
       await board.close();
     }

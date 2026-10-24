@@ -5,7 +5,9 @@
 // charter and wires application/run-dev-verify, which checks the batch's gate, writes
 // the capture under <work>/<code>/capture-F<n>/, measures the access cost over the code index
 // (index_status, incremental_reindex, access_cost), runs the whole suite under full, asks
-// the read-only auditor (its read tools and run_validation, plan mode) and writes <CODE>-VERIFY-F<n>.md.
+// the read-only auditor (its read tools and run_validation, plan mode) - its brief carries the shared memory's
+// mistake precedents (T4) - and writes <CODE>-VERIFY-F<n>.md; after a GAPS verdict, the mistakes that recur in three
+// batches become candidates under memory.dir and /dev-learn is nudged at two (M-7).
 // A red gate or --gate-only returns the gate lines without any model call. The auditor's act runs in a
 // background child, `dev-auditor`, which /tasks lists and stops while it runs (A-3,
 // shared/application/agents/child-agent.ts); on a host without background children it runs inline.
@@ -23,13 +25,16 @@ import { RUN_VALIDATION, runValidationTool, scriptToolSlot } from "../../shared/
 import type { ValidationCalls } from "../../shared/infrastructure/orkeon/script-tools.ts";
 import { STEP_BUDGETS } from "../../shared/domain/dev/step-budget.ts";
 import {
-  orkeonConfigStore, orkeonCostIndex, orkeonFiles, orkeonMemoryToolPorts, orkeonSessionIo, orkeonShell,
+  orkeonConfigStore, orkeonCostIndex, orkeonFiles, orkeonMemoryToolPorts, orkeonSessionIo, orkeonSharedMemory, orkeonShell,
 } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { memoryReadTools, memoryRecallOn, memoryRecallTools } from "../../shared/infrastructure/orkeon/memory-tools.ts";
+import type { WorkFolder } from "../../shared/application/dev/resolve-work-folder.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { devToolCallbacks } from "../../shared/infrastructure/orkeon/tool-callbacks.ts";
 import { childAgentBody, withChildAct } from "../../shared/infrastructure/orkeon/child-agents.ts";
 import { createChildBoard } from "../../shared/application/agents/child-agent.ts";
+import { stepPrecedents } from "../../shared/application/dev/step-precedents.ts";
+import { harvestAfterGaps } from "../../shared/application/shared-memory/harvest-after-gaps.ts";
 import { charterCatalogue } from "../../shared/domain/agents/charter.ts";
 import { instanceLimits } from "../../shared/domain/agents/instances.ts";
 import { providerEffort } from "../../shared/domain/agent-policy/behavior-flags.ts";
@@ -82,7 +87,11 @@ const verifier = AgentBuilder()
       { agent: AUDITOR_CHARTER.name, charter: AUDITOR_CHARTER.name, task: `audit of ${String(inputs().batch ?? "the batch")}`, builder: auditorChild },
     );
     try {
-      return await runDevVerify(inputs(), { ...ports, llm, log: ctx.log, clock, validationSlot });
+      // T4: the shared memory's precedents in the auditor's brief, unless memory_recall is denied; after a GAPS
+      // verdict, the mistakes that recur become candidates (M-7).
+      const precedents = stepPrecedents({ ...ports, memory: orkeonSharedMemory(), log: ctx.log }, { on: memoryOn });
+      const harvest = (work: Pick<WorkFolder, "folder" | "vfsPath">) => harvestAfterGaps({ ...ports, clock, log: ctx.log }, work);
+      return await runDevVerify(inputs(), { ...ports, llm, log: ctx.log, clock, validationSlot, precedents, harvest });
     } finally {
       await board.close();
     }

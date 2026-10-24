@@ -1,11 +1,11 @@
 // What /dev-learn reads before it judges anything: every verdict file of the work
-// folder (one listing per code folder, hidden folders skipped as the harness's script
-// skips them), the two learning states and the refused motifs. It reads only; a file
-// that cannot be read becomes a warning, never a failure.
+// folder (shared/application/dev/verdict-sources.ts), the two learning states and the
+// refused motifs. It reads only; a file that cannot be read becomes a warning, never a failure.
 import type { Files } from "../../../shared/application/ports.ts";
 import type { WorkFolder } from "../../../shared/application/dev/resolve-work-folder.ts";
-import { LEARN_FILE, collectLearnRows, untreated as untreatedRows } from "../../../shared/domain/shared-memory/verdict-rows.ts";
-import type { LearnRow, VerdictSource } from "../../../shared/domain/shared-memory/verdict-rows.ts";
+import { collectLearnRows, untreated as untreatedRows } from "../../../shared/domain/shared-memory/verdict-rows.ts";
+import type { LearnRow } from "../../../shared/domain/shared-memory/verdict-rows.ts";
+import { readVerdictSources } from "../../../shared/application/dev/verdict-sources.ts";
 import {
   HARNESS_LEARN_STATE_FILE, LEARN_STATE_FILE, emptyLearnState, parseHarnessLearnState, parseLearnState,
 } from "../../../shared/domain/dev/learn-state.ts";
@@ -13,8 +13,7 @@ import type { HarnessLearnState, LearnState } from "../../../shared/domain/dev/l
 import { REFUSED_FILE, parseRefused } from "../../../shared/domain/shared-memory/refused.ts";
 import type { RefusedMotif } from "../../../shared/domain/shared-memory/refused.ts";
 
-export const WORK_LIST_CAP = 1000;
-export const FOLDER_LIST_CAP = 500;
+export { FOLDER_LIST_CAP, WORK_LIST_CAP } from "../../../shared/application/dev/verdict-sources.ts";
 const WORKSPACE = "/workspace";
 
 export interface Backlog {
@@ -23,17 +22,6 @@ export interface Backlog {
   files: number;
   orkeon: LearnState; harness: HarnessLearnState; refused: RefusedMotif[];
   warnings: string[];
-}
-
-const firstLine = (e: unknown): string => (e instanceof Error ? e.message : String(e)).split("\n")[0];
-const bare = (entry: string): string => entry.replace(/\/+$/, "");
-
-async function listOrEmpty(files: Pick<Files, "list">, path: string, cap: number): Promise<string[]> {
-  try {
-    return await files.list(path, cap);
-  } catch {
-    return [];
-  }
 }
 
 /** The file's text, or null when it cannot be read (an absent file reads as absent). */
@@ -46,27 +34,7 @@ async function readOrNull(files: Pick<Files, "read">, path: string): Promise<str
 }
 
 export async function readBacklog(files: Pick<Files, "read" | "list">, work: WorkFolder): Promise<Backlog> {
-  const warnings: string[] = [];
-  const sources: VerdictSource[] = [];
-  if (work.vfsPath !== null) {
-    const entries = await listOrEmpty(files, work.vfsPath, WORK_LIST_CAP);
-    for (const code of entries.map(bare).filter((e) => e !== "" && !e.startsWith("."))) {
-      const names = (await listOrEmpty(files, `${work.vfsPath}/${code}`, FOLDER_LIST_CAP)).map(bare);
-      if (names.length >= FOLDER_LIST_CAP) {
-        warnings.push(`${work.folder}/${code}/ lists ${FOLDER_LIST_CAP} entries or more: later files are not read`);
-      }
-      for (const name of names.filter((n) => LEARN_FILE.test(n))) {
-        try {
-          sources.push({ code, name, text: await files.read(`${work.vfsPath}/${code}/${name}`) });
-        } catch (error) {
-          warnings.push(`${work.folder}/${code}/${name} cannot be read (${firstLine(error)})`);
-        }
-      }
-    }
-    if (entries.length >= WORK_LIST_CAP) {
-      warnings.push(`${work.folder}/ lists ${WORK_LIST_CAP} entries or more: later folders are not read`);
-    }
-  }
+  const { sources, warnings } = await readVerdictSources(files, work);
   const rows = collectLearnRows(sources);
 
   let orkeon = emptyLearnState();

@@ -29,6 +29,8 @@ import {
   CHANGE_DECISIONS_SECTION, CHANGE_QUESTIONS_SECTION, EVIDENCE_HEADING, ORIGIN_HEADING, changeFileName, originLines,
   renderChange, reproFileName, sectionBody,
 } from "../domain/change-render.ts";
+import { noPrecedents, precedentsLine, recallQuery } from "../../../shared/application/dev/step-precedents.ts";
+import type { StepPrecedents } from "../../../shared/application/dev/step-precedents.ts";
 import { buildChangePrompt } from "./change-prompt.ts";
 import type { ChangePromptInput } from "./change-prompt.ts";
 import { factLines, pickCommand, readOrigin, reproFile, runEvidence, runStop } from "./evidence.ts";
@@ -37,6 +39,8 @@ export interface DevChangeInputs { code?: unknown; kind?: unknown; run?: unknown
 export interface DevChangeDeps {
   files: Files; shell: Pick<Shell, "run">; config: Pick<ConfigStore, "readValue">; index: CodeIndex;
   llm: Pick<Llm, "extract" | "act" | "permissionGateEnabled">; human: HumanInput; log: Logger; clock: () => Date;
+  /** The shared memory's code-triggered recall (T1); absent, nothing is recalled. */
+  precedents?: StepPrecedents;
 }
 
 const STEP = "dev-change";
@@ -135,6 +139,8 @@ export async function runDevChange(input: DevChangeInputs, deps: DevChangeDeps):
   const inventoryText = renderBriefInventory(inventory);
   const warnings = [...ctx.warnings, ...inventory.warnings];
   const origin = existing === null ? originLines(originText, originFrom) : sectionBody(existing, ORIGIN_HEADING);
+  // T1: the decisions and methods of earlier work on the same topic, before the draft; the same block in every ask.
+  const recalled = await (deps.precedents ?? noPrecedents)("T1", recallQuery([code, kind, originText, request]));
 
   // 6. Draft: checked, the unknown pins made unpinned, rendered, read back.
   const ask = async (prompt: ChangePromptInput, open: (q: ReturnType<typeof checkChangeAnswer>) => Question[], decisions: readonly Decision[]):
@@ -182,7 +188,7 @@ export async function runDevChange(input: DevChangeInputs, deps: DevChangeDeps):
     } else {
       const asked = await ask({
         mode: existing === null ? "draft" : "revision", code, kind, origin: originText, facts: factsText, request,
-        current: existing ?? "", decisions: decisions0, fresh: [], inventory: inventoryText,
+        current: existing ?? "", decisions: decisions0, fresh: [], inventory: inventoryText, precedents: recalled.block,
       }, questionsOf(decisions0, open0), decisions0);
       if (!asked.ok) return [`${STEP}: the brief was refused twice; nothing is written.`, ...problemLines(asked.problems)].join("\n");
       if (asked.drafted.feature) {
@@ -199,7 +205,7 @@ export async function runDevChange(input: DevChangeInputs, deps: DevChangeDeps):
     const fold = async (st: RoundState, fresh: readonly Decision[]): Promise<Folded> => {
       const r = await ask({
         mode: "fold", code, kind, origin: originText, facts: factsText, request: "", current: st.text,
-        decisions: st.decisions, fresh, inventory: inventoryText,
+        decisions: st.decisions, fresh, inventory: inventoryText, precedents: recalled.block,
       }, questionsOf(st.decisions, st.open), st.decisions);
       if (!r.ok) return { ok: false, problems: r.problems };
       if (r.drafted.feature) return { ok: false, problems: ["the rewrite routed the brief to a spec"] };
@@ -242,6 +248,7 @@ export async function runDevChange(input: DevChangeInputs, deps: DevChangeDeps):
       `open questions: ${openLine(state.open)}`,
       ...(review === null ? [] : [reviewLine(review)]),
       `inventory: ${inventory.entries.length} entries (${inventory.calls} index calls)`,
+      ...[precedentsLine([recalled])].filter((l) => l !== ""),
       ...warningLines(warnings),
     ];
     const blockingLeft = state.open.filter((q) => q.severity === "Blocking");

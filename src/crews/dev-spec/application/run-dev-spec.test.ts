@@ -21,6 +21,7 @@ import { parseDecisions, parseOpenQuestions } from "../../../shared/domain/dev/q
 import type { SpecAnswer } from "../domain/spec-answer.ts";
 import { DEV_SPEC_NEXT, runDevSpec } from "./run-dev-spec.ts";
 import type { DevSpecInputs } from "./run-dev-spec.ts";
+import { FakePrecedents, PRECEDENTS_SAMPLE } from "../../../../tests/doubles/fake-precedents.ts";
 
 const ANSWER = JSON.parse(readFileSync(new URL("../../../../tests/fixtures/dev/spec/answer.json", import.meta.url), "utf8")) as SpecAnswer;
 const W = "/workspace/workbench";
@@ -181,5 +182,26 @@ describe("runDevSpec — refusals", () => {
     strictEqual(f.llm.extracts.length, 2);
     ok(f.llm.extracts[1].prompt.includes("The previous answer was refused"));
     strictEqual(f.files.writes.length, 0);
+  });
+
+  it("T1: recalls decisions and methods once from the code and the brief, the block in every extract and named at the end", async () => {
+    const f = setup(["No", "Leave it open"]);
+    f.llm.extractions = [ANSWER, folded(), CLEAR];
+    const precedents = FakePrecedents.hits();
+    const text = await runDevSpec({ code: "prune", request: "Prune old memory entries before a cut-off." }, { ...f.deps, precedents: precedents.recall });
+    deepStrictEqual(precedents.calls, [{ trigger: "T1", query: "prune — Prune old memory entries before a cut-off." }]);
+    const drafts = f.llm.extracts.filter((e) => e.prompt.startsWith("You write a business specification"));
+    ok(drafts.length >= 2, "the draft and the fold");
+    for (const d of drafts) ok(d.prompt.includes(PRECEDENTS_SAMPLE), d.prompt.slice(-300));
+    ok(text.includes("precedents recalled: shop-mistake-20261022-n-plus-one"), text);
+  });
+
+  it("T1: no block and no line when nothing is recalled", async () => {
+    const f = setup([null]);
+    const precedents = new FakePrecedents();
+    const text = await runDevSpec({ code: "prune", request: "Prune old memory entries before a cut-off." }, { ...f.deps, precedents: precedents.recall });
+    strictEqual(precedents.calls.length, 1);
+    for (const e of f.llm.extracts) ok(!e.prompt.includes("## Precedents"));
+    ok(!text.includes("precedents recalled"), text);
   });
 });

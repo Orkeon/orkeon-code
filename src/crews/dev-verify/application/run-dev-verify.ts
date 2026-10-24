@@ -25,6 +25,9 @@ import type { ValidationRunner } from "./audit.ts";
 import { stepRules } from "../../../shared/domain/dev/step-rules.ts";
 import type { AuditBriefInput } from "./auditor-prompt.ts";
 import { writeCapture } from "./capture.ts";
+import { noPrecedents, precedentsLine, recallQuery, sheetTitle } from "../../../shared/application/dev/step-precedents.ts";
+import type { StepPrecedents } from "../../../shared/application/dev/step-precedents.ts";
+import type { WorkFolder } from "../../../shared/application/dev/resolve-work-folder.ts";
 import { WORKSPACE, runGate } from "./run-gate.ts";
 import type { DevVerifyTarget } from "./run-gate.ts";
 
@@ -36,6 +39,10 @@ export interface DevVerifyDeps {
   validationSlot?: { bind(runner: ValidationRunner): () => void };
   /** The access cost's code index; without it the Cost line says the crew wires none. */
   costIndex?: CostIndex;
+  /** The shared memory's code-triggered recall (T4, before the audit); absent, nothing is recalled. */
+  precedents?: StepPrecedents;
+  /** After a GAPS verdict: the mistakes harvested into candidates and the /dev-learn nudge (M-7); absent, none. */
+  harvest?: (work: Pick<WorkFolder, "folder" | "vfsPath">) => Promise<string[]>;
 }
 const FULL_SUITE_TIMEOUT_SECONDS = 900;
 
@@ -289,12 +296,17 @@ export async function runDevVerify(input: DevVerifyInputs, deps: DevVerifyDeps):
     const costLine = costSummary(capture.cost);
     const suite = args.mode === "full" ? await runSuite(deps.shell, t.pack) : null;
     const commands = t.pack?.commands ?? {};
+    // T4: the mistakes earlier audits found, from the sheet's title and the changed paths, before the auditor reads.
+    const recalled = await (deps.precedents ?? noPrecedents)("T4", recallQuery([
+      sheetTitle(gate.run.sheet), ...gate.run.changedFiles.filter((f) => !f.startsWith(`${work}/`)),
+    ]));
     const brief: AuditBriefInput = {
       mode: args.mode, batch: args.batch, sheetPath: t.sheetShown, captureFiles: capture.files, table: capture.table,
       appliedRules: gate.run.facts.appliedIds.length > 0 ? gate.run.facts.appliedIds.join(", ") : "none",
       commands: { testClass: commands.testClass, testProject: commands.testProject, testIntegration: commands.testIntegration },
       previousGaps,
       ...(suite?.brief === undefined ? {} : { suite: suite.brief }),
+      precedents: recalled.block,
     };
     // One runner for the tool and for code: a command the auditor ran through run_validation is not run again.
     // The step's rules apply to a validation as to the auditor's own shell_command (the gate does not see it).
@@ -322,6 +334,8 @@ export async function runDevVerify(input: DevVerifyInputs, deps: DevVerifyDeps):
     deps.log.info(`dev-verify: ${section.verdict} written to ${verdictShown}`);
 
     const lines = [greenLine, costLine, ...section.text.trimEnd().split("\n"), `written: ${verdictShown} — capture: ${capture.folderShown}/`];
+    const recalledLine = precedentsLine([recalled]);
+    if (recalledLine !== "") lines.push(recalledLine);
     if (section.verdict === "VALID") {
       lines.push(
         `→ Batch ${args.batch} VALID. The close commits the batch's files: /dev-implement ${args.batch} <code> --close ` +
@@ -334,6 +348,8 @@ export async function runDevVerify(input: DevVerifyInputs, deps: DevVerifyDeps):
         `→ /dev-implement ${args.batch} — correction: ${first.severity} ${first.axis}: ${cut(first.gap, MAX_GAP_CHARS)}`,
         `  it appends the gap to the sheet as a new step and runs it; the audit follows by itself (/dev-verify ${args.batch} resume)`,
       );
+      // M-7: the verdict is written; the harvest reads it with the others and can only add lines.
+      if (deps.harvest !== undefined) lines.push(...await deps.harvest(ctx.work));
     }
     return done(...lines);
   } catch (error) {

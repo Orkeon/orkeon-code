@@ -22,6 +22,7 @@ import type { PlanAnswer } from "../domain/plan-answer.ts";
 import type { Inventory } from "../domain/inventory-model.ts";
 import { END_LINE, PLAN_JSON, runDevPlan } from "./run-dev-plan.ts";
 import type { DevPlanInputs } from "./run-dev-plan.ts";
+import { FakePrecedents, PRECEDENTS_SAMPLE } from "../../../../tests/doubles/fake-precedents.ts";
 
 const FIXTURES = new URL("../../../../tests/fixtures/dev/plan/", import.meta.url);
 const fixture = (name: string): string => readFileSync(new URL(name, FIXTURES), "utf8");
@@ -199,6 +200,26 @@ describe("runDevPlan — a plan written and reviewed", () => {
     ok(brief.includes("Source it was planned from: workbench/prune/SPEC-prune.md"));
     ok(brief.includes("I1 · src/shared/domain/memory.ts:18"));
     ok(brief.includes("A row targets one of: plan, F1, F2."));
+  });
+});
+
+describe("runDevPlan — T2, the shared memory's precedents", () => {
+  it("recalls decisions and code structures from the code and the source's titles, the block in the planner's prompt", async () => {
+    const f = setup();
+    const precedents = FakePrecedents.hits();
+    const text = await runDevPlan({ source: "prune" }, { ...f.deps, precedents: precedents.recall });
+    deepStrictEqual(precedents.calls.map((c) => c.trigger), ["T2"]);
+    ok(precedents.calls[0].query.startsWith("prune — "), precedents.calls[0].query);
+    ok(f.llm.extracts[0].prompt.includes(PRECEDENTS_SAMPLE));
+    ok(f.llm.extracts[0].prompt.indexOf(PRECEDENTS_SAMPLE) < f.llm.extracts[0].prompt.indexOf("Inventory (anchor refs I<n>):"));
+    ok(text.includes("precedents recalled: shop-mistake-20261022-n-plus-one"), text);
+  });
+
+  it("no block and no line when nothing is recalled", async () => {
+    const f = setup();
+    const text = await runDevPlan({ source: "prune" }, { ...f.deps, precedents: new FakePrecedents().recall });
+    for (const e of f.llm.extracts) ok(!e.prompt.includes("## Precedents"));
+    ok(!text.includes("precedents recalled"), text);
   });
 });
 

@@ -20,6 +20,7 @@ import { runDevVerify } from "./run-dev-verify.ts";
 import type { DevVerifyInputs } from "./run-dev-verify.ts";
 import { scriptToolSlot } from "../../../shared/application/dev/script-tool-slot.ts";
 import type { ValidationRunner } from "./audit.ts";
+import { FakePrecedents, PRECEDENTS_SAMPLE } from "../../../../tests/doubles/fake-precedents.ts";
 
 const DIR = "/workspace/workbench/demo";
 const VERDICT = `${DIR}/DEMO-VERIFY-F2.md`;
@@ -171,6 +172,48 @@ describe("runDevVerify — the verdict", () => {
       "→ /dev-implement F2 — correction: Major Reuse: parses dates by hand",
       "  it appends the gap to the sheet as a new step and runs it; the audit follows by itself (/dev-verify F2 resume)",
     ]);
+  });
+
+  it("T4: recalls mistakes from the sheet's title and the changed code paths, the block in the auditor's brief", async () => {
+    const f = setup();
+    f.llm.answers = ["gaps"];
+    f.llm.extractions = [answer([MAJOR])];
+    const precedents = FakePrecedents.hits();
+    const text = await runDevVerify({ batch: "F2" }, { ...f.deps, precedents: precedents.recall });
+    deepStrictEqual(precedents.calls, [{ trigger: "T4", query: "DEMO-PLAN-F2 — Command — src/a.ts — tests/a.test.ts" }]);
+    const brief = f.llm.acts[0].prompt;
+    ok(brief.includes(PRECEDENTS_SAMPLE), brief);
+    ok(brief.indexOf(PRECEDENTS_SAMPLE) < brief.indexOf("The mechanical table (table.md):"));
+    ok(text.split("\n").includes("precedents recalled: shop-mistake-20261022-n-plus-one"), text);
+  });
+
+  it("T4: no block and no line when nothing is recalled", async () => {
+    const f = setup();
+    f.llm.answers = ["fine"];
+    f.llm.extractions = [answer([MINOR])];
+    const text = await runDevVerify({ batch: "F2" }, { ...f.deps, precedents: new FakePrecedents().recall });
+    ok(!f.llm.acts[0].prompt.includes("## Precedents"));
+    ok(!text.includes("precedents recalled"), text);
+  });
+
+  it("M-7: after a GAPS verdict written, the harvest's lines close the message; a VALID one harvests nothing", async () => {
+    const f = setup();
+    f.llm.answers = ["gaps"];
+    f.llm.extractions = [answer([MAJOR])];
+    const seen: Array<{ folder: string; verdict: boolean }> = [];
+    const harvest = async (work: { folder: string; vfsPath: string | null }) => {
+      seen.push({ folder: work.folder, verdict: f.files.files.has(VERDICT) });
+      return ["shared memory: 1 mistake candidate harvested from the audits (x) → /memory-admit decides each one."];
+    };
+    const lines = (await runDevVerify({ batch: "F2" }, { ...f.deps, harvest })).split("\n");
+    deepStrictEqual(seen, [{ folder: "workbench", verdict: true }]);
+    strictEqual(lines[lines.length - 1], "shared memory: 1 mistake candidate harvested from the audits (x) → /memory-admit decides each one.");
+    const v = setup();
+    v.llm.answers = ["fine"];
+    v.llm.extractions = [answer([MINOR])];
+    let called = 0;
+    await runDevVerify({ batch: "F2" }, { ...v.deps, harvest: async () => { called++; return ["x"]; } });
+    strictEqual(called, 0);
   });
 
   it("warns when the auditor's verdict differs from the one its rows make, and keeps the rows' verdict", async () => {

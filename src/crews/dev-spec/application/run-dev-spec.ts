@@ -23,6 +23,8 @@ import { parsePlanSource } from "../../../shared/domain/dev/spec-format.ts";
 import { SPEC_ANSWER_SCHEMA, checkSpecAnswer, ruleId, useCaseId } from "../domain/spec-answer.ts";
 import type { SpecAnswer } from "../domain/spec-answer.ts";
 import { SPEC_DECISIONS_SECTION, SPEC_QUESTIONS_SECTION, renderSpec, specFileName } from "../domain/spec-render.ts";
+import { noPrecedents, precedentsLine, recallQuery } from "../../../shared/application/dev/step-precedents.ts";
+import type { StepPrecedents } from "../../../shared/application/dev/step-precedents.ts";
 import { buildSpecPrompt } from "./spec-prompt.ts";
 import type { SpecPromptInput } from "./spec-prompt.ts";
 
@@ -30,6 +32,8 @@ export interface DevSpecInputs { code?: unknown; request?: unknown }
 export interface DevSpecDeps {
   files: Files; shell: Pick<Shell, "run">; config: Pick<ConfigStore, "readValue">; index: CodeIndex;
   llm: Pick<Llm, "extract" | "act" | "permissionGateEnabled">; human: HumanInput; log: Logger; clock: () => Date;
+  /** The shared memory's code-triggered recall (T1); absent, nothing is recalled. */
+  precedents?: StepPrecedents;
 }
 
 const STEP = "dev-spec";
@@ -107,6 +111,8 @@ export async function runDevSpec(input: DevSpecInputs, deps: DevSpecDeps): Promi
   });
   const inventoryText = renderBriefInventory(inventory);
   const warnings = [...ctx.warnings, ...inventory.warnings];
+  // T1: the decisions and methods of earlier work on the same topic, before the draft; the same block in every ask.
+  const recalled = await (deps.precedents ?? noPrecedents)("T1", recallQuery([code, shownPhrase]));
 
   const write = async (text: string): Promise<void> => { await deps.files.write(spec.vfs, text); };
   const today = dateOf(deps.clock());
@@ -123,7 +129,7 @@ export async function runDevSpec(input: DevSpecInputs, deps: DevSpecDeps): Promi
     } else {
       const drafted = await askSpec(deps, {
         mode: existing === null ? "draft" : "revision", code, request: request.text, current: existing ?? "",
-        decisions: decisions0, fresh: [], inventory: inventoryText,
+        decisions: decisions0, fresh: [], inventory: inventoryText, precedents: recalled.block,
       }, (a) => numberQuestions(a.questions, decisions0, open0), decisions0);
       if (!drafted.ok) {
         return [`${STEP}: the spec was refused twice; nothing is written.`, ...problemLines(drafted.problems)].join("\n");
@@ -138,6 +144,7 @@ export async function runDevSpec(input: DevSpecInputs, deps: DevSpecDeps): Promi
     const fold = async (st: RoundState, fresh: readonly Decision[]): Promise<Folded> => {
       const r = await askSpec(deps, {
         mode: "fold", code, request: "", current: st.text, decisions: st.decisions, fresh, inventory: inventoryText,
+        precedents: recalled.block,
       }, (a) => numberQuestions(a.questions, st.decisions, st.open), st.decisions);
       return r.ok ? { ok: true, text: r.drafted.text, open: r.drafted.open } : { ok: false, problems: r.problems };
     };
@@ -177,6 +184,7 @@ export async function runDevSpec(input: DevSpecInputs, deps: DevSpecDeps): Promi
       `open questions: ${openLine(state.open)}`,
       ...(review === null ? [] : [reviewLine(review)]),
       `inventory: ${inventory.entries.length} entries (${inventory.calls} index calls)`,
+      ...[precedentsLine([recalled])].filter((l) => l !== ""),
       ...warningLines(warnings),
     ];
     const blockingLeft = state.open.filter((q) => q.severity === "Blocking");

@@ -1,7 +1,7 @@
 // The planner's prompt (ADR 0003): the instructions first, then the design rules to
 // classify, then - on a re-ask - the problems of the refused answer, then the material:
-// the source's ids, the brief's rows, the repository values, the inventory and the
-// source text. One text, for one extract call. Pure: the caller cuts nothing but the
+// the source's ids, the brief's rows, the repository values, the precedents the shared
+// memory recalled, the inventory and the source text. One text, for one extract call. Pure: the caller cuts nothing but the
 // source; past the cap, this module cuts the source text first, then inventory lines
 // from the end.
 import { DESIGN_RULES } from "../../../shared/domain/dev/design-rules.ts";
@@ -17,6 +17,7 @@ export interface PlanPromptInput {
   repoCommands: string; repoLayout: string;    // repoLines(...)
   inventory: string;                           // renderInventory(...).text
   workShown: string;                           // the folder a created path may not use
+  precedents?: string;                         // the "## Precedents" block the step recalled (T2), "" or absent when none
 }
 
 export const PLAN_INSTRUCTIONS: string = [
@@ -116,6 +117,8 @@ function materialHead(input: PlanPromptInput): string[] {
       ...(input.unpinned.length === 0 ? ["(none)"] : input.unpinned.map((u) => `${u.key} — ${u.behaviour}`)));
   }
   lines.push("", `Repository commands: ${input.repoCommands}`, `Repository layout: ${input.repoLayout}`);
+  const precedents = (input.precedents ?? "").trimEnd();
+  if (precedents !== "") lines.push("", precedents);
   return lines;
 }
 

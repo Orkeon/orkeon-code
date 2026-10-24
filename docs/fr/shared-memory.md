@@ -48,9 +48,23 @@ Qui peut admettre quoi :
 | `audit:` (fichiers de verdict des audits dev) | `code-structure`, `mistake` |
 | `verdict:` (un arrêt du workflow dev) | `method`, `decision` |
 
-Une erreur n'est récoltée dans les audits qu'une fois son écart revenu dans trois lots ou plus. La récolte n'est pas
-encore branchée : `/dev-verify` l'appellera après un verdict GAPS (lot M-7) ; d'ici là, `memory_push` et `/memory-admit`
-remplissent la mémoire.
+Une erreur n'est récoltée dans les audits qu'une fois son écart revenu dans trois lots ou plus. `/dev-verify` récolte
+après chaque verdict qui n'est pas VALID : la fin de l'étape nomme les candidats écrits, et `/memory-admit` décide de
+chacun. Quand les écarts non traités couvrent deux lots ou plus, l'étape dit aussi que `/dev-learn` est dû.
+
+## Les précédents dans les étapes dev
+
+Les étapes dev se souviennent seules, à des points fixes, et mettent un bloc `## Precedents` dans le prompt qu'elles
+construisent :
+
+| Étape | Quand | Types rappelés |
+|---|---|---|
+| `/dev-spec`, `/dev-change` | au départ | `decision`, `method` |
+| `/dev-plan` | avant l'écriture du plan | `decision`, `code-structure` |
+| `/dev-verify` | avant l'audit | `mistake` |
+
+La fin de l'étape nomme les entrées rappelées. Un rappel qui ne peut pas tourner coûte le bloc, jamais l'étape ; une
+règle de session qui refuse `memory_recall` coupe aussi ces rappels.
 
 ## Décider des candidats
 

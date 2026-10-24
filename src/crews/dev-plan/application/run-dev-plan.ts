@@ -31,6 +31,8 @@ import type { RenderInput, RenderedPlan } from "../domain/plan-render.ts";
 import { MAX_PLAN_PROMPT_CHARS, SOURCE_CHARS, buildPlanPrompt } from "./plan-prompt.ts";
 import type { PlanPromptInput } from "./plan-prompt.ts";
 import { buildInventory } from "./inventory.ts";
+import { noPrecedents, precedentsLine, recallQuery } from "../../../shared/application/dev/step-precedents.ts";
+import type { StepPrecedents } from "../../../shared/application/dev/step-precedents.ts";
 import { checkAnchorPaths } from "./anchor-paths.ts";
 import type { AnchorListings } from "./anchor-paths.ts";
 
@@ -39,6 +41,8 @@ export interface DevPlanDeps {
   files: Files; shell: Pick<Shell, "run">; config: Pick<ConfigStore, "readValue">;
   index: CodeIndex; anchors: AnchorIndex; llm: Pick<Llm, "extract" | "act" | "permissionGateEnabled">;
   log: Logger; clock: () => Date;
+  /** The shared memory's code-triggered recall (T2); absent, nothing is recalled. */
+  precedents?: StepPrecedents;
 }
 export const PLAN_JSON = "plan.json";
 /** The last line of a plan ready to implement; `{command}` names the next step. */
@@ -309,7 +313,8 @@ export async function runDevPlan(input: DevPlanInputs, deps: DevPlanDeps): Promi
   if (!built.ok) return built.text;
   const inventory = built.inventory;
 
-  // 9. Prompt.
+  // 9. Prompt. T2: the decisions and code structures of earlier work on these use cases, after the inventory.
+  const recalled = await (deps.precedents ?? noPrecedents)("T2", recallQuery([source.code, ...parsed.ids.map((i) => i.title)]));
   const repo = repoLines(pack?.pack ?? null, pack?.shown ?? null);
   const unpinned = parsed.mustNotChange.filter((r) => r.pinnedBy === null).map((r, i) => ({ key: `U${i + 1}`, behaviour: r.behaviour }));
   const pinned = parsed.mustNotChange.flatMap((r) => (r.pinnedBy === null ? [] : [r.pinnedBy]));
@@ -320,7 +325,7 @@ export async function runDevPlan(input: DevPlanInputs, deps: DevPlanDeps): Promi
     sourceText: read.text.slice(0, SOURCE_CHARS),
     ids: parsed.ids, pinned, unpinned,
     repoCommands: repo.commands, repoLayout: repo.layout,
-    inventory: shownInventory.text, workShown: ctx.work.folder,
+    inventory: shownInventory.text, workShown: ctx.work.folder, precedents: recalled.block,
   };
   const fixed = buildPlanPrompt({ ...promptInput, sourceText: "", inventory: "" }, []).length;
   const room = MAX_PLAN_PROMPT_CHARS - fixed - REASK_RESERVE;
@@ -429,6 +434,7 @@ export async function runDevPlan(input: DevPlanInputs, deps: DevPlanDeps): Promi
     `files: ${[planShown, ...rendered.sheets.map((s) => s.name), PLAN_JSON].join(", ")}`,
     `inventory: ${inventory.entries.length} entries from ${inventory.titlesSearched} titles (index ${inventory.index}, ${inventory.calls} calls)`,
     ...reviewText,
+    ...[precedentsLine([recalled])].filter((l) => l !== ""),
     ...warningLines(warnings),
   ];
   const blocking = review?.rows.filter((r) => r.severity === "Blocking").length ?? 0;

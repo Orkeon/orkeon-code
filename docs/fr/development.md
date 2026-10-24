@@ -74,7 +74,11 @@ esbuild pour cette raison.
 1. Déplacez les entrées `[Unreleased]` de `CHANGELOG.md` sous `## [x.y.z] - YYYY-MM-DD`.
 2. Montez `version` dans `package.json` et `CLI_VERSION` dans `src/commands/_lib/meta.ts` (le test les garde
    égaux), ainsi que les notes de release dans ce même fichier.
-3. Fusionnez, puis taguez `vx.y.z` sur `main` et poussez le tag : `release.yml` vérifie que le tag correspond, lance
+3. Lancez `bash scripts/check-shared-memory.sh` dans un terminal (il demande `rag_eval`) : le rappel de la mémoire
+   partagée sur son jeu de référence doit finir sur `check-shared-memory: thresholds met` (recall@5 >= 0.85, MRR >= 0.70).
+   La question sans réponse (q13) ne passe que si les réglages du runtime donnent `Orkeon:Rag:Retrieval:MinScore` :
+   sans ce plancher, toute requête renvoie des passages, q13 échoue et la vérification aussi.
+4. Fusionnez, puis taguez `vx.y.z` sur `main` et poussez le tag : `release.yml` vérifie que le tag correspond, lance
    les vérifications et la garde de provenance stricte, et publie la GitHub Release avec les archives des sources,
    `SHA256SUMS` et une attestation de provenance du build (`gh attestation verify <file> --repo Orkeon/orkeon-code`).
 

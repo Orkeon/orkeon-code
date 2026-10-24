@@ -17,6 +17,7 @@ import { STATUS_COMMAND } from "./observe.ts";
 import { touchedPath, verdictMarkOf } from "./touched.ts";
 import { runDevImplement } from "./run-dev-implement.ts";
 import type { ImplementAnswer } from "./run-dev-implement.ts";
+import { FakePrecedents } from "../../../../tests/doubles/fake-precedents.ts";
 
 const DIR = "/workspace/workbench/demo";
 const SHEET_PATH = `${DIR}/DEMO-PLAN-F1.md`;
@@ -138,6 +139,7 @@ function setup(author: Act[], implementer: Act[], sheet = SHEET) {
     files: FakeFiles; shell: TreeShell; jobs: FakeJobs; log: FakeLogger; config: ReturnType<typeof createConfigStore>;
     roleLlm: (role: "test-author" | "implementer", layout: unknown, wrote: (path: string) => void, writable: readonly string[]) => Role;
     today: () => string; costIndex?: CostIndex; openerFor?: (context: unknown) => undefined;
+    precedents?: FakePrecedents["recall"];
   };
   return { files, shell, tree, roles, jobs, deps };
 }
@@ -414,6 +416,44 @@ describe("runDevImplement — wave 4", () => {
     strictEqual(sheet.split(TICKED).length - 1, 3);
     strictEqual(a.next?.input.mode, "resume");
     ok(t.roles["test-author"].acts[0].prompt.includes("step 1 misses the empty case"));
+  });
+
+  it("T3: recalls before each red act, the block after the test author's contract, none in the implementer's; named at the end", async () => {
+    const t = setup([writesTest("tests/a.test.ts"), writesTest("tests/b.test.ts")],
+      [writesCode("src/a.ts", "tests/a.test.ts"), writesCode("src/b.ts", "tests/b.test.ts")]);
+    const precedents = new FakePrecedents();
+    precedents.blocks.set("T3", { block: "## Precedents\nT3 block", ids: ["shop-mistake-20261022-x"] });
+    t.deps.precedents = precedents.recall;
+    const a = parse(await runDevImplement({ batch: "F1", plan: "demo" }, t.deps));
+    strictEqual(blockedLine(a), undefined, a.lines.join("\n"));
+    deepStrictEqual(precedents.calls.map((c) => c.trigger), ["T3", "T3"]);
+    ok(precedents.calls[0].query.startsWith("DEMO-PLAN-F1"), precedents.calls[0].query);
+    for (const act of t.roles["test-author"].acts) ok(act.prompt.trimEnd().endsWith("## Precedents\nT3 block"), act.prompt.slice(-200));
+    for (const act of t.roles.implementer.acts) ok(!act.prompt.includes("## Precedents"));
+    ok(a.lines.includes("precedents recalled: shop-mistake-20261022-x"), a.lines.join("\n"));
+  });
+
+  it("T3: no block and no line when nothing is recalled", async () => {
+    const t = setup([writesTest("tests/a.test.ts"), writesTest("tests/b.test.ts")],
+      [writesCode("src/a.ts", "tests/a.test.ts"), writesCode("src/b.ts", "tests/b.test.ts")]);
+    t.deps.precedents = new FakePrecedents().recall;
+    const a = parse(await runDevImplement({ batch: "F1", plan: "demo" }, t.deps));
+    for (const role of ["test-author", "implementer"] as const) for (const act of t.roles[role].acts) ok(!act.prompt.includes("## Precedents"));
+    ok(!a.lines.some((l) => l.startsWith("precedents recalled")), a.lines.join("\n"));
+  });
+
+  it("T5: a correction recalls mistakes from its finding, the block in both roles' prompts", async () => {
+    const done = SHEET.replaceAll("TDD: RED [ ] GREEN [ ] COST [ ]", TICKED);
+    const t = setup([writesTest("tests/a.test.ts")], [writesCode("src/a.ts", "tests/a.test.ts")], done);
+    const precedents = new FakePrecedents();
+    precedents.blocks.set("T5", { block: "## Precedents\nT5 block", ids: ["shop-mistake-20261022-empty"] });
+    t.deps.precedents = precedents.recall;
+    const a = parse(await runDevImplement({ batch: "F1", plan: "demo", correction: "Major Test: step 1 misses the empty case" }, t.deps));
+    strictEqual(blockedLine(a), undefined, a.lines.join("\n"));
+    deepStrictEqual(precedents.calls[0], { trigger: "T5", query: "Major Test: step 1 misses the empty case" });
+    ok(t.roles["test-author"].acts[0].prompt.includes("## Precedents\nT5 block"));
+    ok(t.roles.implementer.acts[0].prompt.includes("## Precedents\nT5 block"));
+    ok(a.lines.includes("precedents recalled: shop-mistake-20261022-empty"), a.lines.join("\n"));
   });
 
   it("refuses a correction naming an id the sheet does not carry", async () => {

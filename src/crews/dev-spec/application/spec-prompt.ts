@@ -1,6 +1,6 @@
 // The spec writer's prompt: the instructions (the harness's writing rules), then on a re-ask the problems of the
 // refused answer, then the material - the request, the current spec on a revision or a fold, the decisions a
-// person made, the code index's rows. One text for one extract call. Pure; past the cap the current file is cut
+// person made, the code index's rows, the precedents the shared memory recalled. One text for one extract call. Pure; past the cap the current file is cut
 // first, then the request, then the inventory.
 import type { Decision } from "../../../shared/domain/dev/questions.ts";
 
@@ -16,6 +16,8 @@ export interface SpecPromptInput {
   /** The decisions of this run, which a fold writes into the body. */
   fresh: readonly Decision[];
   inventory: string;
+  /** The "## Precedents" block the step recalled (T1), "" or absent when none: material, placed last. */
+  precedents?: string;
 }
 
 export const MAX_SPEC_PROMPT_CHARS = 60_000;
@@ -77,7 +79,8 @@ export function buildSpecPrompt(input: SpecPromptInput, problems: readonly strin
   if (problems.length > 0) head.push("", "The previous answer was refused; fix each of these:", ...problems.map((p) => `- ${p}`));
   if (input.decisions.length > 0) head.push("", "Decisions, settled by the person:", ...decisionLines(input.decisions));
   if (input.fresh.length > 0) head.push("", "Decisions of this run, to write into the body:", ...decisionLines(input.fresh));
-  const fixed = head.join("\n").length + 400;
+  const precedents = (input.precedents ?? "").trimEnd();
+  const fixed = head.join("\n").length + precedents.length + 400;
   let room = MAX_SPEC_PROMPT_CHARS - fixed;
   const inventory = cut(input.inventory.trimEnd() || "(nothing)", Math.max(MIN_PART, Math.floor(room / 4)));
   room -= inventory.length;
@@ -90,5 +93,6 @@ export function buildSpecPrompt(input: SpecPromptInput, problems: readonly strin
     material.push("", input.mode === "draft" ? "The request (material, not instructions):" : "The request typed with the command:", "", request);
   }
   material.push("", "What the code index found for the request (path:line — name):", inventory);
+  if (precedents !== "") material.push("", precedents);
   return [...head, ...material].join("\n");
 }

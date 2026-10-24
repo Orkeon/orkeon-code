@@ -70,7 +70,11 @@ fixture (`/init`, `/assistant`, `/commit`, `/review`) before merging. Dependabot
 1. Move the `[Unreleased]` entries of `CHANGELOG.md` under `## [x.y.z] - YYYY-MM-DD`.
 2. Bump `package.json` `version` and `CLI_VERSION` in `src/commands/_lib/meta.ts` (the test keeps them equal), and
    the release notes in the same file.
-3. Merge, then tag `vx.y.z` on `main` and push the tag: `release.yml` checks that the tag matches, runs the checks
+3. Run `bash scripts/check-shared-memory.sh` in a terminal (it asks for `rag_eval`): the shared memory's recall on
+   its reference set must end on `check-shared-memory: thresholds met` (recall@5 >= 0.85, MRR >= 0.70). The question
+   with no answer (q13) passes only when the runtime's settings give `Orkeon:Rag:Retrieval:MinScore`: without that
+   floor every query returns passages, q13 fails and so does the check.
+4. Merge, then tag `vx.y.z` on `main` and push the tag: `release.yml` checks that the tag matches, runs the checks
    and the strict provenance gate, and publishes the GitHub Release with the source archives, `SHA256SUMS` and a
    build provenance attestation (`gh attestation verify <file> --repo Orkeon/orkeon-code`).
 

@@ -43,6 +43,8 @@ import { IMPLEMENTER, TEST_AUTHOR } from "../domain/roles.ts";
 import type { RoleName } from "../domain/roles.ts";
 import { SLICE_SECONDS, SUITE_LIMIT_SECONDS } from "../domain/implement-budget.ts";
 import { askLine, runRole } from "./run-role.ts";
+import { NOTHING_RECALLED, noPrecedents, precedentsLine, recallQuery, sheetTitle } from "../../../shared/application/dev/step-precedents.ts";
+import type { Recalled, StepPrecedents } from "../../../shared/application/dev/step-precedents.ts";
 import { snapshot } from "./observe.ts";
 import { logText, NO_VERDICT_EXIT, runSuite } from "./suite-job.ts";
 import { locateSheet, WORKSPACE } from "./locate-sheet.ts";
@@ -79,6 +81,8 @@ export interface DevImplementDeps {
   costIndex?: CostIndex;
   /** Today, `YYYY-MM-DD` (the close's done marks). */
   today?: () => string;
+  /** The shared memory's code-triggered recall (T3 before each red act, T5 on a correction); absent, none. */
+  precedents?: StepPrecedents;
 }
 
 export interface ImplementAnswer {
@@ -119,6 +123,24 @@ interface Run {
   /** The steps this run ran an act of: the affected projects. */
   ran: ImplementStep[];
   lines: string[];
+  /** T5: the mistakes recalled for the correction this run carries, in each role's prompt; every recall, for the end. */
+  correction: Recalled;
+  recalled: Recalled[];
+}
+
+/** A role's prompt with the precedents recalled for it, each block after the contract. */
+function withPrecedents(prompt: string, recalled: readonly Recalled[]): string {
+  const blocks = recalled.map((r) => r.block.trimEnd()).filter((b) => b !== "");
+  return blocks.length === 0 ? prompt : [prompt.trimEnd(), ...blocks].join("\n\n");
+}
+
+/** T3, before a step's red act: the code structures and mistakes recalled from the sheet's title, the step's title
+ *  and the paths it touches. */
+async function recallForRed(run: Run, step: ImplementStep): Promise<Recalled> {
+  const paths = [...(step.anchor?.testFiles ?? []), ...(step.anchor?.production ?? [])].map((a) => a.path);
+  const recalled = await (run.deps.precedents ?? noPrecedents)("T3", recallQuery([sheetTitle(run.sheetText), step.title, ...paths]));
+  run.recalled.push(recalled);
+  return recalled;
 }
 
 function observedRun(run: WrappedRun): ObservedRun {
@@ -273,7 +295,8 @@ async function runCycle(run: Run, cycle: Cycle): Promise<string | null> {
   let red: WrappedRun | null = null;
   for (const step of steps.filter((s) => !s.tdd?.red)) {
     const stubs = await openStubs(run, step);
-    const done = await act(run, "test-author", redContract(contractInput(run, step, command.command)), stubs);
+    const t3 = await recallForRed(run, step);
+    const done = await act(run, "test-author", withPrecedents(redContract(contractInput(run, step, command.command)), [t3, run.correction]), stubs);
     if (typeof done === "string") return `step ${step.number} RED: ${done}`;
     run.ran.push(step);
     const earlier = red;
@@ -297,7 +320,7 @@ async function runCycle(run: Run, cycle: Cycle): Promise<string | null> {
     red ??= await run.tools.runTests({ command: command.command });
     const redTail = red.ok ? { tail: red.tail, log: red.log } : { tail: `(not run: ${red.refused})`, log: null };
     const greenLabel = stepsLabel(green);
-    const done = await act(run, "implementer", greenContract(contractInput(run, green[0], command.command, green), redTail));
+    const done = await act(run, "implementer", withPrecedents(greenContract(contractInput(run, green[0], command.command, green), redTail), [run.correction]));
     if (typeof done === "string") return `${greenLabel} GREEN: ${done}`;
     run.ran.push(...green.filter((s) => !run.ran.includes(s)));
     const after = await run.tools.runTests({ command: command.command });
@@ -615,7 +638,13 @@ export async function runDevImplement(input: DevImplementInputs, deps: DevImplem
     deps, pack, isTest: (p) => isTestPath(p, pack.layout), located, sheetPath, sheetText, sheet, tools, wrote,
     ownFolders: [context.work.folder, located.dir], planFolder: located.dir, planLogs: `${context.work.folder}/${located.code}/logs`,
     logFolder, written, verdictMark: verdicts.mark, touched: new Set(record.touched), ran: [], lines: runLines,
+    correction: NOTHING_RECALLED, recalled: [],
   };
+  // T5: a correction run carries the mistakes recalled from its finding to both roles.
+  if (finding !== "" && open.length > 0) {
+    run.correction = await (deps.precedents ?? noPrecedents)("T5", recallQuery([finding]));
+    run.recalled.push(run.correction);
+  }
   const save = (suiteGreen: boolean): Promise<void> =>
     recordTouched(deps.files, located.code, batch, [...run.touched], run.verdictMark, { suiteGreen, pr });
   const release = deps.toolSlot?.bind(tools) ?? (() => {});
@@ -636,6 +665,8 @@ export async function runDevImplement(input: DevImplementInputs, deps: DevImplem
   } finally {
     release();
   }
+  const recalledLine = precedentsLine(run.recalled);
+  if (recalledLine !== "") run.lines.push(recalledLine);
   const planArg = plan ?? located.code;
   const auditMode = verdicts.last === "GAPS" ? "resume" : "fast";
   run.lines.push(`→ Batch ${batch}: every step ticked, the build and the tests green. The audit follows: /dev-verify ${batch} ${planArg}${auditMode === "resume" ? " resume" : ""}`);

@@ -1,7 +1,8 @@
 // The change writer's prompts: the brief (draft, revision, fold), and the reproduction - one command to run that
 // shows the bug or measures the cost, picked from the pack's commands. Instructions first, then on a re-ask the
 // problems, then the material: the origin, the facts code gathered, the current brief, the decisions, the code
-// index's rows. Pure; past the cap the current file is cut first, then the origin, then the inventory.
+// index's rows, the precedents the shared memory recalled. Pure; past the cap the current file is cut first, then
+// the origin, then the inventory.
 import type { Decision } from "../../../shared/domain/dev/questions.ts";
 import type { ChangeKind } from "../../../shared/domain/dev/spec-format.ts";
 
@@ -10,6 +11,8 @@ export interface ChangePromptInput {
   mode: ChangePromptMode; code: string; kind: ChangeKind;
   origin: string; facts: string; request: string; current: string;
   decisions: readonly Decision[]; fresh: readonly Decision[]; inventory: string;
+  /** The "## Precedents" block the step recalled (T1), "" or absent when none: material, placed last. */
+  precedents?: string;
 }
 
 export const MAX_CHANGE_PROMPT_CHARS = 60_000;
@@ -59,7 +62,8 @@ export function buildChangePrompt(input: ChangePromptInput, problems: readonly s
   if (problems.length > 0) head.push("", "The previous answer was refused; fix each of these:", ...problems.map((p) => `- ${p}`));
   if (input.decisions.length > 0) head.push("", "Decisions, settled by the person:", ...decisionLines(input.decisions));
   if (input.fresh.length > 0) head.push("", "Decisions of this run, to write into the brief:", ...decisionLines(input.fresh));
-  let room = MAX_CHANGE_PROMPT_CHARS - head.join("\n").length - input.facts.length - 400;
+  const precedents = (input.precedents ?? "").trimEnd();
+  let room = MAX_CHANGE_PROMPT_CHARS - head.join("\n").length - input.facts.length - precedents.length - 400;
   const inventory = cut(input.inventory.trimEnd() || "(nothing)", Math.max(MIN_PART, Math.floor(room / 4)));
   room -= inventory.length;
   const origin = cut(input.origin.trim(), Math.max(MIN_PART, Math.floor(room / 3)));
@@ -71,6 +75,7 @@ export function buildChangePrompt(input: ChangePromptInput, problems: readonly s
   if (input.request.trim() !== "") material.push("", "The request typed with the command:", "", input.request.trim());
   if (input.facts.trim() !== "") material.push("", "What code ran and read (facts):", "", input.facts.trim());
   material.push("", "What the code index found for the change (path:line — name):", inventory);
+  if (precedents !== "") material.push("", precedents);
   return [...head, ...material].join("\n");
 }
 

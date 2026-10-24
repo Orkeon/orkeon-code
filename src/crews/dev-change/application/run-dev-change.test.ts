@@ -7,6 +7,7 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 import { readFileSync } from "node:fs";
+import { FakePrecedents, PRECEDENTS_SAMPLE } from "../../../../tests/doubles/fake-precedents.ts";
 
 import { FakeCodeIndex } from "../../../../tests/support/fake-code-index.ts";
 import { FakeFiles } from "../../../../tests/support/fake-files.ts";
@@ -184,5 +185,26 @@ describe("runDevChange — other kinds and origins", () => {
     g.files.listings.set(CODE, ["SPEC-cache.md"]);
     ok((await run(g)).startsWith("dev-change: workbench/cache/SPEC-cache.md exists"));
     ok((await run(setup(), { ...bug, kind: "refactor" })).startsWith("dev-change: --run is for a bug or a perf change"));
+  });
+
+  it("T1: recalls decisions and methods from the code, the kind and the origin, the block in the brief's extract, named at the end", async () => {
+    const f = setup(["Yes"]);
+    f.llm.extractions = [answer(), answer({ questions: [] }), CLEAR];
+    const precedents = FakePrecedents.hits();
+    const text = await runDevChange(bug, { ...f.deps, precedents: precedents.recall });
+    deepStrictEqual(precedents.calls.map((c) => c.trigger), ["T1"]);
+    ok(precedents.calls[0].query.startsWith("cache — bug — The symbol map is read from disk on every call."), precedents.calls[0].query);
+    const briefs = f.llm.extracts.filter((e) => e.prompt.includes("What the code index found for the change"));
+    ok(briefs.length >= 1);
+    for (const b of briefs) ok(b.prompt.trimEnd().endsWith(PRECEDENTS_SAMPLE), b.prompt.slice(-300));
+    ok(text.includes("precedents recalled: shop-mistake-20261022-n-plus-one"), text);
+  });
+
+  it("T1: no block and no line when nothing is recalled", async () => {
+    const f = setup(["Yes"]);
+    f.llm.extractions = [answer(), answer({ questions: [] }), CLEAR];
+    const text = await runDevChange(bug, { ...f.deps, precedents: new FakePrecedents().recall });
+    for (const e of f.llm.extracts) ok(!e.prompt.includes("## Precedents"));
+    ok(!text.includes("precedents recalled"), text);
   });
 });
