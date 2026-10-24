@@ -1,6 +1,7 @@
 // runAudit and shellValidationRunner over FakeLlm, FakeShell and FakeFiles: one round
 // without validations, two with them, refused and late validations as Not run lines,
-// and the replies kept when the answer never parses. Run:
+// the replies kept when the answer never parses, and the runs the auditor made through
+// run_validation cited without a second round. Run:
 //   node --test src/crews/dev-verify/application/audit.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
@@ -10,7 +11,8 @@ import { FakeLlm } from "../../../../tests/support/fake-llm.ts";
 import { FakeShell } from "../../../../tests/support/fake-shell.ts";
 import type { RepoPackCommands } from "../../../shared/domain/dev/repo-pack.ts";
 import type { AuditBriefInput } from "./auditor-prompt.ts";
-import { runAudit, shellValidationRunner } from "./audit.ts";
+import { recordingRunner, runAudit, shellValidationRunner } from "./audit.ts";
+import type { RecordingRunner } from "./audit.ts";
 
 const FOLDER = "/workspace/workbench/demo/capture-F2";
 const SHOWN = "workbench/demo/capture-F2";
@@ -131,5 +133,70 @@ describe("runAudit", () => {
     if (!out.ok) {
       strictEqual(out.text, `dev-verify: BLOCKED — the model call failed (provider down): the capture stays in ${SHOWN}/; no verdict written`);
     }
+  });
+});
+
+describe("recordingRunner and run_validation", () => {
+  /** An act that runs `commands` through the runner first, as the model calling run_validation would. */
+  function toolCalling(llm: FakeLlm, runner: RecordingRunner, perAct: string[][]): void {
+    const act = llm.act.bind(llm);
+    llm.act = async (prompt, request) => {
+      for (const command of perAct[llm.acts.length] ?? []) await runner.run(command);
+      return act(prompt, request);
+    };
+  }
+
+  it("answers a command already run with the same run, and refuses a fourth", async () => {
+    const shell = new FakeShell();
+    const runner = recordingRunner(shellValidationRunner(shell, COMMANDS));
+    const first = await runner.run(VALIDATION);
+    strictEqual(await runner.run(` ${VALIDATION} `), first);
+    await runner.run("dotnet test --filter FullyQualifiedName~A");
+    await runner.run("dotnet test --filter FullyQualifiedName~B");
+    const fourth = await runner.run("dotnet test --filter FullyQualifiedName~C");
+    strictEqual(shell.commands.length, 3);
+    strictEqual(fourth.line, null);
+    ok(fourth.report.outcome.startsWith("refused: 3 validations already ran"), fourth.report.outcome);
+    strictEqual(runner.runs().length, 4);
+  });
+
+  it("cites a run the auditor made through the tool, in one round, and keeps its log", async () => {
+    const f = fakes();
+    const runner = recordingRunner(shellValidationRunner(f.shell, COMMANDS));
+    toolCalling(f.llm, runner, [[VALIDATION]]);
+    f.llm.answers = ["LineTests ran green"];
+    f.llm.extractions = [answer([VALIDATION])];
+    f.shell.results[VALIDATION] = { exitCode: 0, stdout: "Passed!  - Failed: 0, Passed: 12\n" };
+    const out = await runAudit({ ...f.deps, runner }, brief, FOLDER, SHOWN);
+    ok(out.ok);
+    strictEqual(out.rounds, 1);
+    strictEqual(f.llm.acts.length, 1);
+    deepStrictEqual(f.shell.commands, [VALIDATION]);
+    deepStrictEqual(out.validations, [`\`${VALIDATION}\` — exit 0, scope LineTests, 12 tests`]);
+    ok((f.files.files.get(`${FOLDER}/validations.txt`) ?? "").startsWith(`$ ${VALIDATION}\nexit 0`));
+  });
+
+  it("runs by code only what the answer names and the tool did not run, then cites both", async () => {
+    const f = fakes();
+    const runner = recordingRunner(shellValidationRunner(f.shell, COMMANDS));
+    const other = "dotnet test --filter FullyQualifiedName~OrderTests";
+    toolCalling(f.llm, runner, [[VALIDATION], [other]]);
+    f.llm.answers = ["one ran, one more to run", "final"];
+    f.llm.extractions = [answer([VALIDATION, other]), answer([other])];
+    const out = await runAudit({ ...f.deps, runner }, brief, FOLDER, SHOWN);
+    ok(out.ok);
+    strictEqual(out.rounds, 2);
+    deepStrictEqual(f.shell.commands, [VALIDATION, other]);
+    strictEqual(out.validations.length, 2);
+    deepStrictEqual(out.notRun, [], "a command already run is not a late one");
+  });
+
+  it("names a spent budget in the BLOCKED line", async () => {
+    const f = fakes();
+    f.llm.answers = [new Error("Agent exceeded 200 tool calls.")];
+    const out = await runAudit(f.deps, brief, FOLDER, SHOWN);
+    ok(!out.ok);
+    strictEqual(out.text, `dev-verify: BLOCKED — the step's budget is spent (toolCalls: Agent exceeded 200 tool calls.): ` +
+      `the capture stays in ${SHOWN}/; no verdict written`);
   });
 });

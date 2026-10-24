@@ -1,10 +1,10 @@
-// Unit tests for the validation command rule. Run:
-//   node --test src/crews/dev-verify/domain/validations.test.ts
+// Unit tests for the narrow test command rule. Run:
+//   node --test src/shared/domain/dev/test-commands.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
-import type { RepoPackCommands } from "../../../shared/domain/dev/repo-pack.ts";
-import { checkValidation, validationLine } from "./validations.ts";
+import type { RepoPackCommands } from "./repo-pack.ts";
+import { checkValidation, validationLine } from "./test-commands.ts";
 
 const PACK: RepoPackCommands = {
   build: "dotnet build Orkeon.sln -c Release",

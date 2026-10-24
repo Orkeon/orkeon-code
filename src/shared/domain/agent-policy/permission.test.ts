@@ -4,7 +4,7 @@ import { strictEqual, ok, deepStrictEqual } from "node:assert";
 import { readFileSync } from "node:fs";
 
 import {
-  READ_TOOLS, WRITE_TOOLS, NETWORK_READ_TOOLS, RULEABLE_TOOLS, ACT_TOOLS,
+  READ_TOOLS, WRITE_TOOLS, NETWORK_READ_TOOLS, RULEABLE_TOOLS, ACT_TOOLS, SCRIPT_TOOLS, scriptToolAccess,
   resolvePermissionMode, isReadOnly,
   toolsetFor, permissionNote, buildActPrompt,
   catalogueFor, coversEveryCall, readRule, checkRule, formatRule, gateLine, parseStoredRule, sameCalls,
@@ -123,13 +123,35 @@ describe("the tool lists", () => {
       "file_write", "rag_ingest", "edit_file", "node_replace", "node_insert", "node_ensure", "edit_batch",
       "structural_rewrite", "github", "rag_eval", "shell_command",
     ]);
-    deepStrictEqual(RULEABLE_TOOLS, [...READ_TOOLS, ...NETWORK_READ_TOOLS, ...WRITE_TOOLS, ...ACT_TOOLS]);
+    deepStrictEqual(RULEABLE_TOOLS, [
+      ...READ_TOOLS, ...NETWORK_READ_TOOLS, ...WRITE_TOOLS, ...ACT_TOOLS, ...SCRIPT_TOOLS.map((t) => t.name),
+    ]);
     strictEqual(new Set(RULEABLE_TOOLS).size, RULEABLE_TOOLS.length);
   });
 
-  it("offer every ruleable tool but ACT_TOOLS in some mode, and nothing else", () => {
+  it("offer every ruleable tool but ACT_TOOLS and SCRIPT_TOOLS in some mode, and nothing else", () => {
     const offered = new Set(PERMISSION_MODES.flatMap((mode) => toolsetFor(mode)));
-    deepStrictEqual([...offered].sort(), RULEABLE_TOOLS.filter((t) => !ACT_TOOLS.includes(t)).sort());
+    const attached = (t: string) => ACT_TOOLS.includes(t) || scriptToolAccess(t) !== undefined;
+    deepStrictEqual([...offered].sort(), RULEABLE_TOOLS.filter((t) => !attached(t)).sort());
+  });
+
+  it("declare the access of Orkeon Code's own tools: the validation reads, the test run and the build execute", () => {
+    deepStrictEqual(SCRIPT_TOOLS, [
+      { name: "run_validation", access: "read" },
+      { name: "run_tests", access: "execute" },
+      { name: "run_build", access: "execute" },
+    ]);
+    strictEqual(scriptToolAccess("RUN_TESTS"), "execute");
+    strictEqual(scriptToolAccess("shell_command"), undefined);
+    deepStrictEqual(TOOL_ARGUMENTS.run_validation, ["command"]);
+    deepStrictEqual(TOOL_ARGUMENTS.run_build, ["project"]);
+  });
+
+  it("take a rule on one of Orkeon Code's own tools, on the argument it takes", () => {
+    deepStrictEqual(checkRule("deny run_tests command=dotnet test*"), {
+      ok: true, rule: { effect: "deny", tool: "run_tests", argument: "command", pattern: "dotnet test*" },
+    });
+    strictEqual(checkRule("deny run_build command=x").ok, false);
   });
 
   it("offer the reads of Orkeon #180 in every mode and its edit tools only where the mode edits", () => {
@@ -149,14 +171,15 @@ describe("the tool lists", () => {
     }
   });
 
-  it("know the arguments orkeon.d.ts declares for every ruleable tool but spawn_agent", () => {
+  it("know the arguments orkeon.d.ts declares for every ruleable tool but spawn_agent and SCRIPT_TOOLS", () => {
     const declared = builtInToolInputs();
+    const own = (tool: string) => tool === "spawn_agent" || scriptToolAccess(tool) !== undefined;
     for (const [tool, args] of Object.entries(TOOL_ARGUMENTS)) {
-      if (tool === "spawn_agent") continue;
+      if (own(tool)) continue;
       ok(declared.has(tool), `${tool} is not declared in OrkeonBuiltInTools`);
       deepStrictEqual([...args].sort(), [...declared.get(tool)!].sort(), tool);
     }
-    for (const tool of RULEABLE_TOOLS) if (tool !== "spawn_agent") ok(declared.has(tool), tool);
+    for (const tool of RULEABLE_TOOLS) if (!own(tool)) ok(declared.has(tool), tool);
     deepStrictEqual(TOOL_ARGUMENTS.spawn_agent, ["agent", "input"]);
   });
 

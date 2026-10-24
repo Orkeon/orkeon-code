@@ -154,7 +154,7 @@ const RUNTIME_GLOBALS: ReadonlyArray<{ names: readonly string[]; allowedIn: (fil
     rule: "no require(): the sources are ES modules bundled by esbuild",
   },
   {
-    names: ["tools", "agentBuilder", "crewBuilder", "inputs"],
+    names: ["tools", "agentBuilder", "crewBuilder", "toolBuilder", "inputs"],
     allowedIn: (file) => file.startsWith(INFRASTRUCTURE) || isCrewEntryPoint(file),
     rule: "only shared/infrastructure/ and the crew entry points read the runtime globals (a port, or globals.ts)",
   },

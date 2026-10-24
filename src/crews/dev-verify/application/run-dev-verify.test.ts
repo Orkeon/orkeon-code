@@ -16,6 +16,7 @@ import { ORKEON_IGNORE_PROBE, checkIgnoreCommand } from "../../../shared/applica
 import { GIT_DIFF_CHECK, GIT_ORIGIN_HEAD, excludePathspecs, gitMethodGrep } from "../domain/commands.ts";
 import { runDevVerify } from "./run-dev-verify.ts";
 import type { DevVerifyInputs } from "./run-dev-verify.ts";
+import type { ValidationRunner } from "./audit.ts";
 
 const DIR = "/workspace/workbench/demo";
 const VERDICT = `${DIR}/DEMO-VERIFY-F2.md`;
@@ -102,6 +103,25 @@ describe("runDevVerify — the verdict", () => {
       "  files: src/a.ts, tests/a.test.ts",
     ]);
     strictEqual(f.llm.acts.length, 1);
+  });
+
+  it("binds the run_validation slot to the audit's runner, and cites a run the auditor made through it", async () => {
+    const f = setup();
+    let runner: ValidationRunner | undefined;
+    const command = "node --test tests/a.test.ts";
+    f.shell.results[command] = { exitCode: 0, stdout: "# pass 3\n# fail 0\n" };
+    const act = f.llm.act.bind(f.llm);
+    f.llm.act = async (prompt, request) => {
+      await runner?.run(command);
+      return act(prompt, request);
+    };
+    f.llm.answers = ["the test ran green"];
+    f.llm.extractions = [answer([MINOR])];
+    await runDevVerify({ batch: "F2" }, { ...f.deps, validationSlot: { bind: (r) => { runner = r; } } });
+    ok(runner !== undefined);
+    strictEqual(f.llm.acts.length, 1);
+    const written = f.files.files.get(VERDICT) ?? "";
+    ok(written.includes(`\`${command}\` — exit 0`), written);
   });
 
   it("points a GAPS verdict at the correction of its first row", async () => {

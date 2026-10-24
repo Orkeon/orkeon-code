@@ -1,14 +1,15 @@
-// The narrow test commands the auditor may ask for: one is run only when it is exactly one of
-// the pack's narrow test commands, each placeholder filled with one plain relative value and
-// nothing appended - never the whole suite, never a build, never an option or a shell operator. Pure.
-import type { RepoPackCommands } from "../../../shared/domain/dev/repo-pack.ts";
+// The narrow test commands a validation (run_validation) or a run_tests call may run: one runs
+// only when it is exactly one of the pack's narrow test commands, each placeholder filled with
+// one plain relative value and nothing appended - never the whole suite, never a build, never an
+// option or a shell operator. Pure.
+import type { RepoPackCommands } from "./repo-pack.ts";
 
 export type ValidationCheck =
   | { ok: true; command: string; key: "commands.test_class" | "commands.test_project" | "commands.test_integration"; scope: string }
   | { ok: false; command: string; reason: string };
 
 const MAX_COMMAND_CHARS = 400;
-const PLACEHOLDER = /<[^<>]+>/g;
+export const PLACEHOLDER = /<[^<>]+>/g;
 const ANY_WORD = "(\\S+)";
 /** One placeholder value: a plain relative name, no leading "-", no "~", no glob, no quote. */
 const PLAIN_VALUE = /^[A-Za-z0-9_][A-Za-z0-9_.:/-]*$/;
@@ -16,7 +17,7 @@ const OUTSIDE_FORBIDDEN = new Set([...";&|<>$`\\()'"]);
 const INSIDE_FORBIDDEN = new Set([..."`$\\"]);
 
 /** True when the text holds no shell operator outside double quotes and no expansion inside them. */
-function plainWords(text: string): boolean {
+export function plainWords(text: string): boolean {
   let quoted = false;
   for (const c of text) {
     if (c === '"') { quoted = !quoted; continue; }
@@ -34,7 +35,7 @@ function templateSource(template: string): string {
 }
 
 /** Why a placeholder value is refused, or null when it is one plain relative value. */
-function valueProblem(value: string): string | null {
+export function valueProblem(value: string): string | null {
   if (value.split("/").includes("..")) return `the value '${value}' holds a '..' segment`;
   if (!PLAIN_VALUE.test(value)) return `the value '${value}' is not one plain relative name`;
   return null;

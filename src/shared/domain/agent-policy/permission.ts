@@ -157,12 +157,35 @@ export interface PermissionRule {
  *  ruleable, never in a catalogue. */
 export const ACT_TOOLS: readonly string[] = ["spawn_agent"];
 
+/** The access a tool Orkeon Code defines declares to the gate (`toolBuilder().access`): `read` runs in every
+ *  mode, `execute` is gated as a write (refused in plan and dontAsk, asked in default and acceptEdits). */
+export type ScriptToolAccess = "read" | "edit" | "execute";
+
 /**
- * Every built-in tool a rule may name; the configured extra tools come on top
+ * The tools Orkeon Code defines itself (shared/infrastructure/orkeon/script-tools.ts), attached to an agent with
+ * `withAutonomousTool`, never named in `.tools([...])`: the gate reads their declared access, and a session rule
+ * matches them by name like a built-in, so they are ruleable and in no catalogue. Their own shell calls are not
+ * gated by the host: each applies the rules it is given (matchesRule) before it runs one.
+ */
+export const SCRIPT_TOOLS: ReadonlyArray<{ name: string; access: ScriptToolAccess }> = [
+  { name: "run_validation", access: "read" },
+  { name: "run_tests", access: "execute" },
+  { name: "run_build", access: "execute" },
+];
+
+/** The access `name` declares, when it is one of SCRIPT_TOOLS; undefined otherwise. */
+export function scriptToolAccess(name: string): ScriptToolAccess | undefined {
+  return SCRIPT_TOOLS.find((tool) => tool.name.toLowerCase() === name.toLowerCase())?.access;
+}
+
+/**
+ * Every built-in tool a rule may name, and Orkeon Code's own (SCRIPT_TOOLS); the configured extra tools come on top
  * (ruleableTool). The gate matches any name, so a rule on a tool the host does not
  * register would never match anything: naming it is refused instead.
  */
-export const RULEABLE_TOOLS: readonly string[] = [...Object.values(TOOLS_BY_CLASS).flat(), ...ACT_TOOLS];
+export const RULEABLE_TOOLS: readonly string[] = [
+  ...Object.values(TOOLS_BY_CLASS).flat(), ...ACT_TOOLS, ...SCRIPT_TOOLS.map((tool) => tool.name),
+];
 
 /**
  * The arguments each built-in tool takes, as Orkeon binds them: the properties of
@@ -243,6 +266,10 @@ export const TOOL_ARGUMENTS: Readonly<Record<string, readonly string[]>> = {
   rag_eval: ["collection", "compare", "dataset", "k", "profile", "reindex", "use_llm_judge"],
   // Offered by the script host to every act, not a built-in of orkeon.d.ts (SpawnAgentScriptRequest).
   spawn_agent: ["agent", "input"],
+  // Orkeon Code's own tools (SCRIPT_TOOLS), the keys of their schemas.
+  run_validation: ["command"],
+  run_tests: ["command"],
+  run_build: ["project"],
 };
 
 /** Whether two tool names designate the same tool: Orkeon compares them case-insensitively. */

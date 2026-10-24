@@ -13,6 +13,7 @@
 
 declare const agentBuilder: () => any;
 declare const crewBuilder: () => any;
+declare const toolBuilder: () => ToolBuilder<unknown, unknown>;
 
 /** `tools.<camelCase>(args)` namespace bridging IBaseTool implementations, as the
  *  generated typings declare it: every built-in tool typed (Orkeon #125). */
@@ -21,6 +22,8 @@ export const Tools: OrkeonTools = tools;
 export const AgentBuilder: () => any = agentBuilder;
 /** Domain DSL: build a crew. */
 export const CrewBuilder: () => any = crewBuilder;
+/** Domain DSL: build a tool Orkeon Code defines (orkeon/script-tools.ts). */
+export const ToolBuilder: () => ToolBuilder<unknown, unknown> = toolBuilder;
 
 /** Typed accessor for `globalThis.inputs` (crew/command invocation payload).
  *

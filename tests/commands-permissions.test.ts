@@ -10,7 +10,7 @@ import { strictEqual, deepStrictEqual, ok } from "node:assert";
 import { PERMISSIONS_USAGE, runPermissions } from "../src/commands/_lib/permissions.ts";
 import { CONFIG_FILE_PATH, USER_CONFIG_FILE_PATH, createConfigStore } from "../src/shared/application/config-store.ts";
 import { createSessionIo } from "../src/shared/application/session-io.ts";
-import { RULEABLE_TOOLS, readRule, toolsetFor } from "../src/shared/domain/agent-policy/permission.ts";
+import { RULEABLE_TOOLS, readRule, scriptToolAccess, toolsetFor } from "../src/shared/domain/agent-policy/permission.ts";
 import type { PermissionRule } from "../src/shared/domain/agent-policy/permission.ts";
 import { RULE_SETS } from "../src/shared/domain/agent-policy/rule-sets.ts";
 import { resolveFallbackMode } from "../src/shared/domain/permission-modes.ts";
@@ -111,7 +111,9 @@ describe("/permissions show", () => {
     const lines = (await run("show")).text!.split("\n");
     strictEqual(lines[0], "session default mode : plan (read-only)");
     strictEqual(lines[1], "  ↳ source           : set by /mode (session state)");
-    strictEqual(lines[4], `  ↳ withheld by mode : ${RULEABLE_TOOLS.filter((t) => !toolsetFor("plan").includes(t)).join(", ")}`);
+    // Orkeon Code's own tools belong to the dev crews that attach them: never listed for the session.
+    const withheld = RULEABLE_TOOLS.filter((t) => !toolsetFor("plan").includes(t) && scriptToolAccess(t) === undefined);
+    strictEqual(lines[4], `  ↳ withheld by mode : ${withheld.join(", ")}`);
     strictEqual(lines[5], "  ↳ removed by rule  : file_read");
     strictEqual(lines[6], "session rules        : deny file_read, allow shell_command command=npm test*");
     strictEqual(lines[7], "in the host gate     : deny file_read, allow shell_command command=npm test*");

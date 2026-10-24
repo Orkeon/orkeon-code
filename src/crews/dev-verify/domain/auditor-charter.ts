@@ -1,9 +1,12 @@
-// The auditor's charter: a read-only sub-agent in plan mode, with four read
-// tools and no shell, so every command it doubts is named back to code.
+// The auditor's charter: a read-only sub-agent in plan mode, with five read
+// tools and no shell: a command it doubts runs through the read-class
+// run_validation tool when its crew offers it, or is named back to code.
 
 import type { Charter } from "../../../shared/domain/agents/charter.ts";
 
-export const AUDITOR_TOOLS: readonly string[] = ["file_read", "codebase_search", "symbol_detail", "symbol_source"];
+export const AUDITOR_TOOLS: readonly string[] = [
+  "file_read", "node_read", "codebase_search", "symbol_detail", "symbol_source",
+];
 
 export const AUDITOR_CHARTER: Charter = {
   name: "dev-auditor",

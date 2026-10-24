@@ -20,7 +20,8 @@ import { cut, firstLine } from "../domain/text.ts";
 import {
   carriedRows, formatWhen, renderVerdictSection, verdictFileName, writeVerdictFile,
 } from "../domain/verdict.ts";
-import { outputTail, runAudit, shellValidationRunner } from "./audit.ts";
+import { outputTail, recordingRunner, runAudit, shellValidationRunner } from "./audit.ts";
+import type { ValidationRunner } from "./audit.ts";
 import type { AuditBriefInput } from "./auditor-prompt.ts";
 import { writeCapture } from "./capture.ts";
 import { WORKSPACE, runGate } from "./run-gate.ts";
@@ -30,6 +31,8 @@ export interface DevVerifyInputs { batch?: unknown; plan?: unknown; mode?: unkno
 export interface DevVerifyDeps {
   files: Files; shell: Shell; config: Pick<ConfigStore, "readValue">;
   llm: Pick<Llm, "act" | "extract">; log: Logger; clock: () => Date;
+  /** The run_validation tool's slot, when the crew offers the tool: bound to this audit's runner. */
+  validationSlot?: { bind(runner: ValidationRunner): void };
 }
 const FULL_SUITE_TIMEOUT_SECONDS = 900;
 
@@ -299,9 +302,10 @@ export async function runDevVerify(input: DevVerifyInputs, deps: DevVerifyDeps):
       previousGaps,
       ...(suite?.brief === undefined ? {} : { suite: suite.brief }),
     };
-    const audit = await runAudit(
-      { llm: deps.llm, files, runner: shellValidationRunner(deps.shell, commands) }, brief, capture.folder, capture.folderShown,
-    );
+    // One runner for the tool and for code: a command the auditor ran through run_validation is not run again.
+    const runner = recordingRunner(shellValidationRunner(deps.shell, commands));
+    deps.validationSlot?.bind(runner);
+    const audit = await runAudit({ llm: deps.llm, files, runner }, brief, capture.folder, capture.folderShown);
     if (!audit.ok) return done(greenLine, audit.text);
 
     const answered = [...audit.answer.rows, ...(suite?.row ? [suite.row] : [])];

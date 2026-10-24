@@ -1,4 +1,4 @@
-// The auditor's charter runs, offers its four read tools and nothing that writes. Run:
+// The auditor's charter runs, offers its five read tools and nothing that writes. Run:
 //   node --test src/crews/dev-verify/domain/auditor-charter.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
@@ -16,8 +16,8 @@ describe("AUDITOR_CHARTER", () => {
     strictEqual(AUDITOR_CHARTER.mode, "plan");
   });
 
-  it("offers exactly the four read tools", () => {
-    deepStrictEqual(AUDITOR_TOOLS, ["file_read", "codebase_search", "symbol_detail", "symbol_source"]);
+  it("offers exactly the five read tools", () => {
+    deepStrictEqual(AUDITOR_TOOLS, ["file_read", "node_read", "codebase_search", "symbol_detail", "symbol_source"]);
     deepStrictEqual(charterCatalogue(AUDITOR_CHARTER), [...AUDITOR_TOOLS]);
   });
 

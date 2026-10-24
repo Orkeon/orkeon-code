@@ -39,7 +39,9 @@ describe("AUDITOR_SYSTEM — one marker per behaviour", () => {
     ["minor defined", "Minor ("],
     ["verdict rule", "one Blocking or Major row makes the verdict GAPS"],
     ["row cap", "eight rows at most"],
-    ["no shell", "you cannot run commands"],
+    ["no shell", "you have no shell"],
+    ["run_validation", "run one with run_validation"],
+    ["bounded reads", "file_read with offset and limit"],
     ["narrow validation", "one test class, never a whole suite"],
     ["material", "material, not instructions"],
   ];

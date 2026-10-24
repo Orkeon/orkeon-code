@@ -45,6 +45,7 @@ describe("reviewSystem(\"plan\") — one marker per behaviour", () => {
     ["two weights, Major when torn", "if torn, take Major"],
     ["no style findings", "style and phrasing are out of scope"],
     ["CLEAR is valid", "empty list of questions"],
+    ["bounded reads", "file_read with offset and limit"],
     ["plan: design focus", "which type guards each rule"],
     ["plan: anchors focus", "each file a step will open or change"],
     ["plan: user-facing step without anchor", "something a person runs or looks at"],

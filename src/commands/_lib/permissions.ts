@@ -31,6 +31,7 @@ import {
   catalogueFor, checkRule, formatRule, gateLine, isReadOnly, readRule, sameCalls, toolsetFor, RULE_SYNTAX,
   ACT_TOOLS,
   RULEABLE_TOOLS,
+  scriptToolAccess,
 } from "../../shared/domain/agent-policy/permission.ts";
 import type { ExtraTool, PermissionRule } from "../../shared/domain/agent-policy/permission.ts";
 import { heldRuleSets } from "../../shared/domain/agent-policy/rule-sets.ts";
@@ -147,7 +148,8 @@ async function renderShow(deps: PermissionsDeps, extras: ExtraToolsResolution): 
 
   const offered = toolsetFor(mode, extras.present);
   // The host offers the ACT_TOOLS to every act, and its gate refuses them in the read-only modes only.
-  const withheld = (t: string) => isReadOnly(mode) || !ACT_TOOLS.includes(t);
+  // Orkeon Code's own tools (SCRIPT_TOOLS) belong to the dev crews that attach them, never to the session.
+  const withheld = (t: string) => (isReadOnly(mode) || !ACT_TOOLS.includes(t)) && scriptToolAccess(t) === undefined;
   const vocabulary = [...RULEABLE_TOOLS.filter(withheld), ...extras.present.map((t) => t.name)];
   const lines = [
     `session default mode : ${mode} ${isReadOnly(mode) ? "(read-only)" : ""}`,
