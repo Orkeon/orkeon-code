@@ -16,6 +16,7 @@
 // unknown on a runtime without the field.
 
 import type { PermissionRules, ToolCatalogue } from "../../shared/application/ports.ts";
+import { USER_CONFIG_FILE_PATH } from "../../shared/application/config-store.ts";
 import type { ConfigStore } from "../../shared/application/config-store.ts";
 import type { SessionIo } from "../../shared/application/session-io.ts";
 import { configuredNames, resolveExtraTools } from "../../shared/application/extra-tools.ts";
@@ -24,7 +25,7 @@ import {
   addPermissionRule, clearPermissionRules, readPermissionRules, removePermissionRule, syncPermissionRules,
 } from "../../shared/application/permission-rules.ts";
 import type { StoredRules } from "../../shared/application/permission-rules.ts";
-import { PERMISSION_MODES } from "../../shared/domain/permission-modes.ts";
+import { PERMISSION_FALLBACK_CONFIG_KEY, PERMISSION_MODES } from "../../shared/domain/permission-modes.ts";
 import { EXTRA_TOOLS_CONFIG_KEY } from "../../shared/domain/agent-policy/extra-tools.ts";
 import {
   catalogueFor, checkRule, formatRule, gateLine, isReadOnly, readRule, sameCalls, toolsetFor, RULE_SYNTAX,
@@ -44,8 +45,9 @@ const NO_GATE_RULES =
 export interface PermissionsDeps {
   session: Pick<SessionIo, "readDefaultPermissionMode" | "resolveSessionFallbackMode" | "readState" | "writeState">;
   gate: PermissionRules;
-  /** Reads `tools.extra`, the extra tools a rule may name. */
-  config: Pick<ConfigStore, "readValue" | "readFile">;
+  /** Reads `tools.extra`, the extra tools a rule may name, and what the project file
+   *  could not widen (QL-06). */
+  config: Pick<ConfigStore, "readValue" | "readFile" | "readUserFile">;
   /** The tools the host registers: the catalogue offers the extra tools it has. */
   catalogue: Pick<ToolCatalogue, "find">;
 }
@@ -87,12 +89,37 @@ function syncNotes(sync: StoredRules & { applied: boolean }, extras: ExtraToolsR
   return [...(sync.applied ? [] : [NO_GATE_RULES]), ...storedNotes(sync, extras)];
 }
 
+/** What the project file set and could not widen (QL-06), and user settings that could not be read. */
+async function widenedNotes(config: PermissionsDeps["config"]): Promise<{ fallback: string[]; notes: string[] }> {
+  const [fallback, extra, user] = await Promise.all([
+    config.readValue(PERMISSION_FALLBACK_CONFIG_KEY).catch(() => undefined),
+    config.readValue(EXTRA_TOOLS_CONFIG_KEY).catch(() => undefined),
+    config.readUserFile().catch(() => ({ malformed: true })),
+  ]);
+  return {
+    fallback: fallback?.ignored === undefined
+      ? []
+      : [`  ↳ ignored          : the project file sets ${PERMISSION_FALLBACK_CONFIG_KEY} '${fallback.ignored.value}': ` +
+        fallback.ignored.reason],
+    notes: [
+      ...(user.malformed
+        ? [`⚠ the user settings (${USER_CONFIG_FILE_PATH}) could not be read or parsed: no user setting applies.`]
+        : []),
+      ...(extra?.ignored === undefined
+        ? []
+        : [`⚠ ${EXTRA_TOOLS_CONFIG_KEY} of the project file names ${extra.ignored.value}, which ${extra.ignored.reason}: ` +
+          "not offered."]),
+    ],
+  };
+}
+
 /** The effective surface: mode, catalogue, rules and what the gate holds. */
 async function renderShow(deps: PermissionsDeps, extras: ExtraToolsResolution): Promise<string> {
   const { session, gate } = deps;
   const sessionDefault = await session.readDefaultPermissionMode();
   const fallback = await session.resolveSessionFallbackMode();
   const mode = sessionDefault ?? fallback.mode;
+  const widened = await widenedNotes(deps.config);
   const stored = await readPermissionRules(session, configuredNames(extras));
   const { rules } = stored;
   const decision = catalogueFor(mode, rules, extras.present);
@@ -115,6 +142,7 @@ async function renderShow(deps: PermissionsDeps, extras: ExtraToolsResolution): 
   const lines = [
     `session default mode : ${mode} ${isReadOnly(mode) ? "(read-only)" : ""}`,
     `  ↳ source           : ${sessionDefault ? "set by /mode (session state)" : fallback.explanation}`,
+    ...widened.fallback,
     `modes                : ${PERMISSION_MODES.join(", ")} (bare /mode cycles)`,
     `tool catalogue       : ${decision.tools.join(", ") || "(empty)"}`,
     `  ↳ withheld by mode : ${vocabulary.filter((t) => !offered.includes(t)).join(", ") || "(none)"}`,
@@ -146,7 +174,7 @@ async function renderShow(deps: PermissionsDeps, extras: ExtraToolsResolution): 
       "⚠ the gate also holds the rule sets of the last dev step: the next /assistant turn or rule change hands it the session's rules alone.",
     );
   }
-  lines.push(...storedNotes(stored, extras));
+  lines.push(...widened.notes, ...storedNotes(stored, extras));
   return lines.join("\n");
 }
 

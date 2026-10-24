@@ -12,7 +12,8 @@
 // report success and change nothing.
 
 import { PERMISSION_FALLBACK_CONFIG_KEY, PERMISSION_MODES } from "./permission-modes.ts";
-import { EXTRA_TOOLS_CONFIG_KEY, extraToolsProblem } from "./agent-policy/extra-tools.ts";
+import { EXTRA_TOOLS_CONFIG_KEY, extraToolsProblem, formatExtraTool, parseExtraTools } from "./agent-policy/extra-tools.ts";
+import { sameToolName } from "./agent-policy/permission.ts";
 import { VOICE_REPLY_CONFIG_KEY } from "./speech.ts";
 import { ANSWER_LANGUAGE_CONFIG_KEY } from "./agent-policy/output-styles.ts";
 import { COMPACTION_TRIGGER_CONFIG_KEY, compactionTriggerProblem } from "./compaction-thresholds.ts";
@@ -118,13 +119,102 @@ export const CONFIG_KEYS: readonly ConfigKeySpec[] = [
   },
 ];
 
-/** Where an effective value came from. */
-export type ConfigSource = "session" | "file" | "unset";
+/** Where an effective value came from: the session bag, the project's settings file
+ *  (`file`), the user settings the launcher mounts read-only (`user`), or nowhere. */
+export type ConfigSource = "session" | "file" | "user" | "unset";
 
 export interface ConfigResolution {
   key: string;
   value: string | undefined;
   source: ConfigSource;
+  /** The project file's value, or the part of it, set aside because a project file
+   *  widens nothing (QL-06), and why. */
+  ignored?: { value: string; reason: string };
+}
+
+/** The modes a project file may set as the fallback; a wider one comes from the user. */
+export const PROJECT_FALLBACK_MODES: readonly string[] = ["default", "plan", "acceptEdits"];
+
+/** What a project value leaves in force once narrowed: the value that applies (undefined
+ *  = none, the user's then applies only when `fallThrough`), and what was set aside. */
+interface Narrowed {
+  value: string | undefined;
+  fallThrough: boolean;
+  ignored?: { value: string; reason: string };
+}
+
+/** How far a fallback mode lets a session act without asking: the read-only modes
+ *  first. A mode that is not one ranks as `default`, which it resolves to. */
+const MODE_WIDTH: Readonly<Record<string, number>> = {
+  plan: 0, dontAsk: 0, default: 1, acceptEdits: 2, bypassPermissions: 3,
+};
+const modeWidth = (mode: string): number => MODE_WIDTH[mode] ?? MODE_WIDTH.default;
+
+/** The project's fallback: one of PROJECT_FALLBACK_MODES, and never wider than the
+ *  mode the user settings set (with none, QL-06 lets it set acceptEdits). */
+function narrowFallback(project: string, user: string | undefined): Narrowed {
+  const ignore = (reason: string): Narrowed => ({ value: undefined, fallThrough: true, ignored: { value: project, reason } });
+  if (!PROJECT_FALLBACK_MODES.includes(project)) {
+    return ignore("a project file may set only default, plan or acceptEdits; another mode comes from the " +
+      "user settings (orkeonCode) or /mode");
+  }
+  if (user !== undefined && modeWidth(project) > modeWidth(user)) {
+    return ignore(`it is wider than the user settings' '${user}' (orkeonCode); a project file may only narrow it`);
+  }
+  return { value: project, fallThrough: false };
+}
+
+const ALL_TOOLS = "*";
+
+/** The entries of a `tools.extra` value, `*` apart. */
+function userToolEntries(user: string | undefined): { all: boolean; rest: string[] } {
+  const entries = String(user ?? "").split(/[\s,]+/).filter((e) => e.length > 0);
+  return { all: entries.includes(ALL_TOOLS), rest: entries.filter((e) => e !== ALL_TOOLS) };
+}
+
+/** The project's extra tools the user lists too (or every one, under `*`), each `read`
+ *  only when both lists say `read` — a read tool is the wider grant, offered in plan and
+ *  dontAsk too — and `write` under `*`, which grants the tools, not their class; the
+ *  others set aside. An entry that does not parse stays, as written, for the reader to
+ *  warn about: it never becomes a tool. Never the user's list in place of the
+ *  project's: narrowing a list never widens it. */
+function narrowExtraTools(project: string, user: string | undefined): Narrowed {
+  const { all, rest } = userToolEntries(user);
+  const allowed = parseExtraTools(rest).tools;
+  const { tools, invalid } = parseExtraTools(project);
+  const kept: string[] = [];
+  const dropped: string[] = [];
+  for (const tool of tools) {
+    const listed = allowed.find((t) => sameToolName(t.name, tool.name));
+    if (listed === undefined && !all) {
+      dropped.push(formatExtraTool(tool));
+      continue;
+    }
+    const read = listed?.access === "read" && tool.access === "read";
+    kept.push(formatExtraTool({ name: tool.name, access: read ? "read" : "write" }));
+  }
+  const value = [...kept, ...invalid];
+  return {
+    value: value.length > 0 ? value.join(", ") : undefined,
+    fallThrough: false,
+    ...(dropped.length > 0
+      ? { ignored: { value: dropped.join(", "), reason: "the user settings do not allow (orkeonCode tools.extra, or *)" } }
+      : {}),
+  };
+}
+
+/** The user's value as it applies: `tools.extra` without its `*`, which grants, names no tool. */
+function userValue(key: string, user: string): string | undefined {
+  if (key !== EXTRA_TOOLS_CONFIG_KEY) return user;
+  const { rest } = userToolEntries(user);
+  return rest.length > 0 ? rest.join(", ") : undefined;
+}
+
+/** The project value as it applies over the user's: narrowed for the keys that widen. */
+function narrowProject(key: string, project: string, user: string | undefined): Narrowed {
+  if (key === PERMISSION_FALLBACK_CONFIG_KEY) return narrowFallback(project, user);
+  if (key === EXTRA_TOOLS_CONFIG_KEY) return narrowExtraTools(project, user);
+  return { value: project, fallThrough: false };
 }
 
 export function configKeySpec(key: unknown): ConfigKeySpec | undefined {
@@ -176,38 +266,55 @@ export function validateConfigEntry(key: unknown, value: unknown): ValueVerdict 
 }
 
 /**
- * Layers the session map over the file map, key by key.
+ * Layers the session map over the project file's map over the user settings' map, key
+ * by key.
  *
  * The session wins where it is set: a `/config set --session` is a deliberate,
  * temporary override of a persisted setting, and `/clear` drops it back to
- * the file value. Unknown keys present in either map are NOT returned — they can
- * only be residue from before the schema existed, and surfacing them as effective
- * settings would suggest something reads them.
+ * the file value. The project file comes next, but widens nothing (QL-06): its
+ * `permissions.fallback` applies only as default, plan or acceptEdits, its
+ * `tools.extra` only for the tools the user settings list; what it loses is
+ * returned as `ignored`. The user map is a required argument: a caller that forgets
+ * it must not read a project value unnarrowed. Unknown keys present in any map are
+ * NOT returned — they can only be residue from before the schema existed, and
+ * surfacing them as effective settings would suggest something reads them.
  */
 export function layerConfig(
   fileMap: Record<string, unknown> | null | undefined,
   sessionMap: Record<string, unknown> | null | undefined,
+  userMap: Record<string, unknown> | null | undefined,
 ): ConfigResolution[] {
-  return CONFIG_KEYS.map((spec) => {
-    const s = sessionMap?.[spec.key];
-    if (typeof s === "string" && s.trim().length > 0) {
-      return { key: spec.key, value: s.trim(), source: "session" as const };
-    }
-    const f = fileMap?.[spec.key];
-    if (typeof f === "string" && f.trim().length > 0) {
-      return { key: spec.key, value: f.trim(), source: "file" as const };
-    }
-    return { key: spec.key, value: undefined, source: "unset" as const };
+  return CONFIG_KEYS.map((spec): ConfigResolution => {
+    const s = stringValue(sessionMap?.[spec.key]);
+    if (s !== undefined) return { key: spec.key, value: s, source: "session" };
+    const rawUser = stringValue(userMap?.[spec.key]);
+    const user = rawUser === undefined ? undefined : userValue(spec.key, rawUser);
+    const fromUser: ConfigResolution = user === undefined
+      ? { key: spec.key, value: undefined, source: "unset" }
+      : { key: spec.key, value: user, source: "user" };
+    const f = stringValue(fileMap?.[spec.key]);
+    if (f === undefined) return fromUser;
+    const narrowed = narrowProject(spec.key, f, rawUser);
+    const ignored = narrowed.ignored === undefined ? {} : { ignored: narrowed.ignored };
+    if (narrowed.value !== undefined) return { key: spec.key, value: narrowed.value, source: "file", ...ignored };
+    if (narrowed.fallThrough) return { ...fromUser, ...ignored };
+    return { key: spec.key, value: undefined, source: "unset", ...ignored };
   });
 }
 
-/** The effective value of one key, or undefined when unset in both layers. */
+/** A map's value as a setting: a non-blank string, trimmed. */
+function stringValue(raw: unknown): string | undefined {
+  return typeof raw === "string" && raw.trim().length > 0 ? raw.trim() : undefined;
+}
+
+/** The effective value of one key, or undefined when unset in every layer. */
 export function resolveConfigEntry(
   key: string,
   fileMap: Record<string, unknown> | null | undefined,
   sessionMap: Record<string, unknown> | null | undefined,
+  userMap: Record<string, unknown> | null | undefined,
 ): ConfigResolution {
-  return layerConfig(fileMap, sessionMap).find((r) => r.key === key)
+  return layerConfig(fileMap, sessionMap, userMap).find((r) => r.key === key)
     ?? { key, value: undefined, source: "unset" };
 }
 

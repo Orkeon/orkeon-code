@@ -8,7 +8,7 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok } from "node:assert";
 
 import { PERMISSIONS_USAGE, runPermissions } from "../src/commands/_lib/permissions.ts";
-import { createConfigStore } from "../src/shared/application/config-store.ts";
+import { CONFIG_FILE_PATH, USER_CONFIG_FILE_PATH, createConfigStore } from "../src/shared/application/config-store.ts";
 import { createSessionIo } from "../src/shared/application/session-io.ts";
 import { RULEABLE_TOOLS, readRule, toolsetFor } from "../src/shared/domain/agent-policy/permission.ts";
 import type { PermissionRule } from "../src/shared/domain/agent-policy/permission.ts";
@@ -65,12 +65,12 @@ function setup() {
   const run = (...tokens: string[]) => runPermissions(tokens, { session, gate, config, catalogue });
   const rules = (): unknown => JSON.parse(store.state.get(PERMISSION_RULES_STATE_KEY) ?? "null");
   const seedRules = (...stored: string[]) => store.state.set(PERMISSION_RULES_STATE_KEY, JSON.stringify(stored));
-  /** Configures `tools.extra` and registers `registered` with the host. */
+  /** Configures `tools.extra` in the user settings and registers `registered` with the host. */
   const extraTools = async (setting: string, ...registered: string[]) => {
-    await config.writeFile({ "tools.extra": setting });
+    files.files.set(USER_CONFIG_FILE_PATH, JSON.stringify({ "tools.extra": setting }));
     for (const name of registered) catalogue.tools.set(name, "");
   };
-  return { store, gate, run, rules, seedRules, extraTools };
+  return { files, store, gate, catalogue, run, rules, seedRules, extraTools };
 }
 
 describe("/permissions show", () => {
@@ -386,6 +386,51 @@ describe("/permissions — the extra tools of tools.extra", () => {
       "deny create_issue", "deny file_write", "deny http_api",
     ]);
     deepStrictEqual(gate.list(), ["deny file_write", "deny http_api"]);
+  });
+});
+
+describe("/permissions — a project file widens nothing (QL-06)", () => {
+  it("keeps the user's mode over a project's bypassPermissions, and names the value it ignored", async () => {
+    const { files, run } = setup();
+    files.files.set(CONFIG_FILE_PATH, JSON.stringify({ "permissions.fallback": "bypassPermissions" }));
+    files.files.set(USER_CONFIG_FILE_PATH, JSON.stringify({ "permissions.fallback": "acceptEdits" }));
+    const lines = (await run("show")).text!.split("\n");
+    strictEqual(lines[0], "session default mode : acceptEdits ");
+    strictEqual(lines[1], `  ↳ source           : ${resolveFallbackMode("acceptEdits").explanation}`);
+    strictEqual(lines[2],
+      "  ↳ ignored          : the project file sets permissions.fallback 'bypassPermissions': a project file may set " +
+      "only default, plan or acceptEdits; another mode comes from the user settings (orkeonCode) or /mode");
+  });
+
+  it("runs the built-in default when the user settings set no mode", async () => {
+    const { files, run } = setup();
+    files.files.set(CONFIG_FILE_PATH, JSON.stringify({ "permissions.fallback": "bypassPermissions" }));
+    const lines = (await run("show")).text!.split("\n");
+    strictEqual(lines[0], "session default mode : default ");
+    ok(lines[2].startsWith("  ↳ ignored          : the project file sets permissions.fallback 'bypassPermissions'"), lines[2]);
+  });
+
+  it("does not offer a project's extra tool the user settings do not list, and names it", async () => {
+    const { files, catalogue, run } = setup();
+    files.files.set(CONFIG_FILE_PATH, JSON.stringify({ "tools.extra": "search_issues, deploy_prod" }));
+    files.files.set(USER_CONFIG_FILE_PATH, JSON.stringify({ "tools.extra": "search_issues" }));
+    catalogue.tools.set("search_issues", "");
+    catalogue.tools.set("deploy_prod", "");
+    const lines = (await run("show")).text!.split("\n");
+    ok(lines[3].includes("search_issues") && !lines[3].includes("deploy_prod"), lines[3]);
+    ok(lines.includes(
+      "⚠ tools.extra of the project file names deploy_prod:write, which the user settings do not allow " +
+        "(orkeonCode tools.extra, or *): not offered.",
+    ), lines.join("\n"));
+  });
+
+  it("says when the user settings cannot be read", async () => {
+    const { files, run } = setup();
+    files.files.set(USER_CONFIG_FILE_PATH, "{ oops");
+    const lines = (await run("show")).text!.split("\n");
+    ok(lines.includes(
+      `⚠ the user settings (${USER_CONFIG_FILE_PATH}) could not be read or parsed: no user setting applies.`,
+    ), lines.join("\n"));
   });
 });
 

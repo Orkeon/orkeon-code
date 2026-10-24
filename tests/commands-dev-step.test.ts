@@ -93,7 +93,7 @@ describe("startDevStep", () => {
 
   it("hands the gate the session's rules on configured extra tools", async () => {
     const deps = setup("deny create_issue");
-    await deps.config.writeFile({ "tools.extra": "create_issue" });
+    await deps.config.writeSession({ "tools.extra": "create_issue" });
     started(await startDevStep("dev-plan", deps));
     strictEqual(deps.gate.calls[1], "add deny create_issue");
   });
