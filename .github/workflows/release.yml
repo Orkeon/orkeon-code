@@ -1,5 +1,7 @@
-# Release: a v* tag publishes a GitHub Release with the source archives, their
-# SHA256SUMS and a build provenance attestation (Sigstore, as Orkeon/orkeon does).
+# Release: a v* tag publishes a GitHub Release with the runnable archives
+# (orkeon-code-<v>.tar.gz/.zip, what install.sh/install.ps1 install), the installers,
+# the source archives (-source), their SHA256SUMS and a build provenance attestation
+# (Sigstore, as Orkeon/orkeon does).
 #
 # The tag must match package.json (and meta.ts, which tests/version.test.ts keeps
 # equal to it), and the provenance gate runs in --strict mode: nothing adapted
@@ -37,18 +39,25 @@ jobs:
       - run: npm run check
       - name: Provenance gate (strict)
         run: npm run check:provenance -- --strict
+      # The runnable archive is npm pack's file list (package.json "files"), so it and the npm package carry the
+      # same files; install.sh and install.ps1 are published alone too, stamped to download it.
+      - name: Runnable archive and installers
+        run: bash scripts/build-install-archive.sh dist
       - name: Source archives
         run: |
           set -euo pipefail
-          mkdir -p dist
-          git archive --format=tar.gz --prefix="orkeon-code-${VERSION}/" -o "dist/orkeon-code-${VERSION}.tar.gz" HEAD
-          git archive --format=zip --prefix="orkeon-code-${VERSION}/" -o "dist/orkeon-code-${VERSION}.zip" HEAD
-          (cd dist && sha256sum orkeon-code-* > SHA256SUMS)
+          git archive --format=tar.gz --prefix="orkeon-code-${VERSION}/" -o "dist/orkeon-code-${VERSION}-source.tar.gz" HEAD
+          git archive --format=zip --prefix="orkeon-code-${VERSION}/" -o "dist/orkeon-code-${VERSION}-source.zip" HEAD
+          test -f "dist/orkeon-code-${VERSION}.zip"
+          (cd dist && sha256sum orkeon-code-* install.sh install.ps1 > SHA256SUMS)
           cat dist/SHA256SUMS
       - name: Build provenance
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4
         with:
-          subject-path: dist/orkeon-code-*
+          subject-path: |
+            dist/orkeon-code-*
+            dist/install.sh
+            dist/install.ps1
       - name: Release notes from CHANGELOG.md
         run: |
           set -euo pipefail
@@ -66,4 +75,4 @@ jobs:
           case "$VERSION" in *-*) prerelease="--prerelease" ;; esac
           gh release create "$GITHUB_REF_NAME" --verify-tag $prerelease \
             --title "Orkeon Code ${VERSION}" --notes-file dist/NOTES.md \
-            dist/orkeon-code-*.tar.gz dist/orkeon-code-*.zip dist/SHA256SUMS
+            dist/orkeon-code-*.tar.gz dist/orkeon-code-*.zip dist/install.sh dist/install.ps1 dist/SHA256SUMS

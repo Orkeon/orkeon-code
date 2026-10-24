@@ -9,13 +9,38 @@ Orkeon Code is a set of TypeScript commands and crews; the [Orkeon](https://gith
 The `orkeon-code` launcher (and `orkeon-code.ps1` on Windows) finds a runtime, mounts your project and starts the
 REPL. It needs three things: a runtime, a settings file and an API key.
 
-## 1. Get the sources
+## 1. Install
+
+**From a release** (Linux, macOS, WSL): `install.sh`, published with each
+[release](https://github.com/Orkeon/orkeon-code/releases), downloads that release's archive, checks it against its
+`SHA256SUMS` and installs it into `~/.local/lib/orkeon-code/<version>`, with the `orkeon-code` command in
+`~/.local/bin`; no `sudo`, no clone, no `npm ci`.
+
+```bash
+v=0.1.0                                                          # the release to install
+curl -fLO "https://github.com/Orkeon/orkeon-code/releases/download/v$v/install.sh"
+bash install.sh                                                  # or: bash install.sh --prefix /opt/tools
+orkeon-code --version
+```
+
+`install.sh --archive orkeon-code-<version>.tar.gz` installs an archive already downloaded (checked against the
+`SHA256SUMS` beside it). Run again, it changes nothing; a new release goes into its own folder and becomes
+`current`. `bash ~/.local/lib/orkeon-code/current/scripts/install.sh --uninstall` removes the program and the
+command, never `~/.orkeon-code/`, where an install keeps what is yours: its state (`state/`) and the demo repository
+(`demo/`), `ORKEON_CODE_HOME` names another folder. On Windows, `install.ps1` does the same into
+`%LOCALAPPDATA%\Programs\orkeon-code` and writes `bin\orkeon-code.cmd`, which `cmd.exe` and PowerShell both find.
+
+`orkeon-code --version` prints Orkeon Code's version, where it runs from (`install:` or `clone:`), the Orkeon version
+it expects and the one it finds, without starting anything.
+
+**From the sources**, to change Orkeon Code or follow `main`:
 
 ```bash
 git clone https://github.com/Orkeon/orkeon-code.git ~/orkeon-code
 ```
 
-Optionally put the launcher on your `PATH`: `ln -s ~/orkeon-code/orkeon-code ~/.local/bin/orkeon-code`.
+Optionally put the launcher on your `PATH`: `ln -s ~/orkeon-code/orkeon-code ~/.local/bin/orkeon-code`. A clone keeps
+its state in `.crew-output/` and its demo in `fixtures/`, and reads `config/appsettings.local.json` first.
 
 ## 2. Settings and key
 
@@ -27,7 +52,7 @@ export DEEPSEEK_API_KEY=...
 
 The example targets DeepSeek; any OpenAI-compatible endpoint, or another provider Orkeon supports (Anthropic
 included), works by changing `Llm:BaseUrl`, `Llm:Model` and `Llm:ApiKeyEnvVar` ([Configuration](configuration.md)).
-The launcher also looks for `~/.config/orkeon-code/appsettings.json`, or takes `--settings FILE`. A model on this
+The launcher also looks for `~/.config/orkeon-code/appsettings.json` (an install reads that one only: copy the example from `~/.local/lib/orkeon-code/current/config/` there), or takes `--settings FILE`. A model on this
 machine instead, no key: `config/appsettings.ollama.example.json`, on Ollama ([Configuration](configuration.md#the-llm)).
 
 ## 3. Choose a runtime
@@ -94,7 +119,7 @@ whose `global.json` pins another SDK still works. It needs the .NET 10 SDK, the 
 ## 4. First session
 
 ```bash
-./orkeon-code --demo                 # a throwaway sample repository (fixtures/, regenerated on demand)
+orkeon-code --demo                   # a throwaway sample repository (fixtures/ in a clone, ~/.orkeon-code/demo once installed)
 cd ~/src/my-project && orkeon-code   # the current directory is the project
 orkeon-code --workspace ~/src/other  # or name it
 ```
@@ -136,7 +161,7 @@ models, backends and how the model calls the tools itself: [Configuration](confi
 Besides the changes you ask for: `AGENTS.md` (`/init`), `.orkeon/config.json` (`/config`), `.orkeon/agents.json`
 (`/agents`) and `.git/ORKEON_COMMITMSG` (`/commit` writes the message there for `git commit -F`; git does not track
 it). Add `.orkeon/` to the project's `.gitignore` if you do not want to share them. Transcriptions go to the state
-directory (`.crew-output/transcripts` in this checkout), never to the project. The conversation, the
+directory (`.crew-output/transcripts` in a clone, `~/.orkeon-code/state/transcripts` once installed), never to the project. The conversation, the
 session mode (`/mode`) and the permission rules are kept in memory and end with the REPL.
 
 ## Troubleshooting

@@ -5,11 +5,16 @@
 #   ./orkeon-code --workspace ~/src/app    # another project
 #   ./orkeon-code --demo                   # the throwaway fixture (scripts/setup-fixture.sh)
 #   ./orkeon-code --mode docker|tool|source [--settings FILE] [-- extra REPL args]
+#   ./orkeon-code --version                # Code's version, where it runs from, the Orkeon expected and found
 #
 # What runs: the Orkeon scripted-commands REPL (orkeon-repl) loads the slash
 # commands of src/commands and the crews of src/crews. The project is mounted on
 # the VFS path /workspace (read-write): every file tool, the shell tool and git
 # work there. /output and /tmp are scratch mounts under the state directory.
+#
+# A clone (a .git or tests/ beside this script) keeps its state in .crew-output and its demo in
+# fixtures/. An install (scripts/install.sh, npm) never writes to its own folder: both go
+# under ORKEON_CODE_HOME (default ~/.orkeon-code), in state/ and demo/.
 #
 # Modes (auto-detected in this order, or forced with --mode / ORKEON_CODE_MODE):
 #   tool    orkeon-repl on PATH (from the orkeon Debian package, an Orkeon release archive, or the
@@ -17,7 +22,7 @@
 #   docker  ghcr.io/orkeon/orkeon-runners:<.orkeon-version>, nothing else to install
 #   source  an Orkeon checkout named by ORKEON_SOURCE, built there with `dotnet build`, run from the project
 #
-# Settings: --settings, else ORKEON_CODE_SETTINGS, else config/appsettings.local.json,
+# Settings: --settings, else ORKEON_CODE_SETTINGS, else config/appsettings.local.json (a clone),
 # else ${XDG_CONFIG_HOME:-~/.config}/orkeon-code/appsettings.json. Start from
 # config/appsettings.example.json. The API key stays in the environment: the
 # variable named by Llm:ApiKeyEnvVar, or ORKEON_Llm__ApiKey which wins.
@@ -28,24 +33,54 @@
 # ORKEON_CODE_VOICE=1 also opens the microphone (/voice) and the speaker (/say, voice.reply).
 set -euo pipefail
 
-# Follow symlinks, so a link from ~/.local/bin still finds the checkout.
-SELF="${BASH_SOURCE[0]}"
-while [ -L "$SELF" ]; do
-  target="$(readlink "$SELF")"
-  case "$target" in /*) SELF="$target" ;; *) SELF="$(dirname "$SELF")/$target" ;; esac
-done
-ROOT="$(cd "$(dirname "$SELF")" && pwd)"
+# Prints <path> with every symlink of its last component followed.
+resolve_links() { # <path>
+  local path="$1" target
+  while [ -L "$path" ]; do
+    target="$(readlink "$path")"
+    case "$target" in /*) path="$target" ;; *) path="$(dirname "$path")/$target" ;; esac
+  done
+  printf '%s\n' "$path"
+}
+
+# Follow symlinks, so a link from ~/.local/bin still finds the checkout or the install's version folder.
+SELF="$(resolve_links "${BASH_SOURCE[0]}")"
+ROOT="$(cd "$(dirname "$SELF")" && pwd -P)"
 ORKEON_VERSION="$(tr -d '[:space:]' < "$ROOT/.orkeon-version")"
+CODE_VERSION="$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$ROOT/package.json" | head -n 1)"
 IMAGE="${ORKEON_CODE_IMAGE:-ghcr.io/orkeon/orkeon-runners:$ORKEON_VERSION}"
+# A clone (a .git, folder or worktree file, or the tests of an unpacked source archive) or an
+# install, whose folder is never written to.
+if [ -e "$ROOT/.git" ] || [ -d "$ROOT/tests" ]; then KIND=clone; else KIND=install; fi
+CODE_HOME="${ORKEON_CODE_HOME:-$HOME/.orkeon-code}"
 
 die() { echo "orkeon-code: $*" >&2; exit 1; }
 warn() { echo "orkeon-code: warning: $*" >&2; }
 lowered() { printf '%s' "$1" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | tr '[:upper:]' '[:lower:]'; }
 
+# The Orkeon found, said without starting anything: the REPL has no --version flag, and docker pulls nothing.
+runtime_found() {
+  local repl repl_bin version_file v
+  if [ -n "${ORKEON_REPL:-}" ]; then read -r repl _ <<< "$ORKEON_REPL"; else repl=orkeon-repl; fi
+  if repl_bin="$(command -v "$repl" 2>/dev/null)"; then
+    repl_bin="$(resolve_links "$repl_bin")"
+    # An Orkeon release archive installs bin/orkeon-repl beside its VERSION file.
+    version_file="$(dirname "$(dirname "$repl_bin")")/VERSION"
+    if [ -f "$version_file" ]; then echo "$(tr -d '[:space:]' < "$version_file") ($repl, $version_file)"
+    elif v="$(dpkg-query -W -f='${Version}' orkeon 2>/dev/null)" && [ -n "$v" ]; then echo "$v ($repl, the orkeon package)"
+    else echo "unknown ($repl_bin)"
+    fi
+  elif command -v docker >/dev/null 2>&1; then echo "image $IMAGE (docker mode, not pulled)"
+  elif [ -n "${ORKEON_SOURCE:-}" ]; then echo "source checkout $ORKEON_SOURCE"
+  else echo "none (see docs/getting-started.md)"
+  fi
+}
+
 MODE="${ORKEON_CODE_MODE:-}"
 WORKSPACE=""
 SETTINGS="${ORKEON_CODE_SETTINGS:-}"
 DEMO=0
+VERSION_ONLY=0
 EXTRA=()
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -56,27 +91,41 @@ while [ $# -gt 0 ]; do
     --settings) SETTINGS="${2:?--settings needs a file}"; shift 2 ;;
     --settings=*) SETTINGS="${1#*=}"; shift ;;
     --demo) DEMO=1; shift ;;
-    -h|--help) sed -n '2,28p' "$SELF" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    --version) VERSION_ONLY=1; shift ;;
+    -h|--help) awk 'NR > 1 && /^set -euo pipefail/ { exit } NR > 1' "$SELF" | sed 's/^# \{0,1\}//'; exit 0 ;;
     --) shift; EXTRA=("$@"); break ;;
     *) EXTRA+=("$1"); shift ;;
   esac
 done
 
+if [ "$VERSION_ONLY" = 1 ]; then
+  echo "orkeon-code $CODE_VERSION ($KIND: $ROOT)"
+  echo "Orkeon $ORKEON_VERSION expected, found: $(runtime_found)"
+  exit 0
+fi
+
 # ── Project ────────────────────────────────────────────────────────────────
 if [ "$DEMO" = 1 ]; then
-  bash "$ROOT/scripts/setup-fixture.sh" >/dev/null
-  WORKSPACE="$ROOT/fixtures/sample-repo"
+  if [ "$KIND" = clone ]; then WORKSPACE="$ROOT/fixtures/sample-repo"; else WORKSPACE="$CODE_HOME/demo/sample-repo"; fi
+  bash "$ROOT/scripts/setup-fixture.sh" "$WORKSPACE" >/dev/null
 fi
 WORKSPACE="$(cd "${WORKSPACE:-$PWD}" 2>/dev/null && pwd)" || die "workspace not found: ${WORKSPACE:-$PWD}"
 
 # ── Settings ───────────────────────────────────────────────────────────────
+USER_SETTINGS="${XDG_CONFIG_HOME:-$HOME/.config}/orkeon-code/appsettings.json"
 if [ -z "$SETTINGS" ]; then
-  for cand in "$ROOT/config/appsettings.local.json" "${XDG_CONFIG_HOME:-$HOME/.config}/orkeon-code/appsettings.json"; do
+  cands=("$USER_SETTINGS")
+  if [ "$KIND" = clone ]; then cands=("$ROOT/config/appsettings.local.json" "$USER_SETTINGS"); fi
+  for cand in "${cands[@]}"; do
     if [ -f "$cand" ]; then SETTINGS="$cand"; break; fi
   done
 fi
-[ -n "$SETTINGS" ] && [ -f "$SETTINGS" ] \
-  || die "no settings file. Copy config/appsettings.example.json to config/appsettings.local.json, or pass --settings FILE."
+if [ -z "$SETTINGS" ] || [ ! -f "$SETTINGS" ]; then
+  if [ "$KIND" = clone ]; then
+    die "no settings file. Copy config/appsettings.example.json to config/appsettings.local.json, or pass --settings FILE."
+  fi
+  die "no settings file. Copy $ROOT/config/appsettings.example.json to $USER_SETTINGS, or pass --settings FILE."
+fi
 SETTINGS="$(cd "$(dirname "$SETTINGS")" && pwd)/$(basename "$SETTINGS")"
 
 # The host falls back to a keyless default provider when the Llm section is
@@ -103,7 +152,8 @@ if [ -z "$MODE" ]; then
   fi
 fi
 
-STATE="${ORKEON_CODE_STATE:-$ROOT/.crew-output}"
+# One state folder for every project until each project gets its own.
+if [ "$KIND" = clone ]; then STATE="${ORKEON_CODE_STATE:-$ROOT/.crew-output}"; else STATE="${ORKEON_CODE_STATE:-$CODE_HOME/state}"; fi
 mkdir -p "$STATE/output" "$STATE/tmp"
 STATE="$(cd "$STATE" && pwd)"
 
@@ -157,7 +207,7 @@ if [ -n "${ORKEON_CODE_AUDIO_DIR:-}" ]; then
   fi
 fi
 
-echo "orkeon-code $(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$ROOT/package.json" | head -n 1) on Orkeon $ORKEON_VERSION ($MODE)"
+echo "orkeon-code $CODE_VERSION on Orkeon $ORKEON_VERSION ($MODE)"
 echo "  project  : $WORKSPACE -> /workspace"
 echo "  settings : $SETTINGS"
 if [ -n "$AUDIO" ]; then
@@ -217,13 +267,11 @@ case "$MODE" in
     # and a release-archive install carry their own: /usr/bin/orkeon-repl is a
     # script that points the runtime at /usr/lib/orkeon/esbuild-bin, and an
     # archive's wrapper at its libexec/esbuild-bin. The dotnet tool and a source
-    # build carry none: for them, use the one npm installed for this checkout.
+    # build carry none: for them, use the one npm installed for this checkout (or, for
+    # the npm package, beside it).
     bundled=""
     if [ "$MODE" = tool ] && repl_bin="$(command -v "${REPL[0]}")"; then
-      while [ -L "$repl_bin" ]; do
-        target="$(readlink "$repl_bin")"
-        case "$target" in /*) repl_bin="$target" ;; *) repl_bin="$(dirname "$repl_bin")/$target" ;; esac
-      done
+      repl_bin="$(resolve_links "$repl_bin")"
       if [ -x "$(dirname "$(dirname "$repl_bin")")/libexec/esbuild-bin/esbuild" ]; then bundled=1
       # A launcher script that sets ORKEON_ESBUILD_PATH itself (the Debian package's).
       elif [ "$(head -c 2 "$repl_bin" 2>/dev/null)" = '#!' ] && grep -q ORKEON_ESBUILD_PATH "$repl_bin" 2>/dev/null; then
@@ -232,7 +280,9 @@ case "$MODE" in
     fi
     if [ -z "$bundled" ] && [ -z "${ORKEON_ESBUILD_PATH:-}" ] && ! command -v esbuild >/dev/null 2>&1; then
       found="$(find "$ROOT/node_modules/@esbuild" -path '*/bin/esbuild' -type f 2>/dev/null | head -n 1 || true)"
-      [ -n "$found" ] || die "esbuild not found: run 'npm ci' in $ROOT, or set ORKEON_ESBUILD_PATH."
+      if [ -z "$found" ] && [ "$KIND" = clone ]; then die "esbuild not found: run 'npm ci' in $ROOT, or set ORKEON_ESBUILD_PATH."; fi
+      [ -n "$found" ] \
+        || die "esbuild not found: install Orkeon from its package or archive (it carries esbuild), or set ORKEON_ESBUILD_PATH."
       export ORKEON_ESBUILD_PATH="$found"
     fi
     # The REPL runs from the project. It reads its --commands-dir and --crews-dir

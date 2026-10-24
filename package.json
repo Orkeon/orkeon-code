@@ -14,6 +14,22 @@
     "url": "https://github.com/Orkeon/orkeon-code/issues"
   },
   "type": "module",
+  "files": [
+    "orkeon-code",
+    "orkeon-code.ps1",
+    "src/",
+    "!src/**/*.test.ts",
+    "config/*.example.json",
+    "scripts/setup-fixture.sh",
+    "scripts/install.sh",
+    "scripts/install.ps1",
+    "mcp/whisper/whisper_mcp.py",
+    "mcp/whisper/pyproject.toml",
+    "mcp/whisper/uv.lock",
+    "mcp/whisper/README.md",
+    ".orkeon-version",
+    "NOTICE.md"
+  ],
   "engines": {
     "node": ">=24"
   },

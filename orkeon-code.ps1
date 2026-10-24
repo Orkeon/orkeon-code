@@ -20,6 +20,7 @@ param(
   [ValidateSet('', 'docker', 'tool')] [string] $Mode = $env:ORKEON_CODE_MODE,
   [string] $Workspace = (Get-Location).Path,
   [string] $Settings = $env:ORKEON_CODE_SETTINGS,
+  [switch] $Version,
   [Parameter(ValueFromRemainingArguments = $true)] [string[]] $Extra = @()
 )
 $ErrorActionPreference = 'Stop'
@@ -43,15 +44,44 @@ try {
   $Root = $PSScriptRoot
   $OrkeonVersion = (Get-Content (Join-Path $Root '.orkeon-version') -Raw).Trim()
   $Image = if ($env:ORKEON_CODE_IMAGE) { $env:ORKEON_CODE_IMAGE } else { "ghcr.io/orkeon/orkeon-runners:$OrkeonVersion" }
+  $codeVersion = (Get-Content (Join-Path $Root 'package.json') -Raw | ConvertFrom-Json).version
+  # A clone (a .git, or the tests of an unpacked source archive) or an install, whose folder is never written to:
+  # an install's state goes under ORKEON_CODE_HOME (%USERPROFILE%\.orkeon-code).
+  $IsClone = Test-Path (Join-Path $Root '.git')
+  if (-not $IsClone) { $IsClone = Test-Path (Join-Path $Root 'tests') -PathType Container }
+  $CodeHome = if ($env:ORKEON_CODE_HOME) { $env:ORKEON_CODE_HOME } else { Join-Path $HOME '.orkeon-code' }
+
+  if ($Version -or ($Extra -contains '--version')) {
+    # The Orkeon found, said without starting anything: the REPL has no --version flag, and docker pulls nothing.
+    $replName = if ($env:ORKEON_REPL) { ($env:ORKEON_REPL -split ' ')[0] } else { 'orkeon-repl' }
+    $replFound = Get-Command $replName -ErrorAction SilentlyContinue | Select-Object -First 1
+    $found = if ($replFound -and $replFound.Source) {
+      $replPath = (Get-Item -LiteralPath $replFound.Source).FullName
+      $target = (Get-Item -LiteralPath $replPath).Target
+      if ($target) { $replPath = [IO.Path]::GetFullPath((Join-Path (Split-Path $replPath -Parent) "$target")) }
+      # An Orkeon release archive installs bin/orkeon-repl beside its VERSION file.
+      $versionFile = Join-Path (Split-Path (Split-Path $replPath -Parent) -Parent) 'VERSION'
+      if (Test-Path -LiteralPath $versionFile) { "$((Get-Content -LiteralPath $versionFile -Raw).Trim()) ($replName, $versionFile)" }
+      else { "unknown ($replPath)" }
+    } elseif (Get-Command docker -ErrorAction SilentlyContinue) { "image $Image (docker mode, not pulled)" }
+    else { 'none (see docs/getting-started.md)' }
+    $kind = if ($IsClone) { 'clone' } else { 'install' }
+    Write-Output "orkeon-code $codeVersion ($kind`: $Root)"
+    Write-Output "Orkeon $OrkeonVersion expected, found: $found"
+    exit 0
+  }
 
   $Workspace = (Resolve-Path $Workspace).Path
+  # %APPDATA% on Windows; pwsh elsewhere has none, and reads ~/.config as ./orkeon-code does.
+  $configHome = if ($env:APPDATA) { $env:APPDATA } else { Join-Path $HOME '.config' }
+  $userSettings = Join-Path $configHome 'orkeon-code/appsettings.json'
   if (-not $Settings) {
-    $candidates = @((Join-Path $Root 'config/appsettings.local.json'),
-                    (Join-Path $env:APPDATA 'orkeon-code/appsettings.json'))
+    $candidates = if ($IsClone) { @((Join-Path $Root 'config/appsettings.local.json'), $userSettings) } else { @($userSettings) }
     $Settings = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
   }
   if (-not $Settings -or -not (Test-Path $Settings)) {
-    throw 'No settings file. Copy config/appsettings.example.json to config/appsettings.local.json, or pass -Settings.'
+    if ($IsClone) { throw 'No settings file. Copy config/appsettings.example.json to config/appsettings.local.json, or pass -Settings.' }
+    throw "No settings file. Copy $(Join-Path $Root 'config/appsettings.example.json') to $userSettings, or pass -Settings."
   }
   $Settings = (Resolve-Path $Settings).Path
 
@@ -74,7 +104,9 @@ try {
     else { throw 'No Orkeon runtime found: install Docker or the orkeon-repl tool (docs/getting-started.md).' }
   }
 
-  $State = if ($env:ORKEON_CODE_STATE) { $env:ORKEON_CODE_STATE } else { Join-Path $Root '.crew-output' }
+  # One state folder for every project until each project gets its own.
+  $State = if ($env:ORKEON_CODE_STATE) { $env:ORKEON_CODE_STATE }
+           elseif ($IsClone) { Join-Path $Root '.crew-output' } else { Join-Path $CodeHome 'state' }
   New-Item -ItemType Directory -Force -Path (Join-Path $State 'output'), (Join-Path $State 'tmp') | Out-Null
   $State = (Resolve-Path $State).Path
 
@@ -183,7 +215,8 @@ try {
   if (-not $bundled -and -not $env:ORKEON_ESBUILD_PATH -and -not (Get-Command esbuild -ErrorAction SilentlyContinue)) {
     $found = Get-ChildItem (Join-Path $Root 'node_modules/@esbuild') -Recurse -Include 'esbuild.exe', 'esbuild' -File -ErrorAction SilentlyContinue |
              Select-Object -First 1
-    if (-not $found) { throw "esbuild not found: run 'npm ci' in $Root, or set ORKEON_ESBUILD_PATH." }
+    if (-not $found -and $IsClone) { throw "esbuild not found: run 'npm ci' in $Root, or set ORKEON_ESBUILD_PATH." }
+    if (-not $found) { throw 'esbuild not found: install Orkeon from its package or archive (it carries esbuild), or set ORKEON_ESBUILD_PATH.' }
     $env:ORKEON_ESBUILD_PATH = $found.FullName
   }
   $replArgs = Get-ReplArgs (Join-Path $Root 'src/commands') (Join-Path $Root 'src/crews') $Settings `

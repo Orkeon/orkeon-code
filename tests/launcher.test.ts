@@ -14,7 +14,7 @@
 import { after, describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 import { spawnSync } from "node:child_process";
-import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -96,6 +96,12 @@ const PWSH = spawnSync("sh", ["-c", "command -v pwsh"], { encoding: "utf-8" }).s
 function launch(opts: {
   args: string[]; bin: Record<string, string>; env?: Record<string, string>; projectFiles?: Record<string, string>;
   settings?: Record<string, unknown>; shell?: "bash" | "pwsh";
+  /** An install (no `.git` beside the launcher) rather than a clone (the default). */
+  install?: boolean;
+  /** No --settings, --workspace nor ORKEON_CODE_STATE: the launcher's own defaults apply, from the project. */
+  bare?: boolean;
+  /** More files, by path under the scratch folder (beside `bin/`, `checkout/`, `project/`). */
+  files?: Record<string, string>;
 }): Run {
   const base = scratchDir("orkeon-code-launcher-");
   const root = join(base, "checkout");
@@ -103,10 +109,15 @@ function launch(opts: {
   const project = join(base, "project");
   const state = join(base, "state");
   const record = join(base, "record");
-  for (const dir of [root, bin, project, record]) mkdirSync(dir, { recursive: true });
+  for (const dir of [root, bin, project, record, join(root, "scripts")]) mkdirSync(dir, { recursive: true });
   for (const [name, content] of Object.entries(opts.projectFiles ?? {})) writeFileSync(join(project, name), content);
-  for (const file of ["orkeon-code", "orkeon-code.ps1", ".orkeon-version", "package.json"]) {
+  for (const file of ["orkeon-code", "orkeon-code.ps1", ".orkeon-version", "package.json", "scripts/setup-fixture.sh"]) {
     copyFileSync(fileURLToPath(new URL(`../${file}`, import.meta.url)), join(root, file));
+  }
+  if (!opts.install) mkdirSync(join(root, ".git"));
+  for (const [name, content] of Object.entries(opts.files ?? {})) {
+    mkdirSync(join(base, name, ".."), { recursive: true });
+    writeFileSync(join(base, name), content);
   }
   const settings = join(base, "settings.json");
   writeFileSync(settings, JSON.stringify(opts.settings ?? { Llm: { Model: "m", BaseUrl: "http://127.0.0.1:9/v1" } }));
@@ -114,13 +125,17 @@ function launch(opts: {
     writeFileSync(join(bin, name), body);
     chmodSync(join(bin, name), 0o755);
   }
+  const given = opts.bare ? []
+    : opts.shell === "pwsh" ? ["-Settings", settings, "-Workspace", project] : ["--settings", settings, "--workspace", project];
   const [command, args] = opts.shell === "pwsh"
-    ? [PWSH, ["-NoProfile", "-File", join(root, "orkeon-code.ps1"), "-Settings", settings, "-Workspace", project, ...opts.args]]
-    : ["bash", [join(root, "orkeon-code"), "--settings", settings, "--workspace", project, ...opts.args]];
+    ? [PWSH, ["-NoProfile", "-File", join(root, "orkeon-code.ps1"), ...given, ...opts.args]]
+    : ["bash", [join(root, "orkeon-code"), ...given, ...opts.args]];
   const run = spawnSync(command, args, {
-    cwd: base,
+    cwd: opts.bare ? project : base,
     encoding: "utf-8",
-    env: { PATH: `${bin}:/usr/bin:/bin`, HOME: base, ORKEON_CODE_STATE: state, RECORD: record, ...opts.env },
+    env: {
+      PATH: `${bin}:/usr/bin:/bin`, HOME: base, ...(opts.bare ? {} : { ORKEON_CODE_STATE: state }), RECORD: record, ...opts.env,
+    },
   });
   const recorded = (name: string) => { try { return readFileSync(join(record, name), "utf-8"); } catch { return ""; } };
   const env = new Map(recorded("env").split("\n").filter((l) => l.includes("=")).map((l) => {
@@ -372,8 +387,117 @@ describe("orkeon-code, speech-to-text (ORKEON_CODE_AUDIO_DIR)", () => {
   });
 });
 
+// ── A clone or an install ───────────────────────────────────────────────────
+// A `.git` beside the launcher is a clone: today's behaviour. Without it the launcher runs from an install (an
+// archive under ~/.local/lib/orkeon-code, or an npm prefix), whose folder it never writes to: its state, and the
+// demo repository, go under ORKEON_CODE_HOME (~/.orkeon-code).
+
+const CODE_VERSION = JSON.parse(read("package.json")).version as string;
+const RUNTIME_VERSION = read(".orkeon-version").trim();
+const SETTINGS_TEXT = JSON.stringify({ Llm: { Model: "m", BaseUrl: "http://127.0.0.1:9/v1" } });
+/** The user's settings file the launchers read today, under the scratch HOME. */
+const USER_SETTINGS = { ".config/orkeon-code/appsettings.json": SETTINGS_TEXT };
+const TOOL_REPL = { "orkeon-repl": recorder() };
+const ESBUILD = { ORKEON_ESBUILD_PATH: "/opt/esbuild" };
+const mountOf = (r: Run, root: string) => r.args.find((a, i) => r.args[i - 1] === "--mount" && a.endsWith(`:${root}:rw`));
+
+describe("orkeon-code, a clone or an install", () => {
+  it("--version names Code's version, where it runs from and the Orkeon expected, with nothing configured", () => {
+    const clone = launch({ args: ["--version"], bin: {}, bare: true });
+    strictEqual(clone.status, 0, clone.stderr);
+    const [first, second] = clone.stdout.split("\n");
+    strictEqual(first, `orkeon-code ${CODE_VERSION} (clone: ${clone.root})`);
+    ok(second.startsWith(`Orkeon ${RUNTIME_VERSION} expected, found: `), second);
+    const install = launch({ args: ["--version"], bin: {}, bare: true, install: true });
+    strictEqual(install.status, 0, install.stderr);
+    strictEqual(install.stdout.split("\n")[0], `orkeon-code ${CODE_VERSION} (install: ${install.root})`);
+    // An unpacked source archive has no .git, but its tests: a clone still.
+    const source = launch({ args: ["--version"], bin: {}, bare: true, install: true, files: { "checkout/tests/a.test.ts": "" } });
+    strictEqual(source.stdout.split("\n")[0], `orkeon-code ${CODE_VERSION} (clone: ${source.root})`);
+  });
+
+  it("--version reads the version of an Orkeon archive install beside orkeon-repl, and never starts the REPL", () => {
+    const r = launch({ args: ["--version"], bin: TOOL_REPL, bare: true, files: { VERSION: "1.0.0-rc.6\n" } });
+    strictEqual(r.status, 0, r.stderr);
+    strictEqual(r.stdout.split("\n")[1], `Orkeon ${RUNTIME_VERSION} expected, found: 1.0.0-rc.6 (orkeon-repl, ${join(r.root, "..", "VERSION")})`);
+    strictEqual(r.cwd, "", "the REPL did not start");
+  });
+
+  it("a clone keeps its state in .crew-output and reads config/appsettings.local.json first", () => {
+    const r = launch({
+      args: ["--mode", "tool"], bin: TOOL_REPL, env: ESBUILD, bare: true,
+      files: { "checkout/config/appsettings.local.json": SETTINGS_TEXT },
+    });
+    strictEqual(r.status, 0, r.stderr);
+    strictEqual(mountOf(r, "/output"), `${join(r.root, ".crew-output")}/output:/output:rw`);
+    ok(r.args.includes(join(r.root, "config/appsettings.local.json")), r.args.join(" "));
+    strictEqual(r.cwd, r.project);
+  });
+
+  it("an install keeps its state under ~/.orkeon-code, or ORKEON_CODE_HOME, never beside the launcher", () => {
+    const r = launch({ args: ["--mode", "tool"], bin: TOOL_REPL, env: ESBUILD, bare: true, install: true, files: USER_SETTINGS });
+    strictEqual(r.status, 0, r.stderr);
+    const home = join(r.root, "..", ".orkeon-code");
+    strictEqual(mountOf(r, "/output"), `${home}/state/output:/output:rw`);
+    strictEqual(mountOf(r, "/tmp"), `${home}/state/tmp:/tmp:rw`);
+    ok(!existsSync(join(r.root, ".crew-output")), "nothing written beside the launcher");
+    const other = scratchDir("orkeon-code-home-");
+    const h = launch({
+      args: ["--mode", "tool"], bin: TOOL_REPL, env: { ...ESBUILD, ORKEON_CODE_HOME: other }, bare: true, install: true, files: USER_SETTINGS,
+    });
+    strictEqual(h.status, 0, h.stderr);
+    strictEqual(mountOf(h, "/output"), `${other}/state/output:/output:rw`);
+  });
+
+  it("an install never reads a config/appsettings.local.json beside it, and says where the settings go", () => {
+    const r = launch({
+      args: ["--mode", "tool"], bin: TOOL_REPL, env: ESBUILD, bare: true, install: true,
+      files: { "checkout/config/appsettings.local.json": SETTINGS_TEXT },
+    });
+    strictEqual(r.status, 1);
+    ok(r.stderr.includes("no settings file"), r.stderr);
+    ok(r.stderr.includes(".config/orkeon-code/appsettings.json"), r.stderr);
+    ok(r.stderr.includes(join(r.root, "config/appsettings.example.json")), r.stderr);
+    strictEqual(r.cwd, "", "the REPL did not start");
+  });
+
+  it("--demo seeds the sample repository under the checkout for a clone, under ~/.orkeon-code/demo for an install", () => {
+    const clone = launch({ args: ["--demo", "--mode", "tool"], bin: TOOL_REPL, env: ESBUILD, bare: true, files: USER_SETTINGS });
+    strictEqual(clone.status, 0, clone.stderr);
+    strictEqual(clone.cwd, join(clone.root, "fixtures/sample-repo"));
+    const install = launch({
+      args: ["--demo", "--mode", "tool"], bin: TOOL_REPL, env: ESBUILD, bare: true, install: true, files: USER_SETTINGS,
+    });
+    strictEqual(install.status, 0, install.stderr);
+    strictEqual(install.cwd, join(install.root, "..", ".orkeon-code/demo/sample-repo"));
+    ok(existsSync(join(install.cwd, ".git")), "the demo repository has its history");
+    ok(!existsSync(join(install.root, "fixtures")), "nothing written beside the launcher");
+  });
+
+  it("an install without esbuild names the Orkeon package or archive, not npm ci", () => {
+    const r = launch({ args: ["--mode", "tool"], bin: TOOL_REPL, install: true });
+    strictEqual(r.status, 1);
+    ok(r.stderr.includes("esbuild not found: install Orkeon from its package or archive"), r.stderr);
+    ok(!r.stderr.includes("npm ci"), r.stderr);
+  });
+});
+
 describe("orkeon-code.ps1 follows the same rules (read here; run below, where pwsh is installed)", () => {
   const script = read("orkeon-code.ps1");
+
+  it("tells a clone from an install, and keeps an install's state under ORKEON_CODE_HOME", () => {
+    ok(script.includes("$IsClone = Test-Path (Join-Path $Root '.git')"), "a .git beside the launcher is a clone");
+    ok(script.includes("$CodeHome = if ($env:ORKEON_CODE_HOME) { $env:ORKEON_CODE_HOME } else { Join-Path $HOME '.orkeon-code' }"),
+      "ORKEON_CODE_HOME, else ~/.orkeon-code");
+    ok(script.includes("Join-Path $CodeHome 'state'"), "an install's state");
+    ok(script.includes("install Orkeon from its package or archive"), "the install's esbuild message");
+  });
+
+  it("prints the same --version lines before reading any settings", () => {
+    ok(script.includes("orkeon-code $codeVersion ($kind`: $Root)"), "the first line");
+    ok(script.includes("Orkeon $OrkeonVersion expected, found: $found"), "the second line");
+    ok(script.indexOf("if ($Version") < script.indexOf("$Settings = (Resolve-Path $Settings).Path"), "before the settings");
+  });
 
   it("runs the REPL from the project with external mounts allowed, no common parent", () => {
     ok(script.includes("$env:ORKEON_ALLOW_EXTERNAL_MOUNTS = '1'"), "orkeon-code.ps1 must allow external mounts");
@@ -432,6 +556,17 @@ describe("orkeon-code.ps1, run where pwsh is installed", { skip: PWSH ? false : 
     args: [...r.env].filter(([k]) => k.startsWith(`${WHISPER}Args__`))
       .sort(([a], [b]) => Number(a.split("__").pop()) - Number(b.split("__").pop())).map(([, v]) => v.replace(r.root, "<root>")),
     switches: [...r.env].filter(([k]) => /^WHISPER_(MICROPHONE|SPEAKER)$/.test(k)).map(([k, v]) => `${k}=${v}`).sort(),
+  });
+
+  it("prints --version as ./orkeon-code does, with nothing configured, and starts nothing", () => {
+    for (const flag of ["--version", "-Version"]) {
+      const r = launch({ shell: "pwsh", args: [flag], bin: TOOL, bare: true, install: true, files: { VERSION: "1.0.0-rc.6\n" } });
+      strictEqual(r.status, 0, r.stderr + r.stdout);
+      const lines = r.stdout.split("\n");
+      strictEqual(lines[0], `orkeon-code ${CODE_VERSION} (install: ${r.root})`);
+      strictEqual(lines[1], `Orkeon ${RUNTIME_VERSION} expected, found: 1.0.0-rc.6 (orkeon-repl, ${join(r.root, "..", "VERSION")})`);
+      strictEqual(r.cwd, "", "the REPL did not start");
+    }
   });
 
   it("starts the REPL named by a one-word ORKEON_REPL or found on PATH, from the project", () => {
