@@ -54,6 +54,12 @@ describe("addCorrection", () => {
     ok(!refused.ok && refused.reason.includes("BR-07, which the sheet does not carry"));
     strictEqual(addCorrection(SHEET, "  ").ok, false);
   });
+  it("reads only the ids of the sheet's prefixes: UTF-8 or SHA-256 is no id", () => {
+    strictEqual(addCorrection(SHEET, "step 1 reads UTF-8 as SHA-256 input (BR-01)").ok, true);
+    // An id written outside the steps' test tables is not one the steps carry.
+    const named = SHEET.replace("## Anchors", "## Out of scope\n- BR-09\n\n## Anchors");
+    ok(!addCorrection(named, "BR-09 is missing").ok);
+  });
 });
 
 describe("targetStep / cleanFinding", () => {

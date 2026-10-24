@@ -41,6 +41,8 @@ describe("runSuite", () => {
     jobs.runningFor = 99;
     const r = await runSuite({ jobs, shell: new FakeShell(), files: new FakeFiles() }, REQ);
     deepStrictEqual({ status: r.status, seconds: r.status === "running" ? r.seconds : -1 }, { status: "running", seconds: 60 });
+    // A log without a verdict still ends: exit=124, never read as green.
+    ok(r.status === "running" && r.text.trimEnd().endsWith("exit=124"), r.status === "running" ? r.text : r.status);
   });
 
   it("runs blocking when code cannot wait, or when the job does not start", async () => {

@@ -65,6 +65,33 @@ export function redProblem(changed: readonly string[], isTest: IsTest, run: Obse
   return null;
 }
 
+const FAILURE_COUNTS = [
+  /\b(\d+)\s+(?:failed|failing|failures?)\b/gi,
+  /\b(?:failed|failures?|fail)\s*[:=]?\s+(\d+)\b/gi,
+];
+
+/** The failure count a test run's tail shows last (`2 failed`, `fail 2`, `Failed: 2`), or null when it shows none. */
+export function failureCount(tail: string): number | null {
+  let last: { at: number; n: number } | null = null;
+  for (const re of FAILURE_COUNTS) {
+    for (const m of tail.matchAll(re)) {
+      if (last === null || (m.index ?? 0) >= last.at) last = { at: m.index ?? 0, n: Number(m[1]) };
+    }
+  }
+  return last === null ? null : last.n;
+}
+
+/** Whether a later RED step of a cycle added a failure: its file failed already (the earlier step's tests), so the
+ *  exit code alone cannot tell a new test that passes at once. A problem when both counts are read and none was
+ *  added; `unknown` when a count cannot be read. */
+export function addedFailure(beforeTail: string, afterTail: string): { problem: string } | "ok" | "unknown" {
+  const before = failureCount(beforeTail);
+  const after = failureCount(afterTail);
+  if (before === null || after === null) return "unknown";
+  if (after > before) return "ok";
+  return { problem: `the new tests add no failure (failures ${before} → ${after}): a test green before its code is never kept` };
+}
+
 /** Why GREEN does not hold; null when it does. `before` is code's run just before the act: tests that failed then
  *  and pass now with no file changed turned green by themselves (flaky), which is never kept. */
 export function greenProblem(changed: readonly string[], isTest: IsTest, run: ObservedRun, before?: ObservedRun): string | null {

@@ -104,8 +104,14 @@ describe("checkToolCall — what a role's roots leave writable", () => {
   });
   it("leaves the implementer nothing of its own denies", () => {
     const guard = buildCallGuard({ step: "dev-implement", role: "implementer", layout: { ...LAYOUT, testFiles: ["src/*.test.ts"] }, writable: ["tests/a.ts"] });
-    deepStrictEqual(guard.writable, ["tests/a.ts"]);
+    deepStrictEqual([guard.writable, guard.stubs], [[], []]);
+    refused(checkToolCall(guard, "file_write", { path: "tests/a.ts" }, ON));
     refused(checkToolCall(guard, "file_write", { path: "src/domain/a.test.ts" }, ON));
+  });
+  it("compares the test author's stubs as paths, never as patterns", () => {
+    const guard = buildCallGuard({ step: "dev-implement", role: "test-author", layout: LAYOUT, writable: ["src/domain/*", "src/domain/a.ts"] });
+    refused(checkToolCall(guard, "file_write", { path: "src/domain/core.ts" }, ON));
+    strictEqual(checkToolCall(guard, "file_write", { path: "/workspace/src/domain/a.ts" }, ON).allow, true);
   });
 });
 

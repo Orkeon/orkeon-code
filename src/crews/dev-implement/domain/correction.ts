@@ -42,11 +42,16 @@ function sectionEnd(lines: ReturnType<typeof unfencedLines>, heading: string, to
   return { start: lines[at].line, end: next === undefined ? total + 1 : next.line };
 }
 
+const idPrefix = (id: string): string => id.replace(/-[0-9]+$/, "");
+
 /** The sheet with the correction appended; an open correction with the same finding is kept, not appended again. */
 export function addCorrection(text: string, findingRaw: string): CorrectionEdit {
   const finding = cleanFinding(findingRaw);
   if (finding === "") return { ok: false, reason: "the correction names no finding: — correction: <finding>" };
-  const unknown = [...new Set(finding.match(IDS) ?? [])].filter((id) => !text.includes(id));
+  // The ids the steps carry; a token of the same prefix they do not carry is a new id (`UTF-8`, `SHA-256` are not).
+  const carried = new Set(parseImplementSheet(text).steps.flatMap((s) => s.tests.flatMap((t) => t.ids)));
+  const prefixes = new Set([...carried].map(idPrefix));
+  const unknown = [...new Set(finding.match(IDS) ?? [])].filter((id) => prefixes.has(idPrefix(id)) && !carried.has(id));
   if (unknown.length > 0) {
     return {
       ok: false,

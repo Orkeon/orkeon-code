@@ -3,7 +3,7 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
-import { changedPaths, greenProblem, readCost, redProblem, statusPaths, under } from "./step-checks.ts";
+import { addedFailure, changedPaths, failureCount, greenProblem, readCost, redProblem, statusPaths, under } from "./step-checks.ts";
 
 const red = { ran: true as const, exit: 1, timedOut: false, log: null };
 const green = { ran: true as const, exit: 0, timedOut: false, log: null };
@@ -68,6 +68,12 @@ describe("greenProblem", () => {
 });
 
 describe("readCost", () => {
+  it("reads a run's last failure count, in the runners' shapes", () => {
+    deepStrictEqual(["ℹ fail 2", "Tests: 3 failed, 4 passed", "Failed!  - Failed:     1, Passed: 2", "all ok"].map(failureCount), [2, 3, 1, null]);
+    deepStrictEqual(addedFailure("# fail 1", "# fail 1"), { problem: "the new tests add no failure (failures 1 → 1): a test green before its code is never kept" });
+    deepStrictEqual([addedFailure("# fail 1", "# fail 2"), addedFailure("not ok 1", "# fail 2")], ["ok", "unknown"]);
+  });
+
   it("reads the line, and refuses none or a loop", () => {
     deepStrictEqual(readCost("done\nCost: 1 reads, 1 writes; none"), { ok: true, line: "Cost: 1 reads, 1 writes; none" });
     strictEqual(readCost("done").ok, false);

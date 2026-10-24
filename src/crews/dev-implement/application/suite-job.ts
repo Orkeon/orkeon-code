@@ -28,6 +28,10 @@ export type SuiteOutcome =
 const reasonOf = (e: unknown): string => String((e as Error)?.message ?? e).split("\n")[0];
 const lastLines = (text: string, n: number): string => text.trimEnd().split("\n").slice(-n).join("\n");
 
+/** The last line of a log that holds no verdict (past the limit, or the job lost): the timeout's own code, so that
+ *  no reader takes a log without an end for a green one. */
+export const NO_VERDICT_EXIT = 124;
+
 /** The log's text: the command and the header lines as comments, the output, then `exit=<n>` when it ended. */
 export function logText(command: string, header: readonly string[], output: string, exit: number | null): string {
   const body = output.trimEnd();
@@ -44,6 +48,12 @@ async function writeLog(files: Pick<Files, "write">, path: string | null, text: 
   }
 }
 
+/** A job lost after it started: no verdict, and a log saying so, so that an earlier log is never read for this run. */
+async function lost(deps: { files: Pick<Files, "write"> }, req: SuiteRequest, why: string): Promise<SuiteOutcome> {
+  await writeLog(deps.files, req.log, logText(req.command, [`${why}: no verdict (exit=${NO_VERDICT_EXIT} below)`], "", NO_VERDICT_EXIT));
+  return { status: "not-run", reason: `${req.label}: ${why}` };
+}
+
 async function blocking(deps: { shell: Pick<Shell, "run">; files: Pick<Files, "write"> }, req: SuiteRequest, why: string): Promise<SuiteOutcome> {
   let r;
   try {
@@ -54,7 +64,7 @@ async function blocking(deps: { shell: Pick<Shell, "run">; files: Pick<Files, "w
   const output = [r.stdout.trimEnd(), r.stderr.trimEnd()].filter((t) => t !== "").join("\n");
   const header = [`run blocking (${why}): the runtime cuts a result at 32 000 characters`];
   if (r.timedOut === true) {
-    const text = logText(req.command, [...header, `still running after ${req.limitSeconds} s: no verdict`], output, null);
+    const text = logText(req.command, [...header, `still running after ${req.limitSeconds} s: no verdict (exit=${NO_VERDICT_EXIT} below)`], output, NO_VERDICT_EXIT);
     return { status: "running", seconds: req.limitSeconds, log: await writeLog(deps.files, req.log, text), text };
   }
   const text = logText(req.command, header, output, r.exitCode);
@@ -81,7 +91,7 @@ export async function runSuite(
       // A job never seen running may not run at all: once, the suite runs blocking (the job, if it runs, dies
       // with the run). A job seen before and lost now gives no verdict.
       if (looks === 0) return blocking(deps, req, `job ${job.id} could not be read: ${reasonOf(e)}`);
-      return { status: "not-run", reason: `${req.label}: job ${job.id} cannot be read: ${reasonOf(e)}` };
+      return lost(deps, req, `job ${job.id} cannot be read: ${reasonOf(e)}`);
     }
     if (!status.running) {
       let tail = "";
@@ -95,11 +105,11 @@ export async function runSuite(
       return { status: status.exitCode === 0 ? "passed" : "failed", exit: status.exitCode, tail: lastLines(tail, SHOWN_LINES), log, how: "job", text };
     }
     if (seconds >= req.limitSeconds) {
-      const text = logText(req.command, [`job ${job.id} still running after ${seconds} s: no verdict; its log at ${job.log}`], "", null);
+      const text = logText(req.command, [`job ${job.id} still running after ${seconds} s: no verdict (exit=${NO_VERDICT_EXIT} below); its log at ${job.log}`], "", NO_VERDICT_EXIT);
       return { status: "running", seconds, log: await writeLog(deps.files, req.log, text), text };
     }
     if (!(await deps.jobs.wait(req.sliceSeconds))) {
-      return { status: "not-run", reason: `${req.label}: code could no longer wait on job ${job.id}` };
+      return lost(deps, req, `code could no longer wait on job ${job.id}`);
     }
     seconds += req.sliceSeconds;
   }

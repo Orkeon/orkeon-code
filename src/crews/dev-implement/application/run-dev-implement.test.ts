@@ -45,6 +45,8 @@ const TICKED = "TDD: RED [x] GREEN [x] COST [x]";
 class Tree {
   dirty = new Map<string, string>();
   passing = new Set<string>();
+  /** The failure count a failing run of a test file shows (`# fail <n>`); unset, its tail shows none. */
+  failures = new Map<string, number>();
   readonly files: FakeFiles;
   constructor(files: FakeFiles) { this.files = files; }
   /** The running role's write tool: hears each path the role writes. Unset, a write is a run's output. */
@@ -70,7 +72,7 @@ class TreeShell extends FakeShell {
     const base = await super.run(command, options);
     if (command === STATUS_COMMAND) return { ...base, stdout: [...this.tree.dirty.keys()].map((p) => `?? ${p}`).join("\n") };
     const test = /^node --test (\S+)$/.exec(command);
-    if (test) return { ...base, exitCode: this.tree.passing.has(test[1]) ? 0 : 1, stdout: this.tree.passing.has(test[1]) ? "ok" : "not ok 1" };
+    if (test) return { ...base, exitCode: this.tree.passing.has(test[1]) ? 0 : 1, stdout: this.tree.passing.has(test[1]) ? "ok" : this.tree.failures.has(test[1]) ? `not ok 1\n# fail ${this.tree.failures.get(test[1])}` : "not ok 1" };
     return base;
   }
 }
@@ -338,6 +340,34 @@ describe("runDevImplement — wave 4", () => {
     strictEqual((t.files.files.get(SHEET_PATH) ?? "").split(TICKED).length - 1, 2);
   });
 
+  it("refuses a later RED of a cycle whose tests add no failure to the file's", async () => {
+    const t = setup([
+      (_p, tree) => { tree.write("tests/a.test.ts", "test a"); tree.failures.set("tests/a.test.ts", 1); return "red"; },
+      (_p, tree) => { tree.write("tests/a.test.ts", "test a, two passing at once"); return "more"; },
+    ], [writesCode("src/a.ts", "tests/a.test.ts")], CYCLE_SHEET);
+    const a = parse(await runDevImplement({ batch: "F1", plan: "demo" }, t.deps));
+    ok(blockedLine(a)?.includes("step 2 RED: the new tests add no failure (failures 1 → 1)"), a.lines.join("\n"));
+    strictEqual(t.roles.implementer.acts.length, 0);
+  });
+
+  it("accepts a later RED of a cycle that adds a failure", async () => {
+    const t = setup([
+      (_p, tree) => { tree.write("tests/a.test.ts", "test a"); tree.failures.set("tests/a.test.ts", 1); return "red"; },
+      (_p, tree) => { tree.write("tests/a.test.ts", "test a, two"); tree.failures.set("tests/a.test.ts", 2); return "more"; },
+    ], [writesCode("src/a.ts", "tests/a.test.ts")], CYCLE_SHEET);
+    const a = parse(await runDevImplement({ batch: "F1", plan: "demo" }, t.deps));
+    strictEqual(blockedLine(a), undefined, a.lines.join("\n"));
+    ok(a.lines.includes("step 2 RED ✓ — tests/a.test.ts"), a.lines.join("\n"));
+  });
+
+  it("never leaves a `to create` file that exists already writable as a stub", async () => {
+    const t = setup([writesTest("tests/a.test.ts")], [writesCode("src/a.ts", "tests/a.test.ts")], ONE_STEP);
+    t.files.files.set("/workspace/src/a.ts", "export const one = () => 1;");
+    const a = parse(await runDevImplement({ batch: "F1", plan: "demo" }, t.deps));
+    strictEqual(blockedLine(a), undefined, a.lines.join("\n"));
+    deepStrictEqual(t.roles["test-author"].acts[0].writable, []);
+  });
+
   it("lets the test author write the step's `to create` production files as stubs, and no other", async () => {
     const t = setup([(_p, tree) => { tree.write("tests/a.test.ts", "t"); tree.write("src/a.ts", "throw"); return "done"; }],
       [writesCode("src/a.ts", "tests/a.test.ts")], ONE_STEP);
@@ -450,10 +480,11 @@ describe("runDevImplement — wave 4", () => {
     ok(c.lines.some((l) => l.includes("; measured: not computed — ")), c.lines.join("\n"));
   });
 
-  it("builds the wrapped tools after the restore, which run_build then never runs again", async () => {
+  it("restores once, before any act, and logs it (run_build's `restored` is wrapped-tools.test.ts's)", async () => {
     const t = setup([(_p, tree) => { tree.write("tests/a.test.ts", "t"); return "done"; }], [], ONE_STEP);
     await runDevImplement({ batch: "F1", plan: "demo" }, t.deps);
     ok((t.files.files.get(`${DIR}/logs/F1-restore.txt`) ?? "").startsWith("# $ npm ci\n"));
+    strictEqual(t.shell.commands.filter((c) => c === "npm ci").length, 1);
   });
 });
 

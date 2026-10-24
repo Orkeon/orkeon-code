@@ -37,5 +37,7 @@ describe("done marks", () => {
     strictEqual(markPlanBatchDone(plan, "F1", "2026-10-24"),
       "### Batch F1 — Demo — done (2026-10-24)\n- [x] 1. One\n- [x] 2. Two\n### Batch F2 — Next — open\n- [ ] 1. Three\n");
     strictEqual(markPlanBatchDone(plan, "F9", "2026-10-24"), plan);
+    strictEqual(markPlanBatchDone("### Batch F1 — Demo — open\n- [ ] Done line holds\n  - [ ] sub\n", "F1", "2026-10-24"),
+      "### Batch F1 — Demo — done (2026-10-24)\n- [x] Done line holds\n  - [x] sub\n");
   });
 });

@@ -10,7 +10,7 @@ import type { RuleSetId } from "../agent-policy/rule-sets.ts";
 import { STEP_RULE_SETS, roleRules } from "./step-rules.ts";
 import type { DevRole, DevStep, LayoutRootKey } from "./step-rules.ts";
 import type { RepoPackLayout } from "./repo-pack.ts";
-import { matchesAny } from "./test-paths.ts";
+import { matchesAny, relativePath } from "./test-paths.ts";
 
 /** One /hooks declaration the callbacks run; `n` is its number in /hooks list. */
 export interface ToolHook { n: number; event: "pre-tool" | "post-tool"; command: string }
@@ -20,8 +20,8 @@ export interface CallGuardSpec {
   step: DevStep;
   role?: DevRole;
   layout?: Pick<RepoPackLayout, LayoutRootKey | "testFiles">;
-  /** Paths or patterns the role's own root denies leave writable (the signature stubs a RED step names); never a
-   *  rule set's deny, never the host's gate: nothing widens. */
+  /** Exact paths the test author's own root denies leave writable (the signature stubs a RED step names): no
+   *  pattern, no other role, never a rule set's deny, never the host's gate: nothing widens. */
   writable?: readonly string[];
   /** The crew's `hooks` input: the /hooks registry as the command read it. */
   hooks?: unknown;
@@ -44,8 +44,10 @@ export interface CallGuard {
   problems: string[];
   hooks: ToolHook[];
   readTools: readonly string[];
-  /** What the role's write denies leave open: the pack's test file patterns for the test author, and its stubs. */
+  /** What the role's write denies leave open: the pack's test file patterns, for the test author only. */
   writable: readonly string[];
+  /** The exact paths the test author's write denies leave open: its stubs, compared as paths, never as patterns. */
+  stubs: readonly string[];
 }
 
 export type CallVerdict = { allow: true } | { allow: false; reason: string; context: string };
@@ -61,16 +63,18 @@ export function buildCallGuard(spec: CallGuardSpec): CallGuard {
   }
   const problems: string[] = [];
   const writable: string[] = [];
+  const stubs: string[] = [];
   if (spec.role !== undefined) {
     const role = spec.role;
     const access = role === "pilot" ? "read" : "write";
     const own = roleRules(role, spec.layout ?? {});
     for (const rule of own.rules) rules.push({ rule, origin: { kind: "role", role, access } });
     problems.push(...own.problems, ...own.missing.map((key) => `the pack gives no ${key}: no rule on it`));
-    if (access === "write") writable.push(...own.writable, ...(spec.writable ?? []).filter((p) => p.trim() !== ""));
+    if (access === "write") writable.push(...own.writable);
+    if (role === "test-author") stubs.push(...(spec.writable ?? []).map(relativePath).filter((p) => p !== ""));
   }
   return {
-    step: spec.step, role: spec.role, rules, problems, hooks: toolHooks(spec.hooks), readTools: spec.readTools ?? [], writable,
+    step: spec.step, role: spec.role, rules, problems, hooks: toolHooks(spec.hooks), readTools: spec.readTools ?? [], writable, stubs,
   };
 }
 
@@ -254,7 +258,8 @@ export function checkToolCall(
 /** A role's own write deny does not hold on a path its guard leaves writable. */
 function leftWritable(guard: CallGuard, entry: GuardRule, path: string | undefined): boolean {
   return path !== undefined && entry.origin.kind === "role" && entry.origin.access === "write"
-    && entry.rule.argument === "path" && guard.writable.length > 0 && matchesAny(path, guard.writable);
+    && entry.rule.argument === "path"
+    && (matchesAny(path, guard.writable) || guard.stubs.includes(relativePath(path)));
 }
 
 /** The refusal the model reads: the reason, then the line saying what to do instead. */

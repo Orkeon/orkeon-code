@@ -72,9 +72,11 @@ defineAsyncCommand({
     const unrecorded = await markActiveWorkflow(deps.session, parsed.args);
     if (unrecorded !== null) ctx.writeLine(unrecorded);
     // The budget is sized to the open steps of the sheet (the crew sizes for its default when they cannot be counted).
-    const steps = parsed.args.close
+    // A correction adds one step, appended by the crew after this count.
+    const open = parsed.args.close
       ? undefined
       : await countOpenSteps({ files: orkeonFiles(), shell: orkeonShell(), config: deps.config }, parsed.args.batch, parsed.args.plan);
+    const steps = open === undefined || parsed.args.correction === null ? open : open + 1;
     const input = {
       ...parsed.args, ...start.input, effort: await storedEffort(deps.session), ...(steps === undefined ? {} : { steps }), ...prContext,
     };

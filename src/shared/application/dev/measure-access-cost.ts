@@ -30,11 +30,14 @@ function normalRoot(root: string): string {
 
 export async function measureAccessCost(
   index: CostIndex | undefined, pack: RepoPack | null, gateRoots: readonly string[], changed: readonly CostFile[],
+  isTest?: (path: string) => boolean,
 ): Promise<AccessCost> {
   if (index === undefined) return COST_NOT_WIRED;
   const roots = costRoots(pack);
   const testRoots = gateRoots.filter(isTestRoot);
-  const kept = underRoots(changed.map((f) => f.path).filter((p) => !isTestFile(p, testRoots)), roots);
+  // A caller that knows the pack's test paths says which they are; else a path that says test is one (AC:326-331).
+  const test = isTest ?? ((p: string) => isTestFile(p, testRoots));
+  const kept = underRoots(changed.map((f) => f.path).filter((p) => !test(p)), roots);
   if (kept.length === 0) return nothingChanged(roots);
   const files = kept.map((p) => `${INDEX_ROOT}/${p}`);
 

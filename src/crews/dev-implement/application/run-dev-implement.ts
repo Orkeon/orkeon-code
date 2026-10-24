@@ -30,7 +30,7 @@ import type { RepoPack, RepoPackLayout } from "../../../shared/domain/dev/repo-p
 import { greenContract, projectCommandFor, redContract, stubsOf, testCommandFor } from "../domain/contracts.ts";
 import { openSteps, parseImplementSheet } from "../domain/step-section.ts";
 import type { ImplementSheet, ImplementStep } from "../domain/step-section.ts";
-import { changedPaths, greenProblem, readCost, redProblem, under } from "../domain/step-checks.ts";
+import { addedFailure, changedPaths, greenProblem, readCost, redProblem, under } from "../domain/step-checks.ts";
 import { cyclesLine, cyclesOf, stepsLabel } from "../domain/cycles.ts";
 import type { Cycle } from "../domain/cycles.ts";
 import { addCorrection } from "../domain/correction.ts";
@@ -43,7 +43,7 @@ import type { RoleName } from "../domain/roles.ts";
 import { SLICE_SECONDS, SUITE_LIMIT_SECONDS } from "../domain/implement-budget.ts";
 import { askLine, runRole } from "./run-role.ts";
 import { snapshot } from "./observe.ts";
-import { logText, runSuite } from "./suite-job.ts";
+import { logText, NO_VERDICT_EXIT, runSuite } from "./suite-job.ts";
 import { locateSheet, WORKSPACE } from "./locate-sheet.ts";
 import type { LocatedSheet } from "./locate-sheet.ts";
 import { prContextOf, readTouchedRecord, recordTouched, verdictMarkOf } from "./touched.ts";
@@ -238,12 +238,27 @@ async function costFiles(run: Run, paths: readonly string[]): Promise<CostFile[]
  *  measure flags a port call or a memory filter on an added line; else the line it adds to the run's. */
 async function measuredCost(run: Run, production: readonly string[]): Promise<{ problem: string } | { line: string }> {
   if (production.length === 0) return { line: "measured: not computed — no production file changed in this run" };
-  const cost = await measureAccessCost(run.deps.costIndex, run.pack, [], await costFiles(run, production));
+  const cost = await measureAccessCost(run.deps.costIndex, run.pack, [], await costFiles(run, production), run.isTest);
   if (cost.state === "not-computed") return { line: `measured: not computed — ${cost.reason}` };
   if (cost.exit === 2) {
     return { problem: `measured ${cost.costLine}; flagged: ${cost.flagged.join("; ")} — back to /dev-plan (the design names the access, the code cannot move it)` };
   }
   return { line: `measured: ${cost.costLine}` };
+}
+
+/** The step's `to create` production paths that are still to create: neither written in this run nor present in the
+ *  tree. A path an earlier GREEN implemented is never a stub again. */
+async function openStubs(run: Run, step: ImplementStep): Promise<string[]> {
+  const out: string[] = [];
+  for (const path of stubsOf(step)) {
+    if (run.touched.has(path)) continue;
+    try {
+      await run.deps.files.read(`${WORKSPACE}/${path}`, 1);
+    } catch {
+      out.push(path);
+    }
+  }
+  return out;
 }
 
 async function runCycle(run: Run, cycle: Cycle): Promise<string | null> {
@@ -255,18 +270,23 @@ async function runCycle(run: Run, cycle: Cycle): Promise<string | null> {
 
   let red: WrappedRun | null = null;
   for (const step of steps.filter((s) => !s.tdd?.red)) {
-    const stubs = stubsOf(step);
+    const stubs = await openStubs(run, step);
     const done = await act(run, "test-author", redContract(contractInput(run, step, command.command)), stubs);
     if (typeof done === "string") return `step ${step.number} RED: ${done}`;
     run.ran.push(step);
+    const earlier = red;
     red = await run.tools.runTests({ command: command.command });
     const problem = redProblem(done.changed, run.isTest, observedRun(red), stubs);
     if (problem !== null) return `step ${step.number} RED: ${problem}${logOf(red)}`;
+    // A later step of the cycle: its file failed already, so its own tests must add a failure.
+    const added = earlier?.ok === true && red.ok ? addedFailure(earlier.tail, red.tail) : "ok";
+    if (typeof added === "object") return `step ${step.number} RED: ${added.problem}${logOf(red)}`;
     done.changed.forEach((p) => { run.touched.add(p); if (!run.isTest(p)) production.add(p); });
     const failed = await tick(run, step, "RED");
     if (failed !== null) return `step ${step.number} RED: ${failed}`;
     const stubbed = done.changed.filter((p) => !run.isTest(p));
-    run.lines.push(`step ${step.number} RED ✓ — ${done.changed.filter(run.isTest).join(", ")}${stubbed.length === 0 ? "" : ` (stubs: ${stubbed.join(", ")})`}`);
+    const unchecked = added === "unknown" ? " (its own failure not checked: the run's tail shows no failure count)" : "";
+    run.lines.push(`step ${step.number} RED ✓ — ${done.changed.filter(run.isTest).join(", ")}${stubbed.length === 0 ? "" : ` (stubs: ${stubbed.join(", ")})`}${unchecked}`);
   }
 
   let costText: string | null = null;
@@ -277,7 +297,7 @@ async function runCycle(run: Run, cycle: Cycle): Promise<string | null> {
     const greenLabel = stepsLabel(green);
     const done = await act(run, "implementer", greenContract(contractInput(run, green[0], command.command, green), redTail));
     if (typeof done === "string") return `${greenLabel} GREEN: ${done}`;
-    if (!run.ran.includes(green[0])) run.ran.push(...green);
+    run.ran.push(...green.filter((s) => !run.ran.includes(s)));
     const after = await run.tools.runTests({ command: command.command });
     const problem = greenProblem(done.changed, run.isTest, observedRun(after), observedRun(red));
     if (problem !== null) return `${greenLabel} GREEN: ${problem}${logOf(after)}`;
@@ -332,7 +352,7 @@ async function restore(
   const log = `${run.logFolder}/${batch}-restore.txt`;
   const output = [r.stdout.trimEnd(), r.stderr.trimEnd()].filter((t) => t !== "").join("\n");
   try {
-    await run.deps.files.write(log, logText(command, [], output, r.timedOut === true ? null : r.exitCode));
+    await run.deps.files.write(log, logText(command, r.timedOut === true ? [`still running after ${RESTORE_TIMEOUT_SECONDS} s: no verdict`] : [], output, r.timedOut === true ? NO_VERDICT_EXIT : r.exitCode));
   } catch {
     // the log is a help, never a verdict
   }
@@ -356,7 +376,7 @@ async function oneSuite(run: Run, label: string, command: string, log: string | 
 function affectedCommands(run: Run): string[] | null {
   if (!run.pack.commands.testProject?.trim()) return null;
   const steps = run.ran.length > 0 ? run.ran : run.sheet.steps.filter((s) => s.tdd !== null);
-  const projects = [...new Set(steps.map((s) => s.tests[0]?.project ?? "").filter((p) => p !== ""))];
+  const projects = [...new Set(steps.flatMap((s) => s.tests.map((t) => t.project.trim())).filter((p) => p !== ""))];
   const commands: string[] = [];
   for (const project of projects) {
     const c = projectCommandFor(run.pack.commands, project);

@@ -62,7 +62,7 @@ export function markPlanBatchDone(text: string, batch: string, date: string): st
   if (at < 0) return text;
   lines[at] = lines[at].trimEnd().replace(/ — open$/, ` — done (${date})`);
   for (let i = at + 1; i < lines.length && !lines[i].startsWith("#"); i++) {
-    lines[i] = lines[i].replace(/^- \[ \] (\d+\. )/, "- [x] $1");
+    lines[i] = lines[i].replace(/^(\s*)- \[ \] /, "$1- [x] ");
   }
   return lines.join("\n");
 }
