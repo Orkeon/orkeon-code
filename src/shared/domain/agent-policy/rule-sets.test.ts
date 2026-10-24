@@ -7,7 +7,7 @@ import {
   toolsetFor,
 } from "./permission.ts";
 import {
-  heldRuleSets, PATH_READ_TOOLS, PATH_WRITE_TOOLS, pathRules, RULE_SET_IDS, RULE_SETS, rulesOf, UNSCOPED_WRITE_TOOLS,
+  FOLDER_READ_TOOLS, heldRuleSets, PATH_READ_TOOLS, PATH_WRITE_TOOLS, pathRules, RULE_SET_IDS, RULE_SETS, rulesOf, UNSCOPED_WRITE_TOOLS,
   WRITTEN_TEXT,
 } from "./rule-sets.ts";
 import type { RuleSetId } from "./rule-sets.ts";
@@ -213,14 +213,19 @@ describe("the rule sets", () => {
     strictEqual(made.rules[0].tool, "file_write");
   });
 
-  it("pathRules makes two rules per root and reading tool, then denies structural_search once", () => {
+  it("pathRules makes two rules per root and reading tool, the root itself for the folder readers, then denies structural_search once", () => {
     const made = pathRules("read", ["tests"]);
     deepStrictEqual(made.rules.map(formatRule), [
       ...PATH_READ_TOOLS.flatMap((tool) => [`deny ${tool} path=/workspace/tests/*`, `deny ${tool} path=tests/*`]),
+      ...FOLDER_READ_TOOLS.flatMap((tool) => [`deny ${tool} path=/workspace/tests`, `deny ${tool} path=tests`]),
       "deny structural_search",
     ]);
-    strictEqual(made.rules.length, 14 + 1);
+    strictEqual(made.rules.length, 14 + 6 + 1);
     strictEqual(ruleDecision(made.rules, "grep", { path: "tests/a", pattern: "x" }), "deny");
+    strictEqual(ruleDecision(made.rules, "grep", { path: "tests", pattern: "x" }), "deny");
+    strictEqual(ruleDecision(made.rules, "glob", { path: "/workspace/tests", pattern: "*.ts" }), "deny");
+    strictEqual(ruleDecision(made.rules, "count_pattern", { path: "tests", patterns: ["x"] }), "deny");
+    strictEqual(ruleDecision(made.rules, "file_read", { path: "tests" }), undefined);
     strictEqual(ruleDecision(made.rules, "node_read", { path: "/workspace/tests/a.ts", selector: "f" }), "deny");
     strictEqual(ruleDecision(made.rules, "grep", { path: "src", pattern: "x" }), undefined);
   });

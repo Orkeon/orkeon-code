@@ -83,6 +83,8 @@ function denyAll(tool: string, argument: string, patterns: readonly string[]): P
 export const PATH_READ_TOOLS: readonly string[] = [
   "file_read", "glob", "grep", "node_outline", "node_read", "count_pattern", "documents_of",
 ];
+/** The tools of PATH_READ_TOOLS whose `path` may name a folder, the denied root itself included. */
+export const FOLDER_READ_TOOLS: readonly string[] = ["glob", "grep", "count_pattern"];
 /** The tools that write one file named by `path`. */
 export const PATH_WRITE_TOOLS: readonly string[] = ["file_write", "edit_file", "node_replace", "node_insert", "node_ensure"];
 /** The written text of each writing tool that takes it as one string. */
@@ -201,7 +203,8 @@ function rootProblem(raw: string, root: string): string | undefined {
   return undefined;
 }
 
-/** For each kept root, two rules (absolute, relative) per tool of PATH_READ_TOOLS or PATH_WRITE_TOOLS; then,
+/** For each kept root, two rules (absolute, relative) per tool of PATH_READ_TOOLS or PATH_WRITE_TOOLS, and for
+ *  `read` two more per tool of FOLDER_READ_TOOLS on the root itself (`<root>/*` does not match `<root>`); then,
  *  once a root is kept, a deny on the tools whose paths the gate cannot read: structural_search for `read`,
  *  UNSCOPED_WRITE_TOOLS for `write`. */
 export function pathRules(access: "read" | "write", roots: readonly string[]): PathRules {
@@ -219,6 +222,7 @@ export function pathRules(access: "read" | "write", roots: readonly string[]): P
     if (seen.has(root)) continue;
     seen.add(root);
     rules.push(...denyEach(tools, "path", [`${PROJECT}/${root}/*`, `${root}/*`]));
+    if (access === "read") rules.push(...denyEach(FOLDER_READ_TOOLS, "path", [`${PROJECT}/${root}`, root]));
   }
   if (seen.size > 0) rules.push(...denyWhole(access === "read" ? ["structural_search"] : UNSCOPED_WRITE_TOOLS));
   return { rules, problems };

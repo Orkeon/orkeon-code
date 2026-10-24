@@ -46,7 +46,7 @@ describe("roleRules", () => {
       "deny glob path=/workspace/src/core/Orkeon.Domain/*",
       "deny glob path=src/core/Orkeon.Domain/*",
     ]);
-    strictEqual(pilot.rules.length, 2 * 14 + 1);
+    strictEqual(pilot.rules.length, 2 * (14 + 6) + 1);
     strictEqual(formatRule(pilot.rules[pilot.rules.length - 1]), "deny structural_search");
     deepStrictEqual(pilot.missing, ["layout.application", "layout.infrastructure"]);
     for (const tool of ["file_read", "grep", "node_outline", "documents_of"]) {
