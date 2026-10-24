@@ -14,21 +14,31 @@ import { admissionProblem } from "../../domain/shared-memory/gate.ts";
 import { decidedPointer } from "../../domain/shared-memory/candidates.ts";
 import { candidatePath, entryPath } from "../../domain/shared-memory/layout.ts";
 import type { MemoryLayout } from "../../domain/shared-memory/layout.ts";
-import { readOrNull, refreshCandidatesList, refreshIndexFile, storedEntries } from "./memory-files.ts";
+import { readOrNull, refreshCandidatesList, refreshIndexFile, refusedTopics, storedEntries } from "./memory-files.ts";
+import { sha1Hex } from "../../domain/sha1.ts";
 
 export const DEFAULT_REFUSAL_MOTIF = "refused by /memory-admit";
 
+/** One confirmed admission: the candidate's id and the sha1 of the file text the operator was shown. */
+export interface Confirmed { id: string; sha1: string }
+
 export interface AdmitDecisions {
-  admit: string[];
+  admit: Confirmed[];
   refuse: Array<{ id: string; motif?: string }>;
 }
 
-/** The crew's input read: the kebab-case ids of `admit`, nothing else. */
-export function admittedIds(input: unknown): string[] {
+/** The crew's input read: the `{id, sha1}` items of `admit` with a kebab-case id and a sha1, nothing else. */
+export function admittedCandidates(input: unknown): Confirmed[] {
   const admit = (input as { admit?: unknown } | null)?.admit;
-  return Array.isArray(admit)
-    ? [...new Set(admit.filter((id): id is string => typeof id === "string" && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id)))]
-    : [];
+  if (!Array.isArray(admit)) return [];
+  const seen = new Set<string>();
+  return admit.flatMap((item): Confirmed[] => {
+    const { id, sha1 } = (item ?? {}) as { id?: unknown; sha1?: unknown };
+    if (typeof id !== "string" || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id) || typeof sha1 !== "string" || !/^[0-9a-f]{40}$/.test(sha1)) return [];
+    if (seen.has(id)) return [];
+    seen.add(id);
+    return [{ id, sha1 }];
+  });
 }
 
 export interface AdmitDeps {
@@ -49,7 +59,9 @@ export interface AdmitOutcome {
 const firstLine = (error: unknown): string => String((error as Error)?.message ?? error).split("\n")[0];
 
 /** The pending candidate `id`, or why it cannot be decided. */
-async function candidate(files: Pick<Files, "read">, layout: MemoryLayout, id: string): Promise<MemoryEntry | string> {
+async function candidate(
+  files: Pick<Files, "read">, layout: MemoryLayout, id: string, sha1?: string,
+): Promise<MemoryEntry | string> {
   let text: string | null;
   try {
     text = await readOrNull(files, candidatePath(layout, id));
@@ -57,6 +69,7 @@ async function candidate(files: Pick<Files, "read">, layout: MemoryLayout, id: s
     return `its candidate file cannot be read (${firstLine(error)})`;
   }
   if (text === null) return "no candidate file";
+  if (sha1 !== undefined && sha1Hex(text) !== sha1) return "its file changed since it was confirmed: run /memory-admit again";
   const parsed = parseEntry(text);
   if (!parsed.ok) return `its file is not a candidate entry any more (${parsed.problems[0] ?? "decided already"})`;
   if (parsed.entry.status !== "candidate") return `its status is ${parsed.entry.status}, not candidate`;
@@ -65,10 +78,19 @@ async function candidate(files: Pick<Files, "read">, layout: MemoryLayout, id: s
 }
 
 async function admitOne(
-  deps: AdmitDeps, layout: MemoryLayout, id: string, today: string, outcome: AdmitOutcome,
+  deps: AdmitDeps, layout: MemoryLayout, confirmed: Confirmed, today: string, outcome: AdmitOutcome,
 ): Promise<boolean> {
-  const found = await candidate(deps.files, layout, id);
+  const id = confirmed.id;
+  const found = await candidate(deps.files, layout, id, confirmed.sha1);
   if (typeof found === "string") { outcome.failed.push(`${id}: ${found}`); return false; }
+  let refused: Set<string>;
+  try {
+    refused = await refusedTopics(deps.files, layout);
+  } catch (error) {
+    outcome.failed.push(`${id}: ${layout.refused} cannot be read (${firstLine(error)})`);
+    return false;
+  }
+  if (refused.has(found.topic)) { outcome.failed.push(`${id}: its topic '${found.topic}' was refused (refused.md)`); return false; }
   const entry: MemoryEntry = { ...found, status: "admitted" };
   const problems = [...entryProblems(entry), ...[admissionProblem(entry)].filter((p): p is string => p !== undefined)];
   if (problems.length > 0) { outcome.failed.push(`${id}: not admitted, ${problems.join("; ")}`); return false; }
@@ -128,7 +150,7 @@ export async function admitEntries(
   const outcome: AdmitOutcome = { admitted: [], refused: [], failed: [], warnings: [] };
   const today = deps.clock().toISOString().slice(0, 10);
   for (const decision of decisions.refuse) await refuseOne(deps, memory.layout, decision, today, outcome);
-  for (const id of decisions.admit) await admitOne(deps, memory.layout, id, today, outcome);
+  for (const confirmed of decisions.admit) await admitOne(deps, memory.layout, confirmed, today, outcome);
   if (outcome.admitted.length + outcome.refused.length === 0) return outcome;
   for (const line of [await refreshCandidatesList(deps.files, memory.layout), await refreshIndexFile(deps.files, memory.layout)]) {
     if (line !== null) outcome.warnings.push(line);

@@ -17,7 +17,8 @@ describe("the write gate", () => {
     for (const type of ["decision", "code-structure", "method", "mistake"] as const) {
       strictEqual(admissionProblem({ type, source: "human:2026-10-22 x" }), undefined);
     }
-    strictEqual(admissionProblem({ type: "mistake", source: "audit:a/A-VERIFY-F1.md" }), undefined);
+    strictEqual(admissionProblem({ type: "mistake", source: "audit:a/A-VERIFY-F1.md, b/B-VERIFY-F2.md, c/C-VERIFY-F1.md" }), undefined);
+    ok(admissionProblem({ type: "mistake", source: "audit:a/A-VERIFY-F1.md, a/A-VERIFY-F1.md" })?.includes("this one 1"));
     strictEqual(admissionProblem({ type: "code-structure", source: "audit:a/A-VERIFY-F1.md" }), undefined);
     ok(admissionProblem({ type: "decision", source: "audit:a/A-VERIFY-F1.md" })?.includes("not decision"));
     strictEqual(admissionProblem({ type: "method", source: "verdict:plan" }), undefined);

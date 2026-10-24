@@ -2,7 +2,8 @@
 
 The shared memory keeps what past work taught: decisions, code structures, methods and mistakes, one Markdown file
 per entry, kept in the repository so it is reviewed and versioned with the code. The model reads it through
-`memory_recall`, proposes to it through `memory_push`, and nothing enters it without you: `/memory-admit` decides.
+`memory_recall`, proposes to it through `memory_push`, and nothing enters it unless `/memory-admit` admits it: you
+answer for each candidate, or `memory.autoAdmitAudited` admits the audited ones for you.
 
 It is not the agent memory of the runtime (`/workspace/.orkeon/agent-memory`, per agent and per run): the two folders
 stay apart, and `memory.dir` refuses the agent memory's folder.
@@ -27,7 +28,7 @@ one-line file that says where it went (no file tool deletes a file); you may del
 |---|---|---|
 | `memory.dir` | `.orkeon/memory` | The folder, relative to the project; never under `.claude/` or `.git/`, never the agent memory's folder. |
 | `memory.project` | the `origin` remote's name, else `local` | The project the entries name, and the index collection `memory-<project>`. |
-| `memory.autoAdmitAudited` | `false` | `true`: `/memory-admit` admits a candidate an audit backs without asking. A project file's `true` applies only when your user settings say `true` too. |
+| `memory.autoAdmitAudited` | `false` | `true`: `/memory-admit` admits a candidate an audit backs (a mistake: three batches) without asking. A project file's `true` applies only when your user settings say `true` too. |
 
 An invalid stored value is set aside with a warning line, and the default applies.
 
@@ -58,7 +59,8 @@ A mistake is harvested from the audits only once its gap recurs in three batches
 ```
 
 `/memory-admit` shows each pending candidate (or those you name) and asks once for each: anything but yes leaves it a
-candidate. A session that cannot ask admits nothing. The admitted ones are written to `entries/<type>/`, the entries
+candidate. A session that cannot ask admits none of those it would ask about. The candidate admitted is the text you
+were shown: a file changed since is not admitted, nor one whose topic `refused.md` holds. The admitted ones are written to `entries/<type>/`, the entries
 they supersede are marked `superseded`, both lists are rebuilt and `entries/` is indexed again, once. When the index
 cannot be rebuilt the entries stay admitted, and the next admission indexes them. `--refuse` writes the candidate's
 topic to `refused.md` with your motif: the topic is never proposed again.

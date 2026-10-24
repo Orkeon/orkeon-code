@@ -3,10 +3,11 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual, ok } from "node:assert";
 
-import { admitEntries, admitReport, admittedIds } from "./admit-entries.ts";
+import { admitEntries, admitReport, admittedCandidates } from "./admit-entries.ts";
+import { sha1Hex } from "../../domain/sha1.ts";
 import { parseEntry } from "../../domain/shared-memory/front-matter.ts";
 import { memoryLayout } from "../../domain/shared-memory/layout.ts";
-import { parseRefused } from "../../domain/shared-memory/refused.ts";
+import { appendRefused, parseRefused } from "../../domain/shared-memory/refused.ts";
 import type { MemoryEntry } from "../../domain/shared-memory/entry.ts";
 import { LiveListingFiles } from "../../../../tests/doubles/live-listing-files.ts";
 import { FakeSharedMemory } from "../../../../tests/doubles/fake-shared-memory.ts";
@@ -23,11 +24,14 @@ function world(...candidates: MemoryEntry[]) {
   return { files, index, deps: { files, memory: index, clock } };
 }
 
+/** The confirmation of `id` as the command sends it: the sha1 of the candidate file as it is now. */
+const yes = (files: LiveListingFiles, id: string) => ({ id, sha1: sha1Hex(files.files.get(`${layout.candidates}/${id}.md`) ?? "") });
+
 describe("admitEntries", () => {
   it("moves an admitted candidate to entries/, leaves a pointer, refreshes both lists and ingests once with prune", async () => {
     const c = sampleEntry("method", "contract-first", { status: "candidate" });
     const { files, index, deps } = world(c, sampleEntry("decision", "other", { status: "candidate" }));
-    const out = await admitEntries(deps, memory, { admit: [c.id], refuse: [] });
+    const out = await admitEntries(deps, memory, { admit: [yes(files, c.id)], refuse: [] });
     deepStrictEqual(out, { admitted: [c.id], refused: [], failed: [], warnings: [] });
     const stored = parseEntry(files.files.get(`${layout.entries}/method/${c.id}.md`)!);
     ok(stored.ok && stored.entry.status === "admitted" && stored.entry.date === c.date);
@@ -43,7 +47,7 @@ describe("admitEntries", () => {
     const c = sampleEntry("method", "new-way", { status: "candidate", supersedes: [old.id, "shop-method-20200101-gone"] });
     const { files, deps } = world(c);
     files.files.set(`${layout.entries}/method/${old.id}.md`, entryText(old));
-    const out = await admitEntries(deps, memory, { admit: [c.id], refuse: [] });
+    const out = await admitEntries(deps, memory, { admit: [yes(files, c.id)], refuse: [] });
     const rewritten = parseEntry(files.files.get(`${layout.entries}/method/${old.id}.md`)!);
     ok(rewritten.ok && rewritten.entry.status === "superseded" && rewritten.entry.supersededBy === c.id);
     deepStrictEqual(out.warnings, [`${c.id} supersedes shop-method-20200101-gone, which is no admitted entry: left as it is`]);
@@ -53,7 +57,7 @@ describe("admitEntries", () => {
     const edited = sampleEntry("method", "edited", { status: "candidate", body: ENTRY_BODY.replace("src/app/main.ts:10", ".env:1") });
     const wrongSource = sampleEntry("decision", "wrong", { status: "candidate", source: "audit:a/A-VERIFY-F1.md" });
     const { files, index, deps } = world(edited, wrongSource);
-    const out = await admitEntries(deps, memory, { admit: [edited.id, wrongSource.id, "shop-method-20261022-absent"], refuse: [] });
+    const out = await admitEntries(deps, memory, { admit: [yes(files, edited.id), yes(files, wrongSource.id), yes(files, "shop-method-20261022-absent")], refuse: [] });
     strictEqual(out.admitted.length, 0);
     strictEqual(out.failed.length, 3);
     ok(out.failed[0].includes("secret-like file: .env"), out.failed[0]);
@@ -72,7 +76,7 @@ describe("admitEntries", () => {
       [["never-this", "2026-10-24", "too local"]]);
     ok(files.files.get(`${layout.candidates}/${c.id}.md`)!.startsWith("Refused on"));
     strictEqual(index.ingests.length, 0);
-    const again = await admitEntries(deps, memory, { admit: [c.id], refuse: [] });
+    const again = await admitEntries(deps, memory, { admit: [yes(files, c.id)], refuse: [] });
     ok(again.failed[0].includes("not a candidate entry any more"));
   });
 
@@ -80,15 +84,37 @@ describe("admitEntries", () => {
     const c = sampleEntry("method", "kept", { status: "candidate" });
     const { files, index, deps } = world(c);
     index.ingestFailure = new Error("rag: no embedder\nstack");
-    const out = await admitEntries(deps, memory, { admit: [c.id], refuse: [] });
+    const out = await admitEntries(deps, memory, { admit: [yes(files, c.id)], refuse: [] });
     deepStrictEqual(out.admitted, [c.id]);
     ok(files.files.has(`${layout.entries}/method/${c.id}.md`));
     deepStrictEqual(out.warnings, ["the index of memory-shop is stale (rag: no embedder): the next admission re-ingests entries/"]);
   });
 
+  it("admits only the text confirmed, never a refused topic, and leaves a foreign INDEX.md alone", async () => {
+    const c = sampleEntry("method", "changed", { status: "candidate" });
+    const r = sampleEntry("method", "refused-later", { status: "candidate" });
+    const { files, deps } = world(c, r);
+    const shown = yes(files, c.id);
+    files.files.set(`${layout.candidates}/${c.id}.md`, entryText({ ...c, status: "candidate", rationale: "edited after the yes" }));
+    files.files.set(layout.refused, appendRefused(null, { topic: "refused-later", project: "shop", date: "2026-10-01", motif: "no" }));
+    const out = await admitEntries(deps, memory, { admit: [shown, yes(files, r.id)], refuse: [] });
+    deepStrictEqual(out.admitted, []);
+    ok(out.failed[0].includes("changed since it was confirmed"));
+    ok(out.failed[1].includes("was refused"));
+    const ok2 = sampleEntry("method", "fine", { status: "candidate" });
+    const w = world(ok2);
+    w.files.files.set(layout.index, "# My project's index\n");
+    const done = await admitEntries(w.deps, memory, { admit: [yes(w.files, ok2.id)], refuse: [] });
+    deepStrictEqual(done.admitted, [ok2.id]);
+    strictEqual(w.files.files.get(layout.index), "# My project's index\n");
+    ok(done.warnings[0].includes("is not the memory's"));
+  });
+
   it("reads the crew's input and reports one line per decision", () => {
-    deepStrictEqual(admittedIds({ admit: ["a-b", "a-b", "Bad Id", 3] }), ["a-b"]);
-    deepStrictEqual(admittedIds(null), []);
+    const sha1 = "a".repeat(40);
+    deepStrictEqual(admittedCandidates({ admit: [{ id: "a-b", sha1 }, { id: "a-b", sha1 }, { id: "Bad Id", sha1 }, { id: "c-d" }, "e-f"] }),
+      [{ id: "a-b", sha1 }]);
+    deepStrictEqual(admittedCandidates(null), []);
     strictEqual(admitReport({ admitted: ["x"], refused: [], failed: ["y: no"], warnings: ["w"] }), "admitted x\nnot applied: y: no\nwarning: w");
     strictEqual(admitReport({ admitted: [], refused: [], failed: [], warnings: [] }), "nothing to apply");
   });

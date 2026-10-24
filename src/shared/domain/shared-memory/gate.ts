@@ -4,6 +4,7 @@
 import { ENTRY_TYPES } from "./entry.ts";
 import type { EntryType, MemoryEntry } from "./entry.ts";
 import { MIN_MOTIF_BATCHES } from "./verdict-rows.ts";
+import { batchesOf } from "./candidates.ts";
 
 export type SourceKind = "verdict" | "audit" | "human";
 
@@ -28,7 +29,13 @@ export function admissionProblem(entry: Pick<MemoryEntry, "type" | "source">): s
   const kind = sourceKind(entry.source);
   if (kind === undefined) return "its source is not verdict:, audit: or human:";
   const types = ADMITTED_TYPES_BY_SOURCE[kind];
-  return types.includes(entry.type) ? undefined : `${kind === "audit" ? "an" : "a"} ${kind}: source admits ${types.join(" or ")}, not ${entry.type}`;
+  if (!types.includes(entry.type)) return `${kind === "audit" ? "an" : "a"} ${kind}: source admits ${types.join(" or ")}, not ${entry.type}`;
+  if (kind === "audit" && entry.type === "mistake") {
+    const batches = batchesOf(entry.source);
+    const n = batches === "-" ? 0 : Number(batches);
+    if (n < MISTAKE_MIN_BATCHES) return `an audited mistake names ${MISTAKE_MIN_BATCHES} batches' verdict files at least, this one ${n}`;
+  }
+  return undefined;
 }
 
 /** Whether the operator confirms the admission: always, unless an audit backs it and memory.autoAdmitAudited is true. */

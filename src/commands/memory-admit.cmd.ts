@@ -25,6 +25,7 @@ defineAsyncCommand({
       confirm: (message) => ctx.prompt({ type: "confirm", message, default: false }),
     });
     if ("admit" in result) {
+      if (result.refusedQuestions !== undefined) ctx.writeLine(`✗ ${result.refusedQuestions}`);
       return launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, MEMORY_ADMIT_CREW, { admit: result.admit });
     }
     if ("refused" in result) ctx.writeLine(`✗ ${result.refused}`);

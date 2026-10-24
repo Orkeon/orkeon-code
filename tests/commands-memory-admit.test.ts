@@ -14,7 +14,10 @@ import { entryText, sampleEntry } from "./doubles/memory-entries.ts";
 
 const layout = memoryLayout(".orkeon/memory");
 const method = sampleEntry("method", "contract-first", { status: "candidate" });
-const audited = sampleEntry("mistake", "empty-cart", { status: "candidate" });
+const audited = sampleEntry("mistake", "empty-cart", {
+  status: "candidate", source: "audit:a/A-VERIFY-F1.md, b/B-VERIFY-F1.md, c/C-VERIFY-F2.md",
+});
+const oneBatch = sampleEntry("mistake", "one-batch", { status: "candidate" });
 
 function setup(values: Record<string, string> = {}, answers: unknown[] = []) {
   const files = new LiveListingFiles();
@@ -37,7 +40,7 @@ function setup(values: Record<string, string> = {}, answers: unknown[] = []) {
   return { files, lines, asked, run };
 }
 
-const ids = (r: unknown): string[] => (r as { admit?: string[] }).admit ?? [];
+const ids = (r: unknown): string[] => ((r as { admit?: Array<{ id: string; sha1: string }> }).admit ?? []).map((c) => c.id);
 
 describe("parseMemoryAdmitArgs", () => {
   it("reads ids, --list and --refuse with a motif", () => {
@@ -81,6 +84,16 @@ describe("runMemoryAdmit", () => {
     const r = await run({ kind: "admit", ids: [audited.id] });
     deepStrictEqual(ids(r), [audited.id]);
     strictEqual(asked.length, 0);
+    ok(/^[0-9a-f]{40}$/.test((r as any).admit[0].sha1));
+  });
+
+  it("asks about an audited mistake of fewer than three batches, and keeps the unasked ones headless", async () => {
+    const { run, files, asked } = setup({ "memory.autoAdmitAudited": "true" }, [new Error("no console")]);
+    files.files.set(`${layout.candidates}/${oneBatch.id}.md`, entryText(oneBatch));
+    const r = await run({ kind: "admit", ids: [] });
+    deepStrictEqual(ids(r), [audited.id]);
+    ok((r as any).refusedQuestions.includes("cannot prompt"));
+    strictEqual(asked.length, 1);
   });
 
   it("names an id that is not pending, and says when nothing is", async () => {

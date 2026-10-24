@@ -26,7 +26,7 @@ function setup(entries: Array<[MemoryEntry, number]>) {
 }
 
 describe("recallEntries", () => {
-  it("asks the project's collection for twelve hits and keeps the admitted entries, best first", async () => {
+  it("asks the project's collection for twenty hits and keeps the admitted entries, best first", async () => {
     const a = sampleEntry("method", "a");
     const b = sampleEntry("decision", "b");
     const { memory, files } = setup([[a, 0.9], [b, 0.5]]);
@@ -34,7 +34,7 @@ describe("recallEntries", () => {
     deepStrictEqual(recall.precedents.map((p) => p.entry.id), [a.id, b.id]);
     strictEqual(recall.precedents[0].path, pathOf(a));
     strictEqual(recall.truncated, false);
-    deepStrictEqual(memory.searches, [{ collection: "memory-shop", query: "money", topN: 12 }]);
+    deepStrictEqual(memory.searches, [{ collection: "memory-shop", query: "money", topN: 20 }]);
   });
 
   it("drops candidates, superseded entries, other types, files outside entries/ and unreadable files", async () => {

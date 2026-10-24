@@ -41,6 +41,15 @@ describe("pushCandidate", () => {
     const second = await pushCandidate({ files, clock }, memory, input);
     ok(first.ok && second.ok);
     strictEqual(second.id, `${first.id}-2`);
+    files.files.set(`${layout.entries}/method/${first.id}.md`, "admitted");
+    const third = await pushCandidate({ files, clock }, memory, input);
+    ok(!third.ok && third.refused.includes("an admitted entry already holds"));
+  });
+
+  it("refuses a secret-like file in an evidence item that holds a space", async () => {
+    const files = new LiveListingFiles();
+    const out = await pushCandidate({ files, clock }, memory, { ...input, evidence: [".env:3 holds the key"] });
+    ok(!out.ok && out.refused.includes("secret-like file: .env"));
   });
 
   it("refuses a refused topic, an invalid entry, a missing field, and writes nothing", async () => {

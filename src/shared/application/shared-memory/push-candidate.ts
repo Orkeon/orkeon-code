@@ -9,6 +9,7 @@ import type { EntryType, MemoryEntry } from "../../domain/shared-memory/entry.ts
 import { topicOf } from "../../domain/shared-memory/refused.ts";
 import { candidatePath, entryPath } from "../../domain/shared-memory/layout.ts";
 import type { MemoryLayout } from "../../domain/shared-memory/layout.ts";
+import { secretLikePaths } from "../../domain/secret-patterns.ts";
 import { readOrNull, refreshCandidatesList, refusedTopics, writeCandidateFile } from "./memory-files.ts";
 
 export interface PushInput {
@@ -48,6 +49,8 @@ export function readPushInput(input: unknown): { ok: true; input: PushInput } | 
   if (missing.length > 0) return { ok: false, refused: `${missing.join(", ")} required` };
   const evidence = list(raw.evidence);
   if (evidence.length === 0) return { ok: false, refused: "evidence required: at least one path:line, commit or verdict file" };
+  const secret = secretLikePaths(evidence.flatMap((e) => e.split(/\s+/)).map((w) => w.replace(/:\d+$/, "")));
+  if (secret.length > 0) return { ok: false, refused: `evidence names a secret-like file: ${secret.join(", ")}` };
   const pushed: PushInput = {
     type: type as EntryType, title: text(raw.title), topic: text(raw.topic), appliesWhen: text(raw.applies_when),
     rationale: text(raw.rationale), evidence, tags: list(raw.tags).map((t) => t.toLowerCase()),
@@ -108,6 +111,9 @@ export async function writeCandidate(
     return { ok: false, refused: `${memory.layout.candidates} cannot be read (${firstLine(error)})` };
   }
   if (id === null) return { ok: false, refused: `nine candidates or entries already hold the id ${entry.id}` };
+  if (id !== entry.id && (await readOrNull(deps.files, entryPath(memory.layout, entry.type, entry.id)).catch(() => null)) !== null) {
+    return { ok: false, refused: `an admitted entry already holds ${entry.id}: supersede it rather than push it again` };
+  }
   let path: string;
   try {
     path = await writeCandidateFile(deps.files, memory.layout, { ...entry, id });

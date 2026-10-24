@@ -7,7 +7,7 @@ import { ENTRY_TYPES } from "../../domain/shared-memory/entry.ts";
 import type { MemoryEntry } from "../../domain/shared-memory/entry.ts";
 import { parseEntry, serializeEntry } from "../../domain/shared-memory/front-matter.ts";
 import { parseRefused } from "../../domain/shared-memory/refused.ts";
-import { candidatesList, entriesIndex } from "../../domain/shared-memory/candidates.ts";
+import { CANDIDATES_TITLE, INDEX_TITLE, candidatesList, entriesIndex } from "../../domain/shared-memory/candidates.ts";
 import { candidatePath } from "../../domain/shared-memory/layout.ts";
 import type { MemoryLayout } from "../../domain/shared-memory/layout.ts";
 
@@ -17,6 +17,8 @@ export const MAX_LISTED = 1_000;
 export interface StoredEntry {
   entry: MemoryEntry;
   path: string;
+  /** The file's text as read: its sha1 is what an admission confirms. */
+  text: string;
 }
 
 /** The file's text, or null when it does not exist; an unreadable file throws. */
@@ -49,7 +51,7 @@ async function entriesIn(files: Pick<Files, "list" | "read">, folder: string, st
       continue;
     }
     const parsed = text === null ? null : parseEntry(text);
-    if (parsed?.ok && statuses.includes(parsed.entry.status)) found.push({ entry: parsed.entry, path });
+    if (text !== null && parsed?.ok && statuses.includes(parsed.entry.status)) found.push({ entry: parsed.entry, path, text });
   }
   return found;
 }
@@ -79,11 +81,20 @@ export async function writeCandidateFile(files: Pick<Files, "write">, layout: Me
   return path;
 }
 
+/** Writes a generated list, unless the file exists and is not one (memory.dir pointed at a folder of the project). */
+async function writeGenerated(files: Pick<Files, "read" | "write">, path: string, title: string, text: string): Promise<string | null> {
+  const previous = await readOrNull(files, path);
+  if (previous !== null && previous.trim() !== "" && !previous.startsWith(title)) {
+    return `${path} not refreshed: it exists and is not the memory's (it does not start with '${title}')`;
+  }
+  await files.write(path, text);
+  return null;
+}
+
 /** Rewrites CANDIDATES.md from the pending candidates; a failure is a line, never a throw. */
 export async function refreshCandidatesList(files: Pick<Files, "list" | "read" | "write">, layout: MemoryLayout): Promise<string | null> {
   try {
-    await files.write(layout.candidatesList, candidatesList((await pendingCandidates(files, layout)).map((c) => c.entry)));
-    return null;
+    return await writeGenerated(files, layout.candidatesList, CANDIDATES_TITLE, candidatesList((await pendingCandidates(files, layout)).map((c) => c.entry)));
   } catch (error) {
     return `${layout.candidatesList} not refreshed (${String((error as Error)?.message ?? error).split("\n")[0]})`;
   }
@@ -92,8 +103,7 @@ export async function refreshCandidatesList(files: Pick<Files, "list" | "read" |
 /** Rewrites INDEX.md from the entries; a failure is a line, never a throw. */
 export async function refreshIndexFile(files: Pick<Files, "list" | "read" | "write">, layout: MemoryLayout): Promise<string | null> {
   try {
-    await files.write(layout.index, entriesIndex((await storedEntries(files, layout)).map((e) => e.entry)));
-    return null;
+    return await writeGenerated(files, layout.index, INDEX_TITLE, entriesIndex((await storedEntries(files, layout)).map((e) => e.entry)));
   } catch (error) {
     return `${layout.index} not refreshed (${String((error as Error)?.message ?? error).split("\n")[0]})`;
   }

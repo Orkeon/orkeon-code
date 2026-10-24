@@ -7,8 +7,8 @@ import type { MemoryEntry } from "./entry.ts";
 
 export const MAX_PRECEDENTS = 5;
 export const MAX_PRECEDENTS_CHARS = 4_800;
-/** How many hits a recall asks the index for, before the status and type filters. */
-export const RECALL_TOP_N = 12;
+/** How many hits a recall asks the index for, before the status and type filters: chunks, an entry being several. */
+export const RECALL_TOP_N = 20;
 export const PRECEDENTS_HEADING = "## Precedents";
 
 export const PRECEDENTS_INTRO = [

@@ -2,7 +2,8 @@
 
 La mémoire partagée garde ce que le travail passé a appris : des décisions, des structures de code, des méthodes et
 des erreurs, un fichier Markdown par entrée, gardé dans le dépôt pour être relu et versionné avec le code. Le modèle la
-lit par `memory_recall`, lui propose par `memory_push`, et rien n'y entre sans vous : `/memory-admit` décide.
+lit par `memory_recall`, lui propose par `memory_push`, et rien n'y entre sans que `/memory-admit` l'admette : vous
+répondez pour chaque candidat, ou `memory.autoAdmitAudited` admet pour vous ceux qu'un audit appuie.
 
 Ce n'est pas la mémoire d'agent du runtime (`/workspace/.orkeon/agent-memory`, par agent et par exécution) : les deux
 dossiers restent séparés, et `memory.dir` refuse le dossier de la mémoire d'agent.
@@ -28,7 +29,7 @@ pouvez le supprimer.
 |---|---|---|
 | `memory.dir` | `.orkeon/memory` | Le dossier, relatif au projet ; jamais sous `.claude/` ni `.git/`, jamais le dossier de la mémoire d'agent. |
 | `memory.project` | le nom du remote `origin`, sinon `local` | Le projet que nomment les entrées, et la collection d'index `memory-<project>`. |
-| `memory.autoAdmitAudited` | `false` | `true` : `/memory-admit` admet sans demander un candidat qu'un audit appuie. Le `true` d'un fichier du projet ne vaut que si vos réglages utilisateur disent `true` aussi. |
+| `memory.autoAdmitAudited` | `false` | `true` : `/memory-admit` admet sans demander un candidat qu'un audit appuie (une erreur : trois lots). Le `true` d'un fichier du projet ne vaut que si vos réglages utilisateur disent `true` aussi. |
 
 Une valeur enregistrée invalide est écartée avec une ligne d'avertissement, et la valeur par défaut s'applique.
 
@@ -59,7 +60,9 @@ Une erreur n'est récoltée dans les audits qu'une fois son écart revenu dans t
 ```
 
 `/memory-admit` montre chaque candidat en attente (ou ceux que vous nommez) et demande une fois pour chacun : tout
-autre chose que oui le laisse candidat. Une session qui ne peut pas demander n'admet rien. Les admis sont écrits dans
+autre chose que oui le laisse candidat. Une session qui ne peut pas demander n'admet aucun de ceux sur lesquels elle
+demanderait. Le candidat admis est le texte qu'on vous a montré : un fichier modifié depuis n'est pas admis, ni un
+candidat dont `refused.md` contient le sujet. Les admis sont écrits dans
 `entries/<type>/`, les entrées qu'ils remplacent sont marquées `superseded`, les deux listes sont reconstruites et
 `entries/` est réindexé, une fois. Quand l'index ne peut pas être reconstruit, les entrées restent admises, et la
 prochaine admission les indexe. `--refuse` écrit le sujet du candidat dans `refused.md` avec votre motif : le sujet
