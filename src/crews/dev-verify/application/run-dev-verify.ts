@@ -11,7 +11,7 @@ import { GIT_TOPLEVEL, workFolderLabel } from "../../../shared/application/dev/r
 import { costSummary } from "../../../shared/domain/dev/access-cost.ts";
 import { classifyArtefact, isCode } from "../../../shared/domain/dev/artefacts.ts";
 import type { RepoPack } from "../../../shared/domain/dev/repo-pack.ts";
-import { AUDIT_UNFINISHED_GAP, isAuditUnfinishedGap, lastVerdict, parseVerdictFile } from "../../../shared/domain/dev/verdict-format.ts";
+import { AUDIT_UNFINISHED_GAP, isAuditUnfinishedGap, isUnfinishedSection, lastFinishedVerdict, lastVerdict, parseVerdictFile } from "../../../shared/domain/dev/verdict-format.ts";
 import type { GapRow } from "../../../shared/domain/dev/verdict-format.ts";
 import { AXES } from "../domain/audit-answer.ts";
 import type { AuditRow, Axis } from "../domain/audit-answer.ts";
@@ -283,14 +283,26 @@ export async function runDevVerify(input: DevVerifyInputs, deps: DevVerifyDeps):
   const verdictShown = `${t.planDirShown}/${verdictFileName(t.prefix, args.batch)}`;
   let previous: string | null = null;
   let previousGaps: AuditRow[] | null = null;
+  /** The audit's own mode: a resume with no finished audit to resume audits the whole batch, and still appends. */
+  let auditMode: Mode = args.mode;
   if (args.mode === "resume" && !args.gateOnly) {
     try {
       previous = await deps.files.read(`${WORKSPACE}/${verdictShown}`);
     } catch {
       return done(`dev-verify: resume needs ${verdictShown}: run /dev-verify ${args.batch} first`);
     }
-    // An unfinished audit's row is no gap of the code: the resumed audit is not asked to judge it.
-    previousGaps = (lastVerdict(parseVerdictFile(previous))?.rows ?? []).filter((r) => !isAuditUnfinishedGap(r.gap)).map(auditRowOf);
+    // An unfinished audit's row is no gap of the code: the resumed audit is not asked to judge it. After an audit the
+    // budget stopped, the resume takes the gaps of the last audit that finished; with none, the whole batch is audited.
+    const parsed = parseVerdictFile(previous);
+    const last = lastVerdict(parsed);
+    const finished = last !== null && isUnfinishedSection(last) ? lastFinishedVerdict(parsed) : last;
+    if (last !== null && finished === null) {
+      auditMode = "fast";
+      out.push("resume: no audit of this batch finished — the whole batch is audited (fast), the section appended");
+    } else {
+      if (finished !== last && finished !== null) out.push(`resume: the last audit did not finish — the gaps of the audit of ${finished.when ?? "before"} are resumed`);
+      previousGaps = (finished?.rows ?? []).filter((r) => !isAuditUnfinishedGap(r.gap)).map(auditRowOf);
+    }
   }
 
   const gate = await runGate(deps, t);
@@ -312,7 +324,7 @@ export async function runDevVerify(input: DevVerifyInputs, deps: DevVerifyDeps):
       sheetTitle(gate.run.sheet), ...gate.run.changedFiles.filter((f) => !f.startsWith(`${work}/`)),
     ]));
     const brief: AuditBriefInput = {
-      mode: args.mode, batch: args.batch, sheetPath: t.sheetShown, captureFiles: capture.files, table: capture.table,
+      mode: auditMode, batch: args.batch, sheetPath: t.sheetShown, captureFiles: capture.files, table: capture.table,
       appliedRules: gate.run.facts.appliedIds.length > 0 ? gate.run.facts.appliedIds.join(", ") : "none",
       commands: { testClass: commands.testClass, testProject: commands.testProject, testIntegration: commands.testIntegration },
       previousGaps,
@@ -337,7 +349,7 @@ export async function runDevVerify(input: DevVerifyInputs, deps: DevVerifyDeps):
       // The stopped row covers no mechanical gap: each one is carried, as no auditor weighed it.
       const answered = suite?.row ? [suite.row] : [];
       const section = renderVerdictSection({
-        prefix: t.prefix, batch: args.batch, when, mode: args.mode,
+        prefix: t.prefix, batch: args.batch, when, mode: auditMode,
         rows: [stopped, ...answered, ...carriedRows(answered, capture.rows)],
         validations: [...(suite?.validation ? [suite.validation] : []), ...unfinished.validations],
         notRun: [...(suite?.notRun ? [suite.notRun] : []), ...unfinished.notRun],
@@ -350,7 +362,7 @@ export async function runDevVerify(input: DevVerifyInputs, deps: DevVerifyDeps):
 
     const answered = [...audit.answer.rows, ...(suite?.row ? [suite.row] : [])];
     const section = renderVerdictSection({
-      prefix: t.prefix, batch: args.batch, when, mode: args.mode,
+      prefix: t.prefix, batch: args.batch, when, mode: auditMode,
       rows: [...answered, ...carriedRows(answered, capture.rows)],
       validations: [...(suite?.validation ? [suite.validation] : []), ...audit.validations],
       notRun: [...(suite?.notRun ? [suite.notRun] : []), ...audit.notRun],

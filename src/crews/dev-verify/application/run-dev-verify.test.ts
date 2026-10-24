@@ -17,6 +17,7 @@ import { GIT_DIFF_CHECK, excludePathspecs, gitMethodGrep } from "../domain/comma
 import type { CostIndex } from "../../../shared/application/ports.ts";
 import { COST_NOT_WIRED, costSummary } from "../../../shared/domain/dev/access-cost.ts";
 import { runDevVerify } from "./run-dev-verify.ts";
+import { AUDIT_UNFINISHED_GAP } from "../../../shared/domain/dev/verdict-format.ts";
 import type { DevVerifyInputs } from "./run-dev-verify.ts";
 import { scriptToolSlot } from "../../../shared/application/dev/script-tool-slot.ts";
 import type { ValidationRunner } from "./audit.ts";
@@ -299,6 +300,35 @@ describe("runDevVerify — resume", () => {
     const written = f.files.files.get(VERDICT) ?? "";
     ok(written.startsWith(EARLIER.trimEnd()), written);
     ok(written.includes("\n\n# DEMO-VERIFY-F2 — 2026-10-22 14:05 — resume\n\n## Verdict — VALID\n"), written);
+  });
+
+  const UNFINISHED = "# DEMO-VERIFY-F2 — 2026-10-21 10:10 — resume\n\n## Verdict — GAPS\n\n" +
+    "| Severity | Axis | Gap | Evidence | Expected fix |\n|----------|------|-----|----------|--------------|\n" +
+    `| Blocking | Correctness | ${AUDIT_UNFINISHED_GAP} | tokens: spent — capture-F2/auditor-replies.txt | audit again |\n`;
+
+  it("after an audit the budget stopped, resumes the gaps of the last audit that finished", async () => {
+    const f = setup();
+    f.files.files.set(VERDICT, `${EARLIER}\n${UNFINISHED}`);
+    f.llm.answers = ["fixed now"];
+    f.llm.extractions = [answer([])];
+    const text = await run(f.deps, { batch: "F2", mode: "resume" });
+    ok(text.includes("resume: the last audit did not finish — the gaps of the audit of 2026-10-21 09:40 are resumed"), text);
+    ok(f.llm.acts[0].prompt.includes("Scope: the previous gaps and what changed since."), f.llm.acts[0].prompt);
+    ok(f.llm.acts[0].prompt.includes("- Major · Reuse · parses dates by hand"), f.llm.acts[0].prompt);
+  });
+
+  it("after an audit the budget stopped and none finished, audits the whole batch and appends", async () => {
+    const f = setup();
+    f.files.files.set(VERDICT, UNFINISHED);
+    f.llm.answers = ["fine"];
+    f.llm.extractions = [answer([])];
+    const text = await run(f.deps, { batch: "F2", mode: "resume" });
+    ok(text.includes("resume: no audit of this batch finished — the whole batch is audited (fast), the section appended"), text);
+    ok(f.llm.acts[0].prompt.includes("Scope: the whole batch."), f.llm.acts[0].prompt);
+    ok(!f.llm.acts[0].prompt.includes("The previous gaps:"), f.llm.acts[0].prompt);
+    const written = f.files.files.get(VERDICT) ?? "";
+    ok(written.startsWith(UNFINISHED.trimEnd()), written);
+    ok(written.includes("\n\n# DEMO-VERIFY-F2 — 2026-10-22 14:05 — fast\n\n## Verdict — VALID\n"), written);
   });
 
   it("runs resume --gate-only without an earlier verdict", async () => {

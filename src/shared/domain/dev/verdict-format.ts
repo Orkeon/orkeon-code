@@ -93,6 +93,20 @@ export function lastVerdict(file: VerdictFile): VerdictSection | null {
   return null;
 }
 
+/** A section an audit the step's budget stopped wrote: its row judges nothing of the code. */
+export function isUnfinishedSection(section: VerdictSection): boolean {
+  return section.rows.some((r) => isAuditUnfinishedGap(r.gap));
+}
+
+/** The last verdict a finished audit wrote, skipping the sections of audits the budget stopped; null when none. */
+export function lastFinishedVerdict(file: VerdictFile): VerdictSection | null {
+  for (let i = file.sections.length - 1; i >= 0; i--) {
+    const s = file.sections[i];
+    if (s.verdict !== null && !isUnfinishedSection(s)) return s;
+  }
+  return null;
+}
+
 export function severityCounts(section: VerdictSection): Record<Severity, number> {
   const counts: Record<Severity, number> = { Blocking: 0, Major: 0, Minor: 0 };
   for (const r of section.rows) counts[r.severity]++;

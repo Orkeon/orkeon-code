@@ -9,6 +9,8 @@
 // - Python's strip() and String.prototype.trim() disagree on U+FEFF, U+001C-U+001F and
 //   U+0085 at the edge of a cell;
 // - toLowerCase() and Python's lower() disagree on a few special casings (e.g. U+0130).
+// One divergence the files do hold: the row of an audit the budget stopped (AUDIT_UNFINISHED_GAP) is left out here,
+// while the script, until the harness repository skips it too, harvests it as a Blocking mistake.
 import { AXES, isAuditUnfinishedGap, parseVerdictFile } from "../dev/verdict-format.ts";
 import type { Severity, VerdictFile } from "../dev/verdict-format.ts";
 import { sha1Hex } from "../sha1.ts";

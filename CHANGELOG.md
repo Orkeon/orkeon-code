@@ -468,7 +468,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `/dev-verify`: an audit the step's budget stops still writes its verdict, `GAPS` with one Blocking row that says the
   audit did not finish and why, and the validations that ran before; the step's token budget is 700 000 (a live audit
-  of a 3-file batch spent 307 528 of the former 300 000). A validation the auditor names wrapped in the tool's name
+  of a 3-file batch spent 307 528 of the former 300 000). Its resume takes the gaps of the last audit that finished, or
+  audits the whole batch when none did, and the stopped audit counts as no round of GAPS. A validation the auditor names wrapped in the tool's name
   (`run_validation "<command>"`) is read as the command alone.
 - A pre-tool hook whose command line the runtime's mount check refuses (an argument naming a mount its program may not
   write) is reported as that refusal, no longer as the hook refusing the call.

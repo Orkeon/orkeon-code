@@ -20,7 +20,7 @@ import { measureAccessCost } from "../../../shared/application/dev/measure-acces
 import type { CostFile } from "../../../shared/application/dev/measure-access-cost.ts";
 import { addedLines, INDEX_ROOT } from "../../../shared/domain/dev/access-cost.ts";
 import { hasTestLayout, isTestPath } from "../../../shared/domain/dev/test-paths.ts";
-import { lastVerdict, parseVerdictFile } from "../../../shared/domain/dev/verdict-format.ts";
+import { isUnfinishedSection, lastVerdict, parseVerdictFile } from "../../../shared/domain/dev/verdict-format.ts";
 import { shellQuote } from "../../../shared/domain/git/close.ts";
 import type { WrappedRun, WrappedTools } from "../../../shared/application/dev/wrapped-tools.ts";
 import { stepRules } from "../../../shared/domain/dev/step-rules.ts";
@@ -557,7 +557,8 @@ async function verdictState(files: Pick<Files, "read">, path: string): Promise<{
   if (text === null) return { mark: verdictMarkOf(null), last: null, gapsRounds: 0 };
   const sections = parseVerdictFile(text).sections.filter((s) => s.verdict !== null);
   let gapsRounds = 0;
-  for (let i = sections.length - 1; i >= 0 && sections[i].verdict === "GAPS"; i--) gapsRounds++;
+  // An audit the budget stopped judged nothing: it is no round of GAPS (its resume audits what came before).
+  for (let i = sections.length - 1; i >= 0 && sections[i].verdict === "GAPS"; i--) if (!isUnfinishedSection(sections[i])) gapsRounds++;
   return { mark: verdictMarkOf(text), last: lastVerdict(parseVerdictFile(text))?.verdict ?? null, gapsRounds };
 }
 

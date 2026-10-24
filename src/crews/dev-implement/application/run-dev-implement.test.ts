@@ -19,6 +19,7 @@ import { BATCHES_ACTIVE_RECORD } from "../../../shared/domain/dev/batches-state.
 import { implementInputs, runDevImplement } from "./run-dev-implement.ts";
 import type { ImplementAnswer } from "./run-dev-implement.ts";
 import { FakePrecedents } from "../../../../tests/doubles/fake-precedents.ts";
+import { AUDIT_UNFINISHED_GAP } from "../../../shared/domain/dev/verdict-format.ts";
 
 const DIR = "/workspace/workbench/demo";
 const SHEET_PATH = `${DIR}/DEMO-PLAN-F1.md`;
@@ -417,6 +418,24 @@ describe("runDevImplement — wave 4", () => {
     strictEqual(sheet.split(TICKED).length - 1, 3);
     strictEqual(a.next?.input.mode, "resume");
     ok(t.roles["test-author"].acts[0].prompt.includes("step 1 misses the empty case"));
+  });
+
+  it("counts no round of GAPS for an audit the budget stopped", async () => {
+    const done = SHEET.replaceAll("TDD: RED [ ] GREEN [ ] COST [ ]", TICKED);
+    const gaps = (when: string): string => `# DEMO-VERIFY-F1 — ${when} — fast\n\n## Verdict — GAPS\n\n` +
+      "| Severity | Axis | Gap | Evidence | Expected fix |\n|---|---|---|---|---|\n| Major | Test | step 1 misses the empty case | a | b |\n\n";
+    const unfinished = "# DEMO-VERIFY-F1 — 2026-10-24 11:00 — resume\n\n## Verdict — GAPS\n\n" +
+      "| Severity | Axis | Gap | Evidence | Expected fix |\n|---|---|---|---|---|\n" +
+      `| Blocking | Correctness | ${AUDIT_UNFINISHED_GAP} | tokens: spent | audit again |\n`;
+    const warned = async (verdicts: string): Promise<boolean> => {
+      const t = setup([writesTest("tests/a.test.ts")], [writesCode("src/a.ts", "tests/a.test.ts")], done);
+      t.files.files.set(`${DIR}/DEMO-VERIFY-F1.md`, verdicts);
+      const a = parse(await runDevImplement({ batch: "F1", plan: "demo", correction: "Major Test: step 1 misses the empty case" }, t.deps));
+      strictEqual(blockedLine(a), undefined, a.lines.join("\n"));
+      return a.lines.some((l) => l.includes("audit rounds in GAPS"));
+    };
+    strictEqual(await warned(gaps("2026-10-24 10:00") + unfinished), false);
+    strictEqual(await warned(gaps("2026-10-24 10:00") + unfinished + gaps("2026-10-24 12:00")), true);
   });
 
   it("T3: recalls before each red act, the block after the test author's contract, none in the implementer's; named at the end", async () => {

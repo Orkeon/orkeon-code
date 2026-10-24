@@ -87,9 +87,10 @@ topic to `refused.md` with your motif: the topic is never proposed again. `/dev-
 `--import` lifts the harness's agent memory into candidates, once, while you move from it: each top-level item of a
 `.claude/agent-memory/<agent>/MEMORY.md` (and the note it links to, in the same folder) becomes a `method` candidate
 whose source is the import, so `/memory-admit` asks for each one (its type is part of its id: a lesson of another kind
-is refused with `--refuse` and pushed again with `memory_push`). An item whose topic (its title as a slug) a pending
-candidate, an entry or an earlier item already holds is skipped as a duplicate, as is a refused topic: running the
-import again writes nothing new while its candidates are still there. Nothing is written under `.claude/`.
+is refused with `--refuse` and pushed again with `memory_push` under another title: a refused topic is never proposed
+again, the push included). An item whose topic (its title as a slug) a pending candidate, an entry or an earlier item
+already holds is skipped as a duplicate; an item whose topic was refused is reported refused and writes nothing:
+running the import again writes nothing new while its candidates are still there. Nothing is written under `.claude/`.
 
 ## The tools
 
