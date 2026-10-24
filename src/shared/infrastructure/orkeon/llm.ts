@@ -24,10 +24,11 @@ function callOptions(override: ModelOverride | undefined): LlmCallOptions | unde
   return override?.model ? { llm: { model: override.model } } : undefined;
 }
 
-/** The runtime's act() options: the request as given, its model as the `llm` patch, and the crew's callbacks for
+/** The runtime's act() options: the request as given (its `tools` subset copied), its model as the `llm` patch, and the crew's callbacks for
  *  the act's mode (`default` when the request names none, as the runtime reads it). */
 function actOptions(request: ActRequest, callbacks: ToolCallbacks | undefined, gateEnabled: boolean | undefined): ActOptions {
-  const { model, ...rest } = request as ModeActRequest;
+  const { model, tools, ...given } = request as ModeActRequest;
+  const rest = tools === undefined ? given : { ...given, tools: [...tools] };
   const options: ActOptions = model ? { ...rest, llm: { model } } : rest;
   return callbacks === undefined
     ? options

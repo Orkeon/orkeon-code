@@ -6,9 +6,9 @@ import type { PathRules, RuleSetId } from "../agent-policy/rule-sets.ts";
 import type { PermissionRule } from "../agent-policy/permission.ts";
 import type { RepoPackLayout } from "./repo-pack.ts";
 
-/** A dev step whose crew runs a model under the gate and its callback. L-6 adds its steps here. */
-export type DevStep = "dev-verify" | "dev-plan" | "dev-spec" | "dev-change";
-export const DEV_STEPS: readonly DevStep[] = ["dev-verify", "dev-plan", "dev-spec", "dev-change"];
+/** A dev step whose crew runs a model under the gate and its callback. */
+export type DevStep = "dev-verify" | "dev-plan" | "dev-spec" | "dev-change" | "dev-implement";
+export const DEV_STEPS: readonly DevStep[] = ["dev-verify", "dev-plan", "dev-spec", "dev-change", "dev-implement"];
 
 /** The sets every dev step holds today. */
 export const DEV_STEP_RULE_SETS: readonly RuleSetId[] = [
@@ -19,12 +19,23 @@ export const STEP_RULE_SETS: Readonly<Record<DevStep, readonly RuleSetId[]>> = {
   "dev-plan": DEV_STEP_RULE_SETS,
   "dev-spec": DEV_STEP_RULE_SETS,
   "dev-change": DEV_STEP_RULE_SETS,
+  "dev-implement": DEV_STEP_RULE_SETS,
 };
 
-/** rulesOf(STEP_RULE_SETS[step]): 407 rules for each step today (the deny on edit_batch that secrets and
- *  state-files both hold is kept once). */
+/** The calls a step lets run without a question. /dev-implement's roles act in acceptEdits, where a tool
+ *  declared `execute` would be asked at every test run: run_tests and run_build check their own commands
+ *  (application/dev/wrapped-tools.ts). The gate is cleared at every command, so these never outlive the step;
+ *  the crews' callback reads deny rules only. */
+export const STEP_ALLOW_RULES: Readonly<Record<DevStep, readonly PermissionRule[]>> = {
+  "dev-verify": [],
+  "dev-plan": [],
+  "dev-implement": [{ effect: "allow", tool: "run_tests" }, { effect: "allow", tool: "run_build" }],
+};
+
+/** rulesOf(STEP_RULE_SETS[step]) then the step's allow rules: 407 deny rules for each step today (the deny on
+ *  edit_batch that secrets and state-files both hold is kept once), and two allow rules for /dev-implement. */
 export function stepRules(step: DevStep): PermissionRule[] {
-  return rulesOf(STEP_RULE_SETS[step]);
+  return [...rulesOf(STEP_RULE_SETS[step]), ...STEP_ALLOW_RULES[step]];
 }
 
 /** A role of a batch (L-6): the pilot reads no source or test file, the test author writes no

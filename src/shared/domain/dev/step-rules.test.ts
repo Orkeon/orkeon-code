@@ -4,7 +4,7 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
-import { DEV_STEPS, gateProblem, roleRules, STEP_RULE_SETS, stepRules } from "./step-rules.ts";
+import { DEV_STEPS, gateProblem, roleRules, STEP_ALLOW_RULES, STEP_RULE_SETS, stepRules } from "./step-rules.ts";
 import { formatRule, ruleDecision } from "../agent-policy/permission.ts";
 import { RULE_SET_IDS, rulesOf } from "../agent-policy/rule-sets.ts";
 
@@ -15,6 +15,17 @@ describe("STEP_RULE_SETS", () => {
     deepStrictEqual(stepRules("dev-plan"), rulesOf(RULE_SET_IDS));
     strictEqual(stepRules("dev-plan").length, 407);
     strictEqual(stepRules("dev-verify").length, 407);
+  });
+
+  it("lets /dev-implement's roles run their two tools without a question, after the same deny rules", () => {
+    const rules = stepRules("dev-implement");
+    strictEqual(rules.length, 409);
+    deepStrictEqual(rules.slice(0, 407), rulesOf(RULE_SET_IDS));
+    deepStrictEqual(rules.slice(407).map(formatRule), ["allow run_tests", "allow run_build"]);
+    deepStrictEqual(STEP_ALLOW_RULES["dev-plan"], []);
+    deepStrictEqual(STEP_ALLOW_RULES["dev-verify"], []);
+    strictEqual(ruleDecision(rules, "run_tests", { command: "npm test" }), "allow");
+    strictEqual(ruleDecision(rules, "shell_command", { command: "git push" }), "deny");
   });
 });
 

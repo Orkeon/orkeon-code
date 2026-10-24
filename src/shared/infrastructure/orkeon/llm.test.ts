@@ -73,6 +73,13 @@ describe("createLlm — act", () => {
     ]);
   });
 
+  it("passes an act's tool subset as a list of its own", async () => {
+    const facade = new FakeLlmFacade();
+    const tools = ["file_read", "run_tests"] as const;
+    await createLlm(facade).act("p", { maxIterations: 5, tools });
+    deepStrictEqual(facade.calls.map((c) => c.args), [["p", { maxIterations: 5, tools: ["file_read", "run_tests"] }]]);
+  });
+
   it("lets a failing call reject", async () => {
     const facade = new FakeLlmFacade();
     facade.actResult = new Error("budget exhausted");

@@ -11,7 +11,7 @@
 
 import type {
   AnchorIndex, CodeIndex, CostIndex, Files, HumanInput, MemoryStore, Progress, SessionStore, SharedMemory, Shell,
-  Telemetry, ToolCatalogue,
+  ShellJobs, Telemetry, ToolCatalogue,
 } from "../../application/ports.ts";
 import { createConfigStore } from "../../application/config-store.ts";
 import type { ConfigStore } from "../../application/config-store.ts";
@@ -26,6 +26,7 @@ import { createMemoryStore } from "./memory-store.ts";
 import { createProgress } from "./progress.ts";
 import { createSessionStore } from "./session-store.ts";
 import { createShell } from "./shell.ts";
+import { createShellJobs } from "./shell-jobs.ts";
 import { createTelemetry } from "./telemetry.ts";
 import { createGitHubPullRequests } from "./github-pull-requests.ts";
 import { createPullRequestOpener } from "../../application/git/open-pull-request.ts";
@@ -36,6 +37,7 @@ import type { MemoryToolPorts } from "./memory-tools.ts";
 import { createSharedMemory } from "./shared-memory.ts";
 
 export const orkeonShell = (): Shell => createShell(Tools);
+export const orkeonShellJobs = (): ShellJobs => createShellJobs(Tools);
 export const orkeonFiles = (): Files => createFiles(Tools);
 export const orkeonProgress = (): Progress => createProgress(Tools);
 export const orkeonTelemetry = (): Telemetry => createTelemetry(Tools);

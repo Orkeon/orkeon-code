@@ -33,6 +33,22 @@ export interface Shell {
   run(command: string, options?: ShellOptions): Promise<ShellResult>;
 }
 
+/** Where a detached job stands: running, or exited with its code (-1 when it ended without one). */
+export interface ShellJobStatus { running: boolean; exitCode: number }
+
+/** Commands run detached (the runtime's shell jobs): a long suite outlives no shell timeout, its whole
+ *  output goes to a log file, and the caller reads its tail. A job belongs to the running crew and is
+ *  stopped when the crew's run ends. A call the runtime refuses throws. */
+export interface ShellJobs {
+  /** Starts `command` in /workspace; its id and the virtual path of its log. */
+  start(command: string): Promise<{ id: string; log: string }>;
+  status(id: string): Promise<ShellJobStatus>;
+  /** The last `lines` lines of the job's log (500 at most). */
+  tail(id: string, lines: number): Promise<string>;
+  /** Waits about `seconds` (code has no timer of its own); false when it cannot wait here. */
+  wait(seconds: number): Promise<boolean>;
+}
+
 /** One VFS mount: its virtual path, and its access as the host spells it (`ro`, `rw`, `rwnd`). */
 export interface Mount {
   path: string;
@@ -246,6 +262,8 @@ export interface ActRequest extends ModelOverride {
   permissionMode?: string;
   /** The provider's thinking at this level (`act({effort})`); none when absent. */
   effort?: "low" | "medium" | "high";
+  /** The agent's tools offered for this call (a role's subset); all of them when absent. */
+  tools?: readonly string[];
 }
 
 /** The model, as the crews call it. Every call throws when the host's provider
