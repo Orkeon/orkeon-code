@@ -709,7 +709,7 @@ export async function runDevImplement(input: DevImplementInputs, deps: DevImplem
   // Built after the restore, which tells run_build the tree was restored already.
   const tools = createWrappedTools(
     { shell: deps.shell, files: deps.files },
-    { commands: pack.commands, rules: stepRules("dev-implement"), logFolder, ...(restored ? { restored: true } : {}) },
+    { commands: pack.commands, rules: stepRules("dev-implement"), logFolder, batch, ...(restored ? { restored: true } : {}) },
   );
   const run: Run = {
     deps, pack, isTest: (p) => isTestPath(p, pack.layout), located, sheetPath, sheetText, sheet, tools, wrote,

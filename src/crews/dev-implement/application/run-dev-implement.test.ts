@@ -180,7 +180,7 @@ describe("runDevImplement — the steps", () => {
     const t = setup([(_p, tree) => { tree.write("tests/a.test.ts", "t"); tree.write("src/other.ts", "stub"); return "done"; }], []);
     const a = parse(await runDevImplement({ batch: "F1", plan: "demo" }, t.deps));
     strictEqual(blockedLine(a), "BLOCKED — step 1 RED: a production path changed before a red test: src/other.ts" +
-      " (log: workbench/demo/logs/run_tests-1.log)");
+      " (log: workbench/demo/logs/F1-run_tests-1.log)");
     strictEqual(t.files.files.get(SHEET_PATH), SHEET);
     strictEqual(a.next, undefined);
   });

@@ -40,6 +40,8 @@ export interface WrappedToolsSetup {
   rules: readonly PermissionRule[];
   /** Where the logs go, e.g. `/workspace/todo/<code>/logs`. */
   logFolder: string;
+  /** The batch, in front of each log's name (`F2-run_tests-1.log`): the batches of a parallel wave share no log name. */
+  batch?: string;
   /** The step restored the tree itself already: run_build then never restores a cold tree again. */
   restored?: boolean;
 }
@@ -65,7 +67,7 @@ export function createWrappedTools(deps: { shell: Pick<Shell, "run">; files: Pic
 
   async function writeLog(tool: string, text: string): Promise<string | null> {
     runs += 1;
-    const path = `${setup.logFolder}/${tool}-${runs}.log`;
+    const path = `${setup.logFolder}/${setup.batch === undefined ? "" : `${setup.batch}-`}${tool}-${runs}.log`;
     try {
       await deps.files.write(path, `${text}\n`);
       return path;

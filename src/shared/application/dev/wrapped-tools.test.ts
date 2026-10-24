@@ -39,6 +39,16 @@ describe("run_tests", () => {
     ok(f.files.files.get(`${LOGS}/run_tests-1.log`)?.startsWith(`$ ${CLASS_RUN}\nexit 1\n`));
   });
 
+  it("names its log after the batch when given one: two batches of a wave never share a log name", async () => {
+    const shell = new FakeShell();
+    const files = new FakeFiles();
+    shell.results[CLASS_RUN] = { exitCode: 0, stdout: "ok\n" };
+    const tools = createWrappedTools({ shell, files }, { commands: COMMANDS, rules: [], logFolder: LOGS, batch: "F2" });
+    const out = await tools.runTests({ command: CLASS_RUN });
+    strictEqual((out as { log?: string }).log, `${LOGS}/F2-run_tests-1.log`);
+    ok(files.files.has(`${LOGS}/F2-run_tests-1.log`));
+  });
+
   it("refuses a whole suite, a command of its own and a missing command, running nothing", async () => {
     const f = setup();
     for (const command of ["dotnet test Orkeon.sln", 'dotnet test Orkeon.sln --no-build --filter "Category=Integration"', `${CLASS_RUN} && rm x`]) {
