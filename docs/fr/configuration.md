@@ -8,8 +8,14 @@ du runtime Orkeon, que le REPL lit par `--settings`. Partez de
 
 1. `--settings FILE` sur le lanceur ;
 2. `ORKEON_CODE_SETTINGS` ;
-3. `config/appsettings.local.json` dans le checkout (ignoré par git) ;
+3. `config/appsettings.local.json` dans le checkout (ignoré par git), dans un clone seulement : une installation ne le
+   lit jamais ;
 4. `~/.config/orkeon-code/appsettings.json` (`%APPDATA%\orkeon-code\appsettings.json` sous Windows).
+
+Le bloc `orkeonCode` de ce fichier porte vos propres réglages de session, que le `.orkeon/config.json` d'un projet ne
+peut pas élargir ([ce qu'un fichier du projet peut régler](permissions.md#ce-quun-fichier-du-projet-peut-régler)). Le
+lanceur copie le bloc seul, jamais la section `Llm`, dans `<state>/user-config/config.json` à chaque démarrage et le
+remet à la session en lecture seule, sur `/user-config`, dans tous les modes.
 
 Les variables d'environnement préfixées `ORKEON_` l'emportent sur le fichier (`__` sépare les sections) :
 `ORKEON_Llm__Model`, `ORKEON_Llm__ApiKey`. `ORKEON_CODE_MODEL` est un raccourci du lanceur pour `ORKEON_Llm__Model`.
@@ -81,9 +87,17 @@ l'assistant répond, `/config set answer.language French`, sauf si une requête 
 `compaction.trigger` (le nombre de tokens auquel la compaction automatique se déclenche,
 `/config set compaction.trigger 90k` ; omis, la fenêtre moins la place dont un tour a besoin), `dev.workDir` (le
 dossier de travail que lisent `/dev-status`, `/dev-verify`, `/dev-learn` et `/dev-plan`, relatif au checkout, `/config set dev.workDir backstage/tasks` ; omis, le
-`layout.work` du pack du dépôt, sinon `workbench`) ou `spinnerVerbs`.
+`layout.work` du pack du dépôt, sinon `workbench` ; `/commit` le lit aussi, et laisse le dossier de travail hors d'un
+commit sauf si un chemin qu'il contient est nommé), `dev.prAuto` (`true` ou `false`, omis = `false` : `/commit` et
+la clôture d'une étape dev préparent la pull request comme le fait `--pr` sans qu'on le demande, son corps sous
+`<work>/pr-<slug>/PR.md` ; tant que l'ouvreur n'est pas livré, ils affichent la commande `gh pr create` à taper et le
+disent) ou `spinnerVerbs`.
 `/model`, `/effort`, `/passes`, `/fast`, `/proactive` et `/output-style` changent la façon dont les prochains tours
 s'exécutent.
+
+`permissions.fallback` et `tools.extra` réglés dans le fichier du projet sont restreints par le bloc `orkeonCode` des
+réglages de l'utilisateur : `/config set` écrit une telle valeur, puis dit, sous "persisted", qu'elle est ignorée et
+où va votre propre réglage. `/config set --session` n'est pas restreint.
 
 Le pack du dépôt (`.orkeon/repo.yaml`, sinon celui du harness) peut aussi donner `tests.trait_pattern`, une clé
 d'Orkeon Code que le harness ignore : la façon dont un test nomme l'id de fiche qu'il couvre, que la porte de
@@ -282,7 +296,8 @@ optionnel, et ne l'importe jamais.
 | `ORKEON_CODE_MODEL` | Modèle pour cette exécution |
 | `ORKEON_CODE_AUDIO_DIR` | Dossier des fichiers audio et vidéo : active la [transcription de la parole](#transcription-de-la-parole) (modes tool et source) |
 | `ORKEON_CODE_VOICE` | `1` : ouvre le microphone à [`/voice`](#dictée) et le haut-parleur à [`/say`](#synthèse-vocale) (avec `ORKEON_CODE_AUDIO_DIR`) |
-| `ORKEON_CODE_STATE` | Où vivent `/output`, `/tmp` et les transcriptions (défaut `.crew-output/` dans le checkout) |
+| `ORKEON_CODE_STATE` | Où vivent `/output`, `/tmp`, `/user-config` et les transcriptions (défaut `.crew-output/` dans un clone, `<home>/state` dans une installation) |
+| `ORKEON_CODE_HOME` | Le dossier propre d'une installation : son état et son dépôt de démo (défaut `~/.orkeon-code`) |
 | `ORKEON_CODE_IMAGE` | Une autre image du runtime (mode docker) |
 | `ORKEON_REPL` | La ligne de commande qui démarre le REPL (mode tool) |
 | `ORKEON_SOURCE` | Checkout d'Orkeon (mode source) |
@@ -290,5 +305,5 @@ optionnel, et ne l'importe jamais.
 
 Le lanceur exporte aussi `Orkeon__Security__PermissionGate__Enabled=true` sauf s'il est déjà défini (le fichier de
 settings l'emporte encore sur lui), et, en modes tool et source, `ORKEON_ALLOW_EXTERNAL_MOUNTS=1`, pour que le REPL,
-démarré depuis le projet, accepte les montages `/output` et `/tmp` du répertoire d'état. `/permissions` dit si la
+démarré depuis le projet, accepte les montages `/output`, `/tmp` et `/user-config` du répertoire d'état. `/permissions` dit si la
 garde est active.

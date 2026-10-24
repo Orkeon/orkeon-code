@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **An installed `orkeon-code`.** `install.sh` and `install.ps1` install it from a release (the checksum is checked
+  when the release has one), `npm install -g orkeon-code@next` installs the npm package and its command shim, and
+  `orkeon-code --version` names Code's version, where it runs from, and the Orkeon expected and found. An install
+  reads `~/.config/orkeon-code/appsettings.json` (or `--settings`) only, never a `config/appsettings.local.json`, and
+  keeps its state and its demo repository under `ORKEON_CODE_HOME` (default `~/.orkeon-code`, state in `state/`
+  until each project gets its own); a clone keeps them in `.crew-output/` and `fixtures/`
+  ([Getting started](docs/getting-started.md), [Configuration](docs/configuration.md#launcher-environment)).
+- **The user's own settings**: the `orkeonCode` block of the settings file the launcher reads. The launcher copies
+  the block alone, never the `Llm` section, to `<state>/user-config/config.json` at each start and mounts it
+  read-only on `/user-config`, in every mode; `/config list` shows its values as `[user]`
+  ([Permissions](docs/permissions.md#what-a-project-file-may-set)).
+- **`/commit` commits a file list and can push**: it stages the changed files, or the paths named, by name (`git add
+  -- <files>`, never `-A`), leaves the work folder (`dev.workDir`) out unless a path inside it is named, checks
+  git's identity first, and refuses while a merge or a cherry-pick is in progress. `--push` pushes the branch
+  (`git push -u origin <branch>`) and `--pr` pushes it too; after either, or under the new key `dev.prAuto`, the pull
+  request body is written under `<work>/pr-<slug>/PR.md` and the `gh pr create` command to type is printed ([Configuration](docs/configuration.md#session-settings)).
 - **The tools of Orkeon #180 in the catalogue.** Read: `glob`, `grep`, `count_pattern`, `list_mounts`,
   `node_outline`, `node_read` and the graph queries (`access_cost`, `affected_tests`, `batch_anchors`,
   `documented_in`, `documents_of`, `structural_search`, `incremental_reindex`, `statement_query`,
@@ -162,6 +178,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **A project's `.orkeon/config.json` no longer widens what the user allows.** Its `permissions.fallback` applies
+  only as `default`, `plan` or `acceptEdits`, never wider than the user settings' mode; its `tools.extra` offers only
+  the tools the user settings list too (`*` lists them all). `/permissions` names what is set aside (`↳ ignored`),
+  and `/config set` of such a value still writes it, then says it is ignored and where the user setting goes.
+  **Upgrade:** a project that set `permissions.fallback` to `bypassPermissions` or `dontAsk`, or listed tools in
+  `tools.extra`, in `.orkeon/config.json` loses them until you copy them into the `orkeonCode` block of your user
+  settings file ([Permissions](docs/permissions.md#what-a-project-file-may-set)).
+- **The release archives are renamed**: `orkeon-code-<version>.tar.gz` and `.zip` are now the runnable archive, and
+  the source archives are `orkeon-code-<version>-source.*`.
 - **`/doctor` reads the `access` of the mounts** from the host.
 - **`/dev-verify` detects a cut output by the runtime's notice** (`[... truncated, N chars omitted. …]`, 10,000
   characters for the shell).

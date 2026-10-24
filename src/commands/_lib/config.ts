@@ -11,9 +11,9 @@
 //   session state bag                        overrides the file until /clear
 
 import {
-  CONFIG_KEYS, configKeySpec, knownConfigKeys, validateConfigEntry,
+  CONFIG_KEYS, configKeySpec, knownConfigKeys, resolveConfigEntry, validateConfigEntry,
 } from "../../shared/domain/config-schema.ts";
-import { CONFIG_FILE_PATH } from "../../shared/application/config-store.ts";
+import { CONFIG_FILE_PATH, USER_CONFIG_FILE_PATH } from "../../shared/application/config-store.ts";
 import type { ConfigStore } from "../../shared/application/config-store.ts";
 import type { CommandView } from "./view.ts";
 
@@ -98,7 +98,18 @@ export async function runConfig(tokens: string[], deps: ConfigDeps): Promise<Com
       }
       map[key] = value;
       await config.writeFile(map);
-      return { text: `${key} = ${value} [file] — persisted in ${CONFIG_FILE_PATH}.` };
+      const persisted = `${key} = ${value} [file] — persisted in ${CONFIG_FILE_PATH}.`;
+      // A project file widens nothing past the user settings (LI-6): the value is kept, and said to be set aside.
+      const { map: user, malformed: userMalformed } = await config.readUserFile();
+      const { ignored } = resolveConfigEntry(key, map, {}, user);
+      if (ignored === undefined) return { text: persisted };
+      const unread = userMalformed
+        ? ` The user settings (${USER_CONFIG_FILE_PATH}) could not be parsed: none applies.`
+        : "";
+      return {
+        text: `${persisted}\n↳ ignored: '${ignored.value}': ${ignored.reason}.${unread} A setting of your own goes in ` +
+          "the orkeonCode block of the user settings file (the one the launcher reads).",
+      };
     }
 
     case "unset": {

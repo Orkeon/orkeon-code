@@ -13,11 +13,16 @@ agissent à deux niveaux :
    sans elle ni les modes ni les règles ne sont appliqués. Laissez-la active.
 
 **Ce que la garde ne voit pas.** Les commandes et les crews appellent aussi des outils depuis leur propre code, par
-l'espace de noms `tools` d'Orkeon, qui exécute l'outil directement : `/commit` indexe et commite avec `shell_command`,
+l'espace de noms `tools` d'Orkeon, qui exécute l'outil directement : `/commit` indexe par leur nom les fichiers qu'il commite (`git add -- <fichiers>`, puis
+`git commit -F <message> -- <fichiers>`, jamais `-A`) et, avec `--push`, pousse, le tout avec `shell_command` ;
 `/branch` bascule de branche, `/diff` et `/review`, `/security-review` lancent `git`, `/init` écrit le fichier
 d'instructions, `/init-verifiers` et `/export` écrivent leurs fichiers, la compaction écrit le tampon de session et la
 mémoire typée. Ces appels sont ce pour quoi la commande que vous avez tapée existe : aucune règle, aucun mode, aucune
-question ne s'y applique. `/commit` vérifie lui-même le mode et refuse en `plan` et en `dontAsk`. `/transcribe`
+question ne s'y applique. `/commit` vérifie lui-même le mode et refuse en `plan` et en `dontAsk`. Ses commandes git
+(`git -c core.quotePath=false status`, `git --literal-pathspecs add` et `commit`, `git var`, `git rev-parse`,
+`git symbolic-ref`, `git push -u origin <branch>`, et pour la clôture d'une étape dev `git merge --ff-only` et
+`git -C <worktree> rebase`) ne s'exécutent que sous `Orkeon:Tools:Shell:AllowInterpreters` : sans lui, l'outil shell ne
+laisse git lancer que `status`, `log`, `diff` et `show`, sans option avant eux. `/transcribe`
 appelle de la même façon les outils du serveur de transcription de la parole, dans tous les modes et sans entrée
 `tools.extra` ; avec `--then`, la boucle principale fait cet appel avant le tour, comme celui de la commande, et le
 modèle travaille ensuite sur la transcription sous le mode du tour. `/voice` enregistre de la même façon, et
@@ -305,9 +310,31 @@ l'outil. `/permissions remove` la supprime, comme `/permissions clear` supprime 
 settings illisible est signalé comme tel : les outils supplémentaires sont alors inconnus et leurs règles dormantes,
 jamais effacées.
 
+## Ce qu'un fichier du projet peut régler
+
+Le `.orkeon/config.json` du projet (celui qu'écrit `/config set`) ne peut pas élargir ce que l'utilisateur permet.
+Les réglages propres de l'utilisateur sont le bloc `orkeonCode` de son fichier de settings (celui que lit le
+lanceur), que le lanceur remet à la session en lecture seule, sur `/user-config` :
+
+```json
+{
+  "orkeonCode": { "permissions.fallback": "acceptEdits", "tools.extra": "search_issues:read, *" }
+}
+```
+
+- `permissions.fallback` venu du projet ne s'applique que s'il vaut `default`, `plan` ou `acceptEdits`, et jamais
+  plus large que le mode fixé par les réglages de l'utilisateur ; `bypassPermissions` et `dontAsk` viennent des
+  réglages de l'utilisateur ou de `/mode`.
+- `tools.extra` venu du projet n'offre que les outils que les réglages de l'utilisateur listent aussi (`*` les liste
+  tous) ; un outil ne reste en lecture seule (`:read`) que si les deux listes le disent.
+- Ce que le fichier du projet a réglé sans pouvoir l'appliquer, `/permissions` le nomme : `↳ ignored` sous le mode,
+  et une note pour les outils non offerts. `/config set` d'une telle valeur l'écrit quand même, puis dit qu'elle est
+  ignorée. `/config set --session` appartient à l'utilisateur et n'est pas restreint.
+
 ## Ce qu'aucun mode ne change
 
-- Les outils de fichiers n'atteignent que les montages : le projet sur `/workspace`, `/output`, `/tmp`.
+- Les outils de fichiers n'atteignent que les montages : le projet sur `/workspace`, `/output`, `/tmp`, et
+  `/user-config` (en lecture seule).
 - Le shell n'exécute que les commandes sous liste blanche (`Orkeon:Tools:Shell` étend la liste), sans opérateur de
   shell. Une commande qui peut écrire (un interpréteur, une commande ajoutée) a besoin du droit d'écriture sur chaque
   chemin qu'elle nomme et sur son répertoire de travail.

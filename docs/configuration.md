@@ -7,8 +7,13 @@ the REPL through `--settings`. Start from [`config/appsettings.example.json`](..
 
 1. `--settings FILE` on the launcher;
 2. `ORKEON_CODE_SETTINGS`;
-3. `config/appsettings.local.json` in the checkout (ignored by git);
+3. `config/appsettings.local.json` in the checkout (ignored by git), in a clone only: an install never reads it;
 4. `~/.config/orkeon-code/appsettings.json` (`%APPDATA%\orkeon-code\appsettings.json` on Windows).
+
+The `orkeonCode` block of that file holds your own session settings, which a project's `.orkeon/config.json` cannot
+widen ([what a project file may set](permissions.md#what-a-project-file-may-set)). The launcher copies the block alone,
+never the `Llm` section, to `<state>/user-config/config.json` at each start and hands it to the session read-only, on
+`/user-config`, in every mode.
 
 Environment variables prefixed `ORKEON_` override the file (`__` separates sections): `ORKEON_Llm__Model`,
 `ORKEON_Llm__ApiKey`. `ORKEON_CODE_MODEL` is a launcher shortcut for `ORKEON_Llm__Model`.
@@ -78,8 +83,15 @@ assistant answers in, `/config set answer.language French`, unless a request is 
 `compaction.trigger` (the token count at which the automatic compaction runs, `/config set compaction.trigger 90k`;
 omitted, the window minus the room one turn needs), `dev.workDir` (the work folder `/dev-status`, `/dev-verify`, `/dev-learn` and `/dev-plan` read, relative to
 the checkout, `/config set dev.workDir backstage/tasks`; omitted, the repository pack's `layout.work`, else
-`workbench`) or `spinnerVerbs`. `/model`, `/effort`, `/passes`, `/fast`, `/proactive` and `/output-style` change how the next turns
+`workbench`; `/commit` reads it too, and leaves the work folder out of a commit unless a path inside it is named),
+`dev.prAuto` (`true` or `false`, omitted = `false`: `/commit` and the close of a dev step prepare the pull request as
+`--pr` does without being asked, its body under `<work>/pr-<slug>/PR.md`; until the opener lands, they print the
+`gh pr create` command to type and say so) or `spinnerVerbs`. `/model`, `/effort`, `/passes`, `/fast`, `/proactive` and `/output-style` change how the next turns
 run.
+
+`permissions.fallback` and `tools.extra` set in the project file are narrowed by the `orkeonCode` block of the user
+settings: `/config set` writes such a value, then says, under "persisted", that it is ignored and where your own setting
+goes. `/config set --session` is not narrowed.
 
 The repository pack (`.orkeon/repo.yaml`, else the harness's) can also give `tests.trait_pattern`, an Orkeon Code key
 the harness ignores: how a test names the sheet id it covers, which the gate of `/dev-verify` looks for under the test
@@ -267,7 +279,8 @@ nothing. Piper is GPL-3.0: the server runs it as a separate process, from an opt
 | `ORKEON_CODE_MODEL` | Model for this run |
 | `ORKEON_CODE_AUDIO_DIR` | Folder of audio and video files: turns [speech-to-text](#speech-to-text) on (tool and source modes) |
 | `ORKEON_CODE_VOICE` | `1`: opens the microphone to [`/voice`](#dictation) and the speaker to [`/say`](#speech-output) (with `ORKEON_CODE_AUDIO_DIR`) |
-| `ORKEON_CODE_STATE` | Where `/output`, `/tmp` and the transcripts live (default `.crew-output/` in the checkout) |
+| `ORKEON_CODE_STATE` | Where `/output`, `/tmp`, `/user-config` and the transcripts live (default `.crew-output/` in a clone, `<home>/state` in an install) |
+| `ORKEON_CODE_HOME` | An install's own folder: its state and its demo repository (default `~/.orkeon-code`) |
 | `ORKEON_CODE_IMAGE` | Another runtime image (docker mode) |
 | `ORKEON_REPL` | The command line that starts the REPL (tool mode) |
 | `ORKEON_SOURCE` | Orkeon checkout (source mode) |
@@ -275,4 +288,4 @@ nothing. Piper is GPL-3.0: the server runs it as a separate process, from an opt
 
 The launcher also exports `Orkeon__Security__PermissionGate__Enabled=true` unless it is set already (the settings
 file still wins over it), and, in tool and source modes, `ORKEON_ALLOW_EXTERNAL_MOUNTS=1`, so the REPL, started from
-the project, accepts the `/output` and `/tmp` mounts of the state directory. `/permissions` says whether the gate is on.
+the project, accepts the `/output`, `/tmp` and `/user-config` mounts of the state directory. `/permissions` says whether the gate is on.

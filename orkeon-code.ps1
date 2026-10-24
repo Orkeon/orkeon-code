@@ -110,7 +110,7 @@ try {
   }
   $Settings = (Resolve-Path $Settings).Path
 
-  $settingsText = Get-Content $Settings -Raw
+  $settingsText = Get-Content $Settings -Raw -Encoding UTF8  # Windows PowerShell 5.1 reads ANSI otherwise
   $keyVar = if ($settingsText -match '"ApiKeyEnvVar"\s*:\s*"([A-Za-z_][A-Za-z0-9_]*)"') { $Matches[1] } else { $null }
   if ($settingsText -notmatch '"Llm"') {
     Write-Warning "$Settings has no `"Llm`" section: every turn would be empty."
@@ -205,9 +205,27 @@ try {
     Write-Host "  audio    : $audio -> /audio (transcripts: $(Join-Path $State 'transcripts'), model $model$gpu$mic)"
   }
 
-  function Get-ReplArgs($commands, $crews, $settings, $workspace, $output, $tmp) {
+  # The user's orkeonCode block, handed to the scripts as a read-only file: they read no settings and no
+  # environment (V-04). Written afresh at each start; no block leaves the folder empty, and no user setting applies.
+  $userConfigDir = Join-Path $State 'user-config'
+  New-Item -ItemType Directory -Force -Path $userConfigDir | Out-Null
+  $userConfigFile = Join-Path $userConfigDir 'config.json'
+  Remove-Item $userConfigFile -Force -ErrorAction SilentlyContinue
+  try {
+    # The key case for case, as ./orkeon-code reads it (a property name is matched without case otherwise).
+    $block = (($settingsText | ConvertFrom-Json -ErrorAction Stop).PSObject.Properties |
+              Where-Object { $_.Name -ceq 'orkeonCode' } | Select-Object -First 1).Value
+    if ($block -is [System.Management.Automation.PSCustomObject]) {
+      [System.IO.File]::WriteAllText($userConfigFile, ($block | ConvertTo-Json -Depth 10) + "`n")
+    }
+  } catch {
+    Write-Warning "The orkeonCode block of $Settings could not be read: no user setting applies."
+  }
+
+  function Get-ReplArgs($commands, $crews, $settings, $workspace, $output, $tmp, $userConfig) {
     @('--runner=scripted-commands', '--commands-dir', $commands, '--crews-dir', $crews, '--settings', $settings,
-      '--mount', "${workspace}:/workspace:rw", '--mount', "${output}:/output:rw", '--mount', "${tmp}:/tmp:rw")
+      '--mount', "${workspace}:/workspace:rw", '--mount', "${output}:/output:rw", '--mount', "${tmp}:/tmp:rw",
+      '--mount', "${userConfig}:/user-config:ro")
   }
 
   if ($Mode -eq 'docker') {
@@ -218,7 +236,7 @@ try {
       if ($v -and [Environment]::GetEnvironmentVariable($v)) { $envArgs += @('-e', $v) }
     }
     $replArgs = Get-ReplArgs '/work/agent/commands' '/work/agent/crews' '/work/settings.json' `
-                             '/work/project' '/work/state/output' '/work/state/tmp'
+                             '/work/project' '/work/state/output' '/work/state/tmp' '/work/state/user-config'
     & docker run --rm -it @envArgs -w /work `
       -v "${Workspace}:/work/project" -v "$(Join-Path $Root 'src'):/work/agent:ro" `
       -v "${Settings}:/work/settings.json:ro" -v "${State}:/work/state" `
@@ -251,10 +269,10 @@ try {
     $env:ORKEON_ESBUILD_PATH = $found.FullName
   }
   $replArgs = Get-ReplArgs (Join-Path $Root 'src/commands') (Join-Path $Root 'src/crews') $Settings `
-                           $Workspace (Join-Path $State 'output') (Join-Path $State 'tmp')
+                           $Workspace (Join-Path $State 'output') (Join-Path $State 'tmp') $userConfigDir
   # The REPL runs from the project. It reads its --commands-dir and --crews-dir wherever they are, and
-  # a --mount outside its working directory (/output and /tmp, in the state directory) under
-  # ORKEON_ALLOW_EXTERNAL_MOUNTS (Orkeon GAP-49). The three roots are distinct, and none is one the REPL
+  # a --mount outside its working directory (/output, /tmp and /user-config, in the state directory) under
+  # ORKEON_ALLOW_EXTERNAL_MOUNTS (Orkeon GAP-49). The four roots are distinct, and none is one the REPL
   # keeps (/sandbox, /credentials, /cli-commands..., /crews...).
   $env:ORKEON_ALLOW_EXTERNAL_MOUNTS = '1'
   Push-Location $Workspace

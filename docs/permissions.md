@@ -12,11 +12,15 @@ Every `/assistant` turn runs under a **permission mode**, and the session can ad
    enforced. Keep it on.
 
 **What the gate does not see.** Commands and crews also call tools from their own code, through Orkeon's `tools`
-namespace, which runs the tool directly: `/commit` stages and commits with `shell_command`, `/branch` checks a branch
+namespace, which runs the tool directly: `/commit` stages the files it commits by name (`git add -- <files>`, then `git commit -F <message> -- <files>`, never
+`-A`) and, with `--push`, pushes, all with `shell_command`; `/branch` checks a branch
 out, `/diff` and `/review`, `/security-review` run `git`, `/init` writes the instructions file,
 `/init-verifiers` and `/export` write their files, the compaction writes the session buffer and typed memory. Those
 calls are what the command you typed is for: no rule, mode or question applies to them. `/commit` checks the mode
-itself and refuses in `plan` and `dontAsk`. `/transcribe` calls the speech-to-text server's tools the same way, in
+itself and refuses in `plan` and `dontAsk`. Its git commands (`git -c core.quotePath=false status`, `git --literal-pathspecs add`
+and `commit`, `git var`, `git rev-parse`, `git symbolic-ref`, `git push -u origin <branch>`, and for the close of a dev
+step `git merge --ff-only` and `git -C <worktree> rebase`) run only under `Orkeon:Tools:Shell:AllowInterpreters`:
+without it the shell tool lets git run `status`, `log`, `diff` and `show` alone, with no option before them. `/transcribe` calls the speech-to-text server's tools the same way, in
 every mode and with no `tools.extra` entry; with `--then`, the main loop makes that call before the turn, as the
 command's, and the model then works on the transcription under the turn's mode. `/voice` records the same way, and
 `/voice send` hands the dictated text to a turn as typed text would (a leading `plan:`, in lower case, picks the
@@ -290,9 +294,29 @@ it applies again once `tools.extra` lists the tool. `/permissions remove` delete
 every rule. A settings file that cannot be read is reported as such: the extra tools are then unknown and their rules
 dormant, never erased.
 
+## What a project file may set
+
+The project's `.orkeon/config.json` (what `/config set` writes) cannot widen what the user allows. The user's own
+settings are the `orkeonCode` block of the user settings file (the one the launcher reads), which the launcher hands
+to the session read-only, on `/user-config`:
+
+```json
+{
+  "orkeonCode": { "permissions.fallback": "acceptEdits", "tools.extra": "search_issues:read, *" }
+}
+```
+
+- `permissions.fallback` from the project applies only as `default`, `plan` or `acceptEdits`, and never wider than
+  the mode the user settings set; `bypassPermissions` and `dontAsk` come from the user settings or `/mode`.
+- `tools.extra` from the project offers only the tools the user settings list too (`*` lists them all); a tool
+  stays read-only (`:read`) only when both lists say so.
+- What the project file set and could not apply, `/permissions` names: `↳ ignored` under the mode, and a note for
+  the tools not offered. `/config set` of such a value still writes it, then says it is ignored. `/config set
+  --session` is the user's own, and is not narrowed.
+
 ## What no mode changes
 
-- File tools reach only the mounts: the project on `/workspace`, `/output`, `/tmp`.
+- File tools reach only the mounts: the project on `/workspace`, `/output`, `/tmp`, and `/user-config` (read-only).
 - The shell runs allow-listed commands only (`Orkeon:Tools:Shell` extends the list), with no shell operators. A
   command that can write (an interpreter, an added command) needs the write right on every path it names and on its
   working directory.

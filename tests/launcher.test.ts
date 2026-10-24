@@ -156,7 +156,7 @@ const mountRoots = (args: string[]) =>
 const RESERVED = /^\/(sandbox|credentials|cli-commands|crews)/;
 
 describe("orkeon-code, tool and source modes on Orkeon rc.6", () => {
-  it("tool mode starts the REPL from the project, external mounts allowed, three distinct roots", () => {
+  it("tool mode starts the REPL from the project, external mounts allowed, four distinct roots", () => {
     const r = launch({ args: ["--mode", "tool"], bin: { "orkeon-repl": recorder() }, env: { ORKEON_ESBUILD_PATH: "/opt/esbuild" } });
     strictEqual(r.status, 0, r.stderr);
     strictEqual(r.cwd, r.project);
@@ -165,6 +165,7 @@ describe("orkeon-code, tool and source modes on Orkeon rc.6", () => {
       "--runner=scripted-commands", "--commands-dir", join(r.root, "src/commands"), "--crews-dir", join(r.root, "src/crews"),
       "--settings", join(r.root, "..", "settings.json"),
       "--mount", `${r.project}:/workspace:rw`, "--mount", `${r.state}/output:/output:rw`, "--mount", `${r.state}/tmp:/tmp:rw`,
+      "--mount", `${r.state}/user-config:/user-config:ro`,
     ]);
     const roots = mountRoots(r.args);
     strictEqual(new Set(roots).size, roots.length, "no root mounted twice");
@@ -241,7 +242,7 @@ describe("orkeon-code, docker mode", () => {
     ok(!r.args.some((a) => a.includes("MaxScripts")), r.args.join(" "));
     ok(r.args.includes(`${GATE}=true`), r.args.join(" "));
     const roots = mountRoots(r.args);
-    deepStrictEqual(roots, ["/workspace", "/output", "/tmp"]);
+    deepStrictEqual(roots, ["/workspace", "/output", "/tmp", "/user-config"]);
   });
 });
 
@@ -256,7 +257,7 @@ describe("orkeon-code, speech-to-text (ORKEON_CODE_AUDIO_DIR)", () => {
     strictEqual(r.status, 0, r.stderr);
     deepStrictEqual(r.args.slice(-4), ["--mount", `${audio}:/audio:ro`, "--mount", `${r.state}/transcripts:/transcripts:ro`]);
     const roots = mountRoots(r.args);
-    deepStrictEqual(roots, ["/workspace", "/output", "/tmp", "/audio", "/transcripts"]);
+    deepStrictEqual(roots, ["/workspace", "/output", "/tmp", "/user-config", "/audio", "/transcripts"]);
     ok(!roots.some((root) => RESERVED.test(root)), roots.join(", "));
     strictEqual(r.env.get("WHISPER_AUDIO_DIR"), audio);
     strictEqual(r.env.get("WHISPER_OUT_DIR"), `${r.state}/transcripts`);
@@ -336,7 +337,7 @@ describe("orkeon-code, speech-to-text (ORKEON_CODE_AUDIO_DIR)", () => {
     const r = launch({ args: ["--mode", "tool"], bin: TOOL, env: { ORKEON_ESBUILD_PATH: "/opt/esbuild" } });
     strictEqual(r.status, 0, r.stderr);
     deepStrictEqual(whisperEnv(r), []);
-    deepStrictEqual(mountRoots(r.args), ["/workspace", "/output", "/tmp"]);
+    deepStrictEqual(mountRoots(r.args), ["/workspace", "/output", "/tmp", "/user-config"]);
     ok(!r.stdout.includes("audio"), r.stdout);
   });
 
@@ -347,14 +348,14 @@ describe("orkeon-code, speech-to-text (ORKEON_CODE_AUDIO_DIR)", () => {
     });
     strictEqual(noUv.status, 0, noUv.stderr);
     ok(noUv.stderr.includes("uv is not on PATH: speech-to-text is off"), noUv.stderr);
-    deepStrictEqual([whisperEnv(noUv), mountRoots(noUv.args)], [[], ["/workspace", "/output", "/tmp"]]);
+    deepStrictEqual([whisperEnv(noUv), mountRoots(noUv.args)], [[], ["/workspace", "/output", "/tmp", "/user-config"]]);
     const declared = launch({
       args: ["--mode", "tool"], bin: TOOL, env: { ORKEON_ESBUILD_PATH: "/opt/esbuild", ORKEON_CODE_AUDIO_DIR: audio },
       settings: { Llm: { Model: "m" }, MCP: { Servers: { whisper: { Command: "/opt/uv" } } } },
     });
     strictEqual(declared.status, 0, declared.stderr);
     ok(declared.stderr.includes('declares a "whisper" MCP server: ORKEON_CODE_AUDIO_DIR is ignored'), declared.stderr);
-    deepStrictEqual([whisperEnv(declared), mountRoots(declared.args)], [[], ["/workspace", "/output", "/tmp"]]);
+    deepStrictEqual([whisperEnv(declared), mountRoots(declared.args)], [[], ["/workspace", "/output", "/tmp", "/user-config"]]);
     const anyCase = launch({
       args: ["--mode", "tool"], bin: TOOL, env: { ORKEON_ESBUILD_PATH: "/opt/esbuild", ORKEON_CODE_AUDIO_DIR: audio },
       settings: { Llm: { Model: "m" }, MCP: { Servers: { Whisper: { Command: "/opt/uv" } } } },
@@ -367,7 +368,7 @@ describe("orkeon-code, speech-to-text (ORKEON_CODE_AUDIO_DIR)", () => {
     });
     strictEqual(inEnv.status, 0, inEnv.stderr);
     ok(inEnv.stderr.includes('the environment declares a "whisper" MCP server (ORKEON_MCP__Servers__whisper__*)'), inEnv.stderr);
-    deepStrictEqual([whisperEnv(inEnv), mountRoots(inEnv.args)], [[`${WHISPER}Url`], ["/workspace", "/output", "/tmp"]], "left as it was");
+    deepStrictEqual([whisperEnv(inEnv), mountRoots(inEnv.args)], [[`${WHISPER}Url`], ["/workspace", "/output", "/tmp", "/user-config"]], "left as it was");
   });
 
   it("stops on a folder that does not exist", () => {
@@ -384,6 +385,72 @@ describe("orkeon-code, speech-to-text (ORKEON_CODE_AUDIO_DIR)", () => {
     strictEqual(r.status, 0, r.stderr);
     ok(r.stderr.includes("ORKEON_CODE_AUDIO_DIR is ignored in docker mode"), r.stderr);
     ok(!r.args.some((a) => a.includes("/audio") || a.includes("whisper")), r.args.join(" "));
+  });
+});
+
+// ── The user settings (LI-6) ────────────────────────────────────────────────
+// The scripts read no settings and no environment (V-04): the launcher hands them the orkeonCode block of the
+// settings file as <state>/user-config/config.json, mounted read-only on /user-config, in every mode.
+
+describe("orkeon-code, the user settings on /user-config", () => {
+  // node reads the block: a stand-in on PATH that runs this test's node, wherever it is installed.
+  const NODE = { node: `#!/bin/sh\nexec "${process.execPath}" "$@"\n` };
+  const BLOCK = { "permissions.fallback": "acceptEdits", "tools.extra": "search_issues:read" };
+  const SETTINGS = { Llm: { Model: "m", BaseUrl: "http://127.0.0.1:9/v1", ApiKey: "never-copied" }, orkeonCode: BLOCK };
+  const userFile = (r: Run) => join(r.state, "user-config", "config.json");
+  const launchWithNode = (o: Parameters<typeof launch>[0]) => launch({ ...o, bin: { ...o.bin, ...NODE } });
+
+  for (const mode of ["tool", "source", "docker"] as const) {
+    it(`${mode} mode mounts the folder read-only and the file holds the orkeonCode block alone`, () => {
+      const env: Record<string, string> = { ORKEON_ESBUILD_PATH: "/opt/esbuild" };
+      if (mode === "source") env.ORKEON_SOURCE = orkeonCheckout();
+      const bin: Record<string, string> = { tool: { "orkeon-repl": recorder() }, source: { dotnet: DOTNET }, docker: { docker: recorder() } }[mode];
+      const r = launchWithNode({ args: ["--mode", mode], bin, env, settings: SETTINGS });
+      strictEqual(r.status, 0, r.stderr);
+      const host = mode === "docker" ? "/work/state/user-config" : `${r.state}/user-config`;
+      ok(r.args.join("\n").includes(`--mount\n${host}:/user-config:ro`), r.args.join(" "));
+      const text = readFileSync(userFile(r), "utf-8");
+      deepStrictEqual(JSON.parse(text), BLOCK);
+      ok(!text.includes("Llm") && !text.includes("never-copied"), text);
+    });
+  }
+
+  it("writes an empty block as it is, and no file for a block that is not an object or a key of another case", () => {
+    const tool = { "orkeon-repl": recorder() };
+    const env = { ORKEON_ESBUILD_PATH: "/opt/esbuild" };
+    const empty = launchWithNode({ args: ["--mode", "tool"], bin: tool, env, settings: { ...SETTINGS, orkeonCode: {} } });
+    strictEqual(empty.status, 0, empty.stderr);
+    deepStrictEqual(JSON.parse(readFileSync(userFile(empty), "utf-8")), {});
+    for (const settings of [{ ...SETTINGS, orkeonCode: [BLOCK] }, { Llm: SETTINGS.Llm, OrkeonCode: BLOCK }]) {
+      const r = launchWithNode({ args: ["--mode", "tool"], bin: tool, env, settings });
+      strictEqual(r.status, 0, r.stderr);
+      ok(!existsSync(userFile(r)), JSON.stringify(settings));
+    }
+  });
+
+  it("warns, and still starts, when the settings file cannot be parsed", () => {
+    const r = launchWithNode({
+      args: ["--mode", "tool", "--settings", "broken.json"], bin: { "orkeon-repl": recorder() },
+      env: { ORKEON_ESBUILD_PATH: "/opt/esbuild" }, files: { "broken.json": '{ "Llm": {}, "orkeonCode": ' },
+    });
+    strictEqual(r.status, 0, r.stderr);
+    ok(r.stderr.includes("the orkeonCode block of") && r.stderr.includes("could not be read: no user setting applies."), r.stderr);
+    ok(!existsSync(userFile(r)));
+  });
+
+  it("leaves the folder empty, and still mounts it, when the settings have no block", () => {
+    const tool = { "orkeon-repl": recorder() };
+    const none = launchWithNode({ args: ["--mode", "tool"], bin: tool, env: { ORKEON_ESBUILD_PATH: "/opt/esbuild" } });
+    strictEqual(none.status, 0, none.stderr);
+    ok(!existsSync(userFile(none)), "no block, no file");
+    strictEqual(none.stderr.includes("orkeonCode"), false, none.stderr);
+    ok(mountRoots(none.args).includes("/user-config"), none.args.join(" "));
+    // A file from an earlier start never outlives a block taken out of the settings.
+    mkdirSync(join(none.state, "user-config"), { recursive: true });
+    writeFileSync(userFile(none), JSON.stringify(BLOCK));
+    const again = launchWithNode({ args: ["--mode", "tool"], bin: tool, env: { ORKEON_ESBUILD_PATH: "/opt/esbuild", ORKEON_CODE_STATE: none.state } });
+    strictEqual(again.status, 0, again.stderr);
+    ok(!existsSync(userFile(none)), "the stale file is gone");
   });
 });
 
@@ -525,6 +592,14 @@ describe("orkeon-code.ps1 follows the same rules (read here; run below, where pw
       && script.includes("$env:WHISPER_SPEAKER = '1'"), "the microphone and the speaker on ORKEON_CODE_VOICE=1 only");
   });
 
+  it("hands the user settings over as ./orkeon-code does: the orkeonCode block alone, read-only on /user-config", () => {
+    ok(script.includes(`'--mount', "\${userConfig}:/user-config:ro"`), "the read-only mount");
+    ok(script.includes("Where-Object { $_.Name -ceq 'orkeonCode' }"), "the block alone, its key case for case");
+    ok(script.includes("Get-Content $Settings -Raw -Encoding UTF8"), "read as UTF-8 by Windows PowerShell 5.1 too");
+    ok(script.includes("Remove-Item $userConfigFile"), "written afresh at each start");
+    ok(script.includes("'/work/state/user-config'") && script.includes("(Join-Path $State 'tmp') $userConfigDir"), "every mode");
+  });
+
   it("keeps a one-word ORKEON_REPL argument an array (an if statement would unroll it into characters)", () => {
     ok(script.includes("$rest = @($repl | Select-Object -Skip 1)"), "orkeon-code.ps1 must build $rest as an array");
   });
@@ -556,6 +631,14 @@ describe("orkeon-code.ps1, run where pwsh is installed", { skip: PWSH ? false : 
     args: [...r.env].filter(([k]) => k.startsWith(`${WHISPER}Args__`))
       .sort(([a], [b]) => Number(a.split("__").pop()) - Number(b.split("__").pop())).map(([, v]) => v.replace(r.root, "<root>")),
     switches: [...r.env].filter(([k]) => /^WHISPER_(MICROPHONE|SPEAKER)$/.test(k)).map(([k, v]) => `${k}=${v}`).sort(),
+  });
+
+  it("writes the orkeonCode block alone to the read-only /user-config mount, as ./orkeon-code does", () => {
+    const settings = { Llm: { Model: "m", BaseUrl: "http://127.0.0.1:9/v1" }, orkeonCode: { "tools.extra": "search_issues:read" } };
+    const r = launch({ shell: "pwsh", args: ["-Mode", "tool"], bin: TOOL, env: { ORKEON_ESBUILD_PATH: "/opt/esbuild" }, settings });
+    strictEqual(r.status, 0, r.stderr + r.stdout);
+    ok(r.args.includes(`${r.state}/user-config:/user-config:ro`), r.args.join(" "));
+    deepStrictEqual(JSON.parse(readFileSync(join(r.state, "user-config", "config.json"), "utf-8")), settings.orkeonCode);
   });
 
   it("prints --version as ./orkeon-code does, with nothing configured, and starts nothing", () => {

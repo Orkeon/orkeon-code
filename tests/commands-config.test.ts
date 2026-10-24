@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok } from "node:assert";
 
 import { CONFIG_USAGE, runConfig } from "../src/commands/_lib/config.ts";
-import { CONFIG_FILE_PATH, createConfigStore } from "../src/shared/application/config-store.ts";
+import { CONFIG_FILE_PATH, USER_CONFIG_FILE_PATH, createConfigStore } from "../src/shared/application/config-store.ts";
 import { CONFIG_KEYS, configKeySpec, knownConfigKeys } from "../src/shared/domain/config-schema.ts";
 import { CONFIG_MAP_STATE_KEY } from "../src/shared/domain/session-keys.ts";
 import { FakeFiles } from "./support/fake-files.ts";
@@ -120,6 +120,48 @@ describe("/config set", () => {
         "would discard whatever it holds. Fix or delete it, then retry.",
     });
     deepStrictEqual(files.writes, []);
+  });
+});
+
+describe("/config set of a key the user settings narrow", () => {
+  const TAIL = "A setting of your own goes in the orkeonCode block of the user settings file (the one the launcher reads).";
+
+  it("still writes a fallback a project file may not set, then says it is ignored and where it goes", async () => {
+    const { run, fileMap } = setup();
+    deepStrictEqual(await run("set", "permissions.fallback", "bypassPermissions"), {
+      text: `permissions.fallback = bypassPermissions [file] — persisted in ${CONFIG_FILE_PATH}.\n` +
+        "↳ ignored: 'bypassPermissions': a project file may set only default, plan or acceptEdits; another mode comes " +
+        `from the user settings (orkeonCode) or /mode. ${TAIL}`,
+    });
+    deepStrictEqual(fileMap(), { "permissions.fallback": "bypassPermissions" });
+  });
+
+  it("says so for a fallback wider than the user's, and for extra tools the user settings do not list", async () => {
+    const { files, run, fileMap } = setup();
+    files.files.set(USER_CONFIG_FILE_PATH, JSON.stringify({ "permissions.fallback": "plan", "tools.extra": "search_issues" }));
+    const fallback = (await run("set", "permissions.fallback", "acceptEdits")).text!;
+    ok(fallback.endsWith(`\n↳ ignored: 'acceptEdits': it is wider than the user settings' 'plan' (orkeonCode); a project file may only narrow it. ${TAIL}`), fallback);
+    const tools = (await run("set", "tools.extra", "search_issues, deploy_prod")).text!;
+    ok(tools.endsWith(`\n↳ ignored: 'deploy_prod:write': the user settings do not allow (orkeonCode tools.extra, or *). ${TAIL}`), tools);
+    deepStrictEqual(fileMap(), { "permissions.fallback": "acceptEdits", "tools.extra": "search_issues, deploy_prod" });
+  });
+
+  it("says when the user settings could not be parsed, so that none applies", async () => {
+    const { files, run } = setup();
+    files.files.set(USER_CONFIG_FILE_PATH, "{ not json");
+    const text = (await run("set", "tools.extra", "deploy_prod")).text!;
+    ok(text.endsWith(`\n↳ ignored: 'deploy_prod:write': the user settings do not allow (orkeonCode tools.extra, or *). ` +
+      `The user settings (${USER_CONFIG_FILE_PATH}) could not be parsed: none applies. ${TAIL}`), text);
+  });
+
+  it("adds nothing when the value applies, or with --session, which the user settings do not narrow", async () => {
+    const { run } = setup();
+    deepStrictEqual(await run("set", "permissions.fallback", "acceptEdits"), {
+      text: `permissions.fallback = acceptEdits [file] — persisted in ${CONFIG_FILE_PATH}.`,
+    });
+    deepStrictEqual(await run("set", "--session", "permissions.fallback", "bypassPermissions"), {
+      text: "permissions.fallback = bypassPermissions [session] — overrides the file until /clear.",
+    });
   });
 });
 

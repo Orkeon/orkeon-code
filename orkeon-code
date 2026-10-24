@@ -10,7 +10,9 @@
 # What runs: the Orkeon scripted-commands REPL (orkeon-repl) loads the slash
 # commands of src/commands and the crews of src/crews. The project is mounted on
 # the VFS path /workspace (read-write): every file tool, the shell tool and git
-# work there. /output and /tmp are scratch mounts under the state directory.
+# work there. /output and /tmp are scratch mounts under the state directory, and
+# /user-config (read-only) holds the orkeonCode block of the settings file: the
+# user's own settings, which the project's .orkeon/config.json cannot widen.
 #
 # A clone (a .git or tests/ beside this script) keeps its state in .crew-output and its demo in
 # fixtures/. An install (scripts/install.sh, npm) never writes to its own folder: both go
@@ -221,10 +223,23 @@ if [ -n "$AUDIO" ]; then
   echo "  audio    : $AUDIO -> /audio (transcripts: $STATE/transcripts, model $model$([ "$(lowered "${WHISPER_DEVICE:-}")" = cuda ] && echo ' on the GPU')$([ "${ORKEON_CODE_VOICE:-}" = 1 ] && echo ', microphone and speaker on'))"
 fi
 
+# The user's orkeonCode block, handed to the scripts as a read-only file: they read no settings and no
+# environment (V-04). Written afresh at each start; no block, or no node to read it (said), leaves the
+# folder empty, and no user setting applies. The key is matched case for case, as in the .ps1.
+USER_CONFIG_DIR="$STATE/user-config"
+mkdir -p "$USER_CONFIG_DIR"
+rm -f "$USER_CONFIG_DIR/config.json"
+if command -v node >/dev/null 2>&1; then
+  node -e 'const fs=require("fs");const s=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));if(s&&typeof s.orkeonCode==="object"&&s.orkeonCode&&!Array.isArray(s.orkeonCode))fs.writeFileSync(process.argv[2],JSON.stringify(s.orkeonCode,null,2)+"\n")' "$SETTINGS" "$USER_CONFIG_DIR/config.json" \
+    || warn "the orkeonCode block of $SETTINGS could not be read: no user setting applies."
+elif grep -q '"orkeonCode"' "$SETTINGS"; then
+  warn "node is not on PATH: the orkeonCode block of $SETTINGS is not read, no user setting applies."
+fi
+
 # Sets ARGS. A function filling an array rather than mapfile: macOS ships bash 3.2.
-repl_args() { # <commands> <crews> <settings> <workspace> <output> <tmp>
+repl_args() { # <commands> <crews> <settings> <workspace> <output> <tmp> <user-config>
   ARGS=(--runner=scripted-commands --commands-dir "$1" --crews-dir "$2" --settings "$3"
-    --mount "$4:/workspace:rw" --mount "$5:/output:rw" --mount "$6:/tmp:rw")
+    --mount "$4:/workspace:rw" --mount "$5:/output:rw" --mount "$6:/tmp:rw" --mount "$7:/user-config:ro")
 }
 
 case "$MODE" in
@@ -243,7 +258,7 @@ case "$MODE" in
     tty_args=(-i)
     if [ -t 0 ] && [ -t 1 ]; then tty_args=(-it); fi
     repl_args /work/agent/commands /work/agent/crews /work/settings.json \
-      /work/project /work/state/output /work/state/tmp
+      /work/project /work/state/output /work/state/tmp /work/state/user-config
     exec docker run --rm "${tty_args[@]}" ${user_args[@]+"${user_args[@]}"} "${env_args[@]}" -w /work \
       -v "$WORKSPACE:/work/project" \
       -v "$ROOT/src:/work/agent:ro" \
@@ -293,12 +308,12 @@ case "$MODE" in
     fi
     # The REPL runs from the project. It reads its --commands-dir and --crews-dir
     # wherever they are, and a --mount outside its working directory (here
-    # /output and /tmp, in the state directory) under ORKEON_ALLOW_EXTERNAL_MOUNTS
-    # (Orkeon GAP-49). The three roots are distinct, and none is one the REPL keeps
-    # (/sandbox, /credentials, /cli-commands..., /crews...).
+    # /output, /tmp and /user-config, in the state directory) under
+    # ORKEON_ALLOW_EXTERNAL_MOUNTS (Orkeon GAP-49). The four roots are distinct, and
+    # none is one the REPL keeps (/sandbox, /credentials, /cli-commands..., /crews...).
     export ORKEON_ALLOW_EXTERNAL_MOUNTS=1
     repl_args "$ROOT/src/commands" "$ROOT/src/crews" "$SETTINGS" \
-      "$WORKSPACE" "$STATE/output" "$STATE/tmp"
+      "$WORKSPACE" "$STATE/output" "$STATE/tmp" "$USER_CONFIG_DIR"
     cd "$WORKSPACE"
     exec "${REPL[@]}" "${ARGS[@]}" ${AUDIO_ARGS[@]+"${AUDIO_ARGS[@]}"} ${EXTRA[@]+"${EXTRA[@]}"}
     ;;
