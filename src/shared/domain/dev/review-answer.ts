@@ -61,8 +61,13 @@ function targetList(targets: readonly string[]): string {
   return `${targets[0]}, ${targets[1]}…${targets[targets.length - 1]}`;
 }
 
-function isClosedQuestion(question: string): boolean {
-  return question !== "" && question.length <= MAX_QUESTION_CHARS && question.endsWith("?") && !CELL_BREAKER.test(question);
+/** Why a question is not one closed question fitting a table cell, or undefined when it is. */
+function questionFault(question: string): string | undefined {
+  if (question === "") return "it is empty";
+  if (CELL_BREAKER.test(question)) return "it holds a line break or a '|'";
+  if (question.length > MAX_QUESTION_CHARS) return `it is longer than ${MAX_QUESTION_CHARS} characters`;
+  if (!question.endsWith("?")) return "it does not end with ?";
+  return undefined;
 }
 
 function citesSource(evidence: string): boolean {
@@ -75,7 +80,8 @@ function checkRow(value: unknown, k: number, ctx: ReviewCheckContext, problems: 
   const severity = text(item.severity);
   if (!SEVERITIES.includes(severity as ReviewSeverity)) problems.push(`row ${k}: severity must be Blocking or Major`);
   const question = text(item.question);
-  if (!isClosedQuestion(question)) problems.push(`row ${k}: the question must be one closed question ending with ?`);
+  const fault = questionFault(question);
+  if (fault !== undefined) problems.push(`row ${k}: the question must be one closed question ending with ? (${fault})`);
   const evidence = text(item.evidence);
   if (evidence === "" || CELL_BREAKER.test(evidence)) problems.push(`row ${k}: evidence cannot sit in a table cell`);
   else if (!citesSource(evidence)) problems.push(`row ${k}: evidence cites no path:line, § n or section`);

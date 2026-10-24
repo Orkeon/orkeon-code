@@ -54,6 +54,7 @@ export const PLAN_INSTRUCTIONS: string = [
   "- Prefer what the inventory already offers; for every new element, explain what the existing element lacks.",
   "- Add no flexibility the source did not request: no option, setting or extension point beyond it.",
   "- An element is a signature, never a body.",
+  "- A design row's ids are UC, BR or CH ids of the source, never a design rule id.",
   "- Every design field of a batch is written: when a batch raises no event or reaches no storage, say so in a " +
     "sentence, never leave the field empty.",
   "",

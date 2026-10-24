@@ -74,8 +74,15 @@ describe("checkReviewAnswer", () => {
 
   it("the question is one closed question ending with ?", () => {
     const refused = "row 1: the question must be one closed question ending with ?";
-    for (const question of ["", "The refund keeps the currency.", "Is it A | B?", "Is it A?\nOr B?", `${"Is it long ".repeat(30)}?`]) {
-      deepStrictEqual(problemsOf(answer({ rows: [row({ question })] })), [refused], JSON.stringify(question));
+    const cases: Array<[string, string]> = [
+      ["", "it is empty"],
+      ["The refund keeps the currency.", "it does not end with ?"],
+      ["Is it A | B?", "it holds a line break or a '|'"],
+      ["Is it A?\nOr B?", "it holds a line break or a '|'"],
+      [`${"Is it long ".repeat(30)}?`, "it is longer than 300 characters"],
+    ];
+    for (const [question, fault] of cases) {
+      deepStrictEqual(problemsOf(answer({ rows: [row({ question })] })), [`${refused} (${fault})`], JSON.stringify(question));
     }
     ok(checkReviewAnswer(answer({ rows: [row({ question: `${"a".repeat(299)}?` })] }), CTX).ok);
   });
@@ -111,7 +118,7 @@ describe("checkReviewAnswer", () => {
   it("names every problem of every row", () => {
     deepStrictEqual(problemsOf(answer({ rows: [row(), row({ severity: "Minor", question: "No.", target: "x" })] })), [
       "row 2: severity must be Blocking or Major",
-      "row 2: the question must be one closed question ending with ?",
+      "row 2: the question must be one closed question ending with ? (it does not end with ?)",
       "row 2: target 'x' is not one of plan, F1…F3",
     ]);
   });

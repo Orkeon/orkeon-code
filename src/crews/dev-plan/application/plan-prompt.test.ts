@@ -53,6 +53,7 @@ describe("PLAN_INSTRUCTIONS — one marker per behaviour", () => {
     ["20 ref anchor", "a ref anchor holds its ref and no path"],
     ["21 production anchor", "every step has a production anchor"],
     ["22 reuse refs", "reuse lists inventory refs alone"],
+    ["23 design row ids", "never a design rule id"],
   ];
   for (const [behaviour, marker] of markers) {
     it(behaviour, () => ok(PLAN_INSTRUCTIONS.toLowerCase().includes(marker.toLowerCase()), marker));
