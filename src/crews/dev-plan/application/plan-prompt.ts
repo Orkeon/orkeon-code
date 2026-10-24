@@ -39,6 +39,8 @@ export const PLAN_INSTRUCTIONS: string = [
     "new step.",
   "- Each step brings one test or more, named the way the repository already names its tests (the inventory shows " +
     "how), each with the ids it proves and the project it runs in.",
+  "- A test's ids hold the UC, BR and CH ids it proves; its covers hold only the U<n> of the rows to characterise, " +
+    "and stay empty from a specification.",
   "- Every UC, BR and CH id is carried by a test and has a code owner in traceability.",
   "- An adapter (storage, network, process) gets an integration test, or the step's note says why not.",
   "- From a change brief, the rows to characterise come first, as tests passing at once in the first step of " +
@@ -52,11 +54,17 @@ export const PLAN_INSTRUCTIONS: string = [
   "- Prefer what the inventory already offers; for every new element, explain what the existing element lacks.",
   "- Add no flexibility the source did not request: no option, setting or extension point beyond it.",
   "- An element is a signature, never a body.",
+  "- Every design field of a batch is written: when a batch raises no event or reaches no storage, say so in a " +
+    "sentence, never leave the field empty.",
   "",
   "Anchors:",
   "- Anchor files only by the inventory refs shown (I<n>, kind ref), as a file to create (kind create, a path), " +
     "or, for a file the index does not hold such as a document or a configuration, as an existing path (kind " +
     "existing). Never write a path:line of your own, and never a path under the work folder named below.",
+  "- A ref anchor holds its ref and no path. Its member, when given, is the entry's own name: leave member out " +
+    "to add a member to the entry.",
+  "- Every step has a production anchor, and a test anchor unless its batch is documentation.",
+  "- reuse lists inventory refs alone (I<n>).",
   "- The existing anchors of the whole plan sit in at most 40 distinct folders.",
   "",
   "Scope:",

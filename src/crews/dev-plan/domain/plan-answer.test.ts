@@ -261,6 +261,33 @@ describe("rules 22 and 23: a change brief", () => {
     failsWith(["B1 S1 T2: U7 is not an unpinned row"],
       (a) => { a.batches[0].steps[0].tests[1].covers.push("U7"); }, BRIEF_ANSWER, BRIEF_CTX);
   });
+  it("mends a source id written in covers into the test's ids", () => {
+    const a = copy(ANSWER);
+    const t = a.batches[0].steps[0].tests[0];
+    const id = t.ids[0];
+    t.ids = [];
+    t.covers = [id];
+    const r = checkPlanAnswer(a, CTX);
+    deepStrictEqual(r.ok ? [] : r.problems, []);
+    if (r.ok) deepStrictEqual([r.value.batches[0].steps[0].tests[0].ids, r.value.batches[0].steps[0].tests[0].covers], [[id], []]);
+  });
+  it("mends a ref anchor whose path is its ref's own, and a reuse entry with words after its ref", () => {
+    const a = copy(ANSWER);
+    const [j, column, i] = a.batches[0].steps.flatMap((s, j) => (["tests", "doubles", "production"] as const)
+      .flatMap((c) => s.anchors[c].map((x, i) => [j, c, i, x] as const)))
+      .find(([, , , x]) => x.kind === "ref" && x.member === undefined) ?? [];
+    ok(j !== undefined && column !== undefined && i !== undefined, "the golden answer holds a ref anchor without member");
+    const anchor = a.batches[0].steps[j].anchors[column][i];
+    const ref = anchor.ref as string;
+    anchor.path = CTX.refPaths.get(ref);
+    a.reuse.push(`${ref} class Something`);
+    const r = checkPlanAnswer(a, CTX);
+    deepStrictEqual(r.ok ? [] : r.problems, []);
+    if (r.ok) {
+      deepStrictEqual(r.value.batches[0].steps[j].anchors[column][i], { kind: "ref", ref });
+      deepStrictEqual(r.value.reuse.at(-1), ref);
+    }
+  });
   it("a spec context has no pinned rule to apply", () => {
     failsWith([], () => undefined);
   });
@@ -302,7 +329,7 @@ describe("fix pass: what the plan's markdown and the harness would misread", () 
     failsWith([], (a) => { a.traceability[0].owners[0] = "MemoryStore.prune()"; });
   });
   it("checks a production ref anchor's member against the entry's name or its last dotted segment", () => {
-    failsWith(['B1 S2: anchor I1: member "pruneBefore" is not MemoryEntry; use a path to create for a new member'],
+    failsWith(['B1 S2: anchor I1: member "pruneBefore" is not MemoryEntry; leave member out to add a member to it'],
       (a) => { a.batches[0].steps[1].anchors.production[1] = { kind: "ref", ref: "I1", member: "pruneBefore" }; });
     failsWith([], (a) => { a.batches[0].steps[1].anchors.production[1] = { kind: "ref", ref: "I1", member: "MemoryEntry" }; });
     const dotted: PlanCheckContext = { ...CTX, refNames: new Map([...CTX.refNames, ["I1", "MemoryEntry.age"]]) };

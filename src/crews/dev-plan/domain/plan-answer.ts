@@ -309,6 +309,38 @@ function trimAnchor(a: AnchorRef): AnchorRef {
   return out;
 }
 
+/** The slips a model makes in the shape, mended where they have a single reading: a source id
+ *  written in a test's covers moves to its ids, a ref anchor's path equal to its ref's path is
+ *  dropped, a reuse entry that starts with a shown ref ("I3 class Account") keeps the ref alone. */
+function mended(a: PlanAnswer, ctx: PlanCheckContext): PlanAnswer {
+  const test = (t: PlanTest): PlanTest => {
+    const moved = t.covers.filter((u) => !ctx.unpinned.includes(u) && ctx.sourceIds.includes(u));
+    if (moved.length === 0) return t;
+    return { ...t, ids: [...t.ids, ...moved.filter((id) => !t.ids.includes(id))], covers: t.covers.filter((u) => !moved.includes(u)) };
+  };
+  const anchor = (x: AnchorRef): AnchorRef => {
+    if (x.kind !== "ref" || x.ref === undefined || x.path === undefined || ctx.refPaths.get(x.ref) !== x.path) return x;
+    const { path: _path, ...rest } = x;
+    return rest;
+  };
+  const reuse = (r: string): string => {
+    const lead = /^(I\d+)\b/.exec(r)?.[1];
+    return lead !== undefined && lead !== r && ctx.shownRefs.has(lead) ? lead : r;
+  };
+  return {
+    ...a,
+    reuse: a.reuse.map(reuse),
+    batches: a.batches.map((b) => ({
+      ...b,
+      steps: b.steps.map((s) => ({
+        ...s,
+        tests: s.tests.map(test),
+        anchors: { tests: s.anchors.tests.map(anchor), doubles: s.anchors.doubles.map(anchor), production: s.anchors.production.map(anchor) },
+      })),
+    })),
+  };
+}
+
 function trimmed(a: PlanAnswer): PlanAnswer {
   return {
     feature: a.feature.trim(),
@@ -474,7 +506,7 @@ function stepProblems(b: PlanBatch, k: number, ctx: PlanCheckContext, inventoryP
       const name = a.kind === "ref" && a.ref !== undefined ? ctx.refNames.get(a.ref) : undefined;
       if (name === undefined || a.member === undefined || a.member === "") continue;
       if (a.member !== name && a.member !== name.slice(name.lastIndexOf(".") + 1)) {
-        out.push(`${at}: anchor ${a.ref}: member "${a.member}" is not ${name}; use a path to create for a new member`);
+        out.push(`${at}: anchor ${a.ref}: member "${a.member}" is not ${name}; leave member out to add a member to it`);
       }
     }
     // 15: the columns a step needs.
@@ -607,7 +639,7 @@ export function checkPlanAnswer(value: unknown, ctx: PlanCheckContext): Checked<
   const reader = new Reader();
   const read = readAnswer(value, reader);
   if (reader.problems.length > 0) return { ok: false, problems: capped(reader.problems) };
-  const a = trimmed(read);
+  const a = mended(trimmed(read), ctx);
   const problems: string[] = [];
   // 24: the plan's own fields.
   if (a.feature === "") problems.push("feature is empty");
