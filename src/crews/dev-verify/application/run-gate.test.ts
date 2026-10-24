@@ -19,7 +19,7 @@ function pack(yaml: string): RepoPack {
 const PACK = pack("layout:\n  domain: src\n  tests: tests\n  build_outputs: [bin, obj]\ntests:\n  rule_trait: BR\n");
 const EX = "':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'";
 const UNTRACKED = `git ls-files --others --exclude-standard -- . ${EX}`;
-const TRAIT_GREP = `git grep --untracked -I -noE -e '\\[Trait\\("BR", *"(BR|UC|CH)-[0-9]+"\\)\\]' -- src tests ${EX}`;
+const TRAIT_GREP = `git grep --untracked -I -noE -e '\\[Trait\\("BR", *"[BCU][CHR]-[0-9]+"\\)\\]' -- src tests ${EX}`;
 
 const SHEET = "# DEMO-PLAN-F2 — Command\n| Applied rules | DDD-01 |\n## TDD sequence\n| # | Test |\n|---|---|\n" +
   "| 1 | `ShowsTheState` BR-01 |\nTDD: RED [x] GREEN [x] COST [x]\n";
@@ -81,7 +81,7 @@ describe("runGate", () => {
     strictEqual(shell.commands.some((c) => c.startsWith("git grep")), false);
     const bare = fakes();
     await runGate(bare, target({ pack: pack("tests:\n  rule_trait: BR\n") }));
-    strictEqual(bare.shell.commands[2], `git grep --untracked -I -noE -e '\\[Trait\\("BR", *"(BR|UC|CH)-[0-9]+"\\)\\]' -- .`);
+    strictEqual(bare.shell.commands[2], `git grep --untracked -I -noE -e '\\[Trait\\("BR", *"[BCU][CHR]-[0-9]+"\\)\\]' -- .`);
   });
   it("reads git grep's exit 1 with no output as no hit: the id is untested", async () => {
     const { files, shell } = fakes();

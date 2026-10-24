@@ -8,7 +8,7 @@
       "stdout": "src/Ledger/Overdraft.cs\nworkbench/vdemo/VDEMO-PLAN-F1.md\n",
       "exitCode": 0
     },
-    "git grep --untracked -I -noE -e '\\[Trait\\(\"BR\", *\"(BR|UC|CH)-[0-9]+\"\\)\\]' -- src tests ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'": {
+    "git grep --untracked -I -noE -e '\\[Trait\\(\"BR\", *\"[BCU][CHR]-[0-9]+\"\\)\\]' -- src tests ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'": {
       "stdout": "tests/Ledger.Tests/AccountTests.cs:6:[Trait(\"BR\", \"BR-01\")]\ntests/Ledger.Tests/AccountTests.cs:15:[Trait(\"BR\", \"BR-02\")]\ntests/Ledger.Tests/AccountTests.cs:25:[Trait(\"BR\", \"BR-03\")]\n",
       "exitCode": 0
     },
@@ -26,7 +26,7 @@
       "stdout": "src/Ledger/Overdraft.cs\nworkbench/vdemo/VDEMO-PLAN-F1.md\n",
       "exitCode": 0
     },
-    "git grep --untracked -I -noE -e '\\[Trait\\(\"BR\", *\"(BR|UC|CH)-[0-9]+\"\\)\\]' -- src tests ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'": {
+    "git grep --untracked -I -noE -e '\\[Trait\\(\"BR\", *\"[BCU][CHR]-[0-9]+\"\\)\\]' -- src tests ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'": {
       "stdout": "tests/Ledger.Tests/AccountTests.cs:6:[Trait(\"BR\", \"BR-01\")]\ntests/Ledger.Tests/AccountTests.cs:15:[Trait(\"BR\", \"BR-02\")]\ntests/Ledger.Tests/AccountTests.cs:25:[Trait(\"BR\", \"BR-03\")]\n",
       "exitCode": 0
     },
@@ -44,7 +44,7 @@
       "stdout": "src/Ledger/Overdraft.cs\nworkbench/vdemo/VDEMO-PLAN-F1.md\n",
       "exitCode": 0
     },
-    "git grep --untracked -I -noE -e '\\[Trait\\(\"BR\", *\"(BR|UC|CH)-[0-9]+\"\\)\\]' -- src tests ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'": {
+    "git grep --untracked -I -noE -e '\\[Trait\\(\"BR\", *\"[BCU][CHR]-[0-9]+\"\\)\\]' -- src tests ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'": {
       "stdout": "tests/Ledger.Tests/AccountTests.cs:6:[Trait(\"BR\", \"BR-01\")]\ntests/Ledger.Tests/AccountTests.cs:15:[Trait(\"BR\", \"BR-02\")]\ntests/Ledger.Tests/AccountTests.cs:25:[Trait(\"BR\", \"BR-03\")]\n",
       "exitCode": 0
     },
@@ -62,7 +62,7 @@
       "stdout": "docs/notes.md\nsrc/Ledger/Overdraft.cs\nworkbench/vdemo/VDEMO-PLAN-F1.md\n",
       "exitCode": 0
     },
-    "git grep --untracked -I -noE -e '\\[Trait\\(\"BR\", *\"(BR|UC|CH)-[0-9]+\"\\)\\]' -- src tests ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'": {
+    "git grep --untracked -I -noE -e '\\[Trait\\(\"BR\", *\"[BCU][CHR]-[0-9]+\"\\)\\]' -- src tests ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'": {
       "stdout": "tests/Ledger.Tests/AccountTests.cs:6:[Trait(\"BR\", \"BR-01\")]\ntests/Ledger.Tests/AccountTests.cs:15:[Trait(\"BR\", \"BR-02\")]\ntests/Ledger.Tests/AccountTests.cs:25:[Trait(\"BR\", \"BR-03\")]\n",
       "exitCode": 0
     },
@@ -80,7 +80,7 @@
       "stdout": "src/Ledger/Overdraft.cs\nworkbench/vdemo/VDEMO-PLAN-F1.md\n",
       "exitCode": 0
     },
-    "git grep --untracked -I -noE -e '\\[Trait\\(\"BR\", *\"(BR|UC|CH)-[0-9]+\"\\)\\]' -- src tests ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'": {
+    "git grep --untracked -I -noE -e '\\[Trait\\(\"BR\", *\"[BCU][CHR]-[0-9]+\"\\)\\]' -- src tests ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'": {
       "stdout": "tests/Ledger.Tests/AccountTests.cs:6:[Trait(\"BR\", \"BR-01\")]\ntests/Ledger.Tests/AccountTests.cs:15:[Trait(\"BR\", \"BR-02\")]\ntests/Ledger.Tests/AccountTests.cs:25:[Trait(\"BR\", \"BR-03\")]\n",
       "exitCode": 0
     },
@@ -98,7 +98,7 @@
       "stdout": "src/Ledger/Overdraft.cs\nworkbench/vdemo/VDEMO-PLAN-F1.md\n",
       "exitCode": 0
     },
-    "git grep --untracked -I -noE -e '\\[Trait\\(\"BR\", *\"(BR|UC|CH)-[0-9]+\"\\)\\]' -- src tests ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'": {
+    "git grep --untracked -I -noE -e '\\[Trait\\(\"BR\", *\"[BCU][CHR]-[0-9]+\"\\)\\]' -- src tests ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'": {
       "stdout": "tests/Ledger.Tests/AccountTests.cs:6:[Trait(\"BR\", \"BR-01\")]\ntests/Ledger.Tests/AccountTests.cs:15:[Trait(\"BR\", \"BR-02\")]\ntests/Ledger.Tests/AccountTests.cs:25:[Trait(\"BR\", \"BR-03\")]\n",
       "exitCode": 0
     },
@@ -116,7 +116,7 @@
       "stdout": "src/Ledger/Overdraft.cs\nworkbench/vdemo/VDEMO-PLAN-F1.md\n",
       "exitCode": 0
     },
-    "git grep --untracked -I -noE -e '\\[Trait\\(\"BR\", *\"(BR|UC|CH)-[0-9]+\"\\)\\]' -- src tests ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'": {
+    "git grep --untracked -I -noE -e '\\[Trait\\(\"BR\", *\"[BCU][CHR]-[0-9]+\"\\)\\]' -- src tests ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'": {
       "stdout": "tests/Ledger.Tests/AccountTests.cs:6:[Trait(\"BR\", \"BR-01\")]\ntests/Ledger.Tests/AccountTests.cs:15:[Trait(\"BR\", \"BR-02\")]\ntests/Ledger.Tests/AccountTests.cs:25:[Trait(\"BR\", \"BR-03\")]\ntests/Ledger.Tests/AccountTests.cs:26:[Trait(\"BR\", \"BR-09\")]\n",
       "exitCode": 0
     },
@@ -134,7 +134,7 @@
       "stdout": "src/Ledger/Overdraft.cs\nworkbench/vdemo/VDEMO-PLAN-F1.md\n",
       "exitCode": 0
     },
-    "git grep --untracked -I -noE -e '\\[Trait\\(\"BR\", *\"(BR|UC|CH)-[0-9]+\"\\)\\]' -- src tests ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'": {
+    "git grep --untracked -I -noE -e '\\[Trait\\(\"BR\", *\"[BCU][CHR]-[0-9]+\"\\)\\]' -- src tests ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'": {
       "stdout": "tests/Ledger.Tests/AccountTests.cs:6:[Trait(\"BR\", \"BR-01\")]\ntests/Ledger.Tests/AccountTests.cs:15:[Trait(\"BR\", \"BR-02\")]\ntests/Ledger.Tests/AccountTests.cs:25:[Trait(\"BR\", \"BR-03\")]\n",
       "exitCode": 0
     },
@@ -152,7 +152,7 @@
       "stdout": "docs/overdraft.md\nsrc/Ledger/Overdraft.cs\nworkbench/vdemo/VDEMO-PLAN-F1.md\n",
       "exitCode": 0
     },
-    "git grep --untracked -I -noE -e '\\[Trait\\(\"BR\", *\"(BR|UC|CH)-[0-9]+\"\\)\\]' -- src tests ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'": {
+    "git grep --untracked -I -noE -e '\\[Trait\\(\"BR\", *\"[BCU][CHR]-[0-9]+\"\\)\\]' -- src tests ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'": {
       "stdout": "tests/Ledger.Tests/AccountTests.cs:6:[Trait(\"BR\", \"BR-01\")]\ntests/Ledger.Tests/AccountTests.cs:15:[Trait(\"BR\", \"BR-02\")]\ntests/Ledger.Tests/AccountTests.cs:25:[Trait(\"BR\", \"BR-03\")]\n",
       "exitCode": 0
     },

@@ -7,7 +7,9 @@ export const DEFAULT_TRAIT_PATTERN = '[Trait("<name>", "<id>")]';
 /** The sheet ids the gate checks (AC:166). */
 export const SHEET_ID_SOURCE = "\\b(BR|UC|CH)-[0-9]+\\b";
 
-const ID_ERE = "(BR|UC|CH)-[0-9]+";
+// No alternation: the runtime's shell tool refuses a '|' even quoted, so the ERE
+// over-matches (BH-1, UR-2) and idsInMatch keeps the sheet ids alone.
+const ID_ERE = "[BCU][CHR]-[0-9]+";
 const ID_TOKEN = "<id>";
 const NAME_TOKEN = "<name>";
 const ERE_SPECIALS = new Set([..."\\.[]()*+?{}|^$"]);
@@ -32,6 +34,7 @@ export function traitPatternProblem(pattern: string): string | undefined {
   if (pattern.length > 80) return "the pattern is longer than 80 characters";
   if (/[\t\r\n]/.test(pattern)) return "a tab or a line break is not allowed";
   if (pattern.includes("'")) return "a single quote is not allowed";
+  if (pattern.includes("|")) return "a '|' is not allowed: the runtime's shell refuses it";
   if (count(pattern, ID_TOKEN) !== 1) return "the pattern must hold <id> exactly once";
   if (count(pattern, NAME_TOKEN) > 1) return "the pattern may hold <name> once at most";
   const rest = pattern.split(ID_TOKEN).join("").split(NAME_TOKEN).join("");

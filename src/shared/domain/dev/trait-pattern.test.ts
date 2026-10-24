@@ -12,22 +12,28 @@ describe("traitMarker", () => {
     deepStrictEqual(traitMarker("BR", undefined), {
       pattern: DEFAULT_TRAIT_PATTERN,
       name: "BR",
-      ere: '\\[Trait\\("BR", *"(BR|UC|CH)-[0-9]+"\\)\\]',
+      ere: '\\[Trait\\("BR", *"[BCU][CHR]-[0-9]+"\\)\\]',
       shown: '[Trait("BR", "<id>")]',
     });
   });
   it("compiles the Node example: a run of spaces becomes ' *'", () => {
     const m = traitMarker("rule", "// <name>:   <id>");
-    strictEqual(m?.ere, "// *rule: *(BR|UC|CH)-[0-9]+");
+    strictEqual(m?.ere, "// *rule: *[BCU][CHR]-[0-9]+");
     strictEqual(m?.shown, "// rule:   <id>");
     strictEqual(new RegExp(m!.ere).test("  // rule: BR-04"), true);
   });
+  it("holds no '|', which the runtime's shell refuses even quoted, and carries only sheet ids", () => {
+    const m = traitMarker("BR", undefined)!;
+    strictEqual(m.ere.includes("|"), false);
+    strictEqual(new RegExp(m.ere).test('[Trait("BR", "UC-12")]'), true);
+    deepStrictEqual(idsInMatch('t.cs:4:[Trait("BR", "BH-1")]'), []);
+  });
   it("escapes every special character of an ERE", () => {
-    strictEqual(traitMarker(undefined, "@x.y*+?{}|^$ <id>")?.ere, "@x\\.y\\*\\+\\?\\{\\}\\|\\^\\$ *(BR|UC|CH)-[0-9]+");
+    strictEqual(traitMarker(undefined, "@x.y*+?{}|^$ <id>")?.ere, "@x\\.y\\*\\+\\?\\{\\}\\|\\^\\$ *[BCU][CHR]-[0-9]+");
   });
   it("uses trait_pattern without rule_trait when it holds no <name>", () => {
     deepStrictEqual(traitMarker(undefined, "rule <id>"),
-      { pattern: "rule <id>", name: null, ere: "rule *(BR|UC|CH)-[0-9]+", shown: "rule <id>" });
+      { pattern: "rule <id>", name: null, ere: "rule *[BCU][CHR]-[0-9]+", shown: "rule <id>" });
   });
   it("is null with neither key, and with <name> but no rule_trait", () => {
     strictEqual(traitMarker(undefined, undefined), null);
@@ -42,6 +48,7 @@ describe("traitPatternProblem", () => {
     ["a\t<id>", "a tab or a line break is not allowed"],
     ["a\n<id>", "a tab or a line break is not allowed"],
     ["'<id>'", "a single quote is not allowed"],
+    ["a|b <id>", "a '|' is not allowed: the runtime's shell refuses it"],
     ["rule BR-01", "the pattern must hold <id> exactly once"],
     ["<id> <id>", "the pattern must hold <id> exactly once"],
     ["<name> <name> <id>", "the pattern may hold <name> once at most"],

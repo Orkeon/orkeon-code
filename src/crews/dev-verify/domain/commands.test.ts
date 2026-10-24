@@ -10,7 +10,7 @@ import {
 } from "./commands.ts";
 
 const EX = excludePathspecs(["bin", "obj"]);
-const ERE = '\\[Trait\\("BR", *"(BR|UC|CH)-[0-9]+"\\)\\]';
+const ERE = '\\[Trait\\("BR", *"[BCU][CHR]-[0-9]+"\\)\\]';
 
 describe("shellWord", () => {
   it("keeps a plain word, quotes a spaced one, refuses a single quote", () => {
@@ -50,8 +50,8 @@ describe("the frozen lines", () => {
   it("gitTraitGrep", () => {
     strictEqual(gitTraitGrep(ERE, ["src", "tests"], EX),
       `git grep --untracked -I -noE -e '${ERE}' -- src tests ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'`);
-    strictEqual(gitTraitGrep("// *rule: *(BR|UC|CH)-[0-9]+", ["."], []),
-      "git grep --untracked -I -noE -e '// *rule: *(BR|UC|CH)-[0-9]+' -- .");
+    strictEqual(gitTraitGrep("// *rule: *[BCU][CHR]-[0-9]+", ["."], []),
+      "git grep --untracked -I -noE -e '// *rule: *[BCU][CHR]-[0-9]+' -- .");
   });
   it("gitStatusShort", () => {
     strictEqual(gitStatusShort(EX), "git status --short -- . ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'");

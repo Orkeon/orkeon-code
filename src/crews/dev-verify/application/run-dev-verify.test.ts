@@ -21,7 +21,7 @@ const DIR = "/workspace/workbench/demo";
 const VERDICT = `${DIR}/DEMO-VERIFY-F2.md`;
 const EX = "':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'";
 const UNTRACKED = `git ls-files --others --exclude-standard -- . ${EX}`;
-const TRAIT_GREP = `git grep --untracked -I -noE -e '\\[Trait\\("BR", *"(BR|UC|CH)-[0-9]+"\\)\\]' -- src tests ${EX}`;
+const TRAIT_GREP = `git grep --untracked -I -noE -e '\\[Trait\\("BR", *"[BCU][CHR]-[0-9]+"\\)\\]' -- src tests ${EX}`;
 const PACK = "layout:\n  domain: src\n  tests: tests\n  build_outputs: [bin, obj]\ncommands:\n  test: npm test\n" +
   "  test_class: node --test <file>\ntests:\n  rule_trait: BR\ncontrib:\n  commit: conventional commits\n";
 const SHEET = "# DEMO-PLAN-F2 — Command\n| Applied rules | DDD-01 |\n## TDD sequence\n| # | Test |\n|---|---|\n" +
