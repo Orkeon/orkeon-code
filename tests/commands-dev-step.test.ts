@@ -75,7 +75,7 @@ describe("startDevStep", () => {
     strictEqual(deps.gate.calls[2], "add deny shell_command command=*git add*");
     // Then the shared memory's guard, 20 denies: no model tool writes its candidates or entries.
     strictEqual(deps.gate.calls.length, 503);
-    strictEqual(deps.gate.calls[502], "add deny shell_command command=*.orkeon*memory*entries*");
+    strictEqual(deps.gate.calls[502], "add deny shell_command command=*.orkeon/memory/entries*");
   });
 
   it("prints nothing when the facade does not say whether the gate is on, and still puts the sets in force", async () => {

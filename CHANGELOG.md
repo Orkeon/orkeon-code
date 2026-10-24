@@ -36,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of every editing tool, `state-files` the `path` of every tool that writes one file. `structural_rewrite`, whose
   paths the gate cannot read, is denied whole; `edit_batch` is checked operation by operation by the crews' callback,
   as the editor each operation stands for, every `validate` but "parse" refused, and an import's `name` and `module`
-  read by `secrets`. A dev step holds 481 rules, 483 with the two allows of `/dev-implement`.
+  read by `secrets`. A dev step holds 479 rules, 481 with the two allows of `/dev-implement`.
 - **`Orkeon:Tools:ResultLimits` and `Llm:MaxRateLimitWait` in the example settings**: the cut of a tool's result per
   tool (10,000 characters for `shell_command`), four read calls of a turn at once, and a rate-limit wait of five
   minutes ([Configuration](docs/configuration.md)).
@@ -486,7 +486,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `/dev-plan`).
   - Security and permissions: in the rule sets of a dev step, `git-readonly`
     218 (the reads of `git config` - `--get`, `--get-regexp`, `--list`, `-l`, a bare key, on any `--file` - run; its
-    writes stay refused, a key then a value by the crews' code, which a glob cannot tell from `--file a.cfg --list`), `inline-interpreters` 28 (a versioned `python3.12 -c`, and an option before `-c` or `-e`: `python3 -I
+    writes stay refused, a key then a value and a changing option behind another one by the crews' code, in a
+    subshell, a group, a substitution or an `eval` too, which a glob cannot tell from `--file a.cfg --list`), `inline-interpreters` 28 (a versioned `python3.12 -c`, and an option before `-c` or `-e`: `python3 -I
     -c`, `perl -w -e`, `ruby -w -e`; a `-c` after a script, `python3 x.py -c`, runs), `read-noise` 64 (`directory_search` among the path read tools), `state-files`
     41, `secrets` 128. A pilot kept out of the source roots is refused `structural_search` and `symbol_source`
     whole. The shell check of the dev crews and of the step guards reads the command as the host does - quotes
@@ -494,9 +495,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `python3 -Ic`, `git pu\sh`) - and a relative path that climbs out and back as the project path; a plan source
     spelt with `.` or `//` segments is checked as the path it names. The shared memory's guard: in every mode, the
     file tools of the model that name one path are refused under `<memory.dir>/candidates/` and `entries/`, and a shell
-    command naming the folder's segments then the leaf, a `cd` between them included; the callback of the main loop
-    and of every dev crew, under `orkeon run` too, refuses what the gate cannot read: a path in another letter case,
-    each `edit_batch` operation, a `structural_rewrite` that writes, a shell command in any case. A stored allow it
+    command naming `<memory.dir>/candidates` or `/entries`; the callback of the main loop and of every dev crew,
+    under `orkeon run` too, refuses what the gate cannot read: a path in another letter case, each `edit_batch`
+    operation, a `structural_rewrite` that writes, a shell command reaching the folder segment by segment in any
+    case (`cd .orkeon/memory && … > entries/x`, `.orkeon//memory/entries`; a glob such as `mem*` is not read). A stored allow it
     covers is dropped with a warning, and `/permissions` lists it. `dev.prAuto` from a
     project file is narrowed as `memory.autoAdmitAudited` is, and an invalid `tools.extra` project entry naming a
     tool the file also declares validly is dropped. `memory.dir` is refused under `.claude/` or `.git/` in any
@@ -526,8 +528,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     the graph's projects no command can name are said; the index is refreshed before the build; `--close` chains on
     the VALID line of the batch it wrote only. `/dev-batches`: the launch line carries `audits <n>`; a batch whose
     close was refused at the chain's depth limit is relaunched when its audit did not run; a `/dev-batches` typed
-    while a chain may still audit or close a batch (an audit since its launch, VALID or no verdict yet) logs
-    nothing and says to wait for the chain's answer. `/dev-learn`: two motifs
+    while a chain may still close a batch (an audit since its launch says VALID, no commit yet) logs nothing and
+    names the close as the way out. `/dev-learn`: two motifs
     over the same rows are refused; "Decide later", or nothing selected, decides nothing; it and `--refuse` read and
     write `refused.md` under `memory.dir`, the file `/memory-admit` and `memory_push` read.
   - Git and launchers: `/commit` and the dev close work in a linked worktree (the message goes under

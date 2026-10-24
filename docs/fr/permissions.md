@@ -111,13 +111,13 @@ des règles deny pour qu'aucun outil de fichier du modèle (`file_write`, `edit_
 `memory_push` et des récoltes, les entrées de `/memory-admit` seul. Une règle allow enregistrée que la garde couvre est
 écartée, avec un avertissement. Les motifs reconnaissent le chemin quelle que soit son écriture (`./`, `//`,
 `src/../`, `/workspace/`), et un `shell_command` qui nomme `<memory.dir>/candidates` ou `<memory.dir>/entries` est
-refusé lui aussi, quoi qu'il y ait entre les segments de `<memory.dir>` et `candidates` ou `entries`
-(`cd .orkeon/memory && … > entries/x.md`). `/permissions` les liste sur une ligne à part, "the shared memory's guard:
+refusé lui aussi. `/permissions` les liste sur une ligne à part, "the shared memory's guard:
 … (N rules)". Ce que la garde ne voit pas, le callback de la boucle principale et de chaque crew de dev le refuse à
 chaque appel, sous `orkeon run` aussi : un chemin dans une autre casse (`.Orkeon/Memory/Entries/x.md`, qu'un système
 de fichiers insensible à la casse ouvre), chaque opération d'un `edit_batch`, les chemins et le glob d'un
-`structural_rewrite` qui écrit (`dry_run: false`), et une commande shell qui nomme le dossier dans n'importe quelle
-casse. Une crew sans callback (`/code-review`, `/advisor`) ne s'exécute que sous les règles de la garde.
+`structural_rewrite` qui écrit (`dry_run: false`), et une commande shell qui atteint le dossier segment par segment, dans
+n'importe quelle casse (`cd .orkeon/memory && … > entries/x.md`, `.orkeon//memory/entries`). Un glob à la place d'un
+segment (`cp x .orkeon/mem*/entries/`) n'est pas lu : le shell le développe après tous les contrôles. Une crew sans callback (`/code-review`, `/advisor`) ne s'exécute que sous les règles de la garde.
 
 ## Choisir le mode
 
@@ -241,7 +241,9 @@ lancer un programme par `core.pager`. Ses lectures s'exécutent : `git config us
 `git config --get-regexp`, `git config --list` ou `-l`, sur n'importe quel fichier (`git config --file a.cfg --list`,
 `git config -f .gitmodules --get submodule.x.path`). Un glob ne distingue pas une clé suivie d'une valeur d'une
 lecture dont le nom de fichier porte un point : le code des crews lit donc celle-là. Les mots après `git config` et
-ses options, deux ou plus sans action de lecture avant eux, sont une écriture, refusée par le callback comme
+ses options, deux ou plus sans action de lecture avant eux, ou une option qui modifie placée derrière une autre
+(`git config --global --unset a.b`), sont une écriture - y compris dans un sous-shell, un groupe, une substitution
+ou un `eval` - refusée par le callback comme
 `deny shell_command command=*git config <key> <value>*` de `git-readonly`, et par les outils de l'étape qui lancent
 une commande.
 

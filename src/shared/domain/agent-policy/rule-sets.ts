@@ -7,7 +7,7 @@
 // array the gate cannot read (UNSCOPED_WRITE_TOOLS): those remove their tool from the catalogue. edit_batch is
 // not one of them: the crews' callback checks each of its operations as the editor it stands for (call-guard.ts).
 
-import { gateLine, sameCalls, shellWords } from "./permission.ts";
+import { gateLine, sameCalls } from "./permission.ts";
 import type { PermissionRule } from "./permission.ts";
 
 export type RuleSetId = "git-readonly" | "inline-interpreters" | "read-noise" | "secrets" | "state-files";
@@ -61,8 +61,10 @@ const GIT_VALUE_OPTIONS = new Set(["-C", "-c", "--git-dir", "--work-tree", "--na
 const CONFIG_VALUE_OPTIONS = new Set(["-f", "--file", "--blob", "-t", "--type", "--default", "--comment", "--value"]);
 /** The git config actions that only read; `get` and `list` are the subcommand forms. */
 const CONFIG_READS = /^(--get(-all|-regexp|-urlmatch|-color|-colorbool)?|--list|-l|get|list)$/;
-/** The words between which a shell starts another command. */
-const SHELL_OPERATORS = /(;|&&|\|\||\||&|\n)/;
+/** The git config options and subcommands that change the file, wherever they stand after `config`. */
+const CONFIG_WRITES = /^(--add|--unset(-all)?|--replace-all|--rename-section|--remove-section|--edit|-e|set|unset|rename-section|remove-section|edit)$/;
+/** The characters that start another command outside quotes: a chain, a pipe, a subshell, a group, a substitution. */
+const COMMAND_BREAKS = new Set([";", "&", "|", "(", ")", "`", "{", "}", "\n"]);
 
 /** What deny rule a git config that sets a value stands under, in a refusal: no gate pattern holds it. */
 export const GIT_CONFIG_SET_RULE: PermissionRule = {
@@ -78,36 +80,74 @@ export function holdsGitReadonly(rules: readonly PermissionRule[]): boolean {
 }
 
 /**
- * Whether one of the commands of a shell line is a git config that sets a value: two words or more after its
- * options, and no reading action before them (--get, --list, get, list). A key and a value (git config user.name x) sets it,
- * whatever file `--file` names; `git config --file a.cfg --list`, `git config a.b` read. The options and subcommands
- * that change the file (--add, --unset, set…) are git-readonly's own patterns, and so is `git -c`. The words are
- * read as the program receives them (quotes gone), each command of a chain (`cd x && git config a b`) apart.
+ * The commands of a shell line, each as the words its program receives: quotes dropped, backslash escapes resolved,
+ * a new command at each break outside single quotes (`;`, `&`, `|`, `(`, `)`, `{`, `}`, a backtick, a line break; a
+ * `$(` or a backtick inside double quotes too). A quoted value keeps its breaks (`';evil'` stays one word), and a word
+ * that holds a blank is read again as a line of its own (`eval 'git config a b'`): more commands, never fewer.
  */
-export function gitConfigSets(command: string): boolean {
-  const words = shellWords(command.replace(/\\(.)/g, "$1")).flatMap((w) => w.split(SHELL_OPERATORS)).filter((w) => w !== "");
+function shellCommandsOf(line: string, depth = 0): string[][] {
   const commands: string[][] = [[]];
-  for (const w of words) {
-    if (SHELL_OPERATORS.test(w) && w.replace(SHELL_OPERATORS, "") === "") commands.push([]);
-    else commands[commands.length - 1].push(w);
+  let word = "";
+  let quoted = false;
+  let quote: "'" | "\"" | null = null;
+  const end = (): void => {
+    if (word !== "" || quoted) commands[commands.length - 1].push(word);
+    word = "";
+    quoted = false;
+  };
+  const breakHere = (): void => { end(); commands.push([]); };
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (quote === "'") { if (c === "'") quote = null; else word += c; continue; }
+    if (c === "\\" && i + 1 < line.length) { word += line[++i]; continue; }
+    if (quote === "\"") {
+      if (c === "\"") quote = null;
+      else if (c === "$" && line[i + 1] === "(") { breakHere(); i++; }
+      else if (c === "`" || c === ")") breakHere();
+      else word += c;
+      continue;
+    }
+    if (c === "'" || c === "\"") { quote = c; quoted = true; continue; }
+    if (/\s/.test(c) && c !== "\n") { end(); continue; }
+    if (COMMAND_BREAKS.has(c)) { breakHere(); continue; }
+    word += c;
   }
-  return commands.some(configSets);
+  end();
+  const nested = depth >= 3 ? [] : commands.flat().filter((w) => /\s/.test(w)).flatMap((w) => shellCommandsOf(w, depth + 1));
+  return [...commands.filter((c) => c.length > 0), ...nested];
 }
 
+/**
+ * Whether one of the commands of a shell line is a git config that changes the file: a changing option or
+ * subcommand anywhere after `config` (git config --global --unset a.b), or two words or more after its options
+ * with no reading action before them (git config user.name x, whatever file `--file` names). `git config --file
+ * a.cfg --list` and `git config a.b` read. The gate's own patterns hold the changing options right after `config`,
+ * and `git -c`. Each command of a chain, a subshell, a group or a substitution is read apart (shellCommandsOf).
+ */
+export function gitConfigSets(command: string): boolean {
+  return shellCommandsOf(command).some(configSets);
+}
+
+/** Whether a command's words, from any `git` among them (`env git`, `/usr/bin/git`, `xargs git`), run a git config
+ *  that changes the file. */
 function configSets(words: readonly string[]): boolean {
-  let at = words.findIndex((w) => w === "git" || w.endsWith("/git"));
-  if (at < 0) return false;
-  for (at += 1; at < words.length && words[at].startsWith("-"); at++) {
+  return words.some((w, i) => (w === "git" || w.endsWith("/git")) && gitConfigWrites(words, i + 1));
+}
+
+function gitConfigWrites(words: readonly string[], from: number): boolean {
+  let at = from;
+  for (; at < words.length && words[at].startsWith("-"); at++) {
     if (GIT_VALUE_OPTIONS.has(words[at])) at++;
   }
   if (words[at] !== "config") return false;
   const positionals: string[] = [];
   for (let i = at + 1; i < words.length; i++) {
     const w = words[i];
+    if (CONFIG_WRITES.test(w) && (w.startsWith("-") || positionals.length === 0)) return true;
     // A reading action counts before the key only: what follows a key may be read as its value.
     if (positionals.length === 0 && CONFIG_READS.test(w)) return false;
     if (CONFIG_VALUE_OPTIONS.has(w)) i++;
-    else if (!w.startsWith("-") || w === "-") positionals.push(w);
+    else if (!w.startsWith("-") || w === "-" || positionals.length > 0) positionals.push(w);
   }
   return positionals.length >= 2;
 }

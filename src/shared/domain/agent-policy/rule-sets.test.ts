@@ -120,6 +120,14 @@ describe("the rule sets", () => {
       "git config user.name x", "git config --local a.b c", "git -C /x config a.b c", "git --git-dir=.git config a.b c",
       "git config --file a.cfg a.b c", "git config -f a.cfg a.b c", "cd x && git config a.b c", "/usr/bin/git config a.b c",
       "git status; git config a.b c", "git config --type=bool a.b true", "GIT_DIR=x git config 'a.b' \"c d\"",
+      // In a subshell, a substitution, a group or an eval'd string; a value that starts with an operator.
+      "(git config core.pager x)", "echo $(git config core.pager x)", "`git config alias.x '!sh'`",
+      "echo \"$(git config a.b c)\"", "{ git config a.b c; }", "eval 'git config a.b c'", "git config core.pager ';evil'",
+      "git config core.pager '&& evil'", "git config core.pager $'\\nevil'", "g\\it config a.b c",
+      // A changing option or subcommand behind another option, which the gate reads right after `config` only.
+      "git config --global --unset core.hooksPath", "git config --local --remove-section core",
+      "git config --global --add a.b c", "git config -f a.cfg --edit", "git config --global set a.b c",
+      "git config --global --rename-section a b", "git config --system --replace-all a.b c",
     ]) ok(gitRefused(command), command);
     for (const command of [
       "git config --get user.name", "git config --global --get user.name", "git config --get-all a.b",

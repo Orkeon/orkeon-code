@@ -307,14 +307,15 @@ describe("runDevBatches — what comes back and the close", () => {
     deepStrictEqual(events(valid.files), ["F2 launched"]);
   });
 
-  it("typed while a chain audits, with no verdict yet since the launch, logs nothing", async () => {
+  it("typed over an audit with no verdict since the launch, logs the stop: a dead chain never answers, a human decides", async () => {
     const t = setup();
     await runDevBatches({ code: "demo" }, t.deps);
     const verdict = `${DIR}/DEMO-VERIFY-F2.md`;
-    t.files.files.set(verdict, `${t.files.files.get(verdict)}\n# DEMO-VERIFY-F2 — 2026-10-24 11:00 — fast\n\nAudit in progress.\n`);
+    t.files.files.set(verdict, `${t.files.files.get(verdict) ?? ""}\n# DEMO-VERIFY-F2 — 2026-10-24 11:00 — fast\n\nAudit in progress.\n`);
     const typed = parse(await runDevBatches({}, t.deps));
-    ok(typed.lines.includes("F2: an audit since its launch, no verdict yet: its chain may still be running it (nothing logged)"), typed.lines.join("\n"));
-    deepStrictEqual(events(t.files), ["F2 launched"]);
+    ok(!typed.lines.some((l) => l.includes("nothing logged")), typed.lines.join("\n"));
+    // What the last verdict read says is logged (here the earlier GAPS of the fixture): never a silent wait.
+    strictEqual(events(t.files).length, 2);
   });
 
   it("typed after a cut with no audit since the launch, relaunches the batch; an audit before the launch is not one", async () => {

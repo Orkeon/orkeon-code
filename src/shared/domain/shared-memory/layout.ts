@@ -91,8 +91,8 @@ const MEMORY_LEAVES = ["candidates", "entries"] as const;
  * `status: admitted` file or an `audit:` source the model wrote itself never reaches the memory. The gate matches
  * the raw text, so each pattern lets any text stand between the folder's segments (`./`, `//`, `src/../`) and
  * before them after a `/` (`/workspace/`, `../workspace/`): two rules per tool of PATH_WRITE_TOOLS and folder, and
- * one shell_command rule per folder, which refuses a command naming its segments then the leaf in that order, any
- * text between them - a `cd` into the memory folder then a write under `entries/` included. The gate compares case
+ * one shell_command rule per folder, which refuses a command naming the folder as written (`.orkeon/memory/entries`);
+ * a glob cannot bound a path segment, so a looser one would refuse `shared-memory/candidates.ts`. The gate compares case
  * and cannot read the paths of edit_batch and structural_rewrite: memoryWriteRefusal, run by the callbacks of the
  * main loop and of the dev crews, checks those.
  */
@@ -102,7 +102,7 @@ export function memoryWriteRules(dir: string): PermissionRule[] {
   const paths = PATH_WRITE_TOOLS.flatMap((tool) => folders.flatMap((folder) =>
     [`${folder}/*`, `*/${folder}/*`].map((pattern): PermissionRule => ({ effect: "deny", tool, argument: "path", pattern }))));
   const shell = MEMORY_LEAVES.map((leaf): PermissionRule =>
-    ({ effect: "deny", tool: "shell_command", argument: "command", pattern: `*${dir.split("/").join("*")}*${leaf}*` }));
+    ({ effect: "deny", tool: "shell_command", argument: "command", pattern: `*${dir}/${leaf}*` }));
   return [...paths, ...shell];
 }
 
@@ -115,6 +115,8 @@ function resolvedLower(path: string): string {
 
 const inside = (path: string, folder: string): boolean => path === folder || path.startsWith(`${folder}/`);
 
+const escapeRegExp = (text: string): string => text.replace(/[.*+?^$|()[\]{}\\]/g, "\\$&");
+
 /** The text of a glob up to its first wildcard. */
 const literalHead = (glob: string): string => {
   const at = glob.search(/[*?[{]/);
@@ -125,7 +127,8 @@ const literalHead = (glob: string): string => {
  * Why a call of the model would write under the memory's candidates or entries, or null: what the gate's rules
  * (memoryWriteRules) cannot see - a path in another letter case, each operation of an edit_batch, the paths and the
  * glob of a structural_rewrite that writes (never its dry run: its default), a shell command naming the folder's
- * segments then a leaf in any case and through any steps (`cd .orkeon/memory && … > entries/x`). Pure; the
+ * segments then a leaf, each a whole segment, in any case and through any steps (`cd .orkeon/memory && … > entries/x`,
+ * `.orkeon//memory/entries`); a glob standing for a segment (`mem*` for `memory`) is not read. Pure; the
  * callbacks of the main loop and of the dev crews deny with it.
  */
 export function memoryWriteRefusal(dir: string, tool: string, input: unknown): string | null {
@@ -160,12 +163,17 @@ export function memoryWriteRefusal(dir: string, tool: string, input: unknown): s
   }
   if (sameToolName(tool, "shell_command") && typeof args.command === "string") {
     const steps = [...dir.toLowerCase().split("/").filter((s) => s !== "")];
+    // Each step a whole path segment: bounded by anything but a name's characters (`/`, a blank, a quote, `;`).
+    const segment = (word: string): RegExp =>
+      new RegExp(`(?<![a-z0-9._-])${escapeRegExp(word)}(?![a-z0-9._-])`, "g");
     const reaches = (text: string, leaf: string): boolean => {
       let at = 0;
       for (const word of [...steps, leaf]) {
-        const found = text.indexOf(word, at);
-        if (found < 0) return false;
-        at = found + word.length;
+        const pattern = segment(word);
+        pattern.lastIndex = at;
+        const found = pattern.exec(text);
+        if (found === null) return false;
+        at = found.index + word.length;
       }
       return true;
     };

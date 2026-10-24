@@ -101,12 +101,13 @@ so that no file tool of the model (`file_write`, `edit_file`, `node_replace`, `n
 under `<memory.dir>/candidates/` or `<memory.dir>/entries/`: candidates come from `memory_push` and the harvests,
 entries from `/memory-admit` alone. A stored allow rule the guard covers is dropped, with a warning. The patterns
 match however the path is spelt (`./`, `//`, `src/../`, `/workspace/`), and a `shell_command` naming
-`<memory.dir>`'s segments then `candidates` or `entries`, whatever stands between them (`cd .orkeon/memory && … >
-entries/x.md`), is refused too. `/permissions` lists them on its own line, "the shared memory's guard: … (N rules)".
+`<memory.dir>/candidates` or `<memory.dir>/entries` is refused too. `/permissions` lists them on its own line, "the shared memory's guard: … (N rules)".
 What the gate cannot see, the callback of the main loop and of every dev crew refuses on each call, under
 `orkeon run` too: a path in another letter case (`.Orkeon/Memory/Entries/x.md`, which a case-insensitive filesystem
 opens), each operation of an `edit_batch`, the paths and the glob of a `structural_rewrite` that writes
-(`dry_run: false`), and a shell command naming the folder in any case. A crew without a callback (`/code-review`,
+(`dry_run: false`), and a shell command reaching the folder segment by segment in any case
+(`cd .orkeon/memory && … > entries/x.md`, `.orkeon//memory/entries`). A glob standing for a segment
+(`cp x .orkeon/mem*/entries/`) is not read: the shell expands it after every check. A crew without a callback (`/code-review`,
 `/advisor`) runs under the gate's rules alone.
 
 ## Choosing the mode
@@ -224,7 +225,9 @@ lists, and runs). `git config` is refused when it writes: a key then a value (`g
 `git config user.name`, `git config --get user.name`, `git config --get-regexp`, `git config --list` or `-l`, on any
 file (`git config --file a.cfg --list`, `git config -f .gitmodules --get submodule.x.path`). A glob cannot tell a key
 then a value from a read whose file name holds a dot, so the crews' code reads that one: the words after `git config`
-and its options, two or more with no reading action before them, are a write, refused by the callback as
+and its options, two or more with no reading action before them, or a changing option behind another one
+(`git config --global --unset a.b`), are a write - in a subshell, a group, a substitution or an `eval` too -
+refused by the callback as
 `deny shell_command command=*git config <key> <value>*` of `git-readonly`, and by the step's own tools that run a
 command.
 

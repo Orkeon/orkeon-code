@@ -68,12 +68,10 @@ describe("memoryWriteRules", () => {
   });
 });
 
-describe("memoryWriteRules - a shell command reaching the folder in steps", () => {
-  it("denies a command that names the folder's segments then the leaf, a `cd` between them", () => {
+describe("memoryWriteRules - the shell rule names the folder as a path", () => {
+  it("leaves a command naming the words elsewhere to run: the steps of a `cd` are the callback's (memoryWriteRefusal)", () => {
     const rules = memoryWriteRules(".orkeon/memory");
-    for (const command of ["cd .orkeon/memory && printf x > entries/a.md", "cd .orkeon && cd memory && cp x candidates/"]) {
-      strictEqual(ruleDecision(rules, "shell_command", { command }), "deny", command);
-    }
+    strictEqual(ruleDecision(rules, "shell_command", { command: "git diff -- .orkeon/dev src/shared/domain/shared-memory/candidates.ts" }), undefined);
     strictEqual(ruleDecision(rules, "shell_command", { command: "cd .orkeon/memory && cat refused.md" }), undefined);
   });
 });
@@ -112,5 +110,12 @@ describe("memoryWriteRefusal (the callbacks' check: what the gate cannot read)",
       strictEqual(refused("shell_command", { command }), true, command);
     }
     strictEqual(refused("shell_command", { command: "cat .orkeon/memory/refused.md" }), false);
+    // Each step a whole path segment: shared-memory/candidates.ts is no step into the folder.
+    for (const command of ["git diff -- .orkeon/dev src/shared/domain/shared-memory/candidates.ts", "grep -r memory .orkeon/dev docs/candidates-list.md", "ls .orkeon/memory-old/entries"]) {
+      strictEqual(refused("shell_command", { command }), false, command);
+    }
+    for (const command of ["cd .orkeon; cd memory; cd entries; printf x > a.md", "printf x > .orkeon//memory/./entries/a.md"]) {
+      strictEqual(refused("shell_command", { command }), true, command);
+    }
   });
 });

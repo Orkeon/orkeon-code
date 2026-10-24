@@ -341,19 +341,15 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
       continue;
     }
     const stop = stopOf(dev, node.id, after);
-    // Typed while its chain may still run: an audit since the launch that ended in no GAPS (VALID, or none yet) is
-    // not a stop - the chain's answer, coming back, would find the batch stopped. Nothing is logged.
-    const latest = input.after === undefined ? latestVerdict(dev, node.id) : null;
-    if (input.after === undefined && latest !== "GAPS") {
-      const valid = latest === "VALID";
+    // Typed while its chain may still close the batch: an audit since the launch that says VALID is not a stop - the
+    // chain's answer, coming back, would find the batch stopped. Nothing is logged; the close is the way out when
+    // the chain is gone (its commit then marks the batch done). An audit with no verdict yet is logged as a stop,
+    // as before: a dead chain never answers, and the stop is what lets a human decide.
+    if (input.after === undefined && latestVerdict(dev, node.id) === "VALID") {
       return finish([
         ...lines,
-        valid
-          ? `${node.id}: an audit since its launch says VALID, and no commit yet: its chain may still be closing it (nothing logged)`
-          : `${node.id}: an audit since its launch, no verdict yet: its chain may still be running it (nothing logged)`,
-        valid
-          ? `→ wait for the chain's answer; else the close (/dev-implement ${node.id} ${code} --close), then /dev-batches ${code} goes on`
-          : `→ wait for the chain's answer; else a human decides, then /dev-batches ${code} goes on`,
+        `${node.id}: an audit since its launch says VALID, and no commit yet: its chain may still be closing it (nothing logged)`,
+        `→ wait for the chain's answer; else the close (/dev-implement ${node.id} ${code} --close), then /dev-batches ${code} goes on`,
       ]);
     }
     book.add(eventLine(now, node.id, stop.event, stop.detail));
