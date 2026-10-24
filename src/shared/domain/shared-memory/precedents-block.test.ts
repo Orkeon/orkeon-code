@@ -5,7 +5,25 @@ import { ok, strictEqual } from "node:assert";
 
 import { MAX_PRECEDENTS, MAX_PRECEDENTS_CHARS, buildPrecedentsBlock, precedentLines } from "./precedents-block.ts";
 import type { Precedent } from "./precedents-block.ts";
-import { sampleEntry } from "../../../../tests/doubles/memory-entries.ts";
+import type { EntryType, MemoryEntry } from "./entry.ts";
+
+// tests/doubles/memory-entries.ts's sampleEntry, here because a domain test imports the domain only.
+const ENTRY_BODY = "## Context\nA sentence of context.\n\n## Content\nThe rule itself.\n\n## Evidence\n`src/app/main.ts:10`\n";
+function sampleEntry(type: EntryType, slug: string, over: Partial<MemoryEntry> = {}): MemoryEntry {
+  const project = over.project ?? "shop";
+  const date = over.date ?? "2026-10-22";
+  const entry: MemoryEntry = {
+    id: `${project}-${type}-${date.replace(/-/g, "")}-${slug}`, type, title: `Title of ${slug}`, project, date,
+    topic: slug, appliesWhen: "a module does the thing", rationale: "it went wrong before",
+    source: type === "mistake" || type === "code-structure" ? "audit:workbench/shop/SHOP-VERIFY-F1.md" : "human:2026-10-22 /memory-admit",
+    status: "admitted", supersedes: [], tags: ["testing"], stack: ["typescript"], body: ENTRY_BODY,
+  };
+  if (type === "mistake") {
+    entry.correction = "do the other thing";
+    entry.detectionSignal = "a red test on the edge case";
+  }
+  return { ...entry, ...over, id: over.id ?? entry.id };
+}
 
 const p = (entry: Precedent["entry"], score: number): Precedent => ({ entry, path: `/workspace/m/entries/${entry.type}/${entry.id}.md`, score });
 
