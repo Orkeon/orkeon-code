@@ -3,20 +3,29 @@
 // lines of what /dev-implement or /dev-verify answered) it logs what came of that batch; then either it
 // stops (a human decides), or it closes the plan (every batch done: one push, one pull request), or it runs
 // the preflight, the review of a batch whose dependencies just closed, and names the next batch for the
-// command to launch: JSON `{ lines, next?: { crew: "dev-implement", input } }`. A run that names its code
+// command to launch: JSON `{ lines, next?: { crew: "dev-implement", input } }`. With `concurrency` n from 2
+// (temp/26 L8P-D1) it runs the next wave itself instead, at most n batches at once, each under its own worktree
+// (run-wave.ts), and names itself next while nothing stopped: `next: { crew: "dev-batches", input }`, one hop a
+// wave. A run that names its code
 // keeps it, with what the command read at its dispatch, in `.orkeon/dev/batches-active.json`; the runs the
 // chain launches name none and read it back. The batch's own work (its steps, its audit, its commit) is
-// /dev-implement's: this crew writes only the log, the run record and the pull request's body.
+// /dev-implement's: this crew writes only the log, the run record and the pull request's body - and, in a parallel
+// run, the files it seeds and harvests and the merges of the VALID batches.
 import type { Files, Llm, Logger, Shell } from "../../../shared/application/ports.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import type { PullRequestOpener } from "../../../shared/application/git/commit-files.ts";
 import { defaultBranch, runGit } from "../../../shared/application/git/commit-files.ts";
 import { loadDevCode, loadDevContext } from "../../../shared/application/dev/load-dev-context.ts";
 import type { DevCode } from "../../../shared/application/dev/load-dev-context.ts";
+import type { WorkFolder } from "../../../shared/application/dev/resolve-work-folder.ts";
 import { preflight } from "../../../shared/application/dev/preflight.ts";
 import { runSubAgent } from "../../../shared/application/agents/run-sub-agent.ts";
 import { isCode } from "../../../shared/domain/dev/artefacts.ts";
-import { checkConcurrency } from "../../../shared/domain/dev/batches-concurrency.ts";
+import { checkConcurrency, concurrencyModeRefusal } from "../../../shared/domain/dev/batches-concurrency.ts";
+import { readMemoryDir } from "../../../shared/application/shared-memory/memory-settings.ts";
+import { batchWaves, sheetAnchorPaths } from "../domain/batch-waves.ts";
+import { runWave } from "./run-wave.ts";
+import type { BatchOutcome, BatchRun } from "./run-wave.ts";
 import { parseBatchesState } from "../../../shared/domain/dev/batches-state.ts";
 import type { BatchesLogEntry } from "../../../shared/domain/dev/batches-state.ts";
 import { lastVerdict } from "../../../shared/domain/dev/verdict-format.ts";
@@ -42,6 +51,8 @@ const AFTER_LINES = 20;
 export interface BatchesContext {
   permissionMode: string; permissionRules: string[]; githubTool: boolean;
   hooks: unknown[]; effort: string | null; memoryRecall?: false;
+  /** The batches at once of a parallel run (2 to 4); absent, one. */
+  concurrency?: number;
 }
 
 export interface DevBatchesInputs {
@@ -50,7 +61,7 @@ export interface DevBatchesInputs {
   pr?: unknown;
   /** The last lines of what the batch's chain answered: this run logs what came of it. */
   after?: unknown;
-  /** How many batches at once: 1 (absent); above 1 refused until a script agent can be given a working root. */
+  /** How many batches at once, 1 to 4: 1 (absent) is the sequential run; a chained run reads the record's. */
   concurrency?: unknown;
   permissionMode?: unknown; permissionRules?: unknown; githubTool?: unknown;
   hooks?: unknown; effort?: unknown; memoryRecall?: unknown;
@@ -63,11 +74,17 @@ export interface DevBatchesDeps {
   reviewerFor?(context: BatchesContext): Pick<Llm, "act" | "extract">;
   /** The pull-request opener for the context read at the dispatch; none: the command is handed over. */
   openerFor?(context: BatchesContext): PullRequestOpener | undefined;
+  /** A parallel run's batch, run by a batch agent under its worktree; none: a parallel run is refused. */
+  runBatch?(run: BatchRun, context: BatchesContext): Promise<BatchOutcome>;
+  /** git's top as an agent under `root` sees it, before the first wave of a typed run (run-wave.ts). */
+  probe?(root: string): Promise<{ exitCode: number; top: string }>;
+  /** After a batch's GAPS verdict in a parallel run, on the main checkout: the mistakes harvested (M-7). */
+  afterGaps?(work: Pick<WorkFolder, "folder" | "vfsPath">): Promise<string[]>;
 }
 
 export interface BatchesAnswer {
   lines: string[];
-  next?: { crew: "dev-implement"; input: Record<string, unknown> };
+  next?: { crew: "dev-implement" | "dev-batches"; input: Record<string, unknown> };
 }
 
 interface ActiveRecord { code: string | null; pr: boolean; context: BatchesContext }
@@ -87,6 +104,7 @@ function contextOf(raw: DevBatchesInputs | Record<string, unknown>): BatchesCont
     hooks: Array.isArray(r.hooks) ? r.hooks : [],
     effort: typeof r.effort === "string" && r.effort !== "" ? r.effort : null,
     ...(r.memoryRecall === false ? { memoryRecall: false as const } : {}),
+    ...(typeof r.concurrency === "number" && r.concurrency > 1 ? { concurrency: r.concurrency } : {}),
   };
 }
 
@@ -233,9 +251,28 @@ function everyDone(order: readonly string[], merged: readonly MergedBatch[]): Me
   return order.map((batch) => merged.find((m) => m.batch === batch) ?? { batch, hash: "" });
 }
 
+/** The first wave of the open batches, at most `n`, their anchors read from their sheets; none when it cannot be read. */
+async function nextWave(files: Pick<Files, "read">, dev: DevCode, nodes: readonly BatchNode[], folder: string | null, n: number): Promise<string[]> {
+  const batches = [];
+  for (const node of nodes) {
+    const sheet = dev.sheets.find((s) => s.batch === node.id);
+    let anchors: string[] = [];
+    if (!node.done && sheet !== undefined && folder !== null) {
+      try {
+        anchors = sheetAnchorPaths(await files.read(`${folder}/${dev.code}/${sheet.name}`));
+      } catch {
+        anchors = [];
+      }
+    }
+    batches.push({ id: node.id, dependsOn: node.dependsOn, anchors, done: node.done });
+  }
+  const waves = batchWaves(batches);
+  return waves.ok && waves.waves.length > 0 ? waves.waves[0].slice(0, n) : [];
+}
+
 export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDeps): Promise<string> {
   const lines: string[] = [];
-  // 0. One batch at a time: nothing is read or written for a concurrency this run cannot keep.
+  // 0. How many at once: nothing is read or written for a value out of 1..4.
   const concurrency = checkConcurrency(input.concurrency);
   if (!concurrency.ok) return answer([`BLOCKED — ${concurrency.line}`]);
   // 1. The run: the code named, kept with the dispatch's context; else the one the record names.
@@ -272,6 +309,18 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
   if (mode !== "" && policyFor(mode).readOnly) {
     return answer([...lines, `BLOCKED — the session mode ${mode} is read-only: the batches write files and commit (/mode default, then /dev-batches ${code})`]);
   }
+  // A typed run takes the value it names (none: one); a chained one the value it was handed, else the record's.
+  const parallel = input.concurrency !== undefined || fresh || record === null ? concurrency.value : record.context.concurrency ?? 1;
+  if (parallel > 1) {
+    context = { ...context, concurrency: parallel };
+    // Checked again here: a chained run's mode is the one the record kept (L8P-D14).
+    const modeRefused = concurrencyModeRefusal(parallel, mode);
+    if (modeRefused !== null) return answer([...lines, `BLOCKED — ${modeRefused}`]);
+    if (deps.runBatch === undefined) return answer([...lines, `BLOCKED — concurrency ${parallel} refused: no batch agents on this host; run with --concurrency 1`]);
+  } else if (context.concurrency !== undefined) {
+    const { concurrency: _, ...one } = context;
+    context = one;
+  }
 
   // 2. The plan and what was done of it.
   const ctx = await loadDevContext({ files: deps.files, shell: deps.shell, config: deps.config });
@@ -290,7 +339,9 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
       lines.push(`⚠ the run record could not be written (${reasonOf(e)}): after a refused hop, type /dev-batches ${code}`);
     }
   };
-  if (record === null || fresh || flag(input.pr) !== record.pr) await writeRecord({ code, pr, context });
+  if (record === null || fresh || flag(input.pr) !== record.pr || record.context.concurrency !== context.concurrency) {
+    await writeRecord({ code, pr, context });
+  }
   const nodes = batchNodes(dev);
   const order = waveOrder(nodes);
   const now = deps.clock();
@@ -315,7 +366,8 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
   // 3. What came of the batches the log leaves launched: a batch done since is logged returned and merged;
   //    back from the chain, a batch not done is a stop (a human decides); typed, only a GAPS audit is logged.
   const after = strings(input.after).slice(-AFTER_LINES);
-  for (const node of nodes) {
+  // A parallel run leaves no launched batch to a chain: its wave picks up what the log leaves open (run-wave.ts).
+  for (const node of parallel > 1 ? [] : nodes) {
     const last = lastEntryOf(book.entries(), node.id);
     if (last === undefined || !OPENING.has(last.event)) continue;
     if (node.done) {
@@ -403,43 +455,46 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
     return finish([...lines, `BLOCKED — preflight: settle each ✗ above, then /dev-batches ${code}`]);
   }
 
-  // 6. The review of a batch whose dependencies just closed, before its first launch.
-  const node = nodes.find((n) => n.id === next)!;
-  const entry = lastEntryOf(book.entries(), next);
-  if (entry === undefined && node.dependsOn.length > 0) {
-    const sheet = sheetOf(next)!;
+  // 6. The review of a batch whose dependencies just closed, before its first launch: the next batch, or each of
+  //    the wave a parallel run launches.
+  const wave = parallel > 1 ? await nextWave(deps.files, dev, nodes, ctx.work.vfsPath, parallel) : [next];
+  if (wave.length === 0) return finish([...lines, `BLOCKED — the plan's waves could not be read, then /dev-batches ${code}`]);
+  for (const id of wave) {
+    const node = nodes.find((n) => n.id === id)!;
+    if (lastEntryOf(book.entries(), id) !== undefined || node.dependsOn.length === 0) continue;
+    const sheet = sheetOf(id)!;
     const reviewer = deps.reviewerFor?.(context);
     if (reviewer === undefined) {
-      lines.push(`review of ${next}: not run (no reviewer on this host)`);
-    } else {
-      const outcome = await runSubAgent(reviewer, {
-        charter: REVIEWER_CHARTER,
-        system: reviewSystem("next-batch"),
-        brief: buildReviewBrief({
-          mode: "next-batch", folder: dev.shown, files: [`${dev.shown}/${sheet.name}`], source: `${dev.shown}/${plan.name}`,
-          inventory: await closedInventory(deps.shell, mergedOf(book.entries()), node.dependsOn), targets: [next],
-        }),
-        schema: REVIEW_ANSWER_SCHEMA,
-        answerPrompt: buildReviewAnswerPrompt,
-        check: (v) => checkReviewAnswer(v, { targets: [next] }),
-      });
-      if (!outcome.ok) {
-        lines.push(`review of ${next}: not run (${outcome.reason}: ${outcome.problems[0] ?? "no detail"})`);
-      } else {
-        const rows = outcome.value.rows;
-        const blocking = rows.filter((r) => r.severity === "Blocking");
-        lines.push(rows.length === 0
-          ? `review of ${next}: CLEAR`
-          : `review of ${next}: GAPS — ${blocking.length} Blocking, ${rows.length - blocking.length} Major`);
-        lines.push(...rows.map((r) => `  ${r.severity} — ${r.question} (${r.evidence})`));
-        if (blocking.length > 0) {
-          book.add(eventLine(now, next, "stopped", `BLOCKED — review: ${blocking.length} Blocking`));
-          return finish([
-            ...lines,
-            `→ ${next} not launched: settle the Blocking questions in ${dev.shown}/${sheet.name} (or /dev-plan), then /dev-batches ${code} launches it without a second review`,
-          ]);
-        }
-      }
+      lines.push(`review of ${id}: not run (no reviewer on this host)`);
+      continue;
+    }
+    const outcome = await runSubAgent(reviewer, {
+      charter: REVIEWER_CHARTER,
+      system: reviewSystem("next-batch"),
+      brief: buildReviewBrief({
+        mode: "next-batch", folder: dev.shown, files: [`${dev.shown}/${sheet.name}`], source: `${dev.shown}/${plan.name}`,
+        inventory: await closedInventory(deps.shell, mergedOf(book.entries()), node.dependsOn), targets: [id],
+      }),
+      schema: REVIEW_ANSWER_SCHEMA,
+      answerPrompt: buildReviewAnswerPrompt,
+      check: (v) => checkReviewAnswer(v, { targets: [id] }),
+    });
+    if (!outcome.ok) {
+      lines.push(`review of ${id}: not run (${outcome.reason}: ${outcome.problems[0] ?? "no detail"})`);
+      continue;
+    }
+    const rows = outcome.value.rows;
+    const blocking = rows.filter((r) => r.severity === "Blocking");
+    lines.push(rows.length === 0
+      ? `review of ${id}: CLEAR`
+      : `review of ${id}: GAPS — ${blocking.length} Blocking, ${rows.length - blocking.length} Major`);
+    lines.push(...rows.map((r) => `  ${r.severity} — ${r.question} (${r.evidence})`));
+    if (blocking.length > 0) {
+      book.add(eventLine(now, id, "stopped", `BLOCKED — review: ${blocking.length} Blocking`));
+      return finish([
+        ...lines,
+        `→ ${id} not launched: settle the Blocking questions in ${dev.shown}/${sheet.name} (or /dev-plan), then /dev-batches ${code} launches it without a second review`,
+      ]);
     }
   }
 
@@ -447,6 +502,33 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
   const branch = await ensureWorkBranch(deps.shell, ctx.pack?.pack.contrib.branch, code);
   if (!branch.ok) return finish([...lines, `BLOCKED — branch: ${branch.line}, then /dev-batches ${code}`]);
   if (branch.line !== null) lines.push(branch.line);
+  if (parallel > 1) {
+    const current = await runGit(deps.shell, GIT_CURRENT_BRANCH_COMMAND);
+    const workBranch = current.exitCode === 0 ? current.stdout.trim() : "";
+    if (workBranch === "") return finish([...lines, `BLOCKED — branch: the checkout stands on no branch (a detached HEAD): check the work branch out, then /dev-batches ${code}`]);
+    const memory = await readMemoryDir(deps.config);
+    const steps = (id: string): number | undefined => {
+      const open = sheetOf(id)?.sheet.steps.filter((s) => s.tdd !== null && !(s.tdd.red && s.tdd.green && s.tdd.cost)).length ?? 0;
+      return open > 0 ? open : undefined;
+    };
+    const ran = await runWave({
+      code, concurrency: parallel, wave, workBranch, work: ctx.work.folder, memoryDir: memory.dir, now,
+      // The first wave of a typed run proves git works under a worktree root before any batch (L8P-D11).
+      probe: typeof input.code === "string",
+      sheets: Object.fromEntries(dev.sheets.map((s) => [s.batch, s.name])),
+      audits: (id) => auditsOf(dev, id), steps, book: { add: (l) => book.add(l), entries: () => book.entries(), save: () => book.save(deps.files) },
+    }, {
+      files: deps.files, shell: deps.shell,
+      runBatch: (run) => deps.runBatch!(run, context),
+      ...(deps.probe !== undefined ? { probe: deps.probe } : {}),
+      ...(deps.afterGaps !== undefined ? { afterGaps: () => deps.afterGaps!(ctx.work) } : {}),
+    });
+    lines.push(...ran.lines);
+    if (ran.refused) return finish(lines);
+    if (ran.stopped) return finish([...lines, `→ a human decides: each stop above, its worktree kept; then /dev-batches ${code} --concurrency ${parallel} goes on`]);
+    return finish([...lines, `→ the next wave follows: /dev-batches ${code} --concurrency ${parallel}`], { crew: "dev-batches", input: { concurrency: parallel } });
+  }
+  const entry = lastEntryOf(book.entries(), next);
   const relaunch = entry !== undefined;
   book.add(eventLine(now, next, relaunch ? "relaunched" : "launched", `${AUDITS_DETAIL} ${auditsOf(dev, next)}`));
   const sheet = sheetOf(next)!.sheet;

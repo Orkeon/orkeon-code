@@ -1,7 +1,10 @@
 // A batch's worktree: its name, where it lives - `/workspace/.orkeon/worktrees/<name>`, already under the
 // project's mount and never under `.claude/` (the harness's) - and the git command lines that create,
 // inspect and remove it. The shell runs in /workspace, so git is given the path relative to it; the
-// absolute VFS path is the working root a batch's agent will run under. Pure.
+// absolute VFS path is the working root a batch's agent runs under (a parallel /dev-batches). The worktree is
+// created with `--relative-paths` (git 2.48 and later): otherwise git writes the host's absolute path of the main
+// git dir into the worktree's `.git` file, a path that does not exist in the runtime's sandbox, where the mounts sit
+// at virtual paths (Orkeon/orkeon#188). An older git refuses the option, and its own message is the refusal. Pure.
 import { shellQuote } from "./close.ts";
 
 export const WORKTREES_FOLDER = ".orkeon/worktrees";
@@ -23,9 +26,14 @@ export function worktreePlace(name: string): WorktreePlace | null {
   return { name, path, root: `${WORKSPACE}/${path}` };
 }
 
+/** A batch's worktree: `<code>-F<n>`. */
+export const batchWorktreeName = (code: string, batch: string): string => `${code}-${batch}`;
+/** A batch's branch, never pushed: `batches/<code>/F<n>`. */
+export const batchBranch = (code: string, batch: string): string => `batches/${code}/${batch}`;
+
 export const gitBranchExists = (branch: string): string => `git rev-parse --verify --quiet ${shellQuote(`refs/heads/${branch}`)}`;
 export const gitWorktreeAdd = (path: string, branch: string, base: string): string =>
-  `git worktree add -b ${shellQuote(branch)} ${shellQuote(path)} ${shellQuote(base)}`;
+  `git worktree add --relative-paths -b ${shellQuote(branch)} ${shellQuote(path)} ${shellQuote(base)}`;
 export const gitIsIgnored = (path: string): string => `git check-ignore -q ${shellQuote(path)}`;
 export const gitWorktreeHead = (path: string): string => `git -C ${shellQuote(path)} symbolic-ref -q HEAD`;
 export const gitWorktreeStatus = (path: string): string => `git -C ${shellQuote(path)} status --porcelain --untracked-files=all`;

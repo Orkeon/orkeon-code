@@ -9,7 +9,7 @@ import { worktreePlace } from "../../domain/git/worktree.ts";
 import { FakeShell } from "../../../../tests/support/fake-shell.ts";
 
 const EXISTS = "git rev-parse --verify --quiet 'refs/heads/batch/demo-F2'";
-const ADD = "git worktree add -b 'batch/demo-F2' '.orkeon/worktrees/demo-F2' 'feat/demo'";
+const ADD = "git worktree add --relative-paths -b 'batch/demo-F2' '.orkeon/worktrees/demo-F2' 'feat/demo'";
 const IGNORED = "git check-ignore -q '.orkeon/worktrees/demo-F2'";
 const HEAD = "git -C '.orkeon/worktrees/demo-F2' symbolic-ref -q HEAD";
 const STATUS = "git -C '.orkeon/worktrees/demo-F2' status --porcelain --untracked-files=all";
@@ -64,6 +64,15 @@ describe("createBatchWorktree", () => {
     failing.results[ADD] = { exitCode: 128, stderr: "fatal: '.orkeon/worktrees/demo-F2' already exists\n" };
     deepStrictEqual(await createBatchWorktree(failing, CREATE),
       { ok: false, line: "worktree .orkeon/worktrees/demo-F2 not created: fatal: '.orkeon/worktrees/demo-F2' already exists" });
+  });
+
+  it("fails with git's own message on a git without --relative-paths (before 2.48): no fallback", async () => {
+    const old = new FakeShell();
+    old.results[EXISTS] = { exitCode: 1 };
+    old.results[ADD] = { exitCode: 129, stderr: "error: unknown option `relative-paths'\nusage: git worktree add [<options>] <path> [<commit-ish>]\n" };
+    deepStrictEqual(await createBatchWorktree(old, CREATE),
+      { ok: false, line: "worktree .orkeon/worktrees/demo-F2 not created: error: unknown option `relative-paths'" });
+    deepStrictEqual(old.commands, [EXISTS, IGNORED, ADD]);
   });
 });
 

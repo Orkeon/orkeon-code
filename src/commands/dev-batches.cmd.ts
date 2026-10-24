@@ -1,7 +1,8 @@
 /// <reference path="./.orkeon/orkeon-cli.d.ts" />
-// /dev-batches [<code>] [--pr] [--concurrency 1] — run a plan's batches one after the other, in the order their
-// dependencies allow, and close the plan with one push and one pull request. A concurrency above 1 is refused
-// before any launch: a script agent cannot be given a working root yet (the runtime's follow-up issue). The crew (crews/dev-batches) reads the plan and its log
+// /dev-batches [<code>] [--pr] [--concurrency n] — run a plan's batches one after the other, in the order their
+// dependencies allow, and close the plan with one push and one pull request. With n from 2 to 4 the crew runs each
+// wave of disjoint batches at once, each under its own worktree, and answers the next wave: launched again here.
+// Above 1 is refused before any launch in a mode that asks before shell commands. The crew (crews/dev-batches) reads the plan and its log
 // `.orkeon/dev/<code>/batches-state.md` and names the next batch; this command's `completed` launches it:
 // /dev-implement on the batch, its audit (/dev-verify), on VALID its close (a commit, sent push: false), then the crew
 // again, which logs the batch and names the next one. The answers are told apart by the crew that gave them
@@ -14,7 +15,7 @@
 // once and opens the one pull request (a batch's close is given no github tool). Every launch goes through
 // launchCrew (its chain-depth refusal); the gate is checked and the step's rules put back before each one.
 import { rawTokens } from "./_lib/args.ts";
-import { batchesChainStep, parseDevBatchesArgs } from "./_lib/dev-batches.ts";
+import { batchesChainStep, batchesLaunchInput, batchesModeRefusal, parseDevBatchesArgs } from "./_lib/dev-batches.ts";
 import { reapplyStepRules, startDevStep, writeModeRefusal } from "./_lib/dev-step.ts";
 import { launchCrew } from "./_lib/dispatch.ts";
 import { storedEffort } from "./_lib/effort.ts";
@@ -27,7 +28,7 @@ const deps = { session: orkeonSessionIo(), config: orkeonConfigStore() };
 
 defineAsyncCommand({
   name: "dev-batches",
-  description: "Run a plan's batches one after the other in their dependencies' order (implement, audit, commit each), then one pull request for the plan; no code: go on with the run in progress.",
+  description: "Run a plan's batches in their dependencies' order (implement, audit, commit each), one at a time or --concurrency n at once in worktrees, then one pull request for the plan; no code: go on with the run in progress.",
   maxConcurrent: 1,
   dispatch: async (args, ctx) => {
     const parsed = parseDevBatchesArgs(rawTokens(args));
@@ -38,7 +39,8 @@ defineAsyncCommand({
     const prContext = await readPullRequestContext({
       catalogue: () => orkeonToolCatalogue(ctx.services), rules: () => createPermissionRules(ctx.services), session: deps.session,
     });
-    const line = writeModeRefusal(String(prContext.permissionMode ?? ""), "dev-batches", "writes files, commits and pushes");
+    const line = writeModeRefusal(String(prContext.permissionMode ?? ""), "dev-batches", "writes files, commits and pushes")
+      ?? batchesModeRefusal(parsed.args, String(prContext.permissionMode ?? ""));
     if (line !== null) {
       ctx.writeLine(line);
       return { refused: line };
@@ -54,10 +56,7 @@ defineAsyncCommand({
     for (const line of start.lines) ctx.writeLine(line);
     // What was read here goes with every typed run, a run without a code too: the crew keeps it in its run
     // record for the runs the chain launches (a mode or a rule changed since the first run counts).
-    const input = {
-      ...(parsed.args.code === null ? {} : { code: parsed.args.code }), pr: parsed.args.pr,
-      ...start.input, effort: await storedEffort(deps.session), ...prContext,
-    };
+    const input = batchesLaunchInput(parsed.args, { ...start.input, effort: await storedEffort(deps.session), ...prContext });
     return launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "dev-batches", input, {
       ruleSets: start.sets.join(" "), rules: start.rules, hooks: start.hooks.length,
     });

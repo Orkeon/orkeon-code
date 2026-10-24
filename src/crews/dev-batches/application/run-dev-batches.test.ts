@@ -128,12 +128,14 @@ describe("runDevBatches — a run", () => {
     ok(parse(await runDevBatches({ code: "../x" }, deps)).lines[0].startsWith("BLOCKED — '../x' is not a work code"));
   });
 
-  it("runs concurrency 1 as the sequential run, and refuses above 1 or a bad value before reading or writing anything", async () => {
+  it("runs concurrency 1 as the sequential run, and refuses a bad value before reading or writing anything", async () => {
     const one = setup();
     const out = parse(await runDevBatches({ code: "demo", concurrency: 1 }, one.deps));
-    strictEqual(out.next?.input.batch, "F2");
+    const plain = setup();
+    deepStrictEqual(out, parse(await runDevBatches({ code: "demo" }, plain.deps)));
     ok(!("concurrency" in (out.next?.input ?? {})));
-    for (const concurrency of [2, "4", 0, "x"]) {
+    ok(!("concurrency" in JSON.parse(one.files.files.get(ACTIVE_RECORD)!).context));
+    for (const concurrency of [5, 0, "x"]) {
       const { files, shell, deps } = setup();
       const before = new Map(files.files);
       const refused = parse(await runDevBatches({ code: "demo", concurrency }, deps));
@@ -143,8 +145,6 @@ describe("runDevBatches — a run", () => {
       deepStrictEqual(files.files, before);
       deepStrictEqual(shell.commands, []);
     }
-    ok(parse(await runDevBatches({ code: "demo", concurrency: 2 }, setup().deps)).lines[0]
-      .includes('parallel runs wait for a runtime working root for script agents (follow-up issue "working root for script agents")'));
   });
 
   it("killed during a batch and run again, relaunches the first batch not done, without a second review", async () => {
@@ -385,5 +385,95 @@ describe("batchesBranchName", () => {
   it("takes the pattern's first prefix", () => {
     strictEqual(batchesBranchName("feat|fix/<slug>", "demo"), "feat/demo");
     strictEqual(batchesBranchName("<slug>", "demo"), null);
+  });
+});
+
+/** F2 and F3 anchoring disjoint paths: one wave of two. */
+function parallelSetup() {
+  const at = setup();
+  const anchors = (path: string) => `\n## Anchors\n\n| Step | Test class / fixture | Shared doubles and builders | Production filled or created |\n|------|----|----|----|\n| 1 — x | \`${path}.test.ts\` — to create | — | \`${path}.ts\` — to create |\n`;
+  for (const [batch, path] of [["F2", "src/status"], ["F3", "docs/status"]]) {
+    const sheet = `${DIR}/DEMO-PLAN-${batch}.md`;
+    at.files.files.set(sheet, at.files.files.get(sheet)! + anchors(path));
+  }
+  for (const b of ["F2", "F3"]) {
+    at.shell.results[`git rev-parse --verify --quiet 'refs/heads/batches/demo/${b}'`] = { exitCode: 1 };
+    at.shell.results[`git -C '.orkeon/worktrees/demo-${b}' symbolic-ref -q HEAD`] = { stdout: `refs/heads/batches/demo/${b}\n` };
+    at.shell.results[`git rev-parse --verify 'refs/heads/batches/demo/${b}'`] = { stdout: `beef${b.slice(1)}00\n` };
+  }
+  const runs: Array<{ batch: string; root: string; mode: string }> = [];
+  at.deps.runBatch = async (run, context) => {
+    runs.push({ batch: run.batch, root: run.root, mode: context.permissionMode });
+    return { batch: run.batch, verdict: "VALID", hash: "1111111", lines: [], spent: 10 };
+  };
+  at.deps.probe = async (root) => ({ exitCode: 0, top: root });
+  return { ...at, runs };
+}
+
+describe("runDevBatches — a parallel run", () => {
+  it("runs the wave itself, both batches under their worktrees, and names itself next with the concurrency", async () => {
+    const { files, deps, runs } = parallelSetup();
+    const out = parse(await runDevBatches({ code: "demo", concurrency: 2, permissionMode: "bypassPermissions" }, deps));
+    deepStrictEqual(runs, [
+      { batch: "F2", root: "/workspace/.orkeon/worktrees/demo-F2", mode: "bypassPermissions" },
+      { batch: "F3", root: "/workspace/.orkeon/worktrees/demo-F3", mode: "bypassPermissions" },
+    ]);
+    deepStrictEqual(out.next, { crew: "dev-batches", input: { concurrency: 2 } });
+    deepStrictEqual(events(files), ["F2 launched", "F3 launched", "F2 returned", "F2 merged", "F3 returned", "F3 merged"]);
+    strictEqual(JSON.parse(files.files.get(ACTIVE_RECORD)!).context.concurrency, 2);
+  });
+
+  it("refuses a mode that asks before shell commands, typed or read back by a chained run", async () => {
+    for (const mode of ["default", "acceptEdits"]) {
+      const { deps, runs } = parallelSetup();
+      const out = parse(await runDevBatches({ code: "demo", concurrency: 2, permissionMode: mode }, deps));
+      strictEqual(out.lines.at(-1), `BLOCKED — concurrency 2 refused: the session mode ${mode} asks before shell commands, and two batches would ask at once: /mode bypassPermissions, or run with --concurrency 1`);
+      deepStrictEqual(runs, []);
+    }
+    const chained = parallelSetup();
+    chained.files.files.set(ACTIVE_RECORD, JSON.stringify({ code: "demo", pr: false, context: { permissionMode: "acceptEdits", concurrency: 2 } }));
+    const out = parse(await runDevBatches({ concurrency: 2 }, chained.deps));
+    ok(out.lines.at(-1)!.startsWith("BLOCKED — concurrency 2 refused: the session mode acceptEdits"), out.lines.join("\n"));
+  });
+
+  it("goes on from the record's concurrency when a chained run is handed none", async () => {
+    const { files, deps, runs } = parallelSetup();
+    files.files.set(ACTIVE_RECORD, JSON.stringify({ code: "demo", pr: false, context: { permissionMode: "bypassPermissions", concurrency: 2 } }));
+    const out = parse(await runDevBatches({}, deps));
+    strictEqual(runs.length, 2);
+    deepStrictEqual(out.next, { crew: "dev-batches", input: { concurrency: 2 } });
+  });
+
+  it("refuses a parallel run on a host without batch agents", async () => {
+    const { deps } = parallelSetup();
+    delete deps.runBatch;
+    const out = parse(await runDevBatches({ code: "demo", concurrency: 3, permissionMode: "bypassPermissions" }, deps));
+    strictEqual(out.lines.at(-1), "BLOCKED — concurrency 3 refused: no batch agents on this host; run with --concurrency 1");
+  });
+
+  it("ends the run on a GAPS beside a VALID batch: the VALID one merged, nothing named next", async () => {
+    const { files, deps } = parallelSetup();
+    deps.runBatch = async (run) => (run.batch === "F2"
+      ? { batch: "F2", verdict: "VALID", hash: "1", lines: [], spent: 1 }
+      : { batch: "F3", verdict: "GAPS", lines: ["→ Batch F3 GAPS"], spent: 1 });
+    const out = parse(await runDevBatches({ code: "demo", concurrency: 2, permissionMode: "bypassPermissions" }, deps));
+    strictEqual(out.next, undefined);
+    deepStrictEqual(events(files), ["F2 launched", "F3 launched", "F2 returned", "F2 merged", "F3 returned"]);
+    ok(out.lines.some((l) => l.includes(".orkeon/worktrees/demo-F3 kept")), out.lines.join("\n"));
+  });
+
+  it("probes only the first wave of a typed run, and refuses the run when git fails under the worktree", async () => {
+    const { deps, runs } = parallelSetup();
+    const probed: string[] = [];
+    deps.probe = async (root) => { probed.push(root); return { exitCode: 128, top: "" }; };
+    const out = parse(await runDevBatches({ code: "demo", concurrency: 2, permissionMode: "bypassPermissions" }, deps));
+    deepStrictEqual(probed, ["/workspace/.orkeon/worktrees/demo-F2"]);
+    deepStrictEqual(runs, []);
+    ok(out.lines.at(-1)!.includes("Orkeon/orkeon#188"), out.lines.join("\n"));
+    const chained = parallelSetup();
+    chained.files.files.set(ACTIVE_RECORD, JSON.stringify({ code: "demo", pr: false, context: { permissionMode: "bypassPermissions", concurrency: 2 } }));
+    chained.deps.probe = async (root) => { probed.push(root); return { exitCode: 0, top: root }; };
+    await runDevBatches({ concurrency: 2 }, chained.deps);
+    strictEqual(probed.length, 1);
   });
 });

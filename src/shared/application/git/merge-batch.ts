@@ -4,7 +4,7 @@
 // aborts the rebase and the merge is handed over. Without a worktree nothing is
 // rewritten here (a rebase would check the batch branch out in the user's own
 // checkout): the merge is handed over. Never a forced update, never a push.
-// Reached only through batch-worktree.ts (mergeValidBatch), which no run calls yet.
+// Reached through batch-worktree.ts (mergeValidBatch), which a parallel /dev-batches calls for each VALID batch.
 
 import type { Shell } from "../ports.ts";
 import {

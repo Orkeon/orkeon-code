@@ -4,8 +4,8 @@
 // next wave. A batch that anchors no path cannot be shown disjoint and runs alone. An unknown dependency
 // or a cycle refuses the plan, as the sequential order does (wave-order.ts). Pure.
 //
-// Nothing runs two batches at once yet: a script agent cannot be given a working root (temp/22-l8 design),
-// so /dev-batches refuses a concurrency above 1. This is what that run will schedule from.
+// A parallel /dev-batches (`--concurrency n`, n from 2) runs the first wave, at most n of it, each batch under its
+// own worktree (application/run-wave.ts).
 import { compareBatchIds } from "../../../shared/domain/dev/artefacts.ts";
 import { anchorRefs, parseImplementSheet } from "../../dev-implement/domain/step-section.ts";
 import { waveOrder } from "./wave-order.ts";
