@@ -271,15 +271,17 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 | `speech` | séquentiel, sans outil, sans LLM | `/transcribe`, `/voice`, `/say` | Un appel au serveur MCP de parole (`transcribe_audio`, `list_audio`, `record_and_transcribe`, `speak`), au nom de la commande |
 | `dev-verify` | séquentiel, la porte et la capture dans `dev-verifier`, l'audit dans un enfant d'arrière-plan `dev-auditor` (quatre outils de lecture en `plan`, `run_validation`, `memory_recall`) | `/dev-verify` (`--gate-only` saute le LLM) | La porte, la capture, un audit en lecture seule, le fichier de verdict |
 | `dev-learn` | séquentiel, sans outil, un extract par axe | `/dev-learn` (`--list` saute le LLM) | Les écarts de verdict qui reviennent, changés en propositions, `PROPOSALS.md` |
-| `dev-plan` | séquentiel, un extract dans `dev-planner`, la revue dans un enfant d'arrière-plan `dev-reviewer` (six outils de lecture en `plan`) | `/dev-plan` | Porte des questions Blocking, inventaire par l'index, plan et fiches écrits par le code, une revue en lecture seule |
+| `dev-plan` | séquentiel, un extract dans `dev-planner`, la revue dans un enfant d'arrière-plan `dev-reviewer` (neuf outils de lecture en `plan`) | `/dev-plan` | Porte des questions Blocking, inventaire par l'index, plan et fiches écrits par le code, une revue en lecture seule |
 | `agent-run` | séquentiel, un act d'une charte intégrée (`dev-reviewer`, `dev-auditor`) | `/tasks send`, `/tasks repair` | Un nouveau run d'un enfant fini, son brief portant le rapport précédent et le message de l'opérateur |
-| `dev-spec` | séquentiel, six outils de lecture en `plan`, des extracts | `/dev-spec` | Spécification métier écrite par le code depuis le JSON, ses questions posées une à une par `human_input`, une revue en lecture seule |
-| `dev-change` | séquentiel, six outils de lecture en `plan`, des extracts | `/dev-change` | Bug reproduit ou coût mesuré en exécutant, fiche de changement écrite par le code, questions par `human_input`, une revue |
-| `dev-implement` | séquentiel, un agent, deux rôles en `acceptEdits` (quatre outils de lecture, deux d'écriture, `run_tests`, `run_build`, `memory_recall`) | `/dev-implement` (`--close` : la clôture seule) | Chaque cycle (les étapes d'un même fichier de test) rouge puis vert, vérifié par le code, son coût mesuré ; une correction ajoutée en étape ; le build et la suite (ensuite les projets touchés) en jobs ; puis `/dev-verify` et, sur VALID, le commit et les marques « fait » |
+| `dev-spec` | séquentiel, neuf outils de lecture en `plan`, des extracts | `/dev-spec` | Spécification métier écrite par le code depuis le JSON, ses questions posées une à une par `human_input`, une revue en lecture seule |
+| `dev-change` | séquentiel, neuf outils de lecture en `plan`, des extracts | `/dev-change` | Bug reproduit ou coût mesuré en exécutant, fiche de changement écrite par le code, questions par `human_input`, une revue |
+| `dev-implement` | séquentiel, un agent, deux rôles en `acceptEdits` (cinq outils de lecture, six d'écriture - `file_write` pour un nouveau fichier, les éditeurs de nœuds et `edit_batch` pour un fichier existant - `run_tests`, `run_build`, `memory_recall`) | `/dev-implement` (`--close` : la clôture seule) | Chaque cycle (les étapes d'un même fichier de test) rouge puis vert, vérifié par le code, son coût mesuré ; une correction ajoutée en étape ; le build et la suite (ensuite les projets touchés) en jobs ; puis `/dev-verify` et, sur VALID, le commit et les marques « fait » |
+| `dev-batches` | séquentiel, un agent avec les outils de lecture du relecteur, sa revue en ligne | `/dev-batches` (retapée : l'exécution reprend) | Désigne le lot suivant d'un plan dans l'ordre de ses dépendances, après une revue de sa fiche une fois ses dépendances closes ; consigne chaque lot dans `batches-state.md` ; le `completed` de la commande enchaîne `/dev-implement` et `/dev-verify`, chaque clôture commitée sans push ; un push et une pull request à la clôture du plan |
 | `shared-memory-admit` | séquentiel, sans outil, sans LLM | `/memory-admit` | Écrit dans les entrées de la mémoire partagée les candidats que l'opérateur a confirmés, les listes, et réindexe |
 
-Un dossier commençant par `_` contient une sonde de développement (`probe.ork.ts`), lancée avec
-`scripts/run-crew.sh` ; aucune n'est livrée aujourd'hui.
+Un dossier commençant par `_` contient une sonde de développement (`probe.ork.ts`), jamais l'équipe d'une commande :
+`_probe-shared-memory` mesure le rappel de la mémoire partagée sur un jeu de référence, lancée par
+`scripts/check-shared-memory.sh` avant une version.
 
 ## Un tour de la boucle
 

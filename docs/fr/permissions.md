@@ -49,14 +49,17 @@ lire, en `plan`, avec quatre outils de lecture.
 proposition nomme.
 `/dev-plan` lit la spec ou la fiche de changement, le pack et l'index du code. Il n'écrit que
 `<work>/<code>/<CODE>-PLAN.md`, les fiches de lot et `plan.json`, jamais un fichier sous `.claude/` ; son relecteur ne
-fait que lire, en `plan`, avec six outils de lecture. `/dev-spec` et `/dev-change` lisent la demande (une issue par
+fait que lire, en `plan`, avec neuf outils de lecture. `/dev-spec` et `/dev-change` lisent la demande (une issue par
 `gh issue view`), le pack et l'index du code, et n'écrivent que `<work>/<code>/SPEC-<code>.md`, ou `CHANGE-<code>.md`
 et `repro-<code>.txt` ; `/dev-change` lance la commande de reproduction ou de mesure, une commande de test étroite du
 pack, depuis son propre code, une fois que les jeux de règles de l'étape l'autorisent. `/dev-implement` lance le
 restore, le build et la suite du pack depuis son propre code ; ses deux rôles écrivent en `acceptEdits`, chacun dans ses
 racines, et après un verdict VALID sa clôture commite par leur nom les fichiers que les rôles ont changés, et pousse la
 branche, sauf si une règle de session refuse le push. Il refuse de démarrer en `plan` ou `dontAsk`, et remet la
-vérification de la garde et ses règles avant chaque lancement de sa chaîne (l'audit, puis la clôture). Les cinq placent d'abord dans la garde les
+vérification de la garde et ses règles avant chaque lancement de sa chaîne (l'audit, puis la clôture). `/dev-batches`
+exécute cette chaîne pour chaque lot d'un plan sous les jeux de règles de `/dev-implement` ; la clôture de chaque lot
+commite sans pousser, et celle du plan pousse la branche une seule fois, sauf si une règle de session refuse le push,
+et ouvre une seule pull request (`--pr` ou `dev.prAuto`), sinon en remet la commande. Les cinq placent d'abord dans la garde les
 [jeux de règles des étapes dev](#jeux-de-règles-des-étapes-dev), et refusent de démarrer tant que la garde est inactive ;
 le callback de leur crew contrôle à nouveau les mêmes jeux, seul contrôle de ceux-ci sous `orkeon run`.
 

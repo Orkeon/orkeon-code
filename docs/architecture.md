@@ -261,15 +261,16 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 | `speech` | sequential, no tools, no LLM | `/transcribe`, `/voice`, `/say` | One call to the speech MCP server (`transcribe_audio`, `list_audio`, `record_and_transcribe`, `speak`), as the command's |
 | `dev-verify` | sequential, the gate and capture in `dev-verifier`, the audit in a background child `dev-auditor` (four read tools in `plan`, `run_validation`, `memory_recall`) | `/dev-verify` (`--gate-only` skips the LLM) | The gate, the capture, one read-only audit, the verdict file |
 | `dev-learn` | sequential, no tool, one extract per axis | `/dev-learn` (`--list` skips the LLM) | Recurring verdict gaps into proposals, `PROPOSALS.md` |
-| `dev-plan` | sequential, one extract in `dev-planner`, the review in a background child `dev-reviewer` (six read tools in `plan`) | `/dev-plan` | Blocking gate, inventory by the index, plan and sheets written by code, one read-only review |
+| `dev-plan` | sequential, one extract in `dev-planner`, the review in a background child `dev-reviewer` (nine read tools in `plan`) | `/dev-plan` | Blocking gate, inventory by the index, plan and sheets written by code, one read-only review |
 | `agent-run` | sequential, one act of a built-in charter (`dev-reviewer`, `dev-auditor`) | `/tasks send`, `/tasks repair` | A new run of an ended child, its brief carrying the previous report and the operator's message |
-| `dev-spec` | sequential, six read tools in `plan`, extracts | `/dev-spec` | Business spec written by code from JSON, its questions asked one at a time through `human_input`, one read-only review |
-| `dev-change` | sequential, six read tools in `plan`, extracts | `/dev-change` | Bug reproduced or cost measured by running, change brief written by code, questions through `human_input`, one review |
-| `dev-implement` | sequential, one agent, two roles in `acceptEdits` (four read tools, two write tools, `run_tests`, `run_build`, `memory_recall`) | `/dev-implement` (`--close` the close alone) | Each cycle (the steps on one test file) red then green, checked by code, its cost measured; a correction appended as a step; the build and the suite (later the affected projects) as jobs; then `/dev-verify` and, on VALID, the commit and the done marks |
+| `dev-spec` | sequential, nine read tools in `plan`, extracts | `/dev-spec` | Business spec written by code from JSON, its questions asked one at a time through `human_input`, one read-only review |
+| `dev-change` | sequential, nine read tools in `plan`, extracts | `/dev-change` | Bug reproduced or cost measured by running, change brief written by code, questions through `human_input`, one review |
+| `dev-implement` | sequential, one agent, two roles in `acceptEdits` (five read tools, six write tools - `file_write` for a new file, the node editors and `edit_batch` for an existing one - `run_tests`, `run_build`, `memory_recall`) | `/dev-implement` (`--close` the close alone) | Each cycle (the steps on one test file) red then green, checked by code, its cost measured; a correction appended as a step; the build and the suite (later the affected projects) as jobs; then `/dev-verify` and, on VALID, the commit and the done marks |
+| `dev-batches` | sequential, one agent with the reviewer's read tools, its review inline | `/dev-batches` (typed again: the run goes on) | Names a plan's next batch in its dependencies' order, after a review of its sheet once its dependencies closed; logs each batch in `batches-state.md`; the command's `completed` drives `/dev-implement` and `/dev-verify`, each close committed without a push; one push and one pull request at the plan's close |
 | `shared-memory-admit` | sequential, no tool, no LLM | `/memory-admit` | Writes the candidates the operator confirmed to the shared memory's entries, the lists, and re-ingests the index |
 
-A folder starting with `_` holds a development probe (`probe.ork.ts`), run with `scripts/run-crew.sh`; none ships
-today.
+A folder starting with `_` holds a development probe (`probe.ork.ts`), never a command's crew: `_probe-shared-memory`
+measures the shared memory's recall on a reference set, run by `scripts/check-shared-memory.sh` before a release.
 
 ## One turn of the loop
 

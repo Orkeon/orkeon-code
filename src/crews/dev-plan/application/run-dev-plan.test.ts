@@ -129,7 +129,7 @@ describe("runDevPlan — a plan written and reviewed", () => {
       "inventory: 5 entries from 4 titles (index present, 16 calls)",
       "review: CLEAR",
       ABSENT,
-      END_LINE.replace("{command}", "/dev-implement F1 workbench/prune/PRUNE-PLAN.md"),
+      END_LINE.replace("{command}", "/dev-implement F1 workbench/prune/PRUNE-PLAN.md, or /dev-batches prune for every batch in their dependencies' order"),
     ].join("\n"));
     const pj = JSON.parse(f.files.files.get(PJ) ?? "{}");
     deepStrictEqual([pj.version, pj.source, pj.prefix, pj.review], [1, "workbench/prune/SPEC-prune.md", "PRUNE", CLEAR]);
@@ -149,7 +149,7 @@ describe("runDevPlan — a plan written and reviewed", () => {
     }
     ok(text.includes("review: GAPS — 0 Blocking, 1 Major (F1: under ## Decisions)\n" +
       "  Major F1 — Does a prune with no cut-off refuse, or use a default age? (workbench/prune/SPEC-prune.md:31)"), text);
-    ok(text.endsWith(END_LINE.replace("{command}", "/dev-implement F1 workbench/prune/PRUNE-PLAN.md")));
+    ok(text.endsWith(END_LINE.replace("{command}", "/dev-implement F1 workbench/prune/PRUNE-PLAN.md, or /dev-batches prune for every batch in their dependencies' order")));
     deepStrictEqual(JSON.parse(f.files.files.get(PJ) ?? "{}").review, REVIEW_MAJOR);
   });
 

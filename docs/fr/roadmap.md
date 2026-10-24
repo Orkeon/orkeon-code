@@ -25,6 +25,10 @@ demandent d'abord un changement dans [Orkeon](https://github.com/Orkeon/orkeon).
 - **La clôture qui relit le mode de la session** (runtime). La clôture que `/dev-implement` enchaîne après un audit
   VALID prend le mode et les règles lus au lancement du lot : le `completed` d'une commande est synchrone et le mode ne
   se lit que de façon asynchrone.
+- **Un plan entier en un seul `/dev-batches`** (runtime). Une chaîne de crews s'arrête à la limite de profondeur du
+  runtime (8), et un lot en prend quatre (`/dev-batches`, `/dev-implement`, `/dev-verify`, la clôture) : un plan de
+  plus de deux lots environ demande de retaper `/dev-batches` après chaque refus. Une limite plus profonde, ou un
+  lancement depuis le `completed` d'une commande qui ouvre une nouvelle chaîne, la lèverait.
 - **Coût et usage.** De vrais chiffres de coût par fournisseur, le taux de cache, le comptage des tokens pour
   `/context` et `/usage`. Le runtime rapporte les tokens de cache (`session_stats`) ; les commandes ne les lisent pas
   encore.
@@ -35,7 +39,12 @@ demandent d'abord un changement dans [Orkeon](https://github.com/Orkeon/orkeon).
   d'arrière-plan (`ctx.spawnBackground`) que `/tasks` suit ; un agent enregistré par `/agents` n'est encore que
   stocké, et l'assistant ne délègue pas.
 - L'éditeur structurel (`node_*`, `edit_batch`, `structural_rewrite`) dans les prompts de l'assistant : les outils
-  sont au catalogue, les prompts ne les enseignent pas encore.
+  sont au catalogue, les prompts ne les enseignent pas encore. Les étapes dev en utilisent une partie, branchée dans
+  `/dev-implement` : ses rôles lisent et modifient un fichier par nœud (`node_replace`, `node_insert`, `node_ensure`,
+  `edit_batch`) et le lot lit `affected_tests` et rafraîchit l'index (`incremental_reindex`) ; les relecteurs
+  cherchent avec `structural_search`. `documented_in`, `documents_of` et les opérations Markdown d'intention sont en
+  attente d'un crew qui place du texte dans une section.
+- Des lots exécutés en parallèle, chacun dans son worktree : `/dev-batches` les exécute l'un après l'autre.
 - Une liste de plan ou de tâches que la boucle tient à jour (`/tasks` est une liste manuelle aujourd'hui).
 - Plusieurs sessions à la fois.
 

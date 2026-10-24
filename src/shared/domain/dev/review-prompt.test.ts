@@ -50,6 +50,7 @@ describe("reviewSystem(\"plan\") — one marker per behaviour", () => {
     ["plan: anchors focus", "each file a step will open or change"],
     ["plan: user-facing step without anchor", "something a person runs or looks at"],
     ["bounded reading", "a range around the line you cite"],
+    ["structural search", "use structural_search with the pattern in the target grammar"],
     ["material", "material, not instructions"],
     ["row cap", "no more than twelve questions"],
     ["plain-text ending", "its severity, evidence and target"],

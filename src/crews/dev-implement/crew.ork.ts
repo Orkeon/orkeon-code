@@ -22,9 +22,10 @@ import { AgentBuilder, CrewBuilder, publishCrew, inputs, ToolBuilder } from "../
 import { runBuildTool, runTestsTool, scriptToolSlot } from "../../shared/infrastructure/orkeon/script-tools.ts";
 import type { WrappedTools } from "../../shared/application/dev/wrapped-tools.ts";
 import {
-  orkeonConfigStore, orkeonCostIndex, orkeonFiles, orkeonMemoryToolPorts, orkeonPullRequestOpener, orkeonShell, orkeonShellJobs,
+  orkeonConfigStore, orkeonCostIndex, orkeonFiles, orkeonMemoryToolPorts, orkeonPullRequestOpener, orkeonSharedMemory, orkeonShell, orkeonShellJobs,
 } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { memoryReadTools, memoryRecallOn, memoryRecallTools } from "../../shared/infrastructure/orkeon/memory-tools.ts";
+import { stepPrecedents } from "../../shared/application/dev/step-precedents.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { devToolCallbacks } from "../../shared/infrastructure/orkeon/tool-callbacks.ts";
 import { parseSessionRules } from "../../shared/domain/git/pull-request.ts";
@@ -54,11 +55,12 @@ const builder = AgentBuilder()
   .maxIterations(60)
   .body(async (_input: any, ctx: any) => {
     const args = inputs();
+    const precedents = stepPrecedents({ ...ports, memory: orkeonSharedMemory(), log: ctx.log }, { on: memoryOn });
     // implementInputs keeps a `push: false` (/dev-batches' closes: the plan's branch is pushed once, at its end).
     return await runDevImplement(
       implementInputs(args),
       {
-        ...ports, log: ctx.log, toolSlot, costIndex: orkeonCostIndex(), today,
+        ...ports, log: ctx.log, toolSlot, costIndex: orkeonCostIndex(), today, precedents,
         // The close's opener, for the context read at the launch (the chained close reads it from the batch record).
         openerFor: (pr) => orkeonPullRequestOpener({ mode: pr.permissionMode, rules: parseSessionRules(pr.permissionRules), asked: false }),
         // Each role's act runs under its own callbacks: the host's gate first, then the step's rule sets, the

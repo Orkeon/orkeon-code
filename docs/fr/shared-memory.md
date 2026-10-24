@@ -61,6 +61,8 @@ construisent :
 |---|---|---|
 | `/dev-spec`, `/dev-change` | au départ | `decision`, `method` |
 | `/dev-plan` | avant l'écriture du plan | `decision`, `code-structure` |
+| `/dev-implement` | avant les tests rouges d'un lot | `code-structure`, `mistake` |
+| `/dev-implement` | une correction après un verdict GAPS | `mistake` |
 | `/dev-verify` | avant l'audit | `mistake` |
 
 La fin de l'étape nomme les entrées rappelées. Un rappel qui ne peut pas tourner coûte le bloc, jamais l'étape ; une

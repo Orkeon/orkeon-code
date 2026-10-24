@@ -59,6 +59,8 @@ The dev steps recall on their own, at fixed points, and put a `## Precedents` bl
 |---|---|---|
 | `/dev-spec`, `/dev-change` | at the start | `decision`, `method` |
 | `/dev-plan` | before the plan is drafted | `decision`, `code-structure` |
+| `/dev-implement` | before the red tests of a batch | `code-structure`, `mistake` |
+| `/dev-implement` | a correction after a GAPS verdict | `mistake` |
 | `/dev-verify` | before the audit | `mistake` |
 
 The end of the step names the entries recalled. A recall that cannot run costs the block, never the step; a session

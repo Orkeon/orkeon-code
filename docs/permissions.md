@@ -43,14 +43,17 @@ commands it accepts from its own code, in every mode; its auditor only reads, in
 `.orkeon/dev-learn-state.json` and `.orkeon/memory/refused.md`, never a file under `.claude/` nor the file a proposal
 names.
 `/dev-plan` reads the spec or change brief, the pack and the code index. It writes only `<work>/<code>/<CODE>-PLAN.md`,
-the batch sheets and `plan.json`, never a file under `.claude/`; its reviewer only reads, in `plan`, with six read
+the batch sheets and `plan.json`, never a file under `.claude/`; its reviewer only reads, in `plan`, with nine read
 tools. `/dev-spec` and `/dev-change` read the request (an issue through `gh issue view`), the pack and the code index,
 and write only `<work>/<code>/SPEC-<code>.md`, or `CHANGE-<code>.md` and `repro-<code>.txt`; `/dev-change` runs the
 reproduction or measure command, a narrow test command of the pack, from its own code, once the step's rule sets
 allow it. `/dev-implement` runs the pack's restore, build and suite from its own code; its two roles write in
 `acceptEdits`, each inside its roots, and after a VALID verdict its close commits the files the roles changed, by
 name, and pushes the branch, unless a session rule denies the push. It refuses to start in `plan` or `dontAsk`, and
-puts the gate check and its rules back before each launch of its chain (the audit, then the close). All five first
+puts the gate check and its rules back before each launch of its chain (the audit, then the close). `/dev-batches`
+runs that chain for each batch of a plan under `/dev-implement`'s rule sets; each batch's close commits without
+pushing, and the plan's close pushes the branch once, unless a session rule denies the push, and opens one pull
+request (`--pr` or `dev.prAuto`), else hands its command over. All five first
 put the [rule sets of the dev steps](#rule-sets-of-the-dev-steps) in the gate, and refuse to start while the gate is
 off; their crew's callback checks the same sets again, the only check of them under `orkeon run`.
 

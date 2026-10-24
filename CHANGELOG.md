@@ -62,12 +62,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with the rows and the command that settles them. Otherwise an inventory of the existing code is drawn from the code
   index, the model answers once with the plan as JSON, and code renders `<work>/<code>/<CODE>-PLAN.md`, one
   `<CODE>-PLAN-F<n>.md` sheet per batch and `plan.json`, in the format the harness reads, so its own commands take
-  the files as they are. A read-only reviewer (plan mode, six read tools) then questions the plan: its Major rows
+  the files as they are. A read-only reviewer (plan mode, nine read tools, `structural_search` among them) then questions the plan: its Major rows
   go under the batch they target, a Blocking row marks the plan blocked. An existing plan is refused; `--replace`
   writes over it only while no batch is done and nothing is ticked, and never with fewer batches than before, since
   a stale sheet cannot be removed for you. Pack keys that are missing (`commands.build_test`, `commands.test_project`,
   `commands.test_integration`) are named in a warning, to fill in the plan or the pack. The next step is printed:
-  `/dev-implement F1`, or the harness's `/dev-batches` when several batches can start. A run, with the index build,
+  `/dev-implement F1`, and with two batches or more `/dev-batches <code>` too. A run, with the index build,
   two model calls and a review of up to 20 turns, may outlast the REPL's script time limit of 5 minutes: the example
   settings' 30 minutes (`Orkeon:Cli:ScriptCommands:Limits:ExecutionTimeout`) leave room for it.
 - **`/dev-implement F<n> [<code> | <path>/<CODE>-PLAN.md] [--close] [--pr]`**: runs one batch sheet test-first. For
@@ -287,6 +287,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`--resume <number or id>` without asking); the newest 50 are kept (`ORKEON_CODE_SESSIONS_KEEP`).
 - `/resume` lists this project's saved sessions and says how to bring one back.
 - `/doctor` warns when an older start left sessions in the project's `.orkeon/sessions`.
+- `/dev-batches [<code>] [--pr]` runs a plan's batches one at a time, in the order their dependencies allow: each
+  batch goes through `/dev-implement`'s chain (red tests, the least code, the audit, on VALID a commit not
+  pushed); the run logs each batch in `.orkeon/dev/<code>/batches-state.md`, reviews a batch whose dependencies
+  just closed before its first launch, stops on BLOCKED, GAPS or a Blocking review question, and closes the plan
+  with one push and one pull request. Typed again (or `/dev-batches` alone after the runtime's chain limit), it
+  goes on from the first batch not done. The start scripts name `/dev-batches <code>` beside an open batch.
+- The dev steps recall the shared memory on their own: `/dev-spec` and `/dev-change` at the start (decisions,
+  methods), `/dev-plan` before the plan (decisions, code structure), `/dev-implement` before each batch's red tests
+  (code structures, mistakes) and on a correction (mistakes), `/dev-verify` before the audit (mistakes); the end of
+  the step names the entries recalled.
+- `/dev-verify` harvests mistake candidates from the audits after a verdict that is not VALID (a gap recurring in
+  three batches), for `/memory-admit` to decide, and says `/dev-learn` is due once untreated gaps span two batches.
+- `scripts/check-shared-memory.sh`: a live check of the shared memory's recall before a release (reference set of
+  12 entries and 14 questions, recall@5 >= 0.85, MRR >= 0.70).
 
 ### Changed
 
@@ -417,6 +431,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `~/.orkeon-code/state/` is left alone.
 - A bare `--llm-log` writes the LLM log to the project's state folder (`llm-logs/`), never into the project (#181).
 - The example settings set `Orkeon:Cli:Session:Persist: true`.
+- `/dev-implement`: the test author and the implementer read a source file by node (`node_outline`, then
+  `node_read`) and change it with `node_replace`, `node_insert`, `node_ensure` or one `edit_batch` (`validate`
+  "parse", all or nothing); `file_write` on an existing file under the pack's source roots is refused (the rewrite
+  rule), a new file is still created with it. After the batch the touched files are refreshed in the code index
+  (`index: <n> files of F<n> refreshed`), and on a later run the graph's `affected_tests` adds its test projects to
+  the sheet's, or runs the whole suite when it reaches every test. The dev steps hold 438 rules: `edit_batch` is
+  checked operation by operation by the crews' callback instead of being denied whole, every `validate` but "parse"
+  is refused, and an import's `name` and `module` are checked by `secrets`.
+- The reviewer of `/dev-spec`, `/dev-change`, `/dev-plan` and `/dev-batches` also holds `node_outline` and
+  `structural_search`, and its prompt sends a search for a code pattern to `structural_search` rather than grep.
+- `/dev-plan` ends on `/dev-implement F1 <plan>`, and with two batches or more on `/dev-batches <code>` too (it named
+  the harness's `/dev-batches` with the batch ids, a form Orkeon Code's command refuses).
 
 ### Removed
 

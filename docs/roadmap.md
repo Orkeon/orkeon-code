@@ -23,6 +23,10 @@ What Orkeon Code does not do yet, in the order we expect to address it. Items ma
 - **The close re-reading the session's mode** (runtime). The close `/dev-implement` chains after a VALID audit uses
   the mode and rules read when the batch was launched: a command's `completed` is synchronous and the mode can only
   be read asynchronously.
+- **A whole plan in one `/dev-batches`** (runtime). A chain of crews stops at the runtime's depth limit (8), and a
+  batch takes four (`/dev-batches`, `/dev-implement`, `/dev-verify`, the close): a plan of more than about two
+  batches needs `/dev-batches` typed again after each refusal. A deeper limit, or a launch from a command's
+  `completed` that starts a new chain, would remove it.
 - **Cost and usage.** Real cost figures per provider, cache ratio, token counting for `/context` and `/usage`. The
   runtime reports the cache tokens (`session_stats`); the commands do not read them yet.
 
@@ -32,7 +36,11 @@ What Orkeon Code does not do yet, in the order we expect to address it. Items ma
   children (`ctx.spawnBackground`) that `/tasks` monitors; a saved agent of `/agents` is still storage only, and the
   assistant does not delegate.
 - The structural editor (`node_*`, `edit_batch`, `structural_rewrite`) in the assistant's prompts: the tools are in
-  the catalogue, the prompts do not teach them yet.
+  the catalogue, the prompts do not teach them yet. The dev steps use part of it: the roles of `/dev-implement` read
+  and change a file by node (`node_replace`, `node_insert`, `node_ensure`, `edit_batch`) and the batch reads
+  `affected_tests` and refreshes the index (`incremental_reindex`); the reviewers search with `structural_search`.
+  `documented_in`, `documents_of` and the Markdown intent operations wait for a crew that places text in a section.
+- Batches run in parallel, each in its own worktree: `/dev-batches` runs them one after the other.
 - A plan/task list the loop maintains (`/tasks` is a manual list today).
 - Several sessions at once.
 
