@@ -337,3 +337,22 @@ export function resolveConfigEntry(
 export function unknownStoredKeys(map: Record<string, unknown> | null | undefined): string[] {
   return Object.keys(map ?? {}).filter((k) => !isKnownConfigKey(k)).sort();
 }
+
+/**
+ * Known keys a stored map holds nested (`{"permissions": {"fallback": "plan"}}`) instead
+ * of flat (`{"permissions.fallback": "plan"}`): nothing reads them, so they are named
+ * with the flat spelling a hand-written file needs.
+ */
+export function nestedConfigKeys(map: Record<string, unknown> | null | undefined): string[] {
+  const found: string[] = [];
+  const walk = (prefix: string, value: unknown): void => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return;
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      const key = `${prefix}.${k}`;
+      if (isKnownConfigKey(key)) found.push(key);
+      else walk(key, v);
+    }
+  };
+  for (const [k, v] of Object.entries(map ?? {})) if (!isKnownConfigKey(k)) walk(k, v);
+  return found.sort();
+}

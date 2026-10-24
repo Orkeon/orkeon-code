@@ -15,8 +15,9 @@ without a question:
 | `bypassPermissions` | Everything in the tool catalogue, shell included |
 
 Choose it per request (`bypassPermissions: migrate the tests to node:test`), for the session
-(`/mode bypassPermissions`), or for the project (`/config permissions.fallback bypassPermissions`, kept in the
-project's `.orkeon/config.json`, so every session on that project starts there). In the REPL, `default` and
+(`/mode bypassPermissions`), or for every session (`"permissions.fallback": "bypassPermissions"` in the `orkeonCode`
+block of your user settings: a project's `.orkeon/config.json` sets only `default`, `plan` or `acceptEdits`,
+[Permissions](permissions.md)). In the REPL, `default` and
 `acceptEdits` ask you before a call the mode does not allow outright; in a run without an operator nobody answers, and
 the gate refuses what it would have asked about (the model reads `DENIED: …`). Give an unattended run a mode that
 never asks: `bypassPermissions`, or `plan` and `dontAsk` for read-only work ([Permissions](permissions.md)).
@@ -73,7 +74,8 @@ ORKEON_CODE_WORKSPACE=~/src/app bash scripts/run-crew.sh src/crews/main-loop/cre
 
 The script mounts the project read-write on `/workspace` and a scratch directory on `/output`, as the REPL does. The
 runner prints the crew's result as JSON on stdout and exits with `0` when the script completed, `1` on a script
-error, `2` on a runtime error, `130` when cancelled. The session primitives exist in a standalone run too, but the
+error, `2` on a runtime error, `130` when cancelled. A call the gate refuses is not an error: the model reads the
+refusal as the tool's result and the run still exits `0`, so read the JSON to know what was done. The session primitives exist in a standalone run too, but the
 conversation buffer, the state bag and the typed memory start empty and end with the process: one run is one turn.
 
 Every crew runs this way; its `crew.ork.ts` says in its header which `inputs` it reads (`code-review`:

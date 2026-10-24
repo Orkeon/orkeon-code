@@ -46,6 +46,15 @@ describe("/config list", () => {
     strictEqual(lines[1], "⚠ stored but NOT in the key space (pre-B-6 residue, nothing reads them): legacy");
     strictEqual(lines[2], `⚠ ${CONFIG_FILE_PATH} could not be parsed — it is left untouched; fix or delete it.`);
   });
+
+  it("names a known key written nested, with the flat spelling", async () => {
+    const { files, run } = setup();
+    files.files.set(CONFIG_FILE_PATH, JSON.stringify({ permissions: { fallback: "plan" } }));
+    const lines = (await run("list")).text!.split("\n");
+    ok(lines.includes(
+      '⚠ written nested, so nothing reads them: permissions.fallback — a settings file holds each key flat ' +
+        '("permissions.fallback": …).'), lines.join("\n"));
+  });
 });
 
 describe("/config keys", () => {

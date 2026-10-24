@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok } from "node:assert";
 import {
   CONFIG_KEYS, configKeySpec, isKnownConfigKey, knownConfigKeys,
-  validateConfigEntry, layerConfig, resolveConfigEntry, unknownStoredKeys,
+  validateConfigEntry, layerConfig, resolveConfigEntry, unknownStoredKeys, nestedConfigKeys,
 } from "./config-schema.ts";
 import { PERMISSION_MODES } from "./permission-modes.ts";
 
@@ -177,6 +177,21 @@ describe("unknownStoredKeys", () => {
   it("is empty for a clean map", () => {
     deepStrictEqual(unknownStoredKeys({ "permissions.fallback": "plan" }), []);
     deepStrictEqual(unknownStoredKeys(null), []);
+  });
+});
+
+describe("nestedConfigKeys", () => {
+  it("names the known keys written nested, in their flat spelling", () => {
+    deepStrictEqual(nestedConfigKeys({
+      permissions: { fallback: "bypassPermissions" },
+      tools: { extra: "search_issues" },
+      legacy: { thing: "x" },
+    }), ["permissions.fallback", "tools.extra"]);
+  });
+
+  it("is empty for a flat map, a scalar residue and no map", () => {
+    deepStrictEqual(nestedConfigKeys({ "permissions.fallback": "plan", legacy: "x" }), []);
+    deepStrictEqual(nestedConfigKeys(null), []);
   });
 });
 

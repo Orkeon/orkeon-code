@@ -300,6 +300,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A known key written nested in `.orkeon/config.json` or the user settings (`{"permissions": {"fallback": …}}`)
+  is read by nothing: `/config list` and `/permissions` now name it with its flat spelling (`"permissions.fallback"`).
+- `docs/headless.md`: a run whose calls the gate refused still exits `0` (the refusal is the tool's result), and a
+  project file no longer sets `bypassPermissions`.
 - **Every turn sent the request twice**: the history ended with it, then the task repeated it.
 - **A long conversation lost its recent work in the compaction summary**: the transcript was cut at its head.
 - **A file too large to restore after a compaction came back cut**, reading as the whole file; it now comes back as

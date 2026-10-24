@@ -11,7 +11,7 @@
 // wired to the runtime is orkeonConfigStore() in shared/infrastructure/orkeon/.
 
 import type { Files, SessionStore } from "./ports.ts";
-import { layerConfig, resolveConfigEntry, unknownStoredKeys } from "../domain/config-schema.ts";
+import { layerConfig, resolveConfigEntry, unknownStoredKeys, nestedConfigKeys } from "../domain/config-schema.ts";
 import type { ConfigResolution } from "../domain/config-schema.ts";
 import { CONFIG_MAP_STATE_KEY } from "../domain/session-keys.ts";
 import { readJsonFile, writeJsonFile } from "./json-file.ts";
@@ -38,6 +38,8 @@ export interface ConfigView {
   entries: ConfigResolution[];
   /** Keys stored by the pre-schema free-form map; reported, never deleted. */
   unknown: string[];
+  /** Known keys the project or user file holds nested: nothing reads them (nestedConfigKeys). */
+  nested: string[];
   fileMalformed: boolean;
   /** The user settings file could not be read or parsed: no user setting applies. */
   userMalformed: boolean;
@@ -107,6 +109,7 @@ export function createConfigStore(deps: {
       return {
         entries: layerConfig(file, overrides, user.map),
         unknown: [...new Set([file, overrides, user.map].flatMap(unknownStoredKeys))].sort(),
+        nested: [...new Set([file, user.map].flatMap(nestedConfigKeys))].sort(),
         fileMalformed: malformed,
         userMalformed: user.malformed,
       };

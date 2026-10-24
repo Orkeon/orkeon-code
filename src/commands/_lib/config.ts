@@ -45,6 +45,12 @@ export async function runConfig(tokens: string[], deps: ConfigDeps): Promise<Com
           `⚠ stored but NOT in the key space (pre-B-6 residue, nothing reads them): ${view.unknown.join(", ")}`,
         );
       }
+      if (view.nested.length > 0) {
+        notes.push(
+          `⚠ written nested, so nothing reads them: ${view.nested.join(", ")} — a settings file holds each key flat ` +
+            `("${view.nested[0]}": …).`,
+        );
+      }
       if (view.fileMalformed) {
         notes.push(`⚠ ${CONFIG_FILE_PATH} could not be parsed — it is left untouched; fix or delete it.`);
       }

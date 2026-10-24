@@ -16,8 +16,9 @@ jusqu'au bout sans poser de question :
 | `bypassPermissions` | Tout le catalogue d'outils, shell compris |
 
 Choisissez-le par requête (`bypassPermissions: migre les tests vers node:test`), pour la session
-(`/mode bypassPermissions`), ou pour le projet (`/config permissions.fallback bypassPermissions`, conservé dans le
-`.orkeon/config.json` du projet, de sorte que chaque session sur ce projet démarre ainsi). Dans le REPL, `default` et
+(`/mode bypassPermissions`), ou pour toutes les sessions (`"permissions.fallback": "bypassPermissions"` dans le bloc
+`orkeonCode` de vos réglages utilisateur : le `.orkeon/config.json` d'un projet ne pose que `default`, `plan` ou
+`acceptEdits`, [Permissions](permissions.md)). Dans le REPL, `default` et
 `acceptEdits` vous demandent avant un appel que le mode n'autorise pas d'emblée ; dans une exécution sans opérateur,
 personne ne répond, et la garde refuse ce qu'elle aurait demandé (le modèle lit `DENIED: …`). Donnez à une exécution
 sans opérateur un mode qui ne demande jamais : `bypassPermissions`, ou `plan` et `dontAsk` pour un travail en lecture
@@ -77,7 +78,9 @@ ORKEON_CODE_WORKSPACE=~/src/app bash scripts/run-crew.sh src/crews/main-loop/cre
 
 Le script monte le projet en lecture-écriture sur `/workspace` et un dossier de travail sur `/output`, comme le REPL.
 Le runner imprime le résultat du crew en JSON sur stdout et sort avec `0` quand le script s'est terminé, `1` sur une
-erreur de script, `2` sur une erreur du runtime, `130` quand il est annulé. Les primitives de session existent aussi
+erreur de script, `2` sur une erreur du runtime, `130` quand il est annulé. Un appel que la garde refuse n'est pas une
+erreur : le modèle lit le refus comme résultat de l'outil et l'exécution sort quand même avec `0` ; lisez le JSON pour
+savoir ce qui a été fait. Les primitives de session existent aussi
 dans une exécution indépendante, mais le tampon de conversation, le sac d'état et la mémoire typée démarrent vides et
 finissent avec le processus : une exécution est un tour.
 

@@ -34,6 +34,7 @@ import {
 } from "../../shared/domain/agent-policy/permission.ts";
 import type { ExtraTool, PermissionRule } from "../../shared/domain/agent-policy/permission.ts";
 import { heldRuleSets } from "../../shared/domain/agent-policy/rule-sets.ts";
+import { nestedConfigKeys } from "../../shared/domain/config-schema.ts";
 import type { CommandView } from "./view.ts";
 
 export const PERMISSIONS_USAGE =
@@ -92,11 +93,14 @@ function syncNotes(sync: StoredRules & { applied: boolean }, extras: ExtraToolsR
 
 /** What the project file set and could not widen (QL-06), and user settings that could not be read. */
 async function widenedNotes(config: PermissionsDeps["config"]): Promise<{ fallback: string[]; notes: string[] }> {
-  const [fallback, extra, user] = await Promise.all([
+  const [fallback, extra, user, project] = await Promise.all([
     config.readValue(PERMISSION_FALLBACK_CONFIG_KEY).catch(() => undefined),
     config.readValue(EXTRA_TOOLS_CONFIG_KEY).catch(() => undefined),
-    config.readUserFile().catch(() => ({ malformed: true })),
+    config.readUserFile().catch(() => ({ malformed: true, map: {} })),
+    config.readFile().catch(() => ({ map: {} })),
   ]);
+  const nested = [...new Set([project.map, user.map].flatMap(nestedConfigKeys))]
+    .filter((key) => key === PERMISSION_FALLBACK_CONFIG_KEY || key === EXTRA_TOOLS_CONFIG_KEY);
   return {
     fallback: fallback?.ignored === undefined
       ? []
@@ -106,6 +110,9 @@ async function widenedNotes(config: PermissionsDeps["config"]): Promise<{ fallba
       ...(user.malformed
         ? [`⚠ the user settings (${USER_CONFIG_FILE_PATH}) could not be read or parsed: no user setting applies.`]
         : []),
+      ...nested.map((key) =>
+        `⚠ ${key} is written nested in a settings file ({"${key.split(".")[0]}": {…}}), so nothing reads it: ` +
+        `write it flat, "${key}": ….`),
       ...(extra?.ignored === undefined
         ? []
         : [`⚠ ${EXTRA_TOOLS_CONFIG_KEY} of the project file names ${extra.ignored.value}, which ${extra.ignored.reason}: ` +

@@ -404,6 +404,16 @@ describe("/permissions — a project file widens nothing (QL-06)", () => {
       "only default, plan or acceptEdits; another mode comes from the user settings (orkeonCode) or /mode");
   });
 
+  it("names a mode written nested in the project file, which nothing reads", async () => {
+    const { files, run } = setup();
+    files.files.set(CONFIG_FILE_PATH, JSON.stringify({ permissions: { fallback: "bypassPermissions" } }));
+    const lines = (await run("show")).text!.split("\n");
+    strictEqual(lines[0], "session default mode : default ");
+    ok(lines.includes(
+      '⚠ permissions.fallback is written nested in a settings file ({"permissions": {…}}), so nothing reads it: ' +
+        'write it flat, "permissions.fallback": ….'), lines.join("\n"));
+  });
+
   it("runs the built-in default when the user settings set no mode", async () => {
     const { files, run } = setup();
     files.files.set(CONFIG_FILE_PATH, JSON.stringify({ "permissions.fallback": "bypassPermissions" }));
