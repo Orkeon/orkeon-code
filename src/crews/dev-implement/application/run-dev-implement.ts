@@ -52,6 +52,7 @@ import type { LocatedSheet } from "./locate-sheet.ts";
 import { prContextOf, readTouchedRecord, recordTouched, verdictMarkOf } from "./touched.ts";
 import type { PrContext } from "./touched.ts";
 import { closeDevBatch } from "./close.ts";
+import { BATCHES_ACTIVE_RECORD, batchesRunCode } from "../../../shared/domain/dev/batches-state.ts";
 
 export interface DevImplementInputs {
   batch?: unknown; plan?: unknown; close?: unknown; pr?: unknown; push?: unknown;
@@ -589,9 +590,13 @@ export async function runDevImplement(input: DevImplementInputs, deps: DevImplem
       return blocked(lines, `the session mode ${closeMode} (read at the launch) is read-only: the close commits (/mode default, then /dev-implement ${batch} ${located.code} --close)`);
     }
     const opener = pr !== null && pr.githubTool ? deps.openerFor?.(pr) : undefined;
+    // A batch of a /dev-batches run in progress is committed, never pushed, even when its close is typed (after a
+    // GAPS stop, a refused hop): the run's own close pushes the plan's branch once.
+    const inRun = input.push !== false && batchesRunCode(await deps.files.read(BATCHES_ACTIVE_RECORD).catch(() => "")) === located.code;
+    if (inRun) lines.push(`not pushed: /dev-batches ${located.code} is in progress, its close pushes the plan's branch once`);
     return answer([...lines, ...await closeDevBatch({ ...deps, opener }, {
       pack, work: context.work, located, batch, touched: record.touched, verdictMark: record.verdictMark,
-      openPr: input.pr === true, push: input.push !== false, today: (deps.today ?? isoToday)(),
+      openPr: input.pr === true, push: input.push !== false && !inRun, today: (deps.today ?? isoToday)(),
       ...(pr === null ? {} : { rules: parseSessionRules(pr.permissionRules) }),
     })]);
   }

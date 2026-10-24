@@ -50,12 +50,13 @@ reproduction or measure command, a narrow test command of the pack, from its own
 allow it. `/dev-implement` runs the pack's restore, build and suite from its own code; its two roles write in
 `acceptEdits`, each inside its roots, and after a VALID verdict its close commits the files the roles changed, by
 name, and pushes the branch, unless a session rule denies the push. It refuses to start in `plan` or `dontAsk`, and
-puts the gate check and its rules back before each launch of its chain (the audit, then the close). `/dev-batches`
-runs that chain for each batch of a plan under `/dev-implement`'s rule sets; each batch's close commits without
-pushing, and the plan's close pushes the branch once, unless a session rule denies the push, and opens one pull
-request (`--pr` or `dev.prAuto`), else hands its command over. All five first
-put the [rule sets of the dev steps](#rule-sets-of-the-dev-steps) in the gate, and refuse to start while the gate is
-off; their crew's callback checks the same sets again, the only check of them under `orkeon run`.
+puts the gate check and its rules back before each launch of its chain (the audit, then the close). `/dev-batches` runs
+that chain for each batch of a plan under `/dev-implement`'s rule sets; each batch's close commits without pushing (a
+close typed while the run is in progress too), and the plan's close pushes the branch once, unless a session rule denies
+the push, and opens one pull request (`--pr` or `dev.prAuto`), else hands its command over; on the default branch it
+pushes nothing and hands the push over. All six first put the [rule sets of the dev steps](#rule-sets-of-the-dev-steps)
+in the gate, and refuse to start while the gate is off; their crew's callback checks the same sets again, the only check
+of them under `orkeon run`.
 
 ## Modes
 

@@ -8,9 +8,9 @@
 // `/dev-batches` again goes on from the first batch not done, its sheet's ticks kept. The chain is bounded by
 // the runtime (MaxChainDepth, 8 crews from a typed command: about two batches): past it, the refusal says to type
 // `/dev-batches`, which goes on with the run the crew recorded. No state here: the crew keeps the run's code and
-// what this dispatch read (mode, rules, github tool, hooks, effort) in its run record. Until the dev-implement
-// crew forwards `push` to its close, each batch's close still pushes the branch; the plan's close opens the one
-// pull request (a batch's close is given no github tool). Every launch goes through
+// what this dispatch read (mode, rules, github tool, hooks, effort) in its run record. A batch's close never pushes
+// (sent push: false, and a typed close of a batch of the run in progress reads the record); the plan's close pushes
+// once and opens the one pull request (a batch's close is given no github tool). Every launch goes through
 // launchCrew (its chain-depth refusal); the gate is checked and the step's rules put back before each one.
 import { rawTokens } from "./_lib/args.ts";
 import { batchesChainStep, parseDevBatchesArgs } from "./_lib/dev-batches.ts";

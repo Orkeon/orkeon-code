@@ -36,7 +36,7 @@ What Orkeon Code does not do yet, in the order we expect to address it. Items ma
   children (`ctx.spawnBackground`) that `/tasks` monitors; a saved agent of `/agents` is still storage only, and the
   assistant does not delegate.
 - The structural editor (`node_*`, `edit_batch`, `structural_rewrite`) in the assistant's prompts: the tools are in
-  the catalogue, the prompts do not teach them yet. The dev steps use part of it: the roles of `/dev-implement` read
+  the catalogue, the assistant's prompts do not teach them yet. The dev steps use part of it: the roles of `/dev-implement` read
   and change a file by node (`node_replace`, `node_insert`, `node_ensure`, `edit_batch`) and the batch reads
   `affected_tests` and refreshes the index (`incremental_reindex`); the reviewers search with `structural_search`.
   `documented_in`, `documents_of` and the Markdown intent operations wait for a crew that places text in a section.

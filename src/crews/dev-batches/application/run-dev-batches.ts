@@ -30,9 +30,10 @@ import type { BatchNode } from "../domain/wave-order.ts";
 import { appendToLog, batchesLogPath, closedLine, eventLine, lastEntryOf } from "../domain/batches-log.ts";
 import type { BatchEvent } from "../domain/batches-log.ts";
 import { closePlan } from "./plan-close.ts";
+import { BATCHES_ACTIVE_RECORD } from "../../../shared/domain/dev/batches-state.ts";
 import type { MergedBatch } from "./plan-close.ts";
 
-export const ACTIVE_RECORD = "/workspace/.orkeon/dev/batches-active.json";
+export const ACTIVE_RECORD = BATCHES_ACTIVE_RECORD;
 const AFTER_LINES = 20;
 
 /** What the dispatch read and a chained run cannot: the session's mode and rules, the github tool, the
@@ -291,7 +292,11 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
     book.add(eventLine(now, node.id, stop.event, stop.detail));
     return finish([
       ...lines, `${node.id} ${stop.event} ${stop.detail}`,
-      `→ a human decides; then /dev-batches ${code} goes on (${node.id} again, from its sheet's ticks)`,
+      stop.detail === "GAPS"
+        // A relaunch carries no correction: the audit's own `/dev-implement <batch> — correction: …` line fixes the
+        // batch; its close commits without a push while this run is in progress (run-dev-implement.ts).
+        ? `→ a human decides: the correction the audit names (/dev-implement ${node.id} ${code} — correction: <finding>), then /dev-batches ${code} goes on`
+        : `→ a human decides; then /dev-batches ${code} goes on (${node.id} again, from its sheet's ticks)`,
     ]);
   }
 

@@ -191,6 +191,8 @@ describe("runDevBatches — what comes back and the close", () => {
     const out = parse(await runDevBatches({ after: ["→ /dev-implement F2 — correction: Major Scope: y"] }, deps));
     strictEqual(out.next, undefined);
     ok(out.lines.includes("F2 returned GAPS"), out.lines.join("\n"));
+    ok(out.lines.includes("→ a human decides: the correction the audit names (/dev-implement F2 demo — correction: <finding>), then /dev-batches demo goes on"),
+      out.lines.join("\n"));
   });
 
   it("logs a VALID batch its close did not commit as a stop, with the close's ✗ line", async () => {

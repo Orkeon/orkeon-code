@@ -15,6 +15,7 @@ import type { ActRequest, AffectedTests, CostIndex, ShellJobs, ShellOptions, She
 import { GIT_IDENT_COMMAND } from "../../../shared/domain/git/close.ts";
 import { STATUS_COMMAND } from "./observe.ts";
 import { touchedPath, verdictMarkOf } from "./touched.ts";
+import { BATCHES_ACTIVE_RECORD } from "../../../shared/domain/dev/batches-state.ts";
 import { implementInputs, runDevImplement } from "./run-dev-implement.ts";
 import type { ImplementAnswer } from "./run-dev-implement.ts";
 import { FakePrecedents } from "../../../../tests/doubles/fake-precedents.ts";
@@ -624,6 +625,20 @@ describe("runDevImplement — the close marks and the branch", () => {
     await runDevImplement(implementInputs({ batch: "F1", plan: "demo", close: true }), typed.deps);
     deepStrictEqual(pushes(typed), ["git push -u origin 'feat/demo'"], "a typed --close still pushes");
     strictEqual(implementInputs({ push: "false" }).push, false);
+  });
+
+  it("commits a typed close without pushing while a /dev-batches run of its plan is in progress", async () => {
+    const pushes = (t: ReturnType<typeof closing>) => t.shell.commands.filter((c) => c.startsWith("git push"));
+    const inRun = closing("feat/demo");
+    inRun.files.files.set(BATCHES_ACTIVE_RECORD, JSON.stringify({ code: "demo", pr: false, context: {} }));
+    const a = parse(await runDevImplement({ batch: "F1", plan: "demo", close: true }, inRun.deps));
+    ok(a.lines.includes("not pushed: /dev-batches demo is in progress, its close pushes the plan's branch once"), a.lines.join("\n"));
+    ok(a.lines.some((l) => l.startsWith("✓ committed ")), a.lines.join("\n"));
+    deepStrictEqual(pushes(inRun), []);
+    const other = closing("feat/demo");
+    other.files.files.set(BATCHES_ACTIVE_RECORD, JSON.stringify({ code: "another", pr: false, context: {} }));
+    await runDevImplement({ batch: "F1", plan: "demo", close: true }, other.deps);
+    deepStrictEqual(pushes(other), ["git push -u origin 'feat/demo'"], "another plan's run changes nothing");
   });
 
   it("creates the work branch on the default branch when the pack asks for one", async () => {

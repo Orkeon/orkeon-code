@@ -58,10 +58,11 @@ racines, et après un verdict VALID sa clôture commite par leur nom les fichier
 branche, sauf si une règle de session refuse le push. Il refuse de démarrer en `plan` ou `dontAsk`, et remet la
 vérification de la garde et ses règles avant chaque lancement de sa chaîne (l'audit, puis la clôture). `/dev-batches`
 exécute cette chaîne pour chaque lot d'un plan sous les jeux de règles de `/dev-implement` ; la clôture de chaque lot
-commite sans pousser, et celle du plan pousse la branche une seule fois, sauf si une règle de session refuse le push,
-et ouvre une seule pull request (`--pr` ou `dev.prAuto`), sinon en remet la commande. Les cinq placent d'abord dans la garde les
-[jeux de règles des étapes dev](#jeux-de-règles-des-étapes-dev), et refusent de démarrer tant que la garde est inactive ;
-le callback de leur crew contrôle à nouveau les mêmes jeux, seul contrôle de ceux-ci sous `orkeon run`.
+commite sans pousser (une clôture tapée pendant l'exécution aussi), et celle du plan pousse la branche une seule fois,
+sauf si une règle de session refuse le push, et ouvre une seule pull request (`--pr` ou `dev.prAuto`), sinon en remet la
+commande ; sur la branche par défaut, elle ne pousse rien et remet le push. Les six placent d'abord dans la garde les
+[jeux de règles des étapes dev](#jeux-de-règles-des-étapes-dev), et refusent de démarrer tant que la garde est inactive
+; le callback de leur crew contrôle à nouveau les mêmes jeux, seul contrôle de ceux-ci sous `orkeon run`.
 
 ## Modes
 

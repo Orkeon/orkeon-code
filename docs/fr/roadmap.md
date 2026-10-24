@@ -39,7 +39,7 @@ demandent d'abord un changement dans [Orkeon](https://github.com/Orkeon/orkeon).
   d'arrière-plan (`ctx.spawnBackground`) que `/tasks` suit ; un agent enregistré par `/agents` n'est encore que
   stocké, et l'assistant ne délègue pas.
 - L'éditeur structurel (`node_*`, `edit_batch`, `structural_rewrite`) dans les prompts de l'assistant : les outils
-  sont au catalogue, les prompts ne les enseignent pas encore. Les étapes dev en utilisent une partie, branchée dans
+  sont au catalogue, les prompts de l'assistant ne les enseignent pas encore. Les étapes dev en utilisent une partie, branchée dans
   `/dev-implement` : ses rôles lisent et modifient un fichier par nœud (`node_replace`, `node_insert`, `node_ensure`,
   `edit_batch`) et le lot lit `affected_tests` et rafraîchit l'index (`incremental_reindex`) ; les relecteurs
   cherchent avec `structural_search`. `documented_in`, `documents_of` et les opérations Markdown d'intention sont en

@@ -292,7 +292,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pushed); the run logs each batch in `.orkeon/dev/<code>/batches-state.md`, reviews a batch whose dependencies
   just closed before its first launch, stops on BLOCKED, GAPS or a Blocking review question, and closes the plan
   with one push and one pull request. Typed again (or `/dev-batches` alone after the runtime's chain limit), it
-  goes on from the first batch not done. The start scripts name `/dev-batches <code>` beside an open batch.
+  goes on from the first batch not done; a batch's close, typed or chained, never pushes while the run is in
+  progress. The start scripts name `/dev-batches <code>` beside an open batch.
 - The dev steps recall the shared memory on their own: `/dev-spec` and `/dev-change` at the start (decisions,
   methods), `/dev-plan` before the plan (decisions, code structure), `/dev-implement` before each batch's red tests
   (code structures, mistakes) and on a correction (mistakes), `/dev-verify` before the audit (mistakes); the end of
