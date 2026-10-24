@@ -308,6 +308,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   three batches), for `/memory-admit` to decide, and says `/dev-learn` is due once untreated gaps span two batches.
 - `scripts/check-shared-memory.sh`: a live check of the shared memory's recall before a release (reference set of
   12 entries and 14 questions, recall@5 >= 0.85, MRR >= 0.70).
+- **`/memory-admit --import`.** It lifts the harness's agent memory into the shared memory's candidates: each
+  top-level entry of a `.claude/agent-memory/<agent>/MEMORY.md` (with the note it links to) becomes a `method`
+  candidate that `/memory-admit` then asks about; an entry whose topic a candidate, an entry or an earlier entry
+  already holds writes nothing, so a second import adds nothing. Nothing is written under `.claude/`.
 
 ### Changed
 
