@@ -15,6 +15,7 @@ import {
 import { MAX_SECTION_CHARS } from "../domain/capture-sections.ts";
 import type { DevVerifyTarget, GateRun } from "./run-gate.ts";
 import { BUILD_TIMEOUT_SECONDS, writeCapture } from "./capture.ts";
+import type { CostIndex } from "../../../shared/application/ports.ts";
 
 const DIR = "/workspace/workbench/demo/capture-F2";
 const BUILD = "dotnet build Demo.sln -c Release";
@@ -241,5 +242,35 @@ describe("writeCapture", () => {
       () => { throw new Error("expected a throw"); },
       (error: Error) => strictEqual(error.message, "read-only"),
     );
+  });
+
+  it("blocks the cost only on a line the captured diff adds, and counts a file without a captured diff as added", async () => {
+    const { files, shell } = fakes();
+    shell.results[gitDiffTracked("src/Order.cs") as string] =
+      { stdout: "--- a/src/Order.cs\n+++ b/src/Order.cs\n@@ -3,0 +4,1 @@\n+  await _repository.Save(o);\n" };
+    shell.errors[gitDiffTracked("src/Line.cs") as string] = new Error("refused");
+    const loop = (member: string, line: number) => ({
+      member, memoryFilters: [], cost: { reads: 0, writes: 0, loops: 1, lambdas: 0, memoryFilters: 0 },
+      portCalls: [{ receiver: "_repository", method: "Save", line, inLoop: true, inLambda: false }],
+    });
+    const costIndex: CostIndex = {
+      roots: async () => ["/workspace"],
+      refresh: async () => [],
+      accessCost: async () => ({
+        report: {
+          members: [loop("/workspace/src/Order.cs::Order::Place", 4), loop("/workspace/src/Order.cs::Order::Old", 9),
+            loop("/workspace/src/Line.cs::Line::Add", 2)],
+          cost: { reads: 0, writes: 0, loops: 3, lambdas: 0, memoryFilters: 0 },
+        },
+        errors: [],
+      }),
+    };
+    const capture = await writeCapture({ files, shell, costIndex }, target(), gate(["src/Order.cs", "src/Line.cs"]), "w");
+    deepStrictEqual(capture.cost.state === "measured" && capture.cost.flagged, [
+      "src/Order.cs::Order::Place L4 _repository.Save in a loop",
+      "src/Line.cs::Line::Add L2 _repository.Save in a loop",
+    ]);
+    ok(written(files, "cost.txt").includes("Ports in a loop (1): _repository.Save L9 (pre-existing)"), written(files, "cost.txt"));
+    ok(written(files, "table.md").includes("| Cost | capture `cost` | gap | `exit: 2` src/Order.cs::Order::Place L4"));
   });
 });

@@ -14,6 +14,8 @@ import { createConfigStore } from "../../../shared/application/config-store.ts";
 import { GIT_TOPLEVEL } from "../../../shared/application/dev/resolve-work-folder.ts";
 import { ORKEON_IGNORE_PROBE, checkIgnoreCommand } from "../../../shared/application/dev/load-dev-context.ts";
 import { GIT_DIFF_CHECK, GIT_ORIGIN_HEAD, excludePathspecs, gitMethodGrep } from "../domain/commands.ts";
+import type { CostIndex } from "../../../shared/application/ports.ts";
+import { COST_NOT_WIRED, costSummary } from "../../../shared/domain/dev/access-cost.ts";
 import { runDevVerify } from "./run-dev-verify.ts";
 import type { DevVerifyInputs } from "./run-dev-verify.ts";
 import { scriptToolSlot } from "../../../shared/application/dev/script-tool-slot.ts";
@@ -31,6 +33,7 @@ const SHEET = "# DEMO-PLAN-F2 — Command\n| Applied rules | DDD-01 |\n## TDD se
 const PLAN = "# DEMO-PLAN\nNon-applicable rules: DDD-02 DDD-03 DDD-04 DDD-05 DDD-06 DDD-07 DDD-08 DDD-09 DDD-10 DDD-11 " +
   "APP-01 APP-02 APP-03 APP-04 APP-05 PERF-01\n";
 const GREEN_LINE = "GATE — batch F2: GREEN";
+const COST_LINE = costSummary(COST_NOT_WIRED);
 
 function setup() {
   const files = new FakeFiles();
@@ -97,6 +100,7 @@ describe("runDevVerify — the verdict", () => {
     deepStrictEqual(text.split("\n"), [
       TARGET,
       GREEN_LINE,
+      COST_LINE,
       ...written.trimEnd().split("\n"),
       "written: workbench/demo/DEMO-VERIFY-F2.md — capture: workbench/demo/capture-F2/",
       "→ Batch F2 VALID. Orkeon Code does not commit yet: commit the batch's files with the repository's convention " +
@@ -127,6 +131,35 @@ describe("runDevVerify — the verdict", () => {
     const written = f.files.files.get(VERDICT) ?? "";
     ok(written.includes(`\`${command}\` — exit 0`), written);
     strictEqual(slot.get(), undefined);
+  });
+
+  it("prints the Cost line the code index measures, and writes it in the capture", async () => {
+    const f = setup();
+    f.llm.answers = ["fine"];
+    f.llm.extractions = [answer([])];
+    const asked: string[] = [];
+    const costIndex: CostIndex = {
+      roots: async () => ["/workspace"],
+      refresh: async (_root, files) => { asked.push(...files); return []; },
+      accessCost: async () => ({
+        report: {
+          members: [{
+            member: "/workspace/src/a.ts::show",
+            portCalls: [{ receiver: "this.store", method: "load", line: 2, inLoop: false, inLambda: false }],
+            memoryFilters: [], cost: { reads: 1, writes: 0, loops: 0, lambdas: 0, memoryFilters: 0 },
+          }],
+          cost: { reads: 1, writes: 0, loops: 0, lambdas: 0, memoryFilters: 0 },
+        },
+        errors: [],
+      }),
+    };
+    const lines = (await runDevVerify({ batch: "F2" }, { ...f.deps, costIndex })).split("\n");
+    const measured = "Cost: 1 read + 0 writes through ports outside loops; in a loop, a lambda or a memory filter: none";
+    deepStrictEqual(lines.slice(1, 3), [GREEN_LINE, measured]);
+    deepStrictEqual(asked, ["/workspace/src/a.ts"]);
+    strictEqual(f.files.files.get(`${DIR}/capture-F2/cost.txt`),
+      `exit: 0\n[src/a.ts::show]\nPorts outside loops (1): this.store.load L2\n${measured}\n`);
+    ok((f.files.files.get(`${DIR}/capture-F2/table.md`) ?? "").includes(`| Cost | capture \`cost\` | ok | \`exit: 0\` — ${measured} |`));
   });
 
   it("points a GAPS verdict at the correction of its first row", async () => {
@@ -160,8 +193,9 @@ describe("runDevVerify — the verdict", () => {
     f.llm.answers = ["rambling"];
     f.llm.extractions = [{ verdict: "PERHAPS" }];
     const lines = (await run(f.deps, { batch: "F2" })).split("\n");
-    deepStrictEqual(lines.slice(-2), [
+    deepStrictEqual(lines.slice(-3), [
       GREEN_LINE,
+      COST_LINE,
       "dev-verify: BLOCKED — the auditor's answer did not parse after one re-ask (verdict must be VALID or GAPS): " +
         "its replies are in workbench/demo/capture-F2/auditor-replies.txt; no verdict written",
     ]);

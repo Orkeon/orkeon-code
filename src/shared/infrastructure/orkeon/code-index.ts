@@ -3,9 +3,12 @@
 // impact_analysis. The payloads are read once, here,
 // through the readers of shared/domain/code-intel-contract.ts, which pin the
 // field names of the live tools. The AnchorIndex adapter over batch_anchors
-// reads its result through tool-results.ts.
+// reads its result through tool-results.ts; the CostIndex adapter over
+// index_status, incremental_reindex and access_cost reads the report through
+// shared/domain/dev/access-cost.ts.
 
-import type { AnchorIndex, CodeIndex } from "../../application/ports.ts";
+import type { AnchorIndex, CodeIndex, CostIndex } from "../../application/ports.ts";
+import { readAccessCostReport } from "../../domain/dev/access-cost.ts";
 import type { BatchAnchorsClosureInput } from "./runtime-tools.ts";
 import { asArray, pick } from "./tool-results.ts";
 import {
@@ -62,6 +65,28 @@ export function createAnchorIndex(tools: Pick<OrkeonTools, "batchAnchors">): Anc
         unresolved: asArray(pick(raw, "unresolved", "Unresolved")).map(String),
         truncated: pick(raw, "truncated", "Truncated") === true,
       };
+    },
+  };
+}
+
+/** The access cost of /dev-verify: the indexed roots, the refresh of the changed files, the report. */
+export function createCostIndex(tools: Pick<OrkeonTools, "indexStatus" | "incrementalReindex" | "accessCost">): CostIndex {
+  return {
+    async roots() {
+      const status = (await tools.indexStatus({})) as { roots?: unknown } | null | undefined;
+      if (!Array.isArray(status?.roots)) return [];
+      return status.roots
+        .map((r) => (typeof r === "string" ? r : String(pick(r, "virtual_root", "VirtualRoot") ?? "")))
+        .filter((r) => r !== "");
+    },
+    async refresh(root, files) {
+      const result = await tools.incrementalReindex({ root_path: root, changed_files: [...files] });
+      return asArray(pick(result, "errors", "Errors")).map(String);
+    },
+    async accessCost(files, receivers) {
+      const raw = await tools.accessCost({ changed_files: [...files], ...(receivers === undefined ? {} : { receivers }) });
+      const report = pick(raw, "report", "Report");
+      return { report: report === undefined || report === null ? null : readAccessCostReport(report), errors: asArray(pick(raw, "errors", "Errors")).map(String) };
     },
   };
 }

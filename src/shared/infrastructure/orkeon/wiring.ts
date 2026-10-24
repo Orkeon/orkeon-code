@@ -10,7 +10,7 @@
 // global for the calls, the context's `tools` service for the registered names.
 
 import type {
-  AnchorIndex, CodeIndex, Files, MemoryStore, Progress, SessionStore, Shell, Telemetry, ToolCatalogue,
+  AnchorIndex, CodeIndex, CostIndex, Files, MemoryStore, Progress, SessionStore, Shell, Telemetry, ToolCatalogue,
 } from "../../application/ports.ts";
 import { createConfigStore } from "../../application/config-store.ts";
 import type { ConfigStore } from "../../application/config-store.ts";
@@ -18,7 +18,7 @@ import { createSessionIo } from "../../application/session-io.ts";
 import type { SessionIo } from "../../application/session-io.ts";
 import type { ServiceLocator } from "../../../commands/.orkeon/orkeon-cli.d.ts";
 import { Tools } from "../globals.ts";
-import { createAnchorIndex, createCodeIndex } from "./code-index.ts";
+import { createAnchorIndex, createCodeIndex, createCostIndex } from "./code-index.ts";
 import { createFiles } from "./files.ts";
 import { createMemoryStore } from "./memory-store.ts";
 import { createProgress } from "./progress.ts";
@@ -34,6 +34,7 @@ export const orkeonTelemetry = (): Telemetry => createTelemetry(Tools);
 export const orkeonMemoryStore = (): MemoryStore => createMemoryStore(Tools);
 export const orkeonCodeIndex = (): CodeIndex => createCodeIndex(Tools);
 export const orkeonAnchorIndex = (): AnchorIndex => createAnchorIndex(Tools);
+export const orkeonCostIndex = (): CostIndex => createCostIndex(Tools);
 /** The registered tools: built in a handler, from the `ctx.services` it receives. */
 export const orkeonToolCatalogue = (services: Pick<ServiceLocator, "get">): ToolCatalogue =>
   createToolCatalogue(Tools, services);

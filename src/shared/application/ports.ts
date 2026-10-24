@@ -6,6 +6,7 @@
 
 import type { SessionMsg } from "../domain/types.ts";
 import type { PermissionRule } from "../domain/agent-policy/permission.ts";
+import type { AccessCostReport } from "../domain/dev/access-cost.ts";
 import type {
   GraphSummary, ImpactSummary, IndexSummary, MapEntry, PackageSummary,
 } from "../domain/code-intel-contract.ts";
@@ -339,4 +340,15 @@ export interface AnchorClosure {
 /** The anchors of the code index (`batch_anchors`), apart from CodeIndex. Throws when the host cannot answer. */
 export interface AnchorIndex {
   closure(fqns: readonly string[]): Promise<AnchorClosure>;
+}
+
+/** What `/dev-verify` asks of the code index for the access cost (`index_status`, `incremental_reindex`,
+ *  `access_cost`), apart from CodeIndex. Each call throws when the host cannot answer it. */
+export interface CostIndex {
+  /** The virtual roots the index holds; none before the first indexing. */
+  roots(): Promise<string[]>;
+  /** Re-parse `files` (virtual paths) under `root`; the errors the tool reports. */
+  refresh(root: string, files: readonly string[]): Promise<string[]>;
+  /** The access cost of the members of `files` (virtual paths): the report, or null and the tool's errors. */
+  accessCost(files: readonly string[], receivers: string | undefined): Promise<{ report: AccessCostReport | null; errors: string[] }>;
 }

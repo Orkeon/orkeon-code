@@ -4,7 +4,7 @@
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, rejects } from "node:assert";
 
-import { createAnchorIndex, createCodeIndex } from "./code-index.ts";
+import { createAnchorIndex, createCodeIndex, createCostIndex } from "./code-index.ts";
 import { FakeTools } from "../../../../tests/support/fake-tools.ts";
 
 describe("createCodeIndex", () => {
@@ -146,5 +146,72 @@ describe("createAnchorIndex", () => {
 
   it("lets a failing tool reject", async () => {
     await rejects(createAnchorIndex(anchorTools(new Error("anchors down"))).closure(["a"]), /anchors down/);
+  });
+});
+
+type CostTools = "indexStatus" | "incrementalReindex" | "accessCost";
+
+/** The three tools of the access cost, each answering its reply (thrown when an Error), their calls kept in order. */
+function costTools(replies: Partial<Record<CostTools, unknown>>): Pick<OrkeonTools, CostTools> & { calls: Array<[CostTools, unknown]> } {
+  const calls: Array<[CostTools, unknown]> = [];
+  const answer = async (tool: CostTools, input: unknown): Promise<any> => {
+    calls.push([tool, input]);
+    const reply = replies[tool];
+    if (reply instanceof Error) throw reply;
+    return reply ?? {};
+  };
+  return {
+    calls,
+    indexStatus: (input) => answer("indexStatus", input),
+    incrementalReindex: (input) => answer("incrementalReindex", input),
+    accessCost: (input) => answer("accessCost", input),
+  };
+}
+
+describe("createCostIndex", () => {
+  it("lists the virtual roots of index_status, objects or names, none without an array", async () => {
+    const tools = costTools({ indexStatus: { roots: [{ virtual_root: "/workspace", node_count: 3 }, "/other", { node_count: 1 }] } });
+    deepStrictEqual(await createCostIndex(tools).roots(), ["/workspace", "/other"]);
+    deepStrictEqual(await createCostIndex(costTools({ indexStatus: { roots: "none" } })).roots(), []);
+    deepStrictEqual(tools.calls, [["indexStatus", {}]]);
+  });
+
+  it("refreshes the files under the root and hands back the tool's errors", async () => {
+    const tools = costTools({ incrementalReindex: { errors: ["bad file"], node_count: 0 } });
+    deepStrictEqual(await createCostIndex(tools).refresh("/workspace", ["/workspace/src/a.ts"]), ["bad file"]);
+    deepStrictEqual(tools.calls, [["incrementalReindex", { root_path: "/workspace", changed_files: ["/workspace/src/a.ts"] }]]);
+  });
+
+  it("asks access_cost for the files, the receivers only when given, and reads the report", async () => {
+    const report = {
+      members: [{
+        member: "/workspace/src/a.ts::A::run",
+        port_calls: [{ receiver: "this.store", method: "save", line: 4, in_loop: true, in_lambda: false }],
+        in_memory_filters: [],
+        cost: { reads: 0, writes: 0, loops: 1, lambdas: 0, memory_filters: 0 },
+      }],
+      cost: { reads: 0, writes: 0, loops: 1, lambdas: 0, memory_filters: 0 },
+    };
+    const tools = costTools({ accessCost: { report, errors: [] } });
+    const index = createCostIndex(tools);
+    const answer = await index.accessCost(["/workspace/src/a.ts"], undefined);
+    deepStrictEqual(answer.errors, []);
+    deepStrictEqual(answer.report?.members[0].portCalls, [{ receiver: "this.store", method: "save", line: 4, inLoop: true, inLambda: false }]);
+    await index.accessCost(["/workspace/src/a.ts"], "gateway");
+    deepStrictEqual(tools.calls.map((c) => c[1]), [
+      { changed_files: ["/workspace/src/a.ts"] },
+      { changed_files: ["/workspace/src/a.ts"], receivers: "gateway" },
+    ]);
+  });
+
+  it("hands back the errors without a report, and a report it cannot read as none", async () => {
+    deepStrictEqual(await createCostIndex(costTools({ accessCost: { errors: ["Provide fqns"] } })).accessCost([], undefined),
+      { report: null, errors: ["Provide fqns"] });
+    deepStrictEqual(await createCostIndex(costTools({ accessCost: { report: { members: "x" }, errors: [] } })).accessCost(["a"], undefined),
+      { report: null, errors: [] });
+  });
+
+  it("lets a failing tool reject", async () => {
+    await rejects(createCostIndex(costTools({ indexStatus: new Error("index down") })).roots(), /index down/);
   });
 });

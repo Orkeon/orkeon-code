@@ -3,11 +3,12 @@
 // hands the batch to the read-only auditor and writes the verdict file. It returns the
 // completion text the command prints. --gate-only stops after the gate: no model call,
 // no write.
-import type { Files, Llm, Logger, Shell } from "../../../shared/application/ports.ts";
+import type { CostIndex, Files, Llm, Logger, Shell } from "../../../shared/application/ports.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import { loadDevContext } from "../../../shared/application/dev/load-dev-context.ts";
 import type { DevContext } from "../../../shared/application/dev/load-dev-context.ts";
 import { GIT_TOPLEVEL, workFolderLabel } from "../../../shared/application/dev/resolve-work-folder.ts";
+import { costSummary } from "../../../shared/domain/dev/access-cost.ts";
 import { classifyArtefact, isCode } from "../../../shared/domain/dev/artefacts.ts";
 import type { RepoPack } from "../../../shared/domain/dev/repo-pack.ts";
 import { lastVerdict, parseVerdictFile } from "../../../shared/domain/dev/verdict-format.ts";
@@ -34,6 +35,8 @@ export interface DevVerifyDeps {
   llm: Pick<Llm, "act" | "extract">; log: Logger; clock: () => Date;
   /** The run_validation tool's slot, when the crew offers the tool: bound to this audit's runner. */
   validationSlot?: { bind(runner: ValidationRunner): () => void };
+  /** The access cost's code index; without it the Cost line says the crew wires none. */
+  costIndex?: CostIndex;
 }
 const FULL_SUITE_TIMEOUT_SECONDS = 900;
 
@@ -293,7 +296,8 @@ export async function runDevVerify(input: DevVerifyInputs, deps: DevVerifyDeps):
   const files = recordingWriter(deps.files);
   const when = formatWhen(deps.clock());
   try {
-    const capture = await writeCapture({ files, shell: deps.shell }, t, gate.run, when);
+    const capture = await writeCapture({ files, shell: deps.shell, costIndex: deps.costIndex }, t, gate.run, when);
+    const costLine = costSummary(capture.cost);
     const suite = args.mode === "full" ? await runSuite(deps.shell, t.pack) : null;
     const commands = t.pack?.commands ?? {};
     const brief: AuditBriefInput = {
@@ -313,7 +317,7 @@ export async function runDevVerify(input: DevVerifyInputs, deps: DevVerifyDeps):
     } finally {
       release?.();
     }
-    if (!audit.ok) return done(greenLine, audit.text);
+    if (!audit.ok) return done(greenLine, costLine, audit.text);
 
     const answered = [...audit.answer.rows, ...(suite?.row ? [suite.row] : [])];
     const section = renderVerdictSection({
@@ -328,7 +332,7 @@ export async function runDevVerify(input: DevVerifyInputs, deps: DevVerifyDeps):
     await files.write(`${WORKSPACE}/${verdictShown}`, writeVerdictFile(previous, section.text, args.mode));
     deps.log.info(`dev-verify: ${section.verdict} written to ${verdictShown}`);
 
-    const lines = [greenLine, ...section.text.trimEnd().split("\n"), `written: ${verdictShown} — capture: ${capture.folderShown}/`];
+    const lines = [greenLine, costLine, ...section.text.trimEnd().split("\n"), `written: ${verdictShown} — capture: ${capture.folderShown}/`];
     if (section.verdict === "VALID") {
       const convention = t.pack?.contrib.commit ?? "git log --oneline -5";
       lines.push(

@@ -111,7 +111,7 @@ function scopeRow(roots: readonly string[]): TableRow {
 
 function costRow(cost: AccessCost): TableRow {
   if (cost.state === "not-computed") return row("Cost", CHECK_COST, "not checked", `not computed — ${cost.reason}`);
-  if (cost.exit === 0) return row("Cost", CHECK_COST, "ok", "`exit: 0`");
+  if (cost.exit === 0) return row("Cost", CHECK_COST, "ok", cost.costLine === "" ? "`exit: 0`" : `\`exit: 0\` — ${cost.costLine}`);
   return row("Cost", CHECK_COST, "gap", `\`exit: 2\` ${cost.flagged.join(" · ")}`.trimEnd());
 }
 

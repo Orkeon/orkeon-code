@@ -3,10 +3,12 @@
 // the last test run, the test classes - then the mechanical table and the index. Each
 // file stays readable whole by the auditor. A section the shell cannot produce says so;
 // only a failed write stops the capture.
-import type { Files, Shell } from "../../../shared/application/ports.ts";
+import type { CostIndex, Files, Shell } from "../../../shared/application/ports.ts";
 import { firstLine, stdoutLines } from "../domain/text.ts";
 import { runtimeCut } from "../domain/runtime-cut.ts";
-import { COST_NOT_COMPUTED, costSection } from "../../../shared/domain/dev/access-cost.ts";
+import { addedLines, costSection } from "../../../shared/domain/dev/access-cost.ts";
+import type { AccessCost } from "../../../shared/domain/dev/access-cost.ts";
+import { measureAccessCost } from "./cost.ts";
 import type { DevVerifyTarget, GateRun } from "./run-gate.ts";
 import { WORKSPACE } from "./run-gate.ts";
 import type { BuildState, TableRow } from "../domain/mechanical-table.ts";
@@ -29,10 +31,11 @@ export interface Capture {
   rows: TableRow[];
   table: string;             // table.md content
   build: BuildState;
+  cost: AccessCost;
   testRoots: string[];
 }
 
-type Deps = { files: Pick<Files, "read" | "write" | "list">; shell: Pick<Shell, "run"> };
+type Deps = { files: Pick<Files, "read" | "write" | "list">; shell: Pick<Shell, "run">; costIndex?: CostIndex };
 
 const SOURCE_FILE = /\.(cs|ts|py|fs|vb)$/;
 const TEST_FILES_SHOWN = 5;
@@ -89,21 +92,22 @@ async function readOrNull(files: Pick<Files, "read">, path: string): Promise<str
   }
 }
 
-interface DiffEntry { path: string; line: string; base?: string; content?: string }
+/** `added`: the lines the diff adds, null when the diff was not captured whole. */
+interface DiffEntry { path: string; line: string; base?: string; content?: string; added: Set<number> | null }
 
 /** One entry per changed file outside `<planDir>/`: the capture, the verdict and the logs live there. */
 async function diffs(deps: Deps, target: DevVerifyTarget, gate: GateRun): Promise<DiffEntry[]> {
   const entries: DiffEntry[] = [];
   const changed = gate.changedFiles.filter((f) => !f.startsWith(`${target.planDirShown}/`));
   for (const [i, path] of changed.entries()) {
-    if (i >= MAX_DIFF_FILES) { entries.push({ path, line: `${path} → no diff captured (beyond the first ${MAX_DIFF_FILES} files)` }); continue; }
+    if (i >= MAX_DIFF_FILES) { entries.push({ path, line: `${path} → no diff captured (beyond the first ${MAX_DIFF_FILES} files)`, added: null }); continue; }
     const command = gate.untrackedFiles.includes(path) ? gitDiffUntracked(path) : gitDiffTracked(path);
-    if (command === null) { entries.push({ path, line: `${path} → no diff captured (a quote in the path)` }); continue; }
+    if (command === null) { entries.push({ path, line: `${path} → no diff captured (a quote in the path)`, added: null }); continue; }
     let raw: string;
     try {
       raw = (await deps.shell.run(command)).stdout;
     } catch (error) {
-      entries.push({ path, line: `${path} → no diff captured ('${command}' failed (${errorLine(error)}))` });
+      entries.push({ path, line: `${path} → no diff captured ('${command}' failed (${errorLine(error)}))`, added: null });
       continue;
     }
     const { kept: stdout, omitted } = runtimeCut(raw);
@@ -114,6 +118,7 @@ async function diffs(deps: Deps, target: DevVerifyTarget, gate: GateRun): Promis
       path, base,
       line: `${path} → ${base}.txt (${lines} lines)${doubt}`,
       content: `# diff ${path} (${lines} lines)\n${stdout}`,
+      added: omitted > 0 ? null : addedLines(stdout) ?? new Set<number>(),
     });
   }
   return entries;
@@ -253,7 +258,8 @@ export async function writeCapture(deps: Deps, target: DevVerifyTarget, gate: Ga
 
   const build = await buildSection(deps, target, gate);
   await writer.section("build", build.content);
-  await writer.section("cost", costSection(COST_NOT_COMPUTED));
+  const cost = await measureAccessCost(deps.costIndex, target.pack, gate.roots, entries.map((e) => ({ path: e.path, added: e.added })));
+  await writer.section("cost", costSection(cost));
   await writer.section("traits", traitsSection(gate.trait?.shown ?? null, gate.facts.ids, gate.traitHits));
   const tail = await testTail(deps, target);
   await writer.section("test-tail", tail.content);
@@ -266,7 +272,7 @@ export async function writeCapture(deps: Deps, target: DevVerifyTarget, gate: Ga
     methods: gate.facts.methods, testRoots, methodHits: methods.hits,
     testLog: tail.log, testLogLooked: `${target.planDirShown}/logs/`,
     roots: gate.roots,
-    cost: COST_NOT_COMPUTED,
+    cost,
     tickedLines: gate.facts.tickedLines, planDirName: basename(target.planDirShown),
     appliedRulesRow: gate.facts.appliedRulesRow, appliedIds: gate.facts.appliedIds,
   }).map((r) => (methods.failure !== null && r.check === CHECK_METHODS ? { ...r, result: "not checked" as const, evidence: methods.failure } : r));
@@ -288,5 +294,5 @@ export async function writeCapture(deps: Deps, target: DevVerifyTarget, gate: Ga
   const listed = writer.written.map((w) => w.path);
   await deps.files.write(`${folder}/index.txt`, index);
 
-  return { folder, folderShown, files: [`${folder}/index.txt`, `${folder}/manifest.txt`, ...listed], rows, table, build: build.state, testRoots };
+  return { folder, folderShown, files: [`${folder}/index.txt`, `${folder}/manifest.txt`, ...listed], rows, table, build: build.state, cost, testRoots };
 }
