@@ -281,7 +281,8 @@ function Invoke-Setup([string] $target) {
 # The variables set below for the REPL are put back as they were when the script ends, so that none of them stays
 # in the PowerShell session that ran it.
 $savedEnv = @{}
-foreach ($name in @('ORKEON_Llm__Model', 'Orkeon__Security__PermissionGate__Enabled', 'ORKEON_ESBUILD_PATH',
+foreach ($name in @('ORKEON_Llm__Model', 'Orkeon__Security__PermissionGate__Enabled', 'Orkeon__Cli__Session__StartScript',
+                    'ORKEON_ESBUILD_PATH',
                     'ORKEON_ALLOW_EXTERNAL_MOUNTS', 'WHISPER_AUDIO_DIR', 'WHISPER_OUT_DIR',
                     'ORKEON_MCP__Servers__whisper__Transport', 'ORKEON_MCP__Servers__whisper__Command',
                     'ORKEON_MCP__Servers__whisper__Args__0', 'ORKEON_MCP__Servers__whisper__Args__1',
@@ -433,6 +434,15 @@ try {
   New-Item -ItemType Directory -Force -Path (Join-Path $State 'output'), (Join-Path $State 'tmp') | Out-Null
   $State = (Resolve-Path $State).Path
 
+  # The session's start script (scripts/session-start.sh), copied fresh into the agent's /tmp at every start:
+  # the runtime runs it once at the REPL's start and puts what it prints before the first free-text turn.
+  $startDir = Join-Path $State 'tmp/orkeon-code'
+  New-Item -ItemType Directory -Force -Path $startDir | Out-Null
+  Copy-Item -Force (Join-Path $Root 'scripts/session-start.sh') (Join-Path $startDir 'session-start.sh')
+  if ($null -eq [Environment]::GetEnvironmentVariable('Orkeon__Cli__Session__StartScript')) {
+    $env:Orkeon__Cli__Session__StartScript = '/tmp/orkeon-code/session-start.sh'
+  }
+
   # Speech-to-text (optional): $env:ORKEON_CODE_AUDIO_DIR names the folder of audio and video files. The
   # Whisper MCP server (mcp/whisper), started by the REPL over stdio, reads it and writes into
   # <state>/transcripts, which the agents see as /audio and /transcripts. It is declared through the
@@ -531,7 +541,8 @@ try {
   if ($Mode -eq 'docker') {
     # Everything under the working directory /work. The image is multi-arch (linux/amd64, linux/arm64).
     $envArgs = @('-e', 'ORKEON_RUNNER=repl', '-e', 'HOME=/tmp', '-e', 'DOTNET_CLI_HOME=/tmp',
-                 '-e', "Orkeon__Security__PermissionGate__Enabled=$env:Orkeon__Security__PermissionGate__Enabled")
+                 '-e', "Orkeon__Security__PermissionGate__Enabled=$env:Orkeon__Security__PermissionGate__Enabled",
+                 '-e', "Orkeon__Cli__Session__StartScript=$env:Orkeon__Cli__Session__StartScript")
     foreach ($v in @('ORKEON_Llm__ApiKey', 'ORKEON_Llm__Model', $keyVar)) {
       if ($v -and [Environment]::GetEnvironmentVariable($v)) { $envArgs += @('-e', $v) }
     }

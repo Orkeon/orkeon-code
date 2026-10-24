@@ -42,6 +42,8 @@ What Orkeon Code does not do yet, in the order we expect to address it. Items ma
   [Permissions](permissions.md)). The web and RAG tools declare theirs since Orkeon #126.
 - The answer can be printed twice when console streaming is enabled.
 - `/tasks` is a manual to-do list, not a monitor of background work.
-- Some commands only partly do what their names promise: `/summary` (not saved to memory), `/status` (no runtime
-  version nor provider), `/resume` (one in-memory session), `/context` and `/usage` (totals only, no per-category
-  figures; cache hits only when the host reports them).
+- Some commands only partly do what their names promise: `/summary` (not saved to memory), `/status` (the runtime
+  version is the pin, not read from the running host), `/resume` (one in-memory session), `/context` and `/usage`
+  (totals only, no per-category figures).
+- The runtime registers its `github` tool without a token: `/commit --pr` gets GitHub's refusal (401) until the host
+  can be given one, and then prints the `gh pr create` command.

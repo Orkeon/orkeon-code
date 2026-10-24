@@ -22,6 +22,11 @@ agissent à deux niveaux, et une étape dev en ajoute un troisième :
 **Ce que la garde ne voit pas.** Les commandes et les crews appellent aussi des outils depuis leur propre code, par
 l'espace de noms `tools` d'Orkeon, qui exécute l'outil directement : `/commit` indexe par leur nom les fichiers qu'il commite (`git add -- <fichiers>`, puis
 `git commit -F <message> -- <fichiers>`, jamais `-A`) et, avec `--push`, pousse, le tout avec `shell_command` ;
+avec `--pr`, elle lit origin (`git remote get-url origin`) et appelle elle-même `github` `create_pr`, que la garde ne
+voit pas non plus : `/commit` décide comme la garde le ferait, refuse en `plan`, en `dontAsk` sans règle allow, et dès
+qu'une règle deny couvre l'appel, et l'ouvre avec une règle allow (`allow github action=create_pr`), en
+`bypassPermissions`, ou après que vous avez répondu oui à son plan qui nommait la pull request (`--yes` ne demande
+rien, il lui faut donc la règle) ;
 `/branch` bascule de branche, `/diff` et `/review`, `/security-review` lancent `git`, `/init` écrit le fichier
 d'instructions, `/init-verifiers` et `/export` écrivent leurs fichiers, la compaction écrit le tampon de session et la
 mémoire typée. Ces appels sont ce pour quoi la commande que vous avez tapée existe : aucune règle, aucun mode, aucune
@@ -323,6 +328,21 @@ l'outil. `/permissions remove` la supprime, comme `/permissions clear` supprime 
 settings illisible est signalé comme tel : les outils supplémentaires sont alors inconnus et leurs règles dormantes,
 jamais effacées.
 
+Orkeon Code ajoute trois outils à lui aux étapes dev, jamais proposés aux tours du REPL : `run_validation`
+(`read` : une commande de test étroite du pack du dépôt, celle de l'auditeur, trois par audit au plus), `run_tests` et
+`run_build` (`execute` : la commande de test étroite du pack ou son build, pour un rôle qui écrit). La garde
+demande une fois par appel, d'après l'accès que chacun déclare ; la commande shell que l'outil lance ensuite n'est pas
+redemandée, donc l'outil la vérifie lui-même : la commande du pack seulement, chaque paramètre rempli d'une seule
+valeur relative simple, jamais les tests d'intégration sans filtre, jamais de restore (sauf un, quand un build échoue
+sur un arbre jamais restauré), jamais une commande que les jeux de règles de l'étape refusent à `shell_command`. Une
+règle peut aussi les nommer (`/permissions add deny run_build`) ; leurs arguments sont `command` (`run_validation`,
+`run_tests`) et `project` (`run_build`).
+
+La commande qu'un outil lance obéit aux jeux de règles de l'étape, pas aux règles deny de votre session : le code du
+crew ne peut pas lire les règles de la session, donc `/permissions add deny shell_command ...` n'atteint pas une
+validation, pas plus qu'il n'atteignait les validations que `/dev-verify` lance depuis son propre code. Pour en
+arrêter une, refusez l'outil lui-même (`/permissions add deny run_validation`), que la garde voit.
+
 ## Ce qu'un fichier du projet peut régler
 
 Le `.orkeon/config.json` du projet (celui qu'écrit `/config set`) ne peut pas élargir ce que l'utilisateur permet.
@@ -343,6 +363,29 @@ lanceur), que le lanceur remet à la session en lecture seule, sur `/user-config
 - Ce que le fichier du projet a réglé sans pouvoir l'appliquer, `/permissions` le nomme : `↳ ignored` sous le mode,
   et une note pour les outils non offerts. `/config set` d'une telle valeur l'écrit quand même, puis dit qu'elle est
   ignorée. `/config set --session` appartient à l'utilisateur et n'est pas restreint.
+
+## Dossiers de confiance
+
+Le lanceur demande avant de démarrer pour la première fois dans un dossier, parce que l'agent lit son `AGENTS.md`,
+son `.orkeon/config.json` et son `.orkeon/repo.yaml`, peut lancer les commandes que `.orkeon/repo.yaml` nomme, et
+que git exécute les hooks du dossier par le shell. Rien du dossier n'est lu ni monté avant la réponse.
+
+- `y` enregistre le dossier dans `~/.orkeon-code/trusted-folders.json` (`ORKEON_CODE_HOME` le déplace) ; tout dossier
+  en dessous démarre ensuite sans question. Faire confiance à votre dossier personnel, ou à `/`, fait confiance à tout
+  ce qui est en dessous : la question le dit.
+- `n`, ou pas de réponse, sort avec le code 0 : rien n'a démarré.
+- Le dossier est vérifié par son chemin réel : un lien symbolique mène au dossier qu'il nomme, celui qui est
+  demandé, enregistré et monté.
+- Sans terminal (un tube, un job de CI, `scripts/run-crew.sh` dans un script), un dossier sans confiance est refusé
+  avec le code 3. `--trust` le démarre pour cette fois seulement, et `ORKEON_CODE_TRUST=1` fait de même quand
+  `CI=true` ; aucun des deux n'enregistre rien. `--demo` fait confiance à la fixture que le lanceur prépare.
+- `orkeon-code trust list` montre le registre, `orkeon-code trust add <dossier>` et `orkeon-code trust remove
+  <dossier>` le modifient, `orkeon-code trust check <dossier> [--trust]` répond 0 (il peut démarrer), 3 (refusé, pas
+  de terminal) ou 4 (refusé à la question).
+- Le lanceur écrit le registre un dossier par ligne et ne le relit que sous cette forme : un fichier qu'il ne sait pas
+  lire est refusé avec son chemin, ne fait confiance à rien et n'est jamais réécrit. Déplacez-le et refaites confiance
+  à vos dossiers.
+- La vérification est celle du lanceur : `orkeon-repl` lancé à la main la saute.
 
 ## Ce qu'aucun mode ne change
 

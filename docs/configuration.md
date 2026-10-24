@@ -8,7 +8,19 @@ the REPL through `--settings`. Start from [`config/appsettings.example.json`](..
 1. `--settings FILE` on the launcher;
 2. `ORKEON_CODE_SETTINGS`;
 3. `config/appsettings.local.json` in the checkout (ignored by git), in a clone only: an install never reads it;
-4. `~/.config/orkeon-code/appsettings.json` (`%APPDATA%\orkeon-code\appsettings.json` on Windows).
+4. `~/.orkeon-code/appsettings.json` (`%USERPROFILE%\.orkeon-code\appsettings.json` on Windows; `ORKEON_CODE_HOME`
+   moves the folder);
+5. `~/.config/orkeon-code/appsettings.json` (`%APPDATA%\orkeon-code\appsettings.json` on Windows), the old place:
+   still read, with a warning naming the new one;
+6. Orkeon's own `~/.config/Orkeon/appsettings.json` (`%APPDATA%\Orkeon\appsettings.json` on Windows), the file
+   `orkeon init` writes. The launcher then passes no `--settings`: the REPL reads it itself (docker mode mounts it,
+   the container having no home of yours). An absolute `XDG_CONFIG_HOME` replaces `~/.config` in 5 and 6.
+
+With none of them and a terminal, `orkeon-code setup` runs: it asks the provider (the DeepSeek example or the Ollama
+one), the model, and the **name** of the environment variable that holds the key, never the key; it writes
+`~/.orkeon-code/appsettings.json`, readable by you alone, and says which variable to export. `orkeon-code setup`
+runs it at any time, and asks before replacing an existing file. Without a terminal the launcher stops and names
+these choices.
 
 The `orkeonCode` block of that file holds your own session settings, which a project's `.orkeon/config.json` cannot
 widen ([what a project file may set](permissions.md#what-a-project-file-may-set)). The launcher copies the block alone,
@@ -100,6 +112,14 @@ run.
 `permissions.fallback` and `tools.extra` set in the project file are narrowed by the `orkeonCode` block of the user
 settings: `/config set` writes such a value, then says, under "persisted", that it is ignored and where your own setting
 goes. `/config set --session` is not narrowed.
+
+At the REPL's start the runtime runs the file its key `Orkeon:Cli:Session:StartScript` names, once, and puts what it
+prints before the first request you type. The launcher sets it to `/tmp/orkeon-code/session-start.sh`, a copy of
+`scripts/session-start.sh` made at every start: it names the state files of the dev batches a compaction wrote in the
+last 7 days (`.orkeon/dev/<code>/state-F<n>.md`, with the first open step) and the batches Code's event log leaves
+open. It prints nothing when there is none. Set `Orkeon__Cli__Session__StartScript` to another virtual path to run
+your own (a `.ork.ts`, or a file `sh` runs from a writable mount), or, on Linux and macOS, to an empty value to run
+none.
 
 The repository pack (`.orkeon/repo.yaml`, else the harness's) can also give `tests.trait_pattern`, an Orkeon Code key
 the harness ignores: how a test names the sheet id it covers, which the gate of `/dev-verify` looks for under the test
@@ -293,6 +313,7 @@ nothing. Piper is GPL-3.0: the server runs it as a separate process, from an opt
 | `ORKEON_REPL` | The command line that starts the REPL (tool mode) |
 | `ORKEON_SOURCE` | Orkeon checkout (source mode) |
 | `ORKEON_ESBUILD_PATH` | esbuild binary (tool and source modes) |
+| `ORKEON_CODE_TRUST` | `1`: starts an untrusted folder without a terminal, only when `CI=true`, storing nothing ([Trusted folders](permissions.md#trusted-folders)) |
 
 The launcher also exports `Orkeon__Security__PermissionGate__Enabled=true` unless it is set already (the settings
 file still wins over it), and, in tool and source modes, `ORKEON_ALLOW_EXTERNAL_MOUNTS=1`, so the REPL, started from

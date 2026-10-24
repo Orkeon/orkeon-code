@@ -48,6 +48,8 @@ demandent d'abord un changement dans [Orkeon](https://github.com/Orkeon/orkeon).
   leur depuis Orkeon #126.
 - La réponse peut être affichée deux fois quand le streaming console est activé.
 - `/tasks` est une liste de choses à faire tenue à la main, pas un moniteur du travail en arrière-plan.
-- Certaines commandes ne font qu'en partie ce que leur nom promet : `/summary` (pas enregistré en mémoire),
-  `/status` (ni version du runtime ni fournisseur), `/resume` (une session en mémoire), `/context` et `/usage`
-  (totaux seulement, pas de chiffres par catégorie ; les hits de cache seulement quand l'hôte les rapporte).
+- Certaines commandes ne font qu'en partie ce que leur nom promet : `/summary` (pas enregistré en mémoire), `/status`
+  (la version du runtime est l'épinglage, non lue sur l'hôte qui tourne), `/resume` (une session en mémoire),
+  `/context` et `/usage` (totaux seulement, pas de chiffres par catégorie).
+- Le runtime enregistre son outil `github` sans jeton : `/commit --pr` reçoit le refus de GitHub (401) tant que l'hôte
+  ne peut pas en recevoir un, puis affiche la commande `gh pr create`.

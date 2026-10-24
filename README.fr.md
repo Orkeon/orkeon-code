@@ -136,6 +136,7 @@ La documentation est publiée en français et en anglais, en site consultable, a
 | [Tutoriel WSL](docs/fr/wsl-tutorial.md) | La voix et un modèle local sous WSL2, sur le GPU, pas à pas |
 | [Configuration](docs/fr/configuration.md) | Fournisseurs LLM, fichier de settings, variables d'environnement |
 | [Permissions](docs/fr/permissions.md) | Modes, règles, ce que l'agent peut toucher |
+| [Hooks](docs/fr/hooks.md) | Vos commandes autour des appels d'outils du modèle dans les étapes dev |
 | [Commandes](docs/fr/commands.md) | La liste complète (générée) |
 | [Architecture](docs/fr/architecture.md) | Couches, ports, crews, la boucle, l'assemblage du prompt, recettes |
 | [Exécutions autonomes et embarquées](docs/fr/headless.md) | Tours sans opérateur, lancement en un coup, planificateurs et CI, votre application |

@@ -21,6 +21,7 @@ import { fileURLToPath } from "node:url";
 
 const read = (name: string) => readFileSync(fileURLToPath(new URL(`../${name}`, import.meta.url)), "utf-8");
 const GATE = "Orkeon__Security__PermissionGate__Enabled";
+const START_SCRIPT = "Orkeon__Cli__Session__StartScript";
 
 describe("the launchers enable the permission gate", () => {
   it("orkeon-code exports it, true unless the caller set it, and passes it to docker", () => {
@@ -115,7 +116,7 @@ function launch(opts: {
   const record = join(base, "record");
   for (const dir of [root, bin, project, record, join(root, "scripts")]) mkdirSync(dir, { recursive: true });
   for (const [name, content] of Object.entries(opts.projectFiles ?? {})) writeFileSync(join(project, name), content);
-  for (const file of ["orkeon-code", "orkeon-code.ps1", ".orkeon-version", "package.json", "scripts/setup-fixture.sh"]) {
+  for (const file of ["orkeon-code", "orkeon-code.ps1", ".orkeon-version", "package.json", "scripts/setup-fixture.sh", "scripts/session-start.sh"]) {
     copyFileSync(fileURLToPath(new URL(`../${file}`, import.meta.url)), join(root, file));
   }
   if (!opts.install) mkdirSync(join(root, ".git"));
@@ -192,6 +193,16 @@ describe("orkeon-code, tool and source modes on Orkeon rc.6", () => {
     ok(!roots.some((root) => RESERVED.test(root)), roots.join(", "));
   });
 
+  it("copies the session's start script into the agent's /tmp and names it, an empty value the user exported kept", () => {
+    const r = launch({ args: ["--mode", "tool"], bin: { "orkeon-repl": recorder() }, env: { ORKEON_ESBUILD_PATH: "/opt/esbuild" } });
+    strictEqual(r.status, 0, r.stderr);
+    strictEqual(r.env.get(START_SCRIPT), "/tmp/orkeon-code/session-start.sh");
+    strictEqual(readFileSync(join(r.state, "tmp/orkeon-code/session-start.sh"), "utf-8"), read("scripts/session-start.sh"));
+    const none = launch({ args: ["--mode", "tool"], bin: { "orkeon-repl": recorder() }, env: { ORKEON_ESBUILD_PATH: "/opt/esbuild", [START_SCRIPT]: "" } });
+    strictEqual(none.status, 0, none.stderr);
+    strictEqual(none.env.get(START_SCRIPT), "");
+  });
+
   it("source mode builds in the Orkeon checkout, then runs the assembly from the project", () => {
     const r = launch({ args: ["--mode", "source"], bin: { dotnet: DOTNET }, env: { ORKEON_ESBUILD_PATH: "/opt/esbuild" } });
     strictEqual(r.status, 1, "no ORKEON_SOURCE: refused");
@@ -261,6 +272,7 @@ describe("orkeon-code, docker mode", () => {
     ok(!r.args.some((a) => a.startsWith("--platform")), r.args.join(" "));
     ok(!r.args.some((a) => a.includes("MaxScripts")), r.args.join(" "));
     ok(r.args.includes(`${GATE}=true`), r.args.join(" "));
+    ok(r.args.includes(`${START_SCRIPT}=/tmp/orkeon-code/session-start.sh`), r.args.join(" "));
     const roots = mountRoots(r.args);
     deepStrictEqual(roots, ["/workspace", "/output", "/tmp", "/user-config"]);
   });
@@ -626,7 +638,7 @@ describe("orkeon-code.ps1 follows the same rules (read here; run below, where pw
 
   it("puts back every variable it sets, so none stays in the calling session", () => {
     const set = [...new Set([...script.matchAll(/\$env:(\w+)\s*=(?!=)/g)].map((m) => m[1]))].sort();
-    deepStrictEqual(set, ["ORKEON_ALLOW_EXTERNAL_MOUNTS", "ORKEON_ESBUILD_PATH", "ORKEON_Llm__Model", GATE,
+    deepStrictEqual(set, ["ORKEON_ALLOW_EXTERNAL_MOUNTS", "ORKEON_ESBUILD_PATH", "ORKEON_Llm__Model", GATE, START_SCRIPT,
       "WHISPER_AUDIO_DIR", "WHISPER_OUT_DIR", "WHISPER_MICROPHONE", "WHISPER_SPEAKER", "ORKEON_MCP__Servers__whisper__Transport",
       "ORKEON_MCP__Servers__whisper__Command", "UV_PROJECT_ENVIRONMENT"].sort());
     // The server's arguments are set in a loop, by name: Args__0 to Args__11 at most (run, --project, the folder,

@@ -10,7 +10,19 @@ du runtime Orkeon, que le REPL lit par `--settings`. Partez de
 2. `ORKEON_CODE_SETTINGS` ;
 3. `config/appsettings.local.json` dans le checkout (ignoré par git), dans un clone seulement : une installation ne le
    lit jamais ;
-4. `~/.config/orkeon-code/appsettings.json` (`%APPDATA%\orkeon-code\appsettings.json` sous Windows).
+4. `~/.orkeon-code/appsettings.json` (`%USERPROFILE%\.orkeon-code\appsettings.json` sous Windows ; `ORKEON_CODE_HOME`
+   déplace le dossier) ;
+5. `~/.config/orkeon-code/appsettings.json` (`%APPDATA%\orkeon-code\appsettings.json` sous Windows), l'ancien
+   emplacement : encore lu, avec un avertissement qui nomme le nouveau ;
+6. le fichier d'Orkeon, `~/.config/Orkeon/appsettings.json` (`%APPDATA%\Orkeon\appsettings.json` sous Windows), celui
+   qu'écrit `orkeon init`. Le lanceur ne passe alors aucun `--settings` : le REPL le lit lui-même (le mode docker le
+   monte, le conteneur n'ayant pas votre dossier personnel). Un `XDG_CONFIG_HOME` absolu remplace `~/.config` en 5 et 6.
+
+Sans aucun d'eux et avec un terminal, `orkeon-code setup` se lance : il demande le fournisseur (l'exemple DeepSeek ou
+celui d'Ollama), le modèle et le **nom** de la variable d'environnement qui tient la clé, jamais la clé ; il écrit
+`~/.orkeon-code/appsettings.json`, lisible par vous seul, et dit quelle variable exporter. `orkeon-code setup` le
+relance à tout moment, et demande avant de remplacer un fichier existant. Sans terminal, le lanceur s'arrête et nomme
+ces choix.
 
 Le bloc `orkeonCode` de ce fichier porte vos propres réglages de session, que le `.orkeon/config.json` d'un projet ne
 peut pas élargir ([ce qu'un fichier du projet peut régler](permissions.md#ce-quun-fichier-du-projet-peut-régler)). Le
@@ -106,6 +118,15 @@ s'exécutent.
 `permissions.fallback` et `tools.extra` réglés dans le fichier du projet sont restreints par le bloc `orkeonCode` des
 réglages de l'utilisateur : `/config set` écrit une telle valeur, puis dit, sous "persisted", qu'elle est ignorée et
 où va votre propre réglage. `/config set --session` n'est pas restreint.
+
+Au démarrage du REPL, le runtime exécute une fois le fichier que nomme sa clé `Orkeon:Cli:Session:StartScript`, et
+place ce qu'il imprime avant la première requête que vous tapez. Le lanceur la règle sur
+`/tmp/orkeon-code/session-start.sh`, une copie de `scripts/session-start.sh` faite à chaque démarrage : il nomme les
+fichiers d'état des lots de dev qu'une compaction a écrits ces 7 derniers jours (`.orkeon/dev/<code>/state-F<n>.md`,
+avec la première étape ouverte) et les lots que le journal d'événements de Code laisse ouverts. Il n'imprime rien
+quand il n'y en a pas. Réglez `Orkeon__Cli__Session__StartScript` sur un autre chemin virtuel pour exécuter le vôtre
+(un `.ork.ts`, ou un fichier que `sh` lance depuis un montage en écriture), ou, sous Linux et macOS, sur une valeur
+vide pour n'en exécuter aucun.
 
 Le pack du dépôt (`.orkeon/repo.yaml`, sinon celui du harness) peut aussi donner `tests.trait_pattern`, une clé
 d'Orkeon Code que le harness ignore : la façon dont un test nomme l'id de fiche qu'il couvre, que la porte de
@@ -310,6 +331,7 @@ optionnel, et ne l'importe jamais.
 | `ORKEON_REPL` | La ligne de commande qui démarre le REPL (mode tool) |
 | `ORKEON_SOURCE` | Checkout d'Orkeon (mode source) |
 | `ORKEON_ESBUILD_PATH` | Binaire esbuild (modes tool et source) |
+| `ORKEON_CODE_TRUST` | `1` : démarre un dossier sans confiance sans terminal, seulement quand `CI=true`, sans rien enregistrer ([Dossiers de confiance](permissions.md#dossiers-de-confiance)) |
 
 Le lanceur exporte aussi `Orkeon__Security__PermissionGate__Enabled=true` sauf s'il est déjà défini (le fichier de
 settings l'emporte encore sur lui), et, en modes tool et source, `ORKEON_ALLOW_EXTERNAL_MOUNTS=1`, pour que le REPL,

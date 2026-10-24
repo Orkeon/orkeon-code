@@ -20,7 +20,11 @@ and a dev step adds a third:
 
 **What the gate does not see.** Commands and crews also call tools from their own code, through Orkeon's `tools`
 namespace, which runs the tool directly: `/commit` stages the files it commits by name (`git add -- <files>`, then `git commit -F <message> -- <files>`, never
-`-A`) and, with `--push`, pushes, all with `shell_command`; `/branch` checks a branch
+`-A`) and, with `--push`, pushes, all with `shell_command`; with `--pr` it reads origin (`git remote get-url origin`)
+and calls `github` `create_pr` itself, which the gate does not see either: `/commit` decides as the gate would,
+refusing in `plan`, in `dontAsk` without an allow rule, and whenever a deny rule covers the call, and opening it with
+an allow rule (`allow github action=create_pr`), in `bypassPermissions`, or after you answered yes to its plan that
+named the pull request (`--yes` asks nothing, so it needs the rule); `/branch` checks a branch
 out, `/diff` and `/review`, `/security-review` run `git`, `/init` writes the instructions file,
 `/init-verifiers` and `/export` write their files, the compaction writes the session buffer and typed memory. Those
 calls are what the command you typed is for: no rule, mode or question applies to them. `/commit` checks the mode
@@ -305,6 +309,20 @@ it applies again once `tools.extra` lists the tool. `/permissions remove` delete
 every rule. A settings file that cannot be read is reported as such: the extra tools are then unknown and their rules
 dormant, never erased.
 
+Orkeon Code adds three tools of its own to the dev steps, never offered to the REPL's turns: `run_validation`
+(`read`: one narrow test command of the repository pack, the auditor's, three per audit at most), `run_tests` and
+`run_build` (`execute`: the pack's narrow test command or its build, for a writing role). The gate asks once per call
+from the access each declares; the shell command the tool then runs is not asked again, so the tool checks it itself:
+the pack's own command only, a placeholder filled with one plain relative value, never the integration tests without
+a filter, never a restore (except one, when a build fails on a tree that was never restored), never a command the
+step's rule sets deny to `shell_command`. A rule may also name them (`/permissions add deny run_build`); their
+arguments are `command` (`run_validation`, `run_tests`) and `project` (`run_build`).
+
+The command a tool runs obeys the step's rule sets, not the deny rules of your session: the crew's code cannot read
+the session's rules, so `/permissions add deny shell_command ...` does not reach a validation, as it never reached the
+validations `/dev-verify` runs from its own code. To stop one, deny the tool itself (`/permissions add deny
+run_validation`), which the gate sees.
+
 ## What a project file may set
 
 The project's `.orkeon/config.json` (what `/config set` writes) cannot widen what the user allows. The user's own
@@ -324,6 +342,27 @@ to the session read-only, on `/user-config`:
 - What the project file set and could not apply, `/permissions` names: `↳ ignored` under the mode, and a note for
   the tools not offered. `/config set` of such a value still writes it, then says it is ignored. `/config set
   --session` is the user's own, and is not narrowed.
+
+## Trusted folders
+
+The launcher asks before it starts in a folder for the first time, because the agent reads that folder's
+`AGENTS.md`, `.orkeon/config.json` and `.orkeon/repo.yaml`, may run the commands `.orkeon/repo.yaml` names, and git
+runs the folder's hooks through the shell. Nothing of the folder is read or mounted before the answer.
+
+- `y` stores the folder in `~/.orkeon-code/trusted-folders.json` (`ORKEON_CODE_HOME` moves it); every folder below
+  it then starts without asking. Trusting your home folder, or `/`, trusts everything below it: the question says so.
+- `n`, or no answer, exits with code 0: nothing started.
+- The folder is checked by its real path: a symbolic link leads to the folder it names, which is the one asked about,
+  stored and mounted.
+- Without a terminal (a pipe, a CI job, `scripts/run-crew.sh` in a script) an untrusted folder is refused with exit
+  code 3. `--trust` starts it for that run only, and `ORKEON_CODE_TRUST=1` does the same when `CI=true`; neither
+  stores anything. `--demo` trusts the fixture the launcher seeds.
+- `orkeon-code trust list` shows the store, `orkeon-code trust add <folder>` and `orkeon-code trust remove <folder>`
+  change it, `orkeon-code trust check <folder> [--trust]` answers 0 (it may start), 3 (refused, no terminal) or 4
+  (declined).
+- The launcher writes the store one folder per line and reads it back in that layout only: a file it cannot read is
+  refused with its path, trusts nothing and is never rewritten. Move it away and trust your folders again.
+- The check is the launcher's: `orkeon-repl` started by hand skips it.
 
 ## What no mode changes
 

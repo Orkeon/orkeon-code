@@ -65,7 +65,9 @@ export DEEPSEEK_API_KEY=...
 
 The example targets DeepSeek; any OpenAI-compatible endpoint, or another provider Orkeon supports (Anthropic
 included), works by changing `Llm:BaseUrl`, `Llm:Model` and `Llm:ApiKeyEnvVar` ([Configuration](configuration.md)).
-The launcher also looks for `~/.config/orkeon-code/appsettings.json` (an install reads that one only: copy the example from `~/.local/lib/orkeon-code/current/config/` there), or takes `--settings FILE`. A model on this
+An install reads `~/.orkeon-code/appsettings.json`: `orkeon-code setup` writes it, or copy the example from
+`~/.local/lib/orkeon-code/current/config/` there ([where the settings come from](configuration.md#where-the-settings-come-from)).
+The launcher also takes `--settings FILE`. A model on this
 machine instead, no key: `config/appsettings.ollama.example.json`, on Ollama ([Configuration](configuration.md#the-llm)).
 
 ## 3. Choose a runtime
@@ -137,6 +139,7 @@ cd ~/src/my-project && orkeon-code   # the current directory is the project
 orkeon-code --workspace ~/src/other  # or name it
 ```
 
+The first start in a folder asks whether you trust it ([Trusted folders](permissions.md#trusted-folders)).
 The banner prints the project, the settings and the mode. In the REPL:
 
 | Try | What happens |

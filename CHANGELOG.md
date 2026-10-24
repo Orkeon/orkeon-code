@@ -77,7 +77,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   mechanical table), runs the whole suite under `full`, and hands the batch to a read-only auditor (plan mode, four
   read tools) whose narrow test commands code runs for it. The verdict lands in `<CODE>-VERIFY-F<n>.md`, in the
   format the harness reads back; `resume` appends a dated section. `--gate-only` runs the gate alone, with no
-  model call and no write. It does not commit or push yet, and the access cost is not computed yet. A `full` run
+  model call and no write. It does not commit or push yet. A `full` run
   can take about an hour at worst (build 900 s, whole suite 900 s, three validations of 300 s each, plus the model's
   time), past the REPL's script time limit (`Orkeon:Cli:ScriptCommands:Limits:ExecutionTimeout`, 5 minutes by
   default, 30 minutes in the example settings): raise it to 60 minutes or more before a `full` run. A test names the
@@ -175,6 +175,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   every mode, a `write` tool in `default`, `acceptEdits` and `bypassPermissions`; a name the host does not register is
   left out of the turn with a warning. `/config set` checks the entries, permission rules may name these tools, and
   `/permissions` shows them ([Configuration](docs/configuration.md#extra-tools-mcp-servers-and-plugins)).
+- **Hooks that fire.** In `/dev-plan` and `/dev-verify`, each `pre-tool` hook of `/hooks` runs before a tool call
+  of the model the host gate allowed, and the first that fails refuses the call; each `post-tool` hook runs after it,
+  and one that fails adds a line to the result the model reads. `{tool}`, `{event}` and `{path}` in the command are
+  replaced by the call's; a hook is one program and its arguments, as the shell tool runs it, so `/hooks add` refuses
+  a command holding a shell operator. The assistant does not run them yet, and nothing runs a `stop` hook
+  ([Hooks](docs/hooks.md)).
+- **The dev crews' tool callback.** After the host gate allowed a call, the crews of `/dev-plan` and `/dev-verify`
+  check it again: the step's rule sets (their only check under `orkeon run`, which keeps no session rules), `glob`,
+  `grep` and `count_pattern` by their whole input, a path as written and normalised (`./`, `//`, `..`), and, when
+  the host has no gate, the act's mode. It refuses with
+  the rule, its set and what to do instead; it never allows a call the gate refused. A role of a batch (L-6) adds
+  its roots ([Permissions](docs/permissions.md)).
+- The dev steps' own tools: `run_validation` lets the `/dev-verify` auditor run up to three narrow test commands
+  of the repository pack itself, and the verdict cites each run; `run_tests` and `run_build` are ready for the
+  writing roles, each command checked against the pack, the integration and restore rules and the step's rules
+  before it runs, its whole output in a log file.
+- `/dev-verify` measures the access cost of a batch: it refreshes the batch's changed files in the code index
+  (`incremental_reindex`), runs `access_cost` over them and prints the `Cost:` line under the gate; a port call or an
+  in-memory filter in a loop or a lambda on an added line makes the capture's Cost row a gap. Without a `/workspace`
+  index it says `not indexed` (run `/analyze` first). The pack's `tools.access_cost.roots` choose the files (else every changed
+  file but the tests) and its `receivers` add to the runtime's port names.
+- The main loop runs two chains of checks around each turn: at its start (a guard may refuse the turn or add context
+  lines, stored as a `[turn-context]` message before the request) and on its answer (a blank answer, or one without
+  the closing line its command names, goes back to the model once with the reason). Lot W0-B.
+- A compaction (automatic or `/compact`) first writes the state of the dev batch in progress to
+  `.orkeon/dev/<code>/state-F<n>.md` — the sheet's TDD lines and the first open step, the batch's events, the
+  reports recorded, `git status --short` — from files and git only, then points at it in the new buffer
+  (`[restored-state]`); `/dev-verify F<n>` records the batch in progress. The outcome line names the file. Lot W0-B.
+- The first turn of a session carries what the session's start script printed (`Orkeon:Cli:Session:StartScript`):
+  `scripts/session-start.sh` names the recent state files and the open batches. Lot W0-B.
+- `scripts/dev-run.sh <crew> <code>` chains the steps of a dev crew headless, one `orkeon run` per step, each output
+  in `.orkeon/dev/<code>/runs/`, until the event log says closed (0), a human decides (3), nothing moved (4) or
+  `--max-steps` is reached (5); a rate-limited step is run again after `--wait` seconds. Lot W0-B.
+- `/status` names the Orkeon runtime it runs on (the `.orkeon-version` pin) and the host's LLM provider.
+- `/usage` and `/context` show the prompt-cache tokens read and written (`cacheRead`, `cacheWrite`), summed over the
+  session's models from `session_stats`; `-` when the host reports none.
+- `/commit --pr` (and `dev.prAuto` after a push) opens the pull request itself with the runtime's `github` tool
+  (`create_pr`) when the host offers it, origin is on github.com, the base branch is known and the session allows it:
+  an allow rule `allow github action=create_pr`, `bypassPermissions`, or a yes to the `/commit` plan that named the
+  pull request; otherwise it prints the `gh pr create` command and says why.
+- Folder trust: the first start in a folder asks whether you trust it, before anything of it is read or mounted;
+  `y` stores it in `~/.orkeon-code/trusted-folders.json` and every folder below it starts without asking. Without a
+  terminal an untrusted folder is refused with exit code 3 unless `--trust` is given (this run only) or
+  `ORKEON_CODE_TRUST=1` with `CI=true`. `orkeon-code trust list | add | remove | check` manage the store;
+  `scripts/run-crew.sh` checks the same way.
+- Settings: `~/.orkeon-code/appsettings.json` is the user's settings file; `~/.config/orkeon-code/appsettings.json` is
+  still read, with a warning naming the new place; with neither, Orkeon's own `~/.config/Orkeon/appsettings.json`
+  (`orkeon init`) is used and the REPL reads it itself. `orkeon-code setup` writes the file (mode 600) from an example,
+  asking the model and the name of the key's variable, never the key; it runs by itself on a first start in a
+  terminal with no settings.
 
 ### Changed
 
@@ -288,6 +338,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   token counts are numbers for every command; a runtime call that throws at once instead of rejecting is handled
   where the command already handled a failed call; and `ctx.llm.complete` receives an explicit `undefined` second
   argument.
+- `/permissions show` names a third line of enforcement, the dev crews' callback; `/hooks list` says where the
+  hooks run instead of "engine not wired".
+- The auditor's and the reviewer's prompts ask for reads by range (`file_read` with `offset` and `limit`, 120 lines
+  at most) or by symbol (`node_read`, now among their tools); a `/dev-verify` stopped by its budget says which
+  budget was spent instead of "the model call failed".
+- `/usage`: the `cacheHit` column is now `cacheRead`, next to the new `cacheWrite`.
+- `docs/configuration.md`: `Llm:MaxRateLimitWait` and `Llm:Profiles:<name>:MaxRateLimitWait` detailed
+  (`LlmRateLimitException`), and the prompt cache (`orkeon:cache_ttl`, not set by Orkeon Code).
 
 ### Removed
 

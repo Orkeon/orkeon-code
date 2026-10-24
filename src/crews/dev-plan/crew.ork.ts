@@ -21,6 +21,7 @@ import { devToolCallbacks } from "../../shared/infrastructure/orkeon/tool-callba
 import { charterCatalogue } from "../../shared/domain/agents/charter.ts";
 import { REVIEWER_CHARTER } from "../../shared/domain/dev/reviewer-charter.ts";
 import { runDevPlan } from "./application/run-dev-plan.ts";
+import { STEP_BUDGETS } from "../../shared/domain/dev/step-budget.ts";
 
 const ports = {
   shell: orkeonShell(), files: orkeonFiles(), config: orkeonConfigStore(), index: orkeonCodeIndex(), anchors: orkeonAnchorIndex(),
@@ -44,7 +45,7 @@ publishCrew(
   CrewBuilder()
     .name("dev-plan")
     .process("sequential")
-    .budget({ toolCalls: 240, wallTime: 1800, tokens: 400_000, delegationDepth: 0 })
+    .budget(STEP_BUDGETS["dev-plan"])
     .withAgent(planner)
     .build(),
 );
