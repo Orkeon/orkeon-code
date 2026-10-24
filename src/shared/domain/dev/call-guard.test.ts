@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import {
-  buildCallGuard, checkToolCall, denyText, guardSummary, hookCommand, shellOperatorIn, toolHooks,
+  buildCallGuard, checkToolCall, denyText, guardSummary, hookCommand, normalisePath, shellOperatorIn, toolHooks,
 } from "./call-guard.ts";
 import type { CallVerdict } from "./call-guard.ts";
 import { stepRules } from "./step-rules.ts";
@@ -63,6 +63,26 @@ describe("checkToolCall — rules", () => {
     refused(checkToolCall(guard, "edit_batch", { operations: [] }, ON));
   });
 
+  it("refuses a covered path written with ./, // or .., by its normalised form", () => {
+    const guard = buildCallGuard({ step: "dev-verify", role: "test-author", layout: LAYOUT });
+    for (const path of ["./src/domain/x.ts", "src//domain/x.ts", "tests/../src/domain/x.ts", "/workspace/./src/domain/x.ts"]) {
+      refused(checkToolCall(guard, "file_write", { path, content: "x" }, ON));
+    }
+    const verdict = refused(checkToolCall(guard, "file_write", { path: "./src/domain/x.ts", content: "x" }, ON));
+    strictEqual(verdict.reason,
+      "dev-verify: refused by 'deny file_write path=src/domain/*' of the test-author's roots, which 'src/domain/x.ts' is");
+    deepStrictEqual(checkToolCall(guard, "file_write", { path: "./tests/x.test.ts", content: "x" }, ON), { allow: true });
+  });
+
+  it("normalises a path by its text", () => {
+    strictEqual(normalisePath("/workspace/./src//x.ts"), "/workspace/src/x.ts");
+    strictEqual(normalisePath("/workspace/tests/../src/x.ts"), "/workspace/src/x.ts");
+    strictEqual(normalisePath("./src/x.ts"), "src/x.ts");
+    strictEqual(normalisePath("../x"), "../x");
+    strictEqual(normalisePath("/../workspace/x"), "/workspace/x");
+    strictEqual(normalisePath("./"), ".");
+  });
+
   it("reads an input that is not an object as no argument", () => {
     const guard = buildCallGuard({ step: "dev-plan" });
     deepStrictEqual(checkToolCall(guard, "file_read", null, ON), { allow: true });
@@ -89,7 +109,7 @@ describe("checkToolCall — the whole input of the folder readers", () => {
     refused(checkToolCall(guard, "grep", { path: "src", pattern: "TODO", glob: "**/*.ts" }, ON));
     refused(checkToolCall(guard, "count_pattern", { path: "/workspace", patterns: ["x"] }, ON));
     const plain = refused(checkToolCall(guard, "file_read", { path: "/workspace/tests/a.test.ts" }, ON));
-    strictEqual(plain.context, "The pilot reads no source or test file: work from the batch sheet and the plan.");
+    strictEqual(plain.context, "The pilot opens no source or test file by its path: work from the batch sheet and the plan.");
     // Outside the roots, or a literal path beside them.
     deepStrictEqual(checkToolCall(guard, "glob", { path: "/workspace/docs", pattern: "**/*.md" }, ON), { allow: true });
     deepStrictEqual(checkToolCall(guard, "grep", { path: "docs", pattern: "x", glob: "*.md" }, ON), { allow: true });
@@ -145,6 +165,7 @@ describe("hooks", () => {
     strictEqual(hookCommand(hook, "file_write", { path: "src/x.ts" }), "bash h.sh pre-tool file_write src/x.ts");
     strictEqual(hookCommand(hook, "file_write", { path: "a b; rm" }), "bash h.sh pre-tool file_write -");
     strictEqual(hookCommand(hook, "shell_command", { command: "ls" }), "bash h.sh pre-tool shell_command -");
+    strictEqual(hookCommand(hook, "file_write", { path: "-rf" }), "bash h.sh pre-tool file_write -");
   });
 
   it("finds the operators the shell tool refuses", () => {

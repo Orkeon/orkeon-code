@@ -143,8 +143,9 @@ rule: `/permissions` neither lists nor clears it.
 ## Rule sets of the dev steps
 
 `/dev-verify` (unless `--gate-only`) and `/dev-plan` hand the gate rule sets of their own just before their crew
-starts, and the crew's callback checks them again at each call the gate allows (the refusal then names the rule, its
-set and what to do instead). A set is a list of deny rules built into Orkeon Code, the same in every repository; no setting turns one on or
+starts, and the crew's callback checks them again at each call the gate allows. A call the gate refuses reads the
+gate's own refusal; one only the callback refuses (a `glob` or `grep` reaching a refused path, a path written with
+`./` or `..`, every call under `orkeon run`) names the rule, its set and what to do instead. A set is a list of deny rules built into Orkeon Code, the same in every repository; no setting turns one on or
 off. Both steps put all five sets in force:
 
 | Set | Rules on | Refuses |

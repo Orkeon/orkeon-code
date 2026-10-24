@@ -24,7 +24,9 @@ that crew, once the [host gate](permissions.md) has allowed it:
 3. the call runs;
 4. every `post-tool` hook runs, in order. One that fails adds a line to the result the model reads
    (`[post-tool hook #2 (node .orkeon/hooks/post.mjs file_write src/x.ts) exited 1: …]`); when they all exit 0, the
-   result is left as it is.
+   result is left as it is. A result that is not text reaches the model then as compact JSON, on one line.
+
+The time a hook runs counts in the step's time budget, at each call: keep hooks short.
 
 A call the gate refuses, a session deny rule among them, never reaches the hooks. The assistant (`/assistant`) does
 not run them yet, and nothing runs a `stop` hook: `/hooks` stores them for later. Under `orkeon run`, a crew gets
@@ -38,11 +40,11 @@ backticks are refused, by the tool and by `/hooks add`, and no variable is expan
 name the script:
 
 ```js
-// .orkeon/hooks/pre.mjs <tool> <path>: log every call, refuse writes under generated/.
+// .orkeon/hooks/pre.mjs <tool> <path>: log every call, refuse writes under generated/ (relative or absolute).
 import { appendFileSync } from "node:fs";
 const [tool, path] = process.argv.slice(2);
 appendFileSync(".orkeon/hooks/calls.log", `${new Date().toISOString()} ${tool} ${path}\n`);
-if (path.startsWith("generated/")) {
+if (path.startsWith("generated/") || path.startsWith("/workspace/generated/")) {
   console.error("generated/ is rebuilt, not edited");
   process.exit(2);
 }
@@ -54,9 +56,9 @@ Three words are replaced in the command before it runs:
 |---|---|
 | `{tool}` | the name of the tool the model called, `file_write` |
 | `{event}` | `pre-tool` or `post-tool` |
-| `{path}` | the call's `path` argument when it holds only letters, digits and `._/@+=,:-`; `-` otherwise or without one |
+| `{path}` | the call's `path` argument, as the model wrote it, when it holds only letters, digits and `._/@+=,:-` and does not start with `-`; `-` otherwise or without one |
 
-The program must be one the shell tool runs: `node`, `npm` and `dotnet` under `Orkeon:Tools:Shell:AllowInterpreters`,
+The program must be one the shell tool runs: `node`, `npm`, `dotnet` and `find` under `Orkeon:Tools:Shell:AllowInterpreters`,
 which the example settings turn on, and any other under `Orkeon:Tools:Shell:ExtraAllowedCommands` (`"bash"` for a
 shell script; [Configuration](configuration.md)). A hook that cannot run refuses every call of the step: run it once
 by hand first (`node .orkeon/hooks/pre.mjs file_read README.md`).

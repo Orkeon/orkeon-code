@@ -172,8 +172,9 @@ async function renderShow(deps: PermissionsDeps, extras: ExtraToolsResolution): 
     "                          without asking (not in plan); else the mode decides, and default and",
     "                          acceptEdits ask you: [y] once / [s] session / [n] no",
     "                       3) dev crews' callback (/dev-plan, /dev-verify), after the gate allowed a call:",
-    "                          the step's rule sets again, glob/grep/count_pattern by their whole input, the",
-    "                          pre-tool hooks (/hooks); it can refuse, never allow more",
+    "                          the step's rule sets and a role's roots again, glob/grep/count_pattern by",
+    "                          their whole input, the act's mode when the host has no gate, then the",
+    "                          pre-tool and post-tool hooks (/hooks); it can refuse, never allow more",
     ...gateStateLines(gateOn),
   ];
 

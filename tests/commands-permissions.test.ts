@@ -26,8 +26,9 @@ const NO_GATE_RULES =
 /** The third line of the enforcement block: the dev crews' tool callback. */
 const CALLBACK = [
   "                       3) dev crews' callback (/dev-plan, /dev-verify), after the gate allowed a call:",
-  "                          the step's rule sets again, glob/grep/count_pattern by their whole input, the",
-  "                          pre-tool hooks (/hooks); it can refuse, never allow more",
+  "                          the step's rule sets and a role's roots again, glob/grep/count_pattern by",
+  "                          their whole input, the act's mode when the host has no gate, then the",
+    "                          pre-tool and post-tool hooks (/hooks); it can refuse, never allow more",
 ];
 
 /** The closing lines of the enforcement block when the host says its gate is on. */
@@ -93,8 +94,8 @@ describe("/permissions show", () => {
     strictEqual(lines[6], "session rules        : (none)");
     strictEqual(lines[7], "in the host gate     : (none)");
     ok(lines[11].endsWith("acceptEdits ask you: [y] once / [s] session / [n] no"), lines[11]);
-    deepStrictEqual(lines.slice(12, 15), CALLBACK, "the dev crews' callback, the third line");
-    deepStrictEqual(lines.slice(15), GATE_ON, "the host says its gate is on");
+    deepStrictEqual(lines.slice(12, 16), CALLBACK, "the dev crews' callback, the third line");
+    deepStrictEqual(lines.slice(16), GATE_ON, "the host says its gate is on");
     deepStrictEqual(await run("show"), await run());
     deepStrictEqual(gate.calls, [], "show hands the gate nothing");
   });
@@ -114,11 +115,11 @@ describe("/permissions show", () => {
     strictEqual(lines[5], "  ↳ removed by rule  : file_read");
     strictEqual(lines[6], "session rules        : deny file_read, allow shell_command command=npm test*");
     strictEqual(lines[7], "in the host gate     : deny file_read, allow shell_command command=npm test*");
-    ok(lines[17].startsWith(
+    ok(lines[18].startsWith(
       "⚠ rule allow shell_command command=npm test* has NO effect in 'plan': mode 'plan' ignores every allow rule",
-    ), lines[17]);
-    strictEqual(lines[18], "⚠ 1 stored entry is not a rule (bogus): kept as written, ignored; /permissions clear removes them.");
-    strictEqual(lines.length, 19);
+    ), lines[18]);
+    strictEqual(lines[19], "⚠ 1 stored entry is not a rule (bogus): kept as written, ignored; /permissions clear removes them.");
+    strictEqual(lines.length, 20);
   });
 
   it("says when the gate holds other rules than the session, or none at all", async () => {
@@ -126,11 +127,11 @@ describe("/permissions show", () => {
     seedRules("deny file_write");
     let lines = (await run("show")).text!.split("\n");
     strictEqual(lines[7], "in the host gate     : (none)");
-    strictEqual(lines[17], "⚠ the gate holds other rules than the session: the next change or /assistant hands it these.");
+    strictEqual(lines[18], "⚠ the gate holds other rules than the session: the next change or /assistant hands it these.");
     gate.kept = false;
     lines = (await run("show")).text!.split("\n");
     strictEqual(lines[7], "in the host gate     : (the host keeps no session rules)");
-    strictEqual(lines.length, 17);
+    strictEqual(lines.length, 18);
   });
 
   it("groups the rule sets a dev step left in the gate, and says the next turn hands it the session's alone", async () => {
@@ -307,7 +308,7 @@ describe("/permissions — the extra tools of tools.extra", () => {
     strictEqual(lines[4], "  ↳ withheld by mode : (none)");
     strictEqual(lines[6],
       "  ↳ extra tools      : transcribe_audio (read), search_issues (write); not registered: gone (read); ignored: bad:exec");
-    strictEqual(lines.length, 18);
+    strictEqual(lines.length, 19);
     store.state.set(DEFAULT_MODE_STATE_KEY, "dontAsk");
     lines = (await run("show")).text!.split("\n");
     strictEqual(lines[3], `tool catalogue       : ${toolsetFor("dontAsk", EXTRAS).join(", ")}`);
@@ -473,13 +474,13 @@ describe("/permissions show: the host gate's state", () => {
     const { gate, run } = setup();
     gate.hostGate = false;
     const lines = (await run()).text!.split("\n");
-    deepStrictEqual(lines.slice(15), GATE_OFF);
+    deepStrictEqual(lines.slice(16), GATE_OFF);
   });
 
   it("falls back to the setting's description when the host cannot say", async () => {
     const { gate, run } = setup();
     gate.hostGate = undefined;
     const lines = (await run()).text!.split("\n");
-    deepStrictEqual(lines.slice(15), GATE_SETTING);
+    deepStrictEqual(lines.slice(16), GATE_SETTING);
   });
 });

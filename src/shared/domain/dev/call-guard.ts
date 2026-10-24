@@ -92,10 +92,10 @@ export function shellOperatorIn(command: string): string | undefined {
 const PLAIN = /^[A-Za-z0-9._/@+=,:-]+$/;
 
 /** The hook's command with `{tool}`, `{event}` and `{path}` replaced: `{path}` is the input's `path` when it is
- *  plain, else `-`. */
+ *  plain and does not start with `-` (never read as an option by the hook), else `-`. */
 export function hookCommand(hook: ToolHook, tool: string, input: unknown): string {
   const raw = (input as { path?: unknown } | null)?.path;
-  const path = typeof raw === "string" && PLAIN.test(raw) ? raw : "-";
+  const path = typeof raw === "string" && PLAIN.test(raw) && !raw.startsWith("-") ? raw : "-";
   const name = PLAIN.test(tool) ? tool : "-";
   return hook.command.replaceAll("{tool}", name).replaceAll("{event}", hook.event).replaceAll("{path}", path);
 }
@@ -123,6 +123,28 @@ function modeVerdict(guard: CallGuard, tool: string, mode: string): CallVerdict 
 
 function plainText(value: unknown): string | undefined {
   return typeof value === "string" && value !== "" ? value : undefined;
+}
+
+/** A path with its `//` collapsed and its `.` and `..` segments resolved by their text: `/workspace/./src//x`
+ *  and `/workspace/tests/../src/x` read `/workspace/src/x`, `./src/x` reads `src/x`. A `..` that climbs above the
+ *  path's start is kept. */
+export function normalisePath(path: string): string {
+  const absolute = path.startsWith("/");
+  const out: string[] = [];
+  for (const part of path.split("/")) {
+    if (part === "" || part === ".") continue;
+    if (part === ".." && out.length > 0 && out[out.length - 1] !== "..") out.pop();
+    else if (part === ".." && absolute) continue;
+    else out.push(part);
+  }
+  const text = out.join("/");
+  return absolute ? `/${text}` : text === "" ? "." : text;
+}
+
+/** The forms a path is matched in: as written, and normalised when that differs. */
+function pathForms(path: string): string[] {
+  const normal = normalisePath(path);
+  return normal === path ? [path] : [path, normal];
 }
 
 function joinPath(base: string | undefined, tail: string): string {
@@ -167,7 +189,7 @@ function originText(origin: GuardRule["origin"]): string {
 function contextOf(guard: CallGuard, origin: GuardRule["origin"]): string {
   if (origin.kind === "set") return `${RULE_SETS[origin.id].title} are refused during /${guard.step}: do without this call.`;
   return origin.access === "read"
-    ? `The ${origin.role} reads no source or test file: work from the batch sheet and the plan.`
+    ? `The ${origin.role} opens no source or test file by its path: work from the batch sheet and the plan.`
     : `The ${origin.role} writes outside these roots only: ${origin.role === "implementer" ? "leave the tests as they are" : "write the tests, no source file"}.`;
 }
 
@@ -195,10 +217,14 @@ export function checkToolCall(
   const args = input !== null && typeof input === "object" && !Array.isArray(input)
     ? input as Readonly<Record<string, unknown>>
     : {};
-  for (const entry of guard.rules) {
-    if (matchesRule(entry.rule, tool, args)) return ruleVerdict(guard, entry, "");
+  const given = typeof args.path === "string" ? pathForms(args.path) : [undefined];
+  for (const path of given) {
+    const asked = path === undefined || path === args.path ? args : { ...args, path };
+    for (const entry of guard.rules) {
+      if (matchesRule(entry.rule, tool, asked)) return ruleVerdict(guard, entry, path === args.path ? "" : `, which '${path}' is`);
+    }
   }
-  const reached = reachedPaths(tool, args);
+  const reached = reachedPaths(tool, args).flatMap(pathForms);
   for (const joined of reached) {
     for (const entry of guard.rules) {
       if (entry.rule.argument !== "path") continue;

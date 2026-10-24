@@ -25,7 +25,9 @@ fait dans ce crew, une fois que la [garde de l'hôte](permissions.md) l'a permis
 3. l'appel s'exécute ;
 4. chaque hook `post-tool` s'exécute, dans l'ordre. Celui qui échoue ajoute une ligne au résultat que lit le modèle
    (`[post-tool hook #2 (node .orkeon/hooks/post.mjs file_write src/x.ts) exited 1: …]`) ; quand tous sortent avec 0,
-   le résultat reste tel quel.
+   le résultat reste tel quel. Un résultat qui n'est pas du texte parvient alors au modèle en JSON compact, sur une ligne.
+
+Le temps d'exécution d'un hook compte dans le budget de temps de l'étape, à chaque appel : gardez les hooks courts.
 
 Un appel que la garde refuse, une règle deny de la session comprise, n'atteint jamais les hooks. L'assistant
 (`/assistant`) ne les exécute pas encore, et rien n'exécute un hook `stop` : `/hooks` les garde pour plus tard. Sous
@@ -40,11 +42,11 @@ pas, et la commande est un programme et ses arguments, tels que l'outil les lit.
 les étapes dans un script et nommez le script :
 
 ```js
-// .orkeon/hooks/pre.mjs <tool> <path>: log every call, refuse writes under generated/.
+// .orkeon/hooks/pre.mjs <tool> <path>: log every call, refuse writes under generated/ (relative or absolute).
 import { appendFileSync } from "node:fs";
 const [tool, path] = process.argv.slice(2);
 appendFileSync(".orkeon/hooks/calls.log", `${new Date().toISOString()} ${tool} ${path}\n`);
-if (path.startsWith("generated/")) {
+if (path.startsWith("generated/") || path.startsWith("/workspace/generated/")) {
   console.error("generated/ is rebuilt, not edited");
   process.exit(2);
 }
@@ -56,9 +58,9 @@ Trois mots sont remplacés dans la commande avant qu'elle s'exécute :
 |---|---|
 | `{tool}` | le nom de l'outil que le modèle a appelé, `file_write` |
 | `{event}` | `pre-tool` ou `post-tool` |
-| `{path}` | l'argument `path` de l'appel quand il ne contient que des lettres, des chiffres et `._/@+=,:-` ; `-` sinon ou sans lui |
+| `{path}` | l'argument `path` de l'appel, tel que le modèle l'a écrit, quand il ne contient que des lettres, des chiffres et `._/@+=,:-` et ne commence pas par `-` ; `-` sinon ou sans lui |
 
-Le programme doit être un de ceux que l'outil shell exécute : `node`, `npm` et `dotnet` sous
+Le programme doit être un de ceux que l'outil shell exécute : `node`, `npm`, `dotnet` et `find` sous
 `Orkeon:Tools:Shell:AllowInterpreters`, que les settings d'exemple activent, et tout autre sous
 `Orkeon:Tools:Shell:ExtraAllowedCommands` (`"bash"` pour un script shell ; [Configuration](configuration.md)). Un hook
 qui ne peut pas s'exécuter refuse chaque appel de l'étape : lancez-le d'abord une fois à la main

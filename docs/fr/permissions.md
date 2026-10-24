@@ -154,7 +154,9 @@ règles de la session. Une réponse `[s]` n'est pas une règle : `/permissions` 
 
 `/dev-verify` (sauf avec `--gate-only`) et `/dev-plan` remettent à la garde des jeux de règles qui leur sont propres
 juste avant le démarrage de leur crew, et le callback du crew les contrôle à nouveau à chaque appel que la garde
-permet (le refus nomme alors la règle, son jeu et ce qu'il faut faire à la place). Un jeu est une liste de règles deny intégrée à Orkeon Code, la même dans tous
+permet. Un appel que la garde refuse lit le refus de la garde ; celui que seul le callback refuse (un `glob` ou un
+`grep` qui atteint un chemin refusé, un chemin écrit avec `./` ou `..`, chaque appel sous `orkeon run`) nomme la
+règle, son jeu et ce qu'il faut faire à la place. Un jeu est une liste de règles deny intégrée à Orkeon Code, la même dans tous
 les dépôts ; aucun réglage ne l'active ni ne le désactive. Les deux étapes mettent en vigueur les cinq jeux :
 
 | Jeu | Règles sur | Refuse |
