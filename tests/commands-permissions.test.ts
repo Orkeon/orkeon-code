@@ -80,7 +80,9 @@ describe("/permissions show", () => {
     strictEqual(lines[0], "session default mode : default ");
     strictEqual(lines[1], `  ↳ source           : ${resolveFallbackMode(undefined).explanation}`);
     strictEqual(lines[3], `tool catalogue       : ${toolsetFor("default").join(", ")}`);
-    strictEqual(lines[4], "  ↳ withheld by mode : (none)");
+    // spawn_agent is in no catalogue (the script host appends it to every act): commands/_lib/permissions.ts
+    // still lists it here.
+    strictEqual(lines[4], "  ↳ withheld by mode : spawn_agent");
     strictEqual(lines[5], "  ↳ removed by rule  : (none)");
     strictEqual(lines[6], "session rules        : (none)");
     strictEqual(lines[7], "in the host gate     : (none)");
@@ -129,7 +131,7 @@ describe("/permissions show", () => {
     seedRules("deny file_write");
     gate.rules = [R("deny file_write"), ...RULE_SETS["read-noise"].rules];
     const lines = (await run("show")).text!.split("\n");
-    strictEqual(lines[7], "in the host gate     : deny file_write; rule sets of the last dev step: read-noise (8 rules)");
+    strictEqual(lines[7], "in the host gate     : deny file_write; rule sets of the last dev step: read-noise (56 rules)");
     ok(lines.includes(SETS_HELD));
     ok(!lines.includes(OTHER_RULES));
   });
@@ -228,7 +230,7 @@ describe("/permissions add", () => {
     });
     deepStrictEqual(await run("add", "allow", "shell_command", "cmd=npm", "test*"), {
       text: "invalid rule: 'shell_command' has no argument 'cmd': it takes command, working_directory, " +
-        `timeout_seconds.\n${PERMISSIONS_USAGE}`,
+        `timeout_seconds, action, job_id, tail_lines.\n${PERMISSIONS_USAGE}`,
     });
     strictEqual(rules(), null);
     deepStrictEqual(gate.calls, []);
@@ -294,7 +296,9 @@ describe("/permissions — the extra tools of tools.extra", () => {
     await extraTools("transcribe_audio:read, search_issues, gone:read, bad:exec", "transcribe_audio", "search_issues");
     let lines = (await run("show")).text!.split("\n");
     strictEqual(lines[3], `tool catalogue       : ${toolsetFor("default", EXTRAS).join(", ")}`);
-    strictEqual(lines[4], "  ↳ withheld by mode : (none)");
+    // spawn_agent is in no catalogue (the script host appends it to every act): commands/_lib/permissions.ts
+    // still lists it here.
+    strictEqual(lines[4], "  ↳ withheld by mode : spawn_agent");
     strictEqual(lines[6],
       "  ↳ extra tools      : transcribe_audio (read), search_issues (write); not registered: gone (read); ignored: bad:exec");
     strictEqual(lines.length, 15);

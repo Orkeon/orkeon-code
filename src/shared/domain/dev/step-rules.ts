@@ -18,7 +18,8 @@ export const STEP_RULE_SETS: Readonly<Record<DevStep, readonly RuleSetId[]>> = {
   "dev-plan": DEV_STEP_RULE_SETS,
 };
 
-/** rulesOf(STEP_RULE_SETS[step]): 245 rules for each step today. */
+/** rulesOf(STEP_RULE_SETS[step]): 407 rules for each step today (the deny on edit_batch that secrets and
+ *  state-files both hold is kept once). */
 export function stepRules(step: DevStep): PermissionRule[] {
   return rulesOf(STEP_RULE_SETS[step]);
 }
@@ -27,17 +28,17 @@ export function stepRules(step: DevStep): PermissionRule[] {
  *  source file, the implementer writes no test file. */
 export type DevRole = "pilot" | "test-author" | "implementer";
 export type LayoutRootKey = "domain" | "application" | "infrastructure" | "tests";
-export const ROLE_ROOTS: Readonly<Record<DevRole, { tool: "file_read" | "file_write"; keys: readonly LayoutRootKey[] }>> = {
-  pilot: { tool: "file_read", keys: ["domain", "application", "infrastructure", "tests"] },
-  "test-author": { tool: "file_write", keys: ["domain", "application", "infrastructure"] },
-  implementer: { tool: "file_write", keys: ["tests"] },
+export const ROLE_ROOTS: Readonly<Record<DevRole, { access: "read" | "write"; keys: readonly LayoutRootKey[] }>> = {
+  pilot: { access: "read", keys: ["domain", "application", "infrastructure", "tests"] },
+  "test-author": { access: "write", keys: ["domain", "application", "infrastructure"] },
+  implementer: { access: "write", keys: ["tests"] },
 };
 
 /** pathRules over the role's roots the pack gives, and the pack keys it lacks (`layout.tests`). */
 export interface RoleRules extends PathRules { missing: string[] }
 
 export function roleRules(role: DevRole, layout: Pick<RepoPackLayout, LayoutRootKey>): RoleRules {
-  const { tool, keys } = ROLE_ROOTS[role];
+  const { access, keys } = ROLE_ROOTS[role];
   const roots: string[] = [];
   const missing: string[] = [];
   for (const key of keys) {
@@ -45,7 +46,7 @@ export function roleRules(role: DevRole, layout: Pick<RepoPackLayout, LayoutRoot
     if (value === undefined || value === "") missing.push(`layout.${key}`);
     else roots.push(value);
   }
-  return { ...pathRules(tool, roots), missing };
+  return { ...pathRules(access, roots), missing };
 }
 
 export const GATE_SETTING = "Orkeon:Security:PermissionGate:Enabled";
@@ -53,16 +54,10 @@ export const GATE_SETTING = "Orkeon:Security:PermissionGate:Enabled";
 /** What the step says before launching: refuse (no crew), or warn and launch. */
 export interface GateProblem { refuse: boolean; line: string }
 
-/** null when the host says its gate is on. */
+/** null when the host's gate is on, or when the host keeps no session rules (undefined), which the
+ *  command reports itself. */
 export function gateProblem(enabled: boolean | undefined, step: DevStep): GateProblem | null {
-  if (enabled === true) return null;
-  if (enabled === undefined) {
-    return {
-      refuse: false,
-      line: `warning: the host does not say whether its permission gate is on (a runtime before Orkeon #128): ` +
-        `/${step} runs, and its rule sets hold only if ${GATE_SETTING} is true.`,
-    };
-  }
+  if (enabled !== false) return null;
   const gateOnly = step === "dev-verify" ? " /dev-verify F<n> --gate-only runs no model and needs no gate." : "";
   return {
     refuse: true,

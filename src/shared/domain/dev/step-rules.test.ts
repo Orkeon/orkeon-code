@@ -1,5 +1,5 @@
 // The rule sets each dev step holds, a role's rules on the pack's roots, and what a step says
-// when the host's gate is off or cannot say. Run:
+// when the host's gate is off. Run:
 //   node --test src/shared/domain/dev/step-rules.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
@@ -13,18 +13,15 @@ describe("STEP_RULE_SETS", () => {
     deepStrictEqual(Object.keys(STEP_RULE_SETS).sort(), [...DEV_STEPS].sort());
     for (const step of DEV_STEPS) deepStrictEqual(STEP_RULE_SETS[step], RULE_SET_IDS);
     deepStrictEqual(stepRules("dev-plan"), rulesOf(RULE_SET_IDS));
-    strictEqual(stepRules("dev-plan").length, 245);
+    strictEqual(stepRules("dev-plan").length, 407);
+    strictEqual(stepRules("dev-verify").length, 407);
   });
 });
 
 describe("gateProblem", () => {
-  it("says nothing when the gate is on, warns when the host cannot say, refuses when it is off", () => {
+  it("says nothing when the gate is on or the host keeps no session rules, refuses when it is off", () => {
     strictEqual(gateProblem(true, "dev-plan"), null);
-    deepStrictEqual(gateProblem(undefined, "dev-plan"), {
-      refuse: false,
-      line: "warning: the host does not say whether its permission gate is on (a runtime before Orkeon #128): " +
-        "/dev-plan runs, and its rule sets hold only if Orkeon:Security:PermissionGate:Enabled is true.",
-    });
+    strictEqual(gateProblem(undefined, "dev-plan"), null);
     deepStrictEqual(gateProblem(false, "dev-plan"), {
       refuse: true,
       line: "dev-plan: refused: the host's permission gate is off (Orkeon:Security:PermissionGate:Enabled is not true), " +
@@ -43,13 +40,19 @@ describe("gateProblem", () => {
 describe("roleRules", () => {
   it("keeps the pilot out of the source and test roots the pack gives, and names the missing keys", () => {
     const pilot = roleRules("pilot", { domain: "src/core/Orkeon.Domain", tests: "tests" });
-    deepStrictEqual(pilot.rules.map(formatRule), [
+    deepStrictEqual(pilot.rules.map(formatRule).slice(0, 4), [
       "deny file_read path=/workspace/src/core/Orkeon.Domain/*",
       "deny file_read path=src/core/Orkeon.Domain/*",
-      "deny file_read path=/workspace/tests/*",
-      "deny file_read path=tests/*",
+      "deny glob path=/workspace/src/core/Orkeon.Domain/*",
+      "deny glob path=src/core/Orkeon.Domain/*",
     ]);
+    strictEqual(pilot.rules.length, 2 * 14 + 1);
+    strictEqual(formatRule(pilot.rules[pilot.rules.length - 1]), "deny structural_search");
     deepStrictEqual(pilot.missing, ["layout.application", "layout.infrastructure"]);
+    for (const tool of ["file_read", "grep", "node_outline", "documents_of"]) {
+      strictEqual(ruleDecision(pilot.rules, tool, { path: "tests/a.test.ts" }), "deny", tool);
+    }
+    strictEqual(ruleDecision(pilot.rules, "file_write", { path: "tests/a.test.ts" }), undefined);
   });
 
   it("lets the test author write tests only, and the implementer write sources only", () => {
@@ -62,5 +65,15 @@ describe("roleRules", () => {
     strictEqual(ruleDecision(implementer, "file_write", test), "deny");
     strictEqual(ruleDecision(author, "file_write", source), "deny");
     strictEqual(ruleDecision(implementer, "file_write", source), undefined);
+    for (const tool of ["edit_file", "node_replace", "node_insert", "node_ensure"]) {
+      strictEqual(ruleDecision(implementer, tool, test), "deny", tool);
+      strictEqual(ruleDecision(author, tool, source), "deny", tool);
+      strictEqual(ruleDecision(author, tool, test), undefined, tool);
+    }
+    for (const rules of [author, implementer]) {
+      deepStrictEqual(rules.slice(-2).map(formatRule), ["deny edit_batch", "deny structural_rewrite"]);
+    }
+    strictEqual(author.length, 3 * 10 + 2);
+    strictEqual(implementer.length, 10 + 2);
   });
 });

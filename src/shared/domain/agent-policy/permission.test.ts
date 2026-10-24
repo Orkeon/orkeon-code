@@ -1,15 +1,42 @@
 // Run: node --test src/shared/domain/agent-policy/permission.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, ok, deepStrictEqual } from "node:assert";
+import { readFileSync } from "node:fs";
 
 import {
-  READ_TOOLS, WRITE_TOOLS, NETWORK_READ_TOOLS, RULEABLE_TOOLS,
+  READ_TOOLS, WRITE_TOOLS, NETWORK_READ_TOOLS, RULEABLE_TOOLS, ACT_TOOLS,
   resolvePermissionMode, isReadOnly,
   toolsetFor, permissionNote, buildActPrompt,
   catalogueFor, coversEveryCall, readRule, checkRule, formatRule, gateLine, parseStoredRule, sameCalls,
   ruleableTool, TOOL_ARGUMENTS, globMatches, matchesRule, ruleDecision,
 } from "./permission.ts";
 import { PERMISSION_MODES } from "../permission-modes.ts";
+
+/** Each tool of `interface OrkeonBuiltInTools` (src/crews/.orkeon/orkeon.d.ts) with the depth-1 keys of
+ *  its input: a ``/** `name` - …`` line, then `camel(input…{` and its keys until the brace closes, or
+ *  `input?: Record<string, never>` for none. */
+function builtInToolInputs(): Map<string, string[]> {
+  const text = readFileSync(new URL("../../../crews/.orkeon/orkeon.d.ts", import.meta.url), "utf8");
+  const lines = text.slice(text.indexOf("interface OrkeonBuiltInTools {")).split("\n");
+  const tools = new Map<string, string[]>();
+  for (let i = 1; i < lines.length && lines[i] !== "}"; i++) {
+    const name = /^\/\*\* `([a-z_0-9]+)` - /.exec(lines[i])?.[1];
+    if (name === undefined) continue;
+    const head = lines[++i];
+    const keys: string[] = [];
+    tools.set(name, keys);
+    if (!/\(input\??: \{$/.test(head.trimEnd())) continue;
+    for (let depth = 1; ++i < lines.length;) {
+      const line = lines[i];
+      if (depth === 1 && line.startsWith("}")) break;
+      if (/^\s*(\/\*\*|\*)/.test(line)) continue;
+      const key = /^\s*([a-z_0-9]+)\??:/.exec(line)?.[1];
+      if (depth === 1 && key !== undefined) keys.push(key);
+      depth += (line.match(/\{/g)?.length ?? 0) - (line.match(/\}/g)?.length ?? 0);
+    }
+  }
+  return tools;
+}
 
 describe("resolvePermissionMode", () => {
   it("defaults to 'default'", () => {
@@ -67,13 +94,19 @@ describe("B-8 — the network-read class", () => {
   });
 
   it("does NOT wire the A2A tools — they are not in the DI catalogue", () => {
-    // DelegateWorkTool/SpawnAgentTool are built per-agent by
-    // AgentDelegationToolsProvider and never registered as IBaseTool, so naming
-    // them would be a silent no-op. Pinned so the next reader does not "fix" it.
-    for (const absent of ["delegate_work", "delegate_work_to_coworker", "spawn_agent", "search_tool"]) {
+    // DelegateWorkTool is built per-agent by AgentDelegationToolsProvider and never
+    // registered as IBaseTool, so naming it would be a silent no-op. Pinned so the
+    // next reader does not "fix" it.
+    for (const absent of ["delegate_work", "delegate_work_to_coworker", "search_tool"]) {
       strictEqual(toolsetFor("bypassPermissions").includes(absent), false, absent);
       strictEqual(RULEABLE_TOOLS.includes(absent), false, `${absent} must not be ruleable either`);
     }
+  });
+
+  it("makes spawn_agent ruleable but offers it in no catalogue: the script host appends it to every act", () => {
+    strictEqual(RULEABLE_TOOLS.includes("spawn_agent"), true);
+    deepStrictEqual(ACT_TOOLS, ["spawn_agent"]);
+    for (const mode of PERMISSION_MODES) strictEqual(toolsetFor(mode).includes("spawn_agent"), false, mode);
   });
 
   it("makes the network tools ruleable, so /permissions can deny them", () => {
@@ -86,14 +119,45 @@ describe("B-8 — the network-read class", () => {
 
 describe("the tool lists", () => {
   it("name each tool once: the write and ruleable lists derive from the classes", () => {
-    deepStrictEqual(WRITE_TOOLS, ["file_write", "rag_ingest", "shell_command"]);
-    deepStrictEqual(RULEABLE_TOOLS, [...READ_TOOLS, ...NETWORK_READ_TOOLS, ...WRITE_TOOLS]);
+    deepStrictEqual(WRITE_TOOLS, [
+      "file_write", "rag_ingest", "edit_file", "node_replace", "node_insert", "node_ensure", "edit_batch",
+      "structural_rewrite", "github", "rag_eval", "shell_command",
+    ]);
+    deepStrictEqual(RULEABLE_TOOLS, [...READ_TOOLS, ...NETWORK_READ_TOOLS, ...WRITE_TOOLS, ...ACT_TOOLS]);
     strictEqual(new Set(RULEABLE_TOOLS).size, RULEABLE_TOOLS.length);
   });
 
-  it("offer every ruleable tool in some mode, and nothing else", () => {
+  it("offer every ruleable tool but ACT_TOOLS in some mode, and nothing else", () => {
     const offered = new Set(PERMISSION_MODES.flatMap((mode) => toolsetFor(mode)));
-    deepStrictEqual([...offered].sort(), [...RULEABLE_TOOLS].sort());
+    deepStrictEqual([...offered].sort(), RULEABLE_TOOLS.filter((t) => !ACT_TOOLS.includes(t)).sort());
+  });
+
+  it("offer the reads of Orkeon #180 in every mode and its edit tools only where the mode edits", () => {
+    const reads = [
+      "glob", "grep", "list_mounts", "node_outline", "node_read", "count_pattern", "access_cost", "affected_tests",
+      "batch_anchors", "documented_in", "documents_of", "structural_search", "incremental_reindex",
+      "statement_query", "complexity_report",
+    ];
+    const edits = [
+      "edit_file", "node_replace", "node_insert", "node_ensure", "edit_batch", "structural_rewrite", "github",
+      "rag_eval",
+    ];
+    for (const mode of PERMISSION_MODES) {
+      const t = toolsetFor(mode);
+      for (const r of reads) ok(t.includes(r), `${mode} / ${r}`);
+      for (const e of edits) strictEqual(t.includes(e), !isReadOnly(mode), `${mode} / ${e}`);
+    }
+  });
+
+  it("know the arguments orkeon.d.ts declares for every ruleable tool but spawn_agent", () => {
+    const declared = builtInToolInputs();
+    for (const [tool, args] of Object.entries(TOOL_ARGUMENTS)) {
+      if (tool === "spawn_agent") continue;
+      ok(declared.has(tool), `${tool} is not declared in OrkeonBuiltInTools`);
+      deepStrictEqual([...args].sort(), [...declared.get(tool)!].sort(), tool);
+    }
+    for (const tool of RULEABLE_TOOLS) if (tool !== "spawn_agent") ok(declared.has(tool), tool);
+    deepStrictEqual(TOOL_ARGUMENTS.spawn_agent, ["agent", "input"]);
   });
 
   it("know the arguments of every ruleable tool, and of no other", () => {
@@ -102,7 +166,9 @@ describe("the tool lists", () => {
       strictEqual(new Set(args).size, args.length, tool);
       for (const arg of args) ok(/^[a-z][a-z0-9_]*$/.test(arg), `${tool}.${arg} is snake_case`);
     }
-    deepStrictEqual(TOOL_ARGUMENTS.shell_command, ["command", "working_directory", "timeout_seconds"]);
+    deepStrictEqual(TOOL_ARGUMENTS.shell_command, [
+      "command", "working_directory", "timeout_seconds", "action", "job_id", "tail_lines",
+    ]);
     deepStrictEqual(TOOL_ARGUMENTS.file_write, ["path", "content", "encoding", "append", "create_backup"]);
   });
 });
@@ -219,6 +285,23 @@ describe("catalogueFor", () => {
     }
   });
 
+  it("reports an allow rule on spawn_agent as inert in plan only: every act is offered it", () => {
+    const allow = [{ effect: "allow" as const, tool: "spawn_agent" }];
+    for (const mode of PERMISSION_MODES) {
+      deepStrictEqual(catalogueFor(mode, allow).inert.map((r) => r.rule.tool), mode === "plan" ? ["spawn_agent"] : [], mode);
+    }
+  });
+
+  it("warns on an allow rule on spawn_agent, which runs without asking in dontAsk too, and refuses nothing", () => {
+    const warning = "'spawn_agent' is offered to every act whatever the mode: an allow rule lets it run without " +
+      "asking in dontAsk too.";
+    deepStrictEqual(checkRule("allow spawn_agent"), { ok: true, rule: { effect: "allow", tool: "spawn_agent" }, warning });
+    deepStrictEqual(checkRule("allow Spawn_Agent agent=researcher"), {
+      ok: true, rule: { effect: "allow", tool: "spawn_agent", argument: "agent", pattern: "researcher" }, warning,
+    });
+    deepStrictEqual(checkRule("deny spawn_agent"), { ok: true, rule: { effect: "deny", tool: "spawn_agent" } });
+  });
+
   it("reports no inert rule where the mode offers the tool and reads allow rules", () => {
     deepStrictEqual(catalogueFor("default", [{ effect: "allow", tool: "file_write" }, NPM_TEST]).inert, []);
     deepStrictEqual(catalogueFor("dontAsk", [{ effect: "allow", tool: "file_read" }]).inert, []);
@@ -332,10 +415,10 @@ describe("rules to add (checkRule)", () => {
 
   it("refuses an argument a built-in tool does not take, naming the ones it does", () => {
     deepStrictEqual(checkRule("allow shell_command cmd=npm test*"), {
-      ok: false, reason: "'shell_command' has no argument 'cmd': it takes command, working_directory, timeout_seconds",
+      ok: false, reason: "'shell_command' has no argument 'cmd': it takes command, working_directory, timeout_seconds, action, job_id, tail_lines",
     });
     deepStrictEqual(checkRule("deny shell_command Command=rm*"), {
-      ok: false, reason: "'shell_command' has no argument 'Command': it takes command, working_directory, timeout_seconds",
+      ok: false, reason: "'shell_command' has no argument 'Command': it takes command, working_directory, timeout_seconds, action, job_id, tail_lines",
     });
     deepStrictEqual(checkRule("deny index_status path=x"), {
       ok: false, reason: "'index_status' takes no argument: a rule on it covers every call",

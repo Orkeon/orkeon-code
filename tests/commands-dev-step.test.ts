@@ -1,7 +1,7 @@
 // The start of a dev step (commands/_lib/dev-step.ts) over FakePermissionRules (the host gate), a
 // FakeSessionStore holding the session's rules, a config store on FakeFiles and FakeToolCatalogue. It pins
 // what /dev-plan and /dev-verify print before launching: the refusal when the host says its gate is off,
-// the warning when it cannot say or keeps no session rules, the warning for a session allow the step
+// the warning when it keeps no session rules, the warning for a session allow the step
 // leaves out, and the gate calls (the session's rules, then the step's rule sets). Run:
 //   node --test tests/commands-dev-step.test.ts
 import { describe, it } from "node:test";
@@ -51,32 +51,32 @@ describe("startDevStep", () => {
     deepStrictEqual(deps.gate.calls, []);
   });
 
-  it("puts the session's rules first, then the 245 rules of the step, and prints nothing", async () => {
+  it("puts the session's rules first, then the 407 rules of the step, and prints nothing", async () => {
     const deps = setup("allow shell_command command=npm test*");
     const start = started(await startDevStep("dev-plan", deps));
     deepStrictEqual(start.lines, []);
     deepStrictEqual(start.sets, RULE_SET_IDS);
-    strictEqual(start.rules, 245);
+    strictEqual(start.rules, 407);
     strictEqual(deps.gate.calls[0], "clear");
     strictEqual(deps.gate.calls[1], "add allow shell_command command=npm test*");
     strictEqual(deps.gate.calls[2], "add deny shell_command command=*git add*");
-    strictEqual(deps.gate.calls.length, 247);
+    strictEqual(deps.gate.calls.length, 409);
   });
 
-  it("warns when the host cannot say, and still puts the sets in force", async () => {
+  it("prints nothing when the facade does not say whether the gate is on, and still puts the sets in force", async () => {
     const deps = setup();
     deps.gate.hostGate = undefined;
     const start = started(await startDevStep("dev-plan", deps));
-    deepStrictEqual(start.lines, [gateProblem(undefined, "dev-plan")!.line]);
-    strictEqual(deps.gate.calls.length, 246);
+    deepStrictEqual(start.lines, []);
+    strictEqual(gateProblem(undefined, "dev-plan"), null);
+    strictEqual(deps.gate.calls.length, 408);
   });
 
-  it("warns twice when the host keeps no session rules", async () => {
+  it("warns once when the host keeps no session rules", async () => {
     const deps = setup();
     deps.gate.kept = false;
     const start = started(await startDevStep("dev-plan", deps));
     deepStrictEqual(start.lines, [
-      gateProblem(undefined, "dev-plan")!.line,
       "warning: the host keeps no session rules: /dev-plan's rule sets are not in force, the mode alone decides each call.",
     ]);
     strictEqual(start.rules, 0);

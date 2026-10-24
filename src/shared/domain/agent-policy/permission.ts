@@ -27,6 +27,10 @@ export const READ_TOOLS = [
   // verified live (/debug-tool-call list, 60 registered) — an act call whose agent
   // names an unknown tool fails.
   "rag_search",
+  // Since Orkeon #180 (each declares ToolAccess.Read): files, mounts, the node readers and the graph queries.
+  "glob", "grep", "list_mounts", "node_outline", "node_read", "count_pattern",
+  "access_cost", "affected_tests", "batch_anchors", "documented_in", "documents_of",
+  "structural_search", "incremental_reindex", "statement_query", "complexity_report",
 ];
 
 /**
@@ -43,11 +47,14 @@ export const READ_TOOLS = [
  *    AddOrkeonWebSearchTool) and `semantic_search` (needs AddSemanticSearchTool);
  *    the REPL host (Orkeon.ConsoleApp) calls neither, so no search tool exists to
  *    hand over.
- *  - `delegate_work` / `spawn_agent` — NOT registered as IBaseTool anywhere.
- *    DelegateWorkTool is constructed per-agent by AgentDelegationToolsProvider and
- *    attached to that agent's own list; it never enters the DI catalogue the
- *    scripting bridge draws from. "Framework-registered and auto-bridged" holds
- *    for http_api, not for the A2A pair.
+ *  - `delegate_work` — NOT registered as IBaseTool anywhere. DelegateWorkTool is
+ *    constructed per-agent by AgentDelegationToolsProvider and attached to that
+ *    agent's own list; it never enters the DI catalogue the scripting bridge draws
+ *    from. "Framework-registered and auto-bridged" holds for http_api, not for it.
+ *
+ * `spawn_agent` is the script host's own tool, appended to every act whatever
+ * `.tools([...])` names (naming it there fails the act): it is ruleable
+ * (ACT_TOOLS) and never named in a catalogue.
  */
 export const NETWORK_READ_TOOLS = ["http_api", "web_scrape", "scrape_element"];
 
@@ -56,7 +63,11 @@ export const NETWORK_READ_TOOLS = ["http_api", "web_scrape", "scrape_element"];
 const TOOLS_BY_CLASS: Readonly<Record<ToolClass, readonly string[]>> = {
   read: READ_TOOLS,
   network: NETWORK_READ_TOOLS,
-  edit: ["file_write", "rag_ingest"],
+  edit: [
+    "file_write", "rag_ingest",
+    "edit_file", "node_replace", "node_insert", "node_ensure", "edit_batch", "structural_rewrite",
+    "github", "rag_eval",
+  ],
   shell: ["shell_command"],
   extra: [],
 };
@@ -142,12 +153,16 @@ export interface PermissionRule {
   pattern?: string;
 }
 
+/** Tools the host offers to every act whatever `.tools([...])` names (naming one there fails the act):
+ *  ruleable, never in a catalogue. */
+export const ACT_TOOLS: readonly string[] = ["spawn_agent"];
+
 /**
  * Every built-in tool a rule may name; the configured extra tools come on top
  * (ruleableTool). The gate matches any name, so a rule on a tool the host does not
  * register would never match anything: naming it is refused instead.
  */
-export const RULEABLE_TOOLS: readonly string[] = Object.values(TOOLS_BY_CLASS).flat();
+export const RULEABLE_TOOLS: readonly string[] = [...Object.values(TOOLS_BY_CLASS).flat(), ...ACT_TOOLS];
 
 /**
  * The arguments each built-in tool takes, as Orkeon binds them: the properties of
@@ -157,7 +172,7 @@ export const RULEABLE_TOOLS: readonly string[] = Object.values(TOOLS_BY_CLASS).f
  * matches a call: /permissions refuses it.
  */
 export const TOOL_ARGUMENTS: Readonly<Record<string, readonly string[]>> = {
-  file_read: ["path", "encoding", "max_length", "use_raggable_cache"],
+  file_read: ["path", "encoding", "max_length", "use_raggable_cache", "offset", "limit"],
   directory_read: ["path", "recursive", "pattern", "max_results"],
   directory_search: [
     "path", "query", "file_patterns", "recursive", "top_k", "threshold", "chunk_size", "max_file_size_kb",
@@ -175,18 +190,59 @@ export const TOOL_ARGUMENTS: Readonly<Record<string, readonly string[]>> = {
   flow_trace: ["from", "to", "direction", "max_depth", "edge_kinds", "include_all_paths", "max_paths"],
   dependency_graph: [
     "scope", "edge_kinds", "include_external", "root_fqn", "max_nodes", "include_mermaid", "include_dot",
+    "node_kinds",
   ],
   impact_analysis: ["target", "direction", "max_depth", "max_nodes"],
   package_summary: ["fqn", "include_public_exports", "include_dependencies", "max_exports"],
-  sub_graph: ["seeds", "edge_kinds", "depth", "direction", "max_nodes", "include_mermaid"],
+  sub_graph: ["seeds", "edge_kinds", "depth", "direction", "max_nodes", "include_mermaid", "node_kinds"],
   symbol_detail: ["fqn", "expand", "include_signature", "include_doc", "include_body_metrics", "max_children"],
   rag_search: ["question", "top_k", "collection"],
-  rag_ingest: ["collection", "sources", "chunking_strategy", "reindex"],
+  rag_ingest: ["collection", "sources", "chunking_strategy", "reindex", "prune"],
   http_api: ["url", "method", "headers", "body", "content_type"],
   web_scrape: ["url", "selector", "cached", "chunk_size"],
   scrape_element: ["url", "css_selector", "extract_attributes", "include_html", "max_elements"],
   file_write: ["path", "content", "encoding", "append", "create_backup"],
-  shell_command: ["command", "working_directory", "timeout_seconds"],
+  shell_command: ["command", "working_directory", "timeout_seconds", "action", "job_id", "tail_lines"],
+  // The tools of Orkeon #180, each with the depth-1 keys of its input (orkeon.d.ts, OrkeonBuiltInTools).
+  // Nested arguments, which no rule reaches (the gate reads a top-level argument's text, and an array or
+  // an object reads as its type name):
+  //  - edit_batch.operations[]: expected_hash?, index?, kind, level?, module?, name?, path, position?,
+  //    selector, text; `kind` names the operation (node_replace, node_insert, ensure_*, the Markdown
+  //    intents) where node_ensure takes `op`; `expected_hash` (node_read's sha256) is required on a
+  //    node_replace operation as on node_replace itself; `validate` is "parse" (default) or "build".
+  //  - structural_rewrite is a dry run unless `dry_run` is false; `rule` is an object, `paths` an array.
+  //  - github, per action: list_issues {owner, repo}, create_issue {owner, repo, title, body?},
+  //    create_pr {owner, repo, base, head, title, body?}, get_pr {owner, repo, number}, search_repos
+  //    {query}, get_repo {owner, repo}; the tool reads the action case-insensitively, a rule does not.
+  //  - batch_anchors.a and .b are {fqns, files}, for action "overlap"; "closure" takes fqns or files.
+  //  - arrays or objects: rag_ingest.sources, access_cost.*, affected_tests.changed_files,
+  //    sub_graph.seeds|edge_kinds|node_kinds, structural_search.paths|rule, count_pattern.patterns,
+  //    statement_query.kinds|parent_fqns, incremental_reindex.changed_files|languages.
+  glob: ["max_results", "path", "pattern"],
+  grep: ["case_insensitive", "glob", "max_files", "max_results", "path", "pattern"],
+  list_mounts: [],
+  node_outline: ["path"],
+  node_read: ["path", "selector"],
+  access_cost: ["changed_files", "fqns", "receivers", "roots"],
+  affected_tests: ["base", "changed_files"],
+  batch_anchors: ["a", "action", "b", "files", "fqns"],
+  documented_in: ["fqn"],
+  documents_of: ["path"],
+  structural_search: ["glob", "language", "max_files", "max_results", "paths", "pattern", "rule", "rule_file"],
+  incremental_reindex: ["changed_files", "enrich_with_llm", "from_commit", "languages", "root_path", "to_commit"],
+  count_pattern: ["distinct_matches", "include_matches", "max_matches_returned", "multiline", "path", "patterns"],
+  statement_query: ["kinds", "parent_fqns", "semantic_query", "top_k"],
+  complexity_report: ["metric", "root_fqn", "top_n"],
+  edit_file: ["create_backup", "new_string", "old_string", "path", "replace_all"],
+  node_replace: ["expected_hash", "path", "selector", "text"],
+  node_insert: ["path", "position", "selector", "text"],
+  node_ensure: ["index", "level", "module", "name", "op", "path", "selector", "text"],
+  edit_batch: ["operations", "validate"],
+  structural_rewrite: ["dry_run", "fix", "glob", "language", "max_files", "paths", "pattern", "rule", "rule_file"],
+  github: ["action", "base", "body", "head", "number", "owner", "query", "repo", "title"],
+  rag_eval: ["collection", "compare", "dataset", "k", "profile", "reindex", "use_llm_judge"],
+  // Offered by the script host to every act, not a built-in of orkeon.d.ts (SpawnAgentScriptRequest).
+  spawn_agent: ["agent", "input"],
 };
 
 /** Whether two tool names designate the same tool: Orkeon compares them case-insensitively. */
@@ -219,6 +275,11 @@ export function coversEveryCall(rule: PermissionRule): boolean {
   return rule.argument === undefined;
 }
 
+/** Whether the host offers `tool` to every act (ACT_TOOLS), whatever the catalogue. */
+function isActTool(tool: string): boolean {
+  return ACT_TOOLS.some((name) => sameToolName(name, tool));
+}
+
 /** Why an allow rule does nothing in `mode`, or undefined when it can spare a question there. */
 function inertReason(mode: string, rule: PermissionRule, offered: readonly string[]): string | undefined {
   // The gate reads no allow rule in plan (ModePermissionGate): plan's promise of a
@@ -227,7 +288,9 @@ function inertReason(mode: string, rule: PermissionRule, offered: readonly strin
     return "mode 'plan' ignores every allow rule: the gate decides each call from the mode, which runs reads " +
       "and refuses the rest. Switch mode instead.";
   }
-  if (!offered.includes(rule.tool)) {
+  // An ACT_TOOLS tool reaches the gate from every act whatever the catalogue: the gate reads an allow
+  // rule on it in every other mode, dontAsk included.
+  if (!offered.includes(rule.tool) && !isActTool(rule.tool)) {
     return `mode '${mode}' does not offer '${rule.tool}': an allow rule spares a question, ` +
       "it does not hand a tool over. Switch mode instead.";
   }
@@ -339,7 +402,16 @@ export function checkRule(text: unknown, extraNames: readonly string[] = []): Ru
     return { ok: false, reason: `'${read.tool}' is no tool a rule may name: one of ${tools}` };
   }
   const rule = { ...read, tool };
-  if (rule.argument === undefined) return { ok: true, rule };
+  // The gate reads an allow rule on an ACT_TOOLS tool in every mode but plan: say so, refuse nothing.
+  const accepted: RuleCheck = rule.effect === "allow" && isActTool(tool)
+    ? {
+      ok: true,
+      rule,
+      warning: `'${tool}' is offered to every act whatever the mode: an allow rule lets it run without asking in ` +
+        "dontAsk too.",
+    }
+    : { ok: true, rule };
+  if (rule.argument === undefined) return accepted;
   const known = TOOL_ARGUMENTS[tool];
   if (known === undefined) {
     return {
@@ -349,7 +421,7 @@ export function checkRule(text: unknown, extraNames: readonly string[] = []): Ru
         `matches a call only if '${tool}' takes an argument named exactly '${rule.argument}'.`,
     };
   }
-  if (known.includes(rule.argument)) return { ok: true, rule };
+  if (known.includes(rule.argument)) return accepted;
   return {
     ok: false,
     reason: known.length === 0

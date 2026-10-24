@@ -2,7 +2,8 @@
 // /permissions syntax, handed to the host gate by the commands that run a dev step
 // (shared/domain/dev/step-rules.ts says which step gets which set). The gate enforces them on the
 // model's calls only; a call made from Orkeon Code's own code is not checked (docs/permissions.md).
-// Every rule here names an argument, so no set removes a tool from a catalogue.
+// Every rule here names an argument but the whole-tool denies of the writing tools whose paths sit in an
+// array the gate cannot read (UNSCOPED_WRITE_TOOLS): those remove their tool from the catalogue.
 
 import { gateLine, sameCalls } from "./permission.ts";
 import type { PermissionRule } from "./permission.ts";
@@ -78,6 +79,31 @@ function denyAll(tool: string, argument: string, patterns: readonly string[]): P
   return patterns.map((pattern): PermissionRule => ({ effect: "deny", tool, argument, pattern }));
 }
 
+/** The tools that read one file or folder named by `path`. */
+export const PATH_READ_TOOLS: readonly string[] = [
+  "file_read", "glob", "grep", "node_outline", "node_read", "count_pattern", "documents_of",
+];
+/** The tools that write one file named by `path`. */
+export const PATH_WRITE_TOOLS: readonly string[] = ["file_write", "edit_file", "node_replace", "node_insert", "node_ensure"];
+/** The written text of each writing tool that takes it as one string. */
+export const WRITTEN_TEXT: ReadonlyArray<readonly [tool: string, argument: string]> = [
+  ["file_write", "content"], ["edit_file", "new_string"], ["node_replace", "text"], ["node_insert", "text"],
+  ["node_ensure", "text"], ["structural_rewrite", "fix"],
+];
+/** Writing tools whose paths sit in an array the gate reads as its type name, never an element: denied whole
+ *  where paths are protected. */
+export const UNSCOPED_WRITE_TOOLS: readonly string[] = ["edit_batch", "structural_rewrite"];
+
+/** A deny on every call of each tool. */
+function denyWhole(tools: readonly string[]): PermissionRule[] {
+  return tools.map((tool): PermissionRule => ({ effect: "deny", tool }));
+}
+
+/** The same patterns on `argument` of each tool, tool by tool. */
+function denyEach(tools: readonly string[], argument: string, patterns: readonly string[]): PermissionRule[] {
+  return tools.flatMap((tool) => denyAll(tool, argument, patterns));
+}
+
 export const RULE_SETS: Readonly<Record<RuleSetId, RuleSet>> = {
   "git-readonly": {
     id: "git-readonly",
@@ -106,7 +132,7 @@ export const RULE_SETS: Readonly<Record<RuleSetId, RuleSet>> = {
     id: "read-noise",
     title: "reads under build outputs, version-control internals and installed packages",
     // Each folder twice: inside a path, and as the start of a path relative to the project.
-    rules: denyAll("file_read", "path", [
+    rules: denyEach(PATH_READ_TOOLS, "path", [
       "*/bin/*", "bin/*", "*/obj/*", "obj/*", "*/.git/*", ".git/*", "*/node_modules/*", "node_modules/*",
     ]),
   },
@@ -114,24 +140,31 @@ export const RULE_SETS: Readonly<Record<RuleSetId, RuleSet>> = {
     id: "secrets",
     title: "a private key block or a token with a known prefix in written content",
     // The prefixes of SECRET_PATTERNS (secret-patterns.ts) a whole-content pattern can hold without refusing
-    // ordinary text; the others need a check of the content itself.
-    rules: denyAll("file_write", "content", [
-      "*-----BEGIN *PRIVATE KEY-----*",
-      "*ghp_*", "*gho_*", "*ghu_*", "*ghs_*", "*ghr_*", "*github_pat_*",
-      "*xoxa-*", "*xoxb-*", "*xoxp-*", "*xoxo-*", "*xoxs-*", "*xoxr-*",
-      "*AKIA*",
-      "*AIza*",
-      "*sk-ant-*",
-    ]),
+    // ordinary text; the others need a check of the content itself. edit_batch's texts sit in its
+    // operations, which the gate cannot read: it is denied whole.
+    rules: [
+      ...WRITTEN_TEXT.flatMap(([tool, argument]) => denyAll(tool, argument, [
+        "*-----BEGIN *PRIVATE KEY-----*",
+        "*ghp_*", "*gho_*", "*ghu_*", "*ghs_*", "*ghr_*", "*github_pat_*",
+        "*xoxa-*", "*xoxb-*", "*xoxp-*", "*xoxo-*", "*xoxs-*", "*xoxr-*",
+        "*AKIA*",
+        "*AIza*",
+        "*sk-ant-*",
+      ])),
+      ...denyWhole(["edit_batch"]),
+    ],
   },
   "state-files": {
     id: "state-files",
     title: "files only Orkeon Code's own code writes",
     // Batch logs, batch states, verdicts and audit captures; the state folder; the harness's deployed files.
-    rules: denyAll("file_write", "path", [
-      "*-BATCHES-STATE.md", "*-STATE-F*.md", "*-VERIFY-F*.md", "*/capture-F*/*",
-      "*/.orkeon/*", ".orkeon/*", "*/.claude/*", ".claude/*",
-    ]),
+    rules: [
+      ...denyEach(PATH_WRITE_TOOLS, "path", [
+        "*-BATCHES-STATE.md", "*-STATE-F*.md", "*-VERIFY-F*.md", "*/capture-F*/*",
+        "*/.orkeon/*", ".orkeon/*", "*/.claude/*", ".claude/*",
+      ]),
+      ...denyWhole(UNSCOPED_WRITE_TOOLS),
+    ],
   },
 };
 
@@ -145,7 +178,7 @@ export function rulesOf(ids: readonly RuleSetId[]): PermissionRule[] {
   return out;
 }
 
-/** Deny rules on the folders `roots` for `tool`, and why a root got none. */
+/** Deny rules on the folders `roots` for the tools of one access, and why a root got none. */
 export interface PathRules { rules: PermissionRule[]; problems: string[] }
 
 const PROJECT = "/workspace";
@@ -168,7 +201,11 @@ function rootProblem(raw: string, root: string): string | undefined {
   return undefined;
 }
 
-export function pathRules(tool: "file_read" | "file_write", roots: readonly string[]): PathRules {
+/** For each kept root, two rules (absolute, relative) per tool of PATH_READ_TOOLS or PATH_WRITE_TOOLS; then,
+ *  once a root is kept, a deny on the tools whose paths the gate cannot read: structural_search for `read`,
+ *  UNSCOPED_WRITE_TOOLS for `write`. */
+export function pathRules(access: "read" | "write", roots: readonly string[]): PathRules {
+  const tools = access === "read" ? PATH_READ_TOOLS : PATH_WRITE_TOOLS;
   const rules: PermissionRule[] = [];
   const problems: string[] = [];
   const seen = new Set<string>();
@@ -181,8 +218,9 @@ export function pathRules(tool: "file_read" | "file_write", roots: readonly stri
     }
     if (seen.has(root)) continue;
     seen.add(root);
-    rules.push(...denyAll(tool, "path", [`${PROJECT}/${root}/*`, `${root}/*`]));
+    rules.push(...denyEach(tools, "path", [`${PROJECT}/${root}/*`, `${root}/*`]));
   }
+  if (seen.size > 0) rules.push(...denyWhole(access === "read" ? ["structural_search"] : UNSCOPED_WRITE_TOOLS));
   return { rules, problems };
 }
 
