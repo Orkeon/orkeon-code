@@ -99,7 +99,7 @@ batch; the crews this script runs one by one do not, so name a log they move (th
 or every chain stops after its first step (nothing moved). The dev-batches crew would only name the next batch and log it
 launched, so the script refuses it (exit `64`): a run of a whole plan without anyone at the keyboard stays the REPL's
 `/dev-batches`. Without `DEV_RUN_RUNNER`, the project's trust is checked once, before the first step, where the
-terminal can answer; each step then runs with no input, so nothing it asks can hold the chain.
+terminal can answer; each step then runs with its standard input on `/dev/null`, so nothing it asks can hold the chain.
 
 ```bash
 ORKEON_CODE_WORKSPACE=~/src/app bash scripts/dev-run.sh dev-verify demo \

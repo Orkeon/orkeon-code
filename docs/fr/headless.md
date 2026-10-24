@@ -106,7 +106,7 @@ nommez donc un journal qu'ils font bouger (le `<CODE>-BATCHES-STATE.md` du code 
 s'arrête après sa première étape (rien n'a bougé). Le crew dev-batches ne ferait que nommer le lot suivant et le noter
 lancé, donc le script le refuse (sortie `64`) : un plan entier sans personne au clavier reste l'affaire du
 `/dev-batches` du REPL. Sans `DEV_RUN_RUNNER`, la confiance du projet est vérifiée une fois, avant la première étape,
-là où le terminal peut répondre ; chaque étape s'exécute ensuite sans entrée, donc rien de ce qu'elle demande ne peut
+là où le terminal peut répondre ; chaque étape s'exécute ensuite avec son entrée standard sur `/dev/null`, donc rien de ce qu'elle demande ne peut
 bloquer la chaîne.
 
 ```bash

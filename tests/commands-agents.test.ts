@@ -2,7 +2,7 @@
 // sub-command, its refusals and its usage lines. Run:
 //   node --test tests/commands-agents.test.ts
 import { describe, it } from "node:test";
-import { strictEqual, deepStrictEqual } from "node:assert";
+import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import { AGENTS_FILE_PATH, AGENTS_USAGE, SAVED_AGENTS_NOTE, runAgents } from "../src/commands/_lib/agents.ts";
 import { describeAgentRows } from "../src/shared/domain/agent-registry.ts";
@@ -26,6 +26,10 @@ function setup() {
 }
 
 describe("/agents list", () => {
+  it("names every step that runs a built-in charter as a child", () => {
+    ok(SAVED_AGENTS_NOTE.includes("children of /dev-spec, /dev-change, /dev-plan and /dev-verify"), SAVED_AGENTS_NOTE);
+  });
+
   it("tables the discovered crews and the saved agents (the default sub-command)", async () => {
     const { run, seed } = setup();
     seed({ tester: { role: "QA", goal: "find bugs", tools: [] } });

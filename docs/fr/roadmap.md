@@ -55,7 +55,7 @@ demandent d'abord un changement dans [Orkeon](https://github.com/Orkeon/orkeon).
   écriraient le même `/workspace`.
 - Une liste de plan ou de tâches que la boucle tient à jour (`/tasks` est une liste manuelle aujourd'hui).
 - Plusieurs sessions à la fois.
-- Gardé tel quel (W0-C) : la question de pull request de `/commit` reste une invite de la commande (`ctx.prompt`), posée
+- Gardé tel quel : la question de pull request de `/commit` reste une invite de la commande (`ctx.prompt`), posée
   avant qu'aucun crew ne tourne ; `human_input` sert les questions qu'un modèle pose pendant un act.
 
 ## Problèmes connus

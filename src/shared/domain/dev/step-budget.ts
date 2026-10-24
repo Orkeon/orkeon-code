@@ -28,14 +28,15 @@ export const TOKENS_PER_CALL = 3_500;
  * against the step's (A-3 Q3): 240 calls ask for 840 000 tokens. delegationDepth 1: the reviewer and the
  * auditor run as background children of the step's agent (A-3), one level down, never deeper. dev-spec and
  * dev-change: the inventory (about 40 index calls), three extract calls, the reproduction (600 s at most) and one
- * review of 20 iterations, by the reviewer as a background child (delegationDepth 1, as dev-plan); the wall time
+ * review of 20 iterations, by the reviewer as a background child whose calls count against the step's
+ * (delegationDepth 1, as dev-plan): 200 calls ask for 700 000 tokens; the wall time
  * counts the time a person takes to answer the questions, hence an hour.
  */
 export const STEP_BUDGETS: Readonly<Record<"dev-verify" | "dev-plan" | "dev-spec" | "dev-change", StepBudget>> = {
   "dev-verify": { toolCalls: 200, wallTime: 3600, tokens: 200 * TOKENS_PER_CALL, delegationDepth: 1 },
   "dev-plan": { toolCalls: 240, wallTime: 1800, tokens: 240 * TOKENS_PER_CALL, delegationDepth: 1 },
-  "dev-spec": { toolCalls: 200, wallTime: 3600, tokens: 400_000, delegationDepth: 1 },
-  "dev-change": { toolCalls: 200, wallTime: 3600, tokens: 400_000, delegationDepth: 1 },
+  "dev-spec": { toolCalls: 200, wallTime: 3600, tokens: 200 * TOKENS_PER_CALL, delegationDepth: 1 },
+  "dev-change": { toolCalls: 200, wallTime: 3600, tokens: 200 * TOKENS_PER_CALL, delegationDepth: 1 },
 };
 
 /** The budget of a repair by a new run (/tasks repair, crew agent-run): the step's own that runs the charter as a

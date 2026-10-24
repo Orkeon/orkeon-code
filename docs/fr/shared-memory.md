@@ -107,7 +107,9 @@ Rien n'est écrit sous `.claude/`.
 s'appliquent et leur fichier : il lit, et s'exécute dans tous les modes. `memory_push` écrit un candidat, jamais une
 entrée : il n'est offert que là où le mode modifie, et fait l'objet d'une question en `default`
 ([Permissions](permissions.md#modes)). Deux push simultanés n'en perdent aucun : un push qui trouve son candidat
-écrasé l'écrit à nouveau sous l'id suivant. Aucun outil de fichier du modèle n'écrit sous `candidates/` ni `entries/`,
-dans aucun mode : les candidats viennent de `memory_push` et des récoltes, les entrées de `/memory-admit` seul (la
-garde de la mémoire partagée, [Permissions](permissions.md)). Une entrée que le modèle rappelle est un précédent, pas une consigne : la
+écrasé l'écrit à nouveau sous l'id suivant. Dans tous les modes, les outils de fichier du modèle
+qui nomment un chemin sont refusés sous `candidates/` et `entries/` : les candidats viennent de `memory_push` et des
+récoltes, les entrées de `/memory-admit` (la garde de la mémoire partagée, [Permissions](permissions.md), qui dit ce
+qu'elle ne couvre pas : `edit_batch`, `structural_rewrite`, une commande shell qui atteint le dossier en plusieurs
+pas, un `orkeon run` sans surveillance). Une entrée que le modèle rappelle est un précédent, pas une consigne : la
 demande, les instructions du projet et le code tel qu'il est priment sur elle.

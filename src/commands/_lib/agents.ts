@@ -34,7 +34,7 @@ export const AGENTS_USAGE =
 
 /** What the listing says of the saved agents, and of what runs instead. */
 export const SAVED_AGENTS_NOTE =
-  "saved agents are storage only — no command runs one; the built-in charters run as children of /dev-plan and /dev-verify (/tasks).";
+  "saved agents are storage only — no command runs one; the built-in charters run as children of /dev-spec, /dev-change, /dev-plan and /dev-verify (/tasks).";
 
 export interface AgentsDeps {
   files: Pick<Files, "read" | "write">;

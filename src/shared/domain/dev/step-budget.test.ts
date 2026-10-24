@@ -11,8 +11,8 @@ describe("STEP_BUDGETS", () => {
     // The reviewer child's calls count against dev-plan's: its tokens follow its 240 calls, as dev-verify's follow its 200.
     deepStrictEqual(STEP_BUDGETS["dev-plan"], { toolCalls: 240, wallTime: 1800, tokens: 840_000, delegationDepth: 1 });
     // The wall time of a spec or a brief counts the person's answers to its questions.
-    deepStrictEqual(STEP_BUDGETS["dev-spec"], { toolCalls: 200, wallTime: 3600, tokens: 400_000, delegationDepth: 1 });
-    deepStrictEqual(STEP_BUDGETS["dev-change"], { toolCalls: 200, wallTime: 3600, tokens: 400_000, delegationDepth: 1 });
+    deepStrictEqual(STEP_BUDGETS["dev-spec"], { toolCalls: 200, wallTime: 3600, tokens: 700_000, delegationDepth: 1 });
+    deepStrictEqual(STEP_BUDGETS["dev-change"], { toolCalls: 200, wallTime: 3600, tokens: 700_000, delegationDepth: 1 });
   });
 });
 

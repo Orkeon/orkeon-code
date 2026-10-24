@@ -50,7 +50,7 @@ What Orkeon Code does not do yet, in the order we expect to address it. Items ma
   root a script agent can be given (`AgentBuilder().workingRoot(path)`), or both would write the same `/workspace`.
 - A plan/task list the loop maintains (`/tasks` is a manual list today).
 - Several sessions at once.
-- Kept as is (W0-C): the pull-request question of `/commit` stays a command prompt (`ctx.prompt`), asked before any
+- Kept as is: the pull-request question of `/commit` stays a command prompt (`ctx.prompt`), asked before any
   crew runs; `human_input` serves the questions a model asks during an act.
 
 ## Known issues

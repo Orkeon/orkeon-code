@@ -241,7 +241,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The first turn of a session carries what the session's start script printed (`Orkeon:Cli:Session:StartScript`):
   `scripts/session-start.ork.ts`, which the launchers install, names the recent state files and the open batches
   (`scripts/session-start.sh` prints the same lines in a terminal).
-- `scripts/dev-run.sh <crew> <code>` chains the steps of a dev crew headless, one `orkeon run` per step, each output
+- `scripts/dev-run.sh <crew> <code> --inputs '<json>'` chains the steps of a dev crew headless, one `orkeon run` per step, each output
   in `.orkeon/dev/<code>/runs/`, until the event log says closed (0), a human decides (3), nothing moved (4) or
   `--max-steps` is reached (5); a rate-limited step is run again after `--wait` seconds. The dev crews do not append
   to that log themselves, so name one the steps move (`--log`), or the chain stops after its first step. It refuses the crew `dev-batches` (exit 64): a whole plan without anyone at
@@ -266,7 +266,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **The shared memory** ([Shared memory](docs/shared-memory.md)): admitted decisions, code structures, methods and
   mistakes kept under `memory.dir` (default `.orkeon/memory`), one file per entry, indexed in the collection
-  `memory-<project>`. Nothing enters it without the operator: `memory_push` writes candidates,
+  `memory-<project>`. Nothing is admitted without the operator: `memory_push` writes candidates,
   `/memory-admit` asks once per candidate (a headless session admits nothing; `memory.autoAdmitAudited` admits an
   audited one unasked), `--refuse` keeps a topic out for good. `memory.dir`, `memory.project` and
   `memory.autoAdmitAudited` are new settings; a project file's `memory.autoAdmitAudited true` needs the user's.
@@ -481,10 +481,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `release.yml`'s runnable archives, installers and npm job are described. Getting started lists what the dev
     workflow writes in a project and every mount, the commit message of a linked worktree included; the README
     presents the dev workflow, the shared memory and the installers; the roadmap drops what is delivered, records the
-    structural-editor parts still waiting, and keeps the pull-request question of `/commit` a command prompt (W0-C).
+    structural-editor parts still waiting, and keeps the pull-request question of `/commit` a command prompt.
     `/agents` names the verbs its usage line takes, and the steps that run the reviewer (`/dev-spec`, `/dev-change`,
     `/dev-plan`).
-  - Security and permissions: a dev step holds 481 rules (483 with `/dev-implement`'s two allows): `git-readonly`
+  - Security and permissions: in the rule sets of a dev step, `git-readonly`
     220 (the reads of `git config` - `--get`, `--get-regexp`, `--list`, `-l`, a bare key - run; its writes stay
     refused), `inline-interpreters` 28 (a versioned `python3.12 -c`, and an option before `-c` or `-e`: `python3 -I
     -c`, `perl -w -e`, `ruby -w -e`), `read-noise` 64 (`directory_search` among the path read tools), `state-files`
@@ -492,9 +492,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     whole. The shell check of the dev crews and of the step guards reads the command as the host does - quotes
     dropped, blanks and tabs joined, backslash escapes resolved, option clusters split (`git "push"`, `bash  -c`,
     `python3 -Ic`, `git pu\sh`) - and a relative path that climbs out and back as the project path; a plan source
-    spelt with `.` or `//` segments is checked as the path it names. The shared memory's guard: in every mode, no
-    file tool of the model writes under `<memory.dir>/candidates/` or `entries/` (entries come from `/memory-admit`
-    alone), a stored allow it covers is dropped with a warning, and `/permissions` lists it. `dev.prAuto` from a
+    spelt with `.` or `//` segments is checked as the path it names. The shared memory's guard: in every mode, the
+    file tools of the model that name one path are refused under `<memory.dir>/candidates/` and `entries/` (not
+    `edit_batch`, `structural_rewrite`, a shell reaching the folder in steps, nor a headless `orkeon run`), a stored allow it covers is dropped with a warning, and `/permissions` lists it. `dev.prAuto` from a
     project file is narrowed as `memory.autoAdmitAudited` is, and an invalid `tools.extra` project entry naming a
     tool the file also declares validly is dropped. `memory.dir` is refused under `.claude/` or `.git/` in any
     letter case; a multi-line front-matter field is joined on one line; `/memory-admit --import` refuses an item
@@ -504,7 +504,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `/dev-plan`'s, which `/tasks` lists and stops (inline on a host without background children). `/dev-spec`,
     `/dev-change`, `/dev-plan`, `/dev-implement` and `/dev-batches` refuse in a read-only mode, an unknown mode, and
     when the mode cannot be read. Budgets have one source: `/dev-verify` 700 000 tokens, `/dev-plan` 840 000 (240
-    calls of 3 500, its reviewer child inside), `/dev-spec` and `/dev-change` 400 000 with one level of children;
+    calls of 3 500, its reviewer child inside), `/dev-spec` and `/dev-change` 700 000 (200 calls, their reviewer child inside) with one level of children;
     a `/tasks repair` (crew `agent-run`) runs under the step of the instance's run - its rule sets, hooks and
     budget, with no child of its own - else the charter's step (was 300 000 tokens). `/dev-plan`: an anchor spelt
     `./a/b` or `a//b` is checked as the path it names and one holding a `\` is refused; an anchor in a folder
@@ -531,7 +531,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     mode, has `--help`, and says `--demo` is bash-only; `install.ps1 -Uninstall` never removes a git clone;
     `session-start.sh` picks state files by their header date, as its twin; `run-crew.sh`'s source mode says when
     `dotnet` is missing; `scripts/dev-run.sh` refuses the crew `dev-batches`, checks the trust once before the
-    first step and runs each step with no input; the CI npm-shim step passes `--trust`.
+    first step and runs each step with its standard input on `/dev/null`; the CI npm-shim step passes `--trust`.
   - Commands: `/doctor` shows a `version` row first and a row `settings: project file` - "widens nothing", or a WARN
     naming every key the project file set and that was ignored (`permissions.fallback`, `tools.extra`,
     `memory.autoAdmitAudited`, `dev.prAuto`); `/stats` has a `cacheWrite` column and its `cacheHit` is now

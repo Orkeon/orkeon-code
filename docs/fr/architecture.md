@@ -502,7 +502,7 @@ un changement comme un diff.
   ouverte avec l'outil `github` du runtime (`create_pr`) quand `--pr` ou `dev.prAuto` le demandent, que l'hôte offre
   l'outil et que la session le permet ; sinon la commande `gh pr create` est affichée avec la raison. Le runtime
   enregistre cet outil sans jeton pour l'instant, donc GitHub le refuse ([Problèmes connus](roadmap.md#problèmes-connus)). La même
-  clôture (`shared/application/git/`) sert la clôture dev et la fusion en avance rapide d'un lot. Le message suit
+  clôture (`shared/application/git/`) sert la clôture dev (et servira la fusion en avance rapide d'un lot, pas encore câblée). Le message suit
   Conventional Commits et le style de l'historique récent, un sujet borné, un corps qui dit pourquoi. Un changement
   qui ressemble à des identifiants d'accès reçoit un refus au lieu d'un message, et un chemin qui contient d'ordinaire
   des secrets (un fichier env, une clé privée) arrête le commit avant tout appel au modèle.

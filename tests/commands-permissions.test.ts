@@ -50,7 +50,7 @@ const GATE_OFF = [
   "                       is enforced and nothing asks",
 ];
 
-/** The closing lines when the host cannot say (a runtime before Orkeon #128, or no session rules). */
+/** The closing lines when the host cannot say (no session rules). */
 const GATE_SETTING = [
   "                       the gate runs only when Orkeon:Security:PermissionGate:Enabled is true, which",
   "                       the launcher sets: off, no rule above is enforced and nothing asks",

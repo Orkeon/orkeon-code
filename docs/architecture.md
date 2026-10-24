@@ -460,7 +460,7 @@ prompt as the model reads it, to review a change as a diff.
   `git push -u origin <branch>`; off the default branch the pull request body is written to `<work>/pr-<slug>/PR.md`,
   and the pull request opened with the runtime's `github` tool (`create_pr`) when `--pr` or `dev.prAuto` ask for it, the host offers the
   tool and the session allows it; otherwise the `gh pr create` command is printed with the reason. The runtime
-  registers that tool without a token for now, so GitHub refuses it ([Known issues](roadmap.md#known-issues)). The same close (`shared/application/git/`) serves the dev close and the fast-forward merge of a batch. The
+  registers that tool without a token for now, so GitHub refuses it ([Known issues](roadmap.md#known-issues)). The same close (`shared/application/git/`) serves the dev close (and will serve the fast-forward merge of a batch, not wired yet). The
   message follows Conventional Commits and the style of the recent history, a bounded subject, a body that says why.
   A change that looks like a credential gets a refusal instead of a message, and a path that usually holds secrets
   (an env file, a private key) stops the commit before any model call.
