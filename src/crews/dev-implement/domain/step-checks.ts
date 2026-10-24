@@ -34,7 +34,10 @@ export function changedPaths(before: Snapshot, after: Snapshot): string[] {
     if (!before.has(p) || !after.has(p)) return true;
     const a = before.get(p);
     const b = after.get(p);
-    return a === null || b === null || a !== b;
+    // Unread on both sides (too large, binary, or past the snapshot's cap): not a change code saw; a role's
+    // own write to it is still counted, from the paths its write tools named.
+    if (a === null && b === null) return false;
+    return a !== b;
   }).sort();
 }
 
@@ -73,16 +76,23 @@ export function greenProblem(changed: readonly string[], testsFolder: string, ru
 
 export type CostRead = { ok: true; line: string } | { ok: false; problem: string; line?: string };
 
-const BLOCKING_ACCESS = /\b(loop|lambda|memory filter)/i;
-const NOTHING = /\b(none|nothing|no port call)\b/i;
+const BLOCKING_ACCESS = /\b(loops?|lambdas?|memory filters?)\b/i;
+const PLACE = "(?:a |any |one )?(?:loops?|lambdas?|memory filters?)";
+/** The one "where" that clears a line naming a loop, a lambda or a memory filter: none of them holds a port call. */
+const NONE_WHERE = new RegExp(
+  `^(?:none|nothing|no port call(?: (?:in|inside|within) ${PLACE}(?:,? (?:or |nor )?${PLACE})*)?)\\.?$`, "i");
 
-/** The implementer's `Cost:` line; refused when absent, or when a port call sits in a loop, a lambda or a memory filter. */
+/** The implementer's `Cost:` line; refused when absent, or when it names a loop, a lambda or a memory filter
+ *  anywhere but in a "where" that says no port call sits in one (`…; none`, `…; no port call in a loop`). */
 export function readCost(answer: string): CostRead {
   const match = /^\s*\**Cost\**\s*:\s*(.+)$/im.exec(answer);
   if (match === null) return { ok: false, problem: "the implementer stated no Cost line" };
-  const line = `Cost: ${match[1].trim()}`;
-  const where = match[1].includes(";") ? match[1].slice(match[1].lastIndexOf(";") + 1) : match[1];
-  if (BLOCKING_ACCESS.test(where) && !NOTHING.test(where)) {
+  const body = match[1].trim();
+  const line = `Cost: ${body}`;
+  const cut = body.indexOf(";");
+  const counts = cut < 0 ? body : body.slice(0, cut);
+  const where = cut < 0 ? "" : body.slice(cut + 1).trim();
+  if (BLOCKING_ACCESS.test(counts) || (BLOCKING_ACCESS.test(where) && !NONE_WHERE.test(where))) {
     return { ok: false, problem: `a port call in a loop, a lambda or a memory filter: back to /dev-plan (${line})`, line };
   }
   return { ok: true, line };

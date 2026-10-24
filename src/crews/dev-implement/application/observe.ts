@@ -6,7 +6,8 @@ import { statusPaths } from "../domain/step-checks.ts";
 import type { Snapshot } from "../domain/step-checks.ts";
 
 export const STATUS_COMMAND = "git status --porcelain=v1 --untracked-files=all";
-/** The paths one snapshot reads; a tree dirtier than this is refused before the first act. */
+/** The paths one snapshot reads; past this, it keeps the paths alone (unread), and a role's change is known
+ *  from the paths its write tools named. */
 export const MAX_SNAPSHOT_PATHS = 200;
 const MAX_READ_CHARS = 2_000_000;
 const ABSENT = "absent";
@@ -32,10 +33,11 @@ export async function snapshot(deps: { shell: Pick<Shell, "run">; files: Pick<Fi
   }
   if (status.exitCode !== 0) return { ok: false, problem: `${STATUS_COMMAND} exited ${status.exitCode}` };
   const paths = statusPaths(status.stdout);
-  if (paths.length > MAX_SNAPSHOT_PATHS) {
-    return { ok: false, problem: `${paths.length} paths are changed or untracked, more than the ${MAX_SNAPSHOT_PATHS} code can watch: commit or stash first` };
-  }
   const out = new Map<string, string | null>();
+  if (paths.length > MAX_SNAPSHOT_PATHS) {
+    for (const path of paths) out.set(path, null);
+    return { ok: true, snapshot: out };
+  }
   for (const path of paths) {
     try {
       out.set(path, contentHash(await deps.files.read(`/workspace/${path}`, MAX_READ_CHARS)));

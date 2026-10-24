@@ -17,10 +17,11 @@ describe("snapshot", () => {
     deepStrictEqual(r, { ok: true, snapshot: new Map([["src/a.ts", contentHash("x")], ["src/gone.ts", "absent"]]) });
   });
 
-  it("refuses a tree dirtier than it can watch, and a status that fails", async () => {
+  it("keeps the paths alone of a tree dirtier than it can read, and refuses a status that fails", async () => {
     const shell = new FakeShell();
     shell.results[STATUS_COMMAND] = { stdout: Array.from({ length: MAX_SNAPSHOT_PATHS + 1 }, (_, i) => `?? f${i}`).join("\n") };
-    strictEqual((await snapshot({ shell, files: new FakeFiles() })).ok, false);
+    const wide = await snapshot({ shell, files: new FakeFiles() });
+    strictEqual(wide.ok && wide.snapshot.size === MAX_SNAPSHOT_PATHS + 1 && wide.snapshot.get("f0") === null, true);
     shell.results[STATUS_COMMAND] = { exitCode: 128 };
     strictEqual((await snapshot({ shell, files: new FakeFiles() })).ok, false);
   });

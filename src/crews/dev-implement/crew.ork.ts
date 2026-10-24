@@ -26,6 +26,7 @@ import { devToolCallbacks } from "../../shared/infrastructure/orkeon/tool-callba
 import { parseSessionRules } from "../../shared/domain/git/pull-request.ts";
 import { implementBudget } from "./domain/implement-budget.ts";
 import { CREW_TOOLS } from "./domain/roles.ts";
+import { reportingWrites } from "./application/report-writes.ts";
 import { runDevImplement } from "./application/run-dev-implement.ts";
 
 const ports = { shell: orkeonShell(), files: orkeonFiles(), config: orkeonConfigStore(), jobs: orkeonShellJobs() };
@@ -52,9 +53,10 @@ const implementer = AgentBuilder()
         ...ports, log: ctx.log, toolSlot, opener,
         // Each role's act runs under its own callbacks: the host's gate first, then the step's rule sets, the
         // role's roots and the /hooks the command passed. run_tests and run_build check their own commands.
-        roleLlm: (role, layout) => createLlm(ctx.llm, devToolCallbacks(
+        // `wrote` hears each write those callbacks let through: code keeps a role's own changes, not its runs' output.
+        roleLlm: (role, layout, wrote) => createLlm(ctx.llm, reportingWrites(devToolCallbacks(
           { step: "dev-implement", role, layout, hooks: args.hooks, readTools: [] }, { shell: ports.shell, log: ctx.log },
-        )),
+        ), wrote)),
       },
     );
   })

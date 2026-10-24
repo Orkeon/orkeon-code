@@ -11,7 +11,10 @@ import { markActiveWorkflow, startDevStep } from "./_lib/dev-step.ts";
 import { launchCrew } from "./_lib/dispatch.ts";
 import { createCrewHost } from "../shared/infrastructure/orkeon/crew-host.ts";
 import { createPermissionRules } from "../shared/infrastructure/orkeon/permission-rules.ts";
-import { orkeonConfigStore, orkeonSessionIo, orkeonToolCatalogue } from "../shared/infrastructure/orkeon/wiring.ts";
+import {
+  orkeonConfigStore, orkeonFiles, orkeonSessionIo, orkeonShell, orkeonToolCatalogue,
+} from "../shared/infrastructure/orkeon/wiring.ts";
+import { countOpenSteps } from "../crews/dev-implement/application/count-open-steps.ts";
 import { GITHUB_TOOL } from "../shared/domain/git/pull-request.ts";
 
 const deps = { session: orkeonSessionIo(), config: orkeonConfigStore() };
@@ -19,6 +22,8 @@ const deps = { session: orkeonSessionIo(), config: orkeonConfigStore() };
 /** What the close needs to open the pull request itself: the github tool, the session's mode and rules. Read at
  *  dispatch, kept for the close the chain launches from `completed`, which the runtime does not await. */
 let prContext: Record<string, unknown> = {};
+/** The /hooks registry read at dispatch, carried to every crew of the chain (the audit runs under it too). */
+let chainHooks: unknown[] = [];
 
 async function readPullRequestContext(ctx: any): Promise<Record<string, unknown>> {
   let githubTool = false;
@@ -58,20 +63,29 @@ defineAsyncCommand({
     const unrecorded = await markActiveWorkflow(deps.session, parsed.args);
     if (unrecorded !== null) ctx.writeLine(unrecorded);
     prContext = await readPullRequestContext(ctx);
-    const input = { ...parsed.args, hooks: start.hooks, ...(parsed.args.close ? prContext : {}) };
+    chainHooks = start.hooks;
+    // The budget is sized to the open steps of the sheet (the crew sizes for its default when they cannot be counted).
+    const steps = parsed.args.close
+      ? undefined
+      : await countOpenSteps({ files: orkeonFiles(), shell: orkeonShell(), config: deps.config }, parsed.args.batch, parsed.args.plan);
+    const input = {
+      ...parsed.args, hooks: start.hooks, ...(steps === undefined ? {} : { steps }), ...(parsed.args.close ? prContext : {}),
+    };
     return launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "dev-implement", input, {
       ruleSets: start.sets.join(" "), rules: start.rules, hooks: start.hooks.length,
     });
   },
   completed: (result, ctx) => {
     if (!result.success) {
-      ctx.writeLine(`✗ dev-implement failed: ${result.error ?? "unknown"}`);
+      ctx.writeLine(`✗ the dev-implement chain failed: ${result.error ?? "unknown"}`);
       return;
     }
     const step = chainStep(String(result.payload ?? ""));
     for (const line of step.lines) ctx.writeLine(line);
     if (step.launch === undefined) return;
-    const input = step.launch.crew === "dev-implement" ? { ...step.launch.input, ...prContext } : step.launch.input;
+    const input = step.launch.crew === "dev-implement"
+      ? { ...step.launch.input, ...prContext, hooks: chainHooks }
+      : { ...step.launch.input, hooks: chainHooks };
     try {
       createCrewHost(ctx.services).launch(step.launch.crew, input);
     } catch (e) {

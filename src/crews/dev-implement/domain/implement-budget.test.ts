@@ -3,12 +3,13 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
-import { CLOSE_BUDGET, implementBudget, stepsToSize } from "./implement-budget.ts";
+import { CLOSE_BUDGET, implementBudget, STEP_TOOL_CALLS, stepsToSize } from "./implement-budget.ts";
 
 describe("implementBudget", () => {
   it("sizes to the steps, three by default", () => {
-    deepStrictEqual(implementBudget({}), { toolCalls: 220, wallTime: 9900, tokens: 450_000, delegationDepth: 0 });
-    strictEqual(implementBudget({ steps: 1 }).toolCalls, 100);
+    deepStrictEqual(implementBudget({}), { toolCalls: 370, wallTime: 9900, tokens: 450_000, delegationDepth: 0 });
+    strictEqual(implementBudget({ steps: 1 }).toolCalls, 150);
+    strictEqual(STEP_TOOL_CALLS >= 101, true); // both roles' iterations and the re-ask fit in one step
   });
   it("caps the steps, and gives the close its own budget", () => {
     strictEqual(stepsToSize(40), 12);

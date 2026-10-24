@@ -27,6 +27,10 @@ describe("tickBox", () => {
     deepStrictEqual(tickBox(once.text, 1, "RED"), once);
   });
 
+  it("refuses a TDD line without the box", () => {
+    const r = tickBox("## TDD sequence\n### Step 1 — One\nTDD: RED [ ] GREEN [ ]\n", 1, "COST");
+    strictEqual(r.ok, false);
+  });
   it("refuses a step it lacks or one without a TDD line", () => {
     deepStrictEqual(tickBox(SHEET, 9, "RED"), { ok: false, problem: "the sheet has no step 9" });
     deepStrictEqual(tickBox(SHEET, 3, "RED"), { ok: false, problem: "step 3 has no TDD line" });

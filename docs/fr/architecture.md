@@ -139,6 +139,7 @@ sauf les deux appels qui montrent un résultat brut à dessein (`MemoryStore.get
 | Port | À quoi il sert | Adaptateur (`src/shared/infrastructure/orkeon/`) | Fake (`tests/support/`) |
 |---|---|---|---|
 | `Shell` | Les commandes shell dans `/workspace` (`shell_command`) | `shell.ts` | `fake-shell.ts` |
+| `ShellJobs` | Une commande longue lancée détachée, son état, la fin de son journal, et une attente entre deux regards (`shell_command` `start_job`, `job_status`, `job_tail`) | `shell-jobs.ts` | aucun : des faux dans `suite-job.test.ts` et `run-dev-implement.test.ts` |
 | `Files` | Lire, écrire et lister par chemin virtuel, les montages du VFS (`file_read`, `file_write`, `directory_read`, `list_mounts`) | `files.ts` | `fake-files.ts` |
 | `Progress` | La ligne de progression de l'hôte, au mieux (`progress_report`) | `progress.ts` | `fake-progress.ts` |
 | `SessionStore` | Le tampon de conversation, le sac d'état, le titre, la coupe, le budget de tokens (`session_store`, `session_snip`, `token_budget`) | `session-store.ts` | `fake-session-store.ts` |
@@ -270,6 +271,7 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 | `dev-plan` | séquentiel, six outils de lecture en `plan`, un extract | `/dev-plan` | Porte des questions Blocking, inventaire par l'index, plan et fiches écrits par le code, une revue en lecture seule |
 | `dev-spec` | séquentiel, six outils de lecture en `plan`, des extracts | `/dev-spec` | Spécification métier écrite par le code depuis le JSON, ses questions posées une à une par `human_input`, une revue en lecture seule |
 | `dev-change` | séquentiel, six outils de lecture en `plan`, des extracts | `/dev-change` | Bug reproduit ou coût mesuré en exécutant, fiche de changement écrite par le code, questions par `human_input`, une revue |
+| `dev-implement` | séquentiel, un agent, deux rôles en `acceptEdits` (quatre outils de lecture, deux d'écriture, `run_tests`, `run_build`) | `/dev-implement` (`--close` : la clôture seule) | Chaque étape rouge puis verte, vérifiée par le code ; le build et la suite en jobs ; puis `/dev-verify` et, sur VALID, le commit |
 
 Un dossier commençant par `_` contient une sonde de développement (`probe.ork.ts`), lancée avec
 `scripts/run-crew.sh` ; aucune n'est livrée aujourd'hui.

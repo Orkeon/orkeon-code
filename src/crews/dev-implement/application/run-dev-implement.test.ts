@@ -14,7 +14,7 @@ import { GIT_TOPLEVEL } from "../../../shared/application/dev/resolve-work-folde
 import type { ActRequest, ShellJobs, ShellOptions, ShellResult } from "../../../shared/application/ports.ts";
 import { GIT_IDENT_COMMAND } from "../../../shared/domain/git/close.ts";
 import { STATUS_COMMAND } from "./observe.ts";
-import { touchedPath } from "./touched.ts";
+import { touchedPath, verdictMarkOf } from "./touched.ts";
 import { runDevImplement } from "./run-dev-implement.ts";
 import type { ImplementAnswer } from "./run-dev-implement.ts";
 
@@ -47,9 +47,19 @@ class Tree {
   passing = new Set<string>();
   readonly files: FakeFiles;
   constructor(files: FakeFiles) { this.files = files; }
+  /** The running role's write tool: hears each path the role writes. Unset, a write is a run's output. */
+  onWrite: ((path: string) => void) | null = null;
   write(path: string, content: string): void {
     this.dirty.set(path, content);
     this.files.files.set(`/workspace/${path}`, content);
+    this.onWrite?.(path);
+  }
+  /** What a run of the role's tests leaves in the tree, through no write tool. */
+  output(path: string, content: string): void {
+    const heard = this.onWrite;
+    this.onWrite = null;
+    this.write(path, content);
+    this.onWrite = heard;
   }
 }
 
@@ -69,13 +79,19 @@ type Act = (prompt: string, tree: Tree) => string;
 
 class Role {
   acts: Array<{ prompt: string; request: ActRequest }> = [];
+  wrote: (path: string) => void = () => {};
   readonly tree: Tree;
   readonly script: Act[];
   constructor(tree: Tree, script: Act[]) { this.tree = tree; this.script = script; }
   async act(prompt: string, request: ActRequest): Promise<string> {
     this.acts.push({ prompt, request });
     const step = this.script[Math.min(this.acts.length - 1, this.script.length - 1)];
-    return step(prompt, this.tree);
+    this.tree.onWrite = this.wrote;
+    try {
+      return step(prompt, this.tree);
+    } finally {
+      this.tree.onWrite = null;
+    }
   }
 }
 
@@ -109,7 +125,10 @@ function setup(author: Act[], implementer: Act[], sheet = SHEET) {
   const jobs = new FakeJobs();
   const deps = {
     files, shell, jobs, log: new FakeLogger(), config: createConfigStore({ files, session: new FakeSessionStore() }),
-    roleLlm: (role: "test-author" | "implementer") => roles[role],
+    roleLlm: (role: "test-author" | "implementer", _layout: unknown, wrote: (path: string) => void) => {
+      roles[role].wrote = wrote;
+      return roles[role];
+    },
   };
   return { files, shell, tree, roles, jobs, deps };
 }
@@ -126,7 +145,7 @@ describe("runDevImplement — the steps", () => {
     deepStrictEqual(a.next, { crew: "dev-verify", input: { batch: "F1", plan: "demo" } });
     strictEqual((t.files.files.get(SHEET_PATH) ?? "").split(TICKED).length - 1, 2);
     deepStrictEqual(t.jobs.started, ["npm run build", "npm test"]);
-    ok(t.shell.commands.includes("npm ci"));
+    strictEqual(t.shell.commands.filter((c) => c === "npm ci").length, 1); // restored once, for both steps
     deepStrictEqual(JSON.parse(t.files.files.get(touchedPath("demo", "F1")) ?? "{}").touched,
       ["src/a.ts", "src/b.ts", "tests/a.test.ts", "tests/b.test.ts"]);
   });
@@ -195,6 +214,26 @@ describe("runDevImplement — the steps", () => {
     strictEqual(a.next, undefined);
   });
 
+  it("puts the sheet back and blocks when a role ticks a box itself", async () => {
+    const t = setup([(_p, tree) => {
+      tree.write("tests/a.test.ts", "t");
+      tree.write("workbench/demo/DEMO-PLAN-F1.md", SHEET.replace("TDD: RED [ ]", "TDD: RED [x]"));
+      return "done";
+    }], []);
+    const a = parse(await runDevImplement({ batch: "F1", plan: "demo" }, t.deps));
+    ok(blockedLine(a)?.startsWith("BLOCKED — step 1 RED: test-author changed the plan folder (workbench/demo/DEMO-PLAN-F1.md)"), a.lines.join("\n"));
+    strictEqual(t.files.files.get(SHEET_PATH), SHEET);
+  });
+
+  it("keeps what a role's own test runs leave in the tree out of its changes", async () => {
+    const t = setup([(_p, tree) => { tree.write("tests/a.test.ts", "t"); tree.output("src/obj/cache.bin", "x"); return "done"; }],
+      [(_p, tree) => { tree.write("src/a.ts", "c"); tree.output("src/obj/cache2.bin", "y"); tree.passing.add("tests/a.test.ts"); return "Cost: 1 reads, 0 writes; none"; }],
+      SHEET.replace("TDD: RED [ ] GREEN [ ] COST [ ]\n\n### Step 2", "TDD: RED [ ] GREEN [ ] COST [ ]\n\n### Step 2").replace(/### Step 2[\s\S]*?TDD: RED \[ \] GREEN \[ \] COST \[ \]/, (m) => m.replace("TDD: RED [ ] GREEN [ ] COST [ ]", TICKED)));
+    const a = parse(await runDevImplement({ batch: "F1", plan: "demo" }, t.deps));
+    strictEqual(blockedLine(a), undefined, a.lines.join("\n"));
+    deepStrictEqual(JSON.parse(t.files.files.get(touchedPath("demo", "F1")) ?? "{}").touched, ["src/a.ts", "tests/a.test.ts"]);
+  });
+
   it("refuses a batch that is not F<n> and a pack without layout.tests", async () => {
     const t = setup([], []);
     ok(blockedLine(parse(await runDevImplement({ batch: "x" }, t.deps)))?.includes("F<n>"));
@@ -219,10 +258,44 @@ describe("runDevImplement — the close", () => {
     ok(blockedLine(parse(await runDevImplement({ batch: "F1", plan: "demo", close: true }, t.deps)))?.includes("no file recorded"));
   });
 
-  it("stops at git's missing identity, before any commit", async () => {
+  const DONE_SHEET = SHEET.replaceAll("TDD: RED [ ] GREEN [ ] COST [ ]", TICKED);
+  const recorded = (mark = "none") => JSON.stringify({ touched: ["src/a.ts", "tests/a.test.ts"], verdictMark: mark });
+
+  it("refuses a verdict not written since the last run changed the batch", async () => {
+    const t = setup([], [], DONE_SHEET);
+    t.files.files.set(`${DIR}/DEMO-VERIFY-F1.md`, VALID);
+    t.files.files.set(touchedPath("demo", "F1"), recorded(verdictMarkOf(VALID)));
+    ok(blockedLine(parse(await runDevImplement({ batch: "F1", plan: "demo", close: true }, t.deps)))?.includes("audit it again"));
+  });
+
+  it("refuses a sheet with a box still open", async () => {
     const t = setup([], []);
     t.files.files.set(`${DIR}/DEMO-VERIFY-F1.md`, VALID);
-    t.files.files.set(touchedPath("demo", "F1"), JSON.stringify({ touched: ["src/a.ts", "tests/a.test.ts"] }));
+    t.files.files.set(touchedPath("demo", "F1"), recorded());
+    ok(blockedLine(parse(await runDevImplement({ batch: "F1", plan: "demo", close: true }, t.deps)))?.includes("step 1, 2 of DEMO-PLAN-F1.md still has a TDD box open"));
+  });
+
+  it("commits exactly the recorded files, nothing else of the tree", async () => {
+    const t = setup([], [], DONE_SHEET);
+    t.files.files.set(`${DIR}/DEMO-VERIFY-F1.md`, VALID);
+    t.files.files.set(touchedPath("demo", "F1"), recorded());
+    t.shell.results["git -c core.quotePath=false status --short --untracked-files=all"] = { stdout: " M src/a.ts\n?? tests/a.test.ts\n M other.ts\n" };
+    t.shell.results["git branch --show-current"] = { stdout: "feat/demo\n" };
+    t.shell.results[GIT_IDENT_COMMAND] = { stdout: "Ada <ada@example.com> 1 +0000" };
+    t.shell.results["git var GIT_COMMITTER_IDENT"] = { stdout: "Ada <ada@example.com> 1 +0000" };
+    t.shell.results["git rev-parse --short HEAD"] = { stdout: "abc1234\n" };
+    const a = parse(await runDevImplement({ batch: "F1", plan: "demo", close: true }, t.deps));
+    strictEqual(blockedLine(a), undefined, a.lines.join("\n"));
+    deepStrictEqual(t.shell.commands.filter((c) => c.includes(" add -- ") || c.includes(" commit ")), [
+      "git --literal-pathspecs add -- 'src/a.ts' 'tests/a.test.ts'",
+      "git --literal-pathspecs commit -F .git/ORKEON_COMMITMSG -- 'src/a.ts' 'tests/a.test.ts'",
+    ]);
+  });
+
+  it("stops at git's missing identity, before any commit", async () => {
+    const t = setup([], [], DONE_SHEET);
+    t.files.files.set(`${DIR}/DEMO-VERIFY-F1.md`, VALID);
+    t.files.files.set(touchedPath("demo", "F1"), recorded());
     t.shell.results["git branch --show-current"] = { stdout: "feat/demo\n" };
     t.shell.results[GIT_IDENT_COMMAND] = { exitCode: 128, stderr: "fatal: unable to auto-detect email address" };
     const a = parse(await runDevImplement({ batch: "F1", plan: "demo", close: true }, t.deps));

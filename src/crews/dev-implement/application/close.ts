@@ -14,7 +14,9 @@ import type { RepoPack } from "../../../shared/domain/dev/repo-pack.ts";
 import { DEV_PR_AUTO_CONFIG_KEY, GIT_CURRENT_BRANCH_COMMAND, GIT_DEFAULT_BRANCH_COMMAND, parseDefaultBranch } from "../../../shared/domain/git/close.ts";
 import type { PrSummary } from "../../../shared/domain/git/close.ts";
 import { under } from "../domain/step-checks.ts";
+import { openSteps, parseImplementSheet } from "../domain/step-section.ts";
 import { WORKSPACE } from "./locate-sheet.ts";
+import { verdictMarkOf } from "./touched.ts";
 import type { LocatedSheet } from "./locate-sheet.ts";
 
 export interface CloseInput {
@@ -23,6 +25,8 @@ export interface CloseInput {
   located: LocatedSheet;
   batch: string;
   touched: string[];
+  /** The verdict file's mark when the touched list was last written (touched.ts). */
+  verdictMark: string | null;
   openPr: boolean;
   push: boolean;
 }
@@ -72,6 +76,19 @@ export async function closeDevBatch(
   if (input.touched.length === 0) {
     return [`BLOCKED — close: no file recorded for ${batch} (.orkeon/dev/${located.code}/implement-${batch}.json): commit the batch with /commit <files>`];
   }
+  if (input.verdictMark === null || input.verdictMark === verdictMarkOf(verdictText)) {
+    return [`BLOCKED — close: ${verdictName} was not written since the last /dev-implement ${batch} run changed the batch: audit it again (/dev-verify ${batch} ${located.code})`];
+  }
+  let sheetText: string;
+  try {
+    sheetText = await deps.files.read(`${WORKSPACE}/${located.dir}/${located.name}`);
+  } catch {
+    return [`BLOCKED — close: ${located.dir}/${located.name} cannot be read: nothing is committed`];
+  }
+  const open = openSteps(parseImplementSheet(sheetText)).map((s) => s.number);
+  if (open.length > 0) {
+    return [`BLOCKED — close: step ${open.join(", ")} of ${located.name} still has a TDD box open: /dev-implement ${batch} ${located.code} first`];
+  }
 
   const current = await runGit(deps.shell, GIT_CURRENT_BRANCH_COMMAND);
   const branch = current.exitCode === 0 ? current.stdout.trim() : "";
@@ -83,12 +100,7 @@ export async function closeDevBatch(
     return [`BLOCKED — close: ${branch} is the default branch and the pack asks for a work branch (${wanted}): create it, then ${rerun}`];
   }
 
-  let sheetName = located.name;
-  try {
-    sheetName = parseBatchSheet(await deps.files.read(`${WORKSPACE}/${located.dir}/${located.name}`)).name ?? located.name;
-  } catch {
-    // the title falls back on the file name
-  }
+  const sheetName = parseBatchSheet(sheetText).name ?? located.name;
   const message = `feat(${located.code}): ${sheetName} (batch ${batch})`;
   const summary: PrSummary = {
     batch: `${located.prefix} ${batch} — ${sheetName}, from \`${located.dir}/${located.name}\`.`,

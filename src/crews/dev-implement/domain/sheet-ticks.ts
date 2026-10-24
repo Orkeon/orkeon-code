@@ -15,6 +15,8 @@ export function tickBox(sheet: string, step: number, box: TddBox): Ticked {
   const at = found.tdd.line - 1;
   const line = lines[at] ?? "";
   if (!line.startsWith("TDD:")) return { ok: false, problem: `line ${found.tdd.line} is not step ${step}'s TDD line` };
+  const box_ = new RegExp(`${box} \\[[ xX]\\]`);
+  if (!box_.test(line)) return { ok: false, problem: `step ${step}'s TDD line has no ${box} box` };
   lines[at] = line.replace(new RegExp(`${box} \\[[ xX]\\]`), `${box} [x]`);
   return { ok: true, text: lines.join("\n") };
 }

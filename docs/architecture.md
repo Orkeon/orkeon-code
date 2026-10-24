@@ -132,6 +132,7 @@ the two calls that show a raw result on purpose (`MemoryStore.get`, `ToolCatalog
 | Port | What it is for | Adapter (`src/shared/infrastructure/orkeon/`) | Fake (`tests/support/`) |
 |---|---|---|---|
 | `Shell` | Shell commands in `/workspace` (`shell_command`) | `shell.ts` | `fake-shell.ts` |
+| `ShellJobs` | A long command run detached, its status, the tail of its log, and a wait between two looks (`shell_command` `start_job`, `job_status`, `job_tail`) | `shell-jobs.ts` | none: fakes in `suite-job.test.ts` and `run-dev-implement.test.ts` |
 | `Files` | Read, write and list by virtual path, the VFS mounts (`file_read`, `file_write`, `directory_read`, `list_mounts`) | `files.ts` | `fake-files.ts` |
 | `Progress` | The host's progress line, best effort (`progress_report`) | `progress.ts` | `fake-progress.ts` |
 | `SessionStore` | The conversation buffer, the state bag, the title, the snip, the token budget (`session_store`, `session_snip`, `token_budget`) | `session-store.ts` | `fake-session-store.ts` |
@@ -260,6 +261,7 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 | `dev-plan` | sequential, six read tools in `plan`, one extract | `/dev-plan` | Blocking gate, inventory by the index, plan and sheets written by code, one read-only review |
 | `dev-spec` | sequential, six read tools in `plan`, extracts | `/dev-spec` | Business spec written by code from JSON, its questions asked one at a time through `human_input`, one read-only review |
 | `dev-change` | sequential, six read tools in `plan`, extracts | `/dev-change` | Bug reproduced or cost measured by running, change brief written by code, questions through `human_input`, one review |
+| `dev-implement` | sequential, one agent, two roles in `acceptEdits` (four read tools, two write tools, `run_tests`, `run_build`) | `/dev-implement` (`--close` the close alone) | Each step red then green, checked by code; the build and the suite as jobs; then `/dev-verify` and, on VALID, the commit |
 
 A folder starting with `_` holds a development probe (`probe.ork.ts`), run with `scripts/run-crew.sh`; none ships
 today.

@@ -30,15 +30,16 @@ import { snapshot } from "./observe.ts";
 import { runSuite } from "./suite-job.ts";
 import { locateSheet, WORKSPACE } from "./locate-sheet.ts";
 import type { LocatedSheet } from "./locate-sheet.ts";
-import { readTouched, recordTouched } from "./touched.ts";
+import { currentVerdictMark, readTouchedRecord, recordTouched } from "./touched.ts";
 import { closeDevBatch } from "./close.ts";
 
 export interface DevImplementInputs { batch?: unknown; plan?: unknown; close?: unknown; pr?: unknown; push?: unknown }
 
 export interface DevImplementDeps {
   files: Files; shell: Shell; config: Pick<ConfigStore, "readValue">; jobs: ShellJobs;
-  /** A role's Llm, built with that role's callbacks over the pack's layout. */
-  roleLlm(role: RoleName, layout: RepoPackLayout): Pick<Llm, "act">;
+  /** A role's Llm, built with that role's callbacks over the pack's layout; `wrote` hears the path of each
+   *  file_write or edit_file call those callbacks let through. */
+  roleLlm(role: RoleName, layout: RepoPackLayout, wrote: (path: string) => void): Pick<Llm, "act">;
   log: Logger;
   /** The slot run_tests and run_build read: bound to this run's wrapped tools. */
   toolSlot?: { bind(tools: WrappedTools): () => void };
@@ -70,7 +71,13 @@ interface Run {
   llms: Record<RoleName, Pick<Llm, "act">>;
   /** Folders whose writes are code's own (the work folder, the plan folder): never a role's change. */
   ownFolders: string[];
+  /** The plan folder, relative to /workspace, and its logs folder, the one part of it a role's runs write. */
+  planFolder: string;
+  planLogs: string;
   logFolder: string;
+  /** The paths the running act's write tools named, relative to /workspace. */
+  written: Set<string>;
+  verdictMark: string;
   touched: Set<string>;
   lines: string[];
 }
@@ -91,16 +98,52 @@ async function tick(run: Run, step: ImplementStep, box: TddBox): Promise<string 
   return null;
 }
 
-/** One act of a role, between two snapshots: the paths it changed (code's own folders left out), or why not. */
+/** A path a write tool named, relative to /workspace. */
+export function workspacePath(path: string): string {
+  return path.trim().replace(/^\/workspace\//, "").replace(/^(\.\/)+/, "").replace(/\/+$/, "");
+}
+
+/** Puts the sheet back as code last wrote it; a problem when it cannot. */
+async function sheetPutBack(run: Run): Promise<string | null> {
+  let now: string | null = null;
+  try {
+    now = await run.deps.files.read(run.sheetPath);
+  } catch {
+    now = null;
+  }
+  if (now === run.sheetText) return null;
+  try {
+    await run.deps.files.write(run.sheetPath, run.sheetText);
+    return "the sheet was changed by the role, and put back";
+  } catch (e) {
+    return `the sheet was changed by the role and could not be put back: ${reasonOf(e)}`;
+  }
+}
+
+/** One act of a role, between two snapshots: the paths it changed, or why not. A path is the role's when its
+ *  write tools named it and the tree shows it changed (or it is too large to read); what its runs of run_tests
+ *  or run_build produced is not. Any change to the plan folder but its logs stops the step, the sheet put back. */
 async function act(run: Run, role: RoleName, prompt: string): Promise<{ text: string; changed: string[] } | string> {
   const before = await snapshot(run.deps);
   if (!before.ok) return before.problem;
   const spec = role === "test-author" ? TEST_AUTHOR : IMPLEMENTER;
+  run.written.clear();
   const said = await runRole(run.llms[role], spec, prompt);
-  if (!said.ok) return said.reason;
   const after = await snapshot(run.deps);
+  const seen = after.ok ? new Set(changedPaths(before.snapshot, after.snapshot)) : new Set<string>();
+  const planChanges = [...new Set([...seen, ...run.written])]
+    .filter((p) => under(p, run.planFolder) && !under(p, run.planLogs)).sort();
+  const putBack = await sheetPutBack(run);
+  if (planChanges.length > 0 || putBack !== null) {
+    return `${role} changed the plan folder (${planChanges.join(", ") || run.located.name}): the sheet and the plan are code's own${putBack === null ? "" : `; ${putBack}`}`;
+  }
+  if (!said.ok) return said.reason;
   if (!after.ok) return after.problem;
-  const changed = changedPaths(before.snapshot, after.snapshot).filter((p) => !run.ownFolders.some((f) => under(p, f)));
+  const unread = (p: string): boolean => after.snapshot.get(p) === null;
+  const changed = [...run.written]
+    .filter((p) => seen.has(p) || unread(p))
+    .filter((p) => !run.ownFolders.some((f) => under(p, f)))
+    .sort();
   return { text: said.text, changed };
 }
 
@@ -228,8 +271,9 @@ export async function runDevImplement(input: DevImplementInputs, deps: DevImplem
   const sheetPath = `${WORKSPACE}/${located.dir}/${located.name}`;
 
   if (input.close === true) {
+    const record = await readTouchedRecord(deps.files, located.code, batch);
     return answer([...lines, ...await closeDevBatch(deps, {
-      pack, work: context.work, located, batch, touched: await readTouched(deps.files, located.code, batch),
+      pack, work: context.work, located, batch, touched: record.touched, verdictMark: record.verdictMark,
       openPr: input.pr === true, push: input.push !== false,
     })]);
   }
@@ -248,11 +292,16 @@ export async function runDevImplement(input: DevImplementInputs, deps: DevImplem
   const logFolder = `${context.work.vfsPath}/${located.code}/logs`;
   const tools = createWrappedTools({ shell: deps.shell, files: deps.files }, { commands: pack.commands, rules: stepRules("dev-implement"), logFolder });
   const release = deps.toolSlot?.bind(tools) ?? (() => {});
+  const written = new Set<string>();
+  const wrote = (path: string): void => { if (path.trim() !== "") written.add(workspacePath(path)); };
+  const record = await readTouchedRecord(deps.files, located.code, batch);
   const run: Run = {
     deps, pack, testsFolder, located, sheetPath, sheetText, sheet, tools,
-    llms: { "test-author": deps.roleLlm("test-author", pack.layout), implementer: deps.roleLlm("implementer", pack.layout) },
-    ownFolders: [context.work.folder, located.dir], logFolder,
-    touched: new Set(await readTouched(deps.files, located.code, batch)), lines: [...lines, `dev-implement ${batch} (${located.code}): ${located.dir}/${located.name}`],
+    llms: { "test-author": deps.roleLlm("test-author", pack.layout, wrote), implementer: deps.roleLlm("implementer", pack.layout, wrote) },
+    ownFolders: [context.work.folder, located.dir], planFolder: located.dir, planLogs: `${context.work.folder}/${located.code}/logs`,
+    logFolder, written,
+    verdictMark: await currentVerdictMark(deps.files, `${WORKSPACE}/${located.dir}/${located.prefix}-VERIFY-${batch}.md`),
+    touched: new Set(record.touched), lines: [...lines, `dev-implement ${batch} (${located.code}): ${located.dir}/${located.name}`],
   };
   try {
     const open = openSteps(sheet);
@@ -262,7 +311,7 @@ export async function runDevImplement(input: DevImplementInputs, deps: DevImplem
     }
     for (const step of open) {
       const problem = await runStep(run, step);
-      await recordTouched(deps.files, located.code, batch, [...run.touched]);
+      await recordTouched(deps.files, located.code, batch, [...run.touched], run.verdictMark);
       if (problem !== null) return blocked(run.lines, problem);
     }
     const suiteProblem = await suites(run);

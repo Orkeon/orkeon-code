@@ -16,10 +16,10 @@ describe("statusPaths", () => {
 });
 
 describe("changedPaths", () => {
-  it("names what appeared, vanished, or changed content, and what could not be read", () => {
-    const before = new Map([["a", "1"], ["b", "2"], ["c", null]]);
-    const after = new Map([["a", "1"], ["b", "3"], ["c", null], ["d", "4"]]);
-    deepStrictEqual(changedPaths(before, after), ["b", "c", "d"]);
+  it("names what appeared, vanished, or changed content; a path unread on both sides is not a change", () => {
+    const before = new Map<string, string | null>([["a", "1"], ["b", "2"], ["c", null], ["e", null]]);
+    const after = new Map<string, string | null>([["a", "1"], ["b", "3"], ["c", null], ["d", "4"], ["e", "5"]]);
+    deepStrictEqual(changedPaths(before, after), ["b", "d", "e"]);
   });
 });
 
@@ -58,5 +58,12 @@ describe("readCost", () => {
     deepStrictEqual(readCost("done\nCost: 1 reads, 1 writes; none"), { ok: true, line: "Cost: 1 reads, 1 writes; none" });
     strictEqual(readCost("done").ok, false);
     strictEqual(readCost("Cost: 3 reads, 0 writes; a read in a loop over entries").ok, false);
+  });
+  it("clears a loop only in a where that says no port call sits in one", () => {
+    strictEqual(readCost("Cost: 1 reads, 0 writes; no port call in a loop, a lambda or a memory filter").ok, true);
+    strictEqual(readCost("Cost: 2 reads, 0 writes; nothing").ok, true);
+    strictEqual(readCost("Cost: a port call in a loop, none in a lambda").ok, false);
+    strictEqual(readCost("Cost: 3 reads in a loop; 1 write").ok, false);
+    strictEqual(readCost("Cost: 1 reads, 0 writes; no port call in a loop, but one in a lambda").ok, false);
   });
 });
