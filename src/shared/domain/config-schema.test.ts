@@ -33,7 +33,8 @@ describe("the key space itself", () => {
       "voice.reply": "/assistant, /summary, /transcribe --then, /voice send and /voice --go (each answer read aloud)",
       "answer.language": "/assistant, /summary, /transcribe --then, /voice send and /voice --go (the main loop's prompt)",
       "compaction.trigger": "/assistant (the automatic compaction at the head and the tail of a turn), /usage",
-      "dev.workDir": "/dev-status (the work folder it reads)",
+      "dev.workDir": "/dev-status (the work folder it reads), /commit (the work folder it leaves out)",
+      "dev.prAuto": "/commit (the pull request of the branch)",
     });
   });
 

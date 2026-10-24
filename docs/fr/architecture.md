@@ -462,11 +462,19 @@ un changement comme un diff.
   partagent un fichier dépendent l'un de l'autre, et qu'une étape sur ce qu'une personne lance ou voit ancre un
   fichier existant ; il n'ouvre que ce que les fichiers désignent, autour de la ligne citée ; douze questions au plus,
   les plus lourdes d'abord.
-- **Commit** (`git-commit`) : le prompt voit ce qui sera commité, les changements suivis et le début des fichiers non
-  suivis, puisque le crew indexe tout avec `git add -A` (ce que sa confirmation nomme) ; le message suit Conventional
-  Commits et le style de l'historique récent, un sujet borné, un corps qui dit pourquoi. Un changement qui ressemble à
-  des identifiants d'accès reçoit un refus au lieu d'un message, et un chemin qui contient d'ordinaire des secrets (un
-  fichier env, une clé privée) arrête le commit avant tout appel au modèle.
+- **Commit** (`git-commit`) : le prompt voit ce qui sera commité et rien d'autre, les changements et le début des
+  nouveaux fichiers d'une liste explicite : tous les chemins que le statut liste, ou ceux sous les chemins nommés, le
+  dossier de travail laissé de côté sauf si un chemin à l'intérieur est nommé (ce que sa confirmation dit). La liste
+  est indexée avec `git add -- <fichiers>` et commitée avec `git commit -- <fichiers>`, si bien que ce qui était indexé
+  ailleurs reste dehors ; l'identité propre à git (`git var GIT_AUTHOR_IDENT`, puis celle du committer) est vérifiée
+  avant tout appel au modèle, et quand git n'en a pas le crew s'arrête et remet les deux commandes
+  `git config --global`, sans jamais en inventer une. `--push` pousse avec `git push -u origin <branche>` ; hors de la
+  branche par défaut, le corps de la pull request est écrit dans `<work>/pr-<slug>/PR.md` et la commande
+  `gh pr create` affichée (`--pr` ou `dev.prAuto` demandent de l'ouvrir, ce qui attend l'outil github). La même
+  clôture (`shared/application/git/`) sert la clôture dev et la fusion en avance rapide d'un lot. Le message suit
+  Conventional Commits et le style de l'historique récent, un sujet borné, un corps qui dit pourquoi. Un changement
+  qui ressemble à des identifiants d'accès reçoit un refus au lieu d'un message, et un chemin qui contient d'ordinaire
+  des secrets (un fichier env, une clé privée) arrête le commit avant tout appel au modèle.
 - **Fichier d'instructions** (`project-init`, `/init`) : écrit `AGENTS.md` : ce qu'est le projet, les commandes telles
   que sa configuration les énonce (build, tous les tests, un test, lint), l'architecture qu'il faut plusieurs fichiers
   pour voir, les conventions sur lesquelles un nouveau venu se tromperait ; pas d'inventaire de fichiers, pas de conseil

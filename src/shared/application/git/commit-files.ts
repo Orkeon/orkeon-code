@@ -1,0 +1,143 @@
+// The git close shared by /commit (crews/git-commit) and the dev close
+// (shared/application/dev/close-batch.ts): git's identity checked before
+// anything is spent, an explicit file list committed, the branch pushed, and the
+// pull request handed over. The rules and the command lines live in
+// shared/domain/git/close.ts; this file runs them through the Shell and Files ports.
+
+import type { Files, Shell, ShellResult } from "../ports.ts";
+import type { GitIdent, PrSummary } from "../../domain/git/close.ts";
+import {
+  COMMIT_MESSAGE_FILE, GIT_COMMITTER_IDENT_COMMAND, GIT_IN_PROGRESS_PROBES, GIT_DEFAULT_BRANCH_COMMAND, GIT_HEAD_COMMAND, GIT_IDENT_COMMAND,
+  ghPrCreateCommand, gitAddCommand, gitCommitCommand, gitPushCommand, indexDeletedPaths, parseDefaultBranch,
+  parseGitIdent, prBodyPath, prSlug, renderPrBody, shellUnsafe,
+} from "../../domain/git/close.ts";
+
+export type Step = { ok: true } | { ok: false; line: string };
+
+function firstLine(text: unknown): string {
+  return String(text ?? "").split("\n").map((l) => l.trim()).find((l) => l.length > 0) ?? "";
+}
+
+/** Runs `command`; a runtime refusal (a throw) comes back as a failed result carrying its message. */
+export async function runGit(shell: Pick<Shell, "run">, command: string): Promise<ShellResult> {
+  try {
+    return await shell.run(command);
+  } catch (e) {
+    return { stdout: "", stderr: `refused by the runtime: ${firstLine((e as Error)?.message ?? e)}`, exitCode: -1 };
+  }
+}
+
+/** The first line git gave for a failure. */
+export const gitReason = (r: ShellResult): string => firstLine(r.stderr) || firstLine(r.stdout) || `exit ${r.exitCode}`;
+
+export type IdentityCheck = { ok: true; ident: GitIdent } | { ok: false; detail: string };
+
+/**
+ * git's own identity, author then committer (`git var`): the commit needs both.
+ * None, or a check that cannot run, is not ok; nothing is ever invented.
+ */
+export async function readIdentity(shell: Pick<Shell, "run">): Promise<IdentityCheck> {
+  let author: GitIdent | null = null;
+  for (const command of [GIT_IDENT_COMMAND, GIT_COMMITTER_IDENT_COMMAND]) {
+    const r = await runGit(shell, command);
+    const ident = r.exitCode === 0 ? parseGitIdent(r.stdout) : null;
+    if (ident === null) return { ok: false, detail: r.exitCode === 0 ? `${command}: no email in its answer` : gitReason(r) };
+    author ??= ident;
+  }
+  return { ok: true, ident: author! };
+}
+
+export type CommitOutcome = { ok: true; hash: string } | { ok: false; line: string };
+
+/**
+ * Stages and commits `files` alone, with `message` passed through a file (no
+ * shell escaping). `status` is the one the list was selected from: a path it
+ * shows gone from the index is left out of `git add`, which refuses it, and
+ * stays in the commit's path list, which takes it from HEAD.
+ */
+export async function commitFiles(
+  deps: { shell: Pick<Shell, "run">; files: Pick<Files, "write"> },
+  req: { files: readonly string[]; status: string; message: string },
+): Promise<CommitOutcome> {
+  if (req.files.length === 0) return { ok: false, line: "nothing to commit" };
+  const unsafe = req.files.filter(shellUnsafe);
+  if (unsafe.length > 0) return { ok: false, line: `cannot go through the shell: ${unsafe.join(", ")}` };
+  for (const probe of GIT_IN_PROGRESS_PROBES) {
+    const r = await runGit(deps.shell, probe);
+    if (r.exitCode === 0 && r.stdout.trim().length > 0) {
+      return { ok: false, line: "a merge or a cherry-pick is in progress: conclude it with git commit in a terminal" };
+    }
+  }
+  const gone = indexDeletedPaths(req.status);
+  const toAdd = req.files.filter((p) => !gone.includes(p));
+  if (toAdd.length > 0) {
+    const add = await runGit(deps.shell, gitAddCommand(toAdd));
+    if (add.exitCode !== 0) return { ok: false, line: `git add failed: ${gitReason(add)}` };
+  }
+  await deps.files.write(`/workspace/${COMMIT_MESSAGE_FILE}`, req.message);
+  const commit = await runGit(deps.shell, gitCommitCommand(req.files));
+  if (commit.exitCode !== 0) return { ok: false, line: `git commit failed: ${gitReason(commit)}` };
+  return { ok: true, hash: (await runGit(deps.shell, GIT_HEAD_COMMAND)).stdout.trim() };
+}
+
+/** `git push -u origin <branch>`; a refusal is said with git's line, nothing is forced. */
+export async function pushBranch(shell: Pick<Shell, "run">, branch: string): Promise<Step> {
+  if (branch.trim().length === 0) return { ok: false, line: "not pushed: no branch is checked out (detached HEAD)" };
+  if (shellUnsafe(branch)) return { ok: false, line: `not pushed: the branch name '${branch}' cannot go through the shell` };
+  const r = await runGit(shell, gitPushCommand(branch));
+  return r.exitCode === 0 ? { ok: true } : { ok: false, line: `push refused, the commit stays local: ${gitReason(r)}` };
+}
+
+/** The remote's default branch, null when origin/HEAD is unset: never guessed. */
+export async function defaultBranch(shell: Pick<Shell, "run">): Promise<string | null> {
+  const r = await runGit(shell, GIT_DEFAULT_BRANCH_COMMAND);
+  return r.exitCode === 0 ? parseDefaultBranch(r.stdout) : null;
+}
+
+export interface PullRequest { base: string | null; head: string; title: string; bodyFile: string }
+
+/** The seam of the pull request opened by Orkeon Code itself (the github tool, wave 2). No adapter yet. */
+export interface PullRequestOpener {
+  open(pr: PullRequest): Promise<{ url: string }>;
+}
+
+export interface PullRequestHandOver {
+  /** The work folder: `folder` as the user reads it, `vfsPath` where it is written (null outside the mounts). */
+  work: { folder: string; vfsPath: string | null };
+  branch: string;
+  base: string | null;
+  title: string;
+  pushed: boolean;
+  /** `--pr` or `dev.prAuto`: open it rather than hand it over. */
+  open: boolean;
+  summary: PrSummary;
+}
+
+/** Writes `<work>/pr-<slug>/PR.md`, then opens the pull request through the seam, or prints the command. */
+export async function handOverPullRequest(
+  deps: { files: Pick<Files, "write">; opener?: PullRequestOpener },
+  req: PullRequestHandOver,
+): Promise<string[]> {
+  const slug = prSlug(req.branch);
+  const bodyFile = prBodyPath(req.work.folder, slug);
+  const lines: string[] = [];
+  if (req.work.vfsPath === null) {
+    lines.push(`the body could not be written (${req.work.folder} is outside the mounts): write ${bodyFile} first`);
+  } else {
+    await deps.files.write(`${req.work.vfsPath.replace(/\/+$/, "")}/pr-${slug}/PR.md`, renderPrBody(req.summary));
+    lines.push(`pull request body: ${bodyFile}`);
+  }
+  const pr: PullRequest = { base: req.base, head: req.branch, title: req.title, bodyFile };
+  if (req.open && req.pushed && deps.opener !== undefined) {
+    try {
+      return [...lines, `✓ pull request opened: ${(await deps.opener.open(pr)).url}`];
+    } catch (e) {
+      lines.push(`✗ the pull request was not opened: ${firstLine((e as Error)?.message ?? e)}`);
+    }
+  }
+  lines.push("to open the pull request, in a terminal:");
+  if (!req.pushed) lines.push(`  ${gitPushCommand(req.branch)}`);
+  lines.push(`  ${ghPrCreateCommand(pr)}`);
+  if (req.open && deps.opener === undefined) lines.push("the pull request is not opened here yet: run the command above");
+  return lines;
+}

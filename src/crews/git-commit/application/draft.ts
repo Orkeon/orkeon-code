@@ -6,15 +6,27 @@ import type { PromptPair } from "../../../shared/domain/types.ts";
 import {
   COMMIT_REFUSAL_PREFIX, normalizeCommitMessage, commitSubject, isCommitPermitted, untrackedPaths,
 } from "../domain/commit.ts";
+import { GIT_STATUS_COMMAND, changedPaths, gitDiffCommand } from "../../../shared/domain/git/close.ts";
+import { commitFiles } from "../../../shared/application/git/commit-files.ts";
 
 export interface WorkTree {
   status: string;
   diff: string;
   branch: string;
   recent: string;
-  /** The untracked files `git add -A` will add, with the start of their content:
+  /** The untracked files the commit adds, with the start of their content:
    *  `git diff HEAD` does not show them, so without this the message is blind to them. */
   untracked: Array<{ path: string; content: string }>;
+}
+
+/** The working tree's status, as the selection of the commit's files reads it. */
+export async function readStatus(shell: Shell): Promise<string> {
+  return (await shell.run(GIT_STATUS_COMMAND)).stdout;
+}
+
+/** The lines of `status` that name one of `files` (either side of a rename). */
+function statusOf(status: string, files: readonly string[]): string {
+  return status.split("\n").filter((line) => changedPaths(line).some((p) => files.includes(p))).join("\n");
 }
 
 /** Characters of the tracked diff the drafting prompt shows. */
@@ -28,10 +40,18 @@ function cut(text: string, max: number, what: string): string {
   return text.length <= max ? text : `${text.slice(0, max)}\n[${what} cut after ${max} characters: ${text.length - max} characters left out]`;
 }
 
-/** Snapshot the working tree (mode B — shell, and the files for the new ones). */
-export async function inspectWorkTree(shell: Shell, files?: Pick<Files, "read">): Promise<WorkTree> {
-  const status = (await shell.run("git status --short --untracked-files=all")).stdout;
-  const diff = (await shell.run("git diff HEAD")).stdout;
+/**
+ * Snapshot the working tree (mode B — shell, and the files for the new ones).
+ * With a `scope`, the snapshot shows the selected files alone: their status lines
+ * and their diff, which is what the commit will hold.
+ */
+export async function inspectWorkTree(
+  shell: Shell,
+  files?: Pick<Files, "read">,
+  scope?: { status: string; files: readonly string[] },
+): Promise<WorkTree> {
+  const status = scope ? statusOf(scope.status, scope.files) : await readStatus(shell);
+  const diff = (await shell.run(scope ? gitDiffCommand(scope.files) : "git diff HEAD")).stdout;
   const branch = (await shell.run("git branch --show-current")).stdout.trim();
   const recent = (await shell.run("git log --oneline -10")).stdout;
   const untracked: WorkTree["untracked"] = [];
@@ -53,8 +73,8 @@ export async function inspectWorkTree(shell: Shell, files?: Pick<Files, "read">)
  */
 export function buildCommitPrompt(t: WorkTree): PromptPair {
   const system = [
-    "You write the commit message for a change to this repository. It is committed with `git add -A`: " +
-      "the commit holds every file the status lists, untracked ones included.",
+    "You write the commit message for a change to this repository. The commit holds the files the status " +
+      "lists, untracked ones included, and nothing else.",
     "- Format: Conventional Commits, `type(scope): subject`, then optionally a blank line and a body of " +
       "at most five lines.",
     "- The subject says what the change does, in the imperative, in at most 72 characters. The type " +
@@ -93,31 +113,27 @@ export async function draftCommitMessage(
 }
 
 /**
- * Stage everything and commit via a here-doc-safe message file (mode B).
+ * Stage and commit the selected files alone, the message through a file (mode B),
+ * by the git close shared with the dev close (shared/application/git/commit-files).
  *
  * The mode is checked HERE as well as in the crew body, before the first shell
  * call. Two guards on one path looks redundant until you ask which one fails: the
  * body's check protects the round-trip a caller can see, this one protects the
  * function from a future caller that forgets.
  */
-export async function commitAll(
+export async function commitSelected(
   t: WorkTree,
   message: string,
   mode: unknown,
+  selection: { files: readonly string[]; status: string },
   deps: { shell: Shell; files: Files },
 ): Promise<string> {
   const permitted = isCommitPermitted(mode);
   if (!permitted.allowed) return `✗ refused: ${permitted.reason}`;
 
-  const add = await deps.shell.run("git add -A");
-  if (add.exitCode !== 0) return `✗ git add failed: ${add.stderr}`;
-
-  // Write the message under the workspace's own .git/ (rw mount, never tracked,
-  // no shell escaping). cwd=/workspace so the relative -F path resolves.
-  await deps.files.write("/workspace/.git/ORKEON_COMMITMSG", message);
-  const commit = await deps.shell.run("git commit -F .git/ORKEON_COMMITMSG");
-  if (commit.exitCode !== 0) return `✗ git commit failed: ${commit.stderr || commit.stdout}`;
-
-  const hash = (await deps.shell.run("git rev-parse --short HEAD")).stdout.trim();
-  return `✓ committed ${hash} on ${t.branch}\n${commitSubject(message)}`;
+  // The message goes under the workspace's own .git/ (rw mount, never tracked, no
+  // shell escaping); cwd=/workspace so the relative -F path resolves.
+  const commit = await commitFiles(deps, { files: selection.files, status: selection.status, message });
+  if (!commit.ok) return `✗ ${commit.line}`;
+  return `✓ committed ${commit.hash} on ${t.branch}\n${commitSubject(message)}`;
 }

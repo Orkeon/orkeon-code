@@ -12,14 +12,14 @@
 //   1. the effective permission mode is threaded into the crew inputs, exactly
 //      as assistant.cmd.ts threads it to main-loop, and the crew refuses the
 //      read-only modes before spending anything;
-//   2. an interactive session must confirm a plan that names `git add -A` and
-//      says it stages untracked files too;
+//   2. an interactive session must confirm a plan that names the file list (every
+//      change, untracked files too, or the paths named; never the work folder);
 //   3. a NON-interactive session without `--yes` is refused, not auto-approved —
 //      the one case where a confirmation prompt silently degrades into consent.
 import { launchCrew, writeCompleted } from "./_lib/dispatch.ts";
 import { createCrewHost } from "../shared/infrastructure/orkeon/crew-host.ts";
 import { rawTokens } from "./_lib/args.ts";
-import { buildCommitPlan, hasExplicitConfirm, isCommitPermitted } from "../crews/git-commit/domain/commit.ts";
+import { buildCommitPlan, isCommitPermitted, parseCommitArgs } from "../crews/git-commit/domain/commit.ts";
 import { orkeonSessionIo } from "../shared/infrastructure/orkeon/wiring.ts";
 
 const session = orkeonSessionIo();
@@ -46,7 +46,7 @@ async function confirmOrRefuse(ctx: any, notice: string, question: string): Prom
       message:
         "refused: /commit needs a confirmation and this session cannot prompt " +
         `(${String(e?.message ?? e)}). Re-run as '/commit --yes' if you intend to stage ` +
-        "and commit the entire working tree unattended.",
+        "and commit the changed files unattended.",
     };
   }
   if (answer === true) return { ok: true };
@@ -55,7 +55,7 @@ async function confirmOrRefuse(ctx: any, notice: string, question: string): Prom
       ok: false,
       message:
         "refused: the confirmation prompt returned no answer (non-interactive session). " +
-        "Re-run as '/commit --yes' to stage and commit the entire working tree unattended.",
+        "Re-run as '/commit --yes' to stage and commit the changed files unattended.",
     };
   }
   return { ok: false, message: "cancelled — nothing was staged and nothing was committed." };
@@ -63,9 +63,15 @@ async function confirmOrRefuse(ctx: any, notice: string, question: string): Prom
 
 defineAsyncCommand({
   name: "commit",
-  description: "Draft and create a conventional commit for the current changes (confirms first; --yes skips).",
+  description: "Draft and create a conventional commit of the changed files or the paths named, the work folder left out unless named (confirms first; --yes skips; --push pushes; --pr asks for the pull request).",
   maxConcurrent: 1,
   dispatch: async (args, ctx) => {
+    const parsed = parseCommitArgs(rawTokens(args));
+    if (!parsed.ok) {
+      ctx.writeLine(parsed.text);
+      return { refused: parsed.text };
+    }
+    const { yes, push, pr, paths } = parsed.args;
     const { mode, via } = await session.resolveEffectiveSessionMode();
 
     // Refuse the read-only modes here too, so the operator learns why without
@@ -76,8 +82,8 @@ defineAsyncCommand({
       return { refused: permitted.reason };
     }
 
-    if (!hasExplicitConfirm(rawTokens(args))) {
-      const plan = buildCommitPlan();
+    if (!yes) {
+      const plan = buildCommitPlan({ push, paths });
       const verdict = await confirmOrRefuse(ctx, plan.notice, plan.question);
       if (!verdict.ok) {
         ctx.writeLine(`✗ ${verdict.message}`);
@@ -86,7 +92,7 @@ defineAsyncCommand({
     }
 
     ctx.log.info(`commit approved — permission mode '${mode}' (${via})`);
-    return launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "git-commit", { permissionMode: mode });
+    return launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "git-commit", { permissionMode: mode, paths, push, pr });
   },
   completed: (result, ctx) => writeCompleted(ctx, result, "commit"),
 });

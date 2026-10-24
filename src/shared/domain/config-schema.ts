@@ -18,6 +18,7 @@ import { VOICE_REPLY_CONFIG_KEY } from "./speech.ts";
 import { ANSWER_LANGUAGE_CONFIG_KEY } from "./agent-policy/output-styles.ts";
 import { COMPACTION_TRIGGER_CONFIG_KEY, compactionTriggerProblem } from "./compaction-thresholds.ts";
 import { DEV_WORK_DIR_CONFIG_KEY, workFolderProblem } from "./dev/work-folder.ts";
+import { DEV_PR_AUTO_CONFIG_KEY } from "./git/close.ts";
 
 export interface ConfigKeySpec {
   key: string;
@@ -115,7 +116,15 @@ export const CONFIG_KEYS: readonly ConfigKeySpec[] = [
       "The work folder of the dev workflow, relative to the checkout, e.g. 'backstage/tasks'. Omitted = the " +
       "repository pack's layout.work, else 'workbench'. A folder absent from the checkout falls back to 'workbench'.",
     problem: workFolderProblem,
-    consumedBy: "/dev-status (the work folder it reads)",
+    consumedBy: "/dev-status (the work folder it reads), /commit (the work folder it leaves out)",
+  },
+  {
+    key: DEV_PR_AUTO_CONFIG_KEY,
+    description:
+      "'true' asks /commit to open the pull request of a pushed branch, as --pr does. Omitted = 'false': the " +
+      "gh pr create command is printed. Until Orkeon Code opens pull requests itself, the command is printed either way.",
+    allowed: ["true", "false"],
+    consumedBy: "/commit (the pull request of the branch)",
   },
 ];
 

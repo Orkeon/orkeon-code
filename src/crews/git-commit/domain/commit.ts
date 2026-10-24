@@ -119,30 +119,65 @@ export interface CommitPlan {
 /**
  * Builds the confirmation plan.
  *
- * It names `git add -A` explicitly and says what that INCLUDES, because "commit
- * the current changes" reads as "commit what I was working on" while the command
- * stages every untracked file in the tree — the gap between those two readings is
- * the whole reason this gate exists.
+ * It says which files the commit holds — every change the status lists,
+ * untracked files included, or only the paths named — and what stays out (the
+ * work folder), because "commit the current changes" reads as "commit what I was
+ * working on": the gap between the two readings is the reason this gate exists.
  *
  * The drafted subject is NOT here: it comes from an LLM call inside the crew, so
  * showing it first would mean either drafting twice or launching the crew before
  * the confirmation — and the confirmation must precede the launch. The subject is
  * reported on the completion line instead.
  */
-export function buildCommitPlan(branch?: string): CommitPlan {
-  const where = branch && branch.trim().length > 0 ? ` on '${branch.trim()}'` : "";
+export function buildCommitPlan(opts: { branch?: string; push?: boolean; paths?: readonly string[] } = {}): CommitPlan {
+  const branch = (opts.branch ?? "").trim();
+  const where = branch.length > 0 ? ` on '${branch}'` : "";
+  const paths = opts.paths ?? [];
+  const what = paths.length > 0
+    ? `the changes under ${paths.join(", ")}`
+    : "EVERY change the status lists (untracked files included), the work folder left out";
+  const steps = ["git add -- <files>", "git commit -F <drafted message> -- <files>"];
+  if (opts.push === true) steps.push("git push -u origin <branch>");
   return {
-    steps: ["git add -A", "git commit -F <drafted message>"],
-    question: `Stage EVERY change${where} and commit?`,
+    steps,
+    question: `Commit ${paths.length > 0 ? "the changes under the paths named" : "EVERY change"}${where}${opts.push === true ? " and push" : ""}?`,
     notice: [
-      `/commit will, ${where ? `on branch '${branch!.trim()}'` : "on the current branch"}:`,
-      "  1. git add -A            — stages every modification AND every untracked file",
-      "  2. draft a Conventional-Commits message with the LLM",
-      "  3. git commit -F <that message>",
-      "A file that usually holds a secret (.env, a private key) stops it before step 1.",
+      `/commit will, ${branch.length > 0 ? `on branch '${branch}'` : "on the current branch"}:`,
+      "  1. check that git has an identity (git var), and stop if it has none",
+      `  2. git add -- <files>    — ${what}`,
+      "  3. draft a Conventional-Commits message with the LLM",
+      "  4. git commit -F <that message> -- <files>   (changes staged elsewhere stay out)",
+      ...(opts.push === true ? ["  5. git push -u origin <branch>, then print the pull request command"] : []),
+      "A file that usually holds a secret (.env, a private key) stops it before step 2.",
       "The message is drafted after this confirmation; it is echoed when the commit lands.",
     ].join("\n"),
   };
+}
+
+export interface CommitArgs { yes: boolean; push: boolean; pr: boolean; paths: string[] }
+
+/**
+ * `/commit [--yes|-y] [--push] [--pr] [<path>...]`. `--pr` asks for the pull
+ * request (Q-10) and so implies the push. An unknown flag is refused rather than
+ * read as a path.
+ */
+export function parseCommitArgs(tokens: readonly unknown[]): { ok: true; args: CommitArgs } | { ok: false; text: string } {
+  const args: CommitArgs = { yes: false, push: false, pr: false, paths: [] };
+  let options = true;
+  for (const raw of tokens ?? []) {
+    const t = String(raw ?? "").trim();
+    if (t.length === 0) continue;
+    // `--` ends the options: what follows is a path, even one that starts with `-`.
+    if (options && t === "--") { options = false; continue; }
+    if (!options) { args.paths.push(t); continue; }
+    const flag = t.toLowerCase();
+    if (flag === "--yes" || flag === "-y") args.yes = true;
+    else if (flag === "--push") args.push = true;
+    else if (flag === "--pr") { args.pr = true; args.push = true; }
+    else if (t.startsWith("-")) return { ok: false, text: `✗ unknown option '${t}'. Usage: /commit [--yes] [--push] [--pr] [<path>...]` };
+    else args.paths.push(t);
+  }
+  return { ok: true, args };
 }
 
 /** `--yes` / `-y`: the explicit confirm argument that skips the prompt. */

@@ -426,11 +426,18 @@ prompt as the model reads it, to review a change as a diff.
   reasons given for rules set aside, that every file a step touches is an anchor that exists, that two batches
   sharing a file depend on one another, and that a step on something a person runs or sees anchors an existing file;
   it opens only what the files point to, around the cited line; twelve questions at most, the heaviest first.
-- **Commit** (`git-commit`): the prompt sees what will be committed, the tracked changes and the start of the
-  untracked files, since the crew stages everything with `git add -A` (which its confirmation names); the message
-  follows Conventional Commits and the style of the recent history, a bounded subject, a body that says why. A change
-  that looks like a credential gets a refusal instead of a message, and a path that usually holds secrets (an env
-  file, a private key) stops the commit before any model call.
+- **Commit** (`git-commit`): the prompt sees what will be committed and nothing else, the changes and the start of
+  the new files of an explicit list: every path the status lists, or those under the paths named, the work folder
+  left out unless a path inside it is named (which its confirmation says). The list is staged with `git add -- <files>`
+  and committed with `git commit -- <files>`, so what was staged elsewhere stays out; git's own identity
+  (`git var GIT_AUTHOR_IDENT`, then the committer's) is checked before any model call, and when it has none the crew
+  stops and hands over the two `git config --global` commands, never inventing one. `--push` pushes with
+  `git push -u origin <branch>`; off the default branch the pull request body is written to `<work>/pr-<slug>/PR.md`
+  and the `gh pr create` command printed (`--pr` or `dev.prAuto` ask for it to be opened, which waits for the github
+  tool). The same close (`shared/application/git/`) serves the dev close and the fast-forward merge of a batch. The
+  message follows Conventional Commits and the style of the recent history, a bounded subject, a body that says why.
+  A change that looks like a credential gets a refusal instead of a message, and a path that usually holds secrets
+  (an env file, a private key) stops the commit before any model call.
 - **Instructions file** (`project-init`, `/init`): writes `AGENTS.md`: what the project is, the commands as its
   configuration states them (build, all tests, one test, lint), the architecture that takes several files to see,
   the conventions a newcomer would get wrong; no file inventory, no generic advice, nothing invented. The existing
