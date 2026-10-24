@@ -64,9 +64,12 @@ commande ; sur la branche par défaut, elle ne pousse rien et remet le push. Ave
 de lots à la fois, chacun dans un agent de lot sous son propre worktree (`.orkeon/worktrees/<code>-F<n>`, sur la
 branche `batches/<code>/F<n>`) : seulement en `bypassPermissions`, puisque deux lots demanderaient à la fois, et
 seulement avec `Tools:Shell:Confinement:Mode` `None` ou dans un conteneur, puisque git échoue dans un worktree sous
-Bubblewrap (Orkeon/orkeon#188) ; chaque refus tient en une ligne, avant tout lot. Chaque lot est borné par ses propres
-appels d'outils et son temps réel ; celui qui s'arrête garde son worktree, nommé dans les dernières lignes de
-l'exécution, pour qu'un humain décide. `/dev-spec`, `/dev-change`, `/dev-plan`,
+Bubblewrap (Orkeon/orkeon#188), et seulement avec tout `.orkeon/` ignoré par git (`.gitignore` ou `.git/info/exclude`),
+puisque les worktrees et l'état dev qui y est amorcé s'y trouvent ; chaque refus tient en une ligne, avant tout lot.
+Chaque lot est borné par ses propres appels d'outils et son temps réel ; celui qui s'arrête garde son worktree, son code,
+sa fiche et son verdict n'étant que là, et les dernières lignes de l'exécution le nomment avec la commande qui l'y
+relance (`/dev-batches <code> --concurrency <n>`, la correction d'un verdict GAPS d'abord), pour qu'un humain
+décide. `/dev-spec`, `/dev-change`, `/dev-plan`,
 `/dev-implement` et `/dev-batches` refusent de démarrer dans un mode en lecture seule (`plan`, `dontAsk`), dans un mode
 qu'Orkeon Code ne connaît pas, et quand le mode de la session ne peut pas être lu. Les six placent d'abord dans la garde les
 [jeux de règles des étapes dev](#jeux-de-règles-des-étapes-dev), et refusent de démarrer tant que la garde est inactive

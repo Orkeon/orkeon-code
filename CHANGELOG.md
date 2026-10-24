@@ -305,11 +305,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   root of its own worktree (`.orkeon/worktrees/<code>-F<n>`, branch `batches/<code>/F<n>`, made with
   `git worktree add --relative-paths`, git 2.48 or later): its steps, its audit inline and its close, committed there
   and never pushed. The driver seeds each worktree with the work folder, the dev state, the config, the packs and the
-  shared memory, then merges each VALID batch fast-forward into the work branch in id order, brings its sheet, verdict,
-  capture and logs back and removes the worktree; a batch that stops (GAPS, BLOCKED, its tool calls spent, a merge
-  refused) keeps its worktree for a human. The next wave chains itself, and the plan's close still pushes once. Above 1
-  needs `bypassPermissions` and `Tools:Shell:Confinement:Mode` `None` or a container (git fails in a worktree under
-  Bubblewrap, Orkeon/orkeon#188); each batch is bounded in code by its tool calls and wall time, not by tokens, the
+  shared memory, then merges each VALID batch fast-forward into the work branch in id order, brings back what the batch
+  changed of its sheet, verdict, capture and logs (`F<n>-run_tests-1.log`), never over a file the checkout changed
+  since, and removes the worktree; a batch that stops (GAPS, BLOCKED, its tool calls spent, a merge refused) keeps its
+  worktree, its code, sheet and verdict there alone, and the run names the command that relaunches it there
+  (`/dev-batches <code> --concurrency <n>`, a GAPS verdict's correction first); a run one at a time refuses such a
+  batch. Typed again without `--concurrency`, the run goes on as it was; `--concurrency 1` goes back to one at a time.
+  The next wave chains itself, and the plan's close still pushes once. Above 1 needs `bypassPermissions`,
+  `Tools:Shell:Confinement:Mode` `None` or a container (git fails in a worktree under Bubblewrap, Orkeon/orkeon#188)
+  and all of `.orkeon/` ignored by git (`.gitignore` or `.git/info/exclude`); each batch is bounded in code by its tool calls and wall time, not by tokens, the
   runtime giving `crew.runAgent` no budget (Orkeon/orkeon#189). The ports of the dev crews are built from the calling
   agent's own tools, and a batch keeps naming the checkout `/workspace`, rebased on its root (Orkeon/orkeon#186,
   delivered by #187).

@@ -56,9 +56,12 @@ the push, and opens one pull request (`--pr` or `dev.prAuto`), else hands its co
 pushes nothing and hands the push over. With `--concurrency` 2 to 4 it runs a wave of batches at once, each in a
 batch agent under its own worktree (`.orkeon/worktrees/<code>-F<n>`, on the branch `batches/<code>/F<n>`): only in
 `bypassPermissions`, since two batches would ask at once, and only with `Tools:Shell:Confinement:Mode` `None` or in a
-container, since git fails inside a worktree under Bubblewrap (Orkeon/orkeon#188); each refusal is one line, before
-any batch. Each batch is bounded by its own tool calls and wall time; one that stops keeps its worktree, named in the
-run's last lines, for a human to decide. `/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement` and `/dev-batches`
+container, since git fails inside a worktree under Bubblewrap (Orkeon/orkeon#188), and only with all of `.orkeon/`
+ignored by git (`.gitignore` or `.git/info/exclude`), since the worktrees and the dev state seeded in them live there;
+each refusal is one line, before any batch. Each batch is bounded by its own tool calls and wall time; one that stops
+keeps its worktree, its code, sheet and verdict there alone, and the run's last lines name it and the command that
+relaunches it there (`/dev-batches <code> --concurrency <n>`, a GAPS verdict's correction first), for a human to
+decide. `/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement` and `/dev-batches`
 refuse to start in a read-only mode (`plan`, `dontAsk`), in a mode Orkeon Code does not know, and when the session's
 mode cannot be read. All six first put the [rule sets of the dev steps](#rule-sets-of-the-dev-steps)
 in the gate, and refuse to start while the gate is off; their crew's callback checks the same sets again, the only check
