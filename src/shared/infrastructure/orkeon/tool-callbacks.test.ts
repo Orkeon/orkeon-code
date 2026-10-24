@@ -3,7 +3,7 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
-import { HOOK_TIMEOUT_SECONDS, devToolCallbacks, hookInputs, isNewFile } from "./tool-callbacks.ts";
+import { HOOK_TIMEOUT_SECONDS, devToolCallbacks, hookInputs, isNewFile, memoryGuardCallbacks } from "./tool-callbacks.ts";
 import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
 import { FakeShell } from "../../../../tests/support/fake-shell.ts";
 
@@ -178,5 +178,31 @@ describe("devToolCallbacks", () => {
       "warn: dev-plan: the pack gives no layout.infrastructure: no rule on it",
       "warn: dev-plan: the pack gives no layout.tests: no rule on it",
     ]);
+  });
+});
+
+describe("the shared memory's guard in the callbacks", () => {
+  const BATCH = { operations: [{ kind: "ensure_section", path: ".orkeon/memory/entries/decision/x.md", selector: "## A", text: "b" }] };
+
+  it("denies in a dev step what the gate cannot read - an edit_batch operation, a path in another case - before any hook", async () => {
+    const shell = new FakeShell();
+    const callbacks = devToolCallbacks({ step: "dev-plan", hooks: [PRE] }, { shell, memoryDir: async () => ".orkeon/memory" });
+    const act = callbacks.forAct("bypassPermissions", true);
+    for (const call of [{ name: "edit_batch", input: BATCH }, { name: "file_write", input: { path: ".Orkeon/Memory/Entries/x.md", content: "x" } }]) {
+      const verdict = await act.onToolCall(call);
+      ok(typeof verdict === "object" && verdict.deny.startsWith("dev-plan: refused by the shared memory's guard:"), JSON.stringify(verdict));
+    }
+    deepStrictEqual(shell.calls, []);
+    strictEqual(await act.onToolCall({ name: "file_read", input: { path: ".orkeon/memory/entries/x.md" } }), "allow");
+  });
+
+  it("guards the main loop's acts alone, reading the folder once", async () => {
+    let reads = 0;
+    const act = memoryGuardCallbacks(async () => { reads += 1; return "mem"; }).forAct("bypassPermissions", true);
+    const verdict = await act.onToolCall({ name: "shell_command", input: { command: "cd mem && printf x > ENTRIES/a.md" } });
+    ok(typeof verdict === "object" && verdict.deny.startsWith("refused by the shared memory's guard:"), JSON.stringify(verdict));
+    strictEqual(await act.onToolCall({ name: "file_write", input: { path: "src/a.ts", content: "x" } }), "allow");
+    strictEqual(reads, 1);
+    strictEqual(await act.onToolResult({ name: "file_write", input: {} }, "ok"), undefined);
   });
 });

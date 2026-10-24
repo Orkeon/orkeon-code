@@ -36,7 +36,7 @@ export const STEP_ALLOW_RULES: Readonly<Record<DevStep, readonly PermissionRule[
   "dev-implement": [{ effect: "allow", tool: "run_tests" }, { effect: "allow", tool: "run_build" }],
 };
 
-/** rulesOf(STEP_RULE_SETS[step]) then the step's allow rules: 481 deny rules for each step today, and two allow
+/** rulesOf(STEP_RULE_SETS[step]) then the step's allow rules: 479 deny rules for each step today, and two allow
  *  rules for /dev-implement. */
 export function stepRules(step: DevStep): PermissionRule[] {
   return [...rulesOf(STEP_RULE_SETS[step]), ...STEP_ALLOW_RULES[step]];

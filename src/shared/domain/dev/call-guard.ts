@@ -6,7 +6,9 @@
 // themselves, and the hooks' shell commands, are shared/infrastructure/orkeon/tool-callbacks.ts's.
 import { ACT_TOOLS, READ_TOOLS, formatRule, matchesRule, sameToolName, shellCommandForms } from "../agent-policy/permission.ts";
 import type { PermissionRule } from "../agent-policy/permission.ts";
-import { OPERATION_TOOLS, OPERATIONS_TOOL, PATH_WRITE_TOOLS, RULE_SETS, UNSCOPED_WRITE_TOOLS } from "../agent-policy/rule-sets.ts";
+import {
+  GIT_CONFIG_SET_RULE, OPERATION_TOOLS, OPERATIONS_TOOL, PATH_WRITE_TOOLS, RULE_SETS, UNSCOPED_WRITE_TOOLS, gitConfigSets,
+} from "../agent-policy/rule-sets.ts";
 import type { RuleSetId } from "../agent-policy/rule-sets.ts";
 import { STEP_RULE_SETS, roleRules } from "./step-rules.ts";
 import type { DevRole, DevStep, LayoutRootKey } from "./step-rules.ts";
@@ -259,6 +261,11 @@ export function checkToolCall(
     for (const entry of guard.rules) {
       if (matchesRule(entry.rule, tool, { ...args, command: form })) return ruleVerdict(guard, entry, `, which '${form}' runs`);
     }
+  }
+  // A git config that sets a value, which no glob of git-readonly can tell from a read (rule-sets gitConfigSets).
+  if (command !== undefined && gitConfigSets(command)) {
+    const held = guard.rules.find((e) => e.origin.kind === "set" && e.origin.id === "git-readonly");
+    if (held !== undefined) return ruleVerdict(guard, { rule: GIT_CONFIG_SET_RULE, origin: held.origin }, "");
   }
   const reached = reachedPaths(tool, args).flatMap(pathForms);
   for (const joined of reached) {

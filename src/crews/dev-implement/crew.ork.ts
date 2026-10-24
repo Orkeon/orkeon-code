@@ -27,6 +27,7 @@ import {
 import { memoryReadTools, memoryRecallOn, memoryRecallTools } from "../../shared/infrastructure/orkeon/memory-tools.ts";
 import { stepPrecedents } from "../../shared/application/dev/step-precedents.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
+import { memoryDirOf } from "../../shared/application/shared-memory/memory-settings.ts";
 import { devToolCallbacks } from "../../shared/infrastructure/orkeon/tool-callbacks.ts";
 import { parseSessionRules } from "../../shared/domain/git/pull-request.ts";
 import { providerEffort } from "../../shared/domain/agent-policy/behavior-flags.ts";
@@ -70,7 +71,7 @@ const builder = AgentBuilder()
         // `files`: the callbacks read a file_write's path, so that the rewrite rule lets a new file be created.
         roleLlm: (role, layout, wrote, writable) => createLlm(ctx.llm, reportingWrites(devToolCallbacks(
           { step: "dev-implement", role, layout, writable, hooks: args.hooks, readTools: memoryReadTools(memoryOn) },
-          { shell: ports.shell, log: ctx.log, files: ports.files },
+          { shell: ports.shell, log: ctx.log, files: ports.files, memoryDir: memoryDirOf(ports.config) },
         ), wrote), { effort }),
       },
     );

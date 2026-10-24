@@ -29,6 +29,7 @@ import {
 import { memoryReadTools, memoryRecallOn, memoryRecallTools } from "../../shared/infrastructure/orkeon/memory-tools.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { providerEffort } from "../../shared/domain/agent-policy/behavior-flags.ts";
+import { memoryDirOf } from "../../shared/application/shared-memory/memory-settings.ts";
 import { devToolCallbacks } from "../../shared/infrastructure/orkeon/tool-callbacks.ts";
 import { childAgentBody, openChildAct } from "../../shared/infrastructure/orkeon/child-agents.ts";
 import { charterCatalogue } from "../../shared/domain/agents/charter.ts";
@@ -46,7 +47,7 @@ const session = orkeonSessionIo();
 const limits = instanceLimits(inputs());
 // The host's gate first, then these callbacks: the step's rule sets again and the /hooks the command passed.
 const callbacksFor = (ctx: any) => devToolCallbacks(
-  { step: "dev-change", hooks: inputs().hooks, readTools: memoryReadTools(memoryOn) }, { shell: ports.shell, log: ctx.log },
+  { step: "dev-change", hooks: inputs().hooks, readTools: memoryReadTools(memoryOn) }, { shell: ports.shell, log: ctx.log, memoryDir: memoryDirOf(ports.config) },
 );
 
 /** The reviewer, added to the crew by its first act (a sequential crew would run an agent it holds from the start). */

@@ -96,6 +96,7 @@ describe("scripts/dev-run.sh", () => {
       strictEqual(r.status, 2, r.stdout + r.stderr);
       ok(r.stderr.includes(`trust ${project} first`), r.stderr);
       ok(!existsSync(join(project, ".orkeon/dev/demo/runs/dev-verify-1.log")), "no step ran");
+      ok(!existsSync(join(project, ".orkeon")), "nothing is created in an untrusted project");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

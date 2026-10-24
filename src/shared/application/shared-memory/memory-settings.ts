@@ -62,6 +62,11 @@ export async function readMemoryDir(config: Pick<ConfigStore, "readValue">): Pro
   return check.ok ? { dir: check.dir } : { dir: DEFAULT_MEMORY_DIR, warning: `${MEMORY_DIR_CONFIG_KEY} '${raw}' set aside (${check.reason}): ${DEFAULT_MEMORY_DIR} applies` };
 }
 
+/** memory.dir as the guards read it: the folder alone, the warning left to the commands that print it. */
+export function memoryDirOf(config: Pick<ConfigStore, "readValue">): () => Promise<string> {
+  return async () => (await readMemoryDir(config)).dir;
+}
+
 /** The refused motifs' file of the shared memory, relative to the project: refused.md under memory.dir. */
 export async function readRefusedFile(config: Pick<ConfigStore, "readValue">): Promise<string> {
   return `${(await readMemoryDir(config)).dir}/refused.md`;

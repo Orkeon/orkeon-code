@@ -21,6 +21,7 @@
 import { AgentBuilder, CrewBuilder, publishCrew, inputs } from "../../shared/infrastructure/globals.ts";
 import { orkeonConfigStore, orkeonFiles, orkeonPullRequestOpener, orkeonShell } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
+import { memoryDirOf } from "../../shared/application/shared-memory/memory-settings.ts";
 import { devToolCallbacks } from "../../shared/infrastructure/orkeon/tool-callbacks.ts";
 import { charterCatalogue } from "../../shared/domain/agents/charter.ts";
 import { providerEffort } from "../../shared/domain/agent-policy/behavior-flags.ts";
@@ -44,7 +45,7 @@ const builder = AgentBuilder()
       ...ports, log: ctx.log, clock: () => new Date(),
       // The host's gate first, then these callbacks: the dev rule sets again and the run's /hooks (a chained run
       // reads them from its record, as it does the /effort). The reviewer only reads: the plan step's guard fits it.
-      reviewerFor: (c) => createLlm(ctx.llm, devToolCallbacks({ step: "dev-plan", hooks: c.hooks }, { shell: ports.shell, log: ctx.log }),
+      reviewerFor: (c) => createLlm(ctx.llm, devToolCallbacks({ step: "dev-plan", hooks: c.hooks }, { shell: ports.shell, log: ctx.log, memoryDir: memoryDirOf(ports.config) }),
         { effort: providerEffort(c.effort ?? undefined) }),
       openerFor: (c) => orkeonPullRequestOpener({ mode: c.permissionMode, rules: parseSessionRules(c.permissionRules), asked: false }),
     });

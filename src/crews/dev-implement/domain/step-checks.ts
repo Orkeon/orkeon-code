@@ -83,9 +83,9 @@ export function failureCount(tail: string): number | null {
 
 /** Whether a later RED step of a cycle added a failure: its file failed already (the earlier step's tests), so the
  *  exit code alone cannot tell a new test that passes at once. A problem when both counts are read and none was
- *  added; `unknown` when a count cannot be read. */
-export function addedFailure(beforeTail: string, afterTail: string): { problem: string } | "ok" | "unknown" {
-  const before = failureCount(beforeTail);
+ *  added; `unknown` when a count cannot be read. `beforeTail` is the earlier run's tail, or a count already read. */
+export function addedFailure(beforeTail: string | number | null, afterTail: string): { problem: string } | "ok" | "unknown" {
+  const before = typeof beforeTail === "string" ? failureCount(beforeTail) : beforeTail;
   const after = failureCount(afterTail);
   if (before === null || after === null) return "unknown";
   if (after > before) return "ok";

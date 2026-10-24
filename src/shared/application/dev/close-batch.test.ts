@@ -44,6 +44,21 @@ describe("closeBatch", () => {
     strictEqual(files.writes.at(-1)!.path, "/workspace/workbench/pr-feat-a/PR.md");
   });
 
+  it("says the message file it could not remove in a linked worktree, after the commit line", async () => {
+    const shell = gitShell();
+    shell.results["rm -f .orkeon/ORKEON_COMMITMSG"] = { exitCode: 1, stderr: "rm: denied" };
+    const files = new FakeFiles();
+    const write = files.write.bind(files);
+    files.write = async (path: string, content: string) => {
+      if (path.startsWith("/workspace/.git/")) throw new Error("ENOTDIR");
+      return write(path, content);
+    };
+    const out = await closeBatch({ shell, files }, { ...REQ, push: false });
+    strictEqual(out.committed, true);
+    const at = out.lines.findIndex((l) => l.startsWith("✓ committed abc1234"));
+    strictEqual(out.lines[at + 1], "⚠ .orkeon/ORKEON_COMMITMSG could not be removed (rm: denied): remove it by hand");
+  });
+
   it("with no identity commits nothing and hands over the two commands", async () => {
     const shell = gitShell();
     shell.results["git var GIT_AUTHOR_IDENT"] = { exitCode: 128, stderr: "fatal: unable to auto-detect email address" };

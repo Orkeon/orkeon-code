@@ -485,16 +485,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `/agents` names the verbs its usage line takes, and the steps that run the reviewer (`/dev-spec`, `/dev-change`,
     `/dev-plan`).
   - Security and permissions: in the rule sets of a dev step, `git-readonly`
-    220 (the reads of `git config` - `--get`, `--get-regexp`, `--list`, `-l`, a bare key - run; its writes stay
-    refused), `inline-interpreters` 28 (a versioned `python3.12 -c`, and an option before `-c` or `-e`: `python3 -I
-    -c`, `perl -w -e`, `ruby -w -e`), `read-noise` 64 (`directory_search` among the path read tools), `state-files`
+    218 (the reads of `git config` - `--get`, `--get-regexp`, `--list`, `-l`, a bare key, on any `--file` - run; its
+    writes stay refused, a key then a value by the crews' code, which a glob cannot tell from `--file a.cfg --list`), `inline-interpreters` 28 (a versioned `python3.12 -c`, and an option before `-c` or `-e`: `python3 -I
+    -c`, `perl -w -e`, `ruby -w -e`; a `-c` after a script, `python3 x.py -c`, runs), `read-noise` 64 (`directory_search` among the path read tools), `state-files`
     41, `secrets` 128. A pilot kept out of the source roots is refused `structural_search` and `symbol_source`
     whole. The shell check of the dev crews and of the step guards reads the command as the host does - quotes
     dropped, blanks and tabs joined, backslash escapes resolved, option clusters split (`git "push"`, `bash  -c`,
     `python3 -Ic`, `git pu\sh`) - and a relative path that climbs out and back as the project path; a plan source
     spelt with `.` or `//` segments is checked as the path it names. The shared memory's guard: in every mode, the
-    file tools of the model that name one path are refused under `<memory.dir>/candidates/` and `entries/` (not
-    `edit_batch`, `structural_rewrite`, a shell reaching the folder in steps, nor a headless `orkeon run`), a stored allow it covers is dropped with a warning, and `/permissions` lists it. `dev.prAuto` from a
+    file tools of the model that name one path are refused under `<memory.dir>/candidates/` and `entries/`, and a shell
+    command naming the folder's segments then the leaf, a `cd` between them included; the callback of the main loop
+    and of every dev crew, under `orkeon run` too, refuses what the gate cannot read: a path in another letter case,
+    each `edit_batch` operation, a `structural_rewrite` that writes, a shell command in any case. A stored allow it
+    covers is dropped with a warning, and `/permissions` lists it. `dev.prAuto` from a
     project file is narrowed as `memory.autoAdmitAudited` is, and an invalid `tools.extra` project entry naming a
     tool the file also declares validly is dropped. `memory.dir` is refused under `.claude/` or `.git/` in any
     letter case; a multi-line front-matter field is joined on one line; `/memory-admit --import` refuses an item
@@ -510,28 +513,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `./a/b` or `a//b` is checked as the path it names and one holding a `\` is refused; an anchor in a folder
     listing 1000 entries or more is said "not checked"; a prompt that leaves no room for the inventory refuses,
     nothing written. `/dev-change`: an evidence command naming a path out of the checkout through an option
-    (`-o/etc/x`, `--dir=..`, `out=../x`, `-C~`) is refused; a symbol is known by its exact name, last segment, path
-    or basename only. `/dev-spec`, `/dev-change`: a write that fails says "could not be written (<reason>)", and
+    (`-o/etc/x`, `--dir=..`, `out=../x`, `-C~`) is refused; a symbol is known by its exact name, path or basename,
+    or by its last segment when the name also names its file (`Bank.AccountTests.X`), never when another class
+    holds it. `/dev-spec`, `/dev-change`: a write that fails says "could not be written (<reason>)", and
     another error (a cancelled question) is no longer reported as one. `/dev-verify`: a validation the gate ran red
     is a Blocking Test row, so a VALID answer over a red run is GAPS; a verdict file left empty resumes the whole
     batch; a plan path outside the work folder is refused; a cancelled audit says `the audit was cancelled`; a
     budget spent while the answer is extracted reads as the spent budget; `run_validation "x \"y\""` and
     `run_validation(command="...")` are read as the command. `/dev-implement`: a rerun after a BLOCKED cycle runs
-    the suite once before the first new RED; the affected tests are asked with paths relative to the indexed root;
+    the suite once before the first new RED, and its baseline leaves out the red tests the BLOCKED step's own RED
+    wrote (the count each RED tick records in `<batch>-red-failures.json` of the run's log folder); the affected tests are asked with paths relative to the indexed root;
     the graph's projects no command can name are said; the index is refreshed before the build; `--close` chains on
     the VALID line of the batch it wrote only. `/dev-batches`: the launch line carries `audits <n>`; a batch whose
-    close was refused at the chain's depth limit is relaunched when its audit did not run. `/dev-learn`: two motifs
+    close was refused at the chain's depth limit is relaunched when its audit did not run; a `/dev-batches` typed
+    while a chain may still audit or close a batch (an audit since its launch, VALID or no verdict yet) logs
+    nothing and says to wait for the chain's answer. `/dev-learn`: two motifs
     over the same rows are refused; "Decide later", or nothing selected, decides nothing; it and `--refuse` read and
     write `refused.md` under `memory.dir`, the file `/memory-admit` and `memory_push` read.
   - Git and launchers: `/commit` and the dev close work in a linked worktree (the message goes under
-    `.orkeon/ORKEON_COMMITMSG`, removed after); a pull-request body that cannot be written is said, never thrown
-    after the push; `/dev-batches` refuses a second plan while a run is in progress, takes a batch committed but
+    `.orkeon/ORKEON_COMMITMSG`, removed after, and a removal that fails is said with the commit); a pull-request body that cannot be written is said, never thrown
+    after the push; `/dev-batches` refuses a second plan while a run is in progress (a record whose run's log ends `closed`
+    no longer counts), takes a batch committed but
     not marked done for done, and refuses the plan's close on the default branch when the pack sets
     `contrib.branch`; `orkeon-code.ps1` passes `-it` only on a terminal and `--user` on Linux, refuses an unknown
     mode, has `--help`, and says `--demo` is bash-only; `install.ps1 -Uninstall` never removes a git clone;
     `session-start.sh` picks state files by their header date, as its twin; `run-crew.sh`'s source mode says when
     `dotnet` is missing; `scripts/dev-run.sh` refuses the crew `dev-batches`, checks the trust once before the
-    first step and runs each step with its standard input on `/dev/null`; the CI npm-shim step passes `--trust`.
+    first step and creates nothing in the project before it and runs each step with its standard input on `/dev/null`; the CI npm-shim step passes `--trust`.
   - Commands: `/doctor` shows a `version` row first and a row `settings: project file` - "widens nothing", or a WARN
     naming every key the project file set and that was ignored (`permissions.fallback`, `tools.extra`,
     `memory.autoAdmitAudited`, `dev.prAuto`); `/stats` has a `cacheWrite` column and its `cacheHit` is now
@@ -539,7 +547,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     keeps the admissions already confirmed when a question is left unanswered and says which candidates stay;
     `/tasks` lists the children of `/dev-spec` and `/dev-change`, and settles as dead an open run whose `updatedAt`
     does not parse; the main loop keeps a non-blank first answer, with a warning, when a stop-check retry throws.
-    Dead exports are un-exported or removed.
+    Dead exports are un-exported or removed, `hasExplicitConfirm` of `/commit` among them (`parseCommitArgs` reads
+    the flag).
 - `/dev-verify`: an audit the step's budget stops still writes its verdict, `GAPS` with one Blocking row that says the
   audit did not finish and why, and the validations that ran before; the step's token budget is 700 000 (a live audit
   of a 3-file batch spent 307 528 of the former 300 000). Its resume takes the gaps of the last audit that finished, or

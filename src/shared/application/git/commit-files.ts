@@ -47,7 +47,8 @@ export async function readIdentity(shell: Pick<Shell, "run">): Promise<IdentityC
   return { ok: true, ident: author! };
 }
 
-export type CommitOutcome = { ok: true; hash: string } | { ok: false; line: string };
+/** `note`: what is left to do by hand once the commit is made (the message file it could not remove). */
+export type CommitOutcome = { ok: true; hash: string; note?: string } | { ok: false; line: string };
 
 /**
  * Stages and commits `files` alone, with `message` passed through a file (no
@@ -78,9 +79,16 @@ export async function commitFiles(
     if (add.exitCode !== 0) return { ok: false, line: `git add failed: ${gitReason(add)}` };
   }
   const commit = await runGit(deps.shell, gitCommitCommand(req.files, messageFile.path));
-  if (messageFile.path === COMMIT_MESSAGE_FALLBACK) await runGit(deps.shell, `rm -f ${COMMIT_MESSAGE_FALLBACK}`);
-  if (commit.exitCode !== 0) return { ok: false, line: `git commit failed: ${gitReason(commit)}` };
-  return { ok: true, hash: (await runGit(deps.shell, GIT_HEAD_COMMAND)).stdout.trim() };
+  const note = messageFile.path === COMMIT_MESSAGE_FALLBACK ? await removeFallback(deps.shell) : null;
+  if (commit.exitCode !== 0) return { ok: false, line: `git commit failed: ${gitReason(commit)}${note === null ? "" : `; ${note}`}` };
+  const hash = (await runGit(deps.shell, GIT_HEAD_COMMAND)).stdout.trim();
+  return note === null ? { ok: true, hash } : { ok: true, hash, note };
+}
+
+/** Removes the message written under `.orkeon/`; a removal that fails is said, never silent (the file holds the message). */
+async function removeFallback(shell: Pick<Shell, "run">): Promise<string | null> {
+  const rm = await runGit(shell, `rm -f ${COMMIT_MESSAGE_FALLBACK}`);
+  return rm.exitCode === 0 ? null : `${COMMIT_MESSAGE_FALLBACK} could not be removed (${gitReason(rm)}): remove it by hand`;
 }
 
 /** The message under `.git/`, else - a linked worktree, whose `.git` is a file - under `.orkeon/`. */

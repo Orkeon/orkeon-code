@@ -7,7 +7,7 @@
 // array the gate cannot read (UNSCOPED_WRITE_TOOLS): those remove their tool from the catalogue. edit_batch is
 // not one of them: the crews' callback checks each of its operations as the editor it stands for (call-guard.ts).
 
-import { gateLine, sameCalls } from "./permission.ts";
+import { gateLine, sameCalls, shellWords } from "./permission.ts";
 import type { PermissionRule } from "./permission.ts";
 
 export type RuleSetId = "git-readonly" | "inline-interpreters" | "read-noise" | "secrets" | "state-files";
@@ -31,10 +31,11 @@ export interface GitVerb { verb: string; bareLists: boolean; subcommands?: reado
 
 const LISTING_VERBS = new Set(["branch", "notes", "reflog", "remote", "replace", "submodule", "tag"]);
 const VERB_SUBCOMMANDS: Readonly<Record<string, readonly string[]>> = {
-  // A key then a value sets it (git config user.name x, git config --global a.b x): a dot, then a space after it;
-  // the options and subcommands that change the file. `--get a.b`, `-l`, `a.b` alone and `get` only read.
+  // The options and subcommands that change the file. A key then a value (git config user.name x) sets one too,
+  // but a glob cannot tell it from a read whose file name holds a dot (git config --file a.cfg --list): the code
+  // reads that one (gitConfigSets). `--get a.b`, `-l`, `a.b` alone and `get` only read.
   config: [
-    "*.* *", "--add", "--unset", "--replace-all", "--rename-section", "--remove-section", "--edit", "-e",
+    "--add", "--unset", "--replace-all", "--rename-section", "--remove-section", "--edit", "-e",
     "set", "unset", "rename-section", "remove-section", "edit",
   ],
   remote: ["add", "remove", "rm", "rename", "set-url", "set-head", "set-branches", "prune", "update"],
@@ -53,6 +54,63 @@ export const GIT_MUTATING_VERBS: readonly GitVerb[] = [
   const entry: GitVerb = { verb, bareLists: LISTING_VERBS.has(verb) };
   return subcommands === undefined ? entry : { ...entry, subcommands };
 });
+
+/** The git global options that take the next word as their value (`git -C /x config`). */
+const GIT_VALUE_OPTIONS = new Set(["-C", "-c", "--git-dir", "--work-tree", "--namespace", "--super-prefix", "--config-env", "--exec-path"]);
+/** The git config options that take the next word as their value (`--file a.cfg`). */
+const CONFIG_VALUE_OPTIONS = new Set(["-f", "--file", "--blob", "-t", "--type", "--default", "--comment", "--value"]);
+/** The git config actions that only read; `get` and `list` are the subcommand forms. */
+const CONFIG_READS = /^(--get(-all|-regexp|-urlmatch|-color|-colorbool)?|--list|-l|get|list)$/;
+/** The words between which a shell starts another command. */
+const SHELL_OPERATORS = /(;|&&|\|\||\||&|\n)/;
+
+/** What deny rule a git config that sets a value stands under, in a refusal: no gate pattern holds it. */
+export const GIT_CONFIG_SET_RULE: PermissionRule = {
+  effect: "deny", tool: "shell_command", argument: "command", pattern: "*git config <key> <value>*",
+};
+
+/** The rule of git-readonly the code's reading of git config goes with: a list of rules that holds it holds the set. */
+const GIT_CONFIG_ADD_PATTERN = "*git config --add*";
+
+/** Whether these rules hold git-readonly, whose git config reading is the code's (gitConfigSets). */
+export function holdsGitReadonly(rules: readonly PermissionRule[]): boolean {
+  return rules.some((r) => r.effect === "deny" && r.tool === "shell_command" && r.pattern === GIT_CONFIG_ADD_PATTERN);
+}
+
+/**
+ * Whether one of the commands of a shell line is a git config that sets a value: two words or more after its
+ * options, and no reading action before them (--get, --list, get, list). A key and a value (git config user.name x) sets it,
+ * whatever file `--file` names; `git config --file a.cfg --list`, `git config a.b` read. The options and subcommands
+ * that change the file (--add, --unset, set…) are git-readonly's own patterns, and so is `git -c`. The words are
+ * read as the program receives them (quotes gone), each command of a chain (`cd x && git config a b`) apart.
+ */
+export function gitConfigSets(command: string): boolean {
+  const words = shellWords(command.replace(/\\(.)/g, "$1")).flatMap((w) => w.split(SHELL_OPERATORS)).filter((w) => w !== "");
+  const commands: string[][] = [[]];
+  for (const w of words) {
+    if (SHELL_OPERATORS.test(w) && w.replace(SHELL_OPERATORS, "") === "") commands.push([]);
+    else commands[commands.length - 1].push(w);
+  }
+  return commands.some(configSets);
+}
+
+function configSets(words: readonly string[]): boolean {
+  let at = words.findIndex((w) => w === "git" || w.endsWith("/git"));
+  if (at < 0) return false;
+  for (at += 1; at < words.length && words[at].startsWith("-"); at++) {
+    if (GIT_VALUE_OPTIONS.has(words[at])) at++;
+  }
+  if (words[at] !== "config") return false;
+  const positionals: string[] = [];
+  for (let i = at + 1; i < words.length; i++) {
+    const w = words[i];
+    // A reading action counts before the key only: what follows a key may be read as its value.
+    if (positionals.length === 0 && CONFIG_READS.test(w)) return false;
+    if (CONFIG_VALUE_OPTIONS.has(w)) i++;
+    else if (!w.startsWith("-") || w === "-") positionals.push(w);
+  }
+  return positionals.length >= 2;
+}
 
 /** A word and the same word with arguments after it; a word that already ends with `*` stands alone. */
 function withArguments(head: string): string[] {

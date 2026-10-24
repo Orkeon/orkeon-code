@@ -19,6 +19,7 @@ import {
   GIT_COMMITTER_IDENT_COMMAND, GIT_CURRENT_BRANCH_COMMAND, GIT_DEFAULT_BRANCH_COMMAND, GIT_HEAD_COMMAND, GIT_IDENT_COMMAND,
   gitPushCommand,
 } from "../../../shared/domain/git/close.ts";
+import { appendToLog, closedLine } from "../domain/batches-log.ts";
 import { ACTIVE_RECORD, batchesBranchName, runDevBatches } from "./run-dev-batches.ts";
 import type { BatchesAnswer, DevBatchesDeps } from "./run-dev-batches.ts";
 
@@ -110,6 +111,15 @@ describe("runDevBatches — a run", () => {
       "or delete that file to drop it, then /dev-batches other",
     ]);
     strictEqual(JSON.parse(files.files.get(ACTIVE_RECORD)!).code, "demo");
+  });
+
+  it("does not refuse another plan over a record whose run's log is closed", async () => {
+    const { files, deps } = setup();
+    await runDevBatches({ code: "demo" }, deps);
+    files.files.set(LOG, appendToLog(null, "demo", [closedLine(new Date(Date.UTC(2026, 9, 24, 10)))]));
+    const out = parse(await runDevBatches({ code: "other" }, deps));
+    strictEqual(out.lines.some((l) => l.includes("is in progress")), false, out.lines.join("\n"));
+    ok(out.lines.at(-1)!.startsWith("BLOCKED — no plan under workbench/other/"), out.lines.join("\n"));
   });
 
   it("refuses a read-only session mode, and a code that is not a folder name", async () => {
@@ -286,10 +296,25 @@ describe("runDevBatches — what comes back and the close", () => {
     const valid = setup();
     await runDevBatches({ code: "demo" }, valid.deps);
     valid.files.files.set(verdict, `${valid.files.files.get(verdict)}\n${VALID_F2}`);
-    const stopped = parse(await runDevBatches({}, valid.deps));
-    ok(stopped.lines.includes("F2 stopped BLOCKED — close: the batch was not committed"), stopped.lines.join("\n"));
-    ok(stopped.lines.includes("→ a human decides: the close (/dev-implement F2 demo --close), then /dev-batches demo goes on"),
-      stopped.lines.join("\n"));
+    // A VALID audit and no commit: its chain may still be closing it, so nothing is logged (the chain's answer would
+    // find the batch stopped); the close by hand is named.
+    const typed = parse(await runDevBatches({}, valid.deps));
+    strictEqual(typed.next, undefined);
+    ok(typed.lines.includes("F2: an audit since its launch says VALID, and no commit yet: its chain may still be closing it (nothing logged)"),
+      typed.lines.join("\n"));
+    ok(typed.lines.includes("→ wait for the chain's answer; else the close (/dev-implement F2 demo --close), then /dev-batches demo goes on"),
+      typed.lines.join("\n"));
+    deepStrictEqual(events(valid.files), ["F2 launched"]);
+  });
+
+  it("typed while a chain audits, with no verdict yet since the launch, logs nothing", async () => {
+    const t = setup();
+    await runDevBatches({ code: "demo" }, t.deps);
+    const verdict = `${DIR}/DEMO-VERIFY-F2.md`;
+    t.files.files.set(verdict, `${t.files.files.get(verdict)}\n# DEMO-VERIFY-F2 — 2026-10-24 11:00 — fast\n\nAudit in progress.\n`);
+    const typed = parse(await runDevBatches({}, t.deps));
+    ok(typed.lines.includes("F2: an audit since its launch, no verdict yet: its chain may still be running it (nothing logged)"), typed.lines.join("\n"));
+    deepStrictEqual(events(t.files), ["F2 launched"]);
   });
 
   it("typed after a cut with no audit since the launch, relaunches the batch; an audit before the launch is not one", async () => {

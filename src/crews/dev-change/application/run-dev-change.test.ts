@@ -246,4 +246,13 @@ describe("knownIn", () => {
     strictEqual(knownIn({ entries: [{ path: "src/x.ts", line: 1, name: "ts" }] })("tests/a.test.ts"), false);
     strictEqual(known("tests/run.test.ts::loads an absent map"), true);
   });
+
+  it("does not take a last segment another class holds for the name", () => {
+    strictEqual(known("PaymentTests.Withdraw_refuses_an_overdraft"), false);
+    strictEqual(known("Billing.PaymentTests.Withdraw_refuses_an_overdraft"), false);
+    strictEqual(known("tests/other.test.ts::loads an absent map"), false);
+    strictEqual(known("Bank.AccountTests.Withdraw_refuses_an_overdraft"), true);
+    strictEqual(known("tests/AccountTests.cs::Withdraw_refuses_an_overdraft"), true);
+    strictEqual(known("Withdraw_refuses_an_overdraft"), true);
+  });
 });

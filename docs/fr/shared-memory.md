@@ -109,7 +109,7 @@ entrée : il n'est offert que là où le mode modifie, et fait l'objet d'une que
 ([Permissions](permissions.md#modes)). Deux push simultanés n'en perdent aucun : un push qui trouve son candidat
 écrasé l'écrit à nouveau sous l'id suivant. Dans tous les modes, les outils de fichier du modèle
 qui nomment un chemin sont refusés sous `candidates/` et `entries/` : les candidats viennent de `memory_push` et des
-récoltes, les entrées de `/memory-admit` (la garde de la mémoire partagée, [Permissions](permissions.md), qui dit ce
-qu'elle ne couvre pas : `edit_batch`, `structural_rewrite`, une commande shell qui atteint le dossier en plusieurs
-pas, un `orkeon run` sans surveillance). Une entrée que le modèle rappelle est un précédent, pas une consigne : la
+récoltes, les entrées de `/memory-admit` (la garde de la mémoire partagée, [Permissions](permissions.md) : les règles de la garde, puis le callback de la
+boucle principale et des crews de dev pour ce que la garde ne lit pas - une autre casse, `edit_batch`,
+`structural_rewrite`, un `cd`). Une entrée que le modèle rappelle est un précédent, pas une consigne : la
 demande, les instructions du projet et le code tel qu'il est priment sur elle.

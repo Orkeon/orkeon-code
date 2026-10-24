@@ -101,10 +101,13 @@ so that no file tool of the model (`file_write`, `edit_file`, `node_replace`, `n
 under `<memory.dir>/candidates/` or `<memory.dir>/entries/`: candidates come from `memory_push` and the harvests,
 entries from `/memory-admit` alone. A stored allow rule the guard covers is dropped, with a warning. The patterns
 match however the path is spelt (`./`, `//`, `src/../`, `/workspace/`), and a `shell_command` naming
-`<memory.dir>/candidates` or `<memory.dir>/entries` is refused too. `/permissions` lists them on its own line, "the
-shared memory's guard: … (N rules)". Their limits: `edit_batch` and `structural_rewrite` are not covered (the gate
-cannot read their paths), nor a shell command that reaches the folder in steps (`cd`), nor a path in another letter
-case; headless `orkeon run` applies no session rules.
+`<memory.dir>`'s segments then `candidates` or `entries`, whatever stands between them (`cd .orkeon/memory && … >
+entries/x.md`), is refused too. `/permissions` lists them on its own line, "the shared memory's guard: … (N rules)".
+What the gate cannot see, the callback of the main loop and of every dev crew refuses on each call, under
+`orkeon run` too: a path in another letter case (`.Orkeon/Memory/Entries/x.md`, which a case-insensitive filesystem
+opens), each operation of an `edit_batch`, the paths and the glob of a `structural_rewrite` that writes
+(`dry_run: false`), and a shell command naming the folder in any case. A crew without a callback (`/code-review`,
+`/advisor`) runs under the gate's rules alone.
 
 ## Choosing the mode
 
@@ -193,7 +196,7 @@ off. Every step puts all five sets in force:
 | `secrets` | the written text: `file_write` `content`, `edit_file` `new_string`, `text` of `node_replace`, `node_insert` and `node_ensure`, `name` and `module` of `node_ensure`, `structural_rewrite` `fix`; each `edit_batch` operation's `text`, by the callback | content that holds a private key block or a token with a known prefix |
 | `state-files` | `path` of `file_write`, `edit_file`, `node_replace`, `node_insert`, `node_ensure`, each `edit_batch` operation's `path` by the callback; `structural_rewrite` whole | a file only Orkeon Code's own code writes: the batch logs, states and verdicts, the audit captures, `.orkeon/` and `.claude/` |
 
-`git-readonly` holds 220 rules, three for most of the verbs `add`, `am`, `apply`, `branch`, `checkout`, `cherry-pick`,
+`git-readonly` holds 218 rules, three for most of the verbs `add`, `am`, `apply`, `branch`, `checkout`, `cherry-pick`,
 `clean`, `commit`, `fetch`, `filter-branch`, `gc`, `merge`, `mv`, `notes`, `pull`, `push`, `rebase`, `reflog`,
 `remote`, `reset`, `restore`, `revert`, `rm`, `stash`, `submodule`, `switch`, `tag`, `update-ref` and `worktree`,
 here for `push`:
@@ -215,11 +218,15 @@ The rules match the word `git` anywhere on the line, so a path (`/usr/bin/git pu
 (`GIT_DIR=.git git push`) or a chain (`cd x && git push`) before it does not help. The same rules refuse the verbs
 that write below the everyday ones: `init`, `clone`, `config`, `update-index`, `symbolic-ref`, `prune`, `repack`, `read-tree`, `checkout-index`, `commit-tree`, `write-tree`, `mktag`, `mktree`, `fast-import`, `maintenance`, `update-server-info` and `replace` (`git replace` alone
 lists, and runs). `git config` is refused when it writes: a key then a value (`git config user.name x`,
-`git config --global a.b x`), `--add`, `--unset`, `--replace-all`, `--rename-section`, `--remove-section`, `--edit` or
+`git config --global a.b x`, `git config --file a.cfg a.b x`), `--add`, `--unset`, `--replace-all`, `--rename-section`, `--remove-section`, `--edit` or
 `-e`, and the subcommands `set`, `unset`, `rename-section`, `remove-section` and `edit`; so is the global option
 `git -c key=value`, which sets a config for one command and can run a program through `core.pager`. Its reads run:
-`git config user.name`, `git config --get user.name`, `git config --get-regexp`, `git config --list` or `-l`.
-A dotted name followed by a word reads as a write, so `git config --file a.cfg --list` is refused too.
+`git config user.name`, `git config --get user.name`, `git config --get-regexp`, `git config --list` or `-l`, on any
+file (`git config --file a.cfg --list`, `git config -f .gitmodules --get submodule.x.path`). A glob cannot tell a key
+then a value from a read whose file name holds a dot, so the crews' code reads that one: the words after `git config`
+and its options, two or more with no reading action before them, are a write, refused by the callback as
+`deny shell_command command=*git config <key> <value>*` of `git-readonly`, and by the step's own tools that run a
+command.
 
 The other four sets, each pattern on the first tool of its set:
 
@@ -290,11 +297,12 @@ deny file_write path=.claude/*
 `sh`, `zsh`, `dash`, `ksh`, `fish`), also in a flag cluster (`bash -xc`) or after another flag (`bash -e -c`), and
 the inline forms of `node`, `python`, `python3` and a versioned `python3.12`, `perl`, `ruby`, `php`, `tsx`, `ts-node`,
 `deno` and `bun`, behind a path, an `env` or `npx`, also after another option (`python3 -I -c`, `perl -w -e`,
-`ruby -w -e`). A rule reads `-c` anywhere after the interpreter, so `python3 x.py -c` is refused too. Since a rule reads `sh -c` at the end of any word, `ssh -c <cipher>` is refused too.
+`ruby -w -e`). A `-c` after a script runs (`python3 x.py -c`); after another option it is refused, so
+`python3 -m pytest -c pytest.ini` and a versioned `python3.12 x.py -c` are refused too. Since a rule reads `sh -c` at the end of any word, `ssh -c <cipher>` is refused too.
 
 The three file sets repeat their patterns on every tool of their row, tool by tool: `read-noise` holds 64 rules (8
 patterns on 8 tools, on `path`), `secrets` 128 (16 patterns on 8 written arguments of 6 tools), `state-files` 41 (8
-patterns on 5 tools, on `path`, then `deny structural_rewrite`). A step holds 481 rules (483 with the two allow rules of `/dev-implement`). The gate cannot read the
+patterns on 5 tools, on `path`, then `deny structural_rewrite`). A step holds 479 rules (481 with the two allow rules of `/dev-implement`). The gate cannot read the
 paths or the text inside `edit_batch` and `structural_rewrite`. `structural_rewrite` is refused whole. `edit_batch` is
 left to the crews' callback, which runs on every act of a step: it reads each operation as the editor it stands for
 and applies the sets and the role's rules to it, and refuses a batch with no operations, an operation without a

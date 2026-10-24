@@ -62,6 +62,7 @@ export async function closeBatch(
   const commit = await commitFiles(deps, { files: selection.files, status: status.stdout, message: req.message });
   if (!commit.ok) return { committed: false, lines: [...notes, `✗ ${commit.line}`] };
   const lines = [...notes, `✓ committed ${commit.hash} on ${req.branch}: ${selection.files.length} file(s)`];
+  if (commit.note !== undefined) lines.push(`⚠ ${commit.note}`);
   if (!req.push) return { committed: true, hash: commit.hash, lines };
   const pushCommand = gitPushCommand(req.branch);
   if (req.rules !== undefined && ruleDecision(req.rules, "shell_command", { command: pushCommand, working_directory: "/workspace" }) === "deny") {

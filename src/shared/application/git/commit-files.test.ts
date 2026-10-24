@@ -125,6 +125,24 @@ describe("commitFiles in a linked worktree (.git is a file)", () => {
     ]);
   });
 
+  it("says the message file it could not remove, after a commit that landed or failed", async () => {
+    const rm = "rm -f .orkeon/ORKEON_COMMITMSG";
+    const shell = new FakeShell();
+    shell.results["git rev-parse --short HEAD"] = { stdout: "abc1234\n" };
+    shell.results[rm] = { stderr: "rm: cannot remove '.orkeon/ORKEON_COMMITMSG': Permission denied\n", exitCode: 1 };
+    deepStrictEqual(await commitFiles({ shell, files: new RefusingFiles(["/workspace/.git/"]) }, { files: ["a.ts"], status: " M a.ts", message: "fix: x" }), {
+      ok: true, hash: "abc1234",
+      note: ".orkeon/ORKEON_COMMITMSG could not be removed (rm: cannot remove '.orkeon/ORKEON_COMMITMSG': Permission denied): remove it by hand",
+    });
+    const failing = new FakeShell();
+    failing.results["git --literal-pathspecs commit -F .orkeon/ORKEON_COMMITMSG -- 'a.ts'"] = { stderr: "fatal: x\n", exitCode: 128 };
+    failing.errors[rm] = new Error("refused");
+    deepStrictEqual(await commitFiles({ shell: failing, files: new RefusingFiles(["/workspace/.git/"]) }, { files: ["a.ts"], status: " M a.ts", message: "fix: x" }), {
+      ok: false,
+      line: "git commit failed: fatal: x; .orkeon/ORKEON_COMMITMSG could not be removed (refused by the runtime: refused): remove it by hand",
+    });
+  });
+
   it("says so, and stages nothing, when no message file can be written", async () => {
     const shell = new FakeShell();
     const files = new RefusingFiles(["/workspace/.git/", "/workspace/.orkeon/"]);

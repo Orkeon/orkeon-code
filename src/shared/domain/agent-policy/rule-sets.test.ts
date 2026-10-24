@@ -7,7 +7,7 @@ import {
   toolsetFor,
 } from "./permission.ts";
 import {
-  FOLDER_READ_TOOLS, heldRuleSets, PATH_READ_TOOLS, PATH_WRITE_TOOLS, pathRules, RULE_SET_IDS, RULE_SETS, rulesOf, UNSCOPED_WRITE_TOOLS,
+  FOLDER_READ_TOOLS, gitConfigSets, heldRuleSets, PATH_READ_TOOLS, PATH_WRITE_TOOLS, pathRules, RULE_SET_IDS, RULE_SETS, rulesOf, UNSCOPED_WRITE_TOOLS,
   WRITTEN_TEXT,
 } from "./rule-sets.ts";
 import type { RuleSetId } from "./rule-sets.ts";
@@ -16,6 +16,9 @@ import { REVIEWER_TOOLS } from "../dev/reviewer-charter.ts";
 
 const refused = (id: RuleSetId, tool: string, args: Record<string, unknown>): boolean =>
   ruleDecision(RULE_SETS[id].rules, tool, args) === "deny";
+
+/** git-readonly as the dev crews apply it: its rules, then the code's reading of a git config that sets a value. */
+const gitRefused = (command: string): boolean => refused("git-readonly", "shell_command", { command }) || gitConfigSets(command);
 
 function assertRefused(id: RuleSetId, tool: string, argument: string, values: readonly string[], expected: boolean): void {
   for (const value of values) strictEqual(refused(id, tool, { [argument]: value }), expected, `${id}: ${value}`);
@@ -40,10 +43,10 @@ describe("the rule sets", () => {
     for (const [tool, argument] of WRITTEN_TEXT) ok(TOOL_ARGUMENTS[tool].includes(argument), `${tool}.${argument}`);
   });
 
-  it("holds 220, 28, 64, 128 and 41 rules, 481 in all, none of them on edit_batch", () => {
-    deepStrictEqual(RULE_SET_IDS.map((id) => RULE_SETS[id].rules.length), [220, 28, 64, 128, 41]);
+  it("holds 218, 28, 64, 128 and 41 rules, 479 in all, none of them on edit_batch", () => {
+    deepStrictEqual(RULE_SET_IDS.map((id) => RULE_SETS[id].rules.length), [218, 28, 64, 128, 41]);
     const all = rulesOf(RULE_SET_IDS);
-    strictEqual(all.length, 481);
+    strictEqual(all.length, 479);
     ok(!all.some((r) => r.tool === "edit_batch"));
     for (let i = 0; i < all.length; i++) {
       for (let j = i + 1; j < all.length; j++) ok(!sameCalls(all[i], all[j]), gateLine(all[i]));
@@ -96,9 +99,9 @@ describe("the rule sets", () => {
     assertRefused("git-readonly", "shell_command", "command", [
       "env git push", "/usr/bin/git push origin", "cd x && git push", "GIT_DIR=.git git push", "git init",
       "git clone u", "git update-index --add x", "git symbolic-ref HEAD refs/heads/x", "git -c core.pager=x log",
-      "git config core.hooksPath /tmp/h", "git config --global user.name x", "git replace a b",
-      "git push;", "git push&&ls", "git commit\n-m x", "git stash pop;",
+      "git replace a b", "git push;", "git push&&ls", "git commit\n-m x", "git stash pop;",
     ], true);
+    for (const command of ["git config core.hooksPath /tmp/h", "git config --global user.name x"]) ok(gitRefused(command), command);
     assertRefused("git-readonly", "shell_command", "command", [
       "git config user.name", "git config --list", "git config -l", "git replace", "git status", "git stash list",
       "git remote -v",
@@ -107,16 +110,26 @@ describe("the rule sets", () => {
 
   it("git-readonly refuses git config when it changes the file, and lets its reads run", () => {
     assertRefused("git-readonly", "shell_command", "command", [
-      "git config user.name x", "git config --local a.b c", "git config --add a.b c", "git config --unset a.b",
+      "git config --add a.b c", "git config --unset a.b",
       "git config --unset-all a.b", "git config --replace-all a.b c", "git config --rename-section a b",
       "git config --remove-section a", "git config --edit", "git config -e", "git config set a.b c",
-      "git config unset a.b", "git config edit", "git -C /x config a.b c", "git -C /x config --unset a.b",
+      "git config unset a.b", "git config edit", "git -C /x config --unset a.b",
     ], true);
-    assertRefused("git-readonly", "shell_command", "command", [
+    // A key then a value: the gate's glob cannot tell it from a read with a dotted file name, the code does.
+    for (const command of [
+      "git config user.name x", "git config --local a.b c", "git -C /x config a.b c", "git --git-dir=.git config a.b c",
+      "git config --file a.cfg a.b c", "git config -f a.cfg a.b c", "cd x && git config a.b c", "/usr/bin/git config a.b c",
+      "git status; git config a.b c", "git config --type=bool a.b true", "GIT_DIR=x git config 'a.b' \"c d\"",
+    ]) ok(gitRefused(command), command);
+    for (const command of [
       "git config --get user.name", "git config --global --get user.name", "git config --get-all a.b",
       "git config --get-regexp remote", "git config --list --show-origin", "git config get user.name",
-      "git -C /x config --get user.email",
-    ], false);
+      "git -C /x config --get user.email", "git config user.name", "git config --file a.cfg --list",
+      "git config -f .gitmodules --get submodule.x.path", "git config --file=a.cfg --get a.b", "git config -l",
+      "git config --blob HEAD:.gitmodules --list", "git log -- a.b c.d", "git config --get a.b && ls x y",
+    ]) strictEqual(gitRefused(command), false, command);
+    // A -c after a script is the script's: inline-interpreters reads -c after the interpreter or another option only.
+    strictEqual(refused("inline-interpreters", "shell_command", { command: "python3 x.py -c" }), false);
   });
 
   it("git-readonly lets the reads run", () => {

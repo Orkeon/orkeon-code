@@ -31,7 +31,7 @@ import type { RepoPack, RepoPackLayout } from "../../../shared/domain/dev/repo-p
 import { greenContract, projectCommandFor, redContract, stubsOf, testCommandFor } from "../domain/contracts.ts";
 import { openSteps, parseImplementSheet } from "../domain/step-section.ts";
 import type { ImplementSheet, ImplementStep } from "../domain/step-section.ts";
-import { addedFailure, changedPaths, greenProblem, readCost, redProblem, under } from "../domain/step-checks.ts";
+import { addedFailure, changedPaths, failureCount, greenProblem, readCost, redProblem, under } from "../domain/step-checks.ts";
 import { cyclesLine, cyclesOf, stepsLabel } from "../domain/cycles.ts";
 import type { Cycle } from "../domain/cycles.ts";
 import { addCorrection } from "../domain/correction.ts";
@@ -299,6 +299,32 @@ async function openStubs(run: Run, step: ImplementStep): Promise<string[]> {
   return out;
 }
 
+/** The failures each RED-ticked step of the batch left, by step number: a rerun's baseline (`<batch>-red-failures.json`
+ *  in the logs folder). Unreadable, it is empty. */
+const redCountsPath = (run: Run): string => `${run.logFolder}/${run.sheet.batch}-red-failures.json`;
+
+async function readRedCounts(run: Run): Promise<Record<string, number>> {
+  try {
+    const parsed = JSON.parse(await run.deps.files.read(redCountsPath(run))) as unknown;
+    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return Object.fromEntries(Object.entries(parsed).filter((e): e is [string, number] => Number.isInteger(e[1]) && (e[1] as number) >= 0));
+  } catch {
+    return {};
+  }
+}
+
+/** Records the failures a ticked RED left; a count the tail does not show, or a write that fails, records nothing
+ *  (a rerun then takes the suite's own run as its baseline). */
+async function recordRedCount(run: Run, step: ImplementStep, count: number | null): Promise<void> {
+  if (count === null) return;
+  const counts = { ...await readRedCounts(run), [String(step.number)]: count };
+  try {
+    await run.deps.files.write(redCountsPath(run), `${JSON.stringify(counts)}\n`);
+  } catch {
+    // the record is a help to a rerun, never a verdict
+  }
+}
+
 async function runCycle(run: Run, cycle: Cycle): Promise<string | null> {
   const steps = cycle.steps;
   const label = stepsLabel(steps);
@@ -308,26 +334,36 @@ async function runCycle(run: Run, cycle: Cycle): Promise<string | null> {
 
   const toRed = steps.filter((s) => !s.tdd?.red);
   // A rerun after BLOCKED: a step of the cycle is RED-ticked already and its tests fail. One run before the first new
-  // RED is the baseline its tests must add a failure to, as the run of that step would have been.
-  let red: WrappedRun | null = toRed.length > 0 && toRed.length < steps.length
-    ? await run.tools.runTests({ command: command.command })
-    : null;
+  // RED is the baseline its tests must add a failure to, as the run of that step would have been. The tests the
+  // BLOCKED step wrote before it stopped fail in that run too: the count the last ticked step recorded, when lower,
+  // is the baseline.
+  let red: WrappedRun | null = null;
+  let before: string | number | null = null;
+  if (toRed.length > 0 && toRed.length < steps.length) {
+    red = await run.tools.runTests({ command: command.command });
+    const ticked = steps.filter((s) => s.tdd?.red).at(-1);
+    const recorded = ticked === undefined ? undefined : (await readRedCounts(run))[String(ticked.number)];
+    const observed = red.ok ? failureCount(red.tail) : null;
+    before = recorded !== undefined && observed !== null && recorded < observed ? recorded : red.ok ? red.tail : null;
+  }
   for (const step of toRed) {
     const stubs = await openStubs(run, step);
     const t3 = await recallForRed(run, step);
     const done = await act(run, "test-author", withPrecedents(redContract(contractInput(run, step, command.command)), [t3, run.correction]), stubs);
     if (typeof done === "string") return `step ${step.number} RED: ${done}`;
     run.ran.push(step);
-    const earlier = red;
+    const earlier = before;
     red = await run.tools.runTests({ command: command.command });
     const problem = redProblem(done.changed, run.isTest, observedRun(red), stubs);
     if (problem !== null) return `step ${step.number} RED: ${problem}${logOf(red)}`;
     // A later step of the cycle: its file failed already, so its own tests must add a failure.
-    const added = earlier?.ok === true && red.ok ? addedFailure(earlier.tail, red.tail) : "ok";
+    const added = earlier !== null && red.ok ? addedFailure(earlier, red.tail) : "ok";
     if (typeof added === "object") return `step ${step.number} RED: ${added.problem}${logOf(red)}`;
     done.changed.forEach((p) => { run.touched.add(p); if (!run.isTest(p)) production.add(p); });
     const failed = await tick(run, step, "RED");
     if (failed !== null) return `step ${step.number} RED: ${failed}`;
+    before = red.ok ? red.tail : null;
+    await recordRedCount(run, step, red.ok ? failureCount(red.tail) : null);
     const stubbed = done.changed.filter((p) => !run.isTest(p));
     const unchecked = added === "unknown" ? " (its own failure not checked: the run's tail shows no failure count)" : "";
     run.lines.push(`step ${step.number} RED ✓ — ${done.changed.filter(run.isTest).join(", ")}${stubbed.length === 0 ? "" : ` (stubs: ${stubbed.join(", ")})`}${unchecked}`);

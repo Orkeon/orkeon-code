@@ -59,14 +59,39 @@ function lastSegment(name: string): string {
   return parts.filter((s) => s !== "").pop() ?? tail;
 }
 
+/** What qualifies the last segment of a name: the pieces before it (`a/b.ts::C::m` → `a/b.ts`, `C`; `N.C.m` → `N.C`).
+ *  `null` for a name that is a path (its last segment is its file name, nothing qualifies it). */
+function qualifiers(name: string): string[] | null {
+  const pieces = name.split(/::|#/).filter((s) => s !== "");
+  const tail = pieces.pop() ?? name;
+  if (/[/\\]/.test(tail)) return null;
+  const dots = tail.split(".").filter((s) => s !== "");
+  dots.pop();
+  return dots.length > 0 ? [...pieces, dots.join(".")] : pieces;
+}
+
+/** True when one qualifier names the entry's file: its path (`tests/a.test.ts`, or its end), or a dotted part equal to
+ *  the file's stem (`Bank.AccountTests` for `tests/AccountTests.cs`, `tests.test_a.TestA` for `tests/test_a.py`). */
+function qualifiesFile(quals: readonly string[], path: string): boolean {
+  const base = path.slice(path.lastIndexOf("/") + 1);
+  const stem = base.split(".")[0];
+  return quals.some((q) => /[/\\]/.test(q)
+    ? path === q.replace(/\\/g, "/") || path.endsWith(`/${q.replace(/\\/g, "/")}`)
+    : q.split(".").includes(stem));
+}
+
 /**
- * True when the inventory shows a test of that name: an entry named so, or the last segment of the name (a qualified
- * name), or a file of that path or name. Never a part of a name: `Account` does not show `AccountTests.never_written`.
+ * True when the inventory shows a test of that name: an entry named so, a file of that path or name, or - for a
+ * qualified name - an entry named by its last segment in a file its qualifier names (`AccountTests.loads` is known from
+ * `tests/AccountTests.cs`, never from a `loads` another class's file holds). Never a part of a name: `Account` does not
+ * show `AccountTests.never_written`.
  */
 export const knownIn = (inventory: Pick<BriefInventory, "entries">) => (name: string): boolean => {
-  const names = new Set([name, lastSegment(name)]);
+  const segment = lastSegment(name);
+  const quals = qualifiers(name);
   return inventory.entries.some((e) =>
-    names.has(e.name) || name === e.path || name === e.path.slice(e.path.lastIndexOf("/") + 1));
+    e.name === name || name === e.path || name === e.path.slice(e.path.lastIndexOf("/") + 1)
+    || (segment !== name && e.name === segment && (quals === null || qualifiesFile(quals, e.path))));
 };
 
 export async function runDevChange(input: DevChangeInputs, deps: DevChangeDeps): Promise<string> {

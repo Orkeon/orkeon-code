@@ -5,6 +5,7 @@
 // refusal is terminal and a guard that throws refuses (fail-closed). Pure.
 import type { PermissionRule } from "../agent-policy/permission.ts";
 import { ruleDecision, shellCommandForms } from "../agent-policy/permission.ts";
+import { gitConfigSets, holdsGitReadonly } from "../agent-policy/rule-sets.ts";
 
 /** One check of a call: the reason it is refused, or null when it passes. */
 export type Guard<T> = (call: T) => string | null;
@@ -26,9 +27,11 @@ export function runGuards<T>(guards: ReadonlyArray<Guard<T>>, call: T): string |
 /** Refuses a shell command a deny rule covers, as the gate would refuse the model's own shell_command, in any of
  *  the forms the program receives it in (shellCommandForms). */
 export function shellRuleGuard(rules: readonly PermissionRule[]): Guard<string> {
+  const gitConfig = holdsGitReadonly(rules);
   return (command) =>
     shellCommandForms(command).some((form) =>
       ruleDecision(rules, "shell_command", { command: form, working_directory: "/workspace" }) === "deny")
+      || (gitConfig && gitConfigSets(command))
       ? `the rules of this step deny the shell command '${command}'`
       : null;
 }

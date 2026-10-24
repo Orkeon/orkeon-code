@@ -177,7 +177,7 @@ describe("/permissions show", () => {
     const { gate, run } = setup();
     gate.rules = [...RULE_SETS["git-readonly"].rules];
     const lines = (await run("show")).text!.split("\n");
-    strictEqual(lines[7], "in the host gate     : rule sets of the last dev step: git-readonly (220 rules)");
+    strictEqual(lines[7], "in the host gate     : rule sets of the last dev step: git-readonly (218 rules)");
   });
 });
 

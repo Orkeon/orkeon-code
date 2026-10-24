@@ -97,6 +97,17 @@ describe("checkToolCall — rules", () => {
     }
   });
 
+  it("refuses a git config that sets a value, which the gate's glob cannot tell from a read, and lets the reads run", () => {
+    const guard = buildCallGuard({ step: "dev-plan" });
+    for (const command of ["git config user.name x", "git -C /x config --file a.cfg a.b c", "cd x && git config 'a.b' c"]) {
+      const verdict = refused(checkToolCall(guard, "shell_command", { command }, ON));
+      strictEqual(verdict.reason, "dev-plan: refused by 'deny shell_command command=*git config <key> <value>*' of the rule set git-readonly", command);
+    }
+    for (const command of ["git config --file a.cfg --list", "git config -f .gitmodules --get submodule.x.path", "git config user.name"]) {
+      deepStrictEqual(checkToolCall(guard, "shell_command", { command }, ON), { allow: true }, command);
+    }
+  });
+
   it("normalises a path by its text", () => {
     strictEqual(normalisePath("/workspace/./src//x.ts"), "/workspace/src/x.ts");
     strictEqual(normalisePath("/workspace/tests/../src/x.ts"), "/workspace/src/x.ts");

@@ -38,6 +38,8 @@ import {
 } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { memoryTools } from "../../shared/infrastructure/orkeon/memory-tools.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
+import { memoryGuardCallbacks } from "../../shared/infrastructure/orkeon/tool-callbacks.ts";
+import { memoryDirOf } from "../../shared/application/shared-memory/memory-settings.ts";
 import { createRunState } from "../../shared/infrastructure/orkeon/run-state.ts";
 import { compactSession, readCompactionTrigger } from "../../shared/application/compaction/compact-session.ts";
 import { loadCatalogue, runMainLoop } from "./application/run-main-loop.ts";
@@ -67,7 +69,9 @@ const coder = AgentBuilder()
   .maxIterations(40)
   .withState(() => ({ permissionMode: loaded.mode, [BREAKER_RUN_FIELD]: 0 }))
   .body(async (_input: any, ctx: any) => {
-    const llm = createLlm(ctx.llm);
+    // The shared memory's guard on every call: what the host's gate cannot read (an edit_batch's operations, a
+    // path in another case, a shell cd into the folder) is refused here (shared-memory/layout memoryWriteRefusal).
+    const llm = createLlm(ctx.llm, memoryGuardCallbacks(memoryDirOf(ports.config)));
     const log = ctx.log;
     return await runMainLoop(inputs(), loaded, {
       ...ports,

@@ -101,6 +101,15 @@ async function readRecord(files: Pick<Files, "read">): Promise<ActiveRecord | nu
   }
 }
 
+/** True when the log of `code`'s run ends closed: a record left naming it (its last write failed) holds nothing. */
+async function runClosed(files: Pick<Files, "read">, code: string): Promise<boolean> {
+  try {
+    return parseBatchesState(await files.read(batchesLogPath(code))).closed;
+  } catch {
+    return false;
+  }
+}
+
 /** The log, appended in memory and written once per run. */
 class LogBook {
   readonly path: string;
@@ -154,6 +163,12 @@ function stopOf(dev: DevCode, batch: string, after: readonly string[]): { event:
   }
   const first = after.map((l) => l.trim()).find((l) => l !== "");
   return { event: "stopped", detail: `BLOCKED — ${first ?? "the chain answered nothing"}` };
+}
+
+/** The verdict of the batch's latest audit section; null while that audit has written none (it may still run). */
+function latestVerdict(dev: DevCode, batch: string): string | null {
+  const files = dev.verdicts.filter((v) => v.batch === batch);
+  return files.at(-1)?.file.sections.at(-1)?.verdict ?? null;
 }
 
 /** The launch's detail: the audits the batch's verdict file held then, so that a typed run can tell an audit since. */
@@ -236,7 +251,7 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
     if (!isCode(code)) return answer([`BLOCKED — '${code}' is not a work code (a folder name of the work folder)`]);
     // Another plan's run in progress keeps its record: overwritten, a typed close of one of its batches would push.
     const active = await readRecord(deps.files);
-    if (active !== null && active.code !== null && active.code !== code) {
+    if (active !== null && active.code !== null && active.code !== code && !await runClosed(deps.files, active.code)) {
       return answer([
         `BLOCKED — the run of ${active.code} is in progress (${ACTIVE_RECORD.replace(/^\/workspace\//, "")}): ` +
         `take it to its close (/dev-batches ${active.code}), or delete that file to drop it, then /dev-batches ${code}`,
@@ -298,7 +313,7 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
   };
 
   // 3. What came of the batches the log leaves launched: a batch done since is logged returned and merged;
-  //    back from the chain, a batch not done is a stop (a human decides).
+  //    back from the chain, a batch not done is a stop (a human decides); typed, only a GAPS audit is logged.
   const after = strings(input.after).slice(-AFTER_LINES);
   for (const node of nodes) {
     const last = lastEntryOf(book.entries(), node.id);
@@ -326,6 +341,21 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
       continue;
     }
     const stop = stopOf(dev, node.id, after);
+    // Typed while its chain may still run: an audit since the launch that ended in no GAPS (VALID, or none yet) is
+    // not a stop - the chain's answer, coming back, would find the batch stopped. Nothing is logged.
+    const latest = input.after === undefined ? latestVerdict(dev, node.id) : null;
+    if (input.after === undefined && latest !== "GAPS") {
+      const valid = latest === "VALID";
+      return finish([
+        ...lines,
+        valid
+          ? `${node.id}: an audit since its launch says VALID, and no commit yet: its chain may still be closing it (nothing logged)`
+          : `${node.id}: an audit since its launch, no verdict yet: its chain may still be running it (nothing logged)`,
+        valid
+          ? `→ wait for the chain's answer; else the close (/dev-implement ${node.id} ${code} --close), then /dev-batches ${code} goes on`
+          : `→ wait for the chain's answer; else a human decides, then /dev-batches ${code} goes on`,
+      ]);
+    }
     book.add(eventLine(now, node.id, stop.event, stop.detail));
     return finish([
       ...lines, `${node.id} ${stop.event} ${stop.detail}`,

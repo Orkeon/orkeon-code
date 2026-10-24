@@ -9,6 +9,7 @@ import type { Files, Logger, Shell } from "../../application/ports.ts";
 import { buildCallGuard, checkToolCall, denyText, hookCommand } from "../../domain/dev/call-guard.ts";
 import { OPERATIONS_TOOL, REWRITE_TOOL } from "../../domain/agent-policy/rule-sets.ts";
 import { sameToolName } from "../../domain/agent-policy/permission.ts";
+import { memoryWriteRefusal } from "../../domain/shared-memory/layout.ts";
 import type { CallGuard, CallGuardSpec, ToolHook } from "../../domain/dev/call-guard.ts";
 
 /** A hook is stopped after this many seconds, and refuses (pre) or is reported (post). */
@@ -32,6 +33,38 @@ export interface ToolCallbackDeps {
   log?: Pick<Logger, "info" | "warn">;
   /** Reads a file_write's path under a rewrite rule; none: the rule holds on every path. */
   files?: Pick<Files, "read">;
+  /** The shared memory's folder (memory.dir): the callback denies a write under its candidates or entries the gate
+   *  cannot see (memoryWriteRefusal). None: not checked here. */
+  memoryDir?: () => Promise<string>;
+}
+
+/** A reader of the memory folder that asks once: every call of an act needs it, the setting does not move. */
+export function onceMemoryDir(read: () => Promise<string>): () => Promise<string> {
+  let dir: Promise<string> | null = null;
+  return () => (dir ??= read());
+}
+
+const MEMORY_GUARD = "refused by the shared memory's guard";
+const MEMORY_CONTEXT = "The shared memory's candidates and entries are written by memory_push and /memory-admit only: do without this call.";
+
+/** The callbacks of an act that runs no dev step (the main loop): the shared memory's guard alone, no hook. */
+export function memoryGuardCallbacks(memoryDir: () => Promise<string>): Pick<ToolCallbacks, "forAct"> {
+  const dir = onceMemoryDir(memoryDir);
+  return {
+    forAct() {
+      return {
+        async onToolCall(call) {
+          try {
+            const why = memoryWriteRefusal(await dir(), call.name, call.input);
+            return why === null ? "allow" : { deny: `${MEMORY_GUARD}: ${why}\n${MEMORY_CONTEXT}` };
+          } catch (e) {
+            return { deny: `the shared memory's guard failed: ${String((e as Error)?.message ?? e)}` };
+          }
+        },
+        async onToolResult() { return undefined; },
+      };
+    },
+  };
 }
 
 const PROJECT = "/workspace";
@@ -117,6 +150,7 @@ function resultText(result: unknown): string {
 }
 
 export function createToolCallbacks(guard: CallGuard, deps: ToolCallbackDeps): ToolCallbacks {
+  const memoryDir = deps.memoryDir === undefined ? undefined : onceMemoryDir(deps.memoryDir);
   const pre = guard.hooks.filter((h) => h.event === "pre-tool");
   const post = guard.hooks.filter((h) => h.event === "post-tool");
   return {
@@ -126,6 +160,11 @@ export function createToolCallbacks(guard: CallGuard, deps: ToolCallbackDeps): T
         async onToolCall(call) {
           // A throw would deny too, with the bare message: the catch keeps the step's name in front.
           try {
+            const memory = memoryDir === undefined ? null : memoryWriteRefusal(await memoryDir(), call.name, call.input);
+            if (memory !== null) {
+              deps.log?.info(`${guard.step}: callback refused ${call.name}: ${memory}`);
+              return { deny: `${guard.step}: ${MEMORY_GUARD}: ${memory}\n${MEMORY_CONTEXT}` };
+            }
             const path = (call.input as { path?: unknown } | null)?.path;
             const rewrite = sameToolName(call.name, REWRITE_TOOL) && typeof path === "string" && deps.files !== undefined
               && guard.rules.some((r) => r.origin.kind === "rewrite");

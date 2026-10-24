@@ -3,7 +3,7 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
-import { candidatePath, checkMemoryDir, entryPath, memoryCollection, memoryLayout, memoryWriteRules } from "./layout.ts";
+import { candidatePath, checkMemoryDir, entryPath, memoryCollection, memoryLayout, memoryWriteRefusal, memoryWriteRules } from "./layout.ts";
 import { ruleDecision } from "../agent-policy/permission.ts";
 import { PATH_WRITE_TOOLS } from "../agent-policy/rule-sets.ts";
 
@@ -65,5 +65,52 @@ describe("memoryWriteRules", () => {
     strictEqual(ruleDecision(rules, "shell_command", { command: "printf x > .orkeon/memory/candidates/x.md" }), "deny");
     strictEqual(ruleDecision(rules, "shell_command", { command: "cp a.md ./.orkeon/memory/entries/decision/" }), "deny");
     strictEqual(ruleDecision(rules, "shell_command", { command: "cat .orkeon/memory/refused.md" }), undefined);
+  });
+});
+
+describe("memoryWriteRules - a shell command reaching the folder in steps", () => {
+  it("denies a command that names the folder's segments then the leaf, a `cd` between them", () => {
+    const rules = memoryWriteRules(".orkeon/memory");
+    for (const command of ["cd .orkeon/memory && printf x > entries/a.md", "cd .orkeon && cd memory && cp x candidates/"]) {
+      strictEqual(ruleDecision(rules, "shell_command", { command }), "deny", command);
+    }
+    strictEqual(ruleDecision(rules, "shell_command", { command: "cd .orkeon/memory && cat refused.md" }), undefined);
+  });
+});
+
+describe("memoryWriteRefusal (the callbacks' check: what the gate cannot read)", () => {
+  const refused = (tool: string, input: unknown): boolean => memoryWriteRefusal(".orkeon/memory", tool, input) !== null;
+
+  it("compares a path in any letter case, a case-insensitive file system reading it as the folder", () => {
+    for (const path of [".Orkeon/Memory/Entries/x.md", "/workspace/.ORKEON/memory/CANDIDATES/x.md", "./.orkeon//Memory/entries/a/b.md"]) {
+      strictEqual(refused("file_write", { path }), true, path);
+    }
+    strictEqual(refused("file_write", { path: ".orkeon/memory/refused.md" }), false);
+    strictEqual(refused("file_read", { path: ".orkeon/memory/entries/x.md" }), false);
+    strictEqual(refused("file_write", { path: "src/entries/x.md" }), false);
+  });
+
+  it("reads the path of every operation of an edit_batch", () => {
+    strictEqual(refused("edit_batch", { operations: [
+      { kind: "node_replace", path: "src/a.ts", selector: "x", text: "y" },
+      { kind: "ensure_section", path: "/workspace/.orkeon/memory/entries/decision/x.md", selector: "## A", text: "b" },
+    ] }), true);
+    strictEqual(refused("edit_batch", { operations: [{ kind: "node_replace", path: "src/a.ts", selector: "x", text: "y" }] }), false);
+  });
+
+  it("reads structural_rewrite's paths and glob when it writes, never a dry run", () => {
+    strictEqual(refused("structural_rewrite", { paths: [".orkeon/memory/entries"], dry_run: false }), true);
+    strictEqual(refused("structural_rewrite", { paths: [".orkeon/memory/entries"] }), false, "a dry run by default");
+    strictEqual(refused("structural_rewrite", { glob: "**/*.md", dry_run: false }), true, "the whole project reaches it");
+    strictEqual(refused("structural_rewrite", { paths: [".orkeon"], dry_run: false }), true);
+    strictEqual(refused("structural_rewrite", { glob: "src/**/*.ts", dry_run: false }), false);
+    strictEqual(refused("structural_rewrite", { paths: ["src"], glob: "**/*.ts", dry_run: false }), false);
+  });
+
+  it("refuses a shell command reaching the folder, in steps or in another letter case", () => {
+    for (const command of ["cd .orkeon/memory && printf x > entries/a.md", "cp a.md .Orkeon/Memory/Candidates/", "cd \".orkeon\" && cd memory && mv x entries"]) {
+      strictEqual(refused("shell_command", { command }), true, command);
+    }
+    strictEqual(refused("shell_command", { command: "cat .orkeon/memory/refused.md" }), false);
   });
 });

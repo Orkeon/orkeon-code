@@ -187,11 +187,3 @@ export function parseCommitArgs(tokens: readonly unknown[]): { ok: true; args: C
   }
   return { ok: true, args };
 }
-
-/** `--yes` / `-y`: the explicit confirm argument that skips the prompt. */
-export function hasExplicitConfirm(tokens: readonly unknown[]): boolean {
-  return (tokens ?? []).some((t) => {
-    const s = String(t ?? "").trim().toLowerCase();
-    return s === "--yes" || s === "-y";
-  });
-}

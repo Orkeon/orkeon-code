@@ -30,6 +30,7 @@ import {
 import { memoryReadTools, memoryRecallOn, memoryRecallTools } from "../../shared/infrastructure/orkeon/memory-tools.ts";
 import type { WorkFolder } from "../../shared/application/dev/resolve-work-folder.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
+import { memoryDirOf } from "../../shared/application/shared-memory/memory-settings.ts";
 import { devToolCallbacks } from "../../shared/infrastructure/orkeon/tool-callbacks.ts";
 import { childAgentBody, withChildAct } from "../../shared/infrastructure/orkeon/child-agents.ts";
 import { createChildBoard } from "../../shared/application/agents/child-agent.ts";
@@ -53,7 +54,7 @@ const validationSlot = scriptToolSlot<ValidationCalls>();
 // The host's gate first, then these callbacks: the step's rule sets again and the /hooks the command passed.
 // run_validation and memory_recall declare `read`: named in readTools, the callback lets it through when the host has no gate.
 const callbacksFor = (ctx: any) => devToolCallbacks(
-  { step: "dev-verify", hooks: inputs().hooks, readTools: [RUN_VALIDATION.name, ...memoryReadTools(memoryOn)] }, { shell: ports.shell, log: ctx.log },
+  { step: "dev-verify", hooks: inputs().hooks, readTools: [RUN_VALIDATION.name, ...memoryReadTools(memoryOn)] }, { shell: ports.shell, log: ctx.log, memoryDir: memoryDirOf(ports.config) },
 );
 
 /** The auditor as a child, added to the crew by its first act (a sequential crew would run an agent it holds from the start). */

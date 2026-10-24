@@ -111,10 +111,13 @@ des règles deny pour qu'aucun outil de fichier du modèle (`file_write`, `edit_
 `memory_push` et des récoltes, les entrées de `/memory-admit` seul. Une règle allow enregistrée que la garde couvre est
 écartée, avec un avertissement. Les motifs reconnaissent le chemin quelle que soit son écriture (`./`, `//`,
 `src/../`, `/workspace/`), et un `shell_command` qui nomme `<memory.dir>/candidates` ou `<memory.dir>/entries` est
-refusé lui aussi. `/permissions` les liste sur une ligne à part, "the shared memory's guard: … (N rules)". Leurs
-limites : `edit_batch` et `structural_rewrite` ne sont pas couverts (la garde ne lit pas leurs chemins), ni une
-commande shell qui atteint le dossier par étapes (`cd`), ni un chemin dans une autre casse ; `orkeon run` sans
-interface n'applique aucune règle de session.
+refusé lui aussi, quoi qu'il y ait entre les segments de `<memory.dir>` et `candidates` ou `entries`
+(`cd .orkeon/memory && … > entries/x.md`). `/permissions` les liste sur une ligne à part, "the shared memory's guard:
+… (N rules)". Ce que la garde ne voit pas, le callback de la boucle principale et de chaque crew de dev le refuse à
+chaque appel, sous `orkeon run` aussi : un chemin dans une autre casse (`.Orkeon/Memory/Entries/x.md`, qu'un système
+de fichiers insensible à la casse ouvre), chaque opération d'un `edit_batch`, les chemins et le glob d'un
+`structural_rewrite` qui écrit (`dry_run: false`), et une commande shell qui nomme le dossier dans n'importe quelle
+casse. Une crew sans callback (`/code-review`, `/advisor`) ne s'exécute que sous les règles de la garde.
 
 ## Choisir le mode
 
@@ -209,7 +212,7 @@ les dépôts ; aucun réglage ne l'active ni ne le désactive. Chaque étape met
 | `secrets` | le texte écrit : `content` de `file_write`, `new_string` d'`edit_file`, `text` de `node_replace`, `node_insert` et `node_ensure`, `name` et `module` de `node_ensure`, `fix` de `structural_rewrite` ; le `text` de chaque opération d'`edit_batch`, par le callback | un contenu qui porte un bloc de clé privée ou un jeton à préfixe connu |
 | `state-files` | `path` de `file_write`, `edit_file`, `node_replace`, `node_insert`, `node_ensure`, le `path` de chaque opération d'`edit_batch` par le callback ; `structural_rewrite` en entier | un fichier que seul le code d'Orkeon Code écrit : journaux, états et verdicts des lots, captures d'audit, `.orkeon/` et `.claude/` |
 
-`git-readonly` contient 220 règles, trois pour la plupart des verbes `add`, `am`, `apply`, `branch`, `checkout`, `cherry-pick`,
+`git-readonly` contient 218 règles, trois pour la plupart des verbes `add`, `am`, `apply`, `branch`, `checkout`, `cherry-pick`,
 `clean`, `commit`, `fetch`, `filter-branch`, `gc`, `merge`, `mv`, `notes`, `pull`, `push`, `rebase`, `reflog`,
 `remote`, `reset`, `restore`, `revert`, `rm`, `stash`, `submodule`, `switch`, `tag`, `update-ref` et `worktree`,
 ici pour `push` :
@@ -231,12 +234,16 @@ Les règles reconnaissent le mot `git` n'importe où sur la ligne : un chemin (`
 variable (`GIT_DIR=.git git push`) ou un enchaînement (`cd x && git push`) placé devant n'y change rien. Les mêmes
 règles refusent les verbes qui écrivent sous les verbes courants : `init`, `clone`, `config`, `update-index`, `symbolic-ref`, `prune`, `repack`, `read-tree`, `checkout-index`, `commit-tree`, `write-tree`, `mktag`, `mktree`, `fast-import`, `maintenance`, `update-server-info` et `replace`
 (`git replace` seul liste, et s'exécute). `git config` est refusé quand il écrit : une clé puis une valeur
-(`git config user.name x`, `git config --global a.b x`), `--add`, `--unset`, `--replace-all`, `--rename-section`,
+(`git config user.name x`, `git config --global a.b x`, `git config --file a.cfg a.b x`), `--add`, `--unset`, `--replace-all`, `--rename-section`,
 `--remove-section`, `--edit` ou `-e`, et les sous-commandes `set`, `unset`, `rename-section`, `remove-section` et
 `edit` ; tout comme l'option globale `git -c key=value`, qui fixe une configuration pour une seule commande et peut
 lancer un programme par `core.pager`. Ses lectures s'exécutent : `git config user.name`, `git config --get user.name`,
-`git config --get-regexp`, `git config --list` ou `-l`. Un nom à point suivi d'un mot se lit comme une écriture, si
-bien que `git config --file a.cfg --list` est refusé lui aussi.
+`git config --get-regexp`, `git config --list` ou `-l`, sur n'importe quel fichier (`git config --file a.cfg --list`,
+`git config -f .gitmodules --get submodule.x.path`). Un glob ne distingue pas une clé suivie d'une valeur d'une
+lecture dont le nom de fichier porte un point : le code des crews lit donc celle-là. Les mots après `git config` et
+ses options, deux ou plus sans action de lecture avant eux, sont une écriture, refusée par le callback comme
+`deny shell_command command=*git config <key> <value>*` de `git-readonly`, et par les outils de l'étape qui lancent
+une commande.
 
 Les quatre autres jeux, chaque motif sur le premier outil de son jeu :
 
@@ -307,13 +314,14 @@ deny file_write path=.claude/*
 (`bash`, `sh`, `zsh`, `dash`, `ksh`, `fish`), y compris dans un groupe d'options (`bash -xc`) ou après une autre option
 (`bash -e -c`), et les formes en ligne de `node`, `python`, `python3` et d'un `python3.12` versionné, `perl`, `ruby`,
 `php`, `tsx`, `ts-node`, `deno` et `bun`, derrière un chemin, un `env` ou `npx`, y compris après une autre option
-(`python3 -I -c`, `perl -w -e`, `ruby -w -e`). Une règle lit `-c` n'importe où après l'interpréteur, si bien que
-`python3 x.py -c` est refusé lui aussi. Comme une règle lit `sh -c` à la fin de n'importe quel mot,
+(`python3 -I -c`, `perl -w -e`, `ruby -w -e`). Un `-c` après un script s'exécute (`python3 x.py -c`) ; après une
+autre option il est refusé, si bien que `python3 -m pytest -c pytest.ini` et un `python3.12 x.py -c` versionné sont
+refusés eux aussi. Comme une règle lit `sh -c` à la fin de n'importe quel mot,
 `ssh -c <cipher>` est refusé lui aussi.
 
 Les trois jeux de fichiers répètent leurs motifs sur chaque outil de leur ligne, outil par outil : `read-noise`
 contient 64 règles (8 motifs sur 8 outils, sur `path`), `secrets` 128 (16 motifs sur 8 arguments écrits de 6 outils),
-`state-files` 41 (8 motifs sur 5 outils, sur `path`, puis `deny structural_rewrite`). Une étape détient 481 règles (483 avec les deux règles allow de `/dev-implement`). La
+`state-files` 41 (8 motifs sur 5 outils, sur `path`, puis `deny structural_rewrite`). Une étape détient 479 règles (481 avec les deux règles allow de `/dev-implement`). La
 garde ne peut pas lire les chemins ni le texte à l'intérieur d'`edit_batch` et de `structural_rewrite`.
 `structural_rewrite` est refusé en entier. `edit_batch` est laissé au callback des crews, qui s'exécute à chaque act
 d'une étape : il lit chaque opération comme l'éditeur qu'elle représente et lui applique les jeux et les règles du

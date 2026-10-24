@@ -29,6 +29,9 @@ describe("shellRuleGuard", () => {
     const guard = shellRuleGuard(rulesOf(["git-readonly"]));
     strictEqual(guard("git push origin main"), "the rules of this step deny the shell command 'git push origin main'");
     strictEqual(guard("dotnet test tests/A.Tests"), null);
+    strictEqual(guard("git config user.name x"), "the rules of this step deny the shell command 'git config user.name x'");
+    strictEqual(guard("git config --file a.cfg --list"), null);
+    strictEqual(shellRuleGuard(rulesOf(["inline-interpreters"]))("git config user.name x"), null);
   });
 
   it("refuses the command in the form the program receives it: quotes and repeated spaces gone", () => {

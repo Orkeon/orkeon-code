@@ -65,7 +65,6 @@ export ORKEON_CODE_WORKSPACE="$project"
 case "$log_file" in /*|*..*) echo "dev-run: --log is a path inside the project, not '$log_file'" >&2; exit 64 ;; esac
 state="$project/${log_file:-.orkeon/dev/$code/batches-state.md}"
 runs="$project/.orkeon/dev/$code/runs"
-mkdir -p "$runs"
 crew_file="$ROOT/src/crews/$crew/crew.ork.ts"
 [ -f "$crew_file" ] || { echo "dev-run: no crew '$crew' ($crew_file)" >&2; exit 64; }
 
@@ -95,6 +94,8 @@ if [ -z "${DEV_RUN_RUNNER:-}" ]; then
     *) echo "dev-run: trust $project first (orkeon-code trust add $project), then run this again" >&2; exit 2 ;;
   esac
 fi
+# Nothing is created in the project before its trust is known.
+mkdir -p "$runs"
 
 step=0
 while [ "$step" -lt "$max_steps" ]; do

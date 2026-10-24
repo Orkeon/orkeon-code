@@ -112,6 +112,22 @@ describe("commitSelected", () => {
   });
 });
 
+describe("commitSelected in a linked worktree", () => {
+  it("says the message file it could not remove under the commit line", async () => {
+    const shell = new FakeShell();
+    shell.results["git rev-parse --short HEAD"] = { stdout: "1a2b3c4\n" };
+    shell.results["rm -f .orkeon/ORKEON_COMMITMSG"] = { exitCode: 1, stderr: "rm: denied" };
+    const files = new FakeFiles();
+    const write = files.write.bind(files);
+    files.write = async (path: string, content: string) => {
+      if (path.startsWith("/workspace/.git/")) throw new Error("ENOTDIR");
+      return write(path, content);
+    };
+    const out = await commitSelected(TREE, MESSAGE, "default", { files: ["a.ts"], status: " M a.ts\n" }, { shell, files });
+    strictEqual(out, "✓ committed 1a2b3c4 on main\nfix(api): handle null\n⚠ .orkeon/ORKEON_COMMITMSG could not be removed (rm: denied): remove it by hand");
+  });
+});
+
 describe("buildCommitPrompt", () => {
   const tree: WorkTree = {
     status: " M src/a.ts\n?? src/b.ts\n", diff: "d".repeat(MAX_COMMIT_DIFF_CHARS + 5), branch: "main",

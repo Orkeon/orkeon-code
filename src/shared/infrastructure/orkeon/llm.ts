@@ -26,7 +26,7 @@ function callOptions(override: ModelOverride | undefined): LlmCallOptions | unde
 
 /** The runtime's act() options: the request as given (its `tools` subset copied), its model as the `llm` patch, and the crew's callbacks for
  *  the act's mode (`default` when the request names none, as the runtime reads it). */
-function actOptions(request: ActRequest, callbacks: ToolCallbacks | undefined, gateEnabled: boolean | undefined): ActOptions {
+function actOptions(request: ActRequest, callbacks: Pick<ToolCallbacks, "forAct"> | undefined, gateEnabled: boolean | undefined): ActOptions {
   const { model, tools, ...given } = request as ModeActRequest;
   const rest = tools === undefined ? given : { ...given, tools: [...tools] };
   const options: ActOptions = model ? { ...rest, llm: { model } } : rest;
@@ -51,7 +51,7 @@ function answerOrThrow(text: string): string {
 
 export function createLlm(
   llm: Pick<LlmFacade, "act" | "complete" | "extract" | "chat"> & Partial<Pick<LlmFacade, "permissionGate">>,
-  callbacks?: ToolCallbacks,
+  callbacks?: Pick<ToolCallbacks, "forAct">,
   defaults: Pick<ActRequest, "effort"> = {},
 ): Llm {
   const permissionGateEnabled = (): boolean | undefined => {

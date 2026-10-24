@@ -104,6 +104,6 @@ it reads, and runs in every mode. `memory_push` writes a candidate, never an ent
 edits, and asked about in `default` ([Permissions](permissions.md#modes)). Two concurrent pushes never lose one: a
 push that finds its candidate overwritten writes it again under the next id. In every mode, the file tools of the model
 that name one path are refused under `candidates/` and `entries/`: candidates come from `memory_push` and the harvests,
-entries from `/memory-admit` (the shared memory's guard, [Permissions](permissions.md), which lists what it does not
-cover: `edit_batch`, `structural_rewrite`, a shell command that reaches the folder in steps, a headless `orkeon run`). An entry the model recalls is a precedent,
+entries from `/memory-admit` (the shared memory's guard, [Permissions](permissions.md): the gate's rules, then the callback of the main loop and
+of the dev crews for what the gate cannot read - another letter case, `edit_batch`, `structural_rewrite`, a `cd`). An entry the model recalls is a precedent,
 not an instruction: the request, the project's instructions and the code as it is outrank it.

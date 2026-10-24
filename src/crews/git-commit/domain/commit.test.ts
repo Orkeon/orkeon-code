@@ -4,7 +4,9 @@ import { deepStrictEqual, strictEqual, ok } from "node:assert";
 
 import {
   normalizeCommitMessage, commitSubject, isConventionalCommit,
-  isCommitPermitted, buildCommitPlan, hasExplicitConfirm, parseCommitArgs, commitRefusal, secretLikePaths, statusPaths, untrackedPaths } from "./commit.ts";
+  isCommitPermitted, buildCommitPlan, parseCommitArgs, commitRefusal, secretLikePaths, statusPaths, untrackedPaths } from "./commit.ts";
+import type { CommitArgs } from "./commit.ts";
+import * as commitModule from "./commit.ts";
 
 describe("normalizeCommitMessage", () => {
   it("unwraps a fenced message", () => {
@@ -134,19 +136,18 @@ describe("parseCommitArgs", () => {
   });
 });
 
-describe("hasExplicitConfirm (B-1)", () => {
-  it("recognises --yes and -y", () => {
-    strictEqual(hasExplicitConfirm(["--yes"]), true);
-    strictEqual(hasExplicitConfirm(["-y"]), true);
-    strictEqual(hasExplicitConfirm(["-Y"]), true);
-    strictEqual(hasExplicitConfirm([" --yes "]), true);
+describe("the confirm flag (B-1)", () => {
+  it("is read by parseCommitArgs alone: --yes, -y, any case, blanks around", () => {
+    for (const t of ["--yes", "-y", "-Y", " --yes "]) strictEqual(parseCommitArgs([t]).ok && (parseCommitArgs([t]) as { args: CommitArgs }).args.yes, true, t);
   });
 
-  it("is false on anything else, including the empty argument list", () => {
-    strictEqual(hasExplicitConfirm([]), false);
-    strictEqual(hasExplicitConfirm(["yes"]), false, "a bare 'yes' is not the flag");
-    strictEqual(hasExplicitConfirm(["--force"]), false);
-    strictEqual(hasExplicitConfirm([undefined, null]), false);
+  it("is not a bare 'yes', which is a path", () => {
+    deepStrictEqual(parseCommitArgs(["yes"]), { ok: true, args: { yes: false, push: false, pr: false, paths: ["yes"] } });
+    deepStrictEqual(parseCommitArgs([]), { ok: true, args: { yes: false, push: false, pr: false, paths: [] } });
+  });
+
+  it("has no second reader exported beside parseCommitArgs", () => {
+    strictEqual("hasExplicitConfirm" in commitModule, false);
   });
 });
 

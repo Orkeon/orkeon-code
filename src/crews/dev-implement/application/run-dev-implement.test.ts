@@ -365,6 +365,28 @@ describe("runDevImplement — wave 4", () => {
     strictEqual(t.roles.implementer.acts.length, 0);
   });
 
+  it("on a rerun after BLOCKED, takes the failures the ticked step left as the baseline, never the BLOCKED step's own", async () => {
+    const rerun = CYCLE_SHEET.replace("TDD: RED [ ] GREEN [ ] COST [ ]", "TDD: RED [x] GREEN [ ] COST [ ]");
+    // Step 2's tests, written before the run stopped, still fail: the suite counts 2, step 1's tick left 1.
+    const t = setup([(_p, tree) => { tree.write("tests/a.test.ts", "test a, two again"); return "more"; }],
+      [writesCode("src/a.ts", "tests/a.test.ts")], rerun);
+    t.tree.write("tests/a.test.ts", "test a, two");
+    t.tree.failures.set("tests/a.test.ts", 2);
+    t.files.files.set(`${DIR}/logs/F1-red-failures.json`, JSON.stringify({ 1: 1 }));
+    const a = parse(await runDevImplement({ batch: "F1", plan: "demo" }, t.deps));
+    strictEqual(blockedLine(a), undefined, a.lines.join("\n"));
+    ok(a.lines.includes("step 2 RED ✓ — tests/a.test.ts"), a.lines.join("\n"));
+  });
+
+  it("records the failures each ticked RED leaves, for a rerun's baseline", async () => {
+    const t = setup([
+      (_p, tree) => { tree.write("tests/a.test.ts", "test a"); tree.failures.set("tests/a.test.ts", 1); return "red"; },
+      (_p, tree) => { tree.write("tests/a.test.ts", "test a, two"); tree.failures.set("tests/a.test.ts", 2); return "more"; },
+    ], [writesCode("src/a.ts", "tests/a.test.ts")], CYCLE_SHEET);
+    parse(await runDevImplement({ batch: "F1", plan: "demo" }, t.deps));
+    deepStrictEqual(JSON.parse(t.files.files.get(`${DIR}/logs/F1-red-failures.json`) ?? "{}"), { 1: 1, 2: 2 });
+  });
+
   it("accepts a later RED of a cycle that adds a failure", async () => {
     const t = setup([
       (_p, tree) => { tree.write("tests/a.test.ts", "test a"); tree.failures.set("tests/a.test.ts", 1); return "red"; },

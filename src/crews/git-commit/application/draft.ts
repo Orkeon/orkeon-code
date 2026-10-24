@@ -135,5 +135,5 @@ export async function commitSelected(
   // worktree whose .git is a file, under .orkeon/ and removed after (commit-files.ts).
   const commit = await commitFiles(deps, { files: selection.files, status: selection.status, message });
   if (!commit.ok) return `✗ ${commit.line}`;
-  return `✓ committed ${commit.hash} on ${t.branch}\n${commitSubject(message)}`;
+  return `✓ committed ${commit.hash} on ${t.branch}\n${commitSubject(message)}${commit.note === undefined ? "" : `\n⚠ ${commit.note}`}`;
 }
