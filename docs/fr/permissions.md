@@ -1,7 +1,7 @@
 # Permissions
 
 Chaque tour de `/assistant` s'exécute sous un **mode de permission**, et la session peut y ajouter des **règles**. Ils
-agissent à deux niveaux :
+agissent à deux niveaux, et une étape dev en ajoute un troisième :
 
 1. **Le catalogue d'outils.** Le crew offre au modèle les outils du mode (tableau ci-dessous), plus les
    [outils supplémentaires](#outils-supplémentaires) des classes qu'il accorde, moins les outils qu'une règle deny
@@ -11,6 +11,13 @@ agissent à deux niveaux :
    outil déclare (lecture, modification, exécution). Quand le mode dit de demander, il vous demande. La garde est
    `Orkeon:Security:PermissionGate:Enabled` : le lanceur l'active sauf si votre fichier de settings la désactive, et
    sans elle ni les modes ni les règles ne sont appliqués. Laissez-la active.
+3. **Le callback du crew**, dans `/dev-plan` et `/dev-verify` seulement. Une fois l'appel permis par la garde, le
+   `onToolCall` du crew le contrôle à nouveau : les [jeux de règles](#jeux-de-règles-des-étapes-dev) de l'étape (et les
+   racines d'un rôle, pour les rôles d'un lot), `glob`, `grep` et `count_pattern` sur toute leur entrée, puis les
+   [hooks](hooks.md) `pre-tool` ; après l'appel, les hooks `post-tool`. Il peut refuser un appel, jamais permettre un
+   appel que la garde a refusé. Un appel que la garde refuse, par une règle de la session ou par le mode, ne
+   l'atteint jamais. Quand l'hôte n'a pas de garde, le callback applique aussi lui-même le mode de l'act : lectures
+   seules en `plan`, `dontAsk` et `default`, les éditeurs de fichiers en plus en `acceptEdits`.
 
 **Ce que la garde ne voit pas.** Les commandes et les crews appellent aussi des outils depuis leur propre code, par
 l'espace de noms `tools` d'Orkeon, qui exécute l'outil directement : `/commit` indexe par leur nom les fichiers qu'il commite (`git add -- <fichiers>`, puis
@@ -38,7 +45,8 @@ proposition nomme.
 `/dev-plan` lit la spec ou la fiche de changement, le pack et l'index du code. Il n'écrit que
 `<work>/<code>/<CODE>-PLAN.md`, les fiches de lot et `plan.json`, jamais un fichier sous `.claude/` ; son relecteur ne
 fait que lire, en `plan`, avec six outils de lecture. Les deux placent d'abord dans la garde les
-[jeux de règles des étapes dev](#jeux-de-règles-des-étapes-dev), et refusent de démarrer tant que la garde est inactive.
+[jeux de règles des étapes dev](#jeux-de-règles-des-étapes-dev), et refusent de démarrer tant que la garde est inactive ;
+le callback de leur crew contrôle à nouveau les mêmes jeux, seul contrôle de ceux-ci sous `orkeon run`.
 
 ## Modes
 
@@ -107,6 +115,8 @@ Les arguments de chaque outil intégré sont les champs de premier niveau de son
 n'atteint pas un chemin à l'intérieur des opérations d'`edit_batch` ni des chemins de `structural_rewrite`, et sur
 `glob` et `grep` elle ne compare que `path`, si bien qu'un `pattern` (ou le `glob` de `grep`) donné depuis un dossier
 parent peut encore atteindre le dessous d'un dossier qu'une règle refuse.
+Le callback des crews dev comble cet écart pour les règles qu'il porte : il compare aussi `glob` avec
+`<path>/<pattern>`, `grep` avec `<path>/<glob>` (ou `<path>/**`) et `count_pattern` avec `<path>/**`.
 
 ```text
 /permissions add deny shell_command command=git push*
@@ -143,7 +153,8 @@ règles de la session. Une réponse `[s]` n'est pas une règle : `/permissions` 
 ## Jeux de règles des étapes dev
 
 `/dev-verify` (sauf avec `--gate-only`) et `/dev-plan` remettent à la garde des jeux de règles qui leur sont propres
-juste avant le démarrage de leur crew. Un jeu est une liste de règles deny intégrée à Orkeon Code, la même dans tous
+juste avant le démarrage de leur crew, et le callback du crew les contrôle à nouveau à chaque appel que la garde
+permet (le refus nomme alors la règle, son jeu et ce qu'il faut faire à la place). Un jeu est une liste de règles deny intégrée à Orkeon Code, la même dans tous
 les dépôts ; aucun réglage ne l'active ni ne le désactive. Les deux étapes mettent en vigueur les cinq jeux :
 
 | Jeu | Règles sur | Refuse |

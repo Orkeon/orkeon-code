@@ -9,6 +9,8 @@
   href: configuration.md
 - name: Permissions
   href: permissions.md
+- name: Hooks
+  href: hooks.md
 - name: Commandes
   href: commands.md
 - name: Architecture

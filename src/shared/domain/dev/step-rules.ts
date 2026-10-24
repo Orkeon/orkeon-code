@@ -1,11 +1,12 @@
-// Which rule sets each dev step puts in the gate before its crew runs, the rules of a role on the
-// repository pack's roots, and what a step does when the host's gate is off — pure, no IO.
+// Which rule sets each dev step puts in the gate before its crew runs (and its crew's callback checks
+// again, call-guard.ts), the rules of a role on the repository pack's roots, and what a step does when
+// the host's gate is off — pure, no IO.
 import { pathRules, rulesOf } from "../agent-policy/rule-sets.ts";
 import type { PathRules, RuleSetId } from "../agent-policy/rule-sets.ts";
 import type { PermissionRule } from "../agent-policy/permission.ts";
 import type { RepoPackLayout } from "./repo-pack.ts";
 
-/** A dev step whose crew runs a model under the gate. L-6 adds its steps here. */
+/** A dev step whose crew runs a model under the gate and its callback. L-6 adds its steps here. */
 export type DevStep = "dev-verify" | "dev-plan";
 export const DEV_STEPS: readonly DevStep[] = ["dev-verify", "dev-plan"];
 

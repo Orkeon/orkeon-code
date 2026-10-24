@@ -17,7 +17,8 @@ What Orkeon Code does not do yet, in the order we expect to address it. Items ma
   the crews without starting a process; and the crews exercised under the `orkeon-host` daemon.
 - **Persistent sessions.** Resume a conversation after the REPL exits; keep the session mode and the permission
   rules across sessions. The runtime persists a session already (`Persist`); Orkeon Code does not wire it yet.
-- **Hooks that fire.** `/hooks` stores declarations; the engine that runs them is missing.
+- **Hooks in the assistant.** `pre-tool` and `post-tool` hooks run around the model's tool calls in `/dev-plan` and
+  `/dev-verify` ([Hooks](hooks.md)); `/assistant` does not run them yet, and nothing runs a `stop` hook.
 - **Cost and usage.** Real cost figures per provider, cache ratio, token counting for `/context` and `/usage`. The
   runtime reports the cache tokens (`session_stats`); the commands do not read them yet.
 

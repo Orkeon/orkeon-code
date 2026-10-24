@@ -5,11 +5,14 @@
 // This is the one place that turns the port's settings into the runtime's call
 // options, and the one place that reads an act() result. A call the provider
 // failed comes back as the host's failure marker: it is thrown as an LlmFailure,
-// never returned as an answer.
+// never returned as an answer. A crew that guards its tool calls hands its callbacks
+// (tool-callbacks.ts) as the second argument: each act then carries the
+// onToolCall/onToolResult built for its own mode.
 
 import type { ActRequest, CompleteRequest, Llm, ModelOverride } from "../../application/ports.ts";
 import type { PermissionMode } from "../../domain/permission-modes.ts";
 import { llmFailureOf } from "../../domain/llm-failure.ts";
+import type { ToolCallbacks } from "./tool-callbacks.ts";
 
 /** The request as the callers fill it: its mode is one of PERMISSION_MODES, the
  *  five modes ActOptions names (`dontAsk` among them since Orkeon 1.0.0-rc.6). */
@@ -20,10 +23,14 @@ function callOptions(override: ModelOverride | undefined): LlmCallOptions | unde
   return override?.model ? { llm: { model: override.model } } : undefined;
 }
 
-/** The runtime's act() options: the request as given, its model as the `llm` patch. */
-function actOptions(request: ActRequest): ActOptions {
+/** The runtime's act() options: the request as given, its model as the `llm` patch, and the crew's callbacks for
+ *  the act's mode (`default` when the request names none, as the runtime reads it). */
+function actOptions(request: ActRequest, callbacks: ToolCallbacks | undefined, gateEnabled: boolean | undefined): ActOptions {
   const { model, ...rest } = request as ModeActRequest;
-  return model ? { ...rest, llm: { model } } : rest;
+  const options: ActOptions = model ? { ...rest, llm: { model } } : rest;
+  return callbacks === undefined
+    ? options
+    : { ...options, ...callbacks.forAct(request.permissionMode ?? "default", gateEnabled) };
 }
 
 /** The answer text of an act() result: its `output`; the result itself when it
@@ -42,15 +49,17 @@ function answerOrThrow(text: string): string {
 
 export function createLlm(
   llm: Pick<LlmFacade, "act" | "complete" | "extract" | "chat"> & Partial<Pick<LlmFacade, "permissionGate">>,
+  callbacks?: ToolCallbacks,
 ): Llm {
+  const permissionGateEnabled = (): boolean | undefined => {
+    // The runtime always sets it; a facade without it (a test's) cannot say.
+    const on = llm.permissionGate?.enabled;
+    return on === true || on === false ? on : undefined;
+  };
   return {
-    permissionGateEnabled() {
-      // The runtime always sets it; a facade without it (a test's) cannot say.
-      const on = llm.permissionGate?.enabled;
-      return on === true || on === false ? on : undefined;
-    },
+    permissionGateEnabled,
     async act(prompt, request) {
-      return answerOrThrow(answerOf(await llm.act(prompt, actOptions(request))));
+      return answerOrThrow(answerOf(await llm.act(prompt, actOptions(request, callbacks, permissionGateEnabled()))));
     },
     async complete(prompt, request?: CompleteRequest) {
       // A system message needs the message-array call: `complete` takes a prompt only.

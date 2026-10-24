@@ -1,0 +1,229 @@
+// What a dev crew's onToolCall checks after the host's gate allowed a call, and the /hooks declarations it runs
+// around the call — pure, no IO. The host gate runs first and keeps the session's rules; this guard can only
+// refuse: the step's rule sets again (the only check of them under `orkeon run`, which keeps no session rules), the
+// role's roots, the whole input of the folder readers, and the act's mode when the host has no gate. The callbacks
+// themselves, and the hooks' shell commands, are shared/infrastructure/orkeon/tool-callbacks.ts's.
+import { ACT_TOOLS, READ_TOOLS, formatRule, matchesRule, sameToolName } from "../agent-policy/permission.ts";
+import type { PermissionRule } from "../agent-policy/permission.ts";
+import { PATH_WRITE_TOOLS, RULE_SETS, UNSCOPED_WRITE_TOOLS } from "../agent-policy/rule-sets.ts";
+import type { RuleSetId } from "../agent-policy/rule-sets.ts";
+import { STEP_RULE_SETS, roleRules } from "./step-rules.ts";
+import type { DevRole, DevStep, LayoutRootKey } from "./step-rules.ts";
+import type { RepoPackLayout } from "./repo-pack.ts";
+
+/** One /hooks declaration the callbacks run; `n` is its number in /hooks list. */
+export interface ToolHook { n: number; event: "pre-tool" | "post-tool"; command: string }
+
+/** What a crew builds its guard from: its step, and for a role of a batch the role and the pack's roots. */
+export interface CallGuardSpec {
+  step: DevStep;
+  role?: DevRole;
+  layout?: Pick<RepoPackLayout, LayoutRootKey>;
+  /** The crew's `hooks` input: the /hooks registry as the command read it. */
+  hooks?: unknown;
+  /** Tools beyond READ_TOOLS that only read (a crew's autonomous tools declared `read`): let through by every
+   *  mode when the host has no gate. */
+  readTools?: readonly string[];
+}
+
+/** A deny rule of the guard and where it comes from. */
+export interface GuardRule {
+  rule: PermissionRule;
+  origin: { kind: "set"; id: RuleSetId } | { kind: "role"; role: DevRole; access: "read" | "write" };
+}
+
+export interface CallGuard {
+  step: DevStep;
+  role?: DevRole;
+  rules: GuardRule[];
+  /** Why a root of the role got no rule, and the pack keys it lacks. */
+  problems: string[];
+  hooks: ToolHook[];
+  readTools: readonly string[];
+}
+
+export type CallVerdict = { allow: true } | { allow: false; reason: string; context: string };
+
+const ALLOW: CallVerdict = { allow: true };
+
+export function buildCallGuard(spec: CallGuardSpec): CallGuard {
+  const rules: GuardRule[] = [];
+  for (const id of STEP_RULE_SETS[spec.step]) {
+    for (const rule of RULE_SETS[id].rules) {
+      if (rule.effect === "deny") rules.push({ rule, origin: { kind: "set", id } });
+    }
+  }
+  const problems: string[] = [];
+  if (spec.role !== undefined) {
+    const role = spec.role;
+    const access = role === "pilot" ? "read" : "write";
+    const own = roleRules(role, spec.layout ?? {});
+    for (const rule of own.rules) rules.push({ rule, origin: { kind: "role", role, access } });
+    problems.push(...own.problems, ...own.missing.map((key) => `the pack gives no ${key}: no rule on it`));
+  }
+  return { step: spec.step, role: spec.role, rules, problems, hooks: toolHooks(spec.hooks), readTools: spec.readTools ?? [] };
+}
+
+/** The pre-tool and post-tool declarations of a raw registry, numbered by their place in it; a malformed entry,
+ *  another event or an empty command is skipped (it keeps its number). */
+export function toolHooks(raw: unknown): ToolHook[] {
+  if (!Array.isArray(raw)) return [];
+  const out: ToolHook[] = [];
+  raw.forEach((entry, i) => {
+    const event = (entry as { event?: unknown } | null)?.event;
+    const command = (entry as { command?: unknown } | null)?.command;
+    if ((event === "pre-tool" || event === "post-tool") && typeof command === "string" && command.trim() !== "") {
+      out.push({ n: i + 1, event, command: command.trim() });
+    }
+  });
+  return out;
+}
+
+/** The operators the host's shell tool refuses in a command (ShellCommandTool's forbidden list): a hook is one
+ *  program and its arguments. */
+export const SHELL_OPERATORS: readonly string[] = [";", "&&", "||", "|", "$(", "`", "\n", "\r", "&", "<", ">>", ">"];
+
+/** The first operator of `command` the shell tool would refuse, or undefined. */
+export function shellOperatorIn(command: string): string | undefined {
+  return SHELL_OPERATORS.find((op) => command.includes(op));
+}
+
+/** A path the hook may receive as one word: letters, digits and `._/@+=,:-`. */
+const PLAIN = /^[A-Za-z0-9._/@+=,:-]+$/;
+
+/** The hook's command with `{tool}`, `{event}` and `{path}` replaced: `{path}` is the input's `path` when it is
+ *  plain, else `-`. */
+export function hookCommand(hook: ToolHook, tool: string, input: unknown): string {
+  const raw = (input as { path?: unknown } | null)?.path;
+  const path = typeof raw === "string" && PLAIN.test(raw) ? raw : "-";
+  const name = PLAIN.test(tool) ? tool : "-";
+  return hook.command.replaceAll("{tool}", name).replaceAll("{event}", hook.event).replaceAll("{path}", path);
+}
+
+/** The tools `acceptEdits` runs without asking beside the reads: the file editors, rag_ingest and spawn_agent.
+ *  `github` and `rag_eval` declare no access, so the host asks them there too. */
+const ACCEPT_EDITS_TOOLS: readonly string[] = [...PATH_WRITE_TOOLS, ...UNSCOPED_WRITE_TOOLS, "rag_ingest", ...ACT_TOOLS];
+
+/** What the act's mode lets through when the host has no gate, by the gate's own reading of the classes. */
+function modeVerdict(guard: CallGuard, tool: string, mode: string): CallVerdict {
+  if (mode === "bypassPermissions") return ALLOW;
+  const reads = [...READ_TOOLS, ...guard.readTools];
+  const allowed = mode === "acceptEdits" ? [...reads, ...ACCEPT_EDITS_TOOLS] : reads;
+  if (allowed.includes(tool)) return ALLOW;
+  const known = ["default", "acceptEdits", "plan", "dontAsk"].includes(mode) ? mode : "default";
+  return {
+    allow: false,
+    reason: `${guard.step}: '${tool}' is not run in mode '${known}': the host has no permission gate, so the crew's ` +
+      `callback applies the mode itself`,
+    context: known === "acceptEdits"
+      ? "Use the read tools and the file editors only."
+      : "Use the read tools only.",
+  };
+}
+
+function plainText(value: unknown): string | undefined {
+  return typeof value === "string" && value !== "" ? value : undefined;
+}
+
+function joinPath(base: string | undefined, tail: string): string {
+  if (base === undefined) return tail;
+  const head = base.endsWith("/") ? base.slice(0, -1) : base;
+  return tail.startsWith("/") ? tail : `${head}/${tail}`;
+}
+
+/** The paths a folder reader reaches beyond its `path`: glob's pattern under it, grep's glob under it (or the
+ *  whole folder), count_pattern's whole folder. */
+function reachedPaths(tool: string, input: Readonly<Record<string, unknown>>): string[] {
+  const base = plainText(input.path);
+  if (tool === "glob") {
+    const pattern = plainText(input.pattern);
+    return pattern === undefined ? [] : [joinPath(base, pattern)];
+  }
+  if (tool === "grep") return [joinPath(base, plainText(input.glob) ?? "**")];
+  if (tool === "count_pattern") return [joinPath(base, "**")];
+  return [];
+}
+
+/** The text of `path` up to its first wildcard of a glob (`*`, `?`, `[`, `{`). */
+function literalHead(path: string): string {
+  const at = path.search(/[*?[{]/);
+  return at < 0 ? path : path.slice(0, at);
+}
+
+/** Whether a joined path with a wildcard whose literal head starts the rule's folder can reach below it
+ *  (`/workspace/**` and `/workspace/s*` reach `/workspace/src/*`). The rule's pattern is `<root>/*`. */
+function reachesBelow(rule: PermissionRule, joined: string): boolean {
+  const pattern = rule.pattern ?? "";
+  if (!pattern.endsWith("/*") || pattern.slice(0, -2).includes("*")) return false;
+  const folder = pattern.slice(0, -1);
+  const head = literalHead(joined);
+  return head !== joined && folder.startsWith(head);
+}
+
+function originText(origin: GuardRule["origin"]): string {
+  return origin.kind === "set" ? `the rule set ${origin.id}` : `the ${origin.role}'s roots`;
+}
+
+function contextOf(guard: CallGuard, origin: GuardRule["origin"]): string {
+  if (origin.kind === "set") return `${RULE_SETS[origin.id].title} are refused during /${guard.step}: do without this call.`;
+  return origin.access === "read"
+    ? `The ${origin.role} reads no source or test file: work from the batch sheet and the plan.`
+    : `The ${origin.role} writes outside these roots only: ${origin.role === "implementer" ? "leave the tests as they are" : "write the tests, no source file"}.`;
+}
+
+function ruleVerdict(guard: CallGuard, entry: GuardRule, how: string): CallVerdict {
+  return {
+    allow: false,
+    reason: `${guard.step}: refused by '${formatRule(entry.rule)}' of ${originText(entry.origin)}${how}`,
+    context: contextOf(guard, entry.origin),
+  };
+}
+
+/**
+ * One call, after the host's gate allowed it: refused when the host has no gate and the act's mode does not let
+ * it through, when a deny rule of the guard covers its input, or when it reaches below a covered folder through
+ * a pattern of a folder reader; otherwise allowed. Allow rules are never read: the guard cannot widen the gate.
+ * The hooks are not run here (the callbacks run them after an allow).
+ */
+export function checkToolCall(
+  guard: CallGuard, tool: string, input: unknown, act: { mode: string; gateEnabled: boolean | undefined },
+): CallVerdict {
+  if (act.gateEnabled === false) {
+    const verdict = modeVerdict(guard, tool, act.mode);
+    if (!verdict.allow) return verdict;
+  }
+  const args = input !== null && typeof input === "object" && !Array.isArray(input)
+    ? input as Readonly<Record<string, unknown>>
+    : {};
+  for (const entry of guard.rules) {
+    if (matchesRule(entry.rule, tool, args)) return ruleVerdict(guard, entry, "");
+  }
+  const reached = reachedPaths(tool, args);
+  for (const joined of reached) {
+    for (const entry of guard.rules) {
+      if (entry.rule.argument !== "path") continue;
+      if (matchesRule(entry.rule, tool, { ...args, path: joined })) {
+        return ruleVerdict(guard, entry, `, which '${joined}' reaches`);
+      }
+      if (entry.origin.kind === "role" && entry.origin.access === "read" && sameToolName(entry.rule.tool, tool)
+        && reachesBelow(entry.rule, joined)) {
+        return ruleVerdict(guard, entry, `, which '${joined}' can reach`);
+      }
+    }
+  }
+  return ALLOW;
+}
+
+/** The refusal the model reads: the reason, then the line saying what to do instead. */
+export function denyText(verdict: Extract<CallVerdict, { allow: false }>): string {
+  return `${verdict.reason}\n${verdict.context}`;
+}
+
+/** One line for /permissions and the logs: what the guard holds. */
+export function guardSummary(guard: CallGuard): string {
+  const sets = STEP_RULE_SETS[guard.step].join(", ");
+  const role = guard.role === undefined ? "" : `, ${guard.role}'s roots`;
+  const pre = guard.hooks.filter((h) => h.event === "pre-tool").length;
+  const post = guard.hooks.length - pre;
+  return `${guard.rules.length} deny rules (${sets}${role}), ${pre} pre-tool and ${post} post-tool hooks`;
+}

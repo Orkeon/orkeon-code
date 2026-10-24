@@ -1,6 +1,7 @@
 // The rule sets Orkeon Code ships — pure data, no IO. Each set is a list of deny rules in the
 // /permissions syntax, handed to the host gate by the commands that run a dev step
-// (shared/domain/dev/step-rules.ts says which step gets which set). The gate enforces them on the
+// (shared/domain/dev/step-rules.ts says which step gets which set), and checked again by the dev crews'
+// onToolCall (shared/domain/dev/call-guard.ts), the only check of them under `orkeon run`. Both see the
 // model's calls only; a call made from Orkeon Code's own code is not checked (docs/permissions.md).
 // Every rule here names an argument but the whole-tool denies of the writing tools whose paths sit in an
 // array the gate cannot read (UNSCOPED_WRITE_TOOLS): those remove their tool from the catalogue.

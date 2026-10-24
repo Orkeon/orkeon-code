@@ -7,7 +7,8 @@
 // the read-only auditor (four read tools, plan mode) and writes <CODE>-VERIFY-F<n>.md.
 // A red gate or --gate-only returns the gate lines without any model call.
 //
-// Input (globalThis.inputs): { batch: "F<n>", plan?: string | null, mode?: "fast" | "full" | "resume", gateOnly?: boolean }
+// Input (globalThis.inputs): { batch: "F<n>", plan?: string | null, mode?: "fast" | "full" | "resume", gateOnly?: boolean,
+//                              hooks?: the /hooks registry }
 // Run standalone:  bash scripts/run-crew.sh src/crews/dev-verify/crew.ork.ts --inputs '{"batch":"F1","gateOnly":true}'
 //
 // Budget: under full, the build (900 s), the whole suite (900 s) and three validations
@@ -16,6 +17,7 @@
 import { AgentBuilder, CrewBuilder, publishCrew, inputs } from "../../shared/infrastructure/globals.ts";
 import { orkeonConfigStore, orkeonFiles, orkeonShell } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
+import { devToolCallbacks } from "../../shared/infrastructure/orkeon/tool-callbacks.ts";
 import { charterCatalogue } from "../../shared/domain/agents/charter.ts";
 import { AUDITOR_CHARTER } from "./domain/auditor-charter.ts";
 import { runDevVerify } from "./application/run-dev-verify.ts";
@@ -28,8 +30,11 @@ const auditor = AgentBuilder()
   .goal(AUDITOR_CHARTER.goal)
   .tools(charterCatalogue(AUDITOR_CHARTER))
   .maxIterations(AUDITOR_CHARTER.maxIterations)
-  .body(async (_input: any, ctx: any) =>
-    await runDevVerify(inputs(), { ...ports, llm: createLlm(ctx.llm), log: ctx.log, clock: () => new Date() }))
+  .body(async (_input: any, ctx: any) => {
+    // The host's gate first, then this callback: the step's rule sets again and the /hooks the command passed.
+    const callbacks = devToolCallbacks({ step: "dev-verify", hooks: inputs().hooks }, { shell: ports.shell, log: ctx.log });
+    return await runDevVerify(inputs(), { ...ports, llm: createLlm(ctx.llm, callbacks), log: ctx.log, clock: () => new Date() });
+  })
   .build();
 
 publishCrew(

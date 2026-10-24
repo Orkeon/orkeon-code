@@ -1,7 +1,8 @@
 /// <reference path="./.orkeon/orkeon-cli.d.ts" />
 // /dev-plan [<code> | <path>] [--replace] — turn a settled spec or change brief into a plan of batches. A Blocking
 // open question stops it here, with no crew; the inventory, the model and the review run in crews/dev-plan.
-// The host's gate must be on; the dev rule sets are put in it before the crew (_lib/dev-step.ts).
+// The host's gate must be on; the dev rule sets are put in it before the crew (_lib/dev-step.ts), and the crew's
+// tool callbacks check them again and run the /hooks the input carries.
 import { rawTokens } from "./_lib/args.ts";
 import { devPlanGate, parseDevPlanArgs } from "./_lib/dev.ts";
 import { startDevStep } from "./_lib/dev-step.ts";
@@ -34,8 +35,10 @@ defineAsyncCommand({
       return { refused: start.line };
     }
     for (const line of start.lines) ctx.writeLine(line);
-    const details = { ruleSets: start.sets.join(" "), rules: start.rules };
-    return launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "dev-plan", { ...parsed.args }, details);
+    const details = { ruleSets: start.sets.join(" "), rules: start.rules, hooks: start.hooks.length };
+    return launchCrew(
+      { crews: createCrewHost(ctx.services), log: ctx.log }, "dev-plan", { ...parsed.args, hooks: start.hooks }, details,
+    );
   },
   completed: (result, ctx) => writeCompleted(ctx, result, "dev-plan"),
 });

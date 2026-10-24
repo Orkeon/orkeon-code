@@ -12,7 +12,7 @@ import type { DevStepStart } from "../src/commands/_lib/dev-step.ts";
 import { createConfigStore } from "../src/shared/application/config-store.ts";
 import { RULE_SET_IDS } from "../src/shared/domain/agent-policy/rule-sets.ts";
 import { gateProblem } from "../src/shared/domain/dev/step-rules.ts";
-import { PERMISSION_RULES_STATE_KEY } from "../src/shared/domain/session-keys.ts";
+import { HOOKS_STATE_KEY, PERMISSION_RULES_STATE_KEY } from "../src/shared/domain/session-keys.ts";
 import { FakeFiles } from "./support/fake-files.ts";
 import { FakePermissionRules } from "./support/fake-permission-rules.ts";
 import { FakeSessionStore } from "./support/fake-session-store.ts";
@@ -34,6 +34,16 @@ function started(start: DevStepStart): Extract<DevStepStart, { ok: true }> {
 }
 
 describe("startDevStep", () => {
+  it("returns the /hooks registry for the crew's input, as stored, and none when it is unset or malformed", async () => {
+    const deps = setup();
+    strictEqual(started(await startDevStep("dev-plan", deps)).hooks.length, 0);
+    const registry = [{ event: "pre-tool", command: "bash pre.sh {tool}" }, { event: "stop", command: "bash s.sh" }];
+    deps.session.state.set(HOOKS_STATE_KEY, JSON.stringify(registry));
+    deepStrictEqual(started(await startDevStep("dev-verify", deps)).hooks, registry);
+    deps.session.state.set(HOOKS_STATE_KEY, "{not json");
+    deepStrictEqual(started(await startDevStep("dev-plan", deps)).hooks, []);
+  });
+
   it("refuses /dev-plan when the host says its gate is off, and leaves the gate alone", async () => {
     const deps = setup();
     deps.gate.hostGate = false;

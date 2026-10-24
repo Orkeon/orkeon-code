@@ -1,6 +1,7 @@
 # Permissions
 
-Every `/assistant` turn runs under a **permission mode**, and the session can add **rules**. They act at two levels:
+Every `/assistant` turn runs under a **permission mode**, and the session can add **rules**. They act at two levels,
+and a dev step adds a third:
 
 1. **The tool catalogue.** The crew offers the model the tools of the mode (table below), with the
    [extra tools](#extra-tools) of the classes it grants, less the tools a deny rule covers whole. A tool that is not
@@ -10,6 +11,12 @@ Every `/assistant` turn runs under a **permission mode**, and the session can ad
    execute). When the mode says to ask, it asks you. The gate is `Orkeon:Security:PermissionGate:Enabled`: the
    launcher turns it on unless your settings file turns it off, and without it neither the modes nor the rules are
    enforced. Keep it on.
+3. **The crew's callback**, in `/dev-plan` and `/dev-verify` only. Once the gate has allowed a call, the crew's
+   `onToolCall` checks it again: the step's [rule sets](#rule-sets-of-the-dev-steps) (and a role's roots, for the roles
+   of a batch), `glob`, `grep` and `count_pattern` by their whole input, then the `pre-tool` [hooks](hooks.md); after
+   the call, the `post-tool` hooks. It can refuse a call, never allow one the gate refused. A call the gate refuses,
+   by a session rule or by the mode, never reaches it. When the host has no gate, the callback also applies the
+   act's mode by itself: reads only in `plan`, `dontAsk` and `default`, the file editors too in `acceptEdits`.
 
 **What the gate does not see.** Commands and crews also call tools from their own code, through Orkeon's `tools`
 namespace, which runs the tool directly: `/commit` stages the files it commits by name (`git add -- <files>`, then `git commit -F <message> -- <files>`, never
@@ -34,7 +41,7 @@ names.
 `/dev-plan` reads the spec or change brief, the pack and the code index. It writes only `<work>/<code>/<CODE>-PLAN.md`,
 the batch sheets and `plan.json`, never a file under `.claude/`; its reviewer only reads, in `plan`, with six read
 tools. Both first put the [rule sets of the dev steps](#rule-sets-of-the-dev-steps) in the gate, and refuse to start
-while the gate is off.
+while the gate is off; their crew's callback checks the same sets again, the only check of them under `orkeon run`.
 
 ## Modes
 
@@ -100,6 +107,8 @@ The arguments of every built-in tool are its input's top-level fields (`TOOL_ARG
 `shared/domain/agent-policy/permission.ts`). A rule reads a top-level argument only, as text: it cannot reach a path
 inside the `edit_batch` operations or the `structural_rewrite` paths, and on `glob` and `grep` it matches `path`
 alone, so a `pattern` (or `grep`'s `glob`) given from a parent folder can still reach below a folder a rule denies.
+The dev crews' callback closes that gap for the rules it holds: it also matches `glob` with `<path>/<pattern>`,
+`grep` with `<path>/<glob>` (or `<path>/**`) and `count_pattern` with `<path>/**`.
 
 ```text
 /permissions add deny shell_command command=git push*
@@ -134,7 +143,8 @@ rule: `/permissions` neither lists nor clears it.
 ## Rule sets of the dev steps
 
 `/dev-verify` (unless `--gate-only`) and `/dev-plan` hand the gate rule sets of their own just before their crew
-starts. A set is a list of deny rules built into Orkeon Code, the same in every repository; no setting turns one on or
+starts, and the crew's callback checks them again at each call the gate allows (the refusal then names the rule, its
+set and what to do instead). A set is a list of deny rules built into Orkeon Code, the same in every repository; no setting turns one on or
 off. Both steps put all five sets in force:
 
 | Set | Rules on | Refuses |

@@ -19,7 +19,9 @@ demandent d'abord un changement dans [Orkeon](https://github.com/Orkeon/orkeon).
 - **Sessions persistantes.** Reprendre une conversation après la sortie du REPL ; garder le mode de session et les
   règles de permission d'une session à l'autre. Le runtime sait déjà persister une session (`Persist`) ; Orkeon Code
   ne le câble pas encore.
-- **Des hooks qui se déclenchent.** `/hooks` enregistre des déclarations ; le moteur qui les exécute manque.
+- **Les hooks dans l'assistant.** Les hooks `pre-tool` et `post-tool` s'exécutent autour des appels d'outils du modèle
+  dans `/dev-plan` et `/dev-verify` ([Hooks](hooks.md)) ; `/assistant` ne les exécute pas encore, et rien n'exécute un
+  hook `stop`.
 - **Coût et usage.** De vrais chiffres de coût par fournisseur, le taux de cache, le comptage des tokens pour
   `/context` et `/usage`. Le runtime rapporte les tokens de cache (`session_stats`) ; les commandes ne les lisent pas
   encore.
