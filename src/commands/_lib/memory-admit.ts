@@ -1,5 +1,6 @@
-// /memory-admit [<id>…] | --refuse <id> [<motif>] | --list — the operator's gate of the shared memory
-// (temp/05 § 3). Listing and refusing are a few reads and writes, answered here; an admission is
+// /memory-admit [<id>…] | --refuse <id> [<motif>] | --list | --import — the operator's gate of the shared
+// memory (temp/05 § 3). Listing, refusing and importing the harness's agent memory into candidates (M-9)
+// are a few reads and writes, answered here; an admission is
 // confirmed here, one candidate at a time, then applied by the crew shared-memory-admit, which also
 // re-indexes entries/. A session that cannot prompt admits nothing (as /commit refuses headless):
 // only an audited candidate admits without a question, when memory.autoAdmitAudited is true.
@@ -15,6 +16,7 @@ import { sha1Hex } from "../../shared/domain/sha1.ts";
 import { admitEntries, admitReport } from "../../shared/application/shared-memory/admit-entries.ts";
 import { admissionProblem, asksConfirmation } from "../../shared/domain/shared-memory/gate.ts";
 import { candidatesList } from "../../shared/domain/shared-memory/candidates.ts";
+import { importAgentMemory, importReport } from "../../shared/application/shared-memory/import-agent-memory.ts";
 
 export const MEMORY_ADMIT_CREW = "shared-memory-admit";
 const ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -23,12 +25,16 @@ const SHOWN_BODY_LINES = 6;
 
 export type MemoryAdmitArgs =
   | { kind: "list" }
+  | { kind: "import" }
   | { kind: "refuse"; id: string; motif?: string }
   | { kind: "admit"; ids: string[] };
 
 export function parseMemoryAdmitArgs(tokens: readonly string[]): { ok: true; args: MemoryAdmitArgs } | { ok: false; text: string } {
   if (tokens[0] === "--list") {
     return tokens.length === 1 ? { ok: true, args: { kind: "list" } } : { ok: false, text: "memory-admit: --list takes nothing else" };
+  }
+  if (tokens[0] === "--import") {
+    return tokens.length === 1 ? { ok: true, args: { kind: "import" } } : { ok: false, text: "memory-admit: --import takes nothing else" };
   }
   if (tokens[0] === "--refuse") {
     const id = tokens[1];
@@ -38,7 +44,7 @@ export function parseMemoryAdmitArgs(tokens: readonly string[]): { ok: true; arg
     return { ok: true, args: motif === "" ? { kind: "refuse", id } : { kind: "refuse", id, motif } };
   }
   for (const tok of tokens) {
-    if (tok.startsWith("--")) return { ok: false, text: `memory-admit: unknown option '${tok}' (--list, --refuse)` };
+    if (tok.startsWith("--")) return { ok: false, text: `memory-admit: unknown option '${tok}' (--list, --refuse, --import)` };
     if (!ID.test(tok)) return { ok: false, text: `memory-admit: '${tok}' is not a candidate id` };
   }
   return { ok: true, args: { kind: "admit", ids: [...new Set(tokens)] } };
@@ -86,6 +92,10 @@ function headless(admit: Confirmed[], settings: MemorySettings): MemoryAdmitResu
 export async function runMemoryAdmit(args: MemoryAdmitArgs, deps: MemoryAdmitDeps, io: MemoryAdmitIo): Promise<MemoryAdmitResult> {
   const settings = await readMemorySettings(deps);
   for (const warning of settings.warnings) io.writeLine(`warning: ${warning}`);
+  if (args.kind === "import") {
+    const outcome = await importAgentMemory(deps, settings);
+    return { message: importReport(outcome) };
+  }
   const pending = await pendingCandidates(deps.files, settings.layout);
   if (args.kind === "list") {
     return { message: pending.length === 0 ? `No pending candidate in ${settings.layout.candidates}.` : candidatesList(pending.map((c) => c.entry)).trimEnd() };

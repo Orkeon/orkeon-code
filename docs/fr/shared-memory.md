@@ -72,6 +72,7 @@ règle de session qui refuse `memory_recall` coupe aussi ces rappels.
 
 ```text
 /memory-admit --list
+/memory-admit --import
 /memory-admit
 /memory-admit shop-method-20261024-contract-tests-first
 /memory-admit --refuse shop-method-20261024-contract-tests-first too local to this project
@@ -86,6 +87,13 @@ candidat dont `refused.md` contient le sujet. Les admis sont écrits dans
 prochaine admission les indexe. `--refuse` écrit le sujet du candidat dans `refused.md` avec votre motif : le sujet
 n'est plus jamais proposé. `/dev-learn` garde ses refus dans `.orkeon/memory/refused.md` quel que soit `memory.dir` :
 avec un `memory.dir` à vous, les deux listes sont séparées.
+
+`--import` reprend la mémoire d'agents du harness en candidats, une fois, pendant que vous la quittez : chaque élément
+de premier niveau d'un `.claude/agent-memory/<agent>/MEMORY.md` (et la note qu'il lie, dans le même dossier) devient
+un candidat `method` dont la source est l'import, donc `/memory-admit` demande pour chacun ; changez le type d'un
+fichier avant de l'admettre si c'est une autre sorte d'entrée. Un élément dont un candidat, une entrée ou un élément
+précédent porte déjà le sujet est sauté comme doublon, de même qu'un sujet refusé : relancer l'import n'écrit rien de
+nouveau. Rien n'est écrit sous `.claude/`.
 
 ## Les outils
 

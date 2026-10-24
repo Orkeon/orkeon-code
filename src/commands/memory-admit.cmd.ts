@@ -1,7 +1,7 @@
 /// <reference path="./.orkeon/orkeon-cli.d.ts" />
-// /memory-admit [<id>…] | --refuse <id> [<motif>] | --list — decide the shared memory's candidates
+// /memory-admit [<id>…] | --refuse <id> [<motif>] | --list | --import — decide the shared memory's candidates
 // (_lib/memory-admit.ts). An admission is confirmed here, then written and indexed by the crew
-// shared-memory-admit; a refusal and the list are answered here.
+// shared-memory-admit; a refusal, the list and the import are answered here.
 import { rawTokens } from "./_lib/args.ts";
 import { MEMORY_ADMIT_CREW, parseMemoryAdmitArgs, runMemoryAdmit } from "./_lib/memory-admit.ts";
 import { launchCrew, writeCompleted } from "./_lib/dispatch.ts";
@@ -12,7 +12,7 @@ const deps = { files: orkeonFiles(), shell: orkeonShell(), config: orkeonConfigS
 
 defineAsyncCommand({
   name: "memory-admit",
-  description: "Admit the shared memory's pending candidates into entries/, one confirmation each (--list: the candidates; --refuse <id>: never again).",
+  description: "Admit the shared memory's pending candidates into entries/, one confirmation each (--list: the candidates; --refuse <id>: never again; --import: the harness's .claude/agent-memory as candidates).",
   maxConcurrent: 1,
   dispatch: async (args, ctx) => {
     const parsed = parseMemoryAdmitArgs(rawTokens(args));

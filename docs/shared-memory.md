@@ -70,6 +70,7 @@ rule that denies `memory_recall` turns these recalls off too.
 
 ```text
 /memory-admit --list
+/memory-admit --import
 /memory-admit
 /memory-admit shop-method-20261024-contract-tests-first
 /memory-admit --refuse shop-method-20261024-contract-tests-first too local to this project
@@ -82,6 +83,12 @@ they supersede are marked `superseded`, both lists are rebuilt and `entries/` is
 cannot be rebuilt the entries stay admitted, and the next admission indexes them. `--refuse` writes the candidate's
 topic to `refused.md` with your motif: the topic is never proposed again. `/dev-learn` keeps its refusals in
 `.orkeon/memory/refused.md` whatever `memory.dir` says: with a `memory.dir` of your own, the two lists are apart.
+
+`--import` lifts the harness's agent memory into candidates, once, while you move from it: each top-level item of a
+`.claude/agent-memory/<agent>/MEMORY.md` (and the note it links to, in the same folder) becomes a `method` candidate
+whose source is the import, so `/memory-admit` asks for each one; change a file's type before admitting it if it is
+another kind of entry. An item whose topic a candidate, an entry or an earlier item already holds is skipped as a
+duplicate, as is a refused topic: running the import again writes nothing new. Nothing is written under `.claude/`.
 
 ## The tools
 

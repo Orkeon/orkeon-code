@@ -40,7 +40,7 @@ An **async** command starts a crew and returns a ticket; its result is printed w
 | `/hooks` | sync | List, add or remove declarative hooks (pre-tool\|post-tool\|stop). |
 | `/init-verifiers` | async | Detect test tooling and author verification skills for uncovered zones. |
 | `/init` | async | Analyse the workspace and write AGENTS.md, the instructions file (an existing CLAUDE.md is merged). |
-| `/memory-admit` | async | Admit the shared memory's pending candidates into entries/, one confirmation each (--list: the candidates; --refuse <id>: never again). |
+| `/memory-admit` | async | Admit the shared memory's pending candidates into entries/, one confirmation each (--list: the candidates; --refuse <id>: never again; --import: the harness's .claude/agent-memory as candidates). |
 | `/memory` | sync | List, add, delete, or get typed memory entries (user/project/feedback/reference). |
 | `/mode` | sync | Cycle, show or set the session-default permission mode of the assistant. |
 | `/model` | sync | Show the effective model for the next turn, or switch it without relaunching. |

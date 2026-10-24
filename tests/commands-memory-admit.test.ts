@@ -52,10 +52,23 @@ describe("parseMemoryAdmitArgs", () => {
     ok(!parseMemoryAdmitArgs(["--yes"]).ok);
     ok(!parseMemoryAdmitArgs(["Not/An/Id"]).ok);
     ok(!parseMemoryAdmitArgs(["--list", "x"]).ok);
+    deepStrictEqual(parseMemoryAdmitArgs(["--import"]), { ok: true, args: { kind: "import" } });
+    ok(!parseMemoryAdmitArgs(["--import", "x"]).ok);
   });
 });
 
 describe("runMemoryAdmit", () => {
+  it("imports the harness's agent memory into candidates and asks nothing", async () => {
+    const { files, lines, asked, run } = setup();
+    files.files.set("/workspace/.claude/agent-memory/dev-auditor/MEMORY.md", "- Name the port before the adapter\n");
+    const result = await run({ kind: "import" });
+    const message = (result as { message?: string }).message ?? "";
+    ok(message.includes("1 candidate(s) written: shop-method-20261024-name-the-port-before-the-adapter"), message);
+    ok(files.files.has(`${layout.candidates}/shop-method-20261024-name-the-port-before-the-adapter.md`));
+    deepStrictEqual(asked, []);
+    deepStrictEqual(lines, []);
+  });
+
   it("lists the pending candidates", async () => {
     const { run } = setup();
     const r = await run({ kind: "list" });
