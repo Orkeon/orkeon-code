@@ -65,6 +65,19 @@ export interface DevImplementInputs {
   hooks?: unknown; effort?: unknown; memoryRecall?: unknown;
 }
 
+const flag = (v: unknown): boolean => v === true || v === "true";
+
+/** The crew's inputs as the run reads them. `push: false` is kept: /dev-batches sends it on every batch's close, so
+ *  that the plan's branch is pushed once, at the run's own close (L-7); any other value pushes, as before. */
+export function implementInputs(args: Record<string, unknown>): DevImplementInputs {
+  return {
+    batch: args.batch, plan: args.plan, close: flag(args.close), pr: flag(args.pr), correction: args.correction,
+    push: args.push === false || args.push === "false" ? false : undefined,
+    permissionMode: args.permissionMode, permissionRules: args.permissionRules, githubTool: args.githubTool,
+    hooks: args.hooks, effort: args.effort, memoryRecall: args.memoryRecall,
+  };
+}
+
 export interface DevImplementDeps {
   files: Files; shell: Shell; config: Pick<ConfigStore, "readValue">; jobs: ShellJobs;
   /** A role's Llm, built with that role's callbacks over the pack's layout; `wrote` hears the path of each

@@ -15,7 +15,7 @@ import type { ActRequest, AffectedTests, CostIndex, ShellJobs, ShellOptions, She
 import { GIT_IDENT_COMMAND } from "../../../shared/domain/git/close.ts";
 import { STATUS_COMMAND } from "./observe.ts";
 import { touchedPath, verdictMarkOf } from "./touched.ts";
-import { runDevImplement } from "./run-dev-implement.ts";
+import { implementInputs, runDevImplement } from "./run-dev-implement.ts";
 import type { ImplementAnswer } from "./run-dev-implement.ts";
 import { FakePrecedents } from "../../../../tests/doubles/fake-precedents.ts";
 
@@ -608,6 +608,22 @@ describe("runDevImplement — the close marks and the branch", () => {
     ok(plan.includes("### Batch F1 — Demo — done (2026-10-24)\n- [x] 1. One\n- [x] 2. Two"), plan);
     ok(plan.includes("### Batch F2 — Next — open\n- [ ] 1. Later"));
     deepStrictEqual(t.contexts, [{ githubTool: true, permissionMode: "default", permissionRules: [] }]);
+  });
+
+  it("commits a batch /dev-batches closes without pushing it, the crew's inputs keeping its push: false (L-7)", async () => {
+    // The input /dev-batches launches for a VALID batch (commands-dev-batches.test.ts, "closes a VALID batch
+    // without pushing it"), read as the crew reads its inputs.
+    const launched = { batch: "F1", plan: "demo", close: true, push: false };
+    const pushes = (t: ReturnType<typeof closing>) => t.shell.commands.filter((c) => c.startsWith("git push"));
+    const batches = closing("feat/demo");
+    const a = parse(await runDevImplement(implementInputs(launched), batches.deps));
+    ok(a.lines.some((l) => l.startsWith("✓ committed ")), a.lines.join("\n"));
+    deepStrictEqual(pushes(batches), []);
+    ok(!a.lines.some((l) => l.includes("pushed") || l.includes("gh pr create")), a.lines.join("\n"));
+    const typed = closing("feat/demo");
+    await runDevImplement(implementInputs({ batch: "F1", plan: "demo", close: true }), typed.deps);
+    deepStrictEqual(pushes(typed), ["git push -u origin 'feat/demo'"], "a typed --close still pushes");
+    strictEqual(implementInputs({ push: "false" }).push, false);
   });
 
   it("creates the work branch on the default branch when the pack asks for one", async () => {

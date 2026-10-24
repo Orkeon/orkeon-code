@@ -8,7 +8,7 @@
 // the tree and the tests itself and ticks the sheet. The build and the whole suite then run as
 // shell jobs. With close: true it commits the batch's files once /dev-verify found it VALID.
 //
-// Input (globalThis.inputs): { batch: "F<n>", plan?: string | null, close?: boolean, pr?: boolean,
+// Input (globalThis.inputs): { batch: "F<n>", plan?: string | null, close?: boolean, pr?: boolean, push?: false,
 //                              correction?: string (the finding of an audit's gap), steps?: number,
 //                              hooks?: the /hooks registry, effort?: "low" | "medium" | "high" | null,
 //                              memoryRecall?: false (a session rule denies it: the agent gets none),
@@ -32,7 +32,7 @@ import { providerEffort } from "../../shared/domain/agent-policy/behavior-flags.
 import { implementBudget } from "./domain/implement-budget.ts";
 import { CREW_TOOLS } from "./domain/roles.ts";
 import { reportingWrites } from "./application/report-writes.ts";
-import { runDevImplement } from "./application/run-dev-implement.ts";
+import { implementInputs, runDevImplement } from "./application/run-dev-implement.ts";
 
 const ports = { shell: orkeonShell(), files: orkeonFiles(), config: orkeonConfigStore(), jobs: orkeonShellJobs() };
 // run_tests and run_build: built here, bound by the body to the run's wrapped tools (its pack, its rules, its logs).
@@ -54,12 +54,9 @@ const builder = AgentBuilder()
   .maxIterations(60)
   .body(async (_input: any, ctx: any) => {
     const args = inputs();
+    // implementInputs keeps a `push: false` (/dev-batches' closes: the plan's branch is pushed once, at its end).
     return await runDevImplement(
-      {
-        batch: args.batch, plan: args.plan, close: flag(args.close), pr: flag(args.pr), correction: args.correction,
-        permissionMode: args.permissionMode, permissionRules: args.permissionRules, githubTool: args.githubTool,
-        hooks: args.hooks, effort: args.effort, memoryRecall: args.memoryRecall,
-      },
+      implementInputs(args),
       {
         ...ports, log: ctx.log, toolSlot, costIndex: orkeonCostIndex(), today,
         // The close's opener, for the context read at the launch (the chained close reads it from the batch record).

@@ -3,7 +3,7 @@
 // crew answers JSON `{ lines, next? }`: its `next` (/dev-implement on one batch) is launched. /dev-implement and
 // /dev-verify answer as in /dev-implement's own chain (dev-implement.ts chainStep): the audit, then on VALID the
 // close, which commits the batch and is sent `push: false` (the run pushes at its own close; the dev-implement
-// crew must forward it to its close for that to hold). An answer of theirs
+// crew keeps it, run-dev-implement.ts implementInputs). An answer of theirs
 // that launches nothing (the batch committed, a stop, a GAPS verdict) launches the dev-batches crew again with
 // the answer's last lines: it logs what came of the batch and names the next one. Pure.
 import { isCode } from "../../shared/domain/dev/artefacts.ts";
