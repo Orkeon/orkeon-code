@@ -25,7 +25,8 @@ export const MODE_POLICIES: Readonly<Record<PermissionMode, ModePolicy>> = {
   // The writing modes offer every class; the host gate decides what asks. In
   // `default` it asks before every call that is not a read, in `acceptEdits`
   // before every call that is neither a read nor a file edit (the shell, the
-  // network tools), and `bypassPermissions` never asks.
+  // network tools, `github` and `rag_eval`, which declare no access), and
+  // `bypassPermissions` never asks.
   default: { readOnly: false, toolClasses: ["read", "network", "edit", "shell", "extra"] },
   acceptEdits: { readOnly: false, toolClasses: ["read", "network", "edit", "shell", "extra"] },
   bypassPermissions: { readOnly: false, toolClasses: ["read", "network", "edit", "shell", "extra"] },

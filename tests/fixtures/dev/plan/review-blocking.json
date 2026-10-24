@@ -1,0 +1,11 @@
+{
+  "verdict": "GAPS",
+  "rows": [
+    {
+      "severity": "Blocking",
+      "question": "Is the Applied rules row of F1 right to apply PERF-01 when the store is read once?",
+      "evidence": "workbench/prune/SPEC-prune.md:24",
+      "target": "F1"
+    }
+  ]
+}

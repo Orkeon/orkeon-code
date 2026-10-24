@@ -15,7 +15,7 @@ import { FakeSessionStore } from "./support/fake-session-store.ts";
 
 const SET_NOTE = `(prompts without a "mode:" prefix now run in it; /clear restores 'default').`;
 const STRIPPED = (mode: string) =>
-  `info: entering '${mode}': mutating tools (file_write, shell_command) stripped from the catalogue`;
+  `info: entering '${mode}': the edit, network and shell tools stripped from the catalogue`;
 
 function setup() {
   const files = new FakeFiles();

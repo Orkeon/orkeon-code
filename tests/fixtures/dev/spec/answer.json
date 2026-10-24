@@ -1,0 +1,24 @@
+{
+  "name": "Prune old memory entries",
+  "summary": "The user removes stale memory entries in one command, to keep the listing short.",
+  "context": "Typed memory grows with every session and old entries crowd the listing.",
+  "vocabulary": [{ "term": "cut-off", "definition": "the date before which an entry is stale" }],
+  "overview": "",
+  "useCases": [{
+    "name": "Prune old memory entries", "actor": "the user", "intent": "remove the entries saved before a cut-off",
+    "frequency": "monthly", "where": "the memory command, beside its listing",
+    "scenario": ["the user names a cut-off", "the entries older than it leave the store"],
+    "variants": "", "errors": "", "outcome": ""
+  }],
+  "rules": [{
+    "name": "A feedback entry stays", "statement": "a feedback entry stays whatever its age", "origin": "the memory page",
+    "severity": "blocking", "appliesTo": ["UC-01"], "example": ""
+  }],
+  "data": [], "states": [], "crossCutting": [], "relations": [],
+  "outOfScope": [{ "exclusion": "pruning by category", "reason": "not asked" }],
+  "assumptions": [],
+  "questions": [
+    { "severity": "Blocking", "question": "Is a pinned entry pruned?", "impact": "BR-01", "options": ["No", "Yes"] },
+    { "severity": "Major", "question": "Does a prune with no cut-off refuse?", "impact": "the command line", "options": ["Refuse", "Use 90 days"] }
+  ]
+}

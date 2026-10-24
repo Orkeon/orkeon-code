@@ -25,6 +25,19 @@ import {
 import { SUMMARY_PROMPT } from "../../src/shared/domain/session-summary.ts";
 import { buildVerifyRequest } from "../../src/shared/domain/verifiers.ts";
 import { applyPrelude } from "../../src/shared/domain/prelude.ts";
+import {
+  AUDITOR_SYSTEM, buildAnswerPrompt, buildAuditBrief, buildValidationFollowUp,
+} from "../../src/crews/dev-verify/application/auditor-prompt.ts";
+import type { AuditBriefInput } from "../../src/crews/dev-verify/application/auditor-prompt.ts";
+import { AUDIT_ANSWER_SCHEMA } from "../../src/crews/dev-verify/domain/audit-answer.ts";
+import { buildLearnPrompt } from "../../src/crews/dev-learn/application/learn-prompt.ts";
+import type { LearnPromptInput } from "../../src/crews/dev-learn/application/learn-prompt.ts";
+import { LEARN_ANSWER_SCHEMA } from "../../src/crews/dev-learn/domain/learn-answer.ts";
+import { buildPlanPrompt } from "../../src/crews/dev-plan/application/plan-prompt.ts";
+import type { PlanPromptInput } from "../../src/crews/dev-plan/application/plan-prompt.ts";
+import { PLAN_ANSWER_SCHEMA } from "../../src/crews/dev-plan/domain/plan-answer.ts";
+import { REVIEW_ANSWER_SCHEMA } from "../../src/shared/domain/dev/review-answer.ts";
+import { buildReviewAnswerPrompt, buildReviewBrief, reviewSystem } from "../../src/shared/domain/dev/review-prompt.ts";
 import type { PromptPair } from "../../src/shared/domain/types.ts";
 import { FakeShell } from "./fake-shell.ts";
 import { FakeSessionStore } from "./fake-session-store.ts";
@@ -123,6 +136,60 @@ export async function renderCatalogue(): Promise<RenderedPrompt[]> {
   const prior = [{ severity: "low", file: "src/args.ts", line: 12, category: "style", finding: "magic string" }];
   const detected = { buildCommand: "npm run build", testCommand: "npm test", frameworks: ["node"], conventions: [] };
   const pkg = JSON.stringify({ name: "sample-repo", scripts: { test: "node --test" } }, null, 2);
+  const auditInput: AuditBriefInput = {
+    mode: "fast", batch: "F2", sheetPath: "/workspace/workbench/demo/DEMO-PLAN-F2.md",
+    captureFiles: ["/workspace/workbench/demo/capture-F2/index.txt", "/workspace/workbench/demo/capture-F2/diff-001.txt"],
+    table: `| Axis | Status | Evidence |\n|---|---|---|\n| Build | ok | capture-F2/build.txt |\n| Test | gap | ${MATERIAL_MARK} |`,
+    appliedRules: "DDD-01, APP-02",
+    commands: { testClass: "dotnet test tests/Ledger.Tests --filter FullyQualifiedName~<class>" },
+    previousGaps: null,
+  };
+  const auditBrief = buildAuditBrief(auditInput);
+  const auditValidation = "dotnet test tests/Ledger.Tests --filter FullyQualifiedName~AccountTests";
+  const previousGap = {
+    severity: "Major" as const, axis: "Reuse" as const, gap: "Parses amounts by hand",
+    evidence: "src/Ledger/Account.cs:18", fix: "Call the existing amount parser",
+  };
+  const learnRow = (id: string, batch: string, gap: string, evidence: string, fix: string) =>
+    ({ id, batch, severity: "Major" as const, axis: "Test", gap, evidence, fix, source: `${batch}.md`, line: 7 });
+  const learnInput: LearnPromptInput = {
+    axis: "Test",
+    rows: [
+      learnRow("c936075d95", "ledger/F1", "the refusal of a negative amount has no test", "src/ledger/withdraw.ts:14", "add the negative case"),
+      learnRow("b983faad38", "ledger/F3", `no test triggers the overdraft refusal: ${MATERIAL_MARK}`, "tests/ledger.test.ts:40", "write the overdraft case"),
+      learnRow("3a59a45e69", "invoices/F2", "the refusal text for an unknown currency is never asserted", "tests/invoices.test.ts:88", "assert the text"),
+      learnRow("e61ec378db", "ledger/F1", "the rejection of an empty label is not covered", "src/ledger/label.ts:9", "cover the empty label"),
+    ],
+    refused: ["rounding-inside-handlers — Rounding inside handlers"],
+    owners: ["CONTRIBUTING.md", "tests/architecture.test.ts"],
+  };
+  const planInventory = [
+    "I1 · src/shared/domain/memory.ts:18 · interface MemoryEntry · layer domain · for UC-01, BR-01 · export interface MemoryEntry {",
+    "I2 · src/commands/_lib/memory.ts:40 · function runMemory · layer other · for UC-01, BR-02 · callers: src/commands/memory.cmd.ts::run · export async function runMemory(tokens: string[]) {",
+    `I3 · tests/commands-memory.test.ts:12 · symbol memory command · layer tests · for BR-02 · ${MATERIAL_MARK}`,
+  ].join("\n");
+  const planInput: PlanPromptInput = {
+    sourceShown: "workbench/prune/SPEC-prune.md", kind: "spec",
+    sourceText: [
+      "# prune — Prune old memory entries", "", "### UC-01 — Prune old memory entries",
+      "- **Statement**: the user removes the entries saved before a cut-off", "",
+      "### BR-01 — An entry older than the cut-off is removed", "### BR-02 — A dry run removes nothing", "", MATERIAL_MARK,
+    ].join("\n"),
+    ids: [
+      { id: "UC-01", title: "Prune old memory entries", statement: "the user removes the entries saved before a cut-off", line: 3 },
+      { id: "BR-01", title: "An entry older than the cut-off is removed", statement: "", line: 6 },
+      { id: "BR-02", title: "A dry run removes nothing", statement: "", line: 7 },
+    ],
+    pinned: [], unpinned: [],
+    repoCommands: "restore `npm ci` · build `npm run build` · build_test (not in the pack) · test `npm test` — from `.orkeon/repo.yaml`",
+    repoLayout: "domain `src/shared/domain` · tests `tests` — from `.orkeon/repo.yaml`",
+    inventory: planInventory, workShown: "workbench",
+  };
+  const reviewBrief = buildReviewBrief({
+    mode: "plan", folder: "workbench/prune",
+    files: ["workbench/prune/PRUNE-PLAN.md", "workbench/prune/PRUNE-PLAN-F1.md", "workbench/prune/PRUNE-PLAN-F2.md"],
+    source: "workbench/prune/SPEC-prune.md", inventory: planInventory, targets: ["plan", "F1", "F2"],
+  });
   const buffer = buildCompactedBuffer({ role: "user", content: SAMPLE_HISTORY[0].content }, "1. The request: validate flags.");
   return [
     {
@@ -243,6 +310,62 @@ export async function renderCatalogue(): Promise<RenderedPrompt[]> {
           title: "prelude result joined to the request", role: "text",
           text: applyPrelude("Summarize the meeting.", { tool: "transcribe_audio", args: {}, label: "Transcription" }, "Hello everyone."),
         },
+      ],
+    },
+    {
+      id: "13", name: "dev-auditor", source: "src/crews/dev-verify/application/auditor-prompt.ts, domain/audit-answer.ts",
+      callSite: "/dev-verify → crews/dev-verify → application/audit.ts",
+      call: "act in plan mode with four read tools, then extract (JSON schema); a second act after the validations",
+      inputs: "a two-row table, two capture paths, one previous gap (resume)",
+      sections: [
+        { title: "system", role: "system", text: AUDITOR_SYSTEM },
+        { title: "brief, mode fast", role: "user", text: auditBrief },
+        { title: "brief, mode resume", role: "user", text: buildAuditBrief({ ...auditInput, mode: "resume", previousGaps: [previousGap] }) },
+        {
+          title: "after the validations", role: "user",
+          text: buildValidationFollowUp(auditInput, {
+            verdict: "VALID", rows: [], validations: [auditValidation], undecided: [{ check: "Cost", reason: "not measured" }],
+          }, [{ command: auditValidation, outcome: "exit 1", tail: "Failed AccountTests.ShouldWithdraw_WhenBalanceSuffices" }]),
+        },
+        { title: "answer, second try", role: "text", text: buildAnswerPrompt(`Verdict GAPS. ${MATERIAL_MARK}`, ["row 1: evidence cites no path:line"]) },
+        schema("schema", AUDIT_ANSWER_SCHEMA),
+      ],
+    },
+    {
+      id: "14", name: "dev-learn", source: "src/crews/dev-learn/application/learn-prompt.ts, domain/learn-answer.ts",
+      callSite: "/dev-learn [<axis>] → crews/dev-learn → application/run-dev-learn.ts",
+      call: "extract (JSON schema), one call per eligible axis, one re-ask with the problems",
+      inputs: "four rows of the Test axis over three batches, one refused motif, two owner files",
+      sections: [
+        { title: "axis Test, first try", role: "text", text: buildLearnPrompt(learnInput, []) },
+        {
+          title: "axis Test, second try", role: "text",
+          text: buildLearnPrompt(learnInput, ["motif 1: row 'abc' is not one of the rows given"]),
+        },
+        schema("schema", LEARN_ANSWER_SCHEMA),
+      ],
+    },
+    {
+      id: "15", name: "dev-plan", source: "src/crews/dev-plan/application/plan-prompt.ts, domain/plan-answer.ts",
+      callSite: "/dev-plan → crews/dev-plan → application/run-dev-plan.ts",
+      call: "extract (JSON schema), once more with the problems of a refused answer or a failed self-check",
+      inputs: "a two-rule spec with one use case, three inventory entries, a pack without build_test",
+      sections: [
+        { title: "first try", role: "text", text: buildPlanPrompt(planInput, []) },
+        { title: "second try", role: "text", text: buildPlanPrompt(planInput, ["B1 S1: anchor I9 is not an inventory entry shown"]) },
+        schema("schema", PLAN_ANSWER_SCHEMA),
+      ],
+    },
+    {
+      id: "16", name: "dev-reviewer", source: "src/shared/domain/dev/review-prompt.ts, review-answer.ts",
+      callSite: "/dev-plan → crews/dev-plan → application/run-dev-plan.ts (runSubAgent)",
+      call: "act in plan mode with six read tools, then extract (JSON schema), one re-ask over the same reply",
+      inputs: "a plan folder with two sheets and three inventory entries",
+      sections: [
+        { title: "system, mode plan", role: "system", text: reviewSystem("plan") },
+        { title: "brief", role: "user", text: reviewBrief },
+        { title: "answer, second try", role: "text", text: buildReviewAnswerPrompt(`GAPS. ${MATERIAL_MARK}`, ["row 1: the question must be one closed question ending with ?"]) },
+        schema("schema", REVIEW_ANSWER_SCHEMA),
       ],
     },
   ];

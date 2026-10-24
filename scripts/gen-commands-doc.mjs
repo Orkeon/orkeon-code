@@ -64,7 +64,16 @@ const pages = [
   },
 ];
 
+// The REPL refuses to load a command whose description is longer than 200 characters
+// (ScriptCommandLoader: "description exceeds 200 chars"), which only a live start would show.
+const MAX_DESCRIPTION = 200;
 let stale = 0;
+for (const { name, description } of commands) {
+  if (description.length > MAX_DESCRIPTION) {
+    console.error(`/${name}: description of ${description.length} characters, the REPL loads ${MAX_DESCRIPTION} at most.`);
+    stale += 1;
+  }
+}
 for (const { path, page } of pages) {
   const name = relative(root, path);
   if (process.argv.includes("--check")) {

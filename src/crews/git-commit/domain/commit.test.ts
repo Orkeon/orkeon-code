@@ -4,7 +4,9 @@ import { deepStrictEqual, strictEqual, ok } from "node:assert";
 
 import {
   normalizeCommitMessage, commitSubject, isConventionalCommit,
-  isCommitPermitted, buildCommitPlan, hasExplicitConfirm, commitRefusal, secretLikePaths, statusPaths, untrackedPaths } from "./commit.ts";
+  isCommitPermitted, buildCommitPlan, parseCommitArgs, commitRefusal, secretLikePaths, statusPaths, untrackedPaths } from "./commit.ts";
+import type { CommitArgs } from "./commit.ts";
+import * as commitModule from "./commit.ts";
 
 describe("normalizeCommitMessage", () => {
   it("unwraps a fenced message", () => {
@@ -76,39 +78,76 @@ describe("isCommitPermitted (B-1)", () => {
 });
 
 describe("buildCommitPlan (B-1)", () => {
-  it("ACCEPTANCE 1 — names `git add -A` and what it includes", () => {
-    const plan = buildCommitPlan("main");
-    ok(plan.steps.includes("git add -A"));
-    ok(plan.notice.includes("git add -A"));
+  it("ACCEPTANCE 1 — names the file list, what it includes and what stays out; never `git add -A`", () => {
+    const plan = buildCommitPlan({ branch: "main" });
+    deepStrictEqual(plan.steps, ["git add -- <files>", "git commit -F <drafted message> -- <files>"]);
+    ok(!plan.notice.includes("git add -A"));
     ok(plan.notice.includes("untracked"), "staging untracked files is the surprise to disclose");
+    ok(plan.notice.includes("the work folder left out"));
+    ok(plan.notice.includes("identity"));
     ok(plan.question.includes("EVERY change"));
     ok(plan.question.includes("main"));
   });
 
+  it("names the paths given and the push when asked", () => {
+    const plan = buildCommitPlan({ paths: ["src/a.ts"], push: true });
+    ok(plan.notice.includes("the changes under src/a.ts"));
+    ok(plan.steps.includes("git push -u origin <branch>"));
+    ok(plan.question.endsWith("and push?"));
+  });
+
+  it("names the pull request when --pr asks for it: the yes is the question the github call needs", () => {
+    const plan = buildCommitPlan({ pr: true });
+    deepStrictEqual(plan.steps.slice(-2), ["git push -u origin <branch>", "github create_pr"]);
+    ok(plan.notice.includes("open the pull request with the github tool"));
+    ok(plan.question.endsWith("and push, then open the pull request?"));
+    ok(!buildCommitPlan({ push: true }).steps.includes("github create_pr"));
+  });
+
   it("works without a known branch", () => {
-    const plan = buildCommitPlan(undefined);
+    const plan = buildCommitPlan();
     ok(plan.question.length > 0);
     ok(plan.notice.includes("current branch"));
   });
 
   it("says the subject comes after the confirmation, instead of implying it is known", () => {
-    ok(buildCommitPlan("x").notice.includes("drafted after this confirmation"));
+    ok(buildCommitPlan({ branch: "x" }).notice.includes("drafted after this confirmation"));
   });
 });
 
-describe("hasExplicitConfirm (B-1)", () => {
-  it("recognises --yes and -y", () => {
-    strictEqual(hasExplicitConfirm(["--yes"]), true);
-    strictEqual(hasExplicitConfirm(["-y"]), true);
-    strictEqual(hasExplicitConfirm(["-Y"]), true);
-    strictEqual(hasExplicitConfirm([" --yes "]), true);
+describe("parseCommitArgs", () => {
+  it("reads the flags and keeps the other words as paths; --pr implies the push", () => {
+    deepStrictEqual(parseCommitArgs(["-y", "src/a.ts", "--pr", "docs/"]), {
+      ok: true, args: { yes: true, push: true, pr: true, paths: ["src/a.ts", "docs/"] },
+    });
+    deepStrictEqual(parseCommitArgs([]), { ok: true, args: { yes: false, push: false, pr: false, paths: [] } });
+    deepStrictEqual(parseCommitArgs(["--push"]), { ok: true, args: { yes: false, push: true, pr: false, paths: [] } });
   });
 
-  it("is false on anything else, including the empty argument list", () => {
-    strictEqual(hasExplicitConfirm([]), false);
-    strictEqual(hasExplicitConfirm(["yes"]), false, "a bare 'yes' is not the flag");
-    strictEqual(hasExplicitConfirm(["--force"]), false);
-    strictEqual(hasExplicitConfirm([undefined, null]), false);
+  it("refuses an unknown option instead of reading it as a path", () => {
+    const parsed = parseCommitArgs(["--all"]);
+    ok(!parsed.ok && parsed.text.includes("'--all'"));
+  });
+
+  it("reads every word after `--` as a path, even one that starts with `-`", () => {
+    deepStrictEqual(parseCommitArgs(["--push", "--", "-odd.md", "--yes"]), {
+      ok: true, args: { yes: false, push: true, pr: false, paths: ["-odd.md", "--yes"] },
+    });
+  });
+});
+
+describe("the confirm flag (B-1)", () => {
+  it("is read by parseCommitArgs alone: --yes, -y, any case, blanks around", () => {
+    for (const t of ["--yes", "-y", "-Y", " --yes "]) strictEqual(parseCommitArgs([t]).ok && (parseCommitArgs([t]) as { args: CommitArgs }).args.yes, true, t);
+  });
+
+  it("is not a bare 'yes', which is a path", () => {
+    deepStrictEqual(parseCommitArgs(["yes"]), { ok: true, args: { yes: false, push: false, pr: false, paths: ["yes"] } });
+    deepStrictEqual(parseCommitArgs([]), { ok: true, args: { yes: false, push: false, pr: false, paths: [] } });
+  });
+
+  it("has no second reader exported beside parseCommitArgs", () => {
+    strictEqual("hasExplicitConfirm" in commitModule, false);
   });
 });
 

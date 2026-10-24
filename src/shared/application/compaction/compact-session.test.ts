@@ -6,7 +6,7 @@ import { ok, deepStrictEqual, strictEqual } from "node:assert";
 import { COMPACT_PROGRESS_LABEL, compactSession, readCompactionTrigger, snipBuffer } from "./compact-session.ts";
 import {
   buildCompactedBuffer, buildMemoryExtractionPrompt, buildMemoryRecapMessage, buildRestoredFileMessage,
-  buildRestoredSkillMessage, buildSummaryPrompt, buildTranscript,
+  buildRestoredSkillMessage, buildRestoredStateMessage, buildSummaryPrompt, buildTranscript,
 } from "../../domain/compaction.ts";
 import { SNIP_RETAIN_COUNT } from "../../domain/compaction-thresholds.ts";
 import { SKILLS_STATE_KEY } from "../../domain/session-keys.ts";
@@ -190,5 +190,71 @@ describe("/compact --snip and the compaction.trigger setting", () => {
     deps.session.budget = { used: 50_000, window: 200_000 };
     strictEqual((await compactSession({ force: false }, deps)).status, "skipped", "below the computed trigger");
     strictEqual((await compactSession({ force: false, trigger: 40_000 }, deps)).status, "compacted");
+  });
+});
+
+describe("compactSession: step 0, the state of the dev batch in progress", () => {
+  const WRITTEN = { path: ".orkeon/dev/demo/state-F2.md", firstOpen: "Step 2 — Refuse" };
+
+  /** setup() with a workflow writer that records its triggers and what the buffer held then. */
+  function withWorkflow(result: unknown = WRITTEN) {
+    const deps = setup();
+    const calls: Array<{ trigger: string; extracted: number }> = [];
+    const workflow = async (trigger: "manual" | "auto") => {
+      calls.push({ trigger, extracted: deps.llm.extracts.length });
+      if (result instanceof Error) throw result;
+      return result as typeof WRITTEN | null;
+    };
+    return { deps: { ...deps, workflow }, calls };
+  }
+
+  it("writes the state before the extraction, then points at it last in the new buffer", async () => {
+    const { deps, calls } = withWorkflow();
+    const outcome = await compactSession({ force: false }, deps);
+    deepStrictEqual(calls, [{ trigger: "auto", extracted: 0 }]);
+    deepStrictEqual(outcome, { status: "compacted", before: 4, after: 5, usedTokens: ABOVE.used, state: { path: WRITTEN.path } });
+    deepStrictEqual(deps.session.messages.at(-1), buildRestoredStateMessage(`/workspace/${WRITTEN.path}`, WRITTEN.firstOpen));
+    ok(deps.log.lines.includes(`info: state of the batch in progress written to ${WRITTEN.path}`), JSON.stringify(deps.log.lines));
+  });
+
+  it("writes it on the snip-only path too, which leaves the buffer as the snip left it", async () => {
+    const { deps, calls } = withWorkflow();
+    deps.session.budgetAfterSnip = BELOW;
+    const outcome = await compactSession({ force: true }, deps);
+    deepStrictEqual(outcome, { status: "snipped", before: 4, usedTokens: BELOW.used, state: { path: WRITTEN.path } });
+    deepStrictEqual(calls.map((c) => c.trigger), ["manual"]);
+    deepStrictEqual(deps.session.messages, HISTORY);
+  });
+
+  it("writes it under /compact even on a buffer too small, and not below the trigger of an automatic run", async () => {
+    const small = withWorkflow();
+    small.deps.session.messages = HISTORY.slice(0, 2);
+    deepStrictEqual(await compactSession({ force: true }, small.deps),
+      { status: "skipped", reason: "buffer too small", state: { path: WRITTEN.path } });
+    strictEqual(small.calls.length, 1);
+    const below = withWorkflow();
+    below.deps.session.budget = BELOW;
+    strictEqual((await compactSession({ force: false }, below.deps)).status, "skipped");
+    deepStrictEqual(below.calls, []);
+  });
+
+  it("goes on when the state cannot be written, saying so; no batch, no state and no pointer", async () => {
+    const failing = withWorkflow(new Error("disk full\nmore"));
+    const outcome = await compactSession({ force: false }, failing.deps);
+    strictEqual(outcome.status, "compacted");
+    deepStrictEqual(outcome.state, { skipped: "it could not be written (disk full)" });
+    ok(failing.deps.log.lines.includes("warn: the state of the batch in progress could not be written: disk full"));
+    ok(!failing.deps.session.messages.some((m) => String(m.content).startsWith("[restored-state]")));
+    const none = withWorkflow(null);
+    const plain = await compactSession({ force: false }, none.deps);
+    strictEqual(plain.state, undefined);
+    strictEqual(none.deps.session.messages.length, 4);
+  });
+
+  it("reports a skipped state in the outcome without pointing at any file", async () => {
+    const { deps } = withWorkflow({ skipped: "workbench/demo/DEMO-PLAN-F1.md is done (2026-10-20)" });
+    const outcome = await compactSession({ force: false }, deps);
+    deepStrictEqual(outcome.state, { skipped: "workbench/demo/DEMO-PLAN-F1.md is done (2026-10-20)" });
+    ok(!deps.session.messages.some((m) => String(m.content).startsWith("[restored-state]")));
   });
 });

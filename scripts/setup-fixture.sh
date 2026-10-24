@@ -2,12 +2,13 @@
 # Seed the throwaway demo repository fixtures/sample-repo on demand: a few
 # TypeScript sources and a git history, so /init, /assistant, /commit, /diff and
 # /review have something to work on without pointing the agent at a real project.
-# Nothing under fixtures/ is tracked: delete it any time, it comes back.
+# Nothing under fixtures/ is tracked: delete it any time, it comes back. An install of Orkeon Code, whose
+# folder is never written to, passes another target (orkeon-code --demo: ~/.orkeon-code/demo/sample-repo).
 #
-#   bash scripts/setup-fixture.sh
+#   bash scripts/setup-fixture.sh [target-folder]    # default: fixtures/sample-repo of this checkout
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-FX="$ROOT/fixtures/sample-repo"
+FX="${1:-$ROOT/fixtures/sample-repo}"
 
 seed_fixture_sources() {
   mkdir -p "$FX/src"

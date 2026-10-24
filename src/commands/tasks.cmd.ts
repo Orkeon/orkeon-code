@@ -1,45 +1,42 @@
 /// <reference path="./.orkeon/orkeon-cli.d.ts" />
-// /tasks (E-1) — session task list (baseline 04 §/tasks): add/list/done/clear
-// over one JSON array in the state bag. Survives /assistant runs; cleared by
-// /clear (or `/tasks clear`).
+// /tasks (E-1, A-3) — the session task list (add, list, done, clear) and the agent instances the dev
+// crews run as background children (show, stop, send, repair). Everything but a repair is answered
+// here, from the state bag (_lib/tasks.ts); a repair launches crews/agent-run, whose completion
+// prints the new run's answer.
 import { rawTokens } from "./_lib/args.ts";
-import { readJsonArray, writeJson } from "../shared/application/session-state.ts";
-import { orkeonSessionIo } from "../shared/infrastructure/orkeon/wiring.ts";
-import { TASKS_STATE_KEY } from "../shared/domain/session-keys.ts";
+import { launchCrew, writeCompleted } from "./_lib/dispatch.ts";
+import { startDevStep } from "./_lib/dev-step.ts";
+import { runTasks } from "./_lib/tasks.ts";
+import { createCrewHost } from "../shared/infrastructure/orkeon/crew-host.ts";
+import { createPermissionRules } from "../shared/infrastructure/orkeon/permission-rules.ts";
+import { orkeonConfigStore, orkeonSessionIo, orkeonToolCatalogue } from "../shared/infrastructure/orkeon/wiring.ts";
+import { repairStep } from "../shared/domain/agents/built-in-charters.ts";
 
-const session = orkeonSessionIo();
+const deps = { session: orkeonSessionIo(), clock: () => new Date() };
 
-defineCommand({
+defineAsyncCommand({
   name: "tasks",
-  description: "Manage the session task list: add, list, done, clear.",
-  handler: async (args, ctx) => {
-    const [sub, ...rest] = rawTokens(args);
-    const tasks = (await readJsonArray(session, TASKS_STATE_KEY)) as any[];
-    switch ((sub ?? "list").toLowerCase()) {
-      case "list":
-        if (tasks.length === 0) return ctx.continue("no tasks. usage: /tasks add <subject>");
-        ctx.table(tasks.map((t: any, i: number) => ({ n: i + 1, status: t.done ? "done" : "open", subject: t.subject })));
-        return ctx.continue();
-      case "add": {
-        const subject = rest.join(" ");
-        if (!subject) return ctx.continue("usage: /tasks add <subject>");
-        tasks.push({ subject, done: false });
-        await writeJson(session, TASKS_STATE_KEY, tasks);
-        return ctx.continue(`task #${tasks.length} added: ${subject}`);
-      }
-      case "done": {
-        const n = Number(rest[0]);
-        if (!Number.isInteger(n) || n < 1 || n > tasks.length)
-          return ctx.continue(`usage: /tasks done <1-${tasks.length || 1}>`);
-        tasks[n - 1].done = true;
-        await writeJson(session, TASKS_STATE_KEY, tasks);
-        return ctx.continue(`task #${n} done: ${tasks[n - 1].subject}`);
-      }
-      case "clear":
-        await writeJson(session, TASKS_STATE_KEY, []);
-        return ctx.continue(`task list cleared (${tasks.length} removed).`);
-      default:
-        return ctx.continue("usage: /tasks [list|add <subject>|done <n>|clear]");
+  description: "Session task list (add, done, clear) and the agent instances of the dev crews: list, show, stop, send, repair by a new run.",
+  dispatch: async (args, ctx) => {
+    const { view, launch } = await runTasks(rawTokens(args), deps);
+    for (const line of view.lines ?? []) ctx.writeLine(line);
+    if (view.table) ctx.table(view.table);
+    if (launch === undefined) return { message: view.text ?? "" };
+    if (view.text !== undefined) ctx.writeLine(view.text);
+    // A repair is a run of the instance's step: the gate must be on, its rule sets go in it, its /hooks with it.
+    const step = repairStep(String(launch.input.charter ?? ""), launch.input.step);
+    const start = await startDevStep(step, {
+      session: deps.session, config: orkeonConfigStore(), gate: createPermissionRules(ctx.services), catalogue: orkeonToolCatalogue(ctx.services),
+    });
+    if (!start.ok) {
+      ctx.writeLine(start.line);
+      return { refused: start.line };
     }
+    for (const line of start.lines) ctx.writeLine(line);
+    return launchCrew(
+      { crews: createCrewHost(ctx.services), log: ctx.log }, launch.crew, { ...launch.input, ...start.input },
+      { ...launch.details, ruleSets: start.sets.join(" "), rules: start.rules, hooks: start.hooks.length },
+    );
   },
+  completed: (result, ctx) => writeCompleted(ctx, result, "tasks repair", "repair — "),
 });

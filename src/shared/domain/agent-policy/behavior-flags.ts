@@ -20,11 +20,10 @@ export const DEFAULT_EFFORT: EffortLevel = "medium";
 /**
  * Iterations granted to `ctx.llm.act` per level.
  *
- * The ladder bounds the tool-calling loop, which is the only lever script-land
- * has over how much work one turn may do: `act` takes no "effort" parameter, and
- * the provider-side reasoning-effort hint is not reachable from the options bag
- * (it lives in LlmConfig.Thinking, which the scripting facade does not expose).
- * So `/effort high` buys persistence, not deeper thinking — and the command says so.
+ * The ladder bounds the tool-calling loop. Since Orkeon 1.0.0-rc.6 the level also reaches the
+ * provider: `act({ effort })` and `AgentBuilder.effort()` turn its thinking on at that level (A-3).
+ * Only a level `/effort` stored is forwarded (`providerEffort`): an unconfigured session sends none,
+ * so it keeps the provider's own default and the 40 iterations it always had.
  */
 export const EFFORT_MAX_ITERATIONS: Readonly<Record<EffortLevel, number>> = {
   low: 10,
@@ -40,6 +39,12 @@ export function isEffortLevel(raw: unknown): raw is EffortLevel {
 export function resolveEffort(raw: unknown): EffortLevel {
   const v = String(raw ?? "").trim().toLowerCase();
   return isEffortLevel(v) ? (v as EffortLevel) : DEFAULT_EFFORT;
+}
+
+/** The level forwarded to the provider (`act({effort})`): a stored valid level; undefined when none is stored. */
+export function providerEffort(raw: unknown): EffortLevel | undefined {
+  const v = String(raw ?? "").trim().toLowerCase();
+  return isEffortLevel(v) ? (v as EffortLevel) : undefined;
 }
 
 /** The act() iteration cap for a stored effort value. */
@@ -105,6 +110,8 @@ export function proactiveSuffix(on: boolean): string {
 
 export interface BehaviorFlags {
   effort: EffortLevel;
+  /** The level the provider thinks at: the one /effort stored, null when it stored none (A-3). */
+  thinking: EffortLevel | null;
   passes: number;
   fast: boolean;
   proactive: boolean;
@@ -115,6 +122,7 @@ export interface BehaviorFlags {
 /** The unconfigured session — the pre-B-9 behaviour, byte for byte. */
 export const DEFAULT_BEHAVIOR_FLAGS: BehaviorFlags = {
   effort: DEFAULT_EFFORT,
+  thinking: null,
   passes: DEFAULT_PASSES,
   fast: false,
   proactive: false,
@@ -127,6 +135,7 @@ export function resolveBehaviorFlags(raw: {
 }): BehaviorFlags {
   return {
     effort: resolveEffort(raw?.effort),
+    thinking: providerEffort(raw?.effort) ?? null,
     passes: resolvePasses(raw?.passes),
     fast: String(raw?.fast ?? "") === "true",
     proactive: String(raw?.proactive ?? "") === "true",
@@ -141,8 +150,9 @@ export function resolveBehaviorFlags(raw: {
  */
 export function describeActiveFlags(flags: BehaviorFlags): string {
   const active: string[] = [];
-  if (flags.effort !== DEFAULT_EFFORT) {
-    active.push(`effort=${flags.effort} (act maxIterations=${EFFORT_MAX_ITERATIONS[flags.effort]})`);
+  // A stored level, even `medium`, is named: it turns the provider's thinking on.
+  if (flags.thinking !== null) {
+    active.push(`effort=${flags.effort} (act maxIterations=${EFFORT_MAX_ITERATIONS[flags.effort]}, provider thinking ${flags.thinking})`);
   }
   if (flags.passes !== DEFAULT_PASSES) active.push(`passes=${flags.passes}`);
   if (flags.fast) active.push(`fast=on (dropping ${FAST_MODE_DROPPED_BLOCKS.join(", ")})`);

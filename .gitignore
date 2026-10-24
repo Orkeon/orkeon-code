@@ -8,7 +8,7 @@ config/*.local.json
 # Runtime output: the /output mount of a run, and the throwaway demo repository
 # seeded by scripts/setup-fixture.sh.
 .crew-output/
-fixtures/
+/fixtures/
 
 # Release staging
 dist/

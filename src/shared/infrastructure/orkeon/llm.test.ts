@@ -4,9 +4,34 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, rejects } from "node:assert";
 
 import { createLlm } from "./llm.ts";
+import type { ToolCallbacks } from "./tool-callbacks.ts";
 import { FakeLlmFacade } from "../../../../tests/support/fake-llm-facade.ts";
 
 const SCHEMA = { type: "object", properties: { findings: { type: "array" } } };
+
+describe("createLlm — act with the crew's tool callbacks", () => {
+  it("adds the callbacks built for the act's mode, default when it names none, and what the host says of its gate", async () => {
+    const facade = Object.assign(new FakeLlmFacade(), { permissionGate: { enabled: false } });
+    const asked: Array<[string, boolean | undefined]> = [];
+    const onToolCall = async () => "allow" as const;
+    const onToolResult = async () => undefined;
+    const callbacks = {
+      guard: {} as ToolCallbacks["guard"],
+      forAct(mode: string, gateEnabled: boolean | undefined) {
+        asked.push([mode, gateEnabled]);
+        return { onToolCall, onToolResult };
+      },
+    };
+    const llm = createLlm(facade, callbacks);
+    await llm.act("p1", { permissionMode: "plan", model: "m" });
+    await llm.act("p2", {});
+    deepStrictEqual(asked, [["plan", false], ["default", false]]);
+    deepStrictEqual(facade.calls.map((c) => c.args), [
+      ["p1", { permissionMode: "plan", llm: { model: "m" }, onToolCall, onToolResult }],
+      ["p2", { onToolCall, onToolResult }],
+    ]);
+  });
+});
 
 describe("createLlm — act", () => {
   it("answers the result's output", async () => {
@@ -46,6 +71,13 @@ describe("createLlm — act", () => {
       ["p2", { system: "SYS", maxIterations: 1 }],
       ["p3", { maxIterations: 20, permissionMode: "default", system: "SYS" }],
     ]);
+  });
+
+  it("passes an act's tool subset as a list of its own", async () => {
+    const facade = new FakeLlmFacade();
+    const tools = ["file_read", "run_tests"] as const;
+    await createLlm(facade).act("p", { maxIterations: 5, tools });
+    deepStrictEqual(facade.calls.map((c) => c.args), [["p", { maxIterations: 5, tools: ["file_read", "run_tests"] }]]);
   });
 
   it("lets a failing call reject", async () => {
@@ -123,5 +155,16 @@ describe("createLlm — permissionGateEnabled", () => {
     strictEqual(createLlm(off).permissionGateEnabled(), false);
     const on = Object.assign(new FakeLlmFacade(), { permissionGate: { enabled: true } });
     strictEqual(createLlm(on).permissionGateEnabled(), true);
+  });
+});
+
+describe("createLlm — the crew's effort (A-3)", () => {
+  it("fills the act's effort from the defaults when the request names none, and keeps the request's own", async () => {
+    const facade = new FakeLlmFacade();
+    const llm = createLlm(facade, undefined, { effort: "low" });
+    await llm.act("p1", {});
+    await llm.act("p2", { effort: "high" });
+    await createLlm(facade).act("p3", {});
+    deepStrictEqual(facade.calls.map((c) => (c.args[1] as { effort?: string }).effort), ["low", "high", undefined]);
   });
 });

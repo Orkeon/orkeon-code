@@ -1,0 +1,8 @@
+# The repository pack of the vdemo fixture: the roots, the trait and the build outputs the
+# recording gave the harness gate as --roots "src tests" --trait BR --build-outputs "bin obj".
+layout:
+  domain: src
+  tests: tests
+  build_outputs: [bin, obj]
+tests:
+  rule_trait: BR

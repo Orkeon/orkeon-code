@@ -44,7 +44,7 @@ const WHISPER_SCRIPT = [
 const whisper = spawnSync("python3", ["-I", "-c", WHISPER_SCRIPT, join(root, "mcp/whisper/whisper_mcp.py")], { encoding: "utf8" });
 if (whisper.status === 0) {
   prompts.push({
-    id: "13", name: "whisper-mcp-tools", source: "mcp/whisper/whisper_mcp.py",
+    id: String(prompts.length + 1), name: "whisper-mcp-tools", source: "mcp/whisper/whisper_mcp.py",
     callSite: "the REPL connects the server; the assistant sees the tools tools.extra names",
     call: "MCP tool descriptions", inputs: "the server's source, parsed",
     sections: [{ title: "descriptions", role: "text", text: whisper.stdout.trim() }],

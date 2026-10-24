@@ -40,27 +40,8 @@ export function untrackedPaths(status: string): string[] {
   return String(status ?? "").split("\n").filter((line) => line.startsWith("?? ")).flatMap((line) => statusPaths(line));
 }
 
-/** File names that usually hold a secret, and the safe variants of them. */
-const SECRET_EXTENSIONS = [".pem", ".key", ".p12", ".pfx", ".jks", ".keystore"];
-const SECRET_KEY_FILES = /^id_(rsa|dsa|ecdsa|ed25519)(\.|$)/;
-const SAFE_ENV_SUFFIXES = [".example", ".sample", ".template", ".dist"];
-
-/**
- * The paths that usually hold a secret: an env file (but not its example), a key
- * or certificate store, an SSH private key, a credentials file. Committing one by
- * accident is the one mistake `git add -A` makes easy and history keeps forever,
- * so /commit stops before any model call and lets the user decide.
- */
-export function secretLikePaths(paths: readonly string[]): string[] {
-  return paths.filter((path) => {
-    const name = path.split("/").pop() ?? "";
-    const lower = name.toLowerCase();
-    if (lower === ".env" || (lower.startsWith(".env.") && !SAFE_ENV_SUFFIXES.some((s) => lower.endsWith(s)))) return true;
-    if (SECRET_EXTENSIONS.some((ext) => lower.endsWith(ext))) return true;
-    if (SECRET_KEY_FILES.test(lower) && !lower.endsWith(".pub")) return true;
-    return lower === "credentials" || lower === "credentials.json";
-  });
-}
+/** Moved to the shared domain, so the shared memory can reuse it; re-exported for this crew. */
+export { secretLikePaths } from "../../../shared/domain/secret-patterns.ts";
 
 /** The subject line (first line) of a commit message. */
 export function commitSubject(message: string): string {
@@ -138,36 +119,71 @@ export interface CommitPlan {
 /**
  * Builds the confirmation plan.
  *
- * It names `git add -A` explicitly and says what that INCLUDES, because "commit
- * the current changes" reads as "commit what I was working on" while the command
- * stages every untracked file in the tree — the gap between those two readings is
- * the whole reason this gate exists.
+ * It says which files the commit holds — every change the status lists,
+ * untracked files included, or only the paths named — and what stays out (the
+ * work folder), because "commit the current changes" reads as "commit what I was
+ * working on": the gap between the two readings is the reason this gate exists.
  *
  * The drafted subject is NOT here: it comes from an LLM call inside the crew, so
  * showing it first would mean either drafting twice or launching the crew before
  * the confirmation — and the confirmation must precede the launch. The subject is
  * reported on the completion line instead.
  */
-export function buildCommitPlan(branch?: string): CommitPlan {
-  const where = branch && branch.trim().length > 0 ? ` on '${branch.trim()}'` : "";
+export function buildCommitPlan(
+  opts: { branch?: string; push?: boolean; pr?: boolean; paths?: readonly string[] } = {},
+): CommitPlan {
+  const branch = (opts.branch ?? "").trim();
+  const where = branch.length > 0 ? ` on '${branch}'` : "";
+  const paths = opts.paths ?? [];
+  const what = paths.length > 0
+    ? `the changes under ${paths.join(", ")}`
+    : "EVERY change the status lists (untracked files included), the work folder left out";
+  const steps = ["git add -- <files>", "git commit -F <drafted message> -- <files>"];
+  const push = opts.push === true || opts.pr === true;
+  if (push) steps.push("git push -u origin <branch>");
+  // Answering yes to this plan is the question the host gate would ask before the github call (W0-C).
+  if (opts.pr === true) steps.push("github create_pr");
   return {
-    steps: ["git add -A", "git commit -F <drafted message>"],
-    question: `Stage EVERY change${where} and commit?`,
+    steps,
+    question: `Commit ${paths.length > 0 ? "the changes under the paths named" : "EVERY change"}${where}${push ? " and push" : ""}${opts.pr === true ? ", then open the pull request" : ""}?`,
     notice: [
-      `/commit will, ${where ? `on branch '${branch!.trim()}'` : "on the current branch"}:`,
-      "  1. git add -A            — stages every modification AND every untracked file",
-      "  2. draft a Conventional-Commits message with the LLM",
-      "  3. git commit -F <that message>",
-      "A file that usually holds a secret (.env, a private key) stops it before step 1.",
+      `/commit will, ${branch.length > 0 ? `on branch '${branch}'` : "on the current branch"}:`,
+      "  1. check that git has an identity (git var), and stop if it has none",
+      `  2. git add -- <files>    — ${what}`,
+      "  3. draft a Conventional-Commits message with the LLM",
+      "  4. git commit -F <that message> -- <files>   (changes staged elsewhere stay out)",
+      ...(opts.pr === true
+        ? ["  5. git push -u origin <branch>, then open the pull request with the github tool",
+          "     (or print the gh pr create command when it cannot)"]
+        : push ? ["  5. git push -u origin <branch>, then print the pull request command"] : []),
+      "A file that usually holds a secret (.env, a private key) stops it before step 2.",
       "The message is drafted after this confirmation; it is echoed when the commit lands.",
     ].join("\n"),
   };
 }
 
-/** `--yes` / `-y`: the explicit confirm argument that skips the prompt. */
-export function hasExplicitConfirm(tokens: readonly unknown[]): boolean {
-  return (tokens ?? []).some((t) => {
-    const s = String(t ?? "").trim().toLowerCase();
-    return s === "--yes" || s === "-y";
-  });
+export interface CommitArgs { yes: boolean; push: boolean; pr: boolean; paths: string[] }
+
+/**
+ * `/commit [--yes|-y] [--push] [--pr] [<path>...]`. `--pr` asks for the pull
+ * request (Q-10) and so implies the push. An unknown flag is refused rather than
+ * read as a path.
+ */
+export function parseCommitArgs(tokens: readonly unknown[]): { ok: true; args: CommitArgs } | { ok: false; text: string } {
+  const args: CommitArgs = { yes: false, push: false, pr: false, paths: [] };
+  let options = true;
+  for (const raw of tokens ?? []) {
+    const t = String(raw ?? "").trim();
+    if (t.length === 0) continue;
+    // `--` ends the options: what follows is a path, even one that starts with `-`.
+    if (options && t === "--") { options = false; continue; }
+    if (!options) { args.paths.push(t); continue; }
+    const flag = t.toLowerCase();
+    if (flag === "--yes" || flag === "-y") args.yes = true;
+    else if (flag === "--push") args.push = true;
+    else if (flag === "--pr") { args.pr = true; args.push = true; }
+    else if (t.startsWith("-")) return { ok: false, text: `✗ unknown option '${t}'. Usage: /commit [--yes] [--push] [--pr] [<path>...]` };
+    else args.paths.push(t);
+  }
+  return { ok: true, args };
 }

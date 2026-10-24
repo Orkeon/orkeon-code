@@ -11,9 +11,13 @@ import type { ConfigStore } from "../../shared/application/config-store.ts";
 import type { SessionIo } from "../../shared/application/session-io.ts";
 import { configuredNames, resolveExtraTools } from "../../shared/application/extra-tools.ts";
 import { syncPermissionRules } from "../../shared/application/permission-rules.ts";
+import { readMemoryDir } from "../../shared/application/shared-memory/memory-settings.ts";
+import { memoryWriteRules } from "../../shared/domain/shared-memory/layout.ts";
 import { formatRule } from "../../shared/domain/agent-policy/permission.ts";
+import { chainDepthLine, chainDepthRefusal } from "../../shared/domain/agents/chain.ts";
 import { failureText } from "../../shared/domain/prelude.ts";
 import type { EpilogueCall, PreludeCall } from "../../shared/domain/prelude.ts";
+import type { StartOutput } from "../../shared/domain/session-start.ts";
 import { SPEAK_TOOL, VOICE_REPLY_CONFIG_KEY, voiceReplyEpilogue, voiceReplyOn } from "../../shared/domain/speech.ts";
 import {
   EXTRA_TOOLS_CONFIG_KEY, EXTRA_TOOL_ENTRY_RULE, formatExtraTool,
@@ -38,15 +42,29 @@ export interface CrewCompletion {
   error?: string;
 }
 
+/** What a launch hands back to the runtime: the ticket, or the refusal of a hop past MaxChainDepth. */
+export type LaunchResult = { ticket: string } | { refused: string; message: string };
+
 /** Launch a crew on the script-host and return its ticket (async commands). The
- *  launch is logged with the ticket, plus `details` when the caller has any. */
+ *  launch is logged with the ticket, plus `details` when the caller has any. A
+ *  launch from a `completed` past the chain's limit (V-A5, shared/domain/agents/chain.ts)
+ *  comes back as `{ refused }` with the line saying so; any other failure throws. */
 export function launchCrew(
   deps: LaunchDeps,
   crew: string,
   input: Record<string, unknown> = {},
   details: Record<string, unknown> = {},
-): { ticket: string } {
-  const ticket = deps.crews.launch(crew, input);
+): LaunchResult {
+  let ticket: string;
+  try {
+    ticket = deps.crews.launch(crew, input);
+  } catch (error) {
+    const refusal = chainDepthRefusal(error);
+    if (refusal === null) throw error;
+    const line = chainDepthLine(crew, refusal);
+    deps.log.info(line, { ...refusal, ...details });
+    return { refused: line, message: line };
+  }
   deps.log.info(crew + " launched", { ticket, ...details });
   return { ticket };
 }
@@ -70,15 +88,17 @@ export interface MainLoopLaunchDeps extends LaunchDeps {
  *  - the extra tools the host registers, each configured one it does not
  *    register warned about and left out;
  *  - the session's rules, handed to the host gate first, so the turn runs under
- *    the rules the session holds whatever the gate kept from an earlier command.
+ *    the rules the session holds whatever the gate kept from an earlier command,
+ *    then the built-in denies on the shared memory's candidates and entries.
  * A `prelude` (a tool call the crew makes before the turn: /transcribe --then,
  * /voice --go) rides along as it is. With voice.reply on, an epilogue has the crew read the
- * answer aloud with the speech server's speak, when the host registers it.
+ * answer aloud with the speech server's speak, when the host registers it. The start
+ * script's output (`sessionStart`, the first turn of a session) rides along too.
  */
 export async function launchMainLoop(
   deps: MainLoopLaunchDeps,
-  input: { prompt: string; permissionMode: string | null; prelude?: PreludeCall },
-): Promise<{ ticket: string }> {
+  input: { prompt: string; permissionMode: string | null; prelude?: PreludeCall; sessionStart?: StartOutput | null },
+): Promise<LaunchResult> {
   const { session, log } = deps;
   const resolved = input.permissionMode === null ? await session.resolveEffectiveSessionMode() : null;
   const permissionMode = resolved ? resolved.mode : input.permissionMode;
@@ -97,7 +117,11 @@ export async function launchMainLoop(
     log.warn(`${EXTRA_TOOLS_CONFIG_KEY} could not be read (${extras.unreadable}): no extra tool this turn`);
   }
 
-  const sync = await syncPermissionRules({ session, gate: deps.gate, extraNames: configuredNames(extras) });
+  const builtIn = memoryWriteRules((await readMemoryDir(deps.config)).dir);
+  const sync = await syncPermissionRules({ session, gate: deps.gate, extraNames: configuredNames(extras), builtIn });
+  for (const rule of sync.overridden) {
+    log.warn(`permission rule '${formatRule(rule)}' is left out of the gate: no tool of the model writes the shared memory's candidates or entries`);
+  }
   for (const rule of sync.dormant) {
     log.warn(
       `permission rule '${rule}' is dormant: ${EXTRA_TOOLS_CONFIG_KEY} does not list its tool, the gate does not get it`,
@@ -119,11 +143,13 @@ export async function launchMainLoop(
       extraTools: extras.present.map(formatExtraTool),
       ...(input.prelude ? { prelude: input.prelude } : {}),
       ...(epilogue ? { epilogue } : {}),
+      ...(input.sessionStart ? { sessionStart: input.sessionStart } : {}),
     },
     {
       permissionMode, permissionRules: sync.rules.length, extraTools: extras.present.length,
       ...(input.prelude ? { prelude: input.prelude.tool } : {}),
       ...(epilogue ? { epilogue: epilogue.tool } : {}),
+      ...(input.sessionStart ? { sessionStartLines: input.sessionStart.lines.length } : {}),
     },
   );
 }

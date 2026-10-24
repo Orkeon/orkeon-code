@@ -1,0 +1,17 @@
+{
+  "changedFiles": [
+    "src/commands/_lib/memory.ts",
+    "src/shared/domain/memory-prune.test.ts",
+    "src/shared/domain/memory-prune.ts",
+    "src/shared/domain/memory.ts",
+    "tests/commands-memory.test.ts",
+    "tests/support/fake-memory-store.ts"
+  ],
+  "traitHits": [
+    "src/shared/domain/memory-prune.test.ts:8:[Trait(\"covers\", \"BR-01\")]",
+    "src/shared/domain/memory-prune.test.ts:31:[Trait(\"covers\", \"BR-02\")]",
+    "tests/commands-memory.test.ts:64:[Trait(\"covers\", \"BR-03\")]",
+    "tests/commands-memory.test.ts:65:[Trait(\"covers\", \"UC-01\")]"
+  ],
+  "diffCheckExit": 0
+}

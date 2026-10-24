@@ -13,6 +13,7 @@
 
 declare const agentBuilder: () => any;
 declare const crewBuilder: () => any;
+declare const toolBuilder: () => ToolBuilder<unknown, unknown>;
 
 /** `tools.<camelCase>(args)` namespace bridging IBaseTool implementations, as the
  *  generated typings declare it: every built-in tool typed (Orkeon #125). */
@@ -21,6 +22,12 @@ export const Tools: OrkeonTools = tools;
 export const AgentBuilder: () => any = agentBuilder;
 /** Domain DSL: build a crew. */
 export const CrewBuilder: () => any = crewBuilder;
+/** Domain DSL: build a tool Orkeon Code defines (orkeon/script-tools.ts). */
+export const ToolBuilder: () => ToolBuilder<unknown, unknown> = toolBuilder;
+
+/** The RAG namespace (`rag.retrieve`, `rag.ingest`), or undefined when the host declares none (it needs
+ *  AddOrkeonRag): orkeon/shared-memory.ts then calls the rag_search and rag_ingest tools. */
+export const Rag: typeof rag | undefined = typeof rag === "undefined" ? undefined : rag;
 
 /** Typed accessor for `globalThis.inputs` (crew/command invocation payload).
  *

@@ -5,7 +5,7 @@
 // writeCompleted, the line its completion writes. Run:
 //   node --test tests/commands-dispatch.test.ts
 import { describe, it } from "node:test";
-import { deepStrictEqual, strictEqual } from "node:assert";
+import { deepStrictEqual, strictEqual, throws } from "node:assert";
 
 import { parseAssistantInput } from "../src/commands/_lib/args.ts";
 import { launchCrew, launchMainLoop, writeCompleted } from "../src/commands/_lib/dispatch.ts";
@@ -16,7 +16,10 @@ import { loadCatalogue, runMainLoop } from "../src/crews/main-loop/application/r
 import type { MainLoopInputs } from "../src/crews/main-loop/application/run-main-loop.ts";
 import { createConfigStore } from "../src/shared/application/config-store.ts";
 import { createSessionIo } from "../src/shared/application/session-io.ts";
-import { toolsetFor } from "../src/shared/domain/agent-policy/permission.ts";
+import { chainDepthLine } from "../src/shared/domain/agents/chain.ts";
+import { ruleDecision, toolsetFor } from "../src/shared/domain/agent-policy/permission.ts";
+import { PATH_WRITE_TOOLS } from "../src/shared/domain/agent-policy/rule-sets.ts";
+import { PERMISSION_MODES } from "../src/shared/domain/permission-modes.ts";
 import { resolveFallbackMode } from "../src/shared/domain/permission-modes.ts";
 import { DEFAULT_MODE_STATE_KEY, PERMISSION_RULES_STATE_KEY } from "../src/shared/domain/session-keys.ts";
 import { FakeCrewHost } from "./support/fake-crew-host.ts";
@@ -30,6 +33,12 @@ import { FakeSessionStore } from "./support/fake-session-store.ts";
 import { FakeShell } from "./support/fake-shell.ts";
 import { FakeTelemetry } from "./support/fake-telemetry.ts";
 import { FakeToolCatalogue } from "./support/fake-tool-catalogue.ts";
+import { DEFAULT_MEMORY_DIR, memoryWriteRules } from "../src/shared/domain/shared-memory/layout.ts";
+import { gateLine as memoryGateLine } from "../src/shared/domain/agent-policy/permission.ts";
+
+/** The built-in denies every sync adds after the session's rules: no model tool writes the memory's candidates or entries. */
+const MEMORY_LINES = memoryWriteRules(DEFAULT_MEMORY_DIR).map(memoryGateLine);
+const MEMORY_GATE = MEMORY_LINES.map((line) => `add ${line}`);
 
 function setup() {
   const crews = new FakeCrewHost();
@@ -74,6 +83,17 @@ describe("launchCrew", () => {
       data: { ticket: "ticket-1", permissionMode: "(session default)", permissionRules: 0 },
     }]);
   });
+
+  it("turns a hop past the chain's limit into a refusal that says so (V-A5), and lets any other failure throw", () => {
+    const { crews, deps, logged } = setup();
+    crews.launch = () => { throw new Error("Async command chain refused at depth 9, limit 8."); };
+    const result = launchCrew(deps, "dev-verify", {}, { batch: "b1" });
+    const line = chainDepthLine("dev-verify", { depth: 9, limit: 8 });
+    deepStrictEqual(result, { refused: line, message: line });
+    deepStrictEqual(logged[0].data, { depth: 9, limit: 8, batch: "b1" });
+    crews.launch = () => { throw new Error("crew not found"); };
+    throws(() => launchCrew(deps, "dev-verify"), /crew not found/);
+  });
 });
 
 describe("launchMainLoop", () => {
@@ -97,7 +117,7 @@ describe("launchMainLoop", () => {
     );
     const ticket = await launchMainLoop(deps, { prompt: "fix it", permissionMode: null });
     deepStrictEqual(ticket, { ticket: "ticket-1" });
-    const handed = ["clear", "add deny file_write", "add allow shell_command command=npm test*"];
+    const handed = ["clear", "add deny file_write", "add allow shell_command command=npm test*", ...MEMORY_GATE];
     deepStrictEqual(crews.gateAtLaunch, handed);
     deepStrictEqual(gate.calls, handed);
     deepStrictEqual(crews.launches, [{
@@ -117,6 +137,41 @@ describe("launchMainLoop", () => {
     deepStrictEqual(warned, []);
   });
 
+  it("denies every tool of the model a write under the memory's candidates and entries, in every mode", async () => {
+    for (const mode of PERMISSION_MODES) {
+      const { gate, crews, deps } = mainLoopSetup("allow file_write");
+      await launchMainLoop(deps, { prompt: "go", permissionMode: mode });
+      deepStrictEqual(crews.gateAtLaunch, ["clear", "add allow file_write", ...MEMORY_GATE], mode);
+      for (const tool of PATH_WRITE_TOOLS) {
+        for (const path of [
+          "/workspace/.orkeon/memory/entries/mistake/x.md", ".orkeon/memory/entries/method/x.md",
+          "/workspace/.orkeon/memory/candidates/x.md", ".orkeon/memory/candidates/x.md",
+        ]) {
+          strictEqual(ruleDecision(gate.rules, tool, { path, content: "status: admitted" }), "deny", `${mode} ${tool} ${path}`);
+        }
+      }
+      strictEqual(ruleDecision(gate.rules, "file_write", { path: ".orkeon/memory/refused.md" }), "allow", mode);
+    }
+  });
+
+  it("puts the guard on the memory.dir the settings name", async () => {
+    const { gate, config, deps } = mainLoopSetup();
+    await config.writeSession({ "memory.dir": "docs/memory" });
+    await launchMainLoop(deps, { prompt: "go", permissionMode: "acceptEdits" });
+    strictEqual(ruleDecision(gate.rules, "file_write", { path: "docs/memory/entries/decision/x.md" }), "deny");
+    strictEqual(ruleDecision(gate.rules, "file_write", { path: ".orkeon/memory/entries/decision/x.md" }), undefined);
+  });
+
+  it("forwards the start script's output to the crew, and says how many lines it has", async () => {
+    const { crews, logged, deps } = mainLoopSetup();
+    const sessionStart = { script: "/tmp/orkeon-code/session-start.sh", lines: ["a", "b"] };
+    await launchMainLoop(deps, { prompt: "hello", permissionMode: null, sessionStart });
+    deepStrictEqual(crews.launches[0].input?.sessionStart, sessionStart);
+    strictEqual((logged[0].data as { sessionStartLines?: number }).sessionStartLines, 2);
+    await launchMainLoop(deps, { prompt: "again", permissionMode: null, sessionStart: null });
+    strictEqual("sessionStart" in (crews.launches[1].input ?? {}), false);
+  });
+
   it("resolves the session's mode when the request names none, and passes a named one as is", async () => {
     const { crews, store, deps } = mainLoopSetup();
     store.state.set(DEFAULT_MODE_STATE_KEY, "acceptEdits");
@@ -131,7 +186,7 @@ describe("launchMainLoop", () => {
   it("empties the gate when the session holds no rules", async () => {
     const { gate, crews, deps } = mainLoopSetup();
     await launchMainLoop(deps, { prompt: "summarise", permissionMode: "plan" });
-    deepStrictEqual(gate.calls, ["clear"]);
+    deepStrictEqual(gate.calls, ["clear", ...MEMORY_GATE]);
     deepStrictEqual(crews.launches[0].input, {
       prompt: "summarise", permissionMode: "plan", permissionRules: [], extraTools: [],
     });
@@ -159,7 +214,7 @@ describe("launchMainLoop", () => {
     deepStrictEqual(crews.launches[0].input, {
       prompt: "go", permissionMode: "default", permissionRules: ["deny file_write"], extraTools: [],
     });
-    deepStrictEqual(gate.calls, ["clear", "add deny file_write"]);
+    deepStrictEqual(gate.calls, ["clear", "add deny file_write", ...MEMORY_GATE]);
     deepStrictEqual(warned, [
       "tools.extra could not be read (/workspace/.orkeon/config.json could not be read or parsed): no extra tool this turn",
       "permission rule 'deny create_issue' is dormant: tools.extra does not list its tool, the gate does not get it",
@@ -184,7 +239,7 @@ describe("launchMainLoop", () => {
       permissionRules: ["deny gone_tool", "allow search_issues query=bug*"],
       extraTools: ["transcribe_audio:read", "search_issues:write"],
     });
-    deepStrictEqual(gate.calls, ["clear", "add deny gone_tool", "add allow search_issues query=bug*"]);
+    deepStrictEqual(gate.calls, ["clear", "add deny gone_tool", "add allow search_issues query=bug*", ...MEMORY_GATE]);
     const rule = "each entry is <name>[:read|:write], a tool that is not built in, named once";
     deepStrictEqual(warned, [
       "extra tool 'gone_tool' is not registered by the host and is left out " +
@@ -285,6 +340,7 @@ describe("/mode plan, then a request without a mode: prefix", () => {
     deepStrictEqual(loaded.catalogue.tools, toolsetFor("plan"));
 
     const llm = new FakeLlm();
+    llm.answers = ["the cache layer, explained"]; // a blank answer would be sent back once (stop chain)
     const log = new FakeLogger();
     const run = new FakeRunState();
     run.fields = { [BREAKER_RUN_FIELD]: 0 };

@@ -8,6 +8,10 @@
   href: configuration.md
 - name: Permissions
   href: permissions.md
+- name: Shared memory
+  href: shared-memory.md
+- name: Hooks
+  href: hooks.md
 - name: Slash commands
   href: commands.md
 - name: Architecture
@@ -28,3 +32,5 @@
       href: adr/0002-orkeon-rc6.md
     - name: "ADR 0003: Prompts from a behaviour specification"
       href: adr/0003-prompts-from-a-behaviour-specification.md
+    - name: "ADR 0004: Orkeon main after #180, on the rc.6 pin"
+      href: adr/0004-orkeon-after-180.md

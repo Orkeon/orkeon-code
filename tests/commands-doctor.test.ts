@@ -3,11 +3,15 @@
 // verdict line. Run:
 //   node --test tests/commands-doctor.test.ts
 import { describe, it } from "node:test";
-import { strictEqual, deepStrictEqual } from "node:assert";
+import { ok, strictEqual, deepStrictEqual } from "node:assert";
 
-import { ESSENTIAL_TOOLS, FAIL, PASS, WARN, runDoctor } from "../src/commands/_lib/doctor.ts";
+import { ESSENTIAL_TOOLS, FAIL, OLD_SESSIONS_DIR, PASS, VERSION_DETAIL, WARN, runDoctor } from "../src/commands/_lib/doctor.ts";
+import { CLI_VERSION, ORKEON_RUNTIME_VERSION } from "../src/commands/_lib/meta.ts";
+import type { ConfigResolution } from "../src/shared/domain/config-schema.ts";
 import type { DoctorRow } from "../src/commands/_lib/doctor.ts";
 import { CODE_INTEL_TOOLS } from "../src/shared/domain/code-intel-contract.ts";
+import { CONFIG_FILE_PATH, createConfigStore } from "../src/shared/application/config-store.ts";
+import { FakeSessionStore } from "./support/fake-session-store.ts";
 import { FakeFiles } from "./support/fake-files.ts";
 import { FakeShell } from "./support/fake-shell.ts";
 import { FakeTelemetry } from "./support/fake-telemetry.ts";
@@ -26,13 +30,18 @@ function setup() {
   const catalogue = new FakeToolCatalogue();
   for (const t of [...ESSENTIAL_TOOLS, ...CODE_INTEL_TOOLS]) catalogue.tools.set(t, {});
   const files = new FakeFiles();
-  files.mountTable = [{ path: "/workspace", rights: "rw" }, { path: "/crews", rights: "r" }];
+  files.mountTable = [{ path: "/workspace", rights: "rw" }, { path: "/crews", rights: "ro" }];
+  const ignored = new Map<string, ConfigResolution["ignored"]>();
+  const config = {
+    readValue: async (key: string): Promise<ConfigResolution> =>
+      ({ key, value: undefined, source: "unset", ...(ignored.has(key) ? { ignored: ignored.get(key) } : {}) }),
+  };
   const run = async () => {
-    const view = await runDoctor({ shell, telemetry, catalogue, files });
+    const view = await runDoctor({ shell, telemetry, catalogue, files, config });
     const rows = new Map((view.table as DoctorRow[]).map((r) => [r.check, r]));
     return { view, rows };
   };
-  return { shell, telemetry, catalogue, files, run };
+  return { shell, telemetry, catalogue, files, ignored, run };
 }
 
 describe("/doctor — a healthy host", () => {
@@ -41,6 +50,7 @@ describe("/doctor — a healthy host", () => {
     const { view } = await run();
     const tools = new Set([...ESSENTIAL_TOOLS, ...CODE_INTEL_TOOLS]).size;
     deepStrictEqual(view.table, [
+      { check: "version", result: PASS, detail: VERSION_DETAIL },
       { check: "toolchain: node", result: PASS, detail: "v24.1.0" },
       { check: "toolchain: git", result: PASS, detail: "git version 2.47.0" },
       { check: "toolchain: dotnet", result: PASS, detail: "10.0.100" },
@@ -48,10 +58,27 @@ describe("/doctor — a healthy host", () => {
       { check: "llm: declared catalogue", result: PASS, detail: "kimi-k3, deepseek-chat" },
       { check: "tools: essential", result: PASS, detail: `${tools} registered, all ${ESSENTIAL_TOOLS.length} essentials present` },
       { check: "tools: code intelligence", result: PASS, detail: `all ${CODE_INTEL_TOOLS.length} present` },
-      { check: "vfs: mounts", result: PASS, detail: "/workspace(rw) /crews(r)" },
+      { check: "vfs: mounts", result: PASS, detail: "/workspace(rw) /crews(ro)" },
+      { check: "sessions: outside the project", result: PASS, detail: "nothing in .orkeon/sessions" },
+      { check: "settings: project file", result: PASS, detail: "widens nothing" },
     ]);
     strictEqual(view.text, "all checks passed.");
     deepStrictEqual(shell.commands, ["node --version", "git --version", "dotnet --version"]);
+  });
+});
+
+describe("/doctor — a project value set aside", () => {
+  it("names a permissions.fallback the project file cannot set, as /permissions does, and nothing when there is none", async () => {
+    const { shell, telemetry, catalogue, files } = setup();
+    const config = createConfigStore({ files, session: new FakeSessionStore() });
+    const quiet = await runDoctor({ shell, telemetry, catalogue, files, config });
+    strictEqual((quiet.table as DoctorRow[]).find((r) => r.check === "settings: project file")?.result, PASS);
+    files.files.set(CONFIG_FILE_PATH, JSON.stringify({ "permissions.fallback": "bypassPermissions" }));
+    const view = await runDoctor({ shell, telemetry, catalogue, files, config });
+    const row = (view.table as DoctorRow[]).find((r) => r.check === "settings: project file");
+    strictEqual(row?.result, WARN);
+    ok(row!.detail.startsWith("the project file sets permissions.fallback 'bypassPermissions': ignored, "), row!.detail);
+    strictEqual(view.text, "all checks passed, 1 warning(s).");
   });
 });
 
@@ -90,12 +117,21 @@ describe("/doctor — failures and warnings", () => {
     });
   });
 
+  it("passes a /workspace the host spells rwnd (writable, no delete)", async () => {
+    const { files, run } = setup();
+    files.mountTable = [{ path: "/workspace", rights: "rwnd" }];
+    deepStrictEqual((await run()).rows.get("vfs: mounts"), { check: "vfs: mounts", result: PASS, detail: "/workspace(rwnd)" });
+  });
+
   it("fails a read-only or absent /workspace, and shows unknown rights as '?'", async () => {
     const { files, run } = setup();
-    files.mountTable = [{ path: "/workspace", rights: "r" }, { path: "/tmp" }];
+    files.mountTable = [{ path: "/workspace", rights: "ro" }, { path: "/tmp" }];
     deepStrictEqual((await run()).rows.get("vfs: mounts"), {
-      check: "vfs: mounts", result: FAIL, detail: "/workspace(r) /tmp(?)  ← /workspace is missing or not writable",
+      check: "vfs: mounts", result: FAIL, detail: "/workspace(ro) /tmp(?)  ← /workspace is missing or not writable",
     });
+    // Rights outside the mount grammar (the enum's own name) are not read as writable.
+    files.mountTable = [{ path: "/workspace", rights: "Write" }];
+    strictEqual((await run()).rows.get("vfs: mounts")!.result, FAIL);
     files.mountTable = [];
     strictEqual((await run()).rows.get("vfs: mounts")!.detail, "(none)  ← /workspace is missing or not writable");
   });
@@ -105,6 +141,39 @@ describe("/doctor — failures and warnings", () => {
     files.mountsFailure = new Error("listMounts is not a function\nstack");
     deepStrictEqual((await run()).rows.get("vfs: mounts"), {
       check: "vfs: mounts", result: WARN, detail: "list_mounts unavailable: listMounts is not a function",
+    });
+  });
+});
+
+describe("/doctor — sessions left in the project", () => {
+  it("names a .orkeon/sessions folder of an older start, and leaves it alone", async () => {
+    const { files, run } = setup();
+    files.listings.set(OLD_SESSIONS_DIR, ["code-1a2b3c4d5e6f"]);
+    const row = (await run()).rows.get("sessions: outside the project")!;
+    strictEqual(row.result, WARN);
+    ok(row.detail.startsWith("/workspace/.orkeon/sessions holds sessions of an older start, left alone"), row.detail);
+    deepStrictEqual(files.writes, []);
+  });
+
+  it("passes when the folder cannot be listed (absent)", async () => {
+    const { files, run } = setup();
+    files.list = async () => { throw new Error("directory not found"); };
+    strictEqual((await run()).rows.get("sessions: outside the project")!.result, PASS);
+  });
+});
+
+describe("/doctor — the version and the project values set aside (LI-1, LI-6)", () => {
+  it("names Code's version and the Orkeon it expects", () => {
+    ok(VERSION_DETAIL.includes(CLI_VERSION) && VERSION_DETAIL.includes(`Orkeon expected ${ORKEON_RUNTIME_VERSION}`), VERSION_DETAIL);
+  });
+
+  it("warns on a project value that would widen, with why it is ignored", async () => {
+    const { ignored, run } = setup();
+    ignored.set("permissions.fallback", { value: "bypassPermissions", reason: "a project file may only narrow it" });
+    const { rows } = await run();
+    deepStrictEqual(rows.get("settings: project file"), {
+      check: "settings: project file", result: WARN,
+      detail: "the project file sets permissions.fallback 'bypassPermissions': ignored, a project file may only narrow it",
     });
   });
 });

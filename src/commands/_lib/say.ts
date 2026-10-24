@@ -13,7 +13,7 @@ import { failureText, resultText } from "../../shared/domain/prelude.ts";
 import { SPEAK_TOOL } from "../../shared/domain/speech.ts";
 import { commandLine, isOption, optionValue, splitWords } from "./args.ts";
 import { launchCrew } from "./dispatch.ts";
-import type { LaunchDeps } from "./dispatch.ts";
+import type { LaunchDeps, LaunchResult } from "./dispatch.ts";
 import { missingToolMessage } from "./transcribe.ts";
 
 export const STOP_TOOL = "stop_speaking";
@@ -64,7 +64,7 @@ export type SayDeps = LaunchDeps & {
 };
 
 /** Launch the reading and return its ticket, or the message to show when it launches nothing. */
-export async function dispatchSay(tokens: readonly string[], deps: SayDeps): Promise<{ ticket: string } | { message: string }> {
+export async function dispatchSay(tokens: readonly string[], deps: SayDeps): Promise<LaunchResult | { message: string }> {
   const parsed = parseSayArgs(tokens);
   if (!parsed.ok) return { message: `${parsed.error}\n${SAY_USAGE}` };
   const { request } = parsed;

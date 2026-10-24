@@ -1,6 +1,12 @@
-# gitleaks configuration: the default ruleset, nothing allowlisted yet.
+# gitleaks configuration: the default ruleset, plus the reviewed false positives below.
 # A reviewed false positive is allowlisted by exact path, with a comment saying why.
 title = "orkeon-code"
 
 [extend]
 useDefault = true
+
+[[allowlists]]
+description = "Fake secrets the 'secrets' rule set must refuse: test fixtures, not credentials"
+paths = [
+  '''^src/shared/domain/agent-policy/rule-sets\.test\.ts$''',
+]

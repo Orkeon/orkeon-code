@@ -30,9 +30,10 @@ LLM output triggers tool calls. Treat the agent as an untrusted operator with th
   script it runs reaches by itself is outside that check.
 - **Where the shell runs.** In docker mode, inside the container: the host directories it can write are the
   project and the state directory (`.crew-output/` by default, `ORKEON_CODE_STATE`), which backs `/output` and `/tmp`;
-  the Orkeon Code sources and the settings file are mounted read-only. In tool and source modes, on your machine as your user, with no OS-level confinement beyond the allow-list,
-  unless you turn on Orkeon's bubblewrap confinement (Linux only): with `Orkeon:Tools:Shell:Confinement:Mode` set to
-  `Bubblewrap`, each command runs under `bwrap` in a view built from the mounts (each at its virtual path, the system
+  the Orkeon Code sources and the settings file are mounted read-only. In tool and source modes, on your machine as your user. Orkeon's confinement,
+  `Orkeon:Tools:Shell:Confinement:Mode`, is `Auto` by default (bubblewrap on Linux, Seatbelt on macOS, AppContainer
+  on Windows, none inside a container); the example settings set it to `None`, which leaves no OS-level confinement
+  beyond the allow-list. Under bubblewrap (`Auto` on Linux, or `Bubblewrap`), each command runs under `bwrap` in a view built from the mounts (each at its virtual path, the system
   directories read-only, nothing else of the host) with the network off unless `Confinement:AllowNetwork` is `true`.
   A program installed outside the system directories (`/opt`, `nvm`, a `.dotnet` folder) needs its folder in
   `Confinement:ReadOnlyPaths`. Where `bwrap` cannot confine the command (another OS, `bwrap` missing, user namespaces

@@ -1,0 +1,169 @@
+# Repository pack of Orkeon/orkeon: the values the generic skills read (profiles/README.md,
+# "Repository pack"). Every value was read in the sources of Orkeon main at acd59d6
+# (2026-10-20; between e258730 and acd59d6, of the files cited below, CONTRIBUTING.md alone changes - one
+# line of its testing conventions, a test that awaits a script engine waits under HangGuards.EnginePromise
+# (GAP-57), carried into the orkeon-tests rule - and .github/ only bumps codeql.yml's actions and reworks
+# quickstart.yml; between 63be532 and e258730 none of them changed, nor between fa46bb5
+# and 63be532 - CLAUDE.md,
+# CONTRIBUTING.md, .github/, global.json, Directory.Build.props and .gitignore are the same; between 13461ea
+# and 63be532 none of them changed either - that commit adds to
+# integration.yml two jobs, seatbelt on macOS and appcontainer-windows, beside the Linux sweep test_integration
+# replays unchanged; between f59446b and 13461ea, of the files cited below, the workflows take the SDK from
+# global.json through setup-dotnet v6 (no command changes), release.yml adds the editor typings asset
+# orkeon-typings-<version>.tar.gz and pushes orkeon-runners for linux/amd64 and linux/arm64, CLAUDE.md
+# counts 102 tool classes and 49/37 projects and drops ApiResponse<T> from the *Response suffix, and
+# CONTRIBUTING.md counts 11 tool packs (Drive) and the drive family as a third scope exception;
+# between 5668c54 and f59446b, of the files cited below, src/Directory.Build.props moves to rc.5, coverage.yml and
+# scripts/sonar-analyze.sh pass dotnet-coverage.settings.xml to dotnet-coverage, CLAUDE.md names rc.5 and CONTRIBUTING.md counts
+# 104 examples, and ci.yml and release.yml only bump actions; between 23f4eae and 5668c54 only tests/core/Orkeon.Domain.Tests/Common/AggregateRootTests.cs changed, and between ad6dc63 and 5668c54 none of the files cited below changed - only CHANGELOG.md,
+# the backstage submodule, scripts/check-console-urls.py and the installer's appsettings.sample.json -
+# and the citations name CLAUDE.md's sections as at ad6dc63, where it was cut to 89 lines); the file it comes from is named beside it. What could not be checked there is
+# left out, and listed at the end: a skill asks for a missing key once and names it.
+product: Orkeon
+origin: github.com/Orkeon/orkeon
+docs: https://orkeon.github.io/orkeon/                 # CONTRIBUTING.md "Release Process" step 7
+layout:                                                # CONTRIBUTING.md "Project Structure"
+  domain: src/core/Orkeon.Domain
+  application: src/core/Orkeon.Application
+  infrastructure: src/core/Orkeon.Infrastructure
+  tests: tests                                         # tests/<zone>/<Project>.Tests
+  # CLAUDE.md "Architecture map": "backstage/ (private submodule): project management. Tasks are
+  # backstage/tasks/<PREFIX>-<NN>-<slug>.md, never a root todo/". The artefacts of the workflows
+  # (<work>/<code>/) go there, the same value as the pack's switch HARNESS_WORK_DIR (D69); git sees
+  # them, the user commits them in the submodule. Absent from the checkout (the submodule not
+  # checked out): todo/ applies.
+  work: backstage/tasks
+  # Directory.Build.props line 36 at acd59d6: RestorePackagesPath = $(MSBuildThisFileDirectory)packages,
+  # ignored by .gitignore (**/[Pp]ackages/*); CLAUDE.md "Network constraints": "a worktree links its
+  # packages there". A worktree the harness creates links this folder to the main checkout's, so
+  # that one restore serves every worktree (worktree-create.sh, D70).
+  shared: [packages]
+  # .gitignore at acd59d6: [Bb]in/ and [Oo]bj/. The audit gate searches the sources by git grep
+  # --untracked, which skips them already; named here, they stay excluded whatever .gitignore says
+  # (audit-capture.sh --build-outputs, 2026-10-14: a grep -r of the built worktree read 25 to 30 GB).
+  build_outputs: [bin, obj]
+  # The disk one built worktree takes (2026-10-13, GAP-43-44: 25 to 30 GB of bin/ and obj/ over 84
+  # projects; removing the worktrees of F1 to F5 freed about 150 GB). /dev-batches warns before a launch
+  # when less than two of them fit (worktree-create.sh --space).
+  worktree_gb: 30
+commands:
+  # One restore per batch (plan B, B7, 2026-10-12): the orchestrator of a dev batch runs it once at
+  # the batch's entry (or the WorktreeCreate hook, for a dev-batch agent), and everything the chain
+  # runs after it carries --no-restore or --no-build; a role subagent never restores
+  # (guard-restore). The network is touched here only, for what the image's NUGET_PACKAGES cache
+  # lacks; -p:NuGetAudit=false skips the download of the vulnerability database at every batch, the
+  # audit staying with the CI (ci.yml restores without the switch).
+  restore: dotnet restore Orkeon.sln -p:NuGetAudit=false
+  # ci.yml build-test: a Release build with -warnaserror (the solution is kept at zero warnings),
+  # after the restore above - a skill that runs `build` alone on a cold checkout runs `restore` first.
+  build: dotnet build Orkeon.sln -c Release --no-restore -warnaserror
+  # The two commands of a RED or GREEN cycle (B1): the test project alone, never the solution.
+  # <test project> is the folder of the test project the sheet's step names (tests/<zone>/<Project>.Tests,
+  # the folder of the test class path of `## Anchors`), <Class> the test class; the orchestrator
+  # substitutes both when it writes a contract, no role searches for them.
+  build_test: dotnet build <test project> -c Release --no-restore
+  test_class: dotnet test <test project> -c Release --no-build --filter "FullyQualifiedName~<Class>"
+  # ci.yml build-test; the filter CONTRIBUTING.md "Development Setup" explains.
+  test: dotnet test Orkeon.sln -c Release --no-build --filter "Category!=Integration&Category!=Slow"
+  # The fast suite of one test project (2026-10-14): run once per batch, the whole suite above; every
+  # later run of the batch (a red suite fixed, a correction of the audit) runs this on each test project
+  # dev-implement's affected-tests.py prints - the projects the batch changed and those depending on them.
+  # A project whose tests are all Integration or Slow matches nothing: Microsoft.Testing.Platform exits 8
+  # on an empty filter (CONTRIBUTING.md "Development Setup"), hence the switch.
+  test_project: dotnet test <test project> -c Release --no-build --filter "Category!=Integration&Category!=Slow" -- --ignore-exit-code 8
+  # CONTRIBUTING.md "Development Setup": Docker required; exit 8 = a module with no test of
+  # either category.
+  test_integration: dotnet test Orkeon.sln -c Release --no-build --filter "Category=Integration|Category=Slow" -- --ignore-exit-code 8
+  # coverage.yml: dotnet-coverage 18.11.0 around the fast suites, with dotnet-coverage.settings.xml (since
+  # f59446b: Orkeon's own assemblies only, no package that ships its PDB), ReportGenerator 5.5.11 with
+  # the same assembly filters. Two changes: the tools live outside the checkout (coverage.yml's
+  # .tools/ is not ignored by git, coverage/ is), and the summary is TextSummary
+  # (coverage/report/Summary.txt) instead of the run page.
+  coverage: >-
+    T="${XDG_CACHE_HOME:-$HOME/.cache}/quality-tools";
+    { test -x "$T/dotnet-coverage" || dotnet tool install --tool-path "$T" dotnet-coverage --version 18.11.0; } &&
+    { test -x "$T/reportgenerator" || dotnet tool install --tool-path "$T" dotnet-reportgenerator-globaltool --version 5.5.11; } &&
+    "$T/dotnet-coverage" collect --settings dotnet-coverage.settings.xml
+    --output coverage/coverage.cobertura.xml --output-format cobertura
+    -- dotnet test Orkeon.sln -c Release --no-build --filter "Category!=Integration&Category!=Slow" &&
+    "$T/reportgenerator" -reports:coverage/coverage.cobertura.xml -targetdir:coverage/report
+    -reporttypes:TextSummary "-assemblyfilters:-*.Tests;-Orkeon.Tests.Shared;-Orkeon.Examples*"
+  # scripts/sonar-analyze.sh header: SONAR_TOKEN required, SONAR_HOST_URL (default
+  # localhost:9000); SONAR_NO_DOCKER=1 forbids its docker-compose fallback. It writes
+  # sonarqube/sonarqube-report-<date>.md (ignored by git) and exits non-zero on a failed gate.
+  sonar: SONAR_NO_DOCKER=1 bash scripts/sonar-analyze.sh
+  docs_checks:                                         # ci.yml build-test, docs.yml build
+    - bash scripts/check-docs-parity.sh
+    - python3 scripts/check-doc-claims.py
+    - docfx metadata docfx.json && docfx build docfx.json --warningsAsErrors   # after a Release build
+  release_readiness: python3 scripts/check-release-readiness.py   # CONTRIBUTING.md step 6
+  # CLAUDE.md "Other rules": Orkeon.Scripting.Cli (src/scripting/) is the `orkeon` dotnet tool,
+  # AssemblyName=orkeon (CONTRIBUTING.md "Project Structure" says the same); `dotnet run` on that
+  # project runs the CLI from the checkout, and it is the one orkeon-update.sh packs as the `orkeon`
+  # tool. On a source profile the `orkeon` of the PATH is
+  # the image's build, refused by guard-source-cli (D67): this command replaces it, typed from the
+  # top of the checkout, the subcommand and its arguments behind the `--`.
+  cli: dotnet run --project src/scripting/Orkeon.Scripting.Cli --
+tests:
+  # [Trait("BR", "BR-nn")] on a test the dev chain writes for a rule or a use case of a spec, one
+  # per id, beside the category traits Orkeon's tests already carry ([Trait("Category", ...)],
+  # CLAUDE.md "Commands"): the audit gate reads it (dev-verify, audit-capture.sh --trait).
+  rule_trait: BR
+tools:
+  access_cost:
+    # The ports access-cost.py counts, beyond its naming heuristic (repository, service, provider,
+    # store, client...): the fields the Application layer injects at acd59d6 whose name says nothing
+    # of IO - _fs (IFileSystemService), _toolInvocation (IToolInvocationPipeline), _checkpointManager,
+    # _memoryCoordinator, _shortTerm / _longTerm (memory), _executionOrchestrator, _llm*, _embedding*,
+    # the A2A and event hub clients. Matched case-insensitively on the receiver of an `await`.
+    receivers: 'toolInvocation|checkpoint|coordinator|orchestrator|shortTerm|longTerm|llm|embedding|a2a|eventHub'
+    roots: [src]                                       # what --diff scans (every project is under src/)
+contrib:
+  branch: "feature|fix|chore/<slug>"                   # CLAUDE.md "Branching: never start work on main"
+  commit: "type(scope): summary"                       # CONTRIBUTING.md "Scripts and commits"
+  issue_templates:                                     # .github/ISSUE_TEMPLATE/
+    bug: .github/ISSUE_TEMPLATE/bug_report.yml
+    docs: .github/ISSUE_TEMPLATE/documentation.yml
+    feature: .github/ISSUE_TEMPLATE/feature_request.yml
+  pr_template: .github/PULL_REQUEST_TEMPLATE.md
+  checklist:   # PULL_REQUEST_TEMPLATE.md "Checklist"; branch: CLAUDE.md; comments, commits: CONTRIBUTING.md
+    - The branch is not main and follows feature|fix|chore/<slug>
+    - dotnet build Orkeon.sln -warnaserror is green; a new public API is declared in its project's PublicAPI.Unshipped.txt (RS0016/RS0017)
+    - A changed public signature also builds examples/Orkeon.Examples.sln with -warnaserror
+    - Tests added or updated for a behaviour change, and the fast suite passes (Category!=Integration&Category!=Slow)
+    - Docs updated when behaviour or configuration changes, French mirror included (bash scripts/check-docs-parity.sh)
+    - CHANGELOG.md has an entry under [Unreleased] for anything user-visible
+    - New shell or shebang scripts carry the executable bit in the index (git update-index --chmod=+x)
+    - No credential, token or key in the diff (the secret scan runs gitleaks over the PR history)
+    - No direct System.IO in framework code (IFileSystemService; the VFS analyzer enforces it)
+    - Comments are English and carry no accented letter (python3 scripts/check-comment-accents.py)
+    - Commit messages follow type(scope) summary, in English
+    - First contribution - the CLA check asks for one sentence
+release:
+  version_file: src/Directory.Build.props              # VersionPrefix + "-" + VersionSuffix (1.0.0-rc.5)
+  tag: "v<version>"                                    # CONTRIBUTING.md step 7; publish.yml refuses a mismatch
+  changelog: CHANGELOG.md                              # "## [<version>] - YYYY-MM-DD" sections
+  workflows:
+    release: release.yml                               # on push of v*; workflow_dispatch runs all but publication
+    verify: release-verify.yml                         # called by release.yml (verify-published, verify-apt)
+    publish: publish.yml                               # NuGet.org + GitHub Packages, on the same tag
+  windows_jobs: [smoke-windows, smoke-windows-service, msi]   # release.yml jobs on windows-latest
+  channels:                                            # what /release-verify checks after the CI
+    - name: github-release
+      check: "gh release view v<version> --repo Orkeon/orkeon --json isDraft,isPrerelease,assets - published, prerelease when the version holds '-', every asset named once in SHA256SUMS or SHA256SUMS.msi (bash scripts/check-release-assets.sh --assets <names file> --no-hash <dir> SHA256SUMS SHA256SUMS.msi)"
+    - name: release-verify
+      check: "jobs verify-published / verify-deb, verify-macos, verify-checksums of the release.yml run on the tag - all success"
+    - name: apt
+      check: "jobs verify-apt / verify-apt (<channel>, ...) of the release.yml run - channel rc for every tag, stable too when the version holds no '-'"
+    - name: msi
+      check: "assets orkeon-<version>-win-x64.msi and orkeon-host-<version>-win-x64.msi listed in SHA256SUMS.msi; an install from the published MSI is pasted by the user (no verify job runs on Windows)"
+    - name: archives
+      check: "assets orkeon-<version>-<rid>.tar.gz|zip and orkeon-cli-<version>-<rid>.tar.gz|zip, the .deb, orkeon-<version>.sbom.cdx.json and orkeon-typings-<version>.tar.gz listed in SHA256SUMS"
+    - name: nuget
+      check: "curl -s https://api.nuget.org/v3-flatcontainer/<id lowercased>/index.json lists <version> for Orkeon, Orkeon.Tools, Orkeon.Rag.Onnx, Orkeon.Rag.Onnx.Model, Orkeon.Tools.Embeddings.Local, Orkeon.Scripting.Cli, Orkeon.Compliance.Vfs, Orkeon.Interop.AgentFramework, Orkeon.Hosting.Aspire"
+    - name: ghcr
+      check: "ghcr.io/orkeon/orkeon-runners:<version> resolves (anonymous pull token from https://ghcr.io/token?scope=repository:orkeon/orkeon-runners:pull, then HEAD /v2/orkeon/orkeon-runners/manifests/<version>); the tag is an index of linux/amd64 and linux/arm64, which release.yml checks itself after the push"
+# Left out, not verified on acd59d6: a Homebrew channel (scripts/update-homebrew-formula.sh
+# exists, release.yml runs no Homebrew step: nothing is published there, nothing is checked);
+# the apt repository's URL (the verify-apt jobs replay docs/guides/install-with-apt.md, not
+# read here).

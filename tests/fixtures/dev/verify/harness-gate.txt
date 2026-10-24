@@ -1,0 +1,74 @@
+=== green
+GATE — batch F1 — sheet workbench/vdemo/VDEMO-PLAN-F1.md
+  ok   sheet: every step reads `TDD: RED [x] GREEN [x] COST [x]`
+  ok   design ids: all applied or non-applicable
+  ok   scope: every changed file is under src tests or named by the sheet
+  ok   rule traits: every id of the sheet is carried by a test, [Trait("BR", "<id>")]
+  ok   git diff --check: clean
+GATE — batch F1: GREEN
+=== open-tdd
+GATE — batch F1 — sheet workbench/vdemo/VDEMO-PLAN-F1.md
+  FAIL sheet not closed: a `TDD:` line is still open, or none is ticked
+  ok   design ids: all applied or non-applicable
+  ok   scope: every changed file is under src tests or named by the sheet
+  ok   rule traits: every id of the sheet is carried by a test, [Trait("BR", "<id>")]
+  ok   git diff --check: clean
+GATE — batch F1: RED — fix and run again, no audit before
+=== unclassified-id
+GATE — batch F1 — sheet workbench/vdemo/VDEMO-PLAN-F1.md
+  ok   sheet: every step reads `TDD: RED [x] GREEN [x] COST [x]`
+  FAIL design ids neither on an `Applied rules` row nor on `Non-applicable rules`: PERF-01
+  ok   scope: every changed file is under src tests or named by the sheet
+  ok   rule traits: every id of the sheet is carried by a test, [Trait("BR", "<id>")]
+  ok   git diff --check: clean
+GATE — batch F1: RED — fix and run again, no audit before
+=== out-of-scope
+GATE — batch F1 — sheet workbench/vdemo/VDEMO-PLAN-F1.md
+  ok   sheet: every step reads `TDD: RED [x] GREEN [x] COST [x]`
+  ok   design ids: all applied or non-applicable
+  FAIL files changed outside src tests and absent from the sheet — name them under `## Decisions`, or restore them
+       docs/notes.md
+  ok   rule traits: every id of the sheet is carried by a test, [Trait("BR", "<id>")]
+  ok   git diff --check: clean
+GATE — batch F1: RED — fix and run again, no audit before
+=== untested-id
+GATE — batch F1 — sheet workbench/vdemo/VDEMO-PLAN-F1.md
+  ok   sheet: every step reads `TDD: RED [x] GREEN [x] COST [x]`
+  ok   design ids: all applied or non-applicable
+  ok   scope: every changed file is under src tests or named by the sheet
+  FAIL ids of the sheet's TDD sequence that no test carries as [Trait("BR", "<id>")]: BR-04
+  ok   git diff --check: clean
+GATE — batch F1: RED — fix and run again, no audit before
+=== whitespace
+GATE — batch F1 — sheet workbench/vdemo/VDEMO-PLAN-F1.md
+  ok   sheet: every step reads `TDD: RED [x] GREEN [x] COST [x]`
+  ok   design ids: all applied or non-applicable
+  ok   scope: every changed file is under src tests or named by the sheet
+  ok   rule traits: every id of the sheet is carried by a test, [Trait("BR", "<id>")]
+  FAIL git diff --check reports trailing whitespace or conflict markers
+GATE — batch F1: RED — fix and run again, no audit before
+=== stray-trait
+GATE — batch F1 — sheet workbench/vdemo/VDEMO-PLAN-F1.md
+  ok   sheet: every step reads `TDD: RED [x] GREEN [x] COST [x]`
+  ok   design ids: all applied or non-applicable
+  ok   scope: every changed file is under src tests or named by the sheet
+  ok   rule traits: every id of the sheet is carried by a test, [Trait("BR", "<id>")]
+       traits citing an id absent from /workspace/workbench/vdemo/*.md: BR-09
+  ok   git diff --check: clean
+GATE — batch F1: GREEN
+=== untracked-build-output
+GATE — batch F1 — sheet workbench/vdemo/VDEMO-PLAN-F1.md
+  ok   sheet: every step reads `TDD: RED [x] GREEN [x] COST [x]`
+  ok   design ids: all applied or non-applicable
+  ok   scope: every changed file is under src tests or named by the sheet
+  ok   rule traits: every id of the sheet is carried by a test, [Trait("BR", "<id>")]
+  ok   git diff --check: clean
+GATE — batch F1: GREEN
+=== named-outside-roots
+GATE — batch F1 — sheet workbench/vdemo/VDEMO-PLAN-F1.md
+  ok   sheet: every step reads `TDD: RED [x] GREEN [x] COST [x]`
+  ok   design ids: all applied or non-applicable
+  ok   scope: every changed file is under src tests or named by the sheet
+  ok   rule traits: every id of the sheet is carried by a test, [Trait("BR", "<id>")]
+  ok   git diff --check: clean
+GATE — batch F1: GREEN

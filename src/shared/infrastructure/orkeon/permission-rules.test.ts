@@ -26,11 +26,8 @@ describe("createPermissionRules", () => {
     strictEqual(gate.enabled(), true);
     facade.enabled = false;
     strictEqual(gate.enabled(), false);
-    // A host without the permissions service, and a facade of a runtime before Orkeon #128.
+    // A host without the permissions service.
     strictEqual(createPermissionRules(new FakeServiceLocator()).enabled(), undefined);
-    const services = new FakeServiceLocator();
-    services.services.set("permissions", { allow() {}, deny() {}, clear() {}, list: () => [] });
-    strictEqual(createPermissionRules(services).enabled(), undefined);
   });
 
   it("passes a whole-tool rule as the tool alone, and a scoped rule with its argument and pattern", () => {

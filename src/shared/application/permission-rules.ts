@@ -3,8 +3,10 @@
 // holds its own copy. The gate keeps its rules until the REPL exits and removes
 // them only all at once, so a sync clears it and replays the stored list: the
 // gate then holds exactly what the bag holds, whatever an earlier command, an
-// earlier session or /clear left in either. /permissions syncs after
-// every change, and every command that launches the main loop syncs first.
+// earlier session or /clear left in either, then the built-in denies the caller
+// hands over (no model tool writes the shared memory's candidates or entries).
+// /permissions syncs after every change, and every command that launches the
+// main loop syncs first.
 //
 // Every stored entry is kept as written until the user removes it: a rule on a
 // tool the session does not know now (an extra tool `tools.extra` no longer lists,
@@ -88,18 +90,70 @@ export async function clearPermissionRules(session: Pick<SessionStore, "writeSta
 export interface RuleSync extends StoredRules {
   /** False when the host keeps no session rules: the gate decides from the mode alone. */
   applied: boolean;
+  /** The built-in deny rules handed over after the session's (empty when not applied): never stored, never
+   *  listed as the session's, and no /permissions change removes them. */
+  builtIn: PermissionRule[];
+  /** The session's allow rules left out of the gate because a built-in or a step rule denies the same calls. */
+  overridden: PermissionRule[];
 }
 
-/** Makes the gate hold the stored rules: clear it, then add each rule in stored order. */
+/** Adds the stored rules in stored order, less a stored allow on the same calls as one of the `denies`; returns
+ *  the allows left out. */
+function addStored(gate: PermissionRules, stored: readonly PermissionRule[], denies: readonly PermissionRule[]): PermissionRule[] {
+  const overridden: PermissionRule[] = [];
+  for (const rule of stored) {
+    const denied = rule.effect === "allow" && denies.some((d) => d.effect === "deny" && sameCalls(d, rule));
+    if (denied) overridden.push(rule);
+    else gate.add(rule);
+  }
+  return overridden;
+}
+
+/** Makes the gate hold the stored rules, then the built-in ones: clear it, add each stored rule in stored order
+ *  (less a stored allow on the same calls as a built-in deny), then each built-in rule. */
 export async function syncPermissionRules(deps: {
   session: Pick<SessionStore, "readState">;
   gate: PermissionRules;
   /** The configured extra tools, which rules may name. */
   extraNames?: readonly string[];
+  /** Deny rules every sync adds, whatever the mode (the shared memory's folders: memoryWriteRules). */
+  builtIn?: readonly PermissionRule[];
 }): Promise<RuleSync> {
   const stored = await readPermissionRules(deps.session, deps.extraNames);
-  if (!deps.gate.available()) return { ...stored, applied: false };
+  if (!deps.gate.available()) return { ...stored, applied: false, builtIn: [], overridden: [] };
+  const builtIn = [...(deps.builtIn ?? [])];
   deps.gate.clear();
-  for (const rule of stored.rules) deps.gate.add(rule);
-  return { ...stored, applied: true };
+  const overridden = addStored(deps.gate, stored.rules, builtIn);
+  for (const rule of builtIn) deps.gate.add(rule);
+  return { ...stored, applied: true, builtIn, overridden };
+}
+
+/** What a step's sync left in force. `rules`, `dormant`, `invalid` are the session's, as syncPermissionRules
+ *  reports them; `step` the step's rules handed over (empty when not applied); `overridden` the session's
+ *  allow rules left out of the gate because a step rule or a built-in one denies the same calls. */
+export interface StepRuleSync extends RuleSync {
+  step: PermissionRule[];
+}
+
+/**
+ * Makes the gate hold the session's rules, then a step's, then the built-in ones: clear it, add each stored rule
+ * in stored order (less a stored allow on the same calls as a step or built-in deny), then add each step rule in
+ * order, then each built-in rule. The step's rules are never stored: the next syncPermissionRules (the next
+ * /assistant turn, the next /permissions change) hands the gate the session's rules and the built-in ones alone.
+ */
+export async function syncStepRules(deps: {
+  session: Pick<SessionStore, "readState">;
+  gate: PermissionRules;
+  extraNames?: readonly string[];
+  rules: readonly PermissionRule[];
+  builtIn?: readonly PermissionRule[];
+}): Promise<StepRuleSync> {
+  const stored = await readPermissionRules(deps.session, deps.extraNames);
+  if (!deps.gate.available()) return { ...stored, applied: false, step: [], builtIn: [], overridden: [] };
+  const builtIn = [...(deps.builtIn ?? [])];
+  deps.gate.clear();
+  const overridden = addStored(deps.gate, stored.rules, [...deps.rules, ...builtIn]);
+  for (const rule of deps.rules) deps.gate.add(rule);
+  for (const rule of builtIn) deps.gate.add(rule);
+  return { ...stored, applied: true, step: [...deps.rules], builtIn, overridden };
 }

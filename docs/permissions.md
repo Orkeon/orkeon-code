@@ -1,6 +1,7 @@
 # Permissions
 
-Every `/assistant` turn runs under a **permission mode**, and the session can add **rules**. They act at two levels:
+Every `/assistant` turn runs under a **permission mode**, and the session can add **rules**. They act at two levels,
+and a dev step adds a third:
 
 1. **The tool catalogue.** The crew offers the model the tools of the mode (table below), with the
    [extra tools](#extra-tools) of the classes it grants, less the tools a deny rule covers whole. A tool that is not
@@ -10,23 +11,57 @@ Every `/assistant` turn runs under a **permission mode**, and the session can ad
    execute). When the mode says to ask, it asks you. The gate is `Orkeon:Security:PermissionGate:Enabled`: the
    launcher turns it on unless your settings file turns it off, and without it neither the modes nor the rules are
    enforced. Keep it on.
+3. **The crew's callback**, in the dev steps only (`/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement`, `/dev-verify` and `/dev-batches`, and the agent `/tasks repair` starts again). Once the gate has allowed a call, the crew's
+   `onToolCall` checks it again: the step's [rule sets](#rule-sets-of-the-dev-steps) (and a role's roots, for the roles
+   of a batch), `glob`, `grep` and `count_pattern` by their whole input, then the `pre-tool` [hooks](hooks.md); after
+   the call, the `post-tool` hooks. It can refuse a call, never allow one the gate refused. A call the gate refuses,
+   by a session rule or by the mode, never reaches it. When the host has no gate, the callback also applies the
+   act's mode by itself: reads only in `plan`, `dontAsk` and `default`, the file editors too in `acceptEdits`.
 
 **What the gate does not see.** Commands and crews also call tools from their own code, through Orkeon's `tools`
-namespace, which runs the tool directly: `/commit` stages and commits with `shell_command`, `/branch` checks a branch
+namespace, which runs the tool directly: `/commit` stages the files it commits by name (`git add -- <files>`, then `git commit -F <message> -- <files>`, never
+`-A`) and, with `--push`, pushes, all with `shell_command`; with `--pr` it reads origin (`git remote get-url origin`)
+and calls `github` `create_pr` itself, which the gate does not see either: `/commit` decides as the gate would,
+refusing in `plan`, in `dontAsk` without an allow rule, and whenever a deny rule covers the call, and opening it with
+an allow rule (`allow github action=create_pr`), in `bypassPermissions`, or after you answered yes to its plan that
+named the pull request (`--yes` asks nothing, so it needs the rule); `/branch` checks a branch
 out, `/diff` and `/review`, `/security-review` run `git`, `/init` writes the instructions file,
 `/init-verifiers` and `/export` write their files, the compaction writes the session buffer and typed memory. Those
 calls are what the command you typed is for: no rule, mode or question applies to them. `/commit` checks the mode
-itself and refuses in `plan` and `dontAsk`. `/transcribe` calls the speech-to-text server's tools the same way, in
+itself and refuses in `plan` and `dontAsk`. Its git commands (`git -c core.quotePath=false status`, `git --literal-pathspecs add`
+and `commit`, `git var`, `git rev-parse`, `git symbolic-ref`, `git push -u origin <branch>`, and, once batches run in
+worktrees (not wired yet), `git merge --ff-only` and `git -C <worktree> rebase`) run only under `Orkeon:Tools:Shell:AllowInterpreters`:
+without it the shell tool lets git run `status`, `log`, `diff` and `show` alone, with no option before them. `/transcribe` calls the speech-to-text server's tools the same way, in
 every mode and with no `tools.extra` entry; with `--then`, the main loop makes that call before the turn, as the
 command's, and the model then works on the transcription under the turn's mode. `/voice` records the same way, and
 `/voice send` hands the dictated text to a turn as typed text would (a leading `plan:`, in lower case, picks the
 mode), and `--go` to a turn under the session's mode, chosen before the recording: no dictated prefix is read.
 `/say` reads aloud the same way, and so does the reading of each answer under `voice.reply on`, made by the
-main loop after the turn as the launching command's call.
+main loop after the turn as the launching command's call. `/dev-verify` runs `git`, the pack's build and the test
+commands it accepts from its own code, in every mode; its auditor only reads, in `plan`, with five read tools.
+`/dev-learn` reads the verdict files and both learning states. It writes only `<work>/learn-<date>/`,
+`.orkeon/dev-learn-state.json` and `refused.md` under `memory.dir`, never a file under `.claude/` nor the file a proposal
+names.
+`/dev-plan` reads the spec or change brief, the pack and the code index. It writes only `<work>/<code>/<CODE>-PLAN.md`,
+the batch sheets and `plan.json`, never a file under `.claude/`; its reviewer only reads, in `plan`, with nine read
+tools. `/dev-spec` and `/dev-change` read the request (an issue through `gh issue view`), the pack and the code index,
+and write only `<work>/<code>/SPEC-<code>.md`, or `CHANGE-<code>.md` and `repro-<code>.txt`; `/dev-change` runs the
+reproduction or measure command, a narrow test command of the pack, from its own code, once the step's rule sets
+allow it. `/dev-implement` runs the pack's restore, build and suite from its own code; its two roles write in
+`acceptEdits`, each inside its roots, and after a VALID verdict its close commits the files the roles changed, by
+name, and pushes the branch, unless a session rule denies the push. It puts the gate check and its rules back before each launch of its chain (the audit, then the close). `/dev-batches` runs
+that chain for each batch of a plan under `/dev-implement`'s rule sets; each batch's close commits without pushing (a
+close typed while the run is in progress too), and the plan's close pushes the branch once, unless a session rule denies
+the push, and opens one pull request (`--pr` or `dev.prAuto`), else hands its command over; on the default branch it
+pushes nothing and hands the push over. `/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement` and `/dev-batches`
+refuse to start in a read-only mode (`plan`, `dontAsk`), in a mode Orkeon Code does not know, and when the session's
+mode cannot be read. All six first put the [rule sets of the dev steps](#rule-sets-of-the-dev-steps)
+in the gate, and refuse to start while the gate is off; their crew's callback checks the same sets again, the only check
+of them under `orkeon run`.
 
 ## Modes
 
-| Mode | Offered to the model | Local reads | Network reads (`http_api`, web) | File edits, `rag_ingest` | Shell |
+| Mode | Offered to the model | Local reads | Network reads (`http_api`, web) | File edits (`file_write`, `edit_file`, `node_*`, `edit_batch`, `structural_rewrite`), `rag_ingest` | Shell |
 |---|---|---|---|---|---|
 | `plan` | local reads, `read` [extra tools](#extra-tools) | ✅ | ❌ | ❌ | ❌ |
 | `dontAsk` | local reads, `read` [extra tools](#extra-tools) | ✅ | ❌ | ❌ | ❌ |
@@ -43,11 +78,37 @@ refuses anything else without asking.
 without asking until the REPL exits, `n` refuses it, and the model reads the refusal and adapts. A `/` line still
 runs its command while a question waits.
 
-Orkeon classifies a tool that declares no access as a write: `http_api` and every MCP tool are asked about in
-`default` and `acceptEdits`, and refused in `plan` and `dontAsk`. `web_scrape`, `scrape_element` and `rag_search`
+Orkeon treats a tool that declares neither a read nor an edit as a write: `http_api` declares an execute and every MCP
+tool declares none, so both are asked about in `default` and `acceptEdits`, and refused in `plan` and `dontAsk`. `web_scrape`, `scrape_element` and `rag_search`
 declare a read (Orkeon #126): they run without a question wherever the catalogue offers them. `rag_ingest` declares an
 edit — it writes the knowledge index, not the workspace — so the catalogue offers it with the file edits: never in
 `plan` or `dontAsk`, asked in `default`, accepted in `acceptEdits`.
+
+`github` and `rag_eval` are offered with the file edits, but declare no access: the host asks about them in
+`acceptEdits` too, and refuses them in `plan` and `dontAsk`. The host offers `spawn_agent` to every act, whatever the
+catalogue: it is an edit, asked about in `default` and refused in `plan` and `dontAsk`. A rule may name it, and an
+allow rule on it holds in `dontAsk` too (`/permissions` warns when you add one).
+
+The [shared memory](shared-memory.md)'s two tools are Orkeon Code's own, offered to the REPL's turns by mode:
+`memory_recall` declares a read and runs in every mode, `plan` and `dontAsk` included; `memory_push` declares an edit
+— it writes a candidate file under `memory.dir`, never an admitted entry — so it is offered where the mode edits:
+never in `plan` or `dontAsk` (the tool also refuses by itself there), asked in `default`, accepted in `acceptEdits`. A
+rule may name them, whole or on an argument of their schema: `/permissions add deny memory_push`, `deny memory_push
+topic=auth*`, `deny memory_recall query=*secret*`. A deny rule on the whole tool also takes it out of the catalogue.
+
+**The shared memory's guard.** In every mode, `bypassPermissions` included, the session adds deny rules to the gate
+so that no file tool of the model (`file_write`, `edit_file`, `node_replace`, `node_insert`, `node_ensure`) writes
+under `<memory.dir>/candidates/` or `<memory.dir>/entries/`: candidates come from `memory_push` and the harvests,
+entries from `/memory-admit` alone. A stored allow rule the guard covers is dropped, with a warning. The patterns
+match however the path is spelt (`./`, `//`, `src/../`, `/workspace/`), and a `shell_command` naming
+`<memory.dir>/candidates` or `<memory.dir>/entries` is refused too. `/permissions` lists them on its own line, "the shared memory's guard: … (N rules)".
+What the gate cannot see, the callback of the main loop and of every dev crew refuses on each call, under
+`orkeon run` too: a path in another letter case (`.Orkeon/Memory/Entries/x.md`, which a case-insensitive filesystem
+opens), each operation of an `edit_batch`, the paths and the glob of a `structural_rewrite` that writes
+(`dry_run: false`), and a shell command reaching the folder segment by segment in any case
+(`cd .orkeon/memory && … > entries/x.md`, `.orkeon//memory/entries`). A glob standing for a segment
+(`cp x .orkeon/mem*/entries/`) is not read: the shell expands it after every check. A crew without a callback (`/code-review`,
+`/advisor`) runs under the gate's rules alone.
 
 ## Choosing the mode
 
@@ -65,8 +126,8 @@ in `plan`.
 
 `/permissions` shows the effective surface: the mode, the catalogue, the session's rules and the rules the gate holds.
 The rules are enforced only while `Orkeon:Security:PermissionGate:Enabled` is on (the launcher sets it):
-`/permissions` reads the host and says whether the gate is on, off (nothing above is enforced and nothing asks), or
-unknown on a runtime that does not expose it (Orkeon 1.0.0-rc.6; Orkeon #128 added the field).
+`/permissions` reads the host and says whether the gate is on or off (nothing above is enforced and nothing asks); the
+runtime always reports it.
 
 ## Rules
 
@@ -78,6 +139,15 @@ lists the ones it does (`shell_command`: `command`, `working_directory`, `timeou
 `content`, `encoding`, `append`, `create_backup`; `http_api`: `url`, `method`, `headers`, `body`, `content_type`). The
 arguments of an extra tool are its server's or plugin's: the rule is accepted with a warning, and matches only if the
 tool takes an argument of exactly that name.
+
+The arguments of every built-in tool are its input's top-level fields (`TOOL_ARGUMENTS` in
+`shared/domain/agent-policy/permission.ts`). A rule reads a top-level argument only, as text: it cannot reach a path
+inside the `edit_batch` operations or the `structural_rewrite` paths, and on `glob` and `grep` it matches `path`
+alone, so a `pattern` (or `grep`'s `glob`) given from a parent folder can still reach below a folder a rule denies.
+The dev crews' callback closes that gap for the rules it holds: it also matches `glob` with `<path>/<pattern>`,
+`grep` with `<path>/<glob>` (or `<path>/**`) and `count_pattern` with `<path>/**`, and it checks each `edit_batch`
+operation as the editor it stands for (`node_replace`, `node_insert`, or `node_ensure` for the intent kinds), with its
+own `path` and `text`.
 
 ```text
 /permissions add deny shell_command command=git push*
@@ -108,6 +178,175 @@ Rules live in the session state until `/clear` or the end of the REPL; persistin
 the [Roadmap](roadmap.md). The gate keeps its own copy, which `/permissions` replaces after every change and every
 `/assistant` replaces before the turn starts, so the gate always holds the session's rules. A `[s]` answer is not a
 rule: `/permissions` neither lists nor clears it.
+
+## Rule sets of the dev steps
+
+`/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement` and `/dev-verify` (unless `--gate-only`) hand the gate
+rule sets of their own just before their crew
+starts (a `/tasks repair` hands it those of the step of the instance's run: a reviewer of `/dev-spec` or `/dev-change`
+is repaired under that step's sets, hooks and budget, else under its charter's step), and the crew's callback checks them again at each call the gate allows. A call the gate refuses reads the
+gate's own refusal; one only the callback refuses (a `glob` or `grep` reaching a refused path, a path written with
+`./` or `..`, every call under `orkeon run`) names the rule, its set and what to do instead. A set is a list of deny rules built into Orkeon Code, the same in every repository; no setting turns one on or
+off. Every step puts all five sets in force:
+
+| Set | Rules on | Refuses |
+|---|---|---|
+| `git-readonly` | `shell_command`, `command` | a git command that changes the repository, its branches or its remotes, also behind a global option (`git -C <dir> push`) |
+| `inline-interpreters` | `shell_command`, `command` | code handed inline to an interpreter, which could run what the other rules refuse |
+| `read-noise` | `path` of `file_read`, `glob`, `grep`, `node_outline`, `node_read`, `count_pattern`, `documents_of`, `directory_search` | a read under a `bin/`, `obj/`, `.git/` or `node_modules/` folder, anywhere in the project |
+| `secrets` | the written text: `file_write` `content`, `edit_file` `new_string`, `text` of `node_replace`, `node_insert` and `node_ensure`, `name` and `module` of `node_ensure`, `structural_rewrite` `fix`; each `edit_batch` operation's `text`, by the callback | content that holds a private key block or a token with a known prefix |
+| `state-files` | `path` of `file_write`, `edit_file`, `node_replace`, `node_insert`, `node_ensure`, each `edit_batch` operation's `path` by the callback; `structural_rewrite` whole | a file only Orkeon Code's own code writes: the batch logs, states and verdicts, the audit captures, `.orkeon/` and `.claude/` |
+
+`git-readonly` holds 218 rules, three for most of the verbs `add`, `am`, `apply`, `branch`, `checkout`, `cherry-pick`,
+`clean`, `commit`, `fetch`, `filter-branch`, `gc`, `merge`, `mv`, `notes`, `pull`, `push`, `rebase`, `reflog`,
+`remote`, `reset`, `restore`, `revert`, `rm`, `stash`, `submodule`, `switch`, `tag`, `update-ref` and `worktree`,
+here for `push`:
+
+```text
+deny shell_command command=*git push*
+deny shell_command command=*git * push
+deny shell_command command=*git * push *
+```
+
+Directly after `git`, the verb is a prefix, so `git push;` and a `git commit` followed by a line break are refused too; behind an option the verb must be a word of its own, so `git diff -- src/address.ts` still runs. For `branch`, `notes`, `reflog`,
+`remote`, `submodule` and `tag`, which only list when typed alone, the two forms without arguments are left out:
+`git branch` runs, `git branch -a` is refused, since no rule can make an exception to a deny. `remote` and `stash`
+are refused by their changing subcommands only (`git remote add`, `git stash pop`, and `git stash` alone or with
+options), so `git remote -v` and `git stash list` run. Reading the history stays open: `git status`, `git log`,
+`git diff`, `git show`.
+
+The rules match the word `git` anywhere on the line, so a path (`/usr/bin/git push`), an `env`, a variable
+(`GIT_DIR=.git git push`) or a chain (`cd x && git push`) before it does not help. The same rules refuse the verbs
+that write below the everyday ones: `init`, `clone`, `config`, `update-index`, `symbolic-ref`, `prune`, `repack`, `read-tree`, `checkout-index`, `commit-tree`, `write-tree`, `mktag`, `mktree`, `fast-import`, `maintenance`, `update-server-info` and `replace` (`git replace` alone
+lists, and runs). `git config` is refused when it writes: a key then a value (`git config user.name x`,
+`git config --global a.b x`, `git config --file a.cfg a.b x`), `--add`, `--unset`, `--replace-all`, `--rename-section`, `--remove-section`, `--edit` or
+`-e`, and the subcommands `set`, `unset`, `rename-section`, `remove-section` and `edit`; so is the global option
+`git -c key=value`, which sets a config for one command and can run a program through `core.pager`. Its reads run:
+`git config user.name`, `git config --get user.name`, `git config --get-regexp`, `git config --list` or `-l`, on any
+file (`git config --file a.cfg --list`, `git config -f .gitmodules --get submodule.x.path`). A glob cannot tell a key
+then a value from a read whose file name holds a dot, so the crews' code reads that one: the words after `git config`
+and its options, two or more with no reading action before them, or a changing option behind another one
+(`git config --global --unset a.b`), are a write - in a subshell, a group, a substitution or an `eval` too -
+refused by the callback as
+`deny shell_command command=*git config <key> <value>*` of `git-readonly`, and by the step's own tools that run a
+command.
+
+The other four sets, each pattern on the first tool of its set:
+
+```text
+deny shell_command command=*sh -c*
+deny shell_command command=*sh -*c *
+deny shell_command command=*sh -* -c*
+deny shell_command command=*node -e*
+deny shell_command command=*node --eval*
+deny shell_command command=*node -p*
+deny shell_command command=*node --print*
+deny shell_command command=*node -* -e*
+deny shell_command command=*node -* -p*
+deny shell_command command=*node --input-type*
+deny shell_command command=*python -c*
+deny shell_command command=*python3 -c*
+deny shell_command command=*python3.* -c*
+deny shell_command command=*python -* -c*
+deny shell_command command=*python3 -* -c*
+deny shell_command command=*python3.* -* -c*
+deny shell_command command=*perl -e*
+deny shell_command command=*perl -E*
+deny shell_command command=*perl -* -e*
+deny shell_command command=*perl -* -E*
+deny shell_command command=*ruby -e*
+deny shell_command command=*ruby -* -e*
+deny shell_command command=*php -r*
+deny shell_command command=*tsx -e*
+deny shell_command command=*tsx --eval*
+deny shell_command command=*ts-node -e*
+deny shell_command command=*deno eval*
+deny shell_command command=*bun -e*
+deny file_read path=*/bin/*
+deny file_read path=bin/*
+deny file_read path=*/obj/*
+deny file_read path=obj/*
+deny file_read path=*/.git/*
+deny file_read path=.git/*
+deny file_read path=*/node_modules/*
+deny file_read path=node_modules/*
+deny file_write content=*-----BEGIN *PRIVATE KEY-----*
+deny file_write content=*ghp_*
+deny file_write content=*gho_*
+deny file_write content=*ghu_*
+deny file_write content=*ghs_*
+deny file_write content=*ghr_*
+deny file_write content=*github_pat_*
+deny file_write content=*xoxa-*
+deny file_write content=*xoxb-*
+deny file_write content=*xoxp-*
+deny file_write content=*xoxo-*
+deny file_write content=*xoxs-*
+deny file_write content=*xoxr-*
+deny file_write content=*AKIA*
+deny file_write content=*AIza*
+deny file_write content=*sk-ant-*
+deny file_write path=*-BATCHES-STATE.md
+deny file_write path=*-STATE-F*.md
+deny file_write path=*-VERIFY-F*.md
+deny file_write path=*/capture-F*/*
+deny file_write path=*/.orkeon/*
+deny file_write path=.orkeon/*
+deny file_write path=*/.claude/*
+deny file_write path=.claude/*
+```
+
+`inline-interpreters` holds 28 rules. They refuse `-c` handed to any shell whose name ends with `sh` (`bash`,
+`sh`, `zsh`, `dash`, `ksh`, `fish`), also in a flag cluster (`bash -xc`) or after another flag (`bash -e -c`), and
+the inline forms of `node`, `python`, `python3` and a versioned `python3.12`, `perl`, `ruby`, `php`, `tsx`, `ts-node`,
+`deno` and `bun`, behind a path, an `env` or `npx`, also after another option (`python3 -I -c`, `perl -w -e`,
+`ruby -w -e`). A `-c` after a script runs (`python3 x.py -c`); after another option it is refused, so
+`python3 -m pytest -c pytest.ini` and a versioned `python3.12 x.py -c` are refused too. Since a rule reads `sh -c` at the end of any word, `ssh -c <cipher>` is refused too.
+
+The three file sets repeat their patterns on every tool of their row, tool by tool: `read-noise` holds 64 rules (8
+patterns on 8 tools, on `path`), `secrets` 128 (16 patterns on 8 written arguments of 6 tools), `state-files` 41 (8
+patterns on 5 tools, on `path`, then `deny structural_rewrite`). A step holds 479 rules (481 with the two allow rules of `/dev-implement`). The gate cannot read the
+paths or the text inside `edit_batch` and `structural_rewrite`. `structural_rewrite` is refused whole. `edit_batch` is
+left to the crews' callback, which runs on every act of a step: it reads each operation as the editor it stands for
+and applies the sets and the role's rules to it, and refuses a batch with no operations, an operation without a
+`path` or of an unknown kind, and any `validate` but `"parse"` (`"build"` runs `dotnet build`; the step's build is
+`run_build`). The pilot of a batch, kept out of the source roots the pack names, gets the same deny rules on every
+path read tool, `directory_search` included, and `structural_search` and `symbol_source`, which name no path, are
+refused whole.
+
+**When they hold.** At launch the step clears the gate, hands it the session's rules, then its own sets. A session
+allow rule on the same calls as one of the step's deny rules is left out for the run, with a warning. The sets are not
+stored with the session's rules: `/permissions list` does not show them, and `/permissions` shows them on its
+`in the host gate` line, grouped by set, for as long as they stay there. They stay until the next `/assistant` turn
+or the next `/permissions add`, `remove` or `clear`, which hand the gate the session's rules alone. Like every rule,
+they are session-wide: a turn started while a step runs replaces them for the rest of the step.
+
+`/dev-implement` puts the same five sets in the gate, and two allow rules of its own: `run_tests` and `run_build`
+(each checks its command against the pack and the deny rules itself), so the roles, which act in `acceptEdits`, are
+not asked at each test run. The allow rules leave the gate with the step's sets.
+
+The two writing roles (the test author and the implementer) also hold a **rewrite rule**: `deny file_write` on every
+source root the pack's `layout` names (`domain`, `application`, `infrastructure`, `tests`) and every
+`layout.test_files` pattern. An existing source file is changed by node (`node_read` for its `sha256`, then
+`node_replace`, `node_insert` or `node_ensure`) or with `edit_file`, never written whole. Before a `file_write` there,
+the callback reads the path once: when the runtime answers that the file does not exist, the rule is lifted for that
+call, so a new file (a stub, a new test file) is still created with `file_write`. Any other answer keeps the rule.
+
+**The gate must be on.** When the host says its gate is off, the steps refuse to start, because every rule above and
+the `plan` mode of their auditor or reviewer would check nothing; `/dev-verify F<n> --gate-only` runs no model and
+still runs. On a host that keeps no session rules, the step runs with a warning: the sets are not in the host gate, and the crew's
+callback alone checks them.
+
+**What a rule cannot see.** A rule reads one argument as text. A script file run by an interpreter
+(`bash scripts/build.sh`) is not inline code, and runs. A rule matches words separated by one space, so in the gate a tab between two
+words, or an option order it does not list, passes. The dev crews' callback and the steps' guards close part of that:
+they also match the command as the host reads it, quotes dropped, runs of blanks and tabs joined, backslash escapes
+resolved and option clusters split (`git "push"`, `bash  -c`, `git pu\sh`, `python3 -Ic"print(1)"` read as
+`python3 -I -c print(1)` are refused like their plain form), and a relative path that climbs out and back
+(`../workspace/tests/x`) as the project path. `secrets` knows fixed prefixes only: a JSON web token, a
+password in a URL or an `api_key = …` line needs a check of the whole content, which waits for a file tool of Orkeon
+Code's own. Content that mentions a prefix, such as a page or a test about tokens, is refused as well. `read-noise`
+also refuses a source folder that happens to be named `bin/`.
 
 ## Extra tools
 
@@ -143,9 +382,71 @@ it applies again once `tools.extra` lists the tool. `/permissions remove` delete
 every rule. A settings file that cannot be read is reported as such: the extra tools are then unknown and their rules
 dormant, never erased.
 
+Orkeon Code adds three tools of its own to the dev steps, never offered to the REPL's turns: `run_validation`
+(`read`: one narrow test command of the repository pack, the auditor's, three per audit at most), `run_tests` and
+`run_build` (`execute`: the pack's narrow test command or its build, for a writing role). The gate asks once per call
+from the access each declares; the shell command the tool then runs is not asked again, so the tool checks it itself:
+the pack's own command only, a placeholder filled with one plain relative value, never the integration tests without
+a filter, never a restore (except one, when a build fails on a tree that was never restored), never a command the
+step's rule sets deny to `shell_command`. A rule may also name them (`/permissions add deny run_build`); their
+arguments are `command` (`run_validation`, `run_tests`) and `project` (`run_build`).
+
+The command a tool runs obeys the step's rule sets, not the deny rules of your session: the crew's code cannot read
+the session's rules, so `/permissions add deny shell_command ...` does not reach a validation, as it never reached the
+validations `/dev-verify` runs from its own code. To stop one, deny the tool itself (`/permissions add deny
+run_validation`), which the gate sees.
+
+The agents of the dev steps but `/dev-learn` (whose agent has no tool), and the children of `/dev-spec`, `/dev-change`, `/dev-plan` and `/dev-verify`, are also given
+[`memory_recall`](shared-memory.md) (`read`), to look for precedents in the shared memory; none is given `memory_push`.
+
+## What a project file may set
+
+The project's `.orkeon/config.json` (what `/config set` writes) cannot widen what the user allows. The user's own
+settings are the `orkeonCode` block of the user settings file (the one the launcher reads), which the launcher hands
+to the session read-only, on `/user-config`:
+
+```json
+{
+  "orkeonCode": { "permissions.fallback": "acceptEdits", "tools.extra": "search_issues:read, *" }
+}
+```
+
+- `permissions.fallback` from the project applies only as `default`, `plan` or `acceptEdits`, and never wider than
+  the mode the user settings set; `bypassPermissions` and `dontAsk` come from the user settings or `/mode`.
+- `tools.extra` from the project offers only the tools the user settings list too (`*` lists them all); a tool
+  stays read-only (`:read`) only when both lists say so. An invalid project entry naming a tool the project file also
+  declares validly (`evil:write, evil:read`) is dropped, not reported as invalid.
+- `memory.autoAdmitAudited` and `dev.prAuto` from the project apply as `true` only when the user settings say `true`
+  too: admitting without asking and opening a pull request without asking come from the user.
+- What the project file set and could not apply, `/permissions` names: `↳ ignored` under the mode, and a note for
+  the tools not offered; `/doctor`'s row `settings: project file` names every such key. `/config set` of such a value
+  still writes it, then says it is ignored. `/config set
+  --session` is the user's own, and is not narrowed.
+
+## Trusted folders
+
+The launcher asks before it starts in a folder for the first time, because the agent reads that folder's
+`AGENTS.md`, `.orkeon/config.json` and `.orkeon/repo.yaml`, may run the commands `.orkeon/repo.yaml` names, and git
+runs the folder's hooks through the shell. Nothing of the folder is read or mounted before the answer.
+
+- `y` stores the folder in `~/.orkeon-code/trusted-folders.json` (`ORKEON_CODE_HOME` moves it); every folder below
+  it then starts without asking. Trusting your home folder, or `/`, trusts everything below it: the question says so.
+- `n`, or no answer, exits with code 0: nothing started.
+- The folder is checked by its real path: a symbolic link leads to the folder it names, which is the one asked about,
+  stored and mounted.
+- Without a terminal (a pipe, a CI job, `scripts/run-crew.sh` in a script) an untrusted folder is refused with exit
+  code 3. `--trust` starts it for that run only, and `ORKEON_CODE_TRUST=1` does the same when `CI=true`; neither
+  stores anything. `--demo` trusts the fixture the launcher seeds.
+- `orkeon-code trust list` shows the store, `orkeon-code trust add <folder>` and `orkeon-code trust remove <folder>`
+  change it, `orkeon-code trust check <folder> [--trust]` answers 0 (it may start), 3 (refused, no terminal) or 4
+  (declined).
+- The launcher writes the store one folder per line and reads it back in that layout only: a file it cannot read is
+  refused with its path, trusts nothing and is never rewritten. Move it away and trust your folders again.
+- The check is the launcher's: `orkeon-repl` started by hand skips it.
+
 ## What no mode changes
 
-- File tools reach only the mounts: the project on `/workspace`, `/output`, `/tmp`.
+- File tools reach only the mounts: the project on `/workspace`, `/output`, `/tmp`, and `/user-config` (read-only).
 - The shell runs allow-listed commands only (`Orkeon:Tools:Shell` extends the list), with no shell operators. A
   command that can write (an interpreter, an added command) needs the write right on every path it names and on its
   working directory.

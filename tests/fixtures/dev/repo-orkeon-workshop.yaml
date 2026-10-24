@@ -1,0 +1,103 @@
+# What the repository pack repo-orkeon-workshop tells the generic skills (profiles/README.md,
+# "Repository pack"), and what its own skills ws-check, ws-migrate, ws-image and ws-docs read.
+# Values read from this repository's CLAUDE.md, package.json and .github/workflows/; the
+# procedures themselves stay in CLAUDE.md, which these values follow. Commands run from the root.
+product: Orkeon Workshop
+origin: github.com/Orkeon/orkeon-workshop
+docs: https://orkeon.github.io/orkeon-workshop/
+instructions: CLAUDE.md                  # the procedures: checks, migration, image, documentation
+record: docs/orkeon-workshop-plan.md     # decisions D<n> (section 13), progress (section 11.1); never renumbered
+
+layout:
+  bench: .devcontainer/bench             # orkeon-bench, TypeScript Clean Architecture
+  harness: .devcontainer/harness         # hooks, skills, rules, evals deployed into a workshop
+  csharp: .devcontainer/csharp           # .NET templates and their checks
+  image: .devcontainer/Dockerfile
+  tests: .devcontainer/bench/tests       # vitest; the harness has evals/cases/*.json
+
+commands:
+  build: cd .devcontainer/bench && npm run build
+  lint: cd .devcontainer/bench && npm run lint                 # types and dependency rules
+  test: cd .devcontainer/bench && npm test                     # rebuilds dist/ first
+  coverage: cd .devcontainer/bench && npm test                 # vitest run --coverage
+  test_integration: cd .devcontainer/harness && HARNESS_EVALS_STRICT=1 bash evals/run.sh
+  templates: bash .devcontainer/csharp/scripts/verify-templates.sh --feed <feed> --offline --smoke
+  image: >-
+    c=$(sed -n 's/^ *ORKEON_COMMIT: *//p' .github/workflows/image.yml);
+    docker build --build-arg ORKEON_SOURCE_REF=$c --build-arg ORKEON_REFRESH=$c -t orkeon-workshop .devcontainer
+  # The docfx build of the site, with docfx at DOCFX_VERSION of .github/workflows/docs.yml installed
+  # once in a cache folder outside the checkout. It fails on a broken link, anchor or toc.yml entry.
+  docs_checks:
+    - >-
+      v=$(sed -n 's/^ *DOCFX_VERSION: *//p' .github/workflows/docs.yml);
+      T="${XDG_CACHE_HOME:-$HOME/.cache}/docfx-$v";
+      { test -x "$T/docfx" || dotnet tool install docfx --version "$v" --tool-path "$T"; } &&
+      DOCFX="$T/docfx" bash scripts/build-docs-site.sh
+  # The image is pinned on the latest commit of Orkeon's main (CLAUDE.md); the CI on the commit is
+  # checked by /release-prepare itself.
+  release_readiness: >-
+    l=$(git ls-remote https://github.com/Orkeon/orkeon.git refs/heads/main | cut -f1);
+    p=$(sed -n 's/^ *ORKEON_COMMIT: *//p' .github/workflows/image.yml);
+    echo "Orkeon main ${l:-unresolved}, ORKEON_COMMIT $p"; test -n "$l" && test "$l" = "$p"
+
+# What is checked by reading or by a procedure, not by one command: read by people and the ws-*
+# skills, never run as a shell command.
+manual_checks:
+  ci_replay: the steps of .github/workflows/checks.yml in a node:24-bookworm container started on tail -f /dev/null
+  docs:
+    - the relative links and anchors of every Markdown file, hidden folders included
+    - the Mermaid diagrams still render
+  release: bench lint and tests, the harness evals in strict mode and the templates' self-check green, and the image built green on the latest Orkeon main (a build the user asks for, D74)
+
+docs_mirror:
+  english: [README.md, docs/]
+  french: [README.fr.md, docs/fr/]
+  english_only: [docs/orkeon-workshop-plan.md, docs/profiles-design.md]
+  toc: [docs/toc.yml, docs/fr/toc.yml]
+  index: [docs/README.md, docs/fr/README.md]
+  rule: a change to an English page is ported to its French page in the same change; a page added, moved or removed is added, moved or removed in both toc.yml files and both indexes
+
+orkeon_pin:
+  upstream: https://github.com/Orkeon/orkeon.git
+  resolve: git ls-remote https://github.com/Orkeon/orkeon.git refs/heads/main
+  pinned: ORKEON_COMMIT in .github/workflows/image.yml
+  version: <Orkeon version>.src.<commit date>.g<commit, 7 characters>   # as orkeon-update.sh --source computes it
+  files:
+    - .github/workflows/image.yml                                         # ORKEON_COMMIT
+    - .devcontainer/bench/src/domain/orkeon-version.ts                    # REFERENCE_ORKEON_VERSION
+    - .devcontainer/csharp/Orkeon*/Directory.Packages.props               # OrkeonVersion
+    - .devcontainer/harness/references/                                   # and their table in references/README.md
+    - .devcontainer/harness/references/orkeon/orkeon-reference.md         # section 5, orkeon-bench tools dump
+    - .devcontainer/harness/claude/skills/orkeon-crew-yaml/scripts/check_crew.py         # embedded tool list
+    - .devcontainer/harness/claude/skills/orkeon-crew-typescript/scripts/check_team.py   # embedded tool list
+    - .devcontainer/harness/VERIFICATIONS.md                              # a new V-nn entry
+    - docs/orkeon-workshop-plan.md                                        # section 11.1
+  also: every other file naming the previous short hash (tests of the bench, READMEs, comments), the rules and the user documentation that state what Orkeon does
+
+contrib:
+  branch: "feature|fix|chore/<slug>"
+  commit: "one sentence of what changed, naming the decisions D<n> and the Orkeon commit when it moves"
+  pr_template: none                       # no .github/PULL_REQUEST_TEMPLATE* in the repository
+  checklist:
+    - the change is recorded in the plan (section 13 for a decision, section 11.1 for progress)
+    - English everywhere; the user documentation mirrored in French in the same change
+    - no key on disk; new shell scripts added with their executable bit (git add --chmod=+x)
+    - orkeon-bench lint and tests, and the harness evals in strict mode, green
+    - the workshop migrated to the latest Orkeon main; the image built only when the user asks for it (D74)
+
+release:
+  tag: "v<version>"                       # a vX.Y.Z tag publishes a versioned image
+  # No version_file and no changelog: the version lives in the tag alone, and progress is the plan's
+  # section 11.1, which is not a Keep-a-Changelog file. /release-prepare reports those checks
+  # not applicable and drafts the notes from the commits since the previous tag.
+  workflows:
+    release: image.yml                    # the only workflow a vX.Y.Z tag starts
+  follow: gh run list                     # checks.yml and docs.yml run on the push to main, not on the tag
+  windows_jobs: []                        # no job runs on Windows
+  channels:                               # what /release-verify checks after the CI
+    - name: ghcr-image
+      check: "ghcr.io/orkeon/orkeon-workshop:<version> and :<major>.<minor> resolve (anonymous pull token from https://ghcr.io/token?scope=repository:orkeon/orkeon-workshop:pull, then HEAD /v2/orkeon/orkeon-workshop/manifests/<version>)"
+    - name: image-run
+      check: "jobs of the image.yml run on <tag> - all success (the build runs the evals in strict mode, the bench tests and the templates' self-check)"
+    - name: docs-site
+      check: "https://orkeon.github.io/orkeon-workshop/ answers 200 (the site follows main, built by docs.yml, not by the tag)"

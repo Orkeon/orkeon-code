@@ -10,10 +10,12 @@
 // `edit` is `add` over an existing name — a REPL one-liner is a poor field editor,
 // and an overwrite that says "replaced" is clearer than a partial patch.
 //
-// Note on scope: Orkeon Code cannot DISPATCH a saved agent. `spawn_agent` is not
-// registered as an IBaseTool in this host (proven by the B-8 runtime probe), so
-// there is no path from a definition to a running agent. The registry is therefore
-// honest storage, and the command says so rather than implying a launch.
+// Note on scope: Orkeon Code does not DISPATCH a saved agent: no command turns a
+// definition into a running agent, so the registry is honest storage, and the
+// command says so rather than implying a launch. What does run as an agent is
+// listed beside it: the built-in charters (A-3), each a background child of its
+// dev step (the reviewer of /dev-plan, the auditor of /dev-verify), which /tasks
+// lists, stops, sends to and repairs.
 
 import type { CrewHost, Files } from "../../shared/application/ports.ts";
 import { readJsonFile, writeJsonFile } from "../../shared/application/json-file.ts";
@@ -22,12 +24,17 @@ import {
   upsertAgent, removeAgent, describeAgentRows,
 } from "../../shared/domain/agent-registry.ts";
 import type { SavedAgent } from "../../shared/domain/agent-registry.ts";
+import { builtInCharterRows } from "../../shared/domain/agents/built-in-charters.ts";
 import type { CommandView } from "./view.ts";
 
 export const AGENTS_FILE_PATH = "/workspace/.orkeon/agents.json";
 
 export const AGENTS_USAGE =
   "usage: /agents [list] | add <name> <role> | <goal> | remove <name> | show <name>";
+
+/** What the listing says of the saved agents, and of what runs instead. */
+export const SAVED_AGENTS_NOTE =
+  "saved agents are storage only — no command runs one; the built-in charters run as children of /dev-spec, /dev-change, /dev-plan and /dev-verify (/tasks).";
 
 export interface AgentsDeps {
   files: Pick<Files, "read" | "write">;
@@ -68,8 +75,8 @@ export async function runAgents(tokens: string[], deps: AgentsDeps): Promise<Com
         notes.push(`⚠ ${dropped.length} stored entr(y/ies) ignored — missing role or goal: ${dropped.join(", ")}`);
       }
       if (malformed) notes.push(`⚠ ${AGENTS_FILE_PATH} could not be parsed; it is left untouched.`);
-      notes.push("saved agents are storage only — this host cannot dispatch one (spawn_agent is not registered).");
-      return { table: describeAgentRows(crews, agents), text: notes.join("\n") };
+      notes.push(SAVED_AGENTS_NOTE);
+      return { table: [...describeAgentRows(crews, agents), ...builtInCharterRows()], text: notes.join("\n") };
     }
 
     case "show": {

@@ -3,7 +3,7 @@
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok } from "node:assert";
 
-import { CONFIG_FILE_PATH, createConfigStore } from "./config-store.ts";
+import { CONFIG_FILE_PATH, USER_CONFIG_FILE_PATH, createConfigStore } from "./config-store.ts";
 import { CONFIG_MAP_STATE_KEY } from "../domain/session-keys.ts";
 import { FakeFiles } from "../../../tests/support/fake-files.ts";
 import { FakeSessionStore } from "../../../tests/support/fake-session-store.ts";
@@ -103,5 +103,65 @@ describe("config store — layered reads", () => {
     files.files.set(CONFIG_FILE_PATH, JSON.stringify({ zeta: "1", alpha: "2" }));
     session.state.set(CONFIG_MAP_STATE_KEY, JSON.stringify({ alpha: "3" }));
     deepStrictEqual((await config.readView()).unknown, ["alpha", "zeta"]);
+  });
+});
+
+describe("config store — the user settings, which the project cannot widen", () => {
+  it("reads the user file the launcher mounts read-only, outside the project", () => {
+    ok(!USER_CONFIG_FILE_PATH.startsWith("/workspace/"), USER_CONFIG_FILE_PATH);
+  });
+
+  it("keeps the user's mode when the project file sets bypassPermissions, and names the value set aside", async () => {
+    const { files, config } = setup();
+    files.files.set(CONFIG_FILE_PATH, JSON.stringify({ "permissions.fallback": "bypassPermissions" }));
+    files.files.set(USER_CONFIG_FILE_PATH, JSON.stringify({ "permissions.fallback": "acceptEdits" }));
+    const r = await config.readValue("permissions.fallback");
+    strictEqual(r.value, "acceptEdits");
+    strictEqual(r.source, "user");
+    strictEqual(r.ignored?.value, "bypassPermissions");
+  });
+
+  it("offers a project's extra tool only when the user file lists it", async () => {
+    const { files, config } = setup();
+    files.files.set(CONFIG_FILE_PATH, JSON.stringify({ "tools.extra": "search_issues, deploy_prod" }));
+    files.files.set(USER_CONFIG_FILE_PATH, JSON.stringify({ "tools.extra": "search_issues:read" }));
+    const r = await config.readValue("tools.extra");
+    strictEqual(r.value, "search_issues:write");
+    strictEqual(r.ignored?.value, "deploy_prod:write");
+  });
+
+  it("reads an absent user file as an empty layer: no project value widens", async () => {
+    const { files, config } = setup();
+    files.files.set(CONFIG_FILE_PATH, JSON.stringify({ "permissions.fallback": "bypassPermissions" }));
+    const view = await config.readView();
+    strictEqual(view.userMalformed, false);
+    strictEqual(view.entries.find((e) => e.key === "permissions.fallback")?.source, "unset");
+  });
+
+  it("flags a malformed user file and reads nothing from it", async () => {
+    const { files, config } = setup();
+    files.files.set(USER_CONFIG_FILE_PATH, `{ "permissions.fallback": `);
+    const view = await config.readView();
+    strictEqual(view.userMalformed, true);
+    strictEqual(view.fileMalformed, false);
+    ok(view.entries.every((e) => e.source === "unset"));
+  });
+
+  it("reads a user file that fails to read (no mount, an older launcher) as absent", async () => {
+    const { files, config } = setup();
+    files.readErrors.set(USER_CONFIG_FILE_PATH, new Error("no mount for the path"));
+    deepStrictEqual(await config.readUserFile(), { map: {}, malformed: false });
+  });
+
+  it("reports the unknown keys of the user file too", async () => {
+    const { files, config } = setup();
+    files.files.set(USER_CONFIG_FILE_PATH, JSON.stringify({ "old.key": "1" }));
+    deepStrictEqual((await config.readView()).unknown, ["old.key"]);
+  });
+
+  it("never writes the user file: /config writes the project file", async () => {
+    const { files, config } = setup();
+    await config.writeFile({ "advisor.model": "m" });
+    deepStrictEqual(files.writes.map((w) => w.path), [CONFIG_FILE_PATH]);
   });
 });

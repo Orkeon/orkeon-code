@@ -158,6 +158,41 @@ export function readSymbolSource(raw: any): { source: string; file: string; line
   };
 }
 
+export interface SearchHitWithOrigin {
+  fqn: string;
+  score: number;
+  origin: string;
+}
+
+/** `codebase_search` → hits with their origin; a hit without fqn is dropped. The
+ *  origin is read on the same raw hit, so a dropped hit cannot shift the others. */
+export function readSearchHitsWithOrigin(raw: any): SearchHitWithOrigin[] {
+  return arr(raw, "hits").map((h) => ({
+    fqn: String(h?.fqn ?? ""), score: Number(h?.score ?? 0), origin: readMatchOrigin(h),
+  })).filter((h) => h.fqn.length > 0);
+}
+
+/** The longest first line a location keeps: enough to recognise a declaration. */
+const FIRST_LINE_MAX = 160;
+
+/** `symbol_source` → path, lines, language and the first non-blank source line
+ *  (at most 160 characters). The live payload carries no `fqn`: the requested one
+ *  stands in when the field is absent or empty. */
+export function readSymbolLocation(raw: any, requestedFqn: string): {
+  fqn: string; path: string; startLine: number; endLine: number; language: string; firstLine: string;
+} {
+  const fqn = String(raw?.fqn ?? "");
+  const first = String(raw?.source ?? "").split("\n").map((l) => l.trim()).find((l) => l.length > 0) ?? "";
+  return {
+    fqn: fqn.length > 0 ? fqn : requestedFqn,
+    path: String(raw?.virtual_file_path ?? ""),
+    startLine: num(raw, "start_line"),
+    endLine: num(raw, "end_line"),
+    language: String(raw?.language ?? ""),
+    firstLine: first.slice(0, FIRST_LINE_MAX),
+  };
+}
+
 /** `flow_trace` → `paths[]`, NOT `edges[]`. An empty array is a valid answer. */
 export function readFlowPathCount(raw: any): number {
   return arr(raw, "paths").length;

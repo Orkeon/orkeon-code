@@ -9,13 +9,51 @@ d'[Orkeon](https://github.com/Orkeon/orkeon) (*Read–Eval–Print Loop* : la co
 Le lanceur `orkeon-code` (et `orkeon-code.ps1` sous Windows) trouve un runtime, monte votre projet et démarre le
 REPL. Il lui faut trois choses : un runtime, un fichier de settings et une clé d'API.
 
-## 1. Récupérer les sources
+## 1. Installer
+
+**Depuis une release** (Linux, macOS, WSL) : `install.sh`, publié avec chaque
+[release](https://github.com/Orkeon/orkeon-code/releases), télécharge l'archive de cette release, la vérifie avec son
+`SHA256SUMS` et l'installe dans `~/.local/lib/orkeon-code/<version>`, la commande `orkeon-code` dans `~/.local/bin` ;
+ni `sudo`, ni clone, ni `npm ci`.
+
+```bash
+v=0.1.0                                                          # the release to install
+curl -fLO "https://github.com/Orkeon/orkeon-code/releases/download/v$v/install.sh"
+bash install.sh                                                  # or: bash install.sh --prefix /opt/tools
+orkeon-code --version
+```
+
+`install.sh --archive orkeon-code-<version>.tar.gz` installe une archive déjà téléchargée (vérifiée avec le
+`SHA256SUMS` posé à côté, quand il y en a un). Relancé, il ne change rien ; une nouvelle release va dans son propre dossier et devient
+`current`. `bash ~/.local/lib/orkeon-code/current/scripts/install.sh --uninstall` retire le programme et la commande,
+jamais `~/.orkeon-code/`, où une installation garde ce qui est à vous : l'état et les sessions de chaque projet (`projects/`) et le dépôt de démo
+(`demo/`) ; `ORKEON_CODE_HOME` désigne un autre dossier. Sous Windows, `install.ps1` fait de même dans
+`%LOCALAPPDATA%\Programs\orkeon-code` et écrit `bin\orkeon-code.cmd`, que `cmd.exe` et PowerShell trouvent tous deux.
+
+**Depuis npm** (Linux, macOS, Windows ; Node 22 ou plus récent) : le paquet porte les mêmes fichiers que l'archive de
+la release, et esbuild avec eux.
+
+```bash
+npm install -g orkeon-code@next                                  # a prerelease; orkeon-code once 1.0 is out
+orkeon-code --version
+```
+
+`npm update -g orkeon-code` et `npm uninstall -g orkeon-code` laissent eux aussi `~/.orkeon-code/` intact. En mode
+Docker sous macOS, le programme doit se trouver dans un dossier que Docker Desktop partage avec ses conteneurs
+(`/Users` par défaut) : un préfixe npm sous `/opt/homebrew` ou `/usr/local` n'en est pas un ; ajoutez-le dans
+Settings > Resources > File sharing, ou utilisez `install.sh`.
+
+`orkeon-code --version` affiche la version d'Orkeon Code, d'où il s'exécute (`install:` ou `clone:`), la version
+d'Orkeon attendue et celle trouvée, sans rien démarrer.
+
+**Depuis les sources**, pour modifier Orkeon Code ou suivre `main` :
 
 ```bash
 git clone https://github.com/Orkeon/orkeon-code.git ~/orkeon-code
 ```
 
 Si vous le souhaitez, mettez le lanceur dans votre `PATH` : `ln -s ~/orkeon-code/orkeon-code ~/.local/bin/orkeon-code`.
+Un clone garde son état dans `.crew-output/` et sa démo dans `fixtures/`, et lit d'abord `config/appsettings.local.json`.
 
 ## 2. Settings et clé
 
@@ -27,8 +65,9 @@ export DEEPSEEK_API_KEY=...
 
 L'exemple vise DeepSeek ; tout point d'accès compatible OpenAI, ou un autre fournisseur pris en charge par Orkeon
 (Anthropic compris), fonctionne en changeant `Llm:BaseUrl`, `Llm:Model` et `Llm:ApiKeyEnvVar`
-([Configuration](configuration.md)). Le lanceur cherche aussi `~/.config/orkeon-code/appsettings.json`, ou prend
-`--settings FILE`. Un modèle sur cette machine à la place, sans clé : `config/appsettings.ollama.example.json`, sur
+([Configuration](configuration.md)). Une installation lit `~/.orkeon-code/appsettings.json` : `orkeon-code setup` l'écrit, ou copiez-y l'exemple de
+`~/.local/lib/orkeon-code/current/config/` ([d'où viennent les settings](configuration.md#doù-viennent-les-settings)).
+Le lanceur prend aussi `--settings FILE`. Un modèle sur cette machine à la place, sans clé : `config/appsettings.ollama.example.json`, sur
 Ollama ([Configuration](configuration.md#le-llm)).
 
 ## 3. Choisir un runtime
@@ -39,8 +78,9 @@ Ollama ([Configuration](configuration.md#le-llm)).
 Orkeon Code exige Orkeon `1.0.0-rc.6`, la version de `.orkeon-version`. **Tant que cette version n'est pas taguée et
 publiée, seul le [mode source](#mode-source--un-checkout-dorkeon) fonctionne** : le mode tool a besoin de ses paquets
 et le mode docker de son image, et le smoke runtime de la CI, qui tire cette image, échoue d'ici là.
-L'état de la garde de l'hôte (`/permissions`) et les outils intégrés typés demandent le `main` d'Orkeon après
-Orkeon/orkeon#130 : sur `1.0.0-rc.6`, l'état de la garde se lit « unknown » et rien d'autre ne change.
+Orkeon Code vise le `main` d'Orkeon après Orkeon/orkeon#180, la surface que portera `1.0.0-rc.6` : l'état de la
+garde de l'hôte (`/permissions`), les outils intégrés typés et les limites de résultat par outil
+([ADR 0004](../adr/0004-orkeon-after-180.md)).
 
 Le lanceur prend le premier mode disponible, dans cet ordre, sauf si `--mode` en décide autrement.
 
@@ -96,16 +136,17 @@ ce checkout, ou `ORKEON_ESBUILD_PATH`.
 ## 4. Première session
 
 ```bash
-./orkeon-code --demo                 # a throwaway sample repository (fixtures/, regenerated on demand)
+orkeon-code --demo                   # a throwaway sample repository (fixtures/ in a clone, ~/.orkeon-code/demo once installed)
 cd ~/src/my-project && orkeon-code   # the current directory is the project
 orkeon-code --workspace ~/src/other  # or name it
 ```
 
+Le premier démarrage dans un dossier demande si vous lui faites confiance ([Dossiers de confiance](permissions.md#dossiers-de-confiance)).
 La bannière affiche le projet, les settings et le mode. Dans le REPL :
 
 | Essayez | Ce qui se passe |
 |---|---|
-| `/doctor` | Vérifie la configuration du LLM, les outils et les montages |
+| `/doctor` | Montre la version, vérifie la configuration du LLM, les outils, les montages et ce qu'a réglé le fichier du projet |
 | `/init` | Analyse le projet et écrit `AGENTS.md`, les instructions que l'agent lit à chaque tour (un `CLAUDE.md` existant y est fusionné, et reste lu quand il n'y a pas d'`AGENTS.md`) |
 | `plan: où sont définies les routes HTTP ?` | Une question en lecture seule |
 | `renomme parseArgs en parseCliArgs` | En mode `default`, le REPL demande avant chaque modification : `[y] once / [s] session / [n] no` |
@@ -138,10 +179,17 @@ Détails, modèles, backends et comment le modèle appelle les outils lui-même 
 
 Outre les changements que vous demandez : `AGENTS.md` (`/init`), `.orkeon/config.json` (`/config`),
 `.orkeon/agents.json` (`/agents`) et `.git/ORKEON_COMMITMSG` (`/commit` y écrit le message pour `git commit -F` ;
-git ne le suit pas). Ajoutez `.orkeon/` au `.gitignore` du projet si vous ne voulez pas les partager. Les
-transcriptions vont dans le dossier d'état (`.crew-output/transcripts` dans ce checkout), jamais dans le projet. La
-conversation, le mode de session (`/mode`) et les règles de permission sont gardés en mémoire et finissent avec le
-REPL.
+git ne le suit pas ; dans un worktree lié, dont le `.git` est un fichier, le message va dans
+`.orkeon/ORKEON_COMMITMSG`, supprimé après le commit). Le workflow dev ajoute `.orkeon/dev/` (les fichiers d'état et les journaux de chaque travail),
+le dossier de travail (`workbench/` par défaut, `dev.workDir` : specs, plans, fiches de lot, verdicts),
+`.orkeon/worktrees/` (les worktrees des lots), `.orkeon/dev-learn-state.json` (`/dev-learn`) et le dossier de la
+[mémoire partagée](shared-memory.md) (`.orkeon/memory/` sauf si `memory.dir` en nomme un autre) ; les scripts de hook
+que vous écrivez (`.orkeon/hooks/` dans les [exemples](hooks.md)) sont les vôtres. Ajoutez `.orkeon/` et `workbench/`
+au `.gitignore` du projet si vous ne voulez pas les partager : `/dev-status` avertit tant qu'ils ne sont pas ignorés.
+Une mémoire partagée destinée à l'équipe va dans un dossier suivi (`memory.dir`, `docs/memory` par exemple). Les
+transcriptions vont dans le dossier d'état (`.crew-output/transcripts` dans un clone, `~/.orkeon-code/projects/<projet>/transcripts` une fois installé), jamais dans le projet. La
+conversation y est gardée aussi après chaque tour et quand le REPL finit ([Sessions](configuration.md#sessions) : `--continue` la ramène) ;
+le mode de session (`/mode`) et les règles de permission sont gardés en mémoire et finissent avec le REPL.
 
 ## Dépannage
 
@@ -150,9 +198,10 @@ REPL.
 - **Le tour attend sur `approve <tool>? [y] once / [s] session / [n] no`** : le mode vous interroge sur cet appel ;
   répondez sur la ligne suivante. `acceptEdits:` ou `/mode acceptEdits` arrête les questions sur les modifications,
   et une règle d'autorisation celles sur les appels qu'elle couvre ([Permissions](permissions.md)).
-- **Toutes les commandes shell échouent avec une erreur de confinement** : les settings mettent
-  `Orkeon:Tools:Shell:Confinement:Mode` à `Bubblewrap`, et `bwrap` manque ou ne peut pas créer ses espaces de noms
-  (un autre OS, un conteneur). Installez bubblewrap, ou remettez le mode à `None` ([SECURITY.md](../../SECURITY.md)).
+- **Toutes les commandes shell échouent avec une erreur de confinement** : `Orkeon:Tools:Shell:Confinement:Mode`
+  vaut `Auto` (le défaut quand les settings omettent la clé) ou `Bubblewrap`, et la commande ne peut pas être confinée
+  (`bwrap` absent ou incapable de créer ses espaces de noms). Installez bubblewrap, ou mettez le mode à `None` comme
+  les exemples ([SECURITY.md](../../SECURITY.md)).
 - **Pas de ligne `audio` dans la bannière, ou `no registered tool 'transcribe_audio'`** : le lanceur dit pourquoi au
   démarrage (uv absent, un serveur `whisper` dans le fichier de settings, mode docker). Un serveur qui ne peut pas
   démarrer coûte une ligne `fail:` qui le nomme ; `bash scripts/whisper-mcp-smoke.sh` le lance seul
@@ -162,6 +211,7 @@ REPL.
 - **Une commande manque** : le chargeur garde au plus `Orkeon:Cli:ScriptCommands:MaxScripts` commandes (200 par
   défaut). `bash scripts/smoke-runtime.sh` vérifie que chaque commande se charge.
 - **Le REPL refuse un montage et quitte au démarrage** : il refuse un montage sur `/sandbox`, `/credentials`,
-  `/cli-commands...` ou `/crews...`, et une racine montée deux fois. Le lanceur ne monte que `/workspace`, `/output`
-  et `/tmp`, et démarre le REPL depuis le projet avec `ORKEON_ALLOW_EXTERNAL_MOUNTS=1` : vérifiez les arguments
+  `/cli-commands...` ou `/crews...`, et une racine montée deux fois. Le lanceur monte `/workspace`, `/output`, `/tmp`,
+  `/user-config`, `/sessions` et `/session-history`, plus `/audio` et `/transcripts` quand la transcription est
+  active, et démarre le REPL depuis le projet avec `ORKEON_ALLOW_EXTERNAL_MOUNTS=1` : vérifiez les arguments
   `--mount` passés après `--` et les `Orkeon:FileSystem:Mounts` du fichier de settings.

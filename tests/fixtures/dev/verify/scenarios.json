@@ -1,0 +1,28 @@
+[
+  { "name": "green", "edits": [] },
+  { "name": "open-tdd", "edits": [
+    { "path": "workbench/vdemo/VDEMO-PLAN-F1.md", "find": "GREEN [x]", "replace": "GREEN [ ]" }
+  ] },
+  { "name": "unclassified-id", "edits": [
+    { "path": "workbench/vdemo/VDEMO-PLAN.md", "find": "; PERF-01: N/A — no loop over stored data", "replace": "" }
+  ] },
+  { "name": "out-of-scope", "edits": [
+    { "path": "docs/notes.md", "create": "# Notes\n\nA page the batch was not asked to write.\n" }
+  ] },
+  { "name": "untested-id", "edits": [
+    { "path": "workbench/vdemo/VDEMO-PLAN-F1.md", "find": "(BR-02, BR-03)", "replace": "(BR-02, BR-03, BR-04)" }
+  ] },
+  { "name": "whitespace", "edits": [
+    { "path": "src/Ledger/Account.cs", "find": "Balance -= amount;", "replace": "Balance -= amount; " }
+  ] },
+  { "name": "stray-trait", "edits": [
+    { "path": "tests/Ledger.Tests/AccountTests.cs", "find": "    [Trait(\"BR\", \"BR-03\")]\n", "replace": "    [Trait(\"BR\", \"BR-03\")]\n    [Trait(\"BR\", \"BR-09\")]\n" }
+  ] },
+  { "name": "untracked-build-output", "edits": [
+    { "path": "bin/Debug/Ledger.txt", "create": "built\n" }
+  ] },
+  { "name": "named-outside-roots", "edits": [
+    { "path": "docs/overdraft.md", "create": "# Overdraft\n\nWhy a withdrawal beyond the balance is refused.\n" },
+    { "path": "workbench/vdemo/VDEMO-PLAN-F1.md", "find": "## Decisions\n", "replace": "## Decisions\nThe page `docs/overdraft.md` explains the refusal.\n" }
+  ] }
+]

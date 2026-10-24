@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok } from "node:assert";
 
 import {
-  EFFORT_LEVELS, EFFORT_MAX_ITERATIONS, DEFAULT_EFFORT, resolveEffort, maxIterationsFor,
+  EFFORT_LEVELS, EFFORT_MAX_ITERATIONS, DEFAULT_EFFORT, resolveEffort, maxIterationsFor, providerEffort,
   MIN_PASSES, MAX_PASSES, DEFAULT_PASSES, resolvePasses,
   FAST_MODE_DROPPED_BLOCKS, fastModeDrops,
   PROACTIVE_CLAUSE, proactiveSuffix,
@@ -99,6 +99,16 @@ describe("/proactive → the follow-up clause", () => {
   });
 });
 
+describe("providerEffort", () => {
+  it("forwards a stored level only: unset and junk send none, so the provider keeps its default", () => {
+    strictEqual(providerEffort(" LOW "), "low");
+    strictEqual(providerEffort("medium"), "medium");
+    for (const raw of [undefined, null, "", "max", 3]) strictEqual(providerEffort(raw), undefined, String(raw));
+    strictEqual(resolveBehaviorFlags({}).thinking, null);
+    strictEqual(resolveBehaviorFlags({ effort: "high" }).thinking, "high");
+  });
+});
+
 describe("describeActiveFlags", () => {
   it("names only what is off-default, with the effect", () => {
     const line = describeActiveFlags(resolveBehaviorFlags({ effort: "high", fast: "true" }));
@@ -111,6 +121,11 @@ describe("describeActiveFlags", () => {
 
   it("reports the model override so a swapped model is never silent", () => {
     ok(describeActiveFlags(resolveBehaviorFlags({ model: "kimi-k3" })).includes("model=kimi-k3"));
+  });
+
+  it("names a stored effort with the provider's thinking, even medium; an unset one not at all", () => {
+    ok(describeActiveFlags(resolveBehaviorFlags({ effort: "medium" })).includes("provider thinking medium"));
+    strictEqual(describeActiveFlags(resolveBehaviorFlags({ effort: "junk" })), "");
   });
 
   it("treats a blank model as unset", () => {

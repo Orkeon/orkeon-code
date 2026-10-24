@@ -10,7 +10,8 @@
 
 type FakedTool = "fileRead" | "fileWrite" | "directoryRead" | "listMounts" | "shellCommand"
   | "sessionStore" | "sessionSnip" | "tokenBudget" | "sessionCost" | "sessionStats" | "memoryStore" | "progressReport"
-  | "indexStatus" | "indexCodebase" | "codebaseMap" | "dependencyGraph" | "packageSummary";
+  | "indexStatus" | "indexCodebase" | "codebaseMap" | "dependencyGraph" | "packageSummary"
+  | "codebaseSearch" | "symbolSource" | "impactAnalysis";
 
 /** The generated signature of one built-in tool. */
 type Tool<T extends FakedTool> = OrkeonTools[T];
@@ -50,4 +51,7 @@ export class FakeTools implements Pick<OrkeonTools, FakedTool> {
   codebaseMap: Tool<"codebaseMap"> = (input) => this.answer("codebaseMap", input);
   dependencyGraph: Tool<"dependencyGraph"> = (input) => this.answer("dependencyGraph", input);
   packageSummary: Tool<"packageSummary"> = (input) => this.answer("packageSummary", input);
+  codebaseSearch: Tool<"codebaseSearch"> = (input) => this.answer("codebaseSearch", input);
+  symbolSource: Tool<"symbolSource"> = (input) => this.answer("symbolSource", input);
+  impactAnalysis: Tool<"impactAnalysis"> = (input) => this.answer("impactAnalysis", input);
 }

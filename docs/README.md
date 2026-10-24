@@ -10,6 +10,8 @@ Start with [Getting started](getting-started.md); the [README](../README.md) giv
 | [WSL tutorial](wsl-tutorial.md) | Speech and a local model on WSL2, on the GPU, step by step |
 | [Configuration](configuration.md) | LLM providers, settings file, environment variables |
 | [Permissions](permissions.md) | Modes, rules, what the agent can touch |
+| [Hooks](hooks.md) | Your commands around the model's tool calls in the dev steps |
+| [Shared memory](shared-memory.md) | Admitted decisions, structures, methods and mistakes the agents recall |
 | [Slash commands](commands.md) | The full list (generated) |
 | [Architecture](architecture.md) | Layers, ports, crews, the loop, prompt assembly, recipes |
 | [Autonomous and embedded runs](headless.md) | Unattended turns, one-shot runs, schedulers and CI, your application |
@@ -19,4 +21,5 @@ Start with [Getting started](getting-started.md); the [README](../README.md) giv
 
 Decisions are recorded as ADRs: [0001 — ports, adapters and entry points](adr/0001-clean-architecture.md),
 [0002 — Orkeon 1.0.0-rc.6 only](adr/0002-orkeon-rc6.md),
-[0003 — prompts from a behaviour specification](adr/0003-prompts-from-a-behaviour-specification.md).
+[0003 — prompts from a behaviour specification](adr/0003-prompts-from-a-behaviour-specification.md),
+[0004 — Orkeon main after #180, on the rc.6 pin](adr/0004-orkeon-after-180.md).
