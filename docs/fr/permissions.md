@@ -84,6 +84,14 @@ question aussi en `acceptEdits`, et les refuse en `plan` et en `dontAsk`. L'hôt
 que soit le catalogue : c'est une modification, demandée en `default` et refusée en `plan` et en `dontAsk`. Une règle
 peut le nommer, et une règle allow sur lui vaut aussi en `dontAsk` (`/permissions` avertit quand vous en ajoutez une).
 
+Les deux outils de la [mémoire partagée](shared-memory.md) sont à Orkeon Code, offerts aux tours du REPL selon le
+mode : `memory_recall` déclare une lecture et s'exécute dans tous les modes, `plan` et `dontAsk` compris ;
+`memory_push` déclare une modification — il écrit un fichier candidat sous `memory.dir`, jamais une entrée admise —
+si bien qu'il est offert là où le mode modifie : jamais en `plan` ni en `dontAsk` (l'outil y refuse aussi de lui-même),
+demandé en `default`, accepté en `acceptEdits`. Une règle peut les nommer, en entier ou sur un argument de leur
+schéma : `/permissions add deny memory_push`, `deny memory_push topic=auth*`, `deny memory_recall query=*secret*`.
+Une règle deny sur l'outil entier le retire aussi du catalogue.
+
 ## Choisir le mode
 
 - **Par requête** : préfixez le texte, `plan: explique la couche de cache`, `acceptEdits: corrige le test qui échoue`.

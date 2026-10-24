@@ -171,7 +171,30 @@ export const SCRIPT_TOOLS: ReadonlyArray<{ name: string; access: ScriptToolAcces
   { name: "run_validation", access: "read" },
   { name: "run_tests", access: "execute" },
   { name: "run_build", access: "execute" },
+  // The shared memory's (M-5): the recall reads, the push writes a candidate file (an edit).
+  { name: "memory_recall", access: "read" },
+  { name: "memory_push", access: "edit" },
 ];
+
+/** The shared memory's tools, offered to the main loop by mode (scriptToolsFor). */
+export const MEMORY_TOOLS: readonly string[] = ["memory_recall", "memory_push"];
+
+/** The tool class whose grant lets a script tool of this access be offered (mode-policy.ts toolClasses). */
+const SCRIPT_TOOL_CLASS: Readonly<Record<ScriptToolAccess, ToolClass>> = { read: "read", edit: "edit", execute: "shell" };
+
+/**
+ * Which of `names` (script tools a crew builds) the mode offers under the session's rules: those whose declared
+ * access the mode's policy grants (`read` always, `edit` with the edit class, `execute` with the shell class), less
+ * those a deny rule covers whole. A name that is no script tool is left out. The gate still checks every call.
+ */
+export function scriptToolsFor(mode: string, names: readonly string[], rules: readonly PermissionRule[] = []): string[] {
+  const classes = policyFor(mode).toolClasses;
+  const denied = rules.filter((r) => r.effect === "deny" && coversEveryCall(r)).map((r) => r.tool);
+  return names.filter((name) => {
+    const access = scriptToolAccess(name);
+    return access !== undefined && classes.includes(SCRIPT_TOOL_CLASS[access]) && !denied.some((t) => sameToolName(t, name));
+  });
+}
 
 /** The access `name` declares, when it is one of SCRIPT_TOOLS; undefined otherwise. */
 export function scriptToolAccess(name: string): ScriptToolAccess | undefined {
@@ -270,6 +293,10 @@ export const TOOL_ARGUMENTS: Readonly<Record<string, readonly string[]>> = {
   run_validation: ["command"],
   run_tests: ["command"],
   run_build: ["project"],
+  memory_recall: ["query", "types", "top_k"],
+  memory_push: [
+    "type", "title", "topic", "applies_when", "rationale", "correction", "detection_signal", "evidence", "tags",
+  ],
 };
 
 /** Whether two tool names designate the same tool: Orkeon compares them case-insensitively. */

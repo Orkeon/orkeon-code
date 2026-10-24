@@ -5,7 +5,7 @@
 // in through the ports.
 
 import {
-  catalogueFor, parseStoredRule, resolvePermissionMode,
+  MEMORY_TOOLS, catalogueFor, parseStoredRule, resolvePermissionMode, scriptToolsFor,
 } from "../../../shared/domain/agent-policy/permission.ts";
 import type { CatalogueDecision, ExtraTool } from "../../../shared/domain/agent-policy/permission.ts";
 import { parseExtraTools } from "../../../shared/domain/agent-policy/extra-tools.ts";
@@ -66,6 +66,8 @@ export interface LoadedCatalogue {
   mode: string;
   extras: ExtraTool[];
   catalogue: CatalogueDecision;
+  /** Orkeon Code's own tools the mode offers under the rules (the shared memory's), attached by name. */
+  scriptTools: string[];
 }
 
 /**
@@ -90,7 +92,7 @@ export function loadCatalogue(input: MainLoopInputs): LoadedCatalogue {
   const rules = (input.permissionRules ?? [])
     .map((raw) => parseStoredRule(raw, extraNames))
     .filter((r): r is NonNullable<typeof r> => r !== null);
-  return { mode, extras, catalogue: catalogueFor(mode, rules, extras) };
+  return { mode, extras, catalogue: catalogueFor(mode, rules, extras), scriptTools: scriptToolsFor(mode, MEMORY_TOOLS, rules) };
 }
 
 /** Where the mode of the turn came from, when the request did not name it. */

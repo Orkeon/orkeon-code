@@ -75,6 +75,14 @@ describe("loadCatalogue", () => {
     deepStrictEqual(loaded.catalogue.deniedByRule, ["file_read"]);
   });
 
+  it("offers the shared memory's recall in every mode, its push only where the mode edits, less a whole deny", () => {
+    deepStrictEqual(loadCatalogue({ permissionMode: "plan" }).scriptTools, ["memory_recall"]);
+    deepStrictEqual(loadCatalogue({ permissionMode: "dontAsk" }).scriptTools, ["memory_recall"]);
+    deepStrictEqual(loadCatalogue({}).scriptTools, ["memory_recall", "memory_push"]);
+    deepStrictEqual(loadCatalogue({ permissionMode: "acceptEdits", permissionRules: ["deny memory_push"] }).scriptTools, ["memory_recall"]);
+    deepStrictEqual(loadCatalogue({ permissionRules: ["deny memory_push topic=secret*"] }).scriptTools, ["memory_recall", "memory_push"]);
+  });
+
   it("offers acceptEdits the shell: the host gate asks before each command", () => {
     ok(loadCatalogue({ permissionMode: "acceptEdits" }).catalogue.tools.includes("shell_command"));
   });
@@ -254,6 +262,7 @@ describe("runMainLoop — the turn", () => {
         deniedByRule: ["file_read"],
         inert: [{ rule: { effect: "allow", tool: "file_write" }, reason: "mode 'plan' does not offer 'file_write'" }],
       },
+      scriptTools: ["memory_recall"],
     };
     await runMainLoop({ prompt: "go", permissionMode: "plan" }, loaded, deps);
     deepStrictEqual(log.lines, [

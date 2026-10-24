@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 
 import {
   READ_TOOLS, WRITE_TOOLS, NETWORK_READ_TOOLS, RULEABLE_TOOLS, ACT_TOOLS, SCRIPT_TOOLS, scriptToolAccess,
+  MEMORY_TOOLS, scriptToolsFor,
   resolvePermissionMode, isReadOnly,
   toolsetFor, permissionNote, buildActPrompt,
   catalogueFor, coversEveryCall, readRule, checkRule, formatRule, gateLine, parseStoredRule, sameCalls,
@@ -140,11 +141,39 @@ describe("the tool lists", () => {
       { name: "run_validation", access: "read" },
       { name: "run_tests", access: "execute" },
       { name: "run_build", access: "execute" },
+      { name: "memory_recall", access: "read" },
+      { name: "memory_push", access: "edit" },
     ]);
     strictEqual(scriptToolAccess("RUN_TESTS"), "execute");
     strictEqual(scriptToolAccess("shell_command"), undefined);
     deepStrictEqual(TOOL_ARGUMENTS.run_validation, ["command"]);
     deepStrictEqual(TOOL_ARGUMENTS.run_build, ["project"]);
+  });
+
+  it("offer the shared memory's recall in every mode and its push only where the mode edits (M-5)", () => {
+    for (const mode of PERMISSION_MODES) {
+      deepStrictEqual(scriptToolsFor(mode, MEMORY_TOOLS), isReadOnly(mode) ? ["memory_recall"] : ["memory_recall", "memory_push"], mode);
+    }
+    deepStrictEqual(scriptToolsFor("plan", ["run_tests", "run_validation", "file_read"]), ["run_validation"]);
+    deepStrictEqual(scriptToolsFor("default", ["run_tests", "run_build"]), ["run_tests", "run_build"]);
+  });
+
+  it("leave out a script tool a deny rule covers whole, never one an argument pattern narrows", () => {
+    deepStrictEqual(scriptToolsFor("acceptEdits", MEMORY_TOOLS, [{ effect: "deny", tool: "MEMORY_PUSH" }]), ["memory_recall"]);
+    deepStrictEqual(scriptToolsFor("plan", MEMORY_TOOLS, [{ effect: "deny", tool: "memory_recall" }]), []);
+    deepStrictEqual(
+      scriptToolsFor("default", MEMORY_TOOLS, [{ effect: "deny", tool: "memory_push", argument: "topic", pattern: "auth*" }]),
+      ["memory_recall", "memory_push"],
+    );
+    deepStrictEqual(scriptToolsFor("default", MEMORY_TOOLS, [{ effect: "allow", tool: "memory_push" }]), ["memory_recall", "memory_push"]);
+  });
+
+  it("take a rule on the shared memory's tools, on the arguments of their schemas", () => {
+    deepStrictEqual(checkRule("deny memory_push topic=auth*"), {
+      ok: true, rule: { effect: "deny", tool: "memory_push", argument: "topic", pattern: "auth*" },
+    });
+    strictEqual(checkRule("deny memory_recall query=x").ok, true);
+    strictEqual(checkRule("deny memory_recall path=x").ok, false);
   });
 
   it("take a rule on one of Orkeon Code's own tools, on the argument it takes", () => {

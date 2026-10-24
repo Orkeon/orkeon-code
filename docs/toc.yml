@@ -8,6 +8,8 @@
   href: configuration.md
 - name: Permissions
   href: permissions.md
+- name: Shared memory
+  href: shared-memory.md
 - name: Hooks
   href: hooks.md
 - name: Slash commands

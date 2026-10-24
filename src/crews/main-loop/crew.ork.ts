@@ -27,13 +27,16 @@
 // included, less the tools a deny rule covers whole; `plan` and `dontAsk` offer
 // no mutating tool. The host's permission gate checks every call the model
 // makes (act) against the session's rules, then the mode, and asks the operator
-// when the mode says so ([y] once / [s] session / [n] no).
+// when the mode says so ([y] once / [s] session / [n] no). The shared memory's
+// tools are Orkeon Code's own (memory-tools.ts): memory_recall in every mode,
+// memory_push (a candidate file, never an entry) where the mode edits.
 
-import { AgentBuilder, CrewBuilder, publishCrew, inputs } from "../../shared/infrastructure/globals.ts";
+import { AgentBuilder, CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infrastructure/globals.ts";
 import {
-  orkeonConfigStore, orkeonFiles, orkeonMemoryStore, orkeonProgress, orkeonSessionIo, orkeonShell, orkeonTelemetry,
-  orkeonToolCalls,
+  orkeonConfigStore, orkeonFiles, orkeonMemoryStore, orkeonMemoryToolPorts, orkeonProgress, orkeonSessionIo, orkeonShell,
+  orkeonTelemetry, orkeonToolCalls,
 } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { memoryTools } from "../../shared/infrastructure/orkeon/memory-tools.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { createRunState } from "../../shared/infrastructure/orkeon/run-state.ts";
 import { compactSession, readCompactionTrigger } from "../../shared/application/compaction/compact-session.ts";
@@ -59,6 +62,8 @@ const coder = AgentBuilder()
   .role("Interactive Coding Agent")
   .goal("Understand a coding request, explore/edit/run code via tool-calling under permission, and answer.")
   .tools(loaded.catalogue.tools)
+  // The shared memory's tools the mode offers (memory_recall always, memory_push where it edits), attached, not named.
+  .withAutonomousTools(memoryTools(ToolBuilder, orkeonMemoryToolPorts, loaded.mode, loaded.scriptTools))
   .maxIterations(40)
   .withState(() => ({ permissionMode: loaded.mode, [BREAKER_RUN_FIELD]: 0 }))
   .body(async (_input: any, ctx: any) => {

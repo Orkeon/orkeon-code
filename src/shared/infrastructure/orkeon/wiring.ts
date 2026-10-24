@@ -31,6 +31,7 @@ import { createPullRequestOpener } from "../../application/git/open-pull-request
 import type { PullRequestPolicy } from "../../application/git/open-pull-request.ts";
 import type { PullRequestOpener } from "../../application/git/commit-files.ts";
 import { createToolCalls, createToolCatalogue } from "./tool-catalogue.ts";
+import type { MemoryToolPorts } from "./memory-tools.ts";
 import { createSharedMemory } from "./shared-memory.ts";
 
 export const orkeonShell = (): Shell => createShell(Tools);
@@ -43,6 +44,10 @@ export const orkeonAnchorIndex = (): AnchorIndex => createAnchorIndex(Tools);
 export const orkeonCostIndex = (): CostIndex => createCostIndex(Tools);
 /** The shared memory's RAG index: the `rag` namespace, else the rag tools. */
 export const orkeonSharedMemory = (): SharedMemory => createSharedMemory(Rag, Tools);
+/** What memory_recall and memory_push call, built when the model calls one. */
+export const orkeonMemoryToolPorts = (): MemoryToolPorts => ({
+  files: orkeonFiles(), shell: orkeonShell(), config: orkeonConfigStore(), memory: orkeonSharedMemory(), clock: () => new Date(),
+});
 /** The pull request opened with the github tool, under the session's mode and rules (W0-C). */
 export const orkeonPullRequestOpener = (policy: PullRequestPolicy): PullRequestOpener =>
   createPullRequestOpener({ shell: orkeonShell(), github: createGitHubPullRequests(Tools) }, policy);

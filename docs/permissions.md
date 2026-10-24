@@ -77,6 +77,13 @@ edit — it writes the knowledge index, not the workspace — so the catalogue o
 catalogue: it is an edit, asked about in `default` and refused in `plan` and `dontAsk`. A rule may name it, and an
 allow rule on it holds in `dontAsk` too (`/permissions` warns when you add one).
 
+The [shared memory](shared-memory.md)'s two tools are Orkeon Code's own, offered to the REPL's turns by mode:
+`memory_recall` declares a read and runs in every mode, `plan` and `dontAsk` included; `memory_push` declares an edit
+— it writes a candidate file under `memory.dir`, never an admitted entry — so it is offered where the mode edits:
+never in `plan` or `dontAsk` (the tool also refuses by itself there), asked in `default`, accepted in `acceptEdits`. A
+rule may name them, whole or on an argument of their schema: `/permissions add deny memory_push`, `deny memory_push
+topic=auth*`, `deny memory_recall query=*secret*`. A deny rule on the whole tool also takes it out of the catalogue.
+
 ## Choosing the mode
 
 - **Per request**: prefix the text, `plan: explain the cache layer`, `acceptEdits: fix the failing test`.
