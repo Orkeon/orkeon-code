@@ -10,7 +10,12 @@
 //                →  script-host.runCrewAsync("main-loop", { prompt, permissionMode, ... })
 // Input (globalThis.inputs): { prompt: string, permissionMode?: "default"|"acceptEdits"|"bypassPermissions"|"plan"|"dontAsk",
 //                              permissionModeVia?: string, permissionRules?: string[], extraTools?: string[],
-//                              prelude?: { tool, args, label, as? }, epilogue?: { tool, args, textArg, label } }
+//                              prelude?: { tool, args, label, as? }, epilogue?: { tool, args, textArg, label },
+//                              sessionStart?: { script, lines }, closingLine?: string }
+// sessionStart is what the session's start script printed (first turn only): the
+// turn-start chain stores it as a [turn-context] message before the request. The stop
+// chain sends a blank answer back once, and one without a line starting with
+// closingLine when the launching command names one (domain/turn-chains).
 // The launching command resolves the mode (the session's when the request names
 // none) and the extra tools the host registers: without a mode the turn runs in
 // `default`. A prelude is its tool call before the turn (the transcription of
@@ -33,6 +38,7 @@ import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { createRunState } from "../../shared/infrastructure/orkeon/run-state.ts";
 import { compactSession, readCompactionTrigger } from "../../shared/application/compaction/compact-session.ts";
 import { loadCatalogue, runMainLoop } from "./application/run-main-loop.ts";
+import { writeWorkflowState } from "../../shared/application/workflow/workflow-state.ts";
 import { BREAKER_RUN_FIELD } from "./application/auto-compact.ts";
 
 // The tool catalogue is decided at load time (module scope is synchronous), from
@@ -65,7 +71,10 @@ const coder = AgentBuilder()
       run: createRunState(ctx),
       compact: async () => compactSession(
         { force: false, trigger: await readCompactionTrigger(ports.config) },
-        { progress, session, files, memory, llm, log },
+        {
+          progress, session, files, memory, llm, log,
+          workflow: (trigger) => writeWorkflowState({ session, files, shell: ports.shell, config: ports.config }, trigger),
+        },
       ),
     });
   })

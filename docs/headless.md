@@ -82,6 +82,29 @@ Every crew runs this way; its `crew.ork.ts` says in its header which `inputs` it
 `{ files?, commit? }`; `advisor`: none). CI checks that every command and crew loads (`scripts/smoke-runtime.sh`);
 an unattended turn of `main-loop` against a model is exercised by hand, not by CI.
 
+## A dev crew, step after step
+
+`scripts/dev-run.sh` chains the steps of a dev crew without anyone at the keyboard: one fresh `orkeon run` per step,
+through `scripts/run-crew.sh` (the variable `DEV_RUN_RUNNER` names another command taking the same arguments, such as
+`dotnet run --project …` while the tool is not on NuGet). Each step's output goes to
+`.orkeon/dev/<code>/runs/<crew>-<n>.log` in the project, never whole to the terminal, which shows its last line. After
+each step the script reads the last line of the work code's event log, `.orkeon/dev/<code>/batches-state.md`:
+
+```bash
+ORKEON_CODE_WORKSPACE=~/src/app bash scripts/dev-run.sh dev-verify demo \
+  --inputs '{"batch":"F2","plan":"demo"}' --max-steps 10 --wait 60 --retries 2
+```
+
+- `closed`: the batches are closed, exit `0`;
+- a line with `BLOCKED` or `GAPS`: a human decides, exit `3`;
+- the same line as before the step: nothing moved, exit `4`, never a loop;
+- `--max-steps` (default 10) reached: exit `5`;
+- a step that exits `1` or `130` stops the chain with that code; one that exits `2` with a rate limit in its log
+  (`429`, `rate limit`) is run again after `--wait` seconds, `--retries` times, then stops it with `2`.
+
+The default inputs are `{"code":"<code>"}`. Each step is a new process with an empty session: what a step needs (the
+batch, the plan, the rules of the step) travels in its inputs or lives in the files of the work code.
+
 ## On a schedule, in a CI job
 
 The command above is one line of a cron table, a systemd timer or a Windows scheduled task. In a CI job, the image

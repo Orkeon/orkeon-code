@@ -14,10 +14,21 @@ export interface CompactOutcome {
   before?: number;
   after?: number;
   usedTokens?: number;
+  /** The state file written before the compaction (a dev batch in progress), or why none was. */
+  state?: { path: string } | { skipped: string };
 }
 
 /** Human-readable outcome line (session-compact crew output / logs). */
 export function formatOutcome(o: CompactOutcome): string {
+  return outcomeLine(o) + stateLine(o);
+}
+
+function stateLine(o: CompactOutcome): string {
+  if (o.state === undefined) return "";
+  return "path" in o.state ? `\nstate of the batch in progress: ${o.state.path}` : `\nno state file written: ${o.state.skipped}`;
+}
+
+function outcomeLine(o: CompactOutcome): string {
   switch (o.status) {
     case "compacted":
       return `✓ compacted ${o.before} → ${o.after} messages` +

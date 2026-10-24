@@ -24,6 +24,12 @@ import { autoCompactGuarded } from "./auto-compact.ts";
 import type { AutoCompactDeps } from "./auto-compact.ts";
 import { buildTurnPrompt } from "./turn-prompt.ts";
 import type { TurnContextDeps, TurnPrompt } from "./turn-prompt.ts";
+import {
+  STOP_GUARDS, TURN_START_GUARDS, buildStopRetryPrompt, buildTurnContextMessage, readClosingLine, refusedTurnText,
+  runChain,
+} from "../domain/turn-chains.ts";
+import type { Guard, StopFacts, TurnStartFacts } from "../domain/turn-chains.ts";
+import { readStartOutput } from "../../../shared/domain/session-start.ts";
 
 /** The crew's input, as launchMainLoop (/assistant, /summary, /transcribe --then, /voice send and --go) passes it. */
 export interface MainLoopInputs {
@@ -47,6 +53,11 @@ export interface MainLoopInputs {
    *  ({ tool, args, textArg, label }): voice.reply reads the answer aloud this way.
    *  A failure is a warning; the turn and its answer stand. */
   epilogue?: unknown;
+  /** What the session's start script printed ({ script, lines }), on the first free-text
+   *  turn of a session only: /assistant takes it off the runtime's raw input. */
+  sessionStart?: unknown;
+  /** The text a line of the answer must start with: an answer without it goes back once. */
+  closingLine?: unknown;
 }
 
 /** The tool catalogue the agent is built with, the mode it was built for, and the
@@ -136,6 +147,8 @@ export interface MainLoopDeps extends TurnContextDeps, Omit<AutoCompactDeps, "se
   llm: Pick<Llm, "act" | "permissionGateEnabled">;
   /** The calls of a prelude and an epilogue, by the registered name the launching command found. */
   tools: Pick<ToolCatalogue, "call">;
+  /** The guards of the two chains; absent, the built-in ones (domain/turn-chains). */
+  chains?: { turnStart?: ReadonlyArray<Guard<TurnStartFacts>>; stop?: ReadonlyArray<Guard<StopFacts>> };
 }
 
 /** The request once the prelude's call answered (applyPrelude). */
@@ -179,6 +192,19 @@ async function gateWarning(mode: string, deps: Pick<MainLoopDeps, "llm" | "sessi
   return text;
 }
 
+/** The answer once the stop chain read it: a refused answer goes back to the model ONCE,
+ *  with the reason, and the second answer stands whatever the chain would say of it. */
+async function stopChecked(
+  deps: Pick<MainLoopDeps, "llm" | "log" | "chains">, turn: TurnPrompt, mode: string, flags: BehaviorFlags,
+  request: string, closingLine: string | null,
+): Promise<string> {
+  const answer = await runAct(deps, turn, mode, flags);
+  const stop = runChain("stop", deps.chains?.stop ?? STOP_GUARDS, { request, answer, closingLine });
+  if (stop.refusedBy === undefined) return answer;
+  deps.log.info(`stop check '${stop.refusedBy}': the answer goes back once (${stop.reason})`);
+  return await runAct(deps, { ...turn, user: buildStopRetryPrompt(turn.user, answer, stop.reason ?? "") }, mode, flags);
+}
+
 /** One turn: the answer, or why there was none. */
 export async function runMainLoop(input: MainLoopInputs, loaded: LoadedCatalogue, deps: MainLoopDeps): Promise<string> {
   const { session, log } = deps;
@@ -212,6 +238,19 @@ export async function runMainLoop(input: MainLoopInputs, loaded: LoadedCatalogue
   // assembly and the act() call cannot disagree about them mid-turn.
   const flags = await readBehaviorFlags(session);
 
+  // turn-start: a refusal ends the turn before anything is stored or any model is
+  // called; the context lines are stored just before the request, so this turn and
+  // the later ones read them in the history.
+  const start = runChain("turn-start", deps.chains?.turnStart ?? TURN_START_GUARDS, {
+    request: prompt, sessionStart: readStartOutput(input.sessionStart),
+  });
+  if (start.refusedBy !== undefined) {
+    const text = refusedTurnText(start);
+    log.warn(text);
+    return text;
+  }
+  if (start.context.length > 0) await appendTurn(session, "user", buildTurnContextMessage(start.context));
+
   await appendTurn(session, "user", prompt);
   // Head-of-turn auto-compaction (F3): act() starts from a healthy buffer.
   await autoCompactGuarded(deps);
@@ -220,7 +259,7 @@ export async function runMainLoop(input: MainLoopInputs, loaded: LoadedCatalogue
   // no answer is stored, the tail compaction does not run (the breaker counts
   // compactions, not turns), and the run fails with the provider's error, which
   // /assistant shows. The user's message stays in the buffer.
-  const answer = await runAct(deps, assembled, mode, flags);
+  const answer = await stopChecked(deps, assembled, mode, flags, prompt, readClosingLine(input.closingLine));
   await appendTurn(session, "assistant", answer);
   await runEpilogue(input.epilogue, answer, deps);
   // Tail-of-turn: a verbose act() must not bequeath a saturated buffer.

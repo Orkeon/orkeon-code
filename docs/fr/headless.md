@@ -88,6 +88,31 @@ Chaque crew se lance ainsi ; son `crew.ork.ts` dit dans son en-tête quels `inpu
 `{ files?, commit? }` ; `advisor` : aucun). La CI vérifie que chaque commande et chaque crew se charge
 (`scripts/smoke-runtime.sh`) ; un tour sans opérateur de `main-loop` face à un modèle s'éprouve à la main, pas en CI.
 
+## Un crew de dev, étape après étape
+
+`scripts/dev-run.sh` enchaîne les étapes d'un crew de dev sans personne au clavier : un `orkeon run` neuf par étape, via
+`scripts/run-crew.sh` (la variable `DEV_RUN_RUNNER` nomme une autre commande qui prend les mêmes arguments, comme
+`dotnet run --project …` tant que l'outil n'est pas sur NuGet). La sortie de chaque étape va dans
+`.orkeon/dev/<code>/runs/<crew>-<n>.log` dans le projet, jamais en entier au terminal, qui en montre la dernière ligne.
+Après chaque étape, le script lit la dernière ligne du journal d'événements du code de travail,
+`.orkeon/dev/<code>/batches-state.md` :
+
+```bash
+ORKEON_CODE_WORKSPACE=~/src/app bash scripts/dev-run.sh dev-verify demo \
+  --inputs '{"batch":"F2","plan":"demo"}' --max-steps 10 --wait 60 --retries 2
+```
+
+- `closed` : les lots sont clos, sortie `0` ;
+- une ligne avec `BLOCKED` ou `GAPS` : un humain décide, sortie `3` ;
+- la même ligne qu'avant l'étape : rien n'a bougé, sortie `4`, jamais de boucle ;
+- `--max-steps` (10 par défaut) atteint : sortie `5` ;
+- une étape qui sort avec `1` ou `130` arrête la chaîne avec ce code ; une qui sort avec `2` et une limite de débit dans
+  son journal (`429`, `rate limit`) est relancée après `--wait` secondes, `--retries` fois, puis l'arrête avec `2`.
+
+Les entrées par défaut sont `{"code":"<code>"}`. Chaque étape est un nouveau processus à la session vide : ce dont une
+étape a besoin (le lot, le plan, les règles de l'étape) voyage dans ses entrées ou vit dans les fichiers du code de
+travail.
+
 ## Planifié, dans un job de CI
 
 La commande ci-dessus est une ligne d'une table cron, d'un timer systemd ou d'une tâche planifiée Windows. Dans un job

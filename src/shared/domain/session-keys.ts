@@ -63,3 +63,7 @@ export const TASKS_STATE_KEY = "task_list";
 
 /** The main-loop auto-compaction circuit breaker: consecutive failures (F3 v2). */
 export const AUTOCOMPACT_BREAKER_STATE_KEY = "autocompact_consecutive_failures";
+
+/** The dev batch in progress, `{"code": …, "phase": "F<n>"}`: written by the step command
+ *  that starts on a batch (/dev-verify), read by the state file written before a compaction. */
+export const WORKFLOW_ACTIVE_STATE_KEY = "workflow_active";

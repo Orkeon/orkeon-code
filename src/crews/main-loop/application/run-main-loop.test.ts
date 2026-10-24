@@ -344,3 +344,61 @@ describe("runMainLoop — the host gate's state", () => {
     strictEqual(await runMainLoop({ prompt: "hi" }, loadCatalogue({ permissionMode: "bypassPermissions" }), deps), "the answer");
   });
 });
+
+describe("runMainLoop — the turn-start and stop chains", () => {
+  const START = { script: "/tmp/orkeon-code/session-start.sh", lines: ["state: .orkeon/dev/demo/state-F2.md (First open: Step 2 — Refuse)"] };
+
+  it("stores the start script's lines as [turn-context] just before the request, once", async () => {
+    const { store, llm, deps } = setup();
+    strictEqual(await runMainLoop({ prompt: "hello", sessionStart: START }, EXPLICIT_PLAN, deps), "the answer");
+    strictEqual(store.messages.length, 3);
+    strictEqual(store.messages[0].role, "user");
+    ok(store.messages[0].content.startsWith("[turn-context] "), store.messages[0].content);
+    ok(store.messages[0].content.includes("(/tmp/orkeon-code/session-start.sh) printed:"));
+    ok(store.messages[0].content.includes("  state: .orkeon/dev/demo/state-F2.md"));
+    deepStrictEqual(store.messages[1], { role: "user", content: "hello" });
+    strictEqual(llm.acts.length, 1);
+  });
+
+  it("stores no context message without start lines, nor for a malformed sessionStart", async () => {
+    const { store, deps } = setup();
+    await runMainLoop({ prompt: "hello", sessionStart: { script: "", lines: ["x"] } }, EXPLICIT_PLAN, deps);
+    deepStrictEqual(store.messages[0], { role: "user", content: "hello" });
+  });
+
+  it("ends a turn a turn-start guard denies: nothing stored, no model call, the refusal as the answer", async () => {
+    const { store, llm, log, deps } = setup();
+    const chains = { turnStart: [{ id: "one-batch", check: () => ({ decision: "deny" as const, reason: "F2 is running" }) }] };
+    const text = await runMainLoop({ prompt: "hello" }, EXPLICIT_PLAN, { ...deps, chains });
+    strictEqual(text, "turn refused (one-batch): F2 is running");
+    deepStrictEqual([store.messages, llm.acts], [[], []]);
+    ok(log.lines.some((w) => w.includes("turn refused (one-batch)")), JSON.stringify(log.lines));
+  });
+
+  it("sends an empty answer back once with the reason, and keeps the second answer", async () => {
+    const { store, llm, deps } = setup();
+    llm.answers = ["   ", "the second answer"];
+    strictEqual(await runMainLoop({ prompt: "explain" }, EXPLICIT_PLAN, deps), "the second answer");
+    strictEqual(llm.acts.length, 2);
+    ok(llm.acts[1].prompt.includes("[stop-check] Your previous answer to this request was sent back: the answer was empty"));
+    deepStrictEqual(store.messages.at(-1), { role: "assistant", content: "the second answer" });
+  });
+
+  it("retries once only: a second empty answer stands", async () => {
+    const { llm, deps } = setup();
+    llm.answers = ["", ""];
+    strictEqual(await runMainLoop({ prompt: "explain" }, EXPLICIT_PLAN, deps), "");
+    strictEqual(llm.acts.length, 2);
+  });
+
+  it("sends back an answer without the closing line the command names, and not one that holds it", async () => {
+    const missing = setup();
+    missing.llm.answers = ["done", "done\nVERDICT: VALID"];
+    strictEqual(await runMainLoop({ prompt: "audit", closingLine: "VERDICT:" }, EXPLICIT_PLAN, missing.deps), "done\nVERDICT: VALID");
+    ok(missing.llm.acts[1].prompt.includes("no line starting with 'VERDICT:'"));
+    const present = setup();
+    present.llm.answers = ["  VERDICT: GAPS"];
+    await runMainLoop({ prompt: "audit", closingLine: "VERDICT:" }, EXPLICIT_PLAN, present.deps);
+    strictEqual(present.llm.acts.length, 1);
+  });
+});

@@ -1,10 +1,11 @@
 /// <reference path="./.orkeon/orkeon-cli.d.ts" />
 // /dev-verify F<n> [...] — audit one dev batch: the gate, the capture, a read-only auditor, the verdict file.
 // Parses the arguments here and hands the work to crews/dev-verify (a build can take minutes). Unless --gate-only,
-// the host's gate must be on, and the dev rule sets are put in it first (_lib/dev-step.ts).
+// the host's gate must be on, and the dev rule sets are put in it first (_lib/dev-step.ts). The batch is
+// recorded as the one in progress: a compaction writes its state file (.orkeon/dev/<code>/state-F<n>.md).
 import { rawTokens } from "./_lib/args.ts";
 import { parseDevVerifyArgs } from "./_lib/dev.ts";
-import { devVerifyStep, startDevStep } from "./_lib/dev-step.ts";
+import { devVerifyStep, markActiveWorkflow, startDevStep } from "./_lib/dev-step.ts";
 import { launchCrew, writeCompleted } from "./_lib/dispatch.ts";
 import { createCrewHost } from "../shared/infrastructure/orkeon/crew-host.ts";
 import { createPermissionRules } from "../shared/infrastructure/orkeon/permission-rules.ts";
@@ -37,6 +38,8 @@ defineAsyncCommand({
       details = { ruleSets: start.sets.join(" "), rules: start.rules, hooks: start.hooks.length };
       hooks = start.hooks;
     }
+    const unrecorded = await markActiveWorkflow(deps.session, parsed.args);
+    if (unrecorded !== null) ctx.writeLine(unrecorded);
     return launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "dev-verify", { ...parsed.args, hooks }, details);
   },
   completed: (result, ctx) => writeCompleted(ctx, result, "dev-verify"),

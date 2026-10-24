@@ -176,6 +176,19 @@ export function extractRecentFilePaths(messages: SessionMsg[], cap: number): str
   return out;
 }
 
+/** The message that points at the state file written before the compaction (step 0): the
+ *  batch in progress, where its facts are, and the step to resume at. */
+export function buildRestoredStateMessage(path: string, firstOpen: string | null): SessionMsg {
+  const resume = firstOpen === null ? "every TDD line of its sheet is ticked" : `its first open step is ${firstOpen}`;
+  return {
+    role: "system",
+    content:
+      `[restored-state] A dev batch was in progress at the compaction; ${resume}. Its state — the sheet's TDD lines, ` +
+      `its events, the reports that came back, the working tree — is in ${path}: read it before going on with the ` +
+      "batch, and ask again for no report it lists.",
+  };
+}
+
 /** The re-injected file message: the whole content between an opening line that
  *  says what it is and a closing marker, so the model sees where the copy ends. */
 export function buildRestoredFileMessage(path: string, content: string): SessionMsg {

@@ -7,7 +7,8 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
-import { devVerifyStep, startDevStep } from "../src/commands/_lib/dev-step.ts";
+import { activeWorkflowOf, devVerifyStep, markActiveWorkflow, startDevStep } from "../src/commands/_lib/dev-step.ts";
+import { WORKFLOW_ACTIVE_STATE_KEY } from "../src/shared/domain/session-keys.ts";
 import type { DevStepStart } from "../src/commands/_lib/dev-step.ts";
 import { createConfigStore } from "../src/shared/application/config-store.ts";
 import { RULE_SET_IDS } from "../src/shared/domain/agent-policy/rule-sets.ts";
@@ -113,5 +114,24 @@ describe("devVerifyStep", () => {
   it("runs no step for /dev-verify --gate-only", () => {
     strictEqual(devVerifyStep({ gateOnly: true }), null);
     strictEqual(devVerifyStep({ gateOnly: false }), "dev-verify");
+  });
+});
+
+describe("the batch a step records as in progress", () => {
+  it("takes the code from the token, from a plan path's folder, else none", () => {
+    deepStrictEqual(activeWorkflowOf({ batch: "F2", plan: "demo" }), { code: "demo", phase: "F2" });
+    deepStrictEqual(activeWorkflowOf({ batch: "F2", plan: "workbench/demo/DEMO-PLAN.md" }), { code: "demo", phase: "F2" });
+    deepStrictEqual(activeWorkflowOf({ batch: "F2", plan: "/workspace/todo/demo/DEMO-PLAN.md" }), { code: "demo", phase: "F2" });
+    deepStrictEqual(activeWorkflowOf({ batch: "F3", plan: "DEMO-PLAN.md" }), { code: null, phase: "F3" });
+    deepStrictEqual(activeWorkflowOf({ batch: "F3", plan: null }), { code: null, phase: "F3" });
+  });
+
+  it("writes the pointer in the session, and turns a failure into a warning line", async () => {
+    const session = new FakeSessionStore();
+    strictEqual(await markActiveWorkflow(session, { batch: "F2", plan: "demo" }), null);
+    strictEqual(session.state.get(WORKFLOW_ACTIVE_STATE_KEY), `{"code":"demo","phase":"F2"}`);
+    session.writeState = async () => { throw new Error("no state bag"); };
+    strictEqual(await markActiveWorkflow(session, { batch: "F2", plan: null }),
+      "warning: the batch in progress could not be recorded (no state bag): a compaction will write no state file for it.");
   });
 });

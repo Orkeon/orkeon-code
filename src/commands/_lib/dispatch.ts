@@ -14,6 +14,7 @@ import { syncPermissionRules } from "../../shared/application/permission-rules.t
 import { formatRule } from "../../shared/domain/agent-policy/permission.ts";
 import { failureText } from "../../shared/domain/prelude.ts";
 import type { EpilogueCall, PreludeCall } from "../../shared/domain/prelude.ts";
+import type { StartOutput } from "../../shared/domain/session-start.ts";
 import { SPEAK_TOOL, VOICE_REPLY_CONFIG_KEY, voiceReplyEpilogue, voiceReplyOn } from "../../shared/domain/speech.ts";
 import {
   EXTRA_TOOLS_CONFIG_KEY, EXTRA_TOOL_ENTRY_RULE, formatExtraTool,
@@ -73,11 +74,12 @@ export interface MainLoopLaunchDeps extends LaunchDeps {
  *    the rules the session holds whatever the gate kept from an earlier command.
  * A `prelude` (a tool call the crew makes before the turn: /transcribe --then,
  * /voice --go) rides along as it is. With voice.reply on, an epilogue has the crew read the
- * answer aloud with the speech server's speak, when the host registers it.
+ * answer aloud with the speech server's speak, when the host registers it. The start
+ * script's output (`sessionStart`, the first turn of a session) rides along too.
  */
 export async function launchMainLoop(
   deps: MainLoopLaunchDeps,
-  input: { prompt: string; permissionMode: string | null; prelude?: PreludeCall },
+  input: { prompt: string; permissionMode: string | null; prelude?: PreludeCall; sessionStart?: StartOutput | null },
 ): Promise<{ ticket: string }> {
   const { session, log } = deps;
   const resolved = input.permissionMode === null ? await session.resolveEffectiveSessionMode() : null;
@@ -119,11 +121,13 @@ export async function launchMainLoop(
       extraTools: extras.present.map(formatExtraTool),
       ...(input.prelude ? { prelude: input.prelude } : {}),
       ...(epilogue ? { epilogue } : {}),
+      ...(input.sessionStart ? { sessionStart: input.sessionStart } : {}),
     },
     {
       permissionMode, permissionRules: sync.rules.length, extraTools: extras.present.length,
       ...(input.prelude ? { prelude: input.prelude.tool } : {}),
       ...(epilogue ? { epilogue: epilogue.tool } : {}),
+      ...(input.sessionStart ? { sessionStartLines: input.sessionStart.lines.length } : {}),
     },
   );
 }

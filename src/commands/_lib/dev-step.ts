@@ -12,6 +12,9 @@ import { formatRule } from "../../shared/domain/agent-policy/permission.ts";
 import type { RuleSetId } from "../../shared/domain/agent-policy/rule-sets.ts";
 import { STEP_RULE_SETS, gateProblem, stepRules } from "../../shared/domain/dev/step-rules.ts";
 import type { DevStep } from "../../shared/domain/dev/step-rules.ts";
+import { isCode } from "../../shared/domain/dev/artefacts.ts";
+import type { ActiveWorkflow } from "../../shared/domain/workflow/state-file.ts";
+import { writeActiveWorkflow } from "../../shared/application/workflow/workflow-state.ts";
 
 export interface DevStepDeps {
   session: Pick<SessionStore, "readState">;
@@ -48,4 +51,30 @@ export async function startDevStep(step: DevStep, deps: DevStepDeps): Promise<De
   }
   const hooks = await readJsonArray(deps.session, HOOKS_STATE_KEY);
   return { ok: true, lines, sets: STEP_RULE_SETS[step], rules: sync.step.length, hooks };
+}
+
+/** The batch a step works on, for the state file a compaction writes: the code is the plan
+ *  token when it is a code, the folder of a `.../<CODE>-PLAN.md` path, else null (the writer
+ *  then looks for the batch's open sheet). */
+export function activeWorkflowOf(args: { batch: string; plan: string | null }): ActiveWorkflow {
+  const plan = args.plan;
+  if (plan === null) return { code: null, phase: args.batch };
+  if (!plan.endsWith("-PLAN.md")) return { code: isCode(plan) ? plan : null, phase: args.batch };
+  const parts = plan.replace(/\\/g, "/").split("/").filter((p) => p.length > 0);
+  const folder = parts.length >= 2 ? parts[parts.length - 2] : "";
+  return { code: isCode(folder) ? folder : null, phase: args.batch };
+}
+
+/** Records the batch in progress in the session; a session that cannot keep it costs the
+ *  state file only, so the failure comes back as a warning line, never a refusal. */
+export async function markActiveWorkflow(
+  session: Pick<SessionStore, "writeState">, args: { batch: string; plan: string | null },
+): Promise<string | null> {
+  try {
+    await writeActiveWorkflow(session, activeWorkflowOf(args));
+    return null;
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    return `warning: the batch in progress could not be recorded (${reason}): a compaction will write no state file for it.`;
+  }
 }

@@ -117,6 +117,16 @@ describe("launchMainLoop", () => {
     deepStrictEqual(warned, []);
   });
 
+  it("forwards the start script's output to the crew, and says how many lines it has", async () => {
+    const { crews, logged, deps } = mainLoopSetup();
+    const sessionStart = { script: "/tmp/orkeon-code/session-start.sh", lines: ["a", "b"] };
+    await launchMainLoop(deps, { prompt: "hello", permissionMode: null, sessionStart });
+    deepStrictEqual(crews.launches[0].input?.sessionStart, sessionStart);
+    strictEqual((logged[0].data as { sessionStartLines?: number }).sessionStartLines, 2);
+    await launchMainLoop(deps, { prompt: "again", permissionMode: null, sessionStart: null });
+    strictEqual("sessionStart" in (crews.launches[1].input ?? {}), false);
+  });
+
   it("resolves the session's mode when the request names none, and passes a named one as is", async () => {
     const { crews, store, deps } = mainLoopSetup();
     store.state.set(DEFAULT_MODE_STATE_KEY, "acceptEdits");
@@ -285,6 +295,7 @@ describe("/mode plan, then a request without a mode: prefix", () => {
     deepStrictEqual(loaded.catalogue.tools, toolsetFor("plan"));
 
     const llm = new FakeLlm();
+    llm.answers = ["the cache layer, explained"]; // a blank answer would be sent back once (stop chain)
     const log = new FakeLogger();
     const run = new FakeRunState();
     run.fields = { [BREAKER_RUN_FIELD]: 0 };
