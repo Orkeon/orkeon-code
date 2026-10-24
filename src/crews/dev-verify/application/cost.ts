@@ -8,16 +8,15 @@ import {
   COST_NOT_WIRED, INDEX_ROOT, measuredCost, notComputed, notIndexed, nothingChanged, receiversArgument, underRoots,
 } from "../../../shared/domain/dev/access-cost.ts";
 import type { RepoPack } from "../../../shared/domain/dev/repo-pack.ts";
-import { isTestRoot } from "../domain/capture-sections.ts";
+import { isTestFile, isTestRoot } from "../domain/capture-sections.ts";
 import { firstLine } from "../domain/text.ts";
 
 /** A changed file outside the plan folder, and the lines its captured diff adds (null: not known). */
 export interface CostFile { path: string; added: Set<number> | null }
 
-/** `tools.access_cost.roots`, else the production layout roots of the gate, else none (every file). */
-export function costRoots(pack: RepoPack | null, gateRoots: readonly string[]): string[] {
-  const roots = pack?.accessCost.roots ?? [];
-  return roots.length > 0 ? [...roots] : gateRoots.filter((r) => !isTestRoot(r));
+/** `tools.access_cost.roots`, else none: every changed file that is not a test. */
+export function costRoots(pack: RepoPack | null): string[] {
+  return [...(pack?.accessCost.roots ?? [])];
 }
 
 function failed(tool: string, error: unknown): AccessCost {
@@ -32,8 +31,9 @@ export async function measureAccessCost(
   index: CostIndex | undefined, pack: RepoPack | null, gateRoots: readonly string[], changed: readonly CostFile[],
 ): Promise<AccessCost> {
   if (index === undefined) return COST_NOT_WIRED;
-  const roots = costRoots(pack, gateRoots);
-  const kept = underRoots(changed.map((f) => f.path), roots);
+  const roots = costRoots(pack);
+  const testRoots = gateRoots.filter(isTestRoot);
+  const kept = underRoots(changed.map((f) => f.path).filter((p) => !isTestFile(p, testRoots)), roots);
   if (kept.length === 0) return nothingChanged(roots);
   const files = kept.map((p) => `${INDEX_ROOT}/${p}`);
 

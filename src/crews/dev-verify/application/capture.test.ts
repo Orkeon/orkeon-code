@@ -273,4 +273,25 @@ describe("writeCapture", () => {
     ok(written(files, "cost.txt").includes("Ports in a loop (1): _repository.Save L9 (pre-existing)"), written(files, "cost.txt"));
     ok(written(files, "table.md").includes("| Cost | capture `cost` | gap | `exit: 2` src/Order.cs::Order::Place L4"));
   });
+
+  it("counts a captured diff without a hunk as unknown lines, so its blocking call is flagged", async () => {
+    const { files, shell } = fakes();
+    const costIndex: CostIndex = {
+      roots: async () => ["/workspace"],
+      refresh: async () => [],
+      accessCost: async () => ({
+        report: {
+          members: [{
+            member: "/workspace/src/Order.cs::Order::Place", memoryFilters: [],
+            cost: { reads: 0, writes: 0, loops: 1, lambdas: 0, memoryFilters: 0 },
+            portCalls: [{ receiver: "_repository", method: "Save", line: 9, inLoop: true, inLambda: false }],
+          }],
+          cost: { reads: 0, writes: 0, loops: 1, lambdas: 0, memoryFilters: 0 },
+        },
+        errors: [],
+      }),
+    };
+    const capture = await writeCapture({ files, shell, costIndex }, target(), gate(CHANGED), "w");
+    strictEqual(capture.cost.state === "measured" && capture.cost.exit, 2);
+  });
 });

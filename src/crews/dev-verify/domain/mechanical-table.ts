@@ -109,10 +109,14 @@ function scopeRow(roots: readonly string[]): TableRow {
     `gate: every changed file under ${roots.join(" ")}, the plan folder or named by the sheet — capture \`changed-files\``);
 }
 
+/** The flagged calls the Cost row shows; cost.txt lists them all. */
+const FLAGGED_SHOWN = 12;
+
 function costRow(cost: AccessCost): TableRow {
   if (cost.state === "not-computed") return row("Cost", CHECK_COST, "not checked", `not computed — ${cost.reason}`);
-  if (cost.exit === 0) return row("Cost", CHECK_COST, "ok", cost.costLine === "" ? "`exit: 0`" : `\`exit: 0\` — ${cost.costLine}`);
-  return row("Cost", CHECK_COST, "gap", `\`exit: 2\` ${cost.flagged.join(" · ")}`.trimEnd());
+  if (cost.exit === 0) return row("Cost", CHECK_COST, "ok", `\`exit: 0\` — ${cost.costLine}`);
+  const more = cost.flagged.length > FLAGGED_SHOWN ? ` · … +${cost.flagged.length - FLAGGED_SHOWN}` : "";
+  return row("Cost", CHECK_COST, "gap", `\`exit: 2\` ${cost.flagged.slice(0, FLAGGED_SHOWN).join(" · ")}${more}`.trimEnd());
 }
 
 function appliedRow(input: TableInput): TableRow {

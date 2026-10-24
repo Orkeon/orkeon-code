@@ -66,10 +66,10 @@ function reasonOf(cost: Awaited<ReturnType<typeof measureAccessCost>>): string {
 }
 
 describe("costRoots", () => {
-  it("takes tools.access_cost.roots, else the production layout roots", () => {
-    deepStrictEqual(costRoots(pack("tools:\n  access_cost:\n    roots: [lib]\n"), ["src", "tests"]), ["lib"]);
-    deepStrictEqual(costRoots(LAYOUT, ["src", "tests"]), ["src"]);
-    deepStrictEqual(costRoots(null, []), []);
+  it("takes tools.access_cost.roots, else none", () => {
+    deepStrictEqual(costRoots(pack("tools:\n  access_cost:\n    roots: [lib]\n")), ["lib"]);
+    deepStrictEqual(costRoots(LAYOUT), []);
+    deepStrictEqual(costRoots(null), []);
   });
 });
 
@@ -98,17 +98,17 @@ describe("measureAccessCost", () => {
     strictEqual(reasonOf(await measureAccessCost(index, LAYOUT, ["src"], CHANGED)), "measured exit 0");
   });
 
-  it("measures nothing, with no call, when no changed file is under the roots", async () => {
+  it("measures nothing, with no call, when no changed file is under the pack's roots", async () => {
     const index = new FakeCostIndex();
-    const cost = await measureAccessCost(index, LAYOUT, ["src", "tests"], [{ path: "docs/a.md", added: null }]);
-    strictEqual(cost.state === "measured" && cost.detail, "no changed file under src\n");
+    const cost = await measureAccessCost(index, pack("tools:\n  access_cost:\n    roots: [lib]\n"), ["src", "tests"], CHANGED);
+    strictEqual(cost.state === "measured" && cost.detail, "no changed file under lib\n");
     deepStrictEqual(index.calls, []);
   });
 
-  it("measures every changed file without a pack", async () => {
+  it("measures every changed file but the tests without roots, a co-located test included", async () => {
     const index = new FakeCostIndex();
-    await measureAccessCost(index, null, [], CHANGED);
-    strictEqual(index.calls[2], "accessCost /workspace/src/order.ts,/workspace/tests/order.test.ts");
+    await measureAccessCost(index, null, [], [...CHANGED, { path: "src/tools/run.ts", added: null }, { path: "src/order.test.ts", added: null }]);
+    strictEqual(index.calls[2], "accessCost /workspace/src/order.ts,/workspace/src/tools/run.ts");
   });
 
   it("adds the pack's receivers to the default", async () => {

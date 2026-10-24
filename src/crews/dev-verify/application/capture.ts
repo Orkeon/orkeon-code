@@ -118,7 +118,8 @@ async function diffs(deps: Deps, target: DevVerifyTarget, gate: GateRun): Promis
       path, base,
       line: `${path} → ${base}.txt (${lines} lines)${doubt}`,
       content: `# diff ${path} (${lines} lines)\n${stdout}`,
-      added: omitted > 0 ? null : addedLines(stdout) ?? new Set<number>(),
+      // An empty diff adds nothing; a diff without a hunk (a colour or an external diff) is not known.
+      added: omitted > 0 ? null : stdout.trim() === "" ? new Set<number>() : addedLines(stdout),
     });
   }
   return entries;

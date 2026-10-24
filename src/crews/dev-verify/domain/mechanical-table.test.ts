@@ -95,12 +95,13 @@ describe("mechanicalRows", () => {
 
   it("row 6, the cost", () => {
     deepStrictEqual(at({}, 5), { result: "not checked", evidence: `not computed — ${COST_NOT_WIRED.state === "not-computed" ? COST_NOT_WIRED.reason : ""}` });
-    deepStrictEqual(at({ cost: { state: "measured", exit: 0, flagged: [], costLine: "", detail: "" } }, 5),
-      { result: "ok", evidence: "`exit: 0`" });
     deepStrictEqual(at({ cost: { state: "measured", exit: 0, flagged: [], costLine: "Cost: 1 read + 0 writes", detail: "" } }, 5),
       { result: "ok", evidence: "`exit: 0` — Cost: 1 read + 0 writes" });
     deepStrictEqual(at({ cost: { state: "measured", exit: 2, flagged: ["a loop", "a lambda"], costLine: "", detail: "" } }, 5),
       { result: "gap", evidence: "`exit: 2` a loop · a lambda" });
+    const many = Array.from({ length: 14 }, (_, i) => `f${i + 1}`);
+    strictEqual(at({ cost: { state: "measured", exit: 2, flagged: many, costLine: "", detail: "" } }, 5).evidence,
+      `\`exit: 2\` ${many.slice(0, 12).join(" · ")} · … +2`);
   });
 
   it("rows 7 to 9", () => {
