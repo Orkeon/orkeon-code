@@ -25,7 +25,7 @@ defineCommand({
     await session.writeState(DEFAULT_MODE_STATE_KEY, mode);
 
     if (entering) {
-      ctx.log.info("entering 'plan': mutating tools (file_write, shell_command) stripped from the catalogue");
+      ctx.log.info("entering 'plan': the edit, network and shell tools stripped from the catalogue");
       return ctx.continue(
         "plan mode ON — prompts without a \"mode:\" prefix now run read-only. " +
         "/plan again to leave.",

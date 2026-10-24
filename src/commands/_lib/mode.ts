@@ -19,7 +19,7 @@ export interface ModeDeps {
 async function applyMode(deps: ModeDeps, next: string, how: string): Promise<CommandView> {
   await deps.session.writeState(DEFAULT_MODE_STATE_KEY, next);
   if (policyFor(next).readOnly) {
-    deps.log.info(`entering '${next}': mutating tools (file_write, shell_command) stripped from the catalogue`);
+    deps.log.info(`entering '${next}': the edit, network and shell tools stripped from the catalogue`);
   }
   return {
     text: `session default permission mode ${how} '${next}' ` +
