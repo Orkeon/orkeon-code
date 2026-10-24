@@ -94,7 +94,7 @@ async function repair(deps: TasksDeps, l: Located, message: string): Promise<Tas
     launch: {
       crew: REPAIR_CREW,
       input: {
-        charter: l.record.charter, system: l.record.system, brief: buildRepairBrief(l.record, message),
+        charter: l.record.charter, step: l.snapshot.step, system: l.record.system, brief: buildRepairBrief(l.record, message),
         effort: await storedEffort(deps.session),
       },
       details: { instance: ref(l), charter: l.record.charter },

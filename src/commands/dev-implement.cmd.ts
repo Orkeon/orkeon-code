@@ -10,9 +10,9 @@
 // where the chained close reads it. Every chained launch goes through launchCrew (its chain-depth refusal).
 import { rawTokens } from "./_lib/args.ts";
 import { chainStep, parseDevImplementArgs } from "./_lib/dev-implement.ts";
-import { markActiveWorkflow, reapplyStepRules, startDevStep } from "./_lib/dev-step.ts";
+import { markActiveWorkflow, reapplyStepRules, startDevStep, writeModeRefusal } from "./_lib/dev-step.ts";
 import { launchCrew } from "./_lib/dispatch.ts";
-import { readPullRequestContext, writingModeRefusal } from "./_lib/pr-context.ts";
+import { readPullRequestContext } from "./_lib/pr-context.ts";
 import { storedEffort } from "./_lib/effort.ts";
 import { createCrewHost } from "../shared/infrastructure/orkeon/crew-host.ts";
 import { createPermissionRules } from "../shared/infrastructure/orkeon/permission-rules.ts";
@@ -36,7 +36,7 @@ defineAsyncCommand({
     const prContext = await readPullRequestContext({
       catalogue: () => orkeonToolCatalogue(ctx.services), rules: () => createPermissionRules(ctx.services), session: deps.session,
     });
-    const line = writingModeRefusal(String(prContext.permissionMode ?? ""), "/dev-implement");
+    const line = writeModeRefusal(String(prContext.permissionMode ?? ""), "dev-implement", "writes files, commits and pushes");
     if (line !== null) {
       ctx.writeLine(line);
       return { refused: line };

@@ -5,11 +5,12 @@
 // application/run-agent-run: one agent built at load from the built-in charter its inputs name
 // (dev-reviewer, dev-auditor), its catalogue the charter's (the auditor's run_validation belongs to a
 // dev-verify run and is not offered here), its effort the one /effort stored; the body acts once on
-// the brief in the charter's mode, under the callbacks of the charter's step, and returns the reply.
+// the brief in the charter's mode, under the callbacks of the instance's step, and returns the reply.
 //
 // Input (globalThis.inputs): { charter: "dev-reviewer" | "dev-auditor", system?: string, brief: string,
 //                              effort?: "low" | "medium" | "high" | null, hooks?: the /hooks registry,
-//                              memoryRecall?: false (a session rule denies it) }  (the step is the charter's)
+//                              memoryRecall?: false (a session rule denies it), step?: the instance's run step }
+//        (the step: the instance's run's - dev-plan, dev-verify, dev-spec, dev-change -, else the charter's)
 // Budget: repairBudget(step), the step's own, so that a repaired audit or review stops where the original would.
 // Run standalone:  bash scripts/run-crew.sh src/crews/agent-run/crew.ork.ts --inputs '{"charter":"dev-reviewer","brief":"…"}'
 
@@ -20,7 +21,7 @@ import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { devToolCallbacks } from "../../shared/infrastructure/orkeon/tool-callbacks.ts";
 import { charterCatalogue } from "../../shared/domain/agents/charter.ts";
 import type { Charter } from "../../shared/domain/agents/charter.ts";
-import { builtInCharter } from "../../shared/domain/agents/built-in-charters.ts";
+import { repairStep } from "../../shared/domain/agents/built-in-charters.ts";
 import { repairBudget } from "../../shared/domain/dev/step-budget.ts";
 import { providerEffort } from "../../shared/domain/agent-policy/behavior-flags.ts";
 import { REVIEWER_CHARTER } from "../../shared/domain/dev/reviewer-charter.ts";
@@ -35,7 +36,7 @@ const effort = providerEffort(inputs().effort);
 // The agent's tools are fixed at build: the named charter's, the reviewer's when the name is unknown
 // (the body refuses it before any model call).
 const charter = CHARTERS[String(inputs().charter ?? "")] ?? REVIEWER_CHARTER;
-const step = builtInCharter(charter.name)?.step ?? "dev-plan";
+const step = repairStep(charter.name, inputs().step);
 
 const builder = AgentBuilder()
   .name("agent-run")

@@ -15,10 +15,10 @@
 // launchCrew (its chain-depth refusal); the gate is checked and the step's rules put back before each one.
 import { rawTokens } from "./_lib/args.ts";
 import { batchesChainStep, parseDevBatchesArgs } from "./_lib/dev-batches.ts";
-import { reapplyStepRules, startDevStep } from "./_lib/dev-step.ts";
+import { reapplyStepRules, startDevStep, writeModeRefusal } from "./_lib/dev-step.ts";
 import { launchCrew } from "./_lib/dispatch.ts";
 import { storedEffort } from "./_lib/effort.ts";
-import { readPullRequestContext, writingModeRefusal } from "./_lib/pr-context.ts";
+import { readPullRequestContext } from "./_lib/pr-context.ts";
 import { createCrewHost } from "../shared/infrastructure/orkeon/crew-host.ts";
 import { createPermissionRules } from "../shared/infrastructure/orkeon/permission-rules.ts";
 import { orkeonConfigStore, orkeonSessionIo, orkeonToolCatalogue } from "../shared/infrastructure/orkeon/wiring.ts";
@@ -38,7 +38,7 @@ defineAsyncCommand({
     const prContext = await readPullRequestContext({
       catalogue: () => orkeonToolCatalogue(ctx.services), rules: () => createPermissionRules(ctx.services), session: deps.session,
     });
-    const line = writingModeRefusal(String(prContext.permissionMode ?? ""), "/dev-batches");
+    const line = writeModeRefusal(String(prContext.permissionMode ?? ""), "dev-batches", "writes files, commits and pushes");
     if (line !== null) {
       ctx.writeLine(line);
       return { refused: line };

@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import { chainStep, DEV_IMPLEMENT_USAGE, parseDevImplementArgs } from "../src/commands/_lib/dev-implement.ts";
-import { writingModeRefusal } from "../src/commands/_lib/pr-context.ts";
+import { writeModeRefusal } from "../src/commands/_lib/dev-step.ts";
 
 describe("parseDevImplementArgs", () => {
   it("reads the batch, the plan and the close", () => {
@@ -78,13 +78,16 @@ describe("chainStep", () => {
   });
 });
 
-describe("writingModeRefusal", () => {
-  it("refuses a read-only mode and a mode that cannot be read, lets a writing mode run", () => {
-    strictEqual(writingModeRefusal("plan", "/dev-implement"),
+describe("writeModeRefusal, for /dev-implement and /dev-batches", () => {
+  it("refuses a read-only mode, an unknown mode and a mode that cannot be read, lets a writing mode run", () => {
+    const writes = "writes files, commits and pushes";
+    strictEqual(writeModeRefusal("plan", "dev-implement", writes),
       "✗ refused: the session mode plan is read-only, and /dev-implement writes files, commits and pushes: /mode default, then run it again");
-    strictEqual(writingModeRefusal("", "/dev-batches"),
-      "✗ refused: the session mode cannot be read, and /dev-batches writes files, commits and pushes: /mode default, then run it again");
-    strictEqual(writingModeRefusal("default", "/dev-implement"), null);
-    strictEqual(writingModeRefusal("acceptEdits", "/dev-batches"), null);
+    strictEqual(writeModeRefusal("", "dev-batches", writes),
+      "✗ refused: the session mode could not be read, and /dev-batches writes files, commits and pushes: run it again");
+    strictEqual(writeModeRefusal("bogus", "dev-batches", writes),
+      "✗ refused: the session mode bogus is not one Orkeon Code knows, and /dev-batches writes files, commits and pushes: /mode default, then run it again");
+    strictEqual(writeModeRefusal("default", "dev-implement", writes), null);
+    strictEqual(writeModeRefusal("acceptEdits", "dev-batches", writes), null);
   });
 });

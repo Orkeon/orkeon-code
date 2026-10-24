@@ -139,4 +139,10 @@ describe("/tasks — the agent instances", () => {
     seed("dev-verify", {}, record());
     ok((await run("repair", "a1")).view.text!.includes("is running: a repair is for an ended instance"));
   });
+
+  it("a repair carries the step of the instance's run: a reviewer of /dev-spec is repaired under dev-spec", async () => {
+    const { run, seed } = setup();
+    seed("dev-spec", {}, record({ state: "completed", task: "review of the spec" }));
+    strictEqual((await run("repair", "a1")).launch!.input.step, "dev-spec");
+  });
 });

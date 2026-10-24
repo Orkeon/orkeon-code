@@ -5,7 +5,6 @@
 // without the service fails there, and that read says nothing.
 import type { SessionIo } from "../../shared/application/session-io.ts";
 import { GITHUB_TOOL } from "../../shared/domain/git/pull-request.ts";
-import { policyFor } from "../../shared/domain/agent-policy/mode-policy.ts";
 
 export interface PullRequestContext { githubTool: boolean; permissionRules: string[]; permissionMode: string }
 
@@ -30,12 +29,4 @@ export async function readPullRequestContext(ports: PullRequestContextPorts): Pr
     permissionMode = (await ports.session.resolveEffectiveSessionMode()).mode;
   } catch { /* unknown mode, "": the opener refuses and hands the command over, and writeModeRefusal (dev-step.ts) refuses the step */ }
   return { githubTool, permissionRules, permissionMode };
-}
-
-/** The refusal of a command that writes files, commits and pushes (`/dev-implement`, `/dev-batches`) in a read-only
- *  session mode, or in one that cannot be read: an unknown mode fails closed. Null when the command may run. */
-export function writingModeRefusal(mode: string, command: string): string | null {
-  const what = `${command} writes files, commits and pushes: /mode default, then run it again`;
-  if (mode === "") return `✗ refused: the session mode cannot be read, and ${what}`;
-  return policyFor(mode).readOnly ? `✗ refused: the session mode ${mode} is read-only, and ${what}` : null;
 }

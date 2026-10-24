@@ -10,7 +10,7 @@ import { runTasks } from "./_lib/tasks.ts";
 import { createCrewHost } from "../shared/infrastructure/orkeon/crew-host.ts";
 import { createPermissionRules } from "../shared/infrastructure/orkeon/permission-rules.ts";
 import { orkeonConfigStore, orkeonSessionIo, orkeonToolCatalogue } from "../shared/infrastructure/orkeon/wiring.ts";
-import { builtInCharter } from "../shared/domain/agents/built-in-charters.ts";
+import { repairStep } from "../shared/domain/agents/built-in-charters.ts";
 
 const deps = { session: orkeonSessionIo(), clock: () => new Date() };
 
@@ -23,8 +23,8 @@ defineAsyncCommand({
     if (view.table) ctx.table(view.table);
     if (launch === undefined) return { message: view.text ?? "" };
     if (view.text !== undefined) ctx.writeLine(view.text);
-    // A repair is a run of the charter's step: the gate must be on, its rule sets go in it, its /hooks with it.
-    const step = builtInCharter(String(launch.input.charter ?? ""))?.step ?? "dev-plan";
+    // A repair is a run of the instance's step: the gate must be on, its rule sets go in it, its /hooks with it.
+    const step = repairStep(String(launch.input.charter ?? ""), launch.input.step);
     const start = await startDevStep(step, {
       session: deps.session, config: orkeonConfigStore(), gate: createPermissionRules(ctx.services), catalogue: orkeonToolCatalogue(ctx.services),
     });

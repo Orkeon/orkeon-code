@@ -40,7 +40,7 @@ export function parseDevBatchesArgs(tokens: readonly string[]): { ok: true; args
 
 /** The lines of an answer handed back to the dev-batches crew. */
 export const AFTER_LINES = 20;
-export const DEV_BATCHES_AGAIN = "/dev-batches";
+const DEV_BATCHES_AGAIN = "/dev-batches";
 
 export interface BatchesChainStep { lines: string[]; launch?: ChainLaunch }
 

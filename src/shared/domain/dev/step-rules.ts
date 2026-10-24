@@ -24,8 +24,10 @@ export const STEP_RULE_SETS: Readonly<Record<DevStep, readonly RuleSetId[]>> = {
 
 /** The calls a step lets run without a question. /dev-implement's roles act in acceptEdits, where a tool
  *  declared `execute` would be asked at every test run: run_tests and run_build check their own commands
- *  (application/dev/wrapped-tools.ts). The gate is cleared at every command, so these never outlive the step;
- *  the crews' callback reads deny rules only. */
+ *  (application/dev/wrapped-tools.ts). The gate is not cleared when a step completes (its `completed` hook is
+ *  synchronous and reads no session; reapplyStepRules in commands/_lib/dev-step.ts): an earlier hop's allows stay
+ *  until the next rule change or /assistant turn, and every deny comes before them. The crews' callback reads deny
+ *  rules only. */
 export const STEP_ALLOW_RULES: Readonly<Record<DevStep, readonly PermissionRule[]>> = {
   "dev-verify": [],
   "dev-plan": [],

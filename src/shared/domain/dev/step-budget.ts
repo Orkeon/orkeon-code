@@ -40,7 +40,7 @@ export const STEP_BUDGETS: Readonly<Record<"dev-verify" | "dev-plan" | "dev-spec
 
 /** The budget of a repair by a new run (/tasks repair, crew agent-run): the step's own that runs the charter as a
  *  child, so that a repaired audit or review stops where the original would; no child of its own. */
-export function repairBudget(step: "dev-plan" | "dev-verify"): StepBudget {
+export function repairBudget(step: keyof typeof STEP_BUDGETS): StepBudget {
   return { ...STEP_BUDGETS[step], delegationDepth: 0 };
 }
 
