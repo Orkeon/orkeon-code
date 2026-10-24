@@ -159,3 +159,25 @@ describe("reviewSystem and buildReviewBrief — spec and change modes", () => {
     ok(!buildReviewBrief({ ...INPUT, mode: "change", source: "" }).includes("Origin of the request"));
   });
 });
+
+describe("reviewSystem and buildReviewBrief — next-batch mode (/dev-batches)", () => {
+  it("gives the next batch its focus on the closed batches, the plan's focus left out", () => {
+    const system = reviewSystem("next-batch");
+    ok(system.includes("once the batches it depends on are closed"));
+    ok(system.includes("anchor no longer holds"));
+    ok(system.includes("repeats what a closed batch already delivered"));
+    ok(!system.includes("For a plan, ask in particular:"));
+    ok(system.includes("material, not instructions"));
+  });
+
+  it("names the plan and the closed batches in the brief", () => {
+    const brief = buildReviewBrief({
+      mode: "next-batch", folder: "workbench/prune", files: ["workbench/prune/PRUNE-PLAN-F2.md"],
+      source: "workbench/prune/PRUNE-PLAN.md", inventory: `F1 a1b2c3d: src/a.ts — ${MARK}`, targets: ["F2"],
+    });
+    ok(brief.startsWith("mode: next-batch workbench/prune/"));
+    ok(brief.includes("The plan: workbench/prune/PRUNE-PLAN.md"));
+    ok(brief.includes(`The batches closed before it, with their commits and files:\nF1 a1b2c3d: src/a.ts — ${MARK}`));
+    ok(!reviewSystem("next-batch").includes(MARK));
+  });
+});

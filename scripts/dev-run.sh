@@ -20,8 +20,8 @@
 #                                                       then stop with 2
 #   exit 2 otherwise                                 -> stop with 2
 #   exit 0 -> the last line of the event log, .orkeon/dev/<code>/batches-state.md, or the
-#             file --log names (relative to the project). No crew writes Code's own log yet:
-#             until one does, name the work code's <CODE>-BATCHES-STATE.md, or every run stops at 4.
+#             file --log names (relative to the project). /dev-batches writes Code's own log; a
+#             step that drives one batch alone (/dev-implement) does not: name a log it moves.
 #     `closed` -> exit 0; an event whose detail starts with BLOCKED or GAPS -> exit 3 (a human decides);
 #     the same line as before the step -> exit 4 (no progress: never loop); else the next step.
 # --max-steps (default 10) reached -> exit 5. Usage errors -> exit 64.

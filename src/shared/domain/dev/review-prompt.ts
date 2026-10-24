@@ -6,7 +6,7 @@
 
 import { BOUNDED_READ_RULE } from "./reading-rule.ts";
 
-export type ReviewMode = "plan" | "spec" | "change";
+export type ReviewMode = "plan" | "spec" | "change" | "next-batch";
 
 export const MAX_REVIEW_REPLY_CHARS = 12_000;
 
@@ -67,6 +67,15 @@ const CHANGE_FOCUS = [
   "  new type, file, pattern or library) or a new promise that belongs in a spec.",
 ];
 
+const NEXT_BATCH_FOCUS = [
+  "",
+  "For the next batch of a plan, once the batches it depends on are closed, ask in particular:",
+  "- whether a file, a symbol or a line its sheet anchors was moved, renamed or changed by a closed batch, so the",
+  "  anchor no longer holds (look at the file as it is now);",
+  "- whether a step of it now repeats what a closed batch already delivered, and whether a decision of a closed",
+  "  batch's sheet contradicts one of its own.",
+];
+
 const CLOSING = [
   "",
   "Reading: open only what the files and their anchors point to, and of a source file only",
@@ -105,6 +114,7 @@ export function reviewSystem(mode: ReviewMode): string {
   if (mode === "change") {
     return [...COMMON, ...CHANGE_FOCUS, ...sourceClosing("brief", "the brief as a whole, or one CH- id")].join("\n");
   }
+  if (mode === "next-batch") return [...COMMON, ...NEXT_BATCH_FOCUS, ...CLOSING].join("\n");
   return [...COMMON, ...PLAN_FOCUS, ...CLOSING].join("\n");
 }
 
@@ -132,6 +142,9 @@ export function buildReviewBrief(input: ReviewBriefInput): string {
   if (input.mode === "plan") {
     lines.push(`Source it was planned from: ${input.source}`);
     lines.push("Inventory the plan's anchors were chosen from (I<n> refs):", input.inventory.trimEnd() || "(no entry)");
+  } else if (input.mode === "next-batch") {
+    lines.push(`The plan: ${input.source}`);
+    lines.push("The batches closed before it, with their commits and files:", input.inventory.trimEnd() || "(no entry)");
   } else {
     if (input.source !== "") lines.push(`Origin of the request: ${input.source}`);
     lines.push("What the code index found for the request (path:line):", input.inventory.trimEnd() || "(no entry)");

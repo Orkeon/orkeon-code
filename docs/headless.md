@@ -89,8 +89,10 @@ through `scripts/run-crew.sh` (the variable `DEV_RUN_RUNNER` names another comma
 `dotnet run --project …` while the tool is not on NuGet). Each step's output goes to
 `.orkeon/dev/<code>/runs/<crew>-<n>.log` in the project, never whole to the terminal, which shows its last line. After
 each step the script reads the last line of the work code's event log: `.orkeon/dev/<code>/batches-state.md`, or the
-file `--log` names in the project. No crew writes Code's own log yet; until one does, name the work code's
-`<CODE>-BATCHES-STATE.md`, or every chain stops after its first step (nothing moved):
+file `--log` names in the project. `/dev-batches` writes Code's own log, in the REPL, where its `completed` launches each
+batch; the crews this script runs one by one do not, so name a log they move (the work code's `<CODE>-BATCHES-STATE.md`),
+or every chain stops after its first step (nothing moved). The dev-batches crew run here would only name the next batch
+and log it launched: a run of a whole plan without anyone at the keyboard stays the REPL's `/dev-batches`.
 
 ```bash
 ORKEON_CODE_WORKSPACE=~/src/app bash scripts/dev-run.sh dev-verify demo \

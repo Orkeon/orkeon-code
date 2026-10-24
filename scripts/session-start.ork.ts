@@ -77,7 +77,8 @@ async function sessionStart(now: number): Promise<string> {
   }
   for (const path of await found("*/batches-state.md")) {
     const open = openBatches(await text(path));
-    if (open.length > 0) body.push(`- open batch(es) in ${shown(path)}: ${open.join(" ")}`);
+    const code = path.split("/").slice(-2)[0];
+    if (open.length > 0) body.push(`- open batch(es) in ${shown(path)}: ${open.join(" ")} (/dev-batches ${code} goes on)`);
   }
   if (body.length === 0) return "";
   return ["Dev work in progress in this project (Orkeon Code's state under .orkeon/dev/):", ...body].join("\n");

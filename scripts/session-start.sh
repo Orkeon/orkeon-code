@@ -49,7 +49,8 @@ printf '%s\n' "$logs" | while IFS= read -r f; do
       print out
     }' "$f")
   [ -n "$open" ] || continue
-  echo "- open batch(es) in ${f#"$root"/}: $open"
+  code="$(basename "$(dirname "$f")")"
+  echo "- open batch(es) in ${f#"$root"/}: $open (/dev-batches $code goes on)"
 done
 )
 [ -n "$body" ] || exit 0

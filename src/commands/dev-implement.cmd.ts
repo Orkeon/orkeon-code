@@ -12,6 +12,7 @@ import { rawTokens } from "./_lib/args.ts";
 import { chainStep, parseDevImplementArgs } from "./_lib/dev-implement.ts";
 import { markActiveWorkflow, reapplyStepRules, startDevStep } from "./_lib/dev-step.ts";
 import { launchCrew } from "./_lib/dispatch.ts";
+import { readPullRequestContext } from "./_lib/pr-context.ts";
 import { storedEffort } from "./_lib/effort.ts";
 import { createCrewHost } from "../shared/infrastructure/orkeon/crew-host.ts";
 import { createPermissionRules } from "../shared/infrastructure/orkeon/permission-rules.ts";
@@ -19,30 +20,9 @@ import {
   orkeonConfigStore, orkeonFiles, orkeonSessionIo, orkeonShell, orkeonToolCatalogue,
 } from "../shared/infrastructure/orkeon/wiring.ts";
 import { countOpenSteps } from "../crews/dev-implement/application/count-open-steps.ts";
-import { GITHUB_TOOL } from "../shared/domain/git/pull-request.ts";
 import { policyFor } from "../shared/domain/agent-policy/mode-policy.ts";
 
 const deps = { session: orkeonSessionIo(), config: orkeonConfigStore() };
-
-/** What the close needs to open the pull request itself: the github tool, the session's mode and rules. Read at
- *  dispatch; the crew keeps it in the batch record for the close the chain launches from `completed`, which is
- *  synchronous and cannot read the session's mode again. */
-async function readPullRequestContext(ctx: any): Promise<Record<string, unknown>> {
-  let githubTool = false;
-  let permissionRules: string[] = [];
-  let permissionMode = "";
-  try {
-    githubTool = orkeonToolCatalogue(ctx.services).find(GITHUB_TOOL) !== undefined;
-  } catch { /* no tools service: the command is handed over */ }
-  try {
-    const rules = createPermissionRules(ctx.services);
-    if (rules.available()) permissionRules = rules.list();
-  } catch { /* no rules service: none */ }
-  try {
-    permissionMode = (await deps.session.resolveEffectiveSessionMode()).mode;
-  } catch { /* unknown mode: the opener refuses and hands the command over */ }
-  return { githubTool, permissionRules, permissionMode };
-}
 
 defineAsyncCommand({
   name: "dev-implement",
@@ -54,7 +34,9 @@ defineAsyncCommand({
       ctx.writeLine(parsed.text);
       return { refused: parsed.text };
     }
-    const prContext = await readPullRequestContext(ctx);
+    const prContext = await readPullRequestContext({
+      catalogue: () => orkeonToolCatalogue(ctx.services), rules: () => createPermissionRules(ctx.services), session: deps.session,
+    });
     const mode = String(prContext.permissionMode ?? "");
     if (mode !== "" && policyFor(mode).readOnly) {
       const line = `✗ refused: the session mode ${mode} is read-only, and /dev-implement writes files, commits and pushes: /mode default, then run it again`;

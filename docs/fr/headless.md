@@ -95,9 +95,11 @@ Chaque crew se lance ainsi ; son `crew.ork.ts` dit dans son en-tête quels `inpu
 `dotnet run --project …` tant que l'outil n'est pas sur NuGet). La sortie de chaque étape va dans
 `.orkeon/dev/<code>/runs/<crew>-<n>.log` dans le projet, jamais en entier au terminal, qui en montre la dernière ligne.
 Après chaque étape, le script lit la dernière ligne du journal d'événements du code de travail :
-`.orkeon/dev/<code>/batches-state.md`, ou le fichier du projet que nomme `--log`. Aucun crew n'écrit encore le journal
-propre à Code ; d'ici là, nommez le `<CODE>-BATCHES-STATE.md` du code de travail, sans quoi chaque chaîne s'arrête après
-sa première étape (rien n'a bougé) :
+`.orkeon/dev/<code>/batches-state.md`, ou le fichier du projet que nomme `--log`. `/dev-batches` écrit le journal propre
+à Code, dans le REPL, où son `completed` lance chaque lot ; les crews que ce script lance un à un ne l'écrivent pas :
+nommez donc un journal qu'ils font bouger (le `<CODE>-BATCHES-STATE.md` du code de travail), sans quoi chaque chaîne
+s'arrête après sa première étape (rien n'a bougé). Le crew dev-batches lancé ici ne ferait que nommer le lot suivant et
+le noter lancé : un plan entier sans personne au clavier reste l'affaire du `/dev-batches` du REPL.
 
 ```bash
 ORKEON_CODE_WORKSPACE=~/src/app bash scripts/dev-run.sh dev-verify demo \

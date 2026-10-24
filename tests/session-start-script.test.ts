@@ -59,7 +59,7 @@ describe("scripts/session-start.sh", () => {
         "Dev work in progress in this project (Orkeon Code's state under .orkeon/dev/):\n" +
         "- state of a batch: .orkeon/dev/demo/state-F2.md (written 2026-10-24T10:00:00Z); first open step: Step 2 — Refuse a code. " +
         "Read it before going on with that batch.\n" +
-        "- open batch(es) in .orkeon/dev/demo/batches-state.md: F2\n");
+        "- open batch(es) in .orkeon/dev/demo/batches-state.md: F2 (/dev-batches demo goes on)\n");
     });
   });
 
@@ -77,7 +77,7 @@ describe("scripts/session-start.sh", () => {
     }, (root) => {
       const out = run(root).stdout;
       strictEqual(out.split("Dev work in progress").length, 2, out);
-      strictEqual(out.endsWith("- open batch(es) in .orkeon/dev/other/batches-state.md: F4\n"), true, out);
+      strictEqual(out.endsWith("- open batch(es) in .orkeon/dev/other/batches-state.md: F4 (/dev-batches other goes on)\n"), true, out);
     });
   });
 });
@@ -134,6 +134,6 @@ describe("scripts/session-start.ork.ts", () => {
       "Dev work in progress in this project (Orkeon Code's state under .orkeon/dev/):\n" +
       `- state of a batch: .orkeon/dev/demo/state-F2.md (written ${at}); first open step: Step 2 — Refuse a code. ` +
       "Read it before going on with that batch.\n" +
-      "- open batch(es) in .orkeon/dev/other/batches-state.md: F2");
+      "- open batch(es) in .orkeon/dev/other/batches-state.md: F2 (/dev-batches other goes on)");
   });
 });
