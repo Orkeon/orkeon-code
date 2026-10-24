@@ -9,27 +9,19 @@
 //
 // A crew builds its tools before its agent's body runs, and the body is where the pack and the
 // step's rules are known: each tool reads what it calls from a slot the body fills (bind), and
-// refuses while the slot is empty. A slot belongs to the crew script that built it.
+// refuses while the slot is empty. A slot belongs to the crew script that built it; the body releases
+// it when its run ends. Two runs of one crew bound at once would mix their calls, so the slot then
+// refuses until one of them releases it.
 
 import { scriptToolAccess } from "../../domain/agent-policy/permission.ts";
 import type { WrappedRun, WrappedTools } from "../../application/dev/wrapped-tools.ts";
+import type { ScriptToolSlot } from "../../application/dev/script-tool-slot.ts";
+
+export { scriptToolSlot } from "../../application/dev/script-tool-slot.ts";
+export type { ScriptToolSlot } from "../../application/dev/script-tool-slot.ts";
 
 /** The runtime's `toolBuilder`, or a test's. */
 export type ToolBuilderFactory = () => ToolBuilder<unknown, unknown>;
-
-/** What a tool calls, filled by the agent's body once it knows its pack. */
-export interface ScriptToolSlot<T> {
-  bind(value: T): void;
-  get(): T | undefined;
-}
-
-export function scriptToolSlot<T>(): ScriptToolSlot<T> {
-  let value: T | undefined;
-  return {
-    bind(v) { value = v; },
-    get: () => value,
-  };
-}
 
 export interface ScriptToolSpec {
   /** One of SCRIPT_TOOLS: its access comes from there. */
@@ -61,7 +53,9 @@ export function scriptTool(
     .build();
 }
 
-const notReady = (name: string) => ({ ok: false, refused: `${name} is not set up for this run yet` });
+const notReady = (name: string) => ({
+  ok: false, refused: `${name} is not set up for this run (not bound yet, or two runs at once): name the command in your answer instead`,
+});
 
 const commandSchema = (what: string): JsonSchema => ({
   type: "object",

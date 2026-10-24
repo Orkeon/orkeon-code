@@ -56,6 +56,7 @@ function output(command: string, result: ShellResult): string {
 
 export function createWrappedTools(deps: { shell: Pick<Shell, "run">; files: Pick<Files, "write"> }, setup: WrappedToolsSetup): WrappedTools {
   let runs = 0;
+  let restoreTried = false; // the one restore of the step, whatever came of it
   const notRestore: Guard<string> = (command) =>
     isRestore(command, setup.commands) ? `'${command}' restores: no role restores, the step did it once` : null;
   const shellGuards: ReadonlyArray<Guard<string>> = [notRestore, shellRuleGuard(setup.rules)];
@@ -109,7 +110,8 @@ export function createWrappedTools(deps: { shell: Pick<Shell, "run">; files: Pic
       let last = first;
       let restored = false;
       const restore = setup.commands.restore?.trim();
-      if (first.exitCode !== 0 && first.timedOut !== true && restore && coldTree(`${first.stdout}\n${first.stderr}`)) {
+      if (!restoreTried && first.exitCode !== 0 && first.timedOut !== true && restore && coldTree(`${first.stdout}\n${first.stderr}`)) {
+        restoreTried = true;
         // The one restore: the tree was never restored, so no flag of the pack's build can pass.
         const denied = shellRuleGuard(setup.rules)(restore);
         const restoring = denied === null ? await run(restore, RUN_BUILD_TIMEOUT_SECONDS) : denied;

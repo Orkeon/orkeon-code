@@ -22,6 +22,7 @@ import {
 } from "../domain/verdict.ts";
 import { outputTail, recordingRunner, runAudit, shellValidationRunner } from "./audit.ts";
 import type { ValidationRunner } from "./audit.ts";
+import { stepRules } from "../../../shared/domain/dev/step-rules.ts";
 import type { AuditBriefInput } from "./auditor-prompt.ts";
 import { writeCapture } from "./capture.ts";
 import { WORKSPACE, runGate } from "./run-gate.ts";
@@ -32,7 +33,7 @@ export interface DevVerifyDeps {
   files: Files; shell: Shell; config: Pick<ConfigStore, "readValue">;
   llm: Pick<Llm, "act" | "extract">; log: Logger; clock: () => Date;
   /** The run_validation tool's slot, when the crew offers the tool: bound to this audit's runner. */
-  validationSlot?: { bind(runner: ValidationRunner): void };
+  validationSlot?: { bind(runner: ValidationRunner): () => void };
 }
 const FULL_SUITE_TIMEOUT_SECONDS = 900;
 
@@ -303,9 +304,15 @@ export async function runDevVerify(input: DevVerifyInputs, deps: DevVerifyDeps):
       ...(suite?.brief === undefined ? {} : { suite: suite.brief }),
     };
     // One runner for the tool and for code: a command the auditor ran through run_validation is not run again.
-    const runner = recordingRunner(shellValidationRunner(deps.shell, commands));
-    deps.validationSlot?.bind(runner);
-    const audit = await runAudit({ llm: deps.llm, files, runner }, brief, capture.folder, capture.folderShown);
+    // The step's rules apply to a validation as to the auditor's own shell_command (the gate does not see it).
+    const runner = recordingRunner(shellValidationRunner(deps.shell, commands, stepRules("dev-verify")));
+    const release = deps.validationSlot?.bind(runner);
+    let audit: Awaited<ReturnType<typeof runAudit>>;
+    try {
+      audit = await runAudit({ llm: deps.llm, files, runner }, brief, capture.folder, capture.folderShown);
+    } finally {
+      release?.();
+    }
     if (!audit.ok) return done(greenLine, audit.text);
 
     const answered = [...audit.answer.rows, ...(suite?.row ? [suite.row] : [])];

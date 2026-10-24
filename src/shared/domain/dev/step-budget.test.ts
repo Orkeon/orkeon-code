@@ -20,6 +20,7 @@ describe("readBudgetExhausted", () => {
 
   it("reads each of the runtime's messages", () => {
     strictEqual(readBudgetExhausted("Agent exceeded 200 tool calls."), "toolCalls");
+    strictEqual(readBudgetExhausted("Tool-call budget exhausted (200/200)."), "toolCalls");
     strictEqual(readBudgetExhausted(new Error("Token budget exhausted (400100/400000).")), "tokens");
     strictEqual(readBudgetExhausted("Wall time exceeded (0:30:00 >= 0:30:00)."), "wallTime");
     strictEqual(readBudgetExhausted("Delegation depth 3 exceeds max 2."), "delegationDepth");

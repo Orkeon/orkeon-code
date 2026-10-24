@@ -28,7 +28,7 @@ const DIMENSIONS: readonly BudgetDimension[] = ["toolCalls", "delegationDepth", 
 
 /** The runtime's messages, by dimension. */
 const MESSAGES: ReadonlyArray<[BudgetDimension, RegExp]> = [
-  ["toolCalls", /exceeded \d+ tool calls/i],
+  ["toolCalls", /exceeded \d+ tool calls|tool-call budget exhausted/i],
   ["tokens", /token budget exhausted/i],
   ["wallTime", /wall time exceeded/i],
   ["delegationDepth", /delegation depth \d+ exceeds max/i],

@@ -57,9 +57,13 @@ describe("the tools and their slots", () => {
   it("run_validation refuses until bound, then runs the command through the runner", async () => {
     const slot = scriptToolSlot<ValidationCalls>();
     const tool = runValidationTool(recorder().builder, slot);
-    deepStrictEqual(await tool.execute({ command: "x" }), { ok: false, refused: "run_validation is not set up for this run yet" });
+    const notReady = {
+      ok: false,
+      refused: "run_validation is not set up for this run (not bound yet, or two runs at once): name the command in your answer instead",
+    };
+    deepStrictEqual(await tool.execute({ command: "x" }), notReady);
     const seen: string[] = [];
-    slot.bind({
+    const release = slot.bind({
       async run(command) {
         seen.push(command);
         return { report: { command, outcome: "exit 0", tail: "ok" }, line: `\`${command}\` — exit 0` };
@@ -68,6 +72,22 @@ describe("the tools and their slots", () => {
     deepStrictEqual(await tool.execute({ command: "dotnet test x" }), { ok: true, command: "dotnet test x", outcome: "exit 0", tail: "ok" });
     deepStrictEqual(await tool.execute({}), { ok: false, refused: "'command' is required" });
     deepStrictEqual(seen, ["dotnet test x"]);
+    release();
+    deepStrictEqual(await tool.execute({ command: "x" }), notReady);
+  });
+
+  it("a slot bound by two runs at once refuses until one releases it", () => {
+    const slot = scriptToolSlot<string>();
+    const first = slot.bind("a");
+    strictEqual(slot.get(), "a");
+    const second = slot.bind("b");
+    strictEqual(slot.get(), undefined);
+    first();
+    strictEqual(slot.get(), "b");
+    first();
+    strictEqual(slot.get(), "b");
+    second();
+    strictEqual(slot.get(), undefined);
   });
 
   it("run_tests and run_build call the wrapped tools bound in their slot", async () => {

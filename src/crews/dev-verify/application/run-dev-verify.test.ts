@@ -16,6 +16,7 @@ import { ORKEON_IGNORE_PROBE, checkIgnoreCommand } from "../../../shared/applica
 import { GIT_DIFF_CHECK, GIT_ORIGIN_HEAD, excludePathspecs, gitMethodGrep } from "../domain/commands.ts";
 import { runDevVerify } from "./run-dev-verify.ts";
 import type { DevVerifyInputs } from "./run-dev-verify.ts";
+import { scriptToolSlot } from "../../../shared/application/dev/script-tool-slot.ts";
 import type { ValidationRunner } from "./audit.ts";
 
 const DIR = "/workspace/workbench/demo";
@@ -105,23 +106,27 @@ describe("runDevVerify — the verdict", () => {
     strictEqual(f.llm.acts.length, 1);
   });
 
-  it("binds the run_validation slot to the audit's runner, and cites a run the auditor made through it", async () => {
+  it("binds the run_validation tool's slot for the audit, cites the run the auditor made through it, then releases it", async () => {
     const f = setup();
-    let runner: ValidationRunner | undefined;
+    const slot = scriptToolSlot<ValidationRunner>();
     const command = "node --test tests/a.test.ts";
     f.shell.results[command] = { exitCode: 0, stdout: "# pass 3\n# fail 0\n" };
+    const results: unknown[] = [];
     const act = f.llm.act.bind(f.llm);
     f.llm.act = async (prompt, request) => {
-      await runner?.run(command);
+      const bound = slot.get(); // what run_validation's body calls
+      results.push(bound === undefined ? "unbound" : (await bound.run(command)).report);
       return act(prompt, request);
     };
     f.llm.answers = ["the test ran green"];
     f.llm.extractions = [answer([MINOR])];
-    await runDevVerify({ batch: "F2" }, { ...f.deps, validationSlot: { bind: (r) => { runner = r; } } });
-    ok(runner !== undefined);
+    await runDevVerify({ batch: "F2" }, { ...f.deps, validationSlot: slot });
+    deepStrictEqual(results, [{ command, outcome: "exit 0", tail: "# pass 3\n# fail 0" }]);
     strictEqual(f.llm.acts.length, 1);
+    strictEqual(f.shell.commands.filter((c) => c === command).length, 1);
     const written = f.files.files.get(VERDICT) ?? "";
     ok(written.includes(`\`${command}\` — exit 0`), written);
+    strictEqual(slot.get(), undefined);
   });
 
   it("points a GAPS verdict at the correction of its first row", async () => {

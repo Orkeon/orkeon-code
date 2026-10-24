@@ -12,7 +12,8 @@ import type { AuditAnswer } from "../domain/audit-answer.ts";
 import { AUDIT_ANSWER_SCHEMA, MAX_VALIDATIONS, checkAuditAnswer } from "../domain/audit-answer.ts";
 import { AUDITOR_CHARTER } from "../domain/auditor-charter.ts";
 import { testRunSummary } from "../domain/capture-sections.ts";
-import { outputTail } from "../../../shared/domain/dev/tool-guards.ts";
+import { outputTail, runGuards, shellRuleGuard } from "../../../shared/domain/dev/tool-guards.ts";
+import type { PermissionRule } from "../../../shared/domain/agent-policy/permission.ts";
 import { readBudgetExhausted } from "../../../shared/domain/dev/step-budget.ts";
 import { checkValidation, validationLine } from "../../../shared/domain/dev/test-commands.ts";
 import { firstLine } from "../domain/text.ts";
@@ -39,7 +40,7 @@ export { outputTail };
 
 /**
  * Wraps `inner` for one audit: a command already answered gets the same answer, not a second run;
- * past MAX_VALIDATIONS commands run, the next is refused. Every answer is kept, refusals included.
+ * past MAX_VALIDATIONS commands run (a refused command is not one), the next is refused. Every answer is kept, refusals included.
  */
 export function recordingRunner(inner: ValidationRunner): RecordingRunner {
   const runs: ValidationRun[] = [];
@@ -53,8 +54,9 @@ export function recordingRunner(inner: ValidationRunner): RecordingRunner {
         const outcome = `refused: ${MAX_VALIDATIONS} validations already ran in this audit`;
         run = { report: { command, outcome, tail: "" }, line: null, notRun: `\`${command}\` — ${outcome}` };
       } else {
-        ran += 1;
+        ran += 1; // held while the command runs; given back when the inner runner refused it
         run = await inner.run(command);
+        if (run.report.outcome.startsWith("refused:")) ran -= 1;
       }
       runs.push(run);
       return run;
@@ -67,12 +69,18 @@ function isRecording(runner: ValidationRunner): runner is RecordingRunner {
   return typeof (runner as Partial<RecordingRunner>).runs === "function";
 }
 
-export function shellValidationRunner(shell: Pick<Shell, "run">, commands: RepoPackCommands): ValidationRunner {
+/** Runs a validation the pack allows and no rule of `rules` denies (shell_command): the
+ *  gate does not see a command run here, whether code or run_validation asked for it. */
+export function shellValidationRunner(
+  shell: Pick<Shell, "run">, commands: RepoPackCommands, rules: readonly PermissionRule[] = [],
+): ValidationRunner {
+  const ruleGuard = shellRuleGuard(rules);
   return {
     async run(cmd: string) {
       const check = checkValidation(cmd, commands);
-      if (!check.ok) {
-        const outcome = `refused: ${check.reason}`;
+      const reason = check.ok ? runGuards([ruleGuard], check.command) : check.reason;
+      if (!check.ok || reason !== null) {
+        const outcome = `refused: ${reason}`;
         return { report: { command: cmd, outcome, tail: "" }, line: null, notRun: `\`${cmd}\` — ${outcome}` };
       }
       let result;

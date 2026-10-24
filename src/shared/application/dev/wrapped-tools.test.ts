@@ -95,6 +95,20 @@ describe("run_build", () => {
     ok(log.includes(`$ ${COMMANDS.restore}`) && log.includes("NETSDK1004"), log);
   });
 
+  it("restores at most once for the step, even when the tree stays cold", async () => {
+    const f = setup();
+    const build = "dotnet build Orkeon.sln --no-restore";
+    const run = f.shell.run.bind(f.shell);
+    f.shell.run = async (command, options) => {
+      const result = await run(command, options);
+      return command === build ? { ...result, exitCode: 1, stdout: COLD } : result;
+    };
+    await f.tools.runBuild({});
+    const second = await f.tools.runBuild({});
+    deepStrictEqual(f.shell.commands, [build, COMMANDS.restore, build, build]);
+    strictEqual(second.ok && second.restored, false);
+  });
+
   it("does not restore a cold tree when the step's rules deny the restore", async () => {
     const f = setup([{ effect: "deny", tool: "shell_command", argument: "command", pattern: "dotnet restore*" }]);
     f.shell.results[COMMANDS.build as string] = { exitCode: 1, stdout: COLD };

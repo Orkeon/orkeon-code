@@ -160,6 +160,26 @@ describe("recordingRunner and run_validation", () => {
     strictEqual(runner.runs().length, 4);
   });
 
+  it("does not count a refused command against the three runs", async () => {
+    const shell = new FakeShell();
+    const runner = recordingRunner(shellValidationRunner(shell, COMMANDS));
+    for (const bad of ["dotnet test", "rm -rf /", "dotnet build"]) await runner.run(bad);
+    await runner.run("dotnet test --filter FullyQualifiedName~A");
+    await runner.run("dotnet test --filter FullyQualifiedName~B");
+    const third = await runner.run("dotnet test --filter FullyQualifiedName~C");
+    strictEqual(shell.commands.length, 3);
+    ok(!third.report.outcome.startsWith("refused"), third.report.outcome);
+  });
+
+  it("refuses a validation a rule denies or asks for, without running it", async () => {
+    const shell = new FakeShell();
+    const rules = [{ effect: "deny" as const, tool: "shell_command", argument: "command", pattern: "*~Secret*" }];
+    const run = await recordingRunner(shellValidationRunner(shell, COMMANDS, rules)).run("dotnet test --filter FullyQualifiedName~SecretTests");
+    strictEqual(run.line, null);
+    ok(run.report.outcome.startsWith("refused: the rules of this step deny"), run.report.outcome);
+    strictEqual(shell.commands.length, 0);
+  });
+
   it("cites a run the auditor made through the tool, in one round, and keeps its log", async () => {
     const f = fakes();
     const runner = recordingRunner(shellValidationRunner(f.shell, COMMANDS));
