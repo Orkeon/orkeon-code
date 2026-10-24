@@ -21,8 +21,7 @@ import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { loadDevContext } from "../../shared/application/dev/load-dev-context.ts";
 import { defaultBranch, handOverPullRequest, pushBranch, readIdentity } from "../../shared/application/git/commit-files.ts";
 import { DEV_PR_AUTO_CONFIG_KEY, identityStop, selectCommitFiles } from "../../shared/domain/git/close.ts";
-import { parseStoredRule } from "../../shared/domain/agent-policy/permission.ts";
-import type { PermissionRule } from "../../shared/domain/agent-policy/permission.ts";
+import { parseSessionRules } from "../../shared/domain/git/pull-request.ts";
 import { inspectWorkTree, draftCommitMessage, commitSelected, readStatus } from "./application/draft.ts";
 import { commitRefusal, commitSubject, isCommitPermitted, secretLikePaths } from "./domain/commit.ts";
 
@@ -34,11 +33,6 @@ const config = orkeonConfigStore();
 function namedPaths(raw: unknown): string[] {
   const list = Array.isArray(raw) ? raw : String(raw ?? "").split("\n");
   return list.map((p) => String(p ?? "").trim()).filter((p) => p.length > 0);
-}
-
-/** The session's rules threaded by /commit, as the gate reads them; a line that is no rule is left out. */
-function sessionRules(raw: unknown): PermissionRule[] {
-  return namedPaths(raw).map((line) => parseStoredRule(line)).filter((r): r is PermissionRule => r !== null);
 }
 
 async function prAuto(): Promise<boolean> {
@@ -116,7 +110,7 @@ const committer = AgentBuilder()
     if ((push || open) && tree.branch.length > 0 && base !== tree.branch) {
       // The github tool, when /commit found it registered; the decision is the gate's, mirrored (W0-C).
       const opener = flag(args.githubTool)
-        ? orkeonPullRequestOpener({ mode: String(mode ?? ""), rules: sessionRules(args.permissionRules), asked: flag(args.prAsked) })
+        ? orkeonPullRequestOpener({ mode: String(mode ?? ""), rules: parseSessionRules(args.permissionRules), asked: flag(args.prAsked) })
         : undefined;
       lines.push(...await handOverPullRequest({ files, opener }, {
         work: { folder: dev.work.folder, vfsPath: dev.work.vfsPath }, branch: tree.branch, base,

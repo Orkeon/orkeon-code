@@ -40,7 +40,7 @@ Une option qu'un fournisseur ne peut pas honorer produit un avertissement, jamai
 
 **Cache du prompt.** Un fournisseur qui met le prompt en cache (DeepSeek et OpenAI d'eux-mêmes, Anthropic avec
 `cache_control`) rapporte les jetons lus dans son cache et écrits dedans ; Orkeon les garde par modèle et `/usage` et
-`/context` en montrent la somme dans `cacheRead` et `cacheWrite` (`-` quand l'hôte n'en rapporte aucun). La durée de
+`/context` en montrent la somme dans `cacheRead` et `cacheWrite` (`0` d'un fournisseur qui ne rapporte aucun cache, `-` d'un hôte qui ne rapporte aucun chiffre). La durée de
 vie du cache est une option d'appel d'Orkeon, `orkeon:cache_ttl` (`5m` ou `1h`, d'après le réglage de cache d'un
 agent) : Anthropic l'honore, les fournisseurs compatibles OpenAI et Ollama journalisent qu'ils ne le peuvent pas.
 Orkeon Code n'en fixe aucune, chaque fournisseur garde donc sa durée par défaut.

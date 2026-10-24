@@ -38,7 +38,7 @@ An option a provider cannot honour produces a warning, never a silent drop.
 
 **Prompt cache.** A provider that caches the prompt (DeepSeek and OpenAI by themselves, Anthropic with
 `cache_control`) reports the tokens read from its cache and written to it; Orkeon keeps them per model and
-`/usage` and `/context` show their sum in `cacheRead` and `cacheWrite` (`-` when the host reports none). The cache's
+`/usage` and `/context` show their sum in `cacheRead` and `cacheWrite` (`0` from a provider that reports no cache, `-` from a host that reports no figure). The cache's
 lifetime is a per-call option of Orkeon, `orkeon:cache_ttl` (`5m` or `1h`, from an agent's cache setting): Anthropic
 honours it, the OpenAI-compatible providers and Ollama log that they cannot. Orkeon Code sets none, so each provider
 keeps its own default lifetime.

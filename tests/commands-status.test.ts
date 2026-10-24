@@ -110,7 +110,7 @@ describe("/status — the runtime and the provider (A-4a)", () => {
 
   it("names the pinned runtime, and the provider or its absence", () => {
     strictEqual(rows().get("runtime"), `Orkeon ${ORKEON_RUNTIME_VERSION} (pinned by .orkeon-version)`);
-    strictEqual(rows({ provider: "deepseek" }).get("provider"), "deepseek");
+    strictEqual(rows({ provider: "deepseek" }).get("provider"), "deepseek (the host's default)");
     strictEqual(rows().get("provider"), "(unreported by the host)");
   });
 
@@ -119,7 +119,7 @@ describe("/status — the runtime and the provider (A-4a)", () => {
       session: new FakeSessionStore(), telemetry: new FakeTelemetry(), crews: new FakeCrewHost(), provider: () => "anthropic",
     };
     const table = new Map(((await runStatus(deps)).table as Array<{ field: string; value: string }>).map((r) => [r.field, r.value]));
-    strictEqual(table.get("provider"), "anthropic");
+    strictEqual(table.get("provider"), "anthropic (the host's default)");
   });
 
   it("reads the llm service's CLR Name, and nothing when the host wires none or the read throws", () => {

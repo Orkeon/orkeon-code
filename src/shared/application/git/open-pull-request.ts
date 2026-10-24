@@ -23,6 +23,11 @@ export interface PullRequestPolicy {
   asked: boolean;
 }
 
+/** A remote URL without its `user[:secret]@` part. */
+export function withoutUserInfo(url: string): string {
+  return String(url ?? "").trim().replace(/^([a-z][a-z0-9+.-]*:\/\/)[^@/]*@/i, "$1");
+}
+
 export function createPullRequestOpener(
   deps: { shell: Pick<Shell, "run">; github: GitHubPullRequests },
   policy: PullRequestPolicy,
@@ -33,7 +38,8 @@ export function createPullRequestOpener(
       const remote = await runGit(deps.shell, GIT_REMOTE_URL_COMMAND);
       if (remote.exitCode !== 0) throw new Error(`origin's URL could not be read: ${gitReason(remote)}`);
       const repo = parseGitHubRemote(remote.stdout);
-      if (repo === null) throw new Error(`origin is not a github.com repository (${remote.stdout.trim()})`);
+      // The URL is echoed without its user part: a token written there never reaches the terminal.
+      if (repo === null) throw new Error(`origin is not a github.com repository (${withoutUserInfo(remote.stdout)})`);
       const args: CreatePrArgs = {
         action: GITHUB_CREATE_PR, owner: repo.owner, repo: repo.repo, base: pr.base, head: pr.head, title: pr.title, body: pr.body,
       };

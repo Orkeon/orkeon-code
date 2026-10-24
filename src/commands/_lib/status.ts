@@ -49,7 +49,8 @@ export function buildStatusRows(i: StatusInputs): Array<{ field: string; value: 
 
   return [
     { field: "model", value: String(i.model ?? "").trim() || "(unreported by the host — see /model)" },
-    { field: "provider", value: String(i.provider ?? "").trim() || "(unreported by the host)" },
+    // The host's default provider: a turn on another profile runs on that profile's.
+    { field: "provider", value: String(i.provider ?? "").trim() ? `${String(i.provider).trim()} (the host's default)` : "(unreported by the host)" },
     { field: "workspace", value: String(i.workspace ?? "/workspace") },
     { field: "session", value: String(i.title ?? "").trim() || "(untitled)" },
     { field: "messages", value: String(Number(i.messages ?? 0) || 0) },

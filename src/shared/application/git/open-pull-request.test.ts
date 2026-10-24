@@ -4,7 +4,7 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, rejects } from "node:assert";
 
-import { createPullRequestOpener } from "./open-pull-request.ts";
+import { createPullRequestOpener, withoutUserInfo } from "./open-pull-request.ts";
 import type { PullRequestPolicy } from "./open-pull-request.ts";
 import type { CreatePrArgs } from "../../domain/git/pull-request.ts";
 import { GIT_REMOTE_URL_COMMAND } from "../../domain/git/pull-request.ts";
@@ -44,6 +44,13 @@ describe("createPullRequestOpener", () => {
     elsewhere.shell.results[GIT_REMOTE_URL_COMMAND] = { stdout: "https://gitlab.com/a/b.git\n" };
     await rejects(elsewhere.opener.open(PR), /not a github\.com repository \(https:\/\/gitlab\.com\/a\/b\.git\)/);
     deepStrictEqual([unread.created, elsewhere.created], [[], []]);
+  });
+
+  it("never echoes a secret written in origin's URL", async () => {
+    const { shell, opener } = setup();
+    shell.results[GIT_REMOTE_URL_COMMAND] = { stdout: "https://oauth2:glpat-SECRET@gitlab.com/a/b.git\n" };
+    await rejects(opener.open(PR), (e: Error) => !e.message.includes("glpat") && e.message.includes("https://gitlab.com/a/b.git"));
+    deepStrictEqual(withoutUserInfo("git@gitlab.com:a/b.git"), "git@gitlab.com:a/b.git");
   });
 
   it("refuses what the gate would not run, and calls nothing", async () => {

@@ -22,7 +22,7 @@ import { rawTokens } from "./_lib/args.ts";
 import { buildCommitPlan, isCommitPermitted, parseCommitArgs } from "../crews/git-commit/domain/commit.ts";
 import { orkeonSessionIo, orkeonToolCatalogue } from "../shared/infrastructure/orkeon/wiring.ts";
 import { createPermissionRules } from "../shared/infrastructure/orkeon/permission-rules.ts";
-import { GITHUB_TOOL } from "../shared/domain/git/pull-request.ts";
+import { GITHUB_TOOL, pullRequestCrewInputs } from "../shared/domain/git/pull-request.ts";
 
 const session = orkeonSessionIo();
 
@@ -114,9 +114,8 @@ defineAsyncCommand({
 
     ctx.log.info(`commit approved — permission mode '${mode}' (${via})`);
     // A yes to a plan that named the pull request is the question the github call needs; --yes asked nothing.
-    const prAsked = pr && !yes;
     return launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "git-commit", {
-      permissionMode: mode, paths, push, pr, prAsked, ...(pr || push ? pullRequestContext(ctx) : {}),
+      permissionMode: mode, paths, push, pr, ...pullRequestCrewInputs({ pr, push, yes, read: () => pullRequestContext(ctx) }),
     });
   },
   completed: (result, ctx) => writeCompleted(ctx, result, "commit"),

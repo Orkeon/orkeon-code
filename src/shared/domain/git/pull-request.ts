@@ -2,12 +2,13 @@
 // (W0-C, Q-10): where origin lives on GitHub, and whether the call may run. Pure,
 // no IO. A command's or a crew's own tool call is not seen by the host gate
 // (docs/permissions.md, "What the gate does not see"), so the decision mirrors
-// the gate here: `github` is an edit (permission.ts) the gate asks about in
-// `default` and `acceptEdits`, runs in `bypassPermissions` and refuses in the
-// read-only modes; a deny rule wins in every mode, an allow rule spares the
-// question.
+// the gate here (ModePermissionGate): `github` is an edit (permission.ts) the
+// gate asks about in `default` and `acceptEdits`, runs in `bypassPermissions`
+// and refuses in `plan` and `dontAsk`; a deny rule wins in every mode, an allow
+// rule spares the question in every mode but `plan`. One point is stricter than
+// the gate: an unknown mode refuses (the gate reads it as `default`).
 
-import { isReadOnly, ruleDecision } from "../agent-policy/permission.ts";
+import { parseStoredRule, ruleDecision } from "../agent-policy/permission.ts";
 import type { PermissionRule } from "../agent-policy/permission.ts";
 import { isPermissionMode } from "../permission-modes.ts";
 
@@ -60,15 +61,36 @@ export function pullRequestPermission(req: {
   asked: boolean;
   args: Readonly<Record<string, unknown>>;
 }): PrPermission {
-  if (!isPermissionMode(req.mode) || isReadOnly(req.mode)) {
+  if (!isPermissionMode(req.mode) || req.mode === "plan") {
     return { ok: false, reason: `mode '${req.mode}' does not run ${GITHUB_TOOL}` };
   }
   const rule = ruleDecision(req.rules, GITHUB_TOOL, req.args);
   if (rule === "deny") return { ok: false, reason: `a deny rule of /permissions covers ${GITHUB_TOOL} ${GITHUB_CREATE_PR}` };
-  if (rule === "allow" || req.mode === "bypassPermissions" || req.asked) return { ok: true };
+  if (rule === "allow") return { ok: true };
+  if (req.mode === "dontAsk") return { ok: false, reason: `mode 'dontAsk' runs ${GITHUB_TOOL} only under an allow rule` };
+  if (req.mode === "bypassPermissions" || req.asked) return { ok: true };
   return {
     ok: false,
     reason: `${GITHUB_TOOL} asks first in mode '${req.mode}' and this run did not ask: ` +
       `'/permissions add ${GITHUB_ALLOW_RULE}' lets it open the pull request`,
   };
+}
+
+/** The session's rules as a crew receives them (an array, or one per line), read as the gate reads
+ *  them; a line that is no rule is left out. */
+export function parseSessionRules(raw: unknown): PermissionRule[] {
+  const lines = Array.isArray(raw) ? raw : String(raw ?? "").split("\n");
+  return lines.map((line) => parseStoredRule(String(line ?? "").trim())).filter((r): r is PermissionRule => r !== null);
+}
+
+/**
+ * What /commit hands its crew for the pull request: `prAsked` only when `--pr` was confirmed
+ * at the prompt (`--yes` asked nothing); the tool and the rules, read when the run may reach the
+ * pull request (`--push` or `--pr`). The rules are those of the launch: one added while the crew
+ * runs is not seen, where the gate reads them at each call.
+ */
+export function pullRequestCrewInputs(req: {
+  pr: boolean; push: boolean; yes: boolean; read: () => { githubTool: boolean; permissionRules: string[] };
+}): { prAsked: boolean; githubTool?: boolean; permissionRules?: string[] } {
+  return { prAsked: req.pr && !req.yes, ...(req.pr || req.push ? req.read() : {}) };
 }
