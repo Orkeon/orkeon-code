@@ -227,6 +227,28 @@ describe("runDevBatches — back from a batch", () => {
     strictEqual(parse(await runDevBatches({ code: "demo" }, deps)).next?.input.batch, "F3");
   });
 
+  it("hands the reviewer the next sheet and what the closed batch changed, four read tools and eight turns", async () => {
+    const { files, shell, deps } = setup();
+    reopenF1(files);
+    const llm = new FakeLlm();
+    llm.extractions = [{ verdict: "CLEAR", rows: [] }];
+    shell.results["git show --format= '1111111'"] = { stdout: "diff --git a/src/parsers.ts b/src/parsers.ts\n+export const parse = 1;\n" };
+    await runDevBatches({ code: "demo" }, { ...deps, reviewerFor: () => llm });
+    strictEqual(llm.acts.length, 0); // F1 depends on nothing: no review
+    markDone(files, "F1");
+    const out = parse(await runDevBatches({ after: ["✓ committed 1111111 on feat/demo: 2 file(s)"] }, { ...deps, reviewerFor: () => llm }));
+    strictEqual(out.next?.input.batch, "F2");
+    ok(out.lines.includes("review of F2: CLEAR"), out.lines.join("\n"));
+    strictEqual(llm.acts.length, 1);
+    const { prompt, request } = llm.acts[0];
+    ok(prompt.includes("The batches closed before it, with their commits and files:\nF1 1111111: "), prompt);
+    ok(prompt.includes("### workbench/demo/DEMO-PLAN-F2.md\n```text\n# DEMO-PLAN-F2 — Command"), prompt);
+    ok(prompt.includes("### what F1 changed (git show 1111111)\n```text\ndiff --git a/src/parsers.ts b/src/parsers.ts\n+export const parse = 1;\n```"), prompt);
+    deepStrictEqual(request.tools, ["file_read", "node_outline", "node_read", "codebase_search"]);
+    strictEqual(request.maxIterations, 8);
+    strictEqual(request.permissionMode, "plan");
+  });
+
   it("does not launch a batch whose review raises a Blocking question", async () => {
     const { files, deps } = setup();
     const llm = new FakeLlm();

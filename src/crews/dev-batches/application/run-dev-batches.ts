@@ -30,7 +30,9 @@ import type { BatchOutcome, BatchRun } from "./run-wave.ts";
 import { parseBatchesState } from "../../../shared/domain/dev/batches-state.ts";
 import type { BatchesLogEntry } from "../../../shared/domain/dev/batches-state.ts";
 import { lastVerdict } from "../../../shared/domain/dev/verdict-format.ts";
-import { REVIEWER_CHARTER } from "../../../shared/domain/dev/reviewer-charter.ts";
+import { NEXT_BATCH_REVIEWER_CHARTER } from "../../../shared/domain/dev/reviewer-charter.ts";
+import { charterCatalogue } from "../../../shared/domain/agents/charter.ts";
+import type { CarriedText } from "../../../shared/domain/dev/carried-text.ts";
 import { REVIEW_ANSWER_SCHEMA, checkReviewAnswer } from "../../../shared/domain/dev/review-answer.ts";
 import { buildReviewAnswerPrompt, buildReviewBrief, reviewSystem } from "../../../shared/domain/dev/review-prompt.ts";
 import { parseSessionRules } from "../../../shared/domain/git/pull-request.ts";
@@ -240,6 +242,29 @@ async function closedInventory(shell: Pick<Shell, "run">, merged: readonly Merge
     out.push(`${m.batch} ${m.hash}: ${files.slice(0, 20).join(", ") || "(files not read)"}${files.length > 20 ? `, and ${files.length - 20} more` : ""}`);
   }
   return out.join("\n");
+}
+
+/** What the review's brief carries: the next batch's sheet, then what each closed dependency changed (`git show`),
+ *  so the reviewer reads from the brief instead of opening the plan folder and the tree file by file. A text that
+ *  cannot be read is left out: the brief still names the file, and the reviewer opens it. */
+async function reviewMaterial(
+  deps: Pick<DevBatchesDeps, "files" | "shell">, vfsPath: string | null, dev: DevCode, sheetName: string,
+  merged: readonly MergedBatch[], dependsOn: readonly string[],
+): Promise<CarriedText[]> {
+  const out: CarriedText[] = [];
+  if (vfsPath !== null) {
+    try {
+      out.push({ title: `${dev.shown}/${sheetName}`, text: await deps.files.read(`${vfsPath}/${dev.code}/${sheetName}`) });
+    } catch {
+      // Left to read.
+    }
+  }
+  for (const m of merged.filter((x) => dependsOn.includes(x.batch))) {
+    if (!/^[0-9a-f]{4,40}$/i.test(m.hash)) continue;
+    const r = await runGit(deps.shell, `git show --format= ${shellQuote(m.hash)}`);
+    if (r.exitCode === 0 && r.stdout.trim() !== "") out.push({ title: `what ${m.batch} changed (git show ${m.hash.slice(0, 7)})`, text: r.stdout });
+  }
+  return out;
 }
 
 function mergedOf(entries: readonly BatchesLogEntry[]): MergedBatch[] {
@@ -488,12 +513,15 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
       lines.push(`review of ${id}: not run (no reviewer on this host)`);
       continue;
     }
+    const merged = mergedOf(book.entries());
     const outcome = await runSubAgent(reviewer, {
-      charter: REVIEWER_CHARTER,
+      charter: NEXT_BATCH_REVIEWER_CHARTER,
+      tools: charterCatalogue(NEXT_BATCH_REVIEWER_CHARTER),
       system: reviewSystem("next-batch"),
       brief: buildReviewBrief({
         mode: "next-batch", folder: dev.shown, files: [`${dev.shown}/${sheet.name}`], source: `${dev.shown}/${plan.name}`,
-        inventory: await closedInventory(deps.shell, mergedOf(book.entries()), node.dependsOn), targets: [id],
+        inventory: await closedInventory(deps.shell, merged, node.dependsOn), targets: [id],
+        carried: await reviewMaterial(deps, ctx.work.vfsPath, dev, sheet.name, merged, node.dependsOn),
       }),
       schema: REVIEW_ANSWER_SCHEMA,
       answerPrompt: buildReviewAnswerPrompt,

@@ -19,3 +19,11 @@ export const REVIEWER_CHARTER: Charter = {
   disallowed: ["shell_command", "file_write", "rag_ingest", "index_codebase"],
   maxIterations: 20,
 };
+
+/** The review of the next batch of /dev-batches: its brief carries the batch's sheet and what the closed batches
+ *  changed, so four read tools and eight turns are enough (a plan's review keeps the nine and its twenty). */
+export const NEXT_BATCH_REVIEWER_CHARTER: Charter = {
+  ...REVIEWER_CHARTER,
+  tools: ["file_read", "node_outline", "node_read", "codebase_search"],
+  maxIterations: 8,
+};

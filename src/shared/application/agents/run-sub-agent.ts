@@ -17,6 +17,8 @@ export interface SubAgentCall<T> {
   system: string;
   /** The task and its material: the act's prompt. */
   brief: string;
+  /** The tools the act is offered, a subset of the agent's; the agent's whole catalogue when absent. */
+  tools?: readonly string[];
   /** The JSON schema the answer is extracted into. */
   schema: object;
   /** The extraction prompt over the act's final reply; `problems` is empty on the first try. */
@@ -79,6 +81,7 @@ export async function runSubAgent<T>(llm: Pick<Llm, "act" | "extract">, call: Su
       permissionMode: charter.mode,
       maxIterations: charter.maxIterations,
       ...(charter.model === undefined ? {} : { model: charter.model }),
+      ...(call.tools === undefined ? {} : { tools: [...call.tools] }),
     });
   } catch (error) {
     return { ok: false, reason: failureOf(error), problems: [firstLine(error)], reply: "" };

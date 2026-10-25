@@ -40,6 +40,15 @@ describe("runSubAgent", () => {
     deepStrictEqual(llm.extracts, [{ prompt: "answer from: the reply", schema: { type: "object" } }]);
   });
 
+  it("offers the call's tools when it names them, the agent's whole catalogue otherwise", async () => {
+    const llm = new FakeLlm();
+    llm.extractions = [{ count: 1 }];
+    await runSubAgent(llm, call({ tools: ["file_read", "node_read"] }));
+    deepStrictEqual(llm.acts[0].request.tools, ["file_read", "node_read"]);
+    await runSubAgent(llm, call());
+    ok(!("tools" in llm.acts[1].request));
+  });
+
   it("passes the charter's model only when it has one", async () => {
     const llm = new FakeLlm();
     llm.extractions = [{ count: 1 }];

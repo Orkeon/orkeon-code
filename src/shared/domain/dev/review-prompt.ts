@@ -5,10 +5,15 @@
 // goes in the brief only, never in the system message.
 
 import { BOUNDED_READ_RULE, KNOWN_TOOLS_RULE, STRUCTURAL_SEARCH_RULE } from "./reading-rule.ts";
+import { carriedBlocks } from "./carried-text.ts";
+import type { CarriedText } from "./carried-text.ts";
 
 export type ReviewMode = "plan" | "spec" | "change" | "next-batch";
 
 export const MAX_REVIEW_REPLY_CHARS = 12_000;
+
+/** The most carried text a review brief holds, in characters (MAX_BRIEF_CHARS less the brief's own lines). */
+export const CARRIED_REVIEW_CHARS = 18_000;
 
 const COMMON = [
   "You review a piece of development work before anyone builds it.",
@@ -74,6 +79,10 @@ const NEXT_BATCH_FOCUS = [
   "  anchor no longer holds (look at the file as it is now);",
   "- whether a step of it now repeats what a closed batch already delivered, and whether a decision of a closed",
   "  batch's sheet contradicts one of its own.",
+  "The brief carries the batch's sheet and what each closed batch changed: judge from them, and open a file only to",
+  "see a line the sheet anchors as it stands now.",
+  "The decisions the sheet and the plan record (a rounding, an error's shape, a name, a scope) are settled: a question",
+  "that no closed batch's change opened is not yours to ask, whatever you think of the decision.",
 ];
 
 const CLOSING = [
@@ -134,6 +143,9 @@ export interface ReviewBriefInput {
   inventory: string;
   /** What a row may target. */
   targets: readonly string[];
+  /** Texts carried in the brief, each under its title (next-batch: the batch's sheet, then what each closed batch
+   *  changed), so the reviewer opens no file for them; the whole room of CARRIED_REVIEW_CHARS for them. */
+  carried?: readonly CarriedText[];
 }
 
 export function buildReviewBrief(input: ReviewBriefInput): string {
@@ -149,6 +161,8 @@ export function buildReviewBrief(input: ReviewBriefInput): string {
   } else if (input.mode === "next-batch") {
     lines.push(`The plan: ${input.source}`);
     lines.push("The batches closed before it, with their commits and files:", input.inventory.trimEnd() || "(no entry)");
+    const blocks = carriedBlocks(input.carried ?? [], CARRIED_REVIEW_CHARS);
+    if (blocks.length > 0) lines.push("", "In this brief, so that you open no file for them (the sheet, then what each closed batch changed):", "", ...blocks);
   } else {
     if (input.source !== "") lines.push(`Origin of the request: ${input.source}`);
     lines.push("What the code index found for the request (path:line):", input.inventory.trimEnd() || "(no entry)");

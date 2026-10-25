@@ -181,4 +181,35 @@ describe("reviewSystem and buildReviewBrief — next-batch mode (/dev-batches)",
     ok(brief.includes(`The batches closed before it, with their commits and files:\nF1 a1b2c3d: src/a.ts — ${MARK}`));
     ok(!reviewSystem("next-batch").includes(MARK));
   });
+
+  it("carries the sheet and what each closed batch changed, and says the recorded decisions are settled", () => {
+    const brief = buildReviewBrief({
+      mode: "next-batch", folder: "workbench/prune", files: ["workbench/prune/PRUNE-PLAN-F2.md"],
+      source: "workbench/prune/PRUNE-PLAN.md", inventory: "F1 a1b2c3d: src/a.ts", targets: ["F2"],
+      carried: [
+        { title: "workbench/prune/PRUNE-PLAN-F2.md", text: `# PRUNE-PLAN-F2 — ${MARK}\n` },
+        { title: "what F1 changed (git show a1b2c3d)", text: "diff --git a/src/a.ts b/src/a.ts\n+export const a = 1;\n" },
+      ],
+    });
+    ok(brief.includes("In this brief, so that you open no file for them (the sheet, then what each closed batch changed):"));
+    ok(brief.includes(`### workbench/prune/PRUNE-PLAN-F2.md\n\`\`\`text\n# PRUNE-PLAN-F2 — ${MARK}\n\`\`\``));
+    ok(brief.includes("### what F1 changed (git show a1b2c3d)\n```text\ndiff --git a/src/a.ts b/src/a.ts\n+export const a = 1;\n```"));
+    ok(brief.length < MAX_BRIEF_CHARS);
+    const system = reviewSystem("next-batch");
+    ok(system.includes("The brief carries the batch's sheet and what each closed batch changed"));
+    ok(system.includes("are settled"));
+    ok(!reviewSystem("plan").includes("are settled"));
+    ok(!buildReviewBrief({ mode: "next-batch", folder: "w", files: ["w/X-PLAN-F2.md"], source: "w/X-PLAN.md", inventory: "", targets: ["F2"] }).includes("In this brief"));
+  });
+
+  it("keeps a next-batch brief under MAX_BRIEF_CHARS whatever it carries", () => {
+    const brief = buildReviewBrief({
+      mode: "next-batch", folder: "workbench/prune", files: ["workbench/prune/PRUNE-PLAN-F2.md"],
+      source: "workbench/prune/PRUNE-PLAN.md", inventory: "F1 a1b2c3d: src/a.ts", targets: ["F2"],
+      carried: [{ title: "sheet", text: "s".repeat(10_000) }, { title: "diff F1", text: "d".repeat(30_000) }, { title: "diff F3", text: "x" }],
+    });
+    ok(brief.length < MAX_BRIEF_CHARS, String(brief.length));
+    ok(brief.includes("more characters)"));
+    ok(brief.includes("Not carried (no room left): diff F3."));
+  });
 });

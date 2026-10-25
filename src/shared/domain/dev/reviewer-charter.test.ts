@@ -4,7 +4,7 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
-import { REVIEWER_CHARTER, REVIEWER_TOOLS } from "./reviewer-charter.ts";
+import { NEXT_BATCH_REVIEWER_CHARTER, REVIEWER_CHARTER, REVIEWER_TOOLS } from "./reviewer-charter.ts";
 import { charterCatalogue, charterProblems } from "../agents/charter.ts";
 
 describe("REVIEWER_CHARTER", () => {
@@ -29,5 +29,16 @@ describe("REVIEWER_CHARTER", () => {
   it("offers no shell, no write, no ingest, no index build", () => {
     const catalogue = charterCatalogue(REVIEWER_CHARTER);
     for (const tool of ["shell_command", "file_write", "rag_ingest", "index_codebase"]) ok(!catalogue.includes(tool), tool);
+  });
+});
+
+describe("NEXT_BATCH_REVIEWER_CHARTER", () => {
+  it("is the reviewer's charter with four read tools and eight iterations", () => {
+    deepStrictEqual(charterProblems(NEXT_BATCH_REVIEWER_CHARTER), []);
+    strictEqual(NEXT_BATCH_REVIEWER_CHARTER.name, REVIEWER_CHARTER.name);
+    strictEqual(NEXT_BATCH_REVIEWER_CHARTER.mode, "plan");
+    strictEqual(NEXT_BATCH_REVIEWER_CHARTER.maxIterations, 8);
+    deepStrictEqual(charterCatalogue(NEXT_BATCH_REVIEWER_CHARTER), ["file_read", "node_outline", "node_read", "codebase_search"]);
+    deepStrictEqual(NEXT_BATCH_REVIEWER_CHARTER.disallowed, REVIEWER_CHARTER.disallowed);
   });
 });
