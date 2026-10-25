@@ -65,7 +65,7 @@ bundle, et un test importe un cas d'usage dans Node sans toucher à une globale 
 | cas d'usage des commandes | `src/commands/_lib/` | Un module par famille de commandes, `run<Name>(tokens, deps)` → une vue au-dessus des ports qu'on lui remet ; les utilitaires que les commandes partagent | tout sauf `shared/infrastructure/` |
 | points d'entrée | `src/commands/<group>/*.cmd.ts`, `src/crews/<name>/crew.ork.ts` | Analysent l'entrée, câblent les adaptateurs, appellent un cas d'usage, rendent | tout |
 
-`tests/architecture.test.ts` analyse chaque import de `src/` (statique, réexport, de type seul et dynamique) et échoue
+`tests/repository/architecture.test.ts` analyse chaque import de `src/` (statique, réexport, de type seul et dynamique) et échoue
 sur tout import qui enfreint l'une de ces règles ; il n'y a pas de liste d'exceptions :
 
 - un fichier sous `domain/` n'importe que des fichiers du domaine ;
@@ -126,8 +126,12 @@ tests/
 │   ├── doubles/       the test doubles (Fake*), one per port
 │   ├── fixtures/      the sample data shared across test files (prompt-catalogue, memory-entries)
 │   └── assertions/    the checks shared across test files
-├── architecture.test.ts, command-surface.test.ts, version.test.ts
-└── commands-*.test.ts the command use cases of commands/_lib/, over the fakes
+├── fixtures/          the texts that are files of their own (a sheet, a plan, a YAML)
+├── repository/        the rules of the repository as a whole: architecture, test-shape, command-surface,
+│                      prompt-contract, version, shared-memory-fixture
+├── scripts/           the scripts of scripts/ and the launchers: dev-run, session-start-script, docs-parity,
+│                      install, launcher
+└── config/            the example settings
 mcp/whisper/           the speech MCP server, Python run by uv: whisper_mcp.py, tests/, samples/, smoke.py
 ```
 
@@ -318,7 +322,7 @@ l'usage (`session_cost`, `session_stats`).
 ## L'assemblage du prompt
 
 *Cette section est la spécification de comportement des prompts (ADR 0003). La page anglaise fait foi pour les
-phrases-marqueurs que `tests/prompt-contract.test.ts` et les tests des prompts épinglent : une phrase citée comme texte
+phrases-marqueurs que `tests/repository/prompt-contract.test.ts` et les tests des prompts épinglent : une phrase citée comme texte
 d'un prompt ou comme marqueur y reste en anglais, telle quelle.*
 
 `crews/main-loop/domain/prompt-assembly.ts` construit deux choses à chaque tour.
@@ -337,7 +341,7 @@ avec sa note de permission, toujours en dernier.
 
 Chaque prompt est écrit à partir du comportement spécifié ci-dessous, dans les mots propres de ce projet
 (CONTRIBUTING, « Original work only ») ; l'[ADR 0003](../adr/0003-prompts-from-a-behaviour-specification.md) (en
-anglais) consigne la méthode. Chaque règle a une phrase-marqueur qu'un test épingle, et `tests/prompt-contract.test.ts`
+anglais) consigne la méthode. Chaque règle a une phrase-marqueur qu'un test épingle, et `tests/repository/prompt-contract.test.ts`
 rend chaque prompt dans chaque mode pour vérifier les marqueurs, les règles de l'en-tête et qu'aucun prompt ne nomme
 un autre produit. `node scripts/render-prompts.mjs <dir>` écrit chaque prompt tel que le modèle le lit, pour relire
 un changement comme un diff.
@@ -563,10 +567,10 @@ contiennent la restauration et l'extraction de mémoire, `shared/domain/compacti
 1. Écrire `src/commands/<group>/<name>.cmd.ts` sur le modèle ci-dessus, `<group>` le dossier fonctionnel dont elle relève : un seul `name: "<literal>"` en kebab case, une
    `description` statique, pas d'`export` de premier niveau.
 2. Mettre la logique qui vaut un test dans `src/commands/_lib/<family>.ts` sous la forme `run<Name>(tokens, deps)`
-   rendant une `CommandView`, ses deps un `Pick<>` des ports et services qu'elle lit ; la tester dans
-   `tests/commands-<family>.test.ts` au-dessus des fakes.
-3. Augmenter `EXPECTED_COMMAND_COUNT` dans `tests/command-surface.test.ts` et le nombre de commandes de
-   `RELEASE_NOTES` dans `src/commands/_lib/meta.ts` (épinglé par `tests/commands-meta.test.ts`), puis lancer
+   rendant une `CommandView`, ses deps un `Pick<>` des ports et services qu'elle lit ; la tester à côté, dans
+   `src/commands/_lib/<family>.test.ts`, au-dessus des fakes.
+3. Augmenter `EXPECTED_COMMAND_COUNT` dans `tests/repository/command-surface.test.ts` et le nombre de commandes de
+   `RELEASE_NOTES` dans `src/commands/_lib/meta.ts` (épinglé par `src/commands/_lib/meta.test.ts`), puis lancer
    `npm run docs:commands`.
 
 ### Ajouter un crew
@@ -578,7 +582,7 @@ contiennent la restauration et l'extraction de mémoire, `shared/domain/compacti
    `domain/`, chacun avec son `*.test.ts` ; le test du cas d'usage tourne au-dessus des fakes.
 3. Le lancer depuis une commande async (`launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "<name>",
    input)`), et le nommer dans `RELEASE_NOTES`
-   (`tests/commands-meta.test.ts` vérifie que chaque dossier de crew y est nommé). Un dossier commençant par `_` est
+   (`src/commands/_lib/meta.test.ts` vérifie que chaque dossier de crew y est nommé). Un dossier commençant par `_` est
    une sonde de développement (`probe.ork.ts`), jamais listée aux utilisateurs.
 
 ### Ajouter un outil

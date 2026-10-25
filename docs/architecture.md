@@ -62,7 +62,7 @@ case in Node without touching a runtime global.
 | command use cases | `src/commands/_lib/` | One module per command family, `run<Name>(tokens, deps)` → a view over the ports it is handed; the helpers the commands share | anything but `shared/infrastructure/` |
 | entry points | `src/commands/<group>/*.cmd.ts`, `src/crews/<name>/crew.ork.ts` | Parse the input, wire the adapters, call a use case, render | anything |
 
-`tests/architecture.test.ts` parses every import of `src/` (static, re-export, type-only and dynamic) and fails on
+`tests/repository/architecture.test.ts` parses every import of `src/` (static, re-export, type-only and dynamic) and fails on
 any import that breaks one of these rules; there is no exception list:
 
 - a file under `domain/` imports domain files only;
@@ -120,8 +120,12 @@ tests/
 │   ├── doubles/       the test doubles (Fake*), one per port
 │   ├── fixtures/      the sample data shared across test files (prompt-catalogue, memory-entries)
 │   └── assertions/    the checks shared across test files
-├── architecture.test.ts, command-surface.test.ts, version.test.ts
-└── commands-*.test.ts the command use cases of commands/_lib/, over the fakes
+├── fixtures/          the texts that are files of their own (a sheet, a plan, a YAML)
+├── repository/        the rules of the repository as a whole: architecture, test-shape, command-surface,
+│                      prompt-contract, version, shared-memory-fixture
+├── scripts/           the scripts of scripts/ and the launchers: dev-run, session-start-script, docs-parity,
+│                      install, launcher
+└── config/            the example settings
 mcp/whisper/           the speech MCP server, Python run by uv: whisper_mcp.py, tests/, samples/, smoke.py
 ```
 
@@ -319,7 +323,7 @@ pressure tier, then the request under its own heading with its permission note, 
 
 Every prompt is written from the behaviour specified below, in this project's own words (CONTRIBUTING, "Original work
 only"); [ADR 0003](adr/0003-prompts-from-a-behaviour-specification.md) records the method. Each rule has a marker
-phrase that a test pins, and `tests/prompt-contract.test.ts` renders every prompt in every mode to check the markers,
+phrase that a test pins, and `tests/repository/prompt-contract.test.ts` renders every prompt in every mode to check the markers,
 the header's rules and that no prompt names another product. `node scripts/render-prompts.mjs <dir>` writes every
 prompt as the model reads it, to review a change as a diff.
 
@@ -513,10 +517,10 @@ extraction, `shared/domain/compaction.ts` the prompts and buffers, `shared/domai
 1. Write `src/commands/<group>/<name>.cmd.ts` after the pattern above, `<group>` the functional folder it belongs to: one `name: "<literal>"` in kebab case, a static
    `description`, no top-level `export`.
 2. Put the logic worth testing in `src/commands/_lib/<family>.ts` as `run<Name>(tokens, deps)` returning a
-   `CommandView`, its deps a `Pick<>` of the ports and services it reads; test it in
-   `tests/commands-<family>.test.ts` over the fakes.
-3. Raise `EXPECTED_COMMAND_COUNT` in `tests/command-surface.test.ts` and the command count of `RELEASE_NOTES` in
-   `src/commands/_lib/meta.ts` (pinned by `tests/commands-meta.test.ts`), then run `npm run docs:commands`.
+   `CommandView`, its deps a `Pick<>` of the ports and services it reads; test it next to it, in
+   `src/commands/_lib/<family>.test.ts`, over the fakes.
+3. Raise `EXPECTED_COMMAND_COUNT` in `tests/repository/command-surface.test.ts` and the command count of `RELEASE_NOTES` in
+   `src/commands/_lib/meta.ts` (pinned by `src/commands/_lib/meta.test.ts`), then run `npm run docs:commands`.
 
 ### Add a crew
 
@@ -526,7 +530,7 @@ extraction, `shared/domain/compaction.ts` the prompts and buffers, `shared/domai
    its `*.test.ts`; the use case test runs over the fakes.
 3. Start it from an async command (`launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "<name>",
    input)`), and name it in `RELEASE_NOTES`
-   (`tests/commands-meta.test.ts` checks that every crew folder is named there). A folder starting with `_` is a
+   (`src/commands/_lib/meta.test.ts` checks that every crew folder is named there). A folder starting with `_` is a
    development probe (`probe.ork.ts`), never listed to users.
 
 ### Add a tool

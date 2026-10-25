@@ -340,6 +340,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **The slash commands sit in functional folders**: `src/commands/<group>/` (`session`, `settings`, `status`, `project`,
   `git`, `dev`, `memory`, `speech`), and [Slash commands](docs/commands.md) lists them by group.
+- **Every test of `src/` sits next to its module**, the command use cases of `commands/_lib/` included (they were the
+  `tests/commands-<family>.test.ts` files). `tests/` keeps the tests of the repository as a whole, by subject:
+  `repository/` (the dependency rule, the test shape, the command surface, the prompt contract, the versions),
+  `scripts/` (the scripts, the launchers, the install) and `config/` (the example settings)
+  ([Architecture](docs/architecture.md#layers-and-the-dependency-rule)).
 - **A background command's approval is answered from the main view** (Orkeon #194, delivered by #195): the question
   names its task (`approve <tool> for [t1]? …`) and shows on the status line and on the task's row. `/permissions`,
   [Permissions](docs/permissions.md) and [Getting started](docs/getting-started.md) say so (#15).

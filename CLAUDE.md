@@ -23,7 +23,7 @@ npm run docs:commands                  # after a command is added or renamed
 
 ### Clean architecture: decide the layer before writing a line
 
-Dependencies point inwards only. `tests/architecture.test.ts` fails on any import, or any use of a runtime global,
+Dependencies point inwards only. `tests/repository/architecture.test.ts` fails on any import, or any use of a runtime global,
 that breaks the rule; never weaken it to make a change pass, move the code instead.
 
 | Layer | What it holds | May import |
@@ -80,12 +80,14 @@ The convention is Orkeon's (`tests/` of github.com/Orkeon/orkeon), adapted to `n
 - **What several test files share** lives under `tests/support/`, by kind: `doubles/`, `fixtures/` (the sample data,
   such as the prompt catalogue), `assertions/` (the shared checks, over `node:assert` alone, so a domain test may use
   them). A `<module>.fixtures.ts` or `.assertions.ts` serves its own test file only.
-- **Where a test goes**: a domain module, a use case or a shared service is tested next to it; a command use case of
-  `commands/_lib/` in `tests/commands-<family>.test.ts`; entry points are covered by the bundle check and the smoke.
+- **Where a test goes**: a module of `src/` is tested next to it, a command use case of `commands/_lib/` included.
+  `tests/` holds what checks the repository as a whole, by subject: `repository/` (the dependency rule, the test shape,
+  the command surface, the prompt contract, the versions), `scripts/` (the scripts, the launchers, the install),
+  `config/` (the example settings). Entry points are covered by the bundle check and the smoke.
 - A test's name is the behaviour and its condition, as a sentence: `cuts a name at 120 characters`.
 - No test depends on a clock, a network or an LLM. Runtime code never imports `tests/`, a `*.fixtures.ts` nor a
   `*.assertions.ts`.
-- `tests/test-shape.test.ts` checks the shape of every test of `src/` and `tests/`, without exception.
+- `tests/repository/test-shape.test.ts` checks the shape of every test of `src/` and `tests/`, without exception.
 - A behaviour added or changed gets its new test; never append assertions to an existing test to cover it.
 
 ### Runtime rules (bundle check)
@@ -109,7 +111,7 @@ src/
 ├── commands/   <group>/*.cmd.ts (entry points, by function) + _lib/ (their use cases)
 ├── crews/      <name>/crew.ork.ts (entry point) + application/ + domain/
 └── shared/     domain/ · application/ (ports.ts, services) · infrastructure/ (globals.ts, orkeon/ adapters, wiring.ts)
-tests/          support/ (doubles/, fixtures/, assertions/ shared across tests) · fixtures/ (file-like texts) · architecture · test shape · commands-<family>
+tests/          support/ (doubles/, fixtures/, assertions/ shared across tests) · fixtures/ (file-like texts) · repository/ · scripts/ · config/
 mcp/whisper/    the speech MCP server (Python, uv)
 docs/           architecture.md, adr/ (0001 clean architecture), commands.md, fr/ (the French twins)
 ```

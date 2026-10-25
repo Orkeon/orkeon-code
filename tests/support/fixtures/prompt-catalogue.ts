@@ -1,6 +1,6 @@
 // Every LLM-facing prompt of Orkeon Code, rendered as the model reads it, over the
 // test doubles: the main loop through buildTurnPrompt, each crew through its own
-// builder, on one set of sample inputs. Shared by tests/prompt-contract.test.ts
+// builder, on one set of sample inputs. Shared by tests/repository/prompt-contract.test.ts
 // (the rules every prompt keeps) and scripts/render-prompts.mjs (a render to read
 // and to diff when a prompt changes).
 import { buildTurnPrompt } from "../../../src/crews/main-loop/application/turn-prompt.ts";
@@ -162,7 +162,7 @@ export async function renderCatalogue(): Promise<RenderedPrompt[]> {
       learnRow("e61ec378db", "ledger/F1", "the rejection of an empty label is not covered", "src/ledger/label.ts:9", "cover the empty label"),
     ],
     refused: ["rounding-inside-handlers — Rounding inside handlers"],
-    owners: ["CONTRIBUTING.md", "tests/architecture.test.ts"],
+    owners: ["CONTRIBUTING.md", "tests/repository/architecture.test.ts"],
   };
   const planInventory = [
     "I1 · src/shared/domain/memory.ts:18 · interface MemoryEntry · layer domain · for UC-01, BR-01 · export interface MemoryEntry {",
