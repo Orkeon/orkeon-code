@@ -3,7 +3,7 @@
 // (step-rules.ts ROLE_ROOTS): the test author writes no production file, the implementer no test
 // file, and neither rewrites an existing source file whole (the rewrite rule): both read and edit by
 // node. Neither gets shell_command: tests and builds go through run_tests and run_build. Pure.
-import { BOUNDED_READ_RULE, NODE_EDIT_RULE, NODE_READ_RULE } from "../../../shared/domain/dev/reading-rule.ts";
+import { BOUNDED_READ_RULE, KNOWN_TOOLS_RULE, NODE_EDIT_RULE, NODE_READ_RULE } from "../../../shared/domain/dev/reading-rule.ts";
 
 export type RoleName = "test-author" | "implementer";
 
@@ -27,6 +27,7 @@ export const TEST_AUTHOR: RoleSpec = {
     NODE_READ_RULE,
     BOUNDED_READ_RULE,
     NODE_EDIT_RULE,
+    KNOWN_TOOLS_RULE,
   ].join(" "),
   tools: [...READ_TOOLS, ...WRITE_TOOLS, "run_tests", "memory_recall"],
   maxIterations: 40,
@@ -41,6 +42,7 @@ export const IMPLEMENTER: RoleSpec = {
     NODE_READ_RULE,
     BOUNDED_READ_RULE,
     NODE_EDIT_RULE,
+    KNOWN_TOOLS_RULE,
   ].join(" "),
   tools: [...READ_TOOLS, ...WRITE_TOOLS, "run_tests", "run_build", "memory_recall"],
   maxIterations: 60,

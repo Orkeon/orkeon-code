@@ -39,7 +39,8 @@ export interface BodyContext {
   log: Logger;
 }
 
-/** A batch's tool calls: counted, and refused once `limit` is reached. */
+/** A batch's tool calls: counted, and refused once `limit` is reached. A call to a tool the act does not offer is
+ *  refused by the runtime before `onToolCall` (Orkeon #193): it costs nothing here, the act's `maxIterations` bounds it. */
 export interface Spend {
   readonly limit: number;
   calls(): number;

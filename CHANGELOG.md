@@ -338,6 +338,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **A tool name the act does not offer is refused without a question** (Orkeon #193, delivered by #195): the runtime
+  answers `ERROR: tool '<name>' is not available to this agent.` before the gate and before the dev crews' callback,
+  so such a call no longer waits on an approval nor counts against a batch's tool calls. The system texts of the dev
+  roles, the auditor and the reviewer say that only their tools exist and to go back to them on that error (#14).
 - **The search routing follows the thirteen Tree-sitter adapters of Orkeon #195.** A question on a `.js`, `.jsx`,
   `.mjs`, `.cjs`, `.java`, `.c`, `.h`, `.cpp` (and `.cc`, `.cxx`, `.hpp`, `.hh`, `.hxx`), `.php`, `.rb`, `.sh` or
   `.bash` file goes to `codebase_search`, `symbol_source` and `flow_trace`, no longer to `rag_search`, which held

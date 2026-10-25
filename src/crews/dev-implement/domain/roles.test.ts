@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, ok } from "node:assert";
 
 import { CREW_TOOLS, IMPLEMENTER, TEST_AUTHOR } from "./roles.ts";
-import { NODE_EDIT_RULE, NODE_READ_RULE } from "../../../shared/domain/dev/reading-rule.ts";
+import { KNOWN_TOOLS_RULE, NODE_EDIT_RULE, NODE_READ_RULE } from "../../../shared/domain/dev/reading-rule.ts";
 import { toolsetFor } from "../../../shared/domain/agent-policy/permission.ts";
 
 const NODE_TOOLS = ["node_outline", "node_read", "node_replace", "node_insert", "node_ensure", "edit_batch"];
@@ -25,6 +25,7 @@ describe("the roles of a batch step", () => {
   it("read and edit by node, file_write for a new file only", () => {
     for (const role of [TEST_AUTHOR, IMPLEMENTER]) {
       ok(role.system.includes(NODE_READ_RULE) && role.system.includes(NODE_EDIT_RULE), role.name);
+      ok(role.system.includes(KNOWN_TOOLS_RULE), `${role.name}: the known-tools rule`);
     }
     ok(NODE_READ_RULE.includes("node_outline") && NODE_READ_RULE.includes("then node_read"));
     ok(NODE_EDIT_RULE.includes("node_replace with the selector and the sha256 node_read gave"));

@@ -86,6 +86,10 @@ refuses anything else without asking.
 without asking until the REPL exits, `n` refuses it, and the model reads the refusal and adapts. A `/` line still
 runs its command while a question waits.
 
+A call to a tool the act does not offer never reaches the gate: the runtime answers it `ERROR: tool '<name>' is not
+available to this agent.` at once, with no question (Orkeon #193), and the dev agents are told to go back to their
+own tools on that error.
+
 Orkeon treats a tool that declares neither a read nor an edit as a write: `http_api` declares an execute and every MCP
 tool declares none, so both are asked about in `default` and `acceptEdits`, and refused in `plan` and `dontAsk`. `web_scrape`, `scrape_element` and `rag_search`
 declare a read (Orkeon #126): they run without a question wherever the catalogue offers them. `rag_ingest` declares an

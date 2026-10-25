@@ -94,6 +94,10 @@ REPL : `approve <tool>? [y] once / [s] session / [n] no`. `y` exécute l'appel, 
 suivants de cet outil sans demander jusqu'à la sortie du REPL, `n` le refuse, et le modèle lit le refus et s'adapte.
 Une ligne `/` exécute toujours sa commande pendant qu'une question attend.
 
+Un appel à un outil que l'act n'offre pas n'atteint jamais la garde : le runtime y répond aussitôt `ERROR: tool
+'<name>' is not available to this agent.`, sans question (Orkeon #193), et les agents dev ont pour consigne de revenir
+à leurs propres outils sur cette erreur.
+
 Orkeon traite comme écriture un outil qui ne déclare ni lecture ni modification : `http_api` déclare une exécution et
 tous les outils MCP n'en déclarent aucun, donc les deux font l'objet d'une question en `default` et en `acceptEdits`, et sont refusés en `plan` et en `dontAsk`. `web_scrape`, `scrape_element` et
 `rag_search` déclarent une lecture (Orkeon #126) : ils s'exécutent sans question partout où le catalogue les offre.
