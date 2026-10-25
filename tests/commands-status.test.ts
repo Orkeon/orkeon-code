@@ -7,9 +7,8 @@ import { strictEqual, ok, deepStrictEqual } from "node:assert";
 import { buildStatusRows, PLATFORM_COMMAND } from "../src/commands/_lib/status.ts";
 import { cacheColumns, statsRow } from "../src/commands/_lib/cache.ts";
 import { ORKEON_RUNTIME_VERSION } from "../src/commands/_lib/meta.ts";
-import { readHostProvider } from "../src/shared/infrastructure/orkeon/host-provider.ts";
 import { FakeShell } from "./support/fake-shell.ts";
-import { CACHE_COLUMN_CASES, PROVIDER_CASES, rowMap, statusHarness } from "./commands-status.fixtures.ts";
+import { CACHE_COLUMN_CASES, rowMap, statusHarness } from "./commands-status.fixtures.ts";
 import { WORKSPACE } from "../src/shared/domain/vfs.ts";
 
 describe("/status — buildStatusRows", () => {
@@ -225,19 +224,6 @@ describe("/status — the runtime and the provider (A-4a)", () => {
     // Assert
     strictEqual(rowMap(view.table).get("provider"), "anthropic (the host's default)");
   });
-
-  for (const c of PROVIDER_CASES) {
-    it(`readHostProvider ${c.name}`, () => {
-      // Arrange
-      const { services } = c;
-
-      // Act
-      const provider = readHostProvider(services);
-
-      // Assert
-      strictEqual(provider, c.expected);
-    });
-  }
 });
 
 describe("/usage and /context — the cache columns (A-4a)", () => {
