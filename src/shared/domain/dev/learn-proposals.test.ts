@@ -9,144 +9,225 @@ import {
   LEARN_FOLDER_PATTERN, PROPOSALS_JSON, PROPOSALS_MD, acceptLines, deployedHarnessPath, learnFolderName, motifId,
   parseProposalsFile, patchLines, serializeProposalsFile,
 } from "./learn-proposals.ts";
-import type { Motif, ProposalsFile } from "./learn-proposals.ts";
-
-const REPO_MOTIF: Motif = {
-  id: "3f2a9c1e", title: "Refusal paths go untested", topic: "refusal-paths-untested",
-  rows: ["68abc1ec48", "0b1c2d3e4f", "9a8b7c6d5e"], batches: ["ledger/F1", "ledger/F3", "invoices/F2"],
-  preventiveLine: "Each refusal text of a command has a test that triggers it.",
-  owner: { kind: "repository", path: "CONTRIBUTING.md" }, check: "test", status: "new",
-  linesRemoved: [], linesAdded: ["Every refusal a command prints has a test that makes it print."],
-  novelty: "No rule names refusal texts.", keyTerm: "refusal", reconcile: "'refusal' not found in CONTRIBUTING.md",
-};
-const HARNESS_MOTIF: Motif = {
-  ...REPO_MOTIF, id: "77b0d2aa", title: "Axis names drift",
-  owner: { kind: "harness", path: ".devcontainer/harness/packs/dev/claude/skills/dev-verify/references/audit-axes.md" },
-  check: "rule", status: "refines",
-  linesRemoved: ["Name the axis."], linesAdded: ["Name the axis with one of the listed words.", "Keep the case."],
-};
-const FILE: ProposalsFile = {
-  version: 1, date: "2026-10-22", work: "workbench",
-  read: { files: 9, gaps: 14, batches: 5, treatedOrkeon: 2, treatedHarness: 1, refused: 2 },
-  axes: [
-    {
-      axis: "Test", batches: 4, gaps: 7, shownRows: ["68abc1ec48", "0b1c2d3e4f", "9a8b7c6d5e"], hiddenRows: 3,
-      outcome: "proposed", motifs: [REPO_MOTIF, HARNESS_MOTIF],
-      dropped: [{ title: "Wording of help texts", filter: "recurrence", reason: "2 batches (ledger/F1, ledger/F2)" }],
-    },
-    {
-      axis: "Plan", batches: 3, gaps: 4, shownRows: ["1111111111"], hiddenRows: 0, outcome: "no-proposal",
-      reason: "motif 1: row 'abc' is not one of the rows given", motifs: [], dropped: [],
-    },
-  ],
-};
+import {
+  DEPLOYED_PATHS, FILE, HARNESS_ACCEPT, HARNESS_MOTIF, HARNESS_PATCH, NOT_DEPLOYED, NOT_LEARN_FOLDERS, REPO_ACCEPT,
+  REPO_MOTIF, REPO_PATCH, TEN_DIGIT_ID_FILE, WRONG_SHAPES,
+} from "./learn-proposals.fixtures.ts";
+import { assertNotJsonProblem } from "./learn-proposals.assertions.ts";
 
 describe("names", () => {
-  it("the learn folder and its two files", () => {
-    strictEqual(learnFolderName("2026-10-22"), "learn-2026-10-22");
-    strictEqual(LEARN_FOLDER_PATTERN.test("learn-2026-10-22"), true);
-    for (const name of ["learn-2026-10-2", "learn-2026-10-22x", "xlearn-2026-10-22", "learn-latest"]) {
-      strictEqual(LEARN_FOLDER_PATTERN.test(name), false, name);
-    }
-    deepStrictEqual([PROPOSALS_JSON, PROPOSALS_MD], ["proposals.json", "PROPOSALS.md"]);
+  it("the learn folder is named after its date", () => {
+    // Arrange
+    const date = "2026-10-22";
+
+    // Act
+    const name = learnFolderName(date);
+
+    // Assert
+    strictEqual(name, "learn-2026-10-22");
+  });
+
+  it("the learn folder pattern knows a learn folder", () => {
+    // Arrange
+    const name = "learn-2026-10-22";
+
+    // Act
+    const matches = LEARN_FOLDER_PATTERN.test(name);
+
+    // Assert
+    strictEqual(matches, true);
+  });
+
+  for (const name of NOT_LEARN_FOLDERS) {
+    it(`the learn folder pattern refuses ${name}`, () => {
+      // Arrange
+      const candidate = name;
+
+      // Act
+      const matches = LEARN_FOLDER_PATTERN.test(candidate);
+
+      // Assert
+      strictEqual(matches, false, name);
+    });
+  }
+
+  it("the learn folder's two files", () => {
+    // Arrange
+    const expected = ["proposals.json", "PROPOSALS.md"];
+
+    // Act
+    const files = [PROPOSALS_JSON, PROPOSALS_MD];
+
+    // Assert
+    deepStrictEqual(files, expected);
   });
 });
 
 describe("motifId", () => {
-  it("is 8 hex digits of the SHA-1 of the axis and the sorted rows, whatever the row order", () => {
-    const id = motifId("Test", ["68abc1ec48", "0b1c2d3e4f", "9a8b7c6d5e"]);
+  it("is 8 hex digits of the SHA-1 of the axis and the sorted rows", () => {
+    // Arrange
+    const rows = ["68abc1ec48", "0b1c2d3e4f", "9a8b7c6d5e"];
+
+    // Act
+    const id = motifId("Test", rows);
+
+    // Assert
     strictEqual(/^[0-9a-f]{8}$/.test(id), true);
     strictEqual(id, sha1Hex("Test|0b1c2d3e4f,68abc1ec48,9a8b7c6d5e").slice(0, 8));
-    strictEqual(motifId("Test", ["9a8b7c6d5e", "68abc1ec48", "0b1c2d3e4f"]), id);
-    strictEqual(motifId("Plan", ["68abc1ec48", "0b1c2d3e4f", "9a8b7c6d5e"]) === id, false);
+  });
+
+  it("is the same whatever the row order", () => {
+    // Arrange
+    const id = motifId("Test", ["68abc1ec48", "0b1c2d3e4f", "9a8b7c6d5e"]);
+
+    // Act
+    const reordered = motifId("Test", ["9a8b7c6d5e", "68abc1ec48", "0b1c2d3e4f"]);
+
+    // Assert
+    strictEqual(reordered, id);
+  });
+
+  it("differs for another axis", () => {
+    // Arrange
+    const id = motifId("Test", ["68abc1ec48", "0b1c2d3e4f", "9a8b7c6d5e"]);
+
+    // Act
+    const other = motifId("Plan", ["68abc1ec48", "0b1c2d3e4f", "9a8b7c6d5e"]);
+
+    // Assert
+    strictEqual(other === id, false);
   });
 });
 
 describe("parseProposalsFile", () => {
-  it("round trips through serializeProposalsFile, one-space indented with a final line break", () => {
-    const text = serializeProposalsFile(FILE);
+  it("serializes one-space indented with a final line break", () => {
+    // Arrange
+    const file = FILE;
+
+    // Act
+    const text = serializeProposalsFile(file);
+
+    // Assert
     strictEqual(text, JSON.stringify(FILE, null, 1) + "\n");
-    deepStrictEqual(parseProposalsFile(text), { ok: true, file: FILE });
+  });
+
+  it("round trips through serializeProposalsFile", () => {
+    // Arrange
+    const text = serializeProposalsFile(FILE);
+
+    // Act
+    const r = parseProposalsFile(text);
+
+    // Assert
+    deepStrictEqual(r, { ok: true, file: FILE });
   });
 
   it("invalid JSON is a one-line problem", () => {
-    const r = parseProposalsFile("{");
-    strictEqual(r.ok, false);
-    if (!r.ok) strictEqual(/^not JSON \([^\n]+\)$/.test(r.problem), true, r.problem);
+    // Arrange
+    const text = "{";
+
+    // Act
+    const r = parseProposalsFile(text);
+
+    // Assert
+    assertNotJsonProblem(r);
   });
 
-  it("names the first field of the wrong shape", () => {
-    const motif = (patch: object) => ({ ...FILE, axes: [{ ...FILE.axes[0], motifs: [REPO_MOTIF, { ...HARNESS_MOTIF, ...patch }] }] });
-    const cases: [unknown, string][] = [
-      [[], "the top level"],
-      [{ ...FILE, version: 2 }, "version"],
-      [{ ...FILE, date: 5 }, "date"],
-      [{ ...FILE, read: { ...FILE.read, gaps: -1 } }, "read.gaps"],
-      [{ ...FILE, read: null }, "read"],
-      [{ ...FILE, axes: {} }, "axes"],
-      [{ ...FILE, axes: [{ ...FILE.axes[0], outcome: "done" }] }, "axes[0].outcome"],
-      [{ ...FILE, axes: [FILE.axes[0], { ...FILE.axes[1], reason: 3 }] }, "axes[1].reason"],
-      [{ ...FILE, axes: [{ ...FILE.axes[0], shownRows: [1] }] }, "axes[0].shownRows"],
-      [motif({ id: "3F2A9C1E" }), "axes[0].motifs[1].id"],
-      [motif({ owner: { kind: "team", path: "x" } }), "axes[0].motifs[1].owner.kind"],
-      [motif({ owner: "x" }), "axes[0].motifs[1].owner"],
-      [motif({ check: "lint" }), "axes[0].motifs[1].check"],
-      [motif({ linesAdded: "x" }), "axes[0].motifs[1].linesAdded"],
-      [{ ...FILE, axes: [{ ...FILE.axes[0], dropped: [{ title: "t", filter: "other", reason: "r" }] }] }, "axes[0].dropped[0].filter"],
-    ];
-    for (const [value, field] of cases) {
-      deepStrictEqual(parseProposalsFile(JSON.stringify(value)), { ok: false, problem: `${field} has the wrong shape` }, field);
-    }
-  });
+  for (const c of WRONG_SHAPES) {
+    it(`names the first field of the wrong shape: ${c.field}`, () => {
+      // Arrange
+      const text = JSON.stringify(c.value);
+
+      // Act
+      const r = parseProposalsFile(text);
+
+      // Assert
+      deepStrictEqual(r, { ok: false, problem: `${c.field} has the wrong shape` }, c.field);
+    });
+  }
 
   it("accepts a 10-digit motif id (collision fallback)", () => {
-    const file = { ...FILE, axes: [{ ...FILE.axes[0], motifs: [{ ...REPO_MOTIF, id: "3f2a9c1e00" }] }] };
-    strictEqual(parseProposalsFile(JSON.stringify(file)).ok, true);
+    // Arrange
+    const text = JSON.stringify(TEN_DIGIT_ID_FILE);
+
+    // Act
+    const r = parseProposalsFile(text);
+
+    // Assert
+    strictEqual(r.ok, true);
   });
 });
 
 describe("deployedHarnessPath", () => {
-  it("maps a pack's claude folder onto .claude/ of the checkout", () => {
-    strictEqual(deployedHarnessPath(".devcontainer/harness/packs/dev/claude/skills/dev-verify/references/audit-axes.md"),
-      ".claude/skills/dev-verify/references/audit-axes.md");
-    strictEqual(deployedHarnessPath(".devcontainer/harness/packs/repo-x/claude/rules/naming.md"), ".claude/rules/naming.md");
-  });
+  for (const c of DEPLOYED_PATHS) {
+    it(`maps a pack's claude folder onto .claude/ of the checkout: ${c.path}`, () => {
+      // Arrange
+      const { path } = c;
 
-  it("any other path gives null", () => {
-    for (const path of [
-      "CONTRIBUTING.md", ".claude/rules/naming.md", ".devcontainer/harness/packs/dev/skills/x.md",
-      ".devcontainer/harness/packs/dev/claude/", "x/.devcontainer/harness/packs/dev/claude/rules/a.md",
-      ".devcontainer/harness/packs/dev/claude/../../etc/passwd", "",
-    ]) strictEqual(deployedHarnessPath(path), null, path);
-  });
+      // Act
+      const deployed = deployedHarnessPath(path);
+
+      // Assert
+      strictEqual(deployed, c.deployed);
+    });
+  }
+
+  for (const path of NOT_DEPLOYED) {
+    it(`any other path gives null: ${JSON.stringify(path)}`, () => {
+      // Arrange
+      const candidate = path;
+
+      // Act
+      const deployed = deployedHarnessPath(candidate);
+
+      // Assert
+      strictEqual(deployed, null, path);
+    });
+  }
 });
 
 describe("patchLines and acceptLines", () => {
   it("a harness owner: the patch for the orkeon-workshop repository", () => {
-    deepStrictEqual(patchLines(HARNESS_MOTIF), [
-      "file: .devcontainer/harness/packs/dev/claude/skills/dev-verify/references/audit-axes.md",
-      "- Name the axis.",
-      "+ Name the axis with one of the listed words.",
-      "+ Keep the case.",
-    ]);
-    deepStrictEqual(acceptLines(HARNESS_MOTIF), [
-      "accepted 77b0d2aa — Axis names drift: a harness file is never edited here; apply this in the orkeon-workshop repository:",
-      "  file: .devcontainer/harness/packs/dev/claude/skills/dev-verify/references/audit-axes.md",
-      "  - Name the axis.",
-      "  + Name the axis with one of the listed words.",
-      "  + Keep the case.",
-    ]);
+    // Arrange
+    const motif = HARNESS_MOTIF;
+
+    // Act
+    const lines = patchLines(motif);
+
+    // Assert
+    deepStrictEqual(lines, HARNESS_PATCH);
+  });
+
+  it("a harness owner: the accept lines send the patch to the orkeon-workshop repository", () => {
+    // Arrange
+    const motif = HARNESS_MOTIF;
+
+    // Act
+    const lines = acceptLines(motif);
+
+    // Assert
+    deepStrictEqual(lines, HARNESS_ACCEPT);
   });
 
   it("a repository owner: the change to make in a batch", () => {
-    deepStrictEqual(patchLines(REPO_MOTIF), [
-      "file: CONTRIBUTING.md",
-      "+ Every refusal a command prints has a test that makes it print.",
-    ]);
-    deepStrictEqual(acceptLines(REPO_MOTIF), [
-      "accepted 3f2a9c1e — Refusal paths go untested: CONTRIBUTING.md is not edited by /dev-learn; make the change in a batch (/dev-change, or by hand):",
-      "  file: CONTRIBUTING.md",
-      "  + Every refusal a command prints has a test that makes it print.",
-    ]);
+    // Arrange
+    const motif = REPO_MOTIF;
+
+    // Act
+    const lines = patchLines(motif);
+
+    // Assert
+    deepStrictEqual(lines, REPO_PATCH);
+  });
+
+  it("a repository owner: the accept lines send the change to a batch", () => {
+    // Arrange
+    const motif = REPO_MOTIF;
+
+    // Act
+    const lines = acceptLines(motif);
+
+    // Assert
+    deepStrictEqual(lines, REPO_ACCEPT);
   });
 });

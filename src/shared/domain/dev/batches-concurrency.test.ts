@@ -2,54 +2,103 @@
 // asks before a shell command, and the line refusing a worktree git does not work in. Run:
 //   node --test src/shared/domain/dev/batches-concurrency.test.ts
 import { describe, it } from "node:test";
-import { deepStrictEqual, ok, strictEqual } from "node:assert";
+import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { MAX_CONCURRENCY, checkConcurrency, concurrencyGitRefusal, concurrencyModeRefusal } from "./batches-concurrency.ts";
+import {
+  ABOVE_MAX, ACCEPTED, ASKING_MODES, LET_THROUGH, NOT_WHOLE_FROM_ONE, modeRefusalLine,
+} from "./batches-concurrency.fixtures.ts";
+import { assertGitRefusal, assertRefusedStarting, assertRefusedWith } from "./batches-concurrency.assertions.ts";
 
 describe("checkConcurrency", () => {
-  it("is 1 when absent, and accepts 1 to 4 as a number or a string", () => {
-    for (const raw of [undefined, null, 1, "1", " 1 "]) deepStrictEqual(checkConcurrency(raw), { ok: true, value: 1 });
-    for (const n of [2, 3, 4]) {
-      deepStrictEqual(checkConcurrency(n), { ok: true, value: n });
-      deepStrictEqual(checkConcurrency(String(n)), { ok: true, value: n });
-    }
-    strictEqual(MAX_CONCURRENCY, 4);
+  for (const c of ACCEPTED) {
+    it(`is 1 when absent, and accepts 1 to 4 as a number or a string: ${c.name}`, () => {
+      // Arrange
+      const { raw } = c;
+
+      // Act
+      const result = checkConcurrency(raw);
+
+      // Assert
+      deepStrictEqual(result, { ok: true, value: c.value });
+    });
+  }
+
+  it("caps the concurrency at 4", () => {
+    // Arrange
+    const expected = 4;
+
+    // Act
+    const max = MAX_CONCURRENCY;
+
+    // Assert
+    strictEqual(max, expected);
   });
 
-  it("refuses above 4 in one line", () => {
-    for (const raw of [5, "8"]) {
-      const c = checkConcurrency(raw);
-      ok(!c.ok && c.line === `concurrency ${raw} refused: at most 4 batches at once`, JSON.stringify(c));
-    }
-  });
+  for (const raw of ABOVE_MAX) {
+    it(`refuses above 4 in one line: ${JSON.stringify(raw)}`, () => {
+      // Arrange
+      const line = `concurrency ${raw} refused: at most 4 batches at once`;
 
-  it("refuses what is not a whole number from 1", () => {
-    for (const raw of [0, -1, 1.5, "two", "", "1e1", true, {}, Number.NaN]) {
+      // Act
       const c = checkConcurrency(raw);
-      ok(!c.ok && c.line.startsWith("concurrency must be a whole number from 1"), String(raw));
-    }
-  });
+
+      // Assert
+      assertRefusedWith(c, line);
+    });
+  }
+
+  for (const c of NOT_WHOLE_FROM_ONE) {
+    it(`refuses what is not a whole number from 1: ${c.name}`, () => {
+      // Arrange
+      const { raw } = c;
+
+      // Act
+      const result = checkConcurrency(raw);
+
+      // Assert
+      assertRefusedStarting(result, "concurrency must be a whole number from 1", String(raw));
+    });
+  }
 });
 
 describe("concurrencyModeRefusal", () => {
-  it("refuses above 1 in a mode that asks before shell commands", () => {
-    for (const mode of ["default", "acceptEdits", "plan", "dontAsk", ""]) {
-      strictEqual(concurrencyModeRefusal(2, mode),
-        `concurrency 2 refused: the session mode ${mode || "default"} asks before shell commands, and two batches would ask at once: /mode bypassPermissions, or run with --concurrency 1`);
-    }
-  });
+  for (const mode of ASKING_MODES) {
+    it(`refuses above 1 in a mode that asks before shell commands: ${JSON.stringify(mode)}`, () => {
+      // Arrange
+      const expected = modeRefusalLine(mode);
 
-  it("lets bypassPermissions through, and 1 in any mode", () => {
-    strictEqual(concurrencyModeRefusal(2, "bypassPermissions"), null);
-    strictEqual(concurrencyModeRefusal(4, " bypassPermissions "), null);
-    strictEqual(concurrencyModeRefusal(1, "default"), null);
-  });
+      // Act
+      const line = concurrencyModeRefusal(2, mode);
+
+      // Assert
+      strictEqual(line, expected);
+    });
+  }
+
+  for (const c of LET_THROUGH) {
+    it(`lets bypassPermissions through, and 1 in any mode: ${c.name}`, () => {
+      // Arrange
+      const { n, mode } = c;
+
+      // Act
+      const line = concurrencyModeRefusal(n, mode);
+
+      // Assert
+      strictEqual(line, null);
+    });
+  }
 });
 
 describe("concurrencyGitRefusal", () => {
   it("names the confinement setting, the runtime change that lifts it and the sequential way out", () => {
-    const line = concurrencyGitRefusal(2);
-    ok(line.startsWith("concurrency 2 refused: git does not work inside a worktree under this shell confinement (Tools:Shell:Confinement:Mode)"));
-    ok(line.includes("Orkeon/orkeon#191") && line.endsWith("or run with --concurrency 1"), line);
+    // Arrange
+    const n = 2;
+
+    // Act
+    const line = concurrencyGitRefusal(n);
+
+    // Assert
+    assertGitRefusal(line);
   });
 });

@@ -4,46 +4,117 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 
 import { classifyArtefact, compareBatchIds, isCode, CODE_PATTERN } from "./artefacts.ts";
+import { KIND_CASES, OTHER_NAMES, PLAIN_CODES, REFUSED_CODES, SORTED_IDS, UNSORTED_IDS } from "./artefacts.fixtures.ts";
 
 describe("classifyArtefact", () => {
-  it("names every kind, with its prefix and batch", () => {
-    deepStrictEqual(classifyArtefact("SPEC-demo.md"), { kind: "spec", name: "SPEC-demo.md", prefix: "demo" });
-    deepStrictEqual(classifyArtefact("CHANGE-fix-7.md"), { kind: "change", name: "CHANGE-fix-7.md", prefix: "fix-7" });
-    deepStrictEqual(classifyArtefact("DEMO-PLAN.md"), { kind: "plan", name: "DEMO-PLAN.md", prefix: "DEMO" });
-    deepStrictEqual(classifyArtefact("DEMO-VERIFY-F2.md"),
-      { kind: "verdict", name: "DEMO-VERIFY-F2.md", prefix: "DEMO", batch: "F2" });
-    deepStrictEqual(classifyArtefact("STUDIO-71-BATCHES-STATE.md"),
-      { kind: "batches-state", name: "STUDIO-71-BATCHES-STATE.md", prefix: "STUDIO-71" });
-  });
+  for (const c of KIND_CASES) {
+    it(`names ${c.name}, with its prefix and batch`, () => {
+      // Arrange
+      const { file } = c;
+
+      // Act
+      const result = classifyArtefact(file);
+
+      // Assert
+      deepStrictEqual(result, c.expected);
+    });
+  }
 
   it("reads DEMO-PLAN-F1.md as a sheet, never as a plan", () => {
-    deepStrictEqual(classifyArtefact("DEMO-PLAN-F1.md"),
-      { kind: "sheet", name: "DEMO-PLAN-F1.md", prefix: "DEMO", batch: "F1" });
+    // Arrange
+    const file = "DEMO-PLAN-F1.md";
+
+    // Act
+    const result = classifyArtefact(file);
+
+    // Assert
+    deepStrictEqual(result, { kind: "sheet", name: "DEMO-PLAN-F1.md", prefix: "DEMO", batch: "F1" });
   });
 
-  it("returns null for anything else", () => {
-    for (const n of ["PLAN.md", "notes.md", "DEMO-PLAN.txt", "-PLAN.md", "DEMO-VERIFY-1.md", "DEMO-PLAN-Fx.md"]) {
-      strictEqual(classifyArtefact(n), null, n);
-    }
-  });
+  for (const n of OTHER_NAMES) {
+    it(`returns null for anything else: ${n}`, () => {
+      // Arrange
+      const file = n;
+
+      // Act
+      const result = classifyArtefact(file);
+
+      // Assert
+      strictEqual(result, null, n);
+    });
+  }
 });
 
 describe("isCode", () => {
-  it("accepts plain folder names", () => {
-    for (const c of ["demo", "STUDIO-71", "a.b_c"]) strictEqual(isCode(c), true, c);
-  });
-  it("refuses paths, a leading dash and a double dot", () => {
-    for (const c of ["../x", "a/b", "-x", "a..b", "", ".hidden"]) strictEqual(isCode(c), false, c);
-  });
+  for (const c of PLAIN_CODES) {
+    it(`accepts the plain folder name ${JSON.stringify(c)}`, () => {
+      // Arrange
+      const code = c;
+
+      // Act
+      const result = isCode(code);
+
+      // Assert
+      strictEqual(result, true, c);
+    });
+  }
+
+  for (const c of REFUSED_CODES) {
+    it(`refuses paths, a leading dash and a double dot: ${JSON.stringify(c)}`, () => {
+      // Arrange
+      const code = c;
+
+      // Act
+      const result = isCode(code);
+
+      // Assert
+      strictEqual(result, false, c);
+    });
+  }
+
   it("exports the pattern it applies", () => {
-    strictEqual(CODE_PATTERN.test("a..b"), true); // the pattern alone lets it through; isCode does not
+    // Arrange
+    const code = "a..b";
+
+    // Act
+    const result = CODE_PATTERN.test(code);
+
+    // Assert
+    strictEqual(result, true); // the pattern alone lets it through; isCode does not
   });
 });
 
 describe("compareBatchIds", () => {
   it("orders by number, F2 before F10, non-F ids last by text", () => {
-    deepStrictEqual(["F10", "zeta", "F2", "alpha", "F1"].sort(compareBatchIds), ["F1", "F2", "F10", "alpha", "zeta"]);
-    strictEqual(compareBatchIds("F2", "F10") < 0, true);
-    strictEqual(compareBatchIds("F3", "F3"), 0);
+    // Arrange
+    const ids = [...UNSORTED_IDS];
+
+    // Act
+    const sorted = ids.sort(compareBatchIds);
+
+    // Assert
+    deepStrictEqual(sorted, SORTED_IDS);
+  });
+
+  it("puts F2 before F10", () => {
+    // Arrange
+    const [a, b] = ["F2", "F10"];
+
+    // Act
+    const order = compareBatchIds(a, b);
+
+    // Assert
+    strictEqual(order < 0, true);
+  });
+
+  it("finds an id equal to itself", () => {
+    // Arrange
+    const id = "F3";
+
+    // Act
+    const order = compareBatchIds(id, id);
+
+    // Assert
+    strictEqual(order, 0);
   });
 });

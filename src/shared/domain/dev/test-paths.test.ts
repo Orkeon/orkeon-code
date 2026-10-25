@@ -4,19 +4,43 @@ import { describe, it } from "node:test";
 import { strictEqual } from "node:assert";
 
 import { hasTestLayout, isTestPath, relativePath } from "./test-paths.ts";
+import { HAS_TEST_LAYOUT_CASES, TEST_PATH_CASES } from "./test-paths.fixtures.ts";
 
 describe("isTestPath", () => {
-  it("reads the test folder and the test file patterns, in either path form", () => {
-    const layout = { tests: "tests/", testFiles: ["src/*.test.ts"] };
-    strictEqual(isTestPath("tests/a.ts", layout), true);
-    strictEqual(isTestPath("/workspace/src/x/a.test.ts", layout), true);
-    strictEqual(isTestPath("src/x/a.ts", layout), false);
-    strictEqual(isTestPath("tests2/a.ts", layout), false);
-    strictEqual(isTestPath("src/a.ts", { tests: "" }), false);
-  });
-  it("says whether the pack names any test at all", () => {
-    strictEqual(hasTestLayout({ tests: " " }), false);
-    strictEqual(hasTestLayout({ testFiles: ["*.spec.ts"] }), true);
-    strictEqual(relativePath("./a/b/"), "a/b");
+  for (const c of TEST_PATH_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { path, layout } = c;
+
+      // Act
+      const result = isTestPath(path, layout);
+
+      // Assert
+      strictEqual(result, c.expected);
+    });
+  }
+
+  for (const c of HAS_TEST_LAYOUT_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { layout } = c;
+
+      // Act
+      const result = hasTestLayout(layout);
+
+      // Assert
+      strictEqual(result, c.expected);
+    });
+  }
+
+  it("drops the leading ./ and the trailing slash", () => {
+    // Arrange
+    const path = "./a/b/";
+
+    // Act
+    const result = relativePath(path);
+
+    // Assert
+    strictEqual(result, "a/b");
   });
 });
