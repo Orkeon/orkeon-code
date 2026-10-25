@@ -7,101 +7,249 @@ import { deepStrictEqual, strictEqual, throws } from "node:assert";
 
 import { SCRIPT_TOOLS, TOOL_ARGUMENTS } from "../../domain/agent-policy/permission.ts";
 import type { WrappedTools } from "../../application/dev/wrapped-tools.ts";
+import { RUN_TESTS, runBuildTool, runTestsTool, runValidationTool, scriptTool, scriptToolSlot } from "./script-tools.ts";
+import type { ValidationCalls } from "./script-tools.ts";
 import {
-  RUN_BUILD, RUN_TESTS, RUN_VALIDATION, runBuildTool, runTestsTool, runValidationTool, scriptTool, scriptToolSlot,
-} from "./script-tools.ts";
-import type { ToolBuilderFactory, ValidationCalls } from "./script-tools.ts";
-
-interface Built { name?: string; description?: string; schema?: JsonSchema; access?: string; fn?: (input: unknown) => unknown }
-
-/** A builder that records what it is told, and builds a tool whose execute calls the body. */
-function recorder(): { builder: ToolBuilderFactory; built: Built[] } {
-  const built: Built[] = [];
-  const builder = () => {
-    const b: Built = {};
-    built.push(b);
-    const api: any = {
-      name: (v: string) => { b.name = v; return api; },
-      description: (v: string) => { b.description = v; return api; },
-      withSchema: (v: JsonSchema) => { b.schema = v; return api; },
-      access: (v: string) => { b.access = v; return api; },
-      execute: (fn: (input: unknown) => unknown) => { b.fn = fn; return api; },
-      build: () => ({ name: b.name, description: b.description, execute: (input: unknown) => b.fn!(input) }),
-    };
-    return api as ToolBuilder<unknown, unknown>;
-  };
-  return { builder, built };
-}
+  NOT_READY, ROOT, SPECS, recorder, recordingRunner, recordingWrappedTools, rootedSlots,
+} from "./script-tools.fixtures.ts";
+import { assertRootPathsOnly } from "./script-tools.assertions.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 describe("scriptTool", () => {
-  it("declares the access SCRIPT_TOOLS gives, and a schema of the arguments a rule may name", () => {
-    for (const spec of [RUN_VALIDATION, RUN_TESTS, RUN_BUILD]) {
+  for (const spec of SPECS) {
+    it(`declares the access SCRIPT_TOOLS gives ${spec.name}, and a schema of the arguments a rule may name`, () => {
+      // Arrange
       const r = recorder();
+
+      // Act
       scriptTool(r.builder, spec, async () => null);
+
+      // Assert
       strictEqual(r.built[0].access, SCRIPT_TOOLS.find((t) => t.name === spec.name)?.access, spec.name);
       deepStrictEqual(Object.keys((spec.schema as unknown as { properties: object }).properties), [...TOOL_ARGUMENTS[spec.name]]);
-    }
-  });
+    });
+  }
 
   it("refuses to build a tool SCRIPT_TOOLS does not list", () => {
-    throws(() => scriptTool(recorder().builder, { name: "run_anything", description: "", schema: { type: "object" } }, async () => null));
+    // Arrange
+    const spec = { name: "run_anything", description: "", schema: { type: "object" } };
+
+    // Act
+    const act = () => scriptTool(recorder().builder, spec, async () => null);
+
+    // Assert
+    throws(act);
   });
 
   it("hands a throw back as the tool's refusal", async () => {
+    // Arrange
     const tool = scriptTool(recorder().builder, RUN_TESTS, async () => { throw new Error("boom\nstack"); });
-    deepStrictEqual(await tool.execute({}), { ok: false, refused: "run_tests failed: boom" });
+
+    // Act
+    const result = await tool.execute({});
+
+    // Assert
+    deepStrictEqual(result, { ok: false, refused: "run_tests failed: boom" });
   });
 });
 
 describe("the tools and their slots", () => {
-  it("run_validation refuses until bound, then runs the command through the runner", async () => {
+  it("run_validation refuses until bound", async () => {
+    // Arrange
+    const tool = runValidationTool(recorder().builder, scriptToolSlot<ValidationCalls>());
+
+    // Act
+    const result = await tool.execute({ command: "x" });
+
+    // Assert
+    deepStrictEqual(result, NOT_READY);
+  });
+
+  it("run_validation, once bound, runs the command through the runner", async () => {
+    // Arrange
     const slot = scriptToolSlot<ValidationCalls>();
     const tool = runValidationTool(recorder().builder, slot);
-    const notReady = {
-      ok: false,
-      refused: "run_validation is not set up for this run (not bound yet, or two runs at once): name the command in your answer instead",
-    };
-    deepStrictEqual(await tool.execute({ command: "x" }), notReady);
-    const seen: string[] = [];
-    const release = slot.bind({
-      async run(command) {
-        seen.push(command);
-        return { report: { command, outcome: "exit 0", tail: "ok" }, line: `\`${command}\` — exit 0` };
-      },
-    });
-    deepStrictEqual(await tool.execute({ command: "dotnet test x" }), { ok: true, command: "dotnet test x", outcome: "exit 0", tail: "ok" });
-    deepStrictEqual(await tool.execute({}), { ok: false, refused: "'command' is required" });
+    const { runner, seen } = recordingRunner();
+    slot.bind(runner);
+
+    // Act
+    const result = await tool.execute({ command: "dotnet test x" });
+
+    // Assert
+    deepStrictEqual(result, { ok: true, command: "dotnet test x", outcome: "exit 0", tail: "ok" });
     deepStrictEqual(seen, ["dotnet test x"]);
-    release();
-    deepStrictEqual(await tool.execute({ command: "x" }), notReady);
   });
 
-  it("a slot bound by two runs at once refuses until one releases it", () => {
+  it("run_validation, once bound, refuses a call without a command and runs nothing", async () => {
+    // Arrange
+    const slot = scriptToolSlot<ValidationCalls>();
+    const tool = runValidationTool(recorder().builder, slot);
+    const { runner, seen } = recordingRunner();
+    slot.bind(runner);
+
+    // Act
+    const result = await tool.execute({});
+
+    // Assert
+    deepStrictEqual(result, { ok: false, refused: "'command' is required" });
+    deepStrictEqual(seen, []);
+  });
+
+  it("run_validation refuses again once its slot is released", async () => {
+    // Arrange
+    const slot = scriptToolSlot<ValidationCalls>();
+    const tool = runValidationTool(recorder().builder, slot);
+    const release = slot.bind(recordingRunner().runner);
+    release();
+
+    // Act
+    const result = await tool.execute({ command: "x" });
+
+    // Assert
+    deepStrictEqual(result, NOT_READY);
+  });
+
+  it("a slot bound by one run hands its binding", () => {
+    // Arrange
+    const slot = scriptToolSlot<string>();
+    slot.bind("a");
+
+    // Act
+    const bound = slot.get();
+
+    // Assert
+    strictEqual(bound, "a");
+  });
+
+  it("a slot bound by two runs at once refuses", () => {
+    // Arrange
+    const slot = scriptToolSlot<string>();
+    slot.bind("a");
+    slot.bind("b");
+
+    // Act
+    const bound = slot.get();
+
+    // Assert
+    strictEqual(bound, undefined);
+  });
+
+  it("a slot bound by two runs at once hands the other binding once one releases it", () => {
+    // Arrange
     const slot = scriptToolSlot<string>();
     const first = slot.bind("a");
-    strictEqual(slot.get(), "a");
-    const second = slot.bind("b");
-    strictEqual(slot.get(), undefined);
+    slot.bind("b");
     first();
-    strictEqual(slot.get(), "b");
-    first();
-    strictEqual(slot.get(), "b");
-    second();
-    strictEqual(slot.get(), undefined);
+
+    // Act
+    const bound = slot.get();
+
+    // Assert
+    strictEqual(bound, "b");
   });
 
-  it("run_tests and run_build call the wrapped tools bound in their slot", async () => {
+  it("a release called twice leaves the other run's binding", () => {
+    // Arrange
+    const slot = scriptToolSlot<string>();
+    const first = slot.bind("a");
+    slot.bind("b");
+    first();
+    first();
+
+    // Act
+    const bound = slot.get();
+
+    // Assert
+    strictEqual(bound, "b");
+  });
+
+  it("a slot both runs released is unbound", () => {
+    // Arrange
+    const slot = scriptToolSlot<string>();
+    const first = slot.bind("a");
+    const second = slot.bind("b");
+    first();
+    first();
+    second();
+
+    // Act
+    const bound = slot.get();
+
+    // Assert
+    strictEqual(bound, undefined);
+  });
+
+  it("run_build refuses until bound", async () => {
+    // Arrange
+    const build = runBuildTool(recorder().builder, scriptToolSlot<WrappedTools>());
+
+    // Act
+    const result = await build.execute({});
+
+    // Assert
+    strictEqual((result as { ok: boolean }).ok, false);
+  });
+
+  it("run_tests calls the wrapped tools bound in its slot", async () => {
+    // Arrange
     const slot = scriptToolSlot<WrappedTools>();
-    const calls: string[] = [];
     const tests = runTestsTool(recorder().builder, slot);
-    const build = runBuildTool(recorder().builder, slot);
-    strictEqual(((await build.execute({})) as { ok: boolean }).ok, false);
-    slot.bind({
-      async runTests(input) { calls.push(`tests ${JSON.stringify(input)}`); return { ok: false, refused: "t" }; },
-      async runBuild(input) { calls.push(`build ${JSON.stringify(input)}`); return { ok: false, refused: "b" }; },
-    });
+    const { wrapped, calls } = recordingWrappedTools();
+    slot.bind(wrapped);
+
+    // Act
     await tests.execute({ command: "c" });
+
+    // Assert
+    deepStrictEqual(calls, ['tests {"command":"c"}']);
+  });
+
+  it("run_build calls the wrapped tools bound in its slot", async () => {
+    // Arrange
+    const slot = scriptToolSlot<WrappedTools>();
+    const build = runBuildTool(recorder().builder, slot);
+    const { wrapped, calls } = recordingWrappedTools();
+    slot.bind(wrapped);
+
+    // Act
     await build.execute({ project: "p" });
-    deepStrictEqual(calls, ['tests {"command":"c"}', 'build {"project":"p"}']);
+
+    // Assert
+    deepStrictEqual(calls, ['build {"project":"p"}']);
+  });
+
+  it(`run_tests under a working root hands the body ${WORKSPACE} paths and the model root paths (outbound)`, async () => {
+    // Arrange
+    const { slot, seen } = rootedSlots();
+
+    // Act
+    const tests = await runTestsTool(recorder().builder, slot, ROOT).execute({ command: `npm test -- ${ROOT}/tests/a.test.ts` });
+
+    // Assert
+    deepStrictEqual(seen, [{ command: `npm test -- ${WORKSPACE}/tests/a.test.ts` }]);
+    assertRootPathsOnly(tests);
+    strictEqual((tests as any).log, `${ROOT}/workbench/prune/logs/t.log`);
+  });
+
+  it("run_build under a working root hands the model root paths (outbound)", async () => {
+    // Arrange
+    const { slot } = rootedSlots();
+
+    // Act
+    const build = await runBuildTool(recorder().builder, slot, ROOT).execute({});
+
+    // Assert
+    assertRootPathsOnly(build);
+  });
+
+  it("run_validation under a working root hands the model root paths (outbound)", async () => {
+    // Arrange
+    const { vslot } = rootedSlots();
+
+    // Act
+    const validation = await runValidationTool(recorder().builder, vslot, ROOT).execute({ command: "npm test -- tests/a.test.ts" });
+
+    // Assert
+    assertRootPathsOnly(validation);
   });
 });

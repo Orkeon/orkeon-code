@@ -21,9 +21,9 @@ import { under } from "../domain/step-checks.ts";
 import { openSteps, parseImplementSheet } from "../domain/step-section.ts";
 import { markPlanBatchDone, markSheetDone } from "../domain/sheet-edits.ts";
 import { shellQuote, workBranchFromPattern } from "../../../shared/domain/git/close.ts";
-import { WORKSPACE } from "./locate-sheet.ts";
 import { verdictMarkOf } from "./touched.ts";
 import type { LocatedSheet } from "./locate-sheet.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 export interface CloseInput {
   pack: RepoPack;
@@ -115,12 +115,14 @@ export async function closeDevBatch(
     notes.push(`✓ branch ${made.branch} created from ${branch} (contrib.branch ${wanted})`);
   }
 
-  const sheetName = parseBatchSheet(sheetText).name ?? located.name;
+  const parsed = parseBatchSheet(sheetText);
+  const sheetName = parsed.name ?? located.name;
   const message = `feat(${located.code}): ${sheetName} (batch ${batch})`;
   const summary: PrSummary = {
     batch: `${located.prefix} ${batch} — ${sheetName}, from \`${located.dir}/${located.name}\`.`,
     layers: layersOf(input.pack, input.touched),
     validations: verdict.validations,
+    assumptions: parsed.assumptions ?? [],
     audit: `VALID${verdict.when ? ` (${verdict.when})` : ""}, \`${located.dir}/${verdictName}\`.`,
     notRun: verdict.notRun.join("; "),
   };

@@ -9,8 +9,8 @@ import { parseDecisions } from "../../domain/dev/questions.ts";
 import type { Decision, Question } from "../../domain/dev/questions.ts";
 import { parsePlanSource } from "../../domain/dev/spec-format.ts";
 import type { SourceKind } from "../../domain/dev/spec-format.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
-export const WORKSPACE = "/workspace";
 export const MAX_CODE_CHARS = 64;
 export const MAX_REQUEST_CHARS = 20_000;
 const MAX_WARNINGS = 5;

@@ -195,7 +195,8 @@ there too after each turn and when the REPL ends ([Sessions](configuration.md#se
   warns about both at start.
 - **The turn waits on `approve <tool>? [y] once / [s] session / [n] no`**: the mode asks you about that call; answer
   on the next line. `acceptEdits:` or `/mode acceptEdits` stops the questions about edits, and an allow rule about the
-  calls it matches ([Permissions](permissions.md)).
+  calls it matches ([Permissions](permissions.md)). A background command's question reads `approve <tool> for
+  [t1]? …`, shows on the status line and on the task's row, and is answered from the main prompt too.
 - **Every shell command fails with a confinement error**: `Orkeon:Tools:Shell:Confinement:Mode` is `Auto` (the
   default when the settings leave the key out) or `Bubblewrap`, and the command cannot be confined (`bwrap` missing or
   unable to create its namespaces). Install bubblewrap, or set the mode to `None` as the examples do

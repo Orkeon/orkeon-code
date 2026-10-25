@@ -7,16 +7,20 @@
 // this module bundles its own copy; nothing is shared between runs.
 import type { Files, Logger, Shell } from "../../application/ports.ts";
 import { buildCallGuard, checkToolCall, denyText, hookCommand } from "../../domain/dev/call-guard.ts";
+import { resolvePathInput } from "../../domain/dev/path-args.ts";
 import { OPERATIONS_TOOL, REWRITE_TOOL } from "../../domain/agent-policy/rule-sets.ts";
 import { sameToolName } from "../../domain/agent-policy/permission.ts";
 import { memoryWriteRefusal } from "../../domain/shared-memory/layout.ts";
+import { mapStrings, textFromRoot } from "../../domain/dev/path-rebase.ts";
 import type { CallGuard, CallGuardSpec, ToolHook } from "../../domain/dev/call-guard.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 /** A hook is stopped after this many seconds, and refuses (pre) or is reported (post). */
 export const HOOK_TIMEOUT_SECONDS = 60;
 
-/** The runtime's verdict and result callbacks, as ActOptions types them (the subset this module returns). */
-export type ToolCallVerdict = "allow" | { deny: string };
+/** The runtime's verdict and result callbacks, as ActOptions types them (the subset this module returns): allow,
+ *  deny, or allow with the call's input rewritten (a relative path resolved). */
+export type ToolCallVerdict = "allow" | { deny: string } | { input: unknown };
 export interface ActCallbacks {
   onToolCall: (call: { name: string; input: unknown }) => Promise<ToolCallVerdict>;
   onToolResult: (call: { name: string; input: unknown }, result: unknown) => Promise<void | { context: string }>;
@@ -67,13 +71,11 @@ export function memoryGuardCallbacks(memoryDir: () => Promise<string>): Pick<Too
   };
 }
 
-const PROJECT = "/workspace";
-
 /** True when the runtime says `path` names no file (its "not found"), false when it reads; undefined otherwise. */
 export async function isNewFile(files: Pick<Files, "read">, path: string): Promise<boolean | undefined> {
   const trimmed = path.trim();
   if (trimmed === "") return undefined;
-  const virtual = trimmed.startsWith("/") ? trimmed : `${PROJECT}/${trimmed.replace(/^(\.\/)+/, "")}`;
+  const virtual = trimmed.startsWith("/") ? trimmed : `${WORKSPACE}/${trimmed.replace(/^(\.\/)+/, "")}`;
   try {
     await files.read(virtual, 1);
     return false;
@@ -160,22 +162,26 @@ export function createToolCallbacks(guard: CallGuard, deps: ToolCallbackDeps): T
         async onToolCall(call) {
           // A throw would deny too, with the bare message: the catch keeps the step's name in front.
           try {
-            const memory = memoryDir === undefined ? null : memoryWriteRefusal(await memoryDir(), call.name, call.input);
+            // A relative path is resolved under the checkout first: the guard, the hooks and the tool see the resolved one.
+            const resolved = resolvePathInput(call.name, call.input);
+            const input = resolved ?? call.input;
+            if (resolved !== null) deps.log?.info(`${guard.step}: ${call.name}: a relative path resolved under the checkout`);
+            const memory = memoryDir === undefined ? null : memoryWriteRefusal(await memoryDir(), call.name, input);
             if (memory !== null) {
               deps.log?.info(`${guard.step}: callback refused ${call.name}: ${memory}`);
               return { deny: `${guard.step}: ${MEMORY_GUARD}: ${memory}\n${MEMORY_CONTEXT}` };
             }
-            const path = (call.input as { path?: unknown } | null)?.path;
+            const path = (input as { path?: unknown } | null)?.path;
             const rewrite = sameToolName(call.name, REWRITE_TOOL) && typeof path === "string" && deps.files !== undefined
               && guard.rules.some((r) => r.origin.kind === "rewrite");
             const newFile = rewrite ? await isNewFile(deps.files as Pick<Files, "read">, path as string) : undefined;
-            const verdict = checkToolCall(guard, call.name, call.input, { mode, gateEnabled, ...(newFile === undefined ? {} : { newFile }) });
+            const verdict = checkToolCall(guard, call.name, input, { mode, gateEnabled, ...(newFile === undefined ? {} : { newFile }) });
             if (!verdict.allow) {
               deps.log?.info(`${guard.step}: callback refused ${call.name}: ${verdict.reason}`);
               return { deny: denyText(verdict) };
             }
             for (const hook of pre) {
-              const failed = await runHooks(deps, hook, call.name, call.input);
+              const failed = await runHooks(deps, hook, call.name, input);
               if (failed?.by === "mount-check") {
                 deps.log?.info(`${guard.step}: the runtime's mount check refused pre-tool hook #${hook.n} for ${call.name}`);
                 return {
@@ -188,7 +194,7 @@ export function createToolCallbacks(guard: CallGuard, deps: ToolCallbackDeps): T
                 return { deny: `${guard.step}: refused by ${failed.text}\nThe call did not run: change it, or ask the user to fix the hook.` };
               }
             }
-            return "allow";
+            return resolved === null ? "allow" : { input: resolved };
           } catch (e) {
             return { deny: `${guard.step}: the callback failed: ${String((e as Error)?.message ?? e)}` };
           }
@@ -214,4 +220,30 @@ export function devToolCallbacks(spec: CallGuardSpec, deps: ToolCallbackDeps): T
   const guard = buildCallGuard(spec);
   for (const problem of guard.problems) deps.log?.warn(`${spec.step}: ${problem}`);
   return createToolCallbacks(guard, deps);
+}
+
+/**
+ * The callbacks of a batch run under its working root (a parallel /dev-batches): every string of a call's input
+ * comes back from the root to `/workspace` before `callbacks` see it, so the rule sets, the rewrite rule, the hooks
+ * and the writes a role reports name the logical checkout; a relative path is resolved under the root first, and
+ * the tool receives it resolved. Without a root, `callbacks` themselves.
+ */
+export function rootedCallbacks<C extends Pick<ToolCallbacks, "forAct">>(callbacks: C, root: string | undefined): C {
+  if (root === undefined || root === "") return callbacks;
+  const logical = (call: { name: string; input: unknown }) => ({ name: call.name, input: mapStrings(call.input, (t) => textFromRoot(t, root)) });
+  return {
+    ...callbacks,
+    forAct(mode: string, gateEnabled: boolean | undefined) {
+      const inner = callbacks.forAct(mode, gateEnabled);
+      return {
+        ...inner,
+        onToolCall: async (call) => {
+          const resolved = resolvePathInput(call.name, call.input, root);
+          const verdict = await inner.onToolCall(logical(resolved === null ? call : { name: call.name, input: resolved }));
+          return verdict === "allow" && resolved !== null ? { input: resolved } : verdict;
+        },
+        onToolResult: (call, result) => inner.onToolResult(logical(call), result),
+      };
+    },
+  };
 }

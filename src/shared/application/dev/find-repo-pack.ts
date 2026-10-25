@@ -6,9 +6,10 @@ import type { Files } from "../ports.ts";
 import { parseRepoPack } from "../../domain/dev/repo-pack.ts";
 import type { RepoPack, RepoPackIssue } from "../../domain/dev/repo-pack.ts";
 import { formatYamlError } from "../../domain/dev/yaml-subset.ts";
+import { WORKSPACE, workspaceRelative } from "../../domain/vfs.ts";
 
-export const ORKEON_PACK_PATH = "/workspace/.orkeon/repo.yaml";
-export const HARNESS_PACKS_DIR = "/workspace/.claude/harness/packs";
+export const ORKEON_PACK_PATH = `${WORKSPACE}/.orkeon/repo.yaml`;
+export const HARNESS_PACKS_DIR = `${WORKSPACE}/.claude/harness/packs`;
 
 export interface FoundPack {
   path: string;            // VFS path read
@@ -23,7 +24,7 @@ const LIST_CAP = 200;
 
 const messageOf = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 const isNotFound = (e: unknown): boolean => /not found/i.test(messageOf(e));
-const shownOf = (path: string): string => (path.startsWith("/workspace/") ? path.slice("/workspace/".length) : path);
+const shownOf = (path: string): string => workspaceRelative(path);
 
 type Attempt = { kind: "absent" } | { kind: "failed"; error: unknown } | { kind: "read"; text: string };
 

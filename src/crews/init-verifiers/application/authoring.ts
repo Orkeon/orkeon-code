@@ -7,16 +7,17 @@ import type { TestReadiness } from "../../../shared/domain/types.ts";
 import { fallbackReadiness } from "../domain/readiness.ts";
 import { verifierPath } from "../../../shared/domain/verifiers.ts";
 import { READINESS_SCHEMA, buildReadinessPrompt, buildVerifierSkillPrompt } from "./prompts.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 /** Scan the workspace top level. */
 export async function scanLayout(files: Files): Promise<string[]> {
-  return await files.list("/workspace", 80);
+  return await files.list(WORKSPACE, 80);
 }
 
 /** Read package.json (best-effort; empty string when absent). */
 export async function readPackageJson(files: Files): Promise<string> {
   try {
-    return (await files.read("/workspace/package.json")).slice(0, 4000);
+    return (await files.read(`${WORKSPACE}/package.json`)).slice(0, 4000);
   } catch {
     return "";
   }

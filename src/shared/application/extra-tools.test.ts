@@ -5,68 +5,137 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { configuredNames, readExtraTools, resolveExtraTools } from "./extra-tools.ts";
-import { USER_CONFIG_FILE_PATH, createConfigStore } from "./config-store.ts";
-import { FakeFiles } from "../../../tests/support/fake-files.ts";
-import { FakeSessionStore } from "../../../tests/support/fake-session-store.ts";
-import { FakeToolCatalogue } from "../../../tests/support/fake-tool-catalogue.ts";
-
-function setup(setting?: string) {
-  const files = new FakeFiles();
-  const config = createConfigStore({ files, session: new FakeSessionStore() });
-  if (setting !== undefined) files.files.set(USER_CONFIG_FILE_PATH, JSON.stringify({ "tools.extra": setting }));
-  return { files, config, catalogue: new FakeToolCatalogue() };
-}
+import { FakeToolCatalogue } from "../../../tests/support/doubles/fake-tool-catalogue.ts";
+import { MCP_NAMES, PROJECT_CONFIG, extraToolsHarness, failingConfig } from "./extra-tools.fixtures.ts";
+import { WORKSPACE } from "../domain/vfs.ts";
 
 describe("readExtraTools", () => {
-  it("reads the setting, and none when it is unset or the store fails, saying why", async () => {
-    deepStrictEqual(await readExtraTools(setup("post bad:x").config), {
-      tools: [{ name: "post", access: "write" }], invalid: ["bad:x"],
-    });
-    deepStrictEqual(await readExtraTools(setup().config), { tools: [], invalid: [] });
-    const failing = { ...setup().config, readValue: async () => { throw new Error("no files tool"); } };
-    deepStrictEqual(await readExtraTools(failing), { tools: [], invalid: [], unreadable: "no files tool" });
+  it("reads the setting, saying which entries are invalid", async () => {
+    // Arrange
+    const { config } = extraToolsHarness("post bad:x");
+
+    // Act
+    const read = await readExtraTools(config);
+
+    // Assert
+    deepStrictEqual(read, { tools: [{ name: "post", access: "write" }], invalid: ["bad:x"] });
   });
 
-  it("tells a settings file it cannot read or parse from an unset setting", async () => {
-    const { files, config } = setup();
-    files.files.set("/workspace/.orkeon/config.json", "{ not json");
-    deepStrictEqual(await readExtraTools(config), {
-      tools: [], invalid: [], unreadable: "/workspace/.orkeon/config.json could not be read or parsed",
+  it("reads none when the setting is unset", async () => {
+    // Arrange
+    const { config } = extraToolsHarness();
+
+    // Act
+    const read = await readExtraTools(config);
+
+    // Assert
+    deepStrictEqual(read, { tools: [], invalid: [] });
+  });
+
+  it("reads none when the store fails, saying why", async () => {
+    // Arrange
+    const config = failingConfig();
+
+    // Act
+    const read = await readExtraTools(config);
+
+    // Assert
+    deepStrictEqual(read, { tools: [], invalid: [], unreadable: "no files tool" });
+  });
+
+  it("tells a settings file it cannot parse from an unset setting", async () => {
+    // Arrange
+    const { files, config } = extraToolsHarness();
+    files.files.set(PROJECT_CONFIG, "{ not json");
+
+    // Act
+    const read = await readExtraTools(config);
+
+    // Assert
+    deepStrictEqual(read, {
+      tools: [], invalid: [], unreadable: `${WORKSPACE}/.orkeon/config.json could not be read or parsed`,
     });
-    files.files.delete("/workspace/.orkeon/config.json");
-    files.readErrors.set("/workspace/.orkeon/config.json", new Error("permission denied"));
-    strictEqual((await readExtraTools(config)).unreadable, "/workspace/.orkeon/config.json could not be read or parsed");
-    // A session override is the setting, whatever the file holds.
+  });
+
+  it("tells a settings file it cannot read from an unset setting", async () => {
+    // Arrange
+    const { files, config } = extraToolsHarness();
+    files.readErrors.set(PROJECT_CONFIG, new Error("permission denied"));
+
+    // Act
+    const read = await readExtraTools(config);
+
+    // Assert
+    strictEqual(read.unreadable, `${WORKSPACE}/.orkeon/config.json could not be read or parsed`);
+  });
+
+  it("takes a session override as the setting, whatever the file holds", async () => {
+    // Arrange
+    const { files, config } = extraToolsHarness();
+    files.readErrors.set(PROJECT_CONFIG, new Error("permission denied"));
     await config.writeSession({ "tools.extra": "post" });
-    deepStrictEqual(await readExtraTools(config), { tools: [{ name: "post", access: "write" }], invalid: [] });
+
+    // Act
+    const read = await readExtraTools(config);
+
+    // Assert
+    deepStrictEqual(read, { tools: [{ name: "post", access: "write" }], invalid: [] });
   });
 });
 
 describe("resolveExtraTools", () => {
   it("passes on why the setting could not be read", async () => {
-    const failing = { ...setup().config, readValue: async () => { throw new Error("no files tool"); } };
-    deepStrictEqual(await resolveExtraTools({ config: failing, catalogue: new FakeToolCatalogue() }), {
-      present: [], missing: [], invalid: [], unreadable: "no files tool",
-    });
+    // Arrange
+    const config = failingConfig();
+
+    // Act
+    const resolved = await resolveExtraTools({ config, catalogue: new FakeToolCatalogue() });
+
+    // Assert
+    deepStrictEqual(resolved, { present: [], missing: [], invalid: [], unreadable: "no files tool" });
   });
 
   it("splits the configured tools by whether the host registers them", async () => {
-    const { config, catalogue } = setup("transcribe_audio:read, gone, search_issues, oops:no");
+    // Arrange
+    const { config, catalogue } = extraToolsHarness("transcribe_audio:read, gone, search_issues, oops:no");
     catalogue.tools.set("transcribe_audio", "");
     catalogue.tools.set("search_issues", "");
+
+    // Act
     const resolved = await resolveExtraTools({ config, catalogue });
+
+    // Assert
     deepStrictEqual(resolved, {
       present: [{ name: "transcribe_audio", access: "read" }, { name: "search_issues", access: "write" }],
       missing: [{ name: "gone", access: "write" }],
       invalid: ["oops:no"],
     });
-    deepStrictEqual(configuredNames(resolved), ["transcribe_audio", "search_issues", "gone"]);
+  });
+
+  it("names the configured tools, present then missing", async () => {
+    // Arrange
+    const { config, catalogue } = extraToolsHarness("transcribe_audio:read, gone, search_issues, oops:no");
+    catalogue.tools.set("transcribe_audio", "");
+    catalogue.tools.set("search_issues", "");
+    const resolved = await resolveExtraTools({ config, catalogue });
+
+    // Act
+    const names = configuredNames(resolved);
+
+    // Assert
+    deepStrictEqual(names, ["transcribe_audio", "search_issues", "gone"]);
   });
 
   it("takes the names an MCP server registers, kebab-case, camelCase or snake_case, as registered", async () => {
-    const { config, catalogue } = setup("get-file-contents:read listIssues search_code");
-    for (const name of ["get-file-contents", "listIssues", "search_code"]) catalogue.tools.set(name, "");
-    deepStrictEqual((await resolveExtraTools({ config, catalogue })).present, [
+    // Arrange
+    const { config, catalogue } = extraToolsHarness("get-file-contents:read listIssues search_code");
+    for (const name of MCP_NAMES) catalogue.tools.set(name, "");
+
+    // Act
+    const resolved = await resolveExtraTools({ config, catalogue });
+
+    // Assert
+    deepStrictEqual(resolved.present, [
       { name: "get-file-contents", access: "read" },
       { name: "listIssues", access: "write" },
       { name: "search_code", access: "write" },
@@ -74,17 +143,26 @@ describe("resolveExtraTools", () => {
   });
 
   it("matches a name case-insensitively, as Orkeon does, and offers the registered spelling", async () => {
-    const { config, catalogue } = setup("Get-File-Contents:read LISTISSUES Search_Code");
-    for (const name of ["get-file-contents", "listIssues", "search_code"]) catalogue.tools.set(name, "");
-    deepStrictEqual((await resolveExtraTools({ config, catalogue })).present.map((t) => t.name), [
-      "get-file-contents", "listIssues", "search_code",
-    ]);
+    // Arrange
+    const { config, catalogue } = extraToolsHarness("Get-File-Contents:read LISTISSUES Search_Code");
+    for (const name of MCP_NAMES) catalogue.tools.set(name, "");
+
+    // Act
+    const resolved = await resolveExtraTools({ config, catalogue });
+
+    // Assert
+    deepStrictEqual(resolved.present.map((t) => t.name), ["get-file-contents", "listIssues", "search_code"]);
   });
 
   it("does not take another spelling of a registered name for it: act would fail on it", async () => {
-    const { config, catalogue } = setup("get_file_contents list_issues search-code");
-    for (const name of ["get-file-contents", "listIssues", "search_code"]) catalogue.tools.set(name, "");
+    // Arrange
+    const { config, catalogue } = extraToolsHarness("get_file_contents list_issues search-code");
+    for (const name of MCP_NAMES) catalogue.tools.set(name, "");
+
+    // Act
     const resolved = await resolveExtraTools({ config, catalogue });
+
+    // Assert
     deepStrictEqual(resolved.present, []);
     deepStrictEqual(resolved.missing.map((t) => t.name), ["get_file_contents", "list_issues", "search-code"]);
   });

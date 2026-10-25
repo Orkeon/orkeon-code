@@ -28,8 +28,8 @@ concurrency:
   group: runtime-smoke-${{ github.ref }}
   cancel-in-progress: true
 env:
-  # Orkeon main after #180, the runtime of ADR 0004 (rc.6 not tagged yet). Move it with .orkeon-version.
-  ORKEON_SOURCE_REF: 5dd541e5f24cdc4f4f78a969e2795bb7e10823a6
+  # Orkeon main after #192 (git in a linked-worktree root, a delegated run's budget), on the runtime of ADR 0004 (rc.6 not tagged yet). Move it with .orkeon-version.
+  ORKEON_SOURCE_REF: 0b41d6a727e70b347bd7ed2d96fb088f586b36b4
 jobs:
   smoke:
     runs-on: ubuntu-latest

@@ -16,7 +16,7 @@ import type { BatchesLogEntry } from "../../domain/dev/batches-state.ts";
 import { listDevCodes, loadDevCode, loadDevContext } from "../dev/load-dev-context.ts";
 import type { CodeSheet, DevCode } from "../dev/load-dev-context.ts";
 import type { WorkFolder } from "../dev/resolve-work-folder.ts";
-import { WORKSPACE_ROOT } from "../dev/resolve-work-folder.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 export async function readActiveWorkflow(session: Pick<SessionStore, "readState">): Promise<ActiveWorkflow | null> {
   return parseActiveWorkflow(await session.readState(WORKFLOW_ACTIVE_STATE_KEY));
@@ -72,7 +72,7 @@ async function findSheet(
 async function readEvents(files: Pick<Files, "read">, code: DevCode, phase: string): Promise<string[]> {
   let entries: BatchesLogEntry[];
   try {
-    entries = parseBatchesState(await files.read(`${WORKSPACE_ROOT}/${batchesStatePath(code.code)}`)).entries;
+    entries = parseBatchesState(await files.read(`${WORKSPACE}/${batchesStatePath(code.code)}`)).entries;
   } catch {
     entries = code.state?.state.entries ?? [];
   }
@@ -130,6 +130,6 @@ export async function writeWorkflowState(
     reports: await readReports(deps.files, `${work.vfsPath}/${code.code}`, active.phase),
     tree: await readTree(deps.shell),
   });
-  await deps.files.write(`${WORKSPACE_ROOT}/${path}`, text);
+  await deps.files.write(`${WORKSPACE}/${path}`, text);
   return { path, firstOpen: firstOpenStep(steps) };
 }

@@ -197,7 +197,9 @@ le mode de session (`/mode`) et les règles de permission sont gardés en mémoi
   runtime. Le lanceur avertit des deux au démarrage.
 - **Le tour attend sur `approve <tool>? [y] once / [s] session / [n] no`** : le mode vous interroge sur cet appel ;
   répondez sur la ligne suivante. `acceptEdits:` ou `/mode acceptEdits` arrête les questions sur les modifications,
-  et une règle d'autorisation celles sur les appels qu'elle couvre ([Permissions](permissions.md)).
+  et une règle d'autorisation celles sur les appels qu'elle couvre ([Permissions](permissions.md)). La question
+  d'une commande en arrière-plan se lit `approve <tool> for [t1]? …`, s'affiche dans la ligne de statut et sur la
+  ligne de la tâche, et se répond aussi depuis l'invite principale.
 - **Toutes les commandes shell échouent avec une erreur de confinement** : `Orkeon:Tools:Shell:Confinement:Mode`
   vaut `Auto` (le défaut quand les settings omettent la clé) ou `Bubblewrap`, et la commande ne peut pas être confinée
   (`bwrap` absent ou incapable de créer ses espaces de noms). Installez bubblewrap, ou mettez le mode à `None` comme

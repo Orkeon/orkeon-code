@@ -113,9 +113,14 @@ const PLACE = "(?:a |any |one )?(?:loops?|lambdas?|memory filters?)";
 /** The one "where" that clears a line naming a loop, a lambda or a memory filter: none of them holds a port call. */
 const NONE_WHERE = new RegExp(
   `^(?:none|nothing|no port call(?: (?:in|inside|within) ${PLACE}(?:,? (?:or |nor )?${PLACE})*)?)\\.?$`, "i");
+/** A none the model explains (`none — no port, no loop over a port call`): cleared unless the reason takes it back. */
+const NONE_EXPLAINED = /^(?:none|nothing)\s*(?:[—–:(]|-\s|,\s)/i;
+const TAKEN_BACK = /\b(?:but|except|however|apart from|save for)\b/i;
+const clearsWhere = (where: string): boolean => NONE_WHERE.test(where) || (NONE_EXPLAINED.test(where) && !TAKEN_BACK.test(where));
 
 /** The implementer's `Cost:` line; refused when absent, or when it names a loop, a lambda or a memory filter
- *  anywhere but in a "where" that says no port call sits in one (`…; none`, `…; no port call in a loop`). */
+ *  anywhere but in a "where" that says no port call sits in one (`…; none`, `…; none — <its reason>`, `…; no port call in a
+ *  loop`). */
 export function readCost(answer: string): CostRead {
   const match = /^\s*\**Cost\**\s*:\s*(.+)$/im.exec(answer);
   if (match === null) return { ok: false, problem: "the implementer stated no Cost line" };
@@ -124,7 +129,7 @@ export function readCost(answer: string): CostRead {
   const cut = body.indexOf(";");
   const counts = cut < 0 ? body : body.slice(0, cut);
   const where = cut < 0 ? "" : body.slice(cut + 1).trim();
-  if (BLOCKING_ACCESS.test(counts) || (BLOCKING_ACCESS.test(where) && !NONE_WHERE.test(where))) {
+  if (BLOCKING_ACCESS.test(counts) || (BLOCKING_ACCESS.test(where) && !clearsWhere(where))) {
     return { ok: false, problem: `a port call in a loop, a lambda or a memory filter: back to /dev-plan (${line})`, line };
   }
   return { ok: true, line };

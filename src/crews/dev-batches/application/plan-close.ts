@@ -1,11 +1,11 @@
 // The close of a /dev-batches run, once every batch of the plan is done: one push of the work branch
 // and one pull request for the whole plan (source-space D79: the batches commit, the run pushes once).
 // The pull request's body lists the files of each batch's commit (`merged <hash>` in the log), grouped by
-// the pack's layout roots, each audit's validations, and is written to `<work>/pr-<slug>/PR.md`; it is
-// opened through the github tool under --pr or dev.prAuto, else its command is handed over. On the
-// default branch nothing is pushed for review, and the close is refused when the pack asks for a work
-// branch (the run's commits are on it). A push that fails leaves the run open: the next /dev-batches
-// tries the close again.
+// the pack's layout roots, each audit's validations and each sheet's assumptions, and is written to
+// `<work>/pr-<slug>/PR.md`; it is opened through the github tool under --pr or dev.prAuto, else its command
+// is handed over. On the default branch nothing is pushed for review, and the close is refused when the pack
+// asks for a work branch (the run's commits are on it). A push that fails leaves the run open: the next
+// /dev-batches tries the close again, and takes a branch already on origin (pushed by hand) as pushed.
 import type { Files, Shell } from "../../../shared/application/ports.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import type { PullRequestOpener } from "../../../shared/application/git/commit-files.ts";
@@ -17,10 +17,12 @@ import type { RepoPack } from "../../../shared/domain/dev/repo-pack.ts";
 import type { PermissionRule } from "../../../shared/domain/agent-policy/permission.ts";
 import { ruleDecision } from "../../../shared/domain/agent-policy/permission.ts";
 import {
-  DEV_PR_AUTO_CONFIG_KEY, GIT_CURRENT_BRANCH_COMMAND, gitPushCommand, shellQuote, workBranchFromPattern,
+  DEV_PR_AUTO_CONFIG_KEY, GIT_CURRENT_BRANCH_COMMAND, gitPushCommand, gitPushedCheckCommand, isPushed, shellQuote,
+  workBranchFromPattern,
 } from "../../../shared/domain/git/close.ts";
 import type { PrSummary } from "../../../shared/domain/git/close.ts";
 import { gitBranchExists } from "../../../shared/domain/git/worktree.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 export interface MergedBatch { batch: string; hash: string }
 
@@ -91,7 +93,10 @@ export function planSummary(input: PlanCloseInput, files: readonly string[]): Pr
   const validations: string[] = [];
   const audits: string[] = [];
   const notRun: string[] = [];
+  const assumptions: NonNullable<PrSummary["assumptions"]> = [];
   for (const batch of ids) {
+    const sheet = dev.sheets.find((s) => s.batch === batch)?.sheet;
+    assumptions.push(...(sheet?.assumptions ?? []).map((a) => ({ ...a, id: `${batch} ${a.id}` })));
     const verdicts = dev.verdicts.filter((v) => v.batch === batch);
     const verdict = verdicts.length === 0 ? null : lastVerdict(verdicts[verdicts.length - 1].file);
     if (verdict === null) continue;
@@ -104,6 +109,7 @@ export function planSummary(input: PlanCloseInput, files: readonly string[]): Pr
       `from \`${dev.shown}/${plan?.name ?? "?"}\`, one commit each (${input.merged.map((m) => `${m.batch} ${m.hash || "before this run"}`).join(", ")}).`,
     layers: filesPerLayer(input.pack, files),
     validations,
+    assumptions,
     audit: audits.join("; "),
     notRun: notRun.join("; "),
   };
@@ -143,7 +149,13 @@ export async function closePlan(
   const pushCommand = gitPushCommand(branch);
   let pushed = false;
   let closed = true;
-  if (ruleDecision(input.rules, "shell_command", { command: pushCommand, working_directory: "/workspace" }) === "deny") {
+  // A confined shell reaches no remote (no network, HOME=/tmp): the user pushes from a terminal, and the
+  // remote-tracking ref their push moved, local, tells the next run the branch is on origin.
+  const check = await runGit(deps.shell, gitPushedCheckCommand(branch));
+  if (check.exitCode === 0 && isPushed(check.stdout)) {
+    pushed = true;
+    lines.push(`✓ ${branch} is on origin already`);
+  } else if (ruleDecision(input.rules, "shell_command", { command: pushCommand, working_directory: WORKSPACE }) === "deny") {
     lines.push(`✗ not pushed: a session rule denies '${pushCommand}'; the commits stay local`);
   } else {
     const push = await pushBranch(deps.shell, branch);
@@ -161,6 +173,9 @@ export async function closePlan(
       pushed, open: input.pr || (await prAuto(deps.config)), summary,
     },
   ));
-  if (!closed) lines.push(`the run stays open: /dev-batches ${input.code} tries the push again`);
+  if (!closed) {
+    lines.push(`the run stays open: /dev-batches ${input.code} tries the push again; a confined shell reaches no ` +
+      `remote, so push from a terminal (${pushCommand}), then /dev-batches ${input.code} closes the run`);
+  }
   return { closed, lines };
 }

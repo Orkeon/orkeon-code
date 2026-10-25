@@ -21,12 +21,13 @@ import { CODE_INTEL_TOOLS } from "../../shared/domain/code-intel-contract.ts";
 import { knownConfigKeys } from "../../shared/domain/config-schema.ts";
 import { CLI_BUILD, CLI_NAME, CLI_VERSION, ORKEON_RUNTIME_VERSION } from "./meta.ts";
 import type { CommandView } from "./view.ts";
+import { WORKSPACE } from "../../shared/domain/vfs.ts";
 
 /** Tools the coding agent cannot work without — absence is a FAIL, not a note. */
 export const ESSENTIAL_TOOLS = ["file_read", "file_write", "shell_command", "directory_read", "session_store"];
 
 /** Where the runtime kept the sessions before the launcher mounted them outside the project. */
-export const OLD_SESSIONS_DIR = "/workspace/.orkeon/sessions";
+export const OLD_SESSIONS_DIR = `${WORKSPACE}/.orkeon/sessions`;
 
 export type DoctorRow = { check: string; result: string; detail: string };
 export const PASS = "✅";
@@ -109,7 +110,7 @@ export async function runDoctor(deps: DoctorDeps): Promise<CommandView> {
   try {
     const list = await files.mounts();
     const described = list.map((m) => `${m.path}(${m.rights ?? "?"})`);
-    const workspace = list.find((m) => m.path === "/workspace");
+    const workspace = list.find((m) => m.path === WORKSPACE);
     const hasWorkspace = workspace !== undefined
       && (workspace.rights === "rw" || workspace.rights === "rwnd");
     rows.push({
@@ -118,7 +119,7 @@ export async function runDoctor(deps: DoctorDeps): Promise<CommandView> {
       // /workspace read-WRITE is the precondition for everything the agent does;
       // a read-only mount would fail every edit with a permissions error later.
       detail: (described.join(" ") || "(none)") +
-        (hasWorkspace ? "" : "  ← /workspace is missing or not writable"),
+        (hasWorkspace ? "" : `  ← ${WORKSPACE} is missing or not writable`),
     });
   } catch (e: any) {
     rows.push({ check: "vfs: mounts", result: WARN, detail: `list_mounts unavailable: ${String(e?.message ?? e).split("\n")[0]}` });

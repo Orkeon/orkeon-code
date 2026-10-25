@@ -36,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of every editing tool, `state-files` the `path` of every tool that writes one file. `structural_rewrite`, whose
   paths the gate cannot read, is denied whole; `edit_batch` is checked operation by operation by the crews' callback,
   as the editor each operation stands for, every `validate` but "parse" refused, and an import's `name` and `module`
-  read by `secrets`. A dev step holds 479 rules, 481 with the two allows of `/dev-implement`.
+  read by `secrets`. A dev step holds 534 rules, 536 with the two allows of `/dev-implement`.
 - **`Orkeon:Tools:ResultLimits` and `Llm:MaxRateLimitWait` in the example settings**: the cut of a tool's result per
   tool (10,000 characters for `shell_command`), four read calls of a turn at once, and a rate-limit wait of five
   minutes ([Configuration](docs/configuration.md)).
@@ -300,12 +300,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with one push and one pull request. Typed again (or `/dev-batches` alone after the runtime's chain limit), it
   goes on from the first batch not done; a batch's close, typed or chained, never pushes while the run is in
   progress. The start scripts name `/dev-batches <code>` beside an open batch.
-- `/dev-batches` takes `--concurrency <n>`: 1, the default, is the run above; above 1 is refused in one line, before
-  anything is launched, until the runtime lets a script agent run under a working root of its own (two batches at
-  once would write the same `/workspace`). Its pieces exist, not yet wired into a run: the waves of open batches
-  whose anchors are disjoint, a batch's worktree under `.orkeon/worktrees/<name>` (created only where git ignores it,
-  removed only on its branch with nothing uncommitted or unmerged in it), and the fast-forward merge of a VALID batch
-  into the work branch, the plan's close still pushing once.
+- `/dev-batches` takes `--concurrency <n>`, 1 to 4: 1, the default, is the run above. Above 1, each run takes the
+  next wave of open batches whose anchors are disjoint and runs them at once, each in a batch agent under the working
+  root of its own worktree (`.orkeon/worktrees/<code>-F<n>`, branch `batches/<code>/F<n>`, made with
+  `git worktree add --relative-paths`, git 2.48 or later): its steps, its audit inline and its close, committed there
+  and never pushed. The driver seeds each worktree with the work folder, the dev state, the config, the packs and the
+  shared memory, then merges each VALID batch fast-forward into the work branch in id order, brings back what the batch
+  changed of its sheet, verdict, capture and logs (`F<n>-run_tests-1.log`), never over a file the checkout changed
+  since, and removes the worktree; a batch that stops (GAPS, BLOCKED, its tool calls spent, a merge refused) keeps its
+  worktree, its code, sheet and verdict there alone, and the run names the command that relaunches it there
+  (`/dev-batches <code> --concurrency <n>`, a GAPS verdict's correction first); a run one at a time refuses such a
+  batch. Typed again without `--concurrency`, the run goes on as it was; `--concurrency 1` goes back to one at a time.
+  The next wave chains itself, and the plan's close still pushes once. Above 1 needs `bypassPermissions`, git working
+  in a worktree under the shell confinement (a first probe checks it; under Bubblewrap, a runtime that binds a linked
+  worktree's git dir, Orkeon/orkeon#191) and all of `.orkeon/` ignored by git (`.gitignore` or `.git/info/exclude`);
+  each batch runs under its own budget of tool calls, wall time and tokens (`crew.runAgent`'s `budget`,
+  Orkeon/orkeon#189), its tool calls also counted in code so that it ends saying what is left. `state-files` refuses
+  the entries of `.orkeon/` one by one, all but `worktrees/`, so a batch writes its code in its worktree. A pack whose `layout.tests` is also a source root is reported when read (both roles
+  would be refused that folder: tests beside the code take `layout.test_files`). A batch's audit that writes no verdict says
+  why (its last line), and a stub a RED of a `/dev-implement` cycle wrote stays open to the cycle's later REDs, a
+  rerun's too, until its GREEN. A Cost line whose `none` gives its reason (`none — no loop over a port call`) is
+  no longer taken for a port call in a loop. The ports of the dev crews are built from the calling
+  agent's own tools, and a batch keeps naming the checkout `/workspace`, rebased on its root (Orkeon/orkeon#186,
+  delivered by #187).
 - The dev steps recall the shared memory on their own: `/dev-spec` and `/dev-change` at the start (decisions,
   methods), `/dev-plan` before the plan (decisions, code structure), `/dev-implement` before each batch's red tests
   (code structures, mistakes) and on a correction (mistakes), `/dev-verify` before the audit (mistakes); the end of
@@ -321,6 +338,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The slash commands sit in functional folders**: `src/commands/<group>/` (`session`, `settings`, `status`, `project`,
+  `git`, `dev`, `memory`, `speech`), and [Slash commands](docs/commands.md) lists them by group.
+- **Every test of `src/` sits next to its module**, the command use cases of `commands/_lib/` included (they were the
+  `tests/commands-<family>.test.ts` files). `tests/` keeps the tests of the repository as a whole, by subject:
+  `repository/` (the dependency rule, the test shape, the command surface, the prompt contract, the versions),
+  `scripts/` (the scripts, the launchers, the install) and `config/` (the example settings)
+  ([Architecture](docs/architecture.md#layers-and-the-dependency-rule)).
+- **A background command's approval is answered from the main view** (Orkeon #194, delivered by #195): the question
+  names its task (`approve <tool> for [t1]? …`) and shows on the status line and on the task's row. `/permissions`,
+  [Permissions](docs/permissions.md) and [Getting started](docs/getting-started.md) say so (#15).
+- **A tool name the act does not offer is refused without a question** (Orkeon #193, delivered by #195): the runtime
+  answers `ERROR: tool '<name>' is not available to this agent.` before the gate and before the dev crews' callback,
+  so such a call no longer waits on an approval nor counts against a batch's tool calls. The system texts of the dev
+  roles, the auditor and the reviewer say that only their tools exist and to go back to them on that error (#14).
+- **The search routing follows the thirteen Tree-sitter adapters of Orkeon #195.** A question on a `.js`, `.jsx`,
+  `.mjs`, `.cjs`, `.java`, `.c`, `.h`, `.cpp` (and `.cc`, `.cxx`, `.hpp`, `.hh`, `.hxx`), `.php`, `.rb`, `.sh` or
+  `.bash` file goes to `codebase_search`, `symbol_source` and `flow_trace`, no longer to `rag_search`, which held
+  nothing for it; HTML, JSON and CSS, parsed by the structural tools but in no index, stay on `rag_search` (#13).
 - **A project's `.orkeon/config.json` no longer widens what the user allows.** Its `permissions.fallback` applies
   only as `default`, `plan` or `acceptEdits`, never wider than the user settings' mode; its `tools.extra` offers only
   the tools the user settings list too (`*` lists them all). `/permissions` names what is set aside (`↳ ignored`),
@@ -471,6 +506,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `/dev-verify`, `/dev-batches`: the audit's brief and the next batch's review brief list the project's files (tracked
+  and untracked, the work folder left out), and the auditor and the reviewer never read a name they guessed nor a
+  folder: a live run spent ten reads on modules that did not exist.
+- `/dev-implement`, `/dev-batches`: a relative path a role hands a tool (`src/a.js`) is resolved under the checkout,
+  or the batch's worktree, before the tool runs, instead of the runtime's "No mount found" refusal; an assumption
+  the sheet already holds is not recorded again by the next role.
+- `/dev-verify`, `/dev-implement`, `/dev-batches`: the auditor no longer puts a Major Reuse row on an operator of the
+  language written where a one-line helper exists (`a + b` beside `add(a, b)`): a Reuse row names a helper whose body
+  does more than one operator, else the row is Minor at most and the verdict stays VALID.
+- `/dev-plan`, `/dev-spec`, `/dev-change`, `/dev-batches`: a review's row is never refused for a `|` or a line break in its question or evidence (a `\` then the `|` are escaped, the break becomes a space), and its evidence may cite a section by its heading (`§ TDD sequence`), not only by number. Before, a reviewer quoting a design row of the sheet, then citing a heading it read from its brief, had its review refused twice and marked not run.
+- `/dev-batches`: the next batch's review brief carries the plan too, after the sheet and the closed batches' diffs, says that the files to review are in the brief (not "read each by section"), and the reviewer's focus names what stays closed: the spec, the closed batches' sheets and the repository's configuration. Before, the reviewer opened the plan, the spec, two sheets, `package.json`, `repo.yaml` and the check script before reading its brief.
+- `/dev-implement`: a RED brief whose test file is carried says the file exists (an earlier step wrote the one the sheet says is to create) and asks the test author to add to it by node without reading it again; a GREEN brief says the test file is in the brief. Before, the second step of a batch read its own test file three times after being told it was to create.
+- `/dev-implement`: the GREEN brief carries the production files of its steps after the test files, and says that a
+  file the sheet says is to create exists once RED stubbed it. Before, the implementer globbed the tree and read the
+  stub again (four turns of the fourth live run).
+- `/dev-implement`: RED may add a signature stub to an existing production file of its step, for a declaration the
+  new tests import and the module lacks, and its brief says that a whole test file failing on that import is not the
+  red asked. Before, the test author worked around the missing export with a second, namespace import.
+- `/dev-implement`, `/dev-batches`: a brief says a file is in it only when it carries the file whole, by its path (a
+  text cut or left out for want of room is no longer announced as in the brief); it compared titles before.
+- `/dev-implement`: the `run_tests` result lists the failed tests the output names (TAP `not ok`, pytest `FAILED`, dotnet `Failed … [ms]`, go `--- FAIL`, jest and vitest), at most 20, and the RED brief says so. Before, the test author opened the run's log (one or two turns per step) to see which tests failed.
+- `/dev-plan`, `/dev-spec`, `/dev-change`, `/dev-batches`: a review's verdict follows its rows (GAPS with one, CLEAR with none), whatever word the review opened with. Before, a review that began "CLEAR — no, two questions" was extracted as CLEAR with two rows and refused twice, so the next batch's review counted as not run.
+- `/dev-batches`: the review of the next batch gets its material in its brief: the batch's sheet, then what each closed batch it depends on changed (`git show` of its commit), up to 18 000 characters, each cut with a note past that room. The reviewer is told that the decisions the sheet and the plan record are settled, so that it asks only what a closed batch's change opened; it is offered four read tools (`file_read`, `node_outline`, `node_read`, `codebase_search`) and eight turns instead of nine and twenty. Before, its brief named the sheet and the closed batches' files, and the reviewer opened the plan folder, the tree, the captures and the logs file by file: on the L-8 live run, 15 turns and 255 000 prompt tokens, a third of the run, for two questions about the sheet's own design.
+- `/dev-implement`: the whitespace `git diff --check` refuses is put right by code in the files a role changed, right after its act: trailing spaces or tabs, blank lines at the end of a file (a node insert after a module's last member leaves one). The step says `whitespace ✓ — <file>: …`. Before, the gate stopped the batch for it (`GATE — batch F3: RED`), and the batches run summarised that stop by the gate's last line alone; it now adds the checks that failed, in parentheses.
+- `/dev-implement`: the test author's and the implementer's briefs carry the sheet and the step's test file when it exists (12 000 characters at most, cut with a note), under a section that says not to open them. Before, each role opened the sheet section by section, the test file and the project's files before its first edit: on the L-8 live run, 3 to 6 reading turns of 6 to 11 per role and step.
+- `/dev-verify` and `/dev-batches`: the audit's brief carries the sheet (up to 6 000 characters) and the capture's texts, up to 12 000 characters, and lists only the files past that room to read. The auditor is told that the spec, the plan, the repository's configuration and the modules the diff leaves untouched stay closed, and gets 12 turns. Before that, it opens no other batch's sheet and none of the repository's tool settings unless a row rests on one, asks for several reads in one turn, and got 16 turns instead of 30. Before, it opened the dozen capture files one by one, each turn sending the whole conversation again; on the L-8 live run the audits made up about half the prompt tokens.
+- `/dev-implement`: a batch's build and whole suite are looked at after 1 s, then after a wait twice as long each time, up to 20 s. Before, the first look came 20 s after the start, so a suite of one second cost about 21 s, twice per batch.
+- `/dev-implement`: an agent's `Assumption: none needed` (or `n/a`, `nothing`) no longer becomes a row of the sheet's assumptions, nor of the pull request's.
+- `/dev-batches`: a batch's audit is offered only the auditor's tools: its five read tools, `run_validation` and `memory_recall`. Before, it was offered the batch agent's whole catalogue, the implementer's write tools included, which put 19 tool schemas into every turn of the auditor.
+- `/dev-verify` and `/dev-implement`: less noise in the pull request.
+  - The traits row is settled as not applicable when the pack carries ids in no trait; it was a Not run line on every batch.
+  - The auditor writes no row for a check that found nothing.
+  - The dev agents record an assumption only for a behaviour the plan leaves open, never for a test value or a stub's wording.
+- `/dev-batches`: a close whose push fails names the command to push from a terminal, since a confined shell reaches no remote. The next run takes a branch already on origin as pushed and closes without pushing again.
+- `/dev-verify`: the auditor knows that steps on one test file run as one cycle, all their REDs and then one GREEN. A GREEN box ticked for the cycle's first step is no longer reported as a state the code never held.
+- `/dev-batches`: under a Bubblewrap shell, the preflight's missing git identity names `git config user.name` and `user.email` in the repository. That shell runs with `HOME=/tmp` and a cleared environment, so a `--global` setting does not reach it.
+- **The audit capture lists a JavaScript batch's changed files.** `test-classes.txt` took only `.cs`, `.ts`, `.py`,
+  `.fs` and `.vb` for source files and wrote "no changed source file" for a `.js` batch; it now takes the code index's
+  languages too. The auditor no longer reports the global plan's open line of the batch it audits, marked after the
+  audit, nor the assumptions left to the user, which the pull request lists.
 - **The documentation says what the runtime and the code do, and the wave-7 audit's findings are fixed.**
   - Documentation: the main loop's wall time stops while the gate waits for your answer; the read calls of a turn
     run up to `MaxParallelToolCalls` at once; the shell's confinement defaults to `Auto` (bubblewrap on Linux,

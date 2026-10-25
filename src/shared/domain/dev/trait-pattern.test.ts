@@ -6,88 +6,199 @@ import { deepStrictEqual, strictEqual } from "node:assert";
 import {
   DEFAULT_TRAIT_PATTERN, SHEET_ID_SOURCE, idsInMatch, ruleTraitProblem, traitMarker, traitPatternProblem,
 } from "./trait-pattern.ts";
+import {
+  ACCEPTED_PATTERNS, MATCH_PART_HITS, NO_MARKER, REFUSED_PATTERNS, TRAIT_NAMES,
+} from "./trait-pattern.fixtures.ts";
 
 describe("traitMarker", () => {
   it("compiles the default pattern to the gate's regular expression, byte for byte", () => {
-    deepStrictEqual(traitMarker("BR", undefined), {
+    // Arrange
+    const name = "BR";
+
+    // Act
+    const m = traitMarker(name, undefined);
+
+    // Assert
+    deepStrictEqual(m, {
       pattern: DEFAULT_TRAIT_PATTERN,
       name: "BR",
       ere: '\\[Trait\\("BR", *"[BCU][CHR]-[0-9]+"\\)\\]',
       shown: '[Trait("BR", "<id>")]',
     });
   });
+
   it("compiles the Node example: a run of spaces becomes ' *'", () => {
-    const m = traitMarker("rule", "// <name>:   <id>");
+    // Arrange
+    const pattern = "// <name>:   <id>";
+
+    // Act
+    const m = traitMarker("rule", pattern);
+
+    // Assert
     strictEqual(m?.ere, "// *rule: *[BCU][CHR]-[0-9]+");
     strictEqual(m?.shown, "// rule:   <id>");
     strictEqual(new RegExp(m!.ere).test("  // rule: BR-04"), true);
   });
-  it("holds no '|', which the runtime's shell refuses even quoted, and carries only sheet ids", () => {
-    const m = traitMarker("BR", undefined)!;
+
+  it("holds no '|', which the runtime's shell refuses even quoted, and matches a sheet id", () => {
+    // Arrange
+    const name = "BR";
+
+    // Act
+    const m = traitMarker(name, undefined)!;
+
+    // Assert
     strictEqual(m.ere.includes("|"), false);
     strictEqual(new RegExp(m.ere).test('[Trait("BR", "UC-12")]'), true);
-    deepStrictEqual(idsInMatch('t.cs:4:[Trait("BR", "BH-1")]'), []);
   });
+
+  it("carries only sheet ids: an id of another family in the marker is not read", () => {
+    // Arrange
+    const hit = 't.cs:4:[Trait("BR", "BH-1")]';
+
+    // Act
+    const ids = idsInMatch(hit);
+
+    // Assert
+    deepStrictEqual(ids, []);
+  });
+
   it("escapes every special character of an ERE", () => {
-    strictEqual(traitMarker(undefined, "@x.y*+?{}|^$ <id>")?.ere, "@x\\.y\\*\\+\\?\\{\\}\\|\\^\\$ *[BCU][CHR]-[0-9]+");
+    // Arrange
+    const pattern = "@x.y*+?{}|^$ <id>";
+
+    // Act
+    const m = traitMarker(undefined, pattern);
+
+    // Assert
+    strictEqual(m?.ere, "@x\\.y\\*\\+\\?\\{\\}\\|\\^\\$ *[BCU][CHR]-[0-9]+");
   });
+
   it("uses trait_pattern without rule_trait when it holds no <name>", () => {
-    deepStrictEqual(traitMarker(undefined, "rule <id>"),
-      { pattern: "rule <id>", name: null, ere: "rule *[BCU][CHR]-[0-9]+", shown: "rule <id>" });
+    // Arrange
+    const pattern = "rule <id>";
+
+    // Act
+    const m = traitMarker(undefined, pattern);
+
+    // Assert
+    deepStrictEqual(m, { pattern: "rule <id>", name: null, ere: "rule *[BCU][CHR]-[0-9]+", shown: "rule <id>" });
   });
-  it("is null with neither key, and with <name> but no rule_trait", () => {
-    strictEqual(traitMarker(undefined, undefined), null);
-    strictEqual(traitMarker(undefined, "// <name>: <id>"), null);
-  });
+
+  for (const c of NO_MARKER) {
+    it(`is null ${c.name}`, () => {
+      // Arrange
+      const { ruleTrait, traitPattern } = c;
+
+      // Act
+      const m = traitMarker(ruleTrait, traitPattern);
+
+      // Assert
+      strictEqual(m, null);
+    });
+  }
 });
 
 describe("traitPatternProblem", () => {
-  const cases: Array<[string, string]> = [
-    ["   ", "the pattern is empty"],
-    [`${"x".repeat(78)}<id>`, "the pattern is longer than 80 characters"],
-    ["a\t<id>", "a tab or a line break is not allowed"],
-    ["a\n<id>", "a tab or a line break is not allowed"],
-    ["'<id>'", "a single quote is not allowed"],
-    ["a|b <id>", "a '|' is not allowed: the runtime's shell refuses it"],
-    ["rule BR-01", "the pattern must hold <id> exactly once"],
-    ["<id> <id>", "the pattern must hold <id> exactly once"],
-    ["<name> <name> <id>", "the pattern may hold <name> once at most"],
-    ["<x> <id>", "'<' and '>' may only enclose <id> and <name>"],
-    ["# <id>", "the pattern needs at least two characters around <id>"],
-    ["<name> <id>", "the pattern needs at least two characters around <id>"],
-  ];
-  for (const [pattern, message] of cases) {
-    it(`refuses ${JSON.stringify(pattern)}: ${message}`, () => strictEqual(traitPatternProblem(pattern), message));
+  for (const c of REFUSED_PATTERNS) {
+    it(`refuses ${JSON.stringify(c.pattern)}: ${c.message}`, () => {
+      // Arrange
+      const { pattern } = c;
+
+      // Act
+      const problem = traitPatternProblem(pattern);
+
+      // Assert
+      strictEqual(problem, c.message);
+    });
   }
-  it("accepts the default pattern, the Node example and 80 characters", () => {
-    strictEqual(traitPatternProblem(DEFAULT_TRAIT_PATTERN), undefined);
-    strictEqual(traitPatternProblem("// <name>: <id>"), undefined);
-    strictEqual(traitPatternProblem(`${"x".repeat(76)}<id>`), undefined);
-  });
+
+  for (const pattern of ACCEPTED_PATTERNS) {
+    it(`accepts the default pattern, the Node example and 80 characters: ${JSON.stringify(pattern)}`, () => {
+      // Arrange
+      const candidate = pattern;
+
+      // Act
+      const problem = traitPatternProblem(candidate);
+
+      // Assert
+      strictEqual(problem, undefined);
+    });
+  }
 });
 
 describe("ruleTraitProblem", () => {
-  it("takes letters, digits, '_' and '-'", () => {
-    strictEqual(ruleTraitProblem("BR_rule-2"), undefined);
-    strictEqual(ruleTraitProblem("B R"), "a trait name takes letters, digits, '_' and '-'");
-    strictEqual(ruleTraitProblem(""), "a trait name takes letters, digits, '_' and '-'");
-  });
+  for (const c of TRAIT_NAMES) {
+    it(`takes letters, digits, '_' and '-': ${JSON.stringify(c.name)}`, () => {
+      // Arrange
+      const { name } = c;
+
+      // Act
+      const problem = ruleTraitProblem(name);
+
+      // Assert
+      strictEqual(problem, c.problem);
+    });
+  }
 });
 
 describe("idsInMatch", () => {
-  it("reads whole-token ids of the match part only", () => {
-    deepStrictEqual(idsInMatch('tests/BR-07/A.cs:12:[Trait("BR", "BR-10")]'), ["BR-10"]);
-    deepStrictEqual(idsInMatch("a.ts:3:// rule: BR-1"), ["BR-1"]);
+  for (const c of MATCH_PART_HITS) {
+    it(`reads whole-token ids of the match part only: ${c.hit}`, () => {
+      // Arrange
+      const { hit } = c;
+
+      // Act
+      const ids = idsInMatch(hit);
+
+      // Assert
+      deepStrictEqual(ids, c.ids);
+    });
+  }
+
+  it("does not read BR-1 in BR-10", () => {
+    // Arrange
+    const hit = "a:1:BR-10";
+
+    // Act
+    const ids = idsInMatch(hit);
+
+    // Assert
+    strictEqual(ids.includes("BR-1"), false);
   });
-  it("does not read BR-1 in BR-10 nor an id glued to a letter", () => {
-    strictEqual(idsInMatch("a:1:BR-10").includes("BR-1"), false);
-    deepStrictEqual(idsInMatch("a:1:XBR-02 UC-3, CH-04"), ["UC-3", "CH-04"]);
+
+  it("does not read an id glued to a letter", () => {
+    // Arrange
+    const hit = "a:1:XBR-02 UC-3, CH-04";
+
+    // Act
+    const ids = idsInMatch(hit);
+
+    // Assert
+    deepStrictEqual(ids, ["UC-3", "CH-04"]);
   });
-  it("gives nothing for a line without a match part", () => deepStrictEqual(idsInMatch("BR-01"), []));
+
+  it("gives nothing for a line without a match part", () => {
+    // Arrange
+    const hit = "BR-01";
+
+    // Act
+    const ids = idsInMatch(hit);
+
+    // Assert
+    deepStrictEqual(ids, []);
+  });
 });
 
 describe("SHEET_ID_SOURCE", () => {
   it("finds the whole-token sheet ids", () => {
-    deepStrictEqual("BR-01, UC-2 XCH-3".match(new RegExp(SHEET_ID_SOURCE, "g")), ["BR-01", "UC-2"]);
+    // Arrange
+    const text = "BR-01, UC-2 XCH-3";
+
+    // Act
+    const ids = text.match(new RegExp(SHEET_ID_SOURCE, "g"));
+
+    // Assert
+    deepStrictEqual(ids, ["BR-01", "UC-2"]);
   });
 });

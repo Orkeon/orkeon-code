@@ -12,6 +12,7 @@ import type { RepoPackCommands } from "../../domain/dev/repo-pack.ts";
 import { checkValidation } from "../../domain/dev/test-commands.ts";
 import { buildCommandFor, coldTree, isRestore } from "../../domain/dev/build-commands.ts";
 import { outputTail, runGuards, shellRuleGuard, stringArgument } from "../../domain/dev/tool-guards.ts";
+import { failedTests } from "../../domain/dev/test-output.ts";
 import type { Guard } from "../../domain/dev/tool-guards.ts";
 
 export const RUN_TESTS_TIMEOUT_SECONDS = 600;
@@ -26,6 +27,9 @@ export type WrappedRun =
     timedOut: boolean;
     /** run_build only: true when a red build on a cold tree made it restore once and build again. */
     restored?: boolean;
+    /** run_tests only: the failed tests the output names (TAP `not ok`, pytest FAILED, dotnet Failed…), at most 20,
+     *  so the role sees which tests failed without opening the log. */
+    failed?: string[];
     /** At most 15 lines and 1 500 characters of the last command's output. */
     tail: string;
     /** The whole output, `/workspace/…`; null when it could not be written. */
@@ -40,6 +44,8 @@ export interface WrappedToolsSetup {
   rules: readonly PermissionRule[];
   /** Where the logs go, e.g. `/workspace/todo/<code>/logs`. */
   logFolder: string;
+  /** The batch, in front of each log's name (`F2-run_tests-1.log`): the batches of a parallel wave share no log name. */
+  batch?: string;
   /** The step restored the tree itself already: run_build then never restores a cold tree again. */
   restored?: boolean;
 }
@@ -65,7 +71,7 @@ export function createWrappedTools(deps: { shell: Pick<Shell, "run">; files: Pic
 
   async function writeLog(tool: string, text: string): Promise<string | null> {
     runs += 1;
-    const path = `${setup.logFolder}/${tool}-${runs}.log`;
+    const path = `${setup.logFolder}/${setup.batch === undefined ? "" : `${setup.batch}-`}${tool}-${runs}.log`;
     try {
       await deps.files.write(path, `${text}\n`);
       return path;
@@ -95,6 +101,7 @@ export function createWrappedTools(deps: { shell: Pick<Shell, "run">; files: Pic
       if (typeof result === "string") return { ok: false, refused: result };
       return {
         ok: true, command: check.command, exit: result.exitCode, timedOut: result.timedOut === true,
+        failed: failedTests(`${result.stdout}\n${result.stderr}`),
         tail: outputTail(result.stdout, result.stderr), log: await writeLog("run_tests", output(check.command, result)),
       };
     },

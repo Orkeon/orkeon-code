@@ -9,7 +9,8 @@ où sont les limites. Les couches, les ports et les recettes pas à pas sont dan
 
 ## Une commande
 
-Un fichier `src/commands/<name>.cmd.ts`. Le chargeur prend chaque `*.cmd.ts` ; le nom est en kebab-case et unique, et
+Un fichier `src/commands/<group>/<name>.cmd.ts`, `<group>` l'un des dossiers fonctionnels (`session`, `settings`,
+`status`, `project`, `git`, `dev`, `memory`, `speech`). Le chargeur prend chaque `*.cmd.ts` sous le dossier ; le nom est en kebab-case et unique, et
 le fichier n'exporte rien. Une commande synchrone répond tout de suite avec `defineCommand` ; une commande asynchrone
 lance un crew avec `defineAsyncCommand` et affiche le résultat quand le crew se termine
 ([Architecture](architecture.md#dune-commande-à-un-crew)). Une commande atteint le runtime par les adaptateurs de
@@ -32,7 +33,7 @@ defineCommand({
 ```
 
 La logique qui mérite un test va dans `src/commands/_lib/<family>.ts` sous la forme `run<Name>(tokens, deps)`, ses
-deps un `Pick<>` des ports qu'elle lit, testée sur les fakes de `tests/support/`. Trois autres endroits bougent avec
+deps un `Pick<>` des ports qu'elle lit, testée sur les fakes de `tests/support/doubles/`. Trois autres endroits bougent avec
 une nouvelle commande, et `npm run check` nomme celui que vous avez oublié : `tests/command-surface.test.ts` épingle
 le nombre de commandes, `src/commands/_lib/meta.ts` l'énonce dans les notes de release, et `npm run docs:commands`
 régénère [docs/fr/commands.md](commands.md). La recette : [Ajouter une commande](architecture.md#ajouter-une-commande).

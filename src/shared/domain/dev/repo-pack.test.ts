@@ -5,70 +5,73 @@
 // below are the ones PyYAML 6.0 gives on it (see yaml-subset.test.ts).
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
-import { readFileSync } from "node:fs";
 
 import { REPO_PACK_KEYS, missingPackKeyLine, packValue, parseRepoPack } from "./repo-pack.ts";
-import type { RepoPack, RepoPackIssue } from "./repo-pack.ts";
-
-const orkeonPack = readFileSync(new URL("../../../../tests/fixtures/dev/repo-orkeon.yaml", import.meta.url), "utf8");
-
-function parsed(text: string): { pack: RepoPack; issues: RepoPackIssue[] } {
-  const r = parseRepoPack(text);
-  if (!r.ok) throw new Error(`refused: ${r.error.line}: ${r.error.message}`);
-  return r;
-}
-
-const FILTER_FAST = "--filter \"Category!=Integration&Category!=Slow\"";
-const EXPECTED: Record<string, string | string[] | undefined> = {
-  "layout.domain": "src/core/Orkeon.Domain",
-  "layout.application": "src/core/Orkeon.Application",
-  "layout.infrastructure": "src/core/Orkeon.Infrastructure",
-  "layout.tests": "tests",
-  "layout.work": "backstage/tasks",
-  "layout.build_outputs": ["bin", "obj"],
-  "layout.shared": ["packages"],
-  "layout.test_files": undefined,
-  "commands.restore": "dotnet restore Orkeon.sln -p:NuGetAudit=false",
-  "commands.build": "dotnet build Orkeon.sln -c Release --no-restore -warnaserror",
-  "commands.build_test": "dotnet build <test project> -c Release --no-restore",
-  "commands.test_class": "dotnet test <test project> -c Release --no-build --filter \"FullyQualifiedName~<Class>\"",
-  "commands.test": `dotnet test Orkeon.sln -c Release --no-build ${FILTER_FAST}`,
-  "commands.test_project": `dotnet test <test project> -c Release --no-build ${FILTER_FAST} -- --ignore-exit-code 8`,
-  "commands.test_integration": "dotnet test Orkeon.sln -c Release --no-build --filter \"Category=Integration|Category=Slow\" -- --ignore-exit-code 8",
-  "commands.cli": "dotnet run --project src/scripting/Orkeon.Scripting.Cli --",
-  "tests.rule_trait": "BR",
-  "tests.trait_pattern": undefined,
-  "tools.access_cost.receivers": "toolInvocation|checkpoint|coordinator|orchestrator|shortTerm|longTerm|llm|embedding|a2a|eventHub",
-  "tools.access_cost.roots": ["src"],
-  "contrib.branch": "feature|fix|chore/<slug>",
-  "contrib.commit": "type(scope): summary",
-  "contrib.pr_template": ".github/PULL_REQUEST_TEMPLATE.md",
-};
+import {
+  CLEAN_LAYOUTS, EXPECTED, ORKEON_LAYOUT, PACK_VALUE_CASES, REFUSED_DOCUMENTS, TRAIT_PATTERN_REFUSALS, orkeonPack, parsed,
+} from "./repo-pack.fixtures.ts";
 
 describe("REPO_PACK_KEYS", () => {
   it("lists the 23 keys in the order of the design", () => {
-    deepStrictEqual([...REPO_PACK_KEYS], Object.keys(EXPECTED));
+    // Arrange
+    const expected = Object.keys(EXPECTED);
+
+    // Act
+    const keys = [...REPO_PACK_KEYS];
+
+    // Assert
+    deepStrictEqual(keys, expected);
   });
 });
 
 describe("parseRepoPack on repo-orkeon.yaml", () => {
-  const { pack, issues } = parsed(orkeonPack);
-  it("reports no issue", () => deepStrictEqual(issues, []));
+  it("reports no issue", () => {
+    // Arrange
+    const text = orkeonPack;
+
+    // Act
+    const { issues } = parsed(text);
+
+    // Assert
+    deepStrictEqual(issues, []);
+  });
+
   for (const key of REPO_PACK_KEYS) {
-    it(`reads ${key}`, () => deepStrictEqual(packValue(pack, key), EXPECTED[key]));
-  }
-  it("maps the keys to camel-case fields", () => {
-    deepStrictEqual(pack.layout, {
-      domain: "src/core/Orkeon.Domain", application: "src/core/Orkeon.Application",
-      infrastructure: "src/core/Orkeon.Infrastructure", tests: "tests", work: "backstage/tasks",
-      shared: ["packages"], buildOutputs: ["bin", "obj"], testFiles: [],
+    it(`reads ${key}`, () => {
+      // Arrange
+      const { pack } = parsed(orkeonPack);
+
+      // Act
+      const value = packValue(pack, key);
+
+      // Assert
+      deepStrictEqual(value, EXPECTED[key]);
     });
+  }
+
+  it("maps the keys to camel-case fields", () => {
+    // Arrange
+    const text = orkeonPack;
+
+    // Act
+    const { pack } = parsed(text);
+
+    // Assert
+    deepStrictEqual(pack.layout, ORKEON_LAYOUT);
     strictEqual(pack.commands.testClass, EXPECTED["commands.test_class"]);
     strictEqual(pack.tests.traitPattern, undefined);
     deepStrictEqual(pack.accessCost.roots, ["src"]);
     strictEqual(pack.contrib.prTemplate, ".github/PULL_REQUEST_TEMPLATE.md");
   });
+
   it("keeps the untyped keys in the document", () => {
+    // Arrange
+    const text = orkeonPack;
+
+    // Act
+    const { pack } = parsed(text);
+
+    // Assert
     const layout = pack.document.layout as Record<string, unknown>;
     strictEqual(layout.worktree_gb, 30);
     const coverage = (pack.document.commands as Record<string, unknown>).coverage as string;
@@ -80,24 +83,60 @@ describe("parseRepoPack on repo-orkeon.yaml", () => {
 
 describe("parseRepoPack field types", () => {
   it("reads tests.trait_pattern when it is set", () => {
-    strictEqual(parsed("tests:\n  trait_pattern: '# rule <id>'\n").pack.tests.traitPattern, "# rule <id>");
+    // Arrange
+    const text = "tests:\n  trait_pattern: '# rule <id>'\n";
+
+    // Act
+    const { pack } = parsed(text);
+
+    // Assert
+    strictEqual(pack.tests.traitPattern, "# rule <id>");
   });
+
   it("reads one string as a one-element list", () => {
-    deepStrictEqual(parsed("tools:\n  access_cost:\n    roots: src\n").pack.accessCost.roots, ["src"]);
+    // Arrange
+    const text = "tools:\n  access_cost:\n    roots: src\n";
+
+    // Act
+    const { pack } = parsed(text);
+
+    // Assert
+    deepStrictEqual(pack.accessCost.roots, ["src"]);
   });
+
   it("turns numbers and booleans into strings, and null into absent", () => {
-    const { pack } = parsed("tests:\n  rule_trait: 7\ncontrib:\n  branch: true\n  commit: ~\n");
+    // Arrange
+    const text = "tests:\n  rule_trait: 7\ncontrib:\n  branch: true\n  commit: ~\n";
+
+    // Act
+    const { pack } = parsed(text);
+
+    // Assert
     strictEqual(pack.tests.ruleTrait, "7");
     strictEqual(pack.contrib.branch, "true");
     strictEqual(pack.contrib.commit, undefined);
   });
+
   it("reports a section of the wrong type and leaves its fields unset", () => {
-    const { pack, issues } = parsed("commands: [a]\n");
+    // Arrange
+    const text = "commands: [a]\n";
+
+    // Act
+    const { pack, issues } = parsed(text);
+
+    // Assert
     deepStrictEqual(issues, [{ key: "commands", message: "expected a mapping, found a list" }]);
     strictEqual(pack.commands.test, undefined);
   });
+
   it("reports a field of the wrong type and leaves it unset", () => {
-    const { pack, issues } = parsed("commands:\n  test: [a]\n  build:\n    x: y\nlayout:\n  shared:\n    a: b\n");
+    // Arrange
+    const text = "commands:\n  test: [a]\n  build:\n    x: y\nlayout:\n  shared:\n    a: b\n";
+
+    // Act
+    const { pack, issues } = parsed(text);
+
+    // Assert
     deepStrictEqual(issues, [
       { key: "layout.shared", message: "expected a list of strings, found a mapping" },
       { key: "commands.build", message: "expected a string, found a mapping" },
@@ -106,78 +145,173 @@ describe("parseRepoPack field types", () => {
     strictEqual(pack.commands.test, undefined);
     deepStrictEqual(pack.layout.shared, []);
   });
+
+  it("reports a layout.tests that is also a source root, and keeps it: the test author and the implementer would both be refused it", () => {
+    // Arrange
+    const text = "layout:\n  domain: ./src/\n  tests: src\n";
+
+    // Act
+    const { pack, issues } = parsed(text);
+
+    // Assert
+    deepStrictEqual(issues, [{
+      key: "layout.tests",
+      message: "'src' is also layout.domain: the test author and the implementer would both be refused that folder; " +
+        "drop layout.tests and name the test files with layout.test_files (\"src/*.test.ts\")",
+    }]);
+    strictEqual(pack.layout.tests, "src");
+  });
+
+  for (const text of CLEAN_LAYOUTS) {
+    it(`reports no layout whose tests are no source root: ${JSON.stringify(text)}`, () => {
+      // Arrange
+      const yaml = text;
+
+      // Act
+      const { issues } = parsed(yaml);
+
+      // Assert
+      deepStrictEqual(issues, []);
+    });
+  }
+
   it("never reports an unknown key", () => {
-    const { pack, issues } = parsed("product: X\nextra:\n  - 1\n");
+    // Arrange
+    const text = "product: X\nextra:\n  - 1\n";
+
+    // Act
+    const { pack, issues } = parsed(text);
+
+    // Assert
     deepStrictEqual(issues, []);
     deepStrictEqual(pack.document, { product: "X", extra: [1] });
   });
-  it("refuses a document that is not a mapping, and keeps a YAML error", () => {
-    deepStrictEqual(parseRepoPack("- a\n"), { ok: false, error: { line: 1, message: "the pack is not a mapping" } });
-    deepStrictEqual(parseRepoPack(""), { ok: false, error: { line: 1, message: "the pack is not a mapping" } });
-    deepStrictEqual(parseRepoPack("a: 1\na: 2\n"), { ok: false, error: { line: 2, message: "a duplicate key 'a'" } });
-  });
+
+  for (const [text, expected] of REFUSED_DOCUMENTS) {
+    it(`refuses a document that is not a mapping, and keeps a YAML error: ${JSON.stringify(text)}`, () => {
+      // Arrange
+      const yaml = text;
+
+      // Act
+      const r = parseRepoPack(yaml);
+
+      // Assert
+      deepStrictEqual(r, expected);
+    });
+  }
 });
 
 describe("packValue", () => {
-  it("is undefined for an absent key, an absent list and a key outside the list", () => {
-    const { pack } = parsed("layout:\n  domain: d\n");
-    strictEqual(packValue(pack, "layout.domain"), "d");
-    strictEqual(packValue(pack, "layout.work"), undefined);
-    strictEqual(packValue(pack, "layout.shared"), undefined);
-    strictEqual(packValue(pack, "release.tag"), undefined);
-  });
+  for (const [key, expected] of PACK_VALUE_CASES) {
+    it(`is undefined for an absent key, an absent list and a key outside the list: ${key}`, () => {
+      // Arrange
+      const { pack } = parsed("layout:\n  domain: d\n");
+
+      // Act
+      const value = packValue(pack, key);
+
+      // Assert
+      strictEqual(value, expected);
+    });
+  }
+
   it("gives an empty list the document writes as []", () => {
-    deepStrictEqual(packValue(parsed("layout:\n  shared: []\n").pack, "layout.shared"), []);
+    // Arrange
+    const { pack } = parsed("layout:\n  shared: []\n");
+
+    // Act
+    const value = packValue(pack, "layout.shared");
+
+    // Assert
+    deepStrictEqual(value, []);
   });
 });
 
 describe("missingPackKeyLine", () => {
   it("names the pack shown", () => {
-    strictEqual(missingPackKeyLine("commands.test", ".orkeon/repo.yaml"),
-      "the repository pack .orkeon/repo.yaml has no commands.test: add it there");
+    // Arrange
+    const pack = ".orkeon/repo.yaml";
+
+    // Act
+    const line = missingPackKeyLine("commands.test", pack);
+
+    // Assert
+    strictEqual(line, "the repository pack .orkeon/repo.yaml has no commands.test: add it there");
   });
+
   it("says where to add the key when there is no pack", () => {
-    strictEqual(missingPackKeyLine("commands.test", null), "no repository pack: add commands.test to .orkeon/repo.yaml");
+    // Arrange
+    const pack = null;
+
+    // Act
+    const line = missingPackKeyLine("commands.test", pack);
+
+    // Assert
+    strictEqual(line, "no repository pack: add commands.test to .orkeon/repo.yaml");
   });
 });
 
 describe("parseRepoPack trait keys", () => {
   it("reports a bad tests.rule_trait and leaves it unset", () => {
-    const { pack, issues } = parsed("tests:\n  rule_trait: 'B R'\n");
+    // Arrange
+    const text = "tests:\n  rule_trait: 'B R'\n";
+
+    // Act
+    const { pack, issues } = parsed(text);
+
+    // Assert
     deepStrictEqual(issues, [{ key: "tests.rule_trait", message: "a trait name takes letters, digits, '_' and '-'" }]);
     strictEqual(pack.tests.ruleTrait, undefined);
   });
-  const refusals: Array<[string, string]> = [
-    ["'  '", "the pattern is empty"],
-    [`'${"x".repeat(81)}<id>'`, "the pattern is longer than 80 characters"],
-    ['"a\\t<id>"', "a tab or a line break is not allowed"],
-    ["\"it's <id>\"", "a single quote is not allowed"],
-    ["'rule BR-01'", "the pattern must hold <id> exactly once"],
-    ["'<name> <name> <id>'", "the pattern may hold <name> once at most"],
-    ["'<x> <id>'", "'<' and '>' may only enclose <id> and <name>"],
-    ["'# <id>'", "the pattern needs at least two characters around <id>"],
-  ];
-  for (const [yaml, message] of refusals) {
+
+  for (const [yaml, message] of TRAIT_PATTERN_REFUSALS) {
     it(`reports tests.trait_pattern ${yaml}: ${message}`, () => {
-      const { pack, issues } = parsed(`tests:\n  rule_trait: BR\n  trait_pattern: ${yaml}\n`);
+      // Arrange
+      const text = `tests:\n  rule_trait: BR\n  trait_pattern: ${yaml}\n`;
+
+      // Act
+      const { pack, issues } = parsed(text);
+
+      // Assert
       deepStrictEqual(issues, [{ key: "tests.trait_pattern", message }]);
       strictEqual(pack.tests.traitPattern, undefined);
       strictEqual(pack.tests.ruleTrait, "BR");
     });
   }
+
   it("reports <name> without tests.rule_trait", () => {
-    const { pack, issues } = parsed("tests:\n  trait_pattern: '// <name>: <id>'\n");
+    // Arrange
+    const text = "tests:\n  trait_pattern: '// <name>: <id>'\n";
+
+    // Act
+    const { pack, issues } = parsed(text);
+
+    // Assert
     deepStrictEqual(issues, [{ key: "tests.trait_pattern", message: "<name> needs tests.rule_trait" }]);
     strictEqual(pack.tests.traitPattern, undefined);
   });
+
   it("reports <name> when tests.rule_trait was refused", () => {
-    const { issues } = parsed("tests:\n  rule_trait: 'a b'\n  trait_pattern: '// <name>: <id>'\n");
+    // Arrange
+    const text = "tests:\n  rule_trait: 'a b'\n  trait_pattern: '// <name>: <id>'\n";
+
+    // Act
+    const { issues } = parsed(text);
+
+    // Assert
     deepStrictEqual(issues.map((i) => i.message), [
       "a trait name takes letters, digits, '_' and '-'", "<name> needs tests.rule_trait",
     ]);
   });
+
   it("keeps a valid Node pattern", () => {
-    const { pack, issues } = parsed("tests:\n  rule_trait: rule\n  trait_pattern: '// <name>: <id>'\n");
+    // Arrange
+    const text = "tests:\n  rule_trait: rule\n  trait_pattern: '// <name>: <id>'\n";
+
+    // Act
+    const { pack, issues } = parsed(text);
+
+    // Assert
     deepStrictEqual(issues, []);
     deepStrictEqual(pack.tests, { ruleTrait: "rule", traitPattern: "// <name>: <id>" });
   });

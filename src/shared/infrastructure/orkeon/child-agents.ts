@@ -4,6 +4,8 @@
 // rejects with a ReceiveTimeoutError when nothing arrives, which is the whole point here). The
 // crew entry builds them from the context its body receives and the crew object it published;
 // withChildAct hands the use cases an Llm whose act runs in such a child, the rest unchanged.
+// A parallel /dev-batches' batch agent uses none of this: its audit acts inline on its own Llm, no child
+// and no board, so /tasks does not list it (dev-batches/crew.ork.ts, L8P-D2).
 
 import type { ActRequest, ChildRuntime, Llm, Logger } from "../../application/ports.ts";
 import { createChildBoard, instanceKey, parseChildInput, runChildAct } from "../../application/agents/child-agent.ts";

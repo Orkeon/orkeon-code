@@ -3,8 +3,8 @@
 // work folder. Paths are relative to /workspace.
 import type { Files } from "../../../shared/application/ports.ts";
 import { classifyArtefact, isCode } from "../../../shared/domain/dev/artefacts.ts";
+import { WORKSPACE, workspaceRelative } from "../../../shared/domain/vfs.ts";
 
-export const WORKSPACE = "/workspace";
 const ENTRIES_PROBED = 50;
 const LIST_CAP = 500;
 
@@ -65,7 +65,7 @@ export async function locateSheet(
     return named.length === 1 ? named[0] : several(batch, found);
   }
   const neither = `'${plan}' is neither a code nor a <CODE>-PLAN.md path`;
-  const relative = plan.startsWith(`${WORKSPACE}/`) ? plan.slice(WORKSPACE.length + 1) : plan;
+  const relative = workspaceRelative(plan);
   const slash = relative.lastIndexOf("/");
   if (relative.startsWith("/") || relative.split("/").includes("..") || slash <= 0) return neither;
   const classified = classifyArtefact(relative.slice(slash + 1));

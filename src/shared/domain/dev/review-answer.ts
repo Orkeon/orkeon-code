@@ -37,11 +37,17 @@ export const REVIEW_ANSWER_SCHEMA: object = {
   required: ["verdict", "rows"],
 };
 
-/** A path:line, a numbered section (§ 3, §3) or a heading of the plan (## …). */
+/** A path:line, a section (§ 3, §3, § Anchors) or a heading of the plan (## …). */
 const PATH_LINE = /[A-Za-z0-9_./-]+:\d+/;
-const SECTION = /§ ?\d+/;
+const SECTION = /§ ?\S/;
 const HEADING = /##\s*\S/;
-const CELL_BREAKER = /[|\r\n]/;
+
+/** `value` as one table cell: a line break becomes a space, a `\` then a `|` are escaped (the backslash first, so
+ *  that a `\` before a `|` cannot undo the pipe's escape). A quoted design row or a path with a `|` is no reason
+ *  to refuse the row and run the extraction again. */
+function cell(value: string): string {
+  return value.replace(/\s*[\r\n]+\s*/g, " ").replace(/\\/g, "\\\\").replace(/\|/g, "\\|").trim();
+}
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -64,7 +70,6 @@ function targetList(targets: readonly string[]): string {
 /** Why a question is not one closed question fitting a table cell, or undefined when it is. */
 function questionFault(question: string): string | undefined {
   if (question === "") return "it is empty";
-  if (CELL_BREAKER.test(question)) return "it holds a line break or a '|'";
   if (question.length > MAX_QUESTION_CHARS) return `it is longer than ${MAX_QUESTION_CHARS} characters`;
   if (!question.endsWith("?")) return "it does not end with ?";
   return undefined;
@@ -79,12 +84,12 @@ function checkRow(value: unknown, k: number, ctx: ReviewCheckContext, problems: 
   const before = problems.length;
   const severity = text(item.severity);
   if (!SEVERITIES.includes(severity as ReviewSeverity)) problems.push(`row ${k}: severity must be Blocking or Major`);
-  const question = text(item.question);
+  const question = cell(text(item.question));
   const fault = questionFault(question);
   if (fault !== undefined) problems.push(`row ${k}: the question must be one closed question ending with ? (${fault})`);
-  const evidence = text(item.evidence);
-  if (evidence === "" || CELL_BREAKER.test(evidence)) problems.push(`row ${k}: evidence cannot sit in a table cell`);
-  else if (!citesSource(evidence)) problems.push(`row ${k}: evidence cites no path:line, § n or section`);
+  const evidence = cell(text(item.evidence));
+  if (evidence === "") problems.push(`row ${k}: evidence is empty`);
+  else if (!citesSource(evidence)) problems.push(`row ${k}: evidence cites no path:line, § section or heading`);
   const target = text(item.target);
   if (!ctx.targets.includes(target)) problems.push(`row ${k}: target '${target}' is not one of ${targetList(ctx.targets)}`);
   if (problems.length > before) return undefined;
@@ -94,16 +99,17 @@ function checkRow(value: unknown, k: number, ctx: ReviewCheckContext, problems: 
 export function checkReviewAnswer(value: unknown, ctx: ReviewCheckContext): Checked<ReviewAnswer> {
   if (!isPlainObject(value)) return { ok: false, problems: ["the answer is not an object"] };
   const problems: string[] = [];
-  const verdict = text(value.verdict);
-  const known = verdict === "CLEAR" || verdict === "GAPS";
-  if (!known) problems.push("verdict must be CLEAR or GAPS");
+  const said = text(value.verdict);
+  if (said !== "CLEAR" && said !== "GAPS") problems.push("verdict must be CLEAR or GAPS");
 
   const rows: ReviewRow[] = [];
+  // The rows are the substance: the verdict follows them. A review that opens with "CLEAR" and then asks two
+  // questions is GAPS, whatever word the extraction copied.
+  let verdict: ReviewAnswer["verdict"] = said === "GAPS" ? "GAPS" : "CLEAR";
   if (!Array.isArray(value.rows)) {
     problems.push("rows must be a list");
   } else {
-    if (verdict === "CLEAR" && value.rows.length > 0) problems.push("CLEAR with rows");
-    if (verdict === "GAPS" && value.rows.length === 0) problems.push("GAPS without a row");
+    verdict = value.rows.length > 0 ? "GAPS" : "CLEAR";
     if (value.rows.length > MAX_REVIEW_ROWS) problems.push(`at most ${MAX_REVIEW_ROWS} rows, not ${value.rows.length}`);
     const seen = new Map<string, number>();
     value.rows.forEach((item, i) => {
@@ -120,5 +126,5 @@ export function checkReviewAnswer(value: unknown, ctx: ReviewCheckContext): Chec
   }
 
   if (problems.length > 0) return { ok: false, problems };
-  return { ok: true, value: { verdict: verdict as ReviewAnswer["verdict"], rows } };
+  return { ok: true, value: { verdict, rows } };
 }

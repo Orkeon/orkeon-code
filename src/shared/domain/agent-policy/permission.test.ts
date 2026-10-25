@@ -1,7 +1,6 @@
 // Run: node --test src/shared/domain/agent-policy/permission.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, ok, deepStrictEqual } from "node:assert";
-import { readFileSync } from "node:fs";
 
 import {
   READ_TOOLS, WRITE_TOOLS, NETWORK_READ_TOOLS, RULEABLE_TOOLS, ACT_TOOLS, SCRIPT_TOOLS, scriptToolAccess,
@@ -12,78 +11,72 @@ import {
   ruleableTool, TOOL_ARGUMENTS, globMatches, matchesRule, ruleDecision, shellCommandForms, shellWords,
 } from "./permission.ts";
 import { PERMISSION_MODES } from "../permission-modes.ts";
-
-/** Each tool of `interface OrkeonBuiltInTools` (src/crews/.orkeon/orkeon.d.ts) with the depth-1 keys of
- *  its input: a ``/** `name` - …`` line, then `camel(input…{` and its keys until the brace closes, or
- *  `input?: Record<string, never>` for none. */
-function builtInToolInputs(): Map<string, string[]> {
-  const text = readFileSync(new URL("../../../crews/.orkeon/orkeon.d.ts", import.meta.url), "utf8");
-  const lines = text.slice(text.indexOf("interface OrkeonBuiltInTools {")).split("\n");
-  const tools = new Map<string, string[]>();
-  for (let i = 1; i < lines.length && lines[i] !== "}"; i++) {
-    const name = /^\/\*\* `([a-z_0-9]+)` - /.exec(lines[i])?.[1];
-    if (name === undefined) continue;
-    const head = lines[++i];
-    const keys: string[] = [];
-    tools.set(name, keys);
-    if (!/\(input\??: \{$/.test(head.trimEnd())) continue;
-    for (let depth = 1; ++i < lines.length;) {
-      const line = lines[i];
-      if (depth === 1 && line.startsWith("}")) break;
-      if (/^\s*(\/\*\*|\*)/.test(line)) continue;
-      const key = /^\s*([a-z_0-9]+)\??:/.exec(line)?.[1];
-      if (depth === 1 && key !== undefined) keys.push(key);
-      depth += (line.match(/\{/g)?.length ?? 0) - (line.match(/\}/g)?.length ?? 0);
-    }
-  }
-  return tools;
-}
+import {
+  A2A_TOOLS, ALL_MODES, builtInToolInputs, CHECK_RULE_CASES, CHECK_RULE_OK_CASES, DECISION_CASES, DENY_FILE_WRITE,
+  EXTRA_RULES, FORMAT_CASES, GIT_PUSH, GIT_RULE_TEXTS, GLOB_CASES, MATCHES_RULE_CASES, NETWORK_MATRIX,
+  NOTE_NETWORK_CASES, NPM_TEST, ORKEON_180_EDITS, ORKEON_180_READS, PARSE_STORED_CASES, PLAN_RULES,
+  QUOTED_PATTERNS, READ_ONLY_CASES, READ_ONLY_MODES, READ_ONLY_TOOLSET_CASES, READ_PATTERN_CASES, READ_RULE_CASES,
+  READER, RESOLVE_MODE_CASES, ROUND_TRIP_RULES, RULEABLE_TOOL_CASES, SAME_CALLS_CASES, SCRIPT_TOOL_ACCESS_CASES,
+  SCRIPT_TOOLS_DECLARED, SCRIPT_TOOLS_FOR_CASES, SHELL_FORMS_CASES, SHELL_WORDS_CASES, TOOL_ARGUMENT_CASES,
+  WRITE_TOOLS_IN_ORDER, WRITER, WRITING_MODES, writingNote,
+} from "./permission.fixtures.ts";
+import { assertAcceptedWithWarning, assertArgumentsDeclared, assertInertReasons, assertOffered, assertReadOnlyToolset, assertWellFormedArguments } from "./permission.assertions.ts";
+import { assertMentions } from "../../../../tests/support/assertions/text.ts";
 
 describe("resolvePermissionMode", () => {
-  it("defaults to 'default'", () => {
-    strictEqual(resolvePermissionMode(undefined), "default");
-    strictEqual(resolvePermissionMode("plan"), "plan");
-  });
+  for (const c of RESOLVE_MODE_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { raw } = c;
+
+      // Act
+      const mode = resolvePermissionMode(raw);
+
+      // Assert
+      strictEqual(mode, c.mode);
+    });
+  }
 });
 
 describe("toolsetFor", () => {
-  it("plan mode is read-only (no write/shell)", () => {
-    const t = toolsetFor("plan");
-    strictEqual(t.includes("file_write"), false);
-    strictEqual(t.includes("shell_command"), false);
-    for (const r of READ_TOOLS) ok(t.includes(r));
-  });
-  it("dontAsk mode is read-only like plan (E-3)", () => {
-    const t = toolsetFor("dontAsk");
-    strictEqual(t.includes("file_write"), false);
-    strictEqual(t.includes("shell_command"), false);
-    for (const r of READ_TOOLS) ok(t.includes(r));
-  });
-  it("default, acceptEdits and bypassPermissions offer every mutating tool (the gate asks)", () => {
-    for (const mode of ["default", "acceptEdits", "bypassPermissions"]) {
+  for (const c of READ_ONLY_TOOLSET_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { mode } = c;
+
+      // Act
       const t = toolsetFor(mode);
-      for (const w of WRITE_TOOLS) ok(t.includes(w), `${mode} should include ${w}`);
-    }
-  });
+
+      // Assert
+      assertReadOnlyToolset(t, mode);
+    });
+  }
+
+  for (const mode of WRITING_MODES) {
+    it(`${mode} offers every mutating tool (the gate asks)`, () => {
+      // Arrange
+      const tools = WRITE_TOOLS;
+
+      // Act
+      const t = toolsetFor(mode);
+
+      // Assert
+      assertOffered(t, tools, true, mode);
+    });
+  }
 });
 
 describe("B-8 — the network-read class", () => {
-  // The classification matrix, pinned per mode. A network read mutates nothing
-  // locally but reaches out, so it follows the write side, not the read side.
-  const MATRIX: Array<[string, boolean]> = [
-    ["default", true],
-    ["acceptEdits", true],
-    ["bypassPermissions", true],
-    ["plan", false],
-    ["dontAsk", false],
-  ];
-
-  for (const [mode, expected] of MATRIX) {
+  for (const [mode, expected] of NETWORK_MATRIX) {
     it(`${mode} ${expected ? "grants" : "withholds"} every network-read tool`, () => {
+      // Arrange
+      const tools = NETWORK_READ_TOOLS;
+
+      // Act
       const t = toolsetFor(mode);
-      for (const n of NETWORK_READ_TOOLS) {
-        strictEqual(t.includes(n), expected, `${mode} / ${n}`);
-      }
+
+      // Assert
+      assertOffered(t, tools, expected, mode);
     });
   }
 
@@ -91,531 +84,876 @@ describe("B-8 — the network-read class", () => {
     // Verified in the live REPL (Object.keys(tools), 57 registered): `.tools([...])`
     // matches by name and silently drops the rest, so a typo here would produce a
     // catalogue that looks wired and hands over nothing.
-    deepStrictEqual(NETWORK_READ_TOOLS, ["http_api", "web_scrape", "scrape_element"]);
+    // Arrange
+    const expected = ["http_api", "web_scrape", "scrape_element"];
+
+    // Act
+    const names = NETWORK_READ_TOOLS;
+
+    // Assert
+    deepStrictEqual(names, expected);
   });
 
-  it("does NOT wire the A2A tools — they are not in the DI catalogue", () => {
-    // DelegateWorkTool is built per-agent by AgentDelegationToolsProvider and never
-    // registered as IBaseTool, so naming it would be a silent no-op. Pinned so the
-    // next reader does not "fix" it.
-    for (const absent of ["delegate_work", "delegate_work_to_coworker", "search_tool"]) {
-      strictEqual(toolsetFor("bypassPermissions").includes(absent), false, absent);
+  // DelegateWorkTool is built per-agent by AgentDelegationToolsProvider and never
+  // registered as IBaseTool, so naming it would be a silent no-op. Pinned so the
+  // next reader does not "fix" it.
+  for (const absent of A2A_TOOLS) {
+    it(`does NOT wire the A2A tool ${absent} — it is not in the DI catalogue`, () => {
+      // Arrange
+      const mode = "bypassPermissions";
+
+      // Act
+      const t = toolsetFor(mode);
+
+      // Assert
+      strictEqual(t.includes(absent), false, absent);
       strictEqual(RULEABLE_TOOLS.includes(absent), false, `${absent} must not be ruleable either`);
-    }
+    });
+  }
+
+  it("makes spawn_agent ruleable", () => {
+    // Arrange
+    const tools = RULEABLE_TOOLS;
+
+    // Act
+    const ruleable = tools.includes("spawn_agent");
+
+    // Assert
+    strictEqual(ruleable, true);
   });
 
-  it("makes spawn_agent ruleable but offers it in no catalogue: the script host appends it to every act", () => {
-    strictEqual(RULEABLE_TOOLS.includes("spawn_agent"), true);
-    deepStrictEqual(ACT_TOOLS, ["spawn_agent"]);
-    for (const mode of PERMISSION_MODES) strictEqual(toolsetFor(mode).includes("spawn_agent"), false, mode);
+  it("lists spawn_agent alone as the tool the script host appends to every act", () => {
+    // Arrange
+    const expected = ["spawn_agent"];
+
+    // Act
+    const tools = ACT_TOOLS;
+
+    // Assert
+    deepStrictEqual(tools, expected);
   });
 
-  it("makes the network tools ruleable, so /permissions can deny them", () => {
-    for (const n of NETWORK_READ_TOOLS) ok(RULEABLE_TOOLS.includes(n), n);
-    const decision = catalogueFor("default", [{ effect: "deny", tool: "http_api" }]);
+  for (const mode of PERMISSION_MODES) {
+    it(`offers spawn_agent in no catalogue, ${mode}'s included: the script host appends it to every act`, () => {
+      // Arrange
+      const tool = "spawn_agent";
+
+      // Act
+      const t = toolsetFor(mode);
+
+      // Assert
+      strictEqual(t.includes(tool), false, mode);
+    });
+  }
+
+  it("makes the network tools ruleable", () => {
+    // Arrange
+    const tools = NETWORK_READ_TOOLS;
+
+    // Act
+    const unruleable = tools.filter((n) => !RULEABLE_TOOLS.includes(n));
+
+    // Assert
+    deepStrictEqual(unruleable, []);
+  });
+
+  it("lets a deny rule remove a network tool, so /permissions can deny them", () => {
+    // Arrange
+    const rules = [{ effect: "deny" as const, tool: "http_api" }];
+
+    // Act
+    const decision = catalogueFor("default", rules);
+
+    // Assert
     strictEqual(decision.tools.includes("http_api"), false);
     deepStrictEqual(decision.deniedByRule, ["http_api"]);
   });
 });
 
 describe("the tool lists", () => {
-  it("name each tool once: the write and ruleable lists derive from the classes", () => {
-    deepStrictEqual(WRITE_TOOLS, [
-      "file_write", "rag_ingest", "edit_file", "node_replace", "node_insert", "node_ensure", "edit_batch",
-      "structural_rewrite", "github", "rag_eval", "shell_command",
-    ]);
-    deepStrictEqual(RULEABLE_TOOLS, [
-      ...READ_TOOLS, ...NETWORK_READ_TOOLS, ...WRITE_TOOLS, ...ACT_TOOLS, ...SCRIPT_TOOLS.map((t) => t.name),
-    ]);
-    strictEqual(new Set(RULEABLE_TOOLS).size, RULEABLE_TOOLS.length);
+  it("list the write tools from the classes, each once", () => {
+    // Arrange
+    const expected = WRITE_TOOLS_IN_ORDER;
+
+    // Act
+    const tools = WRITE_TOOLS;
+
+    // Assert
+    deepStrictEqual(tools, expected);
+  });
+
+  it("derive the ruleable list from the classes", () => {
+    // Arrange
+    const expected = [...READ_TOOLS, ...NETWORK_READ_TOOLS, ...WRITE_TOOLS, ...ACT_TOOLS, ...SCRIPT_TOOLS.map((t) => t.name)];
+
+    // Act
+    const tools = RULEABLE_TOOLS;
+
+    // Assert
+    deepStrictEqual(tools, expected);
+  });
+
+  it("name each ruleable tool once", () => {
+    // Arrange
+    const tools = RULEABLE_TOOLS;
+
+    // Act
+    const distinct = new Set(tools).size;
+
+    // Assert
+    strictEqual(distinct, tools.length);
   });
 
   it("offer every ruleable tool but ACT_TOOLS and SCRIPT_TOOLS in some mode, and nothing else", () => {
-    const offered = new Set(PERMISSION_MODES.flatMap((mode) => toolsetFor(mode)));
+    // Arrange
     const attached = (t: string) => ACT_TOOLS.includes(t) || scriptToolAccess(t) !== undefined;
+
+    // Act
+    const offered = new Set(PERMISSION_MODES.flatMap((mode) => toolsetFor(mode)));
+
+    // Assert
     deepStrictEqual([...offered].sort(), RULEABLE_TOOLS.filter((t) => !attached(t)).sort());
   });
 
   it("declare the access of Orkeon Code's own tools: the validation reads, the test run and the build execute", () => {
-    deepStrictEqual(SCRIPT_TOOLS, [
-      { name: "run_validation", access: "read" },
-      { name: "run_tests", access: "execute" },
-      { name: "run_build", access: "execute" },
-      { name: "memory_recall", access: "read" },
-      { name: "memory_push", access: "edit" },
-    ]);
-    strictEqual(scriptToolAccess("RUN_TESTS"), "execute");
-    strictEqual(scriptToolAccess("shell_command"), undefined);
-    deepStrictEqual(TOOL_ARGUMENTS.run_validation, ["command"]);
-    deepStrictEqual(TOOL_ARGUMENTS.run_build, ["project"]);
+    // Arrange
+    const expected = SCRIPT_TOOLS_DECLARED;
+
+    // Act
+    const tools = SCRIPT_TOOLS;
+
+    // Assert
+    deepStrictEqual(tools, expected);
   });
 
-  it("offer the shared memory's recall in every mode and its push only where the mode edits (M-5)", () => {
-    for (const mode of PERMISSION_MODES) {
-      deepStrictEqual(scriptToolsFor(mode, MEMORY_TOOLS), isReadOnly(mode) ? ["memory_recall"] : ["memory_recall", "memory_push"], mode);
-    }
-    deepStrictEqual(scriptToolsFor("plan", ["run_tests", "run_validation", "file_read"]), ["run_validation"]);
-    deepStrictEqual(scriptToolsFor("default", ["run_tests", "run_build"]), ["run_tests", "run_build"]);
-  });
+  for (const c of SCRIPT_TOOL_ACCESS_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { tool } = c;
 
-  it("leave out a script tool a deny rule covers whole, never one an argument pattern narrows", () => {
-    deepStrictEqual(scriptToolsFor("acceptEdits", MEMORY_TOOLS, [{ effect: "deny", tool: "MEMORY_PUSH" }]), ["memory_recall"]);
-    deepStrictEqual(scriptToolsFor("plan", MEMORY_TOOLS, [{ effect: "deny", tool: "memory_recall" }]), []);
-    deepStrictEqual(
-      scriptToolsFor("default", MEMORY_TOOLS, [{ effect: "deny", tool: "memory_push", argument: "topic", pattern: "auth*" }]),
-      ["memory_recall", "memory_push"],
-    );
-    deepStrictEqual(scriptToolsFor("default", MEMORY_TOOLS, [{ effect: "allow", tool: "memory_push" }]), ["memory_recall", "memory_push"]);
-  });
+      // Act
+      const access = scriptToolAccess(tool);
 
-  it("take a rule on the shared memory's tools, on the arguments of their schemas", () => {
-    deepStrictEqual(checkRule("deny memory_push topic=auth*"), {
-      ok: true, rule: { effect: "deny", tool: "memory_push", argument: "topic", pattern: "auth*" },
+      // Assert
+      strictEqual(access, c.access);
     });
-    strictEqual(checkRule("deny memory_recall query=x").ok, true);
-    strictEqual(checkRule("deny memory_recall path=x").ok, false);
-  });
+  }
 
-  it("take a rule on one of Orkeon Code's own tools, on the argument it takes", () => {
-    deepStrictEqual(checkRule("deny run_tests command=dotnet test*"), {
-      ok: true, rule: { effect: "deny", tool: "run_tests", argument: "command", pattern: "dotnet test*" },
+  for (const mode of PERMISSION_MODES) {
+    it(`offer the shared memory's recall in ${mode} and its push only if the mode edits (M-5)`, () => {
+      // Arrange
+      const expected = isReadOnly(mode) ? ["memory_recall"] : ["memory_recall", "memory_push"];
+
+      // Act
+      const tools = scriptToolsFor(mode, MEMORY_TOOLS);
+
+      // Assert
+      deepStrictEqual(tools, expected, mode);
     });
-    strictEqual(checkRule("deny run_build command=x").ok, false);
-  });
+  }
 
-  it("offer the reads of Orkeon #180 in every mode and its edit tools only where the mode edits", () => {
-    const reads = [
-      "glob", "grep", "list_mounts", "node_outline", "node_read", "count_pattern", "access_cost", "affected_tests",
-      "batch_anchors", "documented_in", "documents_of", "structural_search", "incremental_reindex",
-      "statement_query", "complexity_report",
-    ];
-    const edits = [
-      "edit_file", "node_replace", "node_insert", "node_ensure", "edit_batch", "structural_rewrite", "github",
-      "rag_eval",
-    ];
-    for (const mode of PERMISSION_MODES) {
+  for (const c of SCRIPT_TOOLS_FOR_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { mode, tools, rules } = c;
+
+      // Act
+      const offered = scriptToolsFor(mode, tools, rules);
+
+      // Assert
+      deepStrictEqual(offered, c.expected);
+    });
+  }
+
+  for (const mode of PERMISSION_MODES) {
+    it(`offer the reads of Orkeon #180 in ${mode} and its edit tools only if the mode edits`, () => {
+      // Arrange
+      const edits = !isReadOnly(mode);
+
+      // Act
       const t = toolsetFor(mode);
-      for (const r of reads) ok(t.includes(r), `${mode} / ${r}`);
-      for (const e of edits) strictEqual(t.includes(e), !isReadOnly(mode), `${mode} / ${e}`);
-    }
-  });
+
+      // Assert
+      assertOffered(t, ORKEON_180_READS, true, mode);
+      assertOffered(t, ORKEON_180_EDITS, edits, mode);
+    });
+  }
 
   it("know the arguments orkeon.d.ts declares for every ruleable tool but spawn_agent and SCRIPT_TOOLS", () => {
-    const declared = builtInToolInputs();
+    // Arrange
     const own = (tool: string) => tool === "spawn_agent" || scriptToolAccess(tool) !== undefined;
-    for (const [tool, args] of Object.entries(TOOL_ARGUMENTS)) {
-      if (own(tool)) continue;
-      ok(declared.has(tool), `${tool} is not declared in OrkeonBuiltInTools`);
-      deepStrictEqual([...args].sort(), [...declared.get(tool)!].sort(), tool);
-    }
+
+    // Act
+    const declared = builtInToolInputs();
+
+    // Assert
+    assertArgumentsDeclared(TOOL_ARGUMENTS, declared, own);
+  });
+
+  it("find every ruleable tool but spawn_agent and SCRIPT_TOOLS declared in orkeon.d.ts", () => {
+    // Arrange
+    const own = (tool: string) => tool === "spawn_agent" || scriptToolAccess(tool) !== undefined;
+
+    // Act
+    const declared = builtInToolInputs();
+
+    // Assert
     for (const tool of RULEABLE_TOOLS) if (!own(tool)) ok(declared.has(tool), tool);
-    deepStrictEqual(TOOL_ARGUMENTS.spawn_agent, ["agent", "input"]);
   });
 
   it("know the arguments of every ruleable tool, and of no other", () => {
-    deepStrictEqual(Object.keys(TOOL_ARGUMENTS).sort(), [...RULEABLE_TOOLS].sort());
-    for (const [tool, args] of Object.entries(TOOL_ARGUMENTS)) {
-      strictEqual(new Set(args).size, args.length, tool);
-      for (const arg of args) ok(/^[a-z][a-z0-9_]*$/.test(arg), `${tool}.${arg} is snake_case`);
-    }
-    deepStrictEqual(TOOL_ARGUMENTS.shell_command, [
-      "command", "working_directory", "timeout_seconds", "action", "job_id", "tail_lines",
-    ]);
-    deepStrictEqual(TOOL_ARGUMENTS.file_write, ["path", "content", "encoding", "append", "create_backup"]);
+    // Arrange
+    const expected = [...RULEABLE_TOOLS].sort();
+
+    // Act
+    const tools = Object.keys(TOOL_ARGUMENTS).sort();
+
+    // Assert
+    deepStrictEqual(tools, expected);
   });
+
+  it("name each argument of a tool once, in snake_case", () => {
+    // Arrange
+    const toolArguments = TOOL_ARGUMENTS;
+
+    // Act
+    const entries = Object.keys(toolArguments).length;
+
+    // Assert
+    ok(entries > 0);
+    assertWellFormedArguments(toolArguments);
+  });
+
+  for (const c of TOOL_ARGUMENT_CASES) {
+    it(`know the arguments ${c.tool} takes`, () => {
+      // Arrange
+      const { tool } = c;
+
+      // Act
+      const args = TOOL_ARGUMENTS[tool];
+
+      // Assert
+      deepStrictEqual(args, c.args);
+    });
+  }
 });
 
 describe("isReadOnly", () => {
-  it("plan and dontAsk are read-only, the rest are not", () => {
-    strictEqual(isReadOnly("plan"), true);
-    strictEqual(isReadOnly("dontAsk"), true);
-    strictEqual(isReadOnly("default"), false);
-    strictEqual(isReadOnly("acceptEdits"), false);
-    strictEqual(isReadOnly("bypassPermissions"), false);
-  });
+  for (const c of READ_ONLY_CASES) {
+    it(`${c.mode} is ${c.readOnly ? "" : "not "}read-only: plan and dontAsk are, the rest are not`, () => {
+      // Arrange
+      const { mode } = c;
+
+      // Act
+      const readOnly = isReadOnly(mode);
+
+      // Assert
+      strictEqual(readOnly, c.readOnly);
+    });
+  }
 });
 
 describe("permissionNote / buildActPrompt", () => {
   it("plan note forbids mutation and asks for an assessment or a plan", () => {
-    ok(permissionNote("plan").includes("MUST NOT modify"));
-    ok(permissionNote("plan").includes("an assessment or a plan"));
+    // Arrange
+    const mode = "plan";
+
+    // Act
+    const note = permissionNote(mode);
+
+    // Assert
+    assertMentions(note, ["MUST NOT modify", "an assessment or a plan"]);
   });
+
   it("dontAsk note forbids mutation", () => {
-    ok(permissionNote("dontAsk").includes("MUST NOT modify"));
+    // Arrange
+    const mode = "dontAsk";
+
+    // Act
+    const note = permissionNote(mode);
+
+    // Assert
+    assertMentions(note, ["MUST NOT modify"]);
   });
-  it("every writing mode's note allows edits and shell, acceptEdits included", () => {
-    for (const mode of ["default", "acceptEdits", "bypassPermissions"]) {
-      strictEqual(
-        permissionNote(mode),
-        `(Permission mode: ${mode}. You may edit files, run shell commands and fetch over the network; ` +
-          "the host may ask the user before a call.)",
-      );
-    }
-  });
-  it("the note tracks the network class it grants or withholds", () => {
-    // The catalogue is the enforcement; the note is what the model is told. The
-    // two drifting apart is how a model spends a turn planning a fetch it cannot make.
-    ok(permissionNote("plan").includes("fetch anything over the network"));
-    ok(permissionNote("acceptEdits").includes("fetch over the network"));
-    ok(permissionNote("default").includes("fetch over the network"));
-  });
+
+  for (const mode of WRITING_MODES) {
+    it(`${mode}'s note allows edits and shell, as every writing mode's, acceptEdits included`, () => {
+      // Arrange
+      const expected = writingNote(mode);
+
+      // Act
+      const note = permissionNote(mode);
+
+      // Assert
+      strictEqual(note, expected);
+    });
+  }
+
+  for (const c of NOTE_NETWORK_CASES) {
+    it(`the note of ${c.mode} tracks the network class it grants or withholds`, () => {
+      // Arrange
+      const { mode } = c;
+
+      // Act
+      const note = permissionNote(mode);
+
+      // Assert
+      assertMentions(note, [c.mention]);
+    });
+  }
+
   it("buildActPrompt appends the note after the prompt", () => {
-    const p = buildActPrompt("do X", "plan");
-    ok(p.startsWith("do X\n\n"));
-    ok(p.includes("Permission mode: plan"));
+    // Arrange
+    const prompt = "do X";
+
+    // Act
+    const p = buildActPrompt(prompt, "plan");
+
+    // Assert
+    ok(p.startsWith("do X\n\n"), p);
+    assertMentions(p, ["Permission mode: plan"]);
   });
 });
 
 // ── The session's rules: the gate enforces them, the catalogue drops whole-tool denies ──
 
-const NPM_TEST = { effect: "allow" as const, tool: "shell_command", argument: "command", pattern: "npm test*" };
-const GIT_PUSH = { effect: "deny" as const, tool: "shell_command", argument: "command", pattern: "git push*" };
-
 describe("catalogueFor", () => {
-  it("a whole-tool deny on file_write removes it from EVERY mode's catalogue", () => {
-    const rules = [{ effect: "deny" as const, tool: "file_write" }];
-    for (const mode of ["default", "acceptEdits", "bypassPermissions", "plan", "dontAsk"]) {
+  for (const mode of ALL_MODES) {
+    it(`a whole-tool deny on file_write removes it from EVERY mode's catalogue: ${mode}`, () => {
+      // Arrange
+      const rules = [DENY_FILE_WRITE];
+
+      // Act
       const d = catalogueFor(mode, rules);
+
+      // Assert
       strictEqual(d.tools.includes("file_write"), false, mode);
-    }
+    });
+  }
+
+  // A catalogue missing file_write because of `plan` and one missing it because
+  // of a deny rule look identical from the tool list alone.
+  it("reports which removals came from a rule, so /permissions can distinguish them", () => {
+    // Arrange
+    const rules = [DENY_FILE_WRITE];
+
+    // Act
+    const denied = catalogueFor("default", rules);
+
+    // Assert
+    deepStrictEqual(denied.deniedByRule, ["file_write"]);
   });
 
-  it("reports which removals came from a rule, so /permissions can distinguish them", () => {
-    // A catalogue missing file_write because of `plan` and one missing it because
-    // of a deny rule look identical from the tool list alone.
-    const denied = catalogueFor("default", [{ effect: "deny", tool: "file_write" }]);
-    deepStrictEqual(denied.deniedByRule, ["file_write"]);
+  it("reports no removal by rule where the mode withholds the tool", () => {
+    // Arrange
+    const rules: [] = [];
 
-    const byMode = catalogueFor("plan", []);
+    // Act
+    const byMode = catalogueFor("plan", rules);
+
+    // Assert
     deepStrictEqual(byMode.deniedByRule, [], "plan withholds by mode, not by rule");
     strictEqual(byMode.tools.includes("file_write"), false);
   });
 
   it("deny wins in bypassPermissions too — tightening is never overridable", () => {
-    const d = catalogueFor("bypassPermissions", [{ effect: "deny", tool: "shell_command" }]);
+    // Arrange
+    const rules = [{ effect: "deny" as const, tool: "shell_command" }];
+
+    // Act
+    const d = catalogueFor("bypassPermissions", rules);
+
+    // Assert
     strictEqual(d.tools.includes("shell_command"), false);
   });
 
   it("deny on a tool the mode already withholds is a no-op, not a phantom removal", () => {
-    const d = catalogueFor("plan", [{ effect: "deny", tool: "shell_command" }]);
+    // Arrange
+    const rules = [{ effect: "deny" as const, tool: "shell_command" }];
+
+    // Act
+    const d = catalogueFor("plan", rules);
+
+    // Assert
     deepStrictEqual(d.deniedByRule, [], "nothing was removed — plan never had it");
   });
 
   it("leaves the tool of an argument-scoped deny offered: the gate refuses the matching calls only", () => {
-    const d = catalogueFor("acceptEdits", [GIT_PUSH]);
+    // Arrange
+    const rules = [GIT_PUSH];
+
+    // Act
+    const d = catalogueFor("acceptEdits", rules);
+
+    // Assert
     deepStrictEqual(d.tools, toolsetFor("acceptEdits"));
     deepStrictEqual(d.deniedByRule, []);
   });
 
-  it("never adds a tool for an allow rule: an allow spares a question, it hands nothing over", () => {
-    for (const mode of ["default", "acceptEdits", "bypassPermissions", "plan", "dontAsk"]) {
-      const d = catalogueFor(mode, [{ effect: "allow", tool: "file_write" }, NPM_TEST]);
-      deepStrictEqual(d.tools, toolsetFor(mode), mode);
-    }
-  });
+  for (const mode of ALL_MODES) {
+    it(`never adds a tool for an allow rule in ${mode}: an allow spares a question, it hands nothing over`, () => {
+      // Arrange
+      const rules = [{ effect: "allow" as const, tool: "file_write" }, NPM_TEST];
 
+      // Act
+      const d = catalogueFor(mode, rules);
+
+      // Assert
+      deepStrictEqual(d.tools, toolsetFor(mode), mode);
+    });
+  }
+
+  // `plan` and `dontAsk` being read-only BY CONSTRUCTION is what /commit's
+  // refusal and the prompt note rest on: the catalogue keeps the promise, the
+  // rule loses — loudly.
   it("reports an allow rule on a tool a read-only mode does not offer as inert, and says why", () => {
-    // `plan` and `dontAsk` being read-only BY CONSTRUCTION is what /commit's
-    // refusal and the prompt note rest on: the catalogue keeps the promise, the
-    // rule loses — loudly.
-    const d = catalogueFor("dontAsk", [{ effect: "allow", tool: "file_write" }, NPM_TEST]);
+    // Arrange
+    const rules = [{ effect: "allow" as const, tool: "file_write" }, NPM_TEST];
+
+    // Act
+    const d = catalogueFor("dontAsk", rules);
+
+    // Assert
     deepStrictEqual(d.inert.map((r) => r.rule.tool), ["file_write", "shell_command"]);
-    ok(d.inert[0].reason.includes("mode 'dontAsk' does not offer 'file_write'"), d.inert[0].reason);
-    ok(d.inert[0].reason.includes("Switch mode"), "the report must say what to do instead");
+    assertMentions(d.inert[0].reason, ["mode 'dontAsk' does not offer 'file_write'", "Switch mode"]);
   });
 
   it("reports EVERY allow rule as inert in plan, whose gate reads none, offered tool or not", () => {
-    const rules = [
-      { effect: "allow" as const, tool: "file_read" }, { effect: "allow" as const, tool: "file_write" }, NPM_TEST,
-      { effect: "deny" as const, tool: "http_api" },
-    ];
+    // Arrange
+    const rules = PLAN_RULES;
+
+    // Act
     const d = catalogueFor("plan", rules);
+
+    // Assert
     deepStrictEqual(d.inert.map((r) => r.rule.tool), ["file_read", "file_write", "shell_command"]);
-    for (const r of d.inert) {
-      ok(r.reason.startsWith("mode 'plan' ignores every allow rule"), r.reason);
-      ok(r.reason.includes("Switch mode"), r.reason);
-    }
+    assertInertReasons(d, "mode 'plan' ignores every allow rule");
   });
 
-  it("reports an allow rule on spawn_agent as inert in plan only: every act is offered it", () => {
-    const allow = [{ effect: "allow" as const, tool: "spawn_agent" }];
-    for (const mode of PERMISSION_MODES) {
-      deepStrictEqual(catalogueFor(mode, allow).inert.map((r) => r.rule.tool), mode === "plan" ? ["spawn_agent"] : [], mode);
-    }
-  });
+  for (const mode of PERMISSION_MODES) {
+    it(`reports an allow rule on spawn_agent as inert in plan only, not in ${mode} unless it is plan: every act is offered it`, () => {
+      // Arrange
+      const allow = [{ effect: "allow" as const, tool: "spawn_agent" }];
 
-  it("warns on an allow rule on spawn_agent, which runs without asking in dontAsk too, and refuses nothing", () => {
-    const warning = "'spawn_agent' is offered to every act whatever the mode: an allow rule lets it run without " +
-      "asking in dontAsk too.";
-    deepStrictEqual(checkRule("allow spawn_agent"), { ok: true, rule: { effect: "allow", tool: "spawn_agent" }, warning });
-    deepStrictEqual(checkRule("allow Spawn_Agent agent=researcher"), {
-      ok: true, rule: { effect: "allow", tool: "spawn_agent", argument: "agent", pattern: "researcher" }, warning,
+      // Act
+      const d = catalogueFor(mode, allow);
+
+      // Assert
+      deepStrictEqual(d.inert.map((r) => r.rule.tool), mode === "plan" ? ["spawn_agent"] : [], mode);
     });
-    deepStrictEqual(checkRule("deny spawn_agent"), { ok: true, rule: { effect: "deny", tool: "spawn_agent" } });
-  });
+  }
 
   it("reports no inert rule where the mode offers the tool and reads allow rules", () => {
-    deepStrictEqual(catalogueFor("default", [{ effect: "allow", tool: "file_write" }, NPM_TEST]).inert, []);
-    deepStrictEqual(catalogueFor("dontAsk", [{ effect: "allow", tool: "file_read" }]).inert, []);
+    // Arrange
+    const rules = [{ effect: "allow" as const, tool: "file_write" }, NPM_TEST];
+
+    // Act
+    const d = catalogueFor("default", rules);
+
+    // Assert
+    deepStrictEqual(d.inert, []);
   });
 
-  it("no rules leaves the mode catalogue byte-identical", () => {
-    for (const mode of ["default", "acceptEdits", "bypassPermissions", "plan", "dontAsk"]) {
-      deepStrictEqual(catalogueFor(mode, []).tools, toolsetFor(mode), mode);
-    }
+  it("reports no inert allow on a read tool in dontAsk, which offers it", () => {
+    // Arrange
+    const rules = [{ effect: "allow" as const, tool: "file_read" }];
+
+    // Act
+    const d = catalogueFor("dontAsk", rules);
+
+    // Assert
+    deepStrictEqual(d.inert, []);
   });
+
+  for (const mode of ALL_MODES) {
+    it(`no rules leaves the ${mode} catalogue byte-identical`, () => {
+      // Arrange
+      const rules: [] = [];
+
+      // Act
+      const d = catalogueFor(mode, rules);
+
+      // Assert
+      deepStrictEqual(d.tools, toolsetFor(mode), mode);
+    });
+  }
 });
 
 describe("rule grammar (readRule)", () => {
-  it("reads `<effect> <tool>`, any tool: the tool is checked apart", () => {
-    deepStrictEqual(readRule("deny file_write"), { effect: "deny", tool: "file_write" });
-    deepStrictEqual(readRule("  ALLOW   shell_command "), { effect: "allow", tool: "shell_command" });
-    deepStrictEqual(readRule("deny nope"), { effect: "deny", tool: "nope" });
-    strictEqual(readRule("maybe file_write"), null);
-    strictEqual(readRule("deny"), null);
-    strictEqual(readRule(""), null);
-    strictEqual(readRule(null), null);
-  });
+  for (const c of READ_RULE_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { text } = c;
 
-  it("reads an argument pattern, the rest of the text after `=`, spaces included", () => {
-    deepStrictEqual(readRule("allow shell_command command=npm test*"), NPM_TEST);
-    deepStrictEqual(readRule("deny shell_command command=git push*"), GIT_PUSH);
-    deepStrictEqual(readRule("deny file_write path=/workspace/a=b"), {
-      effect: "deny", tool: "file_write", argument: "path", pattern: "/workspace/a=b",
+      // Act
+      const rule = readRule(text);
+
+      // Assert
+      deepStrictEqual(rule, c.rule, String(text));
     });
-  });
+  }
 
-  it("takes one pair of matching quotes off the pattern, and only one", () => {
-    deepStrictEqual(readRule('allow shell_command command="npm test*"'), NPM_TEST);
-    deepStrictEqual(readRule("allow shell_command command='npm test*'"), NPM_TEST);
-    deepStrictEqual(readRule('deny shell_command command=""x""')?.pattern, '"x"');
-    deepStrictEqual(readRule("deny shell_command command=\"x'")?.pattern, "\"x'");
-    deepStrictEqual(readRule('deny shell_command command="')?.pattern, '"');
-    deepStrictEqual(readRule('deny shell_command command=a"b"')?.pattern, 'a"b"');
-    strictEqual(readRule('deny shell_command command=""'), null, "a quoted empty pattern is no pattern");
-  });
+  for (const c of READ_PATTERN_CASES) {
+    it(`takes one pair of matching quotes off the pattern, and only one: ${c.text}`, () => {
+      // Arrange
+      const { text } = c;
 
-  it("refuses a scope without an argument name or without a pattern", () => {
-    for (const bad of [
-      "allow shell_command npm test", "allow shell_command =npm*", "allow shell_command command=",
-      "allow shell_command com mand=npm", "allow shell_command 1st=x",
-    ]) {
-      strictEqual(readRule(bad), null, bad);
-    }
-  });
+      // Act
+      const rule = readRule(text);
 
-  it("reads the `effect:tool` form stored before rules took patterns", () => {
-    deepStrictEqual(readRule("deny:shell_command"), { effect: "deny", tool: "shell_command" });
-    deepStrictEqual(readRule("allow:http_api"), { effect: "allow", tool: "http_api" });
-    for (const junk of ["", "deny", "deny:", ":file_write", "yolo:file_write", "deny:file_write:x", null, 7]) {
-      strictEqual(readRule(junk), null, String(junk));
-    }
-  });
+      // Assert
+      deepStrictEqual(rule?.pattern, c.pattern);
+    });
+  }
 
-  it("formats a rule as the host gate lists it, and reads it back", () => {
-    strictEqual(formatRule({ effect: "deny", tool: "file_write" }), "deny file_write");
-    strictEqual(formatRule(NPM_TEST), "allow shell_command command=npm test*");
-    for (const rule of [{ effect: "deny" as const, tool: "file_write" }, NPM_TEST, GIT_PUSH]) {
-      strictEqual(formatRule(rule), gateLine(rule));
-      deepStrictEqual(readRule(formatRule(rule)), rule);
-    }
-  });
+  for (const c of FORMAT_CASES) {
+    it(`formats a rule as the host gate lists it: ${c.text}`, () => {
+      // Arrange
+      const { rule } = c;
 
-  it("quotes a pattern that starts and ends with a quote once more, so it reads back as written", () => {
-    for (const pattern of ['"x"', "'x'", '"', "''"]) {
+      // Act
+      const text = formatRule(rule);
+
+      // Assert
+      strictEqual(text, c.text);
+    });
+  }
+
+  for (const rule of ROUND_TRIP_RULES) {
+    it(`formats the rule ${gateLine(rule)} as its gate line`, () => {
+      // Arrange
+      const expected = gateLine(rule);
+
+      // Act
+      const text = formatRule(rule);
+
+      // Assert
+      strictEqual(text, expected);
+    });
+
+    it(`reads the rule ${gateLine(rule)} back as formatted`, () => {
+      // Arrange
+      const text = formatRule(rule);
+
+      // Act
+      const read = readRule(text);
+
+      // Assert
+      deepStrictEqual(read, rule);
+    });
+  }
+
+  for (const pattern of QUOTED_PATTERNS) {
+    it(`quotes the pattern ${pattern}, which starts and ends with a quote, once more, so it reads back as written`, () => {
+      // Arrange
       const rule = { effect: "deny" as const, tool: "shell_command", argument: "command", pattern };
-      deepStrictEqual(readRule(formatRule(rule)), rule, pattern);
-    }
-    strictEqual(gateLine({ ...GIT_PUSH, pattern: '"x"' }), 'deny shell_command command="x"');
+
+      // Act
+      const read = readRule(formatRule(rule));
+
+      // Assert
+      deepStrictEqual(read, rule, pattern);
+    });
+  }
+
+  it("quotes a quoted pattern once more in the gate line", () => {
+    // Arrange
+    const rule = { ...GIT_PUSH, pattern: '"x"' };
+
+    // Act
+    const line = gateLine(rule);
+
+    // Assert
+    strictEqual(line, 'deny shell_command command="x"');
   });
 
-  it("tells the rules that cover every call from the scoped ones, and which cover the same calls", () => {
-    strictEqual(coversEveryCall({ effect: "deny", tool: "file_write" }), true);
-    strictEqual(coversEveryCall(NPM_TEST), false);
-    strictEqual(sameCalls(NPM_TEST, { ...NPM_TEST, effect: "deny" }), true);
-    strictEqual(sameCalls(NPM_TEST, { ...NPM_TEST, tool: "Shell_Command" }), true, "tool names compare case aside");
-    strictEqual(sameCalls(NPM_TEST, GIT_PUSH), false);
-    strictEqual(sameCalls({ effect: "deny", tool: "shell_command" }, GIT_PUSH), false);
+  it("tells a rule that covers every call", () => {
+    // Arrange
+    const rule = DENY_FILE_WRITE;
+
+    // Act
+    const every = coversEveryCall(rule);
+
+    // Assert
+    strictEqual(every, true);
   });
+
+  it("tells a scoped rule from one that covers every call", () => {
+    // Arrange
+    const rule = NPM_TEST;
+
+    // Act
+    const every = coversEveryCall(rule);
+
+    // Assert
+    strictEqual(every, false);
+  });
+
+  for (const c of SAME_CALLS_CASES) {
+    it(`tells which rules cover the same calls: ${c.name}`, () => {
+      // Arrange
+      const { a, b } = c;
+
+      // Act
+      const same = sameCalls(a, b);
+
+      // Assert
+      strictEqual(same, c.same, c.name);
+    });
+  }
 });
 
 describe("stored rules (parseStoredRule)", () => {
-  it("reads a rule on a known tool, in that tool's spelling, both stored forms", () => {
-    deepStrictEqual(parseStoredRule("deny:shell_command"), { effect: "deny", tool: "shell_command" });
-    deepStrictEqual(parseStoredRule("allow SHELL_COMMAND command=npm test*"), NPM_TEST);
-    for (const rule of [{ effect: "deny" as const, tool: "file_write" }, NPM_TEST, GIT_PUSH]) {
-      deepStrictEqual(parseStoredRule(formatRule(rule)), rule);
-    }
-  });
+  for (const c of PARSE_STORED_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { raw, extras } = c;
 
-  it("reads no rule from an unknown tool or a corrupted entry", () => {
-    for (const junk of ["deny nope", "deny:nope", "", "deny", "yolo:file_write", null, 7]) {
-      strictEqual(parseStoredRule(junk), null, String(junk));
-    }
-  });
+      // Act
+      const rule = parseStoredRule(raw, extras);
+
+      // Assert
+      deepStrictEqual(rule, c.rule, String(raw));
+    });
+  }
+
+  for (const rule of ROUND_TRIP_RULES) {
+    it(`reads the stored rule ${gateLine(rule)} on a known tool as formatted`, () => {
+      // Arrange
+      const raw = formatRule(rule);
+
+      // Act
+      const read = parseStoredRule(raw);
+
+      // Assert
+      deepStrictEqual(read, rule);
+    });
+  }
 });
 
 describe("rules to add (checkRule)", () => {
-  const SYNTAX = "expected <deny|allow> <tool> [<argument>=<pattern>]";
+  for (const c of CHECK_RULE_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { text, extras } = c;
 
-  it("accepts a rule on a built-in tool, every call or an argument it takes, in the tool's own spelling", () => {
-    deepStrictEqual(checkRule("deny file_write"), { ok: true, rule: { effect: "deny", tool: "file_write" } });
-    deepStrictEqual(checkRule("allow Shell_Command command=npm test*"), { ok: true, rule: NPM_TEST });
-    deepStrictEqual(checkRule('allow shell_command command="npm test*"'), { ok: true, rule: NPM_TEST });
-    deepStrictEqual(checkRule("deny file_write path=/workspace/secrets/*").ok, true);
-  });
+      // Act
+      const check = checkRule(text, extras);
 
-  it("refuses an argument a built-in tool does not take, naming the ones it does", () => {
-    deepStrictEqual(checkRule("allow shell_command cmd=npm test*"), {
-      ok: false, reason: "'shell_command' has no argument 'cmd': it takes command, working_directory, timeout_seconds, action, job_id, tail_lines",
+      // Assert
+      deepStrictEqual(check, c.check);
     });
-    deepStrictEqual(checkRule("deny shell_command Command=rm*"), {
-      ok: false, reason: "'shell_command' has no argument 'Command': it takes command, working_directory, timeout_seconds, action, job_id, tail_lines",
+  }
+
+  for (const c of CHECK_RULE_OK_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { text } = c;
+
+      // Act
+      const check = checkRule(text);
+
+      // Assert
+      strictEqual(check.ok, c.ok);
     });
-    deepStrictEqual(checkRule("deny index_status path=x"), {
-      ok: false, reason: "'index_status' takes no argument: a rule on it covers every call",
-    });
-  });
+  }
 
   it("accepts an argument of an extra tool, with a warning: its arguments are not known here", () => {
-    const check = checkRule("deny search_issues query=secret*", ["search_issues"]);
-    strictEqual(check.ok, true);
-    if (!check.ok) return;
-    deepStrictEqual(check.rule, { effect: "deny", tool: "search_issues", argument: "query", pattern: "secret*" });
-    ok(check.warning?.startsWith("the arguments of 'search_issues' are not known here"), check.warning);
-    ok(check.warning?.includes("named exactly 'query'"), check.warning);
-    deepStrictEqual(checkRule("deny search_issues", ["search_issues"]), {
-      ok: true, rule: { effect: "deny", tool: "search_issues" },
-    });
-  });
+    // Arrange
+    const extras = ["search_issues"];
 
-  it("refuses a text that is not the grammar, and a tool that is neither built in nor configured", () => {
-    deepStrictEqual(checkRule("permit file_read"), { ok: false, reason: SYNTAX });
-    deepStrictEqual(checkRule("allow shell_command command="), { ok: false, reason: SYNTAX });
-    deepStrictEqual(checkRule("deny nope", ["search_issues"]), {
-      ok: false, reason: `'nope' is no tool a rule may name: one of ${[...RULEABLE_TOOLS, "search_issues"].join(", ")}`,
-    });
+    // Act
+    const check = checkRule("deny search_issues query=secret*", extras);
+
+    // Assert
+    assertAcceptedWithWarning(
+      check, { effect: "deny", tool: "search_issues", argument: "query", pattern: "secret*" },
+      "the arguments of 'search_issues' are not known here", "named exactly 'query'",
+    );
   });
 });
 
 describe("extra tools (tools.extra)", () => {
-  const READER = { name: "transcribe_audio", access: "read" as const };
-  const WRITER = { name: "search_issues", access: "write" as const };
+  for (const mode of [...READ_ONLY_MODES, ...WRITING_MODES]) {
+    it(`offers a read extra tool in every mode, with the local reads: ${mode}`, () => {
+      // Arrange
+      const extras = [READER];
 
-  it("offers a read extra tool in every mode, with the local reads", () => {
-    for (const mode of ["plan", "dontAsk", "default", "acceptEdits", "bypassPermissions"]) {
-      const t = toolsetFor(mode, [READER]);
+      // Act
+      const t = toolsetFor(mode, extras);
+
+      // Assert
       strictEqual(t.indexOf("transcribe_audio"), READ_TOOLS.length, mode);
-    }
-  });
+    });
+  }
 
-  it("offers a write extra tool in the writing modes only, after the built-in classes", () => {
-    for (const mode of ["plan", "dontAsk"]) strictEqual(toolsetFor(mode, [WRITER]).includes("search_issues"), false, mode);
-    for (const mode of ["default", "acceptEdits", "bypassPermissions"]) {
-      deepStrictEqual(toolsetFor(mode, [WRITER]), [...toolsetFor(mode), "search_issues"], mode);
-    }
-  });
+  for (const mode of READ_ONLY_MODES) {
+    it(`withholds a write extra tool from the read-only mode ${mode}`, () => {
+      // Arrange
+      const extras = [WRITER];
+
+      // Act
+      const t = toolsetFor(mode, extras);
+
+      // Assert
+      strictEqual(t.includes("search_issues"), false, mode);
+    });
+  }
+
+  for (const mode of WRITING_MODES) {
+    it(`offers a write extra tool in the writing mode ${mode}, after the built-in classes`, () => {
+      // Arrange
+      const expected = [...toolsetFor(mode), "search_issues"];
+
+      // Act
+      const t = toolsetFor(mode, [WRITER]);
+
+      // Assert
+      deepStrictEqual(t, expected, mode);
+    });
+  }
 
   it("removes an extra tool a deny covers whole, and calls an allow on a withheld one inert", () => {
-    const rules = [{ effect: "deny" as const, tool: "transcribe_audio" }, { effect: "allow" as const, tool: "search_issues" }];
+    // Arrange
+    const rules = EXTRA_RULES;
+
+    // Act
     const plan = catalogueFor("plan", rules, [READER, WRITER]);
+
+    // Assert
     deepStrictEqual(plan.deniedByRule, ["transcribe_audio"]);
     deepStrictEqual(plan.inert.map((r) => r.rule.tool), ["search_issues"]);
-    deepStrictEqual(catalogueFor("default", rules, [READER, WRITER]).inert, []);
   });
 
-  it("reads a stored rule on a tool the configured names hold, and only then, in their spelling", () => {
-    strictEqual(parseStoredRule("deny search_issues"), null);
-    deepStrictEqual(parseStoredRule("deny search_issues query=secret*", ["search_issues"]), {
-      effect: "deny", tool: "search_issues", argument: "query", pattern: "secret*",
-    });
-    deepStrictEqual(parseStoredRule("allow:search_issues", ["search_issues"]), { effect: "allow", tool: "search_issues" });
-    deepStrictEqual(parseStoredRule("deny Get-File-Contents", ["get-file-contents"]), {
-      effect: "deny", tool: "get-file-contents",
-    });
-    strictEqual(parseStoredRule("allow:search_issues"), null);
+  it("calls no allow on an offered extra tool inert", () => {
+    // Arrange
+    const rules = EXTRA_RULES;
+
+    // Act
+    const d = catalogueFor("default", rules, [READER, WRITER]);
+
+    // Assert
+    deepStrictEqual(d.inert, []);
   });
 
-  it("names a built-in or configured tool in its own spelling, case aside", () => {
-    strictEqual(ruleableTool("FILE_WRITE"), "file_write");
-    strictEqual(ruleableTool("listissues", ["listIssues"]), "listIssues");
-    strictEqual(ruleableTool("list_issues", ["listIssues"]), undefined);
-  });
+  for (const c of RULEABLE_TOOL_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { tool, extras } = c;
+
+      // Act
+      const spelled = ruleableTool(tool, extras);
+
+      // Assert
+      strictEqual(spelled, c.spelled);
+    });
+  }
 });
 
 describe("rag_ingest, an edit as the host gate classifies it (Orkeon #126)", () => {
-  it("is withheld from the read-only modes and offered with the edits", () => {
-    for (const mode of ["plan", "dontAsk"]) strictEqual(toolsetFor(mode).includes("rag_ingest"), false, mode);
-    for (const mode of ["default", "acceptEdits", "bypassPermissions"]) ok(toolsetFor(mode).includes("rag_ingest"), mode);
-    ok(READ_TOOLS.includes("rag_search") && !READ_TOOLS.includes("rag_ingest"));
+  for (const mode of READ_ONLY_MODES) {
+    it(`is withheld from the read-only mode ${mode}`, () => {
+      // Arrange
+      const tool = "rag_ingest";
+
+      // Act
+      const t = toolsetFor(mode);
+
+      // Assert
+      strictEqual(t.includes(tool), false, mode);
+    });
+  }
+
+  for (const mode of WRITING_MODES) {
+    it(`is offered with the edits in ${mode}`, () => {
+      // Arrange
+      const tool = "rag_ingest";
+
+      // Act
+      const t = toolsetFor(mode);
+
+      // Assert
+      ok(t.includes(tool), mode);
+    });
+  }
+
+  it("is no read tool, unlike rag_search", () => {
+    // Arrange
+    const tools = READ_TOOLS;
+
+    // Act
+    const reads = { search: tools.includes("rag_search"), ingest: tools.includes("rag_ingest") };
+
+    // Assert
+    ok(reads.search && !reads.ingest);
   });
 });
 
 describe("shellWords and shellCommandForms", () => {
-  it("splits a command as the host's shell tool does: whitespace outside quotes, the quotes dropped", () => {
-    deepStrictEqual(shellWords('git  "push"\t\'origin main\''), ["git", "push", "origin main"]);
-    deepStrictEqual(shellWords('a"b c"d'), ["ab cd"]);
-    deepStrictEqual(shellWords("   "), []);
-  });
+  for (const c of SHELL_WORDS_CASES) {
+    it(`splits ${JSON.stringify(c.command)} as the host's shell tool does: whitespace outside quotes, the quotes dropped`, () => {
+      // Arrange
+      const { command } = c;
 
-  it("gives the raw command first, then the words rejoined, unescaped and with option clusters split, each once", () => {
-    deepStrictEqual(shellCommandForms("git status"), ["git status"]);
-    deepStrictEqual(shellCommandForms('git "push"'), ['git "push"', "git push"]);
-    deepStrictEqual(shellCommandForms("git pu\\sh"), ["git pu\\sh", "git push"]);
-    deepStrictEqual(shellCommandForms("python3 -Ic x"), ["python3 -Ic x", "python3 -I -c x"]);
-    deepStrictEqual(shellCommandForms("ls --all -1"), ["ls --all -1"]);
-    deepStrictEqual(shellCommandForms('python3 -Ic"print(1)"'), ['python3 -Ic"print(1)"', "python3 -Icprint(1)", "python3 -I -c print(1)"]);
-    deepStrictEqual(shellCommandForms("perl -wE'say 1'"), ["perl -wE'say 1'", "perl -wEsay 1", "perl -w -E say 1"]);
-    deepStrictEqual(shellCommandForms("ls -la"), ["ls -la", "ls -l -a"]);
-  });
+      // Act
+      const words = shellWords(command);
+
+      // Assert
+      deepStrictEqual(words, c.words);
+    });
+  }
+
+  for (const c of SHELL_FORMS_CASES) {
+    it(`gives the raw command first, then the words rejoined, unescaped and with option clusters split, each once: ${c.command}`, () => {
+      // Arrange
+      const { command } = c;
+
+      // Act
+      const forms = shellCommandForms(command);
+
+      // Assert
+      deepStrictEqual(forms, c.forms);
+    });
+  }
 });
 
 describe("globMatches, matchesRule and ruleDecision", () => {
-  const R = (text: string) => readRule(text)!;
+  for (const c of GLOB_CASES) {
+    it(`${c.name}: ${JSON.stringify(c.pattern)} on ${JSON.stringify(c.text)}`, () => {
+      // Arrange
+      const { pattern, text } = c;
 
-  it("matches a pattern whole, `*` standing for any run, line breaks included", () => {
-    strictEqual(globMatches("git push*", "git push"), true);
-    strictEqual(globMatches("git push*", "git push origin main"), true);
-    strictEqual(globMatches("git push", "git push --force"), false);
-    strictEqual(globMatches("git push*", "xgit push"), false);
-    strictEqual(globMatches("*BEGIN*", "a\nBEGIN\nb"), true);
-    strictEqual(globMatches("*", ""), true);
-  });
+      // Act
+      const matches = globMatches(pattern, text);
 
-  it("reads every other character literally, case counting", () => {
-    strictEqual(globMatches("a.b(c)*", "a.b(c)d"), true);
-    strictEqual(globMatches("a.b(c)*", "axb(c)d"), false);
-    strictEqual(globMatches("Git push*", "git push"), false);
-    strictEqual(globMatches("a?c", "abc"), false);
-  });
+      // Assert
+      strictEqual(matches, c.matches);
+    });
+  }
 
-  it("covers a call by the tool, case aside, and by the argument named exactly", () => {
-    const rule = R("deny shell_command command=git push*");
-    strictEqual(matchesRule(rule, "Shell_Command", { command: "git push" }), true);
-    strictEqual(matchesRule(rule, "shell_command", { Command: "git push" }), false);
-    strictEqual(matchesRule(rule, "file_write", { command: "git push" }), false);
-  });
+  for (const c of MATCHES_RULE_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const rule = readRule(c.rule)!;
 
-  it("covers every call when the rule names no argument", () => {
-    strictEqual(matchesRule(R("deny file_write"), "file_write", {}), true);
-  });
+      // Act
+      const matches = matchesRule(rule, c.tool, c.args);
 
-  it("matches nothing when the argument is absent, null or not a scalar", () => {
-    const rule = R("deny file_read path=*");
-    for (const args of [{}, { path: null }, { path: ["a"] }, { path: { a: 1 } }]) {
-      strictEqual(matchesRule(rule, "file_read", args), false, JSON.stringify(args));
-    }
-  });
+      // Assert
+      strictEqual(matches, c.matches, JSON.stringify(c.args));
+    });
+  }
 
-  it("reads a number or a boolean as its text", () => {
-    strictEqual(matchesRule(R("deny shell_command timeout_seconds=600"), "shell_command", { timeout_seconds: 600 }), true);
-    strictEqual(matchesRule(R("deny file_write append=true"), "file_write", { append: true }), true);
-  });
+  for (const c of DECISION_CASES) {
+    it(`${c.name}, and leaves the rest to the mode: ${c.command}`, () => {
+      // Arrange
+      const rules = GIT_RULE_TEXTS.map((text) => readRule(text)!);
 
-  it("lets a deny win over an allow on the same call, and leaves the rest to the mode", () => {
-    const rules = [R("allow shell_command command=git *"), R("deny shell_command command=git push*")];
-    strictEqual(ruleDecision(rules, "shell_command", { command: "git push" }), "deny");
-    strictEqual(ruleDecision(rules, "shell_command", { command: "git status" }), "allow");
-    strictEqual(ruleDecision(rules, "shell_command", { command: "npm test" }), undefined);
-  });
+      // Act
+      const decision = ruleDecision(rules, "shell_command", { command: c.command });
+
+      // Assert
+      strictEqual(decision, c.decision);
+    });
+  }
 });

@@ -1,70 +1,128 @@
 // A correction appended to a batch sheet. Run:
 //   node --test src/crews/dev-implement/domain/correction.test.ts
 import { describe, it } from "node:test";
-import { deepStrictEqual, ok, strictEqual } from "node:assert";
+import { ok, strictEqual } from "node:assert";
 
 import { addCorrection, cleanFinding, targetStep } from "./correction.ts";
-import { openSteps, parseImplementSheet } from "./step-section.ts";
-
-const TABLE = (name: string, id: string) =>
-  ["| # | Test | Level | Project | Ids |", "|---|------|-------|---------|-----|", `| 1 | \`${name}\` | unit | \`tests\` | ${id} |`, ""];
-const SHEET = [
-  "# DEMO-PLAN-F1 — Demo", "",
-  "## TDD sequence",
-  "### Step 1 — One", ...TABLE("does one", "BR-01"), "TDD: RED [x] GREEN [x] COST [x]", "",
-  "### Step 2 — Two", ...TABLE("does two", "BR-02"), "TDD: RED [x] GREEN [x] COST [x]", "",
-  "### Step 3 — Build and tests", "No test of its own.", "",
-  "## Anchors",
-  "| Step | Test class / fixture | Shared doubles and builders | Production filled or created |",
-  "|------|----------------------|-----------------------------|------------------------------|",
-  "| 1 — One | `tests/a.test.ts` — to create | — | `src/a.ts` — to create |",
-  "| 2 — Two | `tests/b.test.ts` — to create | `FakeClock` | `src/b.ts:12` — to create |",
-  "| 3 — Build and tests | — | — | — |", "",
-].join("\n");
+import { parseImplementSheet } from "./step-section.ts";
+import {
+  SHEET, SHEET_NAMING_BR09_OUT_OF_SCOPE, sheetWithStep2Correction, sheetWithStep2CorrectionDone, STEP_2_FINDING,
+} from "./correction.fixtures.ts";
+import { assertAppended, assertOneOpenStep } from "./correction.assertions.ts";
 
 describe("addCorrection", () => {
   it("appends a step after the last one, with the target's anchor row and an open TDD line", () => {
-    const edit = addCorrection(SHEET, "Major Tests: src/a.ts ignores an empty list");
-    ok(edit.ok);
-    if (!edit.ok) return;
-    strictEqual(edit.step, 4);
-    strictEqual(edit.title, "Correction C1 — Major Tests: src/a.ts ignores an empty list");
-    const sheet = parseImplementSheet(edit.text);
-    deepStrictEqual(sheet.problems, []);
-    const open = openSteps(sheet);
-    deepStrictEqual(open.map((s) => s.number), [4]);
-    deepStrictEqual(open[0].anchor?.testFiles.map((r) => r.path), ["tests/a.test.ts"]);
-    deepStrictEqual(open[0].tests[0].ids, ["BR-01"]);
+    // Arrange
+    const finding = "Major Tests: src/a.ts ignores an empty list";
+
+    // Act
+    const edit = addCorrection(SHEET, finding);
+
+    // Assert
+    assertAppended(edit, 4, "Correction C1 — Major Tests: src/a.ts ignores an empty list");
+    assertOneOpenStep(edit.text, 4, ["tests/a.test.ts"], ["BR-01"]);
   });
-  it("targets the step the finding names, keeps an open one, and numbers the next", () => {
-    const first = addCorrection(SHEET, "step 2: the clock is read twice");
+
+  it("targets the step the finding names", () => {
+    // Arrange
+    const finding = STEP_2_FINDING;
+
+    // Act
+    const first = addCorrection(SHEET, finding);
+
+    // Assert
     ok(first.ok);
-    if (!first.ok) return;
-    const sheet = parseImplementSheet(first.text);
-    strictEqual(sheet.steps.find((s) => s.number === 4)?.anchor?.doubles, "`FakeClock`");
-    const again = addCorrection(first.text, "step 2: the clock is read twice");
-    ok(again.ok && !again.appended && again.text === first.text);
-    const ticked = first.text.replace("TDD: RED [ ] GREEN [ ] COST [ ]", "TDD: RED [x] GREEN [x] COST [x]");
+    strictEqual(parseImplementSheet(first.text).steps.find((s) => s.number === 4)?.anchor?.doubles, "`FakeClock`");
+  });
+
+  it("keeps an open correction of the same finding", () => {
+    // Arrange
+    const text = sheetWithStep2Correction();
+
+    // Act
+    const again = addCorrection(text, STEP_2_FINDING);
+
+    // Assert
+    ok(again.ok && !again.appended && again.text === text);
+  });
+
+  it("numbers the next correction after a ticked one", () => {
+    // Arrange
+    const ticked = sheetWithStep2CorrectionDone();
+
+    // Act
     const second = addCorrection(ticked, "another gap");
+
+    // Assert
     ok(second.ok && second.title === "Correction C2 — another gap" && second.step === 5);
   });
-  it("refuses a finding naming an id the sheet does not carry, and an empty one", () => {
-    const refused = addCorrection(SHEET, "BR-07 is not covered");
+
+  it("refuses a finding naming an id the sheet does not carry", () => {
+    // Arrange
+    const finding = "BR-07 is not covered";
+
+    // Act
+    const refused = addCorrection(SHEET, finding);
+
+    // Assert
     strictEqual(refused.ok, false);
     ok(!refused.ok && refused.reason.includes("BR-07, which the sheet does not carry"));
-    strictEqual(addCorrection(SHEET, "  ").ok, false);
   });
+
+  it("refuses an empty finding", () => {
+    // Arrange
+    const finding = "  ";
+
+    // Act
+    const refused = addCorrection(SHEET, finding);
+
+    // Assert
+    strictEqual(refused.ok, false);
+  });
+
   it("reads only the ids of the sheet's prefixes: UTF-8 or SHA-256 is no id", () => {
-    strictEqual(addCorrection(SHEET, "step 1 reads UTF-8 as SHA-256 input (BR-01)").ok, true);
-    // An id written outside the steps' test tables is not one the steps carry.
-    const named = SHEET.replace("## Anchors", "## Out of scope\n- BR-09\n\n## Anchors");
-    ok(!addCorrection(named, "BR-09 is missing").ok);
+    // Arrange
+    const finding = "step 1 reads UTF-8 as SHA-256 input (BR-01)";
+
+    // Act
+    const edit = addCorrection(SHEET, finding);
+
+    // Assert
+    strictEqual(edit.ok, true);
+  });
+
+  it("refuses an id written outside the steps' test tables, which the steps do not carry", () => {
+    // Arrange
+    const named = SHEET_NAMING_BR09_OUT_OF_SCOPE;
+
+    // Act
+    const edit = addCorrection(named, "BR-09 is missing");
+
+    // Assert
+    ok(!edit.ok);
   });
 });
 
 describe("targetStep / cleanFinding", () => {
   it("falls back on the last step with a test file", () => {
-    strictEqual(targetStep(parseImplementSheet(SHEET), "something")?.number, 2);
-    strictEqual(cleanFinding("a |\n b"), "a / b");
+    // Arrange
+    const sheet = parseImplementSheet(SHEET);
+
+    // Act
+    const target = targetStep(sheet, "something");
+
+    // Assert
+    strictEqual(target?.number, 2);
+  });
+
+  it("puts the finding on one line, without the table's pipe", () => {
+    // Arrange
+    const finding = "a |\n b";
+
+    // Act
+    const clean = cleanFinding(finding);
+
+    // Assert
+    strictEqual(clean, "a / b");
   });
 });

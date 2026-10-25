@@ -1,37 +1,72 @@
 // The shared memory's write gate (M-4). Run: node --test src/shared/domain/shared-memory/gate.test.ts
 import { describe, it } from "node:test";
-import { strictEqual, ok } from "node:assert";
+import { strictEqual } from "node:assert";
 
 import { MISTAKE_MIN_BATCHES, admissionProblem, asksConfirmation, sourceKind } from "./gate.ts";
+import { ADMITTED, CONFIRMATIONS, REFUSED, SOURCE_KINDS } from "./gate.fixtures.ts";
+import { assertProblemSays } from "./gate.assertions.ts";
 
 describe("the write gate", () => {
-  it("reads the kind of a source", () => {
-    strictEqual(sourceKind("audit:shop/SHOP-VERIFY-F1.md"), "audit");
-    strictEqual(sourceKind("human:2026-10-22 memory_push"), "human");
-    strictEqual(sourceKind("verdict:plan"), "verdict");
-    strictEqual(sourceKind("someone: else"), undefined);
-    strictEqual(sourceKind("audit:"), undefined);
-  });
+  for (const c of SOURCE_KINDS) {
+    it(`reads the kind of a source: ${c.name}`, () => {
+      // Arrange
+      const { source } = c;
 
-  it("lets a human admit any type, an audit a structure or a mistake, a verdict a method or a decision", () => {
-    for (const type of ["decision", "code-structure", "method", "mistake"] as const) {
-      strictEqual(admissionProblem({ type, source: "human:2026-10-22 x" }), undefined);
-    }
-    strictEqual(admissionProblem({ type: "mistake", source: "audit:a/A-VERIFY-F1.md, b/B-VERIFY-F2.md, c/C-VERIFY-F1.md" }), undefined);
-    ok(admissionProblem({ type: "mistake", source: "audit:a/A-VERIFY-F1.md, a/A-VERIFY-F1.md" })?.includes("this one 1"));
-    strictEqual(admissionProblem({ type: "code-structure", source: "audit:a/A-VERIFY-F1.md" }), undefined);
-    ok(admissionProblem({ type: "decision", source: "audit:a/A-VERIFY-F1.md" })?.includes("not decision"));
-    strictEqual(admissionProblem({ type: "method", source: "verdict:plan" }), undefined);
-    ok(admissionProblem({ type: "mistake", source: "verdict:plan" })?.includes("method or decision"));
-    ok(admissionProblem({ type: "method", source: "a guess" })?.includes("not verdict:"));
-  });
+      // Act
+      const kind = sourceKind(source);
 
-  it("asks the operator unless an audit backs the candidate and auto-admission is on", () => {
-    strictEqual(asksConfirmation({ source: "audit:a/A-VERIFY-F1.md" }, true), false);
-    strictEqual(asksConfirmation({ source: "audit:a/A-VERIFY-F1.md" }, false), true);
-    strictEqual(asksConfirmation({ source: "human:2026-10-22 x" }, true), true);
-    strictEqual(asksConfirmation({ source: "verdict:plan" }, true), true);
-  });
+      // Assert
+      strictEqual(kind, c.kind);
+    });
+  }
 
-  it("harvests a mistake from three batches", () => strictEqual(MISTAKE_MIN_BATCHES, 3));
+  for (const c of ADMITTED) {
+    it(`admits ${c.name}`, () => {
+      // Arrange
+      const { type, source } = c;
+
+      // Act
+      const problem = admissionProblem({ type, source });
+
+      // Assert
+      strictEqual(problem, undefined);
+    });
+  }
+
+  for (const c of REFUSED) {
+    it(`refuses ${c.name}, and says why`, () => {
+      // Arrange
+      const { type, source } = c;
+
+      // Act
+      const problem = admissionProblem({ type, source });
+
+      // Assert
+      assertProblemSays(problem, c.problem);
+    });
+  }
+
+  for (const c of CONFIRMATIONS) {
+    it(c.name, () => {
+      // Arrange
+      const { source, auto } = c;
+
+      // Act
+      const asks = asksConfirmation({ source }, auto);
+
+      // Assert
+      strictEqual(asks, c.asks);
+    });
+  }
+
+  it("harvests a mistake from three batches", () => {
+    // Arrange
+    const expected = 3;
+
+    // Act
+    const threshold = MISTAKE_MIN_BATCHES;
+
+    // Assert
+    strictEqual(threshold, expected);
+  });
 });

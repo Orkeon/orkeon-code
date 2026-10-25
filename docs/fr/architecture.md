@@ -9,7 +9,7 @@ couches sont consignées dans l'[ADR 0001](../adr/0001-clean-architecture.md) (e
 
 | Ce dépôt (TypeScript) | Le runtime Orkeon (.NET, épinglé dans `.orkeon-version`) |
 |---|---|
-| Les commandes (`src/commands/*.cmd.ts`) | Le REPL de commandes scriptées qui les charge (`orkeon-repl --runner=scripted-commands`) |
+| Les commandes (`src/commands/<group>/*.cmd.ts`) | Le REPL de commandes scriptées qui les charge (`orkeon-repl --runner=scripted-commands`) |
 | Les crews (`src/crews/<name>/crew.ork.ts`) | Le moteur de script (Jint) et le bundler (esbuild) qui les exécutent |
 | Les prompts, l'analyse syntaxique, les décisions (`domain/`, `application/`) | Les outils (fichiers, shell, git, intelligence de code, web, session, mémoire) |
 | Le catalogue de permissions par mode, les règles de la session | La garde de permission qui confronte chaque appel d'outil du modèle (`act`) aux règles et au mode, et interroge l'opérateur |
@@ -63,9 +63,9 @@ bundle, et un test importe un cas d'usage dans Node sans toucher à une globale 
 | application | `src/shared/application/`, `src/crews/<name>/application/` | Cas d'usage et services au-dessus des ports (`ports.ts`) | domaine, application |
 | infrastructure | `src/shared/infrastructure/` | `globals.ts`, les adaptateurs Orkeon des ports, `wiring.ts` | tout ce qui est plus intérieur |
 | cas d'usage des commandes | `src/commands/_lib/` | Un module par famille de commandes, `run<Name>(tokens, deps)` → une vue au-dessus des ports qu'on lui remet ; les utilitaires que les commandes partagent | tout sauf `shared/infrastructure/` |
-| points d'entrée | `src/commands/*.cmd.ts`, `src/crews/<name>/crew.ork.ts` | Analysent l'entrée, câblent les adaptateurs, appellent un cas d'usage, rendent | tout |
+| points d'entrée | `src/commands/<group>/*.cmd.ts`, `src/crews/<name>/crew.ork.ts` | Analysent l'entrée, câblent les adaptateurs, appellent un cas d'usage, rendent | tout |
 
-`tests/architecture.test.ts` analyse chaque import de `src/` (statique, réexport, de type seul et dynamique) et échoue
+`tests/repository/architecture.test.ts` analyse chaque import de `src/` (statique, réexport, de type seul et dynamique) et échoue
 sur tout import qui enfreint l'une de ces règles ; il n'y a pas de liste d'exceptions :
 
 - un fichier sous `domain/` n'importe que des fichiers du domaine ;
@@ -80,6 +80,8 @@ sur tout import qui enfreint l'une de ces règles ; il n'y a pas de liste d'exce
 - un import relatif nomme son fichier `.ts`, et le code du runtime n'importe rien d'autre que des fichiers relatifs
   (les tests peuvent importer les modules intégrés `node:`) ;
 - le code du runtime n'importe jamais `tests/` : les doublures de test ne sont jamais bundlées ;
+- un contrôle partagé de `tests/support/assertions/` n'importe que des modules intégrés `node:`, de sorte qu'un test
+  de n'importe quelle couche, un test du domaine compris, peut l'importer ;
 - aucun cycle d'imports entre fichiers.
 
 Le même test lit les globales du runtime avec la résolution de portée de TypeScript lui-même, fichier par fichier : un
@@ -96,7 +98,8 @@ pour chaque fichier, si bien que le contrôle de types seul laisserait n'importe
 
 ```text
 src/
-├── commands/          57 *.cmd.ts (parse, wire, render)
+├── commands/          58 *.cmd.ts (parse, wire, render) in eight functional folders: session, settings, status,
+│   │                  project, git, dev, memory, speech
 │   ├── _lib/          one module per command family: run<Name>(tokens, deps) → CommandView, or
 │   │                  dispatch<Name>(tokens, deps) → a ticket or a message when the command launches a
 │   │                  crew (say, transcribe, voice), and its pure helpers (agents, branch, config, dev, diff, doctor,
@@ -119,9 +122,16 @@ src/
         └── orkeon/    the adapters of the ports, tool-results.ts (field casing),
                        runtime-tools.ts (the tool inputs), wiring.ts
 tests/
-├── support/           the test doubles (Fake*), never imported by runtime code
-├── architecture.test.ts, command-surface.test.ts, version.test.ts
-└── commands-*.test.ts the command use cases of commands/_lib/, over the fakes
+├── support/           what several test files share, never imported by runtime code:
+│   ├── doubles/       the test doubles (Fake*), one per port
+│   ├── fixtures/      the sample data shared across test files (prompt-catalogue, memory-entries)
+│   └── assertions/    the checks shared across test files
+├── fixtures/          the texts that are files of their own (a sheet, a plan, a YAML)
+├── repository/        the rules of the repository as a whole: architecture, test-shape, command-surface,
+│                      prompt-contract, version, shared-memory-fixture
+├── scripts/           the scripts of scripts/ and the launchers: dev-run, session-start-script, docs-parity,
+│                      install, launcher
+└── config/            the example settings
 mcp/whisper/           the speech MCP server, Python run by uv: whisper_mcp.py, tests/, samples/, smoke.py
 ```
 
@@ -136,7 +146,7 @@ runtime qui le fournit. Son adaptateur est le seul code qui appelle le runtime p
 résultats du runtime, dont la casse des champs varie (`messages` ou `Messages`) : un port rend des valeurs simples,
 sauf les deux appels qui montrent un résultat brut à dessein (`MemoryStore.get`, `ToolCatalogue.call`).
 
-| Port | À quoi il sert | Adaptateur (`src/shared/infrastructure/orkeon/`) | Fake (`tests/support/`) |
+| Port | À quoi il sert | Adaptateur (`src/shared/infrastructure/orkeon/`) | Fake (`tests/support/doubles/`) |
 |---|---|---|---|
 | `Shell` | Les commandes shell dans `/workspace` (`shell_command`) | `shell.ts` | `fake-shell.ts` |
 | `ShellJobs` | Une commande longue lancée détachée, son état, la fin de son journal, et une attente entre deux regards (`shell_command` `start_job`, `job_status`, `job_tail`) | `shell-jobs.ts` | aucun : des faux dans `suite-job.test.ts` et `run-dev-implement.test.ts` |
@@ -275,8 +285,8 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 | `agent-run` | séquentiel, un act d'une charte intégrée (`dev-reviewer`, `dev-auditor`) | `/tasks send`, `/tasks repair` | Un nouveau run d'un enfant fini, son brief portant le rapport précédent et le message de l'opérateur ; il tourne sous l'étape du run de l'instance (un relecteur de `/dev-spec` ou de `/dev-change` sous les jeux de règles, les hooks et le budget de cette étape), sinon sous l'étape de la charte, avec le budget de cette étape et aucun enfant à lui |
 | `dev-spec` | séquentiel, des extracts, la revue dans un enfant d'arrière-plan `dev-reviewer` (neuf outils de lecture en `plan` ; en ligne sur un hôte sans enfants d'arrière-plan) | `/dev-spec` | Spécification métier écrite par le code depuis le JSON, ses questions posées une à une par `human_input`, une revue en lecture seule |
 | `dev-change` | séquentiel, des extracts, la revue dans un enfant d'arrière-plan `dev-reviewer` (neuf outils de lecture en `plan` ; en ligne sur un hôte sans enfants d'arrière-plan) | `/dev-change` | Bug reproduit ou coût mesuré en exécutant, fiche de changement écrite par le code, questions par `human_input`, une revue |
-| `dev-implement` | séquentiel, un agent, deux rôles en `acceptEdits` (cinq outils de lecture, six d'écriture - `file_write` pour un nouveau fichier, les éditeurs de nœuds et `edit_batch` pour un fichier existant - `run_tests`, `run_build`, `memory_recall`) | `/dev-implement` (`--close` : la clôture seule) | Chaque cycle (les étapes d'un même fichier de test) rouge puis vert, vérifié par le code, son coût mesuré ; une correction ajoutée en étape ; le build et la suite (ensuite les projets touchés) en jobs ; puis `/dev-verify` et, sur VALID, le commit et les marques « fait » |
-| `dev-batches` | séquentiel, un agent avec les outils de lecture du relecteur, sa revue en ligne | `/dev-batches` (retapée : l'exécution reprend) | Désigne le lot suivant d'un plan dans l'ordre de ses dépendances, après une revue de sa fiche une fois ses dépendances closes ; consigne chaque lot dans `batches-state.md` ; le `completed` de la commande enchaîne `/dev-implement` et `/dev-verify`, chaque clôture commitée sans push ; un push et une pull request à la clôture du plan |
+| `dev-implement` | séquentiel, un agent, deux rôles en `acceptEdits` (cinq outils de lecture, six d'écriture - `file_write` pour un nouveau fichier, les éditeurs de nœuds et `edit_batch` pour un fichier existant - `run_tests`, `run_build`, `memory_recall`) | `/dev-implement` (`--close` : la clôture seule) | Chaque cycle (les étapes d'un même fichier de test) rouge puis vert, vérifié par le code, son coût mesuré ; une correction ajoutée en étape ; le build et la suite (ensuite les projets touchés) en jobs ; puis `/dev-verify` et, sur VALID, le commit et les marques « fait » ; une hypothèse est consignée une fois par lot, jamais une que la fiche porte déjà ; un chemin relatif qu'un rôle passe à un outil est résolu sous le checkout avant l'outil |
+| `dev-batches` | séquentiel, un agent avec les outils de lecture du relecteur, sa revue en ligne ; avec `--concurrency` de 2 à 4, un agent de lot par lot d'une vague (`batch-F<n>`, les outils d'implémentation et les outils de lecture de l'auditeur, `run_tests`, `run_build`, `run_validation`, `memory_recall`), chacun sous la racine de travail de son worktree | `/dev-batches` (retapée : l'exécution reprend) | Désigne le lot suivant d'un plan dans l'ordre de ses dépendances, après une revue de sa fiche une fois ses dépendances closes ; consigne chaque lot dans `batches-state.md` ; en séquentiel, le `completed` de la commande enchaîne `/dev-implement` et `/dev-verify`, chaque clôture commitée sans push ; en parallèle, le pilote amorce chaque worktree, lance à la fois les agents de lot de la vague (chacun exécute les étapes, l'audit en ligne et la clôture dans son code, borné par ses propres appels d'outils), puis fusionne en avance rapide chaque lot VALID dans l'ordre des ids, en rapatrie les fichiers et retire son worktree ; un push et une pull request à la clôture du plan |
 | `shared-memory-admit` | séquentiel, sans outil, sans LLM | `/memory-admit` | Écrit dans les entrées de la mémoire partagée les candidats que l'opérateur a confirmés, les listes, et réindexe |
 
 Un dossier commençant par `_` contient une sonde de développement (`probe.ork.ts`), jamais l'équipe d'une commande :
@@ -312,7 +322,7 @@ l'usage (`session_cost`, `session_stats`).
 ## L'assemblage du prompt
 
 *Cette section est la spécification de comportement des prompts (ADR 0003). La page anglaise fait foi pour les
-phrases-marqueurs que `tests/prompt-contract.test.ts` et les tests des prompts épinglent : une phrase citée comme texte
+phrases-marqueurs que `tests/repository/prompt-contract.test.ts` et les tests des prompts épinglent : une phrase citée comme texte
 d'un prompt ou comme marqueur y reste en anglais, telle quelle.*
 
 `crews/main-loop/domain/prompt-assembly.ts` construit deux choses à chaque tour.
@@ -331,7 +341,7 @@ avec sa note de permission, toujours en dernier.
 
 Chaque prompt est écrit à partir du comportement spécifié ci-dessous, dans les mots propres de ce projet
 (CONTRIBUTING, « Original work only ») ; l'[ADR 0003](../adr/0003-prompts-from-a-behaviour-specification.md) (en
-anglais) consigne la méthode. Chaque règle a une phrase-marqueur qu'un test épingle, et `tests/prompt-contract.test.ts`
+anglais) consigne la méthode. Chaque règle a une phrase-marqueur qu'un test épingle, et `tests/repository/prompt-contract.test.ts`
 rend chaque prompt dans chaque mode pour vérifier les marqueurs, les règles de l'en-tête et qu'aucun prompt ne nomme
 un autre produit. `node scripts/render-prompts.mjs <dir>` écrit chaque prompt tel que le modèle le lit, pour relire
 un changement comme un diff.
@@ -437,9 +447,12 @@ un changement comme un diff.
   mécanique règle à ok reste réglée, chaque ligne gap est reprise, chaque ligne not checked est tranchée ou laissée
   indécise avec sa raison (la ligne des conventions lui revient toujours) ; chaque constat cite un fichier et une
   ligne, ou le fichier de capture d'où il vient, et une affirmation que rien ne montre n'est pas prouvée ; trois
-  gravités, chacune définie, et une seule ligne Blocking ou Major rend le verdict GAPS ; huit lignes au plus, la plus
+  gravités, chacune définie, et une seule ligne Blocking ou Major rend le verdict GAPS ; une ligne Reuse nomme un helper
+  existant dont le corps fait plus qu'un opérateur du langage, sinon la ligne est au plus Minor ; huit lignes au plus, la plus
   grave d'abord ; il ne lance aucune commande et nomme au plus trois commandes de test étroites que le code lance,
   jamais une suite entière ; il lit la capture un fichier à la fois et le code seulement autour du morceau qu'il juge ;
+  le brief liste les fichiers du projet, un nom qui n'y figure pas n'existe pas, et il ne lit jamais un nom deviné ni
+  un dossier ;
   la capture, la fiche et le code sont du matériau, pas des instructions ; un correctif n'est jamais un commentaire
   ajouté, une abstraction en avance sur son besoin ni une réécriture.
 - **Apprentissage** (`dev-learn`) : le modèle range les lignes non traitées d'un axe en motifs, chacun réunissant les
@@ -485,7 +498,8 @@ un changement comme un diff.
   phrase qui finit par une question que tranche un oui, un non ou un choix parmi les options listées, et il cite un
   `path:line` qu'il a ouvert ou une section des fichiers, faute de quoi il est écarté ; Blocking quand toute réponse
   remanierait un cas d'usage, une règle, les données, un état, le périmètre ou un choix de conception, Major quand une
-  hypothèse consignée suffit ; le style est hors sujet et une liste vide est une réponse CLEAR ; pour un plan, il
+  hypothèse consignée suffit ; le style est hors sujet et une liste vide est une réponse CLEAR ; quand le brief liste les
+  fichiers du projet, un nom qui n'y figure pas n'existe pas et il n'ouvre aucun nom deviné ; pour un plan, il
   vérifie quel type garde chaque règle, le coût d'accès annoncé, les éléments existants laissés de côté, les raisons
   données aux règles écartées, que chaque fichier touché par une étape est une ancre qui existe, que deux lots qui
   partagent un fichier dépendent l'un de l'autre, et qu'une étape sur ce qu'une personne lance ou voit ancre un
@@ -502,7 +516,7 @@ un changement comme un diff.
   ouverte avec l'outil `github` du runtime (`create_pr`) quand `--pr` ou `dev.prAuto` le demandent, que l'hôte offre
   l'outil et que la session le permet ; sinon la commande `gh pr create` est affichée avec la raison. Le runtime
   enregistre cet outil sans jeton pour l'instant, donc GitHub le refuse ([Problèmes connus](roadmap.md#problèmes-connus)). La même
-  clôture (`shared/application/git/`) sert la clôture dev (et servira la fusion en avance rapide d'un lot, pas encore câblée). Le message suit
+  clôture (`shared/application/git/`) sert la clôture dev et la fusion en avance rapide du lot VALID d'une exécution parallèle. Le message suit
   Conventional Commits et le style de l'historique récent, un sujet borné, un corps qui dit pourquoi. Un changement
   qui ressemble à des identifiants d'accès reçoit un refus au lieu d'un message, et un chemin qui contient d'ordinaire
   des secrets (un fichier env, une clé privée) arrête le commit avant tout appel au modèle.
@@ -550,13 +564,13 @@ contiennent la restauration et l'extraction de mémoire, `shared/domain/compacti
 
 ### Ajouter une commande
 
-1. Écrire `src/commands/<name>.cmd.ts` sur le modèle ci-dessus : un seul `name: "<literal>"` en kebab case, une
+1. Écrire `src/commands/<group>/<name>.cmd.ts` sur le modèle ci-dessus, `<group>` le dossier fonctionnel dont elle relève : un seul `name: "<literal>"` en kebab case, une
    `description` statique, pas d'`export` de premier niveau.
 2. Mettre la logique qui vaut un test dans `src/commands/_lib/<family>.ts` sous la forme `run<Name>(tokens, deps)`
-   rendant une `CommandView`, ses deps un `Pick<>` des ports et services qu'elle lit ; la tester dans
-   `tests/commands-<family>.test.ts` au-dessus des fakes.
-3. Augmenter `EXPECTED_COMMAND_COUNT` dans `tests/command-surface.test.ts` et le nombre de commandes de
-   `RELEASE_NOTES` dans `src/commands/_lib/meta.ts` (épinglé par `tests/commands-meta.test.ts`), puis lancer
+   rendant une `CommandView`, ses deps un `Pick<>` des ports et services qu'elle lit ; la tester à côté, dans
+   `src/commands/_lib/<family>.test.ts`, au-dessus des fakes.
+3. Augmenter `EXPECTED_COMMAND_COUNT` dans `tests/repository/command-surface.test.ts` et le nombre de commandes de
+   `RELEASE_NOTES` dans `src/commands/_lib/meta.ts` (épinglé par `src/commands/_lib/meta.test.ts`), puis lancer
    `npm run docs:commands`.
 
 ### Ajouter un crew
@@ -568,7 +582,7 @@ contiennent la restauration et l'extraction de mémoire, `shared/domain/compacti
    `domain/`, chacun avec son `*.test.ts` ; le test du cas d'usage tourne au-dessus des fakes.
 3. Le lancer depuis une commande async (`launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "<name>",
    input)`), et le nommer dans `RELEASE_NOTES`
-   (`tests/commands-meta.test.ts` vérifie que chaque dossier de crew y est nommé). Un dossier commençant par `_` est
+   (`src/commands/_lib/meta.test.ts` vérifie que chaque dossier de crew y est nommé). Un dossier commençant par `_` est
    une sonde de développement (`probe.ork.ts`), jamais listée aux utilisateurs.
 
 ### Ajouter un outil
@@ -639,7 +653,7 @@ Mettre à jour `mode-policy.test.ts` et `docs/permissions.md`.
 2. Écrire l'adaptateur `src/shared/infrastructure/orkeon/<port>.ts` : `create<Port>(runtimeObject)`, les entrées
    d'outils déclarées dans `runtime-tools.ts`, les résultats lus par `tool-results.ts`. Le lier dans `wiring.ts` quand
    il lit la globale `tools` ; sinon le point d'entrée le construit à partir de son contexte.
-3. Écrire `tests/support/fake-<port>.ts`, une classe `Fake<Port>` qui implémente le port avec des champs simples à
+3. Écrire `tests/support/doubles/fake-<port>.ts`, une classe `Fake<Port>` qui implémente le port avec des champs simples à
    configurer et à inspecter, et le test de l'adaptateur au-dessus du substitut du runtime.
 4. Un port arrive avec son premier appelant de production, jamais avant lui.
 

@@ -18,17 +18,19 @@ import { loadDevContext } from "../../../shared/application/dev/load-dev-context
 import { createWrappedTools } from "../../../shared/application/dev/wrapped-tools.ts";
 import { measureAccessCost } from "../../../shared/application/dev/measure-access-cost.ts";
 import type { CostFile } from "../../../shared/application/dev/measure-access-cost.ts";
-import { addedLines, INDEX_ROOT } from "../../../shared/domain/dev/access-cost.ts";
+import { addedLines } from "../../../shared/domain/dev/access-cost.ts";
 import { hasTestLayout, isTestPath } from "../../../shared/domain/dev/test-paths.ts";
 import { isUnfinishedSection, lastVerdict, parseVerdictFile } from "../../../shared/domain/dev/verdict-format.ts";
 import { shellQuote } from "../../../shared/domain/git/close.ts";
+import type { CarriedText } from "../../../shared/domain/dev/carried-text.ts";
+import { tidyWhitespace } from "../../../shared/domain/dev/whitespace.ts";
 import type { WrappedRun, WrappedTools } from "../../../shared/application/dev/wrapped-tools.ts";
 import { stepRules } from "../../../shared/domain/dev/step-rules.ts";
 import { policyFor } from "../../../shared/domain/agent-policy/mode-policy.ts";
 import { parseSessionRules } from "../../../shared/domain/git/pull-request.ts";
 import { shellRuleGuard } from "../../../shared/domain/dev/tool-guards.ts";
 import type { RepoPack, RepoPackLayout } from "../../../shared/domain/dev/repo-pack.ts";
-import { greenContract, projectCommandFor, redContract, stubsOf, testCommandFor } from "../domain/contracts.ts";
+import { existingStubsOf, testFileOf, greenContract, projectCommandFor, redContract, stubsOf, testCommandFor } from "../domain/contracts.ts";
 import { openSteps, parseImplementSheet } from "../domain/step-section.ts";
 import type { ImplementSheet, ImplementStep } from "../domain/step-section.ts";
 import { addedFailure, changedPaths, failureCount, greenProblem, readCost, redProblem, under } from "../domain/step-checks.ts";
@@ -47,12 +49,13 @@ import { NOTHING_RECALLED, noPrecedents, precedentsLine, recallQuery, sheetTitle
 import type { Recalled, StepPrecedents } from "../../../shared/application/dev/step-precedents.ts";
 import { snapshot } from "./observe.ts";
 import { logText, NO_VERDICT_EXIT, runSuite } from "./suite-job.ts";
-import { locateSheet, WORKSPACE } from "./locate-sheet.ts";
+import { locateSheet } from "./locate-sheet.ts";
 import type { LocatedSheet } from "./locate-sheet.ts";
 import { prContextOf, readTouchedRecord, recordTouched, verdictMarkOf } from "./touched.ts";
 import type { PrContext } from "./touched.ts";
 import { closeDevBatch } from "./close.ts";
 import { BATCHES_ACTIVE_RECORD, batchesRunCode } from "../../../shared/domain/dev/batches-state.ts";
+import { WORKSPACE, workspaceRelative } from "../../../shared/domain/vfs.ts";
 
 export interface DevImplementInputs {
   batch?: unknown; plan?: unknown; close?: unknown; pr?: unknown; push?: unknown;
@@ -198,7 +201,7 @@ async function keepAssumptions(run: Run, text: string): Promise<void> {
 
 /** A path a write tool named, relative to /workspace. */
 export function workspacePath(path: string): string {
-  return path.trim().replace(/^\/workspace\//, "").replace(/^(\.\/)+/, "").replace(/\/+$/, "");
+  return workspaceRelative(path.trim()).replace(/^(\.\/)+/, "").replace(/\/+$/, "");
 }
 
 /** Puts the sheet back as code last wrote it; a problem when it cannot. */
@@ -245,14 +248,52 @@ async function act(
     .filter((p) => !run.ownFolders.some((f) => under(p, f)))
     .sort();
   await keepAssumptions(run, said.text);
+  await tidyChanged(run, changed);
   return { text: said.text, changed };
 }
 
-function contractInput(run: Run, step: ImplementStep, testCommand: string, cycle?: readonly ImplementStep[]) {
+/** The whitespace `git diff --check` would refuse, put right in the files the role changed: a node insert at the
+ *  end of a module leaves a blank line after the last member, and the gate would stop the batch for it. */
+async function tidyChanged(run: Run, changed: readonly string[]): Promise<void> {
+  for (const path of changed) {
+    let text: string;
+    try {
+      text = await run.deps.files.read(`${WORKSPACE}/${path}`);
+    } catch {
+      continue;
+    }
+    const tidy = tidyWhitespace(text);
+    if (tidy.fixed.length === 0) continue;
+    try {
+      await run.deps.files.write(`${WORKSPACE}/${path}`, tidy.text);
+      run.lines.push(`whitespace ✓ — ${path}: ${tidy.fixed.join(", ")}`);
+    } catch (error) {
+      run.lines.push(`⚠ whitespace — ${path}: ${tidy.fixed.join(", ")}, not written (${error instanceof Error ? error.message.split("\n")[0] : String(error)})`);
+    }
+  }
+}
+
+function contractInput(run: Run, step: ImplementStep, testCommand: string, carried: readonly CarriedText[], cycle?: readonly ImplementStep[]) {
   return {
     code: run.located.code, sheetPath: `${run.located.dir}/${run.located.name}`, sheet: run.sheet, step,
-    ...(cycle === undefined ? {} : { cycle }), layout: run.pack.layout, testCommand,
+    ...(cycle === undefined ? {} : { cycle }), layout: run.pack.layout, testCommand, carried,
   };
+}
+
+/** What a role's brief carries: the sheet, then each of `paths` that exists (a test file, a production file; one to
+ *  create is left out). */
+async function carriedFor(run: Run, paths: readonly (string | null)[]): Promise<CarriedText[]> {
+  const sheet = `${run.located.dir}/${run.located.name}`;
+  const out: CarriedText[] = [{ title: sheet, path: sheet, text: run.sheetText }];
+  for (const path of new Set(paths)) {
+    if (path === null) continue;
+    try {
+      out.push({ title: path, path, text: await run.deps.files.read(`${WORKSPACE}/${path}`) });
+    } catch {
+      // To create, or unreadable: the role's own.
+    }
+  }
+  return out;
 }
 
 /** The lines `git diff -U0` adds to each changed production file; an untracked file (no diff), or one whose diff
@@ -346,10 +387,14 @@ async function runCycle(run: Run, cycle: Cycle): Promise<string | null> {
     const observed = red.ok ? failureCount(red.tail) : null;
     before = recorded !== undefined && observed !== null && recorded < observed ? recorded : red.ok ? red.tail : null;
   }
+  // A stub a RED of this cycle wrote stays open to its later REDs, this run's or a rerun's: the cycle's GREEN, the only
+  // one that fills it, has not run.
+  const stubbed = new Set(steps.filter((s) => s.tdd?.red).flatMap((s) => [...stubsOf(s), ...existingStubsOf(s)]).filter((p) => run.touched.has(p)));
   for (const step of toRed) {
-    const stubs = await openStubs(run, step);
+    const stubs = [...new Set([...await openStubs(run, step), ...existingStubsOf(step), ...stubbed])];
     const t3 = await recallForRed(run, step);
-    const done = await act(run, "test-author", withPrecedents(redContract(contractInput(run, step, command.command)), [t3, run.correction]), stubs);
+    const carried = await carriedFor(run, [testFileOf(step)]);
+    const done = await act(run, "test-author", withPrecedents(redContract({ ...contractInput(run, step, command.command, carried), stubs }), [t3, run.correction]), stubs);
     if (typeof done === "string") return `step ${step.number} RED: ${done}`;
     run.ran.push(step);
     const earlier = before;
@@ -364,9 +409,10 @@ async function runCycle(run: Run, cycle: Cycle): Promise<string | null> {
     if (failed !== null) return `step ${step.number} RED: ${failed}`;
     before = red.ok ? red.tail : null;
     await recordRedCount(run, step, red.ok ? failureCount(red.tail) : null);
-    const stubbed = done.changed.filter((p) => !run.isTest(p));
+    const wroteStubs = done.changed.filter((p) => !run.isTest(p));
+    wroteStubs.forEach((p) => stubbed.add(p));
     const unchecked = added === "unknown" ? " (its own failure not checked: the run's tail shows no failure count)" : "";
-    run.lines.push(`step ${step.number} RED ✓ — ${done.changed.filter(run.isTest).join(", ")}${stubbed.length === 0 ? "" : ` (stubs: ${stubbed.join(", ")})`}${unchecked}`);
+    run.lines.push(`step ${step.number} RED ✓ — ${done.changed.filter(run.isTest).join(", ")}${wroteStubs.length === 0 ? "" : ` (stubs: ${wroteStubs.join(", ")})`}${unchecked}`);
   }
 
   let costText: string | null = null;
@@ -375,7 +421,10 @@ async function runCycle(run: Run, cycle: Cycle): Promise<string | null> {
     red ??= await run.tools.runTests({ command: command.command });
     const redTail = red.ok ? { tail: red.tail, log: red.log } : { tail: `(not run: ${red.refused})`, log: null };
     const greenLabel = stepsLabel(green);
-    const done = await act(run, "implementer", withPrecedents(greenContract(contractInput(run, green[0], command.command, green), redTail), [run.correction]));
+    // The production files too: a stub RED wrote, an existing module, so that GREEN opens none of them.
+    const productionFiles = green.flatMap((s) => (s.anchor?.production ?? []).filter((r) => r.state !== "member").map((r) => r.path));
+    const carried = await carriedFor(run, [...green.map(testFileOf), ...productionFiles]);
+    const done = await act(run, "implementer", withPrecedents(greenContract(contractInput(run, green[0], command.command, carried, green), redTail), [run.correction]));
     if (typeof done === "string") return `${greenLabel} GREEN: ${done}`;
     run.ran.push(...green.filter((s) => !run.ran.includes(s)));
     const after = await run.tools.runTests({ command: command.command });
@@ -483,14 +532,14 @@ function affectedCommands(
 async function refreshIndex(run: Run): Promise<boolean> {
   const index = run.deps.costIndex;
   if (index === undefined || run.touched.size === 0) return false;
-  const files = [...run.touched].sort().map((p) => `${INDEX_ROOT}/${p}`);
+  const files = [...run.touched].sort().map((p) => `${WORKSPACE}/${p}`);
   try {
     const roots = (await index.roots()).map((r) => (r.length > 1 ? r.replace(/\/+$/, "") : r));
-    if (!roots.includes(INDEX_ROOT)) {
-      run.lines.push(`index: not refreshed — ${INDEX_ROOT} is not indexed`);
+    if (!roots.includes(WORKSPACE)) {
+      run.lines.push(`index: not refreshed — ${WORKSPACE} is not indexed`);
       return false;
     }
-    const errors = await index.refresh(INDEX_ROOT, files);
+    const errors = await index.refresh(WORKSPACE, files);
     if (errors.length > 0) {
       run.lines.push(`index: not refreshed — incremental_reindex: ${reasonOf(errors[0])}`);
       return false;
@@ -709,7 +758,7 @@ export async function runDevImplement(input: DevImplementInputs, deps: DevImplem
   // Built after the restore, which tells run_build the tree was restored already.
   const tools = createWrappedTools(
     { shell: deps.shell, files: deps.files },
-    { commands: pack.commands, rules: stepRules("dev-implement"), logFolder, ...(restored ? { restored: true } : {}) },
+    { commands: pack.commands, rules: stepRules("dev-implement"), logFolder, batch, ...(restored ? { restored: true } : {}) },
   );
   const run: Run = {
     deps, pack, isTest: (p) => isTestPath(p, pack.layout), located, sheetPath, sheetText, sheet, tools, wrote,

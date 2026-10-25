@@ -15,5 +15,5 @@ export const AUDITOR_CHARTER: Charter = {
   mode: "plan",
   tools: AUDITOR_TOOLS,
   disallowed: ["shell_command", "file_write", "rag_ingest"],
-  maxIterations: 30,
+  maxIterations: 12,
 };

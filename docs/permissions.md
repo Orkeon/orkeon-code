@@ -53,7 +53,15 @@ name, and pushes the branch, unless a session rule denies the push. It puts the 
 that chain for each batch of a plan under `/dev-implement`'s rule sets; each batch's close commits without pushing (a
 close typed while the run is in progress too), and the plan's close pushes the branch once, unless a session rule denies
 the push, and opens one pull request (`--pr` or `dev.prAuto`), else hands its command over; on the default branch it
-pushes nothing and hands the push over. `/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement` and `/dev-batches`
+pushes nothing and hands the push over. With `--concurrency` 2 to 4 it runs a wave of batches at once, each in a
+batch agent under its own worktree (`.orkeon/worktrees/<code>-F<n>`, on the branch `batches/<code>/F<n>`): only in
+`bypassPermissions`, since two batches would ask at once, and only where git works inside a batch's worktree (a
+first probe checks it: under Bubblewrap, a runtime older than Orkeon/orkeon#191 does not bind the worktree's git dir),
+and only with all of `.orkeon/` ignored by git (`.gitignore` or `.git/info/exclude`), since the worktrees and the dev state seeded in them live there;
+each refusal is one line, before any batch. Each batch runs under its own budget of tool calls, wall time and tokens; one that stops
+keeps its worktree, its code, sheet and verdict there alone, and the run's last lines name it and the command that
+relaunches it there (`/dev-batches <code> --concurrency <n>`, a GAPS verdict's correction first), for a human to
+decide. `/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement` and `/dev-batches`
 refuse to start in a read-only mode (`plan`, `dontAsk`), in a mode Orkeon Code does not know, and when the session's
 mode cannot be read. All six first put the [rule sets of the dev steps](#rule-sets-of-the-dev-steps)
 in the gate, and refuse to start while the gate is off; their crew's callback checks the same sets again, the only check
@@ -77,6 +85,16 @@ refuses anything else without asking.
 `approve <tool>? [y] once / [s] session / [n] no`. `y` runs the call, `s` also runs every later call of that tool
 without asking until the REPL exits, `n` refuses it, and the model reads the refusal and adapts. A `/` line still
 runs its command while a question waits.
+
+A question from a command running in the background (`/dev-batches`, `/dev-implement`, an `/assistant` run async)
+names its task: `? [t1] dev-batches: tool 'shell_command' requires approval (mode 'acceptEdits').`, the call, then
+`approve shell_command for [t1]? [y] once / [s] session / [n] no`. It shows on the status line and on the task's row
+(`? waits for approval of shell_command`), and you answer it from the main prompt, without opening the task. A line
+that is no answer writes the whole question again (Orkeon #194).
+
+A call to a tool the act does not offer never reaches the gate: the runtime answers it `ERROR: tool '<name>' is not
+available to this agent.` at once, with no question (Orkeon #193), and the dev agents are told to go back to their
+own tools on that error.
 
 Orkeon treats a tool that declares neither a read nor an edit as a write: `http_api` declares an execute and every MCP
 tool declares none, so both are asked about in `default` and `acceptEdits`, and refused in `plan` and `dontAsk`. `web_scrape`, `scrape_element` and `rag_search`
@@ -195,7 +213,7 @@ off. Every step puts all five sets in force:
 | `inline-interpreters` | `shell_command`, `command` | code handed inline to an interpreter, which could run what the other rules refuse |
 | `read-noise` | `path` of `file_read`, `glob`, `grep`, `node_outline`, `node_read`, `count_pattern`, `documents_of`, `directory_search` | a read under a `bin/`, `obj/`, `.git/` or `node_modules/` folder, anywhere in the project |
 | `secrets` | the written text: `file_write` `content`, `edit_file` `new_string`, `text` of `node_replace`, `node_insert` and `node_ensure`, `name` and `module` of `node_ensure`, `structural_rewrite` `fix`; each `edit_batch` operation's `text`, by the callback | content that holds a private key block or a token with a known prefix |
-| `state-files` | `path` of `file_write`, `edit_file`, `node_replace`, `node_insert`, `node_ensure`, each `edit_batch` operation's `path` by the callback; `structural_rewrite` whole | a file only Orkeon Code's own code writes: the batch logs, states and verdicts, the audit captures, `.orkeon/` and `.claude/` |
+| `state-files` | `path` of `file_write`, `edit_file`, `node_replace`, `node_insert`, `node_ensure`, each `edit_batch` operation's `path` by the callback; `structural_rewrite` whole | a file only Orkeon Code's own code writes: the batch logs, states and verdicts, the audit captures, `.orkeon/` (but `worktrees/`) and `.claude/` |
 
 `git-readonly` holds 218 rules, three for most of the verbs `add`, `am`, `apply`, `branch`, `checkout`, `cherry-pick`,
 `clean`, `commit`, `fetch`, `filter-branch`, `gc`, `merge`, `mv`, `notes`, `pull`, `push`, `rebase`, `reflog`,
@@ -290,8 +308,19 @@ deny file_write path=*-BATCHES-STATE.md
 deny file_write path=*-STATE-F*.md
 deny file_write path=*-VERIFY-F*.md
 deny file_write path=*/capture-F*/*
-deny file_write path=*/.orkeon/*
-deny file_write path=.orkeon/*
+deny file_write path=*.orkeon/dev*
+deny file_write path=*.orkeon/memory*
+deny file_write path=*.orkeon/agent*
+deny file_write path=*.orkeon/sessions*
+deny file_write path=*.orkeon/hooks*
+deny file_write path=*.orkeon/shared*
+deny file_write path=*.orkeon/repo*
+deny file_write path=*.orkeon/config*
+deny file_write path=*.orkeon/state*
+deny file_write path=*.orkeon/orkeon*
+deny file_write path=*.orkeon/ORKEON_*
+deny file_write path=*.orkeon/forge*
+deny file_write path=*.orkeon/rag*
 deny file_write path=*/.claude/*
 deny file_write path=.claude/*
 ```
@@ -304,8 +333,8 @@ the inline forms of `node`, `python`, `python3` and a versioned `python3.12`, `p
 `python3 -m pytest -c pytest.ini` and a versioned `python3.12 x.py -c` are refused too. Since a rule reads `sh -c` at the end of any word, `ssh -c <cipher>` is refused too.
 
 The three file sets repeat their patterns on every tool of their row, tool by tool: `read-noise` holds 64 rules (8
-patterns on 8 tools, on `path`), `secrets` 128 (16 patterns on 8 written arguments of 6 tools), `state-files` 41 (8
-patterns on 5 tools, on `path`, then `deny structural_rewrite`). A step holds 479 rules (481 with the two allow rules of `/dev-implement`). The gate cannot read the
+patterns on 8 tools, on `path`), `secrets` 128 (16 patterns on 8 written arguments of 6 tools), `state-files` 96 (19
+patterns on 5 tools, on `path`, then `deny structural_rewrite`; `.orkeon/` entry by entry, all but `worktrees/`, where a parallel `/dev-batches` runs its batches). A step holds 534 rules (536 with the two allow rules of `/dev-implement`). The gate cannot read the
 paths or the text inside `edit_batch` and `structural_rewrite`. `structural_rewrite` is refused whole. `edit_batch` is
 left to the crews' callback, which runs on every act of a step: it reads each operation as the editor it stands for
 and applies the sets and the role's rules to it, and refuses a batch with no operations, an operation without a

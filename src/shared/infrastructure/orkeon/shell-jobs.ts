@@ -8,11 +8,14 @@
 // given seconds (`.orkeon/dev/bin/wait.mjs`, written at the first wait). Without
 // node or interpreters, that run fails once and every later wait says false at once,
 // so the caller falls back to a blocking run.
+//
+// Given a batch's working root, the jobs run there, as the Shell adapter's commands do.
 
 import type { ShellJobs } from "../../application/ports.ts";
+import { textFromRoot, textToRoot } from "../../domain/dev/path-rebase.ts";
 import { pick, shCode } from "./tool-results.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
-const WORKING_DIRECTORY = "/workspace";
 /** The waiting script, relative to /workspace, and its virtual path. */
 export const WAIT_SCRIPT = ".orkeon/dev/bin/wait.mjs";
 const WAIT_SCRIPT_CONTENT =
@@ -22,27 +25,28 @@ const WAIT_SCRIPT_CONTENT =
 /** job_tail's own ceiling. */
 const MAX_TAIL_LINES = 500;
 
-export function createShellJobs(tools: Pick<OrkeonTools, "shellCommand" | "fileWrite">): ShellJobs {
+export function createShellJobs(tools: Pick<OrkeonTools, "shellCommand" | "fileWrite">, root?: string): ShellJobs {
+  const cwd = root ?? WORKSPACE;
   let waiter: "unknown" | "ready" | "absent" = "unknown";
   return {
     async start(command) {
       if (command.trim() === "") throw new Error("a shell job needs a command");
-      const r = await tools.shellCommand({ action: "start_job", command, working_directory: WORKING_DIRECTORY });
+      const r = await tools.shellCommand({ action: "start_job", command: textToRoot(command, root), working_directory: cwd });
       const id = String(pick(r, "job_id", "jobId", "JobId") ?? "");
       if (id === "") throw new Error(`start_job answered no job id for: ${command}`);
       return { id, log: String(pick(r, "output_path", "outputPath", "OutputPath") ?? "") };
     },
     async status(id) {
-      const r = await tools.shellCommand({ action: "job_status", command: "", job_id: id, working_directory: WORKING_DIRECTORY });
+      const r = await tools.shellCommand({ action: "job_status", command: "", job_id: id, working_directory: cwd });
       const status = String(pick(r, "status", "Status") ?? "");
       return { running: status === "running", exitCode: status === "running" ? -1 : shCode(r) };
     },
     async tail(id, lines) {
       const count = Math.max(1, Math.min(MAX_TAIL_LINES, Math.floor(lines)));
       const r = await tools.shellCommand({
-        action: "job_tail", command: "", job_id: id, tail_lines: count, working_directory: WORKING_DIRECTORY,
+        action: "job_tail", command: "", job_id: id, tail_lines: count, working_directory: cwd,
       });
-      return String(pick(r, "tail", "Tail") ?? "");
+      return textFromRoot(String(pick(r, "tail", "Tail") ?? ""), root);
     },
     async wait(seconds) {
       if (!(Number.isInteger(seconds) && seconds >= 1)) {
@@ -51,10 +55,10 @@ export function createShellJobs(tools: Pick<OrkeonTools, "shellCommand" | "fileW
       if (waiter === "absent") return false;
       try {
         if (waiter === "unknown") {
-          await tools.fileWrite({ path: `${WORKING_DIRECTORY}/${WAIT_SCRIPT}`, content: WAIT_SCRIPT_CONTENT });
+          await tools.fileWrite({ path: `${cwd}/${WAIT_SCRIPT}`, content: WAIT_SCRIPT_CONTENT });
         }
         const r = await tools.shellCommand({
-          command: `node ${WAIT_SCRIPT} ${seconds}`, working_directory: WORKING_DIRECTORY, timeout_seconds: seconds + 30,
+          command: `node ${WAIT_SCRIPT} ${seconds}`, working_directory: cwd, timeout_seconds: seconds + 30,
         });
         if (shCode(r) !== 0) {
           waiter = "absent";

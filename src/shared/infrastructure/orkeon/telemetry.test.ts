@@ -5,116 +5,135 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, rejects } from "node:assert";
 
 import { createTelemetry } from "./telemetry.ts";
-import { FakeTools } from "../../../../tests/support/fake-tools.ts";
+import { FakeTools } from "../../../../tests/support/doubles/fake-tools.ts";
+import {
+  CACHE_COUNTS, PASCAL_METADATA, PASCAL_METADATA_REPLY, STATS, STATS_REPLY, UNREPORTED_METADATA, UNREPORTED_STATS,
+} from "./telemetry.fixtures.ts";
 
 describe("createTelemetry — metadata", () => {
   it("reads the PascalCase record of get_metadata", async () => {
+    // Arrange
     const tools = new FakeTools();
-    tools.replies.sessionStore = {
-      success: true,
-      metadata: {
-        Title: "fix the parser", Model: "deepseek-chat", MessageCount: 4, EstimatedTokens: 1200,
-        AvailableModels: ["deepseek-chat", " deepseek-reasoner ", "DEEPSEEK-CHAT"],
-      },
-    };
-    deepStrictEqual(await createTelemetry(tools).readMetadata(), {
-      title: "fix the parser",
-      model: "deepseek-chat",
-      messageCount: 4,
-      estimatedTokens: 1200,
-      availableModels: ["deepseek-chat", "deepseek-reasoner"],
-    });
+    tools.replies.sessionStore = PASCAL_METADATA_REPLY;
+
+    // Act
+    const metadata = await createTelemetry(tools).readMetadata();
+
+    // Assert
+    deepStrictEqual(metadata, PASCAL_METADATA);
     deepStrictEqual(tools.inputsOf("sessionStore"), [{ operation: "get_metadata" }]);
   });
 
   it("reads camelCase and snake_case fields under a PascalCase `Metadata`", async () => {
+    // Arrange
     const tools = new FakeTools();
     tools.replies.sessionStore = {
       Metadata: { title: "t", model: "m", message_count: 2, estimatedTokens: 9, available_models: ["m"] },
     };
-    deepStrictEqual(await createTelemetry(tools).readMetadata(), {
-      title: "t", model: "m", messageCount: 2, estimatedTokens: 9, availableModels: ["m"],
-    });
+
+    // Act
+    const metadata = await createTelemetry(tools).readMetadata();
+
+    // Assert
+    deepStrictEqual(metadata, { title: "t", model: "m", messageCount: 2, estimatedTokens: 9, availableModels: ["m"] });
   });
 
   it("reads unreported and null fields as undefined, and no declared model as []", async () => {
+    // Arrange
     const tools = new FakeTools();
     tools.replies.sessionStore = { metadata: { Title: null, Model: null } };
-    deepStrictEqual(await createTelemetry(tools).readMetadata(), {
-      title: undefined, model: undefined, messageCount: undefined, estimatedTokens: undefined, availableModels: [],
-    });
+
+    // Act
+    const metadata = await createTelemetry(tools).readMetadata();
+
+    // Assert
+    deepStrictEqual(metadata, UNREPORTED_METADATA);
   });
 
   it("lets a failed call throw", async () => {
+    // Arrange
     const tools = new FakeTools();
     tools.replies.sessionStore = new Error("no session_store tool");
-    await rejects(createTelemetry(tools).readMetadata(), /no session_store tool/);
+
+    // Act
+    const act = createTelemetry(tools).readMetadata();
+
+    // Assert
+    await rejects(act, /no session_store tool/);
   });
 });
 
 describe("createTelemetry — cost and stats", () => {
   it("reads the snake_case counters of session_cost", async () => {
+    // Arrange
     const tools = new FakeTools();
     tools.replies.sessionCost = { total_cost_usd: 0.0123, total_tokens: 4000, total_calls: 3, by_model: {} };
-    deepStrictEqual(await createTelemetry(tools).readCost(), { costUsd: 0.0123, totalTokens: 4000, totalCalls: 3 });
+
+    // Act
+    const cost = await createTelemetry(tools).readCost();
+
+    // Assert
+    deepStrictEqual(cost, { costUsd: 0.0123, totalTokens: 4000, totalCalls: 3 });
   });
 
   it("reads camelCase counters", async () => {
+    // Arrange
     const tools = new FakeTools();
     tools.replies.sessionCost = { totalCostUsd: 1, totalTokens: 2, totalCalls: 3 };
-    deepStrictEqual(await createTelemetry(tools).readCost(), { costUsd: 1, totalTokens: 2, totalCalls: 3 });
+
+    // Act
+    const cost = await createTelemetry(tools).readCost();
+
+    // Assert
+    deepStrictEqual(cost, { costUsd: 1, totalTokens: 2, totalCalls: 3 });
   });
 
   it("reads the counters of session_stats, the cache hits when reported", async () => {
+    // Arrange
     const tools = new FakeTools();
-    tools.replies.sessionStats = {
-      message_count: 6, estimated_tokens: 800, total_cost_usd: 0.5, total_tokens: 900, total_calls: 2,
-      prompt_cache_hit_tokens: 300, by_model: {},
-    };
-    deepStrictEqual(await createTelemetry(tools).readStats(), {
-      costUsd: 0.5, totalTokens: 900, totalCalls: 2, messageCount: 6, estimatedTokens: 800, cacheHitTokens: 300,
-      cacheWriteTokens: undefined,
+    tools.replies.sessionStats = STATS_REPLY;
+
+    // Act
+    const stats = await createTelemetry(tools).readStats();
+
+    // Assert
+    deepStrictEqual(stats, STATS);
+  });
+
+  for (const c of CACHE_COUNTS) {
+    it(c.name, async () => {
+      // Arrange
+      const tools = new FakeTools();
+      tools.replies.sessionStats = c.reply;
+
+      // Act
+      const s = await createTelemetry(tools).readStats();
+
+      // Assert
+      deepStrictEqual([s.cacheHitTokens, s.cacheWriteTokens], c.expected);
     });
-  });
-
-  it("sums the cache read and write tokens of every model (RT-12), over the older hit figure", async () => {
-    const tools = new FakeTools();
-    tools.replies.sessionStats = {
-      total_calls: 2, prompt_cache_hit_tokens: 999,
-      by_model_tokens: [
-        { model: "a", prompt_tokens: 1000, completion_tokens: 10, cache_read_tokens: 600, cache_write_tokens: 50 },
-        { model: "b", prompt_tokens: 500, completion_tokens: 5, cache_read_tokens: 100, cache_write_tokens: 0 },
-      ],
-    };
-    const s = await createTelemetry(tools).readStats();
-    deepStrictEqual([s.cacheHitTokens, s.cacheWriteTokens], [700, 50]);
-  });
-
-  it("reads the PascalCase entries, and zero as reported", async () => {
-    const tools = new FakeTools();
-    tools.replies.sessionStats = { byModelTokens: [{ Model: "a", cacheReadTokens: 0, cacheWriteTokens: 0 }] };
-    const s = await createTelemetry(tools).readStats();
-    deepStrictEqual([s.cacheHitTokens, s.cacheWriteTokens], [0, 0]);
-  });
-
-  it("leaves the cache counts unreported when no model entry carries them", async () => {
-    const tools = new FakeTools();
-    tools.replies.sessionStats = { by_model_tokens: [{ model: "a", prompt_tokens: 3 }] };
-    const s = await createTelemetry(tools).readStats();
-    deepStrictEqual([s.cacheHitTokens, s.cacheWriteTokens], [undefined, undefined]);
-  });
+  }
 
   it("reads an empty result as unreported counters", async () => {
+    // Arrange
     const tools = new FakeTools();
-    deepStrictEqual(await createTelemetry(tools).readStats(), {
-      costUsd: undefined, totalTokens: undefined, totalCalls: undefined,
-      messageCount: undefined, estimatedTokens: undefined, cacheHitTokens: undefined, cacheWriteTokens: undefined,
-    });
+
+    // Act
+    const stats = await createTelemetry(tools).readStats();
+
+    // Assert
+    deepStrictEqual(stats, UNREPORTED_STATS);
   });
 
   it("lets a failed call throw", async () => {
+    // Arrange
     const tools = new FakeTools();
     tools.replies.sessionStats = new Error("no session_stats tool");
-    await rejects(createTelemetry(tools).readStats(), /no session_stats tool/);
+
+    // Act
+    const act = createTelemetry(tools).readStats();
+
+    // Assert
+    await rejects(act, /no session_stats tool/);
   });
 });

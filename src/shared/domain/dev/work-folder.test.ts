@@ -7,111 +7,220 @@ import {
   DEFAULT_WORK_FOLDER, DEV_WORK_DIR_CONFIG_KEY, isSamePath, mainWorktreeOf, normalizeWorkDir,
   pickWorkDirRequest, workFolderProblem,
 } from "./work-folder.ts";
+import {
+  EMPTY_VALUES, LISTINGS, LOOK_ALIKES, NEITHER_SET, NOT_LISTINGS, PACK_FALLBACKS, PATH_PAIRS, PROBLEMS, REFUSED,
+  REFUSED_IN_ORDER, STRIPPED, VALID_VALUES,
+} from "./work-folder.fixtures.ts";
 
 describe("normalizeWorkDir", () => {
-  it("strips control whitespace, blanks, leading ./ and trailing /", () => {
-    deepStrictEqual(normalizeWorkDir(" ./backstage/tasks/ \t"), { ok: true, folder: "backstage/tasks" });
-    deepStrictEqual(normalizeWorkDir("./././notes//"), { ok: true, folder: "notes" });
-    deepStrictEqual(normalizeWorkDir("back\nstage"), { ok: true, folder: "backstage" });
-  });
+  for (const c of STRIPPED) {
+    it(`strips control whitespace, blanks, leading ./ and trailing /: ${JSON.stringify(c.raw)}`, () => {
+      // Arrange
+      const { raw } = c;
 
-  it("gives an empty folder for an empty value", () => {
-    for (const raw of ["", "   ", "./", "\t\r\n", "./ "]) {
-      deepStrictEqual(normalizeWorkDir(raw), { ok: true, folder: "" }, JSON.stringify(raw));
-    }
-  });
+      // Act
+      const result = normalizeWorkDir(raw);
 
-  it("refuses what is not a relative folder of the checkout, with the reason", () => {
-    const cases: Array<[string, string]> = [
-      ["/abs", "an absolute path"],
-      ["/", "an absolute path"],
-      ["a//b", "an empty segment"],
-      ["..", "a '..' or '.' segment"],
-      ["a/../b", "a '..' or '.' segment"],
-      ["../x", "a '..' or '.' segment"],
-      [".", "a '..' or '.' segment"],
-      ["./.", "a '..' or '.' segment"],
-      ["a/./b", "a '..' or '.' segment"],
-      [".claude", "under .claude/ or .git/"],
-      [".claude/x", "under .claude/ or .git/"],
-      [".git", "under .claude/ or .git/"],
-      ["a\u0007b", "a non-printable character"],
-      ["a​b", "a non-printable character"],
-    ];
-    for (const [raw, reason] of cases) {
-      deepStrictEqual(normalizeWorkDir(raw), { ok: false, reason }, JSON.stringify(raw));
-    }
-  });
+      // Assert
+      deepStrictEqual(result, { ok: true, folder: c.folder });
+    });
+  }
 
-  it("checks the refusals in order", () => {
-    deepStrictEqual(normalizeWorkDir("/a//b"), { ok: false, reason: "an absolute path" });
-    deepStrictEqual(normalizeWorkDir("a//.."), { ok: false, reason: "an empty segment" });
-    deepStrictEqual(normalizeWorkDir(".git/.."), { ok: false, reason: "a '..' or '.' segment" });
-  });
+  for (const raw of EMPTY_VALUES) {
+    it(`gives an empty folder for an empty value: ${JSON.stringify(raw)}`, () => {
+      // Arrange
+      const value = raw;
+
+      // Act
+      const result = normalizeWorkDir(value);
+
+      // Assert
+      deepStrictEqual(result, { ok: true, folder: "" }, JSON.stringify(raw));
+    });
+  }
+
+  for (const c of REFUSED) {
+    it(`refuses what is not a relative folder of the checkout, with the reason: ${JSON.stringify(c.raw)}`, () => {
+      // Arrange
+      const { raw } = c;
+
+      // Act
+      const result = normalizeWorkDir(raw);
+
+      // Assert
+      deepStrictEqual(result, { ok: false, reason: c.reason }, JSON.stringify(raw));
+    });
+  }
+
+  for (const c of REFUSED_IN_ORDER) {
+    it(`checks the refusals in order: ${JSON.stringify(c.raw)}`, () => {
+      // Arrange
+      const { raw } = c;
+
+      // Act
+      const result = normalizeWorkDir(raw);
+
+      // Assert
+      deepStrictEqual(result, { ok: false, reason: c.reason });
+    });
+  }
 
   it("refuses a non-breaking space, as Python's isprintable does", () => {
-    deepStrictEqual(normalizeWorkDir("a\u00A0b"), { ok: false, reason: "a non-printable character" });
+    // Arrange
+    const raw = "a\u00A0b";
+
+    // Act
+    const result = normalizeWorkDir(raw);
+
+    // Assert
+    deepStrictEqual(result, { ok: false, reason: "a non-printable character" });
   });
 
-  it("accepts a folder only named like the guarded ones", () => {
-    deepStrictEqual(normalizeWorkDir("docs/.claude"), { ok: true, folder: "docs/.claude" });
-    deepStrictEqual(normalizeWorkDir(".claudette"), { ok: true, folder: ".claudette" });
-  });
+  for (const folder of LOOK_ALIKES) {
+    it(`accepts a folder only named like the guarded ones: ${folder}`, () => {
+      // Arrange
+      const raw = folder;
+
+      // Act
+      const result = normalizeWorkDir(raw);
+
+      // Assert
+      deepStrictEqual(result, { ok: true, folder });
+    });
+  }
 });
 
 describe("workFolderProblem", () => {
-  it("is undefined for a valid or empty value", () => {
-    strictEqual(workFolderProblem("backstage/tasks"), undefined);
-    strictEqual(workFolderProblem(""), undefined);
-  });
-  it("names the value and the reason", () => {
-    strictEqual(workFolderProblem("/srv/work"), "'/srv/work' is not a relative folder of the checkout: an absolute path");
-    strictEqual(workFolderProblem(".git/x"), "'.git/x' is not a relative folder of the checkout: under .claude/ or .git/");
-  });
+  for (const raw of VALID_VALUES) {
+    it(`is undefined for a valid or empty value: ${JSON.stringify(raw)}`, () => {
+      // Arrange
+      const value = raw;
+
+      // Act
+      const problem = workFolderProblem(value);
+
+      // Assert
+      strictEqual(problem, undefined);
+    });
+  }
+
+  for (const c of PROBLEMS) {
+    it(`names the value and the reason: ${c.raw}`, () => {
+      // Arrange
+      const { raw } = c;
+
+      // Act
+      const problem = workFolderProblem(raw);
+
+      // Assert
+      strictEqual(problem, c.problem);
+    });
+  }
 });
 
 describe("pickWorkDirRequest", () => {
   it("prefers the config key", () => {
-    deepStrictEqual(pickWorkDirRequest("todo", "backstage/tasks"), { value: "todo", source: "dev.workDir" });
+    // Arrange
+    const config = "todo";
+
+    // Act
+    const request = pickWorkDirRequest(config, "backstage/tasks");
+
+    // Assert
+    deepStrictEqual(request, { value: "todo", source: "dev.workDir" });
   });
-  it("falls to the pack when the config is unset or blank", () => {
-    deepStrictEqual(pickWorkDirRequest(undefined, "backstage/tasks"), { value: "backstage/tasks", source: "layout.work" });
-    deepStrictEqual(pickWorkDirRequest("  ", "backstage/tasks"), { value: "backstage/tasks", source: "layout.work" });
-  });
+
+  for (const c of PACK_FALLBACKS) {
+    it(`falls to the pack when the config is unset or blank: ${c.name}`, () => {
+      // Arrange
+      const { config, pack } = c;
+
+      // Act
+      const request = pickWorkDirRequest(config, pack);
+
+      // Assert
+      deepStrictEqual(request, { value: "backstage/tasks", source: "layout.work" });
+    });
+  }
+
   it("keeps an invalid value set: the first set source decides", () => {
-    deepStrictEqual(pickWorkDirRequest("/abs", "backstage/tasks"), { value: "/abs", source: "dev.workDir" });
+    // Arrange
+    const config = "/abs";
+
+    // Act
+    const request = pickWorkDirRequest(config, "backstage/tasks");
+
+    // Assert
+    deepStrictEqual(request, { value: "/abs", source: "dev.workDir" });
   });
-  it("is null when neither is set", () => {
-    strictEqual(pickWorkDirRequest(undefined, undefined), null);
-    strictEqual(pickWorkDirRequest("", " \t"), null);
-  });
+
+  for (const c of NEITHER_SET) {
+    it(`is null when neither is set: ${c.name}`, () => {
+      // Arrange
+      const { config, pack } = c;
+
+      // Act
+      const request = pickWorkDirRequest(config, pack);
+
+      // Assert
+      strictEqual(request, null);
+    });
+  }
 });
 
 describe("mainWorktreeOf", () => {
-  it("reads the first worktree of the porcelain listing", () => {
-    const porcelain = "worktree /workspace\nHEAD 0123abc\nbranch refs/heads/main\n\n"
-      + "worktree /workspace/.claude/worktrees/p2\nHEAD 4567def\nbranch refs/heads/p2\n";
-    strictEqual(mainWorktreeOf(porcelain), "/workspace");
-    strictEqual(mainWorktreeOf("worktree /home/me/repo\r\nHEAD x\r\n"), "/home/me/repo");
-  });
-  it("is null on anything else", () => {
-    strictEqual(mainWorktreeOf(""), null);
-    strictEqual(mainWorktreeOf("worktree \n"), null);
-    strictEqual(mainWorktreeOf("fatal: not a git repository\n"), null);
-  });
+  for (const c of LISTINGS) {
+    it(`reads the first worktree of the porcelain listing: ${c.name}`, () => {
+      // Arrange
+      const { listing } = c;
+
+      // Act
+      const main = mainWorktreeOf(listing);
+
+      // Assert
+      strictEqual(main, c.main);
+    });
+  }
+
+  for (const c of NOT_LISTINGS) {
+    it(`is null on anything else: ${c.name}`, () => {
+      // Arrange
+      const { listing } = c;
+
+      // Act
+      const main = mainWorktreeOf(listing);
+
+      // Assert
+      strictEqual(main, null);
+    });
+  }
 });
 
 describe("isSamePath", () => {
-  it("ignores trailing slashes only", () => {
-    strictEqual(isSamePath("/workspace", "/workspace/"), true);
-    strictEqual(isSamePath("/workspace//", "/workspace"), true);
-    strictEqual(isSamePath("/workspace", "/workspace2"), false);
-  });
+  for (const c of PATH_PAIRS) {
+    it(`ignores trailing slashes only: ${c.a} and ${c.b}`, () => {
+      // Arrange
+      const { a, b } = c;
+
+      // Act
+      const same = isSamePath(a, b);
+
+      // Assert
+      strictEqual(same, c.same);
+    });
+  }
 });
 
 describe("constants", () => {
   it("names the default folder and the config key", () => {
-    strictEqual(DEFAULT_WORK_FOLDER, "workbench");
-    strictEqual(DEV_WORK_DIR_CONFIG_KEY, "dev.workDir");
+    // Arrange
+    const expected = { folder: "workbench", key: "dev.workDir" };
+
+    // Act
+    const [folder, key] = [DEFAULT_WORK_FOLDER, DEV_WORK_DIR_CONFIG_KEY];
+
+    // Assert
+    strictEqual(folder, expected.folder);
+    strictEqual(key, expected.key);
   });
 });

@@ -1,6 +1,7 @@
 // The build or the whole suite at the end of a batch, run as a shell job so that no shell timeout
-// cuts it: started, looked at every SLICE_SECONDS, up to the suite's limit, then the tail of its log
-// (500 lines) written to the batch's log and 15 lines passed on. Where code cannot wait (no node,
+// cuts it: started, looked at after 1 s, then a wait twice as long each time up to SLICE_SECONDS (a
+// suite of a second is seen ended in a second or two, not a slice later), up to the suite's limit,
+// then the tail of its log (500 lines) written to the batch's log and 15 lines passed on. Where code cannot wait (no node,
 // interpreters off), the job cannot start or its first look fails, the suite runs blocking with the same
 // limit. A suite past its limit gives no verdict: it is left to the end of the run, which stops it.
 //
@@ -108,9 +109,10 @@ export async function runSuite(
       const text = logText(req.command, [`job ${job.id} still running after ${seconds} s: no verdict (exit=${NO_VERDICT_EXIT} below); its log at ${job.log}`], "", NO_VERDICT_EXIT);
       return { status: "running", seconds, log: await writeLog(deps.files, req.log, text), text };
     }
-    if (!(await deps.jobs.wait(req.sliceSeconds))) {
+    const slice = Math.min(req.sliceSeconds, 2 ** looks, req.limitSeconds - seconds);
+    if (!(await deps.jobs.wait(slice))) {
       return lost(deps, req, `code could no longer wait on job ${job.id}`);
     }
-    seconds += req.sliceSeconds;
+    seconds += slice;
   }
 }

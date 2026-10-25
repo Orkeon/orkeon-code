@@ -4,38 +4,67 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, throws } from "node:assert";
 
 import { createCrewHost } from "./crew-host.ts";
-import { FakeScriptHost, FakeServiceLocator } from "../../../../tests/support/fake-script-host.ts";
-
-function setup() {
-  const host = new FakeScriptHost();
-  const services = new FakeServiceLocator();
-  services.services.set("script-host", host);
-  return { host, services, crews: createCrewHost(services) };
-}
+import { FakeServiceLocator } from "../../../../tests/support/doubles/fake-script-host.ts";
+import { crewHostOverFake } from "./crew-host.fixtures.ts";
 
 describe("createCrewHost — listing", () => {
   it("lists the crews the host discovered", () => {
-    const { host, crews } = setup();
+    // Arrange
+    const { host, crews } = crewHostOverFake();
     host.crews = ["main-loop", "git-commit"];
-    deepStrictEqual(crews.listCrews(), ["main-loop", "git-commit"]);
+
+    // Act
+    const listed = crews.listCrews();
+
+    // Assert
+    deepStrictEqual(listed, ["main-loop", "git-commit"]);
   });
 
-  it("lists nothing when the host has no script-host, or its listing throws", () => {
-    deepStrictEqual(createCrewHost(new FakeServiceLocator()).listCrews(), []);
-    const { host, crews } = setup();
+  it("lists nothing when the host has no script-host", () => {
+    // Arrange
+    const crews = createCrewHost(new FakeServiceLocator());
+
+    // Act
+    const listed = crews.listCrews();
+
+    // Assert
+    deepStrictEqual(listed, []);
+  });
+
+  it("lists nothing when the host's listing throws", () => {
+    // Arrange
+    const { host, crews } = crewHostOverFake();
     host.listFailure = new Error("crews dir unreadable");
-    deepStrictEqual(crews.listCrews(), []);
+
+    // Act
+    const listed = crews.listCrews();
+
+    // Assert
+    deepStrictEqual(listed, []);
   });
 });
 
 describe("createCrewHost — launching", () => {
   it("starts the crew with its input and returns the ticket", () => {
-    const { host, crews } = setup();
-    strictEqual(crews.launch("git-commit", { permissionMode: "acceptEdits" }), "ticket-1");
+    // Arrange
+    const { host, crews } = crewHostOverFake();
+
+    // Act
+    const ticket = crews.launch("git-commit", { permissionMode: "acceptEdits" });
+
+    // Assert
+    strictEqual(ticket, "ticket-1");
     deepStrictEqual(host.launches, [{ name: "git-commit", input: { permissionMode: "acceptEdits" } }]);
   });
 
   it("throws when the host cannot run crews", () => {
-    throws(() => createCrewHost(new FakeServiceLocator()).launch("main-loop", {}));
+    // Arrange
+    const crews = createCrewHost(new FakeServiceLocator());
+
+    // Act
+    const act = () => crews.launch("main-loop", {});
+
+    // Assert
+    throws(act);
   });
 });

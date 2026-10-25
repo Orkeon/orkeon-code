@@ -9,6 +9,7 @@
 
 import { gateLine, sameCalls } from "./permission.ts";
 import type { PermissionRule } from "./permission.ts";
+import { WORKSPACE, workspaceRelative } from "../vfs.ts";
 
 export type RuleSetId = "git-readonly" | "inline-interpreters" | "read-noise" | "secrets" | "state-files";
 
@@ -219,6 +220,15 @@ function denyWhole(tools: readonly string[]): PermissionRule[] {
 }
 
 /** The same patterns on `argument` of each tool, tool by tool. */
+/** The entries of `.orkeon/` that Orkeon Code's code or the runtime write, each as the start of a name: every one
+ *  but `worktrees/`, where a parallel /dev-batches runs each batch, its writes those of a project (the state seeded
+ *  in a worktree stays refused: its path holds `.orkeon/dev` again). A `*` spans `/`, so no pattern can refuse
+ *  `.orkeon/*` and spare `worktrees/`: a new entry of the folder is named here. `*.orkeon/` covers the path in and
+ *  out of the project's root. */
+const STATE_ENTRIES: readonly string[] = [
+  "dev", "memory", "agent", "sessions", "hooks", "shared", "repo", "config", "state", "orkeon", "ORKEON_", "forge", "rag",
+];
+
 function denyEach(tools: readonly string[], argument: string, patterns: readonly string[]): PermissionRule[] {
   return tools.flatMap((tool) => denyAll(tool, argument, patterns));
 }
@@ -275,11 +285,11 @@ export const RULE_SETS: Readonly<Record<RuleSetId, RuleSet>> = {
   "state-files": {
     id: "state-files",
     title: "files only Orkeon Code's own code writes",
-    // Batch logs, batch states, verdicts and audit captures; the state folder; the harness's deployed files.
+    // Batch logs, batch states, verdicts and audit captures; the state folder's entries; the harness's deployed files.
     rules: [
       ...denyEach(PATH_WRITE_TOOLS, "path", [
         "*-BATCHES-STATE.md", "*-STATE-F*.md", "*-VERIFY-F*.md", "*/capture-F*/*",
-        "*/.orkeon/*", ".orkeon/*", "*/.claude/*", ".claude/*",
+        ...STATE_ENTRIES.map((entry) => `*.orkeon/${entry}*`), "*/.claude/*", ".claude/*",
       ]),
       ...denyWhole(UNSCOPED_WRITE_TOOLS),
     ],
@@ -299,13 +309,11 @@ export function rulesOf(ids: readonly RuleSetId[]): PermissionRule[] {
 /** Deny rules on the folders `roots` for the tools of one access, and why a root got none. */
 export interface PathRules { rules: PermissionRule[]; problems: string[] }
 
-const PROJECT = "/workspace";
-
 /** A root as a path relative to the project: no `/workspace/` or `./` in front, no `/` behind. */
 function normaliseRoot(raw: string): string {
   let root = raw.trim();
-  if (root === PROJECT) root = "";
-  if (root.startsWith(`${PROJECT}/`)) root = root.slice(PROJECT.length + 1);
+  if (root === WORKSPACE) root = "";
+  root = workspaceRelative(root);
   while (root.startsWith("./")) root = root.slice(2);
   while (root.endsWith("/")) root = root.slice(0, -1);
   return root;
@@ -313,7 +321,7 @@ function normaliseRoot(raw: string): string {
 
 function rootProblem(raw: string, root: string): string | undefined {
   if (root === "") return `root '${raw}' names the whole project: no rule`;
-  if (root.startsWith("/")) return `root '${raw}' is outside ${PROJECT}: no rule`;
+  if (root.startsWith("/")) return `root '${raw}' is outside ${WORKSPACE}: no rule`;
   if (root.split("/").includes("..")) return `root '${raw}' climbs out with '..': no rule`;
   if (root.includes("*")) return `root '${raw}' holds '*': a rule on it would cover more than the folder`;
   return undefined;
@@ -337,8 +345,8 @@ export function pathRules(access: "read" | "write", roots: readonly string[]): P
     }
     if (seen.has(root)) continue;
     seen.add(root);
-    rules.push(...denyEach(tools, "path", [`${PROJECT}/${root}/*`, `${root}/*`]));
-    if (access === "read") rules.push(...denyEach(FOLDER_READ_TOOLS, "path", [`${PROJECT}/${root}`, root]));
+    rules.push(...denyEach(tools, "path", [`${WORKSPACE}/${root}/*`, `${root}/*`]));
+    if (access === "read") rules.push(...denyEach(FOLDER_READ_TOOLS, "path", [`${WORKSPACE}/${root}`, root]));
   }
   if (seen.size > 0) rules.push(...denyWhole(access === "read" ? UNSCOPED_READ_TOOLS : UNSCOPED_WRITE_TOOLS));
   return { rules, problems };
@@ -361,7 +369,7 @@ export function rewriteRules(roots: readonly string[], patterns: readonly string
     const pattern = normaliseRoot(raw);
     if (pattern !== "" && pattern !== "*" && !pattern.startsWith("/") && !pattern.split("/").includes("..")) kept.add(pattern);
   }
-  return [...kept].flatMap((p) => denyAll(REWRITE_TOOL, "path", [`${PROJECT}/${p}`, p]));
+  return [...kept].flatMap((p) => denyAll(REWRITE_TOOL, "path", [`${WORKSPACE}/${p}`, p]));
 }
 
 /** Write denies on file patterns rather than folders (a pack's `layout.test_files`, `*` spanning folders): two rules
@@ -374,11 +382,11 @@ export function patternWriteRules(patterns: readonly string[]): PathRules {
   for (const raw of patterns) {
     const pattern = normaliseRoot(raw);
     if (pattern === "" || pattern === "*") { problems.push(`pattern '${raw}' covers the whole project: no rule`); continue; }
-    if (pattern.startsWith("/")) { problems.push(`pattern '${raw}' is outside ${PROJECT}: no rule`); continue; }
+    if (pattern.startsWith("/")) { problems.push(`pattern '${raw}' is outside ${WORKSPACE}: no rule`); continue; }
     if (pattern.split("/").includes("..")) { problems.push(`pattern '${raw}' climbs out with '..': no rule`); continue; }
     if (seen.has(pattern)) continue;
     seen.add(pattern);
-    rules.push(...denyEach(PATH_WRITE_TOOLS, "path", [`${PROJECT}/${pattern}`, pattern]));
+    rules.push(...denyEach(PATH_WRITE_TOOLS, "path", [`${WORKSPACE}/${pattern}`, pattern]));
   }
   if (seen.size > 0) rules.push(...denyWhole(UNSCOPED_WRITE_TOOLS));
   return { rules, problems };

@@ -60,7 +60,16 @@ vérification de la garde et ses règles avant chaque lancement de sa chaîne (l
 exécute cette chaîne pour chaque lot d'un plan sous les jeux de règles de `/dev-implement` ; la clôture de chaque lot
 commite sans pousser (une clôture tapée pendant l'exécution aussi), et celle du plan pousse la branche une seule fois,
 sauf si une règle de session refuse le push, et ouvre une seule pull request (`--pr` ou `dev.prAuto`), sinon en remet la
-commande ; sur la branche par défaut, elle ne pousse rien et remet le push. `/dev-spec`, `/dev-change`, `/dev-plan`,
+commande ; sur la branche par défaut, elle ne pousse rien et remet le push. Avec `--concurrency` de 2 à 4, il exécute une vague
+de lots à la fois, chacun dans un agent de lot sous son propre worktree (`.orkeon/worktrees/<code>-F<n>`, sur la
+branche `batches/<code>/F<n>`) : seulement en `bypassPermissions`, puisque deux lots demanderaient à la fois, et
+seulement là où git fonctionne dans le worktree d'un lot (une première sonde le vérifie : sous Bubblewrap, un runtime
+antérieur à Orkeon/orkeon#191 ne monte pas le répertoire git du worktree), et seulement avec tout `.orkeon/` ignoré par git (`.gitignore` ou `.git/info/exclude`),
+puisque les worktrees et l'état dev qui y est amorcé s'y trouvent ; chaque refus tient en une ligne, avant tout lot.
+Chaque lot tourne sous son propre budget d'appels d'outils, de temps réel et de jetons ; celui qui s'arrête garde son worktree, son code,
+sa fiche et son verdict n'étant que là, et les dernières lignes de l'exécution le nomment avec la commande qui l'y
+relance (`/dev-batches <code> --concurrency <n>`, la correction d'un verdict GAPS d'abord), pour qu'un humain
+décide. `/dev-spec`, `/dev-change`, `/dev-plan`,
 `/dev-implement` et `/dev-batches` refusent de démarrer dans un mode en lecture seule (`plan`, `dontAsk`), dans un mode
 qu'Orkeon Code ne connaît pas, et quand le mode de la session ne peut pas être lu. Les six placent d'abord dans la garde les
 [jeux de règles des étapes dev](#jeux-de-règles-des-étapes-dev), et refusent de démarrer tant que la garde est inactive
@@ -84,6 +93,16 @@ locale, et la garde refuse tout le reste sans demander.
 REPL : `approve <tool>? [y] once / [s] session / [n] no`. `y` exécute l'appel, `s` exécute aussi tous les appels
 suivants de cet outil sans demander jusqu'à la sortie du REPL, `n` le refuse, et le modèle lit le refus et s'adapte.
 Une ligne `/` exécute toujours sa commande pendant qu'une question attend.
+
+Une question venue d'une commande en arrière-plan (`/dev-batches`, `/dev-implement`, un `/assistant` lancé en async)
+nomme sa tâche : `? [t1] dev-batches: tool 'shell_command' requires approval (mode 'acceptEdits').`, l'appel, puis
+`approve shell_command for [t1]? [y] once / [s] session / [n] no`. Elle s'affiche dans la ligne de statut et sur la
+ligne de la tâche (`? waits for approval of shell_command`), et vous y répondez depuis l'invite principale, sans
+ouvrir la tâche. Une ligne qui n'est pas une réponse réécrit toute la question (Orkeon #194).
+
+Un appel à un outil que l'act n'offre pas n'atteint jamais la garde : le runtime y répond aussitôt `ERROR: tool
+'<name>' is not available to this agent.`, sans question (Orkeon #193), et les agents dev ont pour consigne de revenir
+à leurs propres outils sur cette erreur.
 
 Orkeon traite comme écriture un outil qui ne déclare ni lecture ni modification : `http_api` déclare une exécution et
 tous les outils MCP n'en déclarent aucun, donc les deux font l'objet d'une question en `default` et en `acceptEdits`, et sont refusés en `plan` et en `dontAsk`. `web_scrape`, `scrape_element` et
@@ -210,7 +229,7 @@ les dépôts ; aucun réglage ne l'active ni ne le désactive. Chaque étape met
 | `inline-interpreters` | `shell_command`, `command` | du code passé en ligne à un interpréteur, qui pourrait exécuter ce que les autres règles refusent |
 | `read-noise` | `path` de `file_read`, `glob`, `grep`, `node_outline`, `node_read`, `count_pattern`, `documents_of`, `directory_search` | une lecture sous un dossier `bin/`, `obj/`, `.git/` ou `node_modules/`, n'importe où dans le projet |
 | `secrets` | le texte écrit : `content` de `file_write`, `new_string` d'`edit_file`, `text` de `node_replace`, `node_insert` et `node_ensure`, `name` et `module` de `node_ensure`, `fix` de `structural_rewrite` ; le `text` de chaque opération d'`edit_batch`, par le callback | un contenu qui porte un bloc de clé privée ou un jeton à préfixe connu |
-| `state-files` | `path` de `file_write`, `edit_file`, `node_replace`, `node_insert`, `node_ensure`, le `path` de chaque opération d'`edit_batch` par le callback ; `structural_rewrite` en entier | un fichier que seul le code d'Orkeon Code écrit : journaux, états et verdicts des lots, captures d'audit, `.orkeon/` et `.claude/` |
+| `state-files` | `path` de `file_write`, `edit_file`, `node_replace`, `node_insert`, `node_ensure`, le `path` de chaque opération d'`edit_batch` par le callback ; `structural_rewrite` en entier | un fichier que seul le code d'Orkeon Code écrit : journaux, états et verdicts des lots, captures d'audit, `.orkeon/` (sauf `worktrees/`) et `.claude/` |
 
 `git-readonly` contient 218 règles, trois pour la plupart des verbes `add`, `am`, `apply`, `branch`, `checkout`, `cherry-pick`,
 `clean`, `commit`, `fetch`, `filter-branch`, `gc`, `merge`, `mv`, `notes`, `pull`, `push`, `rebase`, `reflog`,
@@ -306,8 +325,19 @@ deny file_write path=*-BATCHES-STATE.md
 deny file_write path=*-STATE-F*.md
 deny file_write path=*-VERIFY-F*.md
 deny file_write path=*/capture-F*/*
-deny file_write path=*/.orkeon/*
-deny file_write path=.orkeon/*
+deny file_write path=*.orkeon/dev*
+deny file_write path=*.orkeon/memory*
+deny file_write path=*.orkeon/agent*
+deny file_write path=*.orkeon/sessions*
+deny file_write path=*.orkeon/hooks*
+deny file_write path=*.orkeon/shared*
+deny file_write path=*.orkeon/repo*
+deny file_write path=*.orkeon/config*
+deny file_write path=*.orkeon/state*
+deny file_write path=*.orkeon/orkeon*
+deny file_write path=*.orkeon/ORKEON_*
+deny file_write path=*.orkeon/forge*
+deny file_write path=*.orkeon/rag*
 deny file_write path=*/.claude/*
 deny file_write path=.claude/*
 ```
@@ -323,7 +353,7 @@ refusés eux aussi. Comme une règle lit `sh -c` à la fin de n'importe quel mot
 
 Les trois jeux de fichiers répètent leurs motifs sur chaque outil de leur ligne, outil par outil : `read-noise`
 contient 64 règles (8 motifs sur 8 outils, sur `path`), `secrets` 128 (16 motifs sur 8 arguments écrits de 6 outils),
-`state-files` 41 (8 motifs sur 5 outils, sur `path`, puis `deny structural_rewrite`). Une étape détient 479 règles (481 avec les deux règles allow de `/dev-implement`). La
+`state-files` 96 (19 motifs sur 5 outils, sur `path`, puis `deny structural_rewrite` ; `.orkeon/` entrée par entrée, sauf `worktrees/`, où un `/dev-batches` parallèle fait tourner ses lots). Une étape détient 534 règles (536 avec les deux règles allow de `/dev-implement`). La
 garde ne peut pas lire les chemins ni le texte à l'intérieur d'`edit_batch` et de `structural_rewrite`.
 `structural_rewrite` est refusé en entier. `edit_batch` est laissé au callback des crews, qui s'exécute à chaque act
 d'une étape : il lit chaque opération comme l'éditeur qu'elle représente et lui applique les jeux et les règles du

@@ -4,7 +4,6 @@
 // here edits the file a proposal names: an accepted motif prints the change to make.
 import type { DevContextDeps } from "./load-dev-context.ts";
 import { loadDevContext } from "./load-dev-context.ts";
-import { WORKSPACE_ROOT } from "./resolve-work-folder.ts";
 import type { WorkFolder } from "./resolve-work-folder.ts";
 import type { Files, Shell } from "../ports.ts";
 import { LEARN_FOLDER_PATTERN, PROPOSALS_JSON, acceptLines, parseProposalsFile } from "../../domain/dev/learn-proposals.ts";
@@ -13,6 +12,7 @@ import { LEARN_STATE_FILE, decisionOf, parseLearnState, serializeLearnState, wit
 import type { LearnState } from "../../domain/dev/learn-state.ts";
 import { appendRefused, parseRefused, projectFromRemote, topicOf } from "../../domain/shared-memory/refused.ts";
 import { readRefusedFile } from "../shared-memory/memory-settings.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 export type DevLearnDecisionArgs = { kind: "accept"; ids: string[] } | { kind: "refuse"; target: string };
 export type DevLearnDecisionDeps = DevContextDeps & { files: Pick<Files, "read" | "list" | "write">; clock: () => Date };
@@ -114,7 +114,7 @@ type StateLoad = { ok: true; state: LearnState } | { ok: false; text: string };
 async function loadLearnState(files: Pick<Files, "read">): Promise<StateLoad> {
   let text: string | null;
   try {
-    text = await readOrNull(files, `${WORKSPACE_ROOT}/${LEARN_STATE_FILE}`);
+    text = await readOrNull(files, `${WORKSPACE}/${LEARN_STATE_FILE}`);
   } catch (e) {
     return { ok: false, text: `dev-learn: ${LEARN_STATE_FILE} cannot be read (${firstLineOf(e)}): fix or delete it; nothing was written` };
   }
@@ -125,7 +125,7 @@ async function loadLearnState(files: Pick<Files, "read">): Promise<StateLoad> {
 /** Writes the state; the BLOCKED text when the write throws, null when it went through. */
 async function saveLearnState(files: Pick<Files, "write">, state: LearnState): Promise<string | null> {
   try {
-    await files.write(`${WORKSPACE_ROOT}/${LEARN_STATE_FILE}`, serializeLearnState(state));
+    await files.write(`${WORKSPACE}/${LEARN_STATE_FILE}`, serializeLearnState(state));
     return null;
   } catch (e) {
     return `dev-learn: BLOCKED — ${LEARN_STATE_FILE} cannot be written (${firstLineOf(e)})`;
@@ -178,7 +178,7 @@ async function projectName(shell: Pick<Shell, "run">): Promise<string> {
 async function recordRefusal(topic: string, motifText: string, date: string, deps: DevLearnDecisionDeps): Promise<{ ok: boolean; line: string }> {
   // refused.md of memory.dir, the one /memory-admit reads too.
   const refusedFile = await readRefusedFile(deps.config);
-  const path = `${WORKSPACE_ROOT}/${refusedFile}`;
+  const path = `${WORKSPACE}/${refusedFile}`;
   let previous: string | null;
   try {
     previous = await readOrNull(deps.files, path);

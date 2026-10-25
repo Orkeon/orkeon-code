@@ -26,11 +26,11 @@ src/
 ├── commands/   *.cmd.ts slash commands (entry points) + _lib/ (their use cases)
 ├── crews/      <name>/crew.ork.ts (entry point) + application/ + domain/
 └── shared/     domain/ · application/ (ports.ts, services) · infrastructure/ (globals.ts, orkeon/ adapters)
-tests/          support/ (test doubles), architecture, command surface, command use cases
+tests/          support/ (doubles/, fixtures/, assertions/ shared across test files) · repository/ (architecture, test shape, command surface, versions) · scripts/ · config/
 mcp/whisper/    the speech MCP server (Python, run by uv): whisper_mcp.py + tests/
 ```
 
-Dependencies point inwards only, and `tests/architecture.test.ts` fails on any import, and any use of a runtime
+Dependencies point inwards only, and `tests/repository/architecture.test.ts` fails on any import, and any use of a runtime
 global, that breaks the rule:
 
 - **domain**: pure types and deterministic functions. No IO, no runtime global. Imports domain only. Every module
@@ -64,14 +64,31 @@ Runtime rules, enforced by the bundle check:
 ## Tests
 
 - `node:test` and `node:assert` only. No mocking or assertion library.
-- Test doubles live in `tests/support/`, one file per port: a class `Fake<Port>` (or `Stub<Port>`) that implements
+- Test doubles live in `tests/support/doubles/`, one file per port: a class `Fake<Port>` (or `Stub<Port>`) that implements
   the port and exposes plain fields to configure it and to read what it received (`FakeFiles.files`,
   `FakeLlm.completes`). `FakeTools`, `FakeLlmFacade`, `FakeAgentContext` and `FakeScriptHost` stand in for the
   runtime objects, to test the adapters. Runtime code never imports `tests/`.
-- Domain modules are tested next to them; the use cases of a crew and the shared services next to them, over the
-  fakes; the command use cases of `commands/_lib/` in `tests/commands-<family>.test.ts`. Entry points are covered by
-  the bundle check and the runtime smoke.
+- Every module of `src/` is tested next to it, over the fakes: the domain modules, the use cases of a crew, the
+  shared services and the command use cases of `commands/_lib/`. `tests/` holds the tests of the repository as a
+  whole, by subject: `repository/` (the dependency rule, the test shape, the command surface, the prompt contract,
+  the versions), `scripts/` (the scripts, the launchers, the install), `config/` (the example settings). Entry
+  points are covered by the bundle check and the runtime smoke.
 - No test depends on a clock, a network or an LLM.
+- Every test is laid out **Arrange, Act, Assert**, the way Orkeon's are: three sections, each opened by its own
+  comment line (`// Arrange`, `// Act`, `// Assert`), in that order, once each. One act per test: a second call
+  under test is a second test. Cases of one behaviour are a table the test loops over (`for (const c of CASES) it(…)`),
+  one test per case, like an xUnit `Theory`. `tests/repository/test-shape.test.ts` checks it on every test.
+- A test file keeps its tests only. Beside `<module>.test.ts`:
+  - `<module>.fixtures.ts` holds its data: the case tables, the sample texts, the builders of its inputs (a function
+    with defaults, `planSheet({ steps: 2 })`), the expected values longer than a line. A text that is a file of its
+    own (a sheet, a plan, a YAML) goes under `tests/fixtures/`;
+  - `<module>.assertions.ts` holds its checks made of more than one native assertion, or used by more than one test
+    (`assertCutBlock(block)`), built on `node:assert` with a message that says what is wrong.
+  A scalar the Arrange reads in one line stays in the test. Runtime code never imports a `*.fixtures.ts` nor a
+  `*.assertions.ts` (the architecture test).
+- What several test files share, in whatever folder they sit, lives under `tests/support/`: `doubles/` (the fakes),
+  `fixtures/` (the sample data, like the prompt catalogue and the memory entries), `assertions/` (the shared checks).
+- A test's name says the behaviour and its condition, as a sentence: `cuts a name at 120 characters`.
 
 ## The checks
 

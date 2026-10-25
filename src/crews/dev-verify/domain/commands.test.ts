@@ -8,90 +8,237 @@ import {
   gitDiffTracked, gitDiffUntracked, gitMethodGrep, gitStatusShort, gitTestFilesNaming, gitTraitGrep, gitUntracked,
   shellWord,
 } from "./commands.ts";
-
-const EX = excludePathspecs(["bin", "obj"]);
-const ERE = '\\[Trait\\("BR", *"[BCU][CHR]-[0-9]+"\\)\\]';
+import {
+  DIFF_TRACKED_CASES, DIFF_UNTRACKED_CASES, EX, FIND_NEWER_CASES, METHOD_GREP_CASES, METHOD_GREP_DROPPED_CASES,
+  REFUSED_BUILD_OUTPUTS, SHELL_WORD_CASES, STATUS_SHORT_CASES, TEST_FILES_NAMING_CASES, TRAIT_GREP_CASES,
+  TRAIT_GREP_DROPPED_CASES, TWO_HUNDRED_PATHS, UNTRACKED_CASES,
+} from "./commands.fixtures.ts";
 
 describe("shellWord", () => {
-  it("keeps a plain word, quotes a spaced one, refuses a single quote", () => {
-    strictEqual(shellWord("src/Ledger/Account.cs"), "src/Ledger/Account.cs");
-    strictEqual(shellWord("a-b_c.d/e@f+g,h:i=j"), "a-b_c.d/e@f+g,h:i=j");
-    strictEqual(shellWord("docs/my notes.md"), "'docs/my notes.md'");
-    strictEqual(shellWord("$(x)"), "'$(x)'");
-    strictEqual(shellWord(""), "''");
-    strictEqual(shellWord("it's"), null);
-  });
+  for (const c of SHELL_WORD_CASES) {
+    it(`${c.name}`, () => {
+      // Arrange
+      const [value] = c.args;
+
+      // Act
+      const word = shellWord(value);
+
+      // Assert
+      strictEqual(word, c.expected);
+    });
+  }
 });
 
 describe("buildOutputProblem and excludePathspecs", () => {
-  it("refuses a path, '.', '..' and the empty name", () => {
-    for (const o of ["", ".", "..", "out/bin"]) {
-      strictEqual(buildOutputProblem(o), `layout.build_outputs takes folder names, not paths: ${o}`);
-    }
-    strictEqual(buildOutputProblem("bin"), undefined);
+  for (const name of REFUSED_BUILD_OUTPUTS) {
+    it(`refuses a path, '.', '..' and the empty name: ${JSON.stringify(name)}`, () => {
+      // Arrange
+      const expected = `layout.build_outputs takes folder names, not paths: ${name}`;
+
+      // Act
+      const problem = buildOutputProblem(name);
+
+      // Assert
+      strictEqual(problem, expected);
+    });
+  }
+
+  it("accepts a folder name", () => {
+    // Arrange
+    const name = "bin";
+
+    // Act
+    const problem = buildOutputProblem(name);
+
+    // Assert
+    strictEqual(problem, undefined);
   });
+
   it("gives one quoted exclude pathspec per folder", () => {
-    deepStrictEqual(EX, ["':(exclude,glob)**/bin/**'", "':(exclude,glob)**/obj/**'"]);
-    deepStrictEqual(excludePathspecs([]), []);
+    // Arrange
+    const folders = ["bin", "obj"];
+
+    // Act
+    const pathspecs = excludePathspecs(folders);
+
+    // Assert
+    deepStrictEqual(pathspecs, [...EX]);
+  });
+
+  it("gives no exclude pathspec for no folder", () => {
+    // Arrange
+    const folders: string[] = [];
+
+    // Act
+    const pathspecs = excludePathspecs(folders);
+
+    // Assert
+    deepStrictEqual(pathspecs, []);
   });
 });
 
 describe("the frozen lines", () => {
   it("GIT_CHANGED_TRACKED, GIT_DIFF_CHECK", () => {
-    strictEqual(GIT_CHANGED_TRACKED, "git diff --name-only HEAD");
-    strictEqual(GIT_DIFF_CHECK, "git diff --check HEAD");
+    // Arrange
+    const expected = ["git diff --name-only HEAD", "git diff --check HEAD"];
+
+    // Act
+    const lines = [GIT_CHANGED_TRACKED, GIT_DIFF_CHECK];
+
+    // Assert
+    strictEqual(lines[0], expected[0]);
+    strictEqual(lines[1], expected[1]);
   });
-  it("gitUntracked", () => {
-    strictEqual(gitUntracked(EX),
-      "git ls-files --others --exclude-standard -- . ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'");
-    strictEqual(gitUntracked([]), "git ls-files --others --exclude-standard -- .");
-  });
-  it("gitTraitGrep", () => {
-    strictEqual(gitTraitGrep(ERE, ["src", "tests"], EX),
-      `git grep --untracked -I -noE -e '${ERE}' -- src tests ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'`);
-    strictEqual(gitTraitGrep("// *rule: *[BCU][CHR]-[0-9]+", ["."], []),
-      "git grep --untracked -I -noE -e '// *rule: *[BCU][CHR]-[0-9]+' -- .");
-  });
-  it("gitStatusShort", () => {
-    strictEqual(gitStatusShort(EX), "git status --short -- . ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'");
-    strictEqual(gitStatusShort([]), "git status --short -- .");
-  });
-  it("gitDiffTracked and gitDiffUntracked, per file", () => {
-    strictEqual(gitDiffTracked("src/A.cs"), "git diff HEAD -- src/A.cs");
-    strictEqual(gitDiffTracked("docs/a b.md"), "git diff HEAD -- 'docs/a b.md'");
-    strictEqual(gitDiffTracked("it's.md"), null);
-    strictEqual(gitDiffUntracked("src/B.cs"), "git diff --no-index -- /dev/null src/B.cs");
-    strictEqual(gitDiffUntracked("it's.md"), null);
-  });
-  it("gitMethodGrep", () => {
-    strictEqual(gitMethodGrep(["ShouldA", "ShouldB"], ["tests"], EX),
-      "git grep --untracked -I -n -o -w -F -e ShouldA -e ShouldB -- tests ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'");
-    strictEqual(gitMethodGrep(["m"], ["tests", "spec"], []), "git grep --untracked -I -n -o -w -F -e m -- tests spec");
-  });
-  it("gives null when a list is left empty once the unquotable entries are dropped", () => {
-    strictEqual(gitTraitGrep(ERE, ["it's"], EX), null);
-    strictEqual(gitMethodGrep(["it's"], ["tests"], []), null);
-    strictEqual(gitMethodGrep(["m"], ["it's"], []), null);
-    strictEqual(gitMethodGrep(["m", "it's"], ["tests", "it's"], []), "git grep --untracked -I -n -o -w -F -e m -- tests");
-  });
+
+  for (const c of UNTRACKED_CASES) {
+    it(`gitUntracked, ${c.name}`, () => {
+      // Arrange
+      const [excludes] = c.args;
+
+      // Act
+      const line = gitUntracked(excludes);
+
+      // Assert
+      strictEqual(line, c.expected);
+    });
+  }
+
+  for (const c of TRAIT_GREP_CASES) {
+    it(`gitTraitGrep, ${c.name}`, () => {
+      // Arrange
+      const [ere, scope, excludes] = c.args;
+
+      // Act
+      const line = gitTraitGrep(ere, scope, excludes);
+
+      // Assert
+      strictEqual(line, c.expected);
+    });
+  }
+
+  for (const c of STATUS_SHORT_CASES) {
+    it(`gitStatusShort, ${c.name}`, () => {
+      // Arrange
+      const [excludes] = c.args;
+
+      // Act
+      const line = gitStatusShort(excludes);
+
+      // Assert
+      strictEqual(line, c.expected);
+    });
+  }
+
+  for (const c of DIFF_TRACKED_CASES) {
+    it(`gitDiffTracked, per file: ${c.name}`, () => {
+      // Arrange
+      const [path] = c.args;
+
+      // Act
+      const line = gitDiffTracked(path);
+
+      // Assert
+      strictEqual(line, c.expected);
+    });
+  }
+
+  for (const c of DIFF_UNTRACKED_CASES) {
+    it(`gitDiffUntracked, per file: ${c.name}`, () => {
+      // Arrange
+      const [path] = c.args;
+
+      // Act
+      const line = gitDiffUntracked(path);
+
+      // Assert
+      strictEqual(line, c.expected);
+    });
+  }
+
+  for (const c of METHOD_GREP_CASES) {
+    it(`gitMethodGrep, ${c.name}`, () => {
+      // Arrange
+      const [methods, testDirs, excludes] = c.args;
+
+      // Act
+      const line = gitMethodGrep(methods, testDirs, excludes);
+
+      // Assert
+      strictEqual(line, c.expected);
+    });
+  }
+
+  for (const c of TRAIT_GREP_DROPPED_CASES) {
+    it(`gitTraitGrep gives null when a list is left empty once the unquotable entries are dropped: ${c.name}`, () => {
+      // Arrange
+      const [ere, scope, excludes] = c.args;
+
+      // Act
+      const line = gitTraitGrep(ere, scope, excludes);
+
+      // Assert
+      strictEqual(line, c.expected);
+    });
+  }
+
+  for (const c of METHOD_GREP_DROPPED_CASES) {
+    it(`gitMethodGrep gives null only when a list is left empty once the unquotable entries are dropped: ${c.name}`, () => {
+      // Arrange
+      const [methods, testDirs, excludes] = c.args;
+
+      // Act
+      const line = gitMethodGrep(methods, testDirs, excludes);
+
+      // Assert
+      strictEqual(line, c.expected);
+    });
+  }
+
   it("puts -e before a trait pattern that starts with '-'", () => {
-    strictEqual(gitTraitGrep("-x", ["."], []), "git grep --untracked -I -noE -e '-x' -- .");
+    // Arrange
+    const ere = "-x";
+
+    // Act
+    const line = gitTraitGrep(ere, ["."], []);
+
+    // Assert
+    strictEqual(line, "git grep --untracked -I -noE -e '-x' -- .");
   });
-  it("gitTestFilesNaming", () => {
-    strictEqual(gitTestFilesNaming("Account", ["tests", "."], "cs", EX),
-      "git grep --untracked -I -lw -e Account -- ':(glob)tests/**/*.cs' ':(glob)**/*.cs' ':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'");
-    strictEqual(gitTestFilesNaming("Account", [""], "ts", []), "git grep --untracked -I -lw -e Account -- ':(glob)**/*.ts'");
-    strictEqual(gitTestFilesNaming("Order.Lines", ["tests"], "cs", []), null);
-    strictEqual(gitTestFilesNaming("Account", ["it's"], "cs", []), null);
-  });
-  it("findNewer", () => {
-    strictEqual(findNewer(["src/A.cs", "a b.cs"], "workbench/x/logs/build.txt"),
-      "find ./src/A.cs './a b.cs' -maxdepth 0 -newer workbench/x/logs/build.txt");
-    strictEqual(findNewer(["-delete", "src/a.ts"], "w/logs/F1-build.txt"), "find ./-delete ./src/a.ts -maxdepth 0 -newer w/logs/F1-build.txt");
-    strictEqual(findNewer(["/etc/passwd"], "log"), null);
-    strictEqual(findNewer(["it's"], "log"), null);
-    strictEqual(findNewer(["a"], "it's"), null);
-    strictEqual(findNewer(Array.from({ length: 201 }, (_, i) => `f${i}`), "log"), null);
-    strictEqual(findNewer(Array.from({ length: 200 }, () => "f"), "log")?.startsWith("find ./f ./f "), true);
+
+  for (const c of TEST_FILES_NAMING_CASES) {
+    it(`gitTestFilesNaming, ${c.name}`, () => {
+      // Arrange
+      const [name, testDirs, extension, excludes] = c.args;
+
+      // Act
+      const line = gitTestFilesNaming(name, testDirs, extension, excludes);
+
+      // Assert
+      strictEqual(line, c.expected);
+    });
+  }
+
+  for (const c of FIND_NEWER_CASES) {
+    it(`findNewer, ${c.name}`, () => {
+      // Arrange
+      const [paths, log] = c.args;
+
+      // Act
+      const line = findNewer(paths, log);
+
+      // Assert
+      strictEqual(line, c.expected);
+    });
+  }
+
+  it("findNewer takes 200 paths", () => {
+    // Arrange
+    const paths = TWO_HUNDRED_PATHS;
+
+    // Act
+    const line = findNewer(paths, "log");
+
+    // Assert
+    strictEqual(line?.startsWith("find ./f ./f "), true);
   });
 });

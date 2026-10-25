@@ -9,7 +9,8 @@ rules in [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## A slash command
 
-A file `src/commands/<name>.cmd.ts`. The loader picks every `*.cmd.ts`; the name is kebab-case and unique, and the
+A file `src/commands/<group>/<name>.cmd.ts`, `<group>` one of the functional folders (`session`, `settings`, `status`,
+`project`, `git`, `dev`, `memory`, `speech`). The loader picks every `*.cmd.ts` under the folder; the name is kebab-case and unique, and the
 file exports nothing. A synchronous command answers at once with `defineCommand`; an asynchronous one starts a crew
 with `defineAsyncCommand` and prints the result when the crew completes
 ([Architecture](architecture.md#from-a-command-to-a-crew)). A command reaches the runtime through the adapters of
@@ -32,7 +33,7 @@ defineCommand({
 ```
 
 Logic worth testing goes to `src/commands/_lib/<family>.ts` as `run<Name>(tokens, deps)`, its deps a `Pick<>` of the
-ports it reads, tested over the fakes of `tests/support/`. Three other places move with a new command, and
+ports it reads, tested over the fakes of `tests/support/doubles/`. Three other places move with a new command, and
 `npm run check` names the one you forgot: `tests/command-surface.test.ts` pins the count of commands,
 `src/commands/_lib/meta.ts` states it in the release notes, and `npm run docs:commands` regenerates
 [docs/commands.md](commands.md). The recipe: [Add a command](architecture.md#add-a-command).

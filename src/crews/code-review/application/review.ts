@@ -1,5 +1,6 @@
 // CodeReview use case — collect the diff, run three lenses in parallel
-// (Promise.all — never ctx.delegate, which deadlocks Jint), and write the
+// (Promise.all over three model calls: no agent of their own, though concurrent
+// ctx.delegate runs are safe on the runtime's one pump), and write the
 // report. Dedup/rank live in shared/severity, rendering in ../domain/report.
 
 import type { Files, Llm, Shell } from "../../../shared/application/ports.ts";

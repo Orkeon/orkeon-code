@@ -8,21 +8,58 @@ import { charterCatalogue, charterProblems } from "../../../shared/domain/agents
 
 describe("AUDITOR_CHARTER", () => {
   it("can run", () => {
-    deepStrictEqual(charterProblems(AUDITOR_CHARTER), []);
+    // Arrange
+    const charter = AUDITOR_CHARTER;
+
+    // Act
+    const problems = charterProblems(charter);
+
+    // Assert
+    deepStrictEqual(problems, []);
   });
 
   it("is named dev-auditor and acts in plan", () => {
-    strictEqual(AUDITOR_CHARTER.name, "dev-auditor");
-    strictEqual(AUDITOR_CHARTER.mode, "plan");
+    // Arrange
+    const charter = AUDITOR_CHARTER;
+
+    // Act
+    const { name, mode } = charter;
+
+    // Assert
+    strictEqual(name, "dev-auditor");
+    strictEqual(mode, "plan");
+  });
+
+  it("names exactly the five read tools", () => {
+    // Arrange
+    const expected = ["file_read", "node_read", "codebase_search", "symbol_detail", "symbol_source"];
+
+    // Act
+    const tools = AUDITOR_TOOLS;
+
+    // Assert
+    deepStrictEqual(tools, expected);
   });
 
   it("offers exactly the five read tools", () => {
-    deepStrictEqual(AUDITOR_TOOLS, ["file_read", "node_read", "codebase_search", "symbol_detail", "symbol_source"]);
-    deepStrictEqual(charterCatalogue(AUDITOR_CHARTER), [...AUDITOR_TOOLS]);
+    // Arrange
+    const charter = AUDITOR_CHARTER;
+
+    // Act
+    const catalogue = charterCatalogue(charter);
+
+    // Assert
+    deepStrictEqual(catalogue, [...AUDITOR_TOOLS]);
   });
 
   it("offers no shell, no write, no ingest", () => {
+    // Arrange
+    const forbidden = ["shell_command", "file_write", "rag_ingest"];
+
+    // Act
     const catalogue = charterCatalogue(AUDITOR_CHARTER);
-    for (const tool of ["shell_command", "file_write", "rag_ingest"]) ok(!catalogue.includes(tool), tool);
+
+    // Assert
+    for (const tool of forbidden) ok(!catalogue.includes(tool), tool);
   });
 });

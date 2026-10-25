@@ -4,54 +4,75 @@ import { strictEqual, ok } from "node:assert";
 
 import { CANDIDATES_TITLE, INDEX_TITLE, batchesOf, candidatesList, decidedPointer, entriesIndex } from "./candidates.ts";
 import { parseEntry } from "./front-matter.ts";
-import type { EntryType, MemoryEntry } from "./entry.ts";
-
-// tests/doubles/memory-entries.ts's sampleEntry, here because a domain test imports the domain only.
-const ENTRY_BODY = "## Context\nA sentence of context.\n\n## Content\nThe rule itself.\n\n## Evidence\n`src/app/main.ts:10`\n";
-function sampleEntry(type: EntryType, slug: string, over: Partial<MemoryEntry> = {}): MemoryEntry {
-  const project = over.project ?? "shop";
-  const date = over.date ?? "2026-10-22";
-  const entry: MemoryEntry = {
-    id: `${project}-${type}-${date.replace(/-/g, "")}-${slug}`, type, title: `Title of ${slug}`, project, date,
-    topic: slug, appliesWhen: "a module does the thing", rationale: "it went wrong before",
-    source: type === "mistake" || type === "code-structure" ? "audit:workbench/shop/SHOP-VERIFY-F1.md" : "human:2026-10-22 /memory-admit",
-    status: "admitted", supersedes: [], tags: ["testing"], stack: ["typescript"], body: ENTRY_BODY,
-  };
-  if (type === "mistake") {
-    entry.correction = "do the other thing";
-    entry.detectionSignal = "a red test on the edge case";
-  }
-  return { ...entry, ...over, id: over.id ?? entry.id };
-}
+import { BATCHES_OF, DECISION_AND_SUPERSEDED_METHOD, METHOD_THEN_MISTAKE, POINTERS, POINTERS_PARSED } from "./candidates.fixtures.ts";
+import { assertRow } from "./candidates.assertions.ts";
 
 describe("the candidates list and the index", () => {
   it("lists the candidates by id, a pipe of a cell escaped", () => {
-    const b = sampleEntry("method", "beta", { status: "candidate", source: "human:2026-10-22 a | b" });
-    const a = sampleEntry("mistake", "alpha", { status: "candidate", source: "audit:x/X-VERIFY-F1.md, y/Y-VERIFY-F2.md" });
-    const text = candidatesList([b, a]);
+    // Arrange
+    const [, a] = METHOD_THEN_MISTAKE;
+
+    // Act
+    const text = candidatesList(METHOD_THEN_MISTAKE);
+
+    // Assert
     const lines = text.trimEnd().split("\n");
     strictEqual(lines[0], CANDIDATES_TITLE);
     strictEqual(lines[4], "| id | type | topic | source | batches |");
-    ok(lines[7].startsWith(`| ${a.id} | mistake | alpha |`) && lines[7].endsWith("| 2 |"));
-    ok(lines[6].includes("a \\| b") && lines[6].endsWith("| - |"), "method sorts before mistake");
-    ok(text.endsWith("\n"));
+    assertRow(lines[7], `| ${a.id} | mistake | alpha |`, "| 2 |", "the mistake row");
+    ok(lines[6].includes("a \\| b"), `method sorts before mistake, its pipe escaped: ${lines[6]}`);
+    assertRow(lines[6], "", "| - |", "method sorts before mistake");
+    ok(text.endsWith("\n"), "no final newline");
   });
 
-  it("counts the distinct batches a source names", () => {
-    strictEqual(batchesOf("audit:x/X-VERIFY-F1.md, x/X-VERIFY-F1.md, x/X-VERIFY-F3.md"), "2");
-    strictEqual(batchesOf("human:2026-10-22 memory_push"), "-");
-  });
+  for (const c of BATCHES_OF) {
+    it(`counts the distinct batches a source names: ${c.name}`, () => {
+      // Arrange
+      const { source } = c;
+
+      // Act
+      const batches = batchesOf(source);
+
+      // Assert
+      strictEqual(batches, c.batches);
+    });
+  }
 
   it("indexes the entries with their status", () => {
-    const text = entriesIndex([sampleEntry("decision", "b"), sampleEntry("method", "a", { status: "superseded", supersededBy: "x" })]);
-    ok(text.startsWith(INDEX_TITLE));
-    ok(text.includes("| shop-method-20261022-a | method | superseded | Title of a |"));
+    // Arrange
+    const entries = DECISION_AND_SUPERSEDED_METHOD;
+
+    // Act
+    const text = entriesIndex(entries);
+
+    // Assert
+    ok(text.startsWith(INDEX_TITLE), text);
+    ok(text.includes("| shop-method-20261022-a | method | superseded | Title of a |"), text);
   });
 
-  it("turns a decided candidate into a pointer that is no entry", () => {
-    ok(decidedPointer("admitted", "2026-10-24", "/workspace/m/entries/method/x.md").includes("entries/method/x.md"));
-    ok(decidedPointer("refused", "2026-10-24").includes("refused.md"));
-    strictEqual(parseEntry(decidedPointer("admitted", "2026-10-24", "f")).ok, false);
-    strictEqual(parseEntry(decidedPointer("refused", "2026-10-24")).ok, false);
-  });
+  for (const c of POINTERS) {
+    it(`turns a decided candidate into a pointer: ${c.name}`, () => {
+      // Arrange
+      const { status, file } = c;
+
+      // Act
+      const pointer = decidedPointer(status, "2026-10-24", file);
+
+      // Assert
+      ok(pointer.includes(c.names), pointer);
+    });
+  }
+
+  for (const c of POINTERS_PARSED) {
+    it(`reads the pointer of a ${c.name} candidate as no entry`, () => {
+      // Arrange
+      const pointer = decidedPointer(c.status, "2026-10-24", c.file);
+
+      // Act
+      const parsed = parseEntry(pointer);
+
+      // Assert
+      strictEqual(parsed.ok, false);
+    });
+  }
 });

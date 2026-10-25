@@ -15,13 +15,19 @@
 //                      a chance — and rag_ingest fails loudly instead of lying)
 
 /**
- * Extensions the RaggableTree parses — the union of the five Tree-sitter
- * adapters' `FileExtensions` (TypeScript/C#/Python/Go/Rust), read from
+ * Extensions the RaggableTree parses — the union of the thirteen Tree-sitter
+ * adapters' `FileExtensions` (TypeScript/C#/Python/Go/Rust, and since Orkeon #195
+ * JavaScript/Java/C/C++/PHP/Ruby/Bash), read from
  * `src/analysis/Orkeon.Analysis/Adapters/*.cs`. A new adapter framework-side
- * must be mirrored here; the probe's partition step is the tripwire.
+ * must be mirrored here; the probe's partition step is the tripwire. The
+ * parse-only grammars (CSS, HTML, JSON…) serve the structural tools but enter
+ * no index: they stay on the rag side.
  */
 export const TREE_CODE_EXTENSIONS: readonly string[] = [
   ".ts", ".tsx", ".cs", ".py", ".go", ".rs",
+  ".js", ".jsx", ".mjs", ".cjs", ".java", ".c",
+  ".cpp", ".cc", ".cxx", ".hpp", ".hh", ".hxx", ".h",
+  ".php", ".rb", ".sh", ".bash",
 ];
 
 /**

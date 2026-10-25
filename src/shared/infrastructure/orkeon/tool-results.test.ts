@@ -4,74 +4,121 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok } from "node:assert";
 
 import { pick, shOut, shErr, shCode, fileContent, asArray, entryNames } from "./tool-results.ts";
+import {
+  ARRAYS, CAPTURED_FILE_READ, CAPTURED_SESSION_STATS, CONTENTS, ENTRY_NAMES, EXIT_CODES, PICKS, SESSION_STATS_COUNTERS,
+  STDERRS, STDOUTS,
+} from "./tool-results.fixtures.ts";
 
 describe("pick", () => {
   it("falls through to a Pascal-cased candidate", () => {
-    deepStrictEqual(pick({ Messages: [1] }, "messages", "Messages"), [1]);
+    // Arrange
+    const object = { Messages: [1] };
+
+    // Act
+    const value = pick(object, "messages", "Messages");
+
+    // Assert
+    deepStrictEqual(value, [1]);
   });
-  it("prefers earlier names, tolerates casing", () => {
-    strictEqual(pick({ b: 2 }, "a", "b"), 2);
-    strictEqual(pick({ A: 1, a: 9 }, "a", "A"), 9);
-  });
-  it("undefined object → undefined", () => {
-    strictEqual(pick(undefined, "x"), undefined);
-  });
+
+  for (const c of PICKS) {
+    it(c.name, () => {
+      // Arrange
+      const { object, names } = c;
+
+      // Act
+      const value = pick(object, ...names);
+
+      // Assert
+      strictEqual(value, c.expected);
+    });
+  }
 });
 
 describe("shell result accessors (snake + Pascal)", () => {
-  it("shOut reads stdout or Stdout", () => {
-    strictEqual(shOut({ stdout: "a" }), "a");
-    strictEqual(shOut({ Stdout: "b" }), "b");
-    strictEqual(shOut({}), "");
-  });
-  it("shErr reads stderr or Stderr", () => {
-    strictEqual(shErr({ stderr: "e" }), "e");
-    strictEqual(shErr({ Stderr: "E" }), "E");
-  });
-  it("shCode reads exit_code/exitCode/ExitCode, -1 default", () => {
-    strictEqual(shCode({ exit_code: 0 }), 0);
-    strictEqual(shCode({ exitCode: 2 }), 2);
-    strictEqual(shCode({ ExitCode: 3 }), 3);
-    strictEqual(shCode({}), -1);
-  });
+  for (const c of STDOUTS) {
+    it(`shOut reads ${c.name}`, () => {
+      // Arrange
+      const { result } = c;
+
+      // Act
+      const out = shOut(result);
+
+      // Assert
+      strictEqual(out, c.expected);
+    });
+  }
+
+  for (const c of STDERRS) {
+    it(`shErr reads ${c.name}`, () => {
+      // Arrange
+      const { result } = c;
+
+      // Act
+      const err = shErr(result);
+
+      // Assert
+      strictEqual(err, c.expected);
+    });
+  }
+
+  for (const c of EXIT_CODES) {
+    it(`shCode reads ${c.name}`, () => {
+      // Arrange
+      const { result } = c;
+
+      // Act
+      const code = shCode(result);
+
+      // Assert
+      strictEqual(code, c.expected);
+    });
+  }
 });
 
 describe("fileContent", () => {
-  it("reads content/Content/text", () => {
-    strictEqual(fileContent({ content: "x" }), "x");
-    strictEqual(fileContent({ Content: "y" }), "y");
-    strictEqual(fileContent({ text: "z" }), "z");
-    strictEqual(fileContent({ Text: "t" }), "t");
-    strictEqual(fileContent({}), "");
-  });
+  for (const c of CONTENTS) {
+    it(`reads ${c.name}`, () => {
+      // Arrange
+      const { result } = c;
 
-  it("reads a bare string result as the content", () => {
-    strictEqual(fileContent("plain"), "plain");
-  });
+      // Act
+      const content = fileContent(result);
+
+      // Assert
+      strictEqual(content, c.expected);
+    });
+  }
 });
 
 describe("asArray", () => {
-  it("passes arrays, coerces else to []", () => {
-    deepStrictEqual(asArray([1, 2]), [1, 2]);
-    deepStrictEqual(asArray(null), []);
-    deepStrictEqual(asArray({ a: 1 }), []);
-  });
+  for (const c of ARRAYS) {
+    it(c.name, () => {
+      // Arrange
+      const { result } = c;
+
+      // Act
+      const array = asArray(result);
+
+      // Assert
+      deepStrictEqual(array, c.expected);
+    });
+  }
 });
 
 describe("entryNames", () => {
-  it("reads the real Files + Directories shape", () => {
-    deepStrictEqual(
-      entryNames({ Files: [{ Name: "index.ts" }, { Name: "math.ts" }], Directories: [{ Name: "sub" }] }),
-      ["index.ts", "math.ts", "sub"],
-    );
-  });
-  it("tolerates the legacy entries/items shape + casing", () => {
-    deepStrictEqual(entryNames({ entries: [{ name: "a" }, { Path: "b" }] }), ["a", "b"]);
-    deepStrictEqual(entryNames({ Entries: ["c"] }), ["c"]);
-  });
-  it("returns [] for an empty listing", () => {
-    deepStrictEqual(entryNames({}), []);
-  });
+  for (const c of ENTRY_NAMES) {
+    it(c.name, () => {
+      // Arrange
+      const { result } = c;
+
+      // Act
+      const names = entryNames(result);
+
+      // Assert
+      deepStrictEqual(names, c.expected);
+    });
+  }
 });
 
 // ── B-14: pinned against payloads captured from LIVE calls (2026-08-05) ───
@@ -84,28 +131,62 @@ describe("entryNames", () => {
 
 describe("live-verified payload shapes", () => {
   it("file_read returns { content, file_info } — fileContent reads it", () => {
-    const captured = {
-      content: "# sample-repo\n\nThrowaway TypeScript fixture…\n",
-      file_info: { size: 206 },
-    };
-    ok(fileContent(captured).startsWith("# sample-repo"));
-    strictEqual(pick(captured, "file_info", "FileInfo").size, 206);
+    // Arrange
+    const captured = CAPTURED_FILE_READ;
+
+    // Act
+    const content = fileContent(captured);
+
+    // Assert
+    ok(content.startsWith("# sample-repo"), `content read: ${JSON.stringify(content)}`);
   });
 
-  it("session_stats returns snake_case counters", () => {
-    const captured = {
-      message_count: 0, estimated_tokens: 0,
-      total_cost_usd: 0, total_tokens: 0, total_calls: 0, by_model: {},
-    };
-    strictEqual(pick(captured, "total_calls", "totalCalls"), 0);
-    strictEqual(pick(captured, "estimated_tokens", "estimatedTokens"), 0);
+  it("file_read returns { content, file_info } — pick reads its file_info", () => {
+    // Arrange
+    const captured = CAPTURED_FILE_READ;
+
+    // Act
+    const info = pick(captured, "file_info", "FileInfo");
+
+    // Assert
+    strictEqual(info.size, 206);
   });
 
-  it("a shim asked for a field the tool does not emit returns the empty value", () => {
-    // Pinned deliberately: this is the silent-failure shape. Nothing here can stop
-    // it, so the lesson lives in the readers (see code-intel-contract.ts), which
-    // are pinned against captured payloads instead of guessed names.
-    strictEqual(fileContent({ body: "wrong field name" }), "");
-    strictEqual(shOut({ output: "wrong field name" }), "");
+  for (const c of SESSION_STATS_COUNTERS) {
+    it(`session_stats returns snake_case counters: ${c.name}`, () => {
+      // Arrange
+      const captured = CAPTURED_SESSION_STATS;
+
+      // Act
+      const counter = pick(captured, ...c.names);
+
+      // Assert
+      strictEqual(counter, 0);
+    });
+  }
+
+  // Pinned deliberately: this is the silent-failure shape. Nothing here can stop
+  // it, so the lesson lives in the readers (see code-intel-contract.ts), which
+  // are pinned against captured payloads instead of guessed names.
+  it("a shim asked for a field the tool does not emit returns the empty value: fileContent", () => {
+    // Arrange
+    const result = { body: "wrong field name" };
+
+    // Act
+    const content = fileContent(result);
+
+    // Assert
+    strictEqual(content, "");
+  });
+
+  it("a shim asked for a field the tool does not emit returns the empty value: shOut", () => {
+    // Arrange
+    const result = { output: "wrong field name" };
+
+    // Act
+    const out = shOut(result);
+
+    // Assert
+    strictEqual(out, "");
   });
 });

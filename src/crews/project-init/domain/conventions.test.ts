@@ -3,30 +3,55 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 
 import { fallbackConventions, CONFIG_CANDIDATES } from "./conventions.ts";
+import { FULL_PKG } from "./conventions.fixtures.ts";
 
 describe("CONFIG_CANDIDATES", () => {
   it("reads package.json first", () => {
-    strictEqual(CONFIG_CANDIDATES[0], "package.json");
+    // Arrange
+    const candidates = CONFIG_CANDIDATES;
+
+    // Act
+    const first = candidates[0];
+
+    // Assert
+    strictEqual(first, "package.json");
   });
 });
 
 describe("fallbackConventions", () => {
   it("pulls the scripts, as they are invoked, and the devDependencies from package.json", () => {
-    const pkg = JSON.stringify({
-      scripts: { build: "tsc", test: "vitest", lint: "eslint ." },
-      devDependencies: { vitest: "1", typescript: "5" },
-    });
+    // Arrange
+    const pkg = FULL_PKG;
+
+    // Act
     const c = fallbackConventions(pkg);
+
+    // Assert
     strictEqual(c.buildCommand, "npm run build");
     strictEqual(c.testCommand, "npm test");
     strictEqual(c.lintCommand, "npm run lint");
     deepStrictEqual(c.frameworks, ["vitest", "typescript"]);
   });
+
   it("returns empty conventions on unparseable input", () => {
-    deepStrictEqual(fallbackConventions("{not json"), { frameworks: [], conventions: [] });
+    // Arrange
+    const pkg = "{not json";
+
+    // Act
+    const c = fallbackConventions(pkg);
+
+    // Assert
+    deepStrictEqual(c, { frameworks: [], conventions: [] });
   });
+
   it("tolerates a package.json with no scripts", () => {
-    const c = fallbackConventions("{}");
+    // Arrange
+    const pkg = "{}";
+
+    // Act
+    const c = fallbackConventions(pkg);
+
+    // Assert
     strictEqual(c.buildCommand, undefined);
     deepStrictEqual(c.frameworks, []);
   });

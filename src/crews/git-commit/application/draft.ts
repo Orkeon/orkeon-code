@@ -8,6 +8,7 @@ import {
 } from "../domain/commit.ts";
 import { GIT_STATUS_COMMAND, changedPaths, gitDiffCommand } from "../../../shared/domain/git/close.ts";
 import { commitFiles } from "../../../shared/application/git/commit-files.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 export interface WorkTree {
   status: string;
@@ -58,7 +59,7 @@ export async function inspectWorkTree(
   if (files) {
     for (const path of untrackedPaths(status).slice(0, MAX_NEW_FILES)) {
       try {
-        untracked.push({ path, content: await files.read("/workspace/" + path, MAX_NEW_FILE_CHARS + 1) });
+        untracked.push({ path, content: await files.read(`${WORKSPACE}/${path}`, MAX_NEW_FILE_CHARS + 1) });
       } catch { /* unreadable (binary, gone): the status still names it */ }
     }
   }

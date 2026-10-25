@@ -4,70 +4,94 @@ import { describe, it } from "node:test";
 import { ok, strictEqual } from "node:assert";
 
 import { MAX_PRECEDENTS, MAX_PRECEDENTS_CHARS, buildPrecedentsBlock, precedentLines } from "./precedents-block.ts";
-import type { Precedent } from "./precedents-block.ts";
-import type { EntryType, MemoryEntry } from "./entry.ts";
-
-// tests/doubles/memory-entries.ts's sampleEntry, here because a domain test imports the domain only.
-const ENTRY_BODY = "## Context\nA sentence of context.\n\n## Content\nThe rule itself.\n\n## Evidence\n`src/app/main.ts:10`\n";
-function sampleEntry(type: EntryType, slug: string, over: Partial<MemoryEntry> = {}): MemoryEntry {
-  const project = over.project ?? "shop";
-  const date = over.date ?? "2026-10-22";
-  const entry: MemoryEntry = {
-    id: `${project}-${type}-${date.replace(/-/g, "")}-${slug}`, type, title: `Title of ${slug}`, project, date,
-    topic: slug, appliesWhen: "a module does the thing", rationale: "it went wrong before",
-    source: type === "mistake" || type === "code-structure" ? "audit:workbench/shop/SHOP-VERIFY-F1.md" : "human:2026-10-22 /memory-admit",
-    status: "admitted", supersedes: [], tags: ["testing"], stack: ["typescript"], body: ENTRY_BODY,
-  };
-  if (type === "mistake") {
-    entry.correction = "do the other thing";
-    entry.detectionSignal = "a red test on the edge case";
-  }
-  return { ...entry, ...over, id: over.id ?? entry.id };
-}
-
-const p = (entry: Precedent["entry"], score: number): Precedent => ({ entry, path: `/workspace/m/entries/${entry.type}/${entry.id}.md`, score });
+import {
+  DISAGREEING_PROJECTS, EIGHT_METHODS, FIVE_LONG_METHODS, PINNED_MARKERS, p, sampleEntry,
+} from "./precedents-block.fixtures.ts";
+import { assertMentions } from "../../../../tests/support/assertions/text.ts";
 
 describe("buildPrecedentsBlock", () => {
-  it("is empty when nothing was recalled", () => strictEqual(buildPrecedentsBlock([]), ""));
+  it("is empty when nothing was recalled", () => {
+    // Arrange
+    const recalled: [] = [];
+
+    // Act
+    const block = buildPrecedentsBlock(recalled);
+
+    // Assert
+    strictEqual(block, "");
+  });
 
   it("carries the pinned markers of the five rules in its intro", () => {
-    const block = buildPrecedentsBlock([p(sampleEntry("method", "a"), 0.9)]);
+    // Arrange
+    const recalled = [p(sampleEntry("method", "a"), 0.9)];
+
+    // Act
+    const block = buildPrecedentsBlock(recalled);
+
+    // Assert
     ok(block.startsWith("## Precedents\n"), block);
-    for (const marker of ["precedents from other work, not rules", "name the precedent you follow or set aside",
-      "projects disagree", "a signal to check"]) ok(block.includes(marker), marker);
+    assertMentions(block, PINNED_MARKERS);
   });
 
   it("renders a precedent in six lines at most, a mistake with its correction and signal", () => {
-    const lines = precedentLines(p(sampleEntry("mistake", "loop"), 1));
+    // Arrange
+    const mistake = p(sampleEntry("mistake", "loop"), 1);
+
+    // Act
+    const lines = precedentLines(mistake);
+
+    // Assert
     strictEqual(lines.length, 6);
     ok(lines[0].startsWith("- shop-mistake-20261022-loop · mistake · shop · 2026-10-22: "), lines[0]);
-    ok(lines.some((l) => l === "  correction: do the other thing"));
-    ok(lines.some((l) => l === "  signal: a red test on the edge case"));
-    strictEqual(precedentLines(p(sampleEntry("decision", "d"), 1)).length, 4);
+    ok(lines.some((l) => l === "  correction: do the other thing"), lines.join("\n"));
+    ok(lines.some((l) => l === "  signal: a red test on the edge case"), lines.join("\n"));
+  });
+
+  it("renders a decision in four lines, without correction nor signal", () => {
+    // Arrange
+    const decision = p(sampleEntry("decision", "d"), 1);
+
+    // Act
+    const lines = precedentLines(decision);
+
+    // Assert
+    strictEqual(lines.length, 4);
   });
 
   it("keeps five precedents, best first, and counts the others", () => {
-    const many = Array.from({ length: 8 }, (_, i) => p(sampleEntry("method", `m${i}`), i / 10));
+    // Arrange
+    const many = EIGHT_METHODS;
+
+    // Act
     const block = buildPrecedentsBlock(many);
+
+    // Assert
     strictEqual((block.match(/^- /gm) ?? []).length, MAX_PRECEDENTS);
-    ok(block.indexOf("shop-method-20261022-m7") < block.indexOf("shop-method-20261022-m6"));
+    ok(block.indexOf("shop-method-20261022-m7") < block.indexOf("shop-method-20261022-m6"), block);
     ok(!block.includes("shop-method-20261022-m2 "), block);
     ok(block.endsWith("3 more precedents not shown."), block);
   });
 
   it("stays within its character bound", () => {
-    const long = "x".repeat(1_500);
-    const many = Array.from({ length: 5 }, (_, i) => p(sampleEntry("method", `l${i}`, { rationale: long }), 1 - i / 10));
+    // Arrange
+    const many = FIVE_LONG_METHODS;
+
+    // Act
     const block = buildPrecedentsBlock(many);
+
+    // Assert
     ok(block.length <= MAX_PRECEDENTS_CHARS, String(block.length));
     ok(/\d more precedents? not shown\.$/.test(block), block.slice(-60));
   });
 
   it("shows a topic two projects hold as one slot, newest first, under 'projects disagree'", () => {
-    const shop = sampleEntry("decision", "money", { project: "shop", date: "2026-09-01" });
-    const billing = sampleEntry("decision", "money", { project: "billing", date: "2026-10-12" });
-    const block = buildPrecedentsBlock([p(shop, 0.9), p(billing, 0.2), ...Array.from({ length: 5 }, (_, i) =>
-      p(sampleEntry("method", `o${i}`), 0.5))]);
+    // Arrange
+    const recalled = DISAGREEING_PROJECTS;
+
+    // Act
+    const block = buildPrecedentsBlock(recalled);
+
+    // Assert
     ok(block.includes("Topic money — projects disagree:"), block);
     ok(block.indexOf("billing-decision") < block.indexOf("shop-decision"), block);
     strictEqual((block.match(/^- /gm) ?? []).length, 6, "the disagreement counts as one slot of five");

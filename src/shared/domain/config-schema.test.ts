@@ -7,49 +7,77 @@ import {
   validateConfigEntry, layerConfig, resolveConfigEntry, unknownStoredKeys, nestedConfigKeys,
 } from "./config-schema.ts";
 import { PERMISSION_MODES } from "./permission-modes.ts";
+import {
+  BLANK_VALUES, CLEAN_MAPS, CONSUMERS, FALLBACK_AGAINST_USER, MEMORY_VALUES, NESTED_MAP, NON_STRING_VALUES,
+  NOT_NESTED_MAPS, PROJECT_MODES, READ_ONLY_TOOLS, REFUSED_MEMORY_DIRS, TOOLS_EXTRA_REFUSAL, TWIN_ENTRIES,
+  UNDECLARED_MEMORY_KEYS, USER_GATED_KEYS, VALID_MEMORY_DIRS, VALID_TOOLS_EXTRA, WIDER_PROJECT_MODES,
+} from "./config-schema.fixtures.ts";
+import { assertUserFacingConsumer } from "./config-schema.assertions.ts";
+import { assertMentions } from "../../../tests/support/assertions/text.ts";
 
 describe("the key space itself", () => {
-  it("declares a consumer for every key — a key nothing reads is not settable", () => {
-    for (const spec of CONFIG_KEYS) {
-      ok(spec.consumedBy.length > 0, spec.key);
-      ok(spec.description.length > 0, spec.key);
-    }
-  });
+  for (const spec of CONFIG_KEYS) {
+    it(`declares a consumer for every key — a key nothing reads is not settable: ${spec.key}`, () => {
+      // Arrange
+      const { key } = spec;
 
-  it("names each consumer as the user meets it: a command or the host, never a source file", () => {
-    // `/config list` prints it as "read by": a path like crews/advisor/crew.ork.ts
-    // went stale as soon as the code moved, and told the user nothing.
-    for (const spec of CONFIG_KEYS) {
-      ok(/^(\/[a-z-]+|the orkeon-repl )/.test(spec.consumedBy), `${spec.key}: ${spec.consumedBy}`);
-      ok(!/\.ts\b|\b(crews|commands|shared)\//.test(spec.consumedBy), `${spec.key}: ${spec.consumedBy}`);
-    }
-    deepStrictEqual(Object.fromEntries(CONFIG_KEYS.map((s) => [s.key, s.consumedBy])), {
-      "permissions.fallback": "/assistant (main-loop crew), /commit, /mode, /permissions",
-      "review.lenses": "/review (code-review crew)",
-      "advisor.model": "/advisor (advisor crew)",
-      "commit.requireConfirm": "/commit",
-      spinnerVerbs: "the orkeon-repl TUI status line (read by the host)",
-      "tools.extra": "/assistant and /summary (the tools offered), /permissions (rules may name them)",
-      "voice.reply": "/assistant, /summary, /transcribe --then, /voice send and /voice --go (each answer read aloud)",
-      "answer.language": "/assistant, /summary, /transcribe --then, /voice send and /voice --go (the main loop's prompt)",
-      "compaction.trigger": "/assistant (the automatic compaction at the head and the tail of a turn), /usage",
-      "dev.workDir": "/dev-status (the work folder it reads), /commit (the work folder it leaves out)",
-      "dev.prAuto": "/commit (the pull request of the branch)",
-      "memory.dir": "/memory-admit, /assistant (the memory_recall and memory_push tools)",
-      "memory.project": "/memory-admit, /assistant (the memory_recall and memory_push tools)",
-      "memory.autoAdmitAudited": "/memory-admit",
+      // Act
+      const lengths = { consumedBy: spec.consumedBy.length, description: spec.description.length };
+
+      // Assert
+      ok(lengths.consumedBy > 0, key);
+      ok(lengths.description > 0, key);
     });
+  }
+
+  for (const spec of CONFIG_KEYS) {
+    it(`names each consumer as the user meets it: a command or the host, never a source file: ${spec.key}`, () => {
+      // `/config list` prints it as "read by": a path like crews/advisor/crew.ork.ts
+      // went stale as soon as the code moved, and told the user nothing.
+      // Arrange
+      const { key } = spec;
+
+      // Act
+      const consumer = spec.consumedBy;
+
+      // Assert
+      assertUserFacingConsumer(key, consumer);
+    });
+  }
+
+  it("names the consumers of every key", () => {
+    // Arrange
+    const specs = CONFIG_KEYS;
+
+    // Act
+    const consumers = Object.fromEntries(specs.map((s) => [s.key, s.consumedBy]));
+
+    // Assert
+    deepStrictEqual(consumers, CONSUMERS);
   });
 
   it("has no duplicate keys", () => {
-    strictEqual(new Set(knownConfigKeys()).size, CONFIG_KEYS.length);
+    // Arrange
+    const keys = knownConfigKeys();
+
+    // Act
+    const distinct = new Set(keys).size;
+
+    // Assert
+    strictEqual(distinct, CONFIG_KEYS.length);
   });
 
   it("carries permissions.fallback, and its allowed set IS the mode vocabulary", () => {
     // B-2 reads this key to decide the session's permission posture. If the two
     // lists drifted, /config would accept a mode the resolver then rejects — and
     // the operator would be told their posture changed when it had not.
-    const spec = configKeySpec("permissions.fallback");
+    // Arrange
+    const key = "permissions.fallback";
+
+    // Act
+    const spec = configKeySpec(key);
+
+    // Assert
     ok(spec, "permissions.fallback must be settable");
     deepStrictEqual([...spec!.allowed!].sort(), [...PERMISSION_MODES].sort());
   });
@@ -58,113 +86,270 @@ describe("the key space itself", () => {
     // The host reads this key OUTSIDE the script runtime (TuiFidelityWiring polls
     // the config_map session state and the settings file directly), so its exact
     // name is a cross-layer contract — renaming it here silently kills the setting.
-    const spec = configKeySpec("spinnerVerbs");
+    // Arrange
+    const key = "spinnerVerbs";
+
+    // Act
+    const spec = configKeySpec(key);
+
+    // Assert
     ok(spec, "spinnerVerbs must be settable");
     strictEqual(spec!.allowed, undefined); // any non-empty CSV of verbs
     ok(spec!.consumedBy.includes("TUI"), spec!.consumedBy);
-    ok(validateConfigEntry("spinnerVerbs", "Reticulating, Percolating").ok);
+  });
+
+  it("accepts a CSV of verbs as spinnerVerbs", () => {
+    // Arrange
+    const verbs = "Reticulating, Percolating";
+
+    // Act
+    const v = validateConfigEntry("spinnerVerbs", verbs);
+
+    // Assert
+    ok(v.ok);
   });
 });
 
 describe("validateConfigEntry — ACCEPTANCE 1: unknown keys are rejected with the list", () => {
   it("names every valid key in the rejection", () => {
-    const v = validateConfigEntry("permissions.fallbck", "plan");
+    // Arrange
+    const key = "permissions.fallbck";
+
+    // Act
+    const v = validateConfigEntry(key, "plan");
+
+    // Assert
     strictEqual(v.ok, false);
-    for (const key of knownConfigKeys()) ok(v.reason.includes(key), `${key} missing from: ${v.reason}`);
+    assertMentions(v.reason, knownConfigKeys());
   });
 
   it("rejects a value outside the key's allowed set, naming the set", () => {
-    const v = validateConfigEntry("permissions.fallback", "yolo");
+    // Arrange
+    const value = "yolo";
+
+    // Act
+    const v = validateConfigEntry("permissions.fallback", value);
+
+    // Assert
     strictEqual(v.ok, false);
-    ok(v.reason.includes("bypassPermissions"), v.reason);
-    ok(v.reason.includes("yolo"), v.reason);
+    assertMentions(v.reason, ["bypassPermissions", "yolo"]);
   });
 
-  it("accepts every allowed value of a constrained key", () => {
-    for (const mode of PERMISSION_MODES) {
-      strictEqual(validateConfigEntry("permissions.fallback", mode).ok, true, mode);
-    }
-  });
+  for (const mode of PERMISSION_MODES) {
+    it(`accepts every allowed value of a constrained key: ${mode}`, () => {
+      // Arrange
+      const value = mode;
+
+      // Act
+      const v = validateConfigEntry("permissions.fallback", value);
+
+      // Assert
+      strictEqual(v.ok, true, mode);
+    });
+  }
 
   it("accepts any non-empty value for an unconstrained key", () => {
-    strictEqual(validateConfigEntry("review.lenses", "correctness,security").ok, true);
+    // Arrange
+    const value = "correctness,security";
+
+    // Act
+    const v = validateConfigEntry("review.lenses", value);
+
+    // Assert
+    strictEqual(v.ok, true);
   });
 
-  it("rejects an empty value rather than storing a blank setting", () => {
-    strictEqual(validateConfigEntry("review.lenses", "").ok, false);
-    strictEqual(validateConfigEntry("review.lenses", "   ").ok, false);
-  });
+  for (const value of BLANK_VALUES) {
+    it(`rejects an empty value rather than storing a blank setting: ${JSON.stringify(value)}`, () => {
+      // Arrange
+      const blank = value;
+
+      // Act
+      const v = validateConfigEntry("review.lenses", blank);
+
+      // Assert
+      strictEqual(v.ok, false);
+    });
+  }
+
+  for (const value of VALID_TOOLS_EXTRA) {
+    it(`checks the notation of tools.extra, accepting ${JSON.stringify(value)}`, () => {
+      // Arrange
+      const extra = value;
+
+      // Act
+      const v = validateConfigEntry("tools.extra", extra);
+
+      // Assert
+      strictEqual(v.ok, true);
+    });
+  }
 
   it("checks the notation of tools.extra, naming the entries it refuses", () => {
-    strictEqual(validateConfigEntry("tools.extra", "transcribe_audio:read, search_issues").ok, true);
-    strictEqual(validateConfigEntry("tools.extra", "search-issues:write").ok, true);
-    const v = validateConfigEntry("tools.extra", "a:read, b:exec, file_write:read, a");
+    // Arrange
+    const extra = "a:read, b:exec, file_write:read, a";
+
+    // Act
+    const v = validateConfigEntry("tools.extra", extra);
+
+    // Assert
     strictEqual(v.ok, false);
-    strictEqual(v.reason, "'a:read, b:exec, file_write:read, a' is not valid for 'tools.extra': each entry is " +
-      "<name>[:read|:write], a tool that is not built in, named once; not: b:exec, file_write:read, a");
-    strictEqual(validateConfigEntry("tools.extra", ", ,").reason, "', ,' is not valid for 'tools.extra': it names no tool");
+    strictEqual(v.reason, TOOLS_EXTRA_REFUSAL);
+  });
+
+  it("refuses a tools.extra that names no tool", () => {
+    // Arrange
+    const extra = ", ,";
+
+    // Act
+    const v = validateConfigEntry("tools.extra", extra);
+
+    // Assert
+    strictEqual(v.reason, "', ,' is not valid for 'tools.extra': it names no tool");
   });
 
   it("is not fooled by a nullish key", () => {
-    strictEqual(validateConfigEntry(undefined, "x").ok, false);
-    strictEqual(isKnownConfigKey(null), false);
+    // Arrange
+    const key = undefined;
+
+    // Act
+    const v = validateConfigEntry(key, "x");
+
+    // Assert
+    strictEqual(v.ok, false);
+  });
+
+  it("knows no null key", () => {
+    // Arrange
+    const key = null;
+
+    // Act
+    const known = isKnownConfigKey(key);
+
+    // Assert
+    strictEqual(known, false);
   });
 });
 
 describe("layerConfig — ACCEPTANCE 2 & 3: session over file", () => {
   it("returns the file value when the session has none", () => {
-    const r = resolveConfigEntry("permissions.fallback", { "permissions.fallback": "plan" }, {}, {});
+    // Arrange
+    const file = { "permissions.fallback": "plan" };
+
+    // Act
+    const r = resolveConfigEntry("permissions.fallback", file, {}, {});
+
+    // Assert
     strictEqual(r.value, "plan");
     strictEqual(r.source, "file");
   });
 
   it("lets a session override win", () => {
-    const r = resolveConfigEntry(
-      "permissions.fallback",
-      { "permissions.fallback": "plan" },
-      { "permissions.fallback": "bypassPermissions" },
-      {},
-    );
+    // Arrange
+    const file = { "permissions.fallback": "plan" };
+    const session = { "permissions.fallback": "bypassPermissions" };
+
+    // Act
+    const r = resolveConfigEntry("permissions.fallback", file, session, {});
+
+    // Assert
     strictEqual(r.value, "bypassPermissions");
     strictEqual(r.source, "session");
   });
 
+  it("ACCEPTANCE 3 — the session layer shadows the file value while it holds one", () => {
+    // Arrange
+    const file = { "permissions.fallback": "plan" };
+
+    // Act
+    const before = resolveConfigEntry("permissions.fallback", file, { "permissions.fallback": "dontAsk" }, {});
+
+    // Assert
+    strictEqual(before.value, "dontAsk");
+  });
+
   it("ACCEPTANCE 3 — dropping the session layer restores the file value", () => {
     // What /clear does: the bag goes, the file stays.
+    // Arrange
     const file = { "permissions.fallback": "plan" };
-    const before = resolveConfigEntry("permissions.fallback", file, { "permissions.fallback": "dontAsk" }, {});
+
+    // Act
     const after = resolveConfigEntry("permissions.fallback", file, {}, {});
-    strictEqual(before.value, "dontAsk");
+
+    // Assert
     strictEqual(after.value, "plan");
     strictEqual(after.source, "file");
   });
 
   it("reports unset when neither layer has it", () => {
-    const r = resolveConfigEntry("permissions.fallback", {}, {}, {});
+    // Arrange
+    const file = {};
+
+    // Act
+    const r = resolveConfigEntry("permissions.fallback", file, {}, {});
+
+    // Assert
     strictEqual(r.value, undefined);
     strictEqual(r.source, "unset");
   });
 
-  it("treats a blank stored value as unset in both layers", () => {
+  it("treats a blank stored value as unset in the session layer", () => {
     // A blank cannot mean "override with nothing": it would shadow the file with
     // an absence, which no /config path can produce and no consumer can read.
-    strictEqual(resolveConfigEntry("review.lenses", { "review.lenses": "a" }, { "review.lenses": "  " }, {}).value, "a");
-    strictEqual(resolveConfigEntry("review.lenses", { "review.lenses": "  " }, {}, {}).source, "unset");
+    // Arrange
+    const session = { "review.lenses": "  " };
+
+    // Act
+    const r = resolveConfigEntry("review.lenses", { "review.lenses": "a" }, session, {});
+
+    // Assert
+    strictEqual(r.value, "a");
   });
 
-  it("ignores non-string stored values instead of coercing them", () => {
-    for (const junk of [42, true, {}, [], null]) {
-      strictEqual(resolveConfigEntry("review.lenses", { "review.lenses": junk } as any, {}, {}).source, "unset", String(junk));
-    }
+  it("treats a blank stored value as unset in the file layer", () => {
+    // Arrange
+    const file = { "review.lenses": "  " };
+
+    // Act
+    const r = resolveConfigEntry("review.lenses", file, {}, {});
+
+    // Assert
+    strictEqual(r.source, "unset");
   });
+
+  for (const junk of NON_STRING_VALUES) {
+    it(`ignores non-string stored values instead of coercing them: ${String(junk)}`, () => {
+      // Arrange
+      const file = { "review.lenses": junk };
+
+      // Act
+      const r = resolveConfigEntry("review.lenses", file, {}, {});
+
+      // Assert
+      strictEqual(r.source, "unset", String(junk));
+    });
+  }
 
   it("returns one entry per declared key, and only declared keys", () => {
-    const entries = layerConfig({ "not.a.key": "x" }, { "also.not": "y" }, { "nor.this": "z" });
+    // Arrange
+    const file = { "not.a.key": "x" };
+
+    // Act
+    const entries = layerConfig(file, { "also.not": "y" }, { "nor.this": "z" });
+
+    // Assert
     deepStrictEqual(entries.map((e) => e.key), knownConfigKeys());
   });
 
   it("tolerates null/undefined maps", () => {
-    strictEqual(layerConfig(null, undefined, null).length, CONFIG_KEYS.length);
+    // Arrange
+    const file = null;
+
+    // Act
+    const entries = layerConfig(file, undefined, null);
+
+    // Assert
+    strictEqual(entries.length, CONFIG_KEYS.length);
   });
 });
 
@@ -173,208 +358,417 @@ describe("unknownStoredKeys", () => {
     // The map was free-form before B-6, so real sessions hold keys nothing reads.
     // They are reported and NOT deleted: silently dropping someone's data on the
     // next write is how a schema migration loses it.
-    deepStrictEqual(unknownStoredKeys({ "old.key": "v", "permissions.fallback": "plan", "z.key": "w" }),
-      ["old.key", "z.key"]);
+    // Arrange
+    const map = { "old.key": "v", "permissions.fallback": "plan", "z.key": "w" };
+
+    // Act
+    const unknown = unknownStoredKeys(map);
+
+    // Assert
+    deepStrictEqual(unknown, ["old.key", "z.key"]);
   });
 
-  it("is empty for a clean map", () => {
-    deepStrictEqual(unknownStoredKeys({ "permissions.fallback": "plan" }), []);
-    deepStrictEqual(unknownStoredKeys(null), []);
-  });
+  for (const c of CLEAN_MAPS) {
+    it(`is empty for a clean map: ${c.name}`, () => {
+      // Arrange
+      const { map } = c;
+
+      // Act
+      const unknown = unknownStoredKeys(map);
+
+      // Assert
+      deepStrictEqual(unknown, []);
+    });
+  }
 });
 
 describe("nestedConfigKeys", () => {
   it("names the known keys written nested, in their flat spelling", () => {
-    deepStrictEqual(nestedConfigKeys({
-      permissions: { fallback: "bypassPermissions" },
-      tools: { extra: "search_issues" },
-      legacy: { thing: "x" },
-    }), ["permissions.fallback", "tools.extra"]);
+    // Arrange
+    const map = NESTED_MAP;
+
+    // Act
+    const nested = nestedConfigKeys(map);
+
+    // Assert
+    deepStrictEqual(nested, ["permissions.fallback", "tools.extra"]);
   });
 
-  it("is empty for a flat map, a scalar residue and no map", () => {
-    deepStrictEqual(nestedConfigKeys({ "permissions.fallback": "plan", legacy: "x" }), []);
-    deepStrictEqual(nestedConfigKeys(null), []);
-  });
+  for (const c of NOT_NESTED_MAPS) {
+    it(`is empty for a flat map, a scalar residue and no map: ${c.name}`, () => {
+      // Arrange
+      const { map } = c;
+
+      // Act
+      const nested = nestedConfigKeys(map);
+
+      // Assert
+      deepStrictEqual(nested, []);
+    });
+  }
 });
 
 describe("the user layer: a project file widens nothing (QL-06)", () => {
-  const fallback = (file: Record<string, unknown>, user: Record<string, unknown>, session = {}) =>
-    resolveConfigEntry("permissions.fallback", file, session, user);
-  const extra = (file: Record<string, unknown>, user: Record<string, unknown>, session = {}) =>
-    resolveConfigEntry("tools.extra", file, session, user);
-
   it("reads a key the project leaves unset from the user layer", () => {
-    deepStrictEqual(fallback({}, { "permissions.fallback": "bypassPermissions" }),
-      { key: "permissions.fallback", value: "bypassPermissions", source: "user" });
+    // Arrange
+    const user = { "permissions.fallback": "bypassPermissions" };
+
+    // Act
+    const r = resolveConfigEntry("permissions.fallback", {}, {}, user);
+
+    // Assert
+    deepStrictEqual(r, { key: "permissions.fallback", value: "bypassPermissions", source: "user" });
   });
 
-  it("lets the project set default, plan or acceptEdits over the user's mode", () => {
-    for (const mode of ["default", "plan", "acceptEdits"]) {
-      deepStrictEqual(fallback({ "permissions.fallback": mode }, { "permissions.fallback": "bypassPermissions" }),
-        { key: "permissions.fallback", value: mode, source: "file" }, mode);
-    }
-  });
+  for (const mode of PROJECT_MODES) {
+    it(`lets the project set default, plan or acceptEdits over the user's mode: ${mode}`, () => {
+      // Arrange
+      const file = { "permissions.fallback": mode };
 
-  it("ignores a wider mode from the project, keeps the user's, and names the value set aside", () => {
-    for (const mode of ["bypassPermissions", "dontAsk", "nonsense"]) {
-      const r = fallback({ "permissions.fallback": ` ${mode} ` }, { "permissions.fallback": "plan" });
+      // Act
+      const r = resolveConfigEntry("permissions.fallback", file, {}, { "permissions.fallback": "bypassPermissions" });
+
+      // Assert
+      deepStrictEqual(r, { key: "permissions.fallback", value: mode, source: "file" }, mode);
+    });
+  }
+
+  for (const mode of WIDER_PROJECT_MODES) {
+    it(`ignores a wider mode from the project, keeps the user's, and names the value set aside: ${mode}`, () => {
+      // Arrange
+      const file = { "permissions.fallback": ` ${mode} ` };
+
+      // Act
+      const r = resolveConfigEntry("permissions.fallback", file, {}, { "permissions.fallback": "plan" });
+
+      // Assert
       strictEqual(r.value, "plan", mode);
       strictEqual(r.source, "user", mode);
       strictEqual(r.ignored?.value, mode, mode);
       ok(r.ignored?.reason.includes("default, plan or acceptEdits"), r.ignored?.reason);
-    }
-  });
+    });
+  }
 
   it("never lets the project set a mode wider than the one the user settings set", () => {
-    const r = fallback({ "permissions.fallback": "acceptEdits" }, { "permissions.fallback": "plan" });
+    // Arrange
+    const file = { "permissions.fallback": "acceptEdits" };
+
+    // Act
+    const r = resolveConfigEntry("permissions.fallback", file, {}, { "permissions.fallback": "plan" });
+
+    // Assert
     strictEqual(r.value, "plan");
     strictEqual(r.source, "user");
     strictEqual(r.ignored?.value, "acceptEdits");
     ok(r.ignored?.reason.includes("wider than the user settings' 'plan'"), r.ignored?.reason);
-    strictEqual(fallback({ "permissions.fallback": "default" }, { "permissions.fallback": "dontAsk" }).value, "dontAsk");
-    strictEqual(fallback({ "permissions.fallback": "plan" }, { "permissions.fallback": "default" }).value, "plan");
-    strictEqual(fallback({ "permissions.fallback": "acceptEdits" }, {}).value, "acceptEdits");
-    strictEqual(fallback({ "permissions.fallback": "acceptEdits" }, { "permissions.fallback": "typo" }).value, "typo");
   });
 
+  for (const c of FALLBACK_AGAINST_USER) {
+    it(`never lets the project set a mode wider than the one the user settings set: ${c.name}`, () => {
+      // Arrange
+      const { file, user } = c;
+
+      // Act
+      const r = resolveConfigEntry("permissions.fallback", file, {}, user);
+
+      // Assert
+      strictEqual(r.value, c.value);
+    });
+  }
+
   it("leaves the fallback unset when the project's wide value is ignored and the user sets none", () => {
-    const r = fallback({ "permissions.fallback": "bypassPermissions" }, {});
+    // Arrange
+    const file = { "permissions.fallback": "bypassPermissions" };
+
+    // Act
+    const r = resolveConfigEntry("permissions.fallback", file, {}, {});
+
+    // Assert
     strictEqual(r.value, undefined);
     strictEqual(r.source, "unset");
     strictEqual(r.ignored?.value, "bypassPermissions");
   });
 
   it("lets the session set any mode: the user types it in the REPL, as /mode", () => {
-    const r = fallback({ "permissions.fallback": "bypassPermissions" }, {}, { "permissions.fallback": "dontAsk" });
+    // Arrange
+    const session = { "permissions.fallback": "dontAsk" };
+
+    // Act
+    const r = resolveConfigEntry("permissions.fallback", { "permissions.fallback": "bypassPermissions" }, session, {});
+
+    // Assert
     deepStrictEqual(r, { key: "permissions.fallback", value: "dontAsk", source: "session" });
   });
 
   it("offers a project's extra tool only when the user lists it, and names the others", () => {
-    const r = extra({ "tools.extra": "search_issues, deploy_prod" }, { "tools.extra": "Search_Issues:write" });
+    // Arrange
+    const file = { "tools.extra": "search_issues, deploy_prod" };
+
+    // Act
+    const r = resolveConfigEntry("tools.extra", file, {}, { "tools.extra": "Search_Issues:write" });
+
+    // Assert
     strictEqual(r.value, "search_issues:write");
     strictEqual(r.source, "file");
     strictEqual(r.ignored?.value, "deploy_prod:write");
   });
 
-  it("keeps a tool read only when both lists say read: a read tool is offered in plan and dontAsk too", () => {
-    strictEqual(extra({ "tools.extra": "a" }, { "tools.extra": "a:read" }).value, "a:write");
-    strictEqual(extra({ "tools.extra": "a:read" }, { "tools.extra": "a:write" }).value, "a:write");
-    strictEqual(extra({ "tools.extra": "a:read" }, { "tools.extra": "a:read" }).value, "a:read");
-  });
+  for (const c of READ_ONLY_TOOLS) {
+    it(`keeps a tool read only when both lists say read: a read tool is offered in plan and dontAsk too — ${c.name}`, () => {
+      // Arrange
+      const { file, user } = c;
+
+      // Act
+      const r = resolveConfigEntry("tools.extra", file, {}, user);
+
+      // Assert
+      strictEqual(r.value, c.value);
+    });
+  }
 
   it("accepts every project tool when the user lists *, as write: * grants the tools, not their class", () => {
-    const r = extra({ "tools.extra": "a:read, b" }, { "tools.extra": "*" });
+    // Arrange
+    const file = { "tools.extra": "a:read, b" };
+
+    // Act
+    const r = resolveConfigEntry("tools.extra", file, {}, { "tools.extra": "*" });
+
+    // Assert
     deepStrictEqual(r, { key: "tools.extra", value: "a:write, b:write", source: "file" });
   });
 
   it("drops the second entry of a dropped tool: once its twin is gone, it would parse as a grant", () => {
-    const r = extra({ "tools.extra": "evil_tool:write, evil_tool:read" }, {});
+    // Arrange
+    const file = { "tools.extra": "evil_tool:write, evil_tool:read" };
+
+    // Act
+    const r = resolveConfigEntry("tools.extra", file, {}, {});
+
+    // Assert
     strictEqual(r.value, undefined);
     strictEqual(r.ignored?.value, "evil_tool:write");
-    strictEqual(extra({ "tools.extra": "evil_tool:write, Evil_Tool:read" }, { "tools.extra": "other:read" }).value, undefined);
-    strictEqual(extra({ "tools.extra": "a:write, a:read" }, { "tools.extra": "a:read" }).value, "a:write");
-    strictEqual(extra({ "tools.extra": "a, file_read:read" }, { "tools.extra": "a" }).value, "a:write, file_read:read");
   });
 
+  for (const c of TWIN_ENTRIES) {
+    it(`drops the second entry of a dropped tool: ${c.name}`, () => {
+      // Arrange
+      const { file, user } = c;
+
+      // Act
+      const r = resolveConfigEntry("tools.extra", file, {}, user);
+
+      // Assert
+      strictEqual(r.value, c.value);
+    });
+  }
+
   it("does not take *:read as *", () => {
-    const r = extra({ "tools.extra": "a:read" }, { "tools.extra": "*:read" });
+    // Arrange
+    const user = { "tools.extra": "*:read" };
+
+    // Act
+    const r = resolveConfigEntry("tools.extra", { "tools.extra": "a:read" }, {}, user);
+
+    // Assert
     strictEqual(r.value, undefined);
     strictEqual(r.ignored?.value, "a:read");
   });
 
   it("offers no tool when the project lists only tools the user does not: the user's list does not take over", () => {
-    const r = extra({ "tools.extra": "deploy_prod" }, { "tools.extra": "search_issues" });
+    // Arrange
+    const file = { "tools.extra": "deploy_prod" };
+
+    // Act
+    const r = resolveConfigEntry("tools.extra", file, {}, { "tools.extra": "search_issues" });
+
+    // Assert
     strictEqual(r.value, undefined);
     strictEqual(r.source, "unset");
     strictEqual(r.ignored?.value, "deploy_prod:write");
   });
 
   it("offers no project tool at all when the user layer is empty", () => {
-    const r = extra({ "tools.extra": "search_issues" }, {});
+    // Arrange
+    const file = { "tools.extra": "search_issues" };
+
+    // Act
+    const r = resolveConfigEntry("tools.extra", file, {}, {});
+
+    // Assert
     strictEqual(r.value, undefined);
     strictEqual(r.ignored?.value, "search_issues:write");
   });
 
   it("takes the user's list, less *, when the project sets none", () => {
-    deepStrictEqual(extra({}, { "tools.extra": "*, search_issues:read" }),
-      { key: "tools.extra", value: "search_issues:read", source: "user" });
-    strictEqual(extra({}, { "tools.extra": "*" }).source, "unset");
+    // Arrange
+    const user = { "tools.extra": "*, search_issues:read" };
+
+    // Act
+    const r = resolveConfigEntry("tools.extra", {}, {}, user);
+
+    // Assert
+    deepStrictEqual(r, { key: "tools.extra", value: "search_issues:read", source: "user" });
+  });
+
+  it("leaves tools.extra unset when the user lists * alone and the project sets none", () => {
+    // Arrange
+    const user = { "tools.extra": "*" };
+
+    // Act
+    const r = resolveConfigEntry("tools.extra", {}, {}, user);
+
+    // Assert
+    strictEqual(r.source, "unset");
   });
 
   it("keeps a project entry that does not parse, as written, for the reader to warn about", () => {
-    const r = extra({ "tools.extra": "a:read, bad:exec" }, { "tools.extra": "*" });
+    // Arrange
+    const file = { "tools.extra": "a:read, bad:exec" };
+
+    // Act
+    const r = resolveConfigEntry("tools.extra", file, {}, { "tools.extra": "*" });
+
+    // Assert
     strictEqual(r.value, "a:write, bad:exec");
     strictEqual(r.ignored, undefined);
   });
 
   it("lets the session list any tool", () => {
-    deepStrictEqual(extra({ "tools.extra": "x" }, {}, { "tools.extra": "deploy_prod" }),
-      { key: "tools.extra", value: "deploy_prod", source: "session" });
+    // Arrange
+    const session = { "tools.extra": "deploy_prod" };
+
+    // Act
+    const r = resolveConfigEntry("tools.extra", { "tools.extra": "x" }, session, {});
+
+    // Assert
+    deepStrictEqual(r, { key: "tools.extra", value: "deploy_prod", source: "session" });
   });
 
   it("lets the project override the user on every other key", () => {
-    deepStrictEqual(resolveConfigEntry("review.lenses", { "review.lenses": "style" }, {}, { "review.lenses": "security" }),
-      { key: "review.lenses", value: "style", source: "file" });
-    strictEqual(layerConfig({}, {}, { "advisor.model": "m" }).find((e) => e.key === "advisor.model")?.source, "user");
+    // Arrange
+    const file = { "review.lenses": "style" };
+
+    // Act
+    const r = resolveConfigEntry("review.lenses", file, {}, { "review.lenses": "security" });
+
+    // Assert
+    deepStrictEqual(r, { key: "review.lenses", value: "style", source: "file" });
+  });
+
+  it("reads another key the project leaves unset from the user layer", () => {
+    // Arrange
+    const user = { "advisor.model": "m" };
+
+    // Act
+    const entries = layerConfig({}, {}, user);
+
+    // Assert
+    strictEqual(entries.find((e) => e.key === "advisor.model")?.source, "user");
   });
 });
 
 describe("the shared memory's keys (M-2)", () => {
-  it("refuses a memory.* key the schema does not declare, with the list", () => {
-    for (const key of ["memory.typo", "memory.Dir", "memory.autoAdmit", "memory"]) {
-      const v = validateConfigEntry(key, "x");
+  for (const key of UNDECLARED_MEMORY_KEYS) {
+    it(`refuses a memory.* key the schema does not declare, with the list: ${key}`, () => {
+      // Arrange
+      const undeclared = key;
+
+      // Act
+      const v = validateConfigEntry(undeclared, "x");
+
+      // Assert
       strictEqual(v.ok, false, key);
       ok(v.reason.startsWith(`unknown config key '${key}'`), v.reason);
-      ok(v.reason.includes("memory.dir, memory.project, memory.autoAdmitAudited"), v.reason);
-    }
-  });
+      assertMentions(v.reason, ["memory.dir, memory.project, memory.autoAdmitAudited"]);
+    });
+  }
 
-  it("takes a relative folder as memory.dir, never one outside the project nor the agent memory's", () => {
-    for (const dir of [".orkeon/memory", "docs/memory", "./.orkeon/shared/"]) ok(validateConfigEntry("memory.dir", dir).ok, dir);
-    for (const [dir, why] of [
-      ["/shared-memory", "an absolute path"], ["../other/memory", "'..'"], [".claude/memory", "under .claude/ or .git/"],
-      [".git/memory", "under .claude/ or .git/"], [".orkeon/agent-memory", "agent memory"], [".orkeon/agent-memory/x", "agent memory"],
-      [".orkeon", "agent memory"], ["./", "an empty folder"],
-    ]) {
+  for (const dir of VALID_MEMORY_DIRS) {
+    it(`takes a relative folder as memory.dir: ${dir}`, () => {
+      // Arrange
+      const value = dir;
+
+      // Act
+      const v = validateConfigEntry("memory.dir", value);
+
+      // Assert
+      ok(v.ok, dir);
+    });
+  }
+
+  for (const c of REFUSED_MEMORY_DIRS) {
+    it(`never takes one outside the project nor the agent memory's as memory.dir: ${c.dir}`, () => {
+      // Arrange
+      const { dir } = c;
+
+      // Act
       const v = validateConfigEntry("memory.dir", dir);
+
+      // Assert
       strictEqual(v.ok, false, dir);
-      ok(v.reason.includes(why), `${dir}: ${v.reason}`);
-    }
-  });
+      ok(v.reason.includes(c.why), `${dir}: ${v.reason}`);
+    });
+  }
 
-  it("takes a kebab-case memory.project, and true or false as memory.autoAdmitAudited", () => {
-    ok(validateConfigEntry("memory.project", "orkeon-code").ok);
-    for (const name of ["Orkeon Code", "orkeon_code", "-x"]) strictEqual(validateConfigEntry("memory.project", name).ok, false, name);
-    ok(validateConfigEntry("memory.autoAdmitAudited", "true").ok);
-    strictEqual(validateConfigEntry("memory.autoAdmitAudited", "yes").ok, false);
-  });
+  for (const c of MEMORY_VALUES) {
+    it(`takes a kebab-case memory.project, and true or false as memory.autoAdmitAudited: ${c.key} = ${JSON.stringify(c.value)}`, () => {
+      // Arrange
+      const { key, value } = c;
 
-  it("sets dev.prAuto true from a project file only when the user settings do (QL-06)", () => {
-    const auto = (file: Record<string, unknown>, user: Record<string, unknown>) =>
-      resolveConfigEntry("dev.prAuto", file, {}, user);
-    const r = auto({ "dev.prAuto": "true" }, {});
-    strictEqual(r.value, undefined);
-    strictEqual(r.source, "unset");
-    strictEqual(r.ignored?.value, "true");
-    ok(r.ignored?.reason.includes("user settings"), r.ignored?.reason);
-    strictEqual(auto({ "dev.prAuto": "true" }, { "dev.prAuto": "false" }).value, "false");
-    deepStrictEqual(auto({ "dev.prAuto": "true" }, { "dev.prAuto": "true" }), { key: "dev.prAuto", value: "true", source: "file" });
-    deepStrictEqual(auto({ "dev.prAuto": "false" }, { "dev.prAuto": "true" }), { key: "dev.prAuto", value: "false", source: "file" });
-  });
+      // Act
+      const v = validateConfigEntry(key, value);
 
-  it("sets memory.autoAdmitAudited true from a project file only when the user settings do (QL-06)", () => {
-    const auto = (file: Record<string, unknown>, user: Record<string, unknown>) =>
-      resolveConfigEntry("memory.autoAdmitAudited", file, {}, user);
-    const r = auto({ "memory.autoAdmitAudited": "true" }, {});
-    strictEqual(r.value, undefined);
-    strictEqual(r.source, "unset");
-    strictEqual(r.ignored?.value, "true");
-    ok(r.ignored?.reason.includes("user settings"), r.ignored?.reason);
-    strictEqual(auto({ "memory.autoAdmitAudited": "true" }, { "memory.autoAdmitAudited": "false" }).value, "false");
-    deepStrictEqual(auto({ "memory.autoAdmitAudited": "true" }, { "memory.autoAdmitAudited": "true" }),
-      { key: "memory.autoAdmitAudited", value: "true", source: "file" });
-    deepStrictEqual(auto({ "memory.autoAdmitAudited": "false" }, { "memory.autoAdmitAudited": "true" }),
-      { key: "memory.autoAdmitAudited", value: "false", source: "file" });
-  });
+      // Assert
+      strictEqual(v.ok, c.ok, value);
+    });
+  }
+
+  for (const key of USER_GATED_KEYS) {
+    it(`sets ${key} true from a project file only when the user settings do (QL-06)`, () => {
+      // Arrange
+      const file = { [key]: "true" };
+
+      // Act
+      const r = resolveConfigEntry(key, file, {}, {});
+
+      // Assert
+      strictEqual(r.value, undefined);
+      strictEqual(r.source, "unset");
+      strictEqual(r.ignored?.value, "true");
+      ok(r.ignored?.reason.includes("user settings"), r.ignored?.reason);
+    });
+
+    it(`keeps the user's false for ${key} over a project's true (QL-06)`, () => {
+      // Arrange
+      const user = { [key]: "false" };
+
+      // Act
+      const r = resolveConfigEntry(key, { [key]: "true" }, {}, user);
+
+      // Assert
+      strictEqual(r.value, "false");
+    });
+
+    it(`sets ${key} true from a project file when the user settings do too (QL-06)`, () => {
+      // Arrange
+      const user = { [key]: "true" };
+
+      // Act
+      const r = resolveConfigEntry(key, { [key]: "true" }, {}, user);
+
+      // Assert
+      deepStrictEqual(r, { key, value: "true", source: "file" });
+    });
+
+    it(`lets a project file set ${key} false over the user's true (QL-06)`, () => {
+      // Arrange
+      const user = { [key]: "true" };
+
+      // Act
+      const r = resolveConfigEntry(key, { [key]: "false" }, {}, user);
+
+      // Assert
+      deepStrictEqual(r, { key, value: "false", source: "file" });
+    });
+  }
 });

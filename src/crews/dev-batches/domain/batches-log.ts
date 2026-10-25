@@ -3,12 +3,13 @@
 // `- YYYY-MM-DD HH:MM F<n> <event> <detail>`, and `- YYYY-MM-DD HH:MM closed` last. Pure.
 import type { BatchesLogEntry } from "../../../shared/domain/dev/batches-state.ts";
 import { batchesStatePath } from "../../../shared/domain/workflow/state-file.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 export type BatchEvent = "launched" | "relaunched" | "returned" | "merged" | "stopped";
 
 /** The log's path under the workspace: Code's own state, never the harness's `<CODE>-BATCHES-STATE.md`. */
 export function batchesLogPath(code: string): string {
-  return `/workspace/${batchesStatePath(code)}`;
+  return `${WORKSPACE}/${batchesStatePath(code)}`;
 }
 
 const pad = (n: number): string => String(n).padStart(2, "0");

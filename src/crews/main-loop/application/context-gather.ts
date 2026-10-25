@@ -22,6 +22,7 @@ import { MAX_MEMORY_ENTRIES_PER_CATEGORY } from "../domain/prompt-assembly.ts";
 import { MEMORY_CATEGORIES } from "../../../shared/domain/agent-policy/memory-categories.ts";
 import { resolveBehaviorFlags } from "../../../shared/domain/agent-policy/behavior-flags.ts";
 import type { BehaviorFlags } from "../../../shared/domain/agent-policy/behavior-flags.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 /** The project's instructions file (AGENTS.md, then CLAUDE.md), shared with the crews. */
 export { readInstructionsFile };
@@ -54,9 +55,9 @@ export async function readMemoryByCategory(memory: MemoryStore): Promise<Record<
 export async function readGitContext(shell: Shell): Promise<{ cwd: string; gitStatus?: string }> {
   try {
     const r = await shell.run("git status --porcelain=v1 -b");
-    return { cwd: "/workspace", gitStatus: r.exitCode === 0 ? r.stdout : undefined };
+    return { cwd: WORKSPACE, gitStatus: r.exitCode === 0 ? r.stdout : undefined };
   } catch {
-    return { cwd: "/workspace" };
+    return { cwd: WORKSPACE };
   }
 }
 

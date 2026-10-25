@@ -3,24 +3,36 @@
 // lines of what /dev-implement or /dev-verify answered) it logs what came of that batch; then either it
 // stops (a human decides), or it closes the plan (every batch done: one push, one pull request), or it runs
 // the preflight, the review of a batch whose dependencies just closed, and names the next batch for the
-// command to launch: JSON `{ lines, next?: { crew: "dev-implement", input } }`. A run that names its code
+// command to launch: JSON `{ lines, next?: { crew: "dev-implement", input } }`. With `concurrency` n from 2
+// (temp/26 L8P-D1) it runs the next wave itself instead, at most n batches at once, each under its own worktree
+// (run-wave.ts), and names itself next while nothing stopped: `next: { crew: "dev-batches", input }`, one hop a
+// wave. A run that names its code
 // keeps it, with what the command read at its dispatch, in `.orkeon/dev/batches-active.json`; the runs the
 // chain launches name none and read it back. The batch's own work (its steps, its audit, its commit) is
-// /dev-implement's: this crew writes only the log, the run record and the pull request's body.
+// /dev-implement's: this crew writes only the log, the run record and the pull request's body - and, in a parallel
+// run, the files it seeds and harvests and the merges of the VALID batches.
 import type { Files, Llm, Logger, Shell } from "../../../shared/application/ports.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import type { PullRequestOpener } from "../../../shared/application/git/commit-files.ts";
 import { defaultBranch, runGit } from "../../../shared/application/git/commit-files.ts";
 import { loadDevCode, loadDevContext } from "../../../shared/application/dev/load-dev-context.ts";
 import type { DevCode } from "../../../shared/application/dev/load-dev-context.ts";
+import type { WorkFolder } from "../../../shared/application/dev/resolve-work-folder.ts";
 import { preflight } from "../../../shared/application/dev/preflight.ts";
 import { runSubAgent } from "../../../shared/application/agents/run-sub-agent.ts";
 import { isCode } from "../../../shared/domain/dev/artefacts.ts";
-import { checkConcurrency } from "../../../shared/domain/dev/batches-concurrency.ts";
+import { checkConcurrency, concurrencyModeRefusal } from "../../../shared/domain/dev/batches-concurrency.ts";
+import { readMemoryDir } from "../../../shared/application/shared-memory/memory-settings.ts";
+import { batchWaves, sheetAnchorPaths } from "../domain/batch-waves.ts";
+import { runWave } from "./run-wave.ts";
+import { batchWorktreeName, worktreePlace } from "../../../shared/domain/git/worktree.ts";
+import type { BatchOutcome, BatchRun } from "./run-wave.ts";
 import { parseBatchesState } from "../../../shared/domain/dev/batches-state.ts";
 import type { BatchesLogEntry } from "../../../shared/domain/dev/batches-state.ts";
 import { lastVerdict } from "../../../shared/domain/dev/verdict-format.ts";
-import { REVIEWER_CHARTER } from "../../../shared/domain/dev/reviewer-charter.ts";
+import { NEXT_BATCH_REVIEWER_CHARTER } from "../../../shared/domain/dev/reviewer-charter.ts";
+import { charterCatalogue } from "../../../shared/domain/agents/charter.ts";
+import type { CarriedText } from "../../../shared/domain/dev/carried-text.ts";
 import { REVIEW_ANSWER_SCHEMA, checkReviewAnswer } from "../../../shared/domain/dev/review-answer.ts";
 import { buildReviewAnswerPrompt, buildReviewBrief, reviewSystem } from "../../../shared/domain/dev/review-prompt.ts";
 import { parseSessionRules } from "../../../shared/domain/git/pull-request.ts";
@@ -33,6 +45,8 @@ import type { BatchEvent } from "../domain/batches-log.ts";
 import { closePlan } from "./plan-close.ts";
 import { BATCHES_ACTIVE_RECORD } from "../../../shared/domain/dev/batches-state.ts";
 import type { MergedBatch } from "./plan-close.ts";
+import { WORKSPACE, workspaceRelative } from "../../../shared/domain/vfs.ts";
+import { listProjectFiles } from "../../../shared/application/dev/project-files.ts";
 
 export const ACTIVE_RECORD = BATCHES_ACTIVE_RECORD;
 const AFTER_LINES = 20;
@@ -42,6 +56,8 @@ const AFTER_LINES = 20;
 export interface BatchesContext {
   permissionMode: string; permissionRules: string[]; githubTool: boolean;
   hooks: unknown[]; effort: string | null; memoryRecall?: false;
+  /** The batches at once of a parallel run (2 to 4); absent, one. */
+  concurrency?: number;
 }
 
 export interface DevBatchesInputs {
@@ -50,7 +66,7 @@ export interface DevBatchesInputs {
   pr?: unknown;
   /** The last lines of what the batch's chain answered: this run logs what came of it. */
   after?: unknown;
-  /** How many batches at once: 1 (absent); above 1 refused until a script agent can be given a working root. */
+  /** How many batches at once, 1 to 4: 1 (absent) is the sequential run; a chained run reads the record's. */
   concurrency?: unknown;
   permissionMode?: unknown; permissionRules?: unknown; githubTool?: unknown;
   hooks?: unknown; effort?: unknown; memoryRecall?: unknown;
@@ -63,11 +79,18 @@ export interface DevBatchesDeps {
   reviewerFor?(context: BatchesContext): Pick<Llm, "act" | "extract">;
   /** The pull-request opener for the context read at the dispatch; none: the command is handed over. */
   openerFor?(context: BatchesContext): PullRequestOpener | undefined;
+  /** A parallel run's batch, run by a batch agent under its worktree; none: a parallel run is refused. */
+  runBatch?(run: BatchRun, context: BatchesContext): Promise<BatchOutcome>;
+  /** git's top as an agent under `root` sees it, before the first wave of a typed run (run-wave.ts). */
+  probe?(root: string): Promise<{ exitCode: number; top: string }>;
+  /** After a batch's GAPS verdict in a parallel run, over the work folder of its kept worktree (`vfsPath`), where its
+   *  verdict stays: the mistakes harvested (M-7). */
+  afterGaps?(work: Pick<WorkFolder, "folder" | "vfsPath">): Promise<string[]>;
 }
 
 export interface BatchesAnswer {
   lines: string[];
-  next?: { crew: "dev-implement"; input: Record<string, unknown> };
+  next?: { crew: "dev-implement" | "dev-batches"; input: Record<string, unknown> };
 }
 
 interface ActiveRecord { code: string | null; pr: boolean; context: BatchesContext }
@@ -87,6 +110,7 @@ function contextOf(raw: DevBatchesInputs | Record<string, unknown>): BatchesCont
     hooks: Array.isArray(r.hooks) ? r.hooks : [],
     effort: typeof r.effort === "string" && r.effort !== "" ? r.effort : null,
     ...(r.memoryRecall === false ? { memoryRecall: false as const } : {}),
+    ...(typeof r.concurrency === "number" && r.concurrency > 1 ? { concurrency: r.concurrency } : {}),
   };
 }
 
@@ -127,7 +151,7 @@ class LogBook {
       await files.write(this.path, appendToLog(this.text, this.code, this.added));
       return null;
     } catch (e) {
-      return `⚠ the log ${this.path.replace(/^\/workspace\//, "")} could not be written: ${reasonOf(e)}`;
+      return `⚠ the log ${workspaceRelative(this.path)} could not be written: ${reasonOf(e)}`;
     }
   }
 }
@@ -222,6 +246,33 @@ async function closedInventory(shell: Pick<Shell, "run">, merged: readonly Merge
   return out.join("\n");
 }
 
+/** What the review's brief carries: the next batch's sheet, what each closed dependency changed (`git show`), then
+ *  the plan, so the reviewer reads from the brief instead of opening the plan folder and the tree file by file. A
+ *  text that cannot be read is left out: the brief still names the file, and the reviewer opens it. */
+async function reviewMaterial(
+  deps: Pick<DevBatchesDeps, "files" | "shell">, vfsPath: string | null, dev: DevCode, sheetName: string, planName: string,
+  merged: readonly MergedBatch[], dependsOn: readonly string[],
+): Promise<CarriedText[]> {
+  const out: CarriedText[] = [];
+  const planFile = async (name: string): Promise<void> => {
+    if (vfsPath === null) return;
+    try {
+      const shown = `${dev.shown}/${name}`;
+      out.push({ title: shown, path: shown, text: await deps.files.read(`${vfsPath}/${dev.code}/${name}`) });
+    } catch {
+      // Left to read.
+    }
+  };
+  await planFile(sheetName);
+  for (const m of merged.filter((x) => dependsOn.includes(x.batch))) {
+    if (!/^[0-9a-f]{4,40}$/i.test(m.hash)) continue;
+    const r = await runGit(deps.shell, `git show --format= ${shellQuote(m.hash)}`);
+    if (r.exitCode === 0 && r.stdout.trim() !== "") out.push({ title: `what ${m.batch} changed (git show ${m.hash.slice(0, 7)})`, text: r.stdout });
+  }
+  await planFile(planName);
+  return out;
+}
+
 function mergedOf(entries: readonly BatchesLogEntry[]): MergedBatch[] {
   const out = new Map<string, string>();
   for (const e of entries) if (e.batch !== undefined && e.event === "merged") out.set(e.batch, e.detail.split(" ")[0] ?? "");
@@ -233,9 +284,36 @@ function everyDone(order: readonly string[], merged: readonly MergedBatch[]): Me
   return order.map((batch) => merged.find((m) => m.batch === batch) ?? { batch, hash: "" });
 }
 
+/** The first wave of the open batches, at most `n`, their anchors read from their sheets; none when it cannot be read. */
+async function nextWave(files: Pick<Files, "read">, dev: DevCode, nodes: readonly BatchNode[], folder: string | null, n: number): Promise<string[]> {
+  const batches = [];
+  for (const node of nodes) {
+    const sheet = dev.sheets.find((s) => s.batch === node.id);
+    let anchors: string[] = [];
+    if (!node.done && sheet !== undefined && folder !== null) {
+      try {
+        anchors = sheetAnchorPaths(await files.read(`${folder}/${dev.code}/${sheet.name}`));
+      } catch {
+        anchors = [];
+      }
+    }
+    batches.push({ id: node.id, dependsOn: node.dependsOn, anchors, done: node.done });
+  }
+  const waves = batchWaves(batches);
+  return waves.ok && waves.waves.length > 0 ? waves.waves[0].slice(0, n) : [];
+}
+
+async function listOrNone(files: Pick<Files, "list">, path: string): Promise<string[]> {
+  try {
+    return (await files.list(path, 200)).map((n) => n.replace(/\/+$/, "").split("/").pop() ?? "");
+  } catch {
+    return [];
+  }
+}
+
 export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDeps): Promise<string> {
   const lines: string[] = [];
-  // 0. One batch at a time: nothing is read or written for a concurrency this run cannot keep.
+  // 0. How many at once: nothing is read or written for a value out of 1..4.
   const concurrency = checkConcurrency(input.concurrency);
   if (!concurrency.ok) return answer([`BLOCKED — ${concurrency.line}`]);
   // 1. The run: the code named, kept with the dispatch's context; else the one the record names.
@@ -246,6 +324,8 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
   // (`after`) reads it back. The record is written once the plan is found and the mode allows the run.
   const fresh = typeof input.permissionMode === "string";
   let record: ActiveRecord | null = null;
+  // The record of this plan's run in progress, read back by a typed run that names no --concurrency.
+  let prior: ActiveRecord | null = null;
   if (typeof input.code === "string" && input.code.trim() !== "") {
     code = input.code.trim();
     if (!isCode(code)) return answer([`BLOCKED — '${code}' is not a work code (a folder name of the work folder)`]);
@@ -253,12 +333,13 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
     const active = await readRecord(deps.files);
     if (active !== null && active.code !== null && active.code !== code && !await runClosed(deps.files, active.code)) {
       return answer([
-        `BLOCKED — the run of ${active.code} is in progress (${ACTIVE_RECORD.replace(/^\/workspace\//, "")}): ` +
+        `BLOCKED — the run of ${active.code} is in progress (${workspaceRelative(ACTIVE_RECORD)}): ` +
         `take it to its close (/dev-batches ${active.code}), or delete that file to drop it, then /dev-batches ${code}`,
       ]);
     }
     pr = flag(input.pr);
     context = contextOf(input);
+    if (active !== null && active.code === code && !await runClosed(deps.files, code)) prior = active;
   } else {
     record = await readRecord(deps.files);
     if (record === null || record.code === null) {
@@ -267,10 +348,24 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
     code = record.code;
     pr = record.pr || flag(input.pr);
     context = fresh ? contextOf(input) : record.context;
+    prior = record;
   }
   const mode = context.permissionMode.trim();
   if (mode !== "" && policyFor(mode).readOnly) {
     return answer([...lines, `BLOCKED — the session mode ${mode} is read-only: the batches write files and commit (/mode default, then /dev-batches ${code})`]);
+  }
+  // The value the run names (a typed --concurrency 1 included: back to one at a time); none, the value of the plan's
+  // run in progress, typed or chained (a refused hop typed again goes on as it was); else one.
+  const parallel = input.concurrency !== undefined ? concurrency.value : prior?.context.concurrency ?? 1;
+  if (parallel > 1) {
+    context = { ...context, concurrency: parallel };
+    // Checked again here: a chained run's mode is the one the record kept (L8P-D14).
+    const modeRefused = concurrencyModeRefusal(parallel, mode);
+    if (modeRefused !== null) return answer([...lines, `BLOCKED — ${modeRefused}`]);
+    if (deps.runBatch === undefined) return answer([...lines, `BLOCKED — concurrency ${parallel} refused: no batch agents on this host; run with --concurrency 1`]);
+  } else if (context.concurrency !== undefined) {
+    const { concurrency: _, ...one } = context;
+    context = one;
   }
 
   // 2. The plan and what was done of it.
@@ -290,10 +385,17 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
       lines.push(`⚠ the run record could not be written (${reasonOf(e)}): after a refused hop, type /dev-batches ${code}`);
     }
   };
-  if (record === null || fresh || flag(input.pr) !== record.pr) await writeRecord({ code, pr, context });
+  if (record === null || fresh || flag(input.pr) !== record.pr || record.context.concurrency !== context.concurrency) {
+    await writeRecord({ code, pr, context });
+  }
+  // The crew's budget is sized when it is built, from the concurrency its input names (batches-budget.ts): a run
+  // that follows its record's hands itself on, the concurrency named, before any batch.
+  if (parallel > 1 && input.concurrency === undefined) {
+    return answer([...lines, `→ the run of ${code} goes on, ${parallel} batches at once`], { crew: "dev-batches", input: { concurrency: parallel } });
+  }
   const nodes = batchNodes(dev);
   const order = waveOrder(nodes);
-  const now = deps.clock();
+  const now = (): Date => deps.clock();
   const logPath = batchesLogPath(code);
   let logText: string | null = null;
   try {
@@ -304,7 +406,7 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
   const book = new LogBook(logPath, code, logText);
   // A batch the log has merged is done, even when its sheet could not be marked: never launched again.
   for (const n of nodes) if (!n.done && lastEntryOf(book.entries(), n.id)?.event === "merged") n.done = true;
-  const logShown = logPath.replace(/^\/workspace\//, "");
+  const logShown = workspaceRelative(logPath);
   const finish = async (out: string[], next?: BatchesAnswer["next"]): Promise<string> => {
     const failed = await book.save(deps.files);
     if (failed === null) return answer(out, next);
@@ -315,7 +417,8 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
   // 3. What came of the batches the log leaves launched: a batch done since is logged returned and merged;
   //    back from the chain, a batch not done is a stop (a human decides); typed, only a GAPS audit is logged.
   const after = strings(input.after).slice(-AFTER_LINES);
-  for (const node of nodes) {
+  // A parallel run leaves no launched batch to a chain: its wave picks up what the log leaves open (run-wave.ts).
+  for (const node of parallel > 1 ? [] : nodes) {
     const last = lastEntryOf(book.entries(), node.id);
     if (last === undefined || !OPENING.has(last.event)) continue;
     if (node.done) {
@@ -323,8 +426,8 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
       const said = after.map((l) => /^✓ committed ([0-9a-f]{4,40}) on /i.exec(l.trim())?.[1]).find((h) => h !== undefined);
       const head = said === undefined ? await runGit(deps.shell, GIT_HEAD_COMMAND) : null;
       const hash = said ?? (head !== null && head.exitCode === 0 ? head.stdout.trim() : "(hash not read)");
-      book.add(eventLine(now, node.id, "returned", "VALID"));
-      book.add(eventLine(now, node.id, "merged", hash));
+      book.add(eventLine(now(), node.id, "returned", "VALID"));
+      book.add(eventLine(now(), node.id, "merged", hash));
       lines.push(`✓ ${node.id} done and committed`);
       continue;
     }
@@ -334,8 +437,8 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
     // Committed, but its sheet or the plan could not be marked done: the commit stands, the marking is the human's.
     const committed = after.map((l) => /^✓ committed ([0-9a-f]{4,40}) on /i.exec(l.trim())?.[1]).find((h) => h !== undefined);
     if (committed !== undefined) {
-      book.add(eventLine(now, node.id, "returned", "VALID"));
-      book.add(eventLine(now, node.id, "merged", committed));
+      book.add(eventLine(now(), node.id, "returned", "VALID"));
+      book.add(eventLine(now(), node.id, "merged", committed));
       node.done = true;
       lines.push(`✓ ${node.id} committed (${committed})`, `⚠ ${node.id} is not marked done in its sheet or the plan: mark it by hand`);
       continue;
@@ -352,7 +455,7 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
         `→ wait for the chain's answer; else the close (/dev-implement ${node.id} ${code} --close), then /dev-batches ${code} goes on`,
       ]);
     }
-    book.add(eventLine(now, node.id, stop.event, stop.detail));
+    book.add(eventLine(now(), node.id, stop.event, stop.detail));
     return finish([
       ...lines, `${node.id} ${stop.event} ${stop.detail}`,
       stop.detail === "GAPS"
@@ -380,7 +483,7 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
     );
     lines.push(...close.lines);
     if (close.closed) {
-      book.add(closedLine(now));
+      book.add(closedLine(now()));
       await writeRecord({ code: null });
       lines.push(`→ ${code}: every batch done, the run closed (${logShown})`);
     }
@@ -403,43 +506,50 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
     return finish([...lines, `BLOCKED — preflight: settle each ✗ above, then /dev-batches ${code}`]);
   }
 
-  // 6. The review of a batch whose dependencies just closed, before its first launch.
-  const node = nodes.find((n) => n.id === next)!;
-  const entry = lastEntryOf(book.entries(), next);
-  if (entry === undefined && node.dependsOn.length > 0) {
-    const sheet = sheetOf(next)!;
+  // 6. The review of a batch whose dependencies just closed, before its first launch: the next batch, or each of
+  //    the wave a parallel run launches.
+  const wave = parallel > 1 ? await nextWave(deps.files, dev, nodes, ctx.work.vfsPath, parallel) : [next];
+  if (wave.length === 0) return finish([...lines, `BLOCKED — the plan's waves could not be read, then /dev-batches ${code}`]);
+  for (const id of wave) {
+    const node = nodes.find((n) => n.id === id)!;
+    if (lastEntryOf(book.entries(), id) !== undefined || node.dependsOn.length === 0) continue;
+    const sheet = sheetOf(id)!;
     const reviewer = deps.reviewerFor?.(context);
     if (reviewer === undefined) {
-      lines.push(`review of ${next}: not run (no reviewer on this host)`);
-    } else {
-      const outcome = await runSubAgent(reviewer, {
-        charter: REVIEWER_CHARTER,
-        system: reviewSystem("next-batch"),
-        brief: buildReviewBrief({
-          mode: "next-batch", folder: dev.shown, files: [`${dev.shown}/${sheet.name}`], source: `${dev.shown}/${plan.name}`,
-          inventory: await closedInventory(deps.shell, mergedOf(book.entries()), node.dependsOn), targets: [next],
-        }),
-        schema: REVIEW_ANSWER_SCHEMA,
-        answerPrompt: buildReviewAnswerPrompt,
-        check: (v) => checkReviewAnswer(v, { targets: [next] }),
-      });
-      if (!outcome.ok) {
-        lines.push(`review of ${next}: not run (${outcome.reason}: ${outcome.problems[0] ?? "no detail"})`);
-      } else {
-        const rows = outcome.value.rows;
-        const blocking = rows.filter((r) => r.severity === "Blocking");
-        lines.push(rows.length === 0
-          ? `review of ${next}: CLEAR`
-          : `review of ${next}: GAPS — ${blocking.length} Blocking, ${rows.length - blocking.length} Major`);
-        lines.push(...rows.map((r) => `  ${r.severity} — ${r.question} (${r.evidence})`));
-        if (blocking.length > 0) {
-          book.add(eventLine(now, next, "stopped", `BLOCKED — review: ${blocking.length} Blocking`));
-          return finish([
-            ...lines,
-            `→ ${next} not launched: settle the Blocking questions in ${dev.shown}/${sheet.name} (or /dev-plan), then /dev-batches ${code} launches it without a second review`,
-          ]);
-        }
-      }
+      lines.push(`review of ${id}: not run (no reviewer on this host)`);
+      continue;
+    }
+    const merged = mergedOf(book.entries());
+    const outcome = await runSubAgent(reviewer, {
+      charter: NEXT_BATCH_REVIEWER_CHARTER,
+      tools: charterCatalogue(NEXT_BATCH_REVIEWER_CHARTER),
+      system: reviewSystem("next-batch"),
+      brief: buildReviewBrief({
+        mode: "next-batch", folder: dev.shown, files: [`${dev.shown}/${sheet.name}`], source: `${dev.shown}/${plan.name}`,
+        inventory: await closedInventory(deps.shell, merged, node.dependsOn), targets: [id],
+        carried: await reviewMaterial(deps, ctx.work.vfsPath, dev, sheet.name, plan.name, merged, node.dependsOn),
+        projectFiles: await listProjectFiles(deps.shell, ctx.work.folder),
+      }),
+      schema: REVIEW_ANSWER_SCHEMA,
+      answerPrompt: buildReviewAnswerPrompt,
+      check: (v) => checkReviewAnswer(v, { targets: [id] }),
+    });
+    if (!outcome.ok) {
+      lines.push(`review of ${id}: not run (${outcome.reason}: ${outcome.problems[0] ?? "no detail"})`);
+      continue;
+    }
+    const rows = outcome.value.rows;
+    const blocking = rows.filter((r) => r.severity === "Blocking");
+    lines.push(rows.length === 0
+      ? `review of ${id}: CLEAR`
+      : `review of ${id}: GAPS — ${blocking.length} Blocking, ${rows.length - blocking.length} Major`);
+    lines.push(...rows.map((r) => `  ${r.severity} — ${r.question} (${r.evidence})`));
+    if (blocking.length > 0) {
+      book.add(eventLine(now(), id, "stopped", `BLOCKED — review: ${blocking.length} Blocking`));
+      return finish([
+        ...lines,
+        `→ ${id} not launched: settle the Blocking questions in ${dev.shown}/${sheet.name} (or /dev-plan), then /dev-batches ${code} launches it without a second review`,
+      ]);
     }
   }
 
@@ -447,8 +557,44 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
   const branch = await ensureWorkBranch(deps.shell, ctx.pack?.pack.contrib.branch, code);
   if (!branch.ok) return finish([...lines, `BLOCKED — branch: ${branch.line}, then /dev-batches ${code}`]);
   if (branch.line !== null) lines.push(branch.line);
+  if (parallel > 1) {
+    const current = await runGit(deps.shell, GIT_CURRENT_BRANCH_COMMAND);
+    const workBranch = current.exitCode === 0 ? current.stdout.trim() : "";
+    if (workBranch === "") return finish([...lines, `BLOCKED — branch: the checkout stands on no branch (a detached HEAD): check the work branch out, then /dev-batches ${code}`]);
+    const memory = await readMemoryDir(deps.config);
+    const steps = (id: string): number | undefined => {
+      const open = sheetOf(id)?.sheet.steps.filter((s) => s.tdd !== null && !(s.tdd.red && s.tdd.green && s.tdd.cost)).length ?? 0;
+      return open > 0 ? open : undefined;
+    };
+    const ran = await runWave({
+      code, concurrency: parallel, wave, workBranch, work: ctx.work.folder, memoryDir: memory.dir, clock: now,
+      // The first wave of a typed run proves git works under a worktree root before any batch (L8P-D11).
+      probe: typeof input.code === "string",
+      sheets: Object.fromEntries(dev.sheets.map((s) => [s.batch, s.name])),
+      audits: (id) => auditsOf(dev, id), steps, book: { add: (l) => book.add(l), entries: () => book.entries(), save: () => book.save(deps.files) },
+    }, {
+      files: deps.files, shell: deps.shell,
+      runBatch: (run) => deps.runBatch!(run, context),
+      ...(deps.probe !== undefined ? { probe: deps.probe } : {}),
+      ...(deps.afterGaps !== undefined ? { afterGaps: (vfsPath: string) => deps.afterGaps!({ folder: ctx.work.folder, vfsPath }) } : {}),
+    });
+    lines.push(...ran.lines);
+    if (ran.refused) return finish(lines);
+    if (ran.stopped) return finish([...lines, `→ a human decides: each stop above, its worktree kept; then /dev-batches ${code} --concurrency ${parallel} goes on`]);
+    return finish([...lines, `→ the next wave follows: /dev-batches ${code} --concurrency ${parallel}`], { crew: "dev-batches", input: { concurrency: parallel } });
+  }
+  // A batch a parallel run stopped keeps its code, sheet and verdict in its worktree: run here, it would start over.
+  const kept = worktreePlace(batchWorktreeName(code, next));
+  if (kept !== null && (await listOrNone(deps.files, `${WORKSPACE}/.orkeon/worktrees`)).includes(kept.name)) {
+    return finish([
+      ...lines,
+      `BLOCKED — ${next} stays in ${kept.path}, kept by a parallel run: /dev-batches ${code} --concurrency 2 relaunches it there; ` +
+        `or remove it (git worktree remove --force ${kept.path}, then git branch -D batches/${code}/${next}) to run it here`,
+    ]);
+  }
+  const entry = lastEntryOf(book.entries(), next);
   const relaunch = entry !== undefined;
-  book.add(eventLine(now, next, relaunch ? "relaunched" : "launched", `${AUDITS_DETAIL} ${auditsOf(dev, next)}`));
+  book.add(eventLine(now(), next, relaunch ? "relaunched" : "launched", `${AUDITS_DETAIL} ${auditsOf(dev, next)}`));
   const sheet = sheetOf(next)!.sheet;
   const openSteps = sheet.steps.filter((s) => s.tdd !== null && !(s.tdd.red && s.tdd.green && s.tdd.cost)).length;
   const position = order.ok ? order.order.indexOf(next) + 1 : 0;

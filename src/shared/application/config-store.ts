@@ -16,9 +16,10 @@ import type { ConfigResolution } from "../domain/config-schema.ts";
 import { CONFIG_MAP_STATE_KEY } from "../domain/session-keys.ts";
 import { readJsonFile, writeJsonFile } from "./json-file.ts";
 import { readJsonObject, writeJson } from "./session-state.ts";
+import { WORKSPACE } from "../domain/vfs.ts";
 
 /** The persisted settings file. Under /workspace so it lives with the repo. */
-export const CONFIG_FILE_PATH = "/workspace/.orkeon/config.json";
+export const CONFIG_FILE_PATH = `${WORKSPACE}/.orkeon/config.json`;
 
 /**
  * The user's settings: the `orkeonCode` block of the user settings file, which the

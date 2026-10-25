@@ -16,8 +16,7 @@ import type { LearnRow } from "../../domain/shared-memory/verdict-rows.ts";
 import { harvestMistakes } from "./harvest-mistakes.ts";
 import { readMemorySettings } from "./memory-settings.ts";
 import { readOrNull } from "./memory-files.ts";
-
-const WORKSPACE = "/workspace";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 export interface AfterGapsDeps {
   files: Pick<Files, "read" | "write" | "list">;

@@ -6,6 +6,7 @@
 import type { AnchorIndex, CodeIndex, CodeSearchHit, Logger } from "../../../shared/application/ports.ts";
 import { INVENTORY_CAPS, keepPath, layerOf } from "../domain/inventory-model.ts";
 import type { Inventory, InventoryEntry } from "../domain/inventory-model.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 export interface InventoryRequest {
   titles: ReadonlyArray<{ id: string; title: string }>;  // source order: UC, BR, CH
@@ -14,7 +15,6 @@ export interface InventoryRequest {
   buildOutputs: readonly string[];
 }
 
-const WORKSPACE = "/workspace";
 const TOP = `${WORKSPACE}/`;
 const GRAPH_SCOPE = "L2_Module";
 

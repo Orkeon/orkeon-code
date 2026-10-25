@@ -4,54 +4,95 @@ import { describe, it } from "node:test";
 import { deepStrictEqual } from "node:assert";
 
 import { readJsonFile, writeJsonFile } from "./json-file.ts";
-import { FakeFiles } from "../../../tests/support/fake-files.ts";
-
-const PATH = "/workspace/.orkeon/agents.json";
+import { FakeFiles } from "../../../tests/support/doubles/fake-files.ts";
+import { ABSENT_MESSAGES, PARSED_SHAPES, PATH } from "./json-file.fixtures.ts";
 
 describe("readJsonFile", () => {
   it("reads an absent file as no value, not malformed", async () => {
-    deepStrictEqual(await readJsonFile(new FakeFiles(), PATH), { value: undefined, malformed: false });
+    // Arrange
+    const files = new FakeFiles();
+
+    // Act
+    const read = await readJsonFile(files, PATH);
+
+    // Assert
+    deepStrictEqual(read, { value: undefined, malformed: false });
   });
 
   it("reads a blank file as no value, not malformed", async () => {
+    // Arrange
     const files = new FakeFiles();
     files.files.set(PATH, " \n");
-    deepStrictEqual(await readJsonFile(files, PATH), { value: undefined, malformed: false });
+
+    // Act
+    const read = await readJsonFile(files, PATH);
+
+    // Assert
+    deepStrictEqual(read, { value: undefined, malformed: false });
   });
 
-  it("reads the parsed value, whatever its shape", async () => {
-    const files = new FakeFiles();
-    files.files.set(PATH, `{"reviewer":{"role":"r","goal":"g"}}\n`);
-    deepStrictEqual(await readJsonFile(files, PATH), { value: { reviewer: { role: "r", goal: "g" } }, malformed: false });
-    files.files.set(PATH, `["a"]`);
-    deepStrictEqual(await readJsonFile(files, PATH), { value: ["a"], malformed: false });
-  });
+  for (const shape of PARSED_SHAPES) {
+    it(`reads the parsed value, whatever its shape: ${shape.name}`, async () => {
+      // Arrange
+      const files = new FakeFiles();
+      files.files.set(PATH, shape.content);
+
+      // Act
+      const read = await readJsonFile(files, PATH);
+
+      // Assert
+      deepStrictEqual(read, { value: shape.value, malformed: false });
+    });
+  }
 
   it("flags malformed JSON", async () => {
+    // Arrange
     const files = new FakeFiles();
     files.files.set(PATH, `{"reviewer":`);
-    deepStrictEqual(await readJsonFile(files, PATH), { value: undefined, malformed: true });
+
+    // Act
+    const read = await readJsonFile(files, PATH);
+
+    // Assert
+    deepStrictEqual(read, { value: undefined, malformed: true });
   });
 
   it("flags a read that fails for another reason than absence", async () => {
+    // Arrange
     const files = new FakeFiles();
     files.readErrors.set(PATH, new Error("access denied by mount rights"));
-    deepStrictEqual(await readJsonFile(files, PATH), { value: undefined, malformed: true });
+
+    // Act
+    const read = await readJsonFile(files, PATH);
+
+    // Assert
+    deepStrictEqual(read, { value: undefined, malformed: true });
   });
 
-  it("reads 'no such file' and 'does not exist' as absent", async () => {
-    const files = new FakeFiles();
-    for (const message of ["No such file or directory", "path does not exist"]) {
+  for (const message of ABSENT_MESSAGES) {
+    it(`reads '${message}' as absent`, async () => {
+      // Arrange
+      const files = new FakeFiles();
       files.readErrors.set(PATH, new Error(message));
-      deepStrictEqual(await readJsonFile(files, PATH), { value: undefined, malformed: false }, message);
-    }
-  });
+
+      // Act
+      const read = await readJsonFile(files, PATH);
+
+      // Assert
+      deepStrictEqual(read, { value: undefined, malformed: false }, message);
+    });
+  }
 });
 
 describe("writeJsonFile", () => {
   it("writes pretty-printed JSON with a final newline", async () => {
+    // Arrange
     const files = new FakeFiles();
+
+    // Act
     await writeJsonFile(files, PATH, { reviewer: { role: "r" } });
+
+    // Assert
     deepStrictEqual(files.writes, [{ path: PATH, content: `{\n  "reviewer": {\n    "role": "r"\n  }\n}\n` }]);
   });
 });

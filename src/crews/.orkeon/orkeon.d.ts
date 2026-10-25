@@ -156,6 +156,16 @@ maxRpm(value: number): this;
 /** The agent's execution time limit, in whole seconds. */
 maxExecutionTime(seconds: number): this;
 verbose(value?: boolean): this;
+/**
+* YAML parity `working_root:` (RT-06) — the virtual directory the agent's file and shell tools
+* (`file_*`, `node_*`, `edit_batch`, `shell_command`) stay inside, whether `ctx.llm.act(...)`
+* or the body's code (`ctx.tools`, `tools`) calls them: a relative path resolves under it, a
+* path outside it is refused, a command runs there. An absolute VFS path under a mount, with
+* no `..`; one that is not refuses the agent's run when it starts, never at build. A child
+* started by `spawn_agent` or `ctx.spawnBackground` without a root of its own runs under its
+* parent's, and so does each later `crew.send` to it. Left out, the run is unrooted.
+*/
+workingRoot(path: string): this;
 concurrency(n: number): this;
 withState<S>(factory: (() => S) | S): AgentBuilder<TIn, TOut, S>;
 /**
@@ -475,8 +485,9 @@ readonly crew: CrewView;
 * Runs another agent of the crew, by object or by name, exactly as `crew.runAgent` does:
 * under its own context, its semaphore and its `onError` policy. An unknown name throws
 * `AgentNotInThisCrewError`; the calling agent itself, `RecursiveAgentInvocationError`.
+* `opts.budget` bounds the run; `opts.charge: "crew"` also charges it to this context's budget.
 */
-delegate<T = unknown>(agent: string | Agent<unknown, T>, input: unknown): Promise<T>;
+delegate<T = unknown>(agent: string | Agent<unknown, T>, input: unknown, opts?: DelegateOptions): Promise<T>;
 /** Queues `message` for an agent of the crew, by object or by name. Synchronous. */
 send(agent: string | Agent, message: unknown): void;
 /** The next message for this agent. `timeout` (ms or "2s") rejects with `ReceiveTimeoutError`. */
@@ -530,6 +541,12 @@ spawn<TIn, TOut>(builder: AgentBuilder<TIn, TOut, unknown>): Agent<TIn, TOut>;
 spawnBackground(agent: string, input: string): { readonly id: number; readonly agent: string };
 /** The id (`a1`…) of the agent instance this body runs as (`crew.instances()`); `undefined` outside one. */
 readonly instanceId: string | undefined;
+/**
+* The global `tools`, called as this agent: held to its `.workingRoot(...)` however many agents
+* run beside it. The global `tools` follows the open agents' root while they share one, and
+* refuses a call when they do not: call `ctx.tools` from a body that runs beside others.
+*/
+readonly tools: OrkeonTools;
 }
 /** `ctx.log`: extra arguments are joined to the message by a space, objects as JSON. */
 interface Logger {
@@ -561,6 +578,33 @@ timeout?: number | string;
 // `inputs` global the runner plants from --inputs.
 }
 /**
+* The budget of one delegated run: what `ctx.delegate(agent, input, opts)` takes, and
+* `crew.runAgent` beside its `CrewRunOptions`. Neither key: the run has no budget, as before.
+*/
+interface DelegateOptions {
+/**
+* Bounds this run as `crewBuilder().budget(...)` bounds a crew run, with the same keys and
+* values (`wallTime` in seconds, or a duration such as `"5m"`); a spent dimension ends the
+* run with `BudgetExhaustedError`, and a child it spawns (`spawn_agent`, `ctx.spawnBackground`)
+* derives its budget from this one. An unknown key, or a count that is not a whole number of
+* 1 or more, is refused when the run opens.
+*/
+budget?: ExecutionBudget;
+/**
+* `"crew"`: what this run spends (tool calls, tokens, spawns; its wall clock runs with the
+* caller's) counts against the budget of the run it is called from as well, so runs started
+* at once never spend more than the crew's budget; the first budget spent ends the run. A call
+* this run's own budget refuses is not charged; a child it spawns is charged too, allowed no more
+* than what both budgets have left. Without `budget`, the run spends straight from the caller's.
+* Refused when the caller runs under no budget. `ctx.delegate` charges its own context's budget;
+* `crew.runAgent`, the one budget every open agent body runs under, and is refused when bodies
+* under different budgets are open (call `ctx.delegate` from the body instead).
+*/
+charge?: "crew";
+}
+/** `crew.runAgent`'s options: `crew.run` and `crew.runStream` ignore `budget` and `charge`, a crew run spends the crew's `budget(...)`. */
+interface RunAgentOptions extends CrewRunOptions, DelegateOptions { }
+/**
 * What `crew.run()` resolves to: exactly what the runtime serves (GAP-27). No `artifacts`:
 * it was declared and always empty, so `result.artifacts.get("x")` compiled and threw.
 */
@@ -583,7 +627,7 @@ readonly name: string;
 /** The members, in the order they joined. */
 readonly agents: readonly Agent<unknown, unknown>[];
 run(opts?: CrewRunOptions): Promise<CrewResult>;
-runAgent<TIn, TOut>(agent: string | Agent<TIn, TOut>, input: TIn, opts?: CrewRunOptions): Promise<TOut>;
+runAgent<TIn, TOut>(agent: string | Agent<TIn, TOut>, input: TIn, opts?: RunAgentOptions): Promise<TOut>;
 runStream(opts?: CrewRunOptions): AsyncIterable<CrewStreamEvent>;
 add(agent: Agent<unknown, unknown>): void;
 remove(agent: Agent<unknown, unknown> | string): void;
@@ -2137,7 +2181,7 @@ readonly file_path: string;
 readonly file_size: number;
 readonly success: boolean;
 }>;
-/** `edit_batch` - Applies node_replace, node_insert and idempotent intent operations over several files as one transaction. Each operation is {kind, path, selector, text} plus expected_hash (required, node_replace only) or position (node_insert: 'inside', 'before' or 'after'). An intent operation is {kind, path} with kind ensure_using / ensure_import (name, module for TypeScript) or ensure_field / ensure_member (selector of the type, text): it adds the line or member only when absent and reports applied false when it was already there. Operations on one file apply in order, each on the bytes the previous one produced. validate 'parse' (default) refuses the batch when an operation introduces a parse error; 'build' also runs dotnet build on the project above the edited files and restores every file when it is red. On any failure all files are left as they were. */
+/** `edit_batch` - Applies node_replace, node_insert and idempotent intent operations over several files as one transaction. Each operation is {kind, path, selector, text} plus expected_hash (required, node_replace only) or position (node_insert: 'inside', 'before' or 'after'). An intent operation is {kind, path} with kind ensure_using / ensure_import (name, module for TypeScript or JavaScript) or ensure_field / ensure_member (selector of the type, text): it adds the line or member only when absent and reports applied false when it was already there. Operations on one file apply in order, each on the bytes the previous one produced. validate 'parse' (default) refuses the batch when an operation introduces a parse error; 'build' also runs dotnet build on the project above the edited files and restores every file when it is red. On any failure all files are left as they were. */
 editBatch(input?: {
 operations?: readonly { readonly expected_hash?: string; readonly index?: number; readonly kind: string; readonly level?: number; readonly module?: string; readonly name?: string; readonly path: string; readonly position?: string; readonly selector: string; readonly text: string; }[];
 validate?: string;
@@ -2629,7 +2673,7 @@ readonly row_count?: number;
 readonly rows?: readonly Record<string, unknown>[];
 readonly scalar_result?: unknown;
 }>;
-/** `node_ensure` - Applies one idempotent intent operation on one file: ensure_using / ensure_import (name, plus module for TypeScript) adds the using or import line in its place only when absent; ensure_field / ensure_member (selector of the type, text) adds a field, property or method next to its peers only when no member of that name exists. On Markdown: ensure_section (name = heading path, optional level) creates the missing headings; insert_under_heading (selector, text) appends at the end of a section; replace_mermaid (selector, index 0-based, text) replaces the body of the n-th mermaid fence of a section. Calling it again changes nothing and writes nothing: applied is false and range is the existing line or member. The insert is refused when it introduces a parse error that was not there before, the file is then untouched. */
+/** `node_ensure` - Applies one idempotent intent operation on one file: ensure_using / ensure_import (name, plus module for TypeScript or JavaScript) adds the using or import line in its place only when absent; ensure_field / ensure_member (selector of the type, text) adds a field, property or method next to its peers only when no member of that name exists. On Markdown: ensure_section (name = heading path, optional level) creates the missing headings; insert_under_heading (selector, text) appends at the end of a section; replace_mermaid (selector, index 0-based, text) replaces the body of the n-th mermaid fence of a section. Calling it again changes nothing and writes nothing: applied is false and range is the existing line or member. The insert is refused when it introduces a parse error that was not there before, the file is then untouched. */
 nodeEnsure(input?: {
 index?: number | null;
 level?: number | null;
@@ -2644,7 +2688,7 @@ readonly applied: boolean;
 readonly new_hash: string;
 readonly range: Record<string, unknown>;
 }>;
-/** `node_insert` - Inserts text relative to an anchor node: position 'inside' appends to a type or namespace body (an enum member gets its separating comma) or to the end of a Markdown section, 'before' puts it above the anchor's leading comments and attributes, 'after' below the anchor. There is no expected_hash: no anchor hash is required for before/after, the anchor is only a location. The text is re-indented line by line to the siblings' indentation (tabs or spaces as the file does); the insert is refused when it introduces a parse error that was not there before, the file is then untouched. */
+/** `node_insert` - Inserts text relative to an anchor node: position 'inside' appends to a type or namespace body (after the last member of an indented or end-closed body; an enum member or a JSON pair gets its separating comma) or to the end of a Markdown section, 'before' puts it above the anchor's leading comments and attributes, 'after' below the anchor. There is no expected_hash: no anchor hash is required for before/after, the anchor is only a location. The text is re-indented line by line to the siblings' indentation (tabs or spaces as the file does); the insert is refused when it introduces a parse error that was not there before, the file is then untouched. */
 nodeInsert(input?: {
 path?: string;
 position?: string;
@@ -3039,7 +3083,7 @@ readonly files: readonly { readonly applied: number; readonly diff: string; read
 readonly files_scanned: number;
 readonly truncated: boolean;
 }>;
-/** `structural_search` - Searches C#, TypeScript or Markdown files for a code pattern parsed with the target grammar: $NAME matches one node and captures its text, $$$NAME matches zero or more sibling nodes. Returns path, line, column, text, captures and the enclosing symbol of each match. */
+/** `structural_search` - Searches the files of one language (any tree-sitter grammar Orkeon loads, or Markdown) for a code pattern parsed with the target grammar: $NAME matches one node and captures its text, $$$NAME matches zero or more sibling nodes. Returns path, line, column, text, captures and the enclosing symbol of each match. */
 structuralSearch(input?: {
 glob?: string | null;
 language?: string;

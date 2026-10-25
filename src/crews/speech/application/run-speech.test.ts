@@ -3,33 +3,64 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, rejects, strictEqual } from "node:assert";
 import { runSpeech } from "./run-speech.ts";
-import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
-import { FakeToolCatalogue } from "../../../../tests/support/fake-tool-catalogue.ts";
-
-function setup(reply: unknown) {
-  const tools = new FakeToolCatalogue();
-  tools.tools.set("transcribe_audio", reply);
-  const log = new FakeLogger();
-  return { tools, log, deps: { tools, log } };
-}
+import { TRANSCRIPT, WRAPPED_FAILURE, speechSetup } from "./run-speech.fixtures.ts";
 
 describe("runSpeech", () => {
   it("makes the call the command named and answers the tool's text", async () => {
-    const { tools, log, deps } = setup("Bonjour.\n\n[language fr (0.99), 3 s, 1 words; written to /transcripts/a.txt]\n");
+    // Arrange
+    const { tools, log, deps } = speechSetup(`${TRANSCRIPT}\n`);
     const input = { tool: "transcribe_audio", args: { path: "/audio/a.m4a", language: "fr" }, label: "transcription of /audio/a.m4a" };
-    strictEqual(await runSpeech(input, deps), "Bonjour.\n\n[language fr (0.99), 3 s, 1 words; written to /transcripts/a.txt]");
+
+    // Act
+    const out = await runSpeech(input, deps);
+
+    // Assert
+    strictEqual(out, TRANSCRIPT);
     deepStrictEqual(tools.calls, [{ name: "transcribe_audio", args: { path: "/audio/a.m4a", language: "fr" } }]);
     deepStrictEqual(log.lines, ["info: transcription of /audio/a.m4a: transcribe_audio"]);
   });
 
-  it("reads a result that is not a string, and says when there is no text", async () => {
-    strictEqual(await runSpeech({ tool: "transcribe_audio" }, setup({ text: "Salut." }).deps), "Salut.");
-    strictEqual(await runSpeech({ tool: "transcribe_audio" }, setup("  ").deps), "transcribe_audio returned nothing");
+  it("reads a result that is not a string", async () => {
+    // Arrange
+    const { deps } = speechSetup({ text: "Salut." });
+
+    // Act
+    const out = await runSpeech({ tool: "transcribe_audio" }, deps);
+
+    // Assert
+    strictEqual(out, "Salut.");
   });
 
-  it("throws the tool's failure, and refuses an input that names no tool", async () => {
-    const wrapped = new Error("tools.transcribeAudio failed [path=/audio/x.m4a]: Error executing tool transcribe_audio: no file at /audio/x.m4a");
-    await rejects(runSpeech({ tool: "transcribe_audio" }, setup(wrapped).deps), (e: Error) => String(e) === "transcribe_audio: no file at /audio/x.m4a");
-    await rejects(runSpeech({}, setup("").deps), /no tool to call: this crew is started by \/transcribe, \/voice or \/say/);
+  it("says when there is no text", async () => {
+    // Arrange
+    const { deps } = speechSetup("  ");
+
+    // Act
+    const out = await runSpeech({ tool: "transcribe_audio" }, deps);
+
+    // Assert
+    strictEqual(out, "transcribe_audio returned nothing");
+  });
+
+  it("throws the tool's failure", async () => {
+    // Arrange
+    const { deps } = speechSetup(WRAPPED_FAILURE);
+
+    // Act
+    const act = runSpeech({ tool: "transcribe_audio" }, deps);
+
+    // Assert
+    await rejects(act, (e: Error) => String(e) === "transcribe_audio: no file at /audio/x.m4a");
+  });
+
+  it("refuses an input that names no tool", async () => {
+    // Arrange
+    const { deps } = speechSetup("");
+
+    // Act
+    const act = runSpeech({}, deps);
+
+    // Assert
+    await rejects(act, /no tool to call: this crew is started by \/transcribe, \/voice or \/say/);
   });
 });

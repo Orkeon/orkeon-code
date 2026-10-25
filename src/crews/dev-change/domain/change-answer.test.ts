@@ -6,45 +6,103 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import { checkChangeAnswer, criterionId, pinOnlyKnown } from "./change-answer.ts";
-import type { ChangeAnswer } from "./change-answer.ts";
-
-const good = (over: Partial<ChangeAnswer> = {}): ChangeAnswer => ({
-  route: "change", name: "The map is read on every call", summary: "A second request reads the file again.",
-  evidence: [], suspected: "", criteria: [{ name: "Read once", statement: "a second request reads no file within 5 ms", proof: "the reproduction turns green", severity: "blocking" }],
-  mustNotChange: [{ behaviour: "an absent map gives an empty map", pinnedBy: "loads an absent map" }],
-  scope: [], constraints: [], assumptions: [], questions: [], ...over,
-});
-const problems = (v: unknown, kind: "bug" | "refactor" | "perf"): string[] => {
-  const r = checkChangeAnswer(v, kind);
-  return r.ok ? [] : r.problems;
-};
+import { KINDS, NO_NUMBER, REFUSED_BUG_ANSWERS, THREE_PINS, good } from "./change-answer.fixtures.ts";
+import { assertNoProblem, assertProblem } from "./change-answer.assertions.ts";
 
 describe("checkChangeAnswer", () => {
-  it("accepts a well-formed brief of each kind, and a feature without checks", () => {
-    for (const kind of ["bug", "refactor", "perf"] as const) deepStrictEqual(problems(good(), kind), [], kind);
-    ok(checkChangeAnswer({ route: "feature" }, "bug").ok);
+  for (const kind of KINDS) {
+    it(`accepts a well-formed brief of the kind ${kind}`, () => {
+      // Arrange
+      const answer = good();
+
+      // Act
+      const result = checkChangeAnswer(answer, kind);
+
+      // Assert
+      assertNoProblem(result, kind);
+    });
+  }
+
+  it("accepts a feature without checks", () => {
+    // Arrange
+    const answer = { route: "feature" };
+
+    // Act
+    const result = checkChangeAnswer(answer, "bug");
+
+    // Assert
+    ok(result.ok);
   });
 
-  it("asks a perf change for a number and a refactor for a protected behaviour", () => {
-    const noNumber = good({ criteria: [{ name: "Faster", statement: "a second request is faster", proof: "the timing", severity: "blocking" }] });
-    ok(problems(noNumber, "perf").some((p) => p.includes("a number")));
-    strictEqual(problems(noNumber, "bug").length, 0);
-    ok(problems(good({ mustNotChange: [] }), "refactor").some((p) => p.includes("must not change")));
+  it("asks a perf change for a number", () => {
+    // Arrange
+    const answer = NO_NUMBER;
+
+    // Act
+    const result = checkChangeAnswer(answer, "perf");
+
+    // Assert
+    assertProblem(result, /a number/);
   });
 
-  it("refuses design words, a TBD without a question, a broken cell and no criterion", () => {
-    ok(problems(good({ summary: "Add a new class MapCache." }), "bug").some((p) => p.startsWith("no design")));
-    ok(problems(good({ summary: "The limit is TBD." }), "bug").some((p) => p.includes("TBD")));
-    ok(problems(good({ mustNotChange: [{ behaviour: "a | b", pinnedBy: "" }] }), "bug").some((p) => p.includes("'|'")));
-    ok(problems(good({ criteria: [] }), "bug").some((p) => p.includes("at least one")));
-    strictEqual(criterionId(0), "CH-01");
+  it("asks a bug for no number", () => {
+    // Arrange
+    const answer = NO_NUMBER;
+
+    // Act
+    const result = checkChangeAnswer(answer, "bug");
+
+    // Assert
+    assertNoProblem(result, "bug");
+  });
+
+  it("asks a refactor for a protected behaviour", () => {
+    // Arrange
+    const answer = good({ mustNotChange: [] });
+
+    // Act
+    const result = checkChangeAnswer(answer, "refactor");
+
+    // Assert
+    assertProblem(result, /must not change/);
+  });
+
+  for (const c of REFUSED_BUG_ANSWERS) {
+    it(`refuses ${c.name}`, () => {
+      // Arrange
+      const { answer } = c;
+
+      // Act
+      const result = checkChangeAnswer(answer, "bug");
+
+      // Assert
+      assertProblem(result, c.problem);
+    });
+  }
+});
+
+describe("criterionId", () => {
+  it("numbers the first criterion CH-01", () => {
+    // Arrange
+    const index = 0;
+
+    // Act
+    const id = criterionId(index);
+
+    // Assert
+    strictEqual(id, "CH-01");
   });
 });
 
 describe("pinOnlyKnown", () => {
   it("keeps a pin the index shows and turns the others unpinned", () => {
-    const a = good({ mustNotChange: [{ behaviour: "x", pinnedBy: "`known test`" }, { behaviour: "y", pinnedBy: "ghost" }, { behaviour: "z", pinnedBy: "" }] });
-    const r = pinOnlyKnown(a, (n) => n === "known test");
+    // Arrange
+    const answer = THREE_PINS;
+
+    // Act
+    const r = pinOnlyKnown(answer, (n) => n === "known test");
+
+    // Assert
     deepStrictEqual(r.answer.mustNotChange.map((m) => m.pinnedBy), ["known test", "unpinned", "unpinned"]);
     deepStrictEqual(r.unknown, ["ghost"]);
   });

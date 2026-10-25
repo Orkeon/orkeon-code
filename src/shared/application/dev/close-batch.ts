@@ -18,6 +18,7 @@ import type { PullRequestOpener } from "../git/commit-files.ts";
 import {
   commitFiles, defaultBranch, gitReason, handOverPullRequest, pushBranch, readIdentity, runGit,
 } from "../git/commit-files.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 export interface CloseBatchRequest {
   /** The files the batch touched, from its sheet and its roles' diffs. */
@@ -65,7 +66,7 @@ export async function closeBatch(
   if (commit.note !== undefined) lines.push(`⚠ ${commit.note}`);
   if (!req.push) return { committed: true, hash: commit.hash, lines };
   const pushCommand = gitPushCommand(req.branch);
-  if (req.rules !== undefined && ruleDecision(req.rules, "shell_command", { command: pushCommand, working_directory: "/workspace" }) === "deny") {
+  if (req.rules !== undefined && ruleDecision(req.rules, "shell_command", { command: pushCommand, working_directory: WORKSPACE }) === "deny") {
     lines.push(`✗ not pushed: a session rule denies '${pushCommand}'; the commit stays local`);
     return { committed: true, hash: commit.hash, lines };
   }

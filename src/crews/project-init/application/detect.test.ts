@@ -4,38 +4,57 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 
 import { scanLayout, readConfigs, writeInstructionsFile, readExistingInstructions } from "./detect.ts";
-import { FakeFiles } from "../../../../tests/support/fake-files.ts";
+import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
+import { checkoutWithConfigs, checkoutWithEntries, checkoutWithInstructions } from "./detect.fixtures.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 describe("project-init IO", () => {
-  it("scans at most 80 top-level entries of /workspace", async () => {
-    const files = new FakeFiles();
-    files.listings.set("/workspace", Array.from({ length: 100 }, (_, i) => `f${i}`));
-    strictEqual((await scanLayout(files)).length, 80);
+  it(`scans at most 80 top-level entries of ${WORKSPACE}`, async () => {
+    // Arrange
+    const files = checkoutWithEntries(100);
+
+    // Act
+    const layout = await scanLayout(files);
+
+    // Assert
+    strictEqual(layout.length, 80);
   });
 
   it("reads the config files present, skips the absent ones, caps each at 4000 chars", async () => {
-    const files = new FakeFiles();
-    files.files.set("/workspace/package.json", "{}");
-    files.files.set("/workspace/go.mod", "m".repeat(5000));
+    // Arrange
+    const files = checkoutWithConfigs();
+
+    // Act
     const { blobs, text } = await readConfigs(files);
+
+    // Assert
     deepStrictEqual(Object.keys(blobs), ["package.json", "go.mod"]);
     strictEqual(blobs["go.mod"].length, 4000);
     strictEqual(text.startsWith("--- package.json ---\n{}\n\n--- go.mod ---\n"), true);
   });
 
   it("writes AGENTS.md and summarises the run", async () => {
+    // Arrange
     const files = new FakeFiles();
-    const out = await writeInstructionsFile("# Project\n", { frameworks: [], conventions: [], buildCommand: "npm run build" }, files);
-    deepStrictEqual(files.writes, [{ path: "/workspace/AGENTS.md", content: "# Project\n" }]);
-    strictEqual(out, "✓ wrote /workspace/AGENTS.md (10 bytes; build='npm run build', test='?')");
+    const conventions = { frameworks: [], conventions: [], buildCommand: "npm run build" };
+
+    // Act
+    const out = await writeInstructionsFile("# Project\n", conventions, files);
+
+    // Assert
+    deepStrictEqual(files.writes, [{ path: `${WORKSPACE}/AGENTS.md`, content: "# Project\n" }]);
+    strictEqual(out, `✓ wrote ${WORKSPACE}/AGENTS.md (10 bytes; build='npm run build', test='?')`);
   });
 
   it("reads the instruction files already there, in order, skipping the blank ones", async () => {
-    const files = new FakeFiles();
-    files.files.set("/workspace/.cursorrules", "tabs\n");
-    files.files.set("/workspace/CLAUDE.md", "pnpm\n");
-    files.files.set("/workspace/AGENTS.md", "  \n");
-    deepStrictEqual(await readExistingInstructions(files), [
+    // Arrange
+    const files = checkoutWithInstructions();
+
+    // Act
+    const existing = await readExistingInstructions(files);
+
+    // Assert
+    deepStrictEqual(existing, [
       { file: "CLAUDE.md", content: "pnpm\n" },
       { file: ".cursorrules", content: "tabs\n" },
     ]);

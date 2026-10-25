@@ -5,29 +5,19 @@ import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { extractMemories } from "./extract-memories.ts";
 import { MEMORY_EXTRACTION_SCHEMA, buildMemoryExtractionPrompt } from "../../domain/compaction.ts";
-import { FakeLlm } from "../../../../tests/support/fake-llm.ts";
-import { FakeMemoryStore } from "../../../../tests/support/fake-memory-store.ts";
-
-function setup(extraction: unknown) {
-  const llm = new FakeLlm();
-  llm.extractions = [extraction];
-  return { llm, memory: new FakeMemoryStore() };
-}
+import { REFERENCE_AND_PROJECT, TWO_FACTS, TWO_FACTS_KEPT, UNKNOWN_OR_EMPTY, memoriesSetup } from "./extract-memories.fixtures.ts";
 
 describe("extractMemories", () => {
   it("asks the model with the extraction prompt and schema, and writes each durable fact to the store", async () => {
-    const { llm, memory } = setup({
-      items: [
-        { category: "project", content: "uses pnpm workspaces" },
-        { category: "user", content: " prefers terse answers " },
-      ],
-    });
+    // Arrange
+    const { llm, memory } = memoriesSetup(TWO_FACTS);
+
+    // Act
     const items = await extractMemories(llm, memory, "TRANSCRIPT");
+
+    // Assert
     deepStrictEqual(llm.extracts, [{ prompt: buildMemoryExtractionPrompt("TRANSCRIPT"), schema: MEMORY_EXTRACTION_SCHEMA }]);
-    deepStrictEqual(items, [
-      { category: "project", content: "uses pnpm workspaces" },
-      { category: "user", content: "prefers terse answers" },
-    ]);
+    deepStrictEqual(items, TWO_FACTS_KEPT);
     deepStrictEqual(memory.records.map((r) => [r.category, r.content]), [
       ["project", "uses pnpm workspaces"],
       ["user", "prefers terse answers"],
@@ -35,21 +25,39 @@ describe("extractMemories", () => {
   });
 
   it("drops an item without a known category or content", async () => {
-    const { llm, memory } = setup({ items: [{ category: "bogus", content: "x" }, { category: "feedback", content: "  " }] });
-    deepStrictEqual(await extractMemories(llm, memory, "T"), []);
+    // Arrange
+    const { llm, memory } = memoriesSetup(UNKNOWN_OR_EMPTY);
+
+    // Act
+    const items = await extractMemories(llm, memory, "T");
+
+    // Assert
+    deepStrictEqual(items, []);
     strictEqual(memory.records.length, 0);
   });
 
   it("keeps a fact the store refused: it still reaches the recap", async () => {
-    const { llm, memory } = setup({ items: [{ category: "reference", content: "docs at /docs" }, { category: "project", content: "monorepo" }] });
+    // Arrange
+    const { llm, memory } = memoriesSetup(REFERENCE_AND_PROJECT);
     memory.failing.add("reference");
-    deepStrictEqual((await extractMemories(llm, memory, "T")).map((it) => it.category), ["reference", "project"]);
+
+    // Act
+    const items = await extractMemories(llm, memory, "T");
+
+    // Assert
+    deepStrictEqual(items.map((it) => it.category), ["reference", "project"]);
     deepStrictEqual(memory.records.map((r) => r.category), ["project"]);
   });
 
   it("degrades to no memory when the model's answer does not parse", async () => {
-    const { llm, memory } = setup(new Error("not JSON"));
-    deepStrictEqual(await extractMemories(llm, memory, "T"), []);
+    // Arrange
+    const { llm, memory } = memoriesSetup(new Error("not JSON"));
+
+    // Act
+    const items = await extractMemories(llm, memory, "T");
+
+    // Assert
+    deepStrictEqual(items, []);
     strictEqual(memory.records.length, 0);
   });
 });

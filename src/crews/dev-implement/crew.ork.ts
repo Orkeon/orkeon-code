@@ -21,29 +21,21 @@
 import { AgentBuilder, CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infrastructure/globals.ts";
 import { runBuildTool, runTestsTool, scriptToolSlot } from "../../shared/infrastructure/orkeon/script-tools.ts";
 import type { WrappedTools } from "../../shared/application/dev/wrapped-tools.ts";
-import {
-  orkeonConfigStore, orkeonCostIndex, orkeonFiles, orkeonMemoryToolPorts, orkeonPullRequestOpener, orkeonSharedMemory, orkeonShell, orkeonShellJobs,
-} from "../../shared/infrastructure/orkeon/wiring.ts";
-import { memoryReadTools, memoryRecallOn, memoryRecallTools } from "../../shared/infrastructure/orkeon/memory-tools.ts";
-import { stepPrecedents } from "../../shared/application/dev/step-precedents.ts";
-import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
-import { memoryDirOf } from "../../shared/application/shared-memory/memory-settings.ts";
-import { devToolCallbacks } from "../../shared/infrastructure/orkeon/tool-callbacks.ts";
-import { parseSessionRules } from "../../shared/domain/git/pull-request.ts";
+import { memoryRecallOn, memoryRecallTools } from "../../shared/infrastructure/orkeon/memory-tools.ts";
+import { agentTools, implementDeps } from "../../shared/infrastructure/orkeon/dev-deps.ts";
 import { providerEffort } from "../../shared/domain/agent-policy/behavior-flags.ts";
 import { implementBudget } from "./domain/implement-budget.ts";
 import { CREW_TOOLS } from "./domain/roles.ts";
-import { reportingWrites } from "./application/report-writes.ts";
 import { implementInputs, runDevImplement } from "./application/run-dev-implement.ts";
 
-const ports = { shell: orkeonShell(), files: orkeonFiles(), config: orkeonConfigStore(), jobs: orkeonShellJobs() };
 // run_tests and run_build: built here, bound by the body to the run's wrapped tools (its pack, its rules, its logs).
 const toolSlot = scriptToolSlot<WrappedTools>();
+// memory_recall's ports: over the tools of the body that runs (dev-deps.ts), never the global's.
+const bodyTools = agentTools();
 const flag = (v: unknown): boolean => v === true || v === "true";
 const effort = providerEffort(inputs().effort);
 // memory_recall is attached unless a session rule denies every call of it (the gate would refuse each one).
 const memoryOn = memoryRecallOn(inputs());
-const today = (): string => new Date().toISOString().slice(0, 10);
 
 const builder = AgentBuilder()
   .name("dev-implement")
@@ -52,29 +44,14 @@ const builder = AgentBuilder()
   .tools([...CREW_TOOLS])
   .withAutonomousTool(runTestsTool(ToolBuilder, toolSlot))
   .withAutonomousTool(runBuildTool(ToolBuilder, toolSlot))
-  .withAutonomousTools(memoryRecallTools(ToolBuilder, orkeonMemoryToolPorts, memoryOn))
+  .withAutonomousTools(memoryRecallTools(ToolBuilder, bodyTools.memoryPorts(), memoryOn))
   .maxIterations(60)
   .body(async (_input: any, ctx: any) => {
     const args = inputs();
-    const precedents = stepPrecedents({ ...ports, memory: orkeonSharedMemory(), log: ctx.log }, { on: memoryOn });
+    bodyTools.bind(ctx.tools);
     // implementInputs keeps a `push: false` (/dev-batches' closes: the plan's branch is pushed once, at its end).
-    return await runDevImplement(
-      implementInputs(args),
-      {
-        ...ports, log: ctx.log, toolSlot, costIndex: orkeonCostIndex(), today, precedents,
-        // The close's opener, for the context read at the launch (the chained close reads it from the batch record).
-        openerFor: (pr) => orkeonPullRequestOpener({ mode: pr.permissionMode, rules: parseSessionRules(pr.permissionRules), asked: false }),
-        // Each role's act runs under its own callbacks: the host's gate first, then the step's rule sets, the
-        // role's roots and the /hooks the command passed. run_tests and run_build check their own commands.
-        // `wrote` hears each write those callbacks let through: code keeps a role's own changes, not its runs' output.
-        // `writable`: the test author's stubs, which its own root denies leave open (never a rule set's or the gate's).
-        // `files`: the callbacks read a file_write's path, so that the rewrite rule lets a new file be created.
-        roleLlm: (role, layout, wrote, writable) => createLlm(ctx.llm, reportingWrites(devToolCallbacks(
-          { step: "dev-implement", role, layout, writable, hooks: args.hooks, readTools: memoryReadTools(memoryOn) },
-          { shell: ports.shell, log: ctx.log, files: ports.files, memoryDir: memoryDirOf(ports.config) },
-        ), wrote), { effort }),
-      },
-    );
+    // The ports, each role's Llm under its callbacks and the close's opener: dev-deps.ts, over this body's tools.
+    return await runDevImplement(implementInputs(args), implementDeps(ctx, { hooks: args.hooks, effort, memoryOn, toolSlot }));
   });
 const implementer = (effort === undefined ? builder : builder.effort(effort)).build();
 

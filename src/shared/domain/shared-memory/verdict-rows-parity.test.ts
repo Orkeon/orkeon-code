@@ -19,43 +19,32 @@
 //   node --test src/shared/domain/shared-memory/verdict-rows-parity.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
-import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 
-import { LEARN_FILE, axisListing, canonicalAxis, collectLearnRows, untreated } from "./verdict-rows.ts";
-import type { LearnRow, VerdictSource } from "./verdict-rows.ts";
-
-const root = fileURLToPath(new URL("../../../../tests/fixtures/dev/learn/", import.meta.url));
-const work = join(root, "workbench");
-const recorded = (name: string): string => readFileSync(join(root, name), "utf8");
-
-function sources(): VerdictSource[] {
-  const out: VerdictSource[] = [];
-  for (const code of readdirSync(work)) {
-    if (code.startsWith(".") || !statSync(join(work, code)).isDirectory()) continue;
-    for (const name of readdirSync(join(work, code))) {
-      if (LEARN_FILE.test(name)) out.push({ code, name, text: readFileSync(join(work, code, name), "utf8") });
-    }
-  }
-  return out;
-}
-
-const project = (r: LearnRow) =>
-  ({ id: r.id, batch: r.batch, severity: r.severity, axis: r.axis, gap: r.gap, evidence: r.evidence, fix: r.fix });
+import { axisListing, canonicalAxis, collectLearnRows, untreated } from "./verdict-rows.ts";
+import { AXES, project, recorded, sources, treatedIds } from "./verdict-rows-parity.fixtures.ts";
 
 describe("verdict rows against the harness's script", () => {
-  const rows = collectLearnRows(sources());
-  const treated = new Set<string>((JSON.parse(recorded("harness-state.json")) as { treated: string[] }).treated);
-
   it("gives the recorded rows, ids and order", () => {
+    // Arrange
+    const files = sources();
+
+    // Act
+    const rows = collectLearnRows(files);
+
+    // Assert
     deepStrictEqual(rows.map(project), JSON.parse(recorded("rows.py.json")));
   });
 
-  for (const axis of ["Test", "Placement"]) {
+  for (const axis of AXES) {
     it(`lists axis ${axis} as the script does, treated rows left out`, () => {
-      const picked = untreated(rows, treated).filter((r) => r.axis === canonicalAxis(axis));
-      strictEqual(axisListing(picked).join("\n") + "\n", recorded(`axis-${axis}.py.txt`));
+      // Arrange
+      const picked = untreated(collectLearnRows(sources()), treatedIds()).filter((r) => r.axis === canonicalAxis(axis));
+
+      // Act
+      const listing = axisListing(picked);
+
+      // Assert
+      strictEqual(listing.join("\n") + "\n", recorded(`axis-${axis}.py.txt`));
     });
   }
 });

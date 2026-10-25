@@ -4,59 +4,132 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 
 import { readJsonArray, readJsonObject, writeJson } from "./session-state.ts";
-import { FakeSessionStore } from "../../../tests/support/fake-session-store.ts";
+import { FakeSessionStore } from "../../../tests/support/doubles/fake-session-store.ts";
+import { HOOKS_VALUE, NOT_ARRAYS, NOT_OBJECTS } from "./session-state.fixtures.ts";
 
 describe("session state — JSON arrays", () => {
   it("reads a stored array", async () => {
+    // Arrange
     const session = new FakeSessionStore();
     session.state.set("k", `["a",{"b":1}]`);
-    deepStrictEqual(await readJsonArray(session, "k"), ["a", { b: 1 }]);
+
+    // Act
+    const value = await readJsonArray(session, "k");
+
+    // Assert
+    deepStrictEqual(value, ["a", { b: 1 }]);
   });
 
-  it("reads an unset, empty, malformed or non-array value as []", async () => {
+  it("reads an unset value as []", async () => {
+    // Arrange
     const session = new FakeSessionStore();
-    deepStrictEqual(await readJsonArray(session, "unset"), []);
-    for (const raw of ["", "[oops", `{"a":1}`, "null", "3"]) {
-      session.state.set("k", raw);
-      deepStrictEqual(await readJsonArray(session, "k"), [], raw);
-    }
+
+    // Act
+    const value = await readJsonArray(session, "unset");
+
+    // Assert
+    deepStrictEqual(value, []);
   });
+
+  for (const raw of NOT_ARRAYS) {
+    it(`reads the empty, malformed or non-array value ${JSON.stringify(raw)} as []`, async () => {
+      // Arrange
+      const session = new FakeSessionStore();
+      session.state.set("k", raw);
+
+      // Act
+      const value = await readJsonArray(session, "k");
+
+      // Assert
+      deepStrictEqual(value, [], raw);
+    });
+  }
 
   it("reads [] when the session store is unavailable", async () => {
+    // Arrange
     const session = new FakeSessionStore();
     session.failure = new Error("no session_store tool");
-    deepStrictEqual(await readJsonArray(session, "k"), []);
+
+    // Act
+    const value = await readJsonArray(session, "k");
+
+    // Assert
+    deepStrictEqual(value, []);
   });
 });
 
 describe("session state — JSON objects", () => {
   it("reads a stored object", async () => {
+    // Arrange
     const session = new FakeSessionStore();
     session.state.set("k", `{"review.lenses":"security"}`);
-    deepStrictEqual(await readJsonObject(session, "k"), { "review.lenses": "security" });
+
+    // Act
+    const value = await readJsonObject(session, "k");
+
+    // Assert
+    deepStrictEqual(value, { "review.lenses": "security" });
   });
 
-  it("reads an unset, empty, malformed or non-object value as {}", async () => {
+  it("reads an unset value as {}", async () => {
+    // Arrange
     const session = new FakeSessionStore();
-    deepStrictEqual(await readJsonObject(session, "unset"), {});
-    for (const raw of ["", "{oops", `["a"]`, "null", `"text"`]) {
-      session.state.set("k", raw);
-      deepStrictEqual(await readJsonObject(session, "k"), {}, raw);
-    }
+
+    // Act
+    const value = await readJsonObject(session, "unset");
+
+    // Assert
+    deepStrictEqual(value, {});
   });
+
+  for (const raw of NOT_OBJECTS) {
+    it(`reads the empty, malformed or non-object value ${JSON.stringify(raw)} as {}`, async () => {
+      // Arrange
+      const session = new FakeSessionStore();
+      session.state.set("k", raw);
+
+      // Act
+      const value = await readJsonObject(session, "k");
+
+      // Assert
+      deepStrictEqual(value, {}, raw);
+    });
+  }
 
   it("reads {} when the session store is unavailable", async () => {
+    // Arrange
     const session = new FakeSessionStore();
     session.failure = new Error("no session_store tool");
-    deepStrictEqual(await readJsonObject(session, "k"), {});
+
+    // Act
+    const value = await readJsonObject(session, "k");
+
+    // Assert
+    deepStrictEqual(value, {});
   });
 });
 
 describe("session state — writing", () => {
-  it("stores the value as JSON, read back as written", async () => {
+  it("stores the value as JSON", async () => {
+    // Arrange
     const session = new FakeSessionStore();
-    await writeJson(session, "k", [{ event: "pre", command: "npm test" }]);
+
+    // Act
+    await writeJson(session, "k", HOOKS_VALUE);
+
+    // Assert
     strictEqual(session.state.get("k"), `[{"event":"pre","command":"npm test"}]`);
-    deepStrictEqual(await readJsonArray(session, "k"), [{ event: "pre", command: "npm test" }]);
+  });
+
+  it("reads the stored value back as written", async () => {
+    // Arrange
+    const session = new FakeSessionStore();
+    await writeJson(session, "k", HOOKS_VALUE);
+
+    // Act
+    const value = await readJsonArray(session, "k");
+
+    // Assert
+    deepStrictEqual(value, [{ event: "pre", command: "npm test" }]);
   });
 });
