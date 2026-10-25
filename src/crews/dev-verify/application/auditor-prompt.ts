@@ -33,6 +33,8 @@ export const AUDITOR_SYSTEM = [
   "- Major (an existing helper left unused, a cost that grows without bound, a rule written away from the module that",
   "  owns it, a sheet or plan that no longer matches the code, a hunk outside the batch's scope)",
   "- Minor (anything with no effect on behaviour)",
+  "A Reuse row names an existing helper whose body does more than one operator of the language: `a + b` written where",
+  "`add(a, b)` exists duplicates nothing, and such a row is Minor at most.",
   "Rule of the verdict: one Blocking or Major row makes the verdict GAPS; with none, the verdict is VALID.",
   "Not the batch's to do: the global plan's line and boxes of the batch, marked done by the step after the audit,",
   "and the sheet's assumptions to be validated by the user, which the pull request lists for them; neither is a row",
