@@ -8,5 +8,5 @@ useDefault = true
 [[allowlists]]
 description = "Fake secrets the 'secrets' rule set must refuse: test fixtures, not credentials"
 paths = [
-  '''^src/shared/domain/agent-policy/rule-sets\.test\.ts$''',
+  '''^src/shared/domain/agent-policy/rule-sets\.(test|fixtures)\.ts$''',
 ]
