@@ -311,7 +311,7 @@ describe("runWave", () => {
     strictEqual(ran, false);
     deepStrictEqual(book.added, []);
     strictEqual(out.lines.at(-1),
-      "BLOCKED — concurrency 2 refused: git does not work inside a worktree under this shell confinement (Tools:Shell:Confinement:Mode); run with --concurrency 1 (runtime issue Orkeon/orkeon#188)");
+      "BLOCKED — concurrency 2 refused: git does not work inside a worktree under this shell confinement (Tools:Shell:Confinement:Mode); a runtime from Orkeon/orkeon#191 on binds a linked worktree's git dir: update it, or run with --concurrency 1");
     ok(shell.commands.includes(remove("F2")) && shell.commands.includes(remove("F3")));
   });
 
@@ -328,7 +328,7 @@ describe("runWave", () => {
       files: new FakeFiles(), shell: other, runBatch: async () => valid("F2"),
       probe: async () => ({ exitCode: 0, top: "/workspace\n" }),
     });
-    ok(out.stopped && out.lines.at(-1)!.includes("Orkeon/orkeon#188"));
+    ok(out.stopped && out.lines.at(-1)!.includes("Orkeon/orkeon#191"));
   });
 
   it("stops before any launch when a worktree cannot be seeded", async () => {

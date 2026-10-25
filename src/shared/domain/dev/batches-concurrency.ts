@@ -28,8 +28,9 @@ export function concurrencyModeRefusal(n: number, mode: string): string | null {
     "/mode bypassPermissions, or run with --concurrency 1";
 }
 
-/** The line refusing a parallel run when git fails in a batch's worktree (the runtime's shell confinement). */
+/** The line refusing a parallel run when git fails in a batch's worktree: a runtime older than the one binding a
+ *  linked worktree's git dir under its shell confinement. */
 export function concurrencyGitRefusal(n: number): string {
-  return `concurrency ${n} refused: git does not work inside a worktree under this shell confinement (Tools:Shell:Confinement:Mode); ` +
-    "run with --concurrency 1 (runtime issue Orkeon/orkeon#188)";
+  return `concurrency ${n} refused: git does not work inside a worktree under this shell confinement (Tools:Shell:Confinement:Mode)` +
+    "; a runtime from Orkeon/orkeon#191 on binds a linked worktree's git dir: update it, or run with --concurrency 1";
 }

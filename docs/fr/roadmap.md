@@ -48,12 +48,8 @@ demandent d'abord un changement dans [Orkeon](https://github.com/Orkeon/orkeon).
     une seule extraction, sans boucle d'outils, et n'aurait donc rien pour les appeler.
   - Les opérations Markdown d'intention, pour les jumeaux français et les fichiers du dossier de travail : aucun crew
     ne place encore du texte dans une section.
-- Deux limites des lots en parallèle (`/dev-batches --concurrency`, runtime). Git échoue dans le worktree d'un lot
-  sous le confinement Bubblewrap, le `.git` de la copie principale n'y étant pas monté (Orkeon/orkeon#188) : une
-  exécution parallèle demande `Tools:Shell:Confinement:Mode` `None` ou un conteneur, et se refuse en une ligne sinon.
-  Et le runtime ne donne aucun budget à un agent lancé par `crew.runAgent` (Orkeon/orkeon#189) : chaque lot est borné
-  dans le code par ses appels d'outils et son temps réel, pas encore par ses jetons. L'audit d'un lot tourne en ligne
-  dans son agent, si bien que `/tasks` ne le liste pas.
+- Une limite des lots en parallèle (`/dev-batches --concurrency`) : l'audit d'un lot tourne en ligne dans son agent,
+  si bien que `/tasks` ne le liste pas.
 - Une liste de plan ou de tâches que la boucle tient à jour (`/tasks` est une liste manuelle aujourd'hui).
 - Plusieurs sessions à la fois.
 - Gardé tel quel : la question de pull request de `/commit` reste une invite de la commande (`ctx.prompt`), posée

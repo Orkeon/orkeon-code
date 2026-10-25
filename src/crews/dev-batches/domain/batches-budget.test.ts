@@ -8,12 +8,21 @@ import { CLOSE_BUDGET, MAX_STEPS, implementBudget } from "../../dev-implement/do
 import { STEP_BUDGETS, TOKENS_PER_CALL } from "../../../shared/domain/dev/step-budget.ts";
 
 describe("batchLimits", () => {
-  it("sums the implement run sized to the steps, the audit and the close: tool calls and wall time", () => {
+  it("sums the implement run sized to the steps, the audit and the close: tool calls, wall time and tokens", () => {
     const steps = 3;
     deepStrictEqual(batchLimits(steps), {
       toolCalls: implementBudget({ steps }).toolCalls + STEP_BUDGETS["dev-verify"].toolCalls + CLOSE_BUDGET.toolCalls,
       wallTime: implementBudget({ steps }).wallTime + STEP_BUDGETS["dev-verify"].wallTime + CLOSE_BUDGET.wallTime,
+      tokens: implementBudget({ steps }).tokens + STEP_BUDGETS["dev-verify"].tokens + CLOSE_BUDGET.tokens,
     });
+  });
+
+  it("names only the runtime's budget keys, each a whole number of 1 or more (a delegated run refuses any other)", () => {
+    for (const steps of [1, MAX_STEPS, undefined]) {
+      const limits = batchLimits(steps);
+      deepStrictEqual(Object.keys(limits).sort(), ["tokens", "toolCalls", "wallTime"]);
+      for (const v of Object.values(limits)) ok(Number.isSafeInteger(v) && v >= 1, `${steps}: ${v}`);
+    }
   });
 });
 

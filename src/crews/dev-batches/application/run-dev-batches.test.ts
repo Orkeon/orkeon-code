@@ -498,7 +498,7 @@ describe("runDevBatches — a parallel run", () => {
     const out = parse(await runDevBatches({ code: "demo", concurrency: 2, permissionMode: "bypassPermissions" }, deps));
     deepStrictEqual(probed, ["/workspace/.orkeon/worktrees/demo-F2"]);
     deepStrictEqual(runs, []);
-    ok(out.lines.at(-1)!.includes("Orkeon/orkeon#188"), out.lines.join("\n"));
+    ok(out.lines.at(-1)!.includes("Orkeon/orkeon#191"), out.lines.join("\n"));
     const chained = parallelSetup();
     chained.files.files.set(ACTIVE_RECORD, JSON.stringify({ code: "demo", pr: false, context: { permissionMode: "bypassPermissions", concurrency: 2 } }));
     chained.deps.probe = async (root) => { probed.push(root); return { exitCode: 0, top: root }; };

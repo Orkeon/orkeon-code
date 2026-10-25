@@ -311,10 +311,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   worktree, its code, sheet and verdict there alone, and the run names the command that relaunches it there
   (`/dev-batches <code> --concurrency <n>`, a GAPS verdict's correction first); a run one at a time refuses such a
   batch. Typed again without `--concurrency`, the run goes on as it was; `--concurrency 1` goes back to one at a time.
-  The next wave chains itself, and the plan's close still pushes once. Above 1 needs `bypassPermissions`,
-  `Tools:Shell:Confinement:Mode` `None` or a container (git fails in a worktree under Bubblewrap, Orkeon/orkeon#188)
-  and all of `.orkeon/` ignored by git (`.gitignore` or `.git/info/exclude`); each batch is bounded in code by its tool calls and wall time, not by tokens, the
-  runtime giving `crew.runAgent` no budget (Orkeon/orkeon#189). The ports of the dev crews are built from the calling
+  The next wave chains itself, and the plan's close still pushes once. Above 1 needs `bypassPermissions`, git working
+  in a worktree under the shell confinement (a first probe checks it; under Bubblewrap, a runtime that binds a linked
+  worktree's git dir, Orkeon/orkeon#191) and all of `.orkeon/` ignored by git (`.gitignore` or `.git/info/exclude`);
+  each batch runs under its own budget of tool calls, wall time and tokens (`crew.runAgent`'s `budget`,
+  Orkeon/orkeon#189), its tool calls also counted in code so that it ends saying what is left. The ports of the dev crews are built from the calling
   agent's own tools, and a batch keeps naming the checkout `/workspace`, rebased on its root (Orkeon/orkeon#186,
   delivered by #187).
 - The dev steps recall the shared memory on their own: `/dev-spec` and `/dev-change` at the start (decisions,

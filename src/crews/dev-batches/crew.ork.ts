@@ -20,7 +20,7 @@
 // Run standalone:  bash scripts/run-crew.sh src/crews/dev-batches/crew.ork.ts --inputs '{"code":"prune"}'
 //   (it logs the batch it names as launched and launches nothing: drive that batch with /dev-implement)
 //
-// Budget: domain/batches-budget.ts (the driver's, and each batch agent's in code: L8P-D12).
+// Budget: domain/batches-budget.ts (the driver's, and each batch agent's run: L8P-D12, Orkeon/orkeon#189).
 
 import { AgentBuilder, CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infrastructure/globals.ts";
 import { orkeonConfigStore, orkeonFiles, orkeonPullRequestOpener, orkeonShell } from "../../shared/infrastructure/orkeon/wiring.ts";
@@ -79,7 +79,7 @@ function batchAgent(run: BatchRun, context: BatchesContext) {
       });
       return JSON.stringify(outcome);
     });
-  return { builder: batchEffort === undefined ? builder : builder.effort(batchEffort), timeout: limits.wallTime * 1000 };
+  return { builder: batchEffort === undefined ? builder : builder.effort(batchEffort), limits };
 }
 
 /** The outcome a batch agent answered (its JSON); its text as the lines of a BLOCKED one otherwise. */
@@ -113,10 +113,11 @@ const builder = AgentBuilder()
       reviewerFor: (c) => createLlm(ctx.llm, devToolCallbacks({ step: "dev-plan", hooks: c.hooks }, { shell: ports.shell, log: ctx.log, memoryDir: memoryDirOf(ports.config) }),
         { effort: providerEffort(c.effort ?? undefined) }),
       openerFor: (c) => orkeonPullRequestOpener({ mode: c.permissionMode, rules: parseSessionRules(c.permissionRules), asked: false }, ctx.tools),
-      // A parallel wave: each batch in its own agent under its worktree, bounded in code (batches-budget.ts).
+      // A parallel wave: each batch in its own agent under its worktree and its own budget (batches-budget.ts).
       runBatch: async (run, context) => {
         const agent = batchAgent(run, context);
-        const answered = await crew.runAgent(ctx.spawn(agent.builder), {}, { signal: ctx.signal, timeout: agent.timeout });
+        const answered = await crew.runAgent(ctx.spawn(agent.builder), {},
+          { signal: ctx.signal, timeout: agent.limits.wallTime * 1000, budget: agent.limits });
         return outcomeOf(run, answered);
       },
       // git under the first worktree, as an agent rooted there sees it (L8P-D11, Orkeon/orkeon#188).

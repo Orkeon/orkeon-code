@@ -55,10 +55,10 @@ close typed while the run is in progress too), and the plan's close pushes the b
 the push, and opens one pull request (`--pr` or `dev.prAuto`), else hands its command over; on the default branch it
 pushes nothing and hands the push over. With `--concurrency` 2 to 4 it runs a wave of batches at once, each in a
 batch agent under its own worktree (`.orkeon/worktrees/<code>-F<n>`, on the branch `batches/<code>/F<n>`): only in
-`bypassPermissions`, since two batches would ask at once, and only with `Tools:Shell:Confinement:Mode` `None` or in a
-container, since git fails inside a worktree under Bubblewrap (Orkeon/orkeon#188), and only with all of `.orkeon/`
-ignored by git (`.gitignore` or `.git/info/exclude`), since the worktrees and the dev state seeded in them live there;
-each refusal is one line, before any batch. Each batch is bounded by its own tool calls and wall time; one that stops
+`bypassPermissions`, since two batches would ask at once, and only where git works inside a batch's worktree (a
+first probe checks it: under Bubblewrap, a runtime older than Orkeon/orkeon#191 does not bind the worktree's git dir),
+and only with all of `.orkeon/` ignored by git (`.gitignore` or `.git/info/exclude`), since the worktrees and the dev state seeded in them live there;
+each refusal is one line, before any batch. Each batch runs under its own budget of tool calls, wall time and tokens; one that stops
 keeps its worktree, its code, sheet and verdict there alone, and the run's last lines name it and the command that
 relaunches it there (`/dev-batches <code> --concurrency <n>`, a GAPS verdict's correction first), for a human to
 decide. `/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement` and `/dev-batches`

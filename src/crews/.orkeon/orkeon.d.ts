@@ -485,8 +485,9 @@ readonly crew: CrewView;
 * Runs another agent of the crew, by object or by name, exactly as `crew.runAgent` does:
 * under its own context, its semaphore and its `onError` policy. An unknown name throws
 * `AgentNotInThisCrewError`; the calling agent itself, `RecursiveAgentInvocationError`.
+* `opts.budget` bounds the run; `opts.charge: "crew"` also charges it to this context's budget.
 */
-delegate<T = unknown>(agent: string | Agent<unknown, T>, input: unknown): Promise<T>;
+delegate<T = unknown>(agent: string | Agent<unknown, T>, input: unknown, opts?: DelegateOptions): Promise<T>;
 /** Queues `message` for an agent of the crew, by object or by name. Synchronous. */
 send(agent: string | Agent, message: unknown): void;
 /** The next message for this agent. `timeout` (ms or "2s") rejects with `ReceiveTimeoutError`. */
@@ -577,6 +578,33 @@ timeout?: number | string;
 // `inputs` global the runner plants from --inputs.
 }
 /**
+* The budget of one delegated run: what `ctx.delegate(agent, input, opts)` takes, and
+* `crew.runAgent` beside its `CrewRunOptions`. Neither key: the run has no budget, as before.
+*/
+interface DelegateOptions {
+/**
+* Bounds this run as `crewBuilder().budget(...)` bounds a crew run, with the same keys and
+* values (`wallTime` in seconds, or a duration such as `"5m"`); a spent dimension ends the
+* run with `BudgetExhaustedError`, and a child it spawns (`spawn_agent`, `ctx.spawnBackground`)
+* derives its budget from this one. An unknown key, or a count that is not a whole number of
+* 1 or more, is refused when the run opens.
+*/
+budget?: ExecutionBudget;
+/**
+* `"crew"`: what this run spends (tool calls, tokens, spawns; its wall clock runs with the
+* caller's) counts against the budget of the run it is called from as well, so runs started
+* at once never spend more than the crew's budget; the first budget spent ends the run. A call
+* this run's own budget refuses is not charged; a child it spawns is charged too, allowed no more
+* than what both budgets have left. Without `budget`, the run spends straight from the caller's.
+* Refused when the caller runs under no budget. `ctx.delegate` charges its own context's budget;
+* `crew.runAgent`, the one budget every open agent body runs under, and is refused when bodies
+* under different budgets are open (call `ctx.delegate` from the body instead).
+*/
+charge?: "crew";
+}
+/** `crew.runAgent`'s options: `crew.run` and `crew.runStream` ignore `budget` and `charge`, a crew run spends the crew's `budget(...)`. */
+interface RunAgentOptions extends CrewRunOptions, DelegateOptions { }
+/**
 * What `crew.run()` resolves to: exactly what the runtime serves (GAP-27). No `artifacts`:
 * it was declared and always empty, so `result.artifacts.get("x")` compiled and threw.
 */
@@ -599,7 +627,7 @@ readonly name: string;
 /** The members, in the order they joined. */
 readonly agents: readonly Agent<unknown, unknown>[];
 run(opts?: CrewRunOptions): Promise<CrewResult>;
-runAgent<TIn, TOut>(agent: string | Agent<TIn, TOut>, input: TIn, opts?: CrewRunOptions): Promise<TOut>;
+runAgent<TIn, TOut>(agent: string | Agent<TIn, TOut>, input: TIn, opts?: RunAgentOptions): Promise<TOut>;
 runStream(opts?: CrewRunOptions): AsyncIterable<CrewStreamEvent>;
 add(agent: Agent<unknown, unknown>): void;
 remove(agent: Agent<unknown, unknown> | string): void;

@@ -47,9 +47,9 @@ describe("concurrencyModeRefusal", () => {
 });
 
 describe("concurrencyGitRefusal", () => {
-  it("names the confinement setting and the runtime issue", () => {
+  it("names the confinement setting, the runtime change that lifts it and the sequential way out", () => {
     const line = concurrencyGitRefusal(2);
-    ok(line.startsWith("concurrency 2 refused: git does not work inside a worktree under this shell confinement (Tools:Shell:Confinement:Mode); run with --concurrency 1"));
-    ok(line.includes("Orkeon/orkeon#188"));
+    ok(line.startsWith("concurrency 2 refused: git does not work inside a worktree under this shell confinement (Tools:Shell:Confinement:Mode)"));
+    ok(line.includes("Orkeon/orkeon#191") && line.endsWith("or run with --concurrency 1"), line);
   });
 });
