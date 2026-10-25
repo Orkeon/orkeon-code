@@ -4,43 +4,35 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { FakeFiles } from "../../../../tests/support/fake-files.ts";
-import { FakeShell } from "../../../../tests/support/fake-shell.ts";
 import type { Files } from "../ports.ts";
-import type { WorkDirRequest } from "../../domain/dev/work-folder.ts";
 import {
-  GIT_TOPLEVEL, GIT_WORKTREE_LIST, WORKSPACE_ROOT, entryExists, gitDirProbe, resolveWorkFolder, workFolderLabel,
+  GIT_TOPLEVEL, GIT_WORKTREE_LIST, entryExists, gitDirProbe, resolveWorkFolder, workFolderLabel,
 } from "./resolve-work-folder.ts";
-
-const pack = (value: string): WorkDirRequest => ({ value, source: "layout.work" });
-const config = (value: string): WorkDirRequest => ({ value, source: "dev.workDir" });
-
-const LINKED_PORCELAIN = "worktree /home/dev/repo\nHEAD 0123abc\nbranch refs/heads/main\n\n"
-  + "worktree /workspace\nHEAD 4567def\nbranch refs/heads/feature\n";
-
-function setup(listing: string[] = []) {
-  const files = new FakeFiles();
-  files.listings.set(WORKSPACE_ROOT, listing);
-  const shell = new FakeShell();
-  return { files, shell };
-}
-
-function linked(shell: FakeShell) {
-  shell.results[GIT_WORKTREE_LIST] = { stdout: LINKED_PORCELAIN };
-  shell.results[GIT_TOPLEVEL] = { stdout: "/workspace\n" };
-}
+import {
+  config, DEFAULT_WORK, ENTRIES, LABELS, linked, LINKED_PORCELAIN, pack, setup, todoAndBackstage, UNQUOTABLE_MAINS,
+} from "./resolve-work-folder.fixtures.ts";
 
 describe("resolveWorkFolder", () => {
   it("applies the default when nothing is asked, without running git", async () => {
+    // Arrange
     const deps = setup(["src", "workbench"]);
-    deepStrictEqual(await resolveWorkFolder(deps, null), {
-      folder: "workbench", vfsPath: "/workspace/workbench", outcome: "default", request: null, exists: true, note: null,
-    });
+
+    // Act
+    const work = await resolveWorkFolder(deps, null);
+
+    // Assert
+    deepStrictEqual(work, DEFAULT_WORK);
     deepStrictEqual(deps.shell.commands, []);
   });
 
   it("applies the default for a value that normalises to empty", async () => {
+    // Arrange
     const deps = setup([]);
+
+    // Act
     const work = await resolveWorkFolder(deps, config(" ./ "));
+
+    // Assert
     strictEqual(work.outcome, "default");
     strictEqual(work.folder, "workbench");
     strictEqual(work.exists, false);
@@ -49,8 +41,13 @@ describe("resolveWorkFolder", () => {
   });
 
   it("refuses an invalid value and applies the default, with a note", async () => {
+    // Arrange
     const deps = setup(["workbench"]);
+
+    // Act
     const work = await resolveWorkFolder(deps, config("../elsewhere"));
+
+    // Assert
     strictEqual(work.outcome, "invalid");
     strictEqual(work.folder, "workbench");
     strictEqual(work.vfsPath, "/workspace/workbench");
@@ -61,8 +58,13 @@ describe("resolveWorkFolder", () => {
   });
 
   it("applies workbench when it is named, without running git", async () => {
+    // Arrange
     const deps = setup([]);
+
+    // Act
     const work = await resolveWorkFolder(deps, pack("./workbench/"));
+
+    // Assert
     strictEqual(work.outcome, "applied");
     strictEqual(work.folder, "workbench");
     strictEqual(work.exists, false);
@@ -70,9 +72,15 @@ describe("resolveWorkFolder", () => {
   });
 
   it("applies a named folder that exists", async () => {
+    // Arrange
     const deps = setup(["backstage"]);
     deps.files.listings.set("/workspace/backstage", ["tasks", "notes"]);
-    deepStrictEqual(await resolveWorkFolder(deps, pack("backstage/tasks/")), {
+
+    // Act
+    const work = await resolveWorkFolder(deps, pack("backstage/tasks/"));
+
+    // Assert
+    deepStrictEqual(work, {
       folder: "backstage/tasks", vfsPath: "/workspace/backstage/tasks", outcome: "applied",
       request: pack("backstage/tasks/"), exists: true, note: null,
     });
@@ -80,10 +88,15 @@ describe("resolveWorkFolder", () => {
   });
 
   it("falls back when the folder is absent and the checkout is the main worktree", async () => {
+    // Arrange
     const deps = setup(["workbench"]);
     deps.shell.results[GIT_WORKTREE_LIST] = { stdout: "worktree /workspace\nHEAD 0123abc\nbranch refs/heads/main\n" };
     deps.shell.results[GIT_TOPLEVEL] = { stdout: "/workspace/\n" };
+
+    // Act
     const work = await resolveWorkFolder(deps, pack("backstage/tasks"));
+
+    // Assert
     deepStrictEqual(work, {
       folder: "workbench", vfsPath: "/workspace/workbench", outcome: "absent", request: pack("backstage/tasks"),
       exists: true, note: "layout.work 'backstage/tasks' is absent from the checkout: workbench/ applies",
@@ -92,9 +105,14 @@ describe("resolveWorkFolder", () => {
   });
 
   it("resolves the main worktree's folder in a linked worktree", async () => {
+    // Arrange
     const deps = setup([]);
     linked(deps.shell);
+
+    // Act
     const work = await resolveWorkFolder(deps, pack("backstage/tasks"));
+
+    // Assert
     deepStrictEqual(work, {
       folder: "/home/dev/repo/backstage/tasks", vfsPath: null, outcome: "main-worktree", request: pack("backstage/tasks"),
       exists: true,
@@ -105,82 +123,138 @@ describe("resolveWorkFolder", () => {
   });
 
   it("falls back in a linked worktree whose main worktree lacks the folder", async () => {
+    // Arrange
     const deps = setup([]);
     linked(deps.shell);
     deps.shell.results[gitDirProbe("/home/dev/repo/backstage/tasks")] = { exitCode: 128, stderr: "fatal: cannot change" };
+
+    // Act
     const work = await resolveWorkFolder(deps, config("backstage/tasks"));
+
+    // Assert
     strictEqual(work.outcome, "absent");
     strictEqual(work.folder, "workbench");
     strictEqual(work.note, "dev.workDir 'backstage/tasks' is absent from the checkout: workbench/ applies");
   });
 
   it("falls back when the probe is refused", async () => {
+    // Arrange
     const deps = setup([]);
     linked(deps.shell);
     deps.shell.errors[gitDirProbe("/home/dev/repo/backstage/tasks")] = new Error("command refused");
-    strictEqual((await resolveWorkFolder(deps, pack("backstage/tasks"))).outcome, "absent");
+
+    // Act
+    const work = await resolveWorkFolder(deps, pack("backstage/tasks"));
+
+    // Assert
+    strictEqual(work.outcome, "absent");
   });
 
-  it("falls back without a probe when the main worktree's path holds whitespace or a quote", async () => {
-    for (const main of ["/home/dev/my repo", "/home/dev/o'repo"]) {
+  for (const main of UNQUOTABLE_MAINS) {
+    it(`falls back without a probe when the main worktree's path is ${main}`, async () => {
+      // Arrange
       const deps = setup([]);
       deps.shell.results[GIT_WORKTREE_LIST] = { stdout: `worktree ${main}\nHEAD 0123abc\n` };
       deps.shell.results[GIT_TOPLEVEL] = { stdout: "/workspace\n" };
+
+      // Act
       const work = await resolveWorkFolder(deps, pack("backstage/tasks"));
+
+      // Assert
       strictEqual(work.outcome, "absent", main);
       deepStrictEqual(deps.shell.commands, [GIT_WORKTREE_LIST, GIT_TOPLEVEL]);
-    }
-  });
+    });
+  }
 
-  it("counts a git call that throws or fails as not linked", async () => {
+  it("counts a git call that throws as not linked", async () => {
+    // Arrange
     const thrown = setup([]);
     thrown.shell.errors[GIT_WORKTREE_LIST] = new Error("command refused");
     thrown.shell.results[GIT_TOPLEVEL] = { stdout: "/workspace\n" };
-    strictEqual((await resolveWorkFolder(thrown, pack("backstage/tasks"))).outcome, "absent");
 
+    // Act
+    const work = await resolveWorkFolder(thrown, pack("backstage/tasks"));
+
+    // Assert
+    strictEqual(work.outcome, "absent");
+  });
+
+  it("counts a git call that fails as not linked", async () => {
+    // Arrange
     const failed = setup([]);
     failed.shell.results[GIT_WORKTREE_LIST] = { stdout: LINKED_PORCELAIN };
     failed.shell.results[GIT_TOPLEVEL] = { exitCode: 128, stdout: "" };
-    strictEqual((await resolveWorkFolder(failed, pack("backstage/tasks"))).outcome, "absent");
+
+    // Act
+    const work = await resolveWorkFolder(failed, pack("backstage/tasks"));
+
+    // Assert
+    strictEqual(work.outcome, "absent");
     strictEqual(failed.shell.commands.length, 2);
   });
 });
 
 describe("entryExists", () => {
-  it("looks for the last segment in the parent's listing", async () => {
-    const files = new FakeFiles();
-    files.listings.set("/workspace", ["src", "workbench"]);
-    strictEqual(await entryExists(files, "/workspace/workbench"), true);
-    strictEqual(await entryExists(files, "/workspace/workbench/"), true);
-    strictEqual(await entryExists(files, "/workspace/todo"), false);
-    strictEqual(await entryExists(files, "/workspace/workbench/demo"), false);
-  });
+  for (const c of ENTRIES) {
+    it(`looks for the last segment of ${c.path} in the parent's listing`, async () => {
+      // Arrange
+      const files = new FakeFiles();
+      files.listings.set("/workspace", ["src", "workbench"]);
+
+      // Act
+      const exists = await entryExists(files, c.path);
+
+      // Assert
+      strictEqual(exists, c.exists);
+    });
+  }
 
   it("is false when the listing throws", async () => {
+    // Arrange
     const files: Pick<Files, "list"> = { list: async () => { throw new Error("permission denied"); } };
-    strictEqual(await entryExists(files, "/workspace/workbench"), false);
+
+    // Act
+    const exists = await entryExists(files, "/workspace/workbench");
+
+    // Assert
+    strictEqual(exists, false);
   });
 
   it("asks for at most 1000 entries", async () => {
+    // Arrange
     let asked = 0;
     const files: Pick<Files, "list"> = { list: async (_path, max) => { asked = max; return []; } };
+
+    // Act
     await entryExists(files, "/workspace/workbench");
+
+    // Assert
     strictEqual(asked, 1000);
   });
 });
 
 describe("workFolderLabel", () => {
-  it("says where the folder comes from", async () => {
-    const deps = setup(["todo", "backstage"]);
-    deps.files.listings.set("/workspace/backstage", ["tasks"]);
-    strictEqual(workFolderLabel(await resolveWorkFolder(deps, null), null), "workbench/ (default)");
-    strictEqual(workFolderLabel(await resolveWorkFolder(deps, pack("backstage/tasks")), ".orkeon/repo.yaml"),
-      "backstage/tasks/ (layout.work, .orkeon/repo.yaml)");
-    strictEqual(workFolderLabel(await resolveWorkFolder(deps, config("todo")), ".orkeon/repo.yaml"), "todo/ (dev.workDir)");
-  });
+  for (const c of LABELS) {
+    it(`says the folder comes from ${c.name}`, async () => {
+      // Arrange
+      const work = await resolveWorkFolder(todoAndBackstage(), c.request);
+
+      // Act
+      const label = workFolderLabel(work, c.packShown);
+
+      // Assert
+      strictEqual(label, c.label);
+    });
+  }
 
   it("shows the default when the request did not apply", async () => {
-    const deps = setup([]);
-    strictEqual(workFolderLabel(await resolveWorkFolder(deps, config("/abs")), null), "workbench/ (default)");
+    // Arrange
+    const work = await resolveWorkFolder(setup([]), config("/abs"));
+
+    // Act
+    const label = workFolderLabel(work, null);
+
+    // Assert
+    strictEqual(label, "workbench/ (default)");
   });
 });

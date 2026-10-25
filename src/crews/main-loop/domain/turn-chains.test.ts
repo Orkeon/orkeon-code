@@ -7,81 +7,189 @@ import {
   STOP_GUARDS, TURN_CONTEXT_MARKER, TURN_START_GUARDS, buildStopRetryPrompt, buildTurnContextMessage,
   readClosingLine, refusedTurnText, runChain,
 } from "./turn-chains.ts";
-import type { Guard, GuardVerdict } from "./turn-chains.ts";
-
-const guard = (id: string, verdict: GuardVerdict, seen: string[]): Guard<string> => ({
-  id, check: () => { seen.push(id); return verdict; },
-});
+import {
+  FAILING_GUARD, MISSING_CLOSING_LINE_FACTS, NO_CLOSING_LINE_VALUES, START_SCRIPT_CONTEXT, START_WITHOUT_SCRIPT,
+  START_WITH_SCRIPT, STOP_CASES, guard,
+} from "./turn-chains.fixtures.ts";
 
 describe("runChain", () => {
   it("runs every guard in order and gathers their context lines when none refuses", () => {
+    // Arrange
     const seen: string[] = [];
-    const out = runChain("turn-start", [
+    const guards = [
       guard("a", { decision: "allow", context: ["one", " "] }, seen),
       guard("b", { decision: "block", context: ["two"] }, seen),
-    ], "facts");
+    ];
+
+    // Act
+    const out = runChain("turn-start", guards, "facts");
+
+    // Assert
     deepStrictEqual(seen, ["a", "b"]);
     deepStrictEqual(out, { context: ["one", "two"] });
   });
 
   it("stops at the first deny of turn-start, with the context gathered so far", () => {
+    // Arrange
     const seen: string[] = [];
-    const out = runChain("turn-start", [
+    const guards = [
       guard("a", { decision: "allow", context: ["one"] }, seen),
       guard("b", { decision: "deny", reason: "no", context: ["two"] }, seen),
       guard("c", { decision: "deny" }, seen),
-    ], "facts");
+    ];
+
+    // Act
+    const out = runChain("turn-start", guards, "facts");
+
+    // Assert
     deepStrictEqual(seen, ["a", "b"]);
     deepStrictEqual(out, { refusedBy: "b", reason: "no", context: ["one", "two"] });
   });
 
   it("stops at the first block of stop, and names the guard when it gave no reason", () => {
+    // Arrange
     const seen: string[] = [];
-    const out = runChain("stop", [guard("x", { decision: "block" }, seen), guard("y", { decision: "block" }, seen)], "f");
+    const guards = [guard("x", { decision: "block" }, seen), guard("y", { decision: "block" }, seen)];
+
+    // Act
+    const out = runChain("stop", guards, "f");
+
+    // Assert
     deepStrictEqual(out, { refusedBy: "x", reason: "refused by x", context: [] });
     deepStrictEqual(seen, ["x"]);
   });
 
-  it("counts a guard that throws as a refusal naming it", () => {
-    const failing: Guard<string> = { id: "broken", check: () => { throw new Error("boom"); } };
-    deepStrictEqual(runChain("stop", [failing], "f"), { refusedBy: "broken", reason: "the check failed: boom", context: [] });
-    strictEqual(runChain("turn-start", [failing], "f").refusedBy, "broken");
+  it("counts a guard that throws on stop as a refusal naming it", () => {
+    // Arrange
+    const guards = [FAILING_GUARD];
+
+    // Act
+    const out = runChain("stop", guards, "f");
+
+    // Assert
+    deepStrictEqual(out, { refusedBy: "broken", reason: "the check failed: boom", context: [] });
+  });
+
+  it("counts a guard that throws on turn-start as a refusal naming it", () => {
+    // Arrange
+    const guards = [FAILING_GUARD];
+
+    // Act
+    const out = runChain("turn-start", guards, "f");
+
+    // Assert
+    strictEqual(out.refusedBy, "broken");
   });
 });
 
 describe("the built-in guards", () => {
-  it("turn-start adds the start script's lines, and nothing without them", () => {
-    deepStrictEqual(runChain("turn-start", TURN_START_GUARDS, { request: "hi", sessionStart: null }), { context: [] });
-    deepStrictEqual(
-      runChain("turn-start", TURN_START_GUARDS, { request: "hi", sessionStart: { script: "/tmp/s.sh", lines: ["a", "b"] } }),
-      { context: ["the session's start script (/tmp/s.sh) printed:", "  a", "  b"] },
-    );
+  it("turn-start adds nothing without a start script", () => {
+    // Arrange
+    const facts = START_WITHOUT_SCRIPT;
+
+    // Act
+    const out = runChain("turn-start", TURN_START_GUARDS, facts);
+
+    // Assert
+    deepStrictEqual(out, { context: [] });
   });
 
-  it("stop sends back a blank answer, then one without the closing line", () => {
-    const facts = { request: "r", answer: " \n ", closingLine: null };
-    strictEqual(runChain("stop", STOP_GUARDS, facts).refusedBy, "empty-answer");
-    strictEqual(runChain("stop", STOP_GUARDS, { ...facts, answer: "ok" }).refusedBy, undefined);
-    const closing = runChain("stop", STOP_GUARDS, { ...facts, answer: "ok", closingLine: "DONE" });
-    strictEqual(closing.refusedBy, "closing-line");
-    strictEqual(closing.reason, "the answer has no line starting with 'DONE': end it with that line");
-    strictEqual(runChain("stop", STOP_GUARDS, { ...facts, answer: "ok\n  DONE here", closingLine: "DONE" }).refusedBy, undefined);
+  it("turn-start adds the start script's lines", () => {
+    // Arrange
+    const facts = START_WITH_SCRIPT;
+
+    // Act
+    const out = runChain("turn-start", TURN_START_GUARDS, facts);
+
+    // Assert
+    deepStrictEqual(out, { context: START_SCRIPT_CONTEXT });
+  });
+
+  for (const c of STOP_CASES) {
+    it(`stop ${c.name}`, () => {
+      // Arrange
+      const { facts, refusedBy } = c;
+
+      // Act
+      const out = runChain("stop", STOP_GUARDS, facts);
+
+      // Assert
+      strictEqual(out.refusedBy, refusedBy);
+    });
+  }
+
+  it("stop says which closing line the answer lacks", () => {
+    // Arrange
+    const facts = MISSING_CLOSING_LINE_FACTS;
+
+    // Act
+    const out = runChain("stop", STOP_GUARDS, facts);
+
+    // Assert
+    strictEqual(out.reason, "the answer has no line starting with 'DONE': end it with that line");
   });
 });
 
 describe("the texts of the chains", () => {
-  it("marks the context message, and builds the retry prompt and the refusal line", () => {
-    const msg = buildTurnContextMessage(["a", "b"]);
-    ok(msg.startsWith(`${TURN_CONTEXT_MARKER} `));
-    ok(msg.endsWith("\na\nb"));
-    const retry = buildStopRetryPrompt("P", "", "why");
-    ok(retry.startsWith("P\n\n[stop-check] Your previous answer to this request was sent back: why.\n"));
-    ok(retry.includes("Previous answer:\n(empty)\n[/stop-check]"));
-    strictEqual(refusedTurnText({ refusedBy: "g", reason: "r", context: [] }), "turn refused (g): r");
+  it("marks the context message and puts its lines after the marker line", () => {
+    // Arrange
+    const lines = ["a", "b"];
+
+    // Act
+    const msg = buildTurnContextMessage(lines);
+
+    // Assert
+    ok(msg.startsWith(`${TURN_CONTEXT_MARKER} `), `the message does not open with the marker: ${msg}`);
+    ok(msg.endsWith("\na\nb"), `the message does not end with its lines: ${msg}`);
   });
 
-  it("reads closingLine as one non-blank line, else none", () => {
-    strictEqual(readClosingLine(" DONE "), "DONE");
-    for (const v of [undefined, 3, "", "  ", "a\nb"]) strictEqual(readClosingLine(v), null);
+  it("builds the retry prompt from the request, the reason and the empty previous answer", () => {
+    // Arrange
+    const prompt = "P";
+
+    // Act
+    const retry = buildStopRetryPrompt(prompt, "", "why");
+
+    // Assert
+    ok(
+      retry.startsWith("P\n\n[stop-check] Your previous answer to this request was sent back: why.\n"),
+      `the retry prompt does not open with the request and the reason: ${retry}`,
+    );
+    ok(retry.includes("Previous answer:\n(empty)\n[/stop-check]"), `the retry prompt lacks the empty previous answer: ${retry}`);
   });
+
+  it("builds the refusal line from the guard and its reason", () => {
+    // Arrange
+    const outcome = { refusedBy: "g", reason: "r", context: [] };
+
+    // Act
+    const text = refusedTurnText(outcome);
+
+    // Assert
+    strictEqual(text, "turn refused (g): r");
+  });
+
+  it("reads closingLine as its one non-blank line, trimmed", () => {
+    // Arrange
+    const value = " DONE ";
+
+    // Act
+    const line = readClosingLine(value);
+
+    // Assert
+    strictEqual(line, "DONE");
+  });
+
+  for (const value of NO_CLOSING_LINE_VALUES) {
+    it(`reads no closingLine from ${JSON.stringify(value)}`, () => {
+      // Arrange
+      const raw = value;
+
+      // Act
+      const line = readClosingLine(raw);
+
+      // Assert
+      strictEqual(line, null);
+    });
+  }
 });

@@ -2,29 +2,34 @@
 import { describe, it } from "node:test";
 import { strictEqual } from "node:assert";
 import { isBreakerOpen, nextFailureCount } from "./autocompact.ts";
+import { BREAKER_CASES, FAILURE_COUNT_CASES } from "./autocompact.fixtures.ts";
 
 describe("isBreakerOpen", () => {
-  it("stays closed below 3 consecutive failures and opens at 3", () => {
-    strictEqual(isBreakerOpen(0), false);
-    strictEqual(isBreakerOpen(2), false);
-    strictEqual(isBreakerOpen(3), true);
-    strictEqual(isBreakerOpen(7), true);
-  });
+  for (const c of BREAKER_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { failures, open } = c;
+
+      // Act
+      const result = isBreakerOpen(failures);
+
+      // Assert
+      strictEqual(result, open);
+    });
+  }
 });
 
 describe("nextFailureCount", () => {
-  it("increments on failed", () => {
-    strictEqual(nextFailureCount(0, "failed"), 1);
-    strictEqual(nextFailureCount(2, "failed"), 3);
-  });
+  for (const c of FAILURE_COUNT_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { count, outcome, next } = c;
 
-  it("resets on any success (compacted or snipped)", () => {
-    strictEqual(nextFailureCount(2, "compacted"), 0);
-    strictEqual(nextFailureCount(2, "snipped"), 0);
-  });
+      // Act
+      const result = nextFailureCount(count, outcome);
 
-  it("leaves the count unchanged on skipped", () => {
-    strictEqual(nextFailureCount(0, "skipped"), 0);
-    strictEqual(nextFailureCount(2, "skipped"), 2);
-  });
+      // Assert
+      strictEqual(result, next);
+    });
+  }
 });
