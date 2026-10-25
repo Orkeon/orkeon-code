@@ -4,13 +4,16 @@
 // its step boxes ticked. Each edit is idempotent. Pure, never throws.
 import { parseBatchSheet, unfencedLines } from "../../../shared/domain/dev/plan-format.ts";
 
-/** The `Assumption: <text>` lines of a role's answer, in order, once each. */
+/** An answer's way of saying it assumed nothing: `none`, `none needed — …`, `n/a`, `nothing`. */
+const NO_ASSUMPTION = /^(?:none|n\/a|nothing)\b/i;
+
+/** The `Assumption: <text>` lines of a role's answer, in order, once each; a line that assumes nothing is no row. */
 export function assumptionsOf(answer: string): string[] {
   const out: string[] = [];
   for (const raw of answer.split("\n")) {
     const m = /^\s*(?:[-*]\s*)?\**Assumption\**\s*:\s*(.+)$/i.exec(raw);
     const text = m?.[1].replace(/\s+/g, " ").replace(/\|/g, "/").trim();
-    if (text && !out.includes(text)) out.push(text);
+    if (text && !NO_ASSUMPTION.test(text) && !out.includes(text)) out.push(text);
   }
   return out;
 }

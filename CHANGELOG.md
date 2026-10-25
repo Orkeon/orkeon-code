@@ -499,6 +499,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `/dev-implement`: an agent's `Assumption: none needed` (or `n/a`, `nothing`) no longer becomes a row of the sheet's assumptions, nor of the pull request's.
 - `/dev-batches`: a batch's audit is offered only the auditor's tools: its five read tools, `run_validation` and `memory_recall`. Before, it was offered the batch agent's whole catalogue, the implementer's write tools included, which put 19 tool schemas into every turn of the auditor.
 - `/dev-verify` and `/dev-implement`: less noise in the pull request.
   - The traits row is settled as not applicable when the pack carries ids in no trait; it was a Not run line on every batch.

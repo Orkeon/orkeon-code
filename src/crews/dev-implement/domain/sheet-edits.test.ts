@@ -10,6 +10,11 @@ describe("assumptionsOf", () => {
     deepStrictEqual(assumptionsOf("done\nAssumption: dates are UTC\n- **Assumption**: a | b\nAssumption: dates are UTC"),
       ["dates are UTC", "a / b"]);
   });
+
+  it("drops a line that assumes nothing", () => {
+    deepStrictEqual(assumptionsOf("Assumption: none needed — the plan fixes the value\nAssumption: N/A\nAssumption: nothing\n"
+      + "Assumption: nonempty lists only"), ["nonempty lists only"]);
+  });
 });
 
 describe("addAssumptions", () => {
