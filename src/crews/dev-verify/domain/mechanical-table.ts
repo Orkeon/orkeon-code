@@ -63,7 +63,8 @@ function buildRow(build: BuildState): TableRow {
 
 function traitsRow(input: TableInput): TableRow {
   if (input.trait === null) {
-    return row("Test", CHECK_TRAITS, "not checked", "the pack has no tests.rule_trait or tests.trait_pattern");
+    // Nothing to check: the pack carries ids in no trait, so the row is settled rather than left to the auditor's Not run.
+    return row("Test", CHECK_TRAITS, "ok", "not applicable: the pack has no tests.rule_trait or tests.trait_pattern");
   }
   if (input.ids.length === 0) {
     return row("Test", CHECK_TRAITS, "not checked", "the sheet's `## TDD sequence` names no BR-/UC-/CH- id");

@@ -45,6 +45,13 @@ describe("redContract / greenContract", () => {
     ok(red.includes("file_read with offset and limit"));
   });
 
+  it("keeps an assumption for a behaviour the plan leaves open, never a test value", () => {
+    for (const text of [redContract(input), greenContract(input, { tail: "", log: null })]) {
+      ok(text.includes("only for a behaviour the plan leaves open"), "open behaviour only");
+      ok(text.includes("A test value, a stub's wording or a file's state is your choice or a fact"), "not a test value");
+    }
+  });
+
   it("asks both roles to read and edit by node, file_write for a new file only", () => {
     const red = redContract(input);
     const green = greenContract(input, { tail: "", log: null });

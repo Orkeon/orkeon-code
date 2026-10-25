@@ -58,7 +58,7 @@ describe("mechanicalRows", () => {
 
   it("row 2, the traits", () => {
     deepStrictEqual(at({ trait: null }, 1),
-      { result: "not checked", evidence: "the pack has no tests.rule_trait or tests.trait_pattern" });
+      { result: "ok", evidence: "not applicable: the pack has no tests.rule_trait or tests.trait_pattern" });
     deepStrictEqual(at({ ids: [] }, 1),
       { result: "not checked", evidence: "the sheet's `## TDD sequence` names no BR-/UC-/CH- id" });
     deepStrictEqual(at({}, 1),

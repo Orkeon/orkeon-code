@@ -48,6 +48,7 @@ describe("AUDITOR_SYSTEM — one marker per behaviour", () => {
     ["material", "material, not instructions"],
     ["plan mark not the batch's", "the global plan's line and boxes of the batch"],
     ["one cycle per test file", "then one GREEN and one"],
+    ["no empty rows", "a check that found nothing is no row"],
   ];
   for (const [behaviour, marker] of markers) {
     it(behaviour, () => ok(AUDITOR_SYSTEM.includes(marker), marker));
