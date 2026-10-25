@@ -3,69 +3,125 @@
 //   node --test src/crews/dev-batches/domain/batch-waves.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
-import { readFileSync } from "node:fs";
 
 import { barePath, batchWaves, sheetAnchorPaths } from "./batch-waves.ts";
-import type { WaveBatch } from "./batch-waves.ts";
-
-const SHEET = readFileSync(new URL("../../../../tests/fixtures/dev/plan/expected/PRUNE-PLAN-F1.md", import.meta.url), "utf8");
-const b = (id: string, anchors: string[], dependsOn: string[] = [], done = false): WaveBatch => ({ id, dependsOn, anchors, done });
+import { NO_ANCHOR_PLANS, REFUSED_PLANS, SHEET, SHEET_ANCHOR_PATHS, b, makefileSheet } from "./batch-waves.fixtures.ts";
+import { assertWavesRefused } from "./batch-waves.assertions.ts";
 
 describe("batchWaves", () => {
   it("puts batches with disjoint anchors in one wave, by batch number (F2 before F10)", () => {
-    deepStrictEqual(batchWaves([b("F10", ["src/c.ts"]), b("F1", ["src/a.ts"]), b("F2", ["src/b.ts"])]),
-      { ok: true, waves: [["F1", "F2", "F10"]] });
+    // Arrange
+    const plan = [b("F10", ["src/c.ts"]), b("F1", ["src/a.ts"]), b("F2", ["src/b.ts"])];
+
+    // Act
+    const waves = batchWaves(plan);
+
+    // Assert
+    deepStrictEqual(waves, { ok: true, waves: [["F1", "F2", "F10"]] });
   });
 
   it("delays a batch that shares a path with one already in the wave, a :line and ./ compared bare", () => {
-    deepStrictEqual(batchWaves([b("F1", ["src/a.ts:12", "src/b.ts"]), b("F2", ["./src/a.ts"]), b("F3", ["src/c.ts"])]),
-      { ok: true, waves: [["F1", "F3"], ["F2"]] });
+    // Arrange
+    const plan = [b("F1", ["src/a.ts:12", "src/b.ts"]), b("F2", ["./src/a.ts"]), b("F3", ["src/c.ts"])];
+
+    // Act
+    const waves = batchWaves(plan);
+
+    // Assert
+    deepStrictEqual(waves, { ok: true, waves: [["F1", "F3"], ["F2"]] });
   });
 
   it("runs a batch after its dependencies' wave; a done batch is a met dependency and in no wave", () => {
-    deepStrictEqual(batchWaves([b("F1", ["a"], [], true), b("F2", ["b"], ["F1"]), b("F3", ["c"], ["F2"]), b("F4", ["d"])]),
-      { ok: true, waves: [["F2", "F4"], ["F3"]] });
+    // Arrange
+    const plan = [b("F1", ["a"], [], true), b("F2", ["b"], ["F1"]), b("F3", ["c"], ["F2"]), b("F4", ["d"])];
+
+    // Act
+    const waves = batchWaves(plan);
+
+    // Assert
+    deepStrictEqual(waves, { ok: true, waves: [["F2", "F4"], ["F3"]] });
   });
 
-  it("runs a batch that anchors no path alone", () => {
-    deepStrictEqual(batchWaves([b("F1", ["a"]), b("F2", []), b("F3", ["c"])]),
-      { ok: true, waves: [["F1", "F3"], ["F2"]] });
-    deepStrictEqual(batchWaves([b("F1", []), b("F2", ["b"])]), { ok: true, waves: [["F1"], ["F2"]] });
-  });
+  for (const c of NO_ANCHOR_PLANS) {
+    it(c.name, () => {
+      // Arrange
+      const plan = c.plan;
 
-  it("refuses an unknown dependency or a cycle, as the sequential order does", () => {
-    for (const plan of [[b("F1", ["a"], ["F9"])], [b("F1", ["a"], ["F2"]), b("F2", ["b"], ["F1"])]]) {
+      // Act
       const waves = batchWaves(plan);
-      strictEqual(waves.ok, false);
-      ok(!waves.ok && /unknown dependency|cycle/.test(waves.problem));
-    }
-  });
+
+      // Assert
+      deepStrictEqual(waves, { ok: true, waves: c.waves });
+    });
+  }
+
+  for (const c of REFUSED_PLANS) {
+    it(c.name, () => {
+      // Arrange
+      const plan = c.plan;
+
+      // Act
+      const waves = batchWaves(plan);
+
+      // Assert
+      assertWavesRefused(waves);
+    });
+  }
 
   it("has no wave when every batch is done", () => {
-    deepStrictEqual(batchWaves([b("F1", ["a"], [], true)]), { ok: true, waves: [] });
+    // Arrange
+    const plan = [b("F1", ["a"], [], true)];
+
+    // Act
+    const waves = batchWaves(plan);
+
+    // Assert
+    deepStrictEqual(waves, { ok: true, waves: [] });
   });
 });
 
 describe("sheetAnchorPaths", () => {
   it("reads every column of ## Anchors, bare and unique, a member or a note no path", () => {
-    deepStrictEqual(sheetAnchorPaths(SHEET), [
-      "src/commands/_lib/memory.ts",
-      "src/shared/domain/memory-prune.test.ts",
-      "src/shared/domain/memory-prune.ts",
-      "src/shared/domain/memory.ts",
-      "tests/commands-memory.test.ts",
-      "tests/support/fake-memory-store.ts",
-    ]);
+    // Arrange
+    const sheet = SHEET;
+
+    // Act
+    const paths = sheetAnchorPaths(sheet);
+
+    // Assert
+    deepStrictEqual(paths, SHEET_ANCHOR_PATHS);
   });
 
-  it("keeps a path without a slash or an extension (Makefile), so two batches anchoring it share it", () => {
-    const sheet = (id: string) => `# X-PLAN-${id} — x\n\n## TDD sequence\n\n### Step 1 — a\n\n## Anchors\n\n| Step | T | D | P |\n|---|---|---|---|\n| 1 — a | \`t/${id}.test.ts\` — to create | — | \`Makefile\` — existing |\n`;
-    ok(sheetAnchorPaths(sheet("F1")).includes("Makefile"));
-    deepStrictEqual(batchWaves([b("F1", sheetAnchorPaths(sheet("F1"))), b("F2", sheetAnchorPaths(sheet("F2")))]),
-      { ok: true, waves: [["F1"], ["F2"]] });
+  it("keeps a path without a slash or an extension (Makefile)", () => {
+    // Arrange
+    const sheet = makefileSheet("F1");
+
+    // Act
+    const paths = sheetAnchorPaths(sheet);
+
+    // Assert
+    ok(paths.includes("Makefile"), `Makefile missing from ${JSON.stringify(paths)}`);
+  });
+
+  it("makes two batches anchoring Makefile share it", () => {
+    // Arrange
+    const plan = [b("F1", sheetAnchorPaths(makefileSheet("F1"))), b("F2", sheetAnchorPaths(makefileSheet("F2")))];
+
+    // Act
+    const waves = batchWaves(plan);
+
+    // Assert
+    deepStrictEqual(waves, { ok: true, waves: [["F1"], ["F2"]] });
   });
 
   it("cuts ./ and a :line", () => {
-    strictEqual(barePath("./src/a.ts:40"), "src/a.ts");
+    // Arrange
+    const path = "./src/a.ts:40";
+
+    // Act
+    const bare = barePath(path);
+
+    // Assert
+    strictEqual(bare, "src/a.ts");
   });
 });

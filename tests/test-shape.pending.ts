@@ -2,13 +2,6 @@
 // A converted file leaves the list (test-shape.test.ts fails while it stays); the list and this file go when it is
 // empty. Never add a file to it.
 export const PENDING: readonly string[] = [
-  "src/crews/dev-batches/application/run-dev-batches.test.ts",
-  "src/crews/dev-batches/application/run-wave.test.ts",
-  "src/crews/dev-batches/application/seed-harvest.test.ts",
-  "src/crews/dev-batches/domain/batch-waves.test.ts",
-  "src/crews/dev-batches/domain/batches-budget.test.ts",
-  "src/crews/dev-batches/domain/batches-log.test.ts",
-  "src/crews/dev-batches/domain/wave-order.test.ts",
   "src/crews/dev-implement/application/close.test.ts",
   "src/crews/dev-implement/application/observe.test.ts",
   "src/crews/dev-implement/application/report-writes.test.ts",

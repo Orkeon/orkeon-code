@@ -2,35 +2,114 @@
 // parser the start scripts and dev-run.sh follow. Run:
 //   node --test src/crews/dev-batches/domain/batches-log.test.ts
 import { describe, it } from "node:test";
-import { deepStrictEqual, strictEqual } from "node:assert";
+import { strictEqual } from "node:assert";
 
 import { parseBatchesState } from "../../../shared/domain/dev/batches-state.ts";
-import { appendToLog, batchesLogPath, closedLine, eventLine, lastEntryOf, stamp } from "./batches-log.ts";
-
-const AT = new Date(Date.UTC(2026, 9, 24, 7, 5));
+import { appendToLog, batchesLogPath, eventLine, lastEntryOf, stamp } from "./batches-log.ts";
+import { AT, EVENT_LINES, F1_MERGED_LINES, LOG_WITHOUT_FINAL_NEWLINE } from "./batches-log.fixtures.ts";
+import { assertLogReadsBack } from "./batches-log.assertions.ts";
 
 describe("batches log", () => {
-  it("stamps in UTC and keeps a detail on one bounded line", () => {
-    strictEqual(stamp(AT), "2026-10-24 07:05");
-    strictEqual(eventLine(AT, "F2", "launched"), "- 2026-10-24 07:05 F2 launched");
-    strictEqual(eventLine(AT, "F2", "stopped", "BLOCKED —\n two\tlines"), "- 2026-10-24 07:05 F2 stopped BLOCKED — two lines");
-    strictEqual(eventLine(AT, "F2", "stopped", "x".repeat(300)).length, "- 2026-10-24 07:05 F2 stopped ".length + 200);
-    strictEqual(batchesLogPath("demo"), "/workspace/.orkeon/dev/demo/batches-state.md");
+  it("stamps in UTC", () => {
+    // Arrange
+    const at = AT;
+
+    // Act
+    const text = stamp(at);
+
+    // Assert
+    strictEqual(text, "2026-10-24 07:05");
   });
 
-  it("starts a new log with its title and reads back what it appended, closed last", () => {
-    const text = appendToLog(null, "demo", [eventLine(AT, "F1", "launched"), eventLine(AT, "F1", "returned", "VALID"),
-      eventLine(AT, "F1", "merged", "abc1234"), closedLine(AT)]);
+  for (const c of EVENT_LINES) {
+    it(c.name, () => {
+      // Arrange
+      const { batch, event, detail } = c;
+
+      // Act
+      const line = eventLine(AT, batch, event, detail);
+
+      // Assert
+      strictEqual(line, c.expected);
+    });
+  }
+
+  it("bounds a detail at 200 characters", () => {
+    // Arrange
+    const detail = "x".repeat(300);
+
+    // Act
+    const line = eventLine(AT, "F2", "stopped", detail);
+
+    // Assert
+    strictEqual(line.length, "- 2026-10-24 07:05 F2 stopped ".length + 200);
+  });
+
+  it("keeps the log under the workspace's .orkeon/dev/<code>", () => {
+    // Arrange
+    const code = "demo";
+
+    // Act
+    const path = batchesLogPath(code);
+
+    // Assert
+    strictEqual(path, "/workspace/.orkeon/dev/demo/batches-state.md");
+  });
+
+  it("starts a new log with its title", () => {
+    // Arrange
+    const lines = F1_MERGED_LINES;
+
+    // Act
+    const text = appendToLog(null, "demo", lines);
+
+    // Assert
     strictEqual(text.split("\n")[0], "# DEMO-BATCHES-STATE");
-    const state = parseBatchesState(text);
-    strictEqual(state.closed, true);
-    deepStrictEqual(state.entries.map((e) => e.event), ["launched", "returned", "merged", "closed"]);
-    strictEqual(lastEntryOf(state.entries, "F1")?.event, "merged");
-    strictEqual(lastEntryOf(state.entries, "F2"), undefined);
+  });
+
+  it("reads back what it appended to a new log, closed last", () => {
+    // Arrange
+    const lines = F1_MERGED_LINES;
+
+    // Act
+    const text = appendToLog(null, "demo", lines);
+
+    // Assert
+    assertLogReadsBack(text, ["launched", "returned", "merged", "closed"], true);
   });
 
   it("appends after a log that does not end with a newline", () => {
-    const text = appendToLog("# DEMO-BATCHES-STATE\n\n## Log\n\n- 2026-10-24 07:05 F1 launched", "demo", [eventLine(AT, "F1", "relaunched")]);
-    deepStrictEqual(parseBatchesState(text).entries.map((e) => e.event), ["launched", "relaunched"]);
+    // Arrange
+    const lines = [eventLine(AT, "F1", "relaunched")];
+
+    // Act
+    const text = appendToLog(LOG_WITHOUT_FINAL_NEWLINE, "demo", lines);
+
+    // Assert
+    assertLogReadsBack(text, ["launched", "relaunched"]);
+  });
+});
+
+describe("lastEntryOf", () => {
+  it("names a batch's last entry", () => {
+    // Arrange
+    const { entries } = parseBatchesState(appendToLog(null, "demo", F1_MERGED_LINES));
+
+    // Act
+    const last = lastEntryOf(entries, "F1");
+
+    // Assert
+    strictEqual(last?.event, "merged");
+  });
+
+  it("names none for a batch the log does not hold", () => {
+    // Arrange
+    const { entries } = parseBatchesState(appendToLog(null, "demo", F1_MERGED_LINES));
+
+    // Act
+    const last = lastEntryOf(entries, "F2");
+
+    // Assert
+    strictEqual(last, undefined);
   });
 });
