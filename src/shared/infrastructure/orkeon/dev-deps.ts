@@ -18,6 +18,8 @@ import { parseSessionRules } from "../../domain/git/pull-request.ts";
 import type { DevImplementDeps } from "../../../crews/dev-implement/application/run-dev-implement.ts";
 import type { DevVerifyDeps } from "../../../crews/dev-verify/application/run-dev-verify.ts";
 import { reportingWrites } from "../../../crews/dev-implement/application/report-writes.ts";
+import { AUDITOR_CHARTER } from "../../../crews/dev-verify/domain/auditor-charter.ts";
+import { charterCatalogue } from "../../domain/agents/charter.ts";
 import { createLlm } from "./llm.ts";
 import { memoryReadTools, memoryRecallTools } from "./memory-tools.ts";
 import type { MemoryToolPorts } from "./memory-tools.ts";
@@ -190,7 +192,11 @@ export function verifyDeps(
 ): DevVerifyDeps {
   const ports = portsOf(ctx, opts.root);
   const clock = () => new Date();
-  const plain = rootedLlm(createLlm(ctx.llm, verifyCallbacks(ctx, opts), { effort: opts.effort }), opts.root);
+  // The audit's act is offered the auditor's tools alone: a batch agent also holds the implementer's, which an act
+  // without a subset would offer too - write tools to a read-only auditor, their schemas resent at every turn.
+  const auditorTools = [...charterCatalogue(AUDITOR_CHARTER), RUN_VALIDATION.name, ...memoryReadTools(opts.memoryOn)];
+  const rooted = rootedLlm(createLlm(ctx.llm, verifyCallbacks(ctx, opts), { effort: opts.effort }), opts.root);
+  const plain: Llm = { ...rooted, act: (prompt, request = {}) => rooted.act(prompt, request.tools === undefined ? { ...request, tools: auditorTools } : request) };
   return {
     ...ports, log: ctx.log, clock, llm: opts.wrapLlm === undefined ? plain : opts.wrapLlm(plain),
     ...(opts.validationSlot !== undefined ? { validationSlot: opts.validationSlot } : {}),

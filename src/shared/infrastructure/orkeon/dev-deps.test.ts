@@ -103,6 +103,16 @@ describe("implementDeps and verifyDeps", () => {
     deepStrictEqual(wrote, ["/workspace/src/a.ts"]);
   });
 
+  it("verifyDeps offers the audit's act the auditor's tools alone, never the batch agent's write tools", async () => {
+    const { ctx, asked } = context();
+    const verify = m.verifyDeps(ctx, { hooks: [], effort: undefined, memoryOn: true, validationSlot: undefined, root: ROOT });
+    await verify.llm.act("Audit F2", {});
+    deepStrictEqual(asked.at(-1)!.options?.tools,
+      ["file_read", "node_read", "codebase_search", "symbol_detail", "symbol_source", "run_validation", "memory_recall"]);
+    await verify.llm.act("Audit F2", { tools: ["file_read"] });
+    deepStrictEqual(asked.at(-1)!.options?.tools, ["file_read"]);
+  });
+
   it("verifyDeps wraps the plain Llm when the crew asks (its background auditor), and harvests after GAPS only when asked", () => {
     const { ctx } = context();
     const marker = { act: async () => "child", complete: async () => "", extract: async () => ({}), permissionGateEnabled: () => undefined };
