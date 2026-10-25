@@ -50,8 +50,10 @@ export const AUDITOR_SYSTEM = [
   "one test class, never a whole suite, or one integration run narrowed by a filter, built from the commands the",
   "brief lists. Three at most in all, and none when nothing is in doubt; cite what a run showed in the row it settles.",
   "",
-  "Reading. Take the capture file by file, one section at a time, the index first. Open the code only around a hunk",
-  "you are judging, never whole modules for their own sake.",
+  "Reading. The brief carries the capture: open a capture file only when the brief lists it to read, one section at a",
+  "time. Open the code only around a hunk you are judging, never whole modules for their own sake, and never another",
+  "batch's sheet or the repository's tool settings (lint, format, editor or agent files) unless a row rests on one.",
+  "When you know several reads, ask for them in one turn.",
   BOUNDED_READ_RULE,
   KNOWN_TOOLS_RULE,
   "",
@@ -65,11 +67,27 @@ export const AUDITOR_SYSTEM = [
   "then the validations you ask for and the checks you leave undecided.",
 ].join("\n");
 
+/** One capture file and its text. */
+export interface CaptureText {
+  path: string;
+  text: string;
+}
+
+/** The most capture text the brief carries; a file past it stays to read. */
+export const INLINE_CAPTURE_CHARS = 12_000;
+/** What the brief keeps free under MAX_BRIEF_CHARS once the capture is in. */
+const BRIEF_MARGIN = 200;
+/** The capture files the brief stands for once every other one is in it: the index, the manifest, the table. */
+const CAPTURE_FRAME = /\/(?:index\.txt|manifest\.txt|table\.md)$/;
+
 export interface AuditBriefInput {
   mode: "fast" | "full" | "resume";
   batch: string;
   sheetPath: string;
   captureFiles: readonly string[];
+  /** The capture files' texts, table.md aside (the brief carries the table): each goes in the brief while it has
+   *  room, the rest stay to read. Absent: every capture file is to read. */
+  captureTexts?: readonly CaptureText[];
   table: string;
   appliedRules: string;
   commands: { testClass?: string; testProject?: string; testIntegration?: string };
@@ -129,12 +147,31 @@ function precedentLines({ precedents }: AuditBriefInput): string[] {
   return block === "" ? [] : ["", block];
 }
 
+/** The capture as the brief carries it: each text while there is room, then the files left to read. */
+function captureLines(input: AuditBriefInput, room: number): string[] {
+  if (input.captureTexts === undefined) {
+    return ["Capture files, to read one at a time:", ...input.captureFiles.map((path) => `- ${path}`)];
+  }
+  const blocks: string[] = [];
+  const carried = new Set<string>();
+  let left = Math.min(INLINE_CAPTURE_CHARS, room);
+  for (const { path, text } of input.captureTexts) {
+    const block = [`### ${path.slice(path.lastIndexOf("/") + 1)}`, "```text", text.trimEnd(), "```"].join("\n");
+    if (block.length + 1 > left) continue;
+    blocks.push(block);
+    carried.add(path);
+    left -= block.length + 1;
+  }
+  const toRead = input.captureFiles.filter((path) => !carried.has(path));
+  const lines = blocks.length > 0 ? ["The capture, in this brief (do not open these files again):", "", ...blocks] : [];
+  if (toRead.some((path) => !CAPTURE_FRAME.test(path))) {
+    lines.push(...(lines.length > 0 ? [""] : []), "Capture files left to read, one at a time:", ...toRead.map((path) => `- ${path}`));
+  }
+  return lines;
+}
+
 export function buildAuditBrief(input: AuditBriefInput): string {
-  return [
-    ...scopeLines(input),
-    "",
-    "Capture files, to read one at a time:",
-    ...input.captureFiles.map((path) => `- ${path}`),
+  const rest = [
     "",
     ...commandLines(input),
     ...suiteLines(input),
@@ -144,7 +181,10 @@ export function buildAuditBrief(input: AuditBriefInput): string {
     "The mechanical table (table.md):",
     "",
     input.table.trimEnd(),
-  ].join("\n");
+  ];
+  const head = scopeLines(input);
+  const room = MAX_BRIEF_CHARS - BRIEF_MARGIN - [...head, "", ...rest].join("\n").length;
+  return [...head, "", ...captureLines(input, room), ...rest].join("\n");
 }
 
 export interface ValidationReport {

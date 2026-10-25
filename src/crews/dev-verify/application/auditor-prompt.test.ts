@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 import { ok, strictEqual } from "node:assert";
 
 import {
-  AUDITOR_SYSTEM, buildAnswerPrompt, buildAuditBrief, buildValidationFollowUp,
+  AUDITOR_SYSTEM, INLINE_CAPTURE_CHARS, buildAnswerPrompt, buildAuditBrief, buildValidationFollowUp,
 } from "./auditor-prompt.ts";
 import type { AuditBriefInput } from "./auditor-prompt.ts";
 
@@ -49,6 +49,9 @@ describe("AUDITOR_SYSTEM — one marker per behaviour", () => {
     ["plan mark not the batch's", "the global plan's line and boxes of the batch"],
     ["one cycle per test file", "then one GREEN and one"],
     ["no empty rows", "a check that found nothing is no row"],
+    ["capture in the brief", "The brief carries the capture"],
+    ["no other batch's sheet", "never another"],
+    ["reads in one turn", "ask for them in one turn"],
   ];
   for (const [behaviour, marker] of markers) {
     it(behaviour, () => ok(AUDITOR_SYSTEM.includes(marker), marker));
@@ -83,6 +86,36 @@ describe("buildAuditBrief", () => {
     ok(brief.includes("test project: none"));
     ok(brief.includes("integration tests: none"));
     ok(brief.includes("Applied rules: DDD-01, APP-02"));
+  });
+
+  it("carries the capture's texts and lists none of them to read when every one fits", () => {
+    const dir = "/workspace/workbench/demo/capture-F2";
+    const brief = buildAuditBrief(input({
+      captureFiles: [`${dir}/index.txt`, `${dir}/manifest.txt`, `${dir}/diff-001.txt`, `${dir}/build.txt`, `${dir}/table.md`],
+      captureTexts: [{ path: `${dir}/diff-001.txt`, text: "+public class Order {}\n" }, { path: `${dir}/build.txt`, text: "build ok\n" }],
+    }));
+    ok(brief.includes("### diff-001.txt\n```text\n+public class Order {}\n```"), brief);
+    ok(brief.includes("### build.txt"));
+    ok(!brief.includes("to read"), brief);
+    ok(!brief.includes(`${dir}/index.txt`));
+  });
+
+  it("lists a capture file past the brief's room to read, with the index", () => {
+    const dir = "/workspace/workbench/demo/capture-F2";
+    const brief = buildAuditBrief(input({
+      captureFiles: [`${dir}/index.txt`, `${dir}/manifest.txt`, `${dir}/diff-001.txt`, `${dir}/build.txt`, `${dir}/table.md`],
+      captureTexts: [{ path: `${dir}/diff-001.txt`, text: "+".repeat(INLINE_CAPTURE_CHARS) }, { path: `${dir}/build.txt`, text: "build ok" }],
+    }));
+    ok(brief.includes("### build.txt"));
+    ok(!brief.includes("### diff-001.txt"));
+    ok(brief.includes(`Capture files left to read, one at a time:\n- ${dir}/index.txt\n- ${dir}/manifest.txt\n- ${dir}/diff-001.txt\n- ${dir}/table.md`), brief);
+    const full = buildAuditBrief(input({
+      table: "| a | b |\n".repeat(2_000).slice(0, 18_000),
+      captureFiles: [`${dir}/index.txt`, `${dir}/diff-001.txt`],
+      captureTexts: [{ path: `${dir}/diff-001.txt`, text: "+".repeat(8_000) }],
+    }));
+    ok(full.length <= MAX_BRIEF_CHARS, String(full.length));
+    ok(full.includes(`- ${dir}/diff-001.txt`));
   });
 
   it("names previous gaps only under resume", () => {

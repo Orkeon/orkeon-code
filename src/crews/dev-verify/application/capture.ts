@@ -29,6 +29,7 @@ export interface Capture {
   folder: string;            // VFS "/workspace/<planDir>/capture-<F>"
   folderShown: string;       // "<planDir>/capture-<F>"
   files: string[];           // VFS paths written, index.txt first, table.md last
+  texts: Array<{ path: string; text: string }>; // each section file's text, in the order written; table.md aside
   rows: TableRow[];
   table: string;             // table.md content
   build: BuildState;
@@ -67,7 +68,7 @@ function basename(path: string): string {
 
 /** The capture's writer: every file of a section, and what the index lists. */
 class Writer {
-  readonly written: Array<{ name: string; chars: number; path: string }> = [];
+  readonly written: Array<{ name: string; chars: number; path: string; text: string }> = [];
   private readonly files: Pick<Files, "write">;
   private readonly folder: string;
   constructor(files: Pick<Files, "write">, folder: string) {
@@ -82,7 +83,7 @@ class Writer {
   async file(name: string, content: string): Promise<void> {
     const path = `${this.folder}/${name}`;
     await this.files.write(path, content);
-    this.written.push({ name, chars: content.length, path });
+    this.written.push({ name, chars: content.length, path, text: content });
   }
 }
 
@@ -297,5 +298,6 @@ export async function writeCapture(deps: Deps, target: DevVerifyTarget, gate: Ga
   const listed = writer.written.map((w) => w.path);
   await deps.files.write(`${folder}/index.txt`, index);
 
-  return { folder, folderShown, files: [`${folder}/index.txt`, `${folder}/manifest.txt`, ...listed], rows, table, build: build.state, cost, testRoots };
+  const texts = writer.written.filter((w) => w.name !== "table.md").map((w) => ({ path: w.path, text: w.text }));
+  return { folder, folderShown, files: [`${folder}/index.txt`, `${folder}/manifest.txt`, ...listed], texts, rows, table, build: build.state, cost, testRoots };
 }

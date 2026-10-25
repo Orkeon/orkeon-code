@@ -499,6 +499,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `/dev-verify` and `/dev-batches`: the audit's brief carries the capture's texts, up to 12 000 characters, and lists only the files past that room to read. The auditor opens no other batch's sheet and none of the repository's tool settings unless a row rests on one, asks for several reads in one turn, and gets 16 turns instead of 30. Before, it opened the dozen capture files one by one, each turn sending the whole conversation again; on the L-8 live run the audits made up about half the prompt tokens.
 - `/dev-implement`: a batch's build and whole suite are looked at after 1 s, then after a wait twice as long each time, up to 20 s. Before, the first look came 20 s after the start, so a suite of one second cost about 21 s, twice per batch.
 - `/dev-implement`: an agent's `Assumption: none needed` (or `n/a`, `nothing`) no longer becomes a row of the sheet's assumptions, nor of the pull request's.
 - `/dev-batches`: a batch's audit is offered only the auditor's tools: its five read tools, `run_validation` and `memory_recall`. Before, it was offered the batch agent's whole catalogue, the implementer's write tools included, which put 19 tool schemas into every turn of the auditor.

@@ -75,6 +75,9 @@ describe("writeCapture", () => {
       "index.txt", "manifest.txt", "status.txt", "changed-files.txt", "diff-001.txt", "diff-002.txt", "build.txt",
       "cost.txt", "traits.txt", "test-tail.txt", "test-classes.txt", "table.md",
     ]);
+    // Each section file's text goes to the brief, in the order written; the table is in the brief already.
+    deepStrictEqual(capture.texts.map((t) => t.path), capture.files.slice(2, -1));
+    strictEqual(capture.texts[2].text, written(files, "diff-001.txt"));
     for (const w of files.writes) ok(w.path.startsWith(`${DIR}/`));
     ok(shell.commands.includes(gitStatusShort([])));
     ok(shell.commands.includes(gitDiffUntracked("tests/LineTests.cs") as string));
