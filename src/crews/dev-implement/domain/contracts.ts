@@ -98,7 +98,9 @@ function testsWhere(layout: RepoPackLayout): string {
 const CORRECTION = /^Correction (C\d+) — (.*)$/;
 const ASSUMPTION_RULE = "A question that changes no scope, id or design decision is settled by you: say it as a line " +
   "`Assumption: <what you assumed>`, only for a behaviour the plan leaves open (an error, a rounding, an edge), once. " +
-  "A test value, a stub's wording or a file's state is your choice or a fact, never an assumption.";
+  "A test value, a stub's wording or a file's state is your choice or a fact, never an assumption. Never one the " +
+  "sheet's `## Assumptions` already holds, in any wording: the sheet is in your brief, and an assumption is recorded " +
+  "once per batch.";
 
 /** One anchor as a brief line; `shown` overrides the state it says (a file the sheet says to create, stubbed since). */
 function refLine(ref: AnchorRef, shown: string = ref.state): string {

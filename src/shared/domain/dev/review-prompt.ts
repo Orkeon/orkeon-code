@@ -7,6 +7,7 @@
 import { BOUNDED_READ_RULE, KNOWN_TOOLS_RULE, STRUCTURAL_SEARCH_RULE } from "./reading-rule.ts";
 import { carry } from "./carried-text.ts";
 import type { CarriedText } from "./carried-text.ts";
+import { projectFileLines } from "./project-files.ts";
 
 export type ReviewMode = "plan" | "spec" | "change" | "next-batch";
 
@@ -90,7 +91,8 @@ const NEXT_BATCH_FOCUS = [
 const CLOSING = [
   "",
   "Reading: open only what the files and their anchors point to, and of a source file only",
-  "a range around the line you cite, never a whole module for its own sake.",
+  "a range around the line you cite, never a whole module for its own sake. When the brief lists the project's",
+  "files, a name absent from the list does not exist: never open a name you guessed.",
   BOUNDED_READ_RULE,
   STRUCTURAL_SEARCH_RULE,
   KNOWN_TOOLS_RULE,
@@ -148,6 +150,9 @@ export interface ReviewBriefInput {
   /** Texts carried in the brief, each under its title (next-batch: the batch's sheet, then what each closed batch
    *  changed), so the reviewer opens no file for them; the whole room of CARRIED_REVIEW_CHARS for them. */
   carried?: readonly CarriedText[];
+  /** The project's files (tracked and untracked, the work folder left out), listed so that the reviewer guesses no
+   *  name; absent or empty: no list. */
+  projectFiles?: readonly string[];
 }
 
 export function buildReviewBrief(input: ReviewBriefInput): string {
@@ -172,6 +177,8 @@ export function buildReviewBrief(input: ReviewBriefInput): string {
     if (input.source !== "") lines.push(`Origin of the request: ${input.source}`);
     lines.push("What the code index found for the request (path:line):", input.inventory.trimEnd() || "(no entry)");
   }
+  const project = projectFileLines(input.projectFiles ?? []);
+  if (project.length > 0) lines.push("", ...project);
   lines.push(`A row targets one of: ${input.targets.join(", ")}.`);
   return lines.join("\n");
 }

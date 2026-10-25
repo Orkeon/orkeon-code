@@ -17,7 +17,7 @@ export function setup(hooks: unknown[] = [], spec: Record<string, unknown> = {})
 
 /** The pre-tool hooks run for a file_read of src/a.ts, in order, the stop hook between them left out. */
 export const PRE_HOOK_CALLS = [
-  { command: "bash pre.sh file_read src/a.ts", options: { timeoutSeconds: HOOK_TIMEOUT_SECONDS } },
+  { command: `bash pre.sh file_read ${WORKSPACE}/src/a.ts`, options: { timeoutSeconds: HOOK_TIMEOUT_SECONDS } },
   { command: "bash two.sh", options: { timeoutSeconds: HOOK_TIMEOUT_SECONDS } },
 ];
 
@@ -39,7 +39,7 @@ export const GIT_COMMIT_DENY =
   "git commands that change the repository, its branches or its remotes are refused during /dev-plan: do without this call.";
 
 export const FAILED_HOOK_DENY =
-  "dev-plan: refused by pre-tool hook #1 (bash pre.sh file_read a.ts) exited 2: no reads today\n" +
+  `dev-plan: refused by pre-tool hook #1 (bash pre.sh file_read ${WORKSPACE}/a.ts) exited 2: no reads today\n` +
   "The call did not run: change it, or ask the user to fix the hook.";
 
 export const MOUNT_DENIAL = "Command argument denied by file system: Access denied to '/cli-commands'";

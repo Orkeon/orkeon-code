@@ -501,6 +501,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `/dev-verify`, `/dev-batches`: the audit's brief and the next batch's review brief list the project's files (tracked
+  and untracked, the work folder left out), and the auditor and the reviewer never read a name they guessed nor a
+  folder: a live run spent ten reads on modules that did not exist.
+- `/dev-implement`, `/dev-batches`: a relative path a role hands a tool (`src/a.js`) is resolved under the checkout,
+  or the batch's worktree, before the tool runs, instead of the runtime's "No mount found" refusal; an assumption
+  the sheet already holds is not recorded again by the next role.
 - `/dev-verify`, `/dev-implement`, `/dev-batches`: the auditor no longer puts a Major Reuse row on an operator of the
   language written where a one-line helper exists (`a + b` beside `add(a, b)`): a Reuse row names a helper whose body
   does more than one operator, else the row is Minor at most and the verdict stays VALID.

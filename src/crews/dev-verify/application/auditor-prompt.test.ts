@@ -13,7 +13,8 @@ import {
   SHORT_SHEET, SUITE, SYSTEM_MARKERS, TABLE, bigBriefInput, briefInput, largestAnswer, longReports,
 } from "./auditor-prompt.fixtures.ts";
 import { assertWithinBrief } from "./auditor-prompt.assertions.ts";
-import { assertMentions, assertOmits } from "../../../../tests/support/assertions/text.ts";
+import { assertBefore, assertMentions, assertOmits } from "../../../../tests/support/assertions/text.ts";
+import { PROJECT_FILES_HEADING } from "../../../shared/domain/dev/project-files.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 describe("AUDITOR_SYSTEM — one marker per behaviour", () => {
@@ -76,6 +77,30 @@ describe("AUDITOR_SYSTEM — one marker per behaviour", () => {
 });
 
 describe("buildAuditBrief", () => {
+  it("lists the project's files after the scope, before the sheet", () => {
+    // Arrange
+    const input = briefInput({ projectFiles: ["src/math.js", "src/stats.js"], sheetText: SHORT_SHEET });
+
+    // Act
+    const brief = buildAuditBrief(input);
+
+    // Assert
+    assertBefore(brief, "Applied rules:", PROJECT_FILES_HEADING);
+    assertBefore(brief, "- src/stats.js", "The sheet, in this brief");
+    assertMentions(brief, ["- src/math.js", "- src/stats.js"]);
+  });
+
+  it("lists no project files when none are given", () => {
+    // Arrange
+    const input = briefInput();
+
+    // Act
+    const brief = buildAuditBrief(input);
+
+    // Assert
+    assertOmits(brief, [PROJECT_FILES_HEADING]);
+  });
+
   it("holds the table, every capture path, the mode, the batch and the commands", () => {
     // Arrange
     const input = briefInput();

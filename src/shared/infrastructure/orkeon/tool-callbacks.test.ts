@@ -19,24 +19,48 @@ describe("onToolCall", () => {
     const { shell, act } = setup([PRE, { event: "stop", command: "bash stop.sh" }, { event: "pre-tool", command: "bash two.sh" }]);
 
     // Act
-    const verdict = await act.onToolCall({ name: "file_read", input: { path: "src/a.ts" } });
+    const verdict = await act.onToolCall({ name: "file_read", input: { path: `${WORKSPACE}/src/a.ts` } });
 
     // Assert
     strictEqual(verdict, "allow");
     deepStrictEqual(shell.calls, PRE_HOOK_CALLS);
   });
 
+  it("resolves a relative path under the checkout: the hooks see it resolved, and the call runs with it", async () => {
+    // Arrange
+    const { shell, act } = setup([PRE]);
+
+    // Act
+    const verdict = await act.onToolCall({ name: "file_read", input: { path: "src/a.ts" } });
+
+    // Assert
+    deepStrictEqual(verdict, { input: { path: `${WORKSPACE}/src/a.ts` } });
+    deepStrictEqual(shell.calls.map((c) => c.command), [`bash pre.sh file_read ${WORKSPACE}/src/a.ts`]);
+  });
+
+  it("resolves each relative operation of an edit_batch", async () => {
+    // Arrange
+    const { act } = setup();
+    const input = { operations: [{ kind: "node_replace", path: "src/a.ts", text: "x" }, { kind: "node_insert", path: `${WORKSPACE}/docs/b.md`, text: "y" }] };
+
+    // Act
+    const verdict = await act.onToolCall({ name: "edit_batch", input });
+
+    // Assert
+    deepStrictEqual(verdict, { input: { operations: [{ kind: "node_replace", path: `${WORKSPACE}/src/a.ts`, text: "x" }, { kind: "node_insert", path: `${WORKSPACE}/docs/b.md`, text: "y" }] } });
+  });
+
   it("runs a pre-tool hook once per operation of an edit_batch, with that operation's path", async () => {
     // Arrange
     const { shell, act } = setup([PRE]);
-    const input = { operations: [{ kind: "node_replace", path: "src/a.ts", text: "x" }, { kind: "node_insert", path: "docs/b.md", text: "y" }] };
+    const input = { operations: [{ kind: "node_replace", path: `${WORKSPACE}/src/a.ts`, text: "x" }, { kind: "node_insert", path: `${WORKSPACE}/docs/b.md`, text: "y" }] };
 
     // Act
     const verdict = await act.onToolCall({ name: "edit_batch", input });
 
     // Assert
     strictEqual(verdict, "allow");
-    deepStrictEqual(shell.calls.map((c) => c.command), ["bash pre.sh edit_batch src/a.ts", "bash pre.sh edit_batch docs/b.md"]);
+    deepStrictEqual(shell.calls.map((c) => c.command), [`bash pre.sh edit_batch ${WORKSPACE}/src/a.ts`, `bash pre.sh edit_batch ${WORKSPACE}/docs/b.md`]);
   });
 
   for (const c of WHOLE_HOOK_INPUTS) {
@@ -68,14 +92,14 @@ describe("onToolCall", () => {
   it("refuses at the first pre-tool hook that fails, and runs none after it", async () => {
     // Arrange
     const { shell, act } = setup([PRE, { event: "pre-tool", command: "bash two.sh" }]);
-    shell.results["bash pre.sh file_read a.ts"] = { exitCode: 2, stderr: "no reads today\nmore", stdout: "ignored" };
+    shell.results[`bash pre.sh file_read ${WORKSPACE}/a.ts`] = { exitCode: 2, stderr: "no reads today\nmore", stdout: "ignored" };
 
     // Act
-    const verdict = await act.onToolCall({ name: "file_read", input: { path: "a.ts" } });
+    const verdict = await act.onToolCall({ name: "file_read", input: { path: `${WORKSPACE}/a.ts` } });
 
     // Assert
     deepStrictEqual(verdict, { deny: FAILED_HOOK_DENY });
-    deepStrictEqual(shell.commands, ["bash pre.sh file_read a.ts"]);
+    deepStrictEqual(shell.commands, [`bash pre.sh file_read ${WORKSPACE}/a.ts`]);
   });
 
   it("refuses when a pre-tool hook times out", async () => {
@@ -143,7 +167,7 @@ describe("onToolCall", () => {
     const { callbacks } = setup();
 
     // Act
-    const verdict = await callbacks.forAct("acceptEdits", false).onToolCall({ name: "file_write", input: { path: "a" } });
+    const verdict = await callbacks.forAct("acceptEdits", false).onToolCall({ name: "file_write", input: { path: `${WORKSPACE}/a` } });
 
     // Assert
     strictEqual(verdict, "allow");
@@ -221,7 +245,7 @@ describe("onToolCall — the rewrite rule", () => {
     const act = implementer(reader);
 
     // Act
-    const refused = await act.onToolCall({ name: "file_write", input: { path: "src/domain/big.ts", content: "y" } });
+    const refused = await act.onToolCall({ name: "file_write", input: { path: `${WORKSPACE}/src/domain/big.ts`, content: "y" } });
 
     // Assert
     assertDenied(refused, ["of the implementer's rewrite rule"]);
@@ -237,7 +261,7 @@ describe("onToolCall — the rewrite rule", () => {
     const verdict = await act.onToolCall({ name: "file_write", input: { path: "./src/domain/new.ts", content: "y" } });
 
     // Assert
-    strictEqual(verdict, "allow");
+    deepStrictEqual(verdict, { input: { path: `${WORKSPACE}/src/domain/new.ts`, content: "y" } });
     deepStrictEqual(reader.reads, [`${WORKSPACE}/src/domain/new.ts`]);
   });
 
@@ -247,7 +271,7 @@ describe("onToolCall — the rewrite rule", () => {
     const act = implementer(reader);
 
     // Act
-    const verdict = await act.onToolCall({ name: "node_replace", input: { path: "src/domain/big.ts", selector: "A.b()", text: "y", expected_hash: "h" } });
+    const verdict = await act.onToolCall({ name: "node_replace", input: { path: `${WORKSPACE}/src/domain/big.ts`, selector: "A.b()", text: "y", expected_hash: "h" } });
 
     // Assert
     strictEqual(verdict, "allow");
@@ -259,7 +283,7 @@ describe("onToolCall — the rewrite rule", () => {
     const act = implementer(files({}, "access denied"));
 
     // Act
-    const verdict = await act.onToolCall({ name: "file_write", input: { path: "src/domain/a.ts", content: "y" } });
+    const verdict = await act.onToolCall({ name: "file_write", input: { path: `${WORKSPACE}/src/domain/a.ts`, content: "y" } });
 
     // Assert
     strictEqual(typeof verdict, "object");
@@ -270,7 +294,7 @@ describe("onToolCall — the rewrite rule", () => {
     const act = implementer();
 
     // Act
-    const verdict = await act.onToolCall({ name: "file_write", input: { path: "src/domain/a.ts", content: "y" } });
+    const verdict = await act.onToolCall({ name: "file_write", input: { path: `${WORKSPACE}/src/domain/a.ts`, content: "y" } });
 
     // Assert
     strictEqual(typeof verdict, "object");
@@ -282,7 +306,7 @@ describe("onToolCall — the rewrite rule", () => {
     const act = devToolCallbacks({ step: "dev-plan" }, { shell: new FakeShell(), files: reader }).forAct("acceptEdits", true);
 
     // Act
-    const verdict = await act.onToolCall({ name: "file_write", input: { path: "src/domain/a.ts", content: "y" } });
+    const verdict = await act.onToolCall({ name: "file_write", input: { path: `${WORKSPACE}/src/domain/a.ts`, content: "y" } });
 
     // Assert
     strictEqual(verdict, "allow");
@@ -320,6 +344,21 @@ describe("rootedCallbacks — a batch under its working root", () => {
     deepStrictEqual(shell.commands, []);
   });
 
+  it("resolves a relative path under the root, judged as its logical path, and runs the call with it", async () => {
+    // Arrange
+    const { reader } = readerOfAll();
+    const shell = new FakeShell();
+    const inner = devToolCallbacks({ step: "dev-implement", role: "implementer", layout: LAYOUT, hooks: [PRE] }, { shell, files: reader });
+    const act = rootedCallbacks(inner, ROOT).forAct("acceptEdits", true);
+
+    // Act
+    const verdict = await act.onToolCall({ name: "file_read", input: { path: "src/a.ts" } });
+
+    // Assert
+    deepStrictEqual(verdict, { input: { path: `${ROOT}/src/a.ts` } });
+    deepStrictEqual(shell.calls.map((c) => c.command), [`bash pre.sh file_read ${WORKSPACE}/src/a.ts`]);
+  });
+
   it("hands the hooks the logical path of a call under the root", async () => {
     // Arrange
     const { reader } = readerOfAll();
@@ -350,7 +389,7 @@ describe("rootedCallbacks — a batch under its working root", () => {
 describe("devToolCallbacks", () => {
   it("logs why a root of the role got no rule", () => {
     // Arrange
-    const spec = { role: "pilot", layout: { domain: "/etc", application: "src/app" } };
+    const spec = { role: "pilot", layout: { domain: "/etc", application: `${WORKSPACE}/src/app` } };
 
     // Act
     const { log } = setup([], spec);
@@ -380,7 +419,7 @@ describe("the shared memory's guard in the callbacks", () => {
     const { act } = memoryGuardedStep();
 
     // Act
-    const verdict = await act.onToolCall({ name: "file_read", input: { path: ".orkeon/memory/entries/x.md" } });
+    const verdict = await act.onToolCall({ name: "file_read", input: { path: `${WORKSPACE}/.orkeon/memory/entries/x.md` } });
 
     // Assert
     strictEqual(verdict, "allow");
@@ -403,7 +442,7 @@ describe("the shared memory's guard in the callbacks", () => {
     await act.onToolCall(SHELL_WRITE_INTO_MEMORY);
 
     // Act
-    const verdict = await act.onToolCall({ name: "file_write", input: { path: "src/a.ts", content: "x" } });
+    const verdict = await act.onToolCall({ name: "file_write", input: { path: `${WORKSPACE}/src/a.ts`, content: "x" } });
 
     // Assert
     strictEqual(verdict, "allow");

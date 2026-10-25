@@ -20,6 +20,7 @@ import { cut, firstLine } from "../domain/text.ts";
 import {
   carriedRows, formatWhen, renderVerdictSection, verdictFileName, writeVerdictFile,
 } from "../domain/verdict.ts";
+import { listProjectFiles } from "../../../shared/application/dev/project-files.ts";
 import { outputTail, recordingRunner, runAudit, shellValidationRunner } from "./audit.ts";
 import type { UnfinishedAudit, ValidationRunner } from "./audit.ts";
 import { stepRules } from "../../../shared/domain/dev/step-rules.ts";
@@ -330,6 +331,7 @@ export async function runDevVerify(input: DevVerifyInputs, deps: DevVerifyDeps):
     ]));
     const brief: AuditBriefInput = {
       mode: auditMode, batch: args.batch, sheetPath: t.sheetShown, sheetText: gate.run.sheet, captureFiles: capture.files, captureTexts: capture.texts, table: capture.table,
+      projectFiles: await listProjectFiles(deps.shell, work),
       appliedRules: gate.run.facts.appliedIds.length > 0 ? gate.run.facts.appliedIds.join(", ") : "none",
       commands: { testClass: commands.testClass, testProject: commands.testProject, testIntegration: commands.testIntegration },
       previousGaps,

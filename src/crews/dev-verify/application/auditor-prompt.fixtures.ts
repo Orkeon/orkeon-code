@@ -36,6 +36,7 @@ export const SYSTEM_MARKERS: readonly (readonly [string, string])[] = [
   ["blocking defined", "Blocking ("],
   ["major defined", "Major ("],
   ["minor defined", "Minor ("],
+  ["project files listed", "a name absent from the list does not exist"],
   ["reuse needs a helper", "does more than one operator of the language"],
   ["verdict rule", "one Blocking or Major row makes the verdict GAPS"],
   ["row cap", "eight rows at most"],

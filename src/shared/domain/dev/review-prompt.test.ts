@@ -8,6 +8,8 @@ import { ok, strictEqual } from "node:assert";
 
 import { MAX_REVIEW_REPLY_CHARS, buildReviewAnswerPrompt, buildReviewBrief, reviewSystem } from "./review-prompt.ts";
 import { MAX_BRIEF_CHARS } from "../agents/charter.ts";
+import { PROJECT_FILES_HEADING } from "./project-files.ts";
+import { assertBefore, assertMentions, assertOmits } from "../../../../tests/support/assertions/text.ts";
 import { assertHolds, assertLacks, assertNoMarker } from "./review-prompt.assertions.ts";
 import {
   ANSWER_ASKS, BARE_INPUT, BRIEF_PIECES, CARRIED_PIECES, CARRYING_INPUT, INPUT, MARK, MODE_FOCUS, NEXT_BATCH_FOCUS,
@@ -99,6 +101,29 @@ describe("material and markers", () => {
 });
 
 describe("buildReviewBrief", () => {
+  it("lists the project's files before the targets line", () => {
+    // Arrange
+    const input = { ...INPUT, projectFiles: ["src/math.js", "src/stats.js"] };
+
+    // Act
+    const brief = buildReviewBrief(input);
+
+    // Assert
+    assertBefore(brief, PROJECT_FILES_HEADING, "A row targets one of:");
+    assertMentions(brief, ["- src/math.js", "- src/stats.js"]);
+  });
+
+  it("lists no project files when none are given", () => {
+    // Arrange
+    const input = INPUT;
+
+    // Act
+    const brief = buildReviewBrief(input);
+
+    // Assert
+    assertOmits(brief, [PROJECT_FILES_HEADING]);
+  });
+
   it("lays the mode, the files in order, the source, the inventory and the targets", () => {
     // Arrange
     const input = INPUT;

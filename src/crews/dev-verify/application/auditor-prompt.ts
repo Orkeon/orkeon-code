@@ -9,6 +9,7 @@ import type { AuditAnswer, AuditRow } from "../domain/audit-answer.ts";
 import { cut } from "../domain/text.ts";
 import { MAX_BRIEF_CHARS } from "../../../shared/domain/agents/charter.ts";
 import { BOUNDED_READ_RULE, KNOWN_TOOLS_RULE } from "../../../shared/domain/dev/reading-rule.ts";
+import { projectFileLines } from "../../../shared/domain/dev/project-files.ts";
 
 export const AUDITOR_SYSTEM = [
   "You audit one batch of a development plan once it has been implemented. You read; you change nothing.",
@@ -51,6 +52,9 @@ export const AUDITOR_SYSTEM = [
   "runs it for you:",
   "one test class, never a whole suite, or one integration run narrowed by a filter, built from the commands the",
   "brief lists. Three at most in all, and none when nothing is in doubt; cite what a run showed in the row it settles.",
+  "",
+  "The brief lists the project's files: a name absent from the list does not exist. Never read a name you guessed, nor",
+  "a folder: for a helper that may exist, codebase_search once, then the symbol it names.",
   "",
   "Reading. The brief carries the sheet and the capture: open a capture file only when the brief lists it to read, one",
   "section at a time. The sheet says what the batch promised and the capture what it delivered: the spec, the plan,",
@@ -95,6 +99,9 @@ export interface AuditBriefInput {
   /** The sheet's text, carried in the brief while it fits INLINE_SHEET_CHARS; absent or longer: read from sheetPath. */
   sheetText?: string;
   captureFiles: readonly string[];
+  /** The project's files (tracked and untracked, the work folder left out), listed so that the auditor guesses no
+   *  name; absent or empty: no list. */
+  projectFiles?: readonly string[];
   /** The capture files' texts, table.md aside (the brief carries the table): each goes in the brief while it has
    *  room, the rest stay to read. Absent: every capture file is to read. */
   captureTexts?: readonly CaptureText[];
@@ -122,6 +129,11 @@ function scopeLines(input: AuditBriefInput): string[] {
     `Sheet: ${input.sheetPath}`,
     `Applied rules: ${input.appliedRules}`,
   ];
+}
+
+function projectLines({ projectFiles }: AuditBriefInput): string[] {
+  const lines = projectFileLines(projectFiles ?? []);
+  return lines.length === 0 ? [] : ["", ...lines];
 }
 
 function commandLines({ commands }: AuditBriefInput): string[] {
@@ -199,7 +211,7 @@ export function buildAuditBrief(input: AuditBriefInput): string {
     "",
     input.table.trimEnd(),
   ];
-  const head = scopeLines(input);
+  const head = [...scopeLines(input), ...projectLines(input)];
   const sheet = sheetLines(input, MAX_BRIEF_CHARS - BRIEF_MARGIN - [...head, "", ...rest].join("\n").length);
   const room = MAX_BRIEF_CHARS - BRIEF_MARGIN - [...head, "", ...sheet, ...rest].join("\n").length;
   return [...head, "", ...sheet, ...captureLines(input, room), ...rest].join("\n");

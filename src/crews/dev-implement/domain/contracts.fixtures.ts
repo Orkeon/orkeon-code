@@ -91,6 +91,7 @@ export const RED_SAYS: readonly string[] = [
 export const ASSUMPTION_SAYS: readonly string[] = [
   "only for a behaviour the plan leaves open",
   "A test value, a stub's wording or a file's state is your choice or a fact",
+  "already holds, in any wording",
 ];
 
 /** What the GREEN contract says of the red run, the cost and the tests. */

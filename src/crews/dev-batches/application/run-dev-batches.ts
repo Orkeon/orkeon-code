@@ -46,6 +46,7 @@ import { closePlan } from "./plan-close.ts";
 import { BATCHES_ACTIVE_RECORD } from "../../../shared/domain/dev/batches-state.ts";
 import type { MergedBatch } from "./plan-close.ts";
 import { WORKSPACE, workspaceRelative } from "../../../shared/domain/vfs.ts";
+import { listProjectFiles } from "../../../shared/application/dev/project-files.ts";
 
 export const ACTIVE_RECORD = BATCHES_ACTIVE_RECORD;
 const AFTER_LINES = 20;
@@ -527,6 +528,7 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
         mode: "next-batch", folder: dev.shown, files: [`${dev.shown}/${sheet.name}`], source: `${dev.shown}/${plan.name}`,
         inventory: await closedInventory(deps.shell, merged, node.dependsOn), targets: [id],
         carried: await reviewMaterial(deps, ctx.work.vfsPath, dev, sheet.name, plan.name, merged, node.dependsOn),
+        projectFiles: await listProjectFiles(deps.shell, ctx.work.folder),
       }),
       schema: REVIEW_ANSWER_SCHEMA,
       answerPrompt: buildReviewAnswerPrompt,
