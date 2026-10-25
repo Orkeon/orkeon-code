@@ -106,6 +106,17 @@ describe("parseRepoPack field types", () => {
     strictEqual(pack.commands.test, undefined);
     deepStrictEqual(pack.layout.shared, []);
   });
+  it("reports a layout.tests that is also a source root, and keeps it: the test author and the implementer would both be refused it", () => {
+    const { pack, issues } = parsed("layout:\n  domain: ./src/\n  tests: src\n");
+    deepStrictEqual(issues, [{
+      key: "layout.tests",
+      message: "'src' is also layout.domain: the test author and the implementer would both be refused that folder; " +
+        "drop layout.tests and name the test files with layout.test_files (\"src/*.test.ts\")",
+    }]);
+    strictEqual(pack.layout.tests, "src");
+    deepStrictEqual(parsed("layout:\n  domain: src\n  test_files: [\"src/*.test.ts\"]\n").issues, []);
+    deepStrictEqual(parsed("layout:\n  domain: src\n  tests: src-tests\n").issues, []);
+  });
   it("never reports an unknown key", () => {
     const { pack, issues } = parsed("product: X\nextra:\n  - 1\n");
     deepStrictEqual(issues, []);

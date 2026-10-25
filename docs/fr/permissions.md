@@ -219,7 +219,7 @@ les dépôts ; aucun réglage ne l'active ni ne le désactive. Chaque étape met
 | `inline-interpreters` | `shell_command`, `command` | du code passé en ligne à un interpréteur, qui pourrait exécuter ce que les autres règles refusent |
 | `read-noise` | `path` de `file_read`, `glob`, `grep`, `node_outline`, `node_read`, `count_pattern`, `documents_of`, `directory_search` | une lecture sous un dossier `bin/`, `obj/`, `.git/` ou `node_modules/`, n'importe où dans le projet |
 | `secrets` | le texte écrit : `content` de `file_write`, `new_string` d'`edit_file`, `text` de `node_replace`, `node_insert` et `node_ensure`, `name` et `module` de `node_ensure`, `fix` de `structural_rewrite` ; le `text` de chaque opération d'`edit_batch`, par le callback | un contenu qui porte un bloc de clé privée ou un jeton à préfixe connu |
-| `state-files` | `path` de `file_write`, `edit_file`, `node_replace`, `node_insert`, `node_ensure`, le `path` de chaque opération d'`edit_batch` par le callback ; `structural_rewrite` en entier | un fichier que seul le code d'Orkeon Code écrit : journaux, états et verdicts des lots, captures d'audit, `.orkeon/` et `.claude/` |
+| `state-files` | `path` de `file_write`, `edit_file`, `node_replace`, `node_insert`, `node_ensure`, le `path` de chaque opération d'`edit_batch` par le callback ; `structural_rewrite` en entier | un fichier que seul le code d'Orkeon Code écrit : journaux, états et verdicts des lots, captures d'audit, `.orkeon/` (sauf `worktrees/`) et `.claude/` |
 
 `git-readonly` contient 218 règles, trois pour la plupart des verbes `add`, `am`, `apply`, `branch`, `checkout`, `cherry-pick`,
 `clean`, `commit`, `fetch`, `filter-branch`, `gc`, `merge`, `mv`, `notes`, `pull`, `push`, `rebase`, `reflog`,
@@ -315,8 +315,19 @@ deny file_write path=*-BATCHES-STATE.md
 deny file_write path=*-STATE-F*.md
 deny file_write path=*-VERIFY-F*.md
 deny file_write path=*/capture-F*/*
-deny file_write path=*/.orkeon/*
-deny file_write path=.orkeon/*
+deny file_write path=*.orkeon/dev*
+deny file_write path=*.orkeon/memory*
+deny file_write path=*.orkeon/agent*
+deny file_write path=*.orkeon/sessions*
+deny file_write path=*.orkeon/hooks*
+deny file_write path=*.orkeon/shared*
+deny file_write path=*.orkeon/repo*
+deny file_write path=*.orkeon/config*
+deny file_write path=*.orkeon/state*
+deny file_write path=*.orkeon/orkeon*
+deny file_write path=*.orkeon/ORKEON_*
+deny file_write path=*.orkeon/forge*
+deny file_write path=*.orkeon/rag*
 deny file_write path=*/.claude/*
 deny file_write path=.claude/*
 ```
@@ -332,7 +343,7 @@ refusés eux aussi. Comme une règle lit `sh -c` à la fin de n'importe quel mot
 
 Les trois jeux de fichiers répètent leurs motifs sur chaque outil de leur ligne, outil par outil : `read-noise`
 contient 64 règles (8 motifs sur 8 outils, sur `path`), `secrets` 128 (16 motifs sur 8 arguments écrits de 6 outils),
-`state-files` 41 (8 motifs sur 5 outils, sur `path`, puis `deny structural_rewrite`). Une étape détient 479 règles (481 avec les deux règles allow de `/dev-implement`). La
+`state-files` 96 (19 motifs sur 5 outils, sur `path`, puis `deny structural_rewrite` ; `.orkeon/` entrée par entrée, sauf `worktrees/`, où un `/dev-batches` parallèle fait tourner ses lots). Une étape détient 534 règles (536 avec les deux règles allow de `/dev-implement`). La
 garde ne peut pas lire les chemins ni le texte à l'intérieur d'`edit_batch` et de `structural_rewrite`.
 `structural_rewrite` est refusé en entier. `edit_batch` est laissé au callback des crews, qui s'exécute à chaque act
 d'une étape : il lit chaque opération comme l'éditeur qu'elle représente et lui applique les jeux et les règles du

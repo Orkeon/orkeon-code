@@ -219,6 +219,15 @@ function denyWhole(tools: readonly string[]): PermissionRule[] {
 }
 
 /** The same patterns on `argument` of each tool, tool by tool. */
+/** The entries of `.orkeon/` that Orkeon Code's code or the runtime write, each as the start of a name: every one
+ *  but `worktrees/`, where a parallel /dev-batches runs each batch, its writes those of a project (the state seeded
+ *  in a worktree stays refused: its path holds `.orkeon/dev` again). A `*` spans `/`, so no pattern can refuse
+ *  `.orkeon/*` and spare `worktrees/`: a new entry of the folder is named here. `*.orkeon/` covers the path in and
+ *  out of the project's root. */
+const STATE_ENTRIES: readonly string[] = [
+  "dev", "memory", "agent", "sessions", "hooks", "shared", "repo", "config", "state", "orkeon", "ORKEON_", "forge", "rag",
+];
+
 function denyEach(tools: readonly string[], argument: string, patterns: readonly string[]): PermissionRule[] {
   return tools.flatMap((tool) => denyAll(tool, argument, patterns));
 }
@@ -275,11 +284,11 @@ export const RULE_SETS: Readonly<Record<RuleSetId, RuleSet>> = {
   "state-files": {
     id: "state-files",
     title: "files only Orkeon Code's own code writes",
-    // Batch logs, batch states, verdicts and audit captures; the state folder; the harness's deployed files.
+    // Batch logs, batch states, verdicts and audit captures; the state folder's entries; the harness's deployed files.
     rules: [
       ...denyEach(PATH_WRITE_TOOLS, "path", [
         "*-BATCHES-STATE.md", "*-STATE-F*.md", "*-VERIFY-F*.md", "*/capture-F*/*",
-        "*/.orkeon/*", ".orkeon/*", "*/.claude/*", ".claude/*",
+        ...STATE_ENTRIES.map((entry) => `*.orkeon/${entry}*`), "*/.claude/*", ".claude/*",
       ]),
       ...denyWhole(UNSCOPED_WRITE_TOOLS),
     ],

@@ -64,18 +64,18 @@ describe("startDevStep", () => {
     deepStrictEqual(deps.gate.calls, []);
   });
 
-  it("puts the session's rules first, then the 479 rules of the step, and prints nothing", async () => {
+  it("puts the session's rules first, then the 534 rules of the step, and prints nothing", async () => {
     const deps = setup("allow shell_command command=npm test*");
     const start = started(await startDevStep("dev-plan", deps));
     deepStrictEqual(start.lines, []);
     deepStrictEqual(start.sets, RULE_SET_IDS);
-    strictEqual(start.rules, 479);
+    strictEqual(start.rules, 534);
     strictEqual(deps.gate.calls[0], "clear");
     strictEqual(deps.gate.calls[1], "add allow shell_command command=npm test*");
     strictEqual(deps.gate.calls[2], "add deny shell_command command=*git add*");
     // Then the shared memory's guard, 20 denies: no model tool writes its candidates or entries.
-    strictEqual(deps.gate.calls.length, 503);
-    strictEqual(deps.gate.calls[502], "add deny shell_command command=*.orkeon/memory/entries*");
+    strictEqual(deps.gate.calls.length, 558);
+    strictEqual(deps.gate.calls[557], "add deny shell_command command=*.orkeon/memory/entries*");
   });
 
   it("prints nothing when the facade does not say whether the gate is on, and still puts the sets in force", async () => {
@@ -84,7 +84,7 @@ describe("startDevStep", () => {
     const start = started(await startDevStep("dev-plan", deps));
     deepStrictEqual(start.lines, []);
     strictEqual(gateProblem(undefined, "dev-plan"), null);
-    strictEqual(deps.gate.calls.length, 502);
+    strictEqual(deps.gate.calls.length, 557);
   });
 
   it("warns once when the host keeps no session rules", async () => {

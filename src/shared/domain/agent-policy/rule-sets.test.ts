@@ -43,10 +43,10 @@ describe("the rule sets", () => {
     for (const [tool, argument] of WRITTEN_TEXT) ok(TOOL_ARGUMENTS[tool].includes(argument), `${tool}.${argument}`);
   });
 
-  it("holds 218, 28, 64, 128 and 41 rules, 479 in all, none of them on edit_batch", () => {
-    deepStrictEqual(RULE_SET_IDS.map((id) => RULE_SETS[id].rules.length), [218, 28, 64, 128, 41]);
+  it("holds 218, 28, 64, 128 and 96 rules, 534 in all, none of them on edit_batch", () => {
+    deepStrictEqual(RULE_SET_IDS.map((id) => RULE_SETS[id].rules.length), [218, 28, 64, 128, 96]);
     const all = rulesOf(RULE_SET_IDS);
-    strictEqual(all.length, 479);
+    strictEqual(all.length, 534);
     ok(!all.some((r) => r.tool === "edit_batch"));
     for (let i = 0; i < all.length; i++) {
       for (let j = i + 1; j < all.length; j++) ok(!sameCalls(all[i], all[j]), gateLine(all[i]));
@@ -57,7 +57,7 @@ describe("the rule sets", () => {
     strictEqual(gateLine(RULE_SETS["read-noise"].rules[8]), "deny glob path=*/bin/*");
     strictEqual(gateLine(RULE_SETS.secrets.rules[15]), "deny file_write content=*sk-ant-*");
     strictEqual(gateLine(RULE_SETS.secrets.rules[127]), "deny structural_rewrite fix=*sk-ant-*");
-    strictEqual(gateLine(RULE_SETS["state-files"].rules[7]), "deny file_write path=.claude/*");
+    strictEqual(gateLine(RULE_SETS["state-files"].rules[18]), "deny file_write path=.claude/*");
     deepStrictEqual(RULE_SETS["state-files"].rules.slice(-1).map(gateLine), ["deny structural_rewrite"]);
   });
 
@@ -224,6 +224,29 @@ describe("the rule sets", () => {
     assertRefused("state-files", "file_write", "path", [
       "/workspace/src/x.ts", "/workspace/workbench/demo/DEMO-PLAN.md", "/workspace/docs/orkeon.md",
     ], false);
+  });
+
+  it("state-files leaves a batch's worktree under .orkeon/worktrees writable, and its own state there refused", () => {
+    for (const tool of PATH_WRITE_TOOLS) {
+      assertRefused("state-files", tool, "path", [
+        "/workspace/.orkeon/worktrees/calc-F1/src/stats.js", ".orkeon/worktrees/calc-F1/src/stats.test.js",
+        "/workspace/.orkeon/worktrees/calc-F1/workbench/calc/CALC-PLAN-F1.md",
+      ], false);
+      assertRefused("state-files", tool, "path", [
+        "/workspace/.orkeon/worktrees/calc-F1/.orkeon/dev/calc/batches-active.json",
+        "/workspace/.orkeon/worktrees/calc-F1/.orkeon/repo.yaml",
+        "/workspace/.orkeon/worktrees/calc-F1/workbench/calc/CALC-BATCHES-STATE.md",
+      ], true);
+    }
+  });
+
+  it("state-files refuses every entry of .orkeon/ code or the runtime writes, in or out of the project's root", () => {
+    assertRefused("state-files", "file_write", "path", [
+      ".orkeon/dev/demo/batches-active.json", ".orkeon/dev-learn-state.json", "/workspace/.orkeon/memory/entries/a.md",
+      ".orkeon/agent-memory/x.json", ".orkeon/agents.json", ".orkeon/sessions/last.json", ".orkeon/hooks/pre.sh",
+      ".orkeon/shared/x", ".orkeon/config.json", ".orkeon/state.json", "src/crews/.orkeon/orkeon.d.ts",
+      ".orkeon/ORKEON_COMMITMSG", ".orkeon/forge/x", ".orkeon/rag/x",
+    ], true);
   });
 
   it("state-files refuses the same paths to every tool that writes one path, and the unscoped writers whole", () => {

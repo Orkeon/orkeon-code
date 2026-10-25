@@ -139,6 +139,21 @@ function checkedTests(r: Reader): RepoPackTests {
   return { ruleTrait, traitPattern };
 }
 
+/** A `layout.tests` folder that is also a source root, reported and kept: the test author's write deny on the source
+ *  roots and the implementer's on the tests would both cover it, so neither could write there. */
+function checkTestsRoot(r: Reader, layout: RepoPackLayout): void {
+  const folder = (v: string | undefined): string => (v ?? "").trim().replace(/^(\.\/)+/, "").replace(/\/+$/, "");
+  const tests = folder(layout.tests);
+  if (tests === "") return;
+  const key = (["domain", "application", "infrastructure"] as const).find((k) => folder(layout[k]) === tests);
+  if (key === undefined) return;
+  r.issues.push({
+    key: "layout.tests",
+    message: `'${tests}' is also layout.${key}: the test author and the implementer would both be refused that folder; ` +
+      `drop layout.tests and name the test files with layout.test_files ("${tests}/*.test.ts")`,
+  });
+}
+
 export function parseRepoPack(text: string): RepoPackParse {
   const parsed = parseYamlSubset(text);
   if (!parsed.ok) return parsed;
@@ -175,6 +190,7 @@ export function parseRepoPack(text: string): RepoPackParse {
     },
     document,
   };
+  checkTestsRoot(r, pack.layout);
   return { ok: true, pack, issues: r.issues };
 }
 

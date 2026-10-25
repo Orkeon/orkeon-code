@@ -36,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of every editing tool, `state-files` the `path` of every tool that writes one file. `structural_rewrite`, whose
   paths the gate cannot read, is denied whole; `edit_batch` is checked operation by operation by the crews' callback,
   as the editor each operation stands for, every `validate` but "parse" refused, and an import's `name` and `module`
-  read by `secrets`. A dev step holds 479 rules, 481 with the two allows of `/dev-implement`.
+  read by `secrets`. A dev step holds 534 rules, 536 with the two allows of `/dev-implement`.
 - **`Orkeon:Tools:ResultLimits` and `Llm:MaxRateLimitWait` in the example settings**: the cut of a tool's result per
   tool (10,000 characters for `shell_command`), four read calls of a turn at once, and a rate-limit wait of five
   minutes ([Configuration](docs/configuration.md)).
@@ -315,7 +315,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in a worktree under the shell confinement (a first probe checks it; under Bubblewrap, a runtime that binds a linked
   worktree's git dir, Orkeon/orkeon#191) and all of `.orkeon/` ignored by git (`.gitignore` or `.git/info/exclude`);
   each batch runs under its own budget of tool calls, wall time and tokens (`crew.runAgent`'s `budget`,
-  Orkeon/orkeon#189), its tool calls also counted in code so that it ends saying what is left. The ports of the dev crews are built from the calling
+  Orkeon/orkeon#189), its tool calls also counted in code so that it ends saying what is left. `state-files` refuses
+  the entries of `.orkeon/` one by one, all but `worktrees/`, so a batch writes its code in its worktree. A pack whose `layout.tests` is also a source root is reported when read (both roles
+  would be refused that folder: tests beside the code take `layout.test_files`). The ports of the dev crews are built from the calling
   agent's own tools, and a batch keeps naming the checkout `/workspace`, rebased on its root (Orkeon/orkeon#186,
   delivered by #187).
 - The dev steps recall the shared memory on their own: `/dev-spec` and `/dev-change` at the start (decisions,

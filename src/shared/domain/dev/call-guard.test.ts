@@ -171,7 +171,7 @@ describe("checkToolCall — the rewrite rule of a writing role", () => {
     strictEqual(refused(checkToolCall(guard, "file_write", { path: "tests/a.test.ts" }, ON)).reason,
       "dev-implement: refused by 'deny file_write path=tests/*' of the test-author's rewrite rule");
     ok(refused(checkToolCall(guard, "file_write", { path: big }, NEW)).reason.endsWith("of the test-author's roots"));
-    ok(refused(checkToolCall(guard, "file_write", { path: ".orkeon/x.json" }, NEW)).reason.endsWith("of the rule set state-files"));
+    ok(refused(checkToolCall(guard, "file_write", { path: ".orkeon/config.json" }, NEW)).reason.endsWith("of the rule set state-files"));
   });
 
   it("is no rule of the pilot, nor of a step without a role", () => {
@@ -203,7 +203,7 @@ describe("checkToolCall — edit_batch, operation by operation", () => {
       ok(named.reason.includes(`node_ensure ${field}=*ghp_*`), named.reason);
       refused(checkToolCall(implementer, "node_ensure", { op: "ensure_import", path: "src/app/b.ts", [field]: "ghp_x" }, ON));
     }
-    const state = refused(checkToolCall(buildCallGuard({ step: "dev-plan" }), "edit_batch", { operations: [op("replace_mermaid", ".orkeon/x.md")] }, ON));
+    const state = refused(checkToolCall(buildCallGuard({ step: "dev-plan" }), "edit_batch", { operations: [op("replace_mermaid", ".orkeon/memory/x.md")] }, ON));
     ok(state.reason.includes("of the rule set state-files"), state.reason);
     // A path normalised back under a denied root is still refused.
     refused(checkToolCall(implementer, "edit_batch", { operations: [op("node_replace", "src/../tests/a.test.ts")] }, ON));

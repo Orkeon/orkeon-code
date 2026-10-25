@@ -203,7 +203,7 @@ off. Every step puts all five sets in force:
 | `inline-interpreters` | `shell_command`, `command` | code handed inline to an interpreter, which could run what the other rules refuse |
 | `read-noise` | `path` of `file_read`, `glob`, `grep`, `node_outline`, `node_read`, `count_pattern`, `documents_of`, `directory_search` | a read under a `bin/`, `obj/`, `.git/` or `node_modules/` folder, anywhere in the project |
 | `secrets` | the written text: `file_write` `content`, `edit_file` `new_string`, `text` of `node_replace`, `node_insert` and `node_ensure`, `name` and `module` of `node_ensure`, `structural_rewrite` `fix`; each `edit_batch` operation's `text`, by the callback | content that holds a private key block or a token with a known prefix |
-| `state-files` | `path` of `file_write`, `edit_file`, `node_replace`, `node_insert`, `node_ensure`, each `edit_batch` operation's `path` by the callback; `structural_rewrite` whole | a file only Orkeon Code's own code writes: the batch logs, states and verdicts, the audit captures, `.orkeon/` and `.claude/` |
+| `state-files` | `path` of `file_write`, `edit_file`, `node_replace`, `node_insert`, `node_ensure`, each `edit_batch` operation's `path` by the callback; `structural_rewrite` whole | a file only Orkeon Code's own code writes: the batch logs, states and verdicts, the audit captures, `.orkeon/` (but `worktrees/`) and `.claude/` |
 
 `git-readonly` holds 218 rules, three for most of the verbs `add`, `am`, `apply`, `branch`, `checkout`, `cherry-pick`,
 `clean`, `commit`, `fetch`, `filter-branch`, `gc`, `merge`, `mv`, `notes`, `pull`, `push`, `rebase`, `reflog`,
@@ -298,8 +298,19 @@ deny file_write path=*-BATCHES-STATE.md
 deny file_write path=*-STATE-F*.md
 deny file_write path=*-VERIFY-F*.md
 deny file_write path=*/capture-F*/*
-deny file_write path=*/.orkeon/*
-deny file_write path=.orkeon/*
+deny file_write path=*.orkeon/dev*
+deny file_write path=*.orkeon/memory*
+deny file_write path=*.orkeon/agent*
+deny file_write path=*.orkeon/sessions*
+deny file_write path=*.orkeon/hooks*
+deny file_write path=*.orkeon/shared*
+deny file_write path=*.orkeon/repo*
+deny file_write path=*.orkeon/config*
+deny file_write path=*.orkeon/state*
+deny file_write path=*.orkeon/orkeon*
+deny file_write path=*.orkeon/ORKEON_*
+deny file_write path=*.orkeon/forge*
+deny file_write path=*.orkeon/rag*
 deny file_write path=*/.claude/*
 deny file_write path=.claude/*
 ```
@@ -312,8 +323,8 @@ the inline forms of `node`, `python`, `python3` and a versioned `python3.12`, `p
 `python3 -m pytest -c pytest.ini` and a versioned `python3.12 x.py -c` are refused too. Since a rule reads `sh -c` at the end of any word, `ssh -c <cipher>` is refused too.
 
 The three file sets repeat their patterns on every tool of their row, tool by tool: `read-noise` holds 64 rules (8
-patterns on 8 tools, on `path`), `secrets` 128 (16 patterns on 8 written arguments of 6 tools), `state-files` 41 (8
-patterns on 5 tools, on `path`, then `deny structural_rewrite`). A step holds 479 rules (481 with the two allow rules of `/dev-implement`). The gate cannot read the
+patterns on 8 tools, on `path`), `secrets` 128 (16 patterns on 8 written arguments of 6 tools), `state-files` 96 (19
+patterns on 5 tools, on `path`, then `deny structural_rewrite`; `.orkeon/` entry by entry, all but `worktrees/`, where a parallel `/dev-batches` runs its batches). A step holds 534 rules (536 with the two allow rules of `/dev-implement`). The gate cannot read the
 paths or the text inside `edit_batch` and `structural_rewrite`. `structural_rewrite` is refused whole. `edit_batch` is
 left to the crews' callback, which runs on every act of a step: it reads each operation as the editor it stands for
 and applies the sets and the role's rules to it, and refuses a batch with no operations, an operation without a

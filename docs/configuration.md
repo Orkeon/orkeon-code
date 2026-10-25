@@ -158,6 +158,9 @@ layout:
   test_files: ["src/*.test.ts"]
 ```
 
+`layout.tests` never names a source root (`tests: src` beside `domain: src`): both roles would be refused that folder,
+and reading the pack reports it as an issue (⚠ at the start of `/dev-implement` and `/dev-batches`).
+
 ## Extra tools: MCP servers and plugins
 
 The REPL connects the MCP servers of Orkeon's `MCP:Servers` settings and loads the plugins of its `Plugins` section

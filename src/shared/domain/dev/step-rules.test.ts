@@ -13,15 +13,15 @@ describe("STEP_RULE_SETS", () => {
     deepStrictEqual(Object.keys(STEP_RULE_SETS).sort(), [...DEV_STEPS].sort());
     for (const step of DEV_STEPS) deepStrictEqual(STEP_RULE_SETS[step], RULE_SET_IDS);
     deepStrictEqual(stepRules("dev-plan"), rulesOf(RULE_SET_IDS));
-    strictEqual(stepRules("dev-plan").length, 479);
-    strictEqual(stepRules("dev-verify").length, 479);
+    strictEqual(stepRules("dev-plan").length, 534);
+    strictEqual(stepRules("dev-verify").length, 534);
   });
 
   it("lets /dev-implement's roles run their two tools without a question, after the same deny rules", () => {
     const rules = stepRules("dev-implement");
-    strictEqual(rules.length, 481);
-    deepStrictEqual(rules.slice(0, 479), rulesOf(RULE_SET_IDS));
-    deepStrictEqual(rules.slice(479).map(formatRule), ["allow run_tests", "allow run_build"]);
+    strictEqual(rules.length, 536);
+    deepStrictEqual(rules.slice(0, 534), rulesOf(RULE_SET_IDS));
+    deepStrictEqual(rules.slice(534).map(formatRule), ["allow run_tests", "allow run_build"]);
     deepStrictEqual(STEP_ALLOW_RULES["dev-plan"], []);
     deepStrictEqual(STEP_ALLOW_RULES["dev-verify"], []);
     strictEqual(ruleDecision(rules, "run_tests", { command: "npm test" }), "allow");
