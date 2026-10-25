@@ -5,61 +5,112 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, throws } from "node:assert";
 
 import { createPermissionRules } from "./permission-rules.ts";
-import { FakePermissionRulesFacade } from "../../../../tests/support/fake-permissions-facade.ts";
 import { FakeServiceLocator } from "../../../../tests/support/fake-script-host.ts";
-
-function setup() {
-  const facade = new FakePermissionRulesFacade();
-  const services = new FakeServiceLocator();
-  services.services.set("permissions", facade);
-  return { facade, gate: createPermissionRules(services) };
-}
+import { CHANGES_WITHOUT_RULES, RULES, gateOverFake, gateWithoutRules } from "./permission-rules.fixtures.ts";
 
 describe("createPermissionRules", () => {
-  it("is available when the host serves the permissions service, and only then", () => {
-    strictEqual(setup().gate.available(), true);
-    strictEqual(createPermissionRules(new FakeServiceLocator()).available(), false);
+  it("is available when the host serves the permissions service", () => {
+    // Arrange
+    const { gate } = gateOverFake();
+
+    // Act
+    const available = gate.available();
+
+    // Assert
+    strictEqual(available, true);
   });
 
-  it("reports the gate as the host says it, and undefined when the host cannot say", () => {
-    const { facade, gate } = setup();
-    strictEqual(gate.enabled(), true);
+  it("is not available when the host does not serve the permissions service", () => {
+    // Arrange
+    const gate = createPermissionRules(new FakeServiceLocator());
+
+    // Act
+    const available = gate.available();
+
+    // Assert
+    strictEqual(available, false);
+  });
+
+  it("reports the gate enabled as the host says it", () => {
+    // Arrange
+    const { gate } = gateOverFake();
+
+    // Act
+    const enabled = gate.enabled();
+
+    // Assert
+    strictEqual(enabled, true);
+  });
+
+  it("reports the gate disabled as the host says it", () => {
+    // Arrange
+    const { facade, gate } = gateOverFake();
     facade.enabled = false;
-    strictEqual(gate.enabled(), false);
-    // A host without the permissions service.
-    strictEqual(createPermissionRules(new FakeServiceLocator()).enabled(), undefined);
+
+    // Act
+    const enabled = gate.enabled();
+
+    // Assert
+    strictEqual(enabled, false);
   });
 
-  it("passes a whole-tool rule as the tool alone, and a scoped rule with its argument and pattern", () => {
-    const { facade, gate } = setup();
-    gate.add({ effect: "deny", tool: "file_write" });
-    gate.add({ effect: "allow", tool: "http_api" });
-    gate.add({ effect: "allow", tool: "shell_command", argument: "command", pattern: "npm test*" });
-    gate.add({ effect: "deny", tool: "shell_command", argument: "command", pattern: "git push*" });
-    deepStrictEqual(facade.calls, [
-      ["deny", "file_write"],
-      ["allow", "http_api"],
-      ["allow", "shell_command", "command", "npm test*"],
-      ["deny", "shell_command", "command", "git push*"],
-    ]);
+  it("reports the gate as undefined when the host has no permissions service", () => {
+    // Arrange
+    const gate = createPermissionRules(new FakeServiceLocator());
+
+    // Act
+    const enabled = gate.enabled();
+
+    // Assert
+    strictEqual(enabled, undefined);
   });
 
-  it("clears the host's rules and lists them as the host spells them", () => {
-    const { facade, gate } = setup();
-    facade.lines = ["allow shell_command command=npm test*"];
-    gate.clear();
-    deepStrictEqual(facade.calls, [["clear"]]);
-    deepStrictEqual(gate.list(), ["allow shell_command command=npm test*"]);
-  });
+  for (const c of RULES) {
+    it(c.name, () => {
+      // Arrange
+      const { facade, gate } = gateOverFake();
 
-  it("throws when the host keeps no rules", () => {
-    const gate = createPermissionRules({
-      has: () => false,
-      get: () => {
-        throw new Error("service 'permissions' is not registered");
-      },
+      // Act
+      gate.add(c.rule);
+
+      // Assert
+      deepStrictEqual(facade.calls, [c.call]);
     });
-    throws(() => gate.clear(), /not registered/);
-    throws(() => gate.add({ effect: "deny", tool: "file_write" }), /not registered/);
+  }
+
+  it("clears the host's rules", () => {
+    // Arrange
+    const { facade, gate } = gateOverFake();
+
+    // Act
+    gate.clear();
+
+    // Assert
+    deepStrictEqual(facade.calls, [["clear"]]);
   });
+
+  it("lists the rules as the host spells them", () => {
+    // Arrange
+    const { facade, gate } = gateOverFake();
+    facade.lines = ["allow shell_command command=npm test*"];
+
+    // Act
+    const lines = gate.list();
+
+    // Assert
+    deepStrictEqual(lines, ["allow shell_command command=npm test*"]);
+  });
+
+  for (const c of CHANGES_WITHOUT_RULES) {
+    it(c.name, () => {
+      // Arrange
+      const gate = gateWithoutRules();
+
+      // Act
+      const act = () => c.change(gate);
+
+      // Assert
+      throws(act, /not registered/);
+    });
+  }
 });

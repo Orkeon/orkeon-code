@@ -7,26 +7,52 @@ import { createRunState } from "./run-state.ts";
 import { FakeAgentContext } from "../../../../tests/support/fake-agent-context.ts";
 
 describe("createRunState", () => {
-  it("reads a field of the agent state, undefined when unset", () => {
+  it("reads a field of the agent state", () => {
+    // Arrange
     const ctx = new FakeAgentContext();
     ctx.fields = { consecutiveFailures: 2 };
-    const run = createRunState(ctx);
-    strictEqual(run.read("consecutiveFailures"), 2);
-    strictEqual(run.read("missing"), undefined);
+
+    // Act
+    const value = createRunState(ctx).read("consecutiveFailures");
+
+    // Assert
+    strictEqual(value, 2);
+  });
+
+  it("reads undefined for a field that is unset", () => {
+    // Arrange
+    const ctx = new FakeAgentContext();
+    ctx.fields = { consecutiveFailures: 2 };
+
+    // Act
+    const value = createRunState(ctx).read("missing");
+
+    // Assert
+    strictEqual(value, undefined);
   });
 
   it("writes one field through the state's mutator, keeping the others", async () => {
+    // Arrange
     const ctx = new FakeAgentContext();
     ctx.fields = { permissionMode: "plan", consecutiveFailures: 0 };
+
+    // Act
     await createRunState(ctx).write("consecutiveFailures", 3);
+
+    // Assert
     deepStrictEqual(ctx.fields, { permissionMode: "plan", consecutiveFailures: 3 });
     strictEqual(ctx.mutations, 1);
   });
 
   it("reads the state the last write left", async () => {
-    const ctx = new FakeAgentContext();
-    const run = createRunState(ctx);
+    // Arrange
+    const run = createRunState(new FakeAgentContext());
     await run.write("consecutiveFailures", 1);
-    strictEqual(run.read("consecutiveFailures"), 1);
+
+    // Act
+    const value = run.read("consecutiveFailures");
+
+    // Assert
+    strictEqual(value, 1);
   });
 });

@@ -6,116 +6,140 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual, ok } from "node:assert";
 
 import { MEMORY_TOOLS, SCRIPT_TOOLS, TOOL_ARGUMENTS } from "../../domain/agent-policy/permission.ts";
-import { MEMORY_PUSH, MEMORY_RECALL, memoryPushTool, memoryRecallTool, memoryRecallTools, memoryTools } from "./memory-tools.ts";
-import type { MemoryToolPorts } from "./memory-tools.ts";
-import type { ToolBuilderFactory } from "./script-tools.ts";
-import { memoryLayout } from "../../domain/shared-memory/layout.ts";
-import { GIT_REMOTE_ORIGIN } from "../../application/shared-memory/memory-settings.ts";
-import { FakeShell } from "../../../../tests/support/fake-shell.ts";
-import { FakeSharedMemory } from "../../../../tests/doubles/fake-shared-memory.ts";
-import { LiveListingFiles } from "../../../../tests/doubles/live-listing-files.ts";
-import { entryText, sampleEntry } from "../../../../tests/doubles/memory-entries.ts";
-
-interface Built { name?: string; schema?: JsonSchema; access?: string; fn?: (input: unknown) => unknown }
-
-function recorder(): { builder: ToolBuilderFactory; built: Built[] } {
-  const built: Built[] = [];
-  const builder = () => {
-    const b: Built = {};
-    built.push(b);
-    const api: any = {
-      name: (v: string) => { b.name = v; return api; },
-      description: () => api,
-      withSchema: (v: JsonSchema) => { b.schema = v; return api; },
-      access: (v: string) => { b.access = v; return api; },
-      execute: (fn: (input: unknown) => unknown) => { b.fn = fn; return api; },
-      build: () => ({ name: b.name, execute: (input: unknown) => b.fn!(input) }),
-    };
-    return api as ToolBuilder<unknown, unknown>;
-  };
-  return { builder, built };
-}
-
-const layout = memoryLayout(".orkeon/memory");
-
-function world() {
-  const files = new LiveListingFiles();
-  const shell = new FakeShell();
-  shell.results[GIT_REMOTE_ORIGIN] = { stdout: "git@example.com:acme/shop.git" };
-  const memory = new FakeSharedMemory();
-  const ports: MemoryToolPorts = {
-    files, shell, memory, clock: () => new Date("2026-10-24T10:00:00Z"),
-    config: { readValue: async (key: string) => ({ key, value: undefined, source: "unset" as const }) },
-  };
-  return { files, memory, ports: () => ports };
-}
-
-const run = (tool: Tool<unknown, unknown>, input: unknown) => (tool as any).execute(input) as Promise<any>;
+import { memoryPushTool, memoryRecallTool, memoryRecallTools, memoryTools } from "./memory-tools.ts";
+import {
+  DECISION, DECISION_CANDIDATE, MEMORY_TOOL_SPECS, ROOT, recorder, run, world, worldWithEntry,
+} from "./memory-tools.fixtures.ts";
+import { assertRefusedWith } from "./memory-tools.assertions.ts";
 
 describe("the memory tools", () => {
-  it("declare the access of SCRIPT_TOOLS and a schema of the arguments a rule may name", () => {
-    for (const [spec, make] of [[MEMORY_RECALL, memoryRecallTool], [MEMORY_PUSH, (b: ToolBuilderFactory, p: () => MemoryToolPorts) => memoryPushTool(b, p, "default")]] as const) {
+  for (const { spec, make } of MEMORY_TOOL_SPECS) {
+    it(`declare the access of SCRIPT_TOOLS and a schema of the arguments a rule may name: ${spec.name}`, () => {
+      // Arrange
       const r = recorder();
+
+      // Act
       make(r.builder, world().ports);
+
+      // Assert
       strictEqual(r.built[0].access, SCRIPT_TOOLS.find((t) => t.name === spec.name)?.access);
       deepStrictEqual(Object.keys((r.built[0].schema as any).properties).sort(), [...TOOL_ARGUMENTS[spec.name]].sort());
-    }
-  });
+    });
+  }
 
   it("recall the admitted entries of the project's collection, in the output shape", async () => {
-    const { files, memory, ports } = world();
-    const kept = sampleEntry("mistake", "loop");
-    const path = `${layout.entries}/mistake/${kept.id}.md`;
-    files.files.set(path, entryText(kept));
-    memory.hits = [{ sourceId: path, score: 0.8 }];
+    // Arrange
+    const { memory, ports, kept, path } = worldWithEntry();
+
+    // Act
     const out = await run(memoryRecallTool(recorder().builder, ports), { query: "a retry loop", types: ["mistake", "bogus"], top_k: 2 });
+
+    // Assert
     strictEqual(memory.searches[0].collection, "memory-shop");
     deepStrictEqual(out.entries.map((e: any) => [e.id, e.status, e.detection_signal, e.path, e.score]),
       [[kept.id, "admitted", "a red test on the edge case", path, 0.8]]);
     strictEqual(out.truncated, false);
-    ok(!(await run(memoryRecallTool(recorder().builder, ports), {})).ok);
+  });
+
+  it("refuse a recall without a query", async () => {
+    // Arrange
+    const { ports } = worldWithEntry();
+
+    // Act
+    const out = await run(memoryRecallTool(recorder().builder, ports), {});
+
+    // Assert
+    ok(!out.ok, `a recall without a query answered ${JSON.stringify(out)}`);
   });
 
   it("recall under a working root names each entry's file under the root (outbound)", async () => {
-    const ROOT = "/workspace/.orkeon/worktrees/prune-F2";
-    const { files, memory, ports } = world();
-    const kept = sampleEntry("mistake", "loop");
-    const path = `${layout.entries}/mistake/${kept.id}.md`;
-    files.files.set(path, entryText(kept));
-    memory.hits = [{ sourceId: path, score: 0.8 }];
+    // Arrange
+    const { ports, path } = worldWithEntry();
+
+    // Act
     const out = await run(memoryRecallTool(recorder().builder, ports, ROOT), { query: "a retry loop" });
+
+    // Assert
     strictEqual(out.entries[0].path, path.replace(/^\/workspace/, ROOT));
-    strictEqual(JSON.stringify(memoryRecallTools(recorder().builder, ports, true, ROOT).length), "1");
   });
 
-  it("push a candidate, and refuse in a read-only mode with nothing written", async () => {
-    const input = {
-      type: "decision", title: "Keep the ports narrow", topic: "narrow ports", applies_when: "a use case needs a port",
-      rationale: "wide ports leaked", evidence: ["src/shared/application/ports.ts:45"],
-    };
+  it("build the one recall tool when it is on under a working root", () => {
+    // Arrange
+    const { ports } = worldWithEntry();
+
+    // Act
+    const tools = memoryRecallTools(recorder().builder, ports, true, ROOT);
+
+    // Assert
+    strictEqual(JSON.stringify(tools.length), "1");
+  });
+
+  it("push a candidate", async () => {
+    // Arrange
     const { files, ports } = world();
-    const out = await run(memoryPushTool(recorder().builder, ports, "acceptEdits"), input);
-    deepStrictEqual(out, { candidate_path: `${layout.candidates}/shop-decision-20261024-keep-the-ports-narrow.md`, id: "shop-decision-20261024-keep-the-ports-narrow", status: "candidate" });
-    ok(files.files.has(out.candidate_path));
+
+    // Act
+    const out = await run(memoryPushTool(recorder().builder, ports, "acceptEdits"), DECISION);
+
+    // Assert
+    deepStrictEqual(out, DECISION_CANDIDATE);
+    ok(files.files.has(out.candidate_path), `no candidate written at ${out.candidate_path}`);
+  });
+
+  it("refuse a push in a read-only mode with nothing written", async () => {
+    // Arrange
     const plan = world();
-    const refused = await run(memoryPushTool(recorder().builder, plan.ports, "plan"), input);
-    ok(refused.refused.includes("mode 'plan' writes nothing"));
+
+    // Act
+    const refused = await run(memoryPushTool(recorder().builder, plan.ports, "plan"), DECISION);
+
+    // Assert
+    assertRefusedWith(refused, "mode 'plan' writes nothing");
     strictEqual(plan.files.writes.length, 0);
-    const invalid = await run(memoryPushTool(recorder().builder, ports, "default"), { ...input, evidence: [] });
-    ok(invalid.refused.includes("evidence required"));
+  });
+
+  it("refuse a push without evidence", async () => {
+    // Arrange
+    const { ports } = world();
+
+    // Act
+    const invalid = await run(memoryPushTool(recorder().builder, ports, "default"), { ...DECISION, evidence: [] });
+
+    // Assert
+    assertRefusedWith(invalid, "evidence required");
   });
 
   it("turn a failing port into a refusal, never a throw", async () => {
+    // Arrange
     const { memory, ports } = world();
     memory.searchFailure = new Error("rag: collection missing\nat x");
+
+    // Act
     const out = await run(memoryRecallTool(recorder().builder, ports), { query: "x" });
+
+    // Assert
     deepStrictEqual(out, { ok: false, refused: "memory_recall failed: rag: collection missing" });
   });
 
   it("build the tools of the names offered, and only those", () => {
-    const r = recorder();
-    const tools = memoryTools(r.builder, world().ports, "plan", ["memory_recall", "run_tests"]);
+    // Arrange
+    const names = ["memory_recall", "run_tests"];
+
+    // Act
+    const tools = memoryTools(recorder().builder, world().ports, "plan", names);
+
+    // Assert
     deepStrictEqual(tools.map((t: any) => t.name), ["memory_recall"]);
-    deepStrictEqual(memoryTools(recorder().builder, world().ports, "default", MEMORY_TOOLS).map((t: any) => t.name), [...MEMORY_TOOLS]);
+  });
+
+  it("build every memory tool when all are offered", () => {
+    // Arrange
+    const names = MEMORY_TOOLS;
+
+    // Act
+    const tools = memoryTools(recorder().builder, world().ports, "default", names);
+
+    // Assert
+    deepStrictEqual(tools.map((t: any) => t.name), [...MEMORY_TOOLS]);
   });
 });
