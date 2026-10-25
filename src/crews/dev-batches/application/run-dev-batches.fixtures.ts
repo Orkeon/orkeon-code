@@ -17,11 +17,12 @@ import {
 } from "../../../shared/domain/git/close.ts";
 import { ACTIVE_RECORD, runDevBatches } from "./run-dev-batches.ts";
 import type { BatchesAnswer, DevBatchesDeps } from "./run-dev-batches.ts";
+import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
 
 const DEMO_DIR = fileURLToPath(new URL("../../../../tests/fixtures/dev/workbench/demo/", import.meta.url));
-export const DIR = "/workspace/workbench/demo";
+export const DIR = `${WORKSPACE}/workbench/demo`;
 export const PLAN = `${DIR}/DEMO-PLAN.md`;
-export const LOG = "/workspace/.orkeon/dev/demo/batches-state.md";
+export const LOG = `${WORKSPACE}/.orkeon/dev/demo/batches-state.md`;
 export const VERDICT_F2 = `${DIR}/DEMO-VERIFY-F2.md`;
 const IDENT = { stdout: "Ada <ada@example.org> 1761300000 +0000\n" };
 
@@ -32,8 +33,8 @@ export function setup(branch = "feat/demo"): Setup {
   const files = new FakeFiles();
   const names = readdirSync(DEMO_DIR).sort();
   for (const name of names) files.files.set(`${DIR}/${name}`, readFileSync(DEMO_DIR + name, "utf-8"));
-  files.listings.set("/workspace", ["workbench"]);
-  files.listings.set("/workspace/workbench", ["demo"]);
+  files.listings.set(WORKSPACE, ["workbench"]);
+  files.listings.set(`${WORKSPACE}/workbench`, ["demo"]);
   files.listings.set(DIR, names);
   const shell = new FakeShell();
   shell.results[GIT_IDENT_COMMAND] = IDENT;
@@ -150,7 +151,7 @@ export const F1_SHOW = { stdout: "diff --git a/src/parsers.ts b/src/parsers.ts\n
 
 /** The demo's repository pack asking for a work branch. */
 export const BRANCH_PACK = "contrib:\n  branch: feat|fix/<slug>\n";
-export const REPO_YAML = "/workspace/.orkeon/repo.yaml";
+export const REPO_YAML = `${WORKSPACE}/.orkeon/repo.yaml`;
 export const FEAT_DEMO_EXISTS = "git rev-parse --verify --quiet 'refs/heads/feat/demo'";
 
 /** On main, the pack asking for a work branch, the run's branch absent. */

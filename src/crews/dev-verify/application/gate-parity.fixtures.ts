@@ -7,6 +7,7 @@ import { FakeFiles } from "../../../../tests/support/fake-files.ts";
 import { parseRepoPack } from "../../../shared/domain/dev/repo-pack.ts";
 import type { RepoPack } from "../../../shared/domain/dev/repo-pack.ts";
 import type { DevVerifyTarget } from "./run-gate.ts";
+import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
 
 const FIXTURE = new URL("../../../../tests/fixtures/dev/verify/", import.meta.url).pathname;
 const read = (name: string): string => readFileSync(join(FIXTURE, name), "utf8");
@@ -66,9 +67,9 @@ export function filesOf(edits: readonly Edit[]): FakeFiles {
   const fake = new FakeFiles();
   const listings = new Map<string, string[]>();
   for (const [path, content] of files) {
-    fake.files.set(`/workspace/${path}`, content);
+    fake.files.set(`${WORKSPACE}/${path}`, content);
     const slash = path.lastIndexOf("/");
-    const dir = `/workspace/${path.slice(0, slash)}`;
+    const dir = `${WORKSPACE}/${path.slice(0, slash)}`;
     listings.set(dir, [...(listings.get(dir) ?? []), path.slice(slash + 1)]);
   }
   fake.listings = listings;

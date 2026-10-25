@@ -1,4 +1,5 @@
 // Values the work folder rules are tested on.
+import { WORKSPACE } from "./path-rebase.ts";
 
 export interface FolderCase {
   raw: string;
@@ -77,8 +78,8 @@ export const NEITHER_SET: readonly RequestCase[] = [
 ];
 
 /** A porcelain listing of the main worktree and a linked one. */
-export const PORCELAIN = "worktree /workspace\nHEAD 0123abc\nbranch refs/heads/main\n\n"
-  + "worktree /workspace/.claude/worktrees/p2\nHEAD 4567def\nbranch refs/heads/p2\n";
+export const PORCELAIN = `worktree ${WORKSPACE}\nHEAD 0123abc\nbranch refs/heads/main\n\n`
+  + `worktree ${WORKSPACE}/.claude/worktrees/p2\nHEAD 4567def\nbranch refs/heads/p2\n`;
 
 export interface ListingCase {
   name: string;
@@ -87,7 +88,7 @@ export interface ListingCase {
 }
 
 export const LISTINGS: readonly ListingCase[] = [
-  { name: "a listing of two worktrees", listing: PORCELAIN, main: "/workspace" },
+  { name: "a listing of two worktrees", listing: PORCELAIN, main: WORKSPACE },
   { name: "a listing with CRLF line ends", listing: "worktree /home/me/repo\r\nHEAD x\r\n", main: "/home/me/repo" },
 ];
 
@@ -104,7 +105,7 @@ export interface PathPairCase {
 }
 
 export const PATH_PAIRS: readonly PathPairCase[] = [
-  { a: "/workspace", b: "/workspace/", same: true },
-  { a: "/workspace//", b: "/workspace", same: true },
-  { a: "/workspace", b: "/workspace2", same: false },
+  { a: WORKSPACE, b: `${WORKSPACE}/`, same: true },
+  { a: `${WORKSPACE}//`, b: WORKSPACE, same: true },
+  { a: WORKSPACE, b: "/workspace2", same: false },
 ];

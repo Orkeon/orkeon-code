@@ -3,8 +3,9 @@ import { USER_CONFIG_FILE_PATH, createConfigStore } from "./config-store.ts";
 import { FakeFiles } from "../../../tests/support/fake-files.ts";
 import { FakeSessionStore } from "../../../tests/support/fake-session-store.ts";
 import { FakeToolCatalogue } from "../../../tests/support/fake-tool-catalogue.ts";
+import { WORKSPACE } from "../domain/dev/path-rebase.ts";
 
-export const PROJECT_CONFIG = "/workspace/.orkeon/config.json";
+export const PROJECT_CONFIG = `${WORKSPACE}/.orkeon/config.json`;
 
 /** Files holding `setting` as the user's `tools.extra` (nothing when undefined), their config store, an empty catalogue. */
 export function extraToolsHarness(setting?: string) {

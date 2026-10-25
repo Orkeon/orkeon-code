@@ -2,6 +2,7 @@
 import { readFileSync } from "node:fs";
 
 import type { Inventory, InventoryEntry } from "./inventory-model.ts";
+import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
 
 export const INVENTORY: Inventory = JSON.parse(readFileSync(new URL("../../../../tests/fixtures/dev/plan/inventory.json", import.meta.url), "utf8"));
 
@@ -12,8 +13,8 @@ export const DESIGN_CAPS = {
 
 /** Paths outside the repository, or in a folder a plan never anchors (`workbench` excluded). */
 export const DROPPED_PATHS: readonly string[] = [
-  "/tmp/x.ts", "/workspacex/a.ts", "/workspace/.claude/skills/a.md", "/workspace/.orkeon/repo.yaml",
-  "/workspace/node_modules/x/index.js", "/workspace/.git/HEAD", "/workspace/workbench/prune/SPEC-prune.md",
+  "/tmp/x.ts", "/workspacex/a.ts", `${WORKSPACE}/.claude/skills/a.md`, `${WORKSPACE}/.orkeon/repo.yaml`,
+  `${WORKSPACE}/node_modules/x/index.js`, `${WORKSPACE}/.git/HEAD`, `${WORKSPACE}/workbench/prune/SPEC-prune.md`,
 ];
 
 export interface KeepCase {
@@ -26,16 +27,16 @@ export interface KeepCase {
 
 /** An excluded folder given in several spellings, and a folder that only starts like it. */
 export const EXCLUDED_SPELLINGS: readonly KeepCase[] = [
-  { name: "drops a path under an excluded folder given absolute with slashes", path: "/workspace/backstage/tasks/a.md", excluded: ["/workspace/backstage/tasks/"], outputs: [], kept: null },
-  { name: "drops a path under an excluded folder given relative", path: "/workspace/backstage/tasks/a.md", excluded: ["backstage/tasks"], outputs: [], kept: null },
-  { name: "keeps a path under a folder that only starts like an excluded one", path: "/workspace/backstage/taskset/a.md", excluded: ["backstage/tasks"], outputs: [], kept: "backstage/taskset/a.md" },
+  { name: "drops a path under an excluded folder given absolute with slashes", path: `${WORKSPACE}/backstage/tasks/a.md`, excluded: [`${WORKSPACE}/backstage/tasks/`], outputs: [], kept: null },
+  { name: "drops a path under an excluded folder given relative", path: `${WORKSPACE}/backstage/tasks/a.md`, excluded: ["backstage/tasks"], outputs: [], kept: null },
+  { name: "keeps a path under a folder that only starts like an excluded one", path: `${WORKSPACE}/backstage/taskset/a.md`, excluded: ["backstage/tasks"], outputs: [], kept: "backstage/taskset/a.md" },
 ];
 
 /** Segments named as a build output, and a name that only starts like one. */
 export const BUILD_OUTPUTS: readonly KeepCase[] = [
-  { name: "drops a path with a nested segment named as a build output", path: "/workspace/src/App/bin/Debug/a.cs", excluded: [], outputs: ["bin", "obj"], kept: null },
-  { name: "drops a path whose first segment is a build output", path: "/workspace/dist/a.js", excluded: [], outputs: ["dist"], kept: null },
-  { name: "keeps a path whose segment only starts like a build output", path: "/workspace/src/binder/a.ts", excluded: [], outputs: ["bin"], kept: "src/binder/a.ts" },
+  { name: "drops a path with a nested segment named as a build output", path: `${WORKSPACE}/src/App/bin/Debug/a.cs`, excluded: [], outputs: ["bin", "obj"], kept: null },
+  { name: "drops a path whose first segment is a build output", path: `${WORKSPACE}/dist/a.js`, excluded: [], outputs: ["dist"], kept: null },
+  { name: "keeps a path whose segment only starts like a build output", path: `${WORKSPACE}/src/binder/a.ts`, excluded: [], outputs: ["bin"], kept: "src/binder/a.ts" },
 ];
 
 export const LAYOUT = { domain: "src/shared/domain", application: "src/shared", infrastructure: "src/shared/infrastructure/", tests: "tests" };

@@ -1,5 +1,6 @@
 // Layouts and paths isTestPath and hasTestLayout are tested on.
 import type { RepoPackLayout } from "./repo-pack.ts";
+import { WORKSPACE } from "./path-rebase.ts";
 
 type TestLayout = Pick<RepoPackLayout, "tests" | "testFiles">;
 
@@ -17,7 +18,7 @@ export const TEST_PATH_CASES: readonly TestPathCase[] = [
   { name: "reads a file of the test folder as a test", path: "tests/a.ts", layout: LAYOUT, expected: true },
   {
     name: "reads an absolute path matching a test file pattern as a test",
-    path: "/workspace/src/x/a.test.ts", layout: LAYOUT, expected: true,
+    path: `${WORKSPACE}/src/x/a.test.ts`, layout: LAYOUT, expected: true,
   },
   { name: "reads a source file as no test", path: "src/x/a.ts", layout: LAYOUT, expected: false },
   { name: "reads a folder that only starts like the test folder as no test", path: "tests2/a.ts", layout: LAYOUT, expected: false },

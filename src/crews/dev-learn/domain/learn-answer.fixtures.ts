@@ -1,6 +1,7 @@
 // The answers checkLearnAnswer is tested on: a valid motif on the wire, the rows shown to the model, and one case per
 // refusal of the design's table.
 import { checkLearnAnswer } from "./learn-answer.ts";
+import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
 
 export const SHOWN = new Set(["c936075d95", "b983faad38", "3a59a45e69", "7b3b561c93"]);
 
@@ -73,7 +74,7 @@ export const MOTIF_CASES: readonly MotifCase[] = [
   { name: "empty preventive line", over: { preventive_line: "" }, problem: "motif 1: preventive_line is empty" },
   { name: "empty novelty", over: { novelty: " " }, problem: "motif 1: novelty is empty" },
   { name: "empty key term", over: { key_term: "" }, problem: "motif 1: key_term is empty" },
-  { name: "absolute owner path", over: { owner_path: "/workspace/CONTRIBUTING.md" }, problem: "motif 1: owner_path '/workspace/CONTRIBUTING.md' is not a relative path" },
+  { name: "absolute owner path", over: { owner_path: `${WORKSPACE}/CONTRIBUTING.md` }, problem: `motif 1: owner_path '${WORKSPACE}/CONTRIBUTING.md' is not a relative path` },
   { name: "owner path with ..", over: { owner_path: "docs/../x.md" }, problem: "motif 1: owner_path 'docs/../x.md' is not a relative path" },
   { name: "owner path with a backslash", over: { owner_path: "docs\\x.md" }, problem: "motif 1: owner_path 'docs\\x.md' is not a relative path" },
   { name: "owner path with an edge space", over: { owner_path: " x.md" }, problem: "motif 1: owner_path ' x.md' is not a relative path" },

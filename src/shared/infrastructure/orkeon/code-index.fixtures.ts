@@ -1,6 +1,7 @@
 // The code-intelligence replies the CodeIndex, AnchorIndex and CostIndex tests read, what they read from them, and
 // the stand-ins of the tools FakeTools does not fake (batch_anchors, incremental_reindex, access_cost).
 import type { createCodeIndex } from "./code-index.ts";
+import { WORKSPACE } from "../../domain/dev/path-rebase.ts";
 
 type CodeIndex = ReturnType<typeof createCodeIndex>;
 
@@ -28,21 +29,21 @@ export const PACKAGE = { fqn: "pkg.a", name: "a", files: 2, symbols: 5, dependen
 export const SEARCH_REPLY = {
   hits: [
     { fqn: "", score: 0.05, match_origin: "hybrid" },
-    { fqn: "/workspace/src/math.ts::add", score: 0.03, match_origin: "bm25" },
-    { fqn: "/workspace/src/index.ts::greet", score: 0.02, match_origin: "vector" },
+    { fqn: `${WORKSPACE}/src/math.ts::add`, score: 0.03, match_origin: "bm25" },
+    { fqn: `${WORKSPACE}/src/index.ts::greet`, score: 0.02, match_origin: "vector" },
   ],
 };
 
 export const SEARCH_HITS = [
-  { fqn: "/workspace/src/math.ts::add", score: 0.03, origin: "bm25" },
-  { fqn: "/workspace/src/index.ts::greet", score: 0.02, origin: "vector" },
+  { fqn: `${WORKSPACE}/src/math.ts::add`, score: 0.03, origin: "bm25" },
+  { fqn: `${WORKSPACE}/src/index.ts::greet`, score: 0.02, origin: "vector" },
 ];
 
 /** A short source: no fqn nor first line in the reply. */
-export const SOURCE_REPLY = { virtual_file_path: "/workspace/src/math.ts", start_line: 4, end_line: 9, language: "typescript" };
+export const SOURCE_REPLY = { virtual_file_path: `${WORKSPACE}/src/math.ts`, start_line: 4, end_line: 9, language: "typescript" };
 
 export const SOURCE = {
-  fqn: "/workspace/src/math.ts::add", path: "/workspace/src/math.ts",
+  fqn: `${WORKSPACE}/src/math.ts::add`, path: `${WORKSPACE}/src/math.ts`,
   startLine: 4, endLine: 9, language: "typescript", firstLine: "",
 };
 
@@ -117,7 +118,7 @@ export function costTools(replies: Partial<Record<CostTools, unknown>>): Pick<Or
 /** An access_cost report of one member calling a port in a loop. */
 export const COST_REPORT = {
   members: [{
-    member: "/workspace/src/a.ts::A::run",
+    member: `${WORKSPACE}/src/a.ts::A::run`,
     port_calls: [{ receiver: "this.store", method: "save", line: 4, in_loop: true, in_lambda: false }],
     in_memory_filters: [],
     cost: { reads: 0, writes: 0, loops: 1, lambdas: 0, memory_filters: 0 },

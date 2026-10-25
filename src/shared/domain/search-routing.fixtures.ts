@@ -1,4 +1,5 @@
 // Paths and extensions for the search routing tests.
+import { WORKSPACE } from "./dev/path-rebase.ts";
 
 /** Read from src/analysis/Orkeon.Analysis/Adapters/*.cs — a new adapter framework-side must be mirrored here (the
  *  probe's partition step trips live). */
@@ -7,13 +8,13 @@ export const ADAPTER_EXTENSIONS: readonly string[] = [
   ".cpp", ".cc", ".cxx", ".hpp", ".hh", ".hxx", ".h", ".php", ".rb", ".sh", ".bash",
 ];
 
-export const CODE_PATHS: readonly string[] = ["/workspace/src/a.ts", "/workspace/App.tsx", "b.cs", "x/y.py", "m.go", "lib.rs"];
+export const CODE_PATHS: readonly string[] = [`${WORKSPACE}/src/a.ts`, `${WORKSPACE}/App.tsx`, "b.cs", "x/y.py", "m.go", "lib.rs"];
 
-export const DOCUMENT_PATHS: readonly string[] = ["/workspace/README.md", "notes.txt", "data.csv", "report.pdf", "page.html"];
+export const DOCUMENT_PATHS: readonly string[] = [`${WORKSPACE}/README.md`, "notes.txt", "data.csv", "report.pdf", "page.html"];
 
 /** The languages of Orkeon #195. */
 export const ORKEON_195_PATHS: readonly string[] = [
-  "/workspace/src/app.js", "Main.java", "include/x.h", "index.php", "lib/a.rb", "build.sh",
+  `${WORKSPACE}/src/app.js`, "Main.java", "include/x.h", "index.php", "lib/a.rb", "build.sh",
 ];
 
 /** CSS, HTML and JSON parse for the structural tools but enter no index. */
@@ -41,7 +42,7 @@ export const UPPER_CASE_ROUTES: readonly { readonly path: string; readonly route
 export const EXTENSION_CASES: readonly { readonly name: string; readonly path: string; readonly extension: string }[] = [
   { name: "takes the last dot of the basename only", path: "/a/b.c/file.spec.ts", extension: ".ts" },
   { name: "takes no dot of a folder for an extension", path: "/a.b/README", extension: "" },
-  { name: "a leading dot is a hidden file, not an extension", path: "/workspace/.gitignore", extension: "" },
+  { name: "a leading dot is a hidden file, not an extension", path: `${WORKSPACE}/.gitignore`, extension: "" },
   { name: "a leading dot is a hidden file, not an extension, without a folder", path: ".env", extension: "" },
 ];
 

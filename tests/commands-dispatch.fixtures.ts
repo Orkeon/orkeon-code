@@ -14,6 +14,7 @@ import { FakeLogger } from "./support/fake-logger.ts";
 import { FakePermissionRules } from "./support/fake-permission-rules.ts";
 import { FakeSessionStore } from "./support/fake-session-store.ts";
 import { FakeToolCatalogue } from "./support/fake-tool-catalogue.ts";
+import { WORKSPACE } from "../src/shared/domain/dev/path-rebase.ts";
 
 /** The built-in denies every sync adds after the session's rules: no model tool writes the memory's candidates or entries. */
 const MEMORY_LINES = memoryWriteRules(DEFAULT_MEMORY_DIR).map(memoryGateLine);
@@ -21,8 +22,8 @@ export const MEMORY_GATE = MEMORY_LINES.map((line) => `add ${line}`);
 
 /** The memory paths no model tool writes, absolute and relative. */
 export const MEMORY_PATHS: readonly string[] = [
-  "/workspace/.orkeon/memory/entries/mistake/x.md", ".orkeon/memory/entries/method/x.md",
-  "/workspace/.orkeon/memory/candidates/x.md", ".orkeon/memory/candidates/x.md",
+  `${WORKSPACE}/.orkeon/memory/entries/mistake/x.md`, ".orkeon/memory/entries/method/x.md",
+  `${WORKSPACE}/.orkeon/memory/candidates/x.md`, ".orkeon/memory/candidates/x.md",
 ];
 
 export const FALLBACK_VIA = resolveFallbackMode(undefined).explanation;
@@ -84,14 +85,14 @@ export function mainLoopDeps(...stored: string[]) {
 /** A config store over `store` whose settings file cannot be read. */
 export function unreadableFileConfig(store: FakeSessionStore) {
   const files = new FakeFiles();
-  files.readErrors.set("/workspace/.orkeon/config.json", new Error("permission denied"));
+  files.readErrors.set(`${WORKSPACE}/.orkeon/config.json`, new Error("permission denied"));
   return createConfigStore({ files, session: store });
 }
 
 export const START_SCRIPT = { script: "/tmp/orkeon-code/session-start.sh", lines: ["a", "b"] };
 
 export const UNREADABLE_EXTRA_TOOLS_WARNINGS = [
-  "tools.extra could not be read (/workspace/.orkeon/config.json could not be read or parsed): no extra tool this turn",
+  `tools.extra could not be read (${WORKSPACE}/.orkeon/config.json could not be read or parsed): no extra tool this turn`,
   "permission rule 'deny create_issue' is dormant: tools.extra does not list its tool, the gate does not get it",
 ];
 

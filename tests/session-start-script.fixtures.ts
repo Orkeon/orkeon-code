@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { renderStateFile } from "../src/shared/domain/workflow/state-file.ts";
+import { WORKSPACE } from "../src/shared/domain/dev/path-rebase.ts";
 
 export const SCRIPT = fileURLToPath(new URL("../scripts/session-start.sh", import.meta.url));
 
@@ -109,8 +110,8 @@ export const ORK_NOTHING_IN_PROGRESS: readonly { name: string; files: Record<str
   {
     name: "prints nothing with nothing in progress",
     files: {
-      "/workspace/.orkeon/dev/demo/batches-state.md": "- 2026-10-21 08:30 F1 launched\n- 2026-10-21 09:10 closed\n",
-      "/workspace/.orkeon/dev/demo/state-F2.md": OLD,
+      [`${WORKSPACE}/.orkeon/dev/demo/batches-state.md`]: "- 2026-10-21 08:30 F1 launched\n- 2026-10-21 09:10 closed\n",
+      [`${WORKSPACE}/.orkeon/dev/demo/state-F2.md`]: OLD,
     },
   },
 ];

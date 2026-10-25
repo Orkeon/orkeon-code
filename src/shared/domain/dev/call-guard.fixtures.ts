@@ -1,5 +1,6 @@
 // The facts, layouts, tool calls and hook declarations the dev crews' call guard is tested on.
 import type { ActFacts, CallGuardSpec, ToolHook } from "./call-guard.ts";
+import { WORKSPACE } from "./path-rebase.ts";
 
 /** An act in plan mode on a host with a gate. */
 export const ON: ActFacts = { mode: "plan", gateEnabled: true };
@@ -31,7 +32,7 @@ export const UNCOVERED: readonly Call[] = [
 
 /** A covered path written with ./, // or .. */
 export const UNNORMALISED_PATHS: readonly string[] = [
-  "./src/domain/x.ts", "src//domain/x.ts", "tests/../src/domain/x.ts", "/workspace/./src/domain/x.ts",
+  "./src/domain/x.ts", "src//domain/x.ts", "tests/../src/domain/x.ts", `${WORKSPACE}/./src/domain/x.ts`,
 ];
 
 /** Relative paths that climb out of /workspace and back into its tests. */
@@ -60,17 +61,17 @@ export const GIT_CONFIG_READS: readonly string[] = [
 
 /** Paths and their normalised form. */
 export const NORMALISED: ReadonlyArray<[path: string, normal: string]> = [
-  ["/workspace/./src//x.ts", "/workspace/src/x.ts"],
-  ["/workspace/tests/../src/x.ts", "/workspace/src/x.ts"],
+  [`${WORKSPACE}/./src//x.ts`, `${WORKSPACE}/src/x.ts`],
+  [`${WORKSPACE}/tests/../src/x.ts`, `${WORKSPACE}/src/x.ts`],
   ["./src/x.ts", "src/x.ts"],
   ["../x", "../x"],
-  ["/../workspace/x", "/workspace/x"],
+  ["/../workspace/x", `${WORKSPACE}/x`],
   ["./", "."],
 ];
 
 /** What the test author with a test file pattern and a named stub may write. */
 export const AUTHOR_WRITABLE: ReadonlyArray<Call & { facts: ActFacts; allow: boolean }> = [
-  { ...call("file_write", { path: "/workspace/src/domain/a.test.ts" }), facts: NEW, allow: true },
+  { ...call("file_write", { path: `${WORKSPACE}/src/domain/a.test.ts` }), facts: NEW, allow: true },
   { ...call("edit_file", { path: "./src/domain/a.ts" }), facts: ON, allow: true },
   { ...call("file_write", { path: "src/domain/b.ts" }), facts: ON, allow: false },
 ];
@@ -92,25 +93,25 @@ export const UNREADABLE_BATCHES: readonly unknown[] = [
 
 /** Folder reads that reach below a pilot's roots. */
 export const PILOT_REFUSED: readonly Call[] = [
-  call("glob", { path: "/workspace", pattern: "**/*.ts" }),
-  call("glob", { path: "/workspace/src", pattern: "*/x.ts" }),
+  call("glob", { path: WORKSPACE, pattern: "**/*.ts" }),
+  call("glob", { path: `${WORKSPACE}/src`, pattern: "*/x.ts" }),
   call("glob", { pattern: "**" }),
-  call("grep", { path: "/workspace", pattern: "TODO" }),
+  call("grep", { path: WORKSPACE, pattern: "TODO" }),
   call("grep", { path: "src", pattern: "TODO", glob: "**/*.ts" }),
-  call("count_pattern", { path: "/workspace", patterns: ["x"] }),
+  call("count_pattern", { path: WORKSPACE, patterns: ["x"] }),
 ];
 
 /** Folder reads outside a pilot's roots, or a literal path beside them. */
 export const PILOT_ALLOWED: readonly Call[] = [
-  call("glob", { path: "/workspace/docs", pattern: "**/*.md" }),
+  call("glob", { path: `${WORKSPACE}/docs`, pattern: "**/*.md" }),
   call("grep", { path: "docs", pattern: "x", glob: "*.md" }),
-  call("glob", { path: "/workspace", pattern: "README.md" }),
+  call("glob", { path: WORKSPACE, pattern: "README.md" }),
 ];
 
 /** Reads from the root that a noise filter lets run. */
 export const ROOT_READS: readonly Call[] = [
-  call("glob", { path: "/workspace", pattern: "**/*.ts" }),
-  call("grep", { path: "/workspace", pattern: "x" }),
+  call("glob", { path: WORKSPACE, pattern: "**/*.ts" }),
+  call("grep", { path: WORKSPACE, pattern: "x" }),
 ];
 
 /** The modes that run the reads only on a host without a gate. */

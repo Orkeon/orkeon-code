@@ -8,9 +8,10 @@ import { createConfigStore } from "../config-store.ts";
 import { FakeFiles } from "../../../../tests/support/fake-files.ts";
 import { FakeShell } from "../../../../tests/support/fake-shell.ts";
 import { FakeSessionStore } from "../../../../tests/support/fake-session-store.ts";
+import { WORKSPACE } from "../../domain/dev/path-rebase.ts";
 
 const DEMO_DIR = fileURLToPath(new URL("../../../../tests/fixtures/dev/workbench/demo/", import.meta.url));
-export const CONFIG = "/workspace/.orkeon/config.json";
+export const CONFIG = `${WORKSPACE}/.orkeon/config.json`;
 /** The ignore check of both probes, and of the config probe alone. */
 export const BOTH = checkIgnoreCommand([ORKEON_IGNORE_PROBE, "workbench/"]);
 export const PROBE_ONLY = checkIgnoreCommand([ORKEON_IGNORE_PROBE]);
@@ -33,7 +34,7 @@ export function setup() {
 export function namedNotes() {
   const deps = setup();
   deps.files.files.set(CONFIG, JSON.stringify({ "dev.workDir": "notes" }));
-  deps.files.listings.set("/workspace", ["notes"]);
+  deps.files.listings.set(WORKSPACE, ["notes"]);
   deps.shell.results[PROBE_ONLY] = { exitCode: 0, stdout: ".orkeon/config.json\n" };
   return deps;
 }
@@ -56,11 +57,11 @@ export function todoWithSettings(settings: string, names = ["pr-x"]) {
 /** The demo fixture folder at /workspace/workbench/demo, plus any extra file names. */
 function loadDemo(files: FakeFiles, extra: Record<string, string> = {}): void {
   const names = readdirSync(DEMO_DIR).sort();
-  for (const name of names) files.files.set(`/workspace/workbench/demo/${name}`, readFileSync(DEMO_DIR + name, "utf-8"));
-  for (const [name, text] of Object.entries(extra)) files.files.set(`/workspace/workbench/demo/${name}`, text);
-  files.listings.set("/workspace", ["workbench"]);
-  files.listings.set("/workspace/workbench", ["demo"]);
-  files.listings.set("/workspace/workbench/demo", [...names, ...Object.keys(extra)]);
+  for (const name of names) files.files.set(`${WORKSPACE}/workbench/demo/${name}`, readFileSync(DEMO_DIR + name, "utf-8"));
+  for (const [name, text] of Object.entries(extra)) files.files.set(`${WORKSPACE}/workbench/demo/${name}`, text);
+  files.listings.set(WORKSPACE, ["workbench"]);
+  files.listings.set(`${WORKSPACE}/workbench`, ["demo"]);
+  files.listings.set(`${WORKSPACE}/workbench/demo`, [...names, ...Object.keys(extra)]);
 }
 
 /** The files holding the demo folder (and the `extra` files in it), and the work folder the context resolves. */
@@ -83,8 +84,8 @@ export function readSpy(files: FakeFiles, reads: string[]) {
 export function manyCodes(files: FakeFiles): string[] {
   const loose = Array.from({ length: 60 }, (_, i) => `note-${String(i).padStart(2, "0")}.md`);
   const folders = Array.from({ length: 54 }, (_, i) => `c${String(i).padStart(2, "0")}`).reverse();
-  files.listings.set("/workspace/workbench", [...loose, "README.md", ...folders, "demo/"]);
-  for (const f of folders) files.listings.set(`/workspace/workbench/${f}`, [`SPEC-${f}.md`]);
+  files.listings.set(`${WORKSPACE}/workbench`, [...loose, "README.md", ...folders, "demo/"]);
+  for (const f of folders) files.listings.set(`${WORKSPACE}/workbench/${f}`, [`SPEC-${f}.md`]);
   return folders;
 }
 

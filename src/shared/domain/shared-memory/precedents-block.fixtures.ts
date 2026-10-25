@@ -1,6 +1,7 @@
 // The recalled precedents the "## Precedents" block is tested on.
 import type { Precedent } from "./precedents-block.ts";
 import type { EntryType, MemoryEntry } from "./entry.ts";
+import { WORKSPACE } from "../dev/path-rebase.ts";
 
 // tests/doubles/memory-entries.ts's sampleEntry, here because a domain test imports the domain only.
 const ENTRY_BODY = "## Context\nA sentence of context.\n\n## Content\nThe rule itself.\n\n## Evidence\n`src/app/main.ts:10`\n";
@@ -24,7 +25,7 @@ export function sampleEntry(type: EntryType, slug: string, over: Partial<MemoryE
 
 /** `entry` recalled from its file under /workspace/m/entries with `score`. */
 export const p = (entry: Precedent["entry"], score: number): Precedent =>
-  ({ entry, path: `/workspace/m/entries/${entry.type}/${entry.id}.md`, score });
+  ({ entry, path: `${WORKSPACE}/m/entries/${entry.type}/${entry.id}.md`, score });
 
 /** The pinned markers of the five rules the block's intro carries. */
 export const PINNED_MARKERS: readonly string[] = [

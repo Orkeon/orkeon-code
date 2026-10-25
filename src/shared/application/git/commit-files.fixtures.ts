@@ -5,6 +5,7 @@ import type { PullRequestHandOver } from "./commit-files.ts";
 import { FakeFiles } from "../../../../tests/support/fake-files.ts";
 import { FakePullRequestOpener } from "../../../../tests/support/fake-pull-request-opener.ts";
 import { FakeShell } from "../../../../tests/support/fake-shell.ts";
+import { WORKSPACE } from "../../domain/dev/path-rebase.ts";
 
 export const AUTHOR = "git var GIT_AUTHOR_IDENT";
 export const COMMITTER = "git var GIT_COMMITTER_IDENT";
@@ -41,7 +42,7 @@ export class RefusingFiles extends FakeFiles {
 }
 
 /** Files of a linked worktree: `.git/` cannot be written into. */
-export const linkedWorktreeFiles = (): RefusingFiles => new RefusingFiles(["/workspace/.git/"]);
+export const linkedWorktreeFiles = (): RefusingFiles => new RefusingFiles([`${WORKSPACE}/.git/`]);
 
 /** An opener recording each pull request it opens, answering `url`. */
 export function recordingOpener(url?: string): FakePullRequestOpener {
@@ -58,7 +59,7 @@ export function brokenOpener(): FakePullRequestOpener {
 }
 
 export const REQ: PullRequestHandOver = {
-  work: { folder: "workbench", vfsPath: "/workspace/workbench" }, branch: "feat/x", base: "main", title: "fix: x",
+  work: { folder: "workbench", vfsPath: `${WORKSPACE}/workbench` }, branch: "feat/x", base: "main", title: "fix: x",
   pushed: true, open: false, summary: { batch: "`feat/x` — fix: x", layers: [{ layer: "Changed", paths: ["a.ts"] }] },
 };
 

@@ -6,8 +6,9 @@ import type { RepoPackCommands } from "../../../shared/domain/dev/repo-pack.ts";
 import type { AuditBriefInput } from "./auditor-prompt.ts";
 import { shellValidationRunner } from "./audit.ts";
 import type { RecordingRunner, ValidationRunner } from "./audit.ts";
+import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
 
-export const FOLDER = "/workspace/workbench/demo/capture-F2";
+export const FOLDER = `${WORKSPACE}/workbench/demo/capture-F2`;
 export const SHOWN = "workbench/demo/capture-F2";
 export const COMMANDS: RepoPackCommands = { testClass: "dotnet test --filter FullyQualifiedName~<class>", test: "dotnet test" };
 export const VALIDATION = "dotnet test --filter FullyQualifiedName~LineTests";

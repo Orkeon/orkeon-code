@@ -14,9 +14,10 @@ import { ORKEON_IGNORE_PROBE, checkIgnoreCommand } from "../../../shared/applica
 import type { ChangeAnswer } from "../domain/change-answer.ts";
 import { runDevChange } from "./run-dev-change.ts";
 import type { DevChangeInputs } from "./run-dev-change.ts";
+import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
 
 export const PACK = readFileSync(new URL("../../../../tests/fixtures/dev/plan/pack.yaml", import.meta.url), "utf8");
-export const W = "/workspace/workbench";
+export const W = `${WORKSPACE}/workbench`;
 export const CODE = `${W}/cache`;
 export const BRIEF = `${CODE}/CHANGE-cache.md`;
 export const REPRO = `${CODE}/repro-cache.txt`;
@@ -46,11 +47,11 @@ export const PERF_ANSWER = answer({
  */
 export function devChangeSetup(script: Array<string | null> = []) {
   const files = new FakeFiles();
-  files.listings.set("/workspace", ["workbench/", ".orkeon/", "src/"]);
+  files.listings.set(WORKSPACE, ["workbench/", ".orkeon/", "src/"]);
   files.listings.set(W, ["cache/"]);
-  files.files.set("/workspace/.orkeon/repo.yaml", PACK);
+  files.files.set(`${WORKSPACE}/.orkeon/repo.yaml`, PACK);
   const shell = new FakeShell();
-  shell.results[GIT_TOPLEVEL] = { stdout: "/workspace\n" };
+  shell.results[GIT_TOPLEVEL] = { stdout: `${WORKSPACE}\n` };
   shell.results[checkIgnoreCommand([ORKEON_IGNORE_PROBE])] = { stdout: ".orkeon/config.json\n" };
   shell.results[CMD] = { exitCode: 1, stdout: "not ok 1 - reads once\n# fail 1" };
   const llm = new FakeLlm();

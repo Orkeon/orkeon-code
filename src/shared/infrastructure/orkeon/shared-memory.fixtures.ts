@@ -1,8 +1,9 @@
 // The rag namespaces and rag tools the createSharedMemory tests run on, and the files their hits name.
 import type { RagApi } from "./shared-memory.ts";
+import { WORKSPACE } from "../../domain/dev/path-rebase.ts";
 
-export const A = "/workspace/.orkeon/memory/entries/method/x-method-20261024-a.md";
-export const B = "/workspace/.orkeon/memory/entries/decision/x-decision-20261024-b.md";
+export const A = `${WORKSPACE}/.orkeon/memory/entries/method/x-method-20261024-a.md`;
+export const B = `${WORKSPACE}/.orkeon/memory/entries/decision/x-decision-20261024-b.md`;
 
 /** A rag namespace answering `citations` to a retrieve and `report` to an ingest, each call recorded. */
 export function fakeRag(citations: unknown[], report: unknown = {}) {

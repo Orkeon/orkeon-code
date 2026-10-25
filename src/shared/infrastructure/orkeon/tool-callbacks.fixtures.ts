@@ -2,6 +2,7 @@
 import { HOOK_TIMEOUT_SECONDS, devToolCallbacks, memoryGuardCallbacks } from "./tool-callbacks.ts";
 import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
 import { FakeShell } from "../../../../tests/support/fake-shell.ts";
+import { WORKSPACE } from "../../domain/dev/path-rebase.ts";
 
 export const PRE = { event: "pre-tool", command: "bash pre.sh {tool} {path}" };
 export const POST = { event: "post-tool", command: "bash post.sh {tool}" };
@@ -68,7 +69,7 @@ export const implementer = (reader?: ReturnType<typeof files>) => devToolCallbac
 ).forAct("acceptEdits", true);
 
 /** A reader holding one big source file of the domain. */
-export const bigSource = () => files({ "/workspace/src/domain/big.ts": "x".repeat(40_000) });
+export const bigSource = () => files({ [`${WORKSPACE}/src/domain/big.ts`]: "x".repeat(40_000) });
 
 export interface NewFileCase {
   name: string;
@@ -79,12 +80,12 @@ export interface NewFileCase {
 
 export const NEW_FILES: readonly NewFileCase[] = [
   { name: "tells a file the runtime does not find as new", reader: () => files({}), path: "src/a.ts", expected: true },
-  { name: "tells a file the runtime reads as not new", reader: () => files({ "/workspace/src/a.ts": "" }), path: "/workspace/src/a.ts", expected: false },
+  { name: "tells a file the runtime reads as not new", reader: () => files({ [`${WORKSPACE}/src/a.ts`]: "" }), path: `${WORKSPACE}/src/a.ts`, expected: false },
   { name: "cannot tell a file whose read fails otherwise", reader: () => files({}, "timeout"), path: "src/a.ts", expected: undefined },
   { name: "cannot tell a blank path", reader: () => files({}), path: "  ", expected: undefined },
 ];
 
-export const ROOT = "/workspace/.orkeon/worktrees/prune-F2";
+export const ROOT = `${WORKSPACE}/.orkeon/worktrees/prune-F2`;
 
 /** A reader that finds every file, its reads recorded. */
 export function readerOfAll() {
@@ -94,7 +95,7 @@ export function readerOfAll() {
 
 /** What a pilot whose domain is /etc and whose layout lacks infrastructure and tests is warned. */
 export const PILOT_WARNINGS = [
-  "warn: dev-plan: root '/etc' is outside /workspace: no rule",
+  `warn: dev-plan: root '/etc' is outside ${WORKSPACE}: no rule`,
   "warn: dev-plan: the pack gives no layout.infrastructure: no rule on it",
   "warn: dev-plan: the pack gives no layout.tests: no rule on it",
 ];

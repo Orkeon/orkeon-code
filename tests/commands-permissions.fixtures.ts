@@ -13,6 +13,7 @@ import { FakeFiles } from "./support/fake-files.ts";
 import { FakePermissionRules } from "./support/fake-permission-rules.ts";
 import { FakeSessionStore } from "./support/fake-session-store.ts";
 import { FakeToolCatalogue } from "./support/fake-tool-catalogue.ts";
+import { WORKSPACE } from "../src/shared/domain/dev/path-rebase.ts";
 
 /** The built-in denies every sync adds after the session's rules: no model tool writes the memory's candidates or entries. */
 export const MEMORY_LINES = memoryWriteRules(DEFAULT_MEMORY_DIR).map(memoryGateLine);
@@ -92,7 +93,7 @@ export function permissionsHarness() {
 /** /permissions over a session and a gate given, its config file unreadable. */
 export function unreadableConfigRun(store: FakeSessionStore, gate: FakePermissionRules) {
   const files = new FakeFiles();
-  files.readErrors.set("/workspace/.orkeon/config.json", new Error("permission denied"));
+  files.readErrors.set(`${WORKSPACE}/.orkeon/config.json`, new Error("permission denied"));
   const config = createConfigStore({ files, session: store });
   const session = createSessionIo({ store, config });
   return (...tokens: string[]) => runPermissions(tokens, { session, gate, config, catalogue: new FakeToolCatalogue() });

@@ -1,11 +1,12 @@
 // The golden file, the rag_eval results and the probe facts the probe-verdict tests read.
 import type { Golden, ProbeFacts } from "./probe-verdict.ts";
+import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
 
 /** A golden file in the fixture's subset: a comment, the top keys, a case with relevants and a negative case. */
 export const GOLDEN_YAML = [
   "# a comment",
   "name: g",
-  "corpus: /workspace/.orkeon/memory/entries",
+  `corpus: ${WORKSPACE}/.orkeon/memory/entries`,
   "collection: memory-eval-golden",
   "cases:",
   "  - id: q01",
@@ -28,7 +29,7 @@ export const GOLDEN_CASE_ROWS = [
 /** GOLDEN_YAML read. */
 export const GOLDEN: Golden = {
   name: "g",
-  corpus: "/workspace/.orkeon/memory/entries",
+  corpus: `${WORKSPACE}/.orkeon/memory/entries`,
   collection: "memory-eval-golden",
   cases: [
     { id: "q01", question: "Two: one?", relevant: ["entries/a.md", "entries/b.md"], tags: ["decision"] },

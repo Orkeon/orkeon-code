@@ -4,6 +4,7 @@ import type { AccessCostReport } from "../../domain/dev/access-cost.ts";
 import { parseRepoPack } from "../../domain/dev/repo-pack.ts";
 import type { RepoPack } from "../../domain/dev/repo-pack.ts";
 import type { measureAccessCost } from "./measure-access-cost.ts";
+import { WORKSPACE } from "../../domain/dev/path-rebase.ts";
 
 const ZERO = { reads: 0, writes: 0, loops: 0, lambdas: 0, memoryFilters: 0 };
 
@@ -30,7 +31,7 @@ export const CHANGED_WITH_COLOCATED_TEST = [...CHANGED, { path: "src/tools/run.t
 /** A port call in a loop, on the added line 5 of src/order.ts. */
 export const LOOP: AccessCostReport = {
   members: [{
-    member: "/workspace/src/order.ts::place",
+    member: `${WORKSPACE}/src/order.ts::place`,
     portCalls: [{ receiver: "this.store", method: "save", line: 5, inLoop: true, inLambda: false }],
     memoryFilters: [], cost: { ...ZERO, loops: 1 },
   }],

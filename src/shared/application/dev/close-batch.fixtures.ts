@@ -2,13 +2,14 @@
 import type { CloseBatchRequest } from "./close-batch.ts";
 import { FakeFiles } from "../../../../tests/support/fake-files.ts";
 import { FakeShell } from "../../../../tests/support/fake-shell.ts";
+import { WORKSPACE } from "../../domain/dev/path-rebase.ts";
 
 export const STATUS = "git -c core.quotePath=false status --short --untracked-files=all";
 
 /** F1 touched src/a.ts and its sheet in the work folder, on feat/a, pushed, no pull request opened. */
 export const REQ: CloseBatchRequest = {
   touched: ["src/a.ts", "workbench/code/CODE-PLAN-F1.md"], message: "feat(a): add a\n\nwhy", branch: "feat/a",
-  work: { folder: "workbench", vfsPath: "/workspace/workbench" }, push: true, openPr: false,
+  work: { folder: "workbench", vfsPath: `${WORKSPACE}/workbench` }, push: true, openPr: false,
   summary: { batch: "F1 of CODE", layers: [{ layer: "Domain", paths: ["src/a.ts"] }] }, rerun: "/dev-implement F1",
 };
 
@@ -28,7 +29,7 @@ export function linkedWorktreeFiles(): FakeFiles {
   const files = new FakeFiles();
   const write = files.write.bind(files);
   files.write = async (path: string, content: string) => {
-    if (path.startsWith("/workspace/.git/")) throw new Error("ENOTDIR");
+    if (path.startsWith(`${WORKSPACE}/.git/`)) throw new Error("ENOTDIR");
     return write(path, content);
   };
   return files;

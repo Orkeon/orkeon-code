@@ -7,6 +7,7 @@ import { FakeFiles } from "./support/fake-files.ts";
 import { FakePermissionRules } from "./support/fake-permission-rules.ts";
 import { FakeSessionStore } from "./support/fake-session-store.ts";
 import { FakeToolCatalogue } from "./support/fake-tool-catalogue.ts";
+import { WORKSPACE } from "../src/shared/domain/dev/path-rebase.ts";
 
 /** The deps of startDevStep, the session holding the rules `stored` (none stored when empty). */
 export function stepDeps(...stored: string[]) {
@@ -62,7 +63,7 @@ export const ACTIVE_WORKFLOW_CASES: readonly {
   { name: "takes the code from a plan path's folder", input: { batch: "F2", plan: "workbench/demo/DEMO-PLAN.md" }, expected: { code: "demo", phase: "F2" } },
   {
     name: "takes the code from an absolute plan path's folder",
-    input: { batch: "F2", plan: "/workspace/todo/demo/DEMO-PLAN.md" },
+    input: { batch: "F2", plan: `${WORKSPACE}/todo/demo/DEMO-PLAN.md` },
     expected: { code: "demo", phase: "F2" },
   },
   { name: "takes no code from a plan path without a folder", input: { batch: "F3", plan: "DEMO-PLAN.md" }, expected: { code: null, phase: "F3" } },

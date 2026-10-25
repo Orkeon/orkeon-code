@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 
 import { RULEABLE_TOOLS } from "./permission.ts";
 import type { ExtraTool, PermissionRule, RuleCheck } from "./permission.ts";
+import { WORKSPACE } from "../dev/path-rebase.ts";
 
 /** Each tool of `interface OrkeonBuiltInTools` (src/crews/.orkeon/orkeon.d.ts) with the depth-1 keys of
  *  its input: a ``/** `name` - …`` line, then `camel(input…{` and its keys until the brace closes, or
@@ -194,8 +195,8 @@ export const READ_RULE_CASES: readonly { name: string; text: unknown; rule: Perm
   { name: "reads an argument pattern of a deny", text: "deny shell_command command=git push*", rule: GIT_PUSH },
   {
     name: "reads an argument pattern up to its end, a second `=` included",
-    text: "deny file_write path=/workspace/a=b",
-    rule: { effect: "deny", tool: "file_write", argument: "path", pattern: "/workspace/a=b" },
+    text: `deny file_write path=${WORKSPACE}/a=b`,
+    rule: { effect: "deny", tool: "file_write", argument: "path", pattern: `${WORKSPACE}/a=b` },
   },
   { name: "takes a pair of double quotes off the pattern", text: 'allow shell_command command="npm test*"', rule: NPM_TEST },
   { name: "takes a pair of single quotes off the pattern", text: "allow shell_command command='npm test*'", rule: NPM_TEST },
@@ -336,7 +337,7 @@ export const CHECK_RULE_OK_CASES: readonly { name: string; text: string; ok: boo
   { name: "takes a rule on the shared memory's recall, on its query", text: "deny memory_recall query=x", ok: true },
   { name: "refuses a rule on the shared memory's recall, on an argument its schema lacks", text: "deny memory_recall path=x", ok: false },
   { name: "refuses a rule on run_build, on an argument it does not take", text: "deny run_build command=x", ok: false },
-  { name: "accepts a rule on a path a built-in tool takes", text: "deny file_write path=/workspace/secrets/*", ok: true },
+  { name: "accepts a rule on a path a built-in tool takes", text: `deny file_write path=${WORKSPACE}/secrets/*`, ok: true },
 ];
 
 export const RULEABLE_TOOL_CASES: readonly { name: string; tool: string; extras?: readonly string[]; spelled: string | undefined }[] = [

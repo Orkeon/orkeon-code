@@ -8,10 +8,11 @@ import { sheetFacts } from "../domain/sheet-facts.ts";
 import { gitDiffTracked, gitMethodGrep } from "../domain/commands.ts";
 import type { DevVerifyTarget, GateRun } from "./run-gate.ts";
 import type { CostIndex } from "../../../shared/application/ports.ts";
+import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
 
-export const DIR = "/workspace/workbench/demo/capture-F2";
+export const DIR = `${WORKSPACE}/workbench/demo/capture-F2`;
 export const BUILD = "dotnet build Demo.sln -c Release";
-export const BUILD_LOG = "/workspace/workbench/demo/logs/F2-build.txt";
+export const BUILD_LOG = `${WORKSPACE}/workbench/demo/logs/F2-build.txt`;
 
 function pack(yaml: string): RepoPack {
   const r = parseRepoPack(yaml);
@@ -47,8 +48,8 @@ export const CHANGED = ["src/Order.cs", "tests/LineTests.cs", "workbench/demo/DE
 /** The changed sources and a green build log on disk, the diff of Order.cs and the hit of the sheet's method. */
 export function fakes(): { files: FakeFiles; shell: FakeShell } {
   const files = new FakeFiles();
-  files.files.set("/workspace/src/Order.cs", "public class Order {}\n");
-  files.files.set("/workspace/tests/LineTests.cs", "public class LineTests { void Adds_a_line() {} }\n");
+  files.files.set(`${WORKSPACE}/src/Order.cs`, "public class Order {}\n");
+  files.files.set(`${WORKSPACE}/tests/LineTests.cs`, "public class LineTests { void Adds_a_line() {} }\n");
   files.files.set(BUILD_LOG, "Build succeeded.\nexit=0\n");
   const shell = new FakeShell();
   shell.results[gitDiffTracked("src/Order.cs") as string] = { stdout: "+public class Order {}\n" };
@@ -99,7 +100,7 @@ export function saveInALoop(member: string, line: number): Member {
 /** A cost index whose report holds `members`, `loops` loops in all. */
 export function costIndexOf(members: Member[], loops: number): CostIndex {
   return {
-    roots: async () => ["/workspace"],
+    roots: async () => [WORKSPACE],
     refresh: async () => [],
     accessCost: async () => ({
       report: { members, cost: { reads: 0, writes: 0, loops, lambdas: 0, memoryFilters: 0 } },

@@ -1,15 +1,16 @@
 // The folders, paths and commands the memory's layout and write rules are tested on.
+import { WORKSPACE } from "../dev/path-rebase.ts";
 
 /** The layout of the memory folder .orkeon/memory. */
 export const ORKEON_MEMORY_LAYOUT = {
-  root: "/workspace/.orkeon/memory",
-  candidates: "/workspace/.orkeon/memory/candidates",
-  candidatesList: "/workspace/.orkeon/memory/candidates/CANDIDATES.md",
-  entries: "/workspace/.orkeon/memory/entries",
-  refused: "/workspace/.orkeon/memory/refused.md",
-  index: "/workspace/.orkeon/memory/INDEX.md",
-  golden: "/workspace/.orkeon/memory/eval/golden.yaml",
-  entriesGlob: "/workspace/.orkeon/memory/entries/**/*.md",
+  root: `${WORKSPACE}/.orkeon/memory`,
+  candidates: `${WORKSPACE}/.orkeon/memory/candidates`,
+  candidatesList: `${WORKSPACE}/.orkeon/memory/candidates/CANDIDATES.md`,
+  entries: `${WORKSPACE}/.orkeon/memory/entries`,
+  refused: `${WORKSPACE}/.orkeon/memory/refused.md`,
+  index: `${WORKSPACE}/.orkeon/memory/INDEX.md`,
+  golden: `${WORKSPACE}/.orkeon/memory/eval/golden.yaml`,
+  entriesGlob: `${WORKSPACE}/.orkeon/memory/entries/**/*.md`,
 };
 
 /** The agent memory, a folder inside it, and one that holds it: none can be the shared memory. */
@@ -23,8 +24,8 @@ export const MEMORY_DIR = ".orkeon/memory";
 
 /** Spellings of a path under the memory's candidates or entries. */
 export const PROTECTED_SPELLINGS: readonly string[] = [
-  "/workspace/.orkeon/memory/entries/decision/x.md", ".orkeon/memory/entries/x.md", ".orkeon/memory/candidates/CANDIDATES.md",
-  "./.orkeon/memory/candidates/x.md", "/workspace/./.orkeon/memory/candidates/x.md", "/workspace//.orkeon/memory/candidates/x.md",
+  `${WORKSPACE}/.orkeon/memory/entries/decision/x.md`, ".orkeon/memory/entries/x.md", ".orkeon/memory/candidates/CANDIDATES.md",
+  "./.orkeon/memory/candidates/x.md", `${WORKSPACE}/./.orkeon/memory/candidates/x.md`, `${WORKSPACE}//.orkeon/memory/candidates/x.md`,
   ".orkeon/memory//candidates/x.md", "src/../.orkeon/memory/candidates/x.md", "../workspace/.orkeon/memory/entries/x.md",
 ];
 
@@ -60,7 +61,7 @@ export interface RefusalCase {
 /** File tools: a path in any letter case reaches the folder, the memory's other files and other tools do not. */
 export const PATH_REFUSALS: readonly RefusalCase[] = [
   { name: "a path in mixed case", tool: "file_write", input: { path: ".Orkeon/Memory/Entries/x.md" }, refused: true },
-  { name: "an absolute path in upper case", tool: "file_write", input: { path: "/workspace/.ORKEON/memory/CANDIDATES/x.md" }, refused: true },
+  { name: "an absolute path in upper case", tool: "file_write", input: { path: `${WORKSPACE}/.ORKEON/memory/CANDIDATES/x.md` }, refused: true },
   { name: "a path with a double slash", tool: "file_write", input: { path: "./.orkeon//Memory/entries/a/b.md" }, refused: true },
   { name: "refused.md", tool: "file_write", input: { path: ".orkeon/memory/refused.md" }, refused: false },
   { name: "a read of an entry", tool: "file_read", input: { path: ".orkeon/memory/entries/x.md" }, refused: false },
@@ -73,7 +74,7 @@ export const EDIT_BATCH_REFUSALS: readonly RefusalCase[] = [
     name: "a batch with one operation in the entries", tool: "edit_batch", refused: true,
     input: { operations: [
       { kind: "node_replace", path: "src/a.ts", selector: "x", text: "y" },
-      { kind: "ensure_section", path: "/workspace/.orkeon/memory/entries/decision/x.md", selector: "## A", text: "b" },
+      { kind: "ensure_section", path: `${WORKSPACE}/.orkeon/memory/entries/decision/x.md`, selector: "## A", text: "b" },
     ] },
   },
   {

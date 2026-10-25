@@ -4,6 +4,7 @@ import { FakeCodeIndex } from "../../../../tests/support/fake-code-index.ts";
 import type { AnchorClosure, CodeSearchHit, SymbolLocation } from "../../../shared/application/ports.ts";
 import type { GraphSummary } from "../../../shared/domain/code-intel-contract.ts";
 import type { InventoryRequest } from "./inventory.ts";
+import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
 
 /** An anchor index whose every closure is empty. */
 export const anchors = (): FakeAnchorIndex => new FakeAnchorIndex();
@@ -41,22 +42,22 @@ export const titlesOf = (n: number): Array<[string, string]> =>
 
 /** `per` hits for each title, scored from best to worst, title i's in src/t<i>/. */
 export const hitsOf = (titles: Array<[string, string]>, per: number): Record<string, CodeSearchHit[]> =>
-  Object.fromEntries(titles.map(([, t], i) => [t, Array.from({ length: per }, (_, j) => hit(`/workspace/src/t${i + 1}/h${j + 1}.ts::h`, 0.1 - j * 0.01))]));
+  Object.fromEntries(titles.map(([, t], i) => [t, Array.from({ length: per }, (_, j) => hit(`${WORKSPACE}/src/t${i + 1}/h${j + 1}.ts::h`, 0.1 - j * 0.01))]));
 
-export const BEST = "/workspace/src/t1/h1.ts::h";
+export const BEST = `${WORKSPACE}/src/t1/h1.ts::h`;
 
 /** Seven callers of the best entry. */
 export const SEVEN_CALLERS: AnchorClosure = {
-  nodes: Array.from({ length: 7 }, (_, i) => `/workspace/src/caller${i}.ts::c`), unresolved: [], truncated: false,
+  nodes: Array.from({ length: 7 }, (_, i) => `${WORKSPACE}/src/caller${i}.ts::c`), unresolved: [], truncated: false,
 };
 
 /** A module graph: title 1's module imports a twice, title 2's imports b. */
 export const MODULE_GRAPH: GraphSummary = {
   nodes: [], nodeCount: 3, edgeCount: 3, cycleCount: 0,
   edges: [
-    { from: "/workspace/src/t1/h1.ts#module@0", to: "/workspace/src/shared/a.ts#module@0", kind: "imports" },
-    { from: "/workspace/src/t1/h1.ts#module@0", to: "/workspace/src/shared/a.ts#module@0", kind: "imports" },
-    { from: "/workspace/src/t2/h1.ts#module@0", to: "/workspace/src/shared/b.ts#module@0", kind: "imports" },
+    { from: `${WORKSPACE}/src/t1/h1.ts#module@0`, to: `${WORKSPACE}/src/shared/a.ts#module@0`, kind: "imports" },
+    { from: `${WORKSPACE}/src/t1/h1.ts#module@0`, to: `${WORKSPACE}/src/shared/a.ts#module@0`, kind: "imports" },
+    { from: `${WORKSPACE}/src/t2/h1.ts#module@0`, to: `${WORKSPACE}/src/shared/b.ts#module@0`, kind: "imports" },
   ],
 };
 
@@ -65,21 +66,21 @@ export const FIVE_CALLERS = ["src/caller0.ts::c", "src/caller1.ts::c", "src/call
 /** The closure of Order: its own subtree, a sibling that only starts like it, and two outer callers. */
 export const ORDER_CLOSURE: AnchorClosure = {
   nodes: [
-    "/workspace/src/app/order.ts::Order", "/workspace/src/app/order.ts::Order::add",
-    "/workspace/src/app/order.ts::Order::add::inner", "/workspace/src/app/order.ts::OrderLine",
-    "/workspace/src/app/cart.ts::Cart::checkout", "/workspace/tests/order.test.ts::adds a line",
+    `${WORKSPACE}/src/app/order.ts::Order`, `${WORKSPACE}/src/app/order.ts::Order::add`,
+    `${WORKSPACE}/src/app/order.ts::Order::add::inner`, `${WORKSPACE}/src/app/order.ts::OrderLine`,
+    `${WORKSPACE}/src/app/cart.ts::Cart::checkout`, `${WORKSPACE}/tests/order.test.ts::adds a line`,
   ],
   unresolved: [], truncated: false,
 };
 
 /** The hits of the drop test: under .claude/, the work folder, a build output, a re-export and a kept file. */
 export const DROPPED_HITS: CodeSearchHit[] = [
-  hit("/workspace/.claude/skills/x.ts::a"), hit("/workspace/workbench/prune/notes.ts::b"),
-  hit("/workspace/dist/prune.js::c"), hit("/workspace/src/app/reexport.ts::d"), hit("/workspace/src/app/run.ts::e"),
+  hit(`${WORKSPACE}/.claude/skills/x.ts::a`), hit(`${WORKSPACE}/workbench/prune/notes.ts::b`),
+  hit(`${WORKSPACE}/dist/prune.js::c`), hit(`${WORKSPACE}/src/app/reexport.ts::d`), hit(`${WORKSPACE}/src/app/run.ts::e`),
 ];
 
 export const CLOSURE_WARNINGS = [
-  "closure of /workspace/src/a.ts::a truncated",
-  "/workspace/src/b.ts::b unknown to batch_anchors",
-  "anchors failed for /workspace/src/c.ts::c: store offline",
+  `closure of ${WORKSPACE}/src/a.ts::a truncated`,
+  `${WORKSPACE}/src/b.ts::b unknown to batch_anchors`,
+  `anchors failed for ${WORKSPACE}/src/c.ts::c: store offline`,
 ];

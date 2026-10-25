@@ -17,8 +17,9 @@ import { excludePathspecs, gitMethodGrep } from "../domain/commands.ts";
 import type { ValidationRunner } from "./audit.ts";
 import { runDevVerify } from "./run-dev-verify.ts";
 import type { DevVerifyInputs } from "./run-dev-verify.ts";
+import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
 
-export const DIR = "/workspace/workbench/demo";
+export const DIR = `${WORKSPACE}/workbench/demo`;
 export const VERDICT = `${DIR}/DEMO-VERIFY-F2.md`;
 const EX = "':(exclude,glob)**/bin/**' ':(exclude,glob)**/obj/**'";
 const UNTRACKED = `git ls-files --others --exclude-standard -- . ${EX}`;
@@ -38,15 +39,15 @@ export const VALIDATION = "node --test tests/a.test.ts";
 
 export function setup() {
   const files = new FakeFiles();
-  files.files.set("/workspace/.orkeon/repo.yaml", PACK);
+  files.files.set(`${WORKSPACE}/.orkeon/repo.yaml`, PACK);
   files.files.set(`${DIR}/DEMO-PLAN-F2.md`, SHEET);
   files.files.set(`${DIR}/DEMO-PLAN.md`, PLAN);
-  files.files.set("/workspace/tests/a.test.ts", "describe(\"ShowsTheState\", () => {});\n");
-  files.listings.set("/workspace", ["workbench", "src", "tests"]);
-  files.listings.set("/workspace/workbench", ["demo"]);
+  files.files.set(`${WORKSPACE}/tests/a.test.ts`, "describe(\"ShowsTheState\", () => {});\n");
+  files.listings.set(WORKSPACE, ["workbench", "src", "tests"]);
+  files.listings.set(`${WORKSPACE}/workbench`, ["demo"]);
   files.listings.set(DIR, ["DEMO-PLAN-F2.md", "DEMO-PLAN.md"]);
   const shell = new FakeShell();
-  shell.results[GIT_TOPLEVEL] = { stdout: "/workspace\n" };
+  shell.results[GIT_TOPLEVEL] = { stdout: `${WORKSPACE}\n` };
   shell.results["git diff --name-only HEAD"] = { stdout: "src/a.ts\nworkbench/demo/DEMO-PLAN-F2.md\n" };
   shell.results[UNTRACKED] = { stdout: "tests/a.test.ts\n" };
   shell.results[TRAIT_GREP] = { stdout: 'tests/a.test.ts:3:[Trait("BR", "BR-01")]\n' };
@@ -87,7 +88,7 @@ export function measuringCostIndex(): FakeCostIndex {
   const costIndex = new FakeCostIndex();
   costIndex.report = {
     members: [{
-      member: "/workspace/src/a.ts::show",
+      member: `${WORKSPACE}/src/a.ts::show`,
       portCalls: [{ receiver: "this.store", method: "load", line: 2, inLoop: false, inLambda: false }],
       memoryFilters: [], cost: { reads: 1, writes: 0, loops: 0, lambdas: 0, memoryFilters: 0 },
     }],
@@ -134,14 +135,14 @@ export const UNFINISHED = "# DEMO-VERIFY-F2 — 2026-10-21 10:10 — resume\n\n#
 
 /** A second plan folder with a sheet for F2. */
 function severalSheets(f: Setup): void {
-  f.files.listings.set("/workspace/workbench", ["demo", "other"]);
-  f.files.listings.set("/workspace/workbench/other", ["OTHER-PLAN-F2.md"]);
+  f.files.listings.set(`${WORKSPACE}/workbench`, ["demo", "other"]);
+  f.files.listings.set(`${WORKSPACE}/workbench/other`, ["OTHER-PLAN-F2.md"]);
 }
 
 /** A plan and its F2 sheet under .claude/, outside the work folder. */
 export function planOutsideWorkFolder(f: Setup): void {
-  f.files.files.set("/workspace/.claude/x/X-PLAN.md", "# X-PLAN\n");
-  f.files.files.set("/workspace/.claude/x/X-PLAN-F2.md", SHEET);
+  f.files.files.set(`${WORKSPACE}/.claude/x/X-PLAN.md`, "# X-PLAN\n");
+  f.files.files.set(`${WORKSPACE}/.claude/x/X-PLAN-F2.md`, SHEET);
 }
 
 export interface RefusalCase {
@@ -155,10 +156,10 @@ const nothing = (): void => {};
 
 export const REFUSAL_CASES: RefusalCase[] = [
   {
-    name: "refuses a work tree whose top is not /workspace",
-    arrange: (f) => { f.shell.results[GIT_TOPLEVEL] = { stdout: "/workspace/sub\n" }; },
+    name: `refuses a work tree whose top is not ${WORKSPACE}`,
+    arrange: (f) => { f.shell.results[GIT_TOPLEVEL] = { stdout: `${WORKSPACE}/sub\n` }; },
     input: { batch: "F2" },
-    expected: "dev-verify: the git work tree is /workspace/sub, not /workspace: run Orkeon Code at the top of the repository",
+    expected: `dev-verify: the git work tree is ${WORKSPACE}/sub, not ${WORKSPACE}: run Orkeon Code at the top of the repository`,
   },
   {
     name: "refuses to run outside a git work tree",

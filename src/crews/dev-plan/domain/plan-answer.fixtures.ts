@@ -3,6 +3,7 @@
 import { readFileSync } from "node:fs";
 
 import type { AnchorRef, PlanAnswer, PlanCheckContext } from "./plan-answer.ts";
+import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
 
 const FIXTURES = new URL("../../../../tests/fixtures/dev/plan/", import.meta.url);
 const fixture = (name: string): string => readFileSync(new URL(name, FIXTURES), "utf8");
@@ -174,7 +175,7 @@ const thirdDotted = (a: PlanAnswer): void => {
   a.batches.push(b);
 };
 
-const UNREACHABLE_PATHS = [".claude/x.ts", ".orkeon/x.ts", "workbench/prune/x.ts", "/workspace/src/x.ts", "src/../x.ts"];
+const UNREACHABLE_PATHS = [".claude/x.ts", ".orkeon/x.ts", "workbench/prune/x.ts", `${WORKSPACE}/src/x.ts`, "src/../x.ts"];
 const SPELT_PATHS = [["./.claude/hooks/x.sh", ".claude/hooks/x.sh"], [".//workbench/prune/x.ts", "workbench/prune/x.ts"], ["src/./../x.ts", "src/../x.ts"]];
 
 export const ANCHOR_CASES: readonly RuleCase[] = [

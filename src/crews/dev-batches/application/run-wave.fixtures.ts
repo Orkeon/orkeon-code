@@ -6,6 +6,7 @@ import { parseBatchesState } from "../../../shared/domain/dev/batches-state.ts";
 import type { BatchesLogEntry } from "../../../shared/domain/dev/batches-state.ts";
 import { FakeFiles } from "../../../../tests/support/fake-files.ts";
 import { FakeShell } from "../../../../tests/support/fake-shell.ts";
+import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
 
 export const NOW = new Date(Date.UTC(2026, 9, 24, 10, 0));
 export const q = (s: string) => `'${s}'`;
@@ -20,17 +21,17 @@ export const rebase = (b: string) => `git -C ${q(`.orkeon/worktrees/prune-${b}`)
 export const status = (b: string) => `git -C ${q(`.orkeon/worktrees/prune-${b}`)} status --porcelain --untracked-files=all`;
 export const IGNORED = `git check-ignore -q '.orkeon/dev/prune'`;
 export const MERGED = (b: string) => `git merge-base --is-ancestor ${q(`refs/heads/batches/prune/${b}`)} 'feat/prune'`;
-export const WT = (b: string) => `/workspace/.orkeon/worktrees/prune-${b}`;
+export const WT = (b: string) => `${WORKSPACE}/.orkeon/worktrees/prune-${b}`;
 export const SHEET = (b: string) => `todo/prune/PRUNE-PLAN-${b}.md`;
 
 /** The main checkout's work folder: the plan and the two sheets, each folder listed by its parent. */
 export function mainFiles(): FakeFiles {
   const files = new FakeFiles();
   for (const [path, content] of [["todo/prune/PRUNE-PLAN.md", "plan"], [SHEET("F2"), "sheet F2"], [SHEET("F3"), "sheet F3"]]) {
-    files.files.set(`/workspace/${path}`, content);
+    files.files.set(`${WORKSPACE}/${path}`, content);
   }
-  files.listings.set("/workspace/todo", ["prune"]);
-  files.listings.set("/workspace/todo/prune", ["PRUNE-PLAN.md", "PRUNE-PLAN-F2.md", "PRUNE-PLAN-F3.md"]);
+  files.listings.set(`${WORKSPACE}/todo`, ["prune"]);
+  files.listings.set(`${WORKSPACE}/todo/prune`, ["PRUNE-PLAN.md", "PRUNE-PLAN-F2.md", "PRUNE-PLAN-F3.md"]);
   return files;
 }
 
@@ -91,7 +92,7 @@ export function refuseFirstMerge(shell: FakeShell, batch: string): void {
 export function traceCheckoutWrites(files: FakeFiles, shell: FakeShell): void {
   const write = files.write.bind(files);
   files.write = async (path, content) => {
-    if (!path.startsWith("/workspace/.orkeon/worktrees/")) shell.commands.push(`write ${path}`);
+    if (!path.startsWith(`${WORKSPACE}/.orkeon/worktrees/`)) shell.commands.push(`write ${path}`);
     return write(path, content);
   };
 }
@@ -122,7 +123,7 @@ export function tickingClock(): () => Date {
   return () => new Date(Date.UTC(2026, 9, 24, 10, minute++));
 }
 
-export const WORKTREE_ROOT_REFUSED = "The agent working root '/workspace/.orkeon/worktrees/prune-F2' is not under any mount of the file system.";
+export const WORKTREE_ROOT_REFUSED = `The agent working root '${WORKSPACE}/.orkeon/worktrees/prune-F2' is not under any mount of the file system.`;
 
 export const NOT_IGNORED_LINE = "BLOCKED — worktree: .orkeon/dev/prune is not ignored by git: a parallel run needs .orkeon/ ignored (.gitignore or .git/info/exclude); or run with --concurrency 1";
 
@@ -134,7 +135,7 @@ export const F2_RELAUNCH_LINE = "→ F2's code, sheet and verdict stay in .orkeo
 
 // runBatchChain
 
-export const RUN = { code: "prune", batch: "F2", name: "prune-F2", root: "/workspace/.orkeon/worktrees/prune-F2", branch: "batches/prune/F2", steps: 2 };
+export const RUN = { code: "prune", batch: "F2", name: "prune-F2", root: `${WORKSPACE}/.orkeon/worktrees/prune-F2`, branch: "batches/prune/F2", steps: 2 };
 export const LAUNCH = { plan: "prune", hooks: [], effort: "high", permissionMode: "bypassPermissions", permissionRules: [], githubTool: false };
 export const VERIFY_INPUT = { batch: "F2", plan: "todo/prune/PRUNE-PLAN.md", mode: "fast" };
 /** /dev-implement's answer once its steps are green: the audit next. */

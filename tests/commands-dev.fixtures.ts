@@ -14,6 +14,7 @@ import { createConfigStore } from "../src/shared/application/config-store.ts";
 import { FakeFiles } from "./support/fake-files.ts";
 import { FakeShell } from "./support/fake-shell.ts";
 import { FakeSessionStore } from "./support/fake-session-store.ts";
+import { WORKSPACE } from "../src/shared/domain/dev/path-rebase.ts";
 
 const DEMO_DIR = fileURLToPath(new URL("./fixtures/dev/workbench/demo/", import.meta.url));
 const BOTH = checkIgnoreCommand([ORKEON_IGNORE_PROBE, "workbench/"]);
@@ -21,8 +22,8 @@ const BOTH = checkIgnoreCommand([ORKEON_IGNORE_PROBE, "workbench/"]);
 export const PROBE_WARNING =
   "warning: .orkeon/config.json is not ignored by git: add it to .gitignore (Orkeon Code never edits it)";
 
-export const DEMO_PLAN = "/workspace/workbench/demo/DEMO-PLAN.md";
-export const SPEC = "/workspace/workbench/demo/SPEC-demo.md";
+export const DEMO_PLAN = `${WORKSPACE}/workbench/demo/DEMO-PLAN.md`;
+export const SPEC = `${WORKSPACE}/workbench/demo/SPEC-demo.md`;
 
 /** The demo fixture at /workspace/workbench/demo; git ignores workbench/ but not the probe. */
 export function devDeps() {
@@ -30,10 +31,10 @@ export function devDeps() {
   const shell = new FakeShell();
   const config = createConfigStore({ files, session: new FakeSessionStore() });
   const names = readdirSync(DEMO_DIR).sort();
-  for (const name of names) files.files.set(`/workspace/workbench/demo/${name}`, readFileSync(DEMO_DIR + name, "utf-8"));
-  files.listings.set("/workspace", ["workbench"]);
-  files.listings.set("/workspace/workbench", ["demo"]);
-  files.listings.set("/workspace/workbench/demo", names);
+  for (const name of names) files.files.set(`${WORKSPACE}/workbench/demo/${name}`, readFileSync(DEMO_DIR + name, "utf-8"));
+  files.listings.set(WORKSPACE, ["workbench"]);
+  files.listings.set(`${WORKSPACE}/workbench`, ["demo"]);
+  files.listings.set(`${WORKSPACE}/workbench/demo`, names);
   shell.results[BOTH] = { exitCode: 0, stdout: "workbench/\n" };
   return { files, shell, config };
 }
@@ -55,7 +56,7 @@ export const RELAUNCHED_F2_END = " — GAPS 2026-10-21 09:40 resume: 1 Major —
 
 /** The batches log records F2 relaunched after its verdict. */
 export function relaunchF2(deps: DevDeps): void {
-  const log = "/workspace/workbench/demo/DEMO-BATCHES-STATE.md";
+  const log = `${WORKSPACE}/workbench/demo/DEMO-BATCHES-STATE.md`;
   deps.files.files.set(log, `${deps.files.files.get(log) ?? ""}- 2026-10-21 09:45 F2 relaunched\n`);
 }
 
@@ -63,10 +64,10 @@ export function relaunchF2(deps: DevDeps): void {
 export function makeFilesDisagree(deps: DevDeps): void {
   const text = deps.files.files.get(DEMO_PLAN) ?? "";
   deps.files.files.set(DEMO_PLAN, text.replace("### Batch F3 — Docs — open", "### Batch F3 — Docs — done (2026-10-22)"));
-  deps.files.files.set("/workspace/workbench/demo/DEMO-VERIFY-F2.md",
+  deps.files.files.set(`${WORKSPACE}/workbench/demo/DEMO-VERIFY-F2.md`,
     "# DEMO-VERIFY-F2 — 2026-10-22 08:00 — fast\n\n## Verdict — VALID\n\nNone.\n");
-  deps.files.files.set("/workspace/workbench/demo/DEMO-PLAN-F7.md", "# DEMO-PLAN-F7 — Stray\n");
-  deps.files.listings.get("/workspace/workbench/demo")?.push("DEMO-PLAN-F7.md");
+  deps.files.files.set(`${WORKSPACE}/workbench/demo/DEMO-PLAN-F7.md`, "# DEMO-PLAN-F7 — Stray\n");
+  deps.files.listings.get(`${WORKSPACE}/workbench/demo`)?.push("DEMO-PLAN-F7.md");
 }
 
 export const DISAGREEMENT_WARNINGS = [
@@ -86,30 +87,30 @@ export const CODES_LINES = [
 /** Thirty codes code-00 … code-29, each with a spec and a plan, replace the demo. */
 export function thirtyCodes(deps: DevDeps): string[] {
   const codes = Array.from({ length: 30 }, (_, i) => `code-${String(i).padStart(2, "0")}`);
-  deps.files.listings.set("/workspace/workbench", codes);
-  for (const c of codes) deps.files.listings.set(`/workspace/workbench/${c}`, [`SPEC-${c}.md`, `${c}-PLAN.md`]);
+  deps.files.listings.set(`${WORKSPACE}/workbench`, codes);
+  for (const c of codes) deps.files.listings.set(`${WORKSPACE}/workbench/${c}`, [`SPEC-${c}.md`, `${c}-PLAN.md`]);
   return codes;
 }
 
 /** Listing the work folder fails with "permission denied". */
 export function failWorkFolderListing(deps: DevDeps): void {
   deps.files.list = async (path: string, max: number) => {
-    if (path === "/workspace/workbench") throw new Error("permission denied");
+    if (path === `${WORKSPACE}/workbench`) throw new Error("permission denied");
     return (deps.files.listings.get(path) ?? []).slice(0, max);
   };
 }
 
 /** A folder `bare` beside demo that holds no artefact. */
 export function addBareFolder(deps: DevDeps): void {
-  deps.files.listings.set("/workspace/workbench", ["demo", "bare"]);
-  deps.files.listings.set("/workspace/workbench/bare", ["notes.md"]);
+  deps.files.listings.set(`${WORKSPACE}/workbench`, ["demo", "bare"]);
+  deps.files.listings.set(`${WORKSPACE}/workbench/bare`, ["notes.md"]);
 }
 
 /** The checkout is a linked worktree whose work folder, `tasks`, is the main worktree's /home/main/tasks. */
 export function linkedWorktree(deps: DevDeps): void {
-  deps.files.files.set("/workspace/.orkeon/config.json", JSON.stringify({ "dev.workDir": "tasks" }));
+  deps.files.files.set(`${WORKSPACE}/.orkeon/config.json`, JSON.stringify({ "dev.workDir": "tasks" }));
   deps.shell.results[GIT_WORKTREE_LIST] = { stdout: "worktree /home/main\nHEAD 0000000\nbranch refs/heads/main\n" };
-  deps.shell.results[GIT_TOPLEVEL] = { stdout: "/workspace\n" };
+  deps.shell.results[GIT_TOPLEVEL] = { stdout: `${WORKSPACE}\n` };
   deps.shell.results[gitDirProbe("/home/main/tasks")] = { exitCode: 0, stdout: ".git\n" };
   deps.shell.results[checkIgnoreCommand([ORKEON_IGNORE_PROBE])] = { exitCode: 0, stdout: ".orkeon/config.json\n" };
 }
@@ -131,8 +132,8 @@ export function fortyBatchPlan(deps: DevDeps): void {
   const batches = Array.from({ length: 40 }, (_, i) => `### Batch F${i + 1} — ${name} — ${state}\n- [x] 1. a\n`).join("\n");
   deps.files.files.set(DEMO_PLAN, `# DEMO-PLAN — f\n\n${batches}`);
   const stray = Array.from({ length: 12 }, (_, i) => `DEMO-PLAN-F${100 + i}.md`);
-  for (const n of stray) deps.files.files.set(`/workspace/workbench/demo/${n}`, `# ${n} — x\n`);
-  deps.files.listings.get("/workspace/workbench/demo")?.push(...stray);
+  for (const n of stray) deps.files.files.set(`${WORKSPACE}/workbench/demo/${n}`, `# ${n} — x\n`);
+  deps.files.listings.get(`${WORKSPACE}/workbench/demo`)?.push(...stray);
 }
 
 // ── argument lines ───────────────────────────────────────────────────────
@@ -262,9 +263,9 @@ export const PLAN_REFUSED_CASES: readonly RefusedLineCase[] = [
 
 // ── /dev-learn decisions ─────────────────────────────────────────────────
 
-export const LEARN_DIR = "/workspace/workbench/learn-2026-10-21";
-export const STATE = "/workspace/.orkeon/dev-learn-state.json";
-export const REFUSED = "/workspace/.orkeon/memory/refused.md";
+export const LEARN_DIR = `${WORKSPACE}/workbench/learn-2026-10-21`;
+export const STATE = `${WORKSPACE}/.orkeon/dev-learn-state.json`;
+export const REFUSED = `${WORKSPACE}/.orkeon/memory/refused.md`;
 export const REMOTE = "git remote get-url origin";
 const NOW = () => new Date(2026, 9, 22, 14, 5);
 
@@ -297,7 +298,7 @@ function proposals(): ProposalsFile {
 /** The demo fixture plus one learn-<date>/ folder holding the two motifs. */
 export function learnDeps() {
   const deps = { ...devDeps(), clock: NOW };
-  deps.files.listings.set("/workspace/workbench", ["demo", "learn-2026-10-21"]);
+  deps.files.listings.set(`${WORKSPACE}/workbench`, ["demo", "learn-2026-10-21"]);
   deps.files.files.set(`${LEARN_DIR}/proposals.json`, serializeProposalsFile(proposals()));
   deps.shell.results[REMOTE] = { exitCode: 0, stdout: "https://github.com/Orkeon/orkeon-code.git\n" };
   return deps;
@@ -346,8 +347,8 @@ export const DECIDED_OR_UNKNOWN_LINES = [
 
 /** A newer learn folder whose proposals.json has the wrong shape. */
 export function addUnreadableProposals(deps: LearnDeps): void {
-  deps.files.listings.set("/workspace/workbench", ["demo", "learn-2026-10-21", "learn-2026-10-22"]);
-  deps.files.files.set("/workspace/workbench/learn-2026-10-22/proposals.json", "[]");
+  deps.files.listings.set(`${WORKSPACE}/workbench`, ["demo", "learn-2026-10-21", "learn-2026-10-22"]);
+  deps.files.files.set(`${WORKSPACE}/workbench/learn-2026-10-22/proposals.json`, "[]");
 }
 
 /** Every write fails with "read-only mount". */

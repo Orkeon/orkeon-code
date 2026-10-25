@@ -9,6 +9,7 @@ import { FakeFiles } from "./support/fake-files.ts";
 import { FakeShell } from "./support/fake-shell.ts";
 import { FakeTelemetry } from "./support/fake-telemetry.ts";
 import { FakeToolCatalogue } from "./support/fake-tool-catalogue.ts";
+import { WORKSPACE } from "../src/shared/domain/dev/path-rebase.ts";
 
 /** A host where every check passes; `ignored` sets aside a project value per key, `deps` is what runDoctor takes. */
 export function doctorHost() {
@@ -23,7 +24,7 @@ export function doctorHost() {
   const catalogue = new FakeToolCatalogue();
   for (const t of [...ESSENTIAL_TOOLS, ...CODE_INTEL_TOOLS]) catalogue.tools.set(t, {});
   const files = new FakeFiles();
-  files.mountTable = [{ path: "/workspace", rights: "rw" }, { path: "/crews", rights: "ro" }];
+  files.mountTable = [{ path: WORKSPACE, rights: "rw" }, { path: "/crews", rights: "ro" }];
   const ignored = new Map<string, ConfigResolution["ignored"]>();
   const config = {
     readValue: async (key: string): Promise<ConfigResolution> =>
@@ -49,7 +50,7 @@ export function healthyTable(): DoctorRow[] {
     { check: "llm: declared catalogue", result: PASS, detail: "kimi-k3, deepseek-chat" },
     { check: "tools: essential", result: PASS, detail: `${tools} registered, all ${ESSENTIAL_TOOLS.length} essentials present` },
     { check: "tools: code intelligence", result: PASS, detail: `all ${CODE_INTEL_TOOLS.length} present` },
-    { check: "vfs: mounts", result: PASS, detail: "/workspace(rw) /crews(ro)" },
+    { check: "vfs: mounts", result: PASS, detail: `${WORKSPACE}(rw) /crews(ro)` },
     { check: "sessions: outside the project", result: PASS, detail: "nothing in .orkeon/sessions" },
     { check: "settings: project file", result: PASS, detail: "widens nothing" },
   ];

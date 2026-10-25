@@ -7,17 +7,18 @@ import { fileURLToPath } from "node:url";
 import { FakeFiles } from "../../../../tests/support/fake-files.ts";
 import type { WorkFolder } from "../../../shared/application/dev/resolve-work-folder.ts";
 import type { LearnRow } from "../../../shared/domain/shared-memory/verdict-rows.ts";
+import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
 
 const root = fileURLToPath(new URL("../../../../tests/fixtures/dev/learn/", import.meta.url));
 
 /** A file the harness's script recorded under tests/fixtures/dev/learn. */
 export const recorded = (name: string): string => readFileSync(join(root, name), "utf8");
 
-export const W = "/workspace/workbench";
+export const W = `${WORKSPACE}/workbench`;
 export const WORK: WorkFolder = { folder: "workbench", vfsPath: W, outcome: "default", request: null, exists: true, note: null };
-export const ORKEON_STATE = "/workspace/.orkeon/dev-learn-state.json";
-export const HARNESS_STATE = "/workspace/.claude/local/dev-learn-state.json";
-export const REFUSED = "/workspace/.orkeon/memory/refused.md";
+export const ORKEON_STATE = `${WORKSPACE}/.orkeon/dev-learn-state.json`;
+export const HARNESS_STATE = `${WORKSPACE}/.claude/local/dev-learn-state.json`;
+export const REFUSED = `${WORKSPACE}/.orkeon/memory/refused.md`;
 
 /** The fixture's work folder as FakeFiles holds it: each folder listed, each file readable. */
 export function fixtureFiles(): FakeFiles {
@@ -72,7 +73,7 @@ export function filesWithRefused(): FakeFiles {
 export function filesWithTwoRefused(): FakeFiles {
   const files = fixtureFiles();
   files.files.set(REFUSED, "rounding-in-handlers | ledger | 2026-10-01 | Rounding inside handlers\n");
-  files.files.set("/workspace/docs/memory/refused.md", "empty-exports | ledger | 2026-10-02 | Exports skip the empty case\nbad\n");
+  files.files.set(`${WORKSPACE}/docs/memory/refused.md`, "empty-exports | ledger | 2026-10-02 | Exports skip the empty case\nbad\n");
   return files;
 }
 

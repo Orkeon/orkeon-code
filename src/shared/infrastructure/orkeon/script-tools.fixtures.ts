@@ -2,8 +2,9 @@
 import type { WrappedTools } from "../../application/dev/wrapped-tools.ts";
 import { RUN_BUILD, RUN_TESTS, RUN_VALIDATION, scriptToolSlot } from "./script-tools.ts";
 import type { ToolBuilderFactory, ValidationCalls } from "./script-tools.ts";
+import { WORKSPACE } from "../../domain/dev/path-rebase.ts";
 
-export const ROOT = "/workspace/.orkeon/worktrees/prune-F2";
+export const ROOT = `${WORKSPACE}/.orkeon/worktrees/prune-F2`;
 
 export interface Built { name?: string; description?: string; schema?: JsonSchema; access?: string; fn?: (input: unknown) => unknown }
 
@@ -66,9 +67,9 @@ export function rootedSlots() {
   const vslot = scriptToolSlot<ValidationCalls>();
   const seen: unknown[] = [];
   slot.bind({
-    async runTests(input) { seen.push(input); return { ok: false, exitCode: 1, tail: "/workspace/tests/a.test.ts failed", log: "/workspace/workbench/prune/logs/t.log" } as any; },
-    async runBuild() { return { ok: true, log: "/workspace/workbench/prune/logs/b.log" } as any; },
+    async runTests(input) { seen.push(input); return { ok: false, exitCode: 1, tail: `${WORKSPACE}/tests/a.test.ts failed`, log: `${WORKSPACE}/workbench/prune/logs/t.log` } as any; },
+    async runBuild() { return { ok: true, log: `${WORKSPACE}/workbench/prune/logs/b.log` } as any; },
   });
-  vslot.bind({ async run(command) { return { report: { command, outcome: "exit 1", tail: "at /workspace/src/a.ts:3" }, line: null }; } });
+  vslot.bind({ async run(command) { return { report: { command, outcome: "exit 1", tail: `at ${WORKSPACE}/src/a.ts:3` }, line: null }; } });
   return { slot, vslot, seen };
 }

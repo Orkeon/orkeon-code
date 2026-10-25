@@ -4,6 +4,7 @@ import {
   FOLDER_READ_TOOLS, gitConfigSets, PATH_READ_TOOLS, PATH_WRITE_TOOLS, RULE_SETS, UNSCOPED_WRITE_TOOLS, WRITTEN_TEXT,
 } from "./rule-sets.ts";
 import type { RuleSetId } from "./rule-sets.ts";
+import { WORKSPACE } from "../dev/path-rebase.ts";
 
 /** git-readonly as the dev crews apply it: its rules, then the code's reading of a git config that sets a value. */
 export function gitRefused(command: string): boolean {
@@ -80,23 +81,23 @@ export const REFUSAL_CASES: readonly RefusalCase[] = [
     name: "read-noise refuses reads under build outputs, .git and node_modules, absolute or relative",
     id: "read-noise", tool: "file_read", argument: "path", refused: true,
     values: [
-      "/workspace/node_modules/x/index.js", "node_modules/x/index.js", "/workspace/.git/config",
-      "/workspace/obj/Debug/a.dll", "/workspace/src/bin/cli.js",
+      `${WORKSPACE}/node_modules/x/index.js`, "node_modules/x/index.js", `${WORKSPACE}/.git/config`,
+      `${WORKSPACE}/obj/Debug/a.dll`, `${WORKSPACE}/src/bin/cli.js`,
     ],
   },
   {
     name: "read-noise lets the sources, .gitignore and the names that only start like an output be read",
     id: "read-noise", tool: "file_read", argument: "path", refused: false,
-    values: ["/workspace/src/index.ts", "/workspace/.gitignore", "/workspace/binary/x", "/workspace/docs/bin.md"],
+    values: [`${WORKSPACE}/src/index.ts`, `${WORKSPACE}/.gitignore`, `${WORKSPACE}/binary/x`, `${WORKSPACE}/docs/bin.md`],
   },
   ...PATH_READ_TOOLS.flatMap((tool): RefusalCase[] => [
     {
       name: `read-noise refuses the same paths to ${tool}, a tool that reads one path`,
-      id: "read-noise", tool, argument: "path", values: ["node_modules/x", "/workspace/.git/HEAD"], refused: true,
+      id: "read-noise", tool, argument: "path", values: ["node_modules/x", `${WORKSPACE}/.git/HEAD`], refused: true,
     },
     {
       name: `read-noise lets ${tool} read the sources`,
-      id: "read-noise", tool, argument: "path", values: ["/workspace/src", "src/index.ts"], refused: false,
+      id: "read-noise", tool, argument: "path", values: [`${WORKSPACE}/src`, "src/index.ts"], refused: false,
     },
   ]),
   {
@@ -126,32 +127,32 @@ export const REFUSAL_CASES: readonly RefusalCase[] = [
     name: "state-files refuses writes to the files code owns",
     id: "state-files", tool: "file_write", argument: "path", refused: true,
     values: [
-      "/workspace/workbench/demo/DEMO-BATCHES-STATE.md", "/workspace/workbench/demo/DEMO-STATE-F1.md",
-      "/workspace/workbench/demo/DEMO-VERIFY-F2.md", "/workspace/workbench/demo/capture-F2/index.txt",
-      "/workspace/.orkeon/repo.yaml", ".orkeon/config.json", "/workspace/.claude/settings.json", ".claude/x",
+      `${WORKSPACE}/workbench/demo/DEMO-BATCHES-STATE.md`, `${WORKSPACE}/workbench/demo/DEMO-STATE-F1.md`,
+      `${WORKSPACE}/workbench/demo/DEMO-VERIFY-F2.md`, `${WORKSPACE}/workbench/demo/capture-F2/index.txt`,
+      `${WORKSPACE}/.orkeon/repo.yaml`, ".orkeon/config.json", `${WORKSPACE}/.claude/settings.json`, ".claude/x",
     ],
   },
   {
     name: "state-files lets the sources, a plan and the docs be written",
     id: "state-files", tool: "file_write", argument: "path", refused: false,
-    values: ["/workspace/src/x.ts", "/workspace/workbench/demo/DEMO-PLAN.md", "/workspace/docs/orkeon.md"],
+    values: [`${WORKSPACE}/src/x.ts`, `${WORKSPACE}/workbench/demo/DEMO-PLAN.md`, `${WORKSPACE}/docs/orkeon.md`],
   },
   ...PATH_WRITE_TOOLS.flatMap((tool): RefusalCase[] => [
     {
       name: `state-files leaves a batch's worktree under .orkeon/worktrees writable to ${tool}`,
       id: "state-files", tool, argument: "path", refused: false,
       values: [
-        "/workspace/.orkeon/worktrees/calc-F1/src/stats.js", ".orkeon/worktrees/calc-F1/src/stats.test.js",
-        "/workspace/.orkeon/worktrees/calc-F1/workbench/calc/CALC-PLAN-F1.md",
+        `${WORKSPACE}/.orkeon/worktrees/calc-F1/src/stats.js`, ".orkeon/worktrees/calc-F1/src/stats.test.js",
+        `${WORKSPACE}/.orkeon/worktrees/calc-F1/workbench/calc/CALC-PLAN-F1.md`,
       ],
     },
     {
       name: `state-files refuses to ${tool} a worktree's own state under .orkeon/worktrees`,
       id: "state-files", tool, argument: "path", refused: true,
       values: [
-        "/workspace/.orkeon/worktrees/calc-F1/.orkeon/dev/calc/batches-active.json",
-        "/workspace/.orkeon/worktrees/calc-F1/.orkeon/repo.yaml",
-        "/workspace/.orkeon/worktrees/calc-F1/workbench/calc/CALC-BATCHES-STATE.md",
+        `${WORKSPACE}/.orkeon/worktrees/calc-F1/.orkeon/dev/calc/batches-active.json`,
+        `${WORKSPACE}/.orkeon/worktrees/calc-F1/.orkeon/repo.yaml`,
+        `${WORKSPACE}/.orkeon/worktrees/calc-F1/workbench/calc/CALC-BATCHES-STATE.md`,
       ],
     },
   ]),
@@ -159,7 +160,7 @@ export const REFUSAL_CASES: readonly RefusalCase[] = [
     name: "state-files refuses every entry of .orkeon/ code or the runtime writes, in or out of the project's root",
     id: "state-files", tool: "file_write", argument: "path", refused: true,
     values: [
-      ".orkeon/dev/demo/batches-active.json", ".orkeon/dev-learn-state.json", "/workspace/.orkeon/memory/entries/a.md",
+      ".orkeon/dev/demo/batches-active.json", ".orkeon/dev-learn-state.json", `${WORKSPACE}/.orkeon/memory/entries/a.md`,
       ".orkeon/agent-memory/x.json", ".orkeon/agents.json", ".orkeon/sessions/last.json", ".orkeon/hooks/pre.sh",
       ".orkeon/shared/x", ".orkeon/config.json", ".orkeon/state.json", "src/crews/.orkeon/orkeon.d.ts",
       ".orkeon/ORKEON_COMMITMSG", ".orkeon/forge/x", ".orkeon/rag/x",
@@ -168,11 +169,11 @@ export const REFUSAL_CASES: readonly RefusalCase[] = [
   ...PATH_WRITE_TOOLS.flatMap((tool): RefusalCase[] => [
     {
       name: `state-files refuses the same paths to ${tool}, a tool that writes one path`,
-      id: "state-files", tool, argument: "path", values: [".claude/x", "/workspace/.orkeon/repo.yaml"], refused: true,
+      id: "state-files", tool, argument: "path", values: [".claude/x", `${WORKSPACE}/.orkeon/repo.yaml`], refused: true,
     },
     {
       name: `state-files lets ${tool} write the sources`,
-      id: "state-files", tool, argument: "path", values: ["/workspace/src/x.ts"], refused: false,
+      id: "state-files", tool, argument: "path", values: [`${WORKSPACE}/src/x.ts`], refused: false,
     },
   ]),
 ];
@@ -238,7 +239,7 @@ export const CALL_CASES: readonly CallCase[] = [
   },
   {
     name: "read-noise lets a file be written under node_modules: it refuses reads only",
-    id: "read-noise", tool: "file_write", args: { path: "/workspace/node_modules/x" }, refused: false,
+    id: "read-noise", tool: "file_write", args: { path: `${WORKSPACE}/node_modules/x` }, refused: false,
   },
   {
     name: "read-noise refuses a grep under node_modules",
@@ -246,7 +247,7 @@ export const CALL_CASES: readonly CallCase[] = [
   },
   {
     name: "read-noise lets a glob from the root run, whatever its pattern",
-    id: "read-noise", tool: "glob", args: { path: "/workspace", pattern: "node_modules/**" }, refused: false,
+    id: "read-noise", tool: "glob", args: { path: WORKSPACE, pattern: "node_modules/**" }, refused: false,
   },
   {
     name: "secrets lets a path that holds a key block be read",
@@ -291,17 +292,17 @@ export const GATE_LINE_CASES: readonly { id: RuleSetId; index: number; line: str
 
 /** The rules pathRules("write", ["./tests/", "/workspace/src/shared/domain", "tests"]) makes, as gate lines. */
 export const WRITE_ROOT_RULES: readonly string[] = [
-  ...PATH_WRITE_TOOLS.flatMap((tool) => [`deny ${tool} path=/workspace/tests/*`, `deny ${tool} path=tests/*`]),
+  ...PATH_WRITE_TOOLS.flatMap((tool) => [`deny ${tool} path=${WORKSPACE}/tests/*`, `deny ${tool} path=tests/*`]),
   ...PATH_WRITE_TOOLS.flatMap((tool) => [
-    `deny ${tool} path=/workspace/src/shared/domain/*`, `deny ${tool} path=src/shared/domain/*`,
+    `deny ${tool} path=${WORKSPACE}/src/shared/domain/*`, `deny ${tool} path=src/shared/domain/*`,
   ]),
   "deny structural_rewrite",
 ];
 
 /** The rules pathRules("read", ["tests"]) makes, as gate lines. */
 export const READ_ROOT_RULES: readonly string[] = [
-  ...PATH_READ_TOOLS.flatMap((tool) => [`deny ${tool} path=/workspace/tests/*`, `deny ${tool} path=tests/*`]),
-  ...FOLDER_READ_TOOLS.flatMap((tool) => [`deny ${tool} path=/workspace/tests`, `deny ${tool} path=tests`]),
+  ...PATH_READ_TOOLS.flatMap((tool) => [`deny ${tool} path=${WORKSPACE}/tests/*`, `deny ${tool} path=tests/*`]),
+  ...FOLDER_READ_TOOLS.flatMap((tool) => [`deny ${tool} path=${WORKSPACE}/tests`, `deny ${tool} path=tests`]),
   "deny structural_search", "deny symbol_source",
 ];
 
@@ -311,21 +312,21 @@ export const READ_ROOT_DECISIONS: readonly { name: string; tool: string; args: R
   { name: "denies symbol_source whole", tool: "symbol_source", args: { fqn: "a.b" }, decision: "deny" },
   { name: "denies a grep under the root", tool: "grep", args: { path: "tests/a", pattern: "x" }, decision: "deny" },
   { name: "denies a grep of the root itself", tool: "grep", args: { path: "tests", pattern: "x" }, decision: "deny" },
-  { name: "denies a glob of the absolute root", tool: "glob", args: { path: "/workspace/tests", pattern: "*.ts" }, decision: "deny" },
+  { name: "denies a glob of the absolute root", tool: "glob", args: { path: `${WORKSPACE}/tests`, pattern: "*.ts" }, decision: "deny" },
   { name: "denies a count_pattern of the root itself", tool: "count_pattern", args: { path: "tests", patterns: ["x"] }, decision: "deny" },
   { name: "leaves a file_read of the root itself to the mode", tool: "file_read", args: { path: "tests" }, decision: undefined },
-  { name: "denies a node_read under the absolute root", tool: "node_read", args: { path: "/workspace/tests/a.ts", selector: "f" }, decision: "deny" },
+  { name: "denies a node_read under the absolute root", tool: "node_read", args: { path: `${WORKSPACE}/tests/a.ts`, selector: "f" }, decision: "deny" },
   { name: "leaves a grep of another folder to the mode", tool: "grep", args: { path: "src", pattern: "x" }, decision: undefined },
 ];
 
 /** Roots no rule can be made on, and why. */
-export const ROOTS_WITHOUT_RULE: readonly string[] = ["", "/workspace", "../x", "src/*", "/etc"];
+export const ROOTS_WITHOUT_RULE: readonly string[] = ["", WORKSPACE, "../x", "src/*", "/etc"];
 export const ROOTS_WITHOUT_RULE_PROBLEMS: readonly string[] = [
   "root '' names the whole project: no rule",
-  "root '/workspace' names the whole project: no rule",
+  `root '${WORKSPACE}' names the whole project: no rule`,
   "root '../x' climbs out with '..': no rule",
   "root 'src/*' holds '*': a rule on it would cover more than the folder",
-  "root '/etc' is outside /workspace: no rule",
+  `root '/etc' is outside ${WORKSPACE}: no rule`,
 ];
 
 /** A held allow line, then every line of read-noise. */

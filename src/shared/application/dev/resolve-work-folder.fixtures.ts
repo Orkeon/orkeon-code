@@ -3,6 +3,7 @@ import { FakeFiles } from "../../../../tests/support/fake-files.ts";
 import { FakeShell } from "../../../../tests/support/fake-shell.ts";
 import type { WorkDirRequest } from "../../domain/dev/work-folder.ts";
 import { GIT_TOPLEVEL, GIT_WORKTREE_LIST, WORKSPACE_ROOT } from "./resolve-work-folder.ts";
+import { WORKSPACE } from "../../domain/dev/path-rebase.ts";
 
 /** A request from the pack's layout.work, and from the config's dev.workDir. */
 export const pack = (value: string): WorkDirRequest => ({ value, source: "layout.work" });
@@ -10,7 +11,7 @@ export const config = (value: string): WorkDirRequest => ({ value, source: "dev.
 
 /** /workspace as a linked worktree of /home/dev/repo. */
 export const LINKED_PORCELAIN = "worktree /home/dev/repo\nHEAD 0123abc\nbranch refs/heads/main\n\n"
-  + "worktree /workspace\nHEAD 4567def\nbranch refs/heads/feature\n";
+  + `worktree ${WORKSPACE}\nHEAD 4567def\nbranch refs/heads/feature\n`;
 
 /** Files whose checkout root lists `listing`, and a shell answering nothing. */
 export function setup(listing: string[] = []) {
@@ -23,7 +24,7 @@ export function setup(listing: string[] = []) {
 /** Makes git say, on `shell`, that /workspace is a linked worktree of /home/dev/repo. */
 export function linked(shell: FakeShell): void {
   shell.results[GIT_WORKTREE_LIST] = { stdout: LINKED_PORCELAIN };
-  shell.results[GIT_TOPLEVEL] = { stdout: "/workspace\n" };
+  shell.results[GIT_TOPLEVEL] = { stdout: `${WORKSPACE}\n` };
 }
 
 /** Main worktree paths no probe is run on. */
@@ -31,16 +32,16 @@ export const UNQUOTABLE_MAINS: readonly string[] = ["/home/dev/my repo", "/home/
 
 /** Paths and whether the listing of their parent names them. */
 export const ENTRIES: ReadonlyArray<{ path: string; exists: boolean }> = [
-  { path: "/workspace/workbench", exists: true },
-  { path: "/workspace/workbench/", exists: true },
-  { path: "/workspace/todo", exists: false },
-  { path: "/workspace/workbench/demo", exists: false },
+  { path: `${WORKSPACE}/workbench`, exists: true },
+  { path: `${WORKSPACE}/workbench/`, exists: true },
+  { path: `${WORKSPACE}/todo`, exists: false },
+  { path: `${WORKSPACE}/workbench/demo`, exists: false },
 ];
 
 /** setup() over a checkout holding todo/ and backstage/tasks/. */
 export function todoAndBackstage() {
   const deps = setup(["todo", "backstage"]);
-  deps.files.listings.set("/workspace/backstage", ["tasks"]);
+  deps.files.listings.set(`${WORKSPACE}/backstage`, ["tasks"]);
   return deps;
 }
 
@@ -55,5 +56,5 @@ export const LABELS: ReadonlyArray<{ name: string; request: WorkDirRequest | nul
 ];
 
 export const DEFAULT_WORK = {
-  folder: "workbench", vfsPath: "/workspace/workbench", outcome: "default", request: null, exists: true, note: null,
+  folder: "workbench", vfsPath: `${WORKSPACE}/workbench`, outcome: "default", request: null, exists: true, note: null,
 };

@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
+import { WORKSPACE } from "../src/shared/domain/dev/path-rebase.ts";
 
 /** A file of the repository, read as text. */
 export const read = (name: string) => readFileSync(fileURLToPath(new URL(`../${name}`, import.meta.url)), "utf-8");
@@ -180,7 +181,7 @@ export const mountRoots = (args: string[]) =>
 export const RESERVED = /^\/(sandbox|credentials|llm-logs|cli-commands|crews)/;
 
 /** The roots every start mounts, in order. */
-export const ROOTS = ["/workspace", "/output", "/tmp", "/user-config", "/sessions", "/session-history"];
+export const ROOTS = [WORKSPACE, "/output", "/tmp", "/user-config", "/sessions", "/session-history"];
 
 /** The runtime's ProjectKey.Slug (Orkeon.Infrastructure/Session/ProjectKey.cs), pinned below to values the runtime
  *  computed: the last segment, each UTF-16 unit an ASCII letter or digit lowercased, else '-', then '-' and the first
@@ -199,7 +200,7 @@ export const projectState = (r: Run) => join(r.state, "projects", slugOf(r.proje
 export const toolModeArgs = (r: Run) => [
   "--runner=scripted-commands", "--commands-dir", join(r.root, "src/commands"), "--crews-dir", join(r.root, "src/crews"),
   "--settings", join(r.root, "..", "settings.json"),
-  "--mount", `${r.project}:/workspace:rw`, "--mount", `${r.state}/output:/output:rw`, "--mount", `${r.state}/tmp:/tmp:rw`,
+  "--mount", `${r.project}:${WORKSPACE}:rw`, "--mount", `${r.state}/output:/output:rw`, "--mount", `${r.state}/tmp:/tmp:rw`,
   "--mount", `${r.state}/user-config:/user-config:ro`,
   "--mount", `${projectState(r)}/sessions:/sessions:rw`, "--mount", `${projectState(r)}/history:/session-history:ro`,
 ];

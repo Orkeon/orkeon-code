@@ -17,12 +17,13 @@ import type { PlanAnswer } from "../domain/plan-answer.ts";
 import type { Inventory } from "../domain/inventory-model.ts";
 import { END_LINE, PLAN_JSON } from "./run-dev-plan.ts";
 import type { DevPlanInputs } from "./run-dev-plan.ts";
+import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
 
 const FIXTURES = new URL("../../../../tests/fixtures/dev/plan/", import.meta.url);
 export const fixture = (name: string): string => readFileSync(new URL(name, FIXTURES), "utf8");
 const json = <T>(name: string): T => JSON.parse(fixture(name)) as T;
 
-const W = "/workspace/workbench";
+const W = `${WORKSPACE}/workbench`;
 export const CODE = `${W}/prune`;
 export const PLAN = `${CODE}/PRUNE-PLAN.md`;
 export const F1 = `${CODE}/PRUNE-PLAN-F1.md`;
@@ -65,7 +66,7 @@ export const GOLDEN: ReadonlyArray<[string, string]> = [[PLAN, "PRUNE-PLAN.md"],
 function indexOfFixture(): FakeCodeIndex {
   const index = new FakeCodeIndex();
   index.roots = 1;
-  const fqn = (ref: string) => `/workspace/${INVENTORY.entries.find((e) => e.ref === ref)?.fqn}`;
+  const fqn = (ref: string) => `${WORKSPACE}/${INVENTORY.entries.find((e) => e.ref === ref)?.fqn}`;
   index.hits = {
     "Prune old memory entries": [{ fqn: fqn("I1"), score: 0.82, origin: "symbol" }],
     "An entry older than the cut-off is removed": [{ fqn: fqn("I2"), score: 0.77, origin: "symbol" }],
@@ -73,8 +74,8 @@ function indexOfFixture(): FakeCodeIndex {
     "A dry run removes nothing": [{ fqn: fqn("I4"), score: 0.58, origin: "symbol" }, { fqn: fqn("I5"), score: 0.54, origin: "symbol" }],
   };
   for (const e of INVENTORY.entries) {
-    index.sources[`/workspace/${e.fqn}`] = {
-      fqn: `/workspace/${e.fqn}`, path: `/workspace/${e.path}`, startLine: e.line, endLine: e.endLine,
+    index.sources[`${WORKSPACE}/${e.fqn}`] = {
+      fqn: `${WORKSPACE}/${e.fqn}`, path: `${WORKSPACE}/${e.path}`, startLine: e.line, endLine: e.endLine,
       language: e.language, firstLine: e.firstLine,
     };
   }
@@ -88,8 +89,8 @@ function anchorsOfFixture(): AnchorIndex & { calls: string[] } {
     calls,
     async closure(fqns) {
       calls.push(`closure ${fqns.join(" ")}`);
-      const entry = INVENTORY.entries.find((e) => `/workspace/${e.fqn}` === fqns[0]);
-      const callers = (entry?.callers ?? []).map((c) => `/workspace/${c}`);
+      const entry = INVENTORY.entries.find((e) => `${WORKSPACE}/${e.fqn}` === fqns[0]);
+      const callers = (entry?.callers ?? []).map((c) => `${WORKSPACE}/${c}`);
       return { nodes: [`${fqns[0]}::member`, ...callers], unresolved: [], truncated: false };
     },
   };
@@ -98,16 +99,16 @@ function anchorsOfFixture(): AnchorIndex & { calls: string[] } {
 /** The checkout with `source` in workbench/prune/, the model answering the golden plan then a CLEAR review. */
 export function setup(source = "SPEC-prune.md") {
   const files = new FakeFiles();
-  files.listings.set("/workspace", ["workbench/", ".orkeon/", "src/", "docs/", "tests/"]);
+  files.listings.set(WORKSPACE, ["workbench/", ".orkeon/", "src/", "docs/", "tests/"]);
   files.listings.set(W, ["prune/"]);
   files.listings.set(CODE, [source]);
-  files.listings.set("/workspace/src/shared/domain", ["memory.ts"]);
-  files.listings.set("/workspace/docs", ["commands.md", "fr/"]);
-  files.listings.set("/workspace/docs/fr", ["commands.md"]);
-  files.files.set("/workspace/.orkeon/repo.yaml", fixture("pack.yaml"));
+  files.listings.set(`${WORKSPACE}/src/shared/domain`, ["memory.ts"]);
+  files.listings.set(`${WORKSPACE}/docs`, ["commands.md", "fr/"]);
+  files.listings.set(`${WORKSPACE}/docs/fr`, ["commands.md"]);
+  files.files.set(`${WORKSPACE}/.orkeon/repo.yaml`, fixture("pack.yaml"));
   files.files.set(`${CODE}/${source}`, fixture(source === "SPEC-prune.md" ? "SPEC-prune.md" : "CHANGE-cache.md"));
   const shell = new FakeShell();
-  shell.results[GIT_TOPLEVEL] = { stdout: "/workspace\n" };
+  shell.results[GIT_TOPLEVEL] = { stdout: `${WORKSPACE}\n` };
   shell.results[checkIgnoreCommand([ORKEON_IGNORE_PROBE])] = { stdout: ".orkeon/config.json\n" };
   const llm = new FakeLlm();
   llm.extractions = [ANSWER, CLEAR];
@@ -161,7 +162,7 @@ export const REFUSALS: readonly RefusalCase[] = [
   {
     name: "refuses another checkout", input: { source: "prune" },
     arrange: (f) => { f.shell.results[GIT_TOPLEVEL] = { stdout: "/elsewhere\n" }; },
-    text: "dev-plan: run from the checkout at /workspace (git reports /elsewhere)",
+    text: `dev-plan: run from the checkout at ${WORKSPACE} (git reports /elsewhere)`,
   },
   {
     name: "refuses a source with no id", input: { source: "prune" },

@@ -3,11 +3,12 @@
 import type { HumanInput } from "../../../shared/application/ports.ts";
 import { motifId } from "../../../shared/domain/dev/learn-proposals.ts";
 import { OUT, T, motif, setup } from "./run-dev-learn.fixtures.ts";
+import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
 
 export { OUT, REFUSED, T } from "./run-dev-learn.fixtures.ts";
 
-export const STATE = "/workspace/.orkeon/dev-learn-state.json";
-export const MEMORY_DIR_REFUSED = "/workspace/docs/memory/refused.md";
+export const STATE = `${WORKSPACE}/.orkeon/dev-learn-state.json`;
+export const MEMORY_DIR_REFUSED = `${WORKSPACE}/docs/memory/refused.md`;
 export const ROWS_A = [T.ledger1, T.ledger3, T.invoices];
 export const ROWS_B = [T.exports, T.invoices, T.ledger3];
 export const ID_A = motifId("Test", ROWS_A);
@@ -46,7 +47,7 @@ export function decideSetup(over: DecideSetup = {}) {
   f.llm.extractions = over.noMotif ? [{ motifs: [] }] : [{
     motifs: [motif({ rows: ROWS_A }), motif({ title: "Exports skip the empty case", topic: "empty-exports", rows: ROWS_B, key_term: "empty" })],
   }];
-  if (over.memoryDir !== undefined) f.files.files.set("/workspace/.orkeon/config.json", JSON.stringify({ "memory.dir": over.memoryDir }));
+  if (over.memoryDir !== undefined) f.files.files.set(`${WORKSPACE}/.orkeon/config.json`, JSON.stringify({ "memory.dir": over.memoryDir }));
   if (over.memoryDirRefused !== undefined) f.files.files.set(MEMORY_DIR_REFUSED, over.memoryDirRefused);
   return { files: f.files, deps: { ...f.deps, human: over.human } };
 }

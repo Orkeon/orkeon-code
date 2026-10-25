@@ -2,9 +2,10 @@
 import { SKILLS_STATE_KEY } from "../src/shared/domain/session-keys.ts";
 import { FakeFiles } from "./support/fake-files.ts";
 import { FakeSessionStore } from "./support/fake-session-store.ts";
+import { WORKSPACE } from "../src/shared/domain/dev/path-rebase.ts";
 
-export const SKILL = "/workspace/docs/release.md";
-export const OTHER_SKILL = "/workspace/b.md";
+export const SKILL = `${WORKSPACE}/docs/release.md`;
+export const OTHER_SKILL = `${WORKSPACE}/b.md`;
 
 /** The session holding the `attached` paths (none stored when omitted), and the files holding the playbook. */
 export function skillsDeps(attached?: readonly string[]) {

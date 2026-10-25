@@ -14,9 +14,10 @@ import { ORKEON_IGNORE_PROBE, checkIgnoreCommand } from "../../../shared/applica
 import type { SpecAnswer } from "../domain/spec-answer.ts";
 import { runDevSpec } from "./run-dev-spec.ts";
 import type { DevSpecInputs } from "./run-dev-spec.ts";
+import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
 
 export const ANSWER = JSON.parse(readFileSync(new URL("../../../../tests/fixtures/dev/spec/answer.json", import.meta.url), "utf8")) as SpecAnswer;
-export const W = "/workspace/workbench";
+export const W = `${WORKSPACE}/workbench`;
 export const CODE = `${W}/prune`;
 export const SPEC = `${CODE}/SPEC-prune.md`;
 export const CLEAR = { verdict: "CLEAR", rows: [] };
@@ -40,10 +41,10 @@ export function scripted(files: FakeFiles, script: Array<string | null>) {
 /** A checkout, a model answering ANSWER then a CLEAR review, a built index, and a person answering `script`. */
 export function devSpecSetup(script: Array<string | null> = []) {
   const files = new FakeFiles();
-  files.listings.set("/workspace", ["workbench/", "src/"]);
+  files.listings.set(WORKSPACE, ["workbench/", "src/"]);
   files.listings.set(W, ["prune/"]);
   const shell = new FakeShell();
-  shell.results[GIT_TOPLEVEL] = { stdout: "/workspace\n" };
+  shell.results[GIT_TOPLEVEL] = { stdout: `${WORKSPACE}\n` };
   shell.results[checkIgnoreCommand([ORKEON_IGNORE_PROBE])] = { stdout: ".orkeon/config.json\n" };
   const llm = new FakeLlm();
   llm.extractions = [ANSWER, CLEAR];

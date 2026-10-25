@@ -2,6 +2,7 @@
 import { FakeFiles } from "../../../../tests/support/fake-files.ts";
 import { FakeShell } from "../../../../tests/support/fake-shell.ts";
 import { MAX_SNAPSHOT_PATHS, STATUS_COMMAND } from "./observe.ts";
+import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
 
 /** A shell whose status answers `stdout`, or fails with `exitCode`. */
 export function statusShell(status: { stdout?: string; exitCode?: number }): FakeShell {
@@ -16,6 +17,6 @@ export const WIDE_STATUS = Array.from({ length: MAX_SNAPSHOT_PATHS + 1 }, (_, i)
 /** A workspace holding `src/a.ts` with the content `x`. */
 export function workspaceWithA(): FakeFiles {
   const files = new FakeFiles();
-  files.files.set("/workspace/src/a.ts", "x");
+  files.files.set(`${WORKSPACE}/src/a.ts`, "x");
   return files;
 }

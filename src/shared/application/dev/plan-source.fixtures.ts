@@ -3,9 +3,10 @@ import { FakeFiles } from "../../../../tests/support/fake-files.ts";
 import type { WorkFolder } from "./resolve-work-folder.ts";
 import { MAX_SOURCE_CHARS } from "./plan-source.ts";
 import type { ResolvedSource } from "./plan-source.ts";
+import { WORKSPACE } from "../../domain/dev/path-rebase.ts";
 
 export const WORK: WorkFolder = {
-  folder: "workbench", vfsPath: "/workspace/workbench", outcome: "applied", request: null, exists: true, note: null,
+  folder: "workbench", vfsPath: `${WORKSPACE}/workbench`, outcome: "applied", request: null, exists: true, note: null,
 };
 
 /** WORK outside the mounts: a host path with no virtual path, as from a linked worktree. */
@@ -16,8 +17,8 @@ const SPEC_TEXT = "# trim — Trim stale entries\n### UC-01 — Trim the store\n
 /** Files whose work folder holds a folder per code (listing the names given) and a README.md. */
 export function setup(codes: Record<string, string[]> = {}): FakeFiles {
   const files = new FakeFiles();
-  files.listings.set("/workspace/workbench", [...Object.keys(codes).map((c) => `${c}/`), "README.md"]);
-  for (const [code, names] of Object.entries(codes)) files.listings.set(`/workspace/workbench/${code}`, names);
+  files.listings.set(`${WORKSPACE}/workbench`, [...Object.keys(codes).map((c) => `${c}/`), "README.md"]);
+  for (const [code, names] of Object.entries(codes)) files.listings.set(`${WORKSPACE}/workbench/${code}`, names);
   return files;
 }
 
@@ -31,14 +32,14 @@ export const TRIM_SOURCE = source("spec", "trim", "workbench/trim", "SPEC-trim.m
 /** setup(), the spec of trim one parsable text longer than MAX_SOURCE_CHARS. */
 export function longTrimSpec(): FakeFiles {
   const files = setup();
-  files.files.set("/workspace/workbench/trim/SPEC-trim.md", SPEC_TEXT + "x".repeat(MAX_SOURCE_CHARS));
+  files.files.set(`${WORKSPACE}/workbench/trim/SPEC-trim.md`, SPEC_TEXT + "x".repeat(MAX_SOURCE_CHARS));
   return files;
 }
 
 /** setup(), the spec of trim unreadable with a two-line error. */
 export function unreadableTrimSpec(): FakeFiles {
   const files = setup();
-  files.readErrors.set("/workspace/workbench/trim/SPEC-trim.md", new Error("permission denied\nsecond line"));
+  files.readErrors.set(`${WORKSPACE}/workbench/trim/SPEC-trim.md`, new Error("permission denied\nsecond line"));
   return files;
 }
 
@@ -64,7 +65,7 @@ export const REFUSED_CODES: readonly RefusedCode[] = [
 export const SOURCE_PATHS: ReadonlyArray<{ name: string; token: string; source: ResolvedSource }> = [
   { name: "a relative path", token: "docs/specs/SPEC-trim.md", source: source("spec", "trim", "docs/specs", "SPEC-trim.md") },
   {
-    name: "a path under /workspace/", token: "/workspace/workbench/slow/CHANGE-slow.md",
+    name: `a path under ${WORKSPACE}/`, token: `${WORKSPACE}/workbench/slow/CHANGE-slow.md`,
     source: source("change", "slow", "workbench/slow", "CHANGE-slow.md"),
   },
 ];
@@ -74,6 +75,6 @@ export const NOT_SOURCES: readonly string[] = ["workbench/trim/TRIM-PLAN.md", ".
 
 /** Paths to a source under .claude/, however written. */
 export const UNDER_CLAUDE: readonly string[] = [
-  ".claude/local/SPEC-trim.md", "/workspace/.claude/SPEC-trim.md", "/workspace/./.claude/SPEC-trim.md",
-  "/workspace//.claude/SPEC-trim.md", "././.claude/SPEC-trim.md",
+  ".claude/local/SPEC-trim.md", `${WORKSPACE}/.claude/SPEC-trim.md`, `${WORKSPACE}/./.claude/SPEC-trim.md`,
+  `${WORKSPACE}//.claude/SPEC-trim.md`, "././.claude/SPEC-trim.md",
 ];

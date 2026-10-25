@@ -4,6 +4,7 @@ import type { WorkTree } from "./draft.ts";
 import { MAX_COMMIT_DIFF_CHARS } from "./draft.ts";
 import { FakeFiles } from "../../../../tests/support/fake-files.ts";
 import { FakeShell } from "../../../../tests/support/fake-shell.ts";
+import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
 
 export const TREE: WorkTree = { status: "M a.ts", diff: "", branch: "main", recent: "", untracked: [] };
 export const MESSAGE = "fix(api): handle null\n\nbody";
@@ -28,8 +29,8 @@ export function untrackedSetup() {
   const shell = new FakeShell();
   shell.results[GIT_STATUS_COMMAND] = { stdout: " M a.ts\n?? src/new.ts\n?? img.png\n" };
   const files = new FakeFiles();
-  files.files.set("/workspace/src/new.ts", "export const x = 1;\n");
-  files.readErrors.set("/workspace/img.png", new Error("binary"));
+  files.files.set(`${WORKSPACE}/src/new.ts`, "export const x = 1;\n");
+  files.readErrors.set(`${WORKSPACE}/img.png`, new Error("binary"));
   return { shell, files };
 }
 
@@ -38,8 +39,8 @@ export function scopedSetup() {
   const shell = new FakeShell();
   shell.results["git --literal-pathspecs diff HEAD -- 'a.ts' 'src/new.ts'"] = { stdout: "diff a" };
   const files = new FakeFiles();
-  files.files.set("/workspace/src/new.ts", "x\n");
-  files.files.set("/workspace/workbench/p.md", "plan\n");
+  files.files.set(`${WORKSPACE}/src/new.ts`, "x\n");
+  files.files.set(`${WORKSPACE}/workbench/p.md`, "plan\n");
   const scope = { status: " M a.ts\n?? src/new.ts\n?? workbench/p.md\n", files: ["a.ts", "src/new.ts"] };
   return { shell, files, scope };
 }
@@ -54,7 +55,7 @@ export function linkedWorktreeFiles(): FakeFiles {
   const files = new FakeFiles();
   const write = files.write.bind(files);
   files.write = async (path: string, content: string) => {
-    if (path.startsWith("/workspace/.git/")) throw new Error("ENOTDIR");
+    if (path.startsWith(`${WORKSPACE}/.git/`)) throw new Error("ENOTDIR");
     return write(path, content);
   };
   return files;

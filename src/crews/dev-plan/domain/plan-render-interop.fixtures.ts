@@ -15,6 +15,7 @@ import { parsePlanSource } from "../../../shared/domain/dev/spec-format.ts";
 import type { PlanSource, SourceKind } from "../../../shared/domain/dev/spec-format.ts";
 import { traitMarker } from "../../../shared/domain/dev/trait-pattern.ts";
 import type { runGateChecks } from "../../dev-verify/domain/gate.ts";
+import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
 
 /** The headings and lines the harness's implement, verify and batches steps read from a plan (IM, AC, DB). A file format. */
 export const HARNESS_PLAN_LINES: { plan: readonly RegExp[]; sheet: readonly RegExp[] } = {
@@ -119,7 +120,7 @@ export function deliveredF1(): Parameters<typeof runGateChecks>[0] {
     facts: sheetFacts(sheet),
     plan: { sheets, plans: [RENDERED.plan.text], all: [RENDERED.plan.text, ...sheets] },
     planDirShown: "workbench/prune",
-    planDirAbsolute: "/workspace/workbench/prune",
+    planDirAbsolute: `${WORKSPACE}/workbench/prune`,
     roots: [layout.domain, layout.application, layout.infrastructure, layout.tests].filter((r): r is string => r !== undefined),
     changedFiles: capture.changedFiles,
     trait: traitMarker(PACK.tests.ruleTrait, PACK.tests.traitPattern),

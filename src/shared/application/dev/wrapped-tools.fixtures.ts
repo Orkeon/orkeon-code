@@ -4,6 +4,7 @@ import { FakeShell } from "../../../../tests/support/fake-shell.ts";
 import type { RepoPackCommands } from "../../domain/dev/repo-pack.ts";
 import type { PermissionRule } from "../../domain/agent-policy/permission.ts";
 import { createWrappedTools } from "./wrapped-tools.ts";
+import { WORKSPACE } from "../../domain/dev/path-rebase.ts";
 
 export const COMMANDS: RepoPackCommands = {
   restore: "dotnet restore Orkeon.sln",
@@ -12,7 +13,7 @@ export const COMMANDS: RepoPackCommands = {
   testClass: 'dotnet test <test project> --no-build --filter "FullyQualifiedName~<Class>"',
   testIntegration: 'dotnet test Orkeon.sln --no-build --filter "Category=Integration"',
 };
-export const LOGS = "/workspace/todo/demo/logs";
+export const LOGS = `${WORKSPACE}/todo/demo/logs`;
 export const CLASS_RUN = 'dotnet test tests/A.Tests --no-build --filter "FullyQualifiedName~LineTests"';
 /** What a build prints on a tree never restored. */
 export const COLD = "error NETSDK1004: Assets file 'obj/project.assets.json' not found.";

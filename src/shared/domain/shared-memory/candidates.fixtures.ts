@@ -1,5 +1,6 @@
 // The entries the candidates list and the index are tested on.
 import type { EntryType, MemoryEntry } from "./entry.ts";
+import { WORKSPACE } from "../dev/path-rebase.ts";
 
 // tests/doubles/memory-entries.ts's sampleEntry, here because a domain test imports the domain only.
 const ENTRY_BODY = "## Context\nA sentence of context.\n\n## Content\nThe rule itself.\n\n## Evidence\n`src/app/main.ts:10`\n";
@@ -52,7 +53,7 @@ export interface PointerCase {
 }
 
 export const POINTERS: readonly PointerCase[] = [
-  { name: "an admitted candidate points to its entry file", status: "admitted", file: "/workspace/m/entries/method/x.md", names: "entries/method/x.md" },
+  { name: "an admitted candidate points to its entry file", status: "admitted", file: `${WORKSPACE}/m/entries/method/x.md`, names: "entries/method/x.md" },
   { name: "a refused candidate points to refused.md", status: "refused", names: "refused.md" },
 ];
 

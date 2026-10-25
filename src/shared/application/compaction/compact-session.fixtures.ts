@@ -9,13 +9,14 @@ import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
 import { FakeMemoryStore } from "../../../../tests/support/fake-memory-store.ts";
 import { FakeProgress } from "../../../../tests/support/fake-progress.ts";
 import { FakeSessionStore } from "../../../../tests/support/fake-session-store.ts";
+import { WORKSPACE } from "../../domain/dev/path-rebase.ts";
 
 export const ABOVE = { used: 199_000, window: 200_000 };
 export const BELOW = { used: 1_200, window: 200_000 };
 
 export const HISTORY: SessionMsg[] = [
   { role: "system", content: "head" },
-  { role: "user", content: "fix /workspace/src/a.ts" },
+  { role: "user", content: `fix ${WORKSPACE}/src/a.ts` },
   { role: "assistant", content: "done" },
   { role: "user", content: "thanks" },
 ];
@@ -43,8 +44,8 @@ export function fullPipelineBuffer(): SessionMsg[] {
   return [
     ...buildCompactedBuffer(HISTORY[0], "SUMMARY"),
     buildMemoryRecapMessage([{ category: "project", content: "uses pnpm" }]),
-    buildRestoredFileMessage("/workspace/src/a.ts", "export const a = 1;"),
-    buildRestoredSkillMessage("/workspace/skills/s.md", "# Skill"),
+    buildRestoredFileMessage(`${WORKSPACE}/src/a.ts`, "export const a = 1;"),
+    buildRestoredSkillMessage(`${WORKSPACE}/skills/s.md`, "# Skill"),
   ];
 }
 

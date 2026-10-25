@@ -8,9 +8,10 @@ import { WORKFLOW_ACTIVE_STATE_KEY } from "../../domain/session-keys.ts";
 import { FakeFiles } from "../../../../tests/support/fake-files.ts";
 import { FakeSessionStore } from "../../../../tests/support/fake-session-store.ts";
 import { FakeShell } from "../../../../tests/support/fake-shell.ts";
+import { WORKSPACE } from "../../domain/dev/path-rebase.ts";
 
 const DEMO_DIR = fileURLToPath(new URL("../../../../tests/fixtures/dev/workbench/demo/", import.meta.url));
-export const STATE = "/workspace/.orkeon/dev/demo/state-F2.md";
+export const STATE = `${WORKSPACE}/.orkeon/dev/demo/state-F2.md`;
 export const AT = new Date("2026-10-24T10:00:00.123Z");
 export const DEMO_F2 = `{"code":"demo","phase":"F2"}`;
 
@@ -18,10 +19,10 @@ export const DEMO_F2 = `{"code":"demo","phase":"F2"}`;
 export function workflowSetup(pointer: string | null) {
   const files = new FakeFiles();
   const names = readdirSync(DEMO_DIR).sort();
-  for (const name of names) files.files.set(`/workspace/workbench/demo/${name}`, readFileSync(DEMO_DIR + name, "utf-8"));
-  files.listings.set("/workspace", ["workbench"]);
-  files.listings.set("/workspace/workbench", ["demo"]);
-  files.listings.set("/workspace/workbench/demo", names);
+  for (const name of names) files.files.set(`${WORKSPACE}/workbench/demo/${name}`, readFileSync(DEMO_DIR + name, "utf-8"));
+  files.listings.set(WORKSPACE, ["workbench"]);
+  files.listings.set(`${WORKSPACE}/workbench`, ["demo"]);
+  files.listings.set(`${WORKSPACE}/workbench/demo`, names);
   const shell = new FakeShell();
   shell.results[checkIgnoreCommand([ORKEON_IGNORE_PROBE, "workbench/"])] = { exitCode: 0, stdout: ".orkeon/config.json\nworkbench/\n" };
   shell.results["git status --short"] = { exitCode: 0, stdout: " M src/a.ts\n?? notes.md\n" };

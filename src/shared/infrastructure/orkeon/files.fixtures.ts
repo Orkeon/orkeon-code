@@ -1,9 +1,10 @@
 // The working root and the calls the createFiles tests make under it.
 import type { createFiles } from "./files.ts";
+import { WORKSPACE } from "../../domain/dev/path-rebase.ts";
 
 type Files = ReturnType<typeof createFiles>;
 
-export const ROOT = "/workspace/.orkeon/worktrees/prune-F2";
+export const ROOT = `${WORKSPACE}/.orkeon/worktrees/prune-F2`;
 
 export interface ContentCase {
   name: string;
@@ -26,13 +27,13 @@ export interface RootedCase {
 
 /** A /workspace path moves under the root; a path already there, or outside /workspace, is kept. */
 export const ROOTED_CALLS: readonly RootedCase[] = [
-  { name: "reads a /workspace path under the root", call: (files) => files.read("/workspace/src/a.ts"), path: `${ROOT}/src/a.ts` },
+  { name: `reads a ${WORKSPACE} path under the root`, call: (files) => files.read(`${WORKSPACE}/src/a.ts`), path: `${ROOT}/src/a.ts` },
   {
-    name: "writes a /workspace path under the root",
-    call: (files) => files.write("/workspace/.orkeon/dev/prune/implement-F2.json", "{}"),
+    name: `writes a ${WORKSPACE} path under the root`,
+    call: (files) => files.write(`${WORKSPACE}/.orkeon/dev/prune/implement-F2.json`, "{}"),
     path: `${ROOT}/.orkeon/dev/prune/implement-F2.json`,
   },
-  { name: "lists a /workspace path under the root", call: (files) => files.list("/workspace/workbench/prune", 10), path: `${ROOT}/workbench/prune` },
+  { name: `lists a ${WORKSPACE} path under the root`, call: (files) => files.list(`${WORKSPACE}/workbench/prune`, 10), path: `${ROOT}/workbench/prune` },
   { name: "keeps a path already under the root", call: (files) => files.read(`${ROOT}/src/b.ts`), path: `${ROOT}/src/b.ts` },
-  { name: "keeps a path outside /workspace", call: (files) => files.read("/output/jobs/1.log"), path: "/output/jobs/1.log" },
+  { name: `keeps a path outside ${WORKSPACE}`, call: (files) => files.read("/output/jobs/1.log"), path: "/output/jobs/1.log" },
 ];

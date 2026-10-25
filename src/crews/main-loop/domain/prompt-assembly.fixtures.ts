@@ -3,6 +3,7 @@ import type { SessionMsg } from "../../../shared/domain/types.ts";
 import { ERROR_THRESHOLD_BUFFER_TOKENS, WARNING_THRESHOLD_BUFFER_TOKENS } from "../../../shared/domain/compaction-thresholds.ts";
 import { buildGaugeBlock, buildHistoryBlock, buildMemoryBlock, buildUserContextBlock } from "./prompt-assembly.ts";
 import type { PromptParts } from "./prompt-assembly.ts";
+import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
 
 /** Header options with an AGENTS.md of two lines. */
 export const AGENTS_HEADER_OPTS = { toolNames: ["file_read", "file_write"], instructions: { file: "AGENTS.md", content: "# Rules\nDo X." } };
@@ -127,7 +128,7 @@ export const KEPT_BUFFER_CASES: readonly KeptBufferCase[] = [
 export function builtParts(): PromptParts {
   return {
     memory: buildMemoryBlock({ user: ["u1"] }),
-    userContext: buildUserContextBlock({ cwd: "/workspace", gitStatus: "## main" }),
+    userContext: buildUserContextBlock({ cwd: WORKSPACE, gitStatus: "## main" }),
     history: buildHistoryBlock([{ role: "user", content: "hi" }]),
     gauge: buildGaugeBlock({ usedTokens: 1, contextWindow: 2, costUsd: 0, totalTokens: 0, totalCalls: 0 }),
     task: "THE TASK",

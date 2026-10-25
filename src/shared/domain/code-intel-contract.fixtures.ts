@@ -2,6 +2,7 @@
 // code-intel readers are pinned against.
 
 // ── Captured payloads. Verbatim from the live calls; do not "tidy" them. ──
+import { WORKSPACE } from "./dev/path-rebase.ts";
 
 export const INDEX_RAW = {
   index_id: "e4efebf4",
@@ -17,17 +18,17 @@ export const INDEX_RAW = {
 export const MAP_RAW = {
   level: "l3_Symbol",
   entries: [
-    { fqn: "/workspace/src/index.ts::greet", name: "greet", kind: "function", cyclomatic: 1, lo_c: 3 },
-    { fqn: "/workspace/src/math.ts::add", name: "add", kind: "function", cyclomatic: 1, lo_c: 3 },
+    { fqn: `${WORKSPACE}/src/index.ts::greet`, name: "greet", kind: "function", cyclomatic: 1, lo_c: 3 },
+    { fqn: `${WORKSPACE}/src/math.ts::add`, name: "add", kind: "function", cyclomatic: 1, lo_c: 3 },
   ],
   totals: { node_count: 5, package_count: 0, module_count: 0, symbol_count: 5 },
   truncated: false,
 };
 
-export const SEARCH_RAW = { hits: [{ fqn: "/workspace/src/math.ts::add", score: 0.7067228684325768 }] };
+export const SEARCH_RAW = { hits: [{ fqn: `${WORKSPACE}/src/math.ts::add`, score: 0.7067228684325768 }] };
 
 export const SOURCE_RAW = {
-  virtual_file_path: "/workspace/src/math.ts",
+  virtual_file_path: `${WORKSPACE}/src/math.ts`,
   start_line: 1,
   end_line: 3,
   language: "typescript",
@@ -42,43 +43,43 @@ export const FLOW_RAW = { paths: [], truncated: false };
 
 export const DEP_GRAPH_RAW = {
   nodes: [
-    { fqn: "/workspace/src/index.ts", name: "index.ts", kind: "module", level: "l2_Module", is_seed: false },
-    { fqn: "/workspace/src/math.ts", name: "math.ts", kind: "module", level: "l2_Module", is_seed: false },
+    { fqn: `${WORKSPACE}/src/index.ts`, name: "index.ts", kind: "module", level: "l2_Module", is_seed: false },
+    { fqn: `${WORKSPACE}/src/math.ts`, name: "math.ts", kind: "module", level: "l2_Module", is_seed: false },
   ],
-  edges: [{ from: "/workspace/src/index.ts#module@0", to: "/workspace/src/math.ts#module@0", kind: 1 }],
+  edges: [{ from: `${WORKSPACE}/src/index.ts#module@0`, to: `${WORKSPACE}/src/math.ts#module@0`, kind: 1 }],
   metrics: { node_count: 3, edge_count: 1, cycle_count: 0, avg_fan_in: 1, avg_fan_out: 1 },
   truncated: false,
 };
 
 export const SUB_GRAPH_RAW = {
-  nodes: [{ fqn: "/workspace/src/index.ts::greet", name: "greet", kind: "function", level: "l3_Symbol", is_seed: true }],
+  nodes: [{ fqn: `${WORKSPACE}/src/index.ts::greet`, name: "greet", kind: "function", level: "l3_Symbol", is_seed: true }],
   edges: [],
   mermaid_flowchart: "flowchart TD\n  n0[\"Function: greet\"]\n",
   truncated: false,
 };
 
 export const IMPACT_RAW = {
-  target: "/workspace/src/index.ts::greet",
+  target: `${WORKSPACE}/src/index.ts::greet`,
   direct_impact: [],
   transitive_impact: [],
-  by_package: { "/workspace/src/index.ts::greet": 1 },
+  by_package: { [`${WORKSPACE}/src/index.ts::greet`]: 1 },
   top_callers: [],
   truncated: false,
 };
 
 export const PKG_SUMMARY_RAW = {
-  fqn: "/workspace::workspace",
+  fqn: `${WORKSPACE}::workspace`,
   name: "workspace",
   file_count: 3,
   symbol_count: 6,
-  entry_points: ["/workspace/src/index.ts"],
-  public_exports: ["/workspace/src/index.ts::greet", "/workspace/src/math.ts::add"],
+  entry_points: [`${WORKSPACE}/src/index.ts`],
+  public_exports: [`${WORKSPACE}/src/index.ts::greet`, `${WORKSPACE}/src/math.ts::add`],
   dependencies: [],
   truncated: false,
 };
 
 export const SYMBOL_DETAIL_RAW = {
-  fqn: "/workspace/src/index.ts::greet",
+  fqn: `${WORKSPACE}/src/index.ts::greet`,
   name: "greet",
   kind: "function",
   level: "l3_Symbol",
@@ -96,8 +97,8 @@ export const SYMBOL_DETAIL_RAW = {
 // vector-only tail; scores are RRF rank aggregates (~0.03), NOT cosine.
 export const HYBRID_SEARCH_RAW = {
   hits: [
-    { fqn: "/workspace/src/index.ts::sumAndScale", score: 0.03278688524590164, match_origin: "hybrid" },
-    { fqn: "/workspace/src/math.ts::divide", score: 0.016129032258064516, match_origin: "vector" },
+    { fqn: `${WORKSPACE}/src/index.ts::sumAndScale`, score: 0.03278688524590164, match_origin: "hybrid" },
+    { fqn: `${WORKSPACE}/src/math.ts::divide`, score: 0.016129032258064516, match_origin: "vector" },
   ],
   truncated: true,
   refreshed_files: 2,
@@ -144,9 +145,9 @@ export const REFRESHED_FILES_CASES: readonly { readonly name: string; readonly r
 export const HITS_WITH_HOLES = {
   hits: [
     { fqn: "", score: 0.04, match_origin: "hybrid" },
-    { fqn: "/workspace/src/math.ts::add", score: 0.03, match_origin: "bm25" },
+    { fqn: `${WORKSPACE}/src/math.ts::add`, score: 0.03, match_origin: "bm25" },
     { score: 0.02, match_origin: "vector" },
-    { fqn: "/workspace/src/index.ts::greet", score: "0.01", match_origin: "hybrid" },
+    { fqn: `${WORKSPACE}/src/index.ts::greet`, score: "0.01", match_origin: "hybrid" },
   ],
 };
 
@@ -157,8 +158,8 @@ export const NOT_SEARCH_PAYLOADS: readonly { readonly name: string; readonly raw
 
 /** Where the live capture's anchor points. */
 export const ADD_LOCATION = {
-  fqn: "/workspace/src/math.ts::add",
-  path: "/workspace/src/math.ts",
+  fqn: `${WORKSPACE}/src/math.ts::add`,
+  path: `${WORKSPACE}/src/math.ts`,
   startLine: 1,
   endLine: 3,
   language: "typescript",

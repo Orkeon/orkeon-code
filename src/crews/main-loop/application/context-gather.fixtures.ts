@@ -1,5 +1,6 @@
 // The files, stores and expected gauges the context-gathering tests read.
 import type { FakeFiles } from "../../../../tests/support/fake-files.ts";
+import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
 
 /** A language store answering `value` for every key, from a file. */
 export function languageStore(value: string | undefined) {
@@ -24,12 +25,12 @@ export interface InstructionsCase {
 
 /** Workspaces where CLAUDE.md is the instructions file: alone, or past a blank AGENTS.md. */
 export const CLAUDE_MD_FALLBACKS: readonly InstructionsCase[] = [
-  { name: "without AGENTS.md", arrange: (files) => { files.files.set("/workspace/CLAUDE.md", "# Project\n"); } },
+  { name: "without AGENTS.md", arrange: (files) => { files.files.set(`${WORKSPACE}/CLAUDE.md`, "# Project\n"); } },
   {
     name: "past a blank AGENTS.md",
     arrange: (files) => {
-      files.files.set("/workspace/CLAUDE.md", "# Project\n");
-      files.files.set("/workspace/AGENTS.md", " \n");
+      files.files.set(`${WORKSPACE}/CLAUDE.md`, "# Project\n");
+      files.files.set(`${WORKSPACE}/AGENTS.md`, " \n");
     },
   },
 ];
@@ -37,7 +38,7 @@ export const CLAUDE_MD_FALLBACKS: readonly InstructionsCase[] = [
 /** Workspaces with no instructions file to read: none at all, or a blank CLAUDE.md. */
 export const NO_INSTRUCTIONS: readonly InstructionsCase[] = [
   { name: "an absent file", arrange: () => {} },
-  { name: "a blank file", arrange: (files) => { files.files.set("/workspace/CLAUDE.md", " \n"); } },
+  { name: "a blank file", arrange: (files) => { files.files.set(`${WORKSPACE}/CLAUDE.md`, " \n"); } },
 ];
 
 /** The gauge read when every port fails or reports nothing. */

@@ -1,6 +1,7 @@
 // The briefs, answers and markers the auditor's prompts are tested on.
 import type { AuditBriefInput, ValidationReport } from "./auditor-prompt.ts";
 import type { AuditAnswer } from "../domain/audit-answer.ts";
+import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
 
 /** The longest reply the answer prompt carries whole. */
 export const MAX_REPLY_CHARS_IN_ANSWER_PROMPT = 12_000;
@@ -8,13 +9,13 @@ export const MAX_REPLY_CHARS_IN_ANSWER_PROMPT = 12_000;
 export const TABLE = "| Axis | Status | Evidence |\n|---|---|---|\n| Build | ok | capture-F2/build.txt |\n| Test | gap | src/a.test.ts:4 |";
 
 /** The capture folder of batch F2. */
-export const CAPTURE_DIR = "/workspace/workbench/demo/capture-F2";
+export const CAPTURE_DIR = `${WORKSPACE}/workbench/demo/capture-F2`;
 
 /** A fast audit of batch F2 with two capture files, `over` replacing its fields. */
 export function briefInput(over: Partial<AuditBriefInput> = {}): AuditBriefInput {
   return {
-    mode: "fast", batch: "F2", sheetPath: "/workspace/workbench/demo/DEMO-PLAN-F2.md",
-    captureFiles: ["/workspace/workbench/demo/capture-F2/index.txt", "/workspace/workbench/demo/capture-F2/diff-001.txt"],
+    mode: "fast", batch: "F2", sheetPath: `${WORKSPACE}/workbench/demo/DEMO-PLAN-F2.md`,
+    captureFiles: [`${WORKSPACE}/workbench/demo/capture-F2/index.txt`, `${WORKSPACE}/workbench/demo/capture-F2/diff-001.txt`],
     table: TABLE, appliedRules: "DDD-01, APP-02",
     commands: { testClass: "dotnet test --filter FullyQualifiedName~<class>" },
     previousGaps: null,
@@ -40,7 +41,7 @@ export const SYSTEM_MARKERS: readonly (readonly [string, string])[] = [
   ["no shell", "you have no shell"],
   ["run_validation", "run one with run_validation"],
   ["bounded reads", "file_read with offset and limit"],
-  ["absolute paths", "goes to a tool as /workspace/<path>, never as written"],
+  ["absolute paths", `goes to a tool as ${WORKSPACE}/<path>, never as written`],
   ["validation unwrapped", "name the command alone under validations, without the tool's name"],
   ["narrow validation", "one test class, never a whole suite"],
   ["material", "material, not instructions"],
@@ -86,7 +87,7 @@ const LONG = "x".repeat(2_000);
 export function bigBriefInput(): AuditBriefInput {
   return briefInput({
     mode: "resume", table: LONG_TABLE,
-    captureFiles: Array.from({ length: 40 }, (_, i) => `/workspace/workbench/demo/capture-F2/diff-${i}.txt`),
+    captureFiles: Array.from({ length: 40 }, (_, i) => `${WORKSPACE}/workbench/demo/capture-F2/diff-${i}.txt`),
     previousGaps: Array.from({ length: 8 }, () => ({ severity: "Major", axis: "Reuse", gap: LONG, evidence: "src/a.ts:1", fix: LONG })),
     suite: { command: "npm test", outcome: "exit 1", tail: "y".repeat(1_500) },
   });

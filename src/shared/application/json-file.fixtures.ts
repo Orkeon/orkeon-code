@@ -1,6 +1,7 @@
 // Paths and contents the hand-editable JSON file is read from.
+import { WORKSPACE } from "../domain/dev/path-rebase.ts";
 
-export const PATH = "/workspace/.orkeon/agents.json";
+export const PATH = `${WORKSPACE}/.orkeon/agents.json`;
 
 /** A file content and the value it parses to, whatever its shape. */
 export const PARSED_SHAPES: readonly { name: string; content: string; value: unknown }[] = [

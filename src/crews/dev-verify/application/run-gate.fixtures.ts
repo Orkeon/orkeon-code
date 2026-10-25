@@ -4,6 +4,7 @@ import { FakeShell } from "../../../../tests/support/fake-shell.ts";
 import { parseRepoPack } from "../../../shared/domain/dev/repo-pack.ts";
 import type { RepoPack } from "../../../shared/domain/dev/repo-pack.ts";
 import type { DevVerifyTarget } from "./run-gate.ts";
+import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
 
 /** The pack a YAML text describes; a text that is no pack throws. */
 export function pack(yaml: string): RepoPack {
@@ -40,9 +41,9 @@ export function target(over: Partial<DevVerifyTarget> = {}): DevVerifyTarget {
 /** The sheet and plan on disk, and the git outputs of a green batch. */
 export function fakes(): { files: FakeFiles; shell: FakeShell } {
   const files = new FakeFiles();
-  files.files.set("/workspace/workbench/demo/DEMO-PLAN-F2.md", SHEET);
-  files.files.set("/workspace/workbench/demo/DEMO-PLAN.md", PLAN);
-  files.listings.set("/workspace/workbench/demo", ["DEMO-PLAN-F2.md", "DEMO-PLAN.md", "logs", "notes.txt"]);
+  files.files.set(`${WORKSPACE}/workbench/demo/DEMO-PLAN-F2.md`, SHEET);
+  files.files.set(`${WORKSPACE}/workbench/demo/DEMO-PLAN.md`, PLAN);
+  files.listings.set(`${WORKSPACE}/workbench/demo`, ["DEMO-PLAN-F2.md", "DEMO-PLAN.md", "logs", "notes.txt"]);
   const shell = new FakeShell();
   shell.results["git diff --name-only HEAD"] = { stdout: "src/b.ts\nsrc/a.ts\n" };
   shell.results[UNTRACKED] = { stdout: "tests/a.test.ts\nsrc/a.ts\n" };
@@ -54,7 +55,7 @@ export function fakes(): { files: FakeFiles; shell: FakeShell } {
 export function fakesWithNotes(): { files: FakeFiles; shell: FakeShell } {
   const { files, shell } = fakes();
   const notes = Array.from({ length: 59 }, (_, i) => `A-note-${String(i).padStart(2, "0")}.md`);
-  for (const n of notes) files.files.set(`/workspace/workbench/demo/${n}`, "# note\n");
-  files.listings.set("/workspace/workbench/demo", [...notes, "DEMO-PLAN-F2.md", "DEMO-PLAN.md"]);
+  for (const n of notes) files.files.set(`${WORKSPACE}/workbench/demo/${n}`, "# note\n");
+  files.listings.set(`${WORKSPACE}/workbench/demo`, [...notes, "DEMO-PLAN-F2.md", "DEMO-PLAN.md"]);
   return { files, shell };
 }

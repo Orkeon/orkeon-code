@@ -9,10 +9,11 @@ import { FakeShell } from "../../../../tests/support/fake-shell.ts";
 import { FakeSharedMemory } from "../../../../tests/doubles/fake-shared-memory.ts";
 import { LiveListingFiles } from "../../../../tests/doubles/live-listing-files.ts";
 import { entryText, sampleEntry } from "../../../../tests/doubles/memory-entries.ts";
+import { WORKSPACE } from "../../domain/dev/path-rebase.ts";
 
 export { recorder } from "./script-tools.fixtures.ts";
 
-export const ROOT = "/workspace/.orkeon/worktrees/prune-F2";
+export const ROOT = `${WORKSPACE}/.orkeon/worktrees/prune-F2`;
 
 export const layout = memoryLayout(".orkeon/memory");
 

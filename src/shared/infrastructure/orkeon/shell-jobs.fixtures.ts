@@ -1,7 +1,8 @@
 // The working root and the shell_command replies the createShellJobs tests run under.
 import { FakeTools } from "../../../../tests/support/fake-tools.ts";
+import { WORKSPACE } from "../../domain/dev/path-rebase.ts";
 
-export const ROOT = "/workspace/.orkeon/worktrees/prune-F2";
+export const ROOT = `${WORKSPACE}/.orkeon/worktrees/prune-F2`;
 
 /** FakeTools whose shell_command answers a tail naming a file under ROOT, and any other action a running job j1. */
 export function rootedTools(): FakeTools {

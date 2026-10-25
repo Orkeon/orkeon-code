@@ -17,8 +17,9 @@ import { AUDIT_UNFINISHED_GAP } from "../../../shared/domain/dev/verdict-format.
 import { STATUS_COMMAND } from "./observe.ts";
 import { touchedPath } from "./touched.ts";
 import type { ImplementAnswer } from "./run-dev-implement.ts";
+import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
 
-export const DIR = "/workspace/workbench/demo";
+export const DIR = `${WORKSPACE}/workbench/demo`;
 export const SHEET_PATH = `${DIR}/DEMO-PLAN-F1.md`;
 export const VERDICT_PATH = `${DIR}/DEMO-VERIFY-F1.md`;
 export const PACK = "layout:\n  domain: src\n  tests: tests\ncommands:\n  restore: npm ci\n  build: npm run build\n" +
@@ -88,7 +89,7 @@ export class Tree {
   onWrite: ((path: string) => void) | null = null;
   write(path: string, content: string): void {
     this.dirty.set(path, content);
-    this.files.files.set(`/workspace/${path}`, content);
+    this.files.files.set(`${WORKSPACE}/${path}`, content);
     this.onWrite?.(path);
   }
   /** What a run of the role's tests leaves in the tree, through no write tool. */
@@ -206,14 +207,14 @@ export type Deps = {
 /** The world of a run: the pack and `sheet` on disk, the two roles scripted with `author` and `implementer`. */
 export function setup(author: Act[], implementer: Act[], sheet = SHEET) {
   const files = new FakeFiles();
-  files.files.set("/workspace/.orkeon/repo.yaml", PACK);
+  files.files.set(`${WORKSPACE}/.orkeon/repo.yaml`, PACK);
   files.files.set(SHEET_PATH, sheet);
-  files.listings.set("/workspace", ["workbench", "src", "tests"]);
-  files.listings.set("/workspace/workbench", ["demo"]);
+  files.listings.set(WORKSPACE, ["workbench", "src", "tests"]);
+  files.listings.set(`${WORKSPACE}/workbench`, ["demo"]);
   files.listings.set(DIR, ["DEMO-PLAN-F1.md", "DEMO-PLAN.md"]);
   const tree = new Tree(files);
   const shell = new TreeShell(tree);
-  shell.results[GIT_TOPLEVEL] = { stdout: "/workspace\n" };
+  shell.results[GIT_TOPLEVEL] = { stdout: `${WORKSPACE}\n` };
   const roles = { "test-author": new Role(tree, author), implementer: new Role(tree, implementer) };
   const jobs = new FakeShellJobs();
   const deps = {
@@ -279,7 +280,7 @@ export const GLOBAL = "# DEMO-PLAN — Demo\n\n### Batch F1 — Demo — open\n-
  *  opener is asked for recorded. */
 export function closing(branch: string, pack = PACK) {
   const t = setup([], [], DONE_SHEET);
-  t.files.files.set("/workspace/.orkeon/repo.yaml", pack);
+  t.files.files.set(`${WORKSPACE}/.orkeon/repo.yaml`, pack);
   t.files.files.set(VERDICT_PATH, VALID);
   t.files.files.set(`${DIR}/DEMO-PLAN.md`, GLOBAL);
   t.files.files.set(touchedPath("demo", "F1"), JSON.stringify({
@@ -319,7 +320,7 @@ export const UNFINISHED = "# DEMO-VERIFY-F1 — 2026-10-24 11:00 — resume\n\n#
 /** The report of one read of `src/a.ts`, in a loop when `inLoop`. */
 const oneRead = (inLoop: boolean): AccessCostReport => ({
   members: [{
-    member: "/workspace/src/a.ts::A::run", memoryFilters: [],
+    member: `${WORKSPACE}/src/a.ts::A::run`, memoryFilters: [],
     cost: { reads: 1, writes: 0, loops: inLoop ? 1 : 0, lambdas: 0, memoryFilters: 0 },
     portCalls: [{ receiver: "repo", method: "get", line: 1, inLoop, inLambda: false }],
   }],
@@ -345,14 +346,14 @@ export const graphIndex = (roots: string[], tests: Partial<AffectedTests> | Erro
 /** A one-step run after the whole suite went green once for the batch, the pack naming test_project, over `index`. */
 export const later = (index: CostIndex) => {
   const t = setup([writesTest("tests/a.test.ts")], [writesCode("src/a.ts", "tests/a.test.ts")], ONE_STEP);
-  t.files.files.set("/workspace/.orkeon/repo.yaml", PACK_WITH_PROJECT);
+  t.files.files.set(`${WORKSPACE}/.orkeon/repo.yaml`, PACK_WITH_PROJECT);
   t.files.files.set(touchedPath("demo", "F1"), JSON.stringify({ touched: [], verdictMark: "none", suiteGreen: true }));
   t.deps.costIndex = index;
   return t;
 };
 
 /** The files of F1 the index is refreshed with. */
-export const F1_FILES = ["/workspace/src/a.ts", "/workspace/tests/a.test.ts"];
+export const F1_FILES = [`${WORKSPACE}/src/a.ts`, `${WORKSPACE}/tests/a.test.ts`];
 
 /** The line naming the graph's project no command can be named for. */
 export const PROJECT_LEFT_OUT = "affected tests: the graph's projects left out, no command can be named for them — " +

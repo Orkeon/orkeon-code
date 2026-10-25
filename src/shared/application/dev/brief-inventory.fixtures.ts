@@ -1,8 +1,9 @@
 // The code index and the requests briefInventory is tested on.
 import { FakeCodeIndex } from "../../../../tests/support/fake-code-index.ts";
 import type { BriefInventoryRequest } from "./brief-inventory.ts";
+import { WORKSPACE } from "../../domain/dev/path-rebase.ts";
 
-export const PRUNE_FQN = "/workspace/src/memory.ts::prune";
+export const PRUNE_FQN = `${WORKSPACE}/src/memory.ts::prune`;
 
 /** Two phrases, the work folder `workbench` excluded. */
 export const PRUNE_REQUEST: BriefInventoryRequest = { phrases: ["memory prune", "Remove old entries."], excluded: ["workbench"] };
@@ -18,10 +19,10 @@ export function pruneIndex(): FakeCodeIndex {
   const index = new FakeCodeIndex();
   index.roots = 0;
   index.hits = {
-    "memory prune": [{ fqn: PRUNE_FQN, score: 0.9, origin: "symbol" }, { fqn: "/workspace/workbench/prune/SPEC-prune.md::x", score: 0.5, origin: "text" }],
-    "Remove old entries.": [{ fqn: PRUNE_FQN, score: 0.8, origin: "symbol" }, { fqn: "/workspace/.claude/rules/a.md::r", score: 0.4, origin: "text" }],
+    "memory prune": [{ fqn: PRUNE_FQN, score: 0.9, origin: "symbol" }, { fqn: `${WORKSPACE}/workbench/prune/SPEC-prune.md::x`, score: 0.5, origin: "text" }],
+    "Remove old entries.": [{ fqn: PRUNE_FQN, score: 0.8, origin: "symbol" }, { fqn: `${WORKSPACE}/.claude/rules/a.md::r`, score: 0.4, origin: "text" }],
   };
-  index.sources[PRUNE_FQN] = { fqn: PRUNE_FQN, path: "/workspace/src/memory.ts", startLine: 12, endLine: 30, language: "ts", firstLine: "export function prune" };
+  index.sources[PRUNE_FQN] = { fqn: PRUNE_FQN, path: `${WORKSPACE}/src/memory.ts`, startLine: 12, endLine: 30, language: "ts", firstLine: "export function prune" };
   return index;
 }
 

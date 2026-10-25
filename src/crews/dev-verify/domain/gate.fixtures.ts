@@ -2,6 +2,7 @@
 import type { GateInput, GateLineKind } from "./gate.ts";
 import { sheetFacts } from "./sheet-facts.ts";
 import { traitMarker } from "../../../shared/domain/dev/trait-pattern.ts";
+import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
 
 export const SHEET = [
   "# DEMO-PLAN-F2 — Command",
@@ -29,7 +30,7 @@ export function gateInput(over: Partial<GateInput> = {}): GateInput {
     facts: sheetFacts(sheet),
     plan: { sheets: [sheet], plans: [PLAN], all: [sheet, PLAN] },
     planDirShown: "workbench/demo",
-    planDirAbsolute: "/workspace/workbench/demo",
+    planDirAbsolute: `${WORKSPACE}/workbench/demo`,
     roots: ["src", "tests/"],
     changedFiles: ["README.md", "src/a.ts", "tests/a.test.ts", "workbench/demo/DEMO-PLAN-F2.md"],
     trait: traitMarker("BR", undefined),

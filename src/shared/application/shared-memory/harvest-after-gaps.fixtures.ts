@@ -5,8 +5,9 @@ import { collectLearnRows } from "../../domain/shared-memory/verdict-rows.ts";
 import { LiveListingFiles } from "../../../../tests/doubles/live-listing-files.ts";
 import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
 import { FakeShell } from "../../../../tests/support/fake-shell.ts";
+import { WORKSPACE } from "../../domain/dev/path-rebase.ts";
 
-export const W = "/workspace/workbench";
+export const W = `${WORKSPACE}/workbench`;
 export const work = { folder: "workbench", vfsPath: W };
 export const OUTSIDE_MOUNTS = { folder: "x", vfsPath: null };
 export const layout = memoryLayout(".orkeon/memory");
@@ -40,7 +41,7 @@ export function setup(folders: Record<string, string[]>) {
 /** Records the first `count` verdict rows of `files` as treated by /dev-learn. */
 export function treatFirstRows(files: LiveListingFiles, count: number): void {
   const rows = collectLearnRows([...files.files].map(([path, text]) => ({ code: path.split("/")[3], name: path.split("/")[4], text })));
-  files.files.set(`/workspace/${LEARN_STATE_FILE}`, JSON.stringify({ version: 1, treated: rows.slice(0, count).map((r) => r.id), decisions: [] }));
+  files.files.set(`${WORKSPACE}/${LEARN_STATE_FILE}`, JSON.stringify({ version: 1, treated: rows.slice(0, count).map((r) => r.id), decisions: [] }));
 }
 
 export const throwingClock = (): Date => { throw new Error("no clock"); };

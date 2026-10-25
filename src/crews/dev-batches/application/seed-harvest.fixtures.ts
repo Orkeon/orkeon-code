@@ -3,10 +3,11 @@ import { worktreePlace } from "../../../shared/domain/git/worktree.ts";
 import { FakeFiles } from "../../../../tests/support/fake-files.ts";
 import { seedWorktree } from "./seed-harvest.ts";
 import type { SeedSnapshot, SeedTarget } from "./seed-harvest.ts";
+import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
 
 export const PLACE = worktreePlace("prune-F2")!;
 export const TARGET: SeedTarget = { place: PLACE, work: "todo", code: "prune", memoryDir: ".orkeon/memory", batch: "F2" };
-export const WT = "/workspace/.orkeon/worktrees/prune-F2";
+export const WT = `${WORKSPACE}/.orkeon/worktrees/prune-F2`;
 
 /** Files under `base`, each folder listed by its parent as the runtime's directory_read does. */
 export function put(files: FakeFiles, base: string, tree: Record<string, string>): void {
@@ -35,7 +36,7 @@ export const MAIN: Record<string, string> = {
 /** FakeFiles holding the main checkout, and the worktree's `tree` when given. */
 export function checkout(tree?: Record<string, string>): FakeFiles {
   const files = new FakeFiles();
-  put(files, "/workspace", MAIN);
+  put(files, WORKSPACE, MAIN);
   if (tree !== undefined) put(files, WT, tree);
   return files;
 }

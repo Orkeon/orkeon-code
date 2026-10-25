@@ -1,6 +1,7 @@
 // The access_cost reports, diffs and file lists the access cost is tested on.
 import type { AccessCostReport, CostTotals } from "./access-cost.ts";
 import { readAccessCostReport } from "./access-cost.ts";
+import { WORKSPACE } from "./path-rebase.ts";
 
 /** Totals of nothing, as access_cost writes them. */
 export const ZERO = { reads: 0, writes: 0, loops: 0, lambdas: 0, memory_filters: 0 };
@@ -13,7 +14,7 @@ export function raw(): Record<string, unknown> {
   return {
     members: [
       {
-        member: "/workspace/src/order.ts::OrderService::place",
+        member: `${WORKSPACE}/src/order.ts::OrderService::place`,
         port_calls: [
           { receiver: "this.repository", method: "findById", line: 10, in_loop: false, in_lambda: false },
           { receiver: "this.repository", method: "save", line: 14, in_loop: true, in_lambda: false },
@@ -22,7 +23,7 @@ export function raw(): Record<string, unknown> {
         in_memory_filters: [{ line: 22, method: "Where" }],
         cost: { reads: 1, writes: 0, loops: 1, lambdas: 1, memory_filters: 1 },
       },
-      { member: "/workspace/src/order.ts::OrderService::total", port_calls: [], in_memory_filters: [], cost: ZERO },
+      { member: `${WORKSPACE}/src/order.ts::OrderService::total`, port_calls: [], in_memory_filters: [], cost: ZERO },
     ],
     cost: { reads: 1, writes: 0, loops: 1, lambdas: 1, memory_filters: 1 },
   };
@@ -97,7 +98,7 @@ export const EMPTY_REPORT: AccessCostReport = { members: [], cost: { ...ZERO_TOT
 /** A member making 14 port calls, as access_cost writes it. */
 export function fourteenCalls(): Record<string, unknown> {
   const calls = Array.from({ length: 14 }, (_, i) => ({ receiver: "store", method: "get", line: i + 1, in_loop: false, in_lambda: false }));
-  return { members: [{ member: "/workspace/a.ts::f", port_calls: calls, in_memory_filters: [], cost: { ...ZERO, reads: 14 } }], cost: { ...ZERO, reads: 14 } };
+  return { members: [{ member: `${WORKSPACE}/a.ts::f`, port_calls: calls, in_memory_filters: [], cost: { ...ZERO, reads: 14 } }], cost: { ...ZERO, reads: 14 } };
 }
 
 /** A measured detail of `count` lines, each named by `name`. */

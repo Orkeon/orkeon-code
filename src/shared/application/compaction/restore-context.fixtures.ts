@@ -10,6 +10,7 @@ import { SKILLS_STATE_KEY } from "../../domain/session-keys.ts";
 import type { SessionMsg } from "../../domain/types.ts";
 import { FakeFiles } from "../../../../tests/support/fake-files.ts";
 import { FakeSessionStore } from "../../../../tests/support/fake-session-store.ts";
+import { WORKSPACE } from "../../domain/dev/path-rebase.ts";
 
 export const PER_FILE_CHARS = POST_COMPACT_PER_FILE_TOKENS * CHARS_PER_TOKEN;
 export const PER_SKILL_CHARS = POST_COMPACT_PER_SKILL_TOKENS * CHARS_PER_TOKEN;
@@ -17,24 +18,24 @@ export const PER_SKILL_CHARS = POST_COMPACT_PER_SKILL_TOKENS * CHARS_PER_TOKEN;
 /** Two readable files, an empty one, and one that cannot be read. */
 export function mixedFiles(): FakeFiles {
   const files = new FakeFiles();
-  files.files.set("/workspace/src/a.ts", "A");
-  files.files.set("/workspace/src/b.ts", "B");
-  files.files.set("/workspace/src/empty.ts", "");
-  files.readErrors.set("/workspace/src/locked.ts", new Error("access denied"));
+  files.files.set(`${WORKSPACE}/src/a.ts`, "A");
+  files.files.set(`${WORKSPACE}/src/b.ts`, "B");
+  files.files.set(`${WORKSPACE}/src/empty.ts`, "");
+  files.readErrors.set(`${WORKSPACE}/src/locked.ts`, new Error("access denied"));
   return files;
 }
 
 /** A conversation naming a, then b, a gone file and the locked one, then the empty one. */
 export const MIXED_MENTIONS: SessionMsg[] = [
-  { role: "user", content: "look at /workspace/src/a.ts" },
-  { role: "assistant", content: "read /workspace/src/b.ts, /workspace/src/gone.ts and /workspace/src/locked.ts" },
-  { role: "tool", content: "/workspace/src/empty.ts is empty" },
+  { role: "user", content: `look at ${WORKSPACE}/src/a.ts` },
+  { role: "assistant", content: `read ${WORKSPACE}/src/b.ts, ${WORKSPACE}/src/gone.ts and ${WORKSPACE}/src/locked.ts` },
+  { role: "tool", content: `${WORKSPACE}/src/empty.ts is empty` },
 ];
 
 /** Two more files than the cap, each over the per-file limit, and a conversation naming each in turn. */
 export function tooManyLargeFiles() {
   const files = new FakeFiles();
-  const paths = Array.from({ length: POST_COMPACT_MAX_FILES_TO_RESTORE + 2 }, (_, i) => `/workspace/f${i}.ts`);
+  const paths = Array.from({ length: POST_COMPACT_MAX_FILES_TO_RESTORE + 2 }, (_, i) => `${WORKSPACE}/f${i}.ts`);
   for (const p of paths) files.files.set(p, "x".repeat(PER_FILE_CHARS + 10));
   const messages: SessionMsg[] = paths.map((p) => ({ role: "user", content: `see ${p}` }));
   return { files, paths, messages };
@@ -45,7 +46,7 @@ export const BUDGET_SKILLS = (POST_COMPACT_SKILLS_TOKEN_BUDGET * CHARS_PER_TOKEN
 
 /** One more attached skill than the budget holds, each over the per-skill limit. */
 export function tooManySkills() {
-  const paths = Array.from({ length: BUDGET_SKILLS + 1 }, (_, i) => `/workspace/skills/s${i}.md`);
+  const paths = Array.from({ length: BUDGET_SKILLS + 1 }, (_, i) => `${WORKSPACE}/skills/s${i}.md`);
   const session = new FakeSessionStore();
   session.state.set(SKILLS_STATE_KEY, JSON.stringify(paths));
   const files = new FakeFiles();
@@ -56,9 +57,9 @@ export function tooManySkills() {
 /** Three attached skills: one gone, one blank, one readable. */
 export function goneBlankAndOkSkills() {
   const session = new FakeSessionStore();
-  session.state.set(SKILLS_STATE_KEY, `["/workspace/gone.md","/workspace/blank.md","/workspace/ok.md"]`);
+  session.state.set(SKILLS_STATE_KEY, `["${WORKSPACE}/gone.md","${WORKSPACE}/blank.md","${WORKSPACE}/ok.md"]`);
   const files = new FakeFiles();
-  files.files.set("/workspace/blank.md", " ");
-  files.files.set("/workspace/ok.md", "# OK");
+  files.files.set(`${WORKSPACE}/blank.md`, " ");
+  files.files.set(`${WORKSPACE}/ok.md`, "# OK");
   return { session, files };
 }

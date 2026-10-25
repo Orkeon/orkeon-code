@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { FakeFiles } from "../../../../tests/support/fake-files.ts";
 import type { Files } from "../../../shared/application/ports.ts";
 import type { PlanAnswer } from "../domain/plan-answer.ts";
+import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
 
 export const ANSWER = JSON.parse(readFileSync(new URL("../../../../tests/fixtures/dev/plan/answer.json", import.meta.url), "utf8")) as PlanAnswer;
 
@@ -18,9 +19,9 @@ export class CountingFiles extends FakeFiles {
 
 /** Fills `files` with the listings the golden answer is right against. */
 function fillRepository<T extends FakeFiles>(files: T): T {
-  files.listings.set("/workspace/src/shared/domain", ["memory.ts", "dev/"]);
-  files.listings.set("/workspace/docs", ["commands.md", "fr/"]);
-  files.listings.set("/workspace/docs/fr", ["commands.md"]);
+  files.listings.set(`${WORKSPACE}/src/shared/domain`, ["memory.ts", "dev/"]);
+  files.listings.set(`${WORKSPACE}/docs`, ["commands.md", "fr/"]);
+  files.listings.set(`${WORKSPACE}/docs/fr`, ["commands.md"]);
   return files;
 }
 

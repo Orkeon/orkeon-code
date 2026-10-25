@@ -2,6 +2,7 @@
 // root and builders the dev-deps tests run on.
 import { FakeTools } from "../../../../tests/support/fake-tools.ts";
 import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
+import { WORKSPACE } from "../../domain/dev/path-rebase.ts";
 
 type Module = typeof import("./dev-deps.ts");
 
@@ -18,7 +19,7 @@ export async function loadDevDeps(): Promise<Module> {
   return await import("./dev-deps.ts");
 }
 
-export const ROOT = "/workspace/.orkeon/worktrees/prune-F2";
+export const ROOT = `${WORKSPACE}/.orkeon/worktrees/prune-F2`;
 
 export const LAYOUT = { domain: "src/domain", application: "src/application", tests: "tests", shared: [], buildOutputs: [] };
 
@@ -38,9 +39,9 @@ export function context() {
 }
 
 /** A brief quoting a /workspace constant and a fenced diff, and the same brief sent under ROOT. */
-export const QUOTING_BRIEF = 'Step 1 of /workspace/todo/prune/PRUNE-PLAN-F2.md: keep `const WORKING_DIRECTORY = "/workspace";`\n```diff\n+ cd /workspace\n```';
+export const QUOTING_BRIEF = `Step 1 of ${WORKSPACE}/todo/prune/PRUNE-PLAN-F2.md: keep \`const WORKING_DIRECTORY = "${WORKSPACE}";\`\n\`\`\`diff\n+ cd ${WORKSPACE}\n\`\`\``;
 export const QUOTING_BRIEF_ROOTED =
-  `Step 1 of ${ROOT}/todo/prune/PRUNE-PLAN-F2.md: keep \`const WORKING_DIRECTORY = "/workspace";\`\n\`\`\`diff\n+ cd /workspace\n\`\`\``;
+  `Step 1 of ${ROOT}/todo/prune/PRUNE-PLAN-F2.md: keep \`const WORKING_DIRECTORY = "${WORKSPACE}";\`\n\`\`\`diff\n+ cd ${WORKSPACE}\n\`\`\``;
 
 /** The tools verifyDeps offers the audit's act when the act names none. */
 export const AUDITOR_TOOLS = ["file_read", "node_read", "codebase_search", "symbol_detail", "symbol_source", "run_validation", "memory_recall"];
@@ -91,7 +92,7 @@ export function recorder(): () => ToolBuilder<unknown, unknown> {
 /** The parts of the batch agents of F2 and F3, each under its own worktree, 5 tool calls each. */
 export async function twoBatchParts() {
   const m = await loadDevDeps();
-  return ["F2", "F3"].map((b) => m.batchAgentParts(recorder(), { root: `/workspace/.orkeon/worktrees/prune-${b}`, toolCalls: 5, memoryOn: false }));
+  return ["F2", "F3"].map((b) => m.batchAgentParts(recorder(), { root: `${WORKSPACE}/.orkeon/worktrees/prune-${b}`, toolCalls: 5, memoryOn: false }));
 }
 
 /** The names of the tools a batch agent's parts carry. */

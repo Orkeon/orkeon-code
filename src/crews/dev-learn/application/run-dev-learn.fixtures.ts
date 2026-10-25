@@ -13,17 +13,18 @@ import { createConfigStore } from "../../../shared/application/config-store.ts";
 import { GIT_TOPLEVEL } from "../../../shared/application/dev/resolve-work-folder.ts";
 import { ORKEON_IGNORE_PROBE, checkIgnoreCommand } from "../../../shared/application/dev/load-dev-context.ts";
 import type { ProposalsFile } from "../../../shared/domain/dev/learn-proposals.ts";
+import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
 
 const root = fileURLToPath(new URL("../../../../tests/fixtures/dev/learn/", import.meta.url));
 
 /** A file the harness's script recorded under tests/fixtures/dev/learn. */
 export const recorded = (name: string): string => readFileSync(join(root, name), "utf8");
 
-export const W = "/workspace/workbench";
+export const W = `${WORKSPACE}/workbench`;
 export const OUT = `${W}/learn-2026-10-22`;
-export const HARNESS_STATE = "/workspace/.claude/local/dev-learn-state.json";
-export const ORKEON_STATE = "/workspace/.orkeon/dev-learn-state.json";
-export const REFUSED = "/workspace/.orkeon/memory/refused.md";
+export const HARNESS_STATE = `${WORKSPACE}/.claude/local/dev-learn-state.json`;
+export const ORKEON_STATE = `${WORKSPACE}/.orkeon/dev-learn-state.json`;
+export const REFUSED = `${WORKSPACE}/.orkeon/memory/refused.md`;
 /** The Test axis's untreated rows, by batch. */
 export const T = { exports: "7b3b561c93", invoices: "3a59a45e69", ledger1: "c936075d95", ledger1b: "2bfca0aab4", ledger3: "b983faad38" };
 export const THREE = [T.ledger1, T.ledger3, T.invoices];
@@ -35,7 +36,7 @@ export function setup() {
   const files = new FakeFiles();
   const work = join(root, "workbench");
   const codes = readdirSync(work);
-  files.listings.set("/workspace", ["workbench/", "CONTRIBUTING.md", "tests/", ".orkeon/"]);
+  files.listings.set(WORKSPACE, ["workbench/", "CONTRIBUTING.md", "tests/", ".orkeon/"]);
   files.listings.set(W, codes.map((c) => `${c}/`));
   for (const code of codes) {
     if (!statSync(join(work, code)).isDirectory()) continue;
@@ -44,9 +45,9 @@ export function setup() {
     for (const name of names) files.files.set(`${W}/${code}/${name}`, readFileSync(join(work, code, name), "utf8"));
   }
   files.files.set(HARNESS_STATE, recorded("harness-state.json"));
-  files.files.set("/workspace/CONTRIBUTING.md", "# Contributing\n\nA refusal is part of a command's contract.\nKeep it short.\n");
+  files.files.set(`${WORKSPACE}/CONTRIBUTING.md`, "# Contributing\n\nA refusal is part of a command's contract.\nKeep it short.\n");
   const shell = new FakeShell();
-  shell.results[GIT_TOPLEVEL] = { stdout: "/workspace\n" };
+  shell.results[GIT_TOPLEVEL] = { stdout: `${WORKSPACE}\n` };
   shell.results[checkIgnoreCommand([ORKEON_IGNORE_PROBE, "workbench/"])] = { stdout: ".orkeon/config.json\nworkbench/\n" };
   const llm = new FakeLlm();
   const config = createConfigStore({ files, session: new FakeSessionStore() });

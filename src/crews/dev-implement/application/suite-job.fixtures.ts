@@ -2,8 +2,9 @@
 import { FakeShell } from "../../../../tests/support/fake-shell.ts";
 import { FakeShellJobs } from "../../../../tests/support/fake-shell-jobs.ts";
 import type { SuiteRequest } from "./suite-job.ts";
+import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
 
-export const REQ = { label: "test", command: "npm test", log: "/workspace/w/logs/F1-test.txt", limitSeconds: 60, sliceSeconds: 20 } satisfies SuiteRequest;
+export const REQ = { label: "test", command: "npm test", log: `${WORKSPACE}/w/logs/F1-test.txt`, limitSeconds: 60, sliceSeconds: 20 } satisfies SuiteRequest;
 
 /** Shell jobs whose one job runs for 2 looks, then exits 0, its log 30 lines long. */
 export function suiteJobs(): FakeShellJobs {
