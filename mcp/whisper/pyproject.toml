@@ -6,7 +6,7 @@ version = "0.1.0"
 description = "Speech-to-text and speech output for Orkeon Code: an MCP server on faster-whisper and Piper"
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
   # mcp 2.x renamed FastMCP to MCPServer and quits on stdin EOF before a running call answers:
   # the server is written against the 1.x API, which speaks the protocol Orkeon requires (2025-06-18).

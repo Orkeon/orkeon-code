@@ -338,6 +338,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The speech server needs Python 3.11 or later** (`mcp/whisper/pyproject.toml`, `requires-python = ">=3.11"`).
+  Python 3.10 reached its end of life in October 2026, and the `filelock` that huggingface-hub pulls in is fixed
+  of six advisories (GHSA-v4x8-3wr5-3wq8 and five others on its lock files) from 4.2.1 on, a version that needs
+  3.11. The lock resolves `filelock` 4.2.4 and drops the packages the 3.10 fork alone pulled in; `uv` downloads
+  a Python when the distribution has none ([speech server](mcp/whisper/README.md), [WSL tutorial](docs/wsl-tutorial.md)).
 - **The slash commands sit in functional folders**: `src/commands/<group>/` (`session`, `settings`, `status`, `project`,
   `git`, `dev`, `memory`, `speech`), and [Slash commands](docs/commands.md) lists them by group.
 - **Every test of `src/` sits next to its module**, the command use cases of `commands/_lib/` included (they were the

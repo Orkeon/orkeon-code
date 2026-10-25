@@ -174,7 +174,7 @@ cp config/appsettings.example.json config/appsettings.local.json
 export DEEPSEEK_API_KEY=...
 ```
 
-`uv`, which resolves and starts the speech server (Python 3.10 or later; `uv` downloads one when the distribution
+`uv`, which resolves and starts the speech server (Python 3.11 or later; `uv` downloads one when the distribution
 has none):
 
 ```bash
