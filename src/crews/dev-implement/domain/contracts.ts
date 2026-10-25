@@ -2,6 +2,8 @@
 // contract the test author works from and the GREEN contract the implementer works from. Each
 // names the batch, the ids, the behaviour, the files, the narrow test command code runs after the
 // act, and the reading and editing rules: by node. A contract never asks to read a file whole. Pure.
+import { carriedBlocks } from "../../../shared/domain/dev/carried-text.ts";
+import type { CarriedText } from "../../../shared/domain/dev/carried-text.ts";
 import type { RepoPackCommands, RepoPackLayout } from "../../../shared/domain/dev/repo-pack.ts";
 import { PLACEHOLDER, plainWords, valueProblem } from "../../../shared/domain/dev/test-commands.ts";
 import { BOUNDED_READ_RULE, NODE_EDIT_RULE, NODE_READ_RULE } from "../../../shared/domain/dev/reading-rule.ts";
@@ -59,6 +61,8 @@ export interface ContractInput {
   cycle?: readonly ImplementStep[];
   layout: RepoPackLayout;
   testCommand: string;
+  /** Texts carried in the brief (the sheet, the test file), so the role opens no file for them. */
+  carried?: readonly CarriedText[];
   /** The files open to RED as signature stubs: `stubsOf(step)`, and the stubs an earlier RED of the cycle wrote. */
   stubs?: readonly string[];
 }
@@ -125,6 +129,15 @@ function testsTable(step: ImplementStep): string[] {
 }
 
 /** The test author's brief: write the step's tests, all red, test files only. */
+/** The most carried text a role's brief holds, in characters. */
+export const CARRIED_CONTRACT_CHARS = 12_000;
+
+/** The carried texts as a section of the brief, or nothing. */
+function carriedSection(input: ContractInput): string[] {
+  const blocks = carriedBlocks(input.carried ?? [], CARRIED_CONTRACT_CHARS);
+  return blocks.length === 0 ? [] : ["", "## In this brief (do not open these files again)", ...blocks];
+}
+
 export function redContract(input: ContractInput): string {
   const { step, layout } = input;
   const file = testFileOf(step) ?? "(none)";
@@ -146,6 +159,7 @@ export function redContract(input: ContractInput): string {
     `- test file: ${refLine(step.anchor?.testFiles[0] ?? { path: file, state: "to create" })} — ${testFileRule(step.anchor?.testFiles[0]?.state ?? "to create")}`,
     `- shared doubles and builders: ${doubles === "" ? "none named" : doubles}`,
     ...(step.anchor?.production ?? []).map((r) => `- production it will drive (${stubs.includes(r.path) ? "a signature stub at most" : "read only, never write"}): ${refLine(r)}`),
+    ...carriedSection(input),
     "",
     "## Rules",
     `- Write test files only (${testsWhere(layout)}): no production line; a test failing on a missing symbol is red.`,
@@ -185,6 +199,7 @@ export function greenContract(input: ContractInput, red: { tail: string; log: st
     "Code elements of the batch:",
     ...elements,
     `Applied rules: ${sheet.appliedRules || "none named"}. Expected access cost: ${sheet.accessCost || "not stated"}.`,
+    ...carriedSection(input),
     "",
     "## Rules",
     `- Never write a test file (${testsWhere(layout)}): the tests are read-only to you.`,

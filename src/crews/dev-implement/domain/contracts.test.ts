@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 import { readFileSync } from "node:fs";
 
-import { classOf, greenContract, redContract, stubsOf, testCommandFor } from "./contracts.ts";
+import { CARRIED_CONTRACT_CHARS, classOf, greenContract, redContract, stubsOf, testCommandFor } from "./contracts.ts";
 import { NODE_EDIT_RULE, NODE_READ_RULE } from "../../../shared/domain/dev/reading-rule.ts";
 import { parseImplementSheet } from "./step-section.ts";
 
@@ -72,6 +72,20 @@ describe("redContract / greenContract", () => {
     ok(green.includes("Expected access cost: 1 read + 1 write"));
     ok(green.includes("Never write a test file (under `tests`)"));
     ok(green.includes("`Cost: <reads> reads"));
+  });
+
+  it("carries the sheet and the test file in both briefs, cut past the room, and says not to open them", () => {
+    const carried = [{ title: "workbench/prune/PRUNE-PLAN-F1.md", text: "# PRUNE-PLAN-F1 — Prune\n## Design\n| Rounding | none |\n" }, { title: "tests/prune.test.ts", text: "test('keeps', () => {});\n" }];
+    const red = redContract({ ...input, carried });
+    ok(red.includes("## In this brief (do not open these files again)\n### workbench/prune/PRUNE-PLAN-F1.md\n```text\n# PRUNE-PLAN-F1 — Prune\n## Design\n| Rounding | none |\n```\n### tests/prune.test.ts\n```text\ntest('keeps', () => {});\n```"), red);
+    ok(red.indexOf("## In this brief") < red.indexOf("## Rules"));
+    const green = greenContract({ ...input, carried }, { tail: "not ok 1", log: null });
+    ok(green.includes("### tests/prune.test.ts\n```text\ntest('keeps', () => {});\n```"), green);
+    ok(green.indexOf("## In this brief") < green.indexOf("## Rules"));
+    ok(!redContract(input).includes("## In this brief"));
+    const cut = redContract({ ...input, carried: [{ title: "big", text: "x".repeat(CARRIED_CONTRACT_CHARS * 2) }] });
+    ok(cut.includes("more characters)"));
+    ok(cut.length < CARRIED_CONTRACT_CHARS + 4_000, String(cut.length));
   });
 
   it("lets the test author stub the files the step creates, and no other", () => {

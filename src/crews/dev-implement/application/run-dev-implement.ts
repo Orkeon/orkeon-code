@@ -22,13 +22,14 @@ import { addedLines, INDEX_ROOT } from "../../../shared/domain/dev/access-cost.t
 import { hasTestLayout, isTestPath } from "../../../shared/domain/dev/test-paths.ts";
 import { isUnfinishedSection, lastVerdict, parseVerdictFile } from "../../../shared/domain/dev/verdict-format.ts";
 import { shellQuote } from "../../../shared/domain/git/close.ts";
+import type { CarriedText } from "../../../shared/domain/dev/carried-text.ts";
 import type { WrappedRun, WrappedTools } from "../../../shared/application/dev/wrapped-tools.ts";
 import { stepRules } from "../../../shared/domain/dev/step-rules.ts";
 import { policyFor } from "../../../shared/domain/agent-policy/mode-policy.ts";
 import { parseSessionRules } from "../../../shared/domain/git/pull-request.ts";
 import { shellRuleGuard } from "../../../shared/domain/dev/tool-guards.ts";
 import type { RepoPack, RepoPackLayout } from "../../../shared/domain/dev/repo-pack.ts";
-import { greenContract, projectCommandFor, redContract, stubsOf, testCommandFor } from "../domain/contracts.ts";
+import { testFileOf, greenContract, projectCommandFor, redContract, stubsOf, testCommandFor } from "../domain/contracts.ts";
 import { openSteps, parseImplementSheet } from "../domain/step-section.ts";
 import type { ImplementSheet, ImplementStep } from "../domain/step-section.ts";
 import { addedFailure, changedPaths, failureCount, greenProblem, readCost, redProblem, under } from "../domain/step-checks.ts";
@@ -248,11 +249,25 @@ async function act(
   return { text: said.text, changed };
 }
 
-function contractInput(run: Run, step: ImplementStep, testCommand: string, cycle?: readonly ImplementStep[]) {
+function contractInput(run: Run, step: ImplementStep, testCommand: string, carried: readonly CarriedText[], cycle?: readonly ImplementStep[]) {
   return {
     code: run.located.code, sheetPath: `${run.located.dir}/${run.located.name}`, sheet: run.sheet, step,
-    ...(cycle === undefined ? {} : { cycle }), layout: run.pack.layout, testCommand,
+    ...(cycle === undefined ? {} : { cycle }), layout: run.pack.layout, testCommand, carried,
   };
+}
+
+/** What a role's brief carries: the sheet, then each of `paths` that exists (a test file; one to create is left out). */
+async function carriedFor(run: Run, paths: readonly (string | null)[]): Promise<CarriedText[]> {
+  const out: CarriedText[] = [{ title: `${run.located.dir}/${run.located.name}`, text: run.sheetText }];
+  for (const path of new Set(paths)) {
+    if (path === null) continue;
+    try {
+      out.push({ title: path, text: await run.deps.files.read(`${WORKSPACE}/${path}`) });
+    } catch {
+      // To create, or unreadable: the role's own.
+    }
+  }
+  return out;
 }
 
 /** The lines `git diff -U0` adds to each changed production file; an untracked file (no diff), or one whose diff
@@ -352,7 +367,8 @@ async function runCycle(run: Run, cycle: Cycle): Promise<string | null> {
   for (const step of toRed) {
     const stubs = [...new Set([...await openStubs(run, step), ...stubbed])];
     const t3 = await recallForRed(run, step);
-    const done = await act(run, "test-author", withPrecedents(redContract({ ...contractInput(run, step, command.command), stubs }), [t3, run.correction]), stubs);
+    const carried = await carriedFor(run, [testFileOf(step)]);
+    const done = await act(run, "test-author", withPrecedents(redContract({ ...contractInput(run, step, command.command, carried), stubs }), [t3, run.correction]), stubs);
     if (typeof done === "string") return `step ${step.number} RED: ${done}`;
     run.ran.push(step);
     const earlier = before;
@@ -379,7 +395,8 @@ async function runCycle(run: Run, cycle: Cycle): Promise<string | null> {
     red ??= await run.tools.runTests({ command: command.command });
     const redTail = red.ok ? { tail: red.tail, log: red.log } : { tail: `(not run: ${red.refused})`, log: null };
     const greenLabel = stepsLabel(green);
-    const done = await act(run, "implementer", withPrecedents(greenContract(contractInput(run, green[0], command.command, green), redTail), [run.correction]));
+    const carried = await carriedFor(run, green.map(testFileOf));
+    const done = await act(run, "implementer", withPrecedents(greenContract(contractInput(run, green[0], command.command, carried, green), redTail), [run.correction]));
     if (typeof done === "string") return `${greenLabel} GREEN: ${done}`;
     run.ran.push(...green.filter((s) => !run.ran.includes(s)));
     const after = await run.tools.runTests({ command: command.command });

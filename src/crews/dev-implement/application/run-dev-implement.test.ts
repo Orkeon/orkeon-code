@@ -173,6 +173,11 @@ describe("runDevImplement — the steps", () => {
       ok(green.request.tools?.includes("run_build"));
       ok(red.prompt.includes("`does one`") && red.prompt.includes("node --test tests/a.test.ts"));
       ok(green.prompt.includes("not ok 1"));
+      // Each brief carries the sheet; the implementer's carries the test file the test author wrote, the test
+      // author's none (its file is to create).
+      ok(red.prompt.includes("## In this brief (do not open these files again)\n### workbench/demo/DEMO-PLAN-F1.md\n```text\n# DEMO-PLAN-F1"), red.prompt);
+      ok(!red.prompt.includes("### tests/a.test.ts"), red.prompt);
+      ok(green.prompt.includes("### tests/a.test.ts\n```text\ntest tests/a.test.ts\n```"), green.prompt);
     });
   });
 
