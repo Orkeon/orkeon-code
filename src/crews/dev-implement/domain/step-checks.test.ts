@@ -86,4 +86,12 @@ describe("readCost", () => {
     strictEqual(readCost("Cost: 3 reads in a loop; 1 write").ok, false);
     strictEqual(readCost("Cost: 1 reads, 0 writes; no port call in a loop, but one in a lambda").ok, false);
   });
+  it("clears a none followed by its reason, unless the reason takes it back", () => {
+    strictEqual(readCost("Cost: 4 reads, 2 writes; none — no port, no loop over a port call.").ok, true);
+    strictEqual(readCost("Cost: 0 reads, 0 writes; none: pure functions, no loop over a port").ok, true);
+    strictEqual(readCost("Cost: 0 reads, 0 writes; none (no port in any lambda)").ok, true);
+    strictEqual(readCost("Cost: 1 reads, 0 writes; none — but a read in a loop over entries").ok, false);
+    strictEqual(readCost("Cost: 1 reads, 0 writes; none, except a read in a lambda").ok, false);
+    strictEqual(readCost("Cost: 1 reads, 0 writes; none in the loop, one in a lambda").ok, false);
+  });
 });

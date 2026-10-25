@@ -319,7 +319,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the entries of `.orkeon/` one by one, all but `worktrees/`, so a batch writes its code in its worktree. A pack whose `layout.tests` is also a source root is reported when read (both roles
   would be refused that folder: tests beside the code take `layout.test_files`). A batch's audit that writes no verdict says
   why (its last line), and a stub a RED of a `/dev-implement` cycle wrote stays open to the cycle's later REDs, a
-  rerun's too, until its GREEN. The ports of the dev crews are built from the calling
+  rerun's too, until its GREEN. A Cost line whose `none` gives its reason (`none — no loop over a port call`) is
+  no longer taken for a port call in a loop. The ports of the dev crews are built from the calling
   agent's own tools, and a batch keeps naming the checkout `/workspace`, rebased on its root (Orkeon/orkeon#186,
   delivered by #187).
 - The dev steps recall the shared memory on their own: `/dev-spec` and `/dev-change` at the start (decisions,
