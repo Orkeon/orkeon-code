@@ -101,9 +101,10 @@ describe("/permissions show", () => {
     strictEqual(lines[5], "  ↳ removed by rule  : (none)");
     strictEqual(lines[6], "session rules        : (none)");
     strictEqual(lines[7], "in the host gate     : (none)");
-    ok(lines[11].endsWith("acceptEdits ask you: [y] once / [s] session / [n] no"), lines[11]);
-    deepStrictEqual(lines.slice(12, 17), CALLBACK, "the dev crews' callback, the third line");
-    deepStrictEqual(lines.slice(17), GATE_ON, "the host says its gate is on");
+    ok(lines[11].endsWith("acceptEdits ask you: [y] once / [s] session / [n] no; a background"), lines[11]);
+    ok(lines[12].endsWith("command's question names its task (for [t1]), answered from the main prompt"), lines[12]);
+    deepStrictEqual(lines.slice(13, 18), CALLBACK, "the dev crews' callback, the third line");
+    deepStrictEqual(lines.slice(18), GATE_ON, "the host says its gate is on");
     deepStrictEqual(await run("show"), await run());
     deepStrictEqual(gate.calls, [], "show hands the gate nothing");
   });
@@ -134,11 +135,11 @@ describe("/permissions show", () => {
     strictEqual(lines[5], "  ↳ removed by rule  : file_read");
     strictEqual(lines[6], "session rules        : deny file_read, allow shell_command command=npm test*");
     strictEqual(lines[7], "in the host gate     : deny file_read, allow shell_command command=npm test*");
-    ok(lines[19].startsWith(
+    ok(lines[20].startsWith(
       "⚠ rule allow shell_command command=npm test* has NO effect in 'plan': mode 'plan' ignores every allow rule",
-    ), lines[19]);
-    strictEqual(lines[20], "⚠ 1 stored entry is not a rule (bogus): kept as written, ignored; /permissions clear removes them.");
-    strictEqual(lines.length, 21);
+    ), lines[20]);
+    strictEqual(lines[21], "⚠ 1 stored entry is not a rule (bogus): kept as written, ignored; /permissions clear removes them.");
+    strictEqual(lines.length, 22);
   });
 
   it("says when the gate holds other rules than the session, or none at all", async () => {
@@ -146,11 +147,11 @@ describe("/permissions show", () => {
     seedRules("deny file_write");
     let lines = (await run("show")).text!.split("\n");
     strictEqual(lines[7], "in the host gate     : (none)");
-    strictEqual(lines[19], "⚠ the gate holds other rules than the session: the next change or /assistant hands it these.");
+    strictEqual(lines[20], "⚠ the gate holds other rules than the session: the next change or /assistant hands it these.");
     gate.kept = false;
     lines = (await run("show")).text!.split("\n");
     strictEqual(lines[7], "in the host gate     : (the host keeps no session rules)");
-    strictEqual(lines.length, 19);
+    strictEqual(lines.length, 20);
   });
 
   it("groups the rule sets a dev step left in the gate, and says the next turn hands it the session's alone", async () => {
@@ -337,7 +338,7 @@ describe("/permissions — the extra tools of tools.extra", () => {
     strictEqual(lines[4], "  ↳ withheld by mode : (none)");
     strictEqual(lines[6],
       "  ↳ extra tools      : transcribe_audio (read), search_issues (write); not registered: gone (read); ignored: bad:exec");
-    strictEqual(lines.length, 20);
+    strictEqual(lines.length, 21);
     store.state.set(DEFAULT_MODE_STATE_KEY, "dontAsk");
     lines = (await run("show")).text!.split("\n");
     strictEqual(lines[3], `tool catalogue       : ${[...toolsetFor("dontAsk", EXTRAS), "memory_recall"].join(", ")}`);
@@ -503,13 +504,13 @@ describe("/permissions show: the host gate's state", () => {
     const { gate, run } = setup();
     gate.hostGate = false;
     const lines = (await run()).text!.split("\n");
-    deepStrictEqual(lines.slice(17), GATE_OFF);
+    deepStrictEqual(lines.slice(18), GATE_OFF);
   });
 
   it("falls back to the setting's description when the host cannot say", async () => {
     const { gate, run } = setup();
     gate.hostGate = undefined;
     const lines = (await run()).text!.split("\n");
-    deepStrictEqual(lines.slice(17), GATE_SETTING);
+    deepStrictEqual(lines.slice(18), GATE_SETTING);
   });
 });

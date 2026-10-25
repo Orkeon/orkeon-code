@@ -94,6 +94,12 @@ REPL : `approve <tool>? [y] once / [s] session / [n] no`. `y` exécute l'appel, 
 suivants de cet outil sans demander jusqu'à la sortie du REPL, `n` le refuse, et le modèle lit le refus et s'adapte.
 Une ligne `/` exécute toujours sa commande pendant qu'une question attend.
 
+Une question venue d'une commande en arrière-plan (`/dev-batches`, `/dev-implement`, un `/assistant` lancé en async)
+nomme sa tâche : `? [t1] dev-batches: tool 'shell_command' requires approval (mode 'acceptEdits').`, l'appel, puis
+`approve shell_command for [t1]? [y] once / [s] session / [n] no`. Elle s'affiche dans la ligne de statut et sur la
+ligne de la tâche (`? waits for approval of shell_command`), et vous y répondez depuis l'invite principale, sans
+ouvrir la tâche. Une ligne qui n'est pas une réponse réécrit toute la question (Orkeon #194).
+
 Un appel à un outil que l'act n'offre pas n'atteint jamais la garde : le runtime y répond aussitôt `ERROR: tool
 '<name>' is not available to this agent.`, sans question (Orkeon #193), et les agents dev ont pour consigne de revenir
 à leurs propres outils sur cette erreur.

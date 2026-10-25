@@ -338,6 +338,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **A background command's approval is answered from the main view** (Orkeon #194, delivered by #195): the question
+  names its task (`approve <tool> for [t1]? …`) and shows on the status line and on the task's row. `/permissions`,
+  [Permissions](docs/permissions.md) and [Getting started](docs/getting-started.md) say so (#15).
 - **A tool name the act does not offer is refused without a question** (Orkeon #193, delivered by #195): the runtime
   answers `ERROR: tool '<name>' is not available to this agent.` before the gate and before the dev crews' callback,
   so such a call no longer waits on an approval nor counts against a batch's tool calls. The system texts of the dev

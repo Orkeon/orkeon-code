@@ -86,6 +86,12 @@ refuses anything else without asking.
 without asking until the REPL exits, `n` refuses it, and the model reads the refusal and adapts. A `/` line still
 runs its command while a question waits.
 
+A question from a command running in the background (`/dev-batches`, `/dev-implement`, an `/assistant` run async)
+names its task: `? [t1] dev-batches: tool 'shell_command' requires approval (mode 'acceptEdits').`, the call, then
+`approve shell_command for [t1]? [y] once / [s] session / [n] no`. It shows on the status line and on the task's row
+(`? waits for approval of shell_command`), and you answer it from the main prompt, without opening the task. A line
+that is no answer writes the whole question again (Orkeon #194).
+
 A call to a tool the act does not offer never reaches the gate: the runtime answers it `ERROR: tool '<name>' is not
 available to this agent.` at once, with no question (Orkeon #193), and the dev agents are told to go back to their
 own tools on that error.
