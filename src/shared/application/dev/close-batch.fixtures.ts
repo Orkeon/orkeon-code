@@ -1,7 +1,7 @@
 // The request, the scripted git and the files the close of a dev batch is tested with.
 import type { CloseBatchRequest } from "./close-batch.ts";
-import { FakeFiles } from "../../../../tests/support/fake-files.ts";
-import { FakeShell } from "../../../../tests/support/fake-shell.ts";
+import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
+import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
 
 export const STATUS = "git -c core.quotePath=false status --short --untracked-files=all";

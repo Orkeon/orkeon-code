@@ -4,7 +4,7 @@ import type { PullRequestPolicy } from "./open-pull-request.ts";
 import { createPullRequestOpener } from "./open-pull-request.ts";
 import type { CreatePrArgs } from "../../domain/git/pull-request.ts";
 import { GIT_REMOTE_URL_COMMAND } from "../../domain/git/pull-request.ts";
-import { FakeShell } from "../../../../tests/support/fake-shell.ts";
+import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 
 export const PR = { base: "main", head: "feat/x", title: "fix: x", bodyFile: "workbench/pr-feat-x/PR.md", body: "## Batch\n" };
 

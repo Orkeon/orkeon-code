@@ -7,7 +7,7 @@ import { runProjectInit } from "./run-project-init.ts";
 import { CONVENTIONS_SCHEMA, buildInstructionsFilePrompt, buildConventionsPrompt } from "./prompts.ts";
 import { fallbackConventions } from "../domain/conventions.ts";
 import { DETECTED, PKG, projectInitSetup } from "./run-project-init.fixtures.ts";
-import { assertMentions } from "./run-project-init.assertions.ts";
+import { assertMentions } from "../../../../tests/support/assertions/text.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 describe("runProjectInit", () => {

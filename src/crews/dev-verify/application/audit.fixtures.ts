@@ -1,7 +1,7 @@
 // The brief, answers and fakes runAudit and the validation runners are tested on.
-import { FakeFiles } from "../../../../tests/support/fake-files.ts";
-import { FakeLlm } from "../../../../tests/support/fake-llm.ts";
-import { FakeShell } from "../../../../tests/support/fake-shell.ts";
+import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
+import { FakeLlm } from "../../../../tests/support/doubles/fake-llm.ts";
+import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 import type { RepoPackCommands } from "../../../shared/domain/dev/repo-pack.ts";
 import type { AuditBriefInput } from "./auditor-prompt.ts";
 import { shellValidationRunner } from "./audit.ts";

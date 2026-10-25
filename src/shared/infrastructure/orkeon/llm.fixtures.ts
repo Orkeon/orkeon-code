@@ -1,7 +1,7 @@
 // The schema, the act results, the requests and the facades the createLlm tests run on.
 import { createLlm } from "./llm.ts";
 import type { ToolCallbacks } from "./tool-callbacks.ts";
-import { FakeLlmFacade } from "../../../../tests/support/fake-llm-facade.ts";
+import { FakeLlmFacade } from "../../../../tests/support/doubles/fake-llm-facade.ts";
 
 export const SCHEMA = { type: "object", properties: { findings: { type: "array" } } };
 

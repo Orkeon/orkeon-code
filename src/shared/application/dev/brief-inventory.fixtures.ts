@@ -1,5 +1,5 @@
 // The code index and the requests briefInventory is tested on.
-import { FakeCodeIndex } from "../../../../tests/support/fake-code-index.ts";
+import { FakeCodeIndex } from "../../../../tests/support/doubles/fake-code-index.ts";
 import type { BriefInventoryRequest } from "./brief-inventory.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
 

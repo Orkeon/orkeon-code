@@ -1,7 +1,7 @@
 // The permission gates the createPermissionRules tests drive, and the rules they add.
 import { createPermissionRules } from "./permission-rules.ts";
-import { FakePermissionRulesFacade } from "../../../../tests/support/fake-permissions-facade.ts";
-import { FakeServiceLocator } from "../../../../tests/support/fake-script-host.ts";
+import { FakePermissionRulesFacade } from "../../../../tests/support/doubles/fake-permissions-facade.ts";
+import { FakeServiceLocator } from "../../../../tests/support/doubles/fake-script-host.ts";
 
 type PermissionRules = ReturnType<typeof createPermissionRules>;
 type Rule = Parameters<PermissionRules["add"]>[0];

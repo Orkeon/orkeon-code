@@ -14,7 +14,7 @@ import { WORKFLOW_ACTIVE_STATE_KEY } from "../src/shared/domain/session-keys.ts"
 import { RULE_SET_IDS } from "../src/shared/domain/agent-policy/rule-sets.ts";
 import { gateProblem } from "../src/shared/domain/dev/step-rules.ts";
 import { HOOKS_STATE_KEY } from "../src/shared/domain/session-keys.ts";
-import { FakeSessionStore } from "./support/fake-session-store.ts";
+import { FakeSessionStore } from "./support/doubles/fake-session-store.ts";
 import {
   ACTIVE_WORKFLOW_CASES,
   HOOKS_CASES,

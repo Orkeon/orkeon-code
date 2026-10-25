@@ -4,8 +4,8 @@
 import { openChildAct } from "./child-agents.ts";
 import { createChildBoard } from "../../application/agents/child-agent.ts";
 import type { Llm } from "../../application/ports.ts";
-import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
-import { FakeSessionStore } from "../../../../tests/support/fake-session-store.ts";
+import { FakeLogger } from "../../../../tests/support/doubles/fake-logger.ts";
+import { FakeSessionStore } from "../../../../tests/support/doubles/fake-session-store.ts";
 
 /**
  * An agent context and a crew of the run `crewName`: each spawn adds a running row named by the agent's id; the

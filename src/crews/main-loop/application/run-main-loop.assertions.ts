@@ -16,11 +16,6 @@ export function assertLoggedLike(lines: readonly string[], fragment: string): vo
   ok(lines.some((l) => l.includes(fragment)), `no log line holds '${fragment}': ${JSON.stringify(lines)}`);
 }
 
-/** `text` holds every one of `fragments`. */
-export function assertMentions(text: string, fragments: readonly string[]): void {
-  for (const fragment of fragments) ok(text.includes(fragment), `'${fragment}' missing from:\n${text}`);
-}
-
 /** The answer opens with the warning that the host's gate is off, and ends with `answer` after a blank line. */
 export function assertGateWarningBefore(text: string, answer: string): void {
   ok(text.startsWith("⚠ the host's permission gate is off"), `no gate warning first: ${text}`);

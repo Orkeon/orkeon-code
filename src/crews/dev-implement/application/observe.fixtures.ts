@@ -1,6 +1,6 @@
 // The trees the snapshot is tested on.
-import { FakeFiles } from "../../../../tests/support/fake-files.ts";
-import { FakeShell } from "../../../../tests/support/fake-shell.ts";
+import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
+import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 import { MAX_SNAPSHOT_PATHS, STATUS_COMMAND } from "./observe.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 

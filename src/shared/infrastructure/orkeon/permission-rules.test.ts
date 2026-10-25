@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, throws } from "node:assert";
 
 import { createPermissionRules } from "./permission-rules.ts";
-import { FakeServiceLocator } from "../../../../tests/support/fake-script-host.ts";
+import { FakeServiceLocator } from "../../../../tests/support/doubles/fake-script-host.ts";
 import { CHANGES_WITHOUT_RULES, RULES, gateOverFake, gateWithoutRules } from "./permission-rules.fixtures.ts";
 
 describe("createPermissionRules", () => {

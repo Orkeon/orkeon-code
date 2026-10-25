@@ -7,7 +7,7 @@
 import { describe, it } from "node:test";
 import { ok, strictEqual } from "node:assert";
 
-import { SAMPLE_TODAY, renderCatalogue, renderHeaders, turnDeps } from "./support/prompt-catalogue.ts";
+import { SAMPLE_TODAY, renderCatalogue, renderHeaders, turnDeps } from "./support/fixtures/prompt-catalogue.ts";
 import { buildTurnPrompt } from "../src/crews/main-loop/application/turn-prompt.ts";
 import { MAX_SKILL_FRAGMENT_CHARS, MAX_STATIC_HEADER_CHARS } from "../src/crews/main-loop/domain/prompt-assembly.ts";
 import { DEFAULT_BEHAVIOR_FLAGS } from "../src/shared/domain/agent-policy/behavior-flags.ts";

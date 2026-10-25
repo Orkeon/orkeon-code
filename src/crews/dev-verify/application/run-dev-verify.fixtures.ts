@@ -1,12 +1,12 @@
 // The demo plan folder runDevVerify reads over FakeFiles, FakeShell, FakeLlm and a config store on FakeFiles,
 // whose gate is green; the auditor's answers, the earlier verdicts a resume reads, the doubles wrapped for one
 // test (the validation slot, the code index, the harvest, a verdict that cannot be written) and the refusals.
-import { FakeCostIndex } from "../../../../tests/support/fake-cost-index.ts";
-import { FakeFiles } from "../../../../tests/support/fake-files.ts";
-import { FakeLlm } from "../../../../tests/support/fake-llm.ts";
-import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
-import { FakeSessionStore } from "../../../../tests/support/fake-session-store.ts";
-import { FakeShell } from "../../../../tests/support/fake-shell.ts";
+import { FakeCostIndex } from "../../../../tests/support/doubles/fake-cost-index.ts";
+import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
+import { FakeLlm } from "../../../../tests/support/doubles/fake-llm.ts";
+import { FakeLogger } from "../../../../tests/support/doubles/fake-logger.ts";
+import { FakeSessionStore } from "../../../../tests/support/doubles/fake-session-store.ts";
+import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 import { createConfigStore } from "../../../shared/application/config-store.ts";
 import { GIT_TOPLEVEL } from "../../../shared/application/dev/resolve-work-folder.ts";
 import { ORKEON_IGNORE_PROBE, checkIgnoreCommand } from "../../../shared/application/dev/load-dev-context.ts";

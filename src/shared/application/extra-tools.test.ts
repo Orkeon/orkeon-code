@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { configuredNames, readExtraTools, resolveExtraTools } from "./extra-tools.ts";
-import { FakeToolCatalogue } from "../../../tests/support/fake-tool-catalogue.ts";
+import { FakeToolCatalogue } from "../../../tests/support/doubles/fake-tool-catalogue.ts";
 import { MCP_NAMES, PROJECT_CONFIG, extraToolsHarness, failingConfig } from "./extra-tools.fixtures.ts";
 import { WORKSPACE } from "../domain/vfs.ts";
 

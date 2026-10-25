@@ -8,16 +8,15 @@ import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import { runBatchChain, runWave } from "./run-wave.ts";
 import type { BatchOutcome, BatchRun } from "./run-wave.ts";
-import { FakeFiles } from "../../../../tests/support/fake-files.ts";
+import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
 import {
   AUDIT_GAPS, AUDIT_VALID, Book, F2_DONE_PLAN, F2_RELAUNCH_LINE, F3_GAPS, F3_RELAUNCH_LINE, FailingClose, GATE_RED, IGNORED,
   LAUNCH, MERGED, NOT_IGNORED_LINE, OPEN_PLAN, PROBE_REFUSED_LINE, RUN, SHEET, VERIFY_INPUT, WORKTREE_ROOT_REFUSED, WT, add,
   ahead, batchWrites, bookOf, head, implemented, mainFiles, merge, rebase, refuseFirstMerge, remove, request, shellFor,
   shellReopening, spend, status, tickingClock, traceCheckoutWrites, valid,
 } from "./run-wave.fixtures.ts";
-import {
-  assertLineStarting, assertLineWith, assertNoLineStarting, assertNoLineWith, assertNotRan, assertRan, assertRanAfter,
-} from "./run-wave.assertions.ts";
+import { assertLineWith, assertNoLineStarting, assertNoLineWith, assertNotRan, assertRan, assertRanAfter } from "./run-wave.assertions.ts";
+import { assertLineStarting } from "../../../../tests/support/assertions/text.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 describe("runWave", () => {

@@ -9,10 +9,10 @@ import type { PermissionRule } from "../src/shared/domain/agent-policy/permissio
 import { gateLine as memoryGateLine } from "../src/shared/domain/agent-policy/permission.ts";
 import { DEFAULT_MEMORY_DIR, memoryWriteRules } from "../src/shared/domain/shared-memory/layout.ts";
 import { PERMISSION_RULES_STATE_KEY } from "../src/shared/domain/session-keys.ts";
-import { FakeFiles } from "./support/fake-files.ts";
-import { FakePermissionRules } from "./support/fake-permission-rules.ts";
-import { FakeSessionStore } from "./support/fake-session-store.ts";
-import { FakeToolCatalogue } from "./support/fake-tool-catalogue.ts";
+import { FakeFiles } from "./support/doubles/fake-files.ts";
+import { FakePermissionRules } from "./support/doubles/fake-permission-rules.ts";
+import { FakeSessionStore } from "./support/doubles/fake-session-store.ts";
+import { FakeToolCatalogue } from "./support/doubles/fake-tool-catalogue.ts";
 import { WORKSPACE } from "../src/shared/domain/vfs.ts";
 
 /** The built-in denies every sync adds after the session's rules: no model tool writes the memory's candidates or entries. */

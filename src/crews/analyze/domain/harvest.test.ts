@@ -9,7 +9,7 @@ import {
   SYNTHESIS_SYSTEM, buildSynthesisUser,
 } from "./harvest.ts";
 import { ENDPOINTS, MODULE_GRAPH, PACKAGES, SYMBOLS, manySymbols } from "./harvest.fixtures.ts";
-import { assertMentions } from "./harvest.assertions.ts";
+import { assertMentions } from "../../../../tests/support/assertions/text.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 describe("edgeEndpointToPath", () => {

@@ -2,9 +2,9 @@
 import { createConfigStore } from "../src/shared/application/config-store.ts";
 import { createSessionIo } from "../src/shared/application/session-io.ts";
 import { PERMISSION_MODES } from "../src/shared/domain/permission-modes.ts";
-import { FakeFiles } from "./support/fake-files.ts";
-import { FakeLogger } from "./support/fake-logger.ts";
-import { FakeSessionStore } from "./support/fake-session-store.ts";
+import { FakeFiles } from "./support/doubles/fake-files.ts";
+import { FakeLogger } from "./support/doubles/fake-logger.ts";
+import { FakeSessionStore } from "./support/doubles/fake-session-store.ts";
 
 export const SET_NOTE = `(prompts without a "mode:" prefix now run in it; /clear restores 'default').`;
 

@@ -13,7 +13,7 @@ import {
 import {
   EFFORT_JUNK, ESSENTIAL_BLOCKS, LEVEL_RUNGS, PASSES_JUNK, PASSES_OUT_OF_RANGE, PROVIDER_EFFORT_CASES, THINKING_CASES,
 } from "./behavior-flags.fixtures.ts";
-import { assertMentions, assertOmits } from "./behavior-flags.assertions.ts";
+import { assertMentions, assertOmits } from "../../../../tests/support/assertions/text.ts";
 
 describe("the unconfigured session keeps the pre-B-9 behaviour", () => {
   it("resolves an empty bag to the defaults", () => {

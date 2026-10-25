@@ -1,6 +1,6 @@
 // The toggle command /fast is built from, and the sessions it runs against.
 import { toggleCommand } from "../src/commands/_lib/session-config.ts";
-import { FakeSessionStore } from "./support/fake-session-store.ts";
+import { FakeSessionStore } from "./support/doubles/fake-session-store.ts";
 
 /** A session whose state bag cannot be read, but can be written. */
 export class UnreadableStateStore extends FakeSessionStore {

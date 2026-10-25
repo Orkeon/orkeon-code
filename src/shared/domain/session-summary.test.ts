@@ -2,7 +2,7 @@
 import { describe, it } from "node:test";
 
 import { SUMMARY_PROMPT } from "./session-summary.ts";
-import { assertMentions } from "./session-summary.assertions.ts";
+import { assertMentions } from "../../../tests/support/assertions/text.ts";
 
 describe("SUMMARY_PROMPT", () => {
   it("leads with where things stand, then fixed headings, bounded", () => {

@@ -6,7 +6,7 @@ import { ok, strictEqual, deepStrictEqual } from "node:assert";
 import { runInitVerifiers } from "./run-init-verifiers.ts";
 import { READINESS_SCHEMA, buildReadinessPrompt, buildVerifierSkillPrompt } from "./prompts.ts";
 import { PKG, TWO_SKILLS, initVerifiersSetup } from "./run-init-verifiers.fixtures.ts";
-import { assertMentions } from "./run-init-verifiers.assertions.ts";
+import { assertMentions } from "../../../../tests/support/assertions/text.ts";
 
 describe("runInitVerifiers", () => {
   it("reports no gap when every zone has a verifier", async () => {

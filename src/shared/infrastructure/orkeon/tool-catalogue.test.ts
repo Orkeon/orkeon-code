@@ -6,7 +6,7 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, rejects } from "node:assert";
 
 import { createToolCalls, createToolCatalogue, toolMemberName } from "./tool-catalogue.ts";
-import { FakeServiceLocator } from "../../../../tests/support/fake-script-host.ts";
+import { FakeServiceLocator } from "../../../../tests/support/doubles/fake-script-host.ts";
 import {
   FOUND_NAMES, MEMBER_NAMES, RAW_CALLS, UNFOUND_NAMES, catalogueOverFake, toolsNamespace,
 } from "./tool-catalogue.fixtures.ts";

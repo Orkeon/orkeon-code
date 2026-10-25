@@ -2,8 +2,8 @@
 import { createSessionIo } from "./session-io.ts";
 import { createConfigStore } from "./config-store.ts";
 import { FALLBACK_PERMISSION_MODE, resolveFallbackMode } from "../domain/permission-modes.ts";
-import { FakeFiles } from "../../../tests/support/fake-files.ts";
-import { FakeSessionStore } from "../../../tests/support/fake-session-store.ts";
+import { FakeFiles } from "../../../tests/support/doubles/fake-files.ts";
+import { FakeSessionStore } from "../../../tests/support/doubles/fake-session-store.ts";
 
 /** The fakes and the session service built on them. */
 export function sessionHarness() {

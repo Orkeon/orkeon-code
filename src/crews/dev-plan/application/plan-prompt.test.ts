@@ -8,7 +8,8 @@ import { ok, strictEqual } from "node:assert";
 import { DESIGN_RULE_IDS } from "../../../shared/domain/dev/design-rules.ts";
 import { MAX_PLAN_PROMPT_CHARS, PLAN_INSTRUCTIONS, SOURCE_CHARS, buildPlanPrompt } from "./plan-prompt.ts";
 import { BRIEF, INPUT, INVENTORY_200, MARK, PLAN_MARKERS, SIXTY_ONE_PROBLEMS, hostVocabulary } from "./plan-prompt.fixtures.ts";
-import { assertDesignRuleLines, assertMentions, assertNoHostWord, assertOmits } from "./plan-prompt.assertions.ts";
+import { assertDesignRuleLines, assertNoHostWord } from "./plan-prompt.assertions.ts";
+import { assertMentions, assertOmits } from "../../../../tests/support/assertions/text.ts";
 
 describe("PLAN_INSTRUCTIONS — one marker per behaviour", () => {
   for (const [behaviour, marker] of PLAN_MARKERS) {

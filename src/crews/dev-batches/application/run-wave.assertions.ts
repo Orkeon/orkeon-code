@@ -1,6 +1,6 @@
 // Checks on the commands a wave ran and the lines it answered.
 import { ok } from "node:assert";
-import type { FakeShell } from "../../../../tests/support/fake-shell.ts";
+import type { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 
 /** The shell ran every command of `commands`. */
 export function assertRan(shell: FakeShell, ...commands: string[]): void {
@@ -15,11 +15,6 @@ export function assertNotRan(shell: FakeShell, ...commands: string[]): void {
 /** The shell ran `later` after `earlier`. */
 export function assertRanAfter(shell: FakeShell, later: string, earlier: string): void {
   ok(shell.commands.indexOf(later) > shell.commands.indexOf(earlier), `${later} not after ${earlier}:\n${shell.commands.join("\n")}`);
-}
-
-/** A line of `lines` starts with `prefix`. */
-export function assertLineStarting(lines: readonly string[], prefix: string): void {
-  ok(lines.some((l) => l.startsWith(prefix)), `no line starting with ${prefix}:\n${lines.join("\n")}`);
 }
 
 /** No line of `lines` starts with `prefix`. */

@@ -20,7 +20,7 @@ import {
   UNREADABLE_STATUS,
   branchHarness,
 } from "./commands-branch.fixtures.ts";
-import { assertMentions } from "./commands-branch.assertions.ts";
+import { assertMentions } from "./support/assertions/text.ts";
 
 describe("/branch — the dirty-tree guard", () => {
   for (const c of DIRTY_OUTPUTS) {

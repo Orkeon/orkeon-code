@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import { HOOK_TIMEOUT_SECONDS, devToolCallbacks, hookInputs, isNewFile, rootedCallbacks } from "./tool-callbacks.ts";
-import { FakeShell } from "../../../../tests/support/fake-shell.ts";
+import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 import {
   FAILED_HOOK_DENY, GIT_COMMIT_DENY, LAYOUT, MOUNT_DENIAL, MOUNT_DENY, NEW_FILES, PILOT_WARNINGS, POST, PRE, PRE_HOOK_CALLS,
   ROOT, SHELL_WRITE_INTO_MEMORY, UNREADABLE_MEMORY_WRITES, WHOLE_HOOK_INPUTS, bigSource, files, implementer, mainLoopGuard,

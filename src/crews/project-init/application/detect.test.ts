@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 
 import { scanLayout, readConfigs, writeInstructionsFile, readExistingInstructions } from "./detect.ts";
-import { FakeFiles } from "../../../../tests/support/fake-files.ts";
+import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
 import { checkoutWithConfigs, checkoutWithEntries, checkoutWithInstructions } from "./detect.fixtures.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 

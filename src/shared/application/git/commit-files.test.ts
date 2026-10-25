@@ -4,8 +4,8 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import { commitFiles, defaultBranch, handOverPullRequest, pushBranch, readIdentity } from "./commit-files.ts";
-import { FakeFiles } from "../../../../tests/support/fake-files.ts";
-import { FakeShell } from "../../../../tests/support/fake-shell.ts";
+import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
+import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 import {
   AUTHOR, brokenOpener, COMMITTER, COMMIT_A_IN_WORKTREE, GH, IDENT, ORIGIN_HEAD, PROBES, PUSH, REQ, RM_MESSAGE, recordingOpener,
   RefusingFiles, SHORT_HEAD, commitRequest, linkedWorktreeFiles, shellWith,

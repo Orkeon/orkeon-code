@@ -15,7 +15,8 @@ import {
   checkPublish, dist, extractedArchive, importShim, installSpace, installedSpace, lstatExists, npmLinkedShim, read,
   removeScratch, run, snapshot,
 } from "./install.fixtures.ts";
-import { assertAllUnder, assertExecutable, assertHolds, assertMentions } from "./install.assertions.ts";
+import { assertExecutable, assertHolds, assertMentions } from "./install.assertions.ts";
+import { assertAllUnder } from "./support/assertions/paths.ts";
 
 after(removeScratch);
 

@@ -6,7 +6,7 @@ import { strictEqual, deepStrictEqual } from "node:assert";
 
 import { createSessionStore } from "./session-store.ts";
 import { compactSession } from "../../application/compaction/compact-session.ts";
-import { FakeTools } from "../../../../tests/support/fake-tools.ts";
+import { FakeTools } from "../../../../tests/support/doubles/fake-tools.ts";
 import { BUDGETS, FORCES, NOT_A_LIST, RESET_COUNTS, compactionDeps } from "./session-store.fixtures.ts";
 
 describe("createSessionStore — messages", () => {

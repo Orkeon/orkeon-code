@@ -3,8 +3,8 @@ import { AGENTS_FILE_PATH, AGENTS_USAGE, SAVED_AGENTS_NOTE, runAgents } from "..
 import type { CommandView } from "../src/commands/_lib/view.ts";
 import { describeAgentRows } from "../src/shared/domain/agent-registry.ts";
 import { builtInCharterRows } from "../src/shared/domain/agents/built-in-charters.ts";
-import { FakeCrewHost } from "./support/fake-crew-host.ts";
-import { FakeFiles } from "./support/fake-files.ts";
+import { FakeCrewHost } from "./support/doubles/fake-crew-host.ts";
+import { FakeFiles } from "./support/doubles/fake-files.ts";
 
 export const MALFORMED_REFUSAL =
   `refusing to write: ${AGENTS_FILE_PATH} exists but could not be parsed, and overwriting ` +

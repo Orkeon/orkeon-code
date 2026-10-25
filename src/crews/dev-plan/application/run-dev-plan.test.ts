@@ -8,13 +8,14 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import { runDevPlan } from "./run-dev-plan.ts";
-import { FakePrecedents, PRECEDENTS_SAMPLE } from "../../../../tests/support/fake-precedents.ts";
+import { FakePrecedents, PRECEDENTS_SAMPLE } from "../../../../tests/support/doubles/fake-precedents.ts";
 import {
   ANSWER, BLOCKED_END, CLEAR, CLEAR_SUMMARY, CODE, F1, F2, FEWER_BATCHES_TEXT, FOURTEEN_UNKNOWN_REUSE, INVENTORY, MAJOR_LINES,
   NEXT_LINE, PJ, PLAN, REFUSALS, REVIEW_BLOCKING, REVIEW_MAJOR, STARTED_PLAN_TEXT, fixture, recordListings, setup,
   withGoldenPlan, withThreeBatchPlan, written,
 } from "./run-dev-plan.fixtures.ts";
-import { assertGoldenRenders, assertGuarded, assertListedOnce, assertMentions } from "./run-dev-plan.assertions.ts";
+import { assertGoldenRenders, assertGuarded, assertListedOnce } from "./run-dev-plan.assertions.ts";
+import { assertMentions } from "../../../../tests/support/assertions/text.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 describe("runDevPlan — a plan written and reviewed", () => {

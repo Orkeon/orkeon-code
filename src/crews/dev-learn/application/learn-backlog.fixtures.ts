@@ -4,7 +4,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { FakeFiles } from "../../../../tests/support/fake-files.ts";
+import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
 import type { WorkFolder } from "../../../shared/application/dev/resolve-work-folder.ts";
 import type { LearnRow } from "../../../shared/domain/shared-memory/verdict-rows.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";

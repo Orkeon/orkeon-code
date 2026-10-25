@@ -1,7 +1,7 @@
 // The dev crews' ports under test, loaded once the runtime's globals throw, and the body's context, layout, working
 // root and builders the dev-deps tests run on.
-import { FakeTools } from "../../../../tests/support/fake-tools.ts";
-import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
+import { FakeTools } from "../../../../tests/support/doubles/fake-tools.ts";
+import { FakeLogger } from "../../../../tests/support/doubles/fake-logger.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
 
 type Module = typeof import("./dev-deps.ts");

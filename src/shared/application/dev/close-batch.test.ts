@@ -5,7 +5,7 @@ import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import { closeBatch } from "./close-batch.ts";
 import { parseSessionRules } from "../../domain/git/pull-request.ts";
-import { FakeFiles } from "../../../../tests/support/fake-files.ts";
+import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
 import {
   COMMIT_AND_PUSH_COMMANDS, gitShell, IDENTITY_COMMANDS, linkedWorktreeFiles, PR_COMMAND, REQ,
 } from "./close-batch.fixtures.ts";

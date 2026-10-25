@@ -1,6 +1,6 @@
 // The shell jobs, the request and the log lines the suite job is tested on.
-import { FakeShell } from "../../../../tests/support/fake-shell.ts";
-import { FakeShellJobs } from "../../../../tests/support/fake-shell-jobs.ts";
+import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
+import { FakeShellJobs } from "../../../../tests/support/doubles/fake-shell-jobs.ts";
 import type { SuiteRequest } from "./suite-job.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 

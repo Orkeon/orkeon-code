@@ -2,9 +2,9 @@
 // no real git, no push.
 import type { ShellResult } from "../ports.ts";
 import type { PullRequestHandOver } from "./commit-files.ts";
-import { FakeFiles } from "../../../../tests/support/fake-files.ts";
-import { FakePullRequestOpener } from "../../../../tests/support/fake-pull-request-opener.ts";
-import { FakeShell } from "../../../../tests/support/fake-shell.ts";
+import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
+import { FakePullRequestOpener } from "../../../../tests/support/doubles/fake-pull-request-opener.ts";
+import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
 
 export const AUTHOR = "git var GIT_AUTHOR_IDENT";

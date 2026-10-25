@@ -7,7 +7,7 @@ import { strictEqual, ok, deepStrictEqual } from "node:assert";
 import { buildStatusRows, PLATFORM_COMMAND } from "../src/commands/_lib/status.ts";
 import { cacheColumns, statsRow } from "../src/commands/_lib/cache.ts";
 import { ORKEON_RUNTIME_VERSION } from "../src/commands/_lib/meta.ts";
-import { FakeShell } from "./support/fake-shell.ts";
+import { FakeShell } from "./support/doubles/fake-shell.ts";
 import { CACHE_COLUMN_CASES, rowMap, statusHarness } from "./commands-status.fixtures.ts";
 import { WORKSPACE } from "../src/shared/domain/vfs.ts";
 

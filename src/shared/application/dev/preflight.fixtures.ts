@@ -1,5 +1,5 @@
 // The scripted shell and the inputs the preflight of /dev-batches is tested on.
-import { FakeShell } from "../../../../tests/support/fake-shell.ts";
+import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 import { GIT_COMMITTER_IDENT_COMMAND, GIT_CURRENT_BRANCH_COMMAND, GIT_IDENT_COMMAND, GIT_STATUS_COMMAND } from "../../domain/git/close.ts";
 import type { PreflightInput } from "./preflight.ts";
 

@@ -5,10 +5,10 @@ import type { DoctorRow } from "../src/commands/_lib/doctor.ts";
 import type { CommandView } from "../src/commands/_lib/view.ts";
 import type { ConfigResolution } from "../src/shared/domain/config-schema.ts";
 import { CODE_INTEL_TOOLS } from "../src/shared/domain/code-intel-contract.ts";
-import { FakeFiles } from "./support/fake-files.ts";
-import { FakeShell } from "./support/fake-shell.ts";
-import { FakeTelemetry } from "./support/fake-telemetry.ts";
-import { FakeToolCatalogue } from "./support/fake-tool-catalogue.ts";
+import { FakeFiles } from "./support/doubles/fake-files.ts";
+import { FakeShell } from "./support/doubles/fake-shell.ts";
+import { FakeTelemetry } from "./support/doubles/fake-telemetry.ts";
+import { FakeToolCatalogue } from "./support/doubles/fake-tool-catalogue.ts";
 import { WORKSPACE } from "../src/shared/domain/vfs.ts";
 
 /** A host where every check passes; `ignored` sets aside a project value per key, `deps` is what runDoctor takes. */

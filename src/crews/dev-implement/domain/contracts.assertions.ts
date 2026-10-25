@@ -2,11 +2,6 @@
 import { ok } from "node:assert";
 import { NODE_EDIT_RULE, NODE_READ_RULE } from "../../../shared/domain/dev/reading-rule.ts";
 
-/** `text` holds every one of `parts`. */
-export function assertMentions(text: string, parts: readonly string[]): void {
-  for (const part of parts) ok(text.includes(part), `the brief does not say ${JSON.stringify(part)}:\n${text}`);
-}
-
 /** `text` gives the node read and edit rules, and no longer the old rule against writing a file whole. */
 export function assertNodeRules(text: string): void {
   ok(text.includes(`- ${NODE_READ_RULE}`), "node read rule");

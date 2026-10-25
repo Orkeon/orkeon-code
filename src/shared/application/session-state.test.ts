@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 
 import { readJsonArray, readJsonObject, writeJson } from "./session-state.ts";
-import { FakeSessionStore } from "../../../tests/support/fake-session-store.ts";
+import { FakeSessionStore } from "../../../tests/support/doubles/fake-session-store.ts";
 import { HOOKS_VALUE, NOT_ARRAYS, NOT_OBJECTS } from "./session-state.fixtures.ts";
 
 describe("session state — JSON arrays", () => {

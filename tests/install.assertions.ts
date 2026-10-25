@@ -7,11 +7,6 @@ export function assertMentions(text: string, mentions: readonly Mention[]): void
   for (const [snippet, what] of mentions) ok(text.includes(snippet), `${what}: not found: ${snippet}`);
 }
 
-/** Every path starts with `root`. */
-export function assertAllUnder(paths: readonly string[], root: string): void {
-  for (const path of paths) ok(path.startsWith(root), `${path} is not under ${root}`);
-}
-
 /** `paths` holds each of `files`. */
 export function assertHolds(paths: ReadonlySet<string>, files: readonly string[]): void {
   for (const file of files) ok(paths.has(file), `${file} missing`);

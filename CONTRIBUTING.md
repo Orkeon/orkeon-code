@@ -26,7 +26,7 @@ src/
 ├── commands/   *.cmd.ts slash commands (entry points) + _lib/ (their use cases)
 ├── crews/      <name>/crew.ork.ts (entry point) + application/ + domain/
 └── shared/     domain/ · application/ (ports.ts, services) · infrastructure/ (globals.ts, orkeon/ adapters)
-tests/          support/ (test doubles), architecture, command surface, command use cases
+tests/          support/ (doubles/, fixtures/, assertions/ shared across test files), architecture, command surface, command use cases
 mcp/whisper/    the speech MCP server (Python, run by uv): whisper_mcp.py + tests/
 ```
 
@@ -64,7 +64,7 @@ Runtime rules, enforced by the bundle check:
 ## Tests
 
 - `node:test` and `node:assert` only. No mocking or assertion library.
-- Test doubles live in `tests/support/`, one file per port: a class `Fake<Port>` (or `Stub<Port>`) that implements
+- Test doubles live in `tests/support/doubles/`, one file per port: a class `Fake<Port>` (or `Stub<Port>`) that implements
   the port and exposes plain fields to configure it and to read what it received (`FakeFiles.files`,
   `FakeLlm.completes`). `FakeTools`, `FakeLlmFacade`, `FakeAgentContext` and `FakeScriptHost` stand in for the
   runtime objects, to test the adapters. Runtime code never imports `tests/`.
@@ -84,6 +84,8 @@ Runtime rules, enforced by the bundle check:
     (`assertCutBlock(block)`), built on `node:assert` with a message that says what is wrong.
   A scalar the Arrange reads in one line stays in the test. Runtime code never imports a `*.fixtures.ts` nor a
   `*.assertions.ts` (the architecture test).
+- What several test files share, in whatever folder they sit, lives under `tests/support/`: `doubles/` (the fakes),
+  `fixtures/` (the sample data, like the prompt catalogue and the memory entries), `assertions/` (the shared checks).
 - A test's name says the behaviour and its condition, as a sentence: `cuts a name at 120 characters`.
 
 ## The checks

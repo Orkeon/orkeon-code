@@ -1,10 +1,10 @@
 // Lines typed after /say, buffers it reads the last answer from, and the hosts it launches over.
 import { SAY_USAGE, type SayRequest } from "../src/commands/_lib/say.ts";
 import { missingToolMessage } from "../src/commands/_lib/transcribe.ts";
-import { FakeCrewHost } from "./support/fake-crew-host.ts";
-import { FakeLogger } from "./support/fake-logger.ts";
-import { FakeSessionStore } from "./support/fake-session-store.ts";
-import { FakeToolCatalogue } from "./support/fake-tool-catalogue.ts";
+import { FakeCrewHost } from "./support/doubles/fake-crew-host.ts";
+import { FakeLogger } from "./support/doubles/fake-logger.ts";
+import { FakeSessionStore } from "./support/doubles/fake-session-store.ts";
+import { FakeToolCatalogue } from "./support/doubles/fake-tool-catalogue.ts";
 
 export interface ReadCase {
   name: string;

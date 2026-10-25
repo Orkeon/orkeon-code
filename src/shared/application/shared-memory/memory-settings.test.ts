@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { GIT_REMOTE_ORIGIN, readMemorySettings } from "./memory-settings.ts";
-import { FakeShell } from "../../../../tests/support/fake-shell.ts";
+import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 import { THROWING_CONFIG, configOf, originAnswering } from "./memory-settings.fixtures.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
 

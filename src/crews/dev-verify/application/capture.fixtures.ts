@@ -1,6 +1,6 @@
 // The pack, sheet, gate run, fakes and cost index writeCapture is tested on.
-import { FakeFiles } from "../../../../tests/support/fake-files.ts";
-import { FakeShell } from "../../../../tests/support/fake-shell.ts";
+import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
+import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 import { parseRepoPack } from "../../../shared/domain/dev/repo-pack.ts";
 import type { RepoPack } from "../../../shared/domain/dev/repo-pack.ts";
 import { traitMarker } from "../../../shared/domain/dev/trait-pattern.ts";

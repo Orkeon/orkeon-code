@@ -5,9 +5,9 @@ import { fileURLToPath } from "node:url";
 import { checkIgnoreCommand, ORKEON_IGNORE_PROBE } from "../dev/load-dev-context.ts";
 import { createConfigStore } from "../config-store.ts";
 import { WORKFLOW_ACTIVE_STATE_KEY } from "../../domain/session-keys.ts";
-import { FakeFiles } from "../../../../tests/support/fake-files.ts";
-import { FakeSessionStore } from "../../../../tests/support/fake-session-store.ts";
-import { FakeShell } from "../../../../tests/support/fake-shell.ts";
+import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
+import { FakeSessionStore } from "../../../../tests/support/doubles/fake-session-store.ts";
+import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
 
 const DEMO_DIR = fileURLToPath(new URL("../../../../tests/fixtures/dev/workbench/demo/", import.meta.url));

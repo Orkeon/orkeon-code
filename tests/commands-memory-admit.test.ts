@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual, ok } from "node:assert";
 
 import { parseMemoryAdmitArgs } from "../src/commands/_lib/memory-admit.ts";
-import { entryText } from "./support/memory-entries.ts";
+import { entryText } from "./support/fixtures/memory-entries.ts";
 import {
   ACCEPTED_ARGS_CASES,
   CANCELLED_ANSWERS,

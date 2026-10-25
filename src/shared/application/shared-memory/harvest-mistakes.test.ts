@@ -5,8 +5,8 @@ import { deepStrictEqual, strictEqual, ok } from "node:assert";
 
 import { harvestMistakes } from "./harvest-mistakes.ts";
 import { appendRefused } from "../../domain/shared-memory/refused.ts";
-import { LiveListingFiles } from "../../../../tests/support/live-listing-files.ts";
-import { entryText, sampleEntry } from "../../../../tests/support/memory-entries.ts";
+import { LiveListingFiles } from "../../../../tests/support/doubles/live-listing-files.ts";
+import { entryText, sampleEntry } from "../../../../tests/support/fixtures/memory-entries.ts";
 import { TOPIC_GAP, clock, layout, memory, row, rows } from "./harvest-mistakes.fixtures.ts";
 
 describe("harvestMistakes", () => {

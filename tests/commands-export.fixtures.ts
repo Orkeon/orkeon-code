@@ -1,9 +1,9 @@
 // The session /export renders, and the fakes runExport is run over.
 import type { ExportInputs } from "../src/commands/_lib/export.ts";
-import { FakeFiles } from "./support/fake-files.ts";
-import { FakeMemoryStore } from "./support/fake-memory-store.ts";
-import { FakeSessionStore } from "./support/fake-session-store.ts";
-import { FakeTelemetry } from "./support/fake-telemetry.ts";
+import { FakeFiles } from "./support/doubles/fake-files.ts";
+import { FakeMemoryStore } from "./support/doubles/fake-memory-store.ts";
+import { FakeSessionStore } from "./support/doubles/fake-session-store.ts";
+import { FakeTelemetry } from "./support/doubles/fake-telemetry.ts";
 
 /** A two-message session with one project memory and its cost; `over` replaces a part. */
 export function sessionExport(over: Partial<ExportInputs> = {}): ExportInputs {

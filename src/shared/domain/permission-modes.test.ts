@@ -6,7 +6,7 @@ import {
   isPermissionMode, getNextPermissionMode, resolveFallbackMode,
 } from "./permission-modes.ts";
 import { ABSENT_FALLBACKS, CYCLE_STEPS, JUNK_FALLBACKS, NOT_MODES, UNKNOWN_MODES } from "./permission-modes.fixtures.ts";
-import { assertMentions } from "./permission-modes.assertions.ts";
+import { assertMentions } from "../../../tests/support/assertions/text.ts";
 
 describe("permission-modes", () => {
   for (const m of PERMISSION_MODES) {

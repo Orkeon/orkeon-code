@@ -17,7 +17,8 @@ import {
   SHEET_SECTIONS, checked, contextOf, deliveredF1, f1AnchorPaths, files, fixture, json, renderSpec, sortedIds,
 } from "./plan-render-interop.fixtures.ts";
 import type { Capture } from "./plan-render-interop.fixtures.ts";
-import { assertMatchesAll, assertMentions } from "./plan-render-interop.assertions.ts";
+import { assertMatchesAll } from "./plan-render-interop.assertions.ts";
+import { assertMentions } from "../../../../tests/support/assertions/text.ts";
 
 describe("the fixtures", () => {
   it("the spec has its four ids and no Blocking question", () => {

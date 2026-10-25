@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { deepStrictEqual } from "node:assert";
 
 import { createCrewMemory } from "./crew-memory.ts";
-import { FakeAgentContext } from "../../../../tests/support/fake-agent-context.ts";
+import { FakeAgentContext } from "../../../../tests/support/doubles/fake-agent-context.ts";
 
 describe("createCrewMemory", () => {
   it("keeps a value in the crew's memory under its key", async () => {

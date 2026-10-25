@@ -3,7 +3,7 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
-import { FakeFiles } from "../../../../tests/support/fake-files.ts";
+import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
 import { HARNESS_PACKS_DIR, ORKEON_PACK_PATH, findRepoPack } from "./find-repo-pack.ts";
 import { besideHarnessPack, harnessPack } from "./find-repo-pack.fixtures.ts";
 

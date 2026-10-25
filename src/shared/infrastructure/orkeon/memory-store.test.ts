@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, rejects } from "node:assert";
 
 import { createMemoryStore } from "./memory-store.ts";
-import { FakeTools } from "../../../../tests/support/fake-tools.ts";
+import { FakeTools } from "../../../../tests/support/doubles/fake-tools.ts";
 import { ADDED_IDS, GETS_WITHOUT_ENTRY } from "./memory-store.fixtures.ts";
 
 describe("createMemoryStore — list", () => {

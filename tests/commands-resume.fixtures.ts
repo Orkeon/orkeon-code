@@ -1,7 +1,7 @@
 // Saved sessions and buffers /resume reads.
 import { HISTORY_ROOT } from "../src/commands/_lib/resume.ts";
-import { FakeFiles } from "./support/fake-files.ts";
-import { FakeSessionStore } from "./support/fake-session-store.ts";
+import { FakeFiles } from "./support/doubles/fake-files.ts";
+import { FakeSessionStore } from "./support/doubles/fake-session-store.ts";
 
 /** A session file as the runtime saves it (FileSessionBufferService). */
 export const saved = (title: string | null, messages: number): string => JSON.stringify({

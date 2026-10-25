@@ -1,6 +1,6 @@
 // Commands, requests and scripted shells for the fast-forward merge tests: the batch agent-1 into feat/x.
 import type { ShellResult } from "../ports.ts";
-import { FakeShell } from "../../../../tests/support/fake-shell.ts";
+import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 
 export const BRANCH = "git branch --show-current";
 export const MERGE = "git merge --ff-only 'agent-1'";

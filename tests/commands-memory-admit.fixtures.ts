@@ -4,9 +4,9 @@ import { runMemoryAdmit } from "../src/commands/_lib/memory-admit.ts";
 import type { MemoryAdmitArgs, parseMemoryAdmitArgs } from "../src/commands/_lib/memory-admit.ts";
 import { memoryLayout } from "../src/shared/domain/shared-memory/layout.ts";
 import { GIT_REMOTE_ORIGIN } from "../src/shared/application/shared-memory/memory-settings.ts";
-import { FakeShell } from "./support/fake-shell.ts";
-import { LiveListingFiles } from "./support/live-listing-files.ts";
-import { entryText, sampleEntry } from "./support/memory-entries.ts";
+import { FakeShell } from "./support/doubles/fake-shell.ts";
+import { LiveListingFiles } from "./support/doubles/live-listing-files.ts";
+import { entryText, sampleEntry } from "./support/fixtures/memory-entries.ts";
 
 export const layout = memoryLayout(".orkeon/memory");
 

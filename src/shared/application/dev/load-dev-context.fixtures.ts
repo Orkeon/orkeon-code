@@ -5,9 +5,9 @@ import { fileURLToPath } from "node:url";
 
 import { HARNESS_SETTINGS_LOCAL, HARNESS_TODO, ORKEON_IGNORE_PROBE, checkIgnoreCommand, loadDevContext } from "./load-dev-context.ts";
 import { createConfigStore } from "../config-store.ts";
-import { FakeFiles } from "../../../../tests/support/fake-files.ts";
-import { FakeShell } from "../../../../tests/support/fake-shell.ts";
-import { FakeSessionStore } from "../../../../tests/support/fake-session-store.ts";
+import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
+import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
+import { FakeSessionStore } from "../../../../tests/support/doubles/fake-session-store.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
 
 const DEMO_DIR = fileURLToPath(new URL("../../../../tests/fixtures/dev/workbench/demo/", import.meta.url));

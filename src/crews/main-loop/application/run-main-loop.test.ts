@@ -20,9 +20,8 @@ import {
   REQUEST_WITH_TRANSCRIPT, RULED_CATALOGUE, SCRIPT_TOOLS_CASES, SESSION_START, SILENT_GATES, SPEAK, SPEAKER_FAILURE,
   STORED_RULES, TRANSCRIPT, TRANSCRIPTION_PRELUDE, turnSetup,
 } from "./run-main-loop.fixtures.ts";
-import {
-  assertGateWarningBefore, assertLogged, assertLoggedLike, assertMentions, assertPromptEndsWith,
-} from "./run-main-loop.assertions.ts";
+import { assertGateWarningBefore, assertLogged, assertLoggedLike, assertPromptEndsWith } from "./run-main-loop.assertions.ts";
+import { assertMentions } from "../../../../tests/support/assertions/text.ts";
 
 describe("loadCatalogue", () => {
   it("builds the catalogue of the explicit mode, with the stored rules that parse", () => {

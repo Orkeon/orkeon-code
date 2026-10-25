@@ -5,9 +5,9 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, ok, rejects, strictEqual } from "node:assert";
 
 import { readActiveWorkflow, writeActiveWorkflow, writeWorkflowState } from "./workflow-state.ts";
-import { FakeSessionStore } from "../../../../tests/support/fake-session-store.ts";
+import { FakeSessionStore } from "../../../../tests/support/doubles/fake-session-store.ts";
 import { DEMO_F2, SKIPPED_POINTERS, STATE, workflowSetup } from "./workflow-state.fixtures.ts";
-import { assertMentions, assertOmits } from "./workflow-state.assertions.ts";
+import { assertMentions, assertOmits } from "../../../../tests/support/assertions/text.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
 
 describe("the pointer", () => {

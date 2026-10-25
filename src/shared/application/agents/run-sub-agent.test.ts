@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import { runSubAgent } from "./run-sub-agent.ts";
-import { FakeLlm } from "../../../../tests/support/fake-llm.ts";
+import { FakeLlm } from "../../../../tests/support/doubles/fake-llm.ts";
 import { CANCELLED_ACTS, CHARTER, FINAL_EXTRACTION_FAILURES, call } from "./run-sub-agent.fixtures.ts";
 
 describe("runSubAgent", () => {

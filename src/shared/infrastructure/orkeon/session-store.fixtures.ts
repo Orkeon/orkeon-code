@@ -1,11 +1,11 @@
 // The session_store, session_snip and token_budget replies the createSessionStore tests read, and the ports a
 // compaction runs on over the adapter.
 import type { createSessionStore } from "./session-store.ts";
-import { FakeFiles } from "../../../../tests/support/fake-files.ts";
-import { FakeLlm } from "../../../../tests/support/fake-llm.ts";
-import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
-import { FakeMemoryStore } from "../../../../tests/support/fake-memory-store.ts";
-import { FakeProgress } from "../../../../tests/support/fake-progress.ts";
+import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
+import { FakeLlm } from "../../../../tests/support/doubles/fake-llm.ts";
+import { FakeLogger } from "../../../../tests/support/doubles/fake-logger.ts";
+import { FakeMemoryStore } from "../../../../tests/support/doubles/fake-memory-store.ts";
+import { FakeProgress } from "../../../../tests/support/doubles/fake-progress.ts";
 
 /** Buffers that are not a list: a compaction skips them rather than failing. */
 export const NOT_A_LIST: readonly unknown[] = [{ role: "user" }, "hi", 3, null];

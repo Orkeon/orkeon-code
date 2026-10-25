@@ -4,7 +4,7 @@
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 
-import { FakeSessionStore } from "./support/fake-session-store.ts";
+import { FakeSessionStore } from "./support/doubles/fake-session-store.ts";
 import { defineToggle, EXPLICIT_CASES, sessionWithFlag, UnreadableStateStore } from "./commands-session-config.fixtures.ts";
 
 describe("toggleCommand", () => {

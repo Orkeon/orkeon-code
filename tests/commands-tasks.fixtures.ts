@@ -3,7 +3,7 @@
 import { runTasks } from "../src/commands/_lib/tasks.ts";
 import { snapshotKey } from "../src/shared/domain/agents/instances.ts";
 import type { InstanceRecord, RunSnapshot } from "../src/shared/domain/agents/instances.ts";
-import { FakeSessionStore } from "./support/fake-session-store.ts";
+import { FakeSessionStore } from "./support/doubles/fake-session-store.ts";
 
 export const EMPTY_TEXT = "no tasks and no agent instances. usage: /tasks add <subject>";
 

@@ -20,10 +20,8 @@ import {
   SCRIPT_TOOLS_DECLARED, SCRIPT_TOOLS_FOR_CASES, SHELL_FORMS_CASES, SHELL_WORDS_CASES, TOOL_ARGUMENT_CASES,
   WRITE_TOOLS_IN_ORDER, WRITER, WRITING_MODES, writingNote,
 } from "./permission.fixtures.ts";
-import {
-  assertAcceptedWithWarning, assertArgumentsDeclared, assertInertReasons, assertMentions, assertOffered,
-  assertReadOnlyToolset, assertWellFormedArguments,
-} from "./permission.assertions.ts";
+import { assertAcceptedWithWarning, assertArgumentsDeclared, assertInertReasons, assertOffered, assertReadOnlyToolset, assertWellFormedArguments } from "./permission.assertions.ts";
+import { assertMentions } from "../../../../tests/support/assertions/text.ts";
 
 describe("resolvePermissionMode", () => {
   for (const c of RESOLVE_MODE_CASES) {

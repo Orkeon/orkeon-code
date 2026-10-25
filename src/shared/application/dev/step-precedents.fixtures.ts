@@ -1,10 +1,10 @@
 // The memory, files and settings stepPrecedents recalls from.
 import { memoryLayout } from "../../domain/shared-memory/layout.ts";
-import { FakeSharedMemory } from "../../../../tests/support/fake-shared-memory.ts";
-import { entryText } from "../../../../tests/support/memory-entries.ts";
-import { FakeFiles } from "../../../../tests/support/fake-files.ts";
-import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
-import { FakeShell } from "../../../../tests/support/fake-shell.ts";
+import { FakeSharedMemory } from "../../../../tests/support/doubles/fake-shared-memory.ts";
+import { entryText } from "../../../../tests/support/fixtures/memory-entries.ts";
+import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
+import { FakeLogger } from "../../../../tests/support/doubles/fake-logger.ts";
+import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 import type { MemoryEntry } from "../../domain/shared-memory/entry.ts";
 
 const layout = memoryLayout(".orkeon/memory");

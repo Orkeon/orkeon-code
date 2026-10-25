@@ -1,7 +1,7 @@
 // The golden plan answer, a repository of listings and the doubles the checkAnchorPaths tests read.
 import { readFileSync } from "node:fs";
 
-import { FakeFiles } from "../../../../tests/support/fake-files.ts";
+import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
 import type { Files } from "../../../shared/application/ports.ts";
 import type { PlanAnswer } from "../domain/plan-answer.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";

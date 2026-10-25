@@ -2,10 +2,10 @@
 // row reader, and the cases of the cache columns.
 import { runStatus } from "../src/commands/_lib/status.ts";
 import type { cacheColumns } from "../src/commands/_lib/cache.ts";
-import { FakeCrewHost } from "./support/fake-crew-host.ts";
-import { FakeSessionStore } from "./support/fake-session-store.ts";
-import { FakeShell } from "./support/fake-shell.ts";
-import { FakeTelemetry } from "./support/fake-telemetry.ts";
+import { FakeCrewHost } from "./support/doubles/fake-crew-host.ts";
+import { FakeSessionStore } from "./support/doubles/fake-session-store.ts";
+import { FakeShell } from "./support/doubles/fake-shell.ts";
+import { FakeTelemetry } from "./support/doubles/fake-telemetry.ts";
 
 /** The rows of a /status table, by field. */
 export function rowMap(table: unknown): Map<string, string> {

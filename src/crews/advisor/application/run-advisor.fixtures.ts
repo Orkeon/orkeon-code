@@ -1,9 +1,9 @@
 // The session, config and model fakes runAdvisor is tested over.
 import { createConfigStore } from "../../../shared/application/config-store.ts";
-import { FakeFiles } from "../../../../tests/support/fake-files.ts";
-import { FakeLlm } from "../../../../tests/support/fake-llm.ts";
-import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
-import { FakeSessionStore } from "../../../../tests/support/fake-session-store.ts";
+import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
+import { FakeLlm } from "../../../../tests/support/doubles/fake-llm.ts";
+import { FakeLogger } from "../../../../tests/support/doubles/fake-logger.ts";
+import { FakeSessionStore } from "../../../../tests/support/doubles/fake-session-store.ts";
 
 /** What runAdvisor answers when there is no assistant answer to review. */
 export const NOTHING = "Nothing to review: the session buffer holds no assistant answer yet.";

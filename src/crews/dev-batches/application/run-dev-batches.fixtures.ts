@@ -4,11 +4,11 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-import { FakeFiles } from "../../../../tests/support/fake-files.ts";
-import { FakeLlm } from "../../../../tests/support/fake-llm.ts";
-import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
-import { FakeSessionStore } from "../../../../tests/support/fake-session-store.ts";
-import { FakeShell } from "../../../../tests/support/fake-shell.ts";
+import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
+import { FakeLlm } from "../../../../tests/support/doubles/fake-llm.ts";
+import { FakeLogger } from "../../../../tests/support/doubles/fake-logger.ts";
+import { FakeSessionStore } from "../../../../tests/support/doubles/fake-session-store.ts";
+import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 import { createConfigStore } from "../../../shared/application/config-store.ts";
 import { parseBatchesState } from "../../../shared/domain/dev/batches-state.ts";
 import {

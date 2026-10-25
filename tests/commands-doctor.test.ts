@@ -9,7 +9,7 @@ import { FAIL, OLD_SESSIONS_DIR, PASS, VERSION_DETAIL, WARN, runDoctor } from ".
 import { CLI_VERSION, ORKEON_RUNTIME_VERSION } from "../src/commands/_lib/meta.ts";
 import { CODE_INTEL_TOOLS } from "../src/shared/domain/code-intel-contract.ts";
 import { CONFIG_FILE_PATH, createConfigStore } from "../src/shared/application/config-store.ts";
-import { FakeSessionStore } from "./support/fake-session-store.ts";
+import { FakeSessionStore } from "./support/doubles/fake-session-store.ts";
 import { NO_MODEL_DETAIL, doctorHost, healthyTable, rowsOf } from "./commands-doctor.fixtures.ts";
 import { WORKSPACE } from "../src/shared/domain/vfs.ts";
 

@@ -6,7 +6,7 @@ import { deepStrictEqual, ok, strictEqual } from "node:assert";
 import { importedEntry, parseAgentMemoryIndex, parseAgentNote, shortTitle } from "./agent-memory-import.ts";
 import { MAX_BODY_CHARS, MAX_TITLE_CHARS, entryProblems } from "./entry.ts";
 import { IMPORTED_BODY_MENTIONS, INDEX, INDEX_ITEMS, NOTE_WITH_FRONT_MATTER, ctx } from "./agent-memory-import.fixtures.ts";
-import { assertMentions } from "./agent-memory-import.assertions.ts";
+import { assertMentions } from "../../../../tests/support/assertions/text.ts";
 
 describe("parseAgentMemoryIndex", () => {
   it("reads one item per top-level list line, an indented line continuing it", () => {

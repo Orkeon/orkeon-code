@@ -13,7 +13,7 @@
 | `npm run check` | All of the above | `npm ci` |
 | `bash scripts/smoke-runtime.sh [--mode ...]` | The real REPL loads every command (`N loaded, 0 skipped, 0 conflicts`) | a runtime |
 | `bash scripts/check-file-modes.sh` | Scripts are committed executable | git |
-| `node scripts/render-prompts.mjs <dir>` | Writes every prompt as the model reads it (`tests/support/prompt-catalogue.ts`), to review a prompt change as a `diff -r` of two renders; `tests/prompt-contract.test.ts` checks the same catalogue | Node 24 |
+| `node scripts/render-prompts.mjs <dir>` | Writes every prompt as the model reads it (`tests/support/fixtures/prompt-catalogue.ts`), to review a prompt change as a `diff -r` of two renders; `tests/prompt-contract.test.ts` checks the same catalogue | Node 24 |
 
 CI (`.github/workflows/ci.yml`) runs, as separate steps on every pull request and push to `main`, the tests, the type
 check, the bundle check, the provenance gate, the two command pages up to date, the documentation parity and the file

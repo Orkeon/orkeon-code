@@ -1,5 +1,5 @@
 // The cost index, the packs and the changed files measureAccessCost is tested on.
-import type { FakeCostIndex } from "../../../../tests/support/fake-cost-index.ts";
+import type { FakeCostIndex } from "../../../../tests/support/doubles/fake-cost-index.ts";
 import type { AccessCostReport } from "../../domain/dev/access-cost.ts";
 import { parseRepoPack } from "../../domain/dev/repo-pack.ts";
 import type { RepoPack } from "../../domain/dev/repo-pack.ts";

@@ -6,7 +6,7 @@ import { ok, strictEqual } from "node:assert";
 
 import { escapeCell, renderProposals } from "./proposals-render.ts";
 import { CUT_CASES, FILE, SAMPLE, fileWithOtherOutcomes, fileWithRefinesMotif } from "./proposals-render.fixtures.ts";
-import { assertMentions } from "./proposals-render.assertions.ts";
+import { assertMentions } from "../../../../tests/support/assertions/text.ts";
 
 describe("renderProposals", () => {
   it("renders the design's sample exactly", () => {

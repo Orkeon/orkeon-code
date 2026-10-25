@@ -6,12 +6,13 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
-import { FakeShell } from "../../../../tests/support/fake-shell.ts";
+import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 import { recordingRunner, runAudit, shellValidationRunner } from "./audit.ts";
 import {
   COMMANDS, FOLDER, OTHER_VALIDATION, PASSED_12, SHOWN, VALIDATION, answer, brief, fakes, toolCalling,
 } from "./audit.fixtures.ts";
-import { assertMentions, assertValidationsLog } from "./audit.assertions.ts";
+import { assertValidationsLog } from "./audit.assertions.ts";
+import { assertMentions } from "../../../../tests/support/assertions/text.ts";
 
 describe("runAudit", () => {
   it("makes one act and one extract when no validation is named", async () => {

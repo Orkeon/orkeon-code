@@ -11,7 +11,8 @@ import {
   MAJOR_ON_PLAN_SECTION, MAJOR_THEN_BLOCKING_ON_PLAN, NO_ID_AND_LAYERS, NO_PACK_COMMANDS, PACK, PACK_COMMANDS, PACK_LAYOUT,
   REVERSED_NON_APPLICABLE, STEP_NOTE, THREE_KINDS, THREE_KINDS_ROW, UNORDERED_IDS, json, lineStarting, linesOf, pack, render,
 } from "./plan-render.fixtures.ts";
-import { assertMentions, assertOneBulletEach, assertTidyFile } from "./plan-render.assertions.ts";
+import { assertOneBulletEach, assertTidyFile } from "./plan-render.assertions.ts";
+import { assertMentions } from "../../../../tests/support/assertions/text.ts";
 
 describe("repoLines", () => {
   it("writes each command key, set or absent, then where the pack is", () => {

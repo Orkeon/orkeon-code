@@ -3,8 +3,8 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
-import { FakeFiles } from "../../../../tests/support/fake-files.ts";
-import { FakeShell } from "../../../../tests/support/fake-shell.ts";
+import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
+import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 import { logText, runSuite } from "./suite-job.ts";
 import {
   jobsFailingAfterFirstLook, jobsFailingFirstLook, jobsRunningFor, jobsThatCannotWait, jobsThatDoNotStart, LOG_TEXT_CASES, REQ,

@@ -1,6 +1,6 @@
 // The checkouts and the requests the work folder resolution is tested on.
-import { FakeFiles } from "../../../../tests/support/fake-files.ts";
-import { FakeShell } from "../../../../tests/support/fake-shell.ts";
+import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
+import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 import type { WorkDirRequest } from "../../domain/dev/work-folder.ts";
 import { GIT_TOPLEVEL, GIT_WORKTREE_LIST } from "./resolve-work-folder.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";

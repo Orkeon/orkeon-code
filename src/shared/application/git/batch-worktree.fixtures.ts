@@ -1,6 +1,6 @@
 // Commands, requests and scripted shells for the batch worktree tests: the batch demo-F2 of the work branch feat/demo.
 import type { ShellResult } from "../ports.ts";
-import { FakeShell } from "../../../../tests/support/fake-shell.ts";
+import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 
 export const EXISTS = "git rev-parse --verify --quiet 'refs/heads/batch/demo-F2'";
 export const ADD = "git worktree add --relative-paths -b 'batch/demo-F2' '.orkeon/worktrees/demo-F2' 'feat/demo'";

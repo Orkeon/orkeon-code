@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, rejects } from "node:assert";
 
 import { createTelemetry } from "./telemetry.ts";
-import { FakeTools } from "../../../../tests/support/fake-tools.ts";
+import { FakeTools } from "../../../../tests/support/doubles/fake-tools.ts";
 import {
   CACHE_COUNTS, PASCAL_METADATA, PASCAL_METADATA_REPLY, STATS, STATS_REPLY, UNREPORTED_METADATA, UNREPORTED_STATS,
 } from "./telemetry.fixtures.ts";

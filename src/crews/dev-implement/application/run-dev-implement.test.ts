@@ -5,7 +5,7 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
-import { FakePrecedents } from "../../../../tests/support/fake-precedents.ts";
+import { FakePrecedents } from "../../../../tests/support/doubles/fake-precedents.ts";
 import { BATCHES_ACTIVE_RECORD } from "../../../shared/domain/dev/batches-state.ts";
 import { touchedPath, verdictMarkOf } from "./touched.ts";
 import { implementInputs, runDevImplement } from "./run-dev-implement.ts";
@@ -17,10 +17,8 @@ import {
   STEP_1_DONE, stubsA, stubsTheModule, TICKED, ticksItsBox, touchedRecord, UNFINISHED, untidy, VALID, VERDICT_PATH, weakensTest,
   writesCode, writesFailingA, writesFailingAWithStub, writesOtherProduction, writesPassingTest, writesTest, writesTestOnly,
 } from "./run-dev-implement.fixtures.ts";
-import {
-  assertBlockedSaying, assertBlockedStarting, assertLine, assertLineStarting, assertMentions, assertNoPrecedents, assertNotBlocked,
-  assertPromptsEndWith, assertTicked,
-} from "./run-dev-implement.assertions.ts";
+import { assertBlockedSaying, assertBlockedStarting, assertLine, assertLineStarting, assertNoPrecedents, assertNotBlocked, assertPromptsEndWith, assertTicked } from "./run-dev-implement.assertions.ts";
+import { assertMentions } from "../../../../tests/support/assertions/text.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 describe("runDevImplement — the steps", () => {

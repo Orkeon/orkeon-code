@@ -1,8 +1,8 @@
 // The two-layer /config store over FakeFiles and FakeSessionStore.
 import { CONFIG_FILE_PATH, createConfigStore } from "./config-store.ts";
 import { CONFIG_MAP_STATE_KEY } from "../domain/session-keys.ts";
-import { FakeFiles } from "../../../tests/support/fake-files.ts";
-import { FakeSessionStore } from "../../../tests/support/fake-session-store.ts";
+import { FakeFiles } from "../../../tests/support/doubles/fake-files.ts";
+import { FakeSessionStore } from "../../../tests/support/doubles/fake-session-store.ts";
 
 /** The fakes and the config store built on them. */
 export function configHarness() {

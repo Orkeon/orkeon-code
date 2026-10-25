@@ -7,7 +7,8 @@ import { LENSES } from "../domain/lenses.ts";
 import { buildLensPrompt, cutDiff, FINDINGS_SCHEMA, MAX_PRIOR_FINDINGS_IN_PROMPT, SEVERITIES } from "./prompts.ts";
 import { SEVERITY_ORDER } from "../../../shared/domain/severity.ts";
 import { manyPriorFindings, PRIOR_FINDINGS } from "./prompts.fixtures.ts";
-import { assertMentions, assertOmits } from "./prompts.assertions.ts";
+import { assertOmits } from "./prompts.assertions.ts";
+import { assertMentions } from "../../../../tests/support/assertions/text.ts";
 
 describe("buildLensPrompt across passes", () => {
   it("pass 1 carries no prior-findings section", () => {

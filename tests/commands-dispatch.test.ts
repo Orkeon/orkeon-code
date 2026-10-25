@@ -16,14 +16,14 @@ import { chainDepthLine } from "../src/shared/domain/agents/chain.ts";
 import { ruleDecision, toolsetFor } from "../src/shared/domain/agent-policy/permission.ts";
 import { PERMISSION_MODES } from "../src/shared/domain/permission-modes.ts";
 import { DEFAULT_MODE_STATE_KEY, PERMISSION_RULES_STATE_KEY } from "../src/shared/domain/session-keys.ts";
-import { FakeLlm } from "./support/fake-llm.ts";
-import { FakeLogger } from "./support/fake-logger.ts";
-import { FakeMemoryStore } from "./support/fake-memory-store.ts";
-import { FakePermissionRules } from "./support/fake-permission-rules.ts";
-import { FakeRunState } from "./support/fake-run-state.ts";
-import { FakeShell } from "./support/fake-shell.ts";
-import { FakeTelemetry } from "./support/fake-telemetry.ts";
-import { FakeToolCatalogue } from "./support/fake-tool-catalogue.ts";
+import { FakeLlm } from "./support/doubles/fake-llm.ts";
+import { FakeLogger } from "./support/doubles/fake-logger.ts";
+import { FakeMemoryStore } from "./support/doubles/fake-memory-store.ts";
+import { FakePermissionRules } from "./support/doubles/fake-permission-rules.ts";
+import { FakeRunState } from "./support/doubles/fake-run-state.ts";
+import { FakeShell } from "./support/doubles/fake-shell.ts";
+import { FakeTelemetry } from "./support/doubles/fake-telemetry.ts";
+import { FakeToolCatalogue } from "./support/doubles/fake-tool-catalogue.ts";
 import {
   CHAIN_LIMIT_ERROR,
   FALLBACK_VIA,

@@ -8,7 +8,7 @@ import {
 } from "./lenses.ts";
 import { CONFIG_KEYS } from "../../../shared/domain/config-schema.ts";
 import { UNSET_SETTINGS } from "./lenses.fixtures.ts";
-import { assertMentions } from "./lenses.assertions.ts";
+import { assertMentions } from "../../../../tests/support/assertions/text.ts";
 
 describe("selectLenses", () => {
   for (const unset of UNSET_SETTINGS) {

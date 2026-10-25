@@ -6,7 +6,7 @@
 // Run:  node --test src/crews/dev-change/application/run-dev-change.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, rejects, strictEqual } from "node:assert";
-import { FakePrecedents, PRECEDENTS_SAMPLE } from "../../../../tests/support/fake-precedents.ts";
+import { FakePrecedents, PRECEDENTS_SAMPLE } from "../../../../tests/support/doubles/fake-precedents.ts";
 
 import { parseDecisions, parseOpenQuestions } from "../../../shared/domain/dev/questions.ts";
 import { parsePlanSource } from "../../../shared/domain/dev/spec-format.ts";
@@ -16,7 +16,9 @@ import {
   BRIEF, CLEAR, CMD, CODE, ISSUE_42, KNOWN_BY_NAME, KNOWN_INDEX, OTHER_CLASSES, PACK, PARTS_OF_NAMES, PERF_ANSWER, REPRO,
   answer, bug, devChangeSetup, refactor, run,
 } from "./run-dev-change.fixtures.ts";
-import { assertAllUnder, assertEndWithPrecedents, assertMentions, assertNoPromptMentions } from "./run-dev-change.assertions.ts";
+import { assertEndWithPrecedents, assertNoPromptMentions } from "./run-dev-change.assertions.ts";
+import { assertAllUnder } from "../../../../tests/support/assertions/paths.ts";
+import { assertMentions } from "../../../../tests/support/assertions/text.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 describe("runDevChange — a bug", () => {

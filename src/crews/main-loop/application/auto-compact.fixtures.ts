@@ -2,9 +2,9 @@
 import type { CompactOutcome } from "../../../shared/domain/compact-outcome.ts";
 import { AUTOCOMPACT_BREAKER_STATE_KEY } from "../../../shared/domain/session-keys.ts";
 import { BREAKER_RUN_FIELD } from "./auto-compact.ts";
-import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
-import { FakeRunState } from "../../../../tests/support/fake-run-state.ts";
-import { FakeSessionStore } from "../../../../tests/support/fake-session-store.ts";
+import { FakeLogger } from "../../../../tests/support/doubles/fake-logger.ts";
+import { FakeRunState } from "../../../../tests/support/doubles/fake-run-state.ts";
+import { FakeSessionStore } from "../../../../tests/support/doubles/fake-session-store.ts";
 
 /** The breaker's ports over fakes; `outcome` is what every compaction attempt returns, `attempts()` how many ran. */
 export function breakerSetup(outcome: CompactOutcome = { status: "skipped" }) {

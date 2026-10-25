@@ -11,9 +11,9 @@ import type { AxisProposal, Motif, ProposalsFile } from "../src/shared/domain/de
 import { ORKEON_IGNORE_PROBE, checkIgnoreCommand } from "../src/shared/application/dev/load-dev-context.ts";
 import { GIT_TOPLEVEL, GIT_WORKTREE_LIST, gitDirProbe } from "../src/shared/application/dev/resolve-work-folder.ts";
 import { createConfigStore } from "../src/shared/application/config-store.ts";
-import { FakeFiles } from "./support/fake-files.ts";
-import { FakeShell } from "./support/fake-shell.ts";
-import { FakeSessionStore } from "./support/fake-session-store.ts";
+import { FakeFiles } from "./support/doubles/fake-files.ts";
+import { FakeShell } from "./support/doubles/fake-shell.ts";
+import { FakeSessionStore } from "./support/doubles/fake-session-store.ts";
 import { WORKSPACE } from "../src/shared/domain/vfs.ts";
 
 const DEMO_DIR = fileURLToPath(new URL("./fixtures/dev/workbench/demo/", import.meta.url));

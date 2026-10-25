@@ -76,6 +76,8 @@ any import that breaks one of these rules; there is no exception list:
 - a relative import names its `.ts` file, and runtime code imports nothing but relative files (tests may import
   `node:` built-ins);
 - runtime code never imports `tests/`: the test doubles are never bundled;
+- a shared check of `tests/support/assertions/` imports `node:` built-ins only, so a test of any layer, a domain
+  test included, may import it;
 - no import cycle between files.
 
 The same test reads the runtime globals with TypeScript's own scoping, file by file: an identifier its file does not
@@ -114,7 +116,10 @@ src/
         └── orkeon/    the adapters of the ports, tool-results.ts (field casing),
                        runtime-tools.ts (the tool inputs), wiring.ts
 tests/
-├── support/           the test doubles (Fake*), never imported by runtime code
+├── support/           what several test files share, never imported by runtime code:
+│   ├── doubles/       the test doubles (Fake*), one per port
+│   ├── fixtures/      the sample data shared across test files (prompt-catalogue, memory-entries)
+│   └── assertions/    the checks shared across test files
 ├── architecture.test.ts, command-surface.test.ts, version.test.ts
 └── commands-*.test.ts the command use cases of commands/_lib/, over the fakes
 mcp/whisper/           the speech MCP server, Python run by uv: whisper_mcp.py, tests/, samples/, smoke.py
@@ -130,7 +135,7 @@ that provides it. Its adapter is the only code that calls the runtime for it and
 runtime's results, whose field casing varies (`messages` or `Messages`): a port hands back plain values, except
 the two calls that show a raw result on purpose (`MemoryStore.get`, `ToolCatalogue.call`).
 
-| Port | What it is for | Adapter (`src/shared/infrastructure/orkeon/`) | Fake (`tests/support/`) |
+| Port | What it is for | Adapter (`src/shared/infrastructure/orkeon/`) | Fake (`tests/support/doubles/`) |
 |---|---|---|---|
 | `Shell` | Shell commands in `/workspace` (`shell_command`) | `shell.ts` | `fake-shell.ts` |
 | `ShellJobs` | A long command run detached, its status, the tail of its log, and a wait between two looks (`shell_command` `start_job`, `job_status`, `job_tail`) | `shell-jobs.ts` | none: fakes in `suite-job.test.ts` and `run-dev-implement.test.ts` |
@@ -585,7 +590,7 @@ the mode too (Orkeon classifies an unknown mode fail-closed). Update `mode-polic
 2. Write the adapter `src/shared/infrastructure/orkeon/<port>.ts`: `create<Port>(runtimeObject)`, the tool inputs
    declared in `runtime-tools.ts`, the results read through `tool-results.ts`. Bind it in `wiring.ts` when it reads
    the `tools` global; otherwise the entry point builds it from its context.
-3. Write `tests/support/fake-<port>.ts`, a class `Fake<Port>` implementing the port with plain fields to configure
+3. Write `tests/support/doubles/fake-<port>.ts`, a class `Fake<Port>` implementing the port with plain fields to configure
    and inspect, and the adapter's test over the runtime stand-in.
 4. A port lands with its first production caller, never ahead of it.
 

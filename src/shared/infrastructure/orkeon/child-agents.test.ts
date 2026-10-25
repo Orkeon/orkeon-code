@@ -7,8 +7,8 @@ import { deepStrictEqual, rejects, strictEqual } from "node:assert";
 
 import { childAgentBody, createChildRuntime, withChildAct } from "./child-agents.ts";
 import { parseSnapshot, snapshotKey } from "../../domain/agents/instances.ts";
-import { FakeLlmFacade } from "../../../../tests/support/fake-llm-facade.ts";
-import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
+import { FakeLlmFacade } from "../../../../tests/support/doubles/fake-llm-facade.ts";
+import { FakeLogger } from "../../../../tests/support/doubles/fake-logger.ts";
 import { REVIEW_STEPS, STOPS, base, board, fakeRun, openReview, spec } from "./child-agents.fixtures.ts";
 
 describe("createChildRuntime", () => {

@@ -1,7 +1,7 @@
 // The playbook /skills attaches, and the session and files it runs over.
 import { SKILLS_STATE_KEY } from "../src/shared/domain/session-keys.ts";
-import { FakeFiles } from "./support/fake-files.ts";
-import { FakeSessionStore } from "./support/fake-session-store.ts";
+import { FakeFiles } from "./support/doubles/fake-files.ts";
+import { FakeSessionStore } from "./support/doubles/fake-session-store.ts";
 import { WORKSPACE } from "../src/shared/domain/vfs.ts";
 
 export const SKILL = `${WORKSPACE}/docs/release.md`;

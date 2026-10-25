@@ -27,7 +27,7 @@ import {
   MEMORY_CATEGORIES, SUMMARY_PARTS, SUMMARY_REPLIES, TURNS_NAMING_FILES, TWENTY_FACTS, TWO_MEMORIES,
   URL_WORDS_THEN_PATHS,
 } from "./compaction.fixtures.ts";
-import { assertMentions } from "./compaction.assertions.ts";
+import { assertMentions } from "../../../tests/support/assertions/text.ts";
 import { WORKSPACE } from "./vfs.ts";
 
 describe("buildTranscript", () => {

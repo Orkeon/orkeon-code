@@ -8,8 +8,8 @@ import { restoreAttachedSkills, restoreRecentFiles } from "./restore-context.ts"
 import { buildRestoredFileMessage,
   buildRestoredFileNotice, buildRestoredSkillMessage } from "../../domain/compaction.ts";
 import { POST_COMPACT_MAX_FILES_TO_RESTORE } from "../../domain/compaction-thresholds.ts";
-import { FakeFiles } from "../../../../tests/support/fake-files.ts";
-import { FakeSessionStore } from "../../../../tests/support/fake-session-store.ts";
+import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
+import { FakeSessionStore } from "../../../../tests/support/doubles/fake-session-store.ts";
 import {
   BUDGET_SKILLS, MIXED_MENTIONS, PER_FILE_CHARS, PER_SKILL_CHARS, goneBlankAndOkSkills, mixedFiles, tooManyLargeFiles, tooManySkills,
 } from "./restore-context.fixtures.ts";

@@ -11,7 +11,7 @@ import { parseBatchSheet } from "../dev/plan-format.ts";
 import {
   EMPTY_MENTIONS, F2, LONG, MANY_EVENTS, MANY_TREE_LINES, NO_POINTERS, PHASE_ONLY, STATE_MENTIONS, longSteps, stateFacts,
 } from "./state-file.fixtures.ts";
-import { assertMentions } from "./state-file.assertions.ts";
+import { assertMentions } from "../../../../tests/support/assertions/text.ts";
 
 describe("the pointer to the batch in progress", () => {
   it("round-trips a code and a phase", () => {

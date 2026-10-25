@@ -12,7 +12,7 @@ import {
   KEPT_RUNS, LIMIT_CASES, NO_REQUESTS, NOT_SNAPSHOTS, NOW, PLAN, RAW_SNAPSHOT, REPAIR_MENTIONS, ROW_RUNS, SEND_CASES,
   SILENT_RUN, STOP_CASES, STOP_REQUEST, UNPARSED_RUN, VERIFY, deadChild, record, snapshot,
 } from "./instances.fixtures.ts";
-import { assertMentions } from "./instances.assertions.ts";
+import { assertMentions } from "../../../../tests/support/assertions/text.ts";
 
 describe("instances — keys", () => {
   it("one snapshot key per crew", () => {

@@ -12,7 +12,7 @@ import { runDevLearn } from "./run-dev-learn.ts";
 import {
   ACCEPT_HINT_END, ID_A, ID_B, MEMORY_DIR_REFUSED, OPTIONS, OUT_FILES, REFUSED, STATE, T, decideSetup, pickA, stub,
 } from "./run-dev-learn-decide.fixtures.ts";
-import { assertMentions } from "./run-dev-learn-decide.assertions.ts";
+import { assertMentions } from "../../../../tests/support/assertions/text.ts";
 
 describe("runDevLearn — decisions in the run", () => {
   it("asks one multi-select for the axis, accepts the selected motif and refuses the other", async () => {

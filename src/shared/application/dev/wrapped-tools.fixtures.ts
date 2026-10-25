@@ -1,6 +1,6 @@
 // The pack's commands, the scripted shell and the files run_tests and run_build are tested with.
-import { FakeFiles } from "../../../../tests/support/fake-files.ts";
-import { FakeShell } from "../../../../tests/support/fake-shell.ts";
+import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
+import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 import type { RepoPackCommands } from "../../domain/dev/repo-pack.ts";
 import type { PermissionRule } from "../../domain/agent-policy/permission.ts";
 import { createWrappedTools } from "./wrapped-tools.ts";

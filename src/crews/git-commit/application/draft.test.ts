@@ -7,14 +7,14 @@ import { inspectWorkTree, commitSelected, buildCommitPrompt, draftCommitMessage,
 import { GIT_STATUS_COMMAND } from "../../../shared/domain/git/close.ts";
 import { COMMIT_REFUSAL_PREFIX } from "../domain/commit.ts";
 import { normalizeCommitMessage } from "../domain/commit.ts";
-import { FakeCrewMemory } from "../../../../tests/support/fake-crew-memory.ts";
-import { FakeFiles } from "../../../../tests/support/fake-files.ts";
-import { FakeLlm } from "../../../../tests/support/fake-llm.ts";
-import { FakeShell } from "../../../../tests/support/fake-shell.ts";
+import { FakeCrewMemory } from "../../../../tests/support/doubles/fake-crew-memory.ts";
+import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
+import { FakeLlm } from "../../../../tests/support/doubles/fake-llm.ts";
+import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 import {
   ADD, COMMIT, FEATURE_TREE, LONG_TREE, MESSAGE, PROBES, SEL, TREE, linkedWorktreeFiles, scopedSetup, treeShell, untrackedSetup,
 } from "./draft.fixtures.ts";
-import { assertMentions } from "./draft.assertions.ts";
+import { assertMentions } from "../../../../tests/support/assertions/text.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 describe("inspectWorkTree", () => {

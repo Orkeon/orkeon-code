@@ -9,11 +9,12 @@ import { deepStrictEqual, ok, rejects, strictEqual } from "node:assert";
 import { GIT_TOPLEVEL } from "../../../shared/application/dev/resolve-work-folder.ts";
 import { parseDecisions, parseOpenQuestions } from "../../../shared/domain/dev/questions.ts";
 import { DEV_SPEC_NEXT, runDevSpec } from "./run-dev-spec.ts";
-import { FakePrecedents, PRECEDENTS_SAMPLE } from "../../../../tests/support/fake-precedents.ts";
+import { FakePrecedents, PRECEDENTS_SAMPLE } from "../../../../tests/support/doubles/fake-precedents.ts";
 import {
   ANSWER, CLEAR, CODE, GAPS_REVIEW, REQUEST, SPEC, devSpecSetup, folded, run, specWithQ1Decided,
 } from "./run-dev-spec.fixtures.ts";
-import { assertAllMention, assertAllUnder, assertHasLines, assertNoPromptMentions } from "./run-dev-spec.assertions.ts";
+import { assertAllMention, assertHasLines, assertNoPromptMentions } from "./run-dev-spec.assertions.ts";
+import { assertAllUnder } from "../../../../tests/support/assertions/paths.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 describe("runDevSpec — a new spec settled with the person", () => {

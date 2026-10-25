@@ -80,6 +80,8 @@ sur tout import qui enfreint l'une de ces règles ; il n'y a pas de liste d'exce
 - un import relatif nomme son fichier `.ts`, et le code du runtime n'importe rien d'autre que des fichiers relatifs
   (les tests peuvent importer les modules intégrés `node:`) ;
 - le code du runtime n'importe jamais `tests/` : les doublures de test ne sont jamais bundlées ;
+- un contrôle partagé de `tests/support/assertions/` n'importe que des modules intégrés `node:`, de sorte qu'un test
+  de n'importe quelle couche, un test du domaine compris, peut l'importer ;
 - aucun cycle d'imports entre fichiers.
 
 Le même test lit les globales du runtime avec la résolution de portée de TypeScript lui-même, fichier par fichier : un
@@ -120,7 +122,10 @@ src/
         └── orkeon/    the adapters of the ports, tool-results.ts (field casing),
                        runtime-tools.ts (the tool inputs), wiring.ts
 tests/
-├── support/           the test doubles (Fake*), never imported by runtime code
+├── support/           what several test files share, never imported by runtime code:
+│   ├── doubles/       the test doubles (Fake*), one per port
+│   ├── fixtures/      the sample data shared across test files (prompt-catalogue, memory-entries)
+│   └── assertions/    the checks shared across test files
 ├── architecture.test.ts, command-surface.test.ts, version.test.ts
 └── commands-*.test.ts the command use cases of commands/_lib/, over the fakes
 mcp/whisper/           the speech MCP server, Python run by uv: whisper_mcp.py, tests/, samples/, smoke.py
@@ -137,7 +142,7 @@ runtime qui le fournit. Son adaptateur est le seul code qui appelle le runtime p
 résultats du runtime, dont la casse des champs varie (`messages` ou `Messages`) : un port rend des valeurs simples,
 sauf les deux appels qui montrent un résultat brut à dessein (`MemoryStore.get`, `ToolCatalogue.call`).
 
-| Port | À quoi il sert | Adaptateur (`src/shared/infrastructure/orkeon/`) | Fake (`tests/support/`) |
+| Port | À quoi il sert | Adaptateur (`src/shared/infrastructure/orkeon/`) | Fake (`tests/support/doubles/`) |
 |---|---|---|---|
 | `Shell` | Les commandes shell dans `/workspace` (`shell_command`) | `shell.ts` | `fake-shell.ts` |
 | `ShellJobs` | Une commande longue lancée détachée, son état, la fin de son journal, et une attente entre deux regards (`shell_command` `start_job`, `job_status`, `job_tail`) | `shell-jobs.ts` | aucun : des faux dans `suite-job.test.ts` et `run-dev-implement.test.ts` |
@@ -640,7 +645,7 @@ Mettre à jour `mode-policy.test.ts` et `docs/permissions.md`.
 2. Écrire l'adaptateur `src/shared/infrastructure/orkeon/<port>.ts` : `create<Port>(runtimeObject)`, les entrées
    d'outils déclarées dans `runtime-tools.ts`, les résultats lus par `tool-results.ts`. Le lier dans `wiring.ts` quand
    il lit la globale `tools` ; sinon le point d'entrée le construit à partir de son contexte.
-3. Écrire `tests/support/fake-<port>.ts`, une classe `Fake<Port>` qui implémente le port avec des champs simples à
+3. Écrire `tests/support/doubles/fake-<port>.ts`, une classe `Fake<Port>` qui implémente le port avec des champs simples à
    configurer et à inspecter, et le test de l'adaptateur au-dessus du substitut du runtime.
 4. Un port arrive avec son premier appelant de production, jamais avant lui.
 

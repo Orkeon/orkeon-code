@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, rejects } from "node:assert";
 
 import { createAnchorIndex, createCodeIndex, createCostIndex } from "./code-index.ts";
-import { FakeTools } from "../../../../tests/support/fake-tools.ts";
+import { FakeTools } from "../../../../tests/support/doubles/fake-tools.ts";
 import {
   CLOSURES, COST_REPORT, COST_WITHOUT_REPORT, FAILING_CALLS, FAILURES, GRAPH, GRAPH_REPLY, IMPACT, IMPACT_REPLY,
   INDEX_COUNTS, INDEX_REPLY, MAP_REPLY, PACKAGE, PACKAGE_REPLY, SEARCH_HITS, SEARCH_REPLY, SOURCE, SOURCE_REPLY,

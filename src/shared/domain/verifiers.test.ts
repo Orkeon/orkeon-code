@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { strictEqual } from "node:assert";
 
 import { buildVerifyRequest, safeZoneName, verifierPath, VERIFIERS_DIR } from "./verifiers.ts";
-import { assertMentions } from "./verifiers.assertions.ts";
+import { assertMentions } from "../../../tests/support/assertions/text.ts";
 
 describe("verification skills", () => {
   it("name a zone by its slug", () => {

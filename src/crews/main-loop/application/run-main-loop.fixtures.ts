@@ -4,15 +4,15 @@ import { BREAKER_RUN_FIELD } from "./auto-compact.ts";
 import type { CompactOutcome } from "../../../shared/domain/compact-outcome.ts";
 import { createConfigStore } from "../../../shared/application/config-store.ts";
 import { createSessionIo } from "../../../shared/application/session-io.ts";
-import { FakeFiles } from "../../../../tests/support/fake-files.ts";
-import { FakeLlm } from "../../../../tests/support/fake-llm.ts";
-import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
-import { FakeMemoryStore } from "../../../../tests/support/fake-memory-store.ts";
-import { FakeRunState } from "../../../../tests/support/fake-run-state.ts";
-import { FakeSessionStore } from "../../../../tests/support/fake-session-store.ts";
-import { FakeShell } from "../../../../tests/support/fake-shell.ts";
-import { FakeTelemetry } from "../../../../tests/support/fake-telemetry.ts";
-import { FakeToolCatalogue } from "../../../../tests/support/fake-tool-catalogue.ts";
+import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
+import { FakeLlm } from "../../../../tests/support/doubles/fake-llm.ts";
+import { FakeLogger } from "../../../../tests/support/doubles/fake-logger.ts";
+import { FakeMemoryStore } from "../../../../tests/support/doubles/fake-memory-store.ts";
+import { FakeRunState } from "../../../../tests/support/doubles/fake-run-state.ts";
+import { FakeSessionStore } from "../../../../tests/support/doubles/fake-session-store.ts";
+import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
+import { FakeTelemetry } from "../../../../tests/support/doubles/fake-telemetry.ts";
+import { FakeToolCatalogue } from "../../../../tests/support/doubles/fake-tool-catalogue.ts";
 
 /** The ports of one turn, over fakes; `outcome` is what every compaction attempt
  *  returns, and `compactions` the buffer length each attempt saw. */

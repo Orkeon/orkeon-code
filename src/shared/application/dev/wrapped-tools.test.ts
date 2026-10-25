@@ -4,8 +4,8 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
-import { FakeFiles } from "../../../../tests/support/fake-files.ts";
-import { FakeShell } from "../../../../tests/support/fake-shell.ts";
+import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
+import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 import { createWrappedTools } from "./wrapped-tools.ts";
 import {
   alwaysCold, CLASS_RUN, COLD, coldOnce, COMMANDS, LOGS, RED_CLASS_RUN, REFUSED_RUNS, setup,

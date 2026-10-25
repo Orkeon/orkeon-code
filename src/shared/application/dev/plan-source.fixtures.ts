@@ -1,5 +1,5 @@
 // The work folder, the listings and the tokens resolvePlanSource and readPlanSource are tested on.
-import { FakeFiles } from "../../../../tests/support/fake-files.ts";
+import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
 import type { WorkFolder } from "./resolve-work-folder.ts";
 import { MAX_SOURCE_CHARS } from "./plan-source.ts";
 import type { ResolvedSource } from "./plan-source.ts";

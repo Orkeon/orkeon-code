@@ -17,11 +17,6 @@ export function assertReadOnlyToolset(toolset: readonly string[], label: string)
   assertOffered(toolset, READ_TOOLS, true, label);
 }
 
-/** `text` mentions every one of `parts`. */
-export function assertMentions(text: string, parts: readonly string[]): void {
-  for (const part of parts) ok(text.includes(part), `"${part}" missing from: ${text}`);
-}
-
 /** Every inert rule of `decision` is reported with a reason that starts with `prefix` and says to switch mode. */
 export function assertInertReasons(decision: CatalogueDecision, prefix: string): void {
   for (const r of decision.inert) {

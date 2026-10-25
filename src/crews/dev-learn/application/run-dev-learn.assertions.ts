@@ -1,7 +1,7 @@
 // Checks on what runDevLearn writes and prints.
 import { ok } from "node:assert";
 
-import type { FakeFiles } from "../../../../tests/support/fake-files.ts";
+import type { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
 import { parseProposalsFile } from "../../../shared/domain/dev/learn-proposals.ts";
 import type { AxisProposal, ProposalsFile } from "../../../shared/domain/dev/learn-proposals.ts";
 import { OUT } from "./run-dev-learn.fixtures.ts";
@@ -20,9 +20,4 @@ export const writtenTestAxis = (files: FakeFiles): AxisProposal => writtenPropos
 /** Nothing was written under /workspace/.claude/. */
 export function assertNoClaudeWrite(files: FakeFiles): void {
   ok(files.writes.every((w) => !w.path.startsWith(`${WORKSPACE}/.claude/`)), files.writes.map((w) => w.path).join(", "));
-}
-
-/** `text` holds each of `parts`. */
-export function assertMentions(text: string, parts: readonly string[]): void {
-  for (const part of parts) ok(text.includes(part), `missing ${JSON.stringify(part)} in:\n${text}`);
 }

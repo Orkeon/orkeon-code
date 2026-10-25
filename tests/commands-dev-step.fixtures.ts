@@ -3,10 +3,10 @@
 import type { DevStep } from "../src/shared/domain/dev/step-rules.ts";
 import { createConfigStore } from "../src/shared/application/config-store.ts";
 import { PERMISSION_RULES_STATE_KEY } from "../src/shared/domain/session-keys.ts";
-import { FakeFiles } from "./support/fake-files.ts";
-import { FakePermissionRules } from "./support/fake-permission-rules.ts";
-import { FakeSessionStore } from "./support/fake-session-store.ts";
-import { FakeToolCatalogue } from "./support/fake-tool-catalogue.ts";
+import { FakeFiles } from "./support/doubles/fake-files.ts";
+import { FakePermissionRules } from "./support/doubles/fake-permission-rules.ts";
+import { FakeSessionStore } from "./support/doubles/fake-session-store.ts";
+import { FakeToolCatalogue } from "./support/doubles/fake-tool-catalogue.ts";
 import { WORKSPACE } from "../src/shared/domain/vfs.ts";
 
 /** The deps of startDevStep, the session holding the rules `stored` (none stored when empty). */

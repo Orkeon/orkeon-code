@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, rejects } from "node:assert";
 
 import { createLlm } from "./llm.ts";
-import { FakeLlmFacade } from "../../../../tests/support/fake-llm-facade.ts";
+import { FakeLlmFacade } from "../../../../tests/support/doubles/fake-llm-facade.ts";
 import {
   ACT_ANSWERS, ACT_FAILURE_MARKERS, COMPLETIONS, EFFORTS, GATES, REQUESTS, SCHEMA, llmWithCallbacks,
 } from "./llm.fixtures.ts";

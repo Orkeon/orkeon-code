@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { deepStrictEqual } from "node:assert";
 
 import { mergeFastForward } from "./merge-batch.ts";
-import { FakeShell } from "../../../../tests/support/fake-shell.ts";
+import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 import { ABORT, BRANCH, MERGE, NOT_FF, OPTION_LIKE_REFS, REBASE, REQ, onWorkBranch, refusingFirstMerge } from "./merge-batch.fixtures.ts";
 
 describe("mergeFastForward", () => {

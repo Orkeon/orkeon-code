@@ -1,6 +1,6 @@
 // The model and memory store extractMemories is tested over.
-import { FakeLlm } from "../../../../tests/support/fake-llm.ts";
-import { FakeMemoryStore } from "../../../../tests/support/fake-memory-store.ts";
+import { FakeLlm } from "../../../../tests/support/doubles/fake-llm.ts";
+import { FakeMemoryStore } from "../../../../tests/support/doubles/fake-memory-store.ts";
 
 /** A model whose extraction answers `extraction`, and an empty memory store. */
 export function memoriesSetup(extraction: unknown) {

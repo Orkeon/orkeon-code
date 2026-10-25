@@ -10,7 +10,7 @@ import {
 import {
   EARLIER, EXCHANGE, LATER_EXCHANGE, M, NO_ASSISTANT_BUFFERS, NO_EARLIER_TURNS, THREE_TURNS, TWO_EXCHANGES_THEN_A_LINE,
 } from "./advice.fixtures.ts";
-import { assertMentions, assertOmits } from "./advice.assertions.ts";
+import { assertMentions, assertOmits } from "../../../../tests/support/assertions/text.ts";
 
 describe("lastExchange", () => {
   it("pairs the last assistant answer with the user turn BEFORE it", () => {

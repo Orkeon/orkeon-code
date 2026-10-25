@@ -1,5 +1,5 @@
 // The files the repository pack lookup is tested on.
-import { FakeFiles } from "../../../../tests/support/fake-files.ts";
+import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
 import { HARNESS_PACKS_DIR, ORKEON_PACK_PATH } from "./find-repo-pack.ts";
 
 /** The repo.yaml of the harness pack `name`. */

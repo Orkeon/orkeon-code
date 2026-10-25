@@ -1,7 +1,7 @@
 // The charter and the recording model runAgentRun is tested over.
 import type { Charter } from "../../../shared/domain/agents/charter.ts";
 import { MAX_BRIEF_CHARS } from "../../../shared/domain/agents/charter.ts";
-import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
+import { FakeLogger } from "../../../../tests/support/doubles/fake-logger.ts";
 
 export const CHARTER: Charter = {
   name: "dev-reviewer", role: "r", goal: "g", mode: "plan", tools: ["file_read"], disallowed: [], maxIterations: 12,

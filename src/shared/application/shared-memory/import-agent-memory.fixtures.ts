@@ -1,8 +1,8 @@
 // The harness agent memories importAgentMemory reads: a sample MEMORY.md with its notes, and the candidate files it leaves.
 import { HARNESS_AGENT_MEMORY_ROOT, importAgentMemory } from "./import-agent-memory.ts";
 import { memoryLayout } from "../../domain/shared-memory/layout.ts";
-import { LiveListingFiles } from "../../../../tests/support/live-listing-files.ts";
-import { entryText, sampleEntry } from "../../../../tests/support/memory-entries.ts";
+import { LiveListingFiles } from "../../../../tests/support/doubles/live-listing-files.ts";
+import { entryText, sampleEntry } from "../../../../tests/support/fixtures/memory-entries.ts";
 
 export const layout = memoryLayout(".orkeon/memory");
 export const memory = { layout, project: "shop" };

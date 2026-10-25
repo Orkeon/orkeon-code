@@ -7,11 +7,6 @@ export function assertTidyFile(text: string): void {
   ok(text.split("\n").every((l) => l === l.trimEnd()), "a line ends with a space");
 }
 
-/** `text` holds every part of `parts`, word for word. */
-export function assertMentions(text: string, parts: readonly string[]): void {
-  for (const part of parts) ok(text.includes(part), `the render lacks ${JSON.stringify(part)}`);
-}
-
 /** Under the ## Decisions of `sheet`, one line holds each of `marks`, and it is a bullet. */
 export function assertOneBulletEach(sheet: string, marks: readonly string[]): void {
   const decisions = sheet.slice(sheet.indexOf("## Decisions\n") + "## Decisions\n".length).split("\n## ")[0];

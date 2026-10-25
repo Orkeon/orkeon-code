@@ -12,7 +12,8 @@ import {
   NOT_NESTED_MAPS, PROJECT_MODES, READ_ONLY_TOOLS, REFUSED_MEMORY_DIRS, TOOLS_EXTRA_REFUSAL, TWIN_ENTRIES,
   UNDECLARED_MEMORY_KEYS, USER_GATED_KEYS, VALID_MEMORY_DIRS, VALID_TOOLS_EXTRA, WIDER_PROJECT_MODES,
 } from "./config-schema.fixtures.ts";
-import { assertMentions, assertUserFacingConsumer } from "./config-schema.assertions.ts";
+import { assertUserFacingConsumer } from "./config-schema.assertions.ts";
+import { assertMentions } from "../../../tests/support/assertions/text.ts";
 
 describe("the key space itself", () => {
   for (const spec of CONFIG_KEYS) {

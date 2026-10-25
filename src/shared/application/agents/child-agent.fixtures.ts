@@ -2,9 +2,9 @@
 import { createChildBoard } from "./child-agent.ts";
 import { parseSnapshot, snapshotKey } from "../../domain/agents/instances.ts";
 import type { InstanceRecord, InstanceState } from "../../domain/agents/instances.ts";
-import { FakeChildRuntime } from "../../../../tests/support/fake-child-runtime.ts";
-import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
-import { FakeSessionStore } from "../../../../tests/support/fake-session-store.ts";
+import { FakeChildRuntime } from "../../../../tests/support/doubles/fake-child-runtime.ts";
+import { FakeLogger } from "../../../../tests/support/doubles/fake-logger.ts";
+import { FakeSessionStore } from "../../../../tests/support/doubles/fake-session-store.ts";
 
 /** A fake runtime, the dev-plan board over a session state, the deps and the call of a reviewer, and the snapshot reader. */
 export function childSetup() {

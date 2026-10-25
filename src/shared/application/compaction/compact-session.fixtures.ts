@@ -3,12 +3,12 @@ import {
   buildCompactedBuffer, buildMemoryRecapMessage, buildRestoredFileMessage, buildRestoredSkillMessage,
 } from "../../domain/compaction.ts";
 import type { SessionMsg } from "../../domain/types.ts";
-import { FakeFiles } from "../../../../tests/support/fake-files.ts";
-import { FakeLlm } from "../../../../tests/support/fake-llm.ts";
-import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
-import { FakeMemoryStore } from "../../../../tests/support/fake-memory-store.ts";
-import { FakeProgress } from "../../../../tests/support/fake-progress.ts";
-import { FakeSessionStore } from "../../../../tests/support/fake-session-store.ts";
+import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
+import { FakeLlm } from "../../../../tests/support/doubles/fake-llm.ts";
+import { FakeLogger } from "../../../../tests/support/doubles/fake-logger.ts";
+import { FakeMemoryStore } from "../../../../tests/support/doubles/fake-memory-store.ts";
+import { FakeProgress } from "../../../../tests/support/doubles/fake-progress.ts";
+import { FakeSessionStore } from "../../../../tests/support/doubles/fake-session-store.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
 
 export const ABOVE = { used: 199_000, window: 200_000 };

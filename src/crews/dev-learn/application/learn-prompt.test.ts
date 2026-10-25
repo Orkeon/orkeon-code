@@ -8,7 +8,7 @@ import { ok, strictEqual } from "node:assert";
 import { MAX_BRIEF_CHARS } from "../../../shared/domain/agents/charter.ts";
 import { LEARN_INSTRUCTIONS, MAX_LEARN_PROMPT_CHARS, buildLearnPrompt, renderRowsTable } from "./learn-prompt.ts";
 import { HOST_WORDS, INPUT, LONG_ROW, MARKERS, PROBLEMS } from "./learn-prompt.fixtures.ts";
-import { assertMentions, assertOmits } from "./learn-prompt.assertions.ts";
+import { assertMentions, assertOmits } from "../../../../tests/support/assertions/text.ts";
 
 describe("LEARN_INSTRUCTIONS — one marker per behaviour", () => {
   for (const { behaviour, marker } of MARKERS) {

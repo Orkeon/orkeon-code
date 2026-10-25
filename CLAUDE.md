@@ -35,7 +35,7 @@ that breaks the rule; never weaken it to make a change pass, move the code inste
 | **command use cases** (`src/commands/_lib/`) | the logic of a command | never `shared/infrastructure/` |
 
 - Application never imports infrastructure: what it needs from the runtime it receives as a parameter typed by a
-  port. A new need of the runtime is a new port in `ports.ts`, an adapter in `orkeon/`, a fake in `tests/support/`.
+  port. A new need of the runtime is a new port in `ports.ts`, an adapter in `orkeon/`, a fake in `tests/support/doubles/`.
 - Domain and application never import `commands/` nor an entry point. Only the crew entry points import
   `globals.ts`; only a `*.cmd.ts` calls `defineCommand`.
 - No import cycle. Relative imports name their `.ts` file. No `require()`, no Node API in `src/` outside tests.
@@ -75,8 +75,11 @@ The convention is Orkeon's (`tests/` of github.com/Orkeon/orkeon), adapted to `n
   - A scalar the Arrange reads in one line stays in the test. No `ok(text.includes(…))` piles: one assertion helper
     that names the expectation.
 - **Doubles are hand-written**, one per port: a class `Fake<Port>` (or `Stub<Port>`) that implements the port and
-  exposes plain fields to configure it and to read what it received. They live in `tests/support/`. Reuse one before
-  writing one; never redefine a port's fake inside a test file.
+  exposes plain fields to configure it and to read what it received. They live in `tests/support/doubles/`. Reuse one
+  before writing one; never redefine a port's fake inside a test file.
+- **What several test files share** lives under `tests/support/`, by kind: `doubles/`, `fixtures/` (the sample data,
+  such as the prompt catalogue), `assertions/` (the shared checks, over `node:assert` alone, so a domain test may use
+  them). A `<module>.fixtures.ts` or `.assertions.ts` serves its own test file only.
 - **Where a test goes**: a domain module, a use case or a shared service is tested next to it; a command use case of
   `commands/_lib/` in `tests/commands-<family>.test.ts`; entry points are covered by the bundle check and the smoke.
 - A test's name is the behaviour and its condition, as a sentence: `cuts a name at 120 characters`.
@@ -106,7 +109,7 @@ src/
 ├── commands/   <group>/*.cmd.ts (entry points, by function) + _lib/ (their use cases)
 ├── crews/      <name>/crew.ork.ts (entry point) + application/ + domain/
 └── shared/     domain/ · application/ (ports.ts, services) · infrastructure/ (globals.ts, orkeon/ adapters, wiring.ts)
-tests/          support/ (doubles) · fixtures/ (file-like texts) · architecture · test shape · commands-<family>
+tests/          support/ (doubles/, fixtures/, assertions/ shared across tests) · fixtures/ (file-like texts) · architecture · test shape · commands-<family>
 mcp/whisper/    the speech MCP server (Python, uv)
 docs/           architecture.md, adr/ (0001 clean architecture), commands.md, fr/ (the French twins)
 ```

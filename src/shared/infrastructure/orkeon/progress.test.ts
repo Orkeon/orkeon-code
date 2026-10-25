@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, doesNotReject } from "node:assert";
 
 import { createProgress } from "./progress.ts";
-import { FakeTools } from "../../../../tests/support/fake-tools.ts";
+import { FakeTools } from "../../../../tests/support/doubles/fake-tools.ts";
 import { PROGRESS_CALLS } from "./progress.fixtures.ts";
 
 describe("createProgress", () => {

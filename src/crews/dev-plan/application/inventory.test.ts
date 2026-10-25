@@ -6,8 +6,8 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
-import { FakeCodeIndex } from "../../../../tests/support/fake-code-index.ts";
-import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
+import { FakeCodeIndex } from "../../../../tests/support/doubles/fake-code-index.ts";
+import { FakeLogger } from "../../../../tests/support/doubles/fake-logger.ts";
 import { buildInventory } from "./inventory.ts";
 import {
   BEST, CLOSURE_WARNINGS, DROPPED_HITS, FIVE_CALLERS, MODULE_GRAPH, ORDER_CLOSURE, SEVEN_CALLERS, anchors, failSearchOn, hit,

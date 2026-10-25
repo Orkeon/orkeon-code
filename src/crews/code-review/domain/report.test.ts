@@ -6,7 +6,7 @@ import { ok } from "node:assert";
 import { renderReport } from "./report.ts";
 import { dedupAndRank } from "../../../shared/domain/severity.ts";
 import { BARE_FINDING, NIT_AND_BLOCKER } from "./report.fixtures.ts";
-import { assertBefore, assertMentions } from "./report.assertions.ts";
+import { assertBefore, assertMentions } from "../../../../tests/support/assertions/text.ts";
 
 describe("renderReport", () => {
   it("renders the empty-findings report", () => {

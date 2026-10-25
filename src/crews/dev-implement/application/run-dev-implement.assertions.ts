@@ -30,11 +30,6 @@ export function assertLineStarting(a: ImplementAnswer, start: string): void {
   ok(a.lines.some((l) => l.startsWith(start)), `no line starts with ${JSON.stringify(start)}:\n${a.lines.join("\n")}`);
 }
 
-/** `text` holds every one of `parts`. */
-export function assertMentions(text: string, parts: readonly string[]): void {
-  for (const part of parts) ok(text.includes(part), `the text does not say ${JSON.stringify(part)}:\n${text}`);
-}
-
 /** `sheet` holds `count` TDD lines ticked whole. */
 export function assertTicked(sheet: string, ticked: string, count: number): void {
   strictEqual(sheet.split(ticked).length - 1, count, `the sheet has ${sheet.split(ticked).length - 1} steps ticked, not ${count}`);

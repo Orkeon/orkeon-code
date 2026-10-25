@@ -3,9 +3,9 @@
 import { NO_MODEL_REPORTED, runModel } from "../src/commands/_lib/model.ts";
 import type { CommandView } from "../src/commands/_lib/view.ts";
 import { renderModelList, NO_CATALOGUE_NOTE } from "../src/shared/domain/model-catalog.ts";
-import { FakeLogger } from "./support/fake-logger.ts";
-import { FakeSessionStore } from "./support/fake-session-store.ts";
-import { FakeTelemetry } from "./support/fake-telemetry.ts";
+import { FakeLogger } from "./support/doubles/fake-logger.ts";
+import { FakeSessionStore } from "./support/doubles/fake-session-store.ts";
+import { FakeTelemetry } from "./support/doubles/fake-telemetry.ts";
 
 export const USAGE = "usage: /model <name> | /model list | /model reset | /model show";
 

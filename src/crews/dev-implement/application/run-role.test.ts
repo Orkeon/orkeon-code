@@ -3,7 +3,7 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual } from "node:assert";
 
-import { FakeLlm } from "../../../../tests/support/fake-llm.ts";
+import { FakeLlm } from "../../../../tests/support/doubles/fake-llm.ts";
 import { TEST_AUTHOR } from "../domain/roles.ts";
 import { runRole } from "./run-role.ts";
 

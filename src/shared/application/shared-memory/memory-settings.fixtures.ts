@@ -1,7 +1,7 @@
 // Config stores and shells readMemorySettings is tested over.
 import type { ShellResult } from "../ports.ts";
 import { GIT_REMOTE_ORIGIN } from "./memory-settings.ts";
-import { FakeShell } from "../../../../tests/support/fake-shell.ts";
+import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 
 /** A config store holding `values`, every other key unset. */
 export const configOf = (values: Record<string, string>) => ({

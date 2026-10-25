@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { MAX_RECALL_QUERY_CHARS, TRIGGER_TYPES, precedentsLine, recallQuery, sheetTitle, stepPrecedents } from "./step-precedents.ts";
-import { sampleEntry } from "../../../../tests/support/memory-entries.ts";
+import { sampleEntry } from "../../../../tests/support/fixtures/memory-entries.ts";
 import { EXPECTED_TRIGGER_TYPES, setup } from "./step-precedents.fixtures.ts";
 import { assertPrecedentsBlock, assertWarning } from "./step-precedents.assertions.ts";
 

@@ -1,6 +1,6 @@
 // Sessions /hooks reads and writes its hooks in.
 import { HOOKS_STATE_KEY } from "../src/shared/domain/session-keys.ts";
-import { FakeSessionStore } from "./support/fake-session-store.ts";
+import { FakeSessionStore } from "./support/doubles/fake-session-store.ts";
 
 /** The hooks a session holds, as /hooks stored them. */
 export const stored = (session: FakeSessionStore): unknown => JSON.parse(session.state.get(HOOKS_STATE_KEY) ?? "[]");

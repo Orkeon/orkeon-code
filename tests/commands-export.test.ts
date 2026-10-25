@@ -6,7 +6,7 @@ import { strictEqual, ok, deepStrictEqual } from "node:assert";
 
 import { DEFAULT_EXPORT_PATH, renderSessionExport, runExport } from "../src/commands/_lib/export.ts";
 import { exportDeps, sessionExport } from "./commands-export.fixtures.ts";
-import { assertMentions } from "./commands-export.assertions.ts";
+import { assertMentions } from "./support/assertions/text.ts";
 
 describe("/export — renderSessionExport", () => {
   it("carries all three parts the baseline names", () => {

@@ -8,7 +8,8 @@ import {
   ASSUMPTION_SAYS, contractInput, GREEN_CARRIED_SAYS, GREEN_SAYS, LAYOUT, laterStep, pastTheRoom, RED_CARRIED_SAYS, RED_SAYS, SHEET,
   SHEET_AND_TEST_CARRIED, STUB_CARRIED, stepCreating, stepWithStubs, stepWithTestFile, STUBS_SAY,
 } from "./contracts.fixtures.ts";
-import { assertCarriedBeforeRules, assertMentions, assertNodeRules } from "./contracts.assertions.ts";
+import { assertCarriedBeforeRules, assertNodeRules } from "./contracts.assertions.ts";
+import { assertMentions } from "../../../../tests/support/assertions/text.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 describe("testCommandFor", () => {

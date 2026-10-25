@@ -14,7 +14,8 @@ import {
   earlierRunKeptNoMotif, motifsDroppedByCode, motifsRemovingAKeptLine, motifsWithAbsentOwners, noAxisOverThree,
   oneMotifProposed, recorded, setup, twoFailedAnswers,
 } from "./run-dev-learn.fixtures.ts";
-import { assertMentions, assertNoClaudeWrite, writtenTestAxis } from "./run-dev-learn.assertions.ts";
+import { assertNoClaudeWrite, writtenTestAxis } from "./run-dev-learn.assertions.ts";
+import { assertMentions } from "../../../../tests/support/assertions/text.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 describe("runDevLearn — --list", () => {

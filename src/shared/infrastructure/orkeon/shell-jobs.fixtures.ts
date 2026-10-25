@@ -1,5 +1,5 @@
 // The working root and the shell_command replies the createShellJobs tests run under.
-import { FakeTools } from "../../../../tests/support/fake-tools.ts";
+import { FakeTools } from "../../../../tests/support/doubles/fake-tools.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
 
 export const ROOT = `${WORKSPACE}/.orkeon/worktrees/prune-F2`;

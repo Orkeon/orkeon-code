@@ -9,7 +9,7 @@ import {
 } from "../../domain/compaction.ts";
 import { SNIP_RETAIN_COUNT } from "../../domain/compaction-thresholds.ts";
 import { SKILLS_STATE_KEY } from "../../domain/session-keys.ts";
-import { FakeSessionStore } from "../../../../tests/support/fake-session-store.ts";
+import { FakeSessionStore } from "../../../../tests/support/doubles/fake-session-store.ts";
 import {
   ABOVE, BELOW, FULL_PIPELINE_LOG, FULL_PIPELINE_STEPS, HISTORY, TRIGGER_SETTINGS, WRITTEN, compactSetup, fullPipelineBuffer,
   withWorkflow,

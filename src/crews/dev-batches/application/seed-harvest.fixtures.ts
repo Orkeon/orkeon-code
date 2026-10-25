@@ -1,6 +1,6 @@
 // The checkout, the worktree and the seed target of the seed and harvest tests, over FakeFiles.
 import { worktreePlace } from "../../../shared/domain/git/worktree.ts";
-import { FakeFiles } from "../../../../tests/support/fake-files.ts";
+import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
 import { seedWorktree } from "./seed-harvest.ts";
 import type { SeedSnapshot, SeedTarget } from "./seed-harvest.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";

@@ -3,7 +3,7 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
-import { FakeFiles } from "../../../../tests/support/fake-files.ts";
+import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
 import { contentHash, MAX_SNAPSHOT_PATHS, snapshot } from "./observe.ts";
 import { statusShell, WIDE_STATUS, workspaceWithA } from "./observe.fixtures.ts";
 

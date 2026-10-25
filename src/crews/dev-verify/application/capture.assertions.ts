@@ -1,7 +1,7 @@
 // Checks on what writeCapture wrote and ran.
 import { ok } from "node:assert";
-import type { FakeFiles } from "../../../../tests/support/fake-files.ts";
-import type { FakeShell } from "../../../../tests/support/fake-shell.ts";
+import type { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
+import type { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 
 /** The shell ran each of `commands`. */
 export function assertRan(shell: FakeShell, commands: readonly string[]): void {

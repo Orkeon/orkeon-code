@@ -3,7 +3,7 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
-import { FakeFiles } from "../../../../tests/support/fake-files.ts";
+import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
 import type { Files } from "../ports.ts";
 import {
   GIT_TOPLEVEL, GIT_WORKTREE_LIST, entryExists, gitDirProbe, resolveWorkFolder, workFolderLabel,

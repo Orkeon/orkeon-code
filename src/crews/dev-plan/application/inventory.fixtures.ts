@@ -1,6 +1,6 @@
 // The anchor index, the hit and request builders and the closures the buildInventory tests read.
-import { FakeAnchorIndex } from "../../../../tests/support/fake-anchor-index.ts";
-import { FakeCodeIndex } from "../../../../tests/support/fake-code-index.ts";
+import { FakeAnchorIndex } from "../../../../tests/support/doubles/fake-anchor-index.ts";
+import { FakeCodeIndex } from "../../../../tests/support/doubles/fake-code-index.ts";
 import type { AnchorClosure, CodeSearchHit, SymbolLocation } from "../../../shared/application/ports.ts";
 import type { GraphSummary } from "../../../shared/domain/code-intel-contract.ts";
 import type { InventoryRequest } from "./inventory.ts";

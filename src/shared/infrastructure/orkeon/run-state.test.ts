@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 
 import { createRunState } from "./run-state.ts";
-import { FakeAgentContext } from "../../../../tests/support/fake-agent-context.ts";
+import { FakeAgentContext } from "../../../../tests/support/doubles/fake-agent-context.ts";
 
 describe("createRunState", () => {
   it("reads a field of the agent state", () => {

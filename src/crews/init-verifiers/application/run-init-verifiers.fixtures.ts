@@ -1,7 +1,7 @@
 // The checkout and fakes runInitVerifiers is tested over.
-import { FakeFiles } from "../../../../tests/support/fake-files.ts";
-import { FakeLlm } from "../../../../tests/support/fake-llm.ts";
-import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
+import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
+import { FakeLlm } from "../../../../tests/support/doubles/fake-llm.ts";
+import { FakeLogger } from "../../../../tests/support/doubles/fake-logger.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 export const PKG = "{\"scripts\":{\"build\":\"tsc\"}}";

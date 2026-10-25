@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, ok, rejects, strictEqual } from "node:assert";
 
 import { createShell } from "./shell.ts";
-import { FakeTools } from "../../../../tests/support/fake-tools.ts";
+import { FakeTools } from "../../../../tests/support/doubles/fake-tools.ts";
 import { BAD_TIMEOUTS, COMPLETED_REPLIES, ROOT } from "./shell.fixtures.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
 

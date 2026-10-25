@@ -1,13 +1,13 @@
 // The world runDevImplement is tested in: FakeFiles, a scripted shell (git status from a fake tree, each test file red
 // or green), two scripted roles that write into that tree, fake shell jobs, and the sheets, verdicts and records a
 // batch goes through.
-import { FakeCostIndex, FakeGraphIndex } from "../../../../tests/support/fake-cost-index.ts";
-import { FakeFiles } from "../../../../tests/support/fake-files.ts";
-import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
-import { FakeSessionStore } from "../../../../tests/support/fake-session-store.ts";
-import { FakeShell } from "../../../../tests/support/fake-shell.ts";
-import { FakeShellJobs } from "../../../../tests/support/fake-shell-jobs.ts";
-import type { FakePrecedents } from "../../../../tests/support/fake-precedents.ts";
+import { FakeCostIndex, FakeGraphIndex } from "../../../../tests/support/doubles/fake-cost-index.ts";
+import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
+import { FakeLogger } from "../../../../tests/support/doubles/fake-logger.ts";
+import { FakeSessionStore } from "../../../../tests/support/doubles/fake-session-store.ts";
+import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
+import { FakeShellJobs } from "../../../../tests/support/doubles/fake-shell-jobs.ts";
+import type { FakePrecedents } from "../../../../tests/support/doubles/fake-precedents.ts";
 import { createConfigStore } from "../../../shared/application/config-store.ts";
 import { GIT_TOPLEVEL } from "../../../shared/application/dev/resolve-work-folder.ts";
 import type { ActRequest, AffectedTests, CostIndex, ShellOptions, ShellResult } from "../../../shared/application/ports.ts";

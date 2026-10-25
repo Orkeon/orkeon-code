@@ -1,6 +1,6 @@
 // The registered tools, the tools namespace and the names the ToolCatalogue tests read.
 import { createToolCatalogue } from "./tool-catalogue.ts";
-import { FakeServiceLocator } from "../../../../tests/support/fake-script-host.ts";
+import { FakeServiceLocator } from "../../../../tests/support/doubles/fake-script-host.ts";
 
 export interface NameCase {
   name: string;

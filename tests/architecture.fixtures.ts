@@ -20,6 +20,9 @@ export interface Import { from: string; specifier: string; to: string | null }
 
 /** Test code: a test, or the fixtures and assertions files kept beside it. */
 export const isTest = (file: string) => [".test.ts", ".fixtures.ts", ".assertions.ts"].some((end) => file.endsWith(end));
+/** The checks several test files share, over node:assert alone: a test of any layer may import them. */
+export const SHARED_ASSERTIONS = "tests/support/assertions/";
+export const SHARED_ASSERTIONS_RULE = "tests/support/assertions/ imports node: built-ins only: a shared check serves every layer";
 export const isCrewEntryPoint = (file: string) => CREW_ENTRY_POINTS.includes(posix.basename(file));
 export const isCommandEntryPoint = (file: string) => file.endsWith(".cmd.ts");
 export const isEntryPoint = (file: string) => isCommandEntryPoint(file) || isCrewEntryPoint(file);
@@ -75,8 +78,10 @@ export function resolveImport(from: string, specifier: string): string | null {
 }
 
 /** Every source of src/, by repository path. */
+/** The sources the rules are read on: src/, and the shared checks of tests/, which serve every layer. */
 export function readSources(): Map<string, string> {
-  return new Map(sourceFiles("src").map((file) => [file, readFileSync(posix.join(ROOT, file), "utf-8")]));
+  const files = [...sourceFiles("src"), ...sourceFiles(SHARED_ASSERTIONS.slice(0, -1))];
+  return new Map(files.map((file) => [file, readFileSync(posix.join(ROOT, file), "utf-8")]));
 }
 
 export function collectImports(sources: ReadonlyMap<string, string>): Import[] {
@@ -94,15 +99,17 @@ export const LIB_RULE = "commands/_lib/ never imports shared/infrastructure/: th
 /** The rules one import breaks, as messages; empty when it keeps them all. */
 export function brokenRules(imp: Import): string[] {
   if (!imp.specifier.startsWith(".")) {
-    return isTest(imp.from) && imp.specifier.startsWith("node:")
+    return (isTest(imp.from) || imp.from.startsWith(SHARED_ASSERTIONS)) && imp.specifier.startsWith("node:")
       ? []
       : ["runtime code imports relative .ts files only (tests may import node: built-ins)"];
   }
   const broken: string[] = [];
   if (!imp.specifier.endsWith(".ts")) broken.push("a relative import names its .ts file");
   if (imp.to === null) return [...broken, "the import resolves to no file"];
+  if (imp.from.startsWith(SHARED_ASSERTIONS)) return [...broken, SHARED_ASSERTIONS_RULE];
+  const sharedCheck = isTest(imp.from) && imp.to.startsWith(SHARED_ASSERTIONS);
   const fromLayer = layerOf(imp.from);
-  if (fromLayer === "domain" && layerOf(imp.to) !== "domain") broken.push("domain imports domain only");
+  if (fromLayer === "domain" && layerOf(imp.to) !== "domain" && !sharedCheck) broken.push("domain imports domain only");
   if (fromLayer === "application" && layerOf(imp.to) === "infrastructure") broken.push("application never imports infrastructure");
   if ((fromLayer === "domain" || fromLayer === "application") && (imp.to.startsWith(COMMANDS) || isEntryPoint(imp.to))) {
     broken.push("domain and application never import commands/ nor an entry point");
@@ -361,7 +368,8 @@ export const LAYER_IMPORT_CASES: readonly ImportCase[] = [
   },
 ];
 
-const FAKE_SHELL = "tests/support/fake-shell.ts";
+const FAKE_SHELL = "tests/support/doubles/fake-shell.ts";
+const SHARED_TEXT = "tests/support/assertions/text.ts";
 
 /** tests/ is refused to runtime code, not to a test. */
 export const TESTS_IMPORT_CASES: readonly ImportCase[] = [
@@ -374,6 +382,26 @@ export const TESTS_IMPORT_CASES: readonly ImportCase[] = [
     name: "lets a test import tests/",
     imp: { from: "src/crews/x/application/run.test.ts", specifier: "../../../../" + FAKE_SHELL, to: FAKE_SHELL },
     broken: [],
+  },
+  {
+    name: "refuses a double to a domain test: a fake implements a port of the application",
+    imp: { from: "src/crews/x/domain/plan.test.ts", specifier: "../../../../" + FAKE_SHELL, to: FAKE_SHELL },
+    broken: ["domain imports domain only"],
+  },
+  {
+    name: "lets a domain test import a shared check",
+    imp: { from: "src/crews/x/domain/plan.test.ts", specifier: "../../../../" + SHARED_TEXT, to: SHARED_TEXT },
+    broken: [],
+  },
+  {
+    name: "lets a shared check import node:assert",
+    imp: { from: SHARED_TEXT, specifier: "node:assert", to: null },
+    broken: [],
+  },
+  {
+    name: "refuses a relative import to a shared check, which serves every layer",
+    imp: { from: SHARED_TEXT, specifier: "../doubles/fake-shell.ts", to: FAKE_SHELL },
+    broken: [SHARED_ASSERTIONS_RULE],
   },
 ];
 

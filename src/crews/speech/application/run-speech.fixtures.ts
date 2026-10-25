@@ -1,6 +1,6 @@
 // The tool catalogue runSpeech is tested over.
-import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
-import { FakeToolCatalogue } from "../../../../tests/support/fake-tool-catalogue.ts";
+import { FakeLogger } from "../../../../tests/support/doubles/fake-logger.ts";
+import { FakeToolCatalogue } from "../../../../tests/support/doubles/fake-tool-catalogue.ts";
 
 /** A catalogue whose transcribe_audio returns `reply` (thrown when it is an Error). */
 export function speechSetup(reply: unknown) {

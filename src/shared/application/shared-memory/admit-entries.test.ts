@@ -5,7 +5,7 @@ import { deepStrictEqual, strictEqual, ok } from "node:assert";
 
 import { admitEntries, admitReport, admittedCandidates } from "./admit-entries.ts";
 import { appendRefused, parseRefused } from "../../domain/shared-memory/refused.ts";
-import { ENTRY_BODY, entryText, sampleEntry } from "../../../../tests/support/memory-entries.ts";
+import { ENTRY_BODY, entryText, sampleEntry } from "../../../../tests/support/fixtures/memory-entries.ts";
 import { RAW_ADMIT, SHA1, layout, memory, world, yes } from "./admit-entries.fixtures.ts";
 import { assertEntry, assertFailures } from "./admit-entries.assertions.ts";
 

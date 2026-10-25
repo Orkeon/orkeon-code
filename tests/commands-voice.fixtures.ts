@@ -3,12 +3,12 @@
 import { DICTATION_FILE, VOICE_USAGE, recordingNotice, renderVoiceCompletion } from "../src/commands/_lib/voice.ts";
 import { createConfigStore } from "../src/shared/application/config-store.ts";
 import { createSessionIo } from "../src/shared/application/session-io.ts";
-import { FakeCrewHost } from "./support/fake-crew-host.ts";
-import { FakeFiles } from "./support/fake-files.ts";
-import { FakeLogger } from "./support/fake-logger.ts";
-import { FakePermissionRules } from "./support/fake-permission-rules.ts";
-import { FakeSessionStore } from "./support/fake-session-store.ts";
-import { FakeToolCatalogue } from "./support/fake-tool-catalogue.ts";
+import { FakeCrewHost } from "./support/doubles/fake-crew-host.ts";
+import { FakeFiles } from "./support/doubles/fake-files.ts";
+import { FakeLogger } from "./support/doubles/fake-logger.ts";
+import { FakePermissionRules } from "./support/doubles/fake-permission-rules.ts";
+import { FakeSessionStore } from "./support/doubles/fake-session-store.ts";
+import { FakeToolCatalogue } from "./support/doubles/fake-tool-catalogue.ts";
 
 export const RECORD = { kind: "record", go: false, language: "", vocabulary: "", maxSeconds: 60, silenceSeconds: 2 };
 

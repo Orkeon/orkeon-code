@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, throws } from "node:assert";
 
 import { createCrewHost } from "./crew-host.ts";
-import { FakeServiceLocator } from "../../../../tests/support/fake-script-host.ts";
+import { FakeServiceLocator } from "../../../../tests/support/doubles/fake-script-host.ts";
 import { crewHostOverFake } from "./crew-host.fixtures.ts";
 
 describe("createCrewHost — listing", () => {

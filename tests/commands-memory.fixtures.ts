@@ -1,5 +1,5 @@
 // Memory stores /memory is run over.
-import { FakeMemoryStore } from "./support/fake-memory-store.ts";
+import { FakeMemoryStore } from "./support/doubles/fake-memory-store.ts";
 
 export type MemoryRecord = { id: number; category: string; content: string };
 

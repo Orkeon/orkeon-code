@@ -9,8 +9,3 @@ export function assertEntry(text: string | undefined, expected: Partial<MemoryEn
   ok(parsed.ok, `${label} is not an entry: ${parsed.ok ? "" : parsed.problems.join("; ")}`);
   for (const [key, value] of Object.entries(expected)) strictEqual(parsed.entry[key as keyof MemoryEntry], value, `${label}: ${key}`);
 }
-
-/** `text` holds each of `fragments`. */
-export function assertMentions(text: string, fragments: readonly string[]): void {
-  for (const f of fragments) ok(text.includes(f), `missing "${f}" in:\n${text}`);
-}

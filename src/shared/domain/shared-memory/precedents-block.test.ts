@@ -7,7 +7,7 @@ import { MAX_PRECEDENTS, MAX_PRECEDENTS_CHARS, buildPrecedentsBlock, precedentLi
 import {
   DISAGREEING_PROJECTS, EIGHT_METHODS, FIVE_LONG_METHODS, PINNED_MARKERS, p, sampleEntry,
 } from "./precedents-block.fixtures.ts";
-import { assertMentions } from "./precedents-block.assertions.ts";
+import { assertMentions } from "../../../../tests/support/assertions/text.ts";
 
 describe("buildPrecedentsBlock", () => {
   it("is empty when nothing was recalled", () => {

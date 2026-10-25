@@ -8,8 +8,8 @@ import {
 } from "../../domain/compaction-thresholds.ts";
 import { SKILLS_STATE_KEY } from "../../domain/session-keys.ts";
 import type { SessionMsg } from "../../domain/types.ts";
-import { FakeFiles } from "../../../../tests/support/fake-files.ts";
-import { FakeSessionStore } from "../../../../tests/support/fake-session-store.ts";
+import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
+import { FakeSessionStore } from "../../../../tests/support/doubles/fake-session-store.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
 
 export const PER_FILE_CHARS = POST_COMPACT_PER_FILE_TOKENS * CHARS_PER_TOKEN;

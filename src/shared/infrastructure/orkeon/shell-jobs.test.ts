@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, rejects, strictEqual } from "node:assert";
 
 import { createShellJobs, WAIT_SCRIPT } from "./shell-jobs.ts";
-import { FakeTools } from "../../../../tests/support/fake-tools.ts";
+import { FakeTools } from "../../../../tests/support/doubles/fake-tools.ts";
 import { ROOT, rootedTools, workingDirectories } from "./shell-jobs.fixtures.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
 

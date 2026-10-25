@@ -6,11 +6,12 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import { scriptToolSlot } from "../../../shared/application/dev/script-tool-slot.ts";
-import { FakePrecedents, PRECEDENTS_SAMPLE } from "../../../../tests/support/fake-precedents.ts";
+import { FakePrecedents, PRECEDENTS_SAMPLE } from "../../../../tests/support/doubles/fake-precedents.ts";
 import { GIT_DIFF_CHECK } from "../domain/commands.ts";
 import type { ValidationRunner } from "./audit.ts";
 import { runDevVerify } from "./run-dev-verify.ts";
-import { assertBefore, assertMentions, assertOmits } from "./run-dev-verify.assertions.ts";
+import { assertBefore } from "./run-dev-verify.assertions.ts";
+import { assertMentions, assertOmits } from "../../../../tests/support/assertions/text.ts";
 import {
   COST_LINE, DIR, EARLIER, GATE_ONLY_LINE, GREEN_LINE, MAJOR, MEASURED, MINOR, PACK, REFUSAL_CASES, SHEET, TARGET,
   UNFINISHED, VALIDATION, VERDICT, HARVEST_LINE, answer, countingHarvest, failVerdictWrite, measuringCostIndex,

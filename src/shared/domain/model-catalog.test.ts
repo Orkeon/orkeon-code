@@ -8,7 +8,7 @@ import {
   NO_CATALOGUE_NOTE, NO_DECLARED_MODELS,
 } from "./model-catalog.ts";
 import { NOT_LISTS } from "./model-catalog.fixtures.ts";
-import { assertMentions } from "./model-catalog.assertions.ts";
+import { assertMentions } from "../../../tests/support/assertions/text.ts";
 
 describe("normalizeModelList", () => {
   it("keeps the declared order — it is the order an operator chose", () => {

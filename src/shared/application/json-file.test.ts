@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { deepStrictEqual } from "node:assert";
 
 import { readJsonFile, writeJsonFile } from "./json-file.ts";
-import { FakeFiles } from "../../../tests/support/fake-files.ts";
+import { FakeFiles } from "../../../tests/support/doubles/fake-files.ts";
 import { ABSENT_MESSAGES, PARSED_SHAPES, PATH } from "./json-file.fixtures.ts";
 
 describe("readJsonFile", () => {

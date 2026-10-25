@@ -8,8 +8,8 @@ import {
   addPermissionRule, clearPermissionRules, readPermissionRules, removePermissionRule, syncPermissionRules, syncStepRules,
 } from "./permission-rules.ts";
 import { PERMISSION_RULES_STATE_KEY } from "../domain/session-keys.ts";
-import { FakePermissionRules } from "../../../tests/support/fake-permission-rules.ts";
-import { FakeSessionStore } from "../../../tests/support/fake-session-store.ts";
+import { FakePermissionRules } from "../../../tests/support/doubles/fake-permission-rules.ts";
+import { FakeSessionStore } from "../../../tests/support/doubles/fake-session-store.ts";
 import {
   BEFORE_ADD, BEFORE_REMOVE, MIXED_ENTRIES, NO_RULES, NPM_TEST, QUOTED, R, SYNCED_CALLS, SYNCED_ENTRIES, seeded, storedOf,
 } from "./permission-rules.fixtures.ts";

@@ -12,7 +12,8 @@ import {
   CAPTURE_DIR, FIRST, FIVE_CAPTURE_FILES, HOST_WORDS, LONG_TABLE, MATERIAL, MAX_REPLY_CHARS_IN_ANSWER_PROMPT, PREVIOUS_GAP,
   SHORT_SHEET, SUITE, SYSTEM_MARKERS, TABLE, bigBriefInput, briefInput, largestAnswer, longReports,
 } from "./auditor-prompt.fixtures.ts";
-import { assertMentions, assertOmits, assertWithinBrief } from "./auditor-prompt.assertions.ts";
+import { assertWithinBrief } from "./auditor-prompt.assertions.ts";
+import { assertMentions, assertOmits } from "../../../../tests/support/assertions/text.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 describe("AUDITOR_SYSTEM — one marker per behaviour", () => {

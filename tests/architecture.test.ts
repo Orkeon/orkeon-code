@@ -15,8 +15,10 @@
 //   - a relative import names its .ts file (the runtime bundler resolves
 //     specifiers as written), and runtime code imports nothing but relative
 //     files (tests may import node: built-ins);
-//   - runtime code never imports tests/: the doubles of tests/support/ are
+//   - runtime code never imports tests/: the doubles of tests/support/doubles/ are
 //     never bundled (tests next to the code may import them);
+//   - a shared check of tests/support/assertions/ imports node: built-ins only,
+//     so a test of any layer, a domain test included, may import it;
 //   - runtime code never imports test code: a *.test.ts, or the *.fixtures.ts
 //     and *.assertions.ts files the tests next to it keep their data and checks in;
 //   - no import cycle between files.

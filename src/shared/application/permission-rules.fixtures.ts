@@ -2,7 +2,7 @@
 import { PERMISSION_RULES_STATE_KEY } from "../domain/session-keys.ts";
 import { readRule } from "../domain/agent-policy/permission.ts";
 import type { PermissionRule } from "../domain/agent-policy/permission.ts";
-import { FakeSessionStore } from "../../../tests/support/fake-session-store.ts";
+import { FakeSessionStore } from "../../../tests/support/doubles/fake-session-store.ts";
 
 export const NPM_TEST = { effect: "allow" as const, tool: "shell_command", argument: "command", pattern: "npm test*" };
 

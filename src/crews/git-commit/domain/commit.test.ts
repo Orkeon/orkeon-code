@@ -11,7 +11,7 @@ import {
   ABSENT_MODES, CONFIRM_FLAGS, CONVENTIONAL_SUBJECTS, FLAGGED_SECRET_PATHS, NORMALIZED, ORDINARY_PATHS, PARSED_ARGS, READ_ONLY_MODES, REFUSALS,
   SECRET_PATHS, STATUS, WRITING_MODES, args,
 } from "./commit.fixtures.ts";
-import { assertMentions } from "./commit.assertions.ts";
+import { assertMentions } from "../../../../tests/support/assertions/text.ts";
 
 describe("normalizeCommitMessage", () => {
   for (const c of NORMALIZED) {

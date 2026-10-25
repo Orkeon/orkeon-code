@@ -8,7 +8,8 @@ import {
   upsertAgent, removeAgent, describeAgentRows,
 } from "./agent-registry.ts";
 import { AGENT, BAD_NAMES, NOT_REGISTRIES, REGISTRY_WITH_BROKEN, UNSORTED_REGISTRY } from "./agent-registry.fixtures.ts";
-import { assertEveryDetailMentions, assertMentions } from "./agent-registry.assertions.ts";
+import { assertEveryDetailMentions } from "./agent-registry.assertions.ts";
+import { assertMentions } from "../../../tests/support/assertions/text.ts";
 
 describe("validateSavedAgent", () => {
   it("accepts a complete definition, lowercasing the name", () => {

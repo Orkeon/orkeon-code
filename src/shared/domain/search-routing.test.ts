@@ -10,7 +10,8 @@ import {
 import {
   ADAPTER_EXTENSIONS, EXTENSION_CASES, LOADER_CASES, ROUTE_GROUPS, UPPER_CASE_ROUTES,
 } from "./search-routing.fixtures.ts";
-import { assertHoldsEvery, assertMentions } from "./search-routing.assertions.ts";
+import { assertHoldsEvery } from "./search-routing.assertions.ts";
+import { assertMentions } from "../../../tests/support/assertions/text.ts";
 
 describe("the extension partition", () => {
   it("mirrors the thirteen Tree-sitter adapters exactly", () => {

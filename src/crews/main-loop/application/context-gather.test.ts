@@ -6,10 +6,10 @@ import { strictEqual, deepStrictEqual } from "node:assert";
 import { readInstructionsFile, readGauge, readHooks, readLanguage, readMemoryByCategory } from "./context-gather.ts";
 import { MAX_MEMORY_ENTRIES_PER_CATEGORY } from "../domain/prompt-assembly.ts";
 import { HOOKS_STATE_KEY } from "../../../shared/domain/session-keys.ts";
-import { FakeFiles } from "../../../../tests/support/fake-files.ts";
-import { FakeMemoryStore } from "../../../../tests/support/fake-memory-store.ts";
-import { FakeSessionStore } from "../../../../tests/support/fake-session-store.ts";
-import { FakeTelemetry } from "../../../../tests/support/fake-telemetry.ts";
+import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
+import { FakeMemoryStore } from "../../../../tests/support/doubles/fake-memory-store.ts";
+import { FakeSessionStore } from "../../../../tests/support/doubles/fake-session-store.ts";
+import { FakeTelemetry } from "../../../../tests/support/doubles/fake-telemetry.ts";
 import {
   CLAUDE_MD_FALLBACKS, NO_INSTRUCTIONS, NO_LANGUAGE, ZERO_GAUGE, languageStore,
 } from "./context-gather.fixtures.ts";

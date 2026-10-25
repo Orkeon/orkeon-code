@@ -15,10 +15,8 @@ import {
   addGapsAudit, beforeTheClose, blockingReviewer, clearReviewer, events, markDone, mergedDetails, packedOnMain, parallelRecord,
   parallelSetup, prBody, pushes, record, reopenF1, run, setup, threeBatchesAfter,
 } from "./run-dev-batches.fixtures.ts";
-import {
-  assertHasLine, assertLastLineStarting, assertLastLineWith, assertLineStarting, assertLineWith, assertMentions,
-  assertNoLineWith,
-} from "./run-dev-batches.assertions.ts";
+import { assertHasLine, assertLastLineStarting, assertLastLineWith, assertLineWith, assertNoLineWith } from "./run-dev-batches.assertions.ts";
+import { assertLineStarting, assertMentions } from "../../../../tests/support/assertions/text.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 describe("runDevBatches — a run", () => {

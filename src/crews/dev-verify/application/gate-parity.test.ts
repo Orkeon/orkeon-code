@@ -16,7 +16,7 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok } from "node:assert";
 
-import { FakeShell } from "../../../../tests/support/fake-shell.ts";
+import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 import { runGate } from "./run-gate.ts";
 import { TARGET, filesOf, gitOutputs, harnessBlocks, scenarios } from "./gate-parity.fixtures.ts";
 

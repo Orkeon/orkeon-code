@@ -5,8 +5,8 @@ import type { CommandView } from "../src/commands/_lib/view.ts";
 import { CONFIG_FILE_PATH, USER_CONFIG_FILE_PATH, createConfigStore } from "../src/shared/application/config-store.ts";
 import { CONFIG_KEYS } from "../src/shared/domain/config-schema.ts";
 import { CONFIG_MAP_STATE_KEY } from "../src/shared/domain/session-keys.ts";
-import { FakeFiles } from "./support/fake-files.ts";
-import { FakeSessionStore } from "./support/fake-session-store.ts";
+import { FakeFiles } from "./support/doubles/fake-files.ts";
+import { FakeSessionStore } from "./support/doubles/fake-session-store.ts";
 
 export const KEY = "advisor.model";
 

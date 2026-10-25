@@ -2,9 +2,9 @@
 import { memoryLayout } from "../../domain/shared-memory/layout.ts";
 import { LEARN_STATE_FILE } from "../../domain/dev/learn-state.ts";
 import { collectLearnRows } from "../../domain/shared-memory/verdict-rows.ts";
-import { LiveListingFiles } from "../../../../tests/support/live-listing-files.ts";
-import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
-import { FakeShell } from "../../../../tests/support/fake-shell.ts";
+import { LiveListingFiles } from "../../../../tests/support/doubles/live-listing-files.ts";
+import { FakeLogger } from "../../../../tests/support/doubles/fake-logger.ts";
+import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
 
 export const W = `${WORKSPACE}/workbench`;

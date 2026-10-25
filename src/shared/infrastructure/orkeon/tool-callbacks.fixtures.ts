@@ -1,7 +1,7 @@
 // The hooks, layouts, file readers and expected refusals the dev crews' tool callbacks are tested with.
 import { HOOK_TIMEOUT_SECONDS, devToolCallbacks, memoryGuardCallbacks } from "./tool-callbacks.ts";
-import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
-import { FakeShell } from "../../../../tests/support/fake-shell.ts";
+import { FakeLogger } from "../../../../tests/support/doubles/fake-logger.ts";
+import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
 
 export const PRE = { event: "pre-tool", command: "bash pre.sh {tool} {path}" };

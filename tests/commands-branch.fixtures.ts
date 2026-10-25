@@ -2,8 +2,8 @@
 import { runBranch } from "../src/commands/_lib/branch.ts";
 import type { ShellResult } from "../src/shared/application/ports.ts";
 import type { CommandView } from "../src/commands/_lib/view.ts";
-import { FakeLogger } from "./support/fake-logger.ts";
-import { FakeShell } from "./support/fake-shell.ts";
+import { FakeLogger } from "./support/doubles/fake-logger.ts";
+import { FakeShell } from "./support/doubles/fake-shell.ts";
 
 export const DIRTY_OUTPUTS: readonly { name: string; porcelain: string }[] = [
   { name: "a modified path", porcelain: " M src/index.ts" },
