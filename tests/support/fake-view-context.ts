@@ -1,7 +1,8 @@
-// The command context showView renders into.
+// FakeViewContext: the command context showView renders into. Each call lands in `calls`, in order, as
+// [method, ...arguments]; `continue` answers "result".
+import type { ViewContext } from "../../src/commands/_lib/view.ts";
 
-/** The command context as showView calls it, recording each call in order. */
-export class FakeViewContext {
+export class FakeViewContext implements ViewContext<string> {
   calls: unknown[][] = [];
 
   writeLine(text: string): void {

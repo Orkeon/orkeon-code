@@ -1,7 +1,9 @@
-// Commands, requests and stand-ins for the shared git close tests: FakeShell and FakeFiles, no real git, no push.
+// Commands, requests and stand-ins for the shared git close tests: FakeShell, FakeFiles and FakePullRequestOpener,
+// no real git, no push.
 import type { ShellResult } from "../ports.ts";
-import type { PullRequest, PullRequestHandOver, PullRequestOpener } from "./commit-files.ts";
+import type { PullRequestHandOver } from "./commit-files.ts";
 import { FakeFiles } from "../../../../tests/support/fake-files.ts";
+import { FakePullRequestOpener } from "../../../../tests/support/fake-pull-request-opener.ts";
 import { FakeShell } from "../../../../tests/support/fake-shell.ts";
 
 export const AUTHOR = "git var GIT_AUTHOR_IDENT";
@@ -41,19 +43,19 @@ export class RefusingFiles extends FakeFiles {
 /** Files of a linked worktree: `.git/` cannot be written into. */
 export const linkedWorktreeFiles = (): RefusingFiles => new RefusingFiles(["/workspace/.git/"]);
 
-/** An opener that records each pull request it opens and answers `url`. */
-export class RecordingOpener implements PullRequestOpener {
-  readonly opened: PullRequest[] = [];
-  readonly url: string;
-  constructor(url = "https://example.com/pr/1") { this.url = url; }
-  async open(pr: PullRequest): Promise<{ url: string }> {
-    this.opened.push(pr);
-    return { url: this.url };
-  }
+/** An opener recording each pull request it opens, answering `url`. */
+export function recordingOpener(url?: string): FakePullRequestOpener {
+  const fake = new FakePullRequestOpener();
+  if (url !== undefined) fake.url = url;
+  return fake;
 }
 
 /** An opener the github tool refuses with a 401. */
-export const BROKEN_OPENER: PullRequestOpener = { open: async () => { throw new Error("401"); } };
+export function brokenOpener(): FakePullRequestOpener {
+  const fake = new FakePullRequestOpener();
+  fake.failure = new Error("401");
+  return fake;
+}
 
 export const REQ: PullRequestHandOver = {
   work: { folder: "workbench", vfsPath: "/workspace/workbench" }, branch: "feat/x", base: "main", title: "fix: x",

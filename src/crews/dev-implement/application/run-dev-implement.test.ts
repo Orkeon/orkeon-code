@@ -648,18 +648,17 @@ describe("runDevImplement — wave 4", () => {
 
   it("refreshes the batch's files in the index, then adds the graph's test projects to the sheet's", async () => {
     // Arrange
-    const refreshed: string[][] = [];
-    const asked: string[][] = [];
-    const t = later(graphIndex(["/workspace/"], { projects: ["tests/integration", "tests", "a;b"], classes: ["A"] }, refreshed, asked));
+    const index = graphIndex(["/workspace/"], { projects: ["tests/integration", "tests", "a;b"], classes: ["A"] });
+    const t = later(index);
 
     // Act
     const a = parse(await runDevImplement(F1, t.deps));
 
     // Assert
     assertNotBlocked(a);
-    deepStrictEqual(refreshed.at(-1), F1_FILES);
+    deepStrictEqual(index.refreshed.at(-1), F1_FILES);
     // affected_tests looks each file up under the indexed root: relative paths, never absolute ones.
-    deepStrictEqual(asked, [["src/a.ts", "tests/a.test.ts"]]);
+    deepStrictEqual(index.asked, [["src/a.ts", "tests/a.test.ts"]]);
     assertLine(a, PROJECT_LEFT_OUT);
     assertLine(a, "index: 2 files of F1 refreshed");
     deepStrictEqual(t.jobs.started, ["npm run build", "node --test tests", "node --test tests/integration"]);
@@ -680,8 +679,8 @@ describe("runDevImplement — wave 4", () => {
 
   it("refreshes the index before the build, so a red build leaves no stale graph", async () => {
     // Arrange
-    const refreshed: string[][] = [];
-    const t = later(graphIndex(["/workspace"], {}, refreshed));
+    const index = graphIndex(["/workspace"], {});
+    const t = later(index);
     t.jobs.exit["npm run build"] = 1;
 
     // Act
@@ -689,7 +688,7 @@ describe("runDevImplement — wave 4", () => {
 
     // Assert
     ok(blockedLine(a) !== undefined, a.lines.join("\n"));
-    deepStrictEqual(refreshed.at(-1), F1_FILES);
+    deepStrictEqual(index.refreshed.at(-1), F1_FILES);
     assertLine(a, "index: 2 files of F1 refreshed");
   });
 

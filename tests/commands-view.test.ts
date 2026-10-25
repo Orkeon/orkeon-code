@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 
 import { showView } from "../src/commands/_lib/view.ts";
-import { FakeViewContext } from "./commands-view.fixtures.ts";
+import { FakeViewContext } from "./support/fake-view-context.ts";
 
 describe("showView", () => {
   it("shows the table, then closes with the message, and returns what continue returns", () => {

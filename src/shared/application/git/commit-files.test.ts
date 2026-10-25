@@ -7,7 +7,7 @@ import { commitFiles, defaultBranch, handOverPullRequest, pushBranch, readIdenti
 import { FakeFiles } from "../../../../tests/support/fake-files.ts";
 import { FakeShell } from "../../../../tests/support/fake-shell.ts";
 import {
-  AUTHOR, BROKEN_OPENER, COMMITTER, COMMIT_A_IN_WORKTREE, GH, IDENT, ORIGIN_HEAD, PROBES, PUSH, REQ, RM_MESSAGE, RecordingOpener,
+  AUTHOR, brokenOpener, COMMITTER, COMMIT_A_IN_WORKTREE, GH, IDENT, ORIGIN_HEAD, PROBES, PUSH, REQ, RM_MESSAGE, recordingOpener,
   RefusingFiles, SHORT_HEAD, commitRequest, linkedWorktreeFiles, shellWith,
 } from "./commit-files.fixtures.ts";
 
@@ -344,7 +344,7 @@ describe("handOverPullRequest", () => {
 
   it("opens it through the seam when one is given", async () => {
     // Arrange
-    const opener = new RecordingOpener();
+    const opener = recordingOpener();
 
     // Act
     const lines = await handOverPullRequest({ files: new FakeFiles(), opener }, { ...REQ, open: true });
@@ -358,7 +358,7 @@ describe("handOverPullRequest", () => {
 
   it("falls back to the command when the opener fails", async () => {
     // Arrange
-    const deps = { files: new FakeFiles(), opener: BROKEN_OPENER };
+    const deps = { files: new FakeFiles(), opener: brokenOpener() };
 
     // Act
     const lines = await handOverPullRequest(deps, { ...REQ, open: true });
@@ -369,7 +369,7 @@ describe("handOverPullRequest", () => {
 
   it("does not open it before the push, even with an opener", async () => {
     // Arrange
-    const opener = new RecordingOpener("u");
+    const opener = recordingOpener("u");
 
     // Act
     const lines = await handOverPullRequest({ files: new FakeFiles(), opener }, { ...REQ, open: true, pushed: false });

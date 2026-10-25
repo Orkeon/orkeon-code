@@ -1,21 +1,11 @@
-// The anchor index double, the hit and request builders and the closures the buildInventory tests read.
+// The anchor index, the hit and request builders and the closures the buildInventory tests read.
+import { FakeAnchorIndex } from "../../../../tests/support/fake-anchor-index.ts";
 import { FakeCodeIndex } from "../../../../tests/support/fake-code-index.ts";
-import type { AnchorClosure, AnchorIndex, CodeSearchHit, SymbolLocation } from "../../../shared/application/ports.ts";
+import type { AnchorClosure, CodeSearchHit, SymbolLocation } from "../../../shared/application/ports.ts";
 import type { GraphSummary } from "../../../shared/domain/code-intel-contract.ts";
 import type { InventoryRequest } from "./inventory.ts";
 
-/** The closure of each anchor by its fqn (empty when absent), a failure by fqn, and the calls made. */
-export class FakeAnchorIndex implements AnchorIndex {
-  closures: Record<string, AnchorClosure> = {};
-  failures: Record<string, Error> = {};
-  calls: string[] = [];
-  async closure(fqns: readonly string[]): Promise<AnchorClosure> {
-    this.calls.push(`closure ${fqns.join(" ")}`);
-    const failure = this.failures[fqns[0]];
-    if (failure !== undefined) throw failure;
-    return this.closures[fqns[0]] ?? { nodes: [], unresolved: [], truncated: false };
-  }
-}
+/** An anchor index whose every closure is empty. */
 export const anchors = (): FakeAnchorIndex => new FakeAnchorIndex();
 
 const LAYOUT = { domain: "src/domain", application: "src/app", tests: "tests" };

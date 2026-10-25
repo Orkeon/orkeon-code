@@ -6,8 +6,9 @@ import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { COST_NOT_WIRED, DEFAULT_RECEIVERS } from "../../domain/dev/access-cost.ts";
 import { costRoots, measureAccessCost } from "./measure-access-cost.ts";
+import { FakeCostIndex } from "../../../../tests/support/fake-cost-index.ts";
 import {
-  CHANGED, CHANGED_WITH_COLOCATED_TEST, COST_ROOTS, FAILURES, FakeCostIndex, FS_RECEIVERS, LAYOUT, LIB_ROOTS, LOOP,
+  CHANGED, CHANGED_WITH_COLOCATED_TEST, COST_ROOTS, FAILURES, FS_RECEIVERS, LAYOUT, LIB_ROOTS, LOOP,
   reasonOf,
 } from "./measure-access-cost.fixtures.ts";
 

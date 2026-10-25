@@ -1,6 +1,7 @@
 // The demo plan folder runDevVerify reads over FakeFiles, FakeShell, FakeLlm and a config store on FakeFiles,
 // whose gate is green; the auditor's answers, the earlier verdicts a resume reads, the doubles wrapped for one
 // test (the validation slot, the code index, the harvest, a verdict that cannot be written) and the refusals.
+import { FakeCostIndex } from "../../../../tests/support/fake-cost-index.ts";
 import { FakeFiles } from "../../../../tests/support/fake-files.ts";
 import { FakeLlm } from "../../../../tests/support/fake-llm.ts";
 import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
@@ -10,7 +11,6 @@ import { createConfigStore } from "../../../shared/application/config-store.ts";
 import { GIT_TOPLEVEL } from "../../../shared/application/dev/resolve-work-folder.ts";
 import { ORKEON_IGNORE_PROBE, checkIgnoreCommand } from "../../../shared/application/dev/load-dev-context.ts";
 import type { ScriptToolSlot } from "../../../shared/application/dev/script-tool-slot.ts";
-import type { CostIndex } from "../../../shared/application/ports.ts";
 import { COST_NOT_WIRED, costSummary } from "../../../shared/domain/dev/access-cost.ts";
 import { AUDIT_UNFINISHED_GAP } from "../../../shared/domain/dev/verdict-format.ts";
 import { excludePathspecs, gitMethodGrep } from "../domain/commands.ts";
@@ -82,25 +82,18 @@ export function runValidationOnAct(llm: FakeLlm, slot: ScriptToolSlot<Validation
 
 export const MEASURED = "Cost: 1 read + 0 writes through ports outside loops; in a loop, a lambda or a memory filter: none";
 
-/** A code index measuring one port read in src/a.ts; `asked` records the files it was asked to refresh. */
-export function measuringCostIndex(): { costIndex: CostIndex; asked: string[] } {
-  const asked: string[] = [];
-  const costIndex: CostIndex = {
-    roots: async () => ["/workspace"],
-    refresh: async (_root, files) => { asked.push(...files); return []; },
-    accessCost: async () => ({
-      report: {
-        members: [{
-          member: "/workspace/src/a.ts::show",
-          portCalls: [{ receiver: "this.store", method: "load", line: 2, inLoop: false, inLambda: false }],
-          memoryFilters: [], cost: { reads: 1, writes: 0, loops: 0, lambdas: 0, memoryFilters: 0 },
-        }],
-        cost: { reads: 1, writes: 0, loops: 0, lambdas: 0, memoryFilters: 0 },
-      },
-      errors: [],
-    }),
+/** A code index measuring one port read in src/a.ts. */
+export function measuringCostIndex(): FakeCostIndex {
+  const costIndex = new FakeCostIndex();
+  costIndex.report = {
+    members: [{
+      member: "/workspace/src/a.ts::show",
+      portCalls: [{ receiver: "this.store", method: "load", line: 2, inLoop: false, inLambda: false }],
+      memoryFilters: [], cost: { reads: 1, writes: 0, loops: 0, lambdas: 0, memoryFilters: 0 },
+    }],
+    cost: { reads: 1, writes: 0, loops: 0, lambdas: 0, memoryFilters: 0 },
   };
-  return { costIndex, asked };
+  return costIndex;
 }
 
 export const HARVEST_LINE = "shared memory: 1 mistake candidate harvested from the audits (x) → /memory-admit decides each one.";

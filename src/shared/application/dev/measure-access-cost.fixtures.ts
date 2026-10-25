@@ -1,39 +1,11 @@
 // The cost index, the packs and the changed files measureAccessCost is tested on.
-import type { CostIndex } from "../ports.ts";
+import type { FakeCostIndex } from "../../../../tests/support/fake-cost-index.ts";
 import type { AccessCostReport } from "../../domain/dev/access-cost.ts";
 import { parseRepoPack } from "../../domain/dev/repo-pack.ts";
 import type { RepoPack } from "../../domain/dev/repo-pack.ts";
 import type { measureAccessCost } from "./measure-access-cost.ts";
 
 const ZERO = { reads: 0, writes: 0, loops: 0, lambdas: 0, memoryFilters: 0 };
-
-/** A CostIndex answering its fields; an Error in `failure[<call>]` is thrown; every call lands in `calls`. */
-export class FakeCostIndex implements CostIndex {
-  indexed: string[] = ["/workspace"];
-  refreshErrors: string[] = [];
-  report: AccessCostReport | null = { members: [], cost: ZERO };
-  errors: string[] = [];
-  failure: Partial<Record<"roots" | "refresh" | "accessCost", Error>> = {};
-  calls: string[] = [];
-
-  async roots(): Promise<string[]> {
-    this.calls.push("roots");
-    if (this.failure.roots) throw this.failure.roots;
-    return this.indexed;
-  }
-
-  async refresh(root: string, files: readonly string[]): Promise<string[]> {
-    this.calls.push(`refresh ${root} ${files.join(",")}`);
-    if (this.failure.refresh) throw this.failure.refresh;
-    return this.refreshErrors;
-  }
-
-  async accessCost(files: readonly string[], receivers: string | undefined) {
-    this.calls.push(`accessCost ${files.join(",")}${receivers === undefined ? "" : ` ${receivers}`}`);
-    if (this.failure.accessCost) throw this.failure.accessCost;
-    return { report: this.report, errors: this.errors };
-  }
-}
 
 /** The repository pack `yaml` parses to; throws when it does not parse. */
 export function pack(yaml: string): RepoPack {

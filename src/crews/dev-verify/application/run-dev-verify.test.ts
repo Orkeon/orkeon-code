@@ -120,14 +120,14 @@ describe("runDevVerify — the verdict", () => {
     const f = setup();
     f.llm.answers = ["fine"];
     f.llm.extractions = [answer([])];
-    const { costIndex, asked } = measuringCostIndex();
+    const costIndex = measuringCostIndex();
 
     // Act
     const text = await runDevVerify({ batch: "F2" }, { ...f.deps, costIndex });
 
     // Assert
     deepStrictEqual(text.split("\n").slice(1, 3), [GREEN_LINE, MEASURED]);
-    deepStrictEqual(asked, ["/workspace/src/a.ts"]);
+    deepStrictEqual(costIndex.refreshed.flat(), ["/workspace/src/a.ts"]);
     strictEqual(f.files.files.get(`${DIR}/capture-F2/cost.txt`),
       `exit: 0\n[src/a.ts::show]\nPorts outside loops (1): this.store.load L2\n${MEASURED}\n`);
     assertMentions(f.files.files.get(`${DIR}/capture-F2/table.md`) ?? "", [`| Cost | capture \`cost\` | ok | \`exit: 0\` — ${MEASURED} |`]);

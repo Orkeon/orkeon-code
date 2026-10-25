@@ -7,15 +7,15 @@ import { FakeFiles } from "../../../../tests/support/fake-files.ts";
 import { FakeShell } from "../../../../tests/support/fake-shell.ts";
 import { logText, runSuite } from "./suite-job.ts";
 import {
-  Jobs, jobsFailingAfterFirstLook, jobsFailingFirstLook, jobsRunningFor, jobsThatCannotWait, jobsThatDoNotStart, LOG_TEXT_CASES, REQ,
-  suiteShell,
+  jobsFailingAfterFirstLook, jobsFailingFirstLook, jobsRunningFor, jobsThatCannotWait, jobsThatDoNotStart, LOG_TEXT_CASES, REQ,
+  suiteJobs, suiteShell,
 } from "./suite-job.fixtures.ts";
 import { assertPassedTail, assertRunningUnread, assertSuiteLog } from "./suite-job.assertions.ts";
 
 describe("runSuite", () => {
   it("looks at the job after 1 s, then twice as long each time, until it exits, writes the tail, passes on 15 lines", async () => {
     // Arrange
-    const jobs = new Jobs();
+    const jobs = suiteJobs();
     const files = new FakeFiles();
 
     // Act

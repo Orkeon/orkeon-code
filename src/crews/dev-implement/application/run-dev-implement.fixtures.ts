@@ -1,14 +1,17 @@
 // The world runDevImplement is tested in: FakeFiles, a scripted shell (git status from a fake tree, each test file red
 // or green), two scripted roles that write into that tree, fake shell jobs, and the sheets, verdicts and records a
 // batch goes through.
+import { FakeCostIndex, FakeGraphIndex } from "../../../../tests/support/fake-cost-index.ts";
 import { FakeFiles } from "../../../../tests/support/fake-files.ts";
 import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
 import { FakeSessionStore } from "../../../../tests/support/fake-session-store.ts";
 import { FakeShell } from "../../../../tests/support/fake-shell.ts";
+import { FakeShellJobs } from "../../../../tests/support/fake-shell-jobs.ts";
 import type { FakePrecedents } from "../../../../tests/doubles/fake-precedents.ts";
 import { createConfigStore } from "../../../shared/application/config-store.ts";
 import { GIT_TOPLEVEL } from "../../../shared/application/dev/resolve-work-folder.ts";
-import type { ActRequest, AffectedTests, CostIndex, ShellJobs, ShellOptions, ShellResult } from "../../../shared/application/ports.ts";
+import type { ActRequest, AffectedTests, CostIndex, ShellOptions, ShellResult } from "../../../shared/application/ports.ts";
+import type { AccessCostReport } from "../../../shared/domain/dev/access-cost.ts";
 import { GIT_IDENT_COMMAND } from "../../../shared/domain/git/close.ts";
 import { AUDIT_UNFINISHED_GAP } from "../../../shared/domain/dev/verdict-format.ts";
 import { STATUS_COMMAND } from "./observe.ts";
@@ -131,15 +134,6 @@ export class Role {
   }
 }
 
-export class FakeJobs implements ShellJobs {
-  started: string[] = [];
-  exit: Record<string, number> = {};
-  async start(command: string) { this.started.push(command); return { id: `j${this.started.length}`, log: `/output/jobs/j${this.started.length}.log` }; }
-  async status(id: string) { return { running: false, exitCode: this.exit[this.started[Number(id.slice(1)) - 1]] ?? 0 }; }
-  async tail() { return "all green"; }
-  async wait() { return true; }
-}
-
 /** A test author's act that writes the test file `file`. */
 export const writesTest = (file: string): Act => (_p, tree) => { tree.write(file, `test ${file}`); return `wrote ${file}`; };
 /** An implementer's act that writes `file`, turns `test` green and answers `cost`. */
@@ -203,7 +197,7 @@ export const stubsTheModule: Act = (_p, tree) => {
 export const writesTestOnly: Act = (_p, tree) => { tree.write("tests/a.test.ts", "t"); return "done"; };
 
 export type Deps = {
-  files: FakeFiles; shell: TreeShell; jobs: FakeJobs; log: FakeLogger; config: ReturnType<typeof createConfigStore>;
+  files: FakeFiles; shell: TreeShell; jobs: FakeShellJobs; log: FakeLogger; config: ReturnType<typeof createConfigStore>;
   roleLlm: (role: "test-author" | "implementer", layout: unknown, wrote: (path: string) => void, writable: readonly string[]) => Role;
   today: () => string; costIndex?: CostIndex; openerFor?: (context: unknown) => undefined;
   precedents?: FakePrecedents["recall"];
@@ -221,7 +215,7 @@ export function setup(author: Act[], implementer: Act[], sheet = SHEET) {
   const shell = new TreeShell(tree);
   shell.results[GIT_TOPLEVEL] = { stdout: "/workspace\n" };
   const roles = { "test-author": new Role(tree, author), implementer: new Role(tree, implementer) };
-  const jobs = new FakeJobs();
+  const jobs = new FakeShellJobs();
   const deps = {
     files, shell, jobs, log: new FakeLogger(), config: createConfigStore({ files, session: new FakeSessionStore() }),
     roleLlm: (role: "test-author" | "implementer", _layout: unknown, wrote: (path: string) => void, writable: readonly string[]) => {
@@ -322,37 +316,31 @@ export const UNFINISHED = "# DEMO-VERIFY-F1 — 2026-10-24 11:00 — resume\n\n#
 
 // ---- the cost and the graph
 
-/** A cost index measuring one read of `src/a.ts`, in a loop when `inLoop`. */
-export const costIndex = (inLoop: boolean): CostIndex => ({
-  roots: async () => ["/workspace"],
-  refresh: async () => [],
-  accessCost: async () => ({
-    report: {
-      members: [{
-        member: "/workspace/src/a.ts::A::run", memoryFilters: [],
-        cost: { reads: 1, writes: 0, loops: inLoop ? 1 : 0, lambdas: 0, memoryFilters: 0 },
-        portCalls: [{ receiver: "repo", method: "get", line: 1, inLoop, inLambda: false }],
-      }],
-      cost: { reads: 1, writes: 0, loops: inLoop ? 1 : 0, lambdas: 0, memoryFilters: 0 },
-    },
-    errors: [],
-  }),
+/** The report of one read of `src/a.ts`, in a loop when `inLoop`. */
+const oneRead = (inLoop: boolean): AccessCostReport => ({
+  members: [{
+    member: "/workspace/src/a.ts::A::run", memoryFilters: [],
+    cost: { reads: 1, writes: 0, loops: inLoop ? 1 : 0, lambdas: 0, memoryFilters: 0 },
+    portCalls: [{ receiver: "repo", method: "get", line: 1, inLoop, inLambda: false }],
+  }],
+  cost: { reads: 1, writes: 0, loops: inLoop ? 1 : 0, lambdas: 0, memoryFilters: 0 },
 });
 
-/** A cost index over `roots` whose graph answers `affected` (or fails with it); the files refreshed and asked about
- *  land in `refreshed` and `asked`. */
-export const graphIndex = (
-  roots: string[], affected: Partial<AffectedTests> | Error, refreshed: string[][] = [], asked: string[][] = [],
-): CostIndex => ({
-  ...costIndex(false),
-  roots: async () => roots,
-  refresh: async (_root, files) => { refreshed.push([...files]); return []; },
-  affected: async (files) => {
-    asked.push([...files]);
-    if (affected instanceof Error) throw affected;
-    return { all: false, projects: [], classes: [], unresolved: [], ...affected };
-  },
-});
+/** A cost index measuring one read of `src/a.ts`, in a loop when `inLoop`. */
+export const costIndex = (inLoop: boolean): FakeCostIndex => {
+  const index = new FakeCostIndex();
+  index.report = oneRead(inLoop);
+  return index;
+};
+
+/** A cost index over `roots` whose graph answers `tests` (or fails with it), measuring one read outside loops. */
+export const graphIndex = (roots: string[], tests: Partial<AffectedTests> | Error): FakeGraphIndex => {
+  const index = new FakeGraphIndex();
+  index.indexed = roots;
+  index.report = oneRead(false);
+  index.tests = tests;
+  return index;
+};
 
 /** A one-step run after the whole suite went green once for the batch, the pack naming test_project, over `index`. */
 export const later = (index: CostIndex) => {
