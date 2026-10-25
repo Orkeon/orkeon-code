@@ -4,17 +4,65 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { CLOSE_BUDGET, implementBudget, STEP_TOOL_CALLS, stepsToSize } from "./implement-budget.ts";
+import { STEPS_CASES } from "./implement-budget.fixtures.ts";
 
 describe("implementBudget", () => {
-  it("sizes to the steps, three by default", () => {
-    deepStrictEqual(implementBudget({}), { toolCalls: 370, wallTime: 9900, tokens: 450_000, delegationDepth: 0 });
-    strictEqual(implementBudget({ steps: 1 }).toolCalls, 150);
-    strictEqual(STEP_TOOL_CALLS >= 101, true); // both roles' iterations and the re-ask fit in one step
+  it("sizes to three steps by default", () => {
+    // Arrange
+    const input = {};
+
+    // Act
+    const budget = implementBudget(input);
+
+    // Assert
+    deepStrictEqual(budget, { toolCalls: 370, wallTime: 9900, tokens: 450_000, delegationDepth: 0 });
   });
-  it("caps the steps, and gives the close its own budget", () => {
-    strictEqual(stepsToSize(40), 12);
-    strictEqual(stepsToSize(0), 1);
-    strictEqual(stepsToSize("5"), 3);
-    deepStrictEqual(implementBudget({ close: true, steps: 9 }), CLOSE_BUDGET);
+
+  it("sizes to the steps it is given", () => {
+    // Arrange
+    const input = { steps: 1 };
+
+    // Act
+    const budget = implementBudget(input);
+
+    // Assert
+    strictEqual(budget.toolCalls, 150);
   });
+
+  it("fits both roles' iterations and the re-ask in one step", () => {
+    // Arrange
+    const needed = 101;
+
+    // Act
+    const room = STEP_TOOL_CALLS;
+
+    // Assert
+    strictEqual(room >= needed, true);
+  });
+
+  it("gives the close its own budget", () => {
+    // Arrange
+    const input = { close: true, steps: 9 };
+
+    // Act
+    const budget = implementBudget(input);
+
+    // Assert
+    deepStrictEqual(budget, CLOSE_BUDGET);
+  });
+});
+
+describe("stepsToSize", () => {
+  for (const c of STEPS_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { value } = c;
+
+      // Act
+      const steps = stepsToSize(value);
+
+      // Assert
+      strictEqual(steps, c.expected);
+    });
+  }
 });

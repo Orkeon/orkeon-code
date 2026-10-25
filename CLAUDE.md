@@ -82,9 +82,7 @@ The convention is Orkeon's (`tests/` of github.com/Orkeon/orkeon), adapted to `n
 - A test's name is the behaviour and its condition, as a sentence: `cuts a name at 120 characters`.
 - No test depends on a clock, a network or an LLM. Runtime code never imports `tests/`, a `*.fixtures.ts` nor a
   `*.assertions.ts`.
-- `tests/test-shape.test.ts` checks the shape of every test. `tests/test-shape.pending.ts` lists the files written
-  before the convention: never add a file to it. A pending file you touch is converted whole, then removed from the
-  list (the test fails while a converted file stays listed).
+- `tests/test-shape.test.ts` checks the shape of every test of `src/` and `tests/`, without exception.
 - A behaviour added or changed gets its new test; never append assertions to an existing test to cover it.
 
 ### Runtime rules (bundle check)
