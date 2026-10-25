@@ -17,6 +17,8 @@
 //     files (tests may import node: built-ins);
 //   - runtime code never imports tests/: the doubles of tests/support/ are
 //     never bundled (tests next to the code may import them);
+//   - runtime code never imports test code: a *.test.ts, or the *.fixtures.ts
+//     and *.assertions.ts files the tests next to it keep their data and checks in;
 //   - no import cycle between files.
 // The runtime globals are checked the same way, over every identifier that
 // nothing in its file declares, imports or binds (TypeScript's own scoping), every
@@ -48,7 +50,8 @@ type Layer = (typeof LAYERS)[number];
 
 interface Import { from: string; specifier: string; to: string | null }
 
-const isTest = (file: string) => file.endsWith(".test.ts");
+/** Test code: a test, or the fixtures and assertions files kept beside it. */
+const isTest = (file: string) => [".test.ts", ".fixtures.ts", ".assertions.ts"].some((end) => file.endsWith(end));
 const isCrewEntryPoint = (file: string) => CREW_ENTRY_POINTS.includes(posix.basename(file));
 const isCommandEntryPoint = (file: string) => file.endsWith(".cmd.ts");
 const isEntryPoint = (file: string) => isCommandEntryPoint(file) || isCrewEntryPoint(file);
@@ -143,6 +146,7 @@ function brokenRules(imp: Import): string[] {
     broken.push(LIB_RULE);
   }
   if (imp.to.startsWith("tests/") && !isTest(imp.from)) broken.push("runtime code never imports tests/");
+  if (isTest(imp.to) && !isTest(imp.from)) broken.push("runtime code never imports test code (*.test.ts, *.fixtures.ts, *.assertions.ts)");
   return broken;
 }
 
@@ -356,6 +360,33 @@ describe("architecture: import parsing", () => {
     const rule = "runtime code never imports tests/";
     deepStrictEqual(brokenRules({ from: "src/crews/x/application/run.ts", specifier: "../../../../" + fake, to: fake }), [rule]);
     deepStrictEqual(brokenRules({ from: "src/crews/x/application/run.test.ts", specifier: "../../../../" + fake, to: fake }), []);
+  });
+
+  it("refuses an import of a fixtures or assertions file from runtime code", () => {
+    // Arrange
+    const fixtures = "src/crews/x/domain/plan.fixtures.ts";
+    const imp = { from: "src/crews/x/domain/plan.ts", specifier: "./plan.fixtures.ts", to: fixtures };
+
+    // Act
+    const broken = brokenRules(imp);
+
+    // Assert
+    deepStrictEqual(broken, ["runtime code never imports test code (*.test.ts, *.fixtures.ts, *.assertions.ts)"]);
+  });
+
+  it("lets a test import its fixtures and assertions, and an assertions file import node:assert", () => {
+    // Arrange
+    const imports = [
+      { from: "src/crews/x/domain/plan.test.ts", specifier: "./plan.fixtures.ts", to: "src/crews/x/domain/plan.fixtures.ts" },
+      { from: "src/crews/x/domain/plan.test.ts", specifier: "./plan.assertions.ts", to: "src/crews/x/domain/plan.assertions.ts" },
+      { from: "src/crews/x/domain/plan.assertions.ts", specifier: "node:assert", to: null },
+    ];
+
+    // Act
+    const broken = imports.flatMap(brokenRules);
+
+    // Assert
+    deepStrictEqual(broken, []);
   });
 });
 

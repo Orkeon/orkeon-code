@@ -72,6 +72,19 @@ Runtime rules, enforced by the bundle check:
   fakes; the command use cases of `commands/_lib/` in `tests/commands-<family>.test.ts`. Entry points are covered by
   the bundle check and the runtime smoke.
 - No test depends on a clock, a network or an LLM.
+- Every test is laid out **Arrange, Act, Assert**, the way Orkeon's are: three sections, each opened by its own
+  comment line (`// Arrange`, `// Act`, `// Assert`), in that order, once each. One act per test: a second call
+  under test is a second test. Cases of one behaviour are a table the test loops over (`for (const c of CASES) it(…)`),
+  one test per case, like an xUnit `Theory`. `tests/test-shape.test.ts` checks it on every test.
+- A test file keeps its tests only. Beside `<module>.test.ts`:
+  - `<module>.fixtures.ts` holds its data: the case tables, the sample texts, the builders of its inputs (a function
+    with defaults, `planSheet({ steps: 2 })`), the expected values longer than a line. A text that is a file of its
+    own (a sheet, a plan, a YAML) goes under `tests/fixtures/`;
+  - `<module>.assertions.ts` holds its checks made of more than one native assertion, or used by more than one test
+    (`assertCutBlock(block)`), built on `node:assert` with a message that says what is wrong.
+  A scalar the Arrange reads in one line stays in the test. Runtime code never imports a `*.fixtures.ts` nor a
+  `*.assertions.ts` (the architecture test).
+- A test's name says the behaviour and its condition, as a sentence: `cuts a name at 120 characters`.
 
 ## The checks
 

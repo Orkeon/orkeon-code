@@ -1,28 +1,64 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 import { carriedBlocks } from "./carried-text.ts";
+import { ONE_SHORT_TEXT, SHEET_THEN_DIFF, SHEET_THEN_DIFF_BLOCKS, SHORT_LONG_AFTER } from "./carried-text.fixtures.ts";
+import { assertCutBlock, assertWithinRoom } from "./carried-text.assertions.ts";
 
 describe("carriedBlocks", () => {
-  it("frames each text under its title, trailing blank lines dropped", () => {
-    const blocks = carriedBlocks([{ title: "workbench/x/X-PLAN-F2.md", text: "# F2\n\nbody\n\n" }, { title: "what F1 changed", text: "diff --git a b" }], 10_000);
-    deepStrictEqual(blocks, [
-      "### workbench/x/X-PLAN-F2.md\n```text\n# F2\n\nbody\n```",
-      "### what F1 changed\n```text\ndiff --git a b\n```",
-    ]);
+  it("frames each text under its title, its trailing blank lines dropped", () => {
+    // Arrange
+    const texts = SHEET_THEN_DIFF;
+
+    // Act
+    const blocks = carriedBlocks(texts, 10_000);
+
+    // Assert
+    deepStrictEqual(blocks, SHEET_THEN_DIFF_BLOCKS);
   });
 
-  it("cuts the text past the room, says how much is missing, and names the texts left out", () => {
-    const long = "x".repeat(5_000);
-    const blocks = carriedBlocks([{ title: "a", text: "short" }, { title: "b", text: long }, { title: "c", text: "after" }], 1_000);
-    strictEqual(blocks.length, 3);
-    ok(blocks[0].includes("short"));
-    ok(blocks[1].endsWith("more characters)\n```"), blocks[1].slice(-60));
-    ok(blocks.join("\n").length <= 1_000 + 60);
-    strictEqual(blocks[2], "Not carried (no room left): c.");
+  it("keeps a text that fits, cuts the one past the room with a note, and names the one left out", () => {
+    // Arrange
+    const room = 1_000;
+
+    // Act
+    const [short, cut, skipped] = carriedBlocks(SHORT_LONG_AFTER, room);
+
+    // Assert
+    ok(short.includes("short"), short);
+    assertCutBlock(cut);
+    strictEqual(skipped, "Not carried (no room left): c.");
   });
 
-  it("carries nothing into a room too small for one block", () => {
-    deepStrictEqual(carriedBlocks([{ title: "a", text: "short" }], 100), ["Not carried (no room left): a."]);
-    deepStrictEqual(carriedBlocks([], 100), []);
+  it("stays within the room it is given", () => {
+    // Arrange
+    const room = 1_000;
+
+    // Act
+    const blocks = carriedBlocks(SHORT_LONG_AFTER, room);
+
+    // Assert
+    assertWithinRoom(blocks, room);
+  });
+
+  it("carries nothing into a room too small for one block, and names what it left out", () => {
+    // Arrange
+    const room = 100;
+
+    // Act
+    const blocks = carriedBlocks(ONE_SHORT_TEXT, room);
+
+    // Assert
+    deepStrictEqual(blocks, ["Not carried (no room left): a."]);
+  });
+
+  it("returns no block for no text", () => {
+    // Arrange
+    const texts: [] = [];
+
+    // Act
+    const blocks = carriedBlocks(texts, 100);
+
+    // Assert
+    deepStrictEqual(blocks, []);
   });
 });
