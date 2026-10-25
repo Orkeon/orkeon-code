@@ -3,42 +3,75 @@
 // crew declares the script version it is written for, in the form tsc reads as a
 // comment (Orkeon's VersionDirectiveParser reads it too).
 import { describe, it } from "node:test";
-import { strictEqual, match, ok } from "node:assert";
-import { readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { deepStrictEqual, match, strictEqual } from "node:assert";
 import { CLI_VERSION, ORKEON_RUNTIME_VERSION } from "../src/commands/_lib/meta.ts";
-
-const read = (rel: string) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf-8");
+import { CREWS_DIR, EXACT_VERSION, firstLines, orkScripts, read } from "./version.fixtures.ts";
+import { assertEveryScriptOpensWith } from "./version.assertions.ts";
 
 describe("versions", () => {
   it("meta.ts CLI_VERSION equals package.json version", () => {
-    strictEqual(CLI_VERSION, JSON.parse(read("../package.json")).version);
+    // Arrange
+    const packageJson = read("../package.json");
+
+    // Act
+    const version = JSON.parse(packageJson).version;
+
+    // Assert
+    strictEqual(CLI_VERSION, version);
   });
 
   it("meta.ts ORKEON_RUNTIME_VERSION equals .orkeon-version, the runtime /status names", () => {
-    strictEqual(ORKEON_RUNTIME_VERSION, read("../.orkeon-version").trim());
+    // Arrange
+    const file = "../.orkeon-version";
+
+    // Act
+    const pinned = read(file).trim();
+
+    // Assert
+    strictEqual(ORKEON_RUNTIME_VERSION, pinned);
   });
 
   it(".orkeon-version is one exact Orkeon version", () => {
-    match(read("../.orkeon-version").trim(), /^\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$/);
+    // Arrange
+    const file = "../.orkeon-version";
+
+    // Act
+    const pinned = read(file).trim();
+
+    // Assert
+    match(pinned, EXACT_VERSION);
   });
 
   it("the orkeon tool manifest pins the same Orkeon version as .orkeon-version", () => {
+    // Arrange
+    const pinned = read("../.orkeon-version").trim();
+
+    // Act
     const manifest = JSON.parse(read("../.config/dotnet-tools.json"));
-    strictEqual(manifest.tools["orkeon.scripting.cli"].version, read("../.orkeon-version").trim());
+
+    // Assert
+    strictEqual(manifest.tools["orkeon.scripting.cli"].version, pinned);
   });
 
   it("global.json pins the .NET SDK as Orkeon does: 10.0.300, latest feature band", () => {
-    const sdk = JSON.parse(read("../global.json")).sdk;
-    strictEqual(sdk.version, "10.0.300");
-    strictEqual(sdk.rollForward, "latestFeature");
+    // Arrange
+    const globalJson = read("../global.json");
+
+    // Act
+    const { version, rollForward } = JSON.parse(globalJson).sdk;
+
+    // Assert
+    deepStrictEqual({ version, rollForward }, { version: "10.0.300", rollForward: "latestFeature" });
   });
 
   it("every crew and probe opens with `// @orkeon-script 1.0`", () => {
-    const crews = fileURLToPath(new URL("../src/crews/", import.meta.url));
-    const scripts = readdirSync(crews, { recursive: true, encoding: "utf-8" }).filter((f: string) => f.endsWith(".ork.ts"));
-    ok(scripts.length > 0, "no .ork.ts under src/crews");
-    for (const f of scripts) strictEqual(readFileSync(join(crews, f), "utf-8").split("\n")[0], "// @orkeon-script 1.0", f);
+    // Arrange
+    const scripts = orkScripts(CREWS_DIR);
+
+    // Act
+    const lines = firstLines(CREWS_DIR, scripts);
+
+    // Assert
+    assertEveryScriptOpensWith(lines, "// @orkeon-script 1.0");
   });
 });

@@ -1,0 +1,425 @@
+// The dependency rule and the runtime-globals rule tests/architecture.test.ts enforces (its header says them in
+// words), moved here as they were: the layer tables, the import and global parsers, the rules, and the cases the
+// rule tests run them on.
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { posix } from "node:path";
+import { fileURLToPath } from "node:url";
+import ts from "typescript";
+
+export const ROOT = fileURLToPath(new URL("..", import.meta.url));
+export const GLOBALS = "src/shared/infrastructure/globals.ts";
+export const WIRING = "src/shared/infrastructure/orkeon/wiring.ts";
+export const INFRASTRUCTURE = "src/shared/infrastructure/";
+export const COMMANDS = "src/commands/";
+export const COMMANDS_LIB = "src/commands/_lib/";
+export const CREW_ENTRY_POINTS = ["crew.ork.ts", "probe.ork.ts"];
+export const LAYERS = ["domain", "application", "infrastructure"] as const;
+export type Layer = (typeof LAYERS)[number];
+
+export interface Import { from: string; specifier: string; to: string | null }
+
+/** Test code: a test, or the fixtures and assertions files kept beside it. */
+export const isTest = (file: string) => [".test.ts", ".fixtures.ts", ".assertions.ts"].some((end) => file.endsWith(end));
+export const isCrewEntryPoint = (file: string) => CREW_ENTRY_POINTS.includes(posix.basename(file));
+export const isCommandEntryPoint = (file: string) => file.endsWith(".cmd.ts");
+export const isEntryPoint = (file: string) => isCommandEntryPoint(file) || isCrewEntryPoint(file);
+export const edge = (from: string, to: string) => `${from} -> ${to}`;
+
+/** The innermost layer folder a file sits in, or null (entry points, commands/_lib). */
+export function layerOf(file: string): Layer | null {
+  const segments = file.split("/");
+  for (let i = segments.length - 2; i >= 0; i--) {
+    const layer = LAYERS.find((l) => l === segments[i]);
+    if (layer) return layer;
+  }
+  return null;
+}
+
+/** Every module specifier a source names, in order. */
+export function specifiersOf(fileName: string, text: string): string[] {
+  const out: string[] = [];
+  const visit = (node: ts.Node): void => {
+    if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
+      out.push(node.moduleSpecifier.text);
+    } else if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
+      const arg = node.arguments[0];
+      out.push(arg && ts.isStringLiteralLike(arg) ? arg.text : `<computed: ${arg?.getText() ?? ""}>`);
+    } else if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument) && ts.isStringLiteral(node.argument.literal)) {
+      out.push(node.argument.literal.text);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(ts.createSourceFile(fileName, text, ts.ScriptTarget.Latest, true));
+  return out;
+}
+
+export function sourceFiles(dir: string, acc: string[] = []): string[] {
+  for (const e of readdirSync(posix.join(ROOT, dir)).sort()) {
+    if (e.startsWith(".") || e === "node_modules") continue;
+    const rel = posix.join(dir, e);
+    if (statSync(posix.join(ROOT, rel)).isDirectory()) sourceFiles(rel, acc);
+    else if (rel.endsWith(".ts") && !rel.endsWith(".d.ts")) acc.push(rel);
+  }
+  return acc;
+}
+
+/** The repository file a relative specifier names; a missing extension is tried with .ts. */
+export function resolveImport(from: string, specifier: string): string | null {
+  if (!specifier.startsWith(".")) return null;
+  const target = posix.normalize(posix.join(posix.dirname(from), specifier));
+  for (const candidate of [target, `${target}.ts`]) {
+    const abs = posix.join(ROOT, candidate);
+    if (existsSync(abs) && statSync(abs).isFile()) return candidate;
+  }
+  return null;
+}
+
+/** Every source of src/, by repository path. */
+export function readSources(): Map<string, string> {
+  return new Map(sourceFiles("src").map((file) => [file, readFileSync(posix.join(ROOT, file), "utf-8")]));
+}
+
+export function collectImports(sources: ReadonlyMap<string, string>): Import[] {
+  return [...sources].flatMap(([from, text]) =>
+    specifiersOf(from, text).map((specifier) => ({
+      from,
+      specifier,
+      to: resolveImport(from, specifier),
+    })),
+  );
+}
+
+export const LIB_RULE = "commands/_lib/ never imports shared/infrastructure/: the entry point hands it the ports";
+
+/** The rules one import breaks, as messages; empty when it keeps them all. */
+export function brokenRules(imp: Import): string[] {
+  if (!imp.specifier.startsWith(".")) {
+    return isTest(imp.from) && imp.specifier.startsWith("node:")
+      ? []
+      : ["runtime code imports relative .ts files only (tests may import node: built-ins)"];
+  }
+  const broken: string[] = [];
+  if (!imp.specifier.endsWith(".ts")) broken.push("a relative import names its .ts file");
+  if (imp.to === null) return [...broken, "the import resolves to no file"];
+  const fromLayer = layerOf(imp.from);
+  if (fromLayer === "domain" && layerOf(imp.to) !== "domain") broken.push("domain imports domain only");
+  if (fromLayer === "application" && layerOf(imp.to) === "infrastructure") broken.push("application never imports infrastructure");
+  if ((fromLayer === "domain" || fromLayer === "application") && (imp.to.startsWith(COMMANDS) || isEntryPoint(imp.to))) {
+    broken.push("domain and application never import commands/ nor an entry point");
+  }
+  if (imp.to === GLOBALS && !imp.from.startsWith(INFRASTRUCTURE) && !isCrewEntryPoint(imp.from)) {
+    broken.push("only shared/infrastructure/ and the crew entry points import globals.ts");
+  }
+  if (imp.to.startsWith(INFRASTRUCTURE) && imp.from.startsWith(COMMANDS_LIB)) {
+    broken.push(LIB_RULE);
+  }
+  if (imp.to.startsWith("tests/") && !isTest(imp.from)) broken.push("runtime code never imports tests/");
+  if (isTest(imp.to) && !isTest(imp.from)) broken.push("runtime code never imports test code (*.test.ts, *.fixtures.ts, *.assertions.ts)");
+  return broken;
+}
+
+/** The runtime globals: who may use them, and the rule a use elsewhere breaks. */
+export const RUNTIME_GLOBALS: ReadonlyArray<{ names: readonly string[]; allowedIn: (file: string) => boolean; rule: string }> = [
+  {
+    names: ["require"],
+    allowedIn: () => false,
+    rule: "no require(): the sources are ES modules bundled by esbuild",
+  },
+  {
+    names: ["tools", "agentBuilder", "crewBuilder", "toolBuilder", "rag", "inputs"],
+    allowedIn: (file) => file.startsWith(INFRASTRUCTURE) || isCrewEntryPoint(file),
+    rule: "only shared/infrastructure/ and the crew entry points read the runtime globals (a port, or globals.ts)",
+  },
+  {
+    names: ["defineCommand", "defineAsyncCommand"],
+    allowedIn: isCommandEntryPoint,
+    rule: "only a *.cmd.ts registers a command",
+  },
+];
+export const GLOBAL_NAMES = new Set(RUNTIME_GLOBALS.flatMap((g) => g.names));
+
+export interface GlobalUse { file: string; line: number; name: string }
+
+/** Whether an identifier stands where a value or a type is named, not where a
+ *  property, a member or a label is. */
+export function isReference(id: ts.Identifier): boolean {
+  const p = id.parent;
+  if (ts.isPropertyAccessExpression(p)) return p.expression === id;
+  if (ts.isQualifiedName(p)) return p.left === id;
+  if (ts.isLabeledStatement(p) || ts.isBreakOrContinueStatement(p)) return false;
+  if ((ts.isPropertyAssignment(p) || ts.isPropertyDeclaration(p) || ts.isPropertySignature(p)
+    || ts.isMethodDeclaration(p) || ts.isMethodSignature(p) || ts.isGetAccessor(p) || ts.isSetAccessor(p)
+    || ts.isEnumMember(p)) && p.name === id) {
+    return false;
+  }
+  if ((ts.isBindingElement(p) || ts.isImportSpecifier(p) || ts.isExportSpecifier(p)) && p.propertyName === id) return false;
+  return true;
+}
+
+/** An expression without the parentheses, casts and `!` around it. */
+export function unwrapped(node: ts.Expression): ts.Expression {
+  while (ts.isParenthesizedExpression(node) || ts.isAsExpression(node) || ts.isTypeAssertionExpression(node)
+    || ts.isNonNullExpression(node) || ts.isSatisfiesExpression(node)) {
+    node = node.expression;
+  }
+  return node;
+}
+
+/** `globalThis.<name>` or `globalThis["<name>"]`, through parentheses and casts: the name. */
+export function globalThisMember(node: ts.Node): string | null {
+  if (!ts.isPropertyAccessExpression(node) && !ts.isElementAccessExpression(node)) return null;
+  const name = ts.isPropertyAccessExpression(node)
+    ? node.name.text
+    : ts.isStringLiteralLike(node.argumentExpression) ? node.argumentExpression.text : null;
+  const target = unwrapped(node.expression);
+  return name !== null && ts.isIdentifier(target) && target.text === "globalThis" ? name : null;
+}
+
+/** Whether a declaration is ambient: under a `declare` modifier, its own or an
+ *  enclosing one (`declare const`, `declare global { … }`). */
+export function isAmbient(node: ts.Node): boolean {
+  for (let n: ts.Node | undefined = node; n !== undefined; n = n.parent) {
+    if (ts.canHaveModifiers(n) && ts.getModifiers(n)?.some((m) => m.kind === ts.SyntaxKind.DeclareKeyword)) return true;
+  }
+  return false;
+}
+
+/**
+ * Every use of a runtime global in the sources: an identifier of `names` that
+ * nothing in its own file declares, imports or binds, a `globalThis.<name>`, and
+ * an ambient declaration of one (`declare const tools`, which would otherwise
+ * hide the use behind a local declaration). Each file is resolved alone, without
+ * the runtime's typings or the default library, so TypeScript's scoping finds
+ * exactly what the file itself does not declare.
+ */
+export function runtimeGlobalUses(sources: ReadonlyMap<string, string>, names: ReadonlySet<string>): GlobalUse[] {
+  const options: ts.CompilerOptions = {
+    noLib: true, noResolve: true, types: [], noEmit: true, allowImportingTsExtensions: true,
+    moduleDetection: ts.ModuleDetectionKind.Force, target: ts.ScriptTarget.Latest,
+  };
+  const host: ts.CompilerHost = {
+    getSourceFile: (name, target) =>
+      sources.has(name) ? ts.createSourceFile(name, sources.get(name)!, target, true) : undefined,
+    getDefaultLibFileName: () => "lib.d.ts",
+    writeFile: () => {},
+    getCurrentDirectory: () => "",
+    getCanonicalFileName: (name) => name,
+    useCaseSensitiveFileNames: () => true,
+    getNewLine: () => "\n",
+    fileExists: (name) => sources.has(name),
+    readFile: (name) => sources.get(name),
+  };
+  const program = ts.createProgram([...sources.keys()], options, host);
+  const checker = program.getTypeChecker();
+  const uses: GlobalUse[] = [];
+  for (const file of sources.keys()) {
+    const sf = program.getSourceFile(file)!;
+    const use = (node: ts.Node, name: string) =>
+      uses.push({ file, line: sf.getLineAndCharacterOfPosition(node.getStart()).line + 1, name });
+    const visit = (node: ts.Node): void => {
+      const member = globalThisMember(node);
+      if (member !== null && names.has(member)) use(node, member);
+      if ((ts.isVariableDeclaration(node) || ts.isFunctionDeclaration(node)) && node.name && ts.isIdentifier(node.name)
+        && names.has(node.name.text) && isAmbient(node)) {
+        use(node, node.name.text);
+      }
+      if (ts.isIdentifier(node) && names.has(node.text) && isReference(node)) {
+        const symbol = ts.isShorthandPropertyAssignment(node.parent)
+          ? checker.getShorthandAssignmentValueSymbol(node.parent)
+          : checker.getSymbolAtLocation(node);
+        if (symbol === undefined) use(node, node.text);
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(sf);
+  }
+  return uses;
+}
+
+/** The rule a use of a runtime global breaks; null when its file may use it. */
+export function brokenGlobalRule(use: GlobalUse): string | null {
+  const global = RUNTIME_GLOBALS.find((g) => g.names.includes(use.name))!;
+  return global.allowedIn(use.file) ? null : global.rule;
+}
+
+export function graphOf(imports: Import[]): Map<string, string[]> {
+  const graph = new Map<string, string[]>();
+  for (const { from, to } of imports) {
+    if (to === null) continue;
+    const next = graph.get(from) ?? [];
+    if (!next.includes(to)) next.push(to);
+    graph.set(from, next);
+  }
+  return graph;
+}
+
+/** One path per cycle closed by a back edge of a depth-first walk, as "a -> b -> a". */
+export function cyclesOf(graph: Map<string, string[]>): string[] {
+  const cycles: string[] = [];
+  const done = new Set<string>();
+  const stack: string[] = [];
+  const walk = (file: string): void => {
+    stack.push(file);
+    for (const next of graph.get(file) ?? []) {
+      const at = stack.indexOf(next);
+      if (at >= 0) cycles.push([...stack.slice(at), next].join(" -> "));
+      else if (!done.has(next)) walk(next);
+    }
+    stack.pop();
+    done.add(file);
+  };
+  for (const file of [...graph.keys()].sort()) if (!done.has(file)) walk(file);
+  return cycles;
+}
+
+// ── The cases the rule tests run ─────────────────────────────────────────────
+
+/** One import of every form the parser reads, and two it must not (a comment, a string). */
+export const IMPORT_FORMS_SOURCE = [
+  `import { a } from "./a.ts";`,
+  `import type { B } from "./b.ts";`,
+  `export { c } from "./c.ts";`,
+  `export * from "./d.ts";`,
+  `// import { x } from "./commented.ts";`,
+  `const text = 'import { y } from "./quoted.ts"';`,
+  `type E = import("./e.ts").E;`,
+  `async function f() { return import("./f.ts"); }`,
+].join("\n");
+
+/** A file and the layer its innermost layer folder gives it. */
+export const LAYER_CASES: ReadonlyArray<{ file: string; layer: Layer | null }> = [
+  { file: "src/shared/domain/types.ts", layer: "domain" },
+  { file: "src/crews/main-loop/application/run-main-loop.ts", layer: "application" },
+  { file: GLOBALS, layer: "infrastructure" },
+  { file: "src/commands/mode.cmd.ts", layer: null },
+  { file: "src/commands/_lib/args.ts", layer: null },
+];
+
+/** An import and the rules it breaks, by the behaviour it shows. */
+export interface ImportCase { name: string; imp: Import; broken: string[] }
+
+const GLOBALS_RULE = "only shared/infrastructure/ and the crew entry points import globals.ts";
+const importOfGlobals = (from: string): Import => ({ from, specifier: "./globals.ts", to: GLOBALS });
+
+/** Who may import globals.ts: the crew entry points and the infrastructure, not a command. */
+export const GLOBALS_IMPORT_CASES: readonly ImportCase[] = [
+  { name: "lets a crew entry point import globals.ts", imp: importOfGlobals("src/crews/analyze/crew.ork.ts"), broken: [] },
+  { name: "lets a probe entry point import globals.ts", imp: importOfGlobals("src/crews/_probe-budget/probe.ork.ts"), broken: [] },
+  { name: "lets the wiring of shared/infrastructure/ import globals.ts", imp: importOfGlobals(WIRING), broken: [] },
+  { name: "refuses globals.ts to a command entry point", imp: importOfGlobals("src/commands/doctor.cmd.ts"), broken: [GLOBALS_RULE] },
+  {
+    name: "refuses globals.ts to a use case of commands/_lib/, which never imports shared/infrastructure/",
+    imp: importOfGlobals("src/commands/_lib/doctor.ts"),
+    broken: [GLOBALS_RULE, LIB_RULE],
+  },
+];
+
+/** An adapter imported by a command entry point (allowed) and by a use case of commands/_lib/ (refused). */
+export const ADAPTER_IMPORT_CASES: readonly ImportCase[] = [WIRING, "src/shared/infrastructure/orkeon/crew-host.ts"].flatMap((to) => [
+  { name: `lets a command import the adapter ${to}`, imp: { from: "src/commands/doctor.cmd.ts", specifier: "./x.ts", to }, broken: [] },
+  {
+    name: `refuses the adapter ${to} to a use case of commands/_lib/`,
+    imp: { from: "src/commands/_lib/dispatch.ts", specifier: "./x.ts", to },
+    broken: [LIB_RULE],
+  },
+]);
+
+const OUT_OF_COMMANDS_RULE = "domain and application never import commands/ nor an entry point";
+const importOf = (from: string, to: string): Import => ({ from, specifier: "./x.ts", to });
+
+/** commands/ and the entry points stay out of domain and application, and only there. */
+export const LAYER_IMPORT_CASES: readonly ImportCase[] = [
+  {
+    name: "refuses commands/_lib/ to application",
+    imp: importOf("src/crews/main-loop/application/turn-prompt.ts", "src/commands/_lib/args.ts"),
+    broken: [OUT_OF_COMMANDS_RULE],
+  },
+  {
+    name: "refuses a command entry point to application",
+    imp: importOf("src/shared/application/session-io.ts", "src/commands/mode.cmd.ts"),
+    broken: [OUT_OF_COMMANDS_RULE],
+  },
+  {
+    name: "refuses a crew entry point to domain",
+    imp: importOf("src/shared/domain/types.ts", "src/crews/analyze/crew.ork.ts"),
+    broken: ["domain imports domain only", OUT_OF_COMMANDS_RULE],
+  },
+  {
+    name: "refuses a probe entry point to domain",
+    imp: importOf("src/crews/x/domain/rules.ts", "src/crews/_probe-budget/probe.ork.ts"),
+    broken: ["domain imports domain only", OUT_OF_COMMANDS_RULE],
+  },
+  {
+    name: "lets commands/_lib/ import commands/_lib/",
+    imp: importOf("src/commands/_lib/mode.ts", "src/commands/_lib/args.ts"),
+    broken: [],
+  },
+  {
+    name: "lets a crew entry point import its application",
+    imp: importOf("src/crews/analyze/crew.ork.ts", "src/crews/analyze/application/run-analyze.ts"),
+    broken: [],
+  },
+];
+
+const FAKE_SHELL = "tests/support/fake-shell.ts";
+
+/** tests/ is refused to runtime code, not to a test. */
+export const TESTS_IMPORT_CASES: readonly ImportCase[] = [
+  {
+    name: "refuses an import of tests/ from runtime code",
+    imp: { from: "src/crews/x/application/run.ts", specifier: "../../../../" + FAKE_SHELL, to: FAKE_SHELL },
+    broken: ["runtime code never imports tests/"],
+  },
+  {
+    name: "lets a test import tests/",
+    imp: { from: "src/crews/x/application/run.test.ts", specifier: "../../../../" + FAKE_SHELL, to: FAKE_SHELL },
+    broken: [],
+  },
+];
+
+/** The runtime globals a file's own scope does not bind, as `<line>:<name>`. */
+export const usesIn = (text: string, file = "src/x.ts") => runtimeGlobalUses(new Map([[file, text]]), GLOBAL_NAMES)
+  .map((u) => `${u.line}:${u.name}`);
+
+/** A global on each line, read bare, through globalThis, in a shorthand, re-declared or as a type. */
+export const UNBOUND_GLOBALS_SOURCE = [
+  `tools.shellCommand({ command: "ls" });`,
+  `const t = (globalThis as any).tools;`,
+  `const b = globalThis["agentBuilder"];`,
+  `const o = { tools };`,
+  `declare function defineCommand(desc: unknown): void;`,
+  `const fs = require("node:fs");`,
+  `type T = typeof inputs;`,
+  `declare global { const crewBuilder: () => unknown; }`,
+  `const d = (globalThis.tools as any)!;`,
+].join("\n");
+
+export const UNBOUND_GLOBALS_USES = [
+  "1:tools", "2:tools", "3:agentBuilder", "4:tools", "5:defineCommand", "6:require", "7:inputs", "8:crewBuilder",
+  "9:tools",
+];
+
+/** The names of the globals, each declared, imported or bound by the file, or a member of another object. */
+export const BOUND_NAMES_SOURCE = [
+  `import { inputs } from "./globals.ts";`,
+  `import type { tools as T } from "./x.ts";`,
+  `function f(tools: string[], { crewBuilder }: any) { return tools.length + crewBuilder; }`,
+  `const g = (require: unknown) => require;`,
+  `const ctx = { tools: [], defineCommand: 1 };`,
+  `ctx.tools.push(ctx.defineCommand);`,
+  `const { tools: renamed } = ctx;`,
+  `for (const agentBuilder of []) agentBuilder;`,
+  `inputs();`,
+  `// tools.shellCommand(...) in a comment, and "tools.x" in a string`,
+].join("\n");
+
+/** A use of a global in a file, and the rule it breaks there (null: allowed). */
+export const GLOBAL_RULE_CASES: ReadonlyArray<{ name: string; file: string; rule: string | null }> = [
+  { name: "tools", file: "src/shared/infrastructure/globals.ts", rule: null },
+  { name: "tools", file: "src/crews/_probe-raggable/probe.ork.ts", rule: null },
+  { name: "tools", file: "src/commands/doctor.cmd.ts", rule: RUNTIME_GLOBALS[1].rule },
+  { name: "tools", file: "src/crews/x/application/run-x.ts", rule: RUNTIME_GLOBALS[1].rule },
+  { name: "defineCommand", file: "src/commands/fast.cmd.ts", rule: null },
+  { name: "defineCommand", file: "src/commands/_lib/session-config.ts", rule: RUNTIME_GLOBALS[2].rule },
+  { name: "require", file: "src/shared/infrastructure/globals.ts", rule: RUNTIME_GLOBALS[0].rule },
+];

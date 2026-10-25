@@ -190,8 +190,6 @@ export const PENDING: readonly string[] = [
   "src/shared/infrastructure/orkeon/tool-callbacks.test.ts",
   "src/shared/infrastructure/orkeon/tool-catalogue.test.ts",
   "src/shared/infrastructure/orkeon/tool-results.test.ts",
-  "tests/architecture.test.ts",
-  "tests/command-surface.test.ts",
   "tests/commands-agents.test.ts",
   "tests/commands-args.test.ts",
   "tests/commands-branch.test.ts",
@@ -209,14 +207,5 @@ export const PENDING: readonly string[] = [
   "tests/commands-tasks.test.ts",
   "tests/commands-transcribe.test.ts",
   "tests/commands-voice.test.ts",
-  "tests/dev-run.test.ts",
-  "tests/docs-parity.test.ts",
-  "tests/example-settings.test.ts",
-  "tests/install.test.ts",
-  "tests/launcher.test.ts",
-  "tests/prompt-contract.test.ts",
-  "tests/session-start-script.test.ts",
-  "tests/shared-memory-fixture.test.ts",
-  "tests/version.test.ts",
 ];
 

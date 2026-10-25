@@ -4,98 +4,113 @@
 // loader's kebab-case rule, and the surface holds the post-E-1 count.
 // Run: node --test tests/command-surface.test.ts
 import { describe, it } from "node:test";
-import { strictEqual, ok, match } from "node:assert";
-import { readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const COMMANDS_DIR = fileURLToPath(new URL("../src/commands", import.meta.url));
-// 58: /dev-batches added (L-7).
-// 57: /dev-implement added (L-6).
-// 56: /dev-spec and /dev-change added (L-5).
-// 54: /memory-admit added (M-4).
-// 53: /dev-plan added (L-4).
-// 52: /dev-learn added (L-3).
-// 51: /dev-verify added (L-2).
-// 50: /dev-status added (L-1).
-// 49: twelve commands folded into others or retired, /verify added — /clear
-// is an alias of /clear; /version, /env, /session and /upgrade of /status; /ctx-viz
-// of /context; /extra-usage of /usage; /bughunter became `/review --lens
-// correctness`, /force-snip `/compact --snip`; /tag (a /memory add), /sandbox-toggle
-// (it enforced nothing) and /onboarding (the native /help) are gone. Bumping this
-// deliberately: the count is the guard against a command silently failing to load,
-// so it must move only with a commit that adds or removes one.
-const EXPECTED_COMMAND_COUNT = 58;
-
-interface Cmd { file: string; name: string; aliases: string[] }
-
-function collect(): Cmd[] {
-  const out: Cmd[] = [];
-  for (const f of readdirSync(COMMANDS_DIR).filter((f: string) => f.endsWith(".cmd.ts")).sort()) {
-    const src = readFileSync(join(COMMANDS_DIR, f), "utf-8");
-    // Every descriptor in the codebase declares `name: "<literal>"` — factory
-    // helpers (toggleCommand) pass it through a `name:` field too.
-    const names = [...src.matchAll(/name:\s*"([^"]+)"/g)].map((m) => m[1]);
-    strictEqual(names.length, 1, `${f}: expected exactly one name literal, found ${names.length}`);
-    const aliases = [...(src.match(/aliases:\s*\[([^\]]*)\]/)?.[1] ?? "").matchAll(/"([^"]+)"/g)].map((m) => m[1]);
-    out.push({ file: f, name: names[0], aliases });
-  }
-  return out;
-}
+import { ok, strictEqual } from "node:assert";
+import {
+  B12_COMMANDS, COMMANDS_DIR, collect, E1_COMMANDS, EXPECTED_COMMAND_COUNT, FOLDED_ALIASES, LOADER_DEFAULT_CAP,
+  topLevelExports,
+} from "./command-surface.fixtures.ts";
+import {
+  assertAliasesOf, assertCommandsPresent, assertKebabNames, assertNoNameConflict, assertNoTopLevelExport,
+  assertOneNameEach, assertSlugsMatchNames,
+} from "./command-surface.assertions.ts";
 
 describe("command surface", () => {
-  const cmds = collect();
+  it("declares exactly one name literal in every command file", () => {
+    // Arrange
+    const dir = COMMANDS_DIR;
+
+    // Act
+    const cmds = collect(dir);
+
+    // Assert
+    assertOneNameEach(cmds);
+  });
 
   it(`holds ${EXPECTED_COMMAND_COUNT} *.cmd.ts commands (post-E-1)`, () => {
+    // Arrange
+    const dir = COMMANDS_DIR;
+
+    // Act
+    const cmds = collect(dir);
+
+    // Assert
     strictEqual(cmds.length, EXPECTED_COMMAND_COUNT);
   });
 
   it("has zero name conflicts, aliases included (loader ValidateGlobalUniqueness)", () => {
-    const seen = new Map<string, string>();
-    for (const c of cmds) {
-      for (const n of [c.name, ...c.aliases]) {
-        ok(!seen.has(n), `duplicate command name '${n}' in ${c.file} and ${seen.get(n)}`);
-        seen.set(n, c.file);
-      }
-    }
+    // Arrange
+    const dir = COMMANDS_DIR;
+
+    // Act
+    const cmds = collect(dir);
+
+    // Assert
+    assertNoNameConflict(cmds);
   });
 
   it("keeps the folded commands' names as aliases of the commands that absorbed them", () => {
+    // Arrange
+    const cmds = collect();
+
+    // Act
     const owner = new Map(cmds.flatMap((c) => c.aliases.map((a) => [a, c.name] as const)));
-    for (const [alias, name] of [
-      ["reset-session", "clear"], ["version", "status"], ["env", "status"], ["session", "status"],
-      ["upgrade", "status"], ["ctx-viz", "context"], ["extra-usage", "usage"],
-    ]) strictEqual(owner.get(alias), name, `/${alias} must stay an alias of /${name}`);
+
+    // Assert
+    assertAliasesOf(owner, FOLDED_ALIASES);
   });
 
   it("every name matches the loader's kebab-case rule", () => {
-    for (const c of cmds) match(c.name, /^[a-z][a-z0-9-]*$/, `${c.file}: '${c.name}'`);
+    // Arrange
+    const dir = COMMANDS_DIR;
+
+    // Act
+    const cmds = collect(dir);
+
+    // Assert
+    assertKebabNames(cmds);
   });
 
   it("file slug matches the declared name (gap-round diff counts slugs)", () => {
-    for (const c of cmds) {
-      strictEqual(c.file.replace(/\.cmd\.ts$/, ""), c.name, `${c.file} declares '${c.name}'`);
-    }
+    // Arrange
+    const dir = COMMANDS_DIR;
+
+    // Act
+    const cmds = collect(dir);
+
+    // Assert
+    assertSlugsMatchNames(cmds);
   });
 
   it("E-1 wave commands are all present", () => {
+    // Arrange
+    const cmds = collect();
+
+    // Act
     const names = new Set(cmds.map((c) => c.name));
-    for (const n of [
-      "clear", "exit", "config", "model", "plan", "permissions", "summary",
-      "resume", "rewind", "usage", "feedback", "hooks",
-      "skills", "tasks", "copy",
-      "effort", "fast", "passes", "proactive", "verify",
-    ]) ok(names.has(n), `missing E-1 command: ${n}`);
+
+    // Assert
+    assertCommandsPresent(names, E1_COMMANDS, "E-1");
   });
 
   it("B-12 commands are all present", () => {
+    // Arrange
+    const cmds = collect();
+
+    // Act
     const names = new Set(cmds.map((c) => c.name));
-    for (const n of ["advisor", "agents", "debug-tool-call", "security-review", "output-style"]) {
-      ok(names.has(n), `missing B-12 command: ${n}`);
-    }
+
+    // Assert
+    assertCommandsPresent(names, B12_COMMANDS, "B-12");
   });
 
   it("help is deliberately NOT scripted (built-in lists both registries)", () => {
+    // Arrange
+    const dir = COMMANDS_DIR;
+
+    // Act
+    const cmds = collect(dir);
+
+    // Assert
     ok(!cmds.some((c) => c.name === "help"));
   });
 });
@@ -107,7 +122,14 @@ describe("the loader cap covers the whole surface (B-8 probe finding)", () => {
   // default is 200 since Orkeon rc.6, so the launchers no longer raise it; this
   // keeps the surface under it, so the command that crosses it fails here.
   it("the command files stay under Orkeon's default cap of 200", () => {
-    ok(collect().length < 200, `${collect().length} command files reach the loader's default cap`);
+    // Arrange
+    const dir = COMMANDS_DIR;
+
+    // Act
+    const cmds = collect(dir);
+
+    // Assert
+    ok(cmds.length < LOADER_DEFAULT_CAP, `${cmds.length} command files reach the loader's default cap`);
   });
 });
 
@@ -121,21 +143,24 @@ describe("no top-level export in a *.cmd.ts (B-7 regression)", () => {
   // load surfaced it. The failure mode is the worst kind: a command that reports
   // nothing and is absent from /help, while every offline check passes.
   it("declares no top-level export, in any command file", () => {
-    for (const { file } of collect()) {
-      const src = readFileSync(join(COMMANDS_DIR, file), "utf-8");
-      const offenders = src
-        .split("\n")
-        .map((line, i) => ({ line: line.trimEnd(), n: i + 1 }))
-        .filter(({ line }) => /^export\b/.test(line));
-      strictEqual(
-        offenders.length, 0,
-        `${file} has a top-level export at line ${offenders[0]?.n} (${offenders[0]?.line}) — ` +
-        "Jint evaluates command files in script mode and will refuse to load it",
-      );
-    }
+    // Arrange
+    const cmds = collect();
+
+    // Act
+    const found = cmds.map(({ file }) => ({ file, offenders: topLevelExports(file) }));
+
+    // Assert
+    assertNoTopLevelExport(found);
   });
 
   it("covers every command file, so the rule cannot be dodged by adding one", () => {
-    ok(collect().length >= EXPECTED_COMMAND_COUNT);
+    // Arrange
+    const dir = COMMANDS_DIR;
+
+    // Act
+    const cmds = collect(dir);
+
+    // Assert
+    ok(cmds.length >= EXPECTED_COMMAND_COUNT);
   });
 });

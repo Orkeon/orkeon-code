@@ -6,100 +6,127 @@
 // Run: node --test tests/shared-memory-fixture.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { basename, join } from "node:path";
-import { fileURLToPath } from "node:url";
 
 import { parseEntry } from "../src/shared/domain/shared-memory/front-matter.ts";
 import { entryProblems } from "../src/shared/domain/shared-memory/entry.ts";
-import type { MemoryEntry } from "../src/shared/domain/shared-memory/entry.ts";
-import { NEGATIVE_CASE, SUPERSESSION_CASE, parseGolden } from "../src/crews/_probe-shared-memory/domain/probe-verdict.ts";
-
-const FIXTURE = fileURLToPath(new URL("./fixtures/shared-memory/", import.meta.url));
-const markerFile = JSON.parse(readFileSync(fileURLToPath(new URL("../scripts/provenance-markers.json", import.meta.url)), "utf8"));
-const MARKERS: RegExp[] = markerFile.markers.map((m: { source: string; flags: string }) => new RegExp(m.source, m.flags));
-
-const files: string[] = readdirSync(join(FIXTURE, "entries"), { recursive: true, encoding: "utf8" })
-  .filter((f) => f.endsWith(".md"))
-  .map((f) => f.split("\\").join("/"))
-  .sort();
-const entries = new Map<string, { file: string; entry: MemoryEntry }>();
-for (const file of files) {
-  const parsed = parseEntry(readFileSync(join(FIXTURE, "entries", file), "utf8"));
-  if (parsed.ok) entries.set(parsed.entry.id, { file, entry: parsed.entry });
-}
-const golden = parseGolden(readFileSync(join(FIXTURE, "eval", "golden.yaml"), "utf8"));
-const byCase = new Map(golden.cases.map((c) => [c.id, c]));
-const idOfSource = (source: string): string => basename(source, ".md");
+import { SUPERSESSION_CASE } from "../src/crews/_probe-shared-memory/domain/probe-verdict.ts";
+import {
+  CASE_IDS, countByType, entryFiles, entryText, idOfSource, loadEntries, loadGolden, MARKERS,
+} from "./shared-memory-fixture.fixtures.ts";
+import {
+  assertFilesNamedById, assertNegativeCaseOnly, assertRelevantAdmitted, assertSupersessionCase, assertSupersessionsLinked,
+} from "./shared-memory-fixture.assertions.ts";
 
 describe("the shared-memory fixture's entries", () => {
   it("holds 12 entries: 4 decisions, 3 code-structures, 3 methods, 2 mistakes, from several projects", () => {
+    // Arrange
+    const files = entryFiles();
+
+    // Act
+    const entries = loadEntries(files);
+
+    // Assert
     strictEqual(files.length, 12);
-    const count = (type: string) => files.filter((f) => f.startsWith(`${type}/`)).length;
-    deepStrictEqual([count("decision"), count("code-structure"), count("method"), count("mistake")], [4, 3, 3, 2]);
+    deepStrictEqual(countByType(files, ["decision", "code-structure", "method", "mistake"]), [4, 3, 3, 2]);
     ok(new Set([...entries.values()].map((e) => e.entry.project)).size >= 3);
   });
 
-  it("parses and validates every entry with the repository's own checks", () => {
-    for (const file of files) {
-      const parsed = parseEntry(readFileSync(join(FIXTURE, "entries", file), "utf8"));
+  for (const file of entryFiles()) {
+    it(`parses and validates ${file} with the repository's own checks`, () => {
+      // Arrange
+      const text = entryText(file);
+
+      // Act
+      const parsed = parseEntry(text);
+
+      // Assert
       ok(parsed.ok, `${file}: ${parsed.ok ? "" : parsed.problems.join("; ")}`);
       deepStrictEqual(entryProblems(parsed.entry, MARKERS), [], file);
-    }
-  });
+    });
+  }
 
   it("names every file <type>/<id>.md, so the ids are unique", () => {
-    strictEqual(entries.size, files.length);
-    for (const [id, { file, entry }] of entries) strictEqual(file, `${entry.type}/${id}.md`);
+    // Arrange
+    const files = entryFiles();
+
+    // Act
+    const entries = loadEntries(files);
+
+    // Assert
+    assertFilesNamedById(entries, files);
   });
 
   it("links every supersession both ways, within one project", () => {
-    for (const { entry } of entries.values()) {
-      for (const old of entry.supersedes) {
-        const target = entries.get(old)?.entry;
-        ok(target, `${entry.id} supersedes the unknown ${old}`);
-        strictEqual(target.status, "superseded");
-        strictEqual(target.supersededBy, entry.id);
-        strictEqual(target.project, entry.project);
-      }
-    }
+    // Arrange
+    const files = entryFiles();
+
+    // Act
+    const entries = loadEntries(files);
+
+    // Assert
+    assertSupersessionsLinked(entries);
   });
 });
 
 describe("the reference set (golden.yaml, the rag_eval dataset shape)", () => {
   it("has the cases q01 to q14 with unique ids, a question each, and its own collection", () => {
-    deepStrictEqual(golden.cases.map((c) => c.id), Array.from({ length: 14 }, (_, i) => `q${String(i + 1).padStart(2, "0")}`));
+    // Arrange
+    const expectedIds = CASE_IDS;
+
+    // Act
+    const golden = loadGolden();
+
+    // Assert
+    deepStrictEqual(golden.cases.map((c) => c.id), expectedIds);
     ok(golden.cases.every((c) => c.question.trim() !== ""));
     strictEqual(golden.collection, "memory-eval-golden");
     strictEqual(golden.corpus, "/workspace/.orkeon/memory/entries");
   });
 
   it("names, in every relevant, an entry file of the fixture that is admitted", () => {
-    for (const c of golden.cases) {
-      for (const source of c.relevant) {
-        ok(source.startsWith("entries/"), `${c.id}: ${source}`);
-        ok(existsSync(join(FIXTURE, source)), `${c.id}: ${source} does not exist`);
-        strictEqual(entries.get(idOfSource(source))?.entry.status, "admitted", `${c.id}: ${source}`);
-      }
-    }
+    // Arrange
+    const entries = loadEntries();
+
+    // Act
+    const golden = loadGolden();
+
+    // Assert
+    assertRelevantAdmitted(golden, entries);
   });
 
   it("gives q08 a target that supersedes a superseded entry, and never expects a superseded id", () => {
+    // Arrange
+    const entries = loadEntries();
+    const golden = loadGolden();
+    const byCase = new Map(golden.cases.map((c) => [c.id, c]));
+
+    // Act
     const target = entries.get(idOfSource(byCase.get(SUPERSESSION_CASE)?.relevant[0] ?? ""))?.entry;
-    ok(target && target.supersedes.length > 0, "q08's target supersedes nothing");
-    for (const old of target.supersedes) strictEqual(entries.get(old)?.entry.status, "superseded");
-    const superseded = [...entries.values()].filter((e) => e.entry.status === "superseded").map((e) => e.entry.id);
-    ok(superseded.length > 0);
-    for (const c of golden.cases) for (const source of c.relevant) ok(!superseded.includes(idOfSource(source)), `${c.id}: ${source}`);
+
+    // Assert
+    assertSupersessionCase(target, entries, golden);
   });
 
   it("expects nothing for q13, the negative case, and something for every other case", () => {
-    deepStrictEqual(byCase.get(NEGATIVE_CASE)?.relevant, []);
-    for (const c of golden.cases) if (c.id !== NEGATIVE_CASE) ok(c.relevant.length > 0, c.id);
+    // Arrange
+    const load = loadGolden;
+
+    // Act
+    const golden = load();
+
+    // Assert
+    assertNegativeCaseOnly(golden);
   });
 
   it("asks q02 across two projects that disagree on one topic", () => {
+    // Arrange
+    const entries = loadEntries();
+    const byCase = new Map(loadGolden().cases.map((c) => [c.id, c]));
+
+    // Act
     const sources = byCase.get("q02")?.relevant.map((s) => entries.get(idOfSource(s))?.entry) ?? [];
+
+    // Assert
     strictEqual(new Set(sources.map((e) => e?.project)).size, 2);
     strictEqual(new Set(sources.map((e) => e?.topic)).size, 1);
   });
