@@ -499,6 +499,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `/dev-batches`: under a Bubblewrap shell, the preflight's missing git identity names `git config user.name` and `user.email` in the repository. That shell runs with `HOME=/tmp` and a cleared environment, so a `--global` setting does not reach it.
 - **The audit capture lists a JavaScript batch's changed files.** `test-classes.txt` took only `.cs`, `.ts`, `.py`,
   `.fs` and `.vb` for source files and wrote "no changed source file" for a `.js` batch; it now takes the code index's
   languages too. The auditor no longer reports the global plan's open line of the batch it audits, marked after the

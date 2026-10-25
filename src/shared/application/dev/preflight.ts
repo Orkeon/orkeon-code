@@ -45,7 +45,12 @@ export async function preflight(deps: { shell: Pick<Shell, "run"> }, input: Pref
   else lines.push(`preflight ✓ order: ${input.order.order.join(" → ") || "(no batch)"}`);
 
   const identity = await readIdentity(deps.shell);
-  if (!identity.ok) fail(`git identity: ${identity.detail} (each batch's close commits): git config --global user.name and user.email`);
+  // A Bubblewrap shell runs with HOME=/tmp and a cleared environment: only the repository's own
+  // configuration reaches git there, so the hint names it.
+  if (!identity.ok) {
+    fail(`git identity: ${identity.detail} (each batch's close commits): git config user.name and user.email in the repository ` +
+      "(a confined shell reads no --global file)");
+  }
   else lines.push(`preflight ✓ git identity: ${identity.ident.name} <${identity.ident.email}>`);
 
   const branch = await runGit(deps.shell, GIT_CURRENT_BRANCH_COMMAND);

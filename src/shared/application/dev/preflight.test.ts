@@ -43,6 +43,7 @@ describe("preflight", () => {
     strictEqual(r.ok, false);
     deepStrictEqual(r.lines.filter((l) => l.startsWith("preflight ✗")).length, 4);
     ok(r.lines.includes("preflight ✗ sheets: no sheet for F3"));
+    ok(r.lines.some((l) => l.startsWith("preflight ✗ git identity:") && l.includes("git config user.name and user.email in the repository")));
   });
 
   it("warns, without failing, on changes outside the work folder and .orkeon/", async () => {
