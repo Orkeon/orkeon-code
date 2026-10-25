@@ -4,11 +4,11 @@
 // working root (Orkeon/orkeon#188); every worktree is seeded (seed-harvest.ts); the launches are logged and written;
 // then `runBatch`, the crew's (a batch agent under the worktree, its implement, audit and close), runs them all at
 // once. Once all have settled the driver, only writer of the main checkout, takes them in id order: a VALID batch is
-// merged by fast-forward (rebased in its worktree when needed), its files harvested, its worktree removed; a GAPS or
-// BLOCKED one is logged and keeps its worktree, its sheet, verdict and code there alone - the main checkout never
-// claims work whose code it lacks - and the run stops there (a human decides) - a neighbour still running is never
-// stopped (L8P-D9). Typed again with its concurrency, the run relaunches it in that worktree, a GAPS verdict's
-// correction carried by the log.
+// merged by fast-forward (rebased in its worktree when needed), its files harvested, its batch marked done in the
+// global plan, its worktree removed; a GAPS or BLOCKED one is logged and keeps its worktree, its sheet, verdict and
+// code there alone - the main checkout never claims work whose code it lacks - and the run stops there (a human
+// decides) - a neighbour still running is never stopped (L8P-D9). Typed again with its concurrency, the run
+// relaunches it in that worktree, a GAPS verdict's correction carried by the log.
 import type { Files, Shell } from "../../../shared/application/ports.ts";
 import { gitReason, runGit } from "../../../shared/application/git/commit-files.ts";
 import { createBatchWorktree, mergeValidBatch, removeBatchWorktree } from "../../../shared/application/git/batch-worktree.ts";
@@ -18,6 +18,7 @@ import { parseBatchSheet } from "../../../shared/domain/dev/plan-format.ts";
 import { batchBranch, batchWorktreeName, gitBranchExists, gitCommitsNotIn, gitIsIgnored, gitIsMergedInto, gitWorktreeHead, worktreePlace } from "../../../shared/domain/git/worktree.ts";
 import type { WorktreePlace } from "../../../shared/domain/git/worktree.ts";
 import { shellQuote } from "../../../shared/domain/git/close.ts";
+import { markPlanBatchDone } from "../../dev-implement/domain/sheet-edits.ts";
 import { eventLine, lastEntryOf } from "../domain/batches-log.ts";
 import { harvestBatch, seedWorktree } from "./seed-harvest.ts";
 import type { SeedSnapshot, SeedTarget } from "./seed-harvest.ts";
@@ -79,7 +80,8 @@ export interface WaveRequest {
   /** The work folder and memory.dir, relative to the checkout. */
   work: string;
   memoryDir: string;
-  now: Date;
+  /** The clock each logged event reads: a wave runs for minutes. */
+  clock(): Date;
   /** True for the run's first wave: the probe runs before any launch. */
   probe: boolean;
   /** Each batch's sheet file name. */
@@ -140,6 +142,23 @@ async function placeOf(shell: Pick<Shell, "run">, req: WaveRequest, batch: strin
 
 /** A reused worktree whose sheet is done and whose branch holds the close's commit, merged or not yet (a run killed
  *  between its merge and its removal): merged, harvested and removed without a run. */
+/** The main checkout's global plan with a merged batch marked done: the plan never comes back from a worktree
+ *  (seed-harvest.ts), so the driver marks it, as the close of a one-at-a-time run does beside the sheet. */
+async function markPlanDone(files: Pick<Files, "read" | "write">, req: WaveRequest, batch: string): Promise<string[]> {
+  const sheet = req.sheets[batch];
+  if (sheet === undefined) return [];
+  const name = sheet.replace(/-F\d+\.md$/, ".md");
+  const path = `/workspace/${req.work}/${req.code}/${name}`;
+  try {
+    const plan = await files.read(path);
+    const marked = markPlanBatchDone(plan, batch, req.clock().toISOString().slice(0, 10));
+    if (marked !== plan) await files.write(path, marked);
+    return [];
+  } catch (e) {
+    return [`⚠ ${name}: batch ${batch} not marked done (${reasonOf(e)})`];
+  }
+}
+
 async function closedBefore(deps: WaveDeps, req: WaveRequest, slot: Slot): Promise<boolean> {
   const sheet = req.sheets[slot.batch];
   if (slot.made || sheet === undefined) return false;
@@ -213,7 +232,7 @@ export async function runWave(req: WaveRequest, deps: WaveDeps): Promise<WaveRes
   const running = slots.filter((s) => !s.done);
   for (const slot of running) {
     const event = slot.reopened ? "relaunched" : "launched";
-    req.book.add(eventLine(req.now, slot.batch, event, `${slot.place.name} audits ${req.audits(slot.batch)}`));
+    req.book.add(eventLine(req.clock(), slot.batch, event, `${slot.place.name} audits ${req.audits(slot.batch)}`));
     lines.push(`→ ${slot.batch} ${event} in ${slot.place.path}`);
   }
   for (const slot of slots.filter((s) => s.done)) lines.push(`${slot.batch}: done and committed in ${slot.place.path} before the run stopped`);
@@ -246,17 +265,17 @@ export async function runWave(req: WaveRequest, deps: WaveDeps): Promise<WaveRes
         batch: slot.batch, verdict: "VALID", branch: slot.branch, workBranch: req.workBranch, name: slot.place.name,
       });
       if (!merged.merged) {
-        req.book.add(eventLine(req.now, slot.batch, "stopped", `BLOCKED — merge: ${merged.line}`));
+        req.book.add(eventLine(req.clock(), slot.batch, "stopped", `BLOCKED — merge: ${merged.line}`));
         lines.push(`${slot.batch} stopped BLOCKED — merge: ${merged.line}`, keptLine(slot.place), resumeLine(req, slot.batch, slot.place));
         stopped = true;
         continue;
       }
       const tip = await runGit(deps.shell, `git rev-parse --verify ${shellQuote(`refs/heads/${slot.branch}`)}`);
       const hash = tip.exitCode === 0 && tip.stdout.trim() !== "" ? tip.stdout.trim() : outcome.hash ?? "(hash not read)";
-      req.book.add(eventLine(req.now, slot.batch, "returned", "VALID"));
-      req.book.add(eventLine(req.now, slot.batch, "merged", hash));
+      req.book.add(eventLine(req.clock(), slot.batch, "returned", "VALID"));
+      req.book.add(eventLine(req.clock(), slot.batch, "merged", hash));
       await harvest();
-      lines.push(`✓ ${slot.batch} VALID, ${merged.line} (${hash})`);
+      lines.push(`✓ ${slot.batch} VALID, ${merged.line} (${hash})`, ...await markPlanDone(deps.files, req, slot.batch));
       const removed = await removeBatchWorktree(deps.shell, { name: slot.place.name, branch: slot.branch, into: req.workBranch });
       lines.push(removed.ok ? removed.line : `⚠ ${removed.line}`);
       continue;
@@ -264,7 +283,7 @@ export async function runWave(req: WaveRequest, deps: WaveDeps): Promise<WaveRes
     stopped = true;
     if (outcome.verdict === "GAPS") {
       const correction = outcome.correction?.replace(/\s+/g, " ").trim();
-      req.book.add(eventLine(req.now, slot.batch, "returned", correction === undefined ? "GAPS" : `GAPS — correction: ${correction}`));
+      req.book.add(eventLine(req.clock(), slot.batch, "returned", correction === undefined ? "GAPS" : `GAPS — correction: ${correction}`));
       // The audit's own next step names /dev-implement on the main checkout, which lacks the batch's code: left out.
       const said = outcome.lines.filter((l) => !/^\s*→ \/dev-implement\b/.test(l) && !/^\s*it appends the gap\b/.test(l));
       lines.push(`${slot.batch} returned GAPS`, ...said.slice(-3).map((l) => `  ${l}`));
@@ -272,7 +291,7 @@ export async function runWave(req: WaveRequest, deps: WaveDeps): Promise<WaveRes
       lines.push(keptLine(slot.place), resumeLine(req, slot.batch, slot.place, correction));
     } else {
       const detail = blockedDetail(outcome);
-      req.book.add(eventLine(req.now, slot.batch, "stopped", detail));
+      req.book.add(eventLine(req.clock(), slot.batch, "stopped", detail));
       lines.push(`${slot.batch} stopped ${detail}`, keptLine(slot.place), resumeLine(req, slot.batch, slot.place));
     }
   }

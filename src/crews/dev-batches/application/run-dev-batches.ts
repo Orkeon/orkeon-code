@@ -364,7 +364,7 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
   }
   const nodes = batchNodes(dev);
   const order = waveOrder(nodes);
-  const now = deps.clock();
+  const now = (): Date => deps.clock();
   const logPath = batchesLogPath(code);
   let logText: string | null = null;
   try {
@@ -395,8 +395,8 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
       const said = after.map((l) => /^✓ committed ([0-9a-f]{4,40}) on /i.exec(l.trim())?.[1]).find((h) => h !== undefined);
       const head = said === undefined ? await runGit(deps.shell, GIT_HEAD_COMMAND) : null;
       const hash = said ?? (head !== null && head.exitCode === 0 ? head.stdout.trim() : "(hash not read)");
-      book.add(eventLine(now, node.id, "returned", "VALID"));
-      book.add(eventLine(now, node.id, "merged", hash));
+      book.add(eventLine(now(), node.id, "returned", "VALID"));
+      book.add(eventLine(now(), node.id, "merged", hash));
       lines.push(`✓ ${node.id} done and committed`);
       continue;
     }
@@ -406,8 +406,8 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
     // Committed, but its sheet or the plan could not be marked done: the commit stands, the marking is the human's.
     const committed = after.map((l) => /^✓ committed ([0-9a-f]{4,40}) on /i.exec(l.trim())?.[1]).find((h) => h !== undefined);
     if (committed !== undefined) {
-      book.add(eventLine(now, node.id, "returned", "VALID"));
-      book.add(eventLine(now, node.id, "merged", committed));
+      book.add(eventLine(now(), node.id, "returned", "VALID"));
+      book.add(eventLine(now(), node.id, "merged", committed));
       node.done = true;
       lines.push(`✓ ${node.id} committed (${committed})`, `⚠ ${node.id} is not marked done in its sheet or the plan: mark it by hand`);
       continue;
@@ -424,7 +424,7 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
         `→ wait for the chain's answer; else the close (/dev-implement ${node.id} ${code} --close), then /dev-batches ${code} goes on`,
       ]);
     }
-    book.add(eventLine(now, node.id, stop.event, stop.detail));
+    book.add(eventLine(now(), node.id, stop.event, stop.detail));
     return finish([
       ...lines, `${node.id} ${stop.event} ${stop.detail}`,
       stop.detail === "GAPS"
@@ -452,7 +452,7 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
     );
     lines.push(...close.lines);
     if (close.closed) {
-      book.add(closedLine(now));
+      book.add(closedLine(now()));
       await writeRecord({ code: null });
       lines.push(`→ ${code}: every batch done, the run closed (${logShown})`);
     }
@@ -510,7 +510,7 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
       : `review of ${id}: GAPS — ${blocking.length} Blocking, ${rows.length - blocking.length} Major`);
     lines.push(...rows.map((r) => `  ${r.severity} — ${r.question} (${r.evidence})`));
     if (blocking.length > 0) {
-      book.add(eventLine(now, id, "stopped", `BLOCKED — review: ${blocking.length} Blocking`));
+      book.add(eventLine(now(), id, "stopped", `BLOCKED — review: ${blocking.length} Blocking`));
       return finish([
         ...lines,
         `→ ${id} not launched: settle the Blocking questions in ${dev.shown}/${sheet.name} (or /dev-plan), then /dev-batches ${code} launches it without a second review`,
@@ -532,7 +532,7 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
       return open > 0 ? open : undefined;
     };
     const ran = await runWave({
-      code, concurrency: parallel, wave, workBranch, work: ctx.work.folder, memoryDir: memory.dir, now,
+      code, concurrency: parallel, wave, workBranch, work: ctx.work.folder, memoryDir: memory.dir, clock: now,
       // The first wave of a typed run proves git works under a worktree root before any batch (L8P-D11).
       probe: typeof input.code === "string",
       sheets: Object.fromEntries(dev.sheets.map((s) => [s.batch, s.name])),
@@ -559,7 +559,7 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
   }
   const entry = lastEntryOf(book.entries(), next);
   const relaunch = entry !== undefined;
-  book.add(eventLine(now, next, relaunch ? "relaunched" : "launched", `${AUDITS_DETAIL} ${auditsOf(dev, next)}`));
+  book.add(eventLine(now(), next, relaunch ? "relaunched" : "launched", `${AUDITS_DETAIL} ${auditsOf(dev, next)}`));
   const sheet = sheetOf(next)!.sheet;
   const openSteps = sheet.steps.filter((s) => s.tdd !== null && !(s.tdd.red && s.tdd.green && s.tdd.cost)).length;
   const position = order.ok ? order.order.indexOf(next) + 1 : 0;

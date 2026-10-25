@@ -75,7 +75,7 @@ function shellFor(batches: readonly string[]): FakeShell {
 
 function request(wave: string[], book: Book, over: Partial<WaveRequest> = {}): WaveRequest {
   return {
-    code: "prune", concurrency: 2, wave, workBranch: "feat/prune", work: "todo", memoryDir: ".orkeon/memory", now: NOW,
+    code: "prune", concurrency: 2, wave, workBranch: "feat/prune", work: "todo", memoryDir: ".orkeon/memory", clock: () => NOW,
     probe: false, sheets: { F2: "PRUNE-PLAN-F2.md", F3: "PRUNE-PLAN-F3.md" }, audits: () => 0, steps: () => undefined,
     book, ...over,
   };
@@ -182,6 +182,37 @@ describe("runWave", () => {
     strictEqual(files.files.get(`/workspace/${SHEET("F2")}`), "F2 ticked");
     ok(out.lines.some((l) => l.includes(".orkeon/worktrees/prune-F3 kept") && l.includes("test suite")), out.lines.join("\n"));
     strictEqual(out.lines.at(-1), "→ F3's code, sheet and verdict stay in .orkeon/worktrees/prune-F3: /dev-batches prune --concurrency 2 relaunches it there, its correction first (Major tests: none)");
+  });
+
+  it("marks a merged batch done in the main checkout's global plan, a GAPS one left open; each event at its own time", async () => {
+    const shell = shellFor(["F2", "F3"]);
+    const book = new Book();
+    const files = mainFiles();
+    const plan = "# PRUNE-PLAN\n\n### Batch F2 — Two — open\n- [ ] 1. a\n\n### Batch F3 — Three — open\n- [ ] 1. b\n";
+    files.files.set("/workspace/todo/prune/PRUNE-PLAN.md", plan);
+    let minute = 0;
+    const out = await runWave(request(["F2", "F3"], book, { clock: () => new Date(Date.UTC(2026, 9, 24, 10, minute++)) }), {
+      files, shell,
+      runBatch: async (r) => {
+        batchWrites(files, r.root, r.batch);
+        return r.batch === "F2" ? valid("F2") : { batch: "F3", verdict: "GAPS", spent: 30, lines: ["→ Batch F3 GAPS"] };
+      },
+    });
+    strictEqual(files.files.get("/workspace/todo/prune/PRUNE-PLAN.md"),
+      "# PRUNE-PLAN\n\n### Batch F2 — Two — done (2026-10-24)\n- [x] 1. a\n\n### Batch F3 — Three — open\n- [ ] 1. b\n");
+    deepStrictEqual(book.added.map((l) => l.slice(2, 18)), ["2026-10-24 10:00", "2026-10-24 10:01", "2026-10-24 10:02", "2026-10-24 10:03", "2026-10-24 10:05"]);
+    ok(!out.lines.some((l) => l.startsWith("⚠")), out.lines.join("\n"));
+  });
+
+  it("says a global plan it cannot mark as a ⚠ line, the merge standing", async () => {
+    const shell = shellFor(["F2"]);
+    const files = mainFiles();
+    files.files.delete("/workspace/todo/prune/PRUNE-PLAN.md");
+    const out = await runWave(request(["F2"], new Book()), {
+      files, shell, runBatch: async (r) => { batchWrites(files, r.root, r.batch); return valid("F2"); },
+    });
+    ok(out.lines.some((l) => l.startsWith("⚠ PRUNE-PLAN.md: batch F2 not marked done")), out.lines.join("\n"));
+    strictEqual(out.stopped, false);
   });
 
   it("relaunches a GAPS batch in its worktree with the correction its log entry carries", async () => {
