@@ -50,10 +50,13 @@ export const AUDITOR_SYSTEM = [
   "one test class, never a whole suite, or one integration run narrowed by a filter, built from the commands the",
   "brief lists. Three at most in all, and none when nothing is in doubt; cite what a run showed in the row it settles.",
   "",
-  "Reading. The brief carries the capture: open a capture file only when the brief lists it to read, one section at a",
-  "time. Open the code only around a hunk you are judging, never whole modules for their own sake, and never another",
-  "batch's sheet or the repository's tool settings (lint, format, editor or agent files) unless a row rests on one.",
-  "When you know several reads, ask for them in one turn.",
+  "Reading. The brief carries the sheet and the capture: open a capture file only when the brief lists it to read, one",
+  "section at a time. The sheet says what the batch promised and the capture what it delivered: the spec, the plan,",
+  "the repository's configuration (package and tool files, scripts, `.orkeon/`) and the modules the diff leaves",
+  "untouched stay closed. Open the code only around a hunk you are judging, never whole modules for their own sake,",
+  "and never another batch's sheet or the repository's tool settings (lint, format, editor or agent files) unless a",
+  "row rests on one. For a reuse doubt, one codebase_search, then the symbol it names. When you know several reads,",
+  "ask for them in one turn.",
   BOUNDED_READ_RULE,
   KNOWN_TOOLS_RULE,
   "",
@@ -75,6 +78,9 @@ export interface CaptureText {
 
 /** The most capture text the brief carries; a file past it stays to read. */
 export const INLINE_CAPTURE_CHARS = 12_000;
+
+/** The most sheet text the brief carries; a longer sheet stays to read. */
+export const INLINE_SHEET_CHARS = 6_000;
 /** What the brief keeps free under MAX_BRIEF_CHARS once the capture is in. */
 const BRIEF_MARGIN = 200;
 /** The capture files the brief stands for once every other one is in it: the index, the manifest, the table. */
@@ -84,6 +90,8 @@ export interface AuditBriefInput {
   mode: "fast" | "full" | "resume";
   batch: string;
   sheetPath: string;
+  /** The sheet's text, carried in the brief while it fits INLINE_SHEET_CHARS; absent or longer: read from sheetPath. */
+  sheetText?: string;
   captureFiles: readonly string[];
   /** The capture files' texts, table.md aside (the brief carries the table): each goes in the brief while it has
    *  room, the rest stay to read. Absent: every capture file is to read. */
@@ -170,6 +178,13 @@ function captureLines(input: AuditBriefInput, room: number): string[] {
   return lines;
 }
 
+/** The sheet as the brief carries it, or nothing (left to read from its path). */
+function sheetLines(input: AuditBriefInput, room: number): string[] {
+  const text = input.sheetText?.trimEnd() ?? "";
+  if (text === "" || text.length > Math.min(INLINE_SHEET_CHARS, room)) return [];
+  return ["The sheet, in this brief (do not open it again):", "```text", text, "```", ""];
+}
+
 export function buildAuditBrief(input: AuditBriefInput): string {
   const rest = [
     "",
@@ -183,8 +198,9 @@ export function buildAuditBrief(input: AuditBriefInput): string {
     input.table.trimEnd(),
   ];
   const head = scopeLines(input);
-  const room = MAX_BRIEF_CHARS - BRIEF_MARGIN - [...head, "", ...rest].join("\n").length;
-  return [...head, "", ...captureLines(input, room), ...rest].join("\n");
+  const sheet = sheetLines(input, MAX_BRIEF_CHARS - BRIEF_MARGIN - [...head, "", ...rest].join("\n").length);
+  const room = MAX_BRIEF_CHARS - BRIEF_MARGIN - [...head, "", ...sheet, ...rest].join("\n").length;
+  return [...head, "", ...sheet, ...captureLines(input, room), ...rest].join("\n");
 }
 
 export interface ValidationReport {

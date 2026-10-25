@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 import { ok, strictEqual } from "node:assert";
 
 import {
-  AUDITOR_SYSTEM, INLINE_CAPTURE_CHARS, buildAnswerPrompt, buildAuditBrief, buildValidationFollowUp,
+  AUDITOR_SYSTEM, INLINE_CAPTURE_CHARS, INLINE_SHEET_CHARS, buildAnswerPrompt, buildAuditBrief, buildValidationFollowUp,
 } from "./auditor-prompt.ts";
 import type { AuditBriefInput } from "./auditor-prompt.ts";
 
@@ -49,9 +49,12 @@ describe("AUDITOR_SYSTEM — one marker per behaviour", () => {
     ["plan mark not the batch's", "the global plan's line and boxes of the batch"],
     ["one cycle per test file", "then one GREEN and one"],
     ["no empty rows", "a check that found nothing is no row"],
-    ["capture in the brief", "The brief carries the capture"],
+    ["capture in the brief", "open a capture file only when the brief lists it to read"],
     ["no other batch's sheet", "never another"],
     ["reads in one turn", "ask for them in one turn"],
+    ["sheet in the brief", "The brief carries the sheet and the capture"],
+    ["spec, plan and config closed", "stay closed"],
+    ["one search for reuse", "one codebase_search"],
   ];
   for (const [behaviour, marker] of markers) {
     it(behaviour, () => ok(AUDITOR_SYSTEM.includes(marker), marker));
@@ -98,6 +101,23 @@ describe("buildAuditBrief", () => {
     ok(brief.includes("### build.txt"));
     ok(!brief.includes("to read"), brief);
     ok(!brief.includes(`${dir}/index.txt`));
+  });
+
+  it("carries the sheet before the capture while it fits, and leaves a longer one to read from its path", () => {
+    const brief = buildAuditBrief(input({ sheetText: "# DEMO-PLAN-F2 — Command\n\n## Intent\nthe command\n\n" }));
+    ok(brief.includes("Sheet: /workspace/workbench/demo/DEMO-PLAN-F2.md\n"));
+    ok(brief.includes("\nThe sheet, in this brief (do not open it again):\n```text\n# DEMO-PLAN-F2 — Command\n\n## Intent\nthe command\n```\n"), brief);
+    ok(brief.indexOf("The sheet, in this brief") < brief.indexOf("The mechanical table"));
+    const long = buildAuditBrief(input({ sheetText: "#".repeat(INLINE_SHEET_CHARS + 1) }));
+    ok(!long.includes("The sheet, in this brief"));
+    ok(!buildAuditBrief(input()).includes("The sheet, in this brief"));
+    const dir = "/workspace/workbench/demo/capture-F2";
+    const both = buildAuditBrief(input({
+      sheetText: "s".repeat(INLINE_SHEET_CHARS), captureFiles: [`${dir}/index.txt`, `${dir}/diff-001.txt`],
+      captureTexts: [{ path: `${dir}/diff-001.txt`, text: "+".repeat(INLINE_CAPTURE_CHARS - 100) }],
+    }));
+    ok(both.includes("The sheet, in this brief") && both.includes("### diff-001.txt"), String(both.length));
+    ok(both.length <= MAX_BRIEF_CHARS, String(both.length));
   });
 
   it("lists a capture file past the brief's room to read, with the index", () => {

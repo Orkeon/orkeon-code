@@ -328,7 +328,7 @@ export async function runDevVerify(input: DevVerifyInputs, deps: DevVerifyDeps):
       sheetTitle(gate.run.sheet), ...gate.run.changedFiles.filter((f) => !f.startsWith(`${work}/`)),
     ]));
     const brief: AuditBriefInput = {
-      mode: auditMode, batch: args.batch, sheetPath: t.sheetShown, captureFiles: capture.files, captureTexts: capture.texts, table: capture.table,
+      mode: auditMode, batch: args.batch, sheetPath: t.sheetShown, sheetText: gate.run.sheet, captureFiles: capture.files, captureTexts: capture.texts, table: capture.table,
       appliedRules: gate.run.facts.appliedIds.length > 0 ? gate.run.facts.appliedIds.join(", ") : "none",
       commands: { testClass: commands.testClass, testProject: commands.testProject, testIntegration: commands.testIntegration },
       previousGaps,

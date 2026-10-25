@@ -202,6 +202,16 @@ describe("runDevVerify — the verdict", () => {
     ok(text.split("\n").includes("precedents recalled: shop-mistake-20261022-n-plus-one"), text);
   });
 
+  it("carries the sheet's text in the auditor's brief, before the capture", async () => {
+    const f = setup();
+    f.llm.answers = ["fine"];
+    f.llm.extractions = [answer([MINOR])];
+    await runDevVerify({ batch: "F2" }, f.deps);
+    const brief = f.llm.acts[0].prompt;
+    ok(brief.includes(`The sheet, in this brief (do not open it again):\n\`\`\`text\n${SHEET.trimEnd()}\n\`\`\``), brief);
+    ok(brief.indexOf("The sheet, in this brief") < brief.indexOf("The capture, in this brief"), brief);
+  });
+
   it("T4: no block and no line when nothing is recalled", async () => {
     const f = setup();
     f.llm.answers = ["fine"];
