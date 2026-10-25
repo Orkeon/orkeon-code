@@ -5,7 +5,7 @@ import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import {
   COMMIT_MESSAGE_FILE, GIT_STATUS_COMMAND, IDENTITY_HANDOVER, changedPaths, indexDeletedPaths, ghPrCreateCommand, gitAddCommand, gitCommitCommand,
-  gitDiffCommand, gitMergeFfOnly, isNotFastForward, gitPushCommand, gitRebaseAbortIn, gitRebaseIn, identityStop, parseDefaultBranch,
+  gitDiffCommand, gitMergeFfOnly, isNotFastForward, isPushed, gitPushCommand, gitPushedCheckCommand, gitRebaseAbortIn, gitRebaseIn, identityStop, parseDefaultBranch,
   parseGitIdent, prBodyPath, prSlug, renderPrBody, selectCommitFiles, shellQuote, shellUnsafe,
 } from "./close.ts";
 
@@ -178,5 +178,15 @@ describe("the pull request", () => {
       ghPrCreateCommand({ base: null, head: "feat/x", title: "t", bodyFile: "/abs path/PR.md" }),
       "gh pr create --head feat/x --title 't' --body-file '/abs path/PR.md'",
     );
+  });
+});
+
+describe("isPushed", () => {
+  it("is true when HEAD and the remote-tracking ref are one hash", () => {
+    strictEqual(gitPushedCheckCommand("feat/x"), "git rev-parse HEAD 'refs/remotes/origin/feat/x'");
+    strictEqual(isPushed("abc\nabc\n"), true);
+    strictEqual(isPushed("abc\ndef\n"), false);
+    strictEqual(isPushed("abc\n"), false);
+    strictEqual(isPushed(""), false);
   });
 });

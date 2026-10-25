@@ -192,6 +192,17 @@ export function gitPushCommand(branch: string): string {
   return `git push -u origin ${shellQuote(branch)}`;
 }
 
+/** HEAD and the remote-tracking ref of `branch`, one hash per line: equal, the branch is on origin already. */
+export function gitPushedCheckCommand(branch: string): string {
+  return `git rev-parse HEAD ${shellQuote(`refs/remotes/origin/${branch}`)}`;
+}
+
+/** Whether the two hashes `gitPushedCheckCommand` printed are one: the push was made, by hand or by a run. */
+export function isPushed(stdout: string): boolean {
+  const [head, remote] = String(stdout ?? "").trim().split("\n").map((l) => l.trim());
+  return head !== undefined && head.length > 0 && head === remote;
+}
+
 export function gitMergeFfOnly(ref: string): string {
   return `git merge --ff-only ${shellQuote(ref)}`;
 }

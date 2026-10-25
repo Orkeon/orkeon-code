@@ -18,6 +18,7 @@ import { parseBatchesState } from "../../../shared/domain/dev/batches-state.ts";
 import {
   GIT_COMMITTER_IDENT_COMMAND, GIT_CURRENT_BRANCH_COMMAND, GIT_DEFAULT_BRANCH_COMMAND, GIT_HEAD_COMMAND, GIT_IDENT_COMMAND,
   gitPushCommand,
+  gitPushedCheckCommand,
 } from "../../../shared/domain/git/close.ts";
 import { appendToLog, closedLine } from "../domain/batches-log.ts";
 import { ACTIVE_RECORD, batchesBranchName, runDevBatches } from "./run-dev-batches.ts";
@@ -350,10 +351,24 @@ describe("runDevBatches — what comes back and the close", () => {
     const { files, shell, deps } = setup();
     shell.results[gitPushCommand("feat/demo")] = { exitCode: 1, stderr: "rejected\n" };
     const out = await toTheClose(files, deps);
-    ok(out.lines.includes("the run stays open: /dev-batches demo tries the push again"), out.lines.join("\n"));
+    ok(out.lines.some((l) => l.startsWith("the run stays open: /dev-batches demo tries the push again")
+      && l.includes("push from a terminal (git push -u origin 'feat/demo')")), out.lines.join("\n"));
     strictEqual(events(files).includes("closed"), false);
     shell.results[gitPushCommand("feat/demo")] = { exitCode: 0 };
     await runDevBatches({ code: "demo" }, deps);
+    strictEqual(events(files).at(-1), "closed");
+  });
+
+  it("closes the run on a branch pushed by hand, without pushing it again", async () => {
+    const { files, shell, deps } = setup();
+    shell.results[gitPushCommand("feat/demo")] = { exitCode: 128, stderr: "fatal: could not read from remote\n" };
+    await toTheClose(files, deps);
+    strictEqual(events(files).includes("closed"), false);
+    shell.results[gitPushedCheckCommand("feat/demo")] = { stdout: "abc123\nabc123\n" };
+    const pushes = shell.commands.filter((c) => c === gitPushCommand("feat/demo")).length;
+    const out = parse(await runDevBatches({ code: "demo" }, deps));
+    ok(out.lines.includes("✓ feat/demo is on origin already"), out.lines.join("\n"));
+    strictEqual(shell.commands.filter((c) => c === gitPushCommand("feat/demo")).length, pushes);
     strictEqual(events(files).at(-1), "closed");
   });
 

@@ -499,6 +499,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `/dev-batches`: a close whose push fails names the command to push from a terminal, since a confined shell reaches no remote. The next run takes a branch already on origin as pushed and closes without pushing again.
 - `/dev-verify`: the auditor knows that steps on one test file run as one cycle, all their REDs and then one GREEN. A GREEN box ticked for the cycle's first step is no longer reported as a state the code never held.
 - `/dev-batches`: under a Bubblewrap shell, the preflight's missing git identity names `git config user.name` and `user.email` in the repository. That shell runs with `HOME=/tmp` and a cleared environment, so a `--global` setting does not reach it.
 - **The audit capture lists a JavaScript batch's changed files.** `test-classes.txt` took only `.cs`, `.ts`, `.py`,
