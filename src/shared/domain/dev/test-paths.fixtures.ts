@@ -1,6 +1,6 @@
 // Layouts and paths isTestPath and hasTestLayout are tested on.
 import type { RepoPackLayout } from "./repo-pack.ts";
-import { WORKSPACE } from "./path-rebase.ts";
+import { WORKSPACE } from "../vfs.ts";
 
 type TestLayout = Pick<RepoPackLayout, "tests" | "testFiles">;
 

@@ -3,7 +3,7 @@
 import type { HumanInput } from "../../../shared/application/ports.ts";
 import { motifId } from "../../../shared/domain/dev/learn-proposals.ts";
 import { OUT, T, motif, setup } from "./run-dev-learn.fixtures.ts";
-import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 export { OUT, REFUSED, T } from "./run-dev-learn.fixtures.ts";
 

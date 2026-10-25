@@ -1,5 +1,5 @@
 // Paths and contents the hand-editable JSON file is read from.
-import { WORKSPACE } from "../domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../domain/vfs.ts";
 
 export const PATH = `${WORKSPACE}/.orkeon/agents.json`;
 

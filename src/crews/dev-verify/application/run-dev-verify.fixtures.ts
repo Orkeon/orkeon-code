@@ -17,7 +17,7 @@ import { excludePathspecs, gitMethodGrep } from "../domain/commands.ts";
 import type { ValidationRunner } from "./audit.ts";
 import { runDevVerify } from "./run-dev-verify.ts";
 import type { DevVerifyInputs } from "./run-dev-verify.ts";
-import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 export const DIR = `${WORKSPACE}/workbench/demo`;
 export const VERDICT = `${DIR}/DEMO-VERIFY-F2.md`;

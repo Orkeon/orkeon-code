@@ -1,5 +1,5 @@
 // Paths and extensions for the search routing tests.
-import { WORKSPACE } from "./dev/path-rebase.ts";
+import { WORKSPACE } from "./vfs.ts";
 
 /** Read from src/analysis/Orkeon.Analysis/Adapters/*.cs — a new adapter framework-side must be mirrored here (the
  *  probe's partition step trips live). */

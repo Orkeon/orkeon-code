@@ -2,7 +2,7 @@
 import type { WrappedTools } from "../../application/dev/wrapped-tools.ts";
 import { RUN_BUILD, RUN_TESTS, RUN_VALIDATION, scriptToolSlot } from "./script-tools.ts";
 import type { ToolBuilderFactory, ValidationCalls } from "./script-tools.ts";
-import { WORKSPACE } from "../../domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 export const ROOT = `${WORKSPACE}/.orkeon/worktrees/prune-F2`;
 

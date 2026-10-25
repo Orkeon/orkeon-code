@@ -2,7 +2,7 @@
 import { HOOK_TIMEOUT_SECONDS, devToolCallbacks, memoryGuardCallbacks } from "./tool-callbacks.ts";
 import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
 import { FakeShell } from "../../../../tests/support/fake-shell.ts";
-import { WORKSPACE } from "../../domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 export const PRE = { event: "pre-tool", command: "bash pre.sh {tool} {path}" };
 export const POST = { event: "post-tool", command: "bash post.sh {tool}" };

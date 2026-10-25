@@ -45,6 +45,7 @@ import type { BatchEvent } from "../domain/batches-log.ts";
 import { closePlan } from "./plan-close.ts";
 import { BATCHES_ACTIVE_RECORD } from "../../../shared/domain/dev/batches-state.ts";
 import type { MergedBatch } from "./plan-close.ts";
+import { WORKSPACE, workspaceRelative } from "../../../shared/domain/vfs.ts";
 
 export const ACTIVE_RECORD = BATCHES_ACTIVE_RECORD;
 const AFTER_LINES = 20;
@@ -149,7 +150,7 @@ class LogBook {
       await files.write(this.path, appendToLog(this.text, this.code, this.added));
       return null;
     } catch (e) {
-      return `⚠ the log ${this.path.replace(/^\/workspace\//, "")} could not be written: ${reasonOf(e)}`;
+      return `⚠ the log ${workspaceRelative(this.path)} could not be written: ${reasonOf(e)}`;
     }
   }
 }
@@ -331,7 +332,7 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
     const active = await readRecord(deps.files);
     if (active !== null && active.code !== null && active.code !== code && !await runClosed(deps.files, active.code)) {
       return answer([
-        `BLOCKED — the run of ${active.code} is in progress (${ACTIVE_RECORD.replace(/^\/workspace\//, "")}): ` +
+        `BLOCKED — the run of ${active.code} is in progress (${workspaceRelative(ACTIVE_RECORD)}): ` +
         `take it to its close (/dev-batches ${active.code}), or delete that file to drop it, then /dev-batches ${code}`,
       ]);
     }
@@ -404,7 +405,7 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
   const book = new LogBook(logPath, code, logText);
   // A batch the log has merged is done, even when its sheet could not be marked: never launched again.
   for (const n of nodes) if (!n.done && lastEntryOf(book.entries(), n.id)?.event === "merged") n.done = true;
-  const logShown = logPath.replace(/^\/workspace\//, "");
+  const logShown = workspaceRelative(logPath);
   const finish = async (out: string[], next?: BatchesAnswer["next"]): Promise<string> => {
     const failed = await book.save(deps.files);
     if (failed === null) return answer(out, next);
@@ -582,7 +583,7 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
   }
   // A batch a parallel run stopped keeps its code, sheet and verdict in its worktree: run here, it would start over.
   const kept = worktreePlace(batchWorktreeName(code, next));
-  if (kept !== null && (await listOrNone(deps.files, "/workspace/.orkeon/worktrees")).includes(kept.name)) {
+  if (kept !== null && (await listOrNone(deps.files, `${WORKSPACE}/.orkeon/worktrees`)).includes(kept.name)) {
     return finish([
       ...lines,
       `BLOCKED — ${next} stays in ${kept.path}, kept by a parallel run: /dev-batches ${code} --concurrency 2 relaunches it there; ` +

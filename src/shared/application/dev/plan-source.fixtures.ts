@@ -3,7 +3,7 @@ import { FakeFiles } from "../../../../tests/support/fake-files.ts";
 import type { WorkFolder } from "./resolve-work-folder.ts";
 import { MAX_SOURCE_CHARS } from "./plan-source.ts";
 import type { ResolvedSource } from "./plan-source.ts";
-import { WORKSPACE } from "../../domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 export const WORK: WorkFolder = {
   folder: "workbench", vfsPath: `${WORKSPACE}/workbench`, outcome: "applied", request: null, exists: true, note: null,

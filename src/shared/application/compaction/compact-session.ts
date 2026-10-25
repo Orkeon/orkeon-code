@@ -27,6 +27,7 @@ import { COMPACTION_TRIGGER_CONFIG_KEY, SNIP_RETAIN_COUNT, parseTokenCount, shou
 import type { ConfigStore } from "../config-store.ts";
 import { extractMemories } from "./extract-memories.ts";
 import { restoreAttachedSkills, restoreRecentFiles } from "./restore-context.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 /** The ports the pipeline runs on. */
 export interface CompactDeps {
@@ -123,7 +124,7 @@ export async function compactSession(
         note(log, `post-compaction restore: ${skills.length} skill(s) re-injected`);
       }
       // 6. The pointer to the state file written at step 0, last: what to read first.
-      if (state !== null && "path" in state) buffer.push(buildRestoredStateMessage(`/workspace/${state.path}`, state.firstOpen));
+      if (state !== null && "path" in state) buffer.push(buildRestoredStateMessage(`${WORKSPACE}/${state.path}`, state.firstOpen));
       await session.writeMessages(buffer);
 
       return withState({ status: "compacted", before: raw.stored.length, after: buffer.length, usedTokens: used });

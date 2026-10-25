@@ -14,6 +14,7 @@
 import type { Files } from "../../../shared/application/ports.ts";
 import { isCode } from "../../../shared/domain/dev/artefacts.ts";
 import type { WorktreePlace } from "../../../shared/domain/git/worktree.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 export interface SeedTarget {
   place: WorktreePlace;
@@ -31,7 +32,6 @@ export type SeedSnapshot = ReadonlyMap<string, string>;
 /** The most files a seed copies: past it, the seed is refused rather than half done. */
 export const SEED_MAX_FILES = 2000;
 const LIST_CAP = 1000;
-const WORKSPACE = "/workspace";
 
 const reasonOf = (e: unknown): string => String((e as Error)?.message ?? e).split("\n")[0];
 

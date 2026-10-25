@@ -2,7 +2,7 @@
 import { SKILLS_STATE_KEY } from "../src/shared/domain/session-keys.ts";
 import { FakeFiles } from "./support/fake-files.ts";
 import { FakeSessionStore } from "./support/fake-session-store.ts";
-import { WORKSPACE } from "../src/shared/domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../src/shared/domain/vfs.ts";
 
 export const SKILL = `${WORKSPACE}/docs/release.md`;
 export const OTHER_SKILL = `${WORKSPACE}/b.md`;

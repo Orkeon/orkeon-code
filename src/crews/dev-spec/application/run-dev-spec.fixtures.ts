@@ -14,7 +14,7 @@ import { ORKEON_IGNORE_PROBE, checkIgnoreCommand } from "../../../shared/applica
 import type { SpecAnswer } from "../domain/spec-answer.ts";
 import { runDevSpec } from "./run-dev-spec.ts";
 import type { DevSpecInputs } from "./run-dev-spec.ts";
-import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 export const ANSWER = JSON.parse(readFileSync(new URL("../../../../tests/fixtures/dev/spec/answer.json", import.meta.url), "utf8")) as SpecAnswer;
 export const W = `${WORKSPACE}/workbench`;

@@ -13,7 +13,7 @@ import { createConfigStore } from "../../../shared/application/config-store.ts";
 import { GIT_TOPLEVEL } from "../../../shared/application/dev/resolve-work-folder.ts";
 import { ORKEON_IGNORE_PROBE, checkIgnoreCommand } from "../../../shared/application/dev/load-dev-context.ts";
 import type { ProposalsFile } from "../../../shared/domain/dev/learn-proposals.ts";
-import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 const root = fileURLToPath(new URL("../../../../tests/fixtures/dev/learn/", import.meta.url));
 

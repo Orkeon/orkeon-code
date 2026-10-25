@@ -2,7 +2,7 @@
 import type { GateInput, GateLineKind } from "./gate.ts";
 import { sheetFacts } from "./sheet-facts.ts";
 import { traitMarker } from "../../../shared/domain/dev/trait-pattern.ts";
-import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 export const SHEET = [
   "# DEMO-PLAN-F2 — Command",

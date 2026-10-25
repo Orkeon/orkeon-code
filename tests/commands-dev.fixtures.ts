@@ -14,7 +14,7 @@ import { createConfigStore } from "../src/shared/application/config-store.ts";
 import { FakeFiles } from "./support/fake-files.ts";
 import { FakeShell } from "./support/fake-shell.ts";
 import { FakeSessionStore } from "./support/fake-session-store.ts";
-import { WORKSPACE } from "../src/shared/domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../src/shared/domain/vfs.ts";
 
 const DEMO_DIR = fileURLToPath(new URL("./fixtures/dev/workbench/demo/", import.meta.url));
 const BOTH = checkIgnoreCommand([ORKEON_IGNORE_PROBE, "workbench/"]);

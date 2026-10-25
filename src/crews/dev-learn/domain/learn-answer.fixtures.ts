@@ -1,7 +1,7 @@
 // The answers checkLearnAnswer is tested on: a valid motif on the wire, the rows shown to the model, and one case per
 // refusal of the design's table.
 import { checkLearnAnswer } from "./learn-answer.ts";
-import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 export const SHOWN = new Set(["c936075d95", "b983faad38", "3a59a45e69", "7b3b561c93"]);
 

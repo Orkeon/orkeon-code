@@ -1,7 +1,7 @@
 // The briefs, answers and markers the auditor's prompts are tested on.
 import type { AuditBriefInput, ValidationReport } from "./auditor-prompt.ts";
 import type { AuditAnswer } from "../domain/audit-answer.ts";
-import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 /** The longest reply the answer prompt carries whole. */
 export const MAX_REPLY_CHARS_IN_ANSWER_PROMPT = 12_000;

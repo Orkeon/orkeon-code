@@ -1,6 +1,6 @@
 // The working root and the calls the createFiles tests make under it.
 import type { createFiles } from "./files.ts";
-import { WORKSPACE } from "../../domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 type Files = ReturnType<typeof createFiles>;
 

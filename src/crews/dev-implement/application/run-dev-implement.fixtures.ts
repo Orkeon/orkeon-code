@@ -17,7 +17,7 @@ import { AUDIT_UNFINISHED_GAP } from "../../../shared/domain/dev/verdict-format.
 import { STATUS_COMMAND } from "./observe.ts";
 import { touchedPath } from "./touched.ts";
 import type { ImplementAnswer } from "./run-dev-implement.ts";
-import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 export const DIR = `${WORKSPACE}/workbench/demo`;
 export const SHEET_PATH = `${DIR}/DEMO-PLAN-F1.md`;

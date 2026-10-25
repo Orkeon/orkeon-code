@@ -1,5 +1,5 @@
 // The working root and the shell_command replies the createShell tests read.
-import { WORKSPACE } from "../../domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 export const ROOT = `${WORKSPACE}/.orkeon/worktrees/prune-F2`;
 

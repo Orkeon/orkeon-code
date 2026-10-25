@@ -5,7 +5,8 @@ import type { Files, Shell } from "../../../shared/application/ports.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import { loadDevContext } from "../../../shared/application/dev/load-dev-context.ts";
 import { openSteps, parseImplementSheet } from "../domain/step-section.ts";
-import { locateSheet, WORKSPACE } from "./locate-sheet.ts";
+import { locateSheet } from "./locate-sheet.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 export async function countOpenSteps(
   deps: { files: Files; shell: Shell; config: Pick<ConfigStore, "readValue"> },

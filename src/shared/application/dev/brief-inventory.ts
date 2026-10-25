@@ -3,6 +3,7 @@
 // `path:line — name`. A fact the code answers is then never asked. It builds the index when it holds no root and
 // writes nothing else; a failing index is a warning and an empty inventory, never a stop.
 import type { CodeIndex } from "../ports.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 export interface BriefInventoryEntry { path: string; line: number; name: string }
 export interface BriefInventory {
@@ -19,7 +20,6 @@ export interface BriefInventoryRequest {
 }
 
 export const BRIEF_INVENTORY_CAPS = { phrases: 6, phraseChars: 160, topK: 8, entries: 30 } as const;
-const WORKSPACE = "/workspace";
 const TOP = `${WORKSPACE}/`;
 const ALWAYS_EXCLUDED = [".claude/", ".git/", "node_modules/"];
 

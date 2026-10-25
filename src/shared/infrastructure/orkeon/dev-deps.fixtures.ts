@@ -2,7 +2,7 @@
 // root and builders the dev-deps tests run on.
 import { FakeTools } from "../../../../tests/support/fake-tools.ts";
 import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
-import { WORKSPACE } from "../../domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 type Module = typeof import("./dev-deps.ts");
 

@@ -22,6 +22,7 @@ import {
 } from "../../../shared/domain/git/close.ts";
 import type { PrSummary } from "../../../shared/domain/git/close.ts";
 import { gitBranchExists } from "../../../shared/domain/git/worktree.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 export interface MergedBatch { batch: string; hash: string }
 
@@ -154,7 +155,7 @@ export async function closePlan(
   if (check.exitCode === 0 && isPushed(check.stdout)) {
     pushed = true;
     lines.push(`✓ ${branch} is on origin already`);
-  } else if (ruleDecision(input.rules, "shell_command", { command: pushCommand, working_directory: "/workspace" }) === "deny") {
+  } else if (ruleDecision(input.rules, "shell_command", { command: pushCommand, working_directory: WORKSPACE }) === "deny") {
     lines.push(`✗ not pushed: a session rule denies '${pushCommand}'; the commits stay local`);
   } else {
     const push = await pushBranch(deps.shell, branch);

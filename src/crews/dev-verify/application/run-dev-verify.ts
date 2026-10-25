@@ -28,8 +28,9 @@ import { writeCapture } from "./capture.ts";
 import { noPrecedents, precedentsLine, recallQuery, sheetTitle } from "../../../shared/application/dev/step-precedents.ts";
 import type { StepPrecedents } from "../../../shared/application/dev/step-precedents.ts";
 import type { WorkFolder } from "../../../shared/application/dev/resolve-work-folder.ts";
-import { WORKSPACE, runGate } from "./run-gate.ts";
+import { runGate } from "./run-gate.ts";
 import type { DevVerifyTarget } from "./run-gate.ts";
+import { WORKSPACE, workspaceRelative } from "../../../shared/domain/vfs.ts";
 
 export interface DevVerifyInputs { batch?: unknown; plan?: unknown; mode?: unknown; gateOnly?: unknown }
 export interface DevVerifyDeps {
@@ -98,7 +99,7 @@ function recordingWriter(files: Files): Files {
 }
 
 function shown(path: string): string {
-  return path.startsWith(`${WORKSPACE}/`) ? path.slice(WORKSPACE.length + 1) : path;
+  return workspaceRelative(path);
 }
 
 function checkInputs(input: DevVerifyInputs): Checked | string {
@@ -166,7 +167,7 @@ async function resolveSheet(files: Pick<Files, "read" | "list">, work: string, a
     const named = found.filter((s) => s.prefix === plan.toUpperCase());
     return named.length === 1 ? named[0] : several(batch, found);
   }
-  const relative = plan.startsWith(`${WORKSPACE}/`) ? plan.slice(WORKSPACE.length + 1) : plan;
+  const relative = workspaceRelative(plan);
   const slash = relative.lastIndexOf("/");
   if (relative.startsWith("/") || relative.split("/").includes("..") || slash <= 0) return neither;
   // The capture and the verdict are written beside the plan: a plan outside the work folder would put them elsewhere.

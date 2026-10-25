@@ -14,8 +14,8 @@ import { sheetFacts } from "../domain/sheet-facts.ts";
 import {
   GIT_CHANGED_TRACKED, GIT_DIFF_CHECK, UNQUOTABLE_SCOPE, buildOutputProblem, excludePathspecs, gitTraitGrep, gitUntracked,
 } from "../domain/commands.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
-export const WORKSPACE = "/workspace";
 const MAX_PLAN_ENTRIES = 500;
 const MAX_PLAN_FILES = 60;
 
@@ -54,7 +54,6 @@ export type GateOutcome = { ok: true; run: GateRun } | { ok: false; error: strin
 function errorLine(error: unknown): string {
   return firstLine(error instanceof Error ? error.message : String(error));
 }
-
 
 function byCodeUnit(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;

@@ -7,7 +7,7 @@ import { FakeFiles } from "./support/fake-files.ts";
 import { FakePermissionRules } from "./support/fake-permission-rules.ts";
 import { FakeSessionStore } from "./support/fake-session-store.ts";
 import { FakeToolCatalogue } from "./support/fake-tool-catalogue.ts";
-import { WORKSPACE } from "../src/shared/domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../src/shared/domain/vfs.ts";
 
 /** The deps of startDevStep, the session holding the rules `stored` (none stored when empty). */
 export function stepDeps(...stored: string[]) {

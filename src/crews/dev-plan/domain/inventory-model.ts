@@ -2,6 +2,7 @@
 // titles of the source, which hits are kept, the layer each path belongs to, and the lines
 // the planner's prompt shows. Only an entry shown can become an anchor. The searches
 // themselves live in the application (inventory.ts); nothing here reads the index.
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 export type InventoryLayer = "domain" | "application" | "infrastructure" | "tests" | "other";
 export interface InventoryEntry {
@@ -28,7 +29,7 @@ export const INVENTORY_CAPS = {
   promptChars: 8_000, lineChars: 400,
 } as const;
 
-const TOP = "/workspace/";
+const TOP = `${WORKSPACE}/`;
 const ALWAYS_EXCLUDED = [".claude", ".orkeon", "node_modules", ".git"];
 const EMPTY = "(the code index holds no symbol for these titles)";
 const DECLARATION = /\b(function|class|interface|type|enum|const|let|var|def|struct|record|trait|module|namespace|method)\b/;

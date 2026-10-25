@@ -12,6 +12,7 @@ import { sameToolName } from "../../domain/agent-policy/permission.ts";
 import { memoryWriteRefusal } from "../../domain/shared-memory/layout.ts";
 import { mapStrings, textFromRoot } from "../../domain/dev/path-rebase.ts";
 import type { CallGuard, CallGuardSpec, ToolHook } from "../../domain/dev/call-guard.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 /** A hook is stopped after this many seconds, and refuses (pre) or is reported (post). */
 export const HOOK_TIMEOUT_SECONDS = 60;
@@ -68,13 +69,11 @@ export function memoryGuardCallbacks(memoryDir: () => Promise<string>): Pick<Too
   };
 }
 
-const PROJECT = "/workspace";
-
 /** True when the runtime says `path` names no file (its "not found"), false when it reads; undefined otherwise. */
 export async function isNewFile(files: Pick<Files, "read">, path: string): Promise<boolean | undefined> {
   const trimmed = path.trim();
   if (trimmed === "") return undefined;
-  const virtual = trimmed.startsWith("/") ? trimmed : `${PROJECT}/${trimmed.replace(/^(\.\/)+/, "")}`;
+  const virtual = trimmed.startsWith("/") ? trimmed : `${WORKSPACE}/${trimmed.replace(/^(\.\/)+/, "")}`;
   try {
     await files.read(virtual, 1);
     return false;

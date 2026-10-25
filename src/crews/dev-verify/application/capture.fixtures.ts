@@ -8,7 +8,7 @@ import { sheetFacts } from "../domain/sheet-facts.ts";
 import { gitDiffTracked, gitMethodGrep } from "../domain/commands.ts";
 import type { DevVerifyTarget, GateRun } from "./run-gate.ts";
 import type { CostIndex } from "../../../shared/application/ports.ts";
-import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 export const DIR = `${WORKSPACE}/workbench/demo/capture-F2`;
 export const BUILD = "dotnet build Demo.sln -c Release";

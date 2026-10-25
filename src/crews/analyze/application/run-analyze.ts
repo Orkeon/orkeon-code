@@ -8,6 +8,7 @@
 import type { CodeIndex, Llm, Logger, Progress } from "../../../shared/application/ports.ts";
 import type { PackageSummary } from "../../../shared/domain/code-intel-contract.ts";
 import { renderHarvest, SYNTHESIS_SYSTEM, buildSynthesisUser } from "../domain/harvest.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 /** Packages summarized in the harvest — beyond this a repo needs a narrower ask. */
 export const MAX_PACKAGES = 10;
@@ -39,9 +40,9 @@ export async function runAnalyze(input: AnalyzeInputs, deps: AnalyzeDeps): Promi
     //    (the read tools keep it fresh lazily — no re-run after edits).
     await progress.report(phase(1, "indexing"));
     if ((await index.rootCount()) === 0) {
-      const idx = await index.index("/workspace");
+      const idx = await index.index(WORKSPACE);
       if (idx.files === 0) {
-        return "analyze: indexed 0 file(s) under /workspace — nothing to analyze " +
+        return `analyze: indexed 0 file(s) under ${WORKSPACE} — nothing to analyze ` +
                "(no file matches the Tree-sitter adapters' extensions).";
       }
       log.info(`analyze: indexed ${idx.files} file(s), ${idx.nodes} node(s)`);

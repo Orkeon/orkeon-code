@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { renderStateFile } from "../src/shared/domain/workflow/state-file.ts";
-import { WORKSPACE } from "../src/shared/domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../src/shared/domain/vfs.ts";
 
 export const SCRIPT = fileURLToPath(new URL("../scripts/session-start.sh", import.meta.url));
 

@@ -34,6 +34,7 @@ import { MAX_LEARN_PROMPT_CHARS, buildLearnPrompt } from "./learn-prompt.ts";
 import type { LearnPromptInput } from "./learn-prompt.ts";
 import { readBacklog } from "./learn-backlog.ts";
 import type { Backlog } from "./learn-backlog.ts";
+import { WORKSPACE, workspaceRelative } from "../../../shared/domain/vfs.ts";
 
 export interface DevLearnInputs { axis?: unknown; list?: unknown }
 export interface DevLearnDeps {
@@ -45,7 +46,6 @@ export interface DevLearnDeps {
 export const MAX_AXES_PER_RUN = 3;
 export const MAX_ROWS_PER_AXIS = 40;
 
-const WORKSPACE = "/workspace";
 const MAX_WARNINGS = 5;
 const MAX_AXES_NAMED = 5;
 const MAX_OWNERS = 12;
@@ -473,7 +473,7 @@ export async function runDevLearn(input: DevLearnInputs, deps: DevLearnDeps): Pr
     }
   } catch (error) {
     if (!(error instanceof WriteFailure)) throw error;
-    const shown = error.path.startsWith(`${WORKSPACE}/`) ? error.path.slice(WORKSPACE.length + 1) : error.path;
+    const shown = workspaceRelative(error.path);
     return done(`dev-learn: BLOCKED — ${shown} cannot be written (${error.message})`);
   }
   deps.log.info(`dev-learn: proposals written to ${work.folder}/${folder}/`);

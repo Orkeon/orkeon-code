@@ -6,7 +6,7 @@ import { parseBatchesState } from "../../../shared/domain/dev/batches-state.ts";
 import type { BatchesLogEntry } from "../../../shared/domain/dev/batches-state.ts";
 import { FakeFiles } from "../../../../tests/support/fake-files.ts";
 import { FakeShell } from "../../../../tests/support/fake-shell.ts";
-import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 export const NOW = new Date(Date.UTC(2026, 9, 24, 10, 0));
 export const q = (s: string) => `'${s}'`;

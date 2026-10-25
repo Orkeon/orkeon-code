@@ -5,7 +5,7 @@ import { FakeCodeIndex } from "../../../../tests/support/fake-code-index.ts";
 import { FakeLlm } from "../../../../tests/support/fake-llm.ts";
 import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
 import { FakeProgress } from "../../../../tests/support/fake-progress.ts";
-import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 export const GRAPH: GraphSummary = {
   nodes: [{ fqn: "a", name: "a", kind: "module" }],

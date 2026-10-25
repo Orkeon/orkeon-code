@@ -9,7 +9,7 @@ import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
 import { FakeMemoryStore } from "../../../../tests/support/fake-memory-store.ts";
 import { FakeProgress } from "../../../../tests/support/fake-progress.ts";
 import { FakeSessionStore } from "../../../../tests/support/fake-session-store.ts";
-import { WORKSPACE } from "../../domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 export const ABOVE = { used: 199_000, window: 200_000 };
 export const BELOW = { used: 1_200, window: 200_000 };

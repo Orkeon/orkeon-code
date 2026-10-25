@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
-import { WORKSPACE } from "../src/shared/domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../src/shared/domain/vfs.ts";
 
 /** A file of the repository, read as text. */
 export const read = (name: string) => readFileSync(fileURLToPath(new URL(`../${name}`, import.meta.url)), "utf-8");

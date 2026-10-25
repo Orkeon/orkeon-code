@@ -17,7 +17,7 @@ import type { PlanAnswer } from "../domain/plan-answer.ts";
 import type { Inventory } from "../domain/inventory-model.ts";
 import { END_LINE, PLAN_JSON } from "./run-dev-plan.ts";
 import type { DevPlanInputs } from "./run-dev-plan.ts";
-import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 const FIXTURES = new URL("../../../../tests/fixtures/dev/plan/", import.meta.url);
 export const fixture = (name: string): string => readFileSync(new URL(name, FIXTURES), "utf8");

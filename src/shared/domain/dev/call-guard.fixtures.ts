@@ -1,6 +1,6 @@
 // The facts, layouts, tool calls and hook declarations the dev crews' call guard is tested on.
 import type { ActFacts, CallGuardSpec, ToolHook } from "./call-guard.ts";
-import { WORKSPACE } from "./path-rebase.ts";
+import { WORKSPACE } from "../vfs.ts";
 
 /** An act in plan mode on a host with a gate. */
 export const ON: ActFacts = { mode: "plan", gateEnabled: true };

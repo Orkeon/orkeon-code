@@ -9,7 +9,7 @@ import { FakeFiles } from "./support/fake-files.ts";
 import { FakeShell } from "./support/fake-shell.ts";
 import { FakeTelemetry } from "./support/fake-telemetry.ts";
 import { FakeToolCatalogue } from "./support/fake-tool-catalogue.ts";
-import { WORKSPACE } from "../src/shared/domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../src/shared/domain/vfs.ts";
 
 /** A host where every check passes; `ignored` sets aside a project value per key, `deps` is what runDoctor takes. */
 export function doctorHost() {

@@ -1,5 +1,5 @@
 // Values the work folder rules are tested on.
-import { WORKSPACE } from "./path-rebase.ts";
+import { WORKSPACE } from "../vfs.ts";
 
 export interface FolderCase {
   raw: string;

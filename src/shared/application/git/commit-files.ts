@@ -11,6 +11,7 @@ import {
   ghPrCreateCommand, gitAddCommand, gitCommitCommand, gitPushCommand, indexDeletedPaths, parseDefaultBranch,
   parseGitIdent, prBodyPath, prSlug, renderPrBody, shellUnsafe,
 } from "../../domain/git/close.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 export type Step = { ok: true } | { ok: false; line: string };
 
@@ -96,7 +97,7 @@ async function writeMessage(files: Pick<Files, "write">, message: string): Promi
   let reason = "";
   for (const path of [COMMIT_MESSAGE_FILE, COMMIT_MESSAGE_FALLBACK]) {
     try {
-      await files.write(`/workspace/${path}`, message);
+      await files.write(`${WORKSPACE}/${path}`, message);
       return { ok: true, path };
     } catch (e) {
       reason = firstLine((e as Error)?.message ?? e);

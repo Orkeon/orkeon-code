@@ -4,6 +4,7 @@
 import type { Files, Shell } from "../../../shared/application/ports.ts";
 import { statusPaths } from "../domain/step-checks.ts";
 import type { Snapshot } from "../domain/step-checks.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 export const STATUS_COMMAND = "git status --porcelain=v1 --untracked-files=all";
 /** The paths one snapshot reads; past this, it keeps the paths alone (unread), and a role's change is known
@@ -40,7 +41,7 @@ export async function snapshot(deps: { shell: Pick<Shell, "run">; files: Pick<Fi
   }
   for (const path of paths) {
     try {
-      out.set(path, contentHash(await deps.files.read(`/workspace/${path}`, MAX_READ_CHARS)));
+      out.set(path, contentHash(await deps.files.read(`${WORKSPACE}/${path}`, MAX_READ_CHARS)));
     } catch (e) {
       out.set(path, /not found/i.test(String((e as Error)?.message ?? e)) ? ABSENT : null);
     }

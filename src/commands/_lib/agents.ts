@@ -26,8 +26,9 @@ import {
 import type { SavedAgent } from "../../shared/domain/agent-registry.ts";
 import { builtInCharterRows } from "../../shared/domain/agents/built-in-charters.ts";
 import type { CommandView } from "./view.ts";
+import { WORKSPACE } from "../../shared/domain/vfs.ts";
 
-export const AGENTS_FILE_PATH = "/workspace/.orkeon/agents.json";
+export const AGENTS_FILE_PATH = `${WORKSPACE}/.orkeon/agents.json`;
 
 export const AGENTS_USAGE =
   "usage: /agents [list] | add <name> <role> | <goal> | remove <name> | show <name>";

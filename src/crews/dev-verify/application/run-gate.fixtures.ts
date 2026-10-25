@@ -4,7 +4,7 @@ import { FakeShell } from "../../../../tests/support/fake-shell.ts";
 import { parseRepoPack } from "../../../shared/domain/dev/repo-pack.ts";
 import type { RepoPack } from "../../../shared/domain/dev/repo-pack.ts";
 import type { DevVerifyTarget } from "./run-gate.ts";
-import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 /** The pack a YAML text describes; a text that is no pack throws. */
 export function pack(yaml: string): RepoPack {

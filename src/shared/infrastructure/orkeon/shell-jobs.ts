@@ -14,8 +14,8 @@
 import type { ShellJobs } from "../../application/ports.ts";
 import { textFromRoot, textToRoot } from "../../domain/dev/path-rebase.ts";
 import { pick, shCode } from "./tool-results.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
-const WORKING_DIRECTORY = "/workspace";
 /** The waiting script, relative to /workspace, and its virtual path. */
 export const WAIT_SCRIPT = ".orkeon/dev/bin/wait.mjs";
 const WAIT_SCRIPT_CONTENT =
@@ -26,7 +26,7 @@ const WAIT_SCRIPT_CONTENT =
 const MAX_TAIL_LINES = 500;
 
 export function createShellJobs(tools: Pick<OrkeonTools, "shellCommand" | "fileWrite">, root?: string): ShellJobs {
-  const cwd = root ?? WORKING_DIRECTORY;
+  const cwd = root ?? WORKSPACE;
   let waiter: "unknown" | "ready" | "absent" = "unknown";
   return {
     async start(command) {

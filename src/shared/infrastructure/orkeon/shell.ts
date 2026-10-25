@@ -9,11 +9,10 @@
 import type { Shell } from "../../application/ports.ts";
 import { textFromRoot, textToRoot } from "../../domain/dev/path-rebase.ts";
 import { pick, shCode, shErr, shOut } from "./tool-results.ts";
-
-const WORKING_DIRECTORY = "/workspace";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 export function createShell(tools: Pick<OrkeonTools, "shellCommand">, root?: string): Shell {
-  const cwd = root ?? WORKING_DIRECTORY;
+  const cwd = root ?? WORKSPACE;
   return {
     async run(logical, options) {
       const command = textToRoot(logical, root);

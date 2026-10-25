@@ -9,6 +9,7 @@ import type { PermissionRule } from "../agent-policy/permission.ts";
 import { normalisePath } from "../dev/call-guard.ts";
 import { MEMORY_DIR, TOPIC_PATTERN } from "./refused.ts";
 import type { EntryType } from "./entry.ts";
+import { WORKSPACE } from "../vfs.ts";
 
 export const MEMORY_DIR_CONFIG_KEY = "memory.dir";
 export const MEMORY_PROJECT_CONFIG_KEY = "memory.project";
@@ -17,8 +18,6 @@ export const DEFAULT_MEMORY_DIR = MEMORY_DIR;
 /** The runtime's agent memory (Orkeon:Scripting:AgentMemory:RootDirectory, default /workspace/.orkeon/agent-memory):
  *  per agent, per run of the host, and never the shared memory's folder. */
 export const AGENT_MEMORY_DIR = ".orkeon/agent-memory";
-/** Where the files of the project are, as the file tools name them. */
-export const MEMORY_WORKSPACE = "/workspace";
 
 const within = (inner: string, outer: string): boolean => inner === outer || inner.startsWith(`${outer}/`);
 
@@ -68,7 +67,7 @@ export interface MemoryLayout {
 
 /** The paths of the folder's layout (temp/05 § 1.2); `dir` relative to the project, as checkMemoryDir returns it. */
 export function memoryLayout(dir: string): MemoryLayout {
-  const root = `${MEMORY_WORKSPACE}/${dir}`;
+  const root = `${WORKSPACE}/${dir}`;
   return {
     root,
     candidates: `${root}/candidates`,
@@ -109,7 +108,7 @@ export function memoryWriteRules(dir: string): PermissionRule[] {
 /** A path as the host resolves it, in lower case: a case-insensitive file system (a project mounted from macOS or
  *  Windows) reads `.Orkeon/Memory/Entries` as the folder, so the check never counts on the case. */
 function resolvedLower(path: string): string {
-  const resolved = normalisePath(path.startsWith("/") ? path : `${MEMORY_WORKSPACE}/${path}`);
+  const resolved = normalisePath(path.startsWith("/") ? path : `${WORKSPACE}/${path}`);
   return resolved.toLowerCase();
 }
 
@@ -147,7 +146,7 @@ export function memoryWriteRefusal(dir: string, tool: string, input: unknown): s
   if (UNSCOPED_WRITE_TOOLS.some((t) => sameToolName(t, tool))) {
     if (args.dry_run !== false) return null;
     const given = Array.isArray(args.paths) ? args.paths.filter((p): p is string => typeof p === "string" && p.trim() !== "") : [];
-    const bases = given.length > 0 ? given : [MEMORY_WORKSPACE];
+    const bases = given.length > 0 ? given : [WORKSPACE];
     const glob = typeof args.glob === "string" && args.glob.trim() !== "" ? args.glob.trim() : null;
     for (const base of bases) {
       const resolved = resolvedLower(base.trim());

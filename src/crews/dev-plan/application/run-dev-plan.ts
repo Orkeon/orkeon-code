@@ -35,6 +35,7 @@ import { noPrecedents, precedentsLine, recallQuery } from "../../../shared/appli
 import type { StepPrecedents } from "../../../shared/application/dev/step-precedents.ts";
 import { checkAnchorPaths } from "./anchor-paths.ts";
 import type { AnchorListings } from "./anchor-paths.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 export interface DevPlanInputs { source?: unknown; replace?: unknown }   // source: the token, null for none
 export interface DevPlanDeps {
@@ -48,7 +49,6 @@ export const PLAN_JSON = "plan.json";
 /** The last line of a plan ready to implement; `{command}` names the next step. */
 export const END_LINE = "→ Read and validate the plan. Then implement batch by batch: {command}";
 
-const WORKSPACE = "/workspace";
 const MAX_SOURCE_TOKEN = 300;
 const MAX_WARNINGS = 5;
 const MAX_PROBLEM_LINES = 12;

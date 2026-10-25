@@ -4,7 +4,7 @@ import type { WorkTree } from "./draft.ts";
 import { MAX_COMMIT_DIFF_CHARS } from "./draft.ts";
 import { FakeFiles } from "../../../../tests/support/fake-files.ts";
 import { FakeShell } from "../../../../tests/support/fake-shell.ts";
-import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 export const TREE: WorkTree = { status: "M a.ts", diff: "", branch: "main", recent: "", untracked: [] };
 export const MESSAGE = "fix(api): handle null\n\nbody";

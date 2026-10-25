@@ -7,7 +7,7 @@ import { FakeFiles } from "../../../../tests/support/fake-files.ts";
 import { parseRepoPack } from "../../../shared/domain/dev/repo-pack.ts";
 import type { RepoPack } from "../../../shared/domain/dev/repo-pack.ts";
 import type { DevVerifyTarget } from "./run-gate.ts";
-import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 const FIXTURE = new URL("../../../../tests/fixtures/dev/verify/", import.meta.url).pathname;
 const read = (name: string): string => readFileSync(join(FIXTURE, name), "utf8");

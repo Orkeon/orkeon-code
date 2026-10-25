@@ -3,6 +3,7 @@
 // the `Cost` line of the harness's access-cost.py, and the text of the capture's `cost` section.
 // A port call, or an in-memory filter, inside a loop or a lambda blocks only on an added line, as
 // `access-cost.py --diff` does. Pure.
+import { WORKSPACE, workspaceRelative } from "../vfs.ts";
 
 export type AccessCost =
   | { state: "not-computed"; reason: string }
@@ -31,16 +32,13 @@ export const COST_NOT_WIRED: AccessCost = {
   reason: "the crew wires no code index; judge the Cost axis from the diff",
 };
 
-/** The virtual root `/analyze` and `/dev-plan` index, and the prefix of every path the index holds. */
-export const INDEX_ROOT = "/workspace";
-
 export function notComputed(reason: string): AccessCost {
   return { state: "not-computed", reason };
 }
 
 /** No `/workspace` root in the index: the use case says so itself, the tool would answer an empty report. */
 export function notIndexed(roots: readonly string[]): AccessCost {
-  const holds = roots.length === 0 ? "the code index is empty" : `the code index holds ${roots.join(", ")}, not ${INDEX_ROOT}`;
+  const holds = roots.length === 0 ? "the code index is empty" : `the code index holds ${roots.join(", ")}, not ${WORKSPACE}`;
   return notComputed(`not indexed — ${holds}: run /analyze, then /dev-verify again; judge the Cost axis from the diff`);
 }
 
@@ -135,7 +133,7 @@ function plural(n: number, word: string): string {
 
 /** The member as the capture shows it: its path relative to the checkout. */
 function shownMember(fqn: string): string {
-  return fqn.startsWith(`${INDEX_ROOT}/`) ? fqn.slice(INDEX_ROOT.length + 1) : fqn;
+  return workspaceRelative(fqn);
 }
 
 /** The file of a member: its FQN up to the first `::` (UniversalSemanticMapper.cs:371). */

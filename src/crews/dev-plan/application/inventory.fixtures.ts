@@ -4,7 +4,7 @@ import { FakeCodeIndex } from "../../../../tests/support/fake-code-index.ts";
 import type { AnchorClosure, CodeSearchHit, SymbolLocation } from "../../../shared/application/ports.ts";
 import type { GraphSummary } from "../../../shared/domain/code-intel-contract.ts";
 import type { InventoryRequest } from "./inventory.ts";
-import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 /** An anchor index whose every closure is empty. */
 export const anchors = (): FakeAnchorIndex => new FakeAnchorIndex();

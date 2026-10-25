@@ -3,7 +3,7 @@ import type { SessionMsg } from "../../../shared/domain/types.ts";
 import { ERROR_THRESHOLD_BUFFER_TOKENS, WARNING_THRESHOLD_BUFFER_TOKENS } from "../../../shared/domain/compaction-thresholds.ts";
 import { buildGaugeBlock, buildHistoryBlock, buildMemoryBlock, buildUserContextBlock } from "./prompt-assembly.ts";
 import type { PromptParts } from "./prompt-assembly.ts";
-import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 /** Header options with an AGENTS.md of two lines. */
 export const AGENTS_HEADER_OPTS = { toolNames: ["file_read", "file_write"], instructions: { file: "AGENTS.md", content: "# Rules\nDo X." } };

@@ -3,7 +3,7 @@
 import { readFileSync } from "node:fs";
 
 import type { AnchorRef, PlanAnswer, PlanCheckContext } from "./plan-answer.ts";
-import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 const FIXTURES = new URL("../../../../tests/fixtures/dev/plan/", import.meta.url);
 const fixture = (name: string): string => readFileSync(new URL(name, FIXTURES), "utf8");

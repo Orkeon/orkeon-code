@@ -18,7 +18,7 @@ import { loadDevContext } from "../../../shared/application/dev/load-dev-context
 import { createWrappedTools } from "../../../shared/application/dev/wrapped-tools.ts";
 import { measureAccessCost } from "../../../shared/application/dev/measure-access-cost.ts";
 import type { CostFile } from "../../../shared/application/dev/measure-access-cost.ts";
-import { addedLines, INDEX_ROOT } from "../../../shared/domain/dev/access-cost.ts";
+import { addedLines } from "../../../shared/domain/dev/access-cost.ts";
 import { hasTestLayout, isTestPath } from "../../../shared/domain/dev/test-paths.ts";
 import { isUnfinishedSection, lastVerdict, parseVerdictFile } from "../../../shared/domain/dev/verdict-format.ts";
 import { shellQuote } from "../../../shared/domain/git/close.ts";
@@ -49,12 +49,13 @@ import { NOTHING_RECALLED, noPrecedents, precedentsLine, recallQuery, sheetTitle
 import type { Recalled, StepPrecedents } from "../../../shared/application/dev/step-precedents.ts";
 import { snapshot } from "./observe.ts";
 import { logText, NO_VERDICT_EXIT, runSuite } from "./suite-job.ts";
-import { locateSheet, WORKSPACE } from "./locate-sheet.ts";
+import { locateSheet } from "./locate-sheet.ts";
 import type { LocatedSheet } from "./locate-sheet.ts";
 import { prContextOf, readTouchedRecord, recordTouched, verdictMarkOf } from "./touched.ts";
 import type { PrContext } from "./touched.ts";
 import { closeDevBatch } from "./close.ts";
 import { BATCHES_ACTIVE_RECORD, batchesRunCode } from "../../../shared/domain/dev/batches-state.ts";
+import { WORKSPACE, workspaceRelative } from "../../../shared/domain/vfs.ts";
 
 export interface DevImplementInputs {
   batch?: unknown; plan?: unknown; close?: unknown; pr?: unknown; push?: unknown;
@@ -200,7 +201,7 @@ async function keepAssumptions(run: Run, text: string): Promise<void> {
 
 /** A path a write tool named, relative to /workspace. */
 export function workspacePath(path: string): string {
-  return path.trim().replace(/^\/workspace\//, "").replace(/^(\.\/)+/, "").replace(/\/+$/, "");
+  return workspaceRelative(path.trim()).replace(/^(\.\/)+/, "").replace(/\/+$/, "");
 }
 
 /** Puts the sheet back as code last wrote it; a problem when it cannot. */
@@ -531,14 +532,14 @@ function affectedCommands(
 async function refreshIndex(run: Run): Promise<boolean> {
   const index = run.deps.costIndex;
   if (index === undefined || run.touched.size === 0) return false;
-  const files = [...run.touched].sort().map((p) => `${INDEX_ROOT}/${p}`);
+  const files = [...run.touched].sort().map((p) => `${WORKSPACE}/${p}`);
   try {
     const roots = (await index.roots()).map((r) => (r.length > 1 ? r.replace(/\/+$/, "") : r));
-    if (!roots.includes(INDEX_ROOT)) {
-      run.lines.push(`index: not refreshed — ${INDEX_ROOT} is not indexed`);
+    if (!roots.includes(WORKSPACE)) {
+      run.lines.push(`index: not refreshed — ${WORKSPACE} is not indexed`);
       return false;
     }
-    const errors = await index.refresh(INDEX_ROOT, files);
+    const errors = await index.refresh(WORKSPACE, files);
     if (errors.length > 0) {
       run.lines.push(`index: not refreshed — incremental_reindex: ${reasonOf(errors[0])}`);
       return false;

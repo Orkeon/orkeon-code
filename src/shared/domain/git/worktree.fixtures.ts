@@ -1,5 +1,5 @@
 // The batch the worktree tests name.
-import { WORKSPACE } from "../dev/path-rebase.ts";
+import { WORKSPACE } from "../vfs.ts";
 
 export const CODE = "prune";
 export const BATCH = "F2";

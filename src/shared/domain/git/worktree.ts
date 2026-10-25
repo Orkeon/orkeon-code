@@ -6,9 +6,9 @@
 // git dir into the worktree's `.git` file, a path that does not exist in the runtime's sandbox, where the mounts sit
 // at virtual paths (Orkeon/orkeon#188). An older git refuses the option, and its own message is the refusal. Pure.
 import { shellQuote } from "./close.ts";
+import { WORKSPACE } from "../vfs.ts";
 
 export const WORKTREES_FOLDER = ".orkeon/worktrees";
-const WORKSPACE = "/workspace";
 const NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 
 export interface WorktreePlace {

@@ -3,7 +3,7 @@ import { worktreePlace } from "../../../shared/domain/git/worktree.ts";
 import { FakeFiles } from "../../../../tests/support/fake-files.ts";
 import { seedWorktree } from "./seed-harvest.ts";
 import type { SeedSnapshot, SeedTarget } from "./seed-harvest.ts";
-import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 export const PLACE = worktreePlace("prune-F2")!;
 export const TARGET: SeedTarget = { place: PLACE, work: "todo", code: "prune", memoryDir: ".orkeon/memory", batch: "F2" };

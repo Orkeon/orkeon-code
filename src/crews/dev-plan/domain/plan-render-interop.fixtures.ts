@@ -15,7 +15,7 @@ import { parsePlanSource } from "../../../shared/domain/dev/spec-format.ts";
 import type { PlanSource, SourceKind } from "../../../shared/domain/dev/spec-format.ts";
 import { traitMarker } from "../../../shared/domain/dev/trait-pattern.ts";
 import type { runGateChecks } from "../../dev-verify/domain/gate.ts";
-import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 /** The headings and lines the harness's implement, verify and batches steps read from a plan (IM, AC, DB). A file format. */
 export const HARNESS_PLAN_LINES: { plan: readonly RegExp[]; sheet: readonly RegExp[] } = {

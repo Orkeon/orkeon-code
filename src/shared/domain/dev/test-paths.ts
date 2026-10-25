@@ -3,11 +3,12 @@
 // /dev-implement reads it to tell the test author's changes from the implementer's. Pure.
 import { globMatches } from "../agent-policy/permission.ts";
 import type { RepoPackLayout } from "./repo-pack.ts";
+import { workspaceRelative } from "../vfs.ts";
 
 /** A path relative to the project: no `/workspace/` or `./` in front, no `/` behind. */
 export function relativePath(path: string): string {
   let p = path.trim();
-  if (p.startsWith("/workspace/")) p = p.slice("/workspace/".length);
+  p = workspaceRelative(p);
   while (p.startsWith("./")) p = p.slice(2);
   return p.replace(/\/+$/, "");
 }

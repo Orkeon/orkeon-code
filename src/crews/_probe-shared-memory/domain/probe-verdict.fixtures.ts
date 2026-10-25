@@ -1,6 +1,6 @@
 // The golden file, the rag_eval results and the probe facts the probe-verdict tests read.
 import type { Golden, ProbeFacts } from "./probe-verdict.ts";
-import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 /** A golden file in the fixture's subset: a comment, the top keys, a case with relevants and a negative case. */
 export const GOLDEN_YAML = [

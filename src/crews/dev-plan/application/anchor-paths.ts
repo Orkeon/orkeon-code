@@ -5,13 +5,13 @@
 // cut short, an existing anchor it cannot see is refused as not checked, never let through. Its problems join the answer's, for the one re-ask.
 import type { Files } from "../../../shared/application/ports.ts";
 import type { AnchorRef, PlanAnswer } from "../domain/plan-answer.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 export const MAX_ANCHOR_FOLDERS = 40;
 
 /** The folders listed in one run, relative to /workspace ("" for the top), with the names they hold. */
 export type AnchorListings = Map<string, ReadonlySet<string>>;
 
-const WORKSPACE = "/workspace";
 export const LIST_CAP = 1000;
 
 const folderOf = (path: string): string => {

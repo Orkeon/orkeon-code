@@ -1,6 +1,6 @@
 // The files, stores and expected gauges the context-gathering tests read.
 import type { FakeFiles } from "../../../../tests/support/fake-files.ts";
-import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 /** A language store answering `value` for every key, from a file. */
 export function languageStore(value: string | undefined) {

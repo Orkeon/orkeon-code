@@ -2,7 +2,7 @@
 // code-intel readers are pinned against.
 
 // ── Captured payloads. Verbatim from the live calls; do not "tidy" them. ──
-import { WORKSPACE } from "./dev/path-rebase.ts";
+import { WORKSPACE } from "./vfs.ts";
 
 export const INDEX_RAW = {
   index_id: "e4efebf4",

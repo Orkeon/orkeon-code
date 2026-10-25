@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 
 import type { Inventory, InventoryEntry } from "./inventory-model.ts";
-import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 export const INVENTORY: Inventory = JSON.parse(readFileSync(new URL("../../../../tests/fixtures/dev/plan/inventory.json", import.meta.url), "utf8"));
 

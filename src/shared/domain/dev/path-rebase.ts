@@ -3,8 +3,7 @@
 // checkout, and these functions map it at each boundary of the batch - onto the root on the way to the runtime
 // and the model, back to `/workspace` on the way in. A path already under the root, a relative path and another
 // mount (`/output`, `/tmp`) are kept; without a root every function is the identity. Pure.
-
-export const WORKSPACE = "/workspace";
+import { WORKSPACE } from "../vfs.ts";
 
 type Root = string | null | undefined;
 

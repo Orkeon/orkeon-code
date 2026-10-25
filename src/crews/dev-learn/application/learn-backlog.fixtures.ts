@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { FakeFiles } from "../../../../tests/support/fake-files.ts";
 import type { WorkFolder } from "../../../shared/application/dev/resolve-work-folder.ts";
 import type { LearnRow } from "../../../shared/domain/shared-memory/verdict-rows.ts";
-import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 const root = fileURLToPath(new URL("../../../../tests/fixtures/dev/learn/", import.meta.url));
 

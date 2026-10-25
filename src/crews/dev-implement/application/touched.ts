@@ -5,6 +5,7 @@
 // context read at the launch, which the chained close reads back: the chain keeps no state of its own.
 import type { Files } from "../../../shared/application/ports.ts";
 import { contentHash } from "./observe.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 /** The mark of a verdict file's text: its hash, or "none" when there is no verdict file. */
 export function verdictMarkOf(text: string | null): string {
@@ -12,7 +13,7 @@ export function verdictMarkOf(text: string | null): string {
 }
 
 export function touchedPath(code: string, batch: string): string {
-  return `/workspace/.orkeon/dev/${code}/implement-${batch}.json`;
+  return `${WORKSPACE}/.orkeon/dev/${code}/implement-${batch}.json`;
 }
 
 /** What the close needs to open the pull request itself, as the command read it at the launch. */

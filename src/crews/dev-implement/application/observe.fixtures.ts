@@ -2,7 +2,7 @@
 import { FakeFiles } from "../../../../tests/support/fake-files.ts";
 import { FakeShell } from "../../../../tests/support/fake-shell.ts";
 import { MAX_SNAPSHOT_PATHS, STATUS_COMMAND } from "./observe.ts";
-import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 /** A shell whose status answers `stdout`, or fails with `exitCode`. */
 export function statusShell(status: { stdout?: string; exitCode?: number }): FakeShell {

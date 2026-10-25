@@ -14,7 +14,7 @@ import { ORKEON_IGNORE_PROBE, checkIgnoreCommand } from "../../../shared/applica
 import type { ChangeAnswer } from "../domain/change-answer.ts";
 import { runDevChange } from "./run-dev-change.ts";
 import type { DevChangeInputs } from "./run-dev-change.ts";
-import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 export const PACK = readFileSync(new URL("../../../../tests/fixtures/dev/plan/pack.yaml", import.meta.url), "utf8");
 export const W = `${WORKSPACE}/workbench`;

@@ -1,7 +1,7 @@
 // The code-intelligence replies the CodeIndex, AnchorIndex and CostIndex tests read, what they read from them, and
 // the stand-ins of the tools FakeTools does not fake (batch_anchors, incremental_reindex, access_cost).
 import type { createCodeIndex } from "./code-index.ts";
-import { WORKSPACE } from "../../domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 type CodeIndex = ReturnType<typeof createCodeIndex>;
 

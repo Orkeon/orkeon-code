@@ -17,14 +17,15 @@ import { parseVerdictFile } from "../../domain/dev/verdict-format.ts";
 import type { VerdictFile } from "../../domain/dev/verdict-format.ts";
 import { parseBatchesState } from "../../domain/dev/batches-state.ts";
 import type { BatchesState } from "../../domain/dev/batches-state.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 export interface DevContextDeps {
   files: Pick<Files, "read" | "list">; shell: Pick<Shell, "run">; config: Pick<ConfigStore, "readValue">;
 }
 export interface DevContext { pack: FoundPack | null; work: WorkFolder; warnings: string[] }
 export const ORKEON_IGNORE_PROBE = ".orkeon/config.json";
-export const HARNESS_SETTINGS_LOCAL = "/workspace/.claude/settings.local.json";
-export const HARNESS_TODO = "/workspace/todo";
+export const HARNESS_SETTINGS_LOCAL = `${WORKSPACE}/.claude/settings.local.json`;
+export const HARNESS_TODO = `${WORKSPACE}/todo`;
 
 const TODO_LIST_CAP = 200;
 const TODO_SUBFOLDERS_PROBED = 20;

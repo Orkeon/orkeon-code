@@ -9,6 +9,7 @@ import type {
 } from "../../shared/application/ports.ts";
 import { CLI_BUILD, CLI_NAME, CLI_VERSION, ORKEON_RUNTIME_VERSION } from "./meta.ts";
 import type { CommandView } from "./view.ts";
+import { WORKSPACE } from "../../shared/domain/vfs.ts";
 
 export interface StatusInputs {
   model?: unknown;
@@ -51,7 +52,7 @@ export function buildStatusRows(i: StatusInputs): Array<{ field: string; value: 
     { field: "model", value: String(i.model ?? "").trim() || "(unreported by the host — see /model)" },
     // The host's default provider: a turn on another profile runs on that profile's.
     { field: "provider", value: String(i.provider ?? "").trim() ? `${String(i.provider).trim()} (the host's default)` : "(unreported by the host)" },
-    { field: "workspace", value: String(i.workspace ?? "/workspace") },
+    { field: "workspace", value: String(i.workspace ?? WORKSPACE) },
     { field: "session", value: String(i.title ?? "").trim() || "(untitled)" },
     { field: "messages", value: String(Number(i.messages ?? 0) || 0) },
     { field: "context", value: `${used} tokens${pct}` },
@@ -104,7 +105,7 @@ export async function runStatus(deps: StatusDeps): Promise<CommandView> {
       costUsd: cost.costUsd,
       calls: cost.totalCalls ?? stats.totalCalls,
       crews: deps.crews.listCrews(),
-      workspace: "/workspace",
+      workspace: WORKSPACE,
       platform,
       provider: deps.provider?.(),
     }),

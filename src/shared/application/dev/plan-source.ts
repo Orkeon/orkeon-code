@@ -4,11 +4,11 @@
 // the command and the crew print as they are.
 import type { Files } from "../ports.ts";
 import type { WorkFolder } from "./resolve-work-folder.ts";
-import { WORKSPACE_ROOT } from "./resolve-work-folder.ts";
 import { listDevCodes } from "./load-dev-context.ts";
 import { classifyArtefact, isCode } from "../../domain/dev/artefacts.ts";
 import { parsePlanSource } from "../../domain/dev/spec-format.ts";
 import type { PlanSource, SourceKind } from "../../domain/dev/spec-format.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 export interface ResolvedSource {
   kind: SourceKind;
@@ -51,8 +51,8 @@ function byPath(token: string): Resolution {
   const notSource = refuse(`dev-plan: '${token}' is neither a code nor a SPEC-<code>.md / CHANGE-<code>.md path`);
   let relative = token.replace(/^\.\//, "");
   if (relative.startsWith("/")) {
-    if (!relative.startsWith(`${WORKSPACE_ROOT}/`)) return notSource;
-    relative = relative.slice(WORKSPACE_ROOT.length + 1);
+    if (!relative.startsWith(`${WORKSPACE}/`)) return notSource;
+    relative = relative.slice(WORKSPACE.length + 1);
   }
   // `/workspace/./.claude/x` and `/workspace//.claude/x` name `.claude/x`: the `.` and empty segments go first.
   const segments = relative.split("/").filter((s) => s !== "" && s !== ".");
@@ -76,7 +76,7 @@ export async function resolvePlanSource(
   files: Pick<Files, "list" | "read">, work: WorkFolder, token: string | null,
 ): Promise<{ ok: true; source: ResolvedSource } | { ok: false; text: string }> {
   if (work.vfsPath === null) {
-    return refuse(`dev-plan: the work folder ${work.folder} is outside /workspace: run /dev-plan from the main worktree`);
+    return refuse(`dev-plan: the work folder ${work.folder} is outside ${WORKSPACE}: run /dev-plan from the main worktree`);
   }
   if (token !== null && looksLikePath(token)) return byPath(token);
   if (token !== null) {
@@ -104,7 +104,7 @@ export async function readPlanSource(
 ): Promise<{ ok: true; text: string; parsed: PlanSource } | { ok: false; text: string }> {
   let text: string;
   try {
-    text = await files.read(`${WORKSPACE_ROOT}/${source.sourceShown}`, MAX_SOURCE_CHARS);
+    text = await files.read(`${WORKSPACE}/${source.sourceShown}`, MAX_SOURCE_CHARS);
   } catch (e) {
     return { ok: false, text: `dev-plan: ${source.sourceShown} cannot be read (${firstLine(e)})` };
   }

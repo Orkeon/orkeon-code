@@ -4,11 +4,9 @@
 // that fails leaves the cost not computed; nothing here refuses the step.
 import type { CostIndex } from "../ports.ts";
 import type { AccessCost } from "../../domain/dev/access-cost.ts";
-import {
-  COST_NOT_WIRED, INDEX_ROOT, isTestFile, isTestRoot, measuredCost, notComputed, notIndexed, nothingChanged,
-  receiversArgument, underRoots,
-} from "../../domain/dev/access-cost.ts";
+import { COST_NOT_WIRED, isTestFile, isTestRoot, measuredCost, notComputed, notIndexed, nothingChanged, receiversArgument, underRoots } from "../../domain/dev/access-cost.ts";
 import type { RepoPack } from "../../domain/dev/repo-pack.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 const firstLine = (text: string): string => (text.split("\n")[0] ?? "").trim();
 
@@ -39,7 +37,7 @@ export async function measureAccessCost(
   const test = isTest ?? ((p: string) => isTestFile(p, testRoots));
   const kept = underRoots(changed.map((f) => f.path).filter((p) => !test(p)), roots);
   if (kept.length === 0) return nothingChanged(roots);
-  const files = kept.map((p) => `${INDEX_ROOT}/${p}`);
+  const files = kept.map((p) => `${WORKSPACE}/${p}`);
 
   let indexed: string[];
   try {
@@ -47,10 +45,10 @@ export async function measureAccessCost(
   } catch (error) {
     return failed("index_status", error);
   }
-  if (!indexed.map(normalRoot).includes(INDEX_ROOT)) return notIndexed(indexed);
+  if (!indexed.map(normalRoot).includes(WORKSPACE)) return notIndexed(indexed);
 
   try {
-    const errors = await index.refresh(INDEX_ROOT, files);
+    const errors = await index.refresh(WORKSPACE, files);
     if (errors.length > 0) return notComputed(`incremental_reindex: ${firstLine(errors[0])}; judge the Cost axis from the diff`);
   } catch (error) {
     return failed("incremental_reindex", error);
@@ -65,6 +63,6 @@ export async function measureAccessCost(
   if (answer.errors.length > 0) return notComputed(`access_cost: ${firstLine(answer.errors[0])}; judge the Cost axis from the diff`);
   if (answer.report === null) return notComputed("access_cost returned no readable report; judge the Cost axis from the diff");
 
-  const added = new Map(changed.map((f) => [`${INDEX_ROOT}/${f.path}`, f.added] as const));
+  const added = new Map(changed.map((f) => [`${WORKSPACE}/${f.path}`, f.added] as const));
   return measuredCost(answer.report, added);
 }

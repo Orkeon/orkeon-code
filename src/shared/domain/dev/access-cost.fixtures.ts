@@ -1,7 +1,7 @@
 // The access_cost reports, diffs and file lists the access cost is tested on.
 import type { AccessCostReport, CostTotals } from "./access-cost.ts";
 import { readAccessCostReport } from "./access-cost.ts";
-import { WORKSPACE } from "./path-rebase.ts";
+import { WORKSPACE } from "../vfs.ts";
 
 /** Totals of nothing, as access_cost writes them. */
 export const ZERO = { reads: 0, writes: 0, loops: 0, lambdas: 0, memory_filters: 0 };

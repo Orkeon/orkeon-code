@@ -3,7 +3,7 @@ import { USER_CONFIG_FILE_PATH, createConfigStore } from "./config-store.ts";
 import { FakeFiles } from "../../../tests/support/fake-files.ts";
 import { FakeSessionStore } from "../../../tests/support/fake-session-store.ts";
 import { FakeToolCatalogue } from "../../../tests/support/fake-tool-catalogue.ts";
-import { WORKSPACE } from "../domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../domain/vfs.ts";
 
 export const PROJECT_CONFIG = `${WORKSPACE}/.orkeon/config.json`;
 

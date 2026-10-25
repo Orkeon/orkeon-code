@@ -4,7 +4,7 @@ import {
   FOLDER_READ_TOOLS, gitConfigSets, PATH_READ_TOOLS, PATH_WRITE_TOOLS, RULE_SETS, UNSCOPED_WRITE_TOOLS, WRITTEN_TEXT,
 } from "./rule-sets.ts";
 import type { RuleSetId } from "./rule-sets.ts";
-import { WORKSPACE } from "../dev/path-rebase.ts";
+import { WORKSPACE } from "../vfs.ts";
 
 /** git-readonly as the dev crews apply it: its rules, then the code's reading of a git config that sets a value. */
 export function gitRefused(command: string): boolean {

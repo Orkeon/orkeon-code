@@ -22,6 +22,7 @@ import { markPlanBatchDone } from "../../dev-implement/domain/sheet-edits.ts";
 import { eventLine, lastEntryOf } from "../domain/batches-log.ts";
 import { harvestBatch, seedWorktree } from "./seed-harvest.ts";
 import type { SeedSnapshot, SeedTarget } from "./seed-harvest.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 /** What the crew's batch agent is run with. */
 export interface BatchRun {
@@ -148,7 +149,7 @@ async function markPlanDone(files: Pick<Files, "read" | "write">, req: WaveReque
   const sheet = req.sheets[batch];
   if (sheet === undefined) return [];
   const name = sheet.replace(/-F\d+\.md$/, ".md");
-  const path = `/workspace/${req.work}/${req.code}/${name}`;
+  const path = `${WORKSPACE}/${req.work}/${req.code}/${name}`;
   try {
     const plan = await files.read(path);
     const marked = markPlanBatchDone(plan, batch, req.clock().toISOString().slice(0, 10));

@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 
 import { RULEABLE_TOOLS } from "./permission.ts";
 import type { ExtraTool, PermissionRule, RuleCheck } from "./permission.ts";
-import { WORKSPACE } from "../dev/path-rebase.ts";
+import { WORKSPACE } from "../vfs.ts";
 
 /** Each tool of `interface OrkeonBuiltInTools` (src/crews/.orkeon/orkeon.d.ts) with the depth-1 keys of
  *  its input: a ``/** `name` - …`` line, then `camel(input…{` and its keys until the brace closes, or

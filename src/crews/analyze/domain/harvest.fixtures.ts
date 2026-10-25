@@ -1,5 +1,5 @@
 // The payload shapes the harvest tests render, as captured live 2026-08-06.
-import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 export const MODULE_GRAPH = {
   nodes: [

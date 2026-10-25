@@ -12,9 +12,9 @@ import {
 import type { HarnessLearnState, LearnState } from "../../../shared/domain/dev/learn-state.ts";
 import { REFUSED_FILE, parseRefused } from "../../../shared/domain/shared-memory/refused.ts";
 import type { RefusedMotif } from "../../../shared/domain/shared-memory/refused.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 export { FOLDER_LIST_CAP, WORK_LIST_CAP } from "../../../shared/application/dev/verdict-sources.ts";
-const WORKSPACE = "/workspace";
 
 export interface Backlog {
   rows: LearnRow[];            // every row, collected (§ 1.3)

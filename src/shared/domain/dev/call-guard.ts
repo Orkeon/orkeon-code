@@ -14,6 +14,7 @@ import { STEP_RULE_SETS, roleRules } from "./step-rules.ts";
 import type { DevRole, DevStep, LayoutRootKey } from "./step-rules.ts";
 import type { RepoPackLayout } from "./repo-pack.ts";
 import { matchesAny, relativePath } from "./test-paths.ts";
+import { WORKSPACE } from "../vfs.ts";
 
 /** One /hooks declaration the callbacks run; `n` is its number in /hooks list. */
 export interface ToolHook { n: number; event: "pre-tool" | "post-tool"; command: string }
@@ -160,15 +161,12 @@ export function normalisePath(path: string): string {
   return absolute ? `/${text}` : text === "" ? "." : text;
 }
 
-/** Where the host resolves a relative path. */
-const PROJECT = "/workspace";
-
 /** The forms a path is matched in: as written, normalised, and for a relative path the absolute one the host
  *  resolves it to under the project, where a leading `..` cannot climb above the root
  *  (`../workspace/tests/a.test.ts` reads `/workspace/tests/a.test.ts`). Each form once. */
 function pathForms(path: string): string[] {
   const forms = [path, normalisePath(path)];
-  if (!path.startsWith("/")) forms.push(normalisePath(`${PROJECT}/${path}`));
+  if (!path.startsWith("/")) forms.push(normalisePath(`${WORKSPACE}/${path}`));
   return [...new Set(forms)];
 }
 

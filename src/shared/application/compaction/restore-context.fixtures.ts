@@ -10,7 +10,7 @@ import { SKILLS_STATE_KEY } from "../../domain/session-keys.ts";
 import type { SessionMsg } from "../../domain/types.ts";
 import { FakeFiles } from "../../../../tests/support/fake-files.ts";
 import { FakeSessionStore } from "../../../../tests/support/fake-session-store.ts";
-import { WORKSPACE } from "../../domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 export const PER_FILE_CHARS = POST_COMPACT_PER_FILE_TOKENS * CHARS_PER_TOKEN;
 export const PER_SKILL_CHARS = POST_COMPACT_PER_SKILL_TOKENS * CHARS_PER_TOKEN;

@@ -6,7 +6,7 @@ import type { RepoPackCommands } from "../../../shared/domain/dev/repo-pack.ts";
 import type { AuditBriefInput } from "./auditor-prompt.ts";
 import { shellValidationRunner } from "./audit.ts";
 import type { RecordingRunner, ValidationRunner } from "./audit.ts";
-import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 export const FOLDER = `${WORKSPACE}/workbench/demo/capture-F2`;
 export const SHOWN = "workbench/demo/capture-F2";

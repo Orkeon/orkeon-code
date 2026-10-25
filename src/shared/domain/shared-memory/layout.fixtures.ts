@@ -1,5 +1,5 @@
 // The folders, paths and commands the memory's layout and write rules are tested on.
-import { WORKSPACE } from "../dev/path-rebase.ts";
+import { WORKSPACE } from "../vfs.ts";
 
 /** The layout of the memory folder .orkeon/memory. */
 export const ORKEON_MEMORY_LAYOUT = {

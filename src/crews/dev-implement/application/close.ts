@@ -21,9 +21,9 @@ import { under } from "../domain/step-checks.ts";
 import { openSteps, parseImplementSheet } from "../domain/step-section.ts";
 import { markPlanBatchDone, markSheetDone } from "../domain/sheet-edits.ts";
 import { shellQuote, workBranchFromPattern } from "../../../shared/domain/git/close.ts";
-import { WORKSPACE } from "./locate-sheet.ts";
 import { verdictMarkOf } from "./touched.ts";
 import type { LocatedSheet } from "./locate-sheet.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 export interface CloseInput {
   pack: RepoPack;

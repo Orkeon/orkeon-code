@@ -10,8 +10,8 @@ import type { WorkDirRequest } from "../../domain/dev/work-folder.ts";
 import {
   DEFAULT_WORK_FOLDER, isSamePath, mainWorktreeOf, normalizeWorkDir,
 } from "../../domain/dev/work-folder.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
-export const WORKSPACE_ROOT = "/workspace";
 export const GIT_WORKTREE_LIST = "git worktree list --porcelain";
 export const GIT_TOPLEVEL = "git rev-parse --show-toplevel";
 
@@ -74,7 +74,7 @@ export async function resolveWorkFolder(
   deps: { files: Pick<Files, "list">; shell: Pick<Shell, "run"> },
   request: WorkDirRequest | null,
 ): Promise<WorkFolder> {
-  const defaultVfs = `${WORKSPACE_ROOT}/${DEFAULT_WORK_FOLDER}`;
+  const defaultVfs = `${WORKSPACE}/${DEFAULT_WORK_FOLDER}`;
   const fallback = async (outcome: WorkFolderOutcome, note: string | null): Promise<WorkFolder> => ({
     folder: DEFAULT_WORK_FOLDER,
     vfsPath: defaultVfs,
@@ -93,7 +93,7 @@ export async function resolveWorkFolder(
   const value = check.folder;
   if (value === "") return fallback("default", null);
 
-  const vfsPath = `${WORKSPACE_ROOT}/${value}`;
+  const vfsPath = `${WORKSPACE}/${value}`;
   if (value === DEFAULT_WORK_FOLDER) {
     return { folder: value, vfsPath, outcome: "applied", request, exists: await entryExists(deps.files, vfsPath), note: null };
   }

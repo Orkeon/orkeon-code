@@ -10,7 +10,6 @@ import { addedLines, costSection } from "../../../shared/domain/dev/access-cost.
 import type { AccessCost } from "../../../shared/domain/dev/access-cost.ts";
 import { measureAccessCost } from "../../../shared/application/dev/measure-access-cost.ts";
 import type { DevVerifyTarget, GateRun } from "./run-gate.ts";
-import { WORKSPACE } from "./run-gate.ts";
 import { TREE_CODE_EXTENSIONS, extensionOf } from "../../../shared/domain/search-routing.ts";
 import type { BuildState, TableRow } from "../domain/mechanical-table.ts";
 import { CHECK_METHODS, mechanicalRows, renderTable } from "../domain/mechanical-table.ts";
@@ -22,6 +21,7 @@ import type { TestRunSummary } from "../domain/capture-sections.ts";
 import {
   UNQUOTABLE_SCOPE, findNewer, gitDiffTracked, gitDiffUntracked, gitMethodGrep, gitStatusShort, gitTestFilesNaming,
 } from "../domain/commands.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 export const BUILD_TIMEOUT_SECONDS = 900;
 

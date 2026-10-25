@@ -4,7 +4,7 @@ import type { AccessCostReport } from "../../domain/dev/access-cost.ts";
 import { parseRepoPack } from "../../domain/dev/repo-pack.ts";
 import type { RepoPack } from "../../domain/dev/repo-pack.ts";
 import type { measureAccessCost } from "./measure-access-cost.ts";
-import { WORKSPACE } from "../../domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 const ZERO = { reads: 0, writes: 0, loops: 0, lambdas: 0, memoryFilters: 0 };
 

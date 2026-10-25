@@ -1,6 +1,6 @@
 // The entries the candidates list and the index are tested on.
 import type { EntryType, MemoryEntry } from "./entry.ts";
-import { WORKSPACE } from "../dev/path-rebase.ts";
+import { WORKSPACE } from "../vfs.ts";
 
 // tests/doubles/memory-entries.ts's sampleEntry, here because a domain test imports the domain only.
 const ENTRY_BODY = "## Context\nA sentence of context.\n\n## Content\nThe rule itself.\n\n## Evidence\n`src/app/main.ts:10`\n";

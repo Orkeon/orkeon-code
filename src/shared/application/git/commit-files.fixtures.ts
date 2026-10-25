@@ -5,7 +5,7 @@ import type { PullRequestHandOver } from "./commit-files.ts";
 import { FakeFiles } from "../../../../tests/support/fake-files.ts";
 import { FakePullRequestOpener } from "../../../../tests/support/fake-pull-request-opener.ts";
 import { FakeShell } from "../../../../tests/support/fake-shell.ts";
-import { WORKSPACE } from "../../domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 export const AUTHOR = "git var GIT_AUTHOR_IDENT";
 export const COMMITTER = "git var GIT_COMMITTER_IDENT";

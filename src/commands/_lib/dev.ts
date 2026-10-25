@@ -7,6 +7,7 @@ import type { CodeSummary, DevCode, DevContext, DevContextDeps } from "../../sha
 import { loadDevCode, loadDevContext, probeDevCodes } from "../../shared/application/dev/load-dev-context.ts";
 import { workFolderLabel } from "../../shared/application/dev/resolve-work-folder.ts";
 import { PROPOSAL_ID, runDevLearnDecision } from "../../shared/application/dev/learn-decision.ts";
+import { workspaceRelative } from "../../shared/domain/vfs.ts";
 export { runDevLearnDecision };
 export type { DevLearnDecisionDeps } from "../../shared/application/dev/learn-decision.ts";
 import { compareBatchIds, isCode } from "../../shared/domain/dev/artefacts.ts";
@@ -236,7 +237,7 @@ const DEV_VERIFY_MODES: readonly string[] = ["fast", "full", "resume"];
 
 /** A plan named by its path: relative (or under /workspace/), ending -PLAN.md, with no ".." segment. */
 function isPlanPath(token: string): boolean {
-  const relative = token.startsWith("/workspace/") ? token.slice("/workspace/".length) : token;
+  const relative = workspaceRelative(token);
   if (!relative.endsWith("-PLAN.md") || relative.startsWith("/")) return false;
   return !relative.split("/").includes("..");
 }

@@ -5,7 +5,6 @@
 // or an invalid entry is reported by writeCandidate's own checks.
 
 import type { Files } from "../ports.ts";
-import { MEMORY_WORKSPACE } from "../../domain/shared-memory/layout.ts";
 import type { MemoryLayout } from "../../domain/shared-memory/layout.ts";
 import {
   AGENT_MEMORY_INDEX, HARNESS_AGENT_MEMORY_DIR, MAX_NOTE_CHARS, importedEntry, parseAgentMemoryIndex, parseAgentNote,
@@ -15,8 +14,9 @@ import { MAX_LISTED, pendingCandidates, readOrNull, storedEntries } from "./memo
 import { writeCandidate } from "./push-candidate.ts";
 import { topicOf } from "../../domain/shared-memory/refused.ts";
 import { secretPatternsIn } from "../../domain/secret-patterns.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
-export const HARNESS_AGENT_MEMORY_ROOT = `${MEMORY_WORKSPACE}/${HARNESS_AGENT_MEMORY_DIR}`;
+export const HARNESS_AGENT_MEMORY_ROOT = `${WORKSPACE}/${HARNESS_AGENT_MEMORY_DIR}`;
 
 export interface ImportOutcome {
   /** The agents whose MEMORY.md was read, with their entry count. */

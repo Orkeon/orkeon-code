@@ -17,7 +17,7 @@ import {
 } from "../../../shared/domain/git/close.ts";
 import { ACTIVE_RECORD, runDevBatches } from "./run-dev-batches.ts";
 import type { BatchesAnswer, DevBatchesDeps } from "./run-dev-batches.ts";
-import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 const DEMO_DIR = fileURLToPath(new URL("../../../../tests/fixtures/dev/workbench/demo/", import.meta.url));
 export const DIR = `${WORKSPACE}/workbench/demo`;

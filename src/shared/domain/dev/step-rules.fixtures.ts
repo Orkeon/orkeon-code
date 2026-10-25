@@ -1,5 +1,5 @@
 // Layouts, tools and the lines expected of the dev steps' rules.
-import { WORKSPACE } from "./path-rebase.ts";
+import { WORKSPACE } from "../vfs.ts";
 
 /** The line refusing /dev-plan when the host's gate is off. */
 export const DEV_PLAN_GATE_OFF =

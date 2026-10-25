@@ -5,7 +5,7 @@ import { collectLearnRows } from "../../domain/shared-memory/verdict-rows.ts";
 import { LiveListingFiles } from "../../../../tests/doubles/live-listing-files.ts";
 import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
 import { FakeShell } from "../../../../tests/support/fake-shell.ts";
-import { WORKSPACE } from "../../domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 export const W = `${WORKSPACE}/workbench`;
 export const work = { folder: "workbench", vfsPath: W };

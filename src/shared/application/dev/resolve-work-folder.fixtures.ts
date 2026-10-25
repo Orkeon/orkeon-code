@@ -2,8 +2,8 @@
 import { FakeFiles } from "../../../../tests/support/fake-files.ts";
 import { FakeShell } from "../../../../tests/support/fake-shell.ts";
 import type { WorkDirRequest } from "../../domain/dev/work-folder.ts";
-import { GIT_TOPLEVEL, GIT_WORKTREE_LIST, WORKSPACE_ROOT } from "./resolve-work-folder.ts";
-import { WORKSPACE } from "../../domain/dev/path-rebase.ts";
+import { GIT_TOPLEVEL, GIT_WORKTREE_LIST } from "./resolve-work-folder.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 /** A request from the pack's layout.work, and from the config's dev.workDir. */
 export const pack = (value: string): WorkDirRequest => ({ value, source: "layout.work" });
@@ -16,7 +16,7 @@ export const LINKED_PORCELAIN = "worktree /home/dev/repo\nHEAD 0123abc\nbranch r
 /** Files whose checkout root lists `listing`, and a shell answering nothing. */
 export function setup(listing: string[] = []) {
   const files = new FakeFiles();
-  files.listings.set(WORKSPACE_ROOT, listing);
+  files.listings.set(WORKSPACE, listing);
   const shell = new FakeShell();
   return { files, shell };
 }

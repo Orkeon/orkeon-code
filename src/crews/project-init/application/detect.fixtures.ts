@@ -1,6 +1,6 @@
 // The checkouts the project-init reads are tested over.
 import { FakeFiles } from "../../../../tests/support/fake-files.ts";
-import { WORKSPACE } from "../../../shared/domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 /** A checkout with `count` top-level entries. */
 export function checkoutWithEntries(count: number): FakeFiles {

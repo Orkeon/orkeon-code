@@ -4,7 +4,7 @@ import { FakeShell } from "../../../../tests/support/fake-shell.ts";
 import type { RepoPackCommands } from "../../domain/dev/repo-pack.ts";
 import type { PermissionRule } from "../../domain/agent-policy/permission.ts";
 import { createWrappedTools } from "./wrapped-tools.ts";
-import { WORKSPACE } from "../../domain/dev/path-rebase.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 export const COMMANDS: RepoPackCommands = {
   restore: "dotnet restore Orkeon.sln",
