@@ -5,7 +5,8 @@ import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import { MAX_REVIEW_ROWS, REVIEW_ANSWER_SCHEMA, checkReviewAnswer } from "./review-answer.ts";
 import {
-  answer, BAD_QUESTIONS, CITING_EVIDENCE, CTX, distinctRows, PIPED_ROW, problemsOf, REFUSED_QUESTION, REPEATED_ROWS, row,
+  answer, BACKSLASHED_ROW, BAD_QUESTIONS, CITING_EVIDENCE, CTX, distinctRows, PIPED_ROW, problemsOf, REFUSED_QUESTION,
+  REPEATED_ROWS, row,
 } from "./review-answer.fixtures.ts";
 import type { SchemaShape } from "./review-answer.fixtures.ts";
 
@@ -202,6 +203,17 @@ describe("checkReviewAnswer", () => {
     ok(out.ok);
     strictEqual(out.ok && out.value.rows[0].evidence, "src/a.ts:3 \\| src/b.ts:4 and `## Design` row `Rounding \\| none`");
     strictEqual(out.ok && out.value.rows[0].question, "Is it A \\| B? Or C?");
+  });
+
+  it("escapes a backslash before the `|`, so that it cannot undo the pipe's escape", () => {
+    // Arrange
+    const value = answer({ rows: [BACKSLASHED_ROW] });
+
+    // Act
+    const out = checkReviewAnswer(value, CTX);
+
+    // Assert
+    strictEqual(out.ok && out.value.rows[0].evidence, "src\\\\a.ts:3 \\\\\\| a Windows path `C:\\\\x`");
   });
 
   for (const evidence of CITING_EVIDENCE) {

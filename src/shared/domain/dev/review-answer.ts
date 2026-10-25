@@ -42,10 +42,11 @@ const PATH_LINE = /[A-Za-z0-9_./-]+:\d+/;
 const SECTION = /§ ?\S/;
 const HEADING = /##\s*\S/;
 
-/** `value` as one table cell: a line break becomes a space, a `|` is escaped. A quoted design row or a path with a
- *  `|` is no reason to refuse the row and run the extraction again. */
+/** `value` as one table cell: a line break becomes a space, a `\` then a `|` are escaped (the backslash first, so
+ *  that a `\` before a `|` cannot undo the pipe's escape). A quoted design row or a path with a `|` is no reason
+ *  to refuse the row and run the extraction again. */
 function cell(value: string): string {
-  return value.replace(/\s*[\r\n]+\s*/g, " ").replace(/\|/g, "\\|").trim();
+  return value.replace(/\s*[\r\n]+\s*/g, " ").replace(/\\/g, "\\\\").replace(/\|/g, "\\|").trim();
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

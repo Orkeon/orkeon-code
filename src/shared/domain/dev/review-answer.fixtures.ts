@@ -51,6 +51,9 @@ export const CITING_EVIDENCE: readonly string[] = [
 /** A row whose evidence and question hold a `|` and a line break. */
 export const PIPED_ROW = row({ evidence: "src/a.ts:3 | src/b.ts:4\nand `## Design` row `Rounding | none`", question: "Is it A | B?\nOr C?" });
 
+/** A row whose evidence holds a backslash before a `|`: left alone, the backslash would undo the pipe's escape. */
+export const BACKSLASHED_ROW = row({ evidence: "src\\a.ts:3 \\| a Windows path `C:\\x`" });
+
 /** Three rows, the third asking the first's question in other case and spacing. */
 export const REPEATED_ROWS = [
   row(), row({ question: "Is the date in UTC?" }),
