@@ -1,7 +1,9 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
-import { carriedBlocks } from "./carried-text.ts";
-import { ONE_SHORT_TEXT, SHEET_THEN_DIFF, SHEET_THEN_DIFF_BLOCKS, SHORT_LONG_AFTER } from "./carried-text.fixtures.ts";
+import { carriedBlocks, carry } from "./carried-text.ts";
+import {
+  FILE_AND_DIFF, FILES_SHORT_LONG_AFTER, ONE_SHORT_TEXT, SHEET_THEN_DIFF, SHEET_THEN_DIFF_BLOCKS, SHORT_LONG_AFTER,
+} from "./carried-text.fixtures.ts";
 import { assertCutBlock, assertWithinRoom } from "./carried-text.assertions.ts";
 
 describe("carriedBlocks", () => {
@@ -60,5 +62,40 @@ describe("carriedBlocks", () => {
 
     // Assert
     deepStrictEqual(blocks, []);
+  });
+});
+
+describe("carry", () => {
+  it("names whole only the file that fits, not the one cut nor the one left out", () => {
+    // Arrange
+    const room = 1_000;
+
+    // Act
+    const { whole } = carry(FILES_SHORT_LONG_AFTER, room);
+
+    // Assert
+    deepStrictEqual([...whole], ["src/a.ts"]);
+  });
+
+  it("names a file by its path, whatever its title, and no text without one", () => {
+    // Arrange
+    const texts = FILE_AND_DIFF;
+
+    // Act
+    const { whole } = carry(texts, 10_000);
+
+    // Assert
+    deepStrictEqual([...whole], ["workbench/x/X-PLAN-F2.md"]);
+  });
+
+  it("returns the blocks carriedBlocks returns", () => {
+    // Arrange
+    const texts = SHORT_LONG_AFTER;
+
+    // Act
+    const { blocks } = carry(texts, 1_000);
+
+    // Assert
+    deepStrictEqual(blocks, carriedBlocks(texts, 1_000));
   });
 });

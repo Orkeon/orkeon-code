@@ -2,7 +2,7 @@
 // contract the test author works from and the GREEN contract the implementer works from. Each
 // names the batch, the ids, the behaviour, the files, the narrow test command code runs after the
 // act, and the reading and editing rules: by node. A contract never asks to read a file whole. Pure.
-import { carriedBlocks } from "../../../shared/domain/dev/carried-text.ts";
+import { carry } from "../../../shared/domain/dev/carried-text.ts";
 import type { CarriedText } from "../../../shared/domain/dev/carried-text.ts";
 import type { RepoPackCommands, RepoPackLayout } from "../../../shared/domain/dev/repo-pack.ts";
 import { PLACEHOLDER, plainWords, valueProblem } from "../../../shared/domain/dev/test-commands.ts";
@@ -72,6 +72,20 @@ export function stubsOf(step: ImplementStep): string[] {
   return (step.anchor?.production ?? []).filter((r) => r.state === "to create").map((r) => r.path);
 }
 
+/** The existing production files a RED step may add a signature stub to: its Anchors' `existing` production paths. A
+ *  declaration the new tests import and the module lacks is stubbed there, so that the import fails no other test (an
+ *  ES module's missing export fails its whole test file). */
+export function existingStubsOf(step: ImplementStep): string[] {
+  return (step.anchor?.production ?? []).filter((r) => r.state === "existing").map((r) => r.path);
+}
+
+/** What a stub path is to the test author: a file to create, an existing one, or an earlier RED's stub. */
+function stubKind(step: ImplementStep, path: string): string {
+  if (stubsOf(step).includes(path)) return "to create";
+  if (existingStubsOf(step).includes(path)) return "existing: only a declaration the new tests import and it lacks";
+  return "a stub an earlier RED of this cycle wrote";
+}
+
 /** Where the tests live, as the pack says: its test folder, and its test file patterns. */
 function testsWhere(layout: RepoPackLayout): string {
   const parts = [
@@ -86,10 +100,11 @@ const ASSUMPTION_RULE = "A question that changes no scope, id or design decision
   "`Assumption: <what you assumed>`, only for a behaviour the plan leaves open (an error, a rounding, an edge), once. " +
   "A test value, a stub's wording or a file's state is your choice or a fact, never an assumption.";
 
-function refLine(ref: AnchorRef): string {
+/** One anchor as a brief line; `shown` overrides the state it says (a file the sheet says to create, stubbed since). */
+function refLine(ref: AnchorRef, shown: string = ref.state): string {
   const at = ref.line === undefined ? ref.path : `${ref.path}:${ref.line}`;
   if (ref.state === "member") return `\`${at}\` — \`${ref.member}\` (read that member with node_read, never the file whole)`;
-  return `\`${at}\` — ${ref.state}`;
+  return `\`${at}\` — ${shown}`;
 }
 
 /** How the test author works on its test file: creates it whole when it is to create, else adds to it by node; one
@@ -134,21 +149,21 @@ function testsTable(step: ImplementStep): string[] {
 /** The most carried text a role's brief holds, in characters. */
 export const CARRIED_CONTRACT_CHARS = 12_000;
 
-/** The carried texts as a section of the brief, or nothing. */
-function carriedSection(input: ContractInput): string[] {
-  const blocks = carriedBlocks(input.carried ?? [], CARRIED_CONTRACT_CHARS);
-  return blocks.length === 0 ? [] : ["", "## In this brief (do not open these files again)", ...blocks];
+/** The carried texts as a section of the brief (or nothing), and the files it holds whole. */
+function carriedSection(input: ContractInput): { lines: string[]; whole: ReadonlySet<string> } {
+  const { blocks, whole } = carry(input.carried ?? [], CARRIED_CONTRACT_CHARS);
+  return { lines: blocks.length === 0 ? [] : ["", "## In this brief (do not open these files again)", ...blocks], whole };
 }
 
 export function redContract(input: ContractInput): string {
   const { step, layout } = input;
   const file = testFileOf(step) ?? "(none)";
   const doubles = step.anchor?.doubles ?? "";
-  const stubs = input.stubs ?? stubsOf(step);
-  const own = stubsOf(step);
+  const stubs = input.stubs ?? [...stubsOf(step), ...existingStubsOf(step)];
   const correction = CORRECTION.exec(step.title);
   const testRef: AnchorRef = step.anchor?.testFiles[0] ?? { path: file, state: "to create" };
-  const testInBrief = (input.carried ?? []).some((c) => c.title === testRef.path);
+  const carried = carriedSection(input);
+  const testInBrief = carried.whole.has(testRef.path);
   // A file the sheet says is to create exists once an earlier step wrote it: the brief carries it and says so.
   const shownRef: AnchorRef = testInBrief && testRef.state === "to create" ? { ...testRef, state: "existing" } : testRef;
   return [
@@ -165,11 +180,14 @@ export function redContract(input: ContractInput): string {
     `- test file: ${refLine(shownRef)} — ${testFileRule(testRef.state, testInBrief)}`,
     `- shared doubles and builders: ${doubles === "" ? "none named" : doubles}`,
     ...(step.anchor?.production ?? []).map((r) => `- production it will drive (${stubs.includes(r.path) ? "a signature stub at most" : "read only, never write"}): ${refLine(r)}`),
-    ...carriedSection(input),
+    ...carried.lines,
     "",
     "## Rules",
     `- Write test files only (${testsWhere(layout)}): no production line; a test failing on a missing symbol is red.`,
-    ...(stubs.length === 0 ? [] : [`- The one exception: signature stubs in ${stubs.map((p) => `\`${p}\``).join(", ")} (${stubs.every((p) => own.includes(p)) ? "to create" : "to create, or a stub an earlier RED of this cycle wrote"}) — declarations that throw "not implemented", no logic.`]),
+    ...(stubs.length === 0 ? [] : [
+      `- The one exception: signature stubs, declarations that throw "not implemented" and hold no logic, in ${stubs.map((p) => `\`${p}\` (${stubKind(step, p)})`).join(", ")}.`,
+      "- A test whose import of a missing declaration fails the whole test file is not the red asked: stub the declaration, never work around the import.",
+    ]),
     "- One test per row of the table, its name as written; the passing path first, then the refusals.",
     levelRule(step),
     `- Run \`${input.testCommand}\` with run_tests once the tests are written: every new test must fail; the result lists the failed tests, so the log stays closed. Code runs it again after you.`,
@@ -189,23 +207,28 @@ export function greenContract(input: ContractInput, red: { tail: string; log: st
   const elements = sheet.codeElements.length === 0 ? ["none listed"] : sheet.codeElements;
   const testFiles = [...new Set(steps.map((s) => testFileOf(s) ?? "(none)"))];
   const production = steps.flatMap((s) => s.anchor?.production ?? []);
+  const carried = carriedSection(input);
+  // A production file to create exists once RED stubbed it: the brief carries it and says so.
+  const shown = (r: AnchorRef): string => carried.whole.has(r.path)
+    ? `${refLine(r, r.state === "to create" ? "existing (stubbed at RED)" : r.state)}, in this brief`
+    : refLine(r);
   const seen = new Set<string>();
   return [
     ...header(input, "GREEN", steps),
     "",
     "## The red tests",
     ...steps.flatMap((s) => [...(steps.length > 1 ? [`Step ${s.number} — ${s.title}:`] : []), ...testsTable(s)]),
-    `Test file (read only${testFiles.every((f) => (input.carried ?? []).some((c) => c.title === f)) ? ", in this brief" : ""}): ${testFiles.map((f) => `\`${f}\``).join(", ")}. Last red run${red.log === null ? "" : ` (whole output: \`${red.log}\`)`}:`,
+    `Test file (read only${testFiles.every((f) => carried.whole.has(f)) ? ", in this brief" : ""}): ${testFiles.map((f) => `\`${f}\``).join(", ")}. Last red run${red.log === null ? "" : ` (whole output: \`${red.log}\`)`}:`,
     "```",
     red.tail,
     "```",
     "",
     "## Production",
-    ...production.filter((r) => !seen.has(refLine(r)) && seen.add(refLine(r)) !== undefined).map((r) => `- ${refLine(r)}`),
+    ...production.filter((r) => !seen.has(refLine(r)) && seen.add(refLine(r)) !== undefined).map((r) => `- ${shown(r)}`),
     "Code elements of the batch:",
     ...elements,
     `Applied rules: ${sheet.appliedRules || "none named"}. Expected access cost: ${sheet.accessCost || "not stated"}.`,
-    ...carriedSection(input),
+    ...carried.lines,
     "",
     "## Rules",
     `- Never write a test file (${testsWhere(layout)}): the tests are read-only to you.`,

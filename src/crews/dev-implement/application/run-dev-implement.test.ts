@@ -420,7 +420,7 @@ describe("runDevImplement — wave 4", () => {
     const a = parse(await runDevImplement({ batch: "F1", plan: "demo" }, t.deps));
     strictEqual(blockedLine(a), undefined, a.lines.join("\n"));
     deepStrictEqual(t.roles["test-author"].acts.map((x) => x.writable), [["src/a.ts"], ["src/a.ts"]]);
-    ok(t.roles["test-author"].acts[1].prompt.includes("signature stubs in `src/a.ts`"), t.roles["test-author"].acts[1].prompt);
+    ok(t.roles["test-author"].acts[1].prompt.includes("hold no logic, in `src/a.ts`"), t.roles["test-author"].acts[1].prompt);
     ok(a.lines.includes("step 2 RED ✓ — tests/a.test.ts (stubs: src/a.ts)"), a.lines.join("\n"));
   });
 
@@ -777,3 +777,40 @@ describe("runDevImplement — the close marks and the branch", () => {
     strictEqual(t.shell.commands.some((c) => c.includes(" commit ")), false);
   });
 });
+
+describe("runDevImplement — the files a role gets", () => {
+  const EXISTING_SHEET = SHEET.replace("| 1 — One | `tests/a.test.ts` — to create | — | `src/a.ts` — to create |",
+    "| 1 — One | `tests/a.test.ts` — to create | — | `src/a.ts` — existing |");
+  const stubsTheModule: Act = (_p, tree) => {
+    tree.write("tests/a.test.ts", "test a");
+    tree.write("src/a.ts", "throw one");
+    return "red";
+  };
+
+  it("opens an existing production file of the step to the test author, for a missing declaration's stub", async () => {
+    // Arrange
+    const t = setup([writesTest("tests/a.test.ts"), writesTest("tests/b.test.ts")],
+      [writesCode("src/a.ts", "tests/a.test.ts"), writesCode("src/b.ts", "tests/b.test.ts")], EXISTING_SHEET);
+
+    // Act
+    await runDevImplement({ batch: "F1", plan: "demo" }, t.deps);
+
+    // Assert
+    deepStrictEqual(t.roles["test-author"].acts[0].writable, ["src/a.ts"]);
+  });
+
+  it("carries to the implementer the stub RED wrote, shown as existing", async () => {
+    // Arrange
+    const t = setup([stubsTheModule, writesTest("tests/b.test.ts")],
+      [writesCode("src/a.ts", "tests/a.test.ts"), writesCode("src/b.ts", "tests/b.test.ts")]);
+
+    // Act
+    await runDevImplement({ batch: "F1", plan: "demo" }, t.deps);
+
+    // Assert
+    const green = t.roles.implementer.acts[0].prompt;
+    ok(green.includes("### src/a.ts\n```text\nthrow one\n```"), green);
+    ok(green.includes("- `src/a.ts` — existing (stubbed at RED), in this brief"), green);
+  });
+});
+

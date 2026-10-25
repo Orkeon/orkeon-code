@@ -30,7 +30,7 @@ import { policyFor } from "../../../shared/domain/agent-policy/mode-policy.ts";
 import { parseSessionRules } from "../../../shared/domain/git/pull-request.ts";
 import { shellRuleGuard } from "../../../shared/domain/dev/tool-guards.ts";
 import type { RepoPack, RepoPackLayout } from "../../../shared/domain/dev/repo-pack.ts";
-import { testFileOf, greenContract, projectCommandFor, redContract, stubsOf, testCommandFor } from "../domain/contracts.ts";
+import { existingStubsOf, testFileOf, greenContract, projectCommandFor, redContract, stubsOf, testCommandFor } from "../domain/contracts.ts";
 import { openSteps, parseImplementSheet } from "../domain/step-section.ts";
 import type { ImplementSheet, ImplementStep } from "../domain/step-section.ts";
 import { addedFailure, changedPaths, failureCount, greenProblem, readCost, redProblem, under } from "../domain/step-checks.ts";
@@ -279,13 +279,15 @@ function contractInput(run: Run, step: ImplementStep, testCommand: string, carri
   };
 }
 
-/** What a role's brief carries: the sheet, then each of `paths` that exists (a test file; one to create is left out). */
+/** What a role's brief carries: the sheet, then each of `paths` that exists (a test file, a production file; one to
+ *  create is left out). */
 async function carriedFor(run: Run, paths: readonly (string | null)[]): Promise<CarriedText[]> {
-  const out: CarriedText[] = [{ title: `${run.located.dir}/${run.located.name}`, text: run.sheetText }];
+  const sheet = `${run.located.dir}/${run.located.name}`;
+  const out: CarriedText[] = [{ title: sheet, path: sheet, text: run.sheetText }];
   for (const path of new Set(paths)) {
     if (path === null) continue;
     try {
-      out.push({ title: path, text: await run.deps.files.read(`${WORKSPACE}/${path}`) });
+      out.push({ title: path, path, text: await run.deps.files.read(`${WORKSPACE}/${path}`) });
     } catch {
       // To create, or unreadable: the role's own.
     }
@@ -386,9 +388,9 @@ async function runCycle(run: Run, cycle: Cycle): Promise<string | null> {
   }
   // A stub a RED of this cycle wrote stays open to its later REDs, this run's or a rerun's: the cycle's GREEN, the only
   // one that fills it, has not run.
-  const stubbed = new Set(steps.filter((s) => s.tdd?.red).flatMap(stubsOf).filter((p) => run.touched.has(p)));
+  const stubbed = new Set(steps.filter((s) => s.tdd?.red).flatMap((s) => [...stubsOf(s), ...existingStubsOf(s)]).filter((p) => run.touched.has(p)));
   for (const step of toRed) {
-    const stubs = [...new Set([...await openStubs(run, step), ...stubbed])];
+    const stubs = [...new Set([...await openStubs(run, step), ...existingStubsOf(step), ...stubbed])];
     const t3 = await recallForRed(run, step);
     const carried = await carriedFor(run, [testFileOf(step)]);
     const done = await act(run, "test-author", withPrecedents(redContract({ ...contractInput(run, step, command.command, carried), stubs }), [t3, run.correction]), stubs);
@@ -418,7 +420,9 @@ async function runCycle(run: Run, cycle: Cycle): Promise<string | null> {
     red ??= await run.tools.runTests({ command: command.command });
     const redTail = red.ok ? { tail: red.tail, log: red.log } : { tail: `(not run: ${red.refused})`, log: null };
     const greenLabel = stepsLabel(green);
-    const carried = await carriedFor(run, green.map(testFileOf));
+    // The production files too: a stub RED wrote, an existing module, so that GREEN opens none of them.
+    const productionFiles = green.flatMap((s) => (s.anchor?.production ?? []).filter((r) => r.state !== "member").map((r) => r.path));
+    const carried = await carriedFor(run, [...green.map(testFileOf), ...productionFiles]);
     const done = await act(run, "implementer", withPrecedents(greenContract(contractInput(run, green[0], command.command, carried, green), redTail), [run.correction]));
     if (typeof done === "string") return `${greenLabel} GREEN: ${done}`;
     run.ran.push(...green.filter((s) => !run.ran.includes(s)));

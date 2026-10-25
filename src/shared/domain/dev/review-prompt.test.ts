@@ -9,6 +9,7 @@ import { readFileSync } from "node:fs";
 
 import { MAX_REVIEW_REPLY_CHARS, buildReviewAnswerPrompt, buildReviewBrief, reviewSystem } from "./review-prompt.ts";
 import type { ReviewBriefInput } from "./review-prompt.ts";
+import { PLAN_PAST_THE_ROOM } from "./review-prompt.fixtures.ts";
 import { MAX_BRIEF_CHARS } from "../agents/charter.ts";
 
 const MARK = "probe-material-line";
@@ -187,9 +188,9 @@ describe("reviewSystem and buildReviewBrief — next-batch mode (/dev-batches)",
       mode: "next-batch", folder: "workbench/prune", files: ["workbench/prune/PRUNE-PLAN-F2.md"],
       source: "workbench/prune/PRUNE-PLAN.md", inventory: "F1 a1b2c3d: src/a.ts", targets: ["F2"],
       carried: [
-        { title: "workbench/prune/PRUNE-PLAN-F2.md", text: `# PRUNE-PLAN-F2 — ${MARK}\n` },
+        { title: "workbench/prune/PRUNE-PLAN-F2.md", path: "workbench/prune/PRUNE-PLAN-F2.md", text: `# PRUNE-PLAN-F2 — ${MARK}\n` },
         { title: "what F1 changed (git show a1b2c3d)", text: "diff --git a/src/a.ts b/src/a.ts\n+export const a = 1;\n" },
-        { title: "workbench/prune/PRUNE-PLAN.md", text: "# PRUNE-PLAN\n" },
+        { title: "workbench/prune/PRUNE-PLAN.md", path: "workbench/prune/PRUNE-PLAN.md", text: "# PRUNE-PLAN\n" },
       ],
     });
     ok(brief.includes("Files to review, in this order (their text is in this brief: open none of them):\n- workbench/prune/PRUNE-PLAN-F2.md"), brief);
@@ -217,5 +218,18 @@ describe("reviewSystem and buildReviewBrief — next-batch mode (/dev-batches)",
     ok(brief.length < MAX_BRIEF_CHARS, String(brief.length));
     ok(brief.includes("more characters)"));
     ok(brief.includes("Not carried (no room left): diff F3."));
+  });
+});
+
+describe("buildReviewBrief — what it says is in the brief", () => {
+  it("never says the plan is in the brief when no room was left for it", () => {
+    // Arrange
+    const input = PLAN_PAST_THE_ROOM;
+
+    // Act
+    const brief = buildReviewBrief(input);
+
+    // Assert
+    ok(brief.includes("The plan: workbench/prune/PRUNE-PLAN.md\n"), brief.slice(0, 600));
   });
 });

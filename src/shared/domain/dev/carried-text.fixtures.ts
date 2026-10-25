@@ -21,3 +21,16 @@ export const SHORT_LONG_AFTER: readonly CarriedText[] = [
 ];
 
 export const ONE_SHORT_TEXT: readonly CarriedText[] = [{ title: "a", text: "short" }];
+
+/** Three files: the first fits a room of 1 000 characters, the second is cut there, the third is left out. */
+export const FILES_SHORT_LONG_AFTER: readonly CarriedText[] = [
+  { title: "src/a.ts", path: "src/a.ts", text: "short" },
+  { title: "src/b.ts", path: "src/b.ts", text: "x".repeat(5_000) },
+  { title: "src/c.ts", path: "src/c.ts", text: "after" },
+];
+
+/** A file and a text that is no file (a diff): only the file can be named whole. */
+export const FILE_AND_DIFF: readonly CarriedText[] = [
+  { title: "the sheet", path: "workbench/x/X-PLAN-F2.md", text: "# F2\n" },
+  { title: "what F1 changed", text: "diff --git a b" },
+];

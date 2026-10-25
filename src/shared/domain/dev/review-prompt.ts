@@ -5,7 +5,7 @@
 // goes in the brief only, never in the system message.
 
 import { BOUNDED_READ_RULE, KNOWN_TOOLS_RULE, STRUCTURAL_SEARCH_RULE } from "./reading-rule.ts";
-import { carriedBlocks } from "./carried-text.ts";
+import { carry } from "./carried-text.ts";
 import type { CarriedText } from "./carried-text.ts";
 
 export type ReviewMode = "plan" | "spec" | "change" | "next-batch";
@@ -152,8 +152,8 @@ export interface ReviewBriefInput {
 
 export function buildReviewBrief(input: ReviewBriefInput): string {
   const folder = input.folder.endsWith("/") ? input.folder : `${input.folder}/`;
-  const carried = input.carried ?? [];
-  const inBrief = (file: string): boolean => carried.some((c) => c.title === file);
+  const { blocks, whole } = carry(input.carried ?? [], CARRIED_REVIEW_CHARS);
+  const inBrief = (file: string): boolean => whole.has(file);
   const lines = [
     `mode: ${input.mode} ${folder}`,
     input.files.length > 0 && input.files.every(inBrief)
@@ -167,7 +167,6 @@ export function buildReviewBrief(input: ReviewBriefInput): string {
   } else if (input.mode === "next-batch") {
     lines.push(`The plan: ${input.source}${inBrief(input.source) ? " (in this brief)" : ""}`);
     lines.push("The batches closed before it, with their commits and files:", input.inventory.trimEnd() || "(no entry)");
-    const blocks = carriedBlocks(carried, CARRIED_REVIEW_CHARS);
     if (blocks.length > 0) lines.push("", "In this brief, so that you open no file for them (the sheet, what each closed batch changed, then the plan):", "", ...blocks);
   } else {
     if (input.source !== "") lines.push(`Origin of the request: ${input.source}`);

@@ -255,7 +255,8 @@ async function reviewMaterial(
   const planFile = async (name: string): Promise<void> => {
     if (vfsPath === null) return;
     try {
-      out.push({ title: `${dev.shown}/${name}`, text: await deps.files.read(`${vfsPath}/${dev.code}/${name}`) });
+      const shown = `${dev.shown}/${name}`;
+      out.push({ title: shown, path: shown, text: await deps.files.read(`${vfsPath}/${dev.code}/${name}`) });
     } catch {
       // Left to read.
     }

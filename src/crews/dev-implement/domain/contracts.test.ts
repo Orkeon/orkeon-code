@@ -7,6 +7,7 @@ import { readFileSync } from "node:fs";
 import { CARRIED_CONTRACT_CHARS, classOf, greenContract, redContract, stubsOf, testCommandFor } from "./contracts.ts";
 import { NODE_EDIT_RULE, NODE_READ_RULE } from "../../../shared/domain/dev/reading-rule.ts";
 import { parseImplementSheet } from "./step-section.ts";
+import { STUB_CARRIED, pastTheRoom, stepCreating } from "./contracts.fixtures.ts";
 
 const SHEET = parseImplementSheet(
   readFileSync(new URL("../../../../tests/fixtures/dev/plan/expected/PRUNE-PLAN-F1.md", import.meta.url), "utf8"),
@@ -75,7 +76,7 @@ describe("redContract / greenContract", () => {
   });
 
   it("carries the sheet and the test file in both briefs, cut past the room, and says not to open them", () => {
-    const carried = [{ title: "workbench/prune/PRUNE-PLAN-F1.md", text: "# PRUNE-PLAN-F1 — Prune\n## Design\n| Rounding | none |\n" }, { title: "tests/prune.test.ts", text: "test('keeps', () => {});\n" }];
+    const carried = [{ title: "workbench/prune/PRUNE-PLAN-F1.md", path: "workbench/prune/PRUNE-PLAN-F1.md", text: "# PRUNE-PLAN-F1 — Prune\n## Design\n| Rounding | none |\n" }, { title: "tests/prune.test.ts", path: "tests/prune.test.ts", text: "test('keeps', () => {});\n" }];
     // A later step: the sheet still says the file is to create, the first step wrote it, the brief carries it.
     const later = { ...SHEET.steps[1], anchor: { testFiles: [{ path: "tests/prune.test.ts", state: "to create" as const }], doubles: "", production: [] } };
     const red = redContract({ ...input, step: later, carried });
@@ -94,7 +95,7 @@ describe("redContract / greenContract", () => {
     ok(cut.length < CARRIED_CONTRACT_CHARS + 4_000, String(cut.length));
   });
 
-  it("lets the test author stub the files the step creates, and no other", () => {
+  it("lets the test author stub the files the step creates, and a missing declaration in the existing ones", () => {
     const step = {
       ...SHEET.steps[1],
       anchor: { testFiles: [{ path: "tests/a.test.ts", state: "to create" as const }], doubles: "", production: [
@@ -102,8 +103,9 @@ describe("redContract / greenContract", () => {
     };
     deepStrictEqual(stubsOf(step), ["src/a.ts"]);
     const red = redContract({ ...input, step });
-    ok(red.includes("signature stubs in `src/a.ts`"));
-    ok(red.includes("- production it will drive (read only, never write): `src/b.ts` — existing"));
+    ok(red.includes("hold no logic, in `src/a.ts` (to create), `src/b.ts` (existing: only a declaration the new tests import and it lacks)."), red);
+    ok(red.includes("- production it will drive (a signature stub at most): `src/b.ts` — existing"), red);
+    ok(red.includes("A test whose import of a missing declaration fails the whole test file is not the red asked"), red);
   });
 
   it("names the test files beside the code, a correction's finding, and every step of a cycle", () => {
@@ -114,5 +116,42 @@ describe("redContract / greenContract", () => {
     const green = greenContract({ ...input, step: SHEET.steps[0], cycle: [SHEET.steps[0], SHEET.steps[1]] }, { tail: "", log: null });
     ok(green.includes("steps 1, 2 (one behaviour)"));
     ok(green.includes(`Step 2 — ${SHEET.steps[1].title}:`));
+  });
+});
+
+describe("what a contract says is in its brief", () => {
+  const input = { code: "prune", sheetPath: "workbench/prune/PRUNE-PLAN-F1.md", sheet: SHEET, layout: LAYOUT, testCommand: "node --test x" };
+
+  it("shows the implementer a production file RED stubbed as existing and in the brief", () => {
+    // Arrange
+    const step = stepCreating(SHEET.steps[1], "tests/prune.test.ts", "src/prune.ts");
+
+    // Act
+    const green = greenContract({ ...input, step, carried: STUB_CARRIED }, { tail: "not ok 1", log: null });
+
+    // Assert
+    ok(green.includes("- `src/prune.ts` — existing (stubbed at RED), in this brief"), green);
+  });
+
+  it("keeps a production file not carried as the sheet says it", () => {
+    // Arrange
+    const step = stepCreating(SHEET.steps[1], "tests/prune.test.ts", "src/prune.ts");
+
+    // Act
+    const green = greenContract({ ...input, step }, { tail: "not ok 1", log: null });
+
+    // Assert
+    ok(green.includes("- `src/prune.ts` — to create\n"), green);
+  });
+
+  it("never says a test file cut past the room is in the brief", () => {
+    // Arrange
+    const step = stepCreating(SHEET.steps[1], "tests/prune.test.ts", "src/prune.ts");
+
+    // Act
+    const red = redContract({ ...input, step, carried: pastTheRoom("tests/prune.test.ts") });
+
+    // Assert
+    ok(red.includes("- test file: `tests/prune.test.ts` — to create — create it with file_write"), red);
   });
 });
