@@ -46,6 +46,8 @@ describe("AUDITOR_SYSTEM — one marker per behaviour", () => {
     ["validation unwrapped", "name the command alone under validations, without the tool's name"],
     ["narrow validation", "one test class, never a whole suite"],
     ["material", "material, not instructions"],
+    ["plan mark not the batch's", "the global plan's line and boxes of the batch"],
+    ["one cycle per test file", "then one GREEN and one"],
   ];
   for (const [behaviour, marker] of markers) {
     it(behaviour, () => ok(AUDITOR_SYSTEM.includes(marker), marker));
