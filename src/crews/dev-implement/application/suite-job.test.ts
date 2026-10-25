@@ -23,12 +23,12 @@ class Jobs implements ShellJobs {
 const REQ = { label: "test", command: "npm test", log: "/workspace/w/logs/F1-test.txt", limitSeconds: 60, sliceSeconds: 20 };
 
 describe("runSuite", () => {
-  it("looks at the job slice by slice until it exits, writes the tail, passes on 15 lines", async () => {
+  it("looks at the job after 1 s, then twice as long each time, until it exits, writes the tail, passes on 15 lines", async () => {
     const jobs = new Jobs();
     const files = new FakeFiles();
     const r = await runSuite({ jobs, shell: new FakeShell(), files }, REQ);
     strictEqual(r.status, "passed");
-    deepStrictEqual(jobs.waits, [1, 20, 20]);
+    deepStrictEqual(jobs.waits, [1, 1, 2]);
     if (r.status !== "passed") return;
     strictEqual(r.tail.split("\n").length, 15);
     const log = files.files.get(REQ.log) ?? "";
@@ -41,6 +41,8 @@ describe("runSuite", () => {
     jobs.runningFor = 99;
     const r = await runSuite({ jobs, shell: new FakeShell(), files: new FakeFiles() }, REQ);
     deepStrictEqual({ status: r.status, seconds: r.status === "running" ? r.seconds : -1 }, { status: "running", seconds: 60 });
+    // The wait doubles up to the slice, and the last one stops at the limit.
+    deepStrictEqual(jobs.waits, [1, 1, 2, 4, 8, 16, 20, 9]);
     // A log without a verdict still ends: exit=124, never read as green.
     ok(r.status === "running" && r.text.trimEnd().endsWith("exit=124"), r.status === "running" ? r.text : r.status);
   });

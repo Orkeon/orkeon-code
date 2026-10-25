@@ -6,7 +6,7 @@ import { IMPLEMENTER, TEST_AUTHOR } from "./roles.ts";
 
 /** The longest a final build or suite may run before the batch stops, in seconds. */
 export const SUITE_LIMIT_SECONDS = 3600;
-/** One wait between two looks at a running suite, in seconds. */
+/** The longest wait between two looks at a running suite, in seconds; the first waits are shorter. */
 export const SLICE_SECONDS = 20;
 export const DEFAULT_STEPS = 3;
 export const MAX_STEPS = 12;
