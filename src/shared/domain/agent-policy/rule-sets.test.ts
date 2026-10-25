@@ -17,6 +17,7 @@ import {
   REFUSAL_CASES, ROOTS_WITHOUT_RULE, ROOTS_WITHOUT_RULE_PROBLEMS, WRITE_ROOT_RULES,
 } from "./rule-sets.fixtures.ts";
 import { assertEveryDecision, assertRuleable } from "./rule-sets.assertions.ts";
+import { WORKSPACE } from "../vfs.ts";
 
 describe("the rule sets", () => {
   for (const id of RULE_SET_IDS) {
@@ -240,7 +241,7 @@ describe("the rule sets", () => {
 
   it("pathRules makes two rules per root and writing tool, then denies the unscoped writers once", () => {
     // Arrange
-    const roots = ["./tests/", "/workspace/src/shared/domain", "tests"];
+    const roots = ["./tests/", `${WORKSPACE}/src/shared/domain`, "tests"];
 
     // Act
     const made = pathRules("write", roots);

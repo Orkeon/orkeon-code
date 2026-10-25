@@ -9,6 +9,7 @@ import {
   BUILD_OUTPUTS, DESIGN_CAPS, DROPPED_PATHS, EXCLUDED_SPELLINGS, FIRST_LINE, INVENTORY, LONGEST_ROOT, LONG_ENTRY, NO_ROOT,
   SECOND_LINE,
 } from "./inventory-model.fixtures.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 describe("INVENTORY_CAPS", () => {
   it("holds the caps of the design", () => {
@@ -26,7 +27,7 @@ describe("INVENTORY_CAPS", () => {
 describe("keepPath", () => {
   it("keeps a repository file as a relative path", () => {
     // Arrange
-    const path = "/workspace/src/shared/domain/memory.ts";
+    const path = `${WORKSPACE}/src/shared/domain/memory.ts`;
 
     // Act
     const kept = keepPath(path, ["workbench"], []);

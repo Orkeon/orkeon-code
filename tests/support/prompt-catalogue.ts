@@ -44,6 +44,7 @@ import { FakeSessionStore } from "./fake-session-store.ts";
 import { FakeFiles } from "./fake-files.ts";
 import { FakeTelemetry } from "./fake-telemetry.ts";
 import { FakeMemoryStore } from "./fake-memory-store.ts";
+import { WORKSPACE } from "../../src/shared/domain/vfs.ts";
 
 /** One part of a prompt as it is sent: the system message, the user message, a schema. */
 export interface PromptSection {
@@ -92,15 +93,15 @@ export function turnDeps(opts: { full?: boolean; instructions?: boolean; today?:
   const files = new FakeFiles();
   const telemetry = new FakeTelemetry();
   const memory = new FakeMemoryStore();
-  if (opts.instructions) files.files.set("/workspace/AGENTS.md", SAMPLE_INSTRUCTIONS);
+  if (opts.instructions) files.files.set(`${WORKSPACE}/AGENTS.md`, SAMPLE_INSTRUCTIONS);
   let language: string | undefined;
   if (opts.full) {
     session.messages = SAMPLE_HISTORY.map((m) => ({ ...m }));
     session.budget = { used: 151_000, window: 167_000 };
     session.state.set(OUTPUT_STYLE_STATE_KEY, "concise");
     session.state.set(HOOKS_STATE_KEY, JSON.stringify([{ event: "post-tool", command: "npm test" }]));
-    session.state.set(SKILLS_STATE_KEY, JSON.stringify(["/workspace/docs/release-playbook.md"]));
-    files.files.set("/workspace/docs/release-playbook.md", "# Release playbook\n\nRun `npm run check` before tagging.\n");
+    session.state.set(SKILLS_STATE_KEY, JSON.stringify([`${WORKSPACE}/docs/release-playbook.md`]));
+    files.files.set(`${WORKSPACE}/docs/release-playbook.md`, "# Release playbook\n\nRun `npm run check` before tagging.\n");
     telemetry.stats = { costUsd: 0.42, totalTokens: 98_000, totalCalls: 14 };
     memory.records.push({ id: 1, category: "user", content: "Prefers answers in French." });
     language = "French";
@@ -137,8 +138,8 @@ export async function renderCatalogue(): Promise<RenderedPrompt[]> {
   const detected = { buildCommand: "npm run build", testCommand: "npm test", frameworks: ["node"], conventions: [] };
   const pkg = JSON.stringify({ name: "sample-repo", scripts: { test: "node --test" } }, null, 2);
   const auditInput: AuditBriefInput = {
-    mode: "fast", batch: "F2", sheetPath: "/workspace/workbench/demo/DEMO-PLAN-F2.md",
-    captureFiles: ["/workspace/workbench/demo/capture-F2/index.txt", "/workspace/workbench/demo/capture-F2/diff-001.txt"],
+    mode: "fast", batch: "F2", sheetPath: `${WORKSPACE}/workbench/demo/DEMO-PLAN-F2.md`,
+    captureFiles: [`${WORKSPACE}/workbench/demo/capture-F2/index.txt`, `${WORKSPACE}/workbench/demo/capture-F2/diff-001.txt`],
     table: `| Axis | Status | Evidence |\n|---|---|---|\n| Build | ok | capture-F2/build.txt |\n| Test | gap | ${MATERIAL_MARK} |`,
     appliedRules: "DDD-01, APP-02",
     commands: { testClass: "dotnet test tests/Ledger.Tests --filter FullyQualifiedName~<class>" },
@@ -305,7 +306,7 @@ export async function renderCatalogue(): Promise<RenderedPrompt[]> {
         { title: "memory recap", role: "text", text: buildMemoryRecapMessage([{ category: "project", content: "Releases are cut from main only." }]).content },
         { title: "restored file", role: "text", text: buildRestoredFileMessage("src/args.ts", "export function parseArgs() {}").content },
         { title: "restored file, too large", role: "text", text: buildRestoredFileNotice("src/big.ts").content },
-        { title: "restored skill", role: "text", text: buildRestoredSkillMessage("/workspace/docs/release-playbook.md", "# Release playbook").content },
+        { title: "restored skill", role: "text", text: buildRestoredSkillMessage(`${WORKSPACE}/docs/release-playbook.md`, "# Release playbook").content },
         {
           title: "prelude result joined to the request", role: "text",
           text: applyPrelude("Summarize the meeting.", { tool: "transcribe_audio", args: {}, label: "Transcription" }, "Hello everyone."),

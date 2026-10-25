@@ -18,6 +18,7 @@ import {
   INDEX_FILE_COUNTS, INDEX_RAW, LOCATION_FQNS, MAP_RAW, MAP_SYMBOL_COUNTS, MATCH_ORIGIN_CASES, NOT_SEARCH_PAYLOADS,
   PKG_SUMMARY_RAW, REFRESHED_FILES_CASES, SEARCH_RAW, SOURCE_RAW, SUB_GRAPH_RAW, SYMBOL_DETAIL_RAW,
 } from "./code-intel-contract.fixtures.ts";
+import { WORKSPACE } from "./vfs.ts";
 
 describe("B-14 acceptance 1 — the catalogue grants all five code-intel tools", () => {
   for (const tool of CODE_INTEL_TOOLS) {
@@ -144,7 +145,7 @@ describe("readMapEntries / readMapSymbolCount", () => {
     const [first] = readMapEntries(raw);
 
     // Assert
-    deepStrictEqual(first, { fqn: "/workspace/src/index.ts::greet", name: "greet", kind: "function" });
+    deepStrictEqual(first, { fqn: `${WORKSPACE}/src/index.ts::greet`, name: "greet", kind: "function" });
   });
 
   it("drops an entry with no fqn — it cannot be queried further", () => {
@@ -181,7 +182,7 @@ describe("readSearchHits", () => {
     const hits = readSearchHits(raw);
 
     // Assert
-    deepStrictEqual(hits, [{ fqn: "/workspace/src/math.ts::add", score: 0.7067228684325768 }]);
+    deepStrictEqual(hits, [{ fqn: `${WORKSPACE}/src/math.ts::add`, score: 0.7067228684325768 }]);
   });
 
   it("reads hits[], not results[]", () => {
@@ -217,7 +218,7 @@ describe("readSymbolSource", () => {
 
     // Assert
     ok(s.source.startsWith("export function add"));
-    strictEqual(s.file, "/workspace/src/math.ts");
+    strictEqual(s.file, `${WORKSPACE}/src/math.ts`);
     strictEqual(s.lines, "1-3");
   });
 });
@@ -246,7 +247,7 @@ describe("firstSymbolFqn", () => {
     const fqn = firstSymbolFqn(raw);
 
     // Assert
-    strictEqual(fqn, "/workspace/src/index.ts::greet");
+    strictEqual(fqn, `${WORKSPACE}/src/index.ts::greet`);
   });
 
   for (const c of EMPTY_MAPS) {
@@ -324,7 +325,7 @@ describe("readGraph — dependency_graph and sub_graph", () => {
 
     // Assert
     strictEqual(g.nodes.length, 2);
-    strictEqual(g.nodes[0]!.fqn, "/workspace/src/index.ts");
+    strictEqual(g.nodes[0]!.fqn, `${WORKSPACE}/src/index.ts`);
     // metrics says 3 (the capture had a third module) even though this fixture
     // trims to 2 nodes — the metrics block is authoritative when present.
     strictEqual(g.nodeCount, 3);
@@ -354,7 +355,7 @@ describe("readGraph — dependency_graph and sub_graph", () => {
 
     // Assert
     ok(e.from.includes("#module@"), e.from);
-    ok(e.from.startsWith("/workspace/src/index.ts"), "the node ID still starts with the path");
+    ok(e.from.startsWith(`${WORKSPACE}/src/index.ts`), "the node ID still starts with the path");
   });
 
   it("sub_graph has no metrics block — counts fall back to array lengths", () => {
@@ -391,12 +392,12 @@ describe("readImpact", () => {
     const s = readImpact(raw);
 
     // Assert
-    strictEqual(s.target, "/workspace/src/index.ts::greet");
+    strictEqual(s.target, `${WORKSPACE}/src/index.ts::greet`);
     deepStrictEqual(s.direct, []);
     deepStrictEqual(s.transitive, []);
     // Quirk: by_package includes the TARGET itself (count 1) even with zero
     // callers — an "impact" of 1 package is the floor, not a finding.
-    deepStrictEqual(s.byPackage, { "/workspace/src/index.ts::greet": 1 });
+    deepStrictEqual(s.byPackage, { [`${WORKSPACE}/src/index.ts::greet`]: 1 });
   });
 
   it("an empty impact is a valid answer for a leaf symbol", () => {
@@ -420,7 +421,7 @@ describe("readPackageSummary", () => {
     const p = readPackageSummary(raw);
 
     // Assert
-    strictEqual(p.fqn, "/workspace::workspace");
+    strictEqual(p.fqn, `${WORKSPACE}::workspace`);
     strictEqual(p.files, 3);
     strictEqual(p.symbols, 6);
     deepStrictEqual(p.dependencies, []);
@@ -436,7 +437,7 @@ describe("readSymbolDetail", () => {
     const d = readSymbolDetail(raw);
 
     // Assert
-    strictEqual(d.fqn, "/workspace/src/index.ts::greet");
+    strictEqual(d.fqn, `${WORKSPACE}/src/index.ts::greet`);
     strictEqual(d.kind, "function");
     strictEqual(d.signature, "function greet(name: string): string");
     strictEqual(d.callers, 0);
@@ -543,7 +544,7 @@ describe("readSearchHitsWithOrigin — the hits /dev-plan ranks", () => {
     const hits = readSearchHitsWithOrigin(raw);
 
     // Assert
-    deepStrictEqual(hits, [{ fqn: "/workspace/src/math.ts::add", score: 0.7067228684325768, origin: "vector" }]);
+    deepStrictEqual(hits, [{ fqn: `${WORKSPACE}/src/math.ts::add`, score: 0.7067228684325768, origin: "vector" }]);
   });
 
   it("keeps a bm25 origin on its own hit after a hit without fqn is dropped", () => {
@@ -555,8 +556,8 @@ describe("readSearchHitsWithOrigin — the hits /dev-plan ranks", () => {
 
     // Assert
     deepStrictEqual(hits, [
-      { fqn: "/workspace/src/math.ts::add", score: 0.03, origin: "bm25" },
-      { fqn: "/workspace/src/index.ts::greet", score: 0.01, origin: "hybrid" },
+      { fqn: `${WORKSPACE}/src/math.ts::add`, score: 0.03, origin: "bm25" },
+      { fqn: `${WORKSPACE}/src/index.ts::greet`, score: 0.01, origin: "hybrid" },
     ]);
   });
 
@@ -580,7 +581,7 @@ describe("readSymbolLocation — where an anchor points", () => {
     const raw = SOURCE_RAW;
 
     // Act
-    const location = readSymbolLocation(raw, "/workspace/src/math.ts::add");
+    const location = readSymbolLocation(raw, `${WORKSPACE}/src/math.ts::add`);
 
     // Assert
     deepStrictEqual(location, ADD_LOCATION);

@@ -11,6 +11,7 @@ import {
   CHANGED, CHANGED_WITH_COLOCATED_TEST, COST_ROOTS, FAILURES, FS_RECEIVERS, LAYOUT, LIB_ROOTS, LOOP,
   reasonOf,
 } from "./measure-access-cost.fixtures.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 describe("costRoots", () => {
   for (const c of COST_ROOTS) {
@@ -48,7 +49,7 @@ describe("measureAccessCost", () => {
     const cost = await measureAccessCost(index, LAYOUT, ["src", "tests"], CHANGED);
 
     // Assert
-    deepStrictEqual(index.calls, ["roots", "refresh /workspace /workspace/src/order.ts", "accessCost /workspace/src/order.ts"]);
+    deepStrictEqual(index.calls, ["roots", `refresh ${WORKSPACE} ${WORKSPACE}/src/order.ts`, `accessCost ${WORKSPACE}/src/order.ts`]);
     strictEqual(cost.state === "measured" && cost.exit, 2);
     deepStrictEqual(cost.state === "measured" && cost.flagged, ["src/order.ts::place L5 this.store.save in a loop"]);
   });
@@ -66,7 +67,7 @@ describe("measureAccessCost", () => {
     deepStrictEqual(index.calls, ["roots"]);
   });
 
-  it("says not indexed when the index holds no /workspace root, and calls neither the refresh nor access_cost", async () => {
+  it(`says not indexed when the index holds no ${WORKSPACE} root, and calls neither the refresh nor access_cost`, async () => {
     // Arrange
     const index = new FakeCostIndex();
     index.indexed = ["/elsewhere"];
@@ -75,14 +76,14 @@ describe("measureAccessCost", () => {
     const cost = await measureAccessCost(index, LAYOUT, ["src"], CHANGED);
 
     // Assert
-    strictEqual(reasonOf(cost).includes("holds /elsewhere, not /workspace"), true);
+    strictEqual(reasonOf(cost).includes(`holds /elsewhere, not ${WORKSPACE}`), true);
     deepStrictEqual(index.calls, ["roots"]);
   });
 
-  it("measures when the index holds /workspace/, its trailing slash ignored", async () => {
+  it(`measures when the index holds ${WORKSPACE}/, its trailing slash ignored`, async () => {
     // Arrange
     const index = new FakeCostIndex();
-    index.indexed = ["/workspace/"];
+    index.indexed = [`${WORKSPACE}/`];
 
     // Act
     const cost = await measureAccessCost(index, LAYOUT, ["src"], CHANGED);
@@ -111,7 +112,7 @@ describe("measureAccessCost", () => {
     await measureAccessCost(index, null, [], CHANGED_WITH_COLOCATED_TEST);
 
     // Assert
-    strictEqual(index.calls[2], "accessCost /workspace/src/order.ts,/workspace/src/tools/run.ts");
+    strictEqual(index.calls[2], `accessCost ${WORKSPACE}/src/order.ts,${WORKSPACE}/src/tools/run.ts`);
   });
 
   it("adds the pack's receivers to the default", async () => {
@@ -122,7 +123,7 @@ describe("measureAccessCost", () => {
     await measureAccessCost(index, FS_RECEIVERS, ["src"], CHANGED);
 
     // Assert
-    strictEqual(index.calls[2], `accessCost /workspace/src/order.ts (?i)(?:${DEFAULT_RECEIVERS})|(?:_fs)`);
+    strictEqual(index.calls[2], `accessCost ${WORKSPACE}/src/order.ts (?i)(?:${DEFAULT_RECEIVERS})|(?:_fs)`);
   });
 
   for (const c of FAILURES) {

@@ -6,9 +6,10 @@ import { deepStrictEqual, ok, rejects, strictEqual } from "node:assert";
 import { createShell } from "./shell.ts";
 import { FakeTools } from "../../../../tests/support/fake-tools.ts";
 import { BAD_TIMEOUTS, COMPLETED_REPLIES, ROOT } from "./shell.fixtures.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 describe("createShell", () => {
-  it("runs the command in /workspace", async () => {
+  it(`runs the command in ${WORKSPACE}`, async () => {
     // Arrange
     const tools = new FakeTools();
 
@@ -16,7 +17,7 @@ describe("createShell", () => {
     await createShell(tools).run("git status --short");
 
     // Assert
-    deepStrictEqual(tools.inputsOf("shellCommand"), [{ command: "git status --short", working_directory: "/workspace" }]);
+    deepStrictEqual(tools.inputsOf("shellCommand"), [{ command: "git status --short", working_directory: WORKSPACE }]);
   });
 
   it("reads a snake_case result", async () => {
@@ -75,7 +76,7 @@ describe("createShell", () => {
     await createShell(tools).run("git status", {});
 
     // Assert
-    deepStrictEqual(tools.inputsOf("shellCommand"), [{ command: "git status", working_directory: "/workspace" }]);
+    deepStrictEqual(tools.inputsOf("shellCommand"), [{ command: "git status", working_directory: WORKSPACE }]);
   });
 
   it("passes the timeout as timeout_seconds", async () => {
@@ -87,7 +88,7 @@ describe("createShell", () => {
 
     // Assert
     deepStrictEqual(tools.inputsOf("shellCommand"), [
-      { command: "npm test", working_directory: "/workspace", timeout_seconds: 30 },
+      { command: "npm test", working_directory: WORKSPACE, timeout_seconds: 30 },
     ]);
   });
 
@@ -145,19 +146,19 @@ describe("createShell", () => {
 });
 
 describe("createShell — under a working root", () => {
-  it("runs in the root, its command's /workspace paths on the root, its output's root paths back on /workspace", async () => {
+  it(`runs in the root, its command's ${WORKSPACE} paths on the root, its output's root paths back on ${WORKSPACE}`, async () => {
     // Arrange
     const tools = new FakeTools();
     tools.replies.shellCommand = { stdout: `${ROOT}\n`, stderr: `${ROOT}/src/a.ts:1 error`, exit_code: 0 };
 
     // Act
-    const r = await createShell(tools, ROOT).run("git -C /workspace rev-parse --show-toplevel", { timeoutSeconds: 5 });
+    const r = await createShell(tools, ROOT).run(`git -C ${WORKSPACE} rev-parse --show-toplevel`, { timeoutSeconds: 5 });
 
     // Assert
     deepStrictEqual(tools.inputsOf("shellCommand"), [
       { command: `git -C ${ROOT} rev-parse --show-toplevel`, working_directory: ROOT, timeout_seconds: 5 },
     ]);
-    deepStrictEqual(r, { stdout: "/workspace\n", stderr: "/workspace/src/a.ts:1 error", exitCode: 0 });
+    deepStrictEqual(r, { stdout: `${WORKSPACE}\n`, stderr: `${WORKSPACE}/src/a.ts:1 error`, exitCode: 0 });
   });
 
   it("calls shell_command exactly as before without a root", async () => {
@@ -165,9 +166,9 @@ describe("createShell — under a working root", () => {
     const tools = new FakeTools();
 
     // Act
-    await createShell(tools, undefined).run("cat /workspace/a");
+    await createShell(tools, undefined).run(`cat ${WORKSPACE}/a`);
 
     // Assert
-    deepStrictEqual(tools.inputsOf("shellCommand"), [{ command: "cat /workspace/a", working_directory: "/workspace" }]);
+    deepStrictEqual(tools.inputsOf("shellCommand"), [{ command: `cat ${WORKSPACE}/a`, working_directory: WORKSPACE }]);
   });
 });

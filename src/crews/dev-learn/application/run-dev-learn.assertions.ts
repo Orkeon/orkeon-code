@@ -5,6 +5,7 @@ import type { FakeFiles } from "../../../../tests/support/fake-files.ts";
 import { parseProposalsFile } from "../../../shared/domain/dev/learn-proposals.ts";
 import type { AxisProposal, ProposalsFile } from "../../../shared/domain/dev/learn-proposals.ts";
 import { OUT } from "./run-dev-learn.fixtures.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 /** The proposals.json written under OUT, checked to parse. */
 export function writtenProposals(files: FakeFiles): ProposalsFile {
@@ -18,7 +19,7 @@ export const writtenTestAxis = (files: FakeFiles): AxisProposal => writtenPropos
 
 /** Nothing was written under /workspace/.claude/. */
 export function assertNoClaudeWrite(files: FakeFiles): void {
-  ok(files.writes.every((w) => !w.path.startsWith("/workspace/.claude/")), files.writes.map((w) => w.path).join(", "));
+  ok(files.writes.every((w) => !w.path.startsWith(`${WORKSPACE}/.claude/`)), files.writes.map((w) => w.path).join(", "));
 }
 
 /** `text` holds each of `parts`. */

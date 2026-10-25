@@ -9,6 +9,7 @@ import {
   inProgress, KEPT_STATE_FILES, NOTHING_IN_PROGRESS, NOW, ORK_NOTHING_IN_PROGRESS, RECENT, runOrk, runOver, SCRIPT,
   STATE,
 } from "./session-start-script.fixtures.ts";
+import { WORKSPACE } from "../src/shared/domain/vfs.ts";
 
 describe("scripts/session-start.sh", () => {
   it("parses as POSIX sh", () => {
@@ -112,8 +113,8 @@ describe("scripts/session-start.ork.ts", () => {
     // Arrange
     const at = /written at (\S+)/.exec(RECENT)![1];
     const files = {
-      "/workspace/.orkeon/dev/demo/state-F2.md": RECENT,
-      "/workspace/.orkeon/dev/other/batches-state.md": "# log\r\n- 2026-10-21 08:30 F1 launched\r\n- 2026-10-21 08:31 F2 relaunched\r\n- 2026-10-21 09:00 F1 returned VALID\r\n",
+      [`${WORKSPACE}/.orkeon/dev/demo/state-F2.md`]: RECENT,
+      [`${WORKSPACE}/.orkeon/dev/other/batches-state.md`]: "# log\r\n- 2026-10-21 08:30 F1 launched\r\n- 2026-10-21 08:31 F2 relaunched\r\n- 2026-10-21 09:00 F1 returned VALID\r\n",
     };
 
     // Act

@@ -6,9 +6,10 @@ import { deepStrictEqual, rejects, strictEqual } from "node:assert";
 import { createShellJobs, WAIT_SCRIPT } from "./shell-jobs.ts";
 import { FakeTools } from "../../../../tests/support/fake-tools.ts";
 import { ROOT, rootedTools, workingDirectories } from "./shell-jobs.fixtures.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 describe("createShellJobs", () => {
-  it("starts a job in /workspace and reads its id and log", async () => {
+  it(`starts a job in ${WORKSPACE} and reads its id and log`, async () => {
     // Arrange
     const tools = new FakeTools();
     tools.replies.shellCommand = { job_id: "3f9a", output_path: "/output/jobs/3f9a.log", status: "running" };
@@ -19,7 +20,7 @@ describe("createShellJobs", () => {
     // Assert
     deepStrictEqual(job, { id: "3f9a", log: "/output/jobs/3f9a.log" });
     deepStrictEqual(tools.inputsOf("shellCommand"), [
-      { action: "start_job", command: "dotnet test", working_directory: "/workspace" },
+      { action: "start_job", command: "dotnet test", working_directory: WORKSPACE },
     ]);
   });
 
@@ -45,7 +46,7 @@ describe("createShellJobs", () => {
     // Assert
     deepStrictEqual(status, { running: false, exitCode: 1 });
     deepStrictEqual(tools.inputsOf("shellCommand"), [
-      { action: "job_status", command: "", job_id: "j1", working_directory: "/workspace" },
+      { action: "job_status", command: "", job_id: "j1", working_directory: WORKSPACE },
     ]);
   });
 
@@ -60,7 +61,7 @@ describe("createShellJobs", () => {
     // Assert
     strictEqual(tail, "failed");
     deepStrictEqual(tools.inputsOf("shellCommand"), [
-      { action: "job_tail", command: "", job_id: "j1", tail_lines: 500, working_directory: "/workspace" },
+      { action: "job_tail", command: "", job_id: "j1", tail_lines: 500, working_directory: WORKSPACE },
     ]);
   });
 
@@ -76,7 +77,7 @@ describe("createShellJobs", () => {
     deepStrictEqual(status, { running: true, exitCode: -1 });
   });
 
-  it("waits through the node script, written in /workspace", async () => {
+  it(`waits through the node script, written in ${WORKSPACE}`, async () => {
     // Arrange
     const tools = new FakeTools();
     tools.replies.shellCommand = { exit_code: 0 };
@@ -86,9 +87,9 @@ describe("createShellJobs", () => {
 
     // Assert
     strictEqual(done, true);
-    strictEqual((tools.inputsOf("fileWrite")[0] as { path: string }).path, `/workspace/${WAIT_SCRIPT}`);
+    strictEqual((tools.inputsOf("fileWrite")[0] as { path: string }).path, `${WORKSPACE}/${WAIT_SCRIPT}`);
     deepStrictEqual(tools.inputsOf("shellCommand")[0], {
-      command: `node ${WAIT_SCRIPT} 20`, working_directory: "/workspace", timeout_seconds: 50,
+      command: `node ${WAIT_SCRIPT} 20`, working_directory: WORKSPACE, timeout_seconds: 50,
     });
   });
 
@@ -150,7 +151,7 @@ describe("createShellJobs", () => {
     const tools = rootedTools();
 
     // Act
-    const job = await createShellJobs(tools, ROOT).start("npm test -- /workspace/src");
+    const job = await createShellJobs(tools, ROOT).start(`npm test -- ${WORKSPACE}/src`);
 
     // Assert
     deepStrictEqual(job, { id: "j1", log: "/output/jobs/j1.log" });
@@ -158,7 +159,7 @@ describe("createShellJobs", () => {
     strictEqual((tools.inputsOf("shellCommand")[0] as { command: string }).command, `npm test -- ${ROOT}/src`);
   });
 
-  it("under a working root, reads a job's tail in the root, its paths moved back to /workspace", async () => {
+  it(`under a working root, reads a job's tail in the root, its paths moved back to ${WORKSPACE}`, async () => {
     // Arrange
     const tools = rootedTools();
 
@@ -166,7 +167,7 @@ describe("createShellJobs", () => {
     const tail = await createShellJobs(tools, ROOT).tail("j1", 10);
 
     // Assert
-    strictEqual(tail, "/workspace/src/a.ts failed");
+    strictEqual(tail, `${WORKSPACE}/src/a.ts failed`);
     deepStrictEqual(workingDirectories(tools), [ROOT]);
   });
 

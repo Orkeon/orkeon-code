@@ -11,6 +11,7 @@ import {
 import {
   config, DEFAULT_WORK, ENTRIES, LABELS, linked, LINKED_PORCELAIN, pack, setup, todoAndBackstage, UNQUOTABLE_MAINS,
 } from "./resolve-work-folder.fixtures.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 describe("resolveWorkFolder", () => {
   it("applies the default when nothing is asked, without running git", async () => {
@@ -50,7 +51,7 @@ describe("resolveWorkFolder", () => {
     // Assert
     strictEqual(work.outcome, "invalid");
     strictEqual(work.folder, "workbench");
-    strictEqual(work.vfsPath, "/workspace/workbench");
+    strictEqual(work.vfsPath, `${WORKSPACE}/workbench`);
     strictEqual(work.exists, true);
     strictEqual(work.note,
       "dev.workDir '../elsewhere' is not a relative folder of the checkout (a '..' or '.' segment): workbench/ applies");
@@ -74,14 +75,14 @@ describe("resolveWorkFolder", () => {
   it("applies a named folder that exists", async () => {
     // Arrange
     const deps = setup(["backstage"]);
-    deps.files.listings.set("/workspace/backstage", ["tasks", "notes"]);
+    deps.files.listings.set(`${WORKSPACE}/backstage`, ["tasks", "notes"]);
 
     // Act
     const work = await resolveWorkFolder(deps, pack("backstage/tasks/"));
 
     // Assert
     deepStrictEqual(work, {
-      folder: "backstage/tasks", vfsPath: "/workspace/backstage/tasks", outcome: "applied",
+      folder: "backstage/tasks", vfsPath: `${WORKSPACE}/backstage/tasks`, outcome: "applied",
       request: pack("backstage/tasks/"), exists: true, note: null,
     });
     deepStrictEqual(deps.shell.commands, []);
@@ -90,15 +91,15 @@ describe("resolveWorkFolder", () => {
   it("falls back when the folder is absent and the checkout is the main worktree", async () => {
     // Arrange
     const deps = setup(["workbench"]);
-    deps.shell.results[GIT_WORKTREE_LIST] = { stdout: "worktree /workspace\nHEAD 0123abc\nbranch refs/heads/main\n" };
-    deps.shell.results[GIT_TOPLEVEL] = { stdout: "/workspace/\n" };
+    deps.shell.results[GIT_WORKTREE_LIST] = { stdout: `worktree ${WORKSPACE}\nHEAD 0123abc\nbranch refs/heads/main\n` };
+    deps.shell.results[GIT_TOPLEVEL] = { stdout: `${WORKSPACE}/\n` };
 
     // Act
     const work = await resolveWorkFolder(deps, pack("backstage/tasks"));
 
     // Assert
     deepStrictEqual(work, {
-      folder: "workbench", vfsPath: "/workspace/workbench", outcome: "absent", request: pack("backstage/tasks"),
+      folder: "workbench", vfsPath: `${WORKSPACE}/workbench`, outcome: "absent", request: pack("backstage/tasks"),
       exists: true, note: "layout.work 'backstage/tasks' is absent from the checkout: workbench/ applies",
     });
     deepStrictEqual(deps.shell.commands, [GIT_WORKTREE_LIST, GIT_TOPLEVEL]);
@@ -155,7 +156,7 @@ describe("resolveWorkFolder", () => {
       // Arrange
       const deps = setup([]);
       deps.shell.results[GIT_WORKTREE_LIST] = { stdout: `worktree ${main}\nHEAD 0123abc\n` };
-      deps.shell.results[GIT_TOPLEVEL] = { stdout: "/workspace\n" };
+      deps.shell.results[GIT_TOPLEVEL] = { stdout: `${WORKSPACE}\n` };
 
       // Act
       const work = await resolveWorkFolder(deps, pack("backstage/tasks"));
@@ -170,7 +171,7 @@ describe("resolveWorkFolder", () => {
     // Arrange
     const thrown = setup([]);
     thrown.shell.errors[GIT_WORKTREE_LIST] = new Error("command refused");
-    thrown.shell.results[GIT_TOPLEVEL] = { stdout: "/workspace\n" };
+    thrown.shell.results[GIT_TOPLEVEL] = { stdout: `${WORKSPACE}\n` };
 
     // Act
     const work = await resolveWorkFolder(thrown, pack("backstage/tasks"));
@@ -199,7 +200,7 @@ describe("entryExists", () => {
     it(`looks for the last segment of ${c.path} in the parent's listing`, async () => {
       // Arrange
       const files = new FakeFiles();
-      files.listings.set("/workspace", ["src", "workbench"]);
+      files.listings.set(WORKSPACE, ["src", "workbench"]);
 
       // Act
       const exists = await entryExists(files, c.path);
@@ -214,7 +215,7 @@ describe("entryExists", () => {
     const files: Pick<Files, "list"> = { list: async () => { throw new Error("permission denied"); } };
 
     // Act
-    const exists = await entryExists(files, "/workspace/workbench");
+    const exists = await entryExists(files, `${WORKSPACE}/workbench`);
 
     // Assert
     strictEqual(exists, false);
@@ -226,7 +227,7 @@ describe("entryExists", () => {
     const files: Pick<Files, "list"> = { list: async (_path, max) => { asked = max; return []; } };
 
     // Act
-    await entryExists(files, "/workspace/workbench");
+    await entryExists(files, `${WORKSPACE}/workbench`);
 
     // Assert
     strictEqual(asked, 1000);

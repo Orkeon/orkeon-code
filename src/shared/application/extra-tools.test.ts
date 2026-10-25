@@ -7,6 +7,7 @@ import { deepStrictEqual, strictEqual } from "node:assert";
 import { configuredNames, readExtraTools, resolveExtraTools } from "./extra-tools.ts";
 import { FakeToolCatalogue } from "../../../tests/support/fake-tool-catalogue.ts";
 import { MCP_NAMES, PROJECT_CONFIG, extraToolsHarness, failingConfig } from "./extra-tools.fixtures.ts";
+import { WORKSPACE } from "../domain/vfs.ts";
 
 describe("readExtraTools", () => {
   it("reads the setting, saying which entries are invalid", async () => {
@@ -52,7 +53,7 @@ describe("readExtraTools", () => {
 
     // Assert
     deepStrictEqual(read, {
-      tools: [], invalid: [], unreadable: "/workspace/.orkeon/config.json could not be read or parsed",
+      tools: [], invalid: [], unreadable: `${WORKSPACE}/.orkeon/config.json could not be read or parsed`,
     });
   });
 
@@ -65,7 +66,7 @@ describe("readExtraTools", () => {
     const read = await readExtraTools(config);
 
     // Assert
-    strictEqual(read.unreadable, "/workspace/.orkeon/config.json could not be read or parsed");
+    strictEqual(read.unreadable, `${WORKSPACE}/.orkeon/config.json could not be read or parsed`);
   });
 
   it("takes a session override as the setting, whatever the file holds", async () => {

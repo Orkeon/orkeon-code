@@ -18,6 +18,7 @@ import {
 import {
   assertLineStarting, assertLineWith, assertNoLineStarting, assertNoLineWith, assertNotRan, assertRan, assertRanAfter,
 } from "./run-wave.assertions.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 describe("runWave", () => {
   it("starts every batch of the wave before any settles, each under its own worktree, seeded first", async () => {
@@ -45,8 +46,8 @@ describe("runWave", () => {
 
     // Assert
     deepStrictEqual(startedBeforeRelease, [
-      ["F2", "/workspace/.orkeon/worktrees/prune-F2", "batches/prune/F2"],
-      ["F3", "/workspace/.orkeon/worktrees/prune-F3", "batches/prune/F3"],
+      ["F2", `${WORKSPACE}/.orkeon/worktrees/prune-F2`, "batches/prune/F2"],
+      ["F3", `${WORKSPACE}/.orkeon/worktrees/prune-F3`, "batches/prune/F3"],
     ]);
     deepStrictEqual(seededPlans, [["F2", "plan"], ["F3", "plan"]], "each batch seeded before its run");
     ok(savedBeforeRelease >= 1, "the launches are written before the batches run");
@@ -79,9 +80,9 @@ describe("runWave", () => {
     assertRan(shell, rebase("F3"), remove("F3"));
     assertRanAfter(shell, remove("F2"), merge("F2"));
     // Harvested after the merge, so that a merge's checkout of a tracked sheet is never overwritten.
-    assertRanAfter(shell, `write /workspace/${SHEET("F2")}`, merge("F2"));
-    strictEqual(files.files.get(`/workspace/${SHEET("F3")}`), "F3 ticked");
-    strictEqual(files.files.get("/workspace/todo/prune/PRUNE-VERIFY-F2.md"), "verdict");
+    assertRanAfter(shell, `write ${WORKSPACE}/${SHEET("F2")}`, merge("F2"));
+    strictEqual(files.files.get(`${WORKSPACE}/${SHEET("F3")}`), "F3 ticked");
+    strictEqual(files.files.get(`${WORKSPACE}/todo/prune/PRUNE-VERIFY-F2.md`), "verdict");
     strictEqual(out.stopped, false);
     assertLineStarting(out.lines, "✓ F2 VALID");
   });
@@ -105,13 +106,13 @@ describe("runWave", () => {
     deepStrictEqual(book.events().slice(2), ["F2 returned VALID", "F2 merged abc2def", "F3 returned GAPS — correction: Major tests: none"]);
     assertNotRan(shell, merge("F3"), remove("F3"));
     // The main checkout never claims F3's work: its sheet and verdict stay in the worktree with its code.
-    strictEqual(files.files.get(`/workspace/${SHEET("F3")}`), "sheet F3");
-    ok(!files.files.has("/workspace/todo/prune/PRUNE-VERIFY-F3.md"));
+    strictEqual(files.files.get(`${WORKSPACE}/${SHEET("F3")}`), "sheet F3");
+    ok(!files.files.has(`${WORKSPACE}/todo/prune/PRUNE-VERIFY-F3.md`));
     deepStrictEqual(gaps, [`${WT("F3")}/todo`]);
     strictEqual(out.stopped, true);
     ok(out.lines.includes("→ 1 candidate mistake: /dev-learn"));
     assertNoLineWith(out.lines, "/dev-implement");
-    strictEqual(files.files.get(`/workspace/${SHEET("F2")}`), "F2 ticked");
+    strictEqual(files.files.get(`${WORKSPACE}/${SHEET("F2")}`), "F2 ticked");
     assertLineWith(out.lines, ".orkeon/worktrees/prune-F3 kept", "test suite");
     strictEqual(out.lines.at(-1), F3_RELAUNCH_LINE);
   });
@@ -121,7 +122,7 @@ describe("runWave", () => {
     const shell = shellFor(["F2", "F3"]);
     const book = new Book();
     const files = mainFiles();
-    files.files.set("/workspace/todo/prune/PRUNE-PLAN.md", OPEN_PLAN);
+    files.files.set(`${WORKSPACE}/todo/prune/PRUNE-PLAN.md`, OPEN_PLAN);
     const runBatch = async (r: BatchRun): Promise<BatchOutcome> => {
       batchWrites(files, r.root, r.batch);
       return r.batch === "F2" ? valid("F2") : { batch: "F3", verdict: "GAPS", spent: 30, lines: ["→ Batch F3 GAPS"] };
@@ -131,7 +132,7 @@ describe("runWave", () => {
     const out = await runWave(request(["F2", "F3"], book, { clock: tickingClock() }), { files, shell, runBatch });
 
     // Assert
-    strictEqual(files.files.get("/workspace/todo/prune/PRUNE-PLAN.md"), F2_DONE_PLAN);
+    strictEqual(files.files.get(`${WORKSPACE}/todo/prune/PRUNE-PLAN.md`), F2_DONE_PLAN);
     deepStrictEqual(book.added.map((l) => l.slice(2, 18)), ["2026-10-24 10:00", "2026-10-24 10:01", "2026-10-24 10:02", "2026-10-24 10:03", "2026-10-24 10:05"]);
     assertNoLineStarting(out.lines, "⚠");
   });
@@ -140,7 +141,7 @@ describe("runWave", () => {
     // Arrange
     const shell = shellFor(["F2"]);
     const files = mainFiles();
-    files.files.delete("/workspace/todo/prune/PRUNE-PLAN.md");
+    files.files.delete(`${WORKSPACE}/todo/prune/PRUNE-PLAN.md`);
     const runBatch = async (r: BatchRun): Promise<BatchOutcome> => { batchWrites(files, r.root, r.batch); return valid("F2"); };
 
     // Act
@@ -257,7 +258,7 @@ describe("runWave", () => {
     const shell = shellReopening(["F2"], "F2");
     shell.results[ahead("F2")] = { stdout: "1\n" };
     const files = new FakeFiles();
-    files.files.set("/workspace/.orkeon/worktrees/prune-F2/todo/prune/PRUNE-PLAN-F2.md", "# PRUNE-PLAN-F2 — prune — done (2026-10-24)\n");
+    files.files.set(`${WORKSPACE}/.orkeon/worktrees/prune-F2/todo/prune/PRUNE-PLAN-F2.md`, "# PRUNE-PLAN-F2 — prune — done (2026-10-24)\n");
     const book = bookOf(["- 2026-10-24 09:00 F2 launched prune-F2 audits 0"]);
     let ran = false;
 
@@ -317,7 +318,7 @@ describe("runWave", () => {
     });
 
     // Assert
-    deepStrictEqual(roots, ["/workspace/.orkeon/worktrees/prune-F2"]);
+    deepStrictEqual(roots, [`${WORKSPACE}/.orkeon/worktrees/prune-F2`]);
     strictEqual(ran, false);
     deepStrictEqual(book.added, []);
     strictEqual(out.lines.at(-1), PROBE_REFUSED_LINE);
@@ -346,7 +347,7 @@ describe("runWave", () => {
     // Act
     const out = await runWave(request(["F2"], new Book(), { probe: true }), {
       files: new FakeFiles(), shell, runBatch: async () => valid("F2"),
-      probe: async () => ({ exitCode: 0, top: "/workspace\n" }),
+      probe: async () => ({ exitCode: 0, top: `${WORKSPACE}\n` }),
     });
 
     // Assert

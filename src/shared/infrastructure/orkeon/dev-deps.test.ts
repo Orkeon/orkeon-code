@@ -10,6 +10,7 @@ import {
   loadDevDeps, recorder, rootedImplementerCallbacks, toolNames, twoBatchParts, validationTool,
 } from "./dev-deps.fixtures.ts";
 import { assertAskedNames, assertRootPathsOnly } from "./dev-deps.assertions.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 describe("implementDeps and verifyDeps", () => {
   it("implementDeps reads files through the body's tools", async () => {
@@ -19,7 +20,7 @@ describe("implementDeps and verifyDeps", () => {
     const deps = m.implementDeps(ctx, { hooks: [], effort: undefined, memoryOn: true, toolSlot: undefined });
 
     // Act
-    await deps.files.read("/workspace/a.ts");
+    await deps.files.read(`${WORKSPACE}/a.ts`);
 
     // Assert
     ok(tools.calls.some((c) => c.tool === "fileRead"), JSON.stringify(tools.calls));
@@ -58,7 +59,7 @@ describe("implementDeps and verifyDeps", () => {
     const verify = m.verifyDeps(ctx, { hooks: [], effort: undefined, memoryOn: true, validationSlot: undefined });
 
     // Act
-    await verify.files.read("/workspace/b.ts");
+    await verify.files.read(`${WORKSPACE}/b.ts`);
 
     // Assert
     strictEqual(tools.inputsOf("fileRead").length >= 1, true);
@@ -76,17 +77,17 @@ describe("implementDeps and verifyDeps", () => {
     ok(deps.costIndex !== undefined);
   });
 
-  it("without a root, implementDeps names /workspace as today", async () => {
+  it(`without a root, implementDeps names ${WORKSPACE} as today`, async () => {
     // Arrange
     const m = await loadDevDeps();
     const plain = context();
     const deps = m.implementDeps(plain.ctx, { hooks: [], effort: undefined, memoryOn: false, toolSlot: undefined });
 
     // Act
-    await deps.files.read("/workspace/src/a.ts");
+    await deps.files.read(`${WORKSPACE}/src/a.ts`);
 
     // Assert
-    strictEqual((plain.tools.inputsOf("fileRead")[0] as { path: string }).path, "/workspace/src/a.ts");
+    strictEqual((plain.tools.inputsOf("fileRead")[0] as { path: string }).path, `${WORKSPACE}/src/a.ts`);
   });
 
   it("under a root, implementDeps gives no cost index", async () => {
@@ -108,7 +109,7 @@ describe("implementDeps and verifyDeps", () => {
     const batch = m.implementDeps(rooted.ctx, { hooks: [], effort: undefined, memoryOn: false, toolSlot: undefined, root: ROOT });
 
     // Act
-    await batch.files.read("/workspace/src/a.ts");
+    await batch.files.read(`${WORKSPACE}/src/a.ts`);
 
     // Assert
     strictEqual((rooted.tools.inputsOf("fileRead")[0] as { path: string }).path, `${ROOT}/src/a.ts`);
@@ -122,7 +123,7 @@ describe("implementDeps and verifyDeps", () => {
 
     // Act
     await deps.roleLlm("implementer", LAYOUT, () => undefined, []).act(
-      "Turn green the tests of /workspace/tests/a.test.ts; the sheet is /workspace/todo/prune/PRUNE-PLAN-F2.md", { system: "Work in /workspace." },
+      `Turn green the tests of ${WORKSPACE}/tests/a.test.ts; the sheet is ${WORKSPACE}/todo/prune/PRUNE-PLAN-F2.md`, { system: `Work in ${WORKSPACE}.` },
     );
 
     // Assert
@@ -137,7 +138,7 @@ describe("implementDeps and verifyDeps", () => {
     const verify = m.verifyDeps(ctx, { hooks: [], effort: undefined, memoryOn: false, validationSlot: undefined, root: ROOT });
 
     // Act
-    await verify.llm.act("Audit /workspace/todo/prune/capture-F2/ and run_validation", { system: "The checkout is /workspace" });
+    await verify.llm.act(`Audit ${WORKSPACE}/todo/prune/capture-F2/ and run_validation`, { system: `The checkout is ${WORKSPACE}` });
 
     // Assert
     assertRootPathsOnly(asked);
@@ -151,13 +152,13 @@ describe("implementDeps and verifyDeps", () => {
     const verify = m.verifyDeps(ctx, { hooks: [], effort: undefined, memoryOn: false, validationSlot: undefined, root: ROOT });
 
     // Act
-    await verify.llm.extract("Rows of /workspace/todo/prune/PRUNE-VERIFY-F2.md", {});
+    await verify.llm.extract(`Rows of ${WORKSPACE}/todo/prune/PRUNE-VERIFY-F2.md`, {});
 
     // Assert
     assertRootPathsOnly(asked);
   });
 
-  it("keep what a batch's brief quotes of the files: a quoted /workspace constant, a fenced diff", async () => {
+  it(`keep what a batch's brief quotes of the files: a quoted ${WORKSPACE} constant, a fenced diff`, async () => {
     // Arrange
     const m = await loadDevDeps();
     const { ctx, asked } = context();
@@ -190,7 +191,7 @@ describe("implementDeps and verifyDeps", () => {
     await callbacks.onToolResult(ROOTED_WRITE, { success: true });
 
     // Assert
-    deepStrictEqual(wrote, ["/workspace/src/a.ts"]);
+    deepStrictEqual(wrote, [`${WORKSPACE}/src/a.ts`]);
   });
 
   it("verifyDeps offers the audit's act the auditor's tools alone, never the batch agent's write tools", async () => {
@@ -383,7 +384,7 @@ describe("agentTools", () => {
     const ports = holder.memoryPorts(ROOT)();
 
     // Act
-    await ports.files.read("/workspace/.orkeon/memory/a.md");
+    await ports.files.read(`${WORKSPACE}/.orkeon/memory/a.md`);
 
     // Assert
     strictEqual((tools.inputsOf("fileRead")[0] as { path: string }).path, `${ROOT}/.orkeon/memory/a.md`);
@@ -391,7 +392,7 @@ describe("agentTools", () => {
 });
 
 describe("gitTopUnder", () => {
-  it("runs git under the root and answers its raw top, never mapped back to /workspace", async () => {
+  it(`runs git under the root and answers its raw top, never mapped back to ${WORKSPACE}`, async () => {
     // Arrange
     const m = await loadDevDeps();
     const { ctx, tools } = context();

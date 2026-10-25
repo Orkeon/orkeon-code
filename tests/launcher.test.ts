@@ -32,6 +32,7 @@ import {
   assertBefore, assertEveryLineHolds, assertFreeRoots, assertKeysNotKept, assertLacks, assertMentions, assertNoReservedRoot, assertSays,
   assertTrustedAtDates,
 } from "./launcher.assertions.ts";
+import { WORKSPACE } from "../src/shared/domain/vfs.ts";
 
 // The scratch folders every launch makes go when the file's tests are done.
 after(removeScratch);
@@ -1031,7 +1032,7 @@ describe("orkeon-code, folder trust", () => {
 
     // Assert
     strictEqual(r.status, 0, r.stderr);
-    strictEqual(mountOf(r, "/workspace"), `${real}:/workspace:rw`);
+    strictEqual(mountOf(r, WORKSPACE), `${real}:${WORKSPACE}:rw`);
   });
 
   it("does not take a trusted link's own name for the folder", () => {
@@ -1383,7 +1384,7 @@ describe("scripts/run-crew.sh checks the folder as the launcher does", () => {
 
     // Assert
     strictEqual(t.status, 0, t.stderr);
-    ok(t.calls.some((c) => c.includes("tool run orkeon run") && c.includes(`${t.project}:/workspace:rw`)), t.calls.join("\n"));
+    ok(t.calls.some((c) => c.includes("tool run orkeon run") && c.includes(`${t.project}:${WORKSPACE}:rw`)), t.calls.join("\n"));
   });
 
   it("runs an untrusted project with --trust for one run, never forwarded to orkeon run", () => {
@@ -1411,7 +1412,7 @@ describe("scripts/run-crew.sh checks the folder as the launcher does", () => {
     ok(r.calls.some((c) => c.includes(`build ${source}/src/scripting/Orkeon.Scripting.Cli -c Debug`)), r.calls.join("\n"));
     const run = r.calls.find((c) => c.includes(" run --no-build --project ")) ?? "";
     ok(run.includes(`run --no-build --project ${source}/src/scripting/Orkeon.Scripting.Cli -- run ${r.root}/src/crew.ork.ts`), r.calls.join("\n"));
-    assertSays(run, [`-s ${r.root}/config/appsettings.local.json`, `-m ${r.project}:/workspace:rw`]);
+    assertSays(run, [`-s ${r.root}/config/appsettings.local.json`, `-m ${r.project}:${WORKSPACE}:rw`]);
     ok(run.endsWith("--inputs {}"), run);
     ok(r.env.split("\n").includes("ORKEON_Llm__Model=m-live"), r.env);
   });

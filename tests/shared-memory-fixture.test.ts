@@ -16,6 +16,7 @@ import {
 import {
   assertFilesNamedById, assertNegativeCaseOnly, assertRelevantAdmitted, assertSupersessionCase, assertSupersessionsLinked,
 } from "./shared-memory-fixture.assertions.ts";
+import { WORKSPACE } from "../src/shared/domain/vfs.ts";
 
 describe("the shared-memory fixture's entries", () => {
   it("holds 12 entries: 4 decisions, 3 code-structures, 3 methods, 2 mistakes, from several projects", () => {
@@ -80,7 +81,7 @@ describe("the reference set (golden.yaml, the rag_eval dataset shape)", () => {
     deepStrictEqual(golden.cases.map((c) => c.id), expectedIds);
     ok(golden.cases.every((c) => c.question.trim() !== ""));
     strictEqual(golden.collection, "memory-eval-golden");
-    strictEqual(golden.corpus, "/workspace/.orkeon/memory/entries");
+    strictEqual(golden.corpus, `${WORKSPACE}/.orkeon/memory/entries`);
   });
 
   it("names, in every relevant, an entry file of the fixture that is admitted", () => {

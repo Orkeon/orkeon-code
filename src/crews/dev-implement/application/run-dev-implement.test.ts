@@ -21,6 +21,7 @@ import {
   assertBlockedSaying, assertBlockedStarting, assertLine, assertLineStarting, assertMentions, assertNoPrecedents, assertNotBlocked,
   assertPromptsEndWith, assertTicked,
 } from "./run-dev-implement.assertions.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 describe("runDevImplement — the steps", () => {
   it("runs every step RED then GREEN, ticks each box once seen, and hands over to the audit", async () => {
@@ -47,8 +48,8 @@ describe("runDevImplement — the steps", () => {
     const a = parse(await runDevImplement(F1, t.deps));
 
     // Assert
-    strictEqual(t.files.files.get("/workspace/src/a.ts"), "export const a = 1;\n");
-    strictEqual(t.files.files.get("/workspace/tests/a.test.ts"), "test tests/a.test.ts");
+    strictEqual(t.files.files.get(`${WORKSPACE}/src/a.ts`), "export const a = 1;\n");
+    strictEqual(t.files.files.get(`${WORKSPACE}/tests/a.test.ts`), "test tests/a.test.ts");
     assertLine(a, "whitespace ✓ — src/a.ts: trailing whitespace on 1 line, 2 blank lines at EOF removed");
     ok(!a.lines.some((l) => l.includes("whitespace ✓ — tests/a.test.ts")), a.lines.join("\n"));
   });
@@ -191,7 +192,7 @@ describe("runDevImplement — the steps", () => {
   it("refuses a pack without layout.tests", async () => {
     // Arrange
     const t = setup([], []);
-    t.files.files.set("/workspace/.orkeon/repo.yaml", PACK_WITHOUT_TESTS);
+    t.files.files.set(`${WORKSPACE}/.orkeon/repo.yaml`, PACK_WITHOUT_TESTS);
 
     // Act
     const a = parse(await runDevImplement(F1, t.deps));
@@ -409,7 +410,7 @@ describe("runDevImplement — wave 4", () => {
   it("never leaves a `to create` file that exists already writable as a stub", async () => {
     // Arrange
     const t = setup([writesTest("tests/a.test.ts")], [writesCode("src/a.ts", "tests/a.test.ts")], ONE_STEP);
-    t.files.files.set("/workspace/src/a.ts", "export const one = () => 1;");
+    t.files.files.set(`${WORKSPACE}/src/a.ts`, "export const one = () => 1;");
 
     // Act
     const a = parse(await runDevImplement(F1, t.deps));
@@ -436,7 +437,7 @@ describe("runDevImplement — wave 4", () => {
   it("tells a co-located test file by the pack's layout.test_files", async () => {
     // Arrange
     const t = setup([writesTest("src/a.test.ts")], [writesCode("src/a.ts", "src/a.test.ts")], ONE_STEP_CO_LOCATED);
-    t.files.files.set("/workspace/.orkeon/repo.yaml", PACK_CO_LOCATED);
+    t.files.files.set(`${WORKSPACE}/.orkeon/repo.yaml`, PACK_CO_LOCATED);
 
     // Act
     const a = parse(await runDevImplement(F1, t.deps));
@@ -579,7 +580,7 @@ describe("runDevImplement — wave 4", () => {
   it("runs the affected projects once the whole suite went green for the batch", async () => {
     // Arrange
     const t = setup([writesTest("tests/a.test.ts")], [writesCode("src/a.ts", "tests/a.test.ts")], ONE_STEP);
-    t.files.files.set("/workspace/.orkeon/repo.yaml", PACK_WITH_PROJECT);
+    t.files.files.set(`${WORKSPACE}/.orkeon/repo.yaml`, PACK_WITH_PROJECT);
     t.files.files.set(touchedPath("demo", "F1"), JSON.stringify({ touched: [], verdictMark: "none", suiteGreen: true }));
 
     // Act
@@ -648,7 +649,7 @@ describe("runDevImplement — wave 4", () => {
 
   it("refreshes the batch's files in the index, then adds the graph's test projects to the sheet's", async () => {
     // Arrange
-    const index = graphIndex(["/workspace/"], { projects: ["tests/integration", "tests", "a;b"], classes: ["A"] });
+    const index = graphIndex([`${WORKSPACE}/`], { projects: ["tests/integration", "tests", "a;b"], classes: ["A"] });
     const t = later(index);
 
     // Act
@@ -667,7 +668,7 @@ describe("runDevImplement — wave 4", () => {
 
   it("runs the whole suite again when the graph reaches every test", async () => {
     // Arrange
-    const t = later(graphIndex(["/workspace"], { all: true }));
+    const t = later(graphIndex([WORKSPACE], { all: true }));
 
     // Act
     const a = parse(await runDevImplement(F1, t.deps));
@@ -679,7 +680,7 @@ describe("runDevImplement — wave 4", () => {
 
   it("refreshes the index before the build, so a red build leaves no stale graph", async () => {
     // Arrange
-    const index = graphIndex(["/workspace"], {});
+    const index = graphIndex([WORKSPACE], {});
     const t = later(index);
     t.jobs.exit["npm run build"] = 1;
 
@@ -694,7 +695,7 @@ describe("runDevImplement — wave 4", () => {
 
   it("names the files the graph could not place when it falls back to the whole suite", async () => {
     // Arrange
-    const t = later(graphIndex(["/workspace"], { all: true, unresolved: ["src/a.ts"] }));
+    const t = later(graphIndex([WORKSPACE], { all: true, unresolved: ["src/a.ts"] }));
 
     // Act
     const a = parse(await runDevImplement(F1, t.deps));
@@ -712,13 +713,13 @@ describe("runDevImplement — wave 4", () => {
     const a = parse(await runDevImplement(F1, absent.deps));
 
     // Assert
-    assertLine(a, "index: not refreshed — /workspace is not indexed");
+    assertLine(a, `index: not refreshed — ${WORKSPACE} is not indexed`);
     deepStrictEqual(absent.jobs.started, ["npm run build", "node --test tests"]);
   });
 
   it("keeps the sheet's projects alone when the graph fails, and says so", async () => {
     // Arrange
-    const failing = later(graphIndex(["/workspace"], new Error("graph down\nmore")));
+    const failing = later(graphIndex([WORKSPACE], new Error("graph down\nmore")));
 
     // Act
     const b = parse(await runDevImplement(F1, failing.deps));

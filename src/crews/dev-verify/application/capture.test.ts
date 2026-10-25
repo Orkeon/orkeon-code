@@ -14,6 +14,7 @@ import {
   PLAN_FOLDER_CHANGES, SECTION_FILES, SHEET, costIndexOf, fakes, gate, saveInALoop, target, written,
 } from "./capture.fixtures.ts";
 import { assertRan, assertWritesUnder, assertWritesWithin } from "./capture.assertions.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 describe("writeCapture", () => {
   it("writes every section under the capture folder, the index first in the list and table.md last", async () => {
@@ -135,7 +136,7 @@ describe("writeCapture", () => {
   it("reads the test log when there is one", async () => {
     // Arrange
     const { files, shell } = fakes();
-    files.files.set("/workspace/workbench/demo/logs/F2-test.txt", "run\nℹ pass 4\nℹ fail 0\n");
+    files.files.set(`${WORKSPACE}/workbench/demo/logs/F2-test.txt`, "run\nℹ pass 4\nℹ fail 0\n");
 
     // Act
     const capture = await writeCapture({ files, shell }, target(), gate(CHANGED), "w");
@@ -246,7 +247,7 @@ describe("writeCapture", () => {
   it("keeps the test-classes lines collected before a failed git grep", async () => {
     // Arrange
     const { files, shell } = fakes();
-    files.files.set("/workspace/src/Line.cs", "public class Line {}\n");
+    files.files.set(`${WORKSPACE}/src/Line.cs`, "public class Line {}\n");
     const failing = gitTestFilesNaming("Order", ["tests"], "cs", []) as string;
     shell.errors[failing] = new Error("grep refused");
 
@@ -261,8 +262,8 @@ describe("writeCapture", () => {
   it("lists the changed JavaScript files of a batch, not 'no changed source file'", async () => {
     // Arrange
     const { files, shell } = fakes();
-    files.files.set("/workspace/src/math.js", "export const subtract = (a, b) => a - b;\n");
-    files.files.set("/workspace/tests/math.test.js", "describe(\"math\", () => {});\n");
+    files.files.set(`${WORKSPACE}/src/math.js`, "export const subtract = (a, b) => a - b;\n");
+    files.files.set(`${WORKSPACE}/tests/math.test.js`, "describe(\"math\", () => {});\n");
 
     // Act
     await writeCapture({ files, shell }, target(), gate(["src/math.js", "tests/math.test.js"], ["tests/math.test.js"]), "w");
@@ -303,8 +304,8 @@ describe("writeCapture", () => {
     shell.results[gitDiffTracked("src/Order.cs") as string] = { stdout: DIFF_ADDING_LINE_4 };
     shell.errors[gitDiffTracked("src/Line.cs") as string] = new Error("refused");
     const costIndex = costIndexOf([
-      saveInALoop("/workspace/src/Order.cs::Order::Place", 4), saveInALoop("/workspace/src/Order.cs::Order::Old", 9),
-      saveInALoop("/workspace/src/Line.cs::Line::Add", 2),
+      saveInALoop(`${WORKSPACE}/src/Order.cs::Order::Place`, 4), saveInALoop(`${WORKSPACE}/src/Order.cs::Order::Old`, 9),
+      saveInALoop(`${WORKSPACE}/src/Line.cs::Line::Add`, 2),
     ], 3);
 
     // Act
@@ -322,7 +323,7 @@ describe("writeCapture", () => {
   it("counts a captured diff without a hunk as unknown lines, so its blocking call is flagged", async () => {
     // Arrange
     const { files, shell } = fakes();
-    const costIndex = costIndexOf([saveInALoop("/workspace/src/Order.cs::Order::Place", 9)], 1);
+    const costIndex = costIndexOf([saveInALoop(`${WORKSPACE}/src/Order.cs::Order::Place`, 9)], 1);
 
     // Act
     const capture = await writeCapture({ files, shell, costIndex }, target(), gate(CHANGED), "w");

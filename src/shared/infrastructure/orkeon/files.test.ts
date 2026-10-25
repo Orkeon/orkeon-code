@@ -6,6 +6,7 @@ import { strictEqual, deepStrictEqual, rejects } from "node:assert";
 import { createFiles } from "./files.ts";
 import { FakeTools } from "../../../../tests/support/fake-tools.ts";
 import { OTHER_CONTENTS, ROOT, ROOTED_CALLS } from "./files.fixtures.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 describe("createFiles — read", () => {
   it("reads `content`", async () => {
@@ -14,11 +15,11 @@ describe("createFiles — read", () => {
     tools.replies.fileRead = { content: "hello" };
 
     // Act
-    const text = await createFiles(tools).read("/workspace/a.txt");
+    const text = await createFiles(tools).read(`${WORKSPACE}/a.txt`);
 
     // Assert
     strictEqual(text, "hello");
-    deepStrictEqual(tools.inputsOf("fileRead"), [{ path: "/workspace/a.txt" }]);
+    deepStrictEqual(tools.inputsOf("fileRead"), [{ path: `${WORKSPACE}/a.txt` }]);
   });
 
   it("passes max_length only when a length is asked for", async () => {
@@ -27,11 +28,11 @@ describe("createFiles — read", () => {
     tools.replies.fileRead = { content: "#" };
 
     // Act
-    const text = await createFiles(tools).read("/workspace/skill.md", 1);
+    const text = await createFiles(tools).read(`${WORKSPACE}/skill.md`, 1);
 
     // Assert
     strictEqual(text, "#");
-    deepStrictEqual(tools.inputsOf("fileRead"), [{ path: "/workspace/skill.md", max_length: 1 }]);
+    deepStrictEqual(tools.inputsOf("fileRead"), [{ path: `${WORKSPACE}/skill.md`, max_length: 1 }]);
   });
 
   for (const c of OTHER_CONTENTS) {
@@ -77,18 +78,18 @@ describe("createFiles — write and list", () => {
     // Arrange
     const tools = new FakeTools();
     tools.replies.directoryRead = {
-      Files: [{ Name: "package.json", Path: "/workspace/package.json" }],
-      Directories: [{ Name: "src", Path: "/workspace/src" }],
+      Files: [{ Name: "package.json", Path: `${WORKSPACE}/package.json` }],
+      Directories: [{ Name: "src", Path: `${WORKSPACE}/src` }],
     };
 
     // Act
-    const names = await createFiles(tools).list("/workspace", 80);
+    const names = await createFiles(tools).list(WORKSPACE, 80);
 
     // Assert
     deepStrictEqual(names, ["package.json", "src"]);
     // DirectoryReadRequest has Path, Recursive, Pattern and MaxResults; the tools
     // bind snake_case keys, so `max_entries` was ignored and the cap was 500.
-    deepStrictEqual(tools.inputsOf("directoryRead"), [{ path: "/workspace", max_results: 80 }]);
+    deepStrictEqual(tools.inputsOf("directoryRead"), [{ path: WORKSPACE, max_results: 80 }]);
   });
 
   it("lists the snake_case and legacy `entries` shapes", async () => {
@@ -97,7 +98,7 @@ describe("createFiles — write and list", () => {
     tools.replies.directoryRead = { files: [{ name: "a.ts" }], directories: [], entries: ["b.ts"] };
 
     // Act
-    const names = await createFiles(tools).list("/workspace", 10);
+    const names = await createFiles(tools).list(WORKSPACE, 10);
 
     // Assert
     deepStrictEqual(names, ["a.ts", "b.ts"]);
@@ -111,7 +112,7 @@ describe("createFiles — mounts", () => {
     tools.replies.listMounts = {
       success: true,
       mounts: [
-        { virtual_path: "/workspace", access: "rw", overrides: [] },
+        { virtual_path: WORKSPACE, access: "rw", overrides: [] },
         { virtual_path: "/crews", access: "ro", overrides: [] },
       ],
     };
@@ -120,7 +121,7 @@ describe("createFiles — mounts", () => {
     const mounts = await createFiles(tools).mounts();
 
     // Assert
-    deepStrictEqual(mounts, [{ path: "/workspace", rights: "rw" }, { path: "/crews", rights: "ro" }]);
+    deepStrictEqual(mounts, [{ path: WORKSPACE, rights: "rw" }, { path: "/crews", rights: "ro" }]);
     deepStrictEqual(tools.inputsOf("listMounts"), [undefined]);
   });
 
@@ -181,10 +182,10 @@ describe("createFiles — under a working root", () => {
     tools.replies.fileRead = { content: "x" };
 
     // Act
-    await createFiles(tools).read("/workspace/src/a.ts");
+    await createFiles(tools).read(`${WORKSPACE}/src/a.ts`);
 
     // Assert
-    deepStrictEqual(tools.calls.map((c) => c.input), [{ path: "/workspace/src/a.ts" }]);
+    deepStrictEqual(tools.calls.map((c) => c.input), [{ path: `${WORKSPACE}/src/a.ts` }]);
   });
 
   it("writes exactly as before with an undefined root", async () => {
@@ -192,9 +193,9 @@ describe("createFiles — under a working root", () => {
     const tools = new FakeTools();
 
     // Act
-    await createFiles(tools, undefined).write("/workspace/a", "y");
+    await createFiles(tools, undefined).write(`${WORKSPACE}/a`, "y");
 
     // Assert
-    deepStrictEqual(tools.calls.map((c) => c.input), [{ path: "/workspace/a", content: "y" }]);
+    deepStrictEqual(tools.calls.map((c) => c.input), [{ path: `${WORKSPACE}/a`, content: "y" }]);
   });
 });

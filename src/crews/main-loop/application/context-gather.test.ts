@@ -13,13 +13,14 @@ import { FakeTelemetry } from "../../../../tests/support/fake-telemetry.ts";
 import {
   CLAUDE_MD_FALLBACKS, NO_INSTRUCTIONS, NO_LANGUAGE, ZERO_GAUGE, languageStore,
 } from "./context-gather.fixtures.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 describe("readInstructionsFile", () => {
   it("reads AGENTS.md first", async () => {
     // Arrange
     const files = new FakeFiles();
-    files.files.set("/workspace/AGENTS.md", "# Agents\n");
-    files.files.set("/workspace/CLAUDE.md", "# Legacy\n");
+    files.files.set(`${WORKSPACE}/AGENTS.md`, "# Agents\n");
+    files.files.set(`${WORKSPACE}/CLAUDE.md`, "# Legacy\n");
 
     // Act
     const read = await readInstructionsFile(files);

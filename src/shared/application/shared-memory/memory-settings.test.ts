@@ -6,6 +6,7 @@ import { deepStrictEqual, strictEqual } from "node:assert";
 import { GIT_REMOTE_ORIGIN, readMemorySettings } from "./memory-settings.ts";
 import { FakeShell } from "../../../../tests/support/fake-shell.ts";
 import { THROWING_CONFIG, configOf, originAnswering } from "./memory-settings.fixtures.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 describe("readMemorySettings", () => {
   it("defaults to .orkeon/memory, the origin remote's name and no auto-admission", async () => {
@@ -17,7 +18,7 @@ describe("readMemorySettings", () => {
 
     // Assert
     strictEqual(s.dir, ".orkeon/memory");
-    strictEqual(s.layout.root, "/workspace/.orkeon/memory");
+    strictEqual(s.layout.root, `${WORKSPACE}/.orkeon/memory`);
     strictEqual(s.project, "orkeon-code");
     strictEqual(s.collection, "memory-orkeon-code");
     strictEqual(s.autoAdmitAudited, false);

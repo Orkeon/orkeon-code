@@ -15,6 +15,7 @@ import {
   withWorkflow,
 } from "./compact-session.fixtures.ts";
 import { assertNoStatePointer } from "./compact-session.assertions.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 describe("compactSession: nothing to compact", () => {
   it("skips a buffer too small, without progress or model call", async () => {
@@ -61,9 +62,9 @@ describe("compactSession: the full pipeline", () => {
   it("extracts memories, snips, summarises, restores files and skills, and rewrites the buffer", async () => {
     // Arrange
     const deps = compactSetup();
-    deps.files.files.set("/workspace/src/a.ts", "export const a = 1;");
-    deps.files.files.set("/workspace/skills/s.md", "# Skill");
-    deps.session.state.set(SKILLS_STATE_KEY, `["/workspace/skills/s.md"]`);
+    deps.files.files.set(`${WORKSPACE}/src/a.ts`, "export const a = 1;");
+    deps.files.files.set(`${WORKSPACE}/skills/s.md`, "# Skill");
+    deps.session.state.set(SKILLS_STATE_KEY, `["${WORKSPACE}/skills/s.md"]`);
     const transcript = buildTranscript(HISTORY);
     const prompt = buildSummaryPrompt(transcript);
 
@@ -259,7 +260,7 @@ describe("compactSession: step 0, the state of the dev batch in progress", () =>
     // Assert
     deepStrictEqual(calls, [{ trigger: "auto", extracted: 0 }]);
     deepStrictEqual(outcome, { status: "compacted", before: 4, after: 5, usedTokens: ABOVE.used, state: { path: WRITTEN.path } });
-    deepStrictEqual(deps.session.messages.at(-1), buildRestoredStateMessage(`/workspace/${WRITTEN.path}`, WRITTEN.firstOpen));
+    deepStrictEqual(deps.session.messages.at(-1), buildRestoredStateMessage(`${WORKSPACE}/${WRITTEN.path}`, WRITTEN.firstOpen));
     ok(deps.log.lines.includes(`info: state of the batch in progress written to ${WRITTEN.path}`), JSON.stringify(deps.log.lines));
   });
 

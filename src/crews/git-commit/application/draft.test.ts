@@ -15,6 +15,7 @@ import {
   ADD, COMMIT, FEATURE_TREE, LONG_TREE, MESSAGE, PROBES, SEL, TREE, linkedWorktreeFiles, scopedSetup, treeShell, untrackedSetup,
 } from "./draft.fixtures.ts";
 import { assertMentions } from "./draft.assertions.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 describe("inspectWorkTree", () => {
   it("snapshots status, diff, branch (trimmed) and history", async () => {
@@ -112,7 +113,7 @@ describe("commitSelected", () => {
     strictEqual(out, "✓ committed 1a2b3c4 on main\nfix(api): handle null");
     deepStrictEqual(shell.commands, [...PROBES, ADD, COMMIT, "git rev-parse --short HEAD"]);
     ok(!shell.commands.includes("git add -A"));
-    deepStrictEqual(files.writes, [{ path: "/workspace/.git/ORKEON_COMMITMSG", content: MESSAGE }]);
+    deepStrictEqual(files.writes, [{ path: `${WORKSPACE}/.git/ORKEON_COMMITMSG`, content: MESSAGE }]);
   });
 
   it("stops on a failed git add with its stderr", async () => {

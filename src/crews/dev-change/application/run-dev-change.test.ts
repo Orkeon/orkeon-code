@@ -17,6 +17,7 @@ import {
   answer, bug, devChangeSetup, refactor, run,
 } from "./run-dev-change.fixtures.ts";
 import { assertAllUnder, assertEndWithPrecedents, assertMentions, assertNoPromptMentions } from "./run-dev-change.assertions.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 describe("runDevChange — a bug", () => {
   it("runs the reproduction first, writes its output and facts, asks and records the answer, ends on /dev-plan", async () => {
@@ -87,7 +88,7 @@ describe("runDevChange — a bug", () => {
   it("refuses a command of the pack the step's rule sets deny, before running it", async () => {
     // Arrange
     const f = devChangeSetup();
-    f.files.files.set("/workspace/.orkeon/repo.yaml", PACK.replace("  test: npm test\n", "  test: npm test\n  cli: node bin/cli.js\n"));
+    f.files.files.set(`${WORKSPACE}/.orkeon/repo.yaml`, PACK.replace("  test: npm test\n", "  test: npm test\n  cli: node bin/cli.js\n"));
     const denied = "node bin/cli.js git add src";
 
     // Act

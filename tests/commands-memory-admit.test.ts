@@ -17,6 +17,7 @@ import {
   method,
   oneBatch,
 } from "./commands-memory-admit.fixtures.ts";
+import { WORKSPACE } from "../src/shared/domain/vfs.ts";
 
 describe("parseMemoryAdmitArgs", () => {
   for (const c of ACCEPTED_ARGS_CASES) {
@@ -50,7 +51,7 @@ describe("runMemoryAdmit", () => {
   it("imports the harness's agent memory into candidates and asks nothing", async () => {
     // Arrange
     const { files, lines, asked, run } = admitHarness();
-    files.files.set("/workspace/.claude/agent-memory/dev-auditor/MEMORY.md", "- Name the port before the adapter\n");
+    files.files.set(`${WORKSPACE}/.claude/agent-memory/dev-auditor/MEMORY.md`, "- Name the port before the adapter\n");
 
     // Act
     const result = await run({ kind: "import" });

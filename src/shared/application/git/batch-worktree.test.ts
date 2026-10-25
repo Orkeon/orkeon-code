@@ -10,9 +10,10 @@ import {
   ADD, BRANCH, COUNT, CREATE, DELETE, DROP, EXISTS, HEAD, HEADS_ELSEWHERE, IGNORED, MERGE, MERGED, NOT_ONE_FOLDER, REBASE,
   REMOVE, REQ, STATUS, UNMERGED_VERDICTS, UNSAFE_CREATES, freshBranch, onBranch, refusingFirstFastForward, shellWith,
 } from "./batch-worktree.fixtures.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 describe("worktreePlace", () => {
-  it("is under /workspace/.orkeon/worktrees, never .claude/", () => {
+  it(`is under ${WORKSPACE}/.orkeon/worktrees, never .claude/`, () => {
     // Arrange
     const name = "demo-F2";
 
@@ -20,7 +21,7 @@ describe("worktreePlace", () => {
     const place = worktreePlace(name);
 
     // Assert
-    deepStrictEqual(place, { name: "demo-F2", path: ".orkeon/worktrees/demo-F2", root: "/workspace/.orkeon/worktrees/demo-F2" });
+    deepStrictEqual(place, { name: "demo-F2", path: ".orkeon/worktrees/demo-F2", root: `${WORKSPACE}/.orkeon/worktrees/demo-F2` });
   });
 
   for (const name of NOT_ONE_FOLDER) {
@@ -46,7 +47,7 @@ describe("createBatchWorktree", () => {
     const out = await createBatchWorktree(shell, CREATE);
 
     // Assert
-    ok(out.ok && out.place.root === "/workspace/.orkeon/worktrees/demo-F2");
+    ok(out.ok && out.place.root === `${WORKSPACE}/.orkeon/worktrees/demo-F2`);
     deepStrictEqual(shell.commands, [EXISTS, IGNORED, ADD]);
   });
 

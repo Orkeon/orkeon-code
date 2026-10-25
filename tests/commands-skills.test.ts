@@ -6,6 +6,7 @@ import { strictEqual, deepStrictEqual } from "node:assert";
 
 import { runSkills } from "../src/commands/_lib/skills.ts";
 import { attached, OTHER_SKILL, OUT_OF_RANGE, SKILL, skillsDeps } from "./commands-skills.fixtures.ts";
+import { WORKSPACE } from "../src/shared/domain/vfs.ts";
 
 describe("/skills list", () => {
   it("says none are attached, with the usage (the default sub-command)", async () => {
@@ -29,7 +30,7 @@ describe("/skills list", () => {
     const view = await runSkills(["list"], deps);
 
     // Assert
-    deepStrictEqual(view, { table: [{ n: 1, path: SKILL }, { n: 2, path: "/workspace/b.md" }] });
+    deepStrictEqual(view, { table: [{ n: 1, path: SKILL }, { n: 2, path: `${WORKSPACE}/b.md` }] });
   });
 });
 
@@ -63,11 +64,11 @@ describe("/skills attach", () => {
     const deps = skillsDeps();
 
     // Act
-    const view = await runSkills(["attach", "/workspace/gone.md"], deps);
+    const view = await runSkills(["attach", `${WORKSPACE}/gone.md`], deps);
 
     // Assert
     deepStrictEqual(view, {
-      text: "cannot attach '/workspace/gone.md' — the file is not readable in the mounted workspace.",
+      text: `cannot attach '${WORKSPACE}/gone.md' — the file is not readable in the mounted workspace.`,
     });
     strictEqual(attached(deps.session), null);
   });
@@ -95,7 +96,7 @@ describe("/skills detach", () => {
 
     // Assert
     deepStrictEqual(view, { text: `skill detached: ${SKILL}` });
-    deepStrictEqual(attached(deps.session), ["/workspace/b.md"]);
+    deepStrictEqual(attached(deps.session), [`${WORKSPACE}/b.md`]);
   });
 
   for (const c of OUT_OF_RANGE) {

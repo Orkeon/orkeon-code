@@ -16,6 +16,7 @@ import {
   OPERATORS, PILOT_ALLOWED, PILOT_REFUSED, PLAIN_COMMANDS, READ_ONLY_MODES, ROOT_READS, UNCOVERED, UNGATED_ALLOWED,
   UNGATED_REFUSED, UNNORMALISED_PATHS, UNREADABLE_BATCHES, off, op,
 } from "./call-guard.fixtures.ts";
+import { WORKSPACE } from "../vfs.ts";
 
 describe("buildCallGuard", () => {
   it("holds the deny rules of the step's sets, as the gate gets them, each with its set", () => {
@@ -176,7 +177,7 @@ describe("checkToolCall — rules", () => {
 
       // Assert
       assertRefused(verdict, path);
-      ok(verdict.reason.endsWith("which '/workspace/tests/a.test.ts' is"), verdict.reason);
+      ok(verdict.reason.endsWith(`which '${WORKSPACE}/tests/a.test.ts' is`), verdict.reason);
     });
   }
 
@@ -359,7 +360,7 @@ describe("checkToolCall — what a role's roots leave writable", () => {
     const guard = buildCallGuard({ step: "dev-implement", role: "test-author", layout: LAYOUT, writable: ["src/domain/*", "src/domain/a.ts"] });
 
     // Act
-    const verdict = checkToolCall(guard, "file_write", { path: "/workspace/src/domain/a.ts" }, NEW);
+    const verdict = checkToolCall(guard, "file_write", { path: `${WORKSPACE}/src/domain/a.ts` }, NEW);
 
     // Assert
     strictEqual(verdict.allow, true);
@@ -400,7 +401,7 @@ describe("checkToolCall — the rewrite rule of a writing role", () => {
     const guard = buildCallGuard({ step: "dev-implement", role: "implementer", layout: LAYOUT });
 
     // Act
-    const verdict = checkToolCall(guard, "file_write", { path: `/workspace/${BIG}`, content: "x" }, NEW);
+    const verdict = checkToolCall(guard, "file_write", { path: `${WORKSPACE}/${BIG}`, content: "x" }, NEW);
 
     // Assert
     assertAllowed(verdict);
@@ -630,11 +631,11 @@ describe("checkToolCall — the whole input of the folder readers", () => {
     const guard = buildCallGuard({ step: "dev-plan" });
 
     // Act
-    const verdict = checkToolCall(guard, "glob", { path: "/workspace", pattern: "node_modules/**" }, ON);
+    const verdict = checkToolCall(guard, "glob", { path: WORKSPACE, pattern: "node_modules/**" }, ON);
 
     // Assert
     assertRefused(verdict);
-    ok(verdict.reason.endsWith("of the rule set read-noise, which '/workspace/node_modules/**' reaches"), verdict.reason);
+    ok(verdict.reason.endsWith(`of the rule set read-noise, which '${WORKSPACE}/node_modules/**' reaches`), verdict.reason);
   });
 
   // A noise filter only: a `**` from the root still runs.
@@ -669,7 +670,7 @@ describe("checkToolCall — the whole input of the folder readers", () => {
     const guard = buildCallGuard({ step: "dev-verify", role: "pilot", layout: LAYOUT });
 
     // Act
-    const verdict = checkToolCall(guard, "file_read", { path: "/workspace/tests/a.test.ts" }, ON);
+    const verdict = checkToolCall(guard, "file_read", { path: `${WORKSPACE}/tests/a.test.ts` }, ON);
 
     // Assert
     strictEqual(refused(verdict).context, "The pilot opens no source or test file by its path: work from the batch sheet and the plan.");

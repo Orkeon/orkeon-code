@@ -48,6 +48,7 @@ import {
   voiceDeps,
 } from "./commands-dispatch.fixtures.ts";
 import { assertMemoryGuarded } from "./commands-dispatch.assertions.ts";
+import { WORKSPACE } from "../src/shared/domain/vfs.ts";
 
 describe("launchCrew", () => {
   it("starts the crew, logs the launch with its ticket and returns the ticket", () => {
@@ -55,11 +56,11 @@ describe("launchCrew", () => {
     const { crews, deps, logged } = crewDeps();
 
     // Act
-    const result = launchCrew(deps, "project-init", { cwd: "/workspace" });
+    const result = launchCrew(deps, "project-init", { cwd: WORKSPACE });
 
     // Assert
     deepStrictEqual(result, { ticket: "ticket-1" });
-    deepStrictEqual(crews.launches, [{ name: "project-init", input: { cwd: "/workspace" } }]);
+    deepStrictEqual(crews.launches, [{ name: "project-init", input: { cwd: WORKSPACE } }]);
     deepStrictEqual(logged, [{ message: "project-init launched", data: { ticket: "ticket-1" } }]);
   });
 

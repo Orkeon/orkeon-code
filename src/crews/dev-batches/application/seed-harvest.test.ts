@@ -11,6 +11,7 @@ import {
   BATCH_WRITES, MAIN, NOT_OWNED_PATHS, OWNED_PATHS, TARGET, UNSAFE_TARGETS, WT, checkout, put, seededCheckout,
 } from "./seed-harvest.fixtures.ts";
 import { assertHolds } from "./seed-harvest.assertions.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 describe("ownedBy", () => {
   for (const p of OWNED_PATHS) {
@@ -109,15 +110,15 @@ describe("harvestBatch", () => {
     deepStrictEqual(back, { ok: true, brought: [
       "todo/prune/PRUNE-PLAN-F2.md", "todo/prune/PRUNE-VERIFY-F2.md", "todo/prune/capture-F2/table.md", "todo/prune/logs/F2-run_tests-1.log",
     ] });
-    strictEqual(files.files.get("/workspace/todo/prune/PRUNE-PLAN.md"), "plan");
-    strictEqual(files.files.get("/workspace/todo/prune/PRUNE-PLAN-F2.md"), "ticked");
+    strictEqual(files.files.get(`${WORKSPACE}/todo/prune/PRUNE-PLAN.md`), "plan");
+    strictEqual(files.files.get(`${WORKSPACE}/todo/prune/PRUNE-PLAN-F2.md`), "ticked");
   });
 
   it("never writes over a file the checkout changed since the seed: kept there, named, the batch's copy left in the worktree", async () => {
     // Arrange
     const { files, snapshot } = await seededCheckout();
     put(files, WT, { "todo/prune/PRUNE-PLAN-F2.md": "ticked" });
-    files.files.set("/workspace/todo/prune/PRUNE-PLAN-F2.md", "edited again in main");
+    files.files.set(`${WORKSPACE}/todo/prune/PRUNE-PLAN-F2.md`, "edited again in main");
 
     // Act
     const back = await harvestBatch(files, TARGET, snapshot);
@@ -125,6 +126,6 @@ describe("harvestBatch", () => {
     // Assert
     strictEqual(back.ok, false);
     ok(!back.ok && back.line.includes("todo/prune/PRUNE-PLAN-F2.md changed in the checkout since the seed"), JSON.stringify(back));
-    strictEqual(files.files.get("/workspace/todo/prune/PRUNE-PLAN-F2.md"), "edited again in main");
+    strictEqual(files.files.get(`${WORKSPACE}/todo/prune/PRUNE-PLAN-F2.md`), "edited again in main");
   });
 });

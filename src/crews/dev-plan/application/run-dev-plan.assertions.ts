@@ -3,11 +3,12 @@ import { ok, strictEqual } from "node:assert";
 
 import type { FakeFiles } from "../../../../tests/support/fake-files.ts";
 import { CODE, GOLDEN, fixture } from "./run-dev-plan.fixtures.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 /** Every case: nothing written under .claude/, nothing outside the code folder. */
 export function assertGuarded(files: FakeFiles): void {
   for (const w of files.writes) {
-    ok(!w.path.startsWith("/workspace/.claude/"), w.path);
+    ok(!w.path.startsWith(`${WORKSPACE}/.claude/`), w.path);
     ok(w.path.startsWith(`${CODE}/`), w.path);
   }
 }

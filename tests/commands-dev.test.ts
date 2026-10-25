@@ -57,6 +57,7 @@ import {
   writtenPaths,
 } from "./commands-dev.fixtures.ts";
 import { assertCappedCodesLine, assertLinesWithin, assertNoHarnessWrite, assertRefusedWith } from "./commands-dev.assertions.ts";
+import { WORKSPACE } from "../src/shared/domain/vfs.ts";
 
 describe("/dev-status <code> over the fixture folder", () => {
   it("prints the batches and the ticks the files hold, one line each", async () => {
@@ -113,7 +114,7 @@ describe("/dev-status without a code", () => {
   it("says there is no code when the default folder is absent, and creates nothing", async () => {
     // Arrange
     const deps = devDeps();
-    deps.files.listings.set("/workspace", []);
+    deps.files.listings.set(WORKSPACE, []);
 
     // Act
     const view = await runDevStatus([], deps);
@@ -499,7 +500,7 @@ describe("/dev-learn --refuse", () => {
   it("says when there is no work folder", async () => {
     // Arrange
     const deps = learnDeps();
-    deps.files.listings.set("/workspace", []);
+    deps.files.listings.set(WORKSPACE, []);
 
     // Act
     const text = await runDevLearnDecision({ kind: "refuse", target: "anything" }, deps);
@@ -577,7 +578,7 @@ describe("devPlanGate", () => {
   it("returns the refusal of a code with no spec nor brief", async () => {
     // Arrange
     const deps = devDeps();
-    deps.files.listings.set("/workspace/workbench/nope", ["notes.txt"]);
+    deps.files.listings.set(`${WORKSPACE}/workbench/nope`, ["notes.txt"]);
 
     // Act
     const gate = await devPlanGate({ source: "nope", replace: false }, deps);

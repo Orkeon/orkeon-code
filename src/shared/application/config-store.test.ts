@@ -6,6 +6,7 @@ import { strictEqual, deepStrictEqual, ok } from "node:assert";
 import { CONFIG_FILE_PATH, USER_CONFIG_FILE_PATH } from "./config-store.ts";
 import { CONFIG_MAP_STATE_KEY } from "../domain/session-keys.ts";
 import { MALFORMED_PROJECT_FILE, configHarness, sessionOverFile } from "./config-store.fixtures.ts";
+import { WORKSPACE } from "../domain/vfs.ts";
 
 describe("config store — the settings file", () => {
   it("reads an absent file as empty, not malformed", async () => {
@@ -228,7 +229,7 @@ describe("config store — layered reads", () => {
 describe("config store — the user settings, which the project cannot widen", () => {
   it("reads the user file the launcher mounts read-only, outside the project", () => {
     // Arrange
-    const project = "/workspace/";
+    const project = `${WORKSPACE}/`;
 
     // Act
     const inProject = USER_CONFIG_FILE_PATH.startsWith(project);

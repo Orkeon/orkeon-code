@@ -8,6 +8,7 @@ import { readActiveWorkflow, writeActiveWorkflow, writeWorkflowState } from "./w
 import { FakeSessionStore } from "../../../../tests/support/fake-session-store.ts";
 import { DEMO_F2, SKIPPED_POINTERS, STATE, workflowSetup } from "./workflow-state.fixtures.ts";
 import { assertMentions, assertOmits } from "./workflow-state.assertions.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 describe("the pointer", () => {
   it("reads as null before one is written", async () => {
@@ -50,7 +51,7 @@ describe("writeWorkflowState", () => {
   it("writes the state of the named batch from its sheet, its events, its reports and git", async () => {
     // Arrange
     const deps = workflowSetup(DEMO_F2);
-    deps.files.listings.set("/workspace/workbench/demo/reports", ["F2-audit.md", "F1-audit.md", "sub/"]);
+    deps.files.listings.set(`${WORKSPACE}/workbench/demo/reports`, ["F2-audit.md", "F1-audit.md", "sub/"]);
 
     // Act
     const out = await writeWorkflowState(deps, "manual");
@@ -74,7 +75,7 @@ describe("writeWorkflowState", () => {
   it("prefers Code's own event log when there is one", async () => {
     // Arrange
     const deps = workflowSetup(DEMO_F2);
-    deps.files.files.set("/workspace/.orkeon/dev/demo/batches-state.md", "- 2026-10-24 09:00 F2 launched\n- 2026-10-24 09:01 F3 launched\n");
+    deps.files.files.set(`${WORKSPACE}/.orkeon/dev/demo/batches-state.md`, "- 2026-10-24 09:00 F2 launched\n- 2026-10-24 09:01 F3 launched\n");
 
     // Act
     await writeWorkflowState(deps, "auto");

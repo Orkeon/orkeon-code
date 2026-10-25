@@ -10,6 +10,7 @@ import {
 } from "./harvest.ts";
 import { ENDPOINTS, MODULE_GRAPH, PACKAGES, SYMBOLS, manySymbols } from "./harvest.fixtures.ts";
 import { assertMentions } from "./harvest.assertions.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 describe("edgeEndpointToPath", () => {
   for (const c of ENDPOINTS) {
@@ -51,10 +52,10 @@ describe("renderHarvest", () => {
     const harvest = renderHarvest(input);
 
     // Assert
-    ok(harvest.includes("`/workspace::workspace` — 3 file(s), 6 symbol(s)"), harvest);
-    ok(harvest.includes("/workspace/src/index.ts → /workspace/src/math.ts"), "edge endpoints must render as paths");
+    ok(harvest.includes(`\`${WORKSPACE}::workspace\` — 3 file(s), 6 symbol(s)`), harvest);
+    ok(harvest.includes(`${WORKSPACE}/src/index.ts → ${WORKSPACE}/src/math.ts`), "edge endpoints must render as paths");
     ok(!harvest.includes("#module@"), "node IDs must not leak into the rendering");
-    assertMentions(harvest, ["### function (2)", "### class (1)", "`/workspace/src/types.ts::Order`"]);
+    assertMentions(harvest, ["### function (2)", "### class (1)", `\`${WORKSPACE}/src/types.ts::Order\``]);
   });
 
   it("says the total even when the listing is capped", () => {

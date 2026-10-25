@@ -11,6 +11,7 @@ import {
   BOTH, CONFIG, DEMO_SHEETS, demoContext, LISTED_CODES, manyCodes, namedNotes, NOT_IGNORED, PROBE_ONLY, readSpy, setup,
   TODO_WARNING, todoHolding, todoWithSettings,
 } from "./load-dev-context.fixtures.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 describe("loadDevContext — the work folder", () => {
   it("lets dev.workDir beat the pack's layout.work", async () => {
@@ -18,7 +19,7 @@ describe("loadDevContext — the work folder", () => {
     const { files, shell, config } = setup();
     files.files.set(ORKEON_PACK_PATH, "layout:\n  work: backstage/tasks\n");
     files.files.set(CONFIG, JSON.stringify({ "dev.workDir": "notes" }));
-    files.listings.set("/workspace", ["notes", "backstage"]);
+    files.listings.set(WORKSPACE, ["notes", "backstage"]);
 
     // Act
     const ctx = await loadDevContext({ files, shell, config });
@@ -34,8 +35,8 @@ describe("loadDevContext — the work folder", () => {
     // Arrange
     const { files, shell } = setup();
     files.files.set(ORKEON_PACK_PATH, "layout:\n  work: backstage/tasks\n");
-    files.listings.set("/workspace", ["backstage"]);
-    files.listings.set("/workspace/backstage", ["tasks"]);
+    files.listings.set(WORKSPACE, ["backstage"]);
+    files.listings.set(`${WORKSPACE}/backstage`, ["tasks"]);
     const failing = { readValue: async () => { throw new Error("no files tool"); } };
 
     // Act
@@ -207,8 +208,8 @@ describe("loadDevCode and listDevCodes over the fixture folder", () => {
   it("refuses a folder with no spec, change or plan", async () => {
     // Arrange
     const { files, work } = await demoContext();
-    files.listings.set("/workspace/workbench", ["demo", "bare"]);
-    files.listings.set("/workspace/workbench/bare", ["notes.md"]);
+    files.listings.set(`${WORKSPACE}/workbench`, ["demo", "bare"]);
+    files.listings.set(`${WORKSPACE}/workbench/bare`, ["notes.md"]);
 
     // Act
     const lookup = await loadDevCode({ files }, work, "bare");
@@ -245,7 +246,7 @@ describe("loadDevCode and listDevCodes over the fixture folder", () => {
   it("skips a file it cannot read and reports format problems with their line", async () => {
     // Arrange
     const { files, work } = await demoContext({ "DEMO-PLAN-F4.md": "# DEMO-PLAN-F4 — More\n\nTDD: RED [x] GREEN\n" });
-    files.readErrors.set("/workspace/workbench/demo/DEMO-VERIFY-F1.md", new Error("permission denied"));
+    files.readErrors.set(`${WORKSPACE}/workbench/demo/DEMO-VERIFY-F1.md`, new Error("permission denied"));
 
     // Act
     const lookup = await loadDevCode({ files }, work, "demo");
@@ -262,9 +263,9 @@ describe("loadDevCode and listDevCodes over the fixture folder", () => {
   it("lists the codes holding a spec, change or plan, sorted, reading no file", async () => {
     // Arrange
     const { files, work } = await demoContext();
-    files.listings.set("/workspace/workbench", ["fix-x", "demo", "bare", ".hidden"]);
-    files.listings.set("/workspace/workbench/fix-x", ["CHANGE-fix-x.md"]);
-    files.listings.set("/workspace/workbench/bare", ["notes.md"]);
+    files.listings.set(`${WORKSPACE}/workbench`, ["fix-x", "demo", "bare", ".hidden"]);
+    files.listings.set(`${WORKSPACE}/workbench/fix-x`, ["CHANGE-fix-x.md"]);
+    files.listings.set(`${WORKSPACE}/workbench/bare`, ["notes.md"]);
     const reads: string[] = [];
     const spy = readSpy(files, reads);
 

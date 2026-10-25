@@ -7,6 +7,7 @@ import { gateRoots, runGate } from "./run-gate.ts";
 import {
   CUT_LINE, CUT_NOTICE, SHEET, TRAIT_GREP, UNTRACKED, fakes, fakesWithNotes, pack, target,
 } from "./run-gate.fixtures.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 describe("gateRoots", () => {
   it("lists the set layout roots once, production first, tests last", () => {
@@ -69,7 +70,7 @@ describe("runGate", () => {
   it("runs no trait grep when the sheet names no id", async () => {
     // Arrange
     const { files, shell } = fakes();
-    files.files.set("/workspace/workbench/demo/DEMO-PLAN-F2.md", SHEET.replace(" BR-01", ""));
+    files.files.set(`${WORKSPACE}/workbench/demo/DEMO-PLAN-F2.md`, SHEET.replace(" BR-01", ""));
 
     // Act
     await runGate({ files, shell }, target());
@@ -214,7 +215,7 @@ describe("runGate", () => {
   it("refuses an unreadable sheet with the first line of the error", async () => {
     // Arrange
     const { files, shell } = fakes();
-    files.files.delete("/workspace/workbench/demo/DEMO-PLAN-F2.md");
+    files.files.delete(`${WORKSPACE}/workbench/demo/DEMO-PLAN-F2.md`);
 
     // Act
     const out = await runGate({ files, shell }, target());
@@ -222,7 +223,7 @@ describe("runGate", () => {
     // Assert
     deepStrictEqual(out, {
       ok: false,
-      error: "the sheet workbench/demo/DEMO-PLAN-F2.md cannot be read (file not found: /workspace/workbench/demo/DEMO-PLAN-F2.md)",
+      error: `the sheet workbench/demo/DEMO-PLAN-F2.md cannot be read (file not found: ${WORKSPACE}/workbench/demo/DEMO-PLAN-F2.md)`,
     });
     deepStrictEqual(shell.commands, []);
   });
@@ -230,7 +231,7 @@ describe("runGate", () => {
   it("skips an unreadable plan file", async () => {
     // Arrange
     const { files, shell } = fakes();
-    files.readErrors.set("/workspace/workbench/demo/DEMO-PLAN.md", new Error("denied"));
+    files.readErrors.set(`${WORKSPACE}/workbench/demo/DEMO-PLAN.md`, new Error("denied"));
 
     // Act
     const out = await runGate({ files, shell }, target());

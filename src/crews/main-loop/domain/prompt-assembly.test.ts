@@ -34,6 +34,7 @@ import {
   UNCONFIGURED_PREFERENCES_CASES, builtParts, userMessages,
 } from "./prompt-assembly.fixtures.ts";
 import { assertInOrder, assertLacks, assertMentions, assertSystemReminder } from "./prompt-assembly.assertions.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 describe("buildStaticHeader", () => {
   it("is byte-identical across calls with the same inputs (cache prefix)", () => {
@@ -402,7 +403,7 @@ describe("buildMemoryBlock usage line", () => {
 describe("buildUserContextBlock", () => {
   it("states the date and dates the git status to the start of the turn", () => {
     // Arrange
-    const context = { cwd: "/workspace", date: "2026-10-17", gitStatus: "## main\n M a.ts\n" };
+    const context = { cwd: WORKSPACE, date: "2026-10-17", gitStatus: "## main\n M a.ts\n" };
 
     // Act
     const block = buildUserContextBlock(context);
@@ -413,13 +414,13 @@ describe("buildUserContextBlock", () => {
 
   it("states the cwd alone when it knows no date nor git status", () => {
     // Arrange
-    const context = { cwd: "/workspace" };
+    const context = { cwd: WORKSPACE };
 
     // Act
     const block = buildUserContextBlock(context);
 
     // Assert
-    strictEqual(block, "## Environment\ncwd: /workspace");
+    strictEqual(block, `## Environment\ncwd: ${WORKSPACE}`);
   });
 });
 
@@ -582,13 +583,13 @@ describe("buildPreferencesBlock", () => {
 describe("buildSkillsBlock", () => {
   it("renders the attached skills' fragments when the registry is non-empty", () => {
     // Arrange
-    const skills = [{ path: "/workspace/play.md", content: "Always run the tests." }];
+    const skills = [{ path: `${WORKSPACE}/play.md`, content: "Always run the tests." }];
 
     // Act
     const block = buildSkillsBlock(skills);
 
     // Assert
-    assertMentions(block, ["## Attached skills", "/workspace/play.md", "Always run the tests."], "the skills block");
+    assertMentions(block, ["## Attached skills", `${WORKSPACE}/play.md`, "Always run the tests."], "the skills block");
   });
 
   for (const c of EMPTY_SKILLS_CASES) {

@@ -14,11 +14,12 @@ import {
   hitsOf, indexWith, located, request, titlesOf,
 } from "./inventory.fixtures.ts";
 import { assertEveryIdHasEntry, assertWarns } from "./inventory.assertions.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 describe("buildInventory — the index", () => {
   it("builds the index when it holds no root, then searches", async () => {
     // Arrange
-    const index = indexWith({ "Prune entries": [hit("/workspace/src/domain/prune.ts::prune")] });
+    const index = indexWith({ "Prune entries": [hit(`${WORKSPACE}/src/domain/prune.ts::prune`)] });
     index.roots = 0;
     index.indexed = { files: 12, nodes: 40, edges: 9, statements: 100, errors: [] };
 
@@ -28,7 +29,7 @@ describe("buildInventory — the index", () => {
     // Assert
     ok(r.ok);
     strictEqual(r.inventory.index, "built");
-    deepStrictEqual(index.calls.slice(0, 3), ["rootCount", "index /workspace", "search Prune entries 8"]);
+    deepStrictEqual(index.calls.slice(0, 3), ["rootCount", `index ${WORKSPACE}`, "search Prune entries 8"]);
   });
 
   it("refuses when the index cannot be built", async () => {
@@ -58,15 +59,15 @@ describe("buildInventory — the index", () => {
     strictEqual(r.inventory.index, "empty");
     deepStrictEqual(r.inventory.entries, []);
     deepStrictEqual(r.inventory.warnings, ["the code index holds no file: every anchor is a path to create"]);
-    deepStrictEqual(index.calls, ["rootCount", "index /workspace"]);
+    deepStrictEqual(index.calls, ["rootCount", `index ${WORKSPACE}`]);
   });
 });
 
 describe("buildInventory — the entries", () => {
   it("keeps a symbol once and adds every id whose title found it, in source order", async () => {
     // Arrange
-    const shared = hit("/workspace/src/domain/memory.ts::MemoryEntry", 0.05);
-    const index = indexWith({ "Prune old entries": [shared], "Keep feedback": [shared, hit("/workspace/src/domain/feedback.ts::isFeedback")] });
+    const shared = hit(`${WORKSPACE}/src/domain/memory.ts::MemoryEntry`, 0.05);
+    const index = indexWith({ "Prune old entries": [shared], "Keep feedback": [shared, hit(`${WORKSPACE}/src/domain/feedback.ts::isFeedback`)] });
 
     // Act
     const r = await buildInventory(index, anchors(), request([["UC-01", "Prune old entries"], ["BR-02", "Keep feedback"]]), new FakeLogger());
@@ -78,13 +79,13 @@ describe("buildInventory — the entries", () => {
       ["I2", "src/domain/feedback.ts", ["BR-02"], "domain"],
     ]);
     const e = r.inventory.entries[0];
-    deepStrictEqual([e.name, e.line, e.endLine, e.fqn], ["MemoryEntry", 3, 8, "/workspace/src/domain/memory.ts::MemoryEntry"]);
+    deepStrictEqual([e.name, e.line, e.endLine, e.fqn], ["MemoryEntry", 3, 8, `${WORKSPACE}/src/domain/memory.ts::MemoryEntry`]);
   });
 
   it("drops hits under .claude/, the work folder or a build output, and a symbol whose source path is excluded", async () => {
     // Arrange
     const index = indexWith({ Prune: DROPPED_HITS });
-    index.sources["/workspace/src/app/reexport.ts::d"] = { ...located("/workspace/src/app/reexport.ts::d"), path: "/workspace/.orkeon/gen.ts" };
+    index.sources[`${WORKSPACE}/src/app/reexport.ts::d`] = { ...located(`${WORKSPACE}/src/app/reexport.ts::d`), path: `${WORKSPACE}/.orkeon/gen.ts` };
 
     // Act
     const r = await buildInventory(index, anchors(), request([["BR-01", "Prune"]]), new FakeLogger());
@@ -92,13 +93,13 @@ describe("buildInventory — the entries", () => {
     // Assert
     ok(r.ok);
     deepStrictEqual(r.inventory.entries.map((e) => [e.ref, e.path]), [["I1", "src/app/run.ts"]]);
-    assertWarns(r.inventory.warnings, "/workspace/src/app/reexport.ts::d dropped: /workspace/.orkeon/gen.ts is outside what a plan may anchor");
+    assertWarns(r.inventory.warnings, `${WORKSPACE}/src/app/reexport.ts::d dropped: ${WORKSPACE}/.orkeon/gen.ts is outside what a plan may anchor`);
   });
 
   it("drops a symbol the index cannot locate, keeping the refs dense", async () => {
     // Arrange
-    const index = indexWith({ Prune: [hit("/workspace/src/a.ts::a"), hit("/workspace/src/b.ts::b"), hit("/workspace/src/c.ts::c")] });
-    delete index.sources["/workspace/src/b.ts::b"];
+    const index = indexWith({ Prune: [hit(`${WORKSPACE}/src/a.ts::a`), hit(`${WORKSPACE}/src/b.ts::b`), hit(`${WORKSPACE}/src/c.ts::c`)] });
+    delete index.sources[`${WORKSPACE}/src/b.ts::b`];
 
     // Act
     const r = await buildInventory(index, anchors(), request([["BR-01", "Prune"]]), new FakeLogger());
@@ -106,12 +107,12 @@ describe("buildInventory — the entries", () => {
     // Assert
     ok(r.ok);
     deepStrictEqual(r.inventory.entries.map((e) => [e.ref, e.path]), [["I1", "src/a.ts"], ["I2", "src/c.ts"]]);
-    assertWarns(r.inventory.warnings, "/workspace/src/b.ts::b dropped: no symbol /workspace/src/b.ts::b");
+    assertWarns(r.inventory.warnings, `${WORKSPACE}/src/b.ts::b dropped: no symbol ${WORKSPACE}/src/b.ts::b`);
   });
 
   it("goes on after a failing search, with a warning", async () => {
     // Arrange
-    const index = indexWith({ Second: [hit("/workspace/src/s.ts::s")] });
+    const index = indexWith({ Second: [hit(`${WORKSPACE}/src/s.ts::s`)] });
     failSearchOn(index, "First");
 
     // Act
@@ -214,9 +215,9 @@ describe("buildInventory — caps and the round robin", () => {
 
   it("drops the entry's own subtree from its closure, and only that", async () => {
     // Arrange
-    const index = indexWith({ Prune: [hit("/workspace/src/app/order.ts::Order", 0.09)] });
+    const index = indexWith({ Prune: [hit(`${WORKSPACE}/src/app/order.ts::Order`, 0.09)] });
     const anchorIndex = anchors();
-    anchorIndex.closures["/workspace/src/app/order.ts::Order"] = ORDER_CLOSURE;
+    anchorIndex.closures[`${WORKSPACE}/src/app/order.ts::Order`] = ORDER_CLOSURE;
 
     // Act
     const r = await buildInventory(index, anchorIndex, request([["BR-01", "Prune"]]), new FakeLogger());
@@ -230,11 +231,11 @@ describe("buildInventory — caps and the round robin", () => {
 
   it("warns on a truncated closure, an anchor batch_anchors does not know, and a failed closure", async () => {
     // Arrange
-    const index = indexWith({ Prune: [hit("/workspace/src/a.ts::a", 0.09), hit("/workspace/src/b.ts::b", 0.08), hit("/workspace/src/c.ts::c", 0.07)] });
+    const index = indexWith({ Prune: [hit(`${WORKSPACE}/src/a.ts::a`, 0.09), hit(`${WORKSPACE}/src/b.ts::b`, 0.08), hit(`${WORKSPACE}/src/c.ts::c`, 0.07)] });
     const anchorIndex = anchors();
-    anchorIndex.closures["/workspace/src/a.ts::a"] = { nodes: ["/workspace/src/x.ts::x"], unresolved: [], truncated: true };
-    anchorIndex.closures["/workspace/src/b.ts::b"] = { nodes: [], unresolved: ["/workspace/src/b.ts::b"], truncated: false };
-    anchorIndex.failures["/workspace/src/c.ts::c"] = new Error("store offline\nstack");
+    anchorIndex.closures[`${WORKSPACE}/src/a.ts::a`] = { nodes: [`${WORKSPACE}/src/x.ts::x`], unresolved: [], truncated: true };
+    anchorIndex.closures[`${WORKSPACE}/src/b.ts::b`] = { nodes: [], unresolved: [`${WORKSPACE}/src/b.ts::b`], truncated: false };
+    anchorIndex.failures[`${WORKSPACE}/src/c.ts::c`] = new Error("store offline\nstack");
 
     // Act
     const r = await buildInventory(index, anchorIndex, request([["BR-01", "Prune"]]), new FakeLogger());
@@ -247,7 +248,7 @@ describe("buildInventory — caps and the round robin", () => {
 
   it("warns when the module graph fails, imports left empty", async () => {
     // Arrange
-    const index = indexWith({ Prune: [hit("/workspace/src/a.ts::a")] });
+    const index = indexWith({ Prune: [hit(`${WORKSPACE}/src/a.ts::a`)] });
     index.dependencyGraph = async () => { throw new Error("graph too large"); };
 
     // Act

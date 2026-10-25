@@ -13,6 +13,7 @@ import {
   SHORT_SHEET, SUITE, SYSTEM_MARKERS, TABLE, bigBriefInput, briefInput, largestAnswer, longReports,
 } from "./auditor-prompt.fixtures.ts";
 import { assertMentions, assertOmits, assertWithinBrief } from "./auditor-prompt.assertions.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 describe("AUDITOR_SYSTEM — one marker per behaviour", () => {
   for (const [behaviour, marker] of SYSTEM_MARKERS) {
@@ -114,7 +115,7 @@ describe("buildAuditBrief", () => {
 
     // Assert
     assertMentions(brief, [
-      "Sheet: /workspace/workbench/demo/DEMO-PLAN-F2.md\n",
+      `Sheet: ${WORKSPACE}/workbench/demo/DEMO-PLAN-F2.md\n`,
       "\nThe sheet, in this brief (do not open it again):\n```text\n# DEMO-PLAN-F2 — Command\n\n## Intent\nthe command\n```\n",
     ]);
     ok(brief.indexOf("The sheet, in this brief") < brief.indexOf("The mechanical table"));
@@ -253,11 +254,11 @@ describe("buildValidationFollowUp", () => {
     // Assert
     ok(p.startsWith("Audit of batch F2, mode fast."), p);
     assertMentions(p, [
-      "Applied rules: DDD-01, APP-02", "in /workspace/workbench/demo/capture-F2/: reopen them there when needed",
+      "Applied rules: DDD-01, APP-02", `in ${WORKSPACE}/workbench/demo/capture-F2/: reopen them there when needed`,
       "- verdict: VALID", `- validations named: ${FIRST.validations[0]}`, "Outcome: exit 1",
       "Failed ShouldDeposit_WhenAmountIsPositive", "this answer is final",
     ]);
-    assertOmits(p, [TABLE, "/workspace/workbench/demo/capture-F2/diff-001.txt"]);
+    assertOmits(p, [TABLE, `${WORKSPACE}/workbench/demo/capture-F2/diff-001.txt`]);
   });
 
   it("starts from a first brief near the limit", () => {

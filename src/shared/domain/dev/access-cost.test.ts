@@ -13,6 +13,7 @@ import {
   DEFAULT_RECEIVER_CASES, EMPTY_REPORT, FILES, NEW_FILE_DIFF, NO_PACK_REGEX, PLACE_DETAIL, QUIET_REPORT, ROOT_CASES,
   TWO_HUNKS, UNREADABLE_REPORTS, detailOf, fourteenCalls, raw, report,
 } from "./access-cost.fixtures.ts";
+import { WORKSPACE } from "../vfs.ts";
 
 describe("readAccessCostReport", () => {
   it("reads the members, their calls and filters, and the totals", () => {
@@ -135,7 +136,7 @@ describe("receiversArgument", () => {
 describe("measuredCost", () => {
   it("flags a blocking call or filter on an added line, exit 2, and counts the reads and writes", () => {
     // Arrange
-    const added = new Map([["/workspace/src/order.ts", new Set([14, 22])]]);
+    const added = new Map([[`${WORKSPACE}/src/order.ts`, new Set([14, 22])]]);
 
     // Act
     const cost = measuredCost(report(), added);
@@ -153,7 +154,7 @@ describe("measuredCost", () => {
 
   it("lists pre-existing blocking items without exit 2", () => {
     // Arrange
-    const added = new Map([["/workspace/src/order.ts", new Set<number>()]]);
+    const added = new Map([[`${WORKSPACE}/src/order.ts`, new Set<number>()]]);
 
     // Act
     const cost = measuredCost(report(), added);
@@ -167,7 +168,7 @@ describe("measuredCost", () => {
 
   it("counts every line of a file whose diff is not known as added", () => {
     // Arrange
-    const added = new Map([["/workspace/src/order.ts", null]]);
+    const added = new Map([[`${WORKSPACE}/src/order.ts`, null]]);
 
     // Act
     const cost = measuredCost(report(), added);
@@ -259,7 +260,7 @@ describe("the cost texts", () => {
 
     // Assert
     assertNotComputed(other);
-    strictEqual(other.reason.includes("holds /src, not /workspace"), true);
+    strictEqual(other.reason.includes(`holds /src, not ${WORKSPACE}`), true);
   });
 
   it("measures a batch without a file under the roots as nothing", () => {

@@ -5,48 +5,49 @@ import { deepStrictEqual } from "node:assert";
 
 import { readAttachedSkills } from "./attached-skills.ts";
 import { skillsHarness } from "./attached-skills.fixtures.ts";
+import { WORKSPACE } from "../domain/vfs.ts";
 
 describe("readAttachedSkills", () => {
   it("reads each attached path with its content, in attachment order", async () => {
     // Arrange
-    const { session, files } = skillsHarness(`["/workspace/b.md","/workspace/a.md"]`);
-    files.files.set("/workspace/a.md", "# A");
-    files.files.set("/workspace/b.md", "# B");
+    const { session, files } = skillsHarness(`["${WORKSPACE}/b.md","${WORKSPACE}/a.md"]`);
+    files.files.set(`${WORKSPACE}/a.md`, "# A");
+    files.files.set(`${WORKSPACE}/b.md`, "# B");
 
     // Act
     const skills = await readAttachedSkills(session, files);
 
     // Assert
     deepStrictEqual(skills, [
-      { path: "/workspace/b.md", content: "# B" },
-      { path: "/workspace/a.md", content: "# A" },
+      { path: `${WORKSPACE}/b.md`, content: "# B" },
+      { path: `${WORKSPACE}/a.md`, content: "# A" },
     ]);
   });
 
   it("drops a skill whose file has gone, cannot be read or is blank", async () => {
     // Arrange
-    const { session, files } = skillsHarness(`["/workspace/gone.md","/workspace/locked.md","/workspace/blank.md","/workspace/ok.md"]`);
-    files.readErrors.set("/workspace/locked.md", new Error("access denied"));
-    files.files.set("/workspace/blank.md", "  \n");
-    files.files.set("/workspace/ok.md", "# OK");
+    const { session, files } = skillsHarness(`["${WORKSPACE}/gone.md","${WORKSPACE}/locked.md","${WORKSPACE}/blank.md","${WORKSPACE}/ok.md"]`);
+    files.readErrors.set(`${WORKSPACE}/locked.md`, new Error("access denied"));
+    files.files.set(`${WORKSPACE}/blank.md`, "  \n");
+    files.files.set(`${WORKSPACE}/ok.md`, "# OK");
 
     // Act
     const skills = await readAttachedSkills(session, files);
 
     // Assert
-    deepStrictEqual(skills, [{ path: "/workspace/ok.md", content: "# OK" }]);
+    deepStrictEqual(skills, [{ path: `${WORKSPACE}/ok.md`, content: "# OK" }]);
   });
 
   it("skips registry entries that are not paths", async () => {
     // Arrange
-    const { session, files } = skillsHarness(`["", null, "/workspace/a.md"]`);
-    files.files.set("/workspace/a.md", "# A");
+    const { session, files } = skillsHarness(`["", null, "${WORKSPACE}/a.md"]`);
+    files.files.set(`${WORKSPACE}/a.md`, "# A");
 
     // Act
     const skills = await readAttachedSkills(session, files);
 
     // Assert
-    deepStrictEqual(skills, [{ path: "/workspace/a.md", content: "# A" }]);
+    deepStrictEqual(skills, [{ path: `${WORKSPACE}/a.md`, content: "# A" }]);
   });
 
   it("reads nothing from an unset registry", async () => {
@@ -73,7 +74,7 @@ describe("readAttachedSkills", () => {
 
   it("reads nothing from an unreadable registry", async () => {
     // Arrange
-    const { session, files } = skillsHarness(`["/workspace/a.md"]`);
+    const { session, files } = skillsHarness(`["${WORKSPACE}/a.md"]`);
     session.failure = new Error("no session_store tool");
 
     // Act

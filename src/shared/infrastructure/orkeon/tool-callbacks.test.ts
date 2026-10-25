@@ -11,6 +11,7 @@ import {
   memoryGuardedStep, readerOfAll, setup,
 } from "./tool-callbacks.fixtures.ts";
 import { assertDenied, assertDeniedWith } from "./tool-callbacks.assertions.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 describe("onToolCall", () => {
   it("allows a call no rule covers, after its pre-tool hooks ran in order with the call's words", async () => {
@@ -224,7 +225,7 @@ describe("onToolCall — the rewrite rule", () => {
 
     // Assert
     assertDenied(refused, ["of the implementer's rewrite rule"]);
-    deepStrictEqual(reader.reads, ["/workspace/src/domain/big.ts"]);
+    deepStrictEqual(reader.reads, [`${WORKSPACE}/src/domain/big.ts`]);
   });
 
   it("lets file_write create a source file that does not exist", async () => {
@@ -237,7 +238,7 @@ describe("onToolCall — the rewrite rule", () => {
 
     // Assert
     strictEqual(verdict, "allow");
-    deepStrictEqual(reader.reads, ["/workspace/src/domain/new.ts"]);
+    deepStrictEqual(reader.reads, [`${WORKSPACE}/src/domain/new.ts`]);
   });
 
   it("lets a node edit change a source file that exists, reading nothing", async () => {
@@ -303,7 +304,7 @@ describe("onToolCall — the rewrite rule", () => {
 });
 
 describe("rootedCallbacks — a batch under its working root", () => {
-  it("judges <root>/src/x.ts as /workspace/src/x.ts", async () => {
+  it(`judges <root>/src/x.ts as ${WORKSPACE}/src/x.ts`, async () => {
     // Arrange
     const { reads, reader } = readerOfAll();
     const shell = new FakeShell();
@@ -315,7 +316,7 @@ describe("rootedCallbacks — a batch under its working root", () => {
 
     // Assert
     assertDenied(refused, ["of the implementer's rewrite rule"]);
-    deepStrictEqual(reads, ["/workspace/src/domain/big.ts"]);
+    deepStrictEqual(reads, [`${WORKSPACE}/src/domain/big.ts`]);
     deepStrictEqual(shell.commands, []);
   });
 
@@ -331,7 +332,7 @@ describe("rootedCallbacks — a batch under its working root", () => {
 
     // Assert
     strictEqual(verdict, "allow");
-    deepStrictEqual(shell.commands, ["bash pre.sh file_read /workspace/src/a.ts"]);
+    deepStrictEqual(shell.commands, [`bash pre.sh file_read ${WORKSPACE}/src/a.ts`]);
   });
 
   it("is the callbacks themselves without a root", () => {

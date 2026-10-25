@@ -10,6 +10,7 @@ import {
   CONTRACT_CANDIDATE, CONTRACT_NOTE, CUT_POSITIONS, candidateFiles, emptyWorld, layout, memory, noteWithTokenAt, setup,
 } from "./import-agent-memory.fixtures.ts";
 import { assertEntry, assertMentions } from "./import-agent-memory.assertions.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 describe("importAgentMemory", () => {
   it("writes one candidate per entry and none for a duplicate", async () => {
@@ -113,7 +114,7 @@ describe("importAgentMemory", () => {
     const text = importReport(outcome);
 
     // Assert
-    ok(text.startsWith("No harness agent memory in /workspace/.claude/agent-memory"), text);
+    ok(text.startsWith(`No harness agent memory in ${WORKSPACE}/.claude/agent-memory`), text);
   });
 
   it("reports the agents, the candidates and the duplicates", async () => {
@@ -125,7 +126,7 @@ describe("importAgentMemory", () => {
 
     // Assert
     assertMentions(text, [
-      "/workspace/.claude/agent-memory/dev-auditor/MEMORY.md: 4 entries",
+      `${WORKSPACE}/.claude/agent-memory/dev-auditor/MEMORY.md: 4 entries`,
       "2 candidate(s) written: shop-method-20261024-name-the-port-before-the-adapter, shop-method-20261024-contract-tests-first",
       "3 duplicate(s) skipped",
     ]);

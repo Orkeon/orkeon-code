@@ -5,6 +5,7 @@ import { deepStrictEqual, rejects } from "node:assert";
 
 import { createSharedMemory } from "./shared-memory.ts";
 import { A, B, FAILING_RAG, fakeRag, noTools, ragTools } from "./shared-memory.fixtures.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 describe("createSharedMemory over rag", () => {
   it("retrieves without generating, one hit per file with its best score, best first", async () => {
@@ -29,12 +30,12 @@ describe("createSharedMemory over rag", () => {
     });
 
     // Act
-    const report = await createSharedMemory(rag, noTools).ingest("memory-x", ["/workspace/m/entries/**/*.md"], { prune: true });
+    const report = await createSharedMemory(rag, noTools).ingest("memory-x", [`${WORKSPACE}/m/entries/**/*.md`], { prune: true });
 
     // Assert
     deepStrictEqual(report, { added: 2, reingested: 1, unchanged: 5, pruned: 1, errors: ["one bad file"] });
     deepStrictEqual(calls, [["ingest", {
-      collection: "memory-x", sources: ["/workspace/m/entries/**/*.md"], chunkingStrategy: "structural", prune: true,
+      collection: "memory-x", sources: [`${WORKSPACE}/m/entries/**/*.md`], chunkingStrategy: "structural", prune: true,
     }]]);
   });
 

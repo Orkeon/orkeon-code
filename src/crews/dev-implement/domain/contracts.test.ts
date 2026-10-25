@@ -9,6 +9,7 @@ import {
   SHEET_AND_TEST_CARRIED, STUB_CARRIED, stepCreating, stepWithStubs, stepWithTestFile, STUBS_SAY,
 } from "./contracts.fixtures.ts";
 import { assertCarriedBeforeRules, assertMentions, assertNodeRules } from "./contracts.assertions.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 describe("testCommandFor", () => {
   it("fills test_class with the test file for a script", () => {
@@ -150,7 +151,7 @@ describe("redContract / greenContract", () => {
     const input = contractInput();
 
     // Act
-    const green = greenContract(input, { tail: "not ok 1", log: "/workspace/workbench/prune/logs/x.log" });
+    const green = greenContract(input, { tail: "not ok 1", log: `${WORKSPACE}/workbench/prune/logs/x.log` });
 
     // Assert
     assertMentions(green, GREEN_SAYS);

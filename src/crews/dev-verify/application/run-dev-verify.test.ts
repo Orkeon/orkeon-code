@@ -16,6 +16,7 @@ import {
   UNFINISHED, VALIDATION, VERDICT, HARVEST_LINE, answer, countingHarvest, failVerdictWrite, measuringCostIndex,
   planOutsideWorkFolder, recordingHarvest, run, runValidationOnAct, setup,
 } from "./run-dev-verify.fixtures.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 describe("runDevVerify — the gate", () => {
   it("returns the gate lines and calls no model when the gate is red", async () => {
@@ -127,7 +128,7 @@ describe("runDevVerify — the verdict", () => {
 
     // Assert
     deepStrictEqual(text.split("\n").slice(1, 3), [GREEN_LINE, MEASURED]);
-    deepStrictEqual(costIndex.refreshed.flat(), ["/workspace/src/a.ts"]);
+    deepStrictEqual(costIndex.refreshed.flat(), [`${WORKSPACE}/src/a.ts`]);
     strictEqual(f.files.files.get(`${DIR}/capture-F2/cost.txt`),
       `exit: 0\n[src/a.ts::show]\nPorts outside loops (1): this.store.load L2\n${MEASURED}\n`);
     assertMentions(f.files.files.get(`${DIR}/capture-F2/table.md`) ?? "", [`| Cost | capture \`cost\` | ok | \`exit: 0\` — ${MEASURED} |`]);
@@ -426,7 +427,7 @@ describe("runDevVerify — refusals", () => {
     const f = setup();
 
     // Act
-    const text = await run(f.deps, { batch: "F2", plan: "/workspace/workbench/demo/DEMO-PLAN.md", gateOnly: true });
+    const text = await run(f.deps, { batch: "F2", plan: `${WORKSPACE}/workbench/demo/DEMO-PLAN.md`, gateOnly: true });
 
     // Assert
     ok(text.endsWith(GATE_ONLY_LINE), text);
@@ -442,7 +443,7 @@ describe("runDevVerify — refusals", () => {
 
     // Assert
     strictEqual(text, "dev-verify: '.claude/x/X-PLAN.md' is not under the work folder workbench/");
-    strictEqual(f.files.files.has("/workspace/.claude/x/X-VERIFY-F2.md"), false);
+    strictEqual(f.files.files.has(`${WORKSPACE}/.claude/x/X-VERIFY-F2.md`), false);
   });
 });
 
@@ -509,7 +510,7 @@ describe("runDevVerify — full", () => {
   it("says Not run when the pack has no commands.test", async () => {
     // Arrange
     const f = setup();
-    f.files.files.set("/workspace/.orkeon/repo.yaml", PACK.replace("  test: npm test\n", ""));
+    f.files.files.set(`${WORKSPACE}/.orkeon/repo.yaml`, PACK.replace("  test: npm test\n", ""));
     f.llm.answers = ["fine"];
     f.llm.extractions = [answer([])];
 

@@ -13,6 +13,7 @@ import { FakeSessionStore } from "../../../../tests/support/fake-session-store.t
 import {
   BUDGET_SKILLS, MIXED_MENTIONS, PER_FILE_CHARS, PER_SKILL_CHARS, goneBlankAndOkSkills, mixedFiles, tooManyLargeFiles, tooManySkills,
 } from "./restore-context.fixtures.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 describe("restoreRecentFiles", () => {
   it("re-reads the paths the conversation mentioned last, most recent first, skipping what it cannot read", async () => {
@@ -24,8 +25,8 @@ describe("restoreRecentFiles", () => {
 
     // Assert
     deepStrictEqual(restored, [
-      buildRestoredFileMessage("/workspace/src/b.ts", "B"),
-      buildRestoredFileMessage("/workspace/src/a.ts", "A"),
+      buildRestoredFileMessage(`${WORKSPACE}/src/b.ts`, "B"),
+      buildRestoredFileMessage(`${WORKSPACE}/src/a.ts`, "A"),
     ]);
   });
 
@@ -45,13 +46,13 @@ describe("restoreRecentFiles", () => {
   it("restores a file that fits whole", async () => {
     // Arrange
     const files = new FakeFiles();
-    files.files.set("/workspace/small.ts", "x".repeat(PER_FILE_CHARS));
+    files.files.set(`${WORKSPACE}/small.ts`, "x".repeat(PER_FILE_CHARS));
 
     // Act
-    const restored = await restoreRecentFiles(files, [{ role: "user", content: "see /workspace/small.ts" }]);
+    const restored = await restoreRecentFiles(files, [{ role: "user", content: `see ${WORKSPACE}/small.ts` }]);
 
     // Assert
-    deepStrictEqual(restored, [buildRestoredFileMessage("/workspace/small.ts", "x".repeat(PER_FILE_CHARS))]);
+    deepStrictEqual(restored, [buildRestoredFileMessage(`${WORKSPACE}/small.ts`, "x".repeat(PER_FILE_CHARS))]);
   });
 });
 
@@ -76,7 +77,7 @@ describe("restoreAttachedSkills", () => {
     const restored = await restoreAttachedSkills(session, files);
 
     // Assert
-    deepStrictEqual(restored, [buildRestoredSkillMessage("/workspace/ok.md", "# OK")]);
+    deepStrictEqual(restored, [buildRestoredSkillMessage(`${WORKSPACE}/ok.md`, "# OK")]);
   });
 
   it("restores nothing without attached skills", async () => {

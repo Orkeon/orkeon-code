@@ -28,6 +28,7 @@ import {
   URL_WORDS_THEN_PATHS,
 } from "./compaction.fixtures.ts";
 import { assertMentions } from "./compaction.assertions.ts";
+import { WORKSPACE } from "./vfs.ts";
 
 describe("buildTranscript", () => {
   it("renders role: content lines", () => {
@@ -254,13 +255,13 @@ describe("extractRecentFilePaths (E-4)", () => {
 
   it("accepts absolute and dotted-relative paths", () => {
     // Arrange
-    const msgs = [{ role: "user", content: "read /workspace/x.py then ./y.cs and ../z/w.go" }];
+    const msgs = [{ role: "user", content: `read ${WORKSPACE}/x.py then ./y.cs and ../z/w.go` }];
 
     // Act
     const paths = extractRecentFilePaths(msgs, 10);
 
     // Assert
-    deepStrictEqual(paths, ["/workspace/x.py", "./y.cs", "../z/w.go"]);
+    deepStrictEqual(paths, [`${WORKSPACE}/x.py`, "./y.cs", "../z/w.go"]);
   });
 });
 
@@ -417,14 +418,14 @@ describe("buildRestoredSkillMessage (B-13)", () => {
     // file came back because the agent touched it, a skill because the operator
     // attached it and expects it to outlive every compaction.
     // Arrange
-    const path = "/workspace/play.md";
+    const path = `${WORKSPACE}/play.md`;
 
     // Act
     const skill = buildRestoredSkillMessage(path, "Always run tests.");
 
     // Assert
     strictEqual(skill.role, "system");
-    ok(skill.content.startsWith("[restored-skill] /workspace/play.md"), skill.content);
+    ok(skill.content.startsWith(`[restored-skill] ${WORKSPACE}/play.md`), skill.content);
     ok(skill.content.includes("Always run tests."));
     ok(!skill.content.includes("[restored-file]"));
   });

@@ -15,6 +15,7 @@ import {
   oneMotifProposed, recorded, setup, twoFailedAnswers,
 } from "./run-dev-learn.fixtures.ts";
 import { assertMentions, assertNoClaudeWrite, writtenTestAxis } from "./run-dev-learn.assertions.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 describe("runDevLearn — --list", () => {
   it("prints the backlog per axis and the refused motifs: no model call, no write", async () => {
@@ -219,7 +220,7 @@ describe("runDevLearn — proposals", () => {
     const text = await runDevLearn({}, f.deps);
 
     // Assert
-    ok(text.endsWith("dev-learn: BLOCKED — workbench/learn-2026-10-22/proposals.json cannot be written (disk full: /workspace/workbench/learn-2026-10-22/proposals.json)"), text);
+    ok(text.endsWith(`dev-learn: BLOCKED — workbench/learn-2026-10-22/proposals.json cannot be written (disk full: ${WORKSPACE}/workbench/learn-2026-10-22/proposals.json)`), text);
   });
 });
 
@@ -241,20 +242,20 @@ describe("runDevLearn — refusals", () => {
   it("refuses outside the top of the repository", async () => {
     // Arrange
     const f = setup();
-    f.shell.results[GIT_TOPLEVEL] = { stdout: "/workspace/sub\n" };
+    f.shell.results[GIT_TOPLEVEL] = { stdout: `${WORKSPACE}/sub\n` };
 
     // Act
     const text = await runDevLearn({}, f.deps);
 
     // Assert
     strictEqual(text,
-      "dev-learn: the git work tree is /workspace/sub, not /workspace: run Orkeon Code at the top of the repository");
+      `dev-learn: the git work tree is ${WORKSPACE}/sub, not ${WORKSPACE}: run Orkeon Code at the top of the repository`);
   });
 
   it("refuses a work folder in the main worktree", async () => {
     // Arrange
     const f = setup();
-    f.files.files.set("/workspace/.orkeon/repo.yaml", "layout:\n  work: tasks\n");
+    f.files.files.set(`${WORKSPACE}/.orkeon/repo.yaml`, "layout:\n  work: tasks\n");
     f.shell.results[GIT_WORKTREE_LIST] = { stdout: "worktree /main\nHEAD abc\n" };
 
     // Act
@@ -268,7 +269,7 @@ describe("runDevLearn — refusals", () => {
   it("refuses an absent work folder", async () => {
     // Arrange
     const f = setup();
-    f.files.listings.set("/workspace", ["CONTRIBUTING.md"]);
+    f.files.listings.set(WORKSPACE, ["CONTRIBUTING.md"]);
 
     // Act
     const text = await runDevLearn({}, f.deps);

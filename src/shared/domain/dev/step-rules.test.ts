@@ -12,6 +12,7 @@ import {
   REWRITE_RULES, SOURCE_FILE, TEST_FILE,
 } from "./step-rules.fixtures.ts";
 import { assertDecisions, assertFramedBy } from "./step-rules.assertions.ts";
+import { WORKSPACE } from "../vfs.ts";
 
 describe("STEP_RULE_SETS", () => {
   it("gives every dev step its sets", () => {
@@ -197,7 +198,7 @@ describe("roleRules", () => {
 
     // Assert
     deepStrictEqual(implementer.missing, []);
-    strictEqual(ruleDecision(implementer.rules, "file_write", { path: "/workspace/src/a/x.test.ts" }), "deny");
+    strictEqual(ruleDecision(implementer.rules, "file_write", { path: `${WORKSPACE}/src/a/x.test.ts` }), "deny");
     strictEqual(ruleDecision(implementer.rules, "file_write", { path: "src/a/x.ts" }), undefined);
     deepStrictEqual(implementer.rules.slice(-1).map(formatRule), ["deny structural_rewrite"]);
   });

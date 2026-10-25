@@ -10,6 +10,7 @@ import {
   ANSWER, CREATE_ANCHORS_PRESENT_PROBLEMS, CountingFiles, FORTY_FIVE_FOLDERS, answerWithExisting, countingRepository,
   repository, throwingOn,
 } from "./anchor-paths.fixtures.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 describe("checkAnchorPaths", () => {
   it("accepts the golden answer: files to create absent, existing files present", async () => {
@@ -26,8 +27,8 @@ describe("checkAnchorPaths", () => {
   it("refuses an existing anchor that is absent and a create anchor that is present", async () => {
     // Arrange
     const files = repository();
-    files.listings.set("/workspace/docs/fr", []);
-    files.listings.set("/workspace/src/shared/domain", ["memory.ts", "memory-prune.ts", "memory-prune.test.ts"]);
+    files.listings.set(`${WORKSPACE}/docs/fr`, []);
+    files.listings.set(`${WORKSPACE}/src/shared/domain`, ["memory.ts", "memory-prune.ts", "memory-prune.test.ts"]);
 
     // Act
     const problems = await checkAnchorPaths(files, ANSWER);
@@ -39,7 +40,7 @@ describe("checkAnchorPaths", () => {
   it("refuses as not checked an existing anchor a listing cut at its cap leaves out", async () => {
     // Arrange
     const files = repository();
-    files.listings.set("/workspace/docs/fr", [...Array.from({ length: LIST_CAP }, (_, i) => `a${i}.md`), "commands.md"]);
+    files.listings.set(`${WORKSPACE}/docs/fr`, [...Array.from({ length: LIST_CAP }, (_, i) => `a${i}.md`), "commands.md"]);
 
     // Act
     const problems = await checkAnchorPaths(files, ANSWER);
@@ -51,16 +52,16 @@ describe("checkAnchorPaths", () => {
   it("lists each folder once, and a listing that throws reads as empty", async () => {
     // Arrange
     const files = new CountingFiles();
-    files.listings.set("/workspace/docs", ["commands.md"]);
-    files.listings.set("/workspace/src/shared/domain", []);
-    const failing = throwingOn(files, "/workspace/docs/fr");
+    files.listings.set(`${WORKSPACE}/docs`, ["commands.md"]);
+    files.listings.set(`${WORKSPACE}/src/shared/domain`, []);
+    const failing = throwingOn(files, `${WORKSPACE}/docs/fr`);
 
     // Act
     const problems = await checkAnchorPaths(failing, ANSWER);
 
     // Assert
     deepStrictEqual(problems, ["B2 S1: docs/fr/commands.md does not exist"]);
-    deepStrictEqual(files.listed, ["/workspace/src/shared/domain", "/workspace/docs"]);
+    deepStrictEqual(files.listed, [`${WORKSPACE}/src/shared/domain`, `${WORKSPACE}/docs`]);
   });
 
   it("refuses a path that holds a colon without listing its folder", async () => {
@@ -79,7 +80,7 @@ describe("checkAnchorPaths", () => {
   it("lists a folder once across the calls that share one listings map", async () => {
     // Arrange
     const files = countingRepository();
-    files.listings.set("/workspace/src/shared/domain", []);
+    files.listings.set(`${WORKSPACE}/src/shared/domain`, []);
     const listings: AnchorListings = new Map();
     const first = await checkAnchorPaths(files, ANSWER, listings);
 
@@ -89,7 +90,7 @@ describe("checkAnchorPaths", () => {
     // Assert
     deepStrictEqual(first, []);
     deepStrictEqual(second, []);
-    deepStrictEqual(files.listed, ["/workspace/src/shared/domain", "/workspace/docs", "/workspace/docs/fr"]);
+    deepStrictEqual(files.listed, [`${WORKSPACE}/src/shared/domain`, `${WORKSPACE}/docs`, `${WORKSPACE}/docs/fr`]);
   });
 
   it("checks 40 folders at most, and refuses every existing anchor past them as not checked", async () => {

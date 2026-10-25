@@ -8,6 +8,7 @@ import { parseBatchesState } from "../../../shared/domain/dev/batches-state.ts";
 import { appendToLog, batchesLogPath, eventLine, lastEntryOf, stamp } from "./batches-log.ts";
 import { AT, EVENT_LINES, F1_MERGED_LINES, LOG_WITHOUT_FINAL_NEWLINE } from "./batches-log.fixtures.ts";
 import { assertLogReadsBack } from "./batches-log.assertions.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 describe("batches log", () => {
   it("stamps in UTC", () => {
@@ -53,7 +54,7 @@ describe("batches log", () => {
     const path = batchesLogPath(code);
 
     // Assert
-    strictEqual(path, "/workspace/.orkeon/dev/demo/batches-state.md");
+    strictEqual(path, `${WORKSPACE}/.orkeon/dev/demo/batches-state.md`);
   });
 
   it("starts a new log with its title", () => {

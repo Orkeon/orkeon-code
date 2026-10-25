@@ -24,6 +24,7 @@ import {
   SPLIT_CASES,
 } from "./commands-args.fixtures.ts";
 import { assertRefused } from "./commands-args.assertions.ts";
+import { WORKSPACE } from "../src/shared/domain/vfs.ts";
 
 describe("parseMemoryArgs", () => {
   for (const c of MEMORY_ARGS_CASES) {
@@ -112,13 +113,13 @@ describe("parseToolCallArgs", () => {
     // Arrange
     // `{"path": "/a"}` arrives as TWO tokens; taking tokens[1] would parse `{"path":`
     // and fail with a message that points nowhere.
-    const tokens = ["file_read", '{"path":', '"/workspace/README.md"}'];
+    const tokens = ["file_read", '{"path":', `"${WORKSPACE}/README.md"}`];
 
     // Act
     const parsed = parseToolCallArgs(tokens);
 
     // Assert
-    deepStrictEqual(parsed, { ok: true, tool: "file_read", args: { path: "/workspace/README.md" } });
+    deepStrictEqual(parsed, { ok: true, tool: "file_read", args: { path: `${WORKSPACE}/README.md` } });
   });
 
   it("refuses malformed JSON instead of coercing it", () => {

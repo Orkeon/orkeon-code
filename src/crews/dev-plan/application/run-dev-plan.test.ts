@@ -15,6 +15,7 @@ import {
   withGoldenPlan, withThreeBatchPlan, written,
 } from "./run-dev-plan.fixtures.ts";
 import { assertGoldenRenders, assertGuarded, assertListedOnce, assertMentions } from "./run-dev-plan.assertions.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 describe("runDevPlan — a plan written and reviewed", () => {
   it("writes the plan, its sheets and plan.json, and ends on the next command (review CLEAR)", async () => {
@@ -201,8 +202,8 @@ describe("runDevPlan — the planner's answer", () => {
   it("asks once more when an existing anchor is absent or a create anchor is present", async () => {
     // Arrange
     const f = setup();
-    f.files.listings.set("/workspace/docs/fr", []);
-    f.files.listings.set("/workspace/src/shared/domain", ["memory.ts", "memory-prune.ts"]);
+    f.files.listings.set(`${WORKSPACE}/docs/fr`, []);
+    f.files.listings.set(`${WORKSPACE}/src/shared/domain`, ["memory.ts", "memory-prune.ts"]);
     f.llm.extractions = [ANSWER, ANSWER];
 
     // Act
@@ -221,7 +222,7 @@ describe("runDevPlan — the planner's answer", () => {
   it("lists each anchor folder once for the run, though both attempts check the anchors", async () => {
     // Arrange
     const f = setup();
-    f.files.listings.set("/workspace/docs/fr", []);
+    f.files.listings.set(`${WORKSPACE}/docs/fr`, []);
     f.llm.extractions = [ANSWER, ANSWER];
     const listed = recordListings(f.files);
 
@@ -231,7 +232,7 @@ describe("runDevPlan — the planner's answer", () => {
     // Assert
     strictEqual(f.llm.extracts.length, 2);
     assertMentions(f.llm.extracts[1].prompt, ["- B2 S1: docs/fr/commands.md does not exist"]);
-    assertListedOnce(listed, ["/workspace/src/shared/domain", "/workspace/docs", "/workspace/docs/fr"]);
+    assertListedOnce(listed, [`${WORKSPACE}/src/shared/domain`, `${WORKSPACE}/docs`, `${WORKSPACE}/docs/fr`]);
   });
 
   it("writes nothing after two refusals, and lists 12 problems then the count", async () => {

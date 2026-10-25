@@ -10,6 +10,7 @@ import {
   AUTHOR, brokenOpener, COMMITTER, COMMIT_A_IN_WORKTREE, GH, IDENT, ORIGIN_HEAD, PROBES, PUSH, REQ, RM_MESSAGE, recordingOpener,
   RefusingFiles, SHORT_HEAD, commitRequest, linkedWorktreeFiles, shellWith,
 } from "./commit-files.fixtures.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 describe("readIdentity", () => {
   it("reads git's author identity once the committer's is there too", async () => {
@@ -78,7 +79,7 @@ describe("commitFiles", () => {
       "git --literal-pathspecs commit -F .git/ORKEON_COMMITMSG -- 'src/a.ts' 'a b.md'",
       SHORT_HEAD,
     ]);
-    deepStrictEqual(files.writes, [{ path: "/workspace/.git/ORKEON_COMMITMSG", content: "fix: x" }]);
+    deepStrictEqual(files.writes, [{ path: `${WORKSPACE}/.git/ORKEON_COMMITMSG`, content: "fix: x" }]);
   });
 
   it("leaves a staged deletion and the old side of a staged rename out of `git add`, not out of the commit", async () => {
@@ -185,7 +186,7 @@ describe("commitFiles in a linked worktree (.git is a file)", () => {
 
     // Assert
     deepStrictEqual(out, { ok: true, hash: "abc1234" });
-    deepStrictEqual(files.writes, [{ path: "/workspace/.orkeon/ORKEON_COMMITMSG", content: "fix: x" }]);
+    deepStrictEqual(files.writes, [{ path: `${WORKSPACE}/.orkeon/ORKEON_COMMITMSG`, content: "fix: x" }]);
     deepStrictEqual(shell.commands.slice(2), [
       "git --literal-pathspecs add -- 'a.ts'",
       COMMIT_A_IN_WORKTREE,
@@ -229,7 +230,7 @@ describe("commitFiles in a linked worktree (.git is a file)", () => {
   it("says so, and stages nothing, when no message file can be written", async () => {
     // Arrange
     const shell = shellWith();
-    const files = new RefusingFiles(["/workspace/.git/", "/workspace/.orkeon/"]);
+    const files = new RefusingFiles([`${WORKSPACE}/.git/`, `${WORKSPACE}/.orkeon/`]);
 
     // Act
     const out = await commitFiles({ shell, files }, commitRequest());
@@ -237,7 +238,7 @@ describe("commitFiles in a linked worktree (.git is a file)", () => {
     // Assert
     deepStrictEqual(out, {
       ok: false,
-      line: "the commit message could not be written (.git/ORKEON_COMMITMSG, .orkeon/ORKEON_COMMITMSG): ENOTDIR: not a directory, open '/workspace/.orkeon/ORKEON_COMMITMSG'",
+      line: `the commit message could not be written (.git/ORKEON_COMMITMSG, .orkeon/ORKEON_COMMITMSG): ENOTDIR: not a directory, open '${WORKSPACE}/.orkeon/ORKEON_COMMITMSG'`,
     });
     deepStrictEqual(shell.commands, PROBES);
   });
@@ -314,7 +315,7 @@ describe("handOverPullRequest", () => {
 
     // Assert
     deepStrictEqual(lines, ["pull request body: workbench/pr-feat-x/PR.md", "to open the pull request, in a terminal:", GH]);
-    strictEqual(files.writes[0].path, "/workspace/workbench/pr-feat-x/PR.md");
+    strictEqual(files.writes[0].path, `${WORKSPACE}/workbench/pr-feat-x/PR.md`);
     ok(files.writes[0].content.startsWith("## Batch\n"), files.writes[0].content);
   });
 
@@ -380,14 +381,14 @@ describe("handOverPullRequest", () => {
 
   it("says the body could not be written when its write fails, and still hands the command over", async () => {
     // Arrange
-    const files = new RefusingFiles(["/workspace/workbench/"]);
+    const files = new RefusingFiles([`${WORKSPACE}/workbench/`]);
 
     // Act
     const lines = await handOverPullRequest({ files }, REQ);
 
     // Assert
     deepStrictEqual(lines, [
-      "⚠ the body could not be written (ENOTDIR: not a directory, open '/workspace/workbench/pr-feat-x/PR.md'): write workbench/pr-feat-x/PR.md first",
+      `⚠ the body could not be written (ENOTDIR: not a directory, open '${WORKSPACE}/workbench/pr-feat-x/PR.md'): write workbench/pr-feat-x/PR.md first`,
       "to open the pull request, in a terminal:", GH,
     ]);
   });

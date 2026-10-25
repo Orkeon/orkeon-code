@@ -19,6 +19,7 @@ import {
   assertHasLine, assertLastLineStarting, assertLastLineWith, assertLineStarting, assertLineWith, assertMentions,
   assertNoLineWith,
 } from "./run-dev-batches.assertions.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 describe("runDevBatches — a run", () => {
   it("records the run, logs the next batch launched and names it for /dev-implement with the dispatch's context", async () => {
@@ -673,8 +674,8 @@ describe("runDevBatches — a parallel run", () => {
 
     // Assert
     deepStrictEqual(runs, [
-      { batch: "F2", root: "/workspace/.orkeon/worktrees/demo-F2", mode: "bypassPermissions" },
-      { batch: "F3", root: "/workspace/.orkeon/worktrees/demo-F3", mode: "bypassPermissions" },
+      { batch: "F2", root: `${WORKSPACE}/.orkeon/worktrees/demo-F2`, mode: "bypassPermissions" },
+      { batch: "F3", root: `${WORKSPACE}/.orkeon/worktrees/demo-F3`, mode: "bypassPermissions" },
     ]);
     deepStrictEqual(out.next, { crew: "dev-batches", input: { concurrency: 2 } });
     deepStrictEqual(events(files), ["F2 launched", "F3 launched", "F2 returned", "F2 merged", "F3 returned", "F3 merged"]);
@@ -765,7 +766,7 @@ describe("runDevBatches — a parallel run", () => {
   it("refuses to run here, one at a time, a batch a parallel run kept in its worktree, naming how to go on", async () => {
     // Arrange
     const { files, deps } = parallelSetup();
-    files.listings.set("/workspace/.orkeon/worktrees", ["demo-F2"]);
+    files.listings.set(`${WORKSPACE}/.orkeon/worktrees`, ["demo-F2"]);
 
     // Act
     const out = await run({ code: "demo", permissionMode: "bypassPermissions" }, deps);
@@ -813,7 +814,7 @@ describe("runDevBatches — a parallel run", () => {
     const out = await run({ code: "demo", concurrency: 2, permissionMode: "bypassPermissions" }, deps);
 
     // Assert
-    deepStrictEqual(probed, ["/workspace/.orkeon/worktrees/demo-F2"]);
+    deepStrictEqual(probed, [`${WORKSPACE}/.orkeon/worktrees/demo-F2`]);
     deepStrictEqual(runs, []);
     assertLastLineWith(out.lines, "Orkeon/orkeon#191");
   });

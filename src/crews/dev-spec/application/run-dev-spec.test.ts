@@ -14,6 +14,7 @@ import {
   ANSWER, CLEAR, CODE, GAPS_REVIEW, REQUEST, SPEC, devSpecSetup, folded, run, specWithQ1Decided,
 } from "./run-dev-spec.fixtures.ts";
 import { assertAllMention, assertAllUnder, assertHasLines, assertNoPromptMentions } from "./run-dev-spec.assertions.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 describe("runDevSpec — a new spec settled with the person", () => {
   it("asks Blocking first, writes each answer before the next question, folds, reviews, ends on /dev-plan", async () => {
@@ -149,13 +150,13 @@ describe("runDevSpec — refusals", () => {
     const text = await run(f);
 
     // Assert
-    ok(text.startsWith("dev-spec: run from the checkout at /workspace"), text);
+    ok(text.startsWith(`dev-spec: run from the checkout at ${WORKSPACE}`), text);
   });
 
   it("reads a brief given as a path", async () => {
     // Arrange
     const f = devSpecSetup([null]);
-    f.files.files.set("/workspace/docs/brief.md", REQUEST);
+    f.files.files.set(`${WORKSPACE}/docs/brief.md`, REQUEST);
 
     // Act
     await run(f, { code: "prune", request: "docs/brief.md" });

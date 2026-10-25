@@ -10,6 +10,7 @@ import { ORKEON_RUNTIME_VERSION } from "../src/commands/_lib/meta.ts";
 import { readHostProvider } from "../src/shared/infrastructure/orkeon/host-provider.ts";
 import { FakeShell } from "./support/fake-shell.ts";
 import { CACHE_COLUMN_CASES, PROVIDER_CASES, rowMap, statusHarness } from "./commands-status.fixtures.ts";
+import { WORKSPACE } from "../src/shared/domain/vfs.ts";
 
 describe("/status — buildStatusRows", () => {
   it("carries the four fields the baseline names", () => {
@@ -23,7 +24,7 @@ describe("/status — buildStatusRows", () => {
 
     // Assert
     strictEqual(r.get("model"), "kimi-k3");
-    strictEqual(r.get("workspace"), "/workspace");
+    strictEqual(r.get("workspace"), WORKSPACE);
     strictEqual(r.get("cost"), "$0.4200");
     strictEqual(r.get("crews"), "advisor, main-loop");
   });
@@ -93,7 +94,7 @@ describe("/status — runStatus", () => {
     deepStrictEqual(view, {
       table: buildStatusRows({
         model: "kimi-k3", title: "parser", messages: 4, usedTokens: 500, windowTokens: 1000,
-        totalTokens: 900, costUsd: 0.5, calls: 2, crews: ["main-loop"], workspace: "/workspace",
+        totalTokens: 900, costUsd: 0.5, calls: 2, crews: ["main-loop"], workspace: WORKSPACE,
       }),
     });
   });
@@ -108,7 +109,7 @@ describe("/status — runStatus", () => {
     const view = await run();
 
     // Assert
-    deepStrictEqual(view, { table: buildStatusRows({ crews: [], workspace: "/workspace" }) });
+    deepStrictEqual(view, { table: buildStatusRows({ crews: [], workspace: WORKSPACE }) });
   });
 
   it("falls back to the statistics when the metadata is absent", async () => {

@@ -11,6 +11,7 @@ import { CODE_INTEL_TOOLS } from "../src/shared/domain/code-intel-contract.ts";
 import { CONFIG_FILE_PATH, createConfigStore } from "../src/shared/application/config-store.ts";
 import { FakeSessionStore } from "./support/fake-session-store.ts";
 import { NO_MODEL_DETAIL, doctorHost, healthyTable, rowsOf } from "./commands-doctor.fixtures.ts";
+import { WORKSPACE } from "../src/shared/domain/vfs.ts";
 
 describe("/doctor — a healthy host", () => {
   it("passes every check, one row each, in order", async () => {
@@ -106,37 +107,37 @@ describe("/doctor — failures and warnings", () => {
     });
   });
 
-  it("passes a /workspace the host spells rwnd (writable, no delete)", async () => {
+  it(`passes a ${WORKSPACE} the host spells rwnd (writable, no delete)`, async () => {
     // Arrange
     const { files, deps } = doctorHost();
-    files.mountTable = [{ path: "/workspace", rights: "rwnd" }];
+    files.mountTable = [{ path: WORKSPACE, rights: "rwnd" }];
 
     // Act
     const rows = rowsOf(await runDoctor(deps));
 
     // Assert
-    deepStrictEqual(rows.get("vfs: mounts"), { check: "vfs: mounts", result: PASS, detail: "/workspace(rwnd)" });
+    deepStrictEqual(rows.get("vfs: mounts"), { check: "vfs: mounts", result: PASS, detail: `${WORKSPACE}(rwnd)` });
   });
 
-  it("fails a read-only /workspace, and shows unknown rights as '?'", async () => {
+  it(`fails a read-only ${WORKSPACE}, and shows unknown rights as '?'`, async () => {
     // Arrange
     const { files, deps } = doctorHost();
-    files.mountTable = [{ path: "/workspace", rights: "ro" }, { path: "/tmp" }];
+    files.mountTable = [{ path: WORKSPACE, rights: "ro" }, { path: "/tmp" }];
 
     // Act
     const rows = rowsOf(await runDoctor(deps));
 
     // Assert
     deepStrictEqual(rows.get("vfs: mounts"), {
-      check: "vfs: mounts", result: FAIL, detail: "/workspace(ro) /tmp(?)  ← /workspace is missing or not writable",
+      check: "vfs: mounts", result: FAIL, detail: `${WORKSPACE}(ro) /tmp(?)  ← ${WORKSPACE} is missing or not writable`,
     });
   });
 
-  it("fails a /workspace whose rights are outside the mount grammar", async () => {
+  it(`fails a ${WORKSPACE} whose rights are outside the mount grammar`, async () => {
     // Arrange
     // Rights outside the mount grammar (the enum's own name) are not read as writable.
     const { files, deps } = doctorHost();
-    files.mountTable = [{ path: "/workspace", rights: "Write" }];
+    files.mountTable = [{ path: WORKSPACE, rights: "Write" }];
 
     // Act
     const rows = rowsOf(await runDoctor(deps));
@@ -145,7 +146,7 @@ describe("/doctor — failures and warnings", () => {
     strictEqual(rows.get("vfs: mounts")!.result, FAIL);
   });
 
-  it("fails an absent /workspace", async () => {
+  it(`fails an absent ${WORKSPACE}`, async () => {
     // Arrange
     const { files, deps } = doctorHost();
     files.mountTable = [];
@@ -154,7 +155,7 @@ describe("/doctor — failures and warnings", () => {
     const rows = rowsOf(await runDoctor(deps));
 
     // Assert
-    strictEqual(rows.get("vfs: mounts")!.detail, "(none)  ← /workspace is missing or not writable");
+    strictEqual(rows.get("vfs: mounts")!.detail, `(none)  ← ${WORKSPACE} is missing or not writable`);
   });
 
   it("warns when the mounts cannot be listed", async () => {
@@ -183,7 +184,7 @@ describe("/doctor — sessions left in the project", () => {
 
     // Assert
     strictEqual(row.result, WARN);
-    ok(row.detail.startsWith("/workspace/.orkeon/sessions holds sessions of an older start, left alone"), row.detail);
+    ok(row.detail.startsWith(`${WORKSPACE}/.orkeon/sessions holds sessions of an older start, left alone`), row.detail);
     deepStrictEqual(files.writes, []);
   });
 

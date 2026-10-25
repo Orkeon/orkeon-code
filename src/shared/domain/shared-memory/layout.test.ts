@@ -11,9 +11,10 @@ import {
   PROTECTED_SPELLINGS, REWRITE_REFUSALS, SHELL_REFUSALS, SHELL_RULES, SHELL_WORDS_ELSEWHERE,
 } from "./layout.fixtures.ts";
 import type { RefusalCase } from "./layout.fixtures.ts";
+import { WORKSPACE } from "../vfs.ts";
 
 describe("memoryLayout", () => {
-  it("places every file of the layout under /workspace/<memory.dir>", () => {
+  it(`places every file of the layout under ${WORKSPACE}/<memory.dir>`, () => {
     // Arrange
     const dir = ".orkeon/memory";
 
@@ -32,7 +33,7 @@ describe("memoryLayout", () => {
     const path = candidatePath(layout, "x-method-20261024-a");
 
     // Assert
-    strictEqual(path, "/workspace/m/candidates/x-method-20261024-a.md");
+    strictEqual(path, `${WORKSPACE}/m/candidates/x-method-20261024-a.md`);
   });
 
   it("places an entry under the folder of its type", () => {
@@ -43,7 +44,7 @@ describe("memoryLayout", () => {
     const path = entryPath(layout, "mistake", "x-mistake-20261024-a");
 
     // Assert
-    strictEqual(path, "/workspace/m/entries/mistake/x-mistake-20261024-a.md");
+    strictEqual(path, `${WORKSPACE}/m/entries/mistake/x-mistake-20261024-a.md`);
   });
 
   it("names one collection per project", () => {

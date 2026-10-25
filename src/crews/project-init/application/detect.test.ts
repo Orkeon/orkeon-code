@@ -6,9 +6,10 @@ import { strictEqual, deepStrictEqual } from "node:assert";
 import { scanLayout, readConfigs, writeInstructionsFile, readExistingInstructions } from "./detect.ts";
 import { FakeFiles } from "../../../../tests/support/fake-files.ts";
 import { checkoutWithConfigs, checkoutWithEntries, checkoutWithInstructions } from "./detect.fixtures.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 describe("project-init IO", () => {
-  it("scans at most 80 top-level entries of /workspace", async () => {
+  it(`scans at most 80 top-level entries of ${WORKSPACE}`, async () => {
     // Arrange
     const files = checkoutWithEntries(100);
 
@@ -41,8 +42,8 @@ describe("project-init IO", () => {
     const out = await writeInstructionsFile("# Project\n", conventions, files);
 
     // Assert
-    deepStrictEqual(files.writes, [{ path: "/workspace/AGENTS.md", content: "# Project\n" }]);
-    strictEqual(out, "✓ wrote /workspace/AGENTS.md (10 bytes; build='npm run build', test='?')");
+    deepStrictEqual(files.writes, [{ path: `${WORKSPACE}/AGENTS.md`, content: "# Project\n" }]);
+    strictEqual(out, `✓ wrote ${WORKSPACE}/AGENTS.md (10 bytes; build='npm run build', test='?')`);
   });
 
   it("reads the instruction files already there, in order, skipping the blank ones", async () => {

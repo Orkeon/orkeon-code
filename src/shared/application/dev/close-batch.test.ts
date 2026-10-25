@@ -9,6 +9,7 @@ import { FakeFiles } from "../../../../tests/support/fake-files.ts";
 import {
   COMMIT_AND_PUSH_COMMANDS, gitShell, IDENTITY_COMMANDS, linkedWorktreeFiles, PR_COMMAND, REQ,
 } from "./close-batch.fixtures.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 describe("closeBatch", () => {
   it("commits the touched files only, never the work folder, pushes, and prints the PR command", async () => {
@@ -24,7 +25,7 @@ describe("closeBatch", () => {
     deepStrictEqual(shell.commands, COMMIT_AND_PUSH_COMMANDS);
     ok(out.lines[0].includes("workbench/code/CODE-PLAN-F1.md"), out.lines[0]);
     ok(out.lines.includes(PR_COMMAND), out.lines.join("\n"));
-    strictEqual(files.writes.at(-1)!.path, "/workspace/workbench/pr-feat-a/PR.md");
+    strictEqual(files.writes.at(-1)!.path, `${WORKSPACE}/workbench/pr-feat-a/PR.md`);
   });
 
   it("says the message file it could not remove in a linked worktree, after the commit line", async () => {

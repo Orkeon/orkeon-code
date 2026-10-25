@@ -11,12 +11,13 @@ import {
   INDEX_COUNTS, INDEX_REPLY, MAP_REPLY, PACKAGE, PACKAGE_REPLY, SEARCH_HITS, SEARCH_REPLY, SOURCE, SOURCE_REPLY,
   anchorTools, costTools,
 } from "./code-index.fixtures.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 describe("createCodeIndex", () => {
   it("counts the indexed roots", async () => {
     // Arrange
     const tools = new FakeTools();
-    tools.replies.indexStatus = { roots: ["/workspace", "/other"] };
+    tools.replies.indexStatus = { roots: [WORKSPACE, "/other"] };
 
     // Act
     const count = await createCodeIndex(tools).rootCount();
@@ -45,11 +46,11 @@ describe("createCodeIndex", () => {
     tools.replies.indexCodebase = INDEX_REPLY;
 
     // Act
-    const counts = await createCodeIndex(tools).index("/workspace");
+    const counts = await createCodeIndex(tools).index(WORKSPACE);
 
     // Assert
     deepStrictEqual(counts, INDEX_COUNTS);
-    deepStrictEqual(tools.inputsOf("indexCodebase"), [{ root_path: "/workspace" }]);
+    deepStrictEqual(tools.inputsOf("indexCodebase"), [{ root_path: WORKSPACE }]);
   });
 
   it("reads a map's entries and symbol total, asking for metrics when told", async () => {
@@ -122,11 +123,11 @@ describe("createCodeIndex", () => {
     tools.replies.symbolSource = SOURCE_REPLY;
 
     // Act
-    const source = await createCodeIndex(tools).symbolSource("/workspace/src/math.ts::add");
+    const source = await createCodeIndex(tools).symbolSource(`${WORKSPACE}/src/math.ts::add`);
 
     // Assert
     deepStrictEqual(source, SOURCE);
-    deepStrictEqual(tools.inputsOf("symbolSource"), [{ fqn: "/workspace/src/math.ts::add", max_lines: 20 }]);
+    deepStrictEqual(tools.inputsOf("symbolSource"), [{ fqn: `${WORKSPACE}/src/math.ts::add`, max_lines: 20 }]);
   });
 
   it("reads the callers of a symbol, looking backward", async () => {
@@ -191,14 +192,14 @@ describe("createCodeIndex", () => {
 describe("createAnchorIndex", () => {
   it("asks the closure of the anchors and reads its nodes, unresolved anchors and truncation", async () => {
     // Arrange
-    const tools = anchorTools({ nodes: ["/workspace/b.ts::B"], unresolved: ["/workspace/x.ts::X"], truncated: true, shared: [], disjoint: false });
+    const tools = anchorTools({ nodes: [`${WORKSPACE}/b.ts::B`], unresolved: [`${WORKSPACE}/x.ts::X`], truncated: true, shared: [], disjoint: false });
 
     // Act
-    const closure = await createAnchorIndex(tools).closure(["/workspace/a.ts::A", "/workspace/x.ts::X"]);
+    const closure = await createAnchorIndex(tools).closure([`${WORKSPACE}/a.ts::A`, `${WORKSPACE}/x.ts::X`]);
 
     // Assert
-    deepStrictEqual(closure, { nodes: ["/workspace/b.ts::B"], unresolved: ["/workspace/x.ts::X"], truncated: true });
-    deepStrictEqual(tools.inputs, [{ action: "closure", fqns: ["/workspace/a.ts::A", "/workspace/x.ts::X"] }]);
+    deepStrictEqual(closure, { nodes: [`${WORKSPACE}/b.ts::B`], unresolved: [`${WORKSPACE}/x.ts::X`], truncated: true });
+    deepStrictEqual(tools.inputs, [{ action: "closure", fqns: [`${WORKSPACE}/a.ts::A`, `${WORKSPACE}/x.ts::X`] }]);
   });
 
   for (const c of CLOSURES) {
@@ -229,13 +230,13 @@ describe("createAnchorIndex", () => {
 describe("createCostIndex", () => {
   it("lists the virtual roots of index_status, objects or names", async () => {
     // Arrange
-    const tools = costTools({ indexStatus: { roots: [{ virtual_root: "/workspace", node_count: 3 }, "/other", { node_count: 1 }] } });
+    const tools = costTools({ indexStatus: { roots: [{ virtual_root: WORKSPACE, node_count: 3 }, "/other", { node_count: 1 }] } });
 
     // Act
     const roots = await createCostIndex(tools).roots();
 
     // Assert
-    deepStrictEqual(roots, ["/workspace", "/other"]);
+    deepStrictEqual(roots, [WORKSPACE, "/other"]);
     deepStrictEqual(tools.calls, [["indexStatus", {}]]);
   });
 
@@ -255,11 +256,11 @@ describe("createCostIndex", () => {
     const tools = costTools({ incrementalReindex: { errors: ["bad file"], node_count: 0 } });
 
     // Act
-    const errors = await createCostIndex(tools).refresh("/workspace", ["/workspace/src/a.ts"]);
+    const errors = await createCostIndex(tools).refresh(WORKSPACE, [`${WORKSPACE}/src/a.ts`]);
 
     // Assert
     deepStrictEqual(errors, ["bad file"]);
-    deepStrictEqual(tools.calls, [["incrementalReindex", { root_path: "/workspace", changed_files: ["/workspace/src/a.ts"] }]]);
+    deepStrictEqual(tools.calls, [["incrementalReindex", { root_path: WORKSPACE, changed_files: [`${WORKSPACE}/src/a.ts`] }]]);
   });
 
   it("asks access_cost for the files, no receivers when none is given, and reads the report", async () => {
@@ -267,12 +268,12 @@ describe("createCostIndex", () => {
     const tools = costTools({ accessCost: { report: COST_REPORT, errors: [] } });
 
     // Act
-    const answer = await createCostIndex(tools).accessCost(["/workspace/src/a.ts"], undefined);
+    const answer = await createCostIndex(tools).accessCost([`${WORKSPACE}/src/a.ts`], undefined);
 
     // Assert
     deepStrictEqual(answer.errors, []);
     deepStrictEqual(answer.report?.members[0].portCalls, [{ receiver: "this.store", method: "save", line: 4, inLoop: true, inLambda: false }]);
-    deepStrictEqual(tools.calls.map((c) => c[1]), [{ changed_files: ["/workspace/src/a.ts"] }]);
+    deepStrictEqual(tools.calls.map((c) => c[1]), [{ changed_files: [`${WORKSPACE}/src/a.ts`] }]);
   });
 
   it("asks access_cost for the receivers when given", async () => {
@@ -280,10 +281,10 @@ describe("createCostIndex", () => {
     const tools = costTools({ accessCost: { report: COST_REPORT, errors: [] } });
 
     // Act
-    await createCostIndex(tools).accessCost(["/workspace/src/a.ts"], "gateway");
+    await createCostIndex(tools).accessCost([`${WORKSPACE}/src/a.ts`], "gateway");
 
     // Assert
-    deepStrictEqual(tools.calls.map((c) => c[1]), [{ changed_files: ["/workspace/src/a.ts"], receivers: "gateway" }]);
+    deepStrictEqual(tools.calls.map((c) => c[1]), [{ changed_files: [`${WORKSPACE}/src/a.ts`], receivers: "gateway" }]);
   });
 
   for (const c of COST_WITHOUT_REPORT) {

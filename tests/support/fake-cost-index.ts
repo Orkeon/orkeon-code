@@ -5,9 +5,10 @@
 // default, or throws it when it is an Error; the files it was asked about land in `asked`.
 import type { AffectedTests, CostIndex } from "../../src/shared/application/ports.ts";
 import type { AccessCostReport } from "../../src/shared/domain/dev/access-cost.ts";
+import { WORKSPACE } from "../../src/shared/domain/vfs.ts";
 
 export class FakeCostIndex implements CostIndex {
-  indexed: string[] = ["/workspace"];
+  indexed: string[] = [WORKSPACE];
   refreshErrors: string[] = [];
   report: AccessCostReport | null = { members: [], cost: { reads: 0, writes: 0, loops: 0, lambdas: 0, memoryFilters: 0 } };
   errors: string[] = [];

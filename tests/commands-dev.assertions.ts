@@ -1,5 +1,6 @@
 // Checks on what /dev-status prints, the argument refusals of the dev commands and the paths /dev-learn writes.
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
+import { WORKSPACE } from "../src/shared/domain/vfs.ts";
 
 /** The parse refused the line with `text`. */
 export function assertRefusedWith(parsed: { ok: true } | { ok: false; text: string }, text: string): void {
@@ -8,7 +9,7 @@ export function assertRefusedWith(parsed: { ok: true } | { ok: false; text: stri
 
 /** No path written lies under the harness's .claude/ folder. */
 export function assertNoHarnessWrite(paths: readonly string[]): void {
-  ok(paths.every((p) => !p.startsWith("/workspace/.claude/")), `a harness file was written: ${paths.join(", ")}`);
+  ok(paths.every((p) => !p.startsWith(`${WORKSPACE}/.claude/`)), `a harness file was written: ${paths.join(", ")}`);
 }
 
 /** Every line is at most `max` characters long. */
