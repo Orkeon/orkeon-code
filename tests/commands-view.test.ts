@@ -5,42 +5,51 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 
 import { showView } from "../src/commands/_lib/view.ts";
-
-/** The command context as showView calls it, recording each call in order. */
-class FakeViewContext {
-  calls: unknown[][] = [];
-
-  writeLine(text: string): void {
-    this.calls.push(["writeLine", text]);
-  }
-
-  table(rows: readonly object[]): void {
-    this.calls.push(["table", rows]);
-  }
-
-  continue(...message: string[]): string {
-    this.calls.push(["continue", ...message]);
-    return "result";
-  }
-}
+import { FakeViewContext } from "./commands-view.fixtures.ts";
 
 describe("showView", () => {
   it("shows the table, then closes with the message, and returns what continue returns", () => {
+    // Arrange
     const ctx = new FakeViewContext();
-    strictEqual(showView(ctx, { table: [{ a: 1 }], text: "done" }), "result");
+
+    // Act
+    const result = showView(ctx, { table: [{ a: 1 }], text: "done" });
+
+    // Assert
+    strictEqual(result, "result");
     deepStrictEqual(ctx.calls, [["table", [{ a: 1 }]], ["continue", "done"]]);
   });
 
-  it("closes without a message when the view has none, and shows no table when it has none", () => {
+  it("closes without a message when the view has none", () => {
+    // Arrange
     const ctx = new FakeViewContext();
+
+    // Act
     showView(ctx, { table: [] });
+
+    // Assert
+    deepStrictEqual(ctx.calls, [["table", []], ["continue"]]);
+  });
+
+  it("shows no table when the view has none", () => {
+    // Arrange
+    const ctx = new FakeViewContext();
+
+    // Act
     showView(ctx, { text: "usage" });
-    deepStrictEqual(ctx.calls, [["table", []], ["continue"], ["continue", "usage"]]);
+
+    // Assert
+    deepStrictEqual(ctx.calls, [["continue", "usage"]]);
   });
 
   it("writes the lines first, in order", () => {
+    // Arrange
     const ctx = new FakeViewContext();
+
+    // Act
     showView(ctx, { lines: ["── staged changes", "diff --git a b"], text: "1 argument(s) ignored" });
+
+    // Assert
     deepStrictEqual(ctx.calls, [
       ["writeLine", "── staged changes"], ["writeLine", "diff --git a b"], ["continue", "1 argument(s) ignored"],
     ]);

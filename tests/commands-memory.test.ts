@@ -5,38 +5,70 @@ import { describe, it } from "node:test";
 import { deepStrictEqual } from "node:assert";
 
 import { runMemory } from "../src/commands/_lib/memory.ts";
-import { FakeMemoryStore } from "./support/fake-memory-store.ts";
-
-function setup() {
-  const memory = new FakeMemoryStore();
-  const run = (...tokens: string[]) => runMemory(tokens, { memory });
-  return { memory, run };
-}
+import { memoryWith, PREFERS_TABS, USES_PNPM } from "./commands-memory.fixtures.ts";
 
 describe("/memory list", () => {
-  it("tables every entry (the default sub-command), or one category", async () => {
-    const { memory, run } = setup();
-    await memory.add("user", "prefers tabs");
-    await memory.add("project", "uses pnpm");
-    deepStrictEqual(await run(), {
+  it("tables every entry (the default sub-command)", async () => {
+    // Arrange
+    const memory = memoryWith([PREFERS_TABS, USES_PNPM]);
+
+    // Act
+    const view = await runMemory([], { memory });
+
+    // Assert
+    deepStrictEqual(view, {
       table: [
         { id: 1, category: "user", content: "prefers tabs" },
         { id: 2, category: "project", content: "uses pnpm" },
       ],
     });
-    deepStrictEqual(await run("list", "PROJECT"), { table: [{ id: 2, category: "project", content: "uses pnpm" }] });
+  });
+
+  it("tables one category, named in any case", async () => {
+    // Arrange
+    const memory = memoryWith([PREFERS_TABS, USES_PNPM]);
+
+    // Act
+    const view = await runMemory(["list", "PROJECT"], { memory });
+
+    // Assert
+    deepStrictEqual(view, { table: [{ id: 2, category: "project", content: "uses pnpm" }] });
   });
 
   it("says when there is nothing", async () => {
-    deepStrictEqual(await setup().run("list"), { text: "(no memories)" });
+    // Arrange
+    const memory = memoryWith();
+
+    // Act
+    const view = await runMemory(["list"], { memory });
+
+    // Assert
+    deepStrictEqual(view, { text: "(no memories)" });
   });
 });
 
 describe("/memory add", () => {
-  it("adds to the named category, else to user, and gives the id", async () => {
-    const { memory, run } = setup();
-    deepStrictEqual(await run("add", "project", "uses", "pnpm"), { text: "added memory #1" });
-    deepStrictEqual(await run("add", "prefers", "tabs"), { text: "added memory #2" });
+  it("adds to the named category and gives the id", async () => {
+    // Arrange
+    const memory = memoryWith();
+
+    // Act
+    const view = await runMemory(["add", "project", "uses", "pnpm"], { memory });
+
+    // Assert
+    deepStrictEqual(view, { text: "added memory #1" });
+    deepStrictEqual(memory.records, [{ id: 1, category: "project", content: "uses pnpm" }]);
+  });
+
+  it("adds to user when no category is named, and gives the id", async () => {
+    // Arrange
+    const memory = memoryWith([{ id: 1, category: "project", content: "uses pnpm" }]);
+
+    // Act
+    const view = await runMemory(["add", "prefers", "tabs"], { memory });
+
+    // Assert
+    deepStrictEqual(view, { text: "added memory #2" });
     deepStrictEqual(memory.records, [
       { id: 1, category: "project", content: "uses pnpm" },
       { id: 2, category: "user", content: "prefers tabs" },
@@ -44,24 +76,60 @@ describe("/memory add", () => {
   });
 
   it("asks for content", async () => {
-    const { memory, run } = setup();
-    deepStrictEqual(await run("add", "feedback"), { text: "usage: /memory add <category> <content>" });
+    // Arrange
+    const memory = memoryWith();
+
+    // Act
+    const view = await runMemory(["add", "feedback"], { memory });
+
+    // Assert
+    deepStrictEqual(view, { text: "usage: /memory add <category> <content>" });
     deepStrictEqual(memory.records, []);
   });
 });
 
 describe("/memory delete and get", () => {
-  it("deletes an entry, and says when there is none", async () => {
-    const { memory, run } = setup();
-    await memory.add("user", "x");
-    deepStrictEqual(await run("delete", "1"), { text: "deleted #1" });
-    deepStrictEqual(await run("delete", "1"), { text: "not found: #1" });
+  it("deletes an entry", async () => {
+    // Arrange
+    const memory = memoryWith([{ id: 1, category: "user", content: "x" }]);
+
+    // Act
+    const view = await runMemory(["delete", "1"], { memory });
+
+    // Assert
+    deepStrictEqual(view, { text: "deleted #1" });
   });
 
-  it("prints an entry as the store reports it, and 'not found' otherwise", async () => {
-    const { memory, run } = setup();
-    await memory.add("user", "x");
-    deepStrictEqual(await run("get", "1"), { text: JSON.stringify({ id: 1, category: "user", content: "x" }) });
-    deepStrictEqual(await run("get", "9"), { text: "\"not found\"" });
+  it("says when there is no entry to delete", async () => {
+    // Arrange
+    const memory = memoryWith();
+
+    // Act
+    const view = await runMemory(["delete", "1"], { memory });
+
+    // Assert
+    deepStrictEqual(view, { text: "not found: #1" });
+  });
+
+  it("prints an entry as the store reports it", async () => {
+    // Arrange
+    const memory = memoryWith([{ id: 1, category: "user", content: "x" }]);
+
+    // Act
+    const view = await runMemory(["get", "1"], { memory });
+
+    // Assert
+    deepStrictEqual(view, { text: JSON.stringify({ id: 1, category: "user", content: "x" }) });
+  });
+
+  it("prints 'not found' for an entry the store does not hold", async () => {
+    // Arrange
+    const memory = memoryWith([{ id: 1, category: "user", content: "x" }]);
+
+    // Act
+    const view = await runMemory(["get", "9"], { memory });
+
+    // Assert
+    deepStrictEqual(view, { text: "\"not found\"" });
   });
 });

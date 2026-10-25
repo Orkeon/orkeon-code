@@ -3,165 +3,328 @@
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok } from "node:assert";
 
-import { CONFIG_FILE_PATH, USER_CONFIG_FILE_PATH, createConfigStore } from "./config-store.ts";
+import { CONFIG_FILE_PATH, USER_CONFIG_FILE_PATH } from "./config-store.ts";
 import { CONFIG_MAP_STATE_KEY } from "../domain/session-keys.ts";
-import { FakeFiles } from "../../../tests/support/fake-files.ts";
-import { FakeSessionStore } from "../../../tests/support/fake-session-store.ts";
-
-function setup() {
-  const files = new FakeFiles();
-  const session = new FakeSessionStore();
-  return { files, session, config: createConfigStore({ files, session }) };
-}
+import { MALFORMED_PROJECT_FILE, configHarness, sessionOverFile } from "./config-store.fixtures.ts";
 
 describe("config store — the settings file", () => {
   it("reads an absent file as empty, not malformed", async () => {
-    const { config } = setup();
-    deepStrictEqual(await config.readFile(), { map: {}, malformed: false });
+    // Arrange
+    const { config } = configHarness();
+
+    // Act
+    const read = await config.readFile();
+
+    // Assert
+    deepStrictEqual(read, { map: {}, malformed: false });
   });
 
   it("reads an empty file as empty, not malformed", async () => {
-    const { files, config } = setup();
+    // Arrange
+    const { files, config } = configHarness();
     files.files.set(CONFIG_FILE_PATH, "  \n");
-    deepStrictEqual(await config.readFile(), { map: {}, malformed: false });
+
+    // Act
+    const read = await config.readFile();
+
+    // Assert
+    deepStrictEqual(read, { map: {}, malformed: false });
   });
 
   it("flags a file holding malformed JSON, and reads nothing from it", async () => {
-    const { files, config } = setup();
-    files.files.set(CONFIG_FILE_PATH, `{ "permissions.fallback": "plan",`);
-    deepStrictEqual(await config.readFile(), { map: {}, malformed: true });
-    strictEqual((await config.readView()).fileMalformed, true);
+    // Arrange
+    const { files, config } = configHarness();
+    files.files.set(CONFIG_FILE_PATH, MALFORMED_PROJECT_FILE);
+
+    // Act
+    const read = await config.readFile();
+
+    // Assert
+    deepStrictEqual(read, { map: {}, malformed: true });
+  });
+
+  it("flags a file holding malformed JSON in the view", async () => {
+    // Arrange
+    const { files, config } = configHarness();
+    files.files.set(CONFIG_FILE_PATH, MALFORMED_PROJECT_FILE);
+
+    // Act
+    const view = await config.readView();
+
+    // Assert
+    strictEqual(view.fileMalformed, true);
   });
 
   it("flags a file that fails to read for another reason than absence", async () => {
-    const { files, config } = setup();
+    // Arrange
+    const { files, config } = configHarness();
     files.readErrors.set(CONFIG_FILE_PATH, new Error("access denied by mount rights"));
-    deepStrictEqual(await config.readFile(), { map: {}, malformed: true });
+
+    // Act
+    const read = await config.readFile();
+
+    // Assert
+    deepStrictEqual(read, { map: {}, malformed: true });
   });
 
   it("reads valid JSON that is not an object as empty", async () => {
-    const { files, config } = setup();
+    // Arrange
+    const { files, config } = configHarness();
     files.files.set(CONFIG_FILE_PATH, `["plan"]`);
-    deepStrictEqual(await config.readFile(), { map: {}, malformed: false });
+
+    // Act
+    const read = await config.readFile();
+
+    // Assert
+    deepStrictEqual(read, { map: {}, malformed: false });
   });
 
-  it("round-trips a map through a pretty-printed file", async () => {
-    const { files, config } = setup();
+  it("writes a map to a pretty-printed file", async () => {
+    // Arrange
+    const { files, config } = configHarness();
+
+    // Act
     await config.writeFile({ "advisor.model": "gpt-x" });
+
+    // Assert
     deepStrictEqual(files.writes, [{ path: CONFIG_FILE_PATH, content: `{\n  "advisor.model": "gpt-x"\n}\n` }]);
-    deepStrictEqual(await config.readFile(), { map: { "advisor.model": "gpt-x" }, malformed: false });
+  });
+
+  it("reads back a map written to the file", async () => {
+    // Arrange
+    const { config } = configHarness();
+    await config.writeFile({ "advisor.model": "gpt-x" });
+
+    // Act
+    const read = await config.readFile();
+
+    // Assert
+    deepStrictEqual(read, { map: { "advisor.model": "gpt-x" }, malformed: false });
   });
 });
 
 describe("config store — the session layer", () => {
   it("reads an empty session as {}", async () => {
-    const { config } = setup();
-    deepStrictEqual(await config.readSession(), {});
+    // Arrange
+    const { config } = configHarness();
+
+    // Act
+    const map = await config.readSession();
+
+    // Assert
+    deepStrictEqual(map, {});
   });
 
-  it("round-trips the session map through the state bag", async () => {
-    const { session, config } = setup();
+  it("writes the session map to the state bag", async () => {
+    // Arrange
+    const { session, config } = configHarness();
+
+    // Act
     await config.writeSession({ "review.lenses": "security" });
+
+    // Assert
     strictEqual(session.state.get(CONFIG_MAP_STATE_KEY), `{"review.lenses":"security"}`);
-    deepStrictEqual(await config.readSession(), { "review.lenses": "security" });
+  });
+
+  it("reads back the session map written", async () => {
+    // Arrange
+    const { config } = configHarness();
+    await config.writeSession({ "review.lenses": "security" });
+
+    // Act
+    const map = await config.readSession();
+
+    // Assert
+    deepStrictEqual(map, { "review.lenses": "security" });
   });
 
   it("reads a malformed session map as {}", async () => {
-    const { session, config } = setup();
+    // Arrange
+    const { session, config } = configHarness();
     session.state.set(CONFIG_MAP_STATE_KEY, "{oops");
-    deepStrictEqual(await config.readSession(), {});
+
+    // Act
+    const map = await config.readSession();
+
+    // Assert
+    deepStrictEqual(map, {});
   });
 
   it("reads {} when the session store is unavailable", async () => {
-    const { session, config } = setup();
+    // Arrange
+    const { session, config } = configHarness();
     session.failure = new Error("no session_store tool");
-    deepStrictEqual(await config.readSession(), {});
+
+    // Act
+    const map = await config.readSession();
+
+    // Assert
+    deepStrictEqual(map, {});
   });
 });
 
 describe("config store — layered reads", () => {
-  it("leaves every key unset when both layers are empty", async () => {
-    const { config } = setup();
+  it("leaves every key of the view unset when both layers are empty", async () => {
+    // Arrange
+    const { config } = configHarness();
+
+    // Act
     const view = await config.readView();
+
+    // Assert
     ok(view.entries.length > 0);
     ok(view.entries.every((e) => e.source === "unset" && e.value === undefined));
     deepStrictEqual(view.unknown, []);
     strictEqual(view.fileMalformed, false);
-    deepStrictEqual(await config.readValue("permissions.fallback"), { key: "permissions.fallback", value: undefined, source: "unset" });
+  });
+
+  it("reads a key as unset when both layers are empty", async () => {
+    // Arrange
+    const { config } = configHarness();
+
+    // Act
+    const value = await config.readValue("permissions.fallback");
+
+    // Assert
+    deepStrictEqual(value, { key: "permissions.fallback", value: undefined, source: "unset" });
   });
 
   it("lets the session override the file", async () => {
-    const { files, session, config } = setup();
-    files.files.set(CONFIG_FILE_PATH, JSON.stringify({ "permissions.fallback": "plan", "review.lenses": "style" }));
-    session.state.set(CONFIG_MAP_STATE_KEY, JSON.stringify({ "permissions.fallback": "acceptEdits" }));
-    deepStrictEqual(await config.readValue("permissions.fallback"), { key: "permissions.fallback", value: "acceptEdits", source: "session" });
-    deepStrictEqual(await config.readValue("review.lenses"), { key: "review.lenses", value: "style", source: "file" });
+    // Arrange
+    const { config } = sessionOverFile();
+
+    // Act
+    const value = await config.readValue("permissions.fallback");
+
+    // Assert
+    deepStrictEqual(value, { key: "permissions.fallback", value: "acceptEdits", source: "session" });
+  });
+
+  it("reads from the file a key the session does not override", async () => {
+    // Arrange
+    const { config } = sessionOverFile();
+
+    // Act
+    const value = await config.readValue("review.lenses");
+
+    // Assert
+    deepStrictEqual(value, { key: "review.lenses", value: "style", source: "file" });
   });
 
   it("reports the unknown keys of both layers, sorted and once", async () => {
-    const { files, session, config } = setup();
+    // Arrange
+    const { files, session, config } = configHarness();
     files.files.set(CONFIG_FILE_PATH, JSON.stringify({ zeta: "1", alpha: "2" }));
     session.state.set(CONFIG_MAP_STATE_KEY, JSON.stringify({ alpha: "3" }));
-    deepStrictEqual((await config.readView()).unknown, ["alpha", "zeta"]);
+
+    // Act
+    const view = await config.readView();
+
+    // Assert
+    deepStrictEqual(view.unknown, ["alpha", "zeta"]);
   });
 });
 
 describe("config store — the user settings, which the project cannot widen", () => {
   it("reads the user file the launcher mounts read-only, outside the project", () => {
-    ok(!USER_CONFIG_FILE_PATH.startsWith("/workspace/"), USER_CONFIG_FILE_PATH);
+    // Arrange
+    const project = "/workspace/";
+
+    // Act
+    const inProject = USER_CONFIG_FILE_PATH.startsWith(project);
+
+    // Assert
+    ok(!inProject, USER_CONFIG_FILE_PATH);
   });
 
   it("keeps the user's mode when the project file sets bypassPermissions, and names the value set aside", async () => {
-    const { files, config } = setup();
+    // Arrange
+    const { files, config } = configHarness();
     files.files.set(CONFIG_FILE_PATH, JSON.stringify({ "permissions.fallback": "bypassPermissions" }));
     files.files.set(USER_CONFIG_FILE_PATH, JSON.stringify({ "permissions.fallback": "acceptEdits" }));
+
+    // Act
     const r = await config.readValue("permissions.fallback");
+
+    // Assert
     strictEqual(r.value, "acceptEdits");
     strictEqual(r.source, "user");
     strictEqual(r.ignored?.value, "bypassPermissions");
   });
 
   it("offers a project's extra tool only when the user file lists it", async () => {
-    const { files, config } = setup();
+    // Arrange
+    const { files, config } = configHarness();
     files.files.set(CONFIG_FILE_PATH, JSON.stringify({ "tools.extra": "search_issues, deploy_prod" }));
     files.files.set(USER_CONFIG_FILE_PATH, JSON.stringify({ "tools.extra": "search_issues:read" }));
+
+    // Act
     const r = await config.readValue("tools.extra");
+
+    // Assert
     strictEqual(r.value, "search_issues:write");
     strictEqual(r.ignored?.value, "deploy_prod:write");
   });
 
   it("reads an absent user file as an empty layer: no project value widens", async () => {
-    const { files, config } = setup();
+    // Arrange
+    const { files, config } = configHarness();
     files.files.set(CONFIG_FILE_PATH, JSON.stringify({ "permissions.fallback": "bypassPermissions" }));
+
+    // Act
     const view = await config.readView();
+
+    // Assert
     strictEqual(view.userMalformed, false);
     strictEqual(view.entries.find((e) => e.key === "permissions.fallback")?.source, "unset");
   });
 
   it("flags a malformed user file and reads nothing from it", async () => {
-    const { files, config } = setup();
+    // Arrange
+    const { files, config } = configHarness();
     files.files.set(USER_CONFIG_FILE_PATH, `{ "permissions.fallback": `);
+
+    // Act
     const view = await config.readView();
+
+    // Assert
     strictEqual(view.userMalformed, true);
     strictEqual(view.fileMalformed, false);
     ok(view.entries.every((e) => e.source === "unset"));
   });
 
   it("reads a user file that fails to read (no mount, an older launcher) as absent", async () => {
-    const { files, config } = setup();
+    // Arrange
+    const { files, config } = configHarness();
     files.readErrors.set(USER_CONFIG_FILE_PATH, new Error("no mount for the path"));
-    deepStrictEqual(await config.readUserFile(), { map: {}, malformed: false });
+
+    // Act
+    const read = await config.readUserFile();
+
+    // Assert
+    deepStrictEqual(read, { map: {}, malformed: false });
   });
 
   it("reports the unknown keys of the user file too", async () => {
-    const { files, config } = setup();
+    // Arrange
+    const { files, config } = configHarness();
     files.files.set(USER_CONFIG_FILE_PATH, JSON.stringify({ "old.key": "1" }));
-    deepStrictEqual((await config.readView()).unknown, ["old.key"]);
+
+    // Act
+    const view = await config.readView();
+
+    // Assert
+    deepStrictEqual(view.unknown, ["old.key"]);
   });
 
   it("never writes the user file: /config writes the project file", async () => {
-    const { files, config } = setup();
+    // Arrange
+    const { files, config } = configHarness();
+
+    // Act
     await config.writeFile({ "advisor.model": "m" });
+
+    // Assert
     deepStrictEqual(files.writes.map((w) => w.path), [CONFIG_FILE_PATH]);
   });
 });

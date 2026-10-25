@@ -6,165 +6,268 @@ import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import { createBatchWorktree, mergeValidBatch, removeBatchWorktree } from "./batch-worktree.ts";
 import { worktreePlace } from "../../domain/git/worktree.ts";
-import { FakeShell } from "../../../../tests/support/fake-shell.ts";
-
-const EXISTS = "git rev-parse --verify --quiet 'refs/heads/batch/demo-F2'";
-const ADD = "git worktree add --relative-paths -b 'batch/demo-F2' '.orkeon/worktrees/demo-F2' 'feat/demo'";
-const IGNORED = "git check-ignore -q '.orkeon/worktrees/demo-F2'";
-const HEAD = "git -C '.orkeon/worktrees/demo-F2' symbolic-ref -q HEAD";
-const STATUS = "git -C '.orkeon/worktrees/demo-F2' status --porcelain --untracked-files=all";
-const MERGED = "git merge-base --is-ancestor 'refs/heads/batch/demo-F2' 'feat/demo'";
-const COUNT = "git rev-list --count 'refs/heads/batch/demo-F2' --not 'feat/demo'";
-const REMOVE = "git worktree remove '.orkeon/worktrees/demo-F2'";
-const DELETE = "git branch -d 'batch/demo-F2'";
-const CREATE = { name: "demo-F2", branch: "batch/demo-F2", base: "feat/demo" };
-const DROP = { name: "demo-F2", branch: "batch/demo-F2", into: "feat/demo" };
+import {
+  ADD, BRANCH, COUNT, CREATE, DELETE, DROP, EXISTS, HEAD, HEADS_ELSEWHERE, IGNORED, MERGE, MERGED, NOT_ONE_FOLDER, REBASE,
+  REMOVE, REQ, STATUS, UNMERGED_VERDICTS, UNSAFE_CREATES, freshBranch, onBranch, refusingFirstFastForward, shellWith,
+} from "./batch-worktree.fixtures.ts";
 
 describe("worktreePlace", () => {
-  it("is under /workspace/.orkeon/worktrees, never .claude/, and refuses a name that is not one folder", () => {
-    deepStrictEqual(worktreePlace("demo-F2"), { name: "demo-F2", path: ".orkeon/worktrees/demo-F2", root: "/workspace/.orkeon/worktrees/demo-F2" });
-    for (const name of ["", "a/b", "..", "a..b", "-x", ".claude", "../.claude/worktrees/x"]) strictEqual(worktreePlace(name), null, name);
+  it("is under /workspace/.orkeon/worktrees, never .claude/", () => {
+    // Arrange
+    const name = "demo-F2";
+
+    // Act
+    const place = worktreePlace(name);
+
+    // Assert
+    deepStrictEqual(place, { name: "demo-F2", path: ".orkeon/worktrees/demo-F2", root: "/workspace/.orkeon/worktrees/demo-F2" });
   });
+
+  for (const name of NOT_ONE_FOLDER) {
+    it(`refuses the name ${JSON.stringify(name)}, which is not one folder`, () => {
+      // Arrange
+      const requested = name;
+
+      // Act
+      const place = worktreePlace(requested);
+
+      // Assert
+      strictEqual(place, null, name);
+    });
+  }
 });
 
 describe("createBatchWorktree", () => {
   it("adds the worktree on a new branch from the base", async () => {
-    const shell = new FakeShell();
-    shell.results[EXISTS] = { exitCode: 1 };
+    // Arrange
+    const shell = freshBranch();
+
+    // Act
     const out = await createBatchWorktree(shell, CREATE);
+
+    // Assert
     ok(out.ok && out.place.root === "/workspace/.orkeon/worktrees/demo-F2");
     deepStrictEqual(shell.commands, [EXISTS, IGNORED, ADD]);
   });
 
-  it("refuses a worktree folder git does not ignore, and a ref read as an option", async () => {
-    const shell = new FakeShell();
-    shell.results[EXISTS] = { exitCode: 1 };
-    shell.results[IGNORED] = { exitCode: 1 };
-    deepStrictEqual(await createBatchWorktree(shell, CREATE), {
+  it("refuses a worktree folder git does not ignore", async () => {
+    // Arrange
+    const shell = freshBranch({ [IGNORED]: { exitCode: 1 } });
+
+    // Act
+    const out = await createBatchWorktree(shell, CREATE);
+
+    // Assert
+    deepStrictEqual(out, {
       ok: false, line: "refused: .orkeon/worktrees/demo-F2 is not ignored by git: add `.orkeon/` to .gitignore or .git/info/exclude first",
     });
     deepStrictEqual(shell.commands, [EXISTS, IGNORED]);
-    const option = new FakeShell();
-    strictEqual((await createBatchWorktree(option, { ...CREATE, base: "--detach" })).ok, false);
-    strictEqual((await removeBatchWorktree(option, { ...DROP, into: "-q" })).ok, false);
-    deepStrictEqual(option.commands, []);
   });
 
-  it("refuses a branch that exists, a bad name or an unsafe ref, and says git's failure", async () => {
-    const taken = new FakeShell();
-    deepStrictEqual(await createBatchWorktree(taken, CREATE),
-      { ok: false, line: "refused: branch batch/demo-F2 exists already: remove it or choose another name" });
-    deepStrictEqual(taken.commands, [EXISTS]);
-    const bad = new FakeShell();
-    strictEqual((await createBatchWorktree(bad, { ...CREATE, name: "../x" })).ok, false);
-    strictEqual((await createBatchWorktree(bad, { ...CREATE, base: "a;b" })).ok, false);
-    deepStrictEqual(bad.commands, []);
-    const failing = new FakeShell();
-    failing.results[EXISTS] = { exitCode: 1 };
-    failing.results[ADD] = { exitCode: 128, stderr: "fatal: '.orkeon/worktrees/demo-F2' already exists\n" };
-    deepStrictEqual(await createBatchWorktree(failing, CREATE),
-      { ok: false, line: "worktree .orkeon/worktrees/demo-F2 not created: fatal: '.orkeon/worktrees/demo-F2' already exists" });
+  it("refuses a base ref read as an option, running nothing", async () => {
+    // Arrange
+    const shell = shellWith();
+
+    // Act
+    const out = await createBatchWorktree(shell, { ...CREATE, base: "--detach" });
+
+    // Assert
+    strictEqual(out.ok, false);
+    deepStrictEqual(shell.commands, []);
+  });
+
+  it("refuses a branch that exists already", async () => {
+    // Arrange
+    const shell = shellWith();
+
+    // Act
+    const out = await createBatchWorktree(shell, CREATE);
+
+    // Assert
+    deepStrictEqual(out, { ok: false, line: "refused: branch batch/demo-F2 exists already: remove it or choose another name" });
+    deepStrictEqual(shell.commands, [EXISTS]);
+  });
+
+  for (const c of UNSAFE_CREATES) {
+    it(`refuses ${c.name}, running nothing`, async () => {
+      // Arrange
+      const shell = shellWith();
+
+      // Act
+      const out = await createBatchWorktree(shell, c.request);
+
+      // Assert
+      strictEqual(out.ok, false);
+      deepStrictEqual(shell.commands, []);
+    });
+  }
+
+  it("says git's failure when the worktree is not added", async () => {
+    // Arrange
+    const shell = freshBranch({ [ADD]: { exitCode: 128, stderr: "fatal: '.orkeon/worktrees/demo-F2' already exists\n" } });
+
+    // Act
+    const out = await createBatchWorktree(shell, CREATE);
+
+    // Assert
+    deepStrictEqual(out, { ok: false, line: "worktree .orkeon/worktrees/demo-F2 not created: fatal: '.orkeon/worktrees/demo-F2' already exists" });
   });
 
   it("fails with git's own message on a git without --relative-paths (before 2.48): no fallback", async () => {
-    const old = new FakeShell();
-    old.results[EXISTS] = { exitCode: 1 };
-    old.results[ADD] = { exitCode: 129, stderr: "error: unknown option `relative-paths'\nusage: git worktree add [<options>] <path> [<commit-ish>]\n" };
-    deepStrictEqual(await createBatchWorktree(old, CREATE),
-      { ok: false, line: "worktree .orkeon/worktrees/demo-F2 not created: error: unknown option `relative-paths'" });
-    deepStrictEqual(old.commands, [EXISTS, IGNORED, ADD]);
+    // Arrange
+    const shell = freshBranch({
+      [ADD]: { exitCode: 129, stderr: "error: unknown option `relative-paths'\nusage: git worktree add [<options>] <path> [<commit-ish>]\n" },
+    });
+
+    // Act
+    const out = await createBatchWorktree(shell, CREATE);
+
+    // Assert
+    deepStrictEqual(out, { ok: false, line: "worktree .orkeon/worktrees/demo-F2 not created: error: unknown option `relative-paths'" });
+    deepStrictEqual(shell.commands, [EXISTS, IGNORED, ADD]);
   });
 });
 
-const onBranch = (): FakeShell => {
-  const shell = new FakeShell();
-  shell.results[HEAD] = { stdout: "refs/heads/batch/demo-F2\n" };
-  return shell;
-};
-
 describe("removeBatchWorktree", () => {
   it("removes a clean, merged worktree, then its branch with -d, never --force", async () => {
+    // Arrange
     const shell = onBranch();
-    deepStrictEqual(await removeBatchWorktree(shell, DROP), {
+
+    // Act
+    const out = await removeBatchWorktree(shell, DROP);
+
+    // Assert
+    deepStrictEqual(out, {
       ok: true, place: worktreePlace("demo-F2"), line: "✓ worktree .orkeon/worktrees/demo-F2 and branch batch/demo-F2 removed",
     });
     deepStrictEqual(shell.commands, [STATUS, HEAD, MERGED, REMOVE, DELETE]);
-    ok(shell.commands.every((c) => !c.includes("--force") && !/\bbranch -D\b/.test(c)));
+    ok(shell.commands.every((c) => !c.includes("--force") && !/\bbranch -D\b/.test(c)), shell.commands.join("\n"));
+  });
+
+  it("refuses a work branch read as an option, running nothing", async () => {
+    // Arrange
+    const shell = shellWith();
+
+    // Act
+    const out = await removeBatchWorktree(shell, { ...DROP, into: "-q" });
+
+    // Assert
+    strictEqual(out.ok, false);
+    deepStrictEqual(shell.commands, []);
   });
 
   it("refuses with uncommitted or untracked files, nothing removed", async () => {
-    const shell = onBranch();
-    shell.results[STATUS] = { stdout: " M src/a.ts\n?? src/b.ts\n" };
-    deepStrictEqual(await removeBatchWorktree(shell, DROP),
+    // Arrange
+    const shell = onBranch({ [STATUS]: { stdout: " M src/a.ts\n?? src/b.ts\n" } });
+
+    // Act
+    const out = await removeBatchWorktree(shell, DROP);
+
+    // Assert
+    deepStrictEqual(out,
       { ok: false, line: "refused: .orkeon/worktrees/demo-F2 holds 2 uncommitted or untracked file(s): commit or discard them first" });
     deepStrictEqual(shell.commands, [STATUS]);
   });
 
   it("refuses with commits the work branch lacks, nothing removed", async () => {
-    const shell = onBranch();
-    shell.results[MERGED] = { exitCode: 1 };
-    shell.results[COUNT] = { stdout: "3\n" };
-    deepStrictEqual(await removeBatchWorktree(shell, DROP),
-      { ok: false, line: "refused: batch/demo-F2 holds 3 commit(s) not in feat/demo: merge it first" });
+    // Arrange
+    const shell = onBranch({ [MERGED]: { exitCode: 1 }, [COUNT]: { stdout: "3\n" } });
+
+    // Act
+    const out = await removeBatchWorktree(shell, DROP);
+
+    // Assert
+    deepStrictEqual(out, { ok: false, line: "refused: batch/demo-F2 holds 3 commit(s) not in feat/demo: merge it first" });
     deepStrictEqual(shell.commands, [STATUS, HEAD, MERGED, COUNT]);
   });
 
-  it("refuses a worktree on a detached HEAD or another branch: its commits would go with it", async () => {
-    for (const head of [{ exitCode: 1 }, { stdout: "refs/heads/other\n" }]) {
-      const shell = onBranch();
-      shell.results[HEAD] = head;
+  for (const c of HEADS_ELSEWHERE) {
+    it(`refuses a worktree on ${c.name}: its commits would go with it`, async () => {
+      // Arrange
+      const shell = onBranch({ [HEAD]: c.head });
+
+      // Act
       const out = await removeBatchWorktree(shell, DROP);
+
+      // Assert
       ok(!out.ok && out.line.startsWith("refused: .orkeon/worktrees/demo-F2 is not on batch/demo-F2"), out.line);
       deepStrictEqual(shell.commands, [STATUS, HEAD]);
-    }
+    });
+  }
+
+  it("refuses when the worktree's state cannot be read", async () => {
+    // Arrange
+    const shell = onBranch({ [STATUS]: { exitCode: 128, stderr: "fatal: not a git repository\n" } });
+
+    // Act
+    const out = await removeBatchWorktree(shell, DROP);
+
+    // Assert
+    strictEqual(out.ok, false);
+    deepStrictEqual(shell.commands, [STATUS]);
   });
 
-  it("refuses when the state cannot be read, and keeps a branch git refuses to delete", async () => {
-    const unreadable = onBranch();
-    unreadable.results[STATUS] = { exitCode: 128, stderr: "fatal: not a git repository\n" };
-    strictEqual((await removeBatchWorktree(unreadable, DROP)).ok, false);
-    deepStrictEqual(unreadable.commands, [STATUS]);
-    const unknown = onBranch();
-    unknown.results[MERGED] = { exitCode: 128, stderr: "fatal: Not a valid object name\n" };
-    strictEqual((await removeBatchWorktree(unknown, DROP)).ok, false);
-    deepStrictEqual(unknown.commands, [STATUS, HEAD, MERGED]);
-    const kept = onBranch();
-    kept.results[DELETE] = { exitCode: 1, stderr: "error: the branch 'batch/demo-F2' is not fully merged\n" };
-    const out = await removeBatchWorktree(kept, DROP);
+  it("refuses when git cannot tell whether the branch is merged", async () => {
+    // Arrange
+    const shell = onBranch({ [MERGED]: { exitCode: 128, stderr: "fatal: Not a valid object name\n" } });
+
+    // Act
+    const out = await removeBatchWorktree(shell, DROP);
+
+    // Assert
+    strictEqual(out.ok, false);
+    deepStrictEqual(shell.commands, [STATUS, HEAD, MERGED]);
+  });
+
+  it("keeps a branch git refuses to delete", async () => {
+    // Arrange
+    const shell = onBranch({ [DELETE]: { exitCode: 1, stderr: "error: the branch 'batch/demo-F2' is not fully merged\n" } });
+
+    // Act
+    const out = await removeBatchWorktree(shell, DROP);
+
+    // Assert
     ok(out.ok && out.line.includes("branch batch/demo-F2 kept"));
   });
 });
 
 describe("mergeValidBatch", () => {
-  const BRANCH = "git branch --show-current";
-  const MERGE = "git merge --ff-only 'batch/demo-F2'";
-  const REQ = { batch: "F2", verdict: "VALID", branch: "batch/demo-F2", workBranch: "feat/demo", name: "demo-F2" };
-
   it("merges a VALID batch by fast-forward, nothing pushed", async () => {
-    const shell = new FakeShell();
-    shell.results[BRANCH] = { stdout: "feat/demo\n" };
-    deepStrictEqual(await mergeValidBatch(shell, REQ),
-      { merged: true, rebased: false, line: "batch/demo-F2 merged into feat/demo (fast-forward)" });
+    // Arrange
+    const shell = shellWith({ [BRANCH]: { stdout: "feat/demo\n" } });
+
+    // Act
+    const out = await mergeValidBatch(shell, REQ);
+
+    // Assert
+    deepStrictEqual(out, { merged: true, rebased: false, line: "batch/demo-F2 merged into feat/demo (fast-forward)" });
     deepStrictEqual(shell.commands, [BRANCH, MERGE]);
   });
 
   it("rebases in the batch's own worktree when not a fast-forward", async () => {
-    const shell = new FakeShell();
-    shell.results[BRANCH] = { stdout: "feat/demo\n" };
-    let calls = 0;
-    const run = shell.run.bind(shell);
-    shell.run = async (c, o) => (c === MERGE && calls++ === 0 ? { stdout: "", stderr: "fatal: Not possible to fast-forward, aborting.\n", exitCode: 128 } : run(c, o));
-    strictEqual((await mergeValidBatch(shell, REQ)).merged, true);
-    ok(shell.commands.includes("git -C '.orkeon/worktrees/demo-F2' rebase 'feat/demo'"));
+    // Arrange
+    const shell = refusingFirstFastForward();
+
+    // Act
+    const out = await mergeValidBatch(shell, REQ);
+
+    // Assert
+    strictEqual(out.merged, true);
+    ok(shell.commands.includes(REBASE), shell.commands.join("\n"));
   });
 
-  it("merges nothing for a GAPS, BLOCKED or missing verdict", async () => {
-    for (const verdict of ["GAPS", "BLOCKED", null]) {
-      const shell = new FakeShell();
+  for (const verdict of UNMERGED_VERDICTS) {
+    it(`merges nothing for a ${verdict ?? "missing"} verdict`, async () => {
+      // Arrange
+      const shell = shellWith();
+
+      // Act
       const out = await mergeValidBatch(shell, { ...REQ, verdict });
+
+      // Assert
       strictEqual(out.merged, false);
-      ok(!out.merged && out.line.startsWith("not merged: F2's audit is "));
+      ok(!out.merged && out.line.startsWith("not merged: F2's audit is "), out.line);
       deepStrictEqual(shell.commands, []);
-    }
-  });
+    });
+  }
 });

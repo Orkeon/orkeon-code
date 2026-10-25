@@ -5,72 +5,122 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 
 import { runSkills } from "../src/commands/_lib/skills.ts";
-import { SKILLS_STATE_KEY } from "../src/shared/domain/session-keys.ts";
-import { FakeFiles } from "./support/fake-files.ts";
-import { FakeSessionStore } from "./support/fake-session-store.ts";
-
-const SKILL = "/workspace/docs/release.md";
-
-function setup() {
-  const session = new FakeSessionStore();
-  const files = new FakeFiles();
-  files.files.set(SKILL, "# Release playbook");
-  const run = (...tokens: string[]) => runSkills(tokens, { session, files });
-  const attached = (): unknown => JSON.parse(session.state.get(SKILLS_STATE_KEY) ?? "null");
-  return { session, files, run, attached };
-}
+import { attached, OTHER_SKILL, OUT_OF_RANGE, SKILL, skillsDeps } from "./commands-skills.fixtures.ts";
 
 describe("/skills list", () => {
   it("says none are attached, with the usage (the default sub-command)", async () => {
-    deepStrictEqual(await setup().run(), {
+    // Arrange
+    const deps = skillsDeps();
+
+    // Act
+    const view = await runSkills([], deps);
+
+    // Assert
+    deepStrictEqual(view, {
       text: "no skills attached. usage: /skills attach <workspace path to a .md playbook>",
     });
   });
 
   it("tables the attached paths, numbered", async () => {
-    const { session, run } = setup();
-    session.state.set(SKILLS_STATE_KEY, JSON.stringify([SKILL, "/workspace/b.md"]));
-    deepStrictEqual(await run("list"), { table: [{ n: 1, path: SKILL }, { n: 2, path: "/workspace/b.md" }] });
+    // Arrange
+    const deps = skillsDeps([SKILL, OTHER_SKILL]);
+
+    // Act
+    const view = await runSkills(["list"], deps);
+
+    // Assert
+    deepStrictEqual(view, { table: [{ n: 1, path: SKILL }, { n: 2, path: "/workspace/b.md" }] });
   });
 });
 
 describe("/skills attach", () => {
-  it("attaches a readable file once", async () => {
-    const { run, attached } = setup();
-    deepStrictEqual(await run("attach", SKILL), { text: `skill attached: ${SKILL} (1 attached; /clear clears).` });
-    deepStrictEqual(await run("attach", SKILL), { text: `skill attached: ${SKILL} (1 attached; /clear clears).` });
-    deepStrictEqual(attached(), [SKILL]);
+  it("attaches a readable file", async () => {
+    // Arrange
+    const deps = skillsDeps();
+
+    // Act
+    const view = await runSkills(["attach", SKILL], deps);
+
+    // Assert
+    deepStrictEqual(view, { text: `skill attached: ${SKILL} (1 attached; /clear clears).` });
+    deepStrictEqual(attached(deps.session), [SKILL]);
   });
 
-  it("refuses a file it cannot read, and asks for a path", async () => {
-    const { run, attached } = setup();
-    deepStrictEqual(await run("attach", "/workspace/gone.md"), {
+  it("attaches a readable file once, however often it is attached", async () => {
+    // Arrange
+    const deps = skillsDeps([SKILL]);
+
+    // Act
+    const view = await runSkills(["attach", SKILL], deps);
+
+    // Assert
+    deepStrictEqual(view, { text: `skill attached: ${SKILL} (1 attached; /clear clears).` });
+    deepStrictEqual(attached(deps.session), [SKILL]);
+  });
+
+  it("refuses a file it cannot read", async () => {
+    // Arrange
+    const deps = skillsDeps();
+
+    // Act
+    const view = await runSkills(["attach", "/workspace/gone.md"], deps);
+
+    // Assert
+    deepStrictEqual(view, {
       text: "cannot attach '/workspace/gone.md' — the file is not readable in the mounted workspace.",
     });
-    deepStrictEqual(await run("attach"), { text: "usage: /skills attach <path>" });
-    strictEqual(attached(), null);
+    strictEqual(attached(deps.session), null);
+  });
+
+  it("asks for a path", async () => {
+    // Arrange
+    const deps = skillsDeps();
+
+    // Act
+    const view = await runSkills(["attach"], deps);
+
+    // Assert
+    deepStrictEqual(view, { text: "usage: /skills attach <path>" });
+    strictEqual(attached(deps.session), null);
   });
 });
 
 describe("/skills detach", () => {
   it("detaches by number", async () => {
-    const { session, run, attached } = setup();
-    session.state.set(SKILLS_STATE_KEY, JSON.stringify([SKILL, "/workspace/b.md"]));
-    deepStrictEqual(await run("detach", "1"), { text: `skill detached: ${SKILL}` });
-    deepStrictEqual(attached(), ["/workspace/b.md"]);
+    // Arrange
+    const deps = skillsDeps([SKILL, OTHER_SKILL]);
+
+    // Act
+    const view = await runSkills(["detach", "1"], deps);
+
+    // Assert
+    deepStrictEqual(view, { text: `skill detached: ${SKILL}` });
+    deepStrictEqual(attached(deps.session), ["/workspace/b.md"]);
   });
 
-  it("refuses a number out of range, with the range", async () => {
-    const { session, run } = setup();
-    deepStrictEqual(await run("detach", "1"), { text: "usage: /skills detach <1-1>" });
-    session.state.set(SKILLS_STATE_KEY, JSON.stringify([SKILL, "/workspace/b.md"]));
-    deepStrictEqual(await run("detach", "3"), { text: "usage: /skills detach <1-2>" });
-    deepStrictEqual(await run("detach", "x"), { text: "usage: /skills detach <1-2>" });
-  });
+  for (const c of OUT_OF_RANGE) {
+    it(`refuses a number out of range, with the range: ${c.name}`, async () => {
+      // Arrange
+      const deps = skillsDeps(c.attached);
+
+      // Act
+      const view = await runSkills(["detach", c.n], deps);
+
+      // Assert
+      deepStrictEqual(view, { text: c.text });
+    });
+  }
 });
 
 describe("/skills — anything else", () => {
   it("answers the usage line", async () => {
-    deepStrictEqual(await setup().run("load"), { text: "usage: /skills [list|attach <path>|detach <n>]" });
+    // Arrange
+    const deps = skillsDeps();
+
+    // Act
+    const view = await runSkills(["load"], deps);
+
+    // Assert
+    deepStrictEqual(view, { text: "usage: /skills [list|attach <path>|detach <n>]" });
   });
 });
