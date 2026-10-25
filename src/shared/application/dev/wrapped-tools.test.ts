@@ -28,12 +28,13 @@ function setup(rules: PermissionRule[] = []) {
 }
 
 describe("run_tests", () => {
-  it("runs one of the pack's narrow commands with 600 s and hands back the tail and the log", async () => {
+  it("runs one of the pack's narrow commands with 600 s and hands back the failed tests, the tail and the log", async () => {
     const f = setup();
-    f.shell.results[CLASS_RUN] = { exitCode: 1, stdout: "Failed!  - Failed: 1, Passed: 3\n" };
+    f.shell.results[CLASS_RUN] = { exitCode: 1, stdout: "  Failed Tests.LineTests.Empty [3 ms]\nFailed!  - Failed: 1, Passed: 3\n" };
     const out = await f.tools.runTests({ command: CLASS_RUN });
     deepStrictEqual(out, {
-      ok: true, command: CLASS_RUN, exit: 1, timedOut: false, tail: "Failed!  - Failed: 1, Passed: 3", log: `${LOGS}/run_tests-1.log`,
+      ok: true, command: CLASS_RUN, exit: 1, timedOut: false, failed: ["Tests.LineTests.Empty"],
+      tail: "  Failed Tests.LineTests.Empty [3 ms]\nFailed!  - Failed: 1, Passed: 3", log: `${LOGS}/run_tests-1.log`,
     });
     deepStrictEqual(f.shell.calls, [{ command: CLASS_RUN, options: { timeoutSeconds: 600 } }]);
     ok(f.files.files.get(`${LOGS}/run_tests-1.log`)?.startsWith(`$ ${CLASS_RUN}\nexit 1\n`));

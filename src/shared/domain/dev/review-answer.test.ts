@@ -1,7 +1,7 @@
 // The reviewer's JSON answer: its schema and every problem the check names. Run:
 //   node --test src/shared/domain/dev/review-answer.test.ts
 import { describe, it } from "node:test";
-import { deepStrictEqual, ok } from "node:assert";
+import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import { MAX_REVIEW_ROWS, REVIEW_ANSWER_SCHEMA, checkReviewAnswer } from "./review-answer.ts";
 
@@ -79,8 +79,6 @@ describe("checkReviewAnswer", () => {
     const cases: Array<[string, string]> = [
       ["", "it is empty"],
       ["The refund keeps the currency.", "it does not end with ?"],
-      ["Is it A | B?", "it holds a line break or a '|'"],
-      ["Is it A?\nOr B?", "it holds a line break or a '|'"],
       [`${"Is it long ".repeat(30)}?`, "it is longer than 300 characters"],
     ];
     for (const [question, fault] of cases) {
@@ -89,19 +87,22 @@ describe("checkReviewAnswer", () => {
     ok(checkReviewAnswer(answer({ rows: [row({ question: `${"a".repeat(299)}?` })] }), CTX).ok);
   });
 
-  it("evidence fits a table cell", () => {
-    const refused = "row 1: evidence cannot sit in a table cell";
-    for (const evidence of ["", "   ", "src/a.ts:3 | src/b.ts:4", "src/a.ts:3\nsrc/b.ts:4"]) {
-      deepStrictEqual(problemsOf(answer({ rows: [row({ evidence })] })), [refused], JSON.stringify(evidence));
+  it("fits a question and its evidence in a table cell: a `|` escaped, a line break a space, never a refusal", () => {
+    for (const evidence of ["", "   "]) {
+      deepStrictEqual(problemsOf(answer({ rows: [row({ evidence })] })), ["row 1: evidence is empty"], JSON.stringify(evidence));
     }
+    const out = checkReviewAnswer(answer({ rows: [row({ evidence: "src/a.ts:3 | src/b.ts:4\nand `## Design` row `Rounding | none`", question: "Is it A | B?\nOr C?" })] }), CTX);
+    ok(out.ok);
+    strictEqual(out.ok && out.value.rows[0].evidence, "src/a.ts:3 \\| src/b.ts:4 and `## Design` row `Rounding \\| none`");
+    strictEqual(out.ok && out.value.rows[0].question, "Is it A \\| B? Or C?");
   });
 
-  it("evidence cites a path:line, a § n or a heading of the plan", () => {
-    for (const evidence of ["src/a/B.ts:12", "PRUNE-PLAN.md § 3", "§2 of the spec", "## Anchors of F2"]) {
+  it("evidence cites a path:line, a section (§ n, § heading) or a heading of the plan", () => {
+    for (const evidence of ["src/a/B.ts:12", "PRUNE-PLAN.md § 3", "§2 of the spec", "## Anchors of F2", "CALC-PLAN-F2.md § TDD sequence → Step 1"]) {
       ok(checkReviewAnswer(answer({ rows: [row({ evidence })] }), CTX).ok, evidence);
     }
     deepStrictEqual(problemsOf(answer({ rows: [row({ evidence: "the plan, somewhere" })] })),
-      ["row 1: evidence cites no path:line, § n or section"]);
+      ["row 1: evidence cites no path:line, § section or heading"]);
   });
 
   it("target is one the caller names", () => {

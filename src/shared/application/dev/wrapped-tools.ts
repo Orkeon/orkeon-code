@@ -12,6 +12,7 @@ import type { RepoPackCommands } from "../../domain/dev/repo-pack.ts";
 import { checkValidation } from "../../domain/dev/test-commands.ts";
 import { buildCommandFor, coldTree, isRestore } from "../../domain/dev/build-commands.ts";
 import { outputTail, runGuards, shellRuleGuard, stringArgument } from "../../domain/dev/tool-guards.ts";
+import { failedTests } from "../../domain/dev/test-output.ts";
 import type { Guard } from "../../domain/dev/tool-guards.ts";
 
 export const RUN_TESTS_TIMEOUT_SECONDS = 600;
@@ -26,6 +27,9 @@ export type WrappedRun =
     timedOut: boolean;
     /** run_build only: true when a red build on a cold tree made it restore once and build again. */
     restored?: boolean;
+    /** run_tests only: the failed tests the output names (TAP `not ok`, pytest FAILED, dotnet Failed…), at most 20,
+     *  so the role sees which tests failed without opening the log. */
+    failed?: string[];
     /** At most 15 lines and 1 500 characters of the last command's output. */
     tail: string;
     /** The whole output, `/workspace/…`; null when it could not be written. */
@@ -97,6 +101,7 @@ export function createWrappedTools(deps: { shell: Pick<Shell, "run">; files: Pic
       if (typeof result === "string") return { ok: false, refused: result };
       return {
         ok: true, command: check.command, exit: result.exitCode, timedOut: result.timedOut === true,
+        failed: failedTests(`${result.stdout}\n${result.stderr}`),
         tail: outputTail(result.stdout, result.stderr), log: await writeLog("run_tests", output(check.command, result)),
       };
     },

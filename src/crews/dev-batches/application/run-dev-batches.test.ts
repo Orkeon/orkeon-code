@@ -244,6 +244,8 @@ describe("runDevBatches — back from a batch", () => {
     ok(prompt.includes("The batches closed before it, with their commits and files:\nF1 1111111: "), prompt);
     ok(prompt.includes("### workbench/demo/DEMO-PLAN-F2.md\n```text\n# DEMO-PLAN-F2 — Command"), prompt);
     ok(prompt.includes("### what F1 changed (git show 1111111)\n```text\ndiff --git a/src/parsers.ts b/src/parsers.ts\n+export const parse = 1;\n```"), prompt);
+    ok(prompt.indexOf("### workbench/demo/DEMO-PLAN.md\n```text\n") > prompt.indexOf("### what F1 changed"), prompt);
+    ok(prompt.includes("The plan: workbench/demo/DEMO-PLAN.md (in this brief)"), prompt);
     deepStrictEqual(request.tools, ["file_read", "node_outline", "node_read", "codebase_search"]);
     strictEqual(request.maxIterations, 8);
     strictEqual(request.permissionMode, "plan");

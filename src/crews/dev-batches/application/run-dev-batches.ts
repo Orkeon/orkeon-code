@@ -244,26 +244,29 @@ async function closedInventory(shell: Pick<Shell, "run">, merged: readonly Merge
   return out.join("\n");
 }
 
-/** What the review's brief carries: the next batch's sheet, then what each closed dependency changed (`git show`),
- *  so the reviewer reads from the brief instead of opening the plan folder and the tree file by file. A text that
- *  cannot be read is left out: the brief still names the file, and the reviewer opens it. */
+/** What the review's brief carries: the next batch's sheet, what each closed dependency changed (`git show`), then
+ *  the plan, so the reviewer reads from the brief instead of opening the plan folder and the tree file by file. A
+ *  text that cannot be read is left out: the brief still names the file, and the reviewer opens it. */
 async function reviewMaterial(
-  deps: Pick<DevBatchesDeps, "files" | "shell">, vfsPath: string | null, dev: DevCode, sheetName: string,
+  deps: Pick<DevBatchesDeps, "files" | "shell">, vfsPath: string | null, dev: DevCode, sheetName: string, planName: string,
   merged: readonly MergedBatch[], dependsOn: readonly string[],
 ): Promise<CarriedText[]> {
   const out: CarriedText[] = [];
-  if (vfsPath !== null) {
+  const planFile = async (name: string): Promise<void> => {
+    if (vfsPath === null) return;
     try {
-      out.push({ title: `${dev.shown}/${sheetName}`, text: await deps.files.read(`${vfsPath}/${dev.code}/${sheetName}`) });
+      out.push({ title: `${dev.shown}/${name}`, text: await deps.files.read(`${vfsPath}/${dev.code}/${name}`) });
     } catch {
       // Left to read.
     }
-  }
+  };
+  await planFile(sheetName);
   for (const m of merged.filter((x) => dependsOn.includes(x.batch))) {
     if (!/^[0-9a-f]{4,40}$/i.test(m.hash)) continue;
     const r = await runGit(deps.shell, `git show --format= ${shellQuote(m.hash)}`);
     if (r.exitCode === 0 && r.stdout.trim() !== "") out.push({ title: `what ${m.batch} changed (git show ${m.hash.slice(0, 7)})`, text: r.stdout });
   }
+  await planFile(planName);
   return out;
 }
 
@@ -521,7 +524,7 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
       brief: buildReviewBrief({
         mode: "next-batch", folder: dev.shown, files: [`${dev.shown}/${sheet.name}`], source: `${dev.shown}/${plan.name}`,
         inventory: await closedInventory(deps.shell, merged, node.dependsOn), targets: [id],
-        carried: await reviewMaterial(deps, ctx.work.vfsPath, dev, sheet.name, merged, node.dependsOn),
+        carried: await reviewMaterial(deps, ctx.work.vfsPath, dev, sheet.name, plan.name, merged, node.dependsOn),
       }),
       schema: REVIEW_ANSWER_SCHEMA,
       answerPrompt: buildReviewAnswerPrompt,

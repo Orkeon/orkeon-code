@@ -76,11 +76,17 @@ describe("redContract / greenContract", () => {
 
   it("carries the sheet and the test file in both briefs, cut past the room, and says not to open them", () => {
     const carried = [{ title: "workbench/prune/PRUNE-PLAN-F1.md", text: "# PRUNE-PLAN-F1 — Prune\n## Design\n| Rounding | none |\n" }, { title: "tests/prune.test.ts", text: "test('keeps', () => {});\n" }];
-    const red = redContract({ ...input, carried });
+    // A later step: the sheet still says the file is to create, the first step wrote it, the brief carries it.
+    const later = { ...SHEET.steps[1], anchor: { testFiles: [{ path: "tests/prune.test.ts", state: "to create" as const }], doubles: "", production: [] } };
+    const red = redContract({ ...input, step: later, carried });
     ok(red.includes("## In this brief (do not open these files again)\n### workbench/prune/PRUNE-PLAN-F1.md\n```text\n# PRUNE-PLAN-F1 — Prune\n## Design\n| Rounding | none |\n```\n### tests/prune.test.ts\n```text\ntest('keeps', () => {});\n```"), red);
     ok(red.indexOf("## In this brief") < red.indexOf("## Rules"));
-    const green = greenContract({ ...input, carried }, { tail: "not ok 1", log: null });
+    ok(red.includes("- test file: `tests/prune.test.ts` — existing — its text is in this brief (node_outline for the anchor at most): add the tests with node_insert inside its suite, never rewrite it whole"), red);
+    ok(red.includes("every new test must fail; the result lists the failed tests, so the log stays closed."), red);
+    const green = greenContract({ ...input, step: later, carried }, { tail: "not ok 1", log: null });
     ok(green.includes("### tests/prune.test.ts\n```text\ntest('keeps', () => {});\n```"), green);
+    ok(green.includes("Test file (read only, in this brief): `tests/prune.test.ts`."), green);
+    ok(greenContract({ ...input, step: later }, { tail: "not ok 1", log: null }).includes("Test file (read only): `tests/prune.test.ts`."));
     ok(green.indexOf("## In this brief") < green.indexOf("## Rules"));
     ok(!redContract(input).includes("## In this brief"));
     const cut = redContract({ ...input, carried: [{ title: "big", text: "x".repeat(CARRIED_CONTRACT_CHARS * 2) }] });

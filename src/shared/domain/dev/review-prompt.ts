@@ -79,8 +79,10 @@ const NEXT_BATCH_FOCUS = [
   "  anchor no longer holds (look at the file as it is now);",
   "- whether a step of it now repeats what a closed batch already delivered, and whether a decision of a closed",
   "  batch's sheet contradicts one of its own.",
-  "The brief carries the batch's sheet and what each closed batch changed: judge from them, and open a file only to",
-  "see a line the sheet anchors as it stands now.",
+  "The brief carries the batch's sheet, what each closed batch changed and the plan: judge from them, and open a",
+  "file only to see a line the sheet anchors as it stands now. The spec, the closed batches' sheets and the",
+  "repository's configuration (package and tool files, scripts, `.orkeon/`) stay closed: what a closed batch",
+  "delivered is its diff.",
   "The decisions the sheet and the plan record (a rounding, an error's shape, a name, a scope) are settled: a question",
   "that no closed batch's change opened is not yours to ask, whatever you think of the decision.",
 ];
@@ -150,19 +152,23 @@ export interface ReviewBriefInput {
 
 export function buildReviewBrief(input: ReviewBriefInput): string {
   const folder = input.folder.endsWith("/") ? input.folder : `${input.folder}/`;
+  const carried = input.carried ?? [];
+  const inBrief = (file: string): boolean => carried.some((c) => c.title === file);
   const lines = [
     `mode: ${input.mode} ${folder}`,
-    "Files to review, in this order (read each by section, a heading at a time):",
+    input.files.length > 0 && input.files.every(inBrief)
+      ? "Files to review, in this order (their text is in this brief: open none of them):"
+      : "Files to review, in this order (read each by section, a heading at a time):",
     ...input.files.map((file) => `- ${file}`),
   ];
   if (input.mode === "plan") {
     lines.push(`Source it was planned from: ${input.source}`);
     lines.push("Inventory the plan's anchors were chosen from (I<n> refs):", input.inventory.trimEnd() || "(no entry)");
   } else if (input.mode === "next-batch") {
-    lines.push(`The plan: ${input.source}`);
+    lines.push(`The plan: ${input.source}${inBrief(input.source) ? " (in this brief)" : ""}`);
     lines.push("The batches closed before it, with their commits and files:", input.inventory.trimEnd() || "(no entry)");
-    const blocks = carriedBlocks(input.carried ?? [], CARRIED_REVIEW_CHARS);
-    if (blocks.length > 0) lines.push("", "In this brief, so that you open no file for them (the sheet, then what each closed batch changed):", "", ...blocks);
+    const blocks = carriedBlocks(carried, CARRIED_REVIEW_CHARS);
+    if (blocks.length > 0) lines.push("", "In this brief, so that you open no file for them (the sheet, what each closed batch changed, then the plan):", "", ...blocks);
   } else {
     if (input.source !== "") lines.push(`Origin of the request: ${input.source}`);
     lines.push("What the code index found for the request (path:line):", input.inventory.trimEnd() || "(no entry)");

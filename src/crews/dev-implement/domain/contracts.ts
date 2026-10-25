@@ -92,8 +92,10 @@ function refLine(ref: AnchorRef): string {
   return `\`${at}\` — ${ref.state}`;
 }
 
-/** How the test author works on its test file: creates it whole when it is to create, else adds to it by node. */
-function testFileRule(state: string): string {
+/** How the test author works on its test file: creates it whole when it is to create, else adds to it by node; one
+ *  carried in the brief is not read again. */
+function testFileRule(state: string, inBrief: boolean): string {
+  if (inBrief) return "its text is in this brief (node_outline for the anchor at most): add the tests with node_insert inside its suite, never rewrite it whole";
   return state === "to create"
     ? "create it with file_write; once it exists, add to it by node"
     : "read it by node (node_outline, then node_read), add the tests with node_insert inside its suite, never rewrite it whole";
@@ -145,6 +147,10 @@ export function redContract(input: ContractInput): string {
   const stubs = input.stubs ?? stubsOf(step);
   const own = stubsOf(step);
   const correction = CORRECTION.exec(step.title);
+  const testRef: AnchorRef = step.anchor?.testFiles[0] ?? { path: file, state: "to create" };
+  const testInBrief = (input.carried ?? []).some((c) => c.title === testRef.path);
+  // A file the sheet says is to create exists once an earlier step wrote it: the brief carries it and says so.
+  const shownRef: AnchorRef = testInBrief && testRef.state === "to create" ? { ...testRef, state: "existing" } : testRef;
   return [
     ...header(input, "RED"),
     "",
@@ -156,7 +162,7 @@ export function redContract(input: ContractInput): string {
     ...(step.note.length > 0 ? ["", ...step.note] : []),
     "",
     "## Files",
-    `- test file: ${refLine(step.anchor?.testFiles[0] ?? { path: file, state: "to create" })} — ${testFileRule(step.anchor?.testFiles[0]?.state ?? "to create")}`,
+    `- test file: ${refLine(shownRef)} — ${testFileRule(testRef.state, testInBrief)}`,
     `- shared doubles and builders: ${doubles === "" ? "none named" : doubles}`,
     ...(step.anchor?.production ?? []).map((r) => `- production it will drive (${stubs.includes(r.path) ? "a signature stub at most" : "read only, never write"}): ${refLine(r)}`),
     ...carriedSection(input),
@@ -166,7 +172,7 @@ export function redContract(input: ContractInput): string {
     ...(stubs.length === 0 ? [] : [`- The one exception: signature stubs in ${stubs.map((p) => `\`${p}\``).join(", ")} (${stubs.every((p) => own.includes(p)) ? "to create" : "to create, or a stub an earlier RED of this cycle wrote"}) — declarations that throw "not implemented", no logic.`]),
     "- One test per row of the table, its name as written; the passing path first, then the refusals.",
     levelRule(step),
-    `- Run \`${input.testCommand}\` with run_tests once the tests are written: every new test must fail. Code runs it again after you.`,
+    `- Run \`${input.testCommand}\` with run_tests once the tests are written: every new test must fail; the result lists the failed tests, so the log stays closed. Code runs it again after you.`,
     `- ${NODE_READ_RULE}`,
     `- ${BOUNDED_READ_RULE}`,
     `- ${NODE_EDIT_RULE}`,
@@ -189,7 +195,7 @@ export function greenContract(input: ContractInput, red: { tail: string; log: st
     "",
     "## The red tests",
     ...steps.flatMap((s) => [...(steps.length > 1 ? [`Step ${s.number} — ${s.title}:`] : []), ...testsTable(s)]),
-    `Test file (read only): ${testFiles.map((f) => `\`${f}\``).join(", ")}. Last red run${red.log === null ? "" : ` (whole output: \`${red.log}\`)`}:`,
+    `Test file (read only${testFiles.every((f) => (input.carried ?? []).some((c) => c.title === f)) ? ", in this brief" : ""}): ${testFiles.map((f) => `\`${f}\``).join(", ")}. Last red run${red.log === null ? "" : ` (whole output: \`${red.log}\`)`}:`,
     "```",
     red.tail,
     "```",

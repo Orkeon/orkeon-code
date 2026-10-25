@@ -189,17 +189,23 @@ describe("reviewSystem and buildReviewBrief — next-batch mode (/dev-batches)",
       carried: [
         { title: "workbench/prune/PRUNE-PLAN-F2.md", text: `# PRUNE-PLAN-F2 — ${MARK}\n` },
         { title: "what F1 changed (git show a1b2c3d)", text: "diff --git a/src/a.ts b/src/a.ts\n+export const a = 1;\n" },
+        { title: "workbench/prune/PRUNE-PLAN.md", text: "# PRUNE-PLAN\n" },
       ],
     });
-    ok(brief.includes("In this brief, so that you open no file for them (the sheet, then what each closed batch changed):"));
+    ok(brief.includes("Files to review, in this order (their text is in this brief: open none of them):\n- workbench/prune/PRUNE-PLAN-F2.md"), brief);
+    ok(brief.includes("The plan: workbench/prune/PRUNE-PLAN.md (in this brief)"), brief);
+    ok(brief.includes("In this brief, so that you open no file for them (the sheet, what each closed batch changed, then the plan):"));
+    ok(brief.includes("### workbench/prune/PRUNE-PLAN.md\n```text\n# PRUNE-PLAN\n```"));
     ok(brief.includes(`### workbench/prune/PRUNE-PLAN-F2.md\n\`\`\`text\n# PRUNE-PLAN-F2 — ${MARK}\n\`\`\``));
     ok(brief.includes("### what F1 changed (git show a1b2c3d)\n```text\ndiff --git a/src/a.ts b/src/a.ts\n+export const a = 1;\n```"));
     ok(brief.length < MAX_BRIEF_CHARS);
     const system = reviewSystem("next-batch");
-    ok(system.includes("The brief carries the batch's sheet and what each closed batch changed"));
+    ok(system.includes("The brief carries the batch's sheet, what each closed batch changed and the plan"));
+    ok(system.includes("The spec, the closed batches' sheets and the"));
     ok(system.includes("are settled"));
     ok(!reviewSystem("plan").includes("are settled"));
-    ok(!buildReviewBrief({ mode: "next-batch", folder: "w", files: ["w/X-PLAN-F2.md"], source: "w/X-PLAN.md", inventory: "", targets: ["F2"] }).includes("In this brief"));
+    const bare = buildReviewBrief({ mode: "next-batch", folder: "w", files: ["w/X-PLAN-F2.md"], source: "w/X-PLAN.md", inventory: "", targets: ["F2"] });
+    ok(!bare.includes("In this brief") && bare.includes("(read each by section, a heading at a time)") && bare.includes("The plan: w/X-PLAN.md\n"), bare);
   });
 
   it("keeps a next-batch brief under MAX_BRIEF_CHARS whatever it carries", () => {
