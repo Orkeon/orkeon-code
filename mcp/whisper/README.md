@@ -23,7 +23,7 @@ besides the local model.
 ## Install
 
 [uv](https://docs.astral.sh/uv/) resolves `pyproject.toml` (and its `uv.lock`) into
-`mcp/whisper/.venv` the first time it runs the server; nothing else to install. Python 3.10 or
+`mcp/whisper/.venv` the first time it runs the server; nothing else to install. Python 3.11 or
 later, no `ffmpeg`: PyAV, which faster-whisper embeds, decodes audio and the audio track of a video.
 
 ```bash

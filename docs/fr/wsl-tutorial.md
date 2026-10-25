@@ -174,7 +174,7 @@ cp config/appsettings.example.json config/appsettings.local.json
 export DEEPSEEK_API_KEY=...
 ```
 
-`uv`, qui résout et lance le serveur vocal (Python 3.10 ou plus ; `uv` en télécharge un si la distribution n'en
+`uv`, qui résout et lance le serveur vocal (Python 3.11 ou plus ; `uv` en télécharge un si la distribution n'en
 a pas) :
 
 ```bash
