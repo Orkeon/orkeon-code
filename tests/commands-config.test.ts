@@ -4,63 +4,84 @@
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok } from "node:assert";
 
-import { CONFIG_USAGE, runConfig } from "../src/commands/_lib/config.ts";
-import { CONFIG_FILE_PATH, USER_CONFIG_FILE_PATH, createConfigStore } from "../src/shared/application/config-store.ts";
+import { CONFIG_USAGE } from "../src/commands/_lib/config.ts";
+import { CONFIG_FILE_PATH } from "../src/shared/application/config-store.ts";
 import { CONFIG_KEYS, configKeySpec, knownConfigKeys } from "../src/shared/domain/config-schema.ts";
-import { CONFIG_MAP_STATE_KEY } from "../src/shared/domain/session-keys.ts";
-import { FakeFiles } from "./support/fake-files.ts";
-import { FakeSessionStore } from "./support/fake-session-store.ts";
-
-const KEY = "advisor.model";
-
-function setup() {
-  const files = new FakeFiles();
-  const store = new FakeSessionStore();
-  const deps = { config: createConfigStore({ files, session: store }) };
-  const run = (...tokens: string[]) => runConfig(tokens, deps);
-  const fileMap = () => JSON.parse(files.files.get(CONFIG_FILE_PATH) ?? "{}");
-  const sessionMap = () => JSON.parse(store.state.get(CONFIG_MAP_STATE_KEY) ?? "{}");
-  return { files, store, run, fileMap, sessionMap };
-}
+import {
+  BYPASS_IGNORED,
+  KEY,
+  LAYERED_SEED,
+  LIST_TEXT,
+  MALFORMED_REFUSAL,
+  NARROW_USER_SETTINGS,
+  NESTED_WARNING,
+  NOT_JSON,
+  SET_REFUSAL_CASES,
+  UNLISTED_TOOL_NOTE,
+  UNNARROWED_SET_CASES,
+  UNPARSED_USER_SETTINGS_NOTE,
+  WIDER_FALLBACK_NOTE,
+  configHarness,
+  layeredTable,
+} from "./commands-config.fixtures.ts";
 
 describe("/config list", () => {
   it("tables every declared key with its layer, and names the file (the default sub-command)", async () => {
-    const { files, store, run } = setup();
-    files.files.set(CONFIG_FILE_PATH, JSON.stringify({ [KEY]: "file-model" }));
-    store.state.set(CONFIG_MAP_STATE_KEY, JSON.stringify({ "review.lenses": "security" }));
+    // Arrange
+    const { run } = configHarness(LAYERED_SEED);
+
+    // Act
     const view = await run();
-    deepStrictEqual(view.table, CONFIG_KEYS.map((s) => ({
-      key: s.key,
-      value: s.key === KEY ? "file-model" : s.key === "review.lenses" ? "security" : "(unset)",
-      source: s.key === KEY ? "file" : s.key === "review.lenses" ? "session" : "unset",
-    })));
-    strictEqual(view.text, `file: ${CONFIG_FILE_PATH} — session overrides it until /clear.`);
-    deepStrictEqual(await run("list"), view);
+
+    // Assert
+    deepStrictEqual(view.table, layeredTable());
+    strictEqual(view.text, LIST_TEXT);
+  });
+
+  it("answers `list` with the same table and text as the default sub-command", async () => {
+    // Arrange
+    const { run } = configHarness(LAYERED_SEED);
+
+    // Act
+    const view = await run("list");
+
+    // Assert
+    deepStrictEqual(view, { table: layeredTable(), text: LIST_TEXT });
   });
 
   it("reports stored keys outside the key space, and a file it could not parse", async () => {
-    const { files, store, run } = setup();
-    store.state.set(CONFIG_MAP_STATE_KEY, JSON.stringify({ legacy: "x" }));
-    files.files.set(CONFIG_FILE_PATH, "{ not json");
+    // Arrange
+    const { run } = configHarness({ session: { legacy: "x" }, file: NOT_JSON });
+
+    // Act
     const lines = (await run("list")).text!.split("\n");
+
+    // Assert
     strictEqual(lines[1], "⚠ stored but NOT in the key space (pre-B-6 residue, nothing reads them): legacy");
     strictEqual(lines[2], `⚠ ${CONFIG_FILE_PATH} could not be parsed — it is left untouched; fix or delete it.`);
   });
 
   it("names a known key written nested, with the flat spelling", async () => {
-    const { files, run } = setup();
-    files.files.set(CONFIG_FILE_PATH, JSON.stringify({ permissions: { fallback: "plan" } }));
+    // Arrange
+    const { run } = configHarness({ file: { permissions: { fallback: "plan" } } });
+
+    // Act
     const lines = (await run("list")).text!.split("\n");
-    ok(lines.includes(
-      '⚠ written nested, so nothing reads them: permissions.fallback — a settings file holds each key flat ' +
-        '("permissions.fallback": …).'), lines.join("\n"));
+
+    // Assert
+    ok(lines.includes(NESTED_WARNING), lines.join("\n"));
   });
 });
 
 describe("/config keys", () => {
   it("tables the key space with the allowed values and the consumer of each key", async () => {
-    const { run } = setup();
+    // Arrange
+    const { run } = configHarness();
+
+    // Act
     const view = await run("keys");
+
+    // Assert
     strictEqual(view.table!.length, CONFIG_KEYS.length);
     deepStrictEqual(view.table![CONFIG_KEYS.findIndex((s) => s.key === KEY)], {
       key: KEY, allowed: "(any)", "read by": configKeySpec(KEY)!.consumedBy,
@@ -74,139 +95,258 @@ describe("/config keys", () => {
 
 describe("/config get", () => {
   it("asks for a key", async () => {
-    deepStrictEqual(await setup().run("get"), { text: "usage: /config get <key>" });
+    // Arrange
+    const { run } = configHarness();
+
+    // Act
+    const view = await run("get");
+
+    // Assert
+    deepStrictEqual(view, { text: "usage: /config get <key>" });
   });
 
   it("refuses an unknown key with the valid ones", async () => {
-    deepStrictEqual(await setup().run("get", "nope"), {
-      text: `unknown config key 'nope'. Valid keys: ${knownConfigKeys().join(", ")}`,
-    });
+    // Arrange
+    const { run } = configHarness();
+
+    // Act
+    const view = await run("get", "nope");
+
+    // Assert
+    deepStrictEqual(view, { text: `unknown config key 'nope'. Valid keys: ${knownConfigKeys().join(", ")}` });
   });
 
   it("says an unset key is unset, with what it does", async () => {
-    deepStrictEqual(await setup().run("get", KEY), { text: `${KEY} is unset (${configKeySpec(KEY)!.description})` });
+    // Arrange
+    const { run } = configHarness();
+
+    // Act
+    const view = await run("get", KEY);
+
+    // Assert
+    deepStrictEqual(view, { text: `${KEY} is unset (${configKeySpec(KEY)!.description})` });
   });
 
   it("gives the effective value and its layer", async () => {
-    const { store, run } = setup();
-    store.state.set(CONFIG_MAP_STATE_KEY, JSON.stringify({ [KEY]: "m1" }));
-    deepStrictEqual(await run("get", KEY), { text: `${KEY} = m1  [session]` });
+    // Arrange
+    const { run } = configHarness({ session: { [KEY]: "m1" } });
+
+    // Act
+    const view = await run("get", KEY);
+
+    // Assert
+    deepStrictEqual(view, { text: `${KEY} = m1  [session]` });
   });
 });
 
 describe("/config set", () => {
   it("writes the file by default, pretty-printed", async () => {
-    const { files, run, fileMap } = setup();
-    deepStrictEqual(await run("set", KEY, "big", "model"), { text: `${KEY} = big model [file] — persisted in ${CONFIG_FILE_PATH}.` });
+    // Arrange
+    const { files, run, fileMap } = configHarness();
+
+    // Act
+    const view = await run("set", KEY, "big", "model");
+
+    // Assert
+    deepStrictEqual(view, { text: `${KEY} = big model [file] — persisted in ${CONFIG_FILE_PATH}.` });
     deepStrictEqual(fileMap(), { [KEY]: "big model" });
     strictEqual(files.files.get(CONFIG_FILE_PATH), `${JSON.stringify({ [KEY]: "big model" }, null, 2)}\n`);
   });
 
   it("writes the session layer with --session, wherever the flag sits", async () => {
-    const { files, run, sessionMap } = setup();
-    deepStrictEqual(await run("set", KEY, "--session", "m2"), {
-      text: `${KEY} = m2 [session] — overrides the file until /clear.`,
-    });
+    // Arrange
+    const { files, run, sessionMap } = configHarness();
+
+    // Act
+    const view = await run("set", KEY, "--session", "m2");
+
+    // Assert
+    deepStrictEqual(view, { text: `${KEY} = m2 [session] — overrides the file until /clear.` });
     deepStrictEqual(sessionMap(), { [KEY]: "m2" });
     deepStrictEqual(files.writes, []);
   });
 
-  it("refuses an unknown key with the list, and an invalid value with the allowed set", async () => {
-    const { files, run } = setup();
-    ok((await run("set", "permissions.fallbck", "plan")).text!.startsWith("unknown config key 'permissions.fallbck'. Valid keys: "));
-    deepStrictEqual(await run("set", "commit.requireConfirm", "maybe"), {
-      text: "'maybe' is not valid for 'commit.requireConfirm'. Allowed: true, false",
-    });
-    deepStrictEqual(await run("set", KEY), { text: `'${KEY}' needs a value.` });
+  it("refuses an unknown key with the list, and writes nothing", async () => {
+    // Arrange
+    const { files, run } = configHarness();
+
+    // Act
+    const view = await run("set", "permissions.fallbck", "plan");
+
+    // Assert
+    ok(view.text!.startsWith("unknown config key 'permissions.fallbck'. Valid keys: "));
     deepStrictEqual(files.writes, []);
   });
 
-  it("refuses to write over a file it could not parse", async () => {
-    const { files, run } = setup();
-    files.files.set(CONFIG_FILE_PATH, "{ not json");
-    deepStrictEqual(await run("set", KEY, "m"), {
-      text: `refusing to write: ${CONFIG_FILE_PATH} exists but could not be parsed, and overwriting it ` +
-        "would discard whatever it holds. Fix or delete it, then retry.",
+  for (const c of SET_REFUSAL_CASES) {
+    it(`${c.name}, and writes nothing`, async () => {
+      // Arrange
+      const { files, run } = configHarness();
+
+      // Act
+      const view = await run(...c.tokens);
+
+      // Assert
+      deepStrictEqual(view, { text: c.text });
+      deepStrictEqual(files.writes, []);
     });
+  }
+
+  it("refuses to write over a file it could not parse", async () => {
+    // Arrange
+    const { files, run } = configHarness({ file: NOT_JSON });
+
+    // Act
+    const view = await run("set", KEY, "m");
+
+    // Assert
+    deepStrictEqual(view, { text: MALFORMED_REFUSAL });
     deepStrictEqual(files.writes, []);
   });
 });
 
 describe("/config set of a key the user settings narrow", () => {
-  const TAIL = "A setting of your own goes in the orkeonCode block of the user settings file (the one the launcher reads).";
-
   it("still writes a fallback a project file may not set, then says it is ignored and where it goes", async () => {
-    const { run, fileMap } = setup();
-    deepStrictEqual(await run("set", "permissions.fallback", "bypassPermissions"), {
-      text: `permissions.fallback = bypassPermissions [file] — persisted in ${CONFIG_FILE_PATH}.\n` +
-        "↳ ignored: 'bypassPermissions': a project file may set only default, plan or acceptEdits; another mode comes " +
-        `from the user settings (orkeonCode) or /mode. ${TAIL}`,
-    });
+    // Arrange
+    const { run, fileMap } = configHarness();
+
+    // Act
+    const view = await run("set", "permissions.fallback", "bypassPermissions");
+
+    // Assert
+    deepStrictEqual(view, { text: BYPASS_IGNORED });
     deepStrictEqual(fileMap(), { "permissions.fallback": "bypassPermissions" });
   });
 
-  it("says so for a fallback wider than the user's, and for extra tools the user settings do not list", async () => {
-    const { files, run, fileMap } = setup();
-    files.files.set(USER_CONFIG_FILE_PATH, JSON.stringify({ "permissions.fallback": "plan", "tools.extra": "search_issues" }));
+  it("still writes a fallback wider than the user's, and says it is ignored", async () => {
+    // Arrange
+    const { run, fileMap } = configHarness({ user: NARROW_USER_SETTINGS });
+
+    // Act
     const fallback = (await run("set", "permissions.fallback", "acceptEdits")).text!;
-    ok(fallback.endsWith(`\n↳ ignored: 'acceptEdits': it is wider than the user settings' 'plan' (orkeonCode); a project file may only narrow it. ${TAIL}`), fallback);
+
+    // Assert
+    ok(fallback.endsWith(WIDER_FALLBACK_NOTE), fallback);
+    deepStrictEqual(fileMap(), { "permissions.fallback": "acceptEdits" });
+  });
+
+  it("still writes extra tools the user settings do not list, and says the unlisted one is ignored", async () => {
+    // Arrange
+    const { run, fileMap } = configHarness({ user: NARROW_USER_SETTINGS });
+
+    // Act
     const tools = (await run("set", "tools.extra", "search_issues, deploy_prod")).text!;
-    ok(tools.endsWith(`\n↳ ignored: 'deploy_prod:write': the user settings do not allow (orkeonCode tools.extra, or *). ${TAIL}`), tools);
-    deepStrictEqual(fileMap(), { "permissions.fallback": "acceptEdits", "tools.extra": "search_issues, deploy_prod" });
+
+    // Assert
+    ok(tools.endsWith(UNLISTED_TOOL_NOTE), tools);
+    deepStrictEqual(fileMap(), { "tools.extra": "search_issues, deploy_prod" });
   });
 
   it("says when the user settings could not be parsed, so that none applies", async () => {
-    const { files, run } = setup();
-    files.files.set(USER_CONFIG_FILE_PATH, "{ not json");
+    // Arrange
+    const { run } = configHarness({ user: NOT_JSON });
+
+    // Act
     const text = (await run("set", "tools.extra", "deploy_prod")).text!;
-    ok(text.endsWith(`\n↳ ignored: 'deploy_prod:write': the user settings do not allow (orkeonCode tools.extra, or *). ` +
-      `The user settings (${USER_CONFIG_FILE_PATH}) could not be parsed: none applies. ${TAIL}`), text);
+
+    // Assert
+    ok(text.endsWith(UNPARSED_USER_SETTINGS_NOTE), text);
   });
 
-  it("adds nothing when the value applies, or with --session, which the user settings do not narrow", async () => {
-    const { run } = setup();
-    deepStrictEqual(await run("set", "permissions.fallback", "acceptEdits"), {
-      text: `permissions.fallback = acceptEdits [file] — persisted in ${CONFIG_FILE_PATH}.`,
+  for (const c of UNNARROWED_SET_CASES) {
+    it(c.name, async () => {
+      // Arrange
+      const { run } = configHarness();
+
+      // Act
+      const view = await run(...c.tokens);
+
+      // Assert
+      deepStrictEqual(view, { text: c.text });
     });
-    deepStrictEqual(await run("set", "--session", "permissions.fallback", "bypassPermissions"), {
-      text: "permissions.fallback = bypassPermissions [session] — overrides the file until /clear.",
-    });
-  });
+  }
 });
 
 describe("/config unset", () => {
   it("asks for a key", async () => {
-    deepStrictEqual(await setup().run("unset"), { text: "usage: /config unset [--session] <key>" });
+    // Arrange
+    const { run } = configHarness();
+
+    // Act
+    const view = await run("unset");
+
+    // Assert
+    deepStrictEqual(view, { text: "usage: /config unset [--session] <key>" });
   });
 
-  it("removes a file value, and says when there is none", async () => {
-    const { files, run, fileMap } = setup();
-    deepStrictEqual(await run("unset", KEY), { text: `${KEY} is not set in ${CONFIG_FILE_PATH}.` });
-    files.files.set(CONFIG_FILE_PATH, JSON.stringify({ [KEY]: "m", "review.lenses": "style" }));
-    deepStrictEqual(await run("unset", KEY), { text: `${KEY} removed from ${CONFIG_FILE_PATH}.` });
+  it("says when the file holds no value for the key", async () => {
+    // Arrange
+    const { run } = configHarness();
+
+    // Act
+    const view = await run("unset", KEY);
+
+    // Assert
+    deepStrictEqual(view, { text: `${KEY} is not set in ${CONFIG_FILE_PATH}.` });
+  });
+
+  it("removes a file value", async () => {
+    // Arrange
+    const { run, fileMap } = configHarness({ file: { [KEY]: "m", "review.lenses": "style" } });
+
+    // Act
+    const view = await run("unset", KEY);
+
+    // Assert
+    deepStrictEqual(view, { text: `${KEY} removed from ${CONFIG_FILE_PATH}.` });
     deepStrictEqual(fileMap(), { "review.lenses": "style" });
   });
 
-  it("removes a session override, and says when there is none", async () => {
-    const { store, run, sessionMap } = setup();
-    deepStrictEqual(await run("unset", "--session", KEY), { text: `${KEY} has no session override.` });
-    store.state.set(CONFIG_MAP_STATE_KEY, JSON.stringify({ [KEY]: "m" }));
-    deepStrictEqual(await run("unset", "--session", KEY), {
-      text: `${KEY} session override removed (the file value applies again).`,
-    });
+  it("says when there is no session override", async () => {
+    // Arrange
+    const { run } = configHarness();
+
+    // Act
+    const view = await run("unset", "--session", KEY);
+
+    // Assert
+    deepStrictEqual(view, { text: `${KEY} has no session override.` });
+  });
+
+  it("removes a session override", async () => {
+    // Arrange
+    const { run, sessionMap } = configHarness({ session: { [KEY]: "m" } });
+
+    // Act
+    const view = await run("unset", "--session", KEY);
+
+    // Assert
+    deepStrictEqual(view, { text: `${KEY} session override removed (the file value applies again).` });
     deepStrictEqual(sessionMap(), {});
   });
 
   it("refuses to write over a file it could not parse", async () => {
-    const { files, run } = setup();
-    files.files.set(CONFIG_FILE_PATH, "{ not json");
-    deepStrictEqual(await run("unset", KEY), { text: `refusing to write: ${CONFIG_FILE_PATH} could not be parsed.` });
+    // Arrange
+    const { files, run } = configHarness({ file: NOT_JSON });
+
+    // Act
+    const view = await run("unset", KEY);
+
+    // Assert
+    deepStrictEqual(view, { text: `refusing to write: ${CONFIG_FILE_PATH} could not be parsed.` });
     deepStrictEqual(files.writes, []);
   });
 });
 
 describe("/config — anything else", () => {
   it("answers the usage line", async () => {
-    deepStrictEqual(await setup().run("frobnicate"), { text: CONFIG_USAGE });
+    // Arrange
+    const { run } = configHarness();
+
+    // Act
+    const view = await run("frobnicate");
+
+    // Assert
+    deepStrictEqual(view, { text: CONFIG_USAGE });
   });
 });

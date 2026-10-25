@@ -7,99 +7,180 @@ import { deepStrictEqual, strictEqual } from "node:assert";
 import {
   DEV_BATCHES_USAGE, batchesChainStep, batchesLaunchInput, batchesModeRefusal, parseDevBatchesArgs,
 } from "../src/commands/_lib/dev-batches.ts";
+import {
+  ACCEPTED_ARGS_CASES,
+  CORRECTION_VERIFY,
+  F2_INPUT,
+  LAUNCH_CASES,
+  MODE_CASES,
+  NEXT_WAVE_INPUT,
+  READ,
+  REFUSED_ARGS_CASES,
+  THIRTY_LINES,
+  VALID_VERIFY,
+} from "./commands-dev-batches.fixtures.ts";
 
 describe("parseDevBatchesArgs", () => {
-  it("reads a code and --pr, or nothing", () => {
-    deepStrictEqual(parseDevBatchesArgs([]), { ok: true, args: { code: null, pr: false } });
-    deepStrictEqual(parseDevBatchesArgs(["demo", "--pr"]), { ok: true, args: { code: "demo", pr: true } });
-  });
+  for (const c of ACCEPTED_ARGS_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { tokens } = c;
 
-  it("refuses two codes, a path, an unknown option, and answers --help with the usage", () => {
-    strictEqual(parseDevBatchesArgs(["a", "b"]).ok, false);
-    strictEqual(parseDevBatchesArgs(["../x"]).ok, false);
-    strictEqual(parseDevBatchesArgs(["--fast"]).ok, false);
-    deepStrictEqual(parseDevBatchesArgs(["--help"]), { ok: false, text: DEV_BATCHES_USAGE });
-  });
+      // Act
+      const parsed = parseDevBatchesArgs(tokens);
 
-  it("keeps a typed --concurrency 1 (both spellings), which goes back to one at a time; none typed: no key", () => {
-    for (const tokens of [["demo", "--concurrency", "1"], ["--concurrency=1", "demo"]]) {
-      deepStrictEqual(parseDevBatchesArgs(tokens), { ok: true, args: { code: "demo", pr: false, concurrency: 1 } });
-    }
-    deepStrictEqual(parseDevBatchesArgs(["demo"]), { ok: true, args: { code: "demo", pr: false } });
-  });
+      // Assert
+      deepStrictEqual(parsed, c.expected);
+    });
+  }
 
-  it("accepts 2 to 4 batches at once, and refuses above 4 or a bad value in one line", () => {
-    deepStrictEqual(parseDevBatchesArgs(["demo", "--concurrency", "2"]), { ok: true, args: { code: "demo", pr: false, concurrency: 2 } });
-    deepStrictEqual(parseDevBatchesArgs(["--concurrency=4"]), { ok: true, args: { code: null, pr: false, concurrency: 4 } });
-    deepStrictEqual(parseDevBatchesArgs(["demo", "--concurrency", "5"]), { ok: false, text: "dev-batches: concurrency 5 refused: at most 4 batches at once" });
-    for (const tokens of [["--concurrency"], ["--concurrency", "0"], ["--concurrency=x"]]) strictEqual(parseDevBatchesArgs(tokens).ok, false);
+  for (const c of REFUSED_ARGS_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { tokens } = c;
+
+      // Act
+      const parsed = parseDevBatchesArgs(tokens);
+
+      // Assert
+      strictEqual(parsed.ok, false);
+    });
+  }
+
+  it("answers --help with the usage", () => {
+    // Arrange
+    const tokens = ["--help"];
+
+    // Act
+    const parsed = parseDevBatchesArgs(tokens);
+
+    // Assert
+    deepStrictEqual(parsed, { ok: false, text: DEV_BATCHES_USAGE });
   });
 });
 
 describe("batchesLaunchInput", () => {
-  const read = { ruleSets: ["git-readonly"], effort: "high", permissionMode: "bypassPermissions", permissionRules: [], githubTool: true };
-  const today = { code: "demo", pr: false, ...read };
+  for (const c of LAUNCH_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const parsed = parseDevBatchesArgs(c.tokens);
 
-  it("is today's input without the option: no concurrency key; a typed 1 is carried, to override the run in progress", () => {
-    const bare = parseDevBatchesArgs(["demo"]);
-    deepStrictEqual(bare.ok && batchesLaunchInput(bare.args, read), today);
-    const one = parseDevBatchesArgs(["demo", "--concurrency", "1"]);
-    deepStrictEqual(one.ok && batchesLaunchInput(one.args, read), { ...today, concurrency: 1 });
-  });
+      // Act
+      const input = parsed.ok && batchesLaunchInput(parsed.args, READ);
 
-  it("carries the concurrency above 1", () => {
-    const parsed = parseDevBatchesArgs(["demo", "--concurrency", "3"]);
-    deepStrictEqual(parsed.ok && batchesLaunchInput(parsed.args, read), { ...today, concurrency: 3 });
-  });
+      // Assert
+      deepStrictEqual(input, c.expected);
+    });
+  }
 });
 
 describe("batchesModeRefusal", () => {
-  it("refuses above 1 in a mode that asks before shell commands, before any launch", () => {
-    strictEqual(batchesModeRefusal({ code: "demo", pr: false, concurrency: 2 }, "acceptEdits"),
-      "dev-batches: concurrency 2 refused: the session mode acceptEdits asks before shell commands, and two batches would ask at once: /mode bypassPermissions, or run with --concurrency 1");
-    strictEqual(batchesModeRefusal({ code: "demo", pr: false, concurrency: 2 }, "bypassPermissions"), null);
-    strictEqual(batchesModeRefusal({ code: "demo", pr: false }, "default"), null);
-  });
+  for (const c of MODE_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { args, mode } = c;
+
+      // Act
+      const refusal = batchesModeRefusal(args, mode);
+
+      // Assert
+      strictEqual(refusal, c.expected);
+    });
+  }
 });
 
 describe("batchesChainStep", () => {
   it("launches the batch the dev-batches crew names", () => {
-    const input = { batch: "F2", plan: "demo", effort: "high" };
-    deepStrictEqual(batchesChainStep("dev-batches", JSON.stringify({ lines: ["→ F2 launched"], next: { crew: "dev-implement", input } })),
-      { lines: ["→ F2 launched"], launch: { crew: "dev-implement", input, instead: "/dev-implement F2 demo" } });
-    deepStrictEqual(batchesChainStep("dev-batches", JSON.stringify({ lines: ["BLOCKED — x"] })), { lines: ["BLOCKED — x"] });
+    // Arrange
+    const answer = JSON.stringify({ lines: ["→ F2 launched"], next: { crew: "dev-implement", input: F2_INPUT } });
+
+    // Act
+    const step = batchesChainStep("dev-batches", answer);
+
+    // Assert
+    deepStrictEqual(step, { lines: ["→ F2 launched"], launch: { crew: "dev-implement", input: F2_INPUT, instead: "/dev-implement F2 demo" } });
+  });
+
+  it("prints a dev-batches answer that names no batch", () => {
+    // Arrange
+    const answer = JSON.stringify({ lines: ["BLOCKED — x"] });
+
+    // Act
+    const step = batchesChainStep("dev-batches", answer);
+
+    // Assert
+    deepStrictEqual(step, { lines: ["BLOCKED — x"] });
   });
 
   it("launches the audit /dev-implement names, as its own chain does", () => {
-    const step = batchesChainStep("dev-implement", JSON.stringify({ lines: ["a"], next: { crew: "dev-verify", input: { batch: "F2", plan: "demo" } } }));
+    // Arrange
+    const answer = JSON.stringify({ lines: ["a"], next: { crew: "dev-verify", input: { batch: "F2", plan: "demo" } } });
+
+    // Act
+    const step = batchesChainStep("dev-implement", answer);
+
+    // Assert
     strictEqual(step.launch?.crew, "dev-verify");
   });
 
   it("closes a VALID batch without pushing it", () => {
-    const text = "written: workbench/demo/DEMO-VERIFY-F2.md — capture: x/\n→ Batch F2 VALID. commit…";
-    deepStrictEqual(batchesChainStep("dev-verify", text).launch, {
+    // Arrange
+    const text = VALID_VERIFY;
+
+    // Act
+    const step = batchesChainStep("dev-verify", text);
+
+    // Assert
+    deepStrictEqual(step.launch, {
       crew: "dev-implement", input: { batch: "F2", plan: "workbench/demo/DEMO-PLAN.md", close: true, push: false },
       instead: "/dev-implement F2 workbench/demo/DEMO-PLAN.md --close",
     });
   });
 
   it("hands an answer that launches nothing back to the crew, its last lines with it", () => {
-    const text = "written: workbench/demo/DEMO-VERIFY-F2.md — capture: x/\n\n→ /dev-implement F2 — correction: Major y";
-    deepStrictEqual(batchesChainStep("dev-verify", text).launch, {
+    // Arrange
+    const text = CORRECTION_VERIFY;
+
+    // Act
+    const step = batchesChainStep("dev-verify", text);
+
+    // Assert
+    deepStrictEqual(step.launch, {
       crew: "dev-batches", input: { after: ["written: workbench/demo/DEMO-VERIFY-F2.md — capture: x/", "→ /dev-implement F2 — correction: Major y"] },
       instead: "/dev-batches",
     });
-    const many = JSON.stringify({ lines: Array.from({ length: 30 }, (_, i) => `l${i}`) });
-    strictEqual((batchesChainStep("dev-implement", many).launch?.input.after as string[]).length, 20);
+  });
+
+  it("hands back at most 20 last lines of an answer that launches nothing", () => {
+    // Arrange
+    const many = THIRTY_LINES;
+
+    // Act
+    const step = batchesChainStep("dev-implement", many);
+
+    // Assert
+    strictEqual((step.launch?.input.after as string[]).length, 20);
   });
 
   it("launches the next wave the dev-batches crew names: the crew again, its input as given", () => {
-    const input = { after: ["✓ F2 merged"], concurrency: 2 };
-    deepStrictEqual(batchesChainStep("dev-batches", JSON.stringify({ lines: ["✓ F2 merged"], next: { crew: "dev-batches", input } })),
-      { lines: ["✓ F2 merged"], launch: { crew: "dev-batches", input, instead: "/dev-batches --concurrency 2" } });
+    // Arrange
+    const answer = JSON.stringify({ lines: ["✓ F2 merged"], next: { crew: "dev-batches", input: NEXT_WAVE_INPUT } });
+
+    // Act
+    const step = batchesChainStep("dev-batches", answer);
+
+    // Assert
+    deepStrictEqual(step, { lines: ["✓ F2 merged"], launch: { crew: "dev-batches", input: NEXT_WAVE_INPUT, instead: "/dev-batches --concurrency 2" } });
   });
 
   it("prints an answer of another crew as is", () => {
-    deepStrictEqual(batchesChainStep("other", "a\nb"), { lines: ["a", "b"] });
+    // Arrange
+    const text = "a\nb";
+
+    // Act
+    const step = batchesChainStep("other", text);
+
+    // Assert
+    deepStrictEqual(step, { lines: ["a", "b"] });
   });
 });

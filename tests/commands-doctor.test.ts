@@ -5,77 +5,52 @@
 import { describe, it } from "node:test";
 import { ok, strictEqual, deepStrictEqual } from "node:assert";
 
-import { ESSENTIAL_TOOLS, FAIL, OLD_SESSIONS_DIR, PASS, VERSION_DETAIL, WARN, runDoctor } from "../src/commands/_lib/doctor.ts";
+import { FAIL, OLD_SESSIONS_DIR, PASS, VERSION_DETAIL, WARN, runDoctor } from "../src/commands/_lib/doctor.ts";
 import { CLI_VERSION, ORKEON_RUNTIME_VERSION } from "../src/commands/_lib/meta.ts";
-import type { ConfigResolution } from "../src/shared/domain/config-schema.ts";
-import type { DoctorRow } from "../src/commands/_lib/doctor.ts";
 import { CODE_INTEL_TOOLS } from "../src/shared/domain/code-intel-contract.ts";
 import { CONFIG_FILE_PATH, createConfigStore } from "../src/shared/application/config-store.ts";
 import { FakeSessionStore } from "./support/fake-session-store.ts";
-import { FakeFiles } from "./support/fake-files.ts";
-import { FakeShell } from "./support/fake-shell.ts";
-import { FakeTelemetry } from "./support/fake-telemetry.ts";
-import { FakeToolCatalogue } from "./support/fake-tool-catalogue.ts";
-
-/** A host where every check passes. */
-function setup() {
-  const shell = new FakeShell();
-  shell.results = {
-    "node --version": { stdout: "v24.1.0\n" },
-    "git --version": { stdout: "git version 2.47.0\n" },
-    "dotnet --version": { stdout: "10.0.100\n" },
-  };
-  const telemetry = new FakeTelemetry();
-  telemetry.metadata = { model: "kimi-k3", availableModels: ["kimi-k3", "deepseek-chat"] };
-  const catalogue = new FakeToolCatalogue();
-  for (const t of [...ESSENTIAL_TOOLS, ...CODE_INTEL_TOOLS]) catalogue.tools.set(t, {});
-  const files = new FakeFiles();
-  files.mountTable = [{ path: "/workspace", rights: "rw" }, { path: "/crews", rights: "ro" }];
-  const ignored = new Map<string, ConfigResolution["ignored"]>();
-  const config = {
-    readValue: async (key: string): Promise<ConfigResolution> =>
-      ({ key, value: undefined, source: "unset", ...(ignored.has(key) ? { ignored: ignored.get(key) } : {}) }),
-  };
-  const run = async () => {
-    const view = await runDoctor({ shell, telemetry, catalogue, files, config });
-    const rows = new Map((view.table as DoctorRow[]).map((r) => [r.check, r]));
-    return { view, rows };
-  };
-  return { shell, telemetry, catalogue, files, ignored, run };
-}
+import { NO_MODEL_DETAIL, doctorHost, healthyTable, rowsOf } from "./commands-doctor.fixtures.ts";
 
 describe("/doctor — a healthy host", () => {
   it("passes every check, one row each, in order", async () => {
-    const { shell, run } = setup();
-    const { view } = await run();
-    const tools = new Set([...ESSENTIAL_TOOLS, ...CODE_INTEL_TOOLS]).size;
-    deepStrictEqual(view.table, [
-      { check: "version", result: PASS, detail: VERSION_DETAIL },
-      { check: "toolchain: node", result: PASS, detail: "v24.1.0" },
-      { check: "toolchain: git", result: PASS, detail: "git version 2.47.0" },
-      { check: "toolchain: dotnet", result: PASS, detail: "10.0.100" },
-      { check: "llm: model configured", result: PASS, detail: "kimi-k3 (not pinged — a reachability test costs a real call)" },
-      { check: "llm: declared catalogue", result: PASS, detail: "kimi-k3, deepseek-chat" },
-      { check: "tools: essential", result: PASS, detail: `${tools} registered, all ${ESSENTIAL_TOOLS.length} essentials present` },
-      { check: "tools: code intelligence", result: PASS, detail: `all ${CODE_INTEL_TOOLS.length} present` },
-      { check: "vfs: mounts", result: PASS, detail: "/workspace(rw) /crews(ro)" },
-      { check: "sessions: outside the project", result: PASS, detail: "nothing in .orkeon/sessions" },
-      { check: "settings: project file", result: PASS, detail: "widens nothing" },
-    ]);
+    // Arrange
+    const { shell, deps } = doctorHost();
+
+    // Act
+    const view = await runDoctor(deps);
+
+    // Assert
+    deepStrictEqual(view.table, healthyTable());
     strictEqual(view.text, "all checks passed.");
     deepStrictEqual(shell.commands, ["node --version", "git --version", "dotnet --version"]);
   });
 });
 
 describe("/doctor — a project value set aside", () => {
-  it("names a permissions.fallback the project file cannot set, as /permissions does, and nothing when there is none", async () => {
-    const { shell, telemetry, catalogue, files } = setup();
+  it("names nothing when the project file sets no permissions.fallback", async () => {
+    // Arrange
+    const { shell, telemetry, catalogue, files } = doctorHost();
     const config = createConfigStore({ files, session: new FakeSessionStore() });
+
+    // Act
     const quiet = await runDoctor({ shell, telemetry, catalogue, files, config });
-    strictEqual((quiet.table as DoctorRow[]).find((r) => r.check === "settings: project file")?.result, PASS);
+
+    // Assert
+    strictEqual(rowsOf(quiet).get("settings: project file")?.result, PASS);
+  });
+
+  it("names a permissions.fallback the project file cannot set, as /permissions does", async () => {
+    // Arrange
+    const { shell, telemetry, catalogue, files } = doctorHost();
+    const config = createConfigStore({ files, session: new FakeSessionStore() });
     files.files.set(CONFIG_FILE_PATH, JSON.stringify({ "permissions.fallback": "bypassPermissions" }));
+
+    // Act
     const view = await runDoctor({ shell, telemetry, catalogue, files, config });
-    const row = (view.table as DoctorRow[]).find((r) => r.check === "settings: project file");
+
+    // Assert
+    const row = rowsOf(view).get("settings: project file");
     strictEqual(row?.result, WARN);
     ok(row!.detail.startsWith("the project file sets permissions.fallback 'bypassPermissions': ignored, "), row!.detail);
     strictEqual(view.text, "all checks passed, 1 warning(s).");
@@ -84,21 +59,30 @@ describe("/doctor — a project value set aside", () => {
 
 describe("/doctor — failures and warnings", () => {
   it("fails a binary that exits non-zero or cannot run", async () => {
-    const { shell, run } = setup();
+    // Arrange
+    const { shell, deps } = doctorHost();
     shell.results["git --version"] = { stdout: "", exitCode: 127 };
     shell.errors["dotnet --version"] = new Error("command refused: dotnet\nat ShellTool");
-    const { rows } = await run();
+
+    // Act
+    const rows = rowsOf(await runDoctor(deps));
+
+    // Assert
     deepStrictEqual(rows.get("toolchain: git"), { check: "toolchain: git", result: FAIL, detail: "(no output)" });
     deepStrictEqual(rows.get("toolchain: dotnet"), { check: "toolchain: dotnet", result: FAIL, detail: "command refused: dotnet" });
   });
 
   it("fails a host that reports no model, and warns on an empty catalogue", async () => {
-    const { telemetry, run } = setup();
+    // Arrange
+    const { telemetry, deps } = doctorHost();
     telemetry.failure = new Error("no session tools");
-    const { rows } = await run();
+
+    // Act
+    const rows = rowsOf(await runDoctor(deps));
+
+    // Assert
     strictEqual(rows.get("llm: model configured")!.result, FAIL);
-    strictEqual(rows.get("llm: model configured")!.detail,
-      "the host reports NO model: expect every /assistant turn to no-op. Check the `Llm` section of the settings file.");
+    strictEqual(rows.get("llm: model configured")!.detail, NO_MODEL_DETAIL);
     deepStrictEqual(rows.get("llm: declared catalogue"), {
       check: "llm: declared catalogue", result: WARN,
       detail: "no Llm:AvailableModels — /model cannot offer a choice or flag an unserved name",
@@ -106,10 +90,15 @@ describe("/doctor — failures and warnings", () => {
   });
 
   it("fails a missing essential tool, and warns on missing code intelligence", async () => {
-    const { catalogue, run } = setup();
+    // Arrange
+    const { catalogue, deps } = doctorHost();
     catalogue.tools.delete("shell_command");
     catalogue.tools.delete(CODE_INTEL_TOOLS[0]);
-    const { rows } = await run();
+
+    // Act
+    const rows = rowsOf(await runDoctor(deps));
+
+    // Assert
     deepStrictEqual(rows.get("tools: essential"), { check: "tools: essential", result: FAIL, detail: "MISSING: shell_command" });
     deepStrictEqual(rows.get("tools: code intelligence"), {
       check: "tools: code intelligence", result: WARN,
@@ -118,28 +107,66 @@ describe("/doctor — failures and warnings", () => {
   });
 
   it("passes a /workspace the host spells rwnd (writable, no delete)", async () => {
-    const { files, run } = setup();
+    // Arrange
+    const { files, deps } = doctorHost();
     files.mountTable = [{ path: "/workspace", rights: "rwnd" }];
-    deepStrictEqual((await run()).rows.get("vfs: mounts"), { check: "vfs: mounts", result: PASS, detail: "/workspace(rwnd)" });
+
+    // Act
+    const rows = rowsOf(await runDoctor(deps));
+
+    // Assert
+    deepStrictEqual(rows.get("vfs: mounts"), { check: "vfs: mounts", result: PASS, detail: "/workspace(rwnd)" });
   });
 
-  it("fails a read-only or absent /workspace, and shows unknown rights as '?'", async () => {
-    const { files, run } = setup();
+  it("fails a read-only /workspace, and shows unknown rights as '?'", async () => {
+    // Arrange
+    const { files, deps } = doctorHost();
     files.mountTable = [{ path: "/workspace", rights: "ro" }, { path: "/tmp" }];
-    deepStrictEqual((await run()).rows.get("vfs: mounts"), {
+
+    // Act
+    const rows = rowsOf(await runDoctor(deps));
+
+    // Assert
+    deepStrictEqual(rows.get("vfs: mounts"), {
       check: "vfs: mounts", result: FAIL, detail: "/workspace(ro) /tmp(?)  ← /workspace is missing or not writable",
     });
+  });
+
+  it("fails a /workspace whose rights are outside the mount grammar", async () => {
+    // Arrange
     // Rights outside the mount grammar (the enum's own name) are not read as writable.
+    const { files, deps } = doctorHost();
     files.mountTable = [{ path: "/workspace", rights: "Write" }];
-    strictEqual((await run()).rows.get("vfs: mounts")!.result, FAIL);
+
+    // Act
+    const rows = rowsOf(await runDoctor(deps));
+
+    // Assert
+    strictEqual(rows.get("vfs: mounts")!.result, FAIL);
+  });
+
+  it("fails an absent /workspace", async () => {
+    // Arrange
+    const { files, deps } = doctorHost();
     files.mountTable = [];
-    strictEqual((await run()).rows.get("vfs: mounts")!.detail, "(none)  ← /workspace is missing or not writable");
+
+    // Act
+    const rows = rowsOf(await runDoctor(deps));
+
+    // Assert
+    strictEqual(rows.get("vfs: mounts")!.detail, "(none)  ← /workspace is missing or not writable");
   });
 
   it("warns when the mounts cannot be listed", async () => {
-    const { files, run } = setup();
+    // Arrange
+    const { files, deps } = doctorHost();
     files.mountsFailure = new Error("listMounts is not a function\nstack");
-    deepStrictEqual((await run()).rows.get("vfs: mounts"), {
+
+    // Act
+    const rows = rowsOf(await runDoctor(deps));
+
+    // Assert
+    deepStrictEqual(rows.get("vfs: mounts"), {
       check: "vfs: mounts", result: WARN, detail: "list_mounts unavailable: listMounts is not a function",
     });
   });
@@ -147,30 +174,53 @@ describe("/doctor — failures and warnings", () => {
 
 describe("/doctor — sessions left in the project", () => {
   it("names a .orkeon/sessions folder of an older start, and leaves it alone", async () => {
-    const { files, run } = setup();
+    // Arrange
+    const { files, deps } = doctorHost();
     files.listings.set(OLD_SESSIONS_DIR, ["code-1a2b3c4d5e6f"]);
-    const row = (await run()).rows.get("sessions: outside the project")!;
+
+    // Act
+    const row = rowsOf(await runDoctor(deps)).get("sessions: outside the project")!;
+
+    // Assert
     strictEqual(row.result, WARN);
     ok(row.detail.startsWith("/workspace/.orkeon/sessions holds sessions of an older start, left alone"), row.detail);
     deepStrictEqual(files.writes, []);
   });
 
   it("passes when the folder cannot be listed (absent)", async () => {
-    const { files, run } = setup();
+    // Arrange
+    const { files, deps } = doctorHost();
     files.list = async () => { throw new Error("directory not found"); };
-    strictEqual((await run()).rows.get("sessions: outside the project")!.result, PASS);
+
+    // Act
+    const rows = rowsOf(await runDoctor(deps));
+
+    // Assert
+    strictEqual(rows.get("sessions: outside the project")!.result, PASS);
   });
 });
 
 describe("/doctor — the version and the project values set aside (LI-1, LI-6)", () => {
   it("names Code's version and the Orkeon it expects", () => {
-    ok(VERSION_DETAIL.includes(CLI_VERSION) && VERSION_DETAIL.includes(`Orkeon expected ${ORKEON_RUNTIME_VERSION}`), VERSION_DETAIL);
+    // Arrange
+    const expected = `Orkeon expected ${ORKEON_RUNTIME_VERSION}`;
+
+    // Act
+    const detail = VERSION_DETAIL;
+
+    // Assert
+    ok(detail.includes(CLI_VERSION) && detail.includes(expected), detail);
   });
 
   it("warns on a project value that would widen, with why it is ignored", async () => {
-    const { ignored, run } = setup();
+    // Arrange
+    const { ignored, deps } = doctorHost();
     ignored.set("permissions.fallback", { value: "bypassPermissions", reason: "a project file may only narrow it" });
-    const { rows } = await run();
+
+    // Act
+    const rows = rowsOf(await runDoctor(deps));
+
+    // Assert
     deepStrictEqual(rows.get("settings: project file"), {
       check: "settings: project file", result: WARN,
       detail: "the project file sets permissions.fallback 'bypassPermissions': ignored, a project file may only narrow it",
@@ -179,12 +229,28 @@ describe("/doctor — the version and the project values set aside (LI-1, LI-6)"
 });
 
 describe("/doctor — the verdict", () => {
-  it("counts the failures and the warnings", async () => {
-    const { telemetry, files, run } = setup();
+  it("counts the warnings", async () => {
+    // Arrange
+    const { telemetry, deps } = doctorHost();
     telemetry.metadata = { model: "kimi-k3" };
-    strictEqual((await run()).view.text, "all checks passed, 1 warning(s).");
+
+    // Act
+    const view = await runDoctor(deps);
+
+    // Assert
+    strictEqual(view.text, "all checks passed, 1 warning(s).");
+  });
+
+  it("counts the failures and the warnings", async () => {
+    // Arrange
+    const { telemetry, files, deps } = doctorHost();
     files.mountsFailure = new Error("unavailable");
     telemetry.metadata = {};
-    strictEqual((await run()).view.text, "1 check(s) FAILED, 2 warning(s) — the host is not fully usable.");
+
+    // Act
+    const view = await runDoctor(deps);
+
+    // Assert
+    strictEqual(view.text, "1 check(s) FAILED, 2 warning(s) — the host is not fully usable.");
   });
 });

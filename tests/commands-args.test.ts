@@ -2,155 +2,274 @@
 // AND outside commands/ for belt-and-suspenders). Run:
 //   node --test tests/commands-args.test.ts
 import { describe, it } from "node:test";
-import { strictEqual, deepStrictEqual, ok } from "node:assert";
+import { strictEqual, deepStrictEqual } from "node:assert";
 
 import {
   parseMemoryArgs, parseAssistantInput, rawText, rawTokens,
   parseToolCallArgs, commandLine, splitWords, isOption, optionValue, parseCompactArgs } from "../src/commands/_lib/args.ts";
 import { MEMORY_CATEGORIES } from "../src/shared/domain/agent-policy/memory-categories.ts";
+import {
+  ASSISTANT_INPUT_CASES,
+  BAD_TOOL_NAMES,
+  COMPACT_CASES,
+  IS_OPTION_CASES,
+  MEMORY_ARGS_CASES,
+  NOT_OBJECT_PAYLOADS,
+  OPTIONS_LINE,
+  OPTION_VALUE_CASES,
+  QUOTED_LINE,
+  RAW_TEXT_CASES,
+  RAW_TOKENS_CASES,
+  ROUND_TRIP_CASES,
+  SPLIT_CASES,
+} from "./commands-args.fixtures.ts";
+import { assertRefused } from "./commands-args.assertions.ts";
 
 describe("parseMemoryArgs", () => {
-  it("defaults to list with no category", () => {
-    deepStrictEqual(parseMemoryArgs([]), { sub: "list", category: undefined });
-  });
-  it("list with a known category", () => {
-    deepStrictEqual(parseMemoryArgs(["list", "project"]), { sub: "list", category: "project" });
-  });
-  it("list ignores an unknown category", () => {
-    deepStrictEqual(parseMemoryArgs(["list", "frobnik"]), { sub: "list", category: undefined });
-  });
-  it("add with explicit category consumes it", () => {
-    deepStrictEqual(parseMemoryArgs(["add", "feedback", "be", "concise"]), { sub: "add", category: "feedback", content: "be concise" });
-  });
-  it("add without a category defaults to user and keeps all content", () => {
-    deepStrictEqual(parseMemoryArgs(["add", "remember", "this"]), { sub: "add", category: "user", content: "remember this" });
-  });
-  it("delete / get coerce the id to a number", () => {
-    deepStrictEqual(parseMemoryArgs(["delete", "7"]), { sub: "delete", id: 7 });
-    deepStrictEqual(parseMemoryArgs(["get", "3"]), { sub: "get", id: 3 });
-  });
+  for (const c of MEMORY_ARGS_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { tokens, expected } = c;
+
+      // Act
+      const parsed = parseMemoryArgs(tokens);
+
+      // Assert
+      deepStrictEqual(parsed, expected);
+    });
+  }
+
   it("exposes the canonical category list", () => {
-    deepStrictEqual([...MEMORY_CATEGORIES], ["user", "project", "feedback", "reference"]);
+    // Arrange
+    const expected = ["user", "project", "feedback", "reference"];
+
+    // Act
+    const categories = [...MEMORY_CATEGORIES];
+
+    // Assert
+    deepStrictEqual(categories, expected);
   });
 });
 
 describe("parseAssistantInput", () => {
-  it("returns a null mode when no prefix is given (session default applies)", () => {
-    deepStrictEqual(parseAssistantInput("refactor X"), { permissionMode: null, prompt: "refactor X" });
-  });
-  it("extracts a leading permission mode", () => {
-    deepStrictEqual(parseAssistantInput("plan: design the API"), { permissionMode: "plan", prompt: "design the API" });
-  });
-  it("an explicit default: prefix pins the mode (not null)", () => {
-    deepStrictEqual(parseAssistantInput("default: refactor X"), { permissionMode: "default", prompt: "refactor X" });
-  });
-  it("only treats known modes as a prefix", () => {
-    deepStrictEqual(parseAssistantInput("todo: not a mode"), { permissionMode: null, prompt: "todo: not a mode" });
-  });
-  it("handles multi-line prompts after the mode", () => {
-    const { permissionMode, prompt } = parseAssistantInput("acceptEdits: line1\nline2");
-    strictEqual(permissionMode, "acceptEdits");
-    strictEqual(prompt, "line1\nline2");
-  });
+  for (const c of ASSISTANT_INPUT_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { input, expected } = c;
+
+      // Act
+      const parsed = parseAssistantInput(input);
+
+      // Assert
+      deepStrictEqual(parsed, expected);
+    });
+  }
 });
 
 describe("rawText / rawTokens", () => {
-  it("rawText joins + trims", () => {
-    strictEqual(rawText({ raw: ["a", "b"] }), "a b");
-    strictEqual(rawText({}), "");
-  });
-  it("rawTokens returns the array or []", () => {
-    deepStrictEqual(rawTokens({ raw: ["x"] }), ["x"]);
-    deepStrictEqual(rawTokens({}), []);
-  });
+  for (const c of RAW_TEXT_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { args, expected } = c;
+
+      // Act
+      const text = rawText(args);
+
+      // Assert
+      strictEqual(text, expected);
+    });
+  }
+
+  for (const c of RAW_TOKENS_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { args, expected } = c;
+
+      // Act
+      const tokens = rawTokens(args);
+
+      // Assert
+      deepStrictEqual(tokens, expected);
+    });
+  }
 });
 
 // ── B-12: /debug-tool-call ────────────────────────────────────────────────
 
 describe("parseToolCallArgs", () => {
   it("takes the tool name alone, with no arguments", () => {
-    deepStrictEqual(parseToolCallArgs(["session_stats"]), { ok: true, tool: "session_stats", args: {} });
+    // Arrange
+    const tokens = ["session_stats"];
+
+    // Act
+    const parsed = parseToolCallArgs(tokens);
+
+    // Assert
+    deepStrictEqual(parsed, { ok: true, tool: "session_stats", args: {} });
   });
 
   it("re-joins a JSON payload the REPL split on whitespace", () => {
+    // Arrange
     // `{"path": "/a"}` arrives as TWO tokens; taking tokens[1] would parse `{"path":`
     // and fail with a message that points nowhere.
-    const r = parseToolCallArgs(["file_read", '{"path":', '"/workspace/README.md"}']);
-    deepStrictEqual(r, { ok: true, tool: "file_read", args: { path: "/workspace/README.md" } });
+    const tokens = ["file_read", '{"path":', '"/workspace/README.md"}'];
+
+    // Act
+    const parsed = parseToolCallArgs(tokens);
+
+    // Assert
+    deepStrictEqual(parsed, { ok: true, tool: "file_read", args: { path: "/workspace/README.md" } });
   });
 
   it("refuses malformed JSON instead of coercing it", () => {
+    // Arrange
     // This command exists to reproduce a call faithfully; an empty object would
     // look like a successful no-arg invocation.
-    const r = parseToolCallArgs(["file_read", "{path: /a}"]);
-    strictEqual(r.ok, false);
-    ok(!r.ok && r.reason.includes("not valid JSON"));
-    ok(!r.ok && r.reason.includes("{path: /a}"));
+    const tokens = ["file_read", "{path: /a}"];
+
+    // Act
+    const parsed = parseToolCallArgs(tokens);
+
+    // Assert
+    assertRefused(parsed, ["not valid JSON", "{path: /a}"]);
   });
 
-  it("refuses a JSON value that is not an object", () => {
-    for (const [payload, word] of [["[1,2]", "array"], ['"a"', "string"], ["7", "number"]] as const) {
-      const r = parseToolCallArgs(["file_read", payload]);
-      strictEqual(r.ok, false, payload);
-      ok(!r.ok && r.reason.includes(word), r.ok ? "" : r.reason);
-    }
-  });
+  for (const { payload, word } of NOT_OBJECT_PAYLOADS) {
+    it(`refuses a JSON value that is not an object: ${payload}`, () => {
+      // Arrange
+      const tokens = ["file_read", payload];
 
-  it("refuses a name that is not a tool name", () => {
-    for (const bad of ["", "  ", "file-read", "/etc/passwd", "9tool"]) {
-      strictEqual(parseToolCallArgs([bad]).ok, false, JSON.stringify(bad));
-    }
-  });
+      // Act
+      const parsed = parseToolCallArgs(tokens);
+
+      // Assert
+      assertRefused(parsed, [word], payload);
+    });
+  }
+
+  for (const bad of BAD_TOOL_NAMES) {
+    it(`refuses a name that is not a tool name: ${JSON.stringify(bad)}`, () => {
+      // Arrange
+      const tokens = [bad];
+
+      // Act
+      const parsed = parseToolCallArgs(tokens);
+
+      // Assert
+      assertRefused(parsed, [], JSON.stringify(bad));
+    });
+  }
 
   it("gives the usage line when nothing was passed", () => {
-    const r = parseToolCallArgs([]);
-    ok(!r.ok && r.reason.includes("usage:"));
+    // Arrange
+    const tokens: string[] = [];
+
+    // Act
+    const parsed = parseToolCallArgs(tokens);
+
+    // Assert
+    assertRefused(parsed, ["usage:"]);
   });
 });
 
 describe("splitWords and commandLine", () => {
-  const texts = (line: string) => splitWords(line).map((w) => w.text);
+  for (const c of SPLIT_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { line, words } = c;
 
-  it("splits on blanks, keeps a quoted argument whole, and leaves a quote inside a word alone", () => {
-    deepStrictEqual(texts(`daily.m4a --then "liste les tâches qu'il cite"`), ["daily.m4a", "--then", "liste les tâches qu'il cite"]);
-    deepStrictEqual(texts(`'my note.m4a' --lang fr`), ["my note.m4a", "--lang", "fr"]);
-    deepStrictEqual(texts(`--then l'API "rate"limit`), ["--then", "l'API", `"rate"limit`], "a quote closed inside a word closes nothing");
-    deepStrictEqual(texts("   "), []);
-  });
+      // Act
+      const texts = splitWords(line).map((w) => w.text);
 
-  it("reads a quote that is never closed as a letter", () => {
-    deepStrictEqual(texts(`a "never closed`), ["a", `"never`, "closed"]);
-    deepStrictEqual(texts(`the '90s --voice x`), ["the", "'90s", "--voice", "x"]);
-  });
+      // Assert
+      deepStrictEqual(texts, words);
+    });
+  }
 
-  it("says which words were quoted and where each ends, so the rest of a line can be kept as typed", () => {
-    const line = `--then say "deadline" now`;
+  it("says which words were quoted", () => {
+    // Arrange
+    const line = QUOTED_LINE;
+
+    // Act
     const words = splitWords(line);
+
+    // Assert
     deepStrictEqual(words.map((w) => [w.text, w.quoted]), [["--then", false], ["say", false], ["deadline", true], ["now", false]]);
+  });
+
+  it("says where each word ends, so the rest of a line can be kept as typed", () => {
+    // Arrange
+    const line = QUOTED_LINE;
+
+    // Act
+    const words = splitWords(line);
+
+    // Assert
     strictEqual(line.slice(words[0].end).trim(), `say "deadline" now`);
-    deepStrictEqual([isOption(words[0]), isOption(splitWords(`"--stop"`)[0]), isOption(undefined)], [true, false, false]);
   });
 
-  it("gives an option its value, unless it is missing, blank or another option", () => {
-    const words = splitWords(`--lang fr --voice "" --max --x`);
-    deepStrictEqual([0, 2, 4, 6].map((i) => optionValue(words, i)), ["fr", null, null, null]);
+  for (const c of IS_OPTION_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const word = c.line === null ? undefined : splitWords(c.line)[0];
+
+      // Act
+      const option = isOption(word);
+
+      // Assert
+      strictEqual(option, c.expected);
+    });
+  }
+
+  for (const c of OPTION_VALUE_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const words = splitWords(OPTIONS_LINE);
+
+      // Act
+      const value = optionValue(words, c.at);
+
+      // Assert
+      strictEqual(value, c.value);
+    });
+  }
+
+  it("quotes again a token that holds a blank", () => {
+    // Arrange
+    const tokens = ["my note.m4a", "--lang", "fr"];
+
+    // Act
+    const line = commandLine(tokens);
+
+    // Assert
+    strictEqual(line, `"my note.m4a" --lang fr`);
   });
 
-  it("quotes again a token that holds a blank, so either way of splitting reads the same", () => {
-    strictEqual(commandLine(["my note.m4a", "--lang", "fr"]), `"my note.m4a" --lang fr`);
-    deepStrictEqual(texts(commandLine(["--then", "list the tasks"])), ["--then", "list the tasks"]);
-    deepStrictEqual(texts(commandLine(["--then", `"list`, "the", `tasks"`])), ["--then", "list the tasks"]);
-  });
+  for (const c of ROUND_TRIP_CASES) {
+    it(`quotes ${c.name} so that splitting the line again reads the same`, () => {
+      // Arrange
+      const { tokens } = c;
+
+      // Act
+      const line = commandLine(tokens);
+
+      // Assert
+      deepStrictEqual(splitWords(line).map((w) => w.text), ["--then", "list the tasks"]);
+    });
+  }
 });
 
 describe("parseCompactArgs", () => {
-  it("reads --snip with how many exchanges to keep, 3 by default", () => {
-    deepStrictEqual(parseCompactArgs(["--snip", "5"]), { snip: 5 });
-    deepStrictEqual(parseCompactArgs(["--snip"]), { snip: 3 });
-    deepStrictEqual(parseCompactArgs(["--snip", "zero"]), { snip: 3 });
-  });
-  it("reads anything else as the summary's focus", () => {
-    deepStrictEqual(parseCompactArgs(["keep", "the", "test", "names"]), { focus: "keep the test names" });
-    deepStrictEqual(parseCompactArgs([]), { focus: "" });
-  });
+  for (const c of COMPACT_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { tokens, expected } = c;
+
+      // Act
+      const parsed = parseCompactArgs(tokens);
+
+      // Assert
+      deepStrictEqual(parsed, expected);
+    });
+  }
 });
