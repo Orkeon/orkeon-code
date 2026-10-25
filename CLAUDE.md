@@ -103,7 +103,7 @@ The convention is Orkeon's (`tests/` of github.com/Orkeon/orkeon), adapted to `n
 
 ```text
 src/
-├── commands/   *.cmd.ts (entry points) + _lib/ (their use cases)
+├── commands/   <group>/*.cmd.ts (entry points, by function) + _lib/ (their use cases)
 ├── crews/      <name>/crew.ork.ts (entry point) + application/ + domain/
 └── shared/     domain/ · application/ (ports.ts, services) · infrastructure/ (globals.ts, orkeon/ adapters, wiring.ts)
 tests/          support/ (doubles) · fixtures/ (file-like texts) · architecture · test shape · commands-<family>

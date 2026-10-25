@@ -9,7 +9,7 @@ in [ADR 0001](adr/0001-clean-architecture.md).
 
 | This repository (TypeScript) | The Orkeon runtime (.NET, pinned in `.orkeon-version`) |
 |---|---|
-| Slash commands (`src/commands/*.cmd.ts`) | The scripted-commands REPL that loads them (`orkeon-repl --runner=scripted-commands`) |
+| Slash commands (`src/commands/<group>/*.cmd.ts`) | The scripted-commands REPL that loads them (`orkeon-repl --runner=scripted-commands`) |
 | Crews (`src/crews/<name>/crew.ork.ts`) | The script engine (Jint) and the bundler (esbuild) that run them |
 | Prompts, parsing, decisions (`domain/`, `application/`) | The tools (files, shell, git, code intelligence, web, session, memory) |
 | The permission catalogue per mode, the session's rules | The permission gate that checks every tool call of the model (`act`) against the rules and the mode, and asks the operator |
@@ -60,7 +60,7 @@ case in Node without touching a runtime global.
 | application | `src/shared/application/`, `src/crews/<name>/application/` | Use cases and services over the ports (`ports.ts`) | domain, application |
 | infrastructure | `src/shared/infrastructure/` | `globals.ts`, the Orkeon adapters of the ports, `wiring.ts` | anything inward |
 | command use cases | `src/commands/_lib/` | One module per command family, `run<Name>(tokens, deps)` → a view over the ports it is handed; the helpers the commands share | anything but `shared/infrastructure/` |
-| entry points | `src/commands/*.cmd.ts`, `src/crews/<name>/crew.ork.ts` | Parse the input, wire the adapters, call a use case, render | anything |
+| entry points | `src/commands/<group>/*.cmd.ts`, `src/crews/<name>/crew.ork.ts` | Parse the input, wire the adapters, call a use case, render | anything |
 
 `tests/architecture.test.ts` parses every import of `src/` (static, re-export, type-only and dynamic) and fails on
 any import that breaks one of these rules; there is no exception list:
@@ -90,7 +90,8 @@ let any module call `tools.shellCommand(...)`:
 
 ```text
 src/
-├── commands/          57 *.cmd.ts (parse, wire, render)
+├── commands/          58 *.cmd.ts (parse, wire, render) in eight functional folders: session, settings, status,
+│   │                  project, git, dev, memory, speech
 │   ├── _lib/          one module per command family: run<Name>(tokens, deps) → CommandView, or
 │   │                  dispatch<Name>(tokens, deps) → a ticket or a message when the command launches a
 │   │                  crew (say, transcribe, voice), and its pure helpers (agents, branch, config, dev, diff, doctor,
@@ -502,7 +503,7 @@ extraction, `shared/domain/compaction.ts` the prompts and buffers, `shared/domai
 
 ### Add a command
 
-1. Write `src/commands/<name>.cmd.ts` after the pattern above: one `name: "<literal>"` in kebab case, a static
+1. Write `src/commands/<group>/<name>.cmd.ts` after the pattern above, `<group>` the functional folder it belongs to: one `name: "<literal>"` in kebab case, a static
    `description`, no top-level `export`.
 2. Put the logic worth testing in `src/commands/_lib/<family>.ts` as `run<Name>(tokens, deps)` returning a
    `CommandView`, its deps a `Pick<>` of the ports and services it reads; test it in

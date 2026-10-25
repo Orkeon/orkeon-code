@@ -2,10 +2,10 @@
 import { readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-/** The number of slash commands: the `.cmd.ts` files of src/commands. */
+/** The number of slash commands: the `.cmd.ts` files under src/commands. */
 export function commandCount(): number {
   const dir = fileURLToPath(new URL("../src/commands", import.meta.url));
-  return readdirSync(dir).filter((f) => f.endsWith(".cmd.ts")).length;
+  return readdirSync(dir, { recursive: true, encoding: "utf-8" }).filter((f) => f.endsWith(".cmd.ts")).length;
 }
 
 /** The crew directories of src/crews, the hidden and `_` ones left out. */

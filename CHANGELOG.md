@@ -338,6 +338,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The slash commands sit in functional folders**: `src/commands/<group>/` (`session`, `settings`, `status`, `project`,
+  `git`, `dev`, `memory`, `speech`), and [Slash commands](docs/commands.md) lists them by group.
 - **A background command's approval is answered from the main view** (Orkeon #194, delivered by #195): the question
   names its task (`approve <tool> for [t1]? …`) and shows on the status line and on the task's row. `/permissions`,
   [Permissions](docs/permissions.md) and [Getting started](docs/getting-started.md) say so (#15).

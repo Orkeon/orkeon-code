@@ -9,7 +9,8 @@ rules in [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## A slash command
 
-A file `src/commands/<name>.cmd.ts`. The loader picks every `*.cmd.ts`; the name is kebab-case and unique, and the
+A file `src/commands/<group>/<name>.cmd.ts`, `<group>` one of the functional folders (`session`, `settings`, `status`,
+`project`, `git`, `dev`, `memory`, `speech`). The loader picks every `*.cmd.ts` under the folder; the name is kebab-case and unique, and the
 file exports nothing. A synchronous command answers at once with `defineCommand`; an asynchronous one starts a crew
 with `defineAsyncCommand` and prints the result when the crew completes
 ([Architecture](architecture.md#from-a-command-to-a-crew)). A command reaches the runtime through the adapters of

@@ -98,7 +98,7 @@ describe("runsIn: fork — each step launches its own crew", () => {
   for (const step of FORK_STEPS) {
     it(`/${step} starts the dev step and launches the ${step} crew, never main-loop`, () => {
       // Arrange
-      const path = new URL(`../src/commands/${step}.cmd.ts`, import.meta.url);
+      const path = new URL(`../src/commands/dev/${step}.cmd.ts`, import.meta.url);
 
       // Act
       const src = readFileSync(path, "utf8");

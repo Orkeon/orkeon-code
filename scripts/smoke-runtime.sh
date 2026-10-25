@@ -6,10 +6,10 @@
 #
 #   bash scripts/smoke-runtime.sh [--mode docker|tool|source]
 # Passes when the REPL logs "Scripted commands ready: N loaded, 0 skipped, 0 conflicts"
-# with N equal to the number of src/commands/*.cmd.ts files.
+# with N equal to the number of src/commands/*/*.cmd.ts files.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-expected="$(find "$ROOT/src/commands" -maxdepth 1 -name '*.cmd.ts' | wc -l | tr -d ' ')"
+expected="$(find "$ROOT/src/commands" -name '*.cmd.ts' | wc -l | tr -d ' ')"
 settings="$(mktemp)"
 log="$(mktemp)"
 trap 'rm -f "$settings" "$log"' EXIT

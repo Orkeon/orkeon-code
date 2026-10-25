@@ -1,5 +1,7 @@
 // Checks on the command surface.
 import { match, ok, strictEqual } from "node:assert";
+import { basename } from "node:path";
+import { groupOf, slugOf } from "./command-surface.fixtures.ts";
 import type { Cmd, ExportLine } from "./command-surface.fixtures.ts";
 
 /** Each command file declares exactly one name literal. */
@@ -30,7 +32,16 @@ export function assertKebabNames(cmds: readonly Cmd[]): void {
 
 /** Every file slug is the name the file declares. */
 export function assertSlugsMatchNames(cmds: readonly Cmd[]): void {
-  for (const c of cmds) strictEqual(c.file.replace(/\.cmd\.ts$/, ""), c.name, `${c.file} declares '${c.name}'`);
+  for (const c of cmds) strictEqual(slugOf(c.file), c.name, `${c.file} declares '${c.name}'`);
+}
+
+/** Every command file sits in one of the functional folders, one level under src/commands/. */
+export function assertInAGroup(cmds: readonly Cmd[], groups: readonly string[]): void {
+  for (const c of cmds) {
+    const group = groupOf(c.file);
+    ok(groups.includes(group), `${c.file}: not in a functional folder (${groups.join(", ")})`);
+    strictEqual(c.file, `${group}/${basename(c.file)}`, `${c.file}: a command file sits one folder deep`);
+  }
 }
 
 /** Every command of `expected` is among `names`; `wave` names the wave in the message. */

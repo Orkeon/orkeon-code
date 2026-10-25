@@ -6,11 +6,11 @@
 import { describe, it } from "node:test";
 import { ok, strictEqual } from "node:assert";
 import {
-  B12_COMMANDS, COMMANDS_DIR, collect, E1_COMMANDS, EXPECTED_COMMAND_COUNT, FOLDED_ALIASES, LOADER_DEFAULT_CAP,
+  B12_COMMANDS, COMMAND_GROUPS, COMMANDS_DIR, collect, E1_COMMANDS, EXPECTED_COMMAND_COUNT, FOLDED_ALIASES, LOADER_DEFAULT_CAP,
   topLevelExports,
 } from "./command-surface.fixtures.ts";
 import {
-  assertAliasesOf, assertCommandsPresent, assertKebabNames, assertNoNameConflict, assertNoTopLevelExport,
+  assertAliasesOf, assertCommandsPresent, assertInAGroup, assertKebabNames, assertNoNameConflict, assertNoTopLevelExport,
   assertOneNameEach, assertSlugsMatchNames,
 } from "./command-surface.assertions.ts";
 
@@ -79,6 +79,17 @@ describe("command surface", () => {
 
     // Assert
     assertSlugsMatchNames(cmds);
+  });
+
+  it("every command file sits in one functional folder of src/commands/", () => {
+    // Arrange
+    const dir = COMMANDS_DIR;
+
+    // Act
+    const cmds = collect(dir);
+
+    // Assert
+    assertInAGroup(cmds, COMMAND_GROUPS);
   });
 
   it("E-1 wave commands are all present", () => {

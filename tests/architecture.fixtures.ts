@@ -291,7 +291,7 @@ export const LAYER_CASES: ReadonlyArray<{ file: string; layer: Layer | null }> =
   { file: "src/shared/domain/types.ts", layer: "domain" },
   { file: "src/crews/main-loop/application/run-main-loop.ts", layer: "application" },
   { file: GLOBALS, layer: "infrastructure" },
-  { file: "src/commands/mode.cmd.ts", layer: null },
+  { file: "src/commands/settings/mode.cmd.ts", layer: null },
   { file: "src/commands/_lib/args.ts", layer: null },
 ];
 
@@ -306,7 +306,7 @@ export const GLOBALS_IMPORT_CASES: readonly ImportCase[] = [
   { name: "lets a crew entry point import globals.ts", imp: importOfGlobals("src/crews/analyze/crew.ork.ts"), broken: [] },
   { name: "lets a probe entry point import globals.ts", imp: importOfGlobals("src/crews/_probe-budget/probe.ork.ts"), broken: [] },
   { name: "lets the wiring of shared/infrastructure/ import globals.ts", imp: importOfGlobals(WIRING), broken: [] },
-  { name: "refuses globals.ts to a command entry point", imp: importOfGlobals("src/commands/doctor.cmd.ts"), broken: [GLOBALS_RULE] },
+  { name: "refuses globals.ts to a command entry point", imp: importOfGlobals("src/commands/status/doctor.cmd.ts"), broken: [GLOBALS_RULE] },
   {
     name: "refuses globals.ts to a use case of commands/_lib/, which never imports shared/infrastructure/",
     imp: importOfGlobals("src/commands/_lib/doctor.ts"),
@@ -316,7 +316,7 @@ export const GLOBALS_IMPORT_CASES: readonly ImportCase[] = [
 
 /** An adapter imported by a command entry point (allowed) and by a use case of commands/_lib/ (refused). */
 export const ADAPTER_IMPORT_CASES: readonly ImportCase[] = [WIRING, "src/shared/infrastructure/orkeon/crew-host.ts"].flatMap((to) => [
-  { name: `lets a command import the adapter ${to}`, imp: { from: "src/commands/doctor.cmd.ts", specifier: "./x.ts", to }, broken: [] },
+  { name: `lets a command import the adapter ${to}`, imp: { from: "src/commands/status/doctor.cmd.ts", specifier: "./x.ts", to }, broken: [] },
   {
     name: `refuses the adapter ${to} to a use case of commands/_lib/`,
     imp: { from: "src/commands/_lib/dispatch.ts", specifier: "./x.ts", to },
@@ -336,7 +336,7 @@ export const LAYER_IMPORT_CASES: readonly ImportCase[] = [
   },
   {
     name: "refuses a command entry point to application",
-    imp: importOf("src/shared/application/session-io.ts", "src/commands/mode.cmd.ts"),
+    imp: importOf("src/shared/application/session-io.ts", "src/commands/settings/mode.cmd.ts"),
     broken: [OUT_OF_COMMANDS_RULE],
   },
   {
@@ -417,9 +417,9 @@ export const BOUND_NAMES_SOURCE = [
 export const GLOBAL_RULE_CASES: ReadonlyArray<{ name: string; file: string; rule: string | null }> = [
   { name: "tools", file: "src/shared/infrastructure/globals.ts", rule: null },
   { name: "tools", file: "src/crews/_probe-raggable/probe.ork.ts", rule: null },
-  { name: "tools", file: "src/commands/doctor.cmd.ts", rule: RUNTIME_GLOBALS[1].rule },
+  { name: "tools", file: "src/commands/status/doctor.cmd.ts", rule: RUNTIME_GLOBALS[1].rule },
   { name: "tools", file: "src/crews/x/application/run-x.ts", rule: RUNTIME_GLOBALS[1].rule },
-  { name: "defineCommand", file: "src/commands/fast.cmd.ts", rule: null },
+  { name: "defineCommand", file: "src/commands/settings/fast.cmd.ts", rule: null },
   { name: "defineCommand", file: "src/commands/_lib/session-config.ts", rule: RUNTIME_GLOBALS[2].rule },
   { name: "require", file: "src/shared/infrastructure/globals.ts", rule: RUNTIME_GLOBALS[0].rule },
 ];

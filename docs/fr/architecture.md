@@ -9,7 +9,7 @@ couches sont consignées dans l'[ADR 0001](../adr/0001-clean-architecture.md) (e
 
 | Ce dépôt (TypeScript) | Le runtime Orkeon (.NET, épinglé dans `.orkeon-version`) |
 |---|---|
-| Les commandes (`src/commands/*.cmd.ts`) | Le REPL de commandes scriptées qui les charge (`orkeon-repl --runner=scripted-commands`) |
+| Les commandes (`src/commands/<group>/*.cmd.ts`) | Le REPL de commandes scriptées qui les charge (`orkeon-repl --runner=scripted-commands`) |
 | Les crews (`src/crews/<name>/crew.ork.ts`) | Le moteur de script (Jint) et le bundler (esbuild) qui les exécutent |
 | Les prompts, l'analyse syntaxique, les décisions (`domain/`, `application/`) | Les outils (fichiers, shell, git, intelligence de code, web, session, mémoire) |
 | Le catalogue de permissions par mode, les règles de la session | La garde de permission qui confronte chaque appel d'outil du modèle (`act`) aux règles et au mode, et interroge l'opérateur |
@@ -63,7 +63,7 @@ bundle, et un test importe un cas d'usage dans Node sans toucher à une globale 
 | application | `src/shared/application/`, `src/crews/<name>/application/` | Cas d'usage et services au-dessus des ports (`ports.ts`) | domaine, application |
 | infrastructure | `src/shared/infrastructure/` | `globals.ts`, les adaptateurs Orkeon des ports, `wiring.ts` | tout ce qui est plus intérieur |
 | cas d'usage des commandes | `src/commands/_lib/` | Un module par famille de commandes, `run<Name>(tokens, deps)` → une vue au-dessus des ports qu'on lui remet ; les utilitaires que les commandes partagent | tout sauf `shared/infrastructure/` |
-| points d'entrée | `src/commands/*.cmd.ts`, `src/crews/<name>/crew.ork.ts` | Analysent l'entrée, câblent les adaptateurs, appellent un cas d'usage, rendent | tout |
+| points d'entrée | `src/commands/<group>/*.cmd.ts`, `src/crews/<name>/crew.ork.ts` | Analysent l'entrée, câblent les adaptateurs, appellent un cas d'usage, rendent | tout |
 
 `tests/architecture.test.ts` analyse chaque import de `src/` (statique, réexport, de type seul et dynamique) et échoue
 sur tout import qui enfreint l'une de ces règles ; il n'y a pas de liste d'exceptions :
@@ -96,7 +96,8 @@ pour chaque fichier, si bien que le contrôle de types seul laisserait n'importe
 
 ```text
 src/
-├── commands/          57 *.cmd.ts (parse, wire, render)
+├── commands/          58 *.cmd.ts (parse, wire, render) in eight functional folders: session, settings, status,
+│   │                  project, git, dev, memory, speech
 │   ├── _lib/          one module per command family: run<Name>(tokens, deps) → CommandView, or
 │   │                  dispatch<Name>(tokens, deps) → a ticket or a message when the command launches a
 │   │                  crew (say, transcribe, voice), and its pure helpers (agents, branch, config, dev, diff, doctor,
@@ -550,7 +551,7 @@ contiennent la restauration et l'extraction de mémoire, `shared/domain/compacti
 
 ### Ajouter une commande
 
-1. Écrire `src/commands/<name>.cmd.ts` sur le modèle ci-dessus : un seul `name: "<literal>"` en kebab case, une
+1. Écrire `src/commands/<group>/<name>.cmd.ts` sur le modèle ci-dessus, `<group>` le dossier fonctionnel dont elle relève : un seul `name: "<literal>"` en kebab case, une
    `description` statique, pas d'`export` de premier niveau.
 2. Mettre la logique qui vaut un test dans `src/commands/_lib/<family>.ts` sous la forme `run<Name>(tokens, deps)`
    rendant une `CommandView`, ses deps un `Pick<>` des ports et services qu'elle lit ; la tester dans

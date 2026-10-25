@@ -1,9 +1,12 @@
-// The command surface as the tests read it: every commands/*.cmd.ts, its declared name and its aliases.
+// The command surface as the tests read it: every commands/<group>/*.cmd.ts, its declared name and its aliases.
 import { readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const COMMANDS_DIR = fileURLToPath(new URL("../src/commands", import.meta.url));
+
+/** The functional folders of src/commands/ a command file sits in, one level deep. */
+export const COMMAND_GROUPS: readonly string[] = ["session", "settings", "status", "project", "git", "dev", "memory", "speech"];
 
 // 58: /dev-batches added (L-7).
 // 57: /dev-implement added (L-6).
@@ -26,6 +29,7 @@ export const EXPECTED_COMMAND_COUNT = 58;
 export const LOADER_DEFAULT_CAP = 200;
 
 export interface Cmd {
+  /** The file's path under src/commands/: `<group>/<name>.cmd.ts`. */
   file: string;
   /** Every `name: "<literal>"` the file holds: exactly one is expected. */
   names: string[];
@@ -34,10 +38,14 @@ export interface Cmd {
   aliases: string[];
 }
 
-/** Every *.cmd.ts of `dir`, sorted by file name. */
+/** Every *.cmd.ts under `dir`, sorted by path. */
 export function collect(dir = COMMANDS_DIR): Cmd[] {
   const out: Cmd[] = [];
-  for (const f of readdirSync(dir).filter((f: string) => f.endsWith(".cmd.ts")).sort()) {
+  const files = readdirSync(dir, { withFileTypes: true, recursive: true })
+    .filter((e) => e.isFile() && e.name.endsWith(".cmd.ts"))
+    .map((e) => relative(dir, join(e.parentPath, e.name)))
+    .sort();
+  for (const f of files) {
     const src = readFileSync(join(dir, f), "utf-8");
     // Every descriptor in the codebase declares `name: "<literal>"` — factory
     // helpers (toggleCommand) pass it through a `name:` field too.
@@ -62,6 +70,12 @@ export const E1_COMMANDS: readonly string[] = [
 ];
 
 export const B12_COMMANDS: readonly string[] = ["advisor", "agents", "debug-tool-call", "security-review", "output-style"];
+
+/** The folder of a command file's path under src/commands/, "" at the root. */
+export const groupOf = (file: string): string => file.includes("/") ? file.slice(0, file.indexOf("/")) : "";
+
+/** The slug of a command file: its base name without `.cmd.ts`. */
+export const slugOf = (file: string): string => basename(file, ".cmd.ts");
 
 export interface ExportLine { line: string; n: number }
 
