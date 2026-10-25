@@ -7,89 +7,164 @@ import { deepStrictEqual, ok, strictEqual } from "node:assert";
 import {
   GITHUB_ALLOW_RULE, parseGitHubRemote, parseSessionRules, pullRequestCrewInputs, pullRequestPermission,
 } from "./pull-request.ts";
-import { readRule } from "../agent-policy/permission.ts";
-import type { PermissionRule } from "../agent-policy/permission.ts";
+import {
+  ALLOWED_CASES, ARGS, ARGS_X, ASKED_CASES, ASK_CASES, DENY_CASES, DONT_ASK_CASES, GITHUB_REMOTES, OTHER_REMOTES, REFUSED_MODES,
+  SESSION_RULES, countedRead, read, rules,
+} from "./pull-request.fixtures.ts";
+import type { DecisionCase } from "./pull-request.fixtures.ts";
 
 describe("parseGitHubRemote", () => {
-  it("reads the https, scp-like and ssh forms, with or without .git", () => {
-    for (const url of [
-      "https://github.com/Orkeon/orkeon-code.git", "https://github.com/Orkeon/orkeon-code",
-      "https://token-free@github.com/Orkeon/orkeon-code.git\n", "git@github.com:Orkeon/orkeon-code.git",
-      "ssh://git@github.com/Orkeon/orkeon-code.git", "ssh://git@github.com:22/Orkeon/orkeon-code", "https://github.com/Orkeon/orkeon-code/",
-    ]) deepStrictEqual(parseGitHubRemote(url), { owner: "Orkeon", repo: "orkeon-code" }, url);
-  });
+  for (const url of GITHUB_REMOTES) {
+    it(`reads the https, scp-like and ssh forms, with or without .git: ${url.trim()}`, () => {
+      // Arrange
+      const remote = url;
+
+      // Act
+      const repository = parseGitHubRemote(remote);
+
+      // Assert
+      deepStrictEqual(repository, { owner: "Orkeon", repo: "orkeon-code" }, url);
+    });
+  }
 
   it("keeps a dot in the repository name", () => {
-    deepStrictEqual(parseGitHubRemote("git@github.com:a/b.c.git"), { owner: "a", repo: "b.c" });
+    // Arrange
+    const remote = "git@github.com:a/b.c.git";
+
+    // Act
+    const repository = parseGitHubRemote(remote);
+
+    // Assert
+    deepStrictEqual(repository, { owner: "a", repo: "b.c" });
   });
 
-  it("refuses any other host, a path, and a deeper path", () => {
-    for (const url of ["https://gitlab.com/a/b.git", "https://github.example.com/a/b", "/srv/git/b.git", "", "https://github.com/a/b/c"]) {
-      strictEqual(parseGitHubRemote(url), null, url);
-    }
-  });
+  for (const url of OTHER_REMOTES) {
+    it(`refuses any other host, a path, and a deeper path: '${url}'`, () => {
+      // Arrange
+      const remote = url;
+
+      // Act
+      const repository = parseGitHubRemote(remote);
+
+      // Assert
+      strictEqual(repository, null, url);
+    });
+  }
 });
 
 describe("pullRequestPermission — as the host gate decides github", () => {
-  const ARGS = { action: "create_pr", owner: "o", repo: "r", base: "main", head: "feat/x", title: "t", body: "b" };
-  const rules = (...lines: string[]): PermissionRule[] => lines.map((l) => readRule(l)!);
-  const decide = (mode: string, asked = false, r: PermissionRule[] = []) => pullRequestPermission({ mode, rules: r, asked, args: ARGS });
+  const decided = (title: string, cases: readonly DecisionCase[]): void => {
+    for (const c of cases) {
+      it(`${title}: ${c.name}`, () => {
+        // Arrange
+        const request = { mode: c.mode, rules: rules(...c.rules), asked: c.asked, args: ARGS };
 
-  it("refuses plan and an unknown mode, an allow rule or a yes notwithstanding", () => {
-    for (const mode of ["plan", "turbo"]) {
-      strictEqual(decide(mode, true, rules("allow github")).ok, false, mode);
+        // Act
+        const decision = pullRequestPermission(request);
+
+        // Assert
+        strictEqual(decision.ok, c.ok, c.name);
+      });
     }
-  });
+  };
 
-  it("runs in dontAsk under an allow rule alone, as the gate does", () => {
-    strictEqual(decide("dontAsk", false, rules(GITHUB_ALLOW_RULE)).ok, true);
-    strictEqual(decide("dontAsk", true).ok, false);
-  });
+  decided("refuses plan and an unknown mode, an allow rule or a yes notwithstanding", REFUSED_MODES);
+  decided("runs in dontAsk under an allow rule alone, as the gate does", DONT_ASK_CASES);
+  decided("runs in bypassPermissions, and with an allow rule in default and acceptEdits", ALLOWED_CASES);
+  decided("runs in default and acceptEdits when the user was asked", ASKED_CASES);
+  decided("lets a deny rule win in every mode, an argument pattern included", DENY_CASES);
 
-  it("runs in bypassPermissions, and with an allow rule in default and acceptEdits", () => {
-    strictEqual(decide("bypassPermissions").ok, true);
-    strictEqual(decide("default", false, rules(GITHUB_ALLOW_RULE)).ok, true);
-    strictEqual(decide("acceptEdits", false, rules("allow github")).ok, true);
-  });
+  it("says the rule to add when the user was not asked", () => {
+    // Arrange
+    const request = { mode: "default", rules: [], asked: false, args: ARGS };
 
-  it("runs in default and acceptEdits when the user was asked, and says the rule to add otherwise", () => {
-    strictEqual(decide("default", true).ok, true);
-    strictEqual(decide("acceptEdits", true).ok, true);
-    const refused = decide("default");
+    // Act
+    const refused = pullRequestPermission(request);
+
+    // Assert
     ok(!refused.ok && refused.reason.includes(`/permissions add ${GITHUB_ALLOW_RULE}`), JSON.stringify(refused));
-  });
-
-  it("lets a deny rule win in every mode, an argument pattern included", () => {
-    for (const mode of ["default", "acceptEdits", "bypassPermissions"]) {
-      strictEqual(decide(mode, true, rules("allow github", "deny github action=create_pr")).ok, false, mode);
-    }
-    strictEqual(decide("bypassPermissions", false, rules("deny github repo=other")).ok, true);
-    strictEqual(decide("default", false, rules("allow github repo=other")).ok, false);
   });
 });
 
 describe("what /commit hands its crew for the pull request", () => {
-  const read = () => ({ githubTool: true, permissionRules: ["deny github"] });
+  for (const c of ASK_CASES) {
+    it(`asks only when --pr was confirmed at the prompt, never under --yes: ${c.name}`, () => {
+      // Arrange
+      const options = { pr: true, push: true, yes: c.yes, read };
 
-  it("asks only when --pr was confirmed at the prompt, never under --yes", () => {
-    deepStrictEqual(pullRequestCrewInputs({ pr: true, push: true, yes: false, read }), { prAsked: true, ...read() });
-    deepStrictEqual(pullRequestCrewInputs({ pr: true, push: true, yes: true, read }), { prAsked: false, ...read() });
+      // Act
+      const inputs = pullRequestCrewInputs(options);
+
+      // Assert
+      deepStrictEqual(inputs, { prAsked: c.prAsked, ...read() });
+    });
+  }
+
+  it("reads the tool and the rules only when the run can reach the pull request: not without --pr or a push", () => {
+    // Arrange
+    const counted = countedRead();
+
+    // Act
+    const inputs = pullRequestCrewInputs({ pr: false, push: false, yes: false, read: counted.read });
+
+    // Assert
+    deepStrictEqual(inputs, { prAsked: false });
+    strictEqual(counted.reads(), 0);
   });
 
-  it("reads the tool and the rules only when the run can reach the pull request", () => {
-    let reads = 0;
-    const counted = () => { reads++; return read(); };
-    deepStrictEqual(pullRequestCrewInputs({ pr: false, push: false, yes: false, read: counted }), { prAsked: false });
-    deepStrictEqual(pullRequestCrewInputs({ pr: false, push: true, yes: true, read: counted }), { prAsked: false, ...read() });
-    strictEqual(reads, 1);
+  it("reads the tool and the rules only when the run can reach the pull request: once with a push", () => {
+    // Arrange
+    const counted = countedRead();
+
+    // Act
+    const inputs = pullRequestCrewInputs({ pr: false, push: true, yes: true, read: counted.read });
+
+    // Assert
+    deepStrictEqual(inputs, { prAsked: false, ...read() });
+    strictEqual(counted.reads(), 1);
   });
 
-  it("reads the rules the crew receives, an array or lines, the deny one refusing the call", () => {
-    const parsed = parseSessionRules(["deny github", "not a rule", "allow shell_command command=npm test*"]);
+  it("reads the rules the crew receives as an array", () => {
+    // Arrange
+    const lines = SESSION_RULES;
+
+    // Act
+    const parsed = parseSessionRules(lines);
+
+    // Assert
     deepStrictEqual(parsed.map((r) => r.effect + " " + r.tool), ["deny github", "allow shell_command"]);
-    deepStrictEqual(parseSessionRules("allow github action=create_pr\n\n"), [{ effect: "allow", tool: "github", argument: "action", pattern: "create_pr" }]);
-    deepStrictEqual(parseSessionRules(undefined), []);
-    const args = { action: "create_pr", owner: "o", repo: "r", base: "main", head: "x", title: "t", body: "b" };
-    strictEqual(pullRequestPermission({ mode: "default", rules: parsed, asked: true, args }).ok, false);
+  });
+
+  it("reads the rules the crew receives as lines", () => {
+    // Arrange
+    const lines = "allow github action=create_pr\n\n";
+
+    // Act
+    const parsed = parseSessionRules(lines);
+
+    // Assert
+    deepStrictEqual(parsed, [{ effect: "allow", tool: "github", argument: "action", pattern: "create_pr" }]);
+  });
+
+  it("reads no rule when the crew receives none", () => {
+    // Arrange
+    const lines = undefined;
+
+    // Act
+    const parsed = parseSessionRules(lines);
+
+    // Assert
+    deepStrictEqual(parsed, []);
+  });
+
+  it("reads the rules the crew receives, the deny one refusing the call", () => {
+    // Arrange
+    const parsed = parseSessionRules(SESSION_RULES);
+
+    // Act
+    const decision = pullRequestPermission({ mode: "default", rules: parsed, asked: true, args: ARGS_X });
+
+    // Assert
+    strictEqual(decision.ok, false);
   });
 });

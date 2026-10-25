@@ -5,72 +5,93 @@ import { ok, strictEqual, deepStrictEqual } from "node:assert";
 
 import { runInitVerifiers } from "./run-init-verifiers.ts";
 import { READINESS_SCHEMA, buildReadinessPrompt, buildVerifierSkillPrompt } from "./prompts.ts";
-import { FakeFiles } from "../../../../tests/support/fake-files.ts";
-import { FakeLlm } from "../../../../tests/support/fake-llm.ts";
-import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
-
-const PKG = "{\"scripts\":{\"build\":\"tsc\"}}";
-
-function setup() {
-  const files = new FakeFiles();
-  files.listings.set("/workspace", ["package.json", "src"]);
-  files.files.set("/workspace/package.json", PKG);
-  const llm = new FakeLlm();
-  const log = new FakeLogger();
-  return { files, llm, log, deps: { files, llm, log } };
-}
+import { PKG, TWO_SKILLS, initVerifiersSetup } from "./run-init-verifiers.fixtures.ts";
+import { assertMentions } from "./run-init-verifiers.assertions.ts";
 
 describe("runInitVerifiers", () => {
   it("reports no gap when every zone has a verifier", async () => {
-    const { files, llm, deps } = setup();
+    // Arrange
+    const { files, llm, deps } = initVerifiersSetup();
     llm.extractions = [{ appTypes: ["cli", "lib"], frameworks: [], zonesNeedingVerifier: [] }];
-    strictEqual(await runInitVerifiers(deps), "No verifier gaps detected (types: cli, lib).");
+
+    // Act
+    const out = await runInitVerifiers(deps);
+
+    // Assert
+    strictEqual(out, "No verifier gaps detected (types: cli, lib).");
     deepStrictEqual(llm.extracts, [{ prompt: buildReadinessPrompt(["package.json", "src"], PKG), schema: READINESS_SCHEMA }]);
     deepStrictEqual(files.writes, []);
   });
 
   it("authors one skill per zone lacking a verifier", async () => {
-    const { files, llm, deps } = setup();
+    // Arrange
+    const { files, llm, deps } = initVerifiersSetup();
     llm.extractions = [{ appTypes: [], frameworks: [], zonesNeedingVerifier: ["api", "Web UI"] }];
     llm.completions = ["# api checks", "# ui checks"];
-    strictEqual(await runInitVerifiers(deps), "✓ authored 2 verifier skill(s) under /output/verifiers/ (zones: api, Web UI)");
     const readiness = llm.extractions[0] as any;
+
+    // Act
+    const out = await runInitVerifiers(deps);
+
+    // Assert
+    strictEqual(out, "✓ authored 2 verifier skill(s) under /output/verifiers/ (zones: api, Web UI)");
     deepStrictEqual(llm.completes.map((c) => c.override?.system), [
       buildVerifierSkillPrompt("api").system, buildVerifierSkillPrompt("Web UI").system,
     ]);
     ok(llm.completes.every((c) => c.prompt === buildVerifierSkillPrompt("api", { pkg: PKG, readiness }).user),
       "every skill is written from the project's facts");
-    deepStrictEqual(files.writes, [
-      { path: "/output/verifiers/verify-api.md", content: "# api checks\n" },
-      { path: "/output/verifiers/verify-web-ui.md", content: "# ui checks\n" },
-    ]);
+    deepStrictEqual(files.writes, TWO_SKILLS);
   });
 
   it("falls back to the package.json heuristic when the classification fails", async () => {
-    const { llm, log, deps } = setup();
+    // Arrange
+    const { llm, log, deps } = initVerifiersSetup();
     llm.extractions = [new Error("not JSON")];
     llm.completions = ["# unit"];
-    strictEqual(await runInitVerifiers(deps), "✓ authored 1 verifier skill(s) under /output/verifiers/ (zones: unit-tests)");
+
+    // Act
+    const out = await runInitVerifiers(deps);
+
+    // Assert
+    strictEqual(out, "✓ authored 1 verifier skill(s) under /output/verifiers/ (zones: unit-tests)");
     deepStrictEqual(log.lines, ["warn: readiness extract failed; falling back to a package.json heuristic"]);
   });
 
   it("reads an empty classification as no gap of an unknown type", async () => {
-    const { llm, deps } = setup();
+    // Arrange
+    const { llm, deps } = initVerifiersSetup();
     llm.extractions = [null];
-    strictEqual(await runInitVerifiers(deps), "No verifier gaps detected (types: unknown).");
+
+    // Act
+    const out = await runInitVerifiers(deps);
+
+    // Assert
+    strictEqual(out, "No verifier gaps detected (types: unknown).");
   });
 });
 
 describe("the verifier prompts", () => {
   it("defines each program kind and lets a list stay empty", () => {
-    const p = buildReadinessPrompt([], "{}");
-    for (const kind of ["cli (", "web (", "api (", "library ("]) ok(p.includes(kind), kind);
-    ok(p.includes("true only when the inputs show them"));
-    ok(p.includes("Leave a list empty rather than guess"));
+    // Arrange
+    const listing: string[] = [];
+
+    // Act
+    const p = buildReadinessPrompt(listing, "{}");
+
+    // Assert
+    assertMentions(p, [
+      "cli (", "web (", "api (", "library (", "true only when the inputs show them", "Leave a list empty rather than guess",
+    ]);
   });
+
   it("outlines a skill that ends on an observable signal and invents no command", () => {
-    const { system } = buildVerifierSkillPrompt("cli");
-    for (const s of ["## Prerequisites", "## Steps", "## Pass", "## Report"]) ok(system.includes(s), s);
-    ok(system.includes("Use only commands the facts show"));
+    // Arrange
+    const zone = "cli";
+
+    // Act
+    const { system } = buildVerifierSkillPrompt(zone);
+
+    // Assert
+    assertMentions(system, ["## Prerequisites", "## Steps", "## Pass", "## Report", "Use only commands the facts show"]);
   });
 });

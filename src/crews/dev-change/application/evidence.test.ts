@@ -5,47 +5,81 @@
 import { describe, it } from "node:test";
 import { ok, strictEqual } from "node:assert";
 
-import type { RepoPackCommands } from "../../../shared/domain/dev/repo-pack.ts";
 import { commandProblem, runStop } from "./evidence.ts";
-import type { Ran } from "./evidence.ts";
-
-const PACK: RepoPackCommands = { testClass: "node --test <Class>", test: "npm test", cli: "node bin/orkeon.mjs" };
-const ran = (over: Partial<Ran>): Ran => ({ command: "node --test tests/a.test.ts", exitCode: 1, seconds: 1, timedOut: false, output: "", refused: false, ...over });
+import { ACCEPTED_COMMANDS, BUG_STOPS, PACK, REFUSED_COMMANDS, ran } from "./evidence.fixtures.ts";
 
 describe("commandProblem", () => {
-  it("accepts the CLI with plain words inside the checkout, and a narrow test command", () => {
-    strictEqual(commandProblem("node bin/orkeon.mjs run src/crews/x/crew.ork.ts --inputs \"{}\"", PACK), null);
-    strictEqual(commandProblem("node bin/orkeon.mjs --version", PACK), null);
-    strictEqual(commandProblem("node bin/orkeon.mjs -o out/x.txt level=2 --dir=src/a", PACK), null);
-    strictEqual(commandProblem("node --test tests/a.test.ts", PACK), null);
-  });
+  for (const command of ACCEPTED_COMMANDS) {
+    it(`accepts the CLI with plain words inside the checkout, and a narrow test command: ${command}`, () => {
+      // Arrange
+      const pack = PACK;
 
-  it("refuses after the CLI a path out of the checkout, a glob, an expansion or a shell operator", () => {
-    for (const c of [
-      "node bin/orkeon.mjs run /tmp/x.ork.ts", "node bin/orkeon.mjs --config=/etc/passwd", "node bin/orkeon.mjs run ~/x.ts",
-      "node bin/orkeon.mjs run ../x.ts", "node bin/orkeon.mjs run a/../../x.ts", "node bin/orkeon.mjs run src/*.ts",
-      "node bin/orkeon.mjs run $HOME", "node bin/orkeon.mjs run x; rm -rf .",
-      "node bin/orkeon.mjs -o/etc/passwd", "node bin/orkeon.mjs out=..", "node bin/orkeon.mjs dir=a/../../x", "node bin/orkeon.mjs -C~",
-      "node bin/orkeon.mjs -xf/etc/x", "node bin/orkeon.mjs --a=b=/etc",
-    ]) ok(commandProblem(c, PACK) !== null, c);
-    ok(commandProblem("npm test", PACK) !== null, "the whole suite is no narrow command");
-    ok(commandProblem("node bin/orkeon.mjs\nrm x", PACK) !== null, "one line");
-  });
+      // Act
+      const problem = commandProblem(command, pack);
+
+      // Assert
+      strictEqual(problem, null);
+    });
+  }
+
+  for (const c of REFUSED_COMMANDS) {
+    it(`refuses ${c.name}`, () => {
+      // Arrange
+      const { command } = c;
+
+      // Act
+      const problem = commandProblem(command, PACK);
+
+      // Assert
+      ok(problem !== null, command);
+    });
+  }
 });
 
 describe("runStop", () => {
-  it("a bug reproduces only when its command ran and failed", () => {
-    strictEqual(runStop("dev-change", "bug", ran({ exitCode: 1 }), "f"), null);
-    ok(runStop("dev-change", "bug", ran({ exitCode: 0 }), "f")?.includes("did not reproduce"));
-    ok(runStop("dev-change", "bug", ran({ exitCode: 127 }), "f")?.includes("could not start"));
-    ok(runStop("dev-change", "bug", ran({ exitCode: 126 }), "f")?.includes("could not start"));
-    ok(runStop("dev-change", "bug", ran({ exitCode: 137 }), "f")?.includes("was killed"));
-    ok(runStop("dev-change", "bug", ran({ refused: true, output: "no" }), "f")?.includes("could not run"));
-    ok(runStop("dev-change", "bug", ran({ timedOut: true }), "f")?.includes("ran out"));
+  it("a bug reproduces when its command ran and failed", () => {
+    // Arrange
+    const failed = ran({ exitCode: 1 });
+
+    // Act
+    const stop = runStop("dev-change", "bug", failed, "f");
+
+    // Assert
+    strictEqual(stop, null);
   });
 
-  it("a measurement stands only when it exits 0", () => {
-    strictEqual(runStop("dev-change", "perf", ran({ exitCode: 0 }), "f"), null);
-    ok(runStop("dev-change", "perf", ran({ exitCode: 1 }), "f")?.includes("measurement failed"));
+  for (const c of BUG_STOPS) {
+    it(`a bug does not reproduce on ${c.name}`, () => {
+      // Arrange
+      const { ran: run } = c;
+
+      // Act
+      const stop = runStop("dev-change", "bug", run, "f");
+
+      // Assert
+      ok(stop?.includes(c.says), stop ?? "no stop");
+    });
+  }
+
+  it("a measurement stands when it exits 0", () => {
+    // Arrange
+    const passed = ran({ exitCode: 0 });
+
+    // Act
+    const stop = runStop("dev-change", "perf", passed, "f");
+
+    // Assert
+    strictEqual(stop, null);
+  });
+
+  it("a measurement that does not exit 0 stops the step", () => {
+    // Arrange
+    const failed = ran({ exitCode: 1 });
+
+    // Act
+    const stop = runStop("dev-change", "perf", failed, "f");
+
+    // Assert
+    ok(stop?.includes("measurement failed"));
   });
 });

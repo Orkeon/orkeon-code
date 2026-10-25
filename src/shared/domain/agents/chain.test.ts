@@ -4,20 +4,43 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import { chainDepthLine, chainDepthRefusal } from "./chain.ts";
+import { CHAIN_REFUSALS, OTHER_FAILURES } from "./chain.fixtures.ts";
 
 describe("chainDepthRefusal", () => {
-  it("reads the depth and the limit from the runtime's message, as an error or a string", () => {
-    deepStrictEqual(chainDepthRefusal(new Error("Async command chain refused at depth 9, limit 8.")), { depth: 9, limit: 8 });
-    deepStrictEqual(chainDepthRefusal("Async command chain refused at depth 3, limit 2."), { depth: 3, limit: 2 });
-  });
+  for (const c of CHAIN_REFUSALS) {
+    it(`reads the depth and the limit from the runtime's message, as ${c.name}`, () => {
+      // Arrange
+      const { failure } = c;
 
-  it("is null for any other failure", () => {
-    strictEqual(chainDepthRefusal(new Error("crew not found")), null);
-    strictEqual(chainDepthRefusal(undefined), null);
-  });
+      // Act
+      const refusal = chainDepthRefusal(failure);
+
+      // Assert
+      deepStrictEqual(refusal, c.refusal);
+    });
+  }
+
+  for (const c of OTHER_FAILURES) {
+    it(`is null for any other failure: ${c.name}`, () => {
+      // Arrange
+      const { failure } = c;
+
+      // Act
+      const refusal = chainDepthRefusal(failure);
+
+      // Assert
+      strictEqual(refusal, null);
+    });
+  }
 
   it("says what to do, with the depth and the limit the refusal gave", () => {
-    const line = chainDepthLine("dev-verify", { depth: 9, limit: 8 });
+    // Arrange
+    const refusal = { depth: 9, limit: 8 };
+
+    // Act
+    const line = chainDepthLine("dev-verify", refusal);
+
+    // Assert
     ok(line.startsWith("dev-verify not launched"));
     ok(line.includes("depth 9, limit 8") && line.includes("MaxChainDepth"));
   });

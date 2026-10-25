@@ -3,26 +3,55 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 
 import { safeZoneName, fallbackReadiness } from "./readiness.ts";
+import { ZONE_NAMES } from "./readiness.fixtures.ts";
 
 describe("safeZoneName", () => {
-  it("slugifies to lowercase-dashes", () => {
-    strictEqual(safeZoneName("Unit Tests (API)"), "unit-tests-api-");
-    strictEqual(safeZoneName("e2e"), "e2e");
-  });
+  for (const c of ZONE_NAMES) {
+    it(`slugifies to lowercase-dashes: ${c.name}`, () => {
+      // Arrange
+      const { zone } = c;
+
+      // Act
+      const safe = safeZoneName(zone);
+
+      // Assert
+      strictEqual(safe, c.safe);
+    });
+  }
 });
 
 describe("fallbackReadiness", () => {
   it("flags a unit-tests gap when package.json has no test script", () => {
-    const r = fallbackReadiness(JSON.stringify({ scripts: { build: "tsc" } }));
+    // Arrange
+    const pkg = JSON.stringify({ scripts: { build: "tsc" } });
+
+    // Act
+    const r = fallbackReadiness(pkg);
+
+    // Assert
     deepStrictEqual(r.zonesNeedingVerifier, ["unit-tests"]);
     deepStrictEqual(r.appTypes, ["library"]);
   });
+
   it("reports no gap when a test script exists", () => {
-    const r = fallbackReadiness(JSON.stringify({ scripts: { test: "vitest" } }));
+    // Arrange
+    const pkg = JSON.stringify({ scripts: { test: "vitest" } });
+
+    // Act
+    const r = fallbackReadiness(pkg);
+
+    // Assert
     deepStrictEqual(r.zonesNeedingVerifier, []);
   });
+
   it("reports nothing for an absent package.json", () => {
-    const r = fallbackReadiness("");
+    // Arrange
+    const pkg = "";
+
+    // Act
+    const r = fallbackReadiness(pkg);
+
+    // Assert
     deepStrictEqual(r.appTypes, []);
     deepStrictEqual(r.zonesNeedingVerifier, []);
   });

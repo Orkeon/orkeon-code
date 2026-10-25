@@ -4,25 +4,44 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { BUILT_IN_CHARTERS, builtInCharter, builtInCharterRows, repairStep } from "./built-in-charters.ts";
+import { CHARTER_STEPS, REPAIR_STEPS, REVIEWER_ROW } from "./built-in-charters.fixtures.ts";
 
 describe("built-in charters", () => {
-  it("the reviewer belongs to /dev-plan, the auditor to /dev-verify", () => {
-    strictEqual(builtInCharter("dev-reviewer")?.step, "dev-plan");
-    strictEqual(builtInCharter("dev-auditor")?.step, "dev-verify");
-    strictEqual(builtInCharter("tester"), undefined);
-  });
+  for (const c of CHARTER_STEPS) {
+    it(`the reviewer belongs to /dev-plan, the auditor to /dev-verify: ${c.charter}`, () => {
+      // Arrange
+      const name = c.charter;
 
-  it("a repair runs under the step of the instance's run, else the charter's, else dev-plan's", () => {
-    strictEqual(repairStep("dev-reviewer", "dev-spec"), "dev-spec");
-    strictEqual(repairStep("dev-reviewer", "dev-change"), "dev-change");
-    strictEqual(repairStep("dev-auditor", undefined), "dev-verify");
-    strictEqual(repairStep("dev-reviewer", "dev-implement"), "dev-plan");
-    strictEqual(repairStep("tester", 3), "dev-plan");
-  });
+      // Act
+      const charter = builtInCharter(name);
+
+      // Assert
+      strictEqual(charter?.step, c.step);
+    });
+  }
+
+  for (const c of REPAIR_STEPS) {
+    it(`a repair runs under the step of the instance's run, else the charter's, else dev-plan's: ${c.name}`, () => {
+      // Arrange
+      const { charter, run } = c;
+
+      // Act
+      const step = repairStep(charter, run);
+
+      // Assert
+      strictEqual(step, c.step);
+    });
+  }
 
   it("gives /agents one row each", () => {
+    // Arrange
+    const expected = BUILT_IN_CHARTERS.map((c) => [c.name, "charter (built-in)"]);
+
+    // Act
     const rows = builtInCharterRows();
-    deepStrictEqual(rows.map((r) => [r.name, r.kind]), BUILT_IN_CHARTERS.map((c) => [c.name, "charter (built-in)"]));
-    strictEqual(rows[0].detail, "Adversarial reviewer — runs as a background child of /dev-spec, /dev-change, /dev-plan; /tasks lists, stops and repairs it");
+
+    // Assert
+    deepStrictEqual(rows.map((r) => [r.name, r.kind]), expected);
+    strictEqual(rows[0].detail, REVIEWER_ROW);
   });
 });
