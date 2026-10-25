@@ -75,8 +75,8 @@ The convention is Orkeon's (`tests/` of github.com/Orkeon/orkeon), adapted to `n
   - A scalar the Arrange reads in one line stays in the test. No `ok(text.includes(…))` piles: one assertion helper
     that names the expectation.
 - **Doubles are hand-written**, one per port: a class `Fake<Port>` (or `Stub<Port>`) that implements the port and
-  exposes plain fields to configure it and to read what it received. They live in `tests/support/` (the shared
-  memory's in `tests/doubles/`). Reuse one before writing one; never redefine a port's fake inside a test file.
+  exposes plain fields to configure it and to read what it received. They live in `tests/support/`. Reuse one before
+  writing one; never redefine a port's fake inside a test file.
 - **Where a test goes**: a domain module, a use case or a shared service is tested next to it; a command use case of
   `commands/_lib/` in `tests/commands-<family>.test.ts`; entry points are covered by the bundle check and the smoke.
 - A test's name is the behaviour and its condition, as a sentence: `cuts a name at 120 characters`.

@@ -13,6 +13,7 @@ import {
   NOT_READY, ROOT, SPECS, recorder, recordingRunner, recordingWrappedTools, rootedSlots,
 } from "./script-tools.fixtures.ts";
 import { assertRootPathsOnly } from "./script-tools.assertions.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 describe("scriptTool", () => {
   for (const spec of SPECS) {
@@ -217,7 +218,7 @@ describe("the tools and their slots", () => {
     deepStrictEqual(calls, ['build {"project":"p"}']);
   });
 
-  it("run_tests under a working root hands the body /workspace paths and the model root paths (outbound)", async () => {
+  it(`run_tests under a working root hands the body ${WORKSPACE} paths and the model root paths (outbound)`, async () => {
     // Arrange
     const { slot, seen } = rootedSlots();
 
@@ -225,7 +226,7 @@ describe("the tools and their slots", () => {
     const tests = await runTestsTool(recorder().builder, slot, ROOT).execute({ command: `npm test -- ${ROOT}/tests/a.test.ts` });
 
     // Assert
-    deepStrictEqual(seen, [{ command: "npm test -- /workspace/tests/a.test.ts" }]);
+    deepStrictEqual(seen, [{ command: `npm test -- ${WORKSPACE}/tests/a.test.ts` }]);
     assertRootPathsOnly(tests);
     strictEqual((tests as any).log, `${ROOT}/workbench/prune/logs/t.log`);
   });

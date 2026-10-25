@@ -37,6 +37,7 @@ import {
   permissionsHarness,
   unreadableConfigRun,
 } from "./commands-permissions.fixtures.ts";
+import { WORKSPACE } from "../src/shared/domain/vfs.ts";
 
 describe("/permissions show", () => {
   it("shows the fallback mode, the catalogue, no rules and an empty gate (the default sub-command)", async () => {
@@ -663,7 +664,7 @@ describe("/permissions — the extra tools of tools.extra", () => {
 
     // Assert
     ok(lines.includes(
-      "⚠ tools.extra could not be read (/workspace/.orkeon/config.json could not be read or parsed): no extra tool " +
+      `⚠ tools.extra could not be read (${WORKSPACE}/.orkeon/config.json could not be read or parsed): no extra tool ` +
         "is known, and the rules on " +
         "extra tools are dormant.",
     ), lines.join("\n"));

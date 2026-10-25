@@ -3,7 +3,7 @@ import type { Precedent } from "./precedents-block.ts";
 import type { EntryType, MemoryEntry } from "./entry.ts";
 import { WORKSPACE } from "../vfs.ts";
 
-// tests/doubles/memory-entries.ts's sampleEntry, here because a domain test imports the domain only.
+// tests/support/memory-entries.ts's sampleEntry, here because a domain test imports the domain only.
 const ENTRY_BODY = "## Context\nA sentence of context.\n\n## Content\nThe rule itself.\n\n## Evidence\n`src/app/main.ts:10`\n";
 
 /** A valid admitted entry of `type` named by `slug`, of project shop on 2026-10-22, its fields overridable. */

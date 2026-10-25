@@ -1,6 +1,6 @@
 // The memory, the clock, the tool input and the racing files the memory_push tests run over.
 import { memoryLayout } from "../../domain/shared-memory/layout.ts";
-import { LiveListingFiles } from "../../../../tests/doubles/live-listing-files.ts";
+import { LiveListingFiles } from "../../../../tests/support/live-listing-files.ts";
 
 export const layout = memoryLayout(".orkeon/memory");
 export const memory = { layout, project: "shop" };

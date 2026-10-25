@@ -7,7 +7,7 @@ import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
 import { FakeSessionStore } from "../../../../tests/support/fake-session-store.ts";
 import { FakeShell } from "../../../../tests/support/fake-shell.ts";
 import { FakeShellJobs } from "../../../../tests/support/fake-shell-jobs.ts";
-import type { FakePrecedents } from "../../../../tests/doubles/fake-precedents.ts";
+import type { FakePrecedents } from "../../../../tests/support/fake-precedents.ts";
 import { createConfigStore } from "../../../shared/application/config-store.ts";
 import { GIT_TOPLEVEL } from "../../../shared/application/dev/resolve-work-folder.ts";
 import type { ActRequest, AffectedTests, CostIndex, ShellOptions, ShellResult } from "../../../shared/application/ports.ts";
@@ -62,8 +62,6 @@ export const SHEET = [
 export const STEP_1_DONE = SHEET.replace(OPEN, TICKED);
 /** The sheet, every step done. */
 export const DONE_SHEET = SHEET.replaceAll(OPEN, TICKED);
-/** The sheet, step 1 RED alone ticked. */
-export const STEP_1_RED_TICKED = SHEET.replace(OPEN, "TDD: RED [x] GREEN [ ] COST [ ]");
 /** The sheet whose step 2 works on step 1's files: one cycle of two steps. */
 export const CYCLE_SHEET = SHEET.replace("| 2 — Two | `tests/b.test.ts` — to create | — | `src/b.ts` — to create |",
   "| 2 — Two | `tests/a.test.ts` — existing | — | `src/a.ts` — existing |");

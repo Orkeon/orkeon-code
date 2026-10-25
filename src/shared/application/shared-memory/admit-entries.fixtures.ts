@@ -2,9 +2,9 @@
 import { sha1Hex } from "../../domain/sha1.ts";
 import { memoryLayout } from "../../domain/shared-memory/layout.ts";
 import type { MemoryEntry } from "../../domain/shared-memory/entry.ts";
-import { LiveListingFiles } from "../../../../tests/doubles/live-listing-files.ts";
-import { FakeSharedMemory } from "../../../../tests/doubles/fake-shared-memory.ts";
-import { entryText } from "../../../../tests/doubles/memory-entries.ts";
+import { LiveListingFiles } from "../../../../tests/support/live-listing-files.ts";
+import { FakeSharedMemory } from "../../../../tests/support/fake-shared-memory.ts";
+import { entryText } from "../../../../tests/support/memory-entries.ts";
 
 export const layout = memoryLayout(".orkeon/memory");
 export const memory = { layout, collection: "memory-shop" };

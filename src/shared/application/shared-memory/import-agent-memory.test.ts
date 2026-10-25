@@ -5,7 +5,7 @@ import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import { importAgentMemory, importReport } from "./import-agent-memory.ts";
 import { appendRefused } from "../../domain/shared-memory/refused.ts";
-import { entryText, sampleEntry } from "../../../../tests/doubles/memory-entries.ts";
+import { entryText, sampleEntry } from "../../../../tests/support/memory-entries.ts";
 import {
   CONTRACT_CANDIDATE, CONTRACT_NOTE, CUT_POSITIONS, candidateFiles, emptyWorld, layout, memory, noteWithTokenAt, setup,
 } from "./import-agent-memory.fixtures.ts";

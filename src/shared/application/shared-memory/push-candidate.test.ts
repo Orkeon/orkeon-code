@@ -6,7 +6,7 @@ import { deepStrictEqual, strictEqual, ok } from "node:assert";
 import { pushCandidate, readPushInput } from "./push-candidate.ts";
 import { parseEntry } from "../../domain/shared-memory/front-matter.ts";
 import { appendRefused } from "../../domain/shared-memory/refused.ts";
-import { LiveListingFiles } from "../../../../tests/doubles/live-listing-files.ts";
+import { LiveListingFiles } from "../../../../tests/support/live-listing-files.ts";
 import { CANDIDATE_PATH, ID, REFUSED_PUSHES, UNREADABLE_INPUTS, clock, input, layout, memory, racingFiles } from "./push-candidate.fixtures.ts";
 import { assertEntry, assertRefused } from "./push-candidate.assertions.ts";
 

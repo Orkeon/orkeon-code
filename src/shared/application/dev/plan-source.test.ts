@@ -9,6 +9,7 @@ import {
   WORK, WORK_OUTSIDE,
 } from "./plan-source.fixtures.ts";
 import { assertRefused } from "./plan-source.assertions.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 describe("resolvePlanSource with no token", () => {
   it("takes the one code with a spec or a brief and no plan", async () => {
@@ -121,7 +122,7 @@ describe("resolvePlanSource outside the mounts", () => {
     const r = await resolvePlanSource(files, WORK_OUTSIDE, "trim");
 
     // Assert
-    assertRefused(r, "dev-plan: the work folder /home/dev/repo/workbench is outside /workspace: run /dev-plan from the main worktree");
+    assertRefused(r, `dev-plan: the work folder /home/dev/repo/workbench is outside ${WORKSPACE}: run /dev-plan from the main worktree`);
   });
 });
 

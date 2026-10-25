@@ -11,6 +11,7 @@ import {
   DECISION, DECISION_CANDIDATE, MEMORY_TOOL_SPECS, ROOT, recorder, run, world, worldWithEntry,
 } from "./memory-tools.fixtures.ts";
 import { assertRefusedWith } from "./memory-tools.assertions.ts";
+import { WORKSPACE } from "../../domain/vfs.ts";
 
 describe("the memory tools", () => {
   for (const { spec, make } of MEMORY_TOOL_SPECS) {
@@ -60,7 +61,7 @@ describe("the memory tools", () => {
     const out = await run(memoryRecallTool(recorder().builder, ports, ROOT), { query: "a retry loop" });
 
     // Assert
-    strictEqual(out.entries[0].path, path.replace(/^\/workspace/, ROOT));
+    strictEqual(out.entries[0].path, path.replace(WORKSPACE, ROOT));
   });
 
   it("build the one recall tool when it is on under a working root", () => {

@@ -1,7 +1,7 @@
 // The memory, files and settings stepPrecedents recalls from.
 import { memoryLayout } from "../../domain/shared-memory/layout.ts";
-import { FakeSharedMemory } from "../../../../tests/doubles/fake-shared-memory.ts";
-import { entryText } from "../../../../tests/doubles/memory-entries.ts";
+import { FakeSharedMemory } from "../../../../tests/support/fake-shared-memory.ts";
+import { entryText } from "../../../../tests/support/memory-entries.ts";
 import { FakeFiles } from "../../../../tests/support/fake-files.ts";
 import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
 import { FakeShell } from "../../../../tests/support/fake-shell.ts";

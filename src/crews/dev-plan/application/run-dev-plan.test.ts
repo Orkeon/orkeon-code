@@ -8,7 +8,7 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import { runDevPlan } from "./run-dev-plan.ts";
-import { FakePrecedents, PRECEDENTS_SAMPLE } from "../../../../tests/doubles/fake-precedents.ts";
+import { FakePrecedents, PRECEDENTS_SAMPLE } from "../../../../tests/support/fake-precedents.ts";
 import {
   ANSWER, BLOCKED_END, CLEAR, CLEAR_SUMMARY, CODE, F1, F2, FEWER_BATCHES_TEXT, FOURTEEN_UNKNOWN_REUSE, INVENTORY, MAJOR_LINES,
   NEXT_LINE, PJ, PLAN, REFUSALS, REVIEW_BLOCKING, REVIEW_MAJOR, STARTED_PLAN_TEXT, fixture, recordListings, setup,

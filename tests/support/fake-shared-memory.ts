@@ -1,7 +1,6 @@
 // FakeSharedMemory: the SharedMemory port over a list of hits answered to every search (or per
 // query in `byQuery`), every search and ingest recorded, and a failure switch for each call, as
-// a host without the RAG subsystem throws. tests/support/ is left as it is in this wave: the
-// doubles of the shared memory live here.
+// a host without the RAG subsystem throws.
 import type { SharedHit, SharedIngest, SharedMemory } from "../../src/shared/application/ports.ts";
 
 export class FakeSharedMemory implements SharedMemory {

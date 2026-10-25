@@ -6,9 +6,9 @@ import type { ToolBuilderFactory } from "./script-tools.ts";
 import { memoryLayout } from "../../domain/shared-memory/layout.ts";
 import { GIT_REMOTE_ORIGIN } from "../../application/shared-memory/memory-settings.ts";
 import { FakeShell } from "../../../../tests/support/fake-shell.ts";
-import { FakeSharedMemory } from "../../../../tests/doubles/fake-shared-memory.ts";
-import { LiveListingFiles } from "../../../../tests/doubles/live-listing-files.ts";
-import { entryText, sampleEntry } from "../../../../tests/doubles/memory-entries.ts";
+import { FakeSharedMemory } from "../../../../tests/support/fake-shared-memory.ts";
+import { LiveListingFiles } from "../../../../tests/support/live-listing-files.ts";
+import { entryText, sampleEntry } from "../../../../tests/support/memory-entries.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
 
 export { recorder } from "./script-tools.fixtures.ts";

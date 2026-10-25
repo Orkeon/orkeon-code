@@ -7,6 +7,7 @@ import { gateLineText, runGateChecks } from "./gate.ts";
 import {
   GREEN, HEADER, LINE_TEXT_CASES, NOTE_CASES, OK, PLAN, RED, SHEET, gateInput, withSheet,
 } from "./gate.fixtures.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 describe("runGateChecks", () => {
   it("prints the five ok lines on a green batch", () => {
@@ -132,7 +133,7 @@ describe("runGateChecks", () => {
     // Assert
     strictEqual(r.green, true);
     deepStrictEqual(r.stray, ["BR-09", "UC-5"]);
-    deepStrictEqual(r.lines.slice(4, 6), [OK.traits, "       traits citing an id absent from /workspace/workbench/demo/*.md: BR-09 UC-5"]);
+    deepStrictEqual(r.lines.slice(4, 6), [OK.traits, `       traits citing an id absent from ${WORKSPACE}/workbench/demo/*.md: BR-09 UC-5`]);
   });
 
   it("reads the trait hits as none when the grep was not run", () => {

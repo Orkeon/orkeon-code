@@ -5,7 +5,7 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
-import { FakePrecedents } from "../../../../tests/doubles/fake-precedents.ts";
+import { FakePrecedents } from "../../../../tests/support/fake-precedents.ts";
 import { BATCHES_ACTIVE_RECORD } from "../../../shared/domain/dev/batches-state.ts";
 import { touchedPath, verdictMarkOf } from "./touched.ts";
 import { implementInputs, runDevImplement } from "./run-dev-implement.ts";

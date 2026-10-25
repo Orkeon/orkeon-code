@@ -1,8 +1,8 @@
 // Admitted entries in FakeFiles and their hits in FakeSharedMemory, for the recall tests.
 import { memoryLayout } from "../../domain/shared-memory/layout.ts";
 import type { MemoryEntry } from "../../domain/shared-memory/entry.ts";
-import { FakeSharedMemory } from "../../../../tests/doubles/fake-shared-memory.ts";
-import { entryText, sampleEntry } from "../../../../tests/doubles/memory-entries.ts";
+import { FakeSharedMemory } from "../../../../tests/support/fake-shared-memory.ts";
+import { entryText, sampleEntry } from "../../../../tests/support/memory-entries.ts";
 import { FakeFiles } from "../../../../tests/support/fake-files.ts";
 
 export const layout = memoryLayout(".orkeon/memory");

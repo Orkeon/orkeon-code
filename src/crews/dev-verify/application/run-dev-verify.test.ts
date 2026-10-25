@@ -6,7 +6,7 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import { scriptToolSlot } from "../../../shared/application/dev/script-tool-slot.ts";
-import { FakePrecedents, PRECEDENTS_SAMPLE } from "../../../../tests/doubles/fake-precedents.ts";
+import { FakePrecedents, PRECEDENTS_SAMPLE } from "../../../../tests/support/fake-precedents.ts";
 import { GIT_DIFF_CHECK } from "../domain/commands.ts";
 import type { ValidationRunner } from "./audit.ts";
 import { runDevVerify } from "./run-dev-verify.ts";

@@ -6,6 +6,7 @@ import { strictEqual, deepStrictEqual, rejects } from "node:assert";
 import { MAX_PACKAGES, PROGRESS_LABEL, runAnalyze } from "./run-analyze.ts";
 import { SYNTHESIS_SYSTEM, buildSynthesisUser } from "../domain/harvest.ts";
 import { NOTHING_INDEXED, RAW_RUN_CALLS, analyzeSetup, harvestOf } from "./run-analyze.fixtures.ts";
+import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 describe("runAnalyze", () => {
   it("returns the raw harvest of an existing index, without indexing or synthesis", async () => {
@@ -33,7 +34,7 @@ describe("runAnalyze", () => {
 
     // Assert
     strictEqual(out, NOTHING_INDEXED);
-    deepStrictEqual(index.calls, ["rootCount", "index /workspace"]);
+    deepStrictEqual(index.calls, ["rootCount", `index ${WORKSPACE}`]);
     deepStrictEqual(progress.released, [PROGRESS_LABEL]);
   });
 

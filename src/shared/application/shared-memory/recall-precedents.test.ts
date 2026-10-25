@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import { recallEntries, recallPrecedents } from "./recall-precedents.ts";
-import { entryText, sampleEntry } from "../../../../tests/doubles/memory-entries.ts";
+import { entryText, sampleEntry } from "../../../../tests/support/memory-entries.ts";
 import { FakeLogger } from "../../../../tests/support/fake-logger.ts";
 import { layout, memorySettings, pathOf, setup, sevenMethods } from "./recall-precedents.fixtures.ts";
 

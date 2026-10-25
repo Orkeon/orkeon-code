@@ -11,9 +11,10 @@ import {
   ACCEPT, acceptedState, ADDED_ROWS, fullState, REFUSE, startState, UNREADABLE_HARNESS, WRONG_SHAPES,
 } from "./learn-state.fixtures.ts";
 import { assertNotJsonProblem } from "./learn-state.assertions.ts";
+import { WORKSPACE } from "../vfs.ts";
 
 describe("learn state files", () => {
-  it("names the two state files relative to /workspace", () => {
+  it(`names the two state files relative to ${WORKSPACE}`, () => {
     // Arrange
     const expected = [".orkeon/dev-learn-state.json", ".claude/local/dev-learn-state.json"];
 

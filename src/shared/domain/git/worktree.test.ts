@@ -5,6 +5,7 @@ import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { batchBranch, batchWorktreeName, gitWorktreeAdd, worktreePlace } from "./worktree.ts";
 import { BATCH, CODE, PRUNE_F12_PLACE } from "./worktree.fixtures.ts";
+import { WORKSPACE } from "../vfs.ts";
 
 describe("a batch's worktree", () => {
   it("is named <code>-F<n>", () => {
@@ -29,7 +30,7 @@ describe("a batch's worktree", () => {
     strictEqual(branch, "batches/prune/F2");
   });
 
-  it("is under /workspace/.orkeon/worktrees", () => {
+  it(`is under ${WORKSPACE}/.orkeon/worktrees`, () => {
     // Arrange
     const name = "prune-F12";
 
