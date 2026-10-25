@@ -348,8 +348,11 @@ export async function runBatchChain(run: BatchRun, launch: Readonly<Record<strin
   if (audited !== null) return audited;
   const written = WRITTEN.exec(verified);
   if (written === null || written[1] !== run.batch) {
-    const last = verified.split("\n").map((l) => l.trim()).filter((l) => l !== "").at(-1) ?? "it answered nothing";
-    return answer("BLOCKED", [`stopped BLOCKED — dev-verify wrote no verdict: ${last}`]);
+    const trimmed = verified.split("\n").map((l) => l.trim()).filter((l) => l !== "");
+    const last = trimmed.at(-1) ?? "it answered nothing";
+    // The gate's RED names only its own line: the checks that failed say why.
+    const fails = trimmed.filter((l) => l.startsWith("FAIL ")).map((l) => l.slice(5));
+    return answer("BLOCKED", [`stopped BLOCKED — dev-verify wrote no verdict: ${last}${fails.length === 0 ? "" : ` (${fails.join("; ")})`}`]);
   }
   const rest = verified.slice(written.index + written[0].length);
   if (!new RegExp(`^→ Batch ${run.batch} VALID\\.`, "m").test(rest)) {

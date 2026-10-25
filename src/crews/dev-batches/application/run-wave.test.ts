@@ -430,7 +430,9 @@ describe("runBatchChain", () => {
     const red = "GATE — batch F2 — sheet todo/prune/PRUNE-PLAN-F2.md\n  FAIL design ids …\nGATE — batch F2: RED — fix and run again, no audit before\n";
     const out = await runBatchChain(RUN, LAUNCH, { implement: async () => implemented, verify: async () => red, spend: spend() });
     deepStrictEqual([out.verdict, out.lines.at(-1)],
-      ["BLOCKED", "stopped BLOCKED — dev-verify wrote no verdict: GATE — batch F2: RED — fix and run again, no audit before"]);
+      ["BLOCKED", "stopped BLOCKED — dev-verify wrote no verdict: GATE — batch F2: RED — fix and run again, no audit before (design ids …)"]);
+    const other = await runBatchChain(RUN, LAUNCH, { implement: async () => implemented, verify: async () => "dev-verify: BLOCKED — the gate could not run 'git status'\n", spend: spend() });
+    strictEqual(other.lines.at(-1), "stopped BLOCKED — dev-verify wrote no verdict: dev-verify: BLOCKED — the gate could not run 'git status'");
   });
 
   it("hands a relaunched batch's correction to its implement", async () => {

@@ -163,6 +163,16 @@ describe("runDevImplement — the steps", () => {
       ["src/a.ts", "src/b.ts", "tests/a.test.ts", "tests/b.test.ts"]);
   });
 
+  it("puts the whitespace git diff --check refuses right in the files a role changed, and says so", async () => {
+    const untidy: Act = (_p, tree) => { tree.write("src/a.ts", "export const a = 1; \n\n\n"); tree.passing.add("tests/a.test.ts"); return "changed src/a.ts\nCost: 1 reads, 0 writes; none"; };
+    const t = setup([writesTest("tests/a.test.ts")], [untidy]);
+    const a = parse(await runDevImplement({ batch: "F1", plan: "demo" }, t.deps));
+    strictEqual(t.files.files.get("/workspace/src/a.ts"), "export const a = 1;\n");
+    strictEqual(t.files.files.get("/workspace/tests/a.test.ts"), "test tests/a.test.ts");
+    ok(a.lines.includes("whitespace ✓ — src/a.ts: trailing whitespace on 1 line, 2 blank lines at EOF removed"), a.lines.join("\n"));
+    ok(!a.lines.some((l) => l.includes("whitespace ✓ — tests/a.test.ts")), a.lines.join("\n"));
+  });
+
   it("gives each role its own tools in acceptEdits, and its brief", () => {
     const t = setup([writesTest("tests/a.test.ts")], [writesCode("src/a.ts", "tests/a.test.ts")]);
     return runDevImplement({ batch: "F1", plan: "demo" }, t.deps).then(() => {

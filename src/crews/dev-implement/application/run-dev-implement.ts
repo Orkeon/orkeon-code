@@ -23,6 +23,7 @@ import { hasTestLayout, isTestPath } from "../../../shared/domain/dev/test-paths
 import { isUnfinishedSection, lastVerdict, parseVerdictFile } from "../../../shared/domain/dev/verdict-format.ts";
 import { shellQuote } from "../../../shared/domain/git/close.ts";
 import type { CarriedText } from "../../../shared/domain/dev/carried-text.ts";
+import { tidyWhitespace } from "../../../shared/domain/dev/whitespace.ts";
 import type { WrappedRun, WrappedTools } from "../../../shared/application/dev/wrapped-tools.ts";
 import { stepRules } from "../../../shared/domain/dev/step-rules.ts";
 import { policyFor } from "../../../shared/domain/agent-policy/mode-policy.ts";
@@ -246,7 +247,29 @@ async function act(
     .filter((p) => !run.ownFolders.some((f) => under(p, f)))
     .sort();
   await keepAssumptions(run, said.text);
+  await tidyChanged(run, changed);
   return { text: said.text, changed };
+}
+
+/** The whitespace `git diff --check` would refuse, put right in the files the role changed: a node insert at the
+ *  end of a module leaves a blank line after the last member, and the gate would stop the batch for it. */
+async function tidyChanged(run: Run, changed: readonly string[]): Promise<void> {
+  for (const path of changed) {
+    let text: string;
+    try {
+      text = await run.deps.files.read(`${WORKSPACE}/${path}`);
+    } catch {
+      continue;
+    }
+    const tidy = tidyWhitespace(text);
+    if (tidy.fixed.length === 0) continue;
+    try {
+      await run.deps.files.write(`${WORKSPACE}/${path}`, tidy.text);
+      run.lines.push(`whitespace ✓ — ${path}: ${tidy.fixed.join(", ")}`);
+    } catch (error) {
+      run.lines.push(`⚠ whitespace — ${path}: ${tidy.fixed.join(", ")}, not written (${error instanceof Error ? error.message.split("\n")[0] : String(error)})`);
+    }
+  }
 }
 
 function contractInput(run: Run, step: ImplementStep, testCommand: string, carried: readonly CarriedText[], cycle?: readonly ImplementStep[]) {
