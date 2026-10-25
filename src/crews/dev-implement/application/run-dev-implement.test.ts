@@ -397,6 +397,31 @@ describe("runDevImplement — wave 4", () => {
     ok(a.lines.includes("step 2 RED ✓ — tests/a.test.ts"), a.lines.join("\n"));
   });
 
+  it("keeps a stub an earlier RED of the cycle wrote open to a later RED: its GREEN has not run", async () => {
+    const t = setup([
+      (_p, tree) => { tree.write("tests/a.test.ts", "test a"); tree.write("src/a.ts", "throw one"); tree.failures.set("tests/a.test.ts", 1); return "red"; },
+      (_p, tree) => { tree.write("tests/a.test.ts", "test a, two"); tree.write("src/a.ts", "throw one, two"); tree.failures.set("tests/a.test.ts", 2); return "more"; },
+    ], [writesCode("src/a.ts", "tests/a.test.ts")], CYCLE_SHEET);
+    const a = parse(await runDevImplement({ batch: "F1", plan: "demo" }, t.deps));
+    strictEqual(blockedLine(a), undefined, a.lines.join("\n"));
+    deepStrictEqual(t.roles["test-author"].acts.map((x) => x.writable), [["src/a.ts"], ["src/a.ts"]]);
+    ok(t.roles["test-author"].acts[1].prompt.includes("signature stubs in `src/a.ts`"), t.roles["test-author"].acts[1].prompt);
+    ok(a.lines.includes("step 2 RED ✓ — tests/a.test.ts (stubs: src/a.ts)"), a.lines.join("\n"));
+  });
+
+  it("on a rerun, keeps open the stub a RED-ticked step of the cycle wrote", async () => {
+    const rerun = CYCLE_SHEET.replace("TDD: RED [ ] GREEN [ ] COST [ ]", "TDD: RED [x] GREEN [ ] COST [ ]");
+    const t = setup([(_p, tree) => { tree.write("tests/a.test.ts", "test a, two"); tree.write("src/a.ts", "throw one, two"); tree.failures.set("tests/a.test.ts", 2); return "more"; }],
+      [writesCode("src/a.ts", "tests/a.test.ts")], rerun);
+    t.tree.write("tests/a.test.ts", "test a");
+    t.tree.write("src/a.ts", "throw one");
+    t.tree.failures.set("tests/a.test.ts", 1);
+    t.files.files.set(touchedPath("demo", "F1"), JSON.stringify({ touched: ["src/a.ts", "tests/a.test.ts"], verdictMark: "none" }));
+    const a = parse(await runDevImplement({ batch: "F1", plan: "demo" }, t.deps));
+    strictEqual(blockedLine(a), undefined, a.lines.join("\n"));
+    deepStrictEqual(t.roles["test-author"].acts[0].writable, ["src/a.ts"]);
+  });
+
   it("never leaves a `to create` file that exists already writable as a stub", async () => {
     const t = setup([writesTest("tests/a.test.ts")], [writesCode("src/a.ts", "tests/a.test.ts")], ONE_STEP);
     t.files.files.set("/workspace/src/a.ts", "export const one = () => 1;");

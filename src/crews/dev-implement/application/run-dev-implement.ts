@@ -346,10 +346,13 @@ async function runCycle(run: Run, cycle: Cycle): Promise<string | null> {
     const observed = red.ok ? failureCount(red.tail) : null;
     before = recorded !== undefined && observed !== null && recorded < observed ? recorded : red.ok ? red.tail : null;
   }
+  // A stub a RED of this cycle wrote stays open to its later REDs, this run's or a rerun's: the cycle's GREEN, the only
+  // one that fills it, has not run.
+  const stubbed = new Set(steps.filter((s) => s.tdd?.red).flatMap(stubsOf).filter((p) => run.touched.has(p)));
   for (const step of toRed) {
-    const stubs = await openStubs(run, step);
+    const stubs = [...new Set([...await openStubs(run, step), ...stubbed])];
     const t3 = await recallForRed(run, step);
-    const done = await act(run, "test-author", withPrecedents(redContract(contractInput(run, step, command.command)), [t3, run.correction]), stubs);
+    const done = await act(run, "test-author", withPrecedents(redContract({ ...contractInput(run, step, command.command), stubs }), [t3, run.correction]), stubs);
     if (typeof done === "string") return `step ${step.number} RED: ${done}`;
     run.ran.push(step);
     const earlier = before;
@@ -364,9 +367,10 @@ async function runCycle(run: Run, cycle: Cycle): Promise<string | null> {
     if (failed !== null) return `step ${step.number} RED: ${failed}`;
     before = red.ok ? red.tail : null;
     await recordRedCount(run, step, red.ok ? failureCount(red.tail) : null);
-    const stubbed = done.changed.filter((p) => !run.isTest(p));
+    const wroteStubs = done.changed.filter((p) => !run.isTest(p));
+    wroteStubs.forEach((p) => stubbed.add(p));
     const unchecked = added === "unknown" ? " (its own failure not checked: the run's tail shows no failure count)" : "";
-    run.lines.push(`step ${step.number} RED ✓ — ${done.changed.filter(run.isTest).join(", ")}${stubbed.length === 0 ? "" : ` (stubs: ${stubbed.join(", ")})`}${unchecked}`);
+    run.lines.push(`step ${step.number} RED ✓ — ${done.changed.filter(run.isTest).join(", ")}${wroteStubs.length === 0 ? "" : ` (stubs: ${wroteStubs.join(", ")})`}${unchecked}`);
   }
 
   let costText: string | null = null;

@@ -328,7 +328,10 @@ export async function runBatchChain(run: BatchRun, launch: Readonly<Record<strin
   const audited = spent();
   if (audited !== null) return audited;
   const written = WRITTEN.exec(verified);
-  if (written === null || written[1] !== run.batch) return answer("BLOCKED");
+  if (written === null || written[1] !== run.batch) {
+    const last = verified.split("\n").map((l) => l.trim()).filter((l) => l !== "").at(-1) ?? "it answered nothing";
+    return answer("BLOCKED", [`stopped BLOCKED — dev-verify wrote no verdict: ${last}`]);
+  }
   const rest = verified.slice(written.index + written[0].length);
   if (!new RegExp(`^→ Batch ${run.batch} VALID\\.`, "m").test(rest)) {
     const correction = /^→ \/dev-implement \S+ — correction: (.+)$/m.exec(rest)?.[1]?.trim();

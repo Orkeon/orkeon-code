@@ -395,6 +395,13 @@ describe("runBatchChain", () => {
     deepStrictEqual([unclosed.verdict, unclosed.lines.at(-1)], ["BLOCKED", "BLOCKED — close: git commit failed (nothing to commit)"]);
   });
 
+  it("says why an audit that wrote no verdict stopped: its last line", async () => {
+    const red = "GATE — batch F2 — sheet todo/prune/PRUNE-PLAN-F2.md\n  FAIL design ids …\nGATE — batch F2: RED — fix and run again, no audit before\n";
+    const out = await runBatchChain(RUN, LAUNCH, { implement: async () => implemented, verify: async () => red, spend: spend() });
+    deepStrictEqual([out.verdict, out.lines.at(-1)],
+      ["BLOCKED", "stopped BLOCKED — dev-verify wrote no verdict: GATE — batch F2: RED — fix and run again, no audit before"]);
+  });
+
   it("hands a relaunched batch's correction to its implement", async () => {
     const inputs: Array<Record<string, unknown>> = [];
     await runBatchChain({ ...RUN, correction: "Major tests: none" }, LAUNCH, {

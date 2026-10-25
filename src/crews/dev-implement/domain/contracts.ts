@@ -59,6 +59,8 @@ export interface ContractInput {
   cycle?: readonly ImplementStep[];
   layout: RepoPackLayout;
   testCommand: string;
+  /** The files open to RED as signature stubs: `stubsOf(step)`, and the stubs an earlier RED of the cycle wrote. */
+  stubs?: readonly string[];
 }
 
 /** The production files a RED step may write as signature stubs: its Anchors' `to create` production paths. */
@@ -125,7 +127,8 @@ export function redContract(input: ContractInput): string {
   const { step, layout } = input;
   const file = testFileOf(step) ?? "(none)";
   const doubles = step.anchor?.doubles ?? "";
-  const stubs = stubsOf(step);
+  const stubs = input.stubs ?? stubsOf(step);
+  const own = stubsOf(step);
   const correction = CORRECTION.exec(step.title);
   return [
     ...header(input, "RED"),
@@ -144,7 +147,7 @@ export function redContract(input: ContractInput): string {
     "",
     "## Rules",
     `- Write test files only (${testsWhere(layout)}): no production line; a test failing on a missing symbol is red.`,
-    ...(stubs.length === 0 ? [] : [`- The one exception: signature stubs in ${stubs.map((p) => `\`${p}\``).join(", ")} (to create) — declarations that throw "not implemented", no logic.`]),
+    ...(stubs.length === 0 ? [] : [`- The one exception: signature stubs in ${stubs.map((p) => `\`${p}\``).join(", ")} (${stubs.every((p) => own.includes(p)) ? "to create" : "to create, or a stub an earlier RED of this cycle wrote"}) — declarations that throw "not implemented", no logic.`]),
     "- One test per row of the table, its name as written; the passing path first, then the refusals.",
     levelRule(step),
     `- Run \`${input.testCommand}\` with run_tests once the tests are written: every new test must fail. Code runs it again after you.`,
