@@ -499,6 +499,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The audit capture lists a JavaScript batch's changed files.** `test-classes.txt` took only `.cs`, `.ts`, `.py`,
+  `.fs` and `.vb` for source files and wrote "no changed source file" for a `.js` batch; it now takes the code index's
+  languages too. The auditor no longer reports the global plan's open line of the batch it audits, marked after the
+  audit, nor the assumptions left to the user, which the pull request lists.
 - **The documentation says what the runtime and the code do, and the wave-7 audit's findings are fixed.**
   - Documentation: the main loop's wall time stops while the gate waits for your answer; the read calls of a turn
     run up to `MaxParallelToolCalls` at once; the shell's confinement defaults to `Auto` (bubblewrap on Linux,

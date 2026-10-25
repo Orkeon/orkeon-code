@@ -227,6 +227,15 @@ describe("writeCapture", () => {
       `src/Line.cs -> tests naming Line: none\nnot captured: '${failing}' failed (grep refused)\n`);
   });
 
+  it("lists the changed JavaScript files of a batch, not 'no changed source file'", async () => {
+    const { files, shell } = fakes();
+    files.files.set("/workspace/src/math.js", "export const subtract = (a, b) => a - b;\n");
+    files.files.set("/workspace/tests/math.test.js", "describe(\"math\", () => {});\n");
+    await writeCapture({ files, shell }, target(), gate(["src/math.js", "tests/math.test.js"], ["tests/math.test.js"]), "w");
+    ok(shell.commands.includes(gitTestFilesNaming("math", ["tests"], "js", []) as string));
+    strictEqual(written(files, "test-classes.txt"), "src/math.js -> tests naming math: none\ntests/math.test.js: math\n");
+  });
+
   it("marks the methods row not checked when no method name can be quoted", async () => {
     const { files, shell } = fakes();
     const run = { ...gate(CHANGED), facts: { ...sheetFacts(SHEET), methods: ["it's"] } };

@@ -11,6 +11,7 @@ import type { AccessCost } from "../../../shared/domain/dev/access-cost.ts";
 import { measureAccessCost } from "../../../shared/application/dev/measure-access-cost.ts";
 import type { DevVerifyTarget, GateRun } from "./run-gate.ts";
 import { WORKSPACE } from "./run-gate.ts";
+import { TREE_CODE_EXTENSIONS, extensionOf } from "../../../shared/domain/search-routing.ts";
 import type { BuildState, TableRow } from "../domain/mechanical-table.ts";
 import { CHECK_METHODS, mechanicalRows, renderTable } from "../domain/mechanical-table.ts";
 import {
@@ -37,7 +38,8 @@ export interface Capture {
 
 type Deps = { files: Pick<Files, "read" | "write" | "list">; shell: Pick<Shell, "run">; costIndex?: CostIndex };
 
-const SOURCE_FILE = /\.(cs|ts|py|fs|vb)$/;
+/** A source file: the code index's languages (the Tree-sitter adapters), and F# and VB. */
+const SOURCE_EXTENSIONS = new Set([...TREE_CODE_EXTENSIONS, ".fs", ".vb"]);
 const TEST_FILES_SHOWN = 5;
 
 function errorLine(error: unknown): string {
@@ -197,7 +199,7 @@ async function testClasses(deps: Deps, target: DevVerifyTarget, gate: GateRun, t
   const out: string[] = [];
   let counted = 0;
   for (const path of gate.changedFiles) {
-    if (!SOURCE_FILE.test(path) || path.startsWith(`${target.planDirShown}/`)) continue;
+    if (!SOURCE_EXTENSIONS.has(extensionOf(path)) || path.startsWith(`${target.planDirShown}/`)) continue;
     const test = isTestFile(path, testRoots);
     const source = await readOrNull(deps.files, `${WORKSPACE}/${path}`);
     if (source === null) continue;
