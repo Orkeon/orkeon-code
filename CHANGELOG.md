@@ -338,6 +338,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The search routing follows the thirteen Tree-sitter adapters of Orkeon #195.** A question on a `.js`, `.jsx`,
+  `.mjs`, `.cjs`, `.java`, `.c`, `.h`, `.cpp` (and `.cc`, `.cxx`, `.hpp`, `.hh`, `.hxx`), `.php`, `.rb`, `.sh` or
+  `.bash` file goes to `codebase_search`, `symbol_source` and `flow_trace`, no longer to `rag_search`, which held
+  nothing for it; HTML, JSON and CSS, parsed by the structural tools but in no index, stay on `rag_search` (#13).
 - **A project's `.orkeon/config.json` no longer widens what the user allows.** Its `permissions.fallback` applies
   only as `default`, `plan` or `acceptEdits`, never wider than the user settings' mode; its `tools.extra` offers only
   the tools the user settings list too (`*` lists them all). `/permissions` names what is set aside (`↳ ignored`),

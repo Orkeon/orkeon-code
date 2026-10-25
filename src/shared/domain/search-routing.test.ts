@@ -9,11 +9,15 @@ import {
 } from "./search-routing.ts";
 
 describe("the extension partition", () => {
-  it("mirrors the five Tree-sitter adapters exactly", () => {
+  it("mirrors the thirteen Tree-sitter adapters exactly", () => {
     // Read from src/analysis/Orkeon.Analysis/Adapters/*.cs — a new adapter
     // framework-side must be mirrored here (the probe's partition step trips live).
-    strictEqual(TREE_CODE_EXTENSIONS.length, 6);
-    for (const ext of [".ts", ".tsx", ".cs", ".py", ".go", ".rs"]) {
+    const adapters = [
+      ".ts", ".tsx", ".cs", ".py", ".go", ".rs", ".js", ".jsx", ".mjs", ".cjs", ".java", ".c",
+      ".cpp", ".cc", ".cxx", ".hpp", ".hh", ".hxx", ".h", ".php", ".rb", ".sh", ".bash",
+    ];
+    strictEqual(TREE_CODE_EXTENSIONS.length, 23);
+    for (const ext of adapters) {
       ok(TREE_CODE_EXTENSIONS.includes(ext), ext);
     }
   });
@@ -36,6 +40,16 @@ describe("routeForPath", () => {
 
   it("routes documents and configs to the rag", () => {
     for (const p of ["/workspace/README.md", "notes.txt", "data.csv", "report.pdf", "page.html"]) {
+      strictEqual(routeForPath(p), "rag", p);
+    }
+  });
+
+  it("routes the languages of Orkeon #195 to the tree, and its parse-only grammars to the rag", () => {
+    for (const p of ["/workspace/src/app.js", "Main.java", "include/x.h", "index.php", "lib/a.rb", "build.sh"]) {
+      strictEqual(routeForPath(p), "tree", p);
+    }
+    // CSS, HTML and JSON parse for the structural tools but enter no index.
+    for (const p of ["README.md", "page.html", "package.json", "site.css"]) {
       strictEqual(routeForPath(p), "rag", p);
     }
   });
