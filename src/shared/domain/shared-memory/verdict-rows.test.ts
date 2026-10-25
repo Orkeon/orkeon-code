@@ -3,103 +3,172 @@
 //   node --test src/shared/domain/shared-memory/verdict-rows.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
-import { readFileSync } from "node:fs";
 
-import { AUDIT_UNFINISHED_GAP, parseVerdictFile } from "../dev/verdict-format.ts";
+import { parseVerdictFile } from "../dev/verdict-format.ts";
 import {
   LEARN_FILE, MIN_MOTIF_BATCHES, axisListing, backlogByAxis, canonicalAxis, collectLearnRows, foldText,
   learnRowsOf, rowId, rowIdSource, shortCell, untreated,
 } from "./verdict-rows.ts";
-import type { LearnRow } from "./verdict-rows.ts";
-
-const demo = readFileSync(new URL("../../../../tests/fixtures/dev/workbench/demo/DEMO-VERIFY-F2.md", import.meta.url), "utf8");
-
-function row(id: string, batch: string, axis: string, severity: "Blocking" | "Major" = "Major"): LearnRow {
-  return { id, batch, severity, axis, gap: `gap ${id}`, evidence: "e", fix: "f", source: `${batch}.md`, line: 1 };
-}
+import {
+  AXES, BACKLOG_ROWS, DEMO_ROWS, FOLDS, LEARN_FILE_NAMES, SHORT_CELLS, STOPPED_AUDIT, TWO_FOLDERS, VALID_THEN_GAPS, demo, row,
+} from "./verdict-rows.fixtures.ts";
 
 describe("foldText and canonicalAxis", () => {
-  it("folds case and diacritics", () => {
-    strictEqual(foldText("É"), "e");
-    strictEqual(foldText("ç"), "c");
-    strictEqual(foldText("Règle"), "regle");
-  });
+  for (const c of FOLDS) {
+    it(`folds case and diacritics: ${c.name}`, () => {
+      // Arrange
+      const { text } = c;
 
-  it("matches an axis by folded prefix, the plan alias, else the trimmed label", () => {
-    strictEqual(canonicalAxis("Tests"), "Test");
-    strictEqual(canonicalAxis("stale plan: x"), "Plan");
-    strictEqual(canonicalAxis("correctness (null)"), "Correctness");
-    strictEqual(canonicalAxis("Naming"), "Naming");
-    strictEqual(canonicalAxis("  naming  "), "naming");
-  });
+      // Act
+      const folded = foldText(text);
+
+      // Assert
+      strictEqual(folded, c.expected);
+    });
+  }
+
+  for (const c of AXES) {
+    it(`matches an axis by folded prefix, the plan alias, else the trimmed label: ${c.name}`, () => {
+      // Arrange
+      const { text } = c;
+
+      // Act
+      const axis = canonicalAxis(text);
+
+      // Assert
+      strictEqual(axis, c.expected);
+    });
+  }
 });
 
 describe("ids", () => {
   it("joins batch, axis and gap with one pipe", () => {
-    strictEqual(rowIdSource("demo/F2", "Test", "g"), "demo/F2|Test|g");
+    // Arrange
+    const batch = "demo/F2";
+
+    // Act
+    const source = rowIdSource(batch, "Test", "g");
+
+    // Assert
+    strictEqual(source, "demo/F2|Test|g");
   });
 
   it("gives the demo ids the script gives", () => {
-    const rows = learnRowsOf(parseVerdictFile(demo), "demo", "DEMO-VERIFY-F2.md");
-    deepStrictEqual(rows.map((r) => [r.id, r.batch, r.axis, r.gap, r.source]), [
-      ["68abc1ec48", "demo/F2", "Test", "The refusal of `a/b` is never exercised", "demo/DEMO-VERIFY-F2.md"],
-      ["698abf2554", "demo/F2", "Scope", "The table shows `open | done` for one batch", "demo/DEMO-VERIFY-F2.md"],
-      ["3a0ec314c3", "demo/F2", "Scope", "The state column still merges two states", "demo/DEMO-VERIFY-F2.md"],
-    ]);
-    strictEqual(rowId("demo/F2", "Test", "The refusal of `a/b` is never exercised"), "68abc1ec48");
+    // Arrange
+    const verdict = parseVerdictFile(demo());
+
+    // Act
+    const rows = learnRowsOf(verdict, "demo", "DEMO-VERIFY-F2.md");
+
+    // Assert
+    deepStrictEqual(rows.map((r) => [r.id, r.batch, r.axis, r.gap, r.source]), DEMO_ROWS);
     strictEqual(rows[0].line, 7);
   });
 
+  it("computes the id of a row from its batch, axis and gap", () => {
+    // Arrange
+    const gap = "The refusal of `a/b` is never exercised";
+
+    // Act
+    const id = rowId("demo/F2", "Test", gap);
+
+    // Assert
+    strictEqual(id, "68abc1ec48");
+  });
+
   it("leaves out the row of an audit the budget stopped", () => {
-    const text = "# DEMO-VERIFY-F3 — 2026-10-22 14:05 — fast\n\n## Verdict — GAPS\n\n" +
-      "| Severity | Axis | Gap | Evidence | Expected fix |\n|---|---|---|---|---|\n" +
-      `| Blocking | Correctness | ${AUDIT_UNFINISHED_GAP} | tokens: x — capture-F3/auditor-replies.txt | audit again |\n`;
-    deepStrictEqual(learnRowsOf(parseVerdictFile(text), "demo", "DEMO-VERIFY-F3.md"), []);
+    // Arrange
+    const verdict = parseVerdictFile(STOPPED_AUDIT);
+
+    // Act
+    const rows = learnRowsOf(verdict, "demo", "DEMO-VERIFY-F3.md");
+
+    // Assert
+    deepStrictEqual(rows, []);
   });
 
   it("uses the folder name for the batch, not the file prefix", () => {
-    strictEqual(learnRowsOf(parseVerdictFile(demo), "other", "DEMO-VERIFY-F2.md")[0].batch, "other/F2");
+    // Arrange
+    const verdict = parseVerdictFile(demo());
+
+    // Act
+    const rows = learnRowsOf(verdict, "other", "DEMO-VERIFY-F2.md");
+
+    // Assert
+    strictEqual(rows[0].batch, "other/F2");
   });
 });
 
 describe("learnRowsOf", () => {
-  const text = "## Verdict — VALID\n| Major | Test | v | e | f |\n## Verdict — GAPS\n| Minor | Test | m | e | f |\n| Blocking | Scope | b | e | f |\n";
-
   it("keeps GAPS sections and Blocking/Major rows only", () => {
-    deepStrictEqual(learnRowsOf(parseVerdictFile(text), "c", "C-VERIFY-F1.md").map((r) => r.gap), ["b"]);
+    // Arrange
+    const verdict = parseVerdictFile(VALID_THEN_GAPS);
+
+    // Act
+    const rows = learnRowsOf(verdict, "c", "C-VERIFY-F1.md");
+
+    // Assert
+    deepStrictEqual(rows.map((r) => r.gap), ["b"]);
   });
 
   it("gives no row for a name LEARN_FILE refuses", () => {
-    deepStrictEqual(learnRowsOf(parseVerdictFile(text), "c", "C-VERIFY-F1b.md"), []);
-    strictEqual(LEARN_FILE.test("é-VERIFY-F1.md"), false);
-    strictEqual(LEARN_FILE.test("Aé_.-x-VERIFY-F12.md"), true);
+    // Arrange
+    const verdict = parseVerdictFile(VALID_THEN_GAPS);
+
+    // Act
+    const rows = learnRowsOf(verdict, "c", "C-VERIFY-F1b.md");
+
+    // Assert
+    deepStrictEqual(rows, []);
   });
+
+  for (const c of LEARN_FILE_NAMES) {
+    it(`LEARN_FILE ${c.name}`, () => {
+      // Arrange
+      const { file } = c;
+
+      // Act
+      const matches = LEARN_FILE.test(file);
+
+      // Assert
+      strictEqual(matches, c.matches);
+    });
+  }
 });
 
 describe("collectLearnRows", () => {
-  const one = "## Verdict — GAPS\n| Major | Reuse | same | e | f |\n| Major | Reuse | same | e2 | f2 |\n";
-
   it("sorts whole paths and keeps the first row of an id", () => {
-    const rows = collectLearnRows([
-      { code: "a", name: "A-VERIFY-F1.md", text: one },
-      { code: "a-b", name: "AB-VERIFY-F1.md", text: one },
-    ]);
+    // Arrange
+    const sources = TWO_FOLDERS;
+
+    // Act
+    const rows = collectLearnRows(sources);
+
+    // Assert
     deepStrictEqual(rows.map((r) => [r.batch, r.evidence]), [["a-b/F1", "e"], ["a/F1", "e"]]);
   });
 });
 
 describe("untreated and backlogByAxis", () => {
-  const rows = [
-    row("1", "x/F1", "Plan"), row("2", "x/F1", "Test", "Blocking"), row("3", "x/F2", "Test"),
-    row("4", "y/F1", "Scope"), row("5", "y/F2", "Scope"), row("6", "x/F2", "Plan"), row("7", "z/F1", "Test"),
-  ];
-
   it("drops treated ids", () => {
-    deepStrictEqual(untreated(rows, new Set(["2", "5"])).map((r) => r.id), ["1", "3", "4", "6", "7"]);
+    // Arrange
+    const treated = new Set(["2", "5"]);
+
+    // Act
+    const rows = untreated(BACKLOG_ROWS, treated);
+
+    // Assert
+    deepStrictEqual(rows.map((r) => r.id), ["1", "3", "4", "6", "7"]);
   });
 
   it("orders axes by distinct batches, ties in first-seen order", () => {
+    // Arrange
+    const rows = BACKLOG_ROWS;
+
+    // Act
     const b = backlogByAxis(rows);
+
+    // Assert
     deepStrictEqual(b.map((a) => [a.axis, a.batches, a.rows.map((r) => r.id), a.blocking]), [
       ["Test", ["x/F1", "x/F2", "z/F1"], ["2", "3", "7"], 1],
       ["Plan", ["x/F1", "x/F2"], ["1", "6"], 0],
@@ -110,14 +179,27 @@ describe("untreated and backlogByAxis", () => {
 });
 
 describe("shortCell and axisListing", () => {
-  it("collapses whitespace runs and cuts at n with three dots", () => {
-    strictEqual(shortCell("  a \t b\n c  "), "a b c");
-    strictEqual(shortCell("x".repeat(200)), "x".repeat(200));
-    strictEqual(shortCell("x".repeat(201)), "x".repeat(197) + "...");
-    strictEqual(shortCell("abcdef", 5), "ab...");
-  });
+  for (const c of SHORT_CELLS) {
+    it(`collapses whitespace runs and cuts at n with three dots: ${c.name}`, () => {
+      // Arrange
+      const { text, n } = c;
+
+      // Act
+      const cell = n === undefined ? shortCell(text) : shortCell(text, n);
+
+      // Assert
+      strictEqual(cell, c.expected);
+    });
+  }
 
   it("prints two lines per row", () => {
-    deepStrictEqual(axisListing([row("1", "x/F1", "Test", "Blocking")]), ["- [Blocking] gap 1", "  fix: f · x/F1 · e"]);
+    // Arrange
+    const rows = [row("1", "x/F1", "Test", "Blocking")];
+
+    // Act
+    const listing = axisListing(rows);
+
+    // Assert
+    deepStrictEqual(listing, ["- [Blocking] gap 1", "  fix: f · x/F1 · e"]);
   });
 });
