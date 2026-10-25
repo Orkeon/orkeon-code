@@ -1,104 +1,119 @@
 // Search routing by file type (tree vs rag). Run:
 //   node --test src/shared/domain/search-routing.test.ts
 import { describe, it } from "node:test";
-import { strictEqual, ok } from "node:assert";
+import { deepStrictEqual, strictEqual } from "node:assert";
 
 import {
   TREE_CODE_EXTENSIONS, RAG_DOCUMENT_EXTENSIONS, WORKSPACE_DOCS_COLLECTION,
   extensionOf, routeForPath, hasRagLoader, describeSearchRouting,
 } from "./search-routing.ts";
+import {
+  ADAPTER_EXTENSIONS, EXTENSION_CASES, LOADER_CASES, ROUTE_GROUPS, UPPER_CASE_ROUTES,
+} from "./search-routing.fixtures.ts";
+import { assertHoldsEvery, assertMentions } from "./search-routing.assertions.ts";
 
 describe("the extension partition", () => {
   it("mirrors the thirteen Tree-sitter adapters exactly", () => {
-    // Read from src/analysis/Orkeon.Analysis/Adapters/*.cs — a new adapter
-    // framework-side must be mirrored here (the probe's partition step trips live).
-    const adapters = [
-      ".ts", ".tsx", ".cs", ".py", ".go", ".rs", ".js", ".jsx", ".mjs", ".cjs", ".java", ".c",
-      ".cpp", ".cc", ".cxx", ".hpp", ".hh", ".hxx", ".h", ".php", ".rb", ".sh", ".bash",
-    ];
-    strictEqual(TREE_CODE_EXTENSIONS.length, 23);
-    for (const ext of adapters) {
-      ok(TREE_CODE_EXTENSIONS.includes(ext), ext);
-    }
+    // Arrange
+    const adapters = ADAPTER_EXTENSIONS;
+
+    // Act
+    const extensions = TREE_CODE_EXTENSIONS;
+
+    // Assert
+    strictEqual(extensions.length, 23);
+    assertHoldsEvery(extensions, adapters);
   });
 
   it("keeps the two sides disjoint", () => {
     // An extension in both lists would make the routing rule ambiguous — the whole
     // point is that each file has ONE right tool.
-    for (const ext of TREE_CODE_EXTENSIONS) {
-      ok(!RAG_DOCUMENT_EXTENSIONS.includes(ext), `${ext} is in both lists`);
-    }
+    // Arrange
+    const rag = RAG_DOCUMENT_EXTENSIONS;
+
+    // Act
+    const inBoth = TREE_CODE_EXTENSIONS.filter((ext) => rag.includes(ext));
+
+    // Assert
+    deepStrictEqual(inBoth, [], `${inBoth.join(", ")} in both lists`);
   });
 });
 
 describe("routeForPath", () => {
-  it("routes code extensions to the tree", () => {
-    for (const p of ["/workspace/src/a.ts", "/workspace/App.tsx", "b.cs", "x/y.py", "m.go", "lib.rs"]) {
-      strictEqual(routeForPath(p), "tree", p);
-    }
-  });
+  for (const group of ROUTE_GROUPS) {
+    for (const p of group.paths) {
+      it(`${group.name}: ${p}`, () => {
+        // Arrange
+        const path = p;
 
-  it("routes documents and configs to the rag", () => {
-    for (const p of ["/workspace/README.md", "notes.txt", "data.csv", "report.pdf", "page.html"]) {
-      strictEqual(routeForPath(p), "rag", p);
-    }
-  });
+        // Act
+        const route = routeForPath(path);
 
-  it("routes the languages of Orkeon #195 to the tree, and its parse-only grammars to the rag", () => {
-    for (const p of ["/workspace/src/app.js", "Main.java", "include/x.h", "index.php", "lib/a.rb", "build.sh"]) {
-      strictEqual(routeForPath(p), "tree", p);
+        // Assert
+        strictEqual(route, group.route, p);
+      });
     }
-    // CSS, HTML and JSON parse for the structural tools but enter no index.
-    for (const p of ["README.md", "page.html", "package.json", "site.css"]) {
-      strictEqual(routeForPath(p), "rag", p);
-    }
-  });
+  }
 
-  it("routes UNKNOWN extensions to the rag — the tree cannot hold them", () => {
-    // The tree's discovery filters by adapter extension: a .yaml/.toml/.xyz never
-    // enters its store, so sending the query there manufactures a guaranteed-empty
-    // answer that reads as "not found". The RAG's text loader at least has a chance.
-    for (const p of ["config.yaml", "pyproject.toml", "Makefile", "weird.xyz", "no-extension"]) {
-      strictEqual(routeForPath(p), "rag", p);
-    }
-  });
+  for (const c of UPPER_CASE_ROUTES) {
+    it(`is case-insensitive on the extension: ${c.path}`, () => {
+      // Arrange
+      const { path } = c;
 
-  it("is case-insensitive on the extension", () => {
-    strictEqual(routeForPath("A.TS"), "tree");
-    strictEqual(routeForPath("B.MD"), "rag");
-  });
+      // Act
+      const route = routeForPath(path);
+
+      // Assert
+      strictEqual(route, c.route);
+    });
+  }
 });
 
 describe("extensionOf", () => {
-  it("takes the last dot of the basename only", () => {
-    strictEqual(extensionOf("/a/b.c/file.spec.ts"), ".ts");
-    strictEqual(extensionOf("/a.b/README"), "");
-  });
+  for (const c of EXTENSION_CASES) {
+    it(`${c.name}: ${c.path}`, () => {
+      // Arrange
+      const { path } = c;
 
-  it("a leading dot is a hidden file, not an extension", () => {
-    strictEqual(extensionOf("/workspace/.gitignore"), "");
-    strictEqual(extensionOf(".env"), "");
-  });
+      // Act
+      const extension = extensionOf(path);
+
+      // Assert
+      strictEqual(extension, c.extension);
+    });
+  }
 });
 
 describe("hasRagLoader", () => {
-  it("true for declared loader extensions, false for the rest", () => {
-    ok(hasRagLoader("doc.md"));
-    ok(hasRagLoader("table.csv"));
-    ok(!hasRagLoader("conf.yaml")); // no declared loader — ingestion may still refuse
-  });
+  for (const c of LOADER_CASES) {
+    it(`true for declared loader extensions, false for the rest: ${c.path}`, () => {
+      // Arrange
+      const { path } = c;
+
+      // Act
+      const has = hasRagLoader(path);
+
+      // Assert
+      strictEqual(has, c.has);
+    });
+  }
 });
 
 describe("describeSearchRouting — the playbook renders THIS", () => {
   it("names both tools, the collection, and the self-healing ingest path", () => {
+    // Arrange
+    const parts = [
+      "codebase_search", "rag_search", WORKSPACE_DOCS_COLLECTION, "rag_ingest",
+      // The one instruction that stops the wrong-tool retry loop:
+      "do not retry there",
+      // The ingest example names the files to ingest, not only Markdown.
+      "globs of those files",
+    ];
+
+    // Act
     const text = describeSearchRouting();
-    ok(text.includes("codebase_search"));
-    ok(text.includes("rag_search"));
-    ok(text.includes(WORKSPACE_DOCS_COLLECTION));
-    ok(text.includes("rag_ingest"));
-    // The one instruction that stops the wrong-tool retry loop:
-    ok(text.includes("do not retry there"));
-    // The ingest example names the files to ingest, not only Markdown.
-    ok(text.includes("globs of those files"));
+
+    // Assert
+    assertMentions(text, parts);
   });
 });

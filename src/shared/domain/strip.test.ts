@@ -10,72 +10,102 @@ import {
   stripLeakedScratch,
   cleanLlmMarkdown,
 } from "./strip.ts";
+import {
+  FENCE_IN_FENCE, FULL_CHAIN_RAW, STRIP_LEAKED_SCRATCH_CASES, STRIP_PREAMBLE_CASES, STRIP_THINKING_CASES,
+  UNWRAP_FENCES_CASES,
+} from "./strip.fixtures.ts";
 
 describe("unwrapFences", () => {
-  it("strips a wrapping ```markdown fence", () => {
-    strictEqual(unwrapFences("```markdown\n# Title\nbody\n```"), "# Title\nbody");
-  });
-  it("strips a bare ``` fence", () => {
-    strictEqual(unwrapFences("```\nfeat: x\n```"), "feat: x");
-  });
-  it("is a no-op on unfenced text", () => {
-    strictEqual(unwrapFences("feat(scope): subject"), "feat(scope): subject");
-  });
+  for (const c of UNWRAP_FENCES_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { raw } = c;
+
+      // Act
+      const cleaned = unwrapFences(raw);
+
+      // Assert
+      strictEqual(cleaned, c.cleaned);
+    });
+  }
+
   it("preserves inner fenced blocks (only outermost wrap removed)", () => {
-    const inp = "```md\n# Doc\n```js\ncode\n```\n```";
-    ok(unwrapFences(inp).includes("```js"));
+    // Arrange
+    const inp = FENCE_IN_FENCE;
+
+    // Act
+    const cleaned = unwrapFences(inp);
+
+    // Assert
+    ok(cleaned.includes("```js"), cleaned);
   });
 });
 
 describe("stripThinking", () => {
-  it("removes a <thinking> region", () => {
-    strictEqual(stripThinking("<thinking>scratch</thinking># Real"), "# Real");
-  });
-  it("is case-insensitive and greedy to the last closer", () => {
-    strictEqual(stripThinking("<Thinking>a</Thinking>X<thinking>b</thinking>Y"), "Y");
-  });
-  it("no closer → drops from opener to end", () => {
-    strictEqual(stripThinking("keep<thinking>rest"), "keep");
-  });
-  it("no opener → no-op", () => {
-    strictEqual(stripThinking("# Title"), "# Title");
-  });
+  for (const c of STRIP_THINKING_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { raw } = c;
+
+      // Act
+      const cleaned = stripThinking(raw);
+
+      // Assert
+      strictEqual(cleaned, c.cleaned);
+    });
+  }
 });
 
 describe("stripPreamble", () => {
-  it("drops prose before the first heading", () => {
-    strictEqual(stripPreamble("Here you go:\n# Title\nbody"), "# Title\nbody");
-  });
-  it("is a no-op when already starting with #", () => {
-    strictEqual(stripPreamble("# Title"), "# Title");
-  });
-  it("recovers a heading glued to scratch", () => {
-    strictEqual(stripPreamble("Let me write it.# Title"), "# Title");
-  });
+  for (const c of STRIP_PREAMBLE_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { raw } = c;
+
+      // Act
+      const cleaned = stripPreamble(raw);
+
+      // Assert
+      strictEqual(cleaned, c.cleaned);
+    });
+  }
 });
 
 describe("stripLeakedScratch", () => {
-  it("salvages a draft-then-real duplicate H1 with scratch between", () => {
-    const leak = "# Doc\nskeleton\nNow let me write the full version.\n# Doc\nreal body";
-    strictEqual(stripLeakedScratch(leak), "# Doc\nreal body");
-  });
-  it("is idempotent on a clean single-H1 document", () => {
-    const clean = "# Doc\nbody only";
-    strictEqual(stripLeakedScratch(clean), clean);
-  });
-  it("does not fire without a scratch signal", () => {
-    const twin = "# Doc\na\n# Doc\nb";
-    strictEqual(stripLeakedScratch(twin), twin);
-  });
+  for (const c of STRIP_LEAKED_SCRATCH_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { raw } = c;
+
+      // Act
+      const cleaned = stripLeakedScratch(raw);
+
+      // Assert
+      strictEqual(cleaned, c.cleaned);
+    });
+  }
 });
 
 describe("cleanLlmMarkdown (full chain)", () => {
   it("composes thinking + preamble + fence stripping", () => {
-    const raw = "<thinking>plan</thinking>Sure!\n```markdown\n# Title\nbody\n```";
-    strictEqual(cleanLlmMarkdown(raw), "# Title\nbody");
+    // Arrange
+    const raw = FULL_CHAIN_RAW;
+
+    // Act
+    const cleaned = cleanLlmMarkdown(raw);
+
+    // Assert
+    strictEqual(cleaned, "# Title\nbody");
   });
+
   it("is idempotent", () => {
+    // Arrange
     const once = cleanLlmMarkdown("Preamble\n# T\nx");
-    strictEqual(cleanLlmMarkdown(once), once);
+
+    // Act
+    const twice = cleanLlmMarkdown(once);
+
+    // Assert
+    strictEqual(twice, once);
   });
 });
