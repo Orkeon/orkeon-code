@@ -176,9 +176,10 @@ export function buildReviewAnswerPrompt(reply: string, problems: readonly string
     ? `[earlier text cut]\n${reply.slice(-MAX_REVIEW_REPLY_CHARS)}`
     : reply;
   const lines = [
-    "Turn the review below into the JSON answer. Take the verdict and the rows from the review as written; invent no",
-    "row it does not hold. A row's severity is Blocking or Major; its question is one closed question ending with ?;",
-    "its evidence is a path:line, a § n or a section heading; its target is what the review names.",
+    "Turn the review below into the JSON answer. Take the rows from the review as written; invent no row it does not",
+    "hold. The verdict follows the rows: GAPS when the review asks one question or more, CLEAR when it asks none,",
+    "whatever word the review opens with. A row's severity is Blocking or Major; its question is one closed question",
+    "ending with ?; its evidence is a path:line, a § n or a section heading; its target is what the review names.",
   ];
   if (problems.length > 0) {
     lines.push("", "The previous answer was refused; fix each of these:", ...problems.map((p) => `- ${p}`));

@@ -56,9 +56,11 @@ describe("checkReviewAnswer", () => {
     deepStrictEqual(problemsOf(answer({ verdict: "VALID" })), ["verdict must be CLEAR or GAPS"]);
   });
 
-  it("CLEAR holds no row, GAPS holds one at least", () => {
-    deepStrictEqual(problemsOf(answer({ verdict: "CLEAR" })), ["CLEAR with rows"]);
-    deepStrictEqual(problemsOf({ verdict: "GAPS", rows: [] }), ["GAPS without a row"]);
+  it("takes the verdict from the rows: GAPS with one, CLEAR with none, whatever word was copied", () => {
+    const withRows = checkReviewAnswer(answer({ verdict: "CLEAR" }), CTX);
+    ok(withRows.ok && withRows.value.verdict === "GAPS" && withRows.value.rows.length > 0);
+    const none = checkReviewAnswer({ verdict: "GAPS", rows: [] }, CTX);
+    deepStrictEqual(none, { ok: true, value: { verdict: "CLEAR", rows: [] } });
   });
 
   it("at most 12 rows", () => {

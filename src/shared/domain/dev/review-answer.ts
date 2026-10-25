@@ -94,16 +94,17 @@ function checkRow(value: unknown, k: number, ctx: ReviewCheckContext, problems: 
 export function checkReviewAnswer(value: unknown, ctx: ReviewCheckContext): Checked<ReviewAnswer> {
   if (!isPlainObject(value)) return { ok: false, problems: ["the answer is not an object"] };
   const problems: string[] = [];
-  const verdict = text(value.verdict);
-  const known = verdict === "CLEAR" || verdict === "GAPS";
-  if (!known) problems.push("verdict must be CLEAR or GAPS");
+  const said = text(value.verdict);
+  if (said !== "CLEAR" && said !== "GAPS") problems.push("verdict must be CLEAR or GAPS");
 
   const rows: ReviewRow[] = [];
+  // The rows are the substance: the verdict follows them. A review that opens with "CLEAR" and then asks two
+  // questions is GAPS, whatever word the extraction copied.
+  let verdict: ReviewAnswer["verdict"] = said === "GAPS" ? "GAPS" : "CLEAR";
   if (!Array.isArray(value.rows)) {
     problems.push("rows must be a list");
   } else {
-    if (verdict === "CLEAR" && value.rows.length > 0) problems.push("CLEAR with rows");
-    if (verdict === "GAPS" && value.rows.length === 0) problems.push("GAPS without a row");
+    verdict = value.rows.length > 0 ? "GAPS" : "CLEAR";
     if (value.rows.length > MAX_REVIEW_ROWS) problems.push(`at most ${MAX_REVIEW_ROWS} rows, not ${value.rows.length}`);
     const seen = new Map<string, number>();
     value.rows.forEach((item, i) => {
@@ -120,5 +121,5 @@ export function checkReviewAnswer(value: unknown, ctx: ReviewCheckContext): Chec
   }
 
   if (problems.length > 0) return { ok: false, problems };
-  return { ok: true, value: { verdict: verdict as ReviewAnswer["verdict"], rows } };
+  return { ok: true, value: { verdict, rows } };
 }
