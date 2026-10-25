@@ -106,6 +106,16 @@ describe("parseBatchSheet inline", () => {
     strictEqual(s.steps[0].tdd, null);
   });
 
+  it("reads the Assumptions rows, table or older list lines, and none from an empty table", () => {
+    const s = parseBatchSheet("## Assumptions\n| # | Assumption | To be validated by |\n|---|---|---|\n| H1 | mean is exported | its red test |\n"
+      + "- H2 — a named export — to be validated by the user\n\n## Decisions\n| H9 | not one | x |\n");
+    deepStrictEqual(s.assumptions, [
+      { id: "H1", assumption: "mean is exported", by: "its red test" },
+      { id: "H2", assumption: "a named export", by: "the user" },
+    ]);
+    strictEqual(parseBatchSheet("## Assumptions\n| # | Assumption | To be validated by |\n|---|---|---|\n").assumptions, undefined);
+  });
+
   it("reads a list of dependencies, only in the Intent section", () => {
     const s = parseBatchSheet("## Intent\nx. **Depends on**: F1, F3\n\n## Design\n**Depends on**: F9\n");
     deepStrictEqual(s.dependsOn, ["F1", "F3"]);

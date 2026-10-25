@@ -115,12 +115,14 @@ export async function closeDevBatch(
     notes.push(`✓ branch ${made.branch} created from ${branch} (contrib.branch ${wanted})`);
   }
 
-  const sheetName = parseBatchSheet(sheetText).name ?? located.name;
+  const parsed = parseBatchSheet(sheetText);
+  const sheetName = parsed.name ?? located.name;
   const message = `feat(${located.code}): ${sheetName} (batch ${batch})`;
   const summary: PrSummary = {
     batch: `${located.prefix} ${batch} — ${sheetName}, from \`${located.dir}/${located.name}\`.`,
     layers: layersOf(input.pack, input.touched),
     validations: verdict.validations,
+    assumptions: parsed.assumptions ?? [],
     audit: `VALID${verdict.when ? ` (${verdict.when})` : ""}, \`${located.dir}/${verdictName}\`.`,
     notRun: verdict.notRun.join("; "),
   };

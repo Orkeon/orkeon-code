@@ -15,14 +15,24 @@ describe("assumptionsOf", () => {
 describe("addAssumptions", () => {
   it("creates the section before ## Decisions, then numbers on", () => {
     const first = addAssumptions("# X\n\n## Decisions\n- D1\n", ["dates are UTC"]);
-    strictEqual(first.text, "# X\n\n## Assumptions\n- H1 — dates are UTC — to be validated by the user\n\n## Decisions\n- D1\n");
+    strictEqual(first.text, "# X\n\n## Assumptions\n| # | Assumption | To be validated by |\n|---|------------|--------------------|\n| H1 | dates are UTC | the user |\n\n## Decisions\n- D1\n");
     const second = addAssumptions(first.text, ["dates are UTC", "ids are stable"]);
     deepStrictEqual(second.added, ["ids are stable"]);
-    strictEqual(second.text.includes("- H1 — dates are UTC — to be validated by the user\n- H2 — ids are stable — to be validated by the user\n\n## Decisions"), true);
+    strictEqual(second.text.includes("| H1 | dates are UTC | the user |\n| H2 | ids are stable | the user |\n\n## Decisions"), true);
   });
   it("appends the section at the end without ## Decisions, and changes nothing without an assumption", () => {
-    strictEqual(addAssumptions("# X\n", ["a"]).text, "# X\n\n## Assumptions\n- H1 — a — to be validated by the user\n");
+    strictEqual(addAssumptions("# X\n", ["a"]).text, "# X\n\n## Assumptions\n| # | Assumption | To be validated by |\n|---|------------|--------------------|\n| H1 | a | the user |\n");
     strictEqual(addAssumptions("# X\n", []).text, "# X\n");
+  });
+  it("fills the table /dev-plan rendered, numbered after its rows", () => {
+    const sheet = "## Assumptions\n| # | Assumption | To be validated by |\n|---|------------|--------------------|\n| H1 | mean is exported | its red test |\n\n## Decisions\n";
+    strictEqual(addAssumptions(sheet, ["a named export"]).text,
+      "## Assumptions\n| # | Assumption | To be validated by |\n|---|------------|--------------------|\n| H1 | mean is exported | its red test |\n| H2 | a named export | the user |\n\n## Decisions\n");
+    strictEqual(addAssumptions("## Assumptions\n| # | Assumption | To be validated by |\n|---|------------|--------------------|\n", ["a"]).text, "## Assumptions\n| # | Assumption | To be validated by |\n|---|------------|--------------------|\n| H1 | a | the user |\n");
+  });
+  it("counts the list lines of an older sheet and puts the table after them", () => {
+    const sheet = "## Assumptions\n- H1 — a — to be validated by the user\n";
+    strictEqual(addAssumptions(sheet, ["a", "b"]).text, "## Assumptions\n- H1 — a — to be validated by the user\n\n| # | Assumption | To be validated by |\n|---|------------|--------------------|\n| H2 | b | the user |\n");
   });
 });
 

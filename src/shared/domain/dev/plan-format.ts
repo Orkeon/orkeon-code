@@ -12,9 +12,12 @@ export interface GlobalPlan {
 }
 export interface TddTicks { red: boolean; green: boolean; cost: boolean; line: number }
 export interface SheetStep { number: number; title: string; tdd: TddTicks | null; doneLine?: string; line: number }
+export interface SheetAssumption { id: string; assumption: string; by: string }
 export interface BatchSheet {
   prefix?: string; batch?: string; name?: string; doneDate?: string;
   dependsOn: string[]; steps: SheetStep[]; problems: FormatProblem[];
+  /** The rows of `## Assumptions`, present when it holds one. */
+  assumptions?: SheetAssumption[];
 }
 export interface SheetProgress { behaviourSteps: number; red: number; green: number; cost: number; complete: number }
 
@@ -28,6 +31,9 @@ const DEPENDS_ON = /\*\*Depends on\*\*: (.+)$/;
 const STEP_HEADING = /^### Step (\d+) — (.+)$/;
 const TDD_LINE = /^TDD: RED \[( |x|X)\] GREEN \[( |x|X)\] COST \[( |x|X)\]$/;
 const DONE_LINE = /^Done \((\d{4}-\d{2}-\d{2})\) — /;
+// A row of `## Assumptions`: the table's `| H<n> | <text> | <by> |`, or the list line written before it.
+const ASSUMPTION_ROW = /^\|\s*(H\d+)\s*\|(.*)\|(.*)\|\s*$/;
+const ASSUMPTION_BULLET = /^- (H\d+) — (.*) — to be validated by (.+)$/;
 
 export interface Line { text: string; line: number }
 
@@ -119,11 +125,12 @@ export function parseGlobalPlan(text: string): GlobalPlan {
 export function parseBatchSheet(text: string): BatchSheet {
   const sheet: BatchSheet = { dependsOn: [], steps: [], problems: [] };
   let inIntent = false;
+  let inAssumptions = false;
   let step: SheetStep | null = null;
   for (const { text: t, line } of unfencedLines(text)) {
     if (t.startsWith("#")) {
       step = null;
-      if (t.startsWith("## ")) inIntent = t === "## Intent";
+      if (t.startsWith("## ")) { inIntent = t === "## Intent"; inAssumptions = t === "## Assumptions"; }
       const title = SHEET_TITLE.exec(t);
       if (title && sheet.prefix === undefined) {
         sheet.prefix = title[1];
@@ -134,6 +141,11 @@ export function parseBatchSheet(text: string): BatchSheet {
       }
       const s = STEP_HEADING.exec(t);
       if (s) { step = { number: Number(s[1]), title: s[2], tdd: null, line }; sheet.steps.push(step); }
+      continue;
+    }
+    if (inAssumptions) {
+      const a = ASSUMPTION_ROW.exec(t) ?? ASSUMPTION_BULLET.exec(t);
+      if (a) (sheet.assumptions ??= []).push({ id: a[1], assumption: a[2].trim(), by: a[3].trim() });
       continue;
     }
     if (inIntent) {

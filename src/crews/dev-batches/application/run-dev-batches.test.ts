@@ -174,6 +174,8 @@ describe("runDevBatches — back from a batch", () => {
     strictEqual(third.next?.input.batch, "F3");
     ok(third.lines.includes("✓ F2 done and committed"));
     markDone(files, "F3");
+    const f3 = `${DIR}/DEMO-PLAN-F3.md`;
+    files.files.set(f3, `${files.files.get(f3)!}\n## Assumptions\n| # | Assumption | To be validated by |\n|---|---|---|\n| H1 | ids are stable | the user |\n`);
     const last = parse(await runDevBatches({ after: ["→ F3 committed"] }, deps));
     strictEqual(last.next, undefined);
     deepStrictEqual(events(files), ["F1 launched", "F1 returned", "F1 merged", "F2 launched", "F2 returned", "F2 merged",
@@ -182,7 +184,8 @@ describe("runDevBatches — back from a batch", () => {
       ["1111111", "2222222", "abc1234"]);
     strictEqual(shell.commands.filter((c) => c === gitPushCommand("feat/demo")).length, 1);
     ok(last.lines.includes("✓ pushed feat/demo to origin"), last.lines.join("\n"));
-    ok(files.writes.some((w) => w.path.endsWith("/PR.md")), "the pull request's body is written");
+    const body = files.writes.find((w) => w.path.endsWith("/PR.md"))?.content ?? "";
+    ok(body.includes("## Assumptions to validate\n\n| Id | Assumption | To be validated by |\n|----|------------|--------------------|\n| F3 H1 | ids are stable | the user |\n"), body);
     deepStrictEqual(JSON.parse(files.files.get(ACTIVE_RECORD)!), { code: null });
     // Closed: a run again says so and pushes nothing more.
     const closed = parse(await runDevBatches({ code: "demo" }, deps));

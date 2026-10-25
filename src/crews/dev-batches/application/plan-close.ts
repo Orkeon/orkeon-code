@@ -1,11 +1,11 @@
 // The close of a /dev-batches run, once every batch of the plan is done: one push of the work branch
 // and one pull request for the whole plan (source-space D79: the batches commit, the run pushes once).
 // The pull request's body lists the files of each batch's commit (`merged <hash>` in the log), grouped by
-// the pack's layout roots, each audit's validations, and is written to `<work>/pr-<slug>/PR.md`; it is
-// opened through the github tool under --pr or dev.prAuto, else its command is handed over. On the
-// default branch nothing is pushed for review, and the close is refused when the pack asks for a work
-// branch (the run's commits are on it). A push that fails leaves the run open: the next /dev-batches
-// tries the close again.
+// the pack's layout roots, each audit's validations and each sheet's assumptions, and is written to
+// `<work>/pr-<slug>/PR.md`; it is opened through the github tool under --pr or dev.prAuto, else its command
+// is handed over. On the default branch nothing is pushed for review, and the close is refused when the pack
+// asks for a work branch (the run's commits are on it). A push that fails leaves the run open: the next
+// /dev-batches tries the close again.
 import type { Files, Shell } from "../../../shared/application/ports.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import type { PullRequestOpener } from "../../../shared/application/git/commit-files.ts";
@@ -91,7 +91,10 @@ export function planSummary(input: PlanCloseInput, files: readonly string[]): Pr
   const validations: string[] = [];
   const audits: string[] = [];
   const notRun: string[] = [];
+  const assumptions: NonNullable<PrSummary["assumptions"]> = [];
   for (const batch of ids) {
+    const sheet = dev.sheets.find((s) => s.batch === batch)?.sheet;
+    assumptions.push(...(sheet?.assumptions ?? []).map((a) => ({ ...a, id: `${batch} ${a.id}` })));
     const verdicts = dev.verdicts.filter((v) => v.batch === batch);
     const verdict = verdicts.length === 0 ? null : lastVerdict(verdicts[verdicts.length - 1].file);
     if (verdict === null) continue;
@@ -104,6 +107,7 @@ export function planSummary(input: PlanCloseInput, files: readonly string[]): Pr
       `from \`${dev.shown}/${plan?.name ?? "?"}\`, one commit each (${input.merged.map((m) => `${m.batch} ${m.hash || "before this run"}`).join(", ")}).`,
     layers: filesPerLayer(input.pack, files),
     validations,
+    assumptions,
     audit: audits.join("; "),
     notRun: notRun.join("; "),
   };

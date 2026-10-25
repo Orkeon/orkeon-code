@@ -460,7 +460,7 @@ describe("runDevImplement — wave 4", () => {
       [(p, tree) => `${writesCode("src/a.ts", "tests/a.test.ts")(p, tree)}\nAssumption: the ids are unique`], ONE_STEP);
     const a = parse(await runDevImplement({ batch: "F1", plan: "demo" }, t.deps));
     strictEqual(blockedLine(a), undefined, a.lines.join("\n"));
-    ok((t.files.files.get(SHEET_PATH) ?? "").includes("## Assumptions\n- H1 — the ids are unique — to be validated by the user"));
+    ok((t.files.files.get(SHEET_PATH) ?? "").includes("| H1 | the ids are unique | the user |"));
   });
 
   it("appends a correction as a new step and runs it; the audit then resumes", async () => {
@@ -724,8 +724,11 @@ describe("runDevImplement — the close marks and the branch", () => {
     deepStrictEqual(pushes(batches), []);
     ok(!a.lines.some((l) => l.includes("pushed") || l.includes("gh pr create")), a.lines.join("\n"));
     const typed = closing("feat/demo");
+    typed.files.files.set(SHEET_PATH, `${typed.files.files.get(SHEET_PATH)!}\n## Assumptions\n| H1 | ids are stable | the user |\n`);
     await runDevImplement(implementInputs({ batch: "F1", plan: "demo", close: true }), typed.deps);
     deepStrictEqual(pushes(typed), ["git push -u origin 'feat/demo'"], "a typed --close still pushes");
+    const body = typed.files.writes.find((w) => w.path.endsWith("/PR.md"))?.content ?? "";
+    ok(body.includes("| H1 | ids are stable | the user |"), "the sheet's assumptions reach the pull request's body");
     strictEqual(implementInputs({ push: "false" }).push, false);
   });
 
