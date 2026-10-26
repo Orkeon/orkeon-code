@@ -1,4 +1,5 @@
 // The pack, sheet, gate run, fakes and cost index writeCapture is tested on.
+import { FakeCostIndex } from "../../../../tests/support/doubles/fake-cost-index.ts";
 import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
 import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 import { parseRepoPack } from "../../../shared/domain/dev/repo-pack.ts";
@@ -98,15 +99,10 @@ export function saveInALoop(member: string, line: number): Member {
 }
 
 /** A cost index whose report holds `members`, `loops` loops in all. */
-export function costIndexOf(members: Member[], loops: number): CostIndex {
-  return {
-    roots: async () => [WORKSPACE],
-    refresh: async () => [],
-    accessCost: async () => ({
-      report: { members, cost: { reads: 0, writes: 0, loops, lambdas: 0, memoryFilters: 0 } },
-      errors: [],
-    }),
-  };
+export function costIndexOf(members: Member[], loops: number): FakeCostIndex {
+  const index = new FakeCostIndex();
+  index.report = { members, cost: { reads: 0, writes: 0, loops, lambdas: 0, memoryFilters: 0 } };
+  return index;
 }
 
 /** A diff of Order.cs that adds one line, line 4. */

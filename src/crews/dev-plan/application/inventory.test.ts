@@ -249,7 +249,7 @@ describe("buildInventory — caps and the round robin", () => {
   it("warns when the module graph fails, imports left empty", async () => {
     // Arrange
     const index = indexWith({ Prune: [hit(`${WORKSPACE}/src/a.ts::a`)] });
-    index.dependencyGraph = async () => { throw new Error("graph too large"); };
+    index.graphFailure = new Error("graph too large");
 
     // Act
     const r = await buildInventory(index, anchors(), request([["BR-01", "Prune"]]), new FakeLogger());

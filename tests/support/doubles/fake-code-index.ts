@@ -4,7 +4,8 @@
 // `hits` per exact query (an unknown query finds nothing), `sources` per fqn (an
 // unknown fqn throws, as the index does) and `impacts` per fqn (an unknown fqn has
 // no caller).
-// A `failure` makes every call throw it. Every call lands in `calls` as
+// A `failure` makes every call throw it, `searchErrors[<query>]` that search alone
+// and `graphFailure` dependencyGraph alone. Every call lands in `calls` as
 // "<method> <arguments>".
 import type {
   CodeIndex, CodeMap, CodeSearchHit, SymbolLocation,
@@ -23,6 +24,8 @@ export class FakeCodeIndex implements CodeIndex {
   sources: Record<string, SymbolLocation> = {};
   impacts: Record<string, ImpactSummary> = {};
   failure: Error | null = null;
+  searchErrors: Record<string, Error> = {};
+  graphFailure: Error | null = null;
   calls: string[] = [];
 
   record(call: string): void {
@@ -47,6 +50,7 @@ export class FakeCodeIndex implements CodeIndex {
 
   async dependencyGraph(scope: string, maxNodes: number): Promise<GraphSummary> {
     this.record(`dependencyGraph ${scope} ${maxNodes}`);
+    if (this.graphFailure) throw this.graphFailure;
     return this.graph;
   }
 
@@ -57,6 +61,8 @@ export class FakeCodeIndex implements CodeIndex {
 
   async search(query: string, topK: number): Promise<CodeSearchHit[]> {
     this.record(`search ${query} ${topK}`);
+    const error = this.searchErrors[query];
+    if (error) throw error;
     return this.hits[query] ?? [];
   }
 

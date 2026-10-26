@@ -54,7 +54,7 @@ describe("findRepoPack", () => {
   it("treats a listing that throws as no harness pack", async () => {
     // Arrange
     const files = new FakeFiles();
-    files.list = async () => { throw new Error("outside the mounts"); };
+    files.listFailure = new Error("outside the mounts");
 
     // Act
     const r = await findRepoPack(files);

@@ -36,8 +36,9 @@ global, that breaks the rule:
 - **domain**: pure types and deterministic functions. No IO, no runtime global. Imports domain only. Every module
   has its `*.test.ts` next to it.
 - **application**: the use cases of a crew (`application/run-<crew>.ts`) and the shared services. Imports domain and
-  the ports of `src/shared/application/ports.ts`, never infrastructure, never `commands/` nor an entry point: what it
-  needs from the runtime, it receives as parameters typed by a port.
+  application only, the ports of `src/shared/application/ports.ts` included: what it needs from the runtime, it
+  receives as parameters typed by a port. Only `shared/infrastructure/` reads the clock; the rest takes the `Clock`
+  port.
 - **infrastructure**: `src/shared/infrastructure/globals.ts` is the only module that reads the runtime globals
   (`tools`, `agentBuilder`, `crewBuilder`, `inputs`); the adapters of `orkeon/` implement the ports over them, and
   `orkeon/wiring.ts` binds them.
@@ -67,7 +68,9 @@ Runtime rules, enforced by the bundle check:
 - Test doubles live in `tests/support/doubles/`, one file per port: a class `Fake<Port>` (or `Stub<Port>`) that implements
   the port and exposes plain fields to configure it and to read what it received (`FakeFiles.files`,
   `FakeLlm.completes`). `FakeTools`, `FakeLlmFacade`, `FakeAgentContext` and `FakeScriptHost` stand in for the
-  runtime objects, to test the adapters. Runtime code never imports `tests/`.
+  runtime objects, to test the adapters. Runtime code never imports `tests/`. No double is derived beside a test (a
+  subclass of a fake, an object literal typed as a port, a method of a fake replaced): a case a fake cannot play is a
+  new field of that fake.
 - Every module of `src/` is tested next to it, over the fakes: the domain modules, the use cases of a crew, the
   shared services and the command use cases of `commands/_lib/`. `tests/` holds the tests of the repository as a
   whole, by subject: `repository/` (the dependency rule, the test shape, the command surface, the prompt contract,
@@ -75,8 +78,9 @@ Runtime rules, enforced by the bundle check:
   points are covered by the bundle check and the runtime smoke.
 - A module may have several test files: beside `<module>.test.ts`, a facet of it gets `<module>.<facet>.test.ts`
   (`plan-render.interop.test.ts`), with its own `<module>.<facet>.fixtures.ts` and `.assertions.ts`. The module's
-  name stops at the first dot.
-- No test depends on a clock, a network or an LLM.
+  name stops at the first dot, and every test of `src/` has its `<module>.ts` beside it.
+- No test depends on a clock, a network or an LLM: test code reads no clock and starts no timer (`FakeClock`), but in
+  `tests/scripts/`, which drives real processes.
 - Every test is laid out **Arrange, Act, Assert**, the way Orkeon's are: three sections, each opened by its own
   comment line (`// Arrange`, `// Act`, `// Assert`), in that order, once each. One act per test: a second call
   under test is a second test. Cases of one behaviour are a table the test loops over (`for (const c of CASES) it(…)`),
@@ -88,7 +92,7 @@ Runtime rules, enforced by the bundle check:
   - `<module>.assertions.ts` holds its checks made of more than one native assertion, or used by more than one test
     (`assertCutBlock(block)`), built on `node:assert` with a message that says what is wrong.
   A scalar the Arrange reads in one line stays in the test. Runtime code never imports a `*.fixtures.ts` nor a
-  `*.assertions.ts` (the architecture test).
+  `*.assertions.ts`, and only the files of its module import one (the architecture test).
 - What several test files share, in whatever folder they sit, lives under `tests/support/`: `doubles/` (the fakes),
   `fixtures/` (the sample data, like the prompt catalogue and the memory entries), `assertions/` (the shared checks).
 - A test's name says the behaviour and its condition, as a sentence: `cuts a name at 120 characters`.

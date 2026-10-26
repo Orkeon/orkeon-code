@@ -1,6 +1,5 @@
 // The request, the scripted git and the files the close of a dev batch is tested with.
 import type { CloseBatchRequest } from "./close-batch.ts";
-import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
 import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
 
@@ -22,17 +21,6 @@ export function gitShell(): FakeShell {
   shell.results["git rev-parse --short HEAD"] = { stdout: "abc1234\n" };
   shell.results["git symbolic-ref --short refs/remotes/origin/HEAD"] = { stdout: "origin/main\n" };
   return shell;
-}
-
-/** Files where .git is no folder, as in a linked worktree: a write under /workspace/.git/ throws ENOTDIR. */
-export function linkedWorktreeFiles(): FakeFiles {
-  const files = new FakeFiles();
-  const write = files.write.bind(files);
-  files.write = async (path: string, content: string) => {
-    if (path.startsWith(`${WORKSPACE}/.git/`)) throw new Error("ENOTDIR");
-    return write(path, content);
-  };
-  return files;
 }
 
 /** What closing REQ runs, in order: identity, status, no merge in progress, add and commit src/a.ts only, push. */

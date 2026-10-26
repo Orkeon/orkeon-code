@@ -73,9 +73,7 @@ export const ACTIVE_WORKFLOW_CASES: readonly {
 /** A session whose state bag cannot be written. */
 export function failingStateSession(): FakeSessionStore {
   const session = new FakeSessionStore();
-  session.writeState = async () => {
-    throw new Error("no state bag");
-  };
+  session.writeStateFailure = new Error("no state bag");
   return session;
 }
 

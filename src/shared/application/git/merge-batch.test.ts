@@ -29,7 +29,7 @@ describe("mergeFastForward", () => {
 
     // Assert
     deepStrictEqual(out, { merged: true, rebased: true, line: "agent-1 rebased on feat/x and merged (fast-forward)" });
-    deepStrictEqual(shell.commands, [BRANCH, REBASE, MERGE]);
+    deepStrictEqual(shell.commands, [BRANCH, MERGE, REBASE, MERGE]);
   });
 
   it("3. a rebase conflict aborts the rebase and hands the merge over", async () => {

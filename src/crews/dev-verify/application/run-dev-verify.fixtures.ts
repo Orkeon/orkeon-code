@@ -72,11 +72,9 @@ export const answer = (rows: unknown[], validations: string[] = []) => ({ verdic
  * the reports land in the array returned ("unbound" when the slot holds none). */
 export function runValidationOnAct(llm: FakeLlm, slot: ScriptToolSlot<ValidationRunner>, command: string): unknown[] {
   const reports: unknown[] = [];
-  const act = llm.act.bind(llm);
-  llm.act = async (prompt, request) => {
+  llm.onAct = async () => {
     const bound = slot.get();
     reports.push(bound === undefined ? "unbound" : (await bound.run(command)).report);
-    return act(prompt, request);
   };
   return reports;
 }
@@ -118,11 +116,7 @@ export function countingHarvest() {
 
 /** Makes the write of the verdict fail on a read-only mount; every other write lands. */
 export function failVerdictWrite(files: FakeFiles): void {
-  const write = files.write.bind(files);
-  files.write = async (path, content) => {
-    if (path === VERDICT) throw new Error("read-only mount\nmore");
-    await write(path, content);
-  };
+  files.writeErrors.push({ prefix: VERDICT, error: () => new Error("read-only mount\nmore") });
 }
 
 export const EARLIER = "# DEMO-VERIFY-F2 — 2026-10-21 09:40 — fast\n\n## Verdict — GAPS\n\n" +

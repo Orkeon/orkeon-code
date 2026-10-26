@@ -58,8 +58,7 @@ export function onBranch(results: Record<string, Partial<ShellResult>> = {}): Fa
 export function refusingFirstFastForward(): FakeShell {
   const shell = shellWith({ [BRANCH]: { stdout: "feat/demo\n" } });
   let calls = 0;
-  const run = shell.run.bind(shell);
-  shell.run = async (c, o) =>
-    c === MERGE && calls++ === 0 ? { stdout: "", stderr: "fatal: Not possible to fast-forward, aborting.\n", exitCode: 128 } : run(c, o);
+  shell.answer = (c) =>
+    c === MERGE && calls++ === 0 ? { stdout: "", stderr: "fatal: Not possible to fast-forward, aborting.\n", exitCode: 128 } : undefined;
   return shell;
 }

@@ -4,9 +4,11 @@
 // that many characters; every path read lands in `reads`, in order. Writes land in
 // the map and in `writes`, except under a prefix of `writeErrors`, which throws the
 // error made for that path (a linked worktree's `.git/`, which is no folder);
-// `listings` holds what list() answers per directory, every folder listed landing
-// in `listed`; `mountTable` is what mounts() answers (a `mountsFailure` makes it
-// throw, as a host without list_mounts does).
+// `onWrite`, when set, is told of each write first, where a test traces it beside
+// other calls. `listings` holds what list() answers per directory, every folder
+// listed landing in `listed` (a `listFailure` makes list() throw it); `mountTable`
+// is what mounts() answers (a `mountsFailure` makes it throw, as a host without
+// list_mounts does).
 import type { Files, Mount } from "../../../src/shared/application/ports.ts";
 
 export class FakeFiles implements Files {
@@ -16,6 +18,8 @@ export class FakeFiles implements Files {
   writeErrors: Array<{ prefix: string; error: (path: string) => Error }> = [];
   listings = new Map<string, string[]>();
   listed: string[] = [];
+  listFailure: Error | null = null;
+  onWrite: ((path: string, content: string) => void) | null = null;
   writes: Array<{ path: string; content: string }> = [];
   mountTable: Mount[] = [];
   mountsFailure: Error | null = null;
@@ -30,6 +34,7 @@ export class FakeFiles implements Files {
   }
 
   async write(path: string, content: string): Promise<void> {
+    this.onWrite?.(path, content);
     const refused = this.writeErrors.find((w) => path.startsWith(w.prefix));
     if (refused) throw refused.error(path);
     this.writes.push({ path, content });
@@ -38,6 +43,7 @@ export class FakeFiles implements Files {
 
   async list(path: string, maxEntries: number): Promise<string[]> {
     this.listed.push(path);
+    if (this.listFailure) throw this.listFailure;
     return (this.listings.get(path) ?? []).slice(0, maxEntries);
   }
 

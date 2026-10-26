@@ -2,7 +2,9 @@
 // src/ (static `import … from`, `export … from`, dynamic `import("…")` and type
 // `import("…")`):
 //   - a file under domain/ imports domain files only;
-//   - a file under application/ never imports infrastructure/;
+//   - a file under application/ imports domain and application files only (its
+//     tests may import tests/ besides): an allow-list, so a file in no layer is
+//     refused as infrastructure is;
 //   - a file under domain/ or application/ never imports commands/ nor an entry
 //     point (*.cmd.ts, crew.ork.ts, probe.ork.ts);
 //   - only shared/infrastructure/ and the crew entry points (crew.ork.ts,
@@ -12,6 +14,8 @@
 //   - commands/_lib/ never imports shared/infrastructure/: its use cases take
 //     their ports as parameters, the entry points wire the adapters, so a test
 //     imports them;
+//   - a *.cmd.ts never imports crews/*/domain nor crews/*/application: what it
+//     runs of a crew goes through a use case of commands/_lib/;
 //   - a relative import names its .ts file (the runtime bundler resolves
 //     specifiers as written), and runtime code imports nothing but relative
 //     files (tests may import node: built-ins);
@@ -21,7 +25,14 @@
 //     so a test of any layer, a domain test included, may import it;
 //   - runtime code never imports test code: a *.test.ts, or the *.fixtures.ts
 //     and *.assertions.ts files the tests next to it keep their data and checks in;
-//   - no import cycle between files.
+//   - no import cycle between files;
+//   - a <module>[.<facet>].fixtures.ts or .assertions.ts is imported by the files
+//     of its module only (same folder, the name up to the first dot): what several
+//     modules share goes under tests/support/ (read over src/ and tests/).
+// Every runtime file of src/ sits in a layer folder, or is an entry point, a
+// command use case of commands/_lib/ or a declaration (.d.ts). Every read of the
+// clock (`new Date()` with no argument, `Date()`, `Date.now()`) sits in
+// shared/infrastructure/: the rest of src/ takes the Clock port.
 // The runtime globals are checked the same way, over every identifier that
 // nothing in its file declares, imports or binds (TypeScript's own scoping), every
 // `globalThis.<name>` and every ambient re-declaration (`declare const tools`):
@@ -37,10 +48,11 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 import {
-  ADAPTER_IMPORT_CASES, BOUND_NAMES_SOURCE, GLOBAL_NAMES, GLOBAL_RULE_CASES, GLOBALS_IMPORT_CASES, IMPORT_FORMS_SOURCE,
-  LAYER_CASES, LAYER_IMPORT_CASES, TESTS_IMPORT_CASES, UNBOUND_GLOBALS_SOURCE, UNBOUND_GLOBALS_USES,
-  brokenGlobalRule, brokenRules, collectImports, cyclesOf, edge, graphOf, layerOf, readSources, runtimeGlobalUses,
-  specifiersOf, usesIn,
+  ADAPTER_IMPORT_CASES, APPLICATION_IMPORT_CASES, BOUND_NAMES_SOURCE, CLOCK_CASES, COMMAND_IMPORT_CASES,
+  FIXTURES_IMPORT_CASES, GLOBAL_NAMES, GLOBAL_RULE_CASES, GLOBALS_IMPORT_CASES, IMPORT_FORMS_SOURCE, LAYER_CASES,
+  LAYER_IMPORT_CASES, PLACEMENT_CASES, TESTS_IMPORT_CASES, UNBOUND_GLOBALS_SOURCE, UNBOUND_GLOBALS_USES,
+  brokenFixturesRule, brokenGlobalRule, brokenPlacementRule, brokenRules, clockRuleBreaks, collectImports, cyclesOf,
+  edge, graphOf, isTest, layerOf, readAllSources, readSources, runtimeGlobalUses, specifiersOf, usesIn,
 } from "./architecture.fixtures.ts";
 
 describe("architecture: import parsing", () => {
@@ -68,7 +80,10 @@ describe("architecture: import parsing", () => {
     });
   }
 
-  for (const c of [...GLOBALS_IMPORT_CASES, ...ADAPTER_IMPORT_CASES, ...LAYER_IMPORT_CASES, ...TESTS_IMPORT_CASES]) {
+  for (const c of [
+    ...GLOBALS_IMPORT_CASES, ...ADAPTER_IMPORT_CASES, ...LAYER_IMPORT_CASES, ...APPLICATION_IMPORT_CASES,
+    ...COMMAND_IMPORT_CASES, ...TESTS_IMPORT_CASES,
+  ]) {
     it(c.name, () => {
       // Arrange
       const { imp } = c;
@@ -107,6 +122,47 @@ describe("architecture: import parsing", () => {
     // Assert
     deepStrictEqual(broken, []);
   });
+});
+
+describe("architecture: fixtures, placement and clock", () => {
+  for (const c of FIXTURES_IMPORT_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { imp } = c;
+
+      // Act
+      const rule = brokenFixturesRule(imp);
+
+      // Assert
+      strictEqual(rule, c.rule);
+    });
+  }
+
+  for (const c of PLACEMENT_CASES) {
+    it(`places a runtime file in a layer, an entry point, commands/_lib/ or a declaration: ${c.file} ${c.rule === null ? "is placed" : "is not"}`, () => {
+      // Arrange
+      const { file } = c;
+
+      // Act
+      const rule = brokenPlacementRule(file);
+
+      // Assert
+      strictEqual(rule, c.rule);
+    });
+  }
+
+  for (const c of CLOCK_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { file, text } = c;
+
+      // Act
+      const breaks = clockRuleBreaks(file, text);
+
+      // Assert
+      deepStrictEqual(breaks, c.breaks);
+    });
+  }
 });
 
 describe("architecture: runtime globals", () => {
@@ -168,6 +224,45 @@ describe("architecture: dependency rule", () => {
 
     // Assert
     deepStrictEqual(cycles, []);
+  });
+
+  it("every fixtures and assertions file is imported by its own module only", () => {
+    // Arrange
+    const imports = collectImports(readAllSources());
+
+    // Act
+    const broken = imports.flatMap((imp) => {
+      const rule = brokenFixturesRule(imp);
+      return rule === null ? [] : [`${edge(imp.from, imp.to ?? imp.specifier)}: ${rule}`];
+    });
+
+    // Assert
+    deepStrictEqual(broken, []);
+  });
+
+  it("every runtime file of src/ sits in a layer, or is an entry point, a command use case or a declaration", () => {
+    // Arrange
+    const files = [...readSources().keys()].filter((file) => file.startsWith("src/") && !isTest(file));
+
+    // Act
+    const broken = files.flatMap((file) => {
+      const rule = brokenPlacementRule(file);
+      return rule === null ? [] : [`${file}: ${rule}`];
+    });
+
+    // Assert
+    deepStrictEqual(broken, []);
+  });
+
+  it("every clock read sits in shared/infrastructure/", () => {
+    // Arrange
+    const sources = [...readSources()].filter(([file]) => file.startsWith("src/") && !isTest(file));
+
+    // Act
+    const broken = sources.flatMap(([file, text]) => clockRuleBreaks(file, text));
+
+    // Assert
+    deepStrictEqual(broken, []);
   });
 
   it("every use of a runtime global keeps its rule", () => {

@@ -50,17 +50,6 @@ export const ADD = "git --literal-pathspecs add -- 'a.ts'";
 export const COMMIT = "git --literal-pathspecs commit -F .git/ORKEON_COMMITMSG -- 'a.ts'";
 export const PROBES = ["git rev-parse -q --verify MERGE_HEAD", "git rev-parse -q --verify CHERRY_PICK_HEAD"];
 
-/** Files whose `.git/` is no folder (a linked worktree): a write under it throws ENOTDIR. */
-export function linkedWorktreeFiles(): FakeFiles {
-  const files = new FakeFiles();
-  const write = files.write.bind(files);
-  files.write = async (path: string, content: string) => {
-    if (path.startsWith(`${WORKSPACE}/.git/`)) throw new Error("ENOTDIR");
-    return write(path, content);
-  };
-  return files;
-}
-
 /** A tree with a modified and a new file, its diff 5 characters past the cap. */
 export const LONG_TREE: WorkTree = {
   status: " M src/a.ts\n?? src/b.ts\n", diff: "d".repeat(MAX_COMMIT_DIFF_CHARS + 5), branch: "main",

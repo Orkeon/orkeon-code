@@ -48,9 +48,7 @@ export function fakes(): AuditFakes {
 
 /** An act that runs `commands` through the runner first, as the model calling run_validation would. */
 export function toolCalling(llm: FakeLlm, runner: RecordingRunner, perAct: string[][]): void {
-  const act = llm.act.bind(llm);
-  llm.act = async (prompt, request) => {
+  llm.onAct = async () => {
     for (const command of perAct[llm.acts.length] ?? []) await runner.run(command);
-    return act(prompt, request);
   };
 }

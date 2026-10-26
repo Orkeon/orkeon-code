@@ -125,14 +125,6 @@ export type Setup = ReturnType<typeof setup>;
 /** The paths written, in order. */
 export const written = (f: Setup): string[] => f.files.writes.map((w) => w.path);
 
-/** Records every folder `files` lists, in order. */
-export function recordListings(files: FakeFiles): string[] {
-  const listed: string[] = [];
-  const list = files.list.bind(files);
-  files.list = async (path: string, max: number) => { listed.push(path); return list(path, max); };
-  return listed;
-}
-
 /** The checkout holding the golden plan and its two sheets, as written before. */
 export function withGoldenPlan(f: Setup, sheetF1 = fixture("expected/PRUNE-PLAN-F1.md")): void {
   f.files.listings.set(CODE, ["SPEC-prune.md", "PRUNE-PLAN.md", "PRUNE-PLAN-F1.md", "PRUNE-PLAN-F2.md"]);

@@ -12,10 +12,11 @@ import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
 import { FakeLlm } from "../../../../tests/support/doubles/fake-llm.ts";
 import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 import {
-  ADD, COMMIT, FEATURE_TREE, LONG_TREE, MESSAGE, PROBES, SEL, TREE, linkedWorktreeFiles, scopedSetup, treeShell, untrackedSetup,
+  ADD, COMMIT, FEATURE_TREE, LONG_TREE, MESSAGE, PROBES, SEL, TREE, scopedSetup, treeShell, untrackedSetup,
 } from "./draft.fixtures.ts";
 import { assertMentions } from "../../../../tests/support/assertions/text.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
+import { linkedWorktreeFiles } from "../../../../tests/support/fixtures/linked-worktree-files.ts";
 
 describe("inspectWorkTree", () => {
   it("snapshots status, diff, branch (trimmed) and history", async () => {

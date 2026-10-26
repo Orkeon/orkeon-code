@@ -5,6 +5,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { posix } from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
+import { clockReads } from "./syntax.ts";
 
 export const ROOT = fileURLToPath(new URL("../..", import.meta.url));
 export const GLOBALS = "src/shared/infrastructure/globals.ts";
@@ -77,10 +78,15 @@ export function resolveImport(from: string, specifier: string): string | null {
   return null;
 }
 
-/** Every source of src/, by repository path. */
 /** The sources the rules are read on: src/, and the shared checks of tests/, which serve every layer. */
 export function readSources(): Map<string, string> {
   const files = [...sourceFiles("src"), ...sourceFiles(SHARED_ASSERTIONS.slice(0, -1))];
+  return new Map(files.map((file) => [file, readFileSync(posix.join(ROOT, file), "utf-8")]));
+}
+
+/** Every source of src/ and tests/, by repository path: what the fixtures rule is read on. */
+export function readAllSources(): Map<string, string> {
+  const files = [...sourceFiles("src"), ...sourceFiles("tests")];
   return new Map(files.map((file) => [file, readFileSync(posix.join(ROOT, file), "utf-8")]));
 }
 
@@ -95,6 +101,9 @@ export function collectImports(sources: ReadonlyMap<string, string>): Import[] {
 }
 
 export const LIB_RULE = "commands/_lib/ never imports shared/infrastructure/: the entry point hands it the ports";
+export const APPLICATION_RULE = "application imports domain and application only: the runtime comes in through a port";
+export const COMMAND_CREWS_RULE = "a *.cmd.ts never imports crews/*/domain nor crews/*/application: a use case of commands/_lib/ does";
+const CREW_INNER = /^src\/crews\/[^/]+\/(domain|application)\//u;
 
 /** The rules one import breaks, as messages; empty when it keeps them all. */
 export function brokenRules(imp: Import): string[] {
@@ -110,7 +119,8 @@ export function brokenRules(imp: Import): string[] {
   const sharedCheck = isTest(imp.from) && imp.to.startsWith(SHARED_ASSERTIONS);
   const fromLayer = layerOf(imp.from);
   if (fromLayer === "domain" && layerOf(imp.to) !== "domain" && !sharedCheck) broken.push("domain imports domain only");
-  if (fromLayer === "application" && layerOf(imp.to) === "infrastructure") broken.push("application never imports infrastructure");
+  const inward = layerOf(imp.to) === "domain" || layerOf(imp.to) === "application";
+  if (fromLayer === "application" && !inward && !(isTest(imp.from) && imp.to.startsWith("tests/"))) broken.push(APPLICATION_RULE);
   if ((fromLayer === "domain" || fromLayer === "application") && (imp.to.startsWith(COMMANDS) || isEntryPoint(imp.to))) {
     broken.push("domain and application never import commands/ nor an entry point");
   }
@@ -120,9 +130,41 @@ export function brokenRules(imp: Import): string[] {
   if (imp.to.startsWith(INFRASTRUCTURE) && imp.from.startsWith(COMMANDS_LIB)) {
     broken.push(LIB_RULE);
   }
+  if (isCommandEntryPoint(imp.from) && CREW_INNER.test(imp.to)) broken.push(COMMAND_CREWS_RULE);
   if (imp.to.startsWith("tests/") && !isTest(imp.from)) broken.push("runtime code never imports tests/");
   if (isTest(imp.to) && !isTest(imp.from)) broken.push("runtime code never imports test code (*.test.ts, *.fixtures.ts, *.assertions.ts)");
   return broken;
+}
+
+/** The module a file belongs to: its name up to the first dot (`run-dev-learn.decide.test.ts` is `run-dev-learn`). */
+export const moduleOf = (file: string) => posix.basename(file).split(".")[0];
+export const FIXTURES_RULE =
+  "a <module>.fixtures.ts or .assertions.ts serves the tests of its module only: what several modules share goes under tests/support/";
+const isModuleSupport = (file: string) => file.endsWith(".fixtures.ts") || file.endsWith(".assertions.ts");
+
+/** The rule an import of a fixtures or assertions file breaks; null when the importer belongs to the module that
+ *  file serves (same folder, same module name). A file of tests/support/ is no module's. */
+export function brokenFixturesRule(imp: Import): string | null {
+  if (imp.to === null || !isModuleSupport(imp.to) || imp.to.startsWith("tests/support/")) return null;
+  const sameModule = posix.dirname(imp.from) === posix.dirname(imp.to) && moduleOf(imp.from) === moduleOf(imp.to);
+  return sameModule ? null : FIXTURES_RULE;
+}
+
+export const PLACEMENT_RULE = "every runtime file of src/ sits in a layer, or is an entry point, a command use case or a declaration";
+
+/** The rule a runtime file of src/ breaks by where it sits; null when it sits in a layer folder, is an entry point,
+ *  a command use case of commands/_lib/ or a declaration (.d.ts). */
+export function brokenPlacementRule(file: string): string | null {
+  const placed = layerOf(file) !== null || isEntryPoint(file) || file.startsWith(COMMANDS_LIB) || file.endsWith(".d.ts");
+  return placed ? null : PLACEMENT_RULE;
+}
+
+export const CLOCK_RULE = "every clock read sits in shared/infrastructure/: the rest of src/ takes the Clock port";
+
+/** Every clock read of a runtime file outside shared/infrastructure/, as `<file>:<line>: <read>: <rule>`. */
+export function clockRuleBreaks(file: string, text: string): string[] {
+  if (file.startsWith(INFRASTRUCTURE)) return [];
+  return clockReads(file, text, false).map((hit) => `${hit.file}:${hit.line}: ${hit.what}: ${CLOCK_RULE}`);
 }
 
 /** The runtime globals: who may use them, and the rule a use elsewhere breaks. */
@@ -339,12 +381,12 @@ export const LAYER_IMPORT_CASES: readonly ImportCase[] = [
   {
     name: "refuses commands/_lib/ to application",
     imp: importOf("src/crews/main-loop/application/turn-prompt.ts", "src/commands/_lib/args.ts"),
-    broken: [OUT_OF_COMMANDS_RULE],
+    broken: [APPLICATION_RULE, OUT_OF_COMMANDS_RULE],
   },
   {
     name: "refuses a command entry point to application",
     imp: importOf("src/shared/application/session-io.ts", "src/commands/settings/mode.cmd.ts"),
-    broken: [OUT_OF_COMMANDS_RULE],
+    broken: [APPLICATION_RULE, OUT_OF_COMMANDS_RULE],
   },
   {
     name: "refuses a crew entry point to domain",
@@ -368,6 +410,162 @@ export const LAYER_IMPORT_CASES: readonly ImportCase[] = [
   },
 ];
 
+/** What application may import: domain and application, and its tests tests/ besides; nothing else. */
+export const APPLICATION_IMPORT_CASES: readonly ImportCase[] = [
+  {
+    name: "lets application import domain",
+    imp: importOf("src/crews/x/application/run-x.ts", "src/shared/domain/types.ts"),
+    broken: [],
+  },
+  {
+    name: "lets application import application, a port included",
+    imp: importOf("src/crews/x/application/run-x.ts", "src/shared/application/ports.ts"),
+    broken: [],
+  },
+  {
+    name: "refuses infrastructure to application",
+    imp: importOf("src/crews/x/application/run-x.ts", "src/shared/infrastructure/orkeon/shell.ts"),
+    broken: [APPLICATION_RULE],
+  },
+  {
+    name: "refuses to application a file in no layer",
+    imp: importOf("src/crews/x/application/run-x.ts", "src/crews/x/helpers.ts"),
+    broken: [APPLICATION_RULE],
+  },
+  {
+    name: "refuses infrastructure to an application test as well",
+    imp: importOf("src/crews/x/application/run-x.test.ts", "src/shared/infrastructure/orkeon/shell.ts"),
+    broken: [APPLICATION_RULE],
+  },
+];
+
+/** What a command entry point may import of a crew: nothing of its domain nor of its application. */
+export const COMMAND_IMPORT_CASES: readonly ImportCase[] = [
+  {
+    name: "refuses a crew's domain to a command entry point",
+    imp: importOf("src/commands/git/commit.cmd.ts", "src/crews/dev-plan/domain/plan-render.ts"),
+    broken: [COMMAND_CREWS_RULE],
+  },
+  {
+    name: "refuses a crew's application to a command entry point",
+    imp: importOf("src/commands/dev/dev-implement.cmd.ts", "src/crews/dev-implement/application/run-dev-implement.ts"),
+    broken: [COMMAND_CREWS_RULE],
+  },
+  {
+    name: "lets a command entry point import its use case of commands/_lib/",
+    imp: importOf("src/commands/git/commit.cmd.ts", "src/commands/_lib/commit.ts"),
+    broken: [],
+  },
+  {
+    name: "lets a command entry point import shared/domain/",
+    imp: importOf("src/commands/git/commit.cmd.ts", "src/shared/domain/types.ts"),
+    broken: [],
+  },
+  {
+    name: "lets a crew entry point import its crew's application",
+    imp: importOf("src/crews/git-commit/crew.ork.ts", "src/crews/git-commit/application/run-git-commit.ts"),
+    broken: [],
+  },
+];
+
+/** An import of a fixtures or assertions file, and the rule it breaks (null: the importer is of the same module). */
+export const FIXTURES_IMPORT_CASES: ReadonlyArray<{ name: string; imp: Import; rule: string | null }> = [
+  {
+    name: "lets a test import the fixtures of its module",
+    imp: importOf("src/crews/x/domain/plan.test.ts", "src/crews/x/domain/plan.fixtures.ts"),
+    rule: null,
+  },
+  {
+    name: "lets a facet test import the fixtures of its module",
+    imp: importOf("src/crews/x/application/run-x.decide.test.ts", "src/crews/x/application/run-x.fixtures.ts"),
+    rule: null,
+  },
+  {
+    name: "lets the fixtures of a facet import the fixtures of its module",
+    imp: importOf("src/crews/x/application/run-x.decide.fixtures.ts", "src/crews/x/application/run-x.fixtures.ts"),
+    rule: null,
+  },
+  {
+    name: "lets a test import the assertions of its module",
+    imp: importOf("src/crews/x/domain/plan.test.ts", "src/crews/x/domain/plan.assertions.ts"),
+    rule: null,
+  },
+  {
+    name: "lets any test import the shared fixtures of tests/support/",
+    imp: importOf("src/crews/x/application/run-x.test.ts", "tests/support/fixtures/linked-worktree-files.ts"),
+    rule: null,
+  },
+  {
+    name: "refuses the fixtures of a module to the test of another module",
+    imp: importOf("src/crews/x/domain/render.test.ts", "src/crews/x/domain/plan.fixtures.ts"),
+    rule: FIXTURES_RULE,
+  },
+  {
+    name: "refuses the fixtures of a module to the fixtures of another module",
+    imp: importOf("src/crews/x/domain/render.fixtures.ts", "src/crews/x/domain/plan.fixtures.ts"),
+    rule: FIXTURES_RULE,
+  },
+  {
+    name: "refuses the assertions of a module to the test of another module",
+    imp: importOf("src/crews/x/domain/render.test.ts", "src/crews/x/domain/plan.assertions.ts"),
+    rule: FIXTURES_RULE,
+  },
+  {
+    name: "refuses the fixtures of a module to a test of the same name in another folder",
+    imp: importOf("src/crews/y/domain/plan.test.ts", "src/crews/x/domain/plan.fixtures.ts"),
+    rule: FIXTURES_RULE,
+  },
+];
+
+/** A runtime file of src/, and the rule its place breaks (null: it sits where the architecture puts files). */
+export const PLACEMENT_CASES: ReadonlyArray<{ file: string; rule: string | null }> = [
+  { file: "src/shared/domain/types.ts", rule: null },
+  { file: "src/crews/x/application/run-x.ts", rule: null },
+  { file: WIRING, rule: null },
+  { file: "src/crews/x/crew.ork.ts", rule: null },
+  { file: "src/crews/_probe-budget/probe.ork.ts", rule: null },
+  { file: "src/commands/settings/mode.cmd.ts", rule: null },
+  { file: "src/commands/_lib/args.ts", rule: null },
+  { file: "src/crews/.orkeon/orkeon.d.ts", rule: null },
+  { file: "src/crews/x/helpers.ts", rule: PLACEMENT_RULE },
+  { file: "src/commands/settings/mode-view.ts", rule: PLACEMENT_RULE },
+  { file: "src/shared/util.ts", rule: PLACEMENT_RULE },
+];
+
+/** A runtime file reading the clock or not, and the breaks the clock rule finds in it. */
+export const CLOCK_CASES: ReadonlyArray<{ name: string; file: string; text: string; breaks: string[] }> = [
+  {
+    name: "refuses new Date() to application",
+    file: "src/crews/x/application/run-x.ts",
+    text: "const at = new Date();",
+    breaks: [`src/crews/x/application/run-x.ts:1: new Date(): ${CLOCK_RULE}`],
+  },
+  {
+    name: "refuses Date.now() to domain",
+    file: "src/shared/domain/age.ts",
+    text: "export const age = (t: number) => Date.now() - t;",
+    breaks: [`src/shared/domain/age.ts:1: Date.now(): ${CLOCK_RULE}`],
+  },
+  {
+    name: "refuses a clock read to a use case of commands/_lib/",
+    file: "src/commands/_lib/status.ts",
+    text: "const stamp = String(new Date());",
+    breaks: [`src/commands/_lib/status.ts:1: new Date(): ${CLOCK_RULE}`],
+  },
+  {
+    name: "lets shared/infrastructure/ read the clock",
+    file: WIRING,
+    text: "export const orkeonClock = () => new Date();",
+    breaks: [],
+  },
+  {
+    name: "lets any file build a date from a value, parse one or compose one",
+    file: "src/shared/domain/age.ts",
+    text: "const a = new Date(0); const b = Date.parse(s); const c = Date.UTC(2026, 9);",
+    breaks: [],
+  },
+];
+
 const FAKE_SHELL = "tests/support/doubles/fake-shell.ts";
 const SHARED_TEXT = "tests/support/assertions/text.ts";
 
@@ -376,7 +574,7 @@ export const TESTS_IMPORT_CASES: readonly ImportCase[] = [
   {
     name: "refuses an import of tests/ from runtime code",
     imp: { from: "src/crews/x/application/run.ts", specifier: "../../../../" + FAKE_SHELL, to: FAKE_SHELL },
-    broken: ["runtime code never imports tests/"],
+    broken: [APPLICATION_RULE, "runtime code never imports tests/"],
   },
   {
     name: "lets a test import tests/",

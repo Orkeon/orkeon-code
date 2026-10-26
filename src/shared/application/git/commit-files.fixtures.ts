@@ -31,16 +31,6 @@ export function commitRequest(overrides: Partial<{ files: string[]; status: stri
   return { files: ["a.ts"], status: " M a.ts", message: "m", ...overrides };
 }
 
-/** FakeFiles whose writes under the given prefixes fail, as a linked worktree's `.git` file makes them. */
-export function refusingFiles(refused: readonly string[]): FakeFiles {
-  const files = new FakeFiles();
-  files.writeErrors = refused.map((prefix) => ({ prefix, error: (path) => new Error(`ENOTDIR: not a directory, open '${path}'`) }));
-  return files;
-}
-
-/** Files of a linked worktree: `.git/` cannot be written into. */
-export const linkedWorktreeFiles = (): FakeFiles => refusingFiles([`${WORKSPACE}/.git/`]);
-
 /** An opener recording each pull request it opens, answering `url`. */
 export function recordingOpener(url?: string): FakePullRequestOpener {
   const fake = new FakePullRequestOpener();

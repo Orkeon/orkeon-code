@@ -69,7 +69,9 @@ bundle, et un test importe un cas d'usage dans Node sans toucher à une globale 
 sur tout import qui enfreint l'une de ces règles ; il n'y a pas de liste d'exceptions :
 
 - un fichier sous `domain/` n'importe que des fichiers du domaine ;
-- un fichier sous `application/` n'importe jamais `infrastructure/` ;
+- un fichier sous `application/` n'importe que des fichiers du domaine et de l'application (ses tests peuvent
+  importer `tests/` en plus) : une liste d'autorisations, si bien qu'un fichier hors de toute couche est refusé
+  comme `infrastructure/` l'est ;
 - un fichier sous `domain/` ou `application/` n'importe jamais `commands/` ni un point d'entrée (`*.cmd.ts`,
   `crew.ork.ts`, `probe.ork.ts`) ;
 - seuls `shared/infrastructure/` et les points d'entrée des crews (`crew.ork.ts`, `probe.ork.ts`, qui ont besoin des
@@ -77,12 +79,16 @@ sur tout import qui enfreint l'une de ces règles ; il n'y a pas de liste d'exce
   `orkeon/wiring.ts` ;
 - `commands/_lib/` n'importe jamais `shared/infrastructure/` : le point d'entrée construit les adaptateurs et les
   remet, de sorte qu'un test importe les cas d'usage au-dessus des fakes ;
+- un `*.cmd.ts` n'importe jamais `crews/*/domain` ni `crews/*/application` : ce qu'il lance d'un crew passe par un
+  cas d'usage de `commands/_lib/` ;
 - un import relatif nomme son fichier `.ts`, et le code du runtime n'importe rien d'autre que des fichiers relatifs
   (les tests peuvent importer les modules intégrés `node:`) ;
 - le code du runtime n'importe jamais `tests/` : les doublures de test ne sont jamais bundlées ;
 - un contrôle partagé de `tests/support/assertions/` n'importe que des modules intégrés `node:`, de sorte qu'un test
   de n'importe quelle couche, un test du domaine compris, peut l'importer ;
-- aucun cycle d'imports entre fichiers.
+- aucun cycle d'imports entre fichiers ;
+- un `<module>[.<facet>].fixtures.ts` ou `.assertions.ts` n'est importé que par les fichiers de son module (même
+  dossier, le nom jusqu'au premier point) : ce que plusieurs modules partagent va sous `tests/support/`.
 
 Le même test lit les globales du runtime avec la résolution de portée de TypeScript lui-même, fichier par fichier : un
 identifiant que son fichier ne déclare, n'importe ni ne lie, un `globalThis.<name>` et une redéclaration ambiante
@@ -95,6 +101,11 @@ pour chaque fichier, si bien que le contrôle de types seul laisserait n'importe
   `inputs` ;
 - seul un `*.cmd.ts` appelle `defineCommand` ou `defineAsyncCommand` : une commande à bascule enregistre le
   descripteur que `_lib/session-config.ts` construit (`defineCommand(toggleCommand(spec, session))`).
+
+Il place aussi chaque fichier et chaque lecture de l'horloge : un fichier du runtime sous `src/` est dans un dossier
+de couche, ou bien c'est un point d'entrée, un cas d'usage de commande de `commands/_lib/` ou une déclaration
+(`.d.ts`) ; une lecture de l'horloge (`new Date()` sans argument, `Date()`, `Date.now()`) est dans
+`shared/infrastructure/`, et le reste de `src/` prend le port `Clock`.
 
 ```text
 src/
@@ -137,7 +148,17 @@ mcp/whisper/           the speech MCP server, Python run by uv: whisper_mcp.py, 
 
 Les tests du domaine et de l'application sont à côté de leur module (`*.test.ts`) ; les points d'entrée ne
 contiennent aucune logique qui vaille un test unitaire et sont couverts par la vérification de bundle et le smoke du
-runtime.
+runtime. `tests/repository/test-shape.test.ts` tient chaque test à sa forme, lue dans l'arbre syntaxique :
+
+- chaque test suit Arrange, Act, Assert, un seul acte par test ;
+- le code de test ne lit pas l'horloge et ne lance pas de minuterie (`setTimeout`, `setInterval`) : il prend un
+  `FakeClock`, sauf dans `tests/scripts/`, qui pilote de vrais processus ;
+- une doublure vit dans `tests/support/doubles/` et nulle part ailleurs : pas de classe qui étend un `Fake…` ou
+  implémente un port (les ports sont lus dans les exports de `ports.ts`), pas d'objet littéral typé par un port, pas
+  de méthode d'un fake remplacée sur une instance ; ce qu'un fake ne sait pas encore jouer devient un nouveau champ
+  de ce fake ;
+- chaque test de `src/` a son `<module>.ts` à côté de lui, un second fichier de test du module étant
+  `<module>.<facet>.test.ts`.
 
 ## Ports et adaptateurs
 

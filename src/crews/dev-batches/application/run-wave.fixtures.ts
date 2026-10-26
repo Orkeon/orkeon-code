@@ -87,20 +87,16 @@ export function shellReopening(batches: readonly string[], batch: string): FakeS
 /** `shell` refusing the first fast-forward of `batch`'s branch, as when the work branch moved past it. */
 export function refuseFirstMerge(shell: FakeShell, batch: string): void {
   let merges = 0;
-  const run = shell.run.bind(shell);
-  shell.run = async (c, o) => {
-    if (c !== merge(batch) || merges++ > 0) return run(c, o);
-    shell.commands.push(c);
-    return { stdout: "", stderr: "fatal: Not possible to fast-forward, aborting.\n", exitCode: 128 };
-  };
+  const prior = shell.answer;
+  shell.answer = (c) => (c === merge(batch) && merges++ === 0
+    ? { stdout: "", stderr: "fatal: Not possible to fast-forward, aborting.\n", exitCode: 128 }
+    : prior?.(c));
 }
 
 /** `files` noting each write to the main checkout as a `write <path>` line of the shell's commands, in its order. */
 export function traceCheckoutWrites(files: FakeFiles, shell: FakeShell): void {
-  const write = files.write.bind(files);
-  files.write = async (path, content) => {
+  files.onWrite = (path) => {
     if (!path.startsWith(`${WORKSPACE}/.orkeon/worktrees/`)) shell.commands.push(`write ${path}`);
-    return write(path, content);
   };
 }
 

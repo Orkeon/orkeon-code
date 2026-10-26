@@ -29,11 +29,7 @@ export function indexWith(hits: Record<string, CodeSearchHit[]>): FakeCodeIndex 
 
 /** Makes the search of `query` throw a two-line error, every other search answered as before. */
 export function failSearchOn(index: FakeCodeIndex, query: string): void {
-  const search = index.search.bind(index);
-  index.search = async (q, topK) => {
-    if (q === query) throw new Error("timeout\nmore");
-    return search(q, topK);
-  };
+  index.searchErrors[query] = new Error("timeout\nmore");
 }
 
 /** `n` titles: UC-01 to UC-05, then BR-01 onwards. */

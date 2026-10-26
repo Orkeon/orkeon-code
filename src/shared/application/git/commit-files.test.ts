@@ -8,9 +8,10 @@ import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
 import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 import {
   AUTHOR, brokenOpener, COMMITTER, COMMIT_A_IN_WORKTREE, GH, IDENT, ORIGIN_HEAD, PROBES, PUSH, REQ, RM_MESSAGE, recordingOpener,
-  SHORT_HEAD, commitRequest, linkedWorktreeFiles, refusingFiles, shellWith,
+  SHORT_HEAD, commitRequest, shellWith,
 } from "./commit-files.fixtures.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
+import { linkedWorktreeFiles, refusingFiles } from "../../../../tests/support/fixtures/linked-worktree-files.ts";
 
 describe("readIdentity", () => {
   it("reads git's author identity once the committer's is there too", async () => {

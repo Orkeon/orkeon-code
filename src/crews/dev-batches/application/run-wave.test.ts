@@ -361,7 +361,7 @@ describe("runWave", () => {
     // Arrange
     const shell = shellFor(["F2"]);
     const files = mainFiles();
-    files.write = async () => { throw new Error("No space left on device"); };
+    files.writeErrors.push({ prefix: "", error: () => new Error("No space left on device") });
     let ran = false;
 
     // Act

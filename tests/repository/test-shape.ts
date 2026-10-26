@@ -1,7 +1,10 @@
 // The shape every test keeps (CONTRIBUTING.md, "Tests"): its body is laid out Arrange, Act, Assert, each section
 // opened by its own comment line, once, in that order. Read from the syntax tree, so a test built in a loop over a
-// fixture table is checked like any other. Pure: the caller hands the source text.
+// fixture table is checked like any other. Test code besides reads no clock and starts no timer (tests/scripts/
+// aside), derives no double outside tests/support/doubles/, and a test of src/ sits beside its module. Pure: the
+// caller hands the source text and the files.
 import ts from "typescript";
+import { clockReads, derivedDoubles } from "./syntax.ts";
 
 const SECTIONS = ["Arrange", "Act", "Assert"] as const;
 const TEST_CALLS = new Set(["it", "test"]);
@@ -53,4 +56,37 @@ export function shapeProblems(file: string, text: string): string[] {
   };
   visit(source);
   return out;
+}
+
+/** Test code: a test, the fixtures or assertions beside it, or a file of tests/. */
+export const isTestCode = (file: string) => /\.(test|fixtures|assertions)\.ts$/u.test(file) || file.startsWith("tests/");
+
+export const CLOCK_RULE = "a test reads no clock and starts no timer: it takes a FakeClock (tests/scripts/ alone drive real processes)";
+
+/** Every clock read and timer of test code outside tests/scripts/, as `<file>:<line>: <read>: <rule>`. */
+export function clockProblems(file: string, text: string): string[] {
+  if (!isTestCode(file) || file.startsWith("tests/scripts/")) return [];
+  return clockReads(file, text, true).map((hit) => `${hit.file}:${hit.line}: ${hit.what}: ${CLOCK_RULE}`);
+}
+
+export const DOUBLES_RULE = "a double lives in tests/support/doubles/: set a field of its fake, never derive one beside a test";
+
+/** Every double test code derives outside tests/support/doubles/, as `<file>:<line>: <double>: <rule>`. Runtime
+ *  code is left alone: an adapter implements its port. */
+export function doubleProblems(
+  file: string, text: string, ports: ReadonlySet<string>, methods: ReadonlyMap<string, ReadonlySet<string>>,
+): string[] {
+  if (!isTestCode(file) || file.startsWith("tests/support/doubles/")) return [];
+  return derivedDoubles(file, text, ports, methods).map((hit) => `${hit.file}:${hit.line}: ${hit.what}: ${DOUBLES_RULE}`);
+}
+
+export const MODULE_RULE = "a test of src/ sits beside its module: <module>[.<facet>].test.ts next to <module>.ts";
+
+/** What is wrong with where a test of src/ sits, as `<file>: <rule>`; null when `<module>.ts`, its name up to the
+ *  first dot, is among `files` in the same folder. */
+export function moduleProblem(file: string, files: ReadonlySet<string>): string | null {
+  if (!file.startsWith("src/") || !file.endsWith(".test.ts")) return null;
+  const folder = file.slice(0, file.lastIndexOf("/") + 1);
+  const module = `${folder}${file.slice(folder.length).split(".")[0]}.ts`;
+  return files.has(module) ? null : `${file}: ${MODULE_RULE}`;
 }

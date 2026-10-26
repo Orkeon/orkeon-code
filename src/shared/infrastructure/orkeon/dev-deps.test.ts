@@ -7,10 +7,11 @@ import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import {
   AUDITOR_TOOLS, LAYOUT, QUOTING_BRIEF, QUOTING_BRIEF_ROOTED, ROOT, ROOTED_WRITE, context,
-  loadDevDeps, recorder, rootedImplementerCallbacks, toolNames, twoBatchParts, validationTool,
+  loadDevDeps, rootedImplementerCallbacks, toolNames, twoBatchParts, validationTool,
 } from "./dev-deps.fixtures.ts";
 import { assertAskedNames, assertRootPathsOnly } from "./dev-deps.assertions.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
+import { recorder } from "../../../../tests/support/fixtures/tool-recorder.ts";
 
 describe("implementDeps and verifyDeps", () => {
   it("implementDeps reads files through the body's tools", async () => {
@@ -304,7 +305,7 @@ describe("batchAgentParts", () => {
     const m = await loadDevDeps();
 
     // Act
-    const parts = m.batchAgentParts(recorder(), { root: "/r", toolCalls: 1, memoryOn: true });
+    const parts = m.batchAgentParts(recorder().builder, { root: "/r", toolCalls: 1, memoryOn: true });
 
     // Assert
     deepStrictEqual(toolNames(parts), ["run_tests", "run_build", "run_validation", "memory_recall"]);

@@ -11,7 +11,7 @@ import { runDevPlan } from "./run-dev-plan.ts";
 import { FakePrecedents, PRECEDENTS_SAMPLE } from "../../../../tests/support/doubles/fake-precedents.ts";
 import {
   ANSWER, BLOCKED_END, CLEAR, CLEAR_SUMMARY, CODE, F1, F2, FEWER_BATCHES_TEXT, FOURTEEN_UNKNOWN_REUSE, INVENTORY, MAJOR_LINES,
-  NEXT_LINE, PJ, PLAN, REFUSALS, REVIEW_BLOCKING, REVIEW_MAJOR, STARTED_PLAN_TEXT, fixture, recordListings, setup,
+  NEXT_LINE, PJ, PLAN, REFUSALS, REVIEW_BLOCKING, REVIEW_MAJOR, STARTED_PLAN_TEXT, fixture, setup,
   withGoldenPlan, withThreeBatchPlan, written,
 } from "./run-dev-plan.fixtures.ts";
 import { assertGoldenRenders, assertGuarded, assertListedOnce } from "./run-dev-plan.assertions.ts";
@@ -225,7 +225,7 @@ describe("runDevPlan — the planner's answer", () => {
     const f = setup();
     f.files.listings.set(`${WORKSPACE}/docs/fr`, []);
     f.llm.extractions = [ANSWER, ANSWER];
-    const listed = recordListings(f.files);
+    const listed = f.files.listed;
 
     // Act
     await runDevPlan({ source: "prune" }, f.deps);

@@ -66,19 +66,24 @@ case in Node without touching a runtime global.
 any import that breaks one of these rules; there is no exception list:
 
 - a file under `domain/` imports domain files only;
-- a file under `application/` never imports `infrastructure/`;
+- a file under `application/` imports domain and application files only (its tests may import `tests/` besides):
+  an allow-list, so a file in no layer is refused as `infrastructure/` is;
 - a file under `domain/` or `application/` never imports `commands/` nor an entry point (`*.cmd.ts`, `crew.ork.ts`,
   `probe.ork.ts`);
 - only `shared/infrastructure/` and the crew entry points (`crew.ork.ts`, `probe.ork.ts`, which need the builders and
   `inputs()`) import `globals.ts`: a command reaches the runtime through the adapters of `orkeon/wiring.ts`;
 - `commands/_lib/` never imports `shared/infrastructure/`: the entry point builds the adapters and hands them over,
   so a test imports the use cases over the fakes;
+- a `*.cmd.ts` never imports `crews/*/domain` nor `crews/*/application`: what it runs of a crew goes through a use
+  case of `commands/_lib/`;
 - a relative import names its `.ts` file, and runtime code imports nothing but relative files (tests may import
   `node:` built-ins);
 - runtime code never imports `tests/`: the test doubles are never bundled;
 - a shared check of `tests/support/assertions/` imports `node:` built-ins only, so a test of any layer, a domain
   test included, may import it;
-- no import cycle between files.
+- no import cycle between files;
+- a `<module>[.<facet>].fixtures.ts` or `.assertions.ts` is imported by the files of its module only (same folder,
+  the name up to the first dot): what several modules share goes under `tests/support/`.
 
 The same test reads the runtime globals with TypeScript's own scoping, file by file: an identifier its file does not
 declare, import or bind, a `globalThis.<name>`, and an ambient re-declaration (`declare const tools`) are uses of a
@@ -89,6 +94,11 @@ let any module call `tools.shellCommand(...)`:
 - only `shared/infrastructure/` and the crew entry points read `tools`, `agentBuilder`, `crewBuilder` and `inputs`;
 - only a `*.cmd.ts` calls `defineCommand` or `defineAsyncCommand`: a toggle command registers the descriptor that
   `_lib/session-config.ts` builds (`defineCommand(toggleCommand(spec, session))`).
+
+It places every file and every read of the clock too: a runtime file of `src/` sits in a layer folder, or is an
+entry point, a command use case of `commands/_lib/` or a declaration (`.d.ts`); a read of the clock (`new Date()`
+with no argument, `Date()`, `Date.now()`) sits in `shared/infrastructure/`, and the rest of `src/` takes the `Clock`
+port.
 
 ```text
 src/
@@ -130,7 +140,17 @@ mcp/whisper/           the speech MCP server, Python run by uv: whisper_mcp.py, 
 ```
 
 Domain and application tests sit next to their module (`*.test.ts`); the entry points hold no logic worth a unit
-test and are covered by the bundle check and the runtime smoke.
+test and are covered by the bundle check and the runtime smoke. `tests/repository/test-shape.test.ts` holds every
+test to its shape, read from the syntax tree:
+
+- each test is laid out Arrange, Act, Assert, one act per test;
+- test code reads no clock and starts no timer (`setTimeout`, `setInterval`): it takes a `FakeClock`, but in
+  `tests/scripts/`, which drives real processes;
+- a double lives in `tests/support/doubles/` and nowhere else: no class that extends a `Fake…` or implements a port
+  (the ports are read from the exports of `ports.ts`), no object literal typed as a port, no method of a fake
+  replaced on an instance; what a fake cannot play yet is a new field of that fake;
+- every test of `src/` has its `<module>.ts` beside it, a second test file of the module being
+  `<module>.<facet>.test.ts`.
 
 ## Ports and adapters
 

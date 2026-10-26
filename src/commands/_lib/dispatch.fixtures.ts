@@ -42,11 +42,7 @@ export function recordingLog() {
 /** launchCrew's deps over a FakeCrewHost; with `launchError`, every launch throws an error of that message. */
 export function crewDeps(launchError?: string) {
   const crews = new FakeCrewHost();
-  if (launchError !== undefined) {
-    crews.launch = () => {
-      throw new Error(launchError);
-    };
-  }
+  if (launchError !== undefined) crews.launchFailure = new Error(launchError);
   const { log, logged, warned } = recordingLog();
   return { crews, deps: { crews, log }, log, logged, warned };
 }

@@ -28,21 +28,21 @@ export function setup(rules: PermissionRule[] = []) {
 /** Makes `build` fail on a cold tree the first time it runs on `shell`, then succeed. */
 export function coldOnce(shell: FakeShell, build: string): void {
   let builds = 0;
-  const run = shell.run.bind(shell);
-  shell.run = async (command, options) => {
-    const result = await run(command, options);
-    if (command !== build) return result;
+  const prior = shell.answer;
+  shell.answer = (command) => {
+    const before = prior?.(command);
+    if (command !== build) return before;
     builds += 1;
-    return builds === 1 ? { ...result, exitCode: 1, stdout: COLD } : { ...result, exitCode: 0, stdout: "Build succeeded." };
+    return builds === 1 ? { ...before, exitCode: 1, stdout: COLD } : { ...before, exitCode: 0, stdout: "Build succeeded." };
   };
 }
 
 /** Makes `build` fail on a cold tree every time it runs on `shell`. */
 export function alwaysCold(shell: FakeShell, build: string): void {
-  const run = shell.run.bind(shell);
-  shell.run = async (command, options) => {
-    const result = await run(command, options);
-    return command === build ? { ...result, exitCode: 1, stdout: COLD } : result;
+  const prior = shell.answer;
+  shell.answer = (command) => {
+    const before = prior?.(command);
+    return command === build ? { ...before, exitCode: 1, stdout: COLD } : before;
   };
 }
 

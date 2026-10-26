@@ -2,6 +2,7 @@
 // root and builders the dev-deps tests run on.
 import { FakeTools } from "../../../../tests/support/doubles/fake-tools.ts";
 import { FakeLogger } from "../../../../tests/support/doubles/fake-logger.ts";
+import { recorder } from "../../../../tests/support/fixtures/tool-recorder.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
 
 type Module = typeof import("./dev-deps.ts");
@@ -59,24 +60,10 @@ export async function rootedImplementerCallbacks() {
 /** A file_write call under ROOT. */
 export const ROOTED_WRITE = { name: "file_write", input: { path: `${ROOT}/src/a.ts`, content: "x" } };
 
-/** A builder that records each tool's name and builds one whose execute calls the body. */
-export function recorder(): () => ToolBuilder<unknown, unknown> {
-  return () => {
-    const b: { name?: string; fn?: (input: unknown) => unknown } = {};
-    const api: any = {
-      name: (v: string) => { b.name = v; return api; },
-      description: () => api, withSchema: () => api, access: () => api,
-      execute: (fn: (input: unknown) => unknown) => { b.fn = fn; return api; },
-      build: () => ({ name: b.name, execute: (input: unknown) => b.fn!(input) }),
-    };
-    return api as ToolBuilder<unknown, unknown>;
-  };
-}
-
 /** The parts of the batch agents of F2 and F3, each under its own worktree, 5 tool calls each. */
 export async function twoBatchParts() {
   const m = await loadDevDeps();
-  return ["F2", "F3"].map((b) => m.batchAgentParts(recorder(), { root: `${WORKSPACE}/.orkeon/worktrees/prune-${b}`, toolCalls: 5, memoryOn: false }));
+  return ["F2", "F3"].map((b) => m.batchAgentParts(recorder().builder, { root: `${WORKSPACE}/.orkeon/worktrees/prune-${b}`, toolCalls: 5, memoryOn: false }));
 }
 
 /** The names of the tools a batch agent's parts carry. */

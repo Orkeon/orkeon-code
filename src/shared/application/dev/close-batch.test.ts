@@ -7,9 +7,10 @@ import { closeBatch } from "./close-batch.ts";
 import { parseSessionRules } from "../../domain/git/pull-request.ts";
 import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
 import {
-  COMMIT_AND_PUSH_COMMANDS, gitShell, IDENTITY_COMMANDS, linkedWorktreeFiles, PR_COMMAND, REQ,
+  COMMIT_AND_PUSH_COMMANDS, gitShell, IDENTITY_COMMANDS, PR_COMMAND, REQ,
 } from "./close-batch.fixtures.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
+import { linkedWorktreeFiles } from "../../../../tests/support/fixtures/linked-worktree-files.ts";
 
 describe("closeBatch", () => {
   it("commits the touched files only, never the work folder, pushes, and prints the PR command", async () => {

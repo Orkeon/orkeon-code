@@ -20,8 +20,7 @@ export function onWorkBranch(results: Record<string, Partial<ShellResult>> = {})
 export function refusingFirstMerge(): FakeShell {
   const shell = onWorkBranch();
   let calls = 0;
-  const run = shell.run.bind(shell);
-  shell.run = async (c, o) => (c === MERGE && calls++ === 0 ? { stdout: "", ...NOT_FF } : run(c, o));
+  shell.answer = (c) => (c === MERGE && calls++ === 0 ? { stdout: "", ...NOT_FF } : undefined);
   return shell;
 }
 

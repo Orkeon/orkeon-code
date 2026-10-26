@@ -1,5 +1,5 @@
 // The questions and the scripted person settleQuestions and questionRound are tested with.
-import type { HumanInput } from "../ports.ts";
+import { FakeHumanInput } from "../../../../tests/support/doubles/fake-human-input.ts";
 import type { Question } from "../../domain/dev/questions.ts";
 import type { RoundState } from "./question-round.ts";
 
@@ -11,17 +11,11 @@ export const Q3: Question = { id: "Q3", severity: "Major", question: "C?", impac
  * A person answering from `script`, one answer per question asked (null, or the script run out: nobody answers),
  * each question logged in `log` as "ask <id>".
  */
-export function person(script: Array<string | null>, log: string[]): HumanInput {
-  const answer = (p: string) => {
-    log.push(`ask ${p.split(" — ")[1].split(" ")[0]}`);
-    const a = script.shift();
-    return a === undefined || a === null ? null : a;
-  };
-  return {
-    async choice(p) { const a = answer(p); return a === null ? { answered: false } : { answered: true, value: a }; },
-    async text(p) { const a = answer(p); return a === null ? { answered: false } : { answered: true, value: a }; },
-    async multi() { return { answered: false }; },
-  };
+export function person(script: Array<string | null>, log: string[]): FakeHumanInput {
+  const human = new FakeHumanInput();
+  human.answers = script;
+  human.onAsk = (q) => log.push(`ask ${q.prompt.split(" — ")[1].split(" ")[0]}`);
+  return human;
 }
 
 /** A file holding Q1 open and no decision yet. */
