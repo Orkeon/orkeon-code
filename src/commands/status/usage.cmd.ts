@@ -5,7 +5,7 @@
 // written. /extra-usage, which showed the second half apart, is its alias.
 import { orkeonConfigStore, orkeonSessionIo, orkeonTelemetry } from "../../shared/infrastructure/orkeon/wiring.ts";
 import type { SessionCost, SessionStats } from "../../shared/application/ports.ts";
-import { cacheColumns } from "../_lib/cache.ts";
+import { cacheColumns } from "../_lib/status/cache.ts";
 import { readCompactionTrigger } from "../../shared/application/compaction/compact-session.ts";
 import {
   DEFAULT_CONTEXT_WINDOW, computeTrigger, percentLeft, pressureTier,

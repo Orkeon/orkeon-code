@@ -4,7 +4,7 @@
 // at startup — see /model), so `fast` buys latency the one way script-land can:
 // the next /assistant turn skips the two ADVISORY prompt blocks, and skips
 // gathering them too. That is a real degradation, so the loop logs it.
-import { toggleCommand } from "../_lib/session-config.ts";
+import { toggleCommand } from "../_lib/settings/session-config.ts";
 import { orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { FAST_MODE_STATE_KEY } from "../../shared/domain/session-keys.ts";
 import { FAST_MODE_DROPPED_BLOCKS } from "../../shared/domain/agent-policy/behavior-flags.ts";

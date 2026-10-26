@@ -3,6 +3,8 @@
 // An Error reply is thrown, as a failing provider (or an unparsable extraction)
 // throws. Every call lands in `acts`, `completes` or `extracts` with the prompt
 // and the settings it received. `gateEnabled` is what the host says of its gate.
+// `onAct`, when set, is awaited at each act before it lands, as a model calling
+// its tools before it answers.
 import type { ActRequest, CompleteRequest, Llm } from "../../../src/shared/application/ports.ts";
 
 function reply<T>(replies: readonly T[], index: number): T {
@@ -19,12 +21,14 @@ export class FakeLlm implements Llm {
   completes: Array<{ prompt: string; override?: CompleteRequest }> = [];
   extracts: Array<{ prompt: string; schema: object }> = [];
   gateEnabled: boolean | undefined = true;
+  onAct: ((prompt: string, request: ActRequest) => Promise<void> | void) | null = null;
 
   permissionGateEnabled(): boolean | undefined {
     return this.gateEnabled;
   }
 
   async act(prompt: string, request: ActRequest): Promise<string> {
+    await this.onAct?.(prompt, request);
     this.acts.push({ prompt, request });
     return reply(this.answers, this.acts.length - 1) as string;
   }

@@ -9,7 +9,8 @@ import type { Checked } from "../agents/charter.ts";
 export type ReviewSeverity = "Blocking" | "Major";
 export interface ReviewRow { severity: ReviewSeverity; question: string; evidence: string; target: string }
 export interface ReviewAnswer { verdict: "CLEAR" | "GAPS"; rows: ReviewRow[] }
-/** What a row may target. Plan mode: ["plan", "F1", …, "Fn"]. */
+/** What a row may target. Plan mode: ["plan", "F1", …, "Fn"]. A target is one of them, alone or followed by a
+ *  qualifier (`F2 (step 1)` is F2); one that names two of them is refused. */
 export interface ReviewCheckContext { targets: readonly string[] }
 
 export const MAX_REVIEW_ROWS = 12;
@@ -67,6 +68,23 @@ function targetList(targets: readonly string[]): string {
   return `${targets[0]}, ${targets[1]}…${targets[targets.length - 1]}`;
 }
 
+const WORD = "[A-Za-z0-9_]";
+const escaped = (id: string): string => id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+/** Whether `id` stands in `text` as a whole word (`F1` in `F1-F3`, not in `F12`). */
+const wholeWord = (text: string, id: string): boolean => new RegExp(`(?:^|(?!${WORD}).)${escaped(id)}(?!${WORD})`, "i").test(text);
+
+/** The allowed id a target names: equal to one, or one followed by a qualifier (`F2 (step 1)`, `F3: step 2`), case
+ *  folded, the longest id first; `{ two: true }` when the qualifier names a second allowed id as a whole word
+ *  (`plan (F2)`, `F1-F3`); null when none (`F4`, `F12` when F1 alone is allowed). */
+export function targetId(target: string, targets: readonly string[]): { id: string } | { two: true } | null {
+  const named = target.trim();
+  const byLength = [...targets].sort((a, b) => b.length - a.length);
+  const id = byLength.find((t) => new RegExp(`^${escaped(t)}(?!${WORD})`, "i").test(named));
+  if (id === undefined) return null;
+  const rest = named.slice(id.length);
+  return byLength.some((t) => wholeWord(rest, t)) ? { two: true } : { id };
+}
+
 /** Why a question is not one closed question fitting a table cell, or undefined when it is. */
 function questionFault(question: string): string | undefined {
   if (question === "") return "it is empty";
@@ -90,10 +108,12 @@ function checkRow(value: unknown, k: number, ctx: ReviewCheckContext, problems: 
   const evidence = cell(text(item.evidence));
   if (evidence === "") problems.push(`row ${k}: evidence is empty`);
   else if (!citesSource(evidence)) problems.push(`row ${k}: evidence cites no path:line, § section or heading`);
-  const target = text(item.target);
-  if (!ctx.targets.includes(target)) problems.push(`row ${k}: target '${target}' is not one of ${targetList(ctx.targets)}`);
-  if (problems.length > before) return undefined;
-  return { severity: severity as ReviewSeverity, question, evidence, target };
+  const named = text(item.target);
+  const target = targetId(named, ctx.targets);
+  if (target === null) problems.push(`row ${k}: target '${named}' is not one of ${targetList(ctx.targets)}`);
+  else if ("two" in target) problems.push(`row ${k}: target '${named}' names two targets`);
+  if (problems.length > before || target === null || "two" in target) return undefined;
+  return { severity: severity as ReviewSeverity, question, evidence, target: target.id };
 }
 
 export function checkReviewAnswer(value: unknown, ctx: ReviewCheckContext): Checked<ReviewAnswer> {

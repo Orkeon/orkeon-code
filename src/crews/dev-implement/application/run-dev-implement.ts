@@ -11,7 +11,8 @@
 // the batch with BLOCKED and ticks nothing more.
 //
 // The answer is JSON: `{ lines, next? }`, read by the command's `completed`.
-import type { AffectedTests, CostIndex, Files, Llm, Logger, Shell, ShellJobs } from "../../../shared/application/ports.ts";
+import type { AffectedTests, Clock, CostIndex, Files, Llm, Logger, Shell, ShellJobs } from "../../../shared/application/ports.ts";
+import { isoDay } from "../../../shared/domain/iso-day.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import type { PullRequestOpener } from "../../../shared/application/git/commit-files.ts";
 import { loadDevContext } from "../../../shared/application/dev/load-dev-context.ts";
@@ -96,8 +97,8 @@ export interface DevImplementDeps {
   /** The code index the measured cost reads, refreshed after the batch, and asked for the affected tests; none: the
    *  cost is not computed (the stated line decides) and the affected tests are the sheet's. */
   costIndex?: CostIndex;
-  /** Today, `YYYY-MM-DD` (the close's done marks). */
-  today?: () => string;
+  /** The time now: the close's done marks carry its UTC day. */
+  clock: Clock;
   /** The shared memory's code-triggered recall (T3 before each red act, T5 on a correction); absent, none. */
   precedents?: StepPrecedents;
 }
@@ -115,7 +116,6 @@ const answer = (lines: string[], next?: ImplementAnswer["next"]): string =>
   JSON.stringify(next === undefined ? { lines } : { lines, next });
 const blocked = (lines: string[], line: string): string => answer([...lines, `BLOCKED — ${line}`]);
 const reasonOf = (e: unknown): string => String((e as Error)?.message ?? e).split("\n")[0];
-const isoToday = (): string => new Date().toISOString().slice(0, 10);
 
 interface Run {
   deps: DevImplementDeps;
@@ -704,7 +704,7 @@ export async function runDevImplement(input: DevImplementInputs, deps: DevImplem
     if (inRun) lines.push(`not pushed: /dev-batches ${located.code} is in progress, its close pushes the plan's branch once`);
     return answer([...lines, ...await closeDevBatch({ ...deps, opener }, {
       pack, work: context.work, located, batch, touched: record.touched, verdictMark: record.verdictMark,
-      openPr: input.pr === true, push: input.push !== false && !inRun, today: (deps.today ?? isoToday)(),
+      openPr: input.pr === true, push: input.push !== false && !inRun, today: isoDay(deps.clock()),
       ...(pr === null ? {} : { rules: parseSessionRules(pr.permissionRules) }),
     })]);
   }

@@ -6,7 +6,7 @@
 // --go sends at once (commands/_lib/voice). The recording is made by a crew: it
 // outlasts the 10 s a handler may wait.
 import { rawTokens } from "../_lib/args.ts";
-import { dispatchVoice, renderVoiceCompletion } from "../_lib/voice.ts";
+import { dispatchVoice, renderVoiceCompletion } from "../_lib/speech/voice.ts";
 import { createCrewHost } from "../../shared/infrastructure/orkeon/crew-host.ts";
 import { createPermissionRules } from "../../shared/infrastructure/orkeon/permission-rules.ts";
 import {

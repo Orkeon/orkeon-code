@@ -1,7 +1,7 @@
 # Extending Orkeon Code
 
 Everything the agent says and does on the TypeScript side is a source file of this repository: a command is a file,
-a crew is a folder, a prompt is a string with its test next to it, a permission mode is a row of a table. There is no
+a crew is a folder, a prompt is a string with its test under `tests/`, a permission mode is a row of a table. There is no
 build step on your side: the runtime bundles the sources with esbuild and runs them in Jint when the REPL starts, so a
 change is live at the next start. This page lists the extension points, what each one touches, and where the limits
 are. The layers, the ports and the step-by-step recipes are in [Architecture](architecture.md#recipes); the coding
@@ -32,18 +32,18 @@ defineCommand({
 });
 ```
 
-Logic worth testing goes to `src/commands/_lib/<family>.ts` as `run<Name>(tokens, deps)`, its deps a `Pick<>` of the
-ports it reads, tested over the fakes of `tests/support/doubles/`. Three other places move with a new command, and
-`npm run check` names the one you forgot: `tests/command-surface.test.ts` pins the count of commands,
-`src/commands/_lib/meta.ts` states it in the release notes, and `npm run docs:commands` regenerates
+Logic worth testing goes to `src/commands/_lib/<group>/<name>.ts`, the folder of its command, as
+`run<Name>(tokens, deps)`, its deps a `Pick<>` of the ports it reads, tested over the fakes of `tests/support/doubles/`. Three other places move with a new command, and
+`npm run check` names the one you forgot: `tests/repository/command-surface.test.ts` pins the count of commands,
+`src/commands/_lib/status/meta.ts` states it in the release notes, and `npm run docs:commands` regenerates
 [docs/commands.md](commands.md). The recipe: [Add a command](architecture.md#add-a-command).
 
 ## A crew
 
 A folder `src/crews/<name>/` with a `crew.ork.ts` in the procedural shape: the agents with the tool names they need,
 an agent whose `.body()` calls the use case, `publishCrew(...)` at the end. The use case is
-`application/run-<name>.ts` (`run<Name>(input, deps)`), its pure rules in `domain/`, each with its `*.test.ts`; the
-use case test runs over the fakes. The command that launches it names it,
+`application/run-<name>.ts` (`run<Name>(input, deps)`), its pure rules in `domain/`, each with its `*.test.ts` under
+`tests/crews/<name>/`; the use case test runs over the fakes. The command that launches it names it,
 `launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "<name>", input)`, and `input` reaches the crew as
 `inputs()`. Imports are relative and carry their `.ts` extension, because the runtime bundles each entry point from
 the files as written.
@@ -118,7 +118,7 @@ the model reads it, so a change is reviewed as the diff of two renders.
 - **The crews.** Each crew's prompts sit next to its use case (`application/prompts.ts`, or its domain module) and
   have their own tests.
 
-`npm run check:provenance` refuses the markers of another product's material, and `tests/prompt-contract.test.ts`
+`npm run check:provenance` refuses the markers of another product's material, and `tests/repository/prompt-contract.test.ts`
 checks every rendered prompt. The recipe: [Add a prompt block](architecture.md#add-a-prompt-block).
 
 ## Permission modes
@@ -143,7 +143,7 @@ Any OpenAI-compatible endpoint, chosen in the settings file (`Llm:BaseUrl`, `Llm
 
 - The scripts run in Jint, single-threaded, with no Node API and no timers: `src/` imports nothing from `node:*`
   (the bundle check refuses it), and a command never does long work itself, it hands it to a crew.
-- Application code never touches the runtime: it receives ports, and `tests/architecture.test.ts` fails any import,
+- Application code never touches the runtime: it receives ports, and `tests/repository/architecture.test.ts` fails any import,
   and any use of a runtime global, that breaks the dependency rule.
 - `.tools([...])` names host tools, and an unknown name fails every `act` call of the agent before the model is
   asked: a tool the runtime lacks cannot be added from here. `/debug-tool-call list` shows what the host offers.

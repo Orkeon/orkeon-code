@@ -27,8 +27,8 @@ travelled untyped into the use cases. Two consequences followed:
 
 - **Layers with one dependency rule.** `domain/` holds pure code and imports only domain; `application/` holds the
   use cases and services and imports domain and the ports, never infrastructure; `shared/infrastructure/` is the
-  only code that touches the runtime. `tests/architecture.test.ts` parses every import of `src/` and fails on any
-  that breaks the rule.
+  only code that touches the runtime. `tests/architecture.test.ts` (now `tests/repository/architecture.test.ts`) parses every
+  import of `src/` and fails on any that breaks the rule.
 - **Ports named after the need.** `src/shared/application/ports.ts` declares what the application needs (`Shell`,
   `Files`, `SessionStore`, `Llm`...). Each port has one Orkeon adapter in `src/shared/infrastructure/orkeon/`, the
   only code that calls the runtime for it and reads its results, whatever their casing.
@@ -36,7 +36,8 @@ travelled untyped into the use cases. Two consequences followed:
   it needs (`wiring.ts` for those bound to the `tools` global, the agent or command context for the others), passes
   them to a use case, and renders the result. A use case receives its ports as parameters.
 - **Hand-written test doubles.** `tests/support/` holds one `Fake*` class per port, with plain fields to configure
-  and inspect, plus stand-ins for the runtime objects the adapters take. Runtime code never imports them.
+  and inspect, plus stand-ins for the runtime objects the adapters take. Runtime code never imports them. (Since
+  then the tests of `src/` moved out of it: `tests/crews/`, `tests/shared/` and `tests/commands/` mirror `src/`.)
 
 ## Consequences
 

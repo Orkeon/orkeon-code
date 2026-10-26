@@ -2,8 +2,10 @@
 // /transcribe hands the crews a speech-to-text call this way: the crew makes it
 // as the command's call (the user typed the command, so the gate does not ask),
 // where a call may last minutes, which a command's handler cannot (the engine
-// bounds the promise it awaits at 10 s). Pure: the shape of the input, the text
-// of a tool result, and the request the model reads once the call answered.
+// bounds the promise it awaits at 10 s). Pure: the shape of the input, the error
+// a failed call becomes, and the request the model reads once the call answered.
+// The text of a tool result is the adapter's (ToolCatalogue.callText): the domain
+// never reads the runtime's shapes.
 
 /** The call: the registered tool name, its arguments, and what to call its result.
  *  `as: "request"` makes the result the request itself (/voice --go dictates it);
@@ -61,43 +63,17 @@ export function epilogueArgs(epilogue: EpilogueCall, answer: string): Record<str
   return { ...epilogue.args, [epilogue.textArg]: answer };
 }
 
-/** A tool result as text: a string as it is; else the first string field among
- *  text, content and result (either case); else its JSON; nothing for no result. */
-export function resultText(raw: unknown): string {
-  if (typeof raw === "string") return raw;
-  if (raw === null || raw === undefined) return "";
-  if (typeof raw === "object") {
-    for (const key of ["text", "content", "result", "Text", "Content", "Result"]) {
-      const field = (raw as Record<string, unknown>)[key];
-      if (typeof field === "string") return field;
-    }
-  }
-  return JSON.stringify(raw);
-}
-
-/**
- * A failed tool call as one readable line: the tool's own message, without what the
- * runtime wraps it in ("One or more errors occurred. (tools.transcribeAudio failed
- * [path=…]: Error executing tool transcribe_audio: …)").
- */
-export function failureText(error: unknown): string {
-  let text = (error instanceof Error ? error.message : String(error)).trim();
-  const executing = /Error executing tool [\w.-]+: ([\s\S]*)$/.exec(text);
-  const failed = /tools\.\w+ failed \[[^\]]*\]: ([\s\S]*)$/.exec(text);
-  if (executing) text = executing[1];
-  else if (failed) text = failed[1];
-  text = text.split("\n")[0].trim();
-  const count = (c: string) => text.split(c).length - 1;
-  while (text.endsWith(")") && count(")") > count("(")) text = text.slice(0, -1);
-  return text.trim();
-}
-
 /** The error a failed call becomes: named after the tool, so the run's failure
  *  reads "<tool>: <the tool's message>", the way an LlmFailure reads. */
-export function toolFailure(tool: string, error: unknown): Error {
-  const failure = new Error(failureText(error));
-  failure.name = tool;
-  return failure;
+export function toolFailure(tool: string, failure: string): Error {
+  const error = new Error(failure);
+  error.name = tool;
+  return error;
+}
+
+/** An error as one line to show: its message (or the value itself), first line, trimmed. */
+export function errorText(error: unknown): string {
+  return (error instanceof Error ? error.message : String(error)).trim().split("\n")[0].trim();
 }
 
 /** The request the model reads: the user's request, then the prelude's result under its label. */

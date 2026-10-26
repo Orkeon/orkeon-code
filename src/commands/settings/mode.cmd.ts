@@ -1,9 +1,9 @@
 /// <reference path="../.orkeon/orkeon-cli.d.ts" />
 // /mode [<mode>|show] — cycle, show or set the session-default permission mode
 // used by the assistant when the prompt carries no explicit "mode:" prefix.
-// Entry point: wires the session into _lib/mode.ts (runMode).
+// Entry point: wires the session into _lib/settings/mode.ts (runMode).
 import { rawTokens } from "../_lib/args.ts";
-import { runMode } from "../_lib/mode.ts";
+import { runMode } from "../_lib/settings/mode.ts";
 import { showView } from "../_lib/view.ts";
 import { orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
 

@@ -66,7 +66,9 @@ demandent d'abord un changement dans [Orkeon](https://github.com/Orkeon/orkeon).
   tous deux comme des écritures, même quand ils ne font que lire : demandés en `default` et `acceptEdits`, refusés en `plan`, et en
   `dontAsk` sans règle d'autorisation (runtime ; [Permissions](permissions.md)). Les outils web et RAG déclarent le
   leur depuis Orkeon #126.
-- La réponse peut être affichée deux fois quand le streaming console est activé.
+- La réponse peut être affichée deux fois quand le streaming console est activé, et avec `/dev-batches --concurrency`
+  au-dessus de 1 les réponses diffusées des lots parallèles s'entremêlent caractère par caractère sur la console plain
+  (le puits console du runtime ne porte pas d'identifiant d'act) : désactiver le streaming pour un tel run.
 - `/tasks` ne suit que les enfants de `/dev-spec`, `/dev-change`, `/dev-plan` et `/dev-verify`, par l'état de session : un arrêt attend le
   prochain regard du crew (environ une seconde), et un envoi à une instance finie est un nouveau run qui ne connaît
   que le rapport précédent, pas son contexte.

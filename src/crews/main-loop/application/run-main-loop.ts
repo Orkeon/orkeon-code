@@ -15,7 +15,7 @@ import {
 import type { BehaviorFlags } from "../../../shared/domain/agent-policy/behavior-flags.ts";
 import type { Llm, Logger, ToolCatalogue } from "../../../shared/application/ports.ts";
 import {
-  applyPrelude, epilogueArgs, failureText, parseEpilogue, parsePrelude, resultText, toolFailure,
+  applyPrelude, epilogueArgs, errorText, parseEpilogue, parsePrelude, toolFailure,
 } from "../../../shared/domain/prelude.ts";
 import type { PreludeCall } from "../../../shared/domain/prelude.ts";
 import type { SessionIo } from "../../../shared/application/session-io.ts";
@@ -153,7 +153,7 @@ export interface MainLoopDeps extends TurnContextDeps, Omit<AutoCompactDeps, "se
   session: SessionIo;
   llm: Pick<Llm, "act" | "permissionGateEnabled">;
   /** The calls of a prelude and an epilogue, by the registered name the launching command found. */
-  tools: Pick<ToolCatalogue, "call">;
+  tools: Pick<ToolCatalogue, "callText">;
   /** The guards of the two chains; absent, the built-in ones (domain/turn-chains). */
   chains?: { turnStart?: ReadonlyArray<Guard<TurnStartFacts>>; stop?: ReadonlyArray<Guard<StopFacts>> };
 }
@@ -161,25 +161,18 @@ export interface MainLoopDeps extends TurnContextDeps, Omit<AutoCompactDeps, "se
 /** The request once the prelude's call answered (applyPrelude). */
 async function withPreludeResult(request: string, prelude: PreludeCall, deps: Pick<MainLoopDeps, "tools" | "log">): Promise<string> {
   deps.log.info(`${prelude.label}: ${prelude.tool}, before the turn`);
-  let raw: unknown;
-  try {
-    raw = await deps.tools.call(prelude.tool, prelude.args);
-  } catch (error) {
-    throw toolFailure(prelude.tool, error);
-  }
-  return applyPrelude(request, prelude, resultText(raw));
+  const outcome = await deps.tools.callText(prelude.tool, prelude.args);
+  if (!outcome.ok) throw toolFailure(prelude.tool, outcome.failure);
+  return applyPrelude(request, prelude, outcome.text);
 }
 
 /** The epilogue the input names, with the answer; a failure is logged, never thrown. */
 async function runEpilogue(value: unknown, answer: string, deps: Pick<MainLoopDeps, "tools" | "log">): Promise<void> {
   const epilogue = parseEpilogue(value);
   if (epilogue === null || answer.trim().length === 0) return;
-  try {
-    const result = resultText(await deps.tools.call(epilogue.tool, epilogueArgs(epilogue, answer))).trim();
-    deps.log.info(`${epilogue.label}: ${result || epilogue.tool}`);
-  } catch (error) {
-    deps.log.warn(`${epilogue.label}: ${epilogue.tool} failed: ${failureText(error)}`);
-  }
+  const outcome = await deps.tools.callText(epilogue.tool, epilogueArgs(epilogue, answer));
+  if (outcome.ok) deps.log.info(`${epilogue.label}: ${outcome.text.trim() || epilogue.tool}`);
+  else deps.log.warn(`${epilogue.label}: ${epilogue.tool} failed: ${outcome.failure}`);
 }
 
 /** The session state key remembering that the operator was told the gate is off. */
@@ -215,7 +208,7 @@ async function stopChecked(
   } catch (error) {
     // A retry that fails (a provider error) never costs the turn an answer it had: the first one stands, said.
     if (answer.trim().length === 0) throw error;
-    deps.log.warn(`stop check '${stop.refusedBy}': the retry failed (${failureText(error)}); the first answer stands`);
+    deps.log.warn(`stop check '${stop.refusedBy}': the retry failed (${errorText(error)}); the first answer stands`);
     return answer;
   }
 }

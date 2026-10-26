@@ -13,7 +13,7 @@
 // No tool callbacks: the admitter has no tool and makes no model call, so there is no tool call to guard.
 
 import { AgentBuilder, CrewBuilder, publishCrew, inputs } from "../../shared/infrastructure/globals.ts";
-import { orkeonConfigStore, orkeonFiles, orkeonSharedMemory, orkeonShell } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { orkeonClock, orkeonConfigStore, orkeonFiles, orkeonSharedMemory, orkeonShell } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { readMemorySettings } from "../../shared/application/shared-memory/memory-settings.ts";
 import { admitEntries, admitReport, admittedCandidates } from "../../shared/application/shared-memory/admit-entries.ts";
 
@@ -27,7 +27,7 @@ const admitter = AgentBuilder()
   .goal("Apply the admissions the operator confirmed, then re-index the shared memory.")
   .body(async () => {
     const settings = await readMemorySettings(ports);
-    const outcome = await admitEntries({ ...ports, clock: () => new Date() }, settings, { admit: admittedCandidates(inputs()), refuse: [] });
+    const outcome = await admitEntries({ ...ports, clock: orkeonClock() }, settings, { admit: admittedCandidates(inputs()), refuse: [] });
     return [...settings.warnings.map((w) => `warning: ${w}`), admitReport(outcome)].join("\n");
   })
   .build();

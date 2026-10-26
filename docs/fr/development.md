@@ -4,7 +4,7 @@
 
 | Commande | Ce qu'elle prouve | Il faut |
 |---|---|---|
-| `npm test` | Chaque `*.test.ts` sous `src/` et `tests/` passe (`node --test`, suppression native des types), la règle de dépendance de `tests/architecture.test.ts` comprise | Node 24 |
+| `npm test` | Chaque `*.test.ts` sous `tests/` passe (`node --test`, suppression native des types), la règle de dépendance de `tests/repository/architecture.test.ts` comprise | Node 24 |
 | `npm run typecheck` | Tout le projet passe le contrôle de types (`scripts/typecheck.mjs`, `tsc` sur `tsconfig.json`, une ligne par erreur) | `npm ci` |
 | `npm run bundle:check` | Chaque commande et chaque crew se bundle avec les options esbuild du runtime, sans aucune API Node | `npm ci` |
 | `npm run check:provenance` | Aucun marqueur du matériau d'un autre produit dans les sources (`scripts/provenance-markers.json`) ; `-- --strict` exige aussi que la baseline soit vide, comme le fait la CI | Node |
@@ -13,7 +13,7 @@
 | `npm run check` | Tout ce qui précède | `npm ci` |
 | `bash scripts/smoke-runtime.sh [--mode ...]` | Le vrai REPL charge chaque commande (`N loaded, 0 skipped, 0 conflicts`) | un runtime |
 | `bash scripts/check-file-modes.sh` | Les scripts sont commités exécutables | git |
-| `node scripts/render-prompts.mjs <dir>` | Écrit chaque prompt tel que le modèle le lit (`tests/support/fixtures/prompt-catalogue.ts`), pour relire un changement de prompt comme un `diff -r` de deux rendus ; `tests/prompt-contract.test.ts` contrôle le même catalogue | Node 24 |
+| `node scripts/render-prompts.mjs <dir>` | Écrit chaque prompt tel que le modèle le lit (`tests/support/fixtures/prompt-catalogue.ts`), pour relire un changement de prompt comme un `diff -r` de deux rendus ; `tests/repository/prompt-contract.test.ts` contrôle le même catalogue | Node 24 |
 
 La CI (`.github/workflows/ci.yml`) lance, en étapes séparées à chaque pull request et à chaque push sur `main`, les
 tests, le contrôle de types, la vérification de bundle, la garde de provenance, les deux pages des commandes à jour,
@@ -56,14 +56,14 @@ checkout, la même variable que lit le mode source du lanceur.
 
 ## Montée de version d'Orkeon
 
-La version du runtime vit en quatre endroits qui doivent concorder (`tests/version.test.ts` contrôle les deux
+La version du runtime vit en quatre endroits qui doivent concorder (`tests/repository/version.test.ts` contrôle les deux
 premiers) :
 
 1. `.orkeon-version` : le tag de l'image et la version que le lanceur annonce ;
 2. `.config/dotnet-tools.json` : `orkeon.scripting.cli` ;
 3. `package.json` : `esbuild`, épinglé à la version avec laquelle le runtime bundle
    (`tools/scripting-esbuild/package-lock.json` dans Orkeon/orkeon à ce tag) ;
-4. `global.json` : le SDK .NET, le même épinglage que le `global.json` d'Orkeon à ce tag (`tests/version.test.ts`
+4. `global.json` : le SDK .NET, le même épinglage que le `global.json` d'Orkeon à ce tag (`tests/repository/version.test.ts`
    le contrôle).
 
 Puis `npm ci && npm run typings && npm run check && bash scripts/smoke-runtime.sh`, et une session réelle sur la
@@ -73,7 +73,7 @@ esbuild pour cette raison.
 ## Publier une release
 
 1. Déplacez les entrées `[Unreleased]` de `CHANGELOG.md` sous `## [x.y.z] - YYYY-MM-DD`.
-2. Montez `version` dans `package.json` et `CLI_VERSION` dans `src/commands/_lib/meta.ts` (le test les garde
+2. Montez `version` dans `package.json` et `CLI_VERSION` dans `src/commands/_lib/status/meta.ts` (le test les garde
    égaux), ainsi que les notes de release dans ce même fichier.
 3. Lancez `bash scripts/check-shared-memory.sh` dans un terminal (il demande `rag_eval`) : le rappel de la mémoire
    partagée sur son jeu de référence doit finir sur `check-shared-memory: thresholds met` (recall@5 >= 0.85, MRR >= 0.70).

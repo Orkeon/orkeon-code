@@ -27,11 +27,13 @@ import { RUN_VALIDATION, runBuildTool, runTestsTool, runValidationTool, scriptTo
 import type { ScriptToolSlot, ToolBuilderFactory, ValidationCalls } from "./script-tools.ts";
 import type { WrappedTools } from "../../application/dev/wrapped-tools.ts";
 import { shCode, shOut } from "./tool-results.ts";
-import { devToolCallbacks, rootedCallbacks } from "./tool-callbacks.ts";
-import type { ToolCallbacks } from "./tool-callbacks.ts";
+import { devToolCallbacks, rootedCallbacks } from "../../application/dev/tool-callbacks.ts";
+import type { ToolCallbacks } from "../../application/dev/tool-callbacks.ts";
+import { createSpend, spendGuard } from "../../application/dev/spend.ts";
+import type { Spend } from "../../application/dev/spend.ts";
 import {
-  orkeonConfigStore, orkeonCostIndex, orkeonFiles, orkeonMemoryToolPorts, orkeonPullRequestOpener, orkeonSharedMemory,
-  orkeonShell, orkeonShellJobs,
+  orkeonClock, orkeonConfigStore, orkeonCostIndex, orkeonFiles, orkeonMemoryToolPorts, orkeonPullRequestOpener,
+  orkeonSharedMemory, orkeonShell, orkeonShellJobs,
 } from "./wiring.ts";
 
 /** What an agent body hands its deps: its own tools, model and log. */
@@ -39,45 +41,6 @@ export interface BodyContext {
   tools: OrkeonTools;
   llm: Pick<LlmFacade, "act" | "complete" | "extract" | "chat"> & Partial<Pick<LlmFacade, "permissionGate">>;
   log: Logger;
-}
-
-/** A batch's tool calls: counted, and refused once `limit` is reached. A call to a tool the act does not offer is
- *  refused by the runtime before `onToolCall` (Orkeon #193): it costs nothing here, the act's `maxIterations` bounds it. */
-export interface Spend {
-  readonly limit: number;
-  calls(): number;
-  /** True once a call was refused: a batch that used exactly its `limit`, none refused, is not stopped. */
-  exhausted(): boolean;
-  /** Counts one call; false, and nothing counted, once the limit is reached. */
-  take(): boolean;
-}
-
-export function createSpend(limit: number): Spend {
-  let calls = 0;
-  let denied = 0;
-  return {
-    limit,
-    calls: () => calls,
-    exhausted: () => denied > 0,
-    take: () => (calls >= limit ? (denied++, false) : (calls++, true)),
-  };
-}
-
-/** `callbacks` denying every call past the spend's limit; `callbacks` themselves without a spend. */
-export function spendGuard<C extends Pick<ToolCallbacks, "forAct">>(callbacks: C, spend: Spend | undefined): C {
-  if (spend === undefined) return callbacks;
-  return {
-    ...callbacks,
-    forAct(mode: string, gateEnabled: boolean | undefined) {
-      const inner = callbacks.forAct(mode, gateEnabled);
-      return {
-        ...inner,
-        onToolCall: async (call) => (spend.take()
-          ? inner.onToolCall(call)
-          : { deny: `budget: this batch has spent its ${spend.limit} tool calls; end the act and say what is left` }),
-      };
-    },
-  };
 }
 
 /** `llm` with the `/workspace` paths its prompts and system texts name on the root; `llm` itself without one. */
@@ -149,8 +112,6 @@ function portsOf(ctx: BodyContext, root: string | undefined) {
   };
 }
 
-const today = (): string => new Date().toISOString().slice(0, 10);
-
 /** /dev-implement's deps over the body's context. */
 export function implementDeps(
   ctx: BodyContext, opts: DevOptions & { toolSlot: DevImplementDeps["toolSlot"] },
@@ -159,7 +120,7 @@ export function implementDeps(
   const callbacks = (spec: Parameters<typeof devToolCallbacks>[0], wrote: (path: string) => void) =>
     spendGuard(rootedCallbacks(reportingWrites(devToolCallbacks(spec, { shell: ports.shell, log: ctx.log, files: ports.files, memoryDir: memoryDirOf(ports.config) }), wrote), opts.root), opts.spend);
   return {
-    ...ports, jobs: orkeonShellJobs(ctx.tools, opts.root), log: ctx.log, today,
+    ...ports, jobs: orkeonShellJobs(ctx.tools, opts.root), log: ctx.log, clock: orkeonClock(),
     ...(opts.toolSlot !== undefined ? { toolSlot: opts.toolSlot } : {}),
     ...(opts.root === undefined ? { costIndex: orkeonCostIndex(ctx.tools) } : {}),
     precedents: stepPrecedents({ ...ports, memory: orkeonSharedMemory(ctx.tools), log: ctx.log }, { on: opts.memoryOn }),
@@ -191,7 +152,7 @@ export function verifyDeps(
   opts: DevOptions & { validationSlot: DevVerifyDeps["validationSlot"]; wrapLlm?: (llm: Llm) => Llm; harvest?: boolean },
 ): DevVerifyDeps {
   const ports = portsOf(ctx, opts.root);
-  const clock = () => new Date();
+  const clock = orkeonClock();
   // The audit's act is offered the auditor's tools alone: a batch agent also holds the implementer's, which an act
   // without a subset would offer too - write tools to a read-only auditor, their schemas resent at every turn.
   const auditorTools = [...charterCatalogue(AUDITOR_CHARTER), RUN_VALIDATION.name, ...memoryReadTools(opts.memoryOn)];

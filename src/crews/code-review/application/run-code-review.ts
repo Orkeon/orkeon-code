@@ -9,7 +9,7 @@ import { resolvePasses } from "../../../shared/domain/agent-policy/behavior-flag
 import { PASSES_STATE_KEY } from "../../../shared/domain/session-keys.ts";
 import type { Finding } from "../../../shared/domain/types.ts";
 import { renderReport } from "../domain/report.ts";
-import { resolveReviewScope } from "../domain/scope.ts";
+import { resolveReviewScope, type ReviewInputs } from "../domain/scope.ts";
 import { resolveLensSelection, describeReviewPlan } from "../domain/lenses.ts";
 import { collectDiff, collectChangedFiles, runLenses, writeReport } from "./review.ts";
 import { cutDiff } from "./prompts.ts";
@@ -23,9 +23,7 @@ export const MAX_REVIEW_DIFF_CHARS = 12_000;
 export const REVIEW_PROGRESS_LABEL = "Reviewing changes";
 
 /** The crew's input: `files` and `commit` scope the diff, `lenses` narrows the review. */
-export interface CodeReviewInputs {
-  files?: unknown;
-  commit?: unknown;
+export interface CodeReviewInputs extends ReviewInputs {
   lenses?: unknown;
 }
 

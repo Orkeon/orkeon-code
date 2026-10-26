@@ -3,7 +3,7 @@
 // step command that starts on a batch); the state is built from files and git only —
 // the sheet, Code's event log, the reports recorded, `git status --short` — never from
 // the model, so a compaction cannot get it wrong.
-import type { Files, SessionStore, Shell } from "../ports.ts";
+import type { Clock, Files, SessionStore, Shell } from "../ports.ts";
 import type { ConfigStore } from "../config-store.ts";
 import { WORKFLOW_ACTIVE_STATE_KEY } from "../../domain/session-keys.ts";
 import {
@@ -31,7 +31,7 @@ export interface WorkflowStateDeps {
   files: Pick<Files, "read" | "list" | "write">;
   shell: Pick<Shell, "run">;
   config: Pick<ConfigStore, "readValue">;
-  clock?: () => Date;
+  clock: Clock;
 }
 
 /** What step 0 did: the file written (relative to the project) and the first open step,
@@ -122,7 +122,7 @@ export async function writeWorkflowState(
   const text = renderStateFile({
     code: code.code,
     phase: active.phase,
-    at: (deps.clock ?? (() => new Date()))().toISOString().replace(/\.\d{3}Z$/, "Z"),
+    at: deps.clock().toISOString().replace(/\.\d{3}Z$/, "Z"),
     trigger,
     sheet: `${code.shown}/${sheet.name}`,
     steps,

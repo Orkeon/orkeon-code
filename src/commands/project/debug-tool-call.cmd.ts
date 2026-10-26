@@ -17,7 +17,7 @@
 // The raw result is printed verbatim: the point of this command is to see what the
 // tool actually returned, so shaping the output would remove its only value.
 import { rawTokens, parseToolCallArgs } from "../_lib/args.ts";
-import { orkeonToolCatalogue } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { orkeonClock, orkeonToolCatalogue } from "../../shared/infrastructure/orkeon/wiring.ts";
 
 defineCommand({
   name: "debug-tool-call",
@@ -48,10 +48,11 @@ defineCommand({
       );
     }
 
-    const started = Date.now();
+    const clock = orkeonClock();
+    const started = clock().getTime();
     try {
       const result = await catalogue.call(tool, parsed.args);
-      ctx.writeLine(`── ${tool} ← ${JSON.stringify(parsed.args)} (${Date.now() - started} ms)`);
+      ctx.writeLine(`── ${tool} ← ${JSON.stringify(parsed.args)} (${clock().getTime() - started} ms)`);
       // JSON.stringify, not a table: a tool result is an arbitrary shape and this
       // command is here to show it as it is, nesting and casing included.
       ctx.writeLine(JSON.stringify(result, null, 2));
@@ -60,7 +61,7 @@ defineCommand({
       // A tool failure is a RESULT here, not a command error: reproducing a failing
       // call is exactly what one debugs with. The message carries the tool's own
       // wording (ToolsNamespaceBinding throws with the tool name and arguments).
-      return ctx.continue(`── ${tool} FAILED after ${Date.now() - started} ms:\n${String(e?.message ?? e)}`);
+      return ctx.continue(`── ${tool} FAILED after ${clock().getTime() - started} ms:\n${String(e?.message ?? e)}`);
     }
   },
 });

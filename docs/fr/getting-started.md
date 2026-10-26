@@ -78,9 +78,11 @@ Ollama ([Configuration](configuration.md#le-llm)).
 Orkeon Code exige Orkeon `1.0.0-rc.6`, la version de `.orkeon-version`. **Tant que cette version n'est pas taguée et
 publiée, seul le [mode source](#mode-source--un-checkout-dorkeon) fonctionne** : le mode tool a besoin de ses paquets
 et le mode docker de son image, et le smoke runtime de la CI, qui tire cette image, échoue d'ici là.
-Orkeon Code vise le `main` d'Orkeon après Orkeon/orkeon#180, la surface que portera `1.0.0-rc.6` : l'état de la
+Orkeon Code vise le `main` d'Orkeon après Orkeon/orkeon#206, la surface que portera `1.0.0-rc.6` : l'état de la
 garde de l'hôte (`/permissions`), les outils intégrés typés et les limites de résultat par outil
-([ADR 0004](../adr/0004-orkeon-after-180.md)).
+([ADR 0004](../adr/0004-orkeon-after-180.md)), les outils de fichiers qui résolvent un chemin relatif sous
+`/workspace` ou la racine de l'agent, et les approbations en attente qu'une commande lit (`/tasks`)
+([ADR 0005](../adr/0005-orkeon-after-206.md)).
 
 Le lanceur prend le premier mode disponible, dans cet ordre, sauf si `--mode` en décide autrement.
 

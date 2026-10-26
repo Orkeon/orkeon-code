@@ -10,11 +10,11 @@ bundle check). [CONTRIBUTING.md](CONTRIBUTING.md) is the full guide and
 Node comes from nvm: `source ~/.nvm/nvm.sh` first, in the same shell line.
 
 ```bash
-npm run check                          # tests, type check, bundle check, provenance, generated docs, docs parity
-npm test                               # every *.test.ts under src/ and tests/ (scripts/run-tests.mjs)
-node --test src/path/to/module.test.ts # one test file
+npm run check                            # tests, type check, bundle check, provenance, generated docs, docs parity
+npm test                                 # every *.test.ts under tests/ (scripts/run-tests.mjs)
+node --test tests/path/to/module.test.ts # one test file
 npm run typecheck
-npm run docs:commands                  # after a command is added or renamed
+npm run docs:commands                    # after a command is added or renamed
 ```
 
 `npm run check` is green before every commit.
@@ -29,20 +29,25 @@ that breaks the rule; never weaken it to make a change pass, move the code inste
 | Layer | What it holds | May import |
 | --- | --- | --- |
 | **domain** (`*/domain/`) | pure types and deterministic functions: no IO, no clock, no runtime global | domain only |
-| **application** (`*/application/`) | the use cases (`run-<crew>.ts`) and shared services | domain and the ports of `src/shared/application/ports.ts` |
-| **infrastructure** (`src/shared/infrastructure/`) | `globals.ts` (the only reader of `tools`, `agentBuilder`, `crewBuilder`, `inputs`), the `orkeon/` adapters, `orkeon/wiring.ts` | everything inside |
+| **application** (`*/application/`) | the use cases (`run-<crew>.ts`) and shared services | domain and application only, the ports of `src/shared/application/ports.ts` (re-exported from `ports/<concern>.ts`) included |
+| **infrastructure** (`src/shared/infrastructure/`) | `globals.ts` (the only reader of `tools`, `agentBuilder`, `crewBuilder`, `toolBuilder`, `rag`, `inputs`), the `orkeon/` adapters, `orkeon/wiring.ts` | everything inside |
 | **entry points** (`crew.ork.ts`, `*.cmd.ts`) | parse the input, wire the adapters, call one use case, render the result | no logic worth testing |
-| **command use cases** (`src/commands/_lib/`) | the logic of a command | never `shared/infrastructure/` |
+| **command use cases** (`src/commands/_lib/<group>/`) | the logic of a command, in the group of its `*.cmd.ts`; what groups share at the root of `_lib/` | never `shared/infrastructure/` |
 
 - Application never imports infrastructure: what it needs from the runtime it receives as a parameter typed by a
-  port. A new need of the runtime is a new port in `ports.ts`, an adapter in `orkeon/`, a fake in `tests/support/doubles/`.
-- Domain and application never import `commands/` nor an entry point. Only the crew entry points import
-  `globals.ts`; only a `*.cmd.ts` calls `defineCommand`.
+  port. A new need of the runtime is a new port in `ports/<concern>.ts` plus its line in the `ports.ts` barrel, an
+  adapter in `orkeon/`, a fake in `tests/support/doubles/`.
+- Domain and application never import `commands/` nor an entry point. Only `shared/infrastructure/` and the crew
+  entry points import `globals.ts`; only a `*.cmd.ts` calls `defineCommand`. A `*.cmd.ts` never imports `crews/*/domain` nor
+  `crews/*/application`: it calls a use case of `commands/_lib/`.
+- Only `shared/infrastructure/` reads the clock (`new Date()` with no argument, `Date()`, `Date.now()`): the rest of
+  `src/` takes the `Clock` port, and a test a `FakeClock`.
 - No import cycle. Relative imports name their `.ts` file. No `require()`, no Node API in `src/` outside tests.
 - Logic found in an entry point or an adapter is moved into domain (when pure) or application (when it orchestrates
   ports), then tested there.
 - Before adding a file, answer: is it pure (domain), does it orchestrate ports (application), does it touch the
-  runtime (infrastructure)? Put it there, next to its siblings.
+  runtime (infrastructure)? Put it there, next to its siblings. Every runtime file of `src/` sits in a layer, or is
+  an entry point, a command use case of `commands/_lib/` or a `.d.ts`.
 
 ### Tests: Arrange, Act, Assert, the data and checks beside them
 
@@ -75,19 +80,30 @@ The convention is Orkeon's (`tests/` of github.com/Orkeon/orkeon), adapted to `n
   - A scalar the Arrange reads in one line stays in the test. No `ok(text.includes(…))` piles: one assertion helper
     that names the expectation.
 - **Doubles are hand-written**, one per port: a class `Fake<Port>` (or `Stub<Port>`) that implements the port and
-  exposes plain fields to configure it and to read what it received. They live in `tests/support/doubles/`. Reuse one
-  before writing one; never redefine a port's fake inside a test file.
+  exposes plain fields to configure it and to read what it received. They live in `tests/support/doubles/` and
+  nowhere else: no class that extends a `Fake…` or implements a port, no object literal typed as a port, no method
+  of a fake replaced on an instance beside a test. Reuse one before writing one; what a fake cannot play yet is a
+  new field of that fake.
 - **What several test files share** lives under `tests/support/`, by kind: `doubles/`, `fixtures/` (the sample data,
   such as the prompt catalogue), `assertions/` (the shared checks, over `node:assert` alone, so a domain test may use
-  them). A `<module>.fixtures.ts` or `.assertions.ts` serves its own test file only.
-- **Where a test goes**: a module of `src/` is tested next to it, a command use case of `commands/_lib/` included.
-  `tests/` holds what checks the repository as a whole, by subject: `repository/` (the dependency rule, the test shape,
-  the command surface, the prompt contract, the versions), `scripts/` (the scripts, the launchers, the install),
+  them). A `<module>.fixtures.ts` or `.assertions.ts` serves the test files of its module only.
+- **Where a test goes**: a module `src/<path>/<m>.ts` is tested by `tests/<path>/<m>.test.ts`, its `.fixtures.ts`
+  and `.assertions.ts` beside the test, a command use case of `commands/_lib/` included: `tests/crews/`,
+  `tests/shared/` and `tests/commands/` mirror `src/`, and `src/` holds no test, fixtures nor assertions file. The rest
+  of `tests/` checks the repository as a whole, by subject: `repository/` (the dependency rule, the test shape, the
+  command surface, the prompt contract, the versions), `scripts/` (the scripts, the launchers, the install),
   `config/` (the example settings). Entry points are covered by the bundle check and the smoke.
+- A module may have several test files: the second one is `<module>.<facet>.test.ts` (`run-dev-learn.decide.test.ts`),
+  with its own `.fixtures`/`.assertions`; the module's name stops at the first dot. Every test, fixtures and
+  assertions file of the mirror has its `<module>.ts` at the same path in `src/`. A test of the mirror keeps the layer
+  of its module: a test of a domain module imports domain, its own fixtures and `tests/support/assertions/` only.
 - A test's name is the behaviour and its condition, as a sentence: `cuts a name at 120 characters`.
-- No test depends on a clock, a network or an LLM. Runtime code never imports `tests/`, a `*.fixtures.ts` nor a
-  `*.assertions.ts`.
-- `tests/repository/test-shape.test.ts` checks the shape of every test of `src/` and `tests/`, without exception.
+- No test depends on a clock, a network or an LLM: no `new Date()`, `Date()`, `Date.now()`, `setTimeout`,
+  `setInterval` nor `setImmediate` in test code, `tests/scripts/` aside (it drives real processes). Runtime code never
+  imports `tests/`, a `*.fixtures.ts` nor a `*.assertions.ts`.
+- `tests/repository/test-shape.test.ts` checks the shape of each test on every `*.test.ts` of `src/` and `tests/`, the
+  clock on all their test code but `tests/scripts/`, where the doubles live, that `src/` holds no test file and that
+  every file of the mirror has its module in `src/`.
 - A behaviour added or changed gets its new test; never append assertions to an existing test to cover it.
 
 ### Runtime rules (bundle check)
@@ -108,10 +124,10 @@ The convention is Orkeon's (`tests/` of github.com/Orkeon/orkeon), adapted to `n
 
 ```text
 src/
-├── commands/   <group>/*.cmd.ts (entry points, by function) + _lib/ (their use cases)
+├── commands/   <group>/*.cmd.ts (entry points, by function) + _lib/<group>/ (their use cases, shared helpers at the root)
 ├── crews/      <name>/crew.ork.ts (entry point) + application/ + domain/
-└── shared/     domain/ · application/ (ports.ts, services) · infrastructure/ (globals.ts, orkeon/ adapters, wiring.ts)
-tests/          support/ (doubles/, fixtures/, assertions/ shared across tests) · fixtures/ (file-like texts) · repository/ · scripts/ · config/
+└── shared/     domain/ · application/ (ports.ts + ports/, services) · infrastructure/ (globals.ts, orkeon/ adapters, wiring.ts)
+tests/          crews/ · shared/ · commands/ (the tests of src/, mirroring it) · support/ (doubles/, fixtures/, assertions/ shared across tests) · fixtures/ (file-like texts) · repository/ · scripts/ · config/
 mcp/whisper/    the speech MCP server (Python, uv)
 docs/           architecture.md, adr/ (0001 clean architecture), commands.md, fr/ (the French twins)
 ```

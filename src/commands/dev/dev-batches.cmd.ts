@@ -6,7 +6,7 @@
 // `.orkeon/dev/<code>/batches-state.md` and names the next batch; this command's `completed` launches it:
 // /dev-implement on the batch, its audit (/dev-verify), on VALID its close (a commit, sent push: false), then the crew
 // again, which logs the batch and names the next one. The answers are told apart by the crew that gave them
-// (_lib/dev-batches.ts). A stop (BLOCKED, a GAPS verdict, a Blocking review question) hands over to the user;
+// (_lib/dev/dev-batches.ts). A stop (BLOCKED, a GAPS verdict, a Blocking review question) hands over to the user;
 // `/dev-batches` again goes on from the first batch not done, its sheet's ticks kept. The chain is bounded by
 // the runtime (MaxChainDepth, 8 crews from a typed command: about two batches): past it, the refusal says to type
 // `/dev-batches`, which goes on with the run the crew recorded. No state here: the crew keeps the run's code and
@@ -15,7 +15,7 @@
 // once and opens the one pull request (a batch's close is given no github tool). Every launch goes through
 // launchCrew (its chain-depth refusal); the gate is checked and the step's rules put back before each one.
 import { rawTokens } from "../_lib/args.ts";
-import { batchesChainStep, batchesLaunchInput, batchesModeRefusal, parseDevBatchesArgs } from "../_lib/dev-batches.ts";
+import { batchesChainStep, batchesLaunchInput, batchesModeRefusal, parseDevBatchesArgs } from "../_lib/dev/dev-batches.ts";
 import { reapplyStepRules, startDevStep, writeModeRefusal } from "../_lib/dev-step.ts";
 import { launchCrew } from "../_lib/dispatch.ts";
 import { storedEffort } from "../_lib/effort.ts";

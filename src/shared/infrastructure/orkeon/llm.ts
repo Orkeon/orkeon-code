@@ -6,14 +6,14 @@
 // options, and the one place that reads an act() result. A call the provider
 // failed comes back as the host's failure marker: it is thrown as an LlmFailure,
 // never returned as an answer. A crew that guards its tool calls hands its callbacks
-// (tool-callbacks.ts) as the second argument: each act then carries the
+// (shared/application/dev/tool-callbacks.ts) as the second argument: each act then carries the
 // onToolCall/onToolResult built for its own mode. The request's `effort` is the runtime's
 // `act({effort})` as it is; the crew's own level, when it has one, fills a request that names none.
 
 import type { ActRequest, CompleteRequest, Llm, ModelOverride } from "../../application/ports.ts";
 import type { PermissionMode } from "../../domain/permission-modes.ts";
 import { llmFailureOf } from "../../domain/llm-failure.ts";
-import type { ToolCallbacks } from "./tool-callbacks.ts";
+import type { ToolCallbacks } from "../../application/dev/tool-callbacks.ts";
 
 /** The request as the callers fill it: its mode is one of PERMISSION_MODES, the
  *  five modes ActOptions names (`dontAsk` among them since Orkeon 1.0.0-rc.6). */

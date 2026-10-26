@@ -25,7 +25,8 @@ import {
 import { readAttachedSkills } from "../../../shared/application/attached-skills.ts";
 import type { AttachedSkill } from "../../../shared/application/attached-skills.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
-import type { Files, MemoryStore, SessionStore, Shell, Telemetry } from "../../../shared/application/ports.ts";
+import type { Clock, Files, MemoryStore, SessionStore, Shell, Telemetry } from "../../../shared/application/ports.ts";
+import { isoDay } from "../../../shared/domain/iso-day.ts";
 import type { SessionMsg } from "../../../shared/domain/types.ts";
 import type { ExtraTool } from "../../../shared/domain/agent-policy/permission.ts";
 
@@ -38,19 +39,14 @@ export interface TurnContextDeps {
   memory: MemoryStore;
   /** The layered settings, for the answer language; absent = no language preference. */
   config?: Pick<ConfigStore, "readValue">;
-  /** Today's date as YYYY-MM-DD; the system clock when absent. */
-  today?: () => string;
+  /** The time now: the environment block carries its UTC day. */
+  clock: Clock;
 }
 
 /** One act() turn's prompt pair: the byte-stable system prompt + the volatile user body. */
 export interface TurnPrompt {
   system: string;
   user: string;
-}
-
-/** Today's date (UTC) as YYYY-MM-DD. */
-export function isoToday(): string {
-  return new Date().toISOString().slice(0, 10);
 }
 
 /**
@@ -82,7 +78,7 @@ export async function buildTurnPrompt(
     wantAdvisory ? readAttachedSkills(session, files) : Promise.resolve([] as AttachedSkill[]),
     readLanguage(deps.config),
   ]);
-  const today = (deps.today ?? isoToday)();
+  const today = isoDay(deps.clock());
 
   return {
     system: buildStaticHeader({ toolNames: toolsetFor(mode, extras), instructions }),

@@ -3,7 +3,7 @@
 // (baseline 04 §/proactive). While on, each /assistant turn asks for a short
 // 'Next steps' list alongside the answer (the clause rides with the task —
 // shared/domain/agent-policy/behavior-flags.ts).
-import { toggleCommand } from "../_lib/session-config.ts";
+import { toggleCommand } from "../_lib/settings/session-config.ts";
 import { orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { PROACTIVE_STATE_KEY } from "../../shared/domain/session-keys.ts";
 

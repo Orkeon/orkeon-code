@@ -3,7 +3,7 @@
 // refuse: the step's rule sets again (the only check of them under `orkeon run`, which keeps no session rules), the
 // role's roots and its rewrite rule, the whole input of the folder readers, each operation of an edit_batch as the
 // editor it stands for, and the act's mode when the host has no gate. The callbacks
-// themselves, and the hooks' shell commands, are shared/infrastructure/orkeon/tool-callbacks.ts's.
+// themselves, and the hooks' shell commands, are shared/application/dev/tool-callbacks.ts's.
 import { ACT_TOOLS, READ_TOOLS, formatRule, matchesRule, sameToolName, shellCommandForms } from "../agent-policy/permission.ts";
 import type { PermissionRule } from "../agent-policy/permission.ts";
 import {
@@ -14,6 +14,7 @@ import { STEP_RULE_SETS, roleRules } from "./step-rules.ts";
 import type { DevRole, DevStep, LayoutRootKey } from "./step-rules.ts";
 import type { RepoPackLayout } from "./repo-pack.ts";
 import { matchesAny, relativePath } from "./test-paths.ts";
+import { EDIT_BATCH_SHAPE } from "./reading-rule.ts";
 import { WORKSPACE } from "../vfs.ts";
 
 /** One /hooks declaration the callbacks run; `n` is its number in /hooks list. */
@@ -285,8 +286,7 @@ export function checkToolCall(
  *  whether its path names no file yet (read by the callbacks; undefined when not known, and the rewrite rule holds). */
 export interface ActFacts { mode: string; gateEnabled: boolean | undefined; newFile?: boolean }
 
-const BATCH_SHAPE = "Give `operations` as a list of {kind, path, selector, text} (expected_hash on node_replace, position on " +
-  "node_insert), with validate \"parse\".";
+const BATCH_SHAPE = `Give ${EDIT_BATCH_SHAPE}.`;
 
 function batchRefusal(guard: CallGuard, why: string, context = BATCH_SHAPE): CallVerdict {
   return { allow: false, reason: `${guard.step}: edit_batch refused: ${why}`, context };

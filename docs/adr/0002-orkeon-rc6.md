@@ -29,7 +29,7 @@ Orkeon `main` closes every one of them. It will be published as `1.0.0-rc.6`.
 ## Decision
 
 - **Orkeon Code targets Orkeon `1.0.0-rc.6` only.** `.orkeon-version` and `.config/dotnet-tools.json` pin it, and
-  `tests/version.test.ts` keeps them equal.
+  `tests/version.test.ts` (now `tests/repository/version.test.ts`) keeps them equal.
 - **No rc.5 path.** No runtime version detection, no capability probe, no fallback: a workaround rc.5 needed is
   removed, not kept beside the runtime's own behaviour.
 - **Typings from the sources.** The typings are generated from Orkeon `main`; `scripts/sync-typings.sh` reads an

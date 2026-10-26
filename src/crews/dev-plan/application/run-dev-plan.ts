@@ -391,7 +391,7 @@ export async function runDevPlan(input: DevPlanInputs, deps: DevPlanDeps): Promi
       source: source.sourceShown, inventory: shownInventory.text, targets,
     }),
     schema: REVIEW_ANSWER_SCHEMA,
-    answerPrompt: buildReviewAnswerPrompt,
+    answerPrompt: (reply, problems) => buildReviewAnswerPrompt(reply, problems, targets),
     check: (v) => checkReviewAnswer(v, { targets }),
   });
 

@@ -15,7 +15,7 @@ import { readMemoryDir } from "../../shared/application/shared-memory/memory-set
 import { memoryWriteRules } from "../../shared/domain/shared-memory/layout.ts";
 import { formatRule } from "../../shared/domain/agent-policy/permission.ts";
 import { chainDepthLine, chainDepthRefusal } from "../../shared/domain/agents/chain.ts";
-import { failureText } from "../../shared/domain/prelude.ts";
+import { errorText } from "../../shared/domain/prelude.ts";
 import type { EpilogueCall, PreludeCall } from "../../shared/domain/prelude.ts";
 import type { StartOutput } from "../../shared/domain/session-start.ts";
 import { SPEAK_TOOL, VOICE_REPLY_CONFIG_KEY, voiceReplyEpilogue, voiceReplyOn } from "../../shared/domain/speech.ts";
@@ -161,7 +161,7 @@ async function voiceReply(deps: Pick<MainLoopLaunchDeps, "config" | "catalogue" 
   try {
     value = (await deps.config.readValue(VOICE_REPLY_CONFIG_KEY)).value;
   } catch (error) {
-    deps.log.warn(`${VOICE_REPLY_CONFIG_KEY} could not be read (${failureText(error)}): the answer is not read aloud this turn`);
+    deps.log.warn(`${VOICE_REPLY_CONFIG_KEY} could not be read (${errorText(error)}): the answer is not read aloud this turn`);
     return undefined;
   }
   if (!voiceReplyOn(value)) return undefined;

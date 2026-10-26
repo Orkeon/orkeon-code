@@ -53,6 +53,18 @@ export interface BatchOutcome {
   correction?: string;
 }
 
+/** The outcome a batch agent answered (its JSON, for this batch); its text as the lines of a BLOCKED one otherwise. */
+export function outcomeOf(batch: string, answered: unknown): BatchOutcome {
+  const text = typeof answered === "string" ? answered : JSON.stringify(answered);
+  try {
+    const value = JSON.parse(text) as BatchOutcome;
+    if (value !== null && value.batch === batch && Array.isArray(value.lines)) return value;
+  } catch {
+    // Not the chain's JSON.
+  }
+  return { batch, verdict: "BLOCKED", lines: [`BLOCKED — the batch agent answered: ${text.split("\n")[0]}`], spent: 0 };
+}
+
 export interface WaveDeps {
   files: Pick<Files, "read" | "write" | "list">;
   shell: Pick<Shell, "run">;

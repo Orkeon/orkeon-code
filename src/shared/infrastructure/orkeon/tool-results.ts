@@ -3,9 +3,13 @@
 // `r.stdout ?? r.Stdout` / `pick(...,"messages","Messages")` dual-casing that
 // was duplicated inline across every crew (git-commit:14-16, code-review:12,
 // project-init:9, session-compact:10, init-verifiers:10). Pure — no IO. The
-// adapters of this folder read every result through it.
+// adapters of this folder read every result through it, and the failures of a
+// tool call: the runtime wraps the tool's own message, which is all a user reads.
 //
 // Run tests: node --test src/shared/infrastructure/orkeon/tool-results.test.ts
+
+import type { ToolOutcome } from "../../application/ports.ts";
+import { errorText } from "../../domain/prelude.ts";
 
 /** First defined property among the given candidate names (any casing). */
 export function pick(obj: any, ...names: string[]): any {
@@ -54,4 +58,63 @@ export function entryNames(listing: any): string[] {
   const legacy = asArray(pick(listing, "entries", "Entries", "items"));
   return [...files, ...dirs, ...legacy].map((e: any) =>
     String(pick(e, "name", "Name", "path", "Path") ?? e));
+}
+
+/** A tool result as text: a string as it is; else the first string field among
+ *  text, content and result (either case); else its JSON; nothing for no result. */
+export function resultText(raw: unknown): string {
+  if (typeof raw === "string") return raw;
+  if (raw === null || raw === undefined) return "";
+  if (typeof raw === "object") {
+    for (const key of ["text", "content", "result", "Text", "Content", "Result"]) {
+      const field = (raw as Record<string, unknown>)[key];
+      if (typeof field === "string") return field;
+    }
+  }
+  return JSON.stringify(raw);
+}
+
+/**
+ * A failed tool call as the tool's own message, every line of it: without what the runtime
+ * wraps it in ("One or more errors occurred. (tools.transcribeAudio failed [path=…]: Error
+ * executing tool transcribe_audio: …)") nor the host's inner exception (" ---> System.…").
+ * Callers that look for "not found" in it read the tool's whole message.
+ */
+export function ownMessage(error: unknown): string {
+  let text = (error instanceof Error ? error.message : String(error)).trim();
+  const executing = /Error executing tool [\w.-]+:\s*([\s\S]*)$/.exec(text);
+  const failed = /tools\.\w+ failed \[[^\]]*\]:\s*([\s\S]*)$/.exec(text);
+  if (executing) text = executing[1];
+  else if (failed) text = failed[1];
+  const inner = text.indexOf("\n --->");
+  if (inner >= 0) text = text.slice(0, inner);
+  text = text.trim();
+  const count = (c: string) => text.split(c).length - 1;
+  while (text.endsWith(")") && count(")") > count("(")) text = text.slice(0, -1);
+  return text.trim();
+}
+
+/** A failed tool call as one readable line: the first line of its own message (ownMessage). */
+export function failureText(error: unknown): string {
+  return errorText(ownMessage(error));
+}
+
+/** A call read as text: its result's text, or its failure's own message. Never throws. */
+export async function toolOutcome(call: () => Promise<unknown>): Promise<ToolOutcome> {
+  try {
+    return { ok: true, text: resultText(await call()) };
+  } catch (error) {
+    return { ok: false, failure: failureText(error) };
+  }
+}
+
+/** A call whose failure is rethrown with the tool's own message, every line kept (ownMessage):
+ *  a caller tells an absent file by it, and what it shows of it (errorText, the first line)
+ *  reads the same as a failed tool call. */
+export async function withToolMessage<T>(call: () => Promise<T> | T): Promise<T> {
+  try {
+    return await call();
+  } catch (error) {
+    throw new Error(ownMessage(error));
+  }
 }

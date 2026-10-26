@@ -14,7 +14,7 @@
 // stated so `--staged` shows up in the OUTPUT and not only in the input.
 import { orkeonShell } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { rawTokens } from "../_lib/args.ts";
-import { runDiff } from "../_lib/diff.ts";
+import { runDiff } from "../_lib/git/diff.ts";
 import { showView } from "../_lib/view.ts";
 
 const shell = orkeonShell();

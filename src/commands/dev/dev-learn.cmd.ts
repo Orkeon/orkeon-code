@@ -3,12 +3,12 @@
 // proposals. Proposing and listing read every verdict file, so they run in crews/dev-learn; --accept and --refuse are a
 // few reads and one write, answered here.
 import { rawTokens } from "../_lib/args.ts";
-import { parseDevLearnArgs, runDevLearnDecision } from "../_lib/dev.ts";
+import { parseDevLearnArgs, runDevLearnDecision } from "../_lib/dev/dev.ts";
 import { launchCrew, writeCompleted } from "../_lib/dispatch.ts";
 import { createCrewHost } from "../../shared/infrastructure/orkeon/crew-host.ts";
-import { orkeonConfigStore, orkeonFiles, orkeonShell } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { orkeonClock, orkeonConfigStore, orkeonFiles, orkeonShell } from "../../shared/infrastructure/orkeon/wiring.ts";
 
-const deps = { files: orkeonFiles(), shell: orkeonShell(), config: orkeonConfigStore(), clock: () => new Date() };
+const deps = { files: orkeonFiles(), shell: orkeonShell(), config: orkeonConfigStore(), clock: orkeonClock() };
 
 defineAsyncCommand({
   name: "dev-learn",

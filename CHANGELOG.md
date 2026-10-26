@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`/tasks` lists the approvals the background tasks wait on** (Orkeon #198, delivered by #206): under the task
+  list, `waiting for approval:` then one line per approval, `t1 dev-batches: waits for approval of shell_command ·
+  {"command":…}`, read from the host's `approvals` service; a host without it shows none. A task blocked on the
+  operator reads as such under the list, where only its "running" row showed before ([Permissions](docs/permissions.md#modes), #15).
 - **An installed `orkeon-code`.** `install.sh` and `install.ps1` install it from a release (the checksum is checked
   when the release has one), `npm install -g orkeon-code@next` installs the npm package and its command shim, and
   `orkeon-code --version` names Code's version, where it runs from, and the Orkeon expected and found. An install
@@ -338,6 +342,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **A dev role may hand a tool a relative path as shown** (Orkeon #199 and #200, delivered by #206): the runtime
+  resolves it against the agent's root, else `/workspace`, so the reading rule of the dev roles no longer says "never
+  as written"; it says where such a path is read and that either form goes. The tool-call hook keeps resolving it
+  before the guard and the hooks ([ADR 0005](docs/adr/0005-orkeon-after-206.md)).
 - **The speech server needs Python 3.11 or later** (`mcp/whisper/pyproject.toml`, `requires-python = ">=3.11"`).
   Python 3.10 reached its end of life in October 2026, and the `filelock` that huggingface-hub pulls in is fixed
   of six advisories (GHSA-v4x8-3wr5-3wq8 and five others on its lock files) from 4.2.1 on, a version that needs
@@ -391,9 +399,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   read since the same change and ask nothing where the catalogue offers them ([Permissions](docs/permissions.md#modes)).
 - **The `wallTime` budget of a turn no longer counts the operator's answer** (Orkeon #127, runtime): 1800 s bound the
   model's own work.
-- **Orkeon version**: Orkeon Code targets Orkeon's `main` after Orkeon/orkeon#180, the surface `1.0.0-rc.6` will
-  carry: the gate state, the typed tools, the per-tool result limits ([ADR 0004](docs/adr/0004-orkeon-after-180.md)).
-  The typings are generated from that `main` (`ORKEON_SOURCE=<checkout> npm run typings`) until a release carries it.
+- **Orkeon version**: Orkeon Code targets Orkeon's `main` after Orkeon/orkeon#206, the surface `1.0.0-rc.6` will
+  carry: the gate state, the typed tools, the per-tool result limits ([ADR 0004](docs/adr/0004-orkeon-after-180.md)),
+  the file tools resolving a relative path, the pending approvals a command reads
+  ([ADR 0005](docs/adr/0005-orkeon-after-206.md)). The typings are generated from that `main`
+  (`ORKEON_SOURCE=<checkout> npm run typings`) until a release carries it.
 
 - **Every prompt is written from a behaviour specification**, in this project's own words
   ([Architecture](docs/architecture.md#prompt-assembly), [ADR 0003](docs/adr/0003-prompts-from-a-behaviour-specification.md)).
@@ -511,6 +521,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `/dev-batches`, `/dev-plan`, `/dev-spec`, `/dev-change`: a review row whose target carries a qualifier (`F2 (step 1)`)
+  is kept under the batch's id instead of being refused, which made the extraction retry and then lose the whole
+  review (live run of 2026-10-26: `review of F2: not run (unparsable)`, a Major question never shown); the
+  extraction prompt names the ids a target may be, and the reviewer is asked for a batch by its id.
+- `/dev-implement`, `/dev-batches`: the editing rule of the roles spells an `edit_batch` out (its `operations` list and
+  `validate`), which the runtime's tool schema does not publish: two calls without `operations` were refused in the
+  live run of 2026-10-26 before the model recovered from the refusal's hint; the rule and the hint share one text.
 - `/dev-verify`, `/dev-batches`: the audit's brief and the next batch's review brief list the project's files (tracked
   and untracked, the work folder left out), and the auditor and the reviewer never read a name they guessed nor a
   folder: a live run spent ten reads on modules that did not exist.
@@ -691,6 +708,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `orkeon-code.ps1` left the variables it sets for the REPL (`ORKEON_ALLOW_EXTERNAL_MOUNTS`, the gate, esbuild, the
   model) in the PowerShell session that ran it: it puts them back when it ends, and removes one that was not set
   (set back empty, it reached the next run: an empty `whisper` server among them).
+- An unreadable file or session is reported with the tool's own message, every line of it, without the runtime's
+  wrapping (`/resume`, the extraTools notice): a file the runtime says is not found on a second line is read as
+  absent again.
 
 ## [0.1.0-alpha.1]
 

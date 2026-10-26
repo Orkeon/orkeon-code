@@ -16,9 +16,11 @@
 // namespace is not a tool call and is never refused.
 
 import type {
-  AnchorIndex, CodeIndex, CostIndex, Files, HumanInput, MemoryStore, Progress, SessionStore, SharedMemory, Shell,
-  ShellJobs, Telemetry, ToolCatalogue,
+  AnchorIndex, Clock, CodeIndex, CostIndex, Files, HumanInput, Llm, Logger, MemoryStore, Progress, SessionStore,
+  SharedMemory, Shell, ShellJobs, Telemetry, ToolCatalogue,
 } from "../../application/ports.ts";
+import type { CompactDeps } from "../../application/compaction/compact-session.ts";
+import { writeWorkflowState } from "../../application/workflow/workflow-state.ts";
 import { createConfigStore } from "../../application/config-store.ts";
 import type { ConfigStore } from "../../application/config-store.ts";
 import { createSessionIo } from "../../application/session-io.ts";
@@ -42,6 +44,9 @@ import { createToolCalls, createToolCatalogue } from "./tool-catalogue.ts";
 import type { MemoryToolPorts } from "./memory-tools.ts";
 import { createSharedMemory } from "./shared-memory.ts";
 
+/** The system clock: the one place the time is read, handed to the application as its Clock port. */
+export const orkeonClock = (): Clock => () => new Date();
+
 export const orkeonShell = (tools: OrkeonTools = Tools, root?: string): Shell => createShell(tools, root);
 export const orkeonShellJobs = (tools: OrkeonTools = Tools, root?: string): ShellJobs => createShellJobs(tools, root);
 export const orkeonFiles = (tools: OrkeonTools = Tools, root?: string): Files => createFiles(tools, root);
@@ -56,7 +61,7 @@ export const orkeonSharedMemory = (tools: OrkeonTools = Tools): SharedMemory => 
 /** What memory_recall and memory_push call, built when the model calls one. */
 export const orkeonMemoryToolPorts = (tools: OrkeonTools = Tools, root?: string): MemoryToolPorts => ({
   files: orkeonFiles(tools, root), shell: orkeonShell(tools, root), config: orkeonConfigStore(tools, root),
-  memory: orkeonSharedMemory(tools), clock: () => new Date(),
+  memory: orkeonSharedMemory(tools), clock: orkeonClock(),
 });
 /** human_input: a question to the person at the terminal, never answered on their behalf. */
 export const orkeonHumanInput = (tools: OrkeonTools = Tools): HumanInput => createHumanInput(tools);
@@ -68,7 +73,8 @@ export const orkeonToolCatalogue = (services: Pick<ServiceLocator, "get">): Tool
   createToolCatalogue(Tools, services);
 
 /** The calls alone, by registered name: for a crew, which gets no `tools` service. */
-export const orkeonToolCalls = (tools: OrkeonTools = Tools): Pick<ToolCatalogue, "call"> => createToolCalls(tools);
+export const orkeonToolCalls = (tools: OrkeonTools = Tools): Pick<ToolCatalogue, "call" | "callText"> =>
+  createToolCalls(tools);
 const orkeonSessionStore = (tools: OrkeonTools = Tools): SessionStore => createSessionStore(tools);
 
 /** The /config store: the settings file, overridden by the session bag. */
@@ -78,3 +84,20 @@ export const orkeonConfigStore = (tools: OrkeonTools = Tools, root?: string): Co
 /** The session's buffer, state and budget, and its permission mode. */
 export const orkeonSessionIo = (tools: OrkeonTools = Tools): SessionIo =>
   createSessionIo({ store: orkeonSessionStore(tools), config: orkeonConfigStore(tools) });
+
+/** The compaction pipeline's ports, for /compact and the main loop's automatic compaction alike: the running
+ *  agent's model and log, and step 0 writing the state file of the dev batch in progress. */
+export const orkeonCompactionDeps = (
+  ctx: { llm: Llm; log: Logger },
+  ports: {
+    session: SessionStore; files: Files; memory: MemoryStore; progress: Progress; shell: Shell;
+    config: Pick<ConfigStore, "readValue">;
+  },
+  clock: Clock,
+): CompactDeps => {
+  const { session, files, memory, progress, shell, config } = ports;
+  return {
+    progress, session, files, memory, llm: ctx.llm, log: ctx.log,
+    workflow: (trigger) => writeWorkflowState({ session, files, shell, config, clock }, trigger),
+  };
+};

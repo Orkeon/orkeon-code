@@ -1,12 +1,13 @@
 // Session adapter over session_store (buffer, state bag and title), session_snip
 // and token_budget.
 // The runtime hands back either casing (`messages` or `Messages`, `role` or
-// `Role`...); this is the one place that reads them.
+// `Role`...); this is the one place that reads them. A failed read is rethrown with
+// the tool's own message, the runtime's wrapping gone (withToolMessage).
 
 import type { SessionMsg } from "../../domain/types.ts";
 import type { SessionStore, StoredMessage } from "../../application/ports.ts";
 import type { SessionStoreInput } from "./runtime-tools.ts";
-import { asArray, pick } from "./tool-results.ts";
+import { asArray, pick, withToolMessage } from "./tool-results.ts";
 
 /** The `{ role, content }` view of stored entries, for transcripts and history. */
 function normalizeMessages(stored: StoredMessage[]): SessionMsg[] {
@@ -26,7 +27,7 @@ export function createSessionStore(
   const sessionStore = (input: SessionStoreInput) => tools.sessionStore(input);
   return {
     async readMessages() {
-      const resp = await sessionStore({ operation: "read_messages" });
+      const resp = await withToolMessage(() => sessionStore({ operation: "read_messages" }));
       // A buffer that is not a list holds no message: the compaction skips it and
       // the commands show an empty session, rather than failing on it.
       const stored: StoredMessage[] = asArray(pick(resp, "messages", "Messages"));
@@ -49,7 +50,7 @@ export function createSessionStore(
       await sessionStore({ operation: "set_title", title });
     },
     async readState(key) {
-      const resp = await sessionStore({ operation: "get_state", key });
+      const resp = await withToolMessage(() => sessionStore({ operation: "get_state", key }));
       const v = pick(resp, "value", "Value");
       return v == null ? null : String(v);
     },

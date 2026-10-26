@@ -24,13 +24,13 @@
 
 import { AgentBuilder, CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infrastructure/globals.ts";
 import {
-  orkeonCodeIndex, orkeonConfigStore, orkeonFiles, orkeonHumanInput, orkeonMemoryToolPorts, orkeonSessionIo, orkeonSharedMemory, orkeonShell,
+  orkeonClock, orkeonCodeIndex, orkeonConfigStore, orkeonFiles, orkeonHumanInput, orkeonMemoryToolPorts, orkeonSessionIo, orkeonSharedMemory, orkeonShell,
 } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { memoryReadTools, memoryRecallOn, memoryRecallTools } from "../../shared/infrastructure/orkeon/memory-tools.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { providerEffort } from "../../shared/domain/agent-policy/behavior-flags.ts";
 import { memoryDirOf } from "../../shared/application/shared-memory/memory-settings.ts";
-import { devToolCallbacks } from "../../shared/infrastructure/orkeon/tool-callbacks.ts";
+import { devToolCallbacks } from "../../shared/application/dev/tool-callbacks.ts";
 import { childAgentBody, openChildAct } from "../../shared/infrastructure/orkeon/child-agents.ts";
 import { charterCatalogue } from "../../shared/domain/agents/charter.ts";
 import { instanceLimits } from "../../shared/domain/agents/instances.ts";
@@ -72,7 +72,7 @@ const builder = AgentBuilder()
   .withAutonomousTools(memoryRecallTools(ToolBuilder, orkeonMemoryToolPorts, memoryOn))
   .maxIterations(REVIEWER_CHARTER.maxIterations)
   .body(async (_input: any, ctx: any) => {
-    const clock = () => new Date();
+    const clock = orkeonClock();
     const child = openChildAct(
       createLlm(ctx.llm, callbacksFor(ctx), { effort }), ctx, crew, { state: session, clock, log: ctx.log, effort },
       { crew: "dev-change", step: "dev-change" },

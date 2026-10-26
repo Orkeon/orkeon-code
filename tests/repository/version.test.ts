@@ -4,7 +4,7 @@
 // comment (Orkeon's VersionDirectiveParser reads it too).
 import { describe, it } from "node:test";
 import { deepStrictEqual, match, strictEqual } from "node:assert";
-import { CLI_VERSION, ORKEON_RUNTIME_VERSION } from "../../src/commands/_lib/meta.ts";
+import { CLI_VERSION, ORKEON_RUNTIME_VERSION } from "../../src/commands/_lib/status/meta.ts";
 import { CREWS_DIR, EXACT_VERSION, firstLines, orkScripts, read } from "./version.fixtures.ts";
 import { assertEveryScriptOpensWith } from "./version.assertions.ts";
 

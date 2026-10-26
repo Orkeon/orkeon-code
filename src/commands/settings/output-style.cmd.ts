@@ -18,7 +18,7 @@ const session = orkeonSessionIo();
 // evaluates it in SCRIPT mode, where `export` is a syntax error — the command
 // then fails to load with "Unexpected token 'export'" and simply is not there.
 // Neither the unit tests nor the esbuild bundle catch it; only a live load does.
-// tests/command-surface.test.ts now pins the rule.
+// tests/repository/command-surface.test.ts now pins the rule.
 
 defineCommand({
   name: "output-style",

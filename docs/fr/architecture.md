@@ -24,8 +24,8 @@ Le runtime exécute les sources sous des règles qui façonnent tout ce qui suit
   (`--platform=neutral`, les options du runtime, reproduites par `npm run bundle:check`) et évalué par Jint. Un module
   que plusieurs points d'entrée importent est copié dans chaque bundle.
 - **Jint, pas Node.** Aucun module `node:`, pas de `process`, pas de paquet npm, pas de timer. L'API du runtime, ce
-  sont ses globales (`tools`, `agentBuilder`, `crewBuilder`, `inputs`) et le contexte qu'il remet à chaque handler de
-  commande et à chaque corps d'agent (`ctx` : `llm`, `log`, `state`, `services`...).
+  sont ses globales (`tools`, `agentBuilder`, `crewBuilder`, `toolBuilder`, `rag`, `inputs`) et le contexte qu'il
+  remet à chaque handler de commande et à chaque corps d'agent (`ctx` : `llm`, `log`, `state`, `services`...).
 - **Aucune instance partagée.** Rien ne vit d'un bundle à l'autre : un objet de portée module existe une fois par
   bundle et par exécution. Un registre, un conteneur ou un cache partagé entre les commandes et les crews ne peut pas
   exister.
@@ -60,16 +60,21 @@ bundle, et un test importe un cas d'usage dans Node sans toucher à une globale 
 | Couche | Où | Contient | Importe |
 |---|---|---|---|
 | domaine | `src/shared/domain/`, `src/crews/<name>/domain/` | Types et fonctions purs : règles, texte des prompts, analyse syntaxique, rendu | le domaine seulement |
-| application | `src/shared/application/`, `src/crews/<name>/application/` | Cas d'usage et services au-dessus des ports (`ports.ts`) | domaine, application |
+| application | `src/shared/application/`, `src/crews/<name>/application/` | Cas d'usage et services au-dessus des ports (`ports.ts`, qui réexporte `ports/<concern>.ts`) | domaine, application |
 | infrastructure | `src/shared/infrastructure/` | `globals.ts`, les adaptateurs Orkeon des ports, `wiring.ts` | tout ce qui est plus intérieur |
-| cas d'usage des commandes | `src/commands/_lib/` | Un module par famille de commandes, `run<Name>(tokens, deps)` → une vue au-dessus des ports qu'on lui remet ; les utilitaires que les commandes partagent | tout sauf `shared/infrastructure/` |
+| cas d'usage des commandes | `src/commands/_lib/` | Les cas d'usage dans un dossier par famille de commandes (`dev/`, `git/`, `settings/`...), `run<Name>(tokens, deps)` → une vue au-dessus des ports qu'on lui remet ; à la racine, les utilitaires que les familles partagent | tout sauf `shared/infrastructure/` |
 | points d'entrée | `src/commands/<group>/*.cmd.ts`, `src/crews/<name>/crew.ork.ts` | Analysent l'entrée, câblent les adaptateurs, appellent un cas d'usage, rendent | tout |
 
-`tests/repository/architecture.test.ts` analyse chaque import de `src/` (statique, réexport, de type seul et dynamique) et échoue
-sur tout import qui enfreint l'une de ces règles ; il n'y a pas de liste d'exceptions :
+`tests/repository/architecture.test.ts` analyse chaque import de `src/` et des tests qui en sont le miroir sous `tests/`
+(statique, réexport, de type seul et dynamique) et échoue sur tout import qui enfreint l'une de ces règles ; il n'y a
+pas de liste d'exceptions. Un test du miroir est jugé là où se tient son module : `tests/<path>/<m>.test.ts` garde la
+couche et le groupe de `commands/_lib/` de `src/<path>/<m>.ts`, si bien que le test d'un module du domaine est un
+test du domaine. Les règles :
 
 - un fichier sous `domain/` n'importe que des fichiers du domaine ;
-- un fichier sous `application/` n'importe jamais `infrastructure/` ;
+- un fichier sous `application/` n'importe que des fichiers du domaine et de l'application (ses tests peuvent
+  importer `tests/` en plus) : une liste d'autorisations, si bien qu'un fichier hors de toute couche est refusé
+  comme `infrastructure/` l'est ;
 - un fichier sous `domain/` ou `application/` n'importe jamais `commands/` ni un point d'entrée (`*.cmd.ts`,
   `crew.ork.ts`, `probe.ork.ts`) ;
 - seuls `shared/infrastructure/` et les points d'entrée des crews (`crew.ork.ts`, `probe.ork.ts`, qui ont besoin des
@@ -77,12 +82,19 @@ sur tout import qui enfreint l'une de ces règles ; il n'y a pas de liste d'exce
   `orkeon/wiring.ts` ;
 - `commands/_lib/` n'importe jamais `shared/infrastructure/` : le point d'entrée construit les adaptateurs et les
   remet, de sorte qu'un test importe les cas d'usage au-dessus des fakes ;
+- un `*.cmd.ts` n'importe jamais `crews/*/domain` ni `crews/*/application` : ce qu'il lance d'un crew passe par un
+  cas d'usage de `commands/_lib/` ;
+- un cas d'usage de `commands/_lib/<groupe>/` n'importe que son propre groupe ou la racine de `_lib/`, et un
+  `*.cmd.ts` appelle le groupe de son propre dossier ;
+- `ports.ts` réexporte chaque fichier de `application/ports/`, et chaque nom qu'il exporte ;
 - un import relatif nomme son fichier `.ts`, et le code du runtime n'importe rien d'autre que des fichiers relatifs
   (les tests peuvent importer les modules intégrés `node:`) ;
 - le code du runtime n'importe jamais `tests/` : les doublures de test ne sont jamais bundlées ;
 - un contrôle partagé de `tests/support/assertions/` n'importe que des modules intégrés `node:`, de sorte qu'un test
   de n'importe quelle couche, un test du domaine compris, peut l'importer ;
-- aucun cycle d'imports entre fichiers.
+- aucun cycle d'imports entre fichiers ;
+- un `<module>[.<facet>].fixtures.ts` ou `.assertions.ts` n'est importé que par les fichiers de son module (même
+  dossier, le nom jusqu'au premier point) : ce que plusieurs modules partagent va sous `tests/support/`.
 
 Le même test lit les globales du runtime avec la résolution de portée de TypeScript lui-même, fichier par fichier : un
 identifiant que son fichier ne déclare, n'importe ni ne lie, un `globalThis.<name>` et une redéclaration ambiante
@@ -91,22 +103,30 @@ pour chaque fichier, si bien que le contrôle de types seul laisserait n'importe
 `tools.shellCommand(...)` :
 
 - pas de `require()` : les sources sont des modules ES bundlés par esbuild ;
-- seuls `shared/infrastructure/` et les points d'entrée des crews lisent `tools`, `agentBuilder`, `crewBuilder` et
-  `inputs` ;
+- seuls `shared/infrastructure/` et les points d'entrée des crews lisent `tools`, `agentBuilder`, `crewBuilder`,
+  `toolBuilder`, `rag` et `inputs` ;
 - seul un `*.cmd.ts` appelle `defineCommand` ou `defineAsyncCommand` : une commande à bascule enregistre le
-  descripteur que `_lib/session-config.ts` construit (`defineCommand(toggleCommand(spec, session))`).
+  descripteur que `_lib/settings/session-config.ts` construit (`defineCommand(toggleCommand(spec, session))`).
+
+Il place aussi chaque fichier et chaque lecture de l'horloge : un fichier du runtime sous `src/` est dans un dossier
+de couche, ou bien c'est un point d'entrée, un cas d'usage de commande de `commands/_lib/` ou une déclaration
+(`.d.ts`) ; une lecture de l'horloge (`new Date()` sans argument, `Date()`, `Date.now()`) est dans
+`shared/infrastructure/`, et le reste de `src/` prend le port `Clock`.
 
 ```text
 src/
 ├── commands/          58 *.cmd.ts (parse, wire, render) in eight functional folders: session, settings, status,
 │   │                  project, git, dev, memory, speech
-│   ├── _lib/          one module per command family: run<Name>(tokens, deps) → CommandView, or
-│   │                  dispatch<Name>(tokens, deps) → a ticket or a message when the command launches a
-│   │                  crew (say, transcribe, voice), and its pure helpers (agents, branch, config, dev, diff, doctor,
-│   │                  export, memory, mode, model, permissions, say, skills, status, transcribe, voice);
-│   │                  args.ts (arguments), dispatch.ts (crew launch,
-│   │                  completion line, main-loop launch), session-config.ts (toggle commands),
-│   │                  view.ts (CommandView, showView), meta.ts (version, release notes)
+│   ├── _lib/          the use cases, in the folder of their commands: run<Name>(tokens, deps) → CommandView,
+│   │                  or dispatch<Name>(tokens, deps) → a ticket or a message when the command launches a
+│   │                  crew, and their pure helpers. dev/ (dev, dev-batches, dev-implement, dev-source),
+│   │                  git/ (branch, commit, diff), memory/ (memory, memory-admit), session/ (export,
+│   │                  resume, tasks), settings/ (advisor, agents, config, hooks, mode, model, permissions,
+│   │                  session-config: the toggle commands, skills), speech/ (say, transcribe, voice),
+│   │                  status/ (cache, doctor, meta: version and release notes, status). At the root, what
+│   │                  several families share: args.ts (arguments), dispatch.ts (crew launch, completion
+│   │                  line, main-loop launch), dev-step.ts, effort.ts, pr-context.ts, view.ts (CommandView,
+│   │                  showView)
 │   └── .orkeon/       orkeon-cli.d.ts (generated: npm run typings)
 ├── crews/<name>/      crew.ork.ts (wiring) + application/ (run-<crew>.ts, the use case) + domain/
 │   └── .orkeon/       orkeon.d.ts (generated)
@@ -115,13 +135,17 @@ src/
     │                  output styles, memory categories), dev/ (repository pack, work folder, harness
     │                  formats), agents/ (sub-agent charters), shared-memory/ (memory entries, verdict
     │                  rows, refused motifs), compaction, config schema, session keys...
-    ├── application/   ports.ts and the services over them: session-io, config-store,
-    │                  session-state, json-file, attached-skills, permission-rules,
+    ├── application/   ports/ (one file of ports per concern: shell, files, session, llm...),
+    │                  ports.ts (re-exports them), and the services over them: session-io,
+    │                  config-store, session-state, json-file, attached-skills, permission-rules,
     │                  extra-tools, compaction/, dev/, agents/
     └── infrastructure/ globals.ts (the only access to the runtime globals)
         └── orkeon/    the adapters of the ports, tool-results.ts (field casing),
                        runtime-tools.ts (the tool inputs), wiring.ts
 tests/
+├── crews/             the tests of src/, mirroring it: src/<path>/<m>.ts is tested by tests/<path>/<m>.test.ts,
+├── shared/            its <m>.fixtures.ts and <m>.assertions.ts beside it; src/ holds runtime code only
+├── commands/
 ├── support/           what several test files share, never imported by runtime code:
 │   ├── doubles/       the test doubles (Fake*), one per port
 │   ├── fixtures/      the sample data shared across test files (prompt-catalogue, memory-entries)
@@ -135,37 +159,50 @@ tests/
 mcp/whisper/           the speech MCP server, Python run by uv: whisper_mcp.py, tests/, samples/, smoke.py
 ```
 
-Les tests du domaine et de l'application sont à côté de leur module (`*.test.ts`) ; les points d'entrée ne
-contiennent aucune logique qui vaille un test unitaire et sont couverts par la vérification de bundle et le smoke du
-runtime.
+Les tests de `src/` en sont le miroir sous `tests/` : `src/<path>/<m>.ts` est testé par `tests/<path>/<m>.test.ts`,
+ses `.fixtures.ts` et `.assertions.ts` à côté du test ; les points d'entrée ne contiennent aucune logique qui vaille un test unitaire et sont couverts par la vérification de bundle et le smoke du
+runtime. `tests/repository/test-shape.test.ts` tient chaque test à sa forme, lue dans l'arbre syntaxique :
+
+- chaque test suit Arrange, Act, Assert, un seul acte par test ;
+- le code de test ne lit pas l'horloge et ne lance pas de minuterie (`setTimeout`, `setInterval`, `setImmediate`) : il prend un
+  `FakeClock`, sauf dans `tests/scripts/`, qui pilote de vrais processus ;
+- une doublure vit dans `tests/support/doubles/` et nulle part ailleurs : pas de classe qui étend un `Fake…` ou
+  implémente un port (les ports sont lus dans les exports de `ports/`), pas d'objet littéral typé par un port, pas
+  de méthode d'un fake remplacée sur une instance ; ce qu'un fake ne sait pas encore jouer devient un nouveau champ
+  de ce fake ;
+- `src/` ne contient aucun fichier de test, de fixtures ni d'assertions, et chacun de ceux du miroir a son
+  `<module>.ts` au même chemin dans `src/`, un second fichier de test du module étant `<module>.<facet>.test.ts`.
 
 ## Ports et adaptateurs
 
-Un port (`src/shared/application/ports.ts`) est nommé d'après ce dont l'application a besoin, pas d'après l'appel du
+Un port (`src/shared/application/ports/<concern>.ts`, réexporté par `ports.ts`) est nommé d'après ce dont l'application a besoin, pas d'après l'appel du
 runtime qui le fournit. Son adaptateur est le seul code qui appelle le runtime pour lui et le seul code qui lit les
 résultats du runtime, dont la casse des champs varie (`messages` ou `Messages`) : un port rend des valeurs simples,
-sauf les deux appels qui montrent un résultat brut à dessein (`MemoryStore.get`, `ToolCatalogue.call`).
+sauf les deux appels qui montrent un résultat brut à dessein (`MemoryStore.get`, `ToolCatalogue.call`). Un appelant
+qui lit le texte d'un outil passe par `ToolCatalogue.callText` : l'adaptateur décode le résultat (`tool-results.ts`) et
+rend le texte, ou le message d'échec propre à l'outil sans l'enrobage du runtime, et ne lève jamais.
 
 | Port | À quoi il sert | Adaptateur (`src/shared/infrastructure/orkeon/`) | Fake (`tests/support/doubles/`) |
 |---|---|---|---|
 | `Shell` | Les commandes shell dans `/workspace` (`shell_command`) | `shell.ts` | `fake-shell.ts` |
-| `ShellJobs` | Une commande longue lancée détachée, son état, la fin de son journal, et une attente entre deux regards (`shell_command` `start_job`, `job_status`, `job_tail`) | `shell-jobs.ts` | aucun : des faux dans `suite-job.test.ts` et `run-dev-implement.test.ts` |
-| `SharedMemory` | L'index RAG de la [mémoire partagée](shared-memory.md) : chercher dans une collection, indexer avec élagage (l'espace `rag`, sinon `rag_search`, `rag_ingest`) | `shared-memory.ts` | aucun : des faux dans les tests de la mémoire partagée |
-| `ChildRuntime` | Les enfants d'une exécution de crew : en lancer un en arrière-plan, lister, arrêter, lire ce qu'il a laissé (`ctx.spawnBackground`, `instances()`/`stop()` du crew, sa mémoire) | `child-agents.ts` | aucun : des faux dans `child-agent.test.ts` |
-| `HumanInput` | Une question à la personne : un choix, un texte, une sélection multiple ; personne ne répondant est une réponse en soi (`human_input`) | `human-input.ts` | aucun : des faux dans les tests des étapes dev |
+| `ShellJobs` | Une commande longue lancée détachée, son état, la fin de son journal, et une attente entre deux regards (`shell_command` `start_job`, `job_status`, `job_tail`) | `shell-jobs.ts` | `fake-shell-jobs.ts` |
+| `SharedMemory` | L'index RAG de la [mémoire partagée](shared-memory.md) : chercher dans une collection, indexer avec élagage (l'espace `rag`, sinon `rag_search`, `rag_ingest`) | `shared-memory.ts` | `fake-shared-memory.ts` |
+| `ChildRuntime` | Les enfants d'une exécution de crew : en lancer un en arrière-plan, lister, arrêter, lire ce qu'il a laissé (`ctx.spawnBackground`, `instances()`/`stop()` du crew, sa mémoire) | `child-agents.ts` | `fake-child-runtime.ts` |
+| `HumanInput` | Une question à la personne : un choix, un texte, une sélection multiple ; personne ne répondant est une réponse en soi (`human_input`) | `human-input.ts` | `fake-human-input.ts` |
 | `Files` | Lire, écrire et lister par chemin virtuel, les montages du VFS (`file_read`, `file_write`, `directory_read`, `list_mounts`) | `files.ts` | `fake-files.ts` |
 | `Progress` | La ligne de progression de l'hôte, au mieux (`progress_report`) | `progress.ts` | `fake-progress.ts` |
 | `SessionStore` | Le tampon de conversation, le sac d'état, le titre, la coupe, le budget de tokens (`session_store`, `session_snip`, `token_budget`) | `session-store.ts` | `fake-session-store.ts` |
 | `Telemetry` | Les métadonnées, le coût et les statistiques de la session (`session_store`, `session_cost`, `session_stats`) | `telemetry.ts` | `fake-telemetry.ts` |
 | `MemoryStore` | La mémoire typée : lister, ajouter, lire, retirer (`memory_store`) | `memory-store.ts` | `fake-memory-store.ts` |
-| `ToolCatalogue` | Les outils enregistrés sous leurs noms d'enregistrement, trouvés sans tenir compte de la casse comme Orkeon les trouve, pour les diagnostics et la vérification des outils supplémentaires (le service `tools` de `ctx.services` pour les noms, l'espace de noms `tools` pour les appels) | `tool-catalogue.ts` | `fake-tool-catalogue.ts` |
+| `ToolCatalogue` | Les outils enregistrés sous leurs noms d'enregistrement, trouvés sans tenir compte de la casse comme Orkeon les trouve, pour les diagnostics et la vérification des outils supplémentaires (le service `tools` de `ctx.services` pour les noms, l'espace de noms `tools` pour les appels : `call` brut, `callText` décodé) | `tool-catalogue.ts` | `fake-tool-catalogue.ts` |
 | `CodeIndex` | L'index du code tel que `/analyze` le récolte (`index_status`, `index_codebase`, `codebase_map`, `dependency_graph`, `package_summary`) | `code-index.ts` | `fake-code-index.ts` |
-| `CostIndex` | Le coût d'accès que `/dev-verify` et `/dev-implement` mesurent : les racines indexées, le rafraîchissement des fichiers du lot, le rapport (`index_status`, `incremental_reindex`, `access_cost`) | `code-index.ts` | aucun : un faux dans `measure-access-cost.test.ts` |
+| `CostIndex` | Le coût d'accès que `/dev-verify` et `/dev-implement` mesurent : les racines indexées, le rafraîchissement des fichiers du lot, le rapport (`index_status`, `incremental_reindex`, `access_cost`) | `code-index.ts` | `fake-cost-index.ts` |
 | `CrewHost` | Lister et lancer des crews (le service `script-host`, `ctx.services`) | `crew-host.ts` | `fake-crew-host.ts` |
 | `PermissionRules` | Les règles de session de la garde de permission de l'hôte : ajouter, effacer, lister (le service `permissions`, `ctx.services`) | `permission-rules.ts` | `fake-permission-rules.ts` |
 | `Llm` | Le modèle : `act` (la boucle d'outils), `complete`, `extract` (`ctx.llm` de l'agent en cours) ; un `act` ou un `complete` qui échoue lève une `LlmFailure` | `llm.ts` | `fake-llm.ts` |
 | `RunState` | L'état propre de l'agent en cours, pour une exécution de crew (`ctx.state`) | `run-state.ts` | `fake-run-state.ts` |
 | `CrewMemory` | La mémoire clé/valeur du crew en cours, partagée par ses agents le temps d'une exécution (`ctx.memory.crew`) | `crew-memory.ts` | `fake-crew-memory.ts` |
+| `Clock` | L'heure courante (`ports/clock.ts`), la seule lecture de l'horloge hors de `shared/infrastructure/` | `wiring.ts` (`orkeonClock()`) | `fake-clock.ts` |
 | `Logger` | Le log de la commande ou du crew | aucun : `ctx.log` est passé tel quel | `fake-logger.ts` |
 
 **Câblage.** `wiring.ts` lie les adaptateurs qui lisent la globale `tools` (`orkeonShell()`, `orkeonFiles()`,
@@ -179,6 +216,10 @@ remet les deux derniers à `launchCrew` ou `launchMainLoop` avec son log). Chaqu
 paramètre, si bien que son propre test l'exécute au-dessus d'un substitut : `fake-tools.ts` (la globale `tools`),
 `fake-llm-facade.ts` (`ctx.llm`), `fake-agent-context.ts` (`ctx.state`, `ctx.memory`), `fake-script-host.ts` (le
 service script-host), `fake-permissions-facade.ts` (le service permissions).
+`orkeonClock()` est l'horloge du code exécuté : un point d'entrée la remet à ce qui date un enregistrement ou
+mesure une attente, là où un test remet une `FakeClock`.
+`orkeonCompactionDeps(ctx, ports, clock)` rassemble les ports du pipeline de compaction, pour `/compact` comme pour la
+compaction automatique de la boucle principale.
 
 **Les services** (`src/shared/application/`) sont bâtis au-dessus des ports et partagés par les commandes et les
 crews : `session-io.ts` (le tampon plus le mode de permission dans lequel une session tourne), `config-store.ts`
@@ -204,11 +245,11 @@ en retour. Le cas d'usage vit dans `commands/_lib/`, prend les ports qu'il lit (
 `CommandView` : un tableau et un message de clôture. `/mode` :
 
 ```ts
-/// <reference path="./.orkeon/orkeon-cli.d.ts" />
-import { rawTokens } from "./_lib/args.ts";
-import { runMode } from "./_lib/mode.ts";
-import { showView } from "./_lib/view.ts";
-import { orkeonSessionIo } from "../shared/infrastructure/orkeon/wiring.ts";
+/// <reference path="../.orkeon/orkeon-cli.d.ts" />
+import { rawTokens } from "../_lib/args.ts";
+import { runMode } from "../_lib/settings/mode.ts";
+import { showView } from "../_lib/view.ts";
+import { orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
 
 const session = orkeonSessionIo();
 
@@ -285,7 +326,7 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 | `agent-run` | séquentiel, un act d'une charte intégrée (`dev-reviewer`, `dev-auditor`) | `/tasks send`, `/tasks repair` | Un nouveau run d'un enfant fini, son brief portant le rapport précédent et le message de l'opérateur ; il tourne sous l'étape du run de l'instance (un relecteur de `/dev-spec` ou de `/dev-change` sous les jeux de règles, les hooks et le budget de cette étape), sinon sous l'étape de la charte, avec le budget de cette étape et aucun enfant à lui |
 | `dev-spec` | séquentiel, des extracts, la revue dans un enfant d'arrière-plan `dev-reviewer` (neuf outils de lecture en `plan` ; en ligne sur un hôte sans enfants d'arrière-plan) | `/dev-spec` | Spécification métier écrite par le code depuis le JSON, ses questions posées une à une par `human_input`, une revue en lecture seule |
 | `dev-change` | séquentiel, des extracts, la revue dans un enfant d'arrière-plan `dev-reviewer` (neuf outils de lecture en `plan` ; en ligne sur un hôte sans enfants d'arrière-plan) | `/dev-change` | Bug reproduit ou coût mesuré en exécutant, fiche de changement écrite par le code, questions par `human_input`, une revue |
-| `dev-implement` | séquentiel, un agent, deux rôles en `acceptEdits` (cinq outils de lecture, six d'écriture - `file_write` pour un nouveau fichier, les éditeurs de nœuds et `edit_batch` pour un fichier existant - `run_tests`, `run_build`, `memory_recall`) | `/dev-implement` (`--close` : la clôture seule) | Chaque cycle (les étapes d'un même fichier de test) rouge puis vert, vérifié par le code, son coût mesuré ; une correction ajoutée en étape ; le build et la suite (ensuite les projets touchés) en jobs ; puis `/dev-verify` et, sur VALID, le commit et les marques « fait » ; une hypothèse est consignée une fois par lot, jamais une que la fiche porte déjà ; un chemin relatif qu'un rôle passe à un outil est résolu sous le checkout avant l'outil |
+| `dev-implement` | séquentiel, un agent, deux rôles en `acceptEdits` (cinq outils de lecture, six d'écriture - `file_write` pour un nouveau fichier, les éditeurs de nœuds et `edit_batch` pour un fichier existant ; la règle d'édition épelle un `edit_batch`, sa liste `operations` et `validate`, le runtime ne publiant pas de schéma pour les outils de nœud - `run_tests`, `run_build`, `memory_recall`) | `/dev-implement` (`--close` : la clôture seule) | Chaque cycle (les étapes d'un même fichier de test) rouge puis vert, vérifié par le code, son coût mesuré ; une correction ajoutée en étape ; le build et la suite (ensuite les projets touchés) en jobs ; puis `/dev-verify` et, sur VALID, le commit et les marques « fait » ; une hypothèse est consignée une fois par lot, jamais une que la fiche porte déjà ; un chemin relatif qu'un rôle passe à un outil est résolu sous le checkout avant l'outil |
 | `dev-batches` | séquentiel, un agent avec les outils de lecture du relecteur, sa revue en ligne ; avec `--concurrency` de 2 à 4, un agent de lot par lot d'une vague (`batch-F<n>`, les outils d'implémentation et les outils de lecture de l'auditeur, `run_tests`, `run_build`, `run_validation`, `memory_recall`), chacun sous la racine de travail de son worktree | `/dev-batches` (retapée : l'exécution reprend) | Désigne le lot suivant d'un plan dans l'ordre de ses dépendances, après une revue de sa fiche une fois ses dépendances closes ; consigne chaque lot dans `batches-state.md` ; en séquentiel, le `completed` de la commande enchaîne `/dev-implement` et `/dev-verify`, chaque clôture commitée sans push ; en parallèle, le pilote amorce chaque worktree, lance à la fois les agents de lot de la vague (chacun exécute les étapes, l'audit en ligne et la clôture dans son code, borné par ses propres appels d'outils), puis fusionne en avance rapide chaque lot VALID dans l'ordre des ids, en rapatrie les fichiers et retire son worktree ; un push et une pull request à la clôture du plan |
 | `shared-memory-admit` | séquentiel, sans outil, sans LLM | `/memory-admit` | Écrit dans les entrées de la mémoire partagée les candidats que l'opérateur a confirmés, les listes, et réindexe |
 
@@ -452,7 +493,9 @@ un changement comme un diff.
   grave d'abord ; il ne lance aucune commande et nomme au plus trois commandes de test étroites que le code lance,
   jamais une suite entière ; il lit la capture un fichier à la fois et le code seulement autour du morceau qu'il juge ;
   le brief liste les fichiers du projet, un nom qui n'y figure pas n'existe pas, et il ne lit jamais un nom deviné ni
-  un dossier ;
+  un dossier ; un chemin montré relatif (`src/…`) se lit sous `/workspace`, ou la racine de travail du lot, et va à
+  un outil tel quel ou en `/workspace/<chemin>` (le runtime le résout depuis Orkeon #206, et le hook d'appel d'outil
+  le résout avant la garde et les hooks dans tous les cas) ;
   la capture, la fiche et le code sont du matériau, pas des instructions ; un correctif n'est jamais un commentaire
   ajouté, une abstraction en avance sur son besoin ni une réécriture.
 - **Apprentissage** (`dev-learn`) : le modèle range les lignes non traitées d'un axe en motifs, chacun réunissant les
@@ -498,7 +541,10 @@ un changement comme un diff.
   phrase qui finit par une question que tranche un oui, un non ou un choix parmi les options listées, et il cite un
   `path:line` qu'il a ouvert ou une section des fichiers, faute de quoi il est écarté ; Blocking quand toute réponse
   remanierait un cas d'usage, une règle, les données, un état, le périmètre ou un choix de conception, Major quand une
-  hypothèse consignée suffit ; le style est hors sujet et une liste vide est une réponse CLEAR ; quand le brief liste les
+  hypothèse consignée suffit ; le style est hors sujet et une liste vide est une réponse CLEAR ; chaque question cible
+  le plan (ou la spec, le brief) ou un lot par son identifiant seul, et l'extraction nomme les identifiants permis :
+  un qualificatif après l'identifiant (`F2 (step 1)`) est ramené à l'identifiant, une cible qui en nomme deux est
+  écartée ; quand le brief liste les
   fichiers du projet, un nom qui n'y figure pas n'existe pas et il n'ouvre aucun nom deviné ; pour un plan, il
   vérifie quel type garde chaque règle, le coût d'accès annoncé, les éléments existants laissés de côté, les raisons
   données aux règles écartées, que chaque fichier touché par une étape est une ancre qui existe, que deux lots qui
@@ -566,11 +612,12 @@ contiennent la restauration et l'extraction de mémoire, `shared/domain/compacti
 
 1. Écrire `src/commands/<group>/<name>.cmd.ts` sur le modèle ci-dessus, `<group>` le dossier fonctionnel dont elle relève : un seul `name: "<literal>"` en kebab case, une
    `description` statique, pas d'`export` de premier niveau.
-2. Mettre la logique qui vaut un test dans `src/commands/_lib/<family>.ts` sous la forme `run<Name>(tokens, deps)`
-   rendant une `CommandView`, ses deps un `Pick<>` des ports et services qu'elle lit ; la tester à côté, dans
-   `src/commands/_lib/<family>.test.ts`, au-dessus des fakes.
+2. Mettre la logique qui vaut un test dans `src/commands/_lib/<group>/<name>.ts`, le même `<group>` que la
+   commande, sous la forme `run<Name>(tokens, deps)` rendant une `CommandView`, ses deps un `Pick<>` des ports et
+   services qu'elle lit ; la tester dans `tests/commands/_lib/<group>/<name>.test.ts`, au-dessus des fakes.
+   Un utilitaire que plusieurs groupes partagent se place à la racine de `_lib/` ; un groupe n'importe jamais un autre.
 3. Augmenter `EXPECTED_COMMAND_COUNT` dans `tests/repository/command-surface.test.ts` et le nombre de commandes de
-   `RELEASE_NOTES` dans `src/commands/_lib/meta.ts` (épinglé par `src/commands/_lib/meta.test.ts`), puis lancer
+   `RELEASE_NOTES` dans `src/commands/_lib/status/meta.ts` (épinglé par `tests/commands/_lib/status/meta.test.ts`), puis lancer
    `npm run docs:commands`.
 
 ### Ajouter un crew
@@ -582,7 +629,7 @@ contiennent la restauration et l'extraction de mémoire, `shared/domain/compacti
    `domain/`, chacun avec son `*.test.ts` ; le test du cas d'usage tourne au-dessus des fakes.
 3. Le lancer depuis une commande async (`launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "<name>",
    input)`), et le nommer dans `RELEASE_NOTES`
-   (`src/commands/_lib/meta.test.ts` vérifie que chaque dossier de crew y est nommé). Un dossier commençant par `_` est
+   (`tests/commands/_lib/status/meta.test.ts` vérifie que chaque dossier de crew y est nommé). Un dossier commençant par `_` est
    une sonde de développement (`probe.ork.ts`), jamais listée aux utilisateurs.
 
 ### Ajouter un outil
@@ -648,8 +695,9 @@ Mettre à jour `mode-policy.test.ts` et `docs/permissions.md`.
 
 ### Ajouter un port
 
-1. Déclarer l'interface dans `src/shared/application/ports.ts`, nommée d'après le besoin, avec son contrat d'échec
-   (quels appels lèvent, lesquels sont au mieux).
+1. Déclarer l'interface dans `src/shared/application/ports/<concern>.ts` (une préoccupation nouvelle est un
+   nouveau fichier), nommée d'après le besoin, avec son contrat d'échec (quels appels lèvent, lesquels sont au
+   mieux), et ajouter son nom à la ligne `export type` de ce fichier dans `ports.ts`, que nomme chaque importeur.
 2. Écrire l'adaptateur `src/shared/infrastructure/orkeon/<port>.ts` : `create<Port>(runtimeObject)`, les entrées
    d'outils déclarées dans `runtime-tools.ts`, les résultats lus par `tool-results.ts`. Le lier dans `wiring.ts` quand
    il lit la globale `tools` ; sinon le point d'entrée le construit à partir de son contexte.

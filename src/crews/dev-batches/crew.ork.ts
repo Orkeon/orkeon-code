@@ -23,11 +23,11 @@
 // Budget: domain/batches-budget.ts (the driver's, and each batch agent's run: L8P-D12, Orkeon/orkeon#189).
 
 import { AgentBuilder, CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infrastructure/globals.ts";
-import { orkeonConfigStore, orkeonFiles, orkeonPullRequestOpener, orkeonShell } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { orkeonClock, orkeonConfigStore, orkeonFiles, orkeonPullRequestOpener, orkeonShell } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { memoryDirOf } from "../../shared/application/shared-memory/memory-settings.ts";
 import { harvestAfterGaps } from "../../shared/application/shared-memory/harvest-after-gaps.ts";
-import { devToolCallbacks } from "../../shared/infrastructure/orkeon/tool-callbacks.ts";
+import { devToolCallbacks } from "../../shared/application/dev/tool-callbacks.ts";
 import { batchAgentParts, gitTopUnder, implementDeps, verifyDeps } from "../../shared/infrastructure/orkeon/dev-deps.ts";
 import { charterCatalogue } from "../../shared/domain/agents/charter.ts";
 import { providerEffort } from "../../shared/domain/agent-policy/behavior-flags.ts";
@@ -38,8 +38,8 @@ import { implementInputs, runDevImplement } from "../dev-implement/application/r
 import { AUDITOR_CHARTER } from "../dev-verify/domain/auditor-charter.ts";
 import { runDevVerify } from "../dev-verify/application/run-dev-verify.ts";
 import { batchLimits, driverBudget } from "./domain/batches-budget.ts";
-import { runBatchChain } from "./application/run-wave.ts";
-import type { BatchOutcome, BatchRun } from "./application/run-wave.ts";
+import { outcomeOf, runBatchChain } from "./application/run-wave.ts";
+import type { BatchRun } from "./application/run-wave.ts";
 import type { BatchesContext } from "./application/run-dev-batches.ts";
 import { runDevBatches } from "./application/run-dev-batches.ts";
 
@@ -82,18 +82,6 @@ function batchAgent(run: BatchRun, context: BatchesContext) {
   return { builder: batchEffort === undefined ? builder : builder.effort(batchEffort), limits };
 }
 
-/** The outcome a batch agent answered (its JSON); its text as the lines of a BLOCKED one otherwise. */
-function outcomeOf(run: BatchRun, answered: unknown): BatchOutcome {
-  const text = typeof answered === "string" ? answered : JSON.stringify(answered);
-  try {
-    const value = JSON.parse(text) as BatchOutcome;
-    if (value !== null && value.batch === run.batch && Array.isArray(value.lines)) return value;
-  } catch {
-    // Not the chain's JSON.
-  }
-  return { batch: run.batch, verdict: "BLOCKED", lines: [`BLOCKED — the batch agent answered: ${text.split("\n")[0]}`], spent: 0 };
-}
-
 const builder = AgentBuilder()
   .name("dev-batches")
   .role("Batch driver")
@@ -105,7 +93,7 @@ const builder = AgentBuilder()
     // The ports over this body's tools: a parallel wave's batch agents run beside it under other roots, where the
     // global `tools` refuses a call.
     const ports = { shell: orkeonShell(ctx.tools), files: orkeonFiles(ctx.tools), config: orkeonConfigStore(ctx.tools) };
-    const clock = () => new Date();
+    const clock = orkeonClock();
     return await runDevBatches(inputs(), {
       ...ports, log: ctx.log, clock,
       // The host's gate first, then these callbacks: the dev rule sets again and the run's /hooks (a chained run
@@ -118,7 +106,7 @@ const builder = AgentBuilder()
         const agent = batchAgent(run, context);
         const answered = await crew.runAgent(ctx.spawn(agent.builder), {},
           { signal: ctx.signal, timeout: agent.limits.wallTime * 1000, budget: agent.limits });
-        return outcomeOf(run, answered);
+        return outcomeOf(run.batch, answered);
       },
       // git under the first worktree, as an agent rooted there sees it (L8P-D11, Orkeon/orkeon#188).
       probe: async (root) => {

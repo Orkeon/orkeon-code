@@ -1,5 +1,5 @@
 {
-  "_comment": "The markers of another product's material, read by scripts/check-provenance.mjs and tests/prompt-contract.test.ts. Each entry is a regular expression source and its flags.",
+  "_comment": "The markers of another product's material, read by scripts/check-provenance.mjs and tests/repository/prompt-contract.test.ts. Each entry is a regular expression source and its flags.",
   "markers": [
     {
       "source": "claude[ _-]?code",

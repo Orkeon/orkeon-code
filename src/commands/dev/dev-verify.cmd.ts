@@ -4,7 +4,7 @@
 // the host's gate must be on, and the dev rule sets are put in it first (_lib/dev-step.ts). The batch is
 // recorded as the one in progress: a compaction writes its state file (.orkeon/dev/<code>/state-F<n>.md).
 import { rawTokens } from "../_lib/args.ts";
-import { parseDevVerifyArgs } from "../_lib/dev.ts";
+import { parseDevVerifyArgs } from "../_lib/dev/dev.ts";
 import { devVerifyStep, markActiveWorkflow, startDevStep } from "../_lib/dev-step.ts";
 import { launchCrew, writeCompleted } from "../_lib/dispatch.ts";
 import { storedEffort } from "../_lib/effort.ts";

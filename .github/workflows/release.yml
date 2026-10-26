@@ -3,7 +3,7 @@
 # the source archives (-source), their SHA256SUMS and a build provenance attestation
 # (Sigstore, as Orkeon/orkeon does), then publishes the npm package (job npm).
 #
-# The tag must match package.json (and meta.ts, which tests/version.test.ts keeps
+# The tag must match package.json (and meta.ts, which tests/repository/version.test.ts keeps
 # equal to it), and the provenance gate runs in --strict mode: nothing adapted
 # from another product's text is ever released.
 name: Release

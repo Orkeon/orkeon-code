@@ -5,7 +5,7 @@
 import { orkeonSessionIo, orkeonShell, orkeonTelemetry } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { createCrewHost } from "../../shared/infrastructure/orkeon/crew-host.ts";
 import { readHostProvider } from "../../shared/infrastructure/orkeon/host-provider.ts";
-import { runStatus } from "../_lib/status.ts";
+import { runStatus } from "../_lib/status/status.ts";
 import { showView } from "../_lib/view.ts";
 
 const session = orkeonSessionIo();

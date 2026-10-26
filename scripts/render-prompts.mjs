@@ -7,7 +7,7 @@
 //
 // One file per prompt (NN-<name>.md: where it is built, where it is called, the
 // sample inputs, then each section verbatim) and SIZES.md. The prompts come from
-// tests/support/fixtures/prompt-catalogue.ts, the catalogue tests/prompt-contract.test.ts
+// tests/support/fixtures/prompt-catalogue.ts, the catalogue tests/repository/prompt-contract.test.ts
 // checks; the Whisper server's tool descriptions are read from its source with
 // Python's ast module (the file is parsed, never run), when python3 is there.
 import { mkdirSync, writeFileSync, rmSync, existsSync } from "node:fs";

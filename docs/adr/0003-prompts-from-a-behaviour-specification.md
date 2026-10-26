@@ -24,7 +24,7 @@ Orkeon Code's prompts were in two states before the first release.
 - **Behaviour first.** `docs/architecture.md`, "Prompt assembly", specifies what each prompt must produce, rule by
   rule. The text is written from that specification, in this project's own words. Published agent prompts and the
   documentation of other assistants are read to learn which behaviours matter, never as text to reuse.
-- **Pin the behaviour.** Every rule has a marker phrase a test pins. `tests/prompt-contract.test.ts` renders every
+- **Pin the behaviour.** Every rule has a marker phrase a test pins. `tests/prompt-contract.test.ts` (now `tests/repository/prompt-contract.test.ts`) renders every
   prompt in every permission mode and checks the markers, that the main loop's header is digit-free, identical from
   one turn to the next and under `MAX_STATIC_HEADER_CHARS`, and that no rendered prompt carries a provenance marker.
 - **Read the change as the model will.** `node scripts/render-prompts.mjs <dir>` writes every prompt as it is sent;

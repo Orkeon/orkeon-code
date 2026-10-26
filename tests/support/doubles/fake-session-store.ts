@@ -2,7 +2,10 @@
 // array (the buffer). `budget` is what readBudget answers, `snipped` what snip
 // answers (each snip lands in `snips`, and `budgetAfterSnip`, when set, becomes
 // the budget); reset empties the buffer and setTitle sets `title`. A `failure`
-// makes every call throw it, as a host without the session tools does.
+// makes every call throw it, as a host without the session tools does; a
+// `readStateFailure` makes readState alone throw it (a state bag that cannot be
+// read, but can be written), a `writeStateFailure` writeState alone (one that
+// cannot be written).
 import type {
   SessionMessages, SessionStore, SnipResult, StoredMessage, TokenBudget,
 } from "../../../src/shared/application/ports.ts";
@@ -17,6 +20,8 @@ export class FakeSessionStore implements SessionStore {
   snips: number[] = [];
   title: string | null = null;
   failure: Error | null = null;
+  readStateFailure: Error | null = null;
+  writeStateFailure: Error | null = null;
 
   check(): void {
     if (this.failure) throw this.failure;
@@ -53,11 +58,13 @@ export class FakeSessionStore implements SessionStore {
 
   async readState(key: string): Promise<string | null> {
     this.check();
+    if (this.readStateFailure) throw this.readStateFailure;
     return this.state.get(key) ?? null;
   }
 
   async writeState(key: string, value: string | null): Promise<void> {
     this.check();
+    if (this.writeStateFailure) throw this.writeStateFailure;
     if (value === null) this.state.delete(key);
     else this.state.set(key, value);
   }
