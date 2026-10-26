@@ -1,9 +1,9 @@
 /// <reference path="../.orkeon/orkeon-cli.d.ts" />
 // /memory-admit [<id>…] | --refuse <id> [<motif>] | --list | --import — decide the shared memory's candidates
-// (_lib/memory-admit.ts). An admission is confirmed here, then written and indexed by the crew
+// (_lib/memory/memory-admit.ts). An admission is confirmed here, then written and indexed by the crew
 // shared-memory-admit; a refusal, the list and the import are answered here.
 import { rawTokens } from "../_lib/args.ts";
-import { MEMORY_ADMIT_CREW, parseMemoryAdmitArgs, runMemoryAdmit } from "../_lib/memory-admit.ts";
+import { MEMORY_ADMIT_CREW, parseMemoryAdmitArgs, runMemoryAdmit } from "../_lib/memory/memory-admit.ts";
 import { launchCrew, writeCompleted } from "../_lib/dispatch.ts";
 import { createCrewHost } from "../../shared/infrastructure/orkeon/crew-host.ts";
 import { orkeonClock, orkeonConfigStore, orkeonFiles, orkeonShell } from "../../shared/infrastructure/orkeon/wiring.ts";

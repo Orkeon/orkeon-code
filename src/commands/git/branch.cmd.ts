@@ -15,7 +15,7 @@
 // one that cannot cost work. The message names both ways out.
 import { orkeonShell } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { rawTokens } from "../_lib/args.ts";
-import { runBranch } from "../_lib/branch.ts";
+import { runBranch } from "../_lib/git/branch.ts";
 import { showView } from "../_lib/view.ts";
 
 const shell = orkeonShell();

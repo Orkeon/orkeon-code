@@ -6,7 +6,7 @@
 // handler may wait); --stop answers at once (commands/_lib/say).
 import { rawTokens } from "../_lib/args.ts";
 import { writeCompleted } from "../_lib/dispatch.ts";
-import { dispatchSay } from "../_lib/say.ts";
+import { dispatchSay } from "../_lib/speech/say.ts";
 import { createCrewHost } from "../../shared/infrastructure/orkeon/crew-host.ts";
 import { orkeonSessionIo, orkeonToolCatalogue } from "../../shared/infrastructure/orkeon/wiring.ts";
 

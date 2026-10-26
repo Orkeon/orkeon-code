@@ -69,7 +69,7 @@ fixture (`/init`, `/assistant`, `/commit`, `/review`) before merging. Dependabot
 ## Releasing
 
 1. Move the `[Unreleased]` entries of `CHANGELOG.md` under `## [x.y.z] - YYYY-MM-DD`.
-2. Bump `package.json` `version` and `CLI_VERSION` in `src/commands/_lib/meta.ts` (the test keeps them equal), and
+2. Bump `package.json` `version` and `CLI_VERSION` in `src/commands/_lib/status/meta.ts` (the test keeps them equal), and
    the release notes in the same file.
 3. Run `bash scripts/check-shared-memory.sh` in a terminal (it asks for `rag_eval`): the shared memory's recall on
    its reference set must end on `check-shared-memory: thresholds met` (recall@5 >= 0.85, MRR >= 0.70). The question

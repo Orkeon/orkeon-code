@@ -342,6 +342,7 @@ export const LAYER_CASES: ReadonlyArray<{ file: string; layer: Layer | null }> =
   { file: GLOBALS, layer: "infrastructure" },
   { file: "src/commands/settings/mode.cmd.ts", layer: null },
   { file: "src/commands/_lib/args.ts", layer: null },
+  { file: "src/commands/_lib/settings/mode.ts", layer: null },
 ];
 
 /** An import and the rules it breaks, by the behaviour it shows. */
@@ -358,7 +359,7 @@ export const GLOBALS_IMPORT_CASES: readonly ImportCase[] = [
   { name: "refuses globals.ts to a command entry point", imp: importOfGlobals("src/commands/status/doctor.cmd.ts"), broken: [GLOBALS_RULE] },
   {
     name: "refuses globals.ts to a use case of commands/_lib/, which never imports shared/infrastructure/",
-    imp: importOfGlobals("src/commands/_lib/doctor.ts"),
+    imp: importOfGlobals("src/commands/_lib/status/doctor.ts"),
     broken: [GLOBALS_RULE, LIB_RULE],
   },
 ];
@@ -400,7 +401,7 @@ export const LAYER_IMPORT_CASES: readonly ImportCase[] = [
   },
   {
     name: "lets commands/_lib/ import commands/_lib/",
-    imp: importOf("src/commands/_lib/mode.ts", "src/commands/_lib/args.ts"),
+    imp: importOf("src/commands/_lib/settings/mode.ts", "src/commands/_lib/args.ts"),
     broken: [],
   },
   {
@@ -453,7 +454,7 @@ export const COMMAND_IMPORT_CASES: readonly ImportCase[] = [
   },
   {
     name: "lets a command entry point import its use case of commands/_lib/",
-    imp: importOf("src/commands/git/commit.cmd.ts", "src/commands/_lib/commit.ts"),
+    imp: importOf("src/commands/git/commit.cmd.ts", "src/commands/_lib/git/commit.ts"),
     broken: [],
   },
   {
@@ -526,6 +527,7 @@ export const PLACEMENT_CASES: ReadonlyArray<{ file: string; rule: string | null 
   { file: "src/crews/_probe-budget/probe.ork.ts", rule: null },
   { file: "src/commands/settings/mode.cmd.ts", rule: null },
   { file: "src/commands/_lib/args.ts", rule: null },
+  { file: "src/commands/_lib/git/commit.ts", rule: null },
   { file: "src/crews/.orkeon/orkeon.d.ts", rule: null },
   { file: "src/crews/x/helpers.ts", rule: PLACEMENT_RULE },
   { file: "src/commands/settings/mode-view.ts", rule: PLACEMENT_RULE },
@@ -548,9 +550,9 @@ export const CLOCK_CASES: ReadonlyArray<{ name: string; file: string; text: stri
   },
   {
     name: "refuses a clock read to a use case of commands/_lib/",
-    file: "src/commands/_lib/status.ts",
+    file: "src/commands/_lib/status/status.ts",
     text: "const stamp = String(new Date());",
-    breaks: [`src/commands/_lib/status.ts:1: new Date(): ${CLOCK_RULE}`],
+    breaks: [`src/commands/_lib/status/status.ts:1: new Date(): ${CLOCK_RULE}`],
   },
   {
     name: "lets shared/infrastructure/ read the clock",
@@ -646,6 +648,6 @@ export const GLOBAL_RULE_CASES: ReadonlyArray<{ name: string; file: string; rule
   { name: "tools", file: "src/commands/status/doctor.cmd.ts", rule: RUNTIME_GLOBALS[1].rule },
   { name: "tools", file: "src/crews/x/application/run-x.ts", rule: RUNTIME_GLOBALS[1].rule },
   { name: "defineCommand", file: "src/commands/settings/fast.cmd.ts", rule: null },
-  { name: "defineCommand", file: "src/commands/_lib/session-config.ts", rule: RUNTIME_GLOBALS[2].rule },
+  { name: "defineCommand", file: "src/commands/_lib/settings/session-config.ts", rule: RUNTIME_GLOBALS[2].rule },
   { name: "require", file: "src/shared/infrastructure/globals.ts", rule: RUNTIME_GLOBALS[0].rule },
 ];

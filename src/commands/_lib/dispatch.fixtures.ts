@@ -1,7 +1,7 @@
 // The deps launchCrew and launchMainLoop run over (FakeCrewHost, FakePermissionRules, a config store on FakeSessionStore
 // and FakeFiles, FakeToolCatalogue, a recording log), the gate noted at launch, and the expected
 // gate lines and warnings that run past a line.
-import { runMode } from "./mode.ts";
+import { runMode } from "./settings/mode.ts";
 import { createConfigStore } from "../../shared/application/config-store.ts";
 import { createSessionIo } from "../../shared/application/session-io.ts";
 import { resolveFallbackMode } from "../../shared/domain/permission-modes.ts";

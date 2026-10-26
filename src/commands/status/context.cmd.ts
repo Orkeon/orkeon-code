@@ -7,7 +7,7 @@ import { DEFAULT_CONTEXT_WINDOW, pressureTier, percentLeft } from "../../shared/
 import { countCompactBoundaries } from "../../shared/domain/compaction.ts";
 import { orkeonSessionIo, orkeonTelemetry } from "../../shared/infrastructure/orkeon/wiring.ts";
 import type { SessionStats } from "../../shared/application/ports.ts";
-import { cacheColumns } from "../_lib/cache.ts";
+import { cacheColumns } from "../_lib/status/cache.ts";
 
 const session = orkeonSessionIo();
 const telemetry = orkeonTelemetry();

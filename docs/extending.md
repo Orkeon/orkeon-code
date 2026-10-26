@@ -32,10 +32,10 @@ defineCommand({
 });
 ```
 
-Logic worth testing goes to `src/commands/_lib/<family>.ts` as `run<Name>(tokens, deps)`, its deps a `Pick<>` of the
-ports it reads, tested over the fakes of `tests/support/doubles/`. Three other places move with a new command, and
+Logic worth testing goes to `src/commands/_lib/<group>/<name>.ts`, the folder of its command, as
+`run<Name>(tokens, deps)`, its deps a `Pick<>` of the ports it reads, tested over the fakes of `tests/support/doubles/`. Three other places move with a new command, and
 `npm run check` names the one you forgot: `tests/command-surface.test.ts` pins the count of commands,
-`src/commands/_lib/meta.ts` states it in the release notes, and `npm run docs:commands` regenerates
+`src/commands/_lib/status/meta.ts` states it in the release notes, and `npm run docs:commands` regenerates
 [docs/commands.md](commands.md). The recipe: [Add a command](architecture.md#add-a-command).
 
 ## A crew

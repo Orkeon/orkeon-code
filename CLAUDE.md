@@ -32,7 +32,7 @@ that breaks the rule; never weaken it to make a change pass, move the code inste
 | **application** (`*/application/`) | the use cases (`run-<crew>.ts`) and shared services | domain and application only, the ports of `src/shared/application/ports.ts` (re-exported from `ports/<concern>.ts`) included |
 | **infrastructure** (`src/shared/infrastructure/`) | `globals.ts` (the only reader of `tools`, `agentBuilder`, `crewBuilder`, `inputs`), the `orkeon/` adapters, `orkeon/wiring.ts` | everything inside |
 | **entry points** (`crew.ork.ts`, `*.cmd.ts`) | parse the input, wire the adapters, call one use case, render the result | no logic worth testing |
-| **command use cases** (`src/commands/_lib/`) | the logic of a command | never `shared/infrastructure/` |
+| **command use cases** (`src/commands/_lib/<group>/`) | the logic of a command, in the group of its `*.cmd.ts`; what groups share at the root of `_lib/` | never `shared/infrastructure/` |
 
 - Application never imports infrastructure: what it needs from the runtime it receives as a parameter typed by a
   port. A new need of the runtime is a new port in `ports/<concern>.ts` plus its line in the `ports.ts` barrel, an
@@ -120,7 +120,7 @@ The convention is Orkeon's (`tests/` of github.com/Orkeon/orkeon), adapted to `n
 
 ```text
 src/
-├── commands/   <group>/*.cmd.ts (entry points, by function) + _lib/ (their use cases)
+├── commands/   <group>/*.cmd.ts (entry points, by function) + _lib/<group>/ (their use cases, shared helpers at the root)
 ├── crews/      <name>/crew.ork.ts (entry point) + application/ + domain/
 └── shared/     domain/ · application/ (ports.ts + ports/, services) · infrastructure/ (globals.ts, orkeon/ adapters, wiring.ts)
 tests/          support/ (doubles/, fixtures/, assertions/ shared across tests) · fixtures/ (file-like texts) · repository/ · scripts/ · config/

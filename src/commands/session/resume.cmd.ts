@@ -2,8 +2,8 @@
 // /resume — the sessions of this project the launcher kept (/session-history), newest
 // first, and the restart that brings one back (`orkeon-code --resume <id>`), then the
 // current buffer's last turns. Entry point: wires the files and the session into
-// _lib/resume.ts (runResume), which reads them.
-import { runResume } from "../_lib/resume.ts";
+// _lib/session/resume.ts (runResume), which reads them.
+import { runResume } from "../_lib/session/resume.ts";
 import { showView } from "../_lib/view.ts";
 import { orkeonFiles, orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
 

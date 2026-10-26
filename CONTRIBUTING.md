@@ -23,7 +23,7 @@ bash scripts/smoke-runtime.sh # the real REPL loads every command (needs a runti
 
 ```text
 src/
-├── commands/   *.cmd.ts slash commands (entry points) + _lib/ (their use cases)
+├── commands/   *.cmd.ts slash commands (entry points) + _lib/<group>/ (their use cases, shared helpers at the root)
 ├── crews/      <name>/crew.ork.ts (entry point) + application/ + domain/
 └── shared/     domain/ · application/ (ports.ts + ports/, services) · infrastructure/ (globals.ts, orkeon/ adapters)
 tests/          support/ (doubles/, fixtures/, assertions/ shared across test files) · repository/ (architecture, test shape, command surface, versions) · scripts/ · config/

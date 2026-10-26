@@ -12,7 +12,7 @@
 // `/plan` would hand back write access nobody asked for on that keystroke.
 import { DEFAULT_MODE_STATE_KEY } from "../../shared/domain/session-keys.ts";
 import { orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
-import { togglePlanMode } from "../_lib/mode.ts";
+import { togglePlanMode } from "../_lib/settings/mode.ts";
 
 const session = orkeonSessionIo();
 

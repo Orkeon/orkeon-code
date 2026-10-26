@@ -17,10 +17,10 @@
 //   3. a NON-interactive session without `--yes` is refused, not auto-approved —
 //      the one case where a confirmation prompt silently degrades into consent.
 //
-// The gate is _lib/commit.ts; this file wires it to the session, the prompt and the
+// The gate is _lib/git/commit.ts; this file wires it to the session, the prompt and the
 // pull-request context, then launches the crew with the input it builds.
 import { rawTokens } from "../_lib/args.ts";
-import { runCommitCommand } from "../_lib/commit.ts";
+import { runCommitCommand } from "../_lib/git/commit.ts";
 import { launchCrew, writeCompleted } from "../_lib/dispatch.ts";
 import { createCrewHost } from "../../shared/infrastructure/orkeon/crew-host.ts";
 import { createPermissionRules } from "../../shared/infrastructure/orkeon/permission-rules.ts";

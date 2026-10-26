@@ -32,10 +32,10 @@ defineCommand({
 });
 ```
 
-La logique qui mérite un test va dans `src/commands/_lib/<family>.ts` sous la forme `run<Name>(tokens, deps)`, ses
-deps un `Pick<>` des ports qu'elle lit, testée sur les fakes de `tests/support/doubles/`. Trois autres endroits bougent avec
+La logique qui mérite un test va dans `src/commands/_lib/<group>/<name>.ts`, le dossier de sa commande,
+sous la forme `run<Name>(tokens, deps)`, ses deps un `Pick<>` des ports qu'elle lit, testée sur les fakes de `tests/support/doubles/`. Trois autres endroits bougent avec
 une nouvelle commande, et `npm run check` nomme celui que vous avez oublié : `tests/command-surface.test.ts` épingle
-le nombre de commandes, `src/commands/_lib/meta.ts` l'énonce dans les notes de release, et `npm run docs:commands`
+le nombre de commandes, `src/commands/_lib/status/meta.ts` l'énonce dans les notes de release, et `npm run docs:commands`
 régénère [docs/fr/commands.md](commands.md). La recette : [Ajouter une commande](architecture.md#ajouter-une-commande).
 
 ## Un crew

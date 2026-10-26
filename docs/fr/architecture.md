@@ -62,7 +62,7 @@ bundle, et un test importe un cas d'usage dans Node sans toucher à une globale 
 | domaine | `src/shared/domain/`, `src/crews/<name>/domain/` | Types et fonctions purs : règles, texte des prompts, analyse syntaxique, rendu | le domaine seulement |
 | application | `src/shared/application/`, `src/crews/<name>/application/` | Cas d'usage et services au-dessus des ports (`ports.ts`, qui réexporte `ports/<concern>.ts`) | domaine, application |
 | infrastructure | `src/shared/infrastructure/` | `globals.ts`, les adaptateurs Orkeon des ports, `wiring.ts` | tout ce qui est plus intérieur |
-| cas d'usage des commandes | `src/commands/_lib/` | Un module par famille de commandes, `run<Name>(tokens, deps)` → une vue au-dessus des ports qu'on lui remet ; les utilitaires que les commandes partagent | tout sauf `shared/infrastructure/` |
+| cas d'usage des commandes | `src/commands/_lib/` | Les cas d'usage dans un dossier par famille de commandes (`dev/`, `git/`, `settings/`...), `run<Name>(tokens, deps)` → une vue au-dessus des ports qu'on lui remet ; à la racine, les utilitaires que les familles partagent | tout sauf `shared/infrastructure/` |
 | points d'entrée | `src/commands/<group>/*.cmd.ts`, `src/crews/<name>/crew.ork.ts` | Analysent l'entrée, câblent les adaptateurs, appellent un cas d'usage, rendent | tout |
 
 `tests/repository/architecture.test.ts` analyse chaque import de `src/` (statique, réexport, de type seul et dynamique) et échoue
@@ -100,7 +100,7 @@ pour chaque fichier, si bien que le contrôle de types seul laisserait n'importe
 - seuls `shared/infrastructure/` et les points d'entrée des crews lisent `tools`, `agentBuilder`, `crewBuilder` et
   `inputs` ;
 - seul un `*.cmd.ts` appelle `defineCommand` ou `defineAsyncCommand` : une commande à bascule enregistre le
-  descripteur que `_lib/session-config.ts` construit (`defineCommand(toggleCommand(spec, session))`).
+  descripteur que `_lib/settings/session-config.ts` construit (`defineCommand(toggleCommand(spec, session))`).
 
 Il place aussi chaque fichier et chaque lecture de l'horloge : un fichier du runtime sous `src/` est dans un dossier
 de couche, ou bien c'est un point d'entrée, un cas d'usage de commande de `commands/_lib/` ou une déclaration
@@ -111,13 +111,16 @@ de couche, ou bien c'est un point d'entrée, un cas d'usage de commande de `comm
 src/
 ├── commands/          58 *.cmd.ts (parse, wire, render) in eight functional folders: session, settings, status,
 │   │                  project, git, dev, memory, speech
-│   ├── _lib/          one module per command family: run<Name>(tokens, deps) → CommandView, or
-│   │                  dispatch<Name>(tokens, deps) → a ticket or a message when the command launches a
-│   │                  crew (say, transcribe, voice), and its pure helpers (agents, branch, config, dev, diff, doctor,
-│   │                  export, memory, mode, model, permissions, say, skills, status, transcribe, voice);
-│   │                  args.ts (arguments), dispatch.ts (crew launch,
-│   │                  completion line, main-loop launch), session-config.ts (toggle commands),
-│   │                  view.ts (CommandView, showView), meta.ts (version, release notes)
+│   ├── _lib/          the use cases, in the folder of their commands: run<Name>(tokens, deps) → CommandView,
+│   │                  or dispatch<Name>(tokens, deps) → a ticket or a message when the command launches a
+│   │                  crew, and their pure helpers. dev/ (dev, dev-batches, dev-implement, dev-source),
+│   │                  git/ (branch, commit, diff), memory/ (memory, memory-admit), session/ (export,
+│   │                  resume, tasks), settings/ (advisor, agents, config, hooks, mode, model, permissions,
+│   │                  session-config: the toggle commands, skills), speech/ (say, transcribe, voice),
+│   │                  status/ (cache, doctor, meta: version and release notes, status). At the root, what
+│   │                  several families share: args.ts (arguments), dispatch.ts (crew launch, completion
+│   │                  line, main-loop launch), dev-step.ts, effort.ts, pr-context.ts, view.ts (CommandView,
+│   │                  showView)
 │   └── .orkeon/       orkeon-cli.d.ts (generated: npm run typings)
 ├── crews/<name>/      crew.ork.ts (wiring) + application/ (run-<crew>.ts, the use case) + domain/
 │   └── .orkeon/       orkeon.d.ts (generated)
@@ -228,11 +231,11 @@ en retour. Le cas d'usage vit dans `commands/_lib/`, prend les ports qu'il lit (
 `CommandView` : un tableau et un message de clôture. `/mode` :
 
 ```ts
-/// <reference path="./.orkeon/orkeon-cli.d.ts" />
-import { rawTokens } from "./_lib/args.ts";
-import { runMode } from "./_lib/mode.ts";
-import { showView } from "./_lib/view.ts";
-import { orkeonSessionIo } from "../shared/infrastructure/orkeon/wiring.ts";
+/// <reference path="../.orkeon/orkeon-cli.d.ts" />
+import { rawTokens } from "../_lib/args.ts";
+import { runMode } from "../_lib/settings/mode.ts";
+import { showView } from "../_lib/view.ts";
+import { orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
 
 const session = orkeonSessionIo();
 
@@ -590,11 +593,12 @@ contiennent la restauration et l'extraction de mémoire, `shared/domain/compacti
 
 1. Écrire `src/commands/<group>/<name>.cmd.ts` sur le modèle ci-dessus, `<group>` le dossier fonctionnel dont elle relève : un seul `name: "<literal>"` en kebab case, une
    `description` statique, pas d'`export` de premier niveau.
-2. Mettre la logique qui vaut un test dans `src/commands/_lib/<family>.ts` sous la forme `run<Name>(tokens, deps)`
-   rendant une `CommandView`, ses deps un `Pick<>` des ports et services qu'elle lit ; la tester à côté, dans
-   `src/commands/_lib/<family>.test.ts`, au-dessus des fakes.
+2. Mettre la logique qui vaut un test dans `src/commands/_lib/<group>/<name>.ts`, le même `<group>` que la
+   commande, sous la forme `run<Name>(tokens, deps)` rendant une `CommandView`, ses deps un `Pick<>` des ports et
+   services qu'elle lit ; la tester à côté, dans `src/commands/_lib/<group>/<name>.test.ts`, au-dessus des fakes.
+   Un utilitaire que plusieurs groupes partagent se place à la racine de `_lib/` ; un groupe n'importe jamais un autre.
 3. Augmenter `EXPECTED_COMMAND_COUNT` dans `tests/repository/command-surface.test.ts` et le nombre de commandes de
-   `RELEASE_NOTES` dans `src/commands/_lib/meta.ts` (épinglé par `src/commands/_lib/meta.test.ts`), puis lancer
+   `RELEASE_NOTES` dans `src/commands/_lib/status/meta.ts` (épinglé par `src/commands/_lib/status/meta.test.ts`), puis lancer
    `npm run docs:commands`.
 
 ### Ajouter un crew
@@ -606,7 +610,7 @@ contiennent la restauration et l'extraction de mémoire, `shared/domain/compacti
    `domain/`, chacun avec son `*.test.ts` ; le test du cas d'usage tourne au-dessus des fakes.
 3. Le lancer depuis une commande async (`launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "<name>",
    input)`), et le nommer dans `RELEASE_NOTES`
-   (`src/commands/_lib/meta.test.ts` vérifie que chaque dossier de crew y est nommé). Un dossier commençant par `_` est
+   (`src/commands/_lib/status/meta.test.ts` vérifie que chaque dossier de crew y est nommé). Un dossier commençant par `_` est
    une sonde de développement (`probe.ork.ts`), jamais listée aux utilisateurs.
 
 ### Ajouter un outil

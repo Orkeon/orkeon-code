@@ -7,7 +7,7 @@
 // main loop runs the instruction on the transcription (commands/_lib/transcribe).
 import { rawTokens } from "../_lib/args.ts";
 import { writeCompleted } from "../_lib/dispatch.ts";
-import { dispatchTranscribe } from "../_lib/transcribe.ts";
+import { dispatchTranscribe } from "../_lib/speech/transcribe.ts";
 import { createCrewHost } from "../../shared/infrastructure/orkeon/crew-host.ts";
 import { createPermissionRules } from "../../shared/infrastructure/orkeon/permission-rules.ts";
 import {

@@ -13,10 +13,10 @@
 // /clear — the point of choosing a reviewer is that the choice sticks.
 //
 // The model is checked against the host's declared catalogue and WARNED about, not
-// refused (same rule as /model). The logic is _lib/advisor.ts; this file wires it and
+// refused (same rule as /model). The logic is _lib/settings/advisor.ts; this file wires it and
 // starts the advisor crew when it is asked for.
 import { rawTokens } from "../_lib/args.ts";
-import { runAdvisorCommand } from "../_lib/advisor.ts";
+import { runAdvisorCommand } from "../_lib/settings/advisor.ts";
 import { launchCrew, writeCompleted } from "../_lib/dispatch.ts";
 import { createCrewHost } from "../../shared/infrastructure/orkeon/crew-host.ts";
 import { orkeonConfigStore, orkeonTelemetry } from "../../shared/infrastructure/orkeon/wiring.ts";

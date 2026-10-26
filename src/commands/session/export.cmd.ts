@@ -11,7 +11,7 @@ import {
   orkeonFiles, orkeonMemoryStore, orkeonSessionIo, orkeonTelemetry,
 } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { rawTokens } from "../_lib/args.ts";
-import { runExport } from "../_lib/export.ts";
+import { runExport } from "../_lib/session/export.ts";
 import { showView } from "../_lib/view.ts";
 
 const deps = {

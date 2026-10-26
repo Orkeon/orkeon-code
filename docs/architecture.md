@@ -59,7 +59,7 @@ case in Node without touching a runtime global.
 | domain | `src/shared/domain/`, `src/crews/<name>/domain/` | Pure types and functions: rules, prompt text, parsing, rendering | domain only |
 | application | `src/shared/application/`, `src/crews/<name>/application/` | Use cases and services over the ports (`ports.ts`, re-exporting `ports/<concern>.ts`) | domain, application |
 | infrastructure | `src/shared/infrastructure/` | `globals.ts`, the Orkeon adapters of the ports, `wiring.ts` | anything inward |
-| command use cases | `src/commands/_lib/` | One module per command family, `run<Name>(tokens, deps)` → a view over the ports it is handed; the helpers the commands share | anything but `shared/infrastructure/` |
+| command use cases | `src/commands/_lib/` | The use cases in a folder per command family (`dev/`, `git/`, `settings/`...), `run<Name>(tokens, deps)` → a view over the ports it is handed; at the root, the helpers the families share | anything but `shared/infrastructure/` |
 | entry points | `src/commands/<group>/*.cmd.ts`, `src/crews/<name>/crew.ork.ts` | Parse the input, wire the adapters, call a use case, render | anything |
 
 `tests/repository/architecture.test.ts` parses every import of `src/` (static, re-export, type-only and dynamic) and fails on
@@ -93,7 +93,7 @@ let any module call `tools.shellCommand(...)`:
 - no `require()`: the sources are ES modules bundled by esbuild;
 - only `shared/infrastructure/` and the crew entry points read `tools`, `agentBuilder`, `crewBuilder` and `inputs`;
 - only a `*.cmd.ts` calls `defineCommand` or `defineAsyncCommand`: a toggle command registers the descriptor that
-  `_lib/session-config.ts` builds (`defineCommand(toggleCommand(spec, session))`).
+  `_lib/settings/session-config.ts` builds (`defineCommand(toggleCommand(spec, session))`).
 
 It places every file and every read of the clock too: a runtime file of `src/` sits in a layer folder, or is an
 entry point, a command use case of `commands/_lib/` or a declaration (`.d.ts`); a read of the clock (`new Date()`
@@ -104,13 +104,16 @@ port.
 src/
 ├── commands/          58 *.cmd.ts (parse, wire, render) in eight functional folders: session, settings, status,
 │   │                  project, git, dev, memory, speech
-│   ├── _lib/          one module per command family: run<Name>(tokens, deps) → CommandView, or
-│   │                  dispatch<Name>(tokens, deps) → a ticket or a message when the command launches a
-│   │                  crew (say, transcribe, voice), and its pure helpers (agents, branch, config, dev, diff, doctor,
-│   │                  export, memory, mode, model, permissions, say, skills, status, transcribe, voice);
-│   │                  args.ts (arguments), dispatch.ts (crew launch,
-│   │                  completion line, main-loop launch), session-config.ts (toggle commands),
-│   │                  view.ts (CommandView, showView), meta.ts (version, release notes)
+│   ├── _lib/          the use cases, in the folder of their commands: run<Name>(tokens, deps) → CommandView,
+│   │                  or dispatch<Name>(tokens, deps) → a ticket or a message when the command launches a
+│   │                  crew, and their pure helpers. dev/ (dev, dev-batches, dev-implement, dev-source),
+│   │                  git/ (branch, commit, diff), memory/ (memory, memory-admit), session/ (export,
+│   │                  resume, tasks), settings/ (advisor, agents, config, hooks, mode, model, permissions,
+│   │                  session-config: the toggle commands, skills), speech/ (say, transcribe, voice),
+│   │                  status/ (cache, doctor, meta: version and release notes, status). At the root, what
+│   │                  several families share: args.ts (arguments), dispatch.ts (crew launch, completion
+│   │                  line, main-loop launch), dev-step.ts, effort.ts, pr-context.ts, view.ts (CommandView,
+│   │                  showView)
 │   └── .orkeon/       orkeon-cli.d.ts (generated: npm run typings)
 ├── crews/<name>/      crew.ork.ts (wiring) + application/ (run-<crew>.ts, the use case) + domain/
 │   └── .orkeon/       orkeon.d.ts (generated)
@@ -218,11 +221,11 @@ use case lives in `commands/_lib/`, takes the ports it reads (a `Pick<>` of them
 table and a closing message. `/mode`:
 
 ```ts
-/// <reference path="./.orkeon/orkeon-cli.d.ts" />
-import { rawTokens } from "./_lib/args.ts";
-import { runMode } from "./_lib/mode.ts";
-import { showView } from "./_lib/view.ts";
-import { orkeonSessionIo } from "../shared/infrastructure/orkeon/wiring.ts";
+/// <reference path="../.orkeon/orkeon-cli.d.ts" />
+import { rawTokens } from "../_lib/args.ts";
+import { runMode } from "../_lib/settings/mode.ts";
+import { showView } from "../_lib/view.ts";
+import { orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
 
 const session = orkeonSessionIo();
 
@@ -539,11 +542,12 @@ extraction, `shared/domain/compaction.ts` the prompts and buffers, `shared/domai
 
 1. Write `src/commands/<group>/<name>.cmd.ts` after the pattern above, `<group>` the functional folder it belongs to: one `name: "<literal>"` in kebab case, a static
    `description`, no top-level `export`.
-2. Put the logic worth testing in `src/commands/_lib/<family>.ts` as `run<Name>(tokens, deps)` returning a
-   `CommandView`, its deps a `Pick<>` of the ports and services it reads; test it next to it, in
-   `src/commands/_lib/<family>.test.ts`, over the fakes.
+2. Put the logic worth testing in `src/commands/_lib/<group>/<name>.ts`, the same `<group>` as the command, as
+   `run<Name>(tokens, deps)` returning a `CommandView`, its deps a `Pick<>` of the ports and services it reads; test
+   it next to it, in `src/commands/_lib/<group>/<name>.test.ts`, over the fakes. A helper that several groups share
+   sits at the root of `_lib/`; a group never imports another one.
 3. Raise `EXPECTED_COMMAND_COUNT` in `tests/repository/command-surface.test.ts` and the command count of `RELEASE_NOTES` in
-   `src/commands/_lib/meta.ts` (pinned by `src/commands/_lib/meta.test.ts`), then run `npm run docs:commands`.
+   `src/commands/_lib/status/meta.ts` (pinned by `src/commands/_lib/status/meta.test.ts`), then run `npm run docs:commands`.
 
 ### Add a crew
 
@@ -553,7 +557,7 @@ extraction, `shared/domain/compaction.ts` the prompts and buffers, `shared/domai
    its `*.test.ts`; the use case test runs over the fakes.
 3. Start it from an async command (`launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "<name>",
    input)`), and name it in `RELEASE_NOTES`
-   (`src/commands/_lib/meta.test.ts` checks that every crew folder is named there). A folder starting with `_` is a
+   (`src/commands/_lib/status/meta.test.ts` checks that every crew folder is named there). A folder starting with `_` is a
    development probe (`probe.ork.ts`), never listed to users.
 
 ### Add a tool

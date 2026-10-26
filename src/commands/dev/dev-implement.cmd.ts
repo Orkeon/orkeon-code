@@ -9,7 +9,7 @@
 // (mode, hooks, effort), and the pull-request context read at dispatch is saved by the crew in the batch record,
 // where the chained close reads it. Every chained launch goes through launchCrew (its chain-depth refusal).
 import { rawTokens } from "../_lib/args.ts";
-import { launchChained, nextLaunch, runDevImplementDispatch } from "../_lib/dev-implement.ts";
+import { launchChained, nextLaunch, runDevImplementDispatch } from "../_lib/dev/dev-implement.ts";
 import { reapplyStepRules } from "../_lib/dev-step.ts";
 import { launchCrew } from "../_lib/dispatch.ts";
 import { createCrewHost } from "../../shared/infrastructure/orkeon/crew-host.ts";

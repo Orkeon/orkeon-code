@@ -1,12 +1,12 @@
 /// <reference path="../.orkeon/orkeon-cli.d.ts" />
 // /tasks (E-1, A-3) — the session task list (add, list, done, clear) and the agent instances the dev
 // crews run as background children (show, stop, send, repair). Everything but a repair is answered
-// here, from the state bag (_lib/tasks.ts); a repair launches crews/agent-run, whose completion
+// here, from the state bag (_lib/session/tasks.ts); a repair launches crews/agent-run, whose completion
 // prints the new run's answer.
 import { rawTokens } from "../_lib/args.ts";
 import { launchCrew, writeCompleted } from "../_lib/dispatch.ts";
 import { startDevStep } from "../_lib/dev-step.ts";
-import { runTasks } from "../_lib/tasks.ts";
+import { runTasks } from "../_lib/session/tasks.ts";
 import { createCrewHost } from "../../shared/infrastructure/orkeon/crew-host.ts";
 import { createPermissionRules } from "../../shared/infrastructure/orkeon/permission-rules.ts";
 import { orkeonClock, orkeonConfigStore, orkeonSessionIo, orkeonToolCatalogue } from "../../shared/infrastructure/orkeon/wiring.ts";

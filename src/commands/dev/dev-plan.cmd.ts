@@ -4,7 +4,7 @@
 // The host's gate must be on; the dev rule sets are put in it before the crew (_lib/dev-step.ts), and the crew's
 // tool callbacks check them again and run the /hooks the input carries.
 import { rawTokens } from "../_lib/args.ts";
-import { devPlanGate, parseDevPlanArgs } from "../_lib/dev.ts";
+import { devPlanGate, parseDevPlanArgs } from "../_lib/dev/dev.ts";
 import { readWriteModeRefusal, startDevStep } from "../_lib/dev-step.ts";
 import { storedEffort } from "../_lib/effort.ts";
 import { launchCrew, writeCompleted } from "../_lib/dispatch.ts";

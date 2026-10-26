@@ -4,7 +4,7 @@
 // (crews/dev-change), never in the conversation: a fresh context and the reviewer's read tools. The host's gate must be on; the dev rule sets are put
 // in it before the crew (_lib/dev-step.ts), and the crew's tool callbacks check them again and run the /hooks.
 import { rawTokens } from "../_lib/args.ts";
-import { parseDevChangeArgs } from "../_lib/dev-source.ts";
+import { parseDevChangeArgs } from "../_lib/dev/dev-source.ts";
 import { readWriteModeRefusal, startDevStep } from "../_lib/dev-step.ts";
 import { launchCrew, writeCompleted } from "../_lib/dispatch.ts";
 import { storedEffort } from "../_lib/effort.ts";
