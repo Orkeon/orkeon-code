@@ -24,8 +24,8 @@ Le runtime exécute les sources sous des règles qui façonnent tout ce qui suit
   (`--platform=neutral`, les options du runtime, reproduites par `npm run bundle:check`) et évalué par Jint. Un module
   que plusieurs points d'entrée importent est copié dans chaque bundle.
 - **Jint, pas Node.** Aucun module `node:`, pas de `process`, pas de paquet npm, pas de timer. L'API du runtime, ce
-  sont ses globales (`tools`, `agentBuilder`, `crewBuilder`, `inputs`) et le contexte qu'il remet à chaque handler de
-  commande et à chaque corps d'agent (`ctx` : `llm`, `log`, `state`, `services`...).
+  sont ses globales (`tools`, `agentBuilder`, `crewBuilder`, `toolBuilder`, `rag`, `inputs`) et le contexte qu'il
+  remet à chaque handler de commande et à chaque corps d'agent (`ctx` : `llm`, `log`, `state`, `services`...).
 - **Aucune instance partagée.** Rien ne vit d'un bundle à l'autre : un objet de portée module existe une fois par
   bundle et par exécution. Un registre, un conteneur ou un cache partagé entre les commandes et les crews ne peut pas
   exister.
@@ -97,8 +97,8 @@ pour chaque fichier, si bien que le contrôle de types seul laisserait n'importe
 `tools.shellCommand(...)` :
 
 - pas de `require()` : les sources sont des modules ES bundlés par esbuild ;
-- seuls `shared/infrastructure/` et les points d'entrée des crews lisent `tools`, `agentBuilder`, `crewBuilder` et
-  `inputs` ;
+- seuls `shared/infrastructure/` et les points d'entrée des crews lisent `tools`, `agentBuilder`, `crewBuilder`,
+  `toolBuilder`, `rag` et `inputs` ;
 - seul un `*.cmd.ts` appelle `defineCommand` ou `defineAsyncCommand` : une commande à bascule enregistre le
   descripteur que `_lib/settings/session-config.ts` construit (`defineCommand(toggleCommand(spec, session))`).
 
@@ -176,10 +176,10 @@ rend le texte, ou le message d'échec propre à l'outil sans l'enrobage du runti
 | Port | À quoi il sert | Adaptateur (`src/shared/infrastructure/orkeon/`) | Fake (`tests/support/doubles/`) |
 |---|---|---|---|
 | `Shell` | Les commandes shell dans `/workspace` (`shell_command`) | `shell.ts` | `fake-shell.ts` |
-| `ShellJobs` | Une commande longue lancée détachée, son état, la fin de son journal, et une attente entre deux regards (`shell_command` `start_job`, `job_status`, `job_tail`) | `shell-jobs.ts` | aucun : des faux dans `suite-job.test.ts` et `run-dev-implement.test.ts` |
-| `SharedMemory` | L'index RAG de la [mémoire partagée](shared-memory.md) : chercher dans une collection, indexer avec élagage (l'espace `rag`, sinon `rag_search`, `rag_ingest`) | `shared-memory.ts` | aucun : des faux dans les tests de la mémoire partagée |
-| `ChildRuntime` | Les enfants d'une exécution de crew : en lancer un en arrière-plan, lister, arrêter, lire ce qu'il a laissé (`ctx.spawnBackground`, `instances()`/`stop()` du crew, sa mémoire) | `child-agents.ts` | aucun : des faux dans `child-agent.test.ts` |
-| `HumanInput` | Une question à la personne : un choix, un texte, une sélection multiple ; personne ne répondant est une réponse en soi (`human_input`) | `human-input.ts` | aucun : des faux dans les tests des étapes dev |
+| `ShellJobs` | Une commande longue lancée détachée, son état, la fin de son journal, et une attente entre deux regards (`shell_command` `start_job`, `job_status`, `job_tail`) | `shell-jobs.ts` | `fake-shell-jobs.ts` |
+| `SharedMemory` | L'index RAG de la [mémoire partagée](shared-memory.md) : chercher dans une collection, indexer avec élagage (l'espace `rag`, sinon `rag_search`, `rag_ingest`) | `shared-memory.ts` | `fake-shared-memory.ts` |
+| `ChildRuntime` | Les enfants d'une exécution de crew : en lancer un en arrière-plan, lister, arrêter, lire ce qu'il a laissé (`ctx.spawnBackground`, `instances()`/`stop()` du crew, sa mémoire) | `child-agents.ts` | `fake-child-runtime.ts` |
+| `HumanInput` | Une question à la personne : un choix, un texte, une sélection multiple ; personne ne répondant est une réponse en soi (`human_input`) | `human-input.ts` | `fake-human-input.ts` |
 | `Files` | Lire, écrire et lister par chemin virtuel, les montages du VFS (`file_read`, `file_write`, `directory_read`, `list_mounts`) | `files.ts` | `fake-files.ts` |
 | `Progress` | La ligne de progression de l'hôte, au mieux (`progress_report`) | `progress.ts` | `fake-progress.ts` |
 | `SessionStore` | Le tampon de conversation, le sac d'état, le titre, la coupe, le budget de tokens (`session_store`, `session_snip`, `token_budget`) | `session-store.ts` | `fake-session-store.ts` |
@@ -187,12 +187,13 @@ rend le texte, ou le message d'échec propre à l'outil sans l'enrobage du runti
 | `MemoryStore` | La mémoire typée : lister, ajouter, lire, retirer (`memory_store`) | `memory-store.ts` | `fake-memory-store.ts` |
 | `ToolCatalogue` | Les outils enregistrés sous leurs noms d'enregistrement, trouvés sans tenir compte de la casse comme Orkeon les trouve, pour les diagnostics et la vérification des outils supplémentaires (le service `tools` de `ctx.services` pour les noms, l'espace de noms `tools` pour les appels : `call` brut, `callText` décodé) | `tool-catalogue.ts` | `fake-tool-catalogue.ts` |
 | `CodeIndex` | L'index du code tel que `/analyze` le récolte (`index_status`, `index_codebase`, `codebase_map`, `dependency_graph`, `package_summary`) | `code-index.ts` | `fake-code-index.ts` |
-| `CostIndex` | Le coût d'accès que `/dev-verify` et `/dev-implement` mesurent : les racines indexées, le rafraîchissement des fichiers du lot, le rapport (`index_status`, `incremental_reindex`, `access_cost`) | `code-index.ts` | aucun : un faux dans `measure-access-cost.test.ts` |
+| `CostIndex` | Le coût d'accès que `/dev-verify` et `/dev-implement` mesurent : les racines indexées, le rafraîchissement des fichiers du lot, le rapport (`index_status`, `incremental_reindex`, `access_cost`) | `code-index.ts` | `fake-cost-index.ts` |
 | `CrewHost` | Lister et lancer des crews (le service `script-host`, `ctx.services`) | `crew-host.ts` | `fake-crew-host.ts` |
 | `PermissionRules` | Les règles de session de la garde de permission de l'hôte : ajouter, effacer, lister (le service `permissions`, `ctx.services`) | `permission-rules.ts` | `fake-permission-rules.ts` |
 | `Llm` | Le modèle : `act` (la boucle d'outils), `complete`, `extract` (`ctx.llm` de l'agent en cours) ; un `act` ou un `complete` qui échoue lève une `LlmFailure` | `llm.ts` | `fake-llm.ts` |
 | `RunState` | L'état propre de l'agent en cours, pour une exécution de crew (`ctx.state`) | `run-state.ts` | `fake-run-state.ts` |
 | `CrewMemory` | La mémoire clé/valeur du crew en cours, partagée par ses agents le temps d'une exécution (`ctx.memory.crew`) | `crew-memory.ts` | `fake-crew-memory.ts` |
+| `Clock` | L'heure courante (`ports/clock.ts`), la seule lecture de l'horloge hors de `shared/infrastructure/` | `wiring.ts` (`orkeonClock()`) | `fake-clock.ts` |
 | `Logger` | Le log de la commande ou du crew | aucun : `ctx.log` est passé tel quel | `fake-logger.ts` |
 
 **Câblage.** `wiring.ts` lie les adaptateurs qui lisent la globale `tools` (`orkeonShell()`, `orkeonFiles()`,
@@ -206,6 +207,10 @@ remet les deux derniers à `launchCrew` ou `launchMainLoop` avec son log). Chaqu
 paramètre, si bien que son propre test l'exécute au-dessus d'un substitut : `fake-tools.ts` (la globale `tools`),
 `fake-llm-facade.ts` (`ctx.llm`), `fake-agent-context.ts` (`ctx.state`, `ctx.memory`), `fake-script-host.ts` (le
 service script-host), `fake-permissions-facade.ts` (le service permissions).
+`orkeonClock()` est l'horloge du code exécuté : un point d'entrée la remet à ce qui date un enregistrement ou
+mesure une attente, là où un test remet une `FakeClock`.
+`orkeonCompactionDeps(ctx, ports, clock)` rassemble les ports du pipeline de compaction, pour `/compact` comme pour la
+compaction automatique de la boucle principale.
 
 **Les services** (`src/shared/application/`) sont bâtis au-dessus des ports et partagés par les commandes et les
 crews : `session-io.ts` (le tampon plus le mode de permission dans lequel une session tourne), `config-store.ts`

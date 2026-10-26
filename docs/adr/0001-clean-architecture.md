@@ -27,8 +27,8 @@ travelled untyped into the use cases. Two consequences followed:
 
 - **Layers with one dependency rule.** `domain/` holds pure code and imports only domain; `application/` holds the
   use cases and services and imports domain and the ports, never infrastructure; `shared/infrastructure/` is the
-  only code that touches the runtime. `tests/architecture.test.ts` parses every import of `src/` and fails on any
-  that breaks the rule.
+  only code that touches the runtime. `tests/architecture.test.ts` (now `tests/repository/architecture.test.ts`) parses every
+  import of `src/` and fails on any that breaks the rule.
 - **Ports named after the need.** `src/shared/application/ports.ts` declares what the application needs (`Shell`,
   `Files`, `SessionStore`, `Llm`...). Each port has one Orkeon adapter in `src/shared/infrastructure/orkeon/`, the
   only code that calls the runtime for it and reads its results, whatever their casing.

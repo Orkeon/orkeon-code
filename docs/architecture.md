@@ -24,8 +24,8 @@ The runtime runs the sources under rules that shape everything below:
   (`--platform=neutral`, the runtime's flags, reproduced by `npm run bundle:check`) and evaluated by Jint. A module
   that several entry points import is copied into each bundle.
 - **Jint, not Node.** No `node:` module, no `process`, no npm package, no timer. The runtime's API is its globals
-  (`tools`, `agentBuilder`, `crewBuilder`, `inputs`) and the context it hands each command handler and agent body
-  (`ctx`: `llm`, `log`, `state`, `services`...).
+  (`tools`, `agentBuilder`, `crewBuilder`, `toolBuilder`, `rag`, `inputs`) and the context it hands each command
+  handler and agent body (`ctx`: `llm`, `log`, `state`, `services`...).
 - **No shared instance.** Nothing lives across bundles: a module-level object exists once per bundle and per run. A
   registry, a container or a cache shared by the commands and the crews cannot exist.
 - **The session state bag is the only shared state.** Commands, crews and turns share what the session holds: the
@@ -91,7 +91,8 @@ global. `src/crews/.orkeon/orkeon.d.ts` declares the runtime's globals for every
 let any module call `tools.shellCommand(...)`:
 
 - no `require()`: the sources are ES modules bundled by esbuild;
-- only `shared/infrastructure/` and the crew entry points read `tools`, `agentBuilder`, `crewBuilder` and `inputs`;
+- only `shared/infrastructure/` and the crew entry points read `tools`, `agentBuilder`, `crewBuilder`, `toolBuilder`,
+  `rag` and `inputs`;
 - only a `*.cmd.ts` calls `defineCommand` or `defineAsyncCommand`: a toggle command registers the descriptor that
   `_lib/settings/session-config.ts` builds (`defineCommand(toggleCommand(spec, session))`).
 
@@ -168,10 +169,10 @@ the text, or the tool's own failure message without the runtime's wrapping, and 
 | Port | What it is for | Adapter (`src/shared/infrastructure/orkeon/`) | Fake (`tests/support/doubles/`) |
 |---|---|---|---|
 | `Shell` | Shell commands in `/workspace` (`shell_command`) | `shell.ts` | `fake-shell.ts` |
-| `ShellJobs` | A long command run detached, its status, the tail of its log, and a wait between two looks (`shell_command` `start_job`, `job_status`, `job_tail`) | `shell-jobs.ts` | none: fakes in `suite-job.test.ts` and `run-dev-implement.test.ts` |
-| `SharedMemory` | The RAG index of the [shared memory](shared-memory.md): search a collection, ingest with prune (the `rag` namespace, else `rag_search`, `rag_ingest`) | `shared-memory.ts` | none: fakes in the shared-memory tests |
-| `ChildRuntime` | The children of a crew run: spawn one in the background, list, stop, read what it left (`ctx.spawnBackground`, the crew's `instances()`/`stop()`, its memory) | `child-agents.ts` | none: fakes in `child-agent.test.ts` |
-| `HumanInput` | A question to the person: a choice, a text, a multi-select; nobody answering is an answer of its own (`human_input`) | `human-input.ts` | none: fakes in the tests of the dev steps |
+| `ShellJobs` | A long command run detached, its status, the tail of its log, and a wait between two looks (`shell_command` `start_job`, `job_status`, `job_tail`) | `shell-jobs.ts` | `fake-shell-jobs.ts` |
+| `SharedMemory` | The RAG index of the [shared memory](shared-memory.md): search a collection, ingest with prune (the `rag` namespace, else `rag_search`, `rag_ingest`) | `shared-memory.ts` | `fake-shared-memory.ts` |
+| `ChildRuntime` | The children of a crew run: spawn one in the background, list, stop, read what it left (`ctx.spawnBackground`, the crew's `instances()`/`stop()`, its memory) | `child-agents.ts` | `fake-child-runtime.ts` |
+| `HumanInput` | A question to the person: a choice, a text, a multi-select; nobody answering is an answer of its own (`human_input`) | `human-input.ts` | `fake-human-input.ts` |
 | `Files` | Read, write and list by virtual path, the VFS mounts (`file_read`, `file_write`, `directory_read`, `list_mounts`) | `files.ts` | `fake-files.ts` |
 | `Progress` | The host's progress line, best effort (`progress_report`) | `progress.ts` | `fake-progress.ts` |
 | `SessionStore` | The conversation buffer, the state bag, the title, the snip, the token budget (`session_store`, `session_snip`, `token_budget`) | `session-store.ts` | `fake-session-store.ts` |
@@ -179,12 +180,13 @@ the text, or the tool's own failure message without the runtime's wrapping, and 
 | `MemoryStore` | Typed memory: list, add, get, remove (`memory_store`) | `memory-store.ts` | `fake-memory-store.ts` |
 | `ToolCatalogue` | The registered tools under their registered names, found case-insensitively as Orkeon finds them, for diagnostics and the extra tools' check (the `tools` service of `ctx.services` for the names, the `tools` namespace for the calls: `call` raw, `callText` decoded) | `tool-catalogue.ts` | `fake-tool-catalogue.ts` |
 | `CodeIndex` | The code index as `/analyze` harvests it (`index_status`, `index_codebase`, `codebase_map`, `dependency_graph`, `package_summary`) | `code-index.ts` | `fake-code-index.ts` |
-| `CostIndex` | The access cost `/dev-verify` and `/dev-implement` measure: the indexed roots, the refresh of the batch's files, the report (`index_status`, `incremental_reindex`, `access_cost`) | `code-index.ts` | none: a fake in `measure-access-cost.test.ts` |
+| `CostIndex` | The access cost `/dev-verify` and `/dev-implement` measure: the indexed roots, the refresh of the batch's files, the report (`index_status`, `incremental_reindex`, `access_cost`) | `code-index.ts` | `fake-cost-index.ts` |
 | `CrewHost` | List and launch crews (the `script-host` service, `ctx.services`) | `crew-host.ts` | `fake-crew-host.ts` |
 | `PermissionRules` | The session rules of the host's permission gate: add, clear, list (the `permissions` service, `ctx.services`) | `permission-rules.ts` | `fake-permission-rules.ts` |
 | `Llm` | The model: `act` (the tool loop), `complete`, `extract` (`ctx.llm` of the running agent); a failed `act` or `complete` throws an `LlmFailure` | `llm.ts` | `fake-llm.ts` |
 | `RunState` | The running agent's own state, for one crew run (`ctx.state`) | `run-state.ts` | `fake-run-state.ts` |
 | `CrewMemory` | The running crew's key/value memory, shared by its agents for one run (`ctx.memory.crew`) | `crew-memory.ts` | `fake-crew-memory.ts` |
+| `Clock` | The current time (`ports/clock.ts`), the one read of the clock outside `shared/infrastructure/` | `wiring.ts` (`orkeonClock()`) | `fake-clock.ts` |
 | `Logger` | The command's or the crew's log | none: `ctx.log` is passed as is | `fake-logger.ts` |
 
 **Wiring.** `wiring.ts` binds the adapters that read the `tools` global (`orkeonShell()`, `orkeonFiles()`,
@@ -198,6 +200,10 @@ hands the last two to `launchCrew` or `launchMainLoop` with its log). Every adap
 parameter, so its own test runs it over a stand-in: `fake-tools.ts` (the `tools` global), `fake-llm-facade.ts`
 (`ctx.llm`), `fake-agent-context.ts` (`ctx.state`, `ctx.memory`), `fake-script-host.ts` (the script-host service),
 `fake-permissions-facade.ts` (the permissions service).
+`orkeonClock()` is the clock of the runtime code: an entry point hands it to what dates a record or measures a
+wait, where a test hands a `FakeClock`.
+`orkeonCompactionDeps(ctx, ports, clock)` gathers the ports of the compaction pipeline, for `/compact` and the main
+loop's automatic compaction alike.
 
 **Services** (`src/shared/application/`) are built over the ports and shared by commands and crews: `session-io.ts`
 (the buffer plus the permission mode a session runs in), `config-store.ts` (`/config`: the settings file overridden

@@ -34,7 +34,7 @@ defineCommand({
 
 La logique qui mérite un test va dans `src/commands/_lib/<group>/<name>.ts`, le dossier de sa commande,
 sous la forme `run<Name>(tokens, deps)`, ses deps un `Pick<>` des ports qu'elle lit, testée sur les fakes de `tests/support/doubles/`. Trois autres endroits bougent avec
-une nouvelle commande, et `npm run check` nomme celui que vous avez oublié : `tests/command-surface.test.ts` épingle
+une nouvelle commande, et `npm run check` nomme celui que vous avez oublié : `tests/repository/command-surface.test.ts` épingle
 le nombre de commandes, `src/commands/_lib/status/meta.ts` l'énonce dans les notes de release, et `npm run docs:commands`
 régénère [docs/fr/commands.md](commands.md). La recette : [Ajouter une commande](architecture.md#ajouter-une-commande).
 
@@ -124,7 +124,7 @@ prompt tel que le modèle le lit, et un changement se relit donc comme le diff d
 - **Les crews.** Les prompts de chaque crew sont à côté de son cas d'usage (`application/prompts.ts`, ou son module de
   domaine) et ont leurs propres tests.
 
-`npm run check:provenance` refuse les marqueurs du matériau d'un autre produit, et `tests/prompt-contract.test.ts`
+`npm run check:provenance` refuse les marqueurs du matériau d'un autre produit, et `tests/repository/prompt-contract.test.ts`
 vérifie chaque prompt rendu. La recette : [Ajouter un bloc de prompt](architecture.md#ajouter-un-bloc-de-prompt).
 
 ## Modes de permission
@@ -151,7 +151,7 @@ quelle clé ([Configuration](configuration.md)). Une nouvelle clé de session es
 - Les scripts s'exécutent dans Jint, sur un seul thread, sans API Node ni timers : `src/` n'importe rien de `node:*`
   (la vérification de bundle le refuse), et une commande ne fait jamais elle-même un long travail, elle le confie à un
   crew.
-- Le code applicatif ne touche jamais le runtime : il reçoit des ports, et `tests/architecture.test.ts` fait échouer
+- Le code applicatif ne touche jamais le runtime : il reçoit des ports, et `tests/repository/architecture.test.ts` fait échouer
   tout import, et tout usage d'une globale du runtime, qui casse la règle de dépendance.
 - `.tools([...])` nomme des outils de l'hôte, et un nom inconnu fait échouer chaque appel `act` de l'agent avant que
   le modèle soit sollicité : un outil qui manque au runtime ne peut pas être ajouté d'ici. `/debug-tool-call list`

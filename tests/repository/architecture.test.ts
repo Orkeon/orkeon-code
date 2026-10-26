@@ -42,7 +42,7 @@
 // `globalThis.<name>` and every ambient re-declaration (`declare const tools`):
 //   - no require(): the sources are ES modules bundled by esbuild;
 //   - only shared/infrastructure/ and the crew entry points read `tools`, `rag`,
-//     `agentBuilder`, `crewBuilder` and `inputs` (src/crews/.orkeon/orkeon.d.ts
+//     `agentBuilder`, `crewBuilder`, `toolBuilder` and `inputs` (src/crews/.orkeon/orkeon.d.ts
 //     declares them for every file, so the type check lets any file call
 //     `tools.shellCommand(...)`);
 //   - only a *.cmd.ts calls defineCommand or defineAsyncCommand.

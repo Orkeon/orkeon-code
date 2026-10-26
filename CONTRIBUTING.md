@@ -23,9 +23,9 @@ bash scripts/smoke-runtime.sh # the real REPL loads every command (needs a runti
 
 ```text
 src/
-├── commands/   *.cmd.ts slash commands (entry points) + _lib/<group>/ (their use cases, shared helpers at the root)
+├── commands/   <group>/*.cmd.ts slash commands (entry points, by function) + _lib/<group>/ (their use cases, shared helpers at the root)
 ├── crews/      <name>/crew.ork.ts (entry point) + application/ + domain/
-└── shared/     domain/ · application/ (ports.ts + ports/, services) · infrastructure/ (globals.ts, orkeon/ adapters)
+└── shared/     domain/ · application/ (ports.ts + ports/, services) · infrastructure/ (globals.ts, orkeon/ adapters, orkeon/wiring.ts)
 tests/          support/ (doubles/, fixtures/, assertions/ shared across test files) · repository/ (architecture, test shape, command surface, versions) · scripts/ · config/
 mcp/whisper/    the speech MCP server (Python, run by uv): whisper_mcp.py + tests/
 ```
@@ -34,19 +34,26 @@ Dependencies point inwards only, and `tests/repository/architecture.test.ts` fai
 global, that breaks the rule:
 
 - **domain**: pure types and deterministic functions. No IO, no runtime global. Imports domain only. Every module
-  has its `*.test.ts` next to it.
+  of `src/` is expected to have its test beside it (the reverse, a test beside its module, is checked).
 - **application**: the use cases of a crew (`application/run-<crew>.ts`) and the shared services. Imports domain and
   application only, the ports of `src/shared/application/ports.ts` included (one file per concern under
-  `ports/`, re-exported by `ports.ts`): what it needs from the runtime, it receives as parameters typed by a port. Only `shared/infrastructure/` reads the clock; the rest takes the `Clock`
-  port.
+  `ports/`, re-exported by `ports.ts`): what it needs from the runtime, it receives as parameters typed by a port.
+  Only `shared/infrastructure/` reads the clock; the rest takes the `Clock` port.
 - **infrastructure**: `src/shared/infrastructure/globals.ts` is the only module that reads the runtime globals
-  (`tools`, `agentBuilder`, `crewBuilder`, `inputs`); the adapters of `orkeon/` implement the ports over them, and
-  `orkeon/wiring.ts` binds them.
+  (`tools`, `agentBuilder`, `crewBuilder`, `toolBuilder`, `rag`, `inputs`); the adapters of `orkeon/` implement the
+  ports over them, and `orkeon/wiring.ts` binds them.
 - **entry points**: `crew.ork.ts` and `*.cmd.ts` parse the input, wire the adapters, call a use case and render the
   result; they hold no logic worth testing. Only the crew entry points import `globals.ts` or read the runtime
   globals; a command imports `wiring.ts` (or builds an adapter from its context), its use case in `commands/_lib/`
   imports nothing from `shared/infrastructure/`, and only a `*.cmd.ts` calls `defineCommand`. No `require()`
   anywhere: the sources are ES modules.
+- **command use cases**: a `commands/<group>/*.cmd.ts` calls the use cases of `commands/_lib/<group>/`, or what the
+  groups share at the root of `commands/_lib/`, never another group's; a file of `commands/_lib/<group>/` imports its
+  own group and the root of `_lib/` only.
+
+Every runtime file of `src/` sits in a layer, or is an entry point, a command use case of `commands/_lib/` or a
+`.d.ts`: before adding a file, decide whether it is pure (domain), orchestrates ports (application) or touches the
+runtime (infrastructure), and put it there, next to its siblings.
 
 The ports, the adapters and the recipes (add a command, a crew, a tool, a permission mode, a prompt block, a config
 key, a port) are in [docs/architecture.md](docs/architecture.md); the decision behind the layering in
@@ -69,7 +76,8 @@ Runtime rules, enforced by the bundle check:
   the port and exposes plain fields to configure it and to read what it received (`FakeFiles.files`,
   `FakeLlm.completes`). `FakeTools`, `FakeLlmFacade`, `FakeAgentContext` and `FakeScriptHost` stand in for the
   runtime objects, to test the adapters. Runtime code never imports `tests/`. No double is derived beside a test (a
-  subclass of a fake, an object literal typed as a port, a method of a fake replaced): a case a fake cannot play is a
+  class that extends a `Fake…` or implements a port, an object literal typed as a port or a `Pick` of one, a method
+  of a fake replaced): a case a fake cannot play is a
   new field of that fake.
 - Every module of `src/` is tested next to it, over the fakes: the domain modules, the use cases of a crew, the
   shared services and the command use cases of `commands/_lib/`. `tests/` holds the tests of the repository as a

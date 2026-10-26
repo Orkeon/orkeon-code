@@ -4,7 +4,7 @@
 
 | Command | What it proves | Needs |
 |---|---|---|
-| `npm test` | Every `*.test.ts` under `src/` and `tests/` passes (`node --test`, native type stripping), the dependency rule of `tests/architecture.test.ts` included | Node 24 |
+| `npm test` | Every `*.test.ts` under `src/` and `tests/` passes (`node --test`, native type stripping), the dependency rule of `tests/repository/architecture.test.ts` included | Node 24 |
 | `npm run typecheck` | The whole project type-checks (`scripts/typecheck.mjs`, `tsc` over `tsconfig.json`, one line per error) | `npm ci` |
 | `npm run bundle:check` | Every command and crew bundles with the runtime's esbuild flags, without any Node API | `npm ci` |
 | `npm run check:provenance` | No marker of another product's material in the sources (`scripts/provenance-markers.json`); `-- --strict` also requires the baseline to be empty, as CI does | Node |
@@ -13,7 +13,7 @@
 | `npm run check` | All of the above | `npm ci` |
 | `bash scripts/smoke-runtime.sh [--mode ...]` | The real REPL loads every command (`N loaded, 0 skipped, 0 conflicts`) | a runtime |
 | `bash scripts/check-file-modes.sh` | Scripts are committed executable | git |
-| `node scripts/render-prompts.mjs <dir>` | Writes every prompt as the model reads it (`tests/support/fixtures/prompt-catalogue.ts`), to review a prompt change as a `diff -r` of two renders; `tests/prompt-contract.test.ts` checks the same catalogue | Node 24 |
+| `node scripts/render-prompts.mjs <dir>` | Writes every prompt as the model reads it (`tests/support/fixtures/prompt-catalogue.ts`), to review a prompt change as a `diff -r` of two renders; `tests/repository/prompt-contract.test.ts` checks the same catalogue | Node 24 |
 
 CI (`.github/workflows/ci.yml`) runs, as separate steps on every pull request and push to `main`, the tests, the type
 check, the bundle check, the provenance gate, the two command pages up to date, the documentation parity and the file
@@ -54,13 +54,13 @@ same variable the launcher's source mode reads.
 
 ## Upgrading Orkeon
 
-The runtime version lives in four places that must agree (`tests/version.test.ts` checks the first two):
+The runtime version lives in four places that must agree (`tests/repository/version.test.ts` checks the first two):
 
 1. `.orkeon-version`: the image tag and the version the launcher announces;
 2. `.config/dotnet-tools.json`: `orkeon.scripting.cli`;
 3. `package.json`: `esbuild`, pinned to the version the runtime bundles with
    (`tools/scripting-esbuild/package-lock.json` in Orkeon/orkeon at that tag);
-4. `global.json`: the .NET SDK, the same pin as Orkeon's `global.json` at that tag (`tests/version.test.ts`
+4. `global.json`: the .NET SDK, the same pin as Orkeon's `global.json` at that tag (`tests/repository/version.test.ts`
    checks it).
 
 Then `npm ci && npm run typings && npm run check && bash scripts/smoke-runtime.sh`, and a live session on the demo

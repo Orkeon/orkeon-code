@@ -30,7 +30,7 @@ that breaks the rule; never weaken it to make a change pass, move the code inste
 | --- | --- | --- |
 | **domain** (`*/domain/`) | pure types and deterministic functions: no IO, no clock, no runtime global | domain only |
 | **application** (`*/application/`) | the use cases (`run-<crew>.ts`) and shared services | domain and application only, the ports of `src/shared/application/ports.ts` (re-exported from `ports/<concern>.ts`) included |
-| **infrastructure** (`src/shared/infrastructure/`) | `globals.ts` (the only reader of `tools`, `agentBuilder`, `crewBuilder`, `inputs`), the `orkeon/` adapters, `orkeon/wiring.ts` | everything inside |
+| **infrastructure** (`src/shared/infrastructure/`) | `globals.ts` (the only reader of `tools`, `agentBuilder`, `crewBuilder`, `toolBuilder`, `rag`, `inputs`), the `orkeon/` adapters, `orkeon/wiring.ts` | everything inside |
 | **entry points** (`crew.ork.ts`, `*.cmd.ts`) | parse the input, wire the adapters, call one use case, render the result | no logic worth testing |
 | **command use cases** (`src/commands/_lib/<group>/`) | the logic of a command, in the group of its `*.cmd.ts`; what groups share at the root of `_lib/` | never `shared/infrastructure/` |
 
@@ -40,8 +40,8 @@ that breaks the rule; never weaken it to make a change pass, move the code inste
 - Domain and application never import `commands/` nor an entry point. Only the crew entry points import
   `globals.ts`; only a `*.cmd.ts` calls `defineCommand`. A `*.cmd.ts` never imports `crews/*/domain` nor
   `crews/*/application`: it calls a use case of `commands/_lib/`.
-- Only `shared/infrastructure/` reads the clock (`new Date()` with no argument, `Date.now()`): the rest of `src/`
-  takes the `Clock` port, and a test a `FakeClock`.
+- Only `shared/infrastructure/` reads the clock (`new Date()` with no argument, `Date()`, `Date.now()`): the rest of
+  `src/` takes the `Clock` port, and a test a `FakeClock`.
 - No import cycle. Relative imports name their `.ts` file. No `require()`, no Node API in `src/` outside tests.
 - Logic found in an entry point or an adapter is moved into domain (when pure) or application (when it orchestrates
   ports), then tested there.
@@ -95,11 +95,11 @@ The convention is Orkeon's (`tests/` of github.com/Orkeon/orkeon), adapted to `n
   with its own `.fixtures`/`.assertions`; the module's name stops at the first dot. Every test of `src/` has its
   `<module>.ts` beside it.
 - A test's name is the behaviour and its condition, as a sentence: `cuts a name at 120 characters`.
-- No test depends on a clock, a network or an LLM: no `new Date()`, `Date.now()`, `setTimeout` nor `setInterval` in
-  test code, `tests/scripts/` aside (it drives real processes). Runtime code never imports `tests/`, a
-  `*.fixtures.ts` nor a `*.assertions.ts`.
-- `tests/repository/test-shape.test.ts` checks, on every file of `src/` and `tests/` without exception, the shape of
-  each test, the clock, where the doubles live and the module beside each test.
+- No test depends on a clock, a network or an LLM: no `new Date()`, `Date()`, `Date.now()`, `setTimeout`,
+  `setInterval` nor `setImmediate` in test code, `tests/scripts/` aside (it drives real processes). Runtime code never
+  imports `tests/`, a `*.fixtures.ts` nor a `*.assertions.ts`.
+- `tests/repository/test-shape.test.ts` checks the shape of each test on every `*.test.ts` of `src/` and `tests/`, the
+  clock on all their test code but `tests/scripts/`, where the doubles live and the module beside each test.
 - A behaviour added or changed gets its new test; never append assertions to an existing test to cover it.
 
 ### Runtime rules (bundle check)
