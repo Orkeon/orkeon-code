@@ -5,7 +5,7 @@
 // path once: a file the runtime says is not found is a new one, which file_write may create. It answers "allow" or { deny } only: no "ask" (an approval asked in
 // the middle of a crew's turn may not be answered by the REPL) and no rewritten input. Each crew that imports
 // this module bundles its own copy; nothing is shared between runs.
-import type { Files, Logger, Shell } from "../../application/ports.ts";
+import type { Files, Logger, Shell } from "../ports.ts";
 import { buildCallGuard, checkToolCall, denyText, hookCommand } from "../../domain/dev/call-guard.ts";
 import { resolvePathInput } from "../../domain/dev/path-args.ts";
 import { OPERATIONS_TOOL, REWRITE_TOOL } from "../../domain/agent-policy/rule-sets.ts";

@@ -26,7 +26,7 @@ import {
 import { memoryReadTools, memoryRecallOn, memoryRecallTools } from "../../shared/infrastructure/orkeon/memory-tools.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { memoryDirOf } from "../../shared/application/shared-memory/memory-settings.ts";
-import { devToolCallbacks } from "../../shared/infrastructure/orkeon/tool-callbacks.ts";
+import { devToolCallbacks } from "../../shared/application/dev/tool-callbacks.ts";
 import { childAgentBody, openChildAct } from "../../shared/infrastructure/orkeon/child-agents.ts";
 import { charterCatalogue } from "../../shared/domain/agents/charter.ts";
 import { instanceLimits } from "../../shared/domain/agents/instances.ts";

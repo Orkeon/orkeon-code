@@ -18,7 +18,7 @@ import { AgentBuilder, CrewBuilder, publishCrew, inputs, ToolBuilder } from "../
 import { orkeonConfigStore, orkeonMemoryToolPorts, orkeonShell } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { memoryReadTools, memoryRecallOn, memoryRecallTools } from "../../shared/infrastructure/orkeon/memory-tools.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
-import { devToolCallbacks } from "../../shared/infrastructure/orkeon/tool-callbacks.ts";
+import { devToolCallbacks } from "../../shared/application/dev/tool-callbacks.ts";
 import { memoryDirOf } from "../../shared/application/shared-memory/memory-settings.ts";
 import { charterCatalogue } from "../../shared/domain/agents/charter.ts";
 import type { Charter } from "../../shared/domain/agents/charter.ts";

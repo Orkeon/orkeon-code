@@ -59,22 +59,6 @@ export async function rootedImplementerCallbacks() {
 /** A file_write call under ROOT. */
 export const ROOTED_WRITE = { name: "file_write", input: { path: `${ROOT}/src/a.ts`, content: "x" } };
 
-/** The act of a spend guard of `bound` calls over callbacks that allow every call, counting the calls they reached. */
-export async function guardedAct(bound: number) {
-  const m = await loadDevDeps();
-  const spend = m.createSpend(bound);
-  const counter = { reached: 0 };
-  const act = m.spendGuard({
-    forAct: (_mode: string, _gate: boolean | undefined) => ({
-      onToolCall: async (_call: { name: string; input: unknown }) => { counter.reached++; return "allow" as const; },
-      onToolResult: async () => undefined,
-    }),
-  }, spend).forAct("bypassPermissions", undefined);
-  return { spend, act, counter };
-}
-
-export const FILE_READ_CALL = { name: "file_read", input: {} };
-
 /** A builder that records each tool's name and builds one whose execute calls the body. */
 export function recorder(): () => ToolBuilder<unknown, unknown> {
   return () => {

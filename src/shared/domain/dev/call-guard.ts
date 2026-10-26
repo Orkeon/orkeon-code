@@ -3,7 +3,7 @@
 // refuse: the step's rule sets again (the only check of them under `orkeon run`, which keeps no session rules), the
 // role's roots and its rewrite rule, the whole input of the folder readers, each operation of an edit_batch as the
 // editor it stands for, and the act's mode when the host has no gate. The callbacks
-// themselves, and the hooks' shell commands, are shared/infrastructure/orkeon/tool-callbacks.ts's.
+// themselves, and the hooks' shell commands, are shared/application/dev/tool-callbacks.ts's.
 import { ACT_TOOLS, READ_TOOLS, formatRule, matchesRule, sameToolName, shellCommandForms } from "../agent-policy/permission.ts";
 import type { PermissionRule } from "../agent-policy/permission.ts";
 import {

@@ -1,5 +1,5 @@
 // The dev crews' onToolCall and onToolResult over a FakeShell (the hooks) and a FakeLogger. Run:
-//   node --test src/shared/infrastructure/orkeon/tool-callbacks.test.ts
+//   node --test src/shared/application/dev/tool-callbacks.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

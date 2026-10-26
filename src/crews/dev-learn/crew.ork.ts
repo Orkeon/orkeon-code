@@ -14,7 +14,7 @@
 // Input (globalThis.inputs): { axis?: string | null, list?: boolean }
 // Run standalone:  bash scripts/run-crew.sh src/crews/dev-learn/crew.ork.ts --inputs '{"list":true}'
 //
-// No tool callbacks (shared/infrastructure/orkeon/tool-callbacks.ts): the learner has no tool and makes no act
+// No tool callbacks (shared/application/dev/tool-callbacks.ts): the learner has no tool and makes no act
 // call, so there is no tool call to guard; the question goes through the human_input port (orkeonHumanInput),
 // called by code. No budget, as analyze: the calls are code's, and at most six extract calls run
 // (three axes, one re-ask each).

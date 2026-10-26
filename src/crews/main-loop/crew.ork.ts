@@ -38,7 +38,7 @@ import {
 } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { memoryTools } from "../../shared/infrastructure/orkeon/memory-tools.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
-import { memoryGuardCallbacks } from "../../shared/infrastructure/orkeon/tool-callbacks.ts";
+import { memoryGuardCallbacks } from "../../shared/application/dev/tool-callbacks.ts";
 import { memoryDirOf } from "../../shared/application/shared-memory/memory-settings.ts";
 import { createRunState } from "../../shared/infrastructure/orkeon/run-state.ts";
 import { compactSession, readCompactionTrigger } from "../../shared/application/compaction/compact-session.ts";

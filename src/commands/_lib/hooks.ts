@@ -1,6 +1,6 @@
 // /hooks — the session's hook registry (session state): list, add, remove. The dev steps (/dev-spec, /dev-change,
 // /dev-plan, /dev-implement, /dev-batches and /dev-verify, and a /tasks repair) hand it to their crew, whose tool callbacks
-// (shared/infrastructure/orkeon/tool-callbacks.ts) run each pre-tool hook before a model's tool call the gate allowed
+// (shared/application/dev/tool-callbacks.ts) run each pre-tool hook before a model's tool call the gate allowed
 // (a failing hook refuses the call) and each post-tool hook after it (a failing one adds a line to the result). The
 // assistant does not run them yet, and nothing runs a stop hook. Not a command file: the loader reads *.cmd.ts only.
 import type { SessionStore } from "../../shared/application/ports.ts";

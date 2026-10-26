@@ -11,7 +11,7 @@ import type { ActRequest, ChildRuntime, Llm, Logger } from "../../application/po
 import { createChildBoard, instanceKey, parseChildInput, runChildAct } from "../../application/agents/child-agent.ts";
 import type { BoardDeps, ChildBoard } from "../../application/agents/child-agent.ts";
 import { createLlm } from "./llm.ts";
-import type { ToolCallbacks } from "./tool-callbacks.ts";
+import type { ToolCallbacks } from "../../application/dev/tool-callbacks.ts";
 
 type ChildContext = Pick<AgentContext, "spawnBackground" | "memory" | "receive">;
 type ChildCrew = Pick<Crew, "instances" | "stop">;

@@ -1,12 +1,12 @@
 // The dev crews' ports built from the calling agent's own tools, never the runtime's globals: the globals throw
 // here, set before the module is loaded, and every call lands in the body's FakeTools. Under a working root the
-// briefs leave as root paths, and the spend guard denies a batch's calls past its bound. Run:
+// briefs leave as root paths. Run:
 //   node --test src/shared/infrastructure/orkeon/dev-deps.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import {
-  AUDITOR_TOOLS, FILE_READ_CALL, LAYOUT, QUOTING_BRIEF, QUOTING_BRIEF_ROOTED, ROOT, ROOTED_WRITE, context, guardedAct,
+  AUDITOR_TOOLS, LAYOUT, QUOTING_BRIEF, QUOTING_BRIEF_ROOTED, ROOT, ROOTED_WRITE, context,
   loadDevDeps, recorder, rootedImplementerCallbacks, toolNames, twoBatchParts, validationTool,
 } from "./dev-deps.fixtures.ts";
 import { assertAskedNames, assertRootPathsOnly } from "./dev-deps.assertions.ts";
@@ -244,69 +244,6 @@ describe("implementDeps and verifyDeps", () => {
 
     // Assert
     strictEqual(verify.harvest, undefined);
-  });
-});
-
-describe("createSpend and spendGuard", () => {
-  it("lets the first call through", async () => {
-    // Arrange
-    const { act } = await guardedAct(2);
-
-    // Act
-    const verdict = await act.onToolCall(FILE_READ_CALL);
-
-    // Assert
-    strictEqual(verdict, "allow");
-  });
-
-  it("lets a call through up to the bound", async () => {
-    // Arrange
-    const { act } = await guardedAct(2);
-    await act.onToolCall(FILE_READ_CALL);
-
-    // Act
-    const verdict = await act.onToolCall(FILE_READ_CALL);
-
-    // Assert
-    strictEqual(verdict, "allow");
-  });
-
-  it("denies a call past the bound, the batch's spend counted", async () => {
-    // Arrange
-    const { spend, act, counter } = await guardedAct(2);
-    await act.onToolCall(FILE_READ_CALL);
-    await act.onToolCall(FILE_READ_CALL);
-
-    // Act
-    const verdict = await act.onToolCall(FILE_READ_CALL);
-
-    // Assert
-    deepStrictEqual(verdict, { deny: "budget: this batch has spent its 2 tool calls; end the act and say what is left" });
-    deepStrictEqual([counter.reached, spend.calls(), spend.exhausted()], [2, 2, true]);
-  });
-
-  it("is not spent by a batch whose calls reached the bound with none denied", async () => {
-    // Arrange
-    const { spend, act } = await guardedAct(2);
-    await act.onToolCall(FILE_READ_CALL);
-
-    // Act
-    await act.onToolCall(FILE_READ_CALL);
-
-    // Assert
-    deepStrictEqual([spend.calls(), spend.exhausted()], [2, false]);
-  });
-
-  it("is the callbacks themselves without a spend", async () => {
-    // Arrange
-    const m = await loadDevDeps();
-    const callbacks = { forAct: () => ({ onToolCall: async () => "allow" as const, onToolResult: async () => undefined }) };
-
-    // Act
-    const guarded = m.spendGuard(callbacks, undefined);
-
-    // Assert
-    strictEqual(guarded, callbacks);
   });
 });
 

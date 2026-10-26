@@ -27,7 +27,7 @@ import { orkeonClock, orkeonConfigStore, orkeonFiles, orkeonPullRequestOpener, o
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { memoryDirOf } from "../../shared/application/shared-memory/memory-settings.ts";
 import { harvestAfterGaps } from "../../shared/application/shared-memory/harvest-after-gaps.ts";
-import { devToolCallbacks } from "../../shared/infrastructure/orkeon/tool-callbacks.ts";
+import { devToolCallbacks } from "../../shared/application/dev/tool-callbacks.ts";
 import { batchAgentParts, gitTopUnder, implementDeps, verifyDeps } from "../../shared/infrastructure/orkeon/dev-deps.ts";
 import { charterCatalogue } from "../../shared/domain/agents/charter.ts";
 import { providerEffort } from "../../shared/domain/agent-policy/behavior-flags.ts";
