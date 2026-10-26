@@ -66,6 +66,10 @@ demandent d'abord un changement dans [Orkeon](https://github.com/Orkeon/orkeon).
   tous deux comme des écritures, même quand ils ne font que lire : demandés en `default` et `acceptEdits`, refusés en `plan`, et en
   `dontAsk` sans règle d'autorisation (runtime ; [Permissions](permissions.md)). Les outils web et RAG déclarent le
   leur depuis Orkeon #126.
+- En mode source sur le commit épinglé (Orkeon `main` après #206), le REPL interactif se bloque après ses lignes de
+  démarrage quand son entrée standard est un terminal, TUI et `--ui plain` confondus : écran noir ou pas d'invite,
+  aucune touche lue, Ctrl-C compris (runtime, Orkeon #212). `--replay` avec l'entrée redirigée n'est pas touché, ni un
+  checkout du `main` précédent (`0b41d6a7`).
 - La réponse peut être affichée deux fois quand le streaming console est activé, et avec `/dev-batches --concurrency`
   au-dessus de 1 les réponses diffusées des lots parallèles s'entremêlent caractère par caractère sur la console plain
   (le puits console du runtime ne porte pas d'identifiant d'act) : désactiver le streaming pour un tel run.
