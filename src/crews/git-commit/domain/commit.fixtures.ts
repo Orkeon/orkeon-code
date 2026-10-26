@@ -60,3 +60,35 @@ export const REFUSALS: readonly RefusalCase[] = [
   { name: "reads a refusal without a reason", reply: "REFUSE:", refusal: "no reason given" },
   { name: "lets a message through", reply: "feat: add flags", refusal: null },
 ];
+
+export interface FlagCase {
+  name: string;
+  value: unknown;
+  expected: boolean;
+}
+
+/** Crew input values and whether they read as a set flag: true and "true" only. */
+export const INPUT_FLAGS: readonly FlagCase[] = [
+  { name: "true", value: true, expected: true },
+  { name: "the string \"true\" a REPL hands over", value: "true", expected: true },
+  { name: "false", value: false, expected: false },
+  { name: "the string \"false\"", value: "false", expected: false },
+  { name: "another string", value: "yes", expected: false },
+  { name: "an absent value", value: undefined, expected: false },
+  { name: "a number", value: 1, expected: false },
+];
+
+export interface NamedPathsCase {
+  name: string;
+  raw: unknown;
+  expected: string[];
+}
+
+/** The paths /commit threads and the list they read as. */
+export const NAMED_PATHS: readonly NamedPathsCase[] = [
+  { name: "an array, its entries trimmed", raw: [" src/a.ts ", "docs/"], expected: ["src/a.ts", "docs/"] },
+  { name: "one path per line", raw: "src/a.ts\ndocs/\n", expected: ["src/a.ts", "docs/"] },
+  { name: "blank entries dropped", raw: ["", "  ", null, "a.ts"], expected: ["a.ts"] },
+  { name: "an absent value", raw: undefined, expected: [] },
+  { name: "an empty string", raw: "", expected: [] },
+];

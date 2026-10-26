@@ -187,3 +187,14 @@ export function parseCommitArgs(tokens: readonly unknown[]): { ok: true; args: C
   }
   return { ok: true, args };
 }
+
+/** A crew input flag: true, or the string "true" a REPL hands over; anything else is false. */
+export function inputFlag(v: unknown): boolean {
+  return v === true || v === "true";
+}
+
+/** The paths threaded by /commit: an array, or one path per line, each trimmed, the blank ones dropped. */
+export function namedPaths(raw: unknown): string[] {
+  const list = Array.isArray(raw) ? raw : String(raw ?? "").split("\n");
+  return list.map((p) => String(p ?? "").trim()).filter((p) => p.length > 0);
+}

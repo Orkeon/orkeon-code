@@ -4,11 +4,12 @@ import { deepStrictEqual, strictEqual, ok } from "node:assert";
 
 import {
   normalizeCommitMessage, commitSubject, isConventionalCommit,
-  isCommitPermitted, buildCommitPlan, parseCommitArgs, commitRefusal, secretLikePaths, statusPaths, untrackedPaths } from "./commit.ts";
+  isCommitPermitted, buildCommitPlan, parseCommitArgs, commitRefusal, secretLikePaths, statusPaths, untrackedPaths,
+  inputFlag, namedPaths } from "./commit.ts";
 import type { CommitArgs } from "./commit.ts";
 import * as commitModule from "./commit.ts";
 import {
-  ABSENT_MODES, CONFIRM_FLAGS, CONVENTIONAL_SUBJECTS, FLAGGED_SECRET_PATHS, NORMALIZED, ORDINARY_PATHS, PARSED_ARGS, READ_ONLY_MODES, REFUSALS,
+  ABSENT_MODES, CONFIRM_FLAGS, CONVENTIONAL_SUBJECTS, FLAGGED_SECRET_PATHS, INPUT_FLAGS, NAMED_PATHS, NORMALIZED, ORDINARY_PATHS, PARSED_ARGS, READ_ONLY_MODES, REFUSALS,
   SECRET_PATHS, STATUS, WRITING_MODES, args,
 } from "./commit.fixtures.ts";
 import { assertMentions } from "../../../../tests/support/assertions/text.ts";
@@ -372,6 +373,36 @@ describe("commitRefusal", () => {
 
       // Assert
       strictEqual(refusal, c.refusal);
+    });
+  }
+});
+
+describe("inputFlag", () => {
+  for (const c of INPUT_FLAGS) {
+    it(`reads true and "true" alone as a set flag: ${c.name}`, () => {
+      // Arrange
+      const { value } = c;
+
+      // Act
+      const set = inputFlag(value);
+
+      // Assert
+      strictEqual(set, c.expected);
+    });
+  }
+});
+
+describe("namedPaths", () => {
+  for (const c of NAMED_PATHS) {
+    it(`reads an array or one path per line, trimmed, blanks dropped: ${c.name}`, () => {
+      // Arrange
+      const { raw } = c;
+
+      // Act
+      const paths = namedPaths(raw);
+
+      // Assert
+      deepStrictEqual(paths, c.expected);
     });
   }
 });
