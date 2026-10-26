@@ -1,7 +1,8 @@
 // The shape every test keeps (CONTRIBUTING.md, "Tests"): its body is laid out Arrange, Act, Assert, each section
 // opened by its own comment line, once, in that order. Read from the syntax tree, so a test built in a loop over a
 // fixture table is checked like any other. Test code besides reads no clock and starts no timer (tests/scripts/
-// aside), derives no double outside tests/support/doubles/, and a test of src/ sits beside its module. Pure: the
+// aside) and derives no double outside tests/support/doubles/. src/ holds no test file: the tests of src/ mirror it
+// under tests/crews/, tests/shared/ and tests/commands/, and each file there has its module in src/. Pure: the
 // caller hands the source text and the files.
 import ts from "typescript";
 import { clockReads, derivedDoubles } from "./syntax.ts";
@@ -58,8 +59,10 @@ export function shapeProblems(file: string, text: string): string[] {
   return out;
 }
 
+const TEST_FILE = /\.(test|fixtures|assertions)\.ts$/u;
+
 /** Test code: a test, the fixtures or assertions beside it, or a file of tests/. */
-export const isTestCode = (file: string) => /\.(test|fixtures|assertions)\.ts$/u.test(file) || file.startsWith("tests/");
+export const isTestCode = (file: string) => TEST_FILE.test(file) || file.startsWith("tests/");
 
 export const CLOCK_RULE = "a test reads no clock and starts no timer: it takes a FakeClock (tests/scripts/ alone drive real processes)";
 
@@ -80,13 +83,24 @@ export function doubleProblems(
   return derivedDoubles(file, text, ports, methods).map((hit) => `${hit.file}:${hit.line}: ${hit.what}: ${DOUBLES_RULE}`);
 }
 
-export const MODULE_RULE = "a test of src/ sits beside its module: <module>[.<facet>].test.ts next to <module>.ts";
+/** The folders of tests/ that mirror src/: tests/<path>/<m>.test.ts tests src/<path>/<m>.ts. */
+export const MIRROR = ["tests/crews/", "tests/shared/", "tests/commands/"];
 
-/** What is wrong with where a test of src/ sits, as `<file>: <rule>`; null when `<module>.ts`, its name up to the
- *  first dot, is among `files` in the same folder. */
+export const SRC_RULE = "src/ holds runtime code only: a test, its fixtures and assertions go under tests/, mirroring their module";
+
+/** What is wrong with a test, fixtures or assertions file under src/, as `<file>: <rule>`; null for any other file. */
+export function srcTestProblem(file: string): string | null {
+  return file.startsWith("src/") && TEST_FILE.test(file) ? `${file}: ${SRC_RULE}` : null;
+}
+
+export const MODULE_RULE =
+  "a test of the mirror has its module in src/: tests/<path>/<module>[.<facet>].test.ts (.fixtures.ts, .assertions.ts) tests src/<path>/<module>.ts";
+
+/** What is wrong with a test, fixtures or assertions file of the mirror, as `<file>: <rule>`; null when
+ *  `src/<path>/<module>.ts`, its name up to the first dot, is among `files`. Any other file is left alone. */
 export function moduleProblem(file: string, files: ReadonlySet<string>): string | null {
-  if (!file.startsWith("src/") || !file.endsWith(".test.ts")) return null;
-  const folder = file.slice(0, file.lastIndexOf("/") + 1);
-  const module = `${folder}${file.slice(folder.length).split(".")[0]}.ts`;
+  if (!MIRROR.some((folder) => file.startsWith(folder)) || !TEST_FILE.test(file)) return null;
+  const folder = file.slice("tests/".length, file.lastIndexOf("/") + 1);
+  const module = `src/${folder}${file.slice(file.lastIndexOf("/") + 1).split(".")[0]}.ts`;
   return files.has(module) ? null : `${file}: ${MODULE_RULE}`;
 }

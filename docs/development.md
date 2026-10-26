@@ -4,7 +4,7 @@
 
 | Command | What it proves | Needs |
 |---|---|---|
-| `npm test` | Every `*.test.ts` under `src/` and `tests/` passes (`node --test`, native type stripping), the dependency rule of `tests/repository/architecture.test.ts` included | Node 24 |
+| `npm test` | Every `*.test.ts` under `tests/` passes (`node --test`, native type stripping), the dependency rule of `tests/repository/architecture.test.ts` included | Node 24 |
 | `npm run typecheck` | The whole project type-checks (`scripts/typecheck.mjs`, `tsc` over `tsconfig.json`, one line per error) | `npm ci` |
 | `npm run bundle:check` | Every command and crew bundles with the runtime's esbuild flags, without any Node API | `npm ci` |
 | `npm run check:provenance` | No marker of another product's material in the sources (`scripts/provenance-markers.json`); `-- --strict` also requires the baseline to be empty, as CI does | Node |

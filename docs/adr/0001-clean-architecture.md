@@ -36,7 +36,8 @@ travelled untyped into the use cases. Two consequences followed:
   it needs (`wiring.ts` for those bound to the `tools` global, the agent or command context for the others), passes
   them to a use case, and renders the result. A use case receives its ports as parameters.
 - **Hand-written test doubles.** `tests/support/` holds one `Fake*` class per port, with plain fields to configure
-  and inspect, plus stand-ins for the runtime objects the adapters take. Runtime code never imports them.
+  and inspect, plus stand-ins for the runtime objects the adapters take. Runtime code never imports them. (Since
+  then the tests of `src/` moved out of it: `tests/crews/`, `tests/shared/` and `tests/commands/` mirror `src/`.)
 
 ## Consequences
 

@@ -26,7 +26,7 @@ src/
 ├── commands/   <group>/*.cmd.ts slash commands (entry points, by function) + _lib/<group>/ (their use cases, shared helpers at the root)
 ├── crews/      <name>/crew.ork.ts (entry point) + application/ + domain/
 └── shared/     domain/ · application/ (ports.ts + ports/, services) · infrastructure/ (globals.ts, orkeon/ adapters, orkeon/wiring.ts)
-tests/          support/ (doubles/, fixtures/, assertions/ shared across test files) · repository/ (architecture, test shape, command surface, versions) · scripts/ · config/
+tests/          crews/ · shared/ · commands/ (the tests of src/, mirroring it) · support/ (doubles/, fixtures/, assertions/ shared across test files) · repository/ (architecture, test shape, command surface, versions) · scripts/ · config/
 mcp/whisper/    the speech MCP server (Python, run by uv): whisper_mcp.py + tests/
 ```
 
@@ -34,7 +34,9 @@ Dependencies point inwards only, and `tests/repository/architecture.test.ts` fai
 global, that breaks the rule:
 
 - **domain**: pure types and deterministic functions. No IO, no runtime global. Imports domain only. Every module
-  of `src/` is expected to have its test beside it (the reverse, a test beside its module, is checked).
+  of `src/` is expected to have its test at the same path under `tests/` (the reverse, a test of that mirror with its
+  module in `src/`, is checked). A test keeps the layer of its module: a domain test imports domain only, its own
+  fixtures and assertions and `tests/support/assertions/` aside.
 - **application**: the use cases of a crew (`application/run-<crew>.ts`) and the shared services. Imports domain and
   application only, the ports of `src/shared/application/ports.ts` included (one file per concern under
   `ports/`, re-exported by `ports.ts`): what it needs from the runtime, it receives as parameters typed by a port.
@@ -79,14 +81,17 @@ Runtime rules, enforced by the bundle check:
   class that extends a `Fake…` or implements a port, an object literal typed as a port or a `Pick` of one, a method
   of a fake replaced): a case a fake cannot play is a
   new field of that fake.
-- Every module of `src/` is tested next to it, over the fakes: the domain modules, the use cases of a crew, the
-  shared services and the command use cases of `commands/_lib/`. `tests/` holds the tests of the repository as a
-  whole, by subject: `repository/` (the dependency rule, the test shape, the command surface, the prompt contract,
-  the versions), `scripts/` (the scripts, the launchers, the install), `config/` (the example settings). Entry
-  points are covered by the bundle check and the runtime smoke.
+- Every module of `src/` is tested over the fakes, at the same path under `tests/`: `src/<path>/<m>.ts` by
+  `tests/<path>/<m>.test.ts`, its fixtures and assertions beside the test. The domain modules, the use cases of a
+  crew, the shared services and the command use cases of `commands/_lib/` are all tested so: `tests/crews/`,
+  `tests/shared/` and `tests/commands/` mirror `src/`, which holds no test, fixtures nor assertions file. The rest of
+  `tests/` holds the tests of the repository as a whole, by subject: `repository/` (the dependency rule, the test
+  shape, the command surface, the prompt contract, the versions), `scripts/` (the scripts, the launchers, the
+  install), `config/` (the example settings). Entry points are covered by the bundle check and the runtime smoke.
 - A module may have several test files: beside `<module>.test.ts`, a facet of it gets `<module>.<facet>.test.ts`
   (`plan-render.interop.test.ts`), with its own `<module>.<facet>.fixtures.ts` and `.assertions.ts`. The module's
-  name stops at the first dot, and every test of `src/` has its `<module>.ts` beside it.
+  name stops at the first dot, and every test, fixtures and assertions file of the mirror has its `<module>.ts` at
+  the same path in `src/`.
 - No test depends on a clock, a network or an LLM: test code reads no clock and starts no timer (`FakeClock`), but in
   `tests/scripts/`, which drives real processes.
 - Every test is laid out **Arrange, Act, Assert**, the way Orkeon's are: three sections, each opened by its own

@@ -1,11 +1,12 @@
 // The shape of every test of the repository: Arrange, Act, Assert (CONTRIBUTING.md, "Tests"); no clock nor timer
-// in test code (tests/scripts/ aside); every double in tests/support/doubles/; every test of src/ beside its module.
+// in test code (tests/scripts/ aside); every double in tests/support/doubles/; no test file under src/; every test of
+// the mirror (tests/crews/, tests/shared/, tests/commands/) has its module in src/.
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
-import { clockProblems, doubleProblems, moduleProblem, sectionProblem, shapeProblems } from "./test-shape.ts";
+import { clockProblems, doubleProblems, moduleProblem, sectionProblem, shapeProblems, srcTestProblem } from "./test-shape.ts";
 import {
   AAA_TEST, BARE_TEST, CLOCK_CASES, DOUBLE_CASES, LOOP_TESTS, METHODS, MODULE_CASES, NOT_TESTS, OUT_OF_ORDER_TEST, PORTS,
-  TWO_ACTS_TEST, filesUnder, readRepo, repositoryDoubleMethods, repositoryPorts,
+  SRC_CASES, TWO_ACTS_TEST, filesUnder, readRepo, repositoryDoubleMethods, repositoryPorts,
 } from "./test-shape.fixtures.ts";
 
 describe("test shape: the check", () => {
@@ -103,6 +104,19 @@ describe("test shape: clock, doubles and modules", () => {
     });
   }
 
+  for (const c of SRC_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { file } = c;
+
+      // Act
+      const problem = srcTestProblem(file);
+
+      // Assert
+      strictEqual(problem, c.problem);
+    });
+  }
+
   for (const c of MODULE_CASES) {
     it(c.name, () => {
       // Arrange
@@ -164,9 +178,20 @@ describe("test shape: the repository", () => {
     deepStrictEqual(problems, []);
   });
 
-  it("every test of src/ sits beside its module", () => {
+  it("src/ holds no test, fixtures nor assertions file", () => {
     // Arrange
-    const files = new Set(filesUnder("src"));
+    const files = filesUnder("src");
+
+    // Act
+    const problems = files.flatMap((f) => srcTestProblem(f) ?? []);
+
+    // Assert
+    deepStrictEqual(problems, []);
+  });
+
+  it("every test, fixtures and assertions file of the mirror has its module in src/", () => {
+    // Arrange
+    const files = new Set([...filesUnder("src"), ...filesUnder("tests")]);
 
     // Act
     const problems = [...files].flatMap((f) => moduleProblem(f, files) ?? []);

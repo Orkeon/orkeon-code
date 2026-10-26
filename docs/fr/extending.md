@@ -1,7 +1,7 @@
 # Étendre Orkeon Code
 
 Tout ce que l'agent dit et fait côté TypeScript est un fichier source de ce dépôt : une commande est un fichier, un
-crew un dossier, un prompt une chaîne avec son test à côté, un mode de permission une ligne d'une table. Pas d'étape
+crew un dossier, un prompt une chaîne avec son test sous `tests/`, un mode de permission une ligne d'une table. Pas d'étape
 de build de votre côté : le runtime bundle les sources avec esbuild et les exécute dans Jint au démarrage du REPL, et
 un changement est donc actif au prochain démarrage. Cette page liste les points d'extension, ce que chacun touche, et
 où sont les limites. Les couches, les ports et les recettes pas à pas sont dans
@@ -43,7 +43,7 @@ régénère [docs/fr/commands.md](commands.md). La recette : [Ajouter une comman
 Un dossier `src/crews/<name>/` avec un `crew.ork.ts` dans la forme procédurale : les agents avec les noms d'outils
 dont ils ont besoin, un agent dont le `.body()` appelle le cas d'usage, `publishCrew(...)` à la fin. Le cas d'usage
 est `application/run-<name>.ts` (`run<Name>(input, deps)`), ses règles pures dans `domain/`, chacune avec son
-`*.test.ts` ; le test du cas d'usage tourne sur les fakes. La commande qui le lance le nomme,
+`*.test.ts` sous `tests/crews/<name>/` ; le test du cas d'usage tourne sur les fakes. La commande qui le lance le nomme,
 `launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "<name>", input)`, et `input` arrive au crew comme
 `inputs()`. Les imports sont relatifs et portent leur extension `.ts`, parce que le runtime bundle chaque point
 d'entrée à partir des fichiers tels qu'ils sont écrits.

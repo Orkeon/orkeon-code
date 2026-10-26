@@ -6,6 +6,7 @@ import { posix } from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
 import { clockReads } from "./syntax.ts";
+import { MIRROR } from "./test-shape.ts";
 
 export const ROOT = fileURLToPath(new URL("../..", import.meta.url));
 export const GLOBALS = "src/shared/infrastructure/globals.ts";
@@ -21,6 +22,10 @@ export interface Import { from: string; specifier: string; to: string | null }
 
 /** Test code: a test, or the fixtures and assertions files kept beside it. */
 export const isTest = (file: string) => [".test.ts", ".fixtures.ts", ".assertions.ts"].some((end) => file.endsWith(end));
+export const isMirrored = (file: string) => MIRROR.some((folder) => file.startsWith(folder));
+/** Where a file stands in the architecture: a file of the mirror stands where its module does, in src/, so a test
+ *  of a domain module is a domain test and a test of commands/_lib/<group>/ belongs to that group. */
+export const placeOf = (file: string) => (isMirrored(file) ? `src/${file.slice("tests/".length)}` : file);
 /** The checks several test files share, over node:assert alone: a test of any layer may import them. */
 export const SHARED_ASSERTIONS = "tests/support/assertions/";
 export const SHARED_ASSERTIONS_RULE = "tests/support/assertions/ imports node: built-ins only: a shared check serves every layer";
@@ -78,9 +83,11 @@ export function resolveImport(from: string, specifier: string): string | null {
   return null;
 }
 
-/** The sources the rules are read on: src/, and the shared checks of tests/, which serve every layer. */
+/** The sources the rules are read on: src/, the tests that mirror it under tests/, and the shared checks of tests/,
+ *  which serve every layer. */
 export function readSources(): Map<string, string> {
-  const files = [...sourceFiles("src"), ...sourceFiles(SHARED_ASSERTIONS.slice(0, -1))];
+  const mirror = MIRROR.flatMap((folder) => sourceFiles(folder.slice(0, -1)));
+  const files = [...sourceFiles("src"), ...mirror, ...sourceFiles(SHARED_ASSERTIONS.slice(0, -1))];
   return new Map(files.map((file) => [file, readFileSync(posix.join(ROOT, file), "utf-8")]));
 }
 
@@ -109,7 +116,8 @@ export const COMMAND_GROUP_RULE = "a *.cmd.ts calls the use cases of its own gro
 const LIB_GROUP = /^src\/commands\/_lib\/([^/]+)\//u;
 const COMMAND_GROUP = /^src\/commands\/([^/]+)\/[^/]+\.cmd\.ts$/u;
 
-/** The rules one import breaks, as messages; empty when it keeps them all. */
+/** The rules one import breaks, as messages; empty when it keeps them all. A file of the mirror is judged where
+ *  its module stands (placeOf): a test keeps the layer and the group of the module it tests. */
 export function brokenRules(imp: Import): string[] {
   if (!imp.specifier.startsWith(".")) {
     return (isTest(imp.from) || imp.from.startsWith(SHARED_ASSERTIONS)) && imp.specifier.startsWith("node:")
@@ -121,24 +129,26 @@ export function brokenRules(imp: Import): string[] {
   if (imp.to === null) return [...broken, "the import resolves to no file"];
   if (imp.from.startsWith(SHARED_ASSERTIONS)) return [...broken, SHARED_ASSERTIONS_RULE];
   const sharedCheck = isTest(imp.from) && imp.to.startsWith(SHARED_ASSERTIONS);
-  const fromLayer = layerOf(imp.from);
-  if (fromLayer === "domain" && layerOf(imp.to) !== "domain" && !sharedCheck) broken.push("domain imports domain only");
-  const inward = layerOf(imp.to) === "domain" || layerOf(imp.to) === "application";
+  const from = placeOf(imp.from);
+  const to = placeOf(imp.to);
+  const fromLayer = layerOf(from);
+  if (fromLayer === "domain" && layerOf(to) !== "domain" && !sharedCheck) broken.push("domain imports domain only");
+  const inward = layerOf(to) === "domain" || layerOf(to) === "application";
   if (fromLayer === "application" && !inward && !(isTest(imp.from) && imp.to.startsWith("tests/"))) broken.push(APPLICATION_RULE);
-  if ((fromLayer === "domain" || fromLayer === "application") && (imp.to.startsWith(COMMANDS) || isEntryPoint(imp.to))) {
+  if ((fromLayer === "domain" || fromLayer === "application") && (to.startsWith(COMMANDS) || isEntryPoint(to))) {
     broken.push("domain and application never import commands/ nor an entry point");
   }
-  if (imp.to === GLOBALS && !imp.from.startsWith(INFRASTRUCTURE) && !isCrewEntryPoint(imp.from)) {
+  if (to === GLOBALS && !from.startsWith(INFRASTRUCTURE) && !isCrewEntryPoint(from)) {
     broken.push("only shared/infrastructure/ and the crew entry points import globals.ts");
   }
-  if (imp.to.startsWith(INFRASTRUCTURE) && imp.from.startsWith(COMMANDS_LIB)) {
+  if (to.startsWith(INFRASTRUCTURE) && from.startsWith(COMMANDS_LIB)) {
     broken.push(LIB_RULE);
   }
-  if (isCommandEntryPoint(imp.from) && CREW_INNER.test(imp.to)) broken.push(COMMAND_CREWS_RULE);
-  const toGroup = LIB_GROUP.exec(imp.to)?.[1];
-  const fromGroup = LIB_GROUP.exec(imp.from)?.[1];
+  if (isCommandEntryPoint(from) && CREW_INNER.test(to)) broken.push(COMMAND_CREWS_RULE);
+  const toGroup = LIB_GROUP.exec(to)?.[1];
+  const fromGroup = LIB_GROUP.exec(from)?.[1];
   if (toGroup !== undefined && fromGroup !== undefined && toGroup !== fromGroup) broken.push(LIB_GROUP_RULE);
-  const commandGroup = COMMAND_GROUP.exec(imp.from)?.[1];
+  const commandGroup = COMMAND_GROUP.exec(from)?.[1];
   if (toGroup !== undefined && commandGroup !== undefined && toGroup !== commandGroup) broken.push(COMMAND_GROUP_RULE);
   if (imp.to.startsWith("tests/") && !isTest(imp.from)) broken.push("runtime code never imports tests/");
   if (isTest(imp.to) && !isTest(imp.from)) broken.push("runtime code never imports test code (*.test.ts, *.fixtures.ts, *.assertions.ts)");
@@ -307,10 +317,10 @@ export function runtimeGlobalUses(sources: ReadonlyMap<string, string>, names: R
   return uses;
 }
 
-/** The rule a use of a runtime global breaks; null when its file may use it. */
+/** The rule a use of a runtime global breaks; null when its file may use it (a test of the mirror where its module may). */
 export function brokenGlobalRule(use: GlobalUse): string | null {
   const global = RUNTIME_GLOBALS.find((g) => g.names.includes(use.name))!;
-  return global.allowedIn(use.file) ? null : global.rule;
+  return global.allowedIn(placeOf(use.file)) ? null : global.rule;
 }
 
 export function graphOf(imports: Import[]): Map<string, string[]> {
@@ -365,6 +375,19 @@ export const LAYER_CASES: ReadonlyArray<{ file: string; layer: Layer | null }> =
   { file: "src/commands/settings/mode.cmd.ts", layer: null },
   { file: "src/commands/_lib/args.ts", layer: null },
   { file: "src/commands/_lib/settings/mode.ts", layer: null },
+  { file: "tests/crews/x/domain/plan.test.ts", layer: "domain" },
+  { file: "tests/shared/application/session-io.fixtures.ts", layer: "application" },
+  { file: "tests/support/doubles/fake-shell.ts", layer: null },
+];
+
+/** A file, and where it stands in the architecture: a file of the tests mirror stands where its module does. */
+export const PLACE_CASES: ReadonlyArray<{ file: string; place: string }> = [
+  { file: "tests/crews/x/domain/plan.test.ts", place: "src/crews/x/domain/plan.test.ts" },
+  { file: "tests/shared/infrastructure/orkeon/shell.fixtures.ts", place: "src/shared/infrastructure/orkeon/shell.fixtures.ts" },
+  { file: "tests/commands/_lib/git/commit.assertions.ts", place: "src/commands/_lib/git/commit.assertions.ts" },
+  { file: "tests/support/doubles/fake-shell.ts", place: "tests/support/doubles/fake-shell.ts" },
+  { file: "tests/repository/version.test.ts", place: "tests/repository/version.test.ts" },
+  { file: "src/crews/x/domain/plan.ts", place: "src/crews/x/domain/plan.ts" },
 ];
 
 /** An import and the rules it breaks, by the behaviour it shows. */
@@ -457,7 +480,7 @@ export const APPLICATION_IMPORT_CASES: readonly ImportCase[] = [
   },
   {
     name: "refuses infrastructure to an application test as well",
-    imp: importOf("src/crews/x/application/run-x.test.ts", "src/shared/infrastructure/orkeon/shell.ts"),
+    imp: importOf("tests/crews/x/application/run-x.test.ts", "src/shared/infrastructure/orkeon/shell.ts"),
     broken: [APPLICATION_RULE],
   },
 ];
@@ -538,47 +561,47 @@ export const COMMAND_GROUP_IMPORT_CASES: readonly ImportCase[] = [
 export const FIXTURES_IMPORT_CASES: ReadonlyArray<{ name: string; imp: Import; rule: string | null }> = [
   {
     name: "lets a test import the fixtures of its module",
-    imp: importOf("src/crews/x/domain/plan.test.ts", "src/crews/x/domain/plan.fixtures.ts"),
+    imp: importOf("tests/crews/x/domain/plan.test.ts", "tests/crews/x/domain/plan.fixtures.ts"),
     rule: null,
   },
   {
     name: "lets a facet test import the fixtures of its module",
-    imp: importOf("src/crews/x/application/run-x.decide.test.ts", "src/crews/x/application/run-x.fixtures.ts"),
+    imp: importOf("tests/crews/x/application/run-x.decide.test.ts", "tests/crews/x/application/run-x.fixtures.ts"),
     rule: null,
   },
   {
     name: "lets the fixtures of a facet import the fixtures of its module",
-    imp: importOf("src/crews/x/application/run-x.decide.fixtures.ts", "src/crews/x/application/run-x.fixtures.ts"),
+    imp: importOf("tests/crews/x/application/run-x.decide.fixtures.ts", "tests/crews/x/application/run-x.fixtures.ts"),
     rule: null,
   },
   {
     name: "lets a test import the assertions of its module",
-    imp: importOf("src/crews/x/domain/plan.test.ts", "src/crews/x/domain/plan.assertions.ts"),
+    imp: importOf("tests/crews/x/domain/plan.test.ts", "tests/crews/x/domain/plan.assertions.ts"),
     rule: null,
   },
   {
     name: "lets any test import the shared fixtures of tests/support/",
-    imp: importOf("src/crews/x/application/run-x.test.ts", "tests/support/fixtures/linked-worktree-files.ts"),
+    imp: importOf("tests/crews/x/application/run-x.test.ts", "tests/support/fixtures/linked-worktree-files.ts"),
     rule: null,
   },
   {
     name: "refuses the fixtures of a module to the test of another module",
-    imp: importOf("src/crews/x/domain/render.test.ts", "src/crews/x/domain/plan.fixtures.ts"),
+    imp: importOf("tests/crews/x/domain/render.test.ts", "tests/crews/x/domain/plan.fixtures.ts"),
     rule: FIXTURES_RULE,
   },
   {
     name: "refuses the fixtures of a module to the fixtures of another module",
-    imp: importOf("src/crews/x/domain/render.fixtures.ts", "src/crews/x/domain/plan.fixtures.ts"),
+    imp: importOf("tests/crews/x/domain/render.fixtures.ts", "tests/crews/x/domain/plan.fixtures.ts"),
     rule: FIXTURES_RULE,
   },
   {
     name: "refuses the assertions of a module to the test of another module",
-    imp: importOf("src/crews/x/domain/render.test.ts", "src/crews/x/domain/plan.assertions.ts"),
+    imp: importOf("tests/crews/x/domain/render.test.ts", "tests/crews/x/domain/plan.assertions.ts"),
     rule: FIXTURES_RULE,
   },
   {
     name: "refuses the fixtures of a module to a test of the same name in another folder",
-    imp: importOf("src/crews/y/domain/plan.test.ts", "src/crews/x/domain/plan.fixtures.ts"),
+    imp: importOf("tests/crews/y/domain/plan.test.ts", "tests/crews/x/domain/plan.fixtures.ts"),
     rule: FIXTURES_RULE,
   },
 ];
@@ -645,17 +668,17 @@ export const TESTS_IMPORT_CASES: readonly ImportCase[] = [
   },
   {
     name: "lets a test import tests/",
-    imp: { from: "src/crews/x/application/run.test.ts", specifier: "../../../../" + FAKE_SHELL, to: FAKE_SHELL },
+    imp: { from: "tests/crews/x/application/run.test.ts", specifier: "../../../" + FAKE_SHELL.slice(6), to: FAKE_SHELL },
     broken: [],
   },
   {
     name: "refuses a double to a domain test: a fake implements a port of the application",
-    imp: { from: "src/crews/x/domain/plan.test.ts", specifier: "../../../../" + FAKE_SHELL, to: FAKE_SHELL },
+    imp: { from: "tests/crews/x/domain/plan.test.ts", specifier: "../../../" + FAKE_SHELL.slice(6), to: FAKE_SHELL },
     broken: ["domain imports domain only"],
   },
   {
     name: "lets a domain test import a shared check",
-    imp: { from: "src/crews/x/domain/plan.test.ts", specifier: "../../../../" + SHARED_TEXT, to: SHARED_TEXT },
+    imp: { from: "tests/crews/x/domain/plan.test.ts", specifier: "../../../" + SHARED_TEXT.slice(6), to: SHARED_TEXT },
     broken: [],
   },
   {
@@ -667,6 +690,50 @@ export const TESTS_IMPORT_CASES: readonly ImportCase[] = [
     name: "refuses a relative import to a shared check, which serves every layer",
     imp: { from: SHARED_TEXT, specifier: "../doubles/fake-shell.ts", to: FAKE_SHELL },
     broken: [SHARED_ASSERTIONS_RULE],
+  },
+];
+
+/** A test of the mirror imports what a test beside its module could: its layer and group are its module's. */
+export const MIRROR_IMPORT_CASES: readonly ImportCase[] = [
+  {
+    name: "lets a domain test of the mirror import its module in src/",
+    imp: importOf("tests/crews/x/domain/plan.test.ts", "src/crews/x/domain/plan.ts"),
+    broken: [],
+  },
+  {
+    name: "lets a domain test of the mirror import the fixtures of its module",
+    imp: importOf("tests/crews/x/domain/plan.test.ts", "tests/crews/x/domain/plan.fixtures.ts"),
+    broken: [],
+  },
+  {
+    name: "refuses the shared fixtures of tests/support/ to a domain test of the mirror",
+    imp: importOf("tests/crews/x/domain/plan.test.ts", "tests/support/fixtures/linked-worktree-files.ts"),
+    broken: ["domain imports domain only"],
+  },
+  {
+    name: "refuses application to a domain test of the mirror",
+    imp: importOf("tests/shared/domain/types.test.ts", "src/shared/application/ports.ts"),
+    broken: ["domain imports domain only"],
+  },
+  {
+    name: "lets an application test of the mirror import a double",
+    imp: importOf("tests/crews/x/application/run-x.test.ts", FAKE_SHELL),
+    broken: [],
+  },
+  {
+    name: "refuses the commands/_lib/ group of another module to a test of the mirror",
+    imp: importOf("tests/commands/_lib/speech/say.test.ts", "src/commands/_lib/git/commit.ts"),
+    broken: [LIB_GROUP_RULE],
+  },
+  {
+    name: "refuses shared/infrastructure/ to a test of a use case of commands/_lib/",
+    imp: importOf("tests/commands/_lib/status/doctor.test.ts", "src/shared/infrastructure/orkeon/shell.ts"),
+    broken: [LIB_RULE],
+  },
+  {
+    name: "lets a test of shared/infrastructure/ import globals.ts",
+    imp: importOf("tests/shared/infrastructure/globals.test.ts", GLOBALS),
+    broken: [],
   },
 ];
 
@@ -715,4 +782,6 @@ export const GLOBAL_RULE_CASES: ReadonlyArray<{ name: string; file: string; rule
   { name: "defineCommand", file: "src/commands/settings/fast.cmd.ts", rule: null },
   { name: "defineCommand", file: "src/commands/_lib/settings/session-config.ts", rule: RUNTIME_GLOBALS[2].rule },
   { name: "require", file: "src/shared/infrastructure/globals.ts", rule: RUNTIME_GLOBALS[0].rule },
+  { name: "tools", file: "tests/shared/infrastructure/globals.test.ts", rule: null },
+  { name: "tools", file: "tests/crews/x/application/run-x.test.ts", rule: RUNTIME_GLOBALS[1].rule },
 ];

@@ -62,8 +62,10 @@ case in Node without touching a runtime global.
 | command use cases | `src/commands/_lib/` | The use cases in a folder per command family (`dev/`, `git/`, `settings/`...), `run<Name>(tokens, deps)` → a view over the ports it is handed; at the root, the helpers the families share | anything but `shared/infrastructure/` |
 | entry points | `src/commands/<group>/*.cmd.ts`, `src/crews/<name>/crew.ork.ts` | Parse the input, wire the adapters, call a use case, render | anything |
 
-`tests/repository/architecture.test.ts` parses every import of `src/` (static, re-export, type-only and dynamic) and fails on
-any import that breaks one of these rules; there is no exception list:
+`tests/repository/architecture.test.ts` parses every import of `src/` and of the tests that mirror it under `tests/`
+(static, re-export, type-only and dynamic) and fails on any import that breaks one of these rules; there is no
+exception list. A test of the mirror is judged where its module stands: `tests/<path>/<m>.test.ts` keeps the layer
+and the `commands/_lib/` group of `src/<path>/<m>.ts`, so a test of a domain module is a domain test. The rules:
 
 - a file under `domain/` imports domain files only;
 - a file under `application/` imports domain and application files only (its tests may import `tests/` besides):
@@ -131,6 +133,9 @@ src/
         └── orkeon/    the adapters of the ports, tool-results.ts (field casing),
                        runtime-tools.ts (the tool inputs), wiring.ts
 tests/
+├── crews/             the tests of src/, mirroring it: src/<path>/<m>.ts is tested by tests/<path>/<m>.test.ts,
+├── shared/            its <m>.fixtures.ts and <m>.assertions.ts beside it; src/ holds runtime code only
+├── commands/
 ├── support/           what several test files share, never imported by runtime code:
 │   ├── doubles/       the test doubles (Fake*), one per port
 │   ├── fixtures/      the sample data shared across test files (prompt-catalogue, memory-entries)
@@ -144,8 +149,9 @@ tests/
 mcp/whisper/           the speech MCP server, Python run by uv: whisper_mcp.py, tests/, samples/, smoke.py
 ```
 
-Domain and application tests sit next to their module (`*.test.ts`); the entry points hold no logic worth a unit
-test and are covered by the bundle check and the runtime smoke. `tests/repository/test-shape.test.ts` holds every
+The tests of `src/` mirror it under `tests/`: `src/<path>/<m>.ts` is tested by `tests/<path>/<m>.test.ts`, its
+`.fixtures.ts` and `.assertions.ts` beside the test; the entry points hold no logic worth a unit test and are covered
+by the bundle check and the runtime smoke. `tests/repository/test-shape.test.ts` holds every
 test to its shape, read from the syntax tree:
 
 - each test is laid out Arrange, Act, Assert, one act per test;
@@ -154,8 +160,8 @@ test to its shape, read from the syntax tree:
 - a double lives in `tests/support/doubles/` and nowhere else: no class that extends a `Fake…` or implements a port
   (the ports are read from the exports of `ports/`), no object literal typed as a port, no method of a fake
   replaced on an instance; what a fake cannot play yet is a new field of that fake;
-- every test of `src/` has its `<module>.ts` beside it, a second test file of the module being
-  `<module>.<facet>.test.ts`.
+- `src/` holds no test, fixtures nor assertions file, and every one of the mirror has its `<module>.ts` at the same
+  path in `src/`, a second test file of the module being `<module>.<facet>.test.ts`.
 
 ## Ports and adapters
 
@@ -550,10 +556,10 @@ extraction, `shared/domain/compaction.ts` the prompts and buffers, `shared/domai
    `description`, no top-level `export`.
 2. Put the logic worth testing in `src/commands/_lib/<group>/<name>.ts`, the same `<group>` as the command, as
    `run<Name>(tokens, deps)` returning a `CommandView`, its deps a `Pick<>` of the ports and services it reads; test
-   it next to it, in `src/commands/_lib/<group>/<name>.test.ts`, over the fakes. A helper that several groups share
+   it in `tests/commands/_lib/<group>/<name>.test.ts`, over the fakes. A helper that several groups share
    sits at the root of `_lib/`; a group never imports another one.
 3. Raise `EXPECTED_COMMAND_COUNT` in `tests/repository/command-surface.test.ts` and the command count of `RELEASE_NOTES` in
-   `src/commands/_lib/status/meta.ts` (pinned by `src/commands/_lib/status/meta.test.ts`), then run `npm run docs:commands`.
+   `src/commands/_lib/status/meta.ts` (pinned by `tests/commands/_lib/status/meta.test.ts`), then run `npm run docs:commands`.
 
 ### Add a crew
 
@@ -563,7 +569,7 @@ extraction, `shared/domain/compaction.ts` the prompts and buffers, `shared/domai
    its `*.test.ts`; the use case test runs over the fakes.
 3. Start it from an async command (`launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "<name>",
    input)`), and name it in `RELEASE_NOTES`
-   (`src/commands/_lib/status/meta.test.ts` checks that every crew folder is named there). A folder starting with `_` is a
+   (`tests/commands/_lib/status/meta.test.ts` checks that every crew folder is named there). A folder starting with `_` is a
    development probe (`probe.ork.ts`), never listed to users.
 
 ### Add a tool

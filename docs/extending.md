@@ -1,7 +1,7 @@
 # Extending Orkeon Code
 
 Everything the agent says and does on the TypeScript side is a source file of this repository: a command is a file,
-a crew is a folder, a prompt is a string with its test next to it, a permission mode is a row of a table. There is no
+a crew is a folder, a prompt is a string with its test under `tests/`, a permission mode is a row of a table. There is no
 build step on your side: the runtime bundles the sources with esbuild and runs them in Jint when the REPL starts, so a
 change is live at the next start. This page lists the extension points, what each one touches, and where the limits
 are. The layers, the ports and the step-by-step recipes are in [Architecture](architecture.md#recipes); the coding
@@ -42,8 +42,8 @@ Logic worth testing goes to `src/commands/_lib/<group>/<name>.ts`, the folder of
 
 A folder `src/crews/<name>/` with a `crew.ork.ts` in the procedural shape: the agents with the tool names they need,
 an agent whose `.body()` calls the use case, `publishCrew(...)` at the end. The use case is
-`application/run-<name>.ts` (`run<Name>(input, deps)`), its pure rules in `domain/`, each with its `*.test.ts`; the
-use case test runs over the fakes. The command that launches it names it,
+`application/run-<name>.ts` (`run<Name>(input, deps)`), its pure rules in `domain/`, each with its `*.test.ts` under
+`tests/crews/<name>/`; the use case test runs over the fakes. The command that launches it names it,
 `launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "<name>", input)`, and `input` reaches the crew as
 `inputs()`. Imports are relative and carry their `.ts` extension, because the runtime bundles each entry point from
 the files as written.

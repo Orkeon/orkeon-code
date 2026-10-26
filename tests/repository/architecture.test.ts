@@ -1,10 +1,13 @@
 // Dependency rule, checked statically over every import of every .ts file under
-// src/ (static `import … from`, `export … from`, dynamic `import("…")` and type
-// `import("…")`):
+// src/ and of the tests that mirror it under tests/crews/, tests/shared/ and
+// tests/commands/ (static `import … from`, `export … from`, dynamic `import("…")`
+// and type `import("…")`). A test of the mirror is judged where its module stands:
+// tests/<path>/<m>.test.ts keeps the layer and the commands/_lib/ group of
+// src/<path>/<m>.ts, so a test of a domain module is a domain test:
 //   - a file under domain/ imports domain files only;
 //   - a file under application/ imports domain and application files only (its
-//     tests may import tests/ besides): an allow-list, so a file in no layer is
-//     refused as infrastructure is;
+//     tests may import tests/ besides, the doubles included): an allow-list, so a
+//     file in no layer is refused as infrastructure is;
 //   - a file under domain/ or application/ never imports commands/ nor an entry
 //     point (*.cmd.ts, crew.ork.ts, probe.ork.ts);
 //   - only shared/infrastructure/ and the crew entry points (crew.ork.ts,
@@ -23,16 +26,16 @@
 //     specifiers as written), and runtime code imports nothing but relative
 //     files (tests may import node: built-ins);
 //   - runtime code never imports tests/: the doubles of tests/support/doubles/ are
-//     never bundled (tests next to the code may import them);
+//     never bundled (the tests of the mirror may import them);
 //   - a shared check of tests/support/assertions/ imports node: built-ins only,
 //     so a test of any layer, a domain test included, may import it;
 //   - runtime code never imports test code: a *.test.ts, or the *.fixtures.ts
-//     and *.assertions.ts files the tests next to it keep their data and checks in;
+//     and *.assertions.ts files beside it that keep its data and checks;
 //   - no import cycle between files;
 //   - a <module>[.<facet>].fixtures.ts or .assertions.ts is imported by the files
 //     of its module only (same folder, the name up to the first dot): what several
 //     modules share goes under tests/support/ (read over src/ and tests/).
-// Every runtime file of src/ sits in a layer folder, or is an entry point, a
+// Every file of src/ (test-shape.test.ts keeps test files out of it) sits in a layer folder, or is an entry point, a
 // command use case of commands/_lib/ or a declaration (.d.ts). Every read of the
 // clock (`new Date()` with no argument, `Date()`, `Date.now()`) sits in
 // shared/infrastructure/: the rest of src/ takes the Clock port. The ports barrel
@@ -54,9 +57,10 @@ import { deepStrictEqual, strictEqual } from "node:assert";
 import {
   ADAPTER_IMPORT_CASES, APPLICATION_IMPORT_CASES, BOUND_NAMES_SOURCE, CLOCK_CASES, COMMAND_GROUP_IMPORT_CASES,
   COMMAND_IMPORT_CASES, FIXTURES_IMPORT_CASES, LIB_GROUP_IMPORT_CASES, PORTS_BARREL, PORTS_FOLDER, barrelGaps, GLOBAL_NAMES, GLOBAL_RULE_CASES, GLOBALS_IMPORT_CASES, IMPORT_FORMS_SOURCE, LAYER_CASES,
-  LAYER_IMPORT_CASES, PLACEMENT_CASES, TESTS_IMPORT_CASES, UNBOUND_GLOBALS_SOURCE, UNBOUND_GLOBALS_USES,
-  COMMANDS_LIB, COMMAND_GROUP_RULE, LIB_GROUP_RULE, brokenFixturesRule, brokenGlobalRule, brokenPlacementRule, brokenRules, clockRuleBreaks, collectImports, cyclesOf,
-  edge, graphOf, isTest, layerOf, readAllSources, readSources, runtimeGlobalUses, specifiersOf, usesIn,
+  LAYER_IMPORT_CASES, MIRROR_IMPORT_CASES, PLACE_CASES, PLACEMENT_CASES, TESTS_IMPORT_CASES, UNBOUND_GLOBALS_SOURCE,
+  UNBOUND_GLOBALS_USES, COMMANDS_LIB, COMMAND_GROUP_RULE, LIB_GROUP_RULE, brokenFixturesRule, brokenGlobalRule,
+  brokenPlacementRule, brokenRules, clockRuleBreaks, collectImports, cyclesOf, edge, graphOf, layerOf, placeOf,
+  readAllSources, readSources, runtimeGlobalUses, specifiersOf, usesIn,
 } from "./architecture.fixtures.ts";
 
 describe("architecture: import parsing", () => {
@@ -84,9 +88,23 @@ describe("architecture: import parsing", () => {
     });
   }
 
+  for (const c of PLACE_CASES) {
+    it(`places a file of the tests mirror where its module stands in src/: ${c.file} stands at ${c.place}`, () => {
+      // Arrange
+      const { file } = c;
+
+      // Act
+      const place = placeOf(file);
+
+      // Assert
+      strictEqual(place, c.place);
+    });
+  }
+
   for (const c of [
     ...GLOBALS_IMPORT_CASES, ...ADAPTER_IMPORT_CASES, ...LAYER_IMPORT_CASES, ...APPLICATION_IMPORT_CASES,
     ...COMMAND_IMPORT_CASES, ...LIB_GROUP_IMPORT_CASES, ...COMMAND_GROUP_IMPORT_CASES, ...TESTS_IMPORT_CASES,
+    ...MIRROR_IMPORT_CASES,
   ]) {
     it(c.name, () => {
       // Arrange
@@ -102,22 +120,24 @@ describe("architecture: import parsing", () => {
 
   it("refuses an import of a fixtures or assertions file from runtime code", () => {
     // Arrange
-    const fixtures = "src/crews/x/domain/plan.fixtures.ts";
-    const imp = { from: "src/crews/x/domain/plan.ts", specifier: "./plan.fixtures.ts", to: fixtures };
+    const fixtures = "tests/crews/x/domain/plan.fixtures.ts";
+    const imp = { from: "src/crews/x/domain/plan.ts", specifier: "../../../../tests/crews/x/domain/plan.fixtures.ts", to: fixtures };
 
     // Act
     const broken = brokenRules(imp);
 
     // Assert
-    deepStrictEqual(broken, ["runtime code never imports test code (*.test.ts, *.fixtures.ts, *.assertions.ts)"]);
+    deepStrictEqual(broken, [
+      "runtime code never imports tests/", "runtime code never imports test code (*.test.ts, *.fixtures.ts, *.assertions.ts)",
+    ]);
   });
 
   it("lets a test import its fixtures and assertions, and an assertions file import node:assert", () => {
     // Arrange
     const imports = [
-      { from: "src/crews/x/domain/plan.test.ts", specifier: "./plan.fixtures.ts", to: "src/crews/x/domain/plan.fixtures.ts" },
-      { from: "src/crews/x/domain/plan.test.ts", specifier: "./plan.assertions.ts", to: "src/crews/x/domain/plan.assertions.ts" },
-      { from: "src/crews/x/domain/plan.assertions.ts", specifier: "node:assert", to: null },
+      { from: "tests/crews/x/domain/plan.test.ts", specifier: "./plan.fixtures.ts", to: "tests/crews/x/domain/plan.fixtures.ts" },
+      { from: "tests/crews/x/domain/plan.test.ts", specifier: "./plan.assertions.ts", to: "tests/crews/x/domain/plan.assertions.ts" },
+      { from: "tests/crews/x/domain/plan.assertions.ts", specifier: "node:assert", to: null },
     ];
 
     // Act
@@ -221,7 +241,7 @@ describe("architecture: dependency rule", () => {
 
   it("a commands/_lib/ group imports its own group or the root of commands/_lib/ only", () => {
     // Arrange
-    const imports = collectImports(readSources()).filter((imp) => imp.from.startsWith(COMMANDS_LIB));
+    const imports = collectImports(readSources()).filter((imp) => placeOf(imp.from).startsWith(COMMANDS_LIB));
 
     // Act
     const broken = imports.filter((imp) => brokenRules(imp).includes(LIB_GROUP_RULE)).map((imp) => edge(imp.from, imp.to ?? imp.specifier));
@@ -280,7 +300,7 @@ describe("architecture: dependency rule", () => {
 
   it("every runtime file of src/ sits in a layer, or is an entry point, a command use case or a declaration", () => {
     // Arrange
-    const files = [...readSources().keys()].filter((file) => file.startsWith("src/") && !isTest(file));
+    const files = [...readSources().keys()].filter((file) => file.startsWith("src/"));
 
     // Act
     const broken = files.flatMap((file) => {
@@ -294,7 +314,7 @@ describe("architecture: dependency rule", () => {
 
   it("every clock read sits in shared/infrastructure/", () => {
     // Arrange
-    const sources = [...readSources()].filter(([file]) => file.startsWith("src/") && !isTest(file));
+    const sources = [...readSources()].filter(([file]) => file.startsWith("src/"));
 
     // Act
     const broken = sources.flatMap(([file, text]) => clockRuleBreaks(file, text));

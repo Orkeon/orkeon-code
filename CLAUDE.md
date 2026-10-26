@@ -10,11 +10,11 @@ bundle check). [CONTRIBUTING.md](CONTRIBUTING.md) is the full guide and
 Node comes from nvm: `source ~/.nvm/nvm.sh` first, in the same shell line.
 
 ```bash
-npm run check                          # tests, type check, bundle check, provenance, generated docs, docs parity
-npm test                               # every *.test.ts under src/ and tests/ (scripts/run-tests.mjs)
-node --test src/path/to/module.test.ts # one test file
+npm run check                            # tests, type check, bundle check, provenance, generated docs, docs parity
+npm test                                 # every *.test.ts under tests/ (scripts/run-tests.mjs)
+node --test tests/path/to/module.test.ts # one test file
 npm run typecheck
-npm run docs:commands                  # after a command is added or renamed
+npm run docs:commands                    # after a command is added or renamed
 ```
 
 `npm run check` is green before every commit.
@@ -87,19 +87,23 @@ The convention is Orkeon's (`tests/` of github.com/Orkeon/orkeon), adapted to `n
 - **What several test files share** lives under `tests/support/`, by kind: `doubles/`, `fixtures/` (the sample data,
   such as the prompt catalogue), `assertions/` (the shared checks, over `node:assert` alone, so a domain test may use
   them). A `<module>.fixtures.ts` or `.assertions.ts` serves the test files of its module only.
-- **Where a test goes**: a module of `src/` is tested next to it, a command use case of `commands/_lib/` included.
-  `tests/` holds what checks the repository as a whole, by subject: `repository/` (the dependency rule, the test shape,
-  the command surface, the prompt contract, the versions), `scripts/` (the scripts, the launchers, the install),
+- **Where a test goes**: a module `src/<path>/<m>.ts` is tested by `tests/<path>/<m>.test.ts`, its `.fixtures.ts`
+  and `.assertions.ts` beside the test, a command use case of `commands/_lib/` included: `tests/crews/`,
+  `tests/shared/` and `tests/commands/` mirror `src/`, and `src/` holds no test, fixtures nor assertions file. The rest
+  of `tests/` checks the repository as a whole, by subject: `repository/` (the dependency rule, the test shape, the
+  command surface, the prompt contract, the versions), `scripts/` (the scripts, the launchers, the install),
   `config/` (the example settings). Entry points are covered by the bundle check and the smoke.
 - A module may have several test files: the second one is `<module>.<facet>.test.ts` (`run-dev-learn.decide.test.ts`),
-  with its own `.fixtures`/`.assertions`; the module's name stops at the first dot. Every test of `src/` has its
-  `<module>.ts` beside it.
+  with its own `.fixtures`/`.assertions`; the module's name stops at the first dot. Every test, fixtures and
+  assertions file of the mirror has its `<module>.ts` at the same path in `src/`. A test of the mirror keeps the layer
+  of its module: a test of a domain module imports domain, its own fixtures and `tests/support/assertions/` only.
 - A test's name is the behaviour and its condition, as a sentence: `cuts a name at 120 characters`.
 - No test depends on a clock, a network or an LLM: no `new Date()`, `Date()`, `Date.now()`, `setTimeout`,
   `setInterval` nor `setImmediate` in test code, `tests/scripts/` aside (it drives real processes). Runtime code never
   imports `tests/`, a `*.fixtures.ts` nor a `*.assertions.ts`.
 - `tests/repository/test-shape.test.ts` checks the shape of each test on every `*.test.ts` of `src/` and `tests/`, the
-  clock on all their test code but `tests/scripts/`, where the doubles live and the module beside each test.
+  clock on all their test code but `tests/scripts/`, where the doubles live, that `src/` holds no test file and that
+  every file of the mirror has its module in `src/`.
 - A behaviour added or changed gets its new test; never append assertions to an existing test to cover it.
 
 ### Runtime rules (bundle check)
@@ -123,7 +127,7 @@ src/
 ├── commands/   <group>/*.cmd.ts (entry points, by function) + _lib/<group>/ (their use cases, shared helpers at the root)
 ├── crews/      <name>/crew.ork.ts (entry point) + application/ + domain/
 └── shared/     domain/ · application/ (ports.ts + ports/, services) · infrastructure/ (globals.ts, orkeon/ adapters, wiring.ts)
-tests/          support/ (doubles/, fixtures/, assertions/ shared across tests) · fixtures/ (file-like texts) · repository/ · scripts/ · config/
+tests/          crews/ · shared/ · commands/ (the tests of src/, mirroring it) · support/ (doubles/, fixtures/, assertions/ shared across tests) · fixtures/ (file-like texts) · repository/ · scripts/ · config/
 mcp/whisper/    the speech MCP server (Python, uv)
 docs/           architecture.md, adr/ (0001 clean architecture), commands.md, fr/ (the French twins)
 ```

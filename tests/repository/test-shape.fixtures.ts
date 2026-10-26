@@ -1,10 +1,10 @@
-// Test sources the shape check is run on, the cases of the clock, doubles and module rules, and the reader of the
-// repository the rules are run over.
+// Test sources the shape check is run on, the cases of the clock, doubles, src/ and module rules, and the reader of
+// the repository the rules are run over.
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { posix } from "node:path";
 import { fileURLToPath } from "node:url";
 import { classMethods, portNames } from "./syntax.ts";
-import { CLOCK_RULE, DOUBLES_RULE, MODULE_RULE } from "./test-shape.ts";
+import { CLOCK_RULE, DOUBLES_RULE, MODULE_RULE, SRC_RULE } from "./test-shape.ts";
 
 const ROOT = posix.join(posix.dirname(fileURLToPath(import.meta.url)), "../..");
 const PORTS_DIR = "src/shared/application/ports";
@@ -110,15 +110,15 @@ it("named only");
 export const CLOCK_CASES: ReadonlyArray<{ name: string; file: string; text: string; problems: string[] }> = [
   {
     name: "refuses new Date() to a test",
-    file: "src/x/plan.test.ts",
+    file: "tests/crews/x/plan.test.ts",
     text: "const now = new Date();",
-    problems: [`src/x/plan.test.ts:1: new Date(): ${CLOCK_RULE}`],
+    problems: [`tests/crews/x/plan.test.ts:1: new Date(): ${CLOCK_RULE}`],
   },
   {
     name: "refuses a timer to fixtures",
-    file: "src/x/plan.fixtures.ts",
+    file: "tests/crews/x/plan.fixtures.ts",
     text: "export const later = () => new Promise((r) => setTimeout(r, 5));",
-    problems: [`src/x/plan.fixtures.ts:1: setTimeout(): ${CLOCK_RULE}`],
+    problems: [`tests/crews/x/plan.fixtures.ts:1: setTimeout(): ${CLOCK_RULE}`],
   },
   {
     name: "refuses Date.now() to a double of tests/support/",
@@ -134,7 +134,7 @@ export const CLOCK_CASES: ReadonlyArray<{ name: string; file: string; text: stri
   },
   {
     name: "lets a test build a date from a value",
-    file: "src/x/plan.test.ts",
+    file: "tests/crews/x/plan.test.ts",
     text: "const at = new Date(Date.parse(\"2026-10-24T10:00:00Z\"));",
     problems: [],
   },
@@ -153,21 +153,21 @@ export const METHODS: ReadonlyMap<string, ReadonlySet<string>> = new Map([["Fake
 export const DOUBLE_CASES: ReadonlyArray<{ name: string; file: string; text: string; problems: string[] }> = [
   {
     name: "refuses a class deriving a fake to fixtures",
-    file: "src/x/plan.fixtures.ts",
+    file: "tests/crews/x/plan.fixtures.ts",
     text: "export class SpyFiles extends FakeFiles {}",
-    problems: [`src/x/plan.fixtures.ts:1: class SpyFiles extends FakeFiles: ${DOUBLES_RULE}`],
+    problems: [`tests/crews/x/plan.fixtures.ts:1: class SpyFiles extends FakeFiles: ${DOUBLES_RULE}`],
   },
   {
     name: "refuses a method of a fake replaced in a test",
-    file: "src/x/plan.test.ts",
+    file: "tests/crews/x/plan.test.ts",
     text: "const files = new FakeFiles();\nfiles.write = async () => { throw new Error(\"full\"); };",
-    problems: [`src/x/plan.test.ts:2: FakeFiles.write replaced on an instance: ${DOUBLES_RULE}`],
+    problems: [`tests/crews/x/plan.test.ts:2: FakeFiles.write replaced on an instance: ${DOUBLES_RULE}`],
   },
   {
     name: "refuses a port implemented by an object literal in fixtures",
-    file: "src/x/plan.fixtures.ts",
+    file: "tests/crews/x/plan.fixtures.ts",
     text: "export const human: HumanInput = { choice: async () => ({ answered: false }) };",
-    problems: [`src/x/plan.fixtures.ts:1: an object literal implements HumanInput: ${DOUBLES_RULE}`],
+    problems: [`tests/crews/x/plan.fixtures.ts:1: an object literal implements HumanInput: ${DOUBLES_RULE}`],
   },
   {
     name: "refuses a port implemented by a class in a test of tests/",
@@ -189,21 +189,66 @@ export const DOUBLE_CASES: ReadonlyArray<{ name: string; file: string; text: str
   },
 ];
 
-/** A test file, the files beside it, and the module problem found. */
+/** A file under src/ or not, and the problem the src/ rule finds: no test, fixtures nor assertions file in src/. */
+export const SRC_CASES: ReadonlyArray<{ name: string; file: string; problem: string | null }> = [
+  { name: "refuses a test under src/", file: "src/crews/x/domain/plan.test.ts", problem: `src/crews/x/domain/plan.test.ts: ${SRC_RULE}` },
+  { name: "refuses fixtures under src/", file: "src/crews/x/plan.fixtures.ts", problem: `src/crews/x/plan.fixtures.ts: ${SRC_RULE}` },
+  {
+    name: "refuses the assertions of a facet under src/",
+    file: "src/shared/application/run.decide.assertions.ts",
+    problem: `src/shared/application/run.decide.assertions.ts: ${SRC_RULE}`,
+  },
+  { name: "passes a runtime module of src/", file: "src/crews/x/domain/plan.ts", problem: null },
+  { name: "passes a runtime module of src/ whose name speaks of tests", file: "src/crews/x/domain/test-plan.ts", problem: null },
+  { name: "passes a test of the mirror", file: "tests/crews/x/domain/plan.test.ts", problem: null },
+];
+
+/** A file of tests/, the files of the repository, and the module problem found. */
 export const MODULE_CASES: ReadonlyArray<{ name: string; file: string; files: string[]; problem: string | null }> = [
-  { name: "passes a test beside its module", file: "src/x/plan.test.ts", files: ["src/x/plan.ts"], problem: null },
-  { name: "passes a facet test beside its module", file: "src/x/plan.interop.test.ts", files: ["src/x/plan.ts"], problem: null },
+  { name: "passes a test of the mirror whose module is in src/", file: "tests/crews/x/plan.test.ts", files: ["src/crews/x/plan.ts"], problem: null },
+  {
+    name: "passes a facet test of the mirror whose module is in src/",
+    file: "tests/shared/x/plan.interop.test.ts",
+    files: ["src/shared/x/plan.ts"],
+    problem: null,
+  },
+  {
+    name: "passes the fixtures of a module of commands/",
+    file: "tests/commands/_lib/git/commit.fixtures.ts",
+    files: ["src/commands/_lib/git/commit.ts"],
+    problem: null,
+  },
+  {
+    name: "passes the assertions of a facet whose module is in src/",
+    file: "tests/crews/x/plan.interop.assertions.ts",
+    files: ["src/crews/x/plan.ts"],
+    problem: null,
+  },
   {
     name: "refuses a test whose module sits in another folder",
-    file: "src/x/plan.test.ts",
-    files: ["src/y/plan.ts"],
-    problem: `src/x/plan.test.ts: ${MODULE_RULE}`,
+    file: "tests/crews/x/plan.test.ts",
+    files: ["src/crews/y/plan.ts"],
+    problem: `tests/crews/x/plan.test.ts: ${MODULE_RULE}`,
+  },
+  {
+    name: "refuses a test whose module sits beside it under tests/, not in src/",
+    file: "tests/crews/x/plan.test.ts",
+    files: ["tests/crews/x/plan.ts"],
+    problem: `tests/crews/x/plan.test.ts: ${MODULE_RULE}`,
   },
   {
     name: "refuses a second test file named with a dash rather than a facet",
-    file: "src/x/plan-interop.test.ts",
-    files: ["src/x/plan.ts"],
-    problem: `src/x/plan-interop.test.ts: ${MODULE_RULE}`,
+    file: "tests/crews/x/plan-interop.test.ts",
+    files: ["src/crews/x/plan.ts"],
+    problem: `tests/crews/x/plan-interop.test.ts: ${MODULE_RULE}`,
   },
-  { name: "leaves a test of tests/ to its subject", file: "tests/repository/version.test.ts", files: [], problem: null },
+  {
+    name: "refuses fixtures whose module is not in src/",
+    file: "tests/shared/x/render.fixtures.ts",
+    files: ["src/shared/x/plan.ts"],
+    problem: `tests/shared/x/render.fixtures.ts: ${MODULE_RULE}`,
+  },
+  { name: "leaves a test of tests/repository/ to its subject", file: "tests/repository/version.test.ts", files: [], problem: null },
+  { name: "leaves a test of tests/scripts/ to its subject", file: "tests/scripts/launcher.test.ts", files: [], problem: null },
+  { name: "leaves a double of tests/support/ alone", file: "tests/support/doubles/fake-shell.ts", files: [], problem: null },
 ];

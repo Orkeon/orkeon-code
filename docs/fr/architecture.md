@@ -65,8 +65,11 @@ bundle, et un test importe un cas d'usage dans Node sans toucher à une globale 
 | cas d'usage des commandes | `src/commands/_lib/` | Les cas d'usage dans un dossier par famille de commandes (`dev/`, `git/`, `settings/`...), `run<Name>(tokens, deps)` → une vue au-dessus des ports qu'on lui remet ; à la racine, les utilitaires que les familles partagent | tout sauf `shared/infrastructure/` |
 | points d'entrée | `src/commands/<group>/*.cmd.ts`, `src/crews/<name>/crew.ork.ts` | Analysent l'entrée, câblent les adaptateurs, appellent un cas d'usage, rendent | tout |
 
-`tests/repository/architecture.test.ts` analyse chaque import de `src/` (statique, réexport, de type seul et dynamique) et échoue
-sur tout import qui enfreint l'une de ces règles ; il n'y a pas de liste d'exceptions :
+`tests/repository/architecture.test.ts` analyse chaque import de `src/` et des tests qui en sont le miroir sous `tests/`
+(statique, réexport, de type seul et dynamique) et échoue sur tout import qui enfreint l'une de ces règles ; il n'y a
+pas de liste d'exceptions. Un test du miroir est jugé là où se tient son module : `tests/<path>/<m>.test.ts` garde la
+couche et le groupe de `commands/_lib/` de `src/<path>/<m>.ts`, si bien que le test d'un module du domaine est un
+test du domaine. Les règles :
 
 - un fichier sous `domain/` n'importe que des fichiers du domaine ;
 - un fichier sous `application/` n'importe que des fichiers du domaine et de l'application (ses tests peuvent
@@ -137,6 +140,9 @@ src/
         └── orkeon/    the adapters of the ports, tool-results.ts (field casing),
                        runtime-tools.ts (the tool inputs), wiring.ts
 tests/
+├── crews/             the tests of src/, mirroring it: src/<path>/<m>.ts is tested by tests/<path>/<m>.test.ts,
+├── shared/            its <m>.fixtures.ts and <m>.assertions.ts beside it; src/ holds runtime code only
+├── commands/
 ├── support/           what several test files share, never imported by runtime code:
 │   ├── doubles/       the test doubles (Fake*), one per port
 │   ├── fixtures/      the sample data shared across test files (prompt-catalogue, memory-entries)
@@ -150,8 +156,8 @@ tests/
 mcp/whisper/           the speech MCP server, Python run by uv: whisper_mcp.py, tests/, samples/, smoke.py
 ```
 
-Les tests du domaine et de l'application sont à côté de leur module (`*.test.ts`) ; les points d'entrée ne
-contiennent aucune logique qui vaille un test unitaire et sont couverts par la vérification de bundle et le smoke du
+Les tests de `src/` en sont le miroir sous `tests/` : `src/<path>/<m>.ts` est testé par `tests/<path>/<m>.test.ts`,
+ses `.fixtures.ts` et `.assertions.ts` à côté du test ; les points d'entrée ne contiennent aucune logique qui vaille un test unitaire et sont couverts par la vérification de bundle et le smoke du
 runtime. `tests/repository/test-shape.test.ts` tient chaque test à sa forme, lue dans l'arbre syntaxique :
 
 - chaque test suit Arrange, Act, Assert, un seul acte par test ;
@@ -161,8 +167,8 @@ runtime. `tests/repository/test-shape.test.ts` tient chaque test à sa forme, lu
   implémente un port (les ports sont lus dans les exports de `ports/`), pas d'objet littéral typé par un port, pas
   de méthode d'un fake remplacée sur une instance ; ce qu'un fake ne sait pas encore jouer devient un nouveau champ
   de ce fake ;
-- chaque test de `src/` a son `<module>.ts` à côté de lui, un second fichier de test du module étant
-  `<module>.<facet>.test.ts`.
+- `src/` ne contient aucun fichier de test, de fixtures ni d'assertions, et chacun de ceux du miroir a son
+  `<module>.ts` au même chemin dans `src/`, un second fichier de test du module étant `<module>.<facet>.test.ts`.
 
 ## Ports et adaptateurs
 
@@ -600,10 +606,10 @@ contiennent la restauration et l'extraction de mémoire, `shared/domain/compacti
    `description` statique, pas d'`export` de premier niveau.
 2. Mettre la logique qui vaut un test dans `src/commands/_lib/<group>/<name>.ts`, le même `<group>` que la
    commande, sous la forme `run<Name>(tokens, deps)` rendant une `CommandView`, ses deps un `Pick<>` des ports et
-   services qu'elle lit ; la tester à côté, dans `src/commands/_lib/<group>/<name>.test.ts`, au-dessus des fakes.
+   services qu'elle lit ; la tester dans `tests/commands/_lib/<group>/<name>.test.ts`, au-dessus des fakes.
    Un utilitaire que plusieurs groupes partagent se place à la racine de `_lib/` ; un groupe n'importe jamais un autre.
 3. Augmenter `EXPECTED_COMMAND_COUNT` dans `tests/repository/command-surface.test.ts` et le nombre de commandes de
-   `RELEASE_NOTES` dans `src/commands/_lib/status/meta.ts` (épinglé par `src/commands/_lib/status/meta.test.ts`), puis lancer
+   `RELEASE_NOTES` dans `src/commands/_lib/status/meta.ts` (épinglé par `tests/commands/_lib/status/meta.test.ts`), puis lancer
    `npm run docs:commands`.
 
 ### Ajouter un crew
@@ -615,7 +621,7 @@ contiennent la restauration et l'extraction de mémoire, `shared/domain/compacti
    `domain/`, chacun avec son `*.test.ts` ; le test du cas d'usage tourne au-dessus des fakes.
 3. Le lancer depuis une commande async (`launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "<name>",
    input)`), et le nommer dans `RELEASE_NOTES`
-   (`src/commands/_lib/status/meta.test.ts` vérifie que chaque dossier de crew y est nommé). Un dossier commençant par `_` est
+   (`tests/commands/_lib/status/meta.test.ts` vérifie que chaque dossier de crew y est nommé). Un dossier commençant par `_` est
    une sonde de développement (`probe.ork.ts`), jamais listée aux utilisateurs.
 
 ### Ajouter un outil
