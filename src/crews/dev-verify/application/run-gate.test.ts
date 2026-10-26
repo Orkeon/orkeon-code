@@ -1,11 +1,14 @@
-// Unit tests for runGate over FakeFiles and FakeShell. Run:
+// Unit tests for runGate over FakeFiles and FakeShell, and its parity with the harness's gate on the recordings of
+// tests/fixtures/dev/verify. Run:
 //   node --test src/crews/dev-verify/application/run-gate.test.ts
 import { describe, it } from "node:test";
-import { deepStrictEqual, strictEqual } from "node:assert";
+import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
+import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 import { gateRoots, runGate } from "./run-gate.ts";
 import {
-  CUT_LINE, CUT_NOTICE, SHEET, TRAIT_GREP, UNTRACKED, fakes, fakesWithNotes, pack, target,
+  CUT_LINE, CUT_NOTICE, RECORDED_TARGET, SHEET, TRAIT_GREP, UNTRACKED, fakes, fakesWithNotes, filesOf, gitOutputs,
+  harnessBlocks, pack, scenarios, target,
 } from "./run-gate.fixtures.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
@@ -240,4 +243,47 @@ describe("runGate", () => {
     strictEqual(out.ok && out.run.report.missingDesignIds.length, 16);
     deepStrictEqual(files.writes, []);
   });
+});
+
+describe("gate parity with the harness", () => {
+  it("covers every scenario in the harness gate's recording", () => {
+    // Arrange
+    const names = scenarios.map((s) => s.name);
+
+    // Act
+    const blocks = harnessBlocks();
+
+    // Assert
+    deepStrictEqual([...blocks.keys()], names);
+  });
+
+  it("covers every scenario in the git outputs' recording", () => {
+    // Arrange
+    const names = scenarios.map((s) => s.name);
+
+    // Act
+    const recorded = Object.keys(gitOutputs);
+
+    // Assert
+    deepStrictEqual(recorded, names);
+  });
+
+  for (const scenario of scenarios) {
+    it(`prints the harness's lines on ${scenario.name}`, async () => {
+      // Arrange
+      const files = filesOf(scenario.edits);
+      const shell = new FakeShell();
+      const recorded = gitOutputs[scenario.name];
+      for (const [command, result] of Object.entries(recorded)) shell.results[command] = result;
+
+      // Act
+      const out = await runGate({ files, shell }, RECORDED_TARGET);
+
+      // Assert
+      ok(out.ok, out.ok ? "" : out.error);
+      deepStrictEqual(shell.commands, Object.keys(recorded));
+      deepStrictEqual(out.run.report.lines, harnessBlocks().get(scenario.name));
+      deepStrictEqual(files.writes, []);
+    });
+  }
 });

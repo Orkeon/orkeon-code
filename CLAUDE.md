@@ -84,6 +84,8 @@ The convention is Orkeon's (`tests/` of github.com/Orkeon/orkeon), adapted to `n
   `tests/` holds what checks the repository as a whole, by subject: `repository/` (the dependency rule, the test shape,
   the command surface, the prompt contract, the versions), `scripts/` (the scripts, the launchers, the install),
   `config/` (the example settings). Entry points are covered by the bundle check and the smoke.
+- A module may have several test files: the second one is `<module>.<facet>.test.ts` (`run-dev-learn.decide.test.ts`),
+  with its own `.fixtures`/`.assertions`; the module's name stops at the first dot.
 - A test's name is the behaviour and its condition, as a sentence: `cuts a name at 120 characters`.
 - No test depends on a clock, a network or an LLM. Runtime code never imports `tests/`, a `*.fixtures.ts` nor a
   `*.assertions.ts`.

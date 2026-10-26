@@ -1,4 +1,8 @@
-// The pack, sheet, plan and fakes runGate is tested on, and the git lines it issues.
+// The pack, sheet, plan and fakes runGate is tested on, the git lines it issues, and the recordings of
+// tests/fixtures/dev/verify its parity with the harness's gate is checked on.
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
+
 import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
 import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 import { parseRepoPack } from "../../../shared/domain/dev/repo-pack.ts";
@@ -58,4 +62,86 @@ export function fakesWithNotes(): { files: FakeFiles; shell: FakeShell } {
   for (const n of notes) files.files.set(`${WORKSPACE}/workbench/demo/${n}`, "# note\n");
   files.listings.set(`${WORKSPACE}/workbench/demo`, [...notes, "DEMO-PLAN-F2.md", "DEMO-PLAN.md"]);
   return { files, shell };
+}
+
+// The recordings of tests/fixtures/dev/verify: on each scenario, runGate over the recorded git outputs prints the
+// very lines the harness gate printed.
+//
+// Recorded 2026-10-22 (git 2.39.5, GNU bash), again the same day once the trait ERE took its `-e`
+// and the untracked-build-output and named-outside-roots scenarios were added; per scenario of scenarios.json:
+//   T=$(mktemp -d <scratch>/top-<name>-XXXX); cd "$T"; git init -q
+//   cp -r tests/fixtures/dev/verify/base/. "$T"
+//   git add -A && git -c user.name=fixture -c user.email=fixture@example.invalid commit -qm base
+//   cp -r tests/fixtures/dev/verify/batch/. "$T"; then the scenario's edits (first occurrence of `find`, or `create`)
+//   bash /workspace/temp/_sources/orkeon-workshop/.devcontainer/harness/packs/dev/claude/skills/dev-verify/scripts/audit-capture.sh \
+//     F1 workbench/vdemo/VDEMO-PLAN-F1.md <scratch>/cap-<name>.txt --roots "src tests" --trait BR --build-outputs "bin obj"
+// harness-gate.txt keeps its stdout from `GATE — batch F1 — sheet` through `GATE — batch F1:`, "$T" replaced by
+// /workspace. git-outputs.json holds the stdout and exit code of each command runGate issued, run with
+// `bash -c "<command>"` in "$T", with the pack of pack.yaml (the same roots, trait and build outputs).
+
+const FIXTURE = new URL("../../../../tests/fixtures/dev/verify/", import.meta.url).pathname;
+const read = (name: string): string => readFileSync(join(FIXTURE, name), "utf8");
+
+export interface Edit { path: string; find?: string; replace?: string; create?: string }
+export interface Scenario { name: string; edits: Edit[] }
+export interface RecordedOutput { stdout: string; exitCode: number }
+
+export const scenarios: Scenario[] = JSON.parse(read("scenarios.json"));
+export const gitOutputs: Record<string, Record<string, RecordedOutput>> = JSON.parse(read("git-outputs.json"));
+
+function loadPack(): RepoPack {
+  const parsedPack = parseRepoPack(read("pack.yaml"));
+  if (!parsedPack.ok) throw new Error(`pack.yaml: ${parsedPack.error.message}`);
+  return parsedPack.pack;
+}
+
+/** The pack of pack.yaml: the roots, trait and build outputs the recordings were made with. */
+export const RECORDED_PACK = loadPack();
+
+/** Batch F1 of the plan folder workbench/vdemo, as the recordings ran it. */
+export const RECORDED_TARGET: DevVerifyTarget = {
+  batch: "F1", code: "vdemo", prefix: "VDEMO", workShown: "workbench", planDirShown: "workbench/vdemo",
+  sheetShown: "workbench/vdemo/VDEMO-PLAN-F1.md", pack: RECORDED_PACK, packShown: ".orkeon/repo.yaml",
+};
+
+/** The lines the harness gate printed, per scenario name. */
+export function harnessBlocks(): Map<string, string[]> {
+  const blocks = new Map<string, string[]>();
+  let current: string[] = [];
+  for (const line of read("harness-gate.txt").split("\n")) {
+    if (line.startsWith("=== ")) { current = []; blocks.set(line.slice(4), current); continue; }
+    if (line !== "") current.push(line);
+  }
+  return blocks;
+}
+
+function tree(dir: string, rel = "", acc = new Map<string, string>()): Map<string, string> {
+  for (const name of readdirSync(dir)) {
+    const p = join(dir, name);
+    const r = rel === "" ? name : `${rel}/${name}`;
+    if (statSync(p).isDirectory()) tree(p, r, acc);
+    else acc.set(r, readFileSync(p, "utf8"));
+  }
+  return acc;
+}
+
+/** The base tree, the batch over it, then the scenario's edits, under /workspace with their listings. */
+export function filesOf(edits: readonly Edit[]): FakeFiles {
+  const files = new Map([...tree(join(FIXTURE, "base")), ...tree(join(FIXTURE, "batch"))]);
+  for (const e of edits) {
+    if (e.create !== undefined) { files.set(e.path, e.create); continue; }
+    const text = files.get(e.path) ?? "";
+    if (!text.includes(e.find ?? "")) throw new Error(`edit not applicable: ${e.path}`);
+    files.set(e.path, text.replace(e.find ?? "", e.replace ?? ""));
+  }
+  const fake = new FakeFiles();
+  const listings = new Map<string, string[]>();
+  for (const [path, content] of files) {
+    fake.files.set(`${WORKSPACE}/${path}`, content);
+    const slash = path.lastIndexOf("/");
+    const dir = `${WORKSPACE}/${path.slice(0, slash)}`;
+    listings.set(dir, [...(listings.get(dir) ?? []), path.slice(slash + 1)]);
+  }
+  fake.listings = listings;
+  return fake;
 }

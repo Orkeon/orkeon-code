@@ -73,6 +73,9 @@ Runtime rules, enforced by the bundle check:
   whole, by subject: `repository/` (the dependency rule, the test shape, the command surface, the prompt contract,
   the versions), `scripts/` (the scripts, the launchers, the install), `config/` (the example settings). Entry
   points are covered by the bundle check and the runtime smoke.
+- A module may have several test files: beside `<module>.test.ts`, a facet of it gets `<module>.<facet>.test.ts`
+  (`plan-render.interop.test.ts`), with its own `<module>.<facet>.fixtures.ts` and `.assertions.ts`. The module's
+  name stops at the first dot.
 - No test depends on a clock, a network or an LLM.
 - Every test is laid out **Arrange, Act, Assert**, the way Orkeon's are: three sections, each opened by its own
   comment line (`// Arrange`, `// Act`, `// Assert`), in that order, once each. One act per test: a second call

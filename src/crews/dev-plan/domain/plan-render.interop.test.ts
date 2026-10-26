@@ -1,7 +1,7 @@
 // The interoperability test of the plan renderer: what /dev-plan writes is what the
 // harness's implement, verify and batches steps read, and what L-1 parses back. The
 // golden renders are byte for byte; the patterns below are a file format. Run:
-//   node --test src/crews/dev-plan/domain/plan-render-interop.test.ts
+//   node --test src/crews/dev-plan/domain/plan-render.interop.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
@@ -15,9 +15,9 @@ import { blockingRows, parsePlanSource } from "../../../shared/domain/dev/spec-f
 import {
   BLOCKED_SPEC_ROWS, BRIEF, BRIEF_CTX, BY_REF, DATE, GOLDEN_FILES, HARNESS_PLAN_LINES, OTHER_REVIEWS, PACK, RENDERED,
   SHEET_SECTIONS, checked, contextOf, deliveredF1, f1AnchorPaths, files, fixture, json, renderSpec, sortedIds,
-} from "./plan-render-interop.fixtures.ts";
-import type { Capture } from "./plan-render-interop.fixtures.ts";
-import { assertMatchesAll } from "./plan-render-interop.assertions.ts";
+} from "./plan-render.interop.fixtures.ts";
+import type { Capture } from "./plan-render.interop.fixtures.ts";
+import { assertMatchesAll } from "./plan-render.interop.assertions.ts";
 import { assertMentions } from "../../../../tests/support/assertions/text.ts";
 
 describe("the fixtures", () => {

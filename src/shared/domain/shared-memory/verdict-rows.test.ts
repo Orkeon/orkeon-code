@@ -1,4 +1,5 @@
-// Learning rows of the verdict files: folding, axes, ids, filters, backlog, listing.
+// Learning rows of the verdict files: folding, axes, ids, filters, backlog, listing, and parity with the
+// harness's learning script over tests/fixtures/dev/learn.
 // Run:
 //   node --test src/shared/domain/shared-memory/verdict-rows.test.ts
 import { describe, it } from "node:test";
@@ -10,7 +11,8 @@ import {
   learnRowsOf, rowId, rowIdSource, shortCell, untreated,
 } from "./verdict-rows.ts";
 import {
-  AXES, BACKLOG_ROWS, DEMO_ROWS, FOLDS, LEARN_FILE_NAMES, SHORT_CELLS, STOPPED_AUDIT, TWO_FOLDERS, VALID_THEN_GAPS, demo, row,
+  AXES, BACKLOG_ROWS, DEMO_ROWS, FOLDS, LEARN_FILE_NAMES, RECORDED_AXES, SHORT_CELLS, STOPPED_AUDIT, TWO_FOLDERS,
+  VALID_THEN_GAPS, demo, project, recorded, row, sources, treatedIds,
 } from "./verdict-rows.fixtures.ts";
 
 describe("foldText and canonicalAxis", () => {
@@ -202,4 +204,30 @@ describe("shortCell and axisListing", () => {
     // Assert
     deepStrictEqual(listing, ["- [Blocking] gap 1", "  fix: f · x/F1 · e"]);
   });
+});
+
+describe("verdict rows against the harness's script", () => {
+  it("gives the recorded rows, ids and order", () => {
+    // Arrange
+    const files = sources();
+
+    // Act
+    const rows = collectLearnRows(files);
+
+    // Assert
+    deepStrictEqual(rows.map(project), JSON.parse(recorded("rows.py.json")));
+  });
+
+  for (const axis of RECORDED_AXES) {
+    it(`lists axis ${axis} as the script does, treated rows left out`, () => {
+      // Arrange
+      const picked = untreated(collectLearnRows(sources()), treatedIds()).filter((r) => r.axis === canonicalAxis(axis));
+
+      // Act
+      const listing = axisListing(picked);
+
+      // Assert
+      strictEqual(listing.join("\n") + "\n", recorded(`axis-${axis}.py.txt`));
+    });
+  }
 });

@@ -3,7 +3,7 @@
 // motifs accepted and the others refused as --accept / --refuse would; not answered, or
 // no human port, nothing decided and the --accept hint kept. Over FakeFiles loaded from
 // tests/fixtures/dev/learn, FakeShell, FakeLlm and a fixed clock. Run:
-//   node --test src/crews/dev-learn/application/run-dev-learn-decide.test.ts
+//   node --test src/crews/dev-learn/application/run-dev-learn.decide.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
@@ -11,7 +11,7 @@ import { parseLearnState } from "../../../shared/domain/dev/learn-state.ts";
 import { runDevLearn } from "./run-dev-learn.ts";
 import {
   ACCEPT_HINT_END, ID_A, ID_B, MEMORY_DIR_REFUSED, OPTIONS, OUT_FILES, REFUSED, STATE, T, asking, decideSetup, pickA,
-} from "./run-dev-learn-decide.fixtures.ts";
+} from "./run-dev-learn.decide.fixtures.ts";
 import { assertMentions } from "../../../../tests/support/assertions/text.ts";
 
 describe("runDevLearn — decisions in the run", () => {
