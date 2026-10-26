@@ -391,9 +391,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   read since the same change and ask nothing where the catalogue offers them ([Permissions](docs/permissions.md#modes)).
 - **The `wallTime` budget of a turn no longer counts the operator's answer** (Orkeon #127, runtime): 1800 s bound the
   model's own work.
-- **Orkeon version**: Orkeon Code targets Orkeon's `main` after Orkeon/orkeon#180, the surface `1.0.0-rc.6` will
-  carry: the gate state, the typed tools, the per-tool result limits ([ADR 0004](docs/adr/0004-orkeon-after-180.md)).
-  The typings are generated from that `main` (`ORKEON_SOURCE=<checkout> npm run typings`) until a release carries it.
+- **Orkeon version**: Orkeon Code targets Orkeon's `main` after Orkeon/orkeon#206, the surface `1.0.0-rc.6` will
+  carry: the gate state, the typed tools, the per-tool result limits ([ADR 0004](docs/adr/0004-orkeon-after-180.md)),
+  the file tools resolving a relative path, the pending approvals a command reads
+  ([ADR 0005](docs/adr/0005-orkeon-after-206.md)). The typings are generated from that `main`
+  (`ORKEON_SOURCE=<checkout> npm run typings`) until a release carries it.
 
 - **Every prompt is written from a behaviour specification**, in this project's own words
   ([Architecture](docs/architecture.md#prompt-assembly), [ADR 0003](docs/adr/0003-prompts-from-a-behaviour-specification.md)).
