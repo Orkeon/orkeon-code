@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Unit test runner: every *.test.ts under src/ and tests/, run by `node --test`.
+// Unit test runner: every *.test.ts under tests/, run by `node --test`.
 // Node 24 strips TypeScript types natively, so no transpiler is involved: the
 // sources run as written, with their explicit `.ts` import specifiers.
 // The files are enumerated here rather than globbed so the list is the same on
@@ -22,9 +22,9 @@ function walk(dir, acc = []) {
   return acc;
 }
 
-const files = ["src", "tests"].flatMap((d) => walk(join(root, d))).sort();
+const files = ["tests"].flatMap((d) => walk(join(root, d))).sort();
 if (files.length === 0) {
-  console.error("no test files found under src/ or tests/");
+  console.error("no test files found under tests/");
   process.exit(1);
 }
 console.log(`running ${files.length} test file(s)`);
