@@ -9,6 +9,7 @@
 // Run tests: node --test src/shared/infrastructure/orkeon/tool-results.test.ts
 
 import type { ToolOutcome } from "../../application/ports.ts";
+import { errorText } from "../../domain/prelude.ts";
 
 /** First defined property among the given candidate names (any casing). */
 export function pick(obj: any, ...names: string[]): any {
@@ -74,20 +75,28 @@ export function resultText(raw: unknown): string {
 }
 
 /**
- * A failed tool call as one readable line: the tool's own message, without what the
- * runtime wraps it in ("One or more errors occurred. (tools.transcribeAudio failed
- * [path=…]: Error executing tool transcribe_audio: …)").
+ * A failed tool call as the tool's own message, every line of it: without what the runtime
+ * wraps it in ("One or more errors occurred. (tools.transcribeAudio failed [path=…]: Error
+ * executing tool transcribe_audio: …)") nor the host's inner exception (" ---> System.…").
+ * Callers that look for "not found" in it read the tool's whole message.
  */
-export function failureText(error: unknown): string {
+export function ownMessage(error: unknown): string {
   let text = (error instanceof Error ? error.message : String(error)).trim();
-  const executing = /Error executing tool [\w.-]+: ([\s\S]*)$/.exec(text);
-  const failed = /tools\.\w+ failed \[[^\]]*\]: ([\s\S]*)$/.exec(text);
+  const executing = /Error executing tool [\w.-]+:\s*([\s\S]*)$/.exec(text);
+  const failed = /tools\.\w+ failed \[[^\]]*\]:\s*([\s\S]*)$/.exec(text);
   if (executing) text = executing[1];
   else if (failed) text = failed[1];
-  text = text.split("\n")[0].trim();
+  const inner = text.indexOf("\n --->");
+  if (inner >= 0) text = text.slice(0, inner);
+  text = text.trim();
   const count = (c: string) => text.split(c).length - 1;
   while (text.endsWith(")") && count(")") > count("(")) text = text.slice(0, -1);
   return text.trim();
+}
+
+/** A failed tool call as one readable line: the first line of its own message (ownMessage). */
+export function failureText(error: unknown): string {
+  return errorText(ownMessage(error));
 }
 
 /** A call read as text: its result's text, or its failure's own message. Never throws. */
@@ -99,12 +108,13 @@ export async function toolOutcome(call: () => Promise<unknown>): Promise<ToolOut
   }
 }
 
-/** A call whose failure is rethrown with the tool's own message (failureText): what an
- *  adapter's caller shows of it reads the same as a failed tool call. */
+/** A call whose failure is rethrown with the tool's own message, every line kept (ownMessage):
+ *  a caller tells an absent file by it, and what it shows of it (errorText, the first line)
+ *  reads the same as a failed tool call. */
 export async function withToolMessage<T>(call: () => Promise<T> | T): Promise<T> {
   try {
     return await call();
   } catch (error) {
-    throw new Error(failureText(error));
+    throw new Error(ownMessage(error));
   }
 }

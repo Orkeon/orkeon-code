@@ -138,7 +138,7 @@ async function runHook(deps: ToolCallbackDeps, hook: ToolHook, tool: string, inp
 }
 
 /** The text the model was shown for a result, as the runtime passes it: a string as is, else its JSON. */
-function resultText(result: unknown): string {
+function shownText(result: unknown): string {
   if (typeof result === "string") return result;
   try {
     return JSON.stringify(result) ?? String(result);
@@ -174,7 +174,7 @@ export function createToolCallbacks(guard: CallGuard, deps: ToolCallbackDeps): T
           }
           if (notes.length === 0) return undefined;
           deps.log?.warn(`${guard.step}: ${notes.length} post-tool hook(s) failed after ${call.name}`);
-          return { context: [resultText(result), ...notes].join("\n") };
+          return { context: [shownText(result), ...notes].join("\n") };
         },
       };
     },

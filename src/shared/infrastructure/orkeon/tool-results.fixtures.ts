@@ -103,6 +103,14 @@ export const RESULT_TEXTS: readonly { readonly name: string; readonly raw: unkno
 /** The tool's own message, as the runtime wraps it. */
 export const OWN_MESSAGE = "no file at /audio/nope.wav (list_audio shows what /audio holds)";
 
+/** A runtime failure whose tool message starts on its second line, and that message. */
+export const TWO_LINE_FAILURE = "Error executing tool file_read:\nFile not found: /workspace/a";
+export const TWO_LINE_MESSAGE = "File not found: /workspace/a";
+
+/** A wrapped failure whose own message holds two lines, and that message, both lines kept. */
+export const MULTI_LINE_MESSAGE = "File not found: /workspace/a\nThe workspace holds /workspace/b";
+export const MULTI_LINE_FAILURE = `tools.fileRead failed [path=/workspace/a]: Error executing tool file_read: ${MULTI_LINE_MESSAGE}`;
+
 /** Errors and the message of the tool each carries. */
 export const FAILURE_TEXTS: readonly { readonly name: string; readonly error: unknown; readonly text: string }[] = [
   {

@@ -5,11 +5,12 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok, rejects } from "node:assert";
 
 import {
-  pick, shOut, shErr, shCode, fileContent, asArray, entryNames, failureText, resultText, withToolMessage,
+  pick, shOut, shErr, shCode, fileContent, asArray, entryNames, failureText, ownMessage, resultText, withToolMessage,
 } from "./tool-results.ts";
 import {
   ARRAYS, CAPTURED_FILE_READ, CAPTURED_SESSION_STATS, CONTENTS, ENTRY_NAMES, EXIT_CODES, FAILURE_TEXTS, OWN_MESSAGE,
-  PICKS, RESULT_TEXTS, SESSION_STATS_COUNTERS, STDERRS, STDOUTS,
+  PICKS, RESULT_TEXTS, SESSION_STATS_COUNTERS, STDERRS, STDOUTS, TWO_LINE_FAILURE, TWO_LINE_MESSAGE,
+  MULTI_LINE_FAILURE, MULTI_LINE_MESSAGE,
 } from "./tool-results.fixtures.ts";
 
 describe("pick", () => {
@@ -224,6 +225,19 @@ describe("failureText", () => {
   }
 });
 
+describe("ownMessage", () => {
+  it("keeps every line of a wrapped failure", () => {
+    // Arrange
+    const error = new Error(MULTI_LINE_FAILURE);
+
+    // Act
+    const text = ownMessage(error);
+
+    // Assert
+    strictEqual(text, MULTI_LINE_MESSAGE);
+  });
+});
+
 describe("withToolMessage", () => {
   it("rethrows a failure with the tool's own message, without the runtime's wrapping", async () => {
     // Arrange
@@ -234,5 +248,16 @@ describe("withToolMessage", () => {
 
     // Assert
     await rejects(act, (e: Error) => e.message === OWN_MESSAGE);
+  });
+
+  it("rethrows a two-line failure with its second line", async () => {
+    // Arrange
+    const call = async () => { throw new Error(TWO_LINE_FAILURE); };
+
+    // Act
+    const act = withToolMessage(call);
+
+    // Assert
+    await rejects(act, (e: Error) => e.message === TWO_LINE_MESSAGE);
   });
 });

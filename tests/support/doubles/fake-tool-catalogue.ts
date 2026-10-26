@@ -1,8 +1,8 @@
 // FakeToolCatalogue: the ToolCatalogue port, registered name → reply: a value, or
 // a function of the arguments; an Error reply is thrown, as a failing tool throws.
 // Names are found case-insensitively, as Orkeon finds them. Every call lands in
-// `calls` under the registered name. `callText` reads a reply as the adapter does,
-// without the runtime's shapes: an Error is its message, any other value its String.
+// `calls` under the registered name. `callText` reads a reply as the adapter does
+// (resultText), without the runtime's failure wrapping: an Error is its message.
 import type { ToolCatalogue, ToolOutcome } from "../../../src/shared/application/ports.ts";
 
 export class FakeToolCatalogue implements ToolCatalogue {
@@ -29,9 +29,23 @@ export class FakeToolCatalogue implements ToolCatalogue {
 
   async callText(name: string, args: Record<string, unknown>): Promise<ToolOutcome> {
     try {
-      return { ok: true, text: String((await this.call(name, args)) ?? "") };
+      return { ok: true, text: replyText(await this.call(name, args)) };
     } catch (error) {
       return { ok: false, failure: error instanceof Error ? error.message : String(error) };
     }
   }
+}
+
+/** A reply as text, as the adapter's resultText reads it: a string as it is; nothing for no reply;
+ *  else the first string field among text, content and result (either case); else its JSON. */
+function replyText(reply: unknown): string {
+  if (typeof reply === "string") return reply;
+  if (reply === null || reply === undefined) return "";
+  if (typeof reply === "object") {
+    for (const key of ["text", "content", "result", "Text", "Content", "Result"]) {
+      const field = (reply as Record<string, unknown>)[key];
+      if (typeof field === "string") return field;
+    }
+  }
+  return JSON.stringify(reply);
 }

@@ -691,6 +691,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `orkeon-code.ps1` left the variables it sets for the REPL (`ORKEON_ALLOW_EXTERNAL_MOUNTS`, the gate, esbuild, the
   model) in the PowerShell session that ran it: it puts them back when it ends, and removes one that was not set
   (set back empty, it reached the next run: an empty `whisper` server among them).
+- An unreadable file or session is reported with the tool's own message, every line of it, without the runtime's
+  wrapping (`/resume`, the extraTools notice): a file the runtime says is not found on a second line is read as
+  absent again.
 
 ## [0.1.0-alpha.1]
 
