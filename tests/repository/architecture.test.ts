@@ -16,6 +16,9 @@
 //     imports them;
 //   - a *.cmd.ts never imports crews/*/domain nor crews/*/application: what it
 //     runs of a crew goes through a use case of commands/_lib/;
+//   - a file of commands/_lib/<group>/ imports its own group, the root of
+//     commands/_lib/ and what lies outside commands/_lib/, never another group;
+//     a commands/<group>/*.cmd.ts likewise calls the use cases of its own group;
 //   - a relative import names its .ts file (the runtime bundler resolves
 //     specifiers as written), and runtime code imports nothing but relative
 //     files (tests may import node: built-ins);
@@ -32,7 +35,8 @@
 // Every runtime file of src/ sits in a layer folder, or is an entry point, a
 // command use case of commands/_lib/ or a declaration (.d.ts). Every read of the
 // clock (`new Date()` with no argument, `Date()`, `Date.now()`) sits in
-// shared/infrastructure/: the rest of src/ takes the Clock port.
+// shared/infrastructure/: the rest of src/ takes the Clock port. The ports barrel
+// (shared/application/ports.ts) re-exports every file of application/ports/.
 // The runtime globals are checked the same way, over every identifier that
 // nothing in its file declares, imports or binds (TypeScript's own scoping), every
 // `globalThis.<name>` and every ambient re-declaration (`declare const tools`):
@@ -48,10 +52,10 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 import {
-  ADAPTER_IMPORT_CASES, APPLICATION_IMPORT_CASES, BOUND_NAMES_SOURCE, CLOCK_CASES, COMMAND_IMPORT_CASES,
-  FIXTURES_IMPORT_CASES, GLOBAL_NAMES, GLOBAL_RULE_CASES, GLOBALS_IMPORT_CASES, IMPORT_FORMS_SOURCE, LAYER_CASES,
+  ADAPTER_IMPORT_CASES, APPLICATION_IMPORT_CASES, BOUND_NAMES_SOURCE, CLOCK_CASES, COMMAND_GROUP_IMPORT_CASES,
+  COMMAND_IMPORT_CASES, FIXTURES_IMPORT_CASES, LIB_GROUP_IMPORT_CASES, PORTS_BARREL, PORTS_FOLDER, barrelGaps, GLOBAL_NAMES, GLOBAL_RULE_CASES, GLOBALS_IMPORT_CASES, IMPORT_FORMS_SOURCE, LAYER_CASES,
   LAYER_IMPORT_CASES, PLACEMENT_CASES, TESTS_IMPORT_CASES, UNBOUND_GLOBALS_SOURCE, UNBOUND_GLOBALS_USES,
-  brokenFixturesRule, brokenGlobalRule, brokenPlacementRule, brokenRules, clockRuleBreaks, collectImports, cyclesOf,
+  COMMANDS_LIB, COMMAND_GROUP_RULE, LIB_GROUP_RULE, brokenFixturesRule, brokenGlobalRule, brokenPlacementRule, brokenRules, clockRuleBreaks, collectImports, cyclesOf,
   edge, graphOf, isTest, layerOf, readAllSources, readSources, runtimeGlobalUses, specifiersOf, usesIn,
 } from "./architecture.fixtures.ts";
 
@@ -82,7 +86,7 @@ describe("architecture: import parsing", () => {
 
   for (const c of [
     ...GLOBALS_IMPORT_CASES, ...ADAPTER_IMPORT_CASES, ...LAYER_IMPORT_CASES, ...APPLICATION_IMPORT_CASES,
-    ...COMMAND_IMPORT_CASES, ...TESTS_IMPORT_CASES,
+    ...COMMAND_IMPORT_CASES, ...LIB_GROUP_IMPORT_CASES, ...COMMAND_GROUP_IMPORT_CASES, ...TESTS_IMPORT_CASES,
   ]) {
     it(c.name, () => {
       // Arrange
@@ -213,6 +217,40 @@ describe("architecture: dependency rule", () => {
 
     // Assert
     deepStrictEqual([...new Set(broken)], []);
+  });
+
+  it("a commands/_lib/ group imports its own group or the root of commands/_lib/ only", () => {
+    // Arrange
+    const imports = collectImports(readSources()).filter((imp) => imp.from.startsWith(COMMANDS_LIB));
+
+    // Act
+    const broken = imports.filter((imp) => brokenRules(imp).includes(LIB_GROUP_RULE)).map((imp) => edge(imp.from, imp.to ?? imp.specifier));
+
+    // Assert
+    deepStrictEqual(broken, []);
+  });
+
+  it("a *.cmd.ts calls the use cases of its own group", () => {
+    // Arrange
+    const imports = collectImports(readSources()).filter((imp) => imp.from.endsWith(".cmd.ts"));
+
+    // Act
+    const broken = imports.filter((imp) => brokenRules(imp).includes(COMMAND_GROUP_RULE)).map((imp) => edge(imp.from, imp.to ?? imp.specifier));
+
+    // Assert
+    deepStrictEqual(broken, []);
+  });
+
+  it("the ports barrel re-exports every file of application/ports/", () => {
+    // Arrange
+    const sources = readSources();
+    const files = [...sources.keys()].filter((file) => file.startsWith(PORTS_FOLDER));
+
+    // Act
+    const gaps = barrelGaps(sources.get(PORTS_BARREL) ?? "", files);
+
+    // Assert
+    deepStrictEqual(gaps, []);
   });
 
   it("no import cycle between files", () => {

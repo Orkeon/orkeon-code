@@ -4,7 +4,6 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
-import type { Files } from "../ports.ts";
 import {
   GIT_TOPLEVEL, GIT_WORKTREE_LIST, entryExists, gitDirProbe, resolveWorkFolder, workFolderLabel,
 } from "./resolve-work-folder.ts";
@@ -212,7 +211,8 @@ describe("entryExists", () => {
 
   it("is false when the listing throws", async () => {
     // Arrange
-    const files: Pick<Files, "list"> = { list: async () => { throw new Error("permission denied"); } };
+    const files = new FakeFiles();
+    files.listFailure = new Error("permission denied");
 
     // Act
     const exists = await entryExists(files, `${WORKSPACE}/workbench`);
@@ -223,14 +223,13 @@ describe("entryExists", () => {
 
   it("asks for at most 1000 entries", async () => {
     // Arrange
-    let asked = 0;
-    const files: Pick<Files, "list"> = { list: async (_path, max) => { asked = max; return []; } };
+    const files = new FakeFiles();
 
     // Act
     await entryExists(files, `${WORKSPACE}/workbench`);
 
     // Assert
-    strictEqual(asked, 1000);
+    deepStrictEqual(files.listLimits, [1000]);
   });
 });
 

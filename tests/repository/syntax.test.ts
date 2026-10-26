@@ -4,7 +4,7 @@ import { deepStrictEqual } from "node:assert";
 import { classMethods, clockReads, derivedDoubles, portNames } from "./syntax.ts";
 import {
   CLOCK_AND_TIMER_READS, CLOCK_READS, CLOCK_SOURCE, DERIVED_DOUBLES, DERIVED_SOURCE, DOUBLE_METHODS, DOUBLE_SOURCE,
-  METHODS, NOT_DERIVED_SOURCE, PORTS, PORTS_SOURCE, linesOf,
+  METHODS, NOT_DERIVED_SOURCE, PICKED_DOUBLES, PICKED_SOURCE, PORTS, PORTS_SOURCE, linesOf,
 } from "./syntax.fixtures.ts";
 
 describe("syntax: clock reads", () => {
@@ -19,7 +19,7 @@ describe("syntax: clock reads", () => {
     deepStrictEqual(linesOf(hits), CLOCK_READS);
   });
 
-  it("sees the calls of setTimeout and setInterval too when asked for the timers", () => {
+  it("sees the calls of setTimeout, setInterval and setImmediate too when asked for the timers", () => {
     // Arrange
     const source = CLOCK_SOURCE;
 
@@ -63,6 +63,17 @@ describe("syntax: ports and doubles", () => {
 
     // Assert
     deepStrictEqual(linesOf(hits), DERIVED_DOUBLES);
+  });
+
+  it("flags an object literal typed Pick<Port, …>, or Partial, Omit, Readonly or Required of a port", () => {
+    // Arrange
+    const source = PICKED_SOURCE;
+
+    // Act
+    const hits = derivedDoubles("a.fixtures.ts", source, PORTS, METHODS);
+
+    // Assert
+    deepStrictEqual(linesOf(hits), PICKED_DOUBLES);
   });
 
   it("leaves alone a field of a fake set, a type of data, an error class and an object of no port", () => {

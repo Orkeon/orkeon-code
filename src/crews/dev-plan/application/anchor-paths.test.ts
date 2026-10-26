@@ -8,7 +8,7 @@ import { LIST_CAP, MAX_ANCHOR_FOLDERS, checkAnchorPaths } from "./anchor-paths.t
 import type { AnchorListings } from "./anchor-paths.ts";
 import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
 import {
-  ANSWER, CREATE_ANCHORS_PRESENT_PROBLEMS, FORTY_FIVE_FOLDERS, answerWithExisting, repository, throwingOn,
+  ANSWER, CREATE_ANCHORS_PRESENT_PROBLEMS, FORTY_FIVE_FOLDERS, answerWithExisting, repository,
 } from "./anchor-paths.fixtures.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
@@ -54,14 +54,14 @@ describe("checkAnchorPaths", () => {
     const files = new FakeFiles();
     files.listings.set(`${WORKSPACE}/docs`, ["commands.md"]);
     files.listings.set(`${WORKSPACE}/src/shared/domain`, []);
-    const failing = throwingOn(files, `${WORKSPACE}/docs/fr`);
+    files.listErrors.set(`${WORKSPACE}/docs/fr`, new Error("not found"));
 
     // Act
-    const problems = await checkAnchorPaths(failing, ANSWER);
+    const problems = await checkAnchorPaths(files, ANSWER);
 
     // Assert
     deepStrictEqual(problems, ["B2 S1: docs/fr/commands.md does not exist"]);
-    deepStrictEqual(files.listed, [`${WORKSPACE}/src/shared/domain`, `${WORKSPACE}/docs`]);
+    deepStrictEqual(files.listed, [`${WORKSPACE}/src/shared/domain`, `${WORKSPACE}/docs`, `${WORKSPACE}/docs/fr`]);
   });
 
   it("refuses a path that holds a colon without listing its folder", async () => {

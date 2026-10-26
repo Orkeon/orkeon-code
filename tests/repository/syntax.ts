@@ -6,7 +6,7 @@ import ts from "typescript";
 /** One thing a rule looks for, where it was found. */
 export interface SyntaxHit { file: string; line: number; what: string }
 
-const TIMERS = new Set(["setTimeout", "setInterval"]);
+const TIMERS = new Set(["setTimeout", "setInterval", "setImmediate"]);
 const DOUBLE_CLASS = /^(Fake|Stub)[A-Z]/u;
 
 const parse = (file: string, text: string) => ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true);
@@ -90,11 +90,14 @@ export function classMethods(file: string, text: string): Map<string, Set<string
   return out;
 }
 
-/** The name a type node refers to (`Files`, `ports.Files`, `Promise<Files>`'s `Files`), or null. */
+/** The types whose first argument is the type a literal implements part of (`Pick<Files, "read">` is `Files`). */
+const WRAPPERS = new Set(["Promise", "Pick", "Partial", "Omit", "Readonly", "Required"]);
+
+/** The name a type node refers to (`Files`, `ports.Files`, `Promise<Files>`'s or `Pick<Files, …>`'s `Files`), or null. */
 function typeName(type: ts.TypeNode | undefined): string | null {
   if (type === undefined || !ts.isTypeReferenceNode(type)) return null;
   const name = ts.isIdentifier(type.typeName) ? type.typeName.text : type.typeName.right.text;
-  if (name === "Promise" && type.typeArguments?.length === 1) return typeName(type.typeArguments[0]);
+  if (WRAPPERS.has(name) && (type.typeArguments?.length ?? 0) >= 1) return typeName(type.typeArguments![0]);
   return name;
 }
 

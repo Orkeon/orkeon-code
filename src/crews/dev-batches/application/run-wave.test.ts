@@ -36,8 +36,7 @@ describe("runWave", () => {
 
     // Act
     const pending = runWave(request(["F2", "F3"], book), { files, shell, runBatch });
-    for (let i = 0; i < 20 && started.length < 2; i++) await Promise.resolve();
-    await new Promise((r) => setImmediate(r));
+    for (let i = 0; i < 200 && started.length < 2; i++) await Promise.resolve();
     const startedBeforeRelease = started.map((r) => [r.batch, r.root, r.branch]);
     const savedBeforeRelease = book.saved;
     release.forEach((r) => r());

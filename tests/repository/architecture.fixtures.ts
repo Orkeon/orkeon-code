@@ -104,6 +104,10 @@ export const LIB_RULE = "commands/_lib/ never imports shared/infrastructure/: th
 export const APPLICATION_RULE = "application imports domain and application only: the runtime comes in through a port";
 export const COMMAND_CREWS_RULE = "a *.cmd.ts never imports crews/*/domain nor crews/*/application: a use case of commands/_lib/ does";
 const CREW_INNER = /^src\/crews\/[^/]+\/(domain|application)\//u;
+export const LIB_GROUP_RULE = "a commands/_lib/<group>/ imports its own group or the root of commands/_lib/ only";
+export const COMMAND_GROUP_RULE = "a *.cmd.ts calls the use cases of its own group: commands/_lib/<group>/ or the root of commands/_lib/";
+const LIB_GROUP = /^src\/commands\/_lib\/([^/]+)\//u;
+const COMMAND_GROUP = /^src\/commands\/([^/]+)\/[^/]+\.cmd\.ts$/u;
 
 /** The rules one import breaks, as messages; empty when it keeps them all. */
 export function brokenRules(imp: Import): string[] {
@@ -131,9 +135,27 @@ export function brokenRules(imp: Import): string[] {
     broken.push(LIB_RULE);
   }
   if (isCommandEntryPoint(imp.from) && CREW_INNER.test(imp.to)) broken.push(COMMAND_CREWS_RULE);
+  const toGroup = LIB_GROUP.exec(imp.to)?.[1];
+  const fromGroup = LIB_GROUP.exec(imp.from)?.[1];
+  if (toGroup !== undefined && fromGroup !== undefined && toGroup !== fromGroup) broken.push(LIB_GROUP_RULE);
+  const commandGroup = COMMAND_GROUP.exec(imp.from)?.[1];
+  if (toGroup !== undefined && commandGroup !== undefined && toGroup !== commandGroup) broken.push(COMMAND_GROUP_RULE);
   if (imp.to.startsWith("tests/") && !isTest(imp.from)) broken.push("runtime code never imports tests/");
   if (isTest(imp.to) && !isTest(imp.from)) broken.push("runtime code never imports test code (*.test.ts, *.fixtures.ts, *.assertions.ts)");
   return broken;
+}
+
+export const PORTS_BARREL = "src/shared/application/ports.ts";
+export const PORTS_FOLDER = "src/shared/application/ports/";
+
+/** What the ports barrel misses: a file of ports/ it re-exports from no `export … from "./ports/<x>.ts"`, and a
+ *  file such a line names that is not in ports/. `files` are the paths of ports/, from the repository root. */
+export function barrelGaps(barrel: string, files: readonly string[]): string[] {
+  const named = new Set([...barrel.matchAll(/^export\b[^;]*?\bfrom\s+"\.\/ports\/([^"]+)"/gmu)].map((m) => PORTS_FOLDER + m[1]));
+  return [
+    ...files.filter((file) => !named.has(file)).map((file) => `${file}: re-exported by no line of ${PORTS_BARREL}`),
+    ...[...named].filter((file) => !files.includes(file)).map((file) => `${file}: named by ${PORTS_BARREL}, no such file`),
+  ];
 }
 
 /** The module a file belongs to: its name up to the first dot (`run-dev-learn.decide.test.ts` is `run-dev-learn`). */
@@ -400,7 +422,7 @@ export const LAYER_IMPORT_CASES: readonly ImportCase[] = [
     broken: ["domain imports domain only", OUT_OF_COMMANDS_RULE],
   },
   {
-    name: "lets commands/_lib/ import commands/_lib/",
+    name: "lets a commands/_lib/ group import the root of commands/_lib/",
     imp: importOf("src/commands/_lib/settings/mode.ts", "src/commands/_lib/args.ts"),
     broken: [],
   },
@@ -466,6 +488,49 @@ export const COMMAND_IMPORT_CASES: readonly ImportCase[] = [
     name: "lets a crew entry point import its crew's application",
     imp: importOf("src/crews/git-commit/crew.ork.ts", "src/crews/git-commit/application/run-git-commit.ts"),
     broken: [],
+  },
+];
+
+/** The groups of commands/_lib/ stay apart: a group imports its own files and the root of commands/_lib/. */
+export const LIB_GROUP_IMPORT_CASES: readonly ImportCase[] = [
+  {
+    name: "lets a commands/_lib/ group import its own group",
+    imp: importOf("src/commands/_lib/speech/say.ts", "src/commands/_lib/speech/voice.ts"),
+    broken: [],
+  },
+  {
+    name: "lets a commands/_lib/ group import a file outside commands/_lib/",
+    imp: importOf("src/commands/_lib/speech/say.ts", "src/shared/domain/prelude.ts"),
+    broken: [],
+  },
+  {
+    name: "lets the root of commands/_lib/ import a group",
+    imp: importOf("src/commands/_lib/dispatch.ts", "src/commands/_lib/speech/voice.ts"),
+    broken: [],
+  },
+  {
+    name: "refuses another commands/_lib/ group to a group",
+    imp: importOf("src/commands/_lib/speech/say.ts", "src/commands/_lib/git/commit.ts"),
+    broken: [LIB_GROUP_RULE],
+  },
+];
+
+/** A command entry point calls the use cases of its own group, or of the root of commands/_lib/. */
+export const COMMAND_GROUP_IMPORT_CASES: readonly ImportCase[] = [
+  {
+    name: "lets a command entry point import the use cases of its group",
+    imp: importOf("src/commands/git/commit.cmd.ts", "src/commands/_lib/git/commit.ts"),
+    broken: [],
+  },
+  {
+    name: "lets a command entry point import the root of commands/_lib/",
+    imp: importOf("src/commands/git/commit.cmd.ts", "src/commands/_lib/dispatch.ts"),
+    broken: [],
+  },
+  {
+    name: "refuses the use cases of another group to a command entry point",
+    imp: importOf("src/commands/git/commit.cmd.ts", "src/commands/_lib/speech/say.ts"),
+    broken: [COMMAND_GROUP_RULE],
   },
 ];
 

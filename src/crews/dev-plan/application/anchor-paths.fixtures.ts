@@ -2,7 +2,6 @@
 import { readFileSync } from "node:fs";
 
 import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
-import type { Files } from "../../../shared/application/ports.ts";
 import type { PlanAnswer } from "../domain/plan-answer.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
@@ -15,16 +14,6 @@ export function repository(): FakeFiles {
   files.listings.set(`${WORKSPACE}/docs`, ["commands.md", "fr/"]);
   files.listings.set(`${WORKSPACE}/docs/fr`, ["commands.md"]);
   return files;
-}
-
-/** A Files that throws on listing `path` and hands every other listing to `files`. */
-export function throwingOn(files: Files, path: string): Pick<Files, "list"> {
-  return {
-    list: async (p, max) => {
-      if (p === path) throw new Error("not found");
-      return files.list(p, max);
-    },
-  };
 }
 
 /** The golden answer cut to its first step, anchored on the existing production paths given only. */
