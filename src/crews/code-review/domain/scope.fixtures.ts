@@ -1,7 +1,9 @@
 // Review inputs the scope is resolved from, for the resolveReviewScope tests.
 
+import type { ReviewInputs } from "./scope.ts";
+
 /** Inputs that name no file: each keeps the bare staged range. */
-export const ABSENT_FILES_INPUTS: readonly { name: string; inputs: unknown }[] = [
+export const ABSENT_FILES_INPUTS: readonly { name: string; inputs: ReviewInputs | undefined }[] = [
   { name: "no input field", inputs: {} },
   { name: "an empty file list", inputs: { files: [] } },
   { name: "an undefined file list", inputs: { files: undefined } },

@@ -21,6 +21,12 @@ const SAFE_REF = /^[A-Za-z0-9._/~^-]+$/;
 /** Characters a repo-relative path may contain. No whitespace, no shell metacharacters. */
 const SAFE_PATH = /^[A-Za-z0-9._/-]+$/;
 
+/** What the scope is resolved from: the crew's `commit` and `files` inputs, as the caller gave them. */
+export interface ReviewInputs {
+  commit?: unknown;
+  files?: unknown;
+}
+
 export interface ReviewScope {
   /** The git diff range: `--staged`, or `<commit>~1..<commit>`. */
   range: string;
@@ -35,7 +41,7 @@ export interface ReviewScope {
 }
 
 /** `<commit>~1..<commit>` for a named commit, else `--staged`. Unchanged since B-3. */
-export function resolveCommitRange(inputs: any): string {
+export function resolveCommitRange(inputs?: ReviewInputs | null): string {
   return inputs?.commit ? `${inputs.commit}~1..${inputs.commit}` : "--staged";
 }
 
@@ -74,7 +80,7 @@ function validatePaths(raw: unknown): { paths: string[]; rejected: Array<{ value
  * range alone, so `git diff --staged` and `git diff --staged --name-only` are the
  * exact commands that used to run.
  */
-export function resolveReviewScope(inputs: any): ReviewScope {
+export function resolveReviewScope(inputs?: ReviewInputs | null): ReviewScope {
   const rejected: Array<{ value: string; reason: string }> = [];
 
   let range = "--staged";
