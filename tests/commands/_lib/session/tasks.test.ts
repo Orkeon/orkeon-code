@@ -4,10 +4,10 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
-import { DEFAULT_REPAIR_NOTE, REPAIR_CREW, TASKS_USAGE } from "../../../../src/commands/_lib/session/tasks.ts";
+import { ANSWER_TEXT, DEFAULT_REPAIR_NOTE, REPAIR_CREW, TASKS_USAGE } from "../../../../src/commands/_lib/session/tasks.ts";
 import { requestKey, snapshotKey } from "../../../../src/shared/domain/agents/instances.ts";
 import { EFFORT_STATE_KEY, TASKS_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
-import { EMPTY_TEXT, record, tasksHarness } from "./tasks.fixtures.ts";
+import { APPROVAL_LINE, EMPTY_TEXT, approval, record, tasksHarness } from "./tasks.fixtures.ts";
 
 describe("/tasks — the task list", () => {
   it("says there is nothing, with the usage", async () => {
@@ -131,6 +131,59 @@ describe("/tasks — the agent instances", () => {
     // Arrange
     const { session, run } = tasksHarness();
     session.state.set(snapshotKey("dev-plan"), "{");
+
+    // Act
+    const { view } = await run();
+
+    // Assert
+    strictEqual(view.text, EMPTY_TEXT);
+  });
+});
+
+describe("/tasks — the approvals the background tasks wait on", () => {
+  it("lists the approval a background task waits on, under the tasks and before the instances", async () => {
+    // Arrange
+    const { run, seed, approvals } = tasksHarness();
+    seed("dev-plan");
+    approvals.pending = [approval()];
+    await run("add", "t");
+
+    // Act
+    const { view } = await run();
+
+    // Assert
+    deepStrictEqual(view.lines, ["tasks:", "#1 [open] t", "waiting for approval:", APPROVAL_LINE, "agent instances:"]);
+  });
+
+  it("lists an approval asked outside a task as no task's", async () => {
+    // Arrange
+    const { run, seed, approvals } = tasksHarness();
+    seed("dev-plan");
+    approvals.pending = [approval({ taskId: null, command: null, tool: "file_write", input: '{"path":"/workspace/a"}' })];
+
+    // Act
+    const { view } = await run();
+
+    // Assert
+    deepStrictEqual(view.lines, ["tasks: none", "waiting for approval:", 'no task: waits for approval of file_write · {"path":"/workspace/a"}', "agent instances:"]);
+  });
+
+  it("shows the approvals waiting, with how to answer, when there is no task and no instance", async () => {
+    // Arrange
+    const { run, approvals } = tasksHarness();
+    approvals.pending = [approval()];
+
+    // Act
+    const { view } = await run();
+
+    // Assert
+    deepStrictEqual(view, { lines: ["tasks: none", "waiting for approval:", APPROVAL_LINE], text: ANSWER_TEXT });
+  });
+
+  it("lists none when the host's approvals cannot be read", async () => {
+    // Arrange
+    const { run, approvals } = tasksHarness();
+    approvals.failure = new Error("service 'approvals' is not registered");
 
     // Act
     const { view } = await run();

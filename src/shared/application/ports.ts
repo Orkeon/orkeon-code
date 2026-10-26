@@ -16,6 +16,7 @@ export type { ToolOutcome, ToolCatalogue, PermissionRules } from "./ports/tools.
 export type { CrewHost, ChildRuntime, Logger, RunState, CrewMemory } from "./ports/crew.ts";
 export type { ModelOverride, CompleteRequest, ActRequest, Llm } from "./ports/llm.ts";
 export type { HumanInput } from "./ports/human.ts";
+export type { PendingApproval, PendingApprovals } from "./ports/approvals.ts";
 export type {
   CodeMap, CodeSearchHit, SymbolLocation, CodeIndex, AnchorClosure, AnchorIndex, CostIndex, AffectedTests,
 } from "./ports/code-index.ts";

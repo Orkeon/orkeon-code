@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`/tasks` lists the approvals the background tasks wait on** (Orkeon #198, delivered by #206): under the task
+  list, `waiting for approval:` then one line per approval, `t1 dev-batches: waits for approval of shell_command ·
+  {"command":…}`, read from the host's `approvals` service; a host without it shows none. A task blocked on the
+  operator no longer reads "running" ([Permissions](docs/permissions.md#modes), #15).
 - **An installed `orkeon-code`.** `install.sh` and `install.ps1` install it from a release (the checksum is checked
   when the release has one), `npm install -g orkeon-code@next` installs the npm package and its command shim, and
   `orkeon-code --version` names Code's version, where it runs from, and the Orkeon expected and found. An install

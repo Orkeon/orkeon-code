@@ -20,7 +20,7 @@ An **async** command starts a crew and returns a ticket; its result is printed w
 | `/resume` | sync | List this project's saved sessions; quit, then orkeon-code --resume <id> brings one back. |
 | `/rewind` | sync | Rewind the session by one exchange (drops the last user turn and what followed). |
 | `/summary` | async | Generate an LLM summary of the session (read-only; does not rewrite the buffer). |
-| `/tasks` | async | Session task list (add, done, clear) and the agent instances of the dev crews: list, show, stop, send, repair by a new run. |
+| `/tasks` | async | Session task list (add, done, clear), the approvals the background tasks wait on, and the agent instances of the dev crews: list, show, stop, send, repair by a new run. |
 
 ## Settings
 

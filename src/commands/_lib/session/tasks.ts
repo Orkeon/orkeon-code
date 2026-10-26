@@ -5,9 +5,10 @@
 // reads there the stop /tasks leaves for one of them, at its next look. A send to a running instance
 // is refused; to an ended one it is a repair by a new run (crews/agent-run), whose brief carries the
 // previous report: the entry point launches it and its completion prints the answer. A repair runs
-// at the effort /effort holds now.
+// at the effort /effort holds now. The list also shows the tool approvals the background tasks wait
+// on (Orkeon #198), read from the host: a task blocked on the operator reads as such.
 
-import type { SessionStore } from "../../../shared/application/ports.ts";
+import type { PendingApproval, PendingApprovals, SessionStore } from "../../../shared/application/ports.ts";
 import { readJsonArray, writeJson } from "../../../shared/application/session-state.ts";
 import { TASKS_STATE_KEY } from "../../../shared/domain/session-keys.ts";
 import {
@@ -30,7 +31,12 @@ export const REPAIR_CREW = "agent-run";
 export interface TasksDeps {
   session: Pick<SessionStore, "readState" | "writeState">;
   clock: () => Date;
+  /** The tool approvals waiting for the operator, as the host shows them. */
+  approvals: PendingApprovals;
 }
+
+/** What to do with an approval listed: the answers the main prompt takes. */
+export const ANSWER_TEXT = "answer it from the main prompt: [y] once / [s] session / [n] no";
 
 /** What the entry point shows, and the crew it launches for a repair. */
 export interface TasksOutcome {
@@ -52,16 +58,33 @@ async function readSnapshots({ session, clock }: TasksDeps): Promise<RunSnapshot
   return (await Promise.all(CHILD_CREWS.map(read))).filter((s): s is RunSnapshot => s !== null);
 }
 
+/** One approval as the list shows it: the task's ticket and command (the status line's words), the tool, the input. */
+const approvalLine = (a: PendingApproval): string =>
+  `${a.taskId === null ? "no task" : `${a.taskId} ${a.command ?? "?"}`}: waits for approval of ${a.tool} · ${a.input}`;
+
+/** The approvals waiting, as lines; a host whose read fails shows none. */
+function approvalLines({ approvals }: TasksDeps): string[] {
+  try {
+    return approvals.list().map(approvalLine);
+  } catch {
+    return [];
+  }
+}
+
 async function list(tasks: Task[], deps: TasksDeps): Promise<TasksOutcome> {
   const rows = instanceRows(await readSnapshots(deps));
+  const waiting = approvalLines(deps);
   const taskLines = tasks.map((t, i) => `#${i + 1} [${t.done ? "done" : "open"}] ${t.subject}`);
-  if (rows.length === 0) {
+  if (rows.length === 0 && waiting.length === 0) {
     if (tasks.length === 0) return { view: { text: "no tasks and no agent instances. usage: /tasks add <subject>" } };
     return { view: { table: tasks.map((t, i) => ({ n: i + 1, status: t.done ? "done" : "open", subject: t.subject })) } };
   }
+  const lines = [tasks.length === 0 ? "tasks: none" : "tasks:", ...taskLines];
+  if (waiting.length > 0) lines.push("waiting for approval:", ...waiting);
+  if (rows.length === 0) return { view: { lines, text: ANSWER_TEXT } };
   return {
     view: {
-      lines: [tasks.length === 0 ? "tasks: none" : "tasks:", ...taskLines, "agent instances:"],
+      lines: [...lines, "agent instances:"],
       table: rows,
       text: "/tasks show <id> · stop <id> · send <id> <message> · repair <id> [note]",
     },
