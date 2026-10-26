@@ -3,8 +3,19 @@
 // crew wrote it: mode, hooks, effort) is launched.
 // /dev-verify, launched from here, drains to the same `completed` as plain text: printed, and on
 // its VALID line the close is launched (`/dev-implement F<n> <plan> --close`). A launch that
-// cannot run prints the command for the user instead. Pure but for the launch it is handed.
+// cannot run prints the command for the user instead. The dispatch (runDevImplementDispatch) checks the mode,
+// starts the step and sizes the run to the sheet's open steps over the ports it is handed; the chain's launch is
+// handed to it too.
+import type { Files, PermissionRules, Shell, ToolCatalogue } from "../../shared/application/ports.ts";
+import type { ConfigStore } from "../../shared/application/config-store.ts";
+import type { SessionIo } from "../../shared/application/session-io.ts";
 import { isCode } from "../../shared/domain/dev/artefacts.ts";
+import type { DevStep } from "../../shared/domain/dev/step-rules.ts";
+import { countOpenSteps } from "../../crews/dev-implement/application/count-open-steps.ts";
+import { markActiveWorkflow, startDevStep, writeModeRefusal } from "./dev-step.ts";
+import type { CrewCompletion, LaunchResult } from "./dispatch.ts";
+import { storedEffort } from "./effort.ts";
+import { readPullRequestContext } from "./pr-context.ts";
 
 export const DEV_IMPLEMENT_USAGE =
   "usage: /dev-implement F<n> [<code> | <path>/<CODE>-PLAN.md] [--close] [--pr] | F<n> [<code> | <plan>] — correction: <finding>";
@@ -98,4 +109,77 @@ export function chainStep(payload: string): ChainStep {
     lines: [...lines, `→ the close follows: /dev-implement ${valid[1]} ${plan} --close`],
     launch: { crew: "dev-implement", input: { batch: valid[1], plan, close: true }, instead: `/dev-implement ${valid[1]} ${plan} --close` },
   };
+}
+
+export interface DevImplementDispatchDeps {
+  session: Pick<SessionIo, "resolveEffectiveSessionMode" | "readState" | "writeState">;
+  config: Pick<ConfigStore, "readValue" | "readFile">;
+  files: Files;
+  shell: Shell;
+  /** The host's gate and its tools, each made when read: a host without the service fails there. */
+  gate: () => PermissionRules;
+  catalogue: () => Pick<ToolCatalogue, "find">;
+  write(line: string): void;
+}
+
+export type DevImplementDispatch =
+  | { refused: string }
+  | { input: Record<string, unknown>; details: { ruleSets: string; rules: number; hooks: number } };
+
+/** `/dev-implement …`'s dispatch, from the raw tokens: the refusal, written, or the crew's input and the launch's details. */
+export async function runDevImplementDispatch(tokens: readonly string[], deps: DevImplementDispatchDeps): Promise<DevImplementDispatch> {
+  const parsed = parseDevImplementArgs(tokens);
+  if (!parsed.ok) {
+    deps.write(parsed.text);
+    return { refused: parsed.text };
+  }
+  const prContext = await readPullRequestContext({ catalogue: deps.catalogue, rules: deps.gate, session: deps.session });
+  const line = writeModeRefusal(String(prContext.permissionMode ?? ""), "dev-implement", "writes files, commits and pushes");
+  if (line !== null) {
+    deps.write(line);
+    return { refused: line };
+  }
+  const start = await startDevStep("dev-implement", {
+    session: deps.session, config: deps.config, gate: deps.gate(), catalogue: deps.catalogue(),
+  });
+  if (!start.ok) {
+    deps.write(start.line);
+    return { refused: start.line };
+  }
+  for (const line of start.lines) deps.write(line);
+  const unrecorded = await markActiveWorkflow(deps.session, parsed.args);
+  if (unrecorded !== null) deps.write(unrecorded);
+  // The budget is sized to the open steps of the sheet (the crew sizes for its default when they cannot be counted).
+  // A correction adds one step, appended by the crew after this count.
+  const open = parsed.args.close
+    ? undefined
+    : await countOpenSteps({ files: deps.files, shell: deps.shell, config: deps.config }, parsed.args.batch, parsed.args.plan);
+  const steps = open === undefined || parsed.args.correction === null ? open : open + 1;
+  const input = {
+    ...parsed.args, ...start.input, effort: await storedEffort(deps.session), ...(steps === undefined ? {} : { steps }), ...prContext,
+  };
+  return { input, details: { ruleSets: start.sets.join(" "), rules: start.rules, hooks: start.hooks.length } };
+}
+
+/**
+ * What `completed` prints for one answer of the chain, and the launch that follows. No dispatch runs before a
+ * chained launch: the gate is checked and the step's rules put back by `reapply`, whose refusal launches nothing.
+ */
+export function nextLaunch(result: CrewCompletion, reapply: (step: DevStep) => string | null): ChainStep {
+  if (!result.success) return { lines: [`✗ the dev-implement chain failed: ${result.error ?? "unknown"}`] };
+  const step = chainStep(String(result.payload ?? ""));
+  if (step.launch === undefined) return step;
+  const refusal = reapply(step.launch.crew === "dev-verify" ? "dev-verify" : "dev-implement");
+  if (refusal !== null) return { lines: [...step.lines, `✗ ${refusal}`, `then type ${step.launch.instead}`] };
+  return step;
+}
+
+/** The lines a chained launch leaves: none once launched; its refusal or its failure, and the command to type instead. */
+export function launchChained(launch: ChainLaunch, run: (crew: string, input: Record<string, unknown>) => LaunchResult): string[] {
+  try {
+    const launched = run(launch.crew, launch.input);
+    return "refused" in launched ? [`✗ ${launched.refused}`, `then type ${launch.instead}`] : [];
+  } catch (e) {
+    return [`✗ ${launch.crew} could not be launched (${String((e as Error)?.message ?? e).split("\n")[0]}): type ${launch.instead}`];
+  }
 }

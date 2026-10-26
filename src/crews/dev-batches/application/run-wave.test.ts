@@ -6,7 +6,7 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
-import { runBatchChain, runWave } from "./run-wave.ts";
+import { outcomeOf, runBatchChain, runWave } from "./run-wave.ts";
 import type { BatchOutcome, BatchRun } from "./run-wave.ts";
 import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
 import {
@@ -490,5 +490,29 @@ describe("runBatchChain", () => {
 
     // Assert
     deepStrictEqual([out.verdict, out.lines.at(-1), out.spent, audits], ["BLOCKED", "stopped BLOCKED — budget: 120 tool calls", 120, 0]);
+  });
+});
+
+describe("outcomeOf", () => {
+  it("blocks the batch when its agent answers the JSON of another batch", () => {
+    // Arrange
+    const answered = JSON.stringify({ batch: "F3", verdict: "VALID", lines: ["✓ F3"], spent: 4 });
+
+    // Act
+    const outcome = outcomeOf("F2", answered);
+
+    // Assert
+    deepStrictEqual(outcome, { batch: "F2", verdict: "BLOCKED", lines: [`BLOCKED — the batch agent answered: ${answered}`], spent: 0 });
+  });
+
+  it("blocks the batch on a text that is not JSON, with its first line", () => {
+    // Arrange
+    const answered = "the model gave up\nsecond line";
+
+    // Act
+    const outcome = outcomeOf("F2", answered);
+
+    // Assert
+    deepStrictEqual(outcome, { batch: "F2", verdict: "BLOCKED", lines: ["BLOCKED — the batch agent answered: the model gave up"], spent: 0 });
   });
 });

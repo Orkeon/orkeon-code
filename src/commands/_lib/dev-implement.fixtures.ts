@@ -1,5 +1,64 @@
-// Arguments, crew payloads and audit texts the /dev-implement tests hand over.
-import type { DevImplementArgs } from "./dev-implement.ts";
+// Arguments, crew payloads and audit texts the /dev-implement tests hand over, and the checkout its dispatch runs
+// over: the plan demo in the work folder workbench/, its sheet of batch F1 (tests/fixtures/dev/implement/) with two
+// steps open, over FakeFiles, FakeShell, FakeSessionStore, FakePermissionRules and FakeToolCatalogue.
+import { readFileSync } from "node:fs";
+
+import { runDevImplementDispatch } from "./dev-implement.ts";
+import type { ChainLaunch, DevImplementArgs, DevImplementDispatch } from "./dev-implement.ts";
+import { createConfigStore } from "../../shared/application/config-store.ts";
+import { WORKSPACE } from "../../shared/domain/vfs.ts";
+import { FakeFiles } from "../../../tests/support/doubles/fake-files.ts";
+import { FakePermissionRules } from "../../../tests/support/doubles/fake-permission-rules.ts";
+import { FakeSessionStore } from "../../../tests/support/doubles/fake-session-store.ts";
+import { FakeShell } from "../../../tests/support/doubles/fake-shell.ts";
+import { FakeToolCatalogue } from "../../../tests/support/doubles/fake-tool-catalogue.ts";
+
+const SHEET = readFileSync(new URL("../../../tests/fixtures/dev/implement/DEMO-PLAN-F1.md", import.meta.url), "utf-8");
+const DEMO = `${WORKSPACE}/workbench/demo`;
+
+export interface DispatchHarness {
+  gate: FakePermissionRules;
+  /** The lines the dispatch wrote, in order. */
+  written: string[];
+  /** Runs `/dev-implement <tokens…>`'s dispatch. */
+  run(...tokens: string[]): Promise<DevImplementDispatch>;
+}
+
+/** The dispatch over the demo checkout, the session in `mode`. */
+export function dispatchHarness(mode = "acceptEdits"): DispatchHarness {
+  const files = new FakeFiles();
+  files.listings.set(WORKSPACE, ["workbench"]);
+  files.listings.set(`${WORKSPACE}/workbench`, ["demo"]);
+  files.listings.set(DEMO, ["DEMO-PLAN-F1.md", "DEMO-PLAN.md"]);
+  files.files.set(`${DEMO}/DEMO-PLAN-F1.md`, SHEET);
+  const store = new FakeSessionStore();
+  const session = {
+    readState: (key: string) => store.readState(key),
+    writeState: (key: string, value: string) => store.writeState(key, value),
+    resolveEffectiveSessionMode: async () => ({ mode, via: "test" }),
+  };
+  const config = createConfigStore({ files, session: store });
+  const gate = new FakePermissionRules();
+  const catalogue = new FakeToolCatalogue();
+  const written: string[] = [];
+  return {
+    gate,
+    written,
+    run: (...tokens) => runDevImplementDispatch(tokens, {
+      session, config, files, shell: new FakeShell(), gate: () => gate, catalogue: () => catalogue, write: (line) => written.push(line),
+    }),
+  };
+}
+
+/** The step count the dispatch hands the crew, per argument line: the sheet's two open steps, one more for a correction. */
+export const STEPS_CASES: readonly { name: string; tokens: string[]; steps: number | undefined }[] = [
+  { name: "sizes the run to the sheet's open steps", tokens: ["F1", "demo"], steps: 2 },
+  { name: "adds one open step for a correction", tokens: ["F1", "demo", "—", "correction:", "Major", "Test:", "x"], steps: 3 },
+  { name: "counts no step for the close alone", tokens: ["F1", "demo", "--close"], steps: undefined },
+];
+
+/** The audit /dev-verify is chained to, as the crew's payload names it. */
+export const AUDIT_LAUNCH: ChainLaunch = { crew: "dev-verify", input: { batch: "F1", plan: "demo" }, instead: "/dev-verify F1 demo" };
 
 export interface ArgsCase {
   name: string;
