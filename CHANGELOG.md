@@ -399,11 +399,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   read since the same change and ask nothing where the catalogue offers them ([Permissions](docs/permissions.md#modes)).
 - **The `wallTime` budget of a turn no longer counts the operator's answer** (Orkeon #127, runtime): 1800 s bound the
   model's own work.
-- **Orkeon version**: Orkeon Code targets Orkeon's `main` after Orkeon/orkeon#206, the surface `1.0.0-rc.6` will
+- **Orkeon version**: Orkeon Code targets Orkeon's `main` after Orkeon/orkeon#213, the surface `1.0.0-rc.6` will
   carry: the gate state, the typed tools, the per-tool result limits ([ADR 0004](docs/adr/0004-orkeon-after-180.md)),
   the file tools resolving a relative path, the pending approvals a command reads
-  ([ADR 0005](docs/adr/0005-orkeon-after-206.md)). The typings are generated from that `main`
-  (`ORKEON_SOURCE=<checkout> npm run typings`) until a release carries it.
+  ([ADR 0005](docs/adr/0005-orkeon-after-206.md)), the REPL starting on a terminal, the structural tools' parameter
+  schema and the line-by-line streaming of concurrent acts ([ADR 0006](docs/adr/0006-orkeon-after-213.md)). The
+  typings are generated from that `main` (`ORKEON_SOURCE=<checkout> npm run typings`) until a release carries it: the
+  node tools and `edit_batch` now type their inputs (`path`, `selector`, `expected_hash`, `operations` required, the
+  `kind`, `op`, `position` and `validate` values as literals).
 
 - **Every prompt is written from a behaviour specification**, in this project's own words
   ([Architecture](docs/architecture.md#prompt-assembly), [ADR 0003](docs/adr/0003-prompts-from-a-behaviour-specification.md)).
@@ -521,6 +524,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Three runtime defects of the live runs of 2026-10-26 are closed by Orkeon #213**, the commit the source mode and the
+  CI smoke now build (`ORKEON_SOURCE_REF`): the interactive REPL starts on a terminal again, TUI and `--ui plain`,
+  where it hung after its start lines on the `main` after #206 (Orkeon #212); with `/dev-batches --concurrency` above
+  1 the streamed answers of the parallel batches no longer interleave character by character, each line comes whole
+  and prefixed by its ticket (Orkeon #211); the node tools and `edit_batch` publish their parameter schema to the
+  model, which guessed `node_outline` without a `path` and `edit_batch` without `operations` from the description
+  alone (Orkeon #210). The editing rule keeps spelling the `edit_batch` shape out, so that the guard's refusal repeats
+  it ([known issues](docs/roadmap.md#known-issues)).
 - `/dev-batches`, `/dev-plan`, `/dev-spec`, `/dev-change`: a review row whose target carries a qualifier (`F2 (step 1)`)
   is kept under the batch's id instead of being refused, which made the extraction retry and then lose the whole
   review (live run of 2026-10-26: `review of F2: not run (unparsable)`, a Major question never shown); the

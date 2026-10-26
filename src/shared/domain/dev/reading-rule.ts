@@ -18,8 +18,8 @@ export const NODE_READ_RULE =
   "Read a source file by node: node_outline for its members and headings, then node_read for the one you need (its " +
   "text, its range and its sha256); file_read by range only for what no node covers. Never read a source file whole.";
 
-/** The shape of an edit_batch call, spelt out because the runtime publishes no parameter schema for the node tools:
- *  the rule says it, and the guard's refusal of a batch without operations repeats it. */
+/** The shape of an edit_batch call, spelt out so that the rule and the guard's refusal of a batch without
+ *  operations say the same thing (the runtime publishes the schema of the node tools too, since Orkeon #210). */
 export const EDIT_BATCH_SHAPE =
   "`operations`, a list of {kind, path, selector, text} (expected_hash on node_replace, position on node_insert), with " +
   "validate \"parse\"";

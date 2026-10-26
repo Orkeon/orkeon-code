@@ -78,10 +78,12 @@ machine instead, no key: `config/appsettings.ollama.example.json`, on Ollama ([C
 Orkeon Code requires Orkeon `1.0.0-rc.6`, the version in `.orkeon-version`. **Until that version is tagged and
 published, only the [source mode](#source-mode-an-orkeon-checkout) works**: the tool mode needs its packages and the
 docker mode its image, and the CI runtime smoke, which pulls that image, fails until then.
-Orkeon Code targets Orkeon's `main` after Orkeon/orkeon#206, the surface `1.0.0-rc.6` will carry: the host gate's
+Orkeon Code targets Orkeon's `main` after Orkeon/orkeon#213, the surface `1.0.0-rc.6` will carry: the host gate's
 state (`/permissions`), the typed built-in tools and the per-tool result limits
 ([ADR 0004](adr/0004-orkeon-after-180.md)), the file tools resolving a relative path under `/workspace` or the
-agent's root, and the pending approvals a command reads (`/tasks`) ([ADR 0005](adr/0005-orkeon-after-206.md)).
+agent's root, and the pending approvals a command reads (`/tasks`) ([ADR 0005](adr/0005-orkeon-after-206.md)), the
+REPL starting on a terminal, the structural tools with their parameter schema and the streamed answers of concurrent
+acts kept line by line ([ADR 0006](adr/0006-orkeon-after-213.md)).
 
 The launcher picks the first available mode, in this order, unless `--mode` says otherwise.
 

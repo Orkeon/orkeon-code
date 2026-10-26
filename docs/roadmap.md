@@ -60,13 +60,7 @@ What Orkeon Code does not do yet, in the order we expect to address it. Items ma
 - `http_api` declares an execute and every MCP tool declares no access to Orkeon, so its gate treats both as writes,
   even when they only read: asked in `default` and `acceptEdits`, refused in `plan`, and in `dontAsk` without an allow rule (runtime;
   [Permissions](permissions.md)). The web and RAG tools declare theirs since Orkeon #126.
-- In source mode on the pinned commit (Orkeon `main` after #206), the interactive REPL hangs after its start lines
-  when its standard input is a terminal, TUI and `--ui plain` alike: a black screen or no prompt, and no key read,
-  Ctrl-C included (runtime, Orkeon #212). `--replay` with its input redirected is unaffected, and so is a checkout
-  of the previous `main` (`0b41d6a7`).
-- The answer can be printed twice when console streaming is enabled, and with `/dev-batches --concurrency` above 1
-  the streamed answers of the parallel batches interleave character by character on the plain console (the runtime's
-  console sink carries no act id): disable the streaming for such a run.
+- The answer can be printed twice when console streaming is enabled: disable it for an unattended run.
 - `/tasks` monitors the children of `/dev-spec`, `/dev-change`, `/dev-plan` and `/dev-verify` only, through the session state: a stop waits for
   the crew's next look (about a second), and a send to an ended instance is a new run that knows the previous report
   only, not its context.

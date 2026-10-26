@@ -23,4 +23,5 @@ Decisions are recorded as ADRs: [0001 — ports, adapters and entry points](adr/
 [0002 — Orkeon 1.0.0-rc.6 only](adr/0002-orkeon-rc6.md),
 [0003 — prompts from a behaviour specification](adr/0003-prompts-from-a-behaviour-specification.md),
 [0004 — Orkeon main after #180, on the rc.6 pin](adr/0004-orkeon-after-180.md),
-[0005 — Orkeon main after #206, on the rc.6 pin](adr/0005-orkeon-after-206.md).
+[0005 — Orkeon main after #206, on the rc.6 pin](adr/0005-orkeon-after-206.md),
+[0006 — Orkeon main after #213, on the rc.6 pin](adr/0006-orkeon-after-213.md).
