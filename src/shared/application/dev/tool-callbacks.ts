@@ -1,26 +1,29 @@
 // The dev crews' onToolCall and onToolResult (RT-04), built from a crew's inputs and handed to every act through
 // createLlm(ctx.llm, callbacks). The host's gate runs first and the callback sees only the calls it allowed: the
-// callback re-checks the call against the crew's guard (shared/domain/dev/call-guard.ts), then runs the pre-tool
-// hooks; after the call, the post-tool hooks. Before a file_write under a writing role's rewrite rule, it reads the
-// path once: a file the runtime says is not found is a new one, which file_write may create. It answers "allow" or { deny } only: no "ask" (an approval asked in
-// the middle of a crew's turn may not be answered by the REPL) and no rewritten input. Each crew that imports
-// this module bundles its own copy; nothing is shared between runs.
+// callback hands the call to the decision (tool-call-policy.ts) over probes built here: the memory folder read
+// once, the path a file_write under a rewrite rule names read once (a file the runtime says is not found is a new
+// one, which file_write may create), and the hooks run in the shell; it logs the decision's notes. After the call,
+// the post-tool hooks. It answers "allow", { deny } or the input with its path resolved: no "ask" (an approval
+// asked in the middle of a crew's turn may not be answered by the REPL). Each crew that imports this module bundles
+// its own copy; nothing is shared between runs.
 import type { Files, Logger, Shell } from "../ports.ts";
-import { buildCallGuard, checkToolCall, denyText, hookCommand } from "../../domain/dev/call-guard.ts";
+import { buildCallGuard, hookCommand } from "../../domain/dev/call-guard.ts";
 import { resolvePathInput } from "../../domain/dev/path-args.ts";
-import { OPERATIONS_TOOL, REWRITE_TOOL } from "../../domain/agent-policy/rule-sets.ts";
+import { OPERATIONS_TOOL } from "../../domain/agent-policy/rule-sets.ts";
 import { sameToolName } from "../../domain/agent-policy/permission.ts";
 import { memoryWriteRefusal } from "../../domain/shared-memory/layout.ts";
 import { mapStrings, textFromRoot } from "../../domain/dev/path-rebase.ts";
 import type { CallGuard, CallGuardSpec, ToolHook } from "../../domain/dev/call-guard.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
+import { judgeToolCall, memoryDenyText } from "./tool-call-policy.ts";
+import type { CallProbes, HookFailure, ToolCallVerdict } from "./tool-call-policy.ts";
+
+export type { HookFailure, ToolCallVerdict } from "./tool-call-policy.ts";
 
 /** A hook is stopped after this many seconds, and refuses (pre) or is reported (post). */
 export const HOOK_TIMEOUT_SECONDS = 60;
 
-/** The runtime's verdict and result callbacks, as ActOptions types them (the subset this module returns): allow,
- *  deny, or allow with the call's input rewritten (a relative path resolved). */
-export type ToolCallVerdict = "allow" | { deny: string } | { input: unknown };
+/** The runtime's verdict and result callbacks, as ActOptions types them (the subset this module returns). */
 export interface ActCallbacks {
   onToolCall: (call: { name: string; input: unknown }) => Promise<ToolCallVerdict>;
   onToolResult: (call: { name: string; input: unknown }, result: unknown) => Promise<void | { context: string }>;
@@ -48,9 +51,6 @@ export function onceMemoryDir(read: () => Promise<string>): () => Promise<string
   return () => (dir ??= read());
 }
 
-const MEMORY_GUARD = "refused by the shared memory's guard";
-const MEMORY_CONTEXT = "The shared memory's candidates and entries are written by memory_push and /memory-admit only: do without this call.";
-
 /** The callbacks of an act that runs no dev step (the main loop): the shared memory's guard alone, no hook. */
 export function memoryGuardCallbacks(memoryDir: () => Promise<string>): Pick<ToolCallbacks, "forAct"> {
   const dir = onceMemoryDir(memoryDir);
@@ -60,7 +60,7 @@ export function memoryGuardCallbacks(memoryDir: () => Promise<string>): Pick<Too
         async onToolCall(call) {
           try {
             const why = memoryWriteRefusal(await dir(), call.name, call.input);
-            return why === null ? "allow" : { deny: `${MEMORY_GUARD}: ${why}\n${MEMORY_CONTEXT}` };
+            return why === null ? "allow" : { deny: memoryDenyText(why) };
           } catch (e) {
             return { deny: `the shared memory's guard failed: ${String((e as Error)?.message ?? e)}` };
           }
@@ -97,10 +97,6 @@ export function hookInputs(tool: string, input: unknown): unknown[] {
   if (!sameToolName(tool, OPERATIONS_TOOL) || !Array.isArray(ops) || ops.length === 0) return [input];
   return ops.map((op: unknown) => ({ path: (op as { path?: unknown } | null)?.path }));
 }
-
-/** What stopped a hook: the hook itself (its exit, its time, its start), or the runtime's mount check, which refuses a
- *  command line naming a mount path the shell may not hand to its program, before the hook runs. */
-export interface HookFailure { by: "hook" | "mount-check"; text: string }
 
 /** The runtime shell's refusal of a command line by its mount check (ShellCommandTool), else null. */
 const MOUNT_DENIAL = /^(?:Command argument denied by file system|Argument denied):/;
@@ -153,51 +149,21 @@ function resultText(result: unknown): string {
 
 export function createToolCallbacks(guard: CallGuard, deps: ToolCallbackDeps): ToolCallbacks {
   const memoryDir = deps.memoryDir === undefined ? undefined : onceMemoryDir(deps.memoryDir);
-  const pre = guard.hooks.filter((h) => h.event === "pre-tool");
+  const files = deps.files;
+  const probes: CallProbes = {
+    memoryDir: memoryDir ?? (async () => null),
+    newFile: files === undefined ? async () => undefined : (path) => isNewFile(files, path),
+    runHook: (hook, tool, input) => runHooks(deps, hook, tool, input),
+  };
   const post = guard.hooks.filter((h) => h.event === "post-tool");
   return {
     guard,
     forAct(mode, gateEnabled) {
       return {
-        async onToolCall(call) {
-          // A throw would deny too, with the bare message: the catch keeps the step's name in front.
-          try {
-            // A relative path is resolved under the checkout first: the guard, the hooks and the tool see the resolved one.
-            const resolved = resolvePathInput(call.name, call.input);
-            const input = resolved ?? call.input;
-            if (resolved !== null) deps.log?.info(`${guard.step}: ${call.name}: a relative path resolved under the checkout`);
-            const memory = memoryDir === undefined ? null : memoryWriteRefusal(await memoryDir(), call.name, input);
-            if (memory !== null) {
-              deps.log?.info(`${guard.step}: callback refused ${call.name}: ${memory}`);
-              return { deny: `${guard.step}: ${MEMORY_GUARD}: ${memory}\n${MEMORY_CONTEXT}` };
-            }
-            const path = (input as { path?: unknown } | null)?.path;
-            const rewrite = sameToolName(call.name, REWRITE_TOOL) && typeof path === "string" && deps.files !== undefined
-              && guard.rules.some((r) => r.origin.kind === "rewrite");
-            const newFile = rewrite ? await isNewFile(deps.files as Pick<Files, "read">, path as string) : undefined;
-            const verdict = checkToolCall(guard, call.name, input, { mode, gateEnabled, ...(newFile === undefined ? {} : { newFile }) });
-            if (!verdict.allow) {
-              deps.log?.info(`${guard.step}: callback refused ${call.name}: ${verdict.reason}`);
-              return { deny: denyText(verdict) };
-            }
-            for (const hook of pre) {
-              const failed = await runHooks(deps, hook, call.name, input);
-              if (failed?.by === "mount-check") {
-                deps.log?.info(`${guard.step}: the runtime's mount check refused pre-tool hook #${hook.n} for ${call.name}`);
-                return {
-                  deny: `${guard.step}: ${failed.text}\nThe call did not run: a hook's command line may name no path its ` +
-                    "program may not write; ask the user to change the hook.",
-                };
-              }
-              if (failed !== undefined) {
-                deps.log?.info(`${guard.step}: pre-tool hook #${hook.n} refused ${call.name}`);
-                return { deny: `${guard.step}: refused by ${failed.text}\nThe call did not run: change it, or ask the user to fix the hook.` };
-              }
-            }
-            return resolved === null ? "allow" : { input: resolved };
-          } catch (e) {
-            return { deny: `${guard.step}: the callback failed: ${String((e as Error)?.message ?? e)}` };
-          }
+        async onToolCall(call): Promise<ToolCallVerdict> {
+          const { verdict, notes } = await judgeToolCall(guard, call, { mode, gateEnabled }, probes);
+          for (const note of notes) deps.log?.info(note);
+          return verdict;
         },
         async onToolResult(call, result) {
           if (post.length === 0) return undefined;

@@ -34,10 +34,6 @@ export const WHOLE_HOOK_INPUTS: readonly HookInputsCase[] = [
   { name: "hands an edit_batch without operations its input as it is", tool: "edit_batch", input: { operations: [] }, expected: [{ operations: [] }] },
 ];
 
-export const GIT_COMMIT_DENY =
-  "dev-plan: refused by 'deny shell_command command=*git commit*' of the rule set git-readonly\n" +
-  "git commands that change the repository, its branches or its remotes are refused during /dev-plan: do without this call.";
-
 export const FAILED_HOOK_DENY =
   `dev-plan: refused by pre-tool hook #1 (bash pre.sh file_read ${WORKSPACE}/a.ts) exited 2: no reads today\n` +
   "The call did not run: change it, or ask the user to fix the hook.";
@@ -68,9 +64,6 @@ export const implementer = (reader?: ReturnType<typeof files>) => devToolCallbac
   { step: "dev-implement", role: "implementer", layout: LAYOUT }, { shell: new FakeShell(), ...(reader === undefined ? {} : { files: reader }) },
 ).forAct("acceptEdits", true);
 
-/** A reader holding one big source file of the domain. */
-export const bigSource = () => files({ [`${WORKSPACE}/src/domain/big.ts`]: "x".repeat(40_000) });
-
 export interface NewFileCase {
   name: string;
   reader: () => ReturnType<typeof files>;
@@ -99,26 +92,6 @@ export const PILOT_WARNINGS = [
   "warn: dev-plan: the pack gives no layout.infrastructure: no rule on it",
   "warn: dev-plan: the pack gives no layout.tests: no rule on it",
 ];
-
-export const BATCH = { operations: [{ kind: "ensure_section", path: ".orkeon/memory/entries/decision/x.md", selector: "## A", text: "b" }] };
-
-export interface MemoryCallCase {
-  name: string;
-  call: { name: string; input: unknown };
-}
-
-/** Writes into the shared memory the gate cannot read. */
-export const UNREADABLE_MEMORY_WRITES: readonly MemoryCallCase[] = [
-  { name: "an edit_batch operation", call: { name: "edit_batch", input: BATCH } },
-  { name: "a path in another case", call: { name: "file_write", input: { path: ".Orkeon/Memory/Entries/x.md", content: "x" } } },
-];
-
-/** A dev-plan step with a pre-tool hook, its memory folder .orkeon/memory, in bypassPermissions, the gate on. */
-export function memoryGuardedStep() {
-  const shell = new FakeShell();
-  const callbacks = devToolCallbacks({ step: "dev-plan", hooks: [PRE] }, { shell, memoryDir: async () => ".orkeon/memory" });
-  return { shell, act: callbacks.forAct("bypassPermissions", true) };
-}
 
 /** The main loop's act guarded on the memory folder "mem", the reads of the folder counted. */
 export function mainLoopGuard() {

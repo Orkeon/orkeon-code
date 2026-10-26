@@ -1,14 +1,14 @@
-// The dev crews' onToolCall and onToolResult over a FakeShell (the hooks) and a FakeLogger. Run:
+// The plumbing of the dev crews' onToolCall and onToolResult over a FakeShell (the hooks), a file reader and a
+// FakeLogger; the decision itself is tool-call-policy.test.ts's. Run:
 //   node --test src/shared/application/dev/tool-callbacks.test.ts
 import { describe, it } from "node:test";
-import { deepStrictEqual, ok, strictEqual } from "node:assert";
+import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { HOOK_TIMEOUT_SECONDS, devToolCallbacks, hookInputs, isNewFile, rootedCallbacks } from "./tool-callbacks.ts";
 import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 import {
-  FAILED_HOOK_DENY, GIT_COMMIT_DENY, LAYOUT, MOUNT_DENIAL, MOUNT_DENY, NEW_FILES, PILOT_WARNINGS, POST, PRE, PRE_HOOK_CALLS,
-  ROOT, SHELL_WRITE_INTO_MEMORY, UNREADABLE_MEMORY_WRITES, WHOLE_HOOK_INPUTS, bigSource, files, implementer, mainLoopGuard,
-  memoryGuardedStep, readerOfAll, setup,
+  FAILED_HOOK_DENY, LAYOUT, MOUNT_DENIAL, MOUNT_DENY, NEW_FILES, PILOT_WARNINGS, POST, PRE, PRE_HOOK_CALLS, ROOT,
+  SHELL_WRITE_INTO_MEMORY, WHOLE_HOOK_INPUTS, implementer, mainLoopGuard, readerOfAll, setup,
 } from "./tool-callbacks.fixtures.ts";
 import { assertDenied, assertDeniedWith } from "./tool-callbacks.assertions.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
@@ -24,30 +24,6 @@ describe("onToolCall", () => {
     // Assert
     strictEqual(verdict, "allow");
     deepStrictEqual(shell.calls, PRE_HOOK_CALLS);
-  });
-
-  it("resolves a relative path under the checkout: the hooks see it resolved, and the call runs with it", async () => {
-    // Arrange
-    const { shell, act } = setup([PRE]);
-
-    // Act
-    const verdict = await act.onToolCall({ name: "file_read", input: { path: "src/a.ts" } });
-
-    // Assert
-    deepStrictEqual(verdict, { input: { path: `${WORKSPACE}/src/a.ts` } });
-    deepStrictEqual(shell.calls.map((c) => c.command), [`bash pre.sh file_read ${WORKSPACE}/src/a.ts`]);
-  });
-
-  it("resolves each relative operation of an edit_batch", async () => {
-    // Arrange
-    const { act } = setup();
-    const input = { operations: [{ kind: "node_replace", path: "src/a.ts", text: "x" }, { kind: "node_insert", path: `${WORKSPACE}/docs/b.md`, text: "y" }] };
-
-    // Act
-    const verdict = await act.onToolCall({ name: "edit_batch", input });
-
-    // Assert
-    deepStrictEqual(verdict, { input: { operations: [{ kind: "node_replace", path: `${WORKSPACE}/src/a.ts`, text: "x" }, { kind: "node_insert", path: `${WORKSPACE}/docs/b.md`, text: "y" }] } });
   });
 
   it("runs a pre-tool hook once per operation of an edit_batch, with that operation's path", async () => {
@@ -76,32 +52,6 @@ describe("onToolCall", () => {
     });
   }
 
-  it("refuses a call a rule covers with the reason and its context line, and runs no hook", async () => {
-    // Arrange
-    const { shell, log, act } = setup([PRE]);
-
-    // Act
-    const verdict = await act.onToolCall({ name: "shell_command", input: { command: "git commit -m x" } });
-
-    // Assert
-    deepStrictEqual(verdict, { deny: GIT_COMMIT_DENY });
-    deepStrictEqual(shell.commands, []);
-    ok(log.lines[0].startsWith("info: dev-plan: callback refused shell_command: "), log.lines[0]);
-  });
-
-  it("refuses at the first pre-tool hook that fails, and runs none after it", async () => {
-    // Arrange
-    const { shell, act } = setup([PRE, { event: "pre-tool", command: "bash two.sh" }]);
-    shell.results[`bash pre.sh file_read ${WORKSPACE}/a.ts`] = { exitCode: 2, stderr: "no reads today\nmore", stdout: "ignored" };
-
-    // Act
-    const verdict = await act.onToolCall({ name: "file_read", input: { path: `${WORKSPACE}/a.ts` } });
-
-    // Assert
-    deepStrictEqual(verdict, { deny: FAILED_HOOK_DENY });
-    deepStrictEqual(shell.commands, [`bash pre.sh file_read ${WORKSPACE}/a.ts`]);
-  });
-
   it("refuses when a pre-tool hook times out", async () => {
     // Arrange
     const { shell, act } = setup([PRE]);
@@ -124,6 +74,19 @@ describe("onToolCall", () => {
 
     // Assert
     assertDenied(thrown, ["could not run: Command 'bash' is not in the allowlist\n"]);
+  });
+
+  it("refuses with the first line of a failing pre-tool hook's error output, and logs it", async () => {
+    // Arrange
+    const { shell, log, act } = setup([PRE]);
+    shell.results[`bash pre.sh file_read ${WORKSPACE}/a.ts`] = { exitCode: 2, stderr: "no reads today\nmore", stdout: "ignored" };
+
+    // Act
+    const verdict = await act.onToolCall({ name: "file_read", input: { path: `${WORKSPACE}/a.ts` } });
+
+    // Assert
+    deepStrictEqual(verdict, { deny: FAILED_HOOK_DENY });
+    deepStrictEqual(log.lines, ["info: dev-plan: pre-tool hook #1 refused file_read"]);
   });
 
   it("names the runtime's mount check, not the hook, when the shell refuses the hook's command line", async () => {
@@ -151,39 +114,6 @@ describe("onToolCall", () => {
     assertDenied(second, ["the runtime's mount check refused"], ["stopped after"]);
   });
 
-  it("applies the act's mode itself when the host has no gate: plan refuses a write", async () => {
-    // Arrange
-    const { callbacks } = setup();
-
-    // Act
-    const verdict = await callbacks.forAct("plan", false).onToolCall({ name: "file_write", input: { path: "a" } });
-
-    // Assert
-    assertDenied(verdict, ["the host has no permission gate"]);
-  });
-
-  it("applies the act's mode itself when the host has no gate: acceptEdits allows a write", async () => {
-    // Arrange
-    const { callbacks } = setup();
-
-    // Act
-    const verdict = await callbacks.forAct("acceptEdits", false).onToolCall({ name: "file_write", input: { path: `${WORKSPACE}/a` } });
-
-    // Assert
-    strictEqual(verdict, "allow");
-  });
-
-  it("refuses with the step's name when the guard itself throws", async () => {
-    // Arrange
-    const { act } = setup();
-    const input = { get path(): string { throw new Error("boom"); } };
-
-    // Act
-    const verdict = await act.onToolCall({ name: "file_read", input });
-
-    // Assert
-    deepStrictEqual(verdict, { deny: "dev-plan: the callback failed: boom" });
-  });
 });
 
 describe("onToolResult", () => {
@@ -239,56 +169,6 @@ describe("onToolResult", () => {
 });
 
 describe("onToolCall — the rewrite rule", () => {
-  it("refuses file_write on a source file that exists", async () => {
-    // Arrange
-    const reader = bigSource();
-    const act = implementer(reader);
-
-    // Act
-    const refused = await act.onToolCall({ name: "file_write", input: { path: `${WORKSPACE}/src/domain/big.ts`, content: "y" } });
-
-    // Assert
-    assertDenied(refused, ["of the implementer's rewrite rule"]);
-    deepStrictEqual(reader.reads, [`${WORKSPACE}/src/domain/big.ts`]);
-  });
-
-  it("lets file_write create a source file that does not exist", async () => {
-    // Arrange
-    const reader = bigSource();
-    const act = implementer(reader);
-
-    // Act
-    const verdict = await act.onToolCall({ name: "file_write", input: { path: "./src/domain/new.ts", content: "y" } });
-
-    // Assert
-    deepStrictEqual(verdict, { input: { path: `${WORKSPACE}/src/domain/new.ts`, content: "y" } });
-    deepStrictEqual(reader.reads, [`${WORKSPACE}/src/domain/new.ts`]);
-  });
-
-  it("lets a node edit change a source file that exists, reading nothing", async () => {
-    // Arrange
-    const reader = bigSource();
-    const act = implementer(reader);
-
-    // Act
-    const verdict = await act.onToolCall({ name: "node_replace", input: { path: `${WORKSPACE}/src/domain/big.ts`, selector: "A.b()", text: "y", expected_hash: "h" } });
-
-    // Assert
-    strictEqual(verdict, "allow");
-    deepStrictEqual(reader.reads, []);
-  });
-
-  it("keeps the rule when the file cannot be told absent", async () => {
-    // Arrange
-    const act = implementer(files({}, "access denied"));
-
-    // Act
-    const verdict = await act.onToolCall({ name: "file_write", input: { path: `${WORKSPACE}/src/domain/a.ts`, content: "y" } });
-
-    // Assert
-    strictEqual(typeof verdict, "object");
-  });
-
   it("keeps the rule when no reader is given", async () => {
     // Arrange
     const act = implementer();
@@ -298,19 +178,6 @@ describe("onToolCall — the rewrite rule", () => {
 
     // Assert
     strictEqual(typeof verdict, "object");
-  });
-
-  it("reads nothing for a step without a writing role", async () => {
-    // Arrange
-    const reader = files({});
-    const act = devToolCallbacks({ step: "dev-plan" }, { shell: new FakeShell(), files: reader }).forAct("acceptEdits", true);
-
-    // Act
-    const verdict = await act.onToolCall({ name: "file_write", input: { path: `${WORKSPACE}/src/domain/a.ts`, content: "y" } });
-
-    // Assert
-    strictEqual(verdict, "allow");
-    deepStrictEqual(reader.reads, []);
   });
 
   for (const c of NEW_FILES) {
@@ -400,31 +267,6 @@ describe("devToolCallbacks", () => {
 });
 
 describe("the shared memory's guard in the callbacks", () => {
-  for (const c of UNREADABLE_MEMORY_WRITES) {
-    it(`denies in a dev step what the gate cannot read - ${c.name} - before any hook`, async () => {
-      // Arrange
-      const { shell, act } = memoryGuardedStep();
-
-      // Act
-      const verdict = await act.onToolCall(c.call);
-
-      // Assert
-      assertDeniedWith(verdict, "dev-plan: refused by the shared memory's guard:");
-      deepStrictEqual(shell.calls, []);
-    });
-  }
-
-  it("lets a dev step read the shared memory", async () => {
-    // Arrange
-    const { act } = memoryGuardedStep();
-
-    // Act
-    const verdict = await act.onToolCall({ name: "file_read", input: { path: `${WORKSPACE}/.orkeon/memory/entries/x.md` } });
-
-    // Assert
-    strictEqual(verdict, "allow");
-  });
-
   it("guards the main loop's acts: a shell write into the memory is denied", async () => {
     // Arrange
     const { act } = mainLoopGuard();
