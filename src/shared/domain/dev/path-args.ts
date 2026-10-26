@@ -1,7 +1,8 @@
-// A relative path a dev agent hands a tool, resolved under the project before the tool runs: the runtime refuses
-// `src/a.ts` ("No mount found for virtual path"), and the agents keep writing one despite the reading rule. The
-// base is the checkout, `/workspace`, or a batch's working root. The guard judges the resolved path, in the same
-// form it always matched a relative one in (call-guard's pathForms). Pure.
+// A relative path a dev agent hands a tool, resolved under the project before the tool runs. The runtime resolves
+// one too since Orkeon #206 (against the agent's root, else /workspace); the resolution here is for Orkeon Code's
+// own guard and hooks, which judge the call before the runtime sees it and must see one absolute form. The base is
+// the checkout, `/workspace`, or a batch's working root. The guard judges the resolved path, in the same form it
+// always matched a relative one in (call-guard's pathForms). Pure.
 import { sameToolName } from "../agent-policy/permission.ts";
 import { OPERATIONS_TOOL, PATH_READ_TOOLS, PATH_WRITE_TOOLS } from "../agent-policy/rule-sets.ts";
 import { WORKSPACE } from "../vfs.ts";

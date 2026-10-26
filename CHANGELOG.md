@@ -342,6 +342,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **A dev role may hand a tool a relative path as shown** (Orkeon #199 and #200, delivered by #206): the runtime
+  resolves it against the agent's root, else `/workspace`, so the reading rule of the dev roles no longer says "never
+  as written"; it says where such a path is read and that either form goes. The tool-call hook keeps resolving it
+  before the guard and the hooks ([ADR 0005](docs/adr/0005-orkeon-after-206.md)).
 - **The speech server needs Python 3.11 or later** (`mcp/whisper/pyproject.toml`, `requires-python = ">=3.11"`).
   Python 3.10 reached its end of life in October 2026, and the `filelock` that huggingface-hub pulls in is fixed
   of six advisories (GHSA-v4x8-3wr5-3wq8 and five others on its lock files) from 4.2.1 on, a version that needs

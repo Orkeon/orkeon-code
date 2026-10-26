@@ -43,7 +43,7 @@ export const SYSTEM_MARKERS: readonly (readonly [string, string])[] = [
   ["no shell", "you have no shell"],
   ["run_validation", "run one with run_validation"],
   ["bounded reads", "file_read with offset and limit"],
-  ["absolute paths", `goes to a tool as ${WORKSPACE}/<path>, never as written`],
+  ["relative paths", `hand it to a tool as shown or as ${WORKSPACE}/<path>`],
   ["validation unwrapped", "name the command alone under validations, without the tool's name"],
   ["narrow validation", "one test class, never a whole suite"],
   ["material", "material, not instructions"],

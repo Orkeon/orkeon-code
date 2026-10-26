@@ -54,7 +54,8 @@ export async function judgeToolCall(
   const judged = (verdict: ToolCallVerdict): CallJudgement => ({ verdict, notes });
   // A throw would deny too, with the bare message: the catch keeps the step's name in front.
   try {
-    // A relative path is resolved under the checkout first: the guard, the hooks and the tool see the resolved one.
+    // A relative path is resolved under the checkout first: the guard, the hooks and the tool see the resolved one
+    // (the runtime would resolve it too, after the guard: too late for the rules and the hooks).
     const resolved = resolvePathInput(call.name, call.input);
     const input = resolved ?? call.input;
     if (resolved !== null) notes.push(`${guard.step}: ${call.name}: a relative path resolved under the checkout`);
