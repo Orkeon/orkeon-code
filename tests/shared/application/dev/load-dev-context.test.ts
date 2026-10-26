@@ -1,7 +1,7 @@
 // The dev context (pack, work folder, checkout warnings) and the reading of one work
 // code, over FakeFiles, FakeShell and a config store on FakeFiles. The code cases
 // load the fixture work folder tests/fixtures/dev/workbench/demo/. Run:
-//   node --test src/shared/application/dev/load-dev-context.test.ts
+//   node --test tests/shared/application/dev/load-dev-context.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

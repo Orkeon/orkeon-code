@@ -1,5 +1,5 @@
 // B-12 — the advisor crew's subject selection and prompt. Run:
-//   node --test src/crews/advisor/domain/advice.test.ts
+//   node --test tests/crews/advisor/domain/advice.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, ok } from "node:assert";
 

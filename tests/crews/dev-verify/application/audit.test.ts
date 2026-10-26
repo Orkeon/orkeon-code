@@ -2,7 +2,7 @@
 // without validations, two with them, refused and late validations as Not run lines,
 // the replies kept when the answer never parses, and the runs the auditor made through
 // run_validation cited without a second round. Run:
-//   node --test src/crews/dev-verify/application/audit.test.ts
+//   node --test tests/crews/dev-verify/application/audit.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

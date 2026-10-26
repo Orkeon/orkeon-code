@@ -1,6 +1,6 @@
 // The learner's answer check: one case per refusal of the design's table, the mapping
 // from the wire's snake_case, and the lists an answer may leave out. Run:
-//   node --test src/crews/dev-learn/domain/learn-answer.test.ts
+//   node --test tests/crews/dev-learn/domain/learn-answer.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

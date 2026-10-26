@@ -1,7 +1,7 @@
 // The steps /dev-spec and /dev-change share around their draft: the inputs' code and text, the checkout check, the
 // code's folder, the request read from a file, and the self-check of the written source. Over FakeFiles and
 // FakeShell. Run:
-//   node --test src/shared/application/dev/source-step.test.ts
+//   node --test tests/shared/application/dev/source-step.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

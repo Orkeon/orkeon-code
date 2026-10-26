@@ -1,5 +1,5 @@
 // A batch's worktree: its name, its branch, and the command that creates it with relative paths. Run:
-//   node --test src/shared/domain/git/worktree.test.ts
+//   node --test tests/shared/domain/git/worktree.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

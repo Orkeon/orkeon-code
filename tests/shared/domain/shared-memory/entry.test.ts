@@ -1,5 +1,5 @@
 // Unit tests for the memory entry checks. Run:
-//   node --test src/shared/domain/shared-memory/entry.test.ts
+//   node --test tests/shared/domain/shared-memory/entry.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

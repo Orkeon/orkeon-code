@@ -1,5 +1,5 @@
 // A batch's spend of tool calls and the guard that refuses every call past it. Run:
-//   node --test src/shared/application/dev/spend.test.ts
+//   node --test tests/shared/application/dev/spend.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

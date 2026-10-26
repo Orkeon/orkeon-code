@@ -1,5 +1,5 @@
 // The build or suite as a shell job. Run:
-//   node --test src/crews/dev-implement/application/suite-job.test.ts
+//   node --test tests/crews/dev-implement/application/suite-job.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

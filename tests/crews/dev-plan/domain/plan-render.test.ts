@@ -1,6 +1,6 @@
 // Unit tests for the plan renderer: the Scope lines from the pack, the anchor kinds, the
 // review's rows in the plan and the sheets, the blocked state, the ids and the joins. Run:
-//   node --test src/crews/dev-plan/domain/plan-render.test.ts
+//   node --test tests/crews/dev-plan/domain/plan-render.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

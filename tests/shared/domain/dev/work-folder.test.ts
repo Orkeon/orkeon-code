@@ -1,5 +1,5 @@
 // Unit tests for the work folder rules. Run:
-//   node --test src/shared/domain/dev/work-folder.test.ts
+//   node --test tests/shared/domain/dev/work-folder.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

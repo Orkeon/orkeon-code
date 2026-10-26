@@ -1,5 +1,5 @@
 // Unit tests for the git close rules. Run:
-//   node --test src/shared/domain/git/close.test.ts
+//   node --test tests/shared/domain/git/close.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

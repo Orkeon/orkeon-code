@@ -1,6 +1,6 @@
 // The prelude of a crew input: its parsing, the error a failed call becomes, the
 // request the model reads. Run:
-//   node --test src/shared/domain/prelude.test.ts
+//   node --test tests/shared/domain/prelude.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 import {

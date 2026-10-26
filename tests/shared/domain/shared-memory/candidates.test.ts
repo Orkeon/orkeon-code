@@ -1,4 +1,4 @@
-// The generated lists of the shared memory (M-4). Run: node --test src/shared/domain/shared-memory/candidates.test.ts
+// The generated lists of the shared memory (M-4). Run: node --test tests/shared/domain/shared-memory/candidates.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, ok } from "node:assert";
 

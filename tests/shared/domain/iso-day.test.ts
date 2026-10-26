@@ -1,5 +1,5 @@
 // The UTC day of a date. Run:
-//   node --test src/shared/domain/iso-day.test.ts
+//   node --test tests/shared/domain/iso-day.test.ts
 import { describe, it } from "node:test";
 import { strictEqual } from "node:assert";
 

@@ -1,5 +1,5 @@
 // The project-init use case over FakeFiles, FakeLlm and FakeLogger. Run:
-//   node --test src/crews/project-init/application/run-project-init.test.ts
+//   node --test tests/crews/project-init/application/run-project-init.test.ts
 import { describe, it } from "node:test";
 import { ok, strictEqual, deepStrictEqual } from "node:assert";
 

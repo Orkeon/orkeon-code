@@ -1,5 +1,5 @@
 // Unit tests for the trait marker of tests.rule_trait and tests.trait_pattern. Run:
-//   node --test src/shared/domain/dev/trait-pattern.test.ts
+//   node --test tests/shared/domain/dev/trait-pattern.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

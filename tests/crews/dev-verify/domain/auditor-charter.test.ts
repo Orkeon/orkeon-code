@@ -1,5 +1,5 @@
 // The auditor's charter runs, offers its five read tools and nothing that writes. Run:
-//   node --test src/crews/dev-verify/domain/auditor-charter.test.ts
+//   node --test tests/crews/dev-verify/domain/auditor-charter.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

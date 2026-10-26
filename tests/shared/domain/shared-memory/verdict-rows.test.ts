@@ -1,7 +1,7 @@
 // Learning rows of the verdict files: folding, axes, ids, filters, backlog, listing, and parity with the
 // harness's learning script over tests/fixtures/dev/learn.
 // Run:
-//   node --test src/shared/domain/shared-memory/verdict-rows.test.ts
+//   node --test tests/shared/domain/shared-memory/verdict-rows.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 

@@ -1,5 +1,5 @@
 // Ticking one box of one step. Run:
-//   node --test src/crews/dev-implement/domain/sheet-ticks.test.ts
+//   node --test tests/crews/dev-implement/domain/sheet-ticks.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

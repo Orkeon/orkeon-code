@@ -1,6 +1,6 @@
 // The PermissionRules adapter over a FakePermissionRulesFacade served by a
 // FakeServiceLocator. Run:
-//   node --test src/shared/infrastructure/orkeon/permission-rules.test.ts
+//   node --test tests/shared/infrastructure/orkeon/permission-rules.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, throws } from "node:assert";
 

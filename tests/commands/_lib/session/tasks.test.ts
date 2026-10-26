@@ -1,6 +1,6 @@
 // /tasks (commands/_lib/session/tasks.ts) over a FakeSessionStore: the task list, and the agent instances
 // the dev crews leave in the state bag (A-3) — list, show, stop, send, repair. Run:
-//   node --test src/commands/_lib/session/tasks.test.ts
+//   node --test tests/commands/_lib/session/tasks.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

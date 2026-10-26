@@ -1,5 +1,5 @@
 // voice.reply and its epilogue. Run:
-//   node --test src/shared/domain/speech.test.ts
+//   node --test tests/shared/domain/speech.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 import { SPEAK_TOOL, VOICE_REPLY_CONFIG_KEY, voiceReplyEpilogue, voiceReplyOn } from "../../../src/shared/domain/speech.ts";

@@ -1,5 +1,5 @@
 // The budget of a /dev-implement run. Run:
-//   node --test src/crews/dev-implement/domain/implement-budget.test.ts
+//   node --test tests/crews/dev-implement/domain/implement-budget.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

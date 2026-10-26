@@ -1,5 +1,5 @@
 // The compaction pipeline over the fakes of its ports. Run:
-//   node --test src/shared/application/compaction/compact-session.test.ts
+//   node --test tests/shared/application/compaction/compact-session.test.ts
 import { describe, it } from "node:test";
 import { ok, deepStrictEqual, strictEqual } from "node:assert";
 

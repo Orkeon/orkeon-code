@@ -1,6 +1,6 @@
 // The GitHubPullRequests adapter over the github tool's create_pr. FakeTools
 // fakes no github tool: a local stand-in records the input. Run:
-//   node --test src/shared/infrastructure/orkeon/github-pull-requests.test.ts
+//   node --test tests/shared/infrastructure/orkeon/github-pull-requests.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, rejects } from "node:assert";
 

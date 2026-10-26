@@ -1,5 +1,5 @@
 // Unit tests for the frozen shell lines of /dev-verify. Run:
-//   node --test src/crews/dev-verify/domain/commands.test.ts
+//   node --test tests/crews/dev-verify/domain/commands.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

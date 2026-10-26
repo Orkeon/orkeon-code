@@ -1,4 +1,4 @@
-// The /summary request. Run: node --test src/shared/domain/session-summary.test.ts
+// The /summary request. Run: node --test tests/shared/domain/session-summary.test.ts
 import { describe, it } from "node:test";
 
 import { SUMMARY_PROMPT } from "../../../src/shared/domain/session-summary.ts";

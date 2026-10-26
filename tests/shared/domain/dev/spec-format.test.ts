@@ -1,6 +1,6 @@
 // Unit tests for the plan source: the Blocking gate, the ids, the title and what must not
 // change, on inline texts. Run:
-//   node --test src/shared/domain/dev/spec-format.test.ts
+//   node --test tests/shared/domain/dev/spec-format.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

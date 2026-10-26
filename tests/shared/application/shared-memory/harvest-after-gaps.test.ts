@@ -1,6 +1,6 @@
 // harvestAfterGaps over fixture verdict files in a LiveListingFiles work folder (M-7): the candidates a recurring
 // gap justifies, the /dev-learn nudge at two batches, nothing below, nothing on a failure. Run:
-//   node --test src/shared/application/shared-memory/harvest-after-gaps.test.ts
+//   node --test tests/shared/application/shared-memory/harvest-after-gaps.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
@@ -88,7 +88,7 @@ describe("harvestAfterGaps", () => {
   it("costs the lines, never the verdict, when the memory cannot be written, and says why in the log", async () => {
     // Arrange
     const f = setup({ a: [GAP], b: [GAP], c: [GAP] });
-    f.files.writeFailures.set(CANDIDATE, new Error("denied by a rule"));
+    f.files.writeErrors.push({ prefix: CANDIDATE, error: () => new Error("denied by a rule") });
 
     // Act
     const lines = await harvestAfterGaps(f.deps, work);

@@ -1,5 +1,5 @@
 // Unit tests for the YAML subset reader. Run:
-//   node --test src/shared/domain/dev/yaml-subset.test.ts
+//   node --test tests/shared/domain/dev/yaml-subset.test.ts
 // The two pack fixtures are copies of the workshop's repo-orkeon and repo-orkeon-workshop
 // packs (orkeon-workshop 6873ee2, packs/<name>/references/repo.yaml). Their expected
 // values were produced once with PyYAML 6.0, from the repository root:

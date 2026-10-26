@@ -3,7 +3,7 @@
 // blocked plan, the refusals before any model call, the re-ask, the replace rules, the
 // review that fails, the warnings, and no write under .claude/ nor outside the code
 // folder in any case. Run:
-//   node --test src/crews/dev-plan/application/run-dev-plan.test.ts
+//   node --test tests/crews/dev-plan/application/run-dev-plan.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

@@ -1,6 +1,6 @@
 // The CLI metadata of commands/_lib/status/meta.ts (/status's version row, /release-notes),
 // pinned to the sources so it cannot go stale. Run:
-//   node --test src/commands/_lib/status/meta.test.ts
+//   node --test tests/commands/_lib/status/meta.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual, ok } from "node:assert";
 import { readFileSync } from "node:fs";

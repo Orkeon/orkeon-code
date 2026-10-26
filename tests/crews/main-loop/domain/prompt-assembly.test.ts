@@ -3,7 +3,7 @@
 // byte-stable across turns, and the volatile blocks all live in the USER body
 // assemblePrompt() produces. The rule markers pin the behaviour specification of
 // docs/architecture.md, "Prompt assembly".
-// Run: node --test src/crews/main-loop/domain/prompt-assembly.test.ts
+// Run: node --test tests/crews/main-loop/domain/prompt-assembly.test.ts
 
 import { describe, it } from "node:test";
 import { strictEqual, ok, deepStrictEqual } from "node:assert";

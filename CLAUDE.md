@@ -37,8 +37,8 @@ that breaks the rule; never weaken it to make a change pass, move the code inste
 - Application never imports infrastructure: what it needs from the runtime it receives as a parameter typed by a
   port. A new need of the runtime is a new port in `ports/<concern>.ts` plus its line in the `ports.ts` barrel, an
   adapter in `orkeon/`, a fake in `tests/support/doubles/`.
-- Domain and application never import `commands/` nor an entry point. Only the crew entry points import
-  `globals.ts`; only a `*.cmd.ts` calls `defineCommand`. A `*.cmd.ts` never imports `crews/*/domain` nor
+- Domain and application never import `commands/` nor an entry point. Only `shared/infrastructure/` and the crew
+  entry points import `globals.ts`; only a `*.cmd.ts` calls `defineCommand`. A `*.cmd.ts` never imports `crews/*/domain` nor
   `crews/*/application`: it calls a use case of `commands/_lib/`.
 - Only `shared/infrastructure/` reads the clock (`new Date()` with no argument, `Date()`, `Date.now()`): the rest of
   `src/` takes the `Clock` port, and a test a `FakeClock`.

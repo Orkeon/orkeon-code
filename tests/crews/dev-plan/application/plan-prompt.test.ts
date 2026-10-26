@@ -1,7 +1,7 @@
 // The planner's prompt: each behaviour pinned by one marker, the design rules listed, the
 // material after the instructions, the re-ask with its problems before the material, the
 // cap and its cut order, and no host vocabulary. Run:
-//   node --test src/crews/dev-plan/application/plan-prompt.test.ts
+//   node --test tests/crews/dev-plan/application/plan-prompt.test.ts
 import { describe, it } from "node:test";
 import { ok, strictEqual } from "node:assert";
 

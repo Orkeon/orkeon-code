@@ -1,7 +1,7 @@
 /// <reference path="../../../../src/crews/.orkeon/orkeon.d.ts" />
 // The children of a crew run over the runtime (A-3): the ChildRuntime adapter, the child's body
 // and withChildAct, over a hand-made agent context and crew. Run:
-//   node --test src/shared/infrastructure/orkeon/child-agents.test.ts
+//   node --test tests/shared/infrastructure/orkeon/child-agents.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, rejects, strictEqual } from "node:assert";
 

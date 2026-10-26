@@ -1,6 +1,6 @@
 // /commit (commands/_lib/git/commit.ts): the mode check, the confirmation and its refusals, and the crew's input,
 // over a scripted session and confirmation, FakeToolCatalogue, FakePermissionRules and FakeLogger. Run:
-//   node --test src/commands/_lib/git/commit.test.ts
+//   node --test tests/commands/_lib/git/commit.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual } from "node:assert";
 

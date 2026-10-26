@@ -1,6 +1,6 @@
 // A batch's worktree over FakeShell: created under .orkeon/worktrees (never .claude/), removed only when
 // nothing in it is lost, and its branch merged by fast-forward on a VALID audit only, never pushed. Run:
-//   node --test src/shared/application/git/batch-worktree.test.ts
+//   node --test tests/shared/application/git/batch-worktree.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

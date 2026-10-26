@@ -1,5 +1,5 @@
 // The two writing roles of a batch step: their tools and their prompts' reading and editing rules. Run:
-//   node --test src/crews/dev-implement/domain/roles.test.ts
+//   node --test tests/crews/dev-implement/domain/roles.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok } from "node:assert";
 

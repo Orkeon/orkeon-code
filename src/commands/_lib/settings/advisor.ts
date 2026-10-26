@@ -9,7 +9,7 @@ import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import type { Logger, SessionMetadata, Telemetry } from "../../../shared/application/ports.ts";
 import { judgeModelChoice } from "../../../shared/domain/model-catalog.ts";
 
-export const ADVISOR_KEY = "advisor.model";
+const ADVISOR_KEY = "advisor.model";
 
 export interface AdvisorDeps {
   config: Pick<ConfigStore, "readValue" | "readFile" | "writeFile">;

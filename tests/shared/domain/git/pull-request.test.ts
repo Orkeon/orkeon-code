@@ -1,6 +1,6 @@
 // The pull request opened with the github tool: origin's repository and the
 // decision that mirrors the host gate. Run:
-//   node --test src/shared/domain/git/pull-request.test.ts
+//   node --test tests/shared/domain/git/pull-request.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

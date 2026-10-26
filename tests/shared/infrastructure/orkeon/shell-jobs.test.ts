@@ -1,5 +1,5 @@
 // The ShellJobs adapter over a FakeTools shell_command. Run:
-//   node --test src/shared/infrastructure/orkeon/shell-jobs.test.ts
+//   node --test tests/shared/infrastructure/orkeon/shell-jobs.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, rejects, strictEqual } from "node:assert";
 

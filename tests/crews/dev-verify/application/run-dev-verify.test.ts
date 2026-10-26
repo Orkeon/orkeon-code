@@ -1,7 +1,7 @@
 // runDevVerify over FakeFiles, FakeShell, FakeLlm and a config store on FakeFiles: a
 // demo plan folder whose gate is green, then each outcome of the command - red gate,
 // --gate-only, VALID, GAPS, BLOCKED, resume, the refusals, full. Run:
-//   node --test src/crews/dev-verify/application/run-dev-verify.test.ts
+//   node --test tests/crews/dev-verify/application/run-dev-verify.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

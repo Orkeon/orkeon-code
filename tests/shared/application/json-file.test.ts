@@ -1,5 +1,5 @@
 // The hand-editable JSON file over FakeFiles. Run:
-//   node --test src/shared/application/json-file.test.ts
+//   node --test tests/shared/application/json-file.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual } from "node:assert";
 

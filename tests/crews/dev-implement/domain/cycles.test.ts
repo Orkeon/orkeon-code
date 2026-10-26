@@ -1,5 +1,5 @@
 // The cycles of a run. Run:
-//   node --test src/crews/dev-implement/domain/cycles.test.ts
+//   node --test tests/crews/dev-implement/domain/cycles.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

@@ -1,6 +1,6 @@
 // The plumbing of the dev crews' onToolCall and onToolResult over a FakeShell (the hooks), a file reader and a
 // FakeLogger; the decision itself is tool-call-policy.test.ts's. Run:
-//   node --test src/shared/application/dev/tool-callbacks.test.ts
+//   node --test tests/shared/application/dev/tool-callbacks.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

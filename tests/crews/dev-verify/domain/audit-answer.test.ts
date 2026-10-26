@@ -1,5 +1,5 @@
 // The auditor's JSON answer: its schema and every problem the check names. Run:
-//   node --test src/crews/dev-verify/domain/audit-answer.test.ts
+//   node --test tests/crews/dev-verify/domain/audit-answer.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok } from "node:assert";
 

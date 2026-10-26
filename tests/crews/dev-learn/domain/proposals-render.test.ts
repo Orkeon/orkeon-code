@@ -1,6 +1,6 @@
 // PROPOSALS.md rendered from a ProposalsFile literal: the design's sample byte for
 // byte, each outcome other than proposed, and the cell escaping. Run:
-//   node --test src/crews/dev-learn/domain/proposals-render.test.ts
+//   node --test tests/crews/dev-learn/domain/proposals-render.test.ts
 import { describe, it } from "node:test";
 import { ok, strictEqual } from "node:assert";
 

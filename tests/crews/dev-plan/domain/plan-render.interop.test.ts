@@ -1,7 +1,7 @@
 // The interoperability test of the plan renderer: what /dev-plan writes is what the
 // harness's implement, verify and batches steps read, and what L-1 parses back. The
 // golden renders are byte for byte; the patterns below are a file format. Run:
-//   node --test src/crews/dev-plan/domain/plan-render.interop.test.ts
+//   node --test tests/crews/dev-plan/domain/plan-render.interop.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

@@ -1,5 +1,5 @@
 // The host's failure marker read as a failure, never as an answer. Run:
-//   node --test src/shared/domain/llm-failure.test.ts
+//   node --test tests/shared/domain/llm-failure.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, ok } from "node:assert";
 

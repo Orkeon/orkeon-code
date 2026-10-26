@@ -1,6 +1,6 @@
 // /status (commands/_lib/status/status.ts): the rows the baseline names, and runStatus
 // over the fakes. Run:
-//   node --test src/commands/_lib/status/status.test.ts
+//   node --test tests/commands/_lib/status/status.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, ok, deepStrictEqual } from "node:assert";
 

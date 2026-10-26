@@ -1,6 +1,6 @@
 // Unit tests for the inventory's pure part: the hits kept, the layer of a path, and the
 // lines the planner's prompt shows. Run:
-//   node --test src/crews/dev-plan/domain/inventory-model.test.ts
+//   node --test tests/crews/dev-plan/domain/inventory-model.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

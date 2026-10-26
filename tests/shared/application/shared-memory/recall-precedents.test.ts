@@ -1,5 +1,5 @@
 // recallEntries and recallPrecedents over FakeSharedMemory and FakeFiles (M-3). Run:
-//   node --test src/shared/application/shared-memory/recall-precedents.test.ts
+//   node --test tests/shared/application/shared-memory/recall-precedents.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

@@ -1,5 +1,5 @@
 // The session service over FakeSessionStore and a config store on FakeFiles. Run:
-//   node --test src/shared/application/session-io.test.ts
+//   node --test tests/shared/application/session-io.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, rejects } from "node:assert";
 

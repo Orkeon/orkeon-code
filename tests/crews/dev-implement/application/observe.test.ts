@@ -1,5 +1,5 @@
 // The tree snapshot between two acts. Run:
-//   node --test src/crews/dev-implement/application/observe.test.ts
+//   node --test tests/crews/dev-implement/application/observe.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

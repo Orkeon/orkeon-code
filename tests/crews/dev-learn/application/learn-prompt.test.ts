@@ -1,7 +1,7 @@
 // The learner's prompt: each behaviour pinned by one marker, the material after the
 // instructions, the table cut as the harness cuts its cells, the re-ask with its
 // problems, and no host vocabulary. Run:
-//   node --test src/crews/dev-learn/application/learn-prompt.test.ts
+//   node --test tests/crews/dev-learn/application/learn-prompt.test.ts
 import { describe, it } from "node:test";
 import { ok, strictEqual } from "node:assert";
 

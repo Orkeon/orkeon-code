@@ -1,6 +1,6 @@
 // The rule sets each dev step holds, a role's rules on the pack's roots, and what a step says
 // when the host's gate is off. Run:
-//   node --test src/shared/domain/dev/step-rules.test.ts
+//   node --test tests/shared/domain/dev/step-rules.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

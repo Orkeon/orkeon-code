@@ -2,7 +2,7 @@
 // F3 alone), FakeFiles and a scripted git: the run record, the launch of the next batch, the log, the
 // resume after a kill, a stop, the review of a batch whose dependencies closed, and the close of the
 // plan with one push and one pull request. Run:
-//   node --test src/crews/dev-batches/application/run-dev-batches.test.ts
+//   node --test tests/crews/dev-batches/application/run-dev-batches.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

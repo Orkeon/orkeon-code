@@ -1,5 +1,5 @@
 // memory_push's use case (M-4): a candidate written, or refused with nothing written. Run:
-//   node --test src/shared/application/shared-memory/push-candidate.test.ts
+//   node --test tests/shared/application/shared-memory/push-candidate.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual, ok } from "node:assert";
 
@@ -86,7 +86,7 @@ describe("pushCandidate", () => {
   it("says a write failure", async () => {
     // Arrange
     const files = new LiveListingFiles();
-    files.writeFailures.set(CANDIDATE_PATH, new Error("read-only mount"));
+    files.writeErrors.push({ prefix: CANDIDATE_PATH, error: () => new Error("read-only mount") });
 
     // Act
     const failed = await pushCandidate({ files, clock }, memory, input);

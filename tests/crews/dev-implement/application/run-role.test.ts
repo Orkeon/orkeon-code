@@ -1,5 +1,5 @@
 // One act of a role. Run:
-//   node --test src/crews/dev-implement/application/run-role.test.ts
+//   node --test tests/crews/dev-implement/application/run-role.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual } from "node:assert";
 

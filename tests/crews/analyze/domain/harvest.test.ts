@@ -1,6 +1,6 @@
 // /analyze — harvest rendering tests, on the payload shapes captured live
 // 2026-08-06 (see docs/b14-codeintel-probe-transcript.md). Run:
-//   node --test src/crews/analyze/domain/harvest.test.ts
+//   node --test tests/crews/analyze/domain/harvest.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, ok } from "node:assert";
 

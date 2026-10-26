@@ -1,5 +1,5 @@
 // One main-loop turn over the fakes of its ports. Run:
-//   node --test src/crews/main-loop/application/run-main-loop.test.ts
+//   node --test tests/crews/main-loop/application/run-main-loop.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok, rejects } from "node:assert";
 

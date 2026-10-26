@@ -1,7 +1,7 @@
 // memory_recall and memory_push over a recording builder and the fakes (M-5): the declared access,
 // the schema keys a rule may name, the recall's shape, the push's candidate, its refusal in a
 // read-only mode, and a throw turned into a refusal. Run:
-//   node --test src/shared/infrastructure/orkeon/memory-tools.test.ts
+//   node --test tests/shared/infrastructure/orkeon/memory-tools.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual, ok } from "node:assert";
 

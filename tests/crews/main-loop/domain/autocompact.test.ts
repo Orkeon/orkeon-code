@@ -1,4 +1,4 @@
-// F3.5 — circuit breaker transitions. Run: node --test src/crews/main-loop/domain/autocompact.test.ts
+// F3.5 — circuit breaker transitions. Run: node --test tests/crews/main-loop/domain/autocompact.test.ts
 import { describe, it } from "node:test";
 import { strictEqual } from "node:assert";
 import { isBreakerOpen, nextFailureCount } from "../../../../src/crews/main-loop/domain/autocompact.ts";

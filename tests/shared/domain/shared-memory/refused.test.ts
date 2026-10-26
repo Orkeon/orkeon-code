@@ -1,5 +1,5 @@
 // The refused motifs file: parsing, appending, topics and project names. Run:
-//   node --test src/shared/domain/shared-memory/refused.test.ts
+//   node --test tests/shared/domain/shared-memory/refused.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 

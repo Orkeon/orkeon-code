@@ -2,7 +2,7 @@
 // FakeCrewHost and a FakeToolCatalogue (the speech crew to show a dictation,
 // the main loop to send it, at once with --go), and the lines its completion
 // writes. Run:
-//   node --test src/commands/_lib/speech/voice.test.ts
+//   node --test tests/commands/_lib/speech/voice.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 import {

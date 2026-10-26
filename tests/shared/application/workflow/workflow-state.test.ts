@@ -1,6 +1,6 @@
 // The state file written before a compaction, over the fixture work folder
 // tests/fixtures/dev/workbench/demo/, FakeFiles, FakeShell and FakeSessionStore. Run:
-//   node --test src/shared/application/workflow/workflow-state.test.ts
+//   node --test tests/shared/application/workflow/workflow-state.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, rejects, strictEqual } from "node:assert";
 

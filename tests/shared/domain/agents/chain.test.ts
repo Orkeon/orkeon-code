@@ -1,5 +1,5 @@
 // The chain-depth refusal of runCrewAsync from a completed (V-A5). Run:
-//   node --test src/shared/domain/agents/chain.test.ts
+//   node --test tests/shared/domain/agents/chain.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

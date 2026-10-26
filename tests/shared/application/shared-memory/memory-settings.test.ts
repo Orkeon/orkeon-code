@@ -1,5 +1,5 @@
 // The shared memory's settings as they apply (M-2). Run:
-//   node --test src/shared/application/shared-memory/memory-settings.test.ts
+//   node --test tests/shared/application/shared-memory/memory-settings.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

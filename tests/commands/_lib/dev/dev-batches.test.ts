@@ -1,6 +1,6 @@
 // /dev-batches' arguments and its chain in `completed` (src/commands/_lib/dev/dev-batches.ts): each answer
 // told apart by the crew that gave it. Run:
-//   node --test src/commands/_lib/dev/dev-batches.test.ts
+//   node --test tests/commands/_lib/dev/dev-batches.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

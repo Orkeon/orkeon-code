@@ -1,6 +1,6 @@
 // The guard chain of Orkeon Code's own tools: order, first refusal, a throwing guard
 // refuses; the rule guard reads the rules as the gate does; arguments and tails. Run:
-//   node --test src/shared/domain/dev/tool-guards.test.ts
+//   node --test tests/shared/domain/dev/tool-guards.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

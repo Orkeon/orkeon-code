@@ -1,5 +1,5 @@
 // The CrewMemory adapter over a FakeAgentContext. Run:
-//   node --test src/shared/infrastructure/orkeon/crew-memory.test.ts
+//   node --test tests/shared/infrastructure/orkeon/crew-memory.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual } from "node:assert";
 

@@ -1,5 +1,5 @@
 // The host provider's name read from the command context's llm service. Run:
-//   node --test src/shared/infrastructure/orkeon/host-provider.test.ts
+//   node --test tests/shared/infrastructure/orkeon/host-provider.test.ts
 import { describe, it } from "node:test";
 import { strictEqual } from "node:assert";
 

@@ -1,5 +1,5 @@
 // The project's files read with git for a brief. Run:
-//   node --test src/shared/application/dev/project-files.test.ts
+//   node --test tests/shared/application/dev/project-files.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual } from "node:assert";
 

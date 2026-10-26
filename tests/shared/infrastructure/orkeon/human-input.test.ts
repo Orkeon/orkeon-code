@@ -1,5 +1,5 @@
 // createHumanInput over a stub of tools.humanInput: what each runtime provider returns, read as a person's answer or
-// as nobody answering - never a default answer. Run:  node --test src/shared/infrastructure/orkeon/human-input.test.ts
+// as nobody answering - never a default answer. Run:  node --test tests/shared/infrastructure/orkeon/human-input.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual } from "node:assert";
 

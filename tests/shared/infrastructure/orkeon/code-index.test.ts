@@ -1,6 +1,6 @@
 // The CodeIndex adapter over the FakeTools code-intelligence tools, and the AnchorIndex adapter over a
 // batch_anchors stub (FakeTools fakes no batch_anchors). Run:
-//   node --test src/shared/infrastructure/orkeon/code-index.test.ts
+//   node --test tests/shared/infrastructure/orkeon/code-index.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, rejects } from "node:assert";
 

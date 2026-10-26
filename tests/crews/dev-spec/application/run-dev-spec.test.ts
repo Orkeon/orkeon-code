@@ -2,7 +2,7 @@
 // questions asked Blocking first with each answer in the file before the next question, the fold, the review and
 // its Blocking row asked; the unattended run that ends BLOCKED with the questions in the file and no review; the
 // revision that keeps the decisions; the refusals before any model call; nothing written outside the code folder.
-// Run:  node --test src/crews/dev-spec/application/run-dev-spec.test.ts
+// Run:  node --test tests/crews/dev-spec/application/run-dev-spec.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, rejects, strictEqual } from "node:assert";
 

@@ -1,5 +1,5 @@
 // The sheet's assumptions and the done marks of the close. Run:
-//   node --test src/crews/dev-implement/domain/sheet-edits.test.ts
+//   node --test tests/crews/dev-implement/domain/sheet-edits.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

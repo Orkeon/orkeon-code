@@ -3,7 +3,7 @@
 // extra tools and hands the session's rules to the host gate (a
 // FakePermissionRules) before it — down to the turn it starts, for /mode;
 // writeCompleted, the line its completion writes. Run:
-//   node --test src/commands/_lib/dispatch.test.ts
+//   node --test tests/commands/_lib/dispatch.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual, throws } from "node:assert";
 

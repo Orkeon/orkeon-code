@@ -1,5 +1,5 @@
 // The shared memory's folder layout and collection name (M-2). Run:
-//   node --test src/shared/domain/shared-memory/layout.test.ts
+//   node --test tests/shared/domain/shared-memory/layout.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

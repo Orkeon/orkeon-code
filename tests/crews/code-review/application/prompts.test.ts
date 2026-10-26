@@ -1,5 +1,5 @@
 // The review-lens prompt: its contract, its passes (`/passes`), its material. Run:
-//   node --test src/crews/code-review/application/prompts.test.ts
+//   node --test tests/crews/code-review/application/prompts.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, ok } from "node:assert";
 

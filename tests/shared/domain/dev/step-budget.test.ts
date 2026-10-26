@@ -1,5 +1,5 @@
 // The step budgets and the reader of a spent one, from the error or its message. Run:
-//   node --test src/shared/domain/dev/step-budget.test.ts
+//   node --test tests/shared/domain/dev/step-budget.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

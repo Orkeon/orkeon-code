@@ -1,7 +1,7 @@
 // The evidence a change brief stands on: which command may run (a narrow test command of the pack, or the CLI and
 // plain words that stay in the checkout), and which run stops the step (a bug that does not fail or never ran, a
 // failed measurement, a timeout).
-// Run:  node --test src/crews/dev-change/application/evidence.test.ts
+// Run:  node --test tests/crews/dev-change/application/evidence.test.ts
 import { describe, it } from "node:test";
 import { ok, strictEqual } from "node:assert";
 

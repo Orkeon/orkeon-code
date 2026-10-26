@@ -1,5 +1,5 @@
 // The built-in charters run as children of the dev steps (A-3). Run:
-//   node --test src/shared/domain/agents/built-in-charters.test.ts
+//   node --test tests/shared/domain/agents/built-in-charters.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

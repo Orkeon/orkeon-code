@@ -1,6 +1,6 @@
 // /diff (commands/_lib/git/diff.ts): the option and pathspec allowlist, and runDiff
 // over FakeShell. Run:
-//   node --test src/commands/_lib/git/diff.test.ts
+//   node --test tests/commands/_lib/git/diff.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, ok, deepStrictEqual } from "node:assert";
 

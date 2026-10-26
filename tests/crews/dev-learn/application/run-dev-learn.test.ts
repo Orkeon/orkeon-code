@@ -2,7 +2,7 @@
 // and a fixed clock: --list (no model, no write), the proposals written for the one
 // eligible axis, each code filter, the re-ask, the reconcile texts, the unchanged
 // skip, the refusals, and no write under .claude/. Run:
-//   node --test src/crews/dev-learn/application/run-dev-learn.test.ts
+//   node --test tests/crews/dev-learn/application/run-dev-learn.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

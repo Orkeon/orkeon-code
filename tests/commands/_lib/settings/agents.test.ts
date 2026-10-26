@@ -1,6 +1,6 @@
 // /agents (commands/_lib/settings/agents.ts) over FakeFiles and FakeCrewHost: every
 // sub-command, its refusals and its usage lines. Run:
-//   node --test src/commands/_lib/settings/agents.test.ts
+//   node --test tests/commands/_lib/settings/agents.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

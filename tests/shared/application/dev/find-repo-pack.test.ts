@@ -1,5 +1,5 @@
 // Unit tests for the repository pack lookup. Run:
-//   node --test src/shared/application/dev/find-repo-pack.test.ts
+//   node --test tests/shared/application/dev/find-repo-pack.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

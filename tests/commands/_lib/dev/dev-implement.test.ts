@@ -1,5 +1,5 @@
 // /dev-implement's arguments and its chain in `completed` (src/commands/_lib/dev/dev-implement.ts). Run:
-//   node --test src/commands/_lib/dev/dev-implement.test.ts
+//   node --test tests/commands/_lib/dev/dev-implement.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

@@ -1,5 +1,5 @@
 // The Progress adapter over FakeTools progress_report: best effort by contract. Run:
-//   node --test src/shared/infrastructure/orkeon/progress.test.ts
+//   node --test tests/shared/infrastructure/orkeon/progress.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, doesNotReject } from "node:assert";
 

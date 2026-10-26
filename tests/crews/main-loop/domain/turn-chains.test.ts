@@ -1,5 +1,5 @@
 // The two chains of checks around a main-loop turn, and their built-in guards. Run:
-//   node --test src/crews/main-loop/domain/turn-chains.test.ts
+//   node --test tests/crews/main-loop/domain/turn-chains.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

@@ -1,6 +1,6 @@
 // settleQuestions and questionRound over a scripted HumanInput: one question at a time, Blocking first, each answer
 // saved before the next question, "Leave it open" keeping the row, nobody answering stopping at once, and the fold
-// after a round (its failure keeping the decisions). Run:  node --test src/shared/application/dev/settle-questions.test.ts
+// after a round (its failure keeping the decisions). Run:  node --test tests/shared/application/dev/settle-questions.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

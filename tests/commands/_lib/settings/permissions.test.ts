@@ -3,7 +3,7 @@
 // FakePermissionRules and the host's tools on FakeToolCatalogue: every
 // sub-command, what it hands the gate, its refusals, its usage lines, and the
 // extra tools of `tools.extra`. Run:
-//   node --test src/commands/_lib/settings/permissions.test.ts
+//   node --test tests/commands/_lib/settings/permissions.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok } from "node:assert";
 

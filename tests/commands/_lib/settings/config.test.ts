@@ -1,6 +1,6 @@
 // /config (commands/_lib/settings/config.ts) over a config store on FakeFiles and
 // FakeSessionStore: every sub-command, its refusals and its usage lines. Run:
-//   node --test src/commands/_lib/settings/config.test.ts
+//   node --test tests/commands/_lib/settings/config.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok } from "node:assert";
 

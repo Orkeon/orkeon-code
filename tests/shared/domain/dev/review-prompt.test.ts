@@ -2,7 +2,7 @@
 // marker, the material kept in the brief alone, the brief under the sub-agent cap,
 // the reply cut keeping its end. The sample is written here, never borrowed from
 // the prompt catalogue or the fixtures. Run:
-//   node --test src/shared/domain/dev/review-prompt.test.ts
+//   node --test tests/shared/domain/dev/review-prompt.test.ts
 import { describe, it } from "node:test";
 import { ok, strictEqual } from "node:assert";
 

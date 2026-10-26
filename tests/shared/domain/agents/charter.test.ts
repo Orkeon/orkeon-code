@@ -1,5 +1,5 @@
 // A sub-agent's charter: its catalogue and the reasons it cannot run. Run:
-//   node --test src/shared/domain/agents/charter.test.ts
+//   node --test tests/shared/domain/agents/charter.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

@@ -1,6 +1,6 @@
 // /memory (commands/_lib/memory/memory.ts) over FakeMemoryStore: list, add, delete and
 // get, and the usage line of an empty add. Run:
-//   node --test src/commands/_lib/memory/memory.test.ts
+//   node --test tests/commands/_lib/memory/memory.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual } from "node:assert";
 

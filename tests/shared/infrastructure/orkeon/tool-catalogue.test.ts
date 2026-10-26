@@ -1,7 +1,7 @@
 // The ToolCatalogue adapter: the registered names from a `tools` service served by a
 // FakeServiceLocator, the calls through a tools namespace of plain functions, and
 // the camelCase naming it reads that namespace with. Run:
-//   node --test src/shared/infrastructure/orkeon/tool-catalogue.test.ts
+//   node --test tests/shared/infrastructure/orkeon/tool-catalogue.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, rejects } from "node:assert";
 

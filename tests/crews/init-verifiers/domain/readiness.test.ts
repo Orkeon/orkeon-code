@@ -1,4 +1,4 @@
-// Run: node --test src/crews/init-verifiers/domain/readiness.test.ts
+// Run: node --test tests/crews/init-verifiers/domain/readiness.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 

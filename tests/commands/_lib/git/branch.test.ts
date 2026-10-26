@@ -1,6 +1,6 @@
 // /branch (commands/_lib/git/branch.ts): the dirty-tree guard, the name check, and
 // runBranch over FakeShell. Run:
-//   node --test src/commands/_lib/git/branch.test.ts
+//   node --test tests/commands/_lib/git/branch.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok } from "node:assert";
 

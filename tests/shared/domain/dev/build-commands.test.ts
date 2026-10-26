@@ -1,5 +1,5 @@
 // The build run_build runs, the restore it never runs, and the cold tree it restores once. Run:
-//   node --test src/shared/domain/dev/build-commands.test.ts
+//   node --test tests/shared/domain/dev/build-commands.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

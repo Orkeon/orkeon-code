@@ -1,5 +1,5 @@
 // /memory-admit (M-4): parsing, the list, a refusal, one confirmation per candidate, the headless
-// refusal and auto-admission of an audited candidate. Run: node --test src/commands/_lib/memory/memory-admit.test.ts
+// refusal and auto-admission of an audited candidate. Run: node --test tests/commands/_lib/memory/memory-admit.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual, ok } from "node:assert";
 

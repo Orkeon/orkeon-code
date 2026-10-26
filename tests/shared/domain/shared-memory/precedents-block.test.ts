@@ -1,5 +1,5 @@
 // The "## Precedents" block (M-3): markers, bounds, grouping, cut line. Run:
-//   node --test src/shared/domain/shared-memory/precedents-block.test.ts
+//   node --test tests/shared/domain/shared-memory/precedents-block.test.ts
 import { describe, it } from "node:test";
 import { ok, strictEqual } from "node:assert";
 

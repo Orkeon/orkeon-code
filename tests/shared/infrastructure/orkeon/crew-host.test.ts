@@ -1,5 +1,5 @@
 // The CrewHost adapter over a FakeScriptHost served by a FakeServiceLocator. Run:
-//   node --test src/shared/infrastructure/orkeon/crew-host.test.ts
+//   node --test tests/shared/infrastructure/orkeon/crew-host.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, throws } from "node:assert";
 

@@ -1,6 +1,6 @@
 // The shared memory's files as the use cases read and write them: a file read or found absent, the pending
 // candidates, the refused topics, a candidate's file, and INDEX.md regenerated. Over FakeFiles. Run:
-//   node --test src/shared/application/shared-memory/memory-files.test.ts
+//   node --test tests/shared/application/shared-memory/memory-files.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, rejects, strictEqual } from "node:assert";
 

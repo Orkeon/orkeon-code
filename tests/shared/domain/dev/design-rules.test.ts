@@ -1,5 +1,5 @@
 // Unit tests for the design-rule ids and their wording. Run:
-//   node --test src/shared/domain/dev/design-rules.test.ts
+//   node --test tests/shared/domain/dev/design-rules.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

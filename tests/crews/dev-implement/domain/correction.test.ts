@@ -1,5 +1,5 @@
 // A correction appended to a batch sheet. Run:
-//   node --test src/crews/dev-implement/domain/correction.test.ts
+//   node --test tests/crews/dev-implement/domain/correction.test.ts
 import { describe, it } from "node:test";
 import { ok, strictEqual } from "node:assert";
 

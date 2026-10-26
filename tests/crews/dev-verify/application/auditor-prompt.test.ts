@@ -1,6 +1,6 @@
 // The auditor's prompts: each behaviour of the specification pinned by one marker,
 // the material kept out of the system message, the reply cut keeping its end. Run:
-//   node --test src/crews/dev-verify/application/auditor-prompt.test.ts
+//   node --test tests/crews/dev-verify/application/auditor-prompt.test.ts
 import { describe, it } from "node:test";
 import { ok, strictEqual } from "node:assert";
 

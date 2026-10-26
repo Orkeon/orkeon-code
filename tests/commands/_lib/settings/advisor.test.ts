@@ -1,6 +1,6 @@
 // /advisor (commands/_lib/settings/advisor.ts): the launch of the review, the setting shown, disabled and set, over a
 // config store on FakeFiles, FakeTelemetry and FakeLogger. Run:
-//   node --test src/commands/_lib/settings/advisor.test.ts
+//   node --test tests/commands/_lib/settings/advisor.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual } from "node:assert";
 

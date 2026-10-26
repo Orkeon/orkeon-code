@@ -43,9 +43,10 @@ opened against the runtime (Orkeon #196 to #200) and changes the surface Orkeon 
 
 - `scripts/smoke-runtime.sh` keeps feeding `/exit` through the standard input: `--replay` would give it exit codes
   of its own, once the replay file is written under a mount the `--demo` mode creates (`/tmp`). A possible follow-up.
-- `/tasks` shows a task blocked on the operator as such, where it read "running" before.
-- The `No mount found for virtual path` text the agents used to meet is gone from the runtime; the comments that
-  cited it say what the resolution is for now.
+- `/tasks` shows a task blocked on the operator as such, under the list, where only its "running" row showed
+  before.
+- A relative path no longer meets the `No mount found for virtual path` text; the runtime keeps it, with a hint,
+  for a path in no mount. The comments that cited it say what the resolution is for now.
 
 ## Alternatives considered
 

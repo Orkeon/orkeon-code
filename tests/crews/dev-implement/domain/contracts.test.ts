@@ -1,5 +1,5 @@
 // The RED and GREEN briefs made by code. Run:
-//   node --test src/crews/dev-implement/domain/contracts.test.ts
+//   node --test tests/crews/dev-implement/domain/contracts.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

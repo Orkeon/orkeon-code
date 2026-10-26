@@ -1,6 +1,6 @@
 // run_tests and run_build over FakeShell and FakeFiles: the pack's commands only, the
 // integration rule, no restore but the one of a cold tree, the step's rules, the log. Run:
-//   node --test src/shared/application/dev/wrapped-tools.test.ts
+//   node --test tests/shared/application/dev/wrapped-tools.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

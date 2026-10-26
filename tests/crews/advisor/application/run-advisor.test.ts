@@ -1,5 +1,5 @@
 // The advisor use case over the session, config and model fakes. Run:
-//   node --test src/crews/advisor/application/run-advisor.test.ts
+//   node --test tests/crews/advisor/application/run-advisor.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 

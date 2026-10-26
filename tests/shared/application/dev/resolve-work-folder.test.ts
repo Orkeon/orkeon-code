@@ -1,5 +1,5 @@
 // Unit tests for the work folder resolution, over FakeFiles and FakeShell. Run:
-//   node --test src/shared/application/dev/resolve-work-folder.test.ts
+//   node --test tests/shared/application/dev/resolve-work-folder.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

@@ -1,6 +1,6 @@
 // The SessionStore adapter over FakeTools session_store / token_budget, in both
 // casings the runtime hands back. Run:
-//   node --test src/shared/infrastructure/orkeon/session-store.test.ts
+//   node --test tests/shared/infrastructure/orkeon/session-store.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, rejects } from "node:assert";
 

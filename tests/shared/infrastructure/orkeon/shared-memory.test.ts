@@ -1,5 +1,5 @@
 // The SharedMemory adapter over a fake `rag` namespace and fake rag tools (M-3). Run:
-//   node --test src/shared/infrastructure/orkeon/shared-memory.test.ts
+//   node --test tests/shared/infrastructure/orkeon/shared-memory.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, rejects } from "node:assert";
 

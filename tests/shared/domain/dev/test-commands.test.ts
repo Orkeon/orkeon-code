@@ -1,5 +1,5 @@
 // Unit tests for the narrow test command rule. Run:
-//   node --test src/shared/domain/dev/test-commands.test.ts
+//   node --test tests/shared/domain/dev/test-commands.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

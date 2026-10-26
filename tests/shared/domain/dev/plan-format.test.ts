@@ -1,5 +1,5 @@
 // Global plan and batch sheet parsers, over the demo work folder. Run:
-//   node --test src/shared/domain/dev/plan-format.test.ts
+//   node --test tests/shared/domain/dev/plan-format.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 

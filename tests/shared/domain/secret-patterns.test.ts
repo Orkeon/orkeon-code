@@ -1,5 +1,5 @@
 // Unit tests for the shared secret detection. Run:
-//   node --test src/shared/domain/secret-patterns.test.ts
+//   node --test tests/shared/domain/secret-patterns.test.ts
 // The sample secrets are made-up and assembled from pieces, so no scanner reads them as real.
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";

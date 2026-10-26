@@ -3,7 +3,7 @@
 // motifs accepted and the others refused as --accept / --refuse would; not answered, or
 // no human port, nothing decided and the --accept hint kept. Over FakeFiles loaded from
 // tests/fixtures/dev/learn, FakeShell, FakeLlm and a fixed clock. Run:
-//   node --test src/crews/dev-learn/application/run-dev-learn.decide.test.ts
+//   node --test tests/crews/dev-learn/application/run-dev-learn.decide.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

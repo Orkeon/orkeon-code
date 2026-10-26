@@ -1,5 +1,5 @@
 // The crew shared-memory-admit's use case (M-4): admissions and refusals applied, the lists, one
-// ingestion. Run: node --test src/shared/application/shared-memory/admit-entries.test.ts
+// ingestion. Run: node --test tests/shared/application/shared-memory/admit-entries.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual, ok } from "node:assert";
 

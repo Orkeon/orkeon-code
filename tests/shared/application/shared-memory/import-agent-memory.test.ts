@@ -1,5 +1,5 @@
 // importAgentMemory (M-9): one candidate per entry of a sample MEMORY.md, none for a duplicate.
-// Run: node --test src/shared/application/shared-memory/import-agent-memory.test.ts
+// Run: node --test tests/shared/application/shared-memory/import-agent-memory.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

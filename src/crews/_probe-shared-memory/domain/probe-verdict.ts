@@ -2,7 +2,7 @@
 // fixture is written in), the recall@5 and MRR read from a rag_eval result, and the PASS/FAIL table
 // against the thresholds of the design (recall@5 >= 0.85, MRR >= 0.70 over the cases that carry a
 // `relevant`, so the negative q13 is left out; q08 never keeps a superseded id; q13 renders no block).
-// The probe (probe.ork.ts) does the calls; tests/shared-memory-fixture.test.ts reads the fixture with it.
+// The probe (probe.ork.ts) does the calls; tests/repository/shared-memory-fixture.test.ts reads the fixture with it.
 //
 // Run tests: node --test src/crews/_probe-shared-memory/domain/probe-verdict.test.ts
 

@@ -1,5 +1,5 @@
 // Unit tests for the repository pack reader. Run:
-//   node --test src/shared/domain/dev/repo-pack.test.ts
+//   node --test tests/shared/domain/dev/repo-pack.test.ts
 // tests/fixtures/dev/repo-orkeon.yaml is a copy of the workshop's repo-orkeon pack
 // (orkeon-workshop 6873ee2, packs/repo-orkeon/references/repo.yaml); the values pinned
 // below are the ones PyYAML 6.0 gives on it (see yaml-subset.test.ts).

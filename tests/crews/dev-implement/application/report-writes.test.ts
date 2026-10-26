@@ -1,5 +1,5 @@
 // The write paths heard from a role's callbacks. Run:
-//   node --test src/crews/dev-implement/application/report-writes.test.ts
+//   node --test tests/crews/dev-implement/application/report-writes.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual } from "node:assert";
 

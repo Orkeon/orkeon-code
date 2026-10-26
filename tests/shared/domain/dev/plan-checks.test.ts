@@ -1,6 +1,6 @@
 // Unit tests for the plan checks: the design ids classified (as the /dev-verify gate reads
 // them) and each row of /dev-plan's self-check failing alone, on inline texts. Run:
-//   node --test src/shared/domain/dev/plan-checks.test.ts
+//   node --test tests/shared/domain/dev/plan-checks.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

@@ -1,5 +1,5 @@
 // The shared git close over FakeShell and FakeFiles: no real git, no push. Run:
-//   node --test src/shared/application/git/commit-files.test.ts
+//   node --test tests/shared/application/git/commit-files.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

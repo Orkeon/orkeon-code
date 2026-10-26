@@ -1,5 +1,5 @@
 // The budget of a /dev-batches run and of one batch of a parallel wave. Run:
-//   node --test src/crews/dev-batches/domain/batches-budget.test.ts
+//   node --test tests/crews/dev-batches/domain/batches-budget.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

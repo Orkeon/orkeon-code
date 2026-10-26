@@ -2,7 +2,7 @@
 // /dev-plan arguments and Blocking gate (commands/_lib/dev/dev.ts) over FakeFiles, FakeShell and a config store on
 // FakeFiles. The fixture work folder tests/fixtures/dev/workbench/demo/ is loaded into
 // FakeFiles, so the batches and ticks the command prints are pinned to the files. Run:
-//   node --test src/commands/_lib/dev/dev.test.ts
+//   node --test tests/commands/_lib/dev/dev.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

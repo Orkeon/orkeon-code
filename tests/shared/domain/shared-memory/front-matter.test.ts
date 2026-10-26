@@ -1,5 +1,5 @@
 // Unit tests for the flat front matter of a memory entry. Run:
-//   node --test src/shared/domain/shared-memory/front-matter.test.ts
+//   node --test tests/shared/domain/shared-memory/front-matter.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual, throws } from "node:assert";
 

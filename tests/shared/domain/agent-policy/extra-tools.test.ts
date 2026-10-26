@@ -1,5 +1,5 @@
 // The `tools.extra` notation: entries, classes, refusals. Run:
-//   node --test src/shared/domain/agent-policy/extra-tools.test.ts
+//   node --test tests/shared/domain/agent-policy/extra-tools.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 

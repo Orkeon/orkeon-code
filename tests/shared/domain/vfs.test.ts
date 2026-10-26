@@ -1,5 +1,5 @@
 // The mount of the VFS: a path made relative to the checkout. Run:
-//   node --test src/shared/domain/vfs.test.ts
+//   node --test tests/shared/domain/vfs.test.ts
 import { describe, it } from "node:test";
 import { strictEqual } from "node:assert";
 

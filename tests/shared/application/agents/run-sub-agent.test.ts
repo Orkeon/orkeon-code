@@ -1,5 +1,5 @@
 // runSubAgent over FakeLlm: act in the charter's mode, extract, check, one re-ask. Run:
-//   node --test src/shared/application/agents/run-sub-agent.test.ts
+//   node --test tests/shared/application/agents/run-sub-agent.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

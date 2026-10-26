@@ -1,5 +1,5 @@
 // The code-review use case over the fakes of its ports. Run:
-//   node --test src/crews/code-review/application/run-code-review.test.ts
+//   node --test tests/crews/code-review/application/run-code-review.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok } from "node:assert";
 

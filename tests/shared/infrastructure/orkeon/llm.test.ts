@@ -1,5 +1,5 @@
 // The Llm adapter over a FakeLlmFacade. Run:
-//   node --test src/shared/infrastructure/orkeon/llm.test.ts
+//   node --test tests/shared/infrastructure/orkeon/llm.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, rejects } from "node:assert";
 

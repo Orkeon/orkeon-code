@@ -1,5 +1,5 @@
 // Dev artefact names. Run:
-//   node --test src/shared/domain/dev/artefacts.test.ts
+//   node --test tests/shared/domain/dev/artefacts.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 

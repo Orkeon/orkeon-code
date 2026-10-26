@@ -1,6 +1,6 @@
 // showView (commands/_lib/view.ts): how an entry point renders a use case's view.
 // Run:
-//   node --test src/commands/_lib/view.test.ts
+//   node --test tests/commands/_lib/view.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 

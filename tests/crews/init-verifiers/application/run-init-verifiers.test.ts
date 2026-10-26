@@ -1,5 +1,5 @@
 // The init-verifiers use case over FakeFiles, FakeLlm and FakeLogger. Run:
-//   node --test src/crews/init-verifiers/application/run-init-verifiers.test.ts
+//   node --test tests/crews/init-verifiers/application/run-init-verifiers.test.ts
 import { describe, it } from "node:test";
 import { ok, strictEqual, deepStrictEqual } from "node:assert";
 

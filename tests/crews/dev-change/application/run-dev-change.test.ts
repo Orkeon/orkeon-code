@@ -3,7 +3,7 @@
 // and written one at a time; a bug that does not reproduce stops with nothing else written; a command outside the
 // pack refused; a perf change measured; a refactor whose pin the index does not show turned unpinned; a feature
 // routed to /dev-spec; an issue read by gh; the unattended run BLOCKED.
-// Run:  node --test src/crews/dev-change/application/run-dev-change.test.ts
+// Run:  node --test tests/crews/dev-change/application/run-dev-change.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, rejects, strictEqual } from "node:assert";
 import { FakePrecedents, PRECEDENTS_SAMPLE } from "../../../support/doubles/fake-precedents.ts";

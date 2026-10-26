@@ -1,6 +1,6 @@
 // Unit tests for the planner's answer check: the golden answer passes, and each rule of the
 // check fails alone with its own text. Run:
-//   node --test src/crews/dev-plan/domain/plan-answer.test.ts
+//   node --test tests/crews/dev-plan/domain/plan-answer.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

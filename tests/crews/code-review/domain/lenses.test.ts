@@ -1,5 +1,5 @@
 // B-9 — lens selection (`review.lenses`) and the review plan line. Run:
-//   node --test src/crews/code-review/domain/lenses.test.ts
+//   node --test tests/crews/code-review/domain/lenses.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok } from "node:assert";
 

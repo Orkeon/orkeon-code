@@ -1,6 +1,6 @@
 // /dev-spec and /dev-change: their arguments (commands/_lib/dev/dev-source.ts), and that each step runs in a crew of its
 // own - the fork of the conversation the harness's skills asked for (runsIn: fork) - never in main-loop.
-// Run:  node --test src/commands/_lib/dev/dev-source.test.ts
+// Run:  node --test tests/commands/_lib/dev/dev-source.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok } from "node:assert";
 import { readFileSync } from "node:fs";

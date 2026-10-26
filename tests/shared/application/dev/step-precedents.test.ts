@@ -1,5 +1,5 @@
 // stepPrecedents, recallQuery and precedentsLine over FakeSharedMemory, FakeFiles and the config (M-6). Run:
-//   node --test src/shared/application/dev/step-precedents.test.ts
+//   node --test tests/shared/application/dev/step-precedents.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

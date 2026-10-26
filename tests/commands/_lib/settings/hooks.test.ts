@@ -1,6 +1,6 @@
 // /hooks (A-2): the listing with where the hooks run, an addition stored in the session, the refusal of a command
 // the shell tool refuses, a removal. Run:
-//   node --test src/commands/_lib/settings/hooks.test.ts
+//   node --test tests/commands/_lib/settings/hooks.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

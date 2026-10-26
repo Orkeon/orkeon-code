@@ -1,5 +1,5 @@
 // The state file of a dev batch and the session's pointer to it. Run:
-//   node --test src/shared/domain/workflow/state-file.test.ts
+//   node --test tests/shared/domain/workflow/state-file.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

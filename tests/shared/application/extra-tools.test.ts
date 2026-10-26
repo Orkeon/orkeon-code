@@ -1,6 +1,6 @@
 // The configured extra tools over a config store on FakeFiles, checked against
 // FakeToolCatalogue. Run:
-//   node --test src/shared/application/extra-tools.test.ts
+//   node --test tests/shared/application/extra-tools.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

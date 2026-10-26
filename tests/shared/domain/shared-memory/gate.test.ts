@@ -1,4 +1,4 @@
-// The shared memory's write gate (M-4). Run: node --test src/shared/domain/shared-memory/gate.test.ts
+// The shared memory's write gate (M-4). Run: node --test tests/shared/domain/shared-memory/gate.test.ts
 import { describe, it } from "node:test";
 import { strictEqual } from "node:assert";
 

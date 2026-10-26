@@ -1,5 +1,5 @@
 // Unit tests for the verdict. Run:
-//   node --test src/crews/dev-verify/domain/verdict.test.ts
+//   node --test tests/crews/dev-verify/domain/verdict.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

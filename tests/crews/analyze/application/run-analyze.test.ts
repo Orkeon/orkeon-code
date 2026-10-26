@@ -1,5 +1,5 @@
 // The /analyze use case over FakeCodeIndex, FakeProgress and FakeLlm. Run:
-//   node --test src/crews/analyze/application/run-analyze.test.ts
+//   node --test tests/crews/analyze/application/run-analyze.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, rejects } from "node:assert";
 

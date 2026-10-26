@@ -1,6 +1,6 @@
 // The preflight of /dev-batches over a scripted shell: each check's line, the ✗ that stops a run and
 // the ⚠ that does not. Run:
-//   node --test src/shared/application/dev/preflight.test.ts
+//   node --test tests/shared/application/dev/preflight.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

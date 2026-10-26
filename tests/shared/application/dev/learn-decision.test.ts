@@ -1,7 +1,7 @@
 // /dev-learn's decisions: the proposals of the newest learn-<date>/ folders read, --accept and --refuse, and the
 // decisions taken in the run that wrote the proposals. Over FakeFiles, FakeShell, a config store on the files and
 // FakeClock. Run:
-//   node --test src/shared/application/dev/learn-decision.test.ts
+//   node --test tests/shared/application/dev/learn-decision.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

@@ -1,5 +1,5 @@
 // The project's files as a brief lists them. Run:
-//   node --test src/shared/domain/dev/project-files.test.ts
+//   node --test tests/shared/domain/dev/project-files.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

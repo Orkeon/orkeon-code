@@ -1,6 +1,6 @@
 // The anchors of a checked answer against listings: an existing path present, a created
 // path absent, one listing per folder, each problem once. Run:
-//   node --test src/crews/dev-plan/application/anchor-paths.test.ts
+//   node --test tests/crews/dev-plan/application/anchor-paths.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

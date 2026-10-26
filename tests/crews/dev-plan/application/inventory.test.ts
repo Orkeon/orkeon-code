@@ -2,7 +2,7 @@
 // root, a build that fails or finds nothing, the round robin and its caps, dedup by fqn,
 // the symbol locations, the callers of the best entries from their batch_anchors closure,
 // imports from the module graph, the excluded paths, and the call count. Run:
-//   node --test src/crews/dev-plan/application/inventory.test.ts
+//   node --test tests/crews/dev-plan/application/inventory.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

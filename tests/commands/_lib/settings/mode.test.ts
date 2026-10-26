@@ -1,6 +1,6 @@
 // The session-default permission mode (commands/_lib/settings/mode.ts): /mode over the
 // session service on FakeSessionStore and FakeLogger, and the /plan toggle. Run:
-//   node --test src/commands/_lib/settings/mode.test.ts
+//   node --test tests/commands/_lib/settings/mode.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 

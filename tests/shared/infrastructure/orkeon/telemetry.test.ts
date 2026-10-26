@@ -1,6 +1,6 @@
 // The Telemetry adapter over FakeTools session_store / session_cost /
 // session_stats, in both casings the runtime hands back. Run:
-//   node --test src/shared/infrastructure/orkeon/telemetry.test.ts
+//   node --test tests/shared/infrastructure/orkeon/telemetry.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, rejects } from "node:assert";
 

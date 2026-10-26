@@ -1,5 +1,5 @@
 // The /commit use case over FakeShell, FakeFiles, FakeLlm, FakeCrewMemory, FakeLogger and
-// FakePullRequestOpener. Run: node --test src/crews/git-commit/application/run-git-commit.test.ts
+// FakePullRequestOpener. Run: node --test tests/crews/git-commit/application/run-git-commit.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

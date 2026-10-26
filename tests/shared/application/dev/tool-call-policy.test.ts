@@ -1,5 +1,5 @@
 // The tool-call decision of the dev crews over probes that record what they were asked. Run:
-//   node --test src/shared/application/dev/tool-call-policy.test.ts
+//   node --test tests/shared/application/dev/tool-call-policy.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

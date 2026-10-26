@@ -1,5 +1,5 @@
 // Unit tests for writeCapture over FakeFiles and FakeShell. Run:
-//   node --test src/crews/dev-verify/application/capture.test.ts
+//   node --test tests/crews/dev-verify/application/capture.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, rejects, strictEqual } from "node:assert";
 

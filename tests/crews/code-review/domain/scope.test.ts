@@ -1,5 +1,5 @@
 // B-3 — the `files` input was declared and dead. Run:
-//   node --test src/crews/code-review/domain/scope.test.ts
+//   node --test tests/crews/code-review/domain/scope.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok } from "node:assert";
 import { resolveCommitRange, resolveReviewScope } from "../../../../src/crews/code-review/domain/scope.ts";

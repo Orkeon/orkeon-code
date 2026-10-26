@@ -1,6 +1,6 @@
 // SHA-1 vectors: the standard ones, padding edges, multi-byte text, and one learning
 // row id. Run:
-//   node --test src/shared/domain/sha1.test.ts
+//   node --test tests/shared/domain/sha1.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 

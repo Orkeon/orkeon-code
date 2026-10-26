@@ -1,7 +1,7 @@
 // runDevImplement over FakeFiles, a scripted shell (git status from a fake tree, each test file red or
 // green), two scripted roles that write into that tree, and fake shell jobs: the steps in order, the
 // checks that stop a batch, the resume, the hand-over to /dev-verify, and the close. Run:
-//   node --test src/crews/dev-implement/application/run-dev-implement.test.ts
+//   node --test tests/crews/dev-implement/application/run-dev-implement.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

@@ -1,5 +1,5 @@
 // The Files adapter over FakeTools file_read / file_write / directory_read. Run:
-//   node --test src/shared/infrastructure/orkeon/files.test.ts
+//   node --test tests/shared/infrastructure/orkeon/files.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, rejects } from "node:assert";
 

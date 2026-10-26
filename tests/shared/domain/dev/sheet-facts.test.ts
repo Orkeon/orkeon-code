@@ -1,5 +1,5 @@
 // Unit tests for the facts the gate reads off a batch sheet. Run:
-//   node --test src/shared/domain/dev/sheet-facts.test.ts
+//   node --test tests/shared/domain/dev/sheet-facts.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

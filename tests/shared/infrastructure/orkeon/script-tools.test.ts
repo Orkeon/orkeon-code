@@ -1,7 +1,7 @@
 // The script tools over a recording builder: each declares the access of SCRIPT_TOOLS, a
 // schema whose keys are the arguments a rule may name, refuses until its slot is bound,
 // and never throws to the model. Run:
-//   node --test src/shared/infrastructure/orkeon/script-tools.test.ts
+//   node --test tests/shared/infrastructure/orkeon/script-tools.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual, throws } from "node:assert";
 

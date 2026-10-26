@@ -2,7 +2,7 @@
 // once it is merged, over FakeFiles: the seed makes a fresh worktree's files equal to the checkout's (not the
 // committed copy git gave it), a reused one keeps its batch's own files; the harvest brings back only what the
 // batch changed, never over a file the checkout changed since the seed, and never the plan. Run:
-//   node --test src/crews/dev-batches/application/seed-harvest.test.ts
+//   node --test tests/crews/dev-batches/application/seed-harvest.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

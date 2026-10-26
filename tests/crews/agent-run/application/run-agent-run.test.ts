@@ -1,5 +1,5 @@
 // One act of a built-in charter on a repair brief (A-3), over a FakeLlm. Run:
-//   node --test src/crews/agent-run/application/run-agent-run.test.ts
+//   node --test tests/crews/agent-run/application/run-agent-run.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, rejects, strictEqual } from "node:assert";
 

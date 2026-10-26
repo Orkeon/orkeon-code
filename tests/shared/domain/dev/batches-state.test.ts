@@ -1,5 +1,5 @@
 // Batches-state log, read only. Run:
-//   node --test src/shared/domain/dev/batches-state.test.ts
+//   node --test tests/shared/domain/dev/batches-state.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 

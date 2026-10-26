@@ -1,7 +1,7 @@
 // commands/_lib/speech/say.ts: the arguments of /say, the last answer it reads when no
 // text is given, and what it launches over a FakeCrewHost and a FakeToolCatalogue.
 // Run:
-//   node --test src/commands/_lib/speech/say.test.ts
+//   node --test tests/commands/_lib/speech/say.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 import { dispatchSay, lastAnswer, parseSayArgs } from "../../../../src/commands/_lib/speech/say.ts";

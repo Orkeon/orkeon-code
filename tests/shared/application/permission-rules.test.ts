@@ -1,6 +1,6 @@
 // The session's permission rules over FakeSessionStore, and their sync to the
 // host gate over FakePermissionRules. Run:
-//   node --test src/shared/application/permission-rules.test.ts
+//   node --test tests/shared/application/permission-rules.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 

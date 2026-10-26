@@ -1,5 +1,5 @@
 // The close of a dev batch over FakeShell and FakeFiles: no real git, no push. Run:
-//   node --test src/shared/application/dev/close-batch.test.ts
+//   node --test tests/shared/application/dev/close-batch.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

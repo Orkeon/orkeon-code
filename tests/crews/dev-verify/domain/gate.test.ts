@@ -1,5 +1,5 @@
 // Unit tests for the five gate checks, on inline inputs. Run:
-//   node --test src/crews/dev-verify/domain/gate.test.ts
+//   node --test tests/crews/dev-verify/domain/gate.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

@@ -1,5 +1,5 @@
 // The Shell adapter over a FakeTools shell_command. Run:
-//   node --test src/shared/infrastructure/orkeon/shell.test.ts
+//   node --test tests/shared/infrastructure/orkeon/shell.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, rejects, strictEqual } from "node:assert";
 

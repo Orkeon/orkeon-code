@@ -1,6 +1,6 @@
 // The open questions and decisions of a spec or brief: rows written and read back, the options cell, the numbering
 // after every used id, a decided question never asked again, the sections rewritten in place, the review rows.
-// Run:  node --test src/shared/domain/dev/questions.test.ts
+// Run:  node --test tests/shared/domain/dev/questions.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

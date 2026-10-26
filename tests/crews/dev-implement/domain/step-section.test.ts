@@ -1,5 +1,5 @@
 // What /dev-implement reads off a batch sheet. Run:
-//   node --test src/crews/dev-implement/domain/step-section.test.ts
+//   node --test tests/crews/dev-implement/domain/step-section.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

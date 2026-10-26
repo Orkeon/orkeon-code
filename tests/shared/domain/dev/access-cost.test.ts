@@ -1,5 +1,5 @@
 // Unit tests for the access cost: the report reader, the added lines, the measured cost, the section. Run:
-//   node --test src/shared/domain/dev/access-cost.test.ts
+//   node --test tests/shared/domain/dev/access-cost.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

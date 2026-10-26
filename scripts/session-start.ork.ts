@@ -16,7 +16,7 @@
 //   - each batches-state.md whose event log leaves batches open (last event of the batch
 //     launched, relaunched or stall, with no `closed` line after it).
 // Read-only, silent when there is nothing to say; a failure prints nothing. A change of what is
-// printed, or of which file is picked, is made in both twins (tests/session-start-script.test.ts).
+// printed, or of which file is picked, is made in both twins (tests/scripts/session-start-script.test.ts).
 //
 // Self-contained (no import): the script host runs this one file.
 

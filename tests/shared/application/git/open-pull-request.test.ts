@@ -1,6 +1,6 @@
 // The PullRequestOpener over the github tool: origin read, the gate's decision
 // mirrored, the call made with the tool's arguments; every refusal a throw. Run:
-//   node --test src/shared/application/git/open-pull-request.test.ts
+//   node --test tests/shared/application/git/open-pull-request.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, rejects } from "node:assert";
 

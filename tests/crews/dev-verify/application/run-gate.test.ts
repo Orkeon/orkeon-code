@@ -1,6 +1,6 @@
 // Unit tests for runGate over FakeFiles and FakeShell, and its parity with the harness's gate on the recordings of
 // tests/fixtures/dev/verify. Run:
-//   node --test src/crews/dev-verify/application/run-gate.test.ts
+//   node --test tests/crews/dev-verify/application/run-gate.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

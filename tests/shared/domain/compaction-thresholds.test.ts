@@ -1,6 +1,6 @@
 // Compaction thresholds: each number is pinned together with the fact it is derived
 // from, so changing the fact without the number (or the reverse) fails here.
-// Run: node --test src/shared/domain/compaction-thresholds.test.ts
+// Run: node --test tests/shared/domain/compaction-thresholds.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual, ok } from "node:assert";
 import {

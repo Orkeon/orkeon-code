@@ -1,6 +1,6 @@
 // measureAccessCost over a fake CostIndex: the index as a precondition, the refresh of the
 // changed files, the roots and receivers of the pack, the failures. Run:
-//   node --test src/shared/application/dev/measure-access-cost.test.ts
+//   node --test tests/shared/application/dev/measure-access-cost.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

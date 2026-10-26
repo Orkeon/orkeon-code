@@ -1,6 +1,6 @@
 // The lines /dev-batches appends to `.orkeon/dev/<code>/batches-state.md`, read back by the shared
 // parser the start scripts and dev-run.sh follow. Run:
-//   node --test src/crews/dev-batches/domain/batches-log.test.ts
+//   node --test tests/crews/dev-batches/domain/batches-log.test.ts
 import { describe, it } from "node:test";
 import { strictEqual } from "node:assert";
 

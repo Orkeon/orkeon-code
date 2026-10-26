@@ -1,5 +1,5 @@
 // The logical /workspace of a batch, rebased on its working root and back. Run:
-//   node --test src/shared/domain/dev/path-rebase.test.ts
+//   node --test tests/shared/domain/dev/path-rebase.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

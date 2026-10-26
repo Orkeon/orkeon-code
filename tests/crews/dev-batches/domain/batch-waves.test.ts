@@ -1,6 +1,6 @@
 // The waves of a plan's open batches: dependencies first, disjoint anchors side by side, a shared path or
 // a batch anchoring nothing waits, a cycle or an unknown dependency refused; the paths a sheet anchors. Run:
-//   node --test src/crews/dev-batches/domain/batch-waves.test.ts
+//   node --test tests/crews/dev-batches/domain/batch-waves.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

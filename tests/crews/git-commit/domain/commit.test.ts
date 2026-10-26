@@ -1,4 +1,4 @@
-// Run: node --test src/crews/git-commit/domain/commit.test.ts
+// Run: node --test tests/crews/git-commit/domain/commit.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual, ok } from "node:assert";
 

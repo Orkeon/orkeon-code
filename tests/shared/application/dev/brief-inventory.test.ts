@@ -1,6 +1,6 @@
 // briefInventory over FakeCodeIndex: the index built when empty, each phrase searched, hits located and kept once,
 // the work folder and .claude/ left out, a failing index a warning. Run:
-//   node --test src/shared/application/dev/brief-inventory.test.ts
+//   node --test tests/shared/application/dev/brief-inventory.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

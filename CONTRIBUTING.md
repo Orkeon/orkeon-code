@@ -33,8 +33,8 @@ mcp/whisper/    the speech MCP server (Python, run by uv): whisper_mcp.py + test
 Dependencies point inwards only, and `tests/repository/architecture.test.ts` fails on any import, and any use of a runtime
 global, that breaks the rule:
 
-- **domain**: pure types and deterministic functions. No IO, no runtime global. Imports domain only. Every module
-  of `src/` is expected to have its test at the same path under `tests/` (the reverse, a test of that mirror with its
+- **domain**: pure types and deterministic functions. No IO, no runtime global. Imports domain only. A module
+  of `src/` has its test at the same path under `tests/` (the reverse, a test of that mirror with its
   module in `src/`, is checked). A test keeps the layer of its module: a domain test imports domain only, its own
   fixtures and assertions and `tests/support/assertions/` aside.
 - **application**: the use cases of a crew (`application/run-<crew>.ts`) and the shared services. Imports domain and
@@ -45,8 +45,8 @@ global, that breaks the rule:
   (`tools`, `agentBuilder`, `crewBuilder`, `toolBuilder`, `rag`, `inputs`); the adapters of `orkeon/` implement the
   ports over them, and `orkeon/wiring.ts` binds them.
 - **entry points**: `crew.ork.ts` and `*.cmd.ts` parse the input, wire the adapters, call a use case and render the
-  result; they hold no logic worth testing. Only the crew entry points import `globals.ts` or read the runtime
-  globals; a command imports `wiring.ts` (or builds an adapter from its context), its use case in `commands/_lib/`
+  result; they hold no logic worth testing. Only `shared/infrastructure/` and the crew entry points import
+  `globals.ts`; a command imports `wiring.ts` (or builds an adapter from its context), its use case in `commands/_lib/`
   imports nothing from `shared/infrastructure/`, and only a `*.cmd.ts` calls `defineCommand`. No `require()`
   anywhere: the sources are ES modules.
 - **command use cases**: a `commands/<group>/*.cmd.ts` calls the use cases of `commands/_lib/<group>/`, or what the
@@ -81,7 +81,7 @@ Runtime rules, enforced by the bundle check:
   class that extends a `Fake…` or implements a port, an object literal typed as a port or a `Pick` of one, a method
   of a fake replaced): a case a fake cannot play is a
   new field of that fake.
-- Every module of `src/` is tested over the fakes, at the same path under `tests/`: `src/<path>/<m>.ts` by
+- A module of `src/` is tested over the fakes, at the same path under `tests/`: `src/<path>/<m>.ts` by
   `tests/<path>/<m>.test.ts`, its fixtures and assertions beside the test. The domain modules, the use cases of a
   crew, the shared services and the command use cases of `commands/_lib/` are all tested so: `tests/crews/`,
   `tests/shared/` and `tests/commands/` mirror `src/`, which holds no test, fixtures nor assertions file. The rest of

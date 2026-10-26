@@ -1,5 +1,5 @@
 // The close's grouping of the files per layer. Run:
-//   node --test src/crews/dev-implement/application/close.test.ts
+//   node --test tests/crews/dev-implement/application/close.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

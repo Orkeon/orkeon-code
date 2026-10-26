@@ -21,7 +21,6 @@
     "orkeon-code.ps1",
     "orkeon-code.mjs",
     "src/",
-    "!src/**/*.test.ts",
     "config/*.example.json",
     "scripts/setup-fixture.sh",
     "scripts/session-start.sh",

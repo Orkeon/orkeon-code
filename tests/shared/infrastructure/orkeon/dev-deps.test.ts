@@ -1,7 +1,7 @@
 // The dev crews' ports built from the calling agent's own tools, never the runtime's globals: the globals throw
 // here, set before the module is loaded, and every call lands in the body's FakeTools. Under a working root the
 // briefs leave as root paths. Run:
-//   node --test src/shared/infrastructure/orkeon/dev-deps.test.ts
+//   node --test tests/shared/infrastructure/orkeon/dev-deps.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

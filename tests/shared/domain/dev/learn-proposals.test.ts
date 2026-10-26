@@ -1,6 +1,6 @@
 // The proposals model of /dev-learn: ids, the proposals.json file, the lines a decision
 // prints. Run:
-//   node --test src/shared/domain/dev/learn-proposals.test.ts
+//   node --test tests/shared/domain/dev/learn-proposals.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 

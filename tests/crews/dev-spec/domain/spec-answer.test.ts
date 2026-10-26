@@ -1,6 +1,6 @@
 // checkSpecAnswer and renderSpec: a valid answer passes and renders a file /dev-plan's parser reads back (title,
 // UC/BR ids, statements, open questions, decisions); each self-check of the template refuses its own fault.
-// Run:  node --test src/crews/dev-spec/domain/spec-answer.test.ts
+// Run:  node --test tests/crews/dev-spec/domain/spec-answer.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

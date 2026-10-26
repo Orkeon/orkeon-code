@@ -9,8 +9,8 @@
 - [ ] `npm run check` is green (unit tests, type check, bundle check, provenance gate).
 - [ ] Runtime code (`src/`) imports no Node API and reaches the runtime globals only
       through `src/shared/infrastructure/globals.ts`.
-- [ ] Domain changes come with `*.test.ts` next to the module (`node:test`, `node:assert`,
-      hand-written doubles only).
+- [ ] Domain changes come with their `*.test.ts` under `tests/`, at the module's path (`node:test`,
+      `node:assert`, hand-written doubles only).
 - [ ] A new or renamed command: `docs/commands.md` regenerated (`npm run docs:commands`).
 - [ ] Prompts, documentation and comments are original work: nothing copied or closely
       paraphrased from another product (see CONTRIBUTING, "Original work only").

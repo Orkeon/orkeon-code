@@ -1,5 +1,5 @@
 // The harness's MEMORY.md read as candidates (M-9): items, linked notes, the entry each becomes.
-// Run: node --test src/shared/domain/shared-memory/agent-memory-import.test.ts
+// Run: node --test tests/shared/domain/shared-memory/agent-memory-import.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

@@ -1,7 +1,7 @@
 // The close of a /dev-batches run: the merged files grouped by the pack's layout, the pull request's summary for the
 // whole plan, and the close itself - the stops on a missing or default branch, the push, the pull request opened
 // through the opener or handed over. Over FakeFiles, FakeShell, a config store and FakePullRequestOpener. Run:
-//   node --test src/crews/dev-batches/application/plan-close.test.ts
+//   node --test tests/crews/dev-batches/application/plan-close.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

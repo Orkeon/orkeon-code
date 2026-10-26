@@ -1,5 +1,5 @@
 // Which paths are tests, by the pack. Run:
-//   node --test src/shared/domain/dev/test-paths.test.ts
+//   node --test tests/shared/domain/dev/test-paths.test.ts
 import { describe, it } from "node:test";
 import { strictEqual } from "node:assert";
 

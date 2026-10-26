@@ -1,5 +1,5 @@
 // A relative path of a tool call resolved under the project. Run:
-//   node --test src/shared/domain/dev/path-args.test.ts
+//   node --test tests/shared/domain/dev/path-args.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

@@ -1,5 +1,5 @@
 // Unit tests for resolving and reading the source of a plan, over FakeFiles. Run:
-//   node --test src/shared/application/dev/plan-source.test.ts
+//   node --test tests/shared/application/dev/plan-source.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

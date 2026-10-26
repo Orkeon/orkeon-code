@@ -1,7 +1,7 @@
 // /doctor (commands/_lib/status/doctor.ts) over FakeShell, FakeTelemetry,
 // FakeToolCatalogue and FakeFiles: each check's pass, warning and failure, and the
 // verdict line. Run:
-//   node --test src/commands/_lib/status/doctor.test.ts
+//   node --test tests/commands/_lib/status/doctor.test.ts
 import { describe, it } from "node:test";
 import { ok, strictEqual, deepStrictEqual } from "node:assert";
 

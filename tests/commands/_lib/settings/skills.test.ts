@@ -1,6 +1,6 @@
 // /skills (commands/_lib/settings/skills.ts) over FakeSessionStore and FakeFiles: list,
 // attach and detach, their refusals and usage lines. Run:
-//   node --test src/commands/_lib/settings/skills.test.ts
+//   node --test tests/commands/_lib/settings/skills.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 

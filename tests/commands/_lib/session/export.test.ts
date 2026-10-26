@@ -1,6 +1,6 @@
 // /export (commands/_lib/session/export.ts): conversation, memory and cost as markdown, and
 // runExport over the fakes. Run:
-//   node --test src/commands/_lib/session/export.test.ts
+//   node --test tests/commands/_lib/session/export.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, ok, deepStrictEqual } from "node:assert";
 

@@ -1,5 +1,5 @@
 // The /dev-learn state: Orkeon Code's own file and the harness's, read only. Run:
-//   node --test src/shared/domain/dev/learn-state.test.ts
+//   node --test tests/shared/domain/dev/learn-state.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 

@@ -40,7 +40,7 @@ export function memoryDenyText(why: string): string {
 }
 
 /** The refusal of a call a pre-tool hook stopped, led by the step's name. */
-export function hookDenyText(step: string, failure: HookFailure): string {
+function hookDenyText(step: string, failure: HookFailure): string {
   return failure.by === "mount-check"
     ? `${step}: ${failure.text}\nThe call did not run: a hook's command line may name no path its ` +
       "program may not write; ask the user to change the hook."

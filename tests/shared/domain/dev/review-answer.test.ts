@@ -1,5 +1,5 @@
 // The reviewer's JSON answer: its schema and every problem the check names. Run:
-//   node --test src/shared/domain/dev/review-answer.test.ts
+//   node --test tests/shared/domain/dev/review-answer.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

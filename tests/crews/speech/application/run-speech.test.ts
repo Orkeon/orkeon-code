@@ -1,5 +1,5 @@
 // The speech crew's use case over a FakeToolCatalogue. Run:
-//   node --test src/crews/speech/application/run-speech.test.ts
+//   node --test tests/crews/speech/application/run-speech.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, rejects, strictEqual } from "node:assert";
 import { runSpeech } from "../../../../src/crews/speech/application/run-speech.ts";

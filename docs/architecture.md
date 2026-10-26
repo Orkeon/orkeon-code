@@ -78,6 +78,9 @@ and the `commands/_lib/` group of `src/<path>/<m>.ts`, so a test of a domain mod
   so a test imports the use cases over the fakes;
 - a `*.cmd.ts` never imports `crews/*/domain` nor `crews/*/application`: what it runs of a crew goes through a use
   case of `commands/_lib/`;
+- a use case of `commands/_lib/<group>/` imports its own group or the root of `_lib/` only, and a `*.cmd.ts` calls
+  the group of its own folder;
+- `ports.ts` re-exports every file of `application/ports/`, and every name it exports;
 - a relative import names its `.ts` file, and runtime code imports nothing but relative files (tests may import
   `node:` built-ins);
 - runtime code never imports `tests/`: the test doubles are never bundled;
@@ -155,7 +158,7 @@ by the bundle check and the runtime smoke. `tests/repository/test-shape.test.ts`
 test to its shape, read from the syntax tree:
 
 - each test is laid out Arrange, Act, Assert, one act per test;
-- test code reads no clock and starts no timer (`setTimeout`, `setInterval`): it takes a `FakeClock`, but in
+- test code reads no clock and starts no timer (`setTimeout`, `setInterval`, `setImmediate`): it takes a `FakeClock`, but in
   `tests/scripts/`, which drives real processes;
 - a double lives in `tests/support/doubles/` and nowhere else: no class that extends a `Fake…` or implements a port
   (the ports are read from the exports of `ports/`), no object literal typed as a port, no method of a fake

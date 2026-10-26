@@ -1,5 +1,5 @@
 // Mistake candidates written from audit rows (M-4). Run:
-//   node --test src/shared/application/shared-memory/harvest-mistakes.test.ts
+//   node --test tests/shared/application/shared-memory/harvest-mistakes.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual, ok } from "node:assert";
 

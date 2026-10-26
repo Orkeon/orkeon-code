@@ -1,5 +1,5 @@
 // B-6 — the /config key space and its two layers. Run:
-//   node --test src/shared/domain/config-schema.test.ts
+//   node --test tests/shared/domain/config-schema.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok } from "node:assert";
 import {

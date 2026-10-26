@@ -1,5 +1,5 @@
 // B-12 — the saved-agent registry. Run:
-//   node --test src/shared/domain/agent-registry.test.ts
+//   node --test tests/shared/domain/agent-registry.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok } from "node:assert";
 

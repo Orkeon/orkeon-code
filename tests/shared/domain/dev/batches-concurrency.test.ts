@@ -1,6 +1,6 @@
 // The concurrency of /dev-batches: 1 by default, a whole number from 1 to 4; above 1 only in a mode that never
 // asks before a shell command, and the line refusing a worktree git does not work in. Run:
-//   node --test src/shared/domain/dev/batches-concurrency.test.ts
+//   node --test tests/shared/domain/dev/batches-concurrency.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

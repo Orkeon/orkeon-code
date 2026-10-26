@@ -1,6 +1,6 @@
 // The reviewer's charter runs, offers its nine read tools and nothing that writes,
 // runs a command or builds the index. Run:
-//   node --test src/shared/domain/dev/reviewer-charter.test.ts
+//   node --test tests/shared/domain/dev/reviewer-charter.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

@@ -1,5 +1,5 @@
 // The agent instances /tasks reads and decides on (A-3). Run:
-//   node --test src/shared/domain/agents/instances.test.ts
+//   node --test tests/shared/domain/agents/instances.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

@@ -1,6 +1,6 @@
 // commands/_lib/settings/session-config.ts over FakeSessionStore: the toggle commands
 // (/fast, /proactive). Run:
-//   node --test src/commands/_lib/settings/session-config.test.ts
+//   node --test tests/commands/_lib/settings/session-config.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 

@@ -2,7 +2,7 @@
 // under their own worktrees, seeded first; the driver alone logs, merges the VALID ones in id order, harvests and
 // removes their worktrees; a stop keeps its worktree, its files there alone, names the command that relaunches it
 // there and ends the run once the wave settles. Run:
-//   node --test src/crews/dev-batches/application/run-wave.test.ts
+//   node --test tests/crews/dev-batches/application/run-wave.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

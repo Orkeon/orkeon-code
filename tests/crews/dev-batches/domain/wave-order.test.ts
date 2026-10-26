@@ -1,6 +1,6 @@
 // The order of a plan's batches: dependencies first, ties by id, a cycle or an unknown dependency
 // refused, and the next batch the first one not done. Run:
-//   node --test src/crews/dev-batches/domain/wave-order.test.ts
+//   node --test tests/crews/dev-batches/domain/wave-order.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

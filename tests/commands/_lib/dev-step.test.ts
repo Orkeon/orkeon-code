@@ -3,7 +3,7 @@
 // what /dev-plan and /dev-verify print before launching: the refusal when the host says its gate is off,
 // the warning when it keeps no session rules, the warning for a session allow the step
 // leaves out, and the gate calls (the session's rules, then the step's rule sets). Run:
-//   node --test src/commands/_lib/dev-step.test.ts
+//   node --test tests/commands/_lib/dev-step.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

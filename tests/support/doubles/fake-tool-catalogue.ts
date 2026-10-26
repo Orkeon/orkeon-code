@@ -2,8 +2,9 @@
 // a function of the arguments; an Error reply is thrown, as a failing tool throws.
 // Names are found case-insensitively, as Orkeon finds them. Every call lands in
 // `calls` under the registered name. `callText` reads a reply as the adapter does
-// (resultText), without the runtime's failure wrapping: an Error is its message.
+// (resultText), without the runtime's failure wrapping: an Error is the first line of its message.
 import type { ToolCatalogue, ToolOutcome } from "../../../src/shared/application/ports.ts";
+import { errorText } from "../../../src/shared/domain/prelude.ts";
 
 export class FakeToolCatalogue implements ToolCatalogue {
   tools = new Map<string, unknown>();
@@ -31,7 +32,7 @@ export class FakeToolCatalogue implements ToolCatalogue {
     try {
       return { ok: true, text: replyText(await this.call(name, args)) };
     } catch (error) {
-      return { ok: false, failure: error instanceof Error ? error.message : String(error) };
+      return { ok: false, failure: errorText(error) };
     }
   }
 }

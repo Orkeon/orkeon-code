@@ -1,7 +1,7 @@
 // readBacklog over FakeFiles loaded from tests/fixtures/dev/learn: the rows the
 // harness's script recorded, the treated rows of both states, and each read that
 // fails turned into a warning. Run:
-//   node --test src/crews/dev-learn/application/learn-backlog.test.ts
+//   node --test tests/crews/dev-learn/application/learn-backlog.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

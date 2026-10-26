@@ -1,5 +1,5 @@
 // Where verification skills live and how /verify asks for them.
-// Run: node --test src/shared/domain/verifiers.test.ts
+// Run: node --test tests/shared/domain/verifiers.test.ts
 import { describe, it } from "node:test";
 import { strictEqual } from "node:assert";
 

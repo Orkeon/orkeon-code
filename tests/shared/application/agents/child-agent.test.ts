@@ -1,6 +1,6 @@
 // A sub-agent's act run as a background child (A-3): the board /tasks reads, the requests it
 // serves, and the wait. Over a fake ChildRuntime whose pause moves a fake clock. Run:
-//   node --test src/shared/application/agents/child-agent.test.ts
+//   node --test tests/shared/application/agents/child-agent.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, rejects, strictEqual } from "node:assert";
 

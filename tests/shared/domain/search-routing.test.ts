@@ -1,5 +1,5 @@
 // Search routing by file type (tree vs rag). Run:
-//   node --test src/shared/domain/search-routing.test.ts
+//   node --test tests/shared/domain/search-routing.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

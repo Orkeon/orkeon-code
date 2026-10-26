@@ -1,5 +1,5 @@
 // The start block the runtime puts before a session's first free-text turn. Run:
-//   node --test src/shared/domain/session-start.test.ts
+//   node --test tests/shared/domain/session-start.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 

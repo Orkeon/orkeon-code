@@ -1,5 +1,5 @@
 // Unit tests for the shared-memory probe's verdict. Run:
-//   node --test src/crews/_probe-shared-memory/domain/probe-verdict.test.ts
+//   node --test tests/crews/_probe-shared-memory/domain/probe-verdict.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual, throws } from "node:assert";
 

@@ -1,7 +1,7 @@
 // commands/_lib/speech/transcribe.ts: the arguments of /transcribe, and what it launches
 // over a FakeCrewHost and a FakeToolCatalogue: the speech crew for a file or the
 // listing, the main loop with the transcription as its prelude for --then. Run:
-//   node --test src/commands/_lib/speech/transcribe.test.ts
+//   node --test tests/commands/_lib/speech/transcribe.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 import { audioPath, dispatchTranscribe, parseTranscribeArgs } from "../../../../src/commands/_lib/speech/transcribe.ts";

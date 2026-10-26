@@ -1,6 +1,6 @@
 // The dev crews' call guard: the step's rule sets, a role's roots, the whole input of the folder readers, the
 // act's mode when the host has no gate, and the /hooks declarations. Run:
-//   node --test src/shared/domain/dev/call-guard.test.ts
+//   node --test tests/shared/domain/dev/call-guard.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

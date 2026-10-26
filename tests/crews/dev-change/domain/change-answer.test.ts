@@ -1,7 +1,7 @@
 // checkChangeAnswer: what a change brief's JSON must hold for each kind - a number in a perf criterion, a protected
 // behaviour for a refactor, no design words, a TBD backed by a question - and pinOnlyKnown turning an unknown pin
 // into unpinned. A feature is routed and not checked.
-// Run:  node --test src/crews/dev-change/domain/change-answer.test.ts
+// Run:  node --test tests/crews/dev-change/domain/change-answer.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

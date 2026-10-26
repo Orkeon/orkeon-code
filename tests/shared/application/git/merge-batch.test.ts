@@ -1,5 +1,5 @@
 // The fast-forward merge of a batch branch (R-16) over FakeShell. Run:
-//   node --test src/shared/application/git/merge-batch.test.ts
+//   node --test tests/shared/application/git/merge-batch.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual } from "node:assert";
 

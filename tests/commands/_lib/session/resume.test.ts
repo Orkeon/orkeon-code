@@ -1,7 +1,7 @@
 // /resume (commands/_lib/session/resume.ts) over FakeFiles and FakeSessionStore: the saved
 // sessions of /session-history newest first, the restart that brings one back, and
 // the current buffer's last turns. Run:
-//   node --test src/commands/_lib/session/resume.test.ts
+//   node --test tests/commands/_lib/session/resume.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 

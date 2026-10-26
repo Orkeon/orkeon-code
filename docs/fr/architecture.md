@@ -84,6 +84,9 @@ test du domaine. Les règles :
   remet, de sorte qu'un test importe les cas d'usage au-dessus des fakes ;
 - un `*.cmd.ts` n'importe jamais `crews/*/domain` ni `crews/*/application` : ce qu'il lance d'un crew passe par un
   cas d'usage de `commands/_lib/` ;
+- un cas d'usage de `commands/_lib/<groupe>/` n'importe que son propre groupe ou la racine de `_lib/`, et un
+  `*.cmd.ts` appelle le groupe de son propre dossier ;
+- `ports.ts` réexporte chaque fichier de `application/ports/`, et chaque nom qu'il exporte ;
 - un import relatif nomme son fichier `.ts`, et le code du runtime n'importe rien d'autre que des fichiers relatifs
   (les tests peuvent importer les modules intégrés `node:`) ;
 - le code du runtime n'importe jamais `tests/` : les doublures de test ne sont jamais bundlées ;
@@ -161,7 +164,7 @@ ses `.fixtures.ts` et `.assertions.ts` à côté du test ; les points d'entrée 
 runtime. `tests/repository/test-shape.test.ts` tient chaque test à sa forme, lue dans l'arbre syntaxique :
 
 - chaque test suit Arrange, Act, Assert, un seul acte par test ;
-- le code de test ne lit pas l'horloge et ne lance pas de minuterie (`setTimeout`, `setInterval`) : il prend un
+- le code de test ne lit pas l'horloge et ne lance pas de minuterie (`setTimeout`, `setInterval`, `setImmediate`) : il prend un
   `FakeClock`, sauf dans `tests/scripts/`, qui pilote de vrais processus ;
 - une doublure vit dans `tests/support/doubles/` et nulle part ailleurs : pas de classe qui étend un `Fake…` ou
   implémente un port (les ports sont lus dans les exports de `ports/`), pas d'objet littéral typé par un port, pas

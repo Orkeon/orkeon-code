@@ -1,5 +1,5 @@
 // The checks between two acts. Run:
-//   node --test src/crews/dev-implement/domain/step-checks.test.ts
+//   node --test tests/crews/dev-implement/domain/step-checks.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
