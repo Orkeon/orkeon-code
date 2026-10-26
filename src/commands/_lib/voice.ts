@@ -11,7 +11,7 @@
 // Recording and transcribing last longer than the 10 s a handler may wait, so
 // the call is made by a crew: the speech crew, or the main loop for --go.
 import type { Files, ToolCatalogue } from "../../shared/application/ports.ts";
-import { failureText, nothingReturned } from "../../shared/domain/prelude.ts";
+import { errorText, nothingReturned } from "../../shared/domain/prelude.ts";
 import { commandLine, isOption, optionValue, parseAssistantInput, splitWords } from "./args.ts";
 import { launchCrew, launchMainLoop } from "./dispatch.ts";
 import type { CrewCompletion, LaunchResult, MainLoopLaunchDeps } from "./dispatch.ts";
@@ -110,8 +110,8 @@ export async function dispatchVoice(tokens: readonly string[], deps: VoiceDeps):
       text = (await deps.files.read(DICTATION_FILE)).trim();
     } catch (error) {
       // A missing file is the common case (no dictation yet); the runtime's read says so, as json-file.ts reads it.
-      if (/not found|no such|does not exist/i.test(failureText(error))) return { message: NOTHING_TO_SEND };
-      return { message: `cannot read ${DICTATION_FILE}: ${failureText(error)}` };
+      if (/not found|no such|does not exist/i.test(errorText(error))) return { message: NOTHING_TO_SEND };
+      return { message: `cannot read ${DICTATION_FILE}: ${errorText(error)}` };
     }
     if (text.length === 0) return { message: NOTHING_TO_SEND };
     const { prompt, permissionMode } = parseAssistantInput(text);

@@ -9,7 +9,7 @@
 // made here.
 import type { ToolCatalogue } from "../../shared/application/ports.ts";
 import type { SessionIo } from "../../shared/application/session-io.ts";
-import { failureText, resultText } from "../../shared/domain/prelude.ts";
+import { errorText } from "../../shared/domain/prelude.ts";
 import { SPEAK_TOOL } from "../../shared/domain/speech.ts";
 import { commandLine, isOption, optionValue, splitWords } from "./args.ts";
 import { launchCrew } from "./dispatch.ts";
@@ -59,7 +59,7 @@ export function lastAnswer(messages: ReadonlyArray<{ role: string; content: unkn
 
 /** What /say reads and drives: the registered tools, the session (for the last answer), the crew launch. */
 export type SayDeps = LaunchDeps & {
-  catalogue: Pick<ToolCatalogue, "find" | "call">;
+  catalogue: Pick<ToolCatalogue, "find" | "callText">;
   session: Pick<SessionIo, "readMessages">;
 };
 
@@ -71,11 +71,8 @@ export async function dispatchSay(tokens: readonly string[], deps: SayDeps): Pro
   if (request.kind === "stop") {
     const stop = deps.catalogue.find(STOP_TOOL);
     if (stop === undefined) return { message: missingToolMessage(STOP_TOOL) };
-    try {
-      return { message: resultText(await deps.catalogue.call(stop, {})) || "stopped" };
-    } catch (error) {
-      return { message: `✗ ${STOP_TOOL}: ${failureText(error)}` };
-    }
+    const outcome = await deps.catalogue.callText(stop, {});
+    return { message: outcome.ok ? (outcome.text || "stopped") : `✗ ${STOP_TOOL}: ${outcome.failure}` };
   }
   const speak = deps.catalogue.find(SPEAK_TOOL);
   if (speak === undefined) return { message: missingToolMessage(SPEAK_TOOL) };
@@ -84,7 +81,7 @@ export async function dispatchSay(tokens: readonly string[], deps: SayDeps): Pro
     try {
       text = lastAnswer((await deps.session.readMessages()).messages);
     } catch (error) {
-      return { message: `cannot read the session's last answer: ${failureText(error)}` };
+      return { message: `cannot read the session's last answer: ${errorText(error)}` };
     }
   }
   if (!text) return { message: "nothing to read: give a text, or ask the assistant first (/say alone reads its last answer)" };

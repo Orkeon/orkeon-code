@@ -4,12 +4,13 @@
 // `.tools([...])`. The calls go through the runtime's `tools` namespace, which
 // exposes each tool as a camelCase member (file_read → tools.fileRead): a member
 // cannot give the registered name back (`get-file-contents`, `get_file_contents`
-// and `getFileContents` are all `getFileContents`). A result is passed through raw:
-// /debug-tool-call exists to show it as the tool returned it.
+// and `getFileContents` are all `getFileContents`). `call` passes a result through
+// raw: /debug-tool-call exists to show it as the tool returned it; `callText`
+// decodes it (tool-results.ts), for the callers that read its text.
 
 import type { ToolCatalogue } from "../../application/ports.ts";
 import type { ServiceLocator } from "../../../commands/.orkeon/orkeon-cli.d.ts";
-import { asArray, pick } from "./tool-results.ts";
+import { asArray, pick, toolOutcome } from "./tool-results.ts";
 
 /** The service that hands out the registered tools. */
 const TOOLS = "tools";
@@ -46,14 +47,13 @@ function registeredNames(services: Pick<ServiceLocator, "get">): string[] {
  * gets, since it has no `tools` service to list the names. The launching command
  * found the registered name already (a ToolCatalogue's `find`).
  */
-export function createToolCalls(tools: object): Pick<ToolCatalogue, "call"> {
-  return {
-    async call(name, args) {
-      const fn = (tools as Record<string, unknown> | undefined)?.[toolMemberName(name)];
-      if (typeof fn !== "function") throw new Error(`no registered tool '${name}'`);
-      return (fn as (input: Record<string, unknown>) => unknown)(args);
-    },
+export function createToolCalls(tools: object): Pick<ToolCatalogue, "call" | "callText"> {
+  const call = async (name: string, args: Record<string, unknown>): Promise<unknown> => {
+    const fn = (tools as Record<string, unknown> | undefined)?.[toolMemberName(name)];
+    if (typeof fn !== "function") throw new Error(`no registered tool '${name}'`);
+    return (fn as (input: Record<string, unknown>) => unknown)(args);
   };
+  return { call, callText: (name, args) => toolOutcome(() => call(name, args)) };
 }
 
 export function createToolCatalogue(tools: object, services: Pick<ServiceLocator, "get">): ToolCatalogue {
@@ -61,13 +61,15 @@ export function createToolCatalogue(tools: object, services: Pick<ServiceLocator
     const wanted = name.toLowerCase();
     return registeredNames(services).find((registered) => registered.toLowerCase() === wanted);
   };
+  const call = async (name: string, args: Record<string, unknown>): Promise<unknown> => {
+    const registered = find(name);
+    if (registered === undefined) throw new Error(`no registered tool '${name}'`);
+    return createToolCalls(tools).call(registered, args);
+  };
   return {
     names: () => registeredNames(services).sort(),
     find,
-    async call(name, args) {
-      const registered = find(name);
-      if (registered === undefined) throw new Error(`no registered tool '${name}'`);
-      return createToolCalls(tools).call(registered, args);
-    },
+    call,
+    callText: (name, args) => toolOutcome(() => call(name, args)),
   };
 }

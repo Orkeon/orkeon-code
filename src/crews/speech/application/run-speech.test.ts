@@ -3,7 +3,7 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, rejects, strictEqual } from "node:assert";
 import { runSpeech } from "./run-speech.ts";
-import { TRANSCRIPT, WRAPPED_FAILURE, speechSetup } from "./run-speech.fixtures.ts";
+import { TOOL_FAILURE, TRANSCRIPT, speechSetup } from "./run-speech.fixtures.ts";
 
 describe("runSpeech", () => {
   it("makes the call the command named and answers the tool's text", async () => {
@@ -20,17 +20,6 @@ describe("runSpeech", () => {
     deepStrictEqual(log.lines, ["info: transcription of /audio/a.m4a: transcribe_audio"]);
   });
 
-  it("reads a result that is not a string", async () => {
-    // Arrange
-    const { deps } = speechSetup({ text: "Salut." });
-
-    // Act
-    const out = await runSpeech({ tool: "transcribe_audio" }, deps);
-
-    // Assert
-    strictEqual(out, "Salut.");
-  });
-
   it("says when there is no text", async () => {
     // Arrange
     const { deps } = speechSetup("  ");
@@ -44,7 +33,7 @@ describe("runSpeech", () => {
 
   it("throws the tool's failure", async () => {
     // Arrange
-    const { deps } = speechSetup(WRAPPED_FAILURE);
+    const { deps } = speechSetup(TOOL_FAILURE);
 
     // Act
     const act = runSpeech({ tool: "transcribe_audio" }, deps);

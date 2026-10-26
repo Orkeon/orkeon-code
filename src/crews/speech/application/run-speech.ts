@@ -5,11 +5,11 @@
 // awaits). The command found the registered name; the answer is the tool's text,
 // which the command prints.
 import type { Logger, ToolCatalogue } from "../../../shared/application/ports.ts";
-import { nothingReturned, parsePrelude, resultText, toolFailure } from "../../../shared/domain/prelude.ts";
+import { nothingReturned, parsePrelude, toolFailure } from "../../../shared/domain/prelude.ts";
 
 /** The ports of the call. */
 export interface SpeechDeps {
-  tools: Pick<ToolCatalogue, "call">;
+  tools: Pick<ToolCatalogue, "callText">;
   log: Pick<Logger, "info">;
 }
 
@@ -18,12 +18,8 @@ export async function runSpeech(input: unknown, deps: SpeechDeps): Promise<strin
   const call = parsePrelude(input);
   if (call === null) throw new Error("no tool to call: this crew is started by /transcribe, /voice or /say");
   deps.log.info(`${call.label}: ${call.tool}`);
-  let raw: unknown;
-  try {
-    raw = await deps.tools.call(call.tool, call.args);
-  } catch (error) {
-    throw toolFailure(call.tool, error);
-  }
-  const text = resultText(raw).trim();
+  const outcome = await deps.tools.callText(call.tool, call.args);
+  if (!outcome.ok) throw toolFailure(call.tool, outcome.failure);
+  const text = outcome.text.trim();
   return text.length > 0 ? text : nothingReturned(call.tool);
 }

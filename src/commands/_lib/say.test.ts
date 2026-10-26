@@ -129,7 +129,7 @@ describe("dispatchSay", () => {
 
   it("says what failed when the server cannot answer, instead of failing the command", async () => {
     // Arrange
-    const { deps } = sayDeps(["stop_speaking", new Error("Error executing tool stop_speaking: connection closed")]);
+    const { deps } = sayDeps(["stop_speaking", new Error("connection closed")]);
 
     // Act
     const result = await dispatchSay(["--stop"], deps);

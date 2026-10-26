@@ -73,7 +73,8 @@ export const orkeonToolCatalogue = (services: Pick<ServiceLocator, "get">): Tool
   createToolCatalogue(Tools, services);
 
 /** The calls alone, by registered name: for a crew, which gets no `tools` service. */
-export const orkeonToolCalls = (tools: OrkeonTools = Tools): Pick<ToolCatalogue, "call"> => createToolCalls(tools);
+export const orkeonToolCalls = (tools: OrkeonTools = Tools): Pick<ToolCatalogue, "call" | "callText"> =>
+  createToolCalls(tools);
 const orkeonSessionStore = (tools: OrkeonTools = Tools): SessionStore => createSessionStore(tools);
 
 /** The /config store: the settings file, overridden by the session bag. */

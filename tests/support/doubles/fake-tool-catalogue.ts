@@ -1,8 +1,9 @@
 // FakeToolCatalogue: the ToolCatalogue port, registered name → reply: a value, or
 // a function of the arguments; an Error reply is thrown, as a failing tool throws.
 // Names are found case-insensitively, as Orkeon finds them. Every call lands in
-// `calls` under the registered name.
-import type { ToolCatalogue } from "../../../src/shared/application/ports.ts";
+// `calls` under the registered name. `callText` reads a reply as the adapter does,
+// without the runtime's shapes: an Error is its message, any other value its String.
+import type { ToolCatalogue, ToolOutcome } from "../../../src/shared/application/ports.ts";
 
 export class FakeToolCatalogue implements ToolCatalogue {
   tools = new Map<string, unknown>();
@@ -24,5 +25,13 @@ export class FakeToolCatalogue implements ToolCatalogue {
     const value = typeof reply === "function" ? reply(args) : reply;
     if (value instanceof Error) throw value;
     return value;
+  }
+
+  async callText(name: string, args: Record<string, unknown>): Promise<ToolOutcome> {
+    try {
+      return { ok: true, text: String((await this.call(name, args)) ?? "") };
+    } catch (error) {
+      return { ok: false, failure: error instanceof Error ? error.message : String(error) };
+    }
   }
 }

@@ -24,6 +24,10 @@ export interface ShellResult {
   timedOut?: boolean;
 }
 
+/** One tool call read as text: the tool's text, or its own failure message, the
+ *  runtime's wrapping gone. */
+export type ToolOutcome = { ok: true; text: string } | { ok: false; failure: string };
+
 /** How one command runs. */
 export interface ShellOptions {
   /** Whole seconds before the runtime stops the command; the runtime's default when absent. */
@@ -210,6 +214,9 @@ export interface ToolCatalogue {
   /** Call the tool `name` designates with `args` as given; resolves to its raw
    *  result, throws its failure, or that no registered tool answers to `name`. */
   call(name: string, args: Record<string, unknown>): Promise<unknown>;
+  /** The same call, decoded: the result as text, or the tool's own failure message
+   *  (that no registered tool answers to `name` included). Never throws. */
+  callText(name: string, args: Record<string, unknown>): Promise<ToolOutcome>;
 }
 
 /** The crews the host can run, by name. */

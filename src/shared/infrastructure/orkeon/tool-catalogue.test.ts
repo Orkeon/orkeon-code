@@ -170,3 +170,49 @@ describe("createToolCalls — a crew's calls, by registered name", () => {
     await rejects(act, /server gone/);
   });
 });
+
+describe("callText — a call read as text", () => {
+  it("answers a tool's text as an ok outcome", async () => {
+    // Arrange
+    const calls = createToolCalls({ transcribeAudio: async () => "Bonjour." });
+
+    // Act
+    const outcome = await calls.callText("transcribe_audio", {});
+
+    // Assert
+    deepStrictEqual(outcome, { ok: true, text: "Bonjour." });
+  });
+
+  it("answers a failing tool's own message, without the runtime's wrapping, as a failed outcome", async () => {
+    // Arrange
+    const { catalogue } = catalogueOverFake();
+
+    // Act
+    const outcome = await catalogue.callText("file_read", { path: "/x" });
+
+    // Assert
+    deepStrictEqual(outcome, { ok: false, failure: "not found" });
+  });
+
+  it("answers a name no tool answers to as a failed outcome", async () => {
+    // Arrange
+    const { catalogue } = catalogueOverFake();
+
+    // Act
+    const outcome = await catalogue.callText("get_file_contents", {});
+
+    // Assert
+    deepStrictEqual(outcome, { ok: false, failure: "no registered tool 'get_file_contents'" });
+  });
+
+  it("reads an object result through its text field", async () => {
+    // Arrange
+    const calls = createToolCalls({ transcribeAudio: async () => ({ text: "Salut.", language: "fr" }) });
+
+    // Act
+    const outcome = await calls.callText("transcribe_audio", {});
+
+    // Assert
+    deepStrictEqual(outcome, { ok: true, text: "Salut." });
+  });
+});

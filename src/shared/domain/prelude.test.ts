@@ -1,13 +1,13 @@
-// The prelude of a crew input: its parsing, a tool result as text, the request
-// the model reads. Run:
+// The prelude of a crew input: its parsing, the error a failed call becomes, the
+// request the model reads. Run:
 //   node --test src/shared/domain/prelude.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 import {
-  applyPrelude, epilogueArgs, failureText, nothingReturned, parseEpilogue, parsePrelude, resultText, toolFailure, withPrelude,
+  applyPrelude, epilogueArgs, errorText, nothingReturned, parseEpilogue, parsePrelude, toolFailure, withPrelude,
 } from "./prelude.ts";
 import {
-  APPLY_CASES, AS_CASES, EPILOGUE_CASES, FAILURE_TEXTS, LOOSE_PRELUDES, NOT_PRELUDES, NOTIFY_EPILOGUE, RESULT_TEXTS,
+  APPLY_CASES, AS_CASES, EPILOGUE_CASES, LOOSE_PRELUDES, NOT_PRELUDES, NOTIFY_EPILOGUE,
 } from "./prelude.fixtures.ts";
 
 describe("parsePrelude", () => {
@@ -49,21 +49,6 @@ describe("parsePrelude", () => {
   }
 });
 
-describe("resultText", () => {
-  for (const c of RESULT_TEXTS) {
-    it(c.name, () => {
-      // Arrange
-      const { raw } = c;
-
-      // Act
-      const text = resultText(raw);
-
-      // Assert
-      strictEqual(text, c.text);
-    });
-  }
-});
-
 describe("withPrelude", () => {
   it("puts the result under its label after the request", () => {
     // Arrange
@@ -81,30 +66,30 @@ describe("withPrelude", () => {
   });
 });
 
-describe("failureText", () => {
-  for (const c of FAILURE_TEXTS) {
-    it(c.name, () => {
-      // Arrange
-      const { error } = c;
-
-      // Act
-      const text = failureText(error);
-
-      // Assert
-      strictEqual(text, c.text);
-    });
-  }
-
+describe("toolFailure", () => {
   it("names the error after the tool, so it reads '<tool>: <message>'", () => {
     // Arrange
-    const error = new Error("Error executing tool transcribe_audio: no file at /audio/a.wav");
+    const message = "no file at /audio/a.wav";
 
     // Act
-    const failure = toolFailure("transcribe_audio", error);
+    const failure = toolFailure("transcribe_audio", message);
 
     // Assert
     strictEqual(String(failure), "transcribe_audio: no file at /audio/a.wav");
     strictEqual(failure.message, "no file at /audio/a.wav");
+  });
+});
+
+describe("errorText", () => {
+  it("keeps the first line of an error's message", () => {
+    // Arrange
+    const error = new Error("  session buffer unreadable \n   at SessionStore.read ");
+
+    // Act
+    const text = errorText(error);
+
+    // Assert
+    strictEqual(text, "session buffer unreadable");
   });
 });
 

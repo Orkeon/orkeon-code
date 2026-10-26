@@ -1,12 +1,15 @@
-// Unit tests for the tool-result normaliser (snake AND Pascal casing). Run:
+// Unit tests for the tool-result normaliser (snake AND Pascal casing), a result
+// as text and a failure as the tool's own message. Run:
 //   node --test src/shared/infrastructure/orkeon/tool-results.test.ts
 import { describe, it } from "node:test";
-import { strictEqual, deepStrictEqual, ok } from "node:assert";
+import { strictEqual, deepStrictEqual, ok, rejects } from "node:assert";
 
-import { pick, shOut, shErr, shCode, fileContent, asArray, entryNames } from "./tool-results.ts";
 import {
-  ARRAYS, CAPTURED_FILE_READ, CAPTURED_SESSION_STATS, CONTENTS, ENTRY_NAMES, EXIT_CODES, PICKS, SESSION_STATS_COUNTERS,
-  STDERRS, STDOUTS,
+  pick, shOut, shErr, shCode, fileContent, asArray, entryNames, failureText, resultText, withToolMessage,
+} from "./tool-results.ts";
+import {
+  ARRAYS, CAPTURED_FILE_READ, CAPTURED_SESSION_STATS, CONTENTS, ENTRY_NAMES, EXIT_CODES, FAILURE_TEXTS, OWN_MESSAGE,
+  PICKS, RESULT_TEXTS, SESSION_STATS_COUNTERS, STDERRS, STDOUTS,
 } from "./tool-results.fixtures.ts";
 
 describe("pick", () => {
@@ -188,5 +191,48 @@ describe("live-verified payload shapes", () => {
 
     // Assert
     strictEqual(out, "");
+  });
+});
+
+describe("resultText", () => {
+  for (const c of RESULT_TEXTS) {
+    it(c.name, () => {
+      // Arrange
+      const { raw } = c;
+
+      // Act
+      const text = resultText(raw);
+
+      // Assert
+      strictEqual(text, c.text);
+    });
+  }
+});
+
+describe("failureText", () => {
+  for (const c of FAILURE_TEXTS) {
+    it(c.name, () => {
+      // Arrange
+      const { error } = c;
+
+      // Act
+      const text = failureText(error);
+
+      // Assert
+      strictEqual(text, c.text);
+    });
+  }
+});
+
+describe("withToolMessage", () => {
+  it("rethrows a failure with the tool's own message, without the runtime's wrapping", async () => {
+    // Arrange
+    const call = async () => { throw new Error(`tools.fileRead failed [path=/a]: Error executing tool file_read: ${OWN_MESSAGE}`); };
+
+    // Act
+    const act = withToolMessage(call);
+
+    // Assert
+    await rejects(act, (e: Error) => e.message === OWN_MESSAGE);
   });
 });

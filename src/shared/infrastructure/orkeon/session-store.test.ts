@@ -2,12 +2,38 @@
 // casings the runtime hands back. Run:
 //   node --test src/shared/infrastructure/orkeon/session-store.test.ts
 import { describe, it } from "node:test";
-import { strictEqual, deepStrictEqual } from "node:assert";
+import { strictEqual, deepStrictEqual, rejects } from "node:assert";
 
 import { createSessionStore } from "./session-store.ts";
 import { compactSession } from "../../application/compaction/compact-session.ts";
 import { FakeTools } from "../../../../tests/support/doubles/fake-tools.ts";
 import { BUDGETS, FORCES, NOT_A_LIST, RESET_COUNTS, compactionDeps } from "./session-store.fixtures.ts";
+
+describe("createSessionStore — a failed read", () => {
+  it("rethrows a failed read of the buffer with the tool's own message, without the runtime's wrapping", async () => {
+    // Arrange
+    const tools = new FakeTools();
+    tools.replies.sessionStore = new Error("tools.sessionStore failed [operation=read_messages]: session buffer unreadable");
+
+    // Act
+    const act = createSessionStore(tools).readMessages();
+
+    // Assert
+    await rejects(act, (e: Error) => e.message === "session buffer unreadable");
+  });
+
+  it("rethrows a failed read of the state bag with the tool's own message, without the runtime's wrapping", async () => {
+    // Arrange
+    const tools = new FakeTools();
+    tools.replies.sessionStore = new Error("tools.sessionStore failed [operation=get_state]: no session tools");
+
+    // Act
+    const act = createSessionStore(tools).readState("k");
+
+    // Assert
+    await rejects(act, (e: Error) => e.message === "no session tools");
+  });
+});
 
 describe("createSessionStore — messages", () => {
   it("reads `messages` and gives each entry's role and content", async () => {

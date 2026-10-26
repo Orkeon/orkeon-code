@@ -137,7 +137,9 @@ test and are covered by the bundle check and the runtime smoke.
 A port (`src/shared/application/ports.ts`) is named after what the application needs, not after the runtime call
 that provides it. Its adapter is the only code that calls the runtime for it and the only code that reads the
 runtime's results, whose field casing varies (`messages` or `Messages`): a port hands back plain values, except
-the two calls that show a raw result on purpose (`MemoryStore.get`, `ToolCatalogue.call`).
+the two calls that show a raw result on purpose (`MemoryStore.get`, `ToolCatalogue.call`). A caller that reads a
+tool's text uses `ToolCatalogue.callText` instead: the adapter decodes the result (`tool-results.ts`) and hands back
+the text, or the tool's own failure message without the runtime's wrapping, and never throws.
 
 | Port | What it is for | Adapter (`src/shared/infrastructure/orkeon/`) | Fake (`tests/support/doubles/`) |
 |---|---|---|---|
@@ -151,7 +153,7 @@ the two calls that show a raw result on purpose (`MemoryStore.get`, `ToolCatalog
 | `SessionStore` | The conversation buffer, the state bag, the title, the snip, the token budget (`session_store`, `session_snip`, `token_budget`) | `session-store.ts` | `fake-session-store.ts` |
 | `Telemetry` | The session's metadata, cost and statistics (`session_store`, `session_cost`, `session_stats`) | `telemetry.ts` | `fake-telemetry.ts` |
 | `MemoryStore` | Typed memory: list, add, get, remove (`memory_store`) | `memory-store.ts` | `fake-memory-store.ts` |
-| `ToolCatalogue` | The registered tools under their registered names, found case-insensitively as Orkeon finds them, for diagnostics and the extra tools' check (the `tools` service of `ctx.services` for the names, the `tools` namespace for the calls) | `tool-catalogue.ts` | `fake-tool-catalogue.ts` |
+| `ToolCatalogue` | The registered tools under their registered names, found case-insensitively as Orkeon finds them, for diagnostics and the extra tools' check (the `tools` service of `ctx.services` for the names, the `tools` namespace for the calls: `call` raw, `callText` decoded) | `tool-catalogue.ts` | `fake-tool-catalogue.ts` |
 | `CodeIndex` | The code index as `/analyze` harvests it (`index_status`, `index_codebase`, `codebase_map`, `dependency_graph`, `package_summary`) | `code-index.ts` | `fake-code-index.ts` |
 | `CostIndex` | The access cost `/dev-verify` and `/dev-implement` measure: the indexed roots, the refresh of the batch's files, the report (`index_status`, `incremental_reindex`, `access_cost`) | `code-index.ts` | none: a fake in `measure-access-cost.test.ts` |
 | `CrewHost` | List and launch crews (the `script-host` service, `ctx.services`) | `crew-host.ts` | `fake-crew-host.ts` |

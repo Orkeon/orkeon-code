@@ -114,8 +114,8 @@ export const DICTATION = { tool: "record_and_transcribe", args: { max_seconds: 6
 
 export const SPEAK = { tool: "speak", args: {}, textArg: "text", label: "Reply read aloud" };
 
-export const SPEAKER_FAILURE =
-  "tools.speak failed [text=…]: Error executing tool speak: no speaker access (PortAudio library not found)";
+/** The speaker's own failure, as the catalogue hands it once the runtime's wrapping is gone (tool-results.ts). */
+export const SPEAKER_FAILURE = "no speaker access (PortAudio library not found)";
 
 /** A catalogue a rule took a tool from, with a rule the mode makes inert. */
 export const RULED_CATALOGUE = {

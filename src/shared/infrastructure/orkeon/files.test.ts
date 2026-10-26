@@ -49,7 +49,7 @@ describe("createFiles — read", () => {
     });
   }
 
-  it("rethrows a failed read with the runtime's message", async () => {
+  it("rethrows a failed read with the tool's own message, without the runtime's wrapping", async () => {
     // Arrange
     const tools = new FakeTools();
     tools.replies.fileRead = new Error("tools.fileRead failed [path=/a]: file not found");
@@ -58,7 +58,7 @@ describe("createFiles — read", () => {
     const act = createFiles(tools).read("/a");
 
     // Assert
-    await rejects(act, /file not found/);
+    await rejects(act, (e: Error) => e.message === "file not found");
   });
 });
 

@@ -13,7 +13,5 @@ export function speechSetup(reply: unknown) {
 /** A transcription's text, its trailer after it. */
 export const TRANSCRIPT = "Bonjour.\n\n[language fr (0.99), 3 s, 1 words; written to /transcripts/a.txt]";
 
-/** The failure the runtime wraps around the tool's own message. */
-export const WRAPPED_FAILURE = new Error(
-  "tools.transcribeAudio failed [path=/audio/x.m4a]: Error executing tool transcribe_audio: no file at /audio/x.m4a",
-);
+/** The tool's own failure, as the catalogue hands it once the runtime's wrapping is gone (tool-results.ts). */
+export const TOOL_FAILURE = new Error("no file at /audio/x.m4a");

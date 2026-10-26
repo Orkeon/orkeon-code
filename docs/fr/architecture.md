@@ -144,7 +144,9 @@ runtime.
 Un port (`src/shared/application/ports.ts`) est nommé d'après ce dont l'application a besoin, pas d'après l'appel du
 runtime qui le fournit. Son adaptateur est le seul code qui appelle le runtime pour lui et le seul code qui lit les
 résultats du runtime, dont la casse des champs varie (`messages` ou `Messages`) : un port rend des valeurs simples,
-sauf les deux appels qui montrent un résultat brut à dessein (`MemoryStore.get`, `ToolCatalogue.call`).
+sauf les deux appels qui montrent un résultat brut à dessein (`MemoryStore.get`, `ToolCatalogue.call`). Un appelant
+qui lit le texte d'un outil passe par `ToolCatalogue.callText` : l'adaptateur décode le résultat (`tool-results.ts`) et
+rend le texte, ou le message d'échec propre à l'outil sans l'enrobage du runtime, et ne lève jamais.
 
 | Port | À quoi il sert | Adaptateur (`src/shared/infrastructure/orkeon/`) | Fake (`tests/support/doubles/`) |
 |---|---|---|---|
@@ -158,7 +160,7 @@ sauf les deux appels qui montrent un résultat brut à dessein (`MemoryStore.get
 | `SessionStore` | Le tampon de conversation, le sac d'état, le titre, la coupe, le budget de tokens (`session_store`, `session_snip`, `token_budget`) | `session-store.ts` | `fake-session-store.ts` |
 | `Telemetry` | Les métadonnées, le coût et les statistiques de la session (`session_store`, `session_cost`, `session_stats`) | `telemetry.ts` | `fake-telemetry.ts` |
 | `MemoryStore` | La mémoire typée : lister, ajouter, lire, retirer (`memory_store`) | `memory-store.ts` | `fake-memory-store.ts` |
-| `ToolCatalogue` | Les outils enregistrés sous leurs noms d'enregistrement, trouvés sans tenir compte de la casse comme Orkeon les trouve, pour les diagnostics et la vérification des outils supplémentaires (le service `tools` de `ctx.services` pour les noms, l'espace de noms `tools` pour les appels) | `tool-catalogue.ts` | `fake-tool-catalogue.ts` |
+| `ToolCatalogue` | Les outils enregistrés sous leurs noms d'enregistrement, trouvés sans tenir compte de la casse comme Orkeon les trouve, pour les diagnostics et la vérification des outils supplémentaires (le service `tools` de `ctx.services` pour les noms, l'espace de noms `tools` pour les appels : `call` brut, `callText` décodé) | `tool-catalogue.ts` | `fake-tool-catalogue.ts` |
 | `CodeIndex` | L'index du code tel que `/analyze` le récolte (`index_status`, `index_codebase`, `codebase_map`, `dependency_graph`, `package_summary`) | `code-index.ts` | `fake-code-index.ts` |
 | `CostIndex` | Le coût d'accès que `/dev-verify` et `/dev-implement` mesurent : les racines indexées, le rafraîchissement des fichiers du lot, le rapport (`index_status`, `incremental_reindex`, `access_cost`) | `code-index.ts` | aucun : un faux dans `measure-access-cost.test.ts` |
 | `CrewHost` | Lister et lancer des crews (le service `script-host`, `ctx.services`) | `crew-host.ts` | `fake-crew-host.ts` |

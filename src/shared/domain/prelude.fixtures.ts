@@ -1,4 +1,4 @@
-// Values a crew input carries, tool results and errors, for the prelude tests.
+// Values a crew input carries, for the prelude tests.
 import type { EpilogueCall, PreludeCall } from "./prelude.ts";
 
 /** Values that hold no prelude: no tool, or no object. */
@@ -21,44 +21,6 @@ export const LOOSE_PRELUDES: readonly ParseCase[] = [
     name: "takes null arguments as none, and a missing label as the tool's name",
     value: { tool: "list_audio", args: null },
     expected: { tool: "list_audio", args: {}, label: "list_audio" },
-  },
-];
-
-/** Tool results and the text each reads as. */
-export const RESULT_TEXTS: readonly { readonly name: string; readonly raw: unknown; readonly text: string }[] = [
-  { name: "keeps a string", raw: "bonjour", text: "bonjour" },
-  { name: "picks a text field", raw: { text: "a" }, text: "a" },
-  { name: "picks a Content field", raw: { Content: "b" }, text: "b" },
-  { name: "picks a result field before a text that is no string", raw: { result: "c", text: 1 }, text: "c" },
-  { name: "falls back to JSON for an object without a text field", raw: { segments: [1] }, text: '{"segments":[1]}' },
-  { name: "falls back to JSON for a number", raw: 42, text: "42" },
-  { name: "reads undefined as no text", raw: undefined, text: "" },
-  { name: "reads null as no text", raw: null, text: "" },
-];
-
-/** The tool's own message, as the runtime wraps it. */
-export const OWN_MESSAGE = "no file at /audio/nope.wav (list_audio shows what /audio holds)";
-
-/** Errors and the message of the tool each carries. */
-export const FAILURE_TEXTS: readonly { readonly name: string; readonly error: unknown; readonly text: string }[] = [
-  {
-    name: "keeps the tool's own message, without the runtime's wrapping",
-    error: new Error(`tools.transcribeAudio failed [path=/audio/nope.wav]: Error executing tool transcribe_audio: ${OWN_MESSAGE}`),
-    text: OWN_MESSAGE,
-  },
-  {
-    name: "keeps the tool's own message out of an aggregate error",
-    error: new Error(
-      `One or more errors occurred. (tools.transcribeAudio failed [path=/audio/nope.wav]: Error executing tool transcribe_audio: ${OWN_MESSAGE})`,
-    ),
-    text: OWN_MESSAGE,
-  },
-  { name: "keeps the message after the runtime's call prefix", error: new Error("tools.listAudio failed [x=1]: server gone"), text: "server gone" },
-  { name: "keeps a plain string as it is", error: "plain (with parentheses)", text: "plain (with parentheses)" },
-  {
-    name: "keeps the tool's own message, without the host's inner exception",
-    error: new Error(`Error executing tool transcribe_audio: ${OWN_MESSAGE})\n ---> System.InvalidOperationException: tools.x failed`),
-    text: OWN_MESSAGE,
   },
 ];
 
