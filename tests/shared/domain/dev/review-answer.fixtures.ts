@@ -25,6 +25,19 @@ export interface SchemaShape {
   properties: { verdict: { enum: string[] }; rows: { items: { required: string[]; properties: { severity: { enum: string[] } } } } };
 }
 
+/** Targets with a qualifier, as the reviewer writes them: the id each one stands for, or the problem named. */
+export const QUALIFIED_TARGETS: ReadonlyArray<{ name: string; target: string; targets: string[]; id?: string; problem?: string }> = [
+  { name: "keeps the id before a parenthesis", target: "F2 (step 1)", targets: CTX.targets, id: "F2" },
+  { name: "keeps the id before a colon, with the id alone allowed", target: "F3: step 2", targets: ["F3"], id: "F3" },
+  { name: "keeps the longest id", target: "F10 x", targets: ["F1", "F10"], id: "F10" },
+  { name: "folds the case to the id", target: "f2", targets: CTX.targets, id: "F2" },
+  { name: "keeps a plan target before a section", target: "plan (§ 3)", targets: CTX.targets, id: "plan" },
+  { name: "refuses an id another id starts", target: "F12", targets: ["F1"], problem: "row 1: target 'F12' is not one of F1" },
+  { name: "refuses an unknown id with a qualifier", target: "F4 (step 1)", targets: CTX.targets, problem: "row 1: target 'F4 (step 1)' is not one of plan, F1…F3" },
+  { name: "refuses a target naming two ids", target: "plan (F2)", targets: CTX.targets, problem: "row 1: target 'plan (F2)' names two targets" },
+  { name: "refuses a range of ids", target: "F1-F3", targets: CTX.targets, problem: "row 1: target 'F1-F3' names two targets" },
+];
+
 /** `count` rows, each asking a question of its own. */
 export const distinctRows = (count: number): Record<string, unknown>[] =>
   Array.from({ length: count }, (_, i) => row({ question: `Is case ${i} covered?` }));

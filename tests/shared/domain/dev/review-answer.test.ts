@@ -5,8 +5,8 @@ import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import { MAX_REVIEW_ROWS, REVIEW_ANSWER_SCHEMA, checkReviewAnswer } from "../../../../src/shared/domain/dev/review-answer.ts";
 import {
-  answer, BACKSLASHED_ROW, BAD_QUESTIONS, CITING_EVIDENCE, CTX, distinctRows, PIPED_ROW, problemsOf, REFUSED_QUESTION,
-  REPEATED_ROWS, row,
+  answer, BACKSLASHED_ROW, BAD_QUESTIONS, CITING_EVIDENCE, CTX, distinctRows, PIPED_ROW, problemsOf, QUALIFIED_TARGETS,
+  REFUSED_QUESTION, REPEATED_ROWS, row,
 } from "./review-answer.fixtures.ts";
 import type { SchemaShape } from "./review-answer.fixtures.ts";
 
@@ -250,6 +250,33 @@ describe("checkReviewAnswer", () => {
     // Assert
     deepStrictEqual(problems, ["row 1: target 'F4' is not one of plan, F1…F3"]);
   });
+
+  for (const c of QUALIFIED_TARGETS.filter((q) => q.id !== undefined)) {
+    it(`target with a qualifier: ${c.name}`, () => {
+      // Arrange
+      const value = answer({ rows: [row({ target: c.target })] });
+
+      // Act
+      const checked = checkReviewAnswer(value, { targets: c.targets });
+
+      // Assert
+      ok(checked.ok, JSON.stringify(checked));
+      strictEqual(checked.value.rows[0].target, c.id);
+    });
+  }
+
+  for (const c of QUALIFIED_TARGETS.filter((q) => q.problem !== undefined)) {
+    it(`target with a qualifier: ${c.name}`, () => {
+      // Arrange
+      const value = answer({ rows: [row({ target: c.target })] });
+
+      // Act
+      const checked = checkReviewAnswer(value, { targets: c.targets });
+
+      // Assert
+      deepStrictEqual(checked.ok ? [] : checked.problems, [c.problem]);
+    });
+  }
 
   it("target is one the caller names: accepts plan", () => {
     // Arrange

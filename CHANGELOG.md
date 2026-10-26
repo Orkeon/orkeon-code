@@ -521,6 +521,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `/dev-batches`, `/dev-plan`, `/dev-spec`, `/dev-change`: a review row whose target carries a qualifier (`F2 (step 1)`)
+  is kept under the batch's id instead of being refused, which made the extraction retry and then lose the whole
+  review (live run of 2026-10-26: `review of F2: not run (unparsable)`, a Major question never shown); the
+  extraction prompt names the ids a target may be, and the reviewer is asked for a batch by its id.
+- `/dev-implement`, `/dev-batches`: the editing rule of the roles spells an `edit_batch` out (its `operations` list and
+  `validate`), which the runtime's tool schema does not publish: two calls without `operations` were refused in the
+  live run of 2026-10-26 before the model recovered from the refusal's hint; the rule and the hint share one text.
 - `/dev-verify`, `/dev-batches`: the audit's brief and the next batch's review brief list the project's files (tracked
   and untracked, the work folder left out), and the auditor and the reviewer never read a name they guessed nor a
   folder: a live run spent ten reads on modules that did not exist.

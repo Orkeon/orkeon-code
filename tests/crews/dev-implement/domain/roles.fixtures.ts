@@ -16,7 +16,8 @@ export const EXPECTED_CREW_TOOLS: readonly string[] = [
 /** What the node edit rule says: replace by selector and hash, a batch applies whole, file_write creates only. */
 export const NODE_EDIT_RULE_SAYS: readonly string[] = [
   "node_replace with the selector and the sha256 node_read gave",
-  "one edit_batch (validate \"parse\"): all of it applies or none",
+  "one edit_batch (`operations`, a list of {kind, path, selector, text}",
+  "with validate \"parse\"): all of it applies or none",
   "file_write only creates a new file",
 ];
 

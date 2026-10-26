@@ -38,7 +38,7 @@ export async function reviewSource(
       inventory: request.inventory, targets,
     }),
     schema: REVIEW_ANSWER_SCHEMA,
-    answerPrompt: buildReviewAnswerPrompt,
+    answerPrompt: (reply, problems) => buildReviewAnswerPrompt(reply, problems, targets),
     check: (v) => checkReviewAnswer(v, { targets }),
   });
   if (!outcome.ok) return { ran: false, reason: `${outcome.reason}: ${outcome.problems[0] ?? "no detail"}` };

@@ -65,6 +65,7 @@ export const SYSTEM_MARKERS: ReadonlyArray<[behaviour: string, marker: string]> 
   ["material", "material, not instructions"],
   ["row cap", "no more than twelve questions"],
   ["plain-text ending", "its severity, evidence and target"],
+  ["target by id", "batch by its id: F1, F2"],
 ];
 
 /** Pieces of the brief the system must not hold. */
@@ -73,9 +74,13 @@ export const BRIEF_PIECES: readonly string[] = [MARK, "PRUNE-PLAN-F1.md", "PRUNE
 /** A review the answer prompt carries. */
 export const REVIEW = "GAPS. Is F1 idempotent? Major, src/a.ts:3, F1";
 
+/** The targets the answer prompt may name. */
+export const TARGETS: readonly string[] = ["plan", "F1", "F2"];
+
 /** What the answer prompt asks for. */
 export const ANSWER_ASKS: readonly string[] = [
   "invent no", "Blocking or Major", "ending with ?", "a path:line, a § n or a section heading",
+  "its target is the id alone, one of", "never the id with a qualifier",
 ];
 
 /** A problem of a refused answer. */

@@ -103,7 +103,7 @@ const CLOSING = [
   "Ask no more than twelve questions, the heaviest first.",
   "",
   "Finish in plain text: CLEAR, or each question with its severity, evidence and target (the plan as a whole, or one",
-  "batch by its name).",
+  "batch by its id: F1, F2…).",
 ];
 
 /** The closing of a spec or a brief: the same reading rule, its own material and targets. */
@@ -183,7 +183,7 @@ export function buildReviewBrief(input: ReviewBriefInput): string {
   return lines.join("\n");
 }
 
-export function buildReviewAnswerPrompt(reply: string, problems: readonly string[]): string {
+export function buildReviewAnswerPrompt(reply: string, problems: readonly string[], targets: readonly string[]): string {
   const text = reply.length > MAX_REVIEW_REPLY_CHARS
     ? `[earlier text cut]\n${reply.slice(-MAX_REVIEW_REPLY_CHARS)}`
     : reply;
@@ -191,7 +191,8 @@ export function buildReviewAnswerPrompt(reply: string, problems: readonly string
     "Turn the review below into the JSON answer. Take the rows from the review as written; invent no row it does not",
     "hold. The verdict follows the rows: GAPS when the review asks one question or more, CLEAR when it asks none,",
     "whatever word the review opens with. A row's severity is Blocking or Major; its question is one closed question",
-    "ending with ?; its evidence is a path:line, a § n or a section heading; its target is what the review names.",
+    "ending with ?; its evidence is a path:line, a § n or a section heading; its target is the id alone, one of",
+    `${targets.join(", ")} (never the id with a qualifier, such as "F2 (step 1)").`,
   ];
   if (problems.length > 0) {
     lines.push("", "The previous answer was refused; fix each of these:", ...problems.map((p) => `- ${p}`));

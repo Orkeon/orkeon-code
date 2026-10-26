@@ -368,7 +368,7 @@ export async function renderCatalogue(): Promise<RenderedPrompt[]> {
       sections: [
         { title: "system, mode plan", role: "system", text: reviewSystem("plan") },
         { title: "brief", role: "user", text: reviewBrief },
-        { title: "answer, second try", role: "text", text: buildReviewAnswerPrompt(`GAPS. ${MATERIAL_MARK}`, ["row 1: the question must be one closed question ending with ?"]) },
+        { title: "answer, second try", role: "text", text: buildReviewAnswerPrompt(`GAPS. ${MATERIAL_MARK}`, ["row 1: the question must be one closed question ending with ?"], ["plan", "F1", "F2"]) },
         schema("schema", REVIEW_ANSWER_SCHEMA),
       ],
     },

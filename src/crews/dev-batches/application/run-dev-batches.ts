@@ -531,7 +531,7 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
         projectFiles: await listProjectFiles(deps.shell, ctx.work.folder),
       }),
       schema: REVIEW_ANSWER_SCHEMA,
-      answerPrompt: buildReviewAnswerPrompt,
+      answerPrompt: (reply, problems) => buildReviewAnswerPrompt(reply, problems, [id]),
       check: (v) => checkReviewAnswer(v, { targets: [id] }),
     });
     if (!outcome.ok) {

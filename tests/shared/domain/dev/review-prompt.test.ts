@@ -14,7 +14,7 @@ import { assertHolds, assertLacks, assertNoMarker } from "./review-prompt.assert
 import {
   ANSWER_ASKS, BARE_INPUT, BRIEF_PIECES, CARRIED_PIECES, CARRYING_INPUT, INPUT, MARK, MODE_FOCUS, NEXT_BATCH_FOCUS,
   NEXT_BATCH_INPUT, OVERFULL_INPUT, PLAN_BRIEF, PLAN_PAST_THE_ROOM, PROBLEM, REVIEW, SETTLED_PIECES, SPEC_INPUT,
-  SYSTEM_MARKERS, promptMarkers,
+  SYSTEM_MARKERS, TARGETS, promptMarkers,
 } from "./review-prompt.fixtures.ts";
 
 describe("reviewSystem(\"plan\") — one marker per behaviour", () => {
@@ -153,7 +153,7 @@ describe("buildReviewAnswerPrompt", () => {
     const review = REVIEW;
 
     // Act
-    const prompt = buildReviewAnswerPrompt(review, []);
+    const prompt = buildReviewAnswerPrompt(review, [], TARGETS);
 
     // Assert
     assertHolds(prompt, ANSWER_ASKS, "the answer prompt");
@@ -161,12 +161,23 @@ describe("buildReviewAnswerPrompt", () => {
     ok(prompt.endsWith(`The review:\n\n${REVIEW}`));
   });
 
+  it("names the targets the id alone may be", () => {
+    // Arrange
+    const targets = ["spec", "UC-01"];
+
+    // Act
+    const prompt = buildReviewAnswerPrompt(REVIEW, [], targets);
+
+    // Assert
+    ok(prompt.includes("its target is the id alone, one of\nspec, UC-01 (never the id with a qualifier"), prompt);
+  });
+
   it("lists the problems of a refused answer before the review", () => {
     // Arrange
     const problems = [PROBLEM];
 
     // Act
-    const prompt = buildReviewAnswerPrompt(`GAPS. ${MARK}`, problems);
+    const prompt = buildReviewAnswerPrompt(`GAPS. ${MARK}`, problems, TARGETS);
 
     // Assert
     const problem = prompt.indexOf(`- ${PROBLEM}`);
@@ -180,7 +191,7 @@ describe("buildReviewAnswerPrompt", () => {
     const reply = `HEAD${"x".repeat(MAX_REVIEW_REPLY_CHARS)}TAIL`;
 
     // Act
-    const prompt = buildReviewAnswerPrompt(reply, []);
+    const prompt = buildReviewAnswerPrompt(reply, [], TARGETS);
 
     // Assert
     strictEqual(MAX_REVIEW_REPLY_CHARS, 12_000);
@@ -193,7 +204,7 @@ describe("buildReviewAnswerPrompt", () => {
     const reply = "x".repeat(MAX_REVIEW_REPLY_CHARS);
 
     // Act
-    const prompt = buildReviewAnswerPrompt(reply, []);
+    const prompt = buildReviewAnswerPrompt(reply, [], TARGETS);
 
     // Assert
     ok(!prompt.includes("[earlier text cut]"));
