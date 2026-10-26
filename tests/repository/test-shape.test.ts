@@ -140,6 +140,17 @@ describe("test shape: the repository", () => {
     deepStrictEqual(problems, []);
   });
 
+  it("reads the ports from every file of application/ports/", () => {
+    // Arrange
+    const expected = ["Shell", "Files", "HumanInput", "Llm", "SharedMemory"];
+
+    // Act
+    const ports = repositoryPorts();
+
+    // Assert
+    deepStrictEqual(expected.filter((name) => !ports.has(name)), []);
+  });
+
   it("every double lives in tests/support/doubles/", () => {
     // Arrange
     const files = [...filesUnder("src"), ...filesUnder("tests")];

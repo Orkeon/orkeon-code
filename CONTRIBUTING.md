@@ -25,7 +25,7 @@ bash scripts/smoke-runtime.sh # the real REPL loads every command (needs a runti
 src/
 ├── commands/   *.cmd.ts slash commands (entry points) + _lib/ (their use cases)
 ├── crews/      <name>/crew.ork.ts (entry point) + application/ + domain/
-└── shared/     domain/ · application/ (ports.ts, services) · infrastructure/ (globals.ts, orkeon/ adapters)
+└── shared/     domain/ · application/ (ports.ts + ports/, services) · infrastructure/ (globals.ts, orkeon/ adapters)
 tests/          support/ (doubles/, fixtures/, assertions/ shared across test files) · repository/ (architecture, test shape, command surface, versions) · scripts/ · config/
 mcp/whisper/    the speech MCP server (Python, run by uv): whisper_mcp.py + tests/
 ```
@@ -36,8 +36,8 @@ global, that breaks the rule:
 - **domain**: pure types and deterministic functions. No IO, no runtime global. Imports domain only. Every module
   has its `*.test.ts` next to it.
 - **application**: the use cases of a crew (`application/run-<crew>.ts`) and the shared services. Imports domain and
-  application only, the ports of `src/shared/application/ports.ts` included: what it needs from the runtime, it
-  receives as parameters typed by a port. Only `shared/infrastructure/` reads the clock; the rest takes the `Clock`
+  application only, the ports of `src/shared/application/ports.ts` included (one file per concern under
+  `ports/`, re-exported by `ports.ts`): what it needs from the runtime, it receives as parameters typed by a port. Only `shared/infrastructure/` reads the clock; the rest takes the `Clock`
   port.
 - **infrastructure**: `src/shared/infrastructure/globals.ts` is the only module that reads the runtime globals
   (`tools`, `agentBuilder`, `crewBuilder`, `inputs`); the adapters of `orkeon/` implement the ports over them, and

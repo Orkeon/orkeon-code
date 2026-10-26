@@ -7,7 +7,7 @@ import { classMethods, portNames } from "./syntax.ts";
 import { CLOCK_RULE, DOUBLES_RULE, MODULE_RULE } from "./test-shape.ts";
 
 const ROOT = posix.join(posix.dirname(fileURLToPath(import.meta.url)), "../..");
-const PORTS_FILE = "src/shared/application/ports.ts";
+const PORTS_DIR = "src/shared/application/ports";
 const DOUBLES = "tests/support/doubles";
 
 /** Every .ts file under `dir` (no declaration), by repository path, in sorted order. */
@@ -23,8 +23,9 @@ export function filesUnder(dir: string, acc: string[] = []): string[] {
 
 export const readRepo = (file: string) => readFileSync(posix.join(ROOT, file), "utf-8");
 
-/** The ports of src/shared/application/ports.ts, read from its exports. */
-export const repositoryPorts = () => portNames(PORTS_FILE, readRepo(PORTS_FILE));
+/** The ports of src/shared/application/ports/, read from the exports of its files (ports.ts re-exports them). */
+export const repositoryPorts = () =>
+  new Set(filesUnder(PORTS_DIR).flatMap((file) => [...portNames(file, readRepo(file))]));
 
 /** The methods of every double of tests/support/doubles/, by class name. */
 export function repositoryDoubleMethods(): Map<string, Set<string>> {

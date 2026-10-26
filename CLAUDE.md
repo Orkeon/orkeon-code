@@ -29,13 +29,14 @@ that breaks the rule; never weaken it to make a change pass, move the code inste
 | Layer | What it holds | May import |
 | --- | --- | --- |
 | **domain** (`*/domain/`) | pure types and deterministic functions: no IO, no clock, no runtime global | domain only |
-| **application** (`*/application/`) | the use cases (`run-<crew>.ts`) and shared services | domain and application only, the ports of `src/shared/application/ports.ts` included |
+| **application** (`*/application/`) | the use cases (`run-<crew>.ts`) and shared services | domain and application only, the ports of `src/shared/application/ports.ts` (re-exported from `ports/<concern>.ts`) included |
 | **infrastructure** (`src/shared/infrastructure/`) | `globals.ts` (the only reader of `tools`, `agentBuilder`, `crewBuilder`, `inputs`), the `orkeon/` adapters, `orkeon/wiring.ts` | everything inside |
 | **entry points** (`crew.ork.ts`, `*.cmd.ts`) | parse the input, wire the adapters, call one use case, render the result | no logic worth testing |
 | **command use cases** (`src/commands/_lib/`) | the logic of a command | never `shared/infrastructure/` |
 
 - Application never imports infrastructure: what it needs from the runtime it receives as a parameter typed by a
-  port. A new need of the runtime is a new port in `ports.ts`, an adapter in `orkeon/`, a fake in `tests/support/doubles/`.
+  port. A new need of the runtime is a new port in `ports/<concern>.ts` plus its line in the `ports.ts` barrel, an
+  adapter in `orkeon/`, a fake in `tests/support/doubles/`.
 - Domain and application never import `commands/` nor an entry point. Only the crew entry points import
   `globals.ts`; only a `*.cmd.ts` calls `defineCommand`. A `*.cmd.ts` never imports `crews/*/domain` nor
   `crews/*/application`: it calls a use case of `commands/_lib/`.
@@ -121,7 +122,7 @@ The convention is Orkeon's (`tests/` of github.com/Orkeon/orkeon), adapted to `n
 src/
 ├── commands/   <group>/*.cmd.ts (entry points, by function) + _lib/ (their use cases)
 ├── crews/      <name>/crew.ork.ts (entry point) + application/ + domain/
-└── shared/     domain/ · application/ (ports.ts, services) · infrastructure/ (globals.ts, orkeon/ adapters, wiring.ts)
+└── shared/     domain/ · application/ (ports.ts + ports/, services) · infrastructure/ (globals.ts, orkeon/ adapters, wiring.ts)
 tests/          support/ (doubles/, fixtures/, assertions/ shared across tests) · fixtures/ (file-like texts) · repository/ · scripts/ · config/
 mcp/whisper/    the speech MCP server (Python, uv)
 docs/           architecture.md, adr/ (0001 clean architecture), commands.md, fr/ (the French twins)

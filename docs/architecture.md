@@ -57,7 +57,7 @@ case in Node without touching a runtime global.
 | Layer | Where | Holds | Imports |
 |---|---|---|---|
 | domain | `src/shared/domain/`, `src/crews/<name>/domain/` | Pure types and functions: rules, prompt text, parsing, rendering | domain only |
-| application | `src/shared/application/`, `src/crews/<name>/application/` | Use cases and services over the ports (`ports.ts`) | domain, application |
+| application | `src/shared/application/`, `src/crews/<name>/application/` | Use cases and services over the ports (`ports.ts`, re-exporting `ports/<concern>.ts`) | domain, application |
 | infrastructure | `src/shared/infrastructure/` | `globals.ts`, the Orkeon adapters of the ports, `wiring.ts` | anything inward |
 | command use cases | `src/commands/_lib/` | One module per command family, `run<Name>(tokens, deps)` → a view over the ports it is handed; the helpers the commands share | anything but `shared/infrastructure/` |
 | entry points | `src/commands/<group>/*.cmd.ts`, `src/crews/<name>/crew.ork.ts` | Parse the input, wire the adapters, call a use case, render | anything |
@@ -119,8 +119,9 @@ src/
     │                  output styles, memory categories), dev/ (repository pack, work folder, harness
     │                  formats), agents/ (sub-agent charters), shared-memory/ (memory entries, verdict
     │                  rows, refused motifs), compaction, config schema, session keys...
-    ├── application/   ports.ts and the services over them: session-io, config-store,
-    │                  session-state, json-file, attached-skills, permission-rules,
+    ├── application/   ports/ (one file of ports per concern: shell, files, session, llm...),
+    │                  ports.ts (re-exports them), and the services over them: session-io,
+    │                  config-store, session-state, json-file, attached-skills, permission-rules,
     │                  extra-tools, compaction/, dev/, agents/
     └── infrastructure/ globals.ts (the only access to the runtime globals)
         └── orkeon/    the adapters of the ports, tool-results.ts (field casing),
@@ -147,14 +148,14 @@ test to its shape, read from the syntax tree:
 - test code reads no clock and starts no timer (`setTimeout`, `setInterval`): it takes a `FakeClock`, but in
   `tests/scripts/`, which drives real processes;
 - a double lives in `tests/support/doubles/` and nowhere else: no class that extends a `Fake…` or implements a port
-  (the ports are read from the exports of `ports.ts`), no object literal typed as a port, no method of a fake
+  (the ports are read from the exports of `ports/`), no object literal typed as a port, no method of a fake
   replaced on an instance; what a fake cannot play yet is a new field of that fake;
 - every test of `src/` has its `<module>.ts` beside it, a second test file of the module being
   `<module>.<facet>.test.ts`.
 
 ## Ports and adapters
 
-A port (`src/shared/application/ports.ts`) is named after what the application needs, not after the runtime call
+A port (`src/shared/application/ports/<concern>.ts`, re-exported by `ports.ts`) is named after what the application needs, not after the runtime call
 that provides it. Its adapter is the only code that calls the runtime for it and the only code that reads the
 runtime's results, whose field casing varies (`messages` or `Messages`): a port hands back plain values, except
 the two calls that show a raw result on purpose (`MemoryStore.get`, `ToolCatalogue.call`). A caller that reads a
@@ -613,8 +614,9 @@ the mode too (Orkeon classifies an unknown mode fail-closed). Update `mode-polic
 
 ### Add a port
 
-1. Declare the interface in `src/shared/application/ports.ts`, named after the need, with its failure contract
-   (which calls throw, which are best effort).
+1. Declare the interface in `src/shared/application/ports/<concern>.ts` (a new concern is a new file), named
+   after the need, with its failure contract (which calls throw, which are best effort), and add its name to the
+   `export type` line of that file in `ports.ts`, which every importer names.
 2. Write the adapter `src/shared/infrastructure/orkeon/<port>.ts`: `create<Port>(runtimeObject)`, the tool inputs
    declared in `runtime-tools.ts`, the results read through `tool-results.ts`. Bind it in `wiring.ts` when it reads
    the `tools` global; otherwise the entry point builds it from its context.
