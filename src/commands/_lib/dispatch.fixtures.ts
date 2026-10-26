@@ -1,5 +1,5 @@
 // The deps launchCrew and launchMainLoop run over (FakeCrewHost, FakePermissionRules, a config store on FakeSessionStore
-// and FakeFiles, FakeToolCatalogue, a recording log), the crew host that notes the gate at launch, and the expected
+// and FakeFiles, FakeToolCatalogue, a recording log), the gate noted at launch, and the expected
 // gate lines and warnings that run past a line.
 import { runMode } from "./mode.ts";
 import { createConfigStore } from "../../shared/application/config-store.ts";
@@ -53,33 +53,20 @@ export function crewDeps(launchError?: string) {
 
 export const CHAIN_LIMIT_ERROR = "Async command chain refused at depth 9, limit 8.";
 
-/** A crew host that notes what the gate held when the crew was launched. */
-export class GateWatchingCrewHost extends FakeCrewHost {
-  gate: FakePermissionRules;
-  gateAtLaunch: string[] | null = null;
-
-  constructor(gate: FakePermissionRules) {
-    super();
-    this.gate = gate;
-  }
-
-  launch(name: string, input: Record<string, unknown>): string {
-    this.gateAtLaunch = [...this.gate.calls];
-    return super.launch(name, input);
-  }
-}
-
-/** launchMainLoop's deps, the session holding the rules `stored`. */
+/** launchMainLoop's deps, the session holding the rules `stored`; `atLaunch.gate` is what the gate held when the crew
+ *  was launched. */
 export function mainLoopDeps(...stored: string[]) {
   const { log, logged, warned } = recordingLog();
   const gate = new FakePermissionRules();
-  const crews = new GateWatchingCrewHost(gate);
+  const crews = new FakeCrewHost();
+  const atLaunch: { gate: string[] | null } = { gate: null };
+  crews.onLaunch = () => { atLaunch.gate = [...gate.calls]; };
   const store = new FakeSessionStore();
   store.state.set(PERMISSION_RULES_STATE_KEY, JSON.stringify(stored));
   const config = createConfigStore({ files: new FakeFiles(), session: store });
   const catalogue = new FakeToolCatalogue();
   const deps = { session: createSessionIo({ store, config }), config, catalogue, crews, gate, log };
-  return { gate, crews, logged, warned, store, config, catalogue, deps };
+  return { gate, crews, atLaunch, logged, warned, store, config, catalogue, deps };
 }
 
 /** A config store over `store` whose settings file cannot be read. */

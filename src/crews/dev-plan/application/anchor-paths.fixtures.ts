@@ -8,31 +8,13 @@ import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 export const ANSWER = JSON.parse(readFileSync(new URL("../../../../tests/fixtures/dev/plan/answer.json", import.meta.url), "utf8")) as PlanAnswer;
 
-/** FakeFiles that records every folder it lists. */
-export class CountingFiles extends FakeFiles {
-  listed: string[] = [];
-  override async list(path: string, maxEntries: number): Promise<string[]> {
-    this.listed.push(path);
-    return super.list(path, maxEntries);
-  }
-}
-
-/** Fills `files` with the listings the golden answer is right against. */
-function fillRepository<T extends FakeFiles>(files: T): T {
+/** The repository the golden answer is right against (every folder listed in `listed`). */
+export function repository(): FakeFiles {
+  const files = new FakeFiles();
   files.listings.set(`${WORKSPACE}/src/shared/domain`, ["memory.ts", "dev/"]);
   files.listings.set(`${WORKSPACE}/docs`, ["commands.md", "fr/"]);
   files.listings.set(`${WORKSPACE}/docs/fr`, ["commands.md"]);
   return files;
-}
-
-/** The repository the golden answer is right against. */
-export function repository(): FakeFiles {
-  return fillRepository(new FakeFiles());
-}
-
-/** The same repository, counting what it lists. */
-export function countingRepository(): CountingFiles {
-  return fillRepository(new CountingFiles());
 }
 
 /** A Files that throws on listing `path` and hands every other listing to `files`. */

@@ -1,5 +1,5 @@
 // The world the memory tools run in (M-5): files listed live, a shell answering the project's origin, a shared memory
-// fake and a fixed clock; the recording builder; the specs and the candidate the tests push.
+// fake and a fixed clock; the specs and the candidate the tests push.
 import type { MemoryToolPorts } from "./memory-tools.ts";
 import { MEMORY_PUSH, MEMORY_RECALL, memoryPushTool, memoryRecallTool } from "./memory-tools.ts";
 import type { ToolBuilderFactory } from "./script-tools.ts";
@@ -11,8 +11,6 @@ import { FakeSharedMemory } from "../../../../tests/support/doubles/fake-shared-
 import { LiveListingFiles } from "../../../../tests/support/doubles/live-listing-files.ts";
 import { entryText, sampleEntry } from "../../../../tests/support/fixtures/memory-entries.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
-
-export { recorder } from "./script-tools.fixtures.ts";
 
 export const ROOT = `${WORKSPACE}/.orkeon/worktrees/prune-F2`;
 

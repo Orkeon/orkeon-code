@@ -3,8 +3,9 @@
 // spec of the reviewer child the tests open.
 import { openChildAct } from "./child-agents.ts";
 import { createChildBoard } from "../../application/agents/child-agent.ts";
-import type { Clock, Llm } from "../../application/ports.ts";
+import type { Clock } from "../../application/ports.ts";
 import { FakeClock } from "../../../../tests/support/doubles/fake-clock.ts";
+import { FakeLlm } from "../../../../tests/support/doubles/fake-llm.ts";
 import { FakeLogger } from "../../../../tests/support/doubles/fake-logger.ts";
 import { FakeSessionStore } from "../../../../tests/support/doubles/fake-session-store.ts";
 
@@ -53,10 +54,11 @@ export function fakeRun(crewName = "dev-plan") {
   return { ctx, crew, memory, rows, spawned, added, receives, setReceiveError: (e: Error) => { receiveError = e; } };
 }
 
-/** An Llm acting inline: it answers "inline" and records what it was asked. */
-export const base = (): Llm & { asked: unknown[] } => {
-  const asked: unknown[] = [];
-  return { asked, act: async (p: string, r: unknown) => { asked.push([p, r]); return "inline"; } } as any;
+/** An Llm acting inline: it answers "inline" and records what it was asked in `acts`. */
+export const base = (): FakeLlm => {
+  const llm = new FakeLlm();
+  llm.answers = ["inline"];
+  return llm;
 };
 
 /** A clock a second further at each read. */
@@ -78,8 +80,7 @@ export const REVIEW_STEPS: readonly string[] = ["dev-spec", "dev-change"];
 export function openReview(step: string) {
   const run = fakeRun(step);
   const state = new FakeSessionStore();
-  const inline = { act: async () => "inline" } as unknown as Llm;
-  const child = openChildAct(inline, run.ctx, run.crew, { state, clock: ticking(), log: new FakeLogger(), effort: "low" },
+  const child = openChildAct(base(), run.ctx, run.crew, { state, clock: ticking(), log: new FakeLogger(), effort: "low" },
     { crew: step, step }, { agent: "dev-reviewer", charter: "dev-reviewer", task: `review of the ${step}`, builder: () => ({ name: "dev-reviewer" }) as any });
   return { run, state, child };
 }

@@ -8,7 +8,7 @@ import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
 import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 import {
   AUTHOR, brokenOpener, COMMITTER, COMMIT_A_IN_WORKTREE, GH, IDENT, ORIGIN_HEAD, PROBES, PUSH, REQ, RM_MESSAGE, recordingOpener,
-  RefusingFiles, SHORT_HEAD, commitRequest, linkedWorktreeFiles, shellWith,
+  SHORT_HEAD, commitRequest, linkedWorktreeFiles, refusingFiles, shellWith,
 } from "./commit-files.fixtures.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
 
@@ -230,7 +230,7 @@ describe("commitFiles in a linked worktree (.git is a file)", () => {
   it("says so, and stages nothing, when no message file can be written", async () => {
     // Arrange
     const shell = shellWith();
-    const files = new RefusingFiles([`${WORKSPACE}/.git/`, `${WORKSPACE}/.orkeon/`]);
+    const files = refusingFiles([`${WORKSPACE}/.git/`, `${WORKSPACE}/.orkeon/`]);
 
     // Act
     const out = await commitFiles({ shell, files }, commitRequest());
@@ -381,7 +381,7 @@ describe("handOverPullRequest", () => {
 
   it("says the body could not be written when its write fails, and still hands the command over", async () => {
     // Arrange
-    const files = new RefusingFiles([`${WORKSPACE}/workbench/`]);
+    const files = refusingFiles([`${WORKSPACE}/workbench/`]);
 
     // Act
     const lines = await handOverPullRequest({ files }, REQ);

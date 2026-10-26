@@ -1,5 +1,5 @@
 // runDevLearn's decisions in the run (L-5): after PROPOSALS.md, one multi-select per axis
-// with motifs through an inline HumanInput stub - answered with a subset, the selected
+// with motifs through a FakeHumanInput - answered with a subset, the selected
 // motifs accepted and the others refused as --accept / --refuse would; not answered, or
 // no human port, nothing decided and the --accept hint kept. Over FakeFiles loaded from
 // tests/fixtures/dev/learn, FakeShell, FakeLlm and a fixed clock. Run:
@@ -10,15 +10,15 @@ import { deepStrictEqual, ok, strictEqual } from "node:assert";
 import { parseLearnState } from "../../../shared/domain/dev/learn-state.ts";
 import { runDevLearn } from "./run-dev-learn.ts";
 import {
-  ACCEPT_HINT_END, ID_A, ID_B, MEMORY_DIR_REFUSED, OPTIONS, OUT_FILES, REFUSED, STATE, T, decideSetup, pickA, stub,
+  ACCEPT_HINT_END, ID_A, ID_B, MEMORY_DIR_REFUSED, OPTIONS, OUT_FILES, REFUSED, STATE, T, asking, decideSetup, pickA,
 } from "./run-dev-learn-decide.fixtures.ts";
 import { assertMentions } from "../../../../tests/support/assertions/text.ts";
 
 describe("runDevLearn — decisions in the run", () => {
   it("asks one multi-select for the axis, accepts the selected motif and refuses the other", async () => {
     // Arrange
-    const q = stub(pickA);
-    const f = decideSetup({ human: q.human });
+    const q = asking(pickA);
+    const f = decideSetup({ human: q });
 
     // Act
     const text = await runDevLearn({}, f.deps);
@@ -49,7 +49,7 @@ describe("runDevLearn — decisions in the run", () => {
 
   it("writes the refusal to refused.md under memory.dir", async () => {
     // Arrange
-    const f = decideSetup({ human: stub(pickA).human, memoryDir: "docs/memory" });
+    const f = decideSetup({ human: asking(pickA), memoryDir: "docs/memory" });
 
     // Act
     const text = await runDevLearn({}, f.deps);
@@ -62,10 +62,10 @@ describe("runDevLearn — decisions in the run", () => {
 
   it("drops, in a later run, the motif refused under memory.dir, naming the same file", async () => {
     // Arrange
-    const first = decideSetup({ human: stub(pickA).human, memoryDir: "docs/memory" });
+    const first = decideSetup({ human: asking(pickA), memoryDir: "docs/memory" });
     await runDevLearn({}, first.deps);
     const again = decideSetup({
-      human: stub(() => ({ answered: false })).human, memoryDir: "docs/memory",
+      human: asking(() => null), memoryDir: "docs/memory",
       memoryDirRefused: first.files.files.get(MEMORY_DIR_REFUSED) ?? "",
     });
 
@@ -79,7 +79,7 @@ describe("runDevLearn — decisions in the run", () => {
 
   it("says a memory.dir set aside, and keeps refused.md in the default memory folder", async () => {
     // Arrange
-    const f = decideSetup({ human: stub(pickA).human, memoryDir: "../outside" });
+    const f = decideSetup({ human: asking(pickA), memoryDir: "../outside" });
 
     // Act
     const text = await runDevLearn({}, f.deps);
@@ -90,8 +90,8 @@ describe("runDevLearn — decisions in the run", () => {
 
   it("decides nothing when the person does not answer: only the proposals written, the --accept hint kept", async () => {
     // Arrange
-    const q = stub(() => ({ answered: false }));
-    const f = decideSetup({ human: q.human });
+    const q = asking(() => null);
+    const f = decideSetup({ human: q });
 
     // Act
     const text = await runDevLearn({}, f.deps);
@@ -104,8 +104,8 @@ describe("runDevLearn — decisions in the run", () => {
 
   it("decides nothing on an empty selection, as the prompt says", async () => {
     // Arrange
-    const q = stub(() => ({ answered: true, values: [] }));
-    const f = decideSetup({ human: q.human });
+    const q = asking(() => []);
+    const f = decideSetup({ human: q });
 
     // Act
     const text = await runDevLearn({}, f.deps);
@@ -129,8 +129,8 @@ describe("runDevLearn — decisions in the run", () => {
 
   it("asks nothing with --list", async () => {
     // Arrange
-    const q = stub(() => { throw new Error("not asked"); });
-    const f = decideSetup({ human: q.human });
+    const q = asking(() => { throw new Error("not asked"); });
+    const f = decideSetup({ human: q });
 
     // Act
     await runDevLearn({ list: true }, f.deps);
@@ -141,8 +141,8 @@ describe("runDevLearn — decisions in the run", () => {
 
   it("asks nothing when no motif is kept", async () => {
     // Arrange
-    const q = stub(() => { throw new Error("not asked"); });
-    const f = decideSetup({ human: q.human, noMotif: true });
+    const q = asking(() => { throw new Error("not asked"); });
+    const f = decideSetup({ human: q, noMotif: true });
 
     // Act
     const text = await runDevLearn({}, f.deps);

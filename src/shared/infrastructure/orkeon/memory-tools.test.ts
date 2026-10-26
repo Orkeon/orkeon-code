@@ -8,8 +8,9 @@ import { deepStrictEqual, strictEqual, ok } from "node:assert";
 import { MEMORY_TOOLS, SCRIPT_TOOLS, TOOL_ARGUMENTS } from "../../domain/agent-policy/permission.ts";
 import { memoryPushTool, memoryRecallTool, memoryRecallTools, memoryTools } from "./memory-tools.ts";
 import {
-  DECISION, DECISION_CANDIDATE, MEMORY_TOOL_SPECS, ROOT, recorder, run, world, worldWithEntry,
+  DECISION, DECISION_CANDIDATE, MEMORY_TOOL_SPECS, ROOT, run, world, worldWithEntry,
 } from "./memory-tools.fixtures.ts";
+import { recorder } from "../../../../tests/support/fixtures/tool-recorder.ts";
 import { assertRefusedWith } from "./memory-tools.assertions.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
 

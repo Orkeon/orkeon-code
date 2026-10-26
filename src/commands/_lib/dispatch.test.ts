@@ -107,7 +107,7 @@ describe("launchCrew", () => {
 describe("launchMainLoop", () => {
   it("hands the gate the session's rules BEFORE the crew starts, then the crew its rules and mode", async () => {
     // Arrange
-    const { gate, crews, logged, warned, deps } = mainLoopDeps(
+    const { gate, crews, atLaunch, logged, warned, deps } = mainLoopDeps(
       "deny:file_write", "allow shell_command command=npm test*",
     );
 
@@ -117,7 +117,7 @@ describe("launchMainLoop", () => {
     // Assert
     deepStrictEqual(ticket, { ticket: "ticket-1" });
     const handed = ["clear", "add deny file_write", "add allow shell_command command=npm test*", ...MEMORY_GATE];
-    deepStrictEqual(crews.gateAtLaunch, handed);
+    deepStrictEqual(atLaunch.gate, handed);
     deepStrictEqual(gate.calls, handed);
     deepStrictEqual(crews.launches, [{
       name: "main-loop",
@@ -139,13 +139,13 @@ describe("launchMainLoop", () => {
   for (const mode of PERMISSION_MODES) {
     it(`denies every tool of the model a write under the memory's candidates and entries, in mode ${mode}`, async () => {
       // Arrange
-      const { gate, crews, deps } = mainLoopDeps("allow file_write");
+      const { gate, atLaunch, deps } = mainLoopDeps("allow file_write");
 
       // Act
       await launchMainLoop(deps, { prompt: "go", permissionMode: mode });
 
       // Assert
-      deepStrictEqual(crews.gateAtLaunch, ["clear", "add allow file_write", ...MEMORY_GATE], mode);
+      deepStrictEqual(atLaunch.gate, ["clear", "add allow file_write", ...MEMORY_GATE], mode);
       assertMemoryGuarded(gate.rules, MEMORY_PATHS, mode);
     });
   }

@@ -3,12 +3,12 @@ import { readFileSync } from "node:fs";
 
 import { FakeCodeIndex } from "../../../../tests/support/doubles/fake-code-index.ts";
 import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
+import { FakeHumanInput } from "../../../../tests/support/doubles/fake-human-input.ts";
 import { FakeLlm } from "../../../../tests/support/doubles/fake-llm.ts";
 import { FakeLogger } from "../../../../tests/support/doubles/fake-logger.ts";
 import { FakeSessionStore } from "../../../../tests/support/doubles/fake-session-store.ts";
 import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 import { createConfigStore } from "../../../shared/application/config-store.ts";
-import type { HumanInput } from "../../../shared/application/ports.ts";
 import { GIT_TOPLEVEL } from "../../../shared/application/dev/resolve-work-folder.ts";
 import { ORKEON_IGNORE_PROBE, checkIgnoreCommand } from "../../../shared/application/dev/load-dev-context.ts";
 import type { ChangeAnswer } from "../domain/change-answer.ts";
@@ -60,15 +60,9 @@ export function devChangeSetup(script: Array<string | null> = []) {
   const index = new FakeCodeIndex();
   index.roots = 1;
   const asked: Array<{ prompt: string; briefThen: string }> = [];
-  const next = (prompt: string): string | null => {
-    asked.push({ prompt, briefThen: files.files.get(BRIEF) ?? "" });
-    return script.length === 0 ? null : script.shift() ?? null;
-  };
-  const human: HumanInput = {
-    async choice(p) { const a = next(p); return a === null ? { answered: false } : { answered: true, value: a }; },
-    async text(p) { const a = next(p); return a === null ? { answered: false } : { answered: true, value: a }; },
-    async multi() { return { answered: false }; },
-  };
+  const human = new FakeHumanInput();
+  human.onAsk = (q) => { if (q.kind !== "multi") asked.push({ prompt: q.prompt, briefThen: files.files.get(BRIEF) ?? "" }); };
+  human.pick = (q) => (q.kind === "multi" || script.length === 0 ? null : script.shift() ?? null);
   const log = new FakeLogger();
   const config = createConfigStore({ files, session: new FakeSessionStore() });
   let t = 0;

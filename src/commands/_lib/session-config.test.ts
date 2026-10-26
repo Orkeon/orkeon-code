@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 
 import { FakeSessionStore } from "../../../tests/support/doubles/fake-session-store.ts";
-import { defineToggle, EXPLICIT_CASES, sessionWithFlag, UnreadableStateStore } from "./session-config.fixtures.ts";
+import { defineToggle, EXPLICIT_CASES, sessionWithFlag, unreadableStateStore } from "./session-config.fixtures.ts";
 
 describe("toggleCommand", () => {
   it("describes the command under its name and description", () => {
@@ -61,7 +61,7 @@ describe("toggleCommand", () => {
 
   it("reads an unreadable flag as off", async () => {
     // Arrange
-    const session = new UnreadableStateStore();
+    const session = unreadableStateStore();
     const { press } = defineToggle(session);
 
     // Act

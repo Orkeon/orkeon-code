@@ -43,6 +43,13 @@ export function batchWrites(files: FakeFiles, root: string, batch: string): void
   files.listings.set(`${root}/todo/prune`, ["PRUNE-PLAN.md", "PRUNE-PLAN-F2.md", "PRUNE-PLAN-F3.md", `PRUNE-VERIFY-${batch}.md`]);
 }
 
+/** A promise and the hand that settles it: a batch that returns only when the test releases it. */
+export function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
+  let resolve: (value: T) => void = () => {};
+  const promise = new Promise<T>((r) => { resolve = r; });
+  return { promise, resolve };
+}
+
 /** A log in memory, as the driver's LogBook. */
 export class Book {
   text: string | null;

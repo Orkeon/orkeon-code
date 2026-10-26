@@ -3,12 +3,13 @@ import { readFileSync } from "node:fs";
 
 import { FakeCodeIndex } from "../../../../tests/support/doubles/fake-code-index.ts";
 import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
+import { FakeHumanInput } from "../../../../tests/support/doubles/fake-human-input.ts";
+import type { HumanQuestion } from "../../../../tests/support/doubles/fake-human-input.ts";
 import { FakeLlm } from "../../../../tests/support/doubles/fake-llm.ts";
 import { FakeLogger } from "../../../../tests/support/doubles/fake-logger.ts";
 import { FakeSessionStore } from "../../../../tests/support/doubles/fake-session-store.ts";
 import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 import { createConfigStore } from "../../../shared/application/config-store.ts";
-import type { HumanInput } from "../../../shared/application/ports.ts";
 import { GIT_TOPLEVEL } from "../../../shared/application/dev/resolve-work-folder.ts";
 import { ORKEON_IGNORE_PROBE, checkIgnoreCommand } from "../../../shared/application/dev/load-dev-context.ts";
 import type { SpecAnswer } from "../domain/spec-answer.ts";
@@ -25,16 +26,10 @@ export const REQUEST = "Prune old memory entries before a cut-off.";
 
 /** A person answering from a script: a string answers, null is nobody. Each question sees the spec as it is then. */
 export function scripted(files: FakeFiles, script: Array<string | null>) {
-  const asked: Array<{ kind: string; prompt: string; options: readonly string[]; specThen: string }> = [];
-  const next = (kind: string, prompt: string, options: readonly string[]) => {
-    asked.push({ kind, prompt, options, specThen: files.files.get(SPEC) ?? "" });
-    return script.length === 0 ? null : script.shift() ?? null;
-  };
-  const human: HumanInput = {
-    async choice(prompt, options) { const a = next("choice", prompt, options); return a === null ? { answered: false } : { answered: true, value: a }; },
-    async text(prompt) { const a = next("text", prompt, []); return a === null ? { answered: false } : { answered: true, value: a }; },
-    async multi(prompt, options) { const a = next("multi", prompt, options); return a === null ? { answered: false } : { answered: true, values: [a] }; },
-  };
+  const asked: Array<HumanQuestion & { specThen: string }> = [];
+  const human = new FakeHumanInput();
+  human.answers = script;
+  human.onAsk = (q) => { asked.push({ ...q, specThen: files.files.get(SPEC) ?? "" }); };
   return { human, asked };
 }
 

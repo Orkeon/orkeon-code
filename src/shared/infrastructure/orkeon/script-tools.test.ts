@@ -10,8 +10,9 @@ import type { WrappedTools } from "../../application/dev/wrapped-tools.ts";
 import { RUN_TESTS, runBuildTool, runTestsTool, runValidationTool, scriptTool, scriptToolSlot } from "./script-tools.ts";
 import type { ValidationCalls } from "./script-tools.ts";
 import {
-  NOT_READY, ROOT, SPECS, recorder, recordingRunner, recordingWrappedTools, rootedSlots,
+  NOT_READY, ROOT, SPECS, recordingRunner, recordingWrappedTools, rootedSlots,
 } from "./script-tools.fixtures.ts";
+import { recorder } from "../../../../tests/support/fixtures/tool-recorder.ts";
 import { assertRootPathsOnly } from "./script-tools.assertions.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
 

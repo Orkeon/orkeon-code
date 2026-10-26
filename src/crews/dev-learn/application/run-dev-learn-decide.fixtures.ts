@@ -1,5 +1,7 @@
 // The run runDevLearn decides in: the repository of run-dev-learn.fixtures.ts with a remote, two motifs of the
-// Test axis the model keeps, and an inline HumanInput stub recording each multi-select it is asked.
+// Test axis the model keeps, and a FakeHumanInput picking among the options of each multi-select it is asked.
+import { FakeHumanInput } from "../../../../tests/support/doubles/fake-human-input.ts";
+import type { HumanAnswer } from "../../../../tests/support/doubles/fake-human-input.ts";
 import type { HumanInput } from "../../../shared/application/ports.ts";
 import { motifId } from "../../../shared/domain/dev/learn-proposals.ts";
 import { OUT, T, motif, setup } from "./run-dev-learn.fixtures.ts";
@@ -15,20 +17,15 @@ export const ID_A = motifId("Test", ROWS_A);
 export const ID_B = motifId("Test", ROWS_B);
 export const OUT_FILES = [`${OUT}/proposals.json`, `${OUT}/PROPOSALS.md`];
 
-export interface Asked { prompt: string; options: readonly string[] }
-export type MultiAnswer = { answered: true; values: string[] } | { answered: false };
-
-/** A HumanInput whose multi-select answers `pick` of the options, each question recorded in `asked`. */
-export function stub(pick: (options: readonly string[]) => MultiAnswer): { human: Pick<HumanInput, "multi">; asked: Asked[] } {
-  const asked: Asked[] = [];
-  return {
-    asked,
-    human: { multi: async (prompt, options) => { asked.push({ prompt, options }); return pick(options); } },
-  };
+/** A FakeHumanInput whose multi-select answers `pick` of the options. */
+export function asking(pick: (options: readonly string[]) => HumanAnswer): FakeHumanInput {
+  const human = new FakeHumanInput();
+  human.pick = (q) => pick(q.options);
+  return human;
 }
 
 /** Selects the motif A option only. */
-export const pickA = (options: readonly string[]): MultiAnswer => ({ answered: true, values: options.filter((o) => o.startsWith(ID_A)) });
+export const pickA = (options: readonly string[]): HumanAnswer => options.filter((o) => o.startsWith(ID_A));
 
 export interface DecideSetup {
   human?: Pick<HumanInput, "multi">;

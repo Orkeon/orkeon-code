@@ -12,7 +12,7 @@ import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
 import {
   AUDIT_GAPS, AUDIT_VALID, Book, F2_DONE_PLAN, F2_RELAUNCH_LINE, F3_GAPS, F3_RELAUNCH_LINE, FailingClose, GATE_RED, IGNORED,
   LAUNCH, MERGED, NOT_IGNORED_LINE, OPEN_PLAN, PROBE_REFUSED_LINE, RUN, SHEET, VERIFY_INPUT, WORKTREE_ROOT_REFUSED, WT, add,
-  ahead, batchWrites, bookOf, head, implemented, mainFiles, merge, rebase, refuseFirstMerge, remove, request, shellFor,
+  ahead, batchWrites, bookOf, deferred, head, implemented, mainFiles, merge, rebase, refuseFirstMerge, remove, request, shellFor,
   shellReopening, spend, status, tickingClock, traceCheckoutWrites, valid,
 } from "./run-wave.fixtures.ts";
 import { assertLineWith, assertNoLineStarting, assertNoLineWith, assertNotRan, assertRan, assertRanAfter } from "./run-wave.assertions.ts";
@@ -61,10 +61,14 @@ describe("runWave", () => {
     const book = new Book();
     const files = mainFiles();
     traceCheckoutWrites(files, shell);
-    // F3 settles first: the log still follows the ids.
-    const runBatch = async (r: BatchRun): Promise<BatchOutcome> => {
+    // F3 settles first, F2 released once F3 has returned: the log still follows the ids.
+    const f2 = deferred<BatchOutcome>();
+    const runBatch = (r: BatchRun): Promise<BatchOutcome> => {
       batchWrites(files, r.root, r.batch);
-      return r.batch === "F2" ? new Promise((d) => setTimeout(() => d(valid("F2")), 5)) : valid("F3");
+      if (r.batch === "F2") return f2.promise;
+      const f3 = Promise.resolve(valid("F3"));
+      void f3.then(() => f2.resolve(valid("F2")));
+      return f3;
     };
 
     // Act

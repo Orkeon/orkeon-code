@@ -11,7 +11,7 @@ import { FakeShellJobs } from "../../../../tests/support/doubles/fake-shell-jobs
 import type { FakePrecedents } from "../../../../tests/support/doubles/fake-precedents.ts";
 import { createConfigStore } from "../../../shared/application/config-store.ts";
 import { GIT_TOPLEVEL } from "../../../shared/application/dev/resolve-work-folder.ts";
-import type { ActRequest, AffectedTests, Clock, CostIndex, ShellOptions, ShellResult } from "../../../shared/application/ports.ts";
+import type { ActRequest, AffectedTests, Clock, CostIndex, ShellResult } from "../../../shared/application/ports.ts";
 import type { AccessCostReport } from "../../../shared/domain/dev/access-cost.ts";
 import { GIT_IDENT_COMMAND } from "../../../shared/domain/git/close.ts";
 import { AUDIT_UNFINISHED_GAP } from "../../../shared/domain/dev/verdict-format.ts";
@@ -100,16 +100,14 @@ export class Tree {
   }
 }
 
-export class TreeShell extends FakeShell {
-  readonly tree: Tree;
-  constructor(tree: Tree) { super(); this.tree = tree; }
-  override async run(command: string, options?: ShellOptions): Promise<ShellResult> {
-    const base = await super.run(command, options);
-    if (command === STATUS_COMMAND) return { ...base, stdout: [...this.tree.dirty.keys()].map((p) => `?? ${p}`).join("\n") };
+/** What the tree answers: git status lists its dirty paths, a test run passes or fails as the tree says. */
+export function treeAnswers(tree: Tree): (command: string) => Partial<ShellResult> | undefined {
+  return (command) => {
+    if (command === STATUS_COMMAND) return { stdout: [...tree.dirty.keys()].map((p) => `?? ${p}`).join("\n") };
     const test = /^node --test (\S+)$/.exec(command);
-    if (test) return { ...base, exitCode: this.tree.passing.has(test[1]) ? 0 : 1, stdout: this.tree.passing.has(test[1]) ? "ok" : this.tree.failures.has(test[1]) ? `not ok 1\n# fail ${this.tree.failures.get(test[1])}` : "not ok 1" };
-    return base;
-  }
+    if (test) return { exitCode: tree.passing.has(test[1]) ? 0 : 1, stdout: tree.passing.has(test[1]) ? "ok" : tree.failures.has(test[1]) ? `not ok 1\n# fail ${tree.failures.get(test[1])}` : "not ok 1" };
+    return undefined;
+  };
 }
 
 export type Act = (prompt: string, tree: Tree) => string;
@@ -197,7 +195,7 @@ export const stubsTheModule: Act = (_p, tree) => {
 export const writesTestOnly: Act = (_p, tree) => { tree.write("tests/a.test.ts", "t"); return "done"; };
 
 export type Deps = {
-  files: FakeFiles; shell: TreeShell; jobs: FakeShellJobs; log: FakeLogger; config: ReturnType<typeof createConfigStore>;
+  files: FakeFiles; shell: FakeShell; jobs: FakeShellJobs; log: FakeLogger; config: ReturnType<typeof createConfigStore>;
   roleLlm: (role: "test-author" | "implementer", layout: unknown, wrote: (path: string) => void, writable: readonly string[]) => Role;
   clock: Clock; costIndex?: CostIndex; openerFor?: (context: unknown) => undefined;
   precedents?: FakePrecedents["recall"];
@@ -212,7 +210,8 @@ export function setup(author: Act[], implementer: Act[], sheet = SHEET) {
   files.listings.set(`${WORKSPACE}/workbench`, ["demo"]);
   files.listings.set(DIR, ["DEMO-PLAN-F1.md", "DEMO-PLAN.md"]);
   const tree = new Tree(files);
-  const shell = new TreeShell(tree);
+  const shell = new FakeShell();
+  shell.answer = treeAnswers(tree);
   shell.results[GIT_TOPLEVEL] = { stdout: `${WORKSPACE}\n` };
   const roles = { "test-author": new Role(tree, author), implementer: new Role(tree, implementer) };
   const jobs = new FakeShellJobs();

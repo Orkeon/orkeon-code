@@ -3,10 +3,10 @@ import { toggleCommand } from "./session-config.ts";
 import { FakeSessionStore } from "../../../tests/support/doubles/fake-session-store.ts";
 
 /** A session whose state bag cannot be read, but can be written. */
-export class UnreadableStateStore extends FakeSessionStore {
-  async readState(): Promise<string | null> {
-    throw new Error("no session tools");
-  }
+export function unreadableStateStore(): FakeSessionStore {
+  const session = new FakeSessionStore();
+  session.readStateFailure = new Error("no session tools");
+  return session;
 }
 
 export const SPEC = { name: "fast", description: "Toggle fast mode.", key: "fast_mode", note: "turns skip two blocks" };

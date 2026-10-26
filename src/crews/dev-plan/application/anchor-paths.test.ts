@@ -6,9 +6,9 @@ import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import { LIST_CAP, MAX_ANCHOR_FOLDERS, checkAnchorPaths } from "./anchor-paths.ts";
 import type { AnchorListings } from "./anchor-paths.ts";
+import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
 import {
-  ANSWER, CREATE_ANCHORS_PRESENT_PROBLEMS, CountingFiles, FORTY_FIVE_FOLDERS, answerWithExisting, countingRepository,
-  repository, throwingOn,
+  ANSWER, CREATE_ANCHORS_PRESENT_PROBLEMS, FORTY_FIVE_FOLDERS, answerWithExisting, repository, throwingOn,
 } from "./anchor-paths.fixtures.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
@@ -51,7 +51,7 @@ describe("checkAnchorPaths", () => {
 
   it("lists each folder once, and a listing that throws reads as empty", async () => {
     // Arrange
-    const files = new CountingFiles();
+    const files = new FakeFiles();
     files.listings.set(`${WORKSPACE}/docs`, ["commands.md"]);
     files.listings.set(`${WORKSPACE}/src/shared/domain`, []);
     const failing = throwingOn(files, `${WORKSPACE}/docs/fr`);
@@ -66,7 +66,7 @@ describe("checkAnchorPaths", () => {
 
   it("refuses a path that holds a colon without listing its folder", async () => {
     // Arrange
-    const files = new CountingFiles();
+    const files = new FakeFiles();
     const colon = answerWithExisting(["docs/commands.md:12"]);
 
     // Act
@@ -79,7 +79,7 @@ describe("checkAnchorPaths", () => {
 
   it("lists a folder once across the calls that share one listings map", async () => {
     // Arrange
-    const files = countingRepository();
+    const files = repository();
     files.listings.set(`${WORKSPACE}/src/shared/domain`, []);
     const listings: AnchorListings = new Map();
     const first = await checkAnchorPaths(files, ANSWER, listings);
@@ -95,7 +95,7 @@ describe("checkAnchorPaths", () => {
 
   it("checks 40 folders at most, and refuses every existing anchor past them as not checked", async () => {
     // Arrange
-    const files = new CountingFiles();
+    const files = new FakeFiles();
     const many = answerWithExisting(FORTY_FIVE_FOLDERS);
 
     // Act
