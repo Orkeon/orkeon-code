@@ -1,6 +1,7 @@
 // The harness agent memories importAgentMemory reads: a sample MEMORY.md with its notes, and the candidate files it leaves.
 import { HARNESS_AGENT_MEMORY_ROOT, importAgentMemory } from "./import-agent-memory.ts";
 import { memoryLayout } from "../../domain/shared-memory/layout.ts";
+import { FakeClock } from "../../../../tests/support/doubles/fake-clock.ts";
 import { LiveListingFiles } from "../../../../tests/support/doubles/live-listing-files.ts";
 import { entryText, sampleEntry } from "../../../../tests/support/fixtures/memory-entries.ts";
 
@@ -26,7 +27,7 @@ export function setup() {
   files.files.set(`${root}/adversarial-reviewer/MEMORY.md`, "- name the port before the adapter\n");
   const admitted = sampleEntry("decision", "admitted-already");
   files.files.set(`${layout.entries}/decision/${admitted.id}.md`, entryText(admitted));
-  const deps = { files, clock: () => new Date("2026-10-24T10:00:00Z") };
+  const deps = { files, clock: new FakeClock().now };
   return { files, run: () => importAgentMemory(deps, memory) };
 }
 
@@ -41,4 +42,4 @@ export const CUT_POSITIONS: readonly number[] = Array.from({ length: 31 }, (_, i
 export const noteWithTokenAt = (n: number): string =>
   `---\nname: c\n---\n${"word ".repeat(500).slice(0, n)} ghp_${"A1b2".repeat(10)} end\n`;
 
-export const emptyWorld = () => ({ files: new LiveListingFiles(), clock: () => new Date() });
+export const emptyWorld = () => ({ files: new LiveListingFiles(), clock: new FakeClock().now });

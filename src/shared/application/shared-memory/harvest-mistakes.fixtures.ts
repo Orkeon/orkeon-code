@@ -1,10 +1,11 @@
 // The memory, the clock and the audit rows harvestMistakes is tested on.
 import { memoryLayout } from "../../domain/shared-memory/layout.ts";
 import type { LearnRow } from "../../domain/shared-memory/verdict-rows.ts";
+import { FakeClock } from "../../../../tests/support/doubles/fake-clock.ts";
 
 export const layout = memoryLayout(".orkeon/memory");
 export const memory = { layout, project: "shop" };
-export const clock = () => new Date("2026-10-24T10:00:00Z");
+export const clock = new FakeClock().now;
 export const TOPIC_GAP = "Empty cart untested";
 
 /** One Blocking tests row of the F1 verdict of `code`. */

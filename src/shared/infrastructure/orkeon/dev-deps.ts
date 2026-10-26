@@ -30,8 +30,8 @@ import { shCode, shOut } from "./tool-results.ts";
 import { devToolCallbacks, rootedCallbacks } from "./tool-callbacks.ts";
 import type { ToolCallbacks } from "./tool-callbacks.ts";
 import {
-  orkeonConfigStore, orkeonCostIndex, orkeonFiles, orkeonMemoryToolPorts, orkeonPullRequestOpener, orkeonSharedMemory,
-  orkeonShell, orkeonShellJobs,
+  orkeonClock, orkeonConfigStore, orkeonCostIndex, orkeonFiles, orkeonMemoryToolPorts, orkeonPullRequestOpener,
+  orkeonSharedMemory, orkeonShell, orkeonShellJobs,
 } from "./wiring.ts";
 
 /** What an agent body hands its deps: its own tools, model and log. */
@@ -149,8 +149,6 @@ function portsOf(ctx: BodyContext, root: string | undefined) {
   };
 }
 
-const today = (): string => new Date().toISOString().slice(0, 10);
-
 /** /dev-implement's deps over the body's context. */
 export function implementDeps(
   ctx: BodyContext, opts: DevOptions & { toolSlot: DevImplementDeps["toolSlot"] },
@@ -159,7 +157,7 @@ export function implementDeps(
   const callbacks = (spec: Parameters<typeof devToolCallbacks>[0], wrote: (path: string) => void) =>
     spendGuard(rootedCallbacks(reportingWrites(devToolCallbacks(spec, { shell: ports.shell, log: ctx.log, files: ports.files, memoryDir: memoryDirOf(ports.config) }), wrote), opts.root), opts.spend);
   return {
-    ...ports, jobs: orkeonShellJobs(ctx.tools, opts.root), log: ctx.log, today,
+    ...ports, jobs: orkeonShellJobs(ctx.tools, opts.root), log: ctx.log, clock: orkeonClock(),
     ...(opts.toolSlot !== undefined ? { toolSlot: opts.toolSlot } : {}),
     ...(opts.root === undefined ? { costIndex: orkeonCostIndex(ctx.tools) } : {}),
     precedents: stepPrecedents({ ...ports, memory: orkeonSharedMemory(ctx.tools), log: ctx.log }, { on: opts.memoryOn }),
@@ -191,7 +189,7 @@ export function verifyDeps(
   opts: DevOptions & { validationSlot: DevVerifyDeps["validationSlot"]; wrapLlm?: (llm: Llm) => Llm; harvest?: boolean },
 ): DevVerifyDeps {
   const ports = portsOf(ctx, opts.root);
-  const clock = () => new Date();
+  const clock = orkeonClock();
   // The audit's act is offered the auditor's tools alone: a batch agent also holds the implementer's, which an act
   // without a subset would offer too - write tools to a read-only auditor, their schemas resent at every turn.
   const auditorTools = [...charterCatalogue(AUDITOR_CHARTER), RUN_VALIDATION.name, ...memoryReadTools(opts.memoryOn)];

@@ -11,6 +11,9 @@ import type {
   GraphSummary, ImpactSummary, IndexSummary, MapEntry, PackageSummary,
 } from "../domain/code-intel-contract.ts";
 
+/** The time now: the only way the application reads the clock (orkeonClock in wiring.ts, FakeClock in tests). */
+export type Clock = () => Date;
+
 /** The outcome of one shell command. */
 export interface ShellResult {
   stdout: string;

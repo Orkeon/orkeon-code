@@ -9,10 +9,10 @@ import { startDevStep } from "../_lib/dev-step.ts";
 import { runTasks } from "../_lib/tasks.ts";
 import { createCrewHost } from "../../shared/infrastructure/orkeon/crew-host.ts";
 import { createPermissionRules } from "../../shared/infrastructure/orkeon/permission-rules.ts";
-import { orkeonConfigStore, orkeonSessionIo, orkeonToolCatalogue } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { orkeonClock, orkeonConfigStore, orkeonSessionIo, orkeonToolCatalogue } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { repairStep } from "../../shared/domain/agents/built-in-charters.ts";
 
-const deps = { session: orkeonSessionIo(), clock: () => new Date() };
+const deps = { session: orkeonSessionIo(), clock: orkeonClock() };
 
 defineAsyncCommand({
   name: "tasks",

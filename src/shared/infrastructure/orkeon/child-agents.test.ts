@@ -9,7 +9,7 @@ import { childAgentBody, createChildRuntime, withChildAct } from "./child-agents
 import { parseSnapshot, snapshotKey } from "../../domain/agents/instances.ts";
 import { FakeLlmFacade } from "../../../../tests/support/doubles/fake-llm-facade.ts";
 import { FakeLogger } from "../../../../tests/support/doubles/fake-logger.ts";
-import { REVIEW_STEPS, STOPS, base, board, fakeRun, openReview, spec } from "./child-agents.fixtures.ts";
+import { REVIEW_STEPS, STOPS, base, board, fakeRun, openReview, spec, ticking } from "./child-agents.fixtures.ts";
 
 describe("createChildRuntime", () => {
   it("is null on a host without background children", () => {
@@ -143,7 +143,7 @@ describe("withChildAct", () => {
   it("runs the act in a child, adds the child agent, and fills the crew's effort", async () => {
     // Arrange
     const run = fakeRun();
-    const llm = withChildAct(base(), run.ctx, run.crew, { board: board(), clock: () => new Date(Date.now() + run.receives.length * 1000), log: new FakeLogger(), effort: "low" }, spec);
+    const llm = withChildAct(base(), run.ctx, run.crew, { board: board(), clock: ticking(), log: new FakeLogger(), effort: "low" }, spec);
 
     // Act
     const reply = await llm.act("p1", {});
@@ -157,7 +157,7 @@ describe("withChildAct", () => {
   it("adds the child agent once over two acts, and keeps the effort an act names", async () => {
     // Arrange
     const run = fakeRun();
-    const llm = withChildAct(base(), run.ctx, run.crew, { board: board(), clock: () => new Date(Date.now() + run.receives.length * 1000), log: new FakeLogger(), effort: "low" }, spec);
+    const llm = withChildAct(base(), run.ctx, run.crew, { board: board(), clock: ticking(), log: new FakeLogger(), effort: "low" }, spec);
     await llm.act("p1", {});
 
     // Act
@@ -172,7 +172,7 @@ describe("withChildAct", () => {
   it("keeps the act inline, and says so, on a host without background children", async () => {
     // Arrange
     const log = new FakeLogger();
-    const llm = withChildAct(base(), {} as any, {} as any, { board: board(), clock: () => new Date(), log }, spec);
+    const llm = withChildAct(base(), {} as any, {} as any, { board: board(), clock: ticking(), log }, spec);
 
     // Act
     const reply = await llm.act("p", {});

@@ -33,8 +33,8 @@
 
 import { AgentBuilder, CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infrastructure/globals.ts";
 import {
-  orkeonConfigStore, orkeonFiles, orkeonMemoryStore, orkeonMemoryToolPorts, orkeonProgress, orkeonSessionIo, orkeonShell,
-  orkeonTelemetry, orkeonToolCalls,
+  orkeonClock, orkeonCompactionDeps, orkeonConfigStore, orkeonFiles, orkeonMemoryStore, orkeonMemoryToolPorts,
+  orkeonProgress, orkeonSessionIo, orkeonShell, orkeonTelemetry, orkeonToolCalls,
 } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { memoryTools } from "../../shared/infrastructure/orkeon/memory-tools.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
@@ -43,20 +43,17 @@ import { memoryDirOf } from "../../shared/application/shared-memory/memory-setti
 import { createRunState } from "../../shared/infrastructure/orkeon/run-state.ts";
 import { compactSession, readCompactionTrigger } from "../../shared/application/compaction/compact-session.ts";
 import { loadCatalogue, runMainLoop } from "./application/run-main-loop.ts";
-import { writeWorkflowState } from "../../shared/application/workflow/workflow-state.ts";
 import { BREAKER_RUN_FIELD } from "./application/auto-compact.ts";
 
 // The tool catalogue is decided at load time (module scope is synchronous), from
 // the inputs alone: see loadCatalogue.
 const loaded = loadCatalogue(inputs());
 
-const session = orkeonSessionIo();
+const clock = orkeonClock();
 const progress = orkeonProgress();
-const files = orkeonFiles();
-const memory = orkeonMemoryStore();
 const ports = {
-  shell: orkeonShell(), session, files, telemetry: orkeonTelemetry(), memory, tools: orkeonToolCalls(),
-  config: orkeonConfigStore(),
+  shell: orkeonShell(), session: orkeonSessionIo(), files: orkeonFiles(), telemetry: orkeonTelemetry(),
+  memory: orkeonMemoryStore(), tools: orkeonToolCalls(), config: orkeonConfigStore(),
 };
 
 const coder = AgentBuilder()
@@ -78,12 +75,10 @@ const coder = AgentBuilder()
       llm,
       log,
       run: createRunState(ctx),
+      clock,
       compact: async () => compactSession(
         { force: false, trigger: await readCompactionTrigger(ports.config) },
-        {
-          progress, session, files, memory, llm, log,
-          workflow: (trigger) => writeWorkflowState({ session, files, shell: ports.shell, config: ports.config }, trigger),
-        },
+        orkeonCompactionDeps({ llm, log }, { ...ports, progress }, clock),
       ),
     });
   })

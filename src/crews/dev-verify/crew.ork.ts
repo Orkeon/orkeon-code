@@ -24,7 +24,7 @@ import { AgentBuilder, CrewBuilder, publishCrew, inputs, ToolBuilder } from "../
 import { runValidationTool, scriptToolSlot } from "../../shared/infrastructure/orkeon/script-tools.ts";
 import type { ValidationCalls } from "../../shared/infrastructure/orkeon/script-tools.ts";
 import { STEP_BUDGETS } from "../../shared/domain/dev/step-budget.ts";
-import { orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { orkeonClock, orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { memoryRecallOn, memoryRecallTools } from "../../shared/infrastructure/orkeon/memory-tools.ts";
 import { agentTools, verifyCallbacks, verifyDeps } from "../../shared/infrastructure/orkeon/dev-deps.ts";
 import { childAgentBody, withChildAct } from "../../shared/infrastructure/orkeon/child-agents.ts";
@@ -74,7 +74,7 @@ const verifier = AgentBuilder()
   .maxIterations(AUDITOR_CHARTER.maxIterations)
   .body(async (_input: any, ctx: any) => {
     bodyTools.bind(ctx.tools);
-    const clock = () => new Date();
+    const clock = orkeonClock();
     const board = createChildBoard({ state: orkeonSessionIo(ctx.tools), clock, log: ctx.log }, { crew: "dev-verify", step: "dev-verify" });
     try {
       // The ports over this body's tools (dev-deps.ts); the audit's act in a background child, /tasks listing it;

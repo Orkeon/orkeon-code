@@ -4,6 +4,7 @@ import { BREAKER_RUN_FIELD } from "./auto-compact.ts";
 import type { CompactOutcome } from "../../../shared/domain/compact-outcome.ts";
 import { createConfigStore } from "../../../shared/application/config-store.ts";
 import { createSessionIo } from "../../../shared/application/session-io.ts";
+import { FakeClock } from "../../../../tests/support/doubles/fake-clock.ts";
 import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
 import { FakeLlm } from "../../../../tests/support/doubles/fake-llm.ts";
 import { FakeLogger } from "../../../../tests/support/doubles/fake-logger.ts";
@@ -36,6 +37,7 @@ export function turnSetup(outcome: CompactOutcome = { status: "skipped", reason:
     log,
     run,
     tools,
+    clock: new FakeClock().now,
     compact: async () => {
       compactions.push(store.messages.length);
       return outcome;

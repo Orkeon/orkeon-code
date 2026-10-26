@@ -39,6 +39,7 @@ import { PLAN_ANSWER_SCHEMA } from "../../../src/crews/dev-plan/domain/plan-answ
 import { REVIEW_ANSWER_SCHEMA } from "../../../src/shared/domain/dev/review-answer.ts";
 import { buildReviewAnswerPrompt, buildReviewBrief, reviewSystem } from "../../../src/shared/domain/dev/review-prompt.ts";
 import type { PromptPair } from "../../../src/shared/domain/types.ts";
+import { FakeClock } from "../doubles/fake-clock.ts";
 import { FakeShell } from "../doubles/fake-shell.ts";
 import { FakeSessionStore } from "../doubles/fake-session-store.ts";
 import { FakeFiles } from "../doubles/fake-files.ts";
@@ -107,7 +108,9 @@ export function turnDeps(opts: { full?: boolean; instructions?: boolean; today?:
     language = "French";
   }
   const config = { readValue: async (key: string) => ({ key, value: key === "answer.language" ? language : undefined, source: "unset" as const }) };
-  return { shell, session, files, telemetry, memory, config, today: () => opts.today ?? SAMPLE_TODAY };
+  const clock = new FakeClock();
+  clock.at = Date.parse(`${opts.today ?? SAMPLE_TODAY}T10:00:00Z`);
+  return { shell, session, files, telemetry, memory, config, clock: clock.now };
 }
 
 const flags = (extra: Partial<BehaviorFlags> = {}): BehaviorFlags => ({ ...DEFAULT_BEHAVIOR_FLAGS, ...extra });

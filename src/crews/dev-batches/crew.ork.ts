@@ -23,7 +23,7 @@
 // Budget: domain/batches-budget.ts (the driver's, and each batch agent's run: L8P-D12, Orkeon/orkeon#189).
 
 import { AgentBuilder, CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infrastructure/globals.ts";
-import { orkeonConfigStore, orkeonFiles, orkeonPullRequestOpener, orkeonShell } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { orkeonClock, orkeonConfigStore, orkeonFiles, orkeonPullRequestOpener, orkeonShell } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { memoryDirOf } from "../../shared/application/shared-memory/memory-settings.ts";
 import { harvestAfterGaps } from "../../shared/application/shared-memory/harvest-after-gaps.ts";
@@ -105,7 +105,7 @@ const builder = AgentBuilder()
     // The ports over this body's tools: a parallel wave's batch agents run beside it under other roots, where the
     // global `tools` refuses a call.
     const ports = { shell: orkeonShell(ctx.tools), files: orkeonFiles(ctx.tools), config: orkeonConfigStore(ctx.tools) };
-    const clock = () => new Date();
+    const clock = orkeonClock();
     return await runDevBatches(inputs(), {
       ...ports, log: ctx.log, clock,
       // The host's gate first, then these callbacks: the dev rule sets again and the run's /hooks (a chained run

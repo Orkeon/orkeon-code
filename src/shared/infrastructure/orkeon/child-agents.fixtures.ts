@@ -3,7 +3,8 @@
 // spec of the reviewer child the tests open.
 import { openChildAct } from "./child-agents.ts";
 import { createChildBoard } from "../../application/agents/child-agent.ts";
-import type { Llm } from "../../application/ports.ts";
+import type { Clock, Llm } from "../../application/ports.ts";
+import { FakeClock } from "../../../../tests/support/doubles/fake-clock.ts";
 import { FakeLogger } from "../../../../tests/support/doubles/fake-logger.ts";
 import { FakeSessionStore } from "../../../../tests/support/doubles/fake-session-store.ts";
 
@@ -58,8 +59,15 @@ export const base = (): Llm & { asked: unknown[] } => {
   return { asked, act: async (p: string, r: unknown) => { asked.push([p, r]); return "inline"; } } as any;
 };
 
+/** A clock a second further at each read. */
+export const ticking = (): Clock => {
+  const clock = new FakeClock();
+  clock.tickMs = 1000;
+  return clock.now;
+};
+
 /** The board of a dev-plan run. */
-export const board = () => createChildBoard({ state: new FakeSessionStore(), clock: () => new Date(), log: new FakeLogger() }, { crew: "dev-plan", step: "dev-plan" });
+export const board = () => createChildBoard({ state: new FakeSessionStore(), clock: ticking(), log: new FakeLogger() }, { crew: "dev-plan", step: "dev-plan" });
 
 export const spec = { agent: "dev-reviewer", charter: "dev-reviewer", task: "review", builder: () => ({ name: "dev-reviewer" }) as any };
 
@@ -70,9 +78,8 @@ export const REVIEW_STEPS: readonly string[] = ["dev-spec", "dev-change"];
 export function openReview(step: string) {
   const run = fakeRun(step);
   const state = new FakeSessionStore();
-  let t = 0;
   const inline = { act: async () => "inline" } as unknown as Llm;
-  const child = openChildAct(inline, run.ctx, run.crew, { state, clock: () => new Date(Date.UTC(2026, 9, 24) + (t += 1000)), log: new FakeLogger(), effort: "low" },
+  const child = openChildAct(inline, run.ctx, run.crew, { state, clock: ticking(), log: new FakeLogger(), effort: "low" },
     { crew: step, step }, { agent: "dev-reviewer", charter: "dev-reviewer", task: `review of the ${step}`, builder: () => ({ name: "dev-reviewer" }) as any });
   return { run, state, child };
 }

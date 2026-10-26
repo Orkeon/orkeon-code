@@ -1,10 +1,11 @@
 // The memory, the clock, the tool input and the racing files the memory_push tests run over.
 import { memoryLayout } from "../../domain/shared-memory/layout.ts";
+import { FakeClock } from "../../../../tests/support/doubles/fake-clock.ts";
 import { LiveListingFiles } from "../../../../tests/support/doubles/live-listing-files.ts";
 
 export const layout = memoryLayout(".orkeon/memory");
 export const memory = { layout, project: "shop" };
-export const clock = () => new Date("2026-10-24T10:00:00Z");
+export const clock = new FakeClock().now;
 export const ID = "shop-method-20261024-run-the-contract-tests-first";
 export const CANDIDATE_PATH = `${layout.candidates}/${ID}.md`;
 

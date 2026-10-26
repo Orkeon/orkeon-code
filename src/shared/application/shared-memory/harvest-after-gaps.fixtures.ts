@@ -2,6 +2,7 @@
 import { memoryLayout } from "../../domain/shared-memory/layout.ts";
 import { LEARN_STATE_FILE } from "../../domain/dev/learn-state.ts";
 import { collectLearnRows } from "../../domain/shared-memory/verdict-rows.ts";
+import { FakeClock } from "../../../../tests/support/doubles/fake-clock.ts";
 import { LiveListingFiles } from "../../../../tests/support/doubles/live-listing-files.ts";
 import { FakeLogger } from "../../../../tests/support/doubles/fake-logger.ts";
 import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
@@ -34,7 +35,7 @@ export function setup(folders: Record<string, string[]>) {
   const values: Record<string, string> = { "memory.project": "shop" };
   const config = { readValue: async (key: string) => ({ key, value: values[key], source: "file" }) as never };
   const log = new FakeLogger();
-  const deps = { files, shell: new FakeShell(), config, clock: () => new Date("2026-10-24T10:00:00Z"), log };
+  const deps = { files, shell: new FakeShell(), config, clock: new FakeClock().now, log };
   return { files, log, deps };
 }
 

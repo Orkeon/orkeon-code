@@ -13,12 +13,12 @@
 
 import { AgentBuilder, CrewBuilder, inputs, publishCrew } from "../../shared/infrastructure/globals.ts";
 import {
-  orkeonConfigStore, orkeonFiles, orkeonMemoryStore, orkeonProgress, orkeonSessionIo, orkeonShell,
+  orkeonClock, orkeonCompactionDeps, orkeonConfigStore, orkeonFiles, orkeonMemoryStore, orkeonProgress,
+  orkeonSessionIo, orkeonShell,
 } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { compactSession, snipBuffer } from "../../shared/application/compaction/compact-session.ts";
 import { formatOutcome } from "../../shared/domain/compact-outcome.ts";
-import { writeWorkflowState } from "../../shared/application/workflow/workflow-state.ts";
 
 const compactor = AgentBuilder()
   .name("session-compactor")
@@ -27,14 +27,10 @@ const compactor = AgentBuilder()
   // file_read: after a compaction, the files the conversation was working on are read back.
   .tools(["session_store", "session_snip", "token_budget", "memory_store", "file_read"])
   .body(async (_input: any, ctx: any) => {
-    const session = orkeonSessionIo();
-    const files = orkeonFiles();
-    const deps = {
-      progress: orkeonProgress(), session, files, memory: orkeonMemoryStore(),
-      llm: createLlm(ctx.llm), log: ctx.log,
-      workflow: (trigger: "manual" | "auto") =>
-        writeWorkflowState({ session, files, shell: orkeonShell(), config: orkeonConfigStore() }, trigger),
-    };
+    const deps = orkeonCompactionDeps({ llm: createLlm(ctx.llm), log: ctx.log }, {
+      progress: orkeonProgress(), session: orkeonSessionIo(), files: orkeonFiles(), memory: orkeonMemoryStore(),
+      shell: orkeonShell(), config: orkeonConfigStore(),
+    }, orkeonClock());
     // /compact --snip [N]: truncate only, nothing summarised.
     const snip = Number(inputs()?.snip ?? 0);
     if (snip > 0) return await snipBuffer(snip, deps);

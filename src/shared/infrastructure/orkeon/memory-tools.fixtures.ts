@@ -5,6 +5,7 @@ import { MEMORY_PUSH, MEMORY_RECALL, memoryPushTool, memoryRecallTool } from "./
 import type { ToolBuilderFactory } from "./script-tools.ts";
 import { memoryLayout } from "../../domain/shared-memory/layout.ts";
 import { GIT_REMOTE_ORIGIN } from "../../application/shared-memory/memory-settings.ts";
+import { FakeClock } from "../../../../tests/support/doubles/fake-clock.ts";
 import { FakeShell } from "../../../../tests/support/doubles/fake-shell.ts";
 import { FakeSharedMemory } from "../../../../tests/support/doubles/fake-shared-memory.ts";
 import { LiveListingFiles } from "../../../../tests/support/doubles/live-listing-files.ts";
@@ -24,7 +25,7 @@ export function world() {
   shell.results[GIT_REMOTE_ORIGIN] = { stdout: "git@example.com:acme/shop.git" };
   const memory = new FakeSharedMemory();
   const ports: MemoryToolPorts = {
-    files, shell, memory, clock: () => new Date("2026-10-24T10:00:00Z"),
+    files, shell, memory, clock: new FakeClock().now,
     config: { readValue: async (key: string) => ({ key, value: undefined, source: "unset" as const }) },
   };
   return { files, memory, ports: () => ports };

@@ -20,7 +20,7 @@
 // (three axes, one re-ask each).
 
 import { AgentBuilder, CrewBuilder, publishCrew, inputs } from "../../shared/infrastructure/globals.ts";
-import { orkeonConfigStore, orkeonFiles, orkeonHumanInput, orkeonShell } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { orkeonClock, orkeonConfigStore, orkeonFiles, orkeonHumanInput, orkeonShell } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { runDevLearn } from "./application/run-dev-learn.ts";
 
@@ -33,7 +33,7 @@ const learner = AgentBuilder()
   .tools([])
   .goal("Turn the gaps that audits keep finding into a few preventive lines, each with its owner file.")
   .body(async (_input: any, ctx: any) =>
-    await runDevLearn(inputs(), { ...ports, llm: createLlm(ctx.llm), log: ctx.log, clock: () => new Date() }))
+    await runDevLearn(inputs(), { ...ports, llm: createLlm(ctx.llm), log: ctx.log, clock: orkeonClock() }))
   .build();
 
 publishCrew(

@@ -2,13 +2,14 @@
 import { sha1Hex } from "../../domain/sha1.ts";
 import { memoryLayout } from "../../domain/shared-memory/layout.ts";
 import type { MemoryEntry } from "../../domain/shared-memory/entry.ts";
+import { FakeClock } from "../../../../tests/support/doubles/fake-clock.ts";
 import { LiveListingFiles } from "../../../../tests/support/doubles/live-listing-files.ts";
 import { FakeSharedMemory } from "../../../../tests/support/doubles/fake-shared-memory.ts";
 import { entryText } from "../../../../tests/support/fixtures/memory-entries.ts";
 
 export const layout = memoryLayout(".orkeon/memory");
 export const memory = { layout, collection: "memory-shop" };
-export const clock = () => new Date("2026-10-24T10:00:00Z");
+export const clock = new FakeClock().now;
 
 /** The files holding each of `candidates` as a candidate file, an empty index, and the use case's dependencies. */
 export function world(...candidates: MemoryEntry[]) {

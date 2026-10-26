@@ -16,6 +16,7 @@ import { chainDepthLine } from "../../shared/domain/agents/chain.ts";
 import { ruleDecision, toolsetFor } from "../../shared/domain/agent-policy/permission.ts";
 import { PERMISSION_MODES } from "../../shared/domain/permission-modes.ts";
 import { DEFAULT_MODE_STATE_KEY, PERMISSION_RULES_STATE_KEY } from "../../shared/domain/session-keys.ts";
+import { FakeClock } from "../../../tests/support/doubles/fake-clock.ts";
 import { FakeLlm } from "../../../tests/support/doubles/fake-llm.ts";
 import { FakeLogger } from "../../../tests/support/doubles/fake-logger.ts";
 import { FakeMemoryStore } from "../../../tests/support/doubles/fake-memory-store.ts";
@@ -390,7 +391,8 @@ describe("/mode plan, then a request without a mode: prefix", () => {
     // Act
     await runMainLoop(input, loaded, {
       shell: new FakeShell(), session, files, telemetry: new FakeTelemetry(), memory: new FakeMemoryStore(),
-      llm, log, run, tools: new FakeToolCatalogue(), compact: async () => ({ status: "skipped", reason: "below trigger" }),
+      llm, log, run, tools: new FakeToolCatalogue(), clock: new FakeClock().now,
+      compact: async () => ({ status: "skipped", reason: "below trigger" }),
     });
 
     // Assert

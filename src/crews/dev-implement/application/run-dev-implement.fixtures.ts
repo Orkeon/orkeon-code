@@ -1,6 +1,7 @@
 // The world runDevImplement is tested in: FakeFiles, a scripted shell (git status from a fake tree, each test file red
 // or green), two scripted roles that write into that tree, fake shell jobs, and the sheets, verdicts and records a
 // batch goes through.
+import { FakeClock } from "../../../../tests/support/doubles/fake-clock.ts";
 import { FakeCostIndex, FakeGraphIndex } from "../../../../tests/support/doubles/fake-cost-index.ts";
 import { FakeFiles } from "../../../../tests/support/doubles/fake-files.ts";
 import { FakeLogger } from "../../../../tests/support/doubles/fake-logger.ts";
@@ -10,7 +11,7 @@ import { FakeShellJobs } from "../../../../tests/support/doubles/fake-shell-jobs
 import type { FakePrecedents } from "../../../../tests/support/doubles/fake-precedents.ts";
 import { createConfigStore } from "../../../shared/application/config-store.ts";
 import { GIT_TOPLEVEL } from "../../../shared/application/dev/resolve-work-folder.ts";
-import type { ActRequest, AffectedTests, CostIndex, ShellOptions, ShellResult } from "../../../shared/application/ports.ts";
+import type { ActRequest, AffectedTests, Clock, CostIndex, ShellOptions, ShellResult } from "../../../shared/application/ports.ts";
 import type { AccessCostReport } from "../../../shared/domain/dev/access-cost.ts";
 import { GIT_IDENT_COMMAND } from "../../../shared/domain/git/close.ts";
 import { AUDIT_UNFINISHED_GAP } from "../../../shared/domain/dev/verdict-format.ts";
@@ -198,7 +199,7 @@ export const writesTestOnly: Act = (_p, tree) => { tree.write("tests/a.test.ts",
 export type Deps = {
   files: FakeFiles; shell: TreeShell; jobs: FakeShellJobs; log: FakeLogger; config: ReturnType<typeof createConfigStore>;
   roleLlm: (role: "test-author" | "implementer", layout: unknown, wrote: (path: string) => void, writable: readonly string[]) => Role;
-  today: () => string; costIndex?: CostIndex; openerFor?: (context: unknown) => undefined;
+  clock: Clock; costIndex?: CostIndex; openerFor?: (context: unknown) => undefined;
   precedents?: FakePrecedents["recall"];
 };
 
@@ -222,7 +223,7 @@ export function setup(author: Act[], implementer: Act[], sheet = SHEET) {
       roles[role].writable = writable;
       return roles[role];
     },
-    today: () => "2026-10-24",
+    clock: new FakeClock().now,
   } as Deps;
   return { files, shell, tree, roles, jobs, deps };
 }

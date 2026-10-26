@@ -4,6 +4,7 @@ import { runMemoryAdmit } from "./memory-admit.ts";
 import type { MemoryAdmitArgs, parseMemoryAdmitArgs } from "./memory-admit.ts";
 import { memoryLayout } from "../../shared/domain/shared-memory/layout.ts";
 import { GIT_REMOTE_ORIGIN } from "../../shared/application/shared-memory/memory-settings.ts";
+import { FakeClock } from "../../../tests/support/doubles/fake-clock.ts";
 import { FakeShell } from "../../../tests/support/doubles/fake-shell.ts";
 import { LiveListingFiles } from "../../../tests/support/doubles/live-listing-files.ts";
 import { entryText, sampleEntry } from "../../../tests/support/fixtures/memory-entries.ts";
@@ -42,7 +43,7 @@ export function admitHarness(values: Record<string, string> = {}, answers: unkno
       return a;
     },
   };
-  const run = (args: MemoryAdmitArgs) => runMemoryAdmit(args, { files, shell, config, clock: () => new Date("2026-10-24T10:00:00Z") }, io);
+  const run = (args: MemoryAdmitArgs) => runMemoryAdmit(args, { files, shell, config, clock: new FakeClock().now }, io);
   return { files, lines, asked, run };
 }
 
