@@ -294,6 +294,7 @@ describe("orkeon-code, speech-to-text (ORKEON_CODE_AUDIO_DIR)", () => {
     strictEqual(r.env.get("WHISPER_OUT_DIR"), `${r.state}/transcripts`);
     strictEqual(r.env.get(`${WHISPER}Transport`), "Stdio");
     ok(r.env.get(`${WHISPER}Command`)!.endsWith("/bin/uv"), r.env.get(`${WHISPER}Command`));
+    strictEqual(r.env.get(`${WHISPER}TrustAnnotations`), "true", "the gate reads the server's annotations only when trusted (Orkeon #223)");
     deepStrictEqual(whisperArgs(r, upTo(7)), [...serverArgs(r.root, ["tts"]), undefined],
       "Piper, the default speech backend, writes what it would say without the speaker too");
     ok(r.stdout.includes(`  audio    : ${audio} -> /audio`), r.stdout);

@@ -81,8 +81,8 @@ qu'Orkeon Code ne connaît pas, et quand le mode de la session ne peut pas être
 |---|---|---|---|---|---|
 | `plan` | lectures locales, [outils supplémentaires](#outils-supplémentaires) `read` | ✅ | ❌ | ❌ | ❌ |
 | `dontAsk` | lectures locales, [outils supplémentaires](#outils-supplémentaires) `read` | ✅ | ❌ | ❌ | ❌ |
-| `default` | tous les outils | ✅ | `http_api` GET ✅, ses autres méthodes vous demandent, web ✅ | vous demande | vous demande |
-| `acceptEdits` | tous les outils | ✅ | `http_api` GET ✅, ses autres méthodes vous demandent, web ✅ | ✅ | vous demande |
+| `default` | tous les outils | ✅ | `http_api` GET simple ✅, ses autres méthodes vous demandent, web ✅ | vous demande | vous demande |
+| `acceptEdits` | tous les outils | ✅ | `http_api` GET simple ✅, ses autres méthodes vous demandent, web ✅ | ✅ | vous demande |
 | `bypassPermissions` | tous les outils | ✅ | ✅ | ✅ | ✅ |
 
 `plan` et `dontAsk` promettent que le tour ne change rien d'observable : aucune écriture, et aucune requête sortante,
@@ -109,11 +109,14 @@ Un appel à un outil que l'act n'offre pas n'atteint jamais la garde : le runtim
 à leurs propres outils sur cette erreur.
 
 Orkeon traite comme écriture un outil qui ne déclare ni lecture ni modification, et lit l'accès par appel quand il
-dépend des arguments (Orkeon #219) : `http_api` déclare une lecture pour `GET`, `HEAD`, `OPTIONS` et une méthode
-absente, une exécution pour toute autre méthode, si bien qu'un GET s'exécute sans question en `default` et en
-`acceptEdits` et qu'un POST vous demande ; `github` déclare une lecture pour `list_issues`, `get_pr`, `search_repos`
-et `get_repo`, une exécution pour `create_issue`, `create_pr` et une action qu'il ne connaît pas ; `rag_eval` déclare
-une lecture. Un outil MCP déclare ce que disent ses annotations ([Outils supplémentaires](#outils-supplémentaires)).
+dépend des arguments (Orkeon #219, #223) : `http_api` déclare une lecture pour `GET`, `HEAD`, `OPTIONS` et une méthode
+absente, une exécution pour toute autre méthode et pour une méthode de lecture qui porte un corps ou un en-tête de
+substitution de méthode (`X-HTTP-Method-Override`, `X-HTTP-Method`, `X-Method-Override`, quelle que soit la casse),
+si bien qu'un GET simple s'exécute sans question en `default` et en `acceptEdits` et qu'un POST, ou un GET avec un
+corps, vous demande ; `github` déclare une lecture pour `list_issues`, `get_pr`, `search_repos` et `get_repo`, une
+exécution pour `create_issue`, `create_pr` et une action qu'il ne connaît pas ; `rag_eval` déclare une modification,
+puisqu'il ingère son corpus et écrit ses rapports. Un outil MCP déclare ce que disent ses annotations, une fois son
+serveur déclaré de confiance ([Outils supplémentaires](#outils-supplémentaires)).
 `web_scrape`, `scrape_element` et `rag_search` déclarent une lecture (Orkeon #126) : ils s'exécutent sans question
 partout où le catalogue les offre.
 `rag_ingest` déclare une modification — il écrit l'index de connaissances, pas le projet monté — si bien que le
@@ -440,12 +443,14 @@ s'est pas connecté, un plugin qui ne s'est pas chargé, une faute de frappe) es
 puisqu'Orkeon refuse un tour dont l'agent nomme un outil qu'il ne connaît pas.
 
 La classe façonne le catalogue ; la garde décide toujours chaque appel d'après l'accès que l'outil déclare à Orkeon.
-Un outil MCP le déclare par ses annotations (Orkeon #219) : `readOnlyHint: true` est une lecture, exécutée sans
-question dans tous les modes qui offrent l'outil, `dontAsk` compris ; une autre annotation est une exécution et
-l'absence d'annotation une écriture, demandées en `default` et en `acceptEdits`, refusées en `plan` et en `dontAsk`.
-Le serveur de parole marque `transcribe_audio`, `list_audio` et `whisper_info` en lecture seule ;
-`record_and_transcribe`, `speak` et `stop_speaking`, qui ouvrent le micro ou le haut-parleur, ne portent aucune
-annotation. Pour un tel outil, en `dontAsk`, une règle allow le laisse s'exécuter (`/permissions add allow speak`) ;
+Un outil MCP le déclare par ses annotations, lues seulement quand son serveur est déclaré avec `TrustAnnotations:
+true` (`MCP:Servers:<name>:TrustAnnotations`, faux par défaut ; Orkeon #219, #223) : alors `readOnlyHint: true` est
+une lecture, exécutée sans question dans tous les modes qui offrent l'outil, `dontAsk` compris, une autre annotation
+est une exécution et l'absence d'annotation une écriture, demandées en `default` et en `acceptEdits`, refusées en
+`plan` et en `dontAsk`. Tout outil d'un serveur non déclaré de confiance est une écriture, quoi qu'il annote. Le
+serveur de parole marque `transcribe_audio`, `list_audio` et `whisper_info` en lecture seule, et les lanceurs comme
+les exemples de settings le déclarent de confiance ; `record_and_transcribe`, `speak` et `stop_speaking`, qui ouvrent
+le micro ou le haut-parleur, ne portent aucune annotation. Pour un tel outil, en `dontAsk`, une règle allow le laisse s'exécuter (`/permissions add allow speak`) ;
 `plan` ignore les règles allow. Un outil de plugin qui déclare un accès en lecture s'exécute dans tous les modes.
 `/transcribe` ne demande rien non plus : son appel est celui de la commande
 ([Configuration](configuration.md#transcription-de-la-parole)).

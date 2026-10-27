@@ -882,8 +882,10 @@ def build_server(
 
     # The tools that change nothing on the machine declare it (readOnlyHint): Orkeon's gate reads the annotation
     # (Orkeon #219) and runs them without a question in every mode that offers them, `dontAsk` included, where a
-    # tool without it is a write that needs an allow rule. A transcript written under /transcripts is the server's
-    # own output, not the workspace. The recording and the speaking tools open the microphone or the speaker.
+    # tool without it is a write that needs an allow rule. The gate reads the annotations only of a server declared
+    # with `TrustAnnotations: true` (Orkeon #223), which the launchers and the example settings do; untrusted, every
+    # tool of the server would be a write. A transcript written under /transcripts is the server's own output, not
+    # the workspace. The recording and the speaking tools open the microphone or the speaker.
     READ_ONLY = ToolAnnotations(readOnlyHint=True)
 
     @mcp.tool(structured_output=False, annotations=READ_ONLY)

@@ -81,6 +81,19 @@ test("the Ollama and Whisper example is the Ollama one plus the Whisper declarat
 });
 
 for (const name of examples.filter((name) => load(name).MCP?.Servers?.whisper?.Env)) {
+  test(`${name} trusts the annotations of its Whisper server, so the gate reads its read-only tools (Orkeon #223)`, () => {
+    // Arrange
+    const file = name;
+
+    // Act
+    const settings = load(file);
+
+    // Assert
+    assert.equal(settings.MCP.Servers.whisper.TrustAnnotations, true, `${file}: MCP.Servers.whisper.TrustAnnotations must be true`);
+  });
+}
+
+for (const name of examples.filter((name) => load(name).MCP?.Servers?.whisper?.Env)) {
   test(`${name} mounts the folders its Whisper server reads`, () => {
     // Arrange
     const file = name;

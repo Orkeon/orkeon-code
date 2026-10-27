@@ -8,8 +8,6 @@ export const REGISTRY_GRAMMARS: readonly string[] = [
   "scala", "verilog",
 ];
 
-/** The grammars whose files the path validator refuses to read, so no index asks for them. */
-export const BLOCKED_GRAMMARS: readonly string[] = ["bash"];
-
-/** Grammars an index must keep asking for: the code of the dev fixtures and the documentation. */
-export const KEPT_GRAMMARS: readonly string[] = ["typescript", "javascript", "csharp", "markdown", "json"];
+/** Grammars an index must keep asking for: the code of the dev fixtures, the documentation, and the shell scripts
+ *  the runtime reads since Orkeon #215. */
+export const KEPT_GRAMMARS: readonly string[] = ["typescript", "javascript", "csharp", "markdown", "json", "bash"];

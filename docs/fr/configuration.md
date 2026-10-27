@@ -80,6 +80,8 @@ fournisseur. Un résultat d'outil parvient au modèle coupé à 4000 caractères
 | `Orkeon:Tools:Shell:AllowInterpreters` | Laisse `shell_command` lancer des interpréteurs (`node`, `dotnet`, `npm`...), nécessaire pour construire et tester la plupart des projets |
 | `Orkeon:Tools:Shell:ExtraAllowedCommands` | Commandes ajoutées à la liste blanche du shell (`make`, `cargo`...) |
 | `Orkeon:Tools:Shell:Confinement:Mode` | `Auto` (défaut : bubblewrap sous Linux, Seatbelt sous macOS, AppContainer sous Windows, aucun dans un conteneur), `None`, `Bubblewrap`, `Seatbelt` ou `AppContainer`. Confinée, chaque commande shell s'exécute sous `bwrap` (Linux, modes tool et source), réseau coupé sauf `Confinement:AllowNetwork`, les programmes hors des répertoires système à lister dans `Confinement:ReadOnlyPaths`. Une commande échoue quand elle ne peut pas être confinée. Les exemples mettent `None` ; un fichier de settings sans la clé confine, hors d'un conteneur. `/dev-batches --concurrency` au-delà de 1 fonctionne sous Bubblewrap avec un runtime qui monte le répertoire git d'un worktree lié (Orkeon/orkeon#191) ; avec un plus ancien, git échoue dans le worktree d'un lot, et l'exécution se refuse en une ligne. Confiné, le push de clôture n'atteint aucun remote (pas de réseau, `HOME=/tmp`, donc aucun identifiant) : l'exécution reste ouverte avec la commande `git push`. Poussez-la depuis un terminal, puis le `/dev-batches` suivant clôt l'exécution sans pousser de nouveau. Voir [SECURITY.md](../../SECURITY.md) |
+| `Orkeon:Tools:Shell:Environment:SessionBus` | Si un shell confiné (bubblewrap, Seatbelt, AppContainer) reçoit le bus de session, `DBUS_SESSION_BUS_ADDRESS`, dont le helper d'identifiants de `gh` adossé au trousseau a besoin ; `false` par défaut, puisque par le bus une commande peut lancer un processus hors du bac à sable. Un shell non confiné (`Confinement:Mode` `None`, les exemples de settings) et le bac à sable de code le reçoivent ; `SSH_AUTH_SOCK` et `XDG_RUNTIME_DIR` atteignent tout shell, donc git atteint un remote privé par l'agent ssh (Orkeon #216) |
+| `Orkeon:Tools:Shell:Environment:Propagate` | Noms de variables ajoutées à la liste blanche du shell ; un nom portant un mot de secret (`KEY`, `TOKEN`, `SECRET`, `PASSWORD`, `PASS`, `PAT` comme segment entier, `CREDENTIAL`, `AUTH`), commençant par `ORKEON_`, ou dont la valeur porte des identifiants d'URL est écarté avec un avertissement (Orkeon #216) |
 | `Orkeon:Tools:ResultLimits:Limits:<tool>` | La coupe du résultat d'un outil, en caractères : 4000, `file_read` 32000, `node_read` 256000, `shell_command` 10000. Un résultat coupé finit par `[... truncated, N chars omitted. …]` ; `/dev-verify` lit cette mention |
 | `Orkeon:Tools:ResultLimits:MaxParallelToolCalls` | Les appels de lecture d'un même tour du modèle qui tournent en même temps : 4 |
 | `Orkeon:Tools:GitHub:Token` | Le jeton de l'outil `github`, lu une fois à l'enregistrement de l'outil (Orkeon #222) ; préférez la variable ci-dessous à un jeton écrit dans un fichier de settings, que les exemples laissent de côté |
@@ -257,8 +259,10 @@ peut aussi appeler les outils lui-même, dans une requête telle que
 `read` convient à ces trois outils avec le backend local par défaut : ils lisent `/audio` et n'écrivent que sous
 `/transcripts`, hors du projet. Avec `WHISPER_BACKEND=openai`, l'audio quitte la machine : marquez `transcribe_audio`
 `write`, ou laissez-le de côté et utilisez `/transcribe`. Le serveur marque `transcribe_audio`, `list_audio` et
-`whisper_info` en lecture seule (`readOnlyHint`), ce que la garde de permission lit (Orkeon #219) : ils s'exécutent
-sans question dans tous les modes qui les offrent, `dontAsk` compris ; `record_and_transcribe`, `speak` et
+`whisper_info` en lecture seule (`readOnlyHint`), ce que la garde de permission lit une fois le serveur déclaré de
+confiance (`TrustAnnotations: true`, exporté par les lanceurs en `ORKEON_MCP__Servers__whisper__TrustAnnotations` et
+posé dans les exemples de settings ; Orkeon #219, #223) : ils s'exécutent sans question dans tous les modes qui les
+offrent, `dontAsk` compris ; `record_and_transcribe`, `speak` et
 `stop_speaking` ne portent aucune annotation, donc la garde vous demande en `default` et en `acceptEdits` et les
 refuse en `plan` et en `dontAsk` ([Permissions](permissions.md#outils-supplémentaires)).
 

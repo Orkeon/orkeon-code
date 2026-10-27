@@ -26,8 +26,8 @@ Under `orkeon run` (`scripts/run-crew.sh`) the gate has no one to ask, and decid
 
 | Mode | Under `orkeon run` |
 |---|---|
-| `default` | Reads only: every other call is refused (the edits, `github`, `rag_eval`, `spawn_agent`, the shell, `http_api`) |
-| `acceptEdits` | Reads and edits (`file_write`, `edit_file`, `node_*`, `edit_batch`, `structural_rewrite`, `spawn_agent`); `github`, `rag_eval`, the shell and `http_api` are refused |
+| `default` | Reads only, a `github` read action and a plain `http_api` GET included: every other call is refused (the edits, `rag_eval`, `spawn_agent`, the shell, a `github` or `http_api` write) |
+| `acceptEdits` | Reads and edits (`file_write`, `edit_file`, `node_*`, `edit_batch`, `structural_rewrite`, `rag_ingest`, `rag_eval`, `spawn_agent`), a `github` read action and a plain `http_api` GET; the shell and the `github` and `http_api` writes are refused |
 | `plan`, `dontAsk` | Reads only |
 | `bypassPermissions` | Everything |
 

@@ -1,4 +1,4 @@
-// The calls declaredAccess reads, as Orkeon #219 declares them.
+// The calls declaredAccess reads, as Orkeon #219 and #223 declare them.
 import type { ToolAccess } from "../../../../src/shared/domain/agent-policy/tool-access.ts";
 
 export interface AccessCase { name: string; tool: string; input: unknown; access: ToolAccess | null }
@@ -21,7 +21,15 @@ export const ACCESS_CASES: readonly AccessCase[] = [
   { name: "http_api POST executes", tool: "http_api", input: { url: "https://x", method: "POST" }, access: "execute" },
   { name: "http_api DELETE executes", tool: "http_api", input: { url: "https://x", method: "DELETE" }, access: "execute" },
   { name: "http_api with a method that is no string executes", tool: "http_api", input: { url: "https://x", method: 1 }, access: "execute" },
-  { name: "rag_eval reads whatever the call", tool: "rag_eval", input: { dataset: "eval/golden.yaml" }, access: "read" },
+  { name: "http_api GET with a body executes", tool: "http_api", input: { url: "https://x", method: "GET", body: "{}" }, access: "execute" },
+  { name: "http_api without a method but with a body executes", tool: "http_api", input: { url: "https://x", body: "{}" }, access: "execute" },
+  { name: "http_api GET with an empty body reads", tool: "http_api", input: { url: "https://x", method: "GET", body: "" }, access: "read" },
+  { name: "http_api GET with X-HTTP-Method-Override executes", tool: "http_api", input: { url: "https://x", method: "GET", headers: { "X-HTTP-Method-Override": "DELETE" } }, access: "execute" },
+  { name: "http_api GET with X-HTTP-Method executes", tool: "http_api", input: { url: "https://x", method: "GET", headers: { "X-HTTP-Method": "PUT" } }, access: "execute" },
+  { name: "http_api HEAD with x-method-override, in lower case, executes", tool: "http_api", input: { url: "https://x", method: "HEAD", headers: { "x-method-override": "POST" } }, access: "execute" },
+  { name: "http_api GET with other headers reads", tool: "http_api", input: { url: "https://x", method: "GET", headers: { Accept: "application/json" } }, access: "read" },
+  { name: "http_api GET with headers that are no object reads", tool: "http_api", input: { url: "https://x", method: "GET", headers: "X-HTTP-Method-Override: DELETE" }, access: "read" },
+  { name: "rag_eval declares one access, its class's: an edit", tool: "rag_eval", input: { dataset: "eval/golden.yaml" }, access: null },
   { name: "web_search reads whatever the call", tool: "web_search", input: { query: "x" }, access: "read" },
   { name: "file_write declares one access, its class's", tool: "file_write", input: { path: "a" }, access: null },
   { name: "shell_command declares one access, its class's", tool: "shell_command", input: { command: "ls" }, access: null },

@@ -29,8 +29,8 @@ mode :
 
 | Mode | Sous `orkeon run` |
 |---|---|
-| `default` | Lectures seulement : tout autre appel est refusé (les modifications, `github`, `rag_eval`, `spawn_agent`, le shell, `http_api`) |
-| `acceptEdits` | Lectures et modifications (`file_write`, `edit_file`, `node_*`, `edit_batch`, `structural_rewrite`, `spawn_agent`) ; `github`, `rag_eval`, le shell et `http_api` sont refusés |
+| `default` | Lectures seulement, une action de lecture de `github` et un GET simple d'`http_api` compris : tout autre appel est refusé (les modifications, `rag_eval`, `spawn_agent`, le shell, une écriture de `github` ou d'`http_api`) |
+| `acceptEdits` | Lectures et modifications (`file_write`, `edit_file`, `node_*`, `edit_batch`, `structural_rewrite`, `rag_ingest`, `rag_eval`, `spawn_agent`), une action de lecture de `github` et un GET simple d'`http_api` ; le shell et les écritures de `github` et d'`http_api` sont refusés |
 | `plan`, `dontAsk` | Lectures seulement |
 | `bypassPermissions` | Tout |
 

@@ -624,7 +624,7 @@ export const PS1_MODES: readonly Mention[] = [
 /** The variables orkeon-code.ps1 sets by name. */
 export const PS1_SET_VARIABLES = ["ORKEON_ALLOW_EXTERNAL_MOUNTS", "ORKEON_ESBUILD_PATH", "ORKEON_Llm__Model", GATE, START_SCRIPT, PERSIST, SESSIONS_DIR,
   "WHISPER_AUDIO_DIR", "WHISPER_OUT_DIR", "WHISPER_MICROPHONE", "WHISPER_SPEAKER", "ORKEON_MCP__Servers__whisper__Transport",
-  "ORKEON_MCP__Servers__whisper__Command", "UV_PROJECT_ENVIRONMENT"].sort();
+  "ORKEON_MCP__Servers__whisper__Command", "ORKEON_MCP__Servers__whisper__TrustAnnotations", "UV_PROJECT_ENVIRONMENT"].sort();
 
 /** The loop that sets the server's arguments by name. */
 export const PS1_ARGS_LOOP = '[Environment]::SetEnvironmentVariable("ORKEON_MCP__Servers__whisper__Args__$i", $whisperArgs[$i])';

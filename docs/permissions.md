@@ -73,8 +73,8 @@ of them under `orkeon run`.
 |---|---|---|---|---|---|
 | `plan` | local reads, `read` [extra tools](#extra-tools) | ✅ | ❌ | ❌ | ❌ |
 | `dontAsk` | local reads, `read` [extra tools](#extra-tools) | ✅ | ❌ | ❌ | ❌ |
-| `default` | every tool | ✅ | `http_api` GET ✅, its other methods ask you, web ✅ | asks you | asks you |
-| `acceptEdits` | every tool | ✅ | `http_api` GET ✅, its other methods ask you, web ✅ | ✅ | asks you |
+| `default` | every tool | ✅ | plain `http_api` GET ✅, its other methods ask you, web ✅ | asks you | asks you |
+| `acceptEdits` | every tool | ✅ | plain `http_api` GET ✅, its other methods ask you, web ✅ | ✅ | asks you |
 | `bypassPermissions` | every tool | ✅ | ✅ | ✅ | ✅ |
 
 `plan` and `dontAsk` promise that the turn changes nothing observable: no write, and no outbound request, since a
@@ -101,11 +101,13 @@ available to this agent.` at once, with no question (Orkeon #193), and the dev a
 own tools on that error.
 
 Orkeon treats a tool that declares neither a read nor an edit as a write, and reads the access per call where it
-depends on the arguments (Orkeon #219): `http_api` declares a read for `GET`, `HEAD`, `OPTIONS` and a missing
-method, an execute for any other method, so a GET runs without a question in `default` and `acceptEdits` and a POST
-asks you; `github` declares a read for `list_issues`, `get_pr`, `search_repos` and `get_repo`, an execute for
-`create_issue`, `create_pr` and an action it does not know; `rag_eval` declares a read. An MCP tool declares what its
-annotations say ([Extra tools](#extra-tools)). `web_scrape`, `scrape_element` and `rag_search` declare a read
+depends on the arguments (Orkeon #219, #223): `http_api` declares a read for `GET`, `HEAD`, `OPTIONS` and a missing
+method, an execute for any other method and for a read method that carries a body or a method-override header
+(`X-HTTP-Method-Override`, `X-HTTP-Method`, `X-Method-Override`, any case), so a plain GET runs without a question in
+`default` and `acceptEdits` and a POST, or a GET with a body, asks you; `github` declares a read for `list_issues`,
+`get_pr`, `search_repos` and `get_repo`, an execute for `create_issue`, `create_pr` and an action it does not know;
+`rag_eval` declares an edit, since it ingests its corpus and writes its reports. An MCP tool declares what its
+annotations say, once its server is trusted ([Extra tools](#extra-tools)). `web_scrape`, `scrape_element` and `rag_search` declare a read
 (Orkeon #126): they run without a question wherever the catalogue offers them. `rag_ingest` declares an
 edit — it writes the knowledge index, not the workspace — so the catalogue offers it with the file edits: never in
 `plan` or `dontAsk`, asked in `default`, accepted in `acceptEdits`.
@@ -411,11 +413,13 @@ that did not load, a typo) is left out with a warning, since Orkeon refuses a tu
 not know.
 
 The class shapes the catalogue; the gate still decides each call from the access the tool declares to Orkeon. An MCP
-tool declares it through its annotations (Orkeon #219): `readOnlyHint: true` is a read, run without a question in
-every mode that offers the tool, `dontAsk` included; another annotation is an execute and no annotation a write,
-asked about in `default` and `acceptEdits`, refused in `plan` and `dontAsk`. The speech server marks
-`transcribe_audio`, `list_audio` and `whisper_info` read-only; `record_and_transcribe`, `speak` and `stop_speaking`,
-which open the microphone or the speaker, carry no annotation. For such a tool, in `dontAsk`, an allow rule lets it
+tool declares it through its annotations, read only when its server is declared with `TrustAnnotations: true`
+(`MCP:Servers:<name>:TrustAnnotations`, false by default; Orkeon #219, #223): then `readOnlyHint: true` is a read, run
+without a question in every mode that offers the tool, `dontAsk` included, another annotation is an execute and no
+annotation a write, asked about in `default` and `acceptEdits`, refused in `plan` and `dontAsk`. Every tool of an
+untrusted server is a write, whatever it annotates. The speech server marks `transcribe_audio`, `list_audio` and
+`whisper_info` read-only, and the launchers and the example settings declare it trusted; `record_and_transcribe`,
+`speak` and `stop_speaking`, which open the microphone or the speaker, carry no annotation. For such a tool, in `dontAsk`, an allow rule lets it
 run (`/permissions add allow speak`); `plan` ignores allow rules. A plugin tool that declares read access runs
 in every mode. `/transcribe` asks nothing either: its call is the command's
 ([Configuration](configuration.md#speech-to-text)).

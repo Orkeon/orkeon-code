@@ -659,6 +659,9 @@ if [ -n "${ORKEON_CODE_AUDIO_DIR:-}" ]; then
     export WHISPER_AUDIO_DIR="$AUDIO" WHISPER_OUT_DIR="$STATE/transcripts"
     export ORKEON_MCP__Servers__whisper__Transport=Stdio
     export ORKEON_MCP__Servers__whisper__Command="$UV"
+    # The gate reads a server's annotations (readOnlyHint on transcribe_audio, list_audio and whisper_info)
+    # only when the server is trusted (Orkeon #223); untrusted, every tool of the server would be a write.
+    export ORKEON_MCP__Servers__whisper__TrustAnnotations=true
     # ORKEON_CODE_VOICE=1 opens the microphone to /voice and the speaker to /say and
     # voice.reply: the server gets the `voice` extra (sounddevice), WHISPER_MICROPHONE=1
     # and WHISPER_SPEAKER=1; without it, it refuses to record and only writes what it
