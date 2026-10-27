@@ -82,9 +82,14 @@ warn() { echo "orkeon-code: warning: $*" >&2; }
 lowered() { printf '%s' "$1" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | tr '[:upper:]' '[:lower:]'; }
 
 # The Orkeon found, said without starting anything: the REPL has no --version flag, and docker pulls nothing.
-runtime_found() {
+# A mode forced by --mode or ORKEON_CODE_MODE names its runtime; otherwise the auto-detection order speaks.
+runtime_found() { # <forced mode or empty>
   local repl repl_bin version_file v
   if [ -n "${ORKEON_REPL:-}" ]; then read -r repl _ <<< "$ORKEON_REPL"; else repl=orkeon-repl; fi
+  case "$1" in
+    source) echo "source checkout ${ORKEON_SOURCE:-"(none: set ORKEON_SOURCE)"}"; return ;;
+    docker) echo "image $IMAGE (docker mode, not pulled)"; return ;;
+  esac
   if repl_bin="$(command -v "$repl" 2>/dev/null)"; then
     repl_bin="$(resolve_links "$repl_bin")"
     # An Orkeon release archive installs bin/orkeon-repl beside its VERSION file.
@@ -449,7 +454,7 @@ if [ "$CONTINUE" = 1 ] && [ "$RESUME" = 1 ]; then die "--continue and --resume d
 
 if [ "$VERSION_ONLY" = 1 ]; then
   echo "orkeon-code $CODE_VERSION ($KIND: $ROOT)"
-  echo "Orkeon $ORKEON_VERSION expected, found: $(runtime_found)"
+  echo "Orkeon $ORKEON_VERSION expected, found: $(runtime_found "$MODE")"
   exit 0
 fi
 

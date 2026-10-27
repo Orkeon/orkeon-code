@@ -593,6 +593,19 @@ describe("orkeon-code, a clone or an install", () => {
     strictEqual(r.cwd, "", "the REPL did not start");
   });
 
+  it("--version names the source checkout when the mode is forced to source, whatever else is installed", () => {
+    // Arrange
+    const source = orkeonCheckout();
+    const start = { args: ["--mode", "source", "--version"], bin: TOOL_REPL, bare: true, env: { ORKEON_SOURCE: source } };
+
+    // Act
+    const r = launch(start);
+
+    // Assert
+    strictEqual(r.status, 0, r.stderr);
+    strictEqual(r.stdout.split("\n")[1], `Orkeon ${RUNTIME_VERSION} expected, found: source checkout ${source}`);
+  });
+
   it("a clone keeps its state in .crew-output and reads config/appsettings.local.json first", () => {
     // Arrange
     const files = { "checkout/config/appsettings.local.json": SETTINGS_TEXT };

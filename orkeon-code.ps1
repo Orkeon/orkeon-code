@@ -444,7 +444,9 @@ try {
     # The Orkeon found, said without starting anything: the REPL has no --version flag, and docker pulls nothing.
     $replName = if ($env:ORKEON_REPL) { ($env:ORKEON_REPL -split ' ')[0] } else { 'orkeon-repl' }
     $replFound = Get-Command $replName -ErrorAction SilentlyContinue | Select-Object -First 1
-    $found = if ($replFound -and $replFound.Source) {
+    # A mode forced by -Mode or ORKEON_CODE_MODE names its runtime; otherwise the auto-detection order speaks.
+    $found = if ($Mode -eq 'docker') { "image $Image (docker mode, not pulled)" }
+    elseif ($replFound -and $replFound.Source) {
       $replPath = (Get-Item -LiteralPath $replFound.Source).FullName
       $target = (Get-Item -LiteralPath $replPath).Target
       if ($target) { $replPath = [IO.Path]::GetFullPath((Join-Path (Split-Path $replPath -Parent) "$target")) }

@@ -528,6 +528,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`orkeon-code --version` names the runtime of the mode forced** by `--mode` or `ORKEON_CODE_MODE`: `source checkout
+  <path>` in source mode, the image in docker mode, where it followed the auto-detection order and said "docker mode"
+  on a machine with Docker whatever the mode asked. Without a forced mode, the detection order speaks as before.
 - **Three runtime defects of the live runs of 2026-10-26 are closed by Orkeon #213**, the commit the source mode and the
   CI smoke now build (`ORKEON_SOURCE_REF`): the interactive REPL starts on a terminal again, TUI and `--ui plain`,
   where it hung after its start lines on the `main` after #206 (Orkeon #212); with `/dev-batches --concurrency` above

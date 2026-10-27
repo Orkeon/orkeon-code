@@ -571,6 +571,7 @@ export const PS1_CLONE_OR_INSTALL: readonly Mention[] = [
 export const PS1_VERSION_LINES: readonly Mention[] = [
   ["orkeon-code $codeVersion ($kind`: $Root)", "the first line"],
   ["Orkeon $OrkeonVersion expected, found: $found", "the second line"],
+  ["$found = if ($Mode -eq 'docker') { \"image $Image (docker mode, not pulled)\" }", "the forced docker mode names its image first"],
 ];
 
 export const PS1_FROM_PROJECT: readonly Mention[] = [
