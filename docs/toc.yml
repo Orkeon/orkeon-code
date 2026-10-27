@@ -38,3 +38,5 @@
       href: adr/0005-orkeon-after-206.md
     - name: "ADR 0006: Orkeon main after #213, on the rc.6 pin"
       href: adr/0006-orkeon-after-213.md
+    - name: "ADR 0007: Orkeon main after #217, on the rc.6 pin"
+      href: adr/0007-orkeon-after-217.md
