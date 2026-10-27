@@ -12,15 +12,11 @@ What Orkeon Code does not do yet, in the order we expect to address it. Items ma
 
 - **One-shot launcher.** `orkeon-code --run "<request>"`: an unattended turn with the modes, settings and mounts of a
   session, from the launcher itself rather than `scripts/run-crew.sh` ([Autonomous and embedded runs](headless.md)).
-- **In-process embedding** (runtime, Orkeon #229). The scripting layer published as a NuGet package, so a .NET application loads
-  the crews without starting a process; and the crews exercised under the `orkeon-host` daemon.
-- **Sessions from inside the REPL.** A session is kept per project and comes back at start (`orkeon-code
-  --continue`, `--resume [<number or id>]`); `/resume` lists the saved ones but cannot swap the REPL's own session,
-  and switching sessions without a restart comes next (runtime, Orkeon #227).
+- **In-process embedding.** Orkeon ships its scripting layer as the `Orkeon.Scripting` package (Orkeon #229): a .NET
+  application runs a `crew.ork.ts` through `ICrewScriptRunner` without starting a process. What remains is ours: a
+  host example that runs the crews of Orkeon Code that way, and the crews exercised under the `orkeon-host` daemon.
 - **Hooks in the assistant.** `pre-tool` and `post-tool` hooks run around the model's tool calls in the dev steps
   ([Hooks](hooks.md)); `/assistant` does not run them yet, and nothing runs a `stop` hook.
-- **Cost and usage.** Real cost figures per provider, and token counts per category for `/context` and `/usage`
-  (runtime, Orkeon #226).
 
 ## Later
 
@@ -49,17 +45,7 @@ What Orkeon Code does not do yet, in the order we expect to address it. Items ma
 
 - A tool result reaches the model cut at 4000 characters: 32,000 for `file_read`, 256,000 for `node_read`, 10,000 for
   `shell_command`. The cut is set per tool by `Orkeon:Tools:ResultLimits` ([Configuration](configuration.md)).
-- A turn's token budget sums the prompt and completion of every call, so a turn pays its whole context again at each
-  call and the cost grows with the square of its calls; it bounds neither the size of the conversation nor what a
-  provider bills with its cache. When the sum reaches the limit the turn runs no further tool: the model answers in
-  one last call, shown under a line saying the turn stopped on its budget (Orkeon #218). The main loop runs with
-  1.5M and reads by range meanwhile (runtime; a budget that counts the context once is Orkeon #224;
-  [Configuration](configuration.md)).
-- The answer can be printed twice when console streaming is enabled: disable it for an unattended run (runtime,
-  Orkeon #228).
 - `/tasks` monitors the children of `/dev-spec`, `/dev-change`, `/dev-plan` and `/dev-verify` only, through the session state: a stop waits for
   the crew's next look (about a second), and a send to an ended instance is a new run that knows the previous report
   only, not its context.
-- Some commands only partly do what their names promise: `/summary` (not saved to memory), `/status` (the runtime
-  version is the pin, not read from the running host; runtime, Orkeon #225), `/context` and `/usage` (totals only,
-  no per-category figures; Orkeon #226).
+- Some commands only partly do what their names promise: `/summary` (not saved to memory).

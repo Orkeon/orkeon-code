@@ -86,7 +86,7 @@ fournisseur. Un résultat d'outil parvient au modèle coupé à 4000 caractères
 | `Orkeon:Tools:ResultLimits:MaxParallelToolCalls` | Les appels de lecture d'un même tour du modèle qui tournent en même temps : 4 |
 | `Orkeon:Tools:GitHub:Token` | Le jeton de l'outil `github`, lu une fois à l'enregistrement de l'outil (Orkeon #222) ; préférez la variable ci-dessous à un jeton écrit dans un fichier de settings, que les exemples laissent de côté |
 | `Orkeon:Tools:GitHub:TokenVariable` | La variable d'environnement où l'outil `github` lit son jeton quand `Token` n'est pas réglé : `GITHUB_TOKEN` par défaut, puis `GH_TOKEN`. Le mode Docker du lanceur passe `GITHUB_TOKEN`, `GH_TOKEN` et la variable nommée ici au conteneur, chacune quand elle est définie ; les modes natifs héritent de l'environnement. Sans jeton, la description de l'outil dit où le régler ; un jeton apparaît en `***` dans les résultats et les journaux, et aucune des deux clés n'accepte une référence de variable |
-| `Orkeon:Cli:ConsoleStreaming:Enabled` | Affiche la réponse au fil de sa génération. L'exemple l'active ; la réponse peut être imprimée deux fois : à désactiver pour un run sans surveillance ([problèmes connus](roadmap.md#problèmes-connus)). Avec `/dev-batches --concurrency` au-dessus de 1, la réponse diffusée de chaque lot arrive ligne par ligne : sur la console plain préfixée de son ticket (`[t2] `), seule la réponse au premier plan au fil de l'eau (Orkeon #211) ; dans la TUI sur l'écran propre du lot, sans le préfixe (Orkeon #217) |
+| `Orkeon:Cli:ConsoleStreaming:Enabled` | Affiche la réponse au fil de sa génération. L'exemple l'active ; une commande n'imprime plus rien une fois la réponse diffusée (Orkeon #228). Avec `/dev-batches --concurrency` au-dessus de 1, la réponse diffusée de chaque lot arrive ligne par ligne : sur la console plain préfixée de son ticket (`[t2] `), seule la réponse au premier plan au fil de l'eau (Orkeon #211) ; dans la TUI sur l'écran propre du lot, sans le préfixe (Orkeon #217) |
 | `Orkeon:Cli:ScriptCommands:MaxScripts` | Commandes que le chargeur garde : 200 par défaut, au-dessus de la surface de commandes de ce projet |
 | `RateLimiting:*` | Limites de débit des requêtes vers le fournisseur |
 
@@ -95,13 +95,15 @@ fin :
 
 - l'`ExecutionTimeout` du moteur de script ci-dessus, qui s'arrête pendant qu'une question vous attend ;
 - le budget propre du crew de la boucle principale, écrit dans son code (`src/crews/main-loop/crew.ork.ts`) : 200
-  appels d'outils, 1,5M tokens (le prompt et la complétion de chaque appel du tour, sommés : un tour repaie tout son
-  contexte à chaque appel) et 30 minutes de temps réel. Cette horloge est celle d'Orkeon et, comme celle du
-  moteur, elle s'arrête pendant que la garde attend votre réponse : seul le travail du modèle compte, et une question
-  laissée sans réponse ne met pas fin au tour. Quand la somme de tokens atteint la limite, le tour n'exécute plus
-  d'outil : le modèle fait un dernier appel sans outil, sa réponse s'affiche sous une ligne qui dit que le tour s'est
-  arrêté sur son budget, et seul un dernier appel qui échoue ou ne répond rien finit le tour en erreur (Orkeon #218) ;
-  une limite d'appels d'outils ou de temps réel le finit toujours en erreur.
+  appels d'outils, 700k tokens de contexte et 30 minutes de temps réel. Le contexte est compté une fois (Orkeon
+  #224) : chaque appel paie sa complétion plus ce dont son prompt a grandi, ou la part que le cache du fournisseur
+  n'a pas servie, donc un tour de n appels sur un contexte de c tokens dépense environ c plus ses complétions, jamais
+  tout son contexte à chaque appel. Cette horloge est celle d'Orkeon et, comme celle du moteur, elle s'arrête pendant
+  que la garde attend votre réponse : seul le travail du modèle compte, et une question laissée sans réponse ne met
+  pas fin au tour. Quand les tokens de contexte atteignent la limite, le tour n'exécute plus d'outil : le modèle fait
+  un dernier appel sans outil, sa réponse s'affiche sous une ligne qui dit que le tour s'est arrêté sur son budget, et
+  seul un dernier appel qui échoue ou ne répond rien finit le tour en erreur (Orkeon #218) ; une limite d'appels
+  d'outils ou de temps réel le finit toujours en erreur.
 
 `Orkeon:Cli:ScriptHost:RunCrewTimeout` (10 minutes par défaut) ne borne qu'un crew qu'une commande attend
 (`runCrew`) ; Orkeon Code lance chaque crew avec `runCrewAsync`, qu'il ne borne pas, donc l'exemple l'omet.
@@ -376,10 +378,11 @@ partagent jamais ; `project.json` y nomme le chemin. Plus rien n'est écrit sous
 Sans terminal, `--resume` seul affiche la liste et sort avec le code 2. Les 50 sessions gardées les plus récentes
 restent (`ORKEON_CODE_SESSIONS_KEEP`, de 1 à 9999) ; une session sans message n'est pas gardée. Un second démarrage
 pendant qu'une session est ouverte sur le même projet avertit, laisse l'ouverte en paix et garde la sienne à côté,
-dans l'historique dès le démarrage suivant. Dans le REPL, `/resume`
-liste les sessions gardées (le lanceur monte `history/` en lecture seule sur `/session-history`) ; un REPL ne peut
-pas changer sa propre conversation : quittez, puis démarrez `orkeon-code --resume <id>`. L'historique de l'éditeur
-de ligne (la flèche du haut) n'est pas gardé.
+dans l'historique dès le démarrage suivant. Dans le REPL, `/resume` liste les sessions gardées (le lanceur monte
+`history/` en lecture seule sur `/session-history`) et `/resume <numéro ou id>` en ramène une sur place (Orkeon
+#227) : la session en cours est enregistrée dans une archive à côté de son propre fichier, que le démarrage suivant
+passe dans l'historique, puis celle choisie remplace la conversation, son état et son titre, et le tour suivant la
+continue. L'historique de l'éditeur de ligne (la flèche du haut) n'est pas gardé.
 
 `--llm-log` parmi les arguments du REPL écrit le journal LLM dans `<état du projet>/llm-logs`, jamais dans le
 projet ; `--llm-log-path <dossier>` est passé tel quel et l'emporte sur un `--llm-log` seul.

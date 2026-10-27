@@ -15,7 +15,7 @@ describe("implementBudget", () => {
     const budget = implementBudget(input);
 
     // Assert
-    deepStrictEqual(budget, { toolCalls: 370, wallTime: 9900, tokens: 450_000, delegationDepth: 0 });
+    deepStrictEqual(budget, { toolCalls: 370, wallTime: 9900, contextTokens: 450_000, delegationDepth: 0 });
   });
 
   it("sizes to the steps it is given", () => {

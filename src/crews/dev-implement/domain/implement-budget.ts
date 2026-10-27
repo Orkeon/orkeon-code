@@ -11,7 +11,7 @@ export const SLICE_SECONDS = 20;
 export const DEFAULT_STEPS = 3;
 export const MAX_STEPS = 12;
 
-export const CLOSE_BUDGET: StepBudget = { toolCalls: 40, wallTime: 900, tokens: 50_000, delegationDepth: 0 };
+export const CLOSE_BUDGET: StepBudget = { toolCalls: 40, wallTime: 900, contextTokens: 50_000, delegationDepth: 0 };
 
 /** The steps to size for: a whole number from 1 to MAX_STEPS; DEFAULT_STEPS when not given or not a number. */
 export function stepsToSize(value: unknown): number {
@@ -25,5 +25,5 @@ export const STEP_TOOL_CALLS = TEST_AUTHOR.maxIterations + IMPLEMENTER.maxIterat
 export function implementBudget(input: { steps?: unknown; close?: unknown }): StepBudget {
   if (input.close === true) return CLOSE_BUDGET;
   const s = stepsToSize(input.steps);
-  return { toolCalls: STEP_TOOL_CALLS * s + 40, wallTime: 900 * s + 2 * SUITE_LIMIT_SECONDS, tokens: 150_000 * s, delegationDepth: 0 };
+  return { toolCalls: STEP_TOOL_CALLS * s + 40, wallTime: 900 * s + 2 * SUITE_LIMIT_SECONDS, contextTokens: 150_000 * s, delegationDepth: 0 };
 }

@@ -84,20 +84,22 @@ others one after the other, each call through the permission gate, and sends the
 | `Orkeon:Tools:ResultLimits:MaxParallelToolCalls` | The read calls of one model turn that run at once: 4 |
 | `Orkeon:Tools:GitHub:Token` | The token of the `github` tool, read once when the tool is registered (Orkeon #222); prefer the variable below to a token written in a settings file, which the examples leave out |
 | `Orkeon:Tools:GitHub:TokenVariable` | The environment variable the `github` tool reads its token from when `Token` is unset: `GITHUB_TOKEN` by default, then `GH_TOKEN`. The launcher's Docker mode hands `GITHUB_TOKEN`, `GH_TOKEN` and the variable named here to the container, each when it is set; the native modes inherit the environment. Without a token the tool's description says where to set it; a token shows as `***` in results and logs, and neither key takes a variable reference |
-| `Orkeon:Cli:ConsoleStreaming:Enabled` | Streams the answer as it is generated. The example enables it; the answer can be printed twice: off for an unattended run ([known issues](roadmap.md#known-issues)). With `/dev-batches --concurrency` above 1, each batch's streamed answer comes line by line: on the plain console prefixed by its ticket (`[t2] `), the foreground answer alone as it arrives (Orkeon #211); in the TUI on the batch's own screen, without the prefix (Orkeon #217) |
+| `Orkeon:Cli:ConsoleStreaming:Enabled` | Streams the answer as it is generated. The example enables it; a command prints nothing more once the answer streamed (Orkeon #228). With `/dev-batches --concurrency` above 1, each batch's streamed answer comes line by line: on the plain console prefixed by its ticket (`[t2] `), the foreground answer alone as it arrives (Orkeon #211); in the TUI on the batch's own screen, without the prefix (Orkeon #217) |
 | `Orkeon:Cli:ScriptCommands:MaxScripts` | Commands the loader keeps: 200 by default, above this project's command surface |
 | `RateLimiting:*` | Request rate limits towards the provider |
 
 **How long a turn may last.** Two limits bound an `/assistant` turn, and the first one reached ends it:
 
 - the script engine's `ExecutionTimeout` above, which stops while a question waits for you;
-- the main-loop crew's own budget, written in its code (`src/crews/main-loop/crew.ork.ts`): 200 tool calls, 1.5M
-  tokens (the prompt and completion of every call of the turn, summed: a turn pays its whole context again at each
-  call) and 30 minutes of wall time. That clock is Orkeon's and, like the engine's, it stops while the gate waits
-  for your answer: only the model's own work counts, and a question left unanswered does not end the turn. When the
-  token sum reaches the limit the turn runs no further tool: the model makes one last call without tools, its answer
-  is shown under a line saying the turn stopped on its budget, and only a last call that fails or answers nothing
-  ends the turn in an error (Orkeon #218); a tool-call or wall-time limit still ends it in an error.
+- the main-loop crew's own budget, written in its code (`src/crews/main-loop/crew.ork.ts`): 200 tool calls, 700k
+  context tokens and 30 minutes of wall time. The context is counted once (Orkeon #224): each call charges its
+  completion plus what its prompt grew by, or the part of it the provider's cache did not serve, so a turn of n calls
+  on a context of c tokens spends about c plus its completions, never its whole context again at each call. That
+  clock is Orkeon's and, like the engine's, it stops while the gate waits for your answer: only the model's own work
+  counts, and a question left unanswered does not end the turn. When the context tokens reach the limit the turn
+  runs no further tool: the model makes one last call without tools, its answer is shown under a line saying the turn
+  stopped on its budget, and only a last call that fails or answers nothing ends the turn in an error (Orkeon #218);
+  a tool-call or wall-time limit still ends it in an error.
 
 `Orkeon:Cli:ScriptHost:RunCrewTimeout` (10 minutes by default) bounds only a crew a command waits for (`runCrew`);
 Orkeon Code starts every crew with `runCrewAsync`, which it does not bound, so the example leaves it out.
@@ -357,9 +359,11 @@ warns when an older start left sessions there).
 Without a terminal, `--resume` alone prints the list and exits with code 2. The newest 50 saved sessions are kept
 (`ORKEON_CODE_SESSIONS_KEEP`, 1 to 9999); a session without a message is not kept. A second start while a session
 is open on the same project warns, leaves the open one alone and keeps its own beside it, in the history from the
-next start. Inside the REPL, `/resume` lists the saved sessions
-(the launcher mounts `history/` read-only on `/session-history`); a REPL cannot swap its own conversation, so quit,
-then start `orkeon-code --resume <id>`. The line editor's history (the up arrow) is not kept.
+next start. Inside the REPL, `/resume` lists the saved sessions (the launcher mounts `history/` read-only on
+`/session-history`) and `/resume <number or id>` brings one back in place (Orkeon #227): the session of now is saved
+to an archive beside its own file, which the next start moves to the history, then the chosen one replaces the
+conversation, its state and its title, and the next turn continues it. The line editor's history (the up arrow) is
+not kept.
 
 `--llm-log` among the REPL arguments writes the LLM log to `<project state>/llm-logs`, never into the project;
 `--llm-log-path <folder>` is passed as given and wins over a bare `--llm-log`.

@@ -9,8 +9,12 @@ export type { Clock } from "./ports/clock.ts";
 export type { ShellResult, ShellOptions, Shell, ShellJobStatus, ShellJobs } from "./ports/shell.ts";
 export type { Mount, Files } from "./ports/files.ts";
 export type { ProgressSpec, Progress } from "./ports/progress.ts";
-export type { StoredMessage, SessionMessages, TokenBudget, SnipResult, SessionStore } from "./ports/session.ts";
+export type {
+  StoredMessage, SessionMessages, TokenKinds, TokenBudget, SnipResult, SessionStore, SessionSwitch,
+} from "./ports/session.ts";
 export type { SessionMetadata, SessionCost, SessionStats, Telemetry } from "./ports/telemetry.ts";
+export type { RuntimeInfo, RuntimeInfoReader } from "./ports/runtime.ts";
+export type { UsageTokens, UsageSpent, ModelUsage, CommandUsage, UsageReport, UsageReader } from "./ports/usage.ts";
 export type { MemoryEntry, MemoryStore } from "./ports/memory.ts";
 export type { ToolOutcome, ToolCatalogue, PermissionRules } from "./ports/tools.ts";
 export type { CrewHost, CrewLaunchOptions, ChildRuntime, Logger, RunState, CrewMemory } from "./ports/crew.ts";

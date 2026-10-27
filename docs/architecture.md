@@ -184,7 +184,10 @@ the text, or the tool's own failure message without the runtime's wrapping, and 
 | `HumanInput` | A question to the person: a choice, a text, a multi-select; nobody answering is an answer of its own (`human_input`) | `human-input.ts` | `fake-human-input.ts` |
 | `Files` | Read, write and list by virtual path, the VFS mounts (`file_read`, `file_write`, `directory_read`, `list_mounts`) | `files.ts` | `fake-files.ts` |
 | `Progress` | The host's progress line, best effort (`progress_report`) | `progress.ts` | `fake-progress.ts` |
-| `SessionStore` | The conversation buffer, the state bag, the title, the snip, the token budget (`session_store`, `session_snip`, `token_budget`) | `session-store.ts` | `fake-session-store.ts` |
+| `SessionStore` | The conversation buffer, the state bag, the title, the snip, the token budget by kind (`session_store`, `session_snip`, `token_budget`) | `session-store.ts` | `fake-session-store.ts` |
+| `SessionSwitch` | The session saved now, a saved one loaded in place (the `session` service, Orkeon #227) | `session-switch.ts` | `fake-session-switch.ts` |
+| `RuntimeInfoReader` | The runtime that runs the command: version, commit, channel (the `runtime` service, Orkeon #225) | `runtime-info.ts` | `fake-runtime-info.ts` |
+| `UsageReader` | The session's LLM usage, in total, by model and by command (the `usage` service, Orkeon #226) | `usage.ts` | `fake-usage-reader.ts` |
 | `Telemetry` | The session's metadata, cost and statistics (`session_store`, `session_cost`, `session_stats`) | `telemetry.ts` | `fake-telemetry.ts` |
 | `MemoryStore` | Typed memory: list, add, get, remove (`memory_store`) | `memory-store.ts` | `fake-memory-store.ts` |
 | `ToolCatalogue` | The registered tools under their registered names, found case-insensitively as Orkeon finds them, for diagnostics and the extra tools' check (the `tools` service of `ctx.services` for the names, the `tools` namespace for the calls: `call` raw, `callText` decoded) | `tool-catalogue.ts` | `fake-tool-catalogue.ts` |
@@ -301,7 +304,7 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 
 | Crew | Process | Started by | What it does |
 |---|---|---|---|
-| `main-loop` | autonomous, budget 200 tool calls / 1800 s / 1.5M tokens (every call's prompt and completion summed) | `/assistant`, free text, `/summary`, `/verify`, `/transcribe --then`, `/voice send` and `--go` | The interactive loop |
+| `main-loop` | autonomous, budget 200 tool calls / 1800 s / 700k context tokens (the context counted once, Orkeon #224) | `/assistant`, free text, `/summary`, `/verify`, `/transcribe --then`, `/voice send` and `--go` | The interactive loop |
 | `project-init` | sequential | `/init` | Scans the layout, detects conventions, writes the instructions file |
 | `git-commit` | sequential | `/commit` | Drafts a conventional commit from the diff, commits after confirmation |
 | `code-review` | sequential | `/review` (`--lens` for one lens), `/security-review` | Multi-lens review of the staged changes, ranked findings |

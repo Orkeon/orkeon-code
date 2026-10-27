@@ -16,16 +16,36 @@ export interface SessionMessages {
   messages: SessionMsg[];
 }
 
-/** Tokens used in the context window, and the window's size. */
+/** The tokens of the context window by kind of entry (Orkeon #226). */
+export interface TokenKinds {
+  system: number;
+  user: number;
+  assistant: number;
+  tool: number;
+  other: number;
+}
+
+/** Tokens used in the context window, and the window's size; by kind when the host reports it. */
 export interface TokenBudget {
   used: number;
   window: number;
+  byKind?: TokenKinds;
 }
 
 /** What a snip of the conversation buffer removed and kept, in entries. */
 export interface SnipResult {
   removed: number;
   retained: number;
+}
+
+/** The session saved now, and a saved one loaded in place (Orkeon #227): served while the host persists the
+ *  session per project (`Orkeon:Cli:Session:Persist`), at virtual paths the file system mounts. */
+export interface SessionSwitch {
+  /** Write the session now: to its own file, resolving to that virtual path, or to `path` in the same shape. */
+  save(path?: string): Promise<string>;
+  /** Swap the buffer, the state bag, the id and the title for those of the file at `path`; resolves to the number
+   *  of messages loaded. A missing, unreadable or ill-shaped file rejects and the session stays as it was. */
+  load(path: string): Promise<number>;
 }
 
 /** The session: its conversation buffer, its state bag (string values that survive

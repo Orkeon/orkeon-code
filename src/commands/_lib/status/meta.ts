@@ -9,7 +9,8 @@ export const CLI_NAME = "orkeon-code";
 export const CLI_VERSION = "0.1.0-alpha.1";
 export const CLI_BUILD = "source";
 /** The Orkeon runtime this version runs on: the pin of .orkeon-version, which the launcher checks
- *  (tests/repository/version.test.ts keeps the two equal). The runtime exposes no version of its own to a command. */
+ *  (tests/repository/version.test.ts keeps the two equal). /status and /doctor compare it with the runtime that
+ *  runs them, read from the host's `runtime` service (Orkeon #225). */
 export const ORKEON_RUNTIME_VERSION = "1.0.0-rc.6";
 
 export const RELEASE_NOTES = [

@@ -5,7 +5,7 @@
 // the tool's own message, the runtime's wrapping gone (withToolMessage).
 
 import type { SessionMsg } from "../../domain/types.ts";
-import type { SessionStore, StoredMessage } from "../../application/ports.ts";
+import type { SessionStore, StoredMessage, TokenBudget, TokenKinds } from "../../application/ports.ts";
 import type { SessionStoreInput } from "./runtime-tools.ts";
 import { asArray, pick, withToolMessage } from "./tool-results.ts";
 
@@ -59,10 +59,17 @@ export function createSessionStore(
     },
     async readBudget() {
       const b = await tools.tokenBudget();
-      return {
+      const budget: TokenBudget = {
         used: count(b, "used_tokens", "usedTokens"),
         window: count(b, "context_window_tokens", "contextWindowTokens"),
       };
+      // By kind since Orkeon #226; an older host reports none.
+      const kinds = pick(b, "used_tokens_by_kind", "usedTokensByKind");
+      if (kinds !== undefined && kinds !== null && typeof kinds === "object") {
+        const kind = (name: keyof TokenKinds) => count(kinds, name, name[0].toUpperCase() + name.slice(1));
+        budget.byKind = { system: kind("system"), user: kind("user"), assistant: kind("assistant"), tool: kind("tool"), other: kind("other") };
+      }
+      return budget;
     },
   };
 }

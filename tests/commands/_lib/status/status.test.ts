@@ -7,6 +7,7 @@ import { strictEqual, ok, deepStrictEqual } from "node:assert";
 import { buildStatusRows, PLATFORM_COMMAND } from "../../../../src/commands/_lib/status/status.ts";
 import { cacheColumns, statsRow } from "../../../../src/commands/_lib/status/cache.ts";
 import { ORKEON_RUNTIME_VERSION } from "../../../../src/commands/_lib/status/meta.ts";
+import { FakeRuntimeInfo } from "../../../support/doubles/fake-runtime-info.ts";
 import { FakeShell } from "../../../support/doubles/fake-shell.ts";
 import { CACHE_COLUMN_CASES, rowMap, statusHarness } from "./status.fixtures.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
@@ -181,7 +182,7 @@ describe("/status — what /version, /env, /session and /upgrade showed", () => 
 });
 
 describe("/status — the runtime and the provider (A-4a)", () => {
-  it("names the pinned runtime", () => {
+  it("names the pinned runtime when the host names none", () => {
     // Arrange
     const inputs = {};
 
@@ -190,6 +191,41 @@ describe("/status — the runtime and the provider (A-4a)", () => {
 
     // Assert
     strictEqual(r.get("runtime"), `Orkeon ${ORKEON_RUNTIME_VERSION} (pinned by .orkeon-version)`);
+  });
+
+  it("names the running runtime with its commit and channel, the pin, when they are the same", () => {
+    // Arrange
+    const inputs = { runtime: { version: ORKEON_RUNTIME_VERSION, commit: "abc1234", channel: "source" } };
+
+    // Act
+    const r = rowMap(buildStatusRows(inputs));
+
+    // Assert
+    strictEqual(r.get("runtime"), `Orkeon ${ORKEON_RUNTIME_VERSION}+abc1234 (source), the pin of .orkeon-version`);
+  });
+
+  it("marks a running runtime that is not the pin", () => {
+    // Arrange
+    const inputs = { runtime: { version: "1.0.0-rc.7", commit: null, channel: "deb" } };
+
+    // Act
+    const r = rowMap(buildStatusRows(inputs));
+
+    // Assert
+    strictEqual(r.get("runtime"), `Orkeon 1.0.0-rc.7 (deb), NOT the pin ${ORKEON_RUNTIME_VERSION} of .orkeon-version`);
+  });
+
+  it("reads the runtime through its reader", async () => {
+    // Arrange
+    const runtime = new FakeRuntimeInfo();
+    runtime.info = { version: ORKEON_RUNTIME_VERSION, commit: null, channel: "deb" };
+    const { run } = statusHarness({ runtime });
+
+    // Act
+    const view = await run();
+
+    // Assert
+    strictEqual(rowMap(view.table).get("runtime"), `Orkeon ${ORKEON_RUNTIME_VERSION} (deb), the pin of .orkeon-version`);
   });
 
   it("names the provider", () => {

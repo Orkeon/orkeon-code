@@ -193,8 +193,8 @@ async function gateWarning(mode: string, deps: Pick<MainLoopDeps, "llm" | "sessi
   return text;
 }
 
-/** The line shown under an answer the token budget cut short (Orkeon #218): the model's last call, made without
- *  tools once the crew's budget was spent. */
+/** The line shown under an answer the token budget cut short (Orkeon #218, the context counted once since #224):
+ *  the model's last call, made without tools once the crew's budget was spent. */
 export const BUDGET_EXHAUSTED_LINE =
   "⚠ the turn stopped on its token budget: the answer above is the model's wrap-up, made without tools, and may be cut short";
 

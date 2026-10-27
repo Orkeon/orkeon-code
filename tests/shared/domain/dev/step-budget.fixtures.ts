@@ -10,18 +10,18 @@ export interface StepCase {
 
 /** One level of children for each step: the reviewer or the auditor. */
 export const STEP_CASES: readonly StepCase[] = [
-  { step: "dev-verify", budget: { toolCalls: 200, wallTime: 3600, tokens: 700_000, delegationDepth: 1 } },
+  { step: "dev-verify", budget: { toolCalls: 200, wallTime: 3600, contextTokens: 700_000, delegationDepth: 1 } },
   // The reviewer child's calls count against dev-plan's: its tokens follow its 240 calls, as dev-verify's follow its 200.
-  { step: "dev-plan", budget: { toolCalls: 240, wallTime: 1800, tokens: 840_000, delegationDepth: 1 } },
+  { step: "dev-plan", budget: { toolCalls: 240, wallTime: 1800, contextTokens: 840_000, delegationDepth: 1 } },
   // The wall time of a spec or a brief counts the person's answers to its questions.
-  { step: "dev-spec", budget: { toolCalls: 200, wallTime: 3600, tokens: 700_000, delegationDepth: 1 } },
-  { step: "dev-change", budget: { toolCalls: 200, wallTime: 3600, tokens: 700_000, delegationDepth: 1 } },
+  { step: "dev-spec", budget: { toolCalls: 200, wallTime: 3600, contextTokens: 700_000, delegationDepth: 1 } },
+  { step: "dev-change", budget: { toolCalls: 200, wallTime: 3600, contextTokens: 700_000, delegationDepth: 1 } },
 ];
 
 /** A repair runs with the step's budget and no child of its own. */
 export const REPAIR_CASES: readonly StepCase[] = [
-  { step: "dev-verify", budget: { toolCalls: 200, wallTime: 3600, tokens: 700_000, delegationDepth: 0 } },
-  { step: "dev-plan", budget: { toolCalls: 240, wallTime: 1800, tokens: 840_000, delegationDepth: 0 } },
+  { step: "dev-verify", budget: { toolCalls: 200, wallTime: 3600, contextTokens: 700_000, delegationDepth: 0 } },
+  { step: "dev-plan", budget: { toolCalls: 240, wallTime: 1800, contextTokens: 840_000, delegationDepth: 0 } },
 ];
 
 /** A BudgetExhaustedError carrying its dimension. */

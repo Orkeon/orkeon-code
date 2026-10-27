@@ -8,7 +8,7 @@ export function expectedBatchLimits(steps: number): BatchLimits {
   return {
     toolCalls: implementBudget({ steps }).toolCalls + STEP_BUDGETS["dev-verify"].toolCalls + CLOSE_BUDGET.toolCalls,
     wallTime: implementBudget({ steps }).wallTime + STEP_BUDGETS["dev-verify"].wallTime + CLOSE_BUDGET.wallTime,
-    tokens: implementBudget({ steps }).tokens + STEP_BUDGETS["dev-verify"].tokens + CLOSE_BUDGET.tokens,
+    contextTokens: implementBudget({ steps }).contextTokens + STEP_BUDGETS["dev-verify"].contextTokens + CLOSE_BUDGET.contextTokens,
   };
 }
 

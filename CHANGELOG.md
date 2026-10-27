@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`/resume <number or id>` switches the session in place** (Orkeon #227, delivered by #230): the session of now
+  is saved to an archive beside its own file (`<stamp>-archived.json`, named by the clock port), then the chosen
+  history file replaces the conversation, the state bag, the id and the title; the next turn continues it. The
+  listing marks the row this session was loaded from. A host that does not persist the session is told to restart
+  with `orkeon-code --resume <id>`. New port `SessionSwitch` over the `session` service (`session-switch.ts`,
+  `fake-session-switch.ts`). Both launchers archive every `*.json` of `sessions/` (`last.json` last, so it is the
+  newest) and drop from the history the older file of a session that went on under its id.
+- **`/status` and `/doctor` read the runtime that runs them** (Orkeon #225, delivered by #230): the `runtime`
+  row names its version, commit and install channel against the pin of `.orkeon-version`, and the version check
+  of `/doctor` warns when they differ. New port `RuntimeInfoReader` over the `runtime` service (`runtime-info.ts`,
+  `fake-runtime-info.ts`).
+- **`/usage` by model and by command, `/context` by kind, `/cost` with the calls nobody priced** (Orkeon #226,
+  delivered by #230): `/usage` closes with one line per model and per command instance from the host's account
+  (`usage` service), its totals and cost taken from it when present, and a lower-bound note while some calls are
+  unpriced; `/context` adds one column per kind of entry (`systemTokens`, `userTokens`, `assistantTokens`,
+  `toolTokens`, `otherTokens`) from `token_budget`'s `used_tokens_by_kind`; `/cost` shows the account's cost,
+  `(unpriced)` while no call was priced, and its unpriced count. New port `UsageReader` (`usage.ts`,
+  `fake-usage-reader.ts`); `TokenBudget.byKind`. The logic of the three commands moved from their entry points
+  into `commands/_lib/status/{usage,context,cost}.ts`, tested there.
+
 - **A whole plan in one `/dev-batches`** (Orkeon #221, delivered by #217): every hop its `completed` launches
   (a batch, its audit, its close, the crew again) is made with `{ chain: "continue" }`, so it keeps the depth of
   the instance it runs for and `Orkeon:Cli:ScriptCommands:MaxChainDepth` (8) no longer stops a run after about two
@@ -358,6 +378,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   already holds writes nothing, so a second import adds nothing. Nothing is written under `.claude/`.
 
 ### Changed
+
+- **The crew budgets count the context once** (Orkeon #224, delivered by #230): every `tokens` dimension of the
+  budgets (`StepBudget`, `implementBudget`, `batchLimits`, `driverBudget`, the main loop) is now `contextTokens`, the
+  figures of the dev steps unchanged (`calls × TOKENS_PER_CALL`, the growth a call adds, which is what the context
+  counted once charges), the main loop's 1.5M running sum brought back to 700k context tokens. A repository test
+  keeps every `crew.ork.ts` on the procedural path (`publishCrew`, never a plain `globalThis.crew =`), the one where
+  the runtime accepts the dimension. The configuration, headless and architecture pages follow; the roadmap loses the
+  quadratic-budget known issue.
+- **A streamed answer is printed once** (Orkeon #228, delivered by #230): `writeCompleted` prints nothing for a
+  success whose `streamed` flag says the console already showed the answer; a failure is still written. The
+  `ConsoleStreaming:Enabled` row and the roadmap lose the "printed twice" caveat.
+- **Orkeon main after #230**: the runtime smoke's `ORKEON_SOURCE_REF` moves to `7ff12c9`, the typings are
+  regenerated from the sources (`contextTokens`, `streamed`, `RuntimeInfo`, `SessionUsage`, `SessionFacade`,
+  `used_tokens_by_kind`), the pin stays `1.0.0-rc.6` ([ADR 0009](docs/adr/0009-orkeon-after-230.md)). The roadmap's
+  in-process embedding item names what remains ours now that `Orkeon.Scripting` ships (Orkeon #229).
 
 - **The access classes follow Orkeon #223**, the second review of Orkeon #217, read at Orkeon `main` `3ac6aa6`
   (#29). `rag_eval` declares an edit, no longer a read: `declaredAccess` leaves it to its class, the gateless fallback

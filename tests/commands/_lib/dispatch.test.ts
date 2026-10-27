@@ -435,6 +435,28 @@ describe("writeCompleted", () => {
     deepStrictEqual(lines, ["✓ committed abc123"]);
   });
 
+  it("writes nothing for a success the console already streamed (Orkeon #228)", () => {
+    // Arrange
+    const { lines, out } = lineSink();
+
+    // Act
+    writeCompleted(out, { success: true, payload: "the answer", streamed: true }, "assistant");
+
+    // Assert
+    deepStrictEqual(lines, []);
+  });
+
+  it("writes the failure even when the turn streamed", () => {
+    // Arrange
+    const { lines, out } = lineSink();
+
+    // Act
+    writeCompleted(out, { success: false, error: "no diff", streamed: true }, "review");
+
+    // Assert
+    deepStrictEqual(lines, ["✗ review failed: no diff"]);
+  });
+
   it("writes the failure with the label and the error", () => {
     // Arrange
     const { lines, out } = lineSink();

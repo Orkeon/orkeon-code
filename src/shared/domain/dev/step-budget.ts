@@ -10,33 +10,36 @@ export interface StepBudget {
   toolCalls: number;
   /** Seconds. */
   wallTime: number;
-  tokens: number;
+  /** The context counted once (Orkeon #224): each call's completion plus what its prompt grew by, or the part the
+   *  provider's cache did not serve; a spent one is reported on the `tokens` dimension, as the running sum is. */
+  contextTokens: number;
   delegationDepth: number;
 }
 
 /**
- * The tokens a tool call costs, rounded up: a live audit of a 3-file batch spent 307 528 tokens over 92 calls (about
- * 3 300 a call, each turn resending the context). A step whose calls run long sizes its tokens from its calls, so that
- * the tool calls stay the limit it meets first.
+ * The context a tool call adds, rounded up: a live audit of a 3-file batch grew by about 3 300 tokens a call (its
+ * result and the model's turn around it). The context counted once (Orkeon #224) charges each call its completion
+ * plus that growth, so a step sizes its context tokens from its calls, and the tool calls stay the limit it meets
+ * first.
  */
 export const TOKENS_PER_CALL = 3_500;
 
 /**
  * dev-verify: under full, the build (900 s), the whole suite (900 s) and three validations (300 s
  * each), whether code or run_validation runs them, plus the auditor's own time; its 200 calls ask for
- * 700 000 tokens. dev-plan: the inventory's index queries, the planner and the reviewer, whose calls count
- * against the step's (A-3 Q3): 240 calls ask for 840 000 tokens. delegationDepth 1: the reviewer and the
+ * 700 000 context tokens. dev-plan: the inventory's index queries, the planner and the reviewer, whose calls count
+ * against the step's (A-3 Q3): 240 calls ask for 840 000 context tokens. delegationDepth 1: the reviewer and the
  * auditor run as background children of the step's agent (A-3), one level down, never deeper. dev-spec and
  * dev-change: the inventory (about 40 index calls), three extract calls, the reproduction (600 s at most) and one
  * review of 20 iterations, by the reviewer as a background child whose calls count against the step's
- * (delegationDepth 1, as dev-plan): 200 calls ask for 700 000 tokens; the wall time
+ * (delegationDepth 1, as dev-plan): 200 calls ask for 700 000 context tokens; the wall time
  * counts the time a person takes to answer the questions, hence an hour.
  */
 export const STEP_BUDGETS: Readonly<Record<"dev-verify" | "dev-plan" | "dev-spec" | "dev-change", StepBudget>> = {
-  "dev-verify": { toolCalls: 200, wallTime: 3600, tokens: 200 * TOKENS_PER_CALL, delegationDepth: 1 },
-  "dev-plan": { toolCalls: 240, wallTime: 1800, tokens: 240 * TOKENS_PER_CALL, delegationDepth: 1 },
-  "dev-spec": { toolCalls: 200, wallTime: 3600, tokens: 200 * TOKENS_PER_CALL, delegationDepth: 1 },
-  "dev-change": { toolCalls: 200, wallTime: 3600, tokens: 200 * TOKENS_PER_CALL, delegationDepth: 1 },
+  "dev-verify": { toolCalls: 200, wallTime: 3600, contextTokens: 200 * TOKENS_PER_CALL, delegationDepth: 1 },
+  "dev-plan": { toolCalls: 240, wallTime: 1800, contextTokens: 240 * TOKENS_PER_CALL, delegationDepth: 1 },
+  "dev-spec": { toolCalls: 200, wallTime: 3600, contextTokens: 200 * TOKENS_PER_CALL, delegationDepth: 1 },
+  "dev-change": { toolCalls: 200, wallTime: 3600, contextTokens: 200 * TOKENS_PER_CALL, delegationDepth: 1 },
 };
 
 /** The budget of a repair by a new run (/tasks repair, crew agent-run): the step's own that runs the charter as a

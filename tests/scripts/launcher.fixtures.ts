@@ -490,10 +490,18 @@ export function sessionScene() {
     const list = Array.from({ length: messages }, (_, i) => `{"Role":"user","Content":"m${i}"}`).join(",");
     writeFileSync(join(own, "sessions", slugOf(project), "last.json"), `{"SessionId":"${id}","Title":"${title}","Messages":[${list}],"State":{}}`);
   };
+  /** What /resume leaves beside last.json before it loads another session (Orkeon #227). */
+  const archive = (name: string, id: string, title: string, messages: number) => {
+    mkdirSync(join(own, "sessions", slugOf(project)), { recursive: true });
+    const list = Array.from({ length: messages }, (_, i) => `{"Role":"user","Content":"m${i}"}`).join(",");
+    writeFileSync(join(own, "sessions", slugOf(project), name), `{"SessionId":"${id}","Title":"${title}","Messages":[${list}],"State":{}}`);
+  };
   const last = () => join(own, "sessions", slugOf(project), "last.json");
   const history = () => readdirSync(join(own, "history")).sort();
+  /** The content of the one history file of `id`. */
+  const historyContent = (id: string) => readFileSync(join(own, "history", history().find((f) => f.endsWith(`-${id}.json`))!), "utf-8");
   const projectJson = () => JSON.parse(readFileSync(join(own, "project.json"), "utf-8"));
-  return { project, state, own, run, save, last, history, projectJson };
+  return { project, state, own, run, save, archive, last, history, historyContent, projectJson };
 }
 
 /** The history's file names without their UTC second. */

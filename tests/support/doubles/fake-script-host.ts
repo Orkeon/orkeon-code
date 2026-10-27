@@ -14,7 +14,7 @@ export class FakeScriptHost implements ScriptHostFacade {
 
   runCrew(name: string, input?: Record<string, unknown>): CrewRunOutput {
     this.launches.push({ name, input });
-    return { ok: true };
+    return { ok: true, streamed: false };
   }
 
   runCrewAsync(name: string, input?: Record<string, unknown>, options?: CrewLaunchOptions): string {

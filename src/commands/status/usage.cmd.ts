@@ -1,43 +1,19 @@
 /// <reference path="../.orkeon/orkeon-cli.d.ts" />
-// /usage — token usage against the context window with its pressure tier and the
-// automatic compaction's trigger (the compaction.trigger setting when one is set),
-// then the session's calls, tokens, cost and the prompt-cache tokens read and
-// written. /extra-usage, which showed the second half apart, is its alias.
+// /usage — token usage against the context window with its pressure tier and the automatic
+// compaction's trigger, then the session's calls, tokens, cost and the prompt-cache tokens, and
+// the usage by model and by command the host accounts (Orkeon #226). /extra-usage, which showed the
+// second half apart, is its alias. Entry point: wires the session, the telemetry, the settings and
+// the host's usage service into _lib/status/usage.ts (runUsage).
+import { runUsage } from "../_lib/status/usage.ts";
+import { showView } from "../_lib/view.ts";
 import { orkeonConfigStore, orkeonSessionIo, orkeonTelemetry } from "../../shared/infrastructure/orkeon/wiring.ts";
-import type { SessionCost, SessionStats } from "../../shared/application/ports.ts";
-import { cacheColumns } from "../_lib/status/cache.ts";
-import { readCompactionTrigger } from "../../shared/application/compaction/compact-session.ts";
-import {
-  DEFAULT_CONTEXT_WINDOW, computeTrigger, percentLeft, pressureTier,
-} from "../../shared/domain/compaction-thresholds.ts";
+import { createUsageReader } from "../../shared/infrastructure/orkeon/usage.ts";
 
-const session = orkeonSessionIo();
-const telemetry = orkeonTelemetry();
-const config = orkeonConfigStore();
+const deps = { session: orkeonSessionIo(), telemetry: orkeonTelemetry(), config: orkeonConfigStore() };
 
 defineCommand({
   name: "usage",
   aliases: ["extra-usage"],
-  description: "Show token usage against the context window (pressure tier, compaction trigger), calls, tokens, cost and the cache tokens read and written.",
-  handler: async (_args, ctx) => {
-    const [{ used, window }, s, c, trigger] = await Promise.all([
-      session.readBudget().catch(() => ({ used: 0, window: 0 })),
-      telemetry.readStats().catch((): SessionStats => ({})),
-      telemetry.readCost().catch((): SessionCost => ({})),
-      readCompactionTrigger(config),
-    ]);
-    ctx.table([{
-      usedTokens: used,
-      contextWindow: window || `(default ${DEFAULT_CONTEXT_WINDOW})`,
-      percentLeft: percentLeft(used, window) + "%",
-      pressure: pressureTier(used, window),
-      autocompactAt: computeTrigger(window, trigger) + (trigger ? " (compaction.trigger)" : ""),
-      messages: s.messageCount ?? 0,
-      llmCalls: s.totalCalls ?? 0,
-      llmTokens: s.totalTokens ?? 0,
-      costUsd: c.costUsd ?? 0,
-      ...cacheColumns(s),
-    }]);
-    return ctx.continue();
-  },
+  description: "Show token usage against the context window (pressure tier, compaction trigger), calls, tokens, cost and the cache tokens read and written, then the usage by model and by command.",
+  handler: async (_args, ctx) => showView(ctx, await runUsage({ ...deps, usage: createUsageReader(ctx.services) })),
 });

@@ -5,6 +5,7 @@
 import { orkeonSessionIo, orkeonShell, orkeonTelemetry } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { createCrewHost } from "../../shared/infrastructure/orkeon/crew-host.ts";
 import { readHostProvider } from "../../shared/infrastructure/orkeon/host-provider.ts";
+import { createRuntimeInfo } from "../../shared/infrastructure/orkeon/runtime-info.ts";
 import { runStatus } from "../_lib/status/status.ts";
 import { showView } from "../_lib/view.ts";
 
@@ -19,5 +20,6 @@ defineCommand({
   handler: async (_args, ctx) =>
     showView(ctx, await runStatus({
       session, telemetry, crews: createCrewHost(ctx.services), shell, provider: () => readHostProvider(ctx.services),
+      runtime: createRuntimeInfo(ctx.services),
     })),
 });

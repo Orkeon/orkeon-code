@@ -193,6 +193,19 @@ export function brokenPlacementRule(file: string): string | null {
 
 export const CLOCK_RULE = "every clock read sits in shared/infrastructure/: the rest of src/ takes the Clock port";
 
+export const CREW_HANDOFF_RULE =
+  "a crew entry point publishes through publishCrew: a plain `globalThis.crew =` in its text sends the runtime down the " +
+  "declarative pipeline, where the budget's contextTokens is refused (CrewHandoffDetector)";
+
+/** The runtime's detector, as its regex reads the entry file's own text: `globalThis` then `.crew =`, not `==`. */
+const CREW_HANDOFF = /\bglobalThis\b[^\n;]*?\.crew\s*=(?!=)/;
+
+/** The crew entry points whose text the runtime would read as a declarative handoff, as `<file>: <rule>`. */
+export function crewHandoffBreaks(file: string, text: string): string[] {
+  if (!isCrewEntryPoint(file) || !CREW_HANDOFF.test(text)) return [];
+  return [`${file}: ${CREW_HANDOFF_RULE}`];
+}
+
 /** Every clock read of a runtime file outside shared/infrastructure/, as `<file>:<line>: <read>: <rule>`. */
 export function clockRuleBreaks(file: string, text: string): string[] {
   if (file.startsWith(INFRASTRUCTURE)) return [];

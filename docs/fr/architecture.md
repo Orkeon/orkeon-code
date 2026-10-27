@@ -191,7 +191,10 @@ rend le texte, ou le message d'échec propre à l'outil sans l'enrobage du runti
 | `HumanInput` | Une question à la personne : un choix, un texte, une sélection multiple ; personne ne répondant est une réponse en soi (`human_input`) | `human-input.ts` | `fake-human-input.ts` |
 | `Files` | Lire, écrire et lister par chemin virtuel, les montages du VFS (`file_read`, `file_write`, `directory_read`, `list_mounts`) | `files.ts` | `fake-files.ts` |
 | `Progress` | La ligne de progression de l'hôte, au mieux (`progress_report`) | `progress.ts` | `fake-progress.ts` |
-| `SessionStore` | Le tampon de conversation, le sac d'état, le titre, la coupe, le budget de tokens (`session_store`, `session_snip`, `token_budget`) | `session-store.ts` | `fake-session-store.ts` |
+| `SessionStore` | Le tampon de conversation, le sac d'état, le titre, la coupe, le budget de tokens par sorte (`session_store`, `session_snip`, `token_budget`) | `session-store.ts` | `fake-session-store.ts` |
+| `SessionSwitch` | La session enregistrée maintenant, une session gardée chargée sur place (le service `session`, Orkeon #227) | `session-switch.ts` | `fake-session-switch.ts` |
+| `RuntimeInfoReader` | Le runtime qui exécute la commande : version, commit, canal (le service `runtime`, Orkeon #225) | `runtime-info.ts` | `fake-runtime-info.ts` |
+| `UsageReader` | L'usage LLM de la session, en tout, par modèle et par commande (le service `usage`, Orkeon #226) | `usage.ts` | `fake-usage-reader.ts` |
 | `Telemetry` | Les métadonnées, le coût et les statistiques de la session (`session_store`, `session_cost`, `session_stats`) | `telemetry.ts` | `fake-telemetry.ts` |
 | `MemoryStore` | La mémoire typée : lister, ajouter, lire, retirer (`memory_store`) | `memory-store.ts` | `fake-memory-store.ts` |
 | `ToolCatalogue` | Les outils enregistrés sous leurs noms d'enregistrement, trouvés sans tenir compte de la casse comme Orkeon les trouve, pour les diagnostics et la vérification des outils supplémentaires (le service `tools` de `ctx.services` pour les noms, l'espace de noms `tools` pour les appels : `call` brut, `callText` décodé) | `tool-catalogue.ts` | `fake-tool-catalogue.ts` |
@@ -311,7 +314,7 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 
 | Crew | Processus | Lancé par | Ce qu'il fait |
 |---|---|---|---|
-| `main-loop` | autonome, budget 200 appels d'outils / 1800 s / 1,5M tokens (prompt et complétion de chaque appel sommés) | `/assistant`, le texte libre, `/summary`, `/verify`, `/transcribe --then`, `/voice send` et `--go` | La boucle interactive |
+| `main-loop` | autonome, budget 200 appels d'outils / 1800 s / 700k tokens de contexte (le contexte compté une fois, Orkeon #224) | `/assistant`, le texte libre, `/summary`, `/verify`, `/transcribe --then`, `/voice send` et `--go` | La boucle interactive |
 | `project-init` | séquentiel | `/init` | Parcourt l'arborescence, détecte les conventions, écrit le fichier d'instructions |
 | `git-commit` | séquentiel | `/commit` | Rédige un commit conventionnel à partir du diff, commite après confirmation |
 | `code-review` | séquentiel | `/review` (`--lens` pour un seul angle), `/security-review` | Revue multi-angles des changements indexés, constats classés |

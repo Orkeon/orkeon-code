@@ -1984,6 +1984,36 @@ describe("orkeon-code, sessions (LI-5)", () => {
     deepStrictEqual(historyIds(s.history()), ["abc123.json"]);
   });
 
+  it("moves an archive /resume left beside last.json to history/ too, last.json the newest (Orkeon #227)", () => {
+    // Arrange
+    const s = sessionScene();
+    s.save("abc123", "Fix the parser", 2);
+    s.archive("20261027T120000Z-archived.json", "zzz999", "Before the switch", 4);
+
+    // Act
+    const r = s.run([]);
+
+    // Assert
+    strictEqual(r.status, 0, r.stderr);
+    deepStrictEqual(historyIds(s.history()).sort(), ["abc123.json", "zzz999.json"]);
+  });
+
+  it("replaces the history file of a session that went on under its id after /resume loaded it", () => {
+    // Arrange
+    const s = twoSessions();
+    // The REPL archived def456 and loaded abc123 in place, then went on with it: last.json is abc123, longer.
+    s.archive("20261027T120000Z-archived.json", "def456", "Second", 1);
+    s.save("abc123", "Fix the parser", 3);
+
+    // Act
+    const r = s.run([]);
+
+    // Assert
+    strictEqual(r.status, 0, r.stderr);
+    deepStrictEqual(historyIds(s.history()).sort(), ["abc123.json", "def456.json"]);
+    ok(s.historyContent("abc123").includes('"m2"'), "the newer abc123 stands");
+  });
+
   it("--continue leaves the last session for the runtime to reload", () => {
     // Arrange
     const s = twoSessions();
