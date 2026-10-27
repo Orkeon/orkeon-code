@@ -87,8 +87,9 @@ others one after the other, each call through the permission gate, and sends the
 **How long a turn may last.** Two limits bound an `/assistant` turn, and the first one reached ends it:
 
 - the script engine's `ExecutionTimeout` above, which stops while a question waits for you;
-- the main-loop crew's own budget, written in its code (`src/crews/main-loop/crew.ork.ts`): 200 tool calls, 400k
-  tokens and 30 minutes of wall time. That clock is Orkeon's and, like the engine's, it stops while the gate waits
+- the main-loop crew's own budget, written in its code (`src/crews/main-loop/crew.ork.ts`): 200 tool calls, 1.5M
+  tokens (the prompt and completion of every call of the turn, summed: a turn pays its whole context again at each
+  call) and 30 minutes of wall time. That clock is Orkeon's and, like the engine's, it stops while the gate waits
   for your answer: only the model's own work counts, and a question left unanswered does not end the turn.
 
 `Orkeon:Cli:ScriptHost:RunCrewTimeout` (10 minutes by default) bounds only a crew a command waits for (`runCrew`);

@@ -91,7 +91,8 @@ fin :
 
 - l'`ExecutionTimeout` du moteur de script ci-dessus, qui s'arrête pendant qu'une question vous attend ;
 - le budget propre du crew de la boucle principale, écrit dans son code (`src/crews/main-loop/crew.ork.ts`) : 200
-  appels d'outils, 400k tokens et 30 minutes de temps réel. Cette horloge est celle d'Orkeon et, comme celle du
+  appels d'outils, 1,5M tokens (le prompt et la complétion de chaque appel du tour, sommés : un tour repaie tout son
+  contexte à chaque appel) et 30 minutes de temps réel. Cette horloge est celle d'Orkeon et, comme celle du
   moteur, elle s'arrête pendant que la garde attend votre réponse : seul le travail du modèle compte, et une question
   laissée sans réponse ne met pas fin au tour.
 

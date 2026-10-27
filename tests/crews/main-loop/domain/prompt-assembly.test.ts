@@ -222,6 +222,17 @@ describe("buildStaticHeader", () => {
     ok(write.includes("only the commands the host allows"), "the shell's allow-list");
   });
 
+  it("tells the model to read a file by range, since every call pays the context again", () => {
+    // Arrange
+    const opts = { toolNames: ["file_read"] };
+
+    // Act
+    const header = buildStaticHeader(opts);
+
+    // Assert
+    ok(header.includes("read by range, a hundred lines or so"), header);
+  });
+
   it("does not tell a read-only catalogue how to write, nor about a shell it does not have", () => {
     // Arrange
     const opts = { toolNames: ["file_read", "symbol_source"] };

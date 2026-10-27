@@ -311,7 +311,7 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 
 | Crew | Processus | Lancé par | Ce qu'il fait |
 |---|---|---|---|
-| `main-loop` | autonome, budget 200 appels d'outils / 1800 s / 400k tokens | `/assistant`, le texte libre, `/summary`, `/verify`, `/transcribe --then`, `/voice send` et `--go` | La boucle interactive |
+| `main-loop` | autonome, budget 200 appels d'outils / 1800 s / 1,5M tokens (prompt et complétion de chaque appel sommés) | `/assistant`, le texte libre, `/summary`, `/verify`, `/transcribe --then`, `/voice send` et `--go` | La boucle interactive |
 | `project-init` | séquentiel | `/init` | Parcourt l'arborescence, détecte les conventions, écrit le fichier d'instructions |
 | `git-commit` | séquentiel | `/commit` | Rédige un commit conventionnel à partir du diff, commite après confirmation |
 | `code-review` | séquentiel | `/review` (`--lens` pour un seul angle), `/security-review` | Revue multi-angles des changements indexés, constats classés |
@@ -430,7 +430,9 @@ un changement comme un diff.
   trouve est signalée, pas suivie. Un `<system-reminder>` vient du harnais, pas de l'utilisateur.
 - **Réalités des outils** : un résultat long est coupé, avec une note disant combien a été laissé de côté : demander
   moins.
-  `file_read` lit une partie d'un fichier avec `offset` et `limit`, en lignes. `file_write` remplace le fichier
+  `file_read` lit une partie d'un fichier avec `offset` et `limit`, en lignes : le modèle lit par plage, une centaine de
+  lignes, la plage suivante seulement au besoin, puisque chaque appel d'un tour renvoie tout le contexte et que le
+  budget du crew le somme (l'en-tête ne porte aucun chiffre, le nombre est dit en mots). `file_write` remplace le fichier
   entier, donc un fichier dont la lecture est revenue coupée n'est jamais réécrit. `shell_command` applique une liste
   blanche, et git peut être en lecture seule. Les lignes sur l'écriture et le shell n'apparaissent que dans les modes
   qui offrent ces outils.

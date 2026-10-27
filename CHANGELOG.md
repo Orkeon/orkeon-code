@@ -342,6 +342,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The interactive turn's token budget is 1.5M, and the assistant reads a file by range.** The runtime sums the
+  prompt and completion of every call of a turn, so a turn pays its whole context again at each call: 400k ended a
+  turn of 17 file reads and one shell command in 43 s (`Token budget exhausted (425303/400000)`), its work lost.
+  The main-loop crew's budget is 1.5M tokens, and its header tells the model to read by range, a hundred lines or
+  so, the next range only when needed, and why ([Configuration](docs/configuration.md#settings-orkeon-code-relies-on)).
 - **The editing rule of the dev roles pins every hash of an `edit_batch`**: each `node_replace` of the batch carries
   the sha256 `node_read` gave for that very node, read first, never guessed. In the live run of 2026-10-27 a test
   author sent a batch whose second operation carried the hash `PLACEHOLDER`: the runtime refused the whole batch and
