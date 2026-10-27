@@ -21,5 +21,11 @@ export const NODE_EDIT_RULE_SAYS: readonly string[] = [
   "file_write only creates a new file",
 ];
 
+/** What the node edit rule says of the hashes of a batch: one per node, from node_read, never guessed. */
+export const BATCH_HASH_SAYS: readonly string[] = [
+  "each node_replace of the batch carries the sha256 node_read gave for that very node",
+  "read every node you replace first, never guess a hash",
+];
+
 /** What the test author's system lets it write besides the tests. */
 export const TEST_AUTHOR_STUB_SAYS: readonly string[] = ["signature stubs the brief allows", "no production line"];

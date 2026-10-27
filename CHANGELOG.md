@@ -342,6 +342,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The editing rule of the dev roles pins every hash of an `edit_batch`**: each `node_replace` of the batch carries
+  the sha256 `node_read` gave for that very node, read first, never guessed. In the live run of 2026-10-27 a test
+  author sent a batch whose second operation carried the hash `PLACEHOLDER`: the runtime refused the whole batch and
+  a turn went to reading the node ([Architecture](docs/architecture.md#crews)).
 - **A dev role may hand a tool a relative path as shown** (Orkeon #199 and #200, delivered by #206): the runtime
   resolves it against the agent's root, else `/workspace`, so the reading rule of the dev roles no longer says "never
   as written"; it says where such a path is read and that either form goes. The tool-call hook keeps resolving it

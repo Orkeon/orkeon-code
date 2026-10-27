@@ -6,7 +6,7 @@ import { deepStrictEqual, ok } from "node:assert";
 import { CREW_TOOLS, TEST_AUTHOR } from "../../../../src/crews/dev-implement/domain/roles.ts";
 import { KNOWN_TOOLS_RULE, NODE_EDIT_RULE, NODE_READ_RULE } from "../../../../src/shared/domain/dev/reading-rule.ts";
 import { toolsetFor } from "../../../../src/shared/domain/agent-policy/permission.ts";
-import { EXPECTED_CREW_TOOLS, NODE_EDIT_RULE_SAYS, NODE_TOOLS, ROLES, TEST_AUTHOR_STUB_SAYS } from "./roles.fixtures.ts";
+import { BATCH_HASH_SAYS, EXPECTED_CREW_TOOLS, NODE_EDIT_RULE_SAYS, NODE_TOOLS, ROLES, TEST_AUTHOR_STUB_SAYS } from "./roles.fixtures.ts";
 import { assertHoldsTools, assertMentions } from "./roles.assertions.ts";
 
 describe("the roles of a batch step", () => {
@@ -79,6 +79,17 @@ describe("the roles of a batch step", () => {
 
     // Assert
     assertMentions(rule, said, "the node edit rule");
+  });
+
+  it("gives every node_replace of a batch the hash node_read gave for that node, never a guessed one", () => {
+    // Arrange
+    const said = BATCH_HASH_SAYS;
+
+    // Act
+    const rule = NODE_EDIT_RULE;
+
+    // Assert
+    assertMentions(rule, said, "the node edit rule's hashes");
   });
 
   it("let the test author write the signature stubs its brief allows, as the RED contract does", () => {

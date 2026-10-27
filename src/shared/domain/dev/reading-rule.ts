@@ -29,8 +29,9 @@ export const NODE_EDIT_RULE =
   "Change an existing file by node: node_replace with the selector and the sha256 node_read gave (when it is refused as " +
   "stale, read the node again), node_insert to add a member, a test or a section before, after or inside an anchor, " +
   "node_ensure for an import, a field or a section that may already be there; edit_file for a change too small for a " +
-  `node. A change over several places or files is one edit_batch (${EDIT_BATCH_SHAPE}): all of it applies or none. ` +
-  "file_write only creates a new file: writing an existing source file whole is refused.";
+  `node. A change over several places or files is one edit_batch (${EDIT_BATCH_SHAPE}): all of it applies or none, ` +
+  "and each node_replace of the batch carries the sha256 node_read gave for that very node: read every node you " +
+  "replace first, never guess a hash. file_write only creates a new file: writing an existing source file whole is refused.";
 
 /** The tool names, for every dev agent: a name it was not given is refused by the runtime without a question (Orkeon #193). */
 export const KNOWN_TOOLS_RULE =
