@@ -127,12 +127,18 @@ export const UNGATED_ALLOWED: ReadonlyArray<Call & { mode: string }> = [
   { ...call("github", { action: "list_issues" }), mode: "default" },
   { ...call("http_api", { url: "https://example.test", method: "GET" }), mode: "acceptEdits" },
   { ...call("http_api", { url: "https://example.test" }, "without a method"), mode: "default" },
+  // An edit declared whatever the call (rag_eval, Orkeon #223) runs in acceptEdits, as the gate would run an edit.
   { ...call("rag_eval", { dataset: "eval/golden.yaml" }), mode: "acceptEdits" },
 ];
 
 /** Calls a host without a gate refuses in a mode. */
 export const UNGATED_REFUSED: ReadonlyArray<Call & { mode: string }> = [
   { ...call("github", { action: "create_pr" }), mode: "acceptEdits" },
+  // A read method that carries a body or a method-override header is an execute (Orkeon #223).
+  { ...call("http_api", { url: "https://example.test", method: "GET", body: "{}" }, "GET with a body"), mode: "acceptEdits" },
+  { ...call("http_api", { url: "https://example.test", method: "GET", headers: { "X-HTTP-Method-Override": "DELETE" } }, "GET with a method override"), mode: "default" },
+  // rag_eval declares an edit (Orkeon #223): asked about in default, so refused without a gate.
+  { ...call("rag_eval", { dataset: "eval/golden.yaml" }), mode: "default" },
   { ...call("github", {}, "without an action"), mode: "acceptEdits" },
   { ...call("http_api", { url: "https://example.test", method: "POST" }), mode: "acceptEdits" },
   // The read-only modes keep the local reads alone: their catalogue withholds the network and github.

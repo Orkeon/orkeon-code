@@ -455,8 +455,9 @@ readonly interrupted?: true;
 readonly exhausted?: true;
 /**
 * Set when the token budget (`budget({ tokens })`) ran out during the loop: the act then
-* made one last call with no tools, telling the model its budget was spent, and `output` is
-* that answer, cut short. When that last call fails or answers nothing, the act rejects with
+* made one last call that may call no tool (the loop's tools stay declared under
+* `ToolMode.None`; a tool call it returns is never run), telling the model its budget was
+* spent, and `output` is that answer, cut short. When that last call fails or answers nothing, the act rejects with
 * `BudgetExhaustedError` instead.
 */
 readonly budgetExhausted?: true;
@@ -689,8 +690,10 @@ withTasks(tasks: readonly Task<unknown, unknown>[]): this;
 manager(agent: Agent<unknown, unknown>): this;
 /**
 * The crew's budget. Declarative shape: YAML `budget:`, spent by `process("autonomous")`
-* alone; another process ignores it with a warning. A key left out takes its default: no
-* token cap, no wall time, 50 tool calls (tasks handed out), 4 delegations, 10 spawns.
+* alone; another process is refused when the run adapts the crew, as YAML and `CrewBuilder`
+* refuse it, and so is a limit that is not 1 or more (zero, a negative or fractional count,
+* an unreadable `wallTime`). A key left out takes its default: no token cap, no wall time,
+* 50 tool calls (tasks handed out), 4 delegations, 10 spawns.
 * Procedural shape: bounds `await crew.run()`.
 */
 budget(opts: ExecutionBudget): this;

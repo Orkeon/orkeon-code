@@ -41,7 +41,7 @@ describe("createCodeIndex", () => {
     deepStrictEqual(tools.inputsOf("indexStatus"), [{}]);
   });
 
-  it("indexes a root for the languages the runtime can read, and reads the counts", async () => {
+  it("indexes a root for every grammar of the registry, and reads the counts", async () => {
     // Arrange
     const tools = new FakeTools();
     tools.replies.indexCodebase = INDEX_REPLY;

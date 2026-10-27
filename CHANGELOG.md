@@ -359,6 +359,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The access classes follow Orkeon #223**, the second review of Orkeon #217, read at Orkeon `main` `3ac6aa6`
+  (#29). `rag_eval` declares an edit, no longer a read: `declaredAccess` leaves it to its class, the gateless fallback
+  of the dev crews runs it in `acceptEdits` as the gate runs an edit there and refuses it in `default`. A read method
+  of `http_api` that carries a body, even empty, or a method-override header (`X-HTTP-Method-Override`,
+  `X-HTTP-Method`, `X-Method-Override`, any case, in an object or a JSON string) declares an execute, so a GET with a
+  body asks you where a plain GET runs; the argument keys, the `github` action and the method are compared as Orkeon
+  compares them, case aside, the action trimmed. An MCP
+  server's annotations count only when the server is trusted: both launchers export
+  `ORKEON_MCP__Servers__whisper__TrustAnnotations=true` and the two Whisper example settings set `TrustAnnotations`,
+  so `transcribe_audio`, `list_audio` and `whisper_info` stay reads, run in `dontAsk` without an allow rule. The
+  index is asked for every grammar of the registry again, bash included, since the runtime reads a shell script and
+  skips a file it refuses (Orkeon #215); the roadmap loses the three known issues Orkeon #217 and #223 closed: the
+  unreadable scripts, the private remote the shell could not reach (the ssh agent and, unconfined, the keyring reach
+  it; `Orkeon:Tools:Shell:Environment:SessionBus` and `Propagate` are documented) and `/help` in one block, now one
+  per folder of `src/commands/` ([ADR 0008](docs/adr/0008-orkeon-after-223.md), [Permissions](docs/permissions.md#modes),
+  [Configuration](docs/configuration.md#settings-orkeon-code-relies-on)).
 - **A spent token budget keeps the answer** (Orkeon #218, delivered by #217). The runtime now ends the act with one
   last call without tools and resolves with that answer and `budgetExhausted`. The Llm adapter throws it as a
   `BudgetExhaustedAnswer` carrying the wrap-up: the `/assistant` turn shows the wrap-up under a line saying the turn
@@ -369,8 +385,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([Configuration](docs/configuration.md#settings-orkeon-code-relies-on), [Roadmap](docs/roadmap.md#known-issues), #25).
 - **The permission pages describe the access Orkeon declares per call** (Orkeon #219, delivered by #217): `github`
   reads for `list_issues`, `get_pr`, `search_repos` and `get_repo` and executes for `create_issue`, `create_pr` and
-  an unknown action; `http_api` reads for `GET`, `HEAD`, `OPTIONS` and a missing method; `rag_eval` reads; an MCP
-  tool declares what its `readOnlyHint` annotation says. The modes table says an `http_api` GET runs without a
+  an unknown action; `http_api` reads for `GET`, `HEAD`, `OPTIONS` and a missing method; `web_search` reads; an MCP
+  tool declares what its `readOnlyHint` annotation says (what Orkeon #223 then refined is the entry above). The modes
+  table says an `http_api` GET runs without a
   question in `default` and `acceptEdits`, and the page records why `github` and `rag_eval` stay with the edits,
   why `http_api` stays out of `plan` and `dontAsk`, and how a project that must not reach out denies it. The
   gateless fallback of the dev crews lets the same calls through in the writing modes. The speech server marks

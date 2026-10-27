@@ -361,6 +361,7 @@ foreach ($name in @('ORKEON_Llm__Model', 'Orkeon__Security__PermissionGate__Enab
                     'ORKEON_ESBUILD_PATH',
                     'ORKEON_ALLOW_EXTERNAL_MOUNTS', 'WHISPER_AUDIO_DIR', 'WHISPER_OUT_DIR',
                     'ORKEON_MCP__Servers__whisper__Transport', 'ORKEON_MCP__Servers__whisper__Command',
+                    'ORKEON_MCP__Servers__whisper__TrustAnnotations',
                     'ORKEON_MCP__Servers__whisper__Args__0', 'ORKEON_MCP__Servers__whisper__Args__1',
                     'ORKEON_MCP__Servers__whisper__Args__2', 'ORKEON_MCP__Servers__whisper__Args__3',
                     'ORKEON_MCP__Servers__whisper__Args__4', 'ORKEON_MCP__Servers__whisper__Args__5',
@@ -651,6 +652,8 @@ try {
       $env:WHISPER_OUT_DIR = $transcripts
       $env:ORKEON_MCP__Servers__whisper__Transport = 'Stdio'
       $env:ORKEON_MCP__Servers__whisper__Command = $uv.Source
+      # The gate reads the server's annotations (readOnlyHint) only when the server is trusted (Orkeon #223).
+      $env:ORKEON_MCP__Servers__whisper__TrustAnnotations = 'true'
       $whisperArgs = @('run', '--project', (Join-Path $Root 'mcp/whisper'))
       # An install's folder is never written to: uv keeps the server's environment under ORKEON_CODE_HOME and
       # reads uv.lock as shipped.

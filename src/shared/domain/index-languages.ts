@@ -1,10 +1,9 @@
-// The languages index_codebase is asked for. The runtime's registry maps an extension to a grammar
-// (src/analysis/Orkeon.Analysis/TreeSitter/LanguageRegistry.cs, twenty-five since Orkeon #195) and its
-// discovery keeps every file of a known grammar, then opens it to hash it; the path validator refuses to
-// read a shell script (.sh, .bash sit in its built-in blocked extensions) and the first refusal fails the
-// whole index. Until the runtime lets a read through, or skips a refused file, the index is asked for every
-// grammar but those (Orkeon #215). A grammar added framework-side must be mirrored here, as search-routing.ts does for
-// the extensions. Pure.
+// The languages index_codebase is asked for: every grammar of the runtime's registry
+// (src/analysis/Orkeon.Analysis/TreeSitter/LanguageRegistry.cs, twenty-five since Orkeon #195). The discovery keeps
+// every file of a known grammar, then opens it to hash it; since Orkeon #215 the path validator lets a plain read
+// of a shell script through (.sh, .bash, .ps1, .bat, .cmd, .vbs, .wsf) and the discovery skips a file the VFS still refuses
+// instead of failing the whole index, so no grammar is held back any more. A grammar added framework-side must be
+// mirrored here, as search-routing.ts does for the extensions. Pure.
 
 /** The grammars of the runtime's registry, in its order. */
 export const TREE_LANGUAGES: readonly string[] = [
@@ -13,8 +12,5 @@ export const TREE_LANGUAGES: readonly string[] = [
   "scala", "verilog",
 ];
 
-/** The grammars whose files the runtime's path validator refuses to read: a script's extensions are blocked. */
-export const UNREADABLE_LANGUAGES: readonly string[] = ["bash"];
-
-/** What index_codebase is asked for: every grammar the runtime can read. */
-export const INDEXED_LANGUAGES: readonly string[] = TREE_LANGUAGES.filter((l) => !UNREADABLE_LANGUAGES.includes(l));
+/** What index_codebase is asked for: every grammar of the registry. */
+export const INDEXED_LANGUAGES: readonly string[] = TREE_LANGUAGES;

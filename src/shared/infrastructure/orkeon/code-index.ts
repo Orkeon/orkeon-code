@@ -30,7 +30,8 @@ export function createCodeIndex(tools: Pick<OrkeonTools, CodeIndexTools>): CodeI
       return Array.isArray(status?.roots) ? status.roots.length : 0;
     },
     async index(root) {
-      // The languages named: every grammar but the ones whose files the runtime refuses to read (index-languages.ts, Orkeon #215).
+      // The languages named: every grammar of the runtime's registry (index-languages.ts); a file the runtime still
+      // refuses to read is skipped by the discovery, not fatal (Orkeon #215).
       return readIndexSummary(await tools.indexCodebase({ root_path: root, languages: INDEXED_LANGUAGES }));
     },
     async map(level, withMetrics) {

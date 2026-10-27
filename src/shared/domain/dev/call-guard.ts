@@ -122,14 +122,15 @@ export function hookCommand(hook: ToolHook, tool: string, input: unknown): strin
   return hook.command.replaceAll("{tool}", name).replaceAll("{event}", hook.event).replaceAll("{path}", path);
 }
 
-/** The tools `acceptEdits` runs without asking beside the reads: the file editors, rag_ingest and spawn_agent.
- *  A `github` write (`create_pr`, `create_issue`) and an `http_api` write (`POST`…) declare an execute (Orkeon #219):
- *  the host asks them there too. */
-const ACCEPT_EDITS_TOOLS: readonly string[] = [...PATH_WRITE_TOOLS, OPERATIONS_TOOL, ...UNSCOPED_WRITE_TOOLS, "rag_ingest", ...ACT_TOOLS];
+/** The tools `acceptEdits` runs without asking beside the reads: the file editors, rag_ingest, rag_eval (an edit
+ *  since Orkeon #223) and spawn_agent. A `github` write (`create_pr`, `create_issue`) and an `http_api` write
+ *  (`POST`…) declare an execute (Orkeon #219): the host asks them there too. */
+const ACCEPT_EDITS_TOOLS: readonly string[] = [...PATH_WRITE_TOOLS, OPERATIONS_TOOL, ...UNSCOPED_WRITE_TOOLS, "rag_ingest", "rag_eval", ...ACT_TOOLS];
 
 /** What the act's mode lets through when the host has no gate, by the gate's own reading of the classes. A call
- *  that declares a read per call (a `github` read action, an `http_api` GET, `rag_eval`: agent-policy/tool-access.ts,
- *  Orkeon #219) runs in `default` and `acceptEdits` as the gate would run it. `plan` and `dontAsk` stay stricter,
+ *  that declares a read per call (a `github` read action, an `http_api` GET without a body nor a method-override
+ *  header: agent-policy/tool-access.ts, Orkeon #219 and #223) runs in `default` and `acceptEdits` as the gate would
+ *  run it; `rag_eval` declares an edit, asked about in `default`. `plan` and `dontAsk` stay stricter,
  *  the local reads alone: their catalogue withholds `github` and `http_api` whatever the call, since an outbound
  *  request is observable elsewhere (mode-policy.ts), and a fallback must not widen what the catalogue promised. */
 function modeVerdict(guard: CallGuard, tool: string, input: unknown, mode: string): CallVerdict {

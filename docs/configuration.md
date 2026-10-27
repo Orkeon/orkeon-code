@@ -78,6 +78,8 @@ others one after the other, each call through the permission gate, and sends the
 | `Orkeon:Tools:Shell:AllowInterpreters` | Lets `shell_command` run interpreters (`node`, `dotnet`, `npm`...), needed to build and test most projects |
 | `Orkeon:Tools:Shell:ExtraAllowedCommands` | Commands added to the shell allow-list (`make`, `cargo`...) |
 | `Orkeon:Tools:Shell:Confinement:Mode` | `Auto` (default: bubblewrap on Linux, Seatbelt on macOS, AppContainer on Windows, none inside a container), `None`, `Bubblewrap`, `Seatbelt` or `AppContainer`. Confined, each shell command runs under `bwrap` (Linux, tool and source modes), network off unless `Confinement:AllowNetwork`, programs outside the system directories listed in `Confinement:ReadOnlyPaths`. A command fails when it cannot be confined. The examples set `None`; a settings file without the key confines, outside a container. `/dev-batches --concurrency` above 1 works under Bubblewrap from a runtime that binds a linked worktree's git dir (Orkeon/orkeon#191); on an older one git fails inside a batch's worktree, and the run refuses itself in one line. Confined, the run's closing push reaches no remote (no network, `HOME=/tmp`, so no credentials): the run stays open with the `git push` command. Push it from a terminal, then the next `/dev-batches` closes the run without pushing again. See [SECURITY.md](../SECURITY.md) |
+| `Orkeon:Tools:Shell:Environment:SessionBus` | Whether a confined shell (bubblewrap, Seatbelt, AppContainer) receives the session bus, `DBUS_SESSION_BUS_ADDRESS`, which the keyring credential helper of `gh` needs; `false` by default, since through the bus a command can start a process outside the sandbox. An unconfined shell (`Confinement:Mode` `None`, the example settings) and the code sandbox receive it; `SSH_AUTH_SOCK` and `XDG_RUNTIME_DIR` reach every shell, so git reaches a private remote through the ssh agent (Orkeon #216) |
+| `Orkeon:Tools:Shell:Environment:Propagate` | Names of variables added to the shell's allow-list; a name holding a secret word (`KEY`, `TOKEN`, `SECRET`, `PASSWORD`, `PASSWD`, `PASS`, `CREDENTIAL`, `AUTH`, `PAT` as a whole segment), starting with `ORKEON_`, or whose value carries URL credentials is dropped with a warning (Orkeon #216) |
 | `Orkeon:Tools:ResultLimits:Limits:<tool>` | The cut of a tool's result, in characters: 4000, `file_read` 32000, `node_read` 256000, `shell_command` 10000. A cut result ends with `[... truncated, N chars omitted. …]`; `/dev-verify` reads that notice |
 | `Orkeon:Tools:ResultLimits:MaxParallelToolCalls` | The read calls of one model turn that run at once: 4 |
 | `Orkeon:Tools:GitHub:Token` | The token of the `github` tool, read once when the tool is registered (Orkeon #222); prefer the variable below to a token written in a settings file, which the examples leave out |
@@ -244,8 +246,10 @@ request such as `transcribe /audio/daily.m4a and list the tasks I mention`, once
 `read` fits those three tools with the default local backend: they read `/audio` and write only under
 `/transcripts`, outside the project. With `WHISPER_BACKEND=openai` the audio leaves the machine: mark
 `transcribe_audio` `write`, or leave it out and use `/transcribe`. The server marks `transcribe_audio`, `list_audio`
-and `whisper_info` read-only (`readOnlyHint`), which the permission gate reads (Orkeon #219): they run without a
-question in every mode that offers them, `dontAsk` included; `record_and_transcribe`, `speak` and `stop_speaking`
+and `whisper_info` read-only (`readOnlyHint`), which the permission gate reads once the server is declared trusted
+(`TrustAnnotations: true`, exported by the launchers as `ORKEON_MCP__Servers__whisper__TrustAnnotations` and set in
+the example settings; Orkeon #219, #223): they run without a question in every mode that offers them, `dontAsk`
+included; `record_and_transcribe`, `speak` and `stop_speaking`
 carry no annotation, so the gate asks about them in `default` and `acceptEdits` and refuses them in `plan` and
 `dontAsk` ([Permissions](permissions.md#extra-tools)).
 

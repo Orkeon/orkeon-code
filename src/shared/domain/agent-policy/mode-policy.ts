@@ -23,8 +23,9 @@ export interface ModePolicy {
 
 export const MODE_POLICIES: Readonly<Record<PermissionMode, ModePolicy>> = {
   // The writing modes offer every class; the host gate decides what asks, from
-  // the access each call declares (Orkeon #219: `github` reads for its read
-  // actions, `http_api` for GET, HEAD and OPTIONS, `rag_eval` always). In
+  // the access each call declares (Orkeon #219 and #223: `github` reads for its
+  // read actions, `http_api` for GET, HEAD and OPTIONS without a body nor a
+  // method-override header, `rag_eval` edits). In
   // `default` it asks before every call that is not a read (a `github` write,
   // an `http_api` POST, the shell, every edit), in `acceptEdits` before every
   // call that is neither a read nor a file edit, and `bypassPermissions` never asks.
