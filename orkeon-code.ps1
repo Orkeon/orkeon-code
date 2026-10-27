@@ -262,21 +262,38 @@ function Get-JsonField([string] $file, [string] $field) {
   if ($text -match ('"' + $field + '"\s*:\s*"((?:[^"\\]|\\.)*)"')) { $Matches[1] } else { $null }
 }
 
-# Moves every last.json the runtime saved into history/, under <UTC time>-<session id>.json: those of sessions/
+# Removes from history/ every file of the session $rawId (as stored, never the file name), before its new file lands
+# there: a session /resume loaded in place goes on under its id, so its new file replaces the one it was loaded
+# from, under its own name (no collision suffix). Nothing for an empty id.
+function Remove-HistoryDuplicates([string] $history, [string] $rawId) {
+  if (-not $rawId) { return }
+  foreach ($other in @(Get-ChildItem -LiteralPath $history -File -Filter '*.json' -ErrorAction SilentlyContinue)) {
+    if ("$(Get-JsonField $other.FullName 'SessionId')" -eq $rawId) { Remove-Item -LiteralPath $other.FullName -Force }
+  }
+}
+
+# Moves every session file the runtime saved into history/, under <UTC time>-<session id>.json: the last.json of
+# sessions/ and the archives /resume left beside it (<stamp>-archived.json, moved first so last.json is the newest),
 # unless $sideOnly, and always those of side/<pid>/ (a start beside an open one, now ended). A session without a
-# message (a start and a quit) is dropped, so it never pushes a real one out of the history.
+# message (a start and a quit) is dropped, so it never pushes a real one out of the history; a session that goes on
+# under the id of one already in the history replaces it there (Remove-HistoryDuplicates).
 function Move-SessionsToHistory([string] $sessions, [string] $history, [string] $side, [bool] $sideOnly) {
   $folders = @()
   if (-not $sideOnly) { $folders += @(Get-ChildItem -LiteralPath $sessions -Directory -ErrorAction SilentlyContinue) }
   foreach ($pidDir in @(Get-ChildItem -LiteralPath $side -Directory -ErrorAction SilentlyContinue)) {
     $folders += @(Get-ChildItem -LiteralPath $pidDir.FullName -Directory -ErrorAction SilentlyContinue)
   }
-  foreach ($last in @($folders | ForEach-Object { Join-Path $_.FullName 'last.json' } | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf })) {
+  $files = @($folders | ForEach-Object { Get-ChildItem -LiteralPath $_.FullName -File -Filter '*.json' -ErrorAction SilentlyContinue })
+  $ordered = @($files | Where-Object { $_.Name -ne 'last.json' }) + @($files | Where-Object { $_.Name -eq 'last.json' })
+  foreach ($file in $ordered) {
+    $last = $file.FullName
     if ((Get-Content -LiteralPath $last -Raw -Encoding UTF8 -ErrorAction SilentlyContinue) -match '"Messages"\s*:\s*\[\s*\]') {
       Remove-Item -LiteralPath $last -Force; continue
     }
-    $id = "$(Get-JsonField $last 'SessionId')" -replace '[^A-Za-z0-9._-]', '_'
+    $rawId = "$(Get-JsonField $last 'SessionId')"
+    $id = $rawId -replace '[^A-Za-z0-9._-]', '_'
     if (-not $id) { $id = 'session' }
+    Remove-HistoryDuplicates $history $rawId
     $stamp = [DateTime]::UtcNow.ToString("yyyyMMdd'T'HHmmss'Z'", [System.Globalization.CultureInfo]::InvariantCulture)
     $target = Join-Path $history "$stamp-$id.json"; $n = 2
     while (Test-Path -LiteralPath $target) { $target = Join-Path $history "$stamp-$id-$n.json"; $n++ }

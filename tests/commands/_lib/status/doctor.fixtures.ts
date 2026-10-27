@@ -1,6 +1,8 @@
 // The host /doctor checks (FakeShell, FakeTelemetry, FakeToolCatalogue, FakeFiles and a config reader), healthy by
 // default, and the table it answers for it.
-import { ESSENTIAL_TOOLS, PASS, VERSION_DETAIL } from "../../../../src/commands/_lib/status/doctor.ts";
+import { CODE_VERSION_DETAIL, ESSENTIAL_TOOLS, PASS } from "../../../../src/commands/_lib/status/doctor.ts";
+import { ORKEON_RUNTIME_VERSION } from "../../../../src/commands/_lib/status/meta.ts";
+import { FakeRuntimeInfo } from "../../../support/doubles/fake-runtime-info.ts";
 import type { DoctorRow } from "../../../../src/commands/_lib/status/doctor.ts";
 import type { CommandView } from "../../../../src/commands/_lib/view.ts";
 import type { ConfigResolution } from "../../../../src/shared/domain/config-schema.ts";
@@ -10,6 +12,9 @@ import { FakeShell } from "../../../support/doubles/fake-shell.ts";
 import { FakeTelemetry } from "../../../support/doubles/fake-telemetry.ts";
 import { FakeToolCatalogue } from "../../../support/doubles/fake-tool-catalogue.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
+
+/** The runtime a healthy host runs: the pin, built from the sources. */
+export const PINNED_RUNTIME = { version: ORKEON_RUNTIME_VERSION, commit: "7ff12c9", channel: "source" };
 
 /** A host where every check passes; `ignored` sets aside a project value per key, `deps` is what runDoctor takes. */
 export function doctorHost() {
@@ -25,12 +30,14 @@ export function doctorHost() {
   for (const t of [...ESSENTIAL_TOOLS, ...CODE_INTEL_TOOLS]) catalogue.tools.set(t, {});
   const files = new FakeFiles();
   files.mountTable = [{ path: WORKSPACE, rights: "rw" }, { path: "/crews", rights: "ro" }];
+  const runtime = new FakeRuntimeInfo();
+  runtime.info = { ...PINNED_RUNTIME };
   const ignored = new Map<string, ConfigResolution["ignored"]>();
   const config = {
     readValue: async (key: string): Promise<ConfigResolution> =>
       ({ key, value: undefined, source: "unset", ...(ignored.has(key) ? { ignored: ignored.get(key) } : {}) }),
   };
-  return { shell, telemetry, catalogue, files, ignored, deps: { shell, telemetry, catalogue, files, config } };
+  return { shell, telemetry, catalogue, files, runtime, ignored, deps: { shell, telemetry, catalogue, files, config, runtime } };
 }
 
 /** The rows of a /doctor view, by check. */
@@ -42,7 +49,7 @@ export function rowsOf(view: CommandView): Map<string, DoctorRow> {
 export function healthyTable(): DoctorRow[] {
   const tools = new Set([...ESSENTIAL_TOOLS, ...CODE_INTEL_TOOLS]).size;
   return [
-    { check: "version", result: PASS, detail: VERSION_DETAIL },
+    { check: "version", result: PASS, detail: `${CODE_VERSION_DETAIL}; Orkeon ${ORKEON_RUNTIME_VERSION}+7ff12c9 (source), the pin of .orkeon-version` },
     { check: "toolchain: node", result: PASS, detail: "v24.1.0" },
     { check: "toolchain: git", result: PASS, detail: "git version 2.47.0" },
     { check: "toolchain: dotnet", result: PASS, detail: "10.0.100" },

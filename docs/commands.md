@@ -17,7 +17,7 @@ An **async** command starts a crew and returns a ticket; its result is printed w
 | `/exit` | sync | Exit the coding-agent REPL. |
 | `/export` | sync | Export the session (conversation + memory + cost) to a markdown file. |
 | `/rename` | sync | Set the current session's title. |
-| `/resume` | sync | List this project's saved sessions; quit, then orkeon-code --resume <id> brings one back. |
+| `/resume` | sync | List this project's saved sessions; /resume <number or id> brings one back in place of this session. |
 | `/rewind` | sync | Rewind the session by one exchange (drops the last user turn and what followed). |
 | `/summary` | async | Generate an LLM summary of the session (read-only; does not rewrite the buffer). |
 | `/tasks` | async | Session task list (add, done, clear), the approvals the background tasks wait on, and the agent instances of the dev crews: list, show, stop, send, repair by a new run. |
@@ -45,13 +45,13 @@ An **async** command starts a crew and returns a ticket; its result is printed w
 
 | Command | Kind | Description |
 |---|---|---|
-| `/context` | sync | Show the current session context: title, model, messages, tokens, pressure, cache tokens. Also `/ctx-viz`. |
-| `/cost` | sync | Show cumulative session cost in USD and token usage. |
+| `/context` | sync | Show the current session context: title, model, messages, tokens (by kind when the host reports them), pressure, cache tokens. Also `/ctx-viz`. |
+| `/cost` | sync | Show cumulative session cost in USD and token usage; the calls nobody priced, when the host keeps the account. |
 | `/doctor` | sync | Health check: toolchain, LLM configuration, tool catalogue and VFS mounts. |
 | `/release-notes` | sync | Show the release notes for this build. |
 | `/stats` | sync | Show full session telemetry: message count, tokens, cost, calls. |
 | `/status` | sync | Show the session status: model, provider, workspace, context, cost, crews, version, runtime and platform. Also `/version`, `/env`, `/session`, `/upgrade`. |
-| `/usage` | sync | Show token usage against the context window (pressure tier, compaction trigger), calls, tokens, cost and the cache tokens read and written. Also `/extra-usage`. |
+| `/usage` | sync | Show token usage against the context window (pressure tier, compaction trigger), calls, tokens, cost and the cache tokens read and written, then the usage by model and by command. Also `/extra-usage`. |
 
 ## The project
 

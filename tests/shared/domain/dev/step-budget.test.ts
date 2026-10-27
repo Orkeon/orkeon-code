@@ -19,6 +19,17 @@ describe("STEP_BUDGETS", () => {
       deepStrictEqual(budget, c.budget);
     });
   }
+
+  it("counts the context once, with no running-sum dimension (Orkeon #224)", () => {
+    // Arrange
+    const budget = STEP_BUDGETS["dev-verify"];
+
+    // Act
+    const dimensions = Object.keys(budget).sort();
+
+    // Assert
+    deepStrictEqual(dimensions, ["contextTokens", "delegationDepth", "toolCalls", "wallTime"]);
+  });
 });
 
 describe("repairBudget", () => {

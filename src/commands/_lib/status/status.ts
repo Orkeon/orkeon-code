@@ -5,7 +5,7 @@
 // "*.cmd.ts", so this file is never loaded as a command.
 
 import type {
-  CrewHost, SessionCost, SessionMetadata, SessionStats, SessionStore, Shell, Telemetry,
+  CrewHost, RuntimeInfo, RuntimeInfoReader, SessionCost, SessionMetadata, SessionStats, SessionStore, Shell, Telemetry,
 } from "../../../shared/application/ports.ts";
 import { CLI_BUILD, CLI_NAME, CLI_VERSION, ORKEON_RUNTIME_VERSION } from "./meta.ts";
 import type { CommandView } from "../view.ts";
@@ -26,6 +26,18 @@ export interface StatusInputs {
   platform?: unknown;
   /** The host's LLM provider, as its `llm` service names it. */
   provider?: unknown;
+  /** The runtime that runs the command, as its `runtime` service names it; absent when the host names none. */
+  runtime?: RuntimeInfo;
+}
+
+/** The runtime row: the running Orkeon against the pin of .orkeon-version, or the pin alone when the host names
+ *  no runtime (Orkeon #225). */
+export function runtimeRow(runtime: RuntimeInfo | undefined): string {
+  if (runtime === undefined) return `Orkeon ${ORKEON_RUNTIME_VERSION} (pinned by .orkeon-version)`;
+  const found = `Orkeon ${runtime.version}${runtime.commit ? `+${runtime.commit}` : ""} (${runtime.channel})`;
+  return runtime.version === ORKEON_RUNTIME_VERSION
+    ? `${found}, the pin of .orkeon-version`
+    : `${found}, NOT the pin ${ORKEON_RUNTIME_VERSION} of .orkeon-version`;
 }
 
 /** How Orkeon Code is updated: there is no self-update channel. */
@@ -63,7 +75,7 @@ export function buildStatusRows(i: StatusInputs): Array<{ field: string; value: 
       value: (i.crews?.length ?? 0) > 0 ? [...i.crews!].sort().join(", ") : "(none discovered)",
     },
     { field: "version", value: `${CLI_NAME} ${CLI_VERSION} (${CLI_BUILD})` },
-    { field: "runtime", value: `Orkeon ${ORKEON_RUNTIME_VERSION} (pinned by .orkeon-version)` },
+    { field: "runtime", value: runtimeRow(i.runtime) },
     { field: "platform", value: String(i.platform ?? "").trim() || "(unavailable)" },
     { field: "updates", value: UPDATE_NOTE },
   ];
@@ -77,6 +89,8 @@ export interface StatusDeps {
   shell?: Pick<Shell, "run">;
   /** The provider row's reader; absent, or answering nothing: the row says unreported. */
   provider?: () => string | undefined;
+  /** The running runtime's reader; absent, or answering nothing: the row names the pin alone. */
+  runtime?: RuntimeInfoReader;
 }
 
 /** One allow-listed command (node), no shell operator: the shell tool refuses them. */
@@ -108,6 +122,7 @@ export async function runStatus(deps: StatusDeps): Promise<CommandView> {
       workspace: WORKSPACE,
       platform,
       provider: deps.provider?.(),
+      runtime: deps.runtime?.read(),
     }),
   };
 }

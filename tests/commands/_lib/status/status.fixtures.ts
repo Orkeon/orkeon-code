@@ -3,6 +3,7 @@
 import { runStatus } from "../../../../src/commands/_lib/status/status.ts";
 import type { cacheColumns } from "../../../../src/commands/_lib/status/cache.ts";
 import { FakeCrewHost } from "../../../support/doubles/fake-crew-host.ts";
+import { FakeRuntimeInfo } from "../../../support/doubles/fake-runtime-info.ts";
 import { FakeSessionStore } from "../../../support/doubles/fake-session-store.ts";
 import { FakeShell } from "../../../support/doubles/fake-shell.ts";
 import { FakeTelemetry } from "../../../support/doubles/fake-telemetry.ts";
@@ -12,8 +13,8 @@ export function rowMap(table: unknown): Map<string, string> {
   return new Map((table as Array<{ field: string; value: string }>).map((r) => [r.field, r.value]));
 }
 
-/** runStatus over fresh fakes; `extra` adds a shell or a provider reader. */
-export function statusHarness(extra: { shell?: FakeShell; provider?: () => string } = {}) {
+/** runStatus over fresh fakes; `extra` adds a shell, a provider reader or a runtime reader. */
+export function statusHarness(extra: { shell?: FakeShell; provider?: () => string; runtime?: FakeRuntimeInfo } = {}) {
   const session = new FakeSessionStore();
   const telemetry = new FakeTelemetry();
   const crews = new FakeCrewHost();

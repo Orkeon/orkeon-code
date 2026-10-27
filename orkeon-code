@@ -229,17 +229,41 @@ session_empty() { # <file>
   grep -qE '"Messages"[[:space:]]*:[[:space:]]*\[[[:space:]]*\]' "$1" 2>/dev/null
 }
 
-# Moves every last.json the runtime saved into history/, under <UTC time>-<session id>.json: those of sessions/
-# unless <side only> is 1, and always those of side/<pid>/ (a start beside an open one, now ended). A session
-# without a message (a start and a quit) is dropped, so it never pushes a real one out of the history.
+# Removes from history/ every file of the session <id> (as stored, never the file name), before its new file lands
+# there: a session /resume loaded in place goes on under its id, so its new file replaces the one it was loaded
+# from, under its own name (no collision suffix). Nothing for an empty id.
+drop_history_duplicates() { # <raw id>
+  local other
+  [ -n "$1" ] || return 0
+  for other in "$HISTORY"/*.json; do
+    [ -f "$other" ] || continue
+    [ "$(session_field "$other" SessionId)" = "$1" ] && rm -f "$other"
+  done
+  return 0
+}
+
+# Moves every session file the runtime saved into history/, under <UTC time>-<session id>.json: the last.json of
+# sessions/ and the archives /resume left beside it (<stamp>-archived.json, moved first so last.json is the newest),
+# unless <side only> is 1, and always those of side/<pid>/ (a start beside an open one, now ended). A session without
+# a message (a start and a quit) is dropped, so it never pushes a real one out of the history; a session that goes
+# on under the id of one already in the history replaces it there (drop_history_duplicates).
 archive_sessions() { # [<side only>]
-  local last id stamp target n found=()
-  [ "${1:-0}" = 1 ] || found=("$SESSIONS"/*/last.json)
-  found+=("$PROJECT_STATE"/side/*/*/last.json)
+  local last raw id stamp target n found=() lasts=() folders=()
+  [ "${1:-0}" = 1 ] || folders=("$SESSIONS"/*/)
+  folders+=("$PROJECT_STATE"/side/*/*/)
+  for last in "${folders[@]}"; do
+    [ -d "$last" ] || continue
+    for last in "$last"*.json; do
+      [ -f "$last" ] || continue
+      case "$last" in */last.json) lasts+=("$last") ;; *) found+=("$last") ;; esac
+    done
+  done
+  found+=("${lasts[@]}")
   for last in "${found[@]}"; do
     [ -f "$last" ] || continue
     if session_empty "$last"; then rm -f "$last"; continue; fi
-    id="$(session_field "$last" SessionId)"; id="$(printf '%s' "$id" | tr -c 'A-Za-z0-9._-' '_')"
+    raw="$(session_field "$last" SessionId)"; id="$(printf '%s' "$raw" | tr -c 'A-Za-z0-9._-' '_')"
+    drop_history_duplicates "$raw"
     stamp="$(date -u +%Y%m%dT%H%M%SZ)"
     target="$HISTORY/$stamp-${id:-session}.json"; n=2
     while [ -e "$target" ]; do target="$HISTORY/$stamp-${id:-session}-$n.json"; n=$((n + 1)); done

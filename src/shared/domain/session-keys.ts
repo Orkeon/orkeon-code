@@ -35,6 +35,10 @@ export const EFFORT_STATE_KEY = "reasoning_effort";
 /** `/passes` — 1-5; the number of review rounds /review runs (B-9). */
 export const PASSES_STATE_KEY = "reasoning_passes";
 
+/** The history file `/resume <n|id>` loaded this session from (Orkeon #227): written into the loaded session's own
+ *  state bag, so the listing can name it. */
+export const LOADED_SESSION_STATE_KEY = "resume_loaded_from";
+
 /** `/fast` — drops the advisory prompt blocks to buy latency (B-9). */
 export const FAST_MODE_STATE_KEY = "fast_mode";
 

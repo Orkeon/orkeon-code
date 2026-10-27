@@ -15,7 +15,9 @@
 // at all. Reachability would need a real call, i.e. money and a wait, so the check
 // says what it verified and what it did not rather than implying a ping.
 
-import type { Files, SessionMetadata, Shell, Telemetry, ToolCatalogue } from "../../../shared/application/ports.ts";
+import type {
+  Files, RuntimeInfo, RuntimeInfoReader, SessionMetadata, Shell, Telemetry, ToolCatalogue,
+} from "../../../shared/application/ports.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import { CODE_INTEL_TOOLS } from "../../../shared/domain/code-intel-contract.ts";
 import { knownConfigKeys } from "../../../shared/domain/config-schema.ts";
@@ -40,18 +42,40 @@ export interface DoctorDeps {
   catalogue: Pick<ToolCatalogue, "names">;
   files: Pick<Files, "mounts" | "list">;
   config: Pick<ConfigStore, "readValue">;
+  /** The running runtime's reader (Orkeon #225); absent, or answering nothing: the version row names the pin alone. */
+  runtime?: RuntimeInfoReader;
 }
 
-/** The version row: Code's own and the Orkeon it expects. The Orkeon found is the launcher's to say: the
- *  runtime exposes no version of its own to a command. */
-export const VERSION_DETAIL =
-  `${CLI_NAME} ${CLI_VERSION} (${CLI_BUILD}); Orkeon expected ${ORKEON_RUNTIME_VERSION} (.orkeon-version), ` +
-  "the one found: orkeon-code --version in a terminal";
+/** Code's own version, the version row starts with. */
+export const CODE_VERSION_DETAIL = `${CLI_NAME} ${CLI_VERSION} (${CLI_BUILD})`;
+
+/** The version row: Code's own, then the running Orkeon against the pin of .orkeon-version: a pass when they are
+ *  the same, a warning when they differ; when the host names no runtime, the pin alone and where the launcher
+ *  says what it found. */
+export function versionRow(runtime: RuntimeInfo | undefined): DoctorRow {
+  if (runtime === undefined) {
+    return {
+      check: "version",
+      result: PASS,
+      detail: `${CODE_VERSION_DETAIL}; Orkeon expected ${ORKEON_RUNTIME_VERSION} (.orkeon-version), the host names no runtime: ` +
+        "orkeon-code --version in a terminal says the one found",
+    };
+  }
+  const found = `Orkeon ${runtime.version}${runtime.commit ? `+${runtime.commit}` : ""} (${runtime.channel})`;
+  return runtime.version === ORKEON_RUNTIME_VERSION
+    ? { check: "version", result: PASS, detail: `${CODE_VERSION_DETAIL}; ${found}, the pin of .orkeon-version` }
+    : {
+      check: "version",
+      result: WARN,
+      detail: `${CODE_VERSION_DETAIL}; ${found} runs, ${ORKEON_RUNTIME_VERSION} expected (.orkeon-version): ` +
+        "the commands were checked against the pin",
+    };
+}
 
 /** Every check, one row each, and the verdict over them. */
 export async function runDoctor(deps: DoctorDeps): Promise<CommandView> {
   const { shell, telemetry, catalogue, files } = deps;
-  const rows: DoctorRow[] = [{ check: "version", result: PASS, detail: VERSION_DETAIL }];
+  const rows: DoctorRow[] = [versionRow(deps.runtime?.read())];
 
   // 1. Toolchain (unchanged in intent, now one row per binary with the version).
   for (const p of [

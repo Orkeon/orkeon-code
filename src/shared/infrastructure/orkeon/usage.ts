@@ -1,0 +1,63 @@
+// UsageReader adapter over the command context's `usage` service (Orkeon #226): the session's LLM
+// usage, in total and by model and by command, as the host's cost manager accounts it. Reached
+// through the service locator each command receives, like the approvals; a host that keeps no
+// account registers no service and the reader answers nothing. Jint keeps the CLR member names on a
+// host object, so both casings are read, and every count is made a number here.
+
+import type { CommandUsage, ModelUsage, UsageReader, UsageReport, UsageSpent } from "../../application/ports.ts";
+import type { SessionUsage, ServiceLocator } from "../../../commands/.orkeon/orkeon-cli.d.ts";
+import { asArray, pick } from "./tool-results.ts";
+
+/** The service name; orkeon-repl registers it while it keeps a cost manager or command instances. */
+const USAGE = "usage";
+
+/** A reported count, as a number; absent reads as 0. */
+const count = (r: unknown, name: string): number => Number(pick(r, name, name[0].toUpperCase() + name.slice(1)) ?? 0) || 0;
+
+/** A reported cost; null, absent and a non-number all read as unpriced. */
+function costOf(r: unknown): number | null {
+  const v = pick(r, "cost", "Cost");
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
+
+function spentOf(r: unknown): UsageSpent {
+  return {
+    promptTokens: count(r, "promptTokens"),
+    completionTokens: count(r, "completionTokens"),
+    cacheHitTokens: count(r, "cacheHitTokens"),
+    cacheWriteTokens: count(r, "cacheWriteTokens"),
+    reasoningTokens: count(r, "reasoningTokens"),
+    calls: count(r, "calls"),
+    unpricedCalls: count(r, "unpricedCalls"),
+    cost: costOf(r),
+  };
+}
+
+const text = (r: unknown, name: string): string => String(pick(r, name, name[0].toUpperCase() + name.slice(1)) ?? "");
+
+function modelOf(r: unknown): ModelUsage {
+  return { ...spentOf(r), model: text(r, "model") };
+}
+
+function commandOf(r: unknown): CommandUsage {
+  return { ...spentOf(r), ticket: text(r, "ticket"), name: text(r, "name"), state: text(r, "state") };
+}
+
+export function createUsageReader(services: Pick<ServiceLocator, "get" | "has">): UsageReader {
+  return {
+    report(): UsageReport | undefined {
+      try {
+        if (!services.has(USAGE)) return undefined;
+        const r = services.get<SessionUsage>(USAGE).report();
+        return {
+          ...spentOf(r),
+          totalTokens: count(r, "totalTokens"),
+          byModel: asArray(pick(r, "byModel", "ByModel")).map(modelOf),
+          byCommand: asArray(pick(r, "byCommand", "ByCommand")).map(commandOf),
+        };
+      } catch {
+        return undefined;
+      }
+    },
+  };
+}

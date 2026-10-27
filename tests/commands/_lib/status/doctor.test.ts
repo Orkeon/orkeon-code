@@ -5,7 +5,7 @@
 import { describe, it } from "node:test";
 import { ok, strictEqual, deepStrictEqual } from "node:assert";
 
-import { FAIL, OLD_SESSIONS_DIR, PASS, VERSION_DETAIL, WARN, runDoctor } from "../../../../src/commands/_lib/status/doctor.ts";
+import { FAIL, OLD_SESSIONS_DIR, PASS, WARN, runDoctor, versionRow } from "../../../../src/commands/_lib/status/doctor.ts";
 import { CLI_VERSION, ORKEON_RUNTIME_VERSION } from "../../../../src/commands/_lib/status/meta.ts";
 import { CODE_INTEL_TOOLS } from "../../../../src/shared/domain/code-intel-contract.ts";
 import { CONFIG_FILE_PATH, createConfigStore } from "../../../../src/shared/application/config-store.ts";
@@ -202,15 +202,49 @@ describe("/doctor — sessions left in the project", () => {
 });
 
 describe("/doctor — the version and the project values set aside (LI-1, LI-6)", () => {
-  it("names Code's version and the Orkeon it expects", () => {
+  it("names Code's version and the Orkeon it expects when the host names no runtime", () => {
     // Arrange
     const expected = `Orkeon expected ${ORKEON_RUNTIME_VERSION}`;
 
     // Act
-    const detail = VERSION_DETAIL;
+    const row = versionRow(undefined);
 
     // Assert
-    ok(detail.includes(CLI_VERSION) && detail.includes(expected), detail);
+    ok(row.result === PASS && row.detail.includes(CLI_VERSION) && row.detail.includes(expected), row.detail);
+  });
+
+  it("passes the version when the running Orkeon is the pin, named with its commit and channel", () => {
+    // Arrange
+    const runtime = { version: ORKEON_RUNTIME_VERSION, commit: "abc1234", channel: "deb" };
+
+    // Act
+    const row = versionRow(runtime);
+
+    // Assert
+    ok(row.result === PASS && row.detail.endsWith(`Orkeon ${ORKEON_RUNTIME_VERSION}+abc1234 (deb), the pin of .orkeon-version`), row.detail);
+  });
+
+  it("warns when the running Orkeon differs from the pin", () => {
+    // Arrange
+    const runtime = { version: "1.0.0-rc.7", commit: null, channel: "dotnet-tool" };
+
+    // Act
+    const row = versionRow(runtime);
+
+    // Assert
+    ok(row.result === WARN && row.detail.includes(`Orkeon 1.0.0-rc.7 (dotnet-tool) runs, ${ORKEON_RUNTIME_VERSION} expected`), row.detail);
+  });
+
+  it("reads the running runtime through its reader", async () => {
+    // Arrange
+    const host = doctorHost();
+    host.runtime.info = { version: "1.0.0-rc.7", commit: null, channel: "deb" };
+
+    // Act
+    const view = await runDoctor(host.deps);
+
+    // Assert
+    strictEqual(rowsOf(view).get("version")?.result, WARN);
   });
 
   it("warns on a project value that would widen, with why it is ignored", async () => {

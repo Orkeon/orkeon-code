@@ -6,6 +6,7 @@ export const KEY_VALUES = {
   SKILLS_STATE_KEY: "skills_attached",
   EFFORT_STATE_KEY: "reasoning_effort",
   PASSES_STATE_KEY: "reasoning_passes",
+  LOADED_SESSION_STATE_KEY: "resume_loaded_from",
   FAST_MODE_STATE_KEY: "fast_mode",
   PROACTIVE_STATE_KEY: "proactive_suggestions",
   MODEL_PREFERENCE_STATE_KEY: "model_preference",

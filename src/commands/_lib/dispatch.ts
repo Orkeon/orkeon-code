@@ -35,12 +35,14 @@ export interface LaunchDeps {
   log: Pick<CommandLog, "info">;
 }
 
-/** A crew's completion, as an async command's `completed` receives it; `intent` names the crew that answered. */
+/** A crew's completion, as an async command's `completed` receives it; `intent` names the crew that answered,
+ *  `streamed` says the console already showed the answer as it was generated (Orkeon #228). */
 export interface CrewCompletion {
   success: boolean;
   intent?: string;
   payload?: string;
   error?: string;
+  streamed?: boolean;
 }
 
 /** What a launch hands back to the runtime: the ticket, or the refusal of a hop past MaxChainDepth. */
@@ -180,13 +182,15 @@ async function voiceReply(deps: Pick<MainLoopLaunchDeps, "config" | "catalogue" 
   return voiceReplyEpilogue(speak);
 }
 
-/** Write a crew-completion line: `<okPrefix><payload>` or `✗ <label> failed: …`. */
+/** Write a crew-completion line: `<okPrefix><payload>` or `✗ <label> failed: …`; nothing for a success the console
+ *  already streamed, or the answer would show twice (Orkeon #228). */
 export function writeCompleted(
   out: { writeLine(text: string): void },
   result: CrewCompletion,
   label: string,
   okPrefix = "",
 ): void {
+  if (result.success && result.streamed === true) return;
   out.writeLine(
     result.success
       ? okPrefix + result.payload

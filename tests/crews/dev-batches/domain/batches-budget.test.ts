@@ -71,7 +71,7 @@ describe("driverBudget", () => {
 
       // Assert
       strictEqual(b.toolCalls, BATCHES_BUDGET.toolCalls + n * perBatch, `${n}`);
-      strictEqual(b.tokens, BATCHES_BUDGET.tokens + n * perBatch * TOKENS_PER_CALL, `${n}`);
+      strictEqual(b.contextTokens, BATCHES_BUDGET.contextTokens + n * perBatch * TOKENS_PER_CALL, `${n}`);
     });
   }
 

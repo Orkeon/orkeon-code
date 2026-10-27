@@ -59,7 +59,7 @@ import {
   COMMAND_IMPORT_CASES, FIXTURES_IMPORT_CASES, LIB_GROUP_IMPORT_CASES, PORTS_BARREL, PORTS_FOLDER, barrelGaps, GLOBAL_NAMES, GLOBAL_RULE_CASES, GLOBALS_IMPORT_CASES, IMPORT_FORMS_SOURCE, LAYER_CASES,
   LAYER_IMPORT_CASES, MIRROR_IMPORT_CASES, PLACE_CASES, PLACEMENT_CASES, TESTS_IMPORT_CASES, UNBOUND_GLOBALS_SOURCE,
   UNBOUND_GLOBALS_USES, COMMANDS_LIB, COMMAND_GROUP_RULE, LIB_GROUP_RULE, brokenFixturesRule, brokenGlobalRule,
-  brokenPlacementRule, brokenRules, clockRuleBreaks, collectImports, cyclesOf, edge, graphOf, layerOf, placeOf,
+  brokenPlacementRule, brokenRules, clockRuleBreaks, collectImports, crewHandoffBreaks, cyclesOf, edge, graphOf, layerOf, placeOf,
   readAllSources, readSources, runtimeGlobalUses, specifiersOf, usesIn,
 } from "./architecture.fixtures.ts";
 
@@ -318,6 +318,17 @@ describe("architecture: dependency rule", () => {
 
     // Act
     const broken = sources.flatMap(([file, text]) => clockRuleBreaks(file, text));
+
+    // Assert
+    deepStrictEqual(broken, []);
+  });
+
+  it("every crew entry point publishes through publishCrew, never a plain globalThis.crew assignment", () => {
+    // Arrange
+    const sources = [...readSources()].filter(([file]) => file.startsWith("src/crews/"));
+
+    // Act
+    const broken = sources.flatMap(([file, text]) => crewHandoffBreaks(file, text));
 
     // Assert
     deepStrictEqual(broken, []);

@@ -6,6 +6,7 @@ import { FakeLlm } from "../../../support/doubles/fake-llm.ts";
 import { FakeLogger } from "../../../support/doubles/fake-logger.ts";
 import { FakeMemoryStore } from "../../../support/doubles/fake-memory-store.ts";
 import { FakeProgress } from "../../../support/doubles/fake-progress.ts";
+import type { TokenBudget } from "../../../../src/shared/application/ports.ts";
 
 /** Buffers that are not a list: a compaction skips them rather than failing. */
 export const NOT_A_LIST: readonly unknown[] = [{ role: "user" }, "hi", 3, null];
@@ -34,7 +35,7 @@ export const RESET_COUNTS: readonly CountCase<number>[] = [
 ];
 
 /** Budgets in each shape token_budget hands back. */
-export const BUDGETS: readonly CountCase<{ used: number; window: number }>[] = [
+export const BUDGETS: readonly CountCase<TokenBudget>[] = [
   { name: "reads the snake_case budget", reply: { used_tokens: 1200, context_window_tokens: 8000 }, expected: { used: 1200, window: 8000 } },
   { name: "reads the camelCase budget", reply: { usedTokens: 5, contextWindowTokens: 10 }, expected: { used: 5, window: 10 } },
   {
@@ -43,4 +44,14 @@ export const BUDGETS: readonly CountCase<{ used: number; window: number }>[] = [
     expected: { used: 500, window: 2000 },
   },
   { name: "reads zeros from an empty budget", reply: undefined, expected: { used: 0, window: 0 } },
+  {
+    name: "reads the tokens by kind when the host reports them (Orkeon #226)",
+    reply: { used_tokens: 90, context_window_tokens: 100, used_tokens_by_kind: { system: 40, user: 10, assistant: 20, tool: 15, other: 5 } },
+    expected: { used: 90, window: 100, byKind: { system: 40, user: 10, assistant: 20, tool: 15, other: 5 } },
+  },
+  {
+    name: "reads PascalCase kinds, a missing kind as 0",
+    reply: { usedTokens: 9, contextWindowTokens: 10, usedTokensByKind: { System: "4", User: 5 } },
+    expected: { used: 9, window: 10, byKind: { system: 4, user: 5, assistant: 0, tool: 0, other: 0 } },
+  },
 ];

@@ -39,8 +39,8 @@ autorisés, et un `"ask"` qu'il renvoie est vérifié à nouveau comme une modif
 
 Ce qui borne un tour, quel que soit le mode :
 
-- le budget du crew `main-loop` : 200 appels d'outils, 30 minutes, 1,5M tokens (prompt et complétion de chaque appel
-  sommés), 40 itérations de la boucle ;
+- le budget du crew `main-loop` : 200 appels d'outils, 30 minutes, 700k tokens de contexte (le contexte compté une
+  fois, Orkeon #224), 40 itérations de la boucle ;
 - le délai d'exécution des scripts dans les settings : `Orkeon:Cli:ScriptCommands:Limits` pour le REPL,
   `Orkeon:Scripting:Limits` pour l'outil `orkeon` d'une exécution indépendante (30 minutes chacun dans l'exemple) ;
 - la garde de l'hôte (`Orkeon:Security:PermissionGate:Enabled`), qui confronte chaque appel au mode derrière le
