@@ -61,8 +61,9 @@ What Orkeon Code does not do yet, in the order we expect to address it. Items ma
   (runtime; [Permissions](permissions.md), Orkeon #219).
 - `http_api` declares an execute and every MCP tool declares no access to Orkeon, so its gate treats both as writes,
   even when they only read: asked in `default` and `acceptEdits`, refused in `plan`, and in `dontAsk` without an allow rule (runtime;
-  [Permissions](permissions.md)). The web and RAG tools declare theirs since Orkeon #126; an access per operation
-  for `github` and `http_api`, and the MCP annotations read, are asked of Orkeon (Orkeon #219).
+  [Permissions](permissions.md)). `web_scrape`, `scrape_element` and `rag_search` declare theirs since Orkeon #126; an
+  access per action for `github` and per method for `http_api`, and the MCP annotations read, are asked of Orkeon
+  (Orkeon #219).
 - A turn's token budget sums the prompt and completion of every call, so a turn pays its whole context again at each
   call and the cost grows with the square of its calls; when the sum passes the limit the turn ends in an error and
   its answer is lost. The main loop runs with 1.5M and reads by range meanwhile (runtime; a budget that counts the

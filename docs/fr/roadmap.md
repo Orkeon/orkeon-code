@@ -66,9 +66,9 @@ demandent d'abord un changement dans [Orkeon](https://github.com/Orkeon/orkeon).
   `dontAsk` (runtime ; [Permissions](permissions.md), Orkeon #219).
 - `http_api` déclare une exécution et chaque outil MCP ne déclare aucun accès à Orkeon, dont la garde les traite donc
   tous deux comme des écritures, même quand ils ne font que lire : demandés en `default` et `acceptEdits`, refusés en `plan`, et en
-  `dontAsk` sans règle d'autorisation (runtime ; [Permissions](permissions.md)). Les outils web et RAG déclarent le
-  leur depuis Orkeon #126 ; un accès par opération pour `github` et `http_api`, et la lecture des annotations MCP,
-  sont demandés à Orkeon (Orkeon #219).
+  `dontAsk` sans règle d'autorisation (runtime ; [Permissions](permissions.md)). `web_scrape`, `scrape_element` et
+  `rag_search` déclarent le leur depuis Orkeon #126 ; un accès par action pour `github` et par méthode pour `http_api`,
+  et la lecture des annotations MCP, sont demandés à Orkeon (Orkeon #219).
 - Le budget de tokens d'un tour somme le prompt et la complétion de chaque appel, donc un tour repaie tout son
   contexte à chaque appel et le coût croît avec le carré de ses appels ; quand la somme dépasse la limite, le tour
   finit en erreur et sa réponse est perdue. La boucle principale tourne avec 1,5M et lit par plage en attendant
