@@ -102,10 +102,10 @@ export async function readWriteModeRefusal(
 
 /** Before a launch of /dev-implement's chain (the audit, then the close), which runs no dispatch of its own: the
  *  gate must still be on, and the step's rules are put back on top of whatever the gate holds (an /assistant turn
- *  in between hands it the session's rules alone). The gate is not cleared: `completed` is synchronous and cannot
- *  read the session's rules again, so the rules an earlier hop added stay until the next sync (the next command,
- *  the next /assistant turn): an earlier hop's allows with them, but the gate puts every deny before an allow, so
- *  this step's denies still win. Null when the
+ *  in between hands it the session's rules alone). The gate is not cleared: the rules an earlier hop added stay
+ *  until the next sync (the next command, the next /assistant turn): an earlier hop's allows with them, but the
+ *  gate puts every deny before an allow, so this step's denies still win. The session's own rules and mode are read
+ *  again by the hop itself (readPullRequestContext, Orkeon #220) and handed to the crew. Null when the
  *  launch may go, else the line refusing it. */
 export function reapplyStepRules(gate: PermissionRules, step: DevStep): string | null {
   const problem = gateProblem(gate.enabled(), step);

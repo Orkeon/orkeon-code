@@ -122,11 +122,22 @@ export const UNGATED_ALLOWED: ReadonlyArray<Call & { mode: string }> = [
   { ...call("file_write", { path: "a", content: "" }), mode: "acceptEdits" },
   { ...call("spawn_agent", {}), mode: "acceptEdits" },
   { ...call("shell_command", { command: "ls" }), mode: "bypassPermissions" },
+  // A read declared per call (Orkeon #219) runs in the writing modes, as the gate would run it.
+  { ...call("github", { action: "get_pr", owner: "o", repo: "r", number: 1 }), mode: "acceptEdits" },
+  { ...call("github", { action: "list_issues" }), mode: "default" },
+  { ...call("http_api", { url: "https://example.test", method: "GET" }), mode: "acceptEdits" },
+  { ...call("http_api", { url: "https://example.test" }, "without a method"), mode: "default" },
+  { ...call("rag_eval", { dataset: "eval/golden.yaml" }), mode: "acceptEdits" },
 ];
 
 /** Calls a host without a gate refuses in a mode. */
 export const UNGATED_REFUSED: ReadonlyArray<Call & { mode: string }> = [
   { ...call("github", { action: "create_pr" }), mode: "acceptEdits" },
+  { ...call("github", {}, "without an action"), mode: "acceptEdits" },
+  { ...call("http_api", { url: "https://example.test", method: "POST" }), mode: "acceptEdits" },
+  // The read-only modes keep the local reads alone: their catalogue withholds the network and github.
+  { ...call("http_api", { url: "https://example.test", method: "GET" }), mode: "plan" },
+  { ...call("github", { action: "get_pr" }), mode: "dontAsk" },
   { ...call("shell_command", { command: "git push" }), mode: "bypassPermissions" },
 ];
 

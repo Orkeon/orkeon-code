@@ -80,6 +80,8 @@ others one after the other, each call through the permission gate, and sends the
 | `Orkeon:Tools:Shell:Confinement:Mode` | `Auto` (default: bubblewrap on Linux, Seatbelt on macOS, AppContainer on Windows, none inside a container), `None`, `Bubblewrap`, `Seatbelt` or `AppContainer`. Confined, each shell command runs under `bwrap` (Linux, tool and source modes), network off unless `Confinement:AllowNetwork`, programs outside the system directories listed in `Confinement:ReadOnlyPaths`. A command fails when it cannot be confined. The examples set `None`; a settings file without the key confines, outside a container. `/dev-batches --concurrency` above 1 works under Bubblewrap from a runtime that binds a linked worktree's git dir (Orkeon/orkeon#191); on an older one git fails inside a batch's worktree, and the run refuses itself in one line. Confined, the run's closing push reaches no remote (no network, `HOME=/tmp`, so no credentials): the run stays open with the `git push` command. Push it from a terminal, then the next `/dev-batches` closes the run without pushing again. See [SECURITY.md](../SECURITY.md) |
 | `Orkeon:Tools:ResultLimits:Limits:<tool>` | The cut of a tool's result, in characters: 4000, `file_read` 32000, `node_read` 256000, `shell_command` 10000. A cut result ends with `[... truncated, N chars omitted. …]`; `/dev-verify` reads that notice |
 | `Orkeon:Tools:ResultLimits:MaxParallelToolCalls` | The read calls of one model turn that run at once: 4 |
+| `Orkeon:Tools:GitHub:Token` | The token of the `github` tool, read once when the tool is registered (Orkeon #222); prefer the variable below to a token written in a settings file, which the examples leave out |
+| `Orkeon:Tools:GitHub:TokenVariable` | The environment variable the `github` tool reads its token from when `Token` is unset: `GITHUB_TOKEN` by default, then `GH_TOKEN`. The launcher's Docker mode hands `GITHUB_TOKEN`, `GH_TOKEN` and the variable named here to the container, each when it is set; the native modes inherit the environment. Without a token the tool's description says where to set it; a token shows as `***` in results and logs, and neither key takes a variable reference |
 | `Orkeon:Cli:ConsoleStreaming:Enabled` | Streams the answer as it is generated. The example enables it; the answer can be printed twice: off for an unattended run ([known issues](roadmap.md#known-issues)). With `/dev-batches --concurrency` above 1, each batch's streamed answer comes line by line: on the plain console prefixed by its ticket (`[t2] `), the foreground answer alone as it arrives (Orkeon #211); in the TUI on the batch's own screen, without the prefix (Orkeon #217) |
 | `Orkeon:Cli:ScriptCommands:MaxScripts` | Commands the loader keeps: 200 by default, above this project's command surface |
 | `RateLimiting:*` | Request rate limits towards the provider |
@@ -90,7 +92,10 @@ others one after the other, each call through the permission gate, and sends the
 - the main-loop crew's own budget, written in its code (`src/crews/main-loop/crew.ork.ts`): 200 tool calls, 1.5M
   tokens (the prompt and completion of every call of the turn, summed: a turn pays its whole context again at each
   call) and 30 minutes of wall time. That clock is Orkeon's and, like the engine's, it stops while the gate waits
-  for your answer: only the model's own work counts, and a question left unanswered does not end the turn.
+  for your answer: only the model's own work counts, and a question left unanswered does not end the turn. When the
+  token sum reaches the limit the turn runs no further tool: the model makes one last call without tools, its answer
+  is shown under a line saying the turn stopped on its budget, and only a last call that fails or answers nothing
+  ends the turn in an error (Orkeon #218); a tool-call or wall-time limit still ends it in an error.
 
 `Orkeon:Cli:ScriptHost:RunCrewTimeout` (10 minutes by default) bounds only a crew a command waits for (`runCrew`);
 Orkeon Code starts every crew with `runCrewAsync`, which it does not bound, so the example leaves it out.
@@ -107,7 +112,8 @@ relative to the checkout, `/config set dev.workDir backstage/tasks`; omitted, th
 `workbench`; `/commit` reads it too, and leaves the work folder out of a commit unless a path inside it is named),
 `dev.prAuto` (`true` or `false`, omitted = `false`: `/commit` and the close of a dev step prepare the pull request as
 `--pr` does without being asked, its body under `<work>/pr-<slug>/PR.md`, then open it with the runtime's `github` tool
-when the host offers it and the session allows it, else print the `gh pr create` command to type and say why),
+when the host offers it, the session allows it and the tool has a token (`GITHUB_TOKEN`,
+[settings](#settings-orkeon-code-relies-on)), else print the `gh pr create` command to type and say why),
 `memory.dir` (the [shared memory](shared-memory.md)'s folder, relative to the project, `/config set memory.dir
 docs/memory`; omitted, `.orkeon/memory`; never under `.claude/` or `.git/`, never the agent memory's
 `.orkeon/agent-memory`), `memory.project` (the project the entries name and the index collection
@@ -237,9 +243,11 @@ request such as `transcribe /audio/daily.m4a and list the tasks I mention`, once
 
 `read` fits those three tools with the default local backend: they read `/audio` and write only under
 `/transcripts`, outside the project. With `WHISPER_BACKEND=openai` the audio leaves the machine: mark
-`transcribe_audio` `write`, or leave it out and use `/transcribe`. The permission gate still asks about each of the
-model's calls in `default` and `acceptEdits`, since an MCP tool declares no access to Orkeon
-([Permissions](permissions.md#extra-tools)).
+`transcribe_audio` `write`, or leave it out and use `/transcribe`. The server marks `transcribe_audio`, `list_audio`
+and `whisper_info` read-only (`readOnlyHint`), which the permission gate reads (Orkeon #219): they run without a
+question in every mode that offers them, `dontAsk` included; `record_and_transcribe`, `speak` and `stop_speaking`
+carry no annotation, so the gate asks about them in `default` and `acceptEdits` and refuses them in `plan` and
+`dontAsk` ([Permissions](permissions.md#extra-tools)).
 
 A short transcription comes back inline; a long one is written to `/transcripts/<name>.txt`, with its timestamps
 in `<name>.segments.json` and, above 30,000 characters, in parts `<name>.part-NN.txt` that `file_read` reads one at

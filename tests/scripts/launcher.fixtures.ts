@@ -174,6 +174,13 @@ export function trustStore(folders: string[]): string {
 }
 
 /** The virtual roots of the --mount arguments. */
+/** The variables a docker run hands the container (`-e NAME`), in order. */
+export const envForwarded = (args: string[]): string[] => args.flatMap((a, i) => (a === "-e" && !args[i + 1]?.includes("=") ? [args[i + 1]] : []));
+
+/** The github token variables (Orkeon #222) among the ones handed to the container. */
+export const tokenVarsForwarded = (args: string[]): string[] =>
+  envForwarded(args).filter((v) => v === "GITHUB_TOKEN" || v === "GH_TOKEN" || v.startsWith("Orkeon__Tools__GitHub") || v === "MY_GH");
+
 export const mountRoots = (args: string[]) =>
   args.flatMap((a, i) => (args[i - 1] === "--mount" ? [a.split(":")[1]] : []));
 

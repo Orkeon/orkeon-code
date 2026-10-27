@@ -40,6 +40,11 @@ export const RUNTIME_MESSAGES: readonly MessageCase[] = [
   { name: "too many tool calls", failure: "Agent exceeded 200 tool calls.", dimension: "toolCalls" },
   { name: "the tool-call budget", failure: "Tool-call budget exhausted (200/200).", dimension: "toolCalls" },
   { name: "the token budget, in an error", failure: new Error("Token budget exhausted (400100/400000)."), dimension: "tokens" },
+  {
+    name: "the token budget, as Orkeon #218 words it",
+    failure: new Error("Token budget exhausted: 1500210 tokens sent and received over 41 calls (limit 1500000)"),
+    dimension: "tokens",
+  },
   { name: "the wall time", failure: "Wall time exceeded (0:30:00 >= 0:30:00).", dimension: "wallTime" },
   { name: "the delegation depth", failure: "Delegation depth 3 exceeds max 2.", dimension: "delegationDepth" },
   { name: "too many spawned agents", failure: "Agent exceeded 4 spawned sub-agents.", dimension: "spawnedAgents" },

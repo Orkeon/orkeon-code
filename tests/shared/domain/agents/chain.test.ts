@@ -41,7 +41,18 @@ describe("chainDepthRefusal", () => {
     const line = chainDepthLine("dev-verify", refusal);
 
     // Assert
-    ok(line.startsWith("dev-verify not launched"));
+    ok(line.startsWith("dev-verify not launched: the chain of crews reached"), line);
     ok(line.includes("depth 9, limit 8") && line.includes("MaxChainDepth"));
+  });
+
+  it("names the command the refusal names", () => {
+    // Arrange
+    const refusal = { depth: 8, limit: 8, command: "dev-batches" };
+
+    // Act
+    const line = chainDepthLine("dev-implement", refusal);
+
+    // Assert
+    ok(line.startsWith("dev-implement not launched: the chain of crews of /dev-batches reached"), line);
   });
 });

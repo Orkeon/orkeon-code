@@ -88,3 +88,25 @@ export const THIRTY_LINES = JSON.stringify({ lines: Array.from({ length: 30 }, (
 
 /** The next wave the dev-batches crew names. */
 export const NEXT_WAVE_INPUT = { after: ["✓ F2 merged"], concurrency: 2 };
+
+/** The launch the dev-batches crew names for the next batch, the github tool withheld as the crew does. */
+export const BATCH_LAUNCH = {
+  crew: "dev-implement", input: { ...F2_INPUT, permissionMode: "bypassPermissions", permissionRules: [], githubTool: false },
+  instead: "/dev-implement F2 demo",
+};
+
+/** The crew's answer naming the next batch. */
+export const NEXT_BATCH_RESULT = {
+  success: true, intent: "dev-batches", payload: JSON.stringify({ lines: ["→ F2 launched"], next: { crew: "dev-implement", input: BATCH_LAUNCH.input } }),
+};
+
+/** The audit's VALID answer, which closes the batch. */
+export const CLOSE_RESULT = { success: true, intent: "dev-verify", payload: VALID_VERIFY };
+
+/** The crew's answer naming the next wave of a parallel run. */
+export const NEXT_WAVE_RESULT = {
+  success: true, intent: "dev-batches", payload: JSON.stringify({ lines: ["✓ F2 merged"], next: { crew: "dev-batches", input: NEXT_WAVE_INPUT } }),
+};
+
+/** A rule the session gained between two batches. */
+export const FRESH_RULES = ["deny shell_command command=git push*"];

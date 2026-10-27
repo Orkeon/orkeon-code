@@ -21,15 +21,6 @@ demandent d'abord un changement dans [Orkeon](https://github.com/Orkeon/orkeon).
 - **Les hooks dans l'assistant.** Les hooks `pre-tool` et `post-tool` s'exécutent autour des appels d'outils du modèle
   dans les étapes dev ([Hooks](hooks.md)) ; `/assistant` ne les exécute pas encore, et rien n'exécute un
   hook `stop`.
-- **La clôture qui relit le mode de la session** (runtime). La clôture que `/dev-implement` enchaîne après un audit
-  VALID prend le mode et les règles lus au lancement du lot : les typings déclarent que le `completed` d'une commande
-  renvoie `void`, et le mode ne se lit que de façon asynchrone. L'hôte attend bien une promesse que `completed`
-  renvoie ; dès que les typings le diront, chaque saut relira le mode (Orkeon #220).
-- **Un plan entier en un seul `/dev-batches`** (runtime). Une chaîne de crews s'arrête à la limite de profondeur du
-  runtime (`Orkeon:Cli:ScriptCommands:MaxChainDepth`, 8), et un lot en prend quatre (`/dev-batches`, `/dev-implement`,
-  `/dev-verify`, la clôture) : un plan de plus de deux lots environ demande de retaper `/dev-batches` après chaque
-  refus. Un lancement qui garde la profondeur du parent quand un pilote se relance lui-même, ou un plafond par
-  commande, la lèverait (Orkeon #221) ; monter le réglage la repousse pour toutes les commandes à la fois.
 - **Coût et usage.** De vrais chiffres de coût par fournisseur, et des comptes de tokens par catégorie pour
   `/context` et `/usage`.
 
@@ -62,18 +53,12 @@ demandent d'abord un changement dans [Orkeon](https://github.com/Orkeon/orkeon).
 - Un résultat d'outil arrive au modèle coupé à 4000 caractères : 32 000 pour `file_read`, 256 000 pour `node_read`,
   10 000 pour `shell_command`. La coupe se règle par outil avec `Orkeon:Tools:ResultLimits`
   ([Configuration](configuration.md)).
-- `github` et `rag_eval` ne déclarent aucun accès à Orkeon : demandés aussi en `acceptEdits`, refusés en `plan` et
-  `dontAsk` (runtime ; [Permissions](permissions.md), Orkeon #219).
-- `http_api` déclare une exécution et chaque outil MCP ne déclare aucun accès à Orkeon, dont la garde les traite donc
-  tous deux comme des écritures, même quand ils ne font que lire : demandés en `default` et `acceptEdits`, refusés en `plan`, et en
-  `dontAsk` sans règle d'autorisation (runtime ; [Permissions](permissions.md)). `web_scrape`, `scrape_element` et
-  `rag_search` déclarent le leur depuis Orkeon #126 ; un accès par action pour `github` et par méthode pour `http_api`,
-  et la lecture des annotations MCP, sont demandés à Orkeon (Orkeon #219).
 - Le budget de tokens d'un tour somme le prompt et la complétion de chaque appel, donc un tour repaie tout son
-  contexte à chaque appel et le coût croît avec le carré de ses appels ; quand la somme dépasse la limite, le tour
-  finit en erreur et sa réponse est perdue. La boucle principale tourne avec 1,5M et lit par plage en attendant
-  (runtime ; un budget qui compte le contexte une fois et un dernier appel pour répondre sont demandés à Orkeon,
-  Orkeon #218 ; [Configuration](configuration.md)).
+  contexte à chaque appel et le coût croît avec le carré de ses appels ; il ne borne ni la taille de la conversation
+  ni ce qu'un fournisseur facture avec son cache. Quand la somme atteint la limite, le tour n'exécute plus d'outil :
+  le modèle répond en un dernier appel, affiché sous une ligne qui dit que le tour s'est arrêté sur son budget
+  (Orkeon #218). La boucle principale tourne avec 1,5M et lit par plage en attendant (runtime ; un budget qui compte
+  le contexte une fois reste ouvert ; [Configuration](configuration.md)).
 - La réponse peut être affichée deux fois quand le streaming console est activé : le désactiver pour un run sans
   surveillance.
 - Les scripts shell d'un projet (`.sh`, `.bash`) et ses fichiers `.ps1`, `.bat` et `.cmd` ne peuvent pas être lus par
@@ -97,6 +82,3 @@ demandent d'abord un changement dans [Orkeon](https://github.com/Orkeon/orkeon).
 - Certaines commandes ne font qu'en partie ce que leur nom promet : `/summary` (pas enregistré en mémoire), `/status`
   (la version du runtime est l'épinglage, non lue sur l'hôte qui tourne), `/context` et `/usage` (totaux seulement,
   pas de chiffres par catégorie).
-- Le runtime enregistre son outil `github` sans jeton : `/commit --pr` reçoit le refus de GitHub (401) tant que l'hôte
-  ne peut pas en recevoir un, puis affiche la commande `gh pr create` (runtime ; une clé de settings et `GITHUB_TOKEN`
-  lus à l'enregistrement sont demandés à Orkeon, Orkeon #222).

@@ -87,6 +87,18 @@ describe("createLlm — act", () => {
     await rejects(act, /budget exhausted/);
   });
 
+  it("throws a result flagged budgetExhausted as a BudgetExhaustedAnswer carrying the wrap-up, never answers it (Orkeon #218)", async () => {
+    // Arrange
+    const facade = new FakeLlmFacade();
+    facade.actResult = { output: "partial", budgetExhausted: true, iterations: 3 };
+
+    // Act
+    const act = createLlm(facade).act("p", {});
+
+    // Assert
+    await rejects(act, { name: "BudgetExhaustedError", dimension: "tokens", answer: "partial" });
+  });
+
   for (const c of ACT_FAILURE_MARKERS) {
     it(c.name, async () => {
       // Arrange

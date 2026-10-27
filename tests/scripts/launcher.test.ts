@@ -25,7 +25,7 @@ import {
   TOOL_START, USER_SETTINGS, WHISPER, audioEnv, bashOf, ciStarts, corruptHome, crewSource, fullHistory, launch, launchWithNode,
   leftBeside, linkedFolder, modeStart, mostWhisperArgs, mountOf, mountRoots, namedProjectStart, nestedTrust, orkeonCheckout,
   pwshOf, read, recorder, removeScratch, runCrew, runPs1ThenPrint, scratchDir, scratchFolder, serverArgs, serverOf,
-  sessionScene, slugOf, sourceModeCalls, staleLock, startAgain, storeOf, storedFolders, toolModeArgs, trustCli, trustOf, twoSessions,
+  sessionScene, slugOf, sourceModeCalls, staleLock, startAgain, storeOf, storedFolders, tokenVarsForwarded, toolModeArgs, trustCli, trustOf, twoSessions,
   untrustedStart, upTo, userFile, variablesSaved, variablesSet, whisperArgNames, whisperArgs, whisperEnv, writtenSettings, historyIds,
 } from "./launcher.fixtures.ts";
 import {
@@ -238,6 +238,41 @@ describe("orkeon-code, docker mode", () => {
     ok(r.args.includes(`${GATE}=true`), r.args.join(" "));
     ok(r.args.includes(`${START_SCRIPT}=/tmp/orkeon-code/session-start.ork.ts`), r.args.join(" "));
     deepStrictEqual(mountRoots(r.args), ROOTS);
+  });
+});
+
+describe("orkeon-code, docker mode, the github tool's token (Orkeon #222)", () => {
+  it("hands GITHUB_TOKEN and GH_TOKEN to the container when the operator exported them", () => {
+    // Arrange
+    const env = { GITHUB_TOKEN: "ghp_x", GH_TOKEN: "gho_y" };
+
+    // Act
+    const r = launch({ args: ["--mode", "docker"], bin: { docker: recorder() }, env });
+
+    // Assert
+    deepStrictEqual(tokenVarsForwarded(r.args), ["GITHUB_TOKEN", "GH_TOKEN"]);
+  });
+
+  it("hands over the variable Orkeon__Tools__GitHub__TokenVariable names, and the setting itself", () => {
+    // Arrange
+    const env = { Orkeon__Tools__GitHub__TokenVariable: "MY_GH", MY_GH: "ghp_z" };
+
+    // Act
+    const r = launch({ args: ["--mode", "docker"], bin: { docker: recorder() }, env });
+
+    // Assert
+    deepStrictEqual(tokenVarsForwarded(r.args), ["Orkeon__Tools__GitHub__TokenVariable", "MY_GH"]);
+  });
+
+  it("hands no token variable over when none is exported", () => {
+    // Arrange
+    const start = { args: ["--mode", "docker"], bin: { docker: recorder() } };
+
+    // Act
+    const r = launch(start);
+
+    // Assert
+    deepStrictEqual(tokenVarsForwarded(r.args), []);
   });
 });
 
@@ -842,6 +877,23 @@ describe("orkeon-code.ps1 follows the same rules (read here; run below, where pw
 });
 
 describe("orkeon-code.ps1, run where pwsh is installed", { skip: PWSH ? false : "pwsh is not on PATH" }, () => {
+  it("hands the github token variables to the container as ./orkeon-code does, none when none is exported (Orkeon #222)", () => {
+    // Arrange
+    const env = { GITHUB_TOKEN: "ghp_x", Orkeon__Tools__GitHub__TokenVariable: "MY_GH", MY_GH: "ghp_z" };
+
+    // Act
+    const [withToken, without] = [
+      launch({ shell: "pwsh", args: ["-Mode", "docker"], bin: { docker: recorder() }, env }),
+      launch({ shell: "pwsh", args: ["-Mode", "docker"], bin: { docker: recorder() } }),
+    ];
+
+    // Assert
+    deepStrictEqual(
+      [tokenVarsForwarded(withToken.args), tokenVarsForwarded(without.args)],
+      [["GITHUB_TOKEN", "Orkeon__Tools__GitHub__TokenVariable", "MY_GH"], []],
+    );
+  });
+
   it("writes the orkeonCode block alone to the read-only /user-config mount, as ./orkeon-code does", () => {
     // Arrange
     const settings = { Llm: { Model: "m", BaseUrl: "http://127.0.0.1:9/v1" }, orkeonCode: { "tools.extra": "search_issues:read" } };

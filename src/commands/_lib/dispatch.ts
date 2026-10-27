@@ -6,7 +6,7 @@
 // (createCrewHost(ctx.services), createPermissionRules(ctx.services)) and hands
 // them over with the command's log.
 
-import type { CrewHost, PermissionRules, ToolCatalogue } from "../../shared/application/ports.ts";
+import type { CrewHost, CrewLaunchOptions, PermissionRules, ToolCatalogue } from "../../shared/application/ports.ts";
 import type { ConfigStore } from "../../shared/application/config-store.ts";
 import type { SessionIo } from "../../shared/application/session-io.ts";
 import { configuredNames, resolveExtraTools } from "../../shared/application/extra-tools.ts";
@@ -35,9 +35,10 @@ export interface LaunchDeps {
   log: Pick<CommandLog, "info">;
 }
 
-/** A crew's completion, as an async command's `completed` receives it. */
+/** A crew's completion, as an async command's `completed` receives it; `intent` names the crew that answered. */
 export interface CrewCompletion {
   success: boolean;
+  intent?: string;
   payload?: string;
   error?: string;
 }
@@ -47,17 +48,20 @@ export type LaunchResult = { ticket: string } | { refused: string; message: stri
 
 /** Launch a crew on the script-host and return its ticket (async commands). The
  *  launch is logged with the ticket, plus `details` when the caller has any. A
- *  launch from a `completed` past the chain's limit (V-A5, shared/domain/agents/chain.ts)
- *  comes back as `{ refused }` with the line saying so; any other failure throws. */
+ *  launch from a `completed` past the chain's limit (V-A5, shared/domain/agents/chain.ts,
+ *  `chain depth <d> reached (MaxChainDepth <l>, /<command>)`) comes back as `{ refused }`
+ *  with the line saying so; any other failure throws. A driver relaunching its own work
+ *  passes `{ chain: "continue" }` as `options` (Orkeon #221) and keeps the parent's depth. */
 export function launchCrew(
   deps: LaunchDeps,
   crew: string,
   input: Record<string, unknown> = {},
   details: Record<string, unknown> = {},
+  options?: CrewLaunchOptions,
 ): LaunchResult {
   let ticket: string;
   try {
-    ticket = deps.crews.launch(crew, input);
+    ticket = deps.crews.launch(crew, input, options);
   } catch (error) {
     const refusal = chainDepthRefusal(error);
     if (refusal === null) throw error;

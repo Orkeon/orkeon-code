@@ -19,15 +19,6 @@ What Orkeon Code does not do yet, in the order we expect to address it. Items ma
   and switching sessions without a restart comes next.
 - **Hooks in the assistant.** `pre-tool` and `post-tool` hooks run around the model's tool calls in the dev steps
   ([Hooks](hooks.md)); `/assistant` does not run them yet, and nothing runs a `stop` hook.
-- **The close re-reading the session's mode** (runtime). The close `/dev-implement` chains after a VALID audit uses
-  the mode and rules read when the batch was launched: the typings declare a command's `completed` as returning
-  `void`, and the mode can only be read asynchronously. The host does await a promise `completed` returns; once the
-  typings say so, each hop reads the mode again (Orkeon #220).
-- **A whole plan in one `/dev-batches`** (runtime). A chain of crews stops at the runtime's depth limit
-  (`Orkeon:Cli:ScriptCommands:MaxChainDepth`, 8), and a batch takes four (`/dev-batches`, `/dev-implement`,
-  `/dev-verify`, the close): a plan of more than about two batches needs `/dev-batches` typed again after each
-  refusal. A launch that keeps the parent's depth when a driver relaunches itself, or a per-command ceiling, would
-  remove it (Orkeon #221); raising the setting pushes it back for every command at once.
 - **Cost and usage.** Real cost figures per provider, and token counts per category for `/context` and `/usage`.
 
 ## Later
@@ -57,17 +48,12 @@ What Orkeon Code does not do yet, in the order we expect to address it. Items ma
 
 - A tool result reaches the model cut at 4000 characters: 32,000 for `file_read`, 256,000 for `node_read`, 10,000 for
   `shell_command`. The cut is set per tool by `Orkeon:Tools:ResultLimits` ([Configuration](configuration.md)).
-- `github` and `rag_eval` declare no access to Orkeon: asked in `acceptEdits` too, refused in `plan` and `dontAsk`
-  (runtime; [Permissions](permissions.md), Orkeon #219).
-- `http_api` declares an execute and every MCP tool declares no access to Orkeon, so its gate treats both as writes,
-  even when they only read: asked in `default` and `acceptEdits`, refused in `plan`, and in `dontAsk` without an allow rule (runtime;
-  [Permissions](permissions.md)). `web_scrape`, `scrape_element` and `rag_search` declare theirs since Orkeon #126; an
-  access per action for `github` and per method for `http_api`, and the MCP annotations read, are asked of Orkeon
-  (Orkeon #219).
 - A turn's token budget sums the prompt and completion of every call, so a turn pays its whole context again at each
-  call and the cost grows with the square of its calls; when the sum passes the limit the turn ends in an error and
-  its answer is lost. The main loop runs with 1.5M and reads by range meanwhile (runtime; a budget that counts the
-  context once and a last call to answer are asked of Orkeon, Orkeon #218; [Configuration](configuration.md)).
+  call and the cost grows with the square of its calls; it bounds neither the size of the conversation nor what a
+  provider bills with its cache. When the sum reaches the limit the turn runs no further tool: the model answers in
+  one last call, shown under a line saying the turn stopped on its budget (Orkeon #218). The main loop runs with
+  1.5M and reads by range meanwhile (runtime; a budget that counts the context once remains open;
+  [Configuration](configuration.md)).
 - The answer can be printed twice when console streaming is enabled: disable it for an unattended run.
 - A project's shell scripts (`.sh`, `.bash`) and its `.ps1`, `.bat` and `.cmd` files cannot be read by the agent:
   `file_read` and the node readers answer `File extension '.sh' is not allowed`, the runtime's path validator blocking
@@ -88,6 +74,3 @@ What Orkeon Code does not do yet, in the order we expect to address it. Items ma
 - Some commands only partly do what their names promise: `/summary` (not saved to memory), `/status` (the runtime
   version is the pin, not read from the running host), `/context` and `/usage` (totals only, no per-category
   figures).
-- The runtime registers its `github` tool without a token: `/commit --pr` gets GitHub's refusal (401) until the host
-  can be given one, and then prints the `gh pr create` command (runtime; a settings key and `GITHUB_TOKEN` read at
-  registration are asked of Orkeon, Orkeon #222).

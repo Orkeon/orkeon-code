@@ -81,8 +81,8 @@ qu'Orkeon Code ne connaît pas, et quand le mode de la session ne peut pas être
 |---|---|---|---|---|---|
 | `plan` | lectures locales, [outils supplémentaires](#outils-supplémentaires) `read` | ✅ | ❌ | ❌ | ❌ |
 | `dontAsk` | lectures locales, [outils supplémentaires](#outils-supplémentaires) `read` | ✅ | ❌ | ❌ | ❌ |
-| `default` | tous les outils | ✅ | `http_api` vous demande, web ✅ | vous demande | vous demande |
-| `acceptEdits` | tous les outils | ✅ | `http_api` vous demande, web ✅ | ✅ | vous demande |
+| `default` | tous les outils | ✅ | `http_api` GET ✅, ses autres méthodes vous demandent, web ✅ | vous demande | vous demande |
+| `acceptEdits` | tous les outils | ✅ | `http_api` GET ✅, ses autres méthodes vous demandent, web ✅ | ✅ | vous demande |
 | `bypassPermissions` | tous les outils | ✅ | ✅ | ✅ | ✅ |
 
 `plan` et `dontAsk` promettent que le tour ne change rien d'observable : aucune écriture, et aucune requête sortante,
@@ -108,15 +108,26 @@ Un appel à un outil que l'act n'offre pas n'atteint jamais la garde : le runtim
 '<name>' is not available to this agent.`, sans question (Orkeon #193), et les agents dev ont pour consigne de revenir
 à leurs propres outils sur cette erreur.
 
-Orkeon traite comme écriture un outil qui ne déclare ni lecture ni modification : `http_api` déclare une exécution et
-tous les outils MCP n'en déclarent aucun, donc les deux font l'objet d'une question en `default` et en `acceptEdits`, et sont refusés en `plan` et en `dontAsk`. `web_scrape`, `scrape_element` et
-`rag_search` déclarent une lecture (Orkeon #126) : ils s'exécutent sans question partout où le catalogue les offre.
+Orkeon traite comme écriture un outil qui ne déclare ni lecture ni modification, et lit l'accès par appel quand il
+dépend des arguments (Orkeon #219) : `http_api` déclare une lecture pour `GET`, `HEAD`, `OPTIONS` et une méthode
+absente, une exécution pour toute autre méthode, si bien qu'un GET s'exécute sans question en `default` et en
+`acceptEdits` et qu'un POST vous demande ; `github` déclare une lecture pour `list_issues`, `get_pr`, `search_repos`
+et `get_repo`, une exécution pour `create_issue`, `create_pr` et une action qu'il ne connaît pas ; `rag_eval` déclare
+une lecture. Un outil MCP déclare ce que disent ses annotations ([Outils supplémentaires](#outils-supplémentaires)).
+`web_scrape`, `scrape_element` et `rag_search` déclarent une lecture (Orkeon #126) : ils s'exécutent sans question
+partout où le catalogue les offre.
 `rag_ingest` déclare une modification — il écrit l'index de connaissances, pas le projet monté — si bien que le
 catalogue l'offre avec les modifications de fichiers : jamais en `plan` ni en `dontAsk`, demandé en `default`, accepté
 en `acceptEdits`.
 
-`github` et `rag_eval` sont offerts avec les modifications de fichiers, mais ne déclarent aucun accès : l'hôte pose la
-question aussi en `acceptEdits`, et les refuse en `plan` et en `dontAsk`. L'hôte offre `spawn_agent` à chaque act, quel
+`github` et `rag_eval` sont offerts avec les modifications de fichiers, dans les modes qui écrivent seulement, quoi
+que déclare un appel : `github` peut ouvrir une pull request, et `rag_eval` réingère un corpus dans une collection de
+l'index de connaissances, donc aucun des deux n'a sa place dans un mode qui promet que rien ne change. `http_api`
+reste hors de `plan` et de `dontAsk` pour la raison qui en écarte les outils web : un GET est une requête sortante,
+qui peut emporter le contenu du dépôt ailleurs. En `default`, ce GET s'exécute sans question, et son URL peut contenir
+du texte que le modèle a lu dans le projet : un projet qui ne doit rien envoyer dehors refuse l'outil
+(`/permissions add deny http_api`, une règle deny valant dans tous les modes), ou travaille en `plan` ou en `dontAsk`,
+dont le catalogue l'écarte. L'hôte offre `spawn_agent` à chaque act, quel
 que soit le catalogue : c'est une modification, demandée en `default` et refusée en `plan` et en `dontAsk`. Une règle
 peut le nommer, et une règle allow sur lui vaut aussi en `dontAsk` (`/permissions` avertit quand vous en ajoutez une).
 
@@ -429,11 +440,15 @@ s'est pas connecté, un plugin qui ne s'est pas chargé, une faute de frappe) es
 puisqu'Orkeon refuse un tour dont l'agent nomme un outil qu'il ne connaît pas.
 
 La classe façonne le catalogue ; la garde décide toujours chaque appel d'après l'accès que l'outil déclare à Orkeon.
-Un outil MCP n'en déclare aucun, si bien que la garde le traite comme une écriture quelle que soit sa classe : elle
-vous demande en `default` et en `acceptEdits` et le refuse en `plan` et en `dontAsk`. En `dontAsk`, une règle allow le
-laisse s'exécuter (`/permissions add allow transcribe_audio`) ; `plan` ignore les règles allow. Un outil de plugin qui
-déclare un accès en lecture s'exécute dans tous les modes. Pour transcrire sans ces questions, utilisez `/transcribe`,
-dont l'appel est celui de la commande ([Configuration](configuration.md#transcription-de-la-parole)).
+Un outil MCP le déclare par ses annotations (Orkeon #219) : `readOnlyHint: true` est une lecture, exécutée sans
+question dans tous les modes qui offrent l'outil, `dontAsk` compris ; une autre annotation est une exécution et
+l'absence d'annotation une écriture, demandées en `default` et en `acceptEdits`, refusées en `plan` et en `dontAsk`.
+Le serveur de parole marque `transcribe_audio`, `list_audio` et `whisper_info` en lecture seule ;
+`record_and_transcribe`, `speak` et `stop_speaking`, qui ouvrent le micro ou le haut-parleur, ne portent aucune
+annotation. Pour un tel outil, en `dontAsk`, une règle allow le laisse s'exécuter (`/permissions add allow speak`) ;
+`plan` ignore les règles allow. Un outil de plugin qui déclare un accès en lecture s'exécute dans tous les modes.
+`/transcribe` ne demande rien non plus : son appel est celui de la commande
+([Configuration](configuration.md#transcription-de-la-parole)).
 
 Les règles nomment les outils supplémentaires comme les outils intégrés (`/permissions add deny create_issue`), que
 l'hôte enregistre l'outil ou non. Une règle conservée sur un outil que `tools.extra` ne liste plus est **dormante** :

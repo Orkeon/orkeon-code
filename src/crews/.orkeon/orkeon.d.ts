@@ -453,6 +453,13 @@ readonly iterations: number;
 readonly interrupted?: true;
 /** Set when `maxIterations` was reached without a final answer. */
 readonly exhausted?: true;
+/**
+* Set when the token budget (`budget({ tokens })`) ran out during the loop: the act then
+* made one last call with no tools, telling the model its budget was spent, and `output` is
+* that answer, cut short. When that last call fails or answers nothing, the act rejects with
+* `BudgetExhaustedError` instead.
+*/
+readonly budgetExhausted?: true;
 }
 interface Message {
 readonly role: "system" | "user" | "assistant" | "tool";
@@ -680,6 +687,12 @@ withTasks(tasks: readonly Task<unknown, unknown>[]): this;
 * the crew is refused when it is loaded.
 */
 manager(agent: Agent<unknown, unknown>): this;
+/**
+* The crew's budget. Declarative shape: YAML `budget:`, spent by `process("autonomous")`
+* alone; another process ignores it with a warning. A key left out takes its default: no
+* token cap, no wall time, 50 tool calls (tasks handed out), 4 delegations, 10 spawns.
+* Procedural shape: bounds `await crew.run()`.
+*/
 budget(opts: ExecutionBudget): this;
 verbose(value?: boolean): this;
 /**
@@ -719,6 +732,16 @@ interface ExecutionBudget {
 readonly toolCalls?: number;
 readonly delegationDepth?: number;
 readonly wallTime?: number | string;
+/**
+* The most tokens the run may spend, as a running sum: the prompt plus the completion of
+* every LLM call. Each call resends its whole context, so the context is counted again on
+* each call, and a turn of n calls pays it about n times: this bounds neither the size of
+* the conversation nor what a provider bills with its cache. When the sum reaches the limit,
+* no further tool runs: `ctx.llm.act` makes one last call that may call no tool (a tool call
+* it returns is never run) and resolves with `budgetExhausted: true`;
+* the error says what it counted, `Token budget exhausted: <sum> tokens sent and received
+* over <n> calls (limit <limit>)`.
+*/
 readonly tokens?: number;
 readonly spawnedAgents?: number;
 }

@@ -737,7 +737,10 @@ try {
                  '-e', "Orkeon__Cli__Session__StartScript=$env:Orkeon__Cli__Session__StartScript",
                  '-e', "Orkeon__Cli__Session__Persist=$env:Orkeon__Cli__Session__Persist",
                  '-e', 'ORKEON_Orkeon__Cli__Session__SessionsDirectory=/sessions')
-    foreach ($v in @('ORKEON_Llm__ApiKey', 'ORKEON_Llm__Model', $keyVar)) {
+    # The github tool's token (Orkeon #222): GITHUB_TOKEN, GH_TOKEN, or the variable Orkeon__Tools__GitHub__TokenVariable
+    # names, each handed over only when set, with the setting itself so the runtime reads the same variable.
+    $tokenVar = [Environment]::GetEnvironmentVariable('Orkeon__Tools__GitHub__TokenVariable')
+    foreach ($v in @('ORKEON_Llm__ApiKey', 'ORKEON_Llm__Model', $keyVar, 'GITHUB_TOKEN', 'GH_TOKEN', 'Orkeon__Tools__GitHub__TokenVariable', $tokenVar)) {
       if ($v -and [Environment]::GetEnvironmentVariable($v)) { $envArgs += @('-e', $v) }
     }
     $inState = if ($projectRel) { "/work/state/$projectRel" } else { '/work/state' }

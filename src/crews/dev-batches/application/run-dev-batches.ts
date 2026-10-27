@@ -320,8 +320,9 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
   let code: string;
   let pr: boolean;
   let context: BatchesContext;
-  // A typed /dev-batches (its dispatch passes the session's mode) brings the context as it is now; a chained run
-  // (`after`) reads it back. The record is written once the plan is found and the mode allows the run.
+  // A typed /dev-batches (its dispatch passes the session's mode) and a chained run (`after`, its `completed`
+  // reading the session again before the hop, Orkeon #220) bring the context as it is now; a chained run whose
+  // read failed reads it back. The record is written once the plan is found and the mode allows the run.
   const fresh = typeof input.permissionMode === "string";
   let record: ActiveRecord | null = null;
   // The record of this plan's run in progress, read back by a typed run that names no --concurrency.
@@ -347,7 +348,12 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
     }
     code = record.code;
     pr = record.pr || flag(input.pr);
-    context = fresh ? contextOf(input) : record.context;
+    // A typed run without a code brings its whole context (the /effort level, the hooks, as they are now). A chained
+    // hop (`after`) brings the mode, rules and github tool its `completed` read again (Orkeon #220) over the hooks,
+    // effort, memory rule and concurrency the record kept; a hop whose read failed reads them all back.
+    const chained = Array.isArray(input.after);
+    const { permissionMode, permissionRules, githubTool } = contextOf(input);
+    context = !fresh ? record.context : chained ? { ...record.context, permissionMode, permissionRules, githubTool } : contextOf(input);
     prior = record;
   }
   const mode = context.permissionMode.trim();

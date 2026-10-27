@@ -746,7 +746,10 @@ case "$MODE" in
       -e "Orkeon__Cli__Session__StartScript=$Orkeon__Cli__Session__StartScript"
       -e "Orkeon__Cli__Session__Persist=$Orkeon__Cli__Session__Persist"
       -e ORKEON_Orkeon__Cli__Session__SessionsDirectory=/sessions)
-    for v in ORKEON_Llm__ApiKey ORKEON_Llm__Model "$KEY_VAR"; do
+    # The github tool's token (Orkeon #222): GITHUB_TOKEN, GH_TOKEN, or the variable Orkeon__Tools__GitHub__TokenVariable
+    # names, each handed over only when set, with the setting itself so the runtime reads the same variable.
+    for v in ORKEON_Llm__ApiKey ORKEON_Llm__Model "$KEY_VAR" GITHUB_TOKEN GH_TOKEN \
+             Orkeon__Tools__GitHub__TokenVariable "${Orkeon__Tools__GitHub__TokenVariable:-}"; do
       if [ -n "$v" ] && [ -n "${!v:-}" ]; then env_args+=(-e "$v"); fi
     done
     # Files the agent writes in the project belong to the caller, not to root.

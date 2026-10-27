@@ -82,6 +82,8 @@ fournisseur. Un résultat d'outil parvient au modèle coupé à 4000 caractères
 | `Orkeon:Tools:Shell:Confinement:Mode` | `Auto` (défaut : bubblewrap sous Linux, Seatbelt sous macOS, AppContainer sous Windows, aucun dans un conteneur), `None`, `Bubblewrap`, `Seatbelt` ou `AppContainer`. Confinée, chaque commande shell s'exécute sous `bwrap` (Linux, modes tool et source), réseau coupé sauf `Confinement:AllowNetwork`, les programmes hors des répertoires système à lister dans `Confinement:ReadOnlyPaths`. Une commande échoue quand elle ne peut pas être confinée. Les exemples mettent `None` ; un fichier de settings sans la clé confine, hors d'un conteneur. `/dev-batches --concurrency` au-delà de 1 fonctionne sous Bubblewrap avec un runtime qui monte le répertoire git d'un worktree lié (Orkeon/orkeon#191) ; avec un plus ancien, git échoue dans le worktree d'un lot, et l'exécution se refuse en une ligne. Confiné, le push de clôture n'atteint aucun remote (pas de réseau, `HOME=/tmp`, donc aucun identifiant) : l'exécution reste ouverte avec la commande `git push`. Poussez-la depuis un terminal, puis le `/dev-batches` suivant clôt l'exécution sans pousser de nouveau. Voir [SECURITY.md](../../SECURITY.md) |
 | `Orkeon:Tools:ResultLimits:Limits:<tool>` | La coupe du résultat d'un outil, en caractères : 4000, `file_read` 32000, `node_read` 256000, `shell_command` 10000. Un résultat coupé finit par `[... truncated, N chars omitted. …]` ; `/dev-verify` lit cette mention |
 | `Orkeon:Tools:ResultLimits:MaxParallelToolCalls` | Les appels de lecture d'un même tour du modèle qui tournent en même temps : 4 |
+| `Orkeon:Tools:GitHub:Token` | Le jeton de l'outil `github`, lu une fois à l'enregistrement de l'outil (Orkeon #222) ; préférez la variable ci-dessous à un jeton écrit dans un fichier de settings, que les exemples laissent de côté |
+| `Orkeon:Tools:GitHub:TokenVariable` | La variable d'environnement où l'outil `github` lit son jeton quand `Token` n'est pas réglé : `GITHUB_TOKEN` par défaut, puis `GH_TOKEN`. Le mode Docker du lanceur passe `GITHUB_TOKEN`, `GH_TOKEN` et la variable nommée ici au conteneur, chacune quand elle est définie ; les modes natifs héritent de l'environnement. Sans jeton, la description de l'outil dit où le régler ; un jeton apparaît en `***` dans les résultats et les journaux, et aucune des deux clés n'accepte une référence de variable |
 | `Orkeon:Cli:ConsoleStreaming:Enabled` | Affiche la réponse au fil de sa génération. L'exemple l'active ; la réponse peut être imprimée deux fois : à désactiver pour un run sans surveillance ([problèmes connus](roadmap.md#problèmes-connus)). Avec `/dev-batches --concurrency` au-dessus de 1, la réponse diffusée de chaque lot arrive ligne par ligne : sur la console plain préfixée de son ticket (`[t2] `), seule la réponse au premier plan au fil de l'eau (Orkeon #211) ; dans la TUI sur l'écran propre du lot, sans le préfixe (Orkeon #217) |
 | `Orkeon:Cli:ScriptCommands:MaxScripts` | Commandes que le chargeur garde : 200 par défaut, au-dessus de la surface de commandes de ce projet |
 | `RateLimiting:*` | Limites de débit des requêtes vers le fournisseur |
@@ -94,7 +96,10 @@ fin :
   appels d'outils, 1,5M tokens (le prompt et la complétion de chaque appel du tour, sommés : un tour repaie tout son
   contexte à chaque appel) et 30 minutes de temps réel. Cette horloge est celle d'Orkeon et, comme celle du
   moteur, elle s'arrête pendant que la garde attend votre réponse : seul le travail du modèle compte, et une question
-  laissée sans réponse ne met pas fin au tour.
+  laissée sans réponse ne met pas fin au tour. Quand la somme de tokens atteint la limite, le tour n'exécute plus
+  d'outil : le modèle fait un dernier appel sans outil, sa réponse s'affiche sous une ligne qui dit que le tour s'est
+  arrêté sur son budget, et seul un dernier appel qui échoue ou ne répond rien finit le tour en erreur (Orkeon #218) ;
+  une limite d'appels d'outils ou de temps réel le finit toujours en erreur.
 
 `Orkeon:Cli:ScriptHost:RunCrewTimeout` (10 minutes par défaut) ne borne qu'un crew qu'une commande attend
 (`runCrew`) ; Orkeon Code lance chaque crew avec `runCrewAsync`, qu'il ne borne pas, donc l'exemple l'omet.
@@ -111,8 +116,9 @@ dossier de travail que lisent et écrivent les étapes dev, `/dev-status` et `/d
 `layout.work` du pack du dépôt, sinon `workbench` ; `/commit` le lit aussi, et laisse le dossier de travail hors d'un
 commit sauf si un chemin qu'il contient est nommé), `dev.prAuto` (`true` ou `false`, omis = `false` : `/commit` et
 la clôture d'une étape dev préparent la pull request comme le fait `--pr` sans qu'on le demande, son corps sous
-`<work>/pr-<slug>/PR.md`, puis l'ouvrent avec l'outil `github` du runtime quand l'hôte le propose et que la session le
-permet, sinon affichent la commande `gh pr create` à taper et disent pourquoi),
+`<work>/pr-<slug>/PR.md`, puis l'ouvrent avec l'outil `github` du runtime quand l'hôte le propose, que la session le
+permet et que l'outil a un jeton (`GITHUB_TOKEN`, [settings](#les-settings-dont-orkeon-code-dépend)), sinon affichent
+la commande `gh pr create` à taper et disent pourquoi),
 `memory.dir` (le dossier de la [mémoire partagée](shared-memory.md), relatif au projet, `/config set memory.dir
 docs/memory` ; omis, `.orkeon/memory` ; jamais sous `.claude/` ni `.git/`, jamais le `.orkeon/agent-memory` de la
 mémoire d'agent), `memory.project` (le projet que nomment les entrées et la collection d'index `memory-<project>`, un
@@ -250,9 +256,11 @@ peut aussi appeler les outils lui-même, dans une requête telle que
 
 `read` convient à ces trois outils avec le backend local par défaut : ils lisent `/audio` et n'écrivent que sous
 `/transcripts`, hors du projet. Avec `WHISPER_BACKEND=openai`, l'audio quitte la machine : marquez `transcribe_audio`
-`write`, ou laissez-le de côté et utilisez `/transcribe`. La garde de permission demande toujours confirmation de
-chaque appel du modèle en `default` et `acceptEdits`, puisqu'un outil MCP ne déclare aucun accès à Orkeon
-([Permissions](permissions.md#outils-supplémentaires)).
+`write`, ou laissez-le de côté et utilisez `/transcribe`. Le serveur marque `transcribe_audio`, `list_audio` et
+`whisper_info` en lecture seule (`readOnlyHint`), ce que la garde de permission lit (Orkeon #219) : ils s'exécutent
+sans question dans tous les modes qui les offrent, `dontAsk` compris ; `record_and_transcribe`, `speak` et
+`stop_speaking` ne portent aucune annotation, donc la garde vous demande en `default` et en `acceptEdits` et les
+refuse en `plan` et en `dontAsk` ([Permissions](permissions.md#outils-supplémentaires)).
 
 Une transcription courte revient en ligne ; une longue est écrite dans `/transcripts/<name>.txt`, avec ses
 horodatages dans `<name>.segments.json` et, au-delà de 30 000 caractères, en parties `<name>.part-NN.txt` que

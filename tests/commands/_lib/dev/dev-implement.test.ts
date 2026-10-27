@@ -3,11 +3,14 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
-import { chainStep, DEV_IMPLEMENT_USAGE, launchChained, nextLaunch, parseDevImplementArgs } from "../../../../src/commands/_lib/dev/dev-implement.ts";
+import {
+  CONTEXT_NOT_READ_LINE, chainStep, DEV_IMPLEMENT_USAGE, launchChained, nextLaunch, parseDevImplementArgs,
+} from "../../../../src/commands/_lib/dev/dev-implement.ts";
 import { writeModeRefusal } from "../../../../src/commands/_lib/dev-step.ts";
 import {
   AUDIT_LAUNCH,
   AUDIT_PAYLOAD,
+  CLOSE_LAUNCH,
   CORRECTION_CASES,
   GAPS_TEXT,
   NO_CLOSE_CASES,
@@ -21,6 +24,7 @@ import {
   WRITING_MODES,
   dispatchHarness,
 } from "./dev-implement.fixtures.ts";
+import { FRESH_CONTEXT, hopDeps } from "../../../support/fixtures/chain-hop.ts";
 
 describe("parseDevImplementArgs", () => {
   for (const c of READ_CASES) {
@@ -260,37 +264,87 @@ describe("runDevImplementDispatch", () => {
 });
 
 describe("nextLaunch", () => {
-  it("says the chain failed and launches nothing on a failed run", () => {
+  it("says the chain failed and launches nothing on a failed run", async () => {
     // Arrange
     const result = { success: false, error: "boom" };
 
     // Act
-    const step = nextLaunch(result, () => null);
+    const step = await nextLaunch(result, hopDeps());
 
     // Assert
     deepStrictEqual(step, { lines: ["✗ the dev-implement chain failed: boom"] });
   });
 
-  it("chains to the crew the answer names, its rules put back first", () => {
+  it("chains to the audit the answer names, its rules put back first, without reading the session again", async () => {
     // Arrange
-    const reapplied: string[] = [];
+    const deps = hopDeps();
 
     // Act
-    const step = nextLaunch({ success: true, payload: AUDIT_PAYLOAD }, (crew) => { reapplied.push(crew); return null; });
+    const step = await nextLaunch({ success: true, payload: AUDIT_PAYLOAD }, deps);
 
     // Assert
-    deepStrictEqual([step, reapplied], [{ lines: ["a", "b"], launch: AUDIT_LAUNCH }, ["dev-verify"]]);
+    deepStrictEqual([step, deps.reapplied, deps.reads], [{ lines: ["a", "b"], launch: AUDIT_LAUNCH }, ["dev-verify"], 0]);
   });
 
-  it("launches nothing when the gate refuses the chained step, and names the command to type", () => {
+  it("launches nothing when the gate refuses the chained step, and names the command to type", async () => {
     // Arrange
-    const reapply = () => "the host's gate is off";
+    const deps = hopDeps({ refusal: "the host's gate is off" });
 
     // Act
-    const step = nextLaunch({ success: true, payload: AUDIT_PAYLOAD }, reapply);
+    const step = await nextLaunch({ success: true, payload: AUDIT_PAYLOAD }, deps);
 
     // Assert
     deepStrictEqual(step, { lines: ["a", "b", "✗ the host's gate is off", "then type /dev-verify F1 demo"] });
+  });
+
+  it("launches the close with the session's context read again: its mode, rules and github tool (Orkeon #220)", async () => {
+    // Arrange
+    const deps = hopDeps({ context: FRESH_CONTEXT });
+
+    // Act
+    const step = await nextLaunch({ success: true, payload: VALID_TEXT }, deps);
+
+    // Assert
+    deepStrictEqual(step.launch, { ...CLOSE_LAUNCH, input: { ...CLOSE_LAUNCH.input, ...FRESH_CONTEXT } });
+  });
+
+  it("launches no close once the session went read-only between the audit and the close, and names /mode and the command", async () => {
+    // Arrange
+    const deps = hopDeps({ context: { ...FRESH_CONTEXT, permissionMode: "plan" } });
+
+    // Act
+    const step = await nextLaunch({ success: true, payload: VALID_TEXT }, deps);
+
+    // Assert
+    deepStrictEqual(step, {
+      lines: [
+        ...VALID_TEXT.split("\n"), `→ the close follows: ${CLOSE_LAUNCH.instead}`,
+        "✗ refused: the session mode plan is read-only, and /dev-implement commits (the close of the batch): /mode default, then run it again",
+        `then type ${CLOSE_LAUNCH.instead}`,
+      ],
+    });
+  });
+
+  it("launches the close as the audit named it, said in a line, when the session cannot be read again: the record's context applies", async () => {
+    // Arrange
+    const deps = hopDeps({ context: new Error("no session service") });
+
+    // Act
+    const step = await nextLaunch({ success: true, payload: VALID_TEXT }, deps);
+
+    // Assert
+    deepStrictEqual([step.launch, step.lines.at(-1)], [CLOSE_LAUNCH, CONTEXT_NOT_READ_LINE]);
+  });
+
+  it("launches the close as the audit named it when the session's mode comes back empty", async () => {
+    // Arrange
+    const deps = hopDeps({ context: { ...FRESH_CONTEXT, permissionMode: "" } });
+
+    // Act
+    const step = await nextLaunch({ success: true, payload: VALID_TEXT }, deps);
+
+    // Assert
+    deepStrictEqual([step.launch, step.lines.at(-1)], [CLOSE_LAUNCH, CONTEXT_NOT_READ_LINE]);
   });
 });
 
@@ -315,6 +369,18 @@ describe("launchChained", () => {
 
     // Assert
     deepStrictEqual(lines, ["✗ chain too deep", "then type /dev-verify F1 demo"]);
+  });
+
+  it("hands the launch its options as given", () => {
+    // Arrange
+    const given: unknown[] = [];
+    const run = (_crew: string, _input: Record<string, unknown>, options?: unknown) => { given.push(options); return { ticket: "t-1" }; };
+
+    // Act
+    launchChained(AUDIT_LAUNCH, run, { chain: "continue" });
+
+    // Assert
+    deepStrictEqual(given, [{ chain: "continue" }]);
   });
 
   it("writes the first line of a launch that throws, and the command to type", () => {

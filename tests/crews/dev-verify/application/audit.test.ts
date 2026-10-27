@@ -12,6 +12,7 @@ import {
   COMMANDS, FOLDER, OTHER_VALIDATION, PASSED_12, SHOWN, VALIDATION, answer, brief, fakes, toolCalling,
 } from "./audit.fixtures.ts";
 import { assertValidationsLog } from "./audit.assertions.ts";
+import { budgetExhaustedAnswer } from "../../../../src/shared/domain/llm-failure.ts";
 import { assertMentions } from "../../../support/assertions/text.ts";
 
 describe("runAudit", () => {
@@ -330,6 +331,19 @@ describe("recordingRunner and run_validation", () => {
     deepStrictEqual(out.unfinished?.validations, [`\`${VALIDATION}\` — exit 0, scope LineTests, 12 tests`]);
     strictEqual(out.unfinished?.notRun.length, 1);
     assertValidationsLog(f.files, `$ ${VALIDATION}\nexit 0`);
+  });
+
+  it("treats the wrap-up of a spent token budget as the tokens dimension, never as an answer to parse (Orkeon #218)", async () => {
+    // Arrange
+    const f = fakes();
+    f.llm.answers = [budgetExhaustedAnswer('{"verdict":"VALID","rows":[]}')];
+
+    // Act
+    const out = await runAudit(f.deps, brief, FOLDER, SHOWN);
+
+    // Assert
+    ok(!out.ok);
+    deepStrictEqual([out.unfinished?.reason.split(":")[0], f.llm.extracts.length], ["tokens", 0]);
   });
 
   it("gives no unfinished audit for a failure other than a spent budget", async () => {

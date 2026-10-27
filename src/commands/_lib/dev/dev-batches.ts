@@ -7,11 +7,20 @@
 // that launches nothing (the batch committed, a stop, a GAPS verdict) launches the dev-batches crew again with
 // the answer's last lines: it logs what came of the batch and names the next one. With `--concurrency n` (2 to 4)
 // the crew runs a wave of batches itself, each under its own worktree, and answers `next: dev-batches` for the
-// next wave: launched as it is, one hop per wave. Pure.
+// next wave: launched as it is, one hop per wave. Every hop is launched with `{ chain: "continue" }` (Orkeon #221):
+// the new instance keeps the depth of the one whose `completed` runs, so a plan of any length closes in one
+// `/dev-batches` where `Orkeon:Cli:ScriptCommands:MaxChainDepth` (8) stopped it after about two batches. Before a
+// hop that writes (a batch, its close, the crew again) the session's context is read again (Orkeon #220): a mode
+// that no longer allows it refuses the hop, else the fresh mode and rules ride in the launch input. The answers are
+// pure functions (batchesChainStep); batchesNextLaunch and launchBatchesHop orchestrate the ports of the `completed`.
+import type { CrewLaunchOptions } from "../../../shared/application/ports.ts";
 import { isCode } from "../../../shared/domain/dev/artefacts.ts";
 import { checkConcurrency, concurrencyModeRefusal } from "../../../shared/domain/dev/batches-concurrency.ts";
-import { chainStep } from "./dev-implement.ts";
-import type { ChainLaunch } from "./dev-implement.ts";
+import { launchCrew } from "../dispatch.ts";
+import type { CrewCompletion, LaunchDeps } from "../dispatch.ts";
+import { chainStep, freshContext, launchChained, withContext, CONTEXT_NOT_READ_LINE } from "./dev-implement.ts";
+import type { ChainHopDeps, ChainLaunch } from "./dev-implement.ts";
+import { writeModeRefusal } from "../dev-step.ts";
 
 export const DEV_BATCHES_USAGE =
   "usage: /dev-batches [<code>] [--pr] [--concurrency n]   (no code: the run in progress goes on; n from 1 to 4, above 1 in bypassPermissions)";
@@ -93,8 +102,49 @@ export function batchesChainStep(intent: string, payload: string): BatchesChainS
   const step = chainStep(payload);
   if (step.launch !== undefined) {
     const close = step.launch.crew === "dev-implement" && step.launch.input.close === true;
-    return close ? { lines: step.lines, launch: { ...step.launch, input: { ...step.launch.input, push: false } } } : step;
+    // A batch's close never pushes nor opens a pull request: the run's close does both.
+    return close ? { lines: step.lines, launch: { ...step.launch, input: { ...step.launch.input, push: false, githubTool: false } } } : step;
   }
   const after = step.lines.filter((l) => l.trim() !== "").slice(-AFTER_LINES);
   return { lines: step.lines, launch: { crew: "dev-batches", input: { after }, instead: DEV_BATCHES_AGAIN } };
+}
+
+/** Every hop of the run keeps the depth of the instance whose `completed` launches it (Orkeon #221). */
+export const BATCHES_CHAIN: CrewLaunchOptions = { chain: "continue" };
+
+const BATCHES_WRITES = { step: "dev-batches", what: "writes files, commits and pushes" };
+const CHAIN_FAILED_THEN = "then type /dev-batches: the run goes on from the first batch not done";
+
+/**
+ * What `completed` prints and launches for one answer of the run, the gate put back and, before a hop that writes
+ * (every hop but the audit), the session's context read again: a read-only mode, or a mode that asks before a
+ * parallel wave, refuses the hop with the command to type; else the launch carries the fresh mode and rules, and
+ * the crews read them rather than the run record's. A context that cannot be read leaves the record's in force.
+ */
+export async function batchesNextLaunch(result: CrewCompletion, deps: ChainHopDeps): Promise<BatchesChainStep> {
+  if (!result.success) {
+    return { lines: [`✗ the dev-batches chain failed (${result.intent || "a crew"}): ${result.error ?? "unknown"}`, CHAIN_FAILED_THEN] };
+  }
+  const step = batchesChainStep(String(result.intent ?? ""), String(result.payload ?? ""));
+  if (step.launch === undefined) return step;
+  const refusal = deps.reapply(step.launch.crew === "dev-verify" ? "dev-verify" : "dev-implement");
+  if (refusal !== null) return { lines: [...step.lines, `✗ ${refusal}`, `then type ${step.launch.instead}`] };
+  if (step.launch.crew === "dev-verify") return step;
+  const context = await freshContext(deps.context);
+  if (context === null) return { lines: [...step.lines, CONTEXT_NOT_READ_LINE], launch: step.launch };
+  const concurrency = step.launch.crew === "dev-batches" && typeof step.launch.input.concurrency === "number" ? step.launch.input.concurrency : 1;
+  const line = writeModeRefusal(context.permissionMode, BATCHES_WRITES.step, BATCHES_WRITES.what)
+    ?? batchesModeRefusal({ code: null, pr: false, concurrency }, context.permissionMode);
+  if (line !== null) return { lines: [...step.lines, line.startsWith("✗") ? line : `✗ ${line}`, `then type ${step.launch.instead}`] };
+  return { lines: step.lines, launch: { ...step.launch, input: withContext(step.launch.input, context) } };
+}
+
+/** Launches a hop of the run with the parent's depth kept (BATCHES_CHAIN): the lines a refusal or a failure leaves. */
+export function launchBatchesHop(launch: ChainLaunch, deps: LaunchDeps): string[] {
+  return launchChained(launch, (crew, input, options) => launchCrew(deps, crew, input, {}, options), BATCHES_CHAIN);
+}
+
+/** The line `completed` prints when a hop's own reading fails (the context read threw past the handler). */
+export function batchesHopFailedLine(error: unknown): string {
+  return `✗ the dev-batches chain stopped (${String((error as Error)?.message ?? error).split("\n")[0]}): ${CHAIN_FAILED_THEN}`;
 }

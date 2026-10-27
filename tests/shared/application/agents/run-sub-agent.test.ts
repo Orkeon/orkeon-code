@@ -5,6 +5,7 @@ import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import { runSubAgent } from "../../../../src/shared/application/agents/run-sub-agent.ts";
 import { FakeLlm } from "../../../support/doubles/fake-llm.ts";
+import { budgetExhaustedAnswer } from "../../../../src/shared/domain/llm-failure.ts";
 import { CANCELLED_ACTS, CHARTER, FINAL_EXTRACTION_FAILURES, call } from "./run-sub-agent.fixtures.ts";
 
 describe("runSubAgent", () => {
@@ -100,6 +101,18 @@ describe("runSubAgent", () => {
     // Assert
     deepStrictEqual(outcome, { ok: false, reason: "model-failed", reply: "", problems: ["provider down"] });
     strictEqual(llm.extracts.length, 0);
+  });
+
+  it("reports the wrap-up of a spent token budget as model-failed, without extracting it (Orkeon #218)", async () => {
+    // Arrange
+    const llm = new FakeLlm();
+    llm.answers = [budgetExhaustedAnswer('{"count": 7}')];
+
+    // Act
+    const outcome = await runSubAgent(llm, call());
+
+    // Assert
+    deepStrictEqual([outcome.ok, (outcome as { reason: string }).reason, llm.extracts.length], [false, "model-failed", 0]);
   });
 
   for (const c of CANCELLED_ACTS) {

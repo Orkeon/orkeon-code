@@ -691,7 +691,8 @@ export async function runDevImplement(input: DevImplementInputs, deps: DevImplem
   const record = await readTouchedRecord(deps.files, located.code, batch);
 
   if (input.close === true) {
-    // The chained close names no context: the one the run saved in the batch record, read at its launch.
+    // The chained close carries the session's context read again before its launch (Orkeon #220); a close that
+    // names none (a typed --close, a hop whose read failed) takes the one the run saved in the batch record.
     const pr = inputContext ?? record.pr;
     const closeMode = pr?.permissionMode.trim() ?? "";
     if (closeMode !== "" && policyFor(closeMode).readOnly) {
