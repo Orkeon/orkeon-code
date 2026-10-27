@@ -61,6 +61,9 @@ What Orkeon Code does not do yet, in the order we expect to address it. Items ma
   even when they only read: asked in `default` and `acceptEdits`, refused in `plan`, and in `dontAsk` without an allow rule (runtime;
   [Permissions](permissions.md)). The web and RAG tools declare theirs since Orkeon #126.
 - The answer can be printed twice when console streaming is enabled: disable it for an unattended run.
+- `/help` lists the 58 commands as one block, `[(no group)]`: the runtime groups a runner's commands by the first word
+  of their name, and a scripted command's name is one word. The folders of `src/commands/` give the order of the
+  list, not its headings (runtime; a group per scripted command, derived from its folder, is asked of Orkeon).
 - `/tasks` monitors the children of `/dev-spec`, `/dev-change`, `/dev-plan` and `/dev-verify` only, through the session state: a stop waits for
   the crew's next look (about a second), and a send to an ended instance is a new run that knows the previous report
   only, not its context.

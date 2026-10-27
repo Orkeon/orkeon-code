@@ -68,6 +68,10 @@ demandent d'abord un changement dans [Orkeon](https://github.com/Orkeon/orkeon).
   leur depuis Orkeon #126.
 - La réponse peut être affichée deux fois quand le streaming console est activé : le désactiver pour un run sans
   surveillance.
+- `/help` liste les 58 commandes en un seul bloc, `[(no group)]` : le runtime groupe les commandes d'un runner par le
+  premier mot de leur nom, et le nom d'une commande scriptée n'a qu'un mot. Les dossiers de `src/commands/` donnent
+  l'ordre de la liste, pas ses titres (runtime ; un groupe par commande scriptée, dérivé de son dossier, est demandé à
+  Orkeon).
 - `/tasks` ne suit que les enfants de `/dev-spec`, `/dev-change`, `/dev-plan` et `/dev-verify`, par l'état de session : un arrêt attend le
   prochain regard du crew (environ une seconde), et un envoi à une instance finie est un nouveau run qui ne connaît
   que le rapport précédent, pas son contexte.
