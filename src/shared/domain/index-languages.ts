@@ -3,7 +3,7 @@
 // discovery keeps every file of a known grammar, then opens it to hash it; the path validator refuses to
 // read a shell script (.sh, .bash sit in its built-in blocked extensions) and the first refusal fails the
 // whole index. Until the runtime lets a read through, or skips a refused file, the index is asked for every
-// grammar but those. A grammar added framework-side must be mirrored here, as search-routing.ts does for
+// grammar but those (Orkeon #215). A grammar added framework-side must be mirrored here, as search-routing.ts does for
 // the extensions. Pure.
 
 /** The grammars of the runtime's registry, in its order. */

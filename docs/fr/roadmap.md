@@ -73,7 +73,7 @@ demandent d'abord un changement dans [Orkeon](https://github.com/Orkeon/orkeon).
   chemins du runtime bloquant ces extensions en lecture comme en écriture, et la découverte d'`index_codebase` échoue
   sur le premier. L'index est donc demandé pour toutes les grammaires sauf bash : les scripts n'entrent dans aucun
   index, et `/analyze` fonctionne sur un projet qui en contient (runtime ; une lecture laissée passer et un fichier
-  refusé ignoré sont demandés à Orkeon).
+  refusé ignoré sont demandés à Orkeon, Orkeon #215).
 - `/help` liste les 58 commandes en un seul bloc, `[(no group)]` : le runtime groupe les commandes d'un runner par le
   premier mot de leur nom, et le nom d'une commande scriptée n'a qu'un mot. Les dossiers de `src/commands/` donnent
   l'ordre de la liste, pas ses titres (runtime ; un groupe par commande scriptée, dérivé de son dossier, est demandé à
