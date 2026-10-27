@@ -12,6 +12,7 @@ import {
   anchorTools, costTools,
 } from "./code-index.fixtures.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
+import { INDEXED_LANGUAGES } from "../../../../src/shared/domain/index-languages.ts";
 
 describe("createCodeIndex", () => {
   it("counts the indexed roots", async () => {
@@ -40,7 +41,7 @@ describe("createCodeIndex", () => {
     deepStrictEqual(tools.inputsOf("indexStatus"), [{}]);
   });
 
-  it("indexes a root and reads the counts", async () => {
+  it("indexes a root for the languages the runtime can read, and reads the counts", async () => {
     // Arrange
     const tools = new FakeTools();
     tools.replies.indexCodebase = INDEX_REPLY;
@@ -50,7 +51,7 @@ describe("createCodeIndex", () => {
 
     // Assert
     deepStrictEqual(counts, INDEX_COUNTS);
-    deepStrictEqual(tools.inputsOf("indexCodebase"), [{ root_path: WORKSPACE }]);
+    deepStrictEqual(tools.inputsOf("indexCodebase"), [{ root_path: WORKSPACE, languages: INDEXED_LANGUAGES }]);
   });
 
   it("reads a map's entries and symbol total, asking for metrics when told", async () => {

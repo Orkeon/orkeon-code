@@ -68,6 +68,12 @@ demandent d'abord un changement dans [Orkeon](https://github.com/Orkeon/orkeon).
   leur depuis Orkeon #126.
 - La réponse peut être affichée deux fois quand le streaming console est activé : le désactiver pour un run sans
   surveillance.
+- Les scripts shell d'un projet (`.sh`, `.bash`) et ses fichiers `.ps1`, `.bat` et `.cmd` ne peuvent pas être lus par
+  l'agent : `file_read` et les lecteurs de nœuds répondent `File extension '.sh' is not allowed`, le validateur de
+  chemins du runtime bloquant ces extensions en lecture comme en écriture, et la découverte d'`index_codebase` échoue
+  sur le premier. L'index est donc demandé pour toutes les grammaires sauf bash : les scripts n'entrent dans aucun
+  index, et `/analyze` fonctionne sur un projet qui en contient (runtime ; une lecture laissée passer et un fichier
+  refusé ignoré sont demandés à Orkeon).
 - `/help` liste les 58 commandes en un seul bloc, `[(no group)]` : le runtime groupe les commandes d'un runner par le
   premier mot de leur nom, et le nom d'une commande scriptée n'a qu'un mot. Les dossiers de `src/commands/` donnent
   l'ordre de la liste, pas ses titres (runtime ; un groupe par commande scriptée, dérivé de son dossier, est demandé à

@@ -9,6 +9,7 @@
 
 import type { AnchorIndex, CodeIndex, CostIndex } from "../../application/ports.ts";
 import { readAccessCostReport } from "../../domain/dev/access-cost.ts";
+import { INDEXED_LANGUAGES } from "../../domain/index-languages.ts";
 import type { BatchAnchorsClosureInput } from "./runtime-tools.ts";
 import { asArray, pick } from "./tool-results.ts";
 import {
@@ -29,7 +30,8 @@ export function createCodeIndex(tools: Pick<OrkeonTools, CodeIndexTools>): CodeI
       return Array.isArray(status?.roots) ? status.roots.length : 0;
     },
     async index(root) {
-      return readIndexSummary(await tools.indexCodebase({ root_path: root }));
+      // The languages named: every grammar but the ones whose files the runtime refuses to read (index-languages.ts).
+      return readIndexSummary(await tools.indexCodebase({ root_path: root, languages: INDEXED_LANGUAGES }));
     },
     async map(level, withMetrics) {
       const raw = await tools.codebaseMap(withMetrics ? { level, include_metrics: true } : { level });
