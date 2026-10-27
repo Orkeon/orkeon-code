@@ -342,6 +342,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The documentation follows Orkeon #217, one screen per conversation thread in the split-pane REPL.** With
+  `/dev-batches --concurrency` above 1, the TUI shows each batch's streamed lines on the batch's own screen, without
+  the `[t2] ` prefix the plain console keeps; selecting a task in the tasks list displays its screen, `main` keeps the
+  launched and finished lines, an ended task stays listed with its outcome, and an approval question shows on the
+  screen displayed whichever task asks ([Configuration](docs/configuration.md#settings-orkeon-code-relies-on),
+  [Permissions](docs/permissions.md), [Getting started](docs/getting-started.md)).
 - **The interactive turn's token budget is 1.5M, and the assistant reads a file by range.** The runtime sums the
   prompt and completion of every call of a turn, so a turn pays its whole context again at each call: 400k ended a
   turn of 17 file reads and one shell command in 43 s (`Token budget exhausted (425303/400000)`), its work lost.

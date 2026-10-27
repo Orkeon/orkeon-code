@@ -18,7 +18,9 @@ on:
   before; every other turn holds its own line buffer and writes one whole line at a time under one lock. A turn under
   a command instance (a background command, a `runAgent` sub-run) prefixes its lines with the ticket, `[t2] `, as the
   completion lines are; a crew task adds its id. The API gains `ILlmDeltaSink.BeginTurn(label)`, a default member
-  the recording sinks need not implement.
+  the recording sinks need not implement. *Note of 2026-10-27*: Orkeon #217 gives the split-pane REPL one screen
+  per thread, and a task's lines go to its own screen without the ticket prefix; the plain console keeps the
+  prefix described here.
 - **The structural tools publish their parameter schema** (#210). `node_outline`, `node_read`, `node_replace`,
   `node_insert`, `node_ensure` and `edit_batch` sent `{"type":"object","properties":{}}` to the model, which learnt
   the arguments from the description alone and guessed `node_outline` without a `path` and `edit_batch` without

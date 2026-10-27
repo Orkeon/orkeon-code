@@ -89,8 +89,10 @@ runs its command while a question waits.
 A question from a command running in the background (`/dev-batches`, `/dev-implement`, an `/assistant` run async)
 names its task: `? [t1] dev-batches: tool 'shell_command' requires approval (mode 'acceptEdits').`, the call, then
 `approve shell_command for [t1]? [y] once / [s] session / [n] no`. It shows on the status line and on the task's row
-(`? waits for approval of shell_command`), and you answer it from the main prompt, without opening the task. A line
-that is no answer writes the whole question again (Orkeon #194). `/tasks` lists the approvals waiting, under the
+(`? waits for approval of shell_command`), and you answer it from the main prompt, without opening the task. In the
+TUI, where each task has its own screen, the question shows on the screen displayed, whichever task asks, and is
+recorded once on the asking task's screen (Orkeon #217). A line that is no answer writes the whole question again
+(Orkeon #194). `/tasks` lists the approvals waiting, under the
 task list (`waiting for approval:` then `t1 dev-batches: waits for approval of shell_command · {"command":…}`), so a
 task blocked on you reads as such (Orkeon #198).
 

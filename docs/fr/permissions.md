@@ -98,7 +98,9 @@ Une question venue d'une commande en arrière-plan (`/dev-batches`, `/dev-implem
 nomme sa tâche : `? [t1] dev-batches: tool 'shell_command' requires approval (mode 'acceptEdits').`, l'appel, puis
 `approve shell_command for [t1]? [y] once / [s] session / [n] no`. Elle s'affiche dans la ligne de statut et sur la
 ligne de la tâche (`? waits for approval of shell_command`), et vous y répondez depuis l'invite principale, sans
-ouvrir la tâche. Une ligne qui n'est pas une réponse réécrit toute la question (Orkeon #194). `/tasks` liste les
+ouvrir la tâche. Dans la TUI, où chaque tâche a son écran, la question s'affiche sur l'écran montré, quelle que soit
+la tâche qui la pose, et elle est consignée une fois sur l'écran de cette tâche (Orkeon #217). Une ligne qui n'est
+pas une réponse réécrit toute la question (Orkeon #194). `/tasks` liste les
 approbations en attente, sous la liste des tâches (`waiting for approval:` puis `t1 dev-batches: waits for approval
 of shell_command · {"command":…}`) : une tâche bloquée sur vous se lit comme telle (Orkeon #198).
 

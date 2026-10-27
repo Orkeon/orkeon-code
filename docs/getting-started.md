@@ -159,6 +159,14 @@ The banner prints the project, the settings and the mode. In the REPL:
 
 Text typed without a leading `/` is sent to `/assistant`. The full list: [Slash commands](commands.md).
 
+On a terminal the REPL is a split-pane TUI: the transcript, the prompt, and below it the tasks list (`↓` or `F4`)
+that names the background commands (`/dev-batches`, `/dev-implement`, an `/assistant` run async). Each conversation
+thread has its own screen: selecting a task row displays that task's lines, selecting `main` the prompt's own, where
+the launched and finished lines of every task stay; the selected task is also the recipient of the next message. A
+task that ends keeps its row, with `✔ finished`, `✗ failed` or `⊘ cancelled` and its duration, and its screen stays
+readable until the host forgets it (Orkeon #217). `orkeon-code -- --ui plain` writes one stream instead, a task's
+lines prefixed by its ticket (`[t1] `).
+
 ## 5. Optional: speech-to-text
 
 To hand the assistant a voice note, a recorded meeting or a screen recording with a spoken comment, in tool or
@@ -199,7 +207,8 @@ there too after each turn and when the REPL ends ([Sessions](configuration.md#se
 - **The turn waits on `approve <tool>? [y] once / [s] session / [n] no`**: the mode asks you about that call; answer
   on the next line. `acceptEdits:` or `/mode acceptEdits` stops the questions about edits, and an allow rule about the
   calls it matches ([Permissions](permissions.md)). A background command's question reads `approve <tool> for
-  [t1]? …`, shows on the status line and on the task's row, and is answered from the main prompt too.
+  [t1]? …`, shows on the status line, on the task's row and, in the TUI, on the screen displayed whichever task
+  asks, and is answered from the main prompt too.
 - **Every shell command fails with a confinement error**: `Orkeon:Tools:Shell:Confinement:Mode` is `Auto` (the
   default when the settings leave the key out) or `Bubblewrap`, and the command cannot be confined (`bwrap` missing or
   unable to create its namespaces). Install bubblewrap, or set the mode to `None` as the examples do
