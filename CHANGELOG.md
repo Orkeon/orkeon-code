@@ -537,7 +537,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   extension '.sh' is not allowed`: the runtime's path validator blocks `.sh`, `.bash`, `.ps1`, `.bat` and `.cmd` for
   reading too, and its discovery fails the whole index on one refused file. The index is now asked for every grammar
   of the runtime's registry but bash (`shared/domain/index-languages.ts`): the scripts stay out of the index, and
-  `file_read` on one stays refused, until the runtime reads them ([known issues](docs/roadmap.md#known-issues)).
+  `file_read` on one stays refused, until the runtime reads them ([known issues](docs/roadmap.md#known-issues), Orkeon #215).
 - **`orkeon-code --version` names the runtime of the mode forced** by `--mode` or `ORKEON_CODE_MODE`: `source checkout
   <path>` in source mode, the image in docker mode, where it followed the auto-detection order and said "docker mode"
   on a machine with Docker whatever the mode asked. Without a forced mode, the detection order speaks as before.

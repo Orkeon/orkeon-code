@@ -34,7 +34,9 @@ on:
   calls them from a script, so the type check sees no change.
 - **The editing rule keeps spelling the `edit_batch` shape out.** The schema now says it to the model, but the guard
   that refuses a batch without `operations` repeats the same words as the rule, and a role that reads the refusal
-  must find the shape it was told. The rule's text is unchanged; its comment says why it stays.
+  must find the shape it was told. The shape's words are unchanged; the rule's comment says why they stay. The rule
+  itself gained one sentence after the live run of 2026-10-27 on this runtime: each `node_replace` of a batch carries
+  the hash `node_read` gave for that very node, since a placeholder hash made the runtime refuse a whole batch.
 - **Console streaming stays on in the example settings.** The interleaving the known issues told the user to avoid
   by disabling the streaming for a `/dev-batches --concurrency` run is gone; what remains known is an answer printed
   twice, and the advice to disable the streaming for an unattended run.
