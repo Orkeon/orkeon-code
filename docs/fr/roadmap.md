@@ -13,16 +13,16 @@ demandent d'abord un changement dans [Orkeon](https://github.com/Orkeon/orkeon).
 - **Lanceur en un coup.** `orkeon-code --run "<request>"` : un tour sans opérateur avec les modes, les settings et
   les montages d'une session, depuis le lanceur lui-même plutôt que `scripts/run-crew.sh`
   ([Exécutions autonomes et embarquées](headless.md)).
-- **Intégration en processus** (runtime). La couche de scripting publiée en paquet NuGet, pour qu'une application
+- **Intégration en processus** (runtime, Orkeon #229). La couche de scripting publiée en paquet NuGet, pour qu'une application
   .NET charge les crews sans lancer un processus ; et les crews éprouvés sous le démon `orkeon-host`.
 - **Les sessions depuis le REPL.** Une session est gardée par projet et revient au démarrage (`orkeon-code
   --continue`, `--resume [<numéro ou id>]`) ; `/resume` liste celles qui sont enregistrées mais ne peut pas remplacer
-  la session du REPL lui-même, et changer de session sans redémarrer vient ensuite.
+  la session du REPL lui-même, et changer de session sans redémarrer vient ensuite (runtime, Orkeon #227).
 - **Les hooks dans l'assistant.** Les hooks `pre-tool` et `post-tool` s'exécutent autour des appels d'outils du modèle
   dans les étapes dev ([Hooks](hooks.md)) ; `/assistant` ne les exécute pas encore, et rien n'exécute un
   hook `stop`.
 - **Coût et usage.** De vrais chiffres de coût par fournisseur, et des comptes de tokens par catégorie pour
-  `/context` et `/usage`.
+  `/context` et `/usage` (runtime, Orkeon #226).
 
 ## Plus tard
 
@@ -58,12 +58,12 @@ demandent d'abord un changement dans [Orkeon](https://github.com/Orkeon/orkeon).
   ni ce qu'un fournisseur facture avec son cache. Quand la somme atteint la limite, le tour n'exécute plus d'outil :
   le modèle répond en un dernier appel, affiché sous une ligne qui dit que le tour s'est arrêté sur son budget
   (Orkeon #218). La boucle principale tourne avec 1,5M et lit par plage en attendant (runtime ; un budget qui compte
-  le contexte une fois reste ouvert ; [Configuration](configuration.md)).
+  le contexte une fois est Orkeon #224 ; [Configuration](configuration.md)).
 - La réponse peut être affichée deux fois quand le streaming console est activé : le désactiver pour un run sans
-  surveillance.
+  surveillance (runtime, Orkeon #228).
 - `/tasks` ne suit que les enfants de `/dev-spec`, `/dev-change`, `/dev-plan` et `/dev-verify`, par l'état de session : un arrêt attend le
   prochain regard du crew (environ une seconde), et un envoi à une instance finie est un nouveau run qui ne connaît
   que le rapport précédent, pas son contexte.
 - Certaines commandes ne font qu'en partie ce que leur nom promet : `/summary` (pas enregistré en mémoire), `/status`
-  (la version du runtime est l'épinglage, non lue sur l'hôte qui tourne), `/context` et `/usage` (totaux seulement,
-  pas de chiffres par catégorie).
+  (la version du runtime est l'épinglage, non lue sur l'hôte qui tourne ; runtime, Orkeon #225), `/context` et `/usage` (totaux
+  seulement, pas de chiffres par catégorie ; Orkeon #226).
