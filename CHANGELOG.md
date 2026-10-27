@@ -362,8 +362,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The access classes follow Orkeon #223**, the second review of Orkeon #217, read at Orkeon `main` `3ac6aa6`
   (#29). `rag_eval` declares an edit, no longer a read: `declaredAccess` leaves it to its class, the gateless fallback
   of the dev crews runs it in `acceptEdits` as the gate runs an edit there and refuses it in `default`. A read method
-  of `http_api` that carries a body or a method-override header (`X-HTTP-Method-Override`, `X-HTTP-Method`,
-  `X-Method-Override`, any case) declares an execute, so a GET with a body asks you where a plain GET runs. An MCP
+  of `http_api` that carries a body, even empty, or a method-override header (`X-HTTP-Method-Override`,
+  `X-HTTP-Method`, `X-Method-Override`, any case, in an object or a JSON string) declares an execute, so a GET with a
+  body asks you where a plain GET runs; the argument keys, the `github` action and the method are compared as Orkeon
+  compares them, case aside, the action trimmed. An MCP
   server's annotations count only when the server is trusted: both launchers export
   `ORKEON_MCP__Servers__whisper__TrustAnnotations=true` and the two Whisper example settings set `TrustAnnotations`,
   so `transcribe_audio`, `list_audio` and `whisper_info` stay reads, run in `dontAsk` without an allow rule. The

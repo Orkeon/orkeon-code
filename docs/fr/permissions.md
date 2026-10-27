@@ -110,9 +110,9 @@ Un appel à un outil que l'act n'offre pas n'atteint jamais la garde : le runtim
 
 Orkeon traite comme écriture un outil qui ne déclare ni lecture ni modification, et lit l'accès par appel quand il
 dépend des arguments (Orkeon #219, #223) : `http_api` déclare une lecture pour `GET`, `HEAD`, `OPTIONS` et une méthode
-absente, une exécution pour toute autre méthode et pour une méthode de lecture qui porte un corps ou un en-tête de
-substitution de méthode (`X-HTTP-Method-Override`, `X-HTTP-Method`, `X-Method-Override`, quelle que soit la casse),
-si bien qu'un GET simple s'exécute sans question en `default` et en `acceptEdits` et qu'un POST, ou un GET avec un
+absente, une exécution pour toute autre méthode et pour une méthode de lecture qui porte un corps, même vide, ou un
+en-tête de substitution de méthode (`X-HTTP-Method-Override`, `X-HTTP-Method`, `X-Method-Override`, quelle que soit
+la casse, dans un objet ou une chaîne JSON), si bien qu'un GET simple s'exécute sans question en `default` et en `acceptEdits` et qu'un POST, ou un GET avec un
 corps, vous demande ; `github` déclare une lecture pour `list_issues`, `get_pr`, `search_repos` et `get_repo`, une
 exécution pour `create_issue`, `create_pr` et une action qu'il ne connaît pas ; `rag_eval` déclare une modification,
 puisqu'il ingère son corpus et écrit ses rapports. Un outil MCP déclare ce que disent ses annotations, une fois son

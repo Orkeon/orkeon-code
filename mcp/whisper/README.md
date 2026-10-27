@@ -62,6 +62,7 @@ the server, a declaration by hand creates nothing.
     "Servers": {
       "whisper": {
         "Transport": "Stdio",
+        "TrustAnnotations": true,
         "Command": "/home/me/.local/bin/uv",
         "Args": [ "run", "--project", "/home/me/orkeon-code/mcp/whisper", "/home/me/orkeon-code/mcp/whisper/whisper_mcp.py" ],
         "Env": {
@@ -76,7 +77,9 @@ the server, a declaration by hand creates nothing.
 ```
 
 `Command` is a program, not a shell line, found on the `PATH` of the REPL's process: a full path
-is safer. The launcher writes this declaration itself when `ORKEON_CODE_AUDIO_DIR` is set
+is safer. `TrustAnnotations` lets the permission gate read the server's annotations (Orkeon #223): `transcribe_audio`,
+`list_audio` and `whisper_info` are marked read-only, so they run in `dontAsk` without an allow rule; without the key
+every tool of the server is a write. The launcher writes this declaration itself when `ORKEON_CODE_AUDIO_DIR` is set
 ([configuration](../../docs/configuration.md#speech-to-text)). Then, in the REPL, `/transcribe <file>` calls the
 server as the command; `/config set tools.extra transcribe_audio:read,list_audio:read,whisper_info:read` offers the
 tools to the assistant; `/debug-tool-call whisper_info` checks the connection without a model.

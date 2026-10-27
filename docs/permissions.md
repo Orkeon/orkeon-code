@@ -102,8 +102,9 @@ own tools on that error.
 
 Orkeon treats a tool that declares neither a read nor an edit as a write, and reads the access per call where it
 depends on the arguments (Orkeon #219, #223): `http_api` declares a read for `GET`, `HEAD`, `OPTIONS` and a missing
-method, an execute for any other method and for a read method that carries a body or a method-override header
-(`X-HTTP-Method-Override`, `X-HTTP-Method`, `X-Method-Override`, any case), so a plain GET runs without a question in
+method, an execute for any other method and for a read method that carries a body, even empty, or a method-override
+header (`X-HTTP-Method-Override`, `X-HTTP-Method`, `X-Method-Override`, any case, in an object or a JSON string), so
+a plain GET runs without a question in
 `default` and `acceptEdits` and a POST, or a GET with a body, asks you; `github` declares a read for `list_issues`,
 `get_pr`, `search_repos` and `get_repo`, an execute for `create_issue`, `create_pr` and an action it does not know;
 `rag_eval` declares an edit, since it ingests its corpus and writes its reports. An MCP tool declares what its

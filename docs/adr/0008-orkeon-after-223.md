@@ -15,7 +15,8 @@ Orkeon Code with what now diverges:
   where Orkeon's gate asks.
 - **A read method of `http_api` that carries a body or a method-override header executes** (`X-HTTP-Method-Override`,
   `X-HTTP-Method`, `X-Method-Override`, any case): a server may run the method the header names. Orkeon Code read the
-  method alone.
+  method alone, and compared the argument keys, the `github` action and the method exactly where Orkeon compares
+  them case aside, the action trimmed.
 - **An MCP server's annotations count only when the server is trusted** (`MCP:Servers:<name>:TrustAnnotations: true`,
   false by default); otherwise every tool of the server is `Unspecified`, a write, whatever `readOnlyHint` says. The
   launchers and the Whisper example settings declared the speech server without it, so its three read-only tools
@@ -42,10 +43,12 @@ error. The typings of #223 change in comments alone.
 - **`rag_eval` has no line in the per-call table.** `declaredAccess` answers `null`: its class, `edit`, decides, as
   the catalogue already filed it (ADR 0007). The gateless fallback adds it to the tools `acceptEdits` runs without
   asking, beside `rag_ingest`, since the gate runs an edit there, and refuses it in `default`, where the gate asks.
-- **`http_api` executes on a body or a method-override header.** `declaredAccess` reads `body` (present when it is
-  neither absent, null nor empty) and the keys of `headers` (an object; any other shape carries none), case aside,
-  after the method; the fallback and the permissions page follow. A plain GET keeps running without a question in
-  `default`, for the reason ADR 0007 records.
+- **`http_api` executes on a body or a method-override header, read as Orkeon reads the call.** `declaredAccess`
+  reads `body` as present whatever its content, an empty string included, since the tool sends any non-null body;
+  takes the headers' names from an object or from a JSON string holding one, any other shape carrying none; matches
+  the argument keys case aside (`Method`, `BODY`); compares the method case aside, an empty one being no read method;
+  and trims the `github` action and compares it case aside. The fallback and the permissions page follow. A plain
+  GET keeps running without a question in `default`, for the reason ADR 0007 records.
 - **The speech server is trusted where it is declared.** `orkeon-code` and `orkeon-code.ps1` export
   `ORKEON_MCP__Servers__whisper__TrustAnnotations=true` next to the transport and the command, the PowerShell
   launcher saving and restoring it like the others; the two Whisper example settings set `TrustAnnotations: true`.
@@ -72,5 +75,6 @@ error. The typings of #223 change in comments alone.
   the gate's own reading of the classes in the writing modes (ADR 0007), and an edit runs in `acceptEdits`.
 - **Trusting the server only from the launchers, not in the example settings**: a user who starts the REPL from a
   settings file would lose the three reads silently; the examples carry the key, with the server they declare.
-- **Treating any `body` key as a body, an empty string included**: Orkeon reads an empty body as none; the table
-  follows the runtime so the fallback lets through what the gate lets through.
+- **Reading an empty body as none**: Orkeon sends any non-null body and executes on it; the table follows the
+  runtime, so the fallback lets through exactly what the gate lets through, and a stricter or looser reading of one
+  argument would open the difference the per-call table exists to close.
