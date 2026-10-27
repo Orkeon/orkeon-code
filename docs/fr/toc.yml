@@ -37,3 +37,7 @@
       href: ../adr/0004-orkeon-after-180.md
     - name: "ADR 0005 : Orkeon main après #206, sur l'épinglage rc.6 (en anglais)"
       href: ../adr/0005-orkeon-after-206.md
+    - name: "ADR 0006 : Orkeon main après #213, sur l'épinglage rc.6 (en anglais)"
+      href: ../adr/0006-orkeon-after-213.md
+    - name: "ADR 0007 : Orkeon main après #217, sur l'épinglage rc.6 (en anglais)"
+      href: ../adr/0007-orkeon-after-217.md

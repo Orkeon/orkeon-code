@@ -73,8 +73,8 @@ of them under `orkeon run`.
 |---|---|---|---|---|---|
 | `plan` | local reads, `read` [extra tools](#extra-tools) | ✅ | ❌ | ❌ | ❌ |
 | `dontAsk` | local reads, `read` [extra tools](#extra-tools) | ✅ | ❌ | ❌ | ❌ |
-| `default` | every tool | ✅ | `http_api` asks you, web ✅ | asks you | asks you |
-| `acceptEdits` | every tool | ✅ | `http_api` asks you, web ✅ | ✅ | asks you |
+| `default` | every tool | ✅ | `http_api` GET ✅, its other methods ask you, web ✅ | asks you | asks you |
+| `acceptEdits` | every tool | ✅ | `http_api` GET ✅, its other methods ask you, web ✅ | ✅ | asks you |
 | `bypassPermissions` | every tool | ✅ | ✅ | ✅ | ✅ |
 
 `plan` and `dontAsk` promise that the turn changes nothing observable: no write, and no outbound request, since a
@@ -89,8 +89,10 @@ runs its command while a question waits.
 A question from a command running in the background (`/dev-batches`, `/dev-implement`, an `/assistant` run async)
 names its task: `? [t1] dev-batches: tool 'shell_command' requires approval (mode 'acceptEdits').`, the call, then
 `approve shell_command for [t1]? [y] once / [s] session / [n] no`. It shows on the status line and on the task's row
-(`? waits for approval of shell_command`), and you answer it from the main prompt, without opening the task. A line
-that is no answer writes the whole question again (Orkeon #194). `/tasks` lists the approvals waiting, under the
+(`? waits for approval of shell_command`), and you answer it from the main prompt, without opening the task. In the
+TUI, where each task has its own screen, the question shows on the screen displayed, whichever task asks, and is
+recorded once on the asking task's screen (Orkeon #217). A line that is no answer writes the whole question again
+(Orkeon #194). `/tasks` lists the approvals waiting, under the
 task list (`waiting for approval:` then `t1 dev-batches: waits for approval of shell_command · {"command":…}`), so a
 task blocked on you reads as such (Orkeon #198).
 
@@ -98,14 +100,23 @@ A call to a tool the act does not offer never reaches the gate: the runtime answ
 available to this agent.` at once, with no question (Orkeon #193), and the dev agents are told to go back to their
 own tools on that error.
 
-Orkeon treats a tool that declares neither a read nor an edit as a write: `http_api` declares an execute and every MCP
-tool declares none, so both are asked about in `default` and `acceptEdits`, and refused in `plan` and `dontAsk`. `web_scrape`, `scrape_element` and `rag_search`
-declare a read (Orkeon #126): they run without a question wherever the catalogue offers them. `rag_ingest` declares an
+Orkeon treats a tool that declares neither a read nor an edit as a write, and reads the access per call where it
+depends on the arguments (Orkeon #219): `http_api` declares a read for `GET`, `HEAD`, `OPTIONS` and a missing
+method, an execute for any other method, so a GET runs without a question in `default` and `acceptEdits` and a POST
+asks you; `github` declares a read for `list_issues`, `get_pr`, `search_repos` and `get_repo`, an execute for
+`create_issue`, `create_pr` and an action it does not know; `rag_eval` declares a read. An MCP tool declares what its
+annotations say ([Extra tools](#extra-tools)). `web_scrape`, `scrape_element` and `rag_search` declare a read
+(Orkeon #126): they run without a question wherever the catalogue offers them. `rag_ingest` declares an
 edit — it writes the knowledge index, not the workspace — so the catalogue offers it with the file edits: never in
 `plan` or `dontAsk`, asked in `default`, accepted in `acceptEdits`.
 
-`github` and `rag_eval` are offered with the file edits, but declare no access: the host asks about them in
-`acceptEdits` too, and refuses them in `plan` and `dontAsk`. The host offers `spawn_agent` to every act, whatever the
+`github` and `rag_eval` are offered with the file edits, in the writing modes only, whatever a call declares:
+`github` can open a pull request, and `rag_eval` re-ingests a corpus into a collection of the knowledge index, so
+neither belongs to a mode that promises nothing changes. `http_api` stays out of `plan` and `dontAsk` for the reason
+the web tools do: a GET is an outbound request, which can carry the repository's content elsewhere. In `default` that
+GET runs without a question, and its URL can hold text the model read in the project: a project that must not reach
+out denies the tool (`/permissions add deny http_api`, a deny rule holding in every mode), or works in `plan` or
+`dontAsk`, whose catalogue withholds it. The host offers `spawn_agent` to every act, whatever the
 catalogue: it is an edit, asked about in `default` and refused in `plan` and `dontAsk`. A rule may name it, and an
 allow rule on it holds in `dontAsk` too (`/permissions` warns when you add one).
 
@@ -400,10 +411,13 @@ that did not load, a typo) is left out with a warning, since Orkeon refuses a tu
 not know.
 
 The class shapes the catalogue; the gate still decides each call from the access the tool declares to Orkeon. An MCP
-tool declares none, so the gate treats it as a write whatever its class: it asks you in `default` and `acceptEdits`
-and refuses it in `plan` and `dontAsk`. In `dontAsk`, an allow rule lets it run
-(`/permissions add allow transcribe_audio`); `plan` ignores allow rules. A plugin tool that declares read access runs
-in every mode. To transcribe without these questions, use `/transcribe`, whose call is the command's
+tool declares it through its annotations (Orkeon #219): `readOnlyHint: true` is a read, run without a question in
+every mode that offers the tool, `dontAsk` included; another annotation is an execute and no annotation a write,
+asked about in `default` and `acceptEdits`, refused in `plan` and `dontAsk`. The speech server marks
+`transcribe_audio`, `list_audio` and `whisper_info` read-only; `record_and_transcribe`, `speak` and `stop_speaking`,
+which open the microphone or the speaker, carry no annotation. For such a tool, in `dontAsk`, an allow rule lets it
+run (`/permissions add allow speak`); `plan` ignores allow rules. A plugin tool that declares read access runs
+in every mode. `/transcribe` asks nothing either: its call is the command's
 ([Configuration](configuration.md#speech-to-text)).
 
 Rules name extra tools as they name built-in ones (`/permissions add deny create_issue`), whether the host registers

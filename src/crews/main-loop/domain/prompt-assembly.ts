@@ -166,7 +166,10 @@ function describeToolRealities(tools: readonly string[]): string {
       "file in parts.",
   ];
   if (tools.includes("file_read")) {
-    lines.push("`file_read` reads a part of a file with `offset` and `limit`, in lines.");
+    lines.push(
+      "`file_read` reads a part of a file with `offset` and `limit`, in lines: read by range, a hundred lines or " +
+        "so, the next range only when needed, since each call resends the whole context.",
+    );
   }
   if (tools.includes("file_write")) {
     lines.push(

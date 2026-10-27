@@ -19,13 +19,6 @@ What Orkeon Code does not do yet, in the order we expect to address it. Items ma
   and switching sessions without a restart comes next.
 - **Hooks in the assistant.** `pre-tool` and `post-tool` hooks run around the model's tool calls in the dev steps
   ([Hooks](hooks.md)); `/assistant` does not run them yet, and nothing runs a `stop` hook.
-- **The close re-reading the session's mode** (runtime). The close `/dev-implement` chains after a VALID audit uses
-  the mode and rules read when the batch was launched: a command's `completed` is synchronous and the mode can only
-  be read asynchronously.
-- **A whole plan in one `/dev-batches`** (runtime). A chain of crews stops at the runtime's depth limit (8), and a
-  batch takes four (`/dev-batches`, `/dev-implement`, `/dev-verify`, the close): a plan of more than about two
-  batches needs `/dev-batches` typed again after each refusal. A deeper limit, or a launch from a command's
-  `completed` that starts a new chain, would remove it.
 - **Cost and usage.** Real cost figures per provider, and token counts per category for `/context` and `/usage`.
 
 ## Later
@@ -55,23 +48,29 @@ What Orkeon Code does not do yet, in the order we expect to address it. Items ma
 
 - A tool result reaches the model cut at 4000 characters: 32,000 for `file_read`, 256,000 for `node_read`, 10,000 for
   `shell_command`. The cut is set per tool by `Orkeon:Tools:ResultLimits` ([Configuration](configuration.md)).
-- `github` and `rag_eval` declare no access to Orkeon: asked in `acceptEdits` too, refused in `plan` and `dontAsk`
-  ([Permissions](permissions.md)).
-- `http_api` declares an execute and every MCP tool declares no access to Orkeon, so its gate treats both as writes,
-  even when they only read: asked in `default` and `acceptEdits`, refused in `plan`, and in `dontAsk` without an allow rule (runtime;
-  [Permissions](permissions.md)). The web and RAG tools declare theirs since Orkeon #126.
-- In source mode on the pinned commit (Orkeon `main` after #206), the interactive REPL hangs after its start lines
-  when its standard input is a terminal, TUI and `--ui plain` alike: a black screen or no prompt, and no key read,
-  Ctrl-C included (runtime, Orkeon #212). `--replay` with its input redirected is unaffected, and so is a checkout
-  of the previous `main` (`0b41d6a7`).
-- The answer can be printed twice when console streaming is enabled, and with `/dev-batches --concurrency` above 1
-  the streamed answers of the parallel batches interleave character by character on the plain console (the runtime's
-  console sink carries no act id): disable the streaming for such a run.
+- A turn's token budget sums the prompt and completion of every call, so a turn pays its whole context again at each
+  call and the cost grows with the square of its calls; it bounds neither the size of the conversation nor what a
+  provider bills with its cache. When the sum reaches the limit the turn runs no further tool: the model answers in
+  one last call, shown under a line saying the turn stopped on its budget (Orkeon #218). The main loop runs with
+  1.5M and reads by range meanwhile (runtime; a budget that counts the context once remains open;
+  [Configuration](configuration.md)).
+- The answer can be printed twice when console streaming is enabled: disable it for an unattended run.
+- A project's shell scripts (`.sh`, `.bash`) and its `.ps1`, `.bat` and `.cmd` files cannot be read by the agent:
+  `file_read` and the node readers answer `File extension '.sh' is not allowed`, the runtime's path validator blocking
+  these extensions for reading as for writing, and the discovery of `index_codebase` fails on the first one. The index
+  is therefore asked for every grammar but bash: the scripts enter no index, and `/analyze` works on a project that
+  holds some (runtime; a read let through and a refused file skipped are asked of Orkeon, Orkeon #215).
+- From the shell the assistant reaches no private remote: the runtime hands a `shell_command` an allow-list of
+  environment variables that drops `DBUS_SESSION_BUS_ADDRESS` and `SSH_AUTH_SOCK`, so a keyring-backed credential
+  helper (`gh auth git-credential`, the `gh` default) and the ssh agent give git nothing, and a private repository
+  answers `Repository not found` while a public one works. Fetch, pull and push such a remote from your terminal
+  (runtime; the session's sockets passed to the shell are asked of Orkeon, Orkeon #216).
+- `/help` lists the 58 commands as one block, `[(no group)]`: the runtime groups a runner's commands by the first word
+  of their name, and a scripted command's name is one word. The folders of `src/commands/` give the order of the
+  list, not its headings (runtime; a group per scripted command, derived from its folder, is asked of Orkeon, Orkeon #214).
 - `/tasks` monitors the children of `/dev-spec`, `/dev-change`, `/dev-plan` and `/dev-verify` only, through the session state: a stop waits for
   the crew's next look (about a second), and a send to an ended instance is a new run that knows the previous report
   only, not its context.
 - Some commands only partly do what their names promise: `/summary` (not saved to memory), `/status` (the runtime
   version is the pin, not read from the running host), `/context` and `/usage` (totals only, no per-category
   figures).
-- The runtime registers its `github` tool without a token: `/commit --pr` gets GitHub's refusal (401) until the host
-  can be given one, and then prints the `gh pr create` command.

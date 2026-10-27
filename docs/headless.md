@@ -36,7 +36,8 @@ An act given no `permissionMode` runs in `default`. An `onToolCall` hook sees on
 
 What bounds a turn, whatever the mode:
 
-- the crew budget of `main-loop`: 200 tool calls, 30 minutes, 400k tokens, 40 iterations of the loop;
+- the crew budget of `main-loop`: 200 tool calls, 30 minutes, 1.5M tokens (every call's prompt and completion
+  summed), 40 iterations of the loop;
 - the script timeout of the settings: `Orkeon:Cli:ScriptCommands:Limits` for the REPL, `Orkeon:Scripting:Limits` for
   the `orkeon` tool of a standalone run (30 minutes each in the example);
 - the host gate (`Orkeon:Security:PermissionGate:Enabled`), which checks every call against the mode behind the

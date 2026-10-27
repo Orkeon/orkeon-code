@@ -5,14 +5,20 @@
 // This is the one place that turns the port's settings into the runtime's call
 // options, and the one place that reads an act() result. A call the provider
 // failed comes back as the host's failure marker: it is thrown as an LlmFailure,
-// never returned as an answer. A crew that guards its tool calls hands its callbacks
+// never returned as an answer. An act whose token budget ran out resolves with
+// `budgetExhausted: true` and the wrap-up the model made without tools (Orkeon #218):
+// it is thrown as a BudgetExhaustedAnswer carrying that answer, never returned, so the
+// port's `act` keeps resolving to a finished answer alone, every caller that reads a
+// spent budget off a rejection (runSubAgent, the dev roles, the auditor) keeps doing
+// so under the `tokens` dimension, and the one caller that shows the wrap-up (the
+// main loop) reads it off the error. A crew that guards its tool calls hands its callbacks
 // (shared/application/dev/tool-callbacks.ts) as the second argument: each act then carries the
 // onToolCall/onToolResult built for its own mode. The request's `effort` is the runtime's
 // `act({effort})` as it is; the crew's own level, when it has one, fills a request that names none.
 
 import type { ActRequest, CompleteRequest, Llm, ModelOverride } from "../../application/ports.ts";
 import type { PermissionMode } from "../../domain/permission-modes.ts";
-import { llmFailureOf } from "../../domain/llm-failure.ts";
+import { budgetExhaustedAnswer, llmFailureOf } from "../../domain/llm-failure.ts";
 import type { ToolCallbacks } from "../../application/dev/tool-callbacks.ts";
 
 /** The request as the callers fill it: its mode is one of PERMISSION_MODES, the
@@ -36,10 +42,13 @@ function actOptions(request: ActRequest, callbacks: Pick<ToolCallbacks, "forAct"
 }
 
 /** The answer text of an act() result: its `output`; the result itself when it
- *  carries none (a host resolving to a bare string); empty when nothing came back. */
+ *  carries none (a host resolving to a bare string); empty when nothing came back.
+ *  A result flagged `budgetExhausted` is thrown with its output as a BudgetExhaustedAnswer. */
 function answerOf(result: unknown): string {
-  const r = result as { output?: unknown } | null | undefined;
-  return String(r?.output ?? r ?? "");
+  const r = result as { output?: unknown; budgetExhausted?: unknown } | null | undefined;
+  const text = String(r?.output ?? r ?? "");
+  if (r?.budgetExhausted === true) throw budgetExhaustedAnswer(text);
+  return text;
 }
 
 /** The model's text; the failure it stands for, thrown, when it is the host's marker. */

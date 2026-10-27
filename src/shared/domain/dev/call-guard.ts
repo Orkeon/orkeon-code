@@ -6,6 +6,7 @@
 // themselves, and the hooks' shell commands, are shared/application/dev/tool-callbacks.ts's.
 import { ACT_TOOLS, READ_TOOLS, formatRule, matchesRule, sameToolName, shellCommandForms } from "../agent-policy/permission.ts";
 import type { PermissionRule } from "../agent-policy/permission.ts";
+import { declaredAccess } from "../agent-policy/tool-access.ts";
 import {
   GIT_CONFIG_SET_RULE, OPERATION_TOOLS, OPERATIONS_TOOL, PATH_WRITE_TOOLS, RULE_SETS, UNSCOPED_WRITE_TOOLS, gitConfigSets,
 } from "../agent-policy/rule-sets.ts";
@@ -122,15 +123,21 @@ export function hookCommand(hook: ToolHook, tool: string, input: unknown): strin
 }
 
 /** The tools `acceptEdits` runs without asking beside the reads: the file editors, rag_ingest and spawn_agent.
- *  `github` and `rag_eval` declare no access, so the host asks them there too. */
+ *  A `github` write (`create_pr`, `create_issue`) and an `http_api` write (`POST`…) declare an execute (Orkeon #219):
+ *  the host asks them there too. */
 const ACCEPT_EDITS_TOOLS: readonly string[] = [...PATH_WRITE_TOOLS, OPERATIONS_TOOL, ...UNSCOPED_WRITE_TOOLS, "rag_ingest", ...ACT_TOOLS];
 
-/** What the act's mode lets through when the host has no gate, by the gate's own reading of the classes. */
-function modeVerdict(guard: CallGuard, tool: string, mode: string): CallVerdict {
+/** What the act's mode lets through when the host has no gate, by the gate's own reading of the classes. A call
+ *  that declares a read per call (a `github` read action, an `http_api` GET, `rag_eval`: agent-policy/tool-access.ts,
+ *  Orkeon #219) runs in `default` and `acceptEdits` as the gate would run it. `plan` and `dontAsk` stay stricter,
+ *  the local reads alone: their catalogue withholds `github` and `http_api` whatever the call, since an outbound
+ *  request is observable elsewhere (mode-policy.ts), and a fallback must not widen what the catalogue promised. */
+function modeVerdict(guard: CallGuard, tool: string, input: unknown, mode: string): CallVerdict {
   if (mode === "bypassPermissions") return ALLOW;
   const reads = [...READ_TOOLS, ...guard.readTools];
   const allowed = mode === "acceptEdits" ? [...reads, ...ACCEPT_EDITS_TOOLS] : reads;
   if (allowed.includes(tool)) return ALLOW;
+  if ((mode === "default" || mode === "acceptEdits") && declaredAccess(tool, input) === "read") return ALLOW;
   const known = ["default", "acceptEdits", "plan", "dontAsk"].includes(mode) ? mode : "default";
   return {
     allow: false,
@@ -240,7 +247,7 @@ export function checkToolCall(
   guard: CallGuard, tool: string, input: unknown, act: ActFacts,
 ): CallVerdict {
   if (act.gateEnabled === false) {
-    const verdict = modeVerdict(guard, tool, act.mode);
+    const verdict = modeVerdict(guard, tool, input, act.mode);
     if (!verdict.allow) return verdict;
   }
   const args = input !== null && typeof input === "object" && !Array.isArray(input)

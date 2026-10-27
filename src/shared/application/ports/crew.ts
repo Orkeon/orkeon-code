@@ -1,13 +1,19 @@
 // The crew ports: the crews the host runs, the running crew's children, log, run state and memory.
 // Types only, re-exported by ../ports.ts.
 
+/** How a crew is launched (Orkeon #221). `chain: "continue"`: from a `completed`, the new instance keeps the
+ *  chain depth of the instance whose `completed` runs instead of climbing one, so a driver that relaunches its
+ *  own work after each cycle is not stopped by `Orkeon:Cli:ScriptCommands:MaxChainDepth`; outside a `completed`
+ *  it changes nothing. */
+export interface CrewLaunchOptions { chain?: "continue" }
+
 /** The crews the host can run, by name. */
 export interface CrewHost {
   /** The discovered crew names; empty when the host lists none or cannot list them. */
   listCrews(): string[];
   /** Start a crew and return its ticket at once: the completion reaches the async
-   *  command's `completed`. Throws when the host cannot run crews. */
-  launch(name: string, input: Record<string, unknown>): string;
+   *  command's `completed`. Throws when the host cannot run crews, or refuses the hop. */
+  launch(name: string, input: Record<string, unknown>, options?: CrewLaunchOptions): string;
 }
 
 /** The children of the running crew (A-3): one background agent per call, its reply left in the crew's

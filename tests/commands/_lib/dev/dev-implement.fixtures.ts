@@ -105,6 +105,12 @@ export const CORRECTION_CASES: readonly ArgsCase[] = [
   { name: "the word alone, read as the plan", tokens: ["F1", "correction"], args: implementArgs({ plan: "correction" }) },
 ];
 
+/** The close VALID_TEXT launches. */
+export const CLOSE_LAUNCH: ChainLaunch = {
+  crew: "dev-implement", input: { batch: "F1", plan: "workbench/demo/DEMO-PLAN.md", close: true },
+  instead: "/dev-implement F1 workbench/demo/DEMO-PLAN.md --close",
+};
+
 /** The crew's payload naming the audit to launch next. */
 export const AUDIT_PAYLOAD = JSON.stringify({ lines: ["a", "b"], next: { crew: "dev-verify", input: { batch: "F1", plan: "demo" } } });
 

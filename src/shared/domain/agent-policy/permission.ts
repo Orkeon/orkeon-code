@@ -66,6 +66,10 @@ const TOOLS_BY_CLASS: Readonly<Record<ToolClass, readonly string[]>> = {
   edit: [
     "file_write", "rag_ingest",
     "edit_file", "node_replace", "node_insert", "node_ensure", "edit_batch", "structural_rewrite",
+    // `github` writes with `create_pr` and `create_issue` (its read actions declare a read, Orkeon #219): a tool
+    // that can open a pull request belongs to the writing modes. `rag_eval` declares a read to the gate, but it
+    // re-ingests a corpus into a collection of the knowledge index, so it stays out of the modes that promise
+    // nothing changes (tool-access.ts).
     "github", "rag_eval",
   ],
   shell: ["shell_command"],

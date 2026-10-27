@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A whole plan in one `/dev-batches`** (Orkeon #221, delivered by #217): every hop its `completed` launches
+  (a batch, its audit, its close, the crew again) is made with `{ chain: "continue" }`, so it keeps the depth of
+  the instance it runs for and `Orkeon:Cli:ScriptCommands:MaxChainDepth` (8) no longer stops a run after about two
+  batches. The `CrewHost` port takes the option, `launchCrew` carries it, and `/dev-implement`'s own chain keeps
+  climbing (three hops at most). The runtime's refusal, reworded `chain depth <d> reached (MaxChainDepth <l>,
+  /<command>)`, is read with the command it names ([Architecture](docs/architecture.md#crews), #22, #23).
+- **The chained close and each hop of `/dev-batches` read the session's mode again** (Orkeon #220, delivered by
+  #217): the `completed` of `/dev-implement` and `/dev-batches` is async, awaited by the host, and reads the
+  session's mode, rules and github tool before a hop that writes. A mode that no longer allows it refuses the hop
+  and names `/mode` and the command to type; otherwise the fresh context rides in the launch input, and the batch
+  record's or the run record's context serves only a typed close and a hop whose read failed, said in a line (#24).
+- **The `github` tool's token reaches the container** (Orkeon #222, delivered by #217): the Docker mode of
+  `orkeon-code` and `orkeon-code.ps1` hands `GITHUB_TOKEN`, `GH_TOKEN` and the variable
+  `Orkeon__Tools__GitHub__TokenVariable` names to the container, each when set. The runtime reads the token once at
+  registration (`Orkeon:Tools:GitHub:Token`, else that variable, `GITHUB_TOKEN` by default, else `GH_TOKEN`), so
+  `/commit --pr` and the dev close open the pull request instead of printing `gh pr create`
+  ([Configuration](docs/configuration.md#settings-orkeon-code-relies-on), #27).
 - **`/tasks` lists the approvals the background tasks wait on** (Orkeon #198, delivered by #206): under the task
   list, `waiting for approval:` then one line per approval, `t1 dev-batches: waits for approval of shell_command ·
   {"command":…}`, read from the host's `approvals` service; a host without it shows none. A task blocked on the
@@ -342,6 +359,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **A spent token budget keeps the answer** (Orkeon #218, delivered by #217). The runtime now ends the act with one
+  last call without tools and resolves with that answer and `budgetExhausted`. The Llm adapter throws it as a
+  `BudgetExhaustedAnswer` carrying the wrap-up: the `/assistant` turn shows the wrap-up under a line saying the turn
+  stopped on its token budget, and stores the wrap-up alone; `runSubAgent`, the dev roles and the auditor treat it
+  as the `tokens` dimension of a spent budget, never as an answer to parse, so `/dev-verify` still writes the row
+  saying the audit did not finish. The runtime's new refusal, `Token budget exhausted: <sum> tokens sent and
+  received over <n> calls (limit <limit>)`, is still read as `tokens`
+  ([Configuration](docs/configuration.md#settings-orkeon-code-relies-on), [Roadmap](docs/roadmap.md#known-issues), #25).
+- **The permission pages describe the access Orkeon declares per call** (Orkeon #219, delivered by #217): `github`
+  reads for `list_issues`, `get_pr`, `search_repos` and `get_repo` and executes for `create_issue`, `create_pr` and
+  an unknown action; `http_api` reads for `GET`, `HEAD`, `OPTIONS` and a missing method; `rag_eval` reads; an MCP
+  tool declares what its `readOnlyHint` annotation says. The modes table says an `http_api` GET runs without a
+  question in `default` and `acceptEdits`, and the page records why `github` and `rag_eval` stay with the edits,
+  why `http_api` stays out of `plan` and `dontAsk`, and how a project that must not reach out denies it. The
+  gateless fallback of the dev crews lets the same calls through in the writing modes. The speech server marks
+  `transcribe_audio`, `list_audio` and `whisper_info` read-only, so they run in `dontAsk` without an allow rule
+  ([Permissions](docs/permissions.md#modes), #26).
+- **The documentation follows Orkeon #217, one screen per conversation thread in the split-pane REPL.** With
+  `/dev-batches --concurrency` above 1, the TUI shows each batch's streamed lines on the batch's own screen, without
+  the `[t2] ` prefix the plain console keeps; selecting a task in the tasks list displays its screen, `main` keeps the
+  launched and finished lines, an ended task stays listed with its outcome, and an approval question shows on the
+  screen displayed whichever task asks ([Configuration](docs/configuration.md#settings-orkeon-code-relies-on),
+  [Permissions](docs/permissions.md), [Getting started](docs/getting-started.md)).
+- **The interactive turn's token budget is 1.5M, and the assistant reads a file by range.** The runtime sums the
+  prompt and completion of every call of a turn, so a turn pays its whole context again at each call: 400k ended a
+  turn of 17 file reads and one shell command in 43 s (`Token budget exhausted (425303/400000)`), its work lost.
+  The main-loop crew's budget is 1.5M tokens, and its header tells the model to read by range, a hundred lines or
+  so, the next range only when needed, and why ([Configuration](docs/configuration.md#settings-orkeon-code-relies-on)).
+- **The editing rule of the dev roles pins every hash of an `edit_batch`**: each `node_replace` of the batch carries
+  the sha256 `node_read` gave for that very node, read first, never guessed. In the live run of 2026-10-27 a test
+  author sent a batch whose second operation carried the hash `PLACEHOLDER`: the runtime refused the whole batch and
+  a turn went to reading the node ([Architecture](docs/architecture.md#crews)).
 - **A dev role may hand a tool a relative path as shown** (Orkeon #199 and #200, delivered by #206): the runtime
   resolves it against the agent's root, else `/workspace`, so the reading rule of the dev roles no longer says "never
   as written"; it says where such a path is read and that either form goes. The tool-call hook keeps resolving it
@@ -399,11 +448,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   read since the same change and ask nothing where the catalogue offers them ([Permissions](docs/permissions.md#modes)).
 - **The `wallTime` budget of a turn no longer counts the operator's answer** (Orkeon #127, runtime): 1800 s bound the
   model's own work.
-- **Orkeon version**: Orkeon Code targets Orkeon's `main` after Orkeon/orkeon#206, the surface `1.0.0-rc.6` will
+- **Orkeon version**: Orkeon Code targets Orkeon's `main` after Orkeon/orkeon#213, the surface `1.0.0-rc.6` will
   carry: the gate state, the typed tools, the per-tool result limits ([ADR 0004](docs/adr/0004-orkeon-after-180.md)),
   the file tools resolving a relative path, the pending approvals a command reads
-  ([ADR 0005](docs/adr/0005-orkeon-after-206.md)). The typings are generated from that `main`
-  (`ORKEON_SOURCE=<checkout> npm run typings`) until a release carries it.
+  ([ADR 0005](docs/adr/0005-orkeon-after-206.md)), the REPL starting on a terminal, the structural tools' parameter
+  schema and the line-by-line streaming of concurrent acts ([ADR 0006](docs/adr/0006-orkeon-after-213.md)). The
+  typings are generated from that `main` (`ORKEON_SOURCE=<checkout> npm run typings`) until a release carries it: the
+  node tools and `edit_batch` now type their inputs (`path`, `selector`, `expected_hash`, `operations` required, the
+  `kind`, `op`, `position` and `validate` values as literals).
 
 - **Every prompt is written from a behaviour specification**, in this project's own words
   ([Architecture](docs/architecture.md#prompt-assembly), [ADR 0003](docs/adr/0003-prompts-from-a-behaviour-specification.md)).
@@ -521,6 +573,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`/analyze` indexes a project that holds a shell script.** `index_codebase` failed on the first `.sh` with `File
+  extension '.sh' is not allowed`: the runtime's path validator blocks `.sh`, `.bash`, `.ps1`, `.bat` and `.cmd` for
+  reading too, and its discovery fails the whole index on one refused file. The index is now asked for every grammar
+  of the runtime's registry but bash (`shared/domain/index-languages.ts`): the scripts stay out of the index, and
+  `file_read` on one stays refused, until the runtime reads them ([known issues](docs/roadmap.md#known-issues), Orkeon #215).
+- **`orkeon-code --version` names the runtime of the mode forced** by `--mode` or `ORKEON_CODE_MODE`: `source checkout
+  <path>` in source mode, the image in docker mode, where it followed the auto-detection order and said "docker mode"
+  on a machine with Docker whatever the mode asked. Without a forced mode, the detection order speaks as before.
+- **Three runtime defects of the live runs of 2026-10-26 are closed by Orkeon #213**, the commit the source mode and the
+  CI smoke now build (`ORKEON_SOURCE_REF`): the interactive REPL starts on a terminal again, TUI and `--ui plain`,
+  where it hung after its start lines on the `main` after #206 (Orkeon #212); with `/dev-batches --concurrency` above
+  1 the streamed answers of the parallel batches no longer interleave character by character, each line comes whole
+  and prefixed by its ticket (Orkeon #211); the node tools and `edit_batch` publish their parameter schema to the
+  model, which guessed `node_outline` without a `path` and `edit_batch` without `operations` from the description
+  alone (Orkeon #210). The editing rule keeps spelling the `edit_batch` shape out, so that the guard's refusal repeats
+  it ([known issues](docs/roadmap.md#known-issues)).
 - `/dev-batches`, `/dev-plan`, `/dev-spec`, `/dev-change`: a review row whose target carries a qualifier (`F2 (step 1)`)
   is kept under the batch's id instead of being refused, which made the extraction retry and then lose the whole
   review (live run of 2026-10-26: `review of F2: not run (unparsable)`, a Major question never shown); the

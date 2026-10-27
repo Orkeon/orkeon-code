@@ -331,6 +331,17 @@ def test_mcp_contract(settings: w.Settings) -> None:
     assert set(schema["properties"]) == {"path", "language", "vocabulary", "vad_filter"}
 
 
+def test_the_tools_that_change_nothing_declare_read_only(settings: w.Settings) -> None:
+    server = w.build_server(settings, FakeTranscriber())
+
+    hints = {t.name: (t.annotations.readOnlyHint if t.annotations else None) for t in asyncio.run(list_tools(server))}
+
+    assert hints == {
+        "transcribe_audio": True, "list_audio": True, "whisper_info": True,
+        "record_and_transcribe": None, "speak": None, "stop_speaking": None,
+    }
+
+
 async def list_tools(server):
     async with create_connected_server_and_client_session(server._mcp_server) as session:
         return (await session.list_tools()).tools

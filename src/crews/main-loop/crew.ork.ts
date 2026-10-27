@@ -87,12 +87,15 @@ const coder = AgentBuilder()
 // The budget bounds one turn. Its wall time (seconds) is the model's own work: the
 // clock stops while a tool call waits for the operator's answer (Orkeon #127; the
 // engine's ExecutionTimeout pauses the same way). 30 minutes, the example settings'
-// ExecutionTimeout too, bound a long interactive turn.
+// ExecutionTimeout too, bound a long interactive turn. The tokens are the sum of every
+// call's prompt and completion: a turn pays its whole context again at each call, so a
+// turn that reads a dozen files grows with the square of its calls (400k ended one of
+// 17 reads in 43 s); 1.5M leaves the 40 iterations a context of 37k each on average.
 publishCrew(
   CrewBuilder()
     .name("main-loop")
     .process("autonomous")
-    .budget({ toolCalls: 200, wallTime: 1800, tokens: 400_000, delegationDepth: 2 })
+    .budget({ toolCalls: 200, wallTime: 1800, tokens: 1_500_000, delegationDepth: 2 })
     .withAgent(coder)
     .build(),
 );

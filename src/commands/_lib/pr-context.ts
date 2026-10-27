@@ -1,7 +1,7 @@
 // What a close needs to open the pull request itself: the github tool, the session's mode and rules. Read at
-// a dev command's dispatch; the crew keeps it (the batch record, the /dev-batches run record) for the close the
-// chain launches from `completed`, which is synchronous and cannot read the session's mode again. Not a
-// command file: the loader reads *.cmd.ts only. The entry point hands the ports, each made when read: a host
+// a dev command's dispatch, and again by its `completed` before each hop that writes (Orkeon #220: the host awaits
+// an async `completed`); the crew keeps the dispatch's reading (the batch record, the /dev-batches run record) for
+// a typed close and for the hop whose read failed. Not a command file: the loader reads *.cmd.ts only. The entry point hands the ports, each made when read: a host
 // without the service fails there, and that read says nothing.
 import type { SessionIo } from "../../shared/application/session-io.ts";
 import { GITHUB_TOOL } from "../../shared/domain/git/pull-request.ts";

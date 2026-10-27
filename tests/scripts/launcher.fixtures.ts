@@ -174,6 +174,13 @@ export function trustStore(folders: string[]): string {
 }
 
 /** The virtual roots of the --mount arguments. */
+/** The variables a docker run hands the container (`-e NAME`), in order. */
+export const envForwarded = (args: string[]): string[] => args.flatMap((a, i) => (a === "-e" && !args[i + 1]?.includes("=") ? [args[i + 1]] : []));
+
+/** The github token variables (Orkeon #222) among the ones handed to the container. */
+export const tokenVarsForwarded = (args: string[]): string[] =>
+  envForwarded(args).filter((v) => v === "GITHUB_TOKEN" || v === "GH_TOKEN" || v.startsWith("Orkeon__Tools__GitHub") || v === "MY_GH");
+
 export const mountRoots = (args: string[]) =>
   args.flatMap((a, i) => (args[i - 1] === "--mount" ? [a.split(":")[1]] : []));
 
@@ -571,6 +578,7 @@ export const PS1_CLONE_OR_INSTALL: readonly Mention[] = [
 export const PS1_VERSION_LINES: readonly Mention[] = [
   ["orkeon-code $codeVersion ($kind`: $Root)", "the first line"],
   ["Orkeon $OrkeonVersion expected, found: $found", "the second line"],
+  ["$found = if ($Mode -eq 'docker') { \"image $Image (docker mode, not pulled)\" }", "the forced docker mode names its image first"],
 ];
 
 export const PS1_FROM_PROJECT: readonly Mention[] = [

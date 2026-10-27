@@ -14,6 +14,7 @@ import {
   GAPS_HUMAN_LINE, IN_PROGRESS_LINE, KEPT_F2_LINE, LOG, PR_ASSUMPTIONS, REPO_YAML, THREE_BATCH_RUNS, VALID_F2, VERDICT_F2,
   addGapsAudit, beforeTheClose, blockingReviewer, clearReviewer, events, markDone, mergedDetails, packedOnMain, parallelRecord,
   parallelSetup, prBody, pushes, record, reopenF1, run, setup, threeBatchesAfter,
+  FRESH_SESSION,
 } from "./run-dev-batches.fixtures.ts";
 import { assertHasLine, assertLastLineStarting, assertLastLineWith, assertLineWith, assertNoLineWith } from "./run-dev-batches.assertions.ts";
 import { assertLineStarting, assertMentions } from "../../../support/assertions/text.ts";
@@ -243,6 +244,21 @@ describe("runDevBatches — back from a batch", () => {
     strictEqual(out.next, undefined);
     assertHasLine(out.lines, "F2 stopped BLOCKED — step 2: the tests stay red");
     deepStrictEqual(events(files), ["F2 launched", "F2 stopped"]);
+  });
+
+  it("names the next batch with the mode and rules the hop read again, over the hooks and effort its record kept (Orkeon #220)", async () => {
+    // Arrange
+    const { deps } = setup();
+    await run({ code: "demo", permissionMode: "acceptEdits", permissionRules: [], githubTool: true, hooks: [{ n: 1 }], effort: "high" }, deps);
+
+    // Act
+    const out = await run({ after: ["✓ committed 1111111 on feat/demo: 2 file(s)"], ...FRESH_SESSION }, { ...deps, reviewerFor: () => clearReviewer() });
+
+    // Assert
+    deepStrictEqual(
+      [out.next?.input.permissionMode, out.next?.input.permissionRules, out.next?.input.githubTool, out.next?.input.hooks, out.next?.input.effort],
+      [FRESH_SESSION.permissionMode, FRESH_SESSION.permissionRules, false, [{ n: 1 }], "high"],
+    );
   });
 
   it("relaunches a batch the chain left not done when typed again", async () => {

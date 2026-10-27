@@ -34,7 +34,9 @@ export interface ActRequest extends ModelOverride {
  *  fails; a failed `act` or `complete` throws an LlmFailure (shared/domain/llm-failure.ts). */
 export interface Llm {
   /** The model ⇄ tool-call loop over the running agent's tools, under the crew's
-   *  budget; resolves to the final answer's text. */
+   *  budget; resolves to the final answer's text. A token budget that ran out
+   *  rejects with a BudgetExhaustedAnswer (shared/domain/llm-failure.ts) carrying
+   *  the wrap-up the model made without tools: never resolved as an answer. */
   act(prompt: string, request: ActRequest): Promise<string>;
   /** One completion, without tools; with `request.system`, a system message first. */
   complete(prompt: string, request?: CompleteRequest): Promise<string>;

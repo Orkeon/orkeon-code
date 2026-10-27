@@ -76,6 +76,7 @@ from typing import Mapping, Protocol
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 from mcp.server.transport_security import TransportSecuritySettings
+from mcp.types import ToolAnnotations
 
 AUDIO_MOUNT = "/audio"
 OUT_MOUNT = "/transcripts"
@@ -879,7 +880,13 @@ def build_server(
             voices["p"] = player or SpeakerPlayer()
         return voices["p"]  # type: ignore[return-value]
 
-    @mcp.tool(structured_output=False)
+    # The tools that change nothing on the machine declare it (readOnlyHint): Orkeon's gate reads the annotation
+    # (Orkeon #219) and runs them without a question in every mode that offers them, `dontAsk` included, where a
+    # tool without it is a write that needs an allow rule. A transcript written under /transcripts is the server's
+    # own output, not the workspace. The recording and the speaking tools open the microphone or the speaker.
+    READ_ONLY = ToolAnnotations(readOnlyHint=True)
+
+    @mcp.tool(structured_output=False, annotations=READ_ONLY)
     def transcribe_audio(path: str, language: str = "", vocabulary: str = "", vad_filter: bool = True) -> str:
         """Transcribe an audio or video file under /audio, such as /audio/meeting.m4a; call list_audio
         first when you do not know the path.
@@ -897,7 +904,7 @@ def build_server(
         transcript = engine().transcribe(source, language.strip(), vocabulary.strip(), vad_filter)
         return render(transcript, write_outputs(settings, source, transcript))
 
-    @mcp.tool(structured_output=False)
+    @mcp.tool(structured_output=False, annotations=READ_ONLY)
     def list_audio() -> str:
         """List the audio and video files under /audio, one path per line: the paths transcribe_audio takes."""
         return list_audio_files(settings)
@@ -985,7 +992,7 @@ def build_server(
             speaker().stop()
         return "stopped"
 
-    @mcp.tool(structured_output=False)
+    @mcp.tool(structured_output=False, annotations=READ_ONLY)
     def whisper_info() -> str:
         """Which backends, models and voices transcribe and speak, whether they are on disk, the
         folders in use, and whether the microphone and the speaker are on: call it after a

@@ -453,6 +453,13 @@ readonly iterations: number;
 readonly interrupted?: true;
 /** Set when `maxIterations` was reached without a final answer. */
 readonly exhausted?: true;
+/**
+* Set when the token budget (`budget({ tokens })`) ran out during the loop: the act then
+* made one last call with no tools, telling the model its budget was spent, and `output` is
+* that answer, cut short. When that last call fails or answers nothing, the act rejects with
+* `BudgetExhaustedError` instead.
+*/
+readonly budgetExhausted?: true;
 }
 interface Message {
 readonly role: "system" | "user" | "assistant" | "tool";
@@ -680,6 +687,12 @@ withTasks(tasks: readonly Task<unknown, unknown>[]): this;
 * the crew is refused when it is loaded.
 */
 manager(agent: Agent<unknown, unknown>): this;
+/**
+* The crew's budget. Declarative shape: YAML `budget:`, spent by `process("autonomous")`
+* alone; another process ignores it with a warning. A key left out takes its default: no
+* token cap, no wall time, 50 tool calls (tasks handed out), 4 delegations, 10 spawns.
+* Procedural shape: bounds `await crew.run()`.
+*/
 budget(opts: ExecutionBudget): this;
 verbose(value?: boolean): this;
 /**
@@ -719,6 +732,16 @@ interface ExecutionBudget {
 readonly toolCalls?: number;
 readonly delegationDepth?: number;
 readonly wallTime?: number | string;
+/**
+* The most tokens the run may spend, as a running sum: the prompt plus the completion of
+* every LLM call. Each call resends its whole context, so the context is counted again on
+* each call, and a turn of n calls pays it about n times: this bounds neither the size of
+* the conversation nor what a provider bills with its cache. When the sum reaches the limit,
+* no further tool runs: `ctx.llm.act` makes one last call that may call no tool (a tool call
+* it returns is never run) and resolves with `budgetExhausted: true`;
+* the error says what it counted, `Token budget exhausted: <sum> tokens sent and received
+* over <n> calls (limit <limit>)`.
+*/
 readonly tokens?: number;
 readonly spawnedAgents?: number;
 }
@@ -2182,9 +2205,11 @@ readonly file_size: number;
 readonly success: boolean;
 }>;
 /** `edit_batch` - Applies node_replace, node_insert and idempotent intent operations over several files as one transaction. Each operation is {kind, path, selector, text} plus expected_hash (required, node_replace only) or position (node_insert: 'inside', 'before' or 'after'). An intent operation is {kind, path} with kind ensure_using / ensure_import (name, module for TypeScript or JavaScript) or ensure_field / ensure_member (selector of the type, text): it adds the line or member only when absent and reports applied false when it was already there. Operations on one file apply in order, each on the bytes the previous one produced. validate 'parse' (default) refuses the batch when an operation introduces a parse error; 'build' also runs dotnet build on the project above the edited files and restores every file when it is red. On any failure all files are left as they were. */
-editBatch(input?: {
-operations?: readonly { readonly expected_hash?: string; readonly index?: number; readonly kind: string; readonly level?: number; readonly module?: string; readonly name?: string; readonly path: string; readonly position?: string; readonly selector: string; readonly text: string; }[];
-validate?: string;
+editBatch(input: {
+/** The operations, applied as one transaction; those on one file apply in order, each on the bytes the previous one produced. */
+operations: readonly { readonly expected_hash?: string; readonly index?: number; readonly kind: "node_replace" | "node_insert" | "ensure_using" | "ensure_import" | "ensure_field" | "ensure_member" | "ensure_section" | "insert_under_heading" | "replace_mermaid"; readonly level?: number; readonly module?: string; readonly name?: string; readonly path: string; readonly position?: "inside" | "before" | "after"; readonly selector?: string; readonly text?: string; }[];
+/** What refuses the batch: 'parse' when an operation introduces a parse error, 'build' when dotnet build on the project above the edited files is red too. */
+validate?: "parse" | "build";
 }, ctx?: ExecutionContext): Promise<{
 readonly operations: readonly { readonly applied: boolean; readonly path: string; readonly range: { readonly end_byte: number; readonly end_line: number; readonly start_byte: number; readonly start_line: number; }; }[];
 readonly validation: string;
@@ -2674,14 +2699,22 @@ readonly rows?: readonly Record<string, unknown>[];
 readonly scalar_result?: unknown;
 }>;
 /** `node_ensure` - Applies one idempotent intent operation on one file: ensure_using / ensure_import (name, plus module for TypeScript or JavaScript) adds the using or import line in its place only when absent; ensure_field / ensure_member (selector of the type, text) adds a field, property or method next to its peers only when no member of that name exists. On Markdown: ensure_section (name = heading path, optional level) creates the missing headings; insert_under_heading (selector, text) appends at the end of a section; replace_mermaid (selector, index 0-based, text) replaces the body of the n-th mermaid fence of a section. Calling it again changes nothing and writes nothing: applied is false and range is the existing line or member. The insert is refused when it introduces a parse error that was not there before, the file is then untouched. */
-nodeEnsure(input?: {
+nodeEnsure(input: {
+/** 0-based index of the mermaid fence to replace in the section (replace_mermaid). */
 index?: number | null;
+/** Heading level of the section to create (ensure_section); the parent's plus one when omitted. */
 level?: number | null;
+/** The module an import comes from, for TypeScript or JavaScript (ensure_import). */
 module?: string | null;
+/** The namespace or module to import (ensure_using, ensure_import), or the heading path to create (ensure_section). */
 name?: string | null;
-op?: string;
-path?: string;
+/** The intent operation. */
+op: "ensure_using" | "ensure_import" | "ensure_field" | "ensure_member" | "ensure_section" | "insert_under_heading" | "replace_mermaid";
+/** Path of the file to edit, absolute under a mounted root or relative to the working root. */
+path: string;
+/** Selector of the type (ensure_field, ensure_member) or of the Markdown section (insert_under_heading, replace_mermaid), as node_outline lists it. */
 selector?: string | null;
+/** The member to add (ensure_field, ensure_member), the text to append (insert_under_heading) or the new fence body (replace_mermaid). */
 text?: string | null;
 }, ctx?: ExecutionContext): Promise<{
 readonly applied: boolean;
@@ -2689,24 +2722,30 @@ readonly new_hash: string;
 readonly range: Record<string, unknown>;
 }>;
 /** `node_insert` - Inserts text relative to an anchor node: position 'inside' appends to a type or namespace body (after the last member of an indented or end-closed body; an enum member or a JSON pair gets its separating comma) or to the end of a Markdown section, 'before' puts it above the anchor's leading comments and attributes, 'after' below the anchor. There is no expected_hash: no anchor hash is required for before/after, the anchor is only a location. The text is re-indented line by line to the siblings' indentation (tabs or spaces as the file does); the insert is refused when it introduces a parse error that was not there before, the file is then untouched. */
-nodeInsert(input?: {
-path?: string;
-position?: string;
-selector?: string;
-text?: string;
+nodeInsert(input: {
+/** Path of the file to edit, absolute under a mounted root or relative to the working root. */
+path: string;
+/** Where the text goes relative to the anchor: inside its body, before it or after it. */
+position: "inside" | "before" | "after";
+/** Selector of the anchor node, as node_outline lists it: Ns.Type.Member(paramTypes), Section/Sub for Markdown, or @ts:<node-path>. */
+selector: string;
+/** The text to insert; re-indented to the siblings' indentation. */
+text: string;
 }, ctx?: ExecutionContext): Promise<{
 readonly new_hash: string;
 readonly range: Record<string, unknown>;
 }>;
 /** `node_outline` - Outline of a file's members. */
-nodeOutline(input?: {
-path?: string;
+nodeOutline(input: {
+/** Path of the file to outline, absolute under a mounted root or relative to the working root. */
+path: string;
 }, ctx?: ExecutionContext): Promise<{
 readonly members: readonly { readonly end_byte: number; readonly end_line: number; readonly kind: string; readonly selector: string; readonly start_byte: number; readonly start_line: number; }[];
 }>;
 /** `node_read` - Reads one member of a file by selector: text, range and SHA-256, uncut. */
 nodeRead(input: {
-path?: string;
+/** Path of the file holding the member, absolute under a mounted root or relative to the working root. */
+path: string;
 /** Member to read. Readable form: Ns.Type.Member(paramTypes), e.g. Demo.Calc.Add(int). Markdown form: Section/Sub; sibling headings of the same name take a 1-based ordinal, e.g. Section/Notes[2]. Fallback form: @ts:<node-path>, the tree-sitter path root/<index>/<kind>/... returned when a readable selector is ambiguous. */
 selector: string;
 }, ctx?: ExecutionContext): Promise<{
@@ -2721,11 +2760,15 @@ readonly start_line: number;
 readonly text: string;
 }>;
 /** `node_replace` - Replaces one node of a file by selector and expected SHA-256 (from node_read): refused when the hash is stale or when the replacement introduces a parse error that was not there before; the file is then untouched. The replaced span includes the node's leading comments and attributes, so a replacement that omits them removes them; a Markdown section replaces its sub-sections too. Line endings are normalised to the file's. */
-nodeReplace(input?: {
-expected_hash?: string;
-path?: string;
-selector?: string;
-text?: string;
+nodeReplace(input: {
+/** SHA-256 of the node's current text, as node_read returned it; the replacement is refused when it is stale. */
+expected_hash: string;
+/** Path of the file to edit, absolute under a mounted root or relative to the working root. */
+path: string;
+/** Selector of the node to replace, as node_outline lists it: Ns.Type.Member(paramTypes), Section/Sub for Markdown, or @ts:<node-path>. */
+selector: string;
+/** The replacement text of the whole node, its leading comments and attributes included. */
+text: string;
 }, ctx?: ExecutionContext): Promise<{
 readonly new_hash: string;
 readonly range: Record<string, unknown>;
@@ -3259,7 +3302,7 @@ append_to_existing?: boolean;
 /** Output file path for the .xlsx */
 file_path: string;
 /** Sheets to write (each with name, headers, rows) */
-sheets: readonly { readonly headers: readonly string[]; readonly name: string; readonly rows: readonly (readonly string[])[]; }[];
+sheets: readonly { readonly headers?: readonly string[]; readonly name: string; readonly rows?: readonly (readonly string[])[]; }[];
 }, ctx?: ExecutionContext): Promise<{
 readonly file_path: string;
 readonly file_size: number;

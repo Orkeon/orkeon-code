@@ -57,6 +57,17 @@ describe("createCrewHost — launching", () => {
     deepStrictEqual(host.launches, [{ name: "git-commit", input: { permissionMode: "acceptEdits" } }]);
   });
 
+  it("hands the launch option to the host as it is (chain: continue, Orkeon #221)", () => {
+    // Arrange
+    const { host, crews } = crewHostOverFake();
+
+    // Act
+    crews.launch("dev-implement", { batch: "F2" }, { chain: "continue" });
+
+    // Assert
+    deepStrictEqual(host.launches, [{ name: "dev-implement", input: { batch: "F2" }, options: { chain: "continue" } }]);
+  });
+
   it("throws when the host cannot run crews", () => {
     // Arrange
     const crews = createCrewHost(new FakeServiceLocator());

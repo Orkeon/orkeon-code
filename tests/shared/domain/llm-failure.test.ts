@@ -1,10 +1,11 @@
 // The host's failure marker read as a failure, never as an answer. Run:
 //   node --test tests/shared/domain/llm-failure.test.ts
 import { describe, it } from "node:test";
-import { strictEqual, ok } from "node:assert";
+import { deepStrictEqual, strictEqual, ok } from "node:assert";
 
-import { llmFailureOf } from "../../../src/shared/domain/llm-failure.ts";
-import { ANSWERS, MARKER_DETAILS } from "./llm-failure.fixtures.ts";
+import { budgetExhaustedAnswer, budgetExhaustedAnswerOf, llmFailureOf } from "../../../src/shared/domain/llm-failure.ts";
+import { readBudgetExhausted } from "../../../src/shared/domain/dev/step-budget.ts";
+import { ANSWERS, MARKER_DETAILS, NOT_WRAP_UPS } from "./llm-failure.fixtures.ts";
 
 describe("llmFailureOf", () => {
   it("reads the provider's error out of the marker", () => {
@@ -55,6 +56,67 @@ describe("llmFailureOf", () => {
 
       // Assert
       strictEqual(failure, null, String(answer));
+    });
+  }
+});
+
+describe("budgetExhaustedAnswer", () => {
+  it("carries the wrap-up answer under the runtime's error name and the tokens dimension", () => {
+    // Arrange
+    const answer = "partial";
+
+    // Act
+    const failure = budgetExhaustedAnswer(answer);
+
+    // Assert
+    deepStrictEqual([failure.name, failure.dimension, failure.answer], ["BudgetExhaustedError", "tokens", "partial"]);
+  });
+
+  it("is read as a spent token budget by readBudgetExhausted", () => {
+    // Arrange
+    const failure = budgetExhaustedAnswer("partial");
+
+    // Act
+    const dimension = readBudgetExhausted(failure);
+
+    // Assert
+    strictEqual(dimension, "tokens");
+  });
+
+  it("names the token budget in its message, for a reader that keeps the first line alone", () => {
+    // Arrange
+    const failure = budgetExhaustedAnswer("partial");
+
+    // Act
+    const dimension = readBudgetExhausted(failure.message);
+
+    // Assert
+    strictEqual(dimension, "tokens");
+  });
+});
+
+describe("budgetExhaustedAnswerOf", () => {
+  it("gives the failure back when it carries a wrap-up", () => {
+    // Arrange
+    const failure = budgetExhaustedAnswer("partial");
+
+    // Act
+    const read = budgetExhaustedAnswerOf(failure);
+
+    // Assert
+    strictEqual(read, failure);
+  });
+
+  for (const c of NOT_WRAP_UPS) {
+    it(`is null for ${c.name}`, () => {
+      // Arrange
+      const { failure } = c;
+
+      // Act
+      const read = budgetExhaustedAnswerOf(failure);
+
+      // Assert
+      strictEqual(read, null);
     });
   }
 });

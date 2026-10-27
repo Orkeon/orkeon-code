@@ -79,6 +79,17 @@ describe("launchCrew", () => {
     }]);
   });
 
+  it("hands the launch option to the host: a driver relaunching itself keeps the chain's depth (Orkeon #221)", () => {
+    // Arrange
+    const { crews, deps } = crewDeps();
+
+    // Act
+    launchCrew(deps, "dev-implement", { batch: "F2" }, {}, { chain: "continue" });
+
+    // Assert
+    deepStrictEqual(crews.launches, [{ name: "dev-implement", input: { batch: "F2" }, options: { chain: "continue" } }]);
+  });
+
   it("turns a hop past the chain's limit into a refusal that says so (V-A5)", () => {
     // Arrange
     const { deps, logged } = crewDeps(CHAIN_LIMIT_ERROR);
@@ -87,9 +98,9 @@ describe("launchCrew", () => {
     const result = launchCrew(deps, "dev-verify", {}, { batch: "b1" });
 
     // Assert
-    const line = chainDepthLine("dev-verify", { depth: 9, limit: 8 });
+    const line = chainDepthLine("dev-verify", { depth: 8, limit: 8, command: "dev-batches" });
     deepStrictEqual(result, { refused: line, message: line });
-    deepStrictEqual(logged[0].data, { depth: 9, limit: 8, batch: "b1" });
+    deepStrictEqual(logged[0].data, { depth: 8, limit: 8, command: "dev-batches", batch: "b1" });
   });
 
   it("lets any other launch failure throw", () => {

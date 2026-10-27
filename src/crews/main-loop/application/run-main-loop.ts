@@ -18,6 +18,7 @@ import {
   applyPrelude, epilogueArgs, errorText, parseEpilogue, parsePrelude, toolFailure,
 } from "../../../shared/domain/prelude.ts";
 import type { PreludeCall } from "../../../shared/domain/prelude.ts";
+import { budgetExhaustedAnswerOf } from "../../../shared/domain/llm-failure.ts";
 import type { SessionIo } from "../../../shared/application/session-io.ts";
 import { readBehaviorFlags } from "./context-gather.ts";
 import { autoCompactGuarded } from "./auto-compact.ts";
@@ -192,24 +193,42 @@ async function gateWarning(mode: string, deps: Pick<MainLoopDeps, "llm" | "sessi
   return text;
 }
 
+/** The line shown under an answer the token budget cut short (Orkeon #218): the model's last call, made without
+ *  tools once the crew's budget was spent. */
+export const BUDGET_EXHAUSTED_LINE =
+  "⚠ the turn stopped on its token budget: the answer above is the model's wrap-up, made without tools, and may be cut short";
+
+/** The answer of a turn, and whether the token budget cut it short. */
+interface TurnAnswer { answer: string; cut: boolean }
+
 /** The answer once the stop chain read it: a refused answer goes back to the model ONCE,
  *  with the reason, and the second answer stands whatever the chain would say of it. When that
- *  retry throws, a first answer that is not blank stands, with a warning. */
+ *  retry throws, a first answer that is not blank stands, with a warning. An act whose token
+ *  budget ran out (BudgetExhaustedAnswer) gives its wrap-up as the answer, `cut`, and goes
+ *  through no stop check: a second act would meet the same spent budget. */
 async function stopChecked(
   deps: Pick<MainLoopDeps, "llm" | "log" | "chains">, turn: TurnPrompt, mode: string, flags: BehaviorFlags,
   request: string, closingLine: string | null,
-): Promise<string> {
-  const answer = await runAct(deps, turn, mode, flags);
+): Promise<TurnAnswer> {
+  let answer: string;
+  try {
+    answer = await runAct(deps, turn, mode, flags);
+  } catch (error) {
+    const exhausted = budgetExhaustedAnswerOf(error);
+    if (exhausted === null) throw error;
+    deps.log.warn(`the token budget ran out: the model's wrap-up is the answer (${errorText(error)})`);
+    return { answer: exhausted.answer, cut: true };
+  }
   const stop = runChain("stop", deps.chains?.stop ?? STOP_GUARDS, { request, answer, closingLine });
-  if (stop.refusedBy === undefined) return answer;
+  if (stop.refusedBy === undefined) return { answer, cut: false };
   deps.log.info(`stop check '${stop.refusedBy}': the answer goes back once (${stop.reason})`);
   try {
-    return await runAct(deps, { ...turn, user: buildStopRetryPrompt(turn.user, answer, stop.reason ?? "") }, mode, flags);
+    return { answer: await runAct(deps, { ...turn, user: buildStopRetryPrompt(turn.user, answer, stop.reason ?? "") }, mode, flags), cut: false };
   } catch (error) {
     // A retry that fails (a provider error) never costs the turn an answer it had: the first one stands, said.
     if (answer.trim().length === 0) throw error;
     deps.log.warn(`stop check '${stop.refusedBy}': the retry failed (${errorText(error)}); the first answer stands`);
-    return answer;
+    return { answer, cut: false };
   }
 }
 
@@ -267,10 +286,11 @@ export async function runMainLoop(input: MainLoopInputs, loaded: LoadedCatalogue
   // no answer is stored, the tail compaction does not run (the breaker counts
   // compactions, not turns), and the run fails with the provider's error, which
   // /assistant shows. The user's message stays in the buffer.
-  const answer = await stopChecked(deps, assembled, mode, flags, prompt, readClosingLine(input.closingLine));
+  const { answer, cut } = await stopChecked(deps, assembled, mode, flags, prompt, readClosingLine(input.closingLine));
   await appendTurn(session, "assistant", answer);
   await runEpilogue(input.epilogue, answer, deps);
   // Tail-of-turn: a verbose act() must not bequeath a saturated buffer.
   await autoCompactGuarded(deps);
-  return warning === null ? answer : `${warning}\n\n${answer}`;
+  // The budget line is shown, never stored: the transcript keeps what the model said.
+  return [warning, answer, cut ? BUDGET_EXHAUSTED_LINE : null].filter((part) => part !== null).join("\n\n");
 }

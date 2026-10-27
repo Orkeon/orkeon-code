@@ -28,8 +28,8 @@ concurrency:
   group: runtime-smoke-${{ github.ref }}
   cancel-in-progress: true
 env:
-  # Orkeon main after #206 (the REPL replay, relative paths in the file tools, the pending approvals for scripts), on the runtime of ADR 0005 (rc.6 not tagged yet). Move it with .orkeon-version.
-  ORKEON_SOURCE_REF: 7efa3b60fd8dc775e3f6436b5f8a7a55a49149ed
+  # Orkeon main after #213 (the REPL starting on a terminal, the structural tools' schema, line-by-line concurrent streaming), on the runtime of ADR 0006 (rc.6 not tagged yet). Move it with .orkeon-version.
+  ORKEON_SOURCE_REF: 947d32156ff63d07fee99d0e64665bbfb3344af5
 jobs:
   smoke:
     runs-on: ubuntu-latest

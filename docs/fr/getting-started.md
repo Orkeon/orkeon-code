@@ -78,11 +78,13 @@ Ollama ([Configuration](configuration.md#le-llm)).
 Orkeon Code exige Orkeon `1.0.0-rc.6`, la version de `.orkeon-version`. **Tant que cette version n'est pas taguée et
 publiée, seul le [mode source](#mode-source--un-checkout-dorkeon) fonctionne** : le mode tool a besoin de ses paquets
 et le mode docker de son image, et le smoke runtime de la CI, qui tire cette image, échoue d'ici là.
-Orkeon Code vise le `main` d'Orkeon après Orkeon/orkeon#206, la surface que portera `1.0.0-rc.6` : l'état de la
+Orkeon Code vise le `main` d'Orkeon après Orkeon/orkeon#213, la surface que portera `1.0.0-rc.6` : l'état de la
 garde de l'hôte (`/permissions`), les outils intégrés typés et les limites de résultat par outil
 ([ADR 0004](../adr/0004-orkeon-after-180.md)), les outils de fichiers qui résolvent un chemin relatif sous
 `/workspace` ou la racine de l'agent, et les approbations en attente qu'une commande lit (`/tasks`)
-([ADR 0005](../adr/0005-orkeon-after-206.md)).
+([ADR 0005](../adr/0005-orkeon-after-206.md)), le REPL qui démarre sur un terminal, les outils structurels avec leur
+schéma de paramètres et les réponses diffusées d'acts concurrents gardées ligne par ligne
+([ADR 0006](../adr/0006-orkeon-after-213.md)).
 
 Le lanceur prend le premier mode disponible, dans cet ordre, sauf si `--mode` en décide autrement.
 
@@ -159,6 +161,14 @@ La bannière affiche le projet, les settings et le mode. Dans le REPL :
 
 Le texte saisi sans `/` initial est envoyé à `/assistant`. La liste complète : [Commandes](commands.md).
 
+Sur un terminal, le REPL est une TUI en deux volets : la transcription, l'invite, et dessous la liste des tâches (`↓`
+ou `F4`) qui nomme les commandes en arrière-plan (`/dev-batches`, `/dev-implement`, un `/assistant` lancé en async).
+Chaque fil de conversation a son écran : sélectionner la ligne d'une tâche montre ses lignes, sélectionner `main`
+celles de l'invite, où restent les lignes de lancement et de fin de chaque tâche ; la tâche sélectionnée est aussi la
+destinataire du prochain message. Une tâche finie garde sa ligne, avec `✔ finished`, `✗ failed` ou `⊘ cancelled` et sa
+durée, et son écran reste lisible jusqu'à ce que l'hôte l'oublie (Orkeon #217). `orkeon-code -- --ui plain` écrit un
+seul flux à la place, les lignes d'une tâche préfixées de son ticket (`[t1] `).
+
 ## 5. Optionnel : la transcription de la parole
 
 Pour confier à l'assistant une note vocale, une réunion enregistrée ou un enregistrement d'écran commenté à la
@@ -200,8 +210,9 @@ le mode de session (`/mode`) et les règles de permission sont gardés en mémoi
 - **Le tour attend sur `approve <tool>? [y] once / [s] session / [n] no`** : le mode vous interroge sur cet appel ;
   répondez sur la ligne suivante. `acceptEdits:` ou `/mode acceptEdits` arrête les questions sur les modifications,
   et une règle d'autorisation celles sur les appels qu'elle couvre ([Permissions](permissions.md)). La question
-  d'une commande en arrière-plan se lit `approve <tool> for [t1]? …`, s'affiche dans la ligne de statut et sur la
-  ligne de la tâche, et se répond aussi depuis l'invite principale.
+  d'une commande en arrière-plan se lit `approve <tool> for [t1]? …`, s'affiche dans la ligne de statut, sur la
+  ligne de la tâche et, dans la TUI, sur l'écran montré quelle que soit la tâche qui la pose, et se répond aussi
+  depuis l'invite principale.
 - **Toutes les commandes shell échouent avec une erreur de confinement** : `Orkeon:Tools:Shell:Confinement:Mode`
   vaut `Auto` (le défaut quand les settings omettent la clé) ou `Bubblewrap`, et la commande ne peut pas être confinée
   (`bwrap` absent ou incapable de créer ses espaces de noms). Installez bubblewrap, ou mettez le mode à `None` comme

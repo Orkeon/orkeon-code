@@ -3,10 +3,14 @@
 // crew wrote it: mode, hooks, effort) is launched.
 // /dev-verify, launched from here, drains to the same `completed` as plain text: printed, and on
 // its VALID line the close is launched (`/dev-implement F<n> <plan> --close`). A launch that
-// cannot run prints the command for the user instead. The dispatch (runDevImplementDispatch) checks the mode,
+// cannot run prints the command for the user instead. Before a hop that writes (the close), the session's
+// context is read again (Orkeon #220, `completed` awaited by the host): a mode that no longer allows it refuses
+// the hop with the command to type, else the fresh mode, rules and github tool ride in the launch input, so the
+// crew reads them rather than the context its record kept at the launch; a context that cannot be read leaves
+// the record's in force, said in a line. The dispatch (runDevImplementDispatch) checks the mode,
 // starts the step and sizes the run to the sheet's open steps over the ports it is handed; the chain's launch is
 // handed to it too.
-import type { Files, PermissionRules, Shell, ToolCatalogue } from "../../../shared/application/ports.ts";
+import type { CrewLaunchOptions, Files, PermissionRules, Shell, ToolCatalogue } from "../../../shared/application/ports.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import type { SessionIo } from "../../../shared/application/session-io.ts";
 import { isCode } from "../../../shared/domain/dev/artefacts.ts";
@@ -16,6 +20,7 @@ import { markActiveWorkflow, startDevStep, writeModeRefusal } from "../dev-step.
 import type { CrewCompletion, LaunchResult } from "../dispatch.ts";
 import { storedEffort } from "../effort.ts";
 import { readPullRequestContext } from "../pr-context.ts";
+import type { PullRequestContext } from "../pr-context.ts";
 
 export const DEV_IMPLEMENT_USAGE =
   "usage: /dev-implement F<n> [<code> | <path>/<CODE>-PLAN.md] [--close] [--pr] | F<n> [<code> | <plan>] — correction: <finding>";
@@ -161,23 +166,78 @@ export async function runDevImplementDispatch(tokens: readonly string[], deps: D
   return { input, details: { ruleSets: start.sets.join(" "), rules: start.rules, hooks: start.hooks.length } };
 }
 
+/** What a hop of a chain reads before it launches: the gate put back, the session's context read again. */
+export interface ChainHopDeps {
+  /** Puts the step's rules back in the gate; its refusal launches nothing. */
+  reapply: (step: DevStep) => string | null;
+  /** The session's context as it is now (readPullRequestContext); a read that fails leaves the record's in force. */
+  context: () => Promise<PullRequestContext>;
+}
+
+/** The line a hop prints when the session's context could not be read again: the crew reads its record. */
+export const CONTEXT_NOT_READ_LINE = "⚠ the session's mode could not be read again: the context read at the launch applies";
+
+/** What the close writes, for the refusal of a read-only mode. */
+const CLOSE_WRITES = { step: "dev-implement", what: "commits (the close of the batch)" };
+
+/** The session's context now, or null when it cannot be read (a throw, an empty mode). */
+export async function freshContext(read: () => Promise<PullRequestContext>): Promise<PullRequestContext | null> {
+  try {
+    const context = await read();
+    return context.permissionMode.trim() === "" ? null : context;
+  } catch {
+    return null;
+  }
+}
+
+/** The launch input with the fresh mode and rules; the github tool as the input names it, else as the session has it. */
+export function withContext(input: Record<string, unknown>, context: PullRequestContext): Record<string, unknown> {
+  return {
+    ...input, permissionMode: context.permissionMode, permissionRules: [...context.permissionRules],
+    githubTool: typeof input.githubTool === "boolean" ? input.githubTool : context.githubTool,
+  };
+}
+
+/**
+ * A hop that writes, with the session's context read again (Orkeon #220): refused, with the command to type, when
+ * the mode no longer lets `writes.step` write; the launch with the fresh context in its input otherwise; the launch
+ * as it is, said in a line, when the context cannot be read.
+ */
+export async function writingHop(
+  launch: ChainLaunch, read: () => Promise<PullRequestContext>, writes: { step: string; what: string },
+): Promise<ChainStep> {
+  const context = await freshContext(read);
+  if (context === null) return { lines: [CONTEXT_NOT_READ_LINE], launch };
+  const refusal = writeModeRefusal(context.permissionMode, writes.step, writes.what);
+  if (refusal !== null) return { lines: [refusal, `then type ${launch.instead}`] };
+  return { lines: [], launch: { ...launch, input: withContext(launch.input, context) } };
+}
+
 /**
  * What `completed` prints for one answer of the chain, and the launch that follows. No dispatch runs before a
- * chained launch: the gate is checked and the step's rules put back by `reapply`, whose refusal launches nothing.
+ * chained launch: the gate is checked and the step's rules put back by `reapply`, whose refusal launches nothing;
+ * the close then reads the session's context again (writingHop); the audit is launched as the crew named it.
  */
-export function nextLaunch(result: CrewCompletion, reapply: (step: DevStep) => string | null): ChainStep {
+export async function nextLaunch(result: CrewCompletion, deps: ChainHopDeps): Promise<ChainStep> {
   if (!result.success) return { lines: [`✗ the dev-implement chain failed: ${result.error ?? "unknown"}`] };
   const step = chainStep(String(result.payload ?? ""));
   if (step.launch === undefined) return step;
-  const refusal = reapply(step.launch.crew === "dev-verify" ? "dev-verify" : "dev-implement");
+  const refusal = deps.reapply(step.launch.crew === "dev-verify" ? "dev-verify" : "dev-implement");
   if (refusal !== null) return { lines: [...step.lines, `✗ ${refusal}`, `then type ${step.launch.instead}`] };
-  return step;
+  if (step.launch.crew !== "dev-implement") return step;
+  const hop = await writingHop(step.launch, deps.context, CLOSE_WRITES);
+  return hop.launch === undefined ? { lines: [...step.lines, ...hop.lines] } : { lines: [...step.lines, ...hop.lines], launch: hop.launch };
 }
 
-/** The lines a chained launch leaves: none once launched; its refusal or its failure, and the command to type instead. */
-export function launchChained(launch: ChainLaunch, run: (crew: string, input: Record<string, unknown>) => LaunchResult): string[] {
+/** The lines a chained launch leaves: none once launched; its refusal or its failure, and the command to type instead.
+ *  `options` go to the launch as they are (`{ chain: "continue" }` for a driver that relaunches itself). */
+export function launchChained(
+  launch: ChainLaunch,
+  run: (crew: string, input: Record<string, unknown>, options?: CrewLaunchOptions) => LaunchResult,
+  options?: CrewLaunchOptions,
+): string[] {
   try {
-    const launched = run(launch.crew, launch.input);
+    const launched = run(launch.crew, launch.input, options);
     return "refused" in launched ? [`✗ ${launched.refused}`, `then type ${launch.instead}`] : [];
   } catch (e) {
     return [`✗ ${launch.crew} could not be launched (${String((e as Error)?.message ?? e).split("\n")[0]}): type ${launch.instead}`];

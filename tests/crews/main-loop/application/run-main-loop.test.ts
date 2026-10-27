@@ -3,7 +3,7 @@
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok, rejects } from "node:assert";
 
-import { loadCatalogue, runMainLoop } from "../../../../src/crews/main-loop/application/run-main-loop.ts";
+import { BUDGET_EXHAUSTED_LINE, loadCatalogue, runMainLoop } from "../../../../src/crews/main-loop/application/run-main-loop.ts";
 import type { LoadedCatalogue } from "../../../../src/crews/main-loop/application/run-main-loop.ts";
 import { BREAKER_RUN_FIELD } from "../../../../src/crews/main-loop/application/auto-compact.ts";
 import { buildStaticHeader } from "../../../../src/crews/main-loop/domain/prompt-assembly.ts";
@@ -14,7 +14,7 @@ import {
 import {
   AUTOCOMPACT_BREAKER_STATE_KEY, DEFAULT_MODE_STATE_KEY, EFFORT_STATE_KEY, MODEL_PREFERENCE_STATE_KEY,
 } from "../../../../src/shared/domain/session-keys.ts";
-import { llmFailureOf } from "../../../../src/shared/domain/llm-failure.ts";
+import { budgetExhaustedAnswer, llmFailureOf } from "../../../../src/shared/domain/llm-failure.ts";
 import {
   DEFAULT_LOADED, DENYING_CHAINS, DICTATION, EXPLICIT_PLAN, EXTRAS, EXTRA_RULES, EXTRA_TOOLS_INPUT, PARSED_RULES,
   REQUEST_WITH_TRANSCRIPT, RULED_CATALOGUE, SCRIPT_TOOLS_CASES, SESSION_START, SILENT_GATES, SPEAK, SPEAKER_FAILURE,
@@ -256,6 +256,20 @@ describe("runMainLoop — the turn", () => {
     deepStrictEqual(llm.acts, []);
     deepStrictEqual(store.messages, []);
     deepStrictEqual(compactions, []);
+  });
+
+  it("shows the wrap-up of a spent token budget with the budget line, stores the wrap-up alone, and asks no second act (Orkeon #218)", async () => {
+    // Arrange
+    const { store, llm, log, deps } = turnSetup();
+    llm.answers = [budgetExhaustedAnswer("partial")];
+
+    // Act
+    const answer = await runMainLoop({ prompt: "fix the parser", permissionMode: "plan" }, EXPLICIT_PLAN, deps);
+
+    // Assert
+    strictEqual(answer, `partial\n\n${BUDGET_EXHAUSTED_LINE}`);
+    deepStrictEqual([store.messages.at(-1), llm.acts.length], [{ role: "assistant", content: "partial" }, 1]);
+    assertLoggedLike(log.lines, "the token budget ran out");
   });
 
   it("appends the user and the assistant messages and answers", async () => {

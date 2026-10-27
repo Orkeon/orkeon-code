@@ -7,15 +7,20 @@
 // /dev-implement on the batch, its audit (/dev-verify), on VALID its close (a commit, sent push: false), then the crew
 // again, which logs the batch and names the next one. The answers are told apart by the crew that gave them
 // (_lib/dev/dev-batches.ts). A stop (BLOCKED, a GAPS verdict, a Blocking review question) hands over to the user;
-// `/dev-batches` again goes on from the first batch not done, its sheet's ticks kept. The chain is bounded by
-// the runtime (MaxChainDepth, 8 crews from a typed command: about two batches): past it, the refusal says to type
-// `/dev-batches`, which goes on with the run the crew recorded. No state here: the crew keeps the run's code and
-// what this dispatch read (mode, rules, github tool, hooks, effort) in its run record. A batch's close never pushes
-// (sent push: false, and a typed close of a batch of the run in progress reads the record); the plan's close pushes
-// once and opens the one pull request (a batch's close is given no github tool). Every launch goes through
+// `/dev-batches` again goes on from the first batch not done, its sheet's ticks kept. Every hop `completed` launches
+// keeps the depth of the instance it runs for (`{ chain: "continue" }`, Orkeon #221), so a plan of any length
+// closes in one `/dev-batches`: the runtime's MaxChainDepth (8) no longer stops it after about two batches. No
+// state here: the crew keeps the run's code and what this dispatch read (mode, rules, github tool, hooks, effort) in
+// its run record, and `completed`, awaited by the host (Orkeon #220), reads the session's mode and rules again
+// before each hop that writes: a mode that no longer allows it refuses the hop with the command to type, else the
+// fresh context rides in the launch input and the crews read it rather than the record's. A batch's close never
+// pushes (sent push: false, and a typed close of a batch of the run in progress reads the record); the plan's close
+// pushes once and opens the one pull request (a batch's close is given no github tool). Every launch goes through
 // launchCrew (its chain-depth refusal); the gate is checked and the step's rules put back before each one.
 import { rawTokens } from "../_lib/args.ts";
-import { batchesChainStep, batchesLaunchInput, batchesModeRefusal, parseDevBatchesArgs } from "../_lib/dev/dev-batches.ts";
+import {
+  batchesHopFailedLine, batchesLaunchInput, batchesModeRefusal, batchesNextLaunch, launchBatchesHop, parseDevBatchesArgs,
+} from "../_lib/dev/dev-batches.ts";
 import { reapplyStepRules, startDevStep, writeModeRefusal } from "../_lib/dev-step.ts";
 import { launchCrew } from "../_lib/dispatch.ts";
 import { storedEffort } from "../_lib/effort.ts";
@@ -23,8 +28,14 @@ import { readPullRequestContext } from "../_lib/pr-context.ts";
 import { createCrewHost } from "../../shared/infrastructure/orkeon/crew-host.ts";
 import { createPermissionRules } from "../../shared/infrastructure/orkeon/permission-rules.ts";
 import { orkeonConfigStore, orkeonSessionIo, orkeonToolCatalogue } from "../../shared/infrastructure/orkeon/wiring.ts";
+import type { CommandRuntimeContext } from "../.orkeon/orkeon-cli.d.ts";
 
 const deps = { session: orkeonSessionIo(), config: orkeonConfigStore() };
+
+/** The session's context as it is now: the mode, the rules and the github tool, read at the dispatch and before each hop. */
+const contextReader = (ctx: CommandRuntimeContext) => () => readPullRequestContext({
+  catalogue: () => orkeonToolCatalogue(ctx.services), rules: () => createPermissionRules(ctx.services), session: deps.session,
+});
 
 defineAsyncCommand({
   name: "dev-batches",
@@ -36,9 +47,7 @@ defineAsyncCommand({
       ctx.writeLine(parsed.text);
       return { refused: parsed.text };
     }
-    const prContext = await readPullRequestContext({
-      catalogue: () => orkeonToolCatalogue(ctx.services), rules: () => createPermissionRules(ctx.services), session: deps.session,
-    });
+    const prContext = await contextReader(ctx)();
     const line = writeModeRefusal(String(prContext.permissionMode ?? ""), "dev-batches", "writes files, commits and pushes")
       ?? batchesModeRefusal(parsed.args, String(prContext.permissionMode ?? ""));
     if (line !== null) {
@@ -61,30 +70,19 @@ defineAsyncCommand({
       ruleSets: start.sets.join(" "), rules: start.rules, hooks: start.hooks.length,
     });
   },
-  completed: (result, ctx) => {
-    if (!result.success) {
-      ctx.writeLine(`✗ the dev-batches chain failed (${result.intent || "a crew"}): ${result.error ?? "unknown"}`);
-      ctx.writeLine("then type /dev-batches: the run goes on from the first batch not done");
-      return;
-    }
-    const step = batchesChainStep(String(result.intent ?? ""), String(result.payload ?? ""));
-    for (const line of step.lines) ctx.writeLine(line);
-    if (step.launch === undefined) return;
-    // No dispatch runs before a chained launch: the gate is checked and the step's rules put back here.
-    const refusal = reapplyStepRules(createPermissionRules(ctx.services), step.launch.crew === "dev-verify" ? "dev-verify" : "dev-implement");
-    if (refusal !== null) {
-      ctx.writeLine(`✗ ${refusal}`);
-      ctx.writeLine(`then type ${step.launch.instead}`);
-      return;
-    }
+  // Async: the host awaits it before the next completion (Orkeon #220). Caught whole: a failure prints its line
+  // and the command to type, never a bare `Error in completed('dev-batches')`.
+  completed: async (result, ctx) => {
     try {
-      const launched = launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, step.launch.crew, step.launch.input);
-      if ("refused" in launched) {
-        ctx.writeLine(`✗ ${launched.refused}`);
-        ctx.writeLine(`then type ${step.launch.instead}`);
-      }
+      // No dispatch runs before a chained launch: the gate is checked and the step's rules put back here.
+      const step = await batchesNextLaunch(result, {
+        reapply: (crew) => reapplyStepRules(createPermissionRules(ctx.services), crew), context: contextReader(ctx),
+      });
+      for (const line of step.lines) ctx.writeLine(line);
+      if (step.launch === undefined) return;
+      for (const line of launchBatchesHop(step.launch, { crews: createCrewHost(ctx.services), log: ctx.log })) ctx.writeLine(line);
     } catch (e) {
-      ctx.writeLine(`✗ ${step.launch.crew} could not be launched (${String((e as Error)?.message ?? e).split("\n")[0]}): type ${step.launch.instead}`);
+      ctx.writeLine(batchesHopFailedLine(e));
     }
   },
 });

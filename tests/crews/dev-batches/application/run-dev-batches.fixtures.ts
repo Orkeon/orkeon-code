@@ -215,3 +215,6 @@ export function parallelSetup(): Setup & { runs: Array<{ batch: string; root: st
   at.deps.probe = async (root) => ({ exitCode: 0, top: root });
   return { ...at, runs };
 }
+
+/** The session's context a chained hop read again: a stricter mode and a new rule since the run started. */
+export const FRESH_SESSION = { permissionMode: "default", permissionRules: ["deny shell_command command=git push*"], githubTool: true };

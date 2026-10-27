@@ -47,7 +47,7 @@ export function crewDeps(launchError?: string) {
   return { crews, deps: { crews, log }, log, logged, warned };
 }
 
-export const CHAIN_LIMIT_ERROR = "Async command chain refused at depth 9, limit 8.";
+export const CHAIN_LIMIT_ERROR = "chain depth 8 reached (MaxChainDepth 8, /dev-batches)";
 
 /** launchMainLoop's deps, the session holding the rules `stored`; `atLaunch.gate` is what the gate held when the crew
  *  was launched. */
