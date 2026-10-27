@@ -66,6 +66,11 @@ What Orkeon Code does not do yet, in the order we expect to address it. Items ma
   these extensions for reading as for writing, and the discovery of `index_codebase` fails on the first one. The index
   is therefore asked for every grammar but bash: the scripts enter no index, and `/analyze` works on a project that
   holds some (runtime; a read let through and a refused file skipped are asked of Orkeon, Orkeon #215).
+- From the shell the assistant reaches no private remote: the runtime hands a `shell_command` an allow-list of
+  environment variables that drops `DBUS_SESSION_BUS_ADDRESS` and `SSH_AUTH_SOCK`, so a keyring-backed credential
+  helper (`gh auth git-credential`, the `gh` default) and the ssh agent give git nothing, and a private repository
+  answers `Repository not found` while a public one works. Fetch, pull and push such a remote from your terminal
+  (runtime; the session's sockets passed to the shell are asked of Orkeon).
 - `/help` lists the 58 commands as one block, `[(no group)]`: the runtime groups a runner's commands by the first word
   of their name, and a scripted command's name is one word. The folders of `src/commands/` give the order of the
   list, not its headings (runtime; a group per scripted command, derived from its folder, is asked of Orkeon, Orkeon #214).

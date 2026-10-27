@@ -74,6 +74,11 @@ demandent d'abord un changement dans [Orkeon](https://github.com/Orkeon/orkeon).
   sur le premier. L'index est donc demandé pour toutes les grammaires sauf bash : les scripts n'entrent dans aucun
   index, et `/analyze` fonctionne sur un projet qui en contient (runtime ; une lecture laissée passer et un fichier
   refusé ignoré sont demandés à Orkeon, Orkeon #215).
+- Depuis le shell, l'assistant n'atteint aucun remote privé : le runtime passe à un `shell_command` une liste
+  blanche de variables d'environnement qui laisse tomber `DBUS_SESSION_BUS_ADDRESS` et `SSH_AUTH_SOCK`, donc un helper
+  d'identifiants adossé au trousseau (`gh auth git-credential`, le défaut de `gh`) et l'agent ssh ne donnent rien à
+  git, et un dépôt privé répond `Repository not found` quand un public fonctionne. Fetch, pull et push d'un tel remote
+  se font depuis votre terminal (runtime ; le passage des sockets de la session au shell est demandé à Orkeon).
 - `/help` liste les 58 commandes en un seul bloc, `[(no group)]` : le runtime groupe les commandes d'un runner par le
   premier mot de leur nom, et le nom d'une commande scriptée n'a qu'un mot. Les dossiers de `src/commands/` donnent
   l'ordre de la liste, pas ses titres (runtime ; un groupe par commande scriptée, dérivé de son dossier, est demandé à
