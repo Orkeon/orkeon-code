@@ -201,6 +201,7 @@ rend le texte, ou le message d'échec propre à l'outil sans l'enrobage du runti
 | `CodeIndex` | L'index du code tel que `/analyze` le récolte (`index_status`, `index_codebase`, `codebase_map`, `dependency_graph`, `package_summary`) | `code-index.ts` | `fake-code-index.ts` |
 | `CostIndex` | Le coût d'accès que `/dev-batches` mesure : les racines indexées, le rafraîchissement des fichiers du lot, le rapport (`index_status`, `incremental_reindex`, `access_cost`) | `code-index.ts` | `fake-cost-index.ts` |
 | `CrewHost` | Lister et lancer des crews (le service `script-host`, `ctx.services`) | `crew-host.ts` | `fake-crew-host.ts` |
+| `RunningCrews` | Les instances en cours d'un crew, par son nom, qu'une commande lit avant d'en lancer un qui ne doit pas tourner deux fois (le service `commands`, `ctx.services`) | `running-crews.ts` | `fake-running-crews.ts` |
 | `PermissionRules` | Les règles de session de la garde de permission de l'hôte : ajouter, effacer, lister (le service `permissions`, `ctx.services`) | `permission-rules.ts` | `fake-permission-rules.ts` |
 | `Llm` | Le modèle : `act` (la boucle d'outils), `complete`, `extract` (`ctx.llm` de l'agent en cours) ; un `act` ou un `complete` qui échoue lève une `LlmFailure` | `llm.ts` | `fake-llm.ts` |
 | `RunState` | L'état propre de l'agent en cours, pour une exécution de crew (`ctx.state`) | `run-state.ts` | `fake-run-state.ts` |

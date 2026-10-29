@@ -45,3 +45,13 @@ export const SHOW_DEFAULT = "reasoning passes: 1 (default)\n/review runs that ma
   "usage: /passes <1-5> (this session) or /review --passes <1-5> (one run)";
 
 export const SET_THREE = "reasoning passes set to 3 — /review will make 9 lens calls per run (session-scoped; /clear clears it).";
+
+/** The crews running when a review is asked (crew name to tickets), and the refusal expected: none when no review runs. */
+export const BUSY_CASES: readonly { name: string; tickets: Record<string, string[]>; expected: string | undefined }[] = [
+  { name: "lets a review start when no crew runs", tickets: {}, expected: undefined },
+  { name: "lets a review start while another crew runs", tickets: { "shared-memory-admit": ["t3"] }, expected: undefined },
+  {
+    name: "refuses a review while one runs, naming its ticket",
+    tickets: { "code-review": ["t2"] }, expected: "review: a review is already running (ticket t2): wait for its result",
+  },
+];

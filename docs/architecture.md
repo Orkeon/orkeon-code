@@ -194,6 +194,7 @@ the text, or the tool's own failure message without the runtime's wrapping, and 
 | `CodeIndex` | The code index as `/analyze` harvests it (`index_status`, `index_codebase`, `codebase_map`, `dependency_graph`, `package_summary`) | `code-index.ts` | `fake-code-index.ts` |
 | `CostIndex` | The access cost `/dev-batches` measures: the indexed roots, the refresh of the batch's files, the report (`index_status`, `incremental_reindex`, `access_cost`) | `code-index.ts` | `fake-cost-index.ts` |
 | `CrewHost` | List and launch crews (the `script-host` service, `ctx.services`) | `crew-host.ts` | `fake-crew-host.ts` |
+| `RunningCrews` | The running instances of a crew, by its name, that a command reads before launching one that must not run twice (the `commands` service, `ctx.services`) | `running-crews.ts` | `fake-running-crews.ts` |
 | `PermissionRules` | The session rules of the host's permission gate: add, clear, list (the `permissions` service, `ctx.services`) | `permission-rules.ts` | `fake-permission-rules.ts` |
 | `Llm` | The model: `act` (the tool loop), `complete`, `extract` (`ctx.llm` of the running agent); a failed `act` or `complete` throws an `LlmFailure` | `llm.ts` | `fake-llm.ts` |
 | `RunState` | The running agent's own state, for one crew run (`ctx.state`) | `run-state.ts` | `fake-run-state.ts` |

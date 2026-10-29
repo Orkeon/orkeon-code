@@ -3,13 +3,16 @@
 // --refuse <id> [<motif>] | --list | --import — decide the shared memory's candidates (_lib/memory/memory-admit.ts):
 // the list, a refusal and the import are answered here, an admission is confirmed here, then written and indexed
 // by the crew shared-memory-admit. Two aliases keep their own shape (_lib/memory/memory.ts): /feedback <text> is a
-// 'feedback' memory, /memory-admit … the admit sub-verb.
+// 'feedback' memory, /memory-admit … the admit sub-verb. An admission asked while the crew still writes the previous
+// one is refused before its questions (admitBusyText): the command has no instance quota, so the CRUD, /feedback and
+// the other admit verbs still answer meanwhile.
 import { rawTokens, typedCommand } from "../_lib/args.ts";
 import { launchCrew, writeCompleted } from "../_lib/dispatch.ts";
 import { admitTokens, runMemory } from "../_lib/memory/memory.ts";
-import { MEMORY_ADMIT_CREW, parseMemoryAdmitArgs, runMemoryAdmit } from "../_lib/memory/memory-admit.ts";
+import { MEMORY_ADMIT_CREW, admitBusyText, parseMemoryAdmitArgs, runMemoryAdmit } from "../_lib/memory/memory-admit.ts";
 import { showView } from "../_lib/view.ts";
 import { createCrewHost } from "../../shared/infrastructure/orkeon/crew-host.ts";
+import { createRunningCrews } from "../../shared/infrastructure/orkeon/running-crews.ts";
 import {
   orkeonClock, orkeonConfigStore, orkeonFiles, orkeonMemoryStore, orkeonShell,
 } from "../../shared/infrastructure/orkeon/wiring.ts";
@@ -21,7 +24,6 @@ defineAsyncCommand({
   name: "memory",
   aliases: ["feedback", "memory-admit"],
   description: "List, add, delete, or get typed memory entries (user/project/feedback/reference); admit decides the shared memory's candidates (--list, --refuse <id>, --import).",
-  maxConcurrent: 1,
   dispatch: async (args, ctx) => {
     const tokens = rawTokens(args);
     const typed = typedCommand(ctx.command?.rawInput, "memory");
@@ -31,6 +33,11 @@ defineAsyncCommand({
     if (!parsed.ok) {
       ctx.writeLine(parsed.text);
       return { refused: parsed.text };
+    }
+    const busy = parsed.args.kind === "admit" ? admitBusyText(createRunningCrews(ctx.services)) : undefined;
+    if (busy !== undefined) {
+      ctx.writeLine(busy);
+      return { refused: busy };
     }
     const result = await runMemoryAdmit(parsed.args, admitDeps, {
       writeLine: (text) => ctx.writeLine(text),

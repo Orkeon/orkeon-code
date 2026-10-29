@@ -81,3 +81,15 @@ export const CANCELLED_ANSWERS: readonly { name: string; answer: unknown }[] = [
   { name: "the console throws", answer: new Error("cancelled") },
   { name: "the console answers nothing", answer: undefined },
 ];
+
+/** The crews running when an admission is asked (crew name to tickets), and the refusal expected: none when no
+ *  admission is being written. */
+export const BUSY_CASES: readonly { name: string; tickets: Record<string, string[]>; expected: string | undefined }[] = [
+  { name: "lets an admission start when no crew runs", tickets: {}, expected: undefined },
+  { name: "lets an admission start while a review runs", tickets: { "code-review": ["t2"] }, expected: undefined },
+  {
+    name: "refuses an admission while the previous one is being written, naming its ticket",
+    tickets: { "shared-memory-admit": ["t5"] },
+    expected: "memory admit: the previous admission is still being written (ticket t5): type it again in a moment",
+  },
+];

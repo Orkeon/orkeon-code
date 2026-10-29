@@ -1,12 +1,14 @@
 // /memory-admit (M-4): parsing, the list, a refusal, one confirmation per candidate, the headless
-// refusal and auto-admission of an audited candidate. Run: node --test tests/commands/_lib/memory/memory-admit.test.ts
+// refusal and auto-admission of an audited candidate, and the refusal of an admission while one is written. Run: node --test tests/commands/_lib/memory/memory-admit.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual, ok } from "node:assert";
 
-import { parseMemoryAdmitArgs } from "../../../../src/commands/_lib/memory/memory-admit.ts";
+import { admitBusyText, parseMemoryAdmitArgs } from "../../../../src/commands/_lib/memory/memory-admit.ts";
+import { FakeRunningCrews } from "../../../support/doubles/fake-running-crews.ts";
 import { entryText } from "../../../support/fixtures/memory-entries.ts";
 import {
   ACCEPTED_ARGS_CASES,
+  BUSY_CASES,
   CANCELLED_ANSWERS,
   NO_ANSWERS,
   REFUSED_ARGS_CASES,
@@ -192,4 +194,20 @@ describe("runMemoryAdmit", () => {
     // Assert
     ok("refused" in again);
   });
+});
+
+describe("admitBusyText", () => {
+  for (const c of BUSY_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const running = new FakeRunningCrews();
+      running.tickets = c.tickets;
+
+      // Act
+      const text = admitBusyText(running);
+
+      // Assert
+      strictEqual(text, c.expected);
+    });
+  }
 });

@@ -87,10 +87,13 @@ from the line, the routing in its use case under `src/commands/_lib/<group>/`):
 The reason is the one of part 2: each was a duplicate of an option or a sub-verb of another command, one more name to
 learn for nothing the other did not do. The seven names stay as aliases, so a line typed under one keeps working.
 
-An alias shares its command's quota. `/review` and `/memory` keep `maxConcurrent: 1`, the only serialisation of two
-reviews or two admissions (the admit crew holds no lock). The cost is accepted: a line typed `/passes [n]` or
-`/security-review` is refused while a review runs (`quota of 1 instance(s) of 'review' reached`), and
-`/memory list|add|get|delete` or `/feedback` while an admission's crew runs, an instant (it writes a few files).
+An alias does not share a quota with its command: the one-at-a-time is the crew's, not the command's. A command
+quota (`maxConcurrent: 1`) counts every line typed under any of the names, so it would refuse `/passes [n]` while a
+review runs and `/memory list|add|get|delete` or `/feedback` while an admission's crew writes. `/review` and `/memory`
+have none; before launching their crew they ask the host's `commands` service which instances of it run (the port
+`RunningCrews`) and refuse the line with that ticket when one does: a second review (`/review` or
+`/security-review`, the same crew) or a second admission (refused before its questions). Every other line goes
+through. The check holds within one REPL, like the lock on the memory collection.
 
 Left as they are: `/context` (the window by kind, not the session's account), `/init-verifiers`, `/transcribe`,
 `/release-notes`, and the thin git and file accesses (`/diff`, `/branch`, `/files`), each the one
