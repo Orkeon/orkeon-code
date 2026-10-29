@@ -34,7 +34,7 @@ defineAsyncCommand({
       ctx.writeLine(parsed.text);
       return { refused: parsed.text };
     }
-    const busy = parsed.args.kind === "admit" ? admitBusyText(createRunningCrews(ctx.services)) : undefined;
+    const busy = admitBusyText(parsed.args, createRunningCrews(ctx.services));
     if (busy !== undefined) {
       ctx.writeLine(busy);
       return { refused: busy };

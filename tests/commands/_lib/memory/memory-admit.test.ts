@@ -204,10 +204,22 @@ describe("admitBusyText", () => {
       running.tickets = c.tickets;
 
       // Act
-      const text = admitBusyText(running);
+      const text = admitBusyText(c.args, running);
 
       // Assert
       strictEqual(text, c.expected);
     });
   }
+
+  it("asks about no crew for a line that launches none", () => {
+    // Arrange
+    const running = new FakeRunningCrews();
+    running.tickets = { "shared-memory-admit": ["t5"] };
+
+    // Act
+    admitBusyText({ kind: "list" }, running);
+
+    // Assert
+    deepStrictEqual(running.asked, []);
+  });
 });
