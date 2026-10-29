@@ -19,7 +19,17 @@ export const CONSUMERS: Record<string, string> = {
   "memory.dir": "/memory-admit, /assistant (the memory_recall and memory_push tools)",
   "memory.project": "/memory-admit, /assistant (the memory_recall and memory_push tools)",
   "memory.autoAdmitAudited": "/memory-admit",
+  "llm.profile": "/assistant, /review, /commit, /advisor, /memory admit, the dev steps and every other command that launches a crew (the model its agents run on)",
 };
+
+/** llm.profile: one name, as the host's settings spell it; a path or a sentence is not one. */
+export const LLM_PROFILE_VALUES: readonly { readonly value: string; readonly ok: boolean }[] = [
+  { value: "guarded", ok: true },
+  { value: "default", ok: true },
+  { value: "claude-sonnet", ok: true },
+  { value: "Orkeon:Decision:Profiles:guarded", ok: false },
+  { value: "guarded cascade", ok: false },
+];
 
 /** Blank values: never stored as a setting. */
 export const BLANK_VALUES: readonly string[] = ["", "   "];

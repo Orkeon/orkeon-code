@@ -17,7 +17,7 @@
 // starts the advisor crew when it is asked for.
 import { rawTokens } from "../_lib/args.ts";
 import { runAdvisorCommand } from "../_lib/settings/advisor.ts";
-import { launchCrew, writeCompleted } from "../_lib/dispatch.ts";
+import { launchCrew, withLlmProfile, writeCompleted } from "../_lib/dispatch.ts";
 import { createCrewHost } from "../../shared/infrastructure/orkeon/crew-host.ts";
 import { orkeonConfigStore, orkeonTelemetry } from "../../shared/infrastructure/orkeon/wiring.ts";
 
@@ -30,7 +30,7 @@ defineAsyncCommand({
   maxConcurrent: 1,
   dispatch: async (args, ctx) => {
     const outcome = await runAdvisorCommand(rawTokens(args), { config, telemetry, log: ctx.log });
-    if ("launch" in outcome) return launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "advisor", {});
+    if ("launch" in outcome) return launchCrew(await withLlmProfile({ crews: createCrewHost(ctx.services), log: ctx.log }, orkeonConfigStore()), "advisor", {});
     for (const line of outcome.lines) ctx.writeLine(line);
     return;
   },

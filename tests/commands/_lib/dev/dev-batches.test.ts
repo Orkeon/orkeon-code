@@ -23,6 +23,7 @@ import {
   BATCH_READ_CASES,
   BATCH_REFUSED_CASES,
   READ_CHAIN_CASES,
+  hopConfig,
   RECORD_FAILURE_CASES,
   STREAMED_AUDIT,
   verifyHarness,
@@ -306,37 +307,48 @@ describe("devBatchesCompleted", () => {
 });
 
 describe("launchCompletedHop", () => {
-  it("launches a batch's hop as it climbs, with no chain option", () => {
+  it("launches a batch's hop as it climbs, with no chain option", async () => {
     // Arrange
     const crews = new FakeCrewHost();
 
     // Act
-    launchCompletedHop({ chain: "batch", lines: [], launch: BATCH_LAUNCH }, { crews, log: new FakeLogger() });
+    await launchCompletedHop({ chain: "batch", lines: [], launch: BATCH_LAUNCH }, { crews, log: new FakeLogger() }, hopConfig());
 
     // Assert
     deepStrictEqual(crews.launches.map((l) => l.options), [undefined]);
   });
 
-  it("launches a run's hop with the parent's depth kept", () => {
+  it("launches a run's hop with the parent's depth kept", async () => {
     // Arrange
     const crews = new FakeCrewHost();
 
     // Act
-    launchCompletedHop({ chain: "run", lines: [], launch: BATCH_LAUNCH }, { crews, log: new FakeLogger() });
+    await launchCompletedHop({ chain: "run", lines: [], launch: BATCH_LAUNCH }, { crews, log: new FakeLogger() }, hopConfig());
 
     // Assert
     deepStrictEqual(crews.launches.map((l) => l.options), [BATCHES_CHAIN]);
   });
 
-  it("launches nothing and leaves no line for a completion without a hop", () => {
+  it("launches nothing and leaves no line for a completion without a hop", async () => {
     // Arrange
     const crews = new FakeCrewHost();
 
     // Act
-    const lines = launchCompletedHop({ chain: "audit", lines: ["x"] }, { crews, log: new FakeLogger() });
+    const lines = await launchCompletedHop({ chain: "audit", lines: ["x"] }, { crews, log: new FakeLogger() }, hopConfig());
 
     // Assert
     deepStrictEqual([lines, crews.launches], [[], []]);
+  });
+
+  it("hands the hop the session's llm.profile", async () => {
+    // Arrange
+    const crews = new FakeCrewHost();
+
+    // Act
+    await launchCompletedHop({ chain: "run", lines: [], launch: BATCH_LAUNCH }, { crews, log: new FakeLogger() }, hopConfig("guarded"));
+
+    // Assert
+    strictEqual(crews.launches[0].input.llmProfile, "guarded");
   });
 });
 

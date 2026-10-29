@@ -8,7 +8,7 @@ import { rawTokens } from "../_lib/args.ts";
 import { writeCompleted } from "../_lib/dispatch.ts";
 import { dispatchSay } from "../_lib/speech/say.ts";
 import { createCrewHost } from "../../shared/infrastructure/orkeon/crew-host.ts";
-import { orkeonSessionIo, orkeonToolCatalogue } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { orkeonConfigStore, orkeonSessionIo, orkeonToolCatalogue } from "../../shared/infrastructure/orkeon/wiring.ts";
 
 const session = orkeonSessionIo();
 
@@ -18,7 +18,7 @@ defineAsyncCommand({
   maxConcurrent: 1,
   dispatch: async (args, ctx) =>
     await dispatchSay(rawTokens(args), {
-      session, catalogue: orkeonToolCatalogue(ctx.services), crews: createCrewHost(ctx.services), log: ctx.log,
+      session, config: orkeonConfigStore(), catalogue: orkeonToolCatalogue(ctx.services), crews: createCrewHost(ctx.services), log: ctx.log,
     }),
   completed: (result, ctx) => writeCompleted(ctx, result, "say"),
 });

@@ -18,14 +18,14 @@
 // config wholesale (it used to drop the API key) — see the framework fix of
 // 2026-08-05.
 
-import { AgentBuilder, CrewBuilder, publishCrew } from "../../shared/infrastructure/globals.ts";
-import { orkeonConfigStore, orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { CrewBuilder, publishCrew } from "../../shared/infrastructure/globals.ts";
+import { orkeonAgent, orkeonConfigStore, orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { runAdvisor } from "./application/run-advisor.ts";
 
 const ports = { config: orkeonConfigStore(), session: orkeonSessionIo() };
 
-const advisor = AgentBuilder()
+const advisor = orkeonAgent()
   .name("advisor")
   .role("Independent Reviewer")
   .goal("Give a blunt second opinion on the last answer the coding agent produced.")

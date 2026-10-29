@@ -8,7 +8,7 @@ import {
 } from "../../../src/shared/domain/config-schema.ts";
 import { PERMISSION_MODES } from "../../../src/shared/domain/permission-modes.ts";
 import {
-  BLANK_VALUES, CLEAN_MAPS, CONSUMERS, FALLBACK_AGAINST_USER, MEMORY_VALUES, NESTED_MAP, NON_STRING_VALUES,
+  BLANK_VALUES, CLEAN_MAPS, CONSUMERS, FALLBACK_AGAINST_USER, LLM_PROFILE_VALUES, MEMORY_VALUES, NESTED_MAP, NON_STRING_VALUES,
   NOT_NESTED_MAPS, PROJECT_MODES, READ_ONLY_TOOLS, REFUSED_MEMORY_DIRS, TOOLS_EXTRA_REFUSAL, TWIN_ENTRIES,
   UNDECLARED_MEMORY_KEYS, USER_GATED_KEYS, VALID_MEMORY_DIRS, VALID_TOOLS_EXTRA, WIDER_PROJECT_MODES,
 } from "./config-schema.fixtures.ts";
@@ -182,6 +182,19 @@ describe("validateConfigEntry — ACCEPTANCE 1: unknown keys are rejected with t
 
       // Assert
       strictEqual(v.ok, true);
+    });
+  }
+
+  for (const c of LLM_PROFILE_VALUES) {
+    it(`checks the notation of llm.profile, ${c.ok ? "accepting" : "refusing"} ${JSON.stringify(c.value)}`, () => {
+      // Arrange
+      const value = c.value;
+
+      // Act
+      const v = validateConfigEntry("llm.profile", value);
+
+      // Assert
+      strictEqual(v.ok, c.ok);
     });
   }
 

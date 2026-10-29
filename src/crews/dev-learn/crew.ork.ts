@@ -19,14 +19,21 @@
 // called by code. No budget, as analyze: the calls are code's, and at most six extract calls run
 // (three axes, one re-ask each).
 
-import { AgentBuilder, CrewBuilder, publishCrew, inputs } from "../../shared/infrastructure/globals.ts";
-import { orkeonClock, orkeonConfigStore, orkeonFiles, orkeonHumanInput, orkeonShell } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { CrewBuilder, publishCrew, inputs } from "../../shared/infrastructure/globals.ts";
+import {
+  orkeonAgent,
+  orkeonClock,
+  orkeonConfigStore,
+  orkeonFiles,
+  orkeonHumanInput,
+  orkeonShell,
+} from "../../shared/infrastructure/orkeon/wiring.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { runDevLearn } from "./application/run-dev-learn.ts";
 
 const ports = { shell: orkeonShell(), files: orkeonFiles(), config: orkeonConfigStore(), human: orkeonHumanInput() };
 
-const learner = AgentBuilder()
+const learner = orkeonAgent()
   .name("dev-learner")
   .role("Recurring-gap analyst")
   // NO tools on purpose: one extract per axis, and every row it judges is in the prompt.

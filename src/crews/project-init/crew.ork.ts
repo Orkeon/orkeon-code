@@ -6,14 +6,14 @@
 //
 // Run standalone:  bash scripts/run-crew.sh src/crews/project-init/crew.ork.ts
 
-import { AgentBuilder, CrewBuilder, publishCrew } from "../../shared/infrastructure/globals.ts";
-import { orkeonFiles } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { CrewBuilder, publishCrew } from "../../shared/infrastructure/globals.ts";
+import { orkeonAgent, orkeonFiles } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { runProjectInit } from "./application/run-project-init.ts";
 
 const files = orkeonFiles();
 
-const scanner = AgentBuilder()
+const scanner = orkeonAgent()
   .name("project-initialiser")
   .role("Repository Onboarding Engineer")
   .goal("Understand a codebase's layout + conventions and write an AGENTS.md that future agents can rely on.")

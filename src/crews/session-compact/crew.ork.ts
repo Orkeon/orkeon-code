@@ -11,16 +11,23 @@
 //
 // Run standalone:  bash scripts/run-crew.sh src/crews/session-compact/crew.ork.ts
 
-import { AgentBuilder, CrewBuilder, inputs, publishCrew } from "../../shared/infrastructure/globals.ts";
+import { CrewBuilder, inputs, publishCrew } from "../../shared/infrastructure/globals.ts";
 import {
-  orkeonClock, orkeonCompactionDeps, orkeonConfigStore, orkeonFiles, orkeonMemoryStore, orkeonProgress,
-  orkeonSessionIo, orkeonShell,
+  orkeonAgent,
+  orkeonClock,
+  orkeonCompactionDeps,
+  orkeonConfigStore,
+  orkeonFiles,
+  orkeonMemoryStore,
+  orkeonProgress,
+  orkeonSessionIo,
+  orkeonShell,
 } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { compactSession, snipBuffer } from "../../shared/application/compaction/compact-session.ts";
 import { formatOutcome } from "../../shared/domain/compact-outcome.ts";
 
-const compactor = AgentBuilder()
+const compactor = orkeonAgent()
   .name("session-compactor")
   .role("Context Window Manager")
   .goal("Summarise the conversation buffer into a compact form that preserves decisions, code, and open tasks.")

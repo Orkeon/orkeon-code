@@ -13,7 +13,14 @@ export const load = (name: string): any => JSON.parse(readFileSync(new URL(name,
 /** The examples the documentation promises. */
 export const PROMISED_EXAMPLES: readonly string[] = [
   "appsettings.example.json", "appsettings.ollama.example.json", "appsettings.ollama-whisper.example.json",
+  "appsettings.jev.example.json",
 ];
+
+/** The settings but for their comment, their Llm:Profiles and the two sections of the decision model. */
+export function withoutCommentProfilesAndDecision(settings: any): Record<string, unknown> {
+  const { _comment, Llm: { Profiles, ...llm }, Orkeon: { TypeSafe, Decision, ...orkeon }, ...rest } = settings;
+  return { ...rest, Llm: llm, Orkeon: orkeon };
+}
 
 /** The keys opening with `_` below the root of `node`, as `Section:Key` paths. */
 export function commentKeysBelowRoot(node: unknown, path: string[] = [], found: string[] = []): string[] {

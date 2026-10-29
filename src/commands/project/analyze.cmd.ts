@@ -7,8 +7,9 @@
 // RaggableTree is always the source, then makes exactly one no-tools LLM call
 // to synthesize business objects and dependencies. `--raw` skips that call and
 // prints the harvest (zero LLM cost).
-import { launchCrew, writeCompleted } from "../_lib/dispatch.ts";
+import { launchCrew, withLlmProfile, writeCompleted } from "../_lib/dispatch.ts";
 import { createCrewHost } from "../../shared/infrastructure/orkeon/crew-host.ts";
+import { orkeonConfigStore } from "../../shared/infrastructure/orkeon/wiring.ts";
 
 defineAsyncCommand({
   name: "analyze",
@@ -17,6 +18,6 @@ defineAsyncCommand({
   args: {
     raw: { type: "boolean", required: false, default: false },
   },
-  dispatch: (args, ctx) => launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "analyze", { raw: args.raw === true }),
+  dispatch: async (args, ctx) => launchCrew(await withLlmProfile({ crews: createCrewHost(ctx.services), log: ctx.log }, orkeonConfigStore()), "analyze", { raw: args.raw === true }),
   completed: (result, ctx) => writeCompleted(ctx, result, "analyze", "✓ analyze →\n"),
 });

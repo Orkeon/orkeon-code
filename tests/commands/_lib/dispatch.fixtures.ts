@@ -2,7 +2,7 @@
 // and FakeFiles, FakeToolCatalogue, a recording log), the gate noted at launch, and the expected
 // gate lines and warnings that run past a line.
 import { runMode } from "../../../src/commands/_lib/settings/mode.ts";
-import { createConfigStore } from "../../../src/shared/application/config-store.ts";
+import { createConfigStore, USER_CONFIG_FILE_PATH } from "../../../src/shared/application/config-store.ts";
 import { createSessionIo } from "../../../src/shared/application/session-io.ts";
 import { resolveFallbackMode } from "../../../src/shared/domain/permission-modes.ts";
 import { PERMISSION_RULES_STATE_KEY } from "../../../src/shared/domain/session-keys.ts";
@@ -47,6 +47,17 @@ export function crewDeps(launchError?: string) {
   return { crews, deps: { crews, log }, log, logged, warned };
 }
 
+/** crewDeps with a config store whose user settings name `llm.profile`, or hold the `value` given. */
+export function profiledCrewDeps(value?: string) {
+  const base = crewDeps();
+  const files = new FakeFiles();
+  if (value !== undefined) files.files.set(USER_CONFIG_FILE_PATH, JSON.stringify({ "llm.profile": value }));
+  const config = createConfigStore({ files, session: new FakeSessionStore() });
+  return { ...base, config };
+}
+
+export const NOT_A_PROFILE_WARNING = "llm.profile: 'a b' holds a space: a profile is one name, as the host's settings spell it; the host's default model this launch";
+
 export const CHAIN_LIMIT_ERROR = "chain depth 8 reached (MaxChainDepth 8, /dev-batches)";
 
 /** The host's refusal of an exclusive launch while the crew runs (Orkeon #239). */
@@ -80,6 +91,7 @@ export const START_SCRIPT = { script: "/tmp/orkeon-code/session-start.sh", lines
 export const UNREADABLE_EXTRA_TOOLS_WARNINGS = [
   `tools.extra could not be read (${WORKSPACE}/.orkeon/config.json could not be read or parsed): no extra tool this turn`,
   "permission rule 'deny create_issue' is dormant: tools.extra does not list its tool, the gate does not get it",
+  `llm.profile could not be read (${WORKSPACE}/.orkeon/config.json could not be read or parsed): the host's default model this launch`,
 ];
 
 /** A tools.extra with a tool registered, one not, a bad access, a second entry of a name and a built-in tool. */
@@ -140,6 +152,7 @@ export const NO_SPEAK_WARNING =
 export const UNREADABLE_VOICE_WARNINGS = [
   "tools.extra could not be read (config.json unreadable): no extra tool this turn",
   "voice.reply could not be read (config.json unreadable): the answer is not read aloud this turn",
+  "llm.profile could not be read (config.json unreadable): the host's default model this launch",
 ];
 
 /** A session where /mode plan was run, with the stores it holds. */

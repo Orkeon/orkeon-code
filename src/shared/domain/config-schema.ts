@@ -19,6 +19,7 @@ import { ANSWER_LANGUAGE_CONFIG_KEY } from "./agent-policy/output-styles.ts";
 import { COMPACTION_TRIGGER_CONFIG_KEY, compactionTriggerProblem } from "./compaction-thresholds.ts";
 import { DEV_WORK_DIR_CONFIG_KEY, workFolderProblem } from "./dev/work-folder.ts";
 import { DEV_PR_AUTO_CONFIG_KEY } from "./git/close.ts";
+import { LLM_PROFILE_CONFIG_KEY, llmProfileProblem } from "./llm-profile.ts";
 import {
   MEMORY_AUTO_ADMIT_CONFIG_KEY, MEMORY_DIR_CONFIG_KEY, MEMORY_PROJECT_CONFIG_KEY, memoryDirProblem, memoryProjectProblem,
 } from "./shared-memory/layout.ts";
@@ -62,6 +63,16 @@ export const CONFIG_KEYS: readonly ConfigKeySpec[] = [
       "Model used for the secondary opinion of /advisor. Omitted = the session's own " +
       "model, which makes the review a self-review and worth far less.",
     consumedBy: "/advisor (advisor crew)",
+  },
+  {
+    key: LLM_PROFILE_CONFIG_KEY,
+    description:
+      "The host profile the agents of every crew run on: an LLM profile (Llm:Profiles:<name>) or a decision " +
+      "profile (Orkeon:Decision:Profiles:<name>, a decision model such as Jev in front of one), e.g. 'guarded'. " +
+      "A name the host does not declare fails the crew's load, listing the profiles it knows. Omitted = the host's " +
+      "default model.",
+    problem: llmProfileProblem,
+    consumedBy: "/assistant, /review, /commit, /advisor, /memory admit, the dev steps and every other command that launches a crew (the model its agents run on)",
   },
   {
     key: "commit.requireConfirm",

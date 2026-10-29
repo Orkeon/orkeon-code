@@ -62,6 +62,20 @@ of 4,096 tokens unless its environment says otherwise, and Orkeon does not widen
 of a turn is about 2,250 tokens before the tool schemas and the conversation, so set `OLLAMA_CONTEXT_LENGTH=16384`
 on the Ollama service, or the model silently loses its instructions and its tools.
 
+**A decision model in front of the LLM.** Orkeon can put a decision model, Jev (TypeSafe's System One, `jev-latest`),
+in front of a model: a *decision profile* (`Orkeon:Decision:Profiles:<name>`) wraps a named LLM profile
+(`Llm:Profiles:<name>`) with stages that route the request to the profile that fits it, guard it (prompt injection,
+the risks you name) or verify the answer and escalate to a stronger profile when it does not hold.
+[`config/appsettings.jev.example.json`](../config/appsettings.jev.example.json) is the example: the `Orkeon:TypeSafe`
+section (the key in `TYPESAFE_API_KEY`, never in the file), two LLM profiles, `small` and `large`, and the decision
+profile `guarded` over them. The session key `llm.profile` names the profile the agents of the commands run on,
+`/config set llm.profile guarded`: every crew a command launches builds its agents on it, the child agents of the dev
+steps included, and the launch log and `/config list` show it. Without the key nothing changes: the agents run on the
+host's default model, as before. A name the host does not declare fails the crew's load, its error listing the
+profiles the host knows; a plain LLM profile works the same way, with no decision model in front. The per-call model
+of `/advisor` (`advisor.model`) still applies on top of the profile. The stages and their settings are in
+[Orkeon's decision models](https://github.com/Orkeon/orkeon/blob/main/docs/architecture/decision-models.md).
+
 The agent calls tools through every provider: the runtime's tool loop (`ctx.llm.act`) reads the tool calls of the
 Anthropic and OpenAI formats, runs the read calls of a model turn up to `MaxParallelToolCalls` at once and the
 others one after the other, each call through the permission gate, and sends the results back in the provider's tool protocol. A tool result reaches the model cut at
@@ -124,7 +138,9 @@ docs/memory`; omitted, `.orkeon/memory`; never under `.claude/` or `.git/`, neve
 `memory-<project>`, a kebab-case name; omitted, the `origin` remote's name, else `local`),
 `memory.autoAdmitAudited` (`true` or `false`, omitted = `false`: `/memory admit` admits a candidate an audit backs
 without asking), `review.lenses` (the lenses of `/review`, comma-separated among `correctness`, `security` and
-`style`; omitted, all three), `advisor.model` (the model of `/advisor`'s second opinion; omitted, the session's own,
+`style`; omitted, all three), `llm.profile` (the host profile every crew's agents run on, an LLM profile or a
+decision profile with Jev in front, `/config set llm.profile guarded`, [the LLM](#the-llm); omitted, the host's
+default model), `advisor.model` (the model of `/advisor`'s second opinion; omitted, the session's own,
 which makes it a self-review), `commit.requireConfirm` (`false` lets `/commit` run without its confirmation; omitted =
 `true`), or `spinnerVerbs`. `/config keys` lists them all. `/model`, `/effort`, `/passes` (an alias of `/review`), `/fast`, `/proactive` and `/output-style` change
 how the next turns run. `/effort` also sets the provider's thinking: the stored level is sent as the act's `effort` by

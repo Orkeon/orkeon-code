@@ -10,7 +10,7 @@
 import type { ToolCatalogue } from "../../../shared/application/ports.ts";
 import type { PreludeCall } from "../../../shared/domain/prelude.ts";
 import { commandLine, isOption, optionValue, parseAssistantInput, splitWords } from "../args.ts";
-import { launchCrew, launchMainLoop } from "../dispatch.ts";
+import { launchCrew, launchMainLoop, withLlmProfile } from "../dispatch.ts";
 import type { LaunchResult, MainLoopLaunchDeps } from "../dispatch.ts";
 
 export const TRANSCRIBE_TOOL = "transcribe_audio";
@@ -118,11 +118,11 @@ export async function dispatchTranscribe(
   const registered = deps.catalogue.find(wanted);
   if (registered === undefined) return { message: missingToolMessage(wanted) };
   if (request.kind === "list") {
-    return launchCrew(deps, "speech", { tool: registered, args: {}, label: `the files under ${AUDIO_ROOT}` });
+    return launchCrew(await withLlmProfile(deps, deps.config), "speech", { tool: registered, args: {}, label: `the files under ${AUDIO_ROOT}` });
   }
   if (request.then === null) {
     const call = transcribeCall(registered, request, `transcription of ${request.path}`);
-    return launchCrew(deps, "speech", { ...call }, call.args);
+    return launchCrew(await withLlmProfile(deps, deps.config), "speech", { ...call }, call.args);
   }
   const { prompt, permissionMode } = parseAssistantInput(request.then);
   const prelude = transcribeCall(registered, request, `Transcription of ${request.path}, made by /transcribe before this request`);

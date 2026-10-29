@@ -19,7 +19,8 @@
 //
 // Budget (G-29): sized to the steps of the run, implement-budget.ts; the close has its own.
 
-import { AgentBuilder, CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infrastructure/globals.ts";
+import { CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infrastructure/globals.ts";
+import { orkeonAgent } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { runBuildTool, runTestsTool, scriptToolSlot } from "../../shared/infrastructure/orkeon/script-tools.ts";
 import type { WrappedTools } from "../../shared/application/dev/wrapped-tools.ts";
 import { memoryRecallOn, memoryRecallTools } from "../../shared/infrastructure/orkeon/memory-tools.ts";
@@ -38,7 +39,7 @@ const effort = providerEffort(inputs().effort);
 // memory_recall is attached unless a session rule denies every call of it (the gate would refuse each one).
 const memoryOn = memoryRecallOn(inputs());
 
-const builder = AgentBuilder()
+const builder = orkeonAgent()
   .name("dev-implement")
   .role("Batch implementer")
   .goal("Run the steps of one batch sheet test-first: red tests by the test author, then the least code that turns them green")

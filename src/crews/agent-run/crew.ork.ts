@@ -14,8 +14,13 @@
 // Budget: repairBudget(step), the step's own, so that a repaired audit or review stops where the original would.
 // Run standalone:  bash scripts/run-crew.sh src/crews/agent-run/crew.ork.ts --inputs '{"charter":"dev-reviewer","brief":"…"}'
 
-import { AgentBuilder, CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infrastructure/globals.ts";
-import { orkeonConfigStore, orkeonMemoryToolPorts, orkeonShell } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infrastructure/globals.ts";
+import {
+  orkeonAgent,
+  orkeonConfigStore,
+  orkeonMemoryToolPorts,
+  orkeonShell,
+} from "../../shared/infrastructure/orkeon/wiring.ts";
 import { memoryReadTools, memoryRecallOn, memoryRecallTools } from "../../shared/infrastructure/orkeon/memory-tools.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { devToolCallbacks } from "../../shared/application/dev/tool-callbacks.ts";
@@ -39,7 +44,7 @@ const effort = providerEffort(inputs().effort);
 const charter = CHARTERS[String(inputs().charter ?? "")] ?? REVIEWER_CHARTER;
 const step = repairStep(charter.name, inputs().step);
 
-const builder = AgentBuilder()
+const builder = orkeonAgent()
   .name("agent-run")
   .role(charter.role)
   .goal(charter.goal)

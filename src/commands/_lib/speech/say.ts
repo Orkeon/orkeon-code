@@ -7,13 +7,14 @@
 // The reading is the command's call, made by the speech crew: synthesizing a
 // long answer can outlast the 10 s a handler may wait. --stop is a quick call,
 // made here.
+import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import type { ToolCatalogue } from "../../../shared/application/ports.ts";
 import type { SessionIo } from "../../../shared/application/session-io.ts";
 import { errorText } from "../../../shared/domain/prelude.ts";
 import { SPEAK_TOOL } from "../../../shared/domain/speech.ts";
 import { commandLine, isOption, optionValue, splitWords } from "../args.ts";
-import { launchCrew } from "../dispatch.ts";
-import type { LaunchDeps, LaunchResult } from "../dispatch.ts";
+import { launchCrew, withLlmProfile } from "../dispatch.ts";
+import type { CommandLog, LaunchDeps, LaunchResult } from "../dispatch.ts";
 import { missingToolMessage } from "./transcribe.ts";
 
 export const STOP_TOOL = "stop_speaking";
@@ -61,6 +62,8 @@ export function lastAnswer(messages: ReadonlyArray<{ role: string; content: unkn
 export type SayDeps = LaunchDeps & {
   catalogue: Pick<ToolCatalogue, "find" | "callText">;
   session: Pick<SessionIo, "readMessages">;
+  config: Pick<ConfigStore, "readValue" | "readFile">;
+  log: Pick<CommandLog, "info" | "warn">;
 };
 
 /** Launch the reading and return its ticket, or the message to show when it launches nothing. */
@@ -87,7 +90,7 @@ export async function dispatchSay(tokens: readonly string[], deps: SayDeps): Pro
   if (!text) return { message: "nothing to read: give a text, or ask the assistant first (/say alone reads its last answer)" };
   const args: Record<string, unknown> = { text };
   if (request.voice) args.voice = request.voice;
-  return launchCrew(deps, "speech", { tool: speak, args, label: request.text ? "text read aloud" : "last answer read aloud" }, {
+  return launchCrew(await withLlmProfile(deps, deps.config), "speech", { tool: speak, args, label: request.text ? "text read aloud" : "last answer read aloud" }, {
     characters: text.length, ...(request.voice ? { voice: request.voice } : {}),
   });
 }

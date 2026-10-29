@@ -5,7 +5,7 @@
 // state bag and the host (_lib/session/tasks.ts); a repair launches crews/agent-run, whose completion
 // prints the new run's answer.
 import { rawTokens } from "../_lib/args.ts";
-import { launchCrew, writeCompleted } from "../_lib/dispatch.ts";
+import { launchCrew, withLlmProfile, writeCompleted } from "../_lib/dispatch.ts";
 import { startDevStep } from "../_lib/dev-step.ts";
 import { runTasks } from "../_lib/session/tasks.ts";
 import { createPendingApprovals } from "../../shared/infrastructure/orkeon/approvals.ts";
@@ -36,7 +36,7 @@ defineAsyncCommand({
     }
     for (const line of start.lines) ctx.writeLine(line);
     return launchCrew(
-      { crews: createCrewHost(ctx.services), log: ctx.log }, launch.crew, { ...launch.input, ...start.input },
+      await withLlmProfile({ crews: createCrewHost(ctx.services), log: ctx.log }, orkeonConfigStore()), launch.crew, { ...launch.input, ...start.input },
       { ...launch.details, ruleSets: start.sets.join(" "), rules: start.rules, hooks: start.hooks.length },
     );
   },

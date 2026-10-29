@@ -12,14 +12,21 @@
 //
 // No tool callbacks: the admitter has no tool and makes no model call, so there is no tool call to guard.
 
-import { AgentBuilder, CrewBuilder, publishCrew, inputs } from "../../shared/infrastructure/globals.ts";
-import { orkeonClock, orkeonConfigStore, orkeonFiles, orkeonSharedMemory, orkeonShell } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { CrewBuilder, publishCrew, inputs } from "../../shared/infrastructure/globals.ts";
+import {
+  orkeonAgent,
+  orkeonClock,
+  orkeonConfigStore,
+  orkeonFiles,
+  orkeonSharedMemory,
+  orkeonShell,
+} from "../../shared/infrastructure/orkeon/wiring.ts";
 import { readMemorySettings } from "../../shared/application/shared-memory/memory-settings.ts";
 import { admitEntries, admitReport, admittedCandidates } from "../../shared/application/shared-memory/admit-entries.ts";
 
 const ports = { files: orkeonFiles(), shell: orkeonShell(), config: orkeonConfigStore(), memory: orkeonSharedMemory() };
 
-const admitter = AgentBuilder()
+const admitter = orkeonAgent()
   .name("memory-admitter")
   .role("Shared memory keeper")
   // NO tools on purpose: every write is code's, decided by the operator in /memory-admit.

@@ -25,9 +25,18 @@
 // routed at the first draft goes on as a spec within the same budget: by then the change spent its inventory and one
 // extract call, at most one run.
 
-import { AgentBuilder, CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infrastructure/globals.ts";
+import { CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infrastructure/globals.ts";
 import {
-  orkeonClock, orkeonCodeIndex, orkeonConfigStore, orkeonFiles, orkeonHumanInput, orkeonMemoryToolPorts, orkeonSessionIo, orkeonSharedMemory, orkeonShell,
+  orkeonAgent,
+  orkeonClock,
+  orkeonCodeIndex,
+  orkeonConfigStore,
+  orkeonFiles,
+  orkeonHumanInput,
+  orkeonMemoryToolPorts,
+  orkeonSessionIo,
+  orkeonSharedMemory,
+  orkeonShell,
 } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { memoryReadTools, memoryRecallOn, memoryRecallTools } from "../../shared/infrastructure/orkeon/memory-tools.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
@@ -55,7 +64,7 @@ const callbacksFor = (ctx: any) => devToolCallbacks(
 
 /** The reviewer, added to the crew by its first act (a sequential crew would run an agent it holds from the start). */
 const reviewer = () => {
-  const builder = AgentBuilder()
+  const builder = orkeonAgent()
     .name(REVIEWER_CHARTER.name)
     .role(REVIEWER_CHARTER.role)
     .goal(REVIEWER_CHARTER.goal)
@@ -66,7 +75,7 @@ const reviewer = () => {
   return effort === undefined ? builder : builder.effort(effort);
 };
 
-const builder = AgentBuilder()
+const builder = orkeonAgent()
   .name("dev-change-writer")
   .role("Change analyst")
   .goal("Write what is wrong or costly in code that exists, the evidence that shows it and what must survive, and settle its open questions with the person")

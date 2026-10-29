@@ -11,14 +11,14 @@
 // Triggered by:  /analyze [--raw]  →  script-host.runCrewAsync("analyze", { raw })
 // Input (globalThis.inputs): { raw?: boolean }
 
-import { AgentBuilder, CrewBuilder, publishCrew, inputs } from "../../shared/infrastructure/globals.ts";
-import { orkeonCodeIndex, orkeonProgress } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { CrewBuilder, publishCrew, inputs } from "../../shared/infrastructure/globals.ts";
+import { orkeonAgent, orkeonCodeIndex, orkeonProgress } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { runAnalyze } from "./application/run-analyze.ts";
 
 const ports = { index: orkeonCodeIndex(), progress: orkeonProgress() };
 
-const analyst = AgentBuilder()
+const analyst = orkeonAgent()
   .name("analyst")
   .role("Codebase Analyst")
   // NO tools on purpose: the synthesis act() must be a pure completion. The

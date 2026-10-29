@@ -13,7 +13,7 @@
 import type { Files, ToolCatalogue } from "../../../shared/application/ports.ts";
 import { errorText, nothingReturned } from "../../../shared/domain/prelude.ts";
 import { commandLine, isOption, optionValue, parseAssistantInput, splitWords } from "../args.ts";
-import { launchCrew, launchMainLoop } from "../dispatch.ts";
+import { launchCrew, launchMainLoop, withLlmProfile } from "../dispatch.ts";
 import type { CrewCompletion, LaunchResult, MainLoopLaunchDeps } from "../dispatch.ts";
 import { missingToolMessage } from "./transcribe.ts";
 
@@ -126,7 +126,7 @@ export async function dispatchVoice(tokens: readonly string[], deps: VoiceDeps):
       prompt: "", permissionMode: null, prelude: { tool: registered, args, label: "Dictation", as: "request" },
     });
   }
-  return launchCrew(deps, "speech", { tool: registered, args, label: "dictation" }, args);
+  return launchCrew(await withLlmProfile(deps, deps.config), "speech", { tool: registered, args, label: "dictation" }, args);
 }
 
 /**

@@ -21,10 +21,10 @@
 // pull-request context, then launches the crew with the input it builds.
 import { rawTokens } from "../_lib/args.ts";
 import { runCommitCommand } from "../_lib/git/commit.ts";
-import { launchCrew, writeCompleted } from "../_lib/dispatch.ts";
+import { launchCrew, withLlmProfile, writeCompleted } from "../_lib/dispatch.ts";
 import { createCrewHost } from "../../shared/infrastructure/orkeon/crew-host.ts";
 import { createPermissionRules } from "../../shared/infrastructure/orkeon/permission-rules.ts";
-import { orkeonSessionIo, orkeonToolCatalogue } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { orkeonConfigStore, orkeonSessionIo, orkeonToolCatalogue } from "../../shared/infrastructure/orkeon/wiring.ts";
 
 const session = orkeonSessionIo();
 
@@ -42,7 +42,7 @@ defineAsyncCommand({
       pr: { catalogue: () => orkeonToolCatalogue(ctx.services), rules: () => createPermissionRules(ctx.services), session },
     });
     if ("refused" in outcome) return outcome;
-    return launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "git-commit", outcome.input);
+    return launchCrew(await withLlmProfile({ crews: createCrewHost(ctx.services), log: ctx.log }, orkeonConfigStore()), "git-commit", outcome.input);
   },
   completed: (result, ctx) => writeCompleted(ctx, result, "commit"),
 });

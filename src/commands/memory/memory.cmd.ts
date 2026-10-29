@@ -7,7 +7,7 @@
 // refuses an admission while it still writes the previous one, with its ticket; the command has no instance quota,
 // so the CRUD, /feedback and the other admit verbs still answer meanwhile.
 import { rawTokens, typedCommand } from "../_lib/args.ts";
-import { launchCrew, writeCompleted } from "../_lib/dispatch.ts";
+import { launchCrew, withLlmProfile, writeCompleted } from "../_lib/dispatch.ts";
 import { admitTokens, runMemory } from "../_lib/memory/memory.ts";
 import { MEMORY_ADMIT_CREW, parseMemoryAdmitArgs, runMemoryAdmit } from "../_lib/memory/memory-admit.ts";
 import { showView } from "../_lib/view.ts";
@@ -39,7 +39,7 @@ defineAsyncCommand({
     });
     if ("admit" in result) {
       if (result.refusedQuestions !== undefined) ctx.writeLine(`✗ ${result.refusedQuestions}`);
-      return launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, MEMORY_ADMIT_CREW, { admit: result.admit }, {}, { exclusive: true });
+      return launchCrew(await withLlmProfile({ crews: createCrewHost(ctx.services), log: ctx.log }, orkeonConfigStore()), MEMORY_ADMIT_CREW, { admit: result.admit }, {}, { exclusive: true });
     }
     if ("refused" in result) ctx.writeLine(`✗ ${result.refused}`);
     return result;
