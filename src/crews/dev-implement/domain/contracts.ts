@@ -244,3 +244,13 @@ export function greenContract(input: ContractInput, red: { tail: string; log: st
     "Answer with the files you changed and one line `Cost: <reads> reads, <writes> writes; <where a port call sits in a loop, a lambda or a memory filter, or none>`.",
   ].join("\n");
 }
+
+/** The first line of the stale block: what the review of the batch left open once its dependencies merged. */
+export const STALE_HEADING = "Stale after the merged dependencies (the reviewer's open questions; settle each by the delivered value it names, or say why not):";
+
+/** The block that ends a role's prompt with the `stale:` lines the next batch's review handed the launch (its Major
+ *  rows); "" without any. */
+export function staleBlock(lines: readonly string[]): string {
+  const kept = lines.map((l) => l.replace(/\s+/g, " ").trim()).filter((l) => l !== "");
+  return kept.length === 0 ? "" : [STALE_HEADING, ...kept].join("\n");
+}

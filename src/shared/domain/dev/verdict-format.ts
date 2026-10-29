@@ -107,6 +107,29 @@ export function lastFinishedVerdict(file: VerdictFile): VerdictSection | null {
   return null;
 }
 
+/** The audit rounds in GAPS a batch is relaunched through by itself: the third still GAPS goes to a human. */
+export const GAPS_ROUNDS_MAX = 3;
+
+/** The audit rounds in GAPS since the last VALID: every trailing GAPS section, an audit the budget stopped included
+ *  (three audits that cannot finish hand the batch over too). */
+export function gapsRoundsOf(text: string): number {
+  const sections = parseVerdictFile(text).sections.filter((s) => s.verdict !== null);
+  let rounds = 0;
+  for (let i = sections.length - 1; i >= 0 && sections[i].verdict === "GAPS"; i--) rounds++;
+  return rounds;
+}
+
+/** The correction a GAPS verdict hands its batch's relaunch: the Blocking and Major rows of its last section, one
+ *  `<severity> — <gap> (<evidence>)` each, joined on one line; undefined when the last verdict is not GAPS, when the
+ *  budget stopped that audit (its resume runs, no correction) or when it holds no such row. */
+export function gapsFinding(text: string): string | undefined {
+  const last = lastVerdict(parseVerdictFile(text));
+  if (last === null || last.verdict !== "GAPS" || isUnfinishedSection(last)) return undefined;
+  const rows = last.rows.filter((r) => r.severity === "Blocking" || r.severity === "Major");
+  if (rows.length === 0) return undefined;
+  return rows.map((r) => `${r.severity} — ${r.gap} (${r.evidence})`.replace(/\s+/g, " ").trim()).join("; ");
+}
+
 export function severityCounts(section: VerdictSection): Record<Severity, number> {
   const counts: Record<Severity, number> = { Blocking: 0, Major: 0, Minor: 0 };
   for (const r of section.rows) counts[r.severity]++;

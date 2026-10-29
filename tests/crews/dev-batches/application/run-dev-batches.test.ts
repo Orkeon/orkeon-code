@@ -10,10 +10,11 @@ import { gitPushCommand, gitPushedCheckCommand } from "../../../../src/shared/do
 import { appendToLog, closedLine } from "../../../../src/crews/dev-batches/domain/batches-log.ts";
 import { ACTIVE_RECORD, batchesBranchName } from "../../../../src/crews/dev-batches/application/run-dev-batches.ts";
 import {
-  ASKING_MODES, BACK_FROM_F3, BAD_CONCURRENCIES, BRANCH_NAMES, BRANCH_PACK, F1_SHOW, F2_REVIEW_BRIEF, FEAT_DEMO_EXISTS,
-  GAPS_HUMAN_LINE, IN_PROGRESS_LINE, KEPT_F2_LINE, LOG, PR_ASSUMPTIONS, REPO_YAML, THREE_BATCH_RUNS, VALID_F2, VERDICT_F2,
-  addGapsAudit, beforeTheClose, blockingReviewer, clearReviewer, events, markDone, mergedDetails, packedOnMain, parallelRecord,
-  parallelSetup, prBody, pushes, record, reopenF1, run, setup, threeBatchesAfter,
+  ASKING_MODES, BACK_FROM_F3, BAD_CONCURRENCIES, BRANCH_NAMES, BRANCH_PACK, BUDGET_STOPPED_AUDIT, F1_SHOW, F2_LAST_FINDING,
+  F2_REVIEW_BRIEF, F2_STALE_LINE, FEAT_DEMO_EXISTS, GAPS_HUMAN_LINE, IN_PROGRESS_LINE, KEPT_F2_LINE, LOG, NO_REVIEWER_LINE,
+  PR_ASSUMPTIONS, REPO_YAML, THREE_BATCH_RUNS, VALID_F2, VERDICT_F2,
+  addGapsAudit, addUnfinishedAudit, beforeTheClose, blockingReviewer, clearReviewer, events, majorReviewer, markDone, mergedDetails,
+  packedOnMain, parallelRecord, parallelSetup, prBody, pushes, record, reopenF1, run, setup, threeBatchesAfter, unparsableReviewer,
   FRESH_SESSION,
 } from "./run-dev-batches.fixtures.ts";
 import { assertHasLine, assertLastLineStarting, assertLastLineWith, assertLineWith, assertNoLineWith } from "./run-dev-batches.assertions.ts";
@@ -35,7 +36,7 @@ describe("runDevBatches — a run", () => {
       batch: "F2", plan: "demo", hooks: [], effort: "high", permissionMode: "default", permissionRules: ["Bash(git push*)"],
       githubTool: false, steps: 2,
     });
-    assertHasLine(out.lines, "review of F2: not run (no reviewer on this host)");
+    assertHasLine(out.lines, "review of F2: CLEAR");
     assertLineStarting(out.lines, "→ F2 launched (2/3)");
     deepStrictEqual(events(files), ["F2 launched"]);
     const saved = record(files);
@@ -367,6 +368,60 @@ describe("runDevBatches — back from a batch", () => {
     deepStrictEqual(events(files), ["F2 stopped"]);
   });
 
+  it("stops a batch whose review has no reviewer", async () => {
+    // Arrange
+    const { files, deps } = setup();
+
+    // Act
+    const out = await run({ code: "demo" }, { ...deps, reviewerFor: undefined });
+
+    // Assert
+    strictEqual(out.next, undefined);
+    strictEqual(out.lines.at(-1), NO_REVIEWER_LINE);
+    deepStrictEqual(events(files), ["F2 stopped"]);
+  });
+
+  it("stops a batch whose review did not parse", async () => {
+    // Arrange
+    const { files, deps } = setup();
+    const llm = unparsableReviewer();
+
+    // Act
+    const out = await run({ code: "demo" }, { ...deps, reviewerFor: () => llm });
+
+    // Assert
+    strictEqual(out.next, undefined);
+    assertLastLineStarting(out.lines, "→ F2 not launched: the review could not run (unparsable: ");
+    deepStrictEqual(events(files), ["F2 stopped"]);
+  });
+
+  it("reviews again a batch stopped because its review did not run", async () => {
+    // Arrange
+    const { files, deps } = setup();
+    await run({ code: "demo" }, { ...deps, reviewerFor: undefined });
+    const llm = clearReviewer();
+
+    // Act
+    const again = await run({ code: "demo" }, { ...deps, reviewerFor: () => llm });
+
+    // Assert
+    strictEqual(again.next?.input.batch, "F2");
+    strictEqual(llm.acts.length, 1);
+    deepStrictEqual(events(files), ["F2 stopped", "F2 relaunched"]);
+  });
+
+  it("hands the launched batch the Major rows as stale lines", async () => {
+    // Arrange
+    const { deps } = setup();
+    const llm = majorReviewer();
+
+    // Act
+    const out = await run({ code: "demo" }, { ...deps, reviewerFor: () => llm });
+
+    // Assert
+    deepStrictEqual(out.next?.input.stale, [F2_STALE_LINE]);
+  });
+
   it("launches a batch whose Blocking review was settled, typed again, without a second review", async () => {
     // Arrange
     const { deps } = setup();
@@ -441,10 +496,27 @@ describe("runDevBatches — back from a batch", () => {
 });
 
 describe("runDevBatches — what comes back and the close", () => {
-  it("logs a GAPS verdict as returned, and stops", async () => {
+  it("relaunches a GAPS batch with the verdict's rows as correction", async () => {
     // Arrange
-    const { deps } = setup();
+    const { files, deps } = setup();
     await run({ code: "demo" }, deps);
+
+    // Act
+    const out = await run({ after: ["→ /dev-implement F2 — correction: Major Scope: y"] }, deps);
+
+    // Assert
+    strictEqual(out.next?.crew, "dev-implement");
+    strictEqual(out.next?.input.correction, F2_LAST_FINDING);
+    assertLineStarting(out.lines, "→ F2 relaunched, audit round 3 of 3: /dev-implement F2 demo — correction: ");
+    deepStrictEqual(events(files), ["F2 launched", "F2 returned", "F2 relaunched"]);
+  });
+
+  it("hands a batch to a human after three GAPS rounds", async () => {
+    // Arrange
+    const { files, deps } = setup();
+    await run({ code: "demo" }, deps);
+    // The fixture's verdict file holds two GAPS audits before the launch: the third one is written since.
+    addGapsAudit(files);
 
     // Act
     const out = await run({ after: ["→ /dev-implement F2 — correction: Major Scope: y"] }, deps);
@@ -453,6 +525,22 @@ describe("runDevBatches — what comes back and the close", () => {
     strictEqual(out.next, undefined);
     assertHasLine(out.lines, "F2 returned GAPS");
     assertHasLine(out.lines, GAPS_HUMAN_LINE);
+  });
+
+  it("relaunches a budget-stopped audit without correction", async () => {
+    // Arrange
+    const { files, deps } = setup();
+    files.files.set(VERDICT_F2, VALID_F2);
+    await run({ code: "demo" }, deps);
+    addUnfinishedAudit(files);
+
+    // Act
+    const out = await run({ after: BUDGET_STOPPED_AUDIT }, deps);
+
+    // Assert
+    strictEqual(out.next?.crew, "dev-implement");
+    strictEqual(out.next?.input.correction, undefined);
+    deepStrictEqual(events(files), ["F2 launched", "F2 returned", "F2 relaunched"]);
   });
 
   it("typed after a hop the chain's depth refused, logs what a GAPS audit written since the launch says", async () => {

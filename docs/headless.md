@@ -109,7 +109,8 @@ ORKEON_CODE_WORKSPACE=~/src/app bash scripts/dev-run.sh dev-verify demo \
 
 - the project declined at the trust question: nothing runs, exit `0`; refused without a terminal: exit `2`;
 - `closed` (the line `- <date> <time> closed`, a trailing blank or CR aside): the batches are closed, exit `0`;
-- an event whose detail starts with `BLOCKED` or `GAPS`: a human decides, exit `3`;
+- an event whose detail starts with `BLOCKED` or `GAPS`: a human decides, exit `3` (a GAPS `/dev-batches` relaunches by
+  itself is followed by its `relaunched` line; only the third audit round still GAPS stays last);
 - the same line as before the step: nothing moved, exit `4`, never a loop;
 - `--max-steps` (default 10) reached: exit `5`;
 - a step that exits `1` or `130` stops the chain with that code; one that exits `2` with a rate limit in its log

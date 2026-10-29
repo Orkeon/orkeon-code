@@ -29,7 +29,7 @@ import { batchWorktreeName, worktreePlace } from "../../../shared/domain/git/wor
 import type { BatchOutcome, BatchRun } from "./run-wave.ts";
 import { parseBatchesState } from "../../../shared/domain/dev/batches-state.ts";
 import type { BatchesLogEntry } from "../../../shared/domain/dev/batches-state.ts";
-import { lastVerdict } from "../../../shared/domain/dev/verdict-format.ts";
+import { GAPS_ROUNDS_MAX, gapsFinding, gapsRoundsOf, isUnfinishedSection, lastVerdict } from "../../../shared/domain/dev/verdict-format.ts";
 import { NEXT_BATCH_REVIEWER_CHARTER } from "../../../shared/domain/dev/reviewer-charter.ts";
 import { charterCatalogue } from "../../../shared/domain/agents/charter.ts";
 import type { CarriedText } from "../../../shared/domain/dev/carried-text.ts";
@@ -40,7 +40,7 @@ import { GIT_CURRENT_BRANCH_COMMAND, GIT_HEAD_COMMAND, shellQuote, workBranchFro
 import { policyFor } from "../../../shared/domain/agent-policy/mode-policy.ts";
 import { nextBatch, waveOrder } from "../domain/wave-order.ts";
 import type { BatchNode } from "../domain/wave-order.ts";
-import { appendToLog, batchesLogPath, closedLine, eventLine, lastEntryOf } from "../domain/batches-log.ts";
+import { appendToLog, batchesLogPath, closedLine, eventLine, lastEntryOf, REVIEW_NOT_RUN, reviewPending } from "../domain/batches-log.ts";
 import type { BatchEvent } from "../domain/batches-log.ts";
 import { closePlan } from "./plan-close.ts";
 import { BATCHES_ACTIVE_RECORD } from "../../../shared/domain/dev/batches-state.ts";
@@ -173,9 +173,14 @@ export function batchNodes(dev: DevCode): BatchNode[] {
   });
 }
 
-/** What came of a batch the chain ran and did not close: the event logged, the line said. */
-function stopOf(dev: DevCode, batch: string, after: readonly string[]): { event: BatchEvent; detail: string } {
-  // The audit's own BLOCKED line too: a GAPS verdict written by an audit the budget stopped names no correction.
+/** What came of a batch the chain ran and did not close: the event logged, the line said. `launched` is the audits
+ *  the batch's verdict file held at its launch. */
+function stopOf(dev: DevCode, batch: string, after: readonly string[], launched: number): { event: BatchEvent; detail: string } {
+  // An audit the budget stopped since the launch wrote a GAPS verdict and answered BLOCKED: it is a round of GAPS,
+  // relaunched without a correction (its resume audits the batch again), counted toward the rounds a human takes.
+  const latest = dev.verdicts.filter((v) => v.batch === batch).at(-1)?.file.sections.at(-1);
+  if (latest?.verdict === "GAPS" && isUnfinishedSection(latest) && auditsOf(dev, batch) > launched) return { event: "returned", detail: "GAPS" };
+  // The audit's own BLOCKED line too, for any other stop it names.
   const blocked = after.map((l) => l.trim().replace(/^dev-verify: (?=BLOCKED)/, "")).find((l) => l.startsWith("BLOCKED"));
   if (blocked !== undefined) return { event: "stopped", detail: `BLOCKED — ${blocked.replace(/^BLOCKED\s*—?\s*/, "")}` };
   const verdicts = dev.verdicts.filter((v) => v.batch === batch);
@@ -207,6 +212,23 @@ function auditsOf(dev: DevCode, batch: string): number {
 function auditsAtLaunch(detail: string): number {
   const m = /(?:^|\s)audits (\d+)\b/.exec(detail);
   return m === null ? Number.POSITIVE_INFINITY : Number(m[1]);
+}
+
+/** The text of the batch's verdict file, null when it cannot be read. */
+async function verdictText(files: Pick<Files, "read">, vfsPath: string, dev: DevCode, batch: string): Promise<string | null> {
+  const verdict = dev.verdicts.filter((v) => v.batch === batch).at(-1);
+  if (verdict === undefined) return null;
+  try {
+    return await files.read(`${vfsPath}/${dev.code}/${verdict.name}`);
+  } catch {
+    return null;
+  }
+}
+
+/** The detail of a relaunch after a GAPS verdict: its round, the audits the verdict file holds (a typed run tells an
+ *  audit since by them), and the correction it carries. */
+function gapsRelaunchDetail(round: number, audits: number, finding: string | undefined): string {
+  return `round ${round}, ${AUDITS_DETAIL} ${audits}${finding === undefined ? "" : ` — correction: ${finding}`}`;
 }
 
 /** The work branch of a run: the pattern's first alternative before `/`, then the code. */
@@ -420,6 +442,20 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
     return answer(next === undefined ? [...out, failed] : [...out, failed, `BLOCKED — the log must be writable before a launch, then /dev-batches ${code}`]);
   };
 
+  // What the chain's /dev-implement is handed for a batch: the run's context, its open steps, and what is `extra`.
+  const launchInput = (batch: string, extra: Record<string, unknown> = {}, added = 0): Record<string, unknown> => {
+    const steps = (dev.sheets.find((s) => s.batch === batch)?.sheet.steps ?? [])
+      .filter((s) => s.tdd !== null && !(s.tdd.red && s.tdd.green && s.tdd.cost)).length + added;
+    return {
+      batch, plan: code, hooks: context.hooks, effort: context.effort,
+      // No github tool for a batch: its close never opens a pull request (dev.prAuto included); the plan's does.
+      permissionMode: context.permissionMode, permissionRules: context.permissionRules, githubTool: false,
+      ...(context.memoryRecall === false ? { memoryRecall: false } : {}),
+      ...(steps > 0 ? { steps } : {}),
+      ...extra,
+    };
+  };
+
   // 3. What came of the batches the log leaves launched: a batch done since is logged returned and merged;
   //    back from the chain, a batch not done is a stop (a human decides); typed, only a GAPS audit is logged.
   const after = strings(input.after).slice(-AFTER_LINES);
@@ -449,7 +485,7 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
       lines.push(`✓ ${node.id} committed (${committed})`, `⚠ ${node.id} is not marked done in its sheet or the plan: mark it by hand`);
       continue;
     }
-    const stop = stopOf(dev, node.id, after);
+    const stop = stopOf(dev, node.id, after, auditsAtLaunch(last.detail));
     // Typed while its chain may still close the batch: an audit since the launch that says VALID is not a stop - the
     // chain's answer, coming back, would find the batch stopped. Nothing is logged; the close is the way out when
     // the chain is gone (its commit then marks the batch done). An audit with no verdict yet is logged as a stop,
@@ -462,12 +498,31 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
       ]);
     }
     book.add(eventLine(now(), node.id, stop.event, stop.detail));
+    // A GAPS verdict the audit just wrote relaunches the batch by itself, the Blocking and Major rows of that verdict
+    // as the correction (none after an audit the budget stopped: its resume runs), until the third round in GAPS.
+    let rounds: number | null = null;
+    if (stop.detail === "GAPS" && latestVerdict(dev, node.id) === "GAPS") {
+      const text = await verdictText(deps.files, ctx.work.vfsPath, dev, node.id);
+      rounds = text === null ? null : gapsRoundsOf(text);
+      if (text !== null && rounds !== null && rounds < GAPS_ROUNDS_MAX) {
+        const finding = gapsFinding(text);
+        book.add(eventLine(now(), node.id, "relaunched", gapsRelaunchDetail(rounds + 1, auditsOf(dev, node.id), finding)));
+        return finish(
+          [
+            ...lines, `${node.id} returned GAPS`,
+            `→ ${node.id} relaunched, audit round ${rounds + 1} of ${GAPS_ROUNDS_MAX}: /dev-implement ${node.id} ${code}` +
+              (finding === undefined ? " (no correction: its audit resumes)" : ` — correction: ${finding}`),
+          ],
+          { crew: "dev-implement", input: launchInput(node.id, finding === undefined ? {} : { correction: finding }, finding === undefined ? 0 : 1) },
+        );
+      }
+    }
     return finish([
       ...lines, `${node.id} ${stop.event} ${stop.detail}`,
       stop.detail === "GAPS"
-        // A relaunch carries no correction: the audit's own `/dev-implement <batch> — correction: …` line fixes the
-        // batch; its close commits without a push while this run is in progress (run-dev-implement.ts).
-        ? `→ a human decides: the correction the audit names (/dev-implement ${node.id} ${code} — correction: <finding>), then /dev-batches ${code} goes on`
+        // The audit's own `/dev-implement <batch> — correction: …` line fixes the batch; its close commits without a
+        // push while this run is in progress (run-dev-implement.ts).
+        ? `→ a human decides: ${rounds !== null ? `${rounds} audit rounds in GAPS; ` : ""}the correction the audit names (/dev-implement ${node.id} ${code} — correction: <finding>), then /dev-batches ${code} goes on`
         : stop.detail.startsWith("BLOCKED — close:")
         // The audit said VALID: what is left is the close, not a new run of the batch.
         ? `→ a human decides: the close (/dev-implement ${node.id} ${code} --close), then /dev-batches ${code} goes on`
@@ -516,15 +571,19 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
   //    the wave a parallel run launches.
   const wave = parallel > 1 ? await nextWave(deps.files, dev, nodes, ctx.work.vfsPath, parallel) : [next];
   if (wave.length === 0) return finish([...lines, `BLOCKED — the plan's waves could not be read, then /dev-batches ${code}`]);
+  // The Major rows of each review, handed to that batch's first launch as `stale:` lines.
+  const stale: Record<string, string[]> = {};
   for (const id of wave) {
     const node = nodes.find((n) => n.id === id)!;
-    if (lastEntryOf(book.entries(), id) !== undefined || node.dependsOn.length === 0) continue;
+    if (!reviewPending(book.entries(), id) || node.dependsOn.length === 0) continue;
     const sheet = sheetOf(id)!;
+    // A review that cannot run closes the gate: the batch is not launched, and the next run reviews it again.
+    const notRun = (reason: string): Promise<string> => {
+      book.add(eventLine(now(), id, "stopped", `${REVIEW_NOT_RUN} (${reason})`));
+      return finish([...lines, `→ ${id} not launched: the review could not run (${reason}); /dev-batches ${code} reviews it again`]);
+    };
     const reviewer = deps.reviewerFor?.(context);
-    if (reviewer === undefined) {
-      lines.push(`review of ${id}: not run (no reviewer on this host)`);
-      continue;
-    }
+    if (reviewer === undefined) return notRun("no reviewer on this host");
     const merged = mergedOf(book.entries());
     const outcome = await runSubAgent(reviewer, {
       charter: NEXT_BATCH_REVIEWER_CHARTER,
@@ -540,16 +599,15 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
       answerPrompt: (reply, problems) => buildReviewAnswerPrompt(reply, problems, [id]),
       check: (v) => checkReviewAnswer(v, { targets: [id] }),
     });
-    if (!outcome.ok) {
-      lines.push(`review of ${id}: not run (${outcome.reason}: ${outcome.problems[0] ?? "no detail"})`);
-      continue;
-    }
+    if (!outcome.ok) return notRun(`${outcome.reason}: ${outcome.problems[0] ?? "no detail"}`);
     const rows = outcome.value.rows;
     const blocking = rows.filter((r) => r.severity === "Blocking");
     lines.push(rows.length === 0
       ? `review of ${id}: CLEAR`
       : `review of ${id}: GAPS — ${blocking.length} Blocking, ${rows.length - blocking.length} Major`);
     lines.push(...rows.map((r) => `  ${r.severity} — ${r.question} (${r.evidence})`));
+    const majors = rows.filter((r) => r.severity === "Major").map((r) => `stale: ${r.question} — ${r.evidence}`);
+    if (majors.length > 0) stale[id] = majors;
     if (blocking.length > 0) {
       book.add(eventLine(now(), id, "stopped", `BLOCKED — review: ${blocking.length} Blocking`));
       return finish([
@@ -577,7 +635,7 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
       // The first wave of a typed run proves git works under a worktree root before any batch (L8P-D11).
       probe: typeof input.code === "string",
       sheets: Object.fromEntries(dev.sheets.map((s) => [s.batch, s.name])),
-      audits: (id) => auditsOf(dev, id), steps, book: { add: (l) => book.add(l), entries: () => book.entries(), save: () => book.save(deps.files) },
+      audits: (id) => auditsOf(dev, id), steps, stale, book: { add: (l) => book.add(l), entries: () => book.entries(), save: () => book.save(deps.files) },
     }, {
       files: deps.files, shell: deps.shell,
       runBatch: (run) => deps.runBatch!(run, context),
@@ -601,20 +659,9 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
   const entry = lastEntryOf(book.entries(), next);
   const relaunch = entry !== undefined;
   book.add(eventLine(now(), next, relaunch ? "relaunched" : "launched", `${AUDITS_DETAIL} ${auditsOf(dev, next)}`));
-  const sheet = sheetOf(next)!.sheet;
-  const openSteps = sheet.steps.filter((s) => s.tdd !== null && !(s.tdd.red && s.tdd.green && s.tdd.cost)).length;
   const position = order.ok ? order.order.indexOf(next) + 1 : 0;
   return finish(
     [...lines, `→ ${next} ${relaunch ? "relaunched" : "launched"} (${position}/${nodes.length}): /dev-implement ${next} ${code}, then its audit and its commit`],
-    {
-      crew: "dev-implement",
-      input: {
-        batch: next, plan: code, hooks: context.hooks, effort: context.effort,
-        // No github tool for a batch: its close never opens a pull request (dev.prAuto included); the plan's does.
-        permissionMode: context.permissionMode, permissionRules: context.permissionRules, githubTool: false,
-        ...(context.memoryRecall === false ? { memoryRecall: false } : {}),
-        ...(openSteps > 0 ? { steps: openSteps } : {}),
-      },
-    },
+    { crew: "dev-implement", input: launchInput(next, (stale[next] ?? []).length > 0 ? { stale: stale[next] } : {}) },
   );
 }

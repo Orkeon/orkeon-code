@@ -3,8 +3,11 @@
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 
-import { isUnfinishedSection, lastFinishedVerdict, parseVerdictFile, lastVerdict, severityCounts } from "../../../../src/shared/domain/dev/verdict-format.ts";
-import { demoFile, F2_PARITY_ROWS, FINISHED_THEN_UNFINISHED, NO_HEADING, UNFINISHED_ONLY } from "./verdict-format.fixtures.ts";
+import { gapsFinding, gapsRoundsOf, isUnfinishedSection, lastFinishedVerdict, parseVerdictFile, lastVerdict, severityCounts } from "../../../../src/shared/domain/dev/verdict-format.ts";
+import {
+  demoFile, F2_PARITY_ROWS, FINISHED_THEN_UNFINISHED, GAPS_ROUNDS, NO_FINDING, NO_HEADING, THREE_SEVERITIES, THREE_SEVERITIES_FINDING,
+  UNFINISHED_ONLY,
+} from "./verdict-format.fixtures.ts";
 
 describe("parseVerdictFile over DEMO-VERIFY-F1.md", () => {
   it("reads one VALID section with its minor and its lines", () => {
@@ -225,4 +228,45 @@ describe("parseVerdictFile inline", () => {
     // Assert
     deepStrictEqual(f.sections.map((s) => [s.verdict, s.rows.map((r) => r.gap)]), [["VALID", ["g"]]]);
   });
+});
+
+describe("gapsRoundsOf", () => {
+  for (const c of GAPS_ROUNDS) {
+    it(c.name, () => {
+      // Arrange
+      const text = c.text;
+
+      // Act
+      const rounds = gapsRoundsOf(text);
+
+      // Assert
+      strictEqual(rounds, c.expected);
+    });
+  }
+});
+
+describe("gapsFinding", () => {
+  it("hands the Blocking and Major rows of the last GAPS verdict, one clause each, the Minor left out", () => {
+    // Arrange
+    const text = THREE_SEVERITIES;
+
+    // Act
+    const finding = gapsFinding(text);
+
+    // Assert
+    strictEqual(finding, THREE_SEVERITIES_FINDING);
+  });
+
+  for (const c of NO_FINDING) {
+    it(c.name, () => {
+      // Arrange
+      const text = c.text;
+
+      // Act
+      const finding = gapsFinding(text);
+
+      // Assert
+      strictEqual(finding, undefined);
+    });
+  }
 });

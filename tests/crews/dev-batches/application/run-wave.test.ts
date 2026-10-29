@@ -10,7 +10,7 @@ import { outcomeOf, runBatchChain, runWave } from "../../../../src/crews/dev-bat
 import type { BatchOutcome, BatchRun } from "../../../../src/crews/dev-batches/application/run-wave.ts";
 import { FakeFiles } from "../../../support/doubles/fake-files.ts";
 import {
-  AUDIT_GAPS, AUDIT_VALID, Book, F2_DONE_PLAN, F2_RELAUNCH_LINE, F3_GAPS, F3_RELAUNCH_LINE, FailingClose, GATE_RED, IGNORED,
+  AUDIT_GAPS, AUDIT_VALID, Book, F2_DONE_PLAN, F2_HUMAN_LINE, F2_RELAUNCH_LINE, GapsRuns, PRUNE_FINDING, F3_GAPS, F3_RELAUNCH_LINE, FailingClose, GATE_RED, IGNORED,
   LAUNCH, MERGED, NOT_IGNORED_LINE, OPEN_PLAN, PROBE_REFUSED_LINE, RUN, SHEET, VERIFY_INPUT, WORKTREE_ROOT_REFUSED, WT, add,
   ahead, batchWrites, bookOf, deferred, head, implemented, mainFiles, merge, rebase, refuseFirstMerge, remove, request, shellFor,
   shellReopening, spend, status, tickingClock, traceCheckoutWrites, valid,
@@ -168,6 +168,62 @@ describe("runWave", () => {
     // Assert
     deepStrictEqual(runs.map((r) => [r.batch, r.correction]), [["F2", "Major tests: none"]]);
     assertNotRan(shell, add("F2"));
+  });
+
+  it("hands a wave's first launch its stale lines", async () => {
+    // Arrange
+    const files = mainFiles();
+    const batch = new GapsRuns(files, 1);
+    const stale = { F2: ["stale: Does F2 still prune? — PRUNE-PLAN-F2.md:6"] };
+
+    // Act
+    await runWave(request(["F2"], new Book(), { stale }), { files, shell: shellFor(["F2"]), runBatch: batch.run });
+
+    // Assert
+    deepStrictEqual(batch.runs.map((r) => r.stale), [stale.F2]);
+  });
+
+  it("relaunches a GAPS batch at once in its worktree with the verdict's rows as correction", async () => {
+    // Arrange
+    const files = mainFiles();
+    const book = new Book();
+    const batch = new GapsRuns(files, 2);
+
+    // Act
+    const out = await runWave(request(["F2"], book), { files, shell: shellFor(["F2"]), runBatch: batch.run });
+
+    // Assert
+    deepStrictEqual(batch.runs.map((r) => [r.root, r.correction]), [[WT("F2"), undefined], [WT("F2"), PRUNE_FINDING]]);
+    deepStrictEqual(book.events().slice(1, 3), [
+      `F2 returned GAPS — correction: ${PRUNE_FINDING}`, `F2 relaunched prune-F2 audits 1, round 2 — correction: ${PRUNE_FINDING}`,
+    ]);
+    strictEqual(out.stopped, false);
+  });
+
+  it("hands a batch to a human after three GAPS rounds", async () => {
+    // Arrange
+    const files = mainFiles();
+    const batch = new GapsRuns(files);
+
+    // Act
+    const out = await runWave(request(["F2"], new Book()), { files, shell: shellFor(["F2"]), runBatch: batch.run });
+
+    // Assert
+    strictEqual(batch.runs.length, 3);
+    assertLineStarting(out.lines, F2_HUMAN_LINE);
+    strictEqual(out.stopped, true);
+  });
+
+  it("relaunches a budget-stopped audit without correction", async () => {
+    // Arrange
+    const files = mainFiles();
+    const batch = new GapsRuns(files, 2, true);
+
+    // Act
+    await runWave(request(["F2"], new Book()), { files, shell: shellFor(["F2"]), runBatch: batch.run });
+
+    // Assert
+    deepStrictEqual(batch.runs.map((r) => r.correction), [undefined, undefined]);
   });
 
   it("refuses the wave when the dev state is not ignored by git: nothing made", async () => {
@@ -408,6 +464,19 @@ describe("runBatchChain", () => {
     strictEqual(out.verdict, "VALID");
     strictEqual(out.hash, "1a2b3c4");
     strictEqual(out.spent, 10);
+  });
+
+  it("hands its stale lines to its implement", async () => {
+    // Arrange
+    const inputs: unknown[] = [];
+    const implement = async (input: Record<string, unknown>): Promise<string> => { inputs.push(input); return implemented; };
+    const verify = async (): Promise<string> => AUDIT_GAPS;
+
+    // Act
+    await runBatchChain({ ...RUN, stale: ["stale: q — e"] }, LAUNCH, { implement, verify, spend: spend() });
+
+    // Assert
+    deepStrictEqual(inputs, [{ ...LAUNCH, batch: "F2", steps: 2, stale: ["stale: q — e"] }]);
   });
 
   it("answers GAPS without a close", async () => {

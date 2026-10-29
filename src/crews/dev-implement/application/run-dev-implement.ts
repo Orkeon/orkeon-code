@@ -21,7 +21,7 @@ import { measureAccessCost } from "../../../shared/application/dev/measure-acces
 import type { CostFile } from "../../../shared/application/dev/measure-access-cost.ts";
 import { addedLines } from "../../../shared/domain/dev/access-cost.ts";
 import { hasTestLayout, isTestPath } from "../../../shared/domain/dev/test-paths.ts";
-import { isUnfinishedSection, lastVerdict, parseVerdictFile } from "../../../shared/domain/dev/verdict-format.ts";
+import { gapsRoundsOf, lastVerdict, parseVerdictFile } from "../../../shared/domain/dev/verdict-format.ts";
 import { shellQuote } from "../../../shared/domain/git/close.ts";
 import type { CarriedText } from "../../../shared/domain/dev/carried-text.ts";
 import { tidyWhitespace } from "../../../shared/domain/dev/whitespace.ts";
@@ -31,7 +31,7 @@ import { policyFor } from "../../../shared/domain/agent-policy/mode-policy.ts";
 import { parseSessionRules } from "../../../shared/domain/git/pull-request.ts";
 import { shellRuleGuard } from "../../../shared/domain/dev/tool-guards.ts";
 import type { RepoPack, RepoPackLayout } from "../../../shared/domain/dev/repo-pack.ts";
-import { existingStubsOf, testFileOf, greenContract, projectCommandFor, redContract, stubsOf, testCommandFor } from "../domain/contracts.ts";
+import { existingStubsOf, testFileOf, greenContract, projectCommandFor, redContract, staleBlock, stubsOf, testCommandFor } from "../domain/contracts.ts";
 import { openSteps, parseImplementSheet } from "../domain/step-section.ts";
 import type { ImplementSheet, ImplementStep } from "../domain/step-section.ts";
 import { addedFailure, changedPaths, failureCount, greenProblem, readCost, redProblem, under } from "../domain/step-checks.ts";
@@ -62,6 +62,9 @@ export interface DevImplementInputs {
   batch?: unknown; plan?: unknown; close?: unknown; pr?: unknown; push?: unknown;
   /** The finding of a correction (`— correction: <finding>`): appended to the sheet as a new step first. */
   correction?: unknown;
+  /** The `stale: <question> — <evidence>` lines /dev-batches hands a batch's first launch (its review's Major rows):
+   *  they end the RED and GREEN prompts. */
+  stale?: readonly string[];
   /** The session's mode and rules at the launch: a read-only mode is refused, a deny on the push keeps the commit local. */
   permissionMode?: unknown; permissionRules?: unknown;
   /** Whether the github tool is registered (the close opens the pull request itself). */
@@ -77,6 +80,7 @@ const flag = (v: unknown): boolean => v === true || v === "true";
 export function implementInputs(args: Record<string, unknown>): DevImplementInputs {
   return {
     batch: args.batch, plan: args.plan, close: flag(args.close), pr: flag(args.pr), correction: args.correction,
+    stale: Array.isArray(args.stale) ? args.stale.filter((l): l is string => typeof l === "string") : undefined,
     push: args.push === false || args.push === "false" ? false : undefined,
     permissionMode: args.permissionMode, permissionRules: args.permissionRules, githubTool: args.githubTool,
     hooks: args.hooks, effort: args.effort, memoryRecall: args.memoryRecall,
@@ -143,6 +147,8 @@ interface Run {
   /** T5: the mistakes recalled for the correction this run carries, in each role's prompt; every recall, for the end. */
   correction: Recalled;
   recalled: Recalled[];
+  /** The stale lines of the launch, as the block that ends each role's prompt ("" without any). */
+  stale: Recalled;
 }
 
 /** A role's prompt with the precedents recalled for it, each block after the contract. */
@@ -394,7 +400,7 @@ async function runCycle(run: Run, cycle: Cycle): Promise<string | null> {
     const stubs = [...new Set([...await openStubs(run, step), ...existingStubsOf(step), ...stubbed])];
     const t3 = await recallForRed(run, step);
     const carried = await carriedFor(run, [testFileOf(step)]);
-    const done = await act(run, "test-author", withPrecedents(redContract({ ...contractInput(run, step, command.command, carried), stubs }), [t3, run.correction]), stubs);
+    const done = await act(run, "test-author", withPrecedents(redContract({ ...contractInput(run, step, command.command, carried), stubs }), [t3, run.correction, run.stale]), stubs);
     if (typeof done === "string") return `step ${step.number} RED: ${done}`;
     run.ran.push(step);
     const earlier = before;
@@ -424,7 +430,7 @@ async function runCycle(run: Run, cycle: Cycle): Promise<string | null> {
     // The production files too: a stub RED wrote, an existing module, so that GREEN opens none of them.
     const productionFiles = green.flatMap((s) => (s.anchor?.production ?? []).filter((r) => r.state !== "member").map((r) => r.path));
     const carried = await carriedFor(run, [...green.map(testFileOf), ...productionFiles]);
-    const done = await act(run, "implementer", withPrecedents(greenContract(contractInput(run, green[0], command.command, carried, green), redTail), [run.correction]));
+    const done = await act(run, "implementer", withPrecedents(greenContract(contractInput(run, green[0], command.command, carried, green), redTail), [run.correction, run.stale]));
     if (typeof done === "string") return `${greenLabel} GREEN: ${done}`;
     run.ran.push(...green.filter((s) => !run.ran.includes(s)));
     const after = await run.tools.runTests({ command: command.command });
@@ -662,11 +668,7 @@ async function verdictState(files: Pick<Files, "read">, path: string): Promise<{
     text = null;
   }
   if (text === null) return { mark: verdictMarkOf(null), last: null, gapsRounds: 0 };
-  const sections = parseVerdictFile(text).sections.filter((s) => s.verdict !== null);
-  let gapsRounds = 0;
-  // An audit the budget stopped judged nothing: it is no round of GAPS (its resume audits what came before).
-  for (let i = sections.length - 1; i >= 0 && sections[i].verdict === "GAPS"; i--) if (!isUnfinishedSection(sections[i])) gapsRounds++;
-  return { mark: verdictMarkOf(text), last: lastVerdict(parseVerdictFile(text))?.verdict ?? null, gapsRounds };
+  return { mark: verdictMarkOf(text), last: lastVerdict(parseVerdictFile(text))?.verdict ?? null, gapsRounds: gapsRoundsOf(text) };
 }
 
 export async function runDevImplement(input: DevImplementInputs, deps: DevImplementDeps): Promise<string> {
@@ -738,7 +740,7 @@ export async function runDevImplement(input: DevImplementInputs, deps: DevImplem
     }
     sheetText = edit.text;
     if (verdicts.gapsRounds >= GAPS_ROUNDS_WARNED) {
-      lines.push(`⚠ ${verdicts.gapsRounds} audit rounds in GAPS: the method hands the blocking gaps to you before a third`);
+      lines.push(`⚠ ${verdicts.gapsRounds} audit rounds in GAPS: the third still GAPS goes to a human`);
     }
   }
   const sheet = parseImplementSheet(sheetText);
@@ -766,6 +768,7 @@ export async function runDevImplement(input: DevImplementInputs, deps: DevImplem
     ownFolders: [context.work.folder, located.dir], planFolder: located.dir, planLogs: `${context.work.folder}/${located.code}/logs`,
     logFolder, written, verdictMark: verdicts.mark, touched: new Set(record.touched), ran: [], lines: runLines,
     correction: NOTHING_RECALLED, recalled: [],
+    stale: { block: staleBlock(Array.isArray(input.stale) ? input.stale : []), ids: [] },
   };
   // T5: a correction run carries the mistakes recalled from its finding to both roles.
   if (finding !== "" && open.length > 0) {

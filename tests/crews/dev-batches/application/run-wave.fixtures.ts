@@ -1,9 +1,10 @@
 // The checkout, shell, log and requests of the runWave and runBatchChain tests: the git command lines the driver
 // runs, the work folder over FakeFiles, a log in memory, the batch outcomes and the chain's answers.
-import type { BatchOutcome, WaveRequest } from "../../../../src/crews/dev-batches/application/run-wave.ts";
+import type { BatchOutcome, BatchRun, WaveRequest } from "../../../../src/crews/dev-batches/application/run-wave.ts";
 import { appendToLog } from "../../../../src/crews/dev-batches/domain/batches-log.ts";
 import { parseBatchesState } from "../../../../src/shared/domain/dev/batches-state.ts";
 import type { BatchesLogEntry } from "../../../../src/shared/domain/dev/batches-state.ts";
+import { AUDIT_UNFINISHED_GAP } from "../../../../src/shared/domain/dev/verdict-format.ts";
 import { FakeFiles } from "../../../support/doubles/fake-files.ts";
 import { FakeShell } from "../../../support/doubles/fake-shell.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
@@ -42,6 +43,42 @@ export function batchWrites(files: FakeFiles, root: string, batch: string): void
   files.listings.set(`${root}/todo`, ["prune"]);
   files.listings.set(`${root}/todo/prune`, ["PRUNE-PLAN.md", "PRUNE-PLAN-F2.md", "PRUNE-PLAN-F3.md", `PRUNE-VERIFY-${batch}.md`]);
 }
+
+const GAPS_HEAD = "# PRUNE-VERIFY-F2 — 2026-10-24 10:00 — fast\n\n## Verdict — GAPS\n\n" +
+  "| Severity | Axis | Gap | Evidence | Expected fix |\n|---|---|---|---|---|\n";
+const MAJOR_ROW = "| Major | Tests | No test covers the prune | `prune.ts:12` | add one |\n";
+const UNFINISHED_ROW = `| Blocking | Correctness | ${AUDIT_UNFINISHED_GAP} | tokens: spent | audit again |\n`;
+
+/** The correction F2's GAPS verdict in its worktree hands its relaunch: its one Major row. */
+export const PRUNE_FINDING = "Major — No test covers the prune (`prune.ts:12`)";
+
+/**
+ * F2's batch run by run: each audit until `validAt` writes one more GAPS section to the verdict in its worktree and
+ * answers GAPS, the budget-stopped kind when `unfinished`; the run `validAt` answers VALID. Records each run.
+ */
+export class GapsRuns {
+  runs: BatchRun[] = [];
+  private verdict = "";
+  private readonly files: FakeFiles;
+  private readonly validAt: number;
+  private readonly unfinished: boolean;
+  constructor(files: FakeFiles, validAt = Number.POSITIVE_INFINITY, unfinished = false) {
+    this.files = files;
+    this.validAt = validAt;
+    this.unfinished = unfinished;
+  }
+  run = async (r: BatchRun): Promise<BatchOutcome> => {
+    this.runs.push(r);
+    batchWrites(this.files, r.root, r.batch);
+    if (this.runs.length >= this.validAt) return valid(r.batch);
+    this.verdict += `${this.verdict === "" ? "" : "\n"}${GAPS_HEAD}${this.unfinished ? UNFINISHED_ROW : MAJOR_ROW}`;
+    this.files.files.set(`${r.root}/todo/prune/PRUNE-VERIFY-F2.md`, this.verdict);
+    return { batch: r.batch, verdict: "GAPS", spent: 30, lines: ["→ Batch F2 GAPS"] };
+  };
+}
+
+/** The line a wave says of F2 once its third audit round is still GAPS. */
+export const F2_HUMAN_LINE = "F2: 3 audit rounds in GAPS, a human decides";
 
 /** A promise and the hand that settles it: a batch that returns only when the test releases it. */
 export function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {

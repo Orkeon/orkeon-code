@@ -66,7 +66,9 @@ branche `batches/<code>/F<n>`) : seulement en `bypassPermissions`, puisque deux 
 seulement là où git fonctionne dans le worktree d'un lot (une première sonde le vérifie : sous Bubblewrap, un runtime
 antérieur à Orkeon/orkeon#191 ne monte pas le répertoire git du worktree), et seulement avec tout `.orkeon/` ignoré par git (`.gitignore` ou `.git/info/exclude`),
 puisque les worktrees et l'état dev qui y est amorcé s'y trouvent ; chaque refus tient en une ligne, avant tout lot.
-Chaque lot tourne sous son propre budget d'appels d'outils, de temps réel et de jetons ; celui qui s'arrête garde son worktree, son code,
+Chaque lot tourne sous son propre budget d'appels d'outils, de temps réel et de jetons ; un verdict GAPS
+relance aussitôt son lot dans son worktree, ses lignes Blocking et Major pour correction, jusqu'à trois tours d'audit
+en GAPS ; celui qui s'arrête (BLOCKED, ou un troisième tour d'audit encore GAPS) garde son worktree, son code,
 sa fiche et son verdict n'étant que là, et les dernières lignes de l'exécution le nomment avec la commande qui l'y
 relance (`/dev-batches <code> --concurrency <n>`, la correction d'un verdict GAPS d'abord), pour qu'un humain
 décide. `/dev-spec`, `/dev-change`, `/dev-plan`,

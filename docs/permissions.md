@@ -58,7 +58,9 @@ batch agent under its own worktree (`.orkeon/worktrees/<code>-F<n>`, on the bran
 `bypassPermissions`, since two batches would ask at once, and only where git works inside a batch's worktree (a
 first probe checks it: under Bubblewrap, a runtime older than Orkeon/orkeon#191 does not bind the worktree's git dir),
 and only with all of `.orkeon/` ignored by git (`.gitignore` or `.git/info/exclude`), since the worktrees and the dev state seeded in them live there;
-each refusal is one line, before any batch. Each batch runs under its own budget of tool calls, wall time and tokens; one that stops
+each refusal is one line, before any batch. Each batch runs under its own budget of tool calls, wall time and tokens; a GAPS
+verdict relaunches its batch at once in its worktree, its Blocking and Major rows as the correction, up to three audit
+rounds in GAPS; one that stops (BLOCKED, or a third audit round still GAPS)
 keeps its worktree, its code, sheet and verdict there alone, and the run's last lines name it and the command that
 relaunches it there (`/dev-batches <code> --concurrency <n>`, a GAPS verdict's correction first), for a human to
 decide. `/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement` and `/dev-batches`

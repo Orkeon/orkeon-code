@@ -379,6 +379,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **A next-batch review that cannot run closes the gate**: `/dev-batches` no longer launches a batch whose review
+  found no reviewer on the host or did not parse. It logs the batch `stopped BLOCKED — review not run (<reason>)`, says
+  so, and reviews it again the next time it is typed.
+- **The review's Major rows reach the batch**: each Major question of the next-batch review is handed to the batch's
+  first launch as a `stale: <question> — <evidence>` line, and these lines end the RED and GREEN prompts of
+  `/dev-implement` (its new `stale` input). A relaunch carries none.
+- **A GAPS verdict relaunches its batch by itself**: `/dev-batches` relaunches a batch whose audit returned GAPS at
+  once, in its worktree on a parallel run, with the verdict's Blocking and Major rows as the correction. It logs the
+  batch `returned` then `relaunched`. A third audit round still GAPS stops and goes to a human, its correction named.
+- **An audit the budget stopped counts as a round**: an unfinished audit section is a GAPS round, both for
+  `/dev-implement`'s warning and for the three-round limit, and its relaunch carries no correction, so its audit
+  resumes.
 - **The crew budgets count the context once** (Orkeon #224, delivered by #230): every `tokens` dimension of the
   budgets (`StepBudget`, `implementBudget`, `batchLimits`, `driverBudget`, the main loop) is now `contextTokens`, the
   figures of the dev steps unchanged (`calls × TOKENS_PER_CALL`, the growth a call adds, which is what the context

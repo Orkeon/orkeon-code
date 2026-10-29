@@ -21,3 +21,13 @@ export const F1_MERGED_LINES: readonly string[] = [
 
 /** A log whose last line has no newline after it. */
 export const LOG_WITHOUT_FINAL_NEWLINE = "# DEMO-BATCHES-STATE\n\n## Log\n\n- 2026-10-24 07:05 F1 launched";
+
+/** The logs whose batch F2 still owes its review before its launch, or not, each named by its behaviour. */
+export const REVIEW_PENDING: readonly { name: string; lines: readonly string[]; expected: boolean }[] = [
+  { name: "owes the review of a batch the log does not hold yet", lines: F1_MERGED_LINES.slice(0, 3), expected: true },
+  { name: "owes the review again of a batch stopped because its review did not run",
+    lines: [eventLine(AT, "F2", "stopped", "BLOCKED — review not run (no reviewer on this host)")], expected: true },
+  { name: "owes no review of a batch stopped for Blocking questions: the human settled them",
+    lines: [eventLine(AT, "F2", "stopped", "BLOCKED — review: 1 Blocking")], expected: false },
+  { name: "owes no review of a batch launched once", lines: [eventLine(AT, "F2", "launched", "audits 0")], expected: false },
+];

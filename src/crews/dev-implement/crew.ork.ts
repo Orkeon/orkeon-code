@@ -10,6 +10,7 @@
 //
 // Input (globalThis.inputs): { batch: "F<n>", plan?: string | null, close?: boolean, pr?: boolean, push?: false,
 //                              correction?: string (the finding of an audit's gap), steps?: number,
+//                              stale?: string[] (/dev-batches' `stale:` lines: they end the RED and GREEN prompts),
 //                              hooks?: the /hooks registry, effort?: "low" | "medium" | "high" | null,
 //                              memoryRecall?: false (a session rule denies it: the agent gets none),
 //                              permissionMode?, permissionRules?, githubTool? (the close's pull request;

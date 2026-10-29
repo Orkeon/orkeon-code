@@ -42,3 +42,13 @@ export function lastEntryOf(entries: readonly BatchesLogEntry[], batch: string):
   for (let i = entries.length - 1; i >= 0; i--) if (entries[i].batch === batch) return entries[i];
   return undefined;
 }
+
+/** The detail that opens a stop because the next batch's review could not run (G1). */
+export const REVIEW_NOT_RUN = "BLOCKED — review not run";
+
+/** True when the batch's review is still owed before its launch: the batch has no entry yet, or its last entry is a
+ *  stop because the review could not run. A stop for Blocking questions settles the review: the human settled them. */
+export function reviewPending(entries: readonly BatchesLogEntry[], batch: string): boolean {
+  const last = lastEntryOf(entries, batch);
+  return last === undefined || (last.event === "stopped" && last.detail.startsWith(REVIEW_NOT_RUN));
+}
