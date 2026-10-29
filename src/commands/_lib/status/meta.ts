@@ -16,9 +16,11 @@ export const ORKEON_RUNTIME_COMMIT = "e44df3f456a5a529b96da47d1891408fbd7d00c8";
 /** The pin as the launcher and the rows print it: its first seven characters. */
 export const ORKEON_RUNTIME_PIN = ORKEON_RUNTIME_COMMIT.slice(0, 7);
 
-/** Whether a runtime's commit (as its build metadata carries it, short or full; null when none) is the pin. */
+/** Whether a runtime's commit (as its build metadata carries it, short or full; null when none) is the pin: the
+ *  pin, or at least seven leading characters of it. A commit with a suffix (`-dirty`: a build with local changes)
+ *  is not the pin. */
 export function isPinnedCommit(commit: string | null): boolean {
-  return commit !== null && commit.length >= 7 && (ORKEON_RUNTIME_COMMIT.startsWith(commit) || commit.startsWith(ORKEON_RUNTIME_COMMIT));
+  return commit !== null && commit.length >= 7 && ORKEON_RUNTIME_COMMIT.startsWith(commit);
 }
 
 export const RELEASE_NOTES = [

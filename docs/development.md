@@ -32,8 +32,9 @@ ORKEON_CODE_WORKSPACE=~/src/app bash scripts/run-crew.sh src/crews/project-init/
 
 It uses the `orkeon` tool (`Orkeon.Scripting.Cli`, nuget.org, named by `.config/dotnet-tools.json`; the .NET SDK
 that restores and runs it is pinned by `global.json`, like Orkeon's: `10.0.300` with `rollForward: latestFeature`) or the
-`orkeon-runners` image, on the demo fixture unless `ORKEON_CODE_WORKSPACE` says otherwise. Both are the last
-release, never the pin: the tool is on nuget.org at `1.0.0-rc.6`, the image is `orkeon-runners:latest`;
+`orkeon-runners` image, on the demo fixture unless `ORKEON_CODE_WORKSPACE` says otherwise. Both are a release,
+never the pin: the tool is on nuget.org at `1.0.0-rc.6`, the image is `orkeon-runners:latest` (the last one published,
+`1.0.0-rc.5`);
 `ORKEON_CODE_MODE=source ORKEON_SOURCE=<checkout at the pin>` runs it from an Orkeon checkout, built on the spot. That tool reads its script limits from
 `Orkeon:Scripting:Limits`, not from the REPL's `Orkeon:Cli:ScriptCommands:Limits`
 ([Configuration](configuration.md#settings-orkeon-code-relies-on)).

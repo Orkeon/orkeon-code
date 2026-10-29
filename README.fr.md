@@ -56,14 +56,14 @@ chaque prompt est un fichier source : modifiez-le, ou ajoutez le vôtre.
 
 Il faut le runtime Orkeon et une clé d'API pour un fournisseur LLM pris en charge par Orkeon (tout point d'accès
 compatible OpenAI, Anthropic...). Orkeon Code est vérifié contre les sources d'Orkeon au commit de `.orkeon-version` ;
-la dernière release, `1.0.0-rc.6`, le fait tourner aussi, en retard sur cette épingle. Chacun de ces trois fait
-tourner Orkeon Code :
+les releases le font tourner aussi, en retard sur cette épingle. Chacun de ces trois fait tourner Orkeon Code :
 
-- **`orkeon-repl`**, du paquet Debian/Ubuntu `orkeon` (amd64 et arm64 ; une release candidate est publiée sur le canal
+- **`orkeon-repl`** de la dernière release, `1.0.0-rc.6`, du paquet Debian/Ubuntu `orkeon` (amd64 et arm64 ; une release candidate est publiée sur le canal
   apt `rc`, le canal `stable` par défaut ne porte que les versions finales) ou de
   l'[archive de release d'Orkeon](https://github.com/Orkeon/orkeon/releases) de votre plateforme (Linux x64 et arm64,
   macOS x64 et arm64, `.zip` Windows x64), autonome : aucun .NET à installer ;
-- **Docker** : l'image `orkeon-runners` (amd64 et arm64) de la dernière release, rien d'autre à installer ;
+- **Docker** : la dernière image `orkeon-runners` publiée (amd64 et arm64 ; `1.0.0-rc.5`, l'image `1.0.0-rc.6` n'est
+  pas publiée), rien d'autre à installer ;
 - **un checkout d'Orkeon** à l'épingle, le runtime de référence : `ORKEON_SOURCE=<checkout> ./orkeon-code --mode source`.
 
 **Windows** : `orkeon-code.ps1` n'a ni mode source ni `--demo` (`-Mode` accepte `docker` ou `tool`) : le mode tool sur

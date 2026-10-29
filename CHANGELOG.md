@@ -420,8 +420,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ORKEON_SOURCE` sits at another commit, the runtime smoke always checks Orkeon's sources out at the pin read from
   `.orkeon-version` (`ORKEON_SOURCE_REF` is gone), and `npm run typings` refuses a checkout at another commit
   (`--any` overrides) or warns that the tool manifest's release is not the pin. The tool and docker modes run a
-  release behind the pin: the image is `orkeon-runners:latest` (or `ORKEON_CODE_IMAGE`) in the launchers and
-  `scripts/run-crew.sh`, `.config/dotnet-tools.json` keeps the last release without a test tying it to the pin, and
+  release behind the pin: the image is `orkeon-runners:latest` (the last one published, `1.0.0-rc.5`; or
+  `ORKEON_CODE_IMAGE`) in the launchers and `scripts/run-crew.sh`, the launch banner names the pin in source mode only, `.config/dotnet-tools.json` keeps the last release without a test tying it to the pin, and
   the docs stop waiting for an image at the pinned version. The guard of ADR 0010 against calling `decision` and
   `when` goes: the sources may call whatever the pinned commit ships.
 

@@ -719,7 +719,7 @@ if [ -n "${ORKEON_CODE_AUDIO_DIR:-}" ]; then
   fi
 fi
 
-echo "orkeon-code $CODE_VERSION on Orkeon $ORKEON_PIN ($MODE)"
+if [ "$MODE" = source ]; then echo "orkeon-code $CODE_VERSION on Orkeon $ORKEON_PIN (source)"; else echo "orkeon-code $CODE_VERSION on Orkeon ($MODE: a release, the pin is $ORKEON_PIN)"; fi
 echo "  project  : $WORKSPACE -> /workspace"
 if [ "$RUNTIME_OWN" = 1 ]; then echo "  settings : $SETTINGS (Orkeon's own, read by the REPL)"; else echo "  settings : $SETTINGS"; fi
 echo "  sessions : $PROJECT_STATE/$SESSIONS_SUB ($SESSION_NOTE)"
