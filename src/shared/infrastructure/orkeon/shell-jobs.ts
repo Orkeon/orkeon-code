@@ -19,7 +19,7 @@ import { WORKSPACE } from "../../domain/vfs.ts";
 /** The waiting script, relative to /workspace, and its virtual path. */
 export const WAIT_SCRIPT = ".orkeon/dev/bin/wait.mjs";
 const WAIT_SCRIPT_CONTENT =
-  "// Written by Orkeon Code's /dev-implement: sleeps argv[2] seconds (the script host has no timer).\n" +
+  "// Written by Orkeon Code's dev-implement crew: sleeps argv[2] seconds (the script host has no timer).\n" +
   "const seconds = Number(process.argv[2]);\n" +
   "setTimeout(() => {}, Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : 0);\n";
 /** job_tail's own ceiling. */

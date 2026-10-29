@@ -5,7 +5,7 @@ import type { FormatProblem } from "./plan-format.ts";
 
 export type Verdict = "VALID" | "GAPS";
 
-/** The gap of the row /dev-verify writes when the step's budget stopped the audit: not a finding of the code, so
+/** The gap of the row dev-verify writes when the step's budget stopped the audit: not a finding of the code, so
  *  neither the learning harvest nor a resumed audit takes it as one. Its reason goes in the evidence. */
 export const AUDIT_UNFINISHED_GAP = "the audit did not finish: the step's budget ran out";
 
@@ -134,4 +134,36 @@ export function severityCounts(section: VerdictSection): Record<Severity, number
   const counts: Record<Severity, number> = { Blocking: 0, Major: 0, Minor: 0 };
   for (const r of section.rows) counts[r.severity]++;
   return counts;
+}
+
+// The next step a verdict hands on, one shape per line: the audit prints them, the chain of /dev-batches and its
+// waves read them back with the parsers below, so the printer and the readers cannot drift. `code` is the plan's
+// code, or its `<path>/<CODE>-PLAN.md` when the line comes from a chain that holds the path.
+
+/** The command that runs a batch again with an audit's gap appended to its sheet as a new step. */
+export const correctionCommand = (code: string, batch: string, finding: string): string =>
+  `/dev-batches ${code} ${batch} — correction: ${finding}`;
+/** The command that closes a VALID batch: its commit. */
+export const closeCommand = (code: string, batch: string): string => `/dev-batches ${code} ${batch} --close`;
+/** The command that audits a batch, `resume` adding one section to its verdict file. */
+export const auditCommand = (code: string, batch: string, mode?: "fast" | "full" | "resume"): string =>
+  `/dev-batches ${code} ${batch} --audit${mode === undefined || mode === "fast" ? "" : ` ${mode}`}`;
+
+/** The line a GAPS verdict ends on: the correction to run. */
+export const correctionLine = (code: string, batch: string, finding: string): string => `→ ${correctionCommand(code, batch, finding)}`;
+/** The line a VALID verdict ends on: the close to run. */
+export const closeLine = (code: string, batch: string): string => `→ ${closeCommand(code, batch)}`;
+
+const CORRECTION_LINE = /^\s*→ \/dev-batches (\S+) (F\d+) — correction: (.+)$/m;
+const CLOSE_LINE = /^\s*→ \/dev-batches (\S+) (F\d+) --close\s*$/;
+
+/** The first correction line of `text`: its code, batch and finding; null when it holds none. */
+export function parseCorrectionLine(text: string): { code: string; batch: string; finding: string } | null {
+  const m = CORRECTION_LINE.exec(text);
+  return m === null ? null : { code: m[1], batch: m[2], finding: m[3].trim() };
+}
+
+/** True for a line that names a batch's next step: its correction or its close. */
+export function isNextStepLine(line: string): boolean {
+  return CORRECTION_LINE.test(line.split("\n")[0]) || CLOSE_LINE.test(line);
 }

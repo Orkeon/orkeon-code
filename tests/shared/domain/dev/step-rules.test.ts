@@ -4,12 +4,12 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
-import { DEV_STEPS, gateProblem, roleRules, STEP_ALLOW_RULES, STEP_RULE_SETS, stepRules } from "../../../../src/shared/domain/dev/step-rules.ts";
+import { DEV_STEPS, gateProblem, roleRules, STEP_ALLOW_RULES, STEP_RULE_SETS, stepCommand, stepRules } from "../../../../src/shared/domain/dev/step-rules.ts";
 import { formatRule, ruleDecision } from "../../../../src/shared/domain/agent-policy/permission.ts";
 import { RULE_SET_IDS, rulesOf } from "../../../../src/shared/domain/agent-policy/rule-sets.ts";
 import {
   BESIDE_LAYOUT, DEV_PLAN_GATE_OFF, EDITORS, FULL_LAYOUT, PILOT_FIRST_RULES, PILOT_LAYOUT, PILOT_READ_TOOLS, REWRITE_LAYOUT,
-  REWRITE_RULES, SOURCE_FILE, TEST_FILE,
+  REWRITE_RULES, SOURCE_FILE, STEP_COMMAND_CASES, TEST_FILE,
 } from "./step-rules.fixtures.ts";
 import { assertDecisions, assertFramedBy } from "./step-rules.assertions.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
@@ -116,7 +116,7 @@ describe("gateProblem", () => {
     deepStrictEqual(problem, { refuse: true, line: DEV_PLAN_GATE_OFF });
   });
 
-  it("names --gate-only in the refusal of /dev-verify", () => {
+  it("names --audit --gate-only in the refusal of the audit step", () => {
     // Arrange
     const gate = false;
 
@@ -124,7 +124,7 @@ describe("gateProblem", () => {
     const line = gateProblem(gate, "dev-verify")?.line ?? "";
 
     // Assert
-    assertFramedBy(line, "dev-verify: refused: ", " /dev-verify F<n> --gate-only runs no model and needs no gate.");
+    assertFramedBy(line, "dev-verify: refused: ", " /dev-batches <code> F<n> --audit --gate-only runs no model and needs no gate.");
   });
 });
 
@@ -239,4 +239,19 @@ describe("roleRules", () => {
     // Assert
     deepStrictEqual(rewrite, []);
   });
+});
+
+describe("stepCommand", () => {
+  for (const c of STEP_COMMAND_CASES) {
+    it(`names /${c.command} for the step ${c.step}`, () => {
+      // Arrange
+      const { step } = c;
+
+      // Act
+      const command = stepCommand(step);
+
+      // Assert
+      strictEqual(command, c.command);
+    });
+  }
 });

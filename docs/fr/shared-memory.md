@@ -49,7 +49,7 @@ Qui peut admettre quoi :
 | `audit:` (fichiers de verdict des audits dev) | `code-structure`, `mistake` |
 | `verdict:` (un arrêt du workflow dev) | `method`, `decision` |
 
-Une erreur n'est récoltée dans les audits qu'une fois son écart revenu dans trois lots ou plus. `/dev-verify` récolte
+Une erreur n'est récoltée dans les audits qu'une fois son écart revenu dans trois lots ou plus. L'audit de `/dev-batches` récolte
 après chaque verdict qui n'est pas VALID : la fin de l'étape nomme les candidats écrits, et `/memory-admit` décide de
 chacun. Quand les écarts non traités couvrent deux lots ou plus, l'étape dit aussi que `/dev-learn` est dû.
 
@@ -60,11 +60,11 @@ construisent :
 
 | Étape | Quand | Types rappelés |
 |---|---|---|
-| `/dev-spec`, `/dev-change` | au départ | `decision`, `method` |
+| `/dev-spec` | au départ | `decision`, `method` |
 | `/dev-plan` | avant l'écriture du plan | `decision`, `code-structure` |
-| `/dev-implement` | avant les tests rouges d'un lot | `code-structure`, `mistake` |
-| `/dev-implement` | une correction après un verdict GAPS | `mistake` |
-| `/dev-verify` | avant l'audit | `mistake` |
+| `/dev-batches` | avant les tests rouges d'un lot | `code-structure`, `mistake` |
+| `/dev-batches` | une correction après un verdict GAPS | `mistake` |
+| `/dev-batches` | avant l'audit | `mistake` |
 
 La fin de l'étape nomme les entrées rappelées. Un rappel qui ne peut pas tourner coûte le bloc, jamais l'étape ; une
 règle de session qui refuse `memory_recall` coupe aussi ces rappels.

@@ -37,7 +37,7 @@ export const CLEAR = { verdict: "CLEAR", rows: [] };
 const ABSENT = "warning: commands.build_test, commands.test_project, commands.test_integration not in the pack: fill them " +
   "on the Commands line of PRUNE-PLAN.md § 1, or add them to .orkeon/repo.yaml and run /dev-plan prune --replace";
 
-export const NEXT_LINE = END_LINE.replace("{command}", "/dev-implement F1 workbench/prune/PRUNE-PLAN.md, or /dev-batches prune for every batch in their dependencies' order");
+export const NEXT_LINE = END_LINE.replace("{command}", "/dev-batches workbench/prune/PRUNE-PLAN.md F1, or /dev-batches prune for every batch in their dependencies' order");
 
 /** What a run that writes the plan and gets a CLEAR review ends on. */
 export const CLEAR_SUMMARY = [

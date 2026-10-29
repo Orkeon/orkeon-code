@@ -14,7 +14,7 @@ import { HOOKS_STATE_KEY } from "../../shared/domain/session-keys.ts";
 import { deniesEveryCall, formatRule } from "../../shared/domain/agent-policy/permission.ts";
 import { parseSessionRules } from "../../shared/domain/git/pull-request.ts";
 import type { RuleSetId } from "../../shared/domain/agent-policy/rule-sets.ts";
-import { STEP_RULE_SETS, gateProblem, stepRules } from "../../shared/domain/dev/step-rules.ts";
+import { STEP_RULE_SETS, gateProblem, stepCommand, stepRules } from "../../shared/domain/dev/step-rules.ts";
 import type { DevStep } from "../../shared/domain/dev/step-rules.ts";
 import { isCode } from "../../shared/domain/dev/artefacts.ts";
 import { policyFor } from "../../shared/domain/agent-policy/mode-policy.ts";
@@ -38,7 +38,7 @@ export type DevStepStart =
   }
   | { ok: false; line: string };
 
-/** The step /dev-verify runs: none with --gate-only, which runs no model. */
+/** The step dev-verify runs: none with --gate-only, which runs no model. */
 export function devVerifyStep(args: { gateOnly: boolean }): DevStep | null {
   return args.gateOnly ? null : "dev-verify";
 }
@@ -56,10 +56,10 @@ export async function startDevStep(step: DevStep, deps: DevStepDeps): Promise<De
     builtIn: memoryWriteRules((await readMemoryDir(deps.config)).dir),
   });
   if (!sync.applied) {
-    lines.push(`warning: the host keeps no session rules: /${step}'s rule sets are not in the host's gate, the crew's callback alone checks them.`);
+    lines.push(`warning: the host keeps no session rules: /${stepCommand(step)}'s rule sets are not in the host's gate, the crew's callback alone checks them.`);
   }
   for (const r of sync.overridden) {
-    lines.push(`warning: the session's rule '${formatRule(r)}' is left out of the gate during /${step}: the step denies the same calls.`);
+    lines.push(`warning: the session's rule '${formatRule(r)}' is left out of the gate during /${stepCommand(step)}: the step denies the same calls.`);
   }
   const hooks = await readJsonArray(deps.session, HOOKS_STATE_KEY);
   const memoryDenied = deniesEveryCall(gateRules(deps.gate), "memory_recall");
@@ -83,10 +83,10 @@ function gateRules(gate: PermissionRules) {
  * a step never writes on a mode it does not know); null when it may run. `writes` says what the step writes.
  */
 export function writeModeRefusal(mode: string, step: string, writes: string): string | null {
-  if (mode === "") return `✗ refused: the session mode could not be read, and /${step} ${writes}: run it again`;
-  if (!isPermissionMode(mode)) return `✗ refused: the session mode ${mode} is not one Orkeon Code knows, and /${step} ${writes}: /mode default, then run it again`;
+  if (mode === "") return `✗ refused: the session mode could not be read, and /${stepCommand(step)} ${writes}: run it again`;
+  if (!isPermissionMode(mode)) return `✗ refused: the session mode ${mode} is not one Orkeon Code knows, and /${stepCommand(step)} ${writes}: /mode default, then run it again`;
   if (!policyFor(mode).readOnly) return null;
-  return `✗ refused: the session mode ${mode} is read-only, and /${step} ${writes}: /mode default, then run it again`;
+  return `✗ refused: the session mode ${mode} is read-only, and /${stepCommand(step)} ${writes}: /mode default, then run it again`;
 }
 
 /** writeModeRefusal over the session's effective mode, read here: a read that fails refuses. */
@@ -100,7 +100,7 @@ export async function readWriteModeRefusal(
   return writeModeRefusal(mode, step, writes);
 }
 
-/** Before a launch of /dev-implement's chain (the audit, then the close), which runs no dispatch of its own: the
+/** Before a launch of dev-implement's chain (the audit, then the close), which runs no dispatch of its own: the
  *  gate must still be on, and the step's rules are put back on top of whatever the gate holds (an /assistant turn
  *  in between hands it the session's rules alone). The gate is not cleared: the rules an earlier hop added stay
  *  until the next sync (the next command, the next /assistant turn): an earlier hop's allows with them, but the

@@ -39,7 +39,7 @@ export function notComputed(reason: string): AccessCost {
 /** No `/workspace` root in the index: the use case says so itself, the tool would answer an empty report. */
 export function notIndexed(roots: readonly string[]): AccessCost {
   const holds = roots.length === 0 ? "the code index is empty" : `the code index holds ${roots.join(", ")}, not ${WORKSPACE}`;
-  return notComputed(`not indexed — ${holds}: run /analyze, then /dev-verify again; judge the Cost axis from the diff`);
+  return notComputed(`not indexed — ${holds}: run /analyze, then audit the batch again; judge the Cost axis from the diff`);
 }
 
 /**

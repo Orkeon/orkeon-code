@@ -1,9 +1,12 @@
 /// <reference path="../.orkeon/orkeon-cli.d.ts" />
-// /dev-spec <code> [<brief> | <path>.md | <revision request>] — write or revise a business spec, then settle its open
-// questions with the person, one at a time. It runs in a crew of its own (crews/dev-spec), never in the
-// conversation: a fresh context and the reviewer's read tools. The host's gate must be on; the dev rule sets are put
-// in it before the crew (_lib/dev-step.ts), and the crew's tool callbacks check them again and run the /hooks.
-import { rawTokens } from "../_lib/args.ts";
+// /dev-spec <code> [bug|refactor|perf] [--run "<command>"] [<brief> | <path>.md | <#issue> | <revision request>] —
+// write or revise the source of a piece of work, then settle its open questions with the person, one at a time.
+// Without a kind it is a business spec (crews/dev-spec); with one it is a change brief (crews/dev-change): the bug
+// reproduced or the cost measured first, and a request the model finds to be a feature goes on as a spec in the same
+// run. /dev-change is an alias that keeps its own shape (_lib/dev/dev-source.ts). The step runs in a crew of its own,
+// never in the conversation: a fresh context and the reviewer's read tools. The host's gate must be on; the dev rule
+// sets are put in it before the crew (_lib/dev-step.ts), and the crew's tool callbacks check them again and run the /hooks.
+import { rawTokens, typedCommand } from "../_lib/args.ts";
 import { parseDevSpecArgs } from "../_lib/dev/dev-source.ts";
 import { readWriteModeRefusal, startDevStep } from "../_lib/dev-step.ts";
 import { launchCrew, writeCompleted } from "../_lib/dispatch.ts";
@@ -18,21 +21,23 @@ const deps = { files: orkeonFiles(), shell: orkeonShell(), config: orkeonConfigS
 
 defineAsyncCommand({
   name: "dev-spec",
-  description: "Write or revise a business spec, ask its open questions one at a time, then a read-only review.",
+  aliases: ["dev-change"],
+  description: "Write or revise a business spec, or with a kind (bug, refactor, perf) a change brief proven by running; its open questions one at a time, then a read-only review.",
   maxConcurrent: 1,
   dispatch: async (args, ctx) => {
-    const parsed = parseDevSpecArgs(rawTokens(args));
+    const parsed = parseDevSpecArgs(rawTokens(args), typedCommand(ctx.command?.rawInput, "dev-spec"));
     if (!parsed.ok) {
       ctx.writeLine(parsed.text);
       return { refused: parsed.text };
     }
+    const crew = parsed.crew;
     // The crew writes files through its own port, which no mode gates: a read-only mode refuses it here.
-    const readOnly = await readWriteModeRefusal(deps.session, "dev-spec", "writes files");
+    const readOnly = await readWriteModeRefusal(deps.session, crew, "writes files");
     if (readOnly !== null) {
       ctx.writeLine(readOnly);
       return { refused: readOnly };
     }
-    const start = await startDevStep("dev-spec", {
+    const start = await startDevStep(crew, {
       ...deps, gate: createPermissionRules(ctx.services), catalogue: orkeonToolCatalogue(ctx.services),
     });
     if (!start.ok) {
@@ -42,9 +47,9 @@ defineAsyncCommand({
     for (const line of start.lines) ctx.writeLine(line);
     const details = { ruleSets: start.sets.join(" "), rules: start.rules, hooks: start.hooks.length };
     return launchCrew(
-      { crews: createCrewHost(ctx.services), log: ctx.log }, "dev-spec",
+      { crews: createCrewHost(ctx.services), log: ctx.log }, crew,
       { ...parsed.args, ...start.input, effort: await storedEffort(deps.session) }, details,
     );
   },
-  completed: (result, ctx) => writeCompleted(ctx, result, "dev-spec"),
+  completed: (result, ctx) => writeCompleted(ctx, result, String(result.intent || "dev-spec")),
 });

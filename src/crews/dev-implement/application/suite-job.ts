@@ -5,7 +5,7 @@
 // interpreters off), the job cannot start or its first look fails, the suite runs blocking with the same
 // limit. A suite past its limit gives no verdict: it is left to the end of the run, which stops it.
 //
-// The log is what /dev-verify's capture reads (`<work>/<code>/logs/F<n>-build.txt`, `F<n>-test.txt`,
+// The log is what dev-verify's capture reads (`<work>/<code>/logs/F<n>-build.txt`, `F<n>-test.txt`,
 // `F<n>-test-affected.txt`): a `#` header, the output, then a last line `exit=<n>`, the harness's shape.
 import type { Files, Shell, ShellJobs } from "../../../shared/application/ports.ts";
 

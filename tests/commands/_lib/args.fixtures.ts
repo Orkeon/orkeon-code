@@ -61,6 +61,15 @@ export const RAW_TOKENS_CASES: readonly { name: string; args: object; expected: 
   { name: "rawTokens returns [] without raw tokens", args: {}, expected: [] },
 ];
 
+/** The line the host hands over, the fallback, and the name the person typed. */
+export const TYPED_COMMAND_CASES: readonly { name: string; raw: unknown; expected: string }[] = [
+  { name: "reads the alias typed before the arguments", raw: "/dev-verify F2 cache", expected: "dev-verify" },
+  { name: "reads a name typed alone", raw: "/dev-change", expected: "dev-change" },
+  { name: "reads a name typed without its slash", raw: "  dev-implement F2", expected: "dev-implement" },
+  { name: "falls back on a line that names no command", raw: "", expected: "dev-batches" },
+  { name: "falls back when the host hands no line", raw: undefined, expected: "dev-batches" },
+];
+
 /** A JSON payload that is not an object, and the word the refusal names it with. */
 export const NOT_OBJECT_PAYLOADS: readonly { payload: string; word: string }[] = [
   { payload: "[1,2]", word: "array" },

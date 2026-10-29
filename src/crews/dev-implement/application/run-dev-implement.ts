@@ -1,12 +1,12 @@
-// /dev-implement F<n>: the steps of one batch sheet, each as RED by the test author then GREEN by
+// dev-implement F<n>: the steps of one batch sheet, each as RED by the test author then GREEN by
 // the implementer, two acts of the crew's one agent with their own tools and rules. Consecutive
 // steps on one test file are one cycle: every RED first, then one GREEN and one Cost for them all.
 // Code makes each brief from the sheet, observes the tree before and after each act, runs the
 // tests itself, measures the cost of what changed, and ticks a box only once what it stands for was
 // seen. After the last cycle the batch's files are refreshed in the code index, then the build, then
 // the whole suite once per batch (the affected projects after, the sheet's and the graph's), run as
-// shell jobs and write the logs /dev-verify reads; a batch all ticked and green hands
-// over to /dev-verify (the `next` of its answer, `resume` after a GAPS verdict). A correction
+// shell jobs and write the logs dev-verify reads; a batch all ticked and green hands
+// over to dev-verify (the `next` of its answer, `resume` after a GAPS verdict). A correction
 // (`— correction: <finding>`) is first appended to the sheet as a new step. Any failed check stops
 // the batch with BLOCKED and ticks nothing more.
 //
@@ -21,7 +21,7 @@ import { measureAccessCost } from "../../../shared/application/dev/measure-acces
 import type { CostFile } from "../../../shared/application/dev/measure-access-cost.ts";
 import { addedLines } from "../../../shared/domain/dev/access-cost.ts";
 import { hasTestLayout, isTestPath } from "../../../shared/domain/dev/test-paths.ts";
-import { gapsRoundsOf, lastVerdict, parseVerdictFile } from "../../../shared/domain/dev/verdict-format.ts";
+import { auditCommand, closeCommand, gapsRoundsOf, lastVerdict, parseVerdictFile } from "../../../shared/domain/dev/verdict-format.ts";
 import { shellQuote } from "../../../shared/domain/git/close.ts";
 import type { CarriedText } from "../../../shared/domain/dev/carried-text.ts";
 import { tidyWhitespace } from "../../../shared/domain/dev/whitespace.ts";
@@ -673,12 +673,12 @@ async function verdictState(files: Pick<Files, "read">, path: string): Promise<{
 
 export async function runDevImplement(input: DevImplementInputs, deps: DevImplementDeps): Promise<string> {
   const batch = String(input.batch ?? "").trim();
-  if (!BATCH.test(batch)) return blocked([], `the batch is F<n>, e.g. /dev-implement F1 <code>: got '${batch}'`);
+  if (!BATCH.test(batch)) return blocked([], `the batch is F<n>, e.g. /dev-batches <code> F1: got '${batch}'`);
   const plan = typeof input.plan === "string" && input.plan.trim() !== "" ? input.plan.trim() : null;
   const inputContext = prContextOf(input);
   const mode = typeof input.permissionMode === "string" ? input.permissionMode.trim() : "";
   if (mode !== "" && policyFor(mode).readOnly) {
-    return blocked([], `the session mode ${mode} is read-only: /dev-implement writes files and commits (/mode default, then run it again)`);
+    return blocked([], `the session mode ${mode} is read-only: /dev-batches writes files and commits (/mode default, then run it again)`);
   }
 
   const context = await loadDevContext({ files: deps.files, shell: deps.shell, config: deps.config });
@@ -698,7 +698,7 @@ export async function runDevImplement(input: DevImplementInputs, deps: DevImplem
     const pr = inputContext ?? record.pr;
     const closeMode = pr?.permissionMode.trim() ?? "";
     if (closeMode !== "" && policyFor(closeMode).readOnly) {
-      return blocked(lines, `the session mode ${closeMode} (read at the launch) is read-only: the close commits (/mode default, then /dev-implement ${batch} ${located.code} --close)`);
+      return blocked(lines, `the session mode ${closeMode} (read at the launch) is read-only: the close commits (/mode default, then ${closeCommand(located.code, batch)})`);
     }
     const opener = pr !== null && pr.githubTool ? deps.openerFor?.(pr) : undefined;
     // A batch of a /dev-batches run in progress is committed, never pushed, even when its close is typed (after a
@@ -799,7 +799,7 @@ export async function runDevImplement(input: DevImplementInputs, deps: DevImplem
   if (recalledLine !== "") run.lines.push(recalledLine);
   const planArg = plan ?? located.code;
   const auditMode = verdicts.last === "GAPS" ? "resume" : "fast";
-  run.lines.push(`→ Batch ${batch}: every step ticked, the build and the tests green. The audit follows: /dev-verify ${batch} ${planArg}${auditMode === "resume" ? " resume" : ""}`);
+  run.lines.push(`→ Batch ${batch}: every step ticked, the build and the tests green. The audit follows: ${auditCommand(planArg, batch, auditMode)}`);
   return answer(run.lines, {
     crew: "dev-verify",
     input: {

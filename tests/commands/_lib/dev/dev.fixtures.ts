@@ -4,7 +4,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-import type { DevLearnArgs, DevPlanArgs, DevVerifyArgs } from "../../../../src/commands/_lib/dev/dev.ts";
+import type { DevLearnArgs, DevPlanArgs } from "../../../../src/commands/_lib/dev/dev.ts";
 import { parseLearnState } from "../../../../src/shared/domain/dev/learn-state.ts";
 import { serializeProposalsFile } from "../../../../src/shared/domain/dev/learn-proposals.ts";
 import type { AxisProposal, Motif, ProposalsFile } from "../../../../src/shared/domain/dev/learn-proposals.ts";
@@ -143,43 +143,6 @@ export interface RefusedLineCase {
   tokens: string[];
   text: string;
 }
-
-export const VERIFY_USAGE_TEXT =
-  "usage: /dev-verify F<n> [<code> | <path>/<CODE>-PLAN.md] [fast | full | resume] [--gate-only]";
-
-export const VERIFY_REFUSED_CASES: readonly RefusedLineCase[] = [
-  { name: "refuses an empty line with the usage", tokens: [], text: VERIFY_USAGE_TEXT },
-  { name: "refuses a first token that is not a batch", tokens: ["demo"], text: "dev-verify: 'demo' is not a batch: F<n>, e.g. F2" },
-  { name: "refuses two modes", tokens: ["F2", "fast", "resume"], text: "dev-verify: one mode at most (fast, full or resume), not 'fast' and 'resume'" },
-  { name: "refuses an unknown option", tokens: ["F2", "--raw"], text: "dev-verify: unknown option '--raw' (only --gate-only)" },
-  { name: "refuses two plans", tokens: ["F2", "demo", "other"], text: "dev-verify: one plan at most, not 'demo' and 'other'" },
-  { name: "refuses a path that is not a plan", tokens: ["F2", "a/b"], text: "dev-verify: 'a/b' is neither a code nor a <CODE>-PLAN.md path" },
-  {
-    name: "refuses a plan path climbing out",
-    tokens: ["F2", "../x/DEMO-PLAN.md"],
-    text: "dev-verify: '../x/DEMO-PLAN.md' is neither a code nor a <CODE>-PLAN.md path",
-  },
-  {
-    name: "refuses an absolute plan path",
-    tokens: ["F2", "/etc/DEMO-PLAN.md"],
-    text: "dev-verify: '/etc/DEMO-PLAN.md' is neither a code nor a <CODE>-PLAN.md path",
-  },
-];
-
-export const VERIFY_ACCEPTED_CASES: readonly { name: string; tokens: string[]; args: DevVerifyArgs }[] = [
-  {
-    name: "takes the other tokens in any order",
-    tokens: ["F2", "resume", "demo", "--gate-only"],
-    args: { batch: "F2", plan: "demo", mode: "resume", gateOnly: true },
-  },
-  { name: "takes fast by default", tokens: ["F2", "--gate-only"], args: { batch: "F2", plan: null, mode: "fast", gateOnly: true } },
-  {
-    name: "takes a plan path and a mode",
-    tokens: ["F12", "workbench/demo/DEMO-PLAN.md", "full"],
-    args: { batch: "F12", plan: "workbench/demo/DEMO-PLAN.md", mode: "full", gateOnly: false },
-  },
-  { name: "reads fast, full and resume as modes, never as codes", tokens: ["F2", "full"], args: { batch: "F2", plan: null, mode: "full", gateOnly: false } },
-];
 
 export const LEARN_USAGE_TEXT = "usage: /dev-learn [<axis>] [--list] | --accept <id>[,<id>…] | --refuse <id | motif text>";
 
@@ -336,7 +299,7 @@ export const HARNESS_ACCEPTED_STATE = {
 };
 
 export const REPO_ACCEPTED_LINE =
-  "accepted 77b0d2aa — Fixtures drift from the format: CONTRIBUTING.md is not edited by /dev-learn; make the change in a batch (/dev-change, or by hand):";
+  "accepted 77b0d2aa — Fixtures drift from the format: CONTRIBUTING.md is not edited by /dev-learn; make the change in a batch (/dev-spec <code> refactor, or by hand):";
 
 export const DECIDED_OR_UNKNOWN_LINES = [
   PROBE_WARNING,

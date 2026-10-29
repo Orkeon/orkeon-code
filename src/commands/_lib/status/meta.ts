@@ -22,7 +22,7 @@ export const RELEASE_NOTES = [
   "       project-init, init-verifiers, session-compact, advisor, analyze, speech,",
   "       dev-verify, dev-learn, dev-plan, dev-spec, dev-change, dev-implement, dev-batches,",
   "       shared-memory-admit, agent-run.",
-  "Commands: 58 slash commands; free text without a leading / goes to /assistant.",
+  "Commands: 55 slash commands; free text without a leading / goes to /assistant.",
   "Permissions: five modes (default, acceptEdits, plan, dontAsk, bypassPermissions),",
   "             deny/allow rules (argument patterns too) enforced by the host gate,",
   "             questions before writes and commands, /mode for the session default.",

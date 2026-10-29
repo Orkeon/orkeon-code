@@ -1,6 +1,6 @@
 // /dev-batches: one run of the driver of a plan's batches (temp/04 L-7). It reads the plan, its sheets, its
 // verdicts and its log, `.orkeon/dev/<code>/batches-state.md`; back from a batch's chain (`after`: the last
-// lines of what /dev-implement or /dev-verify answered) it logs what came of that batch; then either it
+// lines of what dev-implement or dev-verify answered) it logs what came of that batch; then either it
 // stops (a human decides), or it closes the plan (every batch done: one push, one pull request), or it runs
 // the preflight, the review of a batch whose dependencies just closed, and names the next batch for the
 // command to launch: JSON `{ lines, next?: { crew: "dev-implement", input } }`. With `concurrency` n from 2
@@ -9,7 +9,7 @@
 // wave. A run that names its code
 // keeps it, with what the command read at its dispatch, in `.orkeon/dev/batches-active.json`; the runs the
 // chain launches name none and read it back. The batch's own work (its steps, its audit, its commit) is
-// /dev-implement's: this crew writes only the log, the run record and the pull request's body - and, in a parallel
+// dev-implement's: this crew writes only the log, the run record and the pull request's body - and, in a parallel
 // run, the files it seeds and harvests and the merges of the VALID batches.
 import type { Files, Llm, Logger, Shell } from "../../../shared/application/ports.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
@@ -29,7 +29,9 @@ import { batchWorktreeName, worktreePlace } from "../../../shared/domain/git/wor
 import type { BatchOutcome, BatchRun } from "./run-wave.ts";
 import { parseBatchesState } from "../../../shared/domain/dev/batches-state.ts";
 import type { BatchesLogEntry } from "../../../shared/domain/dev/batches-state.ts";
-import { GAPS_ROUNDS_MAX, gapsFinding, gapsRoundsOf, isUnfinishedSection, lastVerdict } from "../../../shared/domain/dev/verdict-format.ts";
+import {
+  GAPS_ROUNDS_MAX, closeCommand, correctionCommand, gapsFinding, gapsRoundsOf, isUnfinishedSection, lastVerdict,
+} from "../../../shared/domain/dev/verdict-format.ts";
 import { NEXT_BATCH_REVIEWER_CHARTER } from "../../../shared/domain/dev/reviewer-charter.ts";
 import { charterCatalogue } from "../../../shared/domain/agents/charter.ts";
 import type { CarriedText } from "../../../shared/domain/dev/carried-text.ts";
@@ -442,7 +444,7 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
     return answer(next === undefined ? [...out, failed] : [...out, failed, `BLOCKED — the log must be writable before a launch, then /dev-batches ${code}`]);
   };
 
-  // What the chain's /dev-implement is handed for a batch: the run's context, its open steps, and what is `extra`.
+  // What the chain's dev-implement is handed for a batch: the run's context, its open steps, and what is `extra`.
   const launchInput = (batch: string, extra: Record<string, unknown> = {}, added = 0): Record<string, unknown> => {
     const steps = (dev.sheets.find((s) => s.batch === batch)?.sheet.steps ?? [])
       .filter((s) => s.tdd !== null && !(s.tdd.red && s.tdd.green && s.tdd.cost)).length + added;
@@ -494,7 +496,7 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
       return finish([
         ...lines,
         `${node.id}: an audit since its launch says VALID, and no commit yet: its chain may still be closing it (nothing logged)`,
-        `→ wait for the chain's answer; else the close (/dev-implement ${node.id} ${code} --close), then /dev-batches ${code} goes on`,
+        `→ wait for the chain's answer; else the close (${closeCommand(code, node.id)}), then /dev-batches ${code} goes on`,
       ]);
     }
     book.add(eventLine(now(), node.id, stop.event, stop.detail));
@@ -510,8 +512,8 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
         return finish(
           [
             ...lines, `${node.id} returned GAPS`,
-            `→ ${node.id} relaunched, audit round ${rounds + 1} of ${GAPS_ROUNDS_MAX}: /dev-implement ${node.id} ${code}` +
-              (finding === undefined ? " (no correction: its audit resumes)" : ` — correction: ${finding}`),
+            `→ ${node.id} relaunched, audit round ${rounds + 1} of ${GAPS_ROUNDS_MAX}: ` +
+              (finding === undefined ? `/dev-batches ${code} ${node.id} (no correction: its audit resumes)` : correctionCommand(code, node.id, finding)),
           ],
           { crew: "dev-implement", input: launchInput(node.id, finding === undefined ? {} : { correction: finding }, finding === undefined ? 0 : 1) },
         );
@@ -520,12 +522,12 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
     return finish([
       ...lines, `${node.id} ${stop.event} ${stop.detail}`,
       stop.detail === "GAPS"
-        // The audit's own `/dev-implement <batch> — correction: …` line fixes the batch; its close commits without a
+        // The audit's own `/dev-batches <code> <batch> — correction: …` line fixes the batch; its close commits without a
         // push while this run is in progress (run-dev-implement.ts).
-        ? `→ a human decides: ${rounds !== null ? `${rounds} audit rounds in GAPS; ` : ""}the correction the audit names (/dev-implement ${node.id} ${code} — correction: <finding>), then /dev-batches ${code} goes on`
+        ? `→ a human decides: ${rounds !== null ? `${rounds} audit rounds in GAPS; ` : ""}the correction the audit names (${correctionCommand(code, node.id, "<finding>")}), then /dev-batches ${code} goes on`
         : stop.detail.startsWith("BLOCKED — close:")
         // The audit said VALID: what is left is the close, not a new run of the batch.
-        ? `→ a human decides: the close (/dev-implement ${node.id} ${code} --close), then /dev-batches ${code} goes on`
+        ? `→ a human decides: the close (${closeCommand(code, node.id)}), then /dev-batches ${code} goes on`
         : `→ a human decides; then /dev-batches ${code} goes on (${node.id} again, from its sheet's ticks)`,
     ]);
   }
@@ -661,7 +663,7 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
   book.add(eventLine(now(), next, relaunch ? "relaunched" : "launched", `${AUDITS_DETAIL} ${auditsOf(dev, next)}`));
   const position = order.ok ? order.order.indexOf(next) + 1 : 0;
   return finish(
-    [...lines, `→ ${next} ${relaunch ? "relaunched" : "launched"} (${position}/${nodes.length}): /dev-implement ${next} ${code}, then its audit and its commit`],
+    [...lines, `→ ${next} ${relaunch ? "relaunched" : "launched"} (${position}/${nodes.length}): /dev-batches ${code} ${next}, then its audit and its commit`],
     { crew: "dev-implement", input: launchInput(next, (stale[next] ?? []).length > 0 ? { stale: stale[next] } : {}) },
   );
 }

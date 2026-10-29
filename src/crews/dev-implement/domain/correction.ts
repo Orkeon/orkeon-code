@@ -1,4 +1,4 @@
-// A correction of a batch (`/dev-implement F<n> — correction: <finding>`, an audit's gap): a new step of the
+// A correction of a batch (`/dev-batches <code> F<n> — correction: <finding>`, an audit's gap): a new step of the
 // sheet, `### Step <last+1> — Correction C<k> — <finding>`, with one test row and its own TDD line, and an
 // `## Anchors` row copied from the step it corrects, so that it runs as any step, RED first. The earlier steps
 // and their evidence stay as they are. A finding naming an id the sheet does not carry changes the scope: it is
@@ -56,7 +56,7 @@ export function addCorrection(text: string, findingRaw: string): CorrectionEdit 
     return {
       ok: false,
       reason: `the finding names ${unknown.join(", ")}, which the sheet does not carry: a new id changes the scope ` +
-        "(/dev-change for the change, then /dev-plan), never a correction",
+        "(/dev-spec <code> <kind> for the change, then /dev-plan), never a correction",
     };
   }
   const sheet = parseImplementSheet(text);

@@ -1,5 +1,5 @@
 // The checks a plan folder must pass before any batch runs: the design ids each classified
-// (shared with the /dev-verify gate), and the self-check /dev-plan runs over the plan and
+// (shared with the dev-verify gate), and the self-check /dev-plan runs over the plan and
 // sheets it has just rendered - parse-back with no problem, the same batches everywhere,
 // every source id traced and tested, the step and anchor shapes. Pure, no IO; it reports
 // problems and never repairs a text.

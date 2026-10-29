@@ -150,7 +150,7 @@ export const valid = (batch: string): BatchOutcome => ({ batch, verdict: "VALID"
 /** F3's GAPS outcome, its correction named. */
 export const F3_GAPS: BatchOutcome = {
   batch: "F3", verdict: "GAPS", spent: 30, correction: "Major tests: none",
-  lines: ["→ Batch F3 GAPS", "→ /dev-implement F3 — correction: Major tests: none", "it appends the gap to the sheet as a step"],
+  lines: ["→ Batch F3 GAPS", "→ /dev-batches prune F3 — correction: Major tests: none", "it appends the gap to the sheet as a step"],
 };
 
 /** A global plan with F2 and F3 open, and the same once F2 is merged on 2026-10-24. */
@@ -178,10 +178,10 @@ export const F2_RELAUNCH_LINE = "→ F2's code, sheet and verdict stay in .orkeo
 export const RUN = { code: "prune", batch: "F2", name: "prune-F2", root: `${WORKSPACE}/.orkeon/worktrees/prune-F2`, branch: "batches/prune/F2", steps: 2 };
 export const LAUNCH = { plan: "prune", hooks: [], effort: "high", permissionMode: "bypassPermissions", permissionRules: [], githubTool: false };
 export const VERIFY_INPUT = { batch: "F2", plan: "todo/prune/PRUNE-PLAN.md", mode: "fast" };
-/** /dev-implement's answer once its steps are green: the audit next. */
+/** The dev-implement crew's answer once its steps are green: the audit next. */
 export const implemented = JSON.stringify({ lines: ["F2 step 1 green"], next: { crew: "dev-verify", input: VERIFY_INPUT } });
 export const AUDIT_VALID = "written: todo/prune/PRUNE-VERIFY-F2.md — capture: todo/prune/capture-F2/\n→ Batch F2 VALID. The close commits the batch's files";
-export const AUDIT_GAPS = "written: todo/prune/PRUNE-VERIFY-F2.md — capture: todo/prune/capture-F2/\n→ /dev-implement F2 — correction: Major tests: none";
+export const AUDIT_GAPS = "written: todo/prune/PRUNE-VERIFY-F2.md — capture: todo/prune/capture-F2/\n→ /dev-batches prune F2 — correction: Major tests: none";
 /** An audit the gate stopped before any verdict. */
 export const GATE_RED = "GATE — batch F2 — sheet todo/prune/PRUNE-PLAN-F2.md\n  FAIL design ids …\nGATE — batch F2: RED — fix and run again, no audit before\n";
 export const spend = (calls = 10, limit = 100) => ({ limit, calls: () => calls, exhausted: () => calls >= limit });

@@ -1,6 +1,6 @@
 // harvestMistakes: the mistake candidates the audit rows of a work folder justify (domain
 // harvest.ts), each written through writeCandidate, unless a candidate or an entry already holds
-// its topic. Called after a GAPS verdict (lot M-7 wires it into /dev-verify).
+// its topic. Called after a GAPS verdict (lot M-7 wires it into dev-verify).
 
 import { mistakeCandidates } from "../../domain/shared-memory/harvest.ts";
 import type { LearnRow } from "../../domain/shared-memory/verdict-rows.ts";

@@ -218,7 +218,7 @@ export const IN_PROGRESS_LINE =
   "or delete that file to drop it, then /dev-batches other";
 
 export const GAPS_HUMAN_LINE =
-  "→ a human decides: 3 audit rounds in GAPS; the correction the audit names (/dev-implement F2 demo — correction: <finding>), then /dev-batches demo goes on";
+  "→ a human decides: 3 audit rounds in GAPS; the correction the audit names (/dev-batches demo F2 — correction: <finding>), then /dev-batches demo goes on";
 
 export const KEPT_F2_LINE =
   "BLOCKED — F2 stays in .orkeon/worktrees/demo-F2, kept by a parallel run: /dev-batches demo --concurrency 2 relaunches it there; " +

@@ -73,7 +73,7 @@ describe("runDevPlan — a plan written and reviewed", () => {
     ]);
     assertMentions(f.files.files.get(F1) ?? "", ["## Decisions\n- Blocked by question 1 of PRUNE-PLAN.md § 4 (2026-10-22)"]);
     deepStrictEqual(text.split("\n").slice(-2), BLOCKED_END);
-    ok(!text.includes("/dev-implement"));
+    ok(!text.includes("/dev-batches prune F1"));
   });
 
   it("keeps the files and says the review did not run when the reviewer fails", async () => {

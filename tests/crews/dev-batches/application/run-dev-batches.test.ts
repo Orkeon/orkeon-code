@@ -22,7 +22,7 @@ import { assertLineStarting, assertMentions } from "../../../support/assertions/
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 
 describe("runDevBatches — a run", () => {
-  it("records the run, logs the next batch launched and names it for /dev-implement with the dispatch's context", async () => {
+  it("records the run, logs the next batch launched and names it for its batch's chain with the dispatch's context", async () => {
     // Arrange
     const { files, deps } = setup();
     const input = { code: "demo", pr: true, permissionMode: "default", permissionRules: ["Bash(git push*)"], githubTool: true, hooks: [], effort: "high" };
@@ -502,12 +502,12 @@ describe("runDevBatches — what comes back and the close", () => {
     await run({ code: "demo" }, deps);
 
     // Act
-    const out = await run({ after: ["→ /dev-implement F2 — correction: Major Scope: y"] }, deps);
+    const out = await run({ after: ["→ /dev-batches demo F2 — correction: Major Scope: y"] }, deps);
 
     // Assert
     strictEqual(out.next?.crew, "dev-implement");
     strictEqual(out.next?.input.correction, F2_LAST_FINDING);
-    assertLineStarting(out.lines, "→ F2 relaunched, audit round 3 of 3: /dev-implement F2 demo — correction: ");
+    assertLineStarting(out.lines, "→ F2 relaunched, audit round 3 of 3: /dev-batches demo F2 — correction: ");
     deepStrictEqual(events(files), ["F2 launched", "F2 returned", "F2 relaunched"]);
   });
 
@@ -519,7 +519,7 @@ describe("runDevBatches — what comes back and the close", () => {
     addGapsAudit(files);
 
     // Act
-    const out = await run({ after: ["→ /dev-implement F2 — correction: Major Scope: y"] }, deps);
+    const out = await run({ after: ["→ /dev-batches demo F2 — correction: Major Scope: y"] }, deps);
 
     // Assert
     strictEqual(out.next, undefined);
@@ -573,7 +573,7 @@ describe("runDevBatches — what comes back and the close", () => {
     // find the batch stopped); the close by hand is named.
     strictEqual(typed.next, undefined);
     assertHasLine(typed.lines, "F2: an audit since its launch says VALID, and no commit yet: its chain may still be closing it (nothing logged)");
-    assertHasLine(typed.lines, "→ wait for the chain's answer; else the close (/dev-implement F2 demo --close), then /dev-batches demo goes on");
+    assertHasLine(typed.lines, "→ wait for the chain's answer; else the close (/dev-batches demo F2 --close), then /dev-batches demo goes on");
     deepStrictEqual(events(files), ["F2 launched"]);
   });
 

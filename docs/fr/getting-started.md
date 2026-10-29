@@ -169,7 +169,7 @@ La bannière affiche le projet, les settings et le mode. Dans le REPL :
 Le texte saisi sans `/` initial est envoyé à `/assistant`. La liste complète : [Commandes](commands.md).
 
 Sur un terminal, le REPL est une TUI en deux volets : la transcription, l'invite, et dessous la liste des tâches (`↓`
-ou `F4`) qui nomme les commandes en arrière-plan (`/dev-batches`, `/dev-implement`, un `/assistant` lancé en async).
+ou `F4`) qui nomme les commandes en arrière-plan (`/dev-batches`, un `/assistant` lancé en async).
 Chaque fil de conversation a son écran : sélectionner la ligne d'une tâche montre ses lignes, sélectionner `main`
 celles de l'invite, où restent les lignes de lancement et de fin de chaque tâche ; la tâche sélectionnée est aussi la
 destinataire du prochain message. Une tâche finie garde sa ligne, avec `✔ finished`, `✗ failed` ou `⊘ cancelled` et sa

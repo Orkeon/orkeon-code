@@ -8,6 +8,8 @@ export const COMMANDS_DIR = fileURLToPath(new URL("../../src/commands", import.m
 /** The functional folders of src/commands/ a command file sits in, one level deep. */
 export const COMMAND_GROUPS: readonly string[] = ["session", "settings", "status", "project", "git", "dev", "memory", "speech"];
 
+// 55: /dev-change folded into /dev-spec (a kind), /dev-implement and /dev-verify into /dev-batches (F<n>, F<n> --audit);
+//     the three names stay as aliases (ADR 0011).
 // 58: /dev-batches added (L-7).
 // 57: /dev-implement added (L-6).
 // 56: /dev-spec and /dev-change added (L-5).
@@ -23,7 +25,7 @@ export const COMMAND_GROUPS: readonly string[] = ["session", "settings", "status
 // (it enforced nothing) and /onboarding (the native /help) are gone. Bumping this
 // deliberately: the count is the guard against a command silently failing to load,
 // so it must move only with a commit that adds or removes one.
-export const EXPECTED_COMMAND_COUNT = 58;
+export const EXPECTED_COMMAND_COUNT = 55;
 
 /** Orkeon's default cap on the command files the loader keeps (Orkeon:Cli:ScriptCommands:MaxScripts). */
 export const LOADER_DEFAULT_CAP = 200;
@@ -60,6 +62,7 @@ export function collect(dir = COMMANDS_DIR): Cmd[] {
 export const FOLDED_ALIASES: readonly (readonly [alias: string, name: string])[] = [
   ["reset-session", "clear"], ["version", "status"], ["env", "status"], ["session", "status"],
   ["upgrade", "status"], ["ctx-viz", "context"], ["extra-usage", "usage"],
+  ["dev-change", "dev-spec"], ["dev-implement", "dev-batches"], ["dev-verify", "dev-batches"],
 ];
 
 export const E1_COMMANDS: readonly string[] = [

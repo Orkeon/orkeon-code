@@ -68,9 +68,13 @@ export const TASKS_STATE_KEY = "task_list";
 /** The main-loop auto-compaction circuit breaker: consecutive failures (F3 v2). */
 export const AUTOCOMPACT_BREAKER_STATE_KEY = "autocompact_consecutive_failures";
 
-/** The dev batch in progress, `{"code": …, "phase": "F<n>"}`: written by the step command
- *  that starts on a batch (/dev-verify), read by the state file written before a compaction. */
+/** The dev batch in progress, `{"code": …, "phase": "F<n>"}`: written by the shape of /dev-batches
+ *  that starts on a batch (`F<n>`, its audit), read by the state file written before a compaction. */
 export const WORKFLOW_ACTIVE_STATE_KEY = "workflow_active";
+
+/** The chain the last launch of /dev-batches started (`run`, `batch` or `audit`): its `completed` reads it to tell
+ *  a plan's run from one batch, whose answers come from the same crews. */
+export const DEV_BATCHES_CHAIN_STATE_KEY = "dev_batches_chain";
 
 /** The agent instances of a crew's run, `agent_instances:<crew>` (A-3): written by the crew while its children run,
  *  read by /tasks. One key per crew, so two crews never write the same one. */

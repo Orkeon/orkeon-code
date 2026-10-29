@@ -166,13 +166,13 @@ export const REFUSAL_CASES: RefusalCase[] = [
     arrange: severalSheets,
     input: { batch: "F2" },
     expected: "dev-verify: several sheets for F2: workbench/demo/DEMO-PLAN-F2.md, workbench/other/OTHER-PLAN-F2.md: " +
-      "name the plan, e.g. /dev-verify F2 <code>",
+      "name the plan, e.g. /dev-batches <code> F2 --audit",
   },
   {
     name: "refuses a batch no plan folder has a sheet for",
     arrange: severalSheets,
     input: { batch: "F9" },
-    expected: "dev-verify: no workbench/*/*-PLAN-F9.md: name the plan, e.g. /dev-verify F9 <code>",
+    expected: "dev-verify: no workbench/*/*-PLAN-F9.md: name the plan, e.g. /dev-batches <code> F9 --audit",
   },
   {
     name: "refuses a batch the plan named has no sheet for",

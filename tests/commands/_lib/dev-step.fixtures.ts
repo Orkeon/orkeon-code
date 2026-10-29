@@ -93,7 +93,7 @@ export const REFUSED_MODE_CASES: readonly { name: string; mode: string; step: st
     name: "refuses a mode that could not be read",
     mode: "",
     step: "dev-change",
-    expected: "✗ refused: the session mode could not be read, and /dev-change writes files: run it again",
+    expected: "✗ refused: the session mode could not be read, and /dev-spec writes files: run it again",
   },
   {
     name: "refuses a mode it does not know",

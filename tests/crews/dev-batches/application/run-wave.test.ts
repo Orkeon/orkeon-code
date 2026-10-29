@@ -113,7 +113,7 @@ describe("runWave", () => {
     deepStrictEqual(gaps, [`${WT("F3")}/todo`]);
     strictEqual(out.stopped, true);
     ok(out.lines.includes("→ 1 candidate mistake: /dev-learn"));
-    assertNoLineWith(out.lines, "/dev-implement");
+    assertNoLineWith(out.lines, "/dev-batches prune F2 —");
     strictEqual(files.files.get(`${WORKSPACE}/${SHEET("F2")}`), "F2 ticked");
     assertLineWith(out.lines, ".orkeon/worktrees/prune-F3 kept", "test suite");
     strictEqual(out.lines.at(-1), F3_RELAUNCH_LINE);

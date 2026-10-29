@@ -1,12 +1,13 @@
 // @orkeon-script 1.0
 /// <reference path="../.orkeon/orkeon.d.ts" />
 //
-// DevChange crew (/dev-change). Composition root: it builds one agent from the reviewer's charter (read tools only)
-// and wires application/run-dev-change, which reads the origin whole (an issue by gh, a file, the text), runs the
-// reproduction of a bug or the measurement of a perf change before anything else (a bug that does not fail stops),
+// DevChange crew (/dev-spec with a kind; its alias /dev-change). Composition root: it builds one agent from the
+// reviewer's charter (read tools only) and wires application/run-dev-change, which reads the origin whole (an issue
+// by gh, a file, the text), runs the reproduction of a bug or the measurement of a perf change before anything else (a bug that does not fail stops),
 // inventories the code by the index, asks the model for the brief as JSON, writes <work>/<code>/CHANGE-<code>.md,
 // asks its open questions one at a time through human_input (each answer written before the next question), folds
 // the answers in, then has the read-only reviewer question the brief once. Unattended: BLOCKED, questions in the file.
+// A new brief the model routes as a feature goes on as a spec in the same run (runDevSpec, over the same ports).
 // The reviewer's act runs in a background child, `dev-reviewer` (its charter: read tools only, plan mode), which
 // /tasks lists and stops while it runs, as /dev-plan's (A-3, approach A2); on a host without background children
 // it runs inline.
@@ -20,7 +21,9 @@
 // Budget (STEP_BUDGETS["dev-change"]): one gh call, one run of at most 600 s, about 50 index calls, about 20 file
 // and git calls, at most nine extract calls and one review of 20 iterations: well under 200 tool calls. The
 // reviewer runs as a child (delegationDepth 1): the runtime gives it what the parent has left at its spawn, so its
-// 60 calls are an estimate, not a cap. The wall time counts the run and the person's answers: one hour.
+// 60 calls are an estimate, not a cap. The wall time counts the run and the person's answers: one hour. A feature
+// routed at the first draft goes on as a spec within the same budget: by then the change spent its inventory and one
+// extract call, at most one run.
 
 import { AgentBuilder, CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infrastructure/globals.ts";
 import {

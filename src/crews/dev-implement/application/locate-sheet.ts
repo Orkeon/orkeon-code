@@ -42,7 +42,7 @@ async function sheetsIn(files: Pick<Files, "list">, dir: string, batch: string):
 }
 
 function several(batch: string, sheets: readonly LocatedSheet[]): string {
-  return `several sheets for ${batch}: ${sheets.map((s) => `${s.dir}/${s.name}`).join(", ")}: name the plan, e.g. /dev-implement ${batch} <code>`;
+  return `several sheets for ${batch}: ${sheets.map((s) => `${s.dir}/${s.name}`).join(", ")}: name the plan, e.g. /dev-batches <code> ${batch}`;
 }
 
 /** The sheet, or why none is found. */
@@ -54,7 +54,7 @@ export async function locateSheet(
     for (const entry of (await listOrEmpty(files, `${WORKSPACE}/${work}`)).slice(0, ENTRIES_PROBED)) {
       found.push(...(await sheetsIn(files, `${work}/${entry}`, batch)));
     }
-    if (found.length === 0) return `no ${work}/*/*-PLAN-${batch}.md: name the plan, e.g. /dev-implement ${batch} <code>`;
+    if (found.length === 0) return `no ${work}/*/*-PLAN-${batch}.md: name the plan, e.g. /dev-batches <code> ${batch}`;
     return found.length === 1 ? found[0] : several(batch, found);
   }
   if (isCode(plan)) {

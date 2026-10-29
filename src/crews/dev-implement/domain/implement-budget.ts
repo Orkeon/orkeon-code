@@ -1,4 +1,4 @@
-// The budget of one /dev-implement run, sized to the steps it has to run (temp/02 G-29): each step
+// The budget of one dev-implement run, sized to the steps it has to run (temp/02 G-29): each step
 // is two acts and two test runs; the batch ends with the build and the whole suite, each bounded
 // by SUITE_LIMIT_SECONDS. The close run (commit, push, pull request) gets a fixed budget. Pure.
 import type { StepBudget } from "../../../shared/domain/dev/step-budget.ts";

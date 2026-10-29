@@ -63,6 +63,12 @@ export function parseCompactArgs(tokens: readonly string[]): { snip: number } | 
   return { focus: tokens.join(" ").trim() };
 }
 
+/** The name the person typed the command by, read off the line the host hands over (`ctx.command.rawInput`):
+ *  `/dev-verify F2 cache` → `dev-verify`, an alias as typed. `fallback` when the line names none. */
+export function typedCommand(rawInput: unknown, fallback: string): string {
+  return /^\s*\/?([a-z][a-z0-9-]*)(?:\s|$)/.exec(String(rawInput ?? ""))?.[1] ?? fallback;
+}
+
 /** A command's raw tokens as a string array. */
 export function rawTokens(args: any): string[] {
   return (args?.raw ?? []) as string[];

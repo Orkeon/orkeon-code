@@ -167,7 +167,7 @@ The banner prints the project, the settings and the mode. In the REPL:
 Text typed without a leading `/` is sent to `/assistant`. The full list: [Slash commands](commands.md).
 
 On a terminal the REPL is a split-pane TUI: the transcript, the prompt, and below it the tasks list (`↓` or `F4`)
-that names the background commands (`/dev-batches`, `/dev-implement`, an `/assistant` run async). Each conversation
+that names the background commands (`/dev-batches`, an `/assistant` run async). Each conversation
 thread has its own screen: selecting a task row displays that task's lines, selecting `main` the prompt's own, where
 the launched and finished lines of every task stay; the selected task is also the recipient of the next message. A
 task that ends keeps its row, with `✔ finished`, `✗ failed` or `⊘ cancelled` and its duration, and its screen stays

@@ -379,6 +379,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`/dev-change` folds into `/dev-spec`**: one command writes the spec or the change brief. `/dev-spec <code>
+  bug|refactor|perf` writes a change brief, and a request the model routes as a feature goes on as a spec in the same
+  call. `/dev-change` stays as an alias of `/dev-spec` for one release.
+- **`/dev-implement` and `/dev-verify` fold into `/dev-batches`**: one parser reads three shapes. `/dev-batches [<code>]`
+  runs a plan, `/dev-batches <code> F<n>` runs one batch (`--close`, `--pr`, `— correction: <finding>`), and
+  `/dev-batches <code> F<n> --audit [fast|full|resume] [--gate-only]` audits one batch. `/dev-implement` and
+  `/dev-verify` stay as aliases of `/dev-batches` for one release; a line typed under one reads as before
+  (`/dev-verify F2` is an audit). A verdict now ends on `→ /dev-batches <code> F<n> — correction: <finding>` or
+  `→ /dev-batches <code> F<n> --close`, built and read back by one domain module.
+- **55 slash commands instead of 58**: the dev workflow has five commands (`/dev-spec`, `/dev-plan`, `/dev-batches`,
+  `/dev-status`, `/dev-learn`), the documentation and the texts a model reads name the new forms, and
+  [ADR 0011](docs/adr/0011-dev-gates-and-surface.md) records both parts of the change.
 - **A next-batch review that cannot run closes the gate**: `/dev-batches` no longer launches a batch whose review
   found no reviewer on the host or did not parse. It logs the batch `stopped BLOCKED — review not run (<reason>)`, says
   so, and reviews it again the next time it is typed.
@@ -639,6 +651,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- **`/dev-change`**: folded into `/dev-spec <code> bug|refactor|perf`; the name stays as an alias for one release.
+- **`/dev-implement`**: folded into `/dev-batches <code> F<n>`; the name stays as an alias for one release.
+- **`/dev-verify`**: folded into `/dev-batches <code> F<n> --audit`; the name stays as an alias for one release.
 - **The probe crews `_probe-codeintel`, `_probe-raggable` and `_probe-budget`**: what they established is recorded in
   [Architecture](docs/architecture.md#what-the-probes-established).
 

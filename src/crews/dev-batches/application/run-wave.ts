@@ -25,7 +25,9 @@ import { eventLine, lastEntryOf } from "../domain/batches-log.ts";
 import { harvestBatch, seedWorktree } from "./seed-harvest.ts";
 import type { SeedSnapshot, SeedTarget } from "./seed-harvest.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
-import { GAPS_ROUNDS_MAX, gapsFinding, gapsRoundsOf, parseVerdictFile } from "../../../shared/domain/dev/verdict-format.ts";
+import {
+  GAPS_ROUNDS_MAX, gapsFinding, gapsRoundsOf, isNextStepLine, parseCorrectionLine, parseVerdictFile,
+} from "../../../shared/domain/dev/verdict-format.ts";
 
 /** What the crew's batch agent is run with. */
 export interface BatchRun {
@@ -362,8 +364,8 @@ export async function runWave(req: WaveRequest, deps: WaveDeps): Promise<WaveRes
       // The verdict's own rows, as a relaunch within the wave carries them; else the audit's correction line.
       const correction = ((slot.verdict ? gapsFinding(slot.verdict) : undefined) ?? outcome.correction)?.replace(/\s+/g, " ").trim();
       req.book.add(eventLine(req.clock(), slot.batch, "returned", correction === undefined ? "GAPS" : `GAPS — correction: ${correction}`));
-      // The audit's own next step names /dev-implement on the main checkout, which lacks the batch's code: left out.
-      const said = outcome.lines.filter((l) => !/^\s*→ \/dev-implement\b/.test(l) && !/^\s*it appends the gap\b/.test(l));
+      // The audit's own next step names the batch's correction on the main checkout, which lacks its code: left out.
+      const said = outcome.lines.filter((l) => !isNextStepLine(l) && !/^\s*it appends the gap\b/.test(l));
       lines.push(`${slot.batch} returned GAPS`, ...said.slice(-3).map((l) => `  ${l}`));
       if (deps.afterGaps !== undefined) lines.push(...await deps.afterGaps(`${slot.place.root}/${req.work}`));
       lines.push(keptLine(slot.place), resumeLine(req, slot.batch, slot.place, correction));
@@ -378,9 +380,9 @@ export async function runWave(req: WaveRequest, deps: WaveDeps): Promise<WaveRes
 
 /** What a batch agent's body runs, in its own agent and under its worktree: the crews' use cases, and its spend. */
 export interface BatchChain {
-  /** /dev-implement's use case: its JSON answer. */
+  /** dev-implement's use case: its JSON answer. */
   implement(input: Record<string, unknown>): Promise<string>;
-  /** /dev-verify's, its audit inline in the batch agent (L8P-D2): its lines. */
+  /** dev-verify's, its audit inline in the batch agent (L8P-D2): its lines. */
   verify(input: Record<string, unknown>): Promise<string>;
   /** The tool calls the batch made and the bound past which its callbacks deny them (L8P-D12). */
   spend: { limit: number; calls(): number; exhausted(): boolean };
@@ -401,7 +403,7 @@ function parsed(payload: string): { lines: string[]; next?: { crew?: unknown; in
 
 /**
  * The chain one batch runs in code, as the command's `completed` chains it for a sequential run: its steps
- * (/dev-implement), its audit (/dev-verify), and on VALID its close, committed on the batch's branch, never pushed.
+ * (dev-implement), its audit (dev-verify), and on VALID its close, committed on the batch's branch, never pushed.
  * A batch that spent its tool calls stops there.
  */
 export async function runBatchChain(run: BatchRun, launch: Readonly<Record<string, unknown>>, chain: BatchChain): Promise<BatchOutcome> {
@@ -435,7 +437,7 @@ export async function runBatchChain(run: BatchRun, launch: Readonly<Record<strin
   }
   const rest = verified.slice(written.index + written[0].length);
   if (!new RegExp(`^→ Batch ${run.batch} VALID\\.`, "m").test(rest)) {
-    const correction = /^→ \/dev-implement \S+ — correction: (.+)$/m.exec(rest)?.[1]?.trim();
+    const correction = parseCorrectionLine(rest)?.finding;
     return { ...answer("GAPS"), ...(correction === undefined ? {} : { correction }) };
   }
 

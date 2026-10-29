@@ -7,7 +7,6 @@ import type { CodeSummary, DevCode, DevContext, DevContextDeps } from "../../../
 import { loadDevCode, loadDevContext, probeDevCodes } from "../../../shared/application/dev/load-dev-context.ts";
 import { workFolderLabel } from "../../../shared/application/dev/resolve-work-folder.ts";
 import { PROPOSAL_ID, runDevLearnDecision } from "../../../shared/application/dev/learn-decision.ts";
-import { workspaceRelative } from "../../../shared/domain/vfs.ts";
 export { runDevLearnDecision };
 export type { DevLearnDecisionDeps } from "../../../shared/application/dev/learn-decision.ts";
 import { compareBatchIds, isCode } from "../../../shared/domain/dev/artefacts.ts";
@@ -225,47 +224,6 @@ export async function runDevStatus(tokens: readonly string[], deps: DevStatusDep
   }
   const here = lookup.codes.length > 0 ? `codes here: ${lookup.codes.join(", ")}` : "no code here";
   return refusal(ctx, `dev-status: no folder ${work.folder}/${code}/ (${here})`);
-}
-
-// /dev-verify: the arguments only. The audit itself runs in crews/dev-verify (the gate,
-// the capture, the build and the auditor can take minutes).
-export const DEV_VERIFY_USAGE = "usage: /dev-verify F<n> [<code> | <path>/<CODE>-PLAN.md] [fast | full | resume] [--gate-only]";
-export type DevVerifyMode = "fast" | "full" | "resume";
-export interface DevVerifyArgs { batch: string; plan: string | null; mode: DevVerifyMode; gateOnly: boolean }
-
-const DEV_VERIFY_MODES: readonly string[] = ["fast", "full", "resume"];
-
-/** A plan named by its path: relative (or under /workspace/), ending -PLAN.md, with no ".." segment. */
-function isPlanPath(token: string): boolean {
-  const relative = workspaceRelative(token);
-  if (!relative.endsWith("-PLAN.md") || relative.startsWith("/")) return false;
-  return !relative.split("/").includes("..");
-}
-
-/** The words fast, full and resume are modes: a code spelt so is named by its plan's path. */
-export function parseDevVerifyArgs(tokens: readonly string[]): { ok: true; args: DevVerifyArgs } | { ok: false; text: string } {
-  if (tokens.length === 0) return { ok: false, text: DEV_VERIFY_USAGE };
-  const [batch, ...rest] = tokens;
-  if (!/^F\d+$/.test(batch)) return { ok: false, text: `dev-verify: '${batch}' is not a batch: F<n>, e.g. F2` };
-  let mode: DevVerifyMode | null = null;
-  let plan: string | null = null;
-  let gateOnly = false;
-  for (const tok of rest) {
-    if (DEV_VERIFY_MODES.includes(tok)) {
-      if (mode !== null) return { ok: false, text: `dev-verify: one mode at most (fast, full or resume), not '${mode}' and '${tok}'` };
-      mode = tok as DevVerifyMode;
-    } else if (tok === "--gate-only") {
-      gateOnly = true;
-    } else if (tok.startsWith("--")) {
-      return { ok: false, text: `dev-verify: unknown option '${tok}' (only --gate-only)` };
-    } else if (isCode(tok) || isPlanPath(tok)) {
-      if (plan !== null) return { ok: false, text: `dev-verify: one plan at most, not '${plan}' and '${tok}'` };
-      plan = tok;
-    } else {
-      return { ok: false, text: `dev-verify: '${tok}' is neither a code nor a <CODE>-PLAN.md path` };
-    }
-  }
-  return { ok: true, args: { batch, plan, mode: mode ?? "fast", gateOnly } };
 }
 
 // /dev-learn: the arguments, and the two decisions (--accept, --refuse). Proposing and

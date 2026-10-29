@@ -74,7 +74,7 @@ fournisseur. Un résultat d'outil parvient au modèle coupé à 4000 caractères
 | Clé | Pourquoi |
 |---|---|
 | `Orkeon:Security:PermissionGate:Enabled` = `true` | L'hôte confronte chaque appel d'outil du modèle aux règles de `/permissions` et au mode, et vous demande quand le mode le dit ([ce que la garde ne voit pas](permissions.md)). Le lanceur l'active sauf si le fichier de settings dit le contraire ; sans elle, aucun appel n'est contrôlé et les modes ne font que façonner le catalogue |
-| `Orkeon:Cli:ScriptCommands:Limits:ExecutionTimeout` | Limite de temps réel de chaque moteur de script d'`orkeon-repl` : celui d'une commande, et celui d'un crew, donc d'un tour d'`/assistant`. Elle s'arrête pendant qu'un appel d'outil attend votre réponse. 5 minutes par défaut ; un tour qui indexe un grand dépôt en demande plus : l'exemple met 30 minutes. Un `/dev-verify full` peut prendre environ une heure (build 900 s, suite entière 900 s, trois validations de 300 s chacune, plus le temps du modèle) : mettez-y 60 minutes ou plus |
+| `Orkeon:Cli:ScriptCommands:Limits:ExecutionTimeout` | Limite de temps réel de chaque moteur de script d'`orkeon-repl` : celui d'une commande, et celui d'un crew, donc d'un tour d'`/assistant`. Elle s'arrête pendant qu'un appel d'outil attend votre réponse. 5 minutes par défaut ; un tour qui indexe un grand dépôt en demande plus : l'exemple met 30 minutes. Un `/dev-batches <code> F<n> --audit full` peut prendre environ une heure (build 900 s, suite entière 900 s, trois validations de 300 s chacune, plus le temps du modèle) : mettez-y 60 minutes ou plus |
 | `Orkeon:Cli:ScriptCommands:Limits:MemoryLimitBytes` | Limite de mémoire de ces moteurs : 64 Mo par défaut, l'exemple met 2 Gio |
 | `Orkeon:Scripting:Limits:ExecutionTimeout`, `Orkeon:Scripting:Limits:MemoryLimitBytes` | Les mêmes limites pour `orkeon run`, l'outil avec lequel `scripts/run-crew.sh` lance un crew (30 secondes et 100 Mo par défaut ; l'exemple met 30 minutes et 2 Gio). `orkeon-repl` ne les lit pas |
 | `Orkeon:Tools:Shell:AllowInterpreters` | Laisse `shell_command` lancer des interpréteurs (`node`, `dotnet`, `npm`...), nécessaire pour construire et tester la plupart des projets |
@@ -82,7 +82,7 @@ fournisseur. Un résultat d'outil parvient au modèle coupé à 4000 caractères
 | `Orkeon:Tools:Shell:Confinement:Mode` | `Auto` (défaut : bubblewrap sous Linux, Seatbelt sous macOS, AppContainer sous Windows, aucun dans un conteneur), `None`, `Bubblewrap`, `Seatbelt` ou `AppContainer`. Confinée, chaque commande shell s'exécute sous `bwrap` (Linux, modes tool et source), réseau coupé sauf `Confinement:AllowNetwork`, les programmes hors des répertoires système à lister dans `Confinement:ReadOnlyPaths`. Une commande échoue quand elle ne peut pas être confinée. Les exemples mettent `None` ; un fichier de settings sans la clé confine, hors d'un conteneur. `/dev-batches --concurrency` au-delà de 1 fonctionne sous Bubblewrap avec un runtime qui monte le répertoire git d'un worktree lié (Orkeon/orkeon#191) ; avec un plus ancien, git échoue dans le worktree d'un lot, et l'exécution se refuse en une ligne. Confiné, le push de clôture n'atteint aucun remote (pas de réseau, `HOME=/tmp`, donc aucun identifiant) : l'exécution reste ouverte avec la commande `git push`. Poussez-la depuis un terminal, puis le `/dev-batches` suivant clôt l'exécution sans pousser de nouveau. Voir [SECURITY.md](../../SECURITY.md) |
 | `Orkeon:Tools:Shell:Environment:SessionBus` | Si un shell confiné (bubblewrap, Seatbelt, AppContainer) reçoit le bus de session, `DBUS_SESSION_BUS_ADDRESS`, dont le helper d'identifiants de `gh` adossé au trousseau a besoin ; `false` par défaut, puisque par le bus une commande peut lancer un processus hors du bac à sable. Un shell non confiné (`Confinement:Mode` `None`, les exemples de settings) et le bac à sable de code le reçoivent ; `SSH_AUTH_SOCK` et `XDG_RUNTIME_DIR` atteignent tout shell, donc git atteint un remote privé par l'agent ssh (Orkeon #216) |
 | `Orkeon:Tools:Shell:Environment:Propagate` | Noms de variables ajoutées à la liste blanche du shell ; un nom portant un mot de secret (`KEY`, `TOKEN`, `SECRET`, `PASSWORD`, `PASSWD`, `PASS`, `CREDENTIAL`, `AUTH`, `PAT` comme segment entier), commençant par `ORKEON_`, ou dont la valeur porte des identifiants d'URL est écarté avec un avertissement (Orkeon #216) |
-| `Orkeon:Tools:ResultLimits:Limits:<tool>` | La coupe du résultat d'un outil, en caractères : 4000, `file_read` 32000, `node_read` 256000, `shell_command` 10000. Un résultat coupé finit par `[... truncated, N chars omitted. …]` ; `/dev-verify` lit cette mention |
+| `Orkeon:Tools:ResultLimits:Limits:<tool>` | La coupe du résultat d'un outil, en caractères : 4000, `file_read` 32000, `node_read` 256000, `shell_command` 10000. Un résultat coupé finit par `[... truncated, N chars omitted. …]` ; l'audit de `/dev-batches` lit cette mention |
 | `Orkeon:Tools:ResultLimits:MaxParallelToolCalls` | Les appels de lecture d'un même tour du modèle qui tournent en même temps : 4 |
 | `Orkeon:Tools:GitHub:Token` | Le jeton de l'outil `github`, lu une fois à l'enregistrement de l'outil (Orkeon #222) ; préférez la variable ci-dessous à un jeton écrit dans un fichier de settings, que les exemples laissent de côté |
 | `Orkeon:Tools:GitHub:TokenVariable` | La variable d'environnement où l'outil `github` lit son jeton quand `Token` n'est pas réglé : `GITHUB_TOKEN` par défaut, puis `GH_TOKEN`. Le mode Docker du lanceur passe `GITHUB_TOKEN`, `GH_TOKEN` et la variable nommée ici au conteneur, chacune quand elle est définie ; les modes natifs héritent de l'environnement. Sans jeton, la description de l'outil dit où le régler ; un jeton apparaît en `***` dans les résultats et les journaux, et aucune des deux clés n'accepte une référence de variable |
@@ -133,7 +133,7 @@ session, ce qui en fait une auto-revue), `commit.requireConfirm` (`false` laisse
 confirmation ; omis = `true`) ou `spinnerVerbs`. `/config keys` les liste toutes.
 `/model`, `/effort`, `/passes`, `/fast`, `/proactive` et `/output-style` changent la façon dont les prochains tours
 s'exécutent. `/effort` règle aussi la réflexion du fournisseur : le niveau enregistré est envoyé comme `effort` de
-l'act par `/assistant`, chaque étape dev (`/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement`, `/dev-verify`,
+l'act par `/assistant`, chaque étape dev (`/dev-spec`, `/dev-plan`,
 `/dev-batches`) et les agents qu'elles lancent, et rien n'est envoyé tant qu'aucun niveau n'est enregistré.
 
 `permissions.fallback`, `tools.extra`, `memory.autoAdmitAudited` et `dev.prAuto` réglés dans le fichier du projet sont restreints par le bloc `orkeonCode` des
@@ -153,7 +153,7 @@ l'hôte). `sh scripts/session-start.sh <projet>` imprime les mêmes lignes dans 
 
 Le pack du dépôt (`.orkeon/repo.yaml`, sinon celui du harness) peut aussi donner `tests.trait_pattern`, une clé
 d'Orkeon Code que le harness ignore : la façon dont un test nomme l'id de fiche qu'il couvre, que la porte de
-`/dev-verify` cherche sous les racines de test. C'est une ligne qui contient `<id>` exactement une fois et `<name>` une
+l'audit d'un lot (`/dev-batches <code> F<n> --audit`) cherche sous les racines de test. C'est une ligne qui contient `<id>` exactement une fois et `<name>` une
 fois au plus ; `<name>` tient la place de `tests.rule_trait`, qu'il exige alors. 80 caractères au plus, ni tabulation
 ni apostrophe droite ; une suite d'espaces correspond à un nombre quelconque d'espaces. Sans elle, `tests.rule_trait`
 seul donne le motif par défaut `[Trait("<name>", "<id>")]`. Un dépôt Node, dont les tests portent alors
@@ -166,7 +166,7 @@ tests:
 ```
 
 Il peut aussi donner `layout.test_files`, une autre clé que le harness ignore : les fichiers de test posés à côté du
-code, en motifs de la porte (`*` correspond à toute suite de caractères, `/` compris). `/dev-implement` tient un chemin
+code, en motifs de la porte (`*` correspond à toute suite de caractères, `/` compris). `/dev-batches` tient un chemin
 pour un fichier de test quand il est sous `layout.tests` ou correspond à un motif : l'implémenteur ne peut pas
 l'écrire, l'auteur des tests le peut, et une exécution exige l'une des deux clés. Un dépôt Node dont les tests sont à
 côté du code :
@@ -178,7 +178,7 @@ layout:
 ```
 
 `layout.tests` ne nomme jamais une racine de sources (`tests: src` à côté de `domain: src`) : les deux rôles seraient
-refusés dans ce dossier, et la lecture du pack le signale comme un problème (⚠ au début de `/dev-implement` et
+refusés dans ce dossier, et la lecture du pack le signale comme un problème (⚠ au début de
 `/dev-batches`).
 
 ## Outils supplémentaires : serveurs MCP et plugins

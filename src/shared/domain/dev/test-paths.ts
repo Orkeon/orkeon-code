@@ -1,6 +1,6 @@
 // Which paths of a repository are its tests, by its pack: under `layout.tests`, or matching one pattern of
 // `layout.test_files` (tests beside the code, `src/*.test.ts`; `*` spans folders, as the gate reads a pattern).
-// /dev-implement reads it to tell the test author's changes from the implementer's. Pure.
+// dev-implement reads it to tell the test author's changes from the implementer's. Pure.
 import { globMatches } from "../agent-policy/permission.ts";
 import type { RepoPackLayout } from "./repo-pack.ts";
 import { workspaceRelative } from "../vfs.ts";

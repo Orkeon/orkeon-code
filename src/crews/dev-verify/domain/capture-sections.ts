@@ -1,4 +1,4 @@
-// The sections of a /dev-verify capture: how one section text is split into files the
+// The sections of a dev-verify capture: how one section text is split into files the
 // model can read whole, and the small readings each section is made of (a build log, a
 // test tail, the classes of a test file). Pure.
 export { isTestFile, isTestRoot } from "../../../shared/domain/dev/access-cost.ts";

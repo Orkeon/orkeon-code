@@ -48,7 +48,7 @@ Who may admit what:
 | `audit:` (verdict files of the dev audits) | `code-structure`, `mistake` |
 | `verdict:` (a stop of the dev workflow) | `method`, `decision` |
 
-A mistake is harvested from the audits only once its gap recurs in three batches or more. `/dev-verify` harvests after
+A mistake is harvested from the audits only once its gap recurs in three batches or more. The audit of `/dev-batches` harvests after
 every verdict that is not VALID: the candidates it writes are named at the end of the step, and `/memory-admit` decides
 each one. When the untreated gaps span two batches or more, the step also says `/dev-learn` is due.
 
@@ -58,11 +58,11 @@ The dev steps recall on their own, at fixed points, and put a `## Precedents` bl
 
 | Step | When | Types recalled |
 |---|---|---|
-| `/dev-spec`, `/dev-change` | at the start | `decision`, `method` |
+| `/dev-spec` | at the start | `decision`, `method` |
 | `/dev-plan` | before the plan is drafted | `decision`, `code-structure` |
-| `/dev-implement` | before the red tests of a batch | `code-structure`, `mistake` |
-| `/dev-implement` | a correction after a GAPS verdict | `mistake` |
-| `/dev-verify` | before the audit | `mistake` |
+| `/dev-batches` | before the red tests of a batch | `code-structure`, `mistake` |
+| `/dev-batches` | a correction after a GAPS verdict | `mistake` |
+| `/dev-batches` | before the audit | `mistake` |
 
 The end of the step names the entries recalled. A recall that cannot run costs the block, never the step; a session
 rule that denies `memory_recall` turns these recalls off too.

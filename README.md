@@ -36,17 +36,17 @@ trimmed by the mode. Every command, crew and prompt is a source file: change it,
 - **Crews for the recurring jobs**: `/init` (describe the project for the agent), `/commit` (a conventional commit
   from the diff), `/review`, `/security-review` (multi-lens code review), `/analyze` (deterministic
   codebase analysis), `/compact` and `/summary` (context management), `/init-verifiers`, `/advisor`.
-- **A dev workflow, step by step**: `/dev-spec` or `/dev-change` writes the spec or the change brief, `/dev-plan`
-  cuts it into batches a read-only reviewer questions, `/dev-implement` runs a batch test-first (red tests, then the
-  least code, then a read-only audit) and closes it with a commit, `/dev-verify` audits a batch, `/dev-batches` runs a
-  plan's batches one after the other, `/dev-status` says where a piece of work stands and `/dev-learn` proposes rules
+- **A dev workflow, step by step**: `/dev-spec` writes the spec or the change brief, `/dev-plan`
+  cuts it into batches a read-only reviewer questions, `/dev-batches` runs a plan's batches one after the other, each
+  test-first (red tests, then the least code, then a read-only audit) and closed with a commit (`<code> F<n>` one
+  batch, `<code> F<n> --audit` its audit alone), `/dev-status` says where a piece of work stands and `/dev-learn` proposes rules
   from the audits' recurring gaps. Each step runs under deny rules its crew checks again
   ([Permissions](docs/permissions.md#rule-sets-of-the-dev-steps)).
 - **A shared memory**: decisions, structures, methods and mistakes the steps recall, admitted only through
   `/memory-admit` ([Shared memory](docs/shared-memory.md)).
 - **Context management**: automatic compaction with a circuit breaker, snip-first `/compact`, file restore after
   compaction, context pressure tiers, typed durable memory (`/memory`).
-- **58 slash commands** in all: [docs/commands.md](docs/commands.md).
+- **55 slash commands** in all: [docs/commands.md](docs/commands.md).
 
 ## Quick start
 

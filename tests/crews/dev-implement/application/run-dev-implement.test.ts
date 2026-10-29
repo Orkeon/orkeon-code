@@ -571,7 +571,7 @@ describe("runDevImplement — wave 4", () => {
 
     // Assert
     assertBlockedStarting(a, "BLOCKED — correction:");
-    assertBlockedSaying(a, "/dev-change");
+    assertBlockedSaying(a, "/dev-spec <code> <kind>");
     strictEqual(t.files.files.get(SHEET_PATH), SHEET);
   });
 

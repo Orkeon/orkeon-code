@@ -2,7 +2,7 @@
 // running before anything else is written (its output in repro-<code>.txt, its facts in § 2), its questions asked
 // and written one at a time; a bug that does not reproduce stops with nothing else written; a command outside the
 // pack refused; a perf change measured; a refactor whose pin the index does not show turned unpinned; a feature
-// routed to /dev-spec; an issue read by gh; the unattended run BLOCKED.
+// going on as a spec in the same run; an issue read by gh; the unattended run BLOCKED.
 // Run:  node --test tests/crews/dev-change/application/run-dev-change.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, rejects, strictEqual } from "node:assert";
@@ -14,9 +14,9 @@ import { DEV_CHANGE_NEXT, FEATURE_LINE, knownIn, runDevChange } from "../../../.
 import { REPRO_TIMEOUT_SECONDS, issueCommand } from "../../../../src/crews/dev-change/application/evidence.ts";
 import {
   BRIEF, CLEAR, CMD, CODE, ISSUE_42, KNOWN_BY_NAME, KNOWN_INDEX, OTHER_CLASSES, PACK, PARTS_OF_NAMES, PERF_ANSWER, REPRO,
-  answer, bug, devChangeSetup, refactor, run,
+  SPEC, SPEC_ANSWER, answer, bug, devChangeSetup, refactor, run,
 } from "./run-dev-change.fixtures.ts";
-import { assertEndWithPrecedents, assertNoPromptMentions } from "./run-dev-change.assertions.ts";
+import { assertContinuedAsSpec, assertEndWithPrecedents, assertNoPromptMentions } from "./run-dev-change.assertions.ts";
 import { assertAllUnder } from "../../../support/assertions/paths.ts";
 import { assertMentions } from "../../../support/assertions/text.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
@@ -174,17 +174,16 @@ describe("runDevChange — other kinds and origins", () => {
     ok(text.startsWith("dev-change: the measurement failed"), text);
   });
 
-  it("routes a feature to /dev-spec and writes no brief", async () => {
+  it("continues as a spec when the model routes a feature", async () => {
     // Arrange
     const f = devChangeSetup();
-    f.llm.extractions = [answer({ route: "feature" })];
+    f.llm.extractions = [answer({ route: "feature" }), SPEC_ANSWER, CLEAR];
 
     // Act
     const text = await run(f, { code: "cache", kind: "refactor", text: "Add a cache browser screen." });
 
     // Assert
-    strictEqual(text.split("\n").at(-1), FEATURE_LINE.replace("{code}", "cache"));
-    strictEqual(f.files.writes.length, 0);
+    assertContinuedAsSpec(text, f.files.files, FEATURE_LINE.replace("{code}", "cache"), SPEC, BRIEF);
   });
 
   it("reads an issue by gh", async () => {
