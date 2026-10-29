@@ -89,6 +89,20 @@ describe("runCodeReview — a review", () => {
     ok(out.endsWith(`, ${describeReviewPlan([lens("correctness")], 1, "config")})`), out);
   });
 
+  it("runs the input's pass count over the session's", async () => {
+    // Arrange
+    const { shell, session, llm, deps } = reviewHarness();
+    shell.results["git diff --staged"] = { stdout: DIFF };
+    session.state.set(PASSES_STATE_KEY, "4");
+
+    // Act
+    const out = await runCodeReview({ lenses: "correctness", passes: 2 }, deps);
+
+    // Assert
+    strictEqual(llm.extracts.length, 2);
+    ok(out.endsWith(`, ${describeReviewPlan([lens("correctness")], 2, "input")})`), out);
+  });
+
   it("runs one pass of every lens when the settings cannot be read", async () => {
     // Arrange
     const { shell, session, llm, deps } = reviewHarness();

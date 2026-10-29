@@ -379,6 +379,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`/review` takes `--passes <1-5>` and the aliases `/security-review` and `/passes`**: `--passes` sets this run's
+  rounds, the crew input outranking the session's count as `--lens` outranks `review.lenses`; a line typed
+  `/security-review` is the review narrowed to the security lens whatever `--lens` says, and `/passes [n]` shows or
+  sets the session's count without starting a review. The parsing and the two messages live in
+  `commands/_lib/git/review.ts`, tested there ([ADR 0011](docs/adr/0011-dev-gates-and-surface.md), round 2).
+- **`/mode` takes the alias `/plan`**: a line typed `/plan` toggles plan mode as before (leaving it returns to
+  `default`), with the same messages and log lines, routed by `runMode` in `commands/_lib/settings/mode.ts`.
+- **`/memory` takes the sub-verb `admit` and the aliases `/feedback` and `/memory-admit`**: `/memory admit [<id>…] |
+  --refuse <id> [motif] | --list | --import` decides the shared memory's candidates (the list, a refusal and the
+  import answered at once, an admission confirmed then written by the crew `shared-memory-admit`), and `/memory` is
+  now an async command; `/feedback <text>` adds a `feedback` memory with today's reply, `/memory-admit …` is the
+  admit sub-verb.
+- **`/usage` takes the aliases `/stats` and `/cost`**: it already shows the calls, tokens, cost, cache tokens and the
+  usage by model and by command those two showed apart.
 - **`/dev-change` folds into `/dev-spec`**: one command writes the spec or the change brief. `/dev-spec <code>
   bug|refactor|perf` writes a change brief, and a request the model routes as a feature goes on as a spec in the same
   call. `/dev-change` stays as an alias of `/dev-spec` for one release.
@@ -651,6 +665,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- **Seven command files, 48 slash commands instead of 55** (ADR 0011, round 2): `src/commands/git/security-review.cmd.ts`,
+  `src/commands/settings/passes.cmd.ts`, `src/commands/settings/plan.cmd.ts`, `src/commands/memory/feedback.cmd.ts`,
+  `src/commands/memory/memory-admit.cmd.ts`, `src/commands/status/stats.cmd.ts` and `src/commands/status/cost.cmd.ts`,
+  with `commands/_lib/status/cost.ts` and `statsRow` of `commands/_lib/status/cache.ts`; each name stays as an alias
+  of the command that absorbed it.
 - **`/dev-change`**: folded into `/dev-spec <code> bug|refactor|perf`; the name stays as an alias for one release.
 - **`/dev-implement`**: folded into `/dev-batches <code> F<n>`; the name stays as an alias for one release.
 - **`/dev-verify`**: folded into `/dev-batches <code> F<n> --audit`; the name stays as an alias for one release.

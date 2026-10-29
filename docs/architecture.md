@@ -108,7 +108,7 @@ port.
 
 ```text
 src/
-├── commands/          55 *.cmd.ts (parse, wire, render) in eight functional folders: session, settings, status,
+├── commands/          48 *.cmd.ts (parse, wire, render) in eight functional folders: session, settings, status,
 │   │                  project, git, dev, memory, speech
 │   ├── _lib/          the use cases, in the folder of their commands: run<Name>(tokens, deps) → CommandView,
 │   │                  or dispatch<Name>(tokens, deps) → a ticket or a message when the command launches a
@@ -307,7 +307,7 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 | `main-loop` | autonomous, budget 200 tool calls / 1800 s / 700k context tokens (the context counted once, Orkeon #224) | `/assistant`, free text, `/summary`, `/verify`, `/transcribe --then`, `/voice send` and `--go` | The interactive loop |
 | `project-init` | sequential | `/init` | Scans the layout, detects conventions, writes the instructions file |
 | `git-commit` | sequential | `/commit` | Drafts a conventional commit from the diff, commits after confirmation |
-| `code-review` | sequential | `/review` (`--lens` for one lens), `/security-review` | Multi-lens review of the staged changes, ranked findings |
+| `code-review` | sequential | `/review` (`--lens` for one lens, `--passes` for this run's rounds; the aliases `/security-review` and `/passes`) | Multi-lens review of the staged changes, ranked findings |
 | `analyze` | sequential | `/analyze` | Index, maps, dependency graph, then a synthesis (`--raw` skips the LLM) |
 | `session-compact` | sequential | `/compact` (`--snip` to truncate only), automatic compaction | Saves durable facts to typed memory, snips, then summarises the buffer if still needed |
 | `init-verifiers` | sequential | `/init-verifiers` | Detects test tooling, writes verification playbooks for uncovered zones |
@@ -321,7 +321,7 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 | `dev-change` | sequential, extracts, the review in a background child `dev-reviewer` (nine read tools in `plan`; inline on a host without background children) | `/dev-spec <code> <kind>` | Bug reproduced or cost measured by running, change brief written by code, questions through `human_input`, one review |
 | `dev-implement` | sequential, one agent, two roles in `acceptEdits` (five read tools, six write tools - `file_write` for a new file, the node editors and `edit_batch` for an existing one; the editing rule spells an `edit_batch` out, its `operations` list and `validate`, and the guard's refusal of a batch without operations repeats it; the runtime publishes the schema of the node tools too since Orkeon #210; every `node_replace` of a batch carries the hash `node_read` gave for that very node, never a guessed one, since a placeholder hash made the runtime refuse a whole batch in a live run - `run_tests`, `run_build`, `memory_recall`) | `/dev-batches <code> F<n>` (`--close` the close alone) | Each cycle (the steps on one test file) red then green, checked by code, its cost measured; a correction appended as a step; the build and the suite (later the affected projects) as jobs; then the audit (the `dev-verify` crew) and, on VALID, the commit and the done marks; an assumption is recorded once per batch, never one the sheet already holds; a relative path a role hands a tool is resolved under the checkout before the tool runs |
 | `dev-batches` | sequential, one agent with the reviewer's read tools, its review inline (the next batch's review is offered four of them, `file_read`, `node_outline`, `node_read` and `codebase_search`, for eight turns: its brief carries the sheet, what the closed batches changed and the plan); with `--concurrency` 2 to 4, one batch agent per batch of a wave (`batch-F<n>`, the implement tools and the auditor's read tools, `run_tests`, `run_build`, `run_validation`, `memory_recall`), each under its worktree's working root | `/dev-batches` (typed again after a stop: the run goes on; every hop of its chain keeps the depth of the instance it runs for, `chain: "continue"`, so a plan of any length closes in one command, Orkeon #221) | Names a plan's next batch in its dependencies' order, after a review of its sheet once its dependencies closed; logs each batch in `batches-state.md`; sequential, the command's `completed` drives `/dev-batches`, each close committed without a push; in parallel, the driver seeds each worktree, runs the wave's batch agents at once (each runs the steps, the audit inline and the close in code, bounded by its own tool calls), then merges each VALID batch fast-forward in id order, brings its files back and removes its worktree; one push and one pull request at the plan's close; a review that cannot run (no reviewer on the host, an answer that does not parse twice, a refused call) stops the batch before its launch, logged `BLOCKED — review not run (<reason>)`, and the next run reviews it again (a stop for Blocking questions is settled by the human and not reviewed twice); each Major row of the review ends the RED and GREEN prompts of that batch as a `stale: <question> — <evidence>` line, on its first launch only; a GAPS verdict relaunches the batch by itself, in its worktree in parallel, its Blocking and Major rows as the correction (none for an audit the budget stopped, whose resume then runs), up to three audit rounds in GAPS since the last VALID, an audit the budget stopped counted as one; the third still GAPS goes to a human |
-| `shared-memory-admit` | sequential, no tool, no LLM | `/memory-admit` | Writes the candidates the operator confirmed to the shared memory's entries, the lists, and re-ingests the index |
+| `shared-memory-admit` | sequential, no tool, no LLM | `/memory admit` | Writes the candidates the operator confirmed to the shared memory's entries, the lists, and re-ingests the index |
 
 A folder starting with `_` holds a development probe (`probe.ork.ts`), never a command's crew: `_probe-shared-memory`
 measures the shared memory's recall on a reference set, run by `scripts/check-shared-memory.sh` before a release.
@@ -337,7 +337,7 @@ The `main-loop` agent's body is the loop (`crews/main-loop/application/run-main-
    else the fallback; `default` when launched without one) and say where it came from.
 3. Build the tool catalogue from the mode, the extra tools and the rules (at load time) and announce what the rules
    changed.
-4. Read the behaviour flags once (`/effort`, `/passes`, `/fast`, `/proactive`, `/output-style`).
+4. Read the behaviour flags once (`/effort`, `/passes` of `/review`, `/fast`, `/proactive`, `/output-style`).
 5. Append the user turn to the session buffer; compact first if the buffer is under pressure
    (`auto-compact.ts`).
 6. Assemble the prompt (below; `turn-prompt.ts` over the reads of `context-gather.ts`) and call the model's `act`

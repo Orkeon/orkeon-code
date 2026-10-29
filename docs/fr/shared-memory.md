@@ -2,7 +2,7 @@
 
 La mémoire partagée garde ce que le travail passé a appris : des décisions, des structures de code, des méthodes et
 des erreurs, un fichier Markdown par entrée, gardé dans le dépôt pour être relu et versionné avec le code. Le modèle la
-lit par `memory_recall`, lui propose par `memory_push`, et rien n'y entre sans que `/memory-admit` l'admette : vous
+lit par `memory_recall`, lui propose par `memory_push`, et rien n'y entre sans que `/memory admit` l'admette : vous
 répondez pour chaque candidat, ou `memory.autoAdmitAudited` admet pour vous ceux qu'un audit appuie.
 
 Ce n'est pas la mémoire d'agent du runtime (`/workspace/.orkeon/agent-memory`, par agent et par exécution) : les deux
@@ -12,7 +12,7 @@ dossiers restent séparés, et `memory.dir` refuse le dossier de la mémoire d'a
 
 ```text
 .orkeon/memory/
-├── candidates/            proposals waiting for /memory-admit, one file each
+├── candidates/            proposals waiting for /memory admit, one file each
 │   └── CANDIDATES.md      the pending candidates (generated)
 ├── entries/<type>/        admitted and superseded entries, by type
 ├── refused.md             topics refused once, never proposed again
@@ -29,7 +29,7 @@ pouvez le supprimer.
 |---|---|---|
 | `memory.dir` | `.orkeon/memory` | Le dossier, relatif au projet ; jamais sous `.claude/` ni `.git/`, quelle que soit la casse (`.Claude/mem`), jamais le dossier de la mémoire d'agent. |
 | `memory.project` | le nom du remote `origin`, sinon `local` | Le projet que nomment les entrées, et la collection d'index `memory-<project>`. |
-| `memory.autoAdmitAudited` | `false` | `true` : `/memory-admit` admet sans demander un candidat qu'un audit appuie (une erreur : trois lots). Le `true` d'un fichier du projet ne vaut que si vos réglages utilisateur disent `true` aussi. |
+| `memory.autoAdmitAudited` | `false` | `true` : `/memory admit` admet sans demander un candidat qu'un audit appuie (une erreur : trois lots). Le `true` d'un fichier du projet ne vaut que si vos réglages utilisateur disent `true` aussi. |
 
 Une valeur enregistrée invalide est écartée avec une ligne d'avertissement, et la valeur par défaut s'applique.
 
@@ -50,7 +50,7 @@ Qui peut admettre quoi :
 | `verdict:` (un arrêt du workflow dev) | `method`, `decision` |
 
 Une erreur n'est récoltée dans les audits qu'une fois son écart revenu dans trois lots ou plus. L'audit de `/dev-batches` récolte
-après chaque verdict qui n'est pas VALID : la fin de l'étape nomme les candidats écrits, et `/memory-admit` décide de
+après chaque verdict qui n'est pas VALID : la fin de l'étape nomme les candidats écrits, et `/memory admit` décide de
 chacun. Quand les écarts non traités couvrent deux lots ou plus, l'étape dit aussi que `/dev-learn` est dû.
 
 ## Les précédents dans les étapes dev
@@ -72,28 +72,28 @@ règle de session qui refuse `memory_recall` coupe aussi ces rappels.
 ## Décider des candidats
 
 ```text
-/memory-admit --list
-/memory-admit --import
-/memory-admit
-/memory-admit shop-method-20261024-contract-tests-first
-/memory-admit --refuse shop-method-20261024-contract-tests-first too local to this project
+/memory admit --list
+/memory admit --import
+/memory admit
+/memory admit shop-method-20261024-contract-tests-first
+/memory admit --refuse shop-method-20261024-contract-tests-first too local to this project
 ```
 
-`/memory-admit` montre chaque candidat en attente (ou ceux que vous nommez) et demande une fois pour chacun : tout
+`/memory admit` montre chaque candidat en attente (ou ceux que vous nommez) et demande une fois pour chacun : tout
 autre chose que oui le laisse candidat. Une session qui ne peut pas demander n'admet aucun de ceux sur lesquels elle
 demanderait ; une question restée sans réponse garde les admissions déjà confirmées et dit quels candidats restent. Le candidat admis est le texte qu'on vous a montré : un fichier modifié depuis n'est pas admis, ni un
 candidat dont `refused.md` contient le sujet. Les admis sont écrits dans
 `entries/<type>/`, les entrées qu'ils remplacent sont marquées `superseded`, les deux listes sont reconstruites et
 `entries/` est réindexé, une fois. Quand l'index ne peut pas être reconstruit, les entrées restent admises, et la
 prochaine admission les indexe. Le verrou sur la collection `memory-<project>` ne vaut qu'au sein d'un processus : un
-REPL n'exécute qu'un `/memory-admit` à la fois, mais rien ne l'ordonne face à un second REPL ou à une exécution
+REPL n'exécute qu'un `/memory admit` à la fois, mais rien ne l'ordonne face à un second REPL ou à une exécution
 autonome sur le même projet, donc tenez-vous-en à un à la fois. `--refuse` écrit le sujet du candidat dans `refused.md` avec votre motif : le sujet
 n'est plus jamais proposé. `/dev-learn` et son `--refuse` lisent et écrivent le même `refused.md`, sous `memory.dir` (une valeur enregistrée
 écartée est signalée), le fichier que lit aussi `memory_push`.
 
 `--import` reprend la mémoire d'agents du harness en candidats, une fois, pendant que vous la quittez : chaque élément
 de premier niveau d'un `.claude/agent-memory/<agent>/MEMORY.md` (et la note qu'il lie, dans le même dossier) devient
-un candidat `method` dont la source est l'import, donc `/memory-admit` demande pour chacun (son type fait partie de
+un candidat `method` dont la source est l'import, donc `/memory admit` demande pour chacun (son type fait partie de
 son id : une leçon d'une autre sorte est refusée avec `--refuse` et proposée à nouveau avec `memory_push` sous un autre
 titre : un sujet refusé n'est plus jamais proposé, push compris). Un élément dont un candidat en attente, une entrée ou
 un élément précédent porte déjà le sujet (son titre en slug) est sauté comme doublon ; un élément dont le sujet a été
@@ -109,7 +109,7 @@ entrée : il n'est offert que là où le mode modifie, et fait l'objet d'une que
 ([Permissions](permissions.md#modes)). Deux push simultanés n'en perdent aucun : un push qui trouve son candidat
 écrasé l'écrit à nouveau sous l'id suivant. Dans tous les modes, les outils de fichier du modèle
 qui nomment un chemin sont refusés sous `candidates/` et `entries/` : les candidats viennent de `memory_push` et des
-récoltes, les entrées de `/memory-admit` (la garde de la mémoire partagée, [Permissions](permissions.md) : les règles de la garde, puis le callback de la
+récoltes, les entrées de `/memory admit` (la garde de la mémoire partagée, [Permissions](permissions.md) : les règles de la garde, puis le callback de la
 boucle principale et des crews de dev pour ce que la garde ne lit pas - une autre casse, `edit_batch`,
 `structural_rewrite`, un `cd`). Une entrée que le modèle rappelle est un précédent, pas une consigne : la
 demande, les instructions du projet et le code tel qu'il est priment sur elle.

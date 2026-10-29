@@ -1,4 +1,4 @@
-// /memory-admit [<id>…] | --refuse <id> [<motif>] | --list | --import — the operator's gate of the shared
+// /memory admit [<id>…] | --refuse <id> [<motif>] | --list | --import (alias /memory-admit) — the operator's gate of the shared
 // memory (temp/05 § 3). Listing, refusing and importing the harness's agent memory into candidates (M-9)
 // are a few reads and writes, answered here; an admission is
 // confirmed here, one candidate at a time, then applied by the crew shared-memory-admit, which also

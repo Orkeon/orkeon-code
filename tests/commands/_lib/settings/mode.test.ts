@@ -1,5 +1,5 @@
 // The session-default permission mode (commands/_lib/settings/mode.ts): /mode over the
-// session service on FakeSessionStore and FakeLogger, and the /plan toggle. Run:
+// session service on FakeSessionStore and FakeLogger, and the /plan toggle (its alias). Run:
 //   node --test tests/commands/_lib/settings/mode.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
@@ -7,7 +7,7 @@ import { strictEqual, deepStrictEqual } from "node:assert";
 import { runMode, togglePlanMode } from "../../../../src/commands/_lib/settings/mode.ts";
 import { PERMISSION_MODES, resolveFallbackMode } from "../../../../src/shared/domain/permission-modes.ts";
 import { DEFAULT_MODE_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
-import { MODE_USAGE, modeDeps, NOT_PLAN, SET_NOTE, STRIPPED } from "./mode.fixtures.ts";
+import { LEAVING_PLAN, MODE_USAGE, modeDeps, NOT_PLAN, PLAN_OFF, PLAN_ON, SET_NOTE, STRIPPED } from "./mode.fixtures.ts";
 
 describe("/mode (bare) — cycles", () => {
   it("cycles from the effective mode, the fallback when /mode set none", async () => {
@@ -148,5 +148,35 @@ describe("/plan — togglePlanMode", () => {
 
     // Assert
     strictEqual(toggled.mode, "default");
+  });
+});
+
+describe("/plan — runMode typed by its alias", () => {
+  it("enters plan from the session default, logging the catalogue strip", async () => {
+    // Arrange
+    const { store, session, log } = modeDeps();
+    store.state.set(DEFAULT_MODE_STATE_KEY, "acceptEdits");
+
+    // Act
+    const view = await runMode([], { session, log }, "plan");
+
+    // Assert
+    deepStrictEqual(view, { text: PLAN_ON });
+    strictEqual(store.state.get(DEFAULT_MODE_STATE_KEY), "plan");
+    deepStrictEqual(log.lines, [STRIPPED("plan")]);
+  });
+
+  it("leaves plan for 'default', logging the way back", async () => {
+    // Arrange
+    const { store, session, log } = modeDeps();
+    store.state.set(DEFAULT_MODE_STATE_KEY, "plan");
+
+    // Act
+    const view = await runMode([], { session, log }, "plan");
+
+    // Assert
+    deepStrictEqual(view, { text: PLAN_OFF });
+    strictEqual(store.state.get(DEFAULT_MODE_STATE_KEY), "default");
+    deepStrictEqual(log.lines, [LEAVING_PLAN]);
   });
 });

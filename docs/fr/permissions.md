@@ -27,7 +27,7 @@ voit pas non plus : `/commit` décide comme la garde le ferait, refuse en `plan`
 qu'une règle deny couvre l'appel, et l'ouvre avec une règle allow (`allow github action=create_pr`), en
 `bypassPermissions`, ou après que vous avez répondu oui à son plan qui nommait la pull request (`--yes` ne demande
 rien, il lui faut donc la règle) ;
-`/branch` bascule de branche, `/diff` et `/review`, `/security-review` lancent `git`, `/init` écrit le fichier
+`/branch` bascule de branche, `/diff` et `/review` lancent `git`, `/init` écrit le fichier
 d'instructions, `/init-verifiers` et `/export` écrivent leurs fichiers, la compaction écrit le tampon de session et la
 mémoire typée. Ces appels sont ce pour quoi la commande que vous avez tapée existe : aucune règle, aucun mode, aucune
 question ne s'y applique. `/commit` vérifie lui-même le mode et refuse en `plan` et en `dontAsk`. Ses commandes git
@@ -147,7 +147,7 @@ Une règle deny sur l'outil entier le retire aussi du catalogue.
 **La garde de la mémoire partagée.** Dans tous les modes, `bypassPermissions` compris, la session ajoute à la garde
 des règles deny pour qu'aucun outil de fichier du modèle (`file_write`, `edit_file`, `node_replace`, `node_insert`,
 `node_ensure`) n'écrive sous `<memory.dir>/candidates/` ou `<memory.dir>/entries/` : les candidats viennent de
-`memory_push` et des récoltes, les entrées de `/memory-admit` seul. Une règle allow enregistrée que la garde couvre est
+`memory_push` et des récoltes, les entrées de `/memory admit` seul. Une règle allow enregistrée que la garde couvre est
 écartée, avec un avertissement. Les motifs reconnaissent le chemin quelle que soit son écriture (`./`, `//`,
 `src/../`, `/workspace/`), et un `shell_command` qui nomme `<memory.dir>/candidates` ou `<memory.dir>/entries` est
 refusé lui aussi. `/permissions` les liste sur une ligne à part, "the shared memory's guard:
@@ -162,7 +162,7 @@ segment (`cp x .orkeon/mem*/entries/`) n'est pas lu : le shell le développe apr
 
 - **Par requête** : préfixez le texte, `plan: explique la couche de cache`, `acceptEdits: corrige le test qui échoue`.
 - **Pour la session** : `/mode acceptEdits` ; `/mode` seul fait défiler `default`, `acceptEdits`, `plan` et
-  `bypassPermissions` (jamais `dontAsk` : on l'atteint par `/mode dontAsk`) ; `/plan` bascule le mode plan.
+  `bypassPermissions` (jamais `dontAsk` : on l'atteint par `/mode dontAsk`) ; `/plan`, un alias de `/mode`, bascule le mode plan.
 - **À défaut** : sans l'un ni l'autre, le mode est `default`, ou celui fixé par
   `/config set permissions.fallback <mode>` (`--session` ne le garde que pour la session). Chaque tour qui utilise ce
   mode de repli dit quel mode s'est appliqué et d'où il venait.

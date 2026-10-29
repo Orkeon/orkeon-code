@@ -68,3 +68,24 @@ Part 2, the surface:
 - An audit cannot start while a plan runs: `/dev-batches` runs one at a time, its audit included.
 - An unattended run now stops only where a human is needed: a review that cannot run, a Blocking question, a third
   GAPS round.
+
+## Round 2: 55 → 48
+
+Seven more commands fold into others, on the same mechanism (`aliases` on the surviving command, the typed name read
+from the line, the routing in its use case under `src/commands/_lib/<group>/`):
+
+- `/security-review` into `/review`: the line forces the security lens whatever `--lens` says;
+- `/passes` into `/review`: `/review --passes <1-5>` sets one run's rounds, the crew input outranking the session's
+  count; `/passes [n]` still shows or sets that count, without starting a review;
+- `/plan` into `/mode`: the line toggles plan mode, as before;
+- `/feedback` into `/memory`: a `feedback` memory, as before;
+- `/memory-admit` into `/memory admit`: the list, a refusal and the import answered by the command, an admission
+  written by the crew `shared-memory-admit`;
+- `/stats` and `/cost` into `/usage`, which already shows what they showed.
+
+The reason is the one of part 2: each was a duplicate of an option or a sub-verb of another command, one more name to
+learn for nothing the other did not do. The seven names stay as aliases, so a line typed under one keeps working.
+
+Left as they are: `/context` (the window by kind, not the session's account), `/init-verifiers`, `/transcribe`,
+`/release-notes`, and the thin git and file accesses (`/diff`, `/branch`, `/files`), each the one
+command of what it does.

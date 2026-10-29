@@ -51,7 +51,7 @@ DeepSeek, Z.AI, Moonshot, serveurs locaux...) : la liste et leurs options sont d
 Une option qu'un fournisseur ne peut pas honorer produit un avertissement, jamais un abandon silencieux.
 
 **Cache du prompt.** Un fournisseur qui met le prompt en cache (DeepSeek et OpenAI d'eux-mêmes, Anthropic avec
-`cache_control`) rapporte les jetons lus dans son cache et écrits dedans ; Orkeon les garde par modèle et `/usage`, `/stats` et
+`cache_control`) rapporte les jetons lus dans son cache et écrits dedans ; Orkeon les garde par modèle et `/usage` et
 `/context` en montrent la somme dans `cacheRead` et `cacheWrite` (`0` d'un fournisseur qui ne rapporte aucun cache, `-` d'un hôte qui ne rapporte aucun chiffre). La durée de
 vie du cache est une option d'appel d'Orkeon, `orkeon:cache_ttl` (`5m` ou `1h`, d'après le réglage de cache d'un
 agent) : Anthropic l'honore, les fournisseurs compatibles OpenAI et Ollama journalisent qu'ils ne le peuvent pas.
@@ -127,11 +127,11 @@ la commande `gh pr create` à taper et disent pourquoi),
 docs/memory` ; omis, `.orkeon/memory` ; jamais sous `.claude/` ni `.git/`, jamais le `.orkeon/agent-memory` de la
 mémoire d'agent), `memory.project` (le projet que nomment les entrées et la collection d'index `memory-<project>`, un
 nom kebab-case ; omis, le nom du remote `origin`, sinon `local`), `memory.autoAdmitAudited` (`true` ou `false`, omis
-= `false` : `/memory-admit` admet sans demander un candidat qu'un audit appuie), `review.lenses` (les angles de `/review`, séparés par des virgules parmi `correctness`,
+= `false` : `/memory admit` admet sans demander un candidat qu'un audit appuie), `review.lenses` (les angles de `/review`, séparés par des virgules parmi `correctness`,
 `security` et `style` ; omis, les trois), `advisor.model` (le modèle du second avis d'`/advisor` ; omis, celui de la
 session, ce qui en fait une auto-revue), `commit.requireConfirm` (`false` laisse `/commit` s'exécuter sans sa
 confirmation ; omis = `true`) ou `spinnerVerbs`. `/config keys` les liste toutes.
-`/model`, `/effort`, `/passes`, `/fast`, `/proactive` et `/output-style` changent la façon dont les prochains tours
+`/model`, `/effort`, `/passes` (un alias de `/review`), `/fast`, `/proactive` et `/output-style` changent la façon dont les prochains tours
 s'exécutent. `/effort` règle aussi la réflexion du fournisseur : le niveau enregistré est envoyé comme `effort` de
 l'act par `/assistant`, chaque étape dev (`/dev-spec`, `/dev-plan`,
 `/dev-batches`) et les agents qu'elles lancent, et rien n'est envoyé tant qu'aucun niveau n'est enregistré.

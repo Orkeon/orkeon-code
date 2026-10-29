@@ -50,7 +50,7 @@ An option a provider cannot honour produces a warning, never a silent drop.
 
 **Prompt cache.** A provider that caches the prompt (DeepSeek and OpenAI by themselves, Anthropic with
 `cache_control`) reports the tokens read from its cache and written to it; Orkeon keeps them per model and
-`/usage`, `/stats` and `/context` show their sum in `cacheRead` and `cacheWrite` (`0` from a provider that reports no cache, `-` from a host that reports no figure). The cache's
+`/usage` and `/context` show their sum in `cacheRead` and `cacheWrite` (`0` from a provider that reports no cache, `-` from a host that reports no figure). The cache's
 lifetime is a per-call option of Orkeon, `orkeon:cache_ttl` (`5m` or `1h`, from an agent's cache setting): Anthropic
 honours it, the OpenAI-compatible providers and Ollama log that they cannot. Orkeon Code sets none, so each provider
 keeps its own default lifetime.
@@ -122,11 +122,11 @@ when the host offers it, the session allows it and the tool has a token (`GITHUB
 docs/memory`; omitted, `.orkeon/memory`; never under `.claude/` or `.git/`, never the agent memory's
 `.orkeon/agent-memory`), `memory.project` (the project the entries name and the index collection
 `memory-<project>`, a kebab-case name; omitted, the `origin` remote's name, else `local`),
-`memory.autoAdmitAudited` (`true` or `false`, omitted = `false`: `/memory-admit` admits a candidate an audit backs
+`memory.autoAdmitAudited` (`true` or `false`, omitted = `false`: `/memory admit` admits a candidate an audit backs
 without asking), `review.lenses` (the lenses of `/review`, comma-separated among `correctness`, `security` and
 `style`; omitted, all three), `advisor.model` (the model of `/advisor`'s second opinion; omitted, the session's own,
 which makes it a self-review), `commit.requireConfirm` (`false` lets `/commit` run without its confirmation; omitted =
-`true`), or `spinnerVerbs`. `/config keys` lists them all. `/model`, `/effort`, `/passes`, `/fast`, `/proactive` and `/output-style` change
+`true`), or `spinnerVerbs`. `/config keys` lists them all. `/model`, `/effort`, `/passes` (an alias of `/review`), `/fast`, `/proactive` and `/output-style` change
 how the next turns run. `/effort` also sets the provider's thinking: the stored level is sent as the act's `effort` by
 `/assistant`, every dev step (`/dev-spec`, `/dev-plan`, `/dev-batches`)
 and the agents these start, and nothing is sent while no level is stored.

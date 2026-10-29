@@ -161,7 +161,7 @@ The banner prints the project, the settings and the mode. In the REPL:
 | `rename parseArgs to parseCliArgs` | In `default` mode, the REPL asks before each edit: `[y] once / [s] session / [n] no` |
 | `/mode acceptEdits` then `add a test for parseCliArgs` | Edits run without asking for the session; a command still asks |
 | `/diff`, `/commit`, `/review` | Git workflows on the project |
-| `/context`, `/compact`, `/cost` | The context window and the session |
+| `/context`, `/compact`, `/usage` | The context window and the session |
 | `/exit` | Leave |
 
 Text typed without a leading `/` is sent to `/assistant`. The full list: [Slash commands](commands.md).

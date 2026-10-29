@@ -25,7 +25,7 @@ and calls `github` `create_pr` itself, which the gate does not see either: `/com
 refusing in `plan`, in `dontAsk` without an allow rule, and whenever a deny rule covers the call, and opening it with
 an allow rule (`allow github action=create_pr`), in `bypassPermissions`, or after you answered yes to its plan that
 named the pull request (`--yes` asks nothing, so it needs the rule); `/branch` checks a branch
-out, `/diff` and `/review`, `/security-review` run `git`, `/init` writes the instructions file,
+out, `/diff` and `/review` run `git`, `/init` writes the instructions file,
 `/init-verifiers` and `/export` write their files, the compaction writes the session buffer and typed memory. Those
 calls are what the command you typed is for: no rule, mode or question applies to them. `/commit` checks the mode
 itself and refuses in `plan` and `dontAsk`. Its git commands (`git -c core.quotePath=false status`, `git --literal-pathspecs add`
@@ -135,7 +135,7 @@ topic=auth*`, `deny memory_recall query=*secret*`. A deny rule on the whole tool
 **The shared memory's guard.** In every mode, `bypassPermissions` included, the session adds deny rules to the gate
 so that no file tool of the model (`file_write`, `edit_file`, `node_replace`, `node_insert`, `node_ensure`) writes
 under `<memory.dir>/candidates/` or `<memory.dir>/entries/`: candidates come from `memory_push` and the harvests,
-entries from `/memory-admit` alone. A stored allow rule the guard covers is dropped, with a warning. The patterns
+entries from `/memory admit` alone. A stored allow rule the guard covers is dropped, with a warning. The patterns
 match however the path is spelt (`./`, `//`, `src/../`, `/workspace/`), and a `shell_command` naming
 `<memory.dir>/candidates` or `<memory.dir>/entries` is refused too. `/permissions` lists them on its own line, "the shared memory's guard: … (N rules)".
 What the gate cannot see, the callback of the main loop and of every dev crew refuses on each call, under
@@ -150,7 +150,7 @@ opens), each operation of an `edit_batch`, the paths and the glob of a `structur
 
 - **Per request**: prefix the text, `plan: explain the cache layer`, `acceptEdits: fix the failing test`.
 - **For the session**: `/mode acceptEdits`; bare `/mode` cycles through `default`, `acceptEdits`, `plan` and
-  `bypassPermissions` (never `dontAsk`: reach it with `/mode dontAsk`); `/plan` toggles plan mode.
+  `bypassPermissions` (never `dontAsk`: reach it with `/mode dontAsk`); `/plan`, an alias of `/mode`, toggles plan mode.
 - **Fallback**: with neither, the mode is `default`, or the one set by `/config set permissions.fallback <mode>` (`--session` keeps it
   for the session only). Every
   turn that uses the fallback says which mode applied and where it came from.
