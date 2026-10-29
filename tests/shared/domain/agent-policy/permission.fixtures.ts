@@ -68,6 +68,11 @@ export const NETWORK_MATRIX: ReadonlyArray<[string, boolean]> = [
 /** The A2A tools: DelegateWorkTool is built per-agent and never registered, so naming one would be a silent no-op. */
 export const A2A_TOOLS: readonly string[] = ["delegate_work", "delegate_work_to_coworker", "search_tool"];
 
+/** The tools orkeon-repl registers only when a settings section opts in (Orkeon #234: `system_one_decide` with
+ *  `Orkeon:TypeSafe` or `TYPESAFE_API_KEY`): named in a built-in list, they would fail every act of a host without
+ *  the section. A user whose host registers one lists it in `tools.extra`. */
+export const HOST_OPT_IN_TOOLS: readonly string[] = ["system_one_decide"];
+
 /** The reads of Orkeon #180, offered in every mode. */
 export const ORKEON_180_READS: readonly string[] = [
   "glob", "grep", "list_mounts", "node_outline", "node_read", "count_pattern", "access_cost", "affected_tests",

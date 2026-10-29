@@ -241,7 +241,7 @@ function batchLines(rendered: RenderedPlan, answer: PlanAnswer): string[] {
 
 /** The next step: the first batch, and with more than one /dev-batches, which runs them all in their order (L-7). */
 function nextCommand(answer: PlanAnswer, planShown: string, code: string): string {
-  const first = `/dev-implement F1 ${planShown}`;
+  const first = `/dev-batches ${planShown} F1`;
   if (answer.batches.length < 2) return END_LINE.replace("{command}", first);
   return END_LINE.replace("{command}", `${first}, or /dev-batches ${code} for every batch in their dependencies' order`);
 }
@@ -441,10 +441,10 @@ export async function runDevPlan(input: DevPlanInputs, deps: DevPlanDeps): Promi
   ];
   const blocking = review?.rows.filter((r) => r.severity === "Blocking").length ?? 0;
   if (blocking > 0) {
-    const settle = source.kind === "change" ? "the change brief: /dev-change" : "the spec: /dev-spec";
+    const settle = source.kind === "change" ? "the change brief: /dev-spec" : "the spec: /dev-spec";
     lines.push(
       `dev-plan: the plan is blocked: ${plural(blocking, "Blocking question", "Blocking questions")} in ${planShown} § 4; every batch reads — blocked.`,
-      `→ Answer ${blocking === 1 ? "it" : "them"} in ${settle} ${source.code}, then /dev-plan ${source.code} --replace. Do not implement before.`,
+      `→ Answer ${blocking === 1 ? "it" : "them"} in ${settle} ${source.code}${source.kind === "change" ? " <its kind>" : ""}, then /dev-plan ${source.code} --replace. Do not implement before.`,
     );
   } else if (!outcome.ok) {
     lines.push(`→ The plan is written but unreviewed: read it closely before implementing, or /dev-plan ${source.code} --replace to plan and review again.`);

@@ -230,7 +230,7 @@ describe("blockingStop", () => {
     strictEqual(stop, SPEC_STOP);
   });
 
-  it("shows 8 rows of 9 then the count left, cuts a row at 200 characters, and points a brief to /dev-change", () => {
+  it("shows 8 rows of 9 then the count left, cuts a row at 200 characters, and points a brief to /dev-spec with its kind", () => {
     // Arrange
     const rows = nineRowsFirstLong();
 
@@ -242,6 +242,6 @@ describe("blockingStop", () => {
     strictEqual(out[1].length, 202);
     strictEqual(out[8], "  | 8 | Blocking | q8 |");
     strictEqual(out[9], "  … 1 more");
-    strictEqual(out[10], "→ Settle them first: /dev-change s, or edit the file; then /dev-plan s.");
+    strictEqual(out[10], "→ Settle them first: /dev-spec s <its kind: bug, refactor or perf>, or edit the file; then /dev-plan s.");
   });
 });

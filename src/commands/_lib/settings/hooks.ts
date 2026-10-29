@@ -1,5 +1,5 @@
-// /hooks — the session's hook registry (session state): list, add, remove. The dev steps (/dev-spec, /dev-change,
-// /dev-plan, /dev-implement, /dev-batches and /dev-verify, and a /tasks repair) hand it to their crew, whose tool callbacks
+// /hooks — the session's hook registry (session state): list, add, remove. The dev steps (/dev-spec, /dev-plan and
+// /dev-batches, and a /tasks repair) hand it to their crew, whose tool callbacks
 // (shared/application/dev/tool-callbacks.ts) run each pre-tool hook before a model's tool call the gate allowed
 // (a failing hook refuses the call) and each post-tool hook after it (a failing one adds a line to the result). The
 // assistant does not run them yet, and nothing runs a stop hook. Not a command file: the loader reads *.cmd.ts only.
@@ -13,8 +13,8 @@ export const HOOK_EVENTS = ["pre-tool", "post-tool", "stop"] as const;
 /** Where the hooks run, said on every listing: a populated registry is exactly when someone
  *  believes they all run. */
 export const HOOKS_STATUS =
-  "pre-tool and post-tool hooks run around each tool call the model makes in the dev steps (/dev-spec, /dev-change, " +
-  "/dev-plan, /dev-implement, /dev-batches, /dev-verify) and a /tasks repair (a failing pre-tool hook refuses the call); " +
+  "pre-tool and post-tool hooks run around each tool call the model makes in the dev steps (/dev-spec, " +
+  "/dev-plan, /dev-batches) and a /tasks repair (a failing pre-tool hook refuses the call); " +
   "the assistant does not run " +
   "them yet, and no stop hook runs.";
 

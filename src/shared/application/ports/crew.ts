@@ -16,6 +16,15 @@ export interface CrewHost {
   launch(name: string, input: Record<string, unknown>, options?: CrewLaunchOptions): string;
 }
 
+/** One instance of a crew the host is running, launched from a command. */
+export interface RunningCrew { ticket: string }
+
+/** The crews the host is running now: what a command reads before it launches a crew that must not run twice. */
+export interface RunningCrews {
+  /** The running instances of the crew `crew`, by its name; empty when none runs or the host cannot list them. */
+  running(crew: string): readonly RunningCrew[];
+}
+
 /** The children of the running crew (A-3): one background agent per call, its reply left in the crew's
  *  memory, its instance listed, stopped and sent to by id (`crew.instances()`, `stop`, `send`). */
 export interface ChildRuntime {

@@ -52,8 +52,8 @@ is the only directory of your machine it can write ([SECURITY.md](../SECURITY.md
 
 `scripts/run-crew.sh` runs one crew outside the REPL: with the `orkeon` tool (`Orkeon.Scripting.Cli` from nuget.org,
 pinned in `.config/dotnet-tools.json`, needs the .NET 10 SDK) or, without an SDK, with the `orkeon-runners` image.
-Until Orkeon `1.0.0-rc.6` is published, neither exists at the pinned version and the script cannot run in those two
-modes; `ORKEON_CODE_MODE=source ORKEON_SOURCE=<checkout>` runs it from an Orkeon checkout ([Development](development.md)).
+The tool is on nuget.org at the pinned version; the image is not published yet at `1.0.0-rc.6`;
+`ORKEON_CODE_MODE=source ORKEON_SOURCE=<checkout>` runs it from an Orkeon checkout instead ([Development](development.md)).
 It reads the settings file `ORKEON_CODE_SETTINGS` names, else `config/appsettings.local.json`, and mounts no
 `/user-config`: neither `~/.orkeon-code/appsettings.json` nor the `orkeonCode` block of your user settings applies to
 a crew run this way. The crew reads its input from the JSON of `--inputs`. For `main-loop` it is what
@@ -90,8 +90,8 @@ an unattended turn of `main-loop` against a model is exercised by hand, not by C
 
 `scripts/dev-run.sh` chains the steps of a dev crew without anyone at the keyboard: one fresh `orkeon run` per step,
 through `scripts/run-crew.sh`, which passes the settings, the model and the mounts (`ORKEON_CODE_SETTINGS`,
-`ORKEON_CODE_MODEL`; with `ORKEON_CODE_MODE=source` and `ORKEON_SOURCE`, the tool built from that Orkeon checkout while
-it is not on NuGet). The variable `DEV_RUN_RUNNER` names another command, given the crew and `--inputs` alone: it
+`ORKEON_CODE_MODEL`; with `ORKEON_CODE_MODE=source` and `ORKEON_SOURCE`, the tool built from that Orkeon checkout
+instead of the one nuget.org serves). The variable `DEV_RUN_RUNNER` names another command, given the crew and `--inputs` alone: it
 passes its own `-s` and `-m`, or the crew runs on no settings and no mount. Each step's output goes to
 `.orkeon/dev/<code>/runs/<crew>-<n>.log` in the project, never whole to the terminal, which shows its last line. After
 each step the script reads the last line of the work code's event log: `.orkeon/dev/<code>/batches-state.md`, or the
@@ -109,7 +109,8 @@ ORKEON_CODE_WORKSPACE=~/src/app bash scripts/dev-run.sh dev-verify demo \
 
 - the project declined at the trust question: nothing runs, exit `0`; refused without a terminal: exit `2`;
 - `closed` (the line `- <date> <time> closed`, a trailing blank or CR aside): the batches are closed, exit `0`;
-- an event whose detail starts with `BLOCKED` or `GAPS`: a human decides, exit `3`;
+- an event whose detail starts with `BLOCKED` or `GAPS`: a human decides, exit `3` (a GAPS `/dev-batches` relaunches by
+  itself is followed by its `relaunched` line; only the third audit round still GAPS stays last);
 - the same line as before the step: nothing moved, exit `4`, never a loop;
 - `--max-steps` (default 10) reached: exit `5`;
 - a step that exits `1` or `130` stops the chain with that code; one that exits `2` with a rate limit in its log
@@ -118,7 +119,7 @@ ORKEON_CODE_WORKSPACE=~/src/app bash scripts/dev-run.sh dev-verify demo \
 `--inputs` is required: the crew's own inputs, which its `crew.ork.ts` names in its header. Each step is a new process
 with an empty session: what a step needs (the batch, the plan) travels in its inputs or lives in the files of the work
 code. A crew run this way gets none of what its command does first: the dev steps' check that the gate is on
-(`/dev-verify`, `/dev-plan`, `/dev-spec`, `/dev-change`, `/dev-implement`) and their rule sets are not applied, so give the run a settings file whose gate and rules you chose.
+(`/dev-batches`, `/dev-plan`, `/dev-spec`) and their rule sets are not applied, so give the run a settings file whose gate and rules you chose.
 
 ## On a schedule, in a CI job
 

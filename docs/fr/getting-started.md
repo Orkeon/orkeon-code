@@ -72,19 +72,26 @@ Ollama ([Configuration](configuration.md#le-llm)).
 
 ## 3. Choisir un runtime
 
-**Windows** : `orkeon-code.ps1` n'a ni mode source ni `--demo` (`-Mode` n'accepte que `docker` ou `tool`) ; tant que
-`1.0.0-rc.6` n'est pas tagué, rien n'y tourne donc nativement. Utilisez WSL avec le lanceur bash d'ici là.
+**Windows** : `orkeon-code.ps1` n'a ni mode source ni `--demo` (`-Mode` n'accepte que `docker` ou `tool`) : le mode
+tool sur le `orkeon-<version>-win-x64.zip` de la release est celui de Windows ; la voie que ce projet pratique est WSL
+avec le lanceur bash ([tutoriel WSL](wsl-tutorial.md)).
 
-Orkeon Code exige Orkeon `1.0.0-rc.6`, la version de `.orkeon-version`. **Tant que cette version n'est pas taguée et
-publiée, seul le [mode source](#mode-source--un-checkout-dorkeon) fonctionne** : le mode tool a besoin de ses paquets
-et le mode docker de son image, et le smoke runtime de la CI, qui tire cette image, échoue d'ici là.
-Orkeon Code vise le `main` d'Orkeon après Orkeon/orkeon#213, la surface que portera `1.0.0-rc.6` : l'état de la
-garde de l'hôte (`/permissions`), les outils intégrés typés et les limites de résultat par outil
+Orkeon Code exige Orkeon `1.0.0-rc.6`, la version de `.orkeon-version`, taguée et publiée le 2026-10-28 : le
+[mode tool](#mode-tool--orkeon-repl-installé) a ses paquets (le paquet Debian sur le canal apt `rc`, les archives de
+release), le [mode source](#mode-source--un-checkout-dorkeon) prend tout checkout au tag ou après, et le
+[mode docker](#mode-docker--rien-à-installer-sauf-docker) attend l'image `orkeon-runners:1.0.0-rc.6`, que le registre
+ne porte pas encore (le smoke runtime de la CI construit le REPL depuis les sources d'Orkeon tant qu'il ne la trouve
+pas). La release porte ce que les ADR 0004 à 0009 ont repris du `main` d'Orkeon : l'état de la garde de l'hôte
+(`/permissions`), les outils intégrés typés et les limites de résultat par outil
 ([ADR 0004](../adr/0004-orkeon-after-180.md)), les outils de fichiers qui résolvent un chemin relatif sous
 `/workspace` ou la racine de l'agent, et les approbations en attente qu'une commande lit (`/tasks`)
 ([ADR 0005](../adr/0005-orkeon-after-206.md)), le REPL qui démarre sur un terminal, les outils structurels avec leur
 schéma de paramètres et les réponses diffusées d'acts concurrents gardées ligne par ligne
-([ADR 0006](../adr/0006-orkeon-after-213.md)).
+([ADR 0006](../adr/0006-orkeon-after-213.md)), les écrans de fil, la clôture du budget et l'accès par appel
+([ADR 0007](../adr/0007-orkeon-after-217.md)), les classes d'accès des outils
+([ADR 0008](../adr/0008-orkeon-after-223.md)), le contexte compté une fois, les services runtime, usage et session et
+le drapeau streamed ([ADR 0009](../adr/0009-orkeon-after-230.md)). Les typings suivent le `main` d'Orkeon après
+Orkeon/orkeon#234 ([ADR 0010](../adr/0010-orkeon-after-234.md)).
 
 Le lanceur prend le premier mode disponible, dans cet ordre, sauf si `--mode` en décide autrement.
 
@@ -156,13 +163,13 @@ La bannière affiche le projet, les settings et le mode. Dans le REPL :
 | `renomme parseArgs en parseCliArgs` | En mode `default`, le REPL demande avant chaque modification : `[y] once / [s] session / [n] no` |
 | `/mode acceptEdits` puis `ajoute un test pour parseCliArgs` | Les modifications passent sans demander pour la session ; une commande demande toujours |
 | `/diff`, `/commit`, `/review` | Les flux de travail git sur le projet |
-| `/context`, `/compact`, `/cost` | La fenêtre de contexte et la session |
+| `/context`, `/compact`, `/usage` | La fenêtre de contexte et la session |
 | `/exit` | Quitter |
 
 Le texte saisi sans `/` initial est envoyé à `/assistant`. La liste complète : [Commandes](commands.md).
 
 Sur un terminal, le REPL est une TUI en deux volets : la transcription, l'invite, et dessous la liste des tâches (`↓`
-ou `F4`) qui nomme les commandes en arrière-plan (`/dev-batches`, `/dev-implement`, un `/assistant` lancé en async).
+ou `F4`) qui nomme les commandes en arrière-plan (`/dev-batches`, un `/assistant` lancé en async).
 Chaque fil de conversation a son écran : sélectionner la ligne d'une tâche montre ses lignes, sélectionner `main`
 celles de l'invite, où restent les lignes de lancement et de fin de chaque tâche ; la tâche sélectionnée est aussi la
 destinataire du prochain message. Une tâche finie garde sa ligne, avec `✔ finished`, `✗ failed` ou `⊘ cancelled` et sa

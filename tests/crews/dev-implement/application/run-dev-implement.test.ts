@@ -14,7 +14,7 @@ import {
   costIndex, CYCLE_RERUN, CYCLE_SHEET, DIR, DONE_SHEET, EXISTING_SHEET, F1, F1_FILES, FINDING, gaps, graphIndex, greenByItself,
   IMPLEMENTER_BOTH, implementerLeavesOutput, later, noGitIdentity, ONE_GAPS, ONE_STEP, ONE_STEP_CO_LOCATED, PACK_CO_LOCATED,
   PACK_WITH_BRANCH, PACK_WITH_PROJECT, PACK_WITHOUT_TESTS, parse, PROJECT_LEFT_OUT, pushes, recorded, rewritesA, setup, SHEET, SHEET_PATH,
-  STEP_1_DONE, stubsA, stubsTheModule, TICKED, ticksItsBox, touchedRecord, UNFINISHED, untidy, VALID, VERDICT_PATH, weakensTest,
+  STALE, STALE_ENDING, STEP_1_DONE, stubsA, stubsTheModule, TICKED, ticksItsBox, touchedRecord, UNFINISHED, untidy, VALID, VERDICT_PATH, weakensTest,
   writesCode, writesFailingA, writesFailingAWithStub, writesOtherProduction, writesPassingTest, writesTest, writesTestOnly,
 } from "./run-dev-implement.fixtures.ts";
 import { assertBlockedSaying, assertBlockedStarting, assertLine, assertLineStarting, assertNoPrecedents, assertNotBlocked, assertPromptsEndWith, assertTicked } from "./run-dev-implement.assertions.ts";
@@ -486,7 +486,7 @@ describe("runDevImplement — wave 4", () => {
     ok(t.roles["test-author"].acts[0].prompt.includes("step 1 misses the empty case"));
   });
 
-  it("counts no round of GAPS for an audit the budget stopped", async () => {
+  it("counts a budget-stopped audit as a round", async () => {
     // Arrange
     const t = setup([writesTest("tests/a.test.ts")], [writesCode("src/a.ts", "tests/a.test.ts")], DONE_SHEET);
     t.files.files.set(VERDICT_PATH, gaps("2026-10-24 10:00") + UNFINISHED);
@@ -496,7 +496,7 @@ describe("runDevImplement — wave 4", () => {
 
     // Assert
     assertNotBlocked(a);
-    strictEqual(a.lines.some((l) => l.includes("audit rounds in GAPS")), false);
+    assertLine(a, "⚠ 2 audit rounds in GAPS: the third still GAPS goes to a human");
   });
 
   it("warns of the rounds of GAPS once two finished audits found gaps, an unfinished one between them", async () => {
@@ -571,7 +571,7 @@ describe("runDevImplement — wave 4", () => {
 
     // Assert
     assertBlockedStarting(a, "BLOCKED — correction:");
-    assertBlockedSaying(a, "/dev-change");
+    assertBlockedSaying(a, "/dev-spec <code> <kind>");
     strictEqual(t.files.files.get(SHEET_PATH), SHEET);
   });
 
@@ -785,6 +785,29 @@ describe("runDevImplement — the close marks and the branch", () => {
     deepStrictEqual(pushes(typed), ["git push -u origin 'feat/demo'"], "a typed --close still pushes");
     const body = typed.files.writes.find((w) => w.path.endsWith("/PR.md"))?.content ?? "";
     ok(body.includes("| H1 | ids are stable | the user |"), "the sheet's assumptions reach the pull request's body");
+  });
+
+  it("reads the stale lines of its input", () => {
+    // Arrange
+    const args = { batch: "F1", stale: [...STALE, 7] };
+
+    // Act
+    const inputs = implementInputs(args);
+
+    // Assert
+    deepStrictEqual(inputs.stale, STALE);
+  });
+
+  it("ends the prompts of both roles with the stale lines of its launch", async () => {
+    // Arrange
+    const t = setup(AUTHOR_BOTH, IMPLEMENTER_BOTH);
+
+    // Act
+    const a = parse(await runDevImplement({ ...F1, stale: STALE }, t.deps));
+
+    // Assert
+    assertNotBlocked(a);
+    assertPromptsEndWith([...t.roles["test-author"].acts, ...t.roles.implementer.acts], STALE_ENDING);
   });
 
   it("reads a push given as the text false as no push", () => {

@@ -1,13 +1,15 @@
-// Lines typed after /dev-spec and /dev-change, and what each reads to.
+// Lines typed after /dev-spec (or its alias /dev-change), and what each reads to.
 import type { DevChangeArgs, DevSpecArgs } from "../../../../src/commands/_lib/dev/dev-source.ts";
 
 /** The tokens the REPL hands over: the line split on spaces, quotes kept. */
 export const tokens = (line: string): string[] => line.split(" ").filter((t) => t !== "");
 
+/** Without a kind: a spec, the dev-spec crew. */
 export const SPEC_READ_CASES: readonly { name: string; line: string; args: DevSpecArgs }[] = [
   { name: "a code and a brief", line: "prune Remove old entries, keep feedback.", args: { code: "prune", request: "Remove old entries, keep feedback." } },
   { name: "a code alone", line: "prune", args: { code: "prune", request: "" } },
   { name: "a code and a quoted brief", line: 'prune "one quoted brief"', args: { code: "prune", request: "one quoted brief" } },
+  { name: "a kind word quoted, read as the brief", line: 'prune "bug"', args: { code: "prune", request: "bug" } },
 ];
 
 export const SPEC_REFUSED_CASES: readonly { name: string; line: string; start: string }[] = [
@@ -15,6 +17,7 @@ export const SPEC_REFUSED_CASES: readonly { name: string; line: string; start: s
   { name: "an option", line: "prune --replace", start: "unknown option --replace" },
 ];
 
+/** With a kind: a change brief, the dev-change crew, as /dev-change read it. */
 export const CHANGE_READ_CASES: readonly { name: string; line: string; args: DevChangeArgs }[] = [
   {
     name: "the kind, a quoted --run command whole and the origin",
@@ -26,13 +29,19 @@ export const CHANGE_READ_CASES: readonly { name: string; line: string; args: Dev
     line: "cache refactor The map is read on every call.",
     args: { code: "cache", kind: "refactor", run: "", text: "The map is read on every call." },
   },
+  { name: "a perf kind alone", line: "cache perf", args: { code: "cache", kind: "perf", run: "", text: "" } },
+];
+
+/** Typed as /dev-change: its own shape kept, the kind optional on a revision. */
+export const ALIAS_READ_CASES: readonly { name: string; line: string; args: DevChangeArgs }[] = [
   { name: "no kind, the origin alone", line: "cache also pin the absent map", args: { code: "cache", kind: "", run: "", text: "also pin the absent map" } },
+  { name: "no kind, a --run on a revision", line: 'cache --run "npm test"', args: { code: "cache", kind: "", run: "npm test", text: "" } },
+  { name: "the kind and a text origin", line: "cache bug The map is stale.", args: { code: "cache", kind: "bug", run: "", text: "The map is stale." } },
 ];
 
 export const CHANGE_REFUSED_CASES: readonly { name: string; line: string; start: string }[] = [
   { name: "--run without its command", line: "cache bug --run", start: "--run needs the command" },
-  { name: "--run after the origin", line: 'cache bug the map --run "x"', start: "--run comes before the origin" },
+  { name: "--run after the origin", line: 'cache bug the map --run "x"', start: "--run comes before the text" },
   { name: "another option", line: "cache bug --replace", start: "unknown option --replace" },
+  { name: "--run without a kind, saying what a kind is", line: 'cache --run "npm test" the map', start: "--run goes with a kind: bug (the command that reproduces it) or perf" },
 ];
-
-export const FORK_STEPS = ["dev-spec", "dev-change"] as const;

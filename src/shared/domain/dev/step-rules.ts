@@ -10,6 +10,13 @@ import type { RepoPackLayout } from "./repo-pack.ts";
 export type DevStep = "dev-verify" | "dev-plan" | "dev-spec" | "dev-change" | "dev-implement";
 export const DEV_STEPS: readonly DevStep[] = ["dev-verify", "dev-plan", "dev-spec", "dev-change", "dev-implement"];
 
+/** The command a step runs under, named where a line tells the person what to type: a change brief is /dev-spec with
+ *  a kind, a batch and its audit are shapes of /dev-batches. Any other name is a command already. */
+export function stepCommand(step: string): string {
+  if (step === "dev-change") return "dev-spec";
+  return step === "dev-implement" || step === "dev-verify" ? "dev-batches" : step;
+}
+
 /** The sets every dev step holds today. */
 export const DEV_STEP_RULE_SETS: readonly RuleSetId[] = [
   "git-readonly", "inline-interpreters", "read-noise", "secrets", "state-files",
@@ -22,7 +29,7 @@ export const STEP_RULE_SETS: Readonly<Record<DevStep, readonly RuleSetId[]>> = {
   "dev-implement": DEV_STEP_RULE_SETS,
 };
 
-/** The calls a step lets run without a question. /dev-implement's roles act in acceptEdits, where a tool
+/** The calls a step lets run without a question. dev-implement's roles act in acceptEdits, where a tool
  *  declared `execute` would be asked at every test run: run_tests and run_build check their own commands
  *  (application/dev/wrapped-tools.ts). The gate is not cleared when a step completes (its `completed` hook is
  *  synchronous and reads no session; reapplyStepRules in commands/_lib/dev-step.ts): an earlier hop's allows stay
@@ -37,7 +44,7 @@ export const STEP_ALLOW_RULES: Readonly<Record<DevStep, readonly PermissionRule[
 };
 
 /** rulesOf(STEP_RULE_SETS[step]) then the step's allow rules: 479 deny rules for each step today, and two allow
- *  rules for /dev-implement. */
+ *  rules for dev-implement. */
 export function stepRules(step: DevStep): PermissionRule[] {
   return [...rulesOf(STEP_RULE_SETS[step]), ...STEP_ALLOW_RULES[step]];
 }
@@ -93,11 +100,11 @@ export interface GateProblem { refuse: boolean; line: string }
  *  command reports itself. */
 export function gateProblem(enabled: boolean | undefined, step: DevStep): GateProblem | null {
   if (enabled !== false) return null;
-  const gateOnly = step === "dev-verify" ? " /dev-verify F<n> --gate-only runs no model and needs no gate." : "";
+  const gateOnly = step === "dev-verify" ? " /dev-batches <code> F<n> --audit --gate-only runs no model and needs no gate." : "";
   return {
     refuse: true,
     line: `${step}: refused: the host's permission gate is off (${GATE_SETTING} is not true), so the step's rule ` +
       `sets and its read-only mode would check nothing. The launcher turns the gate on unless a settings file turns ` +
-      `it off: remove that setting, restart the REPL and run /${step} again.${gateOnly}`,
+      `it off: remove that setting, restart the REPL and run /${stepCommand(step)} again.${gateOnly}`,
   };
 }

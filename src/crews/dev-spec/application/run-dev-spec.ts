@@ -86,7 +86,7 @@ export async function runDevSpec(input: DevSpecInputs, deps: DevSpecDeps): Promi
 
   // 2. One source per code; an existing spec is revised.
   if (folder.names.includes(`CHANGE-${code}.md`)) {
-    return `${STEP}: ${folder.shown}/CHANGE-${code}.md exists: a code has one source; revise it with /dev-change ${code}, or pick another code`;
+    return `${STEP}: ${folder.shown}/CHANGE-${code}.md exists: a code has one source; revise it with /dev-spec ${code} <its kind: bug, refactor or perf>, or pick another code`;
   }
   const spec = folder.file(specFileName(code));
   let existing: string | null = null;

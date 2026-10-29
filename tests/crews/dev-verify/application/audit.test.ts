@@ -104,7 +104,7 @@ describe("runAudit", () => {
     ok(out.ok);
     deepStrictEqual(out.redRows, [{
       severity: "Blocking", axis: "Test", gap: "a validation is red: exit 1, 2 failed",
-      evidence: `\`${VALIDATION}\` exit 1, 2 failed, run by /dev-verify`, fix: "make the validation pass",
+      evidence: `\`${VALIDATION}\` exit 1, 2 failed, run by the audit`, fix: "make the validation pass",
     }]);
   });
 

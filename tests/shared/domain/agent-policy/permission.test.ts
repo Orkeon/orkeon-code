@@ -13,7 +13,7 @@ import {
 import { PERMISSION_MODES } from "../../../../src/shared/domain/permission-modes.ts";
 import {
   A2A_TOOLS, ALL_MODES, builtInToolInputs, CHECK_RULE_CASES, CHECK_RULE_OK_CASES, DECISION_CASES, DENY_FILE_WRITE,
-  EXTRA_RULES, FORMAT_CASES, GIT_PUSH, GIT_RULE_TEXTS, GLOB_CASES, MATCHES_RULE_CASES, NETWORK_MATRIX,
+  EXTRA_RULES, FORMAT_CASES, GIT_PUSH, GIT_RULE_TEXTS, GLOB_CASES, HOST_OPT_IN_TOOLS, MATCHES_RULE_CASES, NETWORK_MATRIX,
   NOTE_NETWORK_CASES, NPM_TEST, ORKEON_180_EDITS, ORKEON_180_READS, PARSE_STORED_CASES, PLAN_RULES,
   QUOTED_PATTERNS, READ_ONLY_CASES, READ_ONLY_MODES, READ_ONLY_TOOLSET_CASES, READ_PATTERN_CASES, READ_RULE_CASES,
   READER, RESOLVE_MODE_CASES, ROUND_TRIP_RULES, RULEABLE_TOOL_CASES, SAME_CALLS_CASES, SCRIPT_TOOL_ACCESS_CASES,
@@ -108,6 +108,21 @@ describe("B-8 — the network-read class", () => {
       // Assert
       strictEqual(t.includes(absent), false, absent);
       strictEqual(RULEABLE_TOOLS.includes(absent), false, `${absent} must not be ruleable either`);
+    });
+  }
+
+  // The host registers these only when a settings section opts in (Orkeon #234): a
+  // built-in list naming one would fail every act of a host without the section.
+  for (const optIn of HOST_OPT_IN_TOOLS) {
+    it(`does NOT wire the opt-in tool ${optIn} — tools.extra offers it when the host registers it`, () => {
+      // Arrange
+      const mode = "bypassPermissions";
+
+      // Act
+      const t = toolsetFor(mode);
+
+      // Assert
+      strictEqual(t.includes(optIn), false, optIn);
     });
   }
 

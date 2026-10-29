@@ -108,3 +108,13 @@ export const STUBS_SAY: readonly string[] = [
   "- production it will drive (a signature stub at most): `src/b.ts` — existing",
   "A test whose import of a missing declaration fails the whole test file is not the red asked",
 ];
+
+/** The stale lines the review of a batch hands its launch, and the block that ends a role's prompt with them. */
+export const STALE_LINES: readonly string[] = [
+  "stale: Does F2 still read the parsers F1 gave? — DEMO-PLAN-F2.md:6",
+  "stale: Is the state column still two states? — dev.ts:91",
+];
+export const STALE_BLOCK =
+  "Stale after the merged dependencies (the reviewer's open questions; settle each by the delivered value it names, or say why not):\n" +
+  "stale: Does F2 still read the parsers F1 gave? — DEMO-PLAN-F2.md:6\n" +
+  "stale: Is the state column still two states? — dev.ts:91";

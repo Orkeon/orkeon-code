@@ -18,7 +18,7 @@
 // Answer: JSON { lines: string[], next?: { crew: "dev-implement" | "dev-batches", input } }, read by the command's
 //   completed: dev-implement for the next batch of a sequential run, dev-batches for a parallel run's next wave.
 // Run standalone:  bash scripts/run-crew.sh src/crews/dev-batches/crew.ork.ts --inputs '{"code":"prune"}'
-//   (it logs the batch it names as launched and launches nothing: drive that batch with /dev-implement)
+//   (it logs the batch it names as launched and launches nothing: drive that batch with dev-implement)
 //
 // Budget: domain/batches-budget.ts (the driver's, and each batch agent's run: L8P-D12, Orkeon/orkeon#189).
 
@@ -54,7 +54,7 @@ function batchAgent(run: BatchRun, context: BatchesContext) {
   const { spend, toolSlot, validationSlot, bodyTools, tools } = batchAgentParts(ToolBuilder, { root: run.root, toolCalls: limits.toolCalls, memoryOn });
   const batchEffort = providerEffort(context.effort ?? undefined);
   const options = { hooks: context.hooks, effort: batchEffort, memoryOn, root: run.root, spend };
-  // What the sequential run hands /dev-implement (run-dev-batches.ts): no github tool, its close never pushed.
+  // What the sequential run hands dev-implement (run-dev-batches.ts): no github tool, its close never pushed.
   const launch = {
     plan: run.code, hooks: context.hooks, effort: context.effort,
     permissionMode: context.permissionMode, permissionRules: context.permissionRules, githubTool: false,

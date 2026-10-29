@@ -7,8 +7,10 @@
 // merged by fast-forward (rebased in its worktree when needed), its files harvested, its batch marked done in the
 // global plan, its worktree removed; a GAPS or BLOCKED one is logged and keeps its worktree, its sheet, verdict and
 // code there alone - the main checkout never claims work whose code it lacks - and the run stops there (a human
-// decides) - a neighbour still running is never stopped (L8P-D9). Typed again with its concurrency, the run
-// relaunches it in that worktree, a GAPS verdict's correction carried by the log.
+// decides) - a neighbour still running is never stopped (L8P-D9). A GAPS verdict is first relaunched at once in its
+// worktree, the verdict's Blocking and Major rows as the correction, until the third audit round in GAPS since the last
+// VALID (GAPS_ROUNDS_MAX); that one stops. Typed again with its concurrency, the run relaunches a stopped batch in that
+// worktree, a GAPS verdict's correction carried by the log.
 import type { Files, Shell } from "../../../shared/application/ports.ts";
 import { gitReason, runGit } from "../../../shared/application/git/commit-files.ts";
 import { createBatchWorktree, mergeValidBatch, removeBatchWorktree } from "../../../shared/application/git/batch-worktree.ts";
@@ -23,6 +25,9 @@ import { eventLine, lastEntryOf } from "../domain/batches-log.ts";
 import { harvestBatch, seedWorktree } from "./seed-harvest.ts";
 import type { SeedSnapshot, SeedTarget } from "./seed-harvest.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
+import {
+  GAPS_ROUNDS_MAX, gapsFinding, gapsRoundsOf, isNextStepLine, parseCorrectionLine, parseVerdictFile,
+} from "../../../shared/domain/dev/verdict-format.ts";
 
 /** What the crew's batch agent is run with. */
 export interface BatchRun {
@@ -38,6 +43,8 @@ export interface BatchRun {
   steps?: number;
   /** The finding of the GAPS verdict it returned last (the log's), appended to its sheet as a step first. */
   correction?: string;
+  /** The `stale:` lines of its review's Major rows, on its first launch only: they end its RED and GREEN prompts. */
+  stale?: readonly string[];
 }
 
 /** What a batch agent answers. */
@@ -102,6 +109,8 @@ export interface WaveRequest {
   /** The audits of a batch's verdict file now (the launch's detail). */
   audits(batch: string): number;
   steps(batch: string): number | undefined;
+  /** The `stale:` lines the review of each batch left (its Major rows), handed to its first launch. */
+  stale?: Readonly<Record<string, readonly string[]>>;
   book: WaveLog;
 }
 
@@ -110,7 +119,11 @@ export interface WaveResult { lines: string[]; stopped: boolean; refused?: true 
 
 interface Slot {
   batch: string; place: WorktreePlace; branch: string; made: boolean; reopened: boolean; done: boolean;
-  snapshot?: SeedSnapshot; correction?: string;
+  snapshot?: SeedSnapshot; correction?: string; stale?: readonly string[];
+  /** The lines of its GAPS rounds relaunched within the wave, said before its outcome. */
+  said: string[];
+  /** The batch's verdict file in its worktree after its last GAPS, null when it could not be read. */
+  verdict?: string | null;
 }
 
 const reasonOf = (e: unknown): string => String((e as Error)?.message ?? e).split("\n")[0];
@@ -138,10 +151,15 @@ async function placeOf(shell: Pick<Shell, "run">, req: WaveRequest, batch: strin
   const branch = batchBranch(req.code, batch);
   const place = worktreePlace(name);
   if (place === null) return { ok: false, line: `'${name}' is not a worktree name` };
-  const last = lastEntryOf(req.book.entries(), batch);
+  const entries = req.book.entries();
+  const last = lastEntryOf(entries, batch);
   const reopened = last !== undefined;
   const correction = last?.event === "returned" ? correctionOf(last.detail) : undefined;
-  const extra = correction === undefined ? {} : { correction };
+  // The stale lines go to the batch's first launch only: a relaunch (from the log or after a GAPS) carries none, the
+  // first implementation already saw them.
+  const launchedBefore = entries.some((e) => e.batch === batch && (e.event === "launched" || e.event === "relaunched"));
+  const stale = launchedBefore ? undefined : req.stale?.[batch];
+  const extra = { said: [], ...(correction === undefined ? {} : { correction }), ...(stale === undefined || stale.length === 0 ? {} : { stale }) };
   if ((await runGit(shell, gitBranchExists(branch))).exitCode !== 0) {
     const made = await createBatchWorktree(shell, { name, branch, base: req.workBranch });
     return made.ok ? { ok: true, slot: { batch, place, branch, made: true, reopened, done: false, ...extra } } : { ok: false, line: made.line };
@@ -198,6 +216,17 @@ async function probeRefusal(deps: WaveDeps, req: WaveRequest, place: WorktreePla
   return `BLOCKED — ${concurrencyGitRefusal(req.concurrency)}`;
 }
 
+/** The verdict file a batch's audit wrote in its worktree, named after its sheet; null when it cannot be read. */
+async function worktreeVerdict(files: Pick<Files, "read">, req: WaveRequest, slot: Slot): Promise<string | null> {
+  const sheet = req.sheets[slot.batch];
+  if (sheet === undefined) return null;
+  try {
+    return await files.read(`${slot.place.root}/${req.work}/${req.code}/${sheet.replace(/-PLAN-(F\d+)\.md$/, "-VERIFY-$1.md")}`);
+  } catch {
+    return null;
+  }
+}
+
 /** The stop's detail of a batch that ended neither VALID nor GAPS. */
 function blockedDetail(outcome: BatchOutcome): string {
   const said = outcome.lines.map((l) => l.trim()).find((l) => /^(stopped )?BLOCKED\b/.test(l));
@@ -252,12 +281,48 @@ export async function runWave(req: WaveRequest, deps: WaveDeps): Promise<WaveRes
   const unsaved = running.length === 0 ? null : await req.book.save();
   if (unsaved !== null) return stop([...lines, unsaved], `BLOCKED — the log must be writable before a launch`);
 
-  // 3. Every batch at once; a rejected run is a stop of its batch alone.
-  const settled = await Promise.allSettled(running.map((slot) => deps.runBatch({
-    code: req.code, batch: slot.batch, name: slot.place.name, root: slot.place.root, branch: slot.branch,
-    ...(req.steps(slot.batch) !== undefined ? { steps: req.steps(slot.batch) } : {}),
-    ...(slot.correction !== undefined ? { correction: slot.correction } : {}),
-  })));
+  // 3. Every batch at once; a rejected run is a stop of its batch alone. A GAPS verdict whose audit rounds in GAPS
+  //    are fewer than GAPS_ROUNDS_MAX runs the batch again at once in its worktree, the verdict's rows as the correction
+  //    (none after an audit the budget stopped: its resume runs), logged returned then relaunched.
+  const runSlot = async (slot: Slot): Promise<BatchOutcome> => {
+    let correction = slot.correction;
+    let stale = slot.stale;
+    let steps = req.steps(slot.batch);
+    for (let round = 0; ; round++) {
+      const outcome = await deps.runBatch({
+        code: req.code, batch: slot.batch, name: slot.place.name, root: slot.place.root, branch: slot.branch,
+        ...(steps !== undefined ? { steps } : {}),
+        ...(correction !== undefined ? { correction } : {}),
+        ...(stale !== undefined ? { stale } : {}),
+      });
+      if (outcome.verdict !== "GAPS") return outcome;
+      const text = await worktreeVerdict(deps.files, req, slot);
+      slot.verdict = text;
+      // Only a verdict this audit wrote last is relaunched: one the file does not end with is a human's to read.
+      if (text === null || parseVerdictFile(text).sections.at(-1)?.verdict !== "GAPS") return outcome;
+      const rounds = gapsRoundsOf(text);
+      if (rounds >= GAPS_ROUNDS_MAX || round >= GAPS_ROUNDS_MAX) {
+        slot.said.push(`${slot.batch}: ${rounds} audit rounds in GAPS, a human decides`);
+        return outcome;
+      }
+      const finding = gapsFinding(text);
+      const fix = finding === undefined ? "" : ` — correction: ${finding}`;
+      req.book.add(eventLine(req.clock(), slot.batch, "returned", `GAPS${fix}`));
+      req.book.add(eventLine(req.clock(), slot.batch, "relaunched", `${slot.place.name} audits ${parseVerdictFile(text).sections.length}, round ${rounds + 1}${fix}`));
+      slot.said.push(`${slot.batch} returned GAPS: relaunched in ${slot.place.path}, audit round ${rounds + 1} of ${GAPS_ROUNDS_MAX}` +
+        (finding === undefined ? " (no correction: its audit resumes)" : fix));
+      if (deps.afterGaps !== undefined) slot.said.push(...await deps.afterGaps(`${slot.place.root}/${req.work}`));
+      const unsaved = await req.book.save();
+      if (unsaved !== null) {
+        slot.said.push(unsaved, `BLOCKED — the log must be writable before a launch: ${slot.batch} not relaunched`);
+        return outcome;
+      }
+      correction = finding;
+      stale = undefined;
+      steps = undefined;
+    }
+  };
+  const settled = await Promise.allSettled(running.map(runSlot));
   const outcomes = new Map<string, BatchOutcome>();
   running.forEach((slot, i) => {
     const s = settled[i];
@@ -269,6 +334,7 @@ export async function runWave(req: WaveRequest, deps: WaveDeps): Promise<WaveRes
   let stopped = false;
   for (const slot of slots) {
     const outcome = outcomes.get(slot.batch)!;
+    lines.push(...slot.said);
     const harvest = async () => {
       const back = await harvestBatch(deps.files, target(slot), slot.snapshot);
       if (!back.ok) lines.push(back.line);
@@ -295,10 +361,11 @@ export async function runWave(req: WaveRequest, deps: WaveDeps): Promise<WaveRes
     }
     stopped = true;
     if (outcome.verdict === "GAPS") {
-      const correction = outcome.correction?.replace(/\s+/g, " ").trim();
+      // The verdict's own rows, as a relaunch within the wave carries them; else the audit's correction line.
+      const correction = ((slot.verdict ? gapsFinding(slot.verdict) : undefined) ?? outcome.correction)?.replace(/\s+/g, " ").trim();
       req.book.add(eventLine(req.clock(), slot.batch, "returned", correction === undefined ? "GAPS" : `GAPS — correction: ${correction}`));
-      // The audit's own next step names /dev-implement on the main checkout, which lacks the batch's code: left out.
-      const said = outcome.lines.filter((l) => !/^\s*→ \/dev-implement\b/.test(l) && !/^\s*it appends the gap\b/.test(l));
+      // The audit's own next step names the batch's correction on the main checkout, which lacks its code: left out.
+      const said = outcome.lines.filter((l) => !isNextStepLine(l) && !/^\s*it appends the gap\b/.test(l));
       lines.push(`${slot.batch} returned GAPS`, ...said.slice(-3).map((l) => `  ${l}`));
       if (deps.afterGaps !== undefined) lines.push(...await deps.afterGaps(`${slot.place.root}/${req.work}`));
       lines.push(keptLine(slot.place), resumeLine(req, slot.batch, slot.place, correction));
@@ -313,9 +380,9 @@ export async function runWave(req: WaveRequest, deps: WaveDeps): Promise<WaveRes
 
 /** What a batch agent's body runs, in its own agent and under its worktree: the crews' use cases, and its spend. */
 export interface BatchChain {
-  /** /dev-implement's use case: its JSON answer. */
+  /** dev-implement's use case: its JSON answer. */
   implement(input: Record<string, unknown>): Promise<string>;
-  /** /dev-verify's, its audit inline in the batch agent (L8P-D2): its lines. */
+  /** dev-verify's, its audit inline in the batch agent (L8P-D2): its lines. */
   verify(input: Record<string, unknown>): Promise<string>;
   /** The tool calls the batch made and the bound past which its callbacks deny them (L8P-D12). */
   spend: { limit: number; calls(): number; exhausted(): boolean };
@@ -336,7 +403,7 @@ function parsed(payload: string): { lines: string[]; next?: { crew?: unknown; in
 
 /**
  * The chain one batch runs in code, as the command's `completed` chains it for a sequential run: its steps
- * (/dev-implement), its audit (/dev-verify), and on VALID its close, committed on the batch's branch, never pushed.
+ * (dev-implement), its audit (dev-verify), and on VALID its close, committed on the batch's branch, never pushed.
  * A batch that spent its tool calls stops there.
  */
 export async function runBatchChain(run: BatchRun, launch: Readonly<Record<string, unknown>>, chain: BatchChain): Promise<BatchOutcome> {
@@ -349,6 +416,7 @@ export async function runBatchChain(run: BatchRun, launch: Readonly<Record<strin
   const implemented = parsed(await chain.implement({
     ...launch, batch: run.batch, ...(run.steps !== undefined ? { steps: run.steps } : {}),
     ...(run.correction !== undefined ? { correction: run.correction } : {}),
+    ...(run.stale !== undefined && run.stale.length > 0 ? { stale: run.stale } : {}),
   }));
   lines.push(...implemented.lines);
   const after = spent();
@@ -369,7 +437,7 @@ export async function runBatchChain(run: BatchRun, launch: Readonly<Record<strin
   }
   const rest = verified.slice(written.index + written[0].length);
   if (!new RegExp(`^→ Batch ${run.batch} VALID\\.`, "m").test(rest)) {
-    const correction = /^→ \/dev-implement \S+ — correction: (.+)$/m.exec(rest)?.[1]?.trim();
+    const correction = parseCorrectionLine(rest)?.finding;
     return { ...answer("GAPS"), ...(correction === undefined ? {} : { correction }) };
   }
 

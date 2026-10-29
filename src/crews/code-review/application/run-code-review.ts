@@ -1,4 +1,4 @@
-// CodeReview use case (/review [--lens], /security-review): resolve the scope
+// CodeReview use case (/review [--lens] [--passes], /security-review): resolve the scope
 // and the review plan, run the lens passes, rank the findings and write the
 // report. The steps live in ./review, the decisions in ../domain.
 
@@ -22,9 +22,16 @@ export const MAX_REVIEW_DIFF_CHARS = 12_000;
 /** Status-line headline of the /review progress. */
 export const REVIEW_PROGRESS_LABEL = "Reviewing changes";
 
-/** The crew's input: `files` and `commit` scope the diff, `lenses` narrows the review. */
+/** The crew's input: `files` and `commit` scope the diff, `lenses` narrows the review, `passes` sets its rounds. */
 export interface CodeReviewInputs extends ReviewInputs {
   lenses?: unknown;
+  passes?: unknown;
+}
+
+/** A pass count the input names (`/review --passes`), else the session's: the input outranks the session key. */
+function runPasses(input: unknown, stored: unknown): number {
+  const named = input !== undefined && input !== null && String(input).trim() !== "";
+  return resolvePasses(named ? input : stored);
 }
 
 export interface CodeReviewDeps {
@@ -57,14 +64,15 @@ export async function runCodeReview(input: CodeReviewInputs, deps: CodeReviewDep
 
   // B-9: two settings that existed and were read by nothing until now —
   // `/passes` (session bag) and `review.lenses` (the /config key space, whose
-  // spec has named this crew as its consumer since B-6).
+  // spec has named this crew as its consumer since B-6). A crew INPUT beats
+  // each for this run: `/review --passes` the first, `--lens` the second.
   const [storedPasses, lensSetting] = await Promise.all([
     session.readState(PASSES_STATE_KEY).catch(() => null),
     config.readValue("review.lenses").then((r) => r.value).catch(() => undefined),
   ]);
-  const passes = resolvePasses(storedPasses);
-  // A crew INPUT narrows the lenses for this run (/review --lens,
-  // /security-review) and beats the standing `review.lenses` setting.
+  const passes = runPasses(input.passes, storedPasses);
+  // A crew INPUT narrows the lenses for this run (/review --lens, the
+  // /security-review alias) and beats the standing `review.lenses` setting.
   const selection = resolveLensSelection({ input: input.lenses, config: lensSetting });
   for (const u of selection.unknown) {
     log.warn(`unknown review lens '${u}' ignored (valid: correctness, security, style)`);

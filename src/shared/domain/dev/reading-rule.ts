@@ -24,7 +24,7 @@ export const EDIT_BATCH_SHAPE =
   "`operations`, a list of {kind, path, selector, text} (expected_hash on node_replace, position on node_insert), with " +
   "validate \"parse\"";
 
-/** The editing rule, for an agent that holds the node editors (/dev-implement's roles). */
+/** The editing rule, for an agent that holds the node editors (dev-implement's roles). */
 export const NODE_EDIT_RULE =
   "Change an existing file by node: node_replace with the selector and the sha256 node_read gave (when it is refused as " +
   "stale, read the node again), node_insert to add a member, a test or a section before, after or inside an anchor, " +

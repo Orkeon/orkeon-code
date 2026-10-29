@@ -15,6 +15,7 @@ import type { ActRequest, AffectedTests, Clock, CostIndex, ShellResult } from ".
 import type { AccessCostReport } from "../../../../src/shared/domain/dev/access-cost.ts";
 import { GIT_IDENT_COMMAND } from "../../../../src/shared/domain/git/close.ts";
 import { AUDIT_UNFINISHED_GAP } from "../../../../src/shared/domain/dev/verdict-format.ts";
+import { STALE_HEADING } from "../../../../src/crews/dev-implement/domain/contracts.ts";
 import { STATUS_COMMAND } from "../../../../src/crews/dev-implement/application/observe.ts";
 import { touchedPath } from "../../../../src/crews/dev-implement/application/touched.ts";
 import type { ImplementAnswer } from "../../../../src/crews/dev-implement/application/run-dev-implement.ts";
@@ -312,6 +313,12 @@ export const ONE_GAPS = "# DEMO-VERIFY-F1 — 2026-10-24 10:00 — fast\n\n## Ve
 /** A GAPS verdict the budget stopped before the audit finished. */
 export const UNFINISHED = "# DEMO-VERIFY-F1 — 2026-10-24 11:00 — resume\n\n## Verdict — GAPS\n\n" + GAPS_TABLE +
   `| Blocking | Correctness | ${AUDIT_UNFINISHED_GAP} | tokens: spent | audit again |\n`;
+
+// ---- the stale lines of a /dev-batches launch
+
+/** The `stale:` line /dev-batches hands a batch's first launch, and the block that ends each role's prompt with it. */
+export const STALE = ["stale: Does F1 still read the parsers it was given? — DEMO-PLAN-F1.md:6"];
+export const STALE_ENDING = `${STALE_HEADING}\n${STALE[0]}`;
 
 // ---- the cost and the graph
 

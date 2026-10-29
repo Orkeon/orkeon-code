@@ -1,5 +1,5 @@
-// The access cost of a batch, or of one /dev-implement cycle: the changed files under the cost roots,
-// refreshed in the code index, then measured by `access_cost` (/dev-verify's capture, /dev-implement's COST). The index is a precondition, never built here: without
+// The access cost of a batch, or of one dev-implement cycle: the changed files under the cost roots,
+// refreshed in the code index, then measured by `access_cost` (dev-verify's capture, dev-implement's COST). The index is a precondition, never built here: without
 // a /workspace root the cost is "not indexed" (the tool would answer an empty report). A call
 // that fails leaves the cost not computed; nothing here refuses the step.
 import type { CostIndex } from "../ports.ts";

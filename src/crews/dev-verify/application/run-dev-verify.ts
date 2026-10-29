@@ -1,4 +1,4 @@
-// /dev-verify's use case: checks the inputs and the checkout, resolves the batch sheet,
+// dev-verify's use case: checks the inputs and the checkout, resolves the batch sheet,
 // runs the gate, and on a green gate writes the capture, runs the whole suite under full,
 // hands the batch to the read-only auditor and writes the verdict file. It returns the
 // completion text the command prints. --gate-only stops after the gate: no model call,
@@ -11,7 +11,10 @@ import { GIT_TOPLEVEL, workFolderLabel } from "../../../shared/application/dev/r
 import { costSummary } from "../../../shared/domain/dev/access-cost.ts";
 import { classifyArtefact, isCode } from "../../../shared/domain/dev/artefacts.ts";
 import type { RepoPack } from "../../../shared/domain/dev/repo-pack.ts";
-import { AUDIT_UNFINISHED_GAP, isAuditUnfinishedGap, isUnfinishedSection, lastFinishedVerdict, lastVerdict, parseVerdictFile } from "../../../shared/domain/dev/verdict-format.ts";
+import {
+  AUDIT_UNFINISHED_GAP, auditCommand, closeLine, correctionLine, isAuditUnfinishedGap, isUnfinishedSection, lastFinishedVerdict, lastVerdict,
+  parseVerdictFile,
+} from "../../../shared/domain/dev/verdict-format.ts";
 import type { GapRow } from "../../../shared/domain/dev/verdict-format.ts";
 import { AXES } from "../domain/audit-answer.ts";
 import type { AuditRow, Axis } from "../domain/audit-answer.ts";
@@ -66,7 +69,7 @@ export function unfinishedRow(unfinished: UnfinishedAudit, captureShown: string,
     severity: "Blocking", axis: "Correctness",
     gap: AUDIT_UNFINISHED_GAP,
     evidence: `${unfinished.reason} — ${captureShown}/auditor-replies.txt`,
-    fix: `audit the batch again (/dev-verify ${batch} resume), or split it if it spends the budget again`,
+    fix: `audit the batch again (${auditCommand("<code>", batch, "resume")}), or split it if it spends the budget again`,
   };
 }
 
@@ -146,7 +149,7 @@ async function sheetsIn(files: Pick<Files, "list">, planDir: string, batch: stri
 
 function several(batch: string, sheets: readonly Sheet[]): string {
   return `dev-verify: several sheets for ${batch}: ${sheets.map((s) => `${s.planDir}/${s.name}`).join(", ")}: ` +
-    `name the plan, e.g. /dev-verify ${batch} <code>`;
+    `name the plan, e.g. ${auditCommand("<code>", batch)}`;
 }
 
 /** The sheet the plan token names, or the refusal text. */
@@ -156,7 +159,7 @@ async function resolveSheet(files: Pick<Files, "read" | "list">, work: string, a
     const entries = (await listOrEmpty(files, `${WORKSPACE}/${work}`)).map(bare).sort(byName).slice(0, ENTRIES_PROBED);
     const found: Sheet[] = [];
     for (const entry of entries) found.push(...(await sheetsIn(files, `${work}/${entry}`, batch)));
-    if (found.length === 0) return `dev-verify: no ${work}/*/*-PLAN-${batch}.md: name the plan, e.g. /dev-verify ${batch} <code>`;
+    if (found.length === 0) return `dev-verify: no ${work}/*/*-PLAN-${batch}.md: name the plan, e.g. ${auditCommand("<code>", batch)}`;
     if (found.length > 1) return several(batch, found);
     return found[0];
   }
@@ -216,7 +219,7 @@ async function runSuite(shell: Pick<Shell, "run">, pack: RepoPack | null): Promi
     const row: AuditRow = {
       severity: "Major", axis: "Test",
       gap: `the whole fast suite did not finish within ${FULL_SUITE_TIMEOUT_SECONDS} s`,
-      evidence: `\`${command}\` ${outcome}, run by /dev-verify full`,
+      evidence: `\`${command}\` ${outcome}, run by the full audit`,
       fix: "make the suite finish within its timeout, or run it by hand and record the outcome",
     };
     return { validation: null, notRun: `\`${command}\` — ${outcome}`, row, brief: { command, outcome, tail } };
@@ -229,7 +232,7 @@ async function runSuite(shell: Pick<Shell, "run">, pack: RepoPack | null): Promi
     ? {
       severity: "Blocking", axis: "Test",
       gap: `the whole fast suite is red: ${exitText}${summary.failed === null ? "" : `, ${failed} failed`}`,
-      evidence: `\`${command}\` ${exitText}, run by /dev-verify full`,
+      evidence: `\`${command}\` ${exitText}, run by the full audit`,
       fix: "make the suite green",
     }
     : null;
@@ -278,7 +281,7 @@ export async function runDevVerify(input: DevVerifyInputs, deps: DevVerifyDeps):
   const done = (...lines: string[]): string => [...out, ...lines].join("\n");
   const work = ctx.work.folder;
   if (ctx.work.outcome === "main-worktree") {
-    return done(`dev-verify: the work folder ${work} is in the main worktree, outside the mounts: run /dev-verify from the main checkout`);
+    return done(`dev-verify: the work folder ${work} is in the main worktree, outside the mounts: run the audit from the main checkout`);
   }
 
   const sheet = await resolveSheet(deps.files, work, args);
@@ -295,7 +298,7 @@ export async function runDevVerify(input: DevVerifyInputs, deps: DevVerifyDeps):
     try {
       previous = await deps.files.read(`${WORKSPACE}/${verdictShown}`);
     } catch {
-      return done(`dev-verify: resume needs ${verdictShown}: run /dev-verify ${args.batch} first`);
+      return done(`dev-verify: resume needs ${verdictShown}: run ${auditCommand(t.code, args.batch)} first`);
     }
     // An unfinished audit's row is no gap of the code: the resumed audit is not asked to judge it. After an audit the
     // budget stopped, the resume takes the gaps of the last audit that finished; with none, the whole batch is audited.
@@ -385,15 +388,15 @@ export async function runDevVerify(input: DevVerifyInputs, deps: DevVerifyDeps):
     if (recalledLine !== "") lines.push(recalledLine);
     if (section.verdict === "VALID") {
       lines.push(
-        `→ Batch ${args.batch} VALID. The close commits the batch's files: /dev-implement ${args.batch} <code> --close ` +
-          `(run by itself when /dev-implement launched this audit).`,
+        `→ Batch ${args.batch} VALID. The close commits the batch's files (run by itself when /dev-batches launched this audit):`,
+        closeLine(t.code, args.batch),
         filesLine(gate.run.changedFiles, work),
       );
     } else {
       const first = section.shown[0];
       lines.push(
-        `→ /dev-implement ${args.batch} — correction: ${first.severity} ${first.axis}: ${cut(first.gap, MAX_GAP_CHARS)}`,
-        `  it appends the gap to the sheet as a new step and runs it; the audit follows by itself (/dev-verify ${args.batch} resume)`,
+        correctionLine(t.code, args.batch, `${first.severity} ${first.axis}: ${cut(first.gap, MAX_GAP_CHARS)}`),
+        `  it appends the gap to the sheet as a new step and runs it; the audit follows by itself (${auditCommand(t.code, args.batch, "resume")})`,
       );
       // M-7: the verdict is written; the harvest reads it with the others and can only add lines.
       if (deps.harvest !== undefined) lines.push(...await deps.harvest(ctx.work));

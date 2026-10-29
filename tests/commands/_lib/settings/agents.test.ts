@@ -21,7 +21,7 @@ import {
 describe("/agents list", () => {
   it("names every step that runs a built-in charter as a child", () => {
     // Arrange
-    const steps = "children of /dev-spec, /dev-change, /dev-plan and /dev-verify";
+    const steps = "children of /dev-spec, /dev-plan and /dev-batches";
 
     // Act
     const note = SAVED_AGENTS_NOTE;

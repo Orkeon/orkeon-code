@@ -6,7 +6,7 @@ import { strictEqual, deepStrictEqual } from "node:assert";
 
 import {
   parseMemoryArgs, parseAssistantInput, rawText, rawTokens,
-  parseToolCallArgs, commandLine, splitWords, isOption, optionValue, parseCompactArgs } from "../../../src/commands/_lib/args.ts";
+  parseToolCallArgs, commandLine, splitWords, isOption, optionValue, parseCompactArgs, typedCommand } from "../../../src/commands/_lib/args.ts";
 import { MEMORY_CATEGORIES } from "../../../src/shared/domain/agent-policy/memory-categories.ts";
 import {
   ASSISTANT_INPUT_CASES,
@@ -22,6 +22,7 @@ import {
   RAW_TOKENS_CASES,
   ROUND_TRIP_CASES,
   SPLIT_CASES,
+  TYPED_COMMAND_CASES,
 } from "./args.fixtures.ts";
 import { assertRefused } from "./args.assertions.ts";
 import { WORKSPACE } from "../../../src/shared/domain/vfs.ts";
@@ -91,6 +92,21 @@ describe("rawText / rawTokens", () => {
 
       // Assert
       deepStrictEqual(tokens, expected);
+    });
+  }
+});
+
+describe("typedCommand", () => {
+  for (const c of TYPED_COMMAND_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { raw, expected } = c;
+
+      // Act
+      const name = typedCommand(raw, "dev-batches");
+
+      // Assert
+      strictEqual(name, expected);
     });
   }
 });

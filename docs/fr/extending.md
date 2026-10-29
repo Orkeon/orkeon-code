@@ -117,7 +117,7 @@ prompt tel que le modèle le lit, et un changement se relit donc comme le diff d
   utilisateur (préférences, skills, mémoire, hooks, environnement, historique, jauge, requête) : une fonction de
   rendu `build<Name>Block` par bloc, un champ de `PromptParts`, une place dans l'ordre fixe d'`assemblePrompt`.
   L'entrée d'un bloc est lue dans `application/context-gather.ts`, par les ports, et passée dans
-  `application/turn-prompt.ts` ; les réglages qu'une session fixe (`/effort`, `/passes`, `/fast`, `/proactive`,
+  `application/turn-prompt.ts` ; les réglages qu'une session fixe (`/effort`, `/passes` de `/review`, `/fast`, `/proactive`,
   `/output-style`, `answer.language`) voyagent de la même façon.
 - **Compaction et mémoire.** `src/shared/domain/compaction.ts` tient les prompts de résumé et d'extraction de mémoire
   et les marqueurs que le modèle relit ensuite dans son historique ; `src/shared/application/compaction/` les exécute.

@@ -1,7 +1,7 @@
 // @orkeon-script 1.0
 /// <reference path="../.orkeon/orkeon.d.ts" />
 //
-// DevVerify crew (/dev-verify). Composition root: it builds the auditor agent from its
+// DevVerify crew (dev-verify). Composition root: it builds the auditor agent from its
 // charter and wires application/run-dev-verify, which checks the batch's gate, writes
 // the capture under <work>/<code>/capture-F<n>/, measures the access cost over the code index
 // (index_status, incremental_reindex, access_cost), runs the whole suite under full, asks

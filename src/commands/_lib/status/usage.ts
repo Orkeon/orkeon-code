@@ -1,5 +1,5 @@
 // /usage — the token usage against the context window (pressure tier, compaction trigger), the
-// session's calls, tokens, cost and cache tokens in one row, then the usage by model and by
+// session's calls, tokens, cost, estimated tokens, cache tokens and cache ratio in one row, then the usage by model and by
 // command the host accounts (Orkeon #226). runUsage reads the rows over the ports. Lives under
 // commands/_lib/ — the loader's SearchPattern is "*.cmd.ts", so this file is never loaded as a command.
 
@@ -63,6 +63,12 @@ export function usageBreakdown(report: UsageReport | undefined): string {
   return lines.join("\n");
 }
 
+/** The share of the session's tokens read from the cache, to two decimals; `-` when the host reports no cache or no
+ *  token. */
+export function cacheRatio(cacheRead: number | "-", tokens: number): string {
+  return cacheRead !== "-" && tokens > 0 ? (cacheRead / tokens).toFixed(2) : "-";
+}
+
 /** `/usage`: the one row, each figure read best effort, then the breakdown. */
 export async function runUsage(deps: UsageDeps): Promise<CommandView> {
   const [{ used, window }, s, c, trigger] = await Promise.all([
@@ -72,6 +78,7 @@ export async function runUsage(deps: UsageDeps): Promise<CommandView> {
     readCompactionTrigger(deps.config),
   ]);
   const report = deps.usage?.report();
+  const cache = cacheColumns(s);
   return {
     table: [{
       usedTokens: used,
@@ -84,7 +91,9 @@ export async function runUsage(deps: UsageDeps): Promise<CommandView> {
       llmTokens: report?.totalTokens ?? s.totalTokens ?? 0,
       costUsd: report ? (report.cost ?? "(unpriced)") : (c.costUsd ?? 0),
       ...(report ? { unpricedCalls: report.unpricedCalls } : {}),
-      ...cacheColumns(s),
+      ...cache,
+      estTokens: s.estimatedTokens ?? 0,
+      cacheRatio: cacheRatio(cache.cacheRead, s.totalTokens ?? 0),
     }],
     text: usageBreakdown(report),
   };

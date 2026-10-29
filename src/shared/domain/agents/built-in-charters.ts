@@ -2,6 +2,7 @@
 // and whose rule sets apply to it. The charters themselves live beside their step (the reviewer in
 // shared/domain/dev/, the auditor in crews/dev-verify/domain/); /agents lists these rows and the
 // agent-run crew repairs an instance of one by a new run. Pure.
+import { stepCommand } from "../dev/step-rules.ts";
 
 export interface BuiltInCharter {
   name: string;
@@ -37,6 +38,6 @@ export function builtInCharterRows(): Array<{ name: string; kind: string; detail
   return BUILT_IN_CHARTERS.map((c) => ({
     name: c.name,
     kind: "charter (built-in)",
-    detail: `${c.role} — runs as a background child of ${c.steps.map((s) => `/${s}`).join(", ")}; /tasks lists, stops and repairs it`,
+    detail: `${c.role} — runs as a background child of ${[...new Set(c.steps.map((s) => `/${stepCommand(s)}`))].join(", ")}; /tasks lists, stops and repairs it`,
   }));
 }

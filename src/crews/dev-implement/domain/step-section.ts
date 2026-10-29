@@ -1,4 +1,4 @@
-// What /dev-implement reads off one batch sheet: per step its tests table, its TDD line and its
+// What dev-implement reads off one batch sheet: per step its tests table, its TDD line and its
 // `## Anchors` row, and for the whole batch the `## Code elements`, the `Applied rules` and
 // `Access cost` rows of `## Design` and the `## Test policy and scopes` text. Line-based over
 // plan-format's unfenced lines, as the sheet is written by /dev-plan. Pure, never throws.

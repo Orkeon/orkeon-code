@@ -1,4 +1,4 @@
-// The shell lines /dev-verify runs, every one frozen here so that the gate, the capture
+// The shell lines dev-verify runs, every one frozen here so that the gate, the capture
 // and their tests share one spelling. The runtime's shell runs a command line without
 // operators: quoting is the only syntax used. A builder gives null when a path or name
 // cannot be quoted, or when a list it needs is left empty once the unquotable entries are

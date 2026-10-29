@@ -14,7 +14,7 @@
 // definition into a running agent, so the registry is honest storage, and the
 // command says so rather than implying a launch. What does run as an agent is
 // listed beside it: the built-in charters (A-3), each a background child of its
-// dev step (the reviewer of /dev-plan, the auditor of /dev-verify), which /tasks
+// dev step (the reviewer of /dev-plan, the auditor of the audit), which /tasks
 // lists, stops, sends to and repairs.
 
 import type { CrewHost, Files } from "../../../shared/application/ports.ts";
@@ -35,7 +35,7 @@ export const AGENTS_USAGE =
 
 /** What the listing says of the saved agents, and of what runs instead. */
 export const SAVED_AGENTS_NOTE =
-  "saved agents are storage only — no command runs one; the built-in charters run as children of /dev-spec, /dev-change, /dev-plan and /dev-verify (/tasks).";
+  "saved agents are storage only — no command runs one; the built-in charters run as children of /dev-spec, /dev-plan and /dev-batches (/tasks).";
 
 export interface AgentsDeps {
   files: Pick<Files, "read" | "write">;

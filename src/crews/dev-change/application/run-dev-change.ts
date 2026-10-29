@@ -1,7 +1,8 @@
-// /dev-change's use case: checks the inputs and the checkout, finds the code's folder (a spec there refuses: one
-// source per code), reads the origin whole, runs the reproduction of a bug or the measurement of a perf change
+// The change brief's use case (/dev-spec with a kind, or its alias /dev-change): checks the inputs and the checkout,
+// finds the code's folder (a spec there refuses: one source per code), reads the origin whole, runs the reproduction of a bug or the measurement of a perf change
 // before anything else is written (a bug that does not fail stops), inventories the code by the index, asks the
-// model for the brief as JSON (once more on a refused answer; a request that is a feature is sent to /dev-spec),
+// model for the brief as JSON (once more on a refused answer; a new brief the model routes as a feature goes on as
+// a spec in the same run, runDevSpec over the same ports),
 // renders, self-checks and writes CHANGE-<code>.md, then asks its open questions through human_input - each answer
 // written before the next question - folds them in, and has the read-only reviewer question the brief once. With
 // nobody to answer, the questions stay in the file and the run ends BLOCKED. An existing brief is revised.
@@ -31,6 +32,7 @@ import {
 } from "../domain/change-render.ts";
 import { noPrecedents, precedentsLine, recallQuery } from "../../../shared/application/dev/step-precedents.ts";
 import type { StepPrecedents } from "../../../shared/application/dev/step-precedents.ts";
+import { runDevSpec } from "../../dev-spec/application/run-dev-spec.ts";
 import { buildChangePrompt } from "./change-prompt.ts";
 import type { ChangePromptInput } from "./change-prompt.ts";
 import { factLines, pickCommand, readOrigin, reproFile, runEvidence, runStop } from "./evidence.ts";
@@ -47,7 +49,7 @@ const STEP = "dev-change";
 const KINDS: readonly ChangeKind[] = ["bug", "refactor", "perf"];
 const HEADINGS = { questions: CHANGE_QUESTIONS_SECTION, decisions: CHANGE_DECISIONS_SECTION };
 export const DEV_CHANGE_NEXT = "→ Next step, once you have validated the brief: /dev-plan {code}";
-export const FEATURE_LINE = "→ This is a feature, not a change of what exists: /dev-spec {code}";
+export const FEATURE_LINE = "→ a feature, not a change: the spec SPEC-{code}.md follows";
 
 type Drafted = { feature: true } | { feature: false; text: string; open: Question[]; unknown: string[] };
 
@@ -112,7 +114,7 @@ export async function runDevChange(input: DevChangeInputs, deps: DevChangeDeps):
 
   // 2. One source per code; an existing brief is revised, its kind kept.
   if (folder.names.includes(`SPEC-${code}.md`)) {
-    return `${STEP}: ${folder.shown}/SPEC-${code}.md exists: a code has one source; revise it with /dev-spec ${code}, or pick another code`;
+    return `${STEP}: ${folder.shown}/SPEC-${code}.md exists: a code has one source; revise it with /dev-spec ${code} (no kind), or pick another code`;
   }
   const brief = folder.file(changeFileName(code));
   let existing: string | null = null;
@@ -129,7 +131,7 @@ export async function runDevChange(input: DevChangeInputs, deps: DevChangeDeps):
     return `${STEP}: ${brief.shown} is a ${fileKind} change: a brief keeps its kind; pick another code for a ${kindIn}`;
   }
   const kind = (fileKind ?? kindIn) as ChangeKind | "";
-  if (kind === "") return `${STEP}: name the kind: /dev-change ${code} bug|refactor|perf [--run "<command>"] <origin>`;
+  if (kind === "") return `${STEP}: name the kind: /dev-spec ${code} bug|refactor|perf [--run "<command>"] <origin>`;
   if (given !== "" && kind === "refactor") return `${STEP}: --run is for a bug or a perf change; a refactor is pinned by its tests`;
 
   // 3. The origin (a new brief) or the request (a revision).
@@ -137,7 +139,7 @@ export async function runDevChange(input: DevChangeInputs, deps: DevChangeDeps):
   let originFrom = "";
   let request = "";
   if (existing === null) {
-    if (typed === "") return `${STEP}: a new brief needs its origin: /dev-change ${code} ${kind} <#issue | path | text>`;
+    if (typed === "") return `${STEP}: a new brief needs its origin: /dev-spec ${code} ${kind} <#issue | path | text>`;
     const origin = await readOrigin(STEP, deps, typed);
     if ("refused" in origin) return origin.refused;
     originText = origin.text;
@@ -231,7 +233,11 @@ export async function runDevChange(input: DevChangeInputs, deps: DevChangeDeps):
       }, questionsOf(decisions0, open0), decisions0);
       if (!asked.ok) return [`${STEP}: the brief was refused twice; nothing is written.`, ...problemLines(asked.problems)].join("\n");
       if (asked.drafted.feature) {
-        return [`${STEP}: the request is a new promise, not a change of what exists; no brief is written.`, FEATURE_LINE.replace("{code}", code)].join("\n");
+        // A new brief goes on as a spec in the same run, over the same ports; a brief that exists keeps its code.
+        if (existing !== null) {
+          return `${STEP}: the request is a new promise, not a change of what exists; ${brief.shown} is kept: a feature takes a code of its own (/dev-spec <code> <brief>)`;
+        }
+        return [FEATURE_LINE.replace("{code}", code), await runDevSpec({ code, request: originText }, deps)].join("\n");
       }
       warnings.push(...asked.drafted.unknown.map((n) => `'${n}' is no test the code index shows: its row reads unpinned`));
       state = { text: asked.drafted.text, open: asked.drafted.open, decisions: decisions0 };
@@ -294,10 +300,10 @@ export async function runDevChange(input: DevChangeInputs, deps: DevChangeDeps):
     if (blocked) {
       lines.push(
         `${STEP}: BLOCKED — a question went unanswered; the open questions are in ${brief.shown} § 8.`,
-        `→ Answer them: /dev-change ${code} in an interactive session, or edit the file; nothing was decided for you.`,
+        `→ Answer them: /dev-spec ${code} ${kind} in an interactive session, or edit the file; nothing was decided for you.`,
       );
     } else if (blockingLeft.length > 0) {
-      lines.push(`→ ${blockingLeft.map((q) => q.id).join(", ")} still Blocking: /dev-plan refuses the brief until settled: /dev-change ${code}, or edit the file.`);
+      lines.push(`→ ${blockingLeft.map((q) => q.id).join(", ")} still Blocking: /dev-plan refuses the brief until settled: /dev-spec ${code} ${kind}, or edit the file.`);
     } else {
       lines.push(DEV_CHANGE_NEXT.replace("{code}", code));
     }

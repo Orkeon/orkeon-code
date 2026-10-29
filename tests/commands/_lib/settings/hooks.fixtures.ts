@@ -15,4 +15,4 @@ export function sessionWithHooks(hooks: readonly { event: string; command: strin
 export const PRE_TOOL_HOOK = { event: "pre-tool", command: "node .orkeon/hooks/pre.mjs {tool}" };
 
 /** Every dev step that takes the hooks. */
-export const HOOKED_STEPS = ["/dev-spec", "/dev-change", "/dev-plan", "/dev-implement", "/dev-batches", "/dev-verify", "/tasks repair"];
+export const HOOKED_STEPS = ["/dev-spec", "/dev-plan", "/dev-batches", "/tasks repair"];

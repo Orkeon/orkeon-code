@@ -171,13 +171,13 @@ export function parsePlanSource(text: string, kind: SourceKind): PlanSource {
 
 /** The stop message: the rows, then the next command. Pure text, shared by the command and the crew. */
 export function blockingStop(shown: string, kind: SourceKind, code: string, rows: readonly OpenQuestion[]): string {
-  const settle = kind === "change" ? "/dev-change" : "/dev-spec";
+  const settle = "/dev-spec";
   const shownRows = rows.slice(0, MAX_SHOWN_ROWS).map((r) => `  ${r.raw.trim().slice(0, MAX_SHOWN_ROW)}`);
   const more = rows.length > MAX_SHOWN_ROWS ? [`  … ${rows.length - MAX_SHOWN_ROWS} more`] : [];
   return [
     `dev-plan: ${shown} has ${rows.length} open Blocking question(s); no plan is written.`,
     ...shownRows,
     ...more,
-    `→ Settle them first: ${settle} ${code}, or edit the file; then /dev-plan ${code}.`,
+    `→ Settle them first: ${settle} ${code}${kind === "change" ? " <its kind: bug, refactor or perf>" : ""}, or edit the file; then /dev-plan ${code}.`,
   ].join("\n");
 }

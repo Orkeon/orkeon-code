@@ -22,12 +22,12 @@ demandent d'abord un changement dans [Orkeon](https://github.com/Orkeon/orkeon).
 
 ## Plus tard
 
-- Des sous-agents au-delà des étapes dev : les revues de `/dev-spec`, `/dev-change` et `/dev-plan` et l'audit de
-  `/dev-verify` tournent en enfants d'arrière-plan (`ctx.spawnBackground`) que `/tasks` suit ; un agent enregistré par `/agents` n'est encore que
+- Des sous-agents au-delà des étapes dev : les revues de `/dev-spec` et `/dev-plan` et l'audit de
+  `/dev-batches` tournent en enfants d'arrière-plan (`ctx.spawnBackground`) que `/tasks` suit ; un agent enregistré par `/agents` n'est encore que
   stocké, et l'assistant ne délègue pas.
 - L'éditeur structurel (`node_*`, `edit_batch`, `structural_rewrite`) dans les prompts de l'assistant : les outils
   sont au catalogue, les prompts de l'assistant ne les enseignent pas encore. Les étapes dev en utilisent une partie, branchée dans
-  `/dev-implement` : ses rôles lisent et modifient un fichier par nœud (`node_replace`, `node_insert`, `node_ensure`,
+  `/dev-batches` : ses rôles lisent et modifient un fichier par nœud (`node_replace`, `node_insert`, `node_ensure`,
   `edit_batch`) et le lot lit `affected_tests` et rafraîchit l'index (`incremental_reindex`) ; les relecteurs
   cherchent avec `structural_search`. Trois parties attendent :
   - `structural_rewrite` reste refusé en entier dans les étapes dev, essai à blanc compris : il prend ses chemins en
@@ -49,7 +49,7 @@ demandent d'abord un changement dans [Orkeon](https://github.com/Orkeon/orkeon).
 - Un résultat d'outil arrive au modèle coupé à 4000 caractères : 32 000 pour `file_read`, 256 000 pour `node_read`,
   10 000 pour `shell_command`. La coupe se règle par outil avec `Orkeon:Tools:ResultLimits`
   ([Configuration](configuration.md)).
-- `/tasks` ne suit que les enfants de `/dev-spec`, `/dev-change`, `/dev-plan` et `/dev-verify`, par l'état de session : un arrêt attend le
+- `/tasks` ne suit que les enfants de `/dev-spec`, `/dev-plan` et `/dev-batches`, par l'état de session : un arrêt attend le
   prochain regard du crew (environ une seconde), et un envoi à une instance finie est un nouveau run qui ne connaît
   que le rapport précédent, pas son contexte.
 - Certaines commandes ne font qu'en partie ce que leur nom promet : `/summary` (pas enregistré en mémoire).

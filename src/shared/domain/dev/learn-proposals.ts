@@ -169,6 +169,6 @@ export function patchLines(motif: Motif): string[] {
 export function acceptLines(motif: Motif): string[] {
   const head = motif.owner.kind === "harness"
     ? `accepted ${motif.id} — ${motif.title}: a harness file is never edited here; apply this in the orkeon-workshop repository:`
-    : `accepted ${motif.id} — ${motif.title}: ${motif.owner.path} is not edited by /dev-learn; make the change in a batch (/dev-change, or by hand):`;
+    : `accepted ${motif.id} — ${motif.title}: ${motif.owner.path} is not edited by /dev-learn; make the change in a batch (/dev-spec <code> refactor, or by hand):`;
   return [head, ...patchLines(motif).map((l) => `  ${l}`)];
 }

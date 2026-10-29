@@ -1,6 +1,9 @@
-// /memory <list|add|delete|get> ... — typed memory CRUD (SPEC §5.2).
+// /memory <list|add|delete|get|admit> ... — typed memory CRUD (SPEC §5.2), and the shared memory's gate.
 //   /memory list [category]   /memory add <category> <content...>
 //   /memory delete <id>       /memory get <id>
+//   /memory admit [<id>…] | --refuse <id> [motif] | --list | --import   (memory-admit.ts)
+// Two aliases keep their own shape: /feedback <text> adds a 'feedback' memory, the agent replays it on every
+// /assistant turn; /memory-admit's tokens are the admit arguments.
 
 import type { MemoryStore } from "../../../shared/application/ports.ts";
 import { parseMemoryArgs } from "../args.ts";
@@ -10,8 +13,23 @@ export interface MemoryDeps {
   memory: MemoryStore;
 }
 
-/** `/memory [list|add|delete|get] …`, from the command's raw tokens. */
-export async function runMemory(tokens: string[], deps: MemoryDeps): Promise<CommandView> {
+/** The admit arguments of a line typed `/memory admit …` or `/memory-admit …`; null when the line is not an admission. */
+export function admitTokens(tokens: readonly string[], typed: string): string[] | null {
+  if (typed === "memory-admit") return [...tokens];
+  if (typed === "memory" && (tokens[0] ?? "").toLowerCase() === "admit") return tokens.slice(1);
+  return null;
+}
+
+/** `/feedback <text>`: a 'feedback' memory, the reply saying the agent replays it. */
+async function runFeedback(tokens: string[], deps: MemoryDeps): Promise<CommandView> {
+  if (tokens.join(" ").trim() === "") return { text: "usage: /feedback <what should change or keep happening>" };
+  await runMemory(["add", "feedback", ...tokens], deps);
+  return { text: "feedback recorded — the agent replays feedback memories on every /assistant turn." };
+}
+
+/** `/memory [list|add|delete|get] …`, from the command's raw tokens; typed by its alias `feedback`, an add of a feedback. */
+export async function runMemory(tokens: string[], deps: MemoryDeps, typed = "memory"): Promise<CommandView> {
+  if (typed === "feedback") return runFeedback(tokens, deps);
   const { memory } = deps;
   const parsed = parseMemoryArgs(tokens);
 

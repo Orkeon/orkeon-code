@@ -7,8 +7,8 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import {
-  DEV_LEARN_USAGE, DEV_PLAN_USAGE, DEV_STATUS_USAGE, DEV_VERIFY_USAGE, MAX_LINE_CHARS,
-  devPlanGate, parseDevLearnArgs, parseDevPlanArgs, parseDevVerifyArgs, runDevLearnDecision, runDevStatus,
+  DEV_LEARN_USAGE, DEV_PLAN_USAGE, DEV_STATUS_USAGE, MAX_LINE_CHARS,
+  devPlanGate, parseDevLearnArgs, parseDevPlanArgs, runDevLearnDecision, runDevStatus,
 } from "../../../../src/commands/_lib/dev/dev.ts";
 import { serializeLearnState } from "../../../../src/shared/domain/dev/learn-state.ts";
 import {
@@ -38,9 +38,6 @@ import {
   REPO_ACCEPTED_LINE,
   SPEC,
   STATE,
-  VERIFY_ACCEPTED_CASES,
-  VERIFY_REFUSED_CASES,
-  VERIFY_USAGE_TEXT,
   addBareFolder,
   addUnreadableProposals,
   devDeps,
@@ -236,45 +233,6 @@ describe("/dev-status output size", () => {
     ok(lines.includes("… 37 more batches (F16 to F111)"), lines.join("\n"));
     ok(lines.some((l) => /^… \d+ more warnings$/.test(l)));
   });
-});
-
-describe("parseDevVerifyArgs", () => {
-  it("states its usage line", () => {
-    // Arrange
-    const expected = VERIFY_USAGE_TEXT;
-
-    // Act
-    const usage = DEV_VERIFY_USAGE;
-
-    // Assert
-    strictEqual(usage, expected);
-  });
-
-  for (const c of VERIFY_REFUSED_CASES) {
-    it(`${c.name}, with its own text`, () => {
-      // Arrange
-      const { tokens } = c;
-
-      // Act
-      const parsed = parseDevVerifyArgs(tokens);
-
-      // Assert
-      assertRefusedWith(parsed, c.text);
-    });
-  }
-
-  for (const c of VERIFY_ACCEPTED_CASES) {
-    it(c.name, () => {
-      // Arrange
-      const { tokens } = c;
-
-      // Act
-      const parsed = parseDevVerifyArgs(tokens);
-
-      // Assert
-      deepStrictEqual(parsed, { ok: true, args: c.args });
-    });
-  }
 });
 
 describe("parseDevLearnArgs", () => {

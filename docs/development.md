@@ -19,9 +19,10 @@ CI (`.github/workflows/ci.yml`) runs, as separate steps on every pull request an
 check, the bundle check, the provenance gate, the two command pages up to date, the documentation parity and the file
 modes (that is `npm run check` plus the file modes). `runtime-smoke.yml` runs the smoke on the pinned image every
 Monday, on demand (`workflow_dispatch`), and on a pull request that touches `.orkeon-version`, `orkeon-code`,
-`scripts/smoke-runtime.sh` or `src/commands/**`. Until Orkeon `1.0.0-rc.6` is published, that image does not exist and
-the job fails: run the smoke in source mode instead,
-`ORKEON_SOURCE=<path to an Orkeon checkout> bash scripts/smoke-runtime.sh --mode source`.
+`scripts/smoke-runtime.sh` or `src/commands/**`. While the registry has no image at the pinned version (the
+`1.0.0-rc.6` image is not published yet), the job builds the REPL from Orkeon's sources at the commit
+`ORKEON_SOURCE_REF` names in the workflow, the one the last ADR validated, and runs the source mode; locally,
+`ORKEON_SOURCE=<path to an Orkeon checkout> bash scripts/smoke-runtime.sh --mode source` is the same check.
 
 ## Running a crew alone
 
@@ -33,7 +34,7 @@ ORKEON_CODE_WORKSPACE=~/src/app bash scripts/run-crew.sh src/crews/project-init/
 It uses the `orkeon` tool (`Orkeon.Scripting.Cli`, nuget.org, pinned in `.config/dotnet-tools.json`; the .NET SDK
 that restores and runs it is pinned by `global.json`, like Orkeon's: `10.0.300` with `rollForward: latestFeature`) or the
 `orkeon-runners` image, on the demo fixture unless `ORKEON_CODE_WORKSPACE` says otherwise. Both are the pinned
-release: until `1.0.0-rc.6` is published, the script cannot run in those two modes;
+release: the tool is on nuget.org at `1.0.0-rc.6`, the image is not published yet at that tag;
 `ORKEON_CODE_MODE=source ORKEON_SOURCE=<checkout>` runs it from an Orkeon checkout, built on the spot. That tool reads its script limits from
 `Orkeon:Scripting:Limits`, not from the REPL's `Orkeon:Cli:ScriptCommands:Limits`
 ([Configuration](configuration.md#settings-orkeon-code-relies-on)).

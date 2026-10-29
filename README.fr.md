@@ -37,37 +37,38 @@ chaque prompt est un fichier source : modifiez-le, ou ajoutez le vôtre.
   l'active, et l'assistant transcrit notes vocales, réunions et vidéos d'écran sur votre machine ; `/voice` dicte une
   requête et `/say` lit à voix haute ([Configuration](docs/fr/configuration.md#transcription-de-la-parole)).
 - **Des crews pour les tâches récurrentes** : `/init` (décrire le projet pour l'agent), `/commit` (un commit
-  conventionnel tiré du diff), `/review`, `/security-review` (revue de code multi-angles), `/analyze`
+  conventionnel tiré du diff), `/review` (revue de code multi-angles ; `--lens security` pour le seul angle sécurité), `/analyze`
   (analyse déterministe du code), `/compact` et `/summary` (gestion du contexte), `/init-verifiers`, `/advisor`.
-- **Un workflow dev, étape par étape** : `/dev-spec` ou `/dev-change` écrit la spec ou la fiche de changement,
-  `/dev-plan` la découpe en lots qu'un relecteur en lecture seule questionne, `/dev-implement` exécute un lot en
-  test d'abord (tests rouges, puis le moindre code, puis un audit en lecture seule) et le clôt par un commit,
-  `/dev-verify` audite un lot, `/dev-batches` exécute les lots d'un plan l'un après l'autre, `/dev-status` dit où en
+- **Un workflow dev, étape par étape** : `/dev-spec` écrit la spec ou la fiche de changement,
+  `/dev-plan` la découpe en lots qu'un relecteur en lecture seule questionne, `/dev-batches` exécute les lots d'un
+  plan l'un après l'autre, chacun en test d'abord (tests rouges, puis le moindre code, puis un audit en lecture seule)
+  et clos par un commit (`<code> F<n>` un lot, `<code> F<n> --audit` son audit seul), `/dev-status` dit où en
   est un travail et `/dev-learn` propose des règles à partir des écarts récurrents des audits. Chaque étape s'exécute
   sous des règles de refus que son crew vérifie à nouveau
   ([Permissions](docs/fr/permissions.md#jeux-de-règles-des-étapes-dev)).
 - **Une mémoire partagée** : décisions, structures, méthodes et erreurs que les étapes retrouvent, admises seulement
-  par `/memory-admit` ([Mémoire partagée](docs/fr/shared-memory.md)).
+  par `/memory admit` ([Mémoire partagée](docs/fr/shared-memory.md)).
 - **Gestion du contexte** : compaction automatique avec disjoncteur, `/compact` qui tronque d'abord, restauration des
   fichiers après compaction, paliers de pression du contexte, mémoire durable typée (`/memory`).
-- **58 commandes slash** au total : [docs/fr/commands.md](docs/fr/commands.md).
+- **48 commandes slash** au total : [docs/fr/commands.md](docs/fr/commands.md).
 
 ## Démarrage rapide
 
-Il faut le runtime Orkeon `1.0.0-rc.6` et une clé d'API pour un fournisseur LLM pris en charge par Orkeon (tout point
-d'accès compatible OpenAI, Anthropic...). **Tant qu'Orkeon `1.0.0-rc.6` n'est pas tagué, seul le mode source du
-lanceur fonctionne** : faites pointer `ORKEON_SOURCE` sur un checkout d'Orkeon et ajoutez `--mode source` aux
-commandes ci-dessous ; les modes docker et tool, ainsi que le smoke runtime de la CI, attendent le tag. Une fois
-celui-ci publié, l'un ou l'autre fait tourner Orkeon Code :
+Il faut le runtime Orkeon `1.0.0-rc.6` (publié le 2026-10-28) et une clé d'API pour un fournisseur LLM pris en charge
+par Orkeon (tout point d'accès compatible OpenAI, Anthropic...). Chacun de ces trois fait tourner Orkeon Code :
 
-- **Docker** : l'image `orkeon-runners` (amd64 et arm64), rien d'autre à installer ;
-- **`orkeon-repl`**, du paquet Debian/Ubuntu `orkeon` (amd64 et arm64 ; une release candidate est publiée sur le canal apt `rc`, le canal
-  `stable` par défaut ne porte que les versions finales) ou de
+- **`orkeon-repl`**, du paquet Debian/Ubuntu `orkeon` (amd64 et arm64 ; une release candidate est publiée sur le canal
+  apt `rc`, le canal `stable` par défaut ne porte que les versions finales) ou de
   l'[archive de release d'Orkeon](https://github.com/Orkeon/orkeon/releases) de votre plateforme (Linux x64 et arm64,
-  macOS x64 et arm64, `.zip` Windows x64), autonome : aucun .NET à installer.
+  macOS x64 et arm64, `.zip` Windows x64), autonome : aucun .NET à installer ;
+- **Docker** : l'image `orkeon-runners` (amd64 et arm64), rien d'autre à installer, **dès que son tag `1.0.0-rc.6`
+  sera publié** : le registre s'arrête à rc.5 pour l'instant, et le smoke runtime de la CI construit le REPL depuis
+  les sources d'Orkeon tant qu'il ne trouve pas l'image ;
+- **un checkout d'Orkeon** : `ORKEON_SOURCE=<checkout> ./orkeon-code --mode source`.
 
-**Windows** : `orkeon-code.ps1` n'a ni mode source ni `--demo` (`-Mode` accepte `docker` ou `tool`) ; tant que
-`1.0.0-rc.6` n'est pas tagué, rien ne tourne donc nativement. Utilisez WSL avec le lanceur bash d'ici là.
+**Windows** : `orkeon-code.ps1` n'a ni mode source ni `--demo` (`-Mode` accepte `docker` ou `tool`) : le mode tool sur
+le `orkeon-<version>-win-x64.zip` de la release est celui de Windows ; la voie que ce projet pratique est WSL avec le
+lanceur bash ([tutoriel](docs/fr/wsl-tutorial.md)).
 
 Orkeon Code lui-même s'installe depuis une release (`install.sh`, `install.ps1`) ou depuis npm (`npm install -g
 orkeon-code@next`), ou tourne depuis un clone comme ci-dessous. Détails : [Premiers pas](docs/fr/getting-started.md).

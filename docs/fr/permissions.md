@@ -11,7 +11,7 @@ agissent à deux niveaux, et une étape dev en ajoute un troisième :
    outil déclare (lecture, modification, exécution). Quand le mode dit de demander, il vous demande. La garde est
    `Orkeon:Security:PermissionGate:Enabled` : le lanceur l'active sauf si votre fichier de settings la désactive, et
    sans elle ni les modes ni les règles ne sont appliqués. Laissez-la active.
-3. **Le callback du crew**, dans les étapes dev seulement (`/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement`, `/dev-verify` et `/dev-batches`, et l'agent que `/tasks repair` relance). Une fois l'appel permis par la garde, le
+3. **Le callback du crew**, dans les étapes dev seulement (`/dev-spec`, `/dev-plan` et `/dev-batches`, et l'agent que `/tasks repair` relance). Une fois l'appel permis par la garde, le
    `onToolCall` du crew le contrôle à nouveau : les [jeux de règles](#jeux-de-règles-des-étapes-dev) de l'étape (et les
    racines d'un rôle, pour les rôles d'un lot), `glob`, `grep` et `count_pattern` sur toute leur entrée, puis les
    [hooks](hooks.md) `pre-tool` ; après l'appel, les hooks `post-tool`. Il peut refuser un appel, jamais permettre un
@@ -27,7 +27,7 @@ voit pas non plus : `/commit` décide comme la garde le ferait, refuse en `plan`
 qu'une règle deny couvre l'appel, et l'ouvre avec une règle allow (`allow github action=create_pr`), en
 `bypassPermissions`, ou après que vous avez répondu oui à son plan qui nommait la pull request (`--yes` ne demande
 rien, il lui faut donc la règle) ;
-`/branch` bascule de branche, `/diff` et `/review`, `/security-review` lancent `git`, `/init` écrit le fichier
+`/branch` bascule de branche, `/diff` et `/review` lancent `git`, `/init` écrit le fichier
 d'instructions, `/init-verifiers` et `/export` écrivent leurs fichiers, la compaction écrit le tampon de session et la
 mémoire typée. Ces appels sont ce pour quoi la commande que vous avez tapée existe : aucune règle, aucun mode, aucune
 question ne s'y applique. `/commit` vérifie lui-même le mode et refuse en `plan` et en `dontAsk`. Ses commandes git
@@ -41,7 +41,7 @@ modèle travaille ensuite sur la transcription sous le mode du tour. `/voice` en
 `/voice send` remet le texte dicté à un tour comme le ferait un texte tapé (un `plan:` en tête, en minuscules, choisit
 le mode), et `--go` à un tour sous le mode de la session, choisi avant l'enregistrement : aucun préfixe dicté n'est lu.
 `/say` lit à voix haute de la même façon, et de même la lecture de chaque réponse sous `voice.reply on`, faite par la
-boucle principale après le tour comme appel de la commande qui l'a lancée. `/dev-verify` lance `git`, le build du
+boucle principale après le tour comme appel de la commande qui l'a lancée. L'audit de `/dev-batches` (`<code> F<n> --audit`) lance `git`, le build du
 pack et les commandes de test qu'il accepte depuis son propre code, dans tous les modes ; son auditeur ne fait que
 lire, en `plan`, avec cinq outils de lecture.
 `/dev-learn` lit les fichiers de verdict et les deux états d'apprentissage. Il n'écrit que `<work>/learn-<date>/`,
@@ -49,15 +49,15 @@ lire, en `plan`, avec cinq outils de lecture.
 proposition nomme.
 `/dev-plan` lit la spec ou la fiche de changement, le pack et l'index du code. Il n'écrit que
 `<work>/<code>/<CODE>-PLAN.md`, les fiches de lot et `plan.json`, jamais un fichier sous `.claude/` ; son relecteur ne
-fait que lire, en `plan`, avec neuf outils de lecture. `/dev-spec` et `/dev-change` lisent la demande (une issue par
-`gh issue view`), le pack et l'index du code, et n'écrivent que `<work>/<code>/SPEC-<code>.md`, ou `CHANGE-<code>.md`
-et `repro-<code>.txt` ; `/dev-change` lance la commande de reproduction ou de mesure, une commande de test étroite du
-pack, depuis son propre code, une fois que les jeux de règles de l'étape l'autorisent. `/dev-implement` lance le
+fait que lire, en `plan`, avec neuf outils de lecture. `/dev-spec` lit la demande (une issue par
+`gh issue view`), le pack et l'index du code, et n'écrit que `<work>/<code>/SPEC-<code>.md`, ou `CHANGE-<code>.md`
+et `repro-<code>.txt` ; pour une fiche de changement il lance la commande de reproduction ou de mesure, une commande de test étroite du
+pack, depuis son propre code, une fois que les jeux de règles de l'étape l'autorisent. Un lot de `/dev-batches` (`<code> F<n>`) lance le
 restore, le build et la suite du pack depuis son propre code ; ses deux rôles écrivent en `acceptEdits`, chacun dans ses
 racines, et après un verdict VALID sa clôture commite par leur nom les fichiers que les rôles ont changés, et pousse la
 branche, sauf si une règle de session refuse le push. Il remet la
 vérification de la garde et ses règles avant chaque lancement de sa chaîne (l'audit, puis la clôture). `/dev-batches`
-exécute cette chaîne pour chaque lot d'un plan sous les jeux de règles de `/dev-implement` ; la clôture de chaque lot
+exécute cette chaîne pour chaque lot d'un plan sous les mêmes jeux de règles ; la clôture de chaque lot
 commite sans pousser (une clôture tapée pendant l'exécution aussi), et celle du plan pousse la branche une seule fois,
 sauf si une règle de session refuse le push, et ouvre une seule pull request (`--pr` ou `dev.prAuto`), sinon en remet la
 commande ; sur la branche par défaut, elle ne pousse rien et remet le push. Avec `--concurrency` de 2 à 4, il exécute une vague
@@ -66,11 +66,13 @@ branche `batches/<code>/F<n>`) : seulement en `bypassPermissions`, puisque deux 
 seulement là où git fonctionne dans le worktree d'un lot (une première sonde le vérifie : sous Bubblewrap, un runtime
 antérieur à Orkeon/orkeon#191 ne monte pas le répertoire git du worktree), et seulement avec tout `.orkeon/` ignoré par git (`.gitignore` ou `.git/info/exclude`),
 puisque les worktrees et l'état dev qui y est amorcé s'y trouvent ; chaque refus tient en une ligne, avant tout lot.
-Chaque lot tourne sous son propre budget d'appels d'outils, de temps réel et de jetons ; celui qui s'arrête garde son worktree, son code,
+Chaque lot tourne sous son propre budget d'appels d'outils, de temps réel et de jetons ; un verdict GAPS
+relance aussitôt son lot dans son worktree, ses lignes Blocking et Major pour correction, jusqu'à trois tours d'audit
+en GAPS ; celui qui s'arrête (BLOCKED, ou un troisième tour d'audit encore GAPS) garde son worktree, son code,
 sa fiche et son verdict n'étant que là, et les dernières lignes de l'exécution le nomment avec la commande qui l'y
 relance (`/dev-batches <code> --concurrency <n>`, la correction d'un verdict GAPS d'abord), pour qu'un humain
-décide. `/dev-spec`, `/dev-change`, `/dev-plan`,
-`/dev-implement` et `/dev-batches` refusent de démarrer dans un mode en lecture seule (`plan`, `dontAsk`), dans un mode
+décide. `/dev-spec`, `/dev-plan` et
+`/dev-batches` refusent de démarrer dans un mode en lecture seule (`plan`, `dontAsk`), dans un mode
 qu'Orkeon Code ne connaît pas, et quand le mode de la session ne peut pas être lu. Les six placent d'abord dans la garde les
 [jeux de règles des étapes dev](#jeux-de-règles-des-étapes-dev), et refusent de démarrer tant que la garde est inactive
 ; le callback de leur crew contrôle à nouveau les mêmes jeux, seul contrôle de ceux-ci sous `orkeon run`.
@@ -94,7 +96,7 @@ REPL : `approve <tool>? [y] once / [s] session / [n] no`. `y` exécute l'appel, 
 suivants de cet outil sans demander jusqu'à la sortie du REPL, `n` le refuse, et le modèle lit le refus et s'adapte.
 Une ligne `/` exécute toujours sa commande pendant qu'une question attend.
 
-Une question venue d'une commande en arrière-plan (`/dev-batches`, `/dev-implement`, un `/assistant` lancé en async)
+Une question venue d'une commande en arrière-plan (`/dev-batches`, un `/assistant` lancé en async)
 nomme sa tâche : `? [t1] dev-batches: tool 'shell_command' requires approval (mode 'acceptEdits').`, l'appel, puis
 `approve shell_command for [t1]? [y] once / [s] session / [n] no`. Elle s'affiche dans la ligne de statut et sur la
 ligne de la tâche (`? waits for approval of shell_command`), et vous y répondez depuis l'invite principale, sans
@@ -145,7 +147,7 @@ Une règle deny sur l'outil entier le retire aussi du catalogue.
 **La garde de la mémoire partagée.** Dans tous les modes, `bypassPermissions` compris, la session ajoute à la garde
 des règles deny pour qu'aucun outil de fichier du modèle (`file_write`, `edit_file`, `node_replace`, `node_insert`,
 `node_ensure`) n'écrive sous `<memory.dir>/candidates/` ou `<memory.dir>/entries/` : les candidats viennent de
-`memory_push` et des récoltes, les entrées de `/memory-admit` seul. Une règle allow enregistrée que la garde couvre est
+`memory_push` et des récoltes, les entrées de `/memory admit` seul. Une règle allow enregistrée que la garde couvre est
 écartée, avec un avertissement. Les motifs reconnaissent le chemin quelle que soit son écriture (`./`, `//`,
 `src/../`, `/workspace/`), et un `shell_command` qui nomme `<memory.dir>/candidates` ou `<memory.dir>/entries` est
 refusé lui aussi. `/permissions` les liste sur une ligne à part, "the shared memory's guard:
@@ -160,7 +162,7 @@ segment (`cp x .orkeon/mem*/entries/`) n'est pas lu : le shell le développe apr
 
 - **Par requête** : préfixez le texte, `plan: explique la couche de cache`, `acceptEdits: corrige le test qui échoue`.
 - **Pour la session** : `/mode acceptEdits` ; `/mode` seul fait défiler `default`, `acceptEdits`, `plan` et
-  `bypassPermissions` (jamais `dontAsk` : on l'atteint par `/mode dontAsk`) ; `/plan` bascule le mode plan.
+  `bypassPermissions` (jamais `dontAsk` : on l'atteint par `/mode dontAsk`) ; `/plan`, un alias de `/mode`, bascule le mode plan.
 - **À défaut** : sans l'un ni l'autre, le mode est `default`, ou celui fixé par
   `/config set permissions.fallback <mode>` (`--session` ne le garde que pour la session). Chaque tour qui utilise ce
   mode de repli dit quel mode s'est appliqué et d'où il venait.
@@ -231,10 +233,10 @@ règles de la session. Une réponse `[s]` n'est pas une règle : `/permissions` 
 
 ## Jeux de règles des étapes dev
 
-`/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement` et `/dev-verify` (sauf avec `--gate-only`) remettent à la
+`/dev-spec`, `/dev-plan` et `/dev-batches` (sauf avec `--audit --gate-only`) remettent à la
 garde des jeux de règles qui leur sont propres
 juste avant le démarrage de leur crew (un `/tasks repair` lui remet ceux de l'étape du run de l'instance : un relecteur
-de `/dev-spec` ou de `/dev-change` est réparé sous les jeux, les hooks et le budget de cette étape, sinon sous l'étape
+de `/dev-spec` est réparé sous les jeux, les hooks et le budget de cette étape, sinon sous l'étape
 de sa charte), et le callback du crew les contrôle à nouveau à chaque appel que la garde
 permet. Un appel que la garde refuse lit le refus de la garde ; celui que seul le callback refuse (un `glob` ou un
 `grep` qui atteint un chemin refusé, un chemin écrit avec `./` ou `..`, chaque appel sous `orkeon run`) nomme la
@@ -371,7 +373,7 @@ refusés eux aussi. Comme une règle lit `sh -c` à la fin de n'importe quel mot
 
 Les trois jeux de fichiers répètent leurs motifs sur chaque outil de leur ligne, outil par outil : `read-noise`
 contient 64 règles (8 motifs sur 8 outils, sur `path`), `secrets` 128 (16 motifs sur 8 arguments écrits de 6 outils),
-`state-files` 96 (19 motifs sur 5 outils, sur `path`, puis `deny structural_rewrite` ; `.orkeon/` entrée par entrée, sauf `worktrees/`, où un `/dev-batches` parallèle fait tourner ses lots). Une étape détient 534 règles (536 avec les deux règles allow de `/dev-implement`). La
+`state-files` 96 (19 motifs sur 5 outils, sur `path`, puis `deny structural_rewrite` ; `.orkeon/` entrée par entrée, sauf `worktrees/`, où un `/dev-batches` parallèle fait tourner ses lots). Une étape détient 534 règles (536 avec les deux règles allow d'un lot de `/dev-batches`). La
 garde ne peut pas lire les chemins ni le texte à l'intérieur d'`edit_batch` et de `structural_rewrite`.
 `structural_rewrite` est refusé en entier. `edit_batch` est laissé au callback des crews, qui s'exécute à chaque act
 d'une étape : il lit chaque opération comme l'éditeur qu'elle représente et lui applique les jeux et les règles du
@@ -389,7 +391,7 @@ jusqu'au prochain tour `/assistant` ou au prochain `/permissions add`, `remove` 
 seules règles de la session. Comme toute règle, ils valent pour toute la session : un tour lancé pendant qu'une étape
 s'exécute les remplace pour le reste de l'étape.
 
-`/dev-implement` place les mêmes cinq jeux dans la garde, et deux règles allow qui lui sont propres : `run_tests` et
+Un lot de `/dev-batches` place les mêmes cinq jeux dans la garde, et deux règles allow qui lui sont propres : `run_tests` et
 `run_build` (chacun vérifie lui-même sa commande contre le pack et les règles deny), pour que les rôles, qui agissent
 en `acceptEdits`, ne soient pas interrogés à chaque passage des tests. Les règles allow quittent la garde avec les
 jeux de l'étape.
@@ -404,7 +406,7 @@ tests) se crée toujours avec `file_write`. Toute autre réponse garde la règle
 
 **La garde doit être active.** Quand l'hôte dit que sa garde est inactive, les étapes refusent de démarrer, car
 aucune règle ci-dessus ni le mode `plan` de leur auditeur ou de leur relecteur ne vérifierait quoi que ce soit ;
-`/dev-verify F<n> --gate-only` n'appelle aucun modèle et s'exécute toujours. Sur un hôte qui ne garde aucune règle de
+`/dev-batches <code> F<n> --audit --gate-only` n'appelle aucun modèle et s'exécute toujours. Sur un hôte qui ne garde aucune règle de
 session, l'étape s'exécute avec un avertissement : les jeux ne sont pas dans la garde de l'hôte, et le
 callback du crew est seul à les vérifier.
 
@@ -435,6 +437,14 @@ réglage `tools.extra` les nomme, chacun avec une classe d'accès :
 Un nom sans classe est une écriture. Ne marquez `read` qu'un outil qui ne change rien et n'envoie rien hors de la
 machine : c'est ce que `plan` et `dontAsk` promettent. Un outil intégré garde sa propre classe et ne peut pas être
 listé.
+
+Un outil qu'`orkeon-repl` n'enregistre que si une section des settings l'active suit la même voie, puisqu'un catalogue
+qui nomme un outil que l'hôte n'a pas enregistré fait échouer l'act avant que le modèle soit interrogé :
+`system_one_decide` (Orkeon #234, le modèle de décision TypeSafe System One), enregistré avec la section
+`Orkeon:TypeSafe` ou `TYPESAFE_API_KEY`, n'est dans aucune liste intégrée, et l'utilisateur dont l'hôte l'a le liste
+dans `tools.extra`. Il déclare une lecture à la garde, si bien qu'il tourne sans question partout où le catalogue
+l'offre ; gardez-le en écriture dans la liste, car il envoie l'état qu'on lui donne à l'API TypeSafe, ce que `plan` et
+`dontAsk` promettent qu'aucun outil ne fait.
 
 Avant chaque tour, `/assistant` et `/summary` confrontent les noms à ceux que l'hôte enregistre, comme Orkeon les
 compare (casse mise à part, exactement : `get_file_contents` n'est pas le `get-file-contents` qu'un serveur MCP
@@ -475,10 +485,10 @@ règle peut aussi les nommer (`/permissions add deny run_build`) ; leurs argumen
 
 La commande qu'un outil lance obéit aux jeux de règles de l'étape, pas aux règles deny de votre session : le code du
 crew ne peut pas lire les règles de la session, donc `/permissions add deny shell_command ...` n'atteint pas une
-validation, pas plus qu'il n'atteignait les validations que `/dev-verify` lance depuis son propre code. Pour en
+validation, pas plus qu'il n'atteignait les validations que l'audit d'un lot lance depuis son propre code. Pour en
 arrêter une, refusez l'outil lui-même (`/permissions add deny run_validation`), que la garde voit.
 
-Les agents des étapes dev sauf `/dev-learn` (dont l'agent n'a aucun outil), et les enfants de `/dev-spec`, `/dev-change`, `/dev-plan` et `/dev-verify`, reçoivent aussi
+Les agents des étapes dev sauf `/dev-learn` (dont l'agent n'a aucun outil), et les enfants de `/dev-spec`, `/dev-plan` et `/dev-batches`, reçoivent aussi
 [`memory_recall`](shared-memory.md) (`read`), pour chercher des précédents dans la mémoire partagée ; aucun ne reçoit
 `memory_push`.
 

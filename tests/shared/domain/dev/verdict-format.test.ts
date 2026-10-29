@@ -1,10 +1,16 @@
-// Verdict file parser, over the demo work folder. Run:
+// Verdict file parser, over the demo work folder, and the next-step lines a verdict hands on. Run:
 //   node --test tests/shared/domain/dev/verdict-format.test.ts
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 
-import { isUnfinishedSection, lastFinishedVerdict, parseVerdictFile, lastVerdict, severityCounts } from "../../../../src/shared/domain/dev/verdict-format.ts";
-import { demoFile, F2_PARITY_ROWS, FINISHED_THEN_UNFINISHED, NO_HEADING, UNFINISHED_ONLY } from "./verdict-format.fixtures.ts";
+import {
+  auditCommand, closeCommand, correctionCommand, gapsFinding, gapsRoundsOf, isNextStepLine, isUnfinishedSection, lastFinishedVerdict,
+  parseCorrectionLine, parseVerdictFile, lastVerdict, severityCounts,
+} from "../../../../src/shared/domain/dev/verdict-format.ts";
+import {
+  CORRECTION_LINE_CASES, NEXT_COMMAND_CASES, NEXT_STEP_LINE_CASES, demoFile, F2_PARITY_ROWS, FINISHED_THEN_UNFINISHED, GAPS_ROUNDS, NO_FINDING, NO_HEADING, THREE_SEVERITIES, THREE_SEVERITIES_FINDING,
+  UNFINISHED_ONLY,
+} from "./verdict-format.fixtures.ts";
 
 describe("parseVerdictFile over DEMO-VERIFY-F1.md", () => {
   it("reads one VALID section with its minor and its lines", () => {
@@ -225,4 +231,90 @@ describe("parseVerdictFile inline", () => {
     // Assert
     deepStrictEqual(f.sections.map((s) => [s.verdict, s.rows.map((r) => r.gap)]), [["VALID", ["g"]]]);
   });
+});
+
+describe("gapsRoundsOf", () => {
+  for (const c of GAPS_ROUNDS) {
+    it(c.name, () => {
+      // Arrange
+      const text = c.text;
+
+      // Act
+      const rounds = gapsRoundsOf(text);
+
+      // Assert
+      strictEqual(rounds, c.expected);
+    });
+  }
+});
+
+describe("gapsFinding", () => {
+  it("hands the Blocking and Major rows of the last GAPS verdict, one clause each, the Minor left out", () => {
+    // Arrange
+    const text = THREE_SEVERITIES;
+
+    // Act
+    const finding = gapsFinding(text);
+
+    // Assert
+    strictEqual(finding, THREE_SEVERITIES_FINDING);
+  });
+
+  for (const c of NO_FINDING) {
+    it(c.name, () => {
+      // Arrange
+      const text = c.text;
+
+      // Act
+      const finding = gapsFinding(text);
+
+      // Assert
+      strictEqual(finding, undefined);
+    });
+  }
+});
+
+describe("the next-step commands", () => {
+  for (const c of NEXT_COMMAND_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const build = { correction: () => correctionCommand("demo", "F2", "Major Test: x"), close: () => closeCommand("demo", "F2"), audit: () => auditCommand("demo", "F2", c.mode) }[c.build];
+
+      // Act
+      const command = build();
+
+      // Assert
+      strictEqual(command, c.expected);
+    });
+  }
+});
+
+describe("parseCorrectionLine", () => {
+  for (const c of CORRECTION_LINE_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { text } = c;
+
+      // Act
+      const read = parseCorrectionLine(text);
+
+      // Assert
+      deepStrictEqual(read, c.expected);
+    });
+  }
+});
+
+describe("isNextStepLine", () => {
+  for (const c of NEXT_STEP_LINE_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { line } = c;
+
+      // Act
+      const next = isNextStepLine(line);
+
+      // Assert
+      strictEqual(next, c.expected);
+    });
+  }
 });

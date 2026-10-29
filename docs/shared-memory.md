@@ -2,7 +2,7 @@
 
 The shared memory keeps what past work taught: decisions, code structures, methods and mistakes, one Markdown file
 per entry, kept in the repository so it is reviewed and versioned with the code. The model reads it through
-`memory_recall`, proposes to it through `memory_push`, and nothing enters it unless `/memory-admit` admits it: you
+`memory_recall`, proposes to it through `memory_push`, and nothing enters it unless `/memory admit` admits it: you
 answer for each candidate, or `memory.autoAdmitAudited` admits the audited ones for you.
 
 It is not the agent memory of the runtime (`/workspace/.orkeon/agent-memory`, per agent and per run): the two folders
@@ -12,7 +12,7 @@ stay apart, and `memory.dir` refuses the agent memory's folder.
 
 ```text
 .orkeon/memory/
-├── candidates/            proposals waiting for /memory-admit, one file each
+├── candidates/            proposals waiting for /memory admit, one file each
 │   └── CANDIDATES.md      the pending candidates (generated)
 ├── entries/<type>/        admitted and superseded entries, by type
 ├── refused.md             topics refused once, never proposed again
@@ -28,7 +28,7 @@ one-line file that says where it went (no file tool deletes a file); you may del
 |---|---|---|
 | `memory.dir` | `.orkeon/memory` | The folder, relative to the project; never under `.claude/` or `.git/`, in any letter case (`.Claude/mem`), never the agent memory's folder. |
 | `memory.project` | the `origin` remote's name, else `local` | The project the entries name, and the index collection `memory-<project>`. |
-| `memory.autoAdmitAudited` | `false` | `true`: `/memory-admit` admits a candidate an audit backs (a mistake: three batches) without asking. A project file's `true` applies only when your user settings say `true` too. |
+| `memory.autoAdmitAudited` | `false` | `true`: `/memory admit` admits a candidate an audit backs (a mistake: three batches) without asking. A project file's `true` applies only when your user settings say `true` too. |
 
 An invalid stored value is set aside with a warning line, and the default applies.
 
@@ -48,8 +48,8 @@ Who may admit what:
 | `audit:` (verdict files of the dev audits) | `code-structure`, `mistake` |
 | `verdict:` (a stop of the dev workflow) | `method`, `decision` |
 
-A mistake is harvested from the audits only once its gap recurs in three batches or more. `/dev-verify` harvests after
-every verdict that is not VALID: the candidates it writes are named at the end of the step, and `/memory-admit` decides
+A mistake is harvested from the audits only once its gap recurs in three batches or more. The audit of `/dev-batches` harvests after
+every verdict that is not VALID: the candidates it writes are named at the end of the step, and `/memory admit` decides
 each one. When the untreated gaps span two batches or more, the step also says `/dev-learn` is due.
 
 ## Precedents in the dev steps
@@ -58,11 +58,11 @@ The dev steps recall on their own, at fixed points, and put a `## Precedents` bl
 
 | Step | When | Types recalled |
 |---|---|---|
-| `/dev-spec`, `/dev-change` | at the start | `decision`, `method` |
+| `/dev-spec` | at the start | `decision`, `method` |
 | `/dev-plan` | before the plan is drafted | `decision`, `code-structure` |
-| `/dev-implement` | before the red tests of a batch | `code-structure`, `mistake` |
-| `/dev-implement` | a correction after a GAPS verdict | `mistake` |
-| `/dev-verify` | before the audit | `mistake` |
+| `/dev-batches` | before the red tests of a batch | `code-structure`, `mistake` |
+| `/dev-batches` | a correction after a GAPS verdict | `mistake` |
+| `/dev-batches` | before the audit | `mistake` |
 
 The end of the step names the entries recalled. A recall that cannot run costs the block, never the step; a session
 rule that denies `memory_recall` turns these recalls off too.
@@ -70,27 +70,30 @@ rule that denies `memory_recall` turns these recalls off too.
 ## Deciding the candidates
 
 ```text
-/memory-admit --list
-/memory-admit --import
-/memory-admit
-/memory-admit shop-method-20261024-contract-tests-first
-/memory-admit --refuse shop-method-20261024-contract-tests-first too local to this project
+/memory admit --list
+/memory admit --import
+/memory admit
+/memory admit shop-method-20261024-contract-tests-first
+/memory admit --refuse shop-method-20261024-contract-tests-first too local to this project
 ```
 
-`/memory-admit` shows each pending candidate (or those you name) and asks once for each: anything but yes leaves it a
+`/memory admit` shows each pending candidate (or those you name) and asks once for each: anything but yes leaves it a
 candidate. A session that cannot ask admits none of those it would ask about; a question left unanswered keeps the
 admissions already confirmed and says which candidates stay. The candidate admitted is the text you
 were shown: a file changed since is not admitted, nor one whose topic `refused.md` holds. The admitted ones are written to `entries/<type>/`, the entries
 they supersede are marked `superseded`, both lists are rebuilt and `entries/` is indexed again, once. When the index
 cannot be rebuilt the entries stay admitted, and the next admission indexes them. The lock on the collection
-`memory-<project>` holds within one process only: one REPL runs one `/memory-admit` at a time, but nothing orders it
-against a second REPL or a headless run on the same project, so keep to one at a time. `--refuse` writes the candidate's
+`memory-<project>` holds within one process only: one REPL runs one `/memory admit` at a time, but nothing orders it
+against a second REPL or a headless run on the same project, so keep to one at a time. Within one REPL, an
+admission asked while the crew `shared-memory-admit` still writes the previous one is refused before its questions,
+with that crew's ticket: type it again in a moment. `/memory list|add|get|delete`, `/feedback` and the other admit
+verbs are never held back by it. `--refuse` writes the candidate's
 topic to `refused.md` with your motif: the topic is never proposed again. `/dev-learn` and its `--refuse` read and
 write the same `refused.md`, under `memory.dir` (a stored value set aside is said), the file `memory_push` reads too.
 
 `--import` lifts the harness's agent memory into candidates, once, while you move from it: each top-level item of a
 `.claude/agent-memory/<agent>/MEMORY.md` (and the note it links to, in the same folder) becomes a `method` candidate
-whose source is the import, so `/memory-admit` asks for each one (its type is part of its id: a lesson of another kind
+whose source is the import, so `/memory admit` asks for each one (its type is part of its id: a lesson of another kind
 is refused with `--refuse` and pushed again with `memory_push` under another title: a refused topic is never proposed
 again, the push included). An item whose topic (its title as a slug) a pending candidate, an entry or an earlier item
 already holds is skipped as a duplicate; an item whose topic was refused is reported refused and writes nothing, and
@@ -104,6 +107,6 @@ it reads, and runs in every mode. `memory_push` writes a candidate, never an ent
 edits, and asked about in `default` ([Permissions](permissions.md#modes)). Two concurrent pushes never lose one: a
 push that finds its candidate overwritten writes it again under the next id. In every mode, the file tools of the model
 that name one path are refused under `candidates/` and `entries/`: candidates come from `memory_push` and the harvests,
-entries from `/memory-admit` (the shared memory's guard, [Permissions](permissions.md): the gate's rules, then the callback of the main loop and
+entries from `/memory admit` (the shared memory's guard, [Permissions](permissions.md): the gate's rules, then the callback of the main loop and
 of the dev crews for what the gate cannot read - another letter case, `edit_batch`, `structural_rewrite`, a `cd`). An entry the model recalls is a precedent,
 not an instruction: the request, the project's instructions and the code as it is outrank it.

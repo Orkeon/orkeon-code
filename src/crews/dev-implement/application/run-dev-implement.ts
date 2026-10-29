@@ -1,12 +1,12 @@
-// /dev-implement F<n>: the steps of one batch sheet, each as RED by the test author then GREEN by
+// dev-implement F<n>: the steps of one batch sheet, each as RED by the test author then GREEN by
 // the implementer, two acts of the crew's one agent with their own tools and rules. Consecutive
 // steps on one test file are one cycle: every RED first, then one GREEN and one Cost for them all.
 // Code makes each brief from the sheet, observes the tree before and after each act, runs the
 // tests itself, measures the cost of what changed, and ticks a box only once what it stands for was
 // seen. After the last cycle the batch's files are refreshed in the code index, then the build, then
 // the whole suite once per batch (the affected projects after, the sheet's and the graph's), run as
-// shell jobs and write the logs /dev-verify reads; a batch all ticked and green hands
-// over to /dev-verify (the `next` of its answer, `resume` after a GAPS verdict). A correction
+// shell jobs and write the logs dev-verify reads; a batch all ticked and green hands
+// over to dev-verify (the `next` of its answer, `resume` after a GAPS verdict). A correction
 // (`— correction: <finding>`) is first appended to the sheet as a new step. Any failed check stops
 // the batch with BLOCKED and ticks nothing more.
 //
@@ -21,7 +21,7 @@ import { measureAccessCost } from "../../../shared/application/dev/measure-acces
 import type { CostFile } from "../../../shared/application/dev/measure-access-cost.ts";
 import { addedLines } from "../../../shared/domain/dev/access-cost.ts";
 import { hasTestLayout, isTestPath } from "../../../shared/domain/dev/test-paths.ts";
-import { isUnfinishedSection, lastVerdict, parseVerdictFile } from "../../../shared/domain/dev/verdict-format.ts";
+import { auditCommand, closeCommand, gapsRoundsOf, lastVerdict, parseVerdictFile } from "../../../shared/domain/dev/verdict-format.ts";
 import { shellQuote } from "../../../shared/domain/git/close.ts";
 import type { CarriedText } from "../../../shared/domain/dev/carried-text.ts";
 import { tidyWhitespace } from "../../../shared/domain/dev/whitespace.ts";
@@ -31,7 +31,7 @@ import { policyFor } from "../../../shared/domain/agent-policy/mode-policy.ts";
 import { parseSessionRules } from "../../../shared/domain/git/pull-request.ts";
 import { shellRuleGuard } from "../../../shared/domain/dev/tool-guards.ts";
 import type { RepoPack, RepoPackLayout } from "../../../shared/domain/dev/repo-pack.ts";
-import { existingStubsOf, testFileOf, greenContract, projectCommandFor, redContract, stubsOf, testCommandFor } from "../domain/contracts.ts";
+import { existingStubsOf, testFileOf, greenContract, projectCommandFor, redContract, staleBlock, stubsOf, testCommandFor } from "../domain/contracts.ts";
 import { openSteps, parseImplementSheet } from "../domain/step-section.ts";
 import type { ImplementSheet, ImplementStep } from "../domain/step-section.ts";
 import { addedFailure, changedPaths, failureCount, greenProblem, readCost, redProblem, under } from "../domain/step-checks.ts";
@@ -62,6 +62,9 @@ export interface DevImplementInputs {
   batch?: unknown; plan?: unknown; close?: unknown; pr?: unknown; push?: unknown;
   /** The finding of a correction (`— correction: <finding>`): appended to the sheet as a new step first. */
   correction?: unknown;
+  /** The `stale: <question> — <evidence>` lines /dev-batches hands a batch's first launch (its review's Major rows):
+   *  they end the RED and GREEN prompts. */
+  stale?: readonly string[];
   /** The session's mode and rules at the launch: a read-only mode is refused, a deny on the push keeps the commit local. */
   permissionMode?: unknown; permissionRules?: unknown;
   /** Whether the github tool is registered (the close opens the pull request itself). */
@@ -77,6 +80,7 @@ const flag = (v: unknown): boolean => v === true || v === "true";
 export function implementInputs(args: Record<string, unknown>): DevImplementInputs {
   return {
     batch: args.batch, plan: args.plan, close: flag(args.close), pr: flag(args.pr), correction: args.correction,
+    stale: Array.isArray(args.stale) ? args.stale.filter((l): l is string => typeof l === "string") : undefined,
     push: args.push === false || args.push === "false" ? false : undefined,
     permissionMode: args.permissionMode, permissionRules: args.permissionRules, githubTool: args.githubTool,
     hooks: args.hooks, effort: args.effort, memoryRecall: args.memoryRecall,
@@ -143,6 +147,8 @@ interface Run {
   /** T5: the mistakes recalled for the correction this run carries, in each role's prompt; every recall, for the end. */
   correction: Recalled;
   recalled: Recalled[];
+  /** The stale lines of the launch, as the block that ends each role's prompt ("" without any). */
+  stale: Recalled;
 }
 
 /** A role's prompt with the precedents recalled for it, each block after the contract. */
@@ -394,7 +400,7 @@ async function runCycle(run: Run, cycle: Cycle): Promise<string | null> {
     const stubs = [...new Set([...await openStubs(run, step), ...existingStubsOf(step), ...stubbed])];
     const t3 = await recallForRed(run, step);
     const carried = await carriedFor(run, [testFileOf(step)]);
-    const done = await act(run, "test-author", withPrecedents(redContract({ ...contractInput(run, step, command.command, carried), stubs }), [t3, run.correction]), stubs);
+    const done = await act(run, "test-author", withPrecedents(redContract({ ...contractInput(run, step, command.command, carried), stubs }), [t3, run.correction, run.stale]), stubs);
     if (typeof done === "string") return `step ${step.number} RED: ${done}`;
     run.ran.push(step);
     const earlier = before;
@@ -424,7 +430,7 @@ async function runCycle(run: Run, cycle: Cycle): Promise<string | null> {
     // The production files too: a stub RED wrote, an existing module, so that GREEN opens none of them.
     const productionFiles = green.flatMap((s) => (s.anchor?.production ?? []).filter((r) => r.state !== "member").map((r) => r.path));
     const carried = await carriedFor(run, [...green.map(testFileOf), ...productionFiles]);
-    const done = await act(run, "implementer", withPrecedents(greenContract(contractInput(run, green[0], command.command, carried, green), redTail), [run.correction]));
+    const done = await act(run, "implementer", withPrecedents(greenContract(contractInput(run, green[0], command.command, carried, green), redTail), [run.correction, run.stale]));
     if (typeof done === "string") return `${greenLabel} GREEN: ${done}`;
     run.ran.push(...green.filter((s) => !run.ran.includes(s)));
     const after = await run.tools.runTests({ command: command.command });
@@ -662,21 +668,17 @@ async function verdictState(files: Pick<Files, "read">, path: string): Promise<{
     text = null;
   }
   if (text === null) return { mark: verdictMarkOf(null), last: null, gapsRounds: 0 };
-  const sections = parseVerdictFile(text).sections.filter((s) => s.verdict !== null);
-  let gapsRounds = 0;
-  // An audit the budget stopped judged nothing: it is no round of GAPS (its resume audits what came before).
-  for (let i = sections.length - 1; i >= 0 && sections[i].verdict === "GAPS"; i--) if (!isUnfinishedSection(sections[i])) gapsRounds++;
-  return { mark: verdictMarkOf(text), last: lastVerdict(parseVerdictFile(text))?.verdict ?? null, gapsRounds };
+  return { mark: verdictMarkOf(text), last: lastVerdict(parseVerdictFile(text))?.verdict ?? null, gapsRounds: gapsRoundsOf(text) };
 }
 
 export async function runDevImplement(input: DevImplementInputs, deps: DevImplementDeps): Promise<string> {
   const batch = String(input.batch ?? "").trim();
-  if (!BATCH.test(batch)) return blocked([], `the batch is F<n>, e.g. /dev-implement F1 <code>: got '${batch}'`);
+  if (!BATCH.test(batch)) return blocked([], `the batch is F<n>, e.g. /dev-batches <code> F1: got '${batch}'`);
   const plan = typeof input.plan === "string" && input.plan.trim() !== "" ? input.plan.trim() : null;
   const inputContext = prContextOf(input);
   const mode = typeof input.permissionMode === "string" ? input.permissionMode.trim() : "";
   if (mode !== "" && policyFor(mode).readOnly) {
-    return blocked([], `the session mode ${mode} is read-only: /dev-implement writes files and commits (/mode default, then run it again)`);
+    return blocked([], `the session mode ${mode} is read-only: /dev-batches writes files and commits (/mode default, then run it again)`);
   }
 
   const context = await loadDevContext({ files: deps.files, shell: deps.shell, config: deps.config });
@@ -696,7 +698,7 @@ export async function runDevImplement(input: DevImplementInputs, deps: DevImplem
     const pr = inputContext ?? record.pr;
     const closeMode = pr?.permissionMode.trim() ?? "";
     if (closeMode !== "" && policyFor(closeMode).readOnly) {
-      return blocked(lines, `the session mode ${closeMode} (read at the launch) is read-only: the close commits (/mode default, then /dev-implement ${batch} ${located.code} --close)`);
+      return blocked(lines, `the session mode ${closeMode} (read at the launch) is read-only: the close commits (/mode default, then ${closeCommand(located.code, batch)})`);
     }
     const opener = pr !== null && pr.githubTool ? deps.openerFor?.(pr) : undefined;
     // A batch of a /dev-batches run in progress is committed, never pushed, even when its close is typed (after a
@@ -738,7 +740,7 @@ export async function runDevImplement(input: DevImplementInputs, deps: DevImplem
     }
     sheetText = edit.text;
     if (verdicts.gapsRounds >= GAPS_ROUNDS_WARNED) {
-      lines.push(`⚠ ${verdicts.gapsRounds} audit rounds in GAPS: the method hands the blocking gaps to you before a third`);
+      lines.push(`⚠ ${verdicts.gapsRounds} audit rounds in GAPS: the third still GAPS goes to a human`);
     }
   }
   const sheet = parseImplementSheet(sheetText);
@@ -766,6 +768,7 @@ export async function runDevImplement(input: DevImplementInputs, deps: DevImplem
     ownFolders: [context.work.folder, located.dir], planFolder: located.dir, planLogs: `${context.work.folder}/${located.code}/logs`,
     logFolder, written, verdictMark: verdicts.mark, touched: new Set(record.touched), ran: [], lines: runLines,
     correction: NOTHING_RECALLED, recalled: [],
+    stale: { block: staleBlock(Array.isArray(input.stale) ? input.stale : []), ids: [] },
   };
   // T5: a correction run carries the mistakes recalled from its finding to both roles.
   if (finding !== "" && open.length > 0) {
@@ -796,7 +799,7 @@ export async function runDevImplement(input: DevImplementInputs, deps: DevImplem
   if (recalledLine !== "") run.lines.push(recalledLine);
   const planArg = plan ?? located.code;
   const auditMode = verdicts.last === "GAPS" ? "resume" : "fast";
-  run.lines.push(`→ Batch ${batch}: every step ticked, the build and the tests green. The audit follows: /dev-verify ${batch} ${planArg}${auditMode === "resume" ? " resume" : ""}`);
+  run.lines.push(`→ Batch ${batch}: every step ticked, the build and the tests green. The audit follows: ${auditCommand(planArg, batch, auditMode)}`);
   return answer(run.lines, {
     crew: "dev-verify",
     input: {

@@ -39,7 +39,7 @@ Environment variables prefixed `ORKEON_` override the file (`__` separates secti
 | `Llm:ApiKeyEnvVar` | Name of the environment variable that holds the key. The key itself never goes in the file |
 | `Llm:AvailableModels` | Models `/model` offers to switch to without relaunching |
 | `Llm:Temperature`, `Llm:MaxTokens`, `Llm:TimeoutSeconds` | Generation settings |
-| `Llm:MaxRateLimitWait` | Longest rate-limit window a call waits out before it fails, `00:05:00` by default. A 429, or a 529 with a reset header, waits until the window the provider announces resets instead of failing the turn; a window longer than this fails the call at once with `LlmRateLimitException`, the wait in its message. `00:00:00` waits for nothing |
+| `Llm:MaxRateLimitWait` | Longest rate-limit window a call waits out before it fails, `00:05:00` by default. A 429, or a 529 with a reset header, waits until the window the provider announces (`Retry-After`, `retry-after-ms` in milliseconds as OpenAI and TypeSafe send it, or the provider's reset headers; the longest wins) resets instead of failing the turn; a window longer than this fails the call at once with `LlmRateLimitException`, the wait in its message. `00:00:00` waits for nothing |
 | `Llm:Profiles:<name>:MaxRateLimitWait` | The same bound for one named profile of the host, `00:05:00` by default |
 | `Llm:Thinking:Enabled` | Reasoning mode, for the providers that have one |
 
@@ -50,7 +50,7 @@ An option a provider cannot honour produces a warning, never a silent drop.
 
 **Prompt cache.** A provider that caches the prompt (DeepSeek and OpenAI by themselves, Anthropic with
 `cache_control`) reports the tokens read from its cache and written to it; Orkeon keeps them per model and
-`/usage`, `/stats` and `/context` show their sum in `cacheRead` and `cacheWrite` (`0` from a provider that reports no cache, `-` from a host that reports no figure). The cache's
+`/usage` and `/context` show their sum in `cacheRead` and `cacheWrite` (`0` from a provider that reports no cache, `-` from a host that reports no figure). The cache's
 lifetime is a per-call option of Orkeon, `orkeon:cache_ttl` (`5m` or `1h`, from an agent's cache setting): Anthropic
 honours it, the OpenAI-compatible providers and Ollama log that they cannot. Orkeon Code sets none, so each provider
 keeps its own default lifetime.
@@ -72,7 +72,7 @@ others one after the other, each call through the permission gate, and sends the
 | Key | Why |
 |---|---|
 | `Orkeon:Security:PermissionGate:Enabled` = `true` | The host checks every tool call the model makes against the `/permissions` rules and the mode, and asks you when the mode says so ([what it does not see](permissions.md)). The launcher turns it on unless the settings file says otherwise; without it no call is checked and the modes only shape the catalogue |
-| `Orkeon:Cli:ScriptCommands:Limits:ExecutionTimeout` | Wall-clock limit of each script engine of `orkeon-repl`: a command's, and a crew's, so an `/assistant` turn's. It stops while a tool call waits for your answer. 5 minutes by default; a turn that indexes a large repository needs more: the example sets 30 minutes. A `/dev-verify full` run can take about an hour (build 900 s, whole suite 900 s, three validations of 300 s each, plus the model's time): set 60 minutes or more for it |
+| `Orkeon:Cli:ScriptCommands:Limits:ExecutionTimeout` | Wall-clock limit of each script engine of `orkeon-repl`: a command's, and a crew's, so an `/assistant` turn's. It stops while a tool call waits for your answer. 5 minutes by default; a turn that indexes a large repository needs more: the example sets 30 minutes. A `/dev-batches <code> F<n> --audit full` run can take about an hour (build 900 s, whole suite 900 s, three validations of 300 s each, plus the model's time): set 60 minutes or more for it |
 | `Orkeon:Cli:ScriptCommands:Limits:MemoryLimitBytes` | Memory limit of those engines: 64 MB by default, the example sets 2 GiB |
 | `Orkeon:Scripting:Limits:ExecutionTimeout`, `Orkeon:Scripting:Limits:MemoryLimitBytes` | The same limits for `orkeon run`, the tool `scripts/run-crew.sh` runs a crew with (30 seconds and 100 MB by default; the example sets 30 minutes and 2 GiB). `orkeon-repl` does not read them |
 | `Orkeon:Tools:Shell:AllowInterpreters` | Lets `shell_command` run interpreters (`node`, `dotnet`, `npm`...), needed to build and test most projects |
@@ -80,7 +80,7 @@ others one after the other, each call through the permission gate, and sends the
 | `Orkeon:Tools:Shell:Confinement:Mode` | `Auto` (default: bubblewrap on Linux, Seatbelt on macOS, AppContainer on Windows, none inside a container), `None`, `Bubblewrap`, `Seatbelt` or `AppContainer`. Confined, each shell command runs under `bwrap` (Linux, tool and source modes), network off unless `Confinement:AllowNetwork`, programs outside the system directories listed in `Confinement:ReadOnlyPaths`. A command fails when it cannot be confined. The examples set `None`; a settings file without the key confines, outside a container. `/dev-batches --concurrency` above 1 works under Bubblewrap from a runtime that binds a linked worktree's git dir (Orkeon/orkeon#191); on an older one git fails inside a batch's worktree, and the run refuses itself in one line. Confined, the run's closing push reaches no remote (no network, `HOME=/tmp`, so no credentials): the run stays open with the `git push` command. Push it from a terminal, then the next `/dev-batches` closes the run without pushing again. See [SECURITY.md](../SECURITY.md) |
 | `Orkeon:Tools:Shell:Environment:SessionBus` | Whether a confined shell (bubblewrap, Seatbelt, AppContainer) receives the session bus, `DBUS_SESSION_BUS_ADDRESS`, which the keyring credential helper of `gh` needs; `false` by default, since through the bus a command can start a process outside the sandbox. An unconfined shell (`Confinement:Mode` `None`, the example settings) and the code sandbox receive it; `SSH_AUTH_SOCK` and `XDG_RUNTIME_DIR` reach every shell, so git reaches a private remote through the ssh agent (Orkeon #216) |
 | `Orkeon:Tools:Shell:Environment:Propagate` | Names of variables added to the shell's allow-list; a name holding a secret word (`KEY`, `TOKEN`, `SECRET`, `PASSWORD`, `PASSWD`, `PASS`, `CREDENTIAL`, `AUTH`, `PAT` as a whole segment), starting with `ORKEON_`, or whose value carries URL credentials is dropped with a warning (Orkeon #216) |
-| `Orkeon:Tools:ResultLimits:Limits:<tool>` | The cut of a tool's result, in characters: 4000, `file_read` 32000, `node_read` 256000, `shell_command` 10000. A cut result ends with `[... truncated, N chars omitted. …]`; `/dev-verify` reads that notice |
+| `Orkeon:Tools:ResultLimits:Limits:<tool>` | The cut of a tool's result, in characters: 4000, `file_read` 32000, `node_read` 256000, `shell_command` 10000. A cut result ends with `[... truncated, N chars omitted. …]`; the audit of `/dev-batches` reads that notice |
 | `Orkeon:Tools:ResultLimits:MaxParallelToolCalls` | The read calls of one model turn that run at once: 4 |
 | `Orkeon:Tools:GitHub:Token` | The token of the `github` tool, read once when the tool is registered (Orkeon #222); prefer the variable below to a token written in a settings file, which the examples leave out |
 | `Orkeon:Tools:GitHub:TokenVariable` | The environment variable the `github` tool reads its token from when `Token` is unset: `GITHUB_TOKEN` by default, then `GH_TOKEN`. The launcher's Docker mode hands `GITHUB_TOKEN`, `GH_TOKEN` and the variable named here to the container, each when it is set; the native modes inherit the environment. Without a token the tool's description says where to set it; a token shows as `***` in results and logs, and neither key takes a variable reference |
@@ -122,13 +122,13 @@ when the host offers it, the session allows it and the tool has a token (`GITHUB
 docs/memory`; omitted, `.orkeon/memory`; never under `.claude/` or `.git/`, never the agent memory's
 `.orkeon/agent-memory`), `memory.project` (the project the entries name and the index collection
 `memory-<project>`, a kebab-case name; omitted, the `origin` remote's name, else `local`),
-`memory.autoAdmitAudited` (`true` or `false`, omitted = `false`: `/memory-admit` admits a candidate an audit backs
+`memory.autoAdmitAudited` (`true` or `false`, omitted = `false`: `/memory admit` admits a candidate an audit backs
 without asking), `review.lenses` (the lenses of `/review`, comma-separated among `correctness`, `security` and
 `style`; omitted, all three), `advisor.model` (the model of `/advisor`'s second opinion; omitted, the session's own,
 which makes it a self-review), `commit.requireConfirm` (`false` lets `/commit` run without its confirmation; omitted =
-`true`), or `spinnerVerbs`. `/config keys` lists them all. `/model`, `/effort`, `/passes`, `/fast`, `/proactive` and `/output-style` change
+`true`), or `spinnerVerbs`. `/config keys` lists them all. `/model`, `/effort`, `/passes` (an alias of `/review`), `/fast`, `/proactive` and `/output-style` change
 how the next turns run. `/effort` also sets the provider's thinking: the stored level is sent as the act's `effort` by
-`/assistant`, every dev step (`/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement`, `/dev-verify`, `/dev-batches`)
+`/assistant`, every dev step (`/dev-spec`, `/dev-plan`, `/dev-batches`)
 and the agents these start, and nothing is sent while no level is stored.
 
 `permissions.fallback`, `tools.extra`, `memory.autoAdmitAudited` and `dev.prAuto` set in the project file are narrowed by the `orkeonCode` block of the user
@@ -146,7 +146,7 @@ is not among the shell's commands, and in tool and source modes the shell reads 
 `sh scripts/session-start.sh <project>` prints the same lines in a terminal.
 
 The repository pack (`.orkeon/repo.yaml`, else the harness's) can also give `tests.trait_pattern`, an Orkeon Code key
-the harness ignores: how a test names the sheet id it covers, which the gate of `/dev-verify` looks for under the test
+the harness ignores: how a test names the sheet id it covers, which the gate of a batch's audit (`/dev-batches <code> F<n> --audit`) looks for under the test
 roots. It is one line holding `<id>` exactly once and `<name>` at most once; `<name>` stands for `tests.rule_trait`,
 which it then needs. At most 80 characters, no tab and no single quote; a run of spaces matches any number of
 spaces. Without it, `tests.rule_trait` alone gives the default `[Trait("<name>", "<id>")]`. A Node repository, whose
@@ -159,7 +159,7 @@ tests:
 ```
 
 It can also give `layout.test_files`, another key the harness ignores: the test files that sit beside the code, as
-gate patterns (`*` matches any run of characters, `/` included). `/dev-implement` counts a path as a test file when
+gate patterns (`*` matches any run of characters, `/` included). `/dev-batches` counts a path as a test file when
 it lies under `layout.tests` or matches one pattern: the implementer may not write it, the test author may, and a run
 needs one of the two keys. A Node repository whose tests sit beside the code:
 
@@ -170,7 +170,7 @@ layout:
 ```
 
 `layout.tests` never names a source root (`tests: src` beside `domain: src`): both roles would be refused that folder,
-and reading the pack reports it as an issue (⚠ at the start of `/dev-implement` and `/dev-batches`).
+and reading the pack reports it as an issue (⚠ at the start of `/dev-batches`).
 
 ## Extra tools: MCP servers and plugins
 

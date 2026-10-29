@@ -14,6 +14,13 @@ export const STRIPPED = (mode: string): string =>
 export const MODE_USAGE = `usage: /mode [<${PERMISSION_MODES.join("|")}>|show] — bare /mode cycles; ` +
   `an explicit "mode:" prefix on a prompt still wins.`;
 
+export const PLAN_ON = "plan mode ON — prompts without a \"mode:\" prefix now run read-only. /plan again to leave.";
+
+export const PLAN_OFF = "plan mode OFF — the session default is 'default' (asks on writes). " +
+  "It is NOT restored to whatever it was before /plan: use /mode to pick another.";
+
+export const LEAVING_PLAN = "info: leaving 'plan': session default back to 'default' (asks on writes)";
+
 /** The session service over an empty store, and a logger: what runMode takes, the store beside it. */
 export function modeDeps() {
   const files = new FakeFiles();

@@ -72,7 +72,7 @@ export function createAnchorIndex(tools: Pick<OrkeonTools, "batchAnchors">): Anc
   };
 }
 
-/** The access cost of /dev-verify and /dev-implement: the indexed roots, the refresh of the changed files, the
+/** The access cost of dev-verify and dev-implement: the indexed roots, the refresh of the changed files, the
  *  report; and the tests the graph reaches from them (affected_tests), when the tools hold it. */
 export function createCostIndex(
   tools: Pick<OrkeonTools, "indexStatus" | "incrementalReindex" | "accessCost"> & Partial<Pick<OrkeonTools, "affectedTests">>,
