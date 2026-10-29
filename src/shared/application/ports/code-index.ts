@@ -41,8 +41,9 @@ export interface CodeIndex {
   /** How many roots the index holds; 0 before the first indexing. */
   rootCount(): Promise<number>;
   /** Index `root`, and count what the index then holds. `parallel` files are parsed at once; the runtime's
-   *  default (one per processor) when absent. */
-  index(root: string, opts?: { parallel?: number }): Promise<IndexSummary>;
+   *  default (one per processor) when absent. `rebuild` builds from scratch rather than reloading the index an
+   *  earlier session saved. */
+  index(root: string, opts?: { parallel?: number; rebuild?: boolean }): Promise<IndexSummary>;
   /** The map at `level`; `withMetrics` asks for the per-symbol metrics. */
   map(level: string, withMetrics: boolean): Promise<CodeMap>;
   /** The dependency graph of `scope`, at most `maxNodes` nodes, without its mermaid rendering. */

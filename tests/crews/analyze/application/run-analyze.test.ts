@@ -88,6 +88,34 @@ describe("runAnalyze", () => {
     }
   });
 
+  it("indexes again from scratch on rebuild, even when the session holds an index", async () => {
+    for (const rebuild of [true, "true"]) {
+      // Arrange
+      const { index, deps } = analyzeSetup();
+      index.roots = 1;
+
+      // Act
+      await runAnalyze({ rebuild, parallel: 2 }, deps);
+
+      // Assert
+      deepStrictEqual(index.calls.slice(0, 1), [`index ${WORKSPACE} parallel=2 rebuild`]);
+    }
+  });
+
+  it("keeps the session's index when rebuild is not asked", async () => {
+    for (const rebuild of [undefined, false, "false", "x"]) {
+      // Arrange
+      const { index, deps } = analyzeSetup();
+      index.roots = 1;
+
+      // Act
+      await runAnalyze({ rebuild }, deps);
+
+      // Assert
+      deepStrictEqual(index.calls.filter((c) => c.startsWith("index ")), []);
+    }
+  });
+
   it("releases the progress slot when the index fails", async () => {
     // Arrange
     const { index, progress, deps } = analyzeSetup();

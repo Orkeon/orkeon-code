@@ -21,10 +21,11 @@ const phase = (step: number, message: string) =>
 
 /** The crew's input: `raw` (true or "true") returns the harvest without the synthesis; `parallel`, a whole
  *  number of at least 1, is how many files the indexing parses at once — anything else leaves the runtime's
- *  default. */
+ *  default; `rebuild` (true or "true") indexes again from scratch, past the session's index and the saved one. */
 export interface AnalyzeInputs {
   raw?: unknown;
   parallel?: unknown;
+  rebuild?: unknown;
 }
 
 function readParallel(value: unknown): number | undefined {
@@ -43,13 +44,16 @@ export async function runAnalyze(input: AnalyzeInputs, deps: AnalyzeDeps): Promi
   const { index, progress, llm, log } = deps;
   const raw = input.raw === true || String(input.raw ?? "") === "true";
   const parallel = readParallel(input.parallel);
+  const rebuild = input.rebuild === true || String(input.rebuild ?? "") === "true";
   try {
     // 1. Ensure an index exists. The store is process-lifetime, so within a REPL
     //    session the first /analyze pays the build and the next ones reuse it
-    //    (the read tools keep it fresh lazily — no re-run after edits).
+    //    (the read tools keep it fresh lazily — no re-run after edits); the
+    //    runtime reloads the index an earlier session saved. `rebuild` skips both.
     await progress.report(phase(1, "indexing"));
-    if ((await index.rootCount()) === 0) {
-      const idx = await index.index(WORKSPACE, parallel === undefined ? undefined : { parallel });
+    if (rebuild || (await index.rootCount()) === 0) {
+      const opts = { ...(parallel === undefined ? {} : { parallel }), ...(rebuild ? { rebuild } : {}) };
+      const idx = await index.index(WORKSPACE, Object.keys(opts).length === 0 ? undefined : opts);
       if (idx.files === 0) {
         return `analyze: indexed 0 file(s) under ${WORKSPACE} — nothing to analyze ` +
                "(no file matches the Tree-sitter adapters' extensions).";

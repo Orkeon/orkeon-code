@@ -32,9 +32,12 @@ export function createCodeIndex(tools: Pick<OrkeonTools, CodeIndexTools>): CodeI
     async index(root, opts) {
       // The languages named: every grammar of the runtime's registry (index-languages.ts); a file the runtime still
       // refuses to read is skipped by the discovery, not fatal (Orkeon #215).
-      const input = { root_path: root, languages: INDEXED_LANGUAGES };
-      return readIndexSummary(await tools.indexCodebase(
-        opts?.parallel === undefined ? input : { ...input, max_parallelism: opts.parallel }));
+      return readIndexSummary(await tools.indexCodebase({
+        root_path: root,
+        languages: INDEXED_LANGUAGES,
+        ...(opts?.parallel === undefined ? {} : { max_parallelism: opts.parallel }),
+        ...(opts?.rebuild === true ? { use_cache: false } : {}),
+      }));
     },
     async map(level, withMetrics) {
       const raw = await tools.codebaseMap(withMetrics ? { level, include_metrics: true } : { level });

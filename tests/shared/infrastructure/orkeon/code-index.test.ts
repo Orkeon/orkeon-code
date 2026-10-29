@@ -70,6 +70,22 @@ describe("createCodeIndex", () => {
     ]);
   });
 
+  it("asks for use_cache: false only on a rebuild", async () => {
+    // Arrange
+    const tools = new FakeTools();
+    tools.replies.indexCodebase = INDEX_REPLY;
+
+    // Act
+    await createCodeIndex(tools).index(WORKSPACE, { rebuild: true, parallel: 3 });
+    await createCodeIndex(tools).index(WORKSPACE, { rebuild: false });
+
+    // Assert
+    deepStrictEqual(tools.inputsOf("indexCodebase"), [
+      { root_path: WORKSPACE, languages: INDEXED_LANGUAGES, max_parallelism: 3, use_cache: false },
+      { root_path: WORKSPACE, languages: INDEXED_LANGUAGES },
+    ]);
+  });
+
   it("reads a map's entries and symbol total, asking for metrics when told", async () => {
     // Arrange
     const tools = new FakeTools();

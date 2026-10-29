@@ -38,8 +38,9 @@ export class FakeCodeIndex implements CodeIndex {
     return this.roots;
   }
 
-  async index(root: string, opts?: { parallel?: number }): Promise<IndexSummary> {
-    this.record(opts === undefined ? `index ${root}` : `index ${root} parallel=${opts.parallel}`);
+  async index(root: string, opts?: { parallel?: number; rebuild?: boolean }): Promise<IndexSummary> {
+    const parallel = opts?.parallel === undefined ? "" : ` parallel=${opts.parallel}`;
+    this.record(`index ${root}${parallel}${opts?.rebuild === true ? " rebuild" : ""}`);
     return this.indexed;
   }
 

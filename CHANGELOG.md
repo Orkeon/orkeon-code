@@ -31,6 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   models for `/model`, the key in `ANTHROPIC_API_KEY`, no temperature since the current Claude generation refuses one.
   `docs/configuration.md` says where the credits come from (the Console organisation linked to the plan) and that
   signing in with the plan itself is reserved to Anthropic's own applications.
+- **`/analyze --rebuild` reindexes from scratch** (Orkeon `index_codebase` `use_cache: false`): the runtime now
+  keeps the index between sessions under `<workspace>/.orkeon/cache/raggable-tree/` and reloads or refreshes it on
+  the first `/analyze` of a session; `--rebuild` ignores both the session's index and the saved one, then saves the
+  new one.
 - **`/analyze --parallel N` sets how many files the indexing parses at once** (Orkeon `index_codebase`
   `max_parallelism`): a whole number from 1 to 64, the runtime's default (one per processor) when absent. It acts
   only when the session has no index yet; the index is the same whatever N.
