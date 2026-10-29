@@ -22,8 +22,15 @@
 //
 // Budget: domain/batches-budget.ts (the driver's, and each batch agent's run: L8P-D12, Orkeon/orkeon#189).
 
-import { AgentBuilder, CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infrastructure/globals.ts";
-import { orkeonClock, orkeonConfigStore, orkeonFiles, orkeonPullRequestOpener, orkeonShell } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infrastructure/globals.ts";
+import {
+  orkeonAgent,
+  orkeonClock,
+  orkeonConfigStore,
+  orkeonFiles,
+  orkeonPullRequestOpener,
+  orkeonShell,
+} from "../../shared/infrastructure/orkeon/wiring.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { memoryDirOf } from "../../shared/application/shared-memory/memory-settings.ts";
 import { harvestAfterGaps } from "../../shared/application/shared-memory/harvest-after-gaps.ts";
@@ -60,7 +67,7 @@ function batchAgent(run: BatchRun, context: BatchesContext) {
     permissionMode: context.permissionMode, permissionRules: context.permissionRules, githubTool: false,
     ...(context.memoryRecall === false ? { memoryRecall: false } : {}),
   };
-  const builder = AgentBuilder()
+  const builder = orkeonAgent()
     .name(`batch-${run.batch}`)
     .role("Batch runner")
     .goal(`Run batch ${run.batch} of ${run.code} test-first under its worktree, audit it and commit it there`)
@@ -82,7 +89,7 @@ function batchAgent(run: BatchRun, context: BatchesContext) {
   return { builder: batchEffort === undefined ? builder : builder.effort(batchEffort), limits };
 }
 
-const builder = AgentBuilder()
+const builder = orkeonAgent()
   .name("dev-batches")
   .role("Batch driver")
   .goal("Run a plan's batches in the order their dependencies allow, and close the plan with one pull request")
@@ -110,7 +117,7 @@ const builder = AgentBuilder()
       },
       // git under the first worktree, as an agent rooted there sees it (L8P-D11, Orkeon/orkeon#188).
       probe: async (root) => {
-        const probe = AgentBuilder()
+        const probe = orkeonAgent()
           .name(`probe-${root.slice(root.lastIndexOf("/") + 1)}`)
           .role("Worktree probe")
           .goal("Say git's top under the worktree")

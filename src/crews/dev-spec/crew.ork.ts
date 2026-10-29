@@ -21,9 +21,18 @@
 // 200 tool calls. The reviewer runs as a child (delegationDepth 1): the runtime gives it what the parent has left
 // at its spawn, so its 60 calls are an estimate, not a cap. The wall time counts the person's answers: one hour.
 
-import { AgentBuilder, CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infrastructure/globals.ts";
+import { CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infrastructure/globals.ts";
 import {
-  orkeonClock, orkeonCodeIndex, orkeonConfigStore, orkeonFiles, orkeonHumanInput, orkeonMemoryToolPorts, orkeonSessionIo, orkeonSharedMemory, orkeonShell,
+  orkeonAgent,
+  orkeonClock,
+  orkeonCodeIndex,
+  orkeonConfigStore,
+  orkeonFiles,
+  orkeonHumanInput,
+  orkeonMemoryToolPorts,
+  orkeonSessionIo,
+  orkeonSharedMemory,
+  orkeonShell,
 } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { memoryReadTools, memoryRecallOn, memoryRecallTools } from "../../shared/infrastructure/orkeon/memory-tools.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
@@ -51,7 +60,7 @@ const callbacksFor = (ctx: any) => devToolCallbacks(
 
 /** The reviewer, added to the crew by its first act (a sequential crew would run an agent it holds from the start). */
 const reviewer = () => {
-  const builder = AgentBuilder()
+  const builder = orkeonAgent()
     .name(REVIEWER_CHARTER.name)
     .role(REVIEWER_CHARTER.role)
     .goal(REVIEWER_CHARTER.goal)
@@ -62,7 +71,7 @@ const reviewer = () => {
   return effort === undefined ? builder : builder.effort(effort);
 };
 
-const builder = AgentBuilder()
+const builder = orkeonAgent()
   .name("dev-spec-writer")
   .role("Business analyst")
   .goal("Write what a feature does and the rules it follows, in business words, and settle its open questions with the person")

@@ -31,10 +31,20 @@
 // tools are Orkeon Code's own (memory-tools.ts): memory_recall in every mode,
 // memory_push (a candidate file, never an entry) where the mode edits.
 
-import { AgentBuilder, CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infrastructure/globals.ts";
+import { CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infrastructure/globals.ts";
 import {
-  orkeonClock, orkeonCompactionDeps, orkeonConfigStore, orkeonFiles, orkeonMemoryStore, orkeonMemoryToolPorts,
-  orkeonProgress, orkeonSessionIo, orkeonShell, orkeonTelemetry, orkeonToolCalls,
+  orkeonAgent,
+  orkeonClock,
+  orkeonCompactionDeps,
+  orkeonConfigStore,
+  orkeonFiles,
+  orkeonMemoryStore,
+  orkeonMemoryToolPorts,
+  orkeonProgress,
+  orkeonSessionIo,
+  orkeonShell,
+  orkeonTelemetry,
+  orkeonToolCalls,
 } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { memoryTools } from "../../shared/infrastructure/orkeon/memory-tools.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
@@ -56,7 +66,7 @@ const ports = {
   memory: orkeonMemoryStore(), tools: orkeonToolCalls(), config: orkeonConfigStore(),
 };
 
-const coder = AgentBuilder()
+const coder = orkeonAgent()
   .name("coder")
   .role("Interactive Coding Agent")
   .goal("Understand a coding request, explore/edit/run code via tool-calling under permission, and answer.")

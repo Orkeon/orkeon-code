@@ -20,11 +20,11 @@
 // Budget: under full, the build (900 s), the whole suite (900 s) and three validations
 // (300 s each) can all run, plus the model's own time: one hour of wall time.
 
-import { AgentBuilder, CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infrastructure/globals.ts";
+import { CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infrastructure/globals.ts";
 import { runValidationTool, scriptToolSlot } from "../../shared/infrastructure/orkeon/script-tools.ts";
 import type { ValidationCalls } from "../../shared/infrastructure/orkeon/script-tools.ts";
 import { STEP_BUDGETS } from "../../shared/domain/dev/step-budget.ts";
-import { orkeonClock, orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { orkeonAgent, orkeonClock, orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { memoryRecallOn, memoryRecallTools } from "../../shared/infrastructure/orkeon/memory-tools.ts";
 import { agentTools, verifyCallbacks, verifyDeps } from "../../shared/infrastructure/orkeon/dev-deps.ts";
 import { childAgentBody, withChildAct } from "../../shared/infrastructure/orkeon/child-agents.ts";
@@ -51,7 +51,7 @@ const callbacksFor = (ctx: any) => verifyCallbacks(ctx, options);
 
 /** The auditor as a child, added to the crew by its first act (a sequential crew would run an agent it holds from the start). */
 const auditorChild = () => {
-  const builder = AgentBuilder()
+  const builder = orkeonAgent()
     .name(AUDITOR_CHARTER.name)
     .role(AUDITOR_CHARTER.role)
     .goal(AUDITOR_CHARTER.goal)
@@ -63,7 +63,7 @@ const auditorChild = () => {
   return effort === undefined ? builder : builder.effort(effort);
 };
 
-const verifier = AgentBuilder()
+const verifier = orkeonAgent()
   .name("dev-verifier")
   .role(AUDITOR_CHARTER.role)
   .goal(AUDITOR_CHARTER.goal)

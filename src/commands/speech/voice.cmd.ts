@@ -6,6 +6,7 @@
 // --go sends at once (commands/_lib/voice). The recording is made by a crew: it
 // outlasts the 10 s a handler may wait.
 import { rawTokens } from "../_lib/args.ts";
+import { withLlmProfile } from "../_lib/dispatch.ts";
 import { dispatchVoice, renderVoiceCompletion } from "../_lib/speech/voice.ts";
 import { createCrewHost } from "../../shared/infrastructure/orkeon/crew-host.ts";
 import { createPermissionRules } from "../../shared/infrastructure/orkeon/permission-rules.ts";
@@ -20,10 +21,10 @@ defineAsyncCommand({
   description: "Dictate a request: record the microphone until a silence and show the text; /voice send sends it, --go sends at once.",
   maxConcurrent: 1,
   dispatch: async (args, ctx) =>
-    await dispatchVoice(rawTokens(args), {
+    await dispatchVoice(rawTokens(args), await withLlmProfile({
       ...deps, catalogue: orkeonToolCatalogue(ctx.services), crews: createCrewHost(ctx.services),
       gate: createPermissionRules(ctx.services), log: ctx.log, out: ctx,
-    }),
+    }, deps.config)),
   completed: (result, ctx) => {
     for (const line of renderVoiceCompletion(result)) ctx.writeLine(line);
   },

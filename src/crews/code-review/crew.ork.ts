@@ -13,9 +13,14 @@
 //   passes — the rounds of this run, outranking the session's /passes (/review --passes)
 // Run standalone:  bash scripts/run-crew.sh src/crews/code-review/crew.ork.ts
 
-import { AgentBuilder, CrewBuilder, publishCrew, inputs } from "../../shared/infrastructure/globals.ts";
+import { CrewBuilder, publishCrew, inputs } from "../../shared/infrastructure/globals.ts";
 import {
-  orkeonConfigStore, orkeonFiles, orkeonProgress, orkeonSessionIo, orkeonShell,
+  orkeonAgent,
+  orkeonConfigStore,
+  orkeonFiles,
+  orkeonProgress,
+  orkeonSessionIo,
+  orkeonShell,
 } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { runCodeReview } from "./application/run-code-review.ts";
@@ -28,7 +33,7 @@ const ports = {
   config: orkeonConfigStore(),
 };
 
-const reviewer = AgentBuilder()
+const reviewer = orkeonAgent()
   .name("code-reviewer")
   .role("Senior Code Reviewer")
   .goal("Review changes across correctness, security, and style lenses and produce a ranked report.")

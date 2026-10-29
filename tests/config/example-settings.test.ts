@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   commentKeysBelowRoot, listExamples, load, PROMISED_EXAMPLES, RESULT_LIMITS, withoutCommentAndLlm,
-  withoutCommentOrkeonAndMcp,
+  withoutCommentOrkeonAndMcp, withoutCommentProfilesAndDecision,
 } from "./example-settings.fixtures.ts";
 import { assertExamplesInclude, assertWhisperMounts } from "./example-settings.assertions.ts";
 
@@ -12,7 +12,7 @@ import { assertExamplesInclude, assertWhisperMounts } from "./example-settings.a
 // Every config/*.example.json is such an example.
 const examples = listExamples();
 
-test("the example settings exist: the default one, the Ollama one, the Ollama and Whisper one", () => {
+test("the example settings exist: the default one, the Ollama one, the Ollama and Whisper one, the Jev one", () => {
   // Arrange
   const expected = PROMISED_EXAMPLES;
 
@@ -78,6 +78,36 @@ test("the Ollama and Whisper example is the Ollama one plus the Whisper declarat
   assert.deepEqual(withoutCommentOrkeonAndMcp(both), withoutCommentOrkeonAndMcp(ollama));
   assert.deepEqual(orkeon, ollama.Orkeon);
   assert.deepEqual(both.MCP.Servers.whisper.Env.WHISPER_MODEL, "turbo");
+});
+
+// The Jev example is the default one with a decision model in front of the LLM: the same file but for its comment,
+// the named profiles the decision profile targets, and the TypeSafe and Decision sections.
+test("the Jev example differs from the default one in its profiles and its decision sections only", () => {
+  // Arrange
+  const main = load("appsettings.example.json");
+
+  // Act
+  const jev = load("appsettings.jev.example.json");
+
+  // Assert
+  assert.deepEqual(withoutCommentProfilesAndDecision(jev), withoutCommentProfilesAndDecision(main));
+});
+
+test("the Jev example reaches TypeSafe through a key variable, never a key, and its decision profile targets a profile it declares", () => {
+  // Arrange
+  const file = "appsettings.jev.example.json";
+
+  // Act
+  const settings = load(file);
+
+  // Assert
+  assert.equal(settings.Orkeon.TypeSafe.ApiKey, undefined);
+  assert.equal(settings.Orkeon.TypeSafe.ApiKeyEnvVar, "TYPESAFE_API_KEY");
+  const guarded = settings.Orkeon.Decision.Profiles.guarded;
+  assert.ok(settings.Llm.Profiles[guarded.Target], `${file}: Target ${guarded.Target} is not an Llm:Profiles entry`);
+  for (const stage of guarded.Stages.filter((s: any) => s.EscalateTo)) {
+    assert.ok(settings.Llm.Profiles[stage.EscalateTo], `${file}: EscalateTo ${stage.EscalateTo} is not an Llm:Profiles entry`);
+  }
 });
 
 for (const name of examples.filter((name) => load(name).MCP?.Servers?.whisper?.Env)) {

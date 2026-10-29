@@ -26,7 +26,9 @@ import type { ConfigStore } from "../../application/config-store.ts";
 import { createSessionIo } from "../../application/session-io.ts";
 import type { SessionIo } from "../../application/session-io.ts";
 import type { ServiceLocator } from "../../../commands/.orkeon/orkeon-cli.d.ts";
-import { Rag, Tools } from "../globals.ts";
+import { AgentBuilder, Llm as HostLlm, Rag, Tools, inputs } from "../globals.ts";
+import { profiledAgent } from "./llm-profile.ts";
+import type { AgentFactories } from "./llm-profile.ts";
 import { createAnchorIndex, createCodeIndex, createCostIndex } from "./code-index.ts";
 import { createFiles } from "./files.ts";
 import { createHumanInput } from "./human-input.ts";
@@ -101,3 +103,13 @@ export const orkeonCompactionDeps = (
     workflow: (trigger) => writeWorkflowState({ session, files, shell, config, clock }, trigger),
   };
 };
+
+/** The runtime's agent factories: `agentBuilder` and `llm.profile`, the latter absent where the host declares no `llm`. */
+export const orkeonAgentFactories = (): AgentFactories => {
+  const host = HostLlm;
+  return { agent: AgentBuilder, profile: host === undefined ? undefined : (name) => host.profile(name) };
+};
+
+/** An agent builder on the profile the crew input names (`llmProfile`, the session's `llm.profile`), else the plain
+ *  one: where every composition root starts an agent (orkeon/llm-profile.ts). */
+export const orkeonAgent = (input: Readonly<Record<string, unknown>> = inputs()): any => profiledAgent(input, orkeonAgentFactories());

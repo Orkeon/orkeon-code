@@ -8,11 +8,11 @@
 // count, answered here without launching a review. The crew is launched exclusively (Orkeon #239): the host refuses
 // a review while one runs, with its ticket; the command has no instance quota, so /passes still answers meanwhile.
 import { rawTokens, typedCommand } from "../_lib/args.ts";
-import { launchCrew, writeCompleted } from "../_lib/dispatch.ts";
+import { launchCrew, withLlmProfile, writeCompleted } from "../_lib/dispatch.ts";
 import { REVIEW_CREW, parseReviewArgs, runPasses } from "../_lib/git/review.ts";
 import { showView } from "../_lib/view.ts";
 import { createCrewHost } from "../../shared/infrastructure/orkeon/crew-host.ts";
-import { orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { orkeonConfigStore, orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
 
 const session = orkeonSessionIo();
 
@@ -27,7 +27,7 @@ defineAsyncCommand({
       return { refused: parsed.text };
     }
     if (parsed.route === "passes") return showView(ctx, await runPasses(parsed.token, { session }));
-    return launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, REVIEW_CREW, { ...parsed.input }, {}, { exclusive: true });
+    return launchCrew(await withLlmProfile({ crews: createCrewHost(ctx.services), log: ctx.log }, orkeonConfigStore()), REVIEW_CREW, { ...parsed.input }, {}, { exclusive: true });
   },
   completed: (result, ctx) => {
     const name = typedCommand(ctx.command?.rawInput, "review");

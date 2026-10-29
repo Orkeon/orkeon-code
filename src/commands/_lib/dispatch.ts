@@ -10,12 +10,14 @@ import type { CrewHost, CrewLaunchOptions, PermissionRules, ToolCatalogue } from
 import type { ConfigStore } from "../../shared/application/config-store.ts";
 import type { SessionIo } from "../../shared/application/session-io.ts";
 import { configuredNames, resolveExtraTools } from "../../shared/application/extra-tools.ts";
+import { readLlmProfile } from "../../shared/application/llm-profile.ts";
 import { syncPermissionRules } from "../../shared/application/permission-rules.ts";
 import { readMemoryDir } from "../../shared/application/shared-memory/memory-settings.ts";
 import { memoryWriteRules } from "../../shared/domain/shared-memory/layout.ts";
 import { formatRule } from "../../shared/domain/agent-policy/permission.ts";
 import { chainDepthLine, chainDepthRefusal } from "../../shared/domain/agents/chain.ts";
 import { exclusiveLine, exclusiveRefusal } from "../../shared/domain/agents/exclusive.ts";
+import { LLM_PROFILE_INPUT_KEY } from "../../shared/domain/llm-profile.ts";
 import { errorText } from "../../shared/domain/prelude.ts";
 import type { EpilogueCall, PreludeCall } from "../../shared/domain/prelude.ts";
 import type { StartOutput } from "../../shared/domain/session-start.ts";
@@ -30,10 +32,23 @@ export interface CommandLog {
   warn(message: string, data?: object): void;
 }
 
-/** What a crew launch needs: the host that runs crews and the command's log. */
+/** What a crew launch needs: the host that runs crews, the command's log, and the session's `llm.profile` when
+ *  the command read it (withLlmProfile): the crew input then carries it as `llmProfile`, and every agent of the
+ *  crew runs on that profile. Undefined or null, the input carries nothing and the agents run on the host's default model. */
 export interface LaunchDeps {
   crews: Pick<CrewHost, "launch">;
   log: Pick<CommandLog, "info">;
+  llmProfile?: string | null;
+}
+
+/** `deps` with the session's `llm.profile` read: what every command hands launchCrew. A setting that cannot be
+ *  read, or holds no profile name, is warned about and the launch goes on without it. */
+export async function withLlmProfile<D extends LaunchDeps & { log: Pick<CommandLog, "warn"> }>(
+  deps: D, config: Pick<ConfigStore, "readValue" | "readFile">,
+): Promise<D & { llmProfile: string | null }> {
+  const read = await readLlmProfile(config);
+  if (read.warning !== undefined) deps.log.warn(read.warning);
+  return { ...deps, llmProfile: read.profile };
 }
 
 /** A crew's completion, as an async command's `completed` receives it; `intent` names the crew that answered,
@@ -65,6 +80,11 @@ export function launchCrew(
   details: Record<string, unknown> = {},
   options?: CrewLaunchOptions,
 ): LaunchResult {
+  const profile = deps.llmProfile ?? null;
+  if (profile !== null) {
+    input = { ...input, [LLM_PROFILE_INPUT_KEY]: profile };
+    details = { ...details, llmProfile: profile };
+  }
   let ticket: string;
   try {
     ticket = deps.crews.launch(crew, input, options);
@@ -148,8 +168,9 @@ export async function launchMainLoop(
   }
   if (!sync.applied) log.warn("the host keeps no session rules: the gate decides each call from the mode alone");
   const epilogue = await voiceReply(deps);
+  const profiled = deps.llmProfile === undefined ? await withLlmProfile(deps, deps.config) : deps;
   return launchCrew(
-    deps,
+    profiled,
     "main-loop",
     {
       prompt: input.prompt,

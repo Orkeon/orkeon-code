@@ -23,7 +23,7 @@ import {
 } from "../_lib/dev/dev-batches.ts";
 import { runDevImplementDispatch } from "../_lib/dev/dev-implement.ts";
 import { reapplyStepRules, startDevStep, writeModeRefusal } from "../_lib/dev-step.ts";
-import { launchCrew } from "../_lib/dispatch.ts";
+import { launchCrew, withLlmProfile } from "../_lib/dispatch.ts";
 import { storedEffort } from "../_lib/effort.ts";
 import { readPullRequestContext } from "../_lib/pr-context.ts";
 import { createCrewHost } from "../../shared/infrastructure/orkeon/crew-host.ts";
@@ -89,7 +89,7 @@ defineAsyncCommand({
       return { refused: unrecorded };
     }
     const crew = parsed.route === "run" ? "dev-batches" : parsed.route === "batch" ? "dev-implement" : "dev-verify";
-    return launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, crew, outcome.input, outcome.details);
+    return launchCrew(await withLlmProfile({ crews: createCrewHost(ctx.services), log: ctx.log }, orkeonConfigStore()), crew, outcome.input, outcome.details);
   },
   // Async: the host awaits it before the next completion (Orkeon #220). Caught whole: a failure prints its line
   // and the command to type, never a bare `Error in completed('dev-batches')`.
@@ -100,7 +100,7 @@ defineAsyncCommand({
         session: deps.session, reapply: (crew) => reapplyStepRules(createPermissionRules(ctx.services), crew), context: contextReader(ctx),
       });
       for (const line of completion.lines) ctx.writeLine(line);
-      for (const line of launchCompletedHop(completion, { crews: createCrewHost(ctx.services), log: ctx.log })) ctx.writeLine(line);
+      for (const line of launchCompletedHop(completion, await withLlmProfile({ crews: createCrewHost(ctx.services), log: ctx.log }, orkeonConfigStore()))) ctx.writeLine(line);
     } catch (e) {
       ctx.writeLine(batchesHopFailedLine(e));
     }

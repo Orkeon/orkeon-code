@@ -12,13 +12,13 @@
 //
 // Triggered by:  /transcribe, /voice, /say  →  script-host.runCrewAsync("speech", { tool, args, label })
 // Input (globalThis.inputs): { tool: string, args: object, label: string }
-import { AgentBuilder, CrewBuilder, publishCrew, inputs } from "../../shared/infrastructure/globals.ts";
-import { orkeonToolCalls } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { CrewBuilder, publishCrew, inputs } from "../../shared/infrastructure/globals.ts";
+import { orkeonAgent, orkeonToolCalls } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { runSpeech } from "./application/run-speech.ts";
 
 const tools = orkeonToolCalls();
 
-const speaker = AgentBuilder()
+const speaker = orkeonAgent()
   .name("speech")
   .role("Speech")
   // NO tools on purpose: the call below is the command's, made through the tools

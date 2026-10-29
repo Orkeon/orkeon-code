@@ -7,14 +7,14 @@
 //
 // Run standalone:  bash scripts/run-crew.sh src/crews/init-verifiers/crew.ork.ts
 
-import { AgentBuilder, CrewBuilder, publishCrew } from "../../shared/infrastructure/globals.ts";
-import { orkeonFiles } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { CrewBuilder, publishCrew } from "../../shared/infrastructure/globals.ts";
+import { orkeonAgent, orkeonFiles } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { runInitVerifiers } from "./application/run-init-verifiers.ts";
 
 const files = orkeonFiles();
 
-const author = AgentBuilder()
+const author = orkeonAgent()
   .name("verifier-author")
   .role("QA Tooling Engineer")
   .goal("Detect how this project is tested and author verification skills for any zone missing one.")

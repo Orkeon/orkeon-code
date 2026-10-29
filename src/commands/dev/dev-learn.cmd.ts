@@ -4,7 +4,7 @@
 // few reads and one write, answered here.
 import { rawTokens } from "../_lib/args.ts";
 import { parseDevLearnArgs, runDevLearnDecision } from "../_lib/dev/dev.ts";
-import { launchCrew, writeCompleted } from "../_lib/dispatch.ts";
+import { launchCrew, withLlmProfile, writeCompleted } from "../_lib/dispatch.ts";
 import { createCrewHost } from "../../shared/infrastructure/orkeon/crew-host.ts";
 import { orkeonClock, orkeonConfigStore, orkeonFiles, orkeonShell } from "../../shared/infrastructure/orkeon/wiring.ts";
 
@@ -22,7 +22,7 @@ defineAsyncCommand({
     }
     const a = parsed.args;
     if (a.kind === "accept" || a.kind === "refuse") return { message: await runDevLearnDecision(a, deps) };
-    return launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "dev-learn",
+    return launchCrew(await withLlmProfile({ crews: createCrewHost(ctx.services), log: ctx.log }, orkeonConfigStore()), "dev-learn",
       { axis: a.axis, list: a.kind === "list" });
   },
   completed: (result, ctx) => writeCompleted(ctx, result, "dev-learn"),

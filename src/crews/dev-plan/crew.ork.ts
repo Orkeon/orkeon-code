@@ -18,9 +18,17 @@
 // did not. The reviewer runs as a child: the runtime gives it what the parent has left at its spawn
 // (SpawnAgentScriptTool CreateChildBudget), so the 60 is its own estimate, not a cap.
 
-import { AgentBuilder, CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infrastructure/globals.ts";
+import { CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infrastructure/globals.ts";
 import {
-  orkeonAnchorIndex, orkeonClock, orkeonCodeIndex, orkeonConfigStore, orkeonFiles, orkeonMemoryToolPorts, orkeonSessionIo, orkeonSharedMemory,
+  orkeonAgent,
+  orkeonAnchorIndex,
+  orkeonClock,
+  orkeonCodeIndex,
+  orkeonConfigStore,
+  orkeonFiles,
+  orkeonMemoryToolPorts,
+  orkeonSessionIo,
+  orkeonSharedMemory,
   orkeonShell,
 } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { memoryReadTools, memoryRecallOn, memoryRecallTools } from "../../shared/infrastructure/orkeon/memory-tools.ts";
@@ -52,7 +60,7 @@ const callbacksFor = (ctx: any) => devToolCallbacks(
 
 /** The reviewer, added to the crew by its first act (a sequential crew would run an agent it holds from the start). */
 const reviewer = () => {
-  const builder = AgentBuilder()
+  const builder = orkeonAgent()
     .name(REVIEWER_CHARTER.name)
     .role(REVIEWER_CHARTER.role)
     .goal(REVIEWER_CHARTER.goal)
@@ -63,7 +71,7 @@ const reviewer = () => {
   return effort === undefined ? builder : builder.effort(effort);
 };
 
-const planner = AgentBuilder()
+const planner = orkeonAgent()
   .name("dev-planner")
   .role("Technical planner")
   .goal("Turn a settled specification or change brief into batches a test-first implementation can follow")

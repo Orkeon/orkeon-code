@@ -8,7 +8,7 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual, throws } from "node:assert";
 
 import { parseAssistantInput } from "../../../src/commands/_lib/args.ts";
-import { launchCrew, launchMainLoop, writeCompleted } from "../../../src/commands/_lib/dispatch.ts";
+import { launchCrew, launchMainLoop, withLlmProfile, writeCompleted } from "../../../src/commands/_lib/dispatch.ts";
 import { BREAKER_RUN_FIELD } from "../../../src/crews/main-loop/application/auto-compact.ts";
 import { loadCatalogue, runMainLoop } from "../../../src/crews/main-loop/application/run-main-loop.ts";
 import type { MainLoopInputs } from "../../../src/crews/main-loop/application/run-main-loop.ts";
@@ -36,6 +36,7 @@ import {
   MEMORY_PATHS,
   MIXED_EXTRA_TOOLS,
   MIXED_EXTRA_TOOLS_WARNINGS,
+  NOT_A_PROFILE_WARNING,
   NO_SPEAK_WARNING,
   QUIET_VOICE_CASES,
   START_SCRIPT,
@@ -45,6 +46,7 @@ import {
   lineSink,
   mainLoopDeps,
   planModeSession,
+  profiledCrewDeps,
   unreadableFileConfig,
   unreadableVoiceDeps,
   voiceDeps,
@@ -64,6 +66,29 @@ describe("launchCrew", () => {
     deepStrictEqual(result, { ticket: "ticket-1" });
     deepStrictEqual(crews.launches, [{ name: "project-init", input: { cwd: WORKSPACE } }]);
     deepStrictEqual(logged, [{ message: "project-init launched", data: { ticket: "ticket-1" } }]);
+  });
+
+  it("hands the crew the profile the deps carry, as llmProfile in its input, and logs it", () => {
+    // Arrange
+    const { crews, deps, logged } = crewDeps();
+
+    // Act
+    launchCrew({ ...deps, llmProfile: "guarded" }, "analyze", { raw: false });
+
+    // Assert
+    deepStrictEqual(crews.launches, [{ name: "analyze", input: { raw: false, llmProfile: "guarded" } }]);
+    deepStrictEqual(logged, [{ message: "analyze launched", data: { ticket: "ticket-1", llmProfile: "guarded" } }]);
+  });
+
+  it("hands the crew no llmProfile when the deps carry none", () => {
+    // Arrange
+    const { crews, deps } = crewDeps();
+
+    // Act
+    launchCrew({ ...deps, llmProfile: null }, "analyze", { raw: false });
+
+    // Assert
+    deepStrictEqual(crews.launches, [{ name: "analyze", input: { raw: false } }]);
   });
 
   it("adds the caller's details to the launch log", () => {
@@ -129,7 +154,65 @@ describe("launchCrew", () => {
   });
 });
 
+describe("withLlmProfile", () => {
+  it("reads the session's llm.profile into the deps", async () => {
+    // Arrange
+    const { deps, config } = profiledCrewDeps("guarded");
+
+    // Act
+    const profiled = await withLlmProfile(deps, config);
+
+    // Assert
+    deepStrictEqual(profiled, { ...deps, llmProfile: "guarded" });
+  });
+
+  it("leaves the deps without a profile when the session names none", async () => {
+    // Arrange
+    const { deps, config, warned } = profiledCrewDeps();
+
+    // Act
+    const profiled = await withLlmProfile(deps, config);
+
+    // Assert
+    deepStrictEqual({ profile: profiled.llmProfile, warned }, { profile: null, warned: [] });
+  });
+
+  it("warns and leaves the deps without a profile when the value is not a profile name", async () => {
+    // Arrange
+    const { deps, config, warned } = profiledCrewDeps("a b");
+
+    // Act
+    const profiled = await withLlmProfile(deps, config);
+
+    // Assert
+    deepStrictEqual({ profile: profiled.llmProfile, warned }, { profile: null, warned: [NOT_A_PROFILE_WARNING] });
+  });
+});
+
 describe("launchMainLoop", () => {
+  it("hands the main loop the session's llm.profile", async () => {
+    // Arrange
+    const { crews, config, deps } = mainLoopDeps();
+    await config.writeSession({ "llm.profile": "guarded" });
+
+    // Act
+    await launchMainLoop(deps, { prompt: "fix it", permissionMode: "plan" });
+
+    // Assert
+    strictEqual(crews.launches[0].input.llmProfile, "guarded");
+  });
+
+  it("hands the main loop no llmProfile when the session names none", async () => {
+    // Arrange
+    const { crews, deps } = mainLoopDeps();
+
+    // Act
+    await launchMainLoop(deps, { prompt: "fix it", permissionMode: "plan" });
+
+    // Assert
+    strictEqual("llmProfile" in crews.launches[0].input, false);
+  });
+
   it("hands the gate the session's rules BEFORE the crew starts, then the crew its rules and mode", async () => {
     // Arrange
     const { gate, crews, atLaunch, logged, warned, deps } = mainLoopDeps(

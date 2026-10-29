@@ -64,6 +64,21 @@ fenêtre de 4 096 tokens sauf si son environnement en décide autrement, et Orke
 prompt système d'un tour fait environ 2 250 tokens avant les schémas d'outils et la conversation, donc réglez
 `OLLAMA_CONTEXT_LENGTH=16384` sur le service Ollama, sinon le modèle perd en silence ses consignes et ses outils.
 
+**Un modèle de décision devant le LLM.** Orkeon peut placer un modèle de décision, Jev (le System One de TypeSafe,
+`jev-latest`), devant un modèle : un *profil de décision* (`Orkeon:Decision:Profiles:<nom>`) enveloppe un profil LLM
+nommé (`Llm:Profiles:<nom>`) d'étapes qui routent la requête vers le profil qui lui convient, la gardent (injection
+de prompt, les risques que vous nommez) ou vérifient la réponse et remontent vers un profil plus fort quand elle ne
+tient pas. [`config/appsettings.jev.example.json`](../../config/appsettings.jev.example.json) est l'exemple : la
+section `Orkeon:TypeSafe` (la clé dans `TYPESAFE_API_KEY`, jamais dans le fichier), deux profils LLM, `small` et
+`large`, et le profil de décision `guarded` par-dessus. La clé de session `llm.profile` nomme le profil sur lequel
+tournent les agents des commandes, `/config set llm.profile guarded` : chaque crew qu'une commande lance y construit
+ses agents, agents enfants des étapes dev compris, et le journal du lancement et `/config list` le montrent. Sans la
+clé rien ne change : les agents tournent sur le modèle par défaut de l'hôte, comme avant. Un nom que l'hôte ne
+déclare pas fait échouer le lancement du crew, son erreur listant les profils que l'hôte connaît ; un simple profil
+LLM marche de la même façon, sans modèle de décision devant. Le modèle par appel d'`/advisor` (`advisor.model`)
+s'applique toujours par-dessus le profil. Les étapes et leurs réglages sont dans
+[les modèles de décision d'Orkeon](https://github.com/Orkeon/orkeon/blob/main/docs/architecture/decision-models.md).
+
 L'agent appelle des outils à travers chaque fournisseur : la boucle d'outils du runtime (`ctx.llm.act`) lit les appels
 d'outils des formats Anthropic et OpenAI, exécute les appels de lecture d'un tour du modèle jusqu'à
 `MaxParallelToolCalls` à la fois et les autres l'un après l'autre, chaque appel à travers la garde de permission, et renvoie les résultats dans le protocole d'outils du
@@ -128,8 +143,10 @@ docs/memory` ; omis, `.orkeon/memory` ; jamais sous `.claude/` ni `.git/`, jamai
 mémoire d'agent), `memory.project` (le projet que nomment les entrées et la collection d'index `memory-<project>`, un
 nom kebab-case ; omis, le nom du remote `origin`, sinon `local`), `memory.autoAdmitAudited` (`true` ou `false`, omis
 = `false` : `/memory admit` admet sans demander un candidat qu'un audit appuie), `review.lenses` (les angles de `/review`, séparés par des virgules parmi `correctness`,
-`security` et `style` ; omis, les trois), `advisor.model` (le modèle du second avis d'`/advisor` ; omis, celui de la
-session, ce qui en fait une auto-revue), `commit.requireConfirm` (`false` laisse `/commit` s'exécuter sans sa
+`security` et `style` ; omis, les trois), `llm.profile` (le profil de l'hôte sur lequel tournent les agents de
+chaque crew, un profil LLM ou un profil de décision avec Jev devant, `/config set llm.profile guarded`,
+[le LLM](#le-llm) ; omis, le modèle par défaut de l'hôte), `advisor.model` (le modèle du second avis d'`/advisor` ;
+omis, celui de la session, ce qui en fait une auto-revue), `commit.requireConfirm` (`false` laisse `/commit` s'exécuter sans sa
 confirmation ; omis = `true`) ou `spinnerVerbs`. `/config keys` les liste toutes.
 `/model`, `/effort`, `/passes` (un alias de `/review`), `/fast`, `/proactive` et `/output-style` changent la façon dont les prochains tours
 s'exécutent. `/effort` règle aussi la réflexion du fournisseur : le niveau enregistré est envoyé comme `effort` de

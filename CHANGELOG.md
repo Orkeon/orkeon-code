@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A decision model, Jev, in front of the agents of every command, by one session key.** `llm.profile` names a host
+  profile: an LLM profile (`Llm:Profiles:<name>`) or a decision profile (`Orkeon:Decision:Profiles:<name>`, Jev,
+  TypeSafe's System One, routing, guarding or verifying the calls of an LLM profile). Every command that launches a
+  crew reads it (`withLlmProfile`, `commands/_lib/dispatch.ts`) and hands it in the crew's input as `llmProfile`;
+  every composition root builds its agents with `orkeonAgent()` (`shared/infrastructure/orkeon/llm-profile.ts`),
+  which applies `llm.profile(name)` when the input names one, child agents included. Without the key nothing
+  changes: the agents run on the host's default model. A value that is not a profile name, or a settings file that
+  cannot be read, is warned about and the launch goes on without it; a name the host does not declare fails the
+  crew's load, listing the profiles it knows. `config/appsettings.jev.example.json` is the example: `Orkeon:TypeSafe`
+  (the key in `TYPESAFE_API_KEY`), the profiles `small` and `large`, the decision profile `guarded` over them.
 - **`/resume <number or id>` switches the session in place** (Orkeon #227, delivered by #230): the session of now
   is saved to an archive beside its own file (`<stamp>-archived.json`, named by the clock port), then the chosen
   history file replaces the conversation, the state bag, the id and the title; the next turn continues it. The

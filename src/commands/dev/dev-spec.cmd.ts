@@ -9,7 +9,7 @@
 import { rawTokens, typedCommand } from "../_lib/args.ts";
 import { parseDevSpecArgs } from "../_lib/dev/dev-source.ts";
 import { readWriteModeRefusal, startDevStep } from "../_lib/dev-step.ts";
-import { launchCrew, writeCompleted } from "../_lib/dispatch.ts";
+import { launchCrew, withLlmProfile, writeCompleted } from "../_lib/dispatch.ts";
 import { storedEffort } from "../_lib/effort.ts";
 import { createCrewHost } from "../../shared/infrastructure/orkeon/crew-host.ts";
 import { createPermissionRules } from "../../shared/infrastructure/orkeon/permission-rules.ts";
@@ -47,7 +47,7 @@ defineAsyncCommand({
     for (const line of start.lines) ctx.writeLine(line);
     const details = { ruleSets: start.sets.join(" "), rules: start.rules, hooks: start.hooks.length };
     return launchCrew(
-      { crews: createCrewHost(ctx.services), log: ctx.log }, crew,
+      await withLlmProfile({ crews: createCrewHost(ctx.services), log: ctx.log }, orkeonConfigStore()), crew,
       { ...parsed.args, ...start.input, effort: await storedEffort(deps.session) }, details,
     );
   },
