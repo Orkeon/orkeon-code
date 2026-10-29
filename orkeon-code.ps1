@@ -16,7 +16,7 @@
 .NOTES
   Modes: tool (orkeon-repl on PATH, from the full Orkeon release .zip (the .msi has no orkeon-repl), the
   Debian package or the dotnet tool, or $env:ORKEON_REPL) and docker
-  (ghcr.io/orkeon/orkeon-runners:<.orkeon-version>). The source mode is only in the
+  (ghcr.io/orkeon/orkeon-runners:latest, the last release, not the pin). The source mode is only in the
   bash launcher. Folder trust, per-project state, sessions, settings, API key, model and $env:ORKEON_CODE_AUDIO_DIR (speech-to-text,
   tool mode): see the header of ./orkeon-code.
 #>
@@ -391,8 +391,10 @@ foreach ($name in @('ORKEON_Llm__Model', 'Orkeon__Security__PermissionGate__Enab
 }
 try {
   $Root = $PSScriptRoot
-  $OrkeonVersion = (Get-Content (Join-Path $Root '.orkeon-version') -Raw).Trim()
-  $Image = if ($env:ORKEON_CODE_IMAGE) { $env:ORKEON_CODE_IMAGE } else { "ghcr.io/orkeon/orkeon-runners:$OrkeonVersion" }
+  # The pin is a commit of Orkeon's main (.orkeon-version, ADR 0013): the tool and docker modes run a release.
+  $OrkeonRef = (Get-Content (Join-Path $Root '.orkeon-version') -Raw).Trim()
+  $OrkeonPin = $OrkeonRef.Substring(0, 7)
+  $Image = if ($env:ORKEON_CODE_IMAGE) { $env:ORKEON_CODE_IMAGE } else { 'ghcr.io/orkeon/orkeon-runners:latest' }
   $codeVersion = (Get-Content (Join-Path $Root 'package.json') -Raw | ConvertFrom-Json).version
   # A clone (a .git, or the tests of an unpacked source archive) or an install, whose folder is never written to:
   # an install's state goes under ORKEON_CODE_HOME (%USERPROFILE%\.orkeon-code).
@@ -476,7 +478,7 @@ try {
     else { 'none (see docs/getting-started.md)' }
     $kind = if ($IsClone) { 'clone' } else { 'install' }
     Write-Output "orkeon-code $codeVersion ($kind`: $Root)"
-    Write-Output "Orkeon $OrkeonVersion expected, found: $found"
+    Write-Output "Orkeon $OrkeonPin expected, found: $found"
     exit 0
   }
 
@@ -704,7 +706,7 @@ try {
     }
   }
 
-  Write-Host "orkeon-code on Orkeon $OrkeonVersion ($Mode)"
+  Write-Host "orkeon-code on Orkeon $OrkeonPin ($Mode)"
   Write-Host "  project  : $Workspace -> /workspace"
   if ($runtimeOwn) { Write-Host "  settings : $Settings (Orkeon's own, read by the REPL)" } else { Write-Host "  settings : $Settings" }
   Write-Host "  sessions : $sessionsMount ($sessionNote)"

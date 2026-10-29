@@ -1,14 +1,13 @@
 # Runtime smoke: the real Orkeon REPL boots on the demo fixture and must load every
 # slash command (scripts/smoke-runtime.sh). No LLM is called.
 #
-# The REPL comes from the orkeon-runners image at the version pinned in
-# .orkeon-version when that image is published. Until it is (a release candidate
-# not yet out), the smoke builds the REPL from Orkeon's sources at
-# ORKEON_SOURCE_REF, the commit Orkeon Code was validated against, and runs the
-# launcher's source mode: the same check, on the runtime the pin will name.
+# The runtime is Orkeon's sources at the commit pinned in .orkeon-version (ADR
+# 0013): the job checks them out, builds the REPL and runs the launcher's source
+# mode, the reference runtime of Orkeon Code. A release (the tool or the image)
+# is never the pin, so it is never what the smoke runs.
 #
-# Runs when the runtime pin, the launcher or this workflow changes, every week (a
-# moved image tag shows up here), and on demand.
+# Runs when the runtime pin, the launcher or this workflow changes, every week, and
+# on demand.
 name: Runtime smoke
 on:
   pull_request:
@@ -27,54 +26,39 @@ permissions:
 concurrency:
   group: runtime-smoke-${{ github.ref }}
   cancel-in-progress: true
-env:
-  # Orkeon main after #234 (rc.6 cut and tagged at #232, the decision model and the decision tasks, retry-after-ms), on the runtime of ADR 0010: the rc.6 image is not published yet. Move it with .orkeon-version.
-  ORKEON_SOURCE_REF: 3fcfbbe8fefe03da56b166ed679a76ac450d7c7a
 jobs:
   smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Choose the runtime (the published image, else Orkeon's sources)
-        id: runtime
+      - name: Read the pin (the commit of Orkeon's main in .orkeon-version)
+        id: pin
         run: |
-          image="ghcr.io/orkeon/orkeon-runners:$(tr -d '[:space:]' < .orkeon-version)"
-          if docker manifest inspect "$image" > /dev/null 2>&1; then
-            echo "mode=docker" >> "$GITHUB_OUTPUT"
-            echo "Runtime: $image"
-          else
-            echo "mode=source" >> "$GITHUB_OUTPUT"
-            echo "::notice::$image is not published yet: the smoke runs the REPL built from Orkeon's sources at $ORKEON_SOURCE_REF."
-          fi
-      - name: Pull the pinned runtime image
-        if: steps.runtime.outputs.mode == 'docker'
-        run: docker pull "ghcr.io/orkeon/orkeon-runners:$(tr -d '[:space:]' < .orkeon-version)"
-      - name: Check out Orkeon's sources
-        if: steps.runtime.outputs.mode == 'source'
+          ref="$(tr -d '[:space:]' < .orkeon-version)"
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+          echo "Runtime: Orkeon's sources at $ref"
+      - name: Check out Orkeon's sources at the pin
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: Orkeon/orkeon
-          ref: ${{ env.ORKEON_SOURCE_REF }}
+          ref: ${{ steps.pin.outputs.ref }}
           path: .orkeon-source
           persist-credentials: false
       - name: Set up the .NET SDK Orkeon pins
-        if: steps.runtime.outputs.mode == 'source'
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: .orkeon-source/global.json
       - name: Set up Node (the esbuild the source mode bundles with)
-        if: steps.runtime.outputs.mode == 'source'
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v4
         with:
           node-version-file: .nvmrc
           cache: npm
       - name: Restore Orkeon and install esbuild
-        if: steps.runtime.outputs.mode == 'source'
         run: |
           dotnet restore .orkeon-source/src/apps/Orkeon.ConsoleApp --nologo
           npm ci --no-audit --no-fund
       - name: Boot the REPL and load the command surface
         env:
           ORKEON_SOURCE: ${{ github.workspace }}/.orkeon-source
-        run: bash scripts/smoke-runtime.sh --mode "${{ steps.runtime.outputs.mode }}"
+        run: bash scripts/smoke-runtime.sh --mode source

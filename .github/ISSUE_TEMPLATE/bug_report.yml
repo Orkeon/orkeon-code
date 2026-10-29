@@ -20,8 +20,8 @@ body:
     id: runtime
     attributes:
       label: Orkeon runtime version
-      description: "The content of `.orkeon-version`, or the image tag / tool version you run."
-      placeholder: "e.g. 1.0.0-rc.6"
+      description: "The runtime row of `/status`: the Orkeon version, its commit, and whether it is the pin of `.orkeon-version`."
+      placeholder: "e.g. Orkeon 1.0.0-rc.6+3fcfbbe (source), the pin of .orkeon-version"
     validations:
       required: true
   - type: dropdown

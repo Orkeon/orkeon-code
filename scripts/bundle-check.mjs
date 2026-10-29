@@ -7,8 +7,8 @@
 // `--platform=neutral` is also what keeps Node out of the runtime code: a
 // `node:fs` import in src/ fails here, because the runtime is Jint, not Node.
 //
-// The esbuild version is pinned in package.json to the one the pinned Orkeon
-// runtime ships (see .orkeon-version and docs/development.md).
+// The esbuild version is pinned in package.json to the one Orkeon bundles with at
+// the commit pinned by .orkeon-version (see docs/development.md).
 //
 //   npm run bundle:check
 import { execFileSync } from "node:child_process";

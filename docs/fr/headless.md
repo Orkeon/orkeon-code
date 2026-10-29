@@ -53,10 +53,10 @@ le projet est le seul dossier de votre machine qu'il peut écrire ([SECURITY.md]
 
 ## En un coup depuis un shell
 
-`scripts/run-crew.sh` lance un crew hors du REPL : avec l'outil `orkeon` (`Orkeon.Scripting.Cli` de nuget.org, épinglé
-dans `.config/dotnet-tools.json`, qui demande le SDK .NET 10) ou, sans SDK, avec l'image `orkeon-runners`. L'outil
-est sur nuget.org à la version épinglée ; l'image n'est pas encore publiée en `1.0.0-rc.6` ;
-`ORKEON_CODE_MODE=source ORKEON_SOURCE=<checkout>` le lance à la place depuis un checkout d'Orkeon
+`scripts/run-crew.sh` lance un crew hors du REPL : avec l'outil `orkeon` (`Orkeon.Scripting.Cli` de nuget.org, nommé
+par `.config/dotnet-tools.json`, qui demande le SDK .NET 10) ou, sans SDK, avec l'image `orkeon-runners`. Les deux
+exécutent la dernière release, `1.0.0-rc.6` pour l'outil, jamais l'épingle ;
+`ORKEON_CODE_MODE=source ORKEON_SOURCE=<checkout à l'épingle>` le lance à la place depuis un checkout d'Orkeon
 ([Développement](development.md)). Il lit le fichier de settings que nomme `ORKEON_CODE_SETTINGS`, sinon
 `config/appsettings.local.json`, et ne monte pas `/user-config` : ni `~/.orkeon-code/appsettings.json` ni le bloc
 `orkeonCode` de vos réglages d'utilisateur ne s'appliquent à un crew lancé ainsi. Le crew lit son entrée dans le JSON de `--inputs`. Pour `main-loop`, c'est

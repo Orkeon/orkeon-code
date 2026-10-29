@@ -11,7 +11,7 @@ export const REPO = fileURLToPath(new URL("../..", import.meta.url));
 /** A file of the repository, by its path from the root. */
 export const read = (name: string) => readFileSync(join(REPO, name), "utf-8");
 export const VERSION = JSON.parse(read("package.json")).version as string;
-export const RUNTIME_VERSION = read(".orkeon-version").trim();
+export const RUNTIME_PIN = read(".orkeon-version").trim().slice(0, 7);
 /** node and npm of this run first, then the system's: what the scripts run under. */
 const PATH = `${dirname(process.execPath)}:/usr/bin:/bin`;
 /** The folder every path of the archive sits under. */

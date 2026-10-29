@@ -38,7 +38,7 @@
 # Modes (auto-detected in this order, or forced with --mode / ORKEON_CODE_MODE):
 #   tool    orkeon-repl on PATH (from the orkeon Debian package, an Orkeon release archive, or the
 #           dotnet tool), or ORKEON_REPL="<command line>" (e.g. "dotnet /opt/orkeon/Orkeon.ConsoleApp.dll")
-#   docker  ghcr.io/orkeon/orkeon-runners:<.orkeon-version>, nothing else to install
+#   docker  ghcr.io/orkeon/orkeon-runners:latest (the last release, not the pin), nothing else to install
 #   source  an Orkeon checkout named by ORKEON_SOURCE, built there with `dotnet build`, run from the project
 #
 # Settings: --settings, else ORKEON_CODE_SETTINGS, else config/appsettings.local.json (a clone),
@@ -69,9 +69,12 @@ resolve_links() { # <path>
 # Follow symlinks, so a link from ~/.local/bin still finds the checkout or the install's version folder.
 SELF="$(resolve_links "${BASH_SOURCE[0]}")"
 ROOT="$(cd "$(dirname "$SELF")" && pwd -P)"
-ORKEON_VERSION="$(tr -d '[:space:]' < "$ROOT/.orkeon-version")"
+# The pin is a commit of Orkeon's main (.orkeon-version, ADR 0013): the source mode runs it; the tool and docker
+# modes run a release, which the pin never names.
+ORKEON_REF="$(tr -d '[:space:]' < "$ROOT/.orkeon-version")"
+ORKEON_PIN="${ORKEON_REF:0:7}"
 CODE_VERSION="$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$ROOT/package.json" | head -n 1)"
-IMAGE="${ORKEON_CODE_IMAGE:-ghcr.io/orkeon/orkeon-runners:$ORKEON_VERSION}"
+IMAGE="${ORKEON_CODE_IMAGE:-ghcr.io/orkeon/orkeon-runners:latest}"
 # A clone (a .git, folder or worktree file, or the tests of an unpacked source archive) or an
 # install, whose folder is never written to.
 if [ -e "$ROOT/.git" ] || [ -d "$ROOT/tests" ]; then KIND=clone; else KIND=install; fi
@@ -478,7 +481,7 @@ if [ "$CONTINUE" = 1 ] && [ "$RESUME" = 1 ]; then die "--continue and --resume d
 
 if [ "$VERSION_ONLY" = 1 ]; then
   echo "orkeon-code $CODE_VERSION ($KIND: $ROOT)"
-  echo "Orkeon $ORKEON_VERSION expected, found: $(runtime_found "$MODE")"
+  echo "Orkeon $ORKEON_PIN expected, found: $(runtime_found "$MODE")"
   exit 0
 fi
 
@@ -716,7 +719,7 @@ if [ -n "${ORKEON_CODE_AUDIO_DIR:-}" ]; then
   fi
 fi
 
-echo "orkeon-code $CODE_VERSION on Orkeon $ORKEON_VERSION ($MODE)"
+echo "orkeon-code $CODE_VERSION on Orkeon $ORKEON_PIN ($MODE)"
 echo "  project  : $WORKSPACE -> /workspace"
 if [ "$RUNTIME_OWN" = 1 ]; then echo "  settings : $SETTINGS (Orkeon's own, read by the REPL)"; else echo "  settings : $SETTINGS"; fi
 echo "  sessions : $PROJECT_STATE/$SESSIONS_SUB ($SESSION_NOTE)"
@@ -803,6 +806,10 @@ case "$MODE" in
       [ -n "${ORKEON_SOURCE:-}" ] && [ -d "$ORKEON_SOURCE/src/apps/Orkeon.ConsoleApp" ] \
         || die "ORKEON_SOURCE must name an Orkeon checkout (src/apps/Orkeon.ConsoleApp not found)."
       ORKEON_SOURCE="$(cd "$ORKEON_SOURCE" && pwd)"
+      # The checkout should sit at the pin: another commit runs, with a warning, never a refusal.
+      if head="$(git -C "$ORKEON_SOURCE" rev-parse HEAD 2>/dev/null)" && [ "$head" != "$ORKEON_REF" ]; then
+        warn "ORKEON_SOURCE is at ${head:0:7}, the pin of .orkeon-version is $ORKEON_PIN: the commands were checked against the pin."
+      fi
       # The SDK runs in the Orkeon checkout, under its global.json, never in the
       # project, whose global.json may pin another SDK ("A compatible .NET SDK was
       # not found"). The REPL then starts as the built assembly: `dotnet <dll>`

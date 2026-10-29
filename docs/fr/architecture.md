@@ -7,7 +7,7 @@ couches sont consignées dans l'[ADR 0001](../adr/0001-clean-architecture.md) (e
 
 ## Deux moitiés
 
-| Ce dépôt (TypeScript) | Le runtime Orkeon (.NET, épinglé dans `.orkeon-version`) |
+| Ce dépôt (TypeScript) | Le runtime Orkeon (.NET, épinglé à un commit de son `main` dans `.orkeon-version`) |
 |---|---|
 | Les commandes (`src/commands/<group>/*.cmd.ts`) | Le REPL de commandes scriptées qui les charge (`orkeon-repl --runner=scripted-commands`) |
 | Les crews (`src/crews/<name>/crew.ork.ts`) | Le moteur de script (Jint) et le bundler (esbuild) qui les exécutent |

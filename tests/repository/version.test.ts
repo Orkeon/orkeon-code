@@ -1,12 +1,13 @@
 // The version an operator reads (/version, /release-notes) is the version that was
-// released: meta.ts, package.json and the pins of the runtime must agree. Every
+// released: meta.ts and package.json must agree. The runtime is pinned to one commit
+// of Orkeon's main (ADR 0013): .orkeon-version and meta.ts name the same one. Every
 // crew declares the script version it is written for, in the form tsc reads as a
 // comment (Orkeon's VersionDirectiveParser reads it too).
 import { describe, it } from "node:test";
 import { deepStrictEqual, match, strictEqual } from "node:assert";
-import { CLI_VERSION, ORKEON_RUNTIME_VERSION } from "../../src/commands/_lib/status/meta.ts";
-import { callsTo, CREWS_DIR, EXACT_VERSION, firstLines, orkScripts, read, runtimeSources, SRC_DIR, UNSHIPPED_TASK_MEMBERS } from "./version.fixtures.ts";
-import { assertEveryScriptOpensWith, assertNoCall } from "./version.assertions.ts";
+import { CLI_VERSION, ORKEON_RUNTIME_COMMIT } from "../../src/commands/_lib/status/meta.ts";
+import { COMMIT_SHA, CREWS_DIR, firstLines, orkScripts, read } from "./version.fixtures.ts";
+import { assertEveryScriptOpensWith } from "./version.assertions.ts";
 
 describe("versions", () => {
   it("meta.ts CLI_VERSION equals package.json version", () => {
@@ -20,7 +21,7 @@ describe("versions", () => {
     strictEqual(CLI_VERSION, version);
   });
 
-  it("meta.ts ORKEON_RUNTIME_VERSION equals .orkeon-version, the runtime /status names", () => {
+  it("meta.ts ORKEON_RUNTIME_COMMIT equals .orkeon-version, the pin the launcher and /status name", () => {
     // Arrange
     const file = "../../.orkeon-version";
 
@@ -28,10 +29,10 @@ describe("versions", () => {
     const pinned = read(file).trim();
 
     // Assert
-    strictEqual(ORKEON_RUNTIME_VERSION, pinned);
+    strictEqual(ORKEON_RUNTIME_COMMIT, pinned);
   });
 
-  it(".orkeon-version is one exact Orkeon version", () => {
+  it(".orkeon-version is one full commit of Orkeon's main, never a release tag", () => {
     // Arrange
     const file = "../../.orkeon-version";
 
@@ -39,18 +40,7 @@ describe("versions", () => {
     const pinned = read(file).trim();
 
     // Assert
-    match(pinned, EXACT_VERSION);
-  });
-
-  it("the orkeon tool manifest pins the same Orkeon version as .orkeon-version", () => {
-    // Arrange
-    const pinned = read("../../.orkeon-version").trim();
-
-    // Act
-    const manifest = JSON.parse(read("../../.config/dotnet-tools.json"));
-
-    // Assert
-    strictEqual(manifest.tools["orkeon.scripting.cli"].version, pinned);
+    match(pinned, COMMIT_SHA);
   });
 
   it("global.json pins the .NET SDK as Orkeon does: 10.0.300, latest feature band", () => {
@@ -73,16 +63,5 @@ describe("versions", () => {
 
     // Assert
     assertEveryScriptOpensWith(lines, "// @orkeon-script 1.0");
-  });
-
-  it("no source calls a task-builder member the pinned release does not ship (decision, when)", () => {
-    // Arrange
-    const files = runtimeSources(SRC_DIR);
-
-    // Act
-    const calls = callsTo(SRC_DIR, files, UNSHIPPED_TASK_MEMBERS);
-
-    // Assert
-    assertNoCall(calls);
   });
 });

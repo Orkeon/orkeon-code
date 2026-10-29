@@ -43,8 +43,8 @@ macOS, the program must sit in a folder Docker Desktop shares with its container
 under `/opt/homebrew` or `/usr/local` is not one, so add it under Settings > Resources > File sharing, or use
 `install.sh`.
 
-`orkeon-code --version` prints Orkeon Code's version, where it runs from (`install:` or `clone:`), the Orkeon version
-it expects and the one it finds, without starting anything.
+`orkeon-code --version` prints Orkeon Code's version, where it runs from (`install:` or `clone:`), the Orkeon commit
+it expects (the pin) and the runtime it finds, without starting anything.
 
 **From the sources**, to change Orkeon Code or follow `main`:
 
@@ -76,11 +76,11 @@ machine instead, no key: `config/appsettings.ollama.example.json`, on Ollama ([C
 mode on the release's `orkeon-<version>-win-x64.zip` is the one for Windows; the path this project exercises is WSL
 with the bash launcher ([WSL tutorial](wsl-tutorial.md)).
 
-Orkeon Code requires Orkeon `1.0.0-rc.6`, the version in `.orkeon-version`, tagged and released on 2026-10-28: the
-[tool mode](#tool-mode-orkeon-repl-installed) has its packages (the Debian package on the apt `rc` channel, the
-release archives), the [source mode](#source-mode-an-orkeon-checkout) takes any checkout at or after the tag, and the
-[docker mode](#docker-mode-nothing-to-install-but-docker) waits for the `orkeon-runners:1.0.0-rc.6` image, which the
-registry does not carry yet (the CI runtime smoke builds the REPL from Orkeon's sources until it finds it).
+Orkeon Code is checked against Orkeon's sources at the commit in `.orkeon-version` (`3fcfbbe`, `main` after
+Orkeon/orkeon#240, 2026-10-29): the [source mode](#source-mode-an-orkeon-checkout) runs that commit, the reference
+runtime; the [tool mode](#tool-mode-orkeon-repl-installed) (the Debian package on the apt `rc` channel, the release
+archives) and the [docker mode](#docker-mode-nothing-to-install-but-docker) run the last release, `1.0.0-rc.6`,
+behind the pin, and `/status` says so ([ADR 0013](adr/0013-pin-on-orkeon-commit.md)).
 The release carries what the ADRs 0004 to 0009 adopted from Orkeon's `main`: the host gate's state
 (`/permissions`), the typed built-in tools and the per-tool result limits ([ADR 0004](adr/0004-orkeon-after-180.md)),
 the file tools resolving a relative path under `/workspace` or the agent's root, and the pending approvals a command
@@ -89,14 +89,14 @@ with their parameter schema and the streamed answers of concurrent acts kept lin
 ([ADR 0006](adr/0006-orkeon-after-213.md)), the thread screens, the budget wrap-up and the per-call access
 ([ADR 0007](adr/0007-orkeon-after-217.md)), the access classes of the tools ([ADR 0008](adr/0008-orkeon-after-223.md)),
 the context counted once, the runtime, usage and session services and the streamed flag
-([ADR 0009](adr/0009-orkeon-after-230.md)). The typings follow Orkeon's `main` after Orkeon/orkeon#234
-([ADR 0010](adr/0010-orkeon-after-234.md)).
+([ADR 0009](adr/0009-orkeon-after-230.md)). The typings are those of the pin
+([Development](development.md#typings)).
 
 The launcher picks the first available mode, in this order, unless `--mode` says otherwise.
 
 ### Tool mode: `orkeon-repl` installed
 
-The REPL is `orkeon-repl` (`Orkeon.ConsoleApp`), at the version in `.orkeon-version`. The Debian package and the
+The REPL is `orkeon-repl` (`Orkeon.ConsoleApp`) of the last release, never the pin. The Debian package and the
 release archives carry it self-contained, with its own esbuild: no .NET to install.
 
 **Debian and Ubuntu** (amd64, arm64): the `orkeon` package installs `/usr/bin/orkeon-repl`. Add Orkeon's apt source
@@ -112,7 +112,7 @@ extract it and run `./install.sh` (`install.ps1` on Windows): it installs into `
 `~/.local/bin`, no `sudo`.
 
 ```bash
-v=$(cat .orkeon-version); rid=linux-x64            # or linux-arm64, osx-x64, osx-arm64
+v=1.0.0-rc.6; rid=linux-x64       # the last release; or linux-arm64, osx-x64, osx-arm64
 curl -fLO "https://github.com/Orkeon/orkeon/releases/download/v$v/orkeon-$v-$rid.tar.gz"
 curl -fLO "https://github.com/Orkeon/orkeon/releases/download/v$v/SHA256SUMS"
 sha256sum --check --ignore-missing SHA256SUMS
@@ -129,8 +129,8 @@ overrides it).
 
 ### Docker mode: nothing to install but Docker
 
-The launcher runs `ghcr.io/orkeon/orkeon-runners:<.orkeon-version>`, which carries the REPL and esbuild; the image
-is built for `linux/amd64` and `linux/arm64`, and Docker pulls the one of your machine. The project is mounted in the
+The launcher runs `ghcr.io/orkeon/orkeon-runners:latest`, the last release, never the pin (`ORKEON_CODE_IMAGE`
+names another image), which carries the REPL and esbuild; the image is built for `linux/amd64` and `linux/arm64`, and Docker pulls the one of your machine. The project is mounted in the
 container; on Linux the container runs with your uid, so the files the agent writes belong to you. The shell tool
 runs inside the container.
 
@@ -141,6 +141,10 @@ runs inside the container.
 `bin/Debug/net10.0/Orkeon.ConsoleApp.dll` from your project with `dotnet <dll>`, which reads no `global.json`: a project
 whose `global.json` pins another SDK still works. It needs the .NET 10 SDK, the Orkeon solution restored once
 (`dotnet restore Orkeon.sln` in the checkout), and esbuild: `npm ci` once in this checkout, or `ORKEON_ESBUILD_PATH`.
+
+The checkout should sit at the commit of `.orkeon-version` (`git -C ~/src/orkeon checkout $(cat .orkeon-version)`),
+the one the commands were checked against: at another commit the launcher warns (`orkeon-code: warning: ORKEON_SOURCE
+is at <sha7>, the pin of .orkeon-version is 3fcfbbe: the commands were checked against the pin.`) and runs anyway.
 
 ## 4. First session
 

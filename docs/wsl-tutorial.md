@@ -98,7 +98,8 @@ mkdir -p ~/audio && timeout 20 parecord --channels=1 --rate=16000 --file-format=
 
 ## 3. Orkeon from its apt package
 
-Orkeon Code asks for Orkeon `1.0.0-rc.6` (`.orkeon-version`), a release candidate: the `rc` channel carries it
+The `rc` channel carries the last release of Orkeon, `1.0.0-rc.6`, a release candidate: Orkeon Code is checked
+against a commit of Orkeon's `main` (`.orkeon-version`), and the tool mode runs that release behind the pin
 ([Getting started](getting-started.md)). The `dev` channel publishes one package per commit of `main` the CI
 validated, versioned `1.0.0~rc.6.dev.<n>` (`n` is the number of the CI run), the last three builds only: it is for
 following `main` ahead of the pin, not for this tutorial. The package installs `/usr/bin/orkeon-repl` (the REPL, with its
@@ -148,7 +149,7 @@ orkeon --version && command -v orkeon-repl
 
 Expected: `1.0.0-rc.6` (or the form `orkeon` prints for `1.0.0~rc.6`) and `/usr/bin/orkeon-repl`. Later, the next
 release candidate comes with `sudo apt update && sudo apt upgrade`; `apt list -a orkeon` lists the channel's, and
-`.orkeon-version` says which one Orkeon Code expects.
+`/status` says whether the one running is the commit of `.orkeon-version`.
 
 ## 4. Orkeon Code in the WSL home
 
@@ -188,12 +189,12 @@ A first REPL, without speech, on the throwaway sample repository (`--demo`), in 
 ./orkeon-code --mode tool --demo
 ```
 
-The banner shows `orkeon-code <version> on Orkeon 1.0.0-rc.6 (tool)` (Orkeon's version is the one of
-`.orkeon-version`, not the package's), the project and the settings file. In the REPL:
+The banner shows `orkeon-code <version> on Orkeon 3fcfbbe (tool)` (`3fcfbbe` is the pin of `.orkeon-version`,
+not the package's version), the project and the settings file. In the REPL:
 
 | Command | Expected |
 |---|---|
-| `/doctor` | The LLM configuration, the tools and the mounts green; `toolchain: node` and `toolchain: dotnet` may stay red (section 9), without effect in `tool` mode |
+| `/doctor` | The LLM configuration, the tools and the mounts green; `toolchain: node` and `toolchain: dotnet` may stay red (section 9), without effect in `tool` mode; `version` warns: the package is the last release, not the pin |
 | `/permissions` | The gate's state: `on` (a recent `main` of Orkeon; `unknown` would mean a build too old) |
 | `plan: what does this project do?` | An answer from the model (otherwise: the key does not arrive, the launcher said so at start) |
 | `/exit` | Exit |

@@ -41,3 +41,15 @@
       href: ../adr/0006-orkeon-after-213.md
     - name: "ADR 0007 : Orkeon main après #217, sur l'épinglage rc.6 (en anglais)"
       href: ../adr/0007-orkeon-after-217.md
+    - name: "ADR 0008 : Orkeon main après #223, sur l'épinglage rc.6 (en anglais)"
+      href: ../adr/0008-orkeon-after-223.md
+    - name: "ADR 0009 : Orkeon main après #230, sur l'épinglage rc.6 (en anglais)"
+      href: ../adr/0009-orkeon-after-230.md
+    - name: "ADR 0010 : Orkeon main après #234, sur l'épinglage rc.6, désormais une release (en anglais)"
+      href: ../adr/0010-orkeon-after-234.md
+    - name: "ADR 0011 : les portes d'une exécution sans surveillance, et cinq commandes dev au lieu de huit (en anglais)"
+      href: ../adr/0011-dev-gates-and-surface.md
+    - name: "ADR 0012 : Orkeon main après #239, le lancement exclusif d'un crew (en anglais)"
+      href: ../adr/0012-orkeon-after-239.md
+    - name: "ADR 0013 : l'épingle est un commit du main d'Orkeon, jamais une release (en anglais)"
+      href: ../adr/0013-pin-on-orkeon-commit.md

@@ -17,12 +17,12 @@ import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } 
 import { join } from "node:path";
 import {
   ARCHIVE_VERSION, BASH_GATE, BLOCK, CODE_VERSION, CORRUPT_STORES, DEB_WRAPPER, DOTNET, CONSOLE_APP_DLL, ESBUILD, EXAMPLE_SETTINGS,
-  EXAMPLE_SETTINGS_FILES, GATE, KEEP_OUT_OF_RANGE, NO_FILE_SETTINGS, OLLAMA_AND_EXISTING, PERSIST, PINNED_SDK, PROJECT_NAMES, PS1_ARGS_LOOP,
+  EXAMPLE_SETTINGS_FILES, GATE, KEEP_OUT_OF_RANGE, NO_FILE_SETTINGS, NOT_AT_THE_PIN, OLLAMA_AND_EXISTING, PERSIST, PINNED_SDK, PROJECT_NAMES, PS1_ARGS_LOOP,
   PS1_CLONE_OR_INSTALL, PS1_DOCKER_TTY, PS1_FROM_PROJECT, PS1_GATE, PS1_MODES, PS1_SESSION_MOUNTS, PS1_SESSIONS, PS1_SET_VARIABLES,
   PS1_SETTINGS, PS1_SLUG, PS1_SPEECH, PS1_STORE_LAYOUT, PS1_SUBCOMMANDS, PS1_TRUST_CHECK, PS1_TRUST_REFUSAL, PS1_USER_SETTINGS,
-  PS1_VERSION_LINES, PTY, PWSH, RESTORED_IN_FINALLY, RESTORED_NAMES, ROOTS, RUNTIME_SETTINGS, RUNTIME_SLUGS, RUNTIME_VERSION,
+  PS1_VERSION_LINES, PTY, PWSH, RESTORED_IN_FINALLY, RESTORED_NAMES, ROOTS, RUNTIME_SETTINGS, RUNTIME_SLUGS, RUNTIME_PIN,
   SERVER_CASES, SERVER_LEFT_OUT, SESSIONS_DIR, SETTINGS_TEXT, SETTINGS_WITH_BLOCK, SLUG_PATHS, SPEECH_TOOL, START_SCRIPT, TOOL_REPL,
-  TOOL_START, USER_SETTINGS, WHISPER, audioEnv, bashOf, ciStarts, corruptHome, crewSource, fullHistory, launch, launchWithNode,
+  TOOL_START, USER_SETTINGS, WHISPER, audioEnv, bashOf, ciStarts, corruptHome, crewSource, fullHistory, launch, launchWithNode, orkeonCheckoutAtAnotherCommit,
   leftBeside, linkedFolder, modeStart, mostWhisperArgs, mountOf, mountRoots, namedProjectStart, nestedTrust, orkeonCheckout,
   pwshOf, read, recorder, removeScratch, runCrew, runPs1ThenPrint, scratchDir, scratchFolder, serverArgs, serverOf,
   sessionScene, slugOf, sourceModeCalls, staleLock, startAgain, storeOf, storedFolders, tokenVarsForwarded, toolModeArgs, trustCli, trustOf, twoSessions,
@@ -146,6 +146,31 @@ describe("orkeon-code, tool and source modes on Orkeon rc.6", () => {
     deepStrictEqual(s.args.slice(0, 2), [join(source, CONSOLE_APP_DLL), "--runner=scripted-commands"]);
   });
 
+  it("source mode warns when the checkout is at another commit than the pin, and runs it", () => {
+    // Arrange
+    const source = orkeonCheckoutAtAnotherCommit();
+    const start = { args: ["--mode", "source"], bin: { dotnet: DOTNET }, env: { ...ESBUILD, ORKEON_SOURCE: source } };
+
+    // Act
+    const s = launch(start);
+
+    // Assert
+    strictEqual(s.status, 0, s.stderr);
+    ok(s.stderr.includes(`warning: ORKEON_SOURCE is at `) && s.stderr.includes(NOT_AT_THE_PIN), s.stderr);
+    deepStrictEqual(s.calls, sourceModeCalls(source, s));
+  });
+
+  it("source mode says nothing of the pin when the checkout is not a git repository", () => {
+    // Arrange
+    const start = { args: ["--mode", "source"], bin: { dotnet: DOTNET }, env: { ...ESBUILD, ORKEON_SOURCE: orkeonCheckout() } };
+
+    // Act
+    const s = launch(start);
+
+    // Assert
+    ok(!s.stderr.includes("the pin of .orkeon-version"), s.stderr);
+  });
+
   it("source mode stops when the build fails, and starts nothing", () => {
     // Arrange
     const env = { ...ESBUILD, ORKEON_SOURCE: orkeonCheckout(), DOTNET_BUILD_FAILS: "1" };
@@ -223,16 +248,16 @@ describe("orkeon-code, esbuild in tool mode", () => {
 });
 
 describe("orkeon-code, docker mode", () => {
-  it("runs the image of .orkeon-version, multi-arch: no platform forced, no MaxScripts", () => {
+  it("runs the last release image, never the pin, multi-arch: no platform forced, no MaxScripts", () => {
     // Arrange
-    const version = read(".orkeon-version").trim();
+    const image = "ghcr.io/orkeon/orkeon-runners:latest";
 
     // Act
     const r = launch({ args: ["--mode", "docker"], bin: { docker: recorder() } });
 
     // Assert
     strictEqual(r.status, 0, r.stderr);
-    ok(r.args.includes(`ghcr.io/orkeon/orkeon-runners:${version}`), r.args.join(" "));
+    ok(r.args.includes(image), r.args.join(" "));
     ok(!r.args.some((a) => a.startsWith("--platform")), r.args.join(" "));
     ok(!r.args.some((a) => a.includes("MaxScripts")), r.args.join(" "));
     ok(r.args.includes(`${GATE}=true`), r.args.join(" "));
@@ -590,7 +615,7 @@ describe("orkeon-code, a clone or an install", () => {
     strictEqual(clone.status, 0, clone.stderr);
     const [first, second] = clone.stdout.split("\n");
     strictEqual(first, `orkeon-code ${CODE_VERSION} (clone: ${clone.root})`);
-    ok(second.startsWith(`Orkeon ${RUNTIME_VERSION} expected, found: `), second);
+    ok(second.startsWith(`Orkeon ${RUNTIME_PIN} expected, found: `), second);
   });
 
   it("--version names an install and where it runs from", () => {
@@ -625,7 +650,7 @@ describe("orkeon-code, a clone or an install", () => {
 
     // Assert
     strictEqual(r.status, 0, r.stderr);
-    strictEqual(r.stdout.split("\n")[1], `Orkeon ${RUNTIME_VERSION} expected, found: 1.0.0-rc.6 (orkeon-repl, ${join(r.root, "..", "VERSION")})`);
+    strictEqual(r.stdout.split("\n")[1], `Orkeon ${RUNTIME_PIN} expected, found: 1.0.0-rc.6 (orkeon-repl, ${join(r.root, "..", "VERSION")})`);
     strictEqual(r.cwd, "", "the REPL did not start");
   });
 
@@ -639,7 +664,7 @@ describe("orkeon-code, a clone or an install", () => {
 
     // Assert
     strictEqual(r.status, 0, r.stderr);
-    strictEqual(r.stdout.split("\n")[1], `Orkeon ${RUNTIME_VERSION} expected, found: source checkout ${source}`);
+    strictEqual(r.stdout.split("\n")[1], `Orkeon ${RUNTIME_PIN} expected, found: source checkout ${source}`);
   });
 
   it("a clone keeps its state in .crew-output and reads config/appsettings.local.json first", () => {
@@ -920,7 +945,7 @@ describe("orkeon-code.ps1, run where pwsh is installed", { skip: PWSH ? false : 
       strictEqual(r.status, 0, r.stderr + r.stdout);
       const lines = r.stdout.split("\n");
       strictEqual(lines[0], `orkeon-code ${CODE_VERSION} (install: ${r.root})`);
-      strictEqual(lines[1], `Orkeon ${RUNTIME_VERSION} expected, found: 1.0.0-rc.6 (orkeon-repl, ${join(r.root, "..", "VERSION")})`);
+      strictEqual(lines[1], `Orkeon ${RUNTIME_PIN} expected, found: 1.0.0-rc.6 (orkeon-repl, ${join(r.root, "..", "VERSION")})`);
       strictEqual(r.cwd, "", "the REPL did not start");
     });
   }

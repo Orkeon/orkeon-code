@@ -18,12 +18,11 @@
 La CI (`.github/workflows/ci.yml`) lance, en étapes séparées à chaque pull request et à chaque push sur `main`, les
 tests, le contrôle de types, la vérification de bundle, la garde de provenance, les deux pages des commandes à jour,
 la parité de la documentation et les modes de fichiers (soit `npm run check` plus les modes de fichiers).
-`runtime-smoke.yml` lance le smoke sur l'image épinglée chaque lundi, à la demande (`workflow_dispatch`), et sur une
-pull request qui touche `.orkeon-version`, `orkeon-code`, `scripts/smoke-runtime.sh` ou `src/commands/**`. Tant que
-le registre n'a pas d'image à la version épinglée (l'image `1.0.0-rc.6` n'est pas encore publiée), le job construit le
-REPL depuis les sources d'Orkeon au commit que nomme `ORKEON_SOURCE_REF` dans le workflow, celui que le dernier ADR a
-validé, et lance le mode source ; en local, `ORKEON_SOURCE=<chemin d'un checkout d'Orkeon> bash
-scripts/smoke-runtime.sh --mode source` est la même vérification.
+`runtime-smoke.yml` lance le smoke chaque lundi, à la demande (`workflow_dispatch`), et sur une pull request qui
+touche `.orkeon-version`, `orkeon-code`, `scripts/smoke-runtime.sh`, `src/commands/**` ou le workflow. Le job extrait
+les sources d'Orkeon à l'épingle lue dans `.orkeon-version`, construit le REPL et lance le mode source, le runtime de
+référence ; en local, `ORKEON_SOURCE=<un checkout d'Orkeon à l'épingle> bash scripts/smoke-runtime.sh --mode source`
+est la même vérification.
 
 ## Lancer un crew seul
 
@@ -32,11 +31,11 @@ bash scripts/run-crew.sh src/crews/git-commit/crew.ork.ts
 ORKEON_CODE_WORKSPACE=~/src/app bash scripts/run-crew.sh src/crews/project-init/crew.ork.ts
 ```
 
-Le script utilise l'outil `orkeon` (`Orkeon.Scripting.Cli`, nuget.org, épinglé dans `.config/dotnet-tools.json` ; le
+Le script utilise l'outil `orkeon` (`Orkeon.Scripting.Cli`, nuget.org, nommé par `.config/dotnet-tools.json` ; le
 SDK .NET qui le restaure et le lance est épinglé par `global.json`, comme celui d'Orkeon : `10.0.300` avec
 `rollForward: latestFeature`) ou l'image `orkeon-runners`, sur la fixture de démonstration sauf si
-`ORKEON_CODE_WORKSPACE` en décide autrement. Les deux sont la release épinglée : l'outil est sur nuget.org en
-`1.0.0-rc.6`, l'image n'est pas encore publiée à ce tag ; `ORKEON_CODE_MODE=source ORKEON_SOURCE=<checkout>` le
+`ORKEON_CODE_WORKSPACE` en décide autrement. Les deux sont la dernière release, jamais l'épingle : l'outil est sur nuget.org en
+`1.0.0-rc.6`, l'image est `orkeon-runners:latest` ; `ORKEON_CODE_MODE=source ORKEON_SOURCE=<checkout à l'épingle>` le
 lance depuis un checkout d'Orkeon, construit sur place. Cet outil lit ses limites de script dans `Orkeon:Scripting:Limits`, pas dans
 le `Orkeon:Cli:ScriptCommands:Limits` du REPL
 ([Configuration](configuration.md#les-settings-dont-orkeon-code-dépend)).
@@ -52,23 +51,32 @@ modifier. La même commande lancée sans opérateur, depuis un planificateur, un
 ## Typings
 
 `src/crews/.orkeon/orkeon.d.ts` et `src/commands/.orkeon/orkeon-cli.d.ts` décrivent l'API du runtime. Ils sont
-générés par `orkeon typings` depuis la version épinglée : `npm run typings`, jamais édités à la main. Pour une
-version pas encore publiée, `ORKEON_SOURCE=<chemin d'un checkout d'Orkeon> npm run typings` les génère depuis ce
-checkout, la même variable que lit le mode source du lanceur.
+générés par `orkeon typings` depuis l'épingle : `ORKEON_SOURCE=<chemin d'un checkout d'Orkeon> npm run typings`,
+jamais édités à la main, la même variable que lit le mode source du lanceur. Le checkout doit être à l'épingle, refusé
+sinon (`npm run typings -- --any` passe outre) ; sans `ORKEON_SOURCE`, les typings viennent de la release de
+`.config/dotnet-tools.json`, avec un avertissement, pas de l'épingle.
 
 ## Montée de version d'Orkeon
 
-La version du runtime vit en quatre endroits qui doivent concorder (`tests/repository/version.test.ts` contrôle les deux
-premiers) :
+L'épingle est un commit du `main` d'Orkeon, jamais une release ([ADR 0013](../adr/0013-pin-on-orkeon-commit.md)). Elle
+vit en quatre endroits qui doivent concorder (`tests/repository/version.test.ts` contrôle les deux premiers) :
 
-1. `.orkeon-version` : le tag de l'image et la version que le lanceur annonce ;
-2. `.config/dotnet-tools.json` : `orkeon.scripting.cli` ;
+1. `.orkeon-version` : le commit complet, dont le lanceur, `/status` et `/doctor` affichent les sept premiers caractères ;
+2. `src/commands/_lib/status/meta.ts` : `ORKEON_RUNTIME_COMMIT`, le même commit ;
 3. `package.json` : `esbuild`, épinglé à la version avec laquelle le runtime bundle
-   (`tools/scripting-esbuild/package-lock.json` dans Orkeon/orkeon à ce tag) ;
-4. `global.json` : le SDK .NET, le même épinglage que le `global.json` d'Orkeon à ce tag (`tests/repository/version.test.ts`
+   (`tools/scripting-esbuild/package-lock.json` dans Orkeon/orkeon à ce commit) ;
+4. `global.json` : le SDK .NET, le même épinglage que le `global.json` d'Orkeon à ce commit (`tests/repository/version.test.ts`
    le contrôle).
 
-Puis `npm ci && npm run typings && npm run check && bash scripts/smoke-runtime.sh`, et une session réelle sur la
+`.config/dotnet-tools.json` nomme la dernière release de `orkeon.scripting.cli`, pour le repli sur l'outil des typings
+et de `scripts/run-crew.sh` : il ne suit plus l'épingle. Puis :
+
+```bash
+export ORKEON_SOURCE=<an Orkeon checkout at the pin>
+npm ci && npm run typings && npm run check && bash scripts/smoke-runtime.sh --mode source
+```
+
+et une session réelle sur la
 fixture de démonstration (`/init`, `/assistant`, `/commit`, `/review`) avant de fusionner. Dependabot ne touche pas à
 esbuild pour cette raison.
 

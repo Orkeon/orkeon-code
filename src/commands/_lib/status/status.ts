@@ -7,7 +7,7 @@
 import type {
   CrewHost, RuntimeInfo, RuntimeInfoReader, SessionCost, SessionMetadata, SessionStats, SessionStore, Shell, Telemetry,
 } from "../../../shared/application/ports.ts";
-import { CLI_BUILD, CLI_NAME, CLI_VERSION, ORKEON_RUNTIME_VERSION } from "./meta.ts";
+import { CLI_BUILD, CLI_NAME, CLI_VERSION, isPinnedCommit, ORKEON_RUNTIME_PIN } from "./meta.ts";
 import type { CommandView } from "../view.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
@@ -30,20 +30,21 @@ export interface StatusInputs {
   runtime?: RuntimeInfo;
 }
 
-/** The runtime row: the running Orkeon against the pin of .orkeon-version, or the pin alone when the host names
- *  no runtime (Orkeon #225). */
+/** The runtime row: the running Orkeon, by the commit its build carries, against the commit pinned by
+ *  .orkeon-version, or the pin alone when the host names no runtime (Orkeon #225). A runtime that reports no commit
+ *  is not the pin. */
 export function runtimeRow(runtime: RuntimeInfo | undefined): string {
-  if (runtime === undefined) return `Orkeon ${ORKEON_RUNTIME_VERSION} (pinned by .orkeon-version)`;
+  if (runtime === undefined) return `Orkeon ${ORKEON_RUNTIME_PIN} (the commit pinned by .orkeon-version)`;
   const found = `Orkeon ${runtime.version}${runtime.commit ? `+${runtime.commit}` : ""} (${runtime.channel})`;
-  return runtime.version === ORKEON_RUNTIME_VERSION
+  return isPinnedCommit(runtime.commit)
     ? `${found}, the pin of .orkeon-version`
-    : `${found}, NOT the pin ${ORKEON_RUNTIME_VERSION} of .orkeon-version`;
+    : `${found}, NOT the pin ${ORKEON_RUNTIME_PIN} of .orkeon-version`;
 }
 
 /** How Orkeon Code is updated: there is no self-update channel. */
 export const UPDATE_NOTE =
   "no self-update: update the orkeon-code checkout (git pull, or a newer release archive) and relaunch; " +
-  "the Orkeon runtime it runs on is pinned by its .orkeon-version";
+  "the Orkeon runtime it runs on is pinned to a commit of Orkeon's main by its .orkeon-version";
 
 /**
  * The `/status` rows.

@@ -50,17 +50,16 @@ trimmed by the mode. Every command, crew and prompt is a source file: change it,
 
 ## Quick start
 
-You need the Orkeon runtime `1.0.0-rc.6` (released on 2026-10-28) and an API key for an LLM provider Orkeon supports
-(any OpenAI-compatible endpoint, Anthropic...). Any of these runs Orkeon Code:
+You need the Orkeon runtime and an API key for an LLM provider Orkeon supports (any OpenAI-compatible endpoint,
+Anthropic...). Orkeon Code is checked against Orkeon's sources at the commit of `.orkeon-version`; the last release,
+`1.0.0-rc.6`, runs it too, behind that pin. Any of these runs Orkeon Code:
 
 - **`orkeon-repl`** from the `orkeon` Debian/Ubuntu package (amd64 and arm64; a release candidate is published on the
   apt `rc` channel, the default `stable` channel carries finals only) or from the
   [Orkeon release archive](https://github.com/Orkeon/orkeon/releases) of your platform (Linux x64 and arm64, macOS x64
   and arm64, Windows x64 `.zip`), self-contained: no .NET to install;
-- **Docker**: the `orkeon-runners` image (amd64 and arm64), nothing else to install, **once its `1.0.0-rc.6` tag is
-  published**: the registry stops at rc.5 for now, and the CI runtime smoke builds the REPL from Orkeon's sources
-  until it finds the image;
-- **an Orkeon checkout**: `ORKEON_SOURCE=<checkout> ./orkeon-code --mode source`.
+- **Docker**: the `orkeon-runners` image (amd64 and arm64) of the last release, nothing else to install;
+- **an Orkeon checkout** at the pin, the reference runtime: `ORKEON_SOURCE=<checkout> ./orkeon-code --mode source`.
 
 **Windows**: `orkeon-code.ps1` has no source mode and no `--demo` (`-Mode` takes `docker` or `tool`): the tool mode on
 the release's `orkeon-<version>-win-x64.zip` is the one for Windows; the path this project exercises is WSL with the
@@ -103,8 +102,8 @@ acceptEdits: add input validation to parseArgs and a test for it
 
 Orkeon Code is the TypeScript layer: slash commands, crews and the shared domain logic they use. The
 [Orkeon](https://github.com/Orkeon/orkeon) runtime executes them (Jint), provides the tools, enforces the permission
-gate and confines every file access to the mounted project. The runtime version is pinned in
-[`.orkeon-version`](.orkeon-version). Details: [Architecture](docs/architecture.md).
+gate and confines every file access to the mounted project. The runtime is pinned in
+[`.orkeon-version`](.orkeon-version), a commit of Orkeon's `main`. Details: [Architecture](docs/architecture.md).
 
 ## Interactive, autonomous, embedded
 
