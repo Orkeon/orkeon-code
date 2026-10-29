@@ -23,6 +23,10 @@ export const BRIEF = `${CODE}/CHANGE-cache.md`;
 export const REPRO = `${CODE}/repro-cache.txt`;
 export const CMD = "node --test tests/symbol-map.test.ts";
 export const CLEAR = { verdict: "CLEAR", rows: [] };
+/** Where a feature routed by the model goes on: the spec of the same code. */
+export const SPEC = `${CODE}/SPEC-cache.md`;
+/** The spec the model answers once the run goes on as a spec (the shared sample of tests/fixtures/dev/spec/). */
+export const SPEC_ANSWER = JSON.parse(readFileSync(new URL("../../../fixtures/dev/spec/answer.json", import.meta.url), "utf8")) as unknown;
 
 /** The model's change brief: one criterion, one protected behaviour, one Blocking question; `over` replacing some. */
 export const answer = (over: Partial<ChangeAnswer> = {}): ChangeAnswer => ({

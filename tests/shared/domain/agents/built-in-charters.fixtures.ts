@@ -27,4 +27,4 @@ export const REPAIR_STEPS: readonly RepairCase[] = [
   { name: "dev-plan's for an unknown charter and a run that is no step", charter: "tester", run: 3, step: "dev-plan" },
 ];
 
-export const REVIEWER_ROW = "Adversarial reviewer — runs as a background child of /dev-spec, /dev-change, /dev-plan; /tasks lists, stops and repairs it";
+export const REVIEWER_ROW = "Adversarial reviewer — runs as a background child of /dev-spec, /dev-plan; /tasks lists, stops and repairs it";

@@ -379,6 +379,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`/review` takes `--passes <1-5>` and the aliases `/security-review` and `/passes`**: `--passes` sets this run's
+  rounds, the crew input outranking the session's count as `--lens` outranks `review.lenses`; a line typed
+  `/security-review` is the review narrowed to the security lens whatever `--lens` says, and `/passes [n]` shows or
+  sets the session's count without starting a review. The parsing and the two messages live in
+  `commands/_lib/git/review.ts`, tested there ([ADR 0011](docs/adr/0011-dev-gates-and-surface.md), round 2). A quoted
+  value is unquoted (`--commit "abc123"` reads `abc123`, a quoted path with a space stays one file). The command
+  has no instance quota any more: the refusal is the crew's, made by the command before it launches one, so a review
+  (`/review` or `/security-review`) asked while the `code-review` crew runs is refused with its ticket (`review: a
+  review is already running (ticket <t>): wait for its result`), and `/passes [n]` still answers meanwhile.
+- **`/mode` takes the alias `/plan`**: a line typed `/plan` toggles plan mode as before (leaving it returns to
+  `default`), with the same messages and log lines, routed by `runMode` in `commands/_lib/settings/mode.ts`.
+- **`/memory` takes the sub-verb `admit` and the aliases `/feedback` and `/memory-admit`**: `/memory admit [<id>…] |
+  --refuse <id> [motif] | --list | --import` decides the shared memory's candidates (the list, a refusal and the
+  import answered at once, an admission confirmed then written by the crew `shared-memory-admit`), and `/memory` is
+  now an async command; `/feedback <text>` adds a `feedback` memory with today's reply, `/memory-admit …` is the
+  admit sub-verb. The command has no instance quota any more: only an admission asked while the crew
+  `shared-memory-admit` still writes the previous one is refused, before its questions, with that crew's ticket;
+  `/memory list|add|get|delete`, `/feedback` and `/memory admit --list|--refuse|--import` still answer meanwhile.
+- **`/usage` takes the aliases `/stats` and `/cost`**: it already shows the calls, tokens, cost, cache tokens and the
+  usage by model and by command those two showed apart, and its row gains the two columns only `/stats` had:
+  `estTokens` (the session's estimated tokens) and `cacheRatio` (the tokens read from the cache over the session's
+  tokens, to two decimals, `-` with no cache or no token), so it shows their rows whole.
+- **`/dev-change` folds into `/dev-spec`**: one command writes the spec or the change brief. `/dev-spec <code>
+  bug|refactor|perf` writes a change brief, and a request the model routes as a feature goes on as a spec in the same
+  call. `/dev-change` stays as an alias of `/dev-spec` for one release.
+- **`/dev-implement` and `/dev-verify` fold into `/dev-batches`**: one parser reads three shapes. `/dev-batches [<code>]`
+  runs a plan, `/dev-batches <code> F<n>` runs one batch (`--close`, `--pr`, `— correction: <finding>`), and
+  `/dev-batches <code> F<n> --audit [fast|full|resume] [--gate-only]` audits one batch. `/dev-implement` and
+  `/dev-verify` stay as aliases of `/dev-batches` for one release; a line typed under one reads as before
+  (`/dev-verify F2` is an audit). A verdict now ends on `→ /dev-batches <code> F<n> — correction: <finding>` or
+  `→ /dev-batches <code> F<n> --close`, built and read back by one domain module.
+- **55 slash commands instead of 58**: the dev workflow has five commands (`/dev-spec`, `/dev-plan`, `/dev-batches`,
+  `/dev-status`, `/dev-learn`), the documentation and the texts a model reads name the new forms, and
+  [ADR 0011](docs/adr/0011-dev-gates-and-surface.md) records both parts of the change.
+- **A next-batch review that cannot run closes the gate**: `/dev-batches` no longer launches a batch whose review
+  found no reviewer on the host or did not parse. It logs the batch `stopped BLOCKED — review not run (<reason>)`, says
+  so, and reviews it again the next time it is typed.
+- **The review's Major rows reach the batch**: each Major question of the next-batch review is handed to the batch's
+  first launch as a `stale: <question> — <evidence>` line, and these lines end the RED and GREEN prompts of
+  `/dev-implement` (its new `stale` input). A relaunch carries none.
+- **A GAPS verdict relaunches its batch by itself**: `/dev-batches` relaunches a batch whose audit returned GAPS at
+  once, in its worktree on a parallel run, with the verdict's Blocking and Major rows as the correction. It logs the
+  batch `returned` then `relaunched`. A third audit round still GAPS stops and goes to a human, its correction named.
+- **An audit the budget stopped counts as a round**: an unfinished audit section is a GAPS round, both for
+  `/dev-implement`'s warning and for the three-round limit, and its relaunch carries no correction, so its audit
+  resumes.
 - **The crew budgets count the context once** (Orkeon #224, delivered by #230): every `tokens` dimension of the
   budgets (`StepBudget`, `implementBudget`, `batchLimits`, `driverBudget`, the main loop) is now `contextTokens`, the
   figures of the dev steps unchanged (`calls × TOKENS_PER_CALL`, the growth a call adds, which is what the context
@@ -627,6 +673,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- **Seven command files, 48 slash commands instead of 55** (ADR 0011, round 2): `src/commands/git/security-review.cmd.ts`,
+  `src/commands/settings/passes.cmd.ts`, `src/commands/settings/plan.cmd.ts`, `src/commands/memory/feedback.cmd.ts`,
+  `src/commands/memory/memory-admit.cmd.ts`, `src/commands/status/stats.cmd.ts` and `src/commands/status/cost.cmd.ts`,
+  with `commands/_lib/status/cost.ts` and `statsRow` of `commands/_lib/status/cache.ts`; each name stays as an alias
+  of the command that absorbed it.
+- **`/dev-change`**: folded into `/dev-spec <code> bug|refactor|perf`; the name stays as an alias for one release.
+- **`/dev-implement`**: folded into `/dev-batches <code> F<n>`; the name stays as an alias for one release.
+- **`/dev-verify`**: folded into `/dev-batches <code> F<n> --audit`; the name stays as an alias for one release.
 - **The probe crews `_probe-codeintel`, `_probe-raggable` and `_probe-budget`**: what they established is recorded in
   [Architecture](docs/architecture.md#what-the-probes-established).
 

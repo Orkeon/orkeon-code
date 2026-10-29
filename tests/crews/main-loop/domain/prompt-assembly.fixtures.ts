@@ -175,7 +175,7 @@ export const EMPTY_SKILLS_CASES: readonly EmptySkillsCase[] = [
 ];
 
 /** The dev steps that run the declared hooks. */
-export const HOOK_STEPS: readonly string[] = ["/dev-spec", "/dev-change", "/dev-plan", "/dev-implement", "/dev-batches", "/dev-verify", "/tasks repair"];
+export const HOOK_STEPS: readonly string[] = ["/dev-spec", "/dev-plan", "/dev-batches", "/tasks repair"];
 
 export interface EmptyHooksCase {
   name: string;

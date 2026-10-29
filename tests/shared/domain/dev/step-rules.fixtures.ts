@@ -46,3 +46,13 @@ export const REWRITE_RULES: readonly string[] = [
   `deny file_write path=${WORKSPACE}/tests/*`, "deny file_write path=tests/*",
   `deny file_write path=${WORKSPACE}/src/*.test.ts`, "deny file_write path=src/*.test.ts",
 ];
+
+/** A step, and the command a line names for it once /dev-change, /dev-implement and /dev-verify became shapes. */
+export const STEP_COMMAND_CASES: readonly { step: string; command: string }[] = [
+  { step: "dev-change", command: "dev-spec" },
+  { step: "dev-implement", command: "dev-batches" },
+  { step: "dev-verify", command: "dev-batches" },
+  { step: "dev-spec", command: "dev-spec" },
+  { step: "dev-plan", command: "dev-plan" },
+  { step: "dev-batches", command: "dev-batches" },
+];

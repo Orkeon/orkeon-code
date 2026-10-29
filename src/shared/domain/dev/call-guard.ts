@@ -11,7 +11,7 @@ import {
   GIT_CONFIG_SET_RULE, OPERATION_TOOLS, OPERATIONS_TOOL, PATH_WRITE_TOOLS, RULE_SETS, UNSCOPED_WRITE_TOOLS, gitConfigSets,
 } from "../agent-policy/rule-sets.ts";
 import type { RuleSetId } from "../agent-policy/rule-sets.ts";
-import { STEP_RULE_SETS, roleRules } from "./step-rules.ts";
+import { STEP_RULE_SETS, roleRules, stepCommand } from "./step-rules.ts";
 import type { DevRole, DevStep, LayoutRootKey } from "./step-rules.ts";
 import type { RepoPackLayout } from "./repo-pack.ts";
 import { matchesAny, relativePath } from "./test-paths.ts";
@@ -220,7 +220,7 @@ function originText(origin: GuardRule["origin"]): string {
 }
 
 function contextOf(guard: CallGuard, origin: GuardRule["origin"]): string {
-  if (origin.kind === "set") return `${RULE_SETS[origin.id].title} are refused during /${guard.step}: do without this call.`;
+  if (origin.kind === "set") return `${RULE_SETS[origin.id].title} are refused during /${stepCommand(guard.step)}: do without this call.`;
   if (origin.kind === "rewrite") {
     return "This source file exists: change it by node (node_read for its sha256, then node_replace, node_insert or " +
       "node_ensure) or with edit_file, never by writing it whole; file_write only creates a file.";

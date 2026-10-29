@@ -111,7 +111,7 @@ the model reads it, so a change is reviewed as the diff of two renders.
   and what they can do, search playbook, the project's instructions file) and the user body (preferences, skills,
   memory, hooks, environment, history, gauge, request): one `build<Name>Block` renderer per block, a field of
   `PromptParts`, a place in `assemblePrompt`'s fixed order. A block's input is read in `application/context-gather.ts`,
-  through the ports, and passed in `application/turn-prompt.ts`; the flags a session sets (`/effort`, `/passes`,
+  through the ports, and passed in `application/turn-prompt.ts`; the flags a session sets (`/effort`, `/passes` of `/review`,
   `/fast`, `/proactive`, `/output-style`, `answer.language`) travel the same way.
 - **Compaction and memory.** `src/shared/domain/compaction.ts` holds the summary and memory-extraction prompts and
   the markers the model later reads in its history; `src/shared/application/compaction/` runs them.

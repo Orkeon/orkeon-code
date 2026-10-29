@@ -13,7 +13,7 @@ They last until `/clear` or the end of the REPL, like the [permission rules](per
 
 ## Where they run
 
-The dev steps `/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-implement`, `/dev-verify` and `/dev-batches` hand the
+The dev steps `/dev-spec`, `/dev-plan` and `/dev-batches` hand the
 registry to their crew, and so does `/tasks repair` to the agent it starts again. For each tool call the model makes in that crew, once the [host gate](permissions.md) has allowed it:
 
 1. the crew's callback checks the call again against the step's rule sets (and, for a role of a batch, against its
@@ -67,5 +67,5 @@ by hand first (`node .orkeon/hooks/pre.mjs file_read README.md`).
 
 It cannot allow a call the gate or the rule sets refuse, nor change the call's input. It cannot ask you: an approval
 asked in the middle of a crew's turn may not be answered, so a hook decides on its own. It does not see the calls a
-command or a crew makes from its own code (the git commands of `/dev-verify`, its build and tests), nor the inner
+command or a crew makes from its own code (the git commands of a batch's audit, its build and tests), nor the inner
 calls of a tool Orkeon Code defines, which check their own paths.

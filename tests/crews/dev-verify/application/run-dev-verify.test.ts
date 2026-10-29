@@ -71,8 +71,8 @@ describe("runDevVerify — the verdict", () => {
       COST_LINE,
       ...written.trimEnd().split("\n"),
       "written: workbench/demo/DEMO-VERIFY-F2.md — capture: workbench/demo/capture-F2/",
-      "→ Batch F2 VALID. The close commits the batch's files: /dev-implement F2 <code> --close " +
-        "(run by itself when /dev-implement launched this audit).",
+      "→ Batch F2 VALID. The close commits the batch's files (run by itself when /dev-batches launched this audit):",
+      "→ /dev-batches demo F2 --close",
       "  files: src/a.ts, tests/a.test.ts",
     ]);
     strictEqual(f.llm.acts.length, 1);
@@ -112,7 +112,7 @@ describe("runDevVerify — the verdict", () => {
     // Assert
     assertMentions(f.files.files.get(VERDICT) ?? "", [
       "## Verdict — GAPS",
-      `| Blocking | Test | a validation is red: exit 1, 2 failed | \`${VALIDATION}\` exit 1, 2 failed, run by /dev-verify |`,
+      `| Blocking | Test | a validation is red: exit 1, 2 failed | \`${VALIDATION}\` exit 1, 2 failed, run by the audit |`,
     ]);
     ok(!text.includes("→ Batch F2 VALID."), text);
   });
@@ -148,8 +148,8 @@ describe("runDevVerify — the verdict", () => {
     const lines = text.split("\n");
     ok(lines.includes("## Verdict — GAPS"), text);
     deepStrictEqual(lines.slice(-2), [
-      "→ /dev-implement F2 — correction: Major Reuse: parses dates by hand",
-      "  it appends the gap to the sheet as a new step and runs it; the audit follows by itself (/dev-verify F2 resume)",
+      "→ /dev-batches demo F2 — correction: Major Reuse: parses dates by hand",
+      "  it appends the gap to the sheet as a new step and runs it; the audit follows by itself (/dev-batches demo F2 --audit resume)",
     ]);
   });
 
@@ -403,7 +403,7 @@ describe("runDevVerify — resume", () => {
     const text = await run(f.deps, { batch: "F2", mode: "resume" });
 
     // Assert
-    strictEqual(text.split("\n").at(-1), "dev-verify: resume needs workbench/demo/DEMO-VERIFY-F2.md: run /dev-verify F2 first");
+    strictEqual(text.split("\n").at(-1), "dev-verify: resume needs workbench/demo/DEMO-VERIFY-F2.md: run /dev-batches demo F2 --audit first");
     strictEqual(f.llm.acts.length, 0);
   });
 });
@@ -468,7 +468,7 @@ describe("runDevVerify — full", () => {
       "| Blocking | Test | the whole fast suite is red: exit 1, 2 failed |",
       "Validations: whole fast suite — exit 1\n",
     ]);
-    assertMentions(text, ["→ /dev-implement F2 — correction: Blocking Test: the whole fast suite is red: exit 1, 2 failed"]);
+    assertMentions(text, ["→ /dev-batches demo F2 — correction: Blocking Test: the whole fast suite is red: exit 1, 2 failed"]);
   });
 
   it("adds a Major Test row when the whole suite times out", async () => {

@@ -1,104 +1,28 @@
-// /dev-implement's arguments and its chain in `completed` (src/commands/_lib/dev/dev-implement.ts). Run:
+// One batch of /dev-batches: its dispatch and its chain in `completed` (src/commands/_lib/dev/dev-implement.ts). Run:
 //   node --test tests/commands/_lib/dev/dev-implement.test.ts
 import { describe, it } from "node:test";
-import { deepStrictEqual, ok, strictEqual } from "node:assert";
+import { deepStrictEqual, strictEqual } from "node:assert";
 
 import {
-  CONTEXT_NOT_READ_LINE, chainStep, DEV_IMPLEMENT_USAGE, launchChained, nextLaunch, parseDevImplementArgs,
+  CONTEXT_NOT_READ_LINE, chainStep, launchChained, nextLaunch,
 } from "../../../../src/commands/_lib/dev/dev-implement.ts";
 import { writeModeRefusal } from "../../../../src/commands/_lib/dev-step.ts";
 import {
   AUDIT_LAUNCH,
   AUDIT_PAYLOAD,
   CLOSE_LAUNCH,
-  CORRECTION_CASES,
   GAPS_TEXT,
   NO_CLOSE_CASES,
   QUOTED_VALID,
-  READ_CASES,
-  REFUSED_CASES,
   REFUSED_MODES,
   STEPS_CASES,
   VALID_TEXT,
   WRITES,
   WRITING_MODES,
   dispatchHarness,
+  implementArgs,
 } from "./dev-implement.fixtures.ts";
 import { FRESH_CONTEXT, hopDeps } from "../../../support/fixtures/chain-hop.ts";
-
-describe("parseDevImplementArgs", () => {
-  for (const c of READ_CASES) {
-    it(`reads the batch, the plan and the close: ${c.name}`, () => {
-      // Arrange
-      const { tokens, args } = c;
-
-      // Act
-      const parsed = parseDevImplementArgs(tokens);
-
-      // Assert
-      deepStrictEqual(parsed, { ok: true, args });
-    });
-  }
-
-  it("refuses no batch with the usage", () => {
-    // Arrange
-    const tokens: string[] = [];
-
-    // Act
-    const parsed = parseDevImplementArgs(tokens);
-
-    // Assert
-    deepStrictEqual(parsed, { ok: false, text: DEV_IMPLEMENT_USAGE });
-  });
-
-  for (const c of REFUSED_CASES) {
-    it(`refuses ${c.name}`, () => {
-      // Arrange
-      const { tokens } = c;
-
-      // Act
-      const parsed = parseDevImplementArgs(tokens);
-
-      // Assert
-      strictEqual(parsed.ok, false);
-    });
-  }
-
-  for (const c of CORRECTION_CASES) {
-    it(`reads a correction's finding, after the dash or the word alone, the plan before it: ${c.name}`, () => {
-      // Arrange
-      const { tokens, args } = c;
-
-      // Act
-      const parsed = parseDevImplementArgs(tokens);
-
-      // Assert
-      deepStrictEqual(parsed, { ok: true, args });
-    });
-  }
-
-  it("refuses a correction without its finding", () => {
-    // Arrange
-    const tokens = ["F1", "—", "correction:"];
-
-    // Act
-    const parsed = parseDevImplementArgs(tokens);
-
-    // Assert
-    ok(!parsed.ok && parsed.text.includes("names its finding"), JSON.stringify(parsed));
-  });
-
-  it("refuses a correction with --close", () => {
-    // Arrange
-    const tokens = ["F1", "--close", "—", "correction:", "x"];
-
-    // Act
-    const parsed = parseDevImplementArgs(tokens);
-
-    // Assert
-    strictEqual(parsed.ok, false);
-  });
-});
 
 describe("chainStep", () => {
   it("prints the crew's lines and launches the audit it names", () => {
@@ -109,7 +33,7 @@ describe("chainStep", () => {
     const step = chainStep(payload);
 
     // Assert
-    deepStrictEqual(step, { lines: ["a", "b"], launch: { crew: "dev-verify", input: { batch: "F1", plan: "demo" }, instead: "/dev-verify F1 demo" } });
+    deepStrictEqual(step, { lines: ["a", "b"], launch: { crew: "dev-verify", input: { batch: "F1", plan: "demo" }, instead: "/dev-batches demo F1 --audit" } });
   });
 
   it("prints the crew's lines and launches nothing when it names no next crew", () => {
@@ -132,7 +56,7 @@ describe("chainStep", () => {
     const step = chainStep(payload);
 
     // Assert
-    deepStrictEqual(step.launch, { crew: "dev-verify", input, instead: "/dev-verify F1 demo resume" });
+    deepStrictEqual(step.launch, { crew: "dev-verify", input, instead: "/dev-batches demo F1 --audit resume" });
   });
 
   it("launches the close on the audit's VALID line, its plan read off the verdict file", () => {
@@ -145,7 +69,7 @@ describe("chainStep", () => {
     // Assert
     deepStrictEqual(step.launch, {
       crew: "dev-implement", input: { batch: "F1", plan: "workbench/demo/DEMO-PLAN.md", close: true },
-      instead: "/dev-implement F1 workbench/demo/DEMO-PLAN.md --close",
+      instead: "/dev-batches workbench/demo/DEMO-PLAN.md F1 --close",
     });
   });
 
@@ -185,7 +109,7 @@ describe("chainStep", () => {
   });
 });
 
-describe("writeModeRefusal, for /dev-implement and /dev-batches", () => {
+describe("writeModeRefusal, for /dev-batches", () => {
   for (const c of REFUSED_MODES) {
     it(`refuses ${c.name}`, () => {
       // Arrange
@@ -217,24 +141,13 @@ describe("runDevImplementDispatch", () => {
   it("refuses a read-only mode before the step starts, its line written", async () => {
     // Arrange
     const { gate, written, run } = dispatchHarness("plan");
-    const line = writeModeRefusal("plan", "dev-implement", WRITES);
+    const line = writeModeRefusal("plan", "dev-batches", WRITES);
 
     // Act
-    const outcome = await run("F1", "demo");
+    const outcome = await run(implementArgs({ plan: "demo" }));
 
     // Assert
     deepStrictEqual([outcome, written, gate.calls], [{ refused: line }, [line], []]);
-  });
-
-  it("writes the usage and refuses arguments it cannot read", async () => {
-    // Arrange
-    const { written, run } = dispatchHarness();
-
-    // Act
-    const outcome = await run();
-
-    // Assert
-    deepStrictEqual([outcome, written], [{ refused: DEV_IMPLEMENT_USAGE }, [DEV_IMPLEMENT_USAGE]]);
   });
 
   it("refuses when the host's gate is off", async () => {
@@ -243,7 +156,7 @@ describe("runDevImplementDispatch", () => {
     gate.hostGate = false;
 
     // Act
-    const outcome = await run("F1", "demo");
+    const outcome = await run(implementArgs({ plan: "demo" }));
 
     // Assert
     strictEqual("refused" in outcome, true);
@@ -255,7 +168,7 @@ describe("runDevImplementDispatch", () => {
       const { run } = dispatchHarness();
 
       // Act
-      const outcome = await run(...c.tokens);
+      const outcome = await run(c.args);
 
       // Assert
       strictEqual("input" in outcome ? outcome.input.steps : "refused", c.steps);
@@ -272,7 +185,7 @@ describe("nextLaunch", () => {
     const step = await nextLaunch(result, hopDeps());
 
     // Assert
-    deepStrictEqual(step, { lines: ["✗ the dev-implement chain failed: boom"] });
+    deepStrictEqual(step, { lines: ["✗ the batch's chain failed: boom"] });
   });
 
   it("chains to the audit the answer names, its rules put back first, without reading the session again", async () => {
@@ -294,7 +207,7 @@ describe("nextLaunch", () => {
     const step = await nextLaunch({ success: true, payload: AUDIT_PAYLOAD }, deps);
 
     // Assert
-    deepStrictEqual(step, { lines: ["a", "b", "✗ the host's gate is off", "then type /dev-verify F1 demo"] });
+    deepStrictEqual(step, { lines: ["a", "b", "✗ the host's gate is off", "then type /dev-batches demo F1 --audit"] });
   });
 
   it("launches the close with the session's context read again: its mode, rules and github tool (Orkeon #220)", async () => {
@@ -319,7 +232,7 @@ describe("nextLaunch", () => {
     deepStrictEqual(step, {
       lines: [
         ...VALID_TEXT.split("\n"), `→ the close follows: ${CLOSE_LAUNCH.instead}`,
-        "✗ refused: the session mode plan is read-only, and /dev-implement commits (the close of the batch): /mode default, then run it again",
+        "✗ refused: the session mode plan is read-only, and /dev-batches commits (the close of the batch): /mode default, then run it again",
         `then type ${CLOSE_LAUNCH.instead}`,
       ],
     });
@@ -368,7 +281,7 @@ describe("launchChained", () => {
     const lines = launchChained(AUDIT_LAUNCH, run);
 
     // Assert
-    deepStrictEqual(lines, ["✗ chain too deep", "then type /dev-verify F1 demo"]);
+    deepStrictEqual(lines, ["✗ chain too deep", "then type /dev-batches demo F1 --audit"]);
   });
 
   it("hands the launch its options as given", () => {
@@ -391,6 +304,6 @@ describe("launchChained", () => {
     const lines = launchChained(AUDIT_LAUNCH, run);
 
     // Assert
-    deepStrictEqual(lines, ["✗ dev-verify could not be launched (no crew host): type /dev-verify F1 demo"]);
+    deepStrictEqual(lines, ["✗ dev-verify could not be launched (no crew host): type /dev-batches demo F1 --audit"]);
   });
 });

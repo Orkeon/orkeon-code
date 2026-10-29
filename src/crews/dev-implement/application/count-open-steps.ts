@@ -1,4 +1,4 @@
-// The open steps of the batch sheet a /dev-implement run will take, counted before the crew starts so
+// The open steps of the batch sheet a dev-implement run will take, counted before the crew starts so
 // that its budget is sized to them (implement-budget.ts). Undefined when the sheet cannot be found or
 // read: the crew then sizes for the default, and its own run says what is wrong.
 import type { Files, Shell } from "../../../shared/application/ports.ts";

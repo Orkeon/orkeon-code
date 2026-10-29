@@ -119,7 +119,7 @@ const notRunsOf = (runs: readonly ValidationRun[]): string[] => runs.map((r) => 
 
 /**
  * A Blocking row (Test) for each validation that ran red - an exit other than 0, or failures in its summary - as the
- * whole suite of /dev-verify full gets one: the verdict never takes the auditor's word over a run code made itself.
+ * whole suite of a full audit gets one: the verdict never takes the auditor's word over a run code made itself.
  */
 export function redRunRows(runs: readonly ValidationRun[]): AuditRow[] {
   const rows: AuditRow[] = [];
@@ -132,7 +132,7 @@ export function redRunRows(runs: readonly ValidationRun[]): AuditRow[] {
     rows.push({
       severity: "Blocking", axis: "Test",
       gap: `a validation is red: ${report.outcome}${counted}`,
-      evidence: `\`${report.command}\` ${report.outcome}${counted}, run by /dev-verify`,
+      evidence: `\`${report.command}\` ${report.outcome}${counted}, run by the audit`,
       fix: "make the validation pass",
     });
   }

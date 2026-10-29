@@ -1,4 +1,4 @@
-// What /dev-spec and /dev-change share before and after their own draft: the inputs' code, the checkout check,
+// What /dev-spec and dev-change share before and after their own draft: the inputs' code, the checkout check,
 // the code's folder under the work folder, a request given as a path read whole, the self-check of a written
 // source against the parser /dev-plan uses, and the end-message pieces. No model call here.
 import type { Files, Shell } from "../ports.ts";

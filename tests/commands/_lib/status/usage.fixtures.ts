@@ -1,5 +1,6 @@
 // The harness /usage runs over (FakeSessionStore, FakeTelemetry, a settings reader, a FakeUsageReader), and a
 // report with one model and two commands.
+import type { SessionStats } from "../../../../src/shared/application/ports.ts";
 import type { ConfigResolution } from "../../../../src/shared/domain/config-schema.ts";
 import { runUsage } from "../../../../src/commands/_lib/status/usage.ts";
 import { FakeSessionStore } from "../../../support/doubles/fake-session-store.ts";
@@ -27,3 +28,10 @@ export const REPORT_BREAKDOWN = [
   "  [t1] assistant (done): 1 call(s), 2000 prompt (2000 from the cache), 300 completion, $0.0100",
   "1 call(s) unpriced: the cost is a lower bound",
 ].join("\n");
+
+/** The cache ratio /usage shows for the telemetry's stats: the cache read over the session's tokens. */
+export const CACHE_RATIO_CASES: { name: string; stats: SessionStats; ratio: string }[] = [
+  { name: "gives the share of the tokens read from the cache to two decimals", stats: { totalTokens: 9000, cacheHitTokens: 700 }, ratio: "0.08" },
+  { name: "gives no cache ratio when the host reports no cache", stats: { totalTokens: 9000 }, ratio: "-" },
+  { name: "gives no cache ratio before any token", stats: { totalTokens: 0, cacheHitTokens: 0 }, ratio: "-" },
+];

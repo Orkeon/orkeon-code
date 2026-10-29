@@ -20,11 +20,11 @@ What Orkeon Code does not do yet, in the order we expect to address it. Items ma
 
 ## Later
 
-- Sub-agents beyond the dev steps: the reviews of `/dev-spec`, `/dev-change` and `/dev-plan` and the audit of
-  `/dev-verify` run as background children (`ctx.spawnBackground`) that `/tasks` monitors; a saved agent of `/agents` is still storage only, and the
+- Sub-agents beyond the dev steps: the reviews of `/dev-spec` and `/dev-plan` and the audit of
+  `/dev-batches` run as background children (`ctx.spawnBackground`) that `/tasks` monitors; a saved agent of `/agents` is still storage only, and the
   assistant does not delegate.
 - The structural editor (`node_*`, `edit_batch`, `structural_rewrite`) in the assistant's prompts: the tools are in
-  the catalogue, the assistant's prompts do not teach them yet. The dev steps use part of it: the roles of `/dev-implement` read
+  the catalogue, the assistant's prompts do not teach them yet. The dev steps use part of it: the roles of `/dev-batches` read
   and change a file by node (`node_replace`, `node_insert`, `node_ensure`, `edit_batch`) and the batch reads
   `affected_tests` and refreshes the index (`incremental_reindex`); the reviewers search with `structural_search`.
   Three parts wait:
@@ -45,7 +45,7 @@ What Orkeon Code does not do yet, in the order we expect to address it. Items ma
 
 - A tool result reaches the model cut at 4000 characters: 32,000 for `file_read`, 256,000 for `node_read`, 10,000 for
   `shell_command`. The cut is set per tool by `Orkeon:Tools:ResultLimits` ([Configuration](configuration.md)).
-- `/tasks` monitors the children of `/dev-spec`, `/dev-change`, `/dev-plan` and `/dev-verify` only, through the session state: a stop waits for
+- `/tasks` monitors the children of `/dev-spec`, `/dev-plan` and `/dev-batches` only, through the session state: a stop waits for
   the crew's next look (about a second), and a send to an ended instance is a new run that knows the previous report
   only, not its context.
 - Some commands only partly do what their names promise: `/summary` (not saved to memory).

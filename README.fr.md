@@ -37,20 +37,20 @@ chaque prompt est un fichier source : modifiez-le, ou ajoutez le vôtre.
   l'active, et l'assistant transcrit notes vocales, réunions et vidéos d'écran sur votre machine ; `/voice` dicte une
   requête et `/say` lit à voix haute ([Configuration](docs/fr/configuration.md#transcription-de-la-parole)).
 - **Des crews pour les tâches récurrentes** : `/init` (décrire le projet pour l'agent), `/commit` (un commit
-  conventionnel tiré du diff), `/review`, `/security-review` (revue de code multi-angles), `/analyze`
+  conventionnel tiré du diff), `/review` (revue de code multi-angles ; `--lens security` pour le seul angle sécurité), `/analyze`
   (analyse déterministe du code), `/compact` et `/summary` (gestion du contexte), `/init-verifiers`, `/advisor`.
-- **Un workflow dev, étape par étape** : `/dev-spec` ou `/dev-change` écrit la spec ou la fiche de changement,
-  `/dev-plan` la découpe en lots qu'un relecteur en lecture seule questionne, `/dev-implement` exécute un lot en
-  test d'abord (tests rouges, puis le moindre code, puis un audit en lecture seule) et le clôt par un commit,
-  `/dev-verify` audite un lot, `/dev-batches` exécute les lots d'un plan l'un après l'autre, `/dev-status` dit où en
+- **Un workflow dev, étape par étape** : `/dev-spec` écrit la spec ou la fiche de changement,
+  `/dev-plan` la découpe en lots qu'un relecteur en lecture seule questionne, `/dev-batches` exécute les lots d'un
+  plan l'un après l'autre, chacun en test d'abord (tests rouges, puis le moindre code, puis un audit en lecture seule)
+  et clos par un commit (`<code> F<n>` un lot, `<code> F<n> --audit` son audit seul), `/dev-status` dit où en
   est un travail et `/dev-learn` propose des règles à partir des écarts récurrents des audits. Chaque étape s'exécute
   sous des règles de refus que son crew vérifie à nouveau
   ([Permissions](docs/fr/permissions.md#jeux-de-règles-des-étapes-dev)).
 - **Une mémoire partagée** : décisions, structures, méthodes et erreurs que les étapes retrouvent, admises seulement
-  par `/memory-admit` ([Mémoire partagée](docs/fr/shared-memory.md)).
+  par `/memory admit` ([Mémoire partagée](docs/fr/shared-memory.md)).
 - **Gestion du contexte** : compaction automatique avec disjoncteur, `/compact` qui tronque d'abord, restauration des
   fichiers après compaction, paliers de pression du contexte, mémoire durable typée (`/memory`).
-- **58 commandes slash** au total : [docs/fr/commands.md](docs/fr/commands.md).
+- **48 commandes slash** au total : [docs/fr/commands.md](docs/fr/commands.md).
 
 ## Démarrage rapide
 

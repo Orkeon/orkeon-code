@@ -3,7 +3,7 @@
 // (baseline 04 §/effort). The level picks the act() iteration ladder used by
 // every subsequent /assistant turn and, since A-3, reaches the provider as
 // `act({effort})`: the main loop's act, and the children of /dev-plan and
-// /dev-verify, which the commands hand the level. The ladder and the forwarding
+// dev-verify, which the commands hand the level. The ladder and the forwarding
 // rule are pure and tested in shared/domain/agent-policy/behavior-flags.ts.
 import { rawTokens } from "../_lib/args.ts";
 import { orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";

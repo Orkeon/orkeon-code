@@ -92,23 +92,23 @@ describe("command surface", () => {
     assertInAGroup(cmds, COMMAND_GROUPS);
   });
 
-  it("E-1 wave commands are all present", () => {
+  it("E-1 wave commands are all present, a folded one as an alias", () => {
     // Arrange
     const cmds = collect();
 
     // Act
-    const names = new Set(cmds.map((c) => c.name));
+    const names = new Set(cmds.flatMap((c) => [c.name, ...c.aliases]));
 
     // Assert
     assertCommandsPresent(names, E1_COMMANDS, "E-1");
   });
 
-  it("B-12 commands are all present", () => {
+  it("B-12 commands are all present, a folded one as an alias", () => {
     // Arrange
     const cmds = collect();
 
     // Act
-    const names = new Set(cmds.map((c) => c.name));
+    const names = new Set(cmds.flatMap((c) => [c.name, ...c.aliases]));
 
     // Assert
     assertCommandsPresent(names, B12_COMMANDS, "B-12");

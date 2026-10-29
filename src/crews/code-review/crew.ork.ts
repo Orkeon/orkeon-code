@@ -6,9 +6,11 @@
 // runs three review lenses (correctness/security/style) in parallel via
 // Promise.all, dedups + ranks findings, and writes /output/code-review-report.md.
 //
-// Input (globalThis.inputs): { files?: string[], commit?: string }
+// Input (globalThis.inputs): { files?: string[], commit?: string, lenses?: string, passes?: number }
 //   files  — repo-relative paths restricting the diff (B-3; honoured since then)
 //   commit — review that commit instead of the staged changes
+//   lenses — the lenses of this run, outranking review.lenses (/review --lens, /security-review)
+//   passes — the rounds of this run, outranking the session's /passes (/review --passes)
 // Run standalone:  bash scripts/run-crew.sh src/crews/code-review/crew.ork.ts
 
 import { AgentBuilder, CrewBuilder, publishCrew, inputs } from "../../shared/infrastructure/globals.ts";

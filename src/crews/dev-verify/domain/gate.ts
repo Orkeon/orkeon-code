@@ -1,4 +1,4 @@
-// The gate of /dev-verify: five mechanical checks on a batch before any audit - the sheet
+// The gate of dev-verify: five mechanical checks on a batch before any audit - the sheet
 // closed, every design id classified, every changed file in scope, every sheet id carried
 // by a test trait, no whitespace error. The ok/FAIL lines keep the harness's wording, so
 // that both gates print the same lines on the same batch. Pure: the application gathers

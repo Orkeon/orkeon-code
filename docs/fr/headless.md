@@ -117,7 +117,8 @@ ORKEON_CODE_WORKSPACE=~/src/app bash scripts/dev-run.sh dev-verify demo \
 
 - le projet décliné à la question de confiance : rien ne s'exécute, sortie `0` ; refusé sans terminal : sortie `2` ;
 - `closed` (la ligne `- <date> <time> closed`, un blanc final ou un CR à part) : les lots sont clos, sortie `0` ;
-- un événement dont le détail commence par `BLOCKED` ou `GAPS` : un humain décide, sortie `3` ;
+- un événement dont le détail commence par `BLOCKED` ou `GAPS` : un humain décide, sortie `3` (un GAPS que
+  `/dev-batches` relance de lui-même est suivi de sa ligne `relaunched` ; seul le troisième tour d'audit encore GAPS reste le dernier) ;
 - la même ligne qu'avant l'étape : rien n'a bougé, sortie `4`, jamais de boucle ;
 - `--max-steps` (10 par défaut) atteint : sortie `5` ;
 - une étape qui sort avec `1` ou `130` arrête la chaîne avec ce code ; une qui sort avec `2` et une limite de débit dans
@@ -126,7 +127,7 @@ ORKEON_CODE_WORKSPACE=~/src/app bash scripts/dev-run.sh dev-verify demo \
 `--inputs` est obligatoire : les entrées propres au crew, que son `crew.ork.ts` nomme dans son en-tête. Chaque étape est
 un nouveau processus à la session vide : ce dont une étape a besoin (le lot, le plan) voyage dans ses entrées ou vit
 dans les fichiers du code de travail. Un crew lancé ainsi ne reçoit rien de ce que sa commande fait d'abord : la
-vérification par les étapes dev (`/dev-verify`, `/dev-plan`, `/dev-spec`, `/dev-change`, `/dev-implement`) que la
+vérification par les étapes dev (`/dev-batches`, `/dev-plan`, `/dev-spec`) que la
 garde est active et leurs jeux de règles ne s'appliquent pas ; donnez donc à
 l'exécution un fichier de settings dont vous avez choisi la garde et les règles.
 

@@ -1,6 +1,6 @@
 // /tasks (E-1, A-3) — the session task list, and the agent instances of the dev crews. The task
 // list is one JSON array in the state bag (add, done, clear; /clear empties it). The instances are
-// the children a dev crew runs (the reviewer of /dev-plan, the auditor of /dev-verify): the crew
+// the children a dev crew runs (the reviewer of /dev-plan, the auditor of dev-verify): the crew
 // writes its run in the state bag while they run (shared/application/agents/child-agent.ts), and
 // reads there the stop /tasks leaves for one of them, at its next look. A send to a running instance
 // is refused; to an ended one it is a repair by a new run (crews/agent-run), whose brief carries the

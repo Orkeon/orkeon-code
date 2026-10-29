@@ -1,15 +1,16 @@
 // @orkeon-script 1.0
 /// <reference path="../.orkeon/orkeon.d.ts" />
 //
-// DevImplement crew (/dev-implement). Composition root: one agent holds the tools of the two
+// DevImplement crew (dev-implement). Composition root: one agent holds the tools of the two
 // writing roles of a batch step (the test author, the implementer) and the autonomous run_tests
 // and run_build; application/run-dev-implement runs each step as two acts of it, each act with
 // its own tools and its own callbacks (the role's deny rules over the pack's layout), observes
 // the tree and the tests itself and ticks the sheet. The build and the whole suite then run as
-// shell jobs. With close: true it commits the batch's files once /dev-verify found it VALID.
+// shell jobs. With close: true it commits the batch's files once dev-verify found it VALID.
 //
 // Input (globalThis.inputs): { batch: "F<n>", plan?: string | null, close?: boolean, pr?: boolean, push?: false,
 //                              correction?: string (the finding of an audit's gap), steps?: number,
+//                              stale?: string[] (/dev-batches' `stale:` lines: they end the RED and GREEN prompts),
 //                              hooks?: the /hooks registry, effort?: "low" | "medium" | "high" | null,
 //                              memoryRecall?: false (a session rule denies it: the agent gets none),
 //                              permissionMode?, permissionRules?, githubTool? (the close's pull request;

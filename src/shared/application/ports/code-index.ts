@@ -68,7 +68,7 @@ export interface AnchorIndex {
   closure(fqns: readonly string[]): Promise<AnchorClosure>;
 }
 
-/** What `/dev-verify` asks of the code index for the access cost (`index_status`, `incremental_reindex`,
+/** What `dev-verify` asks of the code index for the access cost (`index_status`, `incremental_reindex`,
  *  `access_cost`), apart from CodeIndex. Each call throws when the host cannot answer it. */
 export interface CostIndex {
   /** The virtual roots the index holds; none before the first indexing. */

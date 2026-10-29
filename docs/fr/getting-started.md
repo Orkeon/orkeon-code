@@ -163,13 +163,13 @@ La bannière affiche le projet, les settings et le mode. Dans le REPL :
 | `renomme parseArgs en parseCliArgs` | En mode `default`, le REPL demande avant chaque modification : `[y] once / [s] session / [n] no` |
 | `/mode acceptEdits` puis `ajoute un test pour parseCliArgs` | Les modifications passent sans demander pour la session ; une commande demande toujours |
 | `/diff`, `/commit`, `/review` | Les flux de travail git sur le projet |
-| `/context`, `/compact`, `/cost` | La fenêtre de contexte et la session |
+| `/context`, `/compact`, `/usage` | La fenêtre de contexte et la session |
 | `/exit` | Quitter |
 
 Le texte saisi sans `/` initial est envoyé à `/assistant`. La liste complète : [Commandes](commands.md).
 
 Sur un terminal, le REPL est une TUI en deux volets : la transcription, l'invite, et dessous la liste des tâches (`↓`
-ou `F4`) qui nomme les commandes en arrière-plan (`/dev-batches`, `/dev-implement`, un `/assistant` lancé en async).
+ou `F4`) qui nomme les commandes en arrière-plan (`/dev-batches`, un `/assistant` lancé en async).
 Chaque fil de conversation a son écran : sélectionner la ligne d'une tâche montre ses lignes, sélectionner `main`
 celles de l'invite, où restent les lignes de lancement et de fin de chaque tâche ; la tâche sélectionnée est aussi la
 destinataire du prochain message. Une tâche finie garde sa ligne, avec `✔ finished`, `✗ failed` ou `⊘ cancelled` et sa

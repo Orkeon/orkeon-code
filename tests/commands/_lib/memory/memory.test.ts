@@ -1,11 +1,12 @@
 // /memory (commands/_lib/memory/memory.ts) over FakeMemoryStore: list, add, delete and
-// get, and the usage line of an empty add. Run:
+// get, the usage line of an empty add, the /feedback alias and the route of an admission. Run:
 //   node --test tests/commands/_lib/memory/memory.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual } from "node:assert";
 
-import { runMemory } from "../../../../src/commands/_lib/memory/memory.ts";
-import { memoryWith, PREFERS_TABS, USES_PNPM } from "./memory.fixtures.ts";
+import { admitTokens, runMemory } from "../../../../src/commands/_lib/memory/memory.ts";
+import { ADMIT_TOKEN_CASES, FEEDBACK_RECORDED, FEEDBACK_USAGE, memoryWith, PREFERS_TABS, USES_PNPM } from "./memory.fixtures.ts";
+import { assertFeedbackAnswered } from "./memory.assertions.ts";
 
 describe("/memory list", () => {
   it("tables every entry (the default sub-command)", async () => {
@@ -132,4 +133,43 @@ describe("/memory delete and get", () => {
     // Assert
     deepStrictEqual(view, { text: "\"not found\"" });
   });
+});
+
+describe("/feedback — runMemory typed by its alias", () => {
+  it("adds the text as a feedback memory and says the agent replays it", async () => {
+    // Arrange
+    const memory = memoryWith();
+
+    // Act
+    const view = await runMemory(["keep", "answers", "short"], { memory }, "feedback");
+
+    // Assert
+    assertFeedbackAnswered(view, memory.records, FEEDBACK_RECORDED, [{ id: 1, category: "feedback", content: "keep answers short" }]);
+  });
+
+  it("gives its usage line and adds nothing when the text is empty", async () => {
+    // Arrange
+    const memory = memoryWith();
+
+    // Act
+    const view = await runMemory([], { memory }, "feedback");
+
+    // Assert
+    assertFeedbackAnswered(view, memory.records, FEEDBACK_USAGE, []);
+  });
+});
+
+describe("admitTokens — the admission's route", () => {
+  for (const c of ADMIT_TOKEN_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const tokens = c.tokens;
+
+      // Act
+      const admit = admitTokens(tokens, c.typed);
+
+      // Assert
+      deepStrictEqual(admit, c.expected);
+    });
+  }
 });

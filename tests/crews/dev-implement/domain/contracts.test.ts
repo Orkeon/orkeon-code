@@ -3,10 +3,10 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
-import { CARRIED_CONTRACT_CHARS, classOf, greenContract, redContract, stubsOf, testCommandFor } from "../../../../src/crews/dev-implement/domain/contracts.ts";
+import { CARRIED_CONTRACT_CHARS, classOf, greenContract, redContract, staleBlock, stubsOf, testCommandFor } from "../../../../src/crews/dev-implement/domain/contracts.ts";
 import {
   ASSUMPTION_SAYS, contractInput, GREEN_CARRIED_SAYS, GREEN_SAYS, LAYOUT, laterStep, pastTheRoom, RED_CARRIED_SAYS, RED_SAYS, SHEET,
-  SHEET_AND_TEST_CARRIED, STUB_CARRIED, stepCreating, stepWithStubs, stepWithTestFile, STUBS_SAY,
+  SHEET_AND_TEST_CARRIED, STALE_BLOCK, STALE_LINES, STUB_CARRIED, stepCreating, stepWithStubs, stepWithTestFile, STUBS_SAY,
 } from "./contracts.fixtures.ts";
 import { assertCarriedBeforeRules, assertNodeRules } from "./contracts.assertions.ts";
 import { assertMentions } from "../../../support/assertions/text.ts";
@@ -304,5 +304,29 @@ describe("what a contract says is in its brief", () => {
 
     // Assert
     ok(red.includes("- test file: `tests/prune.test.ts` — to create — create it with file_write"), red);
+  });
+});
+
+describe("staleBlock", () => {
+  it("ends the prompt with the stale lines", () => {
+    // Arrange
+    const lines = STALE_LINES;
+
+    // Act
+    const block = staleBlock(lines);
+
+    // Assert
+    strictEqual(block, STALE_BLOCK);
+  });
+
+  it("adds no block without stale lines", () => {
+    // Arrange
+    const lines: string[] = [];
+
+    // Act
+    const block = staleBlock(lines);
+
+    // Assert
+    strictEqual(block, "");
   });
 });

@@ -1,5 +1,5 @@
 /// <reference path="../../../crews/.orkeon/orkeon.d.ts" />
-// The ports of /dev-implement's and /dev-verify's use cases, built from the agent body that runs them: its own
+// The ports of dev-implement's and dev-verify's use cases, built from the agent body that runs them: its own
 // `ctx.tools`, `ctx.llm` and `ctx.log`. The crews' bodies use them, and so does a parallel /dev-batches' batch
 // agent, beside others under their own working roots - where the global `tools` refuses a call from code
 // (temp/26 L8P-D3). Given a root (the batch's worktree), the ports keep naming the checkout `/workspace` and map
@@ -112,7 +112,7 @@ function portsOf(ctx: BodyContext, root: string | undefined) {
   };
 }
 
-/** /dev-implement's deps over the body's context. */
+/** dev-implement's deps over the body's context. */
 export function implementDeps(
   ctx: BodyContext, opts: DevOptions & { toolSlot: DevImplementDeps["toolSlot"] },
 ): DevImplementDeps {
@@ -135,7 +135,7 @@ export function implementDeps(
   };
 }
 
-/** /dev-verify's callbacks over the body's context: the step's rule sets again and the /hooks the command passed;
+/** dev-verify's callbacks over the body's context: the step's rule sets again and the /hooks the command passed;
  *  run_validation and memory_recall, declared `read`, let through on a host without a gate. */
 export function verifyCallbacks(ctx: Pick<BodyContext, "tools" | "log">, opts: DevOptions): ToolCallbacks {
   const ports = portsOf({ ...ctx, llm: undefined as never }, opts.root);
@@ -145,7 +145,7 @@ export function verifyCallbacks(ctx: Pick<BodyContext, "tools" | "log">, opts: D
   ), opts.root), opts.spend);
 }
 
-/** /dev-verify's deps over the body's context. The audit acts on the plain Llm (inline) unless `wrapLlm` hands it
+/** dev-verify's deps over the body's context. The audit acts on the plain Llm (inline) unless `wrapLlm` hands it
  *  to a background child (the crew's); the harvest after GAPS runs only when asked (never in a batch: the driver's). */
 export function verifyDeps(
   ctx: BodyContext,

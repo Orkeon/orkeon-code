@@ -11,6 +11,7 @@ import { FakeSessionStore } from "../../../support/doubles/fake-session-store.ts
 import { FakeShell } from "../../../support/doubles/fake-shell.ts";
 import { createConfigStore } from "../../../../src/shared/application/config-store.ts";
 import { parseBatchesState } from "../../../../src/shared/domain/dev/batches-state.ts";
+import { AUDIT_UNFINISHED_GAP } from "../../../../src/shared/domain/dev/verdict-format.ts";
 import {
   GIT_COMMITTER_IDENT_COMMAND, GIT_CURRENT_BRANCH_COMMAND, GIT_DEFAULT_BRANCH_COMMAND, GIT_HEAD_COMMAND, GIT_IDENT_COMMAND,
   gitPushCommand,
@@ -28,7 +29,8 @@ const IDENT = { stdout: "Ada <ada@example.org> 1761300000 +0000\n" };
 
 export interface Setup { files: FakeFiles; shell: FakeShell; deps: DevBatchesDeps }
 
-/** The demo work folder, a shell on `branch`, and a clock moving one minute at each read. */
+/** The demo work folder, a shell on `branch`, a clock moving one minute at each read, and a reviewer answering CLEAR
+ *  (a review that cannot run stops its batch: a test of that sets `reviewerFor` itself). */
 export function setup(branch = "feat/demo"): Setup {
   const files = new FakeFiles();
   const names = readdirSync(DEMO_DIR).sort();
@@ -46,6 +48,7 @@ export function setup(branch = "feat/demo"): Setup {
   let minute = 0;
   const deps: DevBatchesDeps = {
     files, shell, config, log: new FakeLogger(), clock: () => new Date(Date.UTC(2026, 9, 24, 8, minute++)),
+    reviewerFor: () => clearReviewer(),
   };
   return { files, shell, deps };
 }
@@ -139,6 +142,27 @@ export function blockingReviewer(): FakeLlm {
   return llm;
 }
 
+/** A reviewer whose answer does not parse, twice: no verdict a review gives. */
+export function unparsableReviewer(): FakeLlm {
+  const llm = new FakeLlm();
+  llm.extractions = [{ verdict: "MAYBE", rows: [] }, { verdict: "MAYBE", rows: [] }];
+  return llm;
+}
+
+/** A reviewer raising one Major question on F2. */
+export function majorReviewer(): FakeLlm {
+  const llm = new FakeLlm();
+  llm.extractions = [{ verdict: "GAPS", rows: [{ severity: "Major", question: "Does F2 still print the state F1 parses?", evidence: "DEMO-PLAN-F2.md:6", target: "F2" }] }];
+  return llm;
+}
+
+/** The stale line the Major question of majorReviewer() hands F2's launch. */
+export const F2_STALE_LINE = "stale: Does F2 still print the state F1 parses? — DEMO-PLAN-F2.md:6";
+
+/** The last line of a run whose review of F2 has no reviewer. */
+export const NO_REVIEWER_LINE =
+  "→ F2 not launched: the review could not run (no reviewer on this host); /dev-batches demo reviews it again";
+
 /** What the reviewer of F2 is handed once F1 closed with 1111111. */
 export const F2_REVIEW_BRIEF: readonly string[] = [
   "The batches closed before it, with their commits and files:\nF1 1111111: ",
@@ -168,6 +192,21 @@ export function addGapsAudit(files: FakeFiles): void {
   files.files.set(VERDICT_F2, `${text}\n${text?.split("\n\n# ")[1].replace(/^/, "# ")}`);
 }
 
+/** The verdict file of F2 with an audit the budget stopped written since the launch, after one VALID audit. */
+export function addUnfinishedAudit(files: FakeFiles): void {
+  files.files.set(VERDICT_F2, `${files.files.get(VERDICT_F2)}\n${UNFINISHED_F2}`);
+}
+
+const UNFINISHED_F2 = "# DEMO-VERIFY-F2 — 2026-10-24 10:00 — resume\n\n## Verdict — GAPS\n\n" +
+  "| Severity | Axis | Gap | Evidence | Expected fix |\n|---|---|---|---|---|\n" +
+  `| Blocking | Correctness | ${AUDIT_UNFINISHED_GAP} | tokens: spent | audit again |\n`;
+
+/** What the chain answers when the budget stopped F2's audit. */
+export const BUDGET_STOPPED_AUDIT = ["", "dev-verify: BLOCKED — the step's budget is spent (tokens: x): the capture stays in c/; GAPS written to v"];
+
+/** The correction the last GAPS audit of the fixture's DEMO-VERIFY-F2.md hands F2's relaunch: its one Major row. */
+export const F2_LAST_FINDING = "Major — The state column still merges two states (`dev.ts:91`)";
+
 /** Session concurrency values a run refuses. */
 export const BAD_CONCURRENCIES: readonly unknown[] = [5, 0, "x"];
 
@@ -179,7 +218,7 @@ export const IN_PROGRESS_LINE =
   "or delete that file to drop it, then /dev-batches other";
 
 export const GAPS_HUMAN_LINE =
-  "→ a human decides: the correction the audit names (/dev-implement F2 demo — correction: <finding>), then /dev-batches demo goes on";
+  "→ a human decides: 3 audit rounds in GAPS; the correction the audit names (/dev-batches demo F2 — correction: <finding>), then /dev-batches demo goes on";
 
 export const KEPT_F2_LINE =
   "BLOCKED — F2 stays in .orkeon/worktrees/demo-F2, kept by a parallel run: /dev-batches demo --concurrency 2 relaunches it there; " +

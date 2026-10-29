@@ -1,5 +1,5 @@
-// The close of a batch the audit found VALID (`/dev-implement F<n> <code> --close`, or the chain
-// after /dev-verify): the last verdict of `<CODE>-VERIFY-F<n>.md` must be VALID, then the files the
+// The close of a batch the audit found VALID (`/dev-batches <code> F<n> --close`, or the chain
+// after the audit): the last verdict of `<CODE>-VERIFY-F<n>.md` must be VALID, then the files the
 // roles changed (touched.ts) are committed by name, pushed, and the pull request opened or handed
 // over (shared/application/dev/close-batch.ts). Nothing is committed without that verdict. On the default
 // branch, when the pack asks for a work branch, the close creates `<prefix>/<code>-f<n>` first. Once
@@ -11,7 +11,7 @@ import type { PullRequestOpener } from "../../../shared/application/git/commit-f
 import { runGit } from "../../../shared/application/git/commit-files.ts";
 import { closeBatch } from "../../../shared/application/dev/close-batch.ts";
 import type { WorkFolder } from "../../../shared/application/dev/resolve-work-folder.ts";
-import { lastVerdict, parseVerdictFile } from "../../../shared/domain/dev/verdict-format.ts";
+import { auditCommand, closeCommand, lastVerdict, parseVerdictFile } from "../../../shared/domain/dev/verdict-format.ts";
 import { parseBatchSheet } from "../../../shared/domain/dev/plan-format.ts";
 import type { RepoPack } from "../../../shared/domain/dev/repo-pack.ts";
 import { DEV_PR_AUTO_CONFIG_KEY, GIT_CURRENT_BRANCH_COMMAND, GIT_DEFAULT_BRANCH_COMMAND, parseDefaultBranch } from "../../../shared/domain/git/close.ts";
@@ -71,13 +71,13 @@ export async function closeDevBatch(
   input: CloseInput,
 ): Promise<string[]> {
   const { located, batch } = input;
-  const rerun = `/dev-implement ${batch} ${located.code} --close`;
+  const rerun = closeCommand(located.code, batch);
   const verdictName = `${located.prefix}-VERIFY-${batch}.md`;
   let verdictText: string;
   try {
     verdictText = await deps.files.read(`${WORKSPACE}/${located.dir}/${verdictName}`);
   } catch {
-    return [`BLOCKED — close: no ${located.dir}/${verdictName}: the batch is audited first (/dev-verify ${batch} ${located.code})`];
+    return [`BLOCKED — close: no ${located.dir}/${verdictName}: the batch is audited first (${auditCommand(located.code, batch)})`];
   }
   const verdict = lastVerdict(parseVerdictFile(verdictText));
   if (verdict?.verdict !== "VALID") {
@@ -87,7 +87,7 @@ export async function closeDevBatch(
     return [`BLOCKED — close: no file recorded for ${batch} (.orkeon/dev/${located.code}/implement-${batch}.json): commit the batch with /commit <files>`];
   }
   if (input.verdictMark === null || input.verdictMark === verdictMarkOf(verdictText)) {
-    return [`BLOCKED — close: ${verdictName} was not written since the last /dev-implement ${batch} run changed the batch: audit it again (/dev-verify ${batch} ${located.code})`];
+    return [`BLOCKED — close: ${verdictName} was not written since the last run of ${batch} changed the batch: audit it again (${auditCommand(located.code, batch)})`];
   }
   let sheetText: string;
   try {
@@ -97,7 +97,7 @@ export async function closeDevBatch(
   }
   const open = openSteps(parseImplementSheet(sheetText)).map((s) => s.number);
   if (open.length > 0) {
-    return [`BLOCKED — close: step ${open.join(", ")} of ${located.name} still has a TDD box open: /dev-implement ${batch} ${located.code} first`];
+    return [`BLOCKED — close: step ${open.join(", ")} of ${located.name} still has a TDD box open: /dev-batches ${located.code} ${batch} first`];
   }
 
   const current = await runGit(deps.shell, GIT_CURRENT_BRANCH_COMMAND);

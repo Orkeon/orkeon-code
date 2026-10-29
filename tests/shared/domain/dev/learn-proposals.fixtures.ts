@@ -115,7 +115,7 @@ export const REPO_PATCH: readonly string[] = [
 ];
 
 export const REPO_ACCEPT: readonly string[] = [
-  "accepted 3f2a9c1e — Refusal paths go untested: CONTRIBUTING.md is not edited by /dev-learn; make the change in a batch (/dev-change, or by hand):",
+  "accepted 3f2a9c1e — Refusal paths go untested: CONTRIBUTING.md is not edited by /dev-learn; make the change in a batch (/dev-spec <code> refactor, or by hand):",
   "  file: CONTRIBUTING.md",
   "  + Every refusal a command prints has a test that makes it print.",
 ];

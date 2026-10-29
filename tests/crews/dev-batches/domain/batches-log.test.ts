@@ -5,8 +5,8 @@ import { describe, it } from "node:test";
 import { strictEqual } from "node:assert";
 
 import { parseBatchesState } from "../../../../src/shared/domain/dev/batches-state.ts";
-import { appendToLog, batchesLogPath, eventLine, lastEntryOf, stamp } from "../../../../src/crews/dev-batches/domain/batches-log.ts";
-import { AT, EVENT_LINES, F1_MERGED_LINES, LOG_WITHOUT_FINAL_NEWLINE } from "./batches-log.fixtures.ts";
+import { appendToLog, batchesLogPath, eventLine, lastEntryOf, reviewPending, stamp } from "../../../../src/crews/dev-batches/domain/batches-log.ts";
+import { AT, EVENT_LINES, F1_MERGED_LINES, LOG_WITHOUT_FINAL_NEWLINE, REVIEW_PENDING } from "./batches-log.fixtures.ts";
 import { assertLogReadsBack } from "./batches-log.assertions.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 
@@ -113,4 +113,19 @@ describe("lastEntryOf", () => {
     // Assert
     strictEqual(last, undefined);
   });
+});
+
+describe("reviewPending", () => {
+  for (const c of REVIEW_PENDING) {
+    it(c.name, () => {
+      // Arrange
+      const { entries } = parseBatchesState(appendToLog(null, "demo", c.lines));
+
+      // Act
+      const pending = reviewPending(entries, "F2");
+
+      // Assert
+      strictEqual(pending, c.expected);
+    });
+  }
 });
