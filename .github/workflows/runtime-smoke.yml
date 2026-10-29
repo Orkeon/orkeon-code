@@ -28,8 +28,8 @@ concurrency:
   group: runtime-smoke-${{ github.ref }}
   cancel-in-progress: true
 env:
-  # Orkeon main after #230 (the context counted once, the runtime, usage and session services, the streamed flag), on the runtime of ADR 0009 (rc.6 not tagged yet). Move it with .orkeon-version.
-  ORKEON_SOURCE_REF: 7ff12c912886f18cc7b7c318ca90137360742509
+  # Orkeon main after #234 (rc.6 cut and tagged at #232, the decision model and the decision tasks, retry-after-ms), on the runtime of ADR 0010: the rc.6 image is not published yet. Move it with .orkeon-version.
+  ORKEON_SOURCE_REF: b8833caab29a642b08bd02c8a53f473802e63ed1
 jobs:
   smoke:
     runs-on: ubuntu-latest

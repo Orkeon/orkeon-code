@@ -72,18 +72,25 @@ machine instead, no key: `config/appsettings.ollama.example.json`, on Ollama ([C
 
 ## 3. Choose a runtime
 
-**Windows**: `orkeon-code.ps1` has no source mode and no `--demo` (`-Mode` takes `docker` or `tool` only), so until
-`1.0.0-rc.6` is tagged nothing runs natively there. Use WSL with the bash launcher until then.
+**Windows**: `orkeon-code.ps1` has no source mode and no `--demo` (`-Mode` takes `docker` or `tool` only): the tool
+mode on the release's `orkeon-<version>-win-x64.zip` is the one for Windows; the path this project exercises is WSL
+with the bash launcher ([WSL tutorial](wsl-tutorial.md)).
 
-Orkeon Code requires Orkeon `1.0.0-rc.6`, the version in `.orkeon-version`. **Until that version is tagged and
-published, only the [source mode](#source-mode-an-orkeon-checkout) works**: the tool mode needs its packages and the
-docker mode its image, and the CI runtime smoke, which pulls that image, fails until then.
-Orkeon Code targets Orkeon's `main` after Orkeon/orkeon#213, the surface `1.0.0-rc.6` will carry: the host gate's
-state (`/permissions`), the typed built-in tools and the per-tool result limits
-([ADR 0004](adr/0004-orkeon-after-180.md)), the file tools resolving a relative path under `/workspace` or the
-agent's root, and the pending approvals a command reads (`/tasks`) ([ADR 0005](adr/0005-orkeon-after-206.md)), the
-REPL starting on a terminal, the structural tools with their parameter schema and the streamed answers of concurrent
-acts kept line by line ([ADR 0006](adr/0006-orkeon-after-213.md)).
+Orkeon Code requires Orkeon `1.0.0-rc.6`, the version in `.orkeon-version`, tagged and released on 2026-10-28: the
+[tool mode](#tool-mode-orkeon-repl-installed) has its packages (the Debian package on the apt `rc` channel, the
+release archives), the [source mode](#source-mode-an-orkeon-checkout) takes any checkout at or after the tag, and the
+[docker mode](#docker-mode-nothing-to-install-but-docker) waits for the `orkeon-runners:1.0.0-rc.6` image, which the
+registry does not carry yet (the CI runtime smoke builds the REPL from Orkeon's sources until it finds it).
+The release carries what the ADRs 0004 to 0009 adopted from Orkeon's `main`: the host gate's state
+(`/permissions`), the typed built-in tools and the per-tool result limits ([ADR 0004](adr/0004-orkeon-after-180.md)),
+the file tools resolving a relative path under `/workspace` or the agent's root, and the pending approvals a command
+reads (`/tasks`) ([ADR 0005](adr/0005-orkeon-after-206.md)), the REPL starting on a terminal, the structural tools
+with their parameter schema and the streamed answers of concurrent acts kept line by line
+([ADR 0006](adr/0006-orkeon-after-213.md)), the thread screens, the budget wrap-up and the per-call access
+([ADR 0007](adr/0007-orkeon-after-217.md)), the access classes of the tools ([ADR 0008](adr/0008-orkeon-after-223.md)),
+the context counted once, the runtime, usage and session services and the streamed flag
+([ADR 0009](adr/0009-orkeon-after-230.md)). The typings follow Orkeon's `main` after Orkeon/orkeon#234
+([ADR 0010](adr/0010-orkeon-after-234.md)).
 
 The launcher picks the first available mode, in this order, unless `--mode` says otherwise.
 

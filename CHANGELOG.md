@@ -393,6 +393,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   regenerated from the sources (`contextTokens`, `streamed`, `RuntimeInfo`, `SessionUsage`, `SessionFacade`,
   `used_tokens_by_kind`), the pin stays `1.0.0-rc.6` ([ADR 0009](docs/adr/0009-orkeon-after-230.md)). The roadmap's
   in-process embedding item names what remains ours now that `Orkeon.Scripting` ships (Orkeon #229).
+- **Orkeon main after #234, on the `1.0.0-rc.6` release**: Orkeon tagged `v1.0.0-rc.6` on 2026-10-28 (Orkeon #231,
+  #232), the version `.orkeon-version` has pinned since ADR 0002: the tool mode has its Debian package (apt `rc`
+  channel) and its release archives, `Orkeon.Scripting.Cli 1.0.0-rc.6` is on nuget.org, and the
+  `orkeon-runners:1.0.0-rc.6` image is not published yet (the runtime smoke builds the REPL from the sources until it
+  finds it). The smoke's `ORKEON_SOURCE_REF` moves to `b8833ca`; the typings are regenerated from the sources and
+  gain the task builder's `decision` and `when` (Orkeon #234, the TypeSafe System One decision model), which the
+  pinned release does not ship: a repository test keeps every source of `src/` free of a call to them.
+  `system_one_decide`, the tool `orkeon-repl` registers only with the `Orkeon:TypeSafe` section or `TYPESAFE_API_KEY`,
+  is in no built-in list and is handed to the assistant through `tools.extra`; the `Llm:MaxRateLimitWait` row names
+  `retry-after-ms` (Orkeon #235). The pages that said "until rc.6 is tagged" say what is published and what is not
+  ([ADR 0010](docs/adr/0010-orkeon-after-234.md), [Permissions](docs/permissions.md#extra-tools)).
 
 - **The access classes follow Orkeon #223**, the second review of Orkeon #217, read at Orkeon `main` `3ac6aa6`
   (#29). `rag_eval` declares an edit, no longer a read: `declaredAccess` leaves it to its class, the gateless fallback

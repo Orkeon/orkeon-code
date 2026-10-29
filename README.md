@@ -50,19 +50,21 @@ trimmed by the mode. Every command, crew and prompt is a source file: change it,
 
 ## Quick start
 
-You need the Orkeon runtime `1.0.0-rc.6` and an API key for an LLM provider Orkeon supports (any OpenAI-compatible
-endpoint, Anthropic...). **Until Orkeon `1.0.0-rc.6` is tagged, only the launcher's source mode works**: set
-`ORKEON_SOURCE` to an Orkeon checkout and add `--mode source` to the commands below; the docker and tool modes, and the
-CI runtime smoke, wait for the tag. Once it is out, either of these runs Orkeon Code:
+You need the Orkeon runtime `1.0.0-rc.6` (released on 2026-10-28) and an API key for an LLM provider Orkeon supports
+(any OpenAI-compatible endpoint, Anthropic...). Any of these runs Orkeon Code:
 
-- **Docker**: the `orkeon-runners` image (amd64 and arm64), nothing else to install;
-- **`orkeon-repl`** from the `orkeon` Debian/Ubuntu package (amd64 and arm64; a release candidate is published on the apt `rc` channel, the
-  default `stable` channel carries finals only) or from the
+- **`orkeon-repl`** from the `orkeon` Debian/Ubuntu package (amd64 and arm64; a release candidate is published on the
+  apt `rc` channel, the default `stable` channel carries finals only) or from the
   [Orkeon release archive](https://github.com/Orkeon/orkeon/releases) of your platform (Linux x64 and arm64, macOS x64
-  and arm64, Windows x64 `.zip`), self-contained: no .NET to install.
+  and arm64, Windows x64 `.zip`), self-contained: no .NET to install;
+- **Docker**: the `orkeon-runners` image (amd64 and arm64), nothing else to install, **once its `1.0.0-rc.6` tag is
+  published**: the registry stops at rc.5 for now, and the CI runtime smoke builds the REPL from Orkeon's sources
+  until it finds the image;
+- **an Orkeon checkout**: `ORKEON_SOURCE=<checkout> ./orkeon-code --mode source`.
 
-**Windows**: `orkeon-code.ps1` has no source mode and no `--demo` (`-Mode` takes `docker` or `tool`), so until
-`1.0.0-rc.6` is tagged nothing runs natively there. Use WSL with the bash launcher until then.
+**Windows**: `orkeon-code.ps1` has no source mode and no `--demo` (`-Mode` takes `docker` or `tool`): the tool mode on
+the release's `orkeon-<version>-win-x64.zip` is the one for Windows; the path this project exercises is WSL with the
+bash launcher ([tutorial](docs/wsl-tutorial.md)).
 
 Orkeon Code itself installs from a release (`install.sh`, `install.ps1`) or from npm (`npm install -g
 orkeon-code@next`), or runs from a clone as below. Details: [Getting started](docs/getting-started.md).

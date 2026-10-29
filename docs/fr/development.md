@@ -19,9 +19,11 @@ La CI (`.github/workflows/ci.yml`) lance, en étapes séparées à chaque pull r
 tests, le contrôle de types, la vérification de bundle, la garde de provenance, les deux pages des commandes à jour,
 la parité de la documentation et les modes de fichiers (soit `npm run check` plus les modes de fichiers).
 `runtime-smoke.yml` lance le smoke sur l'image épinglée chaque lundi, à la demande (`workflow_dispatch`), et sur une
-pull request qui touche `.orkeon-version`, `orkeon-code`, `scripts/smoke-runtime.sh` ou `src/commands/**`. Tant
-qu'Orkeon `1.0.0-rc.6` n'est pas publié, cette image n'existe pas et le job échoue : lancez le smoke en mode source à
-la place, `ORKEON_SOURCE=<chemin d'un checkout d'Orkeon> bash scripts/smoke-runtime.sh --mode source`.
+pull request qui touche `.orkeon-version`, `orkeon-code`, `scripts/smoke-runtime.sh` ou `src/commands/**`. Tant que
+le registre n'a pas d'image à la version épinglée (l'image `1.0.0-rc.6` n'est pas encore publiée), le job construit le
+REPL depuis les sources d'Orkeon au commit que nomme `ORKEON_SOURCE_REF` dans le workflow, celui que le dernier ADR a
+validé, et lance le mode source ; en local, `ORKEON_SOURCE=<chemin d'un checkout d'Orkeon> bash
+scripts/smoke-runtime.sh --mode source` est la même vérification.
 
 ## Lancer un crew seul
 
@@ -33,8 +35,8 @@ ORKEON_CODE_WORKSPACE=~/src/app bash scripts/run-crew.sh src/crews/project-init/
 Le script utilise l'outil `orkeon` (`Orkeon.Scripting.Cli`, nuget.org, épinglé dans `.config/dotnet-tools.json` ; le
 SDK .NET qui le restaure et le lance est épinglé par `global.json`, comme celui d'Orkeon : `10.0.300` avec
 `rollForward: latestFeature`) ou l'image `orkeon-runners`, sur la fixture de démonstration sauf si
-`ORKEON_CODE_WORKSPACE` en décide autrement. Les deux sont la release épinglée : tant que `1.0.0-rc.6` n'est pas
-publiée, le script ne peut pas tourner dans ces deux modes ; `ORKEON_CODE_MODE=source ORKEON_SOURCE=<checkout>` le
+`ORKEON_CODE_WORKSPACE` en décide autrement. Les deux sont la release épinglée : l'outil est sur nuget.org en
+`1.0.0-rc.6`, l'image n'est pas encore publiée à ce tag ; `ORKEON_CODE_MODE=source ORKEON_SOURCE=<checkout>` le
 lance depuis un checkout d'Orkeon, construit sur place. Cet outil lit ses limites de script dans `Orkeon:Scripting:Limits`, pas dans
 le `Orkeon:Cli:ScriptCommands:Limits` du REPL
 ([Configuration](configuration.md#les-settings-dont-orkeon-code-dépend)).

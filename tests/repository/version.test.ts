@@ -5,8 +5,8 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, match, strictEqual } from "node:assert";
 import { CLI_VERSION, ORKEON_RUNTIME_VERSION } from "../../src/commands/_lib/status/meta.ts";
-import { CREWS_DIR, EXACT_VERSION, firstLines, orkScripts, read } from "./version.fixtures.ts";
-import { assertEveryScriptOpensWith } from "./version.assertions.ts";
+import { callsTo, CREWS_DIR, EXACT_VERSION, firstLines, orkScripts, read, runtimeSources, SRC_DIR, UNSHIPPED_TASK_MEMBERS } from "./version.fixtures.ts";
+import { assertEveryScriptOpensWith, assertNoCall } from "./version.assertions.ts";
 
 describe("versions", () => {
   it("meta.ts CLI_VERSION equals package.json version", () => {
@@ -73,5 +73,16 @@ describe("versions", () => {
 
     // Assert
     assertEveryScriptOpensWith(lines, "// @orkeon-script 1.0");
+  });
+
+  it("no source calls a task-builder member the pinned release does not ship (decision, when)", () => {
+    // Arrange
+    const files = runtimeSources(SRC_DIR);
+
+    // Act
+    const calls = callsTo(SRC_DIR, files, UNSHIPPED_TASK_MEMBERS);
+
+    // Assert
+    assertNoCall(calls);
   });
 });

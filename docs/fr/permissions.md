@@ -436,6 +436,14 @@ Un nom sans classe est une écriture. Ne marquez `read` qu'un outil qui ne chang
 machine : c'est ce que `plan` et `dontAsk` promettent. Un outil intégré garde sa propre classe et ne peut pas être
 listé.
 
+Un outil qu'`orkeon-repl` n'enregistre que si une section des settings l'active suit la même voie, puisqu'un catalogue
+qui nomme un outil que l'hôte n'a pas enregistré fait échouer l'act avant que le modèle soit interrogé :
+`system_one_decide` (Orkeon #234, le modèle de décision TypeSafe System One), enregistré avec la section
+`Orkeon:TypeSafe` ou `TYPESAFE_API_KEY`, n'est dans aucune liste intégrée, et l'utilisateur dont l'hôte l'a le liste
+dans `tools.extra`. Il déclare une lecture à la garde, si bien qu'il tourne sans question partout où le catalogue
+l'offre ; gardez-le en écriture dans la liste, car il envoie l'état qu'on lui donne à l'API TypeSafe, ce que `plan` et
+`dontAsk` promettent qu'aucun outil ne fait.
+
 Avant chaque tour, `/assistant` et `/summary` confrontent les noms à ceux que l'hôte enregistre, comme Orkeon les
 compare (casse mise à part, exactement : `get_file_contents` n'est pas le `get-file-contents` qu'un serveur MCP
 enregistre), et remettent au tour l'orthographe enregistrée. Un nom que l'hôte n'enregistre pas (un serveur qui ne

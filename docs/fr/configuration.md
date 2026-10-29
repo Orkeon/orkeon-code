@@ -41,7 +41,7 @@ Les variables d'environnement préfixées `ORKEON_` l'emportent sur le fichier (
 | `Llm:ApiKeyEnvVar` | Nom de la variable d'environnement qui porte la clé. La clé elle-même ne va jamais dans le fichier |
 | `Llm:AvailableModels` | Les modèles que `/model` propose, pour en changer sans relancer |
 | `Llm:Temperature`, `Llm:MaxTokens`, `Llm:TimeoutSeconds` | Réglages de génération |
-| `Llm:MaxRateLimitWait` | La plus longue fenêtre de limite de débit qu'un appel attend avant d'échouer, `00:05:00` par défaut. Un 429, ou un 529 avec un en-tête de réinitialisation, attend que la fenêtre annoncée par le fournisseur se rouvre au lieu de faire échouer le tour ; une fenêtre plus longue fait échouer l'appel aussitôt avec `LlmRateLimitException`, l'attente dans son message. `00:00:00` n'attend rien |
+| `Llm:MaxRateLimitWait` | La plus longue fenêtre de limite de débit qu'un appel attend avant d'échouer, `00:05:00` par défaut. Un 429, ou un 529 avec un en-tête de réinitialisation, attend que la fenêtre annoncée par le fournisseur (`Retry-After`, `retry-after-ms` en millisecondes comme l'envoient OpenAI et TypeSafe, ou les en-têtes de réinitialisation du fournisseur ; la plus longue l'emporte) se rouvre au lieu de faire échouer le tour ; une fenêtre plus longue fait échouer l'appel aussitôt avec `LlmRateLimitException`, l'attente dans son message. `00:00:00` n'attend rien |
 | `Llm:Profiles:<name>:MaxRateLimitWait` | La même borne pour un profil nommé de l'hôte, `00:05:00` par défaut |
 | `Llm:Thinking:Enabled` | Mode raisonnement, pour les fournisseurs qui en ont un |
 

@@ -98,16 +98,16 @@ mkdir -p ~/audio && timeout 20 parecord --channels=1 --rate=16000 --file-format=
 
 ## 3. Orkeon depuis son paquet apt
 
-Orkeon Code demande Orkeon `1.0.0-rc.6` (`.orkeon-version`). Tant que cette version n'est pas taguée et publiée sur
-le canal `rc` ([Premiers pas](getting-started.md)), c'est le `main` d'Orkeon qu'il lui faut : le canal `dev` en
-publie un paquet par commit validé par la CI, versionné `1.0.0~rc.5.dev.<n>` (au-dessus de rc.5, au-dessous de
-rc.6 ; `n` est le numéro de l'exécution CI), les trois derniers builds seulement. Le paquet installe
+Orkeon Code demande Orkeon `1.0.0-rc.6` (`.orkeon-version`), une release candidate : le canal `rc` la porte
+([Premiers pas](getting-started.md)). Le canal `dev` publie un paquet par commit de `main` validé par la CI, versionné
+`1.0.0~rc.6.dev.<n>` (`n` est le numéro de l'exécution CI), les trois derniers builds seulement : il sert à suivre
+`main` en avance sur l'épinglage, pas à ce tutoriel. Le paquet installe
 `/usr/bin/orkeon-repl` (le REPL, avec son `esbuild` : aucun .NET ni npm à installer) et `orkeon` (la CLI). Systèmes
 pris en charge : Debian 12 et 13, Ubuntu 22.04, 24.04 et 26.04 (`cat /etc/os-release` le dit).
 
 Le bloc est celui du guide d'Orkeon
 ([Install with apt](https://github.com/Orkeon/orkeon/blob/main/docs/guides/install-with-apt.md)), avec la seule
-différence que le guide prescrit pour un build de `main` : `Suites: raw/apt/dev/` au lieu de `stable`. La clé est
+différence que sa table des canaux prescrit pour une release candidate : `Suites: raw/apt/rc/` au lieu de `stable`. La clé est
 vérifiée par son SHA-256 avant d'être confiée à apt, pour cette source seulement (`Signed-By`).
 
 ```bash
@@ -132,7 +132,7 @@ sudo install -m 0644 /tmp/orkeon-archive-keyring.gpg /usr/share/keyrings/orkeon-
 sudo tee /etc/apt/sources.list.d/orkeon.sources > /dev/null <<'EOF'
 Types: deb
 URIs: https://github.com/Orkeon/orkeon/
-Suites: raw/apt/dev/
+Suites: raw/apt/rc/
 Include: orkeon orkeon-archive-keyring
 Signed-By: /usr/share/keyrings/orkeon-archive-keyring.gpg
 EOF
@@ -146,9 +146,9 @@ sudo apt-get update && sudo apt-get install -y orkeon orkeon-archive-keyring
 orkeon --version && command -v orkeon-repl
 ```
 
-Attendu : `1.0.0-rc.5.dev.<n>` (ou la forme que `orkeon` affiche pour `1.0.0~rc.5.dev.<n>`) et `/usr/bin/orkeon-repl`.
-Plus tard, le dernier build de `main` se prend par `sudo apt update && sudo apt upgrade` ; `apt list -a orkeon`
-liste ceux du canal.
+Attendu : `1.0.0-rc.6` (ou la forme que `orkeon` affiche pour `1.0.0~rc.6`) et `/usr/bin/orkeon-repl`. Plus tard, la
+release candidate suivante se prend par `sudo apt update && sudo apt upgrade` ; `apt list -a orkeon` liste celles du
+canal, et `.orkeon-version` dit laquelle Orkeon Code attend.
 
 ## 4. Orkeon Code dans le home WSL
 
@@ -469,7 +469,7 @@ pour l'en empêcher).
 | Le micro enregistre du silence | La confidentialité Windows (étape 2) ; `pactl list short sources` doit montrer `RDPSource` |
 | `apt-get update` : `NO_PUBKEY` | La clé manque ou n'est pas au bon format : refaire les trois lignes de la clé (étape 3) |
 | `apt-get update` : `Conflicting distribution` | La ligne `Suites:` a été modifiée au-delà du nom du canal |
-| `apt-get install orkeon` : `Unable to locate package orkeon` | La source n'est pas sur `raw/apt/dev/` (`stable` est vide) |
+| `apt-get install orkeon` : `Unable to locate package orkeon` | La source n'est pas sur `raw/apt/rc/` (`stable` ne porte que les versions finales, et il n'y en a pas encore) |
 | `/doctor` : `toolchain: node ❌`, ou `toolchain: dotnet ❌ 10.0.2xx [/usr/share/dotnet/sdk]` | Le mode `tool` n'a besoin ni de l'un ni de l'autre : le paquet embarque son esbuild, et rien n'appelle `dotnet`. Pour les passer au vert quand même : node à la version de `.nvmrc` (nodesource ou nvm) ; pour dotnet, le `global.json` du dépôt demande le SDK `10.0.300` ou une bande supérieure (`latestFeature`) et la distribution a une bande plus ancienne : `sudo apt-get install --only-upgrade dotnet-sdk-10.0` (le dépôt apt de Microsoft, `/usr/share/dotnet`) |
 | Pas de ligne `audio` dans le bandeau | Le lanceur a dit pourquoi : `uv` absent du `PATH`, un serveur `whisper` déjà déclaré dans les réglages ou l'environnement, mode docker |
 | `whisper-mcp-smoke: uv not found. Install it: …` | L'étape 4 n'a pas été faite, ou la section 10 est passée par là, ou le terminal date d'avant l'installation : `source ~/.local/bin/env` ; sinon `curl -LsSf https://astral.sh/uv/install.sh \| sh && source ~/.local/bin/env` |

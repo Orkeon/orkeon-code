@@ -39,7 +39,7 @@ Environment variables prefixed `ORKEON_` override the file (`__` separates secti
 | `Llm:ApiKeyEnvVar` | Name of the environment variable that holds the key. The key itself never goes in the file |
 | `Llm:AvailableModels` | Models `/model` offers to switch to without relaunching |
 | `Llm:Temperature`, `Llm:MaxTokens`, `Llm:TimeoutSeconds` | Generation settings |
-| `Llm:MaxRateLimitWait` | Longest rate-limit window a call waits out before it fails, `00:05:00` by default. A 429, or a 529 with a reset header, waits until the window the provider announces resets instead of failing the turn; a window longer than this fails the call at once with `LlmRateLimitException`, the wait in its message. `00:00:00` waits for nothing |
+| `Llm:MaxRateLimitWait` | Longest rate-limit window a call waits out before it fails, `00:05:00` by default. A 429, or a 529 with a reset header, waits until the window the provider announces (`Retry-After`, `retry-after-ms` in milliseconds as OpenAI and TypeSafe send it, or the provider's reset headers; the longest wins) resets instead of failing the turn; a window longer than this fails the call at once with `LlmRateLimitException`, the wait in its message. `00:00:00` waits for nothing |
 | `Llm:Profiles:<name>:MaxRateLimitWait` | The same bound for one named profile of the host, `00:05:00` by default |
 | `Llm:Thinking:Enabled` | Reasoning mode, for the providers that have one |
 

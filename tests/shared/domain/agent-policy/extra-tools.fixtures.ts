@@ -45,6 +45,11 @@ export const PARSE_CASES: readonly ParseCase[] = [
       invalid: ["x y"],
     },
   },
+  {
+    name: "accepts a tool the host registers on an opt-in section, system_one_decide: it is in no built-in list",
+    value: "system_one_decide",
+    expected: { tools: [{ name: "system_one_decide", access: "write" }], invalid: [] },
+  },
   { name: "reads nothing from a missing value", value: undefined, expected: { tools: [], invalid: [] } },
 ];
 

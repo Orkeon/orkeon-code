@@ -24,4 +24,8 @@ Les décisions sont consignées en ADR, en anglais : [0001 — ports, adaptateur
 [0003 — les prompts d'après une spécification de comportement](../adr/0003-prompts-from-a-behaviour-specification.md),
 [0004 — Orkeon main après #180, sur l'épinglage rc.6](../adr/0004-orkeon-after-180.md),
 [0005 — Orkeon main après #206, sur l'épinglage rc.6](../adr/0005-orkeon-after-206.md),
-[0006 — Orkeon main après #213, sur l'épinglage rc.6](../adr/0006-orkeon-after-213.md).
+[0006 — Orkeon main après #213, sur l'épinglage rc.6](../adr/0006-orkeon-after-213.md),
+[0007 — Orkeon main après #217, sur l'épinglage rc.6](../adr/0007-orkeon-after-217.md),
+[0008 — Orkeon main après #223, sur l'épinglage rc.6](../adr/0008-orkeon-after-223.md),
+[0009 — Orkeon main après #230, sur l'épinglage rc.6](../adr/0009-orkeon-after-230.md),
+[0010 — Orkeon main après #234, sur l'épinglage rc.6, désormais une release](../adr/0010-orkeon-after-234.md).
