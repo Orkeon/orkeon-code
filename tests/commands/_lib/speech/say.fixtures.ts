@@ -1,7 +1,9 @@
 // Lines typed after /say, buffers it reads the last answer from, and the hosts it launches over.
 import { SAY_USAGE, type SayRequest } from "../../../../src/commands/_lib/speech/say.ts";
 import { missingToolMessage } from "../../../../src/commands/_lib/speech/transcribe.ts";
+import { createConfigStore } from "../../../../src/shared/application/config-store.ts";
 import { FakeCrewHost } from "../../../support/doubles/fake-crew-host.ts";
+import { FakeFiles } from "../../../support/doubles/fake-files.ts";
 import { FakeLogger } from "../../../support/doubles/fake-logger.ts";
 import { FakeSessionStore } from "../../../support/doubles/fake-session-store.ts";
 import { FakeToolCatalogue } from "../../../support/doubles/fake-tool-catalogue.ts";
@@ -59,7 +61,8 @@ export function sayDeps(...registered: Array<[string, unknown]>) {
   const store = new FakeSessionStore();
   const catalogue = new FakeToolCatalogue();
   for (const [name, reply] of registered) catalogue.tools.set(name, reply);
-  return { crews, store, catalogue, deps: { crews, catalogue, session: store, log: new FakeLogger() } };
+  const config = createConfigStore({ files: new FakeFiles(), session: store });
+  return { crews, store, catalogue, deps: { crews, catalogue, session: store, config, log: new FakeLogger() } };
 }
 
 /** Lines that launch nothing, each with the tools the catalogue holds and the message it gives instead. */

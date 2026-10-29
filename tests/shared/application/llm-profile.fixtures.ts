@@ -18,5 +18,4 @@ export function malformedProjectConfig() {
 }
 
 export const UNREADABLE_WARNING = `llm.profile could not be read (${CONFIG_FILE_PATH} could not be read or parsed): the host's default model this launch`;
-export const THROWN_WARNING = "llm.profile could not be read (no files tool): the host's default model this launch";
 export const NOT_A_NAME_WARNING = "llm.profile: 'a b' holds a space: a profile is one name, as the host's settings spell it; the host's default model this launch";

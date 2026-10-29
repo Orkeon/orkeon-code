@@ -1,8 +1,9 @@
 // shared/infrastructure/orkeon/llm-profile.ts: an agent builder on the profile the crew input names. Run:
 //   node --test tests/shared/infrastructure/orkeon/llm-profile.test.ts
 import { describe, it } from "node:test";
-import { deepStrictEqual, strictEqual, throws } from "node:assert";
+import { deepStrictEqual, throws } from "node:assert";
 import { profiledAgent } from "../../../../src/shared/infrastructure/orkeon/llm-profile.ts";
+import { assertBuiltOn } from "./llm-profile.assertions.ts";
 import { factories } from "./llm-profile.fixtures.ts";
 
 describe("profiledAgent", () => {
@@ -14,8 +15,7 @@ describe("profiledAgent", () => {
     const builder = profiledAgent({ prompt: "hi", llmProfile: "guarded" }, host);
 
     // Assert
-    strictEqual(builder, host.built[0]);
-    deepStrictEqual(host.built[0].configs.map((config) => config.profile), ["guarded"]);
+    assertBuiltOn(host, builder, ["guarded"]);
   });
 
   it("gives the plain builder, on the host's default model, when the input names no profile", () => {
@@ -26,8 +26,7 @@ describe("profiledAgent", () => {
     const builder = profiledAgent({ prompt: "hi" }, host);
 
     // Assert
-    strictEqual(builder, host.built[0]);
-    deepStrictEqual(host.built[0].configs, []);
+    assertBuiltOn(host, builder, []);
   });
 
   it("gives the plain builder on a host without llm when the input names no profile", () => {

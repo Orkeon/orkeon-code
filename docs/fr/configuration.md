@@ -74,7 +74,7 @@ section `Orkeon:TypeSafe` (la clé dans `TYPESAFE_API_KEY`, jamais dans le fichi
 tournent les agents des commandes, `/config set llm.profile guarded` : chaque crew qu'une commande lance y construit
 ses agents, agents enfants des étapes dev compris, et le journal du lancement et `/config list` le montrent. Sans la
 clé rien ne change : les agents tournent sur le modèle par défaut de l'hôte, comme avant. Un nom que l'hôte ne
-déclare pas fait échouer le lancement du crew, son erreur listant les profils que l'hôte connaît ; un simple profil
+déclare pas fait échouer le chargement du crew, son erreur listant les profils que l'hôte connaît ; un simple profil
 LLM marche de la même façon, sans modèle de décision devant. Le modèle par appel d'`/advisor` (`advisor.model`)
 s'applique toujours par-dessus le profil. Les étapes et leurs réglages sont dans
 [les modèles de décision d'Orkeon](https://github.com/Orkeon/orkeon/blob/main/docs/architecture/decision-models.md).

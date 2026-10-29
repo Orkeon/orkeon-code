@@ -4,7 +4,7 @@ import {
   commentKeysBelowRoot, listExamples, load, PROMISED_EXAMPLES, RESULT_LIMITS, withoutCommentAndLlm,
   withoutCommentOrkeonAndMcp, withoutCommentProfilesAndDecision,
 } from "./example-settings.fixtures.ts";
-import { assertExamplesInclude, assertWhisperMounts } from "./example-settings.assertions.ts";
+import { assertExamplesInclude, assertJevExampleKeyless, assertWhisperMounts } from "./example-settings.assertions.ts";
 
 // Orkeon judges its settings at the REPL's start and refuses a key it does not know
 // inside the sections it declares ("Orkeon:Tools:Shell:_comment is not a setting"):
@@ -101,13 +101,7 @@ test("the Jev example reaches TypeSafe through a key variable, never a key, and 
   const settings = load(file);
 
   // Assert
-  assert.equal(settings.Orkeon.TypeSafe.ApiKey, undefined);
-  assert.equal(settings.Orkeon.TypeSafe.ApiKeyEnvVar, "TYPESAFE_API_KEY");
-  const guarded = settings.Orkeon.Decision.Profiles.guarded;
-  assert.ok(settings.Llm.Profiles[guarded.Target], `${file}: Target ${guarded.Target} is not an Llm:Profiles entry`);
-  for (const stage of guarded.Stages.filter((s: any) => s.EscalateTo)) {
-    assert.ok(settings.Llm.Profiles[stage.EscalateTo], `${file}: EscalateTo ${stage.EscalateTo} is not an Llm:Profiles entry`);
-  }
+  assertJevExampleKeyless(settings, file);
 });
 
 for (const name of examples.filter((name) => load(name).MCP?.Servers?.whisper?.Env)) {

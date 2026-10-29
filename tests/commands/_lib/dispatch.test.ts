@@ -213,6 +213,30 @@ describe("launchMainLoop", () => {
     strictEqual("llmProfile" in crews.launches[0].input, false);
   });
 
+  it("keeps the profile the deps already carry, without reading the session's again", async () => {
+    // Arrange
+    const { crews, config, deps } = mainLoopDeps();
+    await config.writeSession({ "llm.profile": "stored" });
+
+    // Act
+    await launchMainLoop({ ...deps, llmProfile: "given" }, { prompt: "fix it", permissionMode: "plan" });
+
+    // Assert
+    strictEqual(crews.launches[0].input.llmProfile, "given");
+  });
+
+  it("launches the main loop on the host's default model, with a warning, when llm.profile is not a profile name", async () => {
+    // Arrange
+    const { crews, config, warned, deps } = mainLoopDeps();
+    await config.writeSession({ "llm.profile": "a b" });
+
+    // Act
+    await launchMainLoop(deps, { prompt: "fix it", permissionMode: "plan" });
+
+    // Assert
+    deepStrictEqual([warned, "llmProfile" in crews.launches[0].input], [[NOT_A_PROFILE_WARNING], false]);
+  });
+
   it("hands the gate the session's rules BEFORE the crew starts, then the crew its rules and mode", async () => {
     // Arrange
     const { gate, crews, atLaunch, logged, warned, deps } = mainLoopDeps(

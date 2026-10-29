@@ -4,7 +4,7 @@
 import { DEV_BATCHES_USAGE, runDevVerifyDispatch } from "../../../../src/commands/_lib/dev/dev-batches.ts";
 import type { DevVerifyArgs, DevVerifyDispatch, parseDevBatchesArgs } from "../../../../src/commands/_lib/dev/dev-batches.ts";
 import type { DevImplementArgs } from "../../../../src/commands/_lib/dev/dev-implement.ts";
-import { createConfigStore } from "../../../../src/shared/application/config-store.ts";
+import { createConfigStore, USER_CONFIG_FILE_PATH } from "../../../../src/shared/application/config-store.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 import { FakeFiles } from "../../../support/doubles/fake-files.ts";
 import { FakePermissionRules } from "../../../support/doubles/fake-permission-rules.ts";
@@ -318,4 +318,11 @@ export function verifyHarness(): VerifyHarness {
     written,
     run: (args) => runDevVerifyDispatch(args, { session, config, gate: () => gate, catalogue: () => catalogue, write: (line) => written.push(line) }),
   };
+}
+
+/** The config store launchCompletedHop reads `llm.profile` from: the user settings naming `profile`, or none. */
+export function hopConfig(profile?: string) {
+  const files = new FakeFiles();
+  if (profile !== undefined) files.files.set(USER_CONFIG_FILE_PATH, JSON.stringify({ "llm.profile": profile }));
+  return createConfigStore({ files, session: new FakeSessionStore() });
 }

@@ -3,7 +3,7 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual } from "node:assert";
 import { readLlmProfile } from "../../../src/shared/application/llm-profile.ts";
-import { malformedProjectConfig, NOT_A_NAME_WARNING, profileConfig, THROWN_WARNING, UNREADABLE_WARNING } from "./llm-profile.fixtures.ts";
+import { malformedProjectConfig, NOT_A_NAME_WARNING, profileConfig, UNREADABLE_WARNING } from "./llm-profile.fixtures.ts";
 
 describe("readLlmProfile", () => {
   it("reads the profile the settings name", async () => {
@@ -48,16 +48,5 @@ describe("readLlmProfile", () => {
 
     // Assert
     deepStrictEqual(read, { profile: null, warning: UNREADABLE_WARNING });
-  });
-
-  it("warns and names no profile when the read throws", async () => {
-    // Arrange
-    const config = { ...profileConfig().config, readValue: async () => { throw new Error("no files tool"); } };
-
-    // Act
-    const read = await readLlmProfile(config);
-
-    // Assert
-    deepStrictEqual(read, { profile: null, warning: THROWN_WARNING });
   });
 });

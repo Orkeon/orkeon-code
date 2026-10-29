@@ -71,7 +71,7 @@ section (the key in `TYPESAFE_API_KEY`, never in the file), two LLM profiles, `s
 profile `guarded` over them. The session key `llm.profile` names the profile the agents of the commands run on,
 `/config set llm.profile guarded`: every crew a command launches builds its agents on it, the child agents of the dev
 steps included, and the launch log and `/config list` show it. Without the key nothing changes: the agents run on the
-host's default model, as before. A name the host does not declare fails the crew's launch, its error listing the
+host's default model, as before. A name the host does not declare fails the crew's load, its error listing the
 profiles the host knows; a plain LLM profile works the same way, with no decision model in front. The per-call model
 of `/advisor` (`advisor.model`) still applies on top of the profile. The stages and their settings are in
 [Orkeon's decision models](https://github.com/Orkeon/orkeon/blob/main/docs/architecture/decision-models.md).

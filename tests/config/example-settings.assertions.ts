@@ -16,3 +16,14 @@ export function assertWhisperMounts(settings: any): void {
   assert.ok(args.at(-1)?.endsWith("/mcp/whisper/whisper_mcp.py"), args.join(" "));
   assert.equal(args[args.indexOf("--project") + 1] + "/whisper_mcp.py", args.at(-1));
 }
+
+/** The Jev example reaches TypeSafe through a key variable, never a key, and every profile its decision
+ *  profile names (its target, the escalations of its stages) is an `Llm:Profiles` entry of the file. */
+export function assertJevExampleKeyless(settings: any, file: string): void {
+  assert.equal(settings.Orkeon.TypeSafe.ApiKey, undefined, `${file}: Orkeon:TypeSafe holds a key`);
+  assert.equal(settings.Orkeon.TypeSafe.ApiKeyEnvVar, "TYPESAFE_API_KEY", `${file}: Orkeon:TypeSafe does not read TYPESAFE_API_KEY`);
+  const guarded = settings.Orkeon.Decision.Profiles.guarded;
+  const named = [guarded.Target, ...guarded.Stages.map((stage: any) => stage.EscalateTo).filter(Boolean)];
+  const unknown = named.filter((name) => !settings.Llm.Profiles[name]);
+  assert.deepEqual(unknown, [], `${file}: the decision profile names profiles that are not Llm:Profiles entries: ${unknown.join(", ")}`);
+}

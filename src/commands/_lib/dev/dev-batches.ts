@@ -25,8 +25,9 @@ import { isCode } from "../../../shared/domain/dev/artefacts.ts";
 import { checkConcurrency, concurrencyModeRefusal } from "../../../shared/domain/dev/batches-concurrency.ts";
 import { correctionCommand } from "../../../shared/domain/dev/verdict-format.ts";
 import { workspaceRelative } from "../../../shared/domain/vfs.ts";
-import { launchCrew } from "../dispatch.ts";
-import type { CrewCompletion, LaunchDeps } from "../dispatch.ts";
+import type { ConfigStore } from "../../../shared/application/config-store.ts";
+import { launchCrew, withLlmProfile } from "../dispatch.ts";
+import type { CommandLog, CrewCompletion, LaunchDeps } from "../dispatch.ts";
 import { chainStep, freshContext, launchChained, nextLaunch, withContext, CONTEXT_NOT_READ_LINE } from "./dev-implement.ts";
 import type { ChainHopDeps, ChainLaunch, DevImplementArgs, DevImplementDispatchDeps } from "./dev-implement.ts";
 import { devVerifyStep, markActiveWorkflow, startDevStep, writeModeRefusal } from "../dev-step.ts";
@@ -333,10 +334,13 @@ export async function devBatchesCompleted(result: CrewCompletion, deps: BatchesC
 
 /** Launches the hop of a completion: a run's keeps its parent's depth (BATCHES_CHAIN), one batch's climbs (at most
  *  three hops from a typed command). The lines a refusal or a failure leaves. */
-export function launchCompletedHop(completion: BatchesCompletion, deps: LaunchDeps): string[] {
+export async function launchCompletedHop(
+  completion: BatchesCompletion, deps: LaunchDeps & { log: Pick<CommandLog, "warn"> }, config: Pick<ConfigStore, "readValue" | "readFile">,
+): Promise<string[]> {
   if (completion.launch === undefined) return [];
-  if (completion.chain !== "batch") return launchBatchesHop(completion.launch, deps);
-  return launchChained(completion.launch, (crew, input) => launchCrew(deps, crew, input));
+  const profiled = await withLlmProfile(deps, config);
+  if (completion.chain !== "batch") return launchBatchesHop(completion.launch, profiled);
+  return launchChained(completion.launch, (crew, input) => launchCrew(profiled, crew, input));
 }
 
 export type DevVerifyDispatchDeps = Omit<DevImplementDispatchDeps, "files" | "shell">;

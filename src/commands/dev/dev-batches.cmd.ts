@@ -100,7 +100,7 @@ defineAsyncCommand({
         session: deps.session, reapply: (crew) => reapplyStepRules(createPermissionRules(ctx.services), crew), context: contextReader(ctx),
       });
       for (const line of completion.lines) ctx.writeLine(line);
-      for (const line of launchCompletedHop(completion, await withLlmProfile({ crews: createCrewHost(ctx.services), log: ctx.log }, orkeonConfigStore()))) ctx.writeLine(line);
+      for (const line of await launchCompletedHop(completion, { crews: createCrewHost(ctx.services), log: ctx.log }, orkeonConfigStore())) ctx.writeLine(line);
     } catch (e) {
       ctx.writeLine(batchesHopFailedLine(e));
     }

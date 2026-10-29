@@ -69,7 +69,7 @@ export const CONFIG_KEYS: readonly ConfigKeySpec[] = [
     description:
       "The host profile the agents of every crew run on: an LLM profile (Llm:Profiles:<name>) or a decision " +
       "profile (Orkeon:Decision:Profiles:<name>, a decision model such as Jev in front of one), e.g. 'guarded'. " +
-      "A name the host does not declare fails the launch, listing the profiles it knows. Omitted = the host's " +
+      "A name the host does not declare fails the crew's load, listing the profiles it knows. Omitted = the host's " +
       "default model.",
     problem: llmProfileProblem,
     consumedBy: "/assistant, /review, /commit, /advisor, /memory admit, the dev steps and every other command that launches a crew (the model its agents run on)",
