@@ -1,14 +1,13 @@
 // /review and its aliases (commands/_lib/git/review.ts): the line each name reads, /passes over
-// FakeSessionStore, and the refusal of a review while one runs, over FakeRunningCrews. Run:
+// FakeSessionStore. Run:
 //   node --test tests/commands/_lib/git/review.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
-import { invalidPassesText, parseReviewArgs, reviewBusyText, runPasses } from "../../../../src/commands/_lib/git/review.ts";
+import { invalidPassesText, parseReviewArgs, runPasses } from "../../../../src/commands/_lib/git/review.ts";
 import { PASSES_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
-import { FakeRunningCrews } from "../../../support/doubles/fake-running-crews.ts";
 import { FakeSessionStore } from "../../../support/doubles/fake-session-store.ts";
-import { BUSY_CASES, ROUTE_CASES, SET_THREE, SHOW_DEFAULT } from "./review.fixtures.ts";
+import { ROUTE_CASES, SET_THREE, SHOW_DEFAULT } from "./review.fixtures.ts";
 import { assertPassesAnswered } from "./review.assertions.ts";
 
 describe("parseReviewArgs", () => {
@@ -71,20 +70,4 @@ describe("/passes — runPasses", () => {
     // Assert
     assertPassesAnswered(view, session.state.get(PASSES_STATE_KEY), invalidPassesText("0"), undefined);
   });
-});
-
-describe("reviewBusyText", () => {
-  for (const c of BUSY_CASES) {
-    it(c.name, () => {
-      // Arrange
-      const running = new FakeRunningCrews();
-      running.tickets = c.tickets;
-
-      // Act
-      const text = reviewBusyText(running);
-
-      // Assert
-      strictEqual(text, c.expected);
-    });
-  }
 });

@@ -29,7 +29,7 @@ concurrency:
   cancel-in-progress: true
 env:
   # Orkeon main after #234 (rc.6 cut and tagged at #232, the decision model and the decision tasks, retry-after-ms), on the runtime of ADR 0010: the rc.6 image is not published yet. Move it with .orkeon-version.
-  ORKEON_SOURCE_REF: b8833caab29a642b08bd02c8a53f473802e63ed1
+  ORKEON_SOURCE_REF: 3fcfbbe8fefe03da56b166ed679a76ac450d7c7a
 jobs:
   smoke:
     runs-on: ubuntu-latest

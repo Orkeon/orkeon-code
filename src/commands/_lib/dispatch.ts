@@ -15,6 +15,7 @@ import { readMemoryDir } from "../../shared/application/shared-memory/memory-set
 import { memoryWriteRules } from "../../shared/domain/shared-memory/layout.ts";
 import { formatRule } from "../../shared/domain/agent-policy/permission.ts";
 import { chainDepthLine, chainDepthRefusal } from "../../shared/domain/agents/chain.ts";
+import { exclusiveLine, exclusiveRefusal } from "../../shared/domain/agents/exclusive.ts";
 import { errorText } from "../../shared/domain/prelude.ts";
 import type { EpilogueCall, PreludeCall } from "../../shared/domain/prelude.ts";
 import type { StartOutput } from "../../shared/domain/session-start.ts";
@@ -45,15 +46,18 @@ export interface CrewCompletion {
   streamed?: boolean;
 }
 
-/** What a launch hands back to the runtime: the ticket, or the refusal of a hop past MaxChainDepth. */
+/** What a launch hands back to the runtime: the ticket, or the refusal of a hop past MaxChainDepth or of a crew
+ *  already running; the runtime prints `message`. */
 export type LaunchResult = { ticket: string } | { refused: string; message: string };
 
 /** Launch a crew on the script-host and return its ticket (async commands). The
  *  launch is logged with the ticket, plus `details` when the caller has any. A
  *  launch from a `completed` past the chain's limit (V-A5, shared/domain/agents/chain.ts,
  *  `chain depth <d> reached (MaxChainDepth <l>, /<command>)`) comes back as `{ refused }`
- *  with the line saying so; any other failure throws. A driver relaunching its own work
- *  passes `{ chain: "continue" }` as `options` (Orkeon #221) and keeps the parent's depth. */
+ *  with the line saying so, as does a crew launched with `{ exclusive: true }` while its
+ *  previous launch runs (Orkeon #239, shared/domain/agents/exclusive.ts, `crew '<name>'
+ *  already running (ticket <t>)`); any other failure throws. A driver relaunching its own
+ *  work passes `{ chain: "continue" }` as `options` (Orkeon #221) and keeps the parent's depth. */
 export function launchCrew(
   deps: LaunchDeps,
   crew: string,
@@ -65,6 +69,12 @@ export function launchCrew(
   try {
     ticket = deps.crews.launch(crew, input, options);
   } catch (error) {
+    const busy = exclusiveRefusal(error);
+    if (busy !== null) {
+      const line = exclusiveLine(busy);
+      deps.log.info(line, { ...busy, ...details });
+      return { refused: line, message: line };
+    }
     const refusal = chainDepthRefusal(error);
     if (refusal === null) throw error;
     const line = chainDepthLine(crew, refusal);

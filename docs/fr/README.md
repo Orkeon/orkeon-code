@@ -29,4 +29,5 @@ Les décisions sont consignées en ADR, en anglais : [0001 — ports, adaptateur
 [0008 — Orkeon main après #223, sur l'épinglage rc.6](../adr/0008-orkeon-after-223.md),
 [0009 — Orkeon main après #230, sur l'épinglage rc.6](../adr/0009-orkeon-after-230.md),
 [0010 — Orkeon main après #234, sur l'épinglage rc.6, désormais une release](../adr/0010-orkeon-after-234.md),
-[0011 — les portes d'une exécution sans surveillance, et cinq commandes dev au lieu de huit](../adr/0011-dev-gates-and-surface.md).
+[0011 — les portes d'une exécution sans surveillance, et cinq commandes dev au lieu de huit](../adr/0011-dev-gates-and-surface.md),
+[0012 — Orkeon main après #239, le lancement exclusif d'un crew](../adr/0012-orkeon-after-239.md).

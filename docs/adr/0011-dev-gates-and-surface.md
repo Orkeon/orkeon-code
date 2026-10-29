@@ -90,10 +90,11 @@ learn for nothing the other did not do. The seven names stay as aliases, so a li
 An alias does not share a quota with its command: the one-at-a-time is the crew's, not the command's. A command
 quota (`maxConcurrent: 1`) counts every line typed under any of the names, so it would refuse `/passes [n]` while a
 review runs and `/memory list|add|get|delete` or `/feedback` while an admission's crew writes. `/review` and `/memory`
-have none; before launching their crew they ask the host's `commands` service which instances of it run (the port
-`RunningCrews`) and refuse the line with that ticket when one does: a second review (`/review` or
-`/security-review`, the same crew) or a second admission (refused before its questions). Every other line goes
-through. The check holds within one REPL, like the lock on the memory collection.
+have none: they launch their crew with `{ exclusive: true }` and the host refuses a second review (`/review` or
+`/security-review`, the same crew) or a second admission with the running ticket, before any LLM call
+([ADR 0012](0012-orkeon-after-239.md), Orkeon #239). Every other line goes through. The first version of this round
+asked the host's `commands` service which instances of the crew ran (a `RunningCrews` port), a check with a window
+between it and the launch; the runtime option replaced it the same day.
 
 Left as they are: `/context` (the window by kind, not the session's account), `/init-verifiers`, `/transcribe`,
 `/release-notes`, and the thin git and file accesses (`/diff`, `/branch`, `/files`), each the one

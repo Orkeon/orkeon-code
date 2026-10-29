@@ -5,7 +5,12 @@
  *  chain depth of the instance whose `completed` runs instead of climbing one, so a driver that relaunches its
  *  own work after each cycle is not stopped by `Orkeon:Cli:ScriptCommands:MaxChainDepth`; outside a `completed`
  *  it changes nothing. */
-export interface CrewLaunchOptions { chain?: "continue" }
+export interface CrewLaunchOptions {
+  /** The launch keeps the parent's chain depth (a driver relaunching its own work, Orkeon #221). */
+  chain?: "continue";
+  /** The host refuses the crew while its previous exclusive launch is not terminal (Orkeon #239, domain/agents/exclusive.ts). */
+  exclusive?: boolean;
+}
 
 /** The crews the host can run, by name. */
 export interface CrewHost {
@@ -14,15 +19,6 @@ export interface CrewHost {
   /** Start a crew and return its ticket at once: the completion reaches the async
    *  command's `completed`. Throws when the host cannot run crews, or refuses the hop. */
   launch(name: string, input: Record<string, unknown>, options?: CrewLaunchOptions): string;
-}
-
-/** One instance of a crew the host is running, launched from a command. */
-export interface RunningCrew { ticket: string }
-
-/** The crews the host is running now: what a command reads before it launches a crew that must not run twice. */
-export interface RunningCrews {
-  /** The running instances of the crew `crew`, by its name; empty when none runs or the host cannot list them. */
-  running(crew: string): readonly RunningCrew[];
 }
 
 /** The children of the running crew (A-3): one background agent per call, its reply left in the crew's

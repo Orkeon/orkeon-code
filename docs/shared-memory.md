@@ -85,9 +85,9 @@ they supersede are marked `superseded`, both lists are rebuilt and `entries/` is
 cannot be rebuilt the entries stay admitted, and the next admission indexes them. The lock on the collection
 `memory-<project>` holds within one process only: one REPL runs one `/memory admit` at a time, but nothing orders it
 against a second REPL or a headless run on the same project, so keep to one at a time. Within one REPL, an
-admission asked while the crew `shared-memory-admit` still writes the previous one is refused before its questions,
-with that crew's ticket: type it again in a moment. `/memory list|add|get|delete`, `/feedback` and the other admit
-verbs are never held back by it. `--refuse` writes the candidate's
+admission confirmed while the crew `shared-memory-admit` still writes the previous one is refused by the runtime,
+with that crew's ticket: wait for its result, then type the line again. `/memory list|add|get|delete`, `/feedback`
+and the other admit verbs are never held back by it. `--refuse` writes the candidate's
 topic to `refused.md` with your motif: the topic is never proposed again. `/dev-learn` and its `--refuse` read and
 write the same `refused.md`, under `memory.dir` (a stored value set aside is said), the file `memory_push` reads too.
 

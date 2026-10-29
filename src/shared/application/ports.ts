@@ -17,7 +17,7 @@ export type { RuntimeInfo, RuntimeInfoReader } from "./ports/runtime.ts";
 export type { UsageTokens, UsageSpent, ModelUsage, CommandUsage, UsageReport, UsageReader } from "./ports/usage.ts";
 export type { MemoryEntry, MemoryStore } from "./ports/memory.ts";
 export type { ToolOutcome, ToolCatalogue, PermissionRules } from "./ports/tools.ts";
-export type { CrewHost, CrewLaunchOptions, RunningCrew, RunningCrews, ChildRuntime, Logger, RunState, CrewMemory } from "./ports/crew.ts";
+export type { CrewHost, CrewLaunchOptions, ChildRuntime, Logger, RunState, CrewMemory } from "./ports/crew.ts";
 export type { ModelOverride, CompleteRequest, ActRequest, Llm } from "./ports/llm.ts";
 export type { HumanInput } from "./ports/human.ts";
 export type { PendingApproval, PendingApprovals } from "./ports/approvals.ts";
