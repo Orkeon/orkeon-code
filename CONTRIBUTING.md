@@ -9,9 +9,9 @@ Thanks for your interest. This guide covers the setup, the rules the code follow
 - `npm ci` installs the dev tooling: esbuild (pinned to the version the Orkeon runtime bundles with), TypeScript and
   the Node typings.
 - [uv](https://docs.astral.sh/uv/), to run and test the speech MCP server (`mcp/whisper/`, Python).
-- To run the agent: `orkeon-repl` (the `orkeon` Debian package or an Orkeon release archive, at `1.0.0-rc.6`), an
-  Orkeon checkout, or Docker once the `orkeon-runners:1.0.0-rc.6` image is published
-  ([Getting started](docs/getting-started.md)).
+- To run the agent: an Orkeon checkout at the commit of `.orkeon-version` (the source mode, the reference runtime),
+  or the last release, `1.0.0-rc.6`, behind the pin: `orkeon-repl` (the `orkeon` Debian package or an Orkeon release
+  archive) or the `orkeon-runners` image ([Getting started](docs/getting-started.md)).
 
 ```bash
 npm ci

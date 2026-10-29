@@ -43,8 +43,8 @@ Docker sous macOS, le programme doit se trouver dans un dossier que Docker Deskt
 (`/Users` par défaut) : un préfixe npm sous `/opt/homebrew` ou `/usr/local` n'en est pas un ; ajoutez-le dans
 Settings > Resources > File sharing, ou utilisez `install.sh`.
 
-`orkeon-code --version` affiche la version d'Orkeon Code, d'où il s'exécute (`install:` ou `clone:`), la version
-d'Orkeon attendue et celle trouvée, sans rien démarrer.
+`orkeon-code --version` affiche la version d'Orkeon Code, d'où il s'exécute (`install:` ou `clone:`), le commit
+d'Orkeon attendu (l'épingle) et le runtime trouvé, sans rien démarrer.
 
 **Depuis les sources**, pour modifier Orkeon Code ou suivre `main` :
 
@@ -76,12 +76,11 @@ Ollama ([Configuration](configuration.md#le-llm)).
 tool sur le `orkeon-<version>-win-x64.zip` de la release est celui de Windows ; la voie que ce projet pratique est WSL
 avec le lanceur bash ([tutoriel WSL](wsl-tutorial.md)).
 
-Orkeon Code exige Orkeon `1.0.0-rc.6`, la version de `.orkeon-version`, taguée et publiée le 2026-10-28 : le
-[mode tool](#mode-tool--orkeon-repl-installé) a ses paquets (le paquet Debian sur le canal apt `rc`, les archives de
-release), le [mode source](#mode-source--un-checkout-dorkeon) prend tout checkout au tag ou après, et le
-[mode docker](#mode-docker--rien-à-installer-sauf-docker) attend l'image `orkeon-runners:1.0.0-rc.6`, que le registre
-ne porte pas encore (le smoke runtime de la CI construit le REPL depuis les sources d'Orkeon tant qu'il ne la trouve
-pas). La release porte ce que les ADR 0004 à 0009 ont repris du `main` d'Orkeon : l'état de la garde de l'hôte
+Orkeon Code est vérifié contre les sources d'Orkeon au commit de `.orkeon-version` (`3fcfbbe`, le `main` après
+Orkeon/orkeon#240, 2026-10-29) : le [mode source](#mode-source--un-checkout-dorkeon) exécute ce commit, le runtime de
+référence ; le [mode tool](#mode-tool--orkeon-repl-installé) (le paquet Debian sur le canal apt `rc`, les archives de
+release) et le [mode docker](#mode-docker--rien-à-installer-sauf-docker) exécutent la dernière release, `1.0.0-rc.6`,
+en retard sur l'épingle, et `/status` le dit ([ADR 0013](../adr/0013-pin-on-orkeon-commit.md)). La release porte ce que les ADR 0004 à 0009 ont repris du `main` d'Orkeon : l'état de la garde de l'hôte
 (`/permissions`), les outils intégrés typés et les limites de résultat par outil
 ([ADR 0004](../adr/0004-orkeon-after-180.md)), les outils de fichiers qui résolvent un chemin relatif sous
 `/workspace` ou la racine de l'agent, et les approbations en attente qu'une commande lit (`/tasks`)
@@ -90,14 +89,14 @@ schéma de paramètres et les réponses diffusées d'acts concurrents gardées l
 ([ADR 0006](../adr/0006-orkeon-after-213.md)), les écrans de fil, la clôture du budget et l'accès par appel
 ([ADR 0007](../adr/0007-orkeon-after-217.md)), les classes d'accès des outils
 ([ADR 0008](../adr/0008-orkeon-after-223.md)), le contexte compté une fois, les services runtime, usage et session et
-le drapeau streamed ([ADR 0009](../adr/0009-orkeon-after-230.md)). Les typings suivent le `main` d'Orkeon après
-Orkeon/orkeon#234 ([ADR 0010](../adr/0010-orkeon-after-234.md)).
+le drapeau streamed ([ADR 0009](../adr/0009-orkeon-after-230.md)). Les typings sont ceux de l'épingle
+([Développement](development.md#typings)).
 
 Le lanceur prend le premier mode disponible, dans cet ordre, sauf si `--mode` en décide autrement.
 
 ### Mode tool : `orkeon-repl` installé
 
-Le REPL est `orkeon-repl` (`Orkeon.ConsoleApp`), à la version de `.orkeon-version`. Le paquet Debian et les
+Le REPL est `orkeon-repl` (`Orkeon.ConsoleApp`) de la dernière release, jamais l'épingle. Le paquet Debian et les
 archives de release le livrent autonome, avec son propre esbuild : aucun .NET à installer.
 
 **Debian et Ubuntu** (amd64, arm64) : le paquet `orkeon` installe `/usr/bin/orkeon-repl`. Ajoutez la source apt
@@ -113,7 +112,7 @@ lancez `./install.sh` (`install.ps1` sous Windows) : il installe dans `~/.local/
 `~/.local/bin`, sans `sudo`.
 
 ```bash
-v=$(cat .orkeon-version); rid=linux-x64            # or linux-arm64, osx-x64, osx-arm64
+v=1.0.0-rc.6; rid=linux-x64       # the last release; or linux-arm64, osx-x64, osx-arm64
 curl -fLO "https://github.com/Orkeon/orkeon/releases/download/v$v/orkeon-$v-$rid.tar.gz"
 curl -fLO "https://github.com/Orkeon/orkeon/releases/download/v$v/SHA256SUMS"
 sha256sum --check --ignore-missing SHA256SUMS
@@ -130,8 +129,8 @@ celui que npm a installé (`ORKEON_ESBUILD_PATH` le remplace).
 
 ### Mode docker : rien à installer sauf Docker
 
-Le lanceur exécute `ghcr.io/orkeon/orkeon-runners:<.orkeon-version>`, qui porte le REPL et esbuild ; l'image est
-construite pour `linux/amd64` et `linux/arm64`, et Docker tire celle de votre machine. Le projet est monté dans le
+Le lanceur exécute `ghcr.io/orkeon/orkeon-runners:latest`, la dernière release, jamais l'épingle
+(`ORKEON_CODE_IMAGE` nomme une autre image), qui porte le REPL et esbuild ; l'image est construite pour `linux/amd64` et `linux/arm64`, et Docker tire celle de votre machine. Le projet est monté dans le
 conteneur ; sous Linux, le conteneur tourne avec votre uid, si bien que les fichiers que l'agent écrit vous
 appartiennent. L'outil shell tourne dans le conteneur.
 
@@ -143,6 +142,11 @@ appartiennent. L'outil shell tourne dans le conteneur.
 `global.json` : un projet dont le `global.json` épingle un autre SDK fonctionne quand même. Il faut le SDK .NET 10, la
 solution Orkeon restaurée une fois (`dotnet restore Orkeon.sln` dans le checkout), et esbuild : `npm ci` une fois dans
 ce checkout, ou `ORKEON_ESBUILD_PATH`.
+
+Le checkout devrait être au commit de `.orkeon-version` (`git -C ~/src/orkeon checkout $(cat .orkeon-version)`),
+celui contre lequel les commandes ont été vérifiées : à un autre commit, le lanceur avertit (`orkeon-code: warning:
+ORKEON_SOURCE is at <sha7>, the pin of .orkeon-version is 3fcfbbe: the commands were checked against the pin.`) et
+lance quand même.
 
 ## 4. Première session
 

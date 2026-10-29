@@ -11,7 +11,7 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, readlinkSync, symlin
 import { join } from "node:path";
 import {
   ARCHIVE_ROOT, INSTALL_PS1_CMD, INSTALL_PS1_PREFIX, INSTALL_PS1_UNINSTALL, LAUNCHER_PS1_LONG_OPTIONS, LAUNCHER_PS1_WHISPER,
-  LAUNCHER_SH_WHISPER, NOT_SHIPPED, PS1_LEAD, RUNNABLE_FILES, RUNTIME_VERSION, VERSION, archive, archiveEntries,
+  LAUNCHER_SH_WHISPER, NOT_SHIPPED, PS1_LEAD, RUNNABLE_FILES, RUNTIME_PIN, VERSION, archive, archiveEntries,
   checkPublish, dist, extractedArchive, importShim, installSpace, installedSpace, lstatExists, npmLinkedShim, read,
   removeScratch, run, snapshot,
 } from "./install.fixtures.ts";
@@ -105,7 +105,7 @@ describe("scripts/install.sh", () => {
     strictEqual(v.status, 0, v.stderr);
     const [first, second] = v.stdout.split("\n");
     strictEqual(first, `orkeon-code ${VERSION} (install: ${join(s.lib, VERSION)})`);
-    ok(second.startsWith(`Orkeon ${RUNTIME_VERSION} expected, found: `), second);
+    ok(second.startsWith(`Orkeon ${RUNTIME_PIN} expected, found: `), second);
   });
 
   it("changes nothing when run twice", () => {

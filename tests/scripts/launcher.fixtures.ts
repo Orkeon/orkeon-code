@@ -71,6 +71,15 @@ export function orkeonCheckout(): string {
   return source;
 }
 
+/** An Orkeon checkout that is a git repository at a commit of its own: never the pin of .orkeon-version. */
+export function orkeonCheckoutAtAnotherCommit(): string {
+  const source = orkeonCheckout();
+  const git = (...args: string[]) => spawnSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "-C", source, ...args], { stdio: "ignore" });
+  git("init", "-q");
+  git("commit", "-q", "--allow-empty", "-m", "not the pin");
+  return source;
+}
+
 /** What source mode runs, in order: the build in the Orkeon checkout, then the assembly from the project. */
 export const sourceModeCalls = (source: string, r: Run) => [
   `${source} build src/apps/Orkeon.ConsoleApp -c Debug --no-restore -nologo -v quiet`,
@@ -221,7 +230,10 @@ export const ESBUILD = { ORKEON_ESBUILD_PATH: "/opt/esbuild" };
 export const TOOL_REPL = { "orkeon-repl": recorder() };
 export const TOOL_START = { args: ["--mode", "tool"], bin: TOOL_REPL, env: ESBUILD };
 export const CODE_VERSION = JSON.parse(read("package.json")).version as string;
-export const RUNTIME_VERSION = read(".orkeon-version").trim();
+export const RUNTIME_PIN = read(".orkeon-version").trim().slice(0, 7);
+
+/** The warning source mode prints when the checkout is not at the pin. */
+export const NOT_AT_THE_PIN = `the pin of .orkeon-version is ${RUNTIME_PIN}: the commands were checked against the pin.`;
 export const SETTINGS_TEXT = JSON.stringify({ Llm: { Model: "m", BaseUrl: "http://127.0.0.1:9/v1" } });
 /** The user's settings file the launchers read today, under the scratch HOME. */
 export const USER_SETTINGS = { ".config/orkeon-code/appsettings.json": SETTINGS_TEXT };
@@ -585,7 +597,7 @@ export const PS1_CLONE_OR_INSTALL: readonly Mention[] = [
 
 export const PS1_VERSION_LINES: readonly Mention[] = [
   ["orkeon-code $codeVersion ($kind`: $Root)", "the first line"],
-  ["Orkeon $OrkeonVersion expected, found: $found", "the second line"],
+  ["Orkeon $OrkeonPin expected, found: $found", "the second line"],
   ["$found = if ($Mode -eq 'docker') { \"image $Image (docker mode, not pulled)\" }", "the forced docker mode names its image first"],
 ];
 

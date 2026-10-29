@@ -21,7 +21,7 @@ import type {
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import { CODE_INTEL_TOOLS } from "../../../shared/domain/code-intel-contract.ts";
 import { knownConfigKeys } from "../../../shared/domain/config-schema.ts";
-import { CLI_BUILD, CLI_NAME, CLI_VERSION, ORKEON_RUNTIME_VERSION } from "./meta.ts";
+import { CLI_BUILD, CLI_NAME, CLI_VERSION, isPinnedCommit, ORKEON_RUNTIME_PIN } from "./meta.ts";
 import type { CommandView } from "../view.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
@@ -49,25 +49,25 @@ export interface DoctorDeps {
 /** Code's own version, the version row starts with. */
 export const CODE_VERSION_DETAIL = `${CLI_NAME} ${CLI_VERSION} (${CLI_BUILD})`;
 
-/** The version row: Code's own, then the running Orkeon against the pin of .orkeon-version: a pass when they are
- *  the same, a warning when they differ; when the host names no runtime, the pin alone and where the launcher
- *  says what it found. */
+/** The version row: Code's own, then the running Orkeon, by the commit its build carries, against the commit
+ *  pinned by .orkeon-version: a pass when they are the same, a warning when they differ or the runtime reports no
+ *  commit; when the host names no runtime, the pin alone and where the launcher says what it found. */
 export function versionRow(runtime: RuntimeInfo | undefined): DoctorRow {
   if (runtime === undefined) {
     return {
       check: "version",
       result: PASS,
-      detail: `${CODE_VERSION_DETAIL}; Orkeon expected ${ORKEON_RUNTIME_VERSION} (.orkeon-version), the host names no runtime: ` +
+      detail: `${CODE_VERSION_DETAIL}; Orkeon expected at commit ${ORKEON_RUNTIME_PIN} (.orkeon-version), the host names no runtime: ` +
         "orkeon-code --version in a terminal says the one found",
     };
   }
   const found = `Orkeon ${runtime.version}${runtime.commit ? `+${runtime.commit}` : ""} (${runtime.channel})`;
-  return runtime.version === ORKEON_RUNTIME_VERSION
+  return isPinnedCommit(runtime.commit)
     ? { check: "version", result: PASS, detail: `${CODE_VERSION_DETAIL}; ${found}, the pin of .orkeon-version` }
     : {
       check: "version",
       result: WARN,
-      detail: `${CODE_VERSION_DETAIL}; ${found} runs, ${ORKEON_RUNTIME_VERSION} expected (.orkeon-version): ` +
+      detail: `${CODE_VERSION_DETAIL}; ${found} runs, commit ${ORKEON_RUNTIME_PIN} expected (.orkeon-version): ` +
         "the commands were checked against the pin",
     };
 }

@@ -30,4 +30,5 @@ Decisions are recorded as ADRs: [0001 — ports, adapters and entry points](adr/
 [0009 — Orkeon main after #230, on the rc.6 pin](adr/0009-orkeon-after-230.md),
 [0010 — Orkeon main after #234, on the rc.6 pin, now a release](adr/0010-orkeon-after-234.md),
 [0011 — the gates of an unattended run, and five dev commands instead of eight](adr/0011-dev-gates-and-surface.md),
-[0012 — Orkeon main after #239, the exclusive crew launch](adr/0012-orkeon-after-239.md).
+[0012 — Orkeon main after #239, the exclusive crew launch](adr/0012-orkeon-after-239.md),
+[0013 — the pin is a commit of Orkeon's main, never a release](adr/0013-pin-on-orkeon-commit.md).

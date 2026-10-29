@@ -98,7 +98,8 @@ mkdir -p ~/audio && timeout 20 parecord --channels=1 --rate=16000 --file-format=
 
 ## 3. Orkeon depuis son paquet apt
 
-Orkeon Code demande Orkeon `1.0.0-rc.6` (`.orkeon-version`), une release candidate : le canal `rc` la porte
+Le canal `rc` porte la dernière release d'Orkeon, `1.0.0-rc.6`, une release candidate : Orkeon Code est vérifié
+contre un commit du `main` d'Orkeon (`.orkeon-version`), et le mode tool exécute cette release en retard sur l'épingle
 ([Premiers pas](getting-started.md)). Le canal `dev` publie un paquet par commit de `main` validé par la CI, versionné
 `1.0.0~rc.6.dev.<n>` (`n` est le numéro de l'exécution CI), les trois derniers builds seulement : il sert à suivre
 `main` en avance sur l'épinglage, pas à ce tutoriel. Le paquet installe
@@ -148,7 +149,7 @@ orkeon --version && command -v orkeon-repl
 
 Attendu : `1.0.0-rc.6` (ou la forme que `orkeon` affiche pour `1.0.0~rc.6`) et `/usr/bin/orkeon-repl`. Plus tard, la
 release candidate suivante se prend par `sudo apt update && sudo apt upgrade` ; `apt list -a orkeon` liste celles du
-canal, et `.orkeon-version` dit laquelle Orkeon Code attend.
+canal, et `/status` dit si celle qui tourne est le commit de `.orkeon-version`.
 
 ## 4. Orkeon Code dans le home WSL
 
@@ -187,12 +188,12 @@ Premier REPL, sans la voix, sur le dépôt d'exemple jetable (`--demo`), en mode
 ./orkeon-code --mode tool --demo
 ```
 
-Le bandeau affiche `orkeon-code <version> on Orkeon 1.0.0-rc.6 (tool)` (la version d'Orkeon est celle de
-`.orkeon-version`, pas celle du paquet), le projet et le fichier de réglages. Dans le REPL :
+Le bandeau affiche `orkeon-code <version> on Orkeon 3fcfbbe (tool)` (`3fcfbbe` est l'épingle de `.orkeon-version`,
+pas la version du paquet), le projet et le fichier de réglages. Dans le REPL :
 
 | Commande | Attendu |
 |---|---|
-| `/doctor` | La configuration LLM, les outils et les montages verts ; `toolchain: node` et `toolchain: dotnet` peuvent rester rouges (section 9), sans effet en mode `tool` |
+| `/doctor` | La configuration LLM, les outils et les montages verts ; `toolchain: node` et `toolchain: dotnet` peuvent rester rouges (section 9), sans effet en mode `tool` ; `version` avertit : le paquet est la dernière release, pas l'épingle |
 | `/permissions` | L'état de la garde : `on` (un `main` d'Orkeon récent ; `unknown` voudrait dire un build trop vieux) |
 | `plan: que fait ce projet ?` | Une réponse du modèle (sinon : la clé n'arrive pas, le lanceur l'a dit au démarrage) |
 | `/exit` | Sortie |

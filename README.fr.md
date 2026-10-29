@@ -54,17 +54,17 @@ chaque prompt est un fichier source : modifiez-le, ou ajoutez le vôtre.
 
 ## Démarrage rapide
 
-Il faut le runtime Orkeon `1.0.0-rc.6` (publié le 2026-10-28) et une clé d'API pour un fournisseur LLM pris en charge
-par Orkeon (tout point d'accès compatible OpenAI, Anthropic...). Chacun de ces trois fait tourner Orkeon Code :
+Il faut le runtime Orkeon et une clé d'API pour un fournisseur LLM pris en charge par Orkeon (tout point d'accès
+compatible OpenAI, Anthropic...). Orkeon Code est vérifié contre les sources d'Orkeon au commit de `.orkeon-version` ;
+la dernière release, `1.0.0-rc.6`, le fait tourner aussi, en retard sur cette épingle. Chacun de ces trois fait
+tourner Orkeon Code :
 
 - **`orkeon-repl`**, du paquet Debian/Ubuntu `orkeon` (amd64 et arm64 ; une release candidate est publiée sur le canal
   apt `rc`, le canal `stable` par défaut ne porte que les versions finales) ou de
   l'[archive de release d'Orkeon](https://github.com/Orkeon/orkeon/releases) de votre plateforme (Linux x64 et arm64,
   macOS x64 et arm64, `.zip` Windows x64), autonome : aucun .NET à installer ;
-- **Docker** : l'image `orkeon-runners` (amd64 et arm64), rien d'autre à installer, **dès que son tag `1.0.0-rc.6`
-  sera publié** : le registre s'arrête à rc.5 pour l'instant, et le smoke runtime de la CI construit le REPL depuis
-  les sources d'Orkeon tant qu'il ne trouve pas l'image ;
-- **un checkout d'Orkeon** : `ORKEON_SOURCE=<checkout> ./orkeon-code --mode source`.
+- **Docker** : l'image `orkeon-runners` (amd64 et arm64) de la dernière release, rien d'autre à installer ;
+- **un checkout d'Orkeon** à l'épingle, le runtime de référence : `ORKEON_SOURCE=<checkout> ./orkeon-code --mode source`.
 
 **Windows** : `orkeon-code.ps1` n'a ni mode source ni `--demo` (`-Mode` accepte `docker` ou `tool`) : le mode tool sur
 le `orkeon-<version>-win-x64.zip` de la release est celui de Windows ; la voie que ce projet pratique est WSL avec le
@@ -107,7 +107,8 @@ acceptEdits: valide les entrées de parseArgs et ajoute un test
 
 Orkeon Code est la couche TypeScript : les commandes slash, les crews et la logique de domaine partagée. Le runtime
 [Orkeon](https://github.com/Orkeon/orkeon) les exécute (Jint), fournit les outils, applique la garde de permission et
-confine tout accès fichier au projet monté. La version du runtime est épinglée dans [`.orkeon-version`](.orkeon-version).
+confine tout accès fichier au projet monté. Le runtime est épinglé dans [`.orkeon-version`](.orkeon-version), un
+commit du `main` d'Orkeon.
 Détails : [Architecture](docs/fr/architecture.md).
 
 ## Interactif, autonome, embarqué

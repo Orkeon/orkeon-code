@@ -40,3 +40,15 @@
       href: adr/0006-orkeon-after-213.md
     - name: "ADR 0007: Orkeon main after #217, on the rc.6 pin"
       href: adr/0007-orkeon-after-217.md
+    - name: "ADR 0008: Orkeon main after #223, on the rc.6 pin"
+      href: adr/0008-orkeon-after-223.md
+    - name: "ADR 0009: Orkeon main after #230, on the rc.6 pin"
+      href: adr/0009-orkeon-after-230.md
+    - name: "ADR 0010: Orkeon main after #234, on the rc.6 pin, now a release"
+      href: adr/0010-orkeon-after-234.md
+    - name: "ADR 0011: the gates of an unattended run, and five dev commands instead of eight"
+      href: adr/0011-dev-gates-and-surface.md
+    - name: "ADR 0012: Orkeon main after #239, the exclusive crew launch"
+      href: adr/0012-orkeon-after-239.md
+    - name: "ADR 0013: the pin is a commit of Orkeon's main, never a release"
+      href: adr/0013-pin-on-orkeon-commit.md

@@ -7,7 +7,7 @@ in [ADR 0001](adr/0001-clean-architecture.md).
 
 ## Two halves
 
-| This repository (TypeScript) | The Orkeon runtime (.NET, pinned in `.orkeon-version`) |
+| This repository (TypeScript) | The Orkeon runtime (.NET, pinned to a commit of its `main` in `.orkeon-version`) |
 |---|---|
 | Slash commands (`src/commands/<group>/*.cmd.ts`) | The scripted-commands REPL that loads them (`orkeon-repl --runner=scripted-commands`) |
 | Crews (`src/crews/<name>/crew.ork.ts`) | The script engine (Jint) and the bundler (esbuild) that run them |

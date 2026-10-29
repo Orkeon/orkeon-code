@@ -22,7 +22,8 @@
 set -euo pipefail
 unset CDPATH
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VERSION="$(tr -d '[:space:]' < "$ROOT/.orkeon-version")"
+# The image is the last release, never the pin (a commit of Orkeon's main, .orkeon-version): ORKEON_CODE_IMAGE names another.
+IMAGE="${ORKEON_CODE_IMAGE:-ghcr.io/orkeon/orkeon-runners:latest}"
 
 script="${1:?usage: scripts/run-crew.sh <crew.ork.ts> [orkeon run args]}"
 shift
@@ -81,6 +82,6 @@ for v in ORKEON_Llm__ApiKey ORKEON_Llm__Model "$key_var"; do
 done
 exec docker run --rm -i "${env_args[@]}" -w /work \
   -v "$ROOT:/work/agent:ro" -v "$workspace:/work/project" -v "$output:/work/output" -v "$settings:/work/settings.json:ro" \
-  "ghcr.io/orkeon/orkeon-runners:$VERSION" \
+  "$IMAGE" \
   run "/work/agent/${script#"$ROOT"/}" -s /work/settings.json \
   -m /work/project:/workspace:rw /work/output:/output:rw --allow-external-mounts -v 2 "$@"

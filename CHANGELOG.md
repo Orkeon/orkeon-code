@@ -379,6 +379,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The runtime pin is a commit of Orkeon's `main`, never a release** ([ADR 0013](docs/adr/0013-pin-on-orkeon-commit.md)):
+  `.orkeon-version` holds the full commit (`3fcfbbe8…`, main after Orkeon #240), the launcher, `/status` and
+  `/doctor` print its first seven characters, and `/status` and `/doctor` compare the commit the running Orkeon was
+  built from with the pin, never its version: a release built at that commit is the pin, a runtime at another commit
+  or reporting none is `NOT the pin`. The source mode is the reference runtime: the launcher warns when
+  `ORKEON_SOURCE` sits at another commit, the runtime smoke always checks Orkeon's sources out at the pin read from
+  `.orkeon-version` (`ORKEON_SOURCE_REF` is gone), and `npm run typings` refuses a checkout at another commit
+  (`--any` overrides) or warns that the tool manifest's release is not the pin. The tool and docker modes run a
+  release behind the pin: the image is `orkeon-runners:latest` (or `ORKEON_CODE_IMAGE`) in the launchers and
+  `scripts/run-crew.sh`, `.config/dotnet-tools.json` keeps the last release without a test tying it to the pin, and
+  the docs stop waiting for an image at the pinned version. The guard of ADR 0010 against calling `decision` and
+  `when` goes: the sources may call whatever the pinned commit ships.
+
 - **`/review` takes `--passes <1-5>` and the aliases `/security-review` and `/passes`**: `--passes` sets this run's
   rounds, the crew input outranking the session's count as `--lens` outranks `review.lenses`; a line typed
   `/security-review` is the review narrowed to the security lens whatever `--lens` says, and `/passes [n]` shows or

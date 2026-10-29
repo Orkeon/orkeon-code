@@ -1,7 +1,7 @@
 // The host /doctor checks (FakeShell, FakeTelemetry, FakeToolCatalogue, FakeFiles and a config reader), healthy by
 // default, and the table it answers for it.
 import { CODE_VERSION_DETAIL, ESSENTIAL_TOOLS, PASS } from "../../../../src/commands/_lib/status/doctor.ts";
-import { ORKEON_RUNTIME_VERSION } from "../../../../src/commands/_lib/status/meta.ts";
+import { ORKEON_RUNTIME_PIN } from "../../../../src/commands/_lib/status/meta.ts";
 import { FakeRuntimeInfo } from "../../../support/doubles/fake-runtime-info.ts";
 import type { DoctorRow } from "../../../../src/commands/_lib/status/doctor.ts";
 import type { CommandView } from "../../../../src/commands/_lib/view.ts";
@@ -13,8 +13,8 @@ import { FakeTelemetry } from "../../../support/doubles/fake-telemetry.ts";
 import { FakeToolCatalogue } from "../../../support/doubles/fake-tool-catalogue.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 
-/** The runtime a healthy host runs: the pin, built from the sources. */
-export const PINNED_RUNTIME = { version: ORKEON_RUNTIME_VERSION, commit: "b8833ca", channel: "source" };
+/** The runtime a healthy host runs: the sources at the pinned commit. */
+export const PINNED_RUNTIME = { version: "1.0.0-rc.6", commit: ORKEON_RUNTIME_PIN, channel: "source" };
 
 /** A host where every check passes; `ignored` sets aside a project value per key, `deps` is what runDoctor takes. */
 export function doctorHost() {
@@ -49,7 +49,7 @@ export function rowsOf(view: CommandView): Map<string, DoctorRow> {
 export function healthyTable(): DoctorRow[] {
   const tools = new Set([...ESSENTIAL_TOOLS, ...CODE_INTEL_TOOLS]).size;
   return [
-    { check: "version", result: PASS, detail: `${CODE_VERSION_DETAIL}; Orkeon ${ORKEON_RUNTIME_VERSION}+b8833ca (source), the pin of .orkeon-version` },
+    { check: "version", result: PASS, detail: `${CODE_VERSION_DETAIL}; Orkeon 1.0.0-rc.6+${ORKEON_RUNTIME_PIN} (source), the pin of .orkeon-version` },
     { check: "toolchain: node", result: PASS, detail: "v24.1.0" },
     { check: "toolchain: git", result: PASS, detail: "git version 2.47.0" },
     { check: "toolchain: dotnet", result: PASS, detail: "10.0.100" },

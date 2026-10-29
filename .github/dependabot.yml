@@ -1,8 +1,8 @@
 version: 2
 updates:
   # Dev tooling. esbuild is NOT bumped by Dependabot: it is pinned to the version
-  # the pinned Orkeon runtime bundles with (Orkeon/orkeon tools/scripting-esbuild),
-  # and moves only with .orkeon-version (see docs/development.md, "Upgrading Orkeon").
+  # Orkeon bundles with at the commit of .orkeon-version (Orkeon/orkeon tools/scripting-esbuild),
+  # and moves only with that pin (see docs/development.md, "Upgrading Orkeon").
   - package-ecosystem: npm
     directory: /
     schedule:
