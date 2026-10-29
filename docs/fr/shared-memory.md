@@ -87,10 +87,10 @@ candidat dont `refused.md` contient le sujet. Les admis sont écrits dans
 `entries/` est réindexé, une fois. Quand l'index ne peut pas être reconstruit, les entrées restent admises, et la
 prochaine admission les indexe. Le verrou sur la collection `memory-<project>` ne vaut qu'au sein d'un processus : un
 REPL n'exécute qu'un `/memory admit` à la fois, mais rien ne l'ordonne face à un second REPL ou à une exécution
-autonome sur le même projet, donc tenez-vous-en à un à la fois. Dans un même REPL, une admission demandée pendant
-que le crew `shared-memory-admit` écrit encore la précédente est refusée avant ses questions, avec le ticket de ce
-crew : retapez-la un instant plus tard. `/memory list|add|get|delete`, `/feedback` et les autres verbes d'admission
-n'en sont jamais retenus. `--refuse` écrit le sujet du candidat dans `refused.md` avec votre motif : le sujet
+autonome sur le même projet, donc tenez-vous-en à un à la fois. Dans un même REPL, une admission confirmée pendant
+que le crew `shared-memory-admit` écrit encore la précédente est refusée par le runtime, avec le ticket de ce
+crew : attendez son résultat, puis retapez la ligne. `/memory list|add|get|delete`, `/feedback` et les autres verbes
+d'admission n'en sont jamais retenus. `--refuse` écrit le sujet du candidat dans `refused.md` avec votre motif : le sujet
 n'est plus jamais proposé. `/dev-learn` et son `--refuse` lisent et écrivent le même `refused.md`, sous `memory.dir` (une valeur enregistrée
 écartée est signalée), le fichier que lit aussi `memory_push`.
 

@@ -49,6 +49,9 @@ export function crewDeps(launchError?: string) {
 
 export const CHAIN_LIMIT_ERROR = "chain depth 8 reached (MaxChainDepth 8, /dev-batches)";
 
+/** The host's refusal of an exclusive launch while the crew runs (Orkeon #239). */
+export const EXCLUSIVE_ERROR = "crew 'code-review' already running (ticket t2)";
+
 /** launchMainLoop's deps, the session holding the rules `stored`; `atLaunch.gate` is what the gate held when the crew
  *  was launched. */
 export function mainLoopDeps(...stored: string[]) {

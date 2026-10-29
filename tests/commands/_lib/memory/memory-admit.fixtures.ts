@@ -81,19 +81,3 @@ export const CANCELLED_ANSWERS: readonly { name: string; answer: unknown }[] = [
   { name: "the console throws", answer: new Error("cancelled") },
   { name: "the console answers nothing", answer: undefined },
 ];
-
-/** The line asked and the crews running when it is (crew name to tickets), with the refusal expected: none when no
- *  admission is being written, none for a line that launches no crew. */
-export const BUSY_CASES: readonly { name: string; args: MemoryAdmitArgs; tickets: Record<string, string[]>; expected: string | undefined }[] = [
-  { name: "lets an admission start when no crew runs", args: { kind: "admit", ids: ["a"] }, tickets: {}, expected: undefined },
-  { name: "lets an admission start while a review runs", args: { kind: "admit", ids: ["a"] }, tickets: { "code-review": ["t2"] }, expected: undefined },
-  {
-    name: "refuses an admission while the previous one is being written, naming its ticket",
-    args: { kind: "admit", ids: ["a"] },
-    tickets: { "shared-memory-admit": ["t5"] },
-    expected: "memory admit: the previous admission is still being written (ticket t5): type it again in a moment",
-  },
-  { name: "lets --list pass while an admission is being written", args: { kind: "list" }, tickets: { "shared-memory-admit": ["t5"] }, expected: undefined },
-  { name: "lets --refuse pass while an admission is being written", args: { kind: "refuse", id: "a" }, tickets: { "shared-memory-admit": ["t5"] }, expected: undefined },
-  { name: "lets --import pass while an admission is being written", args: { kind: "import" }, tickets: { "shared-memory-admit": ["t5"] }, expected: undefined },
-];

@@ -13,6 +13,7 @@ import { BREAKER_RUN_FIELD } from "../../../src/crews/main-loop/application/auto
 import { loadCatalogue, runMainLoop } from "../../../src/crews/main-loop/application/run-main-loop.ts";
 import type { MainLoopInputs } from "../../../src/crews/main-loop/application/run-main-loop.ts";
 import { chainDepthLine } from "../../../src/shared/domain/agents/chain.ts";
+import { exclusiveLine } from "../../../src/shared/domain/agents/exclusive.ts";
 import { ruleDecision, toolsetFor } from "../../../src/shared/domain/agent-policy/permission.ts";
 import { PERMISSION_MODES } from "../../../src/shared/domain/permission-modes.ts";
 import { DEFAULT_MODE_STATE_KEY, PERMISSION_RULES_STATE_KEY } from "../../../src/shared/domain/session-keys.ts";
@@ -26,7 +27,7 @@ import { FakeShell } from "../../support/doubles/fake-shell.ts";
 import { FakeTelemetry } from "../../support/doubles/fake-telemetry.ts";
 import { FakeToolCatalogue } from "../../support/doubles/fake-tool-catalogue.ts";
 import {
-  CHAIN_LIMIT_ERROR,
+  CHAIN_LIMIT_ERROR, EXCLUSIVE_ERROR,
   FALLBACK_VIA,
   MCP_EXTRA_TOOLS,
   MCP_REGISTERED,
@@ -101,6 +102,19 @@ describe("launchCrew", () => {
     const line = chainDepthLine("dev-verify", { depth: 8, limit: 8, command: "dev-batches" });
     deepStrictEqual(result, { refused: line, message: line });
     deepStrictEqual(logged[0].data, { depth: 8, limit: 8, command: "dev-batches", batch: "b1" });
+  });
+
+  it("turns a crew the host refuses as already running into a refusal that says so (Orkeon #239)", () => {
+    // Arrange
+    const { deps, logged } = crewDeps(EXCLUSIVE_ERROR);
+
+    // Act
+    const result = launchCrew(deps, "code-review", {}, { lens: "security" }, { exclusive: true });
+
+    // Assert
+    const line = exclusiveLine({ crew: "code-review", ticket: "t2" });
+    deepStrictEqual(result, { refused: line, message: line });
+    deepStrictEqual(logged[0].data, { crew: "code-review", ticket: "t2", lens: "security" });
   });
 
   it("lets any other launch failure throw", () => {

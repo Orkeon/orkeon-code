@@ -45,7 +45,8 @@ an agent whose `.body()` calls the use case, `publishCrew(...)` at the end. The 
 `application/run-<name>.ts` (`run<Name>(input, deps)`), its pure rules in `domain/`, each with its `*.test.ts` under
 `tests/crews/<name>/`; the use case test runs over the fakes. The command that launches it names it,
 `launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "<name>", input)`, and `input` reaches the crew as
-`inputs()`. Imports are relative and carry their `.ts` extension, because the runtime bundles each entry point from
+`inputs()`; a crew that must not run twice at a time is launched with `{ exclusive: true }` as the fifth argument, and
+the host refuses the second launch with the running ticket (`/review`, `/memory admit`). Imports are relative and carry their `.ts` extension, because the runtime bundles each entry point from
 the files as written.
 
 - `advisor` is the smallest model: one agent, one `ctx.llm.complete`, no tools.

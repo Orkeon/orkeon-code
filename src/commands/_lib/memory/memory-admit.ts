@@ -5,7 +5,7 @@
 // re-indexes entries/. A session that cannot prompt admits nothing (as /commit refuses headless):
 // only an audited candidate admits without a question, when memory.autoAdmitAudited is true.
 
-import type { Files, RunningCrews, Shell } from "../../../shared/application/ports.ts";
+import type { Files, Shell } from "../../../shared/application/ports.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import { readMemorySettings } from "../../../shared/application/shared-memory/memory-settings.ts";
 import type { MemorySettings } from "../../../shared/application/shared-memory/memory-settings.ts";
@@ -18,21 +18,13 @@ import { admissionProblem, asksConfirmation } from "../../../shared/domain/share
 import { candidatesList } from "../../../shared/domain/shared-memory/candidates.ts";
 import { importAgentMemory, importReport } from "../../../shared/application/shared-memory/import-agent-memory.ts";
 
+/** The crew that writes an admission, launched exclusively: the host refuses an admission while the previous one is
+ *  still being written, so two never write the shared memory side by side; the list, a refusal and the import launch
+ *  no crew and always answer. */
 export const MEMORY_ADMIT_CREW = "shared-memory-admit";
 const ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const MAX_MOTIF_CHARS = 200;
 const SHOWN_BODY_LINES = 6;
-
-/** The refusal of an admission asked while the crew still writes the previous one, so two admissions never
- *  write the shared memory side by side; undefined when none runs. The list, a refusal and the import launch no
- *  crew and are never refused: for them the crews are not even asked. */
-export function admitBusyText(args: MemoryAdmitArgs, running: Pick<RunningCrews, "running">): string | undefined {
-  if (args.kind !== "admit") return undefined;
-  const first = running.running(MEMORY_ADMIT_CREW)[0];
-  return first === undefined
-    ? undefined
-    : `memory admit: the previous admission is still being written (ticket ${first.ticket}): type it again in a moment`;
-}
 
 export type MemoryAdmitArgs =
   | { kind: "list" }

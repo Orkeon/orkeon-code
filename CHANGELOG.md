@@ -385,18 +385,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sets the session's count without starting a review. The parsing and the two messages live in
   `commands/_lib/git/review.ts`, tested there ([ADR 0011](docs/adr/0011-dev-gates-and-surface.md), round 2). A quoted
   value is unquoted (`--commit "abc123"` reads `abc123`, a quoted path with a space stays one file). The command
-  has no instance quota any more: the refusal is the crew's, made by the command before it launches one, so a review
-  (`/review` or `/security-review`) asked while the `code-review` crew runs is refused with its ticket (`review: a
-  review is already running (ticket <t>): wait for its result`), and `/passes [n]` still answers meanwhile.
+  has no instance quota any more: the crew is launched exclusively (Orkeon #239), so a review (`/review` or
+  `/security-review`) asked while the `code-review` crew runs is refused by the host with its ticket (`code-review not
+  launched: it is already running (ticket <t>); wait for its result, then type the line again.`), and `/passes [n]`
+  still answers meanwhile.
 - **`/mode` takes the alias `/plan`**: a line typed `/plan` toggles plan mode as before (leaving it returns to
   `default`), with the same messages and log lines, routed by `runMode` in `commands/_lib/settings/mode.ts`.
 - **`/memory` takes the sub-verb `admit` and the aliases `/feedback` and `/memory-admit`**: `/memory admit [<id>…] |
   --refuse <id> [motif] | --list | --import` decides the shared memory's candidates (the list, a refusal and the
   import answered at once, an admission confirmed then written by the crew `shared-memory-admit`), and `/memory` is
   now an async command; `/feedback <text>` adds a `feedback` memory with today's reply, `/memory-admit …` is the
-  admit sub-verb. The command has no instance quota any more: only an admission asked while the crew
-  `shared-memory-admit` still writes the previous one is refused, before its questions, with that crew's ticket;
-  `/memory list|add|get|delete`, `/feedback` and `/memory admit --list|--refuse|--import` still answer meanwhile.
+  admit sub-verb. The command has no instance quota any more: the crew is launched exclusively (Orkeon #239), so
+  only an admission confirmed while `shared-memory-admit` still writes the previous one is refused by the host, with
+  that crew's ticket; `/memory list|add|get|delete`, `/feedback` and `/memory admit --list|--refuse|--import` still
+  answer meanwhile.
 - **`/usage` takes the aliases `/stats` and `/cost`**: it already shows the calls, tokens, cost, cache tokens and the
   usage by model and by command those two showed apart, and its row gains the two columns only `/stats` had:
   `estTokens` (the session's estimated tokens) and `cacheRatio` (the tokens read from the cache over the session's
@@ -450,6 +452,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is in no built-in list and is handed to the assistant through `tools.extra`; the `Llm:MaxRateLimitWait` row names
   `retry-after-ms` (Orkeon #235). The pages that said "until rc.6 is tagged" say what is published and what is not
   ([ADR 0010](docs/adr/0010-orkeon-after-234.md), [Permissions](docs/permissions.md#extra-tools)).
+- **Orkeon main after #239, the exclusive crew launch**: `runCrewAsync(name, input, { exclusive: true })` refuses a
+  crew whose previous exclusive launch still runs, before any LLM call, with `crew '<name>' already running (ticket
+  <t>)`; the check and the registration are one step on the host (Orkeon #240). `launchCrew` passes the option
+  (`CrewLaunchOptions.exclusive`) and turns that refusal into the line the runtime prints
+  (`shared/domain/agents/exclusive.ts`), as it does the chain's. `/review` and `/memory admit` launch their crew with
+  it, in place of the `RunningCrews` port, its adapter over the `commands` service and the two refusals the commands
+  made themselves. The smoke's `ORKEON_SOURCE_REF` moves to `3fcfbbe`; the typings are regenerated and gain the
+  option. The pinned release, `1.0.0-rc.6`, reads `chain` only and ignores the option: on it two reviews may run side
+  by side, the one-at-a-time needs a runtime after #240 ([ADR 0012](docs/adr/0012-orkeon-after-239.md)).
 
 - **The access classes follow Orkeon #223**, the second review of Orkeon #217, read at Orkeon `main` `3ac6aa6`
   (#29). `rag_eval` declares an edit, no longer a read: `declaredAccess` leaves it to its class, the gateless fallback

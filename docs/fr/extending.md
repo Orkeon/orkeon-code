@@ -45,7 +45,8 @@ dont ils ont besoin, un agent dont le `.body()` appelle le cas d'usage, `publish
 est `application/run-<name>.ts` (`run<Name>(input, deps)`), ses règles pures dans `domain/`, chacune avec son
 `*.test.ts` sous `tests/crews/<name>/` ; le test du cas d'usage tourne sur les fakes. La commande qui le lance le nomme,
 `launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "<name>", input)`, et `input` arrive au crew comme
-`inputs()`. Les imports sont relatifs et portent leur extension `.ts`, parce que le runtime bundle chaque point
+`inputs()`. ; un crew qui ne doit pas tourner deux fois à la fois est lancé avec `{ exclusive: true }` en cinquième
+argument, et l'hôte refuse le second lancement avec le ticket en cours (`/review`, `/memory admit`). Les imports sont relatifs et portent leur extension `.ts`, parce que le runtime bundle chaque point
 d'entrée à partir des fichiers tels qu'ils sont écrits.
 
 - `advisor` est le modèle le plus petit : un agent, un `ctx.llm.complete`, pas d'outil.

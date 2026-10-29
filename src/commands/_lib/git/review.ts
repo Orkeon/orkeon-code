@@ -5,7 +5,7 @@
 // the session's pass count, answered here without a review; --passes sets this run's count only, the crew input
 // outranking the session key. Lives under commands/_lib/ — the loader's SearchPattern is "*.cmd.ts".
 
-import type { RunningCrews, SessionStore } from "../../../shared/application/ports.ts";
+import type { SessionStore } from "../../../shared/application/ports.ts";
 import { MAX_PASSES, MIN_PASSES } from "../../../shared/domain/agent-policy/behavior-flags.ts";
 import { PASSES_STATE_KEY } from "../../../shared/domain/session-keys.ts";
 import { commandLine, splitWords } from "../args.ts";
@@ -13,15 +13,9 @@ import type { CommandView } from "../view.ts";
 
 export const REVIEW_LENSES: readonly string[] = ["correctness", "security", "style"];
 
-/** The crew a review runs in. */
+/** The crew a review runs in, launched exclusively: the host refuses a review while one runs (any alias:
+ *  /security-review is the same crew), so two never run side by side; /passes launches nothing and always answers. */
 export const REVIEW_CREW = "code-review";
-
-/** The refusal of a review asked while one runs (any alias: /security-review is the same crew), so two reviews
- *  never run side by side; undefined when none runs. Only a review is refused: /passes launches nothing. */
-export function reviewBusyText(running: Pick<RunningCrews, "running">): string | undefined {
-  const first = running.running(REVIEW_CREW)[0];
-  return first === undefined ? undefined : `review: a review is already running (ticket ${first.ticket}): wait for its result`;
-}
 
 /** What the code-review crew is launched with. */
 export interface ReviewInput {

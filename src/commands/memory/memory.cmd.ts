@@ -3,16 +3,15 @@
 // --refuse <id> [<motif>] | --list | --import — decide the shared memory's candidates (_lib/memory/memory-admit.ts):
 // the list, a refusal and the import are answered here, an admission is confirmed here, then written and indexed
 // by the crew shared-memory-admit. Two aliases keep their own shape (_lib/memory/memory.ts): /feedback <text> is a
-// 'feedback' memory, /memory-admit … the admit sub-verb. An admission asked while the crew still writes the previous
-// one is refused before its questions (admitBusyText): the command has no instance quota, so the CRUD, /feedback and
-// the other admit verbs still answer meanwhile.
+// 'feedback' memory, /memory-admit … the admit sub-verb. The crew is launched exclusively (Orkeon #239): the host
+// refuses an admission while it still writes the previous one, with its ticket; the command has no instance quota,
+// so the CRUD, /feedback and the other admit verbs still answer meanwhile.
 import { rawTokens, typedCommand } from "../_lib/args.ts";
 import { launchCrew, writeCompleted } from "../_lib/dispatch.ts";
 import { admitTokens, runMemory } from "../_lib/memory/memory.ts";
-import { MEMORY_ADMIT_CREW, admitBusyText, parseMemoryAdmitArgs, runMemoryAdmit } from "../_lib/memory/memory-admit.ts";
+import { MEMORY_ADMIT_CREW, parseMemoryAdmitArgs, runMemoryAdmit } from "../_lib/memory/memory-admit.ts";
 import { showView } from "../_lib/view.ts";
 import { createCrewHost } from "../../shared/infrastructure/orkeon/crew-host.ts";
-import { createRunningCrews } from "../../shared/infrastructure/orkeon/running-crews.ts";
 import {
   orkeonClock, orkeonConfigStore, orkeonFiles, orkeonMemoryStore, orkeonShell,
 } from "../../shared/infrastructure/orkeon/wiring.ts";
@@ -34,18 +33,13 @@ defineAsyncCommand({
       ctx.writeLine(parsed.text);
       return { refused: parsed.text };
     }
-    const busy = admitBusyText(parsed.args, createRunningCrews(ctx.services));
-    if (busy !== undefined) {
-      ctx.writeLine(busy);
-      return { refused: busy };
-    }
     const result = await runMemoryAdmit(parsed.args, admitDeps, {
       writeLine: (text) => ctx.writeLine(text),
       confirm: (message) => ctx.prompt({ type: "confirm", message, default: false }),
     });
     if ("admit" in result) {
       if (result.refusedQuestions !== undefined) ctx.writeLine(`✗ ${result.refusedQuestions}`);
-      return launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, MEMORY_ADMIT_CREW, { admit: result.admit });
+      return launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, MEMORY_ADMIT_CREW, { admit: result.admit }, {}, { exclusive: true });
     }
     if ("refused" in result) ctx.writeLine(`✗ ${result.refused}`);
     return result;
