@@ -76,6 +76,14 @@ profiles the host knows; a plain LLM profile works the same way, with no decisio
 of `/advisor` (`advisor.model`) still applies on top of the profile. The stages and their settings are in
 [Orkeon's decision models](https://github.com/Orkeon/orkeon/blob/main/docs/architecture/decision-models.md).
 
+Claude through a Max plan: [`config/appsettings.anthropic.example.json`](../config/appsettings.anthropic.example.json)
+targets `https://api.anthropic.com` with `claude-opus-5-5` and the key in `ANTHROPIC_API_KEY`. Since October 2026 a Max
+plan includes monthly API credits (100 USD on Max 5x, 200 USD on Max 20x, no rollover), spent through an API key of the
+Anthropic Console organisation linked to the plan (on claude.ai, Settings, Billing, API credits, Link organization; the
+link is made once); beyond them the key is billed at the API's usage rates. Signing in with the plan itself is reserved
+to Anthropic's own applications and is not a way to run Orkeon Code. The example sets no `Temperature`: the current
+Claude generation refuses one, and Orkeon sends only what the file sets.
+
 The agent calls tools through every provider: the runtime's tool loop (`ctx.llm.act`) reads the tool calls of the
 Anthropic and OpenAI formats, runs the read calls of a model turn up to `MaxParallelToolCalls` at once and the
 others one after the other, each call through the permission gate, and sends the results back in the provider's tool protocol. A tool result reaches the model cut at

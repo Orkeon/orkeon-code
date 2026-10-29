@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cannot be read, is warned about and the launch goes on without it; a name the host does not declare fails the
   crew's load, listing the profiles it knows. `config/appsettings.jev.example.json` is the example: `Orkeon:TypeSafe`
   (the key in `TYPESAFE_API_KEY`), the profiles `small` and `large`, the decision profile `guarded` over them.
+- **An example settings file on Claude through the API credits of a Max plan**
+  (`config/appsettings.anthropic.example.json`): `https://api.anthropic.com`, `claude-opus-5-5` with the other Claude
+  models for `/model`, the key in `ANTHROPIC_API_KEY`, no temperature since the current Claude generation refuses one.
+  `docs/configuration.md` says where the credits come from (the Console organisation linked to the plan) and that
+  signing in with the plan itself is reserved to Anthropic's own applications.
 - **`/resume <number or id>` switches the session in place** (Orkeon #227, delivered by #230): the session of now
   is saved to an archive beside its own file (`<stamp>-archived.json`, named by the clock port), then the chosen
   history file replaces the conversation, the state bag, the id and the title; the next turn continues it. The

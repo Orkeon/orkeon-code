@@ -79,6 +79,14 @@ LLM marche de la même façon, sans modèle de décision devant. Le modèle par 
 s'applique toujours par-dessus le profil. Les étapes et leurs réglages sont dans
 [les modèles de décision d'Orkeon](https://github.com/Orkeon/orkeon/blob/main/docs/architecture/decision-models.md).
 
+Claude par un plan Max : [`config/appsettings.anthropic.example.json`](../../config/appsettings.anthropic.example.json)
+vise `https://api.anthropic.com` avec `claude-opus-5-5` et la clé dans `ANTHROPIC_API_KEY`. Depuis octobre 2026 un plan
+Max inclut des crédits API mensuels (100 USD sur Max 5x, 200 USD sur Max 20x, sans report), dépensés par une clé API de
+l'organisation Anthropic Console liée au plan (sur claude.ai, Settings, Billing, API credits, Link organization ; le
+lien se fait une fois) ; au-delà, la clé est facturée aux tarifs à l'usage de l'API. La connexion avec le plan lui-même
+est réservée aux applications d'Anthropic et n'est pas un moyen de lancer Orkeon Code. L'exemple ne fixe pas de
+`Temperature` : la génération Claude actuelle en refuse une, et Orkeon n'envoie que ce que le fichier fixe.
+
 L'agent appelle des outils à travers chaque fournisseur : la boucle d'outils du runtime (`ctx.llm.act`) lit les appels
 d'outils des formats Anthropic et OpenAI, exécute les appels de lecture d'un tour du modèle jusqu'à
 `MaxParallelToolCalls` à la fois et les autres l'un après l'autre, chaque appel à travers la garde de permission, et renvoie les résultats dans le protocole d'outils du
