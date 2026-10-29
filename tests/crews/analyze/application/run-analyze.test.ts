@@ -60,6 +60,34 @@ describe("runAnalyze", () => {
     ]);
   });
 
+  it("hands the indexing the parallelism asked for, as a number or its text", async () => {
+    for (const parallel of [4, "4"]) {
+      // Arrange
+      const { index, deps } = analyzeSetup();
+      index.roots = 0;
+
+      // Act
+      await runAnalyze({ parallel }, deps);
+
+      // Assert
+      deepStrictEqual(index.calls, ["rootCount", `index ${WORKSPACE} parallel=4`]);
+    }
+  });
+
+  it("leaves the runtime's default parallelism when none, or no whole number of at least 1, is asked", async () => {
+    for (const parallel of [undefined, 0, -2, 2.5, "x", ""]) {
+      // Arrange
+      const { index, deps } = analyzeSetup();
+      index.roots = 0;
+
+      // Act
+      await runAnalyze({ parallel }, deps);
+
+      // Assert
+      deepStrictEqual(index.calls, ["rootCount", `index ${WORKSPACE}`]);
+    }
+  });
+
   it("releases the progress slot when the index fails", async () => {
     // Arrange
     const { index, progress, deps } = analyzeSetup();

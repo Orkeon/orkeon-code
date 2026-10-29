@@ -38,8 +38,8 @@ export class FakeCodeIndex implements CodeIndex {
     return this.roots;
   }
 
-  async index(root: string): Promise<IndexSummary> {
-    this.record(`index ${root}`);
+  async index(root: string, opts?: { parallel?: number }): Promise<IndexSummary> {
+    this.record(opts === undefined ? `index ${root}` : `index ${root} parallel=${opts.parallel}`);
     return this.indexed;
   }
 

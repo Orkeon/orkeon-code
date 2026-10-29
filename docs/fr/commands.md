@@ -54,7 +54,7 @@ Les descriptions sont celles que le REPL affiche, lues dans `src/commands/*/*.cm
 
 | Commande | Type | Description |
 |---|---|---|
-| `/analyze` | async | Analyze the codebase deterministically (index → maps → dependency graph) and synthesize business objects + dependencies; --raw prints the harvest without any LLM call. |
+| `/analyze` | async | Analyze the codebase (index → maps → dependency graph), then synthesize business objects; --raw skips the LLM call; --parallel N parses N files at once when indexing. |
 | `/debug-tool-call` | sync | Invoke a registered tool with JSON arguments and print its raw result. |
 | `/files` | sync | List the files in a directory (defaults to /workspace). |
 | `/init` | async | Analyse the workspace and write AGENTS.md, the instructions file (an existing CLAUDE.md is merged). |

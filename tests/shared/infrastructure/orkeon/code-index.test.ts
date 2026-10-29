@@ -54,6 +54,22 @@ describe("createCodeIndex", () => {
     deepStrictEqual(tools.inputsOf("indexCodebase"), [{ root_path: WORKSPACE, languages: INDEXED_LANGUAGES }]);
   });
 
+  it("asks for max_parallelism only when a parallelism is given", async () => {
+    // Arrange
+    const tools = new FakeTools();
+    tools.replies.indexCodebase = INDEX_REPLY;
+
+    // Act
+    await createCodeIndex(tools).index(WORKSPACE, { parallel: 6 });
+    await createCodeIndex(tools).index(WORKSPACE, {});
+
+    // Assert
+    deepStrictEqual(tools.inputsOf("indexCodebase"), [
+      { root_path: WORKSPACE, languages: INDEXED_LANGUAGES, max_parallelism: 6 },
+      { root_path: WORKSPACE, languages: INDEXED_LANGUAGES },
+    ]);
+  });
+
   it("reads a map's entries and symbol total, asking for metrics when told", async () => {
     // Arrange
     const tools = new FakeTools();

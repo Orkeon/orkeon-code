@@ -31,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   models for `/model`, the key in `ANTHROPIC_API_KEY`, no temperature since the current Claude generation refuses one.
   `docs/configuration.md` says where the credits come from (the Console organisation linked to the plan) and that
   signing in with the plan itself is reserved to Anthropic's own applications.
+- **`/analyze --parallel N` sets how many files the indexing parses at once** (Orkeon `index_codebase`
+  `max_parallelism`): a whole number from 1 to 64, the runtime's default (one per processor) when absent. It acts
+  only when the session has no index yet; the index is the same whatever N.
 - **`/resume <number or id>` switches the session in place** (Orkeon #227, delivered by #230): the session of now
   is saved to an archive beside its own file (`<stamp>-archived.json`, named by the clock port), then the chosen
   history file replaces the conversation, the state bag, the id and the title; the next turn continues it. The
