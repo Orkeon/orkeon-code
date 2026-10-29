@@ -153,7 +153,9 @@ which makes it a self-review), `commit.requireConfirm` (`false` lets `/commit` r
 `true`), or `spinnerVerbs`. `/config keys` lists them all. `/model`, `/effort`, `/passes` (an alias of `/review`), `/fast`, `/proactive` and `/output-style` change
 how the next turns run. `/effort` also sets the provider's thinking: the stored level is sent as the act's `effort` by
 `/assistant`, every dev step (`/dev-spec`, `/dev-plan`, `/dev-batches`)
-and the agents these start, and nothing is sent while no level is stored.
+and the agents these start, and nothing is sent while no level is stored. The levels are `low`, `medium`, `high`,
+`xhigh` and `max`: Claude takes the five; a provider whose field does not know a level receives the highest it
+knows below it, and the runtime's log says so.
 
 `permissions.fallback`, `tools.extra`, `memory.autoAdmitAudited` and `dev.prAuto` set in the project file are narrowed by the `orkeonCode` block of the user
 settings (a project `true` over a user `false` or no value is dropped, with a warning): `/config set` writes such a value, then says, under "persisted", that it is ignored and where your own setting

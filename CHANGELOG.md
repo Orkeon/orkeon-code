@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`/effort` takes `xhigh` and `max`**, the two levels Claude knows above `high`: the ladder climbs to 120 and
+  160 act() iterations, and the level is forwarded as such to the provider. Needs the Orkeon commit that widens
+  `effort` (a provider whose field does not know a level receives the highest it knows below it, with a warning
+  in its log).
+
 ### Added
 
 - **A decision model, Jev, in front of the agents of every command, by one session key.** `llm.profile` names a host

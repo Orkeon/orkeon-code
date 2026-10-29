@@ -13,7 +13,7 @@
 // shared/application/agents/child-agent.ts); on a host without background children it runs inline.
 //
 // Input (globalThis.inputs): { batch: "F<n>", plan?: string | null, mode?: "fast" | "full" | "resume", gateOnly?: boolean,
-//                              hooks?: the /hooks registry, effort?: "low" | "medium" | "high" | null,
+//                              hooks?: the /hooks registry, effort?: "low" | "medium" | "high" | "xhigh" | "max" | null,
 //                              concurrency?: number, maxInstances?: number, memoryRecall?: false (a session rule denies it) }
 // Run standalone:  bash scripts/run-crew.sh src/crews/dev-verify/crew.ork.ts --inputs '{"batch":"F1","gateOnly":true}'
 //

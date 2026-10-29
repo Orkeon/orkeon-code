@@ -14,7 +14,7 @@ const session = orkeonSessionIo();
 
 defineCommand({
   name: "effort",
-  description: "Show or set the session reasoning-effort level (low|medium|high).",
+  description: "Show or set the session reasoning-effort level (low|medium|high|xhigh|max).",
   handler: async (args, ctx) => {
     const requested = (rawTokens(args)[0] ?? "").toLowerCase();
     if (!requested) {

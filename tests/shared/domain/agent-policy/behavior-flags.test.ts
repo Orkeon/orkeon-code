@@ -97,15 +97,15 @@ describe("the unconfigured session keeps the pre-B-9 behaviour", () => {
 });
 
 describe("/effort → the act() iteration ladder", () => {
-  it("is monotonic across the three levels", () => {
+  it("is monotonic across the five levels", () => {
     // Arrange
     const levels = EFFORT_LEVELS;
 
     // Act
-    const [low, medium, high] = levels.map((l) => EFFORT_MAX_ITERATIONS[l]);
+    const rungs = levels.map((l) => EFFORT_MAX_ITERATIONS[l]);
 
     // Assert
-    ok(low < medium && medium < high, `${low} < ${medium} < ${high}`);
+    ok(rungs.every((n, i) => i === 0 || rungs[i - 1] < n), rungs.join(" < "));
   });
 
   for (const { level, iterations } of LEVEL_RUNGS) {

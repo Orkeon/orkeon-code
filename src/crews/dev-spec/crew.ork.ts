@@ -11,7 +11,7 @@
 // it runs inline.
 //
 // Input (globalThis.inputs): { code: string, request?: string (the brief, a path to it, or a revision request),
-//                              hooks?: the /hooks registry, effort?: "low" | "medium" | "high" | null,
+//                              hooks?: the /hooks registry, effort?: "low" | "medium" | "high" | "xhigh" | "max" | null,
 //                              memoryRecall?: false (a session rule denies it: the agent gets none),
 //                              concurrency?: number, maxInstances?: number }
 // Run standalone:  orkeon run src/crews/dev-spec/crew.ork.ts --inputs '{"code":"prune","request":"…"}'

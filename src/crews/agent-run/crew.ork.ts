@@ -8,7 +8,7 @@
 // the brief in the charter's mode, under the callbacks of the instance's step, and returns the reply.
 //
 // Input (globalThis.inputs): { charter: "dev-reviewer" | "dev-auditor", system?: string, brief: string,
-//                              effort?: "low" | "medium" | "high" | null, hooks?: the /hooks registry,
+//                              effort?: "low" | "medium" | "high" | "xhigh" | "max" | null, hooks?: the /hooks registry,
 //                              memoryRecall?: false (a session rule denies it), step?: the instance's run step }
 //        (the step: the instance's run's - dev-plan, dev-verify, dev-spec, dev-change -, else the charter's)
 // Budget: repairBudget(step), the step's own, so that a repaired audit or review stops where the original would.

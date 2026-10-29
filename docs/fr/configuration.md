@@ -159,7 +159,9 @@ confirmation ; omis = `true`) ou `spinnerVerbs`. `/config keys` les liste toutes
 `/model`, `/effort`, `/passes` (un alias de `/review`), `/fast`, `/proactive` et `/output-style` changent la façon dont les prochains tours
 s'exécutent. `/effort` règle aussi la réflexion du fournisseur : le niveau enregistré est envoyé comme `effort` de
 l'act par `/assistant`, chaque étape dev (`/dev-spec`, `/dev-plan`,
-`/dev-batches`) et les agents qu'elles lancent, et rien n'est envoyé tant qu'aucun niveau n'est enregistré.
+`/dev-batches`) et les agents qu'elles lancent, et rien n'est envoyé tant qu'aucun niveau n'est enregistré. Les
+niveaux sont `low`, `medium`, `high`, `xhigh` et `max` : Claude prend les cinq ; un fournisseur dont le champ ne
+connaît pas un niveau reçoit le plus haut qu'il connaît en dessous, et le journal du runtime le dit.
 
 `permissions.fallback`, `tools.extra`, `memory.autoAdmitAudited` et `dev.prAuto` réglés dans le fichier du projet sont restreints par le bloc `orkeonCode` des
 réglages de l'utilisateur (un `true` du projet sur un `false` ou une absence chez l'utilisateur est écarté, avec un avertissement) : `/config set` écrit une telle valeur, puis dit, sous "persisted", qu'elle est ignorée et

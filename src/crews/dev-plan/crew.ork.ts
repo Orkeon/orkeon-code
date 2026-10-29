@@ -9,7 +9,7 @@
 // (A-3, shared/application/agents/child-agent.ts); on a host without background children it runs inline.
 //
 // Input (globalThis.inputs): { source: string | null, replace?: boolean, hooks?: the /hooks registry,
-//                              effort?: "low" | "medium" | "high" | null, concurrency?: number, maxInstances?: number }
+//                              effort?: "low" | "medium" | "high" | "xhigh" | "max" | null, concurrency?: number, maxInstances?: number }
 // Run standalone:  bash scripts/run-crew.sh src/crews/dev-plan/crew.ork.ts --inputs '{"source":"prune"}'
 //
 // Budget: up to 59 index and batch_anchors calls by code, at most 40 folder listings for the anchors (one per folder for the run,
