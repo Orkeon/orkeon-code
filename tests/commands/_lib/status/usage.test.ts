@@ -5,7 +5,7 @@ import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { NO_USAGE_SERVICE, usageBreakdown } from "../../../../src/commands/_lib/status/usage.ts";
 import { EMPTY_USAGE_REPORT, USAGE_REPORT } from "../../../support/fixtures/usage-report.ts";
-import { REPORT_BREAKDOWN, usageHarness } from "./usage.fixtures.ts";
+import { CACHE_RATIO_CASES, REPORT_BREAKDOWN, usageHarness } from "./usage.fixtures.ts";
 
 describe("usageBreakdown", () => {
   it("lists the models, then the commands newest first, then the lower-bound note", () => {
@@ -57,6 +57,7 @@ describe("runUsage", () => {
     deepStrictEqual(view.table, [{
       usedTokens: 32_000, contextWindow: 128_000, percentLeft: "75%", pressure: "ok", autocompactAt: "91424",
       messages: 4, llmCalls: 3, llmTokens: 9000, costUsd: 0.02, cacheRead: 700, cacheWrite: 50,
+      estTokens: 0, cacheRatio: "0.08",
     }]);
   });
 
@@ -74,6 +75,7 @@ describe("runUsage", () => {
       [{
         usedTokens: 0, contextWindow: "(default 128000)", percentLeft: "100%", pressure: "ok", autocompactAt: "91424",
         messages: 0, llmCalls: 2, llmTokens: 3400, costUsd: 0.01, unpricedCalls: 1, cacheRead: "-", cacheWrite: "-",
+        estTokens: 0, cacheRatio: "-",
       }, REPORT_BREAKDOWN],
     );
   });
@@ -101,6 +103,32 @@ describe("runUsage", () => {
     // Assert
     strictEqual((view.table?.[0] as { autocompactAt: unknown }).autocompactAt, "50000 (compaction.trigger)");
   });
+
+  it("shows the telemetry's estimated tokens", async () => {
+    // Arrange
+    const h = usageHarness();
+    h.telemetry.stats = { estimatedTokens: 1234 };
+
+    // Act
+    const view = await h.run();
+
+    // Assert
+    strictEqual((view.table?.[0] as { estTokens: unknown }).estTokens, 1234);
+  });
+
+  for (const c of CACHE_RATIO_CASES) {
+    it(c.name, async () => {
+      // Arrange
+      const h = usageHarness();
+      h.telemetry.stats = c.stats;
+
+      // Act
+      const view = await h.run();
+
+      // Assert
+      strictEqual((view.table?.[0] as { cacheRatio: unknown }).cacheRatio, c.ratio);
+    });
+  }
 
   it("degrades the row when a read fails", async () => {
     // Arrange

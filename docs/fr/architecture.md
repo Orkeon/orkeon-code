@@ -120,7 +120,7 @@ src/
 │   ├── _lib/          the use cases, in the folder of their commands: run<Name>(tokens, deps) → CommandView,
 │   │                  or dispatch<Name>(tokens, deps) → a ticket or a message when the command launches a
 │   │                  crew, and their pure helpers. dev/ (dev, dev-batches, dev-implement, dev-source),
-│   │                  git/ (branch, commit, diff), memory/ (memory, memory-admit), session/ (export,
+│   │                  git/ (branch, commit, diff, review), memory/ (memory, memory-admit), session/ (export,
 │   │                  resume, tasks), settings/ (advisor, agents, config, hooks, mode, model, permissions,
 │   │                  session-config: the toggle commands, skills), speech/ (say, transcribe, voice),
 │   │                  status/ (cache, doctor, meta: version and release notes, status). At the root, what

@@ -6,6 +6,7 @@ import { deepStrictEqual } from "node:assert";
 
 import { admitTokens, runMemory } from "../../../../src/commands/_lib/memory/memory.ts";
 import { ADMIT_TOKEN_CASES, FEEDBACK_RECORDED, FEEDBACK_USAGE, memoryWith, PREFERS_TABS, USES_PNPM } from "./memory.fixtures.ts";
+import { assertFeedbackAnswered } from "./memory.assertions.ts";
 
 describe("/memory list", () => {
   it("tables every entry (the default sub-command)", async () => {
@@ -143,8 +144,7 @@ describe("/feedback — runMemory typed by its alias", () => {
     const view = await runMemory(["keep", "answers", "short"], { memory }, "feedback");
 
     // Assert
-    deepStrictEqual(view, { text: FEEDBACK_RECORDED });
-    deepStrictEqual(memory.records, [{ id: 1, category: "feedback", content: "keep answers short" }]);
+    assertFeedbackAnswered(view, memory.records, FEEDBACK_RECORDED, [{ id: 1, category: "feedback", content: "keep answers short" }]);
   });
 
   it("gives its usage line and adds nothing when the text is empty", async () => {
@@ -155,8 +155,7 @@ describe("/feedback — runMemory typed by its alias", () => {
     const view = await runMemory([], { memory }, "feedback");
 
     // Assert
-    deepStrictEqual(view, { text: FEEDBACK_USAGE });
-    deepStrictEqual(memory.records, []);
+    assertFeedbackAnswered(view, memory.records, FEEDBACK_USAGE, []);
   });
 });
 

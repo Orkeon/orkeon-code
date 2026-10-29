@@ -1,6 +1,6 @@
 /// <reference path="../.orkeon/orkeon-cli.d.ts" />
 // /usage — token usage against the context window with its pressure tier and the automatic
-// compaction's trigger, then the session's calls, tokens, cost and the prompt-cache tokens, and
+// compaction's trigger, then the session's calls, tokens, cost, estimated tokens, the prompt-cache tokens and their ratio, and
 // the usage by model and by command the host accounts (Orkeon #226). /extra-usage, which showed the
 // second half apart, is its alias, as are /stats and /cost, whose rows it shows whole. Entry point: wires the session, the telemetry, the settings and
 // the host's usage service into _lib/status/usage.ts (runUsage).

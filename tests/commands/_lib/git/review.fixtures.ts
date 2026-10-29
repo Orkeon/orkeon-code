@@ -34,6 +34,11 @@ export const ROUTE_CASES: readonly Case[] = [
     typed: "review", tokens: ["--fast"], expected: { route: "refused", text: "review: unknown option '--fast' (--files, --commit, --lens, --passes)" },
   },
   { name: "refuses an option left without its value", typed: "review", tokens: ["--commit"], expected: { route: "refused", text: "review: --commit takes a value" } },
+  { name: "unquotes a quoted --commit value", typed: "review", tokens: ["--commit", '"abc123"'], expected: review({ commit: "abc123" }) },
+  {
+    name: "keeps a quoted path with a space as one file",
+    typed: "review", tokens: ['"docs/my', 'notes.md"', "src/a.ts"], expected: review({ files: ["docs/my notes.md", "src/a.ts"] }),
+  },
 ];
 
 export const SHOW_DEFAULT = "reasoning passes: 1 (default)\n/review runs that many lens rounds.\n" +

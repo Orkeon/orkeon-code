@@ -8,6 +8,7 @@ import { invalidPassesText, parseReviewArgs, runPasses } from "../../../../src/c
 import { PASSES_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
 import { FakeSessionStore } from "../../../support/doubles/fake-session-store.ts";
 import { ROUTE_CASES, SET_THREE, SHOW_DEFAULT } from "./review.fixtures.ts";
+import { assertPassesAnswered } from "./review.assertions.ts";
 
 describe("parseReviewArgs", () => {
   for (const c of ROUTE_CASES) {
@@ -56,8 +57,7 @@ describe("/passes — runPasses", () => {
     const view = await runPasses("3", { session });
 
     // Assert
-    deepStrictEqual(view, { text: SET_THREE });
-    strictEqual(session.state.get(PASSES_STATE_KEY), "3");
+    assertPassesAnswered(view, session.state.get(PASSES_STATE_KEY), SET_THREE, "3");
   });
 
   it("refuses a count out of 1-5 and keeps the session's", async () => {
@@ -68,7 +68,6 @@ describe("/passes — runPasses", () => {
     const view = await runPasses("0", { session });
 
     // Assert
-    deepStrictEqual(view, { text: invalidPassesText("0") });
-    strictEqual(session.state.has(PASSES_STATE_KEY), false);
+    assertPassesAnswered(view, session.state.get(PASSES_STATE_KEY), invalidPassesText("0"), undefined);
   });
 });

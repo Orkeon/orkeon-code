@@ -81,10 +81,16 @@ from the line, the routing in its use case under `src/commands/_lib/<group>/`):
 - `/feedback` into `/memory`: a `feedback` memory, as before;
 - `/memory-admit` into `/memory admit`: the list, a refusal and the import answered by the command, an admission
   written by the crew `shared-memory-admit`;
-- `/stats` and `/cost` into `/usage`, which already shows what they showed.
+- `/stats` and `/cost` into `/usage`, which shows their rows whole: its one row gains the estimated tokens and the
+  cache ratio only `/stats` had.
 
 The reason is the one of part 2: each was a duplicate of an option or a sub-verb of another command, one more name to
 learn for nothing the other did not do. The seven names stay as aliases, so a line typed under one keeps working.
+
+An alias shares its command's quota. `/review` and `/memory` keep `maxConcurrent: 1`, the only serialisation of two
+reviews or two admissions (the admit crew holds no lock). The cost is accepted: a line typed `/passes [n]` or
+`/security-review` is refused while a review runs (`quota of 1 instance(s) of 'review' reached`), and
+`/memory list|add|get|delete` or `/feedback` while an admission's crew runs, an instant (it writes a few files).
 
 Left as they are: `/context` (the window by kind, not the session's account), `/init-verifiers`, `/transcribe`,
 `/release-notes`, and the thin git and file accesses (`/diff`, `/branch`, `/files`), each the one

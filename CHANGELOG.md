@@ -383,16 +383,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rounds, the crew input outranking the session's count as `--lens` outranks `review.lenses`; a line typed
   `/security-review` is the review narrowed to the security lens whatever `--lens` says, and `/passes [n]` shows or
   sets the session's count without starting a review. The parsing and the two messages live in
-  `commands/_lib/git/review.ts`, tested there ([ADR 0011](docs/adr/0011-dev-gates-and-surface.md), round 2).
+  `commands/_lib/git/review.ts`, tested there ([ADR 0011](docs/adr/0011-dev-gates-and-surface.md), round 2). A quoted
+  value is unquoted (`--commit "abc123"` reads `abc123`, a quoted path with a space stays one file). The three names
+  share the command's quota of one instance, the only thing that keeps two reviews apart: a line typed `/passes [n]`
+  or `/security-review` while a review runs is refused (`quota of 1 instance(s) of 'review' reached`).
 - **`/mode` takes the alias `/plan`**: a line typed `/plan` toggles plan mode as before (leaving it returns to
   `default`), with the same messages and log lines, routed by `runMode` in `commands/_lib/settings/mode.ts`.
 - **`/memory` takes the sub-verb `admit` and the aliases `/feedback` and `/memory-admit`**: `/memory admit [<id>…] |
   --refuse <id> [motif] | --list | --import` decides the shared memory's candidates (the list, a refusal and the
   import answered at once, an admission confirmed then written by the crew `shared-memory-admit`), and `/memory` is
   now an async command; `/feedback <text>` adds a `feedback` memory with today's reply, `/memory-admit …` is the
-  admit sub-verb.
+  admit sub-verb. The command keeps its quota of one instance, the only serialisation of two admissions (the admit
+  crew holds no lock): `/memory list|add|get|delete` or `/feedback` is refused while an admission's crew runs, an
+  instant, the time it writes a few files.
 - **`/usage` takes the aliases `/stats` and `/cost`**: it already shows the calls, tokens, cost, cache tokens and the
-  usage by model and by command those two showed apart.
+  usage by model and by command those two showed apart, and its row gains the two columns only `/stats` had:
+  `estTokens` (the session's estimated tokens) and `cacheRatio` (the tokens read from the cache over the session's
+  tokens, to two decimals, `-` with no cache or no token), so it shows their rows whole.
 - **`/dev-change` folds into `/dev-spec`**: one command writes the spec or the change brief. `/dev-spec <code>
   bug|refactor|perf` writes a change brief, and a request the model routes as a feature goes on as a spec in the same
   call. `/dev-change` stays as an alias of `/dev-spec` for one release.

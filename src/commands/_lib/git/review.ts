@@ -8,6 +8,7 @@
 import type { SessionStore } from "../../../shared/application/ports.ts";
 import { MAX_PASSES, MIN_PASSES } from "../../../shared/domain/agent-policy/behavior-flags.ts";
 import { PASSES_STATE_KEY } from "../../../shared/domain/session-keys.ts";
+import { commandLine, splitWords } from "../args.ts";
 import type { CommandView } from "../view.ts";
 
 export const REVIEW_LENSES: readonly string[] = ["correctness", "security", "style"];
@@ -42,8 +43,10 @@ function option(token: string): { name: string; value: string | null } {
   return at < 0 ? { name: token, value: null } : { name: token.slice(0, at), value: token.slice(at + 1) };
 }
 
-/** The line of /review, or of the alias it was typed by (`security-review`, `passes`). */
-export function parseReviewArgs(tokens: readonly string[], typed: string): ReviewRoute {
+/** The line of /review, or of the alias it was typed by (`security-review`, `passes`). The REPL keeps the quotes in
+ *  the raw tokens: the line is split again, so `--commit "abc123"` reads `abc123` and a quoted path stays one file. */
+export function parseReviewArgs(raw: readonly string[], typed: string): ReviewRoute {
+  const tokens = splitWords(commandLine(raw)).map((w) => w.text);
   if (typed === "passes") return { route: "passes", token: (tokens[0] ?? "").trim() };
   const files: string[] = [];
   let commit = "";
