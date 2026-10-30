@@ -1,6 +1,7 @@
-// /usage — the token usage against the context window (pressure tier, compaction trigger), the
-// session's calls, tokens, cost, estimated tokens, cache tokens and cache ratio in one row, then the usage by model and by
-// command the host accounts (Orkeon #226). runUsage reads the rows over the ports. Lives under
+// /usage — the token usage against the context window (pressure tier, compaction trigger) and the conversation's
+// estimated tokens, then the session's calls, the tokens sent and received as the providers counted them, their total,
+// the cost, the cache tokens and the cache ratio, in one row; then a legend and the usage by model and by command the
+// host accounts (Orkeon #226). runUsage reads the rows over the ports. Lives under
 // commands/_lib/ — the loader's SearchPattern is "*.cmd.ts", so this file is never loaded as a command.
 
 import type {
@@ -63,10 +64,17 @@ export function usageBreakdown(report: UsageReport | undefined): string {
   return lines.join("\n");
 }
 
-/** The share of the session's tokens read from the cache, to two decimals; `-` when the host reports no cache or no
- *  token. */
-export function cacheRatio(cacheRead: number | "-", tokens: number): string {
-  return cacheRead !== "-" && tokens > 0 ? (cacheRead / tokens).toFixed(2) : "-";
+/** What the row's columns count, and which are estimates: the closing text opens with it. */
+export const USAGE_LEGEND = [
+  "usedTokens, estTokens: the conversation's size in the context window, estimated by the host.",
+  "llm*: counted by the providers over every call: llmInTokens sent, llmOutTokens received (llmReasoningTokens a part of",
+  "them), llmTokens = in + out. cacheRead and cacheWrite are parts of llmInTokens; cacheRatio = cacheRead / llmInTokens.",
+].join("\n");
+
+/** The share of the prompt tokens read from the cache, to two decimals; `-` when the host reports no cache or no
+ *  prompt token. */
+export function cacheRatio(cacheRead: number | "-", promptTokens: number | "-"): string {
+  return cacheRead !== "-" && promptTokens !== "-" && promptTokens > 0 ? (cacheRead / promptTokens).toFixed(2) : "-";
 }
 
 /** `/usage`: the one row, each figure read best effort, then the breakdown. */
@@ -79,6 +87,7 @@ export async function runUsage(deps: UsageDeps): Promise<CommandView> {
   ]);
   const report = deps.usage?.report();
   const cache = cacheColumns(s);
+  const promptTokens = report?.promptTokens ?? s.promptTokens ?? "-";
   return {
     table: [{
       usedTokens: used,
@@ -87,14 +96,17 @@ export async function runUsage(deps: UsageDeps): Promise<CommandView> {
       pressure: pressureTier(used, window),
       autocompactAt: computeTrigger(window, trigger) + (trigger ? " (compaction.trigger)" : ""),
       messages: s.messageCount ?? 0,
+      estTokens: s.estimatedTokens ?? 0,
       llmCalls: report?.calls ?? s.totalCalls ?? 0,
+      llmInTokens: promptTokens,
+      llmOutTokens: report?.completionTokens ?? s.completionTokens ?? "-",
+      llmReasoningTokens: report?.reasoningTokens ?? "-",
       llmTokens: report?.totalTokens ?? s.totalTokens ?? 0,
       costUsd: report ? (report.cost ?? "(unpriced)") : (c.costUsd ?? 0),
       ...(report ? { unpricedCalls: report.unpricedCalls } : {}),
       ...cache,
-      estTokens: s.estimatedTokens ?? 0,
-      cacheRatio: cacheRatio(cache.cacheRead, s.totalTokens ?? 0),
+      cacheRatio: cacheRatio(cache.cacheRead, promptTokens),
     }],
-    text: usageBreakdown(report),
+    text: `${USAGE_LEGEND}\n${usageBreakdown(report)}`,
   };
 }

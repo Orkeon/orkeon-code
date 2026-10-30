@@ -15,6 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`/usage` tells the tokens sent from the tokens received, and the counted from the estimated.** The row gains
+  `llmInTokens`, `llmOutTokens` and `llmReasoningTokens` beside the total `llmTokens` (from the host's account, else
+  summed over the models of `session_stats`, `-` when nobody counts them), and a legend opens the closing text:
+  `usedTokens` and `estTokens` are estimates of the conversation's size, the `llm*` columns the providers' counts.
+  `cacheRatio` is now the cache read over the prompt tokens, no longer over the prompt and completion together.
+  The configuration guide and the Anthropic example no longer claim the prompt cache is requested: Orkeon Code
+  marks nothing with `cache_control` yet, so Anthropic caches nothing.
 - **`/effort` takes `xhigh` and `max`**, the two levels Claude knows above `high`: the ladder climbs to 120 and
   160 act() iterations, and the level is forwarded as such to the provider. Needs the Orkeon commit that widens
   `effort` (a provider whose field does not know a level receives the highest it knows below it, with a warning
