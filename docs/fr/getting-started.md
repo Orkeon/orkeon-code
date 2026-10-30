@@ -145,10 +145,13 @@ appartiennent. L'outil shell tourne dans le conteneur.
 solution Orkeon restaurée une fois (`dotnet restore Orkeon.sln` dans le checkout), et esbuild : `npm ci` une fois dans
 ce checkout, ou `ORKEON_ESBUILD_PATH`.
 
-Le checkout devrait être au commit de `.orkeon-version` (`git -C ~/src/orkeon checkout $(cat .orkeon-version)`),
-celui contre lequel les commandes ont été vérifiées : à un autre commit, le lanceur avertit (`orkeon-code: warning:
-ORKEON_SOURCE is at <sha7>, the pin of .orkeon-version is e55edef: the commands were checked against the pin.`) et
-lance quand même.
+Le checkout devrait être au commit de `.orkeon-version`, celui contre lequel les commandes ont été vérifiées. Le
+lanceur l'y amène lui-même quand rien de vous n'est en jeu : aucun fichier suivi modifié, sur `main` ou détaché, et en
+retard sur le pin (récupéré depuis `origin main` s'il manque). Il dit alors `orkeon-code: ORKEON_SOURCE moved from
+<sha7> to the pin e55edef.` et le build restaure la solution. Sinon (une branche à vous, du travail non commité, des
+commits en avance sur le pin, ou `ORKEON_SOURCE_FOLLOW_PIN=0`), il laisse le checkout tel quel, avertit
+(`orkeon-code: warning: ORKEON_SOURCE is at <sha7>, the pin of .orkeon-version is e55edef: the commands were checked
+against the pin.`) et lance quand même.
 
 ## 4. Première session
 

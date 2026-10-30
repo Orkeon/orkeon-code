@@ -144,9 +144,12 @@ runs inside the container.
 whose `global.json` pins another SDK still works. It needs the .NET 10 SDK, the Orkeon solution restored once
 (`dotnet restore Orkeon.sln` in the checkout), and esbuild: `npm ci` once in this checkout, or `ORKEON_ESBUILD_PATH`.
 
-The checkout should sit at the commit of `.orkeon-version` (`git -C ~/src/orkeon checkout $(cat .orkeon-version)`),
-the one the commands were checked against: at another commit the launcher warns (`orkeon-code: warning: ORKEON_SOURCE
-is at <sha7>, the pin of .orkeon-version is e55edef: the commands were checked against the pin.`) and runs anyway.
+The checkout should sit at the commit of `.orkeon-version`, the one the commands were checked against. The launcher
+moves it there itself when nothing of yours is in the way: no tracked file changed, on `main` or detached, and behind
+the pin (fetched from `origin main` when missing). It then says `orkeon-code: ORKEON_SOURCE moved from <sha7> to the pin
+e55edef.` and the build restores the solution. Otherwise (a branch of your own, uncommitted work, commits ahead of the
+pin, or `ORKEON_SOURCE_FOLLOW_PIN=0`) it leaves the checkout alone, warns (`orkeon-code: warning: ORKEON_SOURCE is at
+<sha7>, the pin of .orkeon-version is e55edef: the commands were checked against the pin.`) and runs anyway.
 
 ## 4. First session
 

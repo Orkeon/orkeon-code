@@ -80,9 +80,49 @@ export function orkeonCheckoutAtAnotherCommit(): string {
   return source;
 }
 
+/** An Orkeon checkout one commit behind its pin, as `checkout`'s `.orkeon-version` names it (`files` of a launch);
+ *  `branch` is the branch it is on (main by default, "" detached), `dirty` leaves a tracked file changed. */
+export function orkeonCheckoutBehindThePin(opts: { branch?: string; dirty?: boolean } = {}) {
+  const source = orkeonCheckout();
+  const git = (...args: string[]) =>
+    spawnSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "-C", source, ...args], { encoding: "utf-8" }).stdout.trim();
+  git("init", "-q", "-b", "main");
+  writeFileSync(join(source, "tracked.txt"), "one\n");
+  git("add", "tracked.txt");
+  git("commit", "-q", "-m", "behind the pin");
+  const head = git("rev-parse", "HEAD");
+  git("commit", "-q", "--allow-empty", "-m", "the pin");
+  const pin = git("rev-parse", "HEAD");
+  git("reset", "-q", "--hard", head);
+  const branch = opts.branch ?? "main";
+  if (branch === "") git("checkout", "-q", "--detach");
+  else if (branch !== "main") git("checkout", "-q", "-b", branch);
+  if (opts.dirty) writeFileSync(join(source, "tracked.txt"), "changed\n");
+  return { source, head, pin, files: { "checkout/.orkeon-version": `${pin}\n` }, at: () => git("rev-parse", "HEAD") };
+}
+
+/** The checkouts behind the pin that source mode moves to it. */
+export const FOLLOWED_CHECKOUTS = [
+  { name: "on main", branch: "main" },
+  { name: "detached", branch: "" },
+];
+
+/** The checkouts behind the pin that source mode leaves where they are, with the warning. */
+export const KEPT_CHECKOUTS: { name: string; branch: string; dirty: boolean; env: Record<string, string> }[] = [
+  { name: "on a branch of its own", branch: "feature/x", dirty: false, env: {} },
+  { name: "with a tracked file changed", branch: "main", dirty: true, env: {} },
+  { name: "under ORKEON_SOURCE_FOLLOW_PIN=0", branch: "main", dirty: false, env: { ORKEON_SOURCE_FOLLOW_PIN: "0" } },
+];
+
 /** What source mode runs, in order: the build in the Orkeon checkout, then the assembly from the project. */
 export const sourceModeCalls = (source: string, r: Run) => [
   `${source} build src/apps/Orkeon.ConsoleApp -c Debug --no-restore -nologo -v quiet`,
+  `${r.project} ${join(source, CONSOLE_APP_DLL)} ${r.args.slice(1).join(" ")}`,
+];
+
+/** What source mode runs after it moved the checkout to the pin: the build restores it first. */
+export const sourceModeCallsRestoring = (source: string, r: Run) => [
+  `${source} build src/apps/Orkeon.ConsoleApp -c Debug -nologo -v quiet`,
   `${r.project} ${join(source, CONSOLE_APP_DLL)} ${r.args.slice(1).join(" ")}`,
 ];
 

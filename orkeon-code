@@ -82,6 +82,24 @@ CODE_HOME="${ORKEON_CODE_HOME:-$HOME/.orkeon-code}"
 
 die() { echo "orkeon-code: $*" >&2; exit 1; }
 warn() { echo "orkeon-code: warning: $*" >&2; }
+
+# Moves the Orkeon checkout of ORKEON_SOURCE from <head> to the pin, when nothing of the user's is in the way: no
+# change to a tracked file, on main or detached, <head> an ancestor of the pin (fetched from origin's main when
+# missing). Fails, moving nothing, otherwise or with ORKEON_SOURCE_FOLLOW_PIN=0.
+follow_pin() { # <head>
+  local branch
+  [ "${ORKEON_SOURCE_FOLLOW_PIN:-1}" != 0 ] || return 1
+  [ -z "$(git -C "$ORKEON_SOURCE" status --porcelain --untracked-files=no --ignore-submodules=all 2>/dev/null)" ] || return 1
+  branch="$(git -C "$ORKEON_SOURCE" symbolic-ref -q --short HEAD || true)"
+  case "$branch" in ""|main) ;; *) return 1 ;; esac
+  git -C "$ORKEON_SOURCE" cat-file -e "$ORKEON_REF^{commit}" 2>/dev/null \
+    || git -C "$ORKEON_SOURCE" fetch -q origin main 2>/dev/null || return 1
+  git -C "$ORKEON_SOURCE" merge-base --is-ancestor "$1" "$ORKEON_REF" 2>/dev/null || return 1
+  if [ -n "$branch" ]; then git -C "$ORKEON_SOURCE" merge -q --ff-only "$ORKEON_REF" >/dev/null 2>&1 || return 1
+  else git -C "$ORKEON_SOURCE" checkout -q --detach "$ORKEON_REF" 2>/dev/null || return 1
+  fi
+  echo "orkeon-code: ORKEON_SOURCE moved from ${1:0:7} to the pin $ORKEON_PIN." >&2
+}
 lowered() { printf '%s' "$1" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | tr '[:upper:]' '[:lower:]'; }
 
 # The Orkeon found, said without starting anything: the REPL has no --version flag, and docker pulls nothing.
@@ -806,15 +824,19 @@ case "$MODE" in
       [ -n "${ORKEON_SOURCE:-}" ] && [ -d "$ORKEON_SOURCE/src/apps/Orkeon.ConsoleApp" ] \
         || die "ORKEON_SOURCE must name an Orkeon checkout (src/apps/Orkeon.ConsoleApp not found)."
       ORKEON_SOURCE="$(cd "$ORKEON_SOURCE" && pwd)"
-      # The checkout should sit at the pin: another commit runs, with a warning, never a refusal.
+      # The checkout should sit at the pin: one behind it is moved there (follow_pin), another commit runs, with a
+      # warning, never a refusal.
+      restore=--no-restore
       if head="$(git -C "$ORKEON_SOURCE" rev-parse HEAD 2>/dev/null)" && [ "$head" != "$ORKEON_REF" ]; then
-        warn "ORKEON_SOURCE is at ${head:0:7}, the pin of .orkeon-version is $ORKEON_PIN: the commands were checked against the pin."
+        if follow_pin "$head"; then restore=""
+        else warn "ORKEON_SOURCE is at ${head:0:7}, the pin of .orkeon-version is $ORKEON_PIN: the commands were checked against the pin."
+        fi
       fi
       # The SDK runs in the Orkeon checkout, under its global.json, never in the
       # project, whose global.json may pin another SDK ("A compatible .NET SDK was
       # not found"). The REPL then starts as the built assembly: `dotnet <dll>`
-      # is a host command, which reads no global.json.
-      (cd "$ORKEON_SOURCE" && dotnet build src/apps/Orkeon.ConsoleApp -c Debug --no-restore -nologo -v quiet) >&2 \
+      # is a host command, which reads no global.json. A checkout just moved is restored by its build.
+      (cd "$ORKEON_SOURCE" && dotnet build src/apps/Orkeon.ConsoleApp -c Debug ${restore:+"$restore"} -nologo -v quiet) >&2 \
         || die "building src/apps/Orkeon.ConsoleApp in $ORKEON_SOURCE failed (restore it once: dotnet restore Orkeon.sln)."
       dll="$ORKEON_SOURCE/src/apps/Orkeon.ConsoleApp/bin/Debug/net10.0/Orkeon.ConsoleApp.dll"
       [ -f "$dll" ] || die "$dll not found after the build."
