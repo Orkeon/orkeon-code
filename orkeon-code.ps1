@@ -706,7 +706,7 @@ try {
     }
   }
 
-  Write-Host "orkeon-code on Orkeon $OrkeonPin ($Mode)"
+  Write-Host "orkeon-code on Orkeon ($Mode`: a release, the pin is $OrkeonPin)"
   Write-Host "  project  : $Workspace -> /workspace"
   if ($runtimeOwn) { Write-Host "  settings : $Settings (Orkeon's own, read by the REPL)" } else { Write-Host "  settings : $Settings" }
   Write-Host "  sessions : $sessionsMount ($sessionNote)"

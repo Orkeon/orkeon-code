@@ -12,8 +12,8 @@ export const load = (name: string): any => JSON.parse(readFileSync(new URL(name,
 
 /** The examples the documentation promises. */
 export const PROMISED_EXAMPLES: readonly string[] = [
-  "appsettings.example.json", "appsettings.ollama.example.json", "appsettings.ollama-whisper.example.json",
-  "appsettings.jev.example.json",
+  "appsettings.example.json", "appsettings.anthropic.example.json", "appsettings.ollama.example.json",
+  "appsettings.ollama-whisper.example.json", "appsettings.jev.example.json",
 ];
 
 /** The settings but for their comment, their Llm:Profiles and the two sections of the decision model. */

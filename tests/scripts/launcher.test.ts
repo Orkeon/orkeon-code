@@ -14,15 +14,15 @@
 import { after, describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import {
   ARCHIVE_VERSION, BASH_GATE, BLOCK, CODE_VERSION, CORRUPT_STORES, DEB_WRAPPER, DOTNET, CONSOLE_APP_DLL, ESBUILD, EXAMPLE_SETTINGS,
   EXAMPLE_SETTINGS_FILES, GATE, KEEP_OUT_OF_RANGE, NO_FILE_SETTINGS, NOT_AT_THE_PIN, OLLAMA_AND_EXISTING, PERSIST, PINNED_SDK, PROJECT_NAMES, PS1_ARGS_LOOP,
   PS1_CLONE_OR_INSTALL, PS1_DOCKER_TTY, PS1_FROM_PROJECT, PS1_GATE, PS1_MODES, PS1_SESSION_MOUNTS, PS1_SESSIONS, PS1_SET_VARIABLES,
   PS1_SETTINGS, PS1_SLUG, PS1_SPEECH, PS1_STORE_LAYOUT, PS1_SUBCOMMANDS, PS1_TRUST_CHECK, PS1_TRUST_REFUSAL, PS1_USER_SETTINGS,
-  PS1_VERSION_LINES, PTY, PWSH, RESTORED_IN_FINALLY, RESTORED_NAMES, ROOTS, RUNTIME_SETTINGS, RUNTIME_SLUGS, RUNTIME_PIN,
+  PS1_VERSION_LINES, PTY, PWSH, RESTORED_IN_FINALLY, RESTORED_NAMES, ROOTS, RUNTIME_SETTINGS, RUNTIME_SLUGS, RUNTIME_PIN, RUNTIME_REF,
   SERVER_CASES, SERVER_LEFT_OUT, SESSIONS_DIR, SETTINGS_TEXT, SETTINGS_WITH_BLOCK, SLUG_PATHS, SPEECH_TOOL, START_SCRIPT, TOOL_REPL,
-  TOOL_START, USER_SETTINGS, WHISPER, audioEnv, bashOf, ciStarts, corruptHome, crewSource, fullHistory, launch, launchWithNode, orkeonCheckoutAtAnotherCommit,
+  TOOL_START, USER_SETTINGS, WHISPER, audioEnv, bashOf, ciStarts, corruptHome, crewSource, fullHistory, gitAt, launch, launchWithNode, orkeonCheckoutAtAnotherCommit,
   leftBeside, linkedFolder, modeStart, mostWhisperArgs, mountOf, mountRoots, namedProjectStart, nestedTrust, orkeonCheckout,
   pwshOf, read, recorder, removeScratch, runCrew, runPs1ThenPrint, scratchDir, scratchFolder, serverArgs, serverOf,
   sessionScene, slugOf, sourceModeCalls, staleLock, startAgain, storeOf, storedFolders, tokenVarsForwarded, toolModeArgs, trustCli, trustOf, twoSessions,
@@ -160,9 +160,44 @@ describe("orkeon-code, tool and source modes on Orkeon rc.6", () => {
     deepStrictEqual(s.calls, sourceModeCalls(source, s));
   });
 
-  it("source mode says nothing of the pin when the checkout is not a git repository", () => {
+  it("source mode says nothing of the pin when the checkout is at it", () => {
+    // Arrange
+    const start = { args: ["--mode", "source"], bin: { dotnet: DOTNET, git: gitAt(RUNTIME_REF) }, env: { ...ESBUILD, ORKEON_SOURCE: orkeonCheckout() } };
+
+    // Act
+    const s = launch(start);
+
+    // Assert
+    ok(s.status === 0 && !s.stderr.includes("the pin of .orkeon-version"), s.stderr);
+  });
+
+  it("names the pin as what source mode runs, in its banner", () => {
     // Arrange
     const start = { args: ["--mode", "source"], bin: { dotnet: DOTNET }, env: { ...ESBUILD, ORKEON_SOURCE: orkeonCheckout() } };
+
+    // Act
+    const s = launch(start);
+
+    // Assert
+    ok(s.stdout.includes(`orkeon-code ${CODE_VERSION} on Orkeon ${RUNTIME_PIN} (source)`), s.stdout);
+  });
+
+  it("says tool mode runs a release, the pin beside it, in its banner", () => {
+    // Arrange
+    const start = { args: ["--mode", "tool"], bin: { "orkeon-repl": recorder() }, env: ESBUILD };
+
+    // Act
+    const r = launch(start);
+
+    // Assert
+    ok(r.stdout.includes(`orkeon-code ${CODE_VERSION} on Orkeon (tool: a release, the pin is ${RUNTIME_PIN})`), r.stdout);
+  });
+
+  it("source mode says nothing of the pin when the checkout is not a git repository", () => {
+    // Arrange
+    const source = orkeonCheckout();
+    // The scratch folder may sit under a repository of the machine: git looks no higher than its parent.
+    const start = { args: ["--mode", "source"], bin: { dotnet: DOTNET }, env: { ...ESBUILD, ORKEON_SOURCE: source, GIT_CEILING_DIRECTORIES: dirname(source) } };
 
     // Act
     const s = launch(start);

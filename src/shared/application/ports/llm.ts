@@ -24,8 +24,9 @@ export interface ActRequest extends ModelOverride {
   maxIterations?: number;
   /** The mode the host's permission gate applies to each tool call. */
   permissionMode?: string;
-  /** The provider's thinking at this level (`act({effort})`); none when absent. */
-  effort?: "low" | "medium" | "high";
+  /** The provider's thinking at this level (`act({effort})`); none when absent. A provider whose field does
+   *  not know the level receives the highest it knows below it, with a warning in the runtime's log. */
+  effort?: "low" | "medium" | "high" | "xhigh" | "max";
   /** The agent's tools offered for this call (a role's subset); all of them when absent. */
   tools?: readonly string[];
 }

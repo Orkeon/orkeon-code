@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`/effort` takes `xhigh` and `max`**, the two levels Claude knows above `high`: the ladder climbs to 120 and
+  160 act() iterations, and the level is forwarded as such to the provider. Needs the Orkeon commit that widens
+  `effort` (a provider whose field does not know a level receives the highest it knows below it, with a warning
+  in its log).
+
 ### Added
 
 - **A decision model, Jev, in front of the agents of every command, by one session key.** `llm.profile` names a host
@@ -19,6 +26,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cannot be read, is warned about and the launch goes on without it; a name the host does not declare fails the
   crew's load, listing the profiles it knows. `config/appsettings.jev.example.json` is the example: `Orkeon:TypeSafe`
   (the key in `TYPESAFE_API_KEY`), the profiles `small` and `large`, the decision profile `guarded` over them.
+- **An example settings file on Claude through the API credits of a Max plan**
+  (`config/appsettings.anthropic.example.json`): `https://api.anthropic.com`, `claude-opus-5-5` with the other Claude
+  models for `/model`, the key in `ANTHROPIC_API_KEY`, no temperature since the current Claude generation refuses one.
+  `docs/configuration.md` says where the credits come from (the Console organisation linked to the plan) and that
+  signing in with the plan itself is reserved to Anthropic's own applications.
+- **`/analyze` says what the index cache did** (Orkeon #244, [ADR 0014](docs/adr/0014-orkeon-after-244.md)): the
+  indexing line ends with `cache hit`, `cache refreshed: N changed file(s) reindexed`, `cache miss` or `cache
+  bypassed` (after `--rebuild`); `readIndexSummary` reads `cache` and `reindexed_file_count`. The dev steps that
+  build the index themselves say it too: `/dev-plan` on its `code index built` log line, `/dev-spec` and
+  `/dev-change` on the `inventory:` line of their end message (`indexCacheNote`, `briefInventoryLine`). A runtime
+  before #244 sends neither field, and the lines stay as they were.
+- **`/analyze --rebuild` reindexes from scratch** (Orkeon `index_codebase` `use_cache: false`): the runtime now
+  keeps the index between sessions under `<workspace>/.orkeon/cache/raggable-tree/` and reloads or refreshes it on
+  the first `/analyze` of a session; `--rebuild` ignores both the session's index and the saved one, then saves the
+  new one.
+- **`/analyze --parallel N` sets how many files the indexing parses at once** (Orkeon `index_codebase`
+  `max_parallelism`): a whole number from 1 to 64, the runtime's default (one per processor) when absent. It acts
+  only when the session has no index yet; the index is the same whatever N.
 - **`/resume <number or id>` switches the session in place** (Orkeon #227, delivered by #230): the session of now
   is saved to an archive beside its own file (`<stamp>-archived.json`, named by the clock port), then the chosen
   history file replaces the conversation, the state bag, the id and the title; the next turn continues it. The
@@ -389,6 +414,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The runtime pin moves to Orkeon main after #244** ([ADR 0014](docs/adr/0014-orkeon-after-244.md)):
+  `.orkeon-version` holds `e44df3f4…` (Orkeon #241 to #244: the effort levels `xhigh` and `max`, `index_codebase
+  max_parallelism`, the index cache between sessions); the typings are regenerated from a checkout at it, and the
+  permission rules know the two new arguments of `index_codebase`, `max_parallelism` and `use_cache`.
 - **The runtime pin is a commit of Orkeon's `main`, never a release** ([ADR 0013](docs/adr/0013-pin-on-orkeon-commit.md)):
   `.orkeon-version` holds the full commit (`3fcfbbe8…`, main after Orkeon #240), the launcher, `/status` and
   `/doctor` print its first seven characters, and `/status` and `/doctor` compare the commit the running Orkeon was
@@ -397,8 +426,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ORKEON_SOURCE` sits at another commit, the runtime smoke always checks Orkeon's sources out at the pin read from
   `.orkeon-version` (`ORKEON_SOURCE_REF` is gone), and `npm run typings` refuses a checkout at another commit
   (`--any` overrides) or warns that the tool manifest's release is not the pin. The tool and docker modes run a
-  release behind the pin: the image is `orkeon-runners:latest` (or `ORKEON_CODE_IMAGE`) in the launchers and
-  `scripts/run-crew.sh`, `.config/dotnet-tools.json` keeps the last release without a test tying it to the pin, and
+  release behind the pin: the image is `orkeon-runners:latest` (the last one published, `1.0.0-rc.5`; or
+  `ORKEON_CODE_IMAGE`) in the launchers and `scripts/run-crew.sh`, the launch banner names the pin in source mode only, `.config/dotnet-tools.json` keeps the last release without a test tying it to the pin, and
   the docs stop waiting for an image at the pinned version. The guard of ADR 0010 against calling `decision` and
   `when` goes: the sources may call whatever the pinned commit ships.
 
@@ -930,6 +959,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - An unreadable file or session is reported with the tool's own message, every line of it, without the runtime's
   wrapping (`/resume`, the extraTools notice): a file the runtime says is not found on a second line is read as
   absent again.
+
+### Fixed
+
+- **The `/analyze` harvest covers what matters in a large repository**: the synthesis worked from the index's
+  first 200 symbols (markdown sections on a C# repository of 8,600 files), its first 10 packages and a `200 total`
+  that only counted those. It now asks for up to 1,000 packages, summarizes the 15 largest (test packages last),
+  lists 20 public exports and the entry points of each, types before their members, names the other packages with
+  their module count, and says the module graph is a sample when it reaches its 200 modules, leaving out its edges:
+  the first modules of the index (templates, examples) say nothing of how the packages depend on each other.
 
 ## [0.1.0-alpha.1]
 

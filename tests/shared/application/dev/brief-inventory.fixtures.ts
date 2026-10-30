@@ -34,3 +34,18 @@ export function failingIndex(): FakeCodeIndex {
 }
 
 export const FAILING_REQUEST: BriefInventoryRequest = { phrases: ["x y z"], excluded: [] };
+
+/** pruneIndex, its build answered from a refreshed cache that reindexed two files. */
+export function refreshedPruneIndex(): FakeCodeIndex {
+  const index = pruneIndex();
+  index.indexed = { files: 4, nodes: 9, edges: 2, statements: 5, errors: [], cache: "refreshed", reindexed: 2 };
+  return index;
+}
+
+/** pruneIndex with an index already present: nothing is built. */
+export function presentPruneIndex(): FakeCodeIndex {
+  const index = pruneIndex();
+  index.roots = 1;
+  index.indexed = { files: 4, nodes: 9, edges: 2, statements: 5, errors: [], cache: "hit", reindexed: 0 };
+  return index;
+}

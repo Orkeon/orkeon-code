@@ -308,7 +308,7 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 | `project-init` | sequential | `/init` | Scans the layout, detects conventions, writes the instructions file |
 | `git-commit` | sequential | `/commit` | Drafts a conventional commit from the diff, commits after confirmation |
 | `code-review` | sequential | `/review` (`--lens` for one lens, `--passes` for this run's rounds; the aliases `/security-review` and `/passes`) | Multi-lens review of the staged changes, ranked findings |
-| `analyze` | sequential | `/analyze` | Index, maps, dependency graph, then a synthesis (`--raw` skips the LLM) |
+| `analyze` | sequential | `/analyze` | Index, package map, dependency graph, the largest packages summarized, then a synthesis (`--raw` skips the LLM) |
 | `session-compact` | sequential | `/compact` (`--snip` to truncate only), automatic compaction | Saves durable facts to typed memory, snips, then summarises the buffer if still needed |
 | `init-verifiers` | sequential | `/init-verifiers` | Detects test tooling, writes verification playbooks for uncovered zones |
 | `advisor` | sequential, no tools | `/advisor` | A second opinion on the last answer from another model |

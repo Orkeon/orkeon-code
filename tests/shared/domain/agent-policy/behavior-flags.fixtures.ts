@@ -6,6 +6,8 @@ export const LEVEL_RUNGS: readonly { level: EffortLevel; iterations: number }[] 
   { level: "low", iterations: 10 },
   { level: "medium", iterations: 40 },
   { level: "high", iterations: 80 },
+  { level: "xhigh", iterations: 120 },
+  { level: "max", iterations: 160 },
 ];
 
 /** Stored effort values that name no level. */
@@ -31,7 +33,8 @@ export const PROVIDER_EFFORT_CASES: readonly { raw: unknown; expected: EffortLev
   { raw: undefined, expected: undefined },
   { raw: null, expected: undefined },
   { raw: "", expected: undefined },
-  { raw: "max", expected: undefined },
+  { raw: "max", expected: "max" },
+  { raw: "XHIGH", expected: "xhigh" },
   { raw: 3, expected: undefined },
 ];
 

@@ -229,6 +229,7 @@ export const TOOL_ARGUMENTS: Readonly<Record<string, readonly string[]>> = {
   ],
   index_codebase: [
     "root_path", "languages", "exclude", "enrich_with_llm", "embedding_model", "root_alias", "respect_gitignore",
+    "max_parallelism", "use_cache",
   ],
   index_status: [],
   codebase_map: ["level", "include_metrics", "root_fqn", "max_entries"],

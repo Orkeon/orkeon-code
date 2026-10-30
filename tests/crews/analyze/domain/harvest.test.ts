@@ -1,15 +1,18 @@
 // /analyze — harvest rendering tests, on the payload shapes captured live
-// 2026-08-06 (see docs/b14-codeintel-probe-transcript.md). Run:
+// 2026-08-06 (see docs/b14-codeintel-probe-transcript.md) and at the pin. Run:
 //   node --test tests/crews/analyze/domain/harvest.test.ts
 import { describe, it } from "node:test";
-import { strictEqual, ok } from "node:assert";
+import { strictEqual, deepStrictEqual, ok } from "node:assert";
 
 import {
-  MAX_HARVEST_SYMBOLS, edgeEndpointToPath, groupByKind, renderHarvest,
-  SYNTHESIS_SYSTEM, buildSynthesisUser,
+  MAX_EXPORTS_PER_PACKAGE, MAX_LISTED_PACKAGES, edgeEndpointToPath, isTestPackage, rankExports, rankPackages,
+  renderHarvest, SYNTHESIS_SYSTEM, buildSynthesisUser,
 } from "../../../../src/crews/analyze/domain/harvest.ts";
-import { ENDPOINTS, MODULE_GRAPH, PACKAGES, SYMBOLS, manySymbols } from "./harvest.fixtures.ts";
-import { assertMentions } from "../../../support/assertions/text.ts";
+import {
+  ENDPOINTS, EXPORTS_IN_INDEX_ORDER, EXPORTS_RANKED, L1_ENTRIES, L1_RANKED, MODULE_GRAPH, PACKAGE, SAMPLED_GRAPH,
+  TEST_PACKAGE_CASES, mapPackages, packageExporting,
+} from "./harvest.fixtures.ts";
+import { assertMentions, assertOmits } from "../../../support/assertions/text.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 
 describe("edgeEndpointToPath", () => {
@@ -27,59 +30,153 @@ describe("edgeEndpointToPath", () => {
   }
 });
 
-describe("groupByKind", () => {
-  it("groups by kind, first-seen order, unknown kinds bucketed", () => {
+describe("isTestPackage", () => {
+  for (const c of TEST_PACKAGE_CASES) {
+    it(`tells ${c.name} ${c.test ? "is" : "is not"} a package of tests`, () => {
+      // Arrange
+      const { name } = c;
+
+      // Act
+      const test = isTestPackage(name);
+
+      // Assert
+      strictEqual(test, c.test);
+    });
+  }
+});
+
+describe("rankPackages", () => {
+  it("puts the code before the tests, the largest first, the index's order between equals", () => {
     // Arrange
-    const symbols = [...SYMBOLS, { fqn: "x::y", name: "y", kind: "" }];
+    const entries = L1_ENTRIES;
 
     // Act
-    const groups = groupByKind(symbols);
+    const ranked = rankPackages(entries);
 
     // Assert
-    strictEqual(groups[0]!.kind, "function");
-    strictEqual(groups[0]!.entries.length, 2);
-    strictEqual(groups[1]!.kind, "class");
-    strictEqual(groups[2]!.kind, "unknown");
+    deepStrictEqual(ranked.map((p) => p.fqn), L1_RANKED);
+  });
+});
+
+describe("rankExports", () => {
+  it("lists the types and functions before their members, the index's order within a depth", () => {
+    // Arrange
+    const exports = EXPORTS_IN_INDEX_ORDER;
+
+    // Act
+    const ranked = rankExports(exports);
+
+    // Assert
+    deepStrictEqual(ranked, EXPORTS_RANKED);
   });
 });
 
 describe("renderHarvest", () => {
-  it("renders packages, module edges (as paths) and symbols by kind", () => {
+  it("renders a summarized package with its size, entry points and exports, types first", () => {
     // Arrange
-    const input = { packages: PACKAGES, moduleGraph: MODULE_GRAPH, symbols: SYMBOLS, symbolCount: 6 };
+    const input = { packages: [PACKAGE], unsummarized: [], moduleGraph: MODULE_GRAPH, graphCap: 200 };
 
     // Act
     const harvest = renderHarvest(input);
 
     // Assert
-    ok(harvest.includes(`\`${WORKSPACE}::workspace\` — 3 file(s), 6 symbol(s)`), harvest);
-    ok(harvest.includes(`${WORKSPACE}/src/index.ts → ${WORKSPACE}/src/math.ts`), "edge endpoints must render as paths");
-    ok(!harvest.includes("#module@"), "node IDs must not leak into the rendering");
-    assertMentions(harvest, ["### function (2)", "### class (1)", `\`${WORKSPACE}/src/types.ts::Order\``]);
+    assertMentions(harvest, [
+      "## Packages (1 in the index; the 1 largest summarized, test packages last; 6 symbol(s) in them)",
+      `### \`${WORKSPACE}::workspace\` — 3 file(s), 6 symbol(s)`,
+      `Entry points: \`${WORKSPACE}/src/index.ts\``,
+      `Public exports (2 of the 2 the index returned):\n- \`${WORKSPACE}/src/types.ts::Order\`\n- \`${WORKSPACE}/src/types.ts::Order.total\``,
+    ]);
   });
 
-  it("says the total even when the listing is capped", () => {
+  it("renders module edges as paths, never as node IDs", () => {
     // Arrange
-    const many = manySymbols(MAX_HARVEST_SYMBOLS + 20);
-    const input = { packages: [], moduleGraph: { ...MODULE_GRAPH, edges: [] }, symbols: many, symbolCount: many.length };
+    const input = { packages: [], unsummarized: [], moduleGraph: MODULE_GRAPH, graphCap: 200 };
 
     // Act
-    const capped = renderHarvest(input);
+    const harvest = renderHarvest(input);
 
     // Assert
-    ok(capped.includes(`${MAX_HARVEST_SYMBOLS + 20} total`), "the authoritative count survives the cap");
-    ok(capped.includes("20 more symbol(s) omitted"), "a silent cut would read as the codebase ending there");
+    assertMentions(harvest, [`- ${WORKSPACE}/src/index.ts → ${WORKSPACE}/src/math.ts`]);
+    assertOmits(harvest, ["#module@"]);
+  });
+
+  it(`lists ${MAX_EXPORTS_PER_PACKAGE} exports of a package at most, and says how many it returned`, () => {
+    // Arrange
+    const input = { packages: [packageExporting(50)], unsummarized: [], moduleGraph: MODULE_GRAPH, graphCap: 200 };
+
+    // Act
+    const harvest = renderHarvest(input);
+
+    // Assert
+    assertMentions(harvest, [`Public exports (${MAX_EXPORTS_PER_PACKAGE} of the 50 the index returned)`, "/w/f19.ts::S19"]);
+    assertOmits(harvest, ["/w/f20.ts::S20"]);
+  });
+
+  it("names the packages not summarized, with their modules, and counts them in the total", () => {
+    // Arrange
+    const input = { packages: [PACKAGE], unsummarized: mapPackages(2), moduleGraph: MODULE_GRAPH, graphCap: 200 };
+
+    // Act
+    const harvest = renderHarvest(input);
+
+    // Assert
+    assertMentions(harvest, ["(3 in the index;", "## Other packages (not summarized)\n- `/w/p0` — 4 module(s)\n- `/w/p1`"]);
+  });
+
+  it(`names ${MAX_LISTED_PACKAGES} packages not summarized at most, and says how many it left out`, () => {
+    // Arrange
+    const input = { packages: [], unsummarized: mapPackages(MAX_LISTED_PACKAGES + 5), moduleGraph: MODULE_GRAPH, graphCap: 200 };
+
+    // Act
+    const harvest = renderHarvest(input);
+
+    // Assert
+    assertMentions(harvest, [`… 5 more package(s) omitted (cap ${MAX_LISTED_PACKAGES}).`]);
+    assertOmits(harvest, [`/w/p${MAX_LISTED_PACKAGES}\``]);
+  });
+
+  it("says the module graph is a sample when it reached the modules it was asked for", () => {
+    // Arrange
+    const input = { packages: [], unsummarized: [], moduleGraph: SAMPLED_GRAPH, graphCap: 200 };
+
+    // Act
+    const harvest = renderHarvest(input);
+
+    // Assert
+    assertMentions(harvest, ["A sample: the first 200 modules in the index's order, not the whole graph"]);
+  });
+
+  it("leaves the edges of a sampled module graph out", () => {
+    // Arrange
+    const input = { packages: [], unsummarized: [], moduleGraph: SAMPLED_GRAPH, graphCap: 200 };
+
+    // Act
+    const harvest = renderHarvest(input);
+
+    // Assert
+    assertOmits(harvest, [`${WORKSPACE}/src/index.ts → `]);
+  });
+
+  it("says nothing of a sample when the module graph is below its cap", () => {
+    // Arrange
+    const input = { packages: [], unsummarized: [], moduleGraph: MODULE_GRAPH, graphCap: 200 };
+
+    // Act
+    const harvest = renderHarvest(input);
+
+    // Assert
+    assertOmits(harvest, ["A sample"]);
   });
 
   it("flags cycles — the one graph finding that is always a risk", () => {
     // Arrange
-    const input = { packages: [], symbols: [], symbolCount: 0, moduleGraph: { ...MODULE_GRAPH, cycleCount: 2 } };
+    const input = { packages: [], unsummarized: [], moduleGraph: { ...MODULE_GRAPH, cycleCount: 2 }, graphCap: 200 };
 
     // Act
     const cyclic = renderHarvest(input);
 
     // Assert
-    ok(cyclic.includes("2 cycle(s) ⚠"), cyclic);
+    assertMentions(cyclic, ["2 cycle(s) ⚠"]);
   });
 });
 

@@ -79,6 +79,14 @@ LLM marche de la même façon, sans modèle de décision devant. Le modèle par 
 s'applique toujours par-dessus le profil. Les étapes et leurs réglages sont dans
 [les modèles de décision d'Orkeon](https://github.com/Orkeon/orkeon/blob/main/docs/architecture/decision-models.md).
 
+Claude par un plan Max : [`config/appsettings.anthropic.example.json`](../../config/appsettings.anthropic.example.json)
+vise `https://api.anthropic.com` avec `claude-opus-5-5` et la clé dans `ANTHROPIC_API_KEY`. Depuis octobre 2026 un plan
+Max inclut des crédits API mensuels (100 USD sur Max 5x, 200 USD sur Max 20x, sans report), dépensés par une clé API de
+l'organisation Anthropic Console liée au plan (sur claude.ai, Settings, Billing, API credits, Link organization ; le
+lien se fait une fois) ; au-delà, la clé est facturée aux tarifs à l'usage de l'API. La connexion avec le plan lui-même
+est réservée aux applications d'Anthropic et n'est pas un moyen de lancer Orkeon Code. L'exemple ne fixe pas de
+`Temperature` : la génération Claude actuelle en refuse une, et Orkeon n'envoie que ce que le fichier fixe.
+
 L'agent appelle des outils à travers chaque fournisseur : la boucle d'outils du runtime (`ctx.llm.act`) lit les appels
 d'outils des formats Anthropic et OpenAI, exécute les appels de lecture d'un tour du modèle jusqu'à
 `MaxParallelToolCalls` à la fois et les autres l'un après l'autre, chaque appel à travers la garde de permission, et renvoie les résultats dans le protocole d'outils du
@@ -151,7 +159,9 @@ confirmation ; omis = `true`) ou `spinnerVerbs`. `/config keys` les liste toutes
 `/model`, `/effort`, `/passes` (un alias de `/review`), `/fast`, `/proactive` et `/output-style` changent la façon dont les prochains tours
 s'exécutent. `/effort` règle aussi la réflexion du fournisseur : le niveau enregistré est envoyé comme `effort` de
 l'act par `/assistant`, chaque étape dev (`/dev-spec`, `/dev-plan`,
-`/dev-batches`) et les agents qu'elles lancent, et rien n'est envoyé tant qu'aucun niveau n'est enregistré.
+`/dev-batches`) et les agents qu'elles lancent, et rien n'est envoyé tant qu'aucun niveau n'est enregistré. Les
+niveaux sont `low`, `medium`, `high`, `xhigh` et `max` : Claude prend les cinq ; un fournisseur dont le champ ne
+connaît pas un niveau reçoit le plus haut qu'il connaît en dessous, et le journal du runtime le dit.
 
 `permissions.fallback`, `tools.extra`, `memory.autoAdmitAudited` et `dev.prAuto` réglés dans le fichier du projet sont restreints par le bloc `orkeonCode` des
 réglages de l'utilisateur (un `true` du projet sur un `false` ou une absence chez l'utilisateur est écarté, avec un avertissement) : `/config set` écrit une telle valeur, puis dit, sous "persisted", qu'elle est ignorée et

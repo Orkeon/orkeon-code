@@ -11,7 +11,7 @@
 
 // ── /effort → the act() iteration ladder ─────────────────────────────────
 
-export const EFFORT_LEVELS = ["low", "medium", "high"] as const;
+export const EFFORT_LEVELS = ["low", "medium", "high", "xhigh", "max"] as const;
 export type EffortLevel = (typeof EFFORT_LEVELS)[number];
 
 /** Unset ⇒ `medium`, whose ladder rung IS the pre-B-9 hard-coded value. */
@@ -24,11 +24,17 @@ export const DEFAULT_EFFORT: EffortLevel = "medium";
  * provider: `act({ effort })` and `AgentBuilder.effort()` turn its thinking on at that level (A-3).
  * Only a level `/effort` stored is forwarded (`providerEffort`): an unconfigured session sends none,
  * so it keeps the provider's own default and the 40 iterations it always had.
+ *
+ * `xhigh` and `max` are Anthropic's two levels above `high`; to a provider whose field does not know one the
+ * runtime sends the highest level it knows below it, with a warning in its log. The ladder keeps climbing: a
+ * turn that asks the model for its most thorough reasoning is also the one given the most room to act.
  */
 export const EFFORT_MAX_ITERATIONS: Readonly<Record<EffortLevel, number>> = {
   low: 10,
   medium: 40,
   high: 80,
+  xhigh: 120,
+  max: 160,
 };
 
 export function isEffortLevel(raw: unknown): raw is EffortLevel {

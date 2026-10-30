@@ -4,6 +4,7 @@
 // writes nothing else; a failing index is a warning and an empty inventory, never a stop.
 import type { CodeIndex } from "../ports.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
+import { indexCacheNote } from "../../domain/code-intel-contract.ts";
 
 export interface BriefInventoryEntry { path: string; line: number; name: string }
 export interface BriefInventory {
@@ -12,6 +13,8 @@ export interface BriefInventory {
   phrases: string[];
   calls: number;
   warnings: string[];
+  /** What the index cache did when this inventory built the index (Orkeon #244); absent otherwise. */
+  cache?: string;
 }
 export interface BriefInventoryRequest {
   phrases: readonly string[];
@@ -60,7 +63,8 @@ export async function briefInventory(index: CodeIndex, request: BriefInventoryRe
     out.calls++;
     if ((await index.rootCount()) === 0) {
       out.calls++;
-      await index.index(WORKSPACE);
+      const note = indexCacheNote(await index.index(WORKSPACE));
+      if (note !== "") out.cache = note;
     }
   } catch (e) {
     out.warnings.push(`the code index is not available (${firstLine(e)}): the draft has no inventory`);
@@ -97,6 +101,12 @@ export async function briefInventory(index: CodeIndex, request: BriefInventoryRe
 }
 
 /** The inventory as the prompt shows it: one `path:line — name` per row, or a line saying it is empty. */
+/** The inventory's line of a draft's end message: its entries, its index calls, what the index cache did. */
+export function briefInventoryLine(inventory: BriefInventory): string {
+  const cache = inventory.cache === undefined ? "" : `; ${inventory.cache}`;
+  return `inventory: ${inventory.entries.length} entries (${inventory.calls} index calls${cache})`;
+}
+
 export function renderBriefInventory(inventory: BriefInventory): string {
   if (inventory.entries.length === 0) return "(the index found nothing for this request)";
   return inventory.entries.map((e) => `- ${e.path}${e.line > 0 ? `:${e.line}` : ""} — ${e.name}`).join("\n");

@@ -12,7 +12,7 @@ import { assertExamplesInclude, assertJevExampleKeyless, assertWhisperMounts } f
 // Every config/*.example.json is such an example.
 const examples = listExamples();
 
-test("the example settings exist: the default one, the Ollama one, the Ollama and Whisper one, the Jev one", () => {
+test("the example settings exist: the default, Anthropic, Ollama, Ollama and Whisper, and Jev ones", () => {
   // Arrange
   const expected = PROMISED_EXAMPLES;
 
@@ -46,6 +46,24 @@ for (const name of examples) {
     assert.equal(settings.Llm?.ApiKey, undefined);
   });
 }
+
+// The Anthropic example is the default one on Claude through the API credits of a Max plan: the same
+// file but for its comment and its Llm section, which sets no temperature since the current Claude
+// generation refuses one and Orkeon sends only what the file sets.
+test("the Anthropic example differs from the default one in its Llm section and its comment only", () => {
+  // Arrange
+  const main = load("appsettings.example.json");
+
+  // Act
+  const anthropic = load("appsettings.anthropic.example.json");
+
+  // Assert
+  assert.deepEqual(withoutCommentAndLlm(anthropic), withoutCommentAndLlm(main));
+  assert.equal(anthropic.Llm.BaseUrl, "https://api.anthropic.com");
+  assert.equal(anthropic.Llm.ApiKeyEnvVar, "ANTHROPIC_API_KEY");
+  assert.equal(anthropic.Llm.Temperature, undefined);
+  assert.ok(anthropic.Llm.AvailableModels.includes(anthropic.Llm.Model));
+});
 
 // The Ollama example is the default one on a model of this machine: the same file but for its
 // comment and its Llm section, which names no key variable since Orkeon asks Ollama for none.

@@ -105,32 +105,56 @@ export interface IndexSummary {
   edges: number;
   statements: number;
   errors: string[];
+  /** What the index cache did (Orkeon #244): `hit`, `refreshed`, `miss` or `bypassed`; absent before #244. */
+  cache?: string;
+  /** The files a `refreshed` cache reindexed (`reindexed_file_count`), read when `cache` is. */
+  reindexed?: number;
 }
 
 /** `index_codebase` → counts. `file_count`, NOT `files_indexed`. */
 export function readIndexSummary(raw: any): IndexSummary {
+  const cache = typeof raw?.cache === "string" && raw.cache !== "" ? raw.cache : undefined;
   return {
     files: num(raw, "file_count"),
     nodes: num(raw, "node_count"),
     edges: num(raw, "edge_count"),
     statements: num(raw, "statement_count"),
     errors: arr(raw, "errors").map((e) => String(e)),
+    ...(cache === undefined ? {} : { cache, reindexed: num(raw, "reindexed_file_count") }),
   };
+}
+
+/** What the index cache did, in words: empty on a runtime without the cache (before Orkeon #244). */
+export function indexCacheNote(idx: IndexSummary): string {
+  switch (idx.cache) {
+    case undefined: return "";
+    case "hit": return "cache hit: the index an earlier session saved, no file changed";
+    case "refreshed": return `cache refreshed: ${idx.reindexed ?? 0} changed file(s) reindexed`;
+    case "miss": return "cache miss: built, then saved";
+    case "bypassed": return "cache bypassed: rebuilt, then saved";
+    default: return `cache ${idx.cache}`;
+  }
 }
 
 export interface MapEntry {
   fqn: string;
   name: string;
   kind: string;
+  /** `children_count`, when the node has children: the modules of a package, the symbols of a module. */
+  children?: number;
 }
 
 /** `codebase_map` → `entries[]` (+ `totals`), NOT `nodes[]`. */
 export function readMapEntries(raw: any): MapEntry[] {
-  return arr(raw, "entries").map((e) => ({
-    fqn: String(e?.fqn ?? ""),
-    name: String(e?.name ?? ""),
-    kind: String(e?.kind ?? ""),
-  })).filter((e) => e.fqn.length > 0);
+  return arr(raw, "entries").map((e) => {
+    const children = Number(e?.children_count);
+    return {
+      fqn: String(e?.fqn ?? ""),
+      name: String(e?.name ?? ""),
+      kind: String(e?.kind ?? ""),
+      ...(Number.isFinite(children) && children > 0 ? { children } : {}),
+    };
+  }).filter((e) => e.fqn.length > 0);
 }
 
 /** `codebase_map.totals.symbol_count`. */
@@ -270,6 +294,10 @@ export interface PackageSummary {
   files: number;
   symbols: number;
   dependencies: string[];
+  /** `public_exports`: FQNs of the package's public symbols, at most 50, in the index's order. */
+  exports: string[];
+  /** `entry_points`: FQNs of the modules named after main, program or index. */
+  entryPoints: string[];
 }
 
 /** `package_summary` → `file_count`/`symbol_count` (the index_codebase naming, not files_indexed). */
@@ -280,6 +308,8 @@ export function readPackageSummary(raw: any): PackageSummary {
     files: num(raw, "file_count"),
     symbols: num(raw, "symbol_count"),
     dependencies: arr(raw, "dependencies").map((s) => String(s)),
+    exports: arr(raw, "public_exports").map((s) => String(s)),
+    entryPoints: arr(raw, "entry_points").map((s) => String(s)),
   };
 }
 

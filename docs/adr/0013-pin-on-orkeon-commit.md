@@ -32,9 +32,10 @@ release that nobody runs here.
   or full, and `NOT the pin 3fcfbbe of .orkeon-version` otherwise, a runtime that reports no commit included. A
   release built at the pinned commit is the pin, whatever its version says.
 - **The tool and docker modes run a release, which the pin never names.** They stay as install conveniences:
-  `orkeon-repl` from the Debian package, a release archive or the dotnet tool, and the `orkeon-runners:latest` image
-  (or the one `ORKEON_CODE_IMAGE` names) in docker mode and in `scripts/run-crew.sh`. `/status` says they are not the
-  pin. `.config/dotnet-tools.json` keeps the last release for the typings' fallback and is no longer tied to the pin.
+  `orkeon-repl` from the Debian package, a release archive or the dotnet tool (`1.0.0-rc.6`), and the
+  `orkeon-runners:latest` image (the last one published, `1.0.0-rc.5` at this writing; or the one `ORKEON_CODE_IMAGE`
+  names) in docker mode and in `scripts/run-crew.sh`. The releases need not be at the same version: a mode runs what
+  its channel published. `/status` says they are not the pin. `.config/dotnet-tools.json` keeps the last release for the typings' fallback and is no longer tied to the pin.
 - **The typings come from the pin.** `scripts/sync-typings.sh` with `ORKEON_SOURCE` refuses a checkout at another
   commit (`--any` overrides); without a checkout it generates the typings of the manifest's release and says so.
 - **The guard on unshipped members goes.** The sources may call whatever the pinned commit ships: `decision` and

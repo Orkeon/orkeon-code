@@ -76,6 +76,14 @@ profiles the host knows; a plain LLM profile works the same way, with no decisio
 of `/advisor` (`advisor.model`) still applies on top of the profile. The stages and their settings are in
 [Orkeon's decision models](https://github.com/Orkeon/orkeon/blob/main/docs/architecture/decision-models.md).
 
+Claude through a Max plan: [`config/appsettings.anthropic.example.json`](../config/appsettings.anthropic.example.json)
+targets `https://api.anthropic.com` with `claude-opus-5-5` and the key in `ANTHROPIC_API_KEY`. Since October 2026 a Max
+plan includes monthly API credits (100 USD on Max 5x, 200 USD on Max 20x, no rollover), spent through an API key of the
+Anthropic Console organisation linked to the plan (on claude.ai, Settings, Billing, API credits, Link organization; the
+link is made once); beyond them the key is billed at the API's usage rates. Signing in with the plan itself is reserved
+to Anthropic's own applications and is not a way to run Orkeon Code. The example sets no `Temperature`: the current
+Claude generation refuses one, and Orkeon sends only what the file sets.
+
 The agent calls tools through every provider: the runtime's tool loop (`ctx.llm.act`) reads the tool calls of the
 Anthropic and OpenAI formats, runs the read calls of a model turn up to `MaxParallelToolCalls` at once and the
 others one after the other, each call through the permission gate, and sends the results back in the provider's tool protocol. A tool result reaches the model cut at
@@ -145,7 +153,9 @@ which makes it a self-review), `commit.requireConfirm` (`false` lets `/commit` r
 `true`), or `spinnerVerbs`. `/config keys` lists them all. `/model`, `/effort`, `/passes` (an alias of `/review`), `/fast`, `/proactive` and `/output-style` change
 how the next turns run. `/effort` also sets the provider's thinking: the stored level is sent as the act's `effort` by
 `/assistant`, every dev step (`/dev-spec`, `/dev-plan`, `/dev-batches`)
-and the agents these start, and nothing is sent while no level is stored.
+and the agents these start, and nothing is sent while no level is stored. The levels are `low`, `medium`, `high`,
+`xhigh` and `max`: Claude takes the five; a provider whose field does not know a level receives the highest it
+knows below it, and the runtime's log says so.
 
 `permissions.fallback`, `tools.extra`, `memory.autoAdmitAudited` and `dev.prAuto` set in the project file are narrowed by the `orkeonCode` block of the user
 settings (a project `true` over a user `false` or no value is dropped, with a warning): `/config set` writes such a value, then says, under "persisted", that it is ignored and where your own setting

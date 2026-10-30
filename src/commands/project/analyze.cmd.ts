@@ -6,18 +6,22 @@
 // command's crew chains index → maps → dependency_graph ITSELF, so the
 // RaggableTree is always the source, then makes exactly one no-tools LLM call
 // to synthesize business objects and dependencies. `--raw` skips that call and
-// prints the harvest (zero LLM cost).
+// prints the harvest (zero LLM cost). `--parallel N` parses N files at once when
+// the session has no index yet (default: one per processor). `--rebuild` indexes
+// again from scratch, ignoring the index of the session and the one saved on disk.
 import { launchCrew, withLlmProfile, writeCompleted } from "../_lib/dispatch.ts";
 import { createCrewHost } from "../../shared/infrastructure/orkeon/crew-host.ts";
 import { orkeonConfigStore } from "../../shared/infrastructure/orkeon/wiring.ts";
 
 defineAsyncCommand({
   name: "analyze",
-  description: "Analyze the codebase deterministically (index → maps → dependency graph) and synthesize business objects + dependencies; --raw prints the harvest without any LLM call.",
+  description: "Analyze the codebase (index → maps → dependency graph), then synthesize business objects; --raw skips the LLM call; --parallel N parses N files at once; --rebuild reindexes from scratch.",
   maxConcurrent: 1,
   args: {
     raw: { type: "boolean", required: false, default: false },
+    parallel: { type: "number", required: false, min: 1, max: 64 },
+    rebuild: { type: "boolean", required: false, default: false },
   },
-  dispatch: async (args, ctx) => launchCrew(await withLlmProfile({ crews: createCrewHost(ctx.services), log: ctx.log }, orkeonConfigStore()), "analyze", { raw: args.raw === true }),
+  dispatch: async (args, ctx) => launchCrew(await withLlmProfile({ crews: createCrewHost(ctx.services), log: ctx.log }, orkeonConfigStore()), "analyze", { raw: args.raw === true, parallel: args.parallel, rebuild: args.rebuild === true }),
   completed: (result, ctx) => writeCompleted(ctx, result, "analyze", "✓ analyze →\n"),
 });

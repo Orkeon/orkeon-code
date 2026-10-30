@@ -23,7 +23,7 @@ export const GRAPH = {
 };
 
 export const PACKAGE_REPLY = { fqn: "pkg.a", name: "a", file_count: 2, symbol_count: 5, dependencies: ["pkg.b"] };
-export const PACKAGE = { fqn: "pkg.a", name: "a", files: 2, symbols: 5, dependencies: ["pkg.b"] };
+export const PACKAGE = { fqn: "pkg.a", name: "a", files: 2, symbols: 5, dependencies: ["pkg.b"], exports: [], entryPoints: [] };
 
 /** Three hits, the first without a fqn, each from another origin. */
 export const SEARCH_REPLY = {

@@ -5,8 +5,8 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual, ok } from "node:assert";
 import { readFileSync } from "node:fs";
 
-import { CLI_VERSION, RELEASE_NOTES } from "../../../../src/commands/_lib/status/meta.ts";
-import { commandCount, crewNames, META_SOURCE } from "./meta.fixtures.ts";
+import { CLI_VERSION, isPinnedCommit, RELEASE_NOTES } from "../../../../src/commands/_lib/status/meta.ts";
+import { commandCount, crewNames, META_SOURCE, PINNED_COMMIT_CASES } from "./meta.fixtures.ts";
 
 describe("B-11 audit — the metadata that had gone stale", () => {
   it("RELEASE_NOTES states the CURRENT command count", () => {
@@ -57,4 +57,19 @@ describe("B-11 audit — the metadata that had gone stale", () => {
     // Assert
     deepStrictEqual(omitted, [], `RELEASE_NOTES omits crews ${omitted.join(", ")}`);
   });
+});
+
+describe("isPinnedCommit", () => {
+  for (const c of PINNED_COMMIT_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const commit = c.commit;
+
+      // Act
+      const pinned = isPinnedCommit(commit);
+
+      // Assert
+      strictEqual(pinned, c.pinned);
+    });
+  }
 });

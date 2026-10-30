@@ -3,6 +3,7 @@
 
 // ── Captured payloads. Verbatim from the live calls; do not "tidy" them. ──
 import { WORKSPACE } from "../../../src/shared/domain/vfs.ts";
+import type { IndexSummary } from "../../../src/shared/domain/code-intel-contract.ts";
 
 export const INDEX_RAW = {
   index_id: "e4efebf4",
@@ -78,6 +79,12 @@ export const PKG_SUMMARY_RAW = {
   truncated: false,
 };
 
+/** The lists readPackageSummary reads from PKG_SUMMARY_RAW. */
+export const PKG_SUMMARY_LISTS = {
+  exports: [`${WORKSPACE}/src/index.ts::greet`, `${WORKSPACE}/src/math.ts::add`],
+  entryPoints: [`${WORKSPACE}/src/index.ts`],
+};
+
 export const SYMBOL_DETAIL_RAW = {
   fqn: `${WORKSPACE}/src/index.ts::greet`,
   name: "greet",
@@ -110,6 +117,28 @@ export const HYBRID_SEARCH_RAW = {
 export const INDEX_FILE_COUNTS: readonly { readonly name: string; readonly raw: unknown; readonly files: number }[] = [
   { name: "reads a numeric string as its number", raw: { file_count: "7" }, files: 7 },
   { name: "reads a string that is no number as 0", raw: { file_count: "many" }, files: 0 },
+];
+
+/** The cache outcome of index_codebase (Orkeon #244) and the files it reindexed. */
+export const INDEX_CACHE_CASES: readonly {
+  readonly name: string; readonly raw: unknown; readonly cache: string | undefined; readonly reindexed: number | undefined;
+}[] = [
+  { name: "a refreshed cache with the files it reindexed", raw: { cache: "refreshed", reindexed_file_count: 3 }, cache: "refreshed", reindexed: 3 },
+  { name: "a hit without the count reads 0 reindexed", raw: { cache: "hit" }, cache: "hit", reindexed: 0 },
+  { name: "no cache field, a runtime before #244, leaves both out", raw: INDEX_RAW, cache: undefined, reindexed: undefined },
+  { name: "an empty cache field leaves both out", raw: { cache: "", reindexed_file_count: 2 }, cache: undefined, reindexed: undefined },
+];
+
+const counted = { files: 12, nodes: 40, edges: 0, statements: 0, errors: [] as string[] };
+
+/** The words for each outcome of the index cache. */
+export const INDEX_CACHE_NOTES: readonly { readonly name: string; readonly idx: IndexSummary; readonly note: string }[] = [
+  { name: "nothing on a runtime before #244", idx: counted, note: "" },
+  { name: "a hit", idx: { ...counted, cache: "hit", reindexed: 0 }, note: "cache hit: the index an earlier session saved, no file changed" },
+  { name: "a refresh, with the files reindexed", idx: { ...counted, cache: "refreshed", reindexed: 3 }, note: "cache refreshed: 3 changed file(s) reindexed" },
+  { name: "a miss", idx: { ...counted, cache: "miss", reindexed: 0 }, note: "cache miss: built, then saved" },
+  { name: "a rebuild", idx: { ...counted, cache: "bypassed", reindexed: 0 }, note: "cache bypassed: rebuilt, then saved" },
+  { name: "an outcome this version does not know, as it came", idx: { ...counted, cache: "partial", reindexed: 0 }, note: "cache partial" },
 ];
 
 export const MAP_SYMBOL_COUNTS: readonly { readonly name: string; readonly raw: unknown; readonly count: number }[] = [

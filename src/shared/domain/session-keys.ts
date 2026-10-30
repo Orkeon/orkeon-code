@@ -29,7 +29,7 @@ export const SKILLS_STATE_KEY = "skills_attached";
 // command, the reader is the loop, and a literal duplicated across the two is
 // how a rename silently stops working.
 
-/** `/effort` — low|medium|high; picks the act() iteration ladder (B-9). */
+/** `/effort` — low|medium|high|xhigh|max; picks the act() iteration ladder (B-9). */
 export const EFFORT_STATE_KEY = "reasoning_effort";
 
 /** `/passes` — 1-5; the number of review rounds /review runs (B-9). */

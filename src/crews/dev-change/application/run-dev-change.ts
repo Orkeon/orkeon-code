@@ -11,7 +11,7 @@ import { stepRules } from "../../../shared/domain/dev/step-rules.ts";
 import { shellRuleGuard } from "../../../shared/domain/dev/tool-guards.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import { loadDevContext } from "../../../shared/application/dev/load-dev-context.ts";
-import { briefInventory, briefPhrases, renderBriefInventory } from "../../../shared/application/dev/brief-inventory.ts";
+import { briefInventory, briefInventoryLine, briefPhrases, renderBriefInventory } from "../../../shared/application/dev/brief-inventory.ts";
 import type { BriefInventory } from "../../../shared/application/dev/brief-inventory.ts";
 import { questionRound } from "../../../shared/application/dev/question-round.ts";
 import type { Folded, RoundState } from "../../../shared/application/dev/question-round.ts";
@@ -292,7 +292,7 @@ export async function runDevChange(input: DevChangeInputs, deps: DevChangeDeps):
       `decisions this run: ${made.length === 0 ? "none" : made.map((d) => `${d.id} → ${d.answer}`).join("; ")}`,
       `open questions: ${openLine(state.open)}`,
       ...(review === null ? [] : [reviewLine(review)]),
-      `inventory: ${inventory.entries.length} entries (${inventory.calls} index calls)`,
+      briefInventoryLine(inventory),
       ...[precedentsLine([recalled])].filter((l) => l !== ""),
       ...warningLines(warnings),
     ];

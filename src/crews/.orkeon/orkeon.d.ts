@@ -143,8 +143,12 @@ withResponseSchema(name: string, schema: JsonSchema | string, strict?: boolean):
 allowDelegation(value: boolean): this;
 /** The turns the agent may take on a task. Default 20 — YAML parity `maxIter:`. Must be 1 or more. */
 maxIterations(value: number): this;
-/** Turns the provider's thinking on at this effort. */
-effort(level: "low" | "medium" | "high"): this;
+/**
+* Turns the provider's thinking on at this effort. Anthropic takes the five levels; a provider whose field
+* knows fewer (three for OpenAI's `reasoning_effort` and Ollama's `think`) sends the highest it knows
+* below the one asked, and warns.
+*/
+effort(level: "low" | "medium" | "high" | "xhigh" | "max"): this;
 /**
 * YAML parity `maxRpm:` — the model requests this agent may make per minute, each of its
 * turns on the declarative shape: the request of too many waits its turn, it never fails the
@@ -349,7 +353,7 @@ responseFormat?: ResponseFormatType;
 /** The per-call model: the host's provider keeps its credentials and endpoint. */
 llm?: { model?: string };
 /** Turns the provider's thinking on at this effort for the call. */
-effort?: "low" | "medium" | "high";
+effort?: "low" | "medium" | "high" | "xhigh" | "max";
 }
 /**
 * What `ctx.llm.stream` returns: the chunk sequence, plus a side-channel for
@@ -1047,6 +1051,12 @@ temperature?: number;
 /** A positive integer (1 to 2147483647). Omitted keeps the inherited cap; anything else throws. */
 maxTokens?: number;
 responseFormat?: ResponseFormatType;
+/**
+* Turns thinking on at this level; anything else throws. Anthropic takes the five levels; a provider whose field
+* knows fewer (three for OpenAI's `reasoning_effort` and Ollama's `think`) sends the highest it knows
+* below the one asked, and warns.
+*/
+effort?: "low" | "medium" | "high" | "xhigh" | "max";
 }
 namespace llm {
 /**
@@ -2513,6 +2523,7 @@ languages?: readonly string[];
 root_path?: string;
 to_commit?: string | null;
 }, ctx?: ExecutionContext): Promise<{
+readonly cache: string;
 readonly edge_count: number;
 readonly elapsed: string;
 readonly embedding_stats?: { readonly dimensions: number; readonly elapsed: string; readonly model: string; readonly nodes_embedded: number; readonly nodes_skipped: number; readonly provider: string; };
@@ -2521,18 +2532,22 @@ readonly file_count: number;
 readonly filter_stats: { readonly excluded_by_exclude_set: number; readonly excluded_by_gitignore: number; readonly excluded_by_language: number; readonly excluded_by_policy: number; readonly excluded_by_policy_paths: readonly string[]; readonly excluded_by_suffix: number; readonly physical_entries_probe: number; readonly physical_root: string; readonly total_enumerated: number; readonly vfs_file_entries_yielded: number; };
 readonly index_id: string;
 readonly node_count: number;
+readonly reindexed_file_count: number;
 readonly statement_count: number;
 }>;
-/** `index_codebase` - Scan the codebase and build the full RaggableTree index. */
+/** `index_codebase` - Scan the codebase and build the full RaggableTree index, reusing the one saved by an earlier session when the host wires the cache. */
 indexCodebase(input?: {
 embedding_model?: string;
 enrich_with_llm?: boolean;
 exclude?: readonly string[];
 languages?: readonly string[];
+max_parallelism?: number;
 respect_gitignore?: boolean;
 root_alias?: string;
 root_path?: string;
+use_cache?: boolean;
 }, ctx?: ExecutionContext): Promise<{
+readonly cache: string;
 readonly edge_count: number;
 readonly elapsed: string;
 readonly embedding_stats?: { readonly dimensions: number; readonly elapsed: string; readonly model: string; readonly nodes_embedded: number; readonly nodes_skipped: number; readonly provider: string; };
@@ -2541,6 +2556,7 @@ readonly file_count: number;
 readonly filter_stats: { readonly excluded_by_exclude_set: number; readonly excluded_by_gitignore: number; readonly excluded_by_language: number; readonly excluded_by_policy: number; readonly excluded_by_policy_paths: readonly string[]; readonly excluded_by_suffix: number; readonly physical_entries_probe: number; readonly physical_root: string; readonly total_enumerated: number; readonly vfs_file_entries_yielded: number; };
 readonly index_id: string;
 readonly node_count: number;
+readonly reindexed_file_count: number;
 readonly statement_count: number;
 }>;
 /** `index_status` - List every virtual root currently indexed in the RaggableTree store. */

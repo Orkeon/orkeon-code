@@ -1,6 +1,7 @@
 // The schema, the act results, the requests and the facades the createLlm tests run on.
 import { createLlm } from "../../../../src/shared/infrastructure/orkeon/llm.ts";
 import type { ToolCallbacks } from "../../../../src/shared/application/dev/tool-callbacks.ts";
+import type { EffortLevel } from "../../../../src/shared/domain/agent-policy/behavior-flags.ts";
 import { FakeLlmFacade } from "../../../support/doubles/fake-llm-facade.ts";
 
 export const SCHEMA = { type: "object", properties: { findings: { type: "array" } } };
@@ -113,14 +114,15 @@ export const GATES: readonly GateCase[] = [
 
 export interface EffortCase {
   name: string;
-  defaults?: { effort: "low" };
-  request: { effort?: "high" };
-  expected: string | undefined;
+  defaults?: { effort: EffortLevel };
+  request: { effort?: EffortLevel };
+  expected: EffortLevel | undefined;
 }
 
 /** The act's effort, from the crew's defaults or the request (A-3). */
 export const EFFORTS: readonly EffortCase[] = [
   { name: "fills the act's effort from the defaults when the request names none", defaults: { effort: "low" }, request: {}, expected: "low" },
   { name: "keeps the effort the request names over the defaults", defaults: { effort: "low" }, request: { effort: "high" }, expected: "high" },
+  { name: "forwards a level above high as the request names it", request: { effort: "xhigh" }, expected: "xhigh" },
   { name: "names no effort without defaults nor request", request: {}, expected: undefined },
 ];

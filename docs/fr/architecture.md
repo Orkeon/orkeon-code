@@ -318,7 +318,7 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 | `project-init` | séquentiel | `/init` | Parcourt l'arborescence, détecte les conventions, écrit le fichier d'instructions |
 | `git-commit` | séquentiel | `/commit` | Rédige un commit conventionnel à partir du diff, commite après confirmation |
 | `code-review` | séquentiel | `/review` (`--lens` pour un seul angle, `--passes` pour les tours de ce lancement ; les alias `/security-review` et `/passes`) | Revue multi-angles des changements indexés, constats classés |
-| `analyze` | séquentiel | `/analyze` | Index, cartes, graphe de dépendances, puis une synthèse (`--raw` saute le LLM) |
+| `analyze` | séquentiel | `/analyze` | Index, carte des paquets, graphe de dépendances, résumé des plus gros paquets, puis une synthèse (`--raw` saute le LLM) |
 | `session-compact` | séquentiel | `/compact` (`--snip` pour tronquer seulement), la compaction automatique | Sauve les faits durables en mémoire typée, coupe, puis résume le tampon s'il le faut encore |
 | `init-verifiers` | séquentiel | `/init-verifiers` | Détecte l'outillage de test, écrit des guides de vérification pour les zones non couvertes |
 | `advisor` | séquentiel, sans outil | `/advisor` | Un second avis sur la dernière réponse, par un autre modèle |

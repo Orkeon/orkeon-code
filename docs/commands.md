@@ -29,7 +29,7 @@ An **async** command starts a crew and returns a ticket; its result is printed w
 | `/advisor` | async | Show, set or disable the advisor model, or run a second opinion on the last answer. |
 | `/agents` | sync | List, add, show or remove saved agent configurations (.orkeon/agents.json). |
 | `/config` | sync | List, get, set or unset settings over the declared key space (file + session layers). |
-| `/effort` | sync | Show or set the session reasoning-effort level (low\|medium\|high). |
+| `/effort` | sync | Show or set the session reasoning-effort level (low\|medium\|high\|xhigh\|max). |
 | `/fast` | sync | Toggle fast mode (drop the advisory prompt blocks for latency). |
 | `/hooks` | sync | List, add or remove declarative hooks (pre-tool\|post-tool\|stop). |
 | `/mode` | sync | Cycle, show or set the session-default permission mode of the assistant; /plan toggles plan mode (read-only). Also `/plan`. |
@@ -53,7 +53,7 @@ An **async** command starts a crew and returns a ticket; its result is printed w
 
 | Command | Kind | Description |
 |---|---|---|
-| `/analyze` | async | Analyze the codebase deterministically (index → maps → dependency graph) and synthesize business objects + dependencies; --raw prints the harvest without any LLM call. |
+| `/analyze` | async | Analyze the codebase (index → maps → dependency graph), then synthesize business objects; --raw skips the LLM call; --parallel N parses N files at once; --rebuild reindexes from scratch. |
 | `/debug-tool-call` | sync | Invoke a registered tool with JSON arguments and print its raw result. |
 | `/files` | sync | List the files in a directory (defaults to /workspace). |
 | `/init` | async | Analyse the workspace and write AGENTS.md, the instructions file (an existing CLAUDE.md is merged). |

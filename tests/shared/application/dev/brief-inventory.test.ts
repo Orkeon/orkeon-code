@@ -4,8 +4,10 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
-import { briefInventory, briefPhrases, renderBriefInventory } from "../../../../src/shared/application/dev/brief-inventory.ts";
-import { FAILING_REQUEST, failingIndex, PRUNE_REQUEST, pruneIndex, SEVEN_SENTENCES } from "./brief-inventory.fixtures.ts";
+import { briefInventory, briefInventoryLine, briefPhrases, renderBriefInventory } from "../../../../src/shared/application/dev/brief-inventory.ts";
+import {
+  FAILING_REQUEST, failingIndex, presentPruneIndex, PRUNE_REQUEST, pruneIndex, refreshedPruneIndex, SEVEN_SENTENCES,
+} from "./brief-inventory.fixtures.ts";
 
 describe("briefPhrases", () => {
   it("takes the code's words, then distinct lines and sentences", () => {
@@ -44,6 +46,28 @@ describe("briefInventory", () => {
     deepStrictEqual(inv.warnings, []);
   });
 
+  it("carries what the index cache did when it builds the index", async () => {
+    // Arrange
+    const index = refreshedPruneIndex();
+
+    // Act
+    const inv = await briefInventory(index, PRUNE_REQUEST);
+
+    // Assert
+    strictEqual(inv.cache, "cache refreshed: 2 changed file(s) reindexed");
+  });
+
+  it("carries no cache outcome when the index was already there", async () => {
+    // Arrange
+    const index = presentPruneIndex();
+
+    // Act
+    const inv = await briefInventory(index, PRUNE_REQUEST);
+
+    // Assert
+    strictEqual(inv.cache, undefined);
+  });
+
   it("returns a warning and no entry when the index fails", async () => {
     // Arrange
     const index = failingIndex();
@@ -78,5 +102,29 @@ describe("renderBriefInventory", () => {
 
     // Assert
     strictEqual(text, "(the index found nothing for this request)");
+  });
+});
+
+describe("briefInventoryLine", () => {
+  it("names the entries and the index calls", async () => {
+    // Arrange
+    const inv = await briefInventory(presentPruneIndex(), PRUNE_REQUEST);
+
+    // Act
+    const line = briefInventoryLine(inv);
+
+    // Assert
+    strictEqual(line, `inventory: 1 entries (${inv.calls} index calls)`);
+  });
+
+  it("adds what the index cache did when the inventory built the index", async () => {
+    // Arrange
+    const inv = await briefInventory(refreshedPruneIndex(), PRUNE_REQUEST);
+
+    // Act
+    const line = briefInventoryLine(inv);
+
+    // Assert
+    strictEqual(line, `inventory: 1 entries (${inv.calls} index calls; cache refreshed: 2 changed file(s) reindexed)`);
   });
 });

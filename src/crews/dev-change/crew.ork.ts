@@ -14,7 +14,7 @@
 //
 // Input (globalThis.inputs): { code: string, kind?: "bug" | "refactor" | "perf", run?: string (the command to run),
 //                              text?: string (the origin of a new brief, or a revision request), hooks?: /hooks,
-//                              effort?: "low" | "medium" | "high" | null, memoryRecall?: false (a session rule denies it),
+//                              effort?: "low" | "medium" | "high" | "xhigh" | "max" | null, memoryRecall?: false (a session rule denies it),
 //                              concurrency?: number, maxInstances?: number }
 // Run standalone:  orkeon run src/crews/dev-change/crew.ork.ts --inputs '{"code":"cache","kind":"refactor","text":"…"}'
 //

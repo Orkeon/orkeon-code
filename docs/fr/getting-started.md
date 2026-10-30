@@ -76,11 +76,12 @@ Ollama ([Configuration](configuration.md#le-llm)).
 tool sur le `orkeon-<version>-win-x64.zip` de la release est celui de Windows ; la voie que ce projet pratique est WSL
 avec le lanceur bash ([tutoriel WSL](wsl-tutorial.md)).
 
-Orkeon Code est vérifié contre les sources d'Orkeon au commit de `.orkeon-version` (`3fcfbbe`, le `main` après
-Orkeon/orkeon#240, 2026-10-29) : le [mode source](#mode-source--un-checkout-dorkeon) exécute ce commit, le runtime de
+Orkeon Code est vérifié contre les sources d'Orkeon au commit de `.orkeon-version` (`e44df3f`, le `main` après
+Orkeon/orkeon#244, 2026-10-30) : le [mode source](#mode-source--un-checkout-dorkeon) exécute ce commit, le runtime de
 référence ; le [mode tool](#mode-tool--orkeon-repl-installé) (le paquet Debian sur le canal apt `rc`, les archives de
-release) et le [mode docker](#mode-docker--rien-à-installer-sauf-docker) exécutent la dernière release, `1.0.0-rc.6`,
-en retard sur l'épingle, et `/status` le dit ([ADR 0013](../adr/0013-pin-on-orkeon-commit.md)). La release porte ce que les ADR 0004 à 0009 ont repris du `main` d'Orkeon : l'état de la garde de l'hôte
+release) exécute la dernière release, `1.0.0-rc.6`, et le [mode docker](#mode-docker--rien-à-installer-sauf-docker)
+la dernière image `orkeon-runners` publiée, `1.0.0-rc.5` à ce jour (aucune image `1.0.0-rc.6` n'est publiée), tous
+deux en retard sur l'épingle, et `/status` le dit ([ADR 0013](../adr/0013-pin-on-orkeon-commit.md)). La release porte ce que les ADR 0004 à 0009 ont repris du `main` d'Orkeon : l'état de la garde de l'hôte
 (`/permissions`), les outils intégrés typés et les limites de résultat par outil
 ([ADR 0004](../adr/0004-orkeon-after-180.md)), les outils de fichiers qui résolvent un chemin relatif sous
 `/workspace` ou la racine de l'agent, et les approbations en attente qu'une commande lit (`/tasks`)
@@ -129,8 +130,9 @@ celui que npm a installé (`ORKEON_ESBUILD_PATH` le remplace).
 
 ### Mode docker : rien à installer sauf Docker
 
-Le lanceur exécute `ghcr.io/orkeon/orkeon-runners:latest`, la dernière release, jamais l'épingle
-(`ORKEON_CODE_IMAGE` nomme une autre image), qui porte le REPL et esbuild ; l'image est construite pour `linux/amd64` et `linux/arm64`, et Docker tire celle de votre machine. Le projet est monté dans le
+Le lanceur exécute `ghcr.io/orkeon/orkeon-runners:latest`, la dernière image publiée (`1.0.0-rc.5` à ce jour :
+l'image `1.0.0-rc.6` n'est pas publiée), jamais l'épingle (`ORKEON_CODE_IMAGE` nomme une autre image), qui porte le
+REPL et esbuild ; l'image est construite pour `linux/amd64` et `linux/arm64`, et Docker tire celle de votre machine. Le projet est monté dans le
 conteneur ; sous Linux, le conteneur tourne avec votre uid, si bien que les fichiers que l'agent écrit vous
 appartiennent. L'outil shell tourne dans le conteneur.
 
@@ -145,7 +147,7 @@ ce checkout, ou `ORKEON_ESBUILD_PATH`.
 
 Le checkout devrait être au commit de `.orkeon-version` (`git -C ~/src/orkeon checkout $(cat .orkeon-version)`),
 celui contre lequel les commandes ont été vérifiées : à un autre commit, le lanceur avertit (`orkeon-code: warning:
-ORKEON_SOURCE is at <sha7>, the pin of .orkeon-version is 3fcfbbe: the commands were checked against the pin.`) et
+ORKEON_SOURCE is at <sha7>, the pin of .orkeon-version is e44df3f: the commands were checked against the pin.`) et
 lance quand même.
 
 ## 4. Première session

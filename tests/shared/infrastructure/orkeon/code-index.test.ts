@@ -54,6 +54,38 @@ describe("createCodeIndex", () => {
     deepStrictEqual(tools.inputsOf("indexCodebase"), [{ root_path: WORKSPACE, languages: INDEXED_LANGUAGES }]);
   });
 
+  it("asks for max_parallelism only when a parallelism is given", async () => {
+    // Arrange
+    const tools = new FakeTools();
+    tools.replies.indexCodebase = INDEX_REPLY;
+
+    // Act
+    await createCodeIndex(tools).index(WORKSPACE, { parallel: 6 });
+    await createCodeIndex(tools).index(WORKSPACE, {});
+
+    // Assert
+    deepStrictEqual(tools.inputsOf("indexCodebase"), [
+      { root_path: WORKSPACE, languages: INDEXED_LANGUAGES, max_parallelism: 6 },
+      { root_path: WORKSPACE, languages: INDEXED_LANGUAGES },
+    ]);
+  });
+
+  it("asks for use_cache: false only on a rebuild", async () => {
+    // Arrange
+    const tools = new FakeTools();
+    tools.replies.indexCodebase = INDEX_REPLY;
+
+    // Act
+    await createCodeIndex(tools).index(WORKSPACE, { rebuild: true, parallel: 3 });
+    await createCodeIndex(tools).index(WORKSPACE, { rebuild: false });
+
+    // Assert
+    deepStrictEqual(tools.inputsOf("indexCodebase"), [
+      { root_path: WORKSPACE, languages: INDEXED_LANGUAGES, max_parallelism: 3, use_cache: false },
+      { root_path: WORKSPACE, languages: INDEXED_LANGUAGES },
+    ]);
+  });
+
   it("reads a map's entries and symbol total, asking for metrics when told", async () => {
     // Arrange
     const tools = new FakeTools();
@@ -77,6 +109,18 @@ describe("createCodeIndex", () => {
 
     // Assert
     deepStrictEqual(tools.inputsOf("codebaseMap"), [{ level: "L1_Package" }]);
+  });
+
+  it("asks for as many map entries as told", async () => {
+    // Arrange
+    const tools = new FakeTools();
+    tools.replies.codebaseMap = MAP_REPLY;
+
+    // Act
+    await createCodeIndex(tools).map("L1_Package", false, 1000);
+
+    // Assert
+    deepStrictEqual(tools.inputsOf("codebaseMap"), [{ level: "L1_Package", max_entries: 1000 }]);
   });
 
   it("reads the dependency graph of a scope, without its mermaid rendering", async () => {

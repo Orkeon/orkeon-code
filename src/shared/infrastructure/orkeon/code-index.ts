@@ -29,13 +29,22 @@ export function createCodeIndex(tools: Pick<OrkeonTools, CodeIndexTools>): CodeI
       const status = (await tools.indexStatus({})) as { roots?: unknown } | null | undefined;
       return Array.isArray(status?.roots) ? status.roots.length : 0;
     },
-    async index(root) {
+    async index(root, opts) {
       // The languages named: every grammar of the runtime's registry (index-languages.ts); a file the runtime still
       // refuses to read is skipped by the discovery, not fatal (Orkeon #215).
-      return readIndexSummary(await tools.indexCodebase({ root_path: root, languages: INDEXED_LANGUAGES }));
+      return readIndexSummary(await tools.indexCodebase({
+        root_path: root,
+        languages: INDEXED_LANGUAGES,
+        ...(opts?.parallel === undefined ? {} : { max_parallelism: opts.parallel }),
+        ...(opts?.rebuild === true ? { use_cache: false } : {}),
+      }));
     },
-    async map(level, withMetrics) {
-      const raw = await tools.codebaseMap(withMetrics ? { level, include_metrics: true } : { level });
+    async map(level, withMetrics, maxEntries) {
+      const raw = await tools.codebaseMap({
+        level,
+        ...(withMetrics ? { include_metrics: true } : {}),
+        ...(maxEntries === undefined ? {} : { max_entries: maxEntries }),
+      });
       return { entries: readMapEntries(raw), symbolCount: readMapSymbolCount(raw) };
     },
     async dependencyGraph(scope, maxNodes) {

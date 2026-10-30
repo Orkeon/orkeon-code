@@ -7,6 +7,7 @@ import type { AnchorIndex, CodeIndex, CodeSearchHit, Logger } from "../../../sha
 import { INVENTORY_CAPS, keepPath, layerOf } from "../domain/inventory-model.ts";
 import type { Inventory, InventoryEntry } from "../domain/inventory-model.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
+import { indexCacheNote } from "../../../shared/domain/code-intel-contract.ts";
 
 export interface InventoryRequest {
   titles: ReadonlyArray<{ id: string; title: string }>;  // source order: UC, BR, CH
@@ -83,17 +84,19 @@ export async function buildInventory(
 
   // 1. The index: present, or built now.
   let status: Inventory["index"] = "present";
+  let note = "";
   try {
     state.calls++;
     if ((await index.rootCount()) === 0) {
       state.calls++;
       const built = await index.index(WORKSPACE);
       status = built.files === 0 ? "empty" : "built";
+      note = indexCacheNote(built);
     }
   } catch (e) {
     return refuse(e);
   }
-  log.info(`dev-plan: code index ${status}`);
+  log.info(`dev-plan: code index ${status}${note === "" ? "" : `; ${note}`}`);
   if (status === "empty") {
     state.warnings.push("the code index holds no file: every anchor is a path to create");
     return { ok: true, inventory: { entries: [], index: status, titlesSearched: 0, calls: state.calls, warnings: state.warnings } };
