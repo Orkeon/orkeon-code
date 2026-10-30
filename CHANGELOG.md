@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- In source mode, the launcher says `building Orkeon in <checkout>...` before its quiet build, which takes about a
+  minute after the checkout moved: it no longer looks stuck.
+
 - In source mode, the launcher moves the Orkeon checkout of `ORKEON_SOURCE` to the pin when it is behind it, clean,
   and on `main` or detached, then restores it in the build; `ORKEON_SOURCE_FOLLOW_PIN=0` turns this off.
 

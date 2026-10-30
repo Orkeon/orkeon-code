@@ -114,6 +114,9 @@ export const KEPT_CHECKOUTS: { name: string; branch: string; dirty: boolean; env
   { name: "under ORKEON_SOURCE_FOLLOW_PIN=0", branch: "main", dirty: false, env: { ORKEON_SOURCE_FOLLOW_PIN: "0" } },
 ];
 
+/** The line source mode prints before its build, which is quiet. */
+export const BUILDING_LINE = (source: string) => `orkeon-code: building Orkeon in ${source}...`;
+
 /** What source mode runs, in order: the build in the Orkeon checkout, then the assembly from the project. */
 export const sourceModeCalls = (source: string, r: Run) => [
   `${source} build src/apps/Orkeon.ConsoleApp -c Debug --no-restore -nologo -v quiet`,
