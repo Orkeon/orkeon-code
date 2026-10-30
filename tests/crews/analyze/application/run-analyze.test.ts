@@ -5,7 +5,7 @@ import { strictEqual, deepStrictEqual, rejects } from "node:assert";
 
 import { MAX_PACKAGES, PROGRESS_LABEL, runAnalyze } from "../../../../src/crews/analyze/application/run-analyze.ts";
 import { SYNTHESIS_SYSTEM, buildSynthesisUser } from "../../../../src/crews/analyze/domain/harvest.ts";
-import { NOTHING_INDEXED, RAW_RUN_CALLS, analyzeSetup, harvestOf } from "./run-analyze.fixtures.ts";
+import { CACHE_LINES, NOTHING_INDEXED, RAW_RUN_CALLS, analyzeSetup, harvestOf } from "./run-analyze.fixtures.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 
 describe("runAnalyze", () => {
@@ -59,6 +59,21 @@ describe("runAnalyze", () => {
       "warn: analyze: 2 package(s) beyond the cap of 10 not summarized",
     ]);
   });
+
+  for (const c of CACHE_LINES) {
+    it(`says what the index cache did on the indexing line: ${c.name}`, async () => {
+      // Arrange
+      const { index, log, deps } = analyzeSetup();
+      index.roots = 0;
+      index.indexed = c.indexed;
+
+      // Act
+      await runAnalyze({ raw: true }, deps);
+
+      // Assert
+      strictEqual(log.lines[0], c.line);
+    });
+  }
 
   it("hands the indexing the parallelism asked for, as a number or its text", async () => {
     for (const parallel of [4, "4"]) {

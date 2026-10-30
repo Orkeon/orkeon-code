@@ -29,12 +29,12 @@ each with the typings edited by hand.
   checkout at it, the hand edits of the three branches give way to them.
 - **`/effort` offers the five levels**, `/analyze` takes `--parallel N` (`max_parallelism`) and `--rebuild`
   (`use_cache: false`), as their branches wrote them.
-- **`/analyze` says what the cache did**: the index summary reads `cache` and `reindexed_file_count`, and the report
-  names the outcome (`hit`, `refreshed` with the files reindexed, `miss`, `bypassed`), so a second run that took
-  seconds is explained, and so is a `--rebuild`.
+- **`/analyze` says what the cache did**: the index summary reads `cache` and `reindexed_file_count`, and the
+  indexing line names the outcome (`hit`, `refreshed` with the files reindexed, `miss`, `bypassed`), so a second run
+  that took seconds is explained, and so is a `--rebuild`.
 
 ## Consequences
 
-- On a runtime before #244 the summary has no `cache` field: the report leaves the line out. On one before #242,
+- On a runtime before #244 the summary has no `cache` field: the line says nothing of a cache. On one before #242,
   `xhigh` and `max` fail the agent's build, as any unknown value did.
 - The check made for this ADR: `npm run check` and the runtime smoke on `e44df3f` in source mode.

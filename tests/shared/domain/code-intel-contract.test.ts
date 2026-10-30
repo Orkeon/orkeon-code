@@ -15,7 +15,7 @@ import {
 import { READ_TOOLS } from "../../../src/shared/domain/agent-policy/permission.ts";
 import {
   ADD_LOCATION, DEP_GRAPH_RAW, EMPTY_MAPS, FIRST_LINES, FLOW_PATH_COUNTS, HITS_WITH_HOLES, IMPACT_RAW,
-  INDEX_FILE_COUNTS, INDEX_RAW, LOCATION_FQNS, MAP_RAW, MAP_SYMBOL_COUNTS, MATCH_ORIGIN_CASES, NOT_SEARCH_PAYLOADS,
+  INDEX_CACHE_CASES, INDEX_FILE_COUNTS, INDEX_RAW, LOCATION_FQNS, MAP_RAW, MAP_SYMBOL_COUNTS, MATCH_ORIGIN_CASES, NOT_SEARCH_PAYLOADS,
   PKG_SUMMARY_RAW, REFRESHED_FILES_CASES, SEARCH_RAW, SOURCE_RAW, SUB_GRAPH_RAW, SYMBOL_DETAIL_RAW,
 } from "./code-intel-contract.fixtures.ts";
 import { WORKSPACE } from "../../../src/shared/domain/vfs.ts";
@@ -99,6 +99,19 @@ describe("readIndexSummary — the reader that was silently wrong", () => {
 
       // Assert
       strictEqual(s.files, c.files);
+    });
+  }
+
+  for (const c of INDEX_CACHE_CASES) {
+    it(`reads what the index cache did: ${c.name}`, () => {
+      // Arrange
+      const { raw } = c;
+
+      // Act
+      const s = readIndexSummary(raw);
+
+      // Assert
+      deepStrictEqual({ cache: s.cache, reindexed: s.reindexed }, { cache: c.cache, reindexed: c.reindexed });
     });
   }
 

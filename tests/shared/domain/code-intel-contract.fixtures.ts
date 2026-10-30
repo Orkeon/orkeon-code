@@ -112,6 +112,16 @@ export const INDEX_FILE_COUNTS: readonly { readonly name: string; readonly raw: 
   { name: "reads a string that is no number as 0", raw: { file_count: "many" }, files: 0 },
 ];
 
+/** The cache outcome of index_codebase (Orkeon #244) and the files it reindexed. */
+export const INDEX_CACHE_CASES: readonly {
+  readonly name: string; readonly raw: unknown; readonly cache: string | undefined; readonly reindexed: number | undefined;
+}[] = [
+  { name: "a refreshed cache with the files it reindexed", raw: { cache: "refreshed", reindexed_file_count: 3 }, cache: "refreshed", reindexed: 3 },
+  { name: "a hit without the count reads 0 reindexed", raw: { cache: "hit" }, cache: "hit", reindexed: 0 },
+  { name: "no cache field, a runtime before #244, leaves both out", raw: INDEX_RAW, cache: undefined, reindexed: undefined },
+  { name: "an empty cache field leaves both out", raw: { cache: "", reindexed_file_count: 2 }, cache: undefined, reindexed: undefined },
+];
+
 export const MAP_SYMBOL_COUNTS: readonly { readonly name: string; readonly raw: unknown; readonly count: number }[] = [
   { name: "the live capture's totals", raw: MAP_RAW, count: 5 },
   { name: "0 without totals", raw: {}, count: 0 },

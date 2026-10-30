@@ -105,16 +105,22 @@ export interface IndexSummary {
   edges: number;
   statements: number;
   errors: string[];
+  /** What the index cache did (Orkeon #244): `hit`, `refreshed`, `miss` or `bypassed`; absent before #244. */
+  cache?: string;
+  /** The files a `refreshed` cache reindexed (`reindexed_file_count`), read when `cache` is. */
+  reindexed?: number;
 }
 
 /** `index_codebase` → counts. `file_count`, NOT `files_indexed`. */
 export function readIndexSummary(raw: any): IndexSummary {
+  const cache = typeof raw?.cache === "string" && raw.cache !== "" ? raw.cache : undefined;
   return {
     files: num(raw, "file_count"),
     nodes: num(raw, "node_count"),
     edges: num(raw, "edge_count"),
     statements: num(raw, "statement_count"),
     errors: arr(raw, "errors").map((e) => String(e)),
+    ...(cache === undefined ? {} : { cache, reindexed: num(raw, "reindexed_file_count") }),
   };
 }
 
