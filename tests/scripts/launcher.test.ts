@@ -16,7 +16,7 @@ import { deepStrictEqual, ok, strictEqual } from "node:assert";
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import {
-  ARCHIVE_VERSION, BASH_GATE, BLOCK, CODE_VERSION, CORRUPT_STORES, DEB_WRAPPER, DOTNET, CONSOLE_APP_DLL, ESBUILD, EXAMPLE_SETTINGS,
+  ARCHIVE_VERSION, BASH_GATE, BLOCK, BUILDING_LINE, CODE_VERSION, CORRUPT_STORES, DEB_WRAPPER, DOTNET, CONSOLE_APP_DLL, ESBUILD, EXAMPLE_SETTINGS,
   EXAMPLE_SETTINGS_FILES, FOLLOWED_CHECKOUTS, GATE, KEPT_CHECKOUTS, KEEP_OUT_OF_RANGE, NO_FILE_SETTINGS, NOT_AT_THE_PIN, OLLAMA_AND_EXISTING, PERSIST, PINNED_SDK, PROJECT_NAMES, PS1_ARGS_LOOP,
   PS1_CLONE_OR_INSTALL, PS1_DOCKER_TTY, PS1_FROM_PROJECT, PS1_GATE, PS1_MODES, PS1_SESSION_MOUNTS, PS1_SESSIONS, PS1_SET_VARIABLES,
   PS1_SETTINGS, PS1_SLUG, PS1_SPEECH, PS1_STORE_LAYOUT, PS1_SUBCOMMANDS, PS1_TRUST_CHECK, PS1_TRUST_REFUSAL, PS1_USER_SETTINGS,
@@ -245,6 +245,18 @@ describe("orkeon-code, tool and source modes on Orkeon rc.6", () => {
 
     // Assert
     ok(!s.stderr.includes("the pin of .orkeon-version"), s.stderr);
+  });
+
+  it("source mode says it builds Orkeon, before the build", () => {
+    // Arrange
+    const source = orkeonCheckout();
+    const start = { args: ["--mode", "source"], bin: { dotnet: DOTNET }, env: { ...ESBUILD, ORKEON_SOURCE: source } };
+
+    // Act
+    const s = launch(start);
+
+    // Assert
+    ok(s.stderr.includes(BUILDING_LINE(source)), s.stderr);
   });
 
   it("source mode stops when the build fails, and starts nothing", () => {

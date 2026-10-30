@@ -836,6 +836,8 @@ case "$MODE" in
       # project, whose global.json may pin another SDK ("A compatible .NET SDK was
       # not found"). The REPL then starts as the built assembly: `dotnet <dll>`
       # is a host command, which reads no global.json. A checkout just moved is restored by its build.
+      # The build is quiet and takes a minute after a move: say it runs, or it looks stuck.
+      echo "orkeon-code: building Orkeon in $ORKEON_SOURCE..." >&2
       (cd "$ORKEON_SOURCE" && dotnet build src/apps/Orkeon.ConsoleApp -c Debug ${restore:+"$restore"} -nologo -v quiet) >&2 \
         || die "building src/apps/Orkeon.ConsoleApp in $ORKEON_SOURCE failed (restore it once: dotnet restore Orkeon.sln)."
       dll="$ORKEON_SOURCE/src/apps/Orkeon.ConsoleApp/bin/Debug/net10.0/Orkeon.ConsoleApp.dll"
