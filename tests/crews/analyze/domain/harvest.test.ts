@@ -146,6 +146,17 @@ describe("renderHarvest", () => {
     assertMentions(harvest, ["A sample: the first 200 modules in the index's order, not the whole graph"]);
   });
 
+  it("leaves the edges of a sampled module graph out", () => {
+    // Arrange
+    const input = { packages: [], unsummarized: [], moduleGraph: SAMPLED_GRAPH, graphCap: 200 };
+
+    // Act
+    const harvest = renderHarvest(input);
+
+    // Assert
+    assertOmits(harvest, [`${WORKSPACE}/src/index.ts → `]);
+  });
+
   it("says nothing of a sample when the module graph is below its cap", () => {
     // Arrange
     const input = { packages: [], unsummarized: [], moduleGraph: MODULE_GRAPH, graphCap: 200 };

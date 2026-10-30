@@ -111,13 +111,16 @@ export function renderHarvest(h: HarvestInput): string {
     (g.cycleCount > 0 ? " ⚠" : ""),
   ];
   if (g.nodeCount >= h.graphCap) {
+    // The first modules in the store's order are whatever was indexed first (templates, examples): their
+    // edges say nothing of the packages above and would only weigh on the synthesis.
     graphLines.push(
       `A sample: the first ${h.graphCap} modules in the index's order, not the whole graph — ` +
-      "the edges below do not say how the packages above depend on each other.",
+      "its edges are left out, they do not say how the packages above depend on each other.",
     );
-  }
-  for (const e of g.edges) {
-    graphLines.push(`- ${edgeEndpointToPath(e.from)} → ${edgeEndpointToPath(e.to)}`);
+  } else {
+    for (const e of g.edges) {
+      graphLines.push(`- ${edgeEndpointToPath(e.from)} → ${edgeEndpointToPath(e.to)}`);
+    }
   }
   parts.push("## Module dependencies (L2)\n" + graphLines.join("\n"));
 
