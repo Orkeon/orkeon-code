@@ -7,10 +7,10 @@ import { describe, it } from "node:test";
 import { ok, strictEqual } from "node:assert";
 import {
   B12_COMMANDS, COMMAND_GROUPS, COMMANDS_DIR, collect, E1_COMMANDS, EXPECTED_COMMAND_COUNT, FOLDED_ALIASES, LOADER_DEFAULT_CAP,
-  topLevelExports,
+  RETIRED_NAMES, topLevelExports,
 } from "./command-surface.fixtures.ts";
 import {
-  assertAliasesOf, assertCommandsPresent, assertInAGroup, assertKebabNames, assertNoNameConflict, assertNoTopLevelExport,
+  assertAliasesOf, assertCommandsPresent, assertNamesAbsent, assertInAGroup, assertKebabNames, assertNoNameConflict, assertNoTopLevelExport,
   assertOneNameEach, assertSlugsMatchNames,
 } from "./command-surface.assertions.ts";
 
@@ -57,6 +57,17 @@ describe("command surface", () => {
 
     // Assert
     assertAliasesOf(owner, FOLDED_ALIASES);
+  });
+
+  it("declares none of the retired names, as a name or an alias", () => {
+    // Arrange
+    const cmds = collect();
+
+    // Act
+    const names = new Set(cmds.flatMap((c) => [c.name, ...c.aliases]));
+
+    // Assert
+    assertNamesAbsent(names, RETIRED_NAMES);
   });
 
   it("every name matches the loader's kebab-case rule", () => {

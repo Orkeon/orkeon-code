@@ -25,6 +25,11 @@ export function assertAliasesOf(owner: ReadonlyMap<string, string>, expected: re
   for (const [alias, name] of expected) strictEqual(owner.get(alias), name, `/${alias} must stay an alias of /${name}`);
 }
 
+/** None of `retired` is a name or an alias of the surface. */
+export function assertNamesAbsent(names: ReadonlySet<string>, retired: readonly string[]): void {
+  for (const r of retired) ok(!names.has(r), `/${r} was retired and must not come back as a name or an alias`);
+}
+
 /** Every name matches the loader's kebab-case rule. */
 export function assertKebabNames(cmds: readonly Cmd[]): void {
   for (const c of cmds) match(c.name, /^[a-z][a-z0-9-]*$/, `${c.file}: '${c.name}'`);

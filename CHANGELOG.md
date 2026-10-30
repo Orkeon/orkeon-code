@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **`/stats`, `/cost` and `/extra-usage` are gone**: they were aliases of `/usage` and printed its view unchanged,
+  which read as three commands doing the same thing. `/usage` shows the calls, tokens, cost, cache tokens and the
+  usage by model and by command.
+
 ### Changed
 
 - **`/effort` takes `xhigh` and `max`**, the two levels Claude knows above `high`: the ladder climbs to 120 and

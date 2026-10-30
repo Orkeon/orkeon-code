@@ -48,7 +48,7 @@ Les descriptions sont celles que le REPL affiche, lues dans `src/commands/*/*.cm
 | `/doctor` | sync | Health check: toolchain, LLM configuration, tool catalogue and VFS mounts. |
 | `/release-notes` | sync | Show the release notes for this build. |
 | `/status` | sync | Show the session status: model, provider, workspace, context, cost, crews, version, runtime and platform. Aussi `/version`, `/env`, `/session`, `/upgrade`. |
-| `/usage` | sync | Show token usage against the context window (pressure tier, compaction trigger), calls, tokens, cost and the cache tokens read and written, then the usage by model and by command. Aussi `/extra-usage`, `/stats`, `/cost`. |
+| `/usage` | sync | Show token usage against the context window (pressure tier, compaction trigger), calls, tokens, cost and the cache tokens read and written, then the usage by model and by command. |
 
 ## Le projet
 
