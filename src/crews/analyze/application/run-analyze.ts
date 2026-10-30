@@ -1,17 +1,21 @@
 // /analyze use case — the deterministic harvest of the code index, then (unless
 // `raw`) ONE synthesis call. No tool choice is left to the model: this chains
-// index → maps → dependency_graph → package summaries itself (the guarantee
+// index → package map → dependency_graph → package summaries itself (the guarantee
 // "analyze the codebase" always hits the RaggableTree), ../domain/harvest renders
 // the harvest, and the synthesis agent has NO tools, so the model can only read
 // the harvest, never wander off into grep.
 
 import type { CodeIndex, Llm, Logger, Progress } from "../../../shared/application/ports.ts";
 import { indexCacheNote, type PackageSummary } from "../../../shared/domain/code-intel-contract.ts";
-import { renderHarvest, SYNTHESIS_SYSTEM, buildSynthesisUser } from "../domain/harvest.ts";
+import { rankPackages, renderHarvest, SYNTHESIS_SYSTEM, buildSynthesisUser } from "../domain/harvest.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
-/** Packages summarized in the harvest — beyond this a repo needs a narrower ask. */
-export const MAX_PACKAGES = 10;
+/** Packages summarized in the harvest, the largest first — beyond this a repo needs a narrower ask. */
+export const MAX_PACKAGES = 15;
+/** Packages the L1 map is asked for: the tool returns 200 by default, in the store's order. */
+export const MAX_MAP_ENTRIES = 1000;
+/** Modules of the L2 graph: the whole graph of a large repository exceeds the script's memory budget. */
+export const GRAPH_NODES = 200;
 
 /** Status-line headline of the /analyze progress. */
 export const PROGRESS_LABEL = "Analyzing codebase";
@@ -62,26 +66,26 @@ export async function runAnalyze(input: AnalyzeInputs, deps: AnalyzeDeps): Promi
       log.info(`analyze: indexed ${idx.files} file(s), ${idx.nodes} node(s)${note === "" ? "" : `; ${note}`}`);
     }
 
-    // 2. The deterministic harvest — maps, module graph, package summaries.
+    // 2. The deterministic harvest — the package map, module graph, package summaries. The symbols come
+    //    from the summaries' public exports: the L3 map lists the store's first nodes, whatever they are.
     await progress.report(phase(2, "mapping the codebase"));
-    const l1 = await index.map("L1_Package", false);
-    const l3 = await index.map("L3_Symbol", true);
+    const ranked = rankPackages((await index.map("L1_Package", false, MAX_MAP_ENTRIES)).entries);
     await progress.report(phase(3, "walking module dependencies"));
-    const moduleGraph = await index.dependencyGraph("L2_Module", 200);
+    const moduleGraph = await index.dependencyGraph("L2_Module", GRAPH_NODES);
     await progress.report(phase(4, "summarizing packages"));
     const packages: PackageSummary[] = [];
-    for (const p of l1.entries.slice(0, MAX_PACKAGES)) {
+    for (const p of ranked.slice(0, MAX_PACKAGES)) {
       packages.push(await index.packageSummary(p.fqn));
     }
-    if (l1.entries.length > MAX_PACKAGES) {
-      log.warn(`analyze: ${l1.entries.length - MAX_PACKAGES} package(s) beyond the cap of ${MAX_PACKAGES} not summarized`);
+    if (ranked.length > MAX_PACKAGES) {
+      log.warn(`analyze: ${ranked.length - MAX_PACKAGES} package(s) beyond the cap of ${MAX_PACKAGES} not summarized`);
     }
 
     const harvest = renderHarvest({
       packages,
+      unsummarized: ranked.slice(MAX_PACKAGES),
       moduleGraph,
-      symbols: l3.entries,
-      symbolCount: l3.symbolCount,
+      graphCap: GRAPH_NODES,
     });
     if (raw) return harvest;
 

@@ -111,6 +111,18 @@ describe("createCodeIndex", () => {
     deepStrictEqual(tools.inputsOf("codebaseMap"), [{ level: "L1_Package" }]);
   });
 
+  it("asks for as many map entries as told", async () => {
+    // Arrange
+    const tools = new FakeTools();
+    tools.replies.codebaseMap = MAP_REPLY;
+
+    // Act
+    await createCodeIndex(tools).map("L1_Package", false, 1000);
+
+    // Assert
+    deepStrictEqual(tools.inputsOf("codebaseMap"), [{ level: "L1_Package", max_entries: 1000 }]);
+  });
+
   it("reads the dependency graph of a scope, without its mermaid rendering", async () => {
     // Arrange
     const tools = new FakeTools();

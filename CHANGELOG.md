@@ -960,6 +960,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   wrapping (`/resume`, the extraTools notice): a file the runtime says is not found on a second line is read as
   absent again.
 
+### Fixed
+
+- **The `/analyze` harvest covers what matters in a large repository**: the synthesis worked from the index's
+  first 200 symbols (markdown sections on a C# repository of 8,600 files), its first 10 packages and a `200 total`
+  that only counted those. It now asks for up to 1,000 packages, summarizes the 15 largest (test packages last),
+  lists 20 public exports and the entry points of each, types before their members, names the other packages with
+  their module count, and says the module graph is a sample when it reaches its 200 modules.
+
 ## [0.1.0-alpha.1]
 
 First release as a standalone project, on Orkeon `1.0.0-rc.5`.

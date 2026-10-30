@@ -5,7 +5,9 @@ import { strictEqual, deepStrictEqual, rejects } from "node:assert";
 
 import { MAX_PACKAGES, PROGRESS_LABEL, runAnalyze } from "../../../../src/crews/analyze/application/run-analyze.ts";
 import { SYNTHESIS_SYSTEM, buildSynthesisUser } from "../../../../src/crews/analyze/domain/harvest.ts";
-import { CACHE_LINES, NOTHING_INDEXED, RAW_RUN_CALLS, analyzeSetup, harvestOf } from "./run-analyze.fixtures.ts";
+import {
+  CACHE_LINES, NOTHING_INDEXED, RANKED_SUMMARIES, RAW_RUN_CALLS, UNRANKED_L1, analyzeSetup, harvestOf,
+} from "./run-analyze.fixtures.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 
 describe("runAnalyze", () => {
@@ -51,13 +53,25 @@ describe("runAnalyze", () => {
     strictEqual(out, "the synthesis");
     deepStrictEqual(index.calls.filter((c) => c.startsWith("packageSummary")).length, MAX_PACKAGES);
     deepStrictEqual(llm.acts, [{
-      prompt: buildSynthesisUser(harvestOf(fqns.slice(0, MAX_PACKAGES))),
+      prompt: buildSynthesisUser(harvestOf(fqns, MAX_PACKAGES)),
       request: { system: SYNTHESIS_SYSTEM, maxIterations: 1 },
     }]);
     deepStrictEqual(log.lines, [
       "info: analyze: indexed 12 file(s), 40 node(s)",
-      "warn: analyze: 2 package(s) beyond the cap of 10 not summarized",
+      `warn: analyze: 2 package(s) beyond the cap of ${MAX_PACKAGES} not summarized`,
     ]);
+  });
+
+  it("summarizes the largest packages first and the tests last, not the index's first ones", async () => {
+    // Arrange
+    const { index, deps } = analyzeSetup();
+    index.maps.L1_Package = { entries: UNRANKED_L1, symbolCount: 0 };
+
+    // Act
+    await runAnalyze({ raw: true }, deps);
+
+    // Assert
+    deepStrictEqual(index.calls.filter((c) => c.startsWith("packageSummary")), RANKED_SUMMARIES);
   });
 
   for (const c of CACHE_LINES) {

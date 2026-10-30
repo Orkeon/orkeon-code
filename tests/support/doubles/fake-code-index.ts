@@ -44,8 +44,8 @@ export class FakeCodeIndex implements CodeIndex {
     return this.indexed;
   }
 
-  async map(level: string, withMetrics: boolean): Promise<CodeMap> {
-    this.record(`map ${level} ${withMetrics}`);
+  async map(level: string, withMetrics: boolean, maxEntries?: number): Promise<CodeMap> {
+    this.record(`map ${level} ${withMetrics}${maxEntries === undefined ? "" : ` ${maxEntries}`}`);
     return this.maps[level] ?? { entries: [], symbolCount: 0 };
   }
 
@@ -57,7 +57,7 @@ export class FakeCodeIndex implements CodeIndex {
 
   async packageSummary(fqn: string): Promise<PackageSummary> {
     this.record(`packageSummary ${fqn}`);
-    return this.packages[fqn] ?? { fqn, name: "", files: 0, symbols: 0, dependencies: [] };
+    return this.packages[fqn] ?? { fqn, name: "", files: 0, symbols: 0, dependencies: [], exports: [], entryPoints: [] };
   }
 
   async search(query: string, topK: number): Promise<CodeSearchHit[]> {

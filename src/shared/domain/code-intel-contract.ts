@@ -140,15 +140,21 @@ export interface MapEntry {
   fqn: string;
   name: string;
   kind: string;
+  /** `children_count`, when the node has children: the modules of a package, the symbols of a module. */
+  children?: number;
 }
 
 /** `codebase_map` → `entries[]` (+ `totals`), NOT `nodes[]`. */
 export function readMapEntries(raw: any): MapEntry[] {
-  return arr(raw, "entries").map((e) => ({
-    fqn: String(e?.fqn ?? ""),
-    name: String(e?.name ?? ""),
-    kind: String(e?.kind ?? ""),
-  })).filter((e) => e.fqn.length > 0);
+  return arr(raw, "entries").map((e) => {
+    const children = Number(e?.children_count);
+    return {
+      fqn: String(e?.fqn ?? ""),
+      name: String(e?.name ?? ""),
+      kind: String(e?.kind ?? ""),
+      ...(Number.isFinite(children) && children > 0 ? { children } : {}),
+    };
+  }).filter((e) => e.fqn.length > 0);
 }
 
 /** `codebase_map.totals.symbol_count`. */
@@ -288,6 +294,10 @@ export interface PackageSummary {
   files: number;
   symbols: number;
   dependencies: string[];
+  /** `public_exports`: FQNs of the package's public symbols, at most 50, in the index's order. */
+  exports: string[];
+  /** `entry_points`: FQNs of the modules named after main, program or index. */
+  entryPoints: string[];
 }
 
 /** `package_summary` → `file_count`/`symbol_count` (the index_codebase naming, not files_indexed). */
@@ -298,6 +308,8 @@ export function readPackageSummary(raw: any): PackageSummary {
     files: num(raw, "file_count"),
     symbols: num(raw, "symbol_count"),
     dependencies: arr(raw, "dependencies").map((s) => String(s)),
+    exports: arr(raw, "public_exports").map((s) => String(s)),
+    entryPoints: arr(raw, "entry_points").map((s) => String(s)),
   };
 }
 

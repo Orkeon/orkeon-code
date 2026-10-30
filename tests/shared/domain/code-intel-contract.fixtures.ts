@@ -79,6 +79,12 @@ export const PKG_SUMMARY_RAW = {
   truncated: false,
 };
 
+/** The lists readPackageSummary reads from PKG_SUMMARY_RAW. */
+export const PKG_SUMMARY_LISTS = {
+  exports: [`${WORKSPACE}/src/index.ts::greet`, `${WORKSPACE}/src/math.ts::add`],
+  entryPoints: [`${WORKSPACE}/src/index.ts`],
+};
+
 export const SYMBOL_DETAIL_RAW = {
   fqn: `${WORKSPACE}/src/index.ts::greet`,
   name: "greet",

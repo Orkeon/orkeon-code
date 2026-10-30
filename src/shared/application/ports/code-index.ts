@@ -45,7 +45,7 @@ export interface CodeIndex {
    *  earlier session saved. */
   index(root: string, opts?: { parallel?: number; rebuild?: boolean }): Promise<IndexSummary>;
   /** The map at `level`; `withMetrics` asks for the per-symbol metrics. */
-  map(level: string, withMetrics: boolean): Promise<CodeMap>;
+  map(level: string, withMetrics: boolean, maxEntries?: number): Promise<CodeMap>;
   /** The dependency graph of `scope`, at most `maxNodes` nodes, without its mermaid rendering. */
   dependencyGraph(scope: string, maxNodes: number): Promise<GraphSummary>;
   packageSummary(fqn: string): Promise<PackageSummary>;
