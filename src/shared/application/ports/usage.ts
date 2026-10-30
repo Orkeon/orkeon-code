@@ -1,13 +1,14 @@
 // The usage port: the session's LLM usage by category, as the host accounts it (Orkeon #226).
 // Types only, re-exported by ../ports.ts.
 
-/** The tokens of a set of calls: the cache counts are a part of the prompt, the reasoning a part of the completion. */
+/** The tokens of a set of calls: the cache counts are a part of the prompt, the reasoning a part of the completion.
+ *  A cache or reasoning count is null when no call of the set reported it: not measured, never 0 (Orkeon #254). */
 export interface UsageTokens {
   promptTokens: number;
   completionTokens: number;
-  cacheHitTokens: number;
-  cacheWriteTokens: number;
-  reasoningTokens: number;
+  cacheHitTokens: number | null;
+  cacheWriteTokens: number | null;
+  reasoningTokens: number | null;
 }
 
 /** What a set of calls spent: `cost` is null when no call of the set was priced; `unpricedCalls` counts the calls

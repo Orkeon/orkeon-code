@@ -4,6 +4,6 @@ import type { RuntimeInfo } from "../../../src/commands/.orkeon/orkeon-cli.d.ts"
 
 export class FakeRuntimeService implements RuntimeInfo {
   version = "1.0.0-rc.6";
-  commit: string | null = "5fe53ac";
+  commit: string | null = "e55edef";
   channel = "source";
 }

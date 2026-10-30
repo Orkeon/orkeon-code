@@ -37,7 +37,7 @@ export function unpricedNote(unpricedCalls: number): string | null {
 }
 
 function spentText(s: UsageSpent): string {
-  const cached = s.cacheHitTokens > 0 ? ` (${s.cacheHitTokens} from the cache)` : "";
+  const cached = (s.cacheHitTokens ?? 0) > 0 ? ` (${s.cacheHitTokens} from the cache)` : "";
   return `${s.calls} call(s), ${s.promptTokens} prompt${cached}, ${s.completionTokens} completion, ${costText(s.cost)}`;
 }
 

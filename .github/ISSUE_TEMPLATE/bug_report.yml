@@ -21,7 +21,7 @@ body:
     attributes:
       label: Orkeon runtime version
       description: "The runtime row of `/status`: the Orkeon version, its commit, and whether it is the pin of `.orkeon-version`."
-      placeholder: "e.g. Orkeon 1.0.0-rc.6+5fe53ac (source), the pin of .orkeon-version"
+      placeholder: "e.g. Orkeon 1.0.0-rc.6+e55edef (source), the pin of .orkeon-version"
     validations:
       required: true
   - type: dropdown

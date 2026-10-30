@@ -46,6 +46,21 @@ describe("createUsageReader", () => {
     );
   });
 
+  it("keeps the cache and reasoning counts the host left unreported as null", () => {
+    // Arrange
+    const { service, reader } = usageOverFake();
+    service.answer = PASCAL_REPORT as any;
+
+    // Act
+    const report = reader.report();
+
+    // Assert
+    deepStrictEqual(
+      [report?.cacheHitTokens, report?.byModel[0]?.cacheHitTokens, report?.byModel[0]?.cacheWriteTokens, report?.byModel[0]?.reasoningTokens],
+      [0, null, null, null],
+    );
+  });
+
   it("answers nothing when the service throws", () => {
     // Arrange
     const { service, reader } = usageOverFake();

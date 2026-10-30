@@ -76,7 +76,7 @@ machine instead, no key: `config/appsettings.ollama.example.json`, on Ollama ([C
 mode on the release's `orkeon-<version>-win-x64.zip` is the one for Windows; the path this project exercises is WSL
 with the bash launcher ([WSL tutorial](wsl-tutorial.md)).
 
-Orkeon Code is checked against Orkeon's sources at the commit in `.orkeon-version` (`5fe53ac`, `main` after
+Orkeon Code is checked against Orkeon's sources at the commit in `.orkeon-version` (`e55edef`, `main` after
 Orkeon/orkeon#246, 2026-10-30): the [source mode](#source-mode-an-orkeon-checkout) runs that commit, the reference
 runtime; the [tool mode](#tool-mode-orkeon-repl-installed) (the Debian package on the apt `rc` channel, the release
 archives) runs the last release, `1.0.0-rc.6`, and the [docker mode](#docker-mode-nothing-to-install-but-docker)
@@ -146,7 +146,7 @@ whose `global.json` pins another SDK still works. It needs the .NET 10 SDK, the 
 
 The checkout should sit at the commit of `.orkeon-version` (`git -C ~/src/orkeon checkout $(cat .orkeon-version)`),
 the one the commands were checked against: at another commit the launcher warns (`orkeon-code: warning: ORKEON_SOURCE
-is at <sha7>, the pin of .orkeon-version is 5fe53ac: the commands were checked against the pin.`) and runs anyway.
+is at <sha7>, the pin of .orkeon-version is e55edef: the commands were checked against the pin.`) and runs anyway.
 
 ## 4. First session
 

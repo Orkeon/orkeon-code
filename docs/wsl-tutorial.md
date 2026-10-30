@@ -189,7 +189,7 @@ A first REPL, without speech, on the throwaway sample repository (`--demo`), in 
 ./orkeon-code --mode tool --demo
 ```
 
-The banner shows `orkeon-code <version> on Orkeon 5fe53ac (tool)` (`5fe53ac` is the pin of `.orkeon-version`,
+The banner shows `orkeon-code <version> on Orkeon e55edef (tool)` (`e55edef` is the pin of `.orkeon-version`,
 not the package's version), the project and the settings file. In the REPL:
 
 | Command | Expected |

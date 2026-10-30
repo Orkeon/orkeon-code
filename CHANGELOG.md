@@ -15,13 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Every agent asks the provider to cache its system prompt and its tools** (Orkeon #254, ADR 0014): on Anthropic,
+  whose cache is explicit, nothing was cached and every prompt was billed at the full rate; from the second call of
+  a session the stable prefix is now read from the cache, and `/usage` shows it in `cacheRead` and `cacheRatio`. The
+  other providers cache by their own rules and ignore the request. A cache or reasoning count the host did not
+  measure now reads `-` in `/usage`, no longer `0`.
 - **`/usage` tells the tokens sent from the tokens received, and the counted from the estimated.** The row gains
   `llmInTokens`, `llmOutTokens` and `llmReasoningTokens` beside the total `llmTokens` (from the host's account, else
   summed over the models of `session_stats`, `-` when nobody counts them), and a legend opens the closing text:
   `usedTokens` and `estTokens` are estimates of the conversation's size, the `llm*` columns the providers' counts.
   `cacheRatio` is now the cache read over the prompt tokens, no longer over the prompt and completion together.
-  The configuration guide and the Anthropic example no longer claim the prompt cache is requested: Orkeon Code
-  marks nothing with `cache_control` yet, so Anthropic caches nothing.
 - **`/effort` takes `xhigh` and `max`**, the two levels Claude knows above `high`: the ladder climbs to 120 and
   160 act() iterations, and the level is forwarded as such to the provider. Needs the Orkeon commit that widens
   `effort` (a provider whose field does not know a level receives the highest it knows below it, with a warning
@@ -428,9 +431,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **The runtime pin moves to Orkeon main after #244** ([ADR 0014](docs/adr/0014-orkeon-after-244.md)):
-  `.orkeon-version` holds `5fe53ac1…` (Orkeon #241 to #246: the effort levels `xhigh` and `max`, `index_codebase
-  max_parallelism`, the index cache between sessions; an Anthropic act turn that calls a tool, the memory limit of a
-  script after `index_codebase` on a large repository and the stale entries of the index cache fixed); the typings are regenerated from a checkout at it, and the
+  `.orkeon-version` holds `e55edef7…` (Orkeon #241 to #256: the effort levels `xhigh` and `max`, `index_codebase
+  max_parallelism`, the index cache between sessions, the prompt cache from scripts; an Anthropic act turn that calls
+  a tool, the memory limit of a script after `index_codebase` on a large repository, the stale entries of the index
+  cache, `package_summary`'s entry points and dependencies, `.gitignore` character classes and the import edges of
+  C#, Go and Rust fixed); the typings are regenerated from a checkout at it, and the
   permission rules know the two new arguments of `index_codebase`, `max_parallelism` and `use_cache`.
 - **The runtime pin is a commit of Orkeon's `main`, never a release** ([ADR 0013](docs/adr/0013-pin-on-orkeon-commit.md)):
   `.orkeon-version` holds the full commit (`3fcfbbe8…`, main after Orkeon #240), the launcher, `/status` and

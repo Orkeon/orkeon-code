@@ -55,10 +55,11 @@ Une option qu'un fournisseur ne peut pas honorer produit un avertissement, jamai
 `/context` en montrent la somme dans `cacheRead` et `cacheWrite` (`0` d'un fournisseur qui ne rapporte aucun cache, `-` d'un hôte qui ne rapporte aucun chiffre). La durée de
 vie du cache est une option d'appel d'Orkeon, `orkeon:cache_ttl` (`5m` ou `1h`, d'après le réglage de cache d'un
 agent) : Anthropic l'honore, les fournisseurs compatibles OpenAI et Ollama journalisent qu'ils ne le peuvent pas.
-Orkeon Code n'en fixe aucune, chaque fournisseur garde donc sa durée par défaut. Anthropic ne met rien en cache si la
-requête ne le marque pas, et Orkeon Code ne marque encore rien : le constructeur d'agents des scripts d'Orkeon n'a pas
-d'option de cache, donc sur Anthropic `cacheRead` et `cacheWrite` restent à `0` et chaque prompt est facturé au plein
-tarif.
+Orkeon Code n'en fixe aucune, chaque fournisseur garde donc sa durée par défaut. Anthropic ne met en cache que ce
+qu'une requête marque : chaque agent d'Orkeon Code marque son prompt système et ses définitions d'outils
+(`.cache({ systemPrompt: true, tools: true })`), un préfixe que ses prompts gardent identique d'un tour à l'autre, donc
+dès le deuxième appel d'une session `cacheRead` compte ce qu'Anthropic a servi depuis son cache. La demande de l'agent
+l'emporte sur un réglage par défaut `Llm:Cache` de l'hôte.
 
 **Ce que compte `/usage`.** `usedTokens` et `estTokens` sont la taille de la conversation dans la fenêtre de contexte,
 estimée par l'hôte. Les colonnes `llm*` sont comptées par les fournisseurs sur tous les appels : `llmInTokens` envoyés,

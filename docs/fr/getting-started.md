@@ -76,7 +76,7 @@ Ollama ([Configuration](configuration.md#le-llm)).
 tool sur le `orkeon-<version>-win-x64.zip` de la release est celui de Windows ; la voie que ce projet pratique est WSL
 avec le lanceur bash ([tutoriel WSL](wsl-tutorial.md)).
 
-Orkeon Code est vérifié contre les sources d'Orkeon au commit de `.orkeon-version` (`5fe53ac`, le `main` après
+Orkeon Code est vérifié contre les sources d'Orkeon au commit de `.orkeon-version` (`e55edef`, le `main` après
 Orkeon/orkeon#246, 2026-10-30) : le [mode source](#mode-source--un-checkout-dorkeon) exécute ce commit, le runtime de
 référence ; le [mode tool](#mode-tool--orkeon-repl-installé) (le paquet Debian sur le canal apt `rc`, les archives de
 release) exécute la dernière release, `1.0.0-rc.6`, et le [mode docker](#mode-docker--rien-à-installer-sauf-docker)
@@ -147,7 +147,7 @@ ce checkout, ou `ORKEON_ESBUILD_PATH`.
 
 Le checkout devrait être au commit de `.orkeon-version` (`git -C ~/src/orkeon checkout $(cat .orkeon-version)`),
 celui contre lequel les commandes ont été vérifiées : à un autre commit, le lanceur avertit (`orkeon-code: warning:
-ORKEON_SOURCE is at <sha7>, the pin of .orkeon-version is 5fe53ac: the commands were checked against the pin.`) et
+ORKEON_SOURCE is at <sha7>, the pin of .orkeon-version is e55edef: the commands were checked against the pin.`) et
 lance quand même.
 
 ## 4. Première session

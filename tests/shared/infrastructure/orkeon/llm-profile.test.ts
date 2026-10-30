@@ -2,9 +2,9 @@
 //   node --test tests/shared/infrastructure/orkeon/llm-profile.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, throws } from "node:assert";
-import { profiledAgent } from "../../../../src/shared/infrastructure/orkeon/llm-profile.ts";
+import { PROMPT_CACHE, profiledAgent } from "../../../../src/shared/infrastructure/orkeon/llm-profile.ts";
 import { assertBuiltOn } from "./llm-profile.assertions.ts";
-import { factories } from "./llm-profile.fixtures.ts";
+import { CACHE_CASES, factories } from "./llm-profile.fixtures.ts";
 
 describe("profiledAgent", () => {
   it("builds the agent on the profile the input names", () => {
@@ -28,6 +28,19 @@ describe("profiledAgent", () => {
     // Assert
     assertBuiltOn(host, builder, []);
   });
+
+  for (const c of CACHE_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const host = factories();
+
+      // Act
+      const builder = profiledAgent(c.input, host);
+
+      // Assert
+      deepStrictEqual(builder.caches, [PROMPT_CACHE]);
+    });
+  }
 
   it("gives the plain builder on a host without llm when the input names no profile", () => {
     // Arrange
