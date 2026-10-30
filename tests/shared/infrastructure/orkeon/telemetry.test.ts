@@ -2,12 +2,12 @@
 // session_stats, in both casings the runtime hands back. Run:
 //   node --test tests/shared/infrastructure/orkeon/telemetry.test.ts
 import { describe, it } from "node:test";
-import { deepStrictEqual, rejects } from "node:assert";
+import { deepStrictEqual, rejects, strictEqual } from "node:assert";
 
 import { createTelemetry } from "../../../../src/shared/infrastructure/orkeon/telemetry.ts";
 import { FakeTools } from "../../../support/doubles/fake-tools.ts";
 import {
-  CACHE_COUNTS, PASCAL_METADATA, PASCAL_METADATA_REPLY, STATS, STATS_REPLY, TWO_MODELS_REPLY, UNREPORTED_METADATA,
+  CACHE_COUNTS, REASONING_COUNTS, PASCAL_METADATA, PASCAL_METADATA_REPLY, STATS, STATS_REPLY, TWO_MODELS_REPLY, UNREPORTED_METADATA,
   UNREPORTED_STATS,
 } from "./telemetry.fixtures.ts";
 
@@ -124,6 +124,20 @@ describe("createTelemetry — cost and stats", () => {
 
       // Assert
       deepStrictEqual([s.cacheHitTokens, s.cacheWriteTokens], c.expected);
+    });
+  }
+
+  for (const c of REASONING_COUNTS) {
+    it(c.name, async () => {
+      // Arrange
+      const tools = new FakeTools();
+      tools.replies.sessionStats = c.reply;
+
+      // Act
+      const s = await createTelemetry(tools).readStats();
+
+      // Assert
+      strictEqual(s.reasoningTokens, c.expected);
     });
   }
 

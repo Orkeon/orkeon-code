@@ -27,10 +27,13 @@ export interface SessionStats extends SessionCost {
   promptTokens?: number;
   /** Completion tokens received, over every model, as the providers counted them, when the host reports them. */
   completionTokens?: number;
-  /** Prompt tokens read from the provider's cache (the hits), over every model, when the host reports them. */
+  /** Prompt tokens read from the provider's cache (the hits), summed over the models that report them; undefined
+   *  when none does (Orkeon #254: not measured, never 0). */
   cacheHitTokens?: number;
-  /** Prompt tokens written to the provider's cache, over every model, when the host reports them. */
+  /** Prompt tokens written to the provider's cache, summed over the models that report them; undefined when none does. */
   cacheWriteTokens?: number;
+  /** Completion tokens spent reasoning, summed over the models that report them; undefined when none does. */
+  reasoningTokens?: number;
 }
 
 /** The host's account of the session. Each read throws when the host cannot

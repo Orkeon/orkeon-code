@@ -44,3 +44,52 @@ export const PASCAL_REPORT = {
   ByModel: [{ Model: "kimi", Calls: "1", UnpricedCalls: "1", Cost: null, PromptTokens: "10", CompletionTokens: "2" }],
   ByCommand: [],
 };
+
+/** The cache and reasoning counts of a report, its first model and its first command, in that order. */
+export type CountTriple = [number | null, number | null, number | null];
+
+export interface CountCase {
+  name: string;
+  /** The host's answer, as the service gives it. */
+  answer: unknown;
+  /** `[cacheHitTokens, cacheWriteTokens, reasoningTokens]` of the totals, the first model and the first command. */
+  expected: [CountTriple, CountTriple, CountTriple];
+}
+
+const row = (counts: object) => ({ promptTokens: 10, completionTokens: 2, calls: 1, unpricedCalls: 0, cost: null, ...counts });
+
+/** A report whose rows all carry `counts`, as the host's service gives it. */
+function reportWith(counts: object) {
+  return {
+    ...row(counts), totalTokens: 12,
+    byModel: [{ ...row(counts), model: "m" }],
+    byCommand: [{ ...row(counts), ticket: "t1", name: "assistant", state: "done" }],
+  };
+}
+
+const UNREPORTED: CountTriple = [null, null, null];
+const ZERO: CountTriple = [0, 0, 0];
+
+/** The cache and reasoning counts: null when the host reported none (Orkeon #254), a measured 0 kept as 0. */
+export const COUNT_CASES: readonly CountCase[] = [
+  {
+    name: "reads null cache and reasoning counts as unreported, never as 0",
+    answer: reportWith({ cacheHitTokens: null, cacheWriteTokens: null, reasoningTokens: null }),
+    expected: [UNREPORTED, UNREPORTED, UNREPORTED],
+  },
+  {
+    name: "reads absent cache and reasoning counts as unreported, never as 0",
+    answer: reportWith({}),
+    expected: [UNREPORTED, UNREPORTED, UNREPORTED],
+  },
+  {
+    name: "keeps cache and reasoning counts measured at 0 as 0",
+    answer: reportWith({ CacheHitTokens: "0", CacheWriteTokens: 0, ReasoningTokens: 0 }),
+    expected: [ZERO, ZERO, ZERO],
+  },
+  {
+    name: "keeps the cache count a model reported beside the reasoning it did not",
+    answer: reportWith({ cacheHitTokens: 700, cacheWriteTokens: 0, reasoningTokens: null }),
+    expected: [[700, 0, null], [700, 0, null], [700, 0, null]],
+  },
+];

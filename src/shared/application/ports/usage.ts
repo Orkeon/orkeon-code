@@ -2,7 +2,7 @@
 // Types only, re-exported by ../ports.ts.
 
 /** The tokens of a set of calls: the cache counts are a part of the prompt, the reasoning a part of the completion.
- *  A cache or reasoning count is null when no call of the set reported it: not measured, never 0 (Orkeon #254). */
+ *  A cache or reasoning count is null when no call of the set reported it (Orkeon #254): not measured, never 0. */
 export interface UsageTokens {
   promptTokens: number;
   completionTokens: number;

@@ -52,7 +52,7 @@ Une option qu'un fournisseur ne peut pas honorer produit un avertissement, jamai
 
 **Cache du prompt.** Un fournisseur qui met le prompt en cache (DeepSeek et OpenAI d'eux-mêmes, Anthropic avec
 `cache_control`) rapporte les jetons lus dans son cache et écrits dedans ; Orkeon les garde par modèle et `/usage` et
-`/context` en montrent la somme dans `cacheRead` et `cacheWrite` (`0` d'un fournisseur qui ne rapporte aucun cache, `-` d'un hôte qui ne rapporte aucun chiffre). La durée de
+`/context` en montrent la somme dans `cacheRead` et `cacheWrite` (`n/a` tant qu'aucun appel n'a rapporté le compte, jamais `0`, qui se lit comme mesuré : un runtime à partir d'Orkeon #254 omet un compte non rapporté, un plus ancien rapporte `0`). La durée de
 vie du cache est une option d'appel d'Orkeon, `orkeon:cache_ttl` (`5m` ou `1h`, d'après le réglage de cache d'un
 agent) : Anthropic l'honore, les fournisseurs compatibles OpenAI et Ollama journalisent qu'ils ne le peuvent pas.
 Orkeon Code n'en fixe aucune, chaque fournisseur garde donc sa durée par défaut. Anthropic ne met en cache que ce
@@ -65,7 +65,7 @@ l'emporte sur un réglage par défaut `Llm:Cache` de l'hôte.
 estimée par l'hôte. Les colonnes `llm*` sont comptées par les fournisseurs sur tous les appels : `llmInTokens` envoyés,
 `llmOutTokens` reçus (`llmReasoningTokens` en fait partie), `llmTokens` leur somme. `cacheRead` et `cacheWrite` font
 partie de `llmInTokens`, et `cacheRatio` vaut `cacheRead / llmInTokens`. Un chiffre que l'hôte ne rapporte pas s'affiche
-`-`.
+`n/a`, de même qu'un ratio sur une lecture du cache non rapportée : un `0` mesuré s'affiche `0`.
 
 Un modèle sur cette machine : [`config/appsettings.ollama.example.json`](../../config/appsettings.ollama.example.json)
 est l'exemple sur [Ollama](https://ollama.com) servant `qwen3.5:2b` (`ollama pull qwen3.5:2b` d'abord), sans clé et

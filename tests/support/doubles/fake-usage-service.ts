@@ -4,7 +4,7 @@ import type { SessionUsage, SessionUsageReport } from "../../../src/commands/.or
 
 export class FakeUsageService implements SessionUsage {
   answer: SessionUsageReport = {
-    promptTokens: 0, completionTokens: 0, cacheHitTokens: 0, cacheWriteTokens: 0, reasoningTokens: 0,
+    promptTokens: 0, completionTokens: 0, cacheHitTokens: null, cacheWriteTokens: null, reasoningTokens: null,
     totalTokens: 0, calls: 0, unpricedCalls: 0, cost: null, byModel: [], byCommand: [],
   };
 
