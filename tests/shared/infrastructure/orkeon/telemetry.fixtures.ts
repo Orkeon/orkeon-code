@@ -28,13 +28,22 @@ export const STATS_REPLY = {
 };
 
 export const STATS = {
-  costUsd: 0.5, totalTokens: 900, totalCalls: 2, messageCount: 6, estimatedTokens: 800, cacheHitTokens: 300,
-  cacheWriteTokens: undefined,
+  costUsd: 0.5, totalTokens: 900, totalCalls: 2, messageCount: 6, estimatedTokens: 800,
+  promptTokens: undefined, completionTokens: undefined, cacheHitTokens: 300, cacheWriteTokens: undefined,
 };
 
 export const UNREPORTED_STATS = {
   costUsd: undefined, totalTokens: undefined, totalCalls: undefined,
-  messageCount: undefined, estimatedTokens: undefined, cacheHitTokens: undefined, cacheWriteTokens: undefined,
+  messageCount: undefined, estimatedTokens: undefined, promptTokens: undefined, completionTokens: undefined,
+  cacheHitTokens: undefined, cacheWriteTokens: undefined,
+};
+
+/** Two models' entries, and the prompt and completion tokens summed over them. */
+export const TWO_MODELS_REPLY = {
+  by_model_tokens: [
+    { model: "a", prompt_tokens: 1000, completion_tokens: 10 },
+    { model: "b", promptTokens: 500, completionTokens: 5 },
+  ],
 };
 
 export interface CacheCase {

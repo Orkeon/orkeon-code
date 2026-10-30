@@ -48,13 +48,13 @@ Les descriptions sont celles que le REPL affiche, lues dans `src/commands/*/*.cm
 | `/doctor` | sync | Health check: toolchain, LLM configuration, tool catalogue and VFS mounts. |
 | `/release-notes` | sync | Show the release notes for this build. |
 | `/status` | sync | Show the session status: model, provider, workspace, context, cost, crews, version, runtime and platform. Aussi `/version`, `/env`, `/session`, `/upgrade`. |
-| `/usage` | sync | Show token usage against the context window (pressure tier, compaction trigger), calls, tokens, cost and the cache tokens read and written, then the usage by model and by command. Aussi `/extra-usage`, `/stats`, `/cost`. |
+| `/usage` | sync | Show token usage against the context window (pressure tier, compaction trigger), calls, tokens, cost and the cache tokens read and written, then the usage by model and by command. |
 
 ## Le projet
 
 | Commande | Type | Description |
 |---|---|---|
-| `/analyze` | async | Analyze the codebase (index → maps → dependency graph), then synthesize business objects; --raw skips the LLM call; --parallel N parses N files at once; --rebuild reindexes from scratch. |
+| `/analyze` | async | Analyze the codebase (index → packages → dependency graph), then synthesize business objects; --raw skips the LLM call; --parallel N parses N files at once; --rebuild reindexes from scratch. |
 | `/debug-tool-call` | sync | Invoke a registered tool with JSON arguments and print its raw result. |
 | `/files` | sync | List the files in a directory (defaults to /workspace). |
 | `/init` | async | Analyse the workspace and write AGENTS.md, the instructions file (an existing CLAUDE.md is merged). |

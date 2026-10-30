@@ -64,11 +64,14 @@ export function collect(dir = COMMANDS_DIR): Cmd[] {
 /** The folded commands' names, each with the command that absorbed it. */
 export const FOLDED_ALIASES: readonly (readonly [alias: string, name: string])[] = [
   ["reset-session", "clear"], ["version", "status"], ["env", "status"], ["session", "status"],
-  ["upgrade", "status"], ["ctx-viz", "context"], ["extra-usage", "usage"],
+  ["upgrade", "status"], ["ctx-viz", "context"],
   ["dev-change", "dev-spec"], ["dev-implement", "dev-batches"], ["dev-verify", "dev-batches"],
   ["security-review", "review"], ["passes", "review"], ["plan", "mode"], ["feedback", "memory"],
-  ["memory-admit", "memory"], ["stats", "usage"], ["cost", "usage"],
+  ["memory-admit", "memory"],
 ];
+
+/** Names retired outright: /extra-usage, /stats and /cost were aliases printing /usage's view unchanged. */
+export const RETIRED_NAMES: readonly string[] = ["extra-usage", "stats", "cost"];
 
 // E-1 and B-12 name commands by what the person types: a folded name (plan, feedback, passes, security-review)
 // is present as an alias of the command that absorbed it.

@@ -53,7 +53,15 @@ An option a provider cannot honour produces a warning, never a silent drop.
 `/usage` and `/context` show their sum in `cacheRead` and `cacheWrite` (`0` from a provider that reports no cache, `-` from a host that reports no figure). The cache's
 lifetime is a per-call option of Orkeon, `orkeon:cache_ttl` (`5m` or `1h`, from an agent's cache setting): Anthropic
 honours it, the OpenAI-compatible providers and Ollama log that they cannot. Orkeon Code sets none, so each provider
-keeps its own default lifetime.
+keeps its own default lifetime. Anthropic caches only what a request marks: every agent of Orkeon Code marks its
+system prompt and its tool definitions (`.cache({ systemPrompt: true, tools: true })`), a prefix its prompts keep
+identical turn after turn, so from a session's second call `cacheRead` counts what Anthropic served from its cache.
+The agent's request wins over a host default `Llm:Cache`.
+
+**What `/usage` counts.** `usedTokens` and `estTokens` are the conversation's size in the context window, estimated
+by the host. The `llm*` columns are counted by the providers over every call: `llmInTokens` sent, `llmOutTokens`
+received (`llmReasoningTokens` a part of them), `llmTokens` their sum. `cacheRead` and `cacheWrite` are parts of
+`llmInTokens`, and `cacheRatio` is `cacheRead / llmInTokens`. A figure the host does not report reads `-`.
 
 A model on this machine: [`config/appsettings.ollama.example.json`](../config/appsettings.ollama.example.json) is
 the example on [Ollama](https://ollama.com) serving `qwen3.5:2b` (`ollama pull qwen3.5:2b` first), no key and

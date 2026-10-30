@@ -1,5 +1,5 @@
 // Telemetry adapter over session_store get_metadata, session_cost and
-// session_stats (its cache read and write tokens summed over by_model_tokens). The counters come back snake_case (or camelCase) and the
+// session_stats (its prompt, completion, cache read and write tokens summed over by_model_tokens). The counters come back snake_case (or camelCase) and the
 // metadata PascalCase from the .NET record: this is the one place that reads
 // either casing, and the one place that turns the values into numbers and strings.
 
@@ -21,8 +21,8 @@ function costOf(r: unknown): SessionCost {
   };
 }
 
-/** The sum of one cache count over `by_model_tokens`, undefined when no entry reports it. */
-function cacheSum(entries: readonly unknown[], ...names: string[]): number | undefined {
+/** The sum of one count over `by_model_tokens`, undefined when no entry reports it. */
+function modelSum(entries: readonly unknown[], ...names: string[]): number | undefined {
   const counts = entries.map((e) => num(pick(e, ...names))).filter((n): n is number => n !== undefined);
   return counts.length > 0 ? counts.reduce((a, b) => a + b, 0) : undefined;
 }
@@ -44,15 +44,17 @@ export function createTelemetry(tools: Pick<OrkeonTools, "sessionStore" | "sessi
     },
     async readStats(): Promise<SessionStats> {
       const s = await tools.sessionStats();
-      // The cache counts per model (RT-12); an older host reported the hits alone, in one figure.
+      // The counts per model (RT-12); an older host reported the cache hits alone, in one figure.
       const byModel = asArray(pick(s, "by_model_tokens", "byModelTokens"));
       return {
         ...costOf(s),
         messageCount: num(pick(s, "message_count", "messageCount")),
         estimatedTokens: num(pick(s, "estimated_tokens", "estimatedTokens")),
-        cacheHitTokens: cacheSum(byModel, "cache_read_tokens", "cacheReadTokens")
+        promptTokens: modelSum(byModel, "prompt_tokens", "promptTokens"),
+        completionTokens: modelSum(byModel, "completion_tokens", "completionTokens"),
+        cacheHitTokens: modelSum(byModel, "cache_read_tokens", "cacheReadTokens")
           ?? num(pick(s, "prompt_cache_hit_tokens", "promptCacheHitTokens", "cache_hit_tokens")),
-        cacheWriteTokens: cacheSum(byModel, "cache_write_tokens", "cacheWriteTokens"),
+        cacheWriteTokens: modelSum(byModel, "cache_write_tokens", "cacheWriteTokens"),
       };
     },
   };

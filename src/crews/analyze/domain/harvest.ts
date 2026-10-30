@@ -26,6 +26,8 @@ export interface HarvestInput {
   moduleGraph: GraphSummary;
   /** The max_nodes the graph was asked with: a graph that reaches it is a sample of the index. */
   graphCap: number;
+  /** The max_entries the package map was asked with: a map that reaches it stops there, the index holds more. */
+  mapCap: number;
 }
 
 /** Edge endpoints are node IDs ("/path#module@0"), not FQNs — display the path half. */
@@ -88,8 +90,9 @@ export function renderHarvest(h: HarvestInput): string {
   const total = h.packages.length + h.unsummarized.length;
   if (h.packages.length > 0) {
     const symbols = h.packages.reduce((sum, p) => sum + p.symbols, 0);
+    const inIndex = total >= h.mapCap ? `at least ${total}` : `${total}`;
     parts.push(
-      `## Packages (${total} in the index; the ${h.packages.length} largest summarized, test packages last; ` +
+      `## Packages (${inIndex} in the index; ${h.packages.length} summarized, the largest first, test packages last; ` +
       `${symbols} symbol(s) in them)\n` +
       h.packages.map(renderPackage).join("\n\n"),
     );

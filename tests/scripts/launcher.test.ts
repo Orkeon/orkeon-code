@@ -17,15 +17,15 @@ import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } 
 import { dirname, join } from "node:path";
 import {
   ARCHIVE_VERSION, BASH_GATE, BLOCK, CODE_VERSION, CORRUPT_STORES, DEB_WRAPPER, DOTNET, CONSOLE_APP_DLL, ESBUILD, EXAMPLE_SETTINGS,
-  EXAMPLE_SETTINGS_FILES, GATE, KEEP_OUT_OF_RANGE, NO_FILE_SETTINGS, NOT_AT_THE_PIN, OLLAMA_AND_EXISTING, PERSIST, PINNED_SDK, PROJECT_NAMES, PS1_ARGS_LOOP,
+  EXAMPLE_SETTINGS_FILES, FOLLOWED_CHECKOUTS, GATE, KEPT_CHECKOUTS, KEEP_OUT_OF_RANGE, NO_FILE_SETTINGS, NOT_AT_THE_PIN, OLLAMA_AND_EXISTING, PERSIST, PINNED_SDK, PROJECT_NAMES, PS1_ARGS_LOOP,
   PS1_CLONE_OR_INSTALL, PS1_DOCKER_TTY, PS1_FROM_PROJECT, PS1_GATE, PS1_MODES, PS1_SESSION_MOUNTS, PS1_SESSIONS, PS1_SET_VARIABLES,
   PS1_SETTINGS, PS1_SLUG, PS1_SPEECH, PS1_STORE_LAYOUT, PS1_SUBCOMMANDS, PS1_TRUST_CHECK, PS1_TRUST_REFUSAL, PS1_USER_SETTINGS,
   PS1_VERSION_LINES, PTY, PWSH, RESTORED_IN_FINALLY, RESTORED_NAMES, ROOTS, RUNTIME_SETTINGS, RUNTIME_SLUGS, RUNTIME_PIN, RUNTIME_REF,
   SERVER_CASES, SERVER_LEFT_OUT, SESSIONS_DIR, SETTINGS_TEXT, SETTINGS_WITH_BLOCK, SLUG_PATHS, SPEECH_TOOL, START_SCRIPT, TOOL_REPL,
-  TOOL_START, USER_SETTINGS, WHISPER, audioEnv, bashOf, ciStarts, corruptHome, crewSource, fullHistory, gitAt, launch, launchWithNode, orkeonCheckoutAtAnotherCommit,
+  TOOL_START, USER_SETTINGS, WHISPER, audioEnv, bashOf, ciStarts, corruptHome, crewSource, fullHistory, gitAt, launch, launchWithNode, orkeonCheckoutAtAnotherCommit, orkeonCheckoutBehindThePin,
   leftBeside, linkedFolder, modeStart, mostWhisperArgs, mountOf, mountRoots, namedProjectStart, nestedTrust, orkeonCheckout,
   pwshOf, read, recorder, removeScratch, runCrew, runPs1ThenPrint, scratchDir, scratchFolder, serverArgs, serverOf,
-  sessionScene, slugOf, sourceModeCalls, staleLock, startAgain, storeOf, storedFolders, tokenVarsForwarded, toolModeArgs, trustCli, trustOf, twoSessions,
+  sessionScene, slugOf, sourceModeCalls, sourceModeCallsRestoring, staleLock, startAgain, storeOf, storedFolders, tokenVarsForwarded, toolModeArgs, trustCli, trustOf, twoSessions,
   untrustedStart, upTo, userFile, variablesSaved, variablesSet, whisperArgNames, whisperArgs, whisperEnv, writtenSettings, historyIds,
 } from "./launcher.fixtures.ts";
 import {
@@ -159,6 +159,47 @@ describe("orkeon-code, tool and source modes on Orkeon rc.6", () => {
     ok(s.stderr.includes(`warning: ORKEON_SOURCE is at `) && s.stderr.includes(NOT_AT_THE_PIN), s.stderr);
     deepStrictEqual(s.calls, sourceModeCalls(source, s));
   });
+
+  for (const c of FOLLOWED_CHECKOUTS) {
+    it(`source mode moves a clean checkout behind the pin, ${c.name}, to the pin`, () => {
+      // Arrange
+      const checkout = orkeonCheckoutBehindThePin({ branch: c.branch });
+      const start = { args: ["--mode", "source"], bin: { dotnet: DOTNET }, env: { ...ESBUILD, ORKEON_SOURCE: checkout.source }, files: checkout.files };
+
+      // Act
+      const s = launch(start);
+
+      // Assert
+      strictEqual(s.status, 0, s.stderr);
+      deepStrictEqual([checkout.at(), s.stderr.includes(NOT_AT_THE_PIN)], [checkout.pin, false], s.stderr);
+    });
+  }
+
+  it("source mode restores a checkout it moved to the pin, in its build", () => {
+    // Arrange
+    const checkout = orkeonCheckoutBehindThePin();
+    const start = { args: ["--mode", "source"], bin: { dotnet: DOTNET }, env: { ...ESBUILD, ORKEON_SOURCE: checkout.source }, files: checkout.files };
+
+    // Act
+    const s = launch(start);
+
+    // Assert
+    deepStrictEqual(s.calls, sourceModeCallsRestoring(checkout.source, s));
+  });
+
+  for (const c of KEPT_CHECKOUTS) {
+    it(`source mode leaves a checkout behind the pin ${c.name} where it is, and warns`, () => {
+      // Arrange
+      const checkout = orkeonCheckoutBehindThePin({ branch: c.branch, dirty: c.dirty });
+      const start = { args: ["--mode", "source"], bin: { dotnet: DOTNET }, env: { ...ESBUILD, ORKEON_SOURCE: checkout.source, ...c.env }, files: checkout.files };
+
+      // Act
+      const s = launch(start);
+
+      // Assert
+      deepStrictEqual([checkout.at(), s.stderr.includes(NOT_AT_THE_PIN.replace(RUNTIME_PIN, checkout.pin.slice(0, 7)))], [checkout.head, true], s.stderr);
+    });
+  }
 
   it("source mode says nothing of the pin when the checkout is at it", () => {
     // Arrange

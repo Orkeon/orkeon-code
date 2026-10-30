@@ -55,7 +55,17 @@ Une option qu'un fournisseur ne peut pas honorer produit un avertissement, jamai
 `/context` en montrent la somme dans `cacheRead` et `cacheWrite` (`0` d'un fournisseur qui ne rapporte aucun cache, `-` d'un hôte qui ne rapporte aucun chiffre). La durée de
 vie du cache est une option d'appel d'Orkeon, `orkeon:cache_ttl` (`5m` ou `1h`, d'après le réglage de cache d'un
 agent) : Anthropic l'honore, les fournisseurs compatibles OpenAI et Ollama journalisent qu'ils ne le peuvent pas.
-Orkeon Code n'en fixe aucune, chaque fournisseur garde donc sa durée par défaut.
+Orkeon Code n'en fixe aucune, chaque fournisseur garde donc sa durée par défaut. Anthropic ne met en cache que ce
+qu'une requête marque : chaque agent d'Orkeon Code marque son prompt système et ses définitions d'outils
+(`.cache({ systemPrompt: true, tools: true })`), un préfixe que ses prompts gardent identique d'un tour à l'autre, donc
+dès le deuxième appel d'une session `cacheRead` compte ce qu'Anthropic a servi depuis son cache. La demande de l'agent
+l'emporte sur un réglage par défaut `Llm:Cache` de l'hôte.
+
+**Ce que compte `/usage`.** `usedTokens` et `estTokens` sont la taille de la conversation dans la fenêtre de contexte,
+estimée par l'hôte. Les colonnes `llm*` sont comptées par les fournisseurs sur tous les appels : `llmInTokens` envoyés,
+`llmOutTokens` reçus (`llmReasoningTokens` en fait partie), `llmTokens` leur somme. `cacheRead` et `cacheWrite` font
+partie de `llmInTokens`, et `cacheRatio` vaut `cacheRead / llmInTokens`. Un chiffre que l'hôte ne rapporte pas s'affiche
+`-`.
 
 Un modèle sur cette machine : [`config/appsettings.ollama.example.json`](../../config/appsettings.ollama.example.json)
 est l'exemple sur [Ollama](https://ollama.com) servant `qwen3.5:2b` (`ollama pull qwen3.5:2b` d'abord), sans clé et

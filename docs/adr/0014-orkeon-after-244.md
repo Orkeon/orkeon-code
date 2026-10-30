@@ -1,4 +1,4 @@
-# ADR 0014: Orkeon main after #244, effort levels, a parallel index and an index cache
+# ADR 0014: Orkeon main after #244, effort levels, a parallel index, an index cache and the prompt cache
 
 - **Status**: accepted
 - **Date**: 2026-10-30
@@ -6,7 +6,7 @@
 
 ## Context
 
-The pin of ADR 0013 is `3fcfbbe` (Orkeon #240). Orkeon `main` then merged four pull requests, `e44df3f`
+The pin of ADR 0013 is `3fcfbbe` (Orkeon #240). Orkeon `main` then merged eight pull requests, up to `e55edef`
 (2026-10-30):
 
 - **#241**, an audit of Orkeon's documentation against its code: no change of the scripting surface.
@@ -19,13 +19,25 @@ The pin of ADR 0013 is `3fcfbbe` (Orkeon #240). Orkeon `main` then merged four p
   `<root>/.orkeon/cache/raggable-tree/` (its own `.gitignore`), reloads it when no file changed (`hit`), reindexes the
   changed files when at most half changed and no package marker did (`refreshed`), and rebuilds otherwise (`miss`);
   `use_cache: false` rebuilds, then saves (`bypassed`). The response gains `cache` and `reindexed_file_count`.
+- **#246**, three fixes found while adapting to #244, none of the scripting surface: an Anthropic `ctx.llm.act` turn
+  that called a tool no longer fails on its second model call (#245); what a host tool allocates (`index_codebase`
+  on a large repository) no longer counts against the script's memory limit (#247); the index cache drops the
+  entries of another runtime version when it saves, and compacts its database when more than half of it is free
+  (#248).
+- **#253** and **#255**, fixes of the code analysis found while running `/analyze`, none of the scripting surface:
+  `package_summary` picks its entry points by name and reports a package's dependencies (#249, #250), `.gitignore`
+  character classes are honoured (#251), and a C# `using`, a Go `import` and a Rust `use` draw import edges (#252).
+- **#256**, the prompt cache from scripts (#254): `agentBuilder().cache({ systemPrompt?, tools?, ttl? })` and the
+  `cache` key of `LlmConfig.with`, a host default `Llm:Cache`, and the usage report and `session_stats` keep a cache
+  or reasoning count no call reported null (absent) instead of 0. Before it, no script agent could ask Anthropic to
+  cache, so Orkeon Code paid every prompt at the full rate.
 
 Three branches of Orkeon Code waited on these: `/effort xhigh|max`, `/analyze --parallel N` and `/analyze --rebuild`,
 each with the typings edited by hand.
 
 ## Decision
 
-- **The pin moves to `e44df3f`** (`.orkeon-version`, `ORKEON_RUNTIME_COMMIT`), the typings are regenerated from a
+- **The pin moves to `e55edef`** (`.orkeon-version`, `ORKEON_RUNTIME_COMMIT`), the typings are regenerated from a
   checkout at it, the hand edits of the three branches give way to them.
 - **`/effort` offers the five levels**, `/analyze` takes `--parallel N` (`max_parallelism`) and `--rebuild`
   (`use_cache: false`), as their branches wrote them.
@@ -34,9 +46,18 @@ each with the typings edited by hand.
   that took seconds is explained, and so is a `--rebuild`. The dev steps that build the index when the session
   holds none say it the same way: `/dev-plan` on its `code index built` line, `/dev-spec` and `/dev-change` on the
   `inventory:` line of their end message.
+- **Every agent requests the prompt cache** of its system prompt and its tool definitions, for the vendor's default
+  lifetime: `profiledAgent` (`orkeonAgent()`, where every composition root starts an agent) calls
+  `.cache({ systemPrompt: true, tools: true })`. The prompts are assembled so that this prefix stays byte-identical
+  turn after turn, which is what the cache needs. Anthropic caches only what a request marks; the other providers
+  cache by their own rules and ignore the request.
+- **An unreported count stays unreported**: the usage reader keeps a null cache or reasoning count null, and `/usage`
+  shows it `-`.
 
 ## Consequences
 
 - On a runtime before #244 the summary has no `cache` field: the line says nothing of a cache. On one before #242,
   `xhigh` and `max` fail the agent's build, as any unknown value did.
-- The check made for this ADR: `npm run check` and the runtime smoke on `e44df3f` in source mode.
+- An agent's own `.cache(...)` wins over the host default `Llm:Cache`: a host cannot turn Orkeon Code's cache off
+  from its settings. On a runtime before #256, `.cache` does not exist and every agent fails its build.
+- The check made for this ADR: `npm run check` and the runtime smoke on `e55edef` in source mode.

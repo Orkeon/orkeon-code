@@ -7,7 +7,8 @@ import { deepStrictEqual, rejects } from "node:assert";
 import { createTelemetry } from "../../../../src/shared/infrastructure/orkeon/telemetry.ts";
 import { FakeTools } from "../../../support/doubles/fake-tools.ts";
 import {
-  CACHE_COUNTS, PASCAL_METADATA, PASCAL_METADATA_REPLY, STATS, STATS_REPLY, UNREPORTED_METADATA, UNREPORTED_STATS,
+  CACHE_COUNTS, PASCAL_METADATA, PASCAL_METADATA_REPLY, STATS, STATS_REPLY, TWO_MODELS_REPLY, UNREPORTED_METADATA,
+  UNREPORTED_STATS,
 } from "./telemetry.fixtures.ts";
 
 describe("createTelemetry — metadata", () => {
@@ -98,6 +99,18 @@ describe("createTelemetry — cost and stats", () => {
 
     // Assert
     deepStrictEqual(stats, STATS);
+  });
+
+  it("sums the prompt and completion tokens of every model, in either casing", async () => {
+    // Arrange
+    const tools = new FakeTools();
+    tools.replies.sessionStats = TWO_MODELS_REPLY;
+
+    // Act
+    const s = await createTelemetry(tools).readStats();
+
+    // Assert
+    deepStrictEqual([s.promptTokens, s.completionTokens], [1500, 15]);
   });
 
   for (const c of CACHE_COUNTS) {

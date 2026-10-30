@@ -7,8 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **`/stats`, `/cost` and `/extra-usage` are gone**: they were aliases of `/usage` and printed its view unchanged,
+  which read as three commands doing the same thing. `/usage` shows the calls, tokens, cost, cache tokens and the
+  usage by model and by command.
+
 ### Changed
 
+- In source mode, the launcher moves the Orkeon checkout of `ORKEON_SOURCE` to the pin when it is behind it, clean,
+  and on `main` or detached, then restores it in the build; `ORKEON_SOURCE_FOLLOW_PIN=0` turns this off.
+
+- **Every agent asks the provider to cache its system prompt and its tools** (Orkeon #254, ADR 0014): on Anthropic,
+  whose cache is explicit, nothing was cached and every prompt was billed at the full rate; from the second call of
+  a session the stable prefix is now read from the cache, and `/usage` shows it in `cacheRead` and `cacheRatio`. The
+  other providers cache by their own rules and ignore the request. A cache or reasoning count the host did not
+  measure now reads `-` in `/usage`, no longer `0`.
+- **`/usage` tells the tokens sent from the tokens received, and the counted from the estimated.** The row gains
+  `llmInTokens`, `llmOutTokens` and `llmReasoningTokens` beside the total `llmTokens` (from the host's account, else
+  summed over the models of `session_stats`, `-` when nobody counts them), and a legend opens the closing text:
+  `usedTokens` and `estTokens` are estimates of the conversation's size, the `llm*` columns the providers' counts.
+  `cacheRatio` is now the cache read over the prompt tokens, no longer over the prompt and completion together.
 - **`/effort` takes `xhigh` and `max`**, the two levels Claude knows above `high`: the ladder climbs to 120 and
   160 act() iterations, and the level is forwarded as such to the provider. Needs the Orkeon commit that widens
   `effort` (a provider whose field does not know a level receives the highest it knows below it, with a warning
@@ -415,8 +434,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **The runtime pin moves to Orkeon main after #244** ([ADR 0014](docs/adr/0014-orkeon-after-244.md)):
-  `.orkeon-version` holds `e44df3f4…` (Orkeon #241 to #244: the effort levels `xhigh` and `max`, `index_codebase
-  max_parallelism`, the index cache between sessions); the typings are regenerated from a checkout at it, and the
+  `.orkeon-version` holds `e55edef7…` (Orkeon #241 to #256: the effort levels `xhigh` and `max`, `index_codebase
+  max_parallelism`, the index cache between sessions, the prompt cache from scripts; an Anthropic act turn that calls
+  a tool, the memory limit of a script after `index_codebase` on a large repository, the stale entries of the index
+  cache, `package_summary`'s entry points and dependencies, `.gitignore` character classes and the import edges of
+  C#, Go and Rust fixed); the typings are regenerated from a checkout at it, and the
   permission rules know the two new arguments of `index_codebase`, `max_parallelism` and `use_cache`.
 - **The runtime pin is a commit of Orkeon's `main`, never a release** ([ADR 0013](docs/adr/0013-pin-on-orkeon-commit.md)):
   `.orkeon-version` holds the full commit (`3fcfbbe8…`, main after Orkeon #240), the launcher, `/status` and
@@ -753,6 +775,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The `/analyze` harvest covers what matters in a large repository**: the synthesis worked from the index's
+  first 200 symbols (markdown sections on a C# repository of 8,600 files), its first 10 packages and a `200 total`
+  that only counted those. It now asks for up to 1,000 packages, summarizes the 15 largest (test packages last),
+  lists 20 public exports and the entry points of each, types before their members, names the other packages with
+  their module count, and says the module graph is a sample when it reaches its 200 modules, leaving out its edges:
+  the first modules of the index (templates, examples) say nothing of how the packages depend on each other.
+
 - **`/analyze` indexes a project that holds a shell script.** `index_codebase` failed on the first `.sh` with `File
   extension '.sh' is not allowed`: the runtime's path validator blocks `.sh`, `.bash`, `.ps1`, `.bat` and `.cmd` for
   reading too, and its discovery fails the whole index on one refused file. The index is now asked for every grammar
@@ -959,15 +988,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - An unreadable file or session is reported with the tool's own message, every line of it, without the runtime's
   wrapping (`/resume`, the extraTools notice): a file the runtime says is not found on a second line is read as
   absent again.
-
-### Fixed
-
-- **The `/analyze` harvest covers what matters in a large repository**: the synthesis worked from the index's
-  first 200 symbols (markdown sections on a C# repository of 8,600 files), its first 10 packages and a `200 total`
-  that only counted those. It now asks for up to 1,000 packages, summarizes the 15 largest (test packages last),
-  lists 20 public exports and the entry points of each, types before their members, names the other packages with
-  their module count, and says the module graph is a sample when it reaches its 200 modules, leaving out its edges:
-  the first modules of the index (templates, examples) say nothing of how the packages depend on each other.
 
 ## [0.1.0-alpha.1]
 

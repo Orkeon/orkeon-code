@@ -4,7 +4,7 @@
 // /analyze — deterministic codebase analysis (composition root).
 //
 // The whole point of this crew is that NO tool choice is left to the model:
-// application/run-analyze chains index → maps → dependency_graph → package
+// application/run-analyze chains index → package map → dependency_graph → package
 // summaries itself, renders the harvest, and then — unless `raw` — makes ONE
 // synthesis call whose agent has NO tools.
 //

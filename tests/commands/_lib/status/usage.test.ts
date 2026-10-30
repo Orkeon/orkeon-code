@@ -3,9 +3,10 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
-import { NO_USAGE_SERVICE, usageBreakdown } from "../../../../src/commands/_lib/status/usage.ts";
+import { NO_USAGE_SERVICE, USAGE_LEGEND, usageBreakdown } from "../../../../src/commands/_lib/status/usage.ts";
 import { EMPTY_USAGE_REPORT, USAGE_REPORT } from "../../../support/fixtures/usage-report.ts";
-import { CACHE_RATIO_CASES, REPORT_BREAKDOWN, usageHarness } from "./usage.fixtures.ts";
+import { CACHE_RATIO_CASES, IN_OUT_CASES, REPORT_BREAKDOWN, usageHarness } from "./usage.fixtures.ts";
+import { assertInOut } from "./usage.assertions.ts";
 
 describe("usageBreakdown", () => {
   it("lists the models, then the commands newest first, then the lower-bound note", () => {
@@ -47,7 +48,10 @@ describe("runUsage", () => {
     // Arrange
     const h = usageHarness();
     h.session.budget = { used: 32_000, window: 128_000 };
-    h.telemetry.stats = { messageCount: 4, totalCalls: 3, totalTokens: 9000, cacheHitTokens: 700, cacheWriteTokens: 50 };
+    h.telemetry.stats = {
+      messageCount: 4, totalCalls: 3, totalTokens: 9000, promptTokens: 8000, completionTokens: 1000, cacheHitTokens: 700,
+      cacheWriteTokens: 50,
+    };
     h.telemetry.cost = { costUsd: 0.02 };
 
     // Act
@@ -56,8 +60,8 @@ describe("runUsage", () => {
     // Assert
     deepStrictEqual(view.table, [{
       usedTokens: 32_000, contextWindow: 128_000, percentLeft: "75%", pressure: "ok", autocompactAt: "91424",
-      messages: 4, llmCalls: 3, llmTokens: 9000, costUsd: 0.02, cacheRead: 700, cacheWrite: 50,
-      estTokens: 0, cacheRatio: "0.08",
+      messages: 4, estTokens: 0, llmCalls: 3, llmInTokens: 8000, llmOutTokens: 1000, llmReasoningTokens: "-",
+      llmTokens: 9000, costUsd: 0.02, cacheRead: 700, cacheWrite: 50, cacheRatio: "0.09",
     }]);
   });
 
@@ -74,9 +78,9 @@ describe("runUsage", () => {
       [view.table?.[0], view.text],
       [{
         usedTokens: 0, contextWindow: "(default 128000)", percentLeft: "100%", pressure: "ok", autocompactAt: "91424",
-        messages: 0, llmCalls: 2, llmTokens: 3400, costUsd: 0.01, unpricedCalls: 1, cacheRead: "-", cacheWrite: "-",
-        estTokens: 0, cacheRatio: "-",
-      }, REPORT_BREAKDOWN],
+        messages: 0, estTokens: 0, llmCalls: 2, llmInTokens: 3000, llmOutTokens: 400, llmReasoningTokens: 0,
+        llmTokens: 3400, costUsd: 0.01, unpricedCalls: 1, cacheRead: "-", cacheWrite: "-", cacheRatio: "-",
+      }, `${USAGE_LEGEND}\n${REPORT_BREAKDOWN}`],
     );
   });
 
@@ -116,6 +120,21 @@ describe("runUsage", () => {
     strictEqual((view.table?.[0] as { estTokens: unknown }).estTokens, 1234);
   });
 
+  for (const c of IN_OUT_CASES) {
+    it(c.name, async () => {
+      // Arrange
+      const h = usageHarness();
+      h.telemetry.stats = c.stats;
+      h.usage.answer = c.report;
+
+      // Act
+      const view = await h.run();
+
+      // Assert
+      assertInOut(view.table?.[0], c.expected);
+    });
+  }
+
   for (const c of CACHE_RATIO_CASES) {
     it(c.name, async () => {
       // Arrange
@@ -140,6 +159,6 @@ describe("runUsage", () => {
     const view = await h.run();
 
     // Assert
-    deepStrictEqual([(view.table?.[0] as { usedTokens: unknown }).usedTokens, view.text], [0, NO_USAGE_SERVICE]);
+    deepStrictEqual([(view.table?.[0] as { usedTokens: unknown }).usedTokens, view.text], [0, `${USAGE_LEGEND}\n${NO_USAGE_SERVICE}`]);
   });
 });

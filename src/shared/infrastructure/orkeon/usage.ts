@@ -2,7 +2,8 @@
 // usage, in total and by model and by command, as the host's cost manager accounts it. Reached
 // through the service locator each command receives, like the approvals; a host that keeps no
 // account registers no service and the reader answers nothing. Jint keeps the CLR member names on a
-// host object, so both casings are read, and every count is made a number here.
+// host object, so both casings are read, and every count is made a number here; a cache or reasoning count the host
+// left null (unreported, Orkeon #254) stays null.
 
 import type { CommandUsage, ModelUsage, UsageReader, UsageReport, UsageSpent } from "../../application/ports.ts";
 import type { SessionUsage, ServiceLocator } from "../../../commands/.orkeon/orkeon-cli.d.ts";
@@ -14,6 +15,12 @@ const USAGE = "usage";
 /** A reported count, as a number; absent reads as 0. */
 const count = (r: unknown, name: string): number => Number(pick(r, name, name[0].toUpperCase() + name.slice(1)) ?? 0) || 0;
 
+/** A count the host may leave unreported, as a number; null and absent read as null. */
+function measured(r: unknown, name: string): number | null {
+  const v = pick(r, name, name[0].toUpperCase() + name.slice(1));
+  return v == null ? null : Number(v) || 0;
+}
+
 /** A reported cost; null, absent and a non-number all read as unpriced. */
 function costOf(r: unknown): number | null {
   const v = pick(r, "cost", "Cost");
@@ -24,9 +31,9 @@ function spentOf(r: unknown): UsageSpent {
   return {
     promptTokens: count(r, "promptTokens"),
     completionTokens: count(r, "completionTokens"),
-    cacheHitTokens: count(r, "cacheHitTokens"),
-    cacheWriteTokens: count(r, "cacheWriteTokens"),
-    reasoningTokens: count(r, "reasoningTokens"),
+    cacheHitTokens: measured(r, "cacheHitTokens"),
+    cacheWriteTokens: measured(r, "cacheWriteTokens"),
+    reasoningTokens: measured(r, "reasoningTokens"),
     calls: count(r, "calls"),
     unpricedCalls: count(r, "unpricedCalls"),
     cost: costOf(r),
