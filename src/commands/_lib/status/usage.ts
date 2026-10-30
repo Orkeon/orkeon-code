@@ -12,7 +12,7 @@ import { readCompactionTrigger } from "../../../shared/application/compaction/co
 import {
   DEFAULT_CONTEXT_WINDOW, computeTrigger, percentLeft, pressureTier,
 } from "../../../shared/domain/compaction-thresholds.ts";
-import { cacheColumns } from "./cache.ts";
+import { UNREPORTED, type Unreported, cacheColumns, shown } from "./cache.ts";
 import type { CommandView } from "../view.ts";
 
 export interface UsageDeps {
@@ -37,7 +37,8 @@ export function unpricedNote(unpricedCalls: number): string | null {
 }
 
 function spentText(s: UsageSpent): string {
-  const cached = (s.cacheHitTokens ?? 0) > 0 ? ` (${s.cacheHitTokens} from the cache)` : "";
+  // A cache read no call reported is left out; one measured, 0 included, is named.
+  const cached = s.cacheHitTokens === null ? "" : ` (${s.cacheHitTokens} from the cache)`;
   return `${s.calls} call(s), ${s.promptTokens} prompt${cached}, ${s.completionTokens} completion, ${costText(s.cost)}`;
 }
 
@@ -69,12 +70,15 @@ export const USAGE_LEGEND = [
   "usedTokens, estTokens: the conversation's size in the context window, estimated by the host.",
   "llm*: counted by the providers over every call: llmInTokens sent, llmOutTokens received (llmReasoningTokens a part of",
   "them), llmTokens = in + out. cacheRead and cacheWrite are parts of llmInTokens; cacheRatio = cacheRead / llmInTokens.",
+  "n/a: not reported, never a measured 0.",
 ].join("\n");
 
-/** The share of the prompt tokens read from the cache, to two decimals; `-` when the host reports no cache or no
- *  prompt token. */
-export function cacheRatio(cacheRead: number | "-", promptTokens: number | "-"): string {
-  return cacheRead !== "-" && promptTokens !== "-" && promptTokens > 0 ? (cacheRead / promptTokens).toFixed(2) : "-";
+/** The share of the prompt tokens read from the cache, to two decimals; `n/a` when no call reported a cache read, or
+ *  no prompt token is counted: an unmeasured cache never reads as a ratio of 0. */
+export function cacheRatio(cacheRead: number | Unreported, promptTokens: number | Unreported): string {
+  return cacheRead !== UNREPORTED && promptTokens !== UNREPORTED && promptTokens > 0
+    ? (cacheRead / promptTokens).toFixed(2)
+    : UNREPORTED;
 }
 
 /** `/usage`: the one row, each figure read best effort, then the breakdown. */
@@ -87,7 +91,7 @@ export async function runUsage(deps: UsageDeps): Promise<CommandView> {
   ]);
   const report = deps.usage?.report();
   const cache = cacheColumns(s);
-  const promptTokens = report?.promptTokens ?? s.promptTokens ?? "-";
+  const promptTokens = shown(report?.promptTokens ?? s.promptTokens);
   return {
     table: [{
       usedTokens: used,
@@ -99,8 +103,8 @@ export async function runUsage(deps: UsageDeps): Promise<CommandView> {
       estTokens: s.estimatedTokens ?? 0,
       llmCalls: report?.calls ?? s.totalCalls ?? 0,
       llmInTokens: promptTokens,
-      llmOutTokens: report?.completionTokens ?? s.completionTokens ?? "-",
-      llmReasoningTokens: report?.reasoningTokens ?? "-",
+      llmOutTokens: shown(report?.completionTokens ?? s.completionTokens),
+      llmReasoningTokens: shown(report?.reasoningTokens ?? s.reasoningTokens),
       llmTokens: report?.totalTokens ?? s.totalTokens ?? 0,
       costUsd: report ? (report.cost ?? "(unpriced)") : (c.costUsd ?? 0),
       ...(report ? { unpricedCalls: report.unpricedCalls } : {}),

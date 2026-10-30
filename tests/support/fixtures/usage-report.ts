@@ -13,13 +13,13 @@ export const USAGE_REPORT: UsageReport = {
   cost: 0.01,
   byModel: [{ ...TOKENS, model: "deepseek-chat", calls: 2, unpricedCalls: 1, cost: 0.01 }],
   byCommand: [
-    { ...TOKENS, promptTokens: 1000, completionTokens: 100, cacheHitTokens: 0, ticket: "t2", name: "commit", state: "running", calls: 1, unpricedCalls: 1, cost: null },
+    { ...TOKENS, promptTokens: 1000, completionTokens: 100, cacheHitTokens: null, ticket: "t2", name: "commit", state: "running", calls: 1, unpricedCalls: 1, cost: null },
     { ...TOKENS, promptTokens: 2000, completionTokens: 300, ticket: "t1", name: "assistant", state: "done", calls: 1, unpricedCalls: 0, cost: 0.01 },
   ],
 };
 
 /** A report before any call. */
 export const EMPTY_USAGE_REPORT: UsageReport = {
-  promptTokens: 0, completionTokens: 0, cacheHitTokens: 0, cacheWriteTokens: 0, reasoningTokens: 0,
+  promptTokens: 0, completionTokens: 0, cacheHitTokens: null, cacheWriteTokens: null, reasoningTokens: null,
   totalTokens: 0, calls: 0, unpricedCalls: 0, cost: null, byModel: [], byCommand: [],
 };

@@ -75,7 +75,7 @@ describe("runContext", () => {
     // Assert
     deepStrictEqual(view.table, [{
       title: "(untitled)", model: "?", messages: 0, estTokens: 0, usedTokens: 0, window: 128_000, remaining: 128_000,
-      pressure: "ok", percentLeft: "100%", compactions: 0, cacheRead: "-", cacheWrite: "-",
+      pressure: "ok", percentLeft: "100%", compactions: 0, cacheRead: "n/a", cacheWrite: "n/a",
     }]);
   });
 });

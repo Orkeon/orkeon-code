@@ -25,5 +25,9 @@ export function statusHarness(extra: { shell?: FakeShell; provider?: () => strin
 export const CACHE_COLUMN_CASES: readonly { name: string; stats: Parameters<typeof cacheColumns>[0]; expected: object }[] = [
   { name: "shows the read and write tokens", stats: { cacheHitTokens: 700, cacheWriteTokens: 50 }, expected: { cacheRead: 700, cacheWrite: 50 } },
   { name: "shows zero tokens as zero", stats: { cacheHitTokens: 0, cacheWriteTokens: 0 }, expected: { cacheRead: 0, cacheWrite: 0 } },
-  { name: "shows `-` when unreported", stats: {}, expected: { cacheRead: "-", cacheWrite: "-" } },
+  { name: "shows `n/a` when unreported, never 0", stats: {}, expected: { cacheRead: "n/a", cacheWrite: "n/a" } },
+  {
+    name: "shows `n/a` for the count left unreported beside the one measured",
+    stats: { cacheHitTokens: 0 }, expected: { cacheRead: 0, cacheWrite: "n/a" },
+  },
 ];

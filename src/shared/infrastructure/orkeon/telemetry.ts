@@ -1,5 +1,6 @@
 // Telemetry adapter over session_store get_metadata, session_cost and
-// session_stats (its prompt, completion, cache read and write tokens summed over by_model_tokens). The counters come back snake_case (or camelCase) and the
+// session_stats (its prompt, completion, cache read and write and reasoning tokens summed over by_model_tokens; a
+// count a model did not report is absent or null, left out of the sum, never read as 0). The counters come back snake_case (or camelCase) and the
 // metadata PascalCase from the .NET record: this is the one place that reads
 // either casing, and the one place that turns the values into numbers and strings.
 
@@ -55,6 +56,7 @@ export function createTelemetry(tools: Pick<OrkeonTools, "sessionStore" | "sessi
         cacheHitTokens: modelSum(byModel, "cache_read_tokens", "cacheReadTokens")
           ?? num(pick(s, "prompt_cache_hit_tokens", "promptCacheHitTokens", "cache_hit_tokens")),
         cacheWriteTokens: modelSum(byModel, "cache_write_tokens", "cacheWriteTokens"),
+        reasoningTokens: modelSum(byModel, "reasoning_tokens", "reasoningTokens"),
       };
     },
   };

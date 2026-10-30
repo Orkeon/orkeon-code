@@ -5,7 +5,9 @@ import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { NO_USAGE_SERVICE, USAGE_LEGEND, usageBreakdown } from "../../../../src/commands/_lib/status/usage.ts";
 import { EMPTY_USAGE_REPORT, USAGE_REPORT } from "../../../support/fixtures/usage-report.ts";
-import { CACHE_RATIO_CASES, IN_OUT_CASES, REPORT_BREAKDOWN, usageHarness } from "./usage.fixtures.ts";
+import {
+  CACHE_LINE_CASES, CACHE_RATIO_CASES, IN_OUT_CASES, REPORT_BREAKDOWN, reportWithModelCache, usageHarness,
+} from "./usage.fixtures.ts";
 import { assertInOut } from "./usage.assertions.ts";
 
 describe("usageBreakdown", () => {
@@ -19,6 +21,19 @@ describe("usageBreakdown", () => {
     // Assert
     strictEqual(text, REPORT_BREAKDOWN);
   });
+
+  for (const c of CACHE_LINE_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const report = reportWithModelCache(c.cacheHitTokens);
+
+      // Act
+      const text = usageBreakdown(report);
+
+      // Assert
+      strictEqual(text.split("\n")[1], c.line);
+    });
+  }
 
   it("says what is empty before any call, without a note", () => {
     // Arrange
@@ -60,7 +75,7 @@ describe("runUsage", () => {
     // Assert
     deepStrictEqual(view.table, [{
       usedTokens: 32_000, contextWindow: 128_000, percentLeft: "75%", pressure: "ok", autocompactAt: "91424",
-      messages: 4, estTokens: 0, llmCalls: 3, llmInTokens: 8000, llmOutTokens: 1000, llmReasoningTokens: "-",
+      messages: 4, estTokens: 0, llmCalls: 3, llmInTokens: 8000, llmOutTokens: 1000, llmReasoningTokens: "n/a",
       llmTokens: 9000, costUsd: 0.02, cacheRead: 700, cacheWrite: 50, cacheRatio: "0.09",
     }]);
   });
@@ -79,7 +94,7 @@ describe("runUsage", () => {
       [{
         usedTokens: 0, contextWindow: "(default 128000)", percentLeft: "100%", pressure: "ok", autocompactAt: "91424",
         messages: 0, estTokens: 0, llmCalls: 2, llmInTokens: 3000, llmOutTokens: 400, llmReasoningTokens: 0,
-        llmTokens: 3400, costUsd: 0.01, unpricedCalls: 1, cacheRead: "-", cacheWrite: "-", cacheRatio: "-",
+        llmTokens: 3400, costUsd: 0.01, unpricedCalls: 1, cacheRead: "n/a", cacheWrite: "n/a", cacheRatio: "n/a",
       }, `${USAGE_LEGEND}\n${REPORT_BREAKDOWN}`],
     );
   });

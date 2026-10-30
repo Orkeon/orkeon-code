@@ -21,11 +21,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Every agent asks the provider to cache its system prompt and its tools** (Orkeon #254, ADR 0014): on Anthropic,
   whose cache is explicit, nothing was cached and every prompt was billed at the full rate; from the second call of
   a session the stable prefix is now read from the cache, and `/usage` shows it in `cacheRead` and `cacheRatio`. The
-  other providers cache by their own rules and ignore the request. A cache or reasoning count the host did not
-  measure now reads `-` in `/usage`, no longer `0`.
+  other providers cache by their own rules and ignore the request.
+
+- **An unreported cache or reasoning count reads `n/a`, never `0`** (Orkeon #254): `/usage` and `/context` tell a
+  count no call reported from one measured at `0`. `cacheRead`, `cacheWrite`, `llmReasoningTokens` and the other
+  `llm*` figures show `n/a` when unreported (they showed `0`), `cacheRatio` is `n/a` over an unreported cache read,
+  and the breakdown by model and by command names a cache read measured at `0` and leaves out one never reported.
+  A sum over several models is unreported only when no model reported the count. `llmReasoningTokens` falls back
+  on the `reasoning_tokens` of `session_stats` when the host's account has none.
+
 - **`/usage` tells the tokens sent from the tokens received, and the counted from the estimated.** The row gains
   `llmInTokens`, `llmOutTokens` and `llmReasoningTokens` beside the total `llmTokens` (from the host's account, else
-  summed over the models of `session_stats`, `-` when nobody counts them), and a legend opens the closing text:
+  summed over the models of `session_stats`, `n/a` when nobody counts them), and a legend opens the closing text:
   `usedTokens` and `estTokens` are estimates of the conversation's size, the `llm*` columns the providers' counts.
   `cacheRatio` is now the cache read over the prompt tokens, no longer over the prompt and completion together.
 - **`/effort` takes `xhigh` and `max`**, the two levels Claude knows above `high`: the ladder climbs to 120 and

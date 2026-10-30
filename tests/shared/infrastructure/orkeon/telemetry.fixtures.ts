@@ -30,12 +30,13 @@ export const STATS_REPLY = {
 export const STATS = {
   costUsd: 0.5, totalTokens: 900, totalCalls: 2, messageCount: 6, estimatedTokens: 800,
   promptTokens: undefined, completionTokens: undefined, cacheHitTokens: 300, cacheWriteTokens: undefined,
+  reasoningTokens: undefined,
 };
 
 export const UNREPORTED_STATS = {
   costUsd: undefined, totalTokens: undefined, totalCalls: undefined,
   messageCount: undefined, estimatedTokens: undefined, promptTokens: undefined, completionTokens: undefined,
-  cacheHitTokens: undefined, cacheWriteTokens: undefined,
+  cacheHitTokens: undefined, cacheWriteTokens: undefined, reasoningTokens: undefined,
 };
 
 /** Two models' entries, and the prompt and completion tokens summed over them. */
@@ -75,5 +76,51 @@ export const CACHE_COUNTS: readonly CacheCase[] = [
     name: "leaves the cache counts unreported when no model entry carries them",
     reply: { by_model_tokens: [{ model: "a", prompt_tokens: 3 }] },
     expected: [undefined, undefined],
+  },
+  {
+    name: "leaves the cache counts unreported when every model entry carries them null",
+    reply: { by_model_tokens: [{ model: "a", prompt_tokens: 3, cache_read_tokens: null, cache_write_tokens: null }] },
+    expected: [undefined, undefined],
+  },
+  {
+    name: "sums the cache counts of the models that report them, the others left out rather than read as 0",
+    reply: {
+      by_model_tokens: [
+        { model: "a", prompt_tokens: 1000, cache_read_tokens: 600 },
+        { model: "b", prompt_tokens: 500, cache_write_tokens: 0 },
+      ],
+    },
+    expected: [600, 0],
+  },
+];
+
+export interface ReasoningCase {
+  name: string;
+  reply: unknown;
+  expected: number | undefined;
+}
+
+/** The reasoning tokens read from the per-model entries of session_stats (Orkeon #254). */
+export const REASONING_COUNTS: readonly ReasoningCase[] = [
+  {
+    name: "sums the reasoning tokens of the models that report them, in either casing",
+    reply: {
+      by_model_tokens: [
+        { model: "a", completion_tokens: 100, reasoning_tokens: 40 },
+        { model: "b", completionTokens: 50, reasoningTokens: 10 },
+        { model: "c", completion_tokens: 5 },
+      ],
+    },
+    expected: 50,
+  },
+  {
+    name: "keeps reasoning tokens measured at 0 as 0",
+    reply: { by_model_tokens: [{ model: "a", completion_tokens: 100, reasoning_tokens: 0 }] },
+    expected: 0,
+  },
+  {
+    name: "leaves the reasoning tokens unreported when no model entry carries them",
+    reply: { by_model_tokens: [{ model: "a", completion_tokens: 100 }] },
+    expected: undefined,
   },
 ];

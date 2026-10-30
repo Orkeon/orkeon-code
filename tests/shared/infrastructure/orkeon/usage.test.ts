@@ -5,7 +5,8 @@ import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { createUsageReader } from "../../../../src/shared/infrastructure/orkeon/usage.ts";
 import { FakeServiceLocator } from "../../../support/doubles/fake-script-host.ts";
-import { HOST_REPORT, PASCAL_REPORT, PORT_REPORT, usageOverFake } from "./usage.fixtures.ts";
+import { COUNT_CASES, HOST_REPORT, PASCAL_REPORT, PORT_REPORT, usageOverFake } from "./usage.fixtures.ts";
+import { assertCounts } from "./usage.assertions.ts";
 
 describe("createUsageReader", () => {
   it("answers nothing on a host without the usage service", () => {
@@ -46,20 +47,19 @@ describe("createUsageReader", () => {
     );
   });
 
-  it("keeps the cache and reasoning counts the host left unreported as null", () => {
-    // Arrange
-    const { service, reader } = usageOverFake();
-    service.answer = PASCAL_REPORT as any;
+  for (const c of COUNT_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { service, reader } = usageOverFake();
+      service.answer = c.answer as any;
 
-    // Act
-    const report = reader.report();
+      // Act
+      const report = reader.report();
 
-    // Assert
-    deepStrictEqual(
-      [report?.cacheHitTokens, report?.byModel[0]?.cacheHitTokens, report?.byModel[0]?.cacheWriteTokens, report?.byModel[0]?.reasoningTokens],
-      [0, null, null, null],
-    );
-  });
+      // Assert
+      assertCounts(report, c.expected);
+    });
+  }
 
   it("answers nothing when the service throws", () => {
     // Arrange
