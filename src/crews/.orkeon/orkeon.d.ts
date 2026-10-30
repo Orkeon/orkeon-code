@@ -2453,7 +2453,7 @@ readonly indexes: readonly { readonly index_type?: string; readonly is_unique: b
 readonly property_keys: readonly { readonly cardinality?: string; readonly data_type: string; readonly name: string; }[];
 readonly vertex_labels: readonly { readonly count_estimate?: number; readonly label: string; readonly properties: readonly string[]; }[];
 }>;
-/** `grep` - Search the lines of text files under a mounted directory (path) with a regex; glob filters files relative to path. Binary, unreadable and over-1-MiB files are skipped; regex timeout, max_results and max_files bound the scan. Returns path:line:text hits. */
+/** `grep` - Search the lines of text files under a mounted directory (path) with a regex; glob filters files relative to path. Binary, unreadable and over-1-MiB files are skipped; regex timeout, max_results and max_files bound the scan. Returns path:line:text hits plus total_matches and files_matched, or with output_mode "count" the counts alone (a "how many" question takes one call). */
 grep(input: {
 /** Case-insensitive matching */
 case_insensitive?: boolean;
@@ -2463,15 +2463,21 @@ glob?: string | null;
 max_files?: number;
 /** Maximum number of hits (default: 200) */
 max_results?: number;
+/** hits: one path:line:text per match (default). count: no hit lines, only total_matches, files_matched and the per-file counts (the max_results highest) */
+output_mode?: "hits" | "count";
 /** Root directory searched (virtual path, a mounted directory inside the agent root) */
 path: string;
 /** Regular expression searched in each line (per-match timeout; the scan stops and timed_out is set on a timeout) */
 pattern: string;
 }, ctx?: ExecutionContext): Promise<{
+readonly counts: readonly { readonly count: number; readonly path: string; }[];
+readonly files_matched: number;
 readonly files_scanned: number;
 readonly files_skipped: number;
 readonly hits: readonly { readonly line: number; readonly path: string; readonly text: string; }[];
+readonly scan_complete: boolean;
 readonly timed_out: boolean;
+readonly total_matches: number;
 readonly truncated: boolean;
 }>;
 /** `http_api` - Make HTTP API calls with support for GET, POST, PUT, DELETE, PATCH methods. Returns response body, status code, and headers. */

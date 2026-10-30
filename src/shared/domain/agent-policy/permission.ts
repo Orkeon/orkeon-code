@@ -270,7 +270,7 @@ export const TOOL_ARGUMENTS: Readonly<Record<string, readonly string[]>> = {
   //    sub_graph.seeds|edge_kinds|node_kinds, structural_search.paths|rule, count_pattern.patterns,
   //    statement_query.kinds|parent_fqns, incremental_reindex.changed_files|languages.
   glob: ["max_results", "path", "pattern"],
-  grep: ["case_insensitive", "glob", "max_files", "max_results", "path", "pattern"],
+  grep: ["case_insensitive", "glob", "max_files", "max_results", "output_mode", "path", "pattern"],
   list_mounts: [],
   node_outline: ["path"],
   node_read: ["path", "selector"],
