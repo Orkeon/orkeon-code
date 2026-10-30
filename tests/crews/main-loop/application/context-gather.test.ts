@@ -102,18 +102,29 @@ describe("readMemoryByCategory", () => {
     deepStrictEqual(read.feedback, []);
   });
 
-  it("omits a category that cannot be listed, and keeps the others", async () => {
+  it("reads every category in one list call", async () => {
     // Arrange
     const memory = new FakeMemoryStore();
-    memory.failing.add("feedback");
+    await memory.add("feedback", "short answers");
+
+    // Act
+    await readMemoryByCategory(memory);
+
+    // Assert
+    deepStrictEqual(memory.listed, [undefined]);
+  });
+
+  it("reads no memory when the store cannot list", async () => {
+    // Arrange
+    const memory = new FakeMemoryStore();
     await memory.add("reference", "docs at /docs");
+    memory.unavailable = true;
 
     // Act
     const read = await readMemoryByCategory(memory);
 
     // Assert
-    deepStrictEqual(Object.keys(read), ["user", "project", "reference"]);
-    deepStrictEqual(read.reference, ["docs at /docs"]);
+    deepStrictEqual(read, {});
   });
 });
 
