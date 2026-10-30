@@ -6,7 +6,7 @@
 
 ## Context
 
-The pin of ADR 0013 is `3fcfbbe` (Orkeon #240). Orkeon `main` then merged four pull requests, `e44df3f`
+The pin of ADR 0013 is `3fcfbbe` (Orkeon #240). Orkeon `main` then merged five pull requests, up to `5fe53ac`
 (2026-10-30):
 
 - **#241**, an audit of Orkeon's documentation against its code: no change of the scripting surface.
@@ -19,13 +19,18 @@ The pin of ADR 0013 is `3fcfbbe` (Orkeon #240). Orkeon `main` then merged four p
   `<root>/.orkeon/cache/raggable-tree/` (its own `.gitignore`), reloads it when no file changed (`hit`), reindexes the
   changed files when at most half changed and no package marker did (`refreshed`), and rebuilds otherwise (`miss`);
   `use_cache: false` rebuilds, then saves (`bypassed`). The response gains `cache` and `reindexed_file_count`.
+- **#246**, three fixes found while adapting to #244, none of the scripting surface: an Anthropic `ctx.llm.act` turn
+  that called a tool no longer fails on its second model call (#245); what a host tool allocates (`index_codebase`
+  on a large repository) no longer counts against the script's memory limit (#247); the index cache drops the
+  entries of another runtime version when it saves, and compacts its database when more than half of it is free
+  (#248).
 
 Three branches of Orkeon Code waited on these: `/effort xhigh|max`, `/analyze --parallel N` and `/analyze --rebuild`,
 each with the typings edited by hand.
 
 ## Decision
 
-- **The pin moves to `e44df3f`** (`.orkeon-version`, `ORKEON_RUNTIME_COMMIT`), the typings are regenerated from a
+- **The pin moves to `5fe53ac`** (`.orkeon-version`, `ORKEON_RUNTIME_COMMIT`), the typings are regenerated from a
   checkout at it, the hand edits of the three branches give way to them.
 - **`/effort` offers the five levels**, `/analyze` takes `--parallel N` (`max_parallelism`) and `--rebuild`
   (`use_cache: false`), as their branches wrote them.
@@ -39,4 +44,4 @@ each with the typings edited by hand.
 
 - On a runtime before #244 the summary has no `cache` field: the line says nothing of a cache. On one before #242,
   `xhigh` and `max` fail the agent's build, as any unknown value did.
-- The check made for this ADR: `npm run check` and the runtime smoke on `e44df3f` in source mode.
+- The check made for this ADR: `npm run check` and the runtime smoke on `5fe53ac` in source mode.

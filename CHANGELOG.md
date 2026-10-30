@@ -415,8 +415,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **The runtime pin moves to Orkeon main after #244** ([ADR 0014](docs/adr/0014-orkeon-after-244.md)):
-  `.orkeon-version` holds `e44df3f4…` (Orkeon #241 to #244: the effort levels `xhigh` and `max`, `index_codebase
-  max_parallelism`, the index cache between sessions); the typings are regenerated from a checkout at it, and the
+  `.orkeon-version` holds `5fe53ac1…` (Orkeon #241 to #246: the effort levels `xhigh` and `max`, `index_codebase
+  max_parallelism`, the index cache between sessions; an Anthropic act turn that calls a tool, the memory limit of a
+  script after `index_codebase` on a large repository and the stale entries of the index cache fixed); the typings are regenerated from a checkout at it, and the
   permission rules know the two new arguments of `index_codebase`, `max_parallelism` and `use_cache`.
 - **The runtime pin is a commit of Orkeon's `main`, never a release** ([ADR 0013](docs/adr/0013-pin-on-orkeon-commit.md)):
   `.orkeon-version` holds the full commit (`3fcfbbe8…`, main after Orkeon #240), the launcher, `/status` and
