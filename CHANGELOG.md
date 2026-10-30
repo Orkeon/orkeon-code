@@ -48,6 +48,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The assistant knows which tools produced its earlier answers.** Each turn that called a tool stores a `[tools]`
+  message before its answer: one line per call, with the tool, its main arguments cut short and a one-line outcome
+  (a count, an exit code, an error, a scan cut short). Repeated calls fold as `×n`, at most twenty lines, and an
+  argument that looks like a secret reads `(redacted)`. A file's content and a command's output are never kept.
+  Asked how an earlier answer was found, the model answers from that message instead of guessing. `/usage tools
+  [text]` lists these calls under their requests, filtered by the text.
 - **A decision model, Jev, in front of the agents of every command, by one session key.** `llm.profile` names a host
   profile: an LLM profile (`Llm:Profiles:<name>`) or a decision profile (`Orkeon:Decision:Profiles:<name>`, Jev,
   TypeSafe's System One, routing, guarding or verifying the calls of an LLM profile). Every command that launches a

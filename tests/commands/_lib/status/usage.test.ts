@@ -3,7 +3,10 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
-import { NO_USAGE_SERVICE, USAGE_LEGEND, usageBreakdown } from "../../../../src/commands/_lib/status/usage.ts";
+import {
+  NO_USAGE_SERVICE, USAGE_LEGEND, USAGE_SYNTAX, runUsageCommand, usageBreakdown,
+} from "../../../../src/commands/_lib/status/usage.ts";
+import { NO_TOOL_TRACE } from "../../../../src/commands/_lib/status/usage-tools.ts";
 import { EMPTY_USAGE_REPORT, USAGE_REPORT } from "../../../support/fixtures/usage-report.ts";
 import {
   CACHE_LINE_CASES, CACHE_RATIO_CASES, IN_OUT_CASES, REPORT_BREAKDOWN, reportWithModelCache, usageHarness,
@@ -175,5 +178,29 @@ describe("runUsage", () => {
 
     // Assert
     deepStrictEqual([(view.table?.[0] as { usedTokens: unknown }).usedTokens, view.text], [0, `${USAGE_LEGEND}\n${NO_USAGE_SERVICE}`]);
+  });
+});
+
+describe("runUsageCommand", () => {
+  it("lists the session's tool calls after tools", async () => {
+    // Arrange
+    const { session, telemetry, usage, config } = usageHarness();
+
+    // Act
+    const view = await runUsageCommand(["tools"], { session, telemetry, usage, config });
+
+    // Assert
+    deepStrictEqual(view, { text: NO_TOOL_TRACE });
+  });
+
+  it("answers a sub-verb it does not know with its syntax", async () => {
+    // Arrange
+    const { session, telemetry, usage, config } = usageHarness();
+
+    // Act
+    const view = await runUsageCommand(["tool"], { session, telemetry, usage, config });
+
+    // Assert
+    deepStrictEqual(view, { text: USAGE_SYNTAX });
   });
 });

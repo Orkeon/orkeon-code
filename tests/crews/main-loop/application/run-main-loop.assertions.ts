@@ -21,3 +21,9 @@ export function assertGateWarningBefore(text: string, answer: string): void {
   ok(text.startsWith("⚠ the host's permission gate is off"), `no gate warning first: ${text}`);
   ok(text.endsWith(`\n\n${answer}`), `the answer does not follow the warning: ${text}`);
 }
+
+/** A stored message is a [tools] trace that lists `line` among its calls. */
+export function assertToolTraceMessage(content: string, line: string): void {
+  ok(content.startsWith("[tools]"), `the message is no [tools] trace:\n${content}`);
+  ok(content.split("\n").slice(1).includes(line), `the trace has no line '${line}':\n${content}`);
+}

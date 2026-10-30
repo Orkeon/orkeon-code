@@ -20,7 +20,10 @@ import {
   REQUEST_WITH_TRANSCRIPT, RULED_CATALOGUE, SCRIPT_TOOLS_CASES, SESSION_START, SILENT_GATES, SPEAK, SPEAKER_FAILURE,
   STORED_RULES, TRANSCRIPT, TRANSCRIPTION_PRELUDE, turnSetup,
 } from "./run-main-loop.fixtures.ts";
-import { assertGateWarningBefore, assertLogged, assertLoggedLike, assertPromptEndsWith } from "./run-main-loop.assertions.ts";
+import {
+  assertGateWarningBefore, assertLogged, assertLoggedLike, assertPromptEndsWith, assertToolTraceMessage,
+} from "./run-main-loop.assertions.ts";
+import { createToolTrace } from "../../../../src/shared/application/dev/tool-trace-recorder.ts";
 import { assertMentions } from "../../../support/assertions/text.ts";
 
 describe("loadCatalogue", () => {
@@ -286,6 +289,44 @@ describe("runMainLoop — the turn", () => {
       { role: "assistant", content: "the answer" },
     ]);
     assertPromptEndsWith(llm.acts[0].prompt, buildActPrompt("fix the parser", "plan"));
+  });
+
+  it("stores the act's tool calls as a [tools] message between the request and the answer", async () => {
+    // Arrange
+    const { store, llm, deps } = turnSetup();
+    const trace = createToolTrace();
+    llm.onAct = () => { trace.record("grep", { path: "src", output_mode: "count" }, { total_matches: 7, files_matched: 3 }); };
+
+    // Act
+    await runMainLoop({ prompt: "how many?", permissionMode: "plan" }, EXPLICIT_PLAN, { ...deps, trace });
+
+    // Assert
+    deepStrictEqual(store.messages.map((m) => m.role), ["user", "system", "assistant"]);
+    assertToolTraceMessage(store.messages[1].content, "- grep(path=src, output_mode=count) → 7 matches in 3 files");
+  });
+
+  it("stores no [tools] message for a turn that called no tool", async () => {
+    // Arrange
+    const { store, deps } = turnSetup();
+
+    // Act
+    await runMainLoop({ prompt: "hello", permissionMode: "plan" }, EXPLICIT_PLAN, { ...deps, trace: createToolTrace() });
+
+    // Assert
+    deepStrictEqual(store.messages.map((m) => m.role), ["user", "assistant"]);
+  });
+
+  it("leaves the calls made before the act out of the turn's [tools] message", async () => {
+    // Arrange
+    const { store, deps } = turnSetup();
+    const trace = createToolTrace();
+    trace.record("memory_store", { category: "project" }, null);
+
+    // Act
+    await runMainLoop({ prompt: "hello", permissionMode: "plan" }, EXPLICIT_PLAN, { ...deps, trace });
+
+    // Assert
+    deepStrictEqual(store.messages.map((m) => m.role), ["user", "assistant"]);
   });
 
   it("hands the explicit mode, and its tools in the system message, to the act call", async () => {

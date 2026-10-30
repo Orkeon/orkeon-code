@@ -20,6 +20,7 @@ import {
 import type { PreludeCall } from "../../../shared/domain/prelude.ts";
 import { budgetExhaustedAnswerOf } from "../../../shared/domain/llm-failure.ts";
 import type { SessionIo } from "../../../shared/application/session-io.ts";
+import type { ToolTrace } from "../../../shared/application/dev/tool-trace-recorder.ts";
 import { readBehaviorFlags } from "./context-gather.ts";
 import { autoCompactGuarded } from "./auto-compact.ts";
 import type { AutoCompactDeps } from "./auto-compact.ts";
@@ -155,6 +156,8 @@ export interface MainLoopDeps extends TurnContextDeps, Omit<AutoCompactDeps, "se
   llm: Pick<Llm, "act" | "permissionGateEnabled">;
   /** The calls of a prelude and an epilogue, by the registered name the launching command found. */
   tools: Pick<ToolCatalogue, "callText">;
+  /** The recorder of the act's tool calls (dev/tool-trace-recorder); absent, the turn stores no [tools] message. */
+  trace?: Pick<ToolTrace, "take">;
   /** The guards of the two chains; absent, the built-in ones (domain/turn-chains). */
   chains?: { turnStart?: ReadonlyArray<Guard<TurnStartFacts>>; stop?: ReadonlyArray<Guard<StopFacts>> };
 }
@@ -286,7 +289,11 @@ export async function runMainLoop(input: MainLoopInputs, loaded: LoadedCatalogue
   // no answer is stored, the tail compaction does not run (the breaker counts
   // compactions, not turns), and the run fails with the provider's error, which
   // /assistant shows. The user's message stays in the buffer.
+  // The calls of a head-of-turn compaction are not the answer's: the trace starts with the act.
+  deps.trace?.take();
   const { answer, cut } = await stopChecked(deps, assembled, mode, flags, prompt, readClosingLine(input.closingLine));
+  const traced = deps.trace?.take() ?? null;
+  if (traced !== null) await appendTurn(session, "system", traced);
   await appendTurn(session, "assistant", answer);
   await runEpilogue(input.epilogue, answer, deps);
   // Tail-of-turn: a verbose act() must not bequeath a saturated buffer.

@@ -49,6 +49,7 @@ import {
 import { memoryTools } from "../../shared/infrastructure/orkeon/memory-tools.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { memoryGuardCallbacks } from "../../shared/application/dev/tool-callbacks.ts";
+import { createToolTrace, tracedCallbacks } from "../../shared/application/dev/tool-trace-recorder.ts";
 import { memoryDirOf } from "../../shared/application/shared-memory/memory-settings.ts";
 import { createRunState } from "../../shared/infrastructure/orkeon/run-state.ts";
 import { compactSession, readCompactionTrigger } from "../../shared/application/compaction/compact-session.ts";
@@ -78,12 +79,15 @@ const coder = orkeonAgent()
   .body(async (_input: any, ctx: any) => {
     // The shared memory's guard on every call: what the host's gate cannot read (an edit_batch's operations, a
     // path in another case, a shell cd into the folder) is refused here (shared-memory/layout memoryWriteRefusal).
-    const llm = createLlm(ctx.llm, memoryGuardCallbacks(memoryDirOf(ports.config)));
+    // Each result is recorded on the way (tool-trace-recorder): the turn stores its calls as a [tools] message.
+    const trace = createToolTrace();
+    const llm = createLlm(ctx.llm, tracedCallbacks(memoryGuardCallbacks(memoryDirOf(ports.config)), trace));
     const log = ctx.log;
     return await runMainLoop(inputs(), loaded, {
       ...ports,
       llm,
       log,
+      trace,
       run: createRunState(ctx),
       clock,
       compact: async () => compactSession(
