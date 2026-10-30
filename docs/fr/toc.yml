@@ -53,3 +53,5 @@
       href: ../adr/0012-orkeon-after-239.md
     - name: "ADR 0013 : l'épingle est un commit du main d'Orkeon, jamais une release (en anglais)"
       href: ../adr/0013-pin-on-orkeon-commit.md
+    - name: "ADR 0014 : Orkeon main après #244, niveaux d'effort, index parallèle et cache d'index (en anglais)"
+      href: ../adr/0014-orkeon-after-244.md

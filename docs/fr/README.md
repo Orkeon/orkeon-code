@@ -31,4 +31,5 @@ Les décisions sont consignées en ADR, en anglais : [0001 — ports, adaptateur
 [0010 — Orkeon main après #234, sur l'épinglage rc.6, désormais une release](../adr/0010-orkeon-after-234.md),
 [0011 — les portes d'une exécution sans surveillance, et cinq commandes dev au lieu de huit](../adr/0011-dev-gates-and-surface.md),
 [0012 — Orkeon main après #239, le lancement exclusif d'un crew](../adr/0012-orkeon-after-239.md),
-[0013 — l'épingle est un commit du main d'Orkeon, jamais une release](../adr/0013-pin-on-orkeon-commit.md).
+[0013 — l'épingle est un commit du main d'Orkeon, jamais une release](../adr/0013-pin-on-orkeon-commit.md),
+[0014 — Orkeon main après #244, niveaux d'effort, index parallèle et cache d'index](../adr/0014-orkeon-after-244.md).

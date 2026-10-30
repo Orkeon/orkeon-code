@@ -52,3 +52,5 @@
       href: adr/0012-orkeon-after-239.md
     - name: "ADR 0013: the pin is a commit of Orkeon's main, never a release"
       href: adr/0013-pin-on-orkeon-commit.md
+    - name: "ADR 0014: Orkeon main after #244, effort levels, a parallel index and an index cache"
+      href: adr/0014-orkeon-after-244.md
