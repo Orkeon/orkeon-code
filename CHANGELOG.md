@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Each turn of the assistant reads the typed memory in one `memory_store` call instead of one per category: four calls
+  become one in the session's tool counts.
+
 - In source mode, the launcher says `building Orkeon in <checkout>...` before its quiet build, which takes about a
   minute after the checkout moved: it no longer looks stuck.
 

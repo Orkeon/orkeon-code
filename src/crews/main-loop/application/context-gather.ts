@@ -37,16 +37,21 @@ export async function readLanguage(config: Pick<ConfigStore, "readValue"> | unde
   }
 }
 
-/** Memory entries per category (best-effort, per-category isolation). */
+/** Memory entries per category, read in one list call (best-effort: a store that cannot list yields none). */
 export async function readMemoryByCategory(memory: MemoryStore): Promise<Record<string, string[]>> {
+  let entries: Awaited<ReturnType<MemoryStore["list"]>>;
+  try {
+    entries = await memory.list();
+  } catch {
+    return {};
+  }
   const result: Record<string, string[]> = {};
   for (const category of MEMORY_CATEGORIES) {
-    try {
-      result[category] = (await memory.list(category))
-        .map((e) => e.content)
-        .filter((c) => c.length > 0)
-        .slice(0, MAX_MEMORY_ENTRIES_PER_CATEGORY);
-    } catch { /* category unavailable → omitted */ }
+    result[category] = entries
+      .filter((e) => e.category === category)
+      .map((e) => e.content)
+      .filter((c) => c.length > 0)
+      .slice(0, MAX_MEMORY_ENTRIES_PER_CATEGORY);
   }
   return result;
 }
