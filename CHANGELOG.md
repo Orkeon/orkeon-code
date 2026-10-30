@@ -33,8 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   signing in with the plan itself is reserved to Anthropic's own applications.
 - **`/analyze` says what the index cache did** (Orkeon #244, [ADR 0014](docs/adr/0014-orkeon-after-244.md)): the
   indexing line ends with `cache hit`, `cache refreshed: N changed file(s) reindexed`, `cache miss` or `cache
-  bypassed` (after `--rebuild`); `readIndexSummary` reads `cache` and `reindexed_file_count`. A runtime before #244
-  sends neither, and the line stays as it was.
+  bypassed` (after `--rebuild`); `readIndexSummary` reads `cache` and `reindexed_file_count`. The dev steps that
+  build the index themselves say it too: `/dev-plan` on its `code index built` log line, `/dev-spec` and
+  `/dev-change` on the `inventory:` line of their end message (`indexCacheNote`, `briefInventoryLine`). A runtime
+  before #244 sends neither field, and the lines stay as they were.
 - **`/analyze --rebuild` reindexes from scratch** (Orkeon `index_codebase` `use_cache: false`): the runtime now
   keeps the index between sessions under `<workspace>/.orkeon/cache/raggable-tree/` and reloads or refreshes it on
   the first `/analyze` of a session; `--rebuild` ignores both the session's index and the saved one, then saves the

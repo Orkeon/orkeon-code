@@ -3,6 +3,7 @@
 
 // ── Captured payloads. Verbatim from the live calls; do not "tidy" them. ──
 import { WORKSPACE } from "../../../src/shared/domain/vfs.ts";
+import type { IndexSummary } from "../../../src/shared/domain/code-intel-contract.ts";
 
 export const INDEX_RAW = {
   index_id: "e4efebf4",
@@ -120,6 +121,18 @@ export const INDEX_CACHE_CASES: readonly {
   { name: "a hit without the count reads 0 reindexed", raw: { cache: "hit" }, cache: "hit", reindexed: 0 },
   { name: "no cache field, a runtime before #244, leaves both out", raw: INDEX_RAW, cache: undefined, reindexed: undefined },
   { name: "an empty cache field leaves both out", raw: { cache: "", reindexed_file_count: 2 }, cache: undefined, reindexed: undefined },
+];
+
+const counted = { files: 12, nodes: 40, edges: 0, statements: 0, errors: [] as string[] };
+
+/** The words for each outcome of the index cache. */
+export const INDEX_CACHE_NOTES: readonly { readonly name: string; readonly idx: IndexSummary; readonly note: string }[] = [
+  { name: "nothing on a runtime before #244", idx: counted, note: "" },
+  { name: "a hit", idx: { ...counted, cache: "hit", reindexed: 0 }, note: "cache hit: the index an earlier session saved, no file changed" },
+  { name: "a refresh, with the files reindexed", idx: { ...counted, cache: "refreshed", reindexed: 3 }, note: "cache refreshed: 3 changed file(s) reindexed" },
+  { name: "a miss", idx: { ...counted, cache: "miss", reindexed: 0 }, note: "cache miss: built, then saved" },
+  { name: "a rebuild", idx: { ...counted, cache: "bypassed", reindexed: 0 }, note: "cache bypassed: rebuilt, then saved" },
+  { name: "an outcome this version does not know, as it came", idx: { ...counted, cache: "partial", reindexed: 0 }, note: "cache partial" },
 ];
 
 export const MAP_SYMBOL_COUNTS: readonly { readonly name: string; readonly raw: unknown; readonly count: number }[] = [

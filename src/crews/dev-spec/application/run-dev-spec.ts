@@ -8,7 +8,7 @@
 import type { CodeIndex, Files, HumanInput, Llm, Logger, Shell } from "../../../shared/application/ports.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import { loadDevContext } from "../../../shared/application/dev/load-dev-context.ts";
-import { briefInventory, briefPhrases, renderBriefInventory } from "../../../shared/application/dev/brief-inventory.ts";
+import { briefInventory, briefInventoryLine, briefPhrases, renderBriefInventory } from "../../../shared/application/dev/brief-inventory.ts";
 import { questionRound } from "../../../shared/application/dev/question-round.ts";
 import type { Folded, RoundState } from "../../../shared/application/dev/question-round.ts";
 import { reviewLine, reviewSource } from "../../../shared/application/dev/source-review.ts";
@@ -183,7 +183,7 @@ export async function runDevSpec(input: DevSpecInputs, deps: DevSpecDeps): Promi
       `decisions this run: ${made.length === 0 ? "none" : made.map((d) => `${d.id} → ${d.answer}`).join("; ")}`,
       `open questions: ${openLine(state.open)}`,
       ...(review === null ? [] : [reviewLine(review)]),
-      `inventory: ${inventory.entries.length} entries (${inventory.calls} index calls)`,
+      briefInventoryLine(inventory),
       ...[precedentsLine([recalled])].filter((l) => l !== ""),
       ...warningLines(warnings),
     ];

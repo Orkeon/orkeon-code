@@ -7,7 +7,7 @@ import { strictEqual, deepStrictEqual, ok } from "node:assert";
 import {
   CODE_INTEL_TOOLS, CODE_INTEL_PARAMS, FLOW_DIRECTIONS,
   SEARCH_MODES, MATCH_ORIGINS, RAG_SEARCH_PARAMS, RAG_RAGGABLE_TREE_COLLECTION,
-  readIndexSummary, readMapEntries, readMapSymbolCount, readSearchHits,
+  indexCacheNote, readIndexSummary, readMapEntries, readMapSymbolCount, readSearchHits,
   readSymbolSource, readFlowPathCount, firstSymbolFqn, readMatchOrigin, readRefreshedFiles,
   readGraph, readImpact, readPackageSummary, readSymbolDetail,
   readSearchHitsWithOrigin, readSymbolLocation,
@@ -15,7 +15,7 @@ import {
 import { READ_TOOLS } from "../../../src/shared/domain/agent-policy/permission.ts";
 import {
   ADD_LOCATION, DEP_GRAPH_RAW, EMPTY_MAPS, FIRST_LINES, FLOW_PATH_COUNTS, HITS_WITH_HOLES, IMPACT_RAW,
-  INDEX_CACHE_CASES, INDEX_FILE_COUNTS, INDEX_RAW, LOCATION_FQNS, MAP_RAW, MAP_SYMBOL_COUNTS, MATCH_ORIGIN_CASES, NOT_SEARCH_PAYLOADS,
+  INDEX_CACHE_CASES, INDEX_CACHE_NOTES, INDEX_FILE_COUNTS, INDEX_RAW, LOCATION_FQNS, MAP_RAW, MAP_SYMBOL_COUNTS, MATCH_ORIGIN_CASES, NOT_SEARCH_PAYLOADS,
   PKG_SUMMARY_RAW, REFRESHED_FILES_CASES, SEARCH_RAW, SOURCE_RAW, SUB_GRAPH_RAW, SYMBOL_DETAIL_RAW,
 } from "./code-intel-contract.fixtures.ts";
 import { WORKSPACE } from "../../../src/shared/domain/vfs.ts";
@@ -125,6 +125,21 @@ describe("readIndexSummary — the reader that was silently wrong", () => {
     // Assert
     deepStrictEqual(s.errors, ["boom"]);
   });
+});
+
+describe("indexCacheNote — what the index cache did, in words", () => {
+  for (const c of INDEX_CACHE_NOTES) {
+    it(`says ${c.name}`, () => {
+      // Arrange
+      const { idx } = c;
+
+      // Act
+      const note = indexCacheNote(idx);
+
+      // Assert
+      strictEqual(note, c.note);
+    });
+  }
 });
 
 describe("readMapEntries / readMapSymbolCount", () => {

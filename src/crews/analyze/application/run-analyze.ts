@@ -6,7 +6,7 @@
 // the harvest, never wander off into grep.
 
 import type { CodeIndex, Llm, Logger, Progress } from "../../../shared/application/ports.ts";
-import type { IndexSummary, PackageSummary } from "../../../shared/domain/code-intel-contract.ts";
+import { indexCacheNote, type PackageSummary } from "../../../shared/domain/code-intel-contract.ts";
 import { renderHarvest, SYNTHESIS_SYSTEM, buildSynthesisUser } from "../domain/harvest.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
@@ -31,18 +31,6 @@ export interface AnalyzeInputs {
 function readParallel(value: unknown): number | undefined {
   const n = typeof value === "string" && value.trim() !== "" ? Number(value) : value;
   return typeof n === "number" && Number.isInteger(n) && n >= 1 ? n : undefined;
-}
-
-/** What the index cache did, for the indexing line: empty on a runtime without the cache (before Orkeon #244). */
-function cacheNote(idx: IndexSummary): string {
-  switch (idx.cache) {
-    case undefined: return "";
-    case "hit": return "; cache hit: the index an earlier session saved, no file changed";
-    case "refreshed": return `; cache refreshed: ${idx.reindexed ?? 0} changed file(s) reindexed`;
-    case "miss": return "; cache miss: built, then saved";
-    case "bypassed": return "; cache bypassed: rebuilt, then saved";
-    default: return `; cache ${idx.cache}`;
-  }
 }
 
 export interface AnalyzeDeps {
@@ -70,7 +58,8 @@ export async function runAnalyze(input: AnalyzeInputs, deps: AnalyzeDeps): Promi
         return `analyze: indexed 0 file(s) under ${WORKSPACE} — nothing to analyze ` +
                "(no file matches the Tree-sitter adapters' extensions).";
       }
-      log.info(`analyze: indexed ${idx.files} file(s), ${idx.nodes} node(s)${cacheNote(idx)}`);
+      const note = indexCacheNote(idx);
+      log.info(`analyze: indexed ${idx.files} file(s), ${idx.nodes} node(s)${note === "" ? "" : `; ${note}`}`);
     }
 
     // 2. The deterministic harvest — maps, module graph, package summaries.

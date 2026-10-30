@@ -32,6 +32,20 @@ describe("buildInventory — the index", () => {
     deepStrictEqual(index.calls.slice(0, 3), ["rootCount", `index ${WORKSPACE}`, "search Prune entries 8"]);
   });
 
+  it("logs what the index cache did when it builds the index", async () => {
+    // Arrange
+    const index = indexWith({ "Prune entries": [hit(`${WORKSPACE}/src/domain/prune.ts::prune`)] });
+    index.roots = 0;
+    index.indexed = { files: 12, nodes: 40, edges: 9, statements: 100, errors: [], cache: "hit", reindexed: 0 };
+    const log = new FakeLogger();
+
+    // Act
+    await buildInventory(index, anchors(), request([["BR-01", "Prune entries"]]), log);
+
+    // Assert
+    strictEqual(log.lines[0], "info: dev-plan: code index built; cache hit: the index an earlier session saved, no file changed");
+  });
+
   it("refuses when the index cannot be built", async () => {
     // Arrange
     const index = new FakeCodeIndex();

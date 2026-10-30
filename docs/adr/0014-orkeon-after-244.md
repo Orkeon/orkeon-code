@@ -31,7 +31,9 @@ each with the typings edited by hand.
   (`use_cache: false`), as their branches wrote them.
 - **`/analyze` says what the cache did**: the index summary reads `cache` and `reindexed_file_count`, and the
   indexing line names the outcome (`hit`, `refreshed` with the files reindexed, `miss`, `bypassed`), so a second run
-  that took seconds is explained, and so is a `--rebuild`.
+  that took seconds is explained, and so is a `--rebuild`. The dev steps that build the index when the session
+  holds none say it the same way: `/dev-plan` on its `code index built` line, `/dev-spec` and `/dev-change` on the
+  `inventory:` line of their end message.
 
 ## Consequences
 

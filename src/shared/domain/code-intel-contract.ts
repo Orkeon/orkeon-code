@@ -124,6 +124,18 @@ export function readIndexSummary(raw: any): IndexSummary {
   };
 }
 
+/** What the index cache did, in words: empty on a runtime without the cache (before Orkeon #244). */
+export function indexCacheNote(idx: IndexSummary): string {
+  switch (idx.cache) {
+    case undefined: return "";
+    case "hit": return "cache hit: the index an earlier session saved, no file changed";
+    case "refreshed": return `cache refreshed: ${idx.reindexed ?? 0} changed file(s) reindexed`;
+    case "miss": return "cache miss: built, then saved";
+    case "bypassed": return "cache bypassed: rebuilt, then saved";
+    default: return `cache ${idx.cache}`;
+  }
+}
+
 export interface MapEntry {
   fqn: string;
   name: string;

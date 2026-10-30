@@ -43,18 +43,10 @@ export const RAW_RUN_CALLS = [
 export const NOTHING_INDEXED = `analyze: indexed 0 file(s) under ${WORKSPACE} — nothing to analyze ` +
   "(no file matches the Tree-sitter adapters' extensions).";
 
-/** The indexing line for each outcome of the index cache (Orkeon #244), over 12 files and 40 nodes. */
+/** The indexing line without the cache and with it (Orkeon #244), over 12 files and 40 nodes. */
 export const CACHE_LINES: readonly { readonly name: string; readonly indexed: IndexSummary; readonly line: string }[] = [
   { name: "no cache, a runtime before #244", indexed: { files: 12, nodes: 40, edges: 0, statements: 0, errors: [] },
     line: "info: analyze: indexed 12 file(s), 40 node(s)" },
-  { name: "a hit", indexed: { files: 12, nodes: 40, edges: 0, statements: 0, errors: [], cache: "hit", reindexed: 0 },
-    line: "info: analyze: indexed 12 file(s), 40 node(s); cache hit: the index an earlier session saved, no file changed" },
   { name: "a refresh", indexed: { files: 12, nodes: 40, edges: 0, statements: 0, errors: [], cache: "refreshed", reindexed: 3 },
     line: "info: analyze: indexed 12 file(s), 40 node(s); cache refreshed: 3 changed file(s) reindexed" },
-  { name: "a miss", indexed: { files: 12, nodes: 40, edges: 0, statements: 0, errors: [], cache: "miss", reindexed: 0 },
-    line: "info: analyze: indexed 12 file(s), 40 node(s); cache miss: built, then saved" },
-  { name: "a rebuild", indexed: { files: 12, nodes: 40, edges: 0, statements: 0, errors: [], cache: "bypassed", reindexed: 0 },
-    line: "info: analyze: indexed 12 file(s), 40 node(s); cache bypassed: rebuilt, then saved" },
-  { name: "an outcome this version does not know", indexed: { files: 12, nodes: 40, edges: 0, statements: 0, errors: [], cache: "partial", reindexed: 0 },
-    line: "info: analyze: indexed 12 file(s), 40 node(s); cache partial" },
 ];
