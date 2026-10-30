@@ -36,6 +36,7 @@ export const harvestOf = (fqns: string[], summarized = fqns.length) => renderHar
   unsummarized: fqns.slice(summarized).map((fqn) => ({ fqn, name: fqn, kind: "package", children: 3 })),
   moduleGraph: GRAPH,
   graphCap: 200,
+  mapCap: 1000,
 });
 
 /** The index calls of a raw run over one package. */

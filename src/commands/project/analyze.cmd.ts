@@ -3,7 +3,7 @@
 //
 // The complement of asking the assistant "analyse la codebase": the free-text
 // path steers the model with the search playbook but cannot force a tool; this
-// command's crew chains index → maps → dependency_graph ITSELF, so the
+// command's crew chains index → package map → dependency_graph → package summaries ITSELF, so the
 // RaggableTree is always the source, then makes exactly one no-tools LLM call
 // to synthesize business objects and dependencies. `--raw` skips that call and
 // prints the harvest (zero LLM cost). `--parallel N` parses N files at once when
@@ -15,7 +15,7 @@ import { orkeonConfigStore } from "../../shared/infrastructure/orkeon/wiring.ts"
 
 defineAsyncCommand({
   name: "analyze",
-  description: "Analyze the codebase (index → maps → dependency graph), then synthesize business objects; --raw skips the LLM call; --parallel N parses N files at once; --rebuild reindexes from scratch.",
+  description: "Analyze the codebase (index → packages → dependency graph), then synthesize business objects; --raw skips the LLM call; --parallel N parses N files at once; --rebuild reindexes from scratch.",
   maxConcurrent: 1,
   args: {
     raw: { type: "boolean", required: false, default: false },

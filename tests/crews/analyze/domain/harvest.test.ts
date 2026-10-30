@@ -74,14 +74,14 @@ describe("rankExports", () => {
 describe("renderHarvest", () => {
   it("renders a summarized package with its size, entry points and exports, types first", () => {
     // Arrange
-    const input = { packages: [PACKAGE], unsummarized: [], moduleGraph: MODULE_GRAPH, graphCap: 200 };
+    const input = { packages: [PACKAGE], unsummarized: [], moduleGraph: MODULE_GRAPH, graphCap: 200, mapCap: 1000 };
 
     // Act
     const harvest = renderHarvest(input);
 
     // Assert
     assertMentions(harvest, [
-      "## Packages (1 in the index; the 1 largest summarized, test packages last; 6 symbol(s) in them)",
+      "## Packages (1 in the index; 1 summarized, the largest first, test packages last; 6 symbol(s) in them)",
       `### \`${WORKSPACE}::workspace\` — 3 file(s), 6 symbol(s)`,
       `Entry points: \`${WORKSPACE}/src/index.ts\``,
       `Public exports (2 of the 2 the index returned):\n- \`${WORKSPACE}/src/types.ts::Order\`\n- \`${WORKSPACE}/src/types.ts::Order.total\``,
@@ -90,7 +90,7 @@ describe("renderHarvest", () => {
 
   it("renders module edges as paths, never as node IDs", () => {
     // Arrange
-    const input = { packages: [], unsummarized: [], moduleGraph: MODULE_GRAPH, graphCap: 200 };
+    const input = { packages: [], unsummarized: [], moduleGraph: MODULE_GRAPH, graphCap: 200, mapCap: 1000 };
 
     // Act
     const harvest = renderHarvest(input);
@@ -102,7 +102,7 @@ describe("renderHarvest", () => {
 
   it(`lists ${MAX_EXPORTS_PER_PACKAGE} exports of a package at most, and says how many it returned`, () => {
     // Arrange
-    const input = { packages: [packageExporting(50)], unsummarized: [], moduleGraph: MODULE_GRAPH, graphCap: 200 };
+    const input = { packages: [packageExporting(50)], unsummarized: [], moduleGraph: MODULE_GRAPH, graphCap: 200, mapCap: 1000 };
 
     // Act
     const harvest = renderHarvest(input);
@@ -114,7 +114,7 @@ describe("renderHarvest", () => {
 
   it("names the packages not summarized, with their modules, and counts them in the total", () => {
     // Arrange
-    const input = { packages: [PACKAGE], unsummarized: mapPackages(2), moduleGraph: MODULE_GRAPH, graphCap: 200 };
+    const input = { packages: [PACKAGE], unsummarized: mapPackages(2), moduleGraph: MODULE_GRAPH, graphCap: 200, mapCap: 1000 };
 
     // Act
     const harvest = renderHarvest(input);
@@ -123,9 +123,20 @@ describe("renderHarvest", () => {
     assertMentions(harvest, ["(3 in the index;", "## Other packages (not summarized)\n- `/w/p0` — 4 module(s)\n- `/w/p1`"]);
   });
 
+  it("says the index holds at least the packages counted when the map reached the entries it was asked for", () => {
+    // Arrange
+    const input = { packages: [PACKAGE], unsummarized: mapPackages(4), moduleGraph: MODULE_GRAPH, graphCap: 200, mapCap: 5 };
+
+    // Act
+    const harvest = renderHarvest(input);
+
+    // Assert
+    assertMentions(harvest, ["## Packages (at least 5 in the index;"]);
+  });
+
   it(`names ${MAX_LISTED_PACKAGES} packages not summarized at most, and says how many it left out`, () => {
     // Arrange
-    const input = { packages: [], unsummarized: mapPackages(MAX_LISTED_PACKAGES + 5), moduleGraph: MODULE_GRAPH, graphCap: 200 };
+    const input = { packages: [], unsummarized: mapPackages(MAX_LISTED_PACKAGES + 5), moduleGraph: MODULE_GRAPH, graphCap: 200, mapCap: 1000 };
 
     // Act
     const harvest = renderHarvest(input);
@@ -137,7 +148,7 @@ describe("renderHarvest", () => {
 
   it("says the module graph is a sample when it reached the modules it was asked for", () => {
     // Arrange
-    const input = { packages: [], unsummarized: [], moduleGraph: SAMPLED_GRAPH, graphCap: 200 };
+    const input = { packages: [], unsummarized: [], moduleGraph: SAMPLED_GRAPH, graphCap: 200, mapCap: 1000 };
 
     // Act
     const harvest = renderHarvest(input);
@@ -148,7 +159,7 @@ describe("renderHarvest", () => {
 
   it("leaves the edges of a sampled module graph out", () => {
     // Arrange
-    const input = { packages: [], unsummarized: [], moduleGraph: SAMPLED_GRAPH, graphCap: 200 };
+    const input = { packages: [], unsummarized: [], moduleGraph: SAMPLED_GRAPH, graphCap: 200, mapCap: 1000 };
 
     // Act
     const harvest = renderHarvest(input);
@@ -159,7 +170,7 @@ describe("renderHarvest", () => {
 
   it("says nothing of a sample when the module graph is below its cap", () => {
     // Arrange
-    const input = { packages: [], unsummarized: [], moduleGraph: MODULE_GRAPH, graphCap: 200 };
+    const input = { packages: [], unsummarized: [], moduleGraph: MODULE_GRAPH, graphCap: 200, mapCap: 1000 };
 
     // Act
     const harvest = renderHarvest(input);
@@ -170,7 +181,7 @@ describe("renderHarvest", () => {
 
   it("flags cycles — the one graph finding that is always a risk", () => {
     // Arrange
-    const input = { packages: [], unsummarized: [], moduleGraph: { ...MODULE_GRAPH, cycleCount: 2 }, graphCap: 200 };
+    const input = { packages: [], unsummarized: [], moduleGraph: { ...MODULE_GRAPH, cycleCount: 2 }, graphCap: 200, mapCap: 1000 };
 
     // Act
     const cyclic = renderHarvest(input);

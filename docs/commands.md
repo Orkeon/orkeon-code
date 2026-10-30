@@ -53,7 +53,7 @@ An **async** command starts a crew and returns a ticket; its result is printed w
 
 | Command | Kind | Description |
 |---|---|---|
-| `/analyze` | async | Analyze the codebase (index → maps → dependency graph), then synthesize business objects; --raw skips the LLM call; --parallel N parses N files at once; --rebuild reindexes from scratch. |
+| `/analyze` | async | Analyze the codebase (index → packages → dependency graph), then synthesize business objects; --raw skips the LLM call; --parallel N parses N files at once; --rebuild reindexes from scratch. |
 | `/debug-tool-call` | sync | Invoke a registered tool with JSON arguments and print its raw result. |
 | `/files` | sync | List the files in a directory (defaults to /workspace). |
 | `/init` | async | Analyse the workspace and write AGENTS.md, the instructions file (an existing CLAUDE.md is merged). |

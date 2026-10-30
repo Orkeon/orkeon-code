@@ -86,6 +86,7 @@ export async function runAnalyze(input: AnalyzeInputs, deps: AnalyzeDeps): Promi
       unsummarized: ranked.slice(MAX_PACKAGES),
       moduleGraph,
       graphCap: GRAPH_NODES,
+      mapCap: MAX_MAP_ENTRIES,
     });
     if (raw) return harvest;
 
