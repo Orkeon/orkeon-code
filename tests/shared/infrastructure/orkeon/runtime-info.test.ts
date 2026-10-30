@@ -27,7 +27,7 @@ describe("createRuntimeInfo", () => {
     const info = reader.read();
 
     // Assert
-    deepStrictEqual(info, { version: "1.0.0-rc.6", commit: "e55edef", channel: "source" });
+    deepStrictEqual(info, { version: "1.0.0-rc.6", commit: "f80665f", channel: "source" });
   });
 
   it("keeps a null commit as null", () => {

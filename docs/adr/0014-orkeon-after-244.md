@@ -6,7 +6,7 @@
 
 ## Context
 
-The pin of ADR 0013 is `3fcfbbe` (Orkeon #240). Orkeon `main` then merged eight pull requests, up to `e55edef`
+The pin of ADR 0013 is `3fcfbbe` (Orkeon #240). Orkeon `main` then merged ten pull requests, up to `f80665f`
 (2026-10-30):
 
 - **#241**, an audit of Orkeon's documentation against its code: no change of the scripting surface.
@@ -31,13 +31,17 @@ The pin of ADR 0013 is `3fcfbbe` (Orkeon #240). Orkeon `main` then merged eight 
   `cache` key of `LlmConfig.with`, a host default `Llm:Cache`, and the usage report and `session_stats` keep a cache
   or reasoning count no call reported null (absent) instead of 0. Before it, no script agent could ask Anthropic to
   cache, so Orkeon Code paid every prompt at the full rate.
+- **#258** and **#259**, none of the scripting surface: the index reads `.git/info/exclude` and the nested
+  `.gitignore` files, not the root one alone; `claude-haiku-5` is priced and every Anthropic model declares its cache
+  write and read rates (#257), so `costUsd` is no longer unpriced on Haiku 5.5 and a cached prompt is costed at its
+  own rate (a 1-hour write at the 5-minute rate: the usage event carries no TTL).
 
 Three branches of Orkeon Code waited on these: `/effort xhigh|max`, `/analyze --parallel N` and `/analyze --rebuild`,
 each with the typings edited by hand.
 
 ## Decision
 
-- **The pin moves to `e55edef`** (`.orkeon-version`, `ORKEON_RUNTIME_COMMIT`), the typings are regenerated from a
+- **The pin moves to `f80665f`** (`.orkeon-version`, `ORKEON_RUNTIME_COMMIT`), the typings are regenerated from a
   checkout at it, the hand edits of the three branches give way to them.
 - **`/effort` offers the five levels**, `/analyze` takes `--parallel N` (`max_parallelism`) and `--rebuild`
   (`use_cache: false`), as their branches wrote them.
@@ -60,4 +64,4 @@ each with the typings edited by hand.
   `xhigh` and `max` fail the agent's build, as any unknown value did.
 - An agent's own `.cache(...)` wins over the host default `Llm:Cache`: a host cannot turn Orkeon Code's cache off
   from its settings. On a runtime before #256, `.cache` does not exist and every agent fails its build.
-- The check made for this ADR: `npm run check` and the runtime smoke on `e55edef` in source mode.
+- The check made for this ADR: `npm run check` and the runtime smoke on `f80665f` in source mode.
