@@ -14,9 +14,6 @@ import type { FallbackResolution } from "../domain/permission-modes.ts";
 import { DEFAULT_MODE_STATE_KEY } from "../domain/session-keys.ts";
 
 export interface SessionIo extends SessionStore {
-  /** Append one entry to the conversation buffer. Throws when the session store
-   *  cannot be read or written; best-effort callers catch. */
-  appendMessage(role: string, content: string): Promise<void>;
   /** The session-default permission mode set by /mode, or null when unset/invalid
    *  (never throws — callers fall back to "default"). */
   readDefaultPermissionMode(): Promise<string | null>;
@@ -70,12 +67,11 @@ export function createSessionIo(deps: {
     snip: (retain) => store.snip(retain),
     setTitle: (title) => store.setTitle(title),
     readState: (key) => store.readState(key),
+    readStates: (keys) => store.readStates(keys),
     writeState: (key, value) => store.writeState(key, value),
     readBudget: () => store.readBudget(),
-    async appendMessage(role, content) {
-      const { stored } = await store.readMessages();
-      await store.writeMessages([...stored, { role, content }]);
-    },
+    // Throws when the session store cannot write; best-effort callers catch.
+    appendMessage: (role, content) => store.appendMessage(role, content),
     readDefaultPermissionMode,
     resolveSessionFallbackMode,
     async resolveEffectiveSessionMode() {

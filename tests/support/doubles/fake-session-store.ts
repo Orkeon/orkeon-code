@@ -5,7 +5,12 @@
 // makes every call throw it, as a host without the session tools does; a
 // `readStateFailure` makes readState alone throw it (a state bag that cannot be
 // read, but can be written), a `writeStateFailure` writeState alone (one that
-// cannot be written).
+// cannot be written). The batch read (readStates) fails with readState, or alone
+// with `readStatesFailure` (a host without the batch). The
+// counters say what a caller asked: `readStateCalls` the key of each single read,
+// `readStatesCalls` the keys of each batch read, `readMessagesCalls` and
+// `writeMessagesCalls` the reads and rewrites of the buffer, `appendCalls` the
+// entries appended one at a time.
 import type {
   SessionMessages, SessionStore, SnipResult, StoredMessage, TokenBudget,
 } from "../../../src/shared/application/ports.ts";
@@ -22,19 +27,33 @@ export class FakeSessionStore implements SessionStore {
   failure: Error | null = null;
   readStateFailure: Error | null = null;
   writeStateFailure: Error | null = null;
+  readStatesFailure: Error | null = null;
+  readStateCalls: string[] = [];
+  readStatesCalls: string[][] = [];
+  readMessagesCalls = 0;
+  writeMessagesCalls = 0;
+  appendCalls: SessionMsg[] = [];
 
   check(): void {
     if (this.failure) throw this.failure;
   }
 
   async readMessages(): Promise<SessionMessages> {
+    this.readMessagesCalls++;
     this.check();
     return { stored: [...this.messages], messages: this.messages.map((m) => ({ role: m.role, content: m.content })) };
   }
 
   async writeMessages(messages: readonly StoredMessage[]): Promise<void> {
+    this.writeMessagesCalls++;
     this.check();
     this.messages = [...messages] as SessionMsg[];
+  }
+
+  async appendMessage(role: string, content: string): Promise<void> {
+    this.appendCalls.push({ role, content });
+    this.check();
+    this.messages = [...this.messages, { role, content }];
   }
 
   async reset(): Promise<number> {
@@ -57,9 +76,18 @@ export class FakeSessionStore implements SessionStore {
   }
 
   async readState(key: string): Promise<string | null> {
+    this.readStateCalls.push(key);
     this.check();
     if (this.readStateFailure) throw this.readStateFailure;
     return this.state.get(key) ?? null;
+  }
+
+  async readStates(keys: readonly string[]): Promise<Record<string, string | null>> {
+    this.readStatesCalls.push([...keys]);
+    this.check();
+    if (this.readStateFailure) throw this.readStateFailure;
+    if (this.readStatesFailure) throw this.readStatesFailure;
+    return Object.fromEntries(keys.map((k) => [k, this.state.get(k) ?? null]));
   }
 
   async writeState(key: string, value: string | null): Promise<void> {

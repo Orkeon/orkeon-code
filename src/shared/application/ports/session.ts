@@ -55,6 +55,8 @@ export interface SessionStore {
   readMessages(): Promise<SessionMessages>;
   /** Replace the conversation buffer. */
   writeMessages(messages: readonly StoredMessage[]): Promise<void>;
+  /** Add one entry at the end of the buffer, which is neither read nor rewritten (Orkeon #263). */
+  appendMessage(role: string, content: string): Promise<void>;
   /** Empty the conversation buffer; resolves to how many entries it removed. */
   reset(): Promise<number>;
   /** Cut the buffer down to its head and its last `retain` exchanges. */
@@ -62,6 +64,8 @@ export interface SessionStore {
   setTitle(title: string): Promise<void>;
   /** A state value; null when unset. */
   readState(key: string): Promise<string | null>;
+  /** Several state values in one read (Orkeon #263): every key asked, null when unset. */
+  readStates(keys: readonly string[]): Promise<Record<string, string | null>>;
   /** Set a state value; null removes the key. */
   writeState(key: string, value: string | null): Promise<void>;
   readBudget(): Promise<TokenBudget>;

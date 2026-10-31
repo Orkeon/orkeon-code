@@ -20,6 +20,11 @@ import {
 import type { PreludeCall } from "../../../shared/domain/prelude.ts";
 import { budgetExhaustedAnswerOf } from "../../../shared/domain/llm-failure.ts";
 import type { SessionIo } from "../../../shared/application/session-io.ts";
+import { stateSnapshot } from "../../../shared/application/state-snapshot.ts";
+import {
+  AUTOCOMPACT_BREAKER_STATE_KEY, EFFORT_STATE_KEY, FAST_MODE_STATE_KEY, HOOKS_STATE_KEY, MODEL_PREFERENCE_STATE_KEY,
+  OUTPUT_STYLE_STATE_KEY, PASSES_STATE_KEY, PROACTIVE_STATE_KEY, SKILLS_STATE_KEY,
+} from "../../../shared/domain/session-keys.ts";
 import type { ToolTrace } from "../../../shared/application/dev/tool-trace-recorder.ts";
 import { readBehaviorFlags } from "./context-gather.ts";
 import { autoCompactGuarded } from "./auto-compact.ts";
@@ -235,12 +240,23 @@ async function stopChecked(
   }
 }
 
+/** The state keys a turn reads, in ONE session_store call at its start (Orkeon #263): the behaviour flags, the
+ *  output style, the hooks, the skills, the compaction breaker (read at the head and the tail) and the gate's
+ *  warning. A key read and missing here costs its own call, as before. */
+const TURN_STATE_KEYS = [
+  EFFORT_STATE_KEY, PASSES_STATE_KEY, FAST_MODE_STATE_KEY, PROACTIVE_STATE_KEY, MODEL_PREFERENCE_STATE_KEY,
+  OUTPUT_STYLE_STATE_KEY, HOOKS_STATE_KEY, SKILLS_STATE_KEY, AUTOCOMPACT_BREAKER_STATE_KEY, GATE_WARNED_KEY,
+];
+
 /** One turn: the answer, or why there was none. */
-export async function runMainLoop(input: MainLoopInputs, loaded: LoadedCatalogue, deps: MainLoopDeps): Promise<string> {
-  const { session, log } = deps;
+export async function runMainLoop(input: MainLoopInputs, loaded: LoadedCatalogue, given: MainLoopDeps): Promise<string> {
   const request = String(input.prompt ?? "").trim();
   const prelude = parsePrelude(input.prelude);
   if (request.length === 0 && prelude?.as !== "request") return "No prompt provided.";
+  // Every reader of the turn reads the state bag through this session: its keys come from one batch read.
+  const session: SessionIo = { ...given.session, ...await stateSnapshot(given.session, TURN_STATE_KEYS) };
+  const deps: MainLoopDeps = { ...given, session };
+  const { log } = deps;
   // The prelude runs first, as the launching command's call (the gate does not ask):
   // a failure fails the run before any message is stored or any model is called.
   const prompt = prelude === null ? request : await withPreludeResult(request, prelude, deps);

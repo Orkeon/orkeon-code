@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Each turn of the assistant reads its session state in one `session_store` call instead of one per key, and stores
+  its messages with `append_message` instead of reading and rewriting the whole buffer (Orkeon #263): the smallest
+  turn makes 4 `session_store` calls instead of 15, and the cost no longer grows with the session's length.
+
 - Each turn of the assistant reads the typed memory in one `memory_store` call instead of one per category: four calls
   become one in the session's tool counts.
 

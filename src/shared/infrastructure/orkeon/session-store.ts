@@ -36,6 +36,11 @@ export function createSessionStore(
     async writeMessages(messages) {
       await sessionStore({ operation: "write_messages", messages });
     },
+    async appendMessage(role, content) {
+      const resp = await sessionStore({ operation: "append_message", role, content });
+      // A refused append (a blank role) says so, as a failed write would.
+      if (pick(resp, "success", "Success") === false) throw new Error(`session_store refused to append a '${role}' message`);
+    },
     async reset() {
       return count(await sessionStore({ operation: "reset" }), "removed_count", "removedCount", "RemovedCount");
     },
@@ -53,6 +58,18 @@ export function createSessionStore(
       const resp = await withToolMessage(() => sessionStore({ operation: "get_state", key }));
       const v = pick(resp, "value", "Value");
       return v == null ? null : String(v);
+    },
+    async readStates(keys) {
+      if (keys.length === 0) return {};
+      const resp = await withToolMessage(() => sessionStore({ operation: "get_state", keys }));
+      // A key never set is absent from `values` (the tool pipeline drops nulls): null here.
+      const values = pick(resp, "values", "Values");
+      const out: Record<string, string | null> = {};
+      for (const key of keys) {
+        const v = values !== null && typeof values === "object" ? (values as Record<string, unknown>)[key] : undefined;
+        out[key] = v == null ? null : String(v);
+      }
+      return out;
     },
     async writeState(key, value) {
       await sessionStore({ operation: "set_state", key, value });

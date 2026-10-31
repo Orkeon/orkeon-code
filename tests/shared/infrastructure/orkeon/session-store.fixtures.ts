@@ -55,3 +55,10 @@ export const BUDGETS: readonly CountCase<TokenBudget>[] = [
     expected: { used: 9, window: 10, byKind: { system: 4, user: 5, assistant: 0, tool: 0, other: 0 } },
   },
 ];
+
+/** The answers of a get_state over keys `a` and `missing`: every key read back, a key absent as null. */
+export const STATE_VALUES = [
+  { name: "reads `values`, a key never set as null", reply: { success: true, values: { a: "1" } }, expected: { a: "1", missing: null } },
+  { name: "reads `Values`, a value as a string", reply: { Success: true, Values: { a: 2 } }, expected: { a: "2", missing: null } },
+  { name: "reads every key as null when the answer has no values", reply: { success: true }, expected: { a: null, missing: null } },
+];

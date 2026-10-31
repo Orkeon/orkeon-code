@@ -355,6 +355,10 @@ The session lives in the runtime: a conversation buffer (`session_store`, `sessi
 bag (`get_state`/`set_state`), typed memory (`memory_store`: user, project, feedback, reference) and cost and usage
 (`session_cost`, `session_stats`).
 
+A turn reads the state keys it needs in one `get_state` call at its start (`TURN_STATE_KEYS` in `run-main-loop.ts`,
+answered by `shared/application/state-snapshot.ts`: a key outside the list is read alone), and stores each message
+with `append_message`, which neither returns nor rewrites the buffer (Orkeon #263).
+
 ## Prompt assembly
 
 `crews/main-loop/domain/prompt-assembly.ts` builds two things for each turn.
