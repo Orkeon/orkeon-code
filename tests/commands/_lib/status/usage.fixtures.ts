@@ -16,7 +16,7 @@ export function usageHarness(trigger?: string) {
   const config = {
     readValue: async (key: string): Promise<ConfigResolution> => ({ key, value: trigger, source: trigger === undefined ? "unset" : "file" }),
   };
-  return { session, telemetry, usage, run: () => runUsage({ session, telemetry, config, usage }) };
+  return { session, telemetry, usage, config, run: () => runUsage({ session, telemetry, config, usage }) };
 }
 
 /** The breakdown of USAGE_REPORT, line by line. */

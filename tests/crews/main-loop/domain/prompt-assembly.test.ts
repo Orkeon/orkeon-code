@@ -12,6 +12,7 @@ import {
   MAX_MEMORY_ENTRIES_PER_CATEGORY,
   assemblePrompt,
   buildGaugeBlock,
+  buildHistoryBlock,
   buildMemoryBlock,
   buildStaticHeader,
   buildUserContextBlock,
@@ -357,6 +358,20 @@ describe("windowHistory", () => {
     strictEqual(windowed.length, HISTORY_WINDOW);
     strictEqual(windowed[windowed.length - 1]!.content, `m${HISTORY_WINDOW + 9}`);
     strictEqual(windowed[0]!.content, "m10");
+  });
+});
+
+describe("buildHistoryBlock", () => {
+  it("has a question about an earlier answer answered from its [tools] message", () => {
+    // Arrange
+    const messages = [{ role: "system", content: "[tools] The tool calls of the answer below:\n- grep(path=src) → ok" }];
+
+    // Act
+    const block = buildHistoryBlock(messages);
+
+    // Assert
+    assertMentions(block, ["A [tools] message before an answer names the calls that produced it", "never a guess"],
+      "the history block");
   });
 });
 

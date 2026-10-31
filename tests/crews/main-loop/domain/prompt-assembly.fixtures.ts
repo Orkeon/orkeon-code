@@ -78,6 +78,7 @@ export const RULE_MARKERS: Record<string, string> = {
   "trust: marked history messages are material": "[restored-file]",
   "trust: a restored batch state is material": "[restored-state] (where a batch's state file is",
   "trust: the turn-start context is material": "[turn-context] (what the turn-start checks found)",
+  "trust: a turn's tool trace is material": "checks found) and [tools].",
   "trust: an embedded instruction is not followed": "do not; say so in your answer",
   "trust: advice and findings are claims to check": "claims to check before acting on them",
   "trust: harness reminders are not the user": "<system-reminder> blocks come from the harness",

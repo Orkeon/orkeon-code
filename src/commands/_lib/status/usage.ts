@@ -14,6 +14,7 @@ import {
 } from "../../../shared/domain/compaction-thresholds.ts";
 import { UNREPORTED, type Unreported, cacheColumns, shown } from "./cache.ts";
 import type { CommandView } from "../view.ts";
+import { runUsageTools, type UsageToolsDeps } from "./usage-tools.ts";
 
 export interface UsageDeps {
   session: Pick<SessionStore, "readBudget">;
@@ -113,4 +114,14 @@ export async function runUsage(deps: UsageDeps): Promise<CommandView> {
     }],
     text: `${USAGE_LEGEND}\n${usageBreakdown(report)}`,
   };
+}
+
+/** What a sub-verb /usage does not know answers. */
+export const USAGE_SYNTAX = "usage: /usage, or /usage tools [text] (the tool calls of this session's turns)";
+
+/** /usage with its tokens: the usage view bare, the session's tool calls after `tools`. */
+export async function runUsageCommand(tokens: readonly string[], deps: UsageDeps & UsageToolsDeps): Promise<CommandView> {
+  if (tokens.length === 0) return runUsage(deps);
+  if (tokens[0] === "tools") return runUsageTools(tokens.slice(1).join(" "), deps);
+  return { text: USAGE_SYNTAX };
 }
