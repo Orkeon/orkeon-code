@@ -6,8 +6,8 @@
 
 ## Context
 
-The pin of ADR 0013 is `3fcfbbe` (Orkeon #240). Orkeon `main` then merged eleven pull requests, up to `d6fd816`
-(2026-10-30):
+The pin of ADR 0013 is `3fcfbbe` (Orkeon #240). Orkeon `main` then merged twelve pull requests, up to `151a762`
+(2026-10-31):
 
 - **#241**, an audit of Orkeon's documentation against its code: no change of the scripting surface.
 - **#242**, `effort` takes `xhigh` and `max` beside `low`, `medium` and `high`, on the agent builder, the per-call
@@ -38,13 +38,16 @@ The pin of ADR 0013 is `3fcfbbe` (Orkeon #240). Orkeon `main` then merged eleven
 - **#261**, a count mode in `grep` (#260): `output_mode: "count"` answers `total_matches`, `files_matched` and the
   per-file `counts` with no hit line, and both modes report `total_matches` and `scan_complete`, so a "how many"
   question over a tree takes one call.
+- **#264**, a batched `session_store` (#263, opened from Orkeon Code): `get_state` reads several `keys` in one call
+  and answers `values` (a key never set is absent), `set_state` writes several `values` and removes several `keys`,
+  and `append_message` adds one message at the end of the buffer without returning or rewriting it.
 
 Three branches of Orkeon Code waited on these: `/effort xhigh|max`, `/analyze --parallel N` and `/analyze --rebuild`,
 each with the typings edited by hand.
 
 ## Decision
 
-- **The pin moves to `d6fd816`** (`.orkeon-version`, `ORKEON_RUNTIME_COMMIT`), the typings are regenerated from a
+- **The pin moves to `151a762`** (`.orkeon-version`, `ORKEON_RUNTIME_COMMIT`), the typings are regenerated from a
   checkout at it, the hand edits of the three branches give way to them.
 - **`/effort` offers the five levels**, `/analyze` takes `--parallel N` (`max_parallelism`) and `--rebuild`
   (`use_cache: false`), as their branches wrote them.
@@ -67,4 +70,4 @@ each with the typings edited by hand.
   `xhigh` and `max` fail the agent's build, as any unknown value did.
 - An agent's own `.cache(...)` wins over the host default `Llm:Cache`: a host cannot turn Orkeon Code's cache off
   from its settings. On a runtime before #256, `.cache` does not exist and every agent fails its build.
-- The check made for this ADR: `npm run check` and the runtime smoke on `d6fd816` in source mode.
+- The check made for this ADR: `npm run check` and the runtime smoke on `151a762` in source mode.

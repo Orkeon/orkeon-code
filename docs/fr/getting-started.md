@@ -76,7 +76,7 @@ Ollama ([Configuration](configuration.md#le-llm)).
 tool sur le `orkeon-<version>-win-x64.zip` de la release est celui de Windows ; la voie que ce projet pratique est WSL
 avec le lanceur bash ([tutoriel WSL](wsl-tutorial.md)).
 
-Orkeon Code est vérifié contre les sources d'Orkeon au commit de `.orkeon-version` (`d6fd816`, le `main` après
+Orkeon Code est vérifié contre les sources d'Orkeon au commit de `.orkeon-version` (`151a762`, le `main` après
 Orkeon/orkeon#261, 2026-10-30) : le [mode source](#mode-source--un-checkout-dorkeon) exécute ce commit, le runtime de
 référence ; le [mode tool](#mode-tool--orkeon-repl-installé) (le paquet Debian sur le canal apt `rc`, les archives de
 release) exécute la dernière release, `1.0.0-rc.6`, et le [mode docker](#mode-docker--rien-à-installer-sauf-docker)
@@ -148,9 +148,9 @@ ce checkout, ou `ORKEON_ESBUILD_PATH`.
 Le checkout devrait être au commit de `.orkeon-version`, celui contre lequel les commandes ont été vérifiées. Le
 lanceur l'y amène lui-même quand rien de vous n'est en jeu : aucun fichier suivi modifié, sur `main` ou détaché, et en
 retard sur le pin (récupéré depuis `origin main` s'il manque). Il dit alors `orkeon-code: ORKEON_SOURCE moved from
-<sha7> to the pin d6fd816.` et le build restaure la solution. Sinon (une branche à vous, du travail non commité, des
+<sha7> to the pin 151a762.` et le build restaure la solution. Sinon (une branche à vous, du travail non commité, des
 commits en avance sur le pin, ou `ORKEON_SOURCE_FOLLOW_PIN=0`), il laisse le checkout tel quel, avertit
-(`orkeon-code: warning: ORKEON_SOURCE is at <sha7>, the pin of .orkeon-version is d6fd816: the commands were checked
+(`orkeon-code: warning: ORKEON_SOURCE is at <sha7>, the pin of .orkeon-version is 151a762: the commands were checked
 against the pin.`) et lance quand même.
 
 ## 4. Première session
