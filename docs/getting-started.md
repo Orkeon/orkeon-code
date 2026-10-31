@@ -76,8 +76,8 @@ machine instead, no key: `config/appsettings.ollama.example.json`, on Ollama ([C
 mode on the release's `orkeon-<version>-win-x64.zip` is the one for Windows; the path this project exercises is WSL
 with the bash launcher ([WSL tutorial](wsl-tutorial.md)).
 
-Orkeon Code is checked against Orkeon's sources at the commit in `.orkeon-version` (`f80665f`, `main` after
-Orkeon/orkeon#246, 2026-10-30): the [source mode](#source-mode-an-orkeon-checkout) runs that commit, the reference
+Orkeon Code is checked against Orkeon's sources at the commit in `.orkeon-version` (`d6fd816`, `main` after
+Orkeon/orkeon#261, 2026-10-30): the [source mode](#source-mode-an-orkeon-checkout) runs that commit, the reference
 runtime; the [tool mode](#tool-mode-orkeon-repl-installed) (the Debian package on the apt `rc` channel, the release
 archives) runs the last release, `1.0.0-rc.6`, and the [docker mode](#docker-mode-nothing-to-install-but-docker)
 the last `orkeon-runners` image published, `1.0.0-rc.5` at this writing (no `1.0.0-rc.6` image is published), both
@@ -147,9 +147,9 @@ whose `global.json` pins another SDK still works. It needs the .NET 10 SDK, the 
 The checkout should sit at the commit of `.orkeon-version`, the one the commands were checked against. The launcher
 moves it there itself when nothing of yours is in the way: no tracked file changed, on `main` or detached, and behind
 the pin (fetched from `origin main` when missing). It then says `orkeon-code: ORKEON_SOURCE moved from <sha7> to the pin
-f80665f.` and the build restores the solution. Otherwise (a branch of your own, uncommitted work, commits ahead of the
+d6fd816.` and the build restores the solution. Otherwise (a branch of your own, uncommitted work, commits ahead of the
 pin, or `ORKEON_SOURCE_FOLLOW_PIN=0`) it leaves the checkout alone, warns (`orkeon-code: warning: ORKEON_SOURCE is at
-<sha7>, the pin of .orkeon-version is f80665f: the commands were checked against the pin.`) and runs anyway.
+<sha7>, the pin of .orkeon-version is d6fd816: the commands were checked against the pin.`) and runs anyway.
 
 ## 4. First session
 
