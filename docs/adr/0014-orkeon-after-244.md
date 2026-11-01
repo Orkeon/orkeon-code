@@ -6,7 +6,7 @@
 
 ## Context
 
-The pin of ADR 0013 is `3fcfbbe` (Orkeon #240). Orkeon `main` then merged fourteen pull requests, up to `9c25b6c`
+The pin of ADR 0013 is `3fcfbbe` (Orkeon #240). Orkeon `main` then merged fourteen pull requests, up to `3860e9d`
 (2026-11-01):
 
 - **#241**, an audit of Orkeon's documentation against its code: no change of the scripting surface.
@@ -62,8 +62,11 @@ each with the typings edited by hand.
 
 ## Decision
 
-- **The pin moves to `9c25b6c`** (`.orkeon-version`, `ORKEON_RUNTIME_COMMIT`), the typings are regenerated from a
+- **The pin moves to `3860e9d`** (`.orkeon-version`, `ORKEON_RUNTIME_COMMIT`), the typings are regenerated from a
   checkout at it, the hand edits of the three branches give way to them.
+  `3860e9d` is the squash merge of #271 on `main`. The pin first named `9c25b6c`, the last commit of the #271
+  branch: same tree, but not on `main`, so the launcher could not move a source checkout of `main` to it and warned
+  at every start.
 - **`/effort` offers the five levels**, `/analyze` takes `--parallel N` (`max_parallelism`) and `--rebuild`
   (`use_cache: false`), as their branches wrote them.
 - **`/analyze` says what the cache did**: the index summary reads `cache` and `reindexed_file_count`, and the
@@ -99,4 +102,4 @@ each with the typings edited by hand.
   that throws leaves each key read on its own (the state snapshot). The conversation is kept, at the old cost.
 - On a runtime before #271 a block arrives as a failure marker, read as an `LlmFailure`: the turn fails with the
   host's sentence, as it did before #47 was fixed.
-- The check made for this ADR: `npm run check` and the runtime smoke on `9c25b6c` in source mode.
+- The check made for this ADR: `npm run check` and the runtime smoke on `3860e9d` in source mode.

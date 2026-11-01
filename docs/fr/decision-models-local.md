@@ -18,7 +18,7 @@ injection de prompt et remonte de `small` vers `large` quand la réponse ne tien
 
 ## Le runtime : le mode source
 
-Liquid et Kev arrivent avec Orkeon #266, leurs étapes corrigées par #271, que le pin couvre (`9c25b6c`) et qu'aucune release ne livre encore : le mode
+Liquid et Kev arrivent avec Orkeon #266, leurs étapes corrigées par #271, que le pin couvre (`3860e9d`) et qu'aucune release ne livre encore : le mode
 tool fait tourner la dernière release et le mode docker la dernière image, et aucun des deux ne connaît
 `Orkeon:Liquid`, `Orkeon:Kev` ni `Orkeon:Decision:Provider`. Lancez Orkeon Code en mode source, sur un checkout
 d'Orkeon au pin ou après ([Premiers pas](getting-started.md#mode-source--un-checkout-dorkeon)) :
@@ -526,7 +526,7 @@ appel est bloqué.
 ## Le voir fonctionner
 
 Ce qui suit a été observé avec `kev-0.8b` et `qwen3.5:2b` dans Docker sur une RTX 3080, Orkeon à `0ea39d9` ;
-l'étape 2 compte les appels à Kev comme les fait le pin (`9c25b6c`), où une étape qui appelle un outil n'est plus
+l'étape 2 compte les appels à Kev comme les fait le pin (`3860e9d`), où une étape qui appelle un outil n'est plus
 jugée après l'appel. Les lignes de journal sont celles de l'hôte, telles que l'exécution ci-dessous les affiche.
 
 1. **Le démarrage.** L'hôte nomme le fournisseur actif :
