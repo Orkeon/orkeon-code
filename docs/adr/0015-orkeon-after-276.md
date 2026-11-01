@@ -47,4 +47,5 @@ cycles and does not name their modules.
   0.71 and a hidden one at 0.59, two harmless requests pass, and the history and the git context still reach the
   model.
 - The pin then follows Orkeon `main` to `c727c06` (Orkeon #278: a right click in the console input no longer flashes
-  the native context menu). Nothing of the scripting surface changes: the typings are the same.
+  the native context menu), then to `83cd91d` (Orkeon #279: over SSH the console copies a keyboard selection and
+  takes the terminal's paste). Nothing of the scripting surface changes: the typings are the same.
