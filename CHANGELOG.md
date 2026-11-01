@@ -16,8 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Each turn of the assistant reads its session state in one `session_store` call instead of one per key, and stores
-  its messages with `append_message` instead of reading and rewriting the whole buffer (Orkeon #263): the smallest
-  turn makes 4 `session_store` calls instead of 15, and the cost no longer grows with the session's length.
+  its messages with `append_message` instead of reading and rewriting the whole buffer (Orkeon #263). Its automatic
+  compactions, at the head and the tail of the turn, read the token budget before the buffer and stop there under
+  the trigger, and the trigger setting is read once per turn: the smallest turn makes 6 `session_store` calls (its
+  state, the buffer once for the history, two reads of the settings, the request and the answer stored), a number
+  that no longer grows with the session's length.
 
 - Each turn of the assistant reads the typed memory in one `memory_store` call instead of one per category: four calls
   become one in the session's tool counts.
@@ -31,18 +34,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Every agent asks the provider to cache its system prompt and its tools** (Orkeon #254, ADR 0014): on Anthropic,
   whose cache is explicit, nothing was cached and every prompt was billed at the full rate; from the second call of
   a session the stable prefix is now read from the cache, and `/usage` shows it in `cacheRead` and `cacheRatio`. The
-  other providers cache by their own rules and ignore the request.
+  other providers cache by their own rules and ignore the request. A runtime before Orkeon #256 (the `1.0.0-rc.6`
+  release) has no cache to request: its agents are built without it.
 
 - **An unreported cache or reasoning count reads `n/a`, never `0`** (Orkeon #254): `/usage` and `/context` tell a
-  count no call reported from one measured at `0`. `cacheRead`, `cacheWrite`, `llmReasoningTokens` and the other
-  `llm*` figures show `n/a` when unreported (they showed `0`), `cacheRatio` is `n/a` over an unreported cache read,
-  and the breakdown by model and by command names a cache read measured at `0` and leaves out one never reported.
+  count no call reported from one measured at `0`. `cacheRead`, `cacheWrite`, `llmReasoningTokens`, the other
+  `llm*` figures, `costUsd`, `messages` and `estTokens` show `n/a` when unreported (they showed `0`), `cacheRatio` is
+  `n/a` over an unreported cache read, and the breakdown by model and by command names a cache read measured at `0`
+  and leaves out one never reported.
   A sum over several models is unreported only when no model reported the count. `llmReasoningTokens` falls back
   on the `reasoning_tokens` of `session_stats` when the host's account has none.
 
 - **`/usage` tells the tokens sent from the tokens received, and the counted from the estimated.** The row gains
   `llmInTokens`, `llmOutTokens` and `llmReasoningTokens` beside the total `llmTokens` (from the host's account, else
-  summed over the models of `session_stats`, `n/a` when nobody counts them), and a legend opens the closing text:
+  summed over the models of `session_stats`, `n/a` when nobody counts them; `llmTokens` is then their sum, and
+  `cacheRead` and `cacheWrite` come from the same account as `llmInTokens`), and a legend opens the closing text:
   `usedTokens` and `estTokens` are estimates of the conversation's size, the `llm*` columns the providers' counts.
   `cacheRatio` is now the cache read over the prompt tokens, no longer over the prompt and completion together.
 - **`/effort` takes `xhigh` and `max`**, the two levels Claude knows above `high`: the ladder climbs to 120 and
@@ -64,8 +70,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   message before its answer: one line per call, with the tool, its main arguments cut short and a one-line outcome
   (a count, an exit code, an error, a scan cut short). Repeated calls fold as `×n`, at most twenty lines, and an
   argument that looks like a secret reads `(redacted)`. A file's content and a command's output are never kept.
-  Asked how an earlier answer was found, the model answers from that message instead of guessing. `/usage tools
-  [text]` lists these calls under their requests, filtered by the text.
+  The last line counts the calls left out, and a call the shared memory's guard denied is a line with its reason
+  (one the host's permission gate refused is not traced). A turn a decision stage blocked keeps the `[tools]` message
+  of the calls that ran before the block. These messages take no room in the history window, which keeps the last
+  50 requests and answers. Asked how an earlier answer was found, the model answers from that message instead of
+  guessing. `/usage tools [text]` lists these calls under their requests, filtered by the text.
 - **A decision model, Jev, in front of the agents of every command, by one session key.** `llm.profile` names a host
   profile: an LLM profile (`Llm:Profiles:<name>`) or a decision profile (`Orkeon:Decision:Profiles:<name>`, Jev,
   TypeSafe's System One, routing, guarding or verifying the calls of an LLM profile). Every command that launches a
@@ -76,6 +85,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cannot be read, is warned about and the launch goes on without it; a name the host does not declare fails the
   crew's load, listing the profiles it knows. `config/appsettings.jev.example.json` is the example: `Orkeon:TypeSafe`
   (the key in `TYPESAFE_API_KEY`), the profiles `small` and `large`, the decision profile `guarded` over them.
+  The profile wins over `/model`: under it the assistant's turns do not send the `/model` override, which would
+  replace the profile's model and, on a decision profile, the model of its escalation target too, and each turn
+  says so once in the log; `/model show` names the profile, and `/model <name>` stores the override with a warning
+  that it is not sent while the profile is set.
 - **An example settings file on Claude through the API credits of a Max plan**
   (`config/appsettings.anthropic.example.json`): `https://api.anthropic.com`, `claude-opus-5-5` with the other Claude
   models for `/model`, the key in `ANTHROPIC_API_KEY`, no temperature since the current Claude generation refuses one.
@@ -92,8 +105,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the first `/analyze` of a session; `--rebuild` ignores both the session's index and the saved one, then saves the
   new one.
 - **`/analyze --parallel N` sets how many files the indexing parses at once** (Orkeon `index_codebase`
-  `max_parallelism`): a whole number from 1 to 64, the runtime's default (one per processor) when absent. It acts
-  only when the session has no index yet; the index is the same whatever N.
+  `max_parallelism`): a whole number from 1 to 64, the runtime's default (one per processor) when absent; a value
+  that is no whole number (`2.5`) gets the default too, and a warning in the log that names it. It acts when the
+  session has no index yet, or with `--rebuild`; the index is the same whatever N.
 - **`/resume <number or id>` switches the session in place** (Orkeon #227, delivered by #230): the session of now
   is saved to an archive beside its own file (`<stamp>-archived.json`, named by the clock port), then the chosen
   history file replaces the conversation, the state bag, the id and the title; the next turn continues it. The
@@ -814,6 +828,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   correctness`) and **`/force-snip`** (now `/compact --snip`).
 
 ### Fixed
+
+- **The tool and docker modes build their agents again** (ADR 0014): every agent requested the prompt cache with
+  `.cache(...)`, which a runtime before Orkeon #256 lacks, so on the `1.0.0-rc.6` release (tool mode,
+  `scripts/run-crew.sh` without `ORKEON_CODE_MODE=source`) and the `orkeon-runners` image no crew could build its
+  agent. The cache is now requested only where the runtime offers it. On those releases, a turn's message is also
+  stored by reading and rewriting the session buffer, as before Orkeon #263, so the assistant keeps the
+  conversation from one turn to the next.
 
 - **A turn a decision stage blocks answers the block instead of failing** (#47): when a guard or verify stage of the
   active `llm.profile` blocks the call, or a fail-closed stage cannot reach its decision model, `/assistant` answers
