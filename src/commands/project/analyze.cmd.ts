@@ -7,7 +7,7 @@
 // RaggableTree is always the source, then makes exactly one no-tools LLM call
 // to synthesize business objects and dependencies. `--raw` skips that call and
 // prints the harvest (zero LLM cost). `--parallel N` parses N files at once when
-// the session has no index yet (default: one per processor). `--rebuild` indexes
+// the session has no index yet, or with --rebuild (default: one per processor). `--rebuild` indexes
 // again from scratch, ignoring the index of the session and the one saved on disk.
 import { launchCrew, withLlmProfile, writeCompleted } from "../_lib/dispatch.ts";
 import { createCrewHost } from "../../shared/infrastructure/orkeon/crew-host.ts";
