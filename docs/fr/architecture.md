@@ -389,7 +389,7 @@ fois par tour (`crew.ork.ts`).
 phrases-marqueurs que `tests/repository/prompt-contract.test.ts` et les tests des prompts épinglent : une phrase citée comme texte
 d'un prompt ou comme marqueur y reste en anglais, telle quelle.*
 
-`crews/main-loop/domain/prompt-assembly.ts` construit deux choses à chaque tour.
+`crews/main-loop/domain/prompt-assembly.ts` construit les trois messages de chaque tour.
 
 **L'en-tête statique**, envoyé comme message système : les règles de comportement, la liste des outils avec ce que
 les outils peuvent et ne peuvent pas faire, le guide de recherche quand les outils de recherche sont offerts, et
@@ -397,11 +397,17 @@ le fichier d'instructions du projet. Il ne contient aucun nombre et aucune donn�
 octets restent identiques d'un tour à l'autre pour un mode donné et que les fournisseurs peuvent le mettre en cache ;
 `MAX_STATIC_HEADER_CHARS` plafonne la partie rédigée.
 
-**Le corps utilisateur**, dans un ordre fixe du bloc le plus stable au plus volatil, pour que le cache de préfixe
-d'un fournisseur s'y enfonce aussi loin qu'il le peut : les préférences de session, les skills attachées, la
-mémoire, les hooks déclarés, la fenêtre d'historique sans la requête courante, l'environnement (répertoire de
-travail, date, statut git), la jauge de contexte avec son palier de pression, puis la requête sous son propre titre
-avec sa note de permission, toujours en dernier.
+**Le contexte**, envoyé comme un message utilisateur à part après le message système (`ActOptions.context`, Orkeon
+#276), dans un ordre fixe du bloc le plus stable au plus volatil, pour que le cache de préfixe d'un fournisseur s'y
+enfonce aussi loin qu'il le peut : les préférences de session, les skills attachées, la mémoire, les hooks déclarés,
+la fenêtre d'historique sans la requête courante, l'environnement (répertoire de travail, date, statut git), la jauge
+de contexte avec son palier de pression.
+
+**La requête**, le prompt de l'act : la requête sous son propre titre avec sa note de permission, seule dans le
+dernier message utilisateur. Les étapes `guard` et `route` d'un profil de décision jugent ce message ; envoyée dans un
+seul message avec le contexte, la requête voyait son risque dilué par le contexte autour d'elle. Sur un runtime qui ne
+lit pas `ActOptions.context` (la release `1.0.0-rc.6`, reconnue à un constructeur d'agent sans `.cache`),
+l'adaptateur place le contexte devant la requête dans un seul message, comme avant.
 
 Chaque prompt est écrit à partir du comportement spécifié ci-dessous, dans les mots propres de ce projet
 (CONTRIBUTING, « Original work only ») ; l'[ADR 0003](../adr/0003-prompts-from-a-behaviour-specification.md) (en
@@ -471,7 +477,7 @@ un changement comme un diff.
 - **Instructions du projet** : l'`AGENTS.md` du projet, sinon son `CLAUDE.md`, tel quel, sous un titre qui nomme le
   fichier.
 
-### Le corps utilisateur de la boucle principale
+### Le contexte et la requête de la boucle principale
 
 - **Préférences** (un `<system-reminder>`) : le style de sortie (`default` ne rend rien ; `concise` garde entières une
   explication demandée, la sortie d'erreur et les avertissements de sécurité) et la langue des réponses (le réglage
@@ -492,7 +498,8 @@ un changement comme un diff.
 - **Jauge** (un `<system-reminder>`) : les tokens consommés rapportés à la fenêtre et le coût de la session. Au palier
   d'avertissement, finir l'étape en cours et cesser de lire de gros fichiers en entier ; au palier d'erreur, conclure
   et suggérer `/compact`.
-- **Tâche** : la requête sous son propre titre, puis la note de permission du mode (lecture seule : livrer une
+- **Requête** (le dernier message, à part des blocs ci-dessus) : la requête sous son propre titre, puis la note de
+  permission du mode (lecture seule : livrer une
   évaluation ou un plan ; sinon l'hôte peut demander avant un appel), puis la clause proactive quand `/proactive` est
   activé.
 
@@ -709,7 +716,7 @@ Mettre à jour `mode-policy.test.ts` et `docs/permissions.md`.
 1. Écrire sa fonction de rendu dans `src/crews/main-loop/domain/prompt-assembly.ts` (`build<Name>Block`), rendant
    une chaîne vide quand il n'y a rien à dire, pour qu'une session qui ne s'en sert pas garde un prompt identique à
    l'octet près.
-2. Lui donner un champ de `PromptParts` et sa place dans l'ordre fixe d'`assemblePrompt` ; un bloc de l'en-tête
+2. Lui donner un champ de `ContextParts` et sa place dans l'ordre fixe d'`assembleContext` ; un bloc de l'en-tête
    statique ne doit contenir aucune donnée propre au tour, sinon le cache du fournisseur se rompt.
 3. Lire son entrée dans `application/context-gather.ts` (par les ports) et la passer dans
    `application/turn-prompt.ts` ; tester la fonction de rendu dans `prompt-assembly.test.ts` et le tour au-dessus des

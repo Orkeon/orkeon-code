@@ -370,17 +370,23 @@ compactions, at the head and the tail, read the token budget first and the buffe
 
 ## Prompt assembly
 
-`crews/main-loop/domain/prompt-assembly.ts` builds two things for each turn.
+`crews/main-loop/domain/prompt-assembly.ts` builds the three messages of each turn.
 
 **The static header**, sent as the system message: the behaviour rules, the tool list with what the tools can and
 cannot do, the search playbook when the search tools are offered, and the project's instructions file. It holds no
 number and no per-turn data, so its bytes stay identical from turn to turn for a given mode and providers can cache
 it; `MAX_STATIC_HEADER_CHARS` caps the authored part.
 
-**The user body**, in a fixed order from the most stable block to the most volatile, so a provider's prefix cache
-reaches as far into it as it can: session preferences, attached skills, memory, declared hooks, the history window
-without the current request, the environment (working directory, date, git status), the context gauge with its
-pressure tier, then the request under its own heading with its permission note, always last.
+**The context**, sent as a user message of its own after the system message (`ActOptions.context`, Orkeon #276), in a
+fixed order from the most stable block to the most volatile, so a provider's prefix cache reaches as far into it as
+it can: session preferences, attached skills, memory, declared hooks, the history window without the current
+request, the environment (working directory, date, git status), the context gauge with its pressure tier.
+
+**The request**, the prompt of the act: the request under its own heading with its permission note, alone in the
+last user message. A decision profile's `guard` and `route` stages judge that message; sent in one message with the
+context, the request's risk was diluted by the context around it. On a runtime that does not read
+`ActOptions.context` (the `1.0.0-rc.6` release, told by an agent builder without `.cache`), the adapter puts the
+context in front of the request in one message, as before.
 
 Every prompt is written from the behaviour specified below, in this project's own words (CONTRIBUTING, "Original work
 only"); [ADR 0003](adr/0003-prompts-from-a-behaviour-specification.md) records the method. Each rule has a marker
@@ -438,7 +444,7 @@ prompt as the model reads it, to review a change as a diff.
 - **Project instructions**: the project's `AGENTS.md`, else its `CLAUDE.md`, verbatim, under a heading that names
   the file.
 
-### The main loop's user body
+### The main loop's context and request
 
 - **Preferences** (a `<system-reminder>`): the output style (`default` renders nothing; `concise` keeps a requested
   explanation, error output and safety warnings whole) and the answer language (the `answer.language` setting).
@@ -456,7 +462,8 @@ prompt as the model reads it, to review a change as a diff.
 - **Environment**: the working directory, today's date, and the git status as it was when the turn began.
 - **Gauge** (a `<system-reminder>`): the tokens used against the window and the session cost. At the warning tier,
   finish the current step and stop reading whole large files; at the error tier, wrap up and suggest `/compact`.
-- **Task**: the request under its own heading, then the permission note of the mode (read-only: deliver an
+- **Request** (the last message, apart from the blocks above): the request under its own heading, then the
+  permission note of the mode (read-only: deliver an
   assessment or a plan; otherwise the host may ask before a call), then the proactive clause when `/proactive` is
   on.
 
@@ -651,7 +658,7 @@ the mode too (Orkeon classifies an unknown mode fail-closed). Update `mode-polic
 
 1. Write its renderer in `src/crews/main-loop/domain/prompt-assembly.ts` (`build<Name>Block`), returning an empty
    string when there is nothing to say, so a session that does not use it keeps a byte-identical prompt.
-2. Give it a field of `PromptParts` and its place in `assemblePrompt`'s fixed order; a block of the static header
+2. Give it a field of `ContextParts` and its place in `assembleContext`'s fixed order; a block of the static header
    must hold no per-turn data, or the provider's cache breaks.
 3. Read its input in `application/context-gather.ts` (through the ports) and pass it in `application/turn-prompt.ts`;
    test the renderer in `prompt-assembly.test.ts` and the turn over the fakes.

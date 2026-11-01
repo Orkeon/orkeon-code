@@ -126,3 +126,20 @@ export const EFFORTS: readonly EffortCase[] = [
   { name: "forwards a level above high as the request names it", request: { effort: "xhigh" }, expected: "xhigh" },
   { name: "names no effort without defaults nor request", request: {}, expected: undefined },
 ];
+
+export interface ContextCase {
+  name: string;
+  contextApart: boolean | undefined;
+  context: string;
+  /** The prompt and options the facade's act receives. */
+  args: unknown[];
+}
+
+/** A request's context: apart where the runtime reads `act({context})` (Orkeon #277), in front of the prompt where it does not. */
+export const CONTEXT_CASES: readonly ContextCase[] = [
+  { name: "passes the context as act's own option on a runtime that reads it", contextApart: true, context: "CTX", args: ["p", { context: "CTX" }] },
+  { name: "passes the context as act's own option when the defaults say nothing of the runtime", contextApart: undefined, context: "CTX", args: ["p", { context: "CTX" }] },
+  { name: "puts the context in front of the prompt, in one message, on a runtime that does not read it", contextApart: false, context: "CTX", args: ["CTX\n\np", {}] },
+  { name: "sends no context option for a blank context", contextApart: true, context: "  ", args: ["p", {}] },
+  { name: "leaves the prompt alone for a blank context on a runtime that does not read it", contextApart: false, context: "", args: ["p", {}] },
+];

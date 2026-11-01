@@ -104,11 +104,20 @@ lowered() { printf '%s' "$1" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | tr '[
 
 # The Orkeon found, said without starting anything: the REPL has no --version flag, and docker pulls nothing.
 # A mode forced by --mode or ORKEON_CODE_MODE names its runtime; otherwise the auto-detection order speaks.
+# The source checkout, with its commit when it is a git repository: the line compares it with the pin.
+source_found() {
+  local head
+  [ -n "${ORKEON_SOURCE:-}" ] || { echo "source checkout (none: set ORKEON_SOURCE)"; return; }
+  if head="$(git -C "$ORKEON_SOURCE" rev-parse --short=7 HEAD 2>/dev/null)"; then echo "source checkout $ORKEON_SOURCE at $head"
+  else echo "source checkout $ORKEON_SOURCE"
+  fi
+}
+
 runtime_found() { # <forced mode or empty>
   local repl repl_bin version_file v
   if [ -n "${ORKEON_REPL:-}" ]; then read -r repl _ <<< "$ORKEON_REPL"; else repl=orkeon-repl; fi
   case "$1" in
-    source) echo "source checkout ${ORKEON_SOURCE:-"(none: set ORKEON_SOURCE)"}"; return ;;
+    source) source_found; return ;;
     docker) echo "image $IMAGE (docker mode, not pulled)"; return ;;
   esac
   if repl_bin="$(command -v "$repl" 2>/dev/null)"; then
@@ -120,7 +129,7 @@ runtime_found() { # <forced mode or empty>
     else echo "unknown ($repl_bin)"
     fi
   elif command -v docker >/dev/null 2>&1; then echo "image $IMAGE (docker mode, not pulled)"
-  elif [ -n "${ORKEON_SOURCE:-}" ]; then echo "source checkout $ORKEON_SOURCE"
+  elif [ -n "${ORKEON_SOURCE:-}" ]; then source_found
   else echo "none (see docs/getting-started.md)"
   fi
 }

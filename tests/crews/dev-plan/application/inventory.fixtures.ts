@@ -49,7 +49,7 @@ export const SEVEN_CALLERS: AnchorClosure = {
 
 /** A module graph: title 1's module imports a twice, title 2's imports b. */
 export const MODULE_GRAPH: GraphSummary = {
-  nodes: [], nodeCount: 3, edgeCount: 3, cycleCount: 0,
+  nodes: [], nodeCount: 3, edgeCount: 3, cycleCount: 0, cycles: [], cyclesTruncated: false,
   edges: [
     { from: `${WORKSPACE}/src/t1/h1.ts#module@0`, to: `${WORKSPACE}/src/shared/a.ts#module@0`, kind: "imports" },
     { from: `${WORKSPACE}/src/t1/h1.ts#module@0`, to: `${WORKSPACE}/src/shared/a.ts#module@0`, kind: "imports" },

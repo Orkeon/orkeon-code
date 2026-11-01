@@ -27,7 +27,7 @@ import { createSessionIo } from "../../application/session-io.ts";
 import type { SessionIo } from "../../application/session-io.ts";
 import type { ServiceLocator } from "../../../commands/.orkeon/orkeon-cli.d.ts";
 import { AgentBuilder, Llm as HostLlm, Rag, Tools, inputs } from "../globals.ts";
-import { profiledAgent } from "./llm-profile.ts";
+import { profiledAgent, runtimeTakesActContext } from "./llm-profile.ts";
 import type { AgentFactories } from "./llm-profile.ts";
 import { createAnchorIndex, createCodeIndex, createCostIndex } from "./code-index.ts";
 import { createFiles } from "./files.ts";
@@ -109,6 +109,9 @@ export const orkeonAgentFactories = (): AgentFactories => {
   const host = HostLlm;
   return { agent: AgentBuilder, profile: host === undefined ? undefined : (name) => host.profile(name) };
 };
+
+/** Whether the runtime's act() reads `context` (Orkeon #277): false on the rc.6 release (orkeon/llm-profile.ts). */
+export const orkeonActTakesContext = (): boolean => runtimeTakesActContext(orkeonAgentFactories());
 
 /** An agent builder on the profile the crew input names (`llmProfile`, the session's `llm.profile`), else the plain
  *  one: where every composition root starts an agent (orkeon/llm-profile.ts). */

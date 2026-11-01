@@ -22,7 +22,7 @@ import {
   PS1_SETTINGS, PS1_SLUG, PS1_SPEECH, PS1_STORE_LAYOUT, PS1_SUBCOMMANDS, PS1_TRUST_CHECK, PS1_TRUST_REFUSAL, PS1_USER_SETTINGS,
   PS1_VERSION_LINES, PTY, PWSH, RESTORED_IN_FINALLY, RESTORED_NAMES, ROOTS, RUNTIME_SETTINGS, RUNTIME_SLUGS, RUNTIME_PIN, RUNTIME_REF,
   SERVER_CASES, SERVER_LEFT_OUT, SESSIONS_DIR, SETTINGS_TEXT, SETTINGS_WITH_BLOCK, SLUG_PATHS, SPEECH_TOOL, START_SCRIPT, TOOL_REPL,
-  TOOL_START, USER_SETTINGS, WHISPER, audioEnv, bashOf, ciStarts, corruptHome, crewSource, fullHistory, gitAt, launch, launchWithNode, orkeonCheckoutAtAnotherCommit, orkeonCheckoutBehindThePin,
+  TOOL_START, USER_SETTINGS, WHISPER, audioEnv, bashOf, checkoutHead, ciStarts, corruptHome, crewSource, fullHistory, gitAt, launch, launchWithNode, orkeonCheckoutAtAnotherCommit, orkeonCheckoutBehindThePin,
   leftBeside, linkedFolder, modeStart, mostWhisperArgs, mountOf, mountRoots, namedProjectStart, nestedTrust, orkeonCheckout,
   pwshOf, read, recorder, removeScratch, runCrew, runPs1ThenPrint, scratchDir, scratchFolder, serverArgs, serverOf,
   sessionScene, slugOf, sourceModeCalls, sourceModeCallsRestoring, staleLock, startAgain, storeOf, storedFolders, tokenVarsForwarded, toolModeArgs, trustCli, trustOf, twoSessions,
@@ -753,6 +753,18 @@ describe("orkeon-code, a clone or an install", () => {
     // Assert
     strictEqual(r.status, 0, r.stderr);
     strictEqual(r.stdout.split("\n")[1], `Orkeon ${RUNTIME_PIN} expected, found: source checkout ${source}`);
+  });
+
+  it("--version names the commit of a source checkout that is a git repository", () => {
+    // Arrange
+    const source = orkeonCheckoutAtAnotherCommit();
+    const start = { args: ["--mode", "source", "--version"], bin: TOOL_REPL, bare: true, env: { ORKEON_SOURCE: source } };
+
+    // Act
+    const r = launch(start);
+
+    // Assert
+    strictEqual(r.stdout.split("\n")[1], `Orkeon ${RUNTIME_PIN} expected, found: source checkout ${source} at ${checkoutHead(source)}`);
   });
 
   it("a clone keeps its state in .crew-output and reads config/appsettings.local.json first", () => {

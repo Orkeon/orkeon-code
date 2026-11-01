@@ -45,3 +45,9 @@ export const UNCACHED_CASES: { name: string; input: Record<string, unknown>; pro
   { name: "builds the agent on the profile without the prompt cache when the runtime's builder has no cache", input: { llmProfile: "guarded" }, profiles: ["guarded"] },
   { name: "builds the agent on the host's default model without the prompt cache when the runtime's builder has no cache", input: {}, profiles: [] },
 ];
+
+/** Whether the runtime's act() reads `context`, told by its builder: one with `.cache` (after #256), or none (the rc.6 release). */
+export const ACT_CONTEXT_CASES: { name: string; withCache: boolean; expected: boolean }[] = [
+  { name: "says the runtime reads act's context when its builder has a cache", withCache: true, expected: true },
+  { name: "says the runtime does not read act's context when its builder has no cache, as the rc.6 release", withCache: false, expected: false },
+];

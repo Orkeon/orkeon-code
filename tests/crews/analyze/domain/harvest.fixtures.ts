@@ -13,6 +13,19 @@ export const MODULE_GRAPH: GraphSummary = {
   nodeCount: 2,
   edgeCount: 1,
   cycleCount: 0,
+  cycles: [],
+  cyclesTruncated: false,
+};
+
+/** A graph whose cycles the index names (Orkeon #272): five counted, two named, the first cut to three of its four members. */
+export const NAMED_CYCLES_GRAPH: GraphSummary = {
+  ...MODULE_GRAPH,
+  cycleCount: 5,
+  cycles: [
+    { members: [`${WORKSPACE}/src/a.ts`, `${WORKSPACE}/src/b.ts`, `${WORKSPACE}/src/c.ts`], memberCount: 4 },
+    { members: [`${WORKSPACE}/src/d.ts`, `${WORKSPACE}/src/e.ts`], memberCount: 2 },
+  ],
+  cyclesTruncated: true,
 };
 
 /** A graph that reached the 200 modules it was asked for. */

@@ -20,6 +20,10 @@ export interface CompleteRequest extends ModelOverride {
 export interface ActRequest extends ModelOverride {
   /** The system message the conversation starts with. */
   system?: string;
+  /** The context of the call (memory, repository state, earlier turns): a user message of its own, after `system`
+   *  and before the prompt, so the prompt stays the last user message, the request a decision profile judges
+   *  (Orkeon #276). Absent or blank: no message. */
+  context?: string;
   /** Tool-call iterations granted; the runtime's default when absent. */
   maxIterations?: number;
   /** The mode the host's permission gate applies to each tool call. */

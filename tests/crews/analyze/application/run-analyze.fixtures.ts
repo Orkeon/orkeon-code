@@ -10,7 +10,7 @@ import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 export const GRAPH: GraphSummary = {
   nodes: [{ fqn: "a", name: "a", kind: "module" }],
   edges: [{ from: "/a.ts#module@0", to: "/b.ts#module@0", kind: "1" }],
-  nodeCount: 2, edgeCount: 1, cycleCount: 0,
+  nodeCount: 2, edgeCount: 1, cycleCount: 0, cycles: [], cyclesTruncated: false,
 };
 export const summary = (fqn: string): PackageSummary =>
   ({ fqn, name: fqn, files: 2, symbols: 5, dependencies: [], exports: [`${fqn}/a.ts::F`], entryPoints: [] });

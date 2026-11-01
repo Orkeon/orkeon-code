@@ -452,6 +452,14 @@ waitFor?: "children";
 */
 system?: string;
 /**
+* Context seeded as a user message of its own, after `system` and before the prompt: memory,
+* repository state, earlier turns. The prompt stays the last user message, the request the
+* host's decision profile judges (`guard`) and routes on (`route`), so the context cannot
+* dilute its risk. `system` stays the same from one call to the next and keeps its prompt-cache
+* hit while the context changes. Omitted or blank: no message is added.
+*/
+context?: string;
+/**
 * Permission mode gating each autonomous tool call (when the host registered a
 * permission gate: `ctx.llm.permissionGate.enabled`). Default: "default" (ask; denied in
 * non-interactive sessions). Without a gate the mode checks nothing, and the call logs one

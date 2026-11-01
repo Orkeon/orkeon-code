@@ -33,6 +33,7 @@
 
 import { CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infrastructure/globals.ts";
 import {
+  orkeonActTakesContext,
   orkeonAgent,
   orkeonClock,
   orkeonCompactionDeps,
@@ -61,6 +62,8 @@ import { BREAKER_RUN_FIELD, turnCompaction } from "./application/auto-compact.ts
 const loaded = loadCatalogue(inputs());
 
 const clock = orkeonClock();
+// The turn's context rides apart from its request where the runtime reads `act({context})` (Orkeon #277).
+const contextApart = orkeonActTakesContext();
 const progress = orkeonProgress();
 const ports = {
   shell: orkeonShell(), session: orkeonSessionIo(), files: orkeonFiles(), telemetry: orkeonTelemetry(),
@@ -81,7 +84,7 @@ const coder = orkeonAgent()
     // path in another case, a shell cd into the folder) is refused here (shared-memory/layout memoryWriteRefusal).
     // Each result is recorded on the way (tool-trace-recorder): the turn stores its calls as a [tools] message.
     const trace = createToolTrace();
-    const llm = createLlm(ctx.llm, tracedCallbacks(memoryGuardCallbacks(memoryDirOf(ports.config)), trace));
+    const llm = createLlm(ctx.llm, tracedCallbacks(memoryGuardCallbacks(memoryDirOf(ports.config)), trace), { contextApart });
     const log = ctx.log;
     return await runMainLoop(inputs(), loaded, {
       ...ports,

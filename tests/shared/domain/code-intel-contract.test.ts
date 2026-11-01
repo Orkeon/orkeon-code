@@ -14,7 +14,7 @@ import {
 } from "../../../src/shared/domain/code-intel-contract.ts";
 import { READ_TOOLS } from "../../../src/shared/domain/agent-policy/permission.ts";
 import {
-  ADD_LOCATION, DEP_GRAPH_RAW, EMPTY_MAPS, FIRST_LINES, FLOW_PATH_COUNTS, HITS_WITH_HOLES, IMPACT_RAW,
+  ADD_LOCATION, CYCLIC_GRAPH_CYCLES, CYCLIC_GRAPH_RAW, DEP_GRAPH_RAW, EMPTY_MAPS, FIRST_LINES, FLOW_PATH_COUNTS, HITS_WITH_HOLES, IMPACT_RAW,
   INDEX_CACHE_CASES, INDEX_CACHE_NOTES, INDEX_FILE_COUNTS, INDEX_RAW, LOCATION_FQNS, MAP_RAW, MAP_SYMBOL_COUNTS, MATCH_ORIGIN_CASES, NOT_SEARCH_PAYLOADS, PKG_SUMMARY_LISTS,
   PKG_SUMMARY_RAW, REFRESHED_FILES_CASES, SEARCH_RAW, SOURCE_RAW, SUB_GRAPH_RAW, SYMBOL_DETAIL_RAW,
 } from "./code-intel-contract.fixtures.ts";
@@ -397,6 +397,39 @@ describe("readGraph — dependency_graph and sub_graph", () => {
     ok(e.from.startsWith(`${WORKSPACE}/src/index.ts`), "the node ID still starts with the path");
   });
 
+  it("reads the cycles dependency_graph names, with their full size, and drops an empty one (Orkeon #272)", () => {
+    // Arrange
+    const raw = CYCLIC_GRAPH_RAW;
+
+    // Act
+    const g = readGraph(raw);
+
+    // Assert
+    deepStrictEqual(g.cycles, CYCLIC_GRAPH_CYCLES);
+  });
+
+  it("reads that the index cut its list of cycles", () => {
+    // Arrange
+    const raw = CYCLIC_GRAPH_RAW;
+
+    // Act
+    const g = readGraph(raw);
+
+    // Assert
+    strictEqual(g.cyclesTruncated, true);
+  });
+
+  it("names no cycle for a payload before Orkeon #273, which only counts them", () => {
+    // Arrange
+    const raw = DEP_GRAPH_RAW;
+
+    // Act
+    const g = readGraph(raw);
+
+    // Assert
+    deepStrictEqual([g.cycles, g.cyclesTruncated], [[], false]);
+  });
+
   it("sub_graph has no metrics block — counts fall back to array lengths", () => {
     // Arrange
     const raw = SUB_GRAPH_RAW;
@@ -418,7 +451,7 @@ describe("readGraph — dependency_graph and sub_graph", () => {
     const g = readGraph(raw);
 
     // Assert
-    deepStrictEqual(g, { nodes: [], edges: [], nodeCount: 0, edgeCount: 0, cycleCount: 0 });
+    deepStrictEqual(g, { nodes: [], edges: [], nodeCount: 0, edgeCount: 0, cycleCount: 0, cycles: [], cyclesTruncated: false });
   });
 });
 
