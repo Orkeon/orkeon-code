@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- [Decision models on this machine](docs/decision-models-local.md) no longer says `kev-4b` does not fit a 10 GB GPU:
+  with its CUDA graphs off (`KEV_CUDA_GRAPHS=0`) it loads on an RTX 3080 and answers in about 0.12 s, and the guide
+  gives its `docker run`.
 - Where it can reach the web, the assistant puts the project first: a port, a command or an image its documentation
   and example settings give wins over one found on the web, and a value it read nowhere is not given as a fact. A
   session had sent the user to an unknown repository and a wrong port while the project documented a local image and
