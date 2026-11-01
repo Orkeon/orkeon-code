@@ -43,6 +43,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is offered. The routing lines show the argument each tool needs (`codebase_search(query)`, `flow_trace(from)`,
   `affected_tests(changed_files)`), since the runtime's catalogue does not always carry it. The header lists the
   history's markers without explaining each one, and names code files without their twenty-three extensions.
+- **`/init` no longer loses the tail of a long instructions file**: an existing `AGENTS.md`, `CLAUDE.md`,
+  `.cursorrules` or `.github/copilot-instructions.md` was cut at 6 000 characters without a sign, then `AGENTS.md`
+  was overwritten. Each file now reaches the model whole up to 40 000 characters; above that the cut is marked and
+  the proposal is written to `AGENTS.proposed.md` instead, with the reason. When the workspace has a code index, the
+  Architecture section is drawn from its package map (without one, only what the existing files say of it is kept);
+  `/init` reads the lint, formatter, CI workflow, `justfile`/`Taskfile`, JVM and .NET manifests and
+  `CONTRIBUTING.md` beside the six it read (the files that state commands first, 24 000 characters in all, the files
+  left out named), takes each command from the configuration first and an existing instructions file next, and
+  leaves out what any agent already knows, long references and facts that change often, save what an existing file
+  says that is still true: that is named by its file, or kept under a last `## Reference` section.
+- **`/init-verifiers` sees every manifest**, the `## Commands` section of the instructions file and the steps of the
+  CI workflows, where it saw `package.json` alone: a Python, Go, Rust or .NET project gets steps with real commands.
+  A skill starts a server without blocking, waits for its readiness and stops it, points a destructive step at a
+  scratch folder or a dry run, and names what a failure looks like. **`/verify` stops at the verdict**: a failed
+  check ends in a report with the quoted output, and the loop no longer edits code to make a step pass.
 - **The example settings widen the result cut of the graph and search tools** (`sub_graph`, `dependency_graph`,
   `codebase_search`, `symbol_detail`, `impact_analysis`, `flow_trace`, `codebase_map`, `package_summary`,
   `structural_search`) to 12 000 characters: their `truncated` and `cycles` fields come last in the JSON, so the

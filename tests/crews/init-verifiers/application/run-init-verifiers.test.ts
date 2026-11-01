@@ -1,11 +1,14 @@
 // The init-verifiers use case over FakeFiles, FakeLlm and FakeLogger. Run:
 //   node --test tests/crews/init-verifiers/application/run-init-verifiers.test.ts
 import { describe, it } from "node:test";
-import { ok, strictEqual, deepStrictEqual } from "node:assert";
+import { strictEqual, deepStrictEqual } from "node:assert";
 
 import { runInitVerifiers } from "../../../../src/crews/init-verifiers/application/run-init-verifiers.ts";
-import { READINESS_SCHEMA, buildReadinessPrompt, buildVerifierSkillPrompt } from "../../../../src/crews/init-verifiers/application/prompts.ts";
-import { PKG, TWO_SKILLS, initVerifiersSetup } from "./run-init-verifiers.fixtures.ts";
+import { READINESS_SCHEMA, buildVerifierSkillPrompt } from "../../../../src/crews/init-verifiers/application/prompts.ts";
+import {
+  DOCUMENTED_MATERIAL, PYPROJECT, PYPROJECT_SCRIPT, TWO_SKILLS, documentedSetup, initVerifiersSetup,
+} from "./run-init-verifiers.fixtures.ts";
+import { assertEverySkillMentions } from "./run-init-verifiers.assertions.ts";
 import { assertMentions } from "../../../support/assertions/text.ts";
 
 describe("runInitVerifiers", () => {
@@ -19,16 +22,14 @@ describe("runInitVerifiers", () => {
 
     // Assert
     strictEqual(out, "No verifier gaps detected (types: cli, lib).");
-    deepStrictEqual(llm.extracts, [{ prompt: buildReadinessPrompt(["package.json", "src"], PKG), schema: READINESS_SCHEMA }]);
     deepStrictEqual(files.writes, []);
   });
 
-  it("authors one skill per zone lacking a verifier", async () => {
+  it("authors one skill per zone lacking a verifier, each with the skill outline", async () => {
     // Arrange
     const { files, llm, deps } = initVerifiersSetup();
     llm.extractions = [{ appTypes: [], frameworks: [], zonesNeedingVerifier: ["api", "Web UI"] }];
     llm.completions = ["# api checks", "# ui checks"];
-    const readiness = llm.extractions[0] as any;
 
     // Act
     const out = await runInitVerifiers(deps);
@@ -38,9 +39,57 @@ describe("runInitVerifiers", () => {
     deepStrictEqual(llm.completes.map((c) => c.override?.system), [
       buildVerifierSkillPrompt("api").system, buildVerifierSkillPrompt("Web UI").system,
     ]);
-    ok(llm.completes.every((c) => c.prompt === buildVerifierSkillPrompt("api", { pkg: PKG, readiness }).user),
-      "every skill is written from the project's facts");
     deepStrictEqual(files.writes, TWO_SKILLS);
+  });
+
+  it("gives the readiness prompt the manifests, the Commands section and the steps of the CI workflows", async () => {
+    // Arrange
+    const { llm, deps } = documentedSetup();
+    llm.extractions = [{ appTypes: [], frameworks: [], zonesNeedingVerifier: [] }];
+
+    // Act
+    await runInitVerifiers(deps);
+
+    // Assert
+    assertMentions(llm.extracts[0].prompt, DOCUMENTED_MATERIAL);
+  });
+
+  it("asks the readiness extract for READINESS_SCHEMA", async () => {
+    // Arrange
+    const { llm, deps } = initVerifiersSetup();
+    llm.extractions = [{ appTypes: [], frameworks: [], zonesNeedingVerifier: [] }];
+
+    // Act
+    await runInitVerifiers(deps);
+
+    // Assert
+    deepStrictEqual(llm.extracts.map((e) => e.schema), [READINESS_SCHEMA]);
+  });
+
+  it("gives each skill prompt the manifests, the Commands section and the steps of the CI workflows", async () => {
+    // Arrange
+    const { llm, deps } = documentedSetup();
+    llm.extractions = [{ appTypes: ["cli"], frameworks: [], zonesNeedingVerifier: ["cli", "api"] }];
+    llm.completions = ["# checks"];
+
+    // Act
+    await runInitVerifiers(deps);
+
+    // Assert
+    assertEverySkillMentions(llm.completes, DOCUMENTED_MATERIAL);
+  });
+
+  it("gets the commands of a pyproject.toml into the material when there is no package.json", async () => {
+    // Arrange
+    const { llm, deps } = initVerifiersSetup({ files: { "pyproject.toml": PYPROJECT } });
+    llm.extractions = [{ appTypes: ["library"], frameworks: [], zonesNeedingVerifier: ["library"] }];
+    llm.completions = ["# library checks"];
+
+    // Act
+    await runInitVerifiers(deps);
+
+    // Assert
+    assertEverySkillMentions(llm.completes, [PYPROJECT_SCRIPT]);
   });
 
   it("falls back to the package.json heuristic when the classification fails", async () => {
@@ -67,31 +116,5 @@ describe("runInitVerifiers", () => {
 
     // Assert
     strictEqual(out, "No verifier gaps detected (types: unknown).");
-  });
-});
-
-describe("the verifier prompts", () => {
-  it("defines each program kind and lets a list stay empty", () => {
-    // Arrange
-    const listing: string[] = [];
-
-    // Act
-    const p = buildReadinessPrompt(listing, "{}");
-
-    // Assert
-    assertMentions(p, [
-      "cli (", "web (", "api (", "library (", "true only when the inputs show them", "Leave a list empty rather than guess",
-    ]);
-  });
-
-  it("outlines a skill that ends on an observable signal and invents no command", () => {
-    // Arrange
-    const zone = "cli";
-
-    // Act
-    const { system } = buildVerifierSkillPrompt(zone);
-
-    // Assert
-    assertMentions(system, ["## Prerequisites", "## Steps", "## Pass", "## Report", "Use only commands the facts show"]);
   });
 });

@@ -61,4 +61,15 @@ describe("verification skills", () => {
     // Assert
     assertMentions(all, ["suggest /init-verifiers instead of improvising a check"]);
   });
+
+  it("end a failed check in its report and leave the fix to a separate request", () => {
+    // Arrange
+    const zone = "cli";
+
+    // Act
+    const one = buildVerifyRequest(zone);
+
+    // Assert
+    assertMentions(one, ["A failed check ends in that report", "a fix is a separate request", "never edit code to make a step pass"]);
+  });
 });

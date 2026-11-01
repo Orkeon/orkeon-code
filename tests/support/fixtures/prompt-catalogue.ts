@@ -18,8 +18,10 @@ import { buildCommitPrompt } from "../../../src/crews/git-commit/application/dra
 import { buildAdvicePrompt } from "../../../src/crews/advisor/domain/advice.ts";
 import { SYNTHESIS_SYSTEM, buildSynthesisUser } from "../../../src/crews/analyze/domain/harvest.ts";
 import {
-  READINESS_SCHEMA, buildReadinessPrompt, buildVerifierSkillPrompt,
+  READINESS_SCHEMA, buildReadinessPrompt, buildVerifierSkillPrompt, renderVerifierMaterial,
 } from "../../../src/crews/init-verifiers/application/prompts.ts";
+import { manifestsAsMaterial } from "../../../src/shared/application/project-manifests.ts";
+import { renderPackageMap } from "../../../src/crews/project-init/domain/package-map.ts";
 import {
   CONVENTIONS_SCHEMA, buildConventionsPrompt, buildInstructionsFilePrompt,
 } from "../../../src/crews/project-init/application/prompts.ts";
@@ -144,6 +146,25 @@ export async function renderCatalogue(): Promise<RenderedPrompt[]> {
   const prior = [{ severity: "low", file: "src/args.ts", line: 12, category: "style", finding: "magic string" }];
   const detected = { buildCommand: "npm run build", testCommand: "npm test", frameworks: ["node"], conventions: [] };
   const pkg = JSON.stringify({ name: "sample-repo", scripts: { test: "node --test" } }, null, 2);
+  const manifests = manifestsAsMaterial([
+    { path: "package.json", content: pkg },
+    { path: ".github/workflows/ci.yml", content: "jobs:\n  check:\n    steps:\n      - run: npm test\n" },
+  ]);
+  const verifierMaterial = renderVerifierMaterial({
+    manifests, commands: { file: "AGENTS.md", section: "## Commands\n\nnpm test   # every test" },
+  });
+  const packageMap = renderPackageMap(
+    [
+      { fqn: "/workspace::Core", name: "Core", kind: "package", children: 9 },
+      { fqn: "/workspace::Cli", name: "Cli", kind: "package", children: 4 },
+      { fqn: "/workspace::Util", name: "Util", kind: "package", children: 1 },
+    ],
+    {
+      nodes: [], edges: [{ from: "/workspace::Cli", to: "/workspace::Core", kind: "imports" }],
+      nodeCount: 0, edgeCount: 1, cycleCount: 0, cycles: [], cyclesTruncated: false,
+    },
+    85,
+  );
   const auditInput: AuditBriefInput = {
     mode: "fast", batch: "F2", sheetPath: `${WORKSPACE}/workbench/demo/DEMO-PLAN-F2.md`,
     captureFiles: [`${WORKSPACE}/workbench/demo/capture-F2/index.txt`, `${WORKSPACE}/workbench/demo/capture-F2/diff-001.txt`],
@@ -280,21 +301,22 @@ export async function renderCatalogue(): Promise<RenderedPrompt[]> {
     {
       id: "09", name: "init-verifiers", source: "src/crews/init-verifiers/application/prompts.ts",
       callSite: "/init-verifiers → crews/init-verifiers → application/authoring.ts",
-      call: "extract (readiness), then complete with a system message (one skill per zone)", inputs: "a small package.json; the zone cli",
+      call: "extract (readiness), then complete with a system message (one skill per zone)",
+      inputs: "a small package.json, a CI workflow and an AGENTS.md Commands section; the zone cli",
       sections: [
-        { title: "readiness", role: "text", text: buildReadinessPrompt(["package.json", "src"], pkg) },
+        { title: "readiness", role: "text", text: buildReadinessPrompt(["package.json", "src"], verifierMaterial) },
         schema("readiness schema", READINESS_SCHEMA),
-        ...pair("verification skill", buildVerifierSkillPrompt("cli", { pkg, readiness: { appTypes: ["cli"], frameworks: [], zonesNeedingVerifier: ["cli"] } })),
+        ...pair("verification skill", buildVerifierSkillPrompt("cli", { material: verifierMaterial, readiness: { appTypes: ["cli"], frameworks: [], zonesNeedingVerifier: ["cli"] } })),
       ],
     },
     {
       id: "10", name: "project-init", source: "src/crews/project-init/application/prompts.ts",
       callSite: "/init → crews/project-init → application/detect.ts",
-      call: "extract (conventions), then complete with a system message (AGENTS.md)", inputs: "a package.json; an existing CLAUDE.md; a README",
+      call: "extract (conventions), then complete with a system message (AGENTS.md)", inputs: "a package.json; a three-package map cut after two; an existing CLAUDE.md; a README",
       sections: [
-        { title: "conventions", role: "text", text: buildConventionsPrompt("package.json:\n{ \"scripts\": { \"test\": \"node --test\" } }") },
+        { title: "conventions", role: "text", text: buildConventionsPrompt(manifests) },
         schema("conventions schema", CONVENTIONS_SCHEMA),
-        ...pair("instructions file", buildInstructionsFilePrompt(["package.json", "src"], detected, [{ file: "CLAUDE.md", content: MATERIAL_MARK }], "# sample-repo\n")),
+        ...pair("instructions file", buildInstructionsFilePrompt(["package.json", "src"], detected, [{ file: "CLAUDE.md", content: MATERIAL_MARK }], "# sample-repo\n", packageMap)),
       ],
     },
     {
