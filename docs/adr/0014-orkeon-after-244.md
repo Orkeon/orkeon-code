@@ -6,8 +6,8 @@
 
 ## Context
 
-The pin of ADR 0013 is `3fcfbbe` (Orkeon #240). Orkeon `main` then merged twelve pull requests, up to `151a762`
-(2026-10-31):
+The pin of ADR 0013 is `3fcfbbe` (Orkeon #240). Orkeon `main` then merged thirteen pull requests, up to `0ea39d9`
+(2026-11-01):
 
 - **#241**, an audit of Orkeon's documentation against its code: no change of the scripting surface.
 - **#242**, `effort` takes `xhigh` and `max` beside `low`, `medium` and `high`, on the agent builder, the per-call
@@ -34,20 +34,29 @@ The pin of ADR 0013 is `3fcfbbe` (Orkeon #240). Orkeon `main` then merged twelve
 - **#258** and **#259**, none of the scripting surface: the index reads `.git/info/exclude` and the nested
   `.gitignore` files, not the root one alone; `claude-haiku-5` is priced and every Anthropic model declares its cache
   write and read rates (#257), so `costUsd` is no longer unpriced on Haiku 5.5 and a cached prompt is costed at its
-  own rate (a 1-hour write at the 5-minute rate: the usage event carries no TTL).
+  own rate (a 1-hour write at the 5-minute rate until #266, which costs its share at 2x).
 - **#261**, a count mode in `grep` (#260): `output_mode: "count"` answers `total_matches`, `files_matched` and the
   per-file `counts` with no hit line, and both modes report `total_matches` and `scan_complete`, so a "how many"
   question over a tree takes one call.
 - **#264**, a batched `session_store` (#263, opened from Orkeon Code): `get_state` reads several `keys` in one call
   and answers `values` (a key never set is absent), `set_state` writes several `values` and removes several `keys`,
   and `append_message` adds one message at the end of the buffer without returning or rewriting it.
+- **#266**, the review of rc.6 and two more decision providers. For a script: a cancelled exclusive launch holds its
+  crew until its work has really ended, and a synchronous `runCrew` of a crew an exclusive launch holds is refused;
+  `session_store` declares its access per operation, so `plan` mode refuses its writes when a model calls them (a
+  script's own call is not gated), and `set_state` with several keys is atomic; an Anthropic turn that thought before
+  calling a tool replays its signed thinking blocks, so `effort` with tools no longer fails the next call;
+  `retry-after-ms` takes precedence over `Retry-After`; an `effort` outside the five levels, a cache `ttl` alone and a
+  second `.when()` or two tasks of one name are refused at load. The host serves TypeSafe, Liquid or Kev as its
+  decision model (`Orkeon:Decision:Provider`), and the guard section is `Orkeon:Decision:Guard`. The typings change in
+  their comments only.
 
 Three branches of Orkeon Code waited on these: `/effort xhigh|max`, `/analyze --parallel N` and `/analyze --rebuild`,
 each with the typings edited by hand.
 
 ## Decision
 
-- **The pin moves to `151a762`** (`.orkeon-version`, `ORKEON_RUNTIME_COMMIT`), the typings are regenerated from a
+- **The pin moves to `0ea39d9`** (`.orkeon-version`, `ORKEON_RUNTIME_COMMIT`), the typings are regenerated from a
   checkout at it, the hand edits of the three branches give way to them.
 - **`/effort` offers the five levels**, `/analyze` takes `--parallel N` (`max_parallelism`) and `--rebuild`
   (`use_cache: false`), as their branches wrote them.
@@ -70,4 +79,4 @@ each with the typings edited by hand.
   `xhigh` and `max` fail the agent's build, as any unknown value did.
 - An agent's own `.cache(...)` wins over the host default `Llm:Cache`: a host cannot turn Orkeon Code's cache off
   from its settings. On a runtime before #256, `.cache` does not exist and every agent fails its build.
-- The check made for this ADR: `npm run check` and the runtime smoke on `151a762` in source mode.
+- The check made for this ADR: `npm run check` and the runtime smoke on `0ea39d9` in source mode.

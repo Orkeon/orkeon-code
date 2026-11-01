@@ -457,14 +457,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **The runtime pin moves to Orkeon main after #244** ([ADR 0014](docs/adr/0014-orkeon-after-244.md)):
-  `.orkeon-version` holds `151a7624…` (Orkeon #241 to #264: the effort levels `xhigh` and `max`, `index_codebase
+  `.orkeon-version` holds `0ea39d94…` (Orkeon #241 to #266: the effort levels `xhigh` and `max`, `index_codebase
   max_parallelism`, the index cache between sessions, the prompt cache from scripts, Haiku 5.x priced and the
   Anthropic prompt cache costed at its own rates, a count mode in `grep` (`output_mode: "count"`, `total_matches` and
   `scan_complete` on every answer), `session_store` reading and writing several state keys in one call and appending one
   message without rewriting the buffer, every ignore file of the tree read by the index; an Anthropic act turn that calls
   a tool, the memory limit of a script after `index_codebase` on a large repository, the stale entries of the index
   cache, `package_summary`'s entry points and dependencies, `.gitignore` character classes and the import edges of
-  C#, Go and Rust fixed); the typings are regenerated from a checkout at it, and the
+  C#, Go and Rust fixed; then the review of rc.6: an Anthropic turn with `/effort` on that calls a tool no longer
+  fails its next model call, a cancelled `/review` or `/memory` keeps its crew held until it has really stopped,
+  `retry-after-ms` takes precedence over `Retry-After`, and the host may put TypeSafe, Liquid or Kev in front of the
+  LLM as its decision model); the typings are regenerated from a checkout at it, and the
   permission rules know the two new arguments of `index_codebase`, `max_parallelism` and `use_cache`, and `grep`'s
   `output_mode`.
 - **The runtime pin is a commit of Orkeon's `main`, never a release** ([ADR 0013](docs/adr/0013-pin-on-orkeon-commit.md)):
