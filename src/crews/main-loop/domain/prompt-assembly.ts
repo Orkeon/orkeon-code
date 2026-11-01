@@ -223,8 +223,8 @@ function describeToolRealities(tools: readonly string[]): string {
  */
 function describeSearchPlaybook(tools: readonly string[]): string {
   const lastResort = tools.includes("shell_command")
-    ? "- The shell is for builds, tests, git and the project's scripts, never for what the tools above do " +
-      "(`cat`, `ls`, `find`, `sed`).\n"
+    ? "- The shell is for builds, tests, git and the project's scripts, never for reading, listing, finding or " +
+      "searching files (`cat`, `ls`, `find`, `sed`), which the tools do.\n"
     : "- For content no index covers, find the file with `glob` and read it.\n";
   const ingestRefresh = tools.includes("rag_ingest")
     ? " Ingested documents are NOT refreshed: re-run `rag_ingest` after editing a document you need to search again."
@@ -234,8 +234,8 @@ function describeSearchPlaybook(tools: readonly string[]): string {
     "Route by FILE TYPE — the indexes cover disjoint ground, and querying the wrong one " +
     "returns a guaranteed-empty answer that reads as \"not found\":\n" +
     describeSearchRouting(tools) + "\n" +
-    describeCodeIntelRouting(tools) + "\n" +
     lastResort +
+    describeCodeIntelRouting(tools) + "\n" +
     "- Code results are fresh: edited files are reindexed before a search answers " +
     "(`refreshed_files` says when); do not re-run `index_codebase` after edits." + ingestRefresh
   );

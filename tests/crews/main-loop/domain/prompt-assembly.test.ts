@@ -269,6 +269,7 @@ describe("buildStaticHeader", () => {
     const header = buildStaticHeader(opts);
 
     // Assert
+    assertMentions(header, ["for a new file or a content rewritten whole"]);
     assertLacks(header, ["read the whole file first"]);
   });
 
@@ -302,7 +303,7 @@ describe("buildStaticHeader", () => {
     const header = buildStaticHeader(opts);
 
     // Assert
-    assertMentions(header, ["The shell is for builds, tests, git and the project's scripts", "`cat`, `ls`, `find`, `sed`"]);
+    assertMentions(header, ["The shell is for builds, tests, git and the project's scripts", "`cat`, `ls`, `find`, `sed`", "which the tools do"]);
   });
 
   it("finds a file no index covers with glob where the shell is not offered", () => {
@@ -327,6 +328,17 @@ describe("buildStaticHeader", () => {
     assertLacks(header, ["rag_ingest"]);
   });
 
+  it("tells a read-only catalogue that an empty document search proves no absence", () => {
+    // Arrange
+    const opts = { toolNames: ["codebase_search", "file_read", "rag_search"] };
+
+    // Act
+    const header = buildStaticHeader(opts);
+
+    // Assert
+    assertMentions(header, ["an empty answer there is no proof of absence"]);
+  });
+
   it("tells a writing catalogue to ingest again after editing a document", () => {
     // Arrange
     const opts = { toolNames: ["codebase_search", "file_read", "rag_search", "rag_ingest"] };
@@ -338,7 +350,7 @@ describe("buildStaticHeader", () => {
     assertMentions(header, ["re-run `rag_ingest` after editing a document"]);
   });
 
-  it("names code files without listing their extensions", () => {
+  it("names code files without listing their extensions nor the match origin of a hit", () => {
     // Arrange
     const opts = { toolNames: ["codebase_search", "file_read"] };
 

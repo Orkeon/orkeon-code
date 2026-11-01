@@ -72,10 +72,10 @@ export function hasRagLoader(path: string): boolean {
  */
 export function describeSearchRouting(tools: readonly string[]): string {
   const ingest = tools.includes("rag_ingest")
-    ? " It holds nothing until ingested: when it returns nothing for files you KNOW exist, `rag_ingest {collection: \"" +
-      WORKSPACE_DOCS_COLLECTION + "\", sources: [globs of those files, such as \"/workspace/docs/**/*.md\"]}`, then " +
-      "search again."
-    : "";
+    ? " The collection holds nothing until ingested: when it returns nothing for files you KNOW exist, " +
+      "`rag_ingest {collection: \"" + WORKSPACE_DOCS_COLLECTION + "\", sources: [globs of those files, such as " +
+      "\"/workspace/docs/**/*.md\"]}`, then search again."
+    : " The collection holds only what a writing session ingested: an empty answer there is no proof of absence.";
   return (
     "- Code files: `codebase_search` (exact identifiers and paraphrases alike), then `symbol_source`/`flow_trace` " +
     "on the hits. The code index cannot hold any other file, so do not retry there.\n" +

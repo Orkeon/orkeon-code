@@ -47,5 +47,10 @@ export const ROUTED_PARAMS: readonly { readonly tool: string; readonly params: r
   { tool: "dependency_graph", params: ["scope"] },
 ];
 
+/** The parameters the routing spells for a tool outside the code-intel contract: the permission list pins them. */
+export const PERMISSION_PINNED_PARAMS: readonly { readonly tool: string; readonly params: readonly string[] }[] = [
+  { tool: "affected_tests", params: ["changed_files", "base"] },
+];
+
 /** Tools that give no analysis: no routing at all. */
 export const NO_ANALYSIS_TOOLS: readonly string[] = ["file_read", "file_write", "shell_command"];

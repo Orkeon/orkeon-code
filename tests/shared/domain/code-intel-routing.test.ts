@@ -5,8 +5,9 @@ import { strictEqual } from "node:assert";
 
 import { describeCodeIntelRouting } from "../../../src/shared/domain/code-intel-routing.ts";
 import { CODE_INTEL_PARAMS } from "../../../src/shared/domain/code-intel-contract.ts";
+import { TOOL_ARGUMENTS } from "../../../src/shared/domain/agent-policy/permission.ts";
 import {
-  ALL_ROUTED_TOOLS, NO_ANALYSIS_TOOLS, PARTIAL_LISTS, ROUTED_PARAMS, SINGLE_TOOL_CASES,
+  ALL_ROUTED_TOOLS, NO_ANALYSIS_TOOLS, PARTIAL_LISTS, PERMISSION_PINNED_PARAMS, ROUTED_PARAMS, SINGLE_TOOL_CASES,
 } from "./code-intel-routing.fixtures.ts";
 import { assertNamesOnlyGivenTools } from "./code-intel-routing.assertions.ts";
 import { assertMentions, assertOmits } from "../../support/assertions/text.ts";
@@ -81,6 +82,19 @@ describe("describeCodeIntelRouting", () => {
     // Assert
     strictEqual(/\d/.test(text), false, text);
   });
+
+  for (const c of PERMISSION_PINNED_PARAMS) {
+    it(`spells only the arguments the permission list knows: ${c.tool}`, () => {
+      // Arrange
+      const known: readonly string[] = TOOL_ARGUMENTS[c.tool] ?? [];
+
+      // Act
+      const missing = c.params.filter((param) => !known.includes(param));
+
+      // Assert
+      strictEqual(missing.join(", "), "", `${c.tool} lacks a known argument`);
+    });
+  }
 
   for (const c of ROUTED_PARAMS) {
     it(`spells only the parameters the contract pins: ${c.tool}`, () => {
