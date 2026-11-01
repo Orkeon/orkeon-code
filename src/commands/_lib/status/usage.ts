@@ -12,7 +12,7 @@ import { readCompactionTrigger } from "../../../shared/application/compaction/co
 import {
   DEFAULT_CONTEXT_WINDOW, computeTrigger, percentLeft, pressureTier,
 } from "../../../shared/domain/compaction-thresholds.ts";
-import { UNREPORTED, type Unreported, cacheColumns, shown } from "./cache.ts";
+import { UNREPORTED, type Unreported, shown } from "./cache.ts";
 import type { CommandView } from "../view.ts";
 import { runUsageTools, type UsageToolsDeps } from "./usage-tools.ts";
 
@@ -82,6 +82,15 @@ export function cacheRatio(cacheRead: number | Unreported, promptTokens: number 
     : UNREPORTED;
 }
 
+/** The total of the tokens sent and received: the host's account when it keeps one; else in + out when the telemetry
+ *  splits both over its models, since its total also counts the calls no model was named for and would break
+ *  `llmTokens = in + out`; else the telemetry's total, `n/a` when nothing counts it. */
+function llmTokens(report: UsageReport | undefined, s: SessionStats): number | Unreported {
+  if (report) return report.totalTokens;
+  if (s.promptTokens !== undefined && s.completionTokens !== undefined) return s.promptTokens + s.completionTokens;
+  return shown(s.totalTokens);
+}
+
 /** `/usage`: the one row, each figure read best effort, then the breakdown. */
 export async function runUsage(deps: UsageDeps): Promise<CommandView> {
   const [{ used, window }, s, c, trigger] = await Promise.all([
@@ -91,7 +100,8 @@ export async function runUsage(deps: UsageDeps): Promise<CommandView> {
     readCompactionTrigger(deps.config),
   ]);
   const report = deps.usage?.report();
-  const cache = cacheColumns(s);
+  // The cache figures come from the same account as the tokens sent, so the ratio never mixes two sources.
+  const cacheRead = shown(report?.cacheHitTokens ?? s.cacheHitTokens);
   const promptTokens = shown(report?.promptTokens ?? s.promptTokens);
   return {
     table: [{
@@ -100,17 +110,18 @@ export async function runUsage(deps: UsageDeps): Promise<CommandView> {
       percentLeft: percentLeft(used, window) + "%",
       pressure: pressureTier(used, window),
       autocompactAt: computeTrigger(window, trigger) + (trigger ? " (compaction.trigger)" : ""),
-      messages: s.messageCount ?? 0,
-      estTokens: s.estimatedTokens ?? 0,
-      llmCalls: report?.calls ?? s.totalCalls ?? 0,
+      messages: shown(s.messageCount),
+      estTokens: shown(s.estimatedTokens),
+      llmCalls: shown(report?.calls ?? s.totalCalls),
       llmInTokens: promptTokens,
       llmOutTokens: shown(report?.completionTokens ?? s.completionTokens),
       llmReasoningTokens: shown(report?.reasoningTokens ?? s.reasoningTokens),
-      llmTokens: report?.totalTokens ?? s.totalTokens ?? 0,
-      costUsd: report ? (report.cost ?? "(unpriced)") : (c.costUsd ?? 0),
+      llmTokens: llmTokens(report, s),
+      costUsd: report ? (report.cost ?? "(unpriced)") : shown(c.costUsd),
       ...(report ? { unpricedCalls: report.unpricedCalls } : {}),
-      ...cache,
-      cacheRatio: cacheRatio(cache.cacheRead, promptTokens),
+      cacheRead,
+      cacheWrite: shown(report?.cacheWriteTokens ?? s.cacheWriteTokens),
+      cacheRatio: cacheRatio(cacheRead, promptTokens),
     }],
     text: `${USAGE_LEGEND}\n${usageBreakdown(report)}`,
   };

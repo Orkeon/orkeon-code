@@ -5,7 +5,7 @@ import { deepStrictEqual } from "node:assert";
 
 import { NO_TOOL_TRACE, runUsageTools, toolTraceLines } from "../../../../src/commands/_lib/status/usage-tools.ts";
 import { FakeSessionStore } from "../../../support/doubles/fake-session-store.ts";
-import { ALL_TRACE_LINES, TRACED_SESSION } from "./usage-tools.fixtures.ts";
+import { ALL_TRACE_LINES, BRACKETED_REQUEST_SESSION, TRACED_SESSION } from "./usage-tools.fixtures.ts";
 
 describe("toolTraceLines", () => {
   it("lists every traced turn's calls under its request, marked messages aside", () => {
@@ -17,6 +17,17 @@ describe("toolTraceLines", () => {
 
     // Assert
     deepStrictEqual(lines, ALL_TRACE_LINES);
+  });
+
+  it("lists a turn's calls under a typed request that opens with a bracket", () => {
+    // Arrange
+    const messages = BRACKETED_REQUEST_SESSION;
+
+    // Act
+    const lines = toolTraceLines(messages, "");
+
+    // Assert
+    deepStrictEqual(lines, ["> [bug] why does the parser fail?", "  - grep(path=src, pattern=parse) → 12 matches in 3 files"]);
   });
 
   it("keeps the calls holding the text, whatever its case", () => {

@@ -24,3 +24,10 @@ export const ALL_TRACE_LINES: readonly string[] = [
   "  - glob(pattern=**/*.cs) → 2487 files",
   "  - file_read(path=src/A.cs) → 900 lines",
 ];
+
+/** A first turn whose request, typed by the user, opens with a bracket, as the markers do. */
+export const BRACKETED_REQUEST_SESSION: SessionMsg[] = [
+  { role: "user", content: "[bug] why does the parser fail?" },
+  { role: "system", content: `${HEADER}\n- grep(path=src, pattern=parse) → 12 matches in 3 files` },
+  { role: "assistant", content: "A missing guard." },
+];

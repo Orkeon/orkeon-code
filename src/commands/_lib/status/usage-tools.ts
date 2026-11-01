@@ -3,6 +3,7 @@
 import type { SessionStore } from "../../../shared/application/ports.ts";
 import type { SessionMsg } from "../../../shared/domain/types.ts";
 import { isToolTrace } from "../../../shared/domain/tool-trace.ts";
+import { isMarkedMessage } from "../../../shared/domain/marked-message.ts";
 import type { CommandView } from "../view.ts";
 
 /** A request is cut past this many characters on its line. */
@@ -33,7 +34,7 @@ export function toolTraceLines(messages: readonly SessionMsg[], text: string): s
   let request = "(no request)";
   for (const m of messages) {
     const content = String(m.content ?? "");
-    if (m.role === "user" && !content.startsWith("[")) request = content;
+    if (m.role === "user" && !isMarkedMessage(content)) request = content;
     if (m.role !== "system" || !isToolTrace(content)) continue;
     const calls = content.split("\n").slice(1).filter((l) => needle.length === 0 || l.toLowerCase().includes(needle));
     if (calls.length === 0) continue;
