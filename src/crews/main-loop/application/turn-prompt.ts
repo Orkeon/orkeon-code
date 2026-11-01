@@ -1,4 +1,4 @@
-// The act() prompt pair of one main-loop turn: the reads of context-gather,
+// The act() messages of one main-loop turn: the reads of context-gather,
 // rendered by the pure ../domain/prompt-assembly. The permission/toolset logic is
 // pure in shared/domain/agent-policy/permission.
 
@@ -6,7 +6,7 @@ import { buildActPrompt, toolsetFor } from "../../../shared/domain/agent-policy/
 import { proactiveSuffix } from "../../../shared/domain/agent-policy/behavior-flags.ts";
 import type { BehaviorFlags } from "../../../shared/domain/agent-policy/behavior-flags.ts";
 import {
-  assemblePrompt,
+  assembleContext,
   buildGaugeBlock,
   buildHistoryBlock,
   buildMemoryBlock,
@@ -43,17 +43,21 @@ export interface TurnContextDeps {
   clock: Clock;
 }
 
-/** One act() turn's prompt pair: the byte-stable system prompt + the volatile user body. */
+/** One act() turn's messages: the byte-stable system prompt, the volatile context, the request. */
 export interface TurnPrompt {
   system: string;
-  user: string;
+  /** The user message before the request (`ActOptions.context`); empty when no block renders. */
+  context: string;
+  /** The prompt: the request, its permission note, the proactive clause — the last user message. */
+  request: string;
 }
 
 /**
- * Assemble the act() prompt pair for this turn: the byte-stable static header
+ * Assemble the act() messages of this turn: the byte-stable static header
  * (behaviour rules + tools + the project's instructions file) is the SYSTEM prompt,
  * the volatile blocks (preferences, skills, memory, hooks, environment, windowed
- * history, budget gauge, the task last) are the USER body.
+ * history, budget gauge) are the CONTEXT, and the request is the prompt, alone in the
+ * last user message: the message a decision profile's guard judges (Orkeon #276).
  */
 export async function buildTurnPrompt(
   prompt: string,
@@ -82,8 +86,8 @@ export async function buildTurnPrompt(
 
   return {
     system: buildStaticHeader({ toolNames: toolsetFor(mode, extras), instructions }),
-    user: assemblePrompt({
-      // All volatile, all in the user body. An unconfigured session renders none
+    context: assembleContext({
+      // All volatile, all in the context. An unconfigured session renders none
       // of the optional blocks.
       preferences: buildPreferencesBlock({ outputStyle, language }),
       skills: buildSkillsBlock(skills),
@@ -93,9 +97,9 @@ export async function buildTurnPrompt(
       // The buffer already ends with this request: the task block carries it.
       history: buildHistoryBlock(windowHistory(withoutCurrentRequest(history, prompt))),
       gauge: buildGaugeBlock(gauge),
-      // /proactive: the clause rides with the task, the last thing the model reads.
-      task: "## Request\n" + buildActPrompt(prompt, mode) + proactiveSuffix(flags.proactive),
     }),
+    // /proactive: the clause rides with the request, the last thing the model reads.
+    request: "## Request\n" + buildActPrompt(prompt, mode) + proactiveSuffix(flags.proactive),
   };
 }
 

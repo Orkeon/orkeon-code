@@ -18,6 +18,7 @@ import {
 import { MARKERS, MIN_SYSTEM_MESSAGES } from "./prompt-contract.fixtures.ts";
 import {
   assertHeadersDigitFreeUnder, assertInstructionsApart, assertNoEmptySection, assertNoMarker,
+  assertRequestAlone, assertVolatileInContext,
 } from "./prompt-contract.assertions.ts";
 
 describe("the main loop's header, in every mode", () => {
@@ -48,7 +49,7 @@ describe("the main loop's header, in every mode", () => {
     assertHeadersDigitFreeUnder(headers, ceiling);
   });
 
-  it("leaves the date, the history and the gauge to the user body", async () => {
+  it("leaves the date, the history and the gauge to the context", async () => {
     // Arrange
     const request = "Also reject duplicated flags.";
 
@@ -56,9 +57,18 @@ describe("the main loop's header, in every mode", () => {
     const turn = await buildTurnPrompt(request, "default", DEFAULT_BEHAVIOR_FLAGS, turnDeps({ full: true }));
 
     // Assert
-    ok(!turn.system.includes(SAMPLE_TODAY) && turn.user.includes(`date: ${SAMPLE_TODAY}`));
-    ok(!turn.system.includes("Token budget") && turn.user.includes("Token budget"));
-    strictEqual(turn.user.split(request).length - 1, 1, "the request travels once");
+    assertVolatileInContext(turn, [`date: ${SAMPLE_TODAY}`, "Token budget"]);
+  });
+
+  it("sends the request alone as the prompt, the context apart, so a decision guard judges the request (Orkeon #276)", async () => {
+    // Arrange
+    const request = "Also reject duplicated flags.";
+
+    // Act
+    const turn = await buildTurnPrompt(request, "default", DEFAULT_BEHAVIOR_FLAGS, turnDeps({ full: true }));
+
+    // Assert
+    assertRequestAlone(turn, request);
   });
 });
 

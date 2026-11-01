@@ -16,7 +16,7 @@ import {
 } from "../../../../src/shared/domain/session-keys.ts";
 import { budgetExhaustedAnswer, llmFailureOf } from "../../../../src/shared/domain/llm-failure.ts";
 import {
-  BLOCKED_ANSWER, blockedRequest, DEFAULT_LOADED, DENYING_CHAINS, DICTATION, EXPLICIT_PLAN, EXTRAS, EXTRA_RULES, EXTRA_TOOLS_INPUT, PARSED_RULES,
+  BARE_TURN_CONTEXT, BLOCKED_ANSWER, blockedRequest, DEFAULT_LOADED, DENYING_CHAINS, DICTATION, EXPLICIT_PLAN, EXTRAS, EXTRA_RULES, EXTRA_TOOLS_INPUT, PARSED_RULES,
   REQUEST_WITH_TRANSCRIPT, RULED_CATALOGUE, SCRIPT_TOOLS_CASES, SESSION_START, SILENT_GATES, SPEAK, SPEAKER_FAILURE,
   STORED_RULES, TRANSCRIPT, TRANSCRIPTION_PRELUDE, turnSetup, PROFILED_INPUT, PROFILE_OVERRIDE_WARNING,
 } from "./run-main-loop.fixtures.ts";
@@ -341,6 +341,7 @@ describe("runMainLoop — the turn", () => {
       maxIterations: maxIterationsFor(DEFAULT_BEHAVIOR_FLAGS.effort),
       permissionMode: "plan",
       system: buildStaticHeader({ toolNames: toolsetFor("plan") }),
+      context: BARE_TURN_CONTEXT,
       model: "",
     }]);
     deepStrictEqual(log.lines, []);

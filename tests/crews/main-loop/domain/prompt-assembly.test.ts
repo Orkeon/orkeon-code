@@ -1,7 +1,7 @@
 // Pure prompt-assembly tests. The load-bearing property is prefix-cache safety:
 // the static header (the SYSTEM prompt, sent via ActOptions.system) must be
 // byte-stable across turns, and the volatile blocks all live in the USER body
-// assemblePrompt() produces. The rule markers pin the behaviour specification of
+// assembleContext() produces. The rule markers pin the behaviour specification of
 // docs/architecture.md, "Prompt assembly".
 // Run: node --test tests/crews/main-loop/domain/prompt-assembly.test.ts
 
@@ -10,7 +10,7 @@ import { strictEqual, ok, deepStrictEqual } from "node:assert";
 import {
   HISTORY_WINDOW,
   MAX_MEMORY_ENTRIES_PER_CATEGORY,
-  assemblePrompt,
+  assembleContext,
   buildGaugeBlock,
   buildHistoryBlock,
   buildMemoryBlock,
@@ -526,38 +526,48 @@ describe("withoutCurrentRequest", () => {
   }
 });
 
-describe("assemblePrompt (the USER body)", () => {
-  it("orders blocks memory → history → context → gauge → task, task last", () => {
+describe("assembleContext (the user message before the request)", () => {
+  it("orders blocks memory → history → environment → gauge", () => {
     // Arrange
     const parts = builtParts();
 
     // Act
-    const prompt = assemblePrompt(parts);
+    const context = assembleContext(parts);
 
     // Assert
-    assertInOrder(prompt, BODY_BLOCKS_IN_ORDER);
-    ok(prompt.endsWith("THE TASK"), prompt);
+    assertInOrder(context, BODY_BLOCKS_IN_ORDER);
   });
 
   it("skips empty optional blocks without doubling separators", () => {
     // Arrange
-    const parts = { memory: "", history: "", task: "T" };
+    const parts = { memory: "", history: "", gauge: "G" };
 
     // Act
-    const prompt = assemblePrompt(parts);
+    const context = assembleContext(parts);
 
     // Assert
-    strictEqual(prompt, "T");
+    strictEqual(context, "G");
+  });
+
+  it("renders nothing for a session that sets nothing", () => {
+    // Arrange
+    const parts = { memory: "", history: "" };
+
+    // Act
+    const context = assembleContext(parts);
+
+    // Assert
+    strictEqual(context, "");
   });
 
   it("never contains the static header — identity travels as the system prompt", () => {
-    // The whole point of the system/user split: assembling the body cannot
-    // re-embed the header, because PromptParts has no field to put it in.
+    // The whole point of the system/context split: assembling the context cannot
+    // re-embed the header, because ContextParts has no field to put it in.
     // Arrange
-    const parts = { memory: buildMemoryBlock({ user: ["u1"] }), task: "THE TASK" };
+    const parts = { memory: buildMemoryBlock({ user: ["u1"] }) };
 
     // Act
-    const body = assemblePrompt(parts);
+    const body = assembleContext(parts);
 
     // Assert
     ok(!body.includes("You are Orkeon Code"), "identity leaked into the user body");
@@ -739,13 +749,13 @@ describe("buildHooksBlock", () => {
   }
 });
 
-describe("assemblePrompt order with the new blocks", () => {
-  it("keeps the block order fixed and the task LAST", () => {
+describe("assembleContext order with the new blocks", () => {
+  it("keeps the block order fixed, the gauge last", () => {
     // Arrange
     const parts = MARKED_PARTS;
 
     // Act
-    const out = assemblePrompt(parts);
+    const out = assembleContext(parts);
 
     // Assert
     assertInOrder(out, MARKED_PARTS_IN_ORDER);
@@ -753,7 +763,7 @@ describe("assemblePrompt order with the new blocks", () => {
 
   it("an unconfigured session renders none of the optional blocks", () => {
     // Arrange
-    const legacy = assemblePrompt(LEGACY_PARTS);
+    const legacy = assembleContext(LEGACY_PARTS);
     const parts = {
       ...LEGACY_PARTS,
       preferences: buildPreferencesBlock({}),
@@ -762,7 +772,7 @@ describe("assemblePrompt order with the new blocks", () => {
     };
 
     // Act
-    const withNewBlocksEmpty = assemblePrompt(parts);
+    const withNewBlocksEmpty = assembleContext(parts);
 
     // Assert
     strictEqual(withNewBlocksEmpty, legacy);

@@ -15,6 +15,9 @@
 // (shared/application/dev/tool-callbacks.ts) as the second argument: each act then carries the
 // onToolCall/onToolResult built for its own mode. The request's `effort` is the runtime's
 // `act({effort})` as it is; the crew's own level, when it has one, fills a request that names none.
+// The request's `context` is the runtime's `act({context})` (Orkeon #276); a runtime that does not read
+// that option (the rc.6 release, the tool and docker modes) would drop it without a word, so there the
+// context is put back in front of the prompt, in one message, as it was before.
 
 import type { ActRequest, CompleteRequest, Llm, ModelOverride } from "../../application/ports.ts";
 import type { PermissionMode } from "../../domain/permission-modes.ts";
@@ -58,10 +61,23 @@ function answerOrThrow(text: string): string {
   return text;
 }
 
+/** What the adapter adds to every act: the crew's effort, and whether the runtime reads `act({context})`. */
+export interface LlmDefaults extends Pick<ActRequest, "effort"> {
+  /** False on a runtime before Orkeon #277: the context goes in front of the prompt. True when absent. */
+  contextApart?: boolean;
+}
+
+/** The prompt and request the runtime receives: the context apart when it reads it, else in front of the prompt. */
+function withContext(prompt: string, request: ActRequest, contextApart: boolean): { prompt: string; request: ActRequest } {
+  const { context, ...rest } = request;
+  if (context === undefined || context.trim().length === 0) return { prompt, request: rest };
+  return contextApart ? { prompt, request } : { prompt: context + "\n\n" + prompt, request: rest };
+}
+
 export function createLlm(
   llm: Pick<LlmFacade, "act" | "complete" | "extract" | "chat"> & Partial<Pick<LlmFacade, "permissionGate">>,
   callbacks?: Pick<ToolCallbacks, "forAct">,
-  defaults: Pick<ActRequest, "effort"> = {},
+  defaults: LlmDefaults = {},
 ): Llm {
   const permissionGateEnabled = (): boolean | undefined => {
     // The runtime always sets it; a facade without it (a test's) cannot say.
@@ -74,7 +90,8 @@ export function createLlm(
       // The crew's effort (/effort, handed as an input) when the request names none.
       const effort = request.effort ?? defaults.effort;
       const withEffort = effort === undefined ? request : { ...request, effort };
-      return answerOrThrow(answerOf(await llm.act(prompt, actOptions(withEffort, callbacks, permissionGateEnabled()))));
+      const sent = withContext(prompt, withEffort, defaults.contextApart ?? true);
+      return answerOrThrow(answerOf(await llm.act(sent.prompt, actOptions(sent.request, callbacks, permissionGateEnabled()))));
     },
     async complete(prompt, request?: CompleteRequest) {
       // A system message needs the message-array call: `complete` takes a prompt only.

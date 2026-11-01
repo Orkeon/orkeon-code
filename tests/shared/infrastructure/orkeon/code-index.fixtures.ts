@@ -19,7 +19,7 @@ export const GRAPH_REPLY = {
 export const GRAPH = {
   nodes: [{ fqn: "a", name: "a", kind: "module" }],
   edges: [{ from: "/a.ts#module@0", to: "/b.ts#module@0", kind: "1" }],
-  nodeCount: 2, edgeCount: 1, cycleCount: 0,
+  nodeCount: 2, edgeCount: 1, cycleCount: 0, cycles: [], cyclesTruncated: false,
 };
 
 export const PACKAGE_REPLY = { fqn: "pkg.a", name: "a", file_count: 2, symbol_count: 5, dependencies: ["pkg.b"] };

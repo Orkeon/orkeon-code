@@ -233,17 +233,29 @@ export function firstSymbolFqn(mapRaw: any): string {
 
 // ── The analysis five (pinned from the extended probe's live run, 2026-08-06) ──
 
+/** One cycle of the graph, as dependency_graph names it (Orkeon #272): its members' FQNs, sorted and capped by
+ *  `max_cycle_members`, and its full size. */
+export interface GraphCycle {
+  members: string[];
+  memberCount: number;
+}
+
 export interface GraphSummary {
   nodes: Array<{ fqn: string; name: string; kind: string }>;
   edges: Array<{ from: string; to: string; kind: string }>;
   nodeCount: number;
   edgeCount: number;
   cycleCount: number;
+  /** The cycles named, the largest first (`max_cycles`); none on sub_graph or a runtime before #273. */
+  cycles: GraphCycle[];
+  /** True when the index cut the list of cycles or the members of one. */
+  cyclesTruncated: boolean;
 }
 
 /** `dependency_graph` / `sub_graph` → `nodes[] {fqn,name,kind}` + `edges[] {from,to,kind}`.
- *  dependency_graph additionally carries `metrics {node_count, edge_count, cycle_count}`;
- *  sub_graph has no metrics block, so the counts fall back to the array lengths.
+ *  dependency_graph additionally carries `metrics {node_count, edge_count, cycle_count}` and, since
+ *  Orkeon #273, `cycles[] {fqns, member_count}` with `cycles_truncated`; sub_graph has no metrics block,
+ *  so the counts fall back to the array lengths, and names no cycle.
  *  Two quirks pinned from the live capture (2026-08-06):
  *   • edge `kind` serialized as a NUMBER (the C# EdgeKind flags value, 1 = Imports) until
  *     Orkeon #275, and since as snake_case names ("imports, calls"); node `kind` is a
@@ -258,12 +270,18 @@ export function readGraph(raw: any): GraphSummary {
     from: String(e?.from ?? ""), to: String(e?.to ?? ""), kind: String(e?.kind ?? ""),
   })).filter((e) => e.from.length > 0 && e.to.length > 0);
   const metrics = raw?.metrics;
+  const cycles = arr(raw, "cycles").map((c) => {
+    const members = arr(c, "fqns").map((m) => String(m ?? "")).filter((m) => m.length > 0);
+    return { members, memberCount: Math.max(num(c, "member_count"), members.length) };
+  }).filter((c) => c.members.length > 0);
   return {
     nodes,
     edges,
     nodeCount: metrics ? num(metrics, "node_count") : nodes.length,
     edgeCount: metrics ? num(metrics, "edge_count") : edges.length,
     cycleCount: metrics ? num(metrics, "cycle_count") : 0,
+    cycles,
+    cyclesTruncated: raw?.cycles_truncated === true,
   };
 }
 

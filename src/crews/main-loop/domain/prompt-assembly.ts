@@ -1,16 +1,18 @@
 // Prompt assembly for the main-loop act() turn — pure, no IO.
-// Assembles a SYSTEM/USER pair. The static header (behaviour rules, tools, search
-// playbook, the project's instructions file) is the SYSTEM prompt
+// Assembles the three messages of a turn. The static header (behaviour rules, tools,
+// search playbook, the project's instructions file) is the SYSTEM prompt
 // (`ActOptions.system`, a real `role:"system"` message). The volatile blocks
-// (preferences, skills, memory, hooks, environment, history, gauge, the task)
-// are the USER body, in a fixed order: the system prompt is the absolute request
-// prefix a provider caches, so it must be byte-identical turn after turn — no
-// timestamps, no counters, no gauges; everything volatile goes in the user body.
+// (preferences, skills, memory, hooks, environment, history, gauge) are the CONTEXT
+// (`ActOptions.context`, a user message of its own, Orkeon #276), in a fixed order;
+// the request with its permission note is the prompt, the last user message. The
+// system prompt is the absolute request prefix a provider caches, so it must be
+// byte-identical turn after turn — no timestamps, no counters, no gauges; everything
+// volatile goes in the context.
 //
 // The text of every block is written from the behaviour specification in
 // docs/architecture.md, "Prompt assembly" (ADR 0003).
 //
-// Run tests: node --test src/crews/main-loop/domain/prompt-assembly.test.ts
+// Run tests: node --test tests/crews/main-loop/domain/prompt-assembly.test.ts
 
 import type { SessionMsg } from "../../../shared/domain/types.ts";
 import { MEMORY_CATEGORIES } from "../../../shared/domain/agent-policy/memory-categories.ts";
@@ -457,9 +459,11 @@ export function buildGaugeBlock(g: {
   return "<system-reminder>\n" + lines.join("\n") + "\n</system-reminder>";
 }
 
-/** The USER body's parts, in cache-safe order. The static header is NOT here:
- *  it travels as the system prompt (`ActOptions.system`), not as a user block. */
-export interface PromptParts {
+/** The parts of a turn's context, in cache-safe order: the user message `act` sends before the request
+ *  (`ActOptions.context`, Orkeon #276). The static header is NOT here: it travels as the system prompt
+ *  (`ActOptions.system`). The request is not here either: it is the prompt, the last user message alone,
+ *  the one a decision profile's guard and route stages judge. */
+export interface ContextParts {
   /** Session preferences (<system-reminder>) — first, they shape the answer. */
   preferences?: string;
   /** Attached skill fragments — instructions the operator opted into. */
@@ -470,30 +474,28 @@ export interface PromptParts {
   userContext?: string;
   history?: string;
   gauge?: string;
-  /** The user's request + permission note — always LAST. */
-  task: string;
 }
 
 /**
- * Join the user body's parts in fixed order, skipping empty optional blocks.
+ * Join the context's parts in fixed order, skipping empty blocks.
  *
  * Order, and why: from the most stable to the most volatile, so a provider's prefix
- * cache reaches as far into the body as it can. Preferences and skills change only
+ * cache reaches as far into the context as it can. Preferences and skills change only
  * when the operator acts and govern HOW the rest is answered; memory and hooks are
  * standing context; the history only grows between compactions; the environment
- * (date, git status) can change every turn; the gauge changes every turn; the task
- * is always last, the place a model is least likely to lose. A session that sets
+ * (date, git status) can change every turn; the gauge changes every turn. The request
+ * follows in a message of its own, the place a model is least likely to lose and the
+ * one a decision guard judges without the context diluting it. A session that sets
  * nothing renders none of the optional blocks.
  *
  * No block lists the MCP servers: the tools they serve already join the catalogue
  * (`tools.extra`), and a section announcing servers the model cannot address
  * directly would be noise.
  */
-export function assemblePrompt(p: PromptParts): string {
+export function assembleContext(p: ContextParts): string {
   const blocks = [
     p.preferences, p.skills, p.memory, p.hooks,
     p.history, p.userContext, p.gauge,
-    p.task,
   ];
   return blocks.filter((b): b is string => b !== undefined && b.length > 0).join("\n\n");
 }

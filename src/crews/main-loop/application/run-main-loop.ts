@@ -1,6 +1,6 @@
 // MainLoop use case — one turn of the interactive loop: run in the mode the
 // launching command resolved, keep the session buffer, compact around the turn,
-// assemble the prompt (F4) and run the autonomous act() call. The prompt pair is
+// assemble the prompt (F4) and run the autonomous act() call. The turn's messages are
 // built by ./turn-prompt, the breaker by ./auto-compact; every dependency comes
 // in through the ports.
 
@@ -146,7 +146,7 @@ export async function runAct(
   // A level /effort stored reaches the provider (A-3); the line says what this act was given.
   if (flags.thinking !== null) deps.log.info(`act — effort: ${flags.thinking}, maxIterations: ${maxIterations}`);
 
-  return await deps.llm.act(turn.user, {
+  return await deps.llm.act(turn.request, {
     maxIterations,
     ...(flags.thinking === null ? {} : { effort: flags.thinking }),
     permissionMode: mode,
@@ -155,6 +155,9 @@ export async function runAct(
     // provider's native system handling (Anthropic top-level `system`,
     // cache_control) finally applies.
     system: turn.system,
+    // The volatile blocks ride as a user message of their own before the request
+    // (ActOptions.context, Orkeon #276): a decision guard judges the request alone.
+    context: turn.context,
     model: flags.model,
   });
 }
@@ -235,7 +238,7 @@ async function stopChecked(
   if (stop.refusedBy === undefined) return { answer, cut: false };
   deps.log.info(`stop check '${stop.refusedBy}': the answer goes back once (${stop.reason})`);
   try {
-    return { answer: await runAct(deps, { ...turn, user: buildStopRetryPrompt(turn.user, answer, stop.reason ?? "") }, mode, flags), cut: false };
+    return { answer: await runAct(deps, { ...turn, request: buildStopRetryPrompt(turn.request, answer, stop.reason ?? "") }, mode, flags), cut: false };
   } catch (error) {
     // A retry that fails (a provider error) never costs the turn an answer it had: the first one stands, said.
     if (answer.trim().length === 0) throw error;

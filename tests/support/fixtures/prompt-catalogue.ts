@@ -206,13 +206,16 @@ export async function renderCatalogue(): Promise<RenderedPrompt[]> {
       ],
     },
     {
-      id: "02", name: "main-loop-user-body", source: "src/crews/main-loop/domain/prompt-assembly.ts, agent-policy/permission.ts",
-      callSite: "same as 01", call: "act, the user message",
+      id: "02", name: "main-loop-context-and-request", source: "src/crews/main-loop/domain/prompt-assembly.ts, agent-policy/permission.ts",
+      callSite: "same as 01", call: "act, the context (a user message of its own) then the request (the prompt, the last user message)",
       inputs: "an unconfigured session; then every block filled (style, language, skill, memory, hook, history, gauge at the warning tier, proactive)",
       sections: [
-        { title: "unconfigured session, mode default", role: "user", text: bare.user },
-        { title: "every block filled, mode default", role: "user", text: full.user },
-        { title: "every block filled, mode plan", role: "user", text: plan.user },
+        { title: "unconfigured session, mode default — context", role: "user", text: bare.context },
+        { title: "unconfigured session, mode default — request", role: "user", text: bare.request },
+        { title: "every block filled, mode default — context", role: "user", text: full.context },
+        { title: "every block filled, mode default — request", role: "user", text: full.request },
+        { title: "every block filled, mode plan — context", role: "user", text: plan.context },
+        { title: "every block filled, mode plan — request", role: "user", text: plan.request },
       ],
     },
     {

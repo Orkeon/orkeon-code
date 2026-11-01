@@ -46,6 +46,10 @@ export function turnSetup(outcome: CompactOutcome = { status: "skipped", reason:
   return { store, llm, log, run, compactions, tools, deps };
 }
 
+/** The context of a bare turn of `turnSetup`: the environment and the gauge, apart from the request. */
+export const BARE_TURN_CONTEXT = "## Environment\ncwd: /workspace\ndate: 2026-10-24\n\n<system-reminder>\n" +
+  "Token budget: 0/0 used. Session cost: $0 (0 tokens, 0 calls).\n</system-reminder>";
+
 export const EXPLICIT_PLAN = loadCatalogue({ permissionMode: "plan" });
 
 export const DEFAULT_LOADED = loadCatalogue({ permissionMode: "default" });

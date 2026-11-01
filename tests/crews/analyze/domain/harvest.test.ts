@@ -11,7 +11,7 @@ import {
 } from "../../../../src/crews/analyze/domain/harvest.ts";
 import {
   CYCLIC, CYCLIC_CYCLES, DISPLAY_CASES, ENDPOINTS, EXPORTS_IN_INDEX_ORDER, EXPORTS_RANKED, HOSTED, HOSTED_ENTRIES,
-  L1_ENTRIES, L1_RANKED, MODULE_GRAPH, PACKAGE, SAMPLED_GRAPH, TEST_PACKAGE_CASES, mapPackages, packageExporting,
+  L1_ENTRIES, L1_RANKED, MODULE_GRAPH, NAMED_CYCLES_GRAPH, PACKAGE, SAMPLED_GRAPH, TEST_PACKAGE_CASES, mapPackages, packageExporting,
   rankedWithSmallHost, readPackage,
 } from "./harvest.fixtures.ts";
 import { assertMentions, assertOmits } from "../../../support/assertions/text.ts";
@@ -247,7 +247,7 @@ describe("renderHarvest", () => {
     assertOmits(harvest, ["A sample"]);
   });
 
-  it("flags the cycles of the whole module graph, and says the index does not name their modules", () => {
+  it("flags the cycles of the whole module graph, and says the index does not name their modules, on a runtime that only counts them", () => {
     // Arrange
     const input = { packages: [], unsummarized: [], scanned: [], moduleGraph: { ...MODULE_GRAPH, cycleCount: 2 }, graphCap: 200, mapCap: 1000 };
 
@@ -256,6 +256,39 @@ describe("renderHarvest", () => {
 
     // Assert
     assertMentions(cyclic, ["Cycles in the whole module graph: 2 ⚠ — the index counts them, it does not name their modules."]);
+  });
+
+  it("names the modules of each cycle of the module graph, the largest first (Orkeon #272)", () => {
+    // Arrange
+    const input = { packages: [], unsummarized: [], scanned: [], moduleGraph: NAMED_CYCLES_GRAPH, graphCap: 200, mapCap: 1000 };
+
+    // Act
+    const harvest = renderHarvest(input);
+
+    // Assert
+    assertMentions(harvest, ["- 4 modules: `src/a.ts`, `src/b.ts`, `src/c.ts`, and 1 more\n- 2 modules: `src/d.ts`, `src/e.ts`"]);
+  });
+
+  it("says how many of the module cycles are named when the index cut their list", () => {
+    // Arrange
+    const input = { packages: [], unsummarized: [], scanned: [], moduleGraph: NAMED_CYCLES_GRAPH, graphCap: 200, mapCap: 1000 };
+
+    // Act
+    const harvest = renderHarvest(input);
+
+    // Assert
+    assertMentions(harvest, ["Cycles in the whole module graph: 5 ⚠ (the 2 largest named):"]);
+  });
+
+  it("names the module cycles of a sampled graph too, since they cover the whole graph", () => {
+    // Arrange
+    const input = { packages: [], unsummarized: [], scanned: [], moduleGraph: { ...NAMED_CYCLES_GRAPH, nodeCount: 200 }, graphCap: 200, mapCap: 1000 };
+
+    // Act
+    const harvest = renderHarvest(input);
+
+    // Assert
+    assertMentions(harvest, ["A sample: the first 200 modules", "- 2 modules: `src/d.ts`, `src/e.ts`"]);
   });
 
   it("lists the entry packages with their entry modules", () => {

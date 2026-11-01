@@ -15,6 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The runtime pin moves to Orkeon `main` `549987d` (Orkeon #277, [ADR 0015](docs/adr/0015-orkeon-after-276.md)). The
+  assistant sends its context (preferences, skills, memory, hooks, history, environment, gauge) as a message of its
+  own and the request alone as the last one, so a decision profile's guard judges the request without the history
+  diluting it (Orkeon #276). On `1.0.0-rc.6`, which does not read that message, the context still goes in front of
+  the request.
+- `/analyze` names the members of the module cycles: one line per cycle with its size and its first modules, the
+  largest first when the index sampled them, instead of a count it could not detail.
 - [Decision models on this machine](docs/decision-models-local.md) no longer says `kev-4b` does not fit a 10 GB GPU:
   with its CUDA graphs off (`KEV_CUDA_GRAPHS=0`) it loads on an RTX 3080 and answers in about 0.12 s, and the guide
   gives its `docker run`.

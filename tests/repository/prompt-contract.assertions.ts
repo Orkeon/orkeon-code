@@ -2,6 +2,7 @@
 import { ok } from "node:assert";
 import { MATERIAL_MARK } from "../support/fixtures/prompt-catalogue.ts";
 import type { RenderedPrompt } from "../support/fixtures/prompt-catalogue.ts";
+import type { TurnPrompt } from "../../src/crews/main-loop/application/turn-prompt.ts";
 import { IDENTIFIERS_WITH_DIGITS } from "./prompt-contract.fixtures.ts";
 
 /** Each header holds no digit but the playbook's scope identifiers, and stays within `ceiling` characters. */
@@ -42,4 +43,21 @@ export function assertNoEmptySection(catalogue: readonly RenderedPrompt[]): void
   for (const prompt of catalogue) {
     for (const section of prompt.sections) ok(section.text.trim().length > 0, `${prompt.id} ${section.title}`);
   }
+}
+
+/** Each of `volatile` is in the turn's context, and in neither its header nor its request. */
+export function assertVolatileInContext(turn: TurnPrompt, volatile: readonly string[]): void {
+  for (const v of volatile) {
+    ok(turn.context.includes(v), `'${v}' is missing from the context`);
+    ok(!turn.system.includes(v), `'${v}' leaked into the header`);
+    ok(!turn.request.includes(v), `'${v}' leaked into the request`);
+  }
+}
+
+/** The turn's request opens on its heading and carries `request` once; the context does not carry it. */
+export function assertRequestAlone(turn: TurnPrompt, request: string): void {
+  ok(turn.request.startsWith("## Request\n"), `the request does not open on its heading: ${turn.request.slice(0, 40)}`);
+  ok(turn.request.split(request).length - 1 === 1, "the request does not travel once in the prompt");
+  ok(!turn.context.includes(request), "the request also travels in the context");
+  ok(turn.context.length > 0, "the context is empty while every block is filled");
 }

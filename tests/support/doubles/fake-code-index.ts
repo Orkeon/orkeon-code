@@ -18,7 +18,7 @@ export class FakeCodeIndex implements CodeIndex {
   roots = 0;
   indexed: IndexSummary = { files: 0, nodes: 0, edges: 0, statements: 0, errors: [] };
   maps: Record<string, CodeMap> = {};
-  graph: GraphSummary = { nodes: [], edges: [], nodeCount: 0, edgeCount: 0, cycleCount: 0 };
+  graph: GraphSummary = { nodes: [], edges: [], nodeCount: 0, edgeCount: 0, cycleCount: 0, cycles: [], cyclesTruncated: false };
   packages: Record<string, PackageSummary> = {};
   hits: Record<string, CodeSearchHit[]> = {};
   sources: Record<string, SymbolLocation> = {};

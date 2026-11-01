@@ -52,6 +52,26 @@ export const DEP_GRAPH_RAW = {
   truncated: false,
 };
 
+/** dependency_graph since Orkeon #273: the cycles named, the largest first, one cut by max_cycle_members. */
+export const CYCLIC_GRAPH_RAW = {
+  nodes: [],
+  edges: [],
+  metrics: { node_count: 5, edge_count: 5, cycle_count: 3, avg_fan_in: 1, avg_fan_out: 1 },
+  cycles: [
+    { edge_kind: "imports", fqns: [`${WORKSPACE}/src/a.ts`, `${WORKSPACE}/src/b.ts`, `${WORKSPACE}/src/c.ts`], member_count: 4 },
+    { edge_kind: "imports", fqns: [`${WORKSPACE}/src/d.ts`, `${WORKSPACE}/src/e.ts`], member_count: 2 },
+    { edge_kind: "imports", fqns: [], member_count: 0 },
+  ],
+  cycles_truncated: true,
+  truncated: false,
+};
+
+/** The cycles readGraph keeps of CYCLIC_GRAPH_RAW: an empty one dropped, the full size kept. */
+export const CYCLIC_GRAPH_CYCLES = [
+  { members: [`${WORKSPACE}/src/a.ts`, `${WORKSPACE}/src/b.ts`, `${WORKSPACE}/src/c.ts`], memberCount: 4 },
+  { members: [`${WORKSPACE}/src/d.ts`, `${WORKSPACE}/src/e.ts`], memberCount: 2 },
+];
+
 export const SUB_GRAPH_RAW = {
   nodes: [{ fqn: `${WORKSPACE}/src/index.ts::greet`, name: "greet", kind: "function", level: "l3_Symbol", is_seed: true }],
   edges: [],

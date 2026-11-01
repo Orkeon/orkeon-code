@@ -2,7 +2,7 @@
 import type { SessionMsg } from "../../../../src/shared/domain/types.ts";
 import { ERROR_THRESHOLD_BUFFER_TOKENS, WARNING_THRESHOLD_BUFFER_TOKENS } from "../../../../src/shared/domain/compaction-thresholds.ts";
 import { buildGaugeBlock, buildHistoryBlock, buildMemoryBlock, buildUserContextBlock } from "../../../../src/crews/main-loop/domain/prompt-assembly.ts";
-import type { PromptParts } from "../../../../src/crews/main-loop/domain/prompt-assembly.ts";
+import type { ContextParts } from "../../../../src/crews/main-loop/domain/prompt-assembly.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 import { COMPACTED_MARKER, TURN_CONTEXT_MARKER } from "../../../../src/shared/domain/marked-message.ts";
 
@@ -167,18 +167,17 @@ export const KEPT_BUFFER_CASES: readonly KeptBufferCase[] = [
   { name: "keeps an empty buffer", history: [], request: "fix it" },
 ];
 
-/** Every block of the USER body, built by its own builder. */
-export function builtParts(): PromptParts {
+/** Every block of the context, built by its own builder. */
+export function builtParts(): ContextParts {
   return {
     memory: buildMemoryBlock({ user: ["u1"] }),
     userContext: buildUserContextBlock({ cwd: WORKSPACE, gitStatus: "## main" }),
     history: buildHistoryBlock([{ role: "user", content: "hi" }]),
     gauge: buildGaugeBlock({ usedTokens: 1, contextWindow: 2, costUsd: 0, totalTokens: 0, totalCalls: 0 }),
-    task: "THE TASK",
   };
 }
 
-export const BODY_BLOCKS_IN_ORDER: readonly string[] = ["## Memory", "## Conversation so far", "## Environment", "<system-reminder>", "THE TASK"];
+export const BODY_BLOCKS_IN_ORDER: readonly string[] = ["## Memory", "## Conversation so far", "## Environment", "<system-reminder>"];
 
 export interface UnconfiguredPreferencesCase {
   name: string;
@@ -230,8 +229,8 @@ export const EMPTY_HOOKS_CASES: readonly EmptyHooksCase[] = [
   { name: "ignores an entry without an event", hooks: [{ command: "x" }] },
 ];
 
-/** Every block of the USER body, as a marker. */
-export const MARKED_PARTS: PromptParts = {
+/** Every block of the context, as a marker. */
+export const MARKED_PARTS: ContextParts = {
   preferences: "PREFS",
   skills: "SKILLS",
   memory: "MEM",
@@ -239,10 +238,9 @@ export const MARKED_PARTS: PromptParts = {
   userContext: "ENV",
   history: "HIST",
   gauge: "GAUGE",
-  task: "TASK",
 };
 
-export const MARKED_PARTS_IN_ORDER: readonly string[] = ["PREFS", "SKILLS", "MEM", "HOOKS", "HIST", "ENV", "GAUGE", "TASK"];
+export const MARKED_PARTS_IN_ORDER: readonly string[] = ["PREFS", "SKILLS", "MEM", "HOOKS", "HIST", "ENV", "GAUGE"];
 
 /** The parts of a session from before preferences, skills and hooks. */
-export const LEGACY_PARTS: PromptParts = { memory: "MEM", userContext: "ENV", history: "HIST", gauge: "GAUGE", task: "TASK" };
+export const LEGACY_PARTS: ContextParts = { memory: "MEM", userContext: "ENV", history: "HIST", gauge: "GAUGE" };

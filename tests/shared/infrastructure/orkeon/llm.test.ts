@@ -6,7 +6,7 @@ import { strictEqual, deepStrictEqual, rejects } from "node:assert";
 import { createLlm } from "../../../../src/shared/infrastructure/orkeon/llm.ts";
 import { FakeLlmFacade } from "../../../support/doubles/fake-llm-facade.ts";
 import {
-  ACT_ANSWERS, ACT_FAILURE_MARKERS, COMPLETIONS, EFFORTS, GATES, REQUESTS, SCHEMA, llmWithCallbacks,
+  ACT_ANSWERS, ACT_FAILURE_MARKERS, COMPLETIONS, CONTEXT_CASES, EFFORTS, GATES, REQUESTS, SCHEMA, llmWithCallbacks,
 } from "./llm.fixtures.ts";
 
 describe("createLlm — act with the crew's tool callbacks", () => {
@@ -110,6 +110,22 @@ describe("createLlm — act", () => {
 
       // Assert
       await rejects(act, c.expected);
+    });
+  }
+});
+
+describe("createLlm — act with a context", () => {
+  for (const c of CONTEXT_CASES) {
+    it(c.name, async () => {
+      // Arrange
+      const facade = new FakeLlmFacade();
+      const llm = createLlm(facade, undefined, c.contextApart === undefined ? {} : { contextApart: c.contextApart });
+
+      // Act
+      await llm.act("p", { context: c.context });
+
+      // Assert
+      deepStrictEqual(facade.calls.map((call) => call.args), [c.args]);
     });
   }
 });

@@ -192,13 +192,25 @@ function renderPackageGraph(h: HarvestInput, total: number): string[] {
   ];
 }
 
-/** The module graph: its sample when it reached its cap, and its cycles — counted over the whole graph by
- *  the index, which does not name the modules in them. */
+/** The cycles of the whole module graph: the modules of each, as the index names them (Orkeon #272), the
+ *  largest first; a count alone from a runtime before #273, which does not name them. */
+function renderModuleCycles(g: GraphSummary): string {
+  if (g.cycleCount === 0) return "Cycles in the whole module graph: none.";
+  if (g.cycles.length === 0) {
+    return `Cycles in the whole module graph: ${g.cycleCount} ⚠ — the index counts them, it does not name their modules.`;
+  }
+  const shown = g.cycles.length < g.cycleCount ? ` (the ${g.cycles.length} largest named)` : "";
+  const lines = g.cycles.map((c) => {
+    const more = c.memberCount > c.members.length ? `, and ${c.memberCount - c.members.length} more` : "";
+    return `- ${c.memberCount} modules: ${c.members.map(code).join(", ")}${more}`;
+  });
+  return [`Cycles in the whole module graph: ${g.cycleCount} ⚠${shown}:`, ...lines].join("\n");
+}
+
+/** The module graph: its sample when it reached its cap, and its cycles — those of the whole graph. */
 function renderModuleGraph(h: HarvestInput): string {
   const g = h.moduleGraph;
-  const cycles = g.cycleCount > 0
-    ? `Cycles in the whole module graph: ${g.cycleCount} ⚠ — the index counts them, it does not name their modules.`
-    : "Cycles in the whole module graph: none.";
+  const cycles = renderModuleCycles(g);
   const lines: string[] = [];
   if (g.nodeCount >= h.graphCap) {
     // The first modules in the store's order are whatever was indexed first (templates, examples): their
