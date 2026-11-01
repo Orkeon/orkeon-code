@@ -58,6 +58,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   A skill starts a server without blocking, waits for its readiness and stops it, points a destructive step at a
   scratch folder or a dry run, and names what a failure looks like. **`/verify` stops at the verdict**: a failed
   check ends in a report with the quoted output, and the loop no longer edits code to make a step pass.
+- **The dev auditor and reviewer prove what they report and use only the tools they hold**: past 150 project files
+  the brief sent both to `glob`, a tool neither held, and still told them that a name missing from the cut list did
+  not exist; the auditor took a cited line for a proof. Both charters now hold `glob` and the list says whether it
+  is whole. The auditor gets `affected_tests` for the class of each validation, names the input that makes a
+  Correctness or Test row wrong after looking for the guard that would refute it, sends a trigger it cannot show to
+  undecided or to a validation, checks that each deleted or rewritten line keeps its guarantee, and calls
+  `memory_recall` only for a doubt the brief's precedents leave open. The reviewer looks in the rest of the brief
+  before asking, no longer asks a plan what code already checks (anchored paths, the order of batches sharing an
+  anchor), reads a source file node first and settles a tie as Major in one condition. Agents without a shell are no
+  longer told about scripts, and the shared reading rule asks for several known reads in one turn.
 - **The example settings widen the result cut of the graph and search tools** (`sub_graph`, `dependency_graph`,
   `codebase_search`, `symbol_detail`, `impact_analysis`, `flow_trace`, `codebase_map`, `package_summary`,
   `structural_search`) to 12 000 characters: their `truncated` and `cycles` fields come last in the JSON, so the

@@ -3,8 +3,11 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
-import { PROJECT_FILES_HEADING, parseTrackedFiles, projectFileLines } from "../../../../src/shared/domain/dev/project-files.ts";
-import { LINES_CASES, LISTING, PARSED } from "./project-files.fixtures.ts";
+import {
+  PROJECT_FILES_HEADING, parseTrackedFiles, projectFileLines,
+} from "../../../../src/shared/domain/dev/project-files.ts";
+import { CLOSING_CASES, CUT_LINE_MENTIONS, LINES_CASES, LISTING, PARSED } from "./project-files.fixtures.ts";
+import { assertMentions, assertOmits } from "../../../support/assertions/text.ts";
 
 describe("parseTrackedFiles", () => {
   it("keeps the sources sorted, once each, the work folder and .orkeon/ left out", () => {
@@ -41,11 +44,23 @@ describe("projectFileLines", () => {
 
       // Assert
       strictEqual(lines.length, c.expectedCount, lines.join("\n"));
-      strictEqual(lines.at(-1) ?? null, c.last);
     });
   }
 
-  it("opens with the heading that says an absent name does not exist", () => {
+  for (const c of CLOSING_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const max = c.max;
+
+      // Act
+      const lines = projectFileLines(PARSED, max);
+
+      // Assert
+      assertMentions(lines.at(-1) ?? "", c.mentions);
+    });
+  }
+
+  it("opens with the heading", () => {
     // Arrange
     const files = PARSED;
 
@@ -54,5 +69,27 @@ describe("projectFileLines", () => {
 
     // Assert
     strictEqual(lines[0], PROJECT_FILES_HEADING);
+  });
+
+  it("names the count left out, that an absent name may exist and the glob that finds it on a cut list", () => {
+    // Arrange
+    const max = 2;
+
+    // Act
+    const last = projectFileLines(PARSED, max).at(-1) ?? "";
+
+    // Assert
+    assertMentions(last, CUT_LINE_MENTIONS);
+  });
+
+  it("never says an absent name does not exist on a cut list", () => {
+    // Arrange
+    const max = 2;
+
+    // Act
+    const text = projectFileLines(PARSED, max).join("\n");
+
+    // Assert
+    assertOmits(text, ["does not exist"]);
   });
 });

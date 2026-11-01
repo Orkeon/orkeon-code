@@ -325,14 +325,14 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 | `init-verifiers` | séquentiel, sans outil | `/init-verifiers` | Détecte l'outillage de test à partir de chaque manifeste, écrit des guides de vérification pour les zones non couvertes |
 | `advisor` | séquentiel, sans outil | `/advisor` | Un second avis sur la dernière réponse, par un autre modèle |
 | `speech` | séquentiel, sans outil, sans LLM | `/transcribe`, `/voice`, `/say` | Un appel au serveur MCP de parole (`transcribe_audio`, `list_audio`, `record_and_transcribe`, `speak`), au nom de la commande |
-| `dev-verify` | séquentiel, la porte et la capture dans `dev-verifier`, l'audit dans un enfant d'arrière-plan `dev-auditor` (cinq outils de lecture en `plan`, `run_validation`, `memory_recall`) | `/dev-batches <code> F<n> --audit` (`--gate-only` saute le LLM) | La porte, la capture, un audit en lecture seule, le fichier de verdict |
+| `dev-verify` | séquentiel, la porte et la capture dans `dev-verifier`, l'audit dans un enfant d'arrière-plan `dev-auditor` (sept outils de lecture en `plan`, `run_validation`, `memory_recall`) | `/dev-batches <code> F<n> --audit` (`--gate-only` saute le LLM) | La porte, la capture, un audit en lecture seule, le fichier de verdict |
 | `dev-learn` | séquentiel, sans outil, un extract par axe | `/dev-learn` (`--list` saute le LLM) | Les écarts de verdict qui reviennent, changés en propositions, `PROPOSALS.md` |
-| `dev-plan` | séquentiel, un extract dans `dev-planner`, la revue dans un enfant d'arrière-plan `dev-reviewer` (neuf outils de lecture en `plan`) | `/dev-plan` | Porte des questions Blocking, inventaire par l'index, plan et fiches écrits par le code, une revue en lecture seule |
+| `dev-plan` | séquentiel, un extract dans `dev-planner`, la revue dans un enfant d'arrière-plan `dev-reviewer` (dix outils de lecture en `plan`) | `/dev-plan` | Porte des questions Blocking, inventaire par l'index, plan et fiches écrits par le code, une revue en lecture seule |
 | `agent-run` | séquentiel, un act d'une charte intégrée (`dev-reviewer`, `dev-auditor`) | `/tasks send`, `/tasks repair` | Un nouveau run d'un enfant fini, son brief portant le rapport précédent et le message de l'opérateur ; il tourne sous l'étape du run de l'instance (un relecteur de `/dev-spec` sous les jeux de règles, les hooks et le budget de cette étape), sinon sous l'étape de la charte, avec le budget de cette étape et aucun enfant à lui |
-| `dev-spec` | séquentiel, des extracts, la revue dans un enfant d'arrière-plan `dev-reviewer` (neuf outils de lecture en `plan` ; en ligne sur un hôte sans enfants d'arrière-plan) | `/dev-spec` | Spécification métier écrite par le code depuis le JSON, ses questions posées une à une par `human_input`, une revue en lecture seule |
-| `dev-change` | séquentiel, des extracts, la revue dans un enfant d'arrière-plan `dev-reviewer` (neuf outils de lecture en `plan` ; en ligne sur un hôte sans enfants d'arrière-plan) | `/dev-spec <code> <kind>` | Bug reproduit ou coût mesuré en exécutant, fiche de changement écrite par le code, questions par `human_input`, une revue |
+| `dev-spec` | séquentiel, des extracts, la revue dans un enfant d'arrière-plan `dev-reviewer` (dix outils de lecture en `plan` ; en ligne sur un hôte sans enfants d'arrière-plan) | `/dev-spec` | Spécification métier écrite par le code depuis le JSON, ses questions posées une à une par `human_input`, une revue en lecture seule |
+| `dev-change` | séquentiel, des extracts, la revue dans un enfant d'arrière-plan `dev-reviewer` (dix outils de lecture en `plan` ; en ligne sur un hôte sans enfants d'arrière-plan) | `/dev-spec <code> <kind>` | Bug reproduit ou coût mesuré en exécutant, fiche de changement écrite par le code, questions par `human_input`, une revue |
 | `dev-implement` | séquentiel, un agent, deux rôles en `acceptEdits` (cinq outils de lecture, six d'écriture - `file_write` pour un nouveau fichier, les éditeurs de nœuds et `edit_batch` pour un fichier existant ; la règle d'édition épelle un `edit_batch`, sa liste `operations` et `validate`, et le refus par la garde d'un lot sans opérations le répète ; le runtime publie aussi le schéma des outils de nœud depuis Orkeon #210 ; chaque `node_replace` d'un lot porte le hash que `node_read` a donné pour ce nœud précis, jamais un hash deviné, un hash factice ayant fait refuser un lot entier par le runtime dans un run live - `run_tests`, `run_build`, `memory_recall`) | `/dev-batches <code> F<n>` (`--close` : la clôture seule) | Chaque cycle (les étapes d'un même fichier de test) rouge puis vert, vérifié par le code, son coût mesuré ; une correction ajoutée en étape ; le build et la suite (ensuite les projets touchés) en jobs ; puis l'audit (le crew `dev-verify`) et, sur VALID, le commit et les marques « fait » ; une hypothèse est consignée une fois par lot, jamais une que la fiche porte déjà ; un chemin relatif qu'un rôle passe à un outil est résolu sous le checkout avant l'outil |
-| `dev-batches` | séquentiel, un agent avec les outils de lecture du relecteur, sa revue en ligne ; avec `--concurrency` de 2 à 4, un agent de lot par lot d'une vague (`batch-F<n>`, les outils d'implémentation et les outils de lecture de l'auditeur, `run_tests`, `run_build`, `run_validation`, `memory_recall`), chacun sous la racine de travail de son worktree | `/dev-batches` (retapée après un arrêt : l'exécution reprend ; chaque saut de sa chaîne garde la profondeur de l'instance pour laquelle il tourne, `chain: "continue"`, si bien qu'un plan de n'importe quelle longueur se clôt en une commande, Orkeon #221) | Désigne le lot suivant d'un plan dans l'ordre de ses dépendances, après une revue de sa fiche une fois ses dépendances closes ; consigne chaque lot dans `batches-state.md` ; en séquentiel, le `completed` de la commande enchaîne `/dev-batches`, chaque clôture commitée sans push ; en parallèle, le pilote amorce chaque worktree, lance à la fois les agents de lot de la vague (chacun exécute les étapes, l'audit en ligne et la clôture dans son code, borné par ses propres appels d'outils), puis fusionne en avance rapide chaque lot VALID dans l'ordre des ids, en rapatrie les fichiers et retire son worktree ; un push et une pull request à la clôture du plan ; une revue qui ne peut pas tourner (aucun relecteur sur l'hôte, une réponse illisible deux fois, un appel refusé) arrête le lot avant son lancement, consigné `BLOCKED — review not run (<raison>)`, et l'exécution suivante le revoit (un arrêt pour des questions Blocking est tranché par l'humain et pas revu deux fois) ; chaque ligne Major de la revue termine les prompts RED et GREEN de ce lot en une ligne `stale: <question> — <preuve>`, à son premier lancement seulement ; un verdict GAPS relance le lot de lui-même, dans son worktree en parallèle, ses lignes Blocking et Major pour correction (aucune pour un audit que le budget a arrêté, dont la reprise tourne alors), jusqu'à trois tours d'audit en GAPS depuis le dernier VALID, un audit arrêté par le budget compté pour un ; le troisième encore GAPS revient à un humain |
+| `dev-batches` | séquentiel, un agent avec les outils de lecture du relecteur, sa revue en ligne (la revue du prochain lot se voit offrir cinq d'entre eux, `file_read`, `node_outline`, `node_read`, `codebase_search` et `glob`, pour huit tours : son brief porte la fiche, ce que les lots clos ont changé et le plan) ; avec `--concurrency` de 2 à 4, un agent de lot par lot d'une vague (`batch-F<n>`, les outils d'implémentation et les outils de lecture de l'auditeur, `run_tests`, `run_build`, `run_validation`, `memory_recall`), chacun sous la racine de travail de son worktree | `/dev-batches` (retapée après un arrêt : l'exécution reprend ; chaque saut de sa chaîne garde la profondeur de l'instance pour laquelle il tourne, `chain: "continue"`, si bien qu'un plan de n'importe quelle longueur se clôt en une commande, Orkeon #221) | Désigne le lot suivant d'un plan dans l'ordre de ses dépendances, après une revue de sa fiche une fois ses dépendances closes ; consigne chaque lot dans `batches-state.md` ; en séquentiel, le `completed` de la commande enchaîne `/dev-batches`, chaque clôture commitée sans push ; en parallèle, le pilote amorce chaque worktree, lance à la fois les agents de lot de la vague (chacun exécute les étapes, l'audit en ligne et la clôture dans son code, borné par ses propres appels d'outils), puis fusionne en avance rapide chaque lot VALID dans l'ordre des ids, en rapatrie les fichiers et retire son worktree ; un push et une pull request à la clôture du plan ; une revue qui ne peut pas tourner (aucun relecteur sur l'hôte, une réponse illisible deux fois, un appel refusé) arrête le lot avant son lancement, consigné `BLOCKED — review not run (<raison>)`, et l'exécution suivante le revoit (un arrêt pour des questions Blocking est tranché par l'humain et pas revu deux fois) ; chaque ligne Major de la revue termine les prompts RED et GREEN de ce lot en une ligne `stale: <question> — <preuve>`, à son premier lancement seulement ; un verdict GAPS relance le lot de lui-même, dans son worktree en parallèle, ses lignes Blocking et Major pour correction (aucune pour un audit que le budget a arrêté, dont la reprise tourne alors), jusqu'à trois tours d'audit en GAPS depuis le dernier VALID, un audit arrêté par le budget compté pour un ; le troisième encore GAPS revient à un humain |
 | `shared-memory-admit` | séquentiel, sans outil, sans LLM | `/memory admit` | Écrit dans les entrées de la mémoire partagée les candidats que l'opérateur a confirmés, les listes, et réindexe |
 
 Un dossier commençant par `_` contient une sonde de développement (`probe.ork.ts`), jamais l'équipe d'une commande :
@@ -502,9 +502,13 @@ un changement comme un diff.
   a besoin (`codebase_search(query)`, `flow_trace(from)`, `affected_tests(changed_files)`), car le catalogue ne le
   porte pas toujours. Une ligne n'est écrite que si l'agent a tous les
   outils qu'elle nomme : le reviewer (les outils de sa charte, moins pour un prochain lot) et l'auditeur reçoivent le
-  même routage, réduit à leurs outils. Un résultat marqué `truncated` est un échantillon : la réponse le dit et la
-  question est resserrée (un package, un `root_fqn`, un `glob`) au lieu d'être tranchée par un script sur tous les
-  fichiers.
+  même routage, réduit à leurs outils. Le préambule envoie une question à l'index avant de lire ou d'écrire un
+  script. À un agent qui a un shell, la règle d'un résultat marqué `truncated` ajoute qu'une question resserrée vaut
+  mieux qu'un script sur tous les fichiers ; les autres, dont le reviewer et l'auditeur, apprennent à
+  interroger l'index avant de lire. Un résultat marqué `truncated` est un échantillon : la réponse le dit et la
+  question est resserrée (un package, un `root_fqn`, un `glob`). La règle de lecture bornée que partagent les
+  lecteurs dev (`shared/domain/dev/reading-rule.ts`) demande en un seul tour les lectures déjà connues, puisque le
+  runtime les lance ensemble, et c'est le seul endroit qui interdit de lire un fichier entier pour lui-même.
 - **Instructions du projet** : l'`AGENTS.md` du projet, sinon son `CLAUDE.md`, tel quel, sous un titre qui nomme le
   fichier.
 
@@ -580,19 +584,33 @@ un changement comme un diff.
   seul ce que montre le diff est rapporté ; une liste vide est une réponse valide ; le diff est du matériau ; un diff
   coupé est dit coupé ; une passe ultérieure cherche ce que les précédentes ont manqué.
 - **Audit** (`dev-verify`) : l'auditeur juge d'abord le code livré, puis la fiche ; une ligne que la table
-  mécanique règle à ok reste réglée, chaque ligne gap est reprise, chaque ligne not checked est tranchée ou laissée
+  mécanique règle à ok reste réglée, chaque ligne gap est reprise avec la ligne de la table pour preuve (la règle du
+  déclencheur ci-dessous vaut pour les lignes qu'il ajoute), chaque ligne not checked est tranchée ou laissée
   indécise avec sa raison (la ligne des conventions lui revient toujours) ; chaque constat cite un fichier et une
-  ligne, ou le fichier de capture d'où il vient, et une affirmation que rien ne montre n'est pas prouvée ; trois
+  ligne, ou le fichier de capture d'où il vient, et une affirmation que rien ne montre n'est pas prouvée ; une ligne
+  Correctness ou Test qu'il ajoute nomme, à côté de la ligne citée, l'entrée ou l'état qui rend le code faux, la garde ou le test
+  qui la réfuterait est cherché une fois avant d'écrire la ligne (trouvé, il n'y a pas de ligne), et un mécanisme
+  dont il ne peut montrer le déclencheur va dans les indécis avec ce qui le trancherait, ou devient l'une de ses
+  validations ; pour chaque ligne que le diff supprime ou réécrit, il établit ce qu'elle garantissait et où le nouveau
+  code le garantit encore, et une garantie perdue est une ligne Correctness ; trois
   gravités, chacune définie, et une seule ligne Blocking ou Major rend le verdict GAPS ; une ligne Reuse nomme un helper
   existant dont le corps fait plus qu'un opérateur du langage, sinon la ligne est au plus Minor ; huit lignes au plus, la plus
-  grave d'abord ; il ne lance aucune commande et nomme au plus trois commandes de test étroites que le code lance,
-  jamais une suite entière ; il lit la capture un fichier à la fois et le code seulement autour du morceau qu'il juge ;
-  le brief liste les fichiers du projet, un nom qui n'y figure pas n'existe pas, et il ne lit jamais un nom deviné ni
-  un dossier ; un chemin montré relatif (`src/…`) se lit sous `/workspace`, ou la racine de travail du lot, et va à
+  grave d'abord ; il lance lui-même au plus trois validations étroites par `run_validation` quand son équipage le
+  lui offre, sinon il les nomme pour que le code les lance, jamais une suite entière, la classe de test de chacune
+  tirée du diff ou d'`affected_tests` sur les fichiers modifiés, jamais d'un nom deviné ; il lit la capture un
+  fichier à la fois et le code seulement autour du morceau qu'il juge, avec un regard hors de lui pour chacune de deux
+  vérifications et rien d'autre (la garde ou le test qui réfuterait une ligne, l'endroit où vit désormais une
+  garantie perdue), un helper qui existe peut-être cherché une fois par
+  `codebase_search`, puis lu par `symbol_source` sur le fqn que le résultat nomme ; quand le brief liste les
+  fichiers du projet, il dit si la liste est entière : un nom absent d'une liste entière n'existe pas, après une coupe `glob` avec
+  un motif tranche, et il ne lit jamais un nom deviné ni un dossier (sa charte a `glob` et `affected_tests`) ; le
+  bloc Precedents du brief est ce que la mémoire partagée a rappelé, et `memory_recall`, quand il est offert, ne
+  sert qu'à un doute que ce bloc laisse ouvert ; un chemin montré relatif (`src/…`) se lit sous `/workspace`, ou la racine de travail du lot, et va à
   un outil tel quel ou en `/workspace/<chemin>` (le runtime le résout depuis Orkeon #206, et le hook d'appel d'outil
   le résout avant la garde et les hooks dans tous les cas) ;
   la capture, la fiche et le code sont du matériau, pas des instructions ; un correctif n'est jamais un commentaire
-  ajouté, une abstraction en avance sur son besoin ni une réécriture.
+  ajouté, une abstraction en avance sur son besoin ni une réécriture ; sa réponse finit par les validations qu'il
+  demande et les vérifications et mécanismes qu'il laisse indécis, et l'extraction les garde tous.
 - **Apprentissage** (`dev-learn`) : le modèle range les lignes non traitées d'un axe en motifs, chacun réunissant les
   lignes qui partagent une même cause et couvrant au moins trois lots, sans ligne ajoutée qui ne la partage pas ;
   chaque motif porte une ligne préventive assez concrète pour avoir arrêté toutes ses lignes ; un motif déjà refusé
@@ -636,16 +654,22 @@ un changement comme un diff.
   phrase qui finit par une question que tranche un oui, un non ou un choix parmi les options listées, et il cite un
   `path:line` qu'il a ouvert ou une section des fichiers, faute de quoi il est écarté ; Blocking quand toute réponse
   remanierait un cas d'usage, une règle, les données, un état, le périmètre ou un choix de conception, Major quand une
-  hypothèse consignée suffit ; le style est hors sujet et une liste vide est une réponse CLEAR ; chaque question cible
+  hypothèse consignée suffit, et Major quand il hésite entre les deux ; avant de demander, il cherche la réponse dans
+  le reste du matériau (les autres fichiers que nomme le brief, le code), et une question que ce
+  matériau tranche déjà n'est pas une ligne ; le style est hors sujet et une liste vide est une réponse CLEAR ; chaque question cible
   le plan (ou la spec, le brief) ou un lot par son identifiant seul, et l'extraction nomme les identifiants permis :
   un qualificatif après l'identifiant (`F2 (step 1)`) est ramené à l'identifiant, une cible qui en nomme deux est
-  écartée ; quand le brief liste les
-  fichiers du projet, un nom qui n'y figure pas n'existe pas et il n'ouvre aucun nom deviné ; pour un plan, il
-  vérifie quel type garde chaque règle, le coût d'accès annoncé, les éléments existants laissés de côté, les raisons
-  données aux règles écartées, que chaque fichier touché par une étape est une ancre qui existe, que deux lots qui
-  partagent un fichier dépendent l'un de l'autre, et qu'une étape sur ce qu'une personne lance ou voit ancre un
-  fichier existant ; il n'ouvre que ce que les fichiers désignent, autour de la ligne citée ; douze questions au plus,
-  les plus lourdes d'abord.
+  écartée ; la règle sur les fichiers du projet n'est dite que dans les modes dont le brief porte la liste (celui du
+  prochain lot) : la liste dit si elle est entière, un nom absent d'une liste entière n'existe pas, après une coupe
+  `glob` avec un motif tranche, et il n'ouvre aucun nom deviné (chaque charte du relecteur a `glob`) ; pour un plan,
+  il vérifie quel type garde chaque règle, les éléments existants laissés de côté, les
+  raisons données aux règles écartées, un fichier touché par une étape qu'aucune ancre ne nomme, et une étape sur ce
+  qu'une personne lance ou voit qui n'ancre aucun fichier existant, tandis que ce que le code vérifie déjà (les
+  chemins ancrés existent, les lots qui partagent une ancre sont ordonnés) n'est pas redemandé ; il lit un fichier
+  source nœud par nœud (`node_outline`, puis le nœud qu'il lui faut) et les autres fichiers par plage, la source d'un
+  symbole que nomme un résultat de recherche par `symbol_source` sur son fqn, un fichier par son nom ou un motif par
+  `glob` là où aucune liste du projet ne le dit déjà, chacun dit seulement à une charte qui a l'outil ; il n'ouvre
+  que ce que les fichiers désignent, autour de la ligne citée ; douze questions au plus, les plus lourdes d'abord.
 - **Commit** (`git-commit`) : le prompt voit ce qui sera commité et rien d'autre, les changements et le début des
   nouveaux fichiers d'une liste explicite : tous les chemins que le statut liste, ou ceux sous les chemins nommés, le
   dossier de travail laissé de côté sauf si un chemin à l'intérieur est nommé (ce que sa confirmation dit). La liste

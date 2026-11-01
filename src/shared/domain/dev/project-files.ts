@@ -1,13 +1,20 @@
 // The project's files as a brief lists them, so that a reader (the auditor, the next batch's reviewer) looks for
-// what exists instead of guessing a module's name and reading it: a name absent from the list does not exist. The
-// list is git's (tracked and untracked files alike, the ignored ones aside), the work folder and `.orkeon/` left
-// out, bounded. Pure.
+// what exists instead of guessing a module's name and reading it. The list is git's (tracked and untracked files
+// alike, the ignored ones aside), the work folder and `.orkeon/` left out, bounded; its closing line says whether it
+// is whole (a name absent from it does not exist) or cut (glob with a pattern decides past the cut). Pure.
 
-/** The most files a brief lists; past it the count left out is said, and glob lists the rest. */
+/** The most files a brief lists; past it the count left out is said, and glob with a pattern finds the rest. */
 export const MAX_LISTED_FILES = 150;
 
-export const PROJECT_FILES_HEADING =
-  "Project files (tracked and untracked, the work folder and .orkeon/ left out; a name absent here does not exist):";
+export const PROJECT_FILES_HEADING = "Project files (tracked and untracked, the work folder and .orkeon/ left out):";
+
+/** The closing line of a whole list. */
+export const PROJECT_FILES_WHOLE_LINE = "- (the list is whole: a name absent from it does not exist)";
+
+/** The closing line of a list cut at its bound, `left` files left out. */
+export function projectFilesCutLine(left: number): string {
+  return `- … and ${left} more: a name absent above may still exist; glob with a pattern lists them`;
+}
 
 /** git's listing (one path per line) as a sorted list without duplicates, the work folder and .orkeon/ left out. */
 export function parseTrackedFiles(stdout: string, work: string): string[] {
@@ -18,7 +25,7 @@ export function parseTrackedFiles(stdout: string, work: string): string[] {
 }
 
 /** The lines a brief carries for `files`: none when no file is known, else the heading, one line per file up to
- *  `max`, and how many are left out. */
+ *  `max`, and the closing line that says whether the list is whole or how many are left out. */
 export function projectFileLines(files: readonly string[], max: number = MAX_LISTED_FILES): string[] {
   if (files.length === 0) return [];
   const shown = files.slice(0, max);
@@ -26,6 +33,6 @@ export function projectFileLines(files: readonly string[], max: number = MAX_LIS
   return [
     PROJECT_FILES_HEADING,
     ...shown.map((file) => `- ${file}`),
-    ...(left > 0 ? [`- … and ${left} more: glob lists the rest`] : []),
+    left > 0 ? projectFilesCutLine(left) : PROJECT_FILES_WHOLE_LINE,
   ];
 }
