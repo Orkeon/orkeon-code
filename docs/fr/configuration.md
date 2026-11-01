@@ -91,7 +91,10 @@ ses agents, agents enfants des étapes dev compris, et le journal du lancement e
 clé rien ne change : les agents tournent sur le modèle par défaut de l'hôte, comme avant. Un nom que l'hôte ne
 déclare pas fait échouer le chargement du crew, son erreur listant les profils que l'hôte connaît ; un simple profil
 LLM marche de la même façon, sans modèle de décision devant. Le modèle par appel d'`/advisor` (`advisor.model`)
-s'applique toujours par-dessus le profil. Les étapes et leurs réglages sont dans
+s'applique toujours par-dessus le profil. Kev sur cette machine et Liquid, pas à pas, avec leurs exemples
+[`config/appsettings.kev.example.json`](../../config/appsettings.kev.example.json) et
+[`config/appsettings.liquid.example.json`](../../config/appsettings.liquid.example.json) :
+[Modèles de décision en local](decision-models-local.md). Les étapes et leurs réglages sont dans
 [les modèles de décision d'Orkeon](https://github.com/Orkeon/orkeon/blob/main/docs/architecture/decision-models.md).
 
 Claude par un plan Max : [`config/appsettings.anthropic.example.json`](../../config/appsettings.anthropic.example.json)

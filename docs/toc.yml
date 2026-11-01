@@ -6,6 +6,8 @@
   href: wsl-tutorial.md
 - name: Configuration
   href: configuration.md
+- name: Decision models locally
+  href: decision-models-local.md
 - name: Permissions
   href: permissions.md
 - name: Shared memory

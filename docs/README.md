@@ -9,6 +9,7 @@ Start with [Getting started](getting-started.md); the [README](../README.md) giv
 | [Getting started](getting-started.md) | Docker, tool and source modes, first session |
 | [WSL tutorial](wsl-tutorial.md) | Speech and a local model on WSL2, on the GPU, step by step |
 | [Configuration](configuration.md) | LLM providers, settings file, environment variables |
+| [Decision models locally](decision-models-local.md) | Kev on this machine and Liquid, step by step, with decision profiles to try |
 | [Permissions](permissions.md) | Modes, rules, what the agent can touch |
 | [Hooks](hooks.md) | Your commands around the model's tool calls in the dev steps |
 | [Shared memory](shared-memory.md) | Admitted decisions, structures, methods and mistakes the agents recall |

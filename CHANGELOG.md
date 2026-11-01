@@ -52,6 +52,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Trying the decision models Kev and Liquid locally** (Orkeon #266): a page,
+  [Decision models locally](docs/decision-models-local.md), starts a Kev server on this machine, checks it and Liquid
+  by hand, serves Liquid's open d1 weights (`LiquidAI/d1-3B`) on this machine behind a few lines of Python, points
+  Orkeon Code at any of them, and gives three decision profiles to try (guard and escalate, route, fail
+  closed), what to watch and what to do when it fails. Two example settings go with it,
+  `config/appsettings.kev.example.json` and `config/appsettings.liquid.example.json`: the Jev example on Kev and on
+  Liquid, the provider named in `Orkeon:Decision:Provider`.
+
 - **The assistant knows which tools produced its earlier answers.** Each turn that called a tool stores a `[tools]`
   message before its answer: one line per call, with the tool, its main arguments cut short and a one-line outcome
   (a count, an exit code, an error, a scan cut short). Repeated calls fold as `×n`, at most twenty lines, and an

@@ -87,7 +87,10 @@ profile `guarded` over them. The session key `llm.profile` names the profile the
 steps included, and the launch log and `/config list` show it. Without the key nothing changes: the agents run on the
 host's default model, as before. A name the host does not declare fails the crew's load, its error listing the
 profiles the host knows; a plain LLM profile works the same way, with no decision model in front. The per-call model
-of `/advisor` (`advisor.model`) still applies on top of the profile. The stages and their settings are in
+of `/advisor` (`advisor.model`) still applies on top of the profile. Kev on this machine and Liquid, step by step,
+with their examples [`config/appsettings.kev.example.json`](../config/appsettings.kev.example.json) and
+[`config/appsettings.liquid.example.json`](../config/appsettings.liquid.example.json):
+[Decision models locally](decision-models-local.md). The stages and their settings are in
 [Orkeon's decision models](https://github.com/Orkeon/orkeon/blob/main/docs/architecture/decision-models.md).
 
 Claude through a Max plan: [`config/appsettings.anthropic.example.json`](../config/appsettings.anthropic.example.json)
