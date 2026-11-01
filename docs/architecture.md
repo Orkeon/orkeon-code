@@ -441,6 +441,15 @@ prompt as the model reads it, to review a change as a diff.
 - **Search**: route by file type to the right index, prefer the code-intelligence tools to the shell (the last
   resort where it is offered, a plain read where it is not), trust their freshness (edited files are reindexed before
   a search answers), ingest the needed files when a document search finds nothing, and again after editing them.
+- **Question to tool** (`shared/domain/code-intel-routing.ts`): each kind of question goes to the tool that answers
+  it, with the parameter that makes it answer: the shape of the repository to `codebase_map`, a symbol to
+  `codebase_search` (`filter_kinds` for one kind), what a type extends to `symbol_detail` with `expand:
+  "inheritance"`, who extends it to `sub_graph` going backward over `inherits` edges, callers, impact and the tests
+  concerned to `symbol_detail`, `impact_analysis` and `affected_tests`, a code shape across the repository to
+  `structural_search`, a text to `count_pattern` or `grep`. A line is written only when the agent holds every tool
+  it names, so the reviewer (its charter's tools, fewer for a next batch) and the auditor get the same routing,
+  cut to their tools. A result marked `truncated` is a sample: the answer says so and the question is narrowed (a
+  package, a `root_fqn`, a `glob`) instead of being answered by a script over every file.
 - **Project instructions**: the project's `AGENTS.md`, else its `CLAUDE.md`, verbatim, under a heading that names
   the file.
 

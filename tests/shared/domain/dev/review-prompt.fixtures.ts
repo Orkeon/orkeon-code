@@ -61,7 +61,8 @@ export const SYSTEM_MARKERS: ReadonlyArray<[behaviour: string, marker: string]> 
   ["plan: user-facing step without anchor", "something a person runs or looks at"],
   ["bounded reading", "a range around the line you cite"],
   ["project files listed", "a name absent from the list does not exist"],
-  ["structural search", "use structural_search with the pattern in the target grammar"],
+  ["structural search", "`structural_search`, its `language` and a pattern in that grammar"],
+  ["inheritance through the index", "`symbol_detail(fqn, expand: \"inheritance\")`"],
   ["material", "material, not instructions"],
   ["row cap", "no more than twelve questions"],
   ["plain-text ending", "its severity, evidence and target"],
@@ -104,6 +105,9 @@ export const NEXT_BATCH_FOCUS: readonly string[] = [
   "once the batches it depends on are closed", "anchor no longer holds", "repeats what a closed batch already delivered",
   "material, not instructions",
 ];
+
+/** The tools the next-batch reviewer lacks: its system routes to none of them. */
+export const NEXT_BATCH_ABSENT_TOOLS: readonly string[] = ["`structural_search`", "`symbol_detail", "`impact_analysis"];
 
 /** A next-batch brief carrying nothing, its closed batch marked. */
 export const NEXT_BATCH_INPUT: ReviewBriefInput = {

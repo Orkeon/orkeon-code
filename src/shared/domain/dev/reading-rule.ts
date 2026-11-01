@@ -38,8 +38,3 @@ export const KNOWN_TOOLS_RULE =
   "Only the tools you are given exist: a call to any other name (read, write, bash, …) is refused with \"ERROR: tool " +
   "'<name>' is not available to this agent.\". On that error, call one of your tools instead (file_read or node_read " +
   "to read); never call that name again.";
-
-/** The reviewer's search for a pattern (the reviewer charter holds structural_search). */
-export const STRUCTURAL_SEARCH_RULE =
-  "To find every place a pattern occurs (a call shape, a construct), use structural_search with the pattern in the " +
-  "target grammar ($NAME one node, $$$NAME several) rather than grep; it gives each match's enclosing symbol.";

@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The prompts send each code question to the tool that answers it**: asked for every base class, the assistant
+  wrote a shell script of regular expressions instead of asking Orkeon's index. The main loop, the reviewer and the
+  auditor now get one line per question they can ask (the bases of a type, who extends it, its callers, a code shape
+  across the repository, a count), with the parameters that make the tool answer, and only for the tools they hold.
+  A result marked `truncated` is presented as a sample and the question narrowed, rather than scripted over every
+  file. The reviewer of a next batch is no longer told to use `structural_search`, which it does not hold.
 - The runtime pin moves to Orkeon `main` `83cd91d` (Orkeon #277 to #279, [ADR 0015](docs/adr/0015-orkeon-after-276.md)).
   A right click in the console input no longer flashes the native context menu (#278); over SSH the console copies a
   keyboard selection and takes the terminal's paste (#279). The

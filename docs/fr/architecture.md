@@ -474,6 +474,16 @@ un changement comme un diff.
   (le dernier recours là où il est offert, une simple lecture là où il ne l'est pas), se fier à leur fraîcheur (les
   fichiers modifiés sont réindexés avant qu'une recherche réponde), ingérer les fichiers nécessaires quand une
   recherche documentaire ne trouve rien, et de nouveau après les avoir modifiés.
+- **De la question à l'outil** (`shared/domain/code-intel-routing.ts`) : chaque sorte de question va à l'outil qui
+  y répond, avec le paramètre qui le fait répondre : la forme du dépôt à `codebase_map`, un symbole à
+  `codebase_search` (`filter_kinds` pour un genre), ce qu'un type étend à `symbol_detail` avec `expand:
+  "inheritance"`, qui l'étend à `sub_graph` en remontant les arêtes `inherits`, les appelants, l'impact et les tests
+  concernés à `symbol_detail`, `impact_analysis` et `affected_tests`, une forme de code dans tout le dépôt à
+  `structural_search`, un texte à `count_pattern` ou `grep`. Une ligne n'est écrite que si l'agent a tous les
+  outils qu'elle nomme : le reviewer (les outils de sa charte, moins pour un prochain lot) et l'auditeur reçoivent le
+  même routage, réduit à leurs outils. Un résultat marqué `truncated` est un échantillon : la réponse le dit et la
+  question est resserrée (un package, un `root_fqn`, un `glob`) au lieu d'être tranchée par un script sur tous les
+  fichiers.
 - **Instructions du projet** : l'`AGENTS.md` du projet, sinon son `CLAUDE.md`, tel quel, sous un titre qui nomme le
   fichier.
 

@@ -56,6 +56,7 @@ export const SYSTEM_MARKERS: readonly (readonly [string, string])[] = [
   ["sheet in the brief", "The brief carries the sheet and the capture"],
   ["spec, plan and config closed", "stay closed"],
   ["one search for reuse", "one codebase_search"],
+  ["callers through the index", "`expand: \"callers\"`"],
 ];
 
 /** Words of the host the system prompt never speaks. */
