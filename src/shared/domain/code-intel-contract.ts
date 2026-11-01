@@ -78,7 +78,7 @@ export const CODE_INTEL_PARAMS = {
   codebase_map: ["level", "include_metrics"],
   codebase_search: ["query", "top_k", "filter_kinds"],
   symbol_source: ["fqn"],
-  flow_trace: ["fqn", "direction", "max_depth"],
+  flow_trace: ["from", "to", "direction", "max_depth", "edge_kinds"],
   // The analysis five — the subset each probe/command actually exercises, and the
   // parameters code-intel-routing.ts names in the prompts (filter_kinds, edge_kinds, expand).
   // `scope` is a NodeLevel ("L1_Package" | "L2_Module" | "L3_Symbol"), the same

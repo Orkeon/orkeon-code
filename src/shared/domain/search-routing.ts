@@ -70,14 +70,17 @@ export function hasRagLoader(path: string): boolean {
  * The playbook's routing paragraph — kept here so the prompt text and the rule
  * cannot drift apart (the prompt renders THIS, tests pin THIS).
  */
-export function describeSearchRouting(): string {
+export function describeSearchRouting(tools: readonly string[]): string {
+  const ingest = tools.includes("rag_ingest")
+    ? " The collection holds nothing until ingested: when it returns nothing for files you KNOW exist, " +
+      "`rag_ingest {collection: \"" + WORKSPACE_DOCS_COLLECTION + "\", sources: [globs of those files, such as " +
+      "\"/workspace/docs/**/*.md\"]}`, then search again."
+    : " The collection holds only what a writing session ingested: an empty answer there is no proof of absence.";
   return (
-    `- Code (${TREE_CODE_EXTENSIONS.join(" ")}): \`codebase_search\` (hybrid), then ` +
-    "`symbol_source`/`flow_trace` on the hits.\n" +
-    `- Everything else (documents, configuration, data, other languages — ${RAG_DOCUMENT_EXTENSIONS.slice(0, 5).join(" ")}, ` +
-    "unknown extensions): `rag_search` with `collection: \"" + WORKSPACE_DOCS_COLLECTION + "\"`. " +
-    "If it returns nothing for files you KNOW exist, ingest them first — " +
-    "`rag_ingest {collection: \"" + WORKSPACE_DOCS_COLLECTION + "\", sources: [globs of those files, such as " +
-    "\"/workspace/docs/**/*.md\"]}` — then search again. The code index cannot hold these files, so do not retry there."
+    "- Code files: `codebase_search` (exact identifiers and paraphrases alike), then `symbol_source`/`flow_trace` " +
+    "on the hits. The code index cannot hold any other file, so do not retry there.\n" +
+    "- Any other file (configuration, data, documents, other languages): a name, a key or an exact text with " +
+    "`grep` (a `glob` narrows), then `file_read`; a question of meaning over prose with `rag_search` " +
+    "(`question`, `collection: \"" + WORKSPACE_DOCS_COLLECTION + "\"`)." + ingest
   );
 }

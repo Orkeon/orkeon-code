@@ -26,7 +26,7 @@ const ROUTING_LINES: readonly RoutingLine[] = [
   },
   {
     tools: ["codebase_search"],
-    text: "a symbol by name or meaning: `codebase_search`, `filter_kinds: [\"Class\"]` for one kind",
+    text: "a symbol by name or meaning: `codebase_search(query)`, `filter_kinds: [\"Class\"]` for one kind",
   },
   {
     tools: ["symbol_detail"],
@@ -35,12 +35,13 @@ const ROUTING_LINES: readonly RoutingLine[] = [
   },
   {
     tools: ["sub_graph"],
-    text: "who extends or implements a type: `sub_graph(seeds: [fqn], direction: \"backward\", " +
+    text: "who extends or implements a type: `sub_graph(seeds: [fqn], direction: \"Backward\", " +
       "edge_kinds: [\"inherits\"])`; who calls it: the same with `[\"calls\"]`",
   },
   {
     tools: ["flow_trace"],
-    text: "a call chain over several hops: `flow_trace` (Forward, Backward or Both)",
+    text: "a call chain over several hops from one symbol: `flow_trace(from, direction)`, `Forward`, `Backward` " +
+      "or `Both`",
   },
   {
     tools: ["impact_analysis"],
@@ -48,7 +49,7 @@ const ROUTING_LINES: readonly RoutingLine[] = [
   },
   {
     tools: ["affected_tests"],
-    text: "the tests a change concerns: `affected_tests`",
+    text: "the tests a change concerns: `affected_tests(changed_files)`, or `base` for a git ref",
   },
   {
     tools: ["dependency_graph"],

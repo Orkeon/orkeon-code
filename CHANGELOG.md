@@ -21,6 +21,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   across the repository, a count), with the parameters that make the tool answer, and only for the tools they hold.
   A result marked `truncated` is presented as a sample and the question narrowed, rather than scripted over every
   file. The reviewer of a next batch is no longer told to use `structural_search`, which it does not hold.
+- **The main loop's header names the tool for each job it left unsaid**: `edit_file` for a change to an existing
+  file (the smallest unique `old_string`, after reading around it), where the only rule was to read a file whole and
+  rewrite it with `file_write`; `grep` then `file_read` for a name, key or exact text in a configuration, data or
+  document file, where it sent the model to a RAG collection nothing had ingested; one message for the reads and
+  searches that do not depend on each other, which the runtime runs at once; the shell for builds, tests, git and
+  the project's scripts, never for what the read tools do. The lines about ingesting appear only where `rag_ingest`
+  is offered. The routing lines show the argument each tool needs (`codebase_search(query)`, `flow_trace(from)`,
+  `affected_tests(changed_files)`), since the runtime's catalogue does not always carry it. The header lists the
+  history's markers without explaining each one, and names code files without their twenty-three extensions.
+- **The example settings widen the result cut of the graph and search tools** (`sub_graph`, `dependency_graph`,
+  `codebase_search`, `symbol_detail`, `impact_analysis`, `flow_trace`, `codebase_map`, `package_summary`,
+  `structural_search`) to 12 000 characters: their `truncated` and `cycles` fields come last in the JSON, so the
+  default cut of 4 000 removed them before the nodes, and a cut result read as complete.
 - The runtime pin moves to Orkeon `main` `83cd91d` (Orkeon #277 to #279, [ADR 0015](docs/adr/0015-orkeon-after-276.md)).
   A right click in the console input no longer flashes the native context menu (#278); over SSH the console copies a
   keyboard selection and takes the terminal's paste (#279). The
