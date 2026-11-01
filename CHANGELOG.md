@@ -813,6 +813,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A turn a decision stage blocks answers the block instead of failing** (#47): when a guard or verify stage of the
+  active `llm.profile` blocks the call, or a fail-closed stage cannot reach its decision model, `/assistant` answers
+  `Blocked by the decision profile '<profile>' (stage '<stage>'): <reason>` with what to do, logs it as a warning and
+  stores nothing after the request; the run no longer fails. The block is read from the host's sentence until
+  Orkeon #269 gives scripts a typed block.
 - **The `/analyze` harvest covers what matters in a large repository**: the synthesis worked from the index's
   first 200 symbols (markdown sections on a C# repository of 8,600 files), its first 10 packages and a `200 total`
   that only counted those. It now asks for up to 1,000 packages, summarizes the 15 largest (test packages last),

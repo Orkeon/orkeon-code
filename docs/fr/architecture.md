@@ -355,7 +355,10 @@ Le corps de l'agent `main-loop` est la boucle (`crews/main-loop/application/run-
    du modèle (le port `Llm` au-dessus de `ctx.llm.act()`) : le runtime fait tourner le cycle modèle ⇄ appels d'outils
    sur le catalogue, chaque appel d'un tour du modèle dans l'ordre, sous le budget du crew et la garde de permission,
    et rend la réponse finale. Un appel du modèle qui échoue lève une `LlmFailure` : le tour ne stocke aucune réponse
-   et échoue avec l'erreur du fournisseur.
+   et échoue avec l'erreur du fournisseur. Un appel qu'une étape de décision de l'hôte a bloqué n'est pas une panne
+   mais une décision (`decisionBlockOf`, `shared/domain/llm-failure.ts`, lit la phrase de l'hôte en attendant le
+   blocage typé d'Orkeon #269) : le tour ne stocke rien après la requête, journalise un avertissement et répond le
+   blocage, son profil, son étape et sa raison, avec ce qu'il faut faire ; le run n'échoue pas.
 7. Ajouter le message `[tools]` du tour, puis la réponse. Le message est construit depuis l'`onToolResult` de l'act
    (`shared/domain/tool-trace.ts`) : une ligne par appel, l'outil, ses arguments principaux coupés court (chemin,
    motif, glob, mode, commande…) et un résultat d'une ligne (un nombre, un code de sortie, une erreur, un parcours

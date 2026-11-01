@@ -522,7 +522,7 @@ agent, and lets the ordinary requests through.
 ### Block when the judge is down: `strict`
 
 By default a stage whose decision model fails lets the call go on with a warning. `FailClosed` blocks it instead,
-which is how to check that Orkeon Code really asks Kev: stop the server and every call fails.
+which is how to check that Orkeon Code really asks Kev: stop the server and every call is blocked.
 
 ```json
 {
@@ -563,8 +563,9 @@ are the host's, as the run below prints them.
    at 0.46, under 0.6)`, and `large` answers again.
 4. **A request that is blocked.** On `guarded-small`, the same message is blocked before the call: `Blocked by the
    decision stage 'guard' of profile 'guarded-small': the request matches the risk 'prompt_injection' at 0.51`, and
-   the audit records `decision.block`. The turn ends on that error: Orkeon Code does not yet turn a block into an
-   answer, the crew fails with it.
+   the audit records `decision.block`. The turn answers the block instead of failing: `Blocked by the decision
+   profile 'guarded-small' (stage 'guard'): …`, followed by what to do (rephrase, or another `llm.profile`), and
+   nothing but the request is stored.
 5. **The judge down.** `docker stop kev`. On `guarded` (`FailClosed: false`), each stage tries three more times, after
    1, 2 and 3 seconds, logs `stage guard failed; the call goes on (fail-open)` with `kev could not be reached at
    http://127.0.0.1:8009/v1`, and the turn goes on, 6 seconds slower per stage. On `strict`, the call is blocked:

@@ -532,7 +532,7 @@ main sur l'agent, et laisse passer les requêtes ordinaires.
 
 Par défaut, une étape dont le modèle de décision échoue laisse l'appel continuer avec un avertissement. `FailClosed`
 le bloque à la place, ce qui permet de vérifier qu'Orkeon Code interroge vraiment Kev : arrêtez le serveur et chaque
-appel échoue.
+appel est bloqué.
 
 ```json
 {
@@ -573,8 +573,9 @@ journal sont celles de l'hôte, telles que l'exécution ci-dessous les affiche.
    at 0.46, under 0.6)`, et `large` répond à nouveau.
 4. **Une requête bloquée.** Sur `guarded-small`, le même message est bloqué avant l'appel : `Blocked by the decision
    stage 'guard' of profile 'guarded-small': the request matches the risk 'prompt_injection' at 0.51`, et l'audit
-   enregistre `decision.block`. Le tour se termine sur cette erreur : Orkeon Code ne transforme pas encore un blocage
-   en réponse, le crew échoue avec.
+   enregistre `decision.block`. Le tour répond le blocage au lieu d'échouer : `Blocked by the decision profile
+   'guarded-small' (stage 'guard'): …`, suivi de ce qu'il faut faire (reformuler, ou un autre `llm.profile`), et rien
+   d'autre que la requête n'est stocké.
 5. **Le juge tombé.** `docker stop kev`. Sur `guarded` (`FailClosed: false`), chaque étape réessaie trois fois, après
    1, 2 et 3 secondes, journalise `stage guard failed; the call goes on (fail-open)` avec `kev could not be reached at
    http://127.0.0.1:8009/v1`, et le tour continue, 6 secondes plus lent par étape. Sur `strict`, l'appel est bloqué :

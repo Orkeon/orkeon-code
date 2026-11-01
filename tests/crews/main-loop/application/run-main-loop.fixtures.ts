@@ -145,3 +145,12 @@ export const SESSION_START = {
 export const DENYING_CHAINS = {
   turnStart: [{ id: "one-batch", check: () => ({ decision: "deny" as const, reason: "F2 is running" }) }],
 };
+
+/** The marker of a request a decision stage of the host blocked. */
+export const BLOCKED_MARKER =
+  "<undefined-llm:Blocked by the decision stage 'guard' of profile 'guarded': the request matches the risk 'prompt_injection' at 0.96>";
+
+/** What the turn answers for BLOCKED_MARKER. */
+export const BLOCKED_ANSWER =
+  "Blocked by the decision profile 'guarded' (stage 'guard'): the request matches the risk 'prompt_injection' at 0.96. " +
+  "The model gave no answer; rephrase the request, or choose another profile with /config set llm.profile.";
