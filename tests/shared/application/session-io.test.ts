@@ -82,6 +82,17 @@ describe("session IO — the store's operations", () => {
     deepStrictEqual(store.messages, [{ role: "user", content: "hi" }, { role: "system", content: "[note] use pnpm" }]);
   });
 
+  it("appends a message without reading or rewriting the buffer", async () => {
+    // Arrange
+    const { store, session } = sessionHarness();
+
+    // Act
+    await session.appendMessage("user", "hi");
+
+    // Assert
+    deepStrictEqual([store.readMessagesCalls, store.writeMessagesCalls, store.appendCalls], [0, 0, [{ role: "user", content: "hi" }]]);
+  });
+
   it("lets an append throw when the session store is unavailable", async () => {
     // Arrange
     const { store, session } = sessionHarness();

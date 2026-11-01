@@ -29,7 +29,9 @@ type Fits<T extends Exact<K, T>, K extends keyof OrkeonBuiltInTools> = T;
 export type SessionStoreInput = Fits<
   | { operation: "read_messages" | "get_metadata" | "reset" }
   | { operation: "write_messages"; messages: readonly unknown[] }
+  | { operation: "append_message"; role: string; content: string }
   | { operation: "get_state"; key: string }
+  | { operation: "get_state"; keys: readonly string[] }
   | { operation: "set_state"; key: string; value: string | null }
   | { operation: "set_title"; title: string },
   "sessionStore"

@@ -563,6 +563,42 @@ describe("runMainLoop — the host gate's state", () => {
   }
 });
 
+describe("runMainLoop — its session_store calls (Orkeon #263)", () => {
+  it("reads the turn's state in one batch, no key alone, the gate's warning included", async () => {
+    // Arrange
+    const { store, llm, deps } = turnSetup();
+    llm.gateEnabled = false;
+
+    // Act
+    await runMainLoop({ prompt: "hi" }, DEFAULT_LOADED, deps);
+
+    // Assert
+    deepStrictEqual([store.readStatesCalls.length, store.readStateCalls], [1, []]);
+  });
+
+  it("stores the request and the answer by appending them, the buffer never rewritten", async () => {
+    // Arrange
+    const { store, deps } = turnSetup();
+
+    // Act
+    await runMainLoop({ prompt: "hi" }, DEFAULT_LOADED, deps);
+
+    // Assert
+    deepStrictEqual([store.writeMessagesCalls, store.appendCalls.map((m) => m.role)], [0, ["user", "assistant"]]);
+  });
+
+  it("reads the buffer once, for the history", async () => {
+    // Arrange
+    const { store, deps } = turnSetup();
+
+    // Act
+    await runMainLoop({ prompt: "hi" }, DEFAULT_LOADED, deps);
+
+    // Assert
+    strictEqual(store.readMessagesCalls, 1);
+  });
+});
+
 describe("runMainLoop — the turn-start and stop chains", () => {
   it("stores the start script's lines as [turn-context] just before the request, once", async () => {
     // Arrange

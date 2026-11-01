@@ -368,6 +368,10 @@ La session vit dans le runtime : un tampon de conversation (`session_store`, `se
 d'état (`get_state`/`set_state`), la mémoire typée (`memory_store` : user, project, feedback, reference) et le coût et
 l'usage (`session_cost`, `session_stats`).
 
+Un tour lit les clés d'état dont il a besoin en un seul appel `get_state` à son début (`TURN_STATE_KEYS` dans
+`run-main-loop.ts`, servies par `shared/application/state-snapshot.ts` : une clé hors de la liste est lue seule), et
+range chaque message par `append_message`, qui ne renvoie ni ne réécrit le tampon (Orkeon #263).
+
 ## L'assemblage du prompt
 
 *Cette section est la spécification de comportement des prompts (ADR 0003). La page anglaise fait foi pour les

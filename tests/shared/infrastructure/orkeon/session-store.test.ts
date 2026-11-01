@@ -7,7 +7,7 @@ import { strictEqual, deepStrictEqual, rejects } from "node:assert";
 import { createSessionStore } from "../../../../src/shared/infrastructure/orkeon/session-store.ts";
 import { compactSession } from "../../../../src/shared/application/compaction/compact-session.ts";
 import { FakeTools } from "../../../support/doubles/fake-tools.ts";
-import { BUDGETS, FORCES, NOT_A_LIST, RESET_COUNTS, compactionDeps } from "./session-store.fixtures.ts";
+import { BUDGETS, FORCES, NOT_A_LIST, RESET_COUNTS, STATE_VALUES, compactionDeps } from "./session-store.fixtures.ts";
 
 describe("createSessionStore — a failed read", () => {
   it("rethrows a failed read of the buffer with the tool's own message, without the runtime's wrapping", async () => {
@@ -239,6 +239,70 @@ describe("createSessionStore — state", () => {
 
     // Assert
     deepStrictEqual(tools.inputsOf("sessionStore"), [{ operation: "set_state", key: "k", value: null }]);
+  });
+});
+
+describe("createSessionStore — several state keys", () => {
+  it("reads several keys in one get_state call", async () => {
+    // Arrange
+    const tools = new FakeTools();
+
+    // Act
+    await createSessionStore(tools).readStates(["a", "b"]);
+
+    // Assert
+    deepStrictEqual(tools.inputsOf("sessionStore"), [{ operation: "get_state", keys: ["a", "b"] }]);
+  });
+
+  for (const c of STATE_VALUES) {
+    it(c.name, async () => {
+      // Arrange
+      const tools = new FakeTools();
+      tools.replies.sessionStore = c.reply;
+
+      // Act
+      const values = await createSessionStore(tools).readStates(["a", "missing"]);
+
+      // Assert
+      deepStrictEqual(values, c.expected);
+    });
+  }
+
+  it("reads no key without a call", async () => {
+    // Arrange
+    const tools = new FakeTools();
+
+    // Act
+    const values = await createSessionStore(tools).readStates([]);
+
+    // Assert
+    deepStrictEqual([values, tools.calls], [{}, []]);
+  });
+});
+
+describe("createSessionStore — append", () => {
+  it("appends one message in one append_message call", async () => {
+    // Arrange
+    const tools = new FakeTools();
+    tools.replies.sessionStore = { success: true };
+
+    // Act
+    await createSessionStore(tools).appendMessage("assistant", "done");
+
+    // Assert
+    deepStrictEqual(tools.inputsOf("sessionStore"), [{ operation: "append_message", role: "assistant", content: "done" }]);
+  });
+
+  it("throws when the store refuses the append", async () => {
+    // Arrange
+    const tools = new FakeTools();
+    tools.replies.sessionStore = { success: false };
+
+    // Act
+    const act = createSessionStore(tools).appendMessage("", "done");
+
+    // Assert
+    await rejects(act, /session_store refused to append a '' message/);
   });
 });
 
