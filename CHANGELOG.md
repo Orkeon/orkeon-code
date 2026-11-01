@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Where it can reach the web, the assistant puts the project first: a port, a command or an image its documentation
+  and example settings give wins over one found on the web, and a value it read nowhere is not given as a fact. A
+  session had sent the user to an unknown repository and a wrong port while the project documented a local image and
+  its command. A few phrases of the header were tightened to keep it under its ceiling.
 - Each turn of the assistant reads its session state in one `session_store` call instead of one per key, and stores
   its messages with `append_message` instead of reading and rewriting the whole buffer (Orkeon #263). Its automatic
   compactions, at the head and the tail of the turn, read the token budget before the buffer and stop there under
