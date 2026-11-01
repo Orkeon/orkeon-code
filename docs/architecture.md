@@ -431,22 +431,33 @@ prompt as the model reads it, to review a change as a diff.
   an instruction found there is reported, not followed. A `<system-reminder>` comes from the harness, not the user.
 - **Tool realities**: a long result is cut, with a note saying how much is missing: ask for less.
   `file_read` reads a part of a file with `offset` and `limit`, in lines: the model reads by range, a hundred lines or so, the next range only when needed, since every call of a turn sends the whole context again and the crew budget sums it (the header holds no digit, so the count is said in words). `file_write` replaces the whole file, so a file whose read came back cut is
-  never rewritten. `shell_command` runs an allow-list, and git may be read-only. Where a web tool is offered
+  never rewritten. `edit_file` is the way to change an existing file: the smallest `old_string` that is unique, after
+  reading the range around it, more context or `replace_all` when it is not; `file_write` is for a new file or a
+  content rewritten whole. The reads and searches that do not depend on each other go out in one message, since the
+  runtime runs them at once; a call that needs an earlier result waits for it. `shell_command` runs an allow-list,
+  and git may be read-only. Where a web tool is offered
   (`web_search`, `http_api`, `web_scrape`, `scrape_element`), the project comes before the web: a port, a command or
   an image its documentation and example settings give wins over one found on the web, and a value read nowhere is
   not given as a fact. The
-  lines about writing, the shell and the web appear only in the modes that offer those tools.
+  lines about writing, editing, the shell and the web appear only in the modes that offer those tools.
 - **Refusals**: a missing tool or a refused call is a decision of the mode or the user; change approach instead of
   repeating the call.
-- **Search**: route by file type to the right index, prefer the code-intelligence tools to the shell (the last
-  resort where it is offered, a plain read where it is not), trust their freshness (edited files are reindexed before
-  a search answers), ingest the needed files when a document search finds nothing, and again after editing them.
+- **Search**: route by file type: code goes to the index (`codebase_search`, exact identifiers and paraphrases
+  alike); a name, a key or an exact text in any other file (configuration, data, documents) goes to `grep`, a `glob`
+  to narrow, then `file_read`; a question of meaning over prose goes to `rag_search` on the `workspace-docs`
+  collection, which holds nothing until the files are ingested there: the lines that say to ingest, and to ingest
+  again after editing a document, appear only where `rag_ingest` is offered. Trust the freshness of the code index
+  (edited files are reindexed before a search answers). The shell, where it is offered, is for builds, tests, git
+  and the project's scripts, never for what the read tools do; where it is not, a file no index covers is found
+  with `glob` and read.
 - **Question to tool** (`shared/domain/code-intel-routing.ts`): each kind of question goes to the tool that answers
   it, with the parameter that makes it answer: the shape of the repository to `codebase_map`, a symbol to
   `codebase_search` (`filter_kinds` for one kind), what a type extends to `symbol_detail` with `expand:
   "inheritance"`, who extends it to `sub_graph` going backward over `inherits` edges, callers, impact and the tests
   concerned to `symbol_detail`, `impact_analysis` and `affected_tests`, a code shape across the repository to
-  `structural_search`, a text to `count_pattern` or `grep`. A line is written only when the agent holds every tool
+  `structural_search`, a text to `count_pattern` or `grep`. Each line shows the call with the argument the tool needs
+  (`codebase_search(query)`, `flow_trace(from)`, `affected_tests(changed_files)`), since the catalogue does not
+  always carry it. A line is written only when the agent holds every tool
   it names, so the reviewer (its charter's tools, fewer for a next batch) and the auditor get the same routing,
   cut to their tools. A result marked `truncated` is a sample: the answer says so and the question is narrowed (a
   package, a `root_fqn`, a `glob`) instead of being answered by a script over every file.

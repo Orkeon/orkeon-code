@@ -175,17 +175,6 @@ describe("buildStaticHeader", () => {
     assertLacks(read, ["You may change the project"], "the read-only header");
   });
 
-  it("names the shell as the search's last resort where the shell is offered", () => {
-    // Arrange
-    const opts = { toolNames: ["codebase_search", "shell_command"] };
-
-    // Act
-    const withShell = buildStaticHeader(opts);
-
-    // Assert
-    ok(withShell.includes("Shell `grep` is the LAST resort"), withShell);
-  });
-
   it("puts the project before the web where a web tool is offered", () => {
     // Arrange
     const opts = { toolNames: ["file_read", "web_scrape"] };
@@ -210,18 +199,6 @@ describe("buildStaticHeader", () => {
 
     // Assert
     assertLacks(header, ["The web tools come after"], "the header without web tools");
-  });
-
-  it("names no shell to grep with in a read-only catalogue, and directory_read instead", () => {
-    // Arrange
-    const opts = { toolNames: ["codebase_search", "directory_read", "file_read"] };
-
-    // Act
-    const without = buildStaticHeader(opts);
-
-    // Assert
-    ok(!without.includes("grep"), "a read-only catalogue has no shell to grep with");
-    ok(without.includes("`directory_read`"), without);
   });
 
   it("never lets a cut read feed a whole-file write", () => {
@@ -271,6 +248,105 @@ describe("buildStaticHeader", () => {
     ok(!read.includes("replaces the whole file"), read);
     ok(!read.includes("only the commands the host allows"), read);
     ok(read.includes("with `offset` and `limit`"), "the read-only modes read a later part the same way");
+  });
+
+  it("sends a change to an existing file through edit_file, by the smallest unique old_string", () => {
+    // Arrange
+    const opts = { toolNames: ["file_read", "edit_file", "file_write"] };
+
+    // Act
+    const header = buildStaticHeader(opts);
+
+    // Assert
+    assertMentions(header, ["`edit_file` changes an existing file", "smallest `old_string` that is unique", "`replace_all`"]);
+  });
+
+  it("keeps file_write for a new file or a whole rewrite, without a whole-file read first", () => {
+    // Arrange
+    const opts = { toolNames: ["file_read", "edit_file", "file_write"] };
+
+    // Act
+    const header = buildStaticHeader(opts);
+
+    // Assert
+    assertLacks(header, ["read the whole file first"]);
+  });
+
+  it("does not tell a read-only catalogue how to edit", () => {
+    // Arrange
+    const opts = { toolNames: ["file_read", "symbol_source"] };
+
+    // Act
+    const header = buildStaticHeader(opts);
+
+    // Assert
+    assertLacks(header, ["`edit_file`"]);
+  });
+
+  it("asks for the independent reads and searches of a turn in one message", () => {
+    // Arrange
+    const opts = { toolNames: ["file_read"] };
+
+    // Act
+    const header = buildStaticHeader(opts);
+
+    // Assert
+    assertMentions(header, ["do not depend on each other go out together, in one message", "waits for it"]);
+  });
+
+  it("keeps the shell for builds, tests, git and scripts, never for what the read tools do", () => {
+    // Arrange
+    const opts = { toolNames: ["codebase_search", "file_read", "shell_command"] };
+
+    // Act
+    const header = buildStaticHeader(opts);
+
+    // Assert
+    assertMentions(header, ["The shell is for builds, tests, git and the project's scripts", "`cat`, `ls`, `find`, `sed`"]);
+  });
+
+  it("finds a file no index covers with glob where the shell is not offered", () => {
+    // Arrange
+    const opts = { toolNames: ["codebase_search", "file_read", "glob"] };
+
+    // Act
+    const header = buildStaticHeader(opts);
+
+    // Assert
+    assertMentions(header, ["find the file with `glob` and read it"]);
+  });
+
+  it("tells a read-only catalogue nothing about ingesting documents", () => {
+    // Arrange
+    const opts = { toolNames: ["codebase_search", "file_read", "rag_search"] };
+
+    // Act
+    const header = buildStaticHeader(opts);
+
+    // Assert
+    assertLacks(header, ["rag_ingest"]);
+  });
+
+  it("tells a writing catalogue to ingest again after editing a document", () => {
+    // Arrange
+    const opts = { toolNames: ["codebase_search", "file_read", "rag_search", "rag_ingest"] };
+
+    // Act
+    const header = buildStaticHeader(opts);
+
+    // Assert
+    assertMentions(header, ["re-run `rag_ingest` after editing a document"]);
+  });
+
+  it("names code files without listing their extensions", () => {
+    // Arrange
+    const opts = { toolNames: ["codebase_search", "file_read"] };
+
+    // Act
+    const header = buildStaticHeader(opts);
+
+    // Assert
+    assertLacks(header, [".tsx", "match_origin"]);
   });
 
   it("describes no tool result to a header without tools", () => {

@@ -11,7 +11,7 @@ import {
   ADAPTER_EXTENSIONS, EXTENSION_CASES, LOADER_CASES, ROUTE_GROUPS, UPPER_CASE_ROUTES,
 } from "./search-routing.fixtures.ts";
 import { assertHoldsEvery } from "./search-routing.assertions.ts";
-import { assertMentions } from "../../support/assertions/text.ts";
+import { assertMentions, assertOmits } from "../../support/assertions/text.ts";
 
 describe("the extension partition", () => {
   it("mirrors the thirteen Tree-sitter adapters exactly", () => {
@@ -101,20 +101,40 @@ describe("hasRagLoader", () => {
 });
 
 describe("describeSearchRouting — the playbook renders THIS", () => {
-  it("names both tools, the collection, and the self-healing ingest path", () => {
+  it("sends code to the index and an exact text of any other file to grep, then the file", () => {
     // Arrange
-    const parts = [
-      "codebase_search", "rag_search", WORKSPACE_DOCS_COLLECTION, "rag_ingest",
-      // The one instruction that stops the wrong-tool retry loop:
-      "do not retry there",
-      // The ingest example names the files to ingest, not only Markdown.
-      "globs of those files",
-    ];
+    const tools = ["codebase_search", "grep", "rag_search"];
 
     // Act
-    const text = describeSearchRouting();
+    const text = describeSearchRouting(tools);
 
     // Assert
-    assertMentions(text, parts);
+    assertMentions(text, [
+      "codebase_search", "`grep`", "`file_read`", "rag_search", WORKSPACE_DOCS_COLLECTION,
+      // The one instruction that stops the wrong-tool retry loop:
+      "do not retry there",
+    ]);
+  });
+
+  it("tells how to ingest where rag_ingest is offered, with the files to ingest, not only Markdown", () => {
+    // Arrange
+    const tools = ["codebase_search", "grep", "rag_search", "rag_ingest"];
+
+    // Act
+    const text = describeSearchRouting(tools);
+
+    // Assert
+    assertMentions(text, ["rag_ingest", "globs of those files"]);
+  });
+
+  it("says nothing about ingesting to a catalogue without rag_ingest", () => {
+    // Arrange
+    const tools = ["codebase_search", "grep", "rag_search"];
+
+    // Act
+    const text = describeSearchRouting(tools);
+
+    // Assert
+    assertOmits(text, ["rag_ingest"]);
   });
 });
