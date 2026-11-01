@@ -200,7 +200,7 @@ rend le texte, ou le message d'échec propre à l'outil sans l'enrobage du runti
 | `Telemetry` | Les métadonnées, le coût et les statistiques de la session (`session_store`, `session_cost`, `session_stats`) | `telemetry.ts` | `fake-telemetry.ts` |
 | `MemoryStore` | La mémoire typée : lister, ajouter, lire, retirer (`memory_store`) | `memory-store.ts` | `fake-memory-store.ts` |
 | `ToolCatalogue` | Les outils enregistrés sous leurs noms d'enregistrement, trouvés sans tenir compte de la casse comme Orkeon les trouve, pour les diagnostics et la vérification des outils supplémentaires (le service `tools` de `ctx.services` pour les noms, l'espace de noms `tools` pour les appels : `call` brut, `callText` décodé) | `tool-catalogue.ts` | `fake-tool-catalogue.ts` |
-| `CodeIndex` | L'index du code tel que `/analyze` le récolte (`index_status`, `index_codebase`, `codebase_map`, `dependency_graph`, `package_summary`) | `code-index.ts` | `fake-code-index.ts` |
+| `CodeIndex` | L'index du code tel que `/analyze` le récolte et que `/init` en lit la carte des paquets (`index_status`, `index_codebase`, `codebase_map`, `dependency_graph`, `package_summary`) | `code-index.ts` | `fake-code-index.ts` |
 | `CostIndex` | Le coût d'accès que `/dev-batches` mesure : les racines indexées, le rafraîchissement des fichiers du lot, le rapport (`index_status`, `incremental_reindex`, `access_cost`) | `code-index.ts` | `fake-cost-index.ts` |
 | `CrewHost` | Lister et lancer des crews (le service `script-host`, `ctx.services`) | `crew-host.ts` | `fake-crew-host.ts` |
 | `PermissionRules` | Les règles de session de la garde de permission de l'hôte : ajouter, effacer, lister (le service `permissions`, `ctx.services`) | `permission-rules.ts` | `fake-permission-rules.ts` |
@@ -317,12 +317,12 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 | Crew | Processus | Lancé par | Ce qu'il fait |
 |---|---|---|---|
 | `main-loop` | autonome, budget 200 appels d'outils / 1800 s / 700k tokens de contexte (le contexte compté une fois, Orkeon #224) | `/assistant`, le texte libre, `/summary`, `/verify`, `/transcribe --then`, `/voice send` et `--go` | La boucle interactive |
-| `project-init` | séquentiel | `/init` | Parcourt l'arborescence, détecte les conventions, écrit le fichier d'instructions |
+| `project-init` | séquentiel, sans outil (l'index lu par le port `CodeIndex`) | `/init` | Parcourt l'arborescence, détecte les conventions, lit la carte des paquets quand un index existe, écrit le fichier d'instructions (une proposition à côté quand un fichier existant a été coupé) |
 | `git-commit` | séquentiel | `/commit` | Rédige un commit conventionnel à partir du diff, commite après confirmation |
 | `code-review` | séquentiel | `/review` (`--lens` pour un seul angle, `--passes` pour les tours de ce lancement ; les alias `/security-review` et `/passes`) | Revue multi-angles des changements indexés, constats classés |
 | `analyze` | séquentiel | `/analyze` | Index, carte des paquets, graphe des modules, chaque paquet lu pour ses dépendances et ses modules d'entrée (un paquet dont seuls ses tests dépendent reste une entrée), résumé des paquets d'entrée et des plus gros, puis une synthèse (`--raw` saute le LLM) |
 | `session-compact` | séquentiel | `/compact` (`--snip` pour tronquer seulement), la compaction automatique | Sauve les faits durables en mémoire typée, puis résume le tampon entier à sa place ; `--snip`, ou un résumé qui échoue, coupe seulement aux messages récents, avec un marqueur |
-| `init-verifiers` | séquentiel | `/init-verifiers` | Détecte l'outillage de test, écrit des guides de vérification pour les zones non couvertes |
+| `init-verifiers` | séquentiel, sans outil | `/init-verifiers` | Détecte l'outillage de test à partir de chaque manifeste, écrit des guides de vérification pour les zones non couvertes |
 | `advisor` | séquentiel, sans outil | `/advisor` | Un second avis sur la dernière réponse, par un autre modèle |
 | `speech` | séquentiel, sans outil, sans LLM | `/transcribe`, `/voice`, `/say` | Un appel au serveur MCP de parole (`transcribe_audio`, `list_audio`, `record_and_transcribe`, `speak`), au nom de la commande |
 | `dev-verify` | séquentiel, la porte et la capture dans `dev-verifier`, l'audit dans un enfant d'arrière-plan `dev-auditor` (cinq outils de lecture en `plan`, `run_validation`, `memory_recall`) | `/dev-batches <code> F<n> --audit` (`--gate-only` saute le LLM) | La porte, la capture, un audit en lecture seule, le fichier de verdict |
@@ -664,13 +664,57 @@ un changement comme un diff.
   qui ressemble à des identifiants d'accès reçoit un refus au lieu d'un message, et un chemin qui contient d'ordinaire
   des secrets (un fichier env, une clé privée) arrête le commit avant tout appel au modèle.
 - **Fichier d'instructions** (`project-init`, `/init`) : écrit `AGENTS.md` : ce qu'est le projet, les commandes telles
-  que sa configuration les énonce (build, tous les tests, un test, lint), l'architecture qu'il faut plusieurs fichiers
-  pour voir, les conventions sur lesquelles un nouveau venu se tromperait ; pas d'inventaire de fichiers, pas de conseil
-  générique, rien d'inventé. Les fichiers d'instructions existants (`AGENTS.md`, `CLAUDE.md`, `.cursorrules`,
-  `.github/copilot-instructions.md`) sont fusionnés, pas perdus.
-- **Vérificateurs** (`init-verifiers`) : la classification de l'état de préparation définit chaque valeur et laisse
-  vide ce qui est inconnu ; une skill de vérification a un plan fixe (prérequis, étapes avec leurs commandes, le signal
-  attendu, quoi rapporter).
+  que sa configuration les énonce (build, tous les tests, un test, lint, lancement), l'architecture qu'il faut
+  plusieurs fichiers pour voir, les conventions sur lesquelles un nouveau venu se tromperait ; rien d'inventé. La
+  configuration lue est la liste de manifestes que les deux crews partagent (`shared/domain/project-manifests.ts`),
+  les fichiers qui énoncent des commandes en premier puisque le matériau est borné : les manifestes à scripts ou à
+  cibles (`package.json`, `pyproject.toml`, `Makefile`, `justfile`, `Taskfile`, `Cargo.toml`, `go.mod`, `pom.xml`,
+  `build.gradle*`, un `*.csproj` ou `*.sln` à la racine), puis le contenu des workflows de CI (`.github/workflows/*`),
+  puis les règles (`tsconfig.json`, `.eslintrc*`, `eslint.config.*`, `biome.json`, `ruff.toml`, `.editorconfig`),
+  `CONTRIBUTING.md` en dernier. Chaque fichier est coupé à 4 000 caractères, sa coupe marquée ; l'ensemble est borné
+  à 24 000 caractères, les fichiers gardés entiers dans cet ordre et une ligne finale nommant ceux laissés de côté.
+  Une étape de CI est une source valable de commande. Chaque commande est prise d'abord dans la configuration
+  (l'extraction des conventions, `runCommand` compris), dans un fichier d'instructions existant quand la
+  configuration n'en énonce aucune, jamais dans la prose du README.
+  - *Architecture* : `/init` reçoit l'index du code par le port `CodeIndex`, celui qu'utilise `/analyze`. Quand
+    l'espace de travail a un index (son nombre de racines au-dessus de zéro), le matériau porte un rendu borné de sa
+    carte des paquets (les paquets et qui dépend de qui) ; la section Architecture est tirée de cette carte, du README
+    et des fichiers existants seulement, nomme les paquets comme la carte les écrit, n'ajoute rien qu'ils ne montrent
+    pas. L'en-tête de la carte donne son nombre de paquets et dit quand elle a atteint sa borne de 200 ; une carte
+    trop longue est coupée et marquée, et le prompt lit cette marque comme celle d'un fichier coupé. Sans carte, elle ne garde que ce que les fichiers existants disent de l'architecture, ou est omise. Sans index, `/init` tourne comme avant et ne lance aucune
+    indexation.
+  - *Ce que le fichier laisse de côté* : les listes de fichiers, de dossiers ou de paquets, le conseil générique, les
+    secrets, les conventions du langage que tout agent connaît déjà, les longues références ou tutoriels (le fichier à
+    lire est nommé à la place), les faits qui changent souvent. Une section tient sur un écran. Ces règles cèdent devant ce qu'un fichier
+    existant dit et qui est toujours vrai (hors secret) : une longue référence, une section qui dépasserait un écran
+    ou un fait qui change souvent qui s'y trouve n'est pas abandonné ; il est désigné par son fichier quand ce
+    fichier reste sur le disque (tout autre que `AGENTS.md`), et gardé tel quel sous une dernière section
+    `## Reference` quand seul `AGENTS.md`, le fichier remplacé, le dit.
+  - *Fichiers existants* : les fichiers d'instructions existants (`AGENTS.md`, `CLAUDE.md`, `.cursorrules`,
+    `.github/copilot-instructions.md`) parviennent entiers au modèle jusqu'à 40 000 caractères chacun, et sont
+    fusionnés, pas perdus. Un fichier au-delà de cette borne est coupé et la coupe est marquée dans le matériau ; le
+    prompt dit qu'un fichier marqué a été coupé et que le modèle travaille à partir de ce qu'il voit. Le cas d'usage
+    n'écrase alors pas : il écrit la proposition dans `AGENTS.proposed.md`, et le résultat le dit et nomme le fichier
+    coupé, si bien que rien n'est perdu sur le disque ; il dit que `AGENTS.md` est laissé tel quel, ou non écrit
+    quand le projet n'en a pas.
+- **Vérificateurs** (`init-verifiers`, `/init-verifiers`, `/verify`) : la classification de l'état de préparation
+  définit chaque valeur et laisse vide ce qui est inconnu. Les deux prompts voient la liste de manifestes que lit
+  `/init`, la section `## Commands` du fichier d'instructions du projet quand il en existe un (le fichier que lit la boucle,
+  le premier de `AGENTS.md` et `CLAUDE.md` présent et non vide ; un titre dans un bloc de code ne l'ouvre ni ne la
+  ferme ; coupée à 4 000 caractères, sa coupe marquée), et le contenu des
+  workflows de CI (`.github/workflows/*`), lus parmi les manifestes et coupés comme eux ; le prompt de la skill les nomme comme les seules sources d'une commande, si
+  bien qu'un projet Python, Go, Rust ou .NET reçoit des étapes avec de vraies commandes, et qu'une commande qu'aucune
+  source ne montre reste interdite. Une skill de vérification a un plan fixe (prérequis, étapes avec leurs commandes,
+  le signal attendu, quoi rapporter).
+  - *Cycle de vie* : une zone qui reste en marche (un serveur, une interface web) est démarrée sans bloquer l'étape,
+    attendue jusqu'à un signal de disponibilité énoncé, et arrêtée à la fin. Une étape qui écrit, supprime ou appelle
+    le réseau vise un dossier jetable ou une option d'essai à blanc, ou dit qu'elle ne peut pas être vérifiée sans
+    risque.
+  - *Forme de l'échec* : `## Pass` nomme, à côté du signal de succès, la ou les deux observations qui signifient
+    l'échec.
+  - *Le verdict seulement* : le `## Report` de la skill et la requête de `/verify` disent qu'une vérification qui
+    échoue se termine par un rapport avec la sortie citée ; une correction est une requête à part, si bien que la
+    boucle ne modifie jamais le code pour faire passer une étape.
 - **Analyse** (`analyze`) : ne répond qu'à partir de la récolte, cite les symboles et les paquets comme la récolte
   les écrit (relatifs au checkout), tire les points d'entrée de ses paquets d'entrée, nomme les membres de chaque cycle
   que la récolte nomme, dit ce que la récolte laisse de côté.

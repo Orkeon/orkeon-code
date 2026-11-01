@@ -55,4 +55,15 @@ describe("fallbackConventions", () => {
     strictEqual(c.buildCommand, undefined);
     deepStrictEqual(c.frameworks, []);
   });
+
+  it("leaves the run command empty even when package.json has a start script", () => {
+    // Arrange
+    const pkg = JSON.stringify({ scripts: { start: "node ." } });
+
+    // Act
+    const c = fallbackConventions(pkg);
+
+    // Assert
+    strictEqual(c.runCommand, undefined);
+  });
 });

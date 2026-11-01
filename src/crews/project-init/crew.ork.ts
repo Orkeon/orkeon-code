@@ -7,19 +7,23 @@
 // Run standalone:  bash scripts/run-crew.sh src/crews/project-init/crew.ork.ts
 
 import { CrewBuilder, publishCrew } from "../../shared/infrastructure/globals.ts";
-import { orkeonAgent, orkeonFiles } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { orkeonAgent, orkeonCodeIndex, orkeonFiles } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { runProjectInit } from "./application/run-project-init.ts";
 
 const files = orkeonFiles();
+// Read only: /init starts no indexing, it uses the package map of an index already built.
+const index = orkeonCodeIndex();
 
 const scanner = orkeonAgent()
   .name("project-initialiser")
   .role("Repository Onboarding Engineer")
   .goal("Understand a codebase's layout + conventions and write an AGENTS.md that future agents can rely on.")
-  .tools(["directory_read", "file_read", "codebase_map"])
+  // No tools: the body calls extract and complete, which take none; the reads go
+  // through the Files and CodeIndex adapters, not the agent catalogue.
+  .tools([])
   .body(async (_input: any, ctx: any) =>
-    await runProjectInit({ files, llm: createLlm(ctx.llm), log: ctx.log }))
+    await runProjectInit({ files, index, llm: createLlm(ctx.llm), log: ctx.log }))
   .build();
 
 publishCrew(

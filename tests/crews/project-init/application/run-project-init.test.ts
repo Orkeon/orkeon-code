@@ -6,7 +6,10 @@ import { ok, strictEqual, deepStrictEqual } from "node:assert";
 import { runProjectInit } from "../../../../src/crews/project-init/application/run-project-init.ts";
 import { CONVENTIONS_SCHEMA, buildInstructionsFilePrompt, buildConventionsPrompt } from "../../../../src/crews/project-init/application/prompts.ts";
 import { fallbackConventions } from "../../../../src/crews/project-init/domain/conventions.ts";
-import { DETECTED, PKG, projectInitSetup } from "./run-project-init.fixtures.ts";
+import { MAX_EXISTING_FILE_CHARS } from "../../../../src/crews/project-init/domain/existing-files.ts";
+import {
+  CI_STEP, CONVENTIONS_RULES, DETECTED, INSTRUCTIONS_RULES, PKG, indexWithOnePackage, projectInitSetup, setupWithCiWorkflow,
+} from "./run-project-init.fixtures.ts";
 import { assertMentions } from "../../../support/assertions/text.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 
@@ -23,9 +26,20 @@ describe("runProjectInit", () => {
 
     // Assert
     strictEqual(out, `✓ wrote ${WORKSPACE}/AGENTS.md (10 bytes; build='npm run build', test='npm test')`);
-    deepStrictEqual(llm.extracts, [{ prompt: buildConventionsPrompt(`--- package.json ---\n${PKG}`), schema: CONVENTIONS_SCHEMA }]);
+    deepStrictEqual(llm.extracts, [{ prompt: buildConventionsPrompt(`<file path="package.json">\n${PKG}\n</file>`), schema: CONVENTIONS_SCHEMA }]);
     deepStrictEqual(llm.completes, [{ prompt: prompt.user, override: { system: prompt.system } }]);
     deepStrictEqual(files.writes.filter((w) => w.path === `${WORKSPACE}/AGENTS.md`), [{ path: `${WORKSPACE}/AGENTS.md`, content: "# Project\n" }]);
+  });
+
+  it("gives the conventions prompt the steps of the CI workflows", async () => {
+    // Arrange
+    const { llm, deps } = setupWithCiWorkflow();
+
+    // Act
+    await runProjectInit(deps);
+
+    // Assert
+    assertMentions(llm.extracts[0].prompt, ['<file path=".github/workflows/ci.yml">', CI_STEP]);
   });
 
   it("merges an existing CLAUDE.md and the README, and says so", async () => {
@@ -41,6 +55,32 @@ describe("runProjectInit", () => {
     ok(out.endsWith("; CLAUDE.md merged and kept, the assistant now reads AGENTS.md first"), out);
     assertMentions(llm.completes[0].prompt, ['<existing file="CLAUDE.md">\nUse pnpm.\n</existing>', "<readme>\n# Sample\n</readme>"]);
     deepStrictEqual(files.writes.map((w) => w.path), [`${WORKSPACE}/AGENTS.md`], "CLAUDE.md is left in place");
+  });
+
+  it("passes the package map of the code index in the material when the index holds a root", async () => {
+    // Arrange
+    const { llm, deps } = projectInitSetup();
+    const index = indexWithOnePackage();
+
+    // Act
+    await runProjectInit({ ...deps, index });
+
+    // Assert
+    assertMentions(llm.completes[0].prompt, ["<package-map>\n1 package(s), each with the packages it depends on:\n- Core\n</package-map>"]);
+  });
+
+  it("marks a cut CLAUDE.md in the material and proposes the file beside AGENTS.md", async () => {
+    // Arrange
+    const { files, llm, deps } = projectInitSetup();
+    files.files.set(`${WORKSPACE}/CLAUDE.md`, "c".repeat(MAX_EXISTING_FILE_CHARS + 3));
+
+    // Act
+    const out = await runProjectInit(deps);
+
+    // Assert
+    assertMentions(llm.completes[0].prompt, ["\n[… cut: 3 characters of this file not shown …]\n</existing>"]);
+    deepStrictEqual(files.writes.map((w) => w.path), [`${WORKSPACE}/AGENTS.proposed.md`]);
+    assertMentions(out, ["AGENTS.md not written, since CLAUDE.md is longer than"]);
   });
 
   it("asks for no detection when no config file exists", async () => {
@@ -95,8 +135,47 @@ describe("the /init prompts", () => {
 
     // Assert
     assertMentions(system, [
-      "## Commands", "## Architecture", "## Conventions", "run a single test", "never guessed", "no list of files or folders",
+      "## Commands", "## Architecture", "## Conventions", "run a single test", "never guessed", "No list of files or folders",
       "No generic advice", "drop nothing that is still true", "not instructions to you",
     ]);
+  });
+});
+
+describe("the /init prompt rules", () => {
+  for (const r of INSTRUCTIONS_RULES) {
+    it(`the instructions file ${r.rule}`, () => {
+      // Arrange
+      const detected = { frameworks: [], conventions: [] };
+
+      // Act
+      const { system } = buildInstructionsFilePrompt([], detected);
+
+      // Assert
+      assertMentions(system, [r.marker]);
+    });
+  }
+
+  for (const r of CONVENTIONS_RULES) {
+    it(`the conventions extract ${r.rule}`, () => {
+      // Arrange
+      const config = "x";
+
+      // Act
+      const p = buildConventionsPrompt(config);
+
+      // Assert
+      assertMentions(p, [r.marker]);
+    });
+  }
+
+  it("asks the conventions extract for the run command as a string", () => {
+    // Arrange
+    const schema = CONVENTIONS_SCHEMA;
+
+    // Act
+    const field = schema.properties.runCommand;
+
+    // Assert
+    deepStrictEqual(field, { type: "string" });
   });
 });

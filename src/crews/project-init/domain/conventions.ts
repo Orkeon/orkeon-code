@@ -4,22 +4,22 @@
 
 import type { DetectedConventions } from "../../../shared/domain/types.ts";
 
-/** Config files we recognise when onboarding a repo (order = read order). */
-export const CONFIG_CANDIDATES = [
-  "package.json",
-  "tsconfig.json",
-  "pyproject.toml",
-  "go.mod",
-  "Cargo.toml",
-  "Makefile",
-] as const;
+/** The config files /init reads, from the shared manifests module (order = read order). */
+export { CONFIG_CANDIDATES } from "../../../shared/domain/project-manifests.ts";
+
+/** The conventions /init detects: the shared ones, and how the project is started. */
+export interface ProjectConventions extends DetectedConventions {
+  /** How to start the project, as the configuration states it. */
+  runCommand?: string;
+}
 
 /**
  * Deterministic fallback when the LLM convention-extract fails: pull npm
  * scripts + devDependencies straight from package.json. Returns empty
- * conventions if package.json is absent or unparseable.
+ * conventions if package.json is absent or unparseable. The run command stays
+ * empty: a script name alone does not say how the project is started.
  */
-export function fallbackConventions(packageJsonText: string): DetectedConventions {
+export function fallbackConventions(packageJsonText: string): ProjectConventions {
   try {
     const pkg = JSON.parse(packageJsonText || "{}");
     // A command as it is invoked, not the script's body: `npm run build`, not `tsc -p .`.

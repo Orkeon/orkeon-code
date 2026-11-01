@@ -192,7 +192,7 @@ the text, or the tool's own failure message without the runtime's wrapping, and 
 | `Telemetry` | The session's metadata, cost and statistics (`session_store`, `session_cost`, `session_stats`) | `telemetry.ts` | `fake-telemetry.ts` |
 | `MemoryStore` | Typed memory: list, add, get, remove (`memory_store`) | `memory-store.ts` | `fake-memory-store.ts` |
 | `ToolCatalogue` | The registered tools under their registered names, found case-insensitively as Orkeon finds them, for diagnostics and the extra tools' check (the `tools` service of `ctx.services` for the names, the `tools` namespace for the calls: `call` raw, `callText` decoded) | `tool-catalogue.ts` | `fake-tool-catalogue.ts` |
-| `CodeIndex` | The code index as `/analyze` harvests it (`index_status`, `index_codebase`, `codebase_map`, `dependency_graph`, `package_summary`) | `code-index.ts` | `fake-code-index.ts` |
+| `CodeIndex` | The code index as `/analyze` harvests it and `/init` reads its package map (`index_status`, `index_codebase`, `codebase_map`, `dependency_graph`, `package_summary`) | `code-index.ts` | `fake-code-index.ts` |
 | `CostIndex` | The access cost `/dev-batches` measures: the indexed roots, the refresh of the batch's files, the report (`index_status`, `incremental_reindex`, `access_cost`) | `code-index.ts` | `fake-cost-index.ts` |
 | `CrewHost` | List and launch crews (the `script-host` service, `ctx.services`) | `crew-host.ts` | `fake-crew-host.ts` |
 | `PermissionRules` | The session rules of the host's permission gate: add, clear, list (the `permissions` service, `ctx.services`) | `permission-rules.ts` | `fake-permission-rules.ts` |
@@ -306,12 +306,12 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 | Crew | Process | Started by | What it does |
 |---|---|---|---|
 | `main-loop` | autonomous, budget 200 tool calls / 1800 s / 700k context tokens (the context counted once, Orkeon #224) | `/assistant`, free text, `/summary`, `/verify`, `/transcribe --then`, `/voice send` and `--go` | The interactive loop |
-| `project-init` | sequential | `/init` | Scans the layout, detects conventions, writes the instructions file |
+| `project-init` | sequential, no tools (the index read through the `CodeIndex` port) | `/init` | Scans the layout, detects conventions, reads the package map when an index exists, writes the instructions file (a proposal beside it when an existing file was cut) |
 | `git-commit` | sequential | `/commit` | Drafts a conventional commit from the diff, commits after confirmation |
 | `code-review` | sequential | `/review` (`--lens` for one lens, `--passes` for this run's rounds; the aliases `/security-review` and `/passes`) | Multi-lens review of the staged changes, ranked findings |
 | `analyze` | sequential | `/analyze` | Index, package map, module graph, every package read for its dependencies and entry modules (a package only its tests depend on still starts the rest), the entry packages and the largest summarized, then a synthesis (`--raw` skips the LLM) |
 | `session-compact` | sequential | `/compact` (`--snip` to truncate only), automatic compaction | Saves lasting facts to typed memory, then summarises the whole buffer in its place; `--snip`, or a summary that fails, only cuts to the recent messages, with a marker |
-| `init-verifiers` | sequential | `/init-verifiers` | Detects test tooling, writes verification playbooks for uncovered zones |
+| `init-verifiers` | sequential, no tools | `/init-verifiers` | Detects test tooling from every manifest, writes verification playbooks for uncovered zones |
 | `advisor` | sequential, no tools | `/advisor` | A second opinion on the last answer from another model |
 | `speech` | sequential, no tools, no LLM | `/transcribe`, `/voice`, `/say` | One call to the speech MCP server (`transcribe_audio`, `list_audio`, `record_and_transcribe`, `speak`), as the command's |
 | `dev-verify` | sequential, the gate and capture in `dev-verifier`, the audit in a background child `dev-auditor` (five read tools in `plan`, `run_validation`, `memory_recall`) | `/dev-batches <code> F<n> --audit` (`--gate-only` skips the LLM) | The gate, the capture, one read-only audit, the verdict file |
@@ -611,13 +611,50 @@ prompt as the model reads it, to review a change as a diff.
   A change that looks like a credential gets a refusal instead of a message, and a path that usually holds secrets
   (an env file, a private key) stops the commit before any model call.
 - **Instructions file** (`project-init`, `/init`): writes `AGENTS.md`: what the project is, the commands as its
-  configuration states them (build, all tests, one test, lint), the architecture that takes several files to see,
-  the conventions a newcomer would get wrong; no file inventory, no generic advice, nothing invented. The existing
-  instruction files (`AGENTS.md`, `CLAUDE.md`, `.cursorrules`, `.github/copilot-instructions.md`) are merged, not
-  lost.
-- **Verifiers** (`init-verifiers`): the readiness classification defines each value and leaves an unknown empty; a
-  verification skill has a fixed outline (prerequisites, steps with their commands, the expected signal, what to
-  report).
+  configuration states them (build, all tests, one test, lint, run), the architecture that takes several files to
+  see, the conventions a newcomer would get wrong; nothing invented. The configuration read is the manifest list
+  both crews share (`shared/domain/project-manifests.ts`), the files that state commands first since the material
+  is bounded: the manifests with scripts or targets (`package.json`, `pyproject.toml`, `Makefile`, `justfile`,
+  `Taskfile`, `Cargo.toml`, `go.mod`, `pom.xml`, `build.gradle*`, a `*.csproj` or `*.sln` at the top level), then the
+  content of the CI workflows (`.github/workflows/*`), then the rules (`tsconfig.json`, `.eslintrc*`,
+  `eslint.config.*`, `biome.json`, `ruff.toml`, `.editorconfig`), `CONTRIBUTING.md` last. Each file is cut at
+  4 000 characters, its cut marked; the whole is bounded at 24 000 characters, whole files kept in that order and a
+  closing line naming the files left out. A CI step is a valid source of a command. Each command is taken from the
+  configuration first (the conventions extract, `runCommand` included), from an existing instruction file when the
+  configuration states none, never from the README's prose.
+  - *Architecture*: `/init` receives the code index through the `CodeIndex` port, the one `/analyze` uses. When the
+    workspace has an index (its root count above zero), the material carries a bounded rendering of its package map
+    (the packages and which depends on which); the Architecture section is drawn from that map, the README and the
+    existing files only, names packages as the map writes them, adds nothing they do not show. The map's header
+    gives its count of packages and says when it reached its bound of 200; a map too long is cut and marked, and the
+    prompt reads that mark as it reads the mark of a cut file. With no map, it keeps
+    only what the existing files say of the architecture, or is left out. Without an index `/init` runs as before and starts no indexing.
+  - *What the file leaves out*: lists of files, folders or packages, generic advice, secrets, the conventions of the
+    language any agent already knows, long references or tutorials (the file to read is named instead), facts that
+    change often. A section fits on a screen. These rules give way to what an existing file says that is still true
+    (a secret aside): a long reference, a section past a screen or a fact that changes often found there is not
+    dropped; it is named by its file when that file stays on disk (any but `AGENTS.md`), and kept as it was under a
+    last `## Reference` section when only `AGENTS.md`, the file replaced, says it.
+  - *Existing files*: the existing instruction files (`AGENTS.md`, `CLAUDE.md`, `.cursorrules`,
+    `.github/copilot-instructions.md`) reach the model whole up to 40 000 characters each, and are merged, not lost.
+    A file above that bound is cut and the cut is marked in the material; the prompt says that a marked file was cut
+    and that the model works from what it sees. The use case then does not overwrite: it writes the proposal to
+    `AGENTS.proposed.md`, and the outcome says so and names the file that was cut, so nothing on disk is lost; it
+    says `AGENTS.md` is left as it is, or not written when the project has none.
+- **Verifiers** (`init-verifiers`, `/init-verifiers`, `/verify`): the readiness classification defines each value and
+  leaves an unknown empty. Both prompts see the manifest list `/init` reads, the `## Commands` section of the
+  project's instructions file when one exists (the file the loop reads, the first of `AGENTS.md` and `CLAUDE.md`
+  present and not blank; a heading inside a code fence neither starts nor ends it; cut at 4 000 characters, its cut
+  marked), and the content of the CI workflows (`.github/workflows/*`), read
+  among the manifests and cut like them; the skill prompt names these as the only sources of a command, so a Python, Go, Rust or .NET project gets steps with real
+  commands, and a command no source shows stays forbidden. A verification skill has a fixed outline (prerequisites,
+  steps with their commands, the expected signal, what to report).
+  - *Lifecycle*: a zone that keeps running (a server, a web UI) is started without blocking the step, waited on for
+    a stated readiness signal, and stopped at the end. A step that writes, deletes or calls the network points at a
+    scratch folder or a dry-run flag, or says it cannot be checked safely.
+  - *Failure shape*: `## Pass` names, beside the success signal, the one or two observations that mean failure.
+  - *Verdict only*: the skill's `## Report` and the `/verify` request say that a failed check ends in a report with
+    the quoted output; a fix is a separate request, so the loop never edits code to make a step pass.
 - **Analysis** (`analyze`): answers only from the harvest, cites symbols and packages as the harvest writes them
   (relative to the checkout), takes the entry points from its entry packages, names the members of each cycle the
   harvest names, says what the harvest leaves out.

@@ -17,7 +17,8 @@ export function verifierPath(zone: string): string {
 /**
  * The request /verify sends to the main loop: follow one zone's skill, or every
  * skill, by running it — the check the tests cannot make — and report as the skill
- * says. Without a skill it says so instead of improvising a check.
+ * says; a failure ends in the report, never in a fix. Without a skill it says so
+ * instead of improvising a check.
  */
 export function buildVerifyRequest(zone: string): string {
   const z = zone.trim();
@@ -28,7 +29,9 @@ export function buildVerifyRequest(zone: string): string {
   return (
     `Check that the project works by running it: follow ${which}, written by /init-verifiers, step by ` +
     "step. Run each step's command, compare what you observe with the skill's Pass section, and report " +
-    `as its Report section says, quoting the output of a failure. ${missing}, say so and suggest ` +
+    "as its Report section says, quoting the output of a failure. A failed check ends in that report: a " +
+    "fix is a separate request, so never edit code to make a step pass. " +
+    `${missing}, say so and suggest ` +
     "/init-verifiers instead of improvising a check."
   );
 }
