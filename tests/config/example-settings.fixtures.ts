@@ -13,12 +13,21 @@ export const load = (name: string): any => JSON.parse(readFileSync(new URL(name,
 /** The examples the documentation promises. */
 export const PROMISED_EXAMPLES: readonly string[] = [
   "appsettings.example.json", "appsettings.anthropic.example.json", "appsettings.ollama.example.json",
-  "appsettings.ollama-whisper.example.json", "appsettings.jev.example.json",
+  "appsettings.ollama-whisper.example.json", "appsettings.jev.example.json", "appsettings.kev.example.json",
+  "appsettings.liquid.example.json",
 ];
 
-/** The settings but for their comment, their Llm:Profiles and the two sections of the decision model. */
+/** The examples with a decision provider named in Orkeon:Decision:Provider: the file, the provider's section and
+ *  key variable, and the name. */
+export const NAMED_DECISION_EXAMPLES = [
+  { file: "appsettings.kev.example.json", section: "Kev", keyVariable: "KEV_API_KEY", provider: "kev" },
+  { file: "appsettings.liquid.example.json", section: "Liquid", keyVariable: "LIQUID_API_KEY", provider: "liquid" },
+] as const;
+
+/** The settings but for their comment, their Llm:Profiles, the section of their decision provider (TypeSafe, Liquid
+ *  or Kev) and Orkeon:Decision. */
 export function withoutCommentProfilesAndDecision(settings: any): Record<string, unknown> {
-  const { _comment, Llm: { Profiles, ...llm }, Orkeon: { TypeSafe, Decision, ...orkeon }, ...rest } = settings;
+  const { _comment, Llm: { Profiles, ...llm }, Orkeon: { TypeSafe, Liquid, Kev, Decision, ...orkeon }, ...rest } = settings;
   return { ...rest, Llm: llm, Orkeon: orkeon };
 }
 

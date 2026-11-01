@@ -18,7 +18,7 @@ import {
   applyPrelude, epilogueArgs, errorText, parseEpilogue, parsePrelude, toolFailure,
 } from "../../../shared/domain/prelude.ts";
 import type { PreludeCall } from "../../../shared/domain/prelude.ts";
-import { budgetExhaustedAnswerOf } from "../../../shared/domain/llm-failure.ts";
+import { budgetExhaustedAnswerOf, decisionBlockOf, decisionBlockText } from "../../../shared/domain/llm-failure.ts";
 import type { SessionIo } from "../../../shared/application/session-io.ts";
 import { stateSnapshot } from "../../../shared/application/state-snapshot.ts";
 import {
@@ -305,9 +305,22 @@ export async function runMainLoop(input: MainLoopInputs, loaded: LoadedCatalogue
   // no answer is stored, the tail compaction does not run (the breaker counts
   // compactions, not turns), and the run fails with the provider's error, which
   // /assistant shows. The user's message stays in the buffer.
+  // A call a decision stage blocked is a decision, not an outage: the turn ends
+  // with the block said, nothing stored after the user's message, the run not failed.
   // The calls of a head-of-turn compaction are not the answer's: the trace starts with the act.
   deps.trace?.take();
-  const { answer, cut } = await stopChecked(deps, assembled, mode, flags, prompt, readClosingLine(input.closingLine));
+  let checked: { answer: string; cut: boolean };
+  try {
+    checked = await stopChecked(deps, assembled, mode, flags, prompt, readClosingLine(input.closingLine));
+  } catch (error) {
+    const block = decisionBlockOf(error);
+    if (block === null) throw error;
+    deps.trace?.take();
+    const text = decisionBlockText(block);
+    log.warn(text);
+    return [warning, text].filter((part) => part !== null).join("\n\n");
+  }
+  const { answer, cut } = checked;
   const traced = deps.trace?.take() ?? null;
   if (traced !== null) await appendTurn(session, "system", traced);
   await appendTurn(session, "assistant", answer);

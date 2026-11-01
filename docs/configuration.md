@@ -39,7 +39,7 @@ Environment variables prefixed `ORKEON_` override the file (`__` separates secti
 | `Llm:ApiKeyEnvVar` | Name of the environment variable that holds the key. The key itself never goes in the file |
 | `Llm:AvailableModels` | Models `/model` offers to switch to without relaunching |
 | `Llm:Temperature`, `Llm:MaxTokens`, `Llm:TimeoutSeconds` | Generation settings |
-| `Llm:MaxRateLimitWait` | Longest rate-limit window a call waits out before it fails, `00:05:00` by default. A 429, or a 529 with a reset header, waits until the window the provider announces (`Retry-After`, `retry-after-ms` in milliseconds as OpenAI and TypeSafe send it, or the provider's reset headers; the longest wins) resets instead of failing the turn; a window longer than this fails the call at once with `LlmRateLimitException`, the wait in its message. `00:00:00` waits for nothing |
+| `Llm:MaxRateLimitWait` | Longest rate-limit window a call waits out before it fails, `00:05:00` by default. A 429, or a 529 with a reset header, waits until the window the provider announces (`retry-after-ms` in milliseconds as OpenAI and TypeSafe send it, else `Retry-After`, compared with the provider's reset headers; the longest wins) resets instead of failing the turn; a window longer than this fails the call at once with `LlmRateLimitException`, the wait in its message. `00:00:00` waits for nothing |
 | `Llm:Profiles:<name>:MaxRateLimitWait` | The same bound for one named profile of the host, `00:05:00` by default |
 | `Llm:Thinking:Enabled` | Reasoning mode, for the providers that have one |
 
@@ -53,7 +53,7 @@ An option a provider cannot honour produces a warning, never a silent drop.
 `/usage` and `/context` show their sum in `cacheRead` and `cacheWrite` (`n/a` while no call reported the count, never `0`, which reads as measured: a runtime from Orkeon #254 on leaves an unreported count out, an older one reports `0`). The cache's
 lifetime is a per-call option of Orkeon, `orkeon:cache_ttl` (`5m` or `1h`, from an agent's cache setting): Anthropic
 honours it, the OpenAI-compatible providers and Ollama log that they cannot. Orkeon Code sets none, so each provider
-keeps its own default lifetime. Anthropic caches only what a request marks: every agent of Orkeon Code marks its
+keeps its own default lifetime (a 1-hour write would cost twice the prompt rate, Orkeon #266). Anthropic caches only what a request marks: every agent of Orkeon Code marks its
 system prompt and its tool definitions (`.cache({ systemPrompt: true, tools: true })`), a prefix its prompts keep
 identical turn after turn, so from a session's second call `cacheRead` counts what Anthropic served from its cache.
 The agent's request wins over a host default `Llm:Cache`.
@@ -72,7 +72,12 @@ of a turn is about 2,250 tokens before the tool schemas and the conversation, so
 on the Ollama service, or the model silently loses its instructions and its tools.
 
 **A decision model in front of the LLM.** Orkeon can put a decision model, Jev (TypeSafe's System One, `jev-latest`),
-in front of a model: a *decision profile* (`Orkeon:Decision:Profiles:<name>`) wraps a named LLM profile
+in front of a model. Since Orkeon #266 the host serves one decision provider among three, TypeSafe (`Orkeon:TypeSafe`,
+`TYPESAFE_API_KEY`), Liquid (`Orkeon:Liquid`, `LIQUID_API_KEY`) and Kev (`Orkeon:Kev`, a local server, never deduced):
+`Orkeon:Decision:Provider` names it, otherwise the host deduces it from the one section present, or from the one key
+set when no section is. Two sections, or two keys and no section, refuse the start, and the input guard's section is
+`Orkeon:Decision:Guard` (a settings file still holding `Orkeon:TypeSafe:Guard` is refused at start). A decision
+profile works the same whatever the provider: a *decision profile* (`Orkeon:Decision:Profiles:<name>`) wraps a named LLM profile
 (`Llm:Profiles:<name>`) with stages that route the request to the profile that fits it, guard it (prompt injection,
 the risks you name) or verify the answer and escalate to a stronger profile when it does not hold.
 [`config/appsettings.jev.example.json`](../config/appsettings.jev.example.json) is the example: the `Orkeon:TypeSafe`
@@ -82,7 +87,10 @@ profile `guarded` over them. The session key `llm.profile` names the profile the
 steps included, and the launch log and `/config list` show it. Without the key nothing changes: the agents run on the
 host's default model, as before. A name the host does not declare fails the crew's load, its error listing the
 profiles the host knows; a plain LLM profile works the same way, with no decision model in front. The per-call model
-of `/advisor` (`advisor.model`) still applies on top of the profile. The stages and their settings are in
+of `/advisor` (`advisor.model`) still applies on top of the profile. Kev on this machine and Liquid, step by step,
+with their examples [`config/appsettings.kev.example.json`](../config/appsettings.kev.example.json) and
+[`config/appsettings.liquid.example.json`](../config/appsettings.liquid.example.json):
+[Decision models locally](decision-models-local.md). The stages and their settings are in
 [Orkeon's decision models](https://github.com/Orkeon/orkeon/blob/main/docs/architecture/decision-models.md).
 
 Claude through a Max plan: [`config/appsettings.anthropic.example.json`](../config/appsettings.anthropic.example.json)

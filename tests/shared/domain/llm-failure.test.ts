@@ -3,9 +3,13 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual, ok } from "node:assert";
 
-import { budgetExhaustedAnswer, budgetExhaustedAnswerOf, llmFailureOf } from "../../../src/shared/domain/llm-failure.ts";
+import {
+  budgetExhaustedAnswer, budgetExhaustedAnswerOf, decisionBlockOf, decisionBlockText, llmFailureOf,
+} from "../../../src/shared/domain/llm-failure.ts";
 import { readBudgetExhausted } from "../../../src/shared/domain/dev/step-budget.ts";
-import { ANSWERS, MARKER_DETAILS, NOT_WRAP_UPS } from "./llm-failure.fixtures.ts";
+import {
+  ANSWERS, DECISION_BLOCKS, GUARD_BLOCK, GUARD_BLOCK_TEXT, MARKER_DETAILS, NOT_BLOCKS, NOT_WRAP_UPS,
+} from "./llm-failure.fixtures.ts";
 
 describe("llmFailureOf", () => {
   it("reads the provider's error out of the marker", () => {
@@ -119,4 +123,45 @@ describe("budgetExhaustedAnswerOf", () => {
       strictEqual(read, null);
     });
   }
+});
+
+describe("decisionBlockOf", () => {
+  for (const c of DECISION_BLOCKS) {
+    it(c.name, () => {
+      // Arrange
+      const failure = llmFailureOf(c.marker);
+
+      // Act
+      const block = decisionBlockOf(failure);
+
+      // Assert
+      deepStrictEqual(block, c.block);
+    });
+  }
+
+  for (const c of NOT_BLOCKS) {
+    it(`is null for ${c.name}`, () => {
+      // Arrange
+      const error = c.error();
+
+      // Act
+      const block = decisionBlockOf(error);
+
+      // Assert
+      strictEqual(block, null);
+    });
+  }
+});
+
+describe("decisionBlockText", () => {
+  it("names the profile, the stage and the reason, and what to do", () => {
+    // Arrange
+    const block = GUARD_BLOCK;
+
+    // Act
+    const text = decisionBlockText(block);
+
+    // Assert
+    strictEqual(text, GUARD_BLOCK_TEXT);
+  });
 });

@@ -35,6 +35,31 @@ export function llmFailureOf(text: unknown): LlmFailure | null {
   return failure;
 }
 
+/** A call a decision stage of the host blocked (a decision profile, `llm.profile`): which stage, of which profile, why. */
+export interface DecisionBlock {
+  readonly stage: string;
+  readonly profile: string;
+  readonly reason: string;
+}
+
+/** The host's sentence for a blocked call (Orkeon's DecisionLlmProvider), the only form a script receives until
+ *  Orkeon passes the block as a typed failure (Orkeon #269). A fail-closed stage that failed is blocked the same way. */
+const DECISION_BLOCK = /^Blocked by the decision stage '([^']*)' of profile '([^']*)': ([\s\S]*)$/;
+
+/** The block an LlmFailure stands for; null for any other failure (an outage, a rate limit) or any other error. */
+export function decisionBlockOf(error: unknown): DecisionBlock | null {
+  const e = error as { name?: unknown; detail?: unknown } | null | undefined;
+  if (e?.name !== "LlmFailure" || typeof e.detail !== "string") return null;
+  const m = DECISION_BLOCK.exec(e.detail);
+  return m === null ? null : { stage: m[1], profile: m[2], reason: m[3] };
+}
+
+/** What the user reads for a blocked request: a decision, not an outage, and what to do about it. */
+export function decisionBlockText(block: DecisionBlock): string {
+  return `Blocked by the decision profile '${block.profile}' (stage '${block.stage}'): ${block.reason}. ` +
+    "The model gave no answer; rephrase the request, or choose another profile with /config set llm.profile.";
+}
+
 /** The error an act whose token budget ran out throws: the wrap-up answer the model gave in its last call, and the
  *  `tokens` dimension, as readBudgetExhausted reads it off a BudgetExhaustedError of the runtime. */
 export interface BudgetExhaustedAnswer extends Error {

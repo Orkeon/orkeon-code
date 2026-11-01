@@ -9,6 +9,7 @@ pages existent [en anglais](../README.md).
 | [Premiers pas](getting-started.md) | Modes docker, tool et source, première session |
 | [Tutoriel WSL](wsl-tutorial.md) | La voix et un modèle local sous WSL2, sur le GPU, pas à pas |
 | [Configuration](configuration.md) | Fournisseurs LLM, fichier de settings, variables d'environnement |
+| [Modèles de décision en local](decision-models-local.md) | Kev sur cette machine et Liquid, pas à pas, avec des profils de décision à essayer |
 | [Permissions](permissions.md) | Modes, règles, ce que l'agent peut toucher |
 | [Hooks](hooks.md) | Vos commandes autour des appels d'outils du modèle dans les étapes dev |
 | [Mémoire partagée](shared-memory.md) | Décisions, structures, méthodes et erreurs admises que les agents rappellent |

@@ -1,10 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  commentKeysBelowRoot, listExamples, load, PROMISED_EXAMPLES, RESULT_LIMITS, withoutCommentAndLlm,
+  commentKeysBelowRoot, listExamples, load, NAMED_DECISION_EXAMPLES, PROMISED_EXAMPLES, RESULT_LIMITS, withoutCommentAndLlm,
   withoutCommentOrkeonAndMcp, withoutCommentProfilesAndDecision,
 } from "./example-settings.fixtures.ts";
-import { assertExamplesInclude, assertJevExampleKeyless, assertWhisperMounts } from "./example-settings.assertions.ts";
+import {
+  assertExamplesInclude, assertJevExampleKeyless, assertNamedDecisionExample, assertSameAsJevButProvider,
+  assertWhisperMounts,
+} from "./example-settings.assertions.ts";
 
 // Orkeon judges its settings at the REPL's start and refuses a key it does not know
 // inside the sections it declares ("Orkeon:Tools:Shell:_comment is not a setting"):
@@ -12,7 +15,7 @@ import { assertExamplesInclude, assertJevExampleKeyless, assertWhisperMounts } f
 // Every config/*.example.json is such an example.
 const examples = listExamples();
 
-test("the example settings exist: the default, Anthropic, Ollama, Ollama and Whisper, and Jev ones", () => {
+test("the example settings exist: the default, Anthropic, Ollama, Ollama and Whisper, Jev, Kev and Liquid ones", () => {
   // Arrange
   const expected = PROMISED_EXAMPLES;
 
@@ -121,6 +124,32 @@ test("the Jev example reaches TypeSafe through a key variable, never a key, and 
   // Assert
   assertJevExampleKeyless(settings, file);
 });
+
+// The Kev and Liquid examples are the Jev one on another decision provider: the same file but for their comment, the
+// provider's section and Orkeon:Decision, which names the provider (Kev is never deduced from its section).
+for (const c of NAMED_DECISION_EXAMPLES) {
+  test(`${c.file} differs from the Jev example in its decision provider and its comment only`, () => {
+    // Arrange
+    const jev = load("appsettings.jev.example.json");
+
+    // Act
+    const settings = load(c.file);
+
+    // Assert
+    assertSameAsJevButProvider(settings, jev, c.file);
+  });
+
+  test(`${c.file} names ${c.provider} as the decision provider and reads its key from ${c.keyVariable}`, () => {
+    // Arrange
+    const file = c.file;
+
+    // Act
+    const settings = load(file);
+
+    // Assert
+    assertNamedDecisionExample(settings, file, c.section, c.keyVariable, c.provider);
+  });
+}
 
 for (const name of examples.filter((name) => load(name).MCP?.Servers?.whisper?.Env)) {
   test(`${name} trusts the annotations of its Whisper server, so the gate reads its read-only tools (Orkeon #223)`, () => {

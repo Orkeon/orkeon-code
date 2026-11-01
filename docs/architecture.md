@@ -343,7 +343,10 @@ The `main-loop` agent's body is the loop (`crews/main-loop/application/run-main-
 6. Assemble the prompt (below; `turn-prompt.ts` over the reads of `context-gather.ts`) and call the model's `act`
    (the `Llm` port over `ctx.llm.act()`): the runtime runs the model ⇄ tool calls cycle over the catalogue, every
    call of a model turn in order, under the crew budget and the permission gate, and returns the final answer. A
-   failed model call throws an `LlmFailure`: the turn stores no answer and fails with the provider's error.
+   failed model call throws an `LlmFailure`: the turn stores no answer and fails with the provider's error. A call a
+   decision stage of the host blocked is no outage but a decision (`decisionBlockOf`, `shared/domain/llm-failure.ts`,
+   reads the host's sentence until Orkeon #269 gives a typed block): the turn stores nothing after the request, logs a
+   warning and answers the block, its profile, stage and reason, with what to do; the run does not fail.
 7. Append the turn's `[tools]` message, then the answer. The message is built from the act's `onToolResult`
    (`shared/domain/tool-trace.ts`): one line per call, the tool, its main arguments cut short (path, pattern, glob,
    mode, command…) and a one-line outcome (a count, an exit code, an error, a cut scan); repeated calls folded as

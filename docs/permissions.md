@@ -410,11 +410,12 @@ A name without a class is a write. Mark `read` only a tool that changes nothing 
 that is what `plan` and `dontAsk` promise. A built-in tool keeps its own class and cannot be listed.
 
 A tool `orkeon-repl` registers only when a settings section opts in goes the same way, since a catalogue naming a tool
-the host did not register fails the act before the model is asked: `system_one_decide` (Orkeon #234, the TypeSafe
-System One decision model), registered with the `Orkeon:TypeSafe` section or `TYPESAFE_API_KEY`, is in no built-in
+the host did not register fails the act before the model is asked: `system_one_decide` (Orkeon #234, the host's System One
+decision model: TypeSafe, Liquid or Kev since Orkeon #266), registered when a decision provider is active (its section,
+its key or `Orkeon:Decision:Provider`), is in no built-in
 list, and a user whose host has it lists it in `tools.extra`. It declares a read to the gate, so it runs without a
 question wherever the catalogue offers it; keep it a write in the listing, as it sends the state it is given to the
-TypeSafe API, which `plan` and `dontAsk` promise nothing does.
+decision provider's API, which `plan` and `dontAsk` promise nothing does.
 
 Before each turn, `/assistant` and `/summary` check the names against the names the host registers, as Orkeon
 compares them (case aside, exactly: `get_file_contents` is not the `get-file-contents` an MCP server registers), and

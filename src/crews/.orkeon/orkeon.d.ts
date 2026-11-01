@@ -145,7 +145,7 @@ allowDelegation(value: boolean): this;
 maxIterations(value: number): this;
 /**
 * Turns the provider's thinking on at this effort. Anthropic takes the five levels; a provider whose field
-* knows fewer (three for OpenAI's `reasoning_effort` and Ollama's `think`) sends the highest it knows
+* knows fewer (three for OpenAI's `reasoning_effort` and Ollama's `think`; four, without `xhigh`, for DeepSeek and Z.ai; all five for OpenRouter) sends the highest it knows
 * below the one asked, and warns. Applies to the agent's `ctx.llm` calls too, unless a call sets its own.
 */
 effort(level: "low" | "medium" | "high" | "xhigh" | "max"): this;
@@ -1068,7 +1068,7 @@ maxTokens?: number;
 responseFormat?: ResponseFormatType;
 /**
 * Turns thinking on at this level; anything else throws. Anthropic takes the five levels; a provider whose field
-* knows fewer (three for OpenAI's `reasoning_effort` and Ollama's `think`) sends the highest it knows
+* knows fewer (three for OpenAI's `reasoning_effort` and Ollama's `think`; four, without `xhigh`, for DeepSeek and Z.ai; all five for OpenRouter) sends the highest it knows
 * below the one asked, and warns.
 */
 effort?: "low" | "medium" | "high" | "xhigh" | "max";
@@ -1314,13 +1314,19 @@ tools(value: string | Tool<unknown, unknown> | readonly (string | Tool<unknown, 
 */
 deliverable(spec: TaskDeliverableSpec): this;
 /**
-* Makes this task a decision task: it asks the LLM the listed questions and records the
-* answers, which later tasks branch on with `when`.
+* Makes this task a decision task: it queries the configured decision model
+* (`IDecisionModel`) with the listed questions and records the answers, which later
+* tasks branch on with `when`. Refused at load, naming the task and the key: a `state`
+* that is not an array, a `fallback` that is not an object or holds a non-string value,
+* a `choice` value or a `score` entry that is not a string. Two tasks with the same
+* `name` are refused; a task without `.name()` is keyed by its full description
+* (truncation is display only).
 */
 decision(spec: DecisionSpec): this;
 /**
 * Runs this task only when the named decision task's answers match `clauses`, or
-* (`"otherwise"`) when no other task gated on that decision matches.
+* (`"otherwise"`) when no other task gated on that decision matches. A task takes one
+* `.when()`: a second call throws an `InvalidScriptException` naming the task.
 */
 when(decisionTask: string, clauses: WhenClauses | "otherwise"): this;
 build(): Task<TIn, TOut>;
@@ -1334,7 +1340,7 @@ minConfidence?: number;
 state?: string[];
 /** Ask the long-context model. */
 longContext?: boolean;
-/** Question name to the answer given when the decision circuit is off (`--no-decision`, `Orkeon:Decision:Enabled=false`, no model). */
+/** Question name to the answer (a string, anything else is refused at load) given when the decision circuit is off (`--no-decision`, `Orkeon:Decision:Enabled=false`, no model). */
 fallback?: Record<string, string>;
 }
 /** One question: a choice among described options, a score per label, or a yes/no ("noul") test. */
@@ -2463,7 +2469,7 @@ glob?: string | null;
 max_files?: number;
 /** Maximum number of hits (default: 200) */
 max_results?: number;
-/** hits: one path:line:text per match (default). count: no hit lines, only total_matches, files_matched and the per-file counts (the max_results highest) */
+/** hits: one path:line:text per match (default); the scan is not stopped by max_results, it reads up to max_files or the 20 s budget, so a wide search can come back timed_out or truncated. count: no hit lines, only total_matches, files_matched and the per-file counts (the max_results highest) */
 output_mode?: "hits" | "count";
 /** Root directory searched (virtual path, a mounted directory inside the agent root) */
 path: string;

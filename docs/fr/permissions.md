@@ -440,10 +440,10 @@ listé.
 
 Un outil qu'`orkeon-repl` n'enregistre que si une section des settings l'active suit la même voie, puisqu'un catalogue
 qui nomme un outil que l'hôte n'a pas enregistré fait échouer l'act avant que le modèle soit interrogé :
-`system_one_decide` (Orkeon #234, le modèle de décision TypeSafe System One), enregistré avec la section
-`Orkeon:TypeSafe` ou `TYPESAFE_API_KEY`, n'est dans aucune liste intégrée, et l'utilisateur dont l'hôte l'a le liste
+`system_one_decide` (Orkeon #234, le modèle de décision System One de l'hôte : TypeSafe, Liquid ou Kev depuis Orkeon
+#266), enregistré quand un fournisseur de décision est actif (sa section, sa clé ou `Orkeon:Decision:Provider`), n'est dans aucune liste intégrée, et l'utilisateur dont l'hôte l'a le liste
 dans `tools.extra`. Il déclare une lecture à la garde, si bien qu'il tourne sans question partout où le catalogue
-l'offre ; gardez-le en écriture dans la liste, car il envoie l'état qu'on lui donne à l'API TypeSafe, ce que `plan` et
+l'offre ; gardez-le en écriture dans la liste, car il envoie l'état qu'on lui donne à l'API du fournisseur de décision, ce que `plan` et
 `dontAsk` promettent qu'aucun outil ne fait.
 
 Avant chaque tour, `/assistant` et `/summary` confrontent les noms à ceux que l'hôte enregistre, comme Orkeon les
