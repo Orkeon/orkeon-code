@@ -283,8 +283,9 @@ export function buildUserContextBlock(c: { cwd: string; date?: string; gitStatus
   return lines.join("\n");
 }
 
-/** Keep the LAST `max` requests and answers (sliding window), with the marked messages ([tools], [turn-context])
- *  that sit between them: a turn that called a tool takes as much of the window as one that did not.
+/** Keep the LAST `max` requests and answers (sliding window), with the marked messages ([tools], [turn-context],
+ *  [compacted]) that sit between them and those just before the oldest one kept (its [turn-context], the summary of
+ *  the compacted turns): a turn that called a tool takes as much of the window as one that did not.
  *  NB: the default is resolved in the body, NOT as a default parameter —
  *  `max = HISTORY_WINDOW` in the signature trips a Jint NRE when the bundled
  *  call resumes from an await (identifier lookup in default-param position). */
@@ -295,7 +296,11 @@ export function windowHistory(messages: SessionMsg[], max?: number): SessionMsg[
   for (let i = messages.length - 1; i >= 0; i--) {
     if (!countsInWindow(messages[i])) continue;
     counted += 1;
-    if (counted === limit) return messages.slice(i);
+    if (counted === limit) {
+      let start = i;
+      while (start > 0 && isMarkedMessage(String(messages[start - 1].content ?? ""))) start -= 1;
+      return messages.slice(start);
+    }
   }
   return messages;
 }

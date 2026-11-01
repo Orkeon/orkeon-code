@@ -32,7 +32,7 @@ import {
   AGENTS_HEADER_OPTS, BEHAVIOUR_BLOCKS_IN_ORDER, BODY_BLOCKS_IN_ORDER, CLAUDE_HEADER_OPTS, EMPTY_HOOKS_CASES,
   EMPTY_SKILLS_CASES, GAUGE_TIER_CASES, HOOK_STEPS, INSTRUCTIONS_FILE_CASES, KEPT_BUFFER_CASES, LEGACY_PARTS,
   MARKED_PARTS, MARKED_PARTS_IN_ORDER, OUTPUT_STYLE_CASES, REFUSAL_NOTE, REPEATED_REQUEST_HISTORY, RULE_MARKERS,
-  UNCONFIGURED_PREFERENCES_CASES, builtParts, toolTurns, userMessages,
+  MARKED_WINDOW_CASES, UNCONFIGURED_PREFERENCES_CASES, builtParts, toolTurns, userMessages,
 } from "./prompt-assembly.fixtures.ts";
 import { assertInOrder, assertLacks, assertMentions, assertSystemReminder } from "./prompt-assembly.assertions.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
@@ -370,6 +370,19 @@ describe("windowHistory", () => {
     // Assert
     deepStrictEqual(windowed, turns.slice(15));
   });
+
+  for (const c of MARKED_WINDOW_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { messages, max } = c;
+
+      // Act
+      const windowed = windowHistory(messages, max);
+
+      // Assert
+      deepStrictEqual(windowed, c.expected);
+    });
+  }
 });
 
 describe("buildHistoryBlock", () => {

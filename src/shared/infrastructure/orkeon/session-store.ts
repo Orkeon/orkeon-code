@@ -17,6 +17,15 @@ function normalizeMessages(stored: StoredMessage[]): SessionMsg[] {
   }));
 }
 
+/** What a runtime before Orkeon #263 (the rc.6 release) throws for append_message: its session_store answers an
+ *  unknown operation `{ success: false }` with no error, which the tool binding reports as
+ *  `tools.sessionStore failed: (no error message provided)`. */
+const UNKNOWN_OPERATION = "(no error message provided)";
+
+function isUnknownOperation(error: unknown): boolean {
+  return (error instanceof Error ? error.message : String(error)).includes(UNKNOWN_OPERATION);
+}
+
 /** A reported count, as a number; absent reads as 0. */
 const count = (r: unknown, ...names: string[]): number => Number(pick(r, ...names) ?? 0);
 
@@ -25,6 +34,8 @@ export function createSessionStore(
 ): SessionStore {
   // One shape per operation (runtime-tools.ts): a misspelled operation fails here.
   const sessionStore = (input: SessionStoreInput) => tools.sessionStore(input);
+  // Set at the first append_message the runtime does not know: the next appends read and rewrite the buffer at once.
+  let appendMissing = false;
   return {
     async readMessages() {
       const resp = await withToolMessage(() => sessionStore({ operation: "read_messages" }));
@@ -37,19 +48,27 @@ export function createSessionStore(
       await sessionStore({ operation: "write_messages", messages });
     },
     async appendMessage(role, content) {
-      let resp: unknown;
-      try {
-        resp = await sessionStore({ operation: "append_message", role, content });
-      } catch (e) {
-        // A runtime before Orkeon #263 (the rc.6 release, the tool and docker modes) has no append_message and
-        // throws: the message is added by reading and rewriting the buffer, as before #263.
-        if (role.trim() === "") throw e;
-        const stored = asArray(pick(await sessionStore({ operation: "read_messages" }), "messages", "Messages"));
-        await sessionStore({ operation: "write_messages", messages: [...stored, { role, content }] });
-        return;
+      if (!appendMissing) {
+        let resp: unknown;
+        try {
+          resp = await sessionStore({ operation: "append_message", role, content });
+        } catch (e) {
+          // A blank role is refused by every runtime, and any failure but an unknown operation's is the store's own:
+          // both are rethrown, never hidden behind a rewrite of the buffer.
+          if (role.trim() === "" || !isUnknownOperation(e)) throw e;
+          appendMissing = true;
+        }
+        if (!appendMissing) {
+          // A refused append (a blank role) says so, as a failed write would.
+          if (pick(resp, "success", "Success") === false) throw new Error(`session_store refused to append a '${role}' message`);
+          return;
+        }
       }
-      // A refused append (a blank role) says so, as a failed write would.
-      if (pick(resp, "success", "Success") === false) throw new Error(`session_store refused to append a '${role}' message`);
+      // A runtime before Orkeon #263 (the rc.6 release, the tool and docker modes) has no append_message: the message is
+      // added by reading and rewriting the buffer, as before #263, and this store does not ask for append_message again.
+      if (role.trim() === "") throw new Error(`session_store refused to append a '${role}' message`);
+      const stored = asArray(pick(await sessionStore({ operation: "read_messages" }), "messages", "Messages"));
+      await sessionStore({ operation: "write_messages", messages: [...stored, { role, content }] });
     },
     async reset() {
       return count(await sessionStore({ operation: "reset" }), "removed_count", "removedCount", "RemovedCount");

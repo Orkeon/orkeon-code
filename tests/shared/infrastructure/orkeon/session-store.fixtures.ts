@@ -73,3 +73,13 @@ export function storeWithoutAppend(input: { operation: string }): unknown {
   if (input.operation === "read_messages") return { success: true, messages: [{ role: "user", content: "hi" }] };
   return { success: true };
 }
+
+/** session_store whose `append_message` fails with `message`, an error other than an unknown operation's. */
+export function storeFailingAppend(message: string): (input: { operation: string }) => unknown {
+  return (input) => (input.operation === "append_message" ? new Error(message) : storeWithoutAppend(input));
+}
+
+/** The operations session_store received, in order. */
+export function operationsOf(inputs: unknown[]): string[] {
+  return inputs.map((i) => (i as { operation: string }).operation);
+}

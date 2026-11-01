@@ -48,7 +48,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`/usage` tells the tokens sent from the tokens received, and the counted from the estimated.** The row gains
   `llmInTokens`, `llmOutTokens` and `llmReasoningTokens` beside the total `llmTokens` (from the host's account, else
   summed over the models of `session_stats`, `n/a` when nobody counts them; `llmTokens` is then their sum, and
-  `cacheRead` and `cacheWrite` come from the same account as `llmInTokens`), and a legend opens the closing text:
+  `cacheRead` and `cacheWrite` come from the same account as `llmInTokens`: the host's alone when it keeps one, `n/a`
+  for a count it did not measure, `session_stats` only without it; `/context` takes its cache columns by the same
+  rule), and a legend opens the closing text:
   `usedTokens` and `estTokens` are estimates of the conversation's size, the `llm*` columns the providers' counts.
   `cacheRatio` is now the cache read over the prompt tokens, no longer over the prompt and completion together.
 - **`/effort` takes `xhigh` and `max`**, the two levels Claude knows above `high`: the ladder climbs to 120 and
@@ -834,7 +836,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `scripts/run-crew.sh` without `ORKEON_CODE_MODE=source`) and the `orkeon-runners` image no crew could build its
   agent. The cache is now requested only where the runtime offers it. On those releases, a turn's message is also
   stored by reading and rewriting the session buffer, as before Orkeon #263, so the assistant keeps the
-  conversation from one turn to the next.
+  conversation from one turn to the next. The rewrite answers only the failure such a runtime gives an unknown
+  `append_message` (`tools.sessionStore failed: (no error message provided)`), and the session store then rewrites at
+  once for its later appends; any other failed append, a blank role's included, is reported, never hidden behind a
+  rewrite.
+
+- **The history window keeps the context of its oldest turn**: the `[turn-context]` message, the `[tools]` message or
+  the `[compacted]` summary just before the oldest request or answer the window keeps were cut off with the older
+  turns; they are now kept with it.
 
 - **A turn a decision stage blocks answers the block instead of failing** (#47): when a guard or verify stage of the
   active `llm.profile` blocks the call, or a fail-closed stage cannot reach its decision model, `/assistant` answers

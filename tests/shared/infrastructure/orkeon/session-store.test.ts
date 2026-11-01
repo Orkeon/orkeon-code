@@ -7,7 +7,7 @@ import { strictEqual, deepStrictEqual, rejects } from "node:assert";
 import { createSessionStore } from "../../../../src/shared/infrastructure/orkeon/session-store.ts";
 import { compactSession } from "../../../../src/shared/application/compaction/compact-session.ts";
 import { FakeTools } from "../../../support/doubles/fake-tools.ts";
-import { BUDGETS, FORCES, NOT_A_LIST, RESET_COUNTS, SATURATED_BUDGET, STATE_VALUES, compactionDeps, storeWithoutAppend } from "./session-store.fixtures.ts";
+import { BUDGETS, FORCES, NOT_A_LIST, RESET_COUNTS, SATURATED_BUDGET, STATE_VALUES, compactionDeps, operationsOf, storeFailingAppend, storeWithoutAppend } from "./session-store.fixtures.ts";
 
 describe("createSessionStore — a failed read", () => {
   it("rethrows a failed read of the buffer with the tool's own message, without the runtime's wrapping", async () => {
@@ -318,6 +318,50 @@ describe("createSessionStore — append", () => {
     deepStrictEqual(tools.inputsOf("sessionStore").slice(1), [
       { operation: "read_messages" },
       { operation: "write_messages", messages: [{ role: "user", content: "hi" }, { role: "assistant", content: "done" }] },
+    ]);
+  });
+
+  it("remembers a missing append_message and rewrites the buffer at once on the next append", async () => {
+    // Arrange
+    const tools = new FakeTools();
+    tools.replies.sessionStore = storeWithoutAppend;
+    const store = createSessionStore(tools);
+    await store.appendMessage("user", "fix it");
+
+    // Act
+    await store.appendMessage("assistant", "done");
+
+    // Assert
+    deepStrictEqual(operationsOf(tools.inputsOf("sessionStore")), [
+      "append_message", "read_messages", "write_messages", "read_messages", "write_messages",
+    ]);
+  });
+
+  it("rethrows an append failure other than an unknown operation without rewriting the buffer", async () => {
+    // Arrange
+    const tools = new FakeTools();
+    tools.replies.sessionStore = storeFailingAppend("tools.sessionStore failed: session buffer locked");
+
+    // Act
+    const outcome = await createSessionStore(tools).appendMessage("assistant", "done").then(() => "appended", (e: Error) => e.message);
+
+    // Assert
+    deepStrictEqual([outcome, operationsOf(tools.inputsOf("sessionStore"))], [
+      "tools.sessionStore failed: session buffer locked", ["append_message"],
+    ]);
+  });
+
+  it("rethrows the failed append of a blank role without rewriting the buffer", async () => {
+    // Arrange
+    const tools = new FakeTools();
+    tools.replies.sessionStore = storeWithoutAppend;
+
+    // Act
+    const outcome = await createSessionStore(tools).appendMessage(" ", "done").then(() => "appended", (e: Error) => e.message);
+
+    // Assert
+    deepStrictEqual([outcome, operationsOf(tools.inputsOf("sessionStore"))], [
+      "tools.sessionStore failed: (no error message provided)", ["append_message"],
     ]);
   });
 });

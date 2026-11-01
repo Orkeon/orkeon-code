@@ -448,7 +448,8 @@ prompt as the model reads it, to review a change as a diff.
   file is read again before it is edited or quoted, and a question about how an earlier answer was found is answered
   from that message, not guessed. It is a window over the buffer (`windowHistory`): the last 50 requests and
   answers (`HISTORY_WINDOW`), with the `[tools]` and `[turn-context]` messages between them, which take no room in
-  it.
+  it, and the marked messages (`[turn-context]`, `[tools]`, the `[compacted]` summary) just before the oldest one
+  kept, so the window never cuts a kept request from its context.
 - **Environment**: the working directory, today's date, and the git status as it was when the turn began.
 - **Gauge** (a `<system-reminder>`): the tokens used against the window and the session cost. At the warning tier,
   finish the current step and stop reading whole large files; at the error tier, wrap up and suggest `/compact`.

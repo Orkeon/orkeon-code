@@ -52,9 +52,9 @@ import { memoryGuardCallbacks } from "../../shared/application/dev/tool-callback
 import { createToolTrace, tracedCallbacks } from "../../shared/application/dev/tool-trace-recorder.ts";
 import { memoryDirOf } from "../../shared/application/shared-memory/memory-settings.ts";
 import { createRunState } from "../../shared/infrastructure/orkeon/run-state.ts";
-import { compactSession, readCompactionTrigger } from "../../shared/application/compaction/compact-session.ts";
+import { compactSession } from "../../shared/application/compaction/compact-session.ts";
 import { loadCatalogue, runMainLoop } from "./application/run-main-loop.ts";
-import { BREAKER_RUN_FIELD } from "./application/auto-compact.ts";
+import { BREAKER_RUN_FIELD, turnCompaction } from "./application/auto-compact.ts";
 
 // The tool catalogue is decided at load time (module scope is synchronous), from
 // the inputs alone: see loadCatalogue.
@@ -83,12 +83,6 @@ const coder = orkeonAgent()
     const trace = createToolTrace();
     const llm = createLlm(ctx.llm, tracedCallbacks(memoryGuardCallbacks(memoryDirOf(ports.config)), trace));
     const log = ctx.log;
-    // The compaction trigger setting, read once for the turn's head and tail compactions.
-    let trigger: Promise<number | undefined> | null = null;
-    const compactionTrigger = () => {
-      if (trigger === null) trigger = readCompactionTrigger(ports.config);
-      return trigger;
-    };
     return await runMainLoop(inputs(), loaded, {
       ...ports,
       llm,
@@ -96,10 +90,10 @@ const coder = orkeonAgent()
       trace,
       run: createRunState(ctx),
       clock,
-      compact: async () => compactSession(
-        { force: false, trigger: await compactionTrigger() },
+      compact: turnCompaction(ports.config, (trigger) => compactSession(
+        { force: false, trigger },
         orkeonCompactionDeps({ llm, log }, { ...ports, progress }, clock),
-      ),
+      )),
     });
   })
   .build();

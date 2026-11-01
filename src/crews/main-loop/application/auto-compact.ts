@@ -1,11 +1,27 @@
-// Threshold-gated auto-compaction behind a circuit breaker (F3.2/F3.5), and the
-// storage of the breaker's counter. The compaction itself is the shared pipeline
-// (shared/application/compaction/), which the entry point binds and passes in.
+// Threshold-gated auto-compaction behind a circuit breaker (F3.2/F3.5), the storage of
+// the breaker's counter, and a turn's compaction that reads its trigger setting once.
+// The compaction itself is the shared pipeline (shared/application/compaction/), which
+// the entry point binds and passes in.
 
 import type { CompactOutcome } from "../../../shared/domain/compact-outcome.ts";
 import type { Logger, RunState, SessionStore } from "../../../shared/application/ports.ts";
 import { AUTOCOMPACT_BREAKER_STATE_KEY } from "../../../shared/domain/session-keys.ts";
+import type { ConfigStore } from "../../../shared/application/config-store.ts";
+import { readCompactionTrigger } from "../../../shared/application/compaction/compact-session.ts";
 import { isBreakerOpen, nextFailureCount } from "../domain/autocompact.ts";
+
+/** A turn's threshold-gated compaction: `compactAt` runs it at the `compaction.trigger` setting, read once, at the
+ *  turn's first compaction, and shared by its head and its tail compactions (undefined: the computed trigger). */
+export function turnCompaction(
+  config: Pick<ConfigStore, "readValue">,
+  compactAt: (trigger: number | undefined) => Promise<CompactOutcome>,
+): () => Promise<CompactOutcome> {
+  let trigger: Promise<number | undefined> | null = null;
+  return async () => {
+    if (trigger === null) trigger = readCompactionTrigger(config);
+    return compactAt(await trigger);
+  };
+}
 
 /** The agent-state field mirroring the counter (the crew's withState sets it to 0). */
 export const BREAKER_RUN_FIELD = "consecutiveFailures";

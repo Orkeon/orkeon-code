@@ -7,7 +7,7 @@ import {
   BREAKER_RUN_FIELD, autoCompactGuarded, readBreakerFailures, writeBreakerFailures,
 } from "../../../../src/crews/main-loop/application/auto-compact.ts";
 import { AUTOCOMPACT_BREAKER_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
-import { RUN_STATE_FALLBACKS, ZERO_COUNTERS, breakerSetup } from "./auto-compact.fixtures.ts";
+import { RUN_STATE_FALLBACKS, ZERO_COUNTERS, breakerSetup, headAndTail, turnCompactionSetup } from "./auto-compact.fixtures.ts";
 
 describe("breaker storage", () => {
   it("writes the counter to the session, mirrored in the run state", async () => {
@@ -141,5 +141,29 @@ describe("autoCompactGuarded", () => {
     // Assert
     strictEqual(attempts(), 0);
     deepStrictEqual(log.lines, ["warn: auto-compact suppressed (breaker open after 3 consecutive failures)"]);
+  });
+});
+
+describe("turnCompaction", () => {
+  it("reads the trigger setting once for the head and the tail compactions of a turn", async () => {
+    // Arrange
+    const { config, triggers, compact } = turnCompactionSetup("50k");
+
+    // Act
+    await headAndTail(compact);
+
+    // Assert
+    deepStrictEqual([config.reads, triggers], [["compaction.trigger"], [50_000, 50_000]]);
+  });
+
+  it("compacts with no trigger when the setting is unset", async () => {
+    // Arrange
+    const { triggers, compact } = turnCompactionSetup();
+
+    // Act
+    await compact();
+
+    // Assert
+    deepStrictEqual(triggers, [undefined]);
   });
 });

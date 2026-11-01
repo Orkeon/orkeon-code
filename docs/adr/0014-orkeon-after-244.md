@@ -91,8 +91,11 @@ each with the typings edited by hand.
   from its settings. On a runtime before #256 (the `1.0.0-rc.6` release of the tool mode and of
   `scripts/run-crew.sh`, the `orkeon-runners` image of the docker mode), the builder has no `.cache`: `profiledAgent`
   requests the cache only where the builder has one, so the agents build there, without the prompt cache.
-- On a runtime before #263 (the same releases), `append_message` is unknown and the call throws: the session adapter
-  then adds the message by reading and rewriting the buffer, as before #263, and a `get_state` over several `keys`
+- On a runtime before #263 (the same releases), `append_message` is unknown: the tool answers it `success: false` with
+  no error, which the binding throws as `tools.sessionStore failed: (no error message provided)`. On that failure
+  alone the session adapter adds the message by reading and rewriting the buffer, as before #263, and remembers it:
+  its next appends rewrite the buffer at once. Any other failure of an append, a blank role's included, is rethrown,
+  never hidden behind a rewrite. A `get_state` over several `keys`
   that throws leaves each key read on its own (the state snapshot). The conversation is kept, at the old cost.
 - On a runtime before #271 a block arrives as a failure marker, read as an `LlmFailure`: the turn fails with the
   host's sentence, as it did before #47 was fixed.

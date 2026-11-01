@@ -482,7 +482,9 @@ un changement comme un diff.
   appels faits, pas leurs résultats, donc un fichier est relu avant d'être modifié ou cité, et une question sur la
   façon dont une réponse précédente a été trouvée se répond depuis ce message, sans deviner. C'est une fenêtre sur
   le tampon (`windowHistory`) : les 50 dernières requêtes et réponses (`HISTORY_WINDOW`), avec les messages
-  `[tools]` et `[turn-context]` qui se trouvent entre elles, qui n'y prennent pas de place.
+  `[tools]` et `[turn-context]` qui se trouvent entre elles, qui n'y prennent pas de place, et les messages marqués
+  (`[turn-context]`, `[tools]`, le résumé `[compacted]`) juste avant la plus ancienne gardée, donc la fenêtre ne
+  sépare jamais une requête gardée de son contexte.
 - **Environnement** : le répertoire de travail, la date du jour, et le statut git tel qu'il était au début du tour.
 - **Jauge** (un `<system-reminder>`) : les tokens consommés rapportés à la fenêtre et le coût de la session. Au palier
   d'avertissement, finir l'étape en cours et cesser de lire de gros fichiers en entier ; au palier d'erreur, conclure
