@@ -12,7 +12,7 @@ import { readCompactionTrigger } from "../../../shared/application/compaction/co
 import {
   DEFAULT_CONTEXT_WINDOW, computeTrigger, percentLeft, pressureTier,
 } from "../../../shared/domain/compaction-thresholds.ts";
-import { UNREPORTED, type Unreported, shown } from "./cache.ts";
+import { UNREPORTED, type Unreported, cacheColumns, shown } from "./cache.ts";
 import type { CommandView } from "../view.ts";
 import { runUsageTools, type UsageToolsDeps } from "./usage-tools.ts";
 
@@ -100,8 +100,9 @@ export async function runUsage(deps: UsageDeps): Promise<CommandView> {
     readCompactionTrigger(deps.config),
   ]);
   const report = deps.usage?.report();
-  // The cache figures come from the same account as the tokens sent, so the ratio never mixes two sources.
-  const cacheRead = shown(report?.cacheHitTokens ?? s.cacheHitTokens);
+  // The cache figures come from the host's account alone when it keeps one (`n/a` for what it did not measure), else
+  // from session_stats: the same source as the tokens sent, so the ratio never mixes two sources.
+  const { cacheRead, cacheWrite } = cacheColumns(s, report);
   const promptTokens = shown(report?.promptTokens ?? s.promptTokens);
   return {
     table: [{
@@ -120,7 +121,7 @@ export async function runUsage(deps: UsageDeps): Promise<CommandView> {
       costUsd: report ? (report.cost ?? "(unpriced)") : shown(c.costUsd),
       ...(report ? { unpricedCalls: report.unpricedCalls } : {}),
       cacheRead,
-      cacheWrite: shown(report?.cacheWriteTokens ?? s.cacheWriteTokens),
+      cacheWrite,
       cacheRatio: cacheRatio(cacheRead, promptTokens),
     }],
     text: `${USAGE_LEGEND}\n${usageBreakdown(report)}`,

@@ -62,8 +62,9 @@ The agent's request wins over a host default `Llm:Cache`.
 by the host. The `llm*` columns are counted by the providers over every call: `llmInTokens` sent, `llmOutTokens`
 received (`llmReasoningTokens` a part of them), `llmTokens` their sum. `cacheRead` and `cacheWrite` are parts of
 `llmInTokens`, and `cacheRatio` is `cacheRead / llmInTokens`: all of them come from the host's usage account when it
-keeps one, else from `session_stats`, never one from each. A figure the host does not report reads `n/a`, and so
-does a ratio over an unreported cache read: a measured `0` reads `0`.
+keeps one, else from `session_stats`, never one from each: a cache count the account did not measure reads `n/a`,
+even when `session_stats` has one. `/context` takes its `cacheRead` and `cacheWrite` by the same rule. A figure the
+host does not report reads `n/a`, and so does a ratio over an unreported cache read: a measured `0` reads `0`.
 
 A model on this machine: [`config/appsettings.ollama.example.json`](../config/appsettings.ollama.example.json) is
 the example on [Ollama](https://ollama.com) serving `qwen3.5:2b` (`ollama pull qwen3.5:2b` first), no key and

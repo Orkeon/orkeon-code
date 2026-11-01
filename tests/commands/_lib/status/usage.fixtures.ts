@@ -114,8 +114,9 @@ export interface CacheFigures {
   cacheRatio: string;
 }
 
-/** Where /usage takes the cache read and write: the host's account first, else the telemetry's sums. */
-export const CACHE_SOURCE_CASES: { name: string; stats: SessionStats; report: UsageReport; expected: CacheFigures }[] = [
+/** Where /usage takes the cache read and write: the host's account alone when it keeps one, `n/a` for what it did
+ *  not measure; the telemetry's sums only without an account. */
+export const CACHE_SOURCE_CASES: { name: string; stats: SessionStats; report?: UsageReport; expected: CacheFigures }[] = [
   {
     name: "takes the cache read and write from the host's account, over the telemetry",
     stats: { cacheHitTokens: 5, cacheWriteTokens: 7 },
@@ -123,9 +124,14 @@ export const CACHE_SOURCE_CASES: { name: string; stats: SessionStats; report: Us
     expected: { cacheRead: 2000, cacheWrite: 0, cacheRatio: "0.67" },
   },
   {
-    name: "takes the cache read and write from the telemetry when the host's account did not measure them",
+    name: "shows the cache read and write unreported, not the telemetry's, when the host's account did not measure them",
     stats: { cacheHitTokens: 300, cacheWriteTokens: 7 },
     report: { ...USAGE_REPORT, cacheHitTokens: null, cacheWriteTokens: null },
+    expected: { cacheRead: "n/a", cacheWrite: "n/a", cacheRatio: "n/a" },
+  },
+  {
+    name: "takes the cache read and write from the telemetry when the host keeps no account",
+    stats: { promptTokens: 3000, cacheHitTokens: 300, cacheWriteTokens: 7 },
     expected: { cacheRead: 300, cacheWrite: 7, cacheRatio: "0.10" },
   },
 ];
