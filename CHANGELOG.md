@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Where it can reach the web, the assistant puts the project first: a port, a command or an image its documentation
+  and example settings give wins over one found on the web, and a value it read nowhere is not given as a fact. A
+  session had sent the user to an unknown repository and a wrong port while the project documented a local image and
+  its command. A few phrases of the header were tightened to keep it under its ceiling.
 - Each turn of the assistant reads its session state in one `session_store` call instead of one per key, and stores
   its messages with `append_message` instead of reading and rewriting the whole buffer (Orkeon #263). Its automatic
   compactions, at the head and the tail of the turn, read the token budget before the buffer and stop there under
@@ -481,7 +485,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **The runtime pin moves to Orkeon main after #244** ([ADR 0014](docs/adr/0014-orkeon-after-244.md)):
-  `.orkeon-version` holds `3860e9df…` (Orkeon #241 to #271: the effort levels `xhigh` and `max`, `index_codebase
+  `.orkeon-version` holds `35b966b9…` (Orkeon #241 to #275: the effort levels `xhigh` and `max`, `index_codebase
   max_parallelism`, the index cache between sessions, the prompt cache from scripts, Haiku 5.x priced and the
   Anthropic prompt cache costed at its own rates, a count mode in `grep` (`output_mode: "count"`, `total_matches` and
   `scan_complete` on every answer), `session_store` reading and writing several state keys in one call and appending one
@@ -493,7 +497,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `retry-after-ms` takes precedence over `Retry-After`, and the host may put TypeSafe, Liquid or Kev in front of the
   LLM as its decision model; then the decision stages: a verify judges the answer and lets the steps of an agent
   loop that call a tool pass, a guard or a verify sends its instructions with each question, a block reaches a script
-  as a typed `DecisionBlockedError`, and the stage log prints no `(null)`); the typings are regenerated from a checkout at it, and the
+  as a typed `DecisionBlockedError`, and the stage log prints no `(null)`; then `dependency_graph` names the members
+  of each cycle, and the kind of an edge is written by name, no longer as a number); the typings are regenerated from a checkout at it, and the
   permission rules know the two new arguments of `index_codebase`, `max_parallelism` and `use_cache`, and `grep`'s
   `output_mode`.
 - **The runtime pin is a commit of Orkeon's `main`, never a release** ([ADR 0013](docs/adr/0013-pin-on-orkeon-commit.md)):

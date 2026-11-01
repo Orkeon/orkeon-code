@@ -245,8 +245,9 @@ export interface GraphSummary {
  *  dependency_graph additionally carries `metrics {node_count, edge_count, cycle_count}`;
  *  sub_graph has no metrics block, so the counts fall back to the array lengths.
  *  Two quirks pinned from the live capture (2026-08-06):
- *   • edge `kind` serializes as a NUMBER (the C# EdgeKind enum value, 1 = Imports),
- *     while node `kind` is a string ("module") — coerced to string here;
+ *   • edge `kind` serialized as a NUMBER (the C# EdgeKind flags value, 1 = Imports) until
+ *     Orkeon #275, and since as snake_case names ("imports, calls"); node `kind` is a
+ *     string ("module") — both coerced to string here;
  *   • edge `from`/`to` are node IDs ("/path#module@0"), NOT the nodes' `fqn` —
  *     joining edges to nodes needs the ID prefix, not equality. */
 export function readGraph(raw: any): GraphSummary {

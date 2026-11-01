@@ -186,6 +186,32 @@ describe("buildStaticHeader", () => {
     ok(withShell.includes("Shell `grep` is the LAST resort"), withShell);
   });
 
+  it("puts the project before the web where a web tool is offered", () => {
+    // Arrange
+    const opts = { toolNames: ["file_read", "web_scrape"] };
+
+    // Act
+    const header = buildStaticHeader(opts);
+
+    // Assert
+    assertMentions(header, [
+      "The web tools come after the project's docs and example settings",
+      "wins over the web's",
+      "a value read nowhere is no fact",
+    ], "the header with web tools");
+  });
+
+  it("says nothing of the web where no web tool is offered", () => {
+    // Arrange
+    const opts = { toolNames: ["file_read", "shell_command"] };
+
+    // Act
+    const header = buildStaticHeader(opts);
+
+    // Assert
+    assertLacks(header, ["The web tools come after"], "the header without web tools");
+  });
+
   it("names no shell to grep with in a read-only catalogue, and directory_read instead", () => {
     // Arrange
     const opts = { toolNames: ["codebase_search", "directory_read", "file_read"] };

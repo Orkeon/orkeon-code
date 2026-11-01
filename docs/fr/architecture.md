@@ -457,8 +457,11 @@ un changement comme un diff.
   lignes, la plage suivante seulement au besoin, puisque chaque appel d'un tour renvoie tout le contexte et que le
   budget du crew le somme (l'en-tête ne porte aucun chiffre, le nombre est dit en mots). `file_write` remplace le fichier
   entier, donc un fichier dont la lecture est revenue coupée n'est jamais réécrit. `shell_command` applique une liste
-  blanche, et git peut être en lecture seule. Les lignes sur l'écriture et le shell n'apparaissent que dans les modes
-  qui offrent ces outils.
+  blanche, et git peut être en lecture seule. Là où un outil web est offert (`web_search`, `http_api`,
+  `web_scrape`, `scrape_element`), le projet passe avant le web : un port, une commande ou une image que sa
+  documentation et ses réglages d'exemple donnent l'emporte sur une valeur trouvée sur le web, et une valeur lue nulle
+  part n'est pas donnée comme un fait. Les
+  lignes sur l'écriture, le shell et le web n'apparaissent que dans les modes qui offrent ces outils.
 - **Refus** : un outil manquant ou un appel refusé est une décision du mode ou de l'utilisateur ; changer d'approche
   au lieu de répéter l'appel.
 - **Recherche** : router par type de fichier vers le bon index, préférer les outils d'intelligence de code au shell
