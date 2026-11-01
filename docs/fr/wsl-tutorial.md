@@ -188,7 +188,7 @@ Premier REPL, sans la voix, sur le dépôt d'exemple jetable (`--demo`), en mode
 ./orkeon-code --mode tool --demo
 ```
 
-Le bandeau affiche `orkeon-code <version> on Orkeon 0ea39d9 (tool)` (`0ea39d9` est l'épingle de `.orkeon-version`,
+Le bandeau affiche `orkeon-code <version> on Orkeon 9c25b6c (tool)` (`9c25b6c` est l'épingle de `.orkeon-version`,
 pas la version du paquet), le projet et le fichier de réglages. Dans le REPL :
 
 | Commande | Attendu |

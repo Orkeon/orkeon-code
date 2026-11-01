@@ -6,7 +6,7 @@
 
 ## Context
 
-The pin of ADR 0013 is `3fcfbbe` (Orkeon #240). Orkeon `main` then merged thirteen pull requests, up to `0ea39d9`
+The pin of ADR 0013 is `3fcfbbe` (Orkeon #240). Orkeon `main` then merged fourteen pull requests, up to `9c25b6c`
 (2026-11-01):
 
 - **#241**, an audit of Orkeon's documentation against its code: no change of the scripting surface.
@@ -50,13 +50,19 @@ The pin of ADR 0013 is `3fcfbbe` (Orkeon #240). Orkeon `main` then merged thirte
   second `.when()` or two tasks of one name are refused at load. The host serves TypeSafe, Liquid or Kev as its
   decision model (`Orkeon:Decision:Provider`), and the guard section is `Orkeon:Decision:Guard`. The typings change in
   their comments only.
+- **#271**, the decision stages, fixes of issues opened from Orkeon Code's trial of Kev and d1 (#267 to #270): a
+  `verify` judges the answer and lets a response that calls tools pass (`Steps: "final"`, the default; `"all"` judges
+  the steps too), so an agent loop no longer escalates at every step; a guard or a verify sends `instructions` with
+  each yes or no question, which d1 refused without; a blocked call rejects in a script with a `DecisionBlockedError`
+  (`errorType: "DecisionBlocked"`, `profile`, `stage`, `risk` for a guard, `reason`; `onError` code
+  `decision_blocked`) instead of resolving to an `<undefined-llm:...>` marker; the stage log prints no `(null)`.
 
 Three branches of Orkeon Code waited on these: `/effort xhigh|max`, `/analyze --parallel N` and `/analyze --rebuild`,
 each with the typings edited by hand.
 
 ## Decision
 
-- **The pin moves to `0ea39d9`** (`.orkeon-version`, `ORKEON_RUNTIME_COMMIT`), the typings are regenerated from a
+- **The pin moves to `9c25b6c`** (`.orkeon-version`, `ORKEON_RUNTIME_COMMIT`), the typings are regenerated from a
   checkout at it, the hand edits of the three branches give way to them.
 - **`/effort` offers the five levels**, `/analyze` takes `--parallel N` (`max_parallelism`) and `--rebuild`
   (`use_cache: false`), as their branches wrote them.
@@ -70,6 +76,10 @@ each with the typings edited by hand.
   `.cache({ systemPrompt: true, tools: true })`. The prompts are assembled so that this prefix stays byte-identical
   turn after turn, which is what the cache needs. Anthropic caches only what a request marks; the other providers
   cache by their own rules and ignore the request.
+- **A blocked turn is read off the typed block**: `decisionBlockOf` reads the `DecisionBlockedError` of #269 (its
+  `errorType`, `profile`, `stage`, `risk` and `reason`) instead of parsing the host's sentence out of a failure marker,
+  and `/assistant` answers it as before. The d1 shim of the local decision models page no longer rewrites the yes or
+  no questions (#268).
 - **An unreported count stays unreported**: the usage reader keeps a null cache or reasoning count null, and `/usage`
   shows it `-`.
 
@@ -79,4 +89,6 @@ each with the typings edited by hand.
   `xhigh` and `max` fail the agent's build, as any unknown value did.
 - An agent's own `.cache(...)` wins over the host default `Llm:Cache`: a host cannot turn Orkeon Code's cache off
   from its settings. On a runtime before #256, `.cache` does not exist and every agent fails its build.
-- The check made for this ADR: `npm run check` and the runtime smoke on `0ea39d9` in source mode.
+- On a runtime before #271 a block arrives as a failure marker, read as an `LlmFailure`: the turn fails with the
+  host's sentence, as it did before #47 was fixed.
+- The check made for this ADR: `npm run check` and the runtime smoke on `9c25b6c` in source mode.
