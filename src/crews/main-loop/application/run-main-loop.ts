@@ -305,7 +305,7 @@ export async function runMainLoop(input: MainLoopInputs, loaded: LoadedCatalogue
   // no answer is stored, the tail compaction does not run (the breaker counts
   // compactions, not turns), and the run fails with the provider's error, which
   // /assistant shows. The user's message stays in the buffer.
-  // A call a decision stage blocked is a decision, not an outage: the turn ends
+  // A call a decision stage blocked (DecisionBlockedError) is a decision, not an outage: the turn ends
   // with the block said, nothing stored after the user's message, the run not failed.
   // The calls of a head-of-turn compaction are not the answer's: the trace starts with the act.
   deps.trace?.take();

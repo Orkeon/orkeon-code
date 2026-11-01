@@ -465,7 +465,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **The runtime pin moves to Orkeon main after #244** ([ADR 0014](docs/adr/0014-orkeon-after-244.md)):
-  `.orkeon-version` holds `0ea39d94…` (Orkeon #241 to #266: the effort levels `xhigh` and `max`, `index_codebase
+  `.orkeon-version` holds `9c25b6c9…` (Orkeon #241 to #271: the effort levels `xhigh` and `max`, `index_codebase
   max_parallelism`, the index cache between sessions, the prompt cache from scripts, Haiku 5.x priced and the
   Anthropic prompt cache costed at its own rates, a count mode in `grep` (`output_mode: "count"`, `total_matches` and
   `scan_complete` on every answer), `session_store` reading and writing several state keys in one call and appending one
@@ -475,7 +475,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   C#, Go and Rust fixed; then the review of rc.6: an Anthropic turn with `/effort` on that calls a tool no longer
   fails its next model call, a cancelled `/review` or `/memory` keeps its crew held until it has really stopped,
   `retry-after-ms` takes precedence over `Retry-After`, and the host may put TypeSafe, Liquid or Kev in front of the
-  LLM as its decision model); the typings are regenerated from a checkout at it, and the
+  LLM as its decision model; then the decision stages: a verify judges the answer and lets the steps of an agent
+  loop that call a tool pass, a guard or a verify sends its instructions with each question, a block reaches a script
+  as a typed `DecisionBlockedError`, and the stage log prints no `(null)`); the typings are regenerated from a checkout at it, and the
   permission rules know the two new arguments of `index_codebase`, `max_parallelism` and `use_cache`, and `grep`'s
   `output_mode`.
 - **The runtime pin is a commit of Orkeon's `main`, never a release** ([ADR 0013](docs/adr/0013-pin-on-orkeon-commit.md)):
@@ -816,8 +818,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A turn a decision stage blocks answers the block instead of failing** (#47): when a guard or verify stage of the
   active `llm.profile` blocks the call, or a fail-closed stage cannot reach its decision model, `/assistant` answers
   `Blocked by the decision profile '<profile>' (stage '<stage>'): <reason>` with what to do, logs it as a warning and
-  stores nothing after the request; the run no longer fails. The block is read from the host's sentence until
-  Orkeon #269 gives scripts a typed block.
+  stores nothing after the request; the run no longer fails. The block is read off the runtime's typed
+  `DecisionBlockedError` (Orkeon #269), its risk named when the guard gave no reason.
 - **The `/analyze` harvest covers what matters in a large repository**: the synthesis worked from the index's
   first 200 symbols (markdown sections on a C# repository of 8,600 files), its first 10 packages and a `200 total`
   that only counted those. It now asks for up to 1,000 packages, summarizes the 15 largest (test packages last),

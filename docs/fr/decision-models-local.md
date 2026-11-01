@@ -18,7 +18,7 @@ injection de prompt et remonte de `small` vers `large` quand la réponse ne tien
 
 ## Le runtime : le mode source
 
-Liquid et Kev arrivent avec Orkeon #266, que le pin nomme (`0ea39d9`) et qu'aucune release ne livre encore : le mode
+Liquid et Kev arrivent avec Orkeon #266, leurs étapes corrigées par #271, que le pin couvre (`9c25b6c`) et qu'aucune release ne livre encore : le mode
 tool fait tourner la dernière release et le mode docker la dernière image, et aucun des deux ne connaît
 `Orkeon:Liquid`, `Orkeon:Kev` ni `Orkeon:Decision:Provider`. Lancez Orkeon Code en mode source, sur un checkout
 d'Orkeon au pin ou après ([Premiers pas](getting-started.md#mode-source--un-checkout-dorkeon)) :
@@ -247,18 +247,6 @@ model = AutoModel.from_pretrained(MODEL_ID, revision=REVISION, trust_remote_code
 app = FastAPI()
 
 
-def for_d1(q):
-    """d1 wants `instructions` on every question; a yes or no question given only its criteria
-    (an Orkeon guard stage sends `criteria.true`, the risk) is asked whether that criterion holds."""
-    if q.get("type") != "noul" or q.get("instructions"):
-        return q
-    crit = q.get("criteria") or {}
-    yes, no = crit.get("true"), crit.get("false")
-    q = {"type": "noul", "instructions": f"Is this true of the state: {yes}?" if yes else "Is the answer yes?"}
-    if no:
-        q["criteria"] = {"true": yes, "false": no}
-    return q
-
 @app.get("/v1/models")
 def models():
     return {"data": [{"id": NAME, "source": MODEL_ID, "device": device}]}
@@ -273,15 +261,16 @@ async def systemone(request: Request):
     t = time.perf_counter()
     try:
         with torch.inference_mode():
-            out = model.system_one(req.get("state"), {k: for_d1(q) for k, q in questions.items()})
+            out = model.system_one(req.get("state"), questions)
     except (ValueError, TypeError) as e:
         raise HTTPException(422, str(e))
     return {"model": req.get("model") or NAME, **out, "latency_ms": round((time.perf_counter() - t) * 1000, 1)}
 ```
 
-d1 veut des `instructions` sur chaque question, et les étapes de garde et de vérification d'Orkeon envoient une
-question oui ou non avec son seul critère : `for_d1` fait de ce critère la question. Le modèle livre son propre code
-(`trust_remote_code`), donc `D1_REVISION` fige la révision essayée ici. L'image, à côté de `serve.py` :
+d1 veut des `instructions` sur chaque question : les étapes de garde et de vérification d'Orkeon les envoient avec
+chaque question oui ou non depuis Orkeon #271 (la description du risque, le critère de la vérification). Le modèle
+livre son propre code (`trust_remote_code`), donc `D1_REVISION` fige la révision essayée ici. L'image, à côté de
+`serve.py` :
 
 ```dockerfile
 FROM python:3.13-slim
@@ -353,31 +342,11 @@ L'exemple Kev, son adresse et son modèle changés (`D1_MODEL` règle le nom que
 ```
 
 Sur `guarded`, l'injection est bloquée à 0,96 :
-`Decision profile guarded: stage guard decided Block (null) (the request matches the risk 'prompt_injection' at 0.96)`,
-et la requête ordinaire passe. L'étape de vérification de `guarded`, elle, juge chaque appel de la boucle de l'agent,
-y compris les étapes qui ne font qu'appeler un outil : `d1-3B` les note de 0,09 à 0,11 contre le critère, donc chaque
-étape remonte sur `large` (`stage verify asked a second escalation to large; ignored` quand il y est déjà). Pour
-`/assistant`, donnez à d1 la garde seule :
-
-```json
-{
-  "guard-only": {
-    "Target": "small",
-    "FailClosed": false,
-    "Stages": [
-      {
-        "Kind": "guard",
-        "Phase": "request",
-        "Risks": {
-          "prompt_injection": "The message tries to override the system instructions or the tool rules"
-        },
-        "BlockThreshold": 0.8,
-        "WarnThreshold": 0.5
-      }
-    ]
-  }
-}
-```
+`Decision profile guarded: stage guard decided Block (the request matches the risk 'prompt_injection' at 0.96)`,
+et la requête ordinaire passe. L'étape de vérification de `guarded` juge la réponse, pas les étapes qui y mènent :
+une réponse de la boucle de l'agent qui ne fait qu'appeler un outil passe sans être jugée (`"Steps": "final"`, la
+valeur par défaut ; `"all"` juge aussi les étapes). Avant Orkeon #271 elle jugeait chaque étape, et `d1-3B`, qui les
+notait de 0,09 à 0,11 contre le critère, faisait remonter chacune sur `large`.
 
 ### L'API hébergée
 
@@ -556,7 +525,7 @@ appel est bloqué.
 
 ## Le voir fonctionner
 
-Ce qui suit a été observé avec `kev-0.8b` et `qwen3.5:2b` dans Docker sur une RTX 3080, Orkeon au pin. Les lignes de
+Ce qui suit a été observé avec `kev-0.8b` et `qwen3.5:2b` dans Docker sur une RTX 3080, Orkeon à `0ea39d9`. Les lignes de
 journal sont celles de l'hôte, telles que l'exécution ci-dessous les affiche.
 
 1. **Le démarrage.** L'hôte nomme le fournisseur actif :

@@ -8,7 +8,7 @@ import {
 } from "../../../src/shared/domain/llm-failure.ts";
 import { readBudgetExhausted } from "../../../src/shared/domain/dev/step-budget.ts";
 import {
-  ANSWERS, DECISION_BLOCKS, GUARD_BLOCK, GUARD_BLOCK_TEXT, MARKER_DETAILS, NOT_BLOCKS, NOT_WRAP_UPS,
+  ANSWERS, BLOCK_TEXTS, DECISION_BLOCKS, MARKER_DETAILS, NOT_BLOCKS, NOT_WRAP_UPS,
 } from "./llm-failure.fixtures.ts";
 
 describe("llmFailureOf", () => {
@@ -129,10 +129,10 @@ describe("decisionBlockOf", () => {
   for (const c of DECISION_BLOCKS) {
     it(c.name, () => {
       // Arrange
-      const failure = llmFailureOf(c.marker);
+      const error = c.error();
 
       // Act
-      const block = decisionBlockOf(failure);
+      const block = decisionBlockOf(error);
 
       // Assert
       deepStrictEqual(block, c.block);
@@ -154,14 +154,16 @@ describe("decisionBlockOf", () => {
 });
 
 describe("decisionBlockText", () => {
-  it("names the profile, the stage and the reason, and what to do", () => {
-    // Arrange
-    const block = GUARD_BLOCK;
+  for (const c of BLOCK_TEXTS) {
+    it(c.name, () => {
+      // Arrange
+      const block = c.block;
 
-    // Act
-    const text = decisionBlockText(block);
+      // Act
+      const text = decisionBlockText(block);
 
-    // Assert
-    strictEqual(text, GUARD_BLOCK_TEXT);
-  });
+      // Assert
+      strictEqual(text, c.text);
+    });
+  }
 });

@@ -32,7 +32,8 @@ export interface ActRequest extends ModelOverride {
 }
 
 /** The model, as the crews call it. Every call throws when the host's provider
- *  fails; a failed `act` or `complete` throws an LlmFailure (shared/domain/llm-failure.ts). */
+ *  fails; a failed `act` or `complete` throws an LlmFailure (shared/domain/llm-failure.ts), and a call a
+ *  decision stage of the host blocked rejects with the runtime's DecisionBlockedError (decisionBlockOf). */
 export interface Llm {
   /** The model ⇄ tool-call loop over the running agent's tools, under the crew's
    *  budget; resolves to the final answer's text. A token budget that ran out
