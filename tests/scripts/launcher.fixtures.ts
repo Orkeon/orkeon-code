@@ -80,6 +80,11 @@ export function orkeonCheckoutAtAnotherCommit(): string {
   return source;
 }
 
+/** The short commit (7 characters) a git checkout sits at. */
+export function checkoutHead(source: string): string {
+  return spawnSync("git", ["-C", source, "rev-parse", "--short=7", "HEAD"], { encoding: "utf-8" }).stdout.trim();
+}
+
 /** An Orkeon checkout one commit behind its pin, as `checkout`'s `.orkeon-version` names it (`files` of a launch);
  *  `branch` is the branch it is on (main by default, "" detached), `dirty` leaves a tracked file changed. */
 export function orkeonCheckoutBehindThePin(opts: { branch?: string; dirty?: boolean } = {}) {

@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   own and the request alone as the last one, so a decision profile's guard judges the request without the history
   diluting it (Orkeon #276). On `1.0.0-rc.6`, which does not read that message, the context still goes in front of
   the request.
+- `orkeon-code --version` gives the commit of an Orkeon source checkout beside its path (`source checkout <path>
+  at 549987d`): the line named the path alone, and an up-to-date checkout read like a mismatch with the pin.
 - `/analyze` names the members of the module cycles: one line per cycle with its size and its first modules, the
   largest first when the index sampled them, instead of a count it could not detail.
 - [Decision models on this machine](docs/decision-models-local.md) no longer says `kev-4b` does not fit a 10 GB GPU:
