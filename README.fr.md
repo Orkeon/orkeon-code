@@ -48,8 +48,9 @@ chaque prompt est un fichier source : modifiez-le, ou ajoutez le vôtre.
   ([Permissions](docs/fr/permissions.md#jeux-de-règles-des-étapes-dev)).
 - **Une mémoire partagée** : décisions, structures, méthodes et erreurs que les étapes retrouvent, admises seulement
   par `/memory admit` ([Mémoire partagée](docs/fr/shared-memory.md)).
-- **Gestion du contexte** : compaction automatique avec disjoncteur, `/compact` qui tronque d'abord, restauration des
-  fichiers après compaction, paliers de pression du contexte, mémoire durable typée (`/memory`).
+- **Gestion du contexte** : compaction automatique avec disjoncteur, `/compact` qui résume toute la session
+  (la troncature est `/compact --snip`, ou le repli d'un résumé en échec), restauration des fichiers après
+  compaction, paliers de pression du contexte, mémoire typée tenue par le processus Orkeon (`/memory`).
 - **48 commandes slash** au total : [docs/fr/commands.md](docs/fr/commands.md).
 
 ## Démarrage rapide

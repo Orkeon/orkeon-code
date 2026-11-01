@@ -1,7 +1,8 @@
 // Pre-compaction memory extraction: the model lists the durable facts of the
 // conversation, and each one goes to the typed-memory store, so that nothing worth
 // keeping is lost to the summary. What the store already holds is listed in the
-// prompt, so a fact is not saved twice.
+// prompt, so a fact is not saved twice; today's date is given, so a relative date
+// is saved as an absolute one.
 
 import type { Llm, MemoryStore } from "../ports.ts";
 import {
@@ -11,15 +12,16 @@ import {
   type ExtractedMemory,
 } from "../../domain/compaction.ts";
 
-/** Extract + persist durable memories; failures degrade to an empty list. */
+/** Extract + persist durable memories; failures degrade to an empty list. `today` is YYYY-MM-DD. */
 export async function extractMemories(
   llm: Pick<Llm, "extract">,
   memory: Pick<MemoryStore, "add" | "list">,
   transcript: string,
+  today?: string,
 ): Promise<ExtractedMemory[]> {
   try {
     const known = await memory.list().then((entries) => entries.map((e) => e.content)).catch(() => [] as string[]);
-    const raw = await llm.extract(buildMemoryExtractionPrompt(transcript, known), MEMORY_EXTRACTION_SCHEMA);
+    const raw = await llm.extract(buildMemoryExtractionPrompt(transcript, known, today), MEMORY_EXTRACTION_SCHEMA);
     const items = sanitizeExtractedMemories(raw);
     for (const it of items) {
       try {

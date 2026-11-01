@@ -99,7 +99,7 @@ export const orkeonCompactionDeps = (
 ): CompactDeps => {
   const { session, files, memory, progress, shell, config } = ports;
   return {
-    progress, session, files, memory, llm: ctx.llm, log: ctx.log,
+    progress, session, files, memory, llm: ctx.llm, log: ctx.log, clock,
     workflow: (trigger) => writeWorkflowState({ session, files, shell, config, clock }, trigger),
   };
 };

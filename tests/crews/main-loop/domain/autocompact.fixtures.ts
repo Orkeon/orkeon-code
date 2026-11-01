@@ -25,7 +25,6 @@ export const FAILURE_COUNT_CASES: readonly FailureCountCase[] = [
   { name: "increments from 0 on failed", count: 0, outcome: "failed", next: 1 },
   { name: "increments from 2 on failed", count: 2, outcome: "failed", next: 3 },
   { name: "resets on compacted", count: 2, outcome: "compacted", next: 0 },
-  { name: "resets on snipped", count: 2, outcome: "snipped", next: 0 },
   { name: "leaves a count of 0 unchanged on skipped", count: 0, outcome: "skipped", next: 0 },
   { name: "leaves a count of 2 unchanged on skipped", count: 2, outcome: "skipped", next: 2 },
 ];

@@ -1,6 +1,7 @@
 // The session_store, session_snip and token_budget replies the createSessionStore tests read, and the ports a
 // compaction runs on over the adapter.
 import type { createSessionStore } from "../../../../src/shared/infrastructure/orkeon/session-store.ts";
+import { FakeClock } from "../../../support/doubles/fake-clock.ts";
 import { FakeFiles } from "../../../support/doubles/fake-files.ts";
 import { FakeLlm } from "../../../support/doubles/fake-llm.ts";
 import { FakeLogger } from "../../../support/doubles/fake-logger.ts";
@@ -18,7 +19,7 @@ export const FORCES: readonly boolean[] = [false, true];
 export function compactionDeps(session: ReturnType<typeof createSessionStore>) {
   return {
     session, progress: new FakeProgress(), files: new FakeFiles(), memory: new FakeMemoryStore(),
-    llm: new FakeLlm(), log: new FakeLogger(),
+    llm: new FakeLlm(), log: new FakeLogger(), clock: new FakeClock().now,
   };
 }
 

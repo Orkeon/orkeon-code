@@ -53,7 +53,7 @@ export function rawText(args: any): string {
   return ((args?.raw ?? []) as string[]).join(" ").trim();
 }
 
-/** `/compact [--snip [N] | <focus>]`: the snip-only path with how many exchanges to
+/** `/compact [--snip [N] | <focus>]`: the snip-only path with how many messages to
  *  keep (3 by default), or the focus of the summary. */
 export function parseCompactArgs(tokens: readonly string[]): { snip: number } | { focus: string } {
   if (tokens[0] === "--snip") {

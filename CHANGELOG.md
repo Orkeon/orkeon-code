@@ -15,6 +15,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **A compaction summarises the whole session instead of cutting it to the last messages**: the snip ran first and,
+  once it had brought the buffer under the trigger, no summary was written, so `/compact <focus>` dropped the middle of
+  the session and ignored the focus. Every compaction now writes its summary from the buffer as it stood before any
+  cut. The bare cut stays for `/compact --snip` and when the summary fails, and then leaves a `[compacted]` note
+  saying earlier turns were removed without a summary, placed after the head so the current request stays last
+  (repeated cuts add no second note); the history and the next summary read that note as a gap. The summary opens what remains with the step under way, keeps
+  what the user allowed or forbade with the scope they gave it, folds in an earlier summary, and still names every
+  file it touched, knowing that only a few files come back after the cut.
+- **Memory**: the extraction knows today's date, so "next Thursday" becomes a date in a memory. The memory notes and
+  the `[memories]` recap are introduced as saved at compactions, true when written, no longer as notes from earlier
+  sessions (typed memory lives in the Orkeon process today, Orkeon #286). Asked to remember something, the assistant
+  says how it will be kept (the next compaction, or `/memory add` now) instead of claiming it is saved, and is told
+  that `memory_push` files a shared lesson, not that fact. The extraction's date is the user's local day.
 - **The prompts send each code question to the tool that answers it**: asked for every base class, the assistant
   wrote a shell script of regular expressions instead of asking Orkeon's index. The main loop, the reviewer and the
   auditor now get one line per question they can ask (the bases of a type, who extends it, its callers, a code shape

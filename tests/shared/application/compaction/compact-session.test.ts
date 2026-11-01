@@ -5,16 +5,16 @@ import { ok, deepStrictEqual, strictEqual } from "node:assert";
 
 import { COMPACT_PROGRESS_LABEL, compactSession, readCompactionTrigger, snipBuffer } from "../../../../src/shared/application/compaction/compact-session.ts";
 import {
-  buildCompactedBuffer, buildMemoryExtractionPrompt, buildRestoredStateMessage, buildSummaryPrompt, buildTranscript,
+  buildCompactedBuffer, buildMemoryExtractionPrompt, buildRestoredStateMessage, buildSummaryPrompt,
+  buildTranscript,
 } from "../../../../src/shared/domain/compaction.ts";
-import { SNIP_RETAIN_COUNT } from "../../../../src/shared/domain/compaction-thresholds.ts";
 import { SKILLS_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
 import { FakeSessionStore } from "../../../support/doubles/fake-session-store.ts";
 import {
-  ABOVE, BELOW, FULL_PIPELINE_LOG, FULL_PIPELINE_STEPS, HISTORY, TRIGGER_SETTINGS, WRITTEN, compactSetup, fullPipelineBuffer,
-  withWorkflow,
+  ABOVE, BELOW, FULL_PIPELINE_LOG, FULL_PIPELINE_STEPS, HISTORY, SNIPPED, TODAY, TRIGGER_SETTINGS, WRITTEN, compactSetup,
+  failingSummarySetup, fullPipelineBuffer, snipFallbackBuffer, withWorkflow,
 } from "./compact-session.fixtures.ts";
-import { assertNoStatePointer } from "./compact-session.assertions.ts";
+import { assertNoStatePointer, assertSnipFallback } from "./compact-session.assertions.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 
 describe("compactSession: nothing to compact", () => {
@@ -66,28 +66,26 @@ describe("compactSession: nothing to compact", () => {
     const outcome = await compactSession({ force: true }, deps);
 
     // Assert
-    strictEqual(outcome.status, "snipped");
+    strictEqual(outcome.status, "compacted");
+    strictEqual(deps.llm.completes.length, 1);
   });
 });
 
 describe("compactSession: the full pipeline", () => {
-  it("extracts memories, snips, summarises, restores files and skills, and rewrites the buffer", async () => {
+  it("extracts memories, summarises, restores files and skills, and rewrites the buffer", async () => {
     // Arrange
     const deps = compactSetup();
     deps.files.files.set(`${WORKSPACE}/src/a.ts`, "export const a = 1;");
     deps.files.files.set(`${WORKSPACE}/skills/s.md`, "# Skill");
     deps.session.state.set(SKILLS_STATE_KEY, `["${WORKSPACE}/skills/s.md"]`);
-    const transcript = buildTranscript(HISTORY);
-    const prompt = buildSummaryPrompt(transcript);
+    const prompt = buildSummaryPrompt(buildTranscript(HISTORY));
 
     // Act
     const outcome = await compactSession({ force: false }, deps);
 
     // Assert
     deepStrictEqual(outcome, { status: "compacted", before: 4, after: 6, usedTokens: ABOVE.used });
-    deepStrictEqual(deps.llm.extracts.map((c) => c.prompt), [buildMemoryExtractionPrompt(transcript)]);
     deepStrictEqual(deps.memory.records.map((r) => [r.category, r.content]), [["project", "uses pnpm"]]);
-    deepStrictEqual(deps.session.snips, [SNIP_RETAIN_COUNT]);
     deepStrictEqual(deps.llm.completes, [{ prompt: prompt.user, override: { system: prompt.system } }]);
     deepStrictEqual(deps.session.messages, fullPipelineBuffer());
     deepStrictEqual(deps.progress.reports.map((r) => [r.step, r.total, r.message]), FULL_PIPELINE_STEPS);
@@ -95,20 +93,39 @@ describe("compactSession: the full pipeline", () => {
     deepStrictEqual(deps.log.lines, FULL_PIPELINE_LOG);
   });
 
-  it("stops at the snip when it brought usage under the trigger: no summary is paid", async () => {
+  it("writes the summary from the whole buffer, the turns a snip would remove included", async () => {
     // Arrange
     const deps = compactSetup();
-    deps.session.budgetAfterSnip = BELOW;
+    deps.session.messagesAfterSnip = SNIPPED;
+    const prompt = buildSummaryPrompt(buildTranscript(HISTORY));
 
     // Act
-    const outcome = await compactSession({ force: true }, deps);
+    await compactSession({ force: true }, deps);
 
     // Assert
-    deepStrictEqual(outcome, { status: "snipped", before: 4, usedTokens: BELOW.used });
-    deepStrictEqual(deps.llm.completes, []);
-    deepStrictEqual(deps.session.messages, HISTORY);
-    deepStrictEqual(deps.memory.records.length, 1);
-    deepStrictEqual(deps.progress.released, [COMPACT_PROGRESS_LABEL]);
+    deepStrictEqual(deps.llm.completes.map((c) => c.prompt), [prompt.user]);
+  });
+
+  it("does not snip the buffer when the summary is written", async () => {
+    // Arrange
+    const deps = compactSetup();
+
+    // Act
+    await compactSession({ force: true }, deps);
+
+    // Assert
+    deepStrictEqual(deps.session.snips, []);
+  });
+
+  it("gives the extraction the date the clock reads", async () => {
+    // Arrange
+    const deps = compactSetup();
+
+    // Act
+    await compactSession({ force: true }, deps);
+
+    // Assert
+    deepStrictEqual(deps.llm.extracts.map((c) => c.prompt), [buildMemoryExtractionPrompt(buildTranscript(HISTORY), [], TODAY)]);
   });
 
   it("compacts without memories when the extraction fails", async () => {
@@ -155,31 +172,73 @@ describe("compactSession: the summary call", () => {
 });
 
 describe("compactSession: failures are outcomes", () => {
-  it("reports the model's failure, leaves the buffer and releases the progress", async () => {
+  it("falls back to the snip and its notice when the model fails, and reports the failure", async () => {
     // Arrange
-    const deps = compactSetup();
-    deps.llm.completions = [new Error("model down")];
+    const deps = failingSummarySetup(new Error("model down"));
+
+    // Act
+    const outcome = await compactSession({ force: true }, deps);
+
+    // Assert
+    assertSnipFallback(outcome, deps.session, "model down");
+  });
+
+  it("falls back to the snip and its notice on an empty summary rather than replace the history with nothing", async () => {
+    // Arrange
+    const deps = failingSummarySetup("<summary>   </summary>");
+
+    // Act
+    const outcome = await compactSession({ force: true }, deps);
+
+    // Assert
+    assertSnipFallback(outcome, deps.session, "the summary came back empty");
+  });
+
+  it("does not pile up a second notice when a second fallback snips a buffer that holds one", async () => {
+    // Arrange
+    const deps = failingSummarySetup(new Error("model down"));
+    deps.session.messagesAfterSnip = snipFallbackBuffer();
+
+    // Act
+    await compactSession({ force: true }, deps);
+
+    // Assert
+    deepStrictEqual(deps.session.messages, snipFallbackBuffer());
+  });
+
+  it("reports no fallback when the snip removed nothing", async () => {
+    // Arrange
+    const deps = failingSummarySetup(new Error("model down"));
+    deps.session.snipped = { removed: 0, retained: 4 };
 
     // Act
     const outcome = await compactSession({ force: true }, deps);
 
     // Assert
     deepStrictEqual(outcome, { status: "failed", reason: "model down" });
-    deepStrictEqual(deps.session.messages, HISTORY);
-    deepStrictEqual(deps.progress.released, [COMPACT_PROGRESS_LABEL]);
   });
 
-  it("fails on an empty summary rather than replace the history with nothing", async () => {
+  it("keeps the fallback when the snip removed turns but its notice could not be written, and logs it", async () => {
     // Arrange
-    const deps = compactSetup();
-    deps.llm.completions = ["<summary>   </summary>"];
+    const deps = failingSummarySetup(new Error("model down"));
+    deps.session.writeMessagesFailure = new Error("buffer locked");
 
     // Act
     const outcome = await compactSession({ force: true }, deps);
 
     // Assert
-    deepStrictEqual(outcome, { status: "failed", reason: "the summary came back empty" });
-    deepStrictEqual(deps.session.messages, HISTORY);
+    deepStrictEqual(outcome, { status: "failed", reason: "model down", fallback: "snip" });
+    ok(deps.log.lines.includes("info: the notice of the snip could not be written: buffer locked"), JSON.stringify(deps.log.lines));
+  });
+
+  it("releases the progress when the summary fails", async () => {
+    // Arrange
+    const deps = failingSummarySetup(new Error("model down"));
+
+    // Act
+    await compactSession({ force: true }, deps);
+
+    // Assert
     deepStrictEqual(deps.progress.released, [COMPACT_PROGRESS_LABEL]);
   });
 
@@ -210,7 +269,7 @@ describe("compactSession: failures are outcomes", () => {
 });
 
 describe("/compact --snip and the compaction.trigger setting", () => {
-  it("snips to the head and the last exchanges, and says what it did", async () => {
+  it("snips to the head and the last messages, and says what it did", async () => {
     // Arrange
     const session = new FakeSessionStore();
     session.snipped = { removed: 12, retained: 4 };
@@ -221,6 +280,44 @@ describe("/compact --snip and the compaction.trigger setting", () => {
     // Assert
     strictEqual(out, "snipped: 12 removed, 4 kept.");
     deepStrictEqual(session.snips, [3]);
+  });
+
+  it("leaves the notice that the turns removed were not summarised right after the head, the last message still last", async () => {
+    // Arrange
+    const session = new FakeSessionStore();
+    session.snipped = { removed: 2, retained: 2 };
+    session.messagesAfterSnip = SNIPPED;
+
+    // Act
+    await snipBuffer(1, { session });
+
+    // Assert
+    deepStrictEqual(session.messages, snipFallbackBuffer());
+  });
+
+  it("does not add a second notice when one already follows the head", async () => {
+    // Arrange
+    const session = new FakeSessionStore();
+    session.snipped = { removed: 2, retained: 3 };
+    session.messagesAfterSnip = snipFallbackBuffer();
+
+    // Act
+    await snipBuffer(2, { session });
+
+    // Assert
+    deepStrictEqual(session.messages, snipFallbackBuffer());
+  });
+
+  it("leaves no notice when the snip removed nothing", async () => {
+    // Arrange
+    const session = new FakeSessionStore();
+    session.messages = [...HISTORY];
+
+    // Act
+    await snipBuffer(10, { session });
+
+    // Assert
+    deepStrictEqual(session.messages, HISTORY);
   });
 
   for (const c of TRIGGER_SETTINGS) {
@@ -276,18 +373,17 @@ describe("compactSession: step 0, the state of the dev batch in progress", () =>
     ok(deps.log.lines.includes(`info: state of the batch in progress written to ${WRITTEN.path}`), JSON.stringify(deps.log.lines));
   });
 
-  it("writes it on the snip-only path too, which leaves the buffer as the snip left it", async () => {
+  it("reports it when the summary fails and the buffer is snipped instead", async () => {
     // Arrange
-    const { deps, calls } = withWorkflow();
-    deps.session.budgetAfterSnip = BELOW;
+    const { deps } = withWorkflow();
+    deps.llm.completions = [new Error("model down")];
+    deps.session.snipped = { removed: 2, retained: 2 };
 
     // Act
     const outcome = await compactSession({ force: true }, deps);
 
     // Assert
-    deepStrictEqual(outcome, { status: "snipped", before: 4, usedTokens: BELOW.used, state: { path: WRITTEN.path } });
-    deepStrictEqual(calls.map((c) => c.trigger), ["manual"]);
-    deepStrictEqual(deps.session.messages, HISTORY);
+    deepStrictEqual(outcome, { status: "failed", reason: "model down", fallback: "snip", state: { path: WRITTEN.path } });
   });
 
   it("writes it under /compact even on a buffer too small", async () => {
@@ -300,7 +396,7 @@ describe("compactSession: step 0, the state of the dev batch in progress", () =>
 
     // Assert
     deepStrictEqual(outcome, { status: "skipped", reason: "buffer too small", state: { path: WRITTEN.path } });
-    strictEqual(small.calls.length, 1);
+    deepStrictEqual(small.calls.map((c) => c.trigger), ["manual"]);
   });
 
   it("does not write it below the trigger of an automatic run", async () => {

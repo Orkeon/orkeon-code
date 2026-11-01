@@ -12,7 +12,7 @@ An **async** command starts a crew and returns a ticket; its result is printed w
 | `/assistant` | async | Ask the interactive coding agent to work on a request. |
 | `/btw` | sync | Inject a side note into the session context ("by the way…"). |
 | `/clear` | sync | Clear the conversation buffer and the screen. Also `/reset-session`. |
-| `/compact` | async | Compact the session buffer to free up context; text after it names what the summary must keep; --snip [N] only keeps the head and the last N exchanges. |
+| `/compact` | async | Compact the session buffer to free up context; text after it names what the summary must keep; --snip [N] only keeps the head and the last N messages (a turn is several). |
 | `/copy` | sync | Re-print the last assistant output in full (terminal copy; no OS clipboard). |
 | `/exit` | sync | Exit the coding-agent REPL. |
 | `/export` | sync | Export the session (conversation + memory + cost) to a markdown file. |

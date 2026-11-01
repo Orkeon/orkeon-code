@@ -85,3 +85,52 @@ export const TWO_MEMORIES = [
   { category: "project", content: "uses pnpm" },
   { category: "user", content: "prefers French" },
 ];
+
+/** What the summary prompt says comes back on its own, and what the summary still names. */
+export const SUMMARY_RETURNS: readonly string[] = [
+  "the attached playbooks",
+  "a few of the files most recently named",
+  "a large one by its name alone, not its content",
+  "still name every file the work touched and the change made to it",
+];
+
+/** What the summary prompt keeps of a permission the user gave or refused. */
+export const SUMMARY_PERMISSION: readonly string[] = [
+  "what they allowed or forbade",
+  "with the scope they gave it",
+  "no permission grows wider or goes missing",
+];
+
+/** How the summary prompt treats an earlier [compacted] summary found in the transcript. */
+export const SUMMARY_EARLIER: readonly string[] = [
+  "opening with [compacted] is an earlier summary",
+  "Spread an earlier summary's facts over the parts above",
+  "neither dropping it nor pasting it as one block",
+];
+
+/** How the summary prompt treats a [compacted] note of turns removed without a summary. */
+export const SUMMARY_SNIP_NOTE: readonly string[] = [
+  "or a note that turns were removed without one",
+  "report such a note as a gap, under Still to do or Learned",
+];
+
+/** How the summary prompt treats a clipped stretch or a tool call whose result is not shown. */
+export const SUMMARY_UNKNOWN: readonly string[] = [
+  "says characters were left out",
+  "a [tools] line shows no result",
+  "report it as unknown, never fill it in",
+];
+
+/** The date handed to the memory extraction. */
+export const TODAY = "2026-11-01";
+
+/** The heading line of the [memories] recap. */
+export const MEMORY_RECAP_HEADING =
+  "[memories] Facts saved to memory at this compaction, shown in the Memory block from the next turn:\n";
+
+/** What the snip notice tells the agent. */
+export const SNIP_NOTICE_PARTS: readonly string[] = [
+  "Earlier turns were removed to free the context",
+  "no summary of them was written",
+  "ask the user for whatever is missing",
+];

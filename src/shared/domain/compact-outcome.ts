@@ -4,7 +4,7 @@
 
 /** Status of one compaction attempt; the main-loop circuit breaker counts the
  *  consecutive `failed` ones. */
-export type CompactStatus = "skipped" | "snipped" | "compacted" | "failed";
+export type CompactStatus = "skipped" | "compacted" | "failed";
 
 /** Outcome of one compaction attempt — a value, never an exception (the
  *  main-loop circuit breaker consumes `status`). */
@@ -14,6 +14,8 @@ export interface CompactOutcome {
   before?: number;
   after?: number;
   usedTokens?: number;
+  /** A failed summary whose buffer was snipped instead: the earlier turns removed without a summary. */
+  fallback?: "snip";
   /** The state file written before the compaction (a dev batch in progress), or why none was. */
   state?: { path: string } | { skipped: string };
 }
@@ -33,12 +35,10 @@ function outcomeLine(o: CompactOutcome): string {
     case "compacted":
       return `✓ compacted ${o.before} → ${o.after} messages` +
         (o.usedTokens !== undefined ? ` (was ~${o.usedTokens} tokens)` : "");
-    case "snipped":
-      return `✓ micro-compacted (snip) — ${o.before} messages trimmed` +
-        (o.usedTokens !== undefined ? `, now ~${o.usedTokens} tokens` : "");
     case "skipped":
       return o.reason === "buffer too small" ? "Buffer too small to compact." : `Compaction skipped (${o.reason}).`;
     default:
-      return `Compaction failed: ${o.reason}`;
+      return `Compaction failed: ${o.reason}` +
+        (o.fallback === "snip" ? "\nThe buffer was snipped instead: the earlier turns were removed without a summary." : "");
   }
 }

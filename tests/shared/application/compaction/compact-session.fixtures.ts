@@ -1,8 +1,9 @@
 // The session, the fakes of the ports and the workflow writer compactSession is tested over.
 import {
-  buildCompactedBuffer, buildMemoryRecapMessage, buildRestoredFileMessage, buildRestoredSkillMessage,
+  buildCompactedBuffer, buildMemoryRecapMessage, buildRestoredFileMessage, buildRestoredSkillMessage, buildSnipNoticeMessage,
 } from "../../../../src/shared/domain/compaction.ts";
 import type { SessionMsg } from "../../../../src/shared/domain/types.ts";
+import { FakeClock } from "../../../support/doubles/fake-clock.ts";
 import { FakeFiles } from "../../../support/doubles/fake-files.ts";
 import { FakeLlm } from "../../../support/doubles/fake-llm.ts";
 import { FakeLogger } from "../../../support/doubles/fake-logger.ts";
@@ -21,7 +22,13 @@ export const HISTORY: SessionMsg[] = [
   { role: "user", content: "thanks" },
 ];
 
-/** A session above the trigger with HISTORY, a model that answers, and every other port empty. */
+/** What the snip leaves of HISTORY: the head and the last message, the request in between removed. */
+export const SNIPPED: SessionMsg[] = [HISTORY[0], HISTORY[3]];
+
+/** The date FakeClock reads by default, as the extraction is given it. */
+export const TODAY = "2026-10-24";
+
+/** A session above the trigger with HISTORY, a model that answers, a clock, and every other port empty. */
 export function compactSetup() {
   const session = new FakeSessionStore();
   session.messages = [...HISTORY];
@@ -35,8 +42,23 @@ export function compactSetup() {
     files: new FakeFiles(),
     memory: new FakeMemoryStore(),
     log: new FakeLogger(),
+    clock: new FakeClock().now,
   };
   return deps;
+}
+
+/** compactSetup() whose summary call answers `reply` (an Error is thrown), and whose snip leaves SNIPPED. */
+export function failingSummarySetup(reply: string | Error) {
+  const deps = compactSetup();
+  deps.llm.completions = [reply];
+  deps.session.snipped = { removed: 2, retained: 2 };
+  deps.session.messagesAfterSnip = SNIPPED;
+  return deps;
+}
+
+/** The buffer the fallback leaves: the head, the notice that nothing was summarised, then the rest the snip kept. */
+export function snipFallbackBuffer(): SessionMsg[] {
+  return [SNIPPED[0], buildSnipNoticeMessage(), ...SNIPPED.slice(1)];
 }
 
 /** The buffer after the full pipeline: the summary, the memory recap, the file and the skill restored. */
@@ -51,15 +73,13 @@ export function fullPipelineBuffer(): SessionMsg[] {
 
 /** The progress reports of the full pipeline, as [step, total, message]. */
 export const FULL_PIPELINE_STEPS = [
-  [1, 5, "extracting memories"],
-  [2, 5, "micro-compacting (snip)"],
-  [3, 5, "synthesizing the summary"],
-  [4, 5, "restoring recent files"],
-  [5, 5, "restoring attached skills"],
+  [1, 4, "extracting memories"],
+  [2, 4, "synthesizing the summary"],
+  [3, 4, "restoring recent files"],
+  [4, 4, "restoring attached skills"],
 ];
 
 export const FULL_PIPELINE_LOG = [
-  "info: compaction path: full synthesis",
   "info: post-compaction restore: 1 file(s) re-injected",
   "info: post-compaction restore: 1 skill(s) re-injected",
 ];

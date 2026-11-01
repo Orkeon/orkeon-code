@@ -7,7 +7,7 @@ import { BUDGET_EXHAUSTED_LINE, loadCatalogue, runMainLoop } from "../../../../s
 import type { LoadedCatalogue } from "../../../../src/crews/main-loop/application/run-main-loop.ts";
 import { BREAKER_RUN_FIELD } from "../../../../src/crews/main-loop/application/auto-compact.ts";
 import { buildStaticHeader } from "../../../../src/crews/main-loop/domain/prompt-assembly.ts";
-import { buildActPrompt, catalogueFor, toolsetFor } from "../../../../src/shared/domain/agent-policy/permission.ts";
+import { MEMORY_TOOLS, buildActPrompt, catalogueFor, scriptToolsFor, toolsetFor } from "../../../../src/shared/domain/agent-policy/permission.ts";
 import {
   DEFAULT_BEHAVIOR_FLAGS, describeActiveFlags, maxIterationsFor, resolveBehaviorFlags,
 } from "../../../../src/shared/domain/agent-policy/behavior-flags.ts";
@@ -357,7 +357,7 @@ describe("runMainLoop — the turn", () => {
 
     // Assert
     strictEqual(llm.acts[0].request.permissionMode, "acceptEdits");
-    strictEqual(llm.acts[0].request.system, buildStaticHeader({ toolNames: toolsetFor("acceptEdits") }));
+    strictEqual(llm.acts[0].request.system, buildStaticHeader({ toolNames: toolsetFor("acceptEdits"), scriptTools: scriptToolsFor("acceptEdits", MEMORY_TOOLS) }));
     deepStrictEqual(log.lines, ["info: permission mode 'acceptEdits' — session default via /mode"]);
   });
 
@@ -373,7 +373,7 @@ describe("runMainLoop — the turn", () => {
     // Assert
     strictEqual(llm.acts[0].request.permissionMode, "default");
     deepStrictEqual(loaded.catalogue.tools, toolsetFor("default"));
-    strictEqual(llm.acts[0].request.system, buildStaticHeader({ toolNames: toolsetFor("default") }));
+    strictEqual(llm.acts[0].request.system, buildStaticHeader({ toolNames: toolsetFor("default"), scriptTools: scriptToolsFor("default", MEMORY_TOOLS) }));
     deepStrictEqual(log.lines, ["info: permission mode 'default' — no mode given at launch, built-in 'default'"]);
   });
 
