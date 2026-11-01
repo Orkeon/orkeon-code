@@ -11,3 +11,24 @@ export const PRIOR_FINDINGS: readonly Finding[] = [
 export function manyPriorFindings(count: number): Finding[] {
   return Array.from({ length: count }, (_, i) => ({ severity: "low", file: `f${i}.ts`, line: i, finding: `x${i}` }));
 }
+
+/** The lenses held to a bar of their own, not the correctness lens's input-or-state one. */
+export const OWN_BAR_LENSES: readonly string[] = ["security", "style"];
+
+/** Where a later pass is pointed: each must appear in a pass-2 prompt. */
+export const LATER_PASS_MARKERS: readonly string[] = [
+  "A first pass tends to skip",
+  "the deleted lines",
+  "the error and early-return paths",
+  "the boundaries",
+  "the later hunks of a long file",
+];
+
+/** The rule that keeps a finding whose trigger the diff does not show, marked plausible. */
+export const PLAUSIBLE_RULE_MARKERS: readonly string[] = [
+  "When what that asks for (the input, the caller, the convention) lies outside the shown text",
+  "still report the finding as plausible",
+  "name the file, caller or check that would confirm it",
+  "it is shown when the diff itself shows it",
+  "A suspicion with neither a shown trigger nor a check that would confirm it is not a finding",
+];

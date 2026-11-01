@@ -6,6 +6,13 @@
 //
 // Run standalone:  bash scripts/run-crew.sh src/crews/git-commit/crew.ork.ts
 // Via REPL:        /commit  →  script-host.runCrewAsync("git-commit", {})
+//
+// Input (threaded by /commit, commands/_lib/git/commit.ts):
+//   permissionMode   the effective mode; absent or read-only, the crew refuses
+//   paths            the paths named, or none for every change the status lists
+//   push, pr         booleans (or "true"); pr implies the push
+//   note             the author's reason for this commit (--note), absent when not given
+//   githubTool, prAsked, permissionRules   what opening the pull request needs
 
 import { CrewBuilder, publishCrew, inputs } from "../../shared/infrastructure/globals.ts";
 import {

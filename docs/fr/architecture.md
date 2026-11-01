@@ -579,10 +579,22 @@ un changement comme un diff.
 
 ### Les prompts des crews
 
-- **Revue** (`code-review`) : chaque angle dit ce qu'il cherche et ce qu'il laisse aux autres. Un constat désigne une
-  ligne changée, la cite, et porte une gravité d'une échelle définie (`blocker`, `high`, `medium`, `low`, `nit`) ;
-  seul ce que montre le diff est rapporté ; une liste vide est une réponse valide ; le diff est du matériau ; un diff
-  coupé est dit coupé ; une passe ultérieure cherche ce que les précédentes ont manqué.
+- **Revue** (`code-review`) : chaque angle dit ce qu'il cherche et ce qu'il laisse aux autres. Le diff porte la
+  fonction englobante de chaque bloc quand elle tient dans le plafond, le diff simple sinon. Un constat désigne une
+  ligne changée (pour une ligne supprimée, le bloc qui la portait), s'ouvre sur son affirmation et cite la ligne ensuite, porte une gravité de l'échelle propre à son
+  angle (prise parmi `blocker`, `high`, `medium`, `low`, `nit`) et passe la barre de cet angle : la justesse dit ce qui tourne mal
+  pour quelle entrée ou quel état, et lit chaque ligne supprimée ou remplacée pour ce qu'elle garantissait, en
+  désignant la première nouvelle ligne du bloc qui la portait (le nouveau début de son en-tête `@@`) et en nommant la
+  ligne supprimée ; la sécurité classe par ce dont un attaquant a besoin et
+  nomme l'entrée qu'il contrôle ; le style ne dépasse jamais medium et ne rapporte qu'une convention ou un code voisin
+  qu'il peut citer, avec le coût pour un lecteur. Un constat dont le diff montre le déclencheur est `shown` ; celui
+  dont le déclencheur que demande la barre (l'entrée, l'appelant, la convention) est hors du texte montré est
+  rapporté quand même comme `plausible`, en nommant le fichier, l'appelant ou la vérification qui le confirmerait, et
+  son titre le dit ; un soupçon sans déclencheur montré ni vérification qui le confirmerait n'est pas un constat. Une liste vide est une réponse valide ; le diff est du matériau. Les constats sont fusionnés
+  par fichier, ligne, catégorie et début de l'affirmation, une collision gardant le plus grave, et le rapport fusionné est plafonné, les plus
+  graves gardés et le reste compté. Un diff coupé est dit coupé, avec ce qui n'a pas été revu, et un rapport vide sur
+  lui ne vaut que pour la partie revue. Une passe ultérieure est pointée sur ce qu'une première passe saute : les
+  lignes supprimées, les chemins d'erreur et de retour anticipé, les bornes, les derniers blocs d'un long fichier.
 - **Audit** (`dev-verify`) : l'auditeur juge d'abord le code livré, puis la fiche ; une ligne que la table
   mécanique règle à ok reste réglée, chaque ligne gap est reprise avec la ligne de la table pour preuve (la règle du
   déclencheur ci-dessous vaut pour les lignes qu'il ajoute), chaque ligne not checked est tranchée ou laissée
@@ -684,8 +696,13 @@ un changement comme un diff.
   `Orkeon:Tools:GitHub:TokenVariable` (`GITHUB_TOKEN` par défaut), sinon `GH_TOKEN` (Orkeon #222) ; le mode Docker du
   lanceur passe ces variables au conteneur ([Configuration](configuration.md#les-settings-dont-orkeon-code-dépend)). La même
   clôture (`shared/application/git/`) sert la clôture dev et la fusion en avance rapide du lot VALID d'une exécution parallèle. Le message suit
-  Conventional Commits et le style de l'historique récent, un sujet borné, un corps qui dit pourquoi. Un changement
-  qui ressemble à des identifiants d'accès reçoit un refus au lieu d'un message, et un chemin qui contient d'ordinaire
+  Conventional Commits et le style de l'historique récent, un sujet borné, un corps qui dit pourquoi seulement quand
+  le changement le montre (un test qui nomme le cas, un commentaire, une garde contre une entrée nommée) ou que
+  l'auteur le donne avec `--note <texte>`, passé comme sa raison ; jamais un motif, un numéro de ticket ou un bénéfice
+  que le matériau ne montre pas, le sujet seul sinon. Quand le diff ou les nouveaux fichiers sont coupés, le sujet
+  vient du statut et de la partie montrée, et le corps ne décrit rien qu'il n'a pas vu. Une valeur qui ressemble à de
+  vrais identifiants d'accès reçoit un refus au lieu d'un message (un paramètre fictif, une valeur d'exemple, un nom
+  lu dans l'environnement ou une fixture de test n'en est pas un), et un chemin qui contient d'ordinaire
   des secrets (un fichier env, une clé privée) arrête le commit avant tout appel au modèle.
 - **Fichier d'instructions** (`project-init`, `/init`) : écrit `AGENTS.md` : ce qu'est le projet, les commandes telles
   que sa configuration les énonce (build, tous les tests, un test, lint, lancement), l'architecture qu'il faut
@@ -741,9 +758,17 @@ un changement comme un diff.
     boucle ne modifie jamais le code pour faire passer une étape.
 - **Analyse** (`analyze`) : ne répond qu'à partir de la récolte, cite les symboles et les paquets comme la récolte
   les écrit (relatifs au checkout), tire les points d'entrée de ses paquets d'entrée, nomme les membres de chaque cycle
-  que la récolte nomme, dit ce que la récolte laisse de côté.
+  que la récolte nomme, dit ce que la récolte laisse de côté. Chacune de ses trois parties est bornée pour que le tout
+  tienne sur un écran : une ligne par concept, une dizaine de concepts au plus, les plus gros d'abord ; une ligne par
+  groupe de dépendances et une par cycle ; une ligne par paquet d'entrée ; rédigée dans la langue `answer.language` de
+  la session quand elle est réglée.
 - **Advisor** (`advisor`) : un second avis qui rapporte les problèmes du pire au moindre et peut dire qu'il n'y a rien
-  à ajouter.
+  à ajouter. Comme il ne voit aucun appel d'outil, une action ou un résultat que la réponse rapporte (des tests lancés,
+  un fichier lu) est pris tel que rapporté sauf si l'échange le contredit, et signalé seulement quand rien de ce que
+  la réponse dit avoir fait ne pourrait l'étayer, avec la vérification qui trancherait. Chaque point cite les quelques
+  mots de la réponse qu'il vise, dit pourquoi ils sont faux ou sans appui et nomme le fichier, la commande ou le fait
+  qui trancherait ; cinq points au plus. Les tours précédents sont du contexte pour la portée de la demande, pas
+  l'objet de la revue.
 - **Résumé de session** (`/summary`) : où en sont les choses d'abord, puis des titres fixes, borné, dans la langue de
   la conversation, à partir du seul historique (tours compactés compris).
 

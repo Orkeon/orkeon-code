@@ -11,13 +11,19 @@ import type { Finding } from "../../../shared/domain/types.ts";
 import { renderReport } from "../domain/report.ts";
 import { resolveReviewScope, type ReviewInputs } from "../domain/scope.ts";
 import { resolveLensSelection, describeReviewPlan } from "../domain/lenses.ts";
-import { collectDiff, collectChangedFiles, runLenses, writeReport } from "./review.ts";
+import {
+  chooseReviewDiff, collectDiff, collectChangedFiles, collectFunctionContextDiff, runLenses, writeReport,
+} from "./review.ts";
 import { cutDiff } from "./prompts.ts";
 import { readInstructionsFile } from "../../../shared/application/instructions-file.ts";
 
 /** The diff the lenses read, in characters: about 3 000 tokens, so three lenses per
  *  pass stay cheap; a longer diff is cut and says so. */
 export const MAX_REVIEW_DIFF_CHARS = 12_000;
+
+/** The findings the merged report keeps, the most severe first: three lenses times
+ *  several passes would otherwise reach dozens of items. */
+export const MAX_REPORT_FINDINGS = 30;
 
 /** Status-line headline of the /review progress. */
 export const REVIEW_PROGRESS_LABEL = "Reviewing changes";
@@ -60,6 +66,7 @@ export async function runCodeReview(input: CodeReviewInputs, deps: CodeReviewDep
       : "No changes to review (empty diff).";
     return what;
   }
+  const reviewed = chooseReviewDiff(diff, await collectFunctionContextDiff(scope, shell), MAX_REVIEW_DIFF_CHARS);
   const changed = await collectChangedFiles(scope, shell);
 
   // B-9: two settings that existed and were read by nothing until now —
@@ -80,7 +87,10 @@ export async function runCodeReview(input: CodeReviewInputs, deps: CodeReviewDep
   const plan = describeReviewPlan(selection.lenses, passes, selection.source);
   log.info(`review plan — ${plan}`);
 
-  const diffSlice = cutDiff(diff, MAX_REVIEW_DIFF_CHARS);
+  const diffSlice = cutDiff(reviewed.diff, MAX_REVIEW_DIFF_CHARS);
+  const cut = reviewed.diff.length > MAX_REVIEW_DIFF_CHARS
+    ? { shown: MAX_REVIEW_DIFF_CHARS, leftOut: reviewed.diff.length - MAX_REVIEW_DIFF_CHARS }
+    : undefined;
   // The style lens judges conventions: give it the ones the project states.
   const conventions = (await readInstructionsFile(files).catch(() => undefined))?.content ?? "";
   // Passes run in SEQUENCE (the lenses within a pass still fan out): pass n+1
@@ -102,9 +112,10 @@ export async function runCodeReview(input: CodeReviewInputs, deps: CodeReviewDep
   } finally {
     await progress.done(REVIEW_PROGRESS_LABEL);
   }
-  const findings = dedupAndRank(results);
+  const ranked = dedupAndRank(results);
+  const findings = ranked.slice(0, MAX_REPORT_FINDINGS);
 
-  const report = renderReport(scope.describe, changed.length, findings, plan);
+  const report = renderReport(scope.describe, changed.length, findings, plan, cut, ranked.length - findings.length);
   await writeReport(report, files);
   return `/output/code-review-report.md (${findings.length} findings across ${changed.length} files, ${plan})`;
 }

@@ -15,6 +15,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`/review` and `/commit` say only what their material shows, and say what they did not see**: the correctness
+  lens was asked about callers it could not see, then forbidden to report a suspicion, so it dropped them or guessed;
+  `/commit` wrote a reason for the change that nothing in the diff gave; a security blocker on a line was dropped
+  behind a correctness low quoting the same line; a diff cut at the cap gave a clean "No issues found". The review now
+  sends each hunk's enclosing function when it fits the cap, and a finding whose trigger lies outside the shown text
+  is reported as plausible, its heading says so, naming the file or caller that would confirm it. Each lens has its
+  own severity scale and bar (security by what an attacker needs, style at most medium and only on a convention it
+  can quote), the correctness lens reads the removed lines, and a later pass is pointed at deleted lines, error paths,
+  boundaries and the later hunks of a long file. Findings merge by file, line and category, keeping the most severe;
+  the merged report is capped at 30, the rest counted; a cut diff is named in the report with how much was not
+  reviewed. The commit body is written only from what the change shows, the subject alone otherwise; a placeholder or
+  a test fixture no longer blocks the commit as a credential; a cut diff bounds what the body says. The second opinion
+  of `/advisor` takes what the answer reports doing as reported unless the exchange contradicts it, anchors each point
+  on the words it targets with what would settle it, five at most. The synthesis of `/analyze` is bounded part by
+  part so it fits a screen, and written in the session's `answer.language` when one is set.
 - **A compaction summarises the whole session instead of cutting it to the last messages**: the snip ran first and,
   once it had brought the buffer under the trigger, no summary was written, so `/compact <focus>` dropped the middle of
   the session and ignored the focus. Every compaction now writes its summary from the buffer as it stood before any
@@ -135,6 +150,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`/commit --note <text>`** (or `--note=<text>`) gives the reason for the change in the author's words: the message's body draws on it
+  instead of guessing a motive from the diff (quote a note of several words: `--note "…"` or `--note="…"`; a next word
+  that starts with `-` is an option, never the note).
 - **Trying the decision models Kev and Liquid locally** (Orkeon #266): a page,
   [Decision models locally](docs/decision-models-local.md), starts a Kev server on this machine, checks it and Liquid
   by hand, serves Liquid's open d1 weights (`LiquidAI/d1-3B`) on this machine behind a few lines of Python, points

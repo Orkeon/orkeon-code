@@ -29,11 +29,13 @@ const phase = (step: number, message: string) =>
 
 /** The crew's input: `raw` (true or "true") returns the harvest without the synthesis; `parallel`, a whole
  *  number of at least 1, is how many files the indexing parses at once — anything else leaves the runtime's
- *  default, with a warning; `rebuild` (true or "true") indexes again from scratch, past the session's index and the saved one. */
+ *  default, with a warning; `rebuild` (true or "true") indexes again from scratch, past the session's index and the saved one;
+ *  `language`, a non-empty text (the session's `answer.language`), is the language the synthesis is written in. */
 export interface AnalyzeInputs {
   raw?: unknown;
   parallel?: unknown;
   rebuild?: unknown;
+  language?: unknown;
 }
 
 function readParallel(value: unknown): number | undefined {
@@ -105,7 +107,8 @@ export async function runAnalyze(input: AnalyzeInputs, deps: AnalyzeDeps): Promi
     // 3. ONE synthesis call. maxIterations 1 is safe: with an empty catalogue the
     //    model has no tool schemas, so the turn can only be a completion.
     await progress.report(phase(5, "synthesizing"));
-    return await llm.act(buildSynthesisUser(harvest), {
+    const language = typeof input.language === "string" && input.language.trim() !== "" ? input.language.trim() : undefined;
+    return await llm.act(buildSynthesisUser(harvest, language), {
       system: SYNTHESIS_SYSTEM,
       maxIterations: 1,
     });

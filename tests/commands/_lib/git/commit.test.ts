@@ -4,7 +4,7 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual } from "node:assert";
 
-import { CANNOT_PROMPT_REFUSAL, NO_ANSWER_REFUSAL, PUSH_PR_INPUT, commitHarness } from "./commit.fixtures.ts";
+import { CANNOT_PROMPT_REFUSAL, NO_ANSWER_REFUSAL, NOTED_INPUT, NOTE_WITHOUT_TEXT_REFUSAL, PUSH_PR_INPUT, commitHarness } from "./commit.fixtures.ts";
 import { isCommitPermitted } from "../../../../src/crews/git-commit/domain/commit.ts";
 
 describe("runCommitCommand", () => {
@@ -73,5 +73,27 @@ describe("runCommitCommand", () => {
 
     // Assert
     deepStrictEqual([outcome, log.lines], [{ input: PUSH_PR_INPUT }, ["info: commit approved — permission mode 'acceptEdits' (test)"]]);
+  });
+
+  it("reads a quoted --note as one text and hands it to the crew", async () => {
+    // Arrange
+    const { run } = commitHarness();
+
+    // Act
+    const outcome = await run("--yes", "--note", "\"the", "reason\"");
+
+    // Assert
+    deepStrictEqual(outcome, { input: NOTED_INPUT });
+  });
+
+  it("refuses --note without a text before asking anything", async () => {
+    // Arrange
+    const { questions, run } = commitHarness({ answer: true });
+
+    // Act
+    const outcome = await run("--note");
+
+    // Assert
+    deepStrictEqual([outcome, questions], [{ refused: NOTE_WITHOUT_TEXT_REFUSAL }, []]);
   });
 });

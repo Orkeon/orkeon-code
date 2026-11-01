@@ -540,10 +540,21 @@ prompt as the model reads it, to review a change as a diff.
 
 ### Crew prompts
 
-- **Review** (`code-review`): each lens says what it looks for and what it leaves to the others. A finding points at
-  a changed line, quotes it, and carries a severity from a defined scale (`blocker`, `high`, `medium`, `low`, `nit`);
-  only what the diff shows is reported; an empty list is a valid answer; the diff is material; a cut diff is said to
-  be cut; a later pass looks for what the earlier ones missed.
+- **Review** (`code-review`): each lens says what it looks for and what it leaves to the others. The diff carries
+  the enclosing function of each hunk when it fits the cap, the plain diff otherwise. A finding points at a changed
+  line (for a removed line, the hunk that held it), opens with its claim and quotes the line after it, and carries a severity from its lens's own scale
+  (drawn from `blocker`, `high`, `medium`, `low`, `nit`) and meets that lens's bar: correctness says what goes wrong for which
+  input or state, and reads each removed or replaced line for what it guaranteed, pointing at the first new line of
+  the hunk that held it (the new start of its `@@` header) and naming the removed line; security ranks by what an attacker needs and names the input the attacker controls; style never rises
+  above medium and reports only a convention or neighbouring code it can quote, with the cost to a reader. A finding
+  whose trigger the diff shows is `shown`; one whose trigger the bar asks for (the input, the caller, the
+  convention) lies outside the shown text is still reported as `plausible`, naming the file, caller or check that
+  would confirm it, and its heading says so; a suspicion with neither a shown trigger nor a check that would confirm
+  it is not a finding. An empty list is a valid answer; the diff is material. Findings are merged by file, line,
+  category and the start of the claim, a collision keeping the most severe, and the merged report is capped, the most severe kept and the
+  rest counted. A cut diff is said to be cut, with how much was not reviewed, and an empty report on it reads as
+  covering the part reviewed only. A later pass is pointed at what a first pass skips: deleted lines, error and
+  early-return paths, boundaries, the later hunks of a long file.
 - **Audit** (`dev-verify`): the auditor judges the delivered code first and the sheet second; a row the
   mechanical table settles as ok stays settled, every gap row is carried with the table's line as its evidence (the
   trigger rule below holds for the rows it adds), every not checked row is decided or left
@@ -634,8 +645,13 @@ prompt as the model reads it, to review a change as a diff.
   reads the tool's token once, at registration: `Orkeon:Tools:GitHub:Token`, else the variable
   `Orkeon:Tools:GitHub:TokenVariable` names (`GITHUB_TOKEN` by default), else `GH_TOKEN` (Orkeon #222); the launcher's
   Docker mode hands those variables to the container ([Configuration](configuration.md#settings-orkeon-code-relies-on)). The same close (`shared/application/git/`) serves the dev close and the fast-forward merge of a parallel run's VALID batch. The
-  message follows Conventional Commits and the style of the recent history, a bounded subject, a body that says why.
-  A change that looks like a credential gets a refusal instead of a message, and a path that usually holds secrets
+  message follows Conventional Commits and the style of the recent history, a bounded subject, a body that says why
+  only when the change shows it (a test naming the case, a comment, a guard against a named input) or the author
+  gives it with `--note <text>`, passed as their reason; never a motive, an issue number or a benefit the material
+  does not show, the subject alone otherwise. When the diff or the new files are cut, the subject comes from the
+  status and the part shown, and the body describes nothing it did not see. A value that looks like a real credential
+  gets a refusal instead of a message (a placeholder, an example value, a name read from the environment or a test
+  fixture is not one), and a path that usually holds secrets
   (an env file, a private key) stops the commit before any model call.
 - **Instructions file** (`project-init`, `/init`): writes `AGENTS.md`: what the project is, the commands as its
   configuration states them (build, all tests, one test, lint, run), the architecture that takes several files to
@@ -684,8 +700,15 @@ prompt as the model reads it, to review a change as a diff.
     the quoted output; a fix is a separate request, so the loop never edits code to make a step pass.
 - **Analysis** (`analyze`): answers only from the harvest, cites symbols and packages as the harvest writes them
   (relative to the checkout), takes the entry points from its entry packages, names the members of each cycle the
-  harvest names, says what the harvest leaves out.
+  harvest names, says what the harvest leaves out. Each of its three parts is bounded so the whole fits a screen: a
+  line per concept, about ten concepts at most, the largest first; a line per dependency group and one per cycle; a
+  line per entry package; written in the session's `answer.language` when one is set.
 - **Advisor** (`advisor`): a second opinion that reports problems worst first and may say there is nothing to add.
+  Since it sees no tool call, an action or a result the answer reports (a test run, a file read) is taken as reported
+  unless the exchange contradicts it, and flagged only when nothing the answer says it did could support it, with
+  the check that would settle it. Each point quotes the few words of the answer it targets, says why they are wrong
+  or unsupported and names the file, command or fact that would settle it; five points at most. The earlier turns
+  are context for the request's scope, not under review.
 - **Session summary** (`/summary`): where things stand first, then fixed headings, bounded, in the conversation's
   language, from the history alone (the compacted turns included).
 

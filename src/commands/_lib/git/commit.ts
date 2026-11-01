@@ -1,11 +1,12 @@
 // /commit: the gate before the git-commit crew is launched (B-1). The arguments, the effective permission mode
 // (the read-only modes are refused here, so the operator learns why without a crew round-trip; the crew
 // re-checks), the plan and its confirmation, then the crew's input: the mode, the paths, push and pull request,
-// and what the crew needs to open the pull request itself (pr-context.ts), read only when the run may reach it.
+// the author's note when one is given, and what the crew needs to open the pull request itself (pr-context.ts), read only when the run may reach it.
 import type { Logger } from "../../../shared/application/ports.ts";
 import type { SessionIo } from "../../../shared/application/session-io.ts";
 import { pullRequestCrewInputs } from "../../../shared/domain/git/pull-request.ts";
 import { buildCommitPlan, isCommitPermitted, parseCommitArgs } from "../../../crews/git-commit/domain/commit.ts";
+import { commandLine, splitWords } from "../args.ts";
 import { readPullRequestContext } from "../pr-context.ts";
 import type { PullRequestContext, PullRequestContextPorts } from "../pr-context.ts";
 
@@ -50,14 +51,16 @@ async function confirmOrRefuse(deps: Pick<CommitCommandDeps, "confirm" | "write"
   return "cancelled — nothing was staged and nothing was committed.";
 }
 
-/** `/commit [--yes] [--push] [--pr] [<path>…]`, from the command's raw tokens: the refusal, written, or the crew's input. */
+/** `/commit [--yes] [--push] [--pr] [--note <text>] [<path>…]`, from the command's raw tokens: the refusal, written,
+ *  or the crew's input. The REPL keeps the quotes in the raw tokens: the line is split again, so
+ *  `--note "the reason in several words"` reads as one note. */
 export async function runCommitCommand(tokens: readonly string[], deps: CommitCommandDeps): Promise<CommitDispatch> {
-  const parsed = parseCommitArgs(tokens);
+  const parsed = parseCommitArgs(splitWords(commandLine(tokens)).map((w) => w.text));
   if (!parsed.ok) {
     deps.write(parsed.text);
     return { refused: parsed.text };
   }
-  const { yes, push, pr, paths } = parsed.args;
+  const { yes, push, pr, paths, note } = parsed.args;
   const { mode, via } = await deps.session.resolveEffectiveSessionMode();
 
   const permitted = isCommitPermitted(mode);
@@ -81,6 +84,7 @@ export async function runCommitCommand(tokens: readonly string[], deps: CommitCo
   return {
     input: {
       permissionMode: mode, paths, push, pr,
+      ...(note === undefined ? {} : { note }),
       ...pullRequestCrewInputs({
         pr, push, yes,
         read: () => ({ githubTool: context?.githubTool ?? false, permissionRules: context?.permissionRules ?? [] }),

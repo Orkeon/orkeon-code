@@ -9,7 +9,9 @@
 // prints the harvest (zero LLM cost). `--parallel N` parses N files at once when
 // the session has no index yet, or with --rebuild (default: one per processor). `--rebuild` indexes
 // again from scratch, ignoring the index of the session and the one saved on disk.
+// The synthesis is written in the session's `answer.language` when one is set (_lib/project/analyze.ts).
 import { launchCrew, withLlmProfile, writeCompleted } from "../_lib/dispatch.ts";
+import { analyzeInput } from "../_lib/project/analyze.ts";
 import { createCrewHost } from "../../shared/infrastructure/orkeon/crew-host.ts";
 import { orkeonConfigStore } from "../../shared/infrastructure/orkeon/wiring.ts";
 
@@ -22,6 +24,9 @@ defineAsyncCommand({
     parallel: { type: "number", required: false, min: 1, max: 64 },
     rebuild: { type: "boolean", required: false, default: false },
   },
-  dispatch: async (args, ctx) => launchCrew(await withLlmProfile({ crews: createCrewHost(ctx.services), log: ctx.log }, orkeonConfigStore()), "analyze", { raw: args.raw === true, parallel: args.parallel, rebuild: args.rebuild === true }),
+  dispatch: async (args, ctx) => {
+    const config = orkeonConfigStore();
+    return launchCrew(await withLlmProfile({ crews: createCrewHost(ctx.services), log: ctx.log }, config), "analyze", await analyzeInput(args, config));
+  },
   completed: (result, ctx) => writeCompleted(ctx, result, "analyze", "✓ analyze →\n"),
 });

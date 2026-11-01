@@ -65,6 +65,17 @@ describe("runAnalyze", () => {
     ]);
   });
 
+  it("writes the synthesis in the language the input names", async () => {
+    // Arrange
+    const { llm, fqns, deps } = analyzeSetup(MAX_PACKAGES);
+
+    // Act
+    await runAnalyze({ raw: false, language: "French" }, deps);
+
+    // Assert
+    strictEqual(llm.acts[0]?.prompt, buildSynthesisUser(harvestOf(fqns, MAX_PACKAGES), "French"));
+  });
+
   it("summarizes the largest packages first and the tests last, not the index's first ones", async () => {
     // Arrange
     const { index, deps } = analyzeSetup();

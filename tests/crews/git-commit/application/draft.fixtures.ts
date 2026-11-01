@@ -55,3 +55,9 @@ export const LONG_TREE: WorkTree = {
   status: " M src/a.ts\n?? src/b.ts\n", diff: "d".repeat(MAX_COMMIT_DIFF_CHARS + 5), branch: "main",
   recent: "abc1234 feat(cli): add flags\n", untracked: [{ path: "src/b.ts", content: "export {};\n" }],
 };
+
+/** The author's note a /commit --note hands the crew. */
+export const NOTE = "the parser read a quoted path as two files";
+
+/** TREE with the author's note. */
+export const NOTED_TREE: WorkTree = { ...TREE, note: NOTE };

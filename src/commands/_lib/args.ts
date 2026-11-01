@@ -90,10 +90,20 @@ export interface Word {
   end: number;
 }
 
+/** Where the quote at `open` closes: the same quote followed by a blank or the end of the line; `line.length` when none does. */
+function closingQuote(line: string, open: number): number {
+  const quote = line[open];
+  let close = open + 1;
+  while (close < line.length && !(line[close] === quote && (close + 1 === line.length || /\s/.test(line[close + 1])))) close++;
+  return close;
+}
+
 /**
  * Split a line on blanks. A quote that opens a word ("..." or '...') runs to the same
- * quote followed by a blank or the end of the line, and is dropped; a quote with no
- * such close, or inside a word (qu'il, l'API), is a letter (the '90s).
+ * quote followed by a blank or the end of the line, and is dropped; so does a quote
+ * that opens right after the `=` of an option word (`--note="two words"` is the one
+ * word `--note=two words`). A quote with no such close, or elsewhere inside a word
+ * (qu'il, l'API), is a letter (the '90s).
  */
 export function splitWords(line: string): Word[] {
   const words: Word[] = [];
@@ -103,10 +113,19 @@ export function splitWords(line: string): Word[] {
     if (i >= line.length) break;
     const quote = line[i];
     if (quote === '"' || quote === "'") {
-      let close = i + 1;
-      while (close < line.length && !(line[close] === quote && (close + 1 === line.length || /\s/.test(line[close + 1])))) close++;
+      const close = closingQuote(line, i);
       if (close < line.length) {
         words.push({ text: line.slice(i + 1, close), quoted: true, end: close + 1 });
+        i = close + 1;
+        continue;
+      }
+    }
+    const option = /^--[^\s="']+=(["'])/.exec(line.slice(i));
+    if (option !== null) {
+      const open = i + option[0].length - 1;
+      const close = closingQuote(line, open);
+      if (close < line.length) {
+        words.push({ text: line.slice(i, open) + line.slice(open + 1, close), quoted: false, end: close + 1 });
         i = close + 1;
         continue;
       }

@@ -5,6 +5,7 @@ import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { runGitCommit } from "../../../../src/crews/git-commit/application/run-git-commit.ts";
 import { GIT_STATUS_COMMAND } from "../../../../src/shared/domain/git/close.ts";
+import { AUTHOR_NOTE_HEADING } from "../../../../src/crews/git-commit/application/draft.ts";
 import { CLEAN, MESSAGE, PR_WITH_TOOL, PUSH, commitInput, world } from "./run-git-commit.fixtures.ts";
 import { assertCommitted, assertNotCommitted, assertStoppedBeforeDraft } from "./run-git-commit.assertions.ts";
 import { assertMentions, assertOmits } from "../../../support/assertions/text.ts";
@@ -87,6 +88,17 @@ describe("runGitCommit: the commit and what follows it", () => {
 
     // Assert
     assertCommitted(answer, w, `✓ committed abc1234 on feat/x\n${MESSAGE}`);
+  });
+
+  it("hands the author's note of the crew input to the drafting prompt", async () => {
+    // Arrange
+    const w = world();
+
+    // Act
+    await runGitCommit(commitInput({ note: "the reason in the author's words" }), w.deps);
+
+    // Assert
+    assertMentions(w.llm.completes[0]?.prompt ?? "", [`${AUTHOR_NOTE_HEADING}\nthe reason in the author's words`]);
   });
 
   it("pushes when push is \"true\"", async () => {
