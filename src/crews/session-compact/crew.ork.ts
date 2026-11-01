@@ -3,8 +3,8 @@
 //
 // SessionCompact crew (/compact) — composition root.
 // Thin wrapper over the shared compaction pipeline (shared/application/
-// compaction/): memory extraction → session_snip micro-compaction →
-// LLM synthesis → buffer rewrite. `/compact` forces the full pipeline; the
+// compaction/): memory extraction → LLM synthesis over the whole buffer →
+// buffer rewrite (a failed summary falls back to the snip, with a notice). `/compact` forces the full pipeline; the
 // main-loop reuses the same function threshold-gated (auto-compaction). Step 0
 // writes the state file of the dev batch in progress (.orkeon/dev/<code>/
 // state-F<n>.md) when a step command named one (session state workflow_active).

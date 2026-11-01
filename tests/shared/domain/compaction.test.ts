@@ -10,6 +10,7 @@ import {
   buildCompactedBuffer,
   buildMemoryExtractionPrompt,
   buildMemoryRecapMessage,
+  buildSnipNoticeMessage,
   buildRestoredFileMessage,
   buildSummaryPrompt,
   buildTranscript,
@@ -25,9 +26,12 @@ import { MAX_EXTRACTED_MEMORIES } from "../../../src/shared/domain/compaction-th
 import {
   BOUNDARY_CASES, BUFFER_WITH_TWO_BOUNDARIES, EXTRACTION_WITH_INVALID, HEAD_MIDDLE_TAIL, MALFORMED_ROOTS,
   MEMORY_CATEGORIES, SUMMARY_PARTS, SUMMARY_REPLIES, TURNS_NAMING_FILES, TWENTY_FACTS, TWO_MEMORIES,
-  URL_WORDS_THEN_PATHS,
+  URL_WORDS_THEN_PATHS, SUMMARY_RETURNS, SUMMARY_PERMISSION, SUMMARY_EARLIER, SUMMARY_SNIP_NOTE, SUMMARY_UNKNOWN, TODAY,
+  MEMORY_RECAP_HEADING, SNIP_NOTICE_PARTS,
 } from "./compaction.fixtures.ts";
-import { assertMentions } from "../../support/assertions/text.ts";
+import { assertMarkedSystemMessage } from "./compaction.assertions.ts";
+import { assertBefore, assertMentions, assertOmits } from "../../support/assertions/text.ts";
+import { isMarkedMessage } from "../../../src/shared/domain/marked-message.ts";
 import { WORKSPACE } from "../../../src/shared/domain/vfs.ts";
 
 describe("buildTranscript", () => {
@@ -131,6 +135,73 @@ describe("buildSummaryPrompt", () => {
 
     // Assert
     deepStrictEqual(p, withoutFocus);
+  });
+
+  it("names the playbooks and the recent files that come back, and still asks for every touched file", () => {
+    // Arrange
+    const transcript = "t";
+
+    // Act
+    const p = buildSummaryPrompt(transcript).system;
+
+    // Assert
+    assertMentions(p, SUMMARY_RETURNS);
+  });
+
+  it("keeps what the user allowed or forbade with the scope they gave it", () => {
+    // Arrange
+    const transcript = "t";
+
+    // Act
+    const p = buildSummaryPrompt(transcript).system;
+
+    // Assert
+    assertMentions(p, SUMMARY_PERMISSION);
+  });
+
+  it("opens still to do with the step under way at the cut, before the remaining steps", () => {
+    // Arrange
+    const transcript = "t";
+
+    // Act
+    const p = buildSummaryPrompt(transcript).system;
+
+    // Assert
+    assertBefore(p, "first the step under way when the conversation was cut and the state it left the files in",
+      "then the remaining steps in order");
+  });
+
+  it("folds an earlier [compacted] summary into the parts", () => {
+    // Arrange
+    const transcript = "t";
+
+    // Act
+    const p = buildSummaryPrompt(transcript).system;
+
+    // Assert
+    assertMentions(p, SUMMARY_EARLIER);
+  });
+
+  it("reports a [compacted] note of turns removed without a summary as a gap", () => {
+    // Arrange
+    const transcript = "t";
+
+    // Act
+    const p = buildSummaryPrompt(transcript).system;
+
+    // Assert
+    assertMentions(p, SUMMARY_SNIP_NOTE);
+  });
+
+  it("reports a clipped stretch or a tool result not shown as unknown", () => {
+    // Arrange
+    const transcript = "t";
+
+    // Act
+    const p = buildSummaryPrompt(transcript).system;
+
+    // Assert
+    assertMentions(p, SUMMARY_UNKNOWN);
   });
 });
 
@@ -357,6 +428,50 @@ describe("buildMemoryExtractionPrompt", () => {
     // Assert
     ok(!p.includes("Already in memory"));
   });
+
+  it("states today's date before the categories when it is given", () => {
+    // Arrange
+    const today = TODAY;
+
+    // Act
+    const p = buildMemoryExtractionPrompt("t", [], today);
+
+    // Assert
+    assertBefore(p, "Today is 2026-11-01: write a date the conversation gives relatively as an absolute one.", "- user: ");
+  });
+
+  it("states no date when none is given", () => {
+    // Arrange
+    const transcript = "t";
+
+    // Act
+    const p = buildMemoryExtractionPrompt(transcript);
+
+    // Assert
+    assertOmits(p, ["Today is"]);
+  });
+
+  it("asks for the facts worth keeping beyond this conversation", () => {
+    // Arrange
+    const transcript = "t";
+
+    // Act
+    const p = buildMemoryExtractionPrompt(transcript);
+
+    // Assert
+    assertMentions(p, ["worth keeping beyond this conversation"]);
+  });
+
+  it("promises no other session", () => {
+    // Arrange
+    const transcript = "t";
+
+    // Act
+    const p = buildMemoryExtractionPrompt(transcript);
+
+    // Assert
+    assertOmits(p, ["across sessions"]);
+  });
 });
 
 
@@ -407,8 +522,67 @@ describe("buildMemoryRecapMessage", () => {
 
     // Assert
     strictEqual(msg.role, "system");
-    ok(msg.content.startsWith("[memories] Saved to memory before the compaction:\n"));
+    ok(msg.content.startsWith(MEMORY_RECAP_HEADING));
     assertMentions(msg.content, ["- [project] uses pnpm", "- [user] prefers French"]);
+  });
+});
+
+describe("buildMemoryRecapMessage heading", () => {
+  it("says the facts were saved at this compaction and shown from the next turn", () => {
+    // Arrange
+    const items = TWO_MEMORIES;
+
+    // Act
+    const heading = buildMemoryRecapMessage(items).content.split("\n")[0];
+
+    // Assert
+    assertMentions(heading, ["saved to memory at this compaction", "in the Memory block from the next turn"]);
+  });
+});
+
+describe("buildSnipNoticeMessage", () => {
+  it("is a system message opening with [compacted]", () => {
+    // Arrange
+    const marker = "[compacted]";
+
+    // Act
+    const msg = buildSnipNoticeMessage();
+
+    // Assert
+    assertMarkedSystemMessage(msg, marker);
+  });
+
+  it("says the earlier turns were removed with no summary, and to ask the user for what is missing", () => {
+    // Arrange
+    const parts = SNIP_NOTICE_PARTS;
+
+    // Act
+    const msg = buildSnipNoticeMessage();
+
+    // Assert
+    assertMentions(msg.content, parts);
+  });
+
+  it("is no compact boundary, so the history shows it", () => {
+    // Arrange
+    const msg = buildSnipNoticeMessage();
+
+    // Act
+    const boundary = isCompactBoundary(msg);
+
+    // Assert
+    strictEqual(boundary, false);
+  });
+
+  it("reads as a marked message, never as a request the user typed", () => {
+    // Arrange
+    const msg = buildSnipNoticeMessage();
+
+    // Act
+    const marked = isMarkedMessage(msg.content);
+
+    // Assert
+    strictEqual(marked, true);
   });
 });
 

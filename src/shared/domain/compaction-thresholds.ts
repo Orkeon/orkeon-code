@@ -51,8 +51,8 @@ export const MAX_CONSECUTIVE_FAILURES = 3;
  */
 export const TRANSCRIPT_CAP_CHARS = 48_000;
 
-/** Messages session_snip keeps before any summary is paid for: the head anchor
- *  and the last exchanges, the current step's context. */
+/** Messages session_snip keeps when no summary is written (the fallback of a summary that failed, and the default of
+ *  `/compact --snip`): the head anchor and the last messages, the current step's context. */
 export const SNIP_RETAIN_COUNT = 5;
 
 /** Facts extracted per compaction: a session yields a handful of durable facts;

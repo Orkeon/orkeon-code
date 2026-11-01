@@ -316,7 +316,7 @@ export async function runMainLoop(input: MainLoopInputs, loaded: LoadedCatalogue
   await appendTurn(session, "user", prompt);
   // Head-of-turn auto-compaction (F3): act() starts from a healthy buffer.
   await autoCompactGuarded(deps);
-  const assembled = await buildTurnPrompt(prompt, mode, flags, deps, loaded.extras);
+  const assembled = await buildTurnPrompt(prompt, mode, flags, deps, loaded.extras, loaded.scriptTools);
   // A turn the provider failed throws (LlmFailure), as any failure of act does:
   // no answer is stored, the tail compaction does not run (the breaker counts
   // compactions, not turns), and the run fails with the provider's error, which

@@ -1,8 +1,8 @@
 // Auto-compaction circuit breaker (F3.5) — pure, no IO. The mutable counter
 // lives in agent state (ctx.state.with is the ONLY mutation path); these
 // helpers hold the testable transition logic. Per the source design, only
-// consecutive FAILURES open the breaker: any successful pass (compacted or
-// snipped) resets it, a skip leaves it unchanged.
+// consecutive FAILURES open the breaker: a compaction resets it (a summary that
+// failed and fell back to the snip still counts as a failure), a skip leaves it unchanged.
 //
 // Run tests: node --test src/crews/main-loop/domain/autocompact.test.ts
 
@@ -20,7 +20,6 @@ export function nextFailureCount(failures: number, status: CompactStatus): numbe
     case "failed":
       return failures + 1;
     case "compacted":
-    case "snipped":
       return 0;
     default: // "skipped"
       return failures;

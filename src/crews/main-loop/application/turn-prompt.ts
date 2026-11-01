@@ -65,6 +65,7 @@ export async function buildTurnPrompt(
   flags: BehaviorFlags,
   deps: TurnContextDeps,
   extras: readonly ExtraTool[] = [],
+  scriptTools: readonly string[] = [],
 ): Promise<TurnPrompt> {
   // /fast: skip the two advisory reads entirely, not just their rendering.
   // Rendering-only would keep paying for the memory listing and every skill file
@@ -85,7 +86,7 @@ export async function buildTurnPrompt(
   const today = isoDay(deps.clock());
 
   return {
-    system: buildStaticHeader({ toolNames: toolsetFor(mode, extras), instructions }),
+    system: buildStaticHeader({ toolNames: toolsetFor(mode, extras), scriptTools, instructions }),
     context: assembleContext({
       // All volatile, all in the context. An unconfigured session renders none
       // of the optional blocks.

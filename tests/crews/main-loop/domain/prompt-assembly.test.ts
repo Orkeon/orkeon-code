@@ -24,7 +24,7 @@ import {
   MAX_STATIC_HEADER_CHARS,
   withoutCurrentRequest,
 } from "../../../../src/crews/main-loop/domain/prompt-assembly.ts";
-import { toolsetFor } from "../../../../src/shared/domain/agent-policy/permission.ts";
+import { MEMORY_TOOLS, scriptToolsFor, toolsetFor } from "../../../../src/shared/domain/agent-policy/permission.ts";
 import { PERMISSION_MODES } from "../../../../src/shared/domain/permission-modes.ts";
 import { MEMORY_CATEGORIES } from "../../../../src/shared/domain/agent-policy/memory-categories.ts";
 import { OUTPUT_STYLES, isOutputStyle } from "../../../../src/shared/domain/agent-policy/output-styles.ts";
@@ -32,9 +32,12 @@ import {
   AGENTS_HEADER_OPTS, BEHAVIOUR_BLOCKS_IN_ORDER, BODY_BLOCKS_IN_ORDER, CLAUDE_HEADER_OPTS, EMPTY_HOOKS_CASES,
   EMPTY_SKILLS_CASES, GAUGE_TIER_CASES, HOOK_STEPS, INSTRUCTIONS_FILE_CASES, KEPT_BUFFER_CASES, LEGACY_PARTS,
   MARKED_PARTS, MARKED_PARTS_IN_ORDER, OUTPUT_STYLE_CASES, REFUSAL_NOTE, REPEATED_REQUEST_HISTORY, RULE_MARKERS,
-  MARKED_WINDOW_CASES, UNCONFIGURED_PREFERENCES_CASES, builtParts, toolTurns, userMessages,
+  LESSONS_TOOL_RULE, COMPACTED_IN_HISTORY_RULE,
+  MARKED_WINDOW_CASES, UNCONFIGURED_PREFERENCES_CASES, LESSONS_TOOLS, builtParts, toolTurns, userMessages,
 } from "./prompt-assembly.fixtures.ts";
-import { assertInOrder, assertLacks, assertMentions, assertSystemReminder } from "./prompt-assembly.assertions.ts";
+import {
+  assertInOrder, assertLacks, assertMentions, assertSectionLacks, assertSystemReminder,
+} from "./prompt-assembly.assertions.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 
 describe("buildStaticHeader", () => {
@@ -372,10 +375,32 @@ describe("buildStaticHeader", () => {
     ok(!header.includes("A long result is cut before you see it"), header);
   });
 
+  it("names memory_push as the shared lesson's tool, not the place of a fact to remember, when the session offers it", () => {
+    // Arrange
+    const opts = { toolNames: ["file_read"], scriptTools: LESSONS_TOOLS };
+
+    // Act
+    const header = buildStaticHeader(opts);
+
+    // Assert
+    assertMentions(header, [LESSONS_TOOL_RULE], "the header");
+  });
+
+  it("does not name memory_push in the remembering rule when the session does not offer it", () => {
+    // Arrange
+    const opts = { toolNames: ["file_read"], scriptTools: ["memory_recall"] };
+
+    // Act
+    const header = buildStaticHeader(opts);
+
+    // Assert
+    assertSectionLacks(header, "## Where instructions come from", ["memory_push"]);
+  });
+
   for (const mode of PERMISSION_MODES) {
     it(`keeps the authored header under its ceiling in the ${mode} mode`, () => {
       // Arrange
-      const opts = { toolNames: toolsetFor(mode, []) };
+      const opts = { toolNames: toolsetFor(mode, []), scriptTools: scriptToolsFor(mode, MEMORY_TOOLS) };
 
       // Act
       const header = buildStaticHeader(opts);
@@ -511,6 +536,17 @@ describe("buildHistoryBlock", () => {
     assertMentions(block, ["A [tools] message before an answer names the calls that produced it", "never a guess"],
       "the history block");
   });
+
+  it("reads a [compacted] message as a summary or as a note of turns removed without one, its gap reported", () => {
+    // Arrange
+    const messages = [{ role: "system", content: "[compacted] Earlier turns were removed." }];
+
+    // Act
+    const block = buildHistoryBlock(messages);
+
+    // Assert
+    assertMentions(block, COMPACTED_IN_HISTORY_RULE, "the history block");
+  });
 });
 
 describe("buildGaugeBlock", () => {
@@ -550,6 +586,28 @@ describe("buildMemoryBlock usage line", () => {
 
     // Assert
     ok(block.includes("possibly out of date"), block);
+  });
+
+  it("introduces the notes as saved at earlier compactions", () => {
+    // Arrange
+    const notes = { user: ["u1"] };
+
+    // Act
+    const block = buildMemoryBlock(notes);
+
+    // Assert
+    assertMentions(block, ["saved at earlier compactions"], "the memory block");
+  });
+
+  it("promises no notes from earlier sessions", () => {
+    // Arrange
+    const notes = { user: ["u1"] };
+
+    // Act
+    const block = buildMemoryBlock(notes);
+
+    // Assert
+    assertLacks(block, ["earlier sessions"], "the memory block");
   });
 
   it("introduces nothing when there are no notes", () => {

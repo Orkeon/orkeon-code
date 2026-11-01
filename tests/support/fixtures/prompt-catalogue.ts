@@ -5,6 +5,7 @@
 // and to diff when a prompt changes).
 import { buildTurnPrompt } from "../../../src/crews/main-loop/application/turn-prompt.ts";
 import { PERMISSION_MODES } from "../../../src/shared/domain/permission-modes.ts";
+import { MEMORY_TOOLS, scriptToolsFor } from "../../../src/shared/domain/agent-policy/permission.ts";
 import { DEFAULT_BEHAVIOR_FLAGS } from "../../../src/shared/domain/agent-policy/behavior-flags.ts";
 import type { BehaviorFlags } from "../../../src/shared/domain/agent-policy/behavior-flags.ts";
 import { HOOKS_STATE_KEY, OUTPUT_STYLE_STATE_KEY, SKILLS_STATE_KEY } from "../../../src/shared/domain/session-keys.ts";
@@ -120,11 +121,14 @@ const pair = (title: string, p: PromptPair): PromptSection[] => [
 ];
 const schema = (title: string, s: unknown): PromptSection => ({ title, role: "schema", text: JSON.stringify(s, null, 2) });
 
+/** The script tools the main loop offers in `mode` (the shared memory's), as loadCatalogue hands them over. */
+const scripts = (mode: string): string[] => scriptToolsFor(mode, MEMORY_TOOLS);
+
 /** The main loop's system header for every mode, as buildTurnPrompt sends it. */
 export async function renderHeaders(opts: { instructions?: boolean } = {}): Promise<Array<{ mode: string; system: string }>> {
   const out: Array<{ mode: string; system: string }> = [];
   for (const mode of PERMISSION_MODES) {
-    out.push({ mode, system: (await buildTurnPrompt("…", mode, flags(), turnDeps(opts))).system });
+    out.push({ mode, system: (await buildTurnPrompt("…", mode, flags(), turnDeps(opts), [], scripts(mode))).system });
   }
   return out;
 }
@@ -133,10 +137,10 @@ export async function renderHeaders(opts: { instructions?: boolean } = {}): Prom
 export async function renderCatalogue(): Promise<RenderedPrompt[]> {
   const request = SAMPLE_HISTORY[2].content;
   const headers = await renderHeaders();
-  const withFile = await buildTurnPrompt("…", "default", flags(), turnDeps({ instructions: true }));
-  const bare = await buildTurnPrompt(request, "default", flags(), turnDeps());
-  const full = await buildTurnPrompt(request, "default", flags({ proactive: true }), turnDeps({ full: true }));
-  const plan = await buildTurnPrompt(request, "plan", flags(), turnDeps({ full: true }));
+  const withFile = await buildTurnPrompt("…", "default", flags(), turnDeps({ instructions: true }), [], scripts("default"));
+  const bare = await buildTurnPrompt(request, "default", flags(), turnDeps(), [], scripts("default"));
+  const full = await buildTurnPrompt(request, "default", flags({ proactive: true }), turnDeps({ full: true }), [], scripts("default"));
+  const plan = await buildTurnPrompt(request, "plan", flags(), turnDeps({ full: true }), [], scripts("plan"));
   const prior = [{ severity: "low", file: "src/args.ts", line: 12, category: "style", finding: "magic string" }];
   const detected = { buildCommand: "npm run build", testCommand: "npm test", frameworks: ["node"], conventions: [] };
   const pkg = JSON.stringify({ name: "sample-repo", scripts: { test: "node --test" } }, null, 2);

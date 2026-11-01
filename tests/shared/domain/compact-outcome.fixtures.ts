@@ -19,16 +19,6 @@ export const OUTCOME_CASES: readonly OutcomeCase[] = [
     line: "✓ compacted 40 → 6 messages",
   },
   {
-    name: "reports a snip with the usage it left",
-    outcome: { status: "snipped", before: 40, usedTokens: 900 },
-    line: "✓ micro-compacted (snip) — 40 messages trimmed, now ~900 tokens",
-  },
-  {
-    name: "reports a snip without usage as the messages trimmed alone",
-    outcome: { status: "snipped", before: 40, after: 0 },
-    line: "✓ micro-compacted (snip) — 40 messages trimmed",
-  },
-  {
     name: "tells a buffer too small",
     outcome: { status: "skipped", reason: "buffer too small" },
     line: "Buffer too small to compact.",
@@ -42,6 +32,11 @@ export const OUTCOME_CASES: readonly OutcomeCase[] = [
     name: "carries the reason of a failure",
     outcome: { status: "failed", reason: "model down" },
     line: "Compaction failed: model down",
+  },
+  {
+    name: "says the buffer was snipped without a summary when the failure fell back to the snip",
+    outcome: { status: "failed", reason: "model down", fallback: "snip" },
+    line: "Compaction failed: model down\nThe buffer was snipped instead: the earlier turns were removed without a summary.",
   },
   {
     name: "adds the state file of the batch in progress on a line of its own",

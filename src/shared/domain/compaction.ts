@@ -55,8 +55,8 @@ function asMaterial(transcript: string): string {
  *
  * The summary REPLACES the history, so it is written for a reader who resumes
  * cold, not as a recap; what comes back on its own after a compaction (memory,
- * the instructions file, the files read back) is named so the summary spends its
- * words on the state of the work. The answer goes between fixed markers so the
+ * the instructions file, the playbooks, a few files read back) is named so the
+ * summary spends its words on the state of the work. The answer goes between fixed markers so the
  * host stores the summary and nothing else. `focus` is the operator's
  * `/compact <focus>`. The instructions are the system message, the transcript the
  * user message.
@@ -65,20 +65,33 @@ export function buildSummaryPrompt(transcript: string, focus?: string): PromptPa
   const lines = [
     "You are writing the compaction summary of a coding session. The conversation below " +
       "will be replaced by your summary, and the agent will carry on the work from it. " +
-      "Its saved memories, the project's instructions file and the files it was working " +
-      "on come back on their own after the compaction: do not copy them.",
+      "Its saved memories, the project's instructions file, the attached playbooks and a few " +
+      "of the files most recently named (a large one by its name alone, not its content) come " +
+      "back on their own after the compaction: do not copy them, but still name every file " +
+      "the work touched and the change made to it.",
     "",
     "Write for a reader who resumes cold. Keep these parts, in this order, and leave out " +
       "a part with nothing to say:",
     "1. The request: what the user asked for, and how they will judge it done.",
     "2. The user's own words that still apply: requests, corrections and preferences, " +
-      "close to how they put them, above all an instruction to work differently.",
+      "close to how they put them, above all an instruction to work differently; what they " +
+      "allowed or forbade, in their words and with the scope they gave it, so that no " +
+      "permission grows wider or goes missing.",
     "3. Done and checked: what changed, file by file (the path and the change), and the " +
       "last check run on it with its result.",
     "4. Learned: decisions and their reasons, constraints found, failures and their " +
       "cause, approaches that did not work.",
-    "5. Still to do: the remaining steps in order, what blocks them, the open questions.",
+    "5. Still to do: first the step under way when the conversation was cut and the state " +
+      "it left the files in, then the remaining steps in order, what blocks them, the open " +
+      "questions.",
     "6. The user's latest request, quoted.",
+    "",
+    "A message of the transcript opening with [compacted] is an earlier summary or a note " +
+      "that turns were removed without one. Spread an earlier summary's facts over the parts " +
+      "above where they belong, neither dropping it nor pasting it as one block; report such " +
+      "a note as a gap, under Still to do or Learned. Where the transcript says characters " +
+      "were left out, or a [tools] line shows no result, what happened there is unknown: " +
+      "report it as unknown, never fill it in.",
   ];
   const keep = String(focus ?? "").trim();
   if (keep.length > 0) {
@@ -118,6 +131,21 @@ export const COMPACT_BOUNDARY_MARKER = "[compact-boundary]";
 /** The typed boundary inserted as the FIRST post-compact message. */
 export function buildCompactBoundaryMessage(): CompactBoundaryMessage {
   return { role: "system", subtype: "compact_boundary", content: COMPACT_BOUNDARY_MARKER };
+}
+
+/**
+ * The note left in the buffer when earlier turns were cut with no summary (a snip
+ * alone). It opens with [compacted] so the history reads it as material, and it is
+ * no boundary: `isCompactBoundary` matches the subtype or `[compact-boundary]` only,
+ * and the history block hides boundaries, while this note must be read.
+ */
+export function buildSnipNoticeMessage(): SessionMsg {
+  return {
+    role: "system",
+    content:
+      "[compacted] Earlier turns were removed to free the context, and no summary of them was written. " +
+      "What they held is not in this history: ask the user for whatever is missing.",
+  };
 }
 
 /** True for a compaction boundary — by subtype when present, else by marker. */
@@ -260,11 +288,12 @@ export const MAX_KNOWN_MEMORIES_IN_PROMPT = 40;
  * Each category is defined together with what does not belong in it, because the
  * failure is never an empty list: it is task state stored as memory. `known` are
  * the entries the store already holds, listed so the model does not repeat them.
+ * `today` (YYYY-MM-DD), when given, is stated so a relative date becomes an absolute one.
  */
-export function buildMemoryExtractionPrompt(transcript: string, known: readonly string[] = []): string {
+export function buildMemoryExtractionPrompt(transcript: string, known: readonly string[] = [], today?: string): string {
   const lines = [
-    "This conversation is about to be compacted. List the facts worth keeping across " +
-      "sessions, for the agent's typed memory. Each item is one fact that stands on its own " +
+    "This conversation is about to be compacted. List the facts worth keeping beyond this " +
+      "conversation, for the agent's typed memory. Each item is one fact that stands on its own " +
       "(no \"this session\", no relative date), in one category:",
     "- user: who the user is, their role and expertise, their lasting preferences about " +
       "how to work with them. Not what they asked for today.",
@@ -281,6 +310,10 @@ export function buildMemoryExtractionPrompt(transcript: string, known: readonly 
       "doubt, leave it out; an empty list is a valid answer. Return " +
       "{ \"items\": [{ \"category\": ..., \"content\": ... }] }.",
   ];
+  const date = String(today ?? "").trim();
+  if (date.length > 0) {
+    lines.splice(1, 0, `Today is ${date}: write a date the conversation gives relatively as an absolute one.`);
+  }
   const already = known.map((k) => k.trim()).filter((k) => k.length > 0).slice(0, MAX_KNOWN_MEMORIES_IN_PROMPT);
   if (already.length > 0) {
     lines.push("", "Already in memory, do not repeat:", ...already.map((k) => `- ${k}`));
@@ -302,8 +335,13 @@ export function sanitizeExtractedMemories(raw: any): ExtractedMemory[] {
     .slice(0, MAX_EXTRACTED_MEMORIES);
 }
 
-/** Bounded recap re-injected after the rewrite so the memories stay visible. */
+/** Bounded recap re-injected after the rewrite so the memories stay visible until
+ *  the Memory block of the next turn shows them. */
 export function buildMemoryRecapMessage(items: ExtractedMemory[]): SessionMsg {
   const lines = items.map((it) => `- [${it.category}] ${it.content}`);
-  return { role: "system", content: "[memories] Saved to memory before the compaction:\n" + lines.join("\n") };
+  return {
+    role: "system",
+    content: "[memories] Facts saved to memory at this compaction, shown in the Memory block from the next turn:\n" +
+      lines.join("\n"),
+  };
 }

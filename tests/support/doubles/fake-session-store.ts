@@ -1,11 +1,12 @@
 // FakeSessionStore: the SessionStore port over a Map (the state bag) and a message
 // array (the buffer). `budget` is what readBudget answers, `snipped` what snip
-// answers (each snip lands in `snips`, and `budgetAfterSnip`, when set, becomes
-// the budget); reset empties the buffer and setTitle sets `title`. A `failure`
+// answers (each snip lands in `snips`, and `messagesAfterSnip`, when set,
+// becomes the buffer); reset empties the buffer and setTitle sets `title`. A `failure`
 // makes every call throw it, as a host without the session tools does; a
 // `readStateFailure` makes readState alone throw it (a state bag that cannot be
 // read, but can be written), a `writeStateFailure` writeState alone (one that
-// cannot be written). The batch read (readStates) fails with readState, or alone
+// cannot be written), a `writeMessagesFailure` writeMessages alone (a buffer that can be
+// read and snipped, but not rewritten). The batch read (readStates) fails with readState, or alone
 // with `readStatesFailure` (a host without the batch). The
 // counters say what a caller asked: `readStateCalls` the key of each single read,
 // `readStatesCalls` the keys of each batch read, `readMessagesCalls` and
@@ -21,13 +22,14 @@ export class FakeSessionStore implements SessionStore {
   messages: SessionMsg[] = [];
   budget: TokenBudget = { used: 0, window: 0 };
   snipped: SnipResult = { removed: 0, retained: 0 };
-  budgetAfterSnip: TokenBudget | null = null;
+  messagesAfterSnip: SessionMsg[] | null = null;
   snips: number[] = [];
   title: string | null = null;
   failure: Error | null = null;
   readStateFailure: Error | null = null;
   writeStateFailure: Error | null = null;
   readStatesFailure: Error | null = null;
+  writeMessagesFailure: Error | null = null;
   readStateCalls: string[] = [];
   readStatesCalls: string[][] = [];
   readMessagesCalls = 0;
@@ -47,6 +49,7 @@ export class FakeSessionStore implements SessionStore {
   async writeMessages(messages: readonly StoredMessage[]): Promise<void> {
     this.writeMessagesCalls++;
     this.check();
+    if (this.writeMessagesFailure) throw this.writeMessagesFailure;
     this.messages = [...messages] as SessionMsg[];
   }
 
@@ -66,7 +69,7 @@ export class FakeSessionStore implements SessionStore {
   async snip(retain: number): Promise<SnipResult> {
     this.check();
     this.snips.push(retain);
-    if (this.budgetAfterSnip) this.budget = this.budgetAfterSnip;
+    if (this.messagesAfterSnip) this.messages = [...this.messagesAfterSnip];
     return this.snipped;
   }
 

@@ -24,6 +24,17 @@ describe("extractMemories", () => {
     ]);
   });
 
+  it("gives the model today's date when the caller passes it", async () => {
+    // Arrange
+    const { llm, memory } = memoriesSetup(TWO_FACTS);
+
+    // Act
+    await extractMemories(llm, memory, "T", "2026-10-24");
+
+    // Assert
+    deepStrictEqual(llm.extracts.map((c) => c.prompt), [buildMemoryExtractionPrompt("T", [], "2026-10-24")]);
+  });
+
   it("drops an item without a known category or content", async () => {
     // Arrange
     const { llm, memory } = memoriesSetup(UNKNOWN_OR_EMPTY);

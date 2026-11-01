@@ -11,6 +11,15 @@ export function assertLacks(text: string, parts: readonly string[], what = "the 
   for (const part of parts) ok(!text.includes(part), `${what} should not hold ${JSON.stringify(part)}: ${text}`);
 }
 
+/** The `heading` section of `text`, up to the next `## ` heading, holds none of `parts`. */
+export function assertSectionLacks(text: string, heading: string, parts: readonly string[]): void {
+  const start = text.indexOf(heading);
+  ok(start >= 0, `the text has no section ${JSON.stringify(heading)}: ${text}`);
+  const end = text.indexOf("\n## ", start + heading.length);
+  const section = text.slice(start, end < 0 ? undefined : end);
+  for (const part of parts) ok(!section.includes(part), `${heading} should not hold ${JSON.stringify(part)}: ${section}`);
+}
+
 /** `text` holds each of `markers`, their first occurrences in that order. */
 export function assertInOrder(text: string, markers: readonly string[]): void {
   const order = markers.map((marker) => text.indexOf(marker));

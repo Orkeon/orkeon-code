@@ -44,8 +44,9 @@ trimmed by the mode. Every command, crew and prompt is a source file: change it,
   ([Permissions](docs/permissions.md#rule-sets-of-the-dev-steps)).
 - **A shared memory**: decisions, structures, methods and mistakes the steps recall, admitted only through
   `/memory admit` ([Shared memory](docs/shared-memory.md)).
-- **Context management**: automatic compaction with a circuit breaker, snip-first `/compact`, file restore after
-  compaction, context pressure tiers, typed durable memory (`/memory`).
+- **Context management**: automatic compaction with a circuit breaker, a `/compact` that summarises the whole session
+  (the snip is `/compact --snip`, or the fallback of a failed summary), file restore after compaction, context
+  pressure tiers, typed memory held by the Orkeon process (`/memory`).
 - **48 slash commands** in all: [docs/commands.md](docs/commands.md).
 
 ## Quick start
