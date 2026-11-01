@@ -65,7 +65,7 @@ An **async** command starts a crew and returns a ticket; its result is printed w
 | Command | Kind | Description |
 |---|---|---|
 | `/branch` | sync | Show the current git branch, or check out the given one (refuses on a dirty tree). |
-| `/commit` | async | Draft and create a conventional commit of the changed files or the paths named, the work folder left out unless named (confirms; --yes skips; --push pushes; --pr opens the PR; --note <text> says why). |
+| `/commit` | async | Draft and create a conventional commit of the changes or the paths named, the work folder only if named (confirms; --yes skips; --push pushes; --pr opens the PR; --note "<why>", several words quoted). |
 | `/diff` | sync | Show the working-tree diff, or the staged diff with --staged. |
 | `/review` | async | Run a multi-lens code review on staged changes; --lens correctness\|security\|style keeps one lens, --passes 1-5 sets this run's rounds. Also `/security-review`, `/passes`. |
 

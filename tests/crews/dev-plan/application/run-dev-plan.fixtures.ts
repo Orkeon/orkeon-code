@@ -13,6 +13,7 @@ import { createConfigStore } from "../../../../src/shared/application/config-sto
 import type { AnchorIndex } from "../../../../src/shared/application/ports.ts";
 import { GIT_TOPLEVEL } from "../../../../src/shared/application/dev/resolve-work-folder.ts";
 import { ORKEON_IGNORE_PROBE, checkIgnoreCommand } from "../../../../src/shared/application/dev/load-dev-context.ts";
+import { stepLabel } from "../../../../src/crews/dev-plan/domain/plan-answer.ts";
 import type { PlanAnswer } from "../../../../src/crews/dev-plan/domain/plan-answer.ts";
 import type { Inventory } from "../../../../src/crews/dev-plan/domain/inventory-model.ts";
 import { END_LINE, PLAN_JSON } from "../../../../src/crews/dev-plan/application/run-dev-plan.ts";
@@ -30,6 +31,9 @@ export const F1 = `${CODE}/PRUNE-PLAN-F1.md`;
 export const F2 = `${CODE}/PRUNE-PLAN-F2.md`;
 export const PJ = `${CODE}/${PLAN_JSON}`;
 export const ANSWER = json<PlanAnswer>("answer.json");
+/** The labels the golden answer's steps get in a problem, built as the answer check builds them. */
+export const B1S1 = stepLabel(ANSWER.batches[0], 0, 0);
+export const B2S1 = stepLabel(ANSWER.batches[1], 1, 0);
 export const INVENTORY = json<Inventory>("inventory.json");
 export const REVIEW_MAJOR = json<object>("review.json");
 export const REVIEW_BLOCKING = json<object>("review-blocking.json");

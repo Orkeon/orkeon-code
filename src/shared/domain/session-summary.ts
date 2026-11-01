@@ -8,5 +8,6 @@ export const SUMMARY_PROMPT =
   "would only spend this turn. Start with where things stand (done, in progress, blocked), then the " +
   "decisions taken, the files touched (each path and what changed) and what is still open, as a few short " +
   "bullets under each heading, leaving out a heading with nothing under it and adding no next-steps list " +
-  "of your own. A [compacted] message stands for the turns before the last compaction: cover them too. " +
+  "of your own. A [compacted] message is either the summary of earlier turns, to cover too, or a note that turns " +
+  "were removed without one: report that gap, never fill it in. " +
   "Report a test or a check only as it was last seen. Write in the language of the conversation.";

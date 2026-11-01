@@ -4,7 +4,8 @@
 // durable facts go to typed memory first, so nothing worth keeping is lost; the
 // summary is written from the whole buffer as it stands (clipped head and tail by
 // the prompt), then the files the conversation was working on and the attached
-// skills are read back. The deterministic snip (session_snip) is the fallback of a
+// skills are read back. A request still waiting for its answer (the compaction at the head of a turn) stays last,
+// after all of them, so the answer that follows has its request before it. The deterministic snip (session_snip) is the fallback of a
 // summary that fails, and `/compact --snip`: either leaves a notice in the buffer
 // saying the earlier turns were removed without a summary.
 //
@@ -31,6 +32,8 @@ import type { ConfigStore } from "../config-store.ts";
 import { extractMemories } from "./extract-memories.ts";
 import { restoreAttachedSkills, restoreRecentFiles } from "./restore-context.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
+import { isoDay } from "../../domain/iso-day.ts";
+import { pendingRequestLength } from "../../domain/marked-message.ts";
 
 /** The ports the pipeline runs on. */
 export interface CompactDeps {
@@ -40,7 +43,8 @@ export interface CompactDeps {
   memory: MemoryStore;
   llm: Llm;
   log: Logger;
-  /** Today's date for the memory extraction, so a relative date is saved as an absolute one. */
+  /** Today's date for the memory extraction, so a relative date is saved as an absolute one: the UTC day, as the
+   *  Environment line of the turn gives it. */
   clock: Clock;
   /** Step 0: writes the state file of the dev batch in progress (null: none is). Absent, no step 0. */
   workflow?: (trigger: "manual" | "auto") => Promise<StateWritten | null>;
@@ -87,7 +91,7 @@ export async function compactSession(
       //    non-JSON replies; compaction must never fail because of it).
       await progress.report(compactPhase(1, "extracting memories"));
       const transcript = buildTranscript(raw.messages);
-      const memories = await extractMemories(llm, memory, transcript, isoDate(deps.clock));
+      const memories = await extractMemories(llm, memory, transcript, isoDay(deps.clock()));
 
       // 2. The summary, from the buffer as it stands: the prompt clips the transcript head and tail.
       await progress.report(compactPhase(2, "synthesizing the summary"));
@@ -116,6 +120,10 @@ export async function compactSession(
       }
       // 5. The pointer to the state file written at step 0, last: what to read first.
       if (state !== null && "path" in state) buffer.push(buildRestoredStateMessage(`${WORKSPACE}/${state.path}`, state.firstOpen));
+      // 6. The request still waiting for its answer, with its [turn-context], stays last: the summary records it, and
+      //    the answer appended next must follow it.
+      const pending = pendingRequestLength(raw.messages);
+      if (pending > 0) buffer.push(...raw.stored.slice(raw.stored.length - pending));
       await session.writeMessages(buffer);
 
       return withState({ status: "compacted", before: raw.stored.length, after: buffer.length, usedTokens: used });
@@ -166,13 +174,6 @@ async function leaveSnipNotice(session: Pick<SessionStore, "readMessages" | "wri
   const notice = buildSnipNoticeMessage();
   if (stored.length > 1 && String((stored[1] as { content?: unknown })?.content ?? "") === notice.content) return;
   await session.writeMessages(stored.length === 0 ? [notice] : [stored[0], notice, ...stored.slice(1)]);
-}
-
-/** The clock's date as YYYY-MM-DD, the user's local day. */
-function isoDate(clock: Clock): string {
-  const now = clock();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
 /** Step 0, best-effort: a state that cannot be written is logged, and the compaction goes on. */

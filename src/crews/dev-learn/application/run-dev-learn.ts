@@ -2,8 +2,9 @@
 // of the work folder with both learning states and the refused motifs, then either
 // lists the untreated gaps per axis (--list: no model call, no write) or, for each
 // axis whose untreated gaps span three batches or more (three axes at most), asks the
-// model once - once more on a wrong answer - to group them into motifs, filters the
-// motifs by code, reconciles them with their owner file and writes proposals.json and
+// model once - once more on a wrong answer, or with the owner lines its motifs need -
+// to group them into motifs, filters the motifs by code, reconciles them with their
+// owner file and writes proposals.json and
 // PROPOSALS.md under <work>/learn-<date>/. Then, when a person answers, it takes the
 // decisions in the same run: one multi-select per axis with motifs, the selected motifs
 // accepted and the others refused, as /dev-learn --accept and --refuse would (Orkeon
@@ -27,8 +28,10 @@ import {
 } from "../../../shared/domain/dev/learn-proposals.ts";
 import type { AxisProposal, DroppedMotif, Motif, ProposalsFile } from "../../../shared/domain/dev/learn-proposals.ts";
 import { sha1Hex } from "../../../shared/domain/sha1.ts";
-import { LEARN_ANSWER_SCHEMA, checkLearnAnswer } from "../domain/learn-answer.ts";
+import { LEARN_ANSWER_SCHEMA, checkLearnAnswer, motifLabel } from "../domain/learn-answer.ts";
 import type { AnswerMotif, LearnAnswer } from "../domain/learn-answer.ts";
+import { matchOwner, reviewOwner } from "../domain/owner-lines.ts";
+import type { OwnerLinesBlock, OwnerReview } from "../domain/owner-lines.ts";
 import { renderProposals } from "../domain/proposals-render.ts";
 import { MAX_LEARN_PROMPT_CHARS, buildLearnPrompt } from "./learn-prompt.ts";
 import type { LearnPromptInput } from "./learn-prompt.ts";
@@ -52,7 +55,6 @@ const MAX_OWNERS = 12;
 const LIST_CAP = 1000;
 const TESTS_LIST_CAP = 500;
 const OWNER_READ_CHARS = 400_000;
-const REMOVED_SHOWN = 60;
 const MAX_OPTION_CHARS = 150;
 /** Repository guidance files offered to the model as owners, when the checkout holds them. */
 const OWNER_CANDIDATES: readonly string[] = [
@@ -184,10 +186,12 @@ async function ownerFiles(files: Pick<Files, "list">, testsFolder: string | unde
   return out.slice(0, MAX_OWNERS);
 }
 
+/** Each refused motif under the slug code matches it by: its topic, or for a harness refusal the slug of its text
+ *  (topicOf); a line the harness keeps is listed as it is. */
 function refusedForPrompt(backlog: Backlog): string[] {
   return [...new Set([
     ...backlog.refused.map((m) => `${m.topic} — ${m.motif}`),
-    ...backlog.harness.refused,
+    ...backlog.harness.refused.map((t) => (KEEP.test(t) ? t : `${topicOf(t)} — ${t}`)),
   ])];
 }
 
@@ -234,28 +238,56 @@ function unchangedSince(previous: ProposalsFile | null, axis: string, shown: rea
 
 // ---- the model call ----
 
+/** What the owner files say against a checked answer: the problems of a re-ask and the owner lines shown with them. */
+interface OwnerFindings { problems: string[]; blocks: OwnerLinesBlock[] }
+
+/** Two attempts. A first answer refused on shape spends the second on its problems, as before; when its only fault
+ *  is a status other than new, given before any owner line was shown, the second attempt also shows the owner
+ *  lines of its motifs. A first answer that passes is reviewed against its owners; when they raise problems, the
+ *  second attempt shows them with the owner lines, and a second answer that fails its check leaves the first one
+ *  standing. */
 async function ask(
   llm: Pick<Llm, "extract">, input: LearnPromptInput, shownIds: ReadonlySet<string>,
+  review: (answer: LearnAnswer) => Promise<OwnerFindings>,
 ): Promise<{ ok: true; answer: LearnAnswer } | { ok: false; problem: string }> {
   let problems: string[] = [];
+  let blocks: OwnerLinesBlock[] = [];
+  let first: LearnAnswer | null = null;
   for (let attempt = 0; attempt < 2; attempt++) {
     let value: unknown;
     try {
-      value = await llm.extract(buildLearnPrompt(input, problems), LEARN_ANSWER_SCHEMA);
+      value = await llm.extract(buildLearnPrompt(input, problems, blocks), LEARN_ANSWER_SCHEMA);
     } catch (error) {
+      if (first !== null) return { ok: true, answer: first };
       problems = [`the answer did not parse: ${reasonOf(error)}`];
       continue;
     }
-    const checked = checkLearnAnswer(value, shownIds);
-    if (checked.ok) return { ok: true, answer: checked.value };
-    problems = checked.problems;
+    const checked = checkLearnAnswer(value, shownIds, blocks.some((b) => b.lines.length > 0));
+    if (!checked.ok) {
+      if (first !== null) return { ok: true, answer: first };
+      problems = checked.problems;
+      const seen = attempt === 0 ? checkLearnAnswer(value, shownIds, true) : null;
+      if (seen?.ok) {
+        const findings = await review(seen.value);
+        problems = [...problems, ...findings.problems];
+        blocks = findings.blocks;
+      }
+      continue;
+    }
+    if (attempt > 0) return { ok: true, answer: checked.value };
+    const findings = await review(checked.value);
+    if (findings.problems.length === 0) return { ok: true, answer: checked.value };
+    first = checked.value;
+    problems = findings.problems;
+    blocks = findings.blocks;
   }
-  return { ok: false, problem: problems[0] ?? "no answer" };
+  return first !== null ? { ok: true, answer: first } : { ok: false, problem: problems[0] ?? "no answer" };
 }
 
 // ---- the code filters ----
 
-interface Kept { motif: AnswerMotif; batches: string[] }
+/** k: the motif's place in the answer, from 1, as the problems number it. */
+interface Kept { motif: AnswerMotif; batches: string[]; k: number }
 
 function filterMotifs(
   answer: LearnAnswer, rowsById: ReadonlyMap<string, LearnRow>, backlog: Backlog,
@@ -264,7 +296,8 @@ function filterMotifs(
   const harnessTexts = backlog.harness.refused.filter((t) => !KEEP.test(t));
   const keptLines = backlog.harness.refused.filter((t) => KEEP.test(t)).map((t) => foldText(t.replace(KEEP, "").trim()));
   const kept: Kept[] = [];
-  for (const motif of answer.motifs) {
+  for (let i = 0; i < answer.motifs.length; i++) {
+    const motif = answer.motifs[i];
     const batches = batchesOf(motif.rows.map((id) => rowsById.get(id)).filter((r): r is LearnRow => r !== undefined));
     if (batches.length < MIN_MOTIF_BATCHES) {
       dropped.push({ title: motif.title, filter: "recurrence", reason: `${batches.length} batches (${batches.join(", ")})` });
@@ -284,34 +317,51 @@ function filterMotifs(
       dropped.push({ title: motif.title, filter: "novelty", reason: "its removed line is kept (harness refusal)" });
       continue;
     }
-    kept.push({ motif: { ...motif, linesRemoved }, batches });
+    kept.push({ motif: { ...motif, linesRemoved }, batches, k: i + 1 });
   }
   return { kept, dropped: [...dropped, ...answer.dropped] };
 }
 
 // ---- reconcile ----
 
-async function reconcile(files: Pick<Files, "read">, motif: AnswerMotif): Promise<string> {
-  const path = motif.owner.kind === "harness" ? deployedHarnessPath(motif.owner.path) : motif.owner.path;
-  if (path === null) return `owner absent: ${motif.owner.path}`;
-  let text: string;
-  try {
-    text = await files.read(`${WORKSPACE}/${path}`, OWNER_READ_CHARS);
-  } catch {
-    return `owner absent: ${path}`;
+/** Reads a motif's owner file in the checkout (a harness owner through its deployed copy), each path once a run;
+ *  path: the file read. */
+function ownerReader(files: Pick<Files, "read">): (motif: AnswerMotif) => Promise<{ path: string; text: string | null }> {
+  const texts = new Map<string, string | null>();
+  return async (motif) => {
+    const path = motif.owner.kind === "harness" ? deployedHarnessPath(motif.owner.path) : motif.owner.path;
+    if (path === null) return { path: motif.owner.path, text: null };
+    if (!texts.has(path)) {
+      let text: string | null;
+      try {
+        text = await files.read(`${WORKSPACE}/${path}`, OWNER_READ_CHARS);
+      } catch {
+        text = null;
+      }
+      texts.set(path, text);
+    }
+    return { path, text: texts.get(path) ?? null };
+  };
+}
+
+type OwnerRead = ReturnType<typeof ownerReader>;
+
+/** A kept motif against its owner: an absent owner (the file read) is only said in the summary; what the owner
+ *  holds is named under the owner's own path, a harness owner's in the orkeon-workshop repository. */
+async function reconcile(read: OwnerRead, { motif, k }: Kept): Promise<OwnerReview> {
+  const { path, text } = await read(motif);
+  if (text === null) return { summary: `owner absent: ${path}`, problems: [], block: null };
+  return reviewOwner(motifLabel(k, motif.title), motif, motif.owner.path, matchOwner(text, motif.keyTerm, motif.linesRemoved));
+}
+
+async function ownerFindings(read: OwnerRead, kept: readonly Kept[]): Promise<OwnerFindings> {
+  const findings: OwnerFindings = { problems: [], blocks: [] };
+  for (const one of kept) {
+    const review = await reconcile(read, one);
+    findings.problems.push(...review.problems);
+    if (review.block !== null) findings.blocks.push(review.block);
   }
-  const lines = text.split(/\r?\n/);
-  const term = foldText(motif.keyTerm);
-  const hits = lines.flatMap((l, i) => (foldText(l).includes(term) ? [i + 1] : []));
-  let out = hits.length === 0
-    ? `'${motif.keyTerm}' not found in ${path}`
-    : `'${motif.keyTerm}' on ${hits.length} lines of ${path}, first ${path}:${hits[0]}`;
-  if (motif.status === "new" && hits.length > 0) out += "; the owner may already say it";
-  const present = new Set(lines.map((l) => l.trim()));
-  for (const removed of motif.linesRemoved) {
-    if (!present.has(removed.trim())) out += `; removed line not found: ${cut(removed.trim(), REMOVED_SHOWN)}`;
-  }
-  return out;
+  return findings;
 }
 
 /** 8 hex digits per motif; 10 for every motif whose 8 collide with another's in the file (L3-Q09). */
@@ -414,6 +464,7 @@ export async function runDevLearn(input: DevLearnInputs, deps: DevLearnDeps): Pr
   const previous = await earlierProposals(deps.files, work, folder);
   const owners = await ownerFiles(deps.files, ctx.pack?.pack.layout.tests);
   const refused = refusedForPrompt(backlog);
+  const readOwner = ownerReader(deps.files);
 
   const proposals: AxisProposal[] = [];
   for (const entry of handled) {
@@ -430,21 +481,24 @@ export async function runDevLearn(input: DevLearnInputs, deps: DevLearnDeps): Pr
       proposal.reason = since;
       continue;
     }
-    const asked = await ask(deps.llm, { ...base, rows: shown }, new Set(proposal.shownRows));
+    const rowsById = new Map(shown.map((r) => [r.id, r]));
+    const asked = await ask(deps.llm, { ...base, rows: shown }, new Set(proposal.shownRows),
+      (answer) => ownerFindings(readOwner, filterMotifs(answer, rowsById, backlog).kept));
     if (!asked.ok) {
       proposal.outcome = "no-proposal";
       proposal.reason = asked.problem;
       deps.log.warn(`dev-learn: axis ${entry.axis}: no proposal (${asked.problem})`);
       continue;
     }
-    const { kept, dropped } = filterMotifs(asked.answer, new Map(shown.map((r) => [r.id, r])), backlog);
+    const { kept, dropped } = filterMotifs(asked.answer, rowsById, backlog);
     proposal.dropped = dropped;
-    for (const { motif, batches } of kept) {
+    for (const one of kept) {
+      const { motif, batches } = one;
       const m: Motif = {
         id: motifId(entry.axis, motif.rows), title: motif.title, topic: motif.topic, rows: motif.rows, batches,
         preventiveLine: motif.preventiveLine, owner: motif.owner, check: motif.check, status: motif.status,
         linesRemoved: motif.linesRemoved, linesAdded: motif.linesAdded, novelty: motif.novelty, keyTerm: motif.keyTerm,
-        reconcile: await reconcile(deps.files, motif),
+        reconcile: (await reconcile(readOwner, one)).summary,
       };
       proposal.motifs.push(m);
     }

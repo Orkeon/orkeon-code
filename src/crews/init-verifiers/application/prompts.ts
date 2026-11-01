@@ -80,8 +80,10 @@ export function buildVerifierSkillPrompt(
     `- \`# Verify ${zone}\``,
     "- `## Prerequisites`: what must be installed, set (environment variables) or running first.",
     "- `## Steps`: numbered, each with the exact command. A part that keeps running (a server, a web UI) is " +
+      "started only when the facts show how to start it, to tell it is ready and to stop it: then it is " +
       "started without blocking the step, waited on until a stated readiness signal shows, and stopped at the " +
-      "end. A step that writes, deletes or calls the network points at a scratch folder or a dry-run flag, or " +
+      "end; else the step says the part is not started and what would be needed to start it. A step that " +
+      "writes, deletes or calls the network points at a scratch folder or a dry-run flag the facts show, or " +
       "says it cannot be checked safely.",
     "- `## Pass`: the signal that shows it works (an output, an exit code, a response), one you can observe, " +
       "and beside it the one or two observations that mean it failed.",

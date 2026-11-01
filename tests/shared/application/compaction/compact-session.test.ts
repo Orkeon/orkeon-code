@@ -12,7 +12,7 @@ import { SKILLS_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts"
 import { FakeSessionStore } from "../../../support/doubles/fake-session-store.ts";
 import {
   ABOVE, BELOW, FULL_PIPELINE_LOG, FULL_PIPELINE_STEPS, HISTORY, SNIPPED, TODAY, TRIGGER_SETTINGS, WRITTEN, compactSetup,
-  failingSummarySetup, fullPipelineBuffer, snipFallbackBuffer, withWorkflow,
+  PENDING_REQUEST, failingSummarySetup, fullPipelineBuffer, pendingRequestBuffer, snipFallbackBuffer, withWorkflow,
 } from "./compact-session.fixtures.ts";
 import { assertNoStatePointer, assertSnipFallback } from "./compact-session.assertions.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
@@ -104,6 +104,18 @@ describe("compactSession: the full pipeline", () => {
 
     // Assert
     deepStrictEqual(deps.llm.completes.map((c) => c.prompt), [prompt.user]);
+  });
+
+  it("keeps the pending request and its turn context last after a compaction at the head of a turn", async () => {
+    // Arrange
+    const deps = compactSetup();
+    deps.session.messages = [...HISTORY, ...PENDING_REQUEST];
+
+    // Act
+    await compactSession({ force: false }, deps);
+
+    // Assert
+    deepStrictEqual(deps.session.messages, pendingRequestBuffer());
   });
 
   it("does not snip the buffer when the summary is written", async () => {

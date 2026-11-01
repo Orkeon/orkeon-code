@@ -31,12 +31,12 @@ import { OUTPUT_STYLES, isOutputStyle } from "../../../../src/shared/domain/agen
 import {
   AGENTS_HEADER_OPTS, BEHAVIOUR_BLOCKS_IN_ORDER, BODY_BLOCKS_IN_ORDER, CLAUDE_HEADER_OPTS, EMPTY_HOOKS_CASES,
   EMPTY_SKILLS_CASES, GAUGE_TIER_CASES, HOOK_STEPS, INSTRUCTIONS_FILE_CASES, KEPT_BUFFER_CASES, LEGACY_PARTS,
-  MARKED_PARTS, MARKED_PARTS_IN_ORDER, OUTPUT_STYLE_CASES, REFUSAL_NOTE, REPEATED_REQUEST_HISTORY, RULE_MARKERS,
+  MARKED_PARTS, MARKED_PARTS_IN_ORDER, OUTPUT_STYLE_CASES, REFUSAL_NOTE, REFUSAL_SCOPE, REPEATED_REQUEST_HISTORY, RULE_MARKERS,
   LESSONS_TOOL_RULE, COMPACTED_IN_HISTORY_RULE,
   MARKED_WINDOW_CASES, UNCONFIGURED_PREFERENCES_CASES, LESSONS_TOOLS, builtParts, toolTurns, userMessages,
 } from "./prompt-assembly.fixtures.ts";
 import {
-  assertInOrder, assertLacks, assertMentions, assertSectionLacks, assertSystemReminder,
+  assertInOrder, assertLacks, assertMentions, assertSaysInsteadOf, assertSectionLacks, assertSystemReminder,
 } from "./prompt-assembly.assertions.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 
@@ -142,6 +142,17 @@ describe("buildStaticHeader", () => {
 
     // Assert
     ok(header.includes(REFUSAL_NOTE), header);
+  });
+
+  it("reads a tool not offered as the mode's decision, never a script tool the list leaves out", () => {
+    // Arrange
+    const opts = { toolNames: ["file_read"], scriptTools: LESSONS_TOOLS };
+
+    // Act
+    const header = buildStaticHeader(opts);
+
+    // Assert
+    assertSaysInsteadOf(header, REFUSAL_SCOPE.says, REFUSAL_SCOPE.never, "the header");
   });
 
   it("the permission-refusal note is left out of a header without tools", () => {
@@ -588,7 +599,7 @@ describe("buildMemoryBlock usage line", () => {
     ok(block.includes("possibly out of date"), block);
   });
 
-  it("introduces the notes as saved at earlier compactions", () => {
+  it("introduces the notes as saved at a compaction or with /memory add", () => {
     // Arrange
     const notes = { user: ["u1"] };
 
@@ -596,7 +607,7 @@ describe("buildMemoryBlock usage line", () => {
     const block = buildMemoryBlock(notes);
 
     // Assert
-    assertMentions(block, ["saved at earlier compactions"], "the memory block");
+    assertMentions(block, ["saved earlier (at a compaction or with /memory add)"], "the memory block");
   });
 
   it("promises no notes from earlier sessions", () => {

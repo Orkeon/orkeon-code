@@ -5,7 +5,9 @@ import { describe, it } from "node:test";
 import { ok, strictEqual } from "node:assert";
 
 import { escapeCell, renderProposals } from "../../../../src/crews/dev-learn/domain/proposals-render.ts";
-import { CUT_CASES, FILE, SAMPLE, fileWithOtherOutcomes, fileWithRefinesMotif } from "./proposals-render.fixtures.ts";
+import {
+  CUT_CASES, FILE, SAMPLE, fileWithOtherOutcomes, fileWithRefinesMotif, fileWithRemovesMotif,
+} from "./proposals-render.fixtures.ts";
 import { assertMentions } from "../../../support/assertions/text.ts";
 
 describe("renderProposals", () => {
@@ -47,6 +49,19 @@ describe("renderProposals", () => {
       "file: CONTRIBUTING.md\n- Old line.\n+ Every refusal",
       "/dev-learn --accept 3f2a9c1e,77b0d2aa\n/dev-learn --refuse 3f2a9c1e\n/dev-learn --refuse 77b0d2aa\n",
     ]);
+  });
+});
+
+describe("renderProposals — a removal", () => {
+  it("lists a removes motif's removed lines with no added line", () => {
+    // Arrange
+    const file = fileWithRemovesMotif();
+
+    // Act
+    const text = renderProposals(file);
+
+    // Assert
+    assertMentions(text, ["| 77b0d2aa | Refusal paths go untested | 3 | removes |", "file: CONTRIBUTING.md\n- Old line.\n```\n"]);
   });
 });
 

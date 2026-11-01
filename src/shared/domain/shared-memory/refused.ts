@@ -9,26 +9,27 @@ export const MEMORY_DIR = ".orkeon/memory";
 export const REFUSED_FILE = ".orkeon/memory/refused.md";
 export interface RefusedMotif { topic: string; project: string; date: string; motif: string; line: number }
 export interface RefusedList { motifs: RefusedMotif[]; problems: Array<{ line: number; message: string }> }
-export const TOPIC_PATTERN: RegExp = /^(?=.{1,60}$)[a-z0-9]+(?:-[a-z0-9]+)*$/;
+/** The longest topic slug. */
+export const MAX_TOPIC_CHARS = 60;
+export const TOPIC_PATTERN: RegExp = new RegExp(`^(?=.{1,${MAX_TOPIC_CHARS}}$)[a-z0-9]+(?:-[a-z0-9]+)*$`);
 export const REFUSED_HEADER: string =
   "One line per refused motif: topic | project | date | motif. /dev-learn leaves these topics out of its proposals.";
 
 const TITLE = "# Refused motifs";
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const SEPARATOR = " | ";
-const TOPIC_MAX = 60;
 const MOTIF_MAX = 200;
 
 function slug(text: string): string {
   return foldText(text).replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
-/** A topic from free text: folded, non-alphanumeric runs as `-`, cut at a `-` within 60 characters. */
+/** A topic from free text: folded, non-alphanumeric runs as `-`, cut at a `-` within MAX_TOPIC_CHARS characters. */
 export function topicOf(text: string): string {
   let topic = slug(text);
-  if (topic.length > TOPIC_MAX) {
-    const cut = topic.lastIndexOf("-", TOPIC_MAX);
-    topic = cut > 0 ? topic.slice(0, cut) : topic.slice(0, TOPIC_MAX);
+  if (topic.length > MAX_TOPIC_CHARS) {
+    const cut = topic.lastIndexOf("-", MAX_TOPIC_CHARS);
+    topic = cut > 0 ? topic.slice(0, cut) : topic.slice(0, MAX_TOPIC_CHARS);
   }
   return topic === "" ? `motif-${sha1Hex(text).slice(0, 8)}` : topic;
 }

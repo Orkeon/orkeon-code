@@ -4,9 +4,9 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
 import {
-  PROJECT_FILES_HEADING, parseTrackedFiles, projectFileLines,
+  PROJECT_FILES_HEADING, PROJECT_LIST_RULE, parseTrackedFiles, projectFileLines,
 } from "../../../../src/shared/domain/dev/project-files.ts";
-import { CLOSING_CASES, CUT_LINE_MENTIONS, LINES_CASES, LISTING, PARSED } from "./project-files.fixtures.ts";
+import { CLOSING_CASES, CUT_LINE_MENTIONS, LINES_CASES, LISTING, LIST_RULE_CASES, PARSED } from "./project-files.fixtures.ts";
 import { assertMentions, assertOmits } from "../../../support/assertions/text.ts";
 
 describe("parseTrackedFiles", () => {
@@ -92,4 +92,19 @@ describe("projectFileLines", () => {
     // Assert
     assertOmits(text, ["does not exist"]);
   });
+});
+
+describe("PROJECT_LIST_RULE", () => {
+  for (const c of LIST_RULE_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const rule = PROJECT_LIST_RULE;
+
+      // Act
+      const text = rule.trim();
+
+      // Assert
+      assertMentions(text, c.mentions);
+    });
+  }
 });

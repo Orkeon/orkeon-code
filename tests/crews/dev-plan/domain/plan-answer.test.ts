@@ -7,9 +7,10 @@ import { deepStrictEqual, strictEqual } from "node:assert";
 import { MAX_BATCHES, PLAN_ANSWER_SCHEMA, checkPlanAnswer } from "../../../../src/crews/dev-plan/domain/plan-answer.ts";
 import { DESIGN_RULE_IDS } from "../../../../src/shared/domain/dev/design-rules.ts";
 import {
-  ANCHOR_CASES, ANSWER, BATCH_COUNT_CASES, BRIEF_ANSWER, BRIEF_CASES, BRIEF_CTX, CELL_CASES, CTX, FIX_PASS_CASES,
+  ANCHOR_CASES, ANSWER, B1S1, BATCH_COUNT_CASES, BRIEF_ANSWER, BRIEF_CASES, BRIEF_CTX, CELL_CASES, CTX, DESCRIPTION_CASES, FIX_PASS_CASES,
+  LABEL_CASES,
   RULES_18_TO_24_CASES, RULES_2_TO_7_CASES, RULES_8_TO_12_CASES, SHAPE_CASES, SIXTY_ONE_UNKNOWN_IDS, TOP_LEVEL_FIELDS,
-  answerWithIdInCovers, answerWithRefPathAndWordyReuse, copy, edited, paddedAnswer,
+  answerWithIdInCovers, answerWithRefPathAndWordyReuse, copy, descriptionAt, edited, paddedAnswer, undescribedProperties, UNDESCRIBED_PROPERTIES,
 } from "./plan-answer.fixtures.ts";
 import type { SchemaView } from "./plan-answer.fixtures.ts";
 import { assertAccepted, assertHasProblem, assertProblems, assertSchemaHolds } from "./plan-answer.assertions.ts";
@@ -85,6 +86,30 @@ describe("PLAN_ANSWER_SCHEMA", () => {
     // Assert
     assertSchemaHolds(text, ['"enum":["ref","create","existing"]', '"required":["kind"]']);
   });
+
+  it("describes every property but those its name or its parent already says", () => {
+    // Arrange
+    const schema = PLAN_ANSWER_SCHEMA;
+
+    // Act
+    const missing = undescribedProperties(schema);
+
+    // Assert
+    deepStrictEqual(missing, UNDESCRIBED_PROPERTIES);
+  });
+
+  for (const c of DESCRIPTION_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const schema = PLAN_ANSWER_SCHEMA;
+
+      // Act
+      const description = descriptionAt(schema, c.path);
+
+      // Assert
+      assertSchemaHolds(description, c.words);
+    });
+  }
 });
 
 describe("rule 1: the shape", () => {
@@ -115,6 +140,21 @@ describe("rule 1: the shape", () => {
 
 describe("cell kinds and labels", () => {
   for (const c of CELL_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const answer = edited(c);
+
+      // Act
+      const r = checkPlanAnswer(answer, c.ctx ?? CTX);
+
+      // Assert
+      assertProblems(r, c.problems);
+    });
+  }
+});
+
+describe("the label a problem opens with", () => {
+  for (const c of LABEL_CASES) {
     it(c.name, () => {
       // Arrange
       const answer = edited(c);
@@ -265,8 +305,8 @@ describe("rule 25: the problem cap", () => {
     // Assert
     const problems = r.ok ? [] : r.problems;
     strictEqual(problems.length, 61);
-    strictEqual(problems[0], "B1 S1 T1: BR-100 is not an id of the source");
-    strictEqual(problems[59], "B1 S1 T1: BR-159 is not an id of the source");
+    strictEqual(problems[0], `${B1S1} T1: BR-100 is not an id of the source`);
+    strictEqual(problems[59], `${B1S1} T1: BR-159 is not an id of the source`);
     strictEqual(problems[60], "… 1 more problems");
   });
 });

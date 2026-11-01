@@ -429,7 +429,18 @@ describe("the synthesis prompts", () => {
     const user = buildSynthesisUser(harvest, "French");
 
     // Assert
-    ok(user.endsWith("</harvest>\n\nWrite the analysis in French."), "the language closes the ask");
+    ok(user.endsWith("</harvest>\n\nWrite the analysis in French, and \"not in the harvest\" in French too."), "the language closes the ask");
+  });
+
+  it("asks for the not-in-the-harvest note in the session's language", () => {
+    // Arrange
+    const harvest = "X";
+
+    // Act
+    const user = buildSynthesisUser(harvest, "French");
+
+    // Assert
+    assertMentions(user, ["\"not in the harvest\" in French too"]);
   });
 
   it("names no language when the session sets none", () => {

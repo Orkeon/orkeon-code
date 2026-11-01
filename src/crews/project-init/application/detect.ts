@@ -7,7 +7,7 @@ import { manifestsAsMaterial, readConfigFiles } from "../../../shared/applicatio
 import { cleanLlmMarkdown } from "../../../shared/domain/strip.ts";
 import { fallbackConventions } from "../domain/conventions.ts";
 import type { ProjectConventions } from "../domain/conventions.ts";
-import { clipExisting, instructionsTarget, proposalNote } from "../domain/existing-files.ts";
+import { clipExistingFiles, instructionsTarget, proposalNote } from "../domain/existing-files.ts";
 import type { ExistingFile } from "../domain/existing-files.ts";
 import { MAX_MAP_PACKAGES, renderPackageMap } from "../domain/package-map.ts";
 import { CONVENTIONS_SCHEMA, buildConventionsPrompt, buildInstructionsFilePrompt } from "./prompts.ts";
@@ -51,16 +51,16 @@ export async function detectConventions(
 }
 
 /** The instruction files already in the project, in EXISTING_INSTRUCTION_FILES order, each whole up to
- *  MAX_EXISTING_FILE_CHARS, else cut and its cut counted. */
+ *  MAX_EXISTING_FILE_CHARS and all of them up to MAX_EXISTING_FILES_CHARS, else cut and its cut counted. */
 export async function readExistingInstructions(files: Pick<Files, "read">): Promise<ExistingFile[]> {
   const found: ExistingFile[] = [];
   for (const file of EXISTING_INSTRUCTION_FILES) {
     try {
       const content = await files.read(`${WORKSPACE}/${file}`);
-      if (content.trim().length > 0) found.push(clipExisting(file, content));
+      if (content.trim().length > 0) found.push({ file, content });
     } catch { /* absent — skip */ }
   }
-  return found;
+  return clipExistingFiles(found);
 }
 
 /** The start of the README; "" when there is none. */

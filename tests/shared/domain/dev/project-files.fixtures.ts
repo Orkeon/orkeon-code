@@ -25,3 +25,11 @@ export const CLOSING_CASES: readonly ClosingCase[] = [
 
 /** What the cut line says, in the words a reader acts on. */
 export const CUT_LINE_MENTIONS: readonly string[] = ["and 2 more", "may still exist", "glob with a pattern"];
+
+/** What the project list rule says, each part in the words a reader acts on. */
+export const LIST_RULE_CASES: readonly { name: string; mentions: readonly string[] }[] = [
+  { name: "the list rule sends the reader to the last line to know whether the list is whole", mentions: ["its last line says whether the list is whole"] },
+  { name: "the list rule rules out a name absent from a whole list", mentions: ["when it is, a name absent from it does not exist"] },
+  { name: "the list rule lets glob decide past a cut", mentions: ["past a cut, glob with a pattern decides"] },
+  { name: "the list rule forbids opening a guessed name or a folder", mentions: ["Never open a name you guessed, nor a folder"] },
+];

@@ -1,4 +1,5 @@
 // Settings the lens selection is read from, for the selectLenses tests.
+import type { Finding } from "../../../../src/shared/domain/types.ts";
 
 /** A `review.lenses` setting that names no lens: each must select all three. */
 export const UNSET_SETTINGS: readonly { name: string; value: string | null | undefined }[] = [
@@ -68,4 +69,16 @@ export const LENS_RULE_MARKERS: readonly {
     field: "severities",
     mentions: ["blocker (", "high (", "medium (", "low (", "nit ("],
   },
+];
+
+/** A finding of `severity` with defaults. */
+const finding = (severity: string): Finding => ({ severity, file: "a.ts", line: 1, finding: "x" });
+
+/** What each lens keeps of a finding's severity: style comes down to its ceiling, the others keep theirs. */
+export const CEILING_CASES: readonly { name: string; key: string; given: Finding; severity: string }[] = [
+  { name: "brings a style blocker down to medium", key: "style", given: finding("blocker"), severity: "medium" },
+  { name: "brings a style high down to medium", key: "style", given: finding("high"), severity: "medium" },
+  { name: "keeps a style low", key: "style", given: finding("low"), severity: "low" },
+  { name: "keeps a correctness blocker", key: "correctness", given: finding("blocker"), severity: "blocker" },
+  { name: "keeps a security high", key: "security", given: finding("high"), severity: "high" },
 ];

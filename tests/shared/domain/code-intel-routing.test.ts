@@ -7,7 +7,8 @@ import { describeCodeIntelRouting } from "../../../src/shared/domain/code-intel-
 import { CODE_INTEL_PARAMS } from "../../../src/shared/domain/code-intel-contract.ts";
 import { TOOL_ARGUMENTS } from "../../../src/shared/domain/agent-policy/permission.ts";
 import {
-  ALL_ROUTED_TOOLS, NO_ANALYSIS_TOOLS, PARTIAL_LISTS, PERMISSION_PINNED_PARAMS, ROUTED_PARAMS, SHELL_WORDING_CASES,
+  ALL_ROUTED_TOOLS, NO_ANALYSIS_TOOLS, PARTIAL_LISTS, PERMISSION_PINNED_PARAMS, ROOT_FQN_CASES, ROUTED_PARAMS,
+  SHELL_WORDING_CASES,
   SINGLE_TOOL_CASES,
 } from "./code-intel-routing.fixtures.ts";
 import { assertNamesOnlyGivenTools, assertWording } from "./code-intel-routing.assertions.ts";
@@ -72,6 +73,19 @@ describe("describeCodeIntelRouting", () => {
 
       // Assert
       assertWording(text, c.mentions, c.omits);
+    });
+  }
+
+  for (const c of ROOT_FQN_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const tools = c.tools;
+
+      // Act
+      const text = describeCodeIntelRouting(tools);
+
+      // Assert
+      strictEqual(text.includes("`root_fqn`"), c.named, text);
     });
   }
 

@@ -75,18 +75,23 @@ const BOUNDED_TOOLS: readonly string[] = [
   "codebase_map", "codebase_search", "dependency_graph", "grep", "structural_search", "sub_graph",
 ];
 
+/** The analysis tools that take a `root_fqn`, the subtree they answer for: the rule names it only to their holder. */
+const ROOT_FQN_TOOLS: readonly string[] = ["codebase_map", "dependency_graph"];
+
 /** The agent's shell, the tool a script over the files would run in: the rules speak of scripting only to its holder. */
 const SHELL_TOOL = "shell_command";
 
-/** The exhaustiveness rule; `shell` adds the script it replaces, for an agent that could write one. */
-function exhaustivenessRule(shell: boolean): string {
-  return "A result marked `truncated` is a sample: say so in the answer, and narrow the question (one package, a " +
-    `\`root_fqn\`, a \`glob\`) to see the rest${shell ? ", rather than writing a script over every file" : ""}.`;
+/** The exhaustiveness rule; `shell` adds the script it replaces, for an agent that could write one; `rootFqn` names
+ *  the parameter that narrows to a subtree, for an agent holding a tool that takes it. */
+function exhaustivenessRule(shell: boolean, rootFqn: boolean): string {
+  const narrowers = ["one package", ...(rootFqn ? ["a `root_fqn`"] : []), "a `glob`"].join(", ");
+  return `A result marked \`truncated\` is a sample: say so in the answer, and narrow the question (${narrowers}) to ` +
+    `see the rest${shell ? ", rather than writing a script over every file" : ""}.`;
 }
 
 /** The question-to-tool lines for an agent holding `tools`, one line each, then the exhaustiveness rule when it
  *  applies; empty when the agent holds none of the analysis tools. Scripting is named only to an agent holding the
- *  shell. */
+ *  shell, `root_fqn` only to one holding a tool that takes it. */
 export function describeCodeIntelRouting(tools: readonly string[]): string {
   const lines = ROUTING_LINES
     .filter((line) => line.tools.every((tool) => tools.includes(tool)))
@@ -94,9 +99,10 @@ export function describeCodeIntelRouting(tools: readonly string[]): string {
   if (lines.length === 0) return "";
   const bounded = BOUNDED_TOOLS.some((tool) => tools.includes(tool));
   const shell = tools.includes(SHELL_TOOL);
+  const rootFqn = ROOT_FQN_TOOLS.some((tool) => tools.includes(tool));
   return [
     shell ? "Ask the index before reading or scripting, by question:" : "Ask the index before reading, by question:",
     ...lines,
-    ...(bounded ? [exhaustivenessRule(shell)] : []),
+    ...(bounded ? [exhaustivenessRule(shell, rootFqn)] : []),
   ].join("\n");
 }

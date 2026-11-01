@@ -275,6 +275,11 @@ export const SYNTHESIS_SYSTEM =
 /** Concepts the synthesis names at most, those with the most symbols first. */
 export const MAX_SYNTHESIS_CONCEPTS = 10;
 
+/** The language the synthesis is written in, the "not in the harvest" note included, so no English phrase stays. */
+function languageLine(language: string): string {
+  return "Write the analysis in " + language + ", and \"not in the harvest\" in " + language + " too.";
+}
+
 /** User body of the synthesis call: the ask, each part bounded so a large harvest still gives one screen, then
  *  the harvest it must use, then the language to write in when the session sets one (`answer.language`). */
 export function buildSynthesisUser(harvest: string, language?: string): string {
@@ -291,6 +296,6 @@ export function buildSynthesisUser(harvest: string, language?: string): string {
     "When the harvest holds nothing for a part, write \"not in the harvest\" instead of filling it; when " +
     "it says it left packages or symbols out, say the analysis covers only what it shows.\n\n" +
     "<harvest>\n" + harvest + "\n</harvest>" +
-    (language !== undefined && language.trim() !== "" ? "\n\nWrite the analysis in " + language.trim() + "." : "")
+    (language !== undefined && language.trim() !== "" ? "\n\n" + languageLine(language.trim()) : "")
   );
 }

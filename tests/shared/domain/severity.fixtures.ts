@@ -12,11 +12,11 @@ export const RANK_ORDER: readonly { readonly first: string; readonly second: str
   { first: "low", second: "nit" },
 ];
 
-/** Three lenses, the third surfacing the very finding of the first. */
+/** Three lenses, the third giving the category and claim of the first. */
 export const LENSES_WITH_DUPLICATE = [
-  { lens: "style", findings: [f({ severity: "nit", finding: "naming" })] },
-  { lens: "security", findings: [f({ severity: "blocker", file: "b.ts", finding: "sqli" })] },
-  { lens: "correctness", findings: [f({ severity: "nit", finding: "naming" })] }, // dup of #1
+  { lens: "style", findings: [f({ severity: "nit", category: "naming", finding: "naming" })] },
+  { lens: "security", findings: [f({ severity: "blocker", category: "injection", file: "b.ts", finding: "sqli" })] },
+  { lens: "correctness", findings: [f({ severity: "nit", category: "Naming", finding: "naming" })] }, // dup of #1
 ];
 
 /** The opening a claim shares with another, longer than the dedup key keeps of it. */
@@ -32,6 +32,12 @@ export const LOW_THEN_BLOCKER_ON_ONE_KEY = [
 export const TIE_ON_ONE_KEY = [
   { lens: "correctness", findings: [f({ severity: "high", category: "injection", finding: `${SHARED_OPENING}, first` })] },
   { lens: "security", findings: [f({ severity: "high", category: "injection", finding: `${SHARED_OPENING}, second` })] },
+];
+
+/** A plausible then a shown finding of one severity on one key: the shown one must be kept. */
+export const PLAUSIBLE_THEN_SHOWN_ON_ONE_KEY = [
+  { lens: "correctness", findings: [f({ severity: "high", category: "injection", confidence: "plausible", finding: `${SHARED_OPENING}, first` })] },
+  { lens: "correctness", findings: [f({ severity: "high", category: "injection", confidence: "shown", finding: `${SHARED_OPENING}, second` })] },
 ];
 
 /** Two findings of one lens and one category on one line, with two different claims. */

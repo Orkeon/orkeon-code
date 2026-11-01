@@ -2,6 +2,8 @@
 import type { AuditBriefInput, ValidationReport } from "../../../../src/crews/dev-verify/application/auditor-prompt.ts";
 import { AUDITOR_SYSTEM } from "../../../../src/crews/dev-verify/application/auditor-prompt.ts";
 import type { AuditAnswer } from "../../../../src/crews/dev-verify/domain/audit-answer.ts";
+import { MAX_VALIDATIONS } from "../../../../src/crews/dev-verify/domain/audit-answer.ts";
+import { PROJECT_LIST_RULE } from "../../../../src/shared/domain/dev/project-files.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 import { BOUNDED_READ_RULE, KNOWN_TOOLS_RULE } from "../../../../src/shared/domain/dev/reading-rule.ts";
 import { describeCodeIntelRouting } from "../../../../src/shared/domain/code-intel-routing.ts";
@@ -55,9 +57,6 @@ export const SYSTEM_MARKERS: readonly (readonly [string, string])[] = [
   ["no other batch's sheet", "never another"],
   ["sheet in the brief", "The brief carries the sheet and the capture"],
   ["spec, plan and config closed", "stay closed"],
-  ["project list says whether it is whole", "says whether the list is whole"],
-  ["a whole list rules a name out", "when it is, a name absent from it does not exist"],
-  ["glob decides past a cut", "past a cut, glob with a pattern decides"],
   ["reuse lookup ends in symbol_source", "codebase_search once, then symbol_source on the fqn it names"],
   ["trigger named", "names its trigger: the input or the state"],
   ["guard looked for first", "look once for the guard or the test that would refute it"],
@@ -65,10 +64,11 @@ export const SYSTEM_MARKERS: readonly (readonly [string, string])[] = [
   ["lost guarantee a row", "a guarantee lost is a Correctness row"],
   ["class from the diff or affected_tests", "The class comes from the diff or from affected_tests on the changed files"],
   ["gap rows keep the table's evidence", "the trigger rule below holds only for the rows you add"],
-  ["one look outside the hunk per check", "outside it, one look for each of two"],
+  ["one look outside the hunk per check, touched module or not", "outside it, in a module the diff touches or not, one look for each of three checks"],
+  ["the reuse lookup is the third look", "where a lost guarantee now lives, and a helper"],
+  ["validations capped by the constant", `At most ${MAX_VALIDATIONS} in all`],
   ["the refuting guard and the lost guarantee may be looked for", "where a lost guarantee now lives"],
   ["undecided mechanisms ended with", "the checks and mechanisms you leave undecided"],
-  ["project list said when given", "When the brief lists the project's files, it says"],
   ["memory_recall for an open doubt", "call memory_recall only for a doubt it leaves open"],
   ["memory_recall only when offered", "only when you are offered it"],
 ];
@@ -78,6 +78,7 @@ export const SHARED_RULES: readonly (readonly [string, string])[] = [
   ["the bounded reading rule", BOUNDED_READ_RULE],
   ["the known tools rule", KNOWN_TOOLS_RULE],
   ["the routing of its own tools", describeCodeIntelRouting(AUDITOR_TOOLS)],
+  ["the project list rule", PROJECT_LIST_RULE],
 ];
 
 /** Each sentence AUDITOR_SYSTEM no longer says in its own words, and the text that is gone. */
@@ -86,6 +87,8 @@ export const REMOVED_FROM_SYSTEM: readonly (readonly [string, string])[] = [
   ["no unconditional absent name", "a name absent from the list does not exist"],
   ["no parallel-reads sentence of its own", "ask for them in one turn"],
   ["no reuse lookup left open", "then the symbol it names"],
+  ["no untouched module closed outright", "the modules the diff leaves"],
+  ["no project list rule of its own words", "Never read a name you"],
 ];
 
 /** AUDITOR_SYSTEM in its own words: the shared rules it carries cut out. */

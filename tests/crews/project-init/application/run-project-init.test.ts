@@ -80,7 +80,7 @@ describe("runProjectInit", () => {
     // Assert
     assertMentions(llm.completes[0].prompt, ["\n[… cut: 3 characters of this file not shown …]\n</existing>"]);
     deepStrictEqual(files.writes.map((w) => w.path), [`${WORKSPACE}/AGENTS.proposed.md`]);
-    assertMentions(out, ["AGENTS.md not written, since CLAUDE.md is longer than"]);
+    assertMentions(out, ["AGENTS.md not written, since CLAUDE.md is cut"]);
   });
 
   it("asks for no detection when no config file exists", async () => {

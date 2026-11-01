@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 
 import type { ReviewBriefInput, ReviewMode } from "../../../../src/shared/domain/dev/review-prompt.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
+import { PROJECT_LIST_RULE } from "../../../../src/shared/domain/dev/project-files.ts";
 
 /** A line of material the system must never hold. */
 export const MARK = "probe-material-line";
@@ -190,7 +191,7 @@ export const UNCHECKED_ANCHOR_ASKS: readonly string[] = [
 ];
 
 /** The sentence on the project list, said only in the modes whose brief carries one. */
-export const PROJECT_LIST_MARKER = "past a cut, glob with a pattern decides";
+export const PROJECT_LIST_MARKER = PROJECT_LIST_RULE;
 
 /** Each mode, and whether its brief carries the project's files. */
 export const LISTED_MODES: ReadonlyArray<{ mode: ReviewMode; listed: boolean }> = [

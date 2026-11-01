@@ -11,7 +11,7 @@ import {
 } from "../../../../src/shared/domain/dev/learn-proposals.ts";
 import {
   DEPLOYED_PATHS, FILE, HARNESS_ACCEPT, HARNESS_MOTIF, HARNESS_PATCH, NOT_DEPLOYED, NOT_LEARN_FOLDERS, REPO_ACCEPT,
-  REPO_MOTIF, REPO_PATCH, TEN_DIGIT_ID_FILE, WRONG_SHAPES,
+  REMOVES_FILE, REMOVES_MOTIF, REMOVES_PATCH, REPO_MOTIF, REPO_PATCH, TEN_DIGIT_ID_FILE, WRONG_SHAPES,
 } from "./learn-proposals.fixtures.ts";
 import { assertNotJsonProblem } from "./learn-proposals.assertions.ts";
 
@@ -122,6 +122,17 @@ describe("parseProposalsFile", () => {
     deepStrictEqual(r, { ok: true, file: FILE });
   });
 
+  it("reads a motif that removes a line and adds none", () => {
+    // Arrange
+    const text = serializeProposalsFile(REMOVES_FILE);
+
+    // Act
+    const r = parseProposalsFile(text);
+
+    // Assert
+    deepStrictEqual(r, { ok: true, file: REMOVES_FILE });
+  });
+
   it("invalid JSON is a one-line problem", () => {
     // Arrange
     const text = "{";
@@ -218,6 +229,17 @@ describe("patchLines and acceptLines", () => {
 
     // Assert
     deepStrictEqual(lines, REPO_PATCH);
+  });
+
+  it("a removal: the patch takes the line out and adds none", () => {
+    // Arrange
+    const motif = REMOVES_MOTIF;
+
+    // Act
+    const lines = patchLines(motif);
+
+    // Assert
+    deepStrictEqual(lines, REMOVES_PATCH);
   });
 
   it("a repository owner: the accept lines send the change to a batch", () => {

@@ -105,6 +105,9 @@ export const COMPACTED_IN_HISTORY_RULE: readonly string[] = [
 /** The note on a refused permission: it is about the catalogue, so a header without tools does not carry it. */
 export const REFUSAL_NOTE = "change your approach instead of repeating the call";
 
+/** What the refusal note reads as the mode's decision: a tool not offered, never a script tool left off the list. */
+export const REFUSAL_SCOPE = { says: "A tool you are not offered", never: "missing from this list" };
+
 /** One user message per index, `m0` to `m<count - 1>`. */
 export function userMessages(count: number): SessionMsg[] {
   return Array.from({ length: count }, (_, i) => ({ role: "user", content: `m${i}` }));

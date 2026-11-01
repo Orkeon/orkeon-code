@@ -35,7 +35,8 @@ import type { AuditBriefInput } from "../../../src/crews/dev-verify/application/
 import { AUDIT_ANSWER_SCHEMA } from "../../../src/crews/dev-verify/domain/audit-answer.ts";
 import { buildLearnPrompt } from "../../../src/crews/dev-learn/application/learn-prompt.ts";
 import type { LearnPromptInput } from "../../../src/crews/dev-learn/application/learn-prompt.ts";
-import { LEARN_ANSWER_SCHEMA } from "../../../src/crews/dev-learn/domain/learn-answer.ts";
+import { LEARN_ANSWER_SCHEMA, motifLabel } from "../../../src/crews/dev-learn/domain/learn-answer.ts";
+import { matchOwner, reviewOwner } from "../../../src/crews/dev-learn/domain/owner-lines.ts";
 import { buildPlanPrompt } from "../../../src/crews/dev-plan/application/plan-prompt.ts";
 import type { PlanPromptInput } from "../../../src/crews/dev-plan/application/plan-prompt.ts";
 import { PLAN_ANSWER_SCHEMA } from "../../../src/crews/dev-plan/domain/plan-answer.ts";
@@ -192,6 +193,17 @@ export async function renderCatalogue(): Promise<RenderedPrompt[]> {
     refused: ["rounding-inside-handlers — Rounding inside handlers"],
     owners: ["CONTRIBUTING.md", "tests/repository/architecture.test.ts"],
   };
+  // The re-ask after a first answer whose new motif's key term is already in its owner: the problem and the owner
+  // lines code found, as run-dev-learn builds them.
+  const learnOwnerText = [
+    "# Contributing", "", "## Tests",
+    "- A refusal path gets a test of its own, named after the refusal.",
+    "- Assert a refusal text through its constant, never retyped.",
+  ].join("\n");
+  const learnMotif = { title: "Refusal paths go untested", keyTerm: "refusal", status: "new" as const, linesRemoved: [] };
+  const learnReview = reviewOwner(
+    motifLabel(1, learnMotif.title), learnMotif, "CONTRIBUTING.md", matchOwner(learnOwnerText, learnMotif.keyTerm, learnMotif.linesRemoved),
+  );
   const planInventory = [
     "I1 · src/shared/domain/memory.ts:18 · interface MemoryEntry · layer domain · for UC-01, BR-01 · export interface MemoryEntry {",
     "I2 · src/commands/_lib/memory.ts:40 · function runMemory · layer other · for UC-01, BR-02 · callers: src/commands/memory.cmd.ts::run · export async function runMemory(tokens: string[]) {",
@@ -368,12 +380,12 @@ export async function renderCatalogue(): Promise<RenderedPrompt[]> {
       id: "14", name: "dev-learn", source: "src/crews/dev-learn/application/learn-prompt.ts, domain/learn-answer.ts",
       callSite: "/dev-learn [<axis>] → crews/dev-learn → application/run-dev-learn.ts",
       call: "extract (JSON schema), one call per eligible axis, one re-ask with the problems",
-      inputs: "four rows of the Test axis over three batches, one refused motif, two owner files",
+      inputs: "four rows of the Test axis over three batches, one refused motif, two owner files; on the re-ask, a new motif whose key term the owner holds",
       sections: [
         { title: "axis Test, first try", role: "text", text: buildLearnPrompt(learnInput, []) },
         {
           title: "axis Test, second try", role: "text",
-          text: buildLearnPrompt(learnInput, ["motif 1: row 'abc' is not one of the rows given"]),
+          text: buildLearnPrompt(learnInput, learnReview.problems, learnReview.block === null ? [] : [learnReview.block]),
         },
         schema("schema", LEARN_ANSWER_SCHEMA),
       ],
@@ -385,7 +397,7 @@ export async function renderCatalogue(): Promise<RenderedPrompt[]> {
       inputs: "a two-rule spec with one use case, three inventory entries, a pack without build_test",
       sections: [
         { title: "first try", role: "text", text: buildPlanPrompt(planInput, []) },
-        { title: "second try", role: "text", text: buildPlanPrompt(planInput, ["B1 S1: anchor I9 is not an inventory entry shown"]) },
+        { title: "second try", role: "text", text: buildPlanPrompt(planInput, ['B1 "Prune by age" S1 "An entry older than the cut-off is removed": anchor I9 is not an inventory entry shown']) },
         schema("schema", PLAN_ANSWER_SCHEMA),
       ],
     },

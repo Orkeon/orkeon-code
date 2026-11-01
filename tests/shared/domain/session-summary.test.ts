@@ -27,6 +27,17 @@ describe("SUMMARY_PROMPT", () => {
     assertMentions(prompt, parts);
   });
 
+  it("reports the gap a [compacted] note names, never fills it in", () => {
+    // Arrange
+    const parts = ["a note that turns were removed without one", "report that gap, never fill it in"];
+
+    // Act
+    const prompt = SUMMARY_PROMPT;
+
+    // Assert
+    assertMentions(prompt, parts);
+  });
+
   it("follows the conversation's language and reports checks as last seen", () => {
     // Arrange
     const parts = ["language of the conversation", "only as it was last seen"];

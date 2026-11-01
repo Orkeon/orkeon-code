@@ -24,6 +24,13 @@ export const SKILL_RULES: readonly SkillRuleCase[] = [
     markers: ["started without blocking the step", "a stated readiness signal", "stopped at the end"],
   },
   {
+    name: "starts a part that keeps running only when the facts show how, else says it is not started and what it needs",
+    markers: [
+      "started only when the facts show how to start it, to tell it is ready and to stop it",
+      "the step says the part is not started and what would be needed to start it",
+    ],
+  },
+  {
     name: "points a step that writes, deletes or calls the network at a scratch target, or says it cannot be checked",
     markers: ["writes, deletes or calls the network", "a scratch folder or a dry-run flag", "cannot be checked safely"],
   },

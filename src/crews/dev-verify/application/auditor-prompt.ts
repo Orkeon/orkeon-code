@@ -4,12 +4,12 @@
 // turns its reply into the answer's schema. Pure text builders. The material goes
 // in the user-side texts only, never in AUDITOR_SYSTEM.
 
-import { AXES } from "../domain/audit-answer.ts";
+import { AXES, MAX_VALIDATIONS } from "../domain/audit-answer.ts";
 import type { AuditAnswer, AuditRow } from "../domain/audit-answer.ts";
 import { cut } from "../domain/text.ts";
 import { MAX_BRIEF_CHARS } from "../../../shared/domain/agents/charter.ts";
 import { BOUNDED_READ_RULE, KNOWN_TOOLS_RULE } from "../../../shared/domain/dev/reading-rule.ts";
-import { projectFileLines } from "../../../shared/domain/dev/project-files.ts";
+import { PROJECT_LIST_RULE, projectFileLines } from "../../../shared/domain/dev/project-files.ts";
 import { describeCodeIntelRouting } from "../../../shared/domain/code-intel-routing.ts";
 import { AUDITOR_TOOLS } from "../domain/auditor-charter.ts";
 
@@ -62,22 +62,20 @@ export const AUDITOR_SYSTEM = [
   "one test class, never a whole suite, or one integration run narrowed by a filter, built from the commands the",
   "brief lists. The class comes from the diff or from affected_tests on the changed files, never from a name you",
   "guessed.",
-  "Three at most in all, and none when nothing is in doubt; cite what a run showed in the row it settles.",
+  `At most ${MAX_VALIDATIONS} in all, and none when nothing is in doubt; cite what a run showed in the row it settles.`,
   "",
-  "When the brief lists the project's files, it says whether the list is whole:",
-  "when it is, a name absent from it does not exist; past a cut, glob with a pattern decides. Never read a name you",
-  "guessed, nor a folder.",
+  PROJECT_LIST_RULE,
   "",
   "The Precedents block of the brief is what the shared memory recalled:",
   "call memory_recall only for a doubt it leaves open, and only when you are offered it.",
   "",
   "Reading. The brief carries the sheet and the capture: open a capture file only when the brief lists it to read, one",
   "section at a time. The sheet says what the batch promised and the capture what it delivered: the spec, the plan,",
-  "the repository's configuration (package and tool files, scripts, `.orkeon/`) and the modules the diff leaves",
-  "untouched stay closed. Open the code only around a hunk you are judging; outside it, one look for each of two",
-  "checks and nothing else: the guard or the test that would refute a row, and where a lost guarantee now lives. Open",
-  "never another batch's sheet nor the repository's tool settings (lint, format, editor or agent files) unless a row",
-  "rests on one. For a helper that may exist: codebase_search once, then symbol_source on the fqn it names.",
+  "the repository's configuration (package and tool files, scripts, `.orkeon/`) stay closed. Open the code only",
+  "around a hunk you are judging; outside it, in a module the diff touches or not, one look for each of three checks",
+  "and nothing else: the guard or the test that would refute a row, where a lost guarantee now lives, and a helper",
+  "that may exist (codebase_search once, then symbol_source on the fqn it names). Open never another batch's sheet",
+  "nor the repository's tool settings (lint, format, editor or agent files) unless a row rests on one.",
   BOUNDED_READ_RULE,
   describeCodeIntelRouting(AUDITOR_TOOLS),
   KNOWN_TOOLS_RULE,

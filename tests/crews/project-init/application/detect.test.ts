@@ -76,7 +76,7 @@ describe("project-init IO", () => {
 
     // Assert
     deepStrictEqual(files.writes.map((w) => w.path), [`${WORKSPACE}/AGENTS.proposed.md`]);
-    assertMentions(out, [`✓ wrote ${WORKSPACE}/AGENTS.proposed.md`, "AGENTS.md left as it is, since AGENTS.md is longer than"]);
+    assertMentions(out, [`✓ wrote ${WORKSPACE}/AGENTS.proposed.md`, "AGENTS.md left as it is, since AGENTS.md is cut"]);
   });
 
   it("cuts an existing instruction file over the bound and counts the cut", async () => {

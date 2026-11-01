@@ -5,6 +5,13 @@
 // leaves to the others, so three blind reviewers do not report the same thing
 // three times, nor what no lens should report at all.
 
+import type { Finding } from "../../../shared/domain/types.ts";
+import { severityRank } from "../../../shared/domain/severity.ts";
+
+/** The most severe level a style finding takes: its scale says it, and the review
+ *  brings a higher one down to it, so style never outranks a correctness finding. */
+export const STYLE_SEVERITY_CEILING = "medium";
+
 export interface ReviewLens {
   key: string;
   /** The defects this lens hunts, as concrete patterns. */
@@ -15,6 +22,10 @@ export interface ReviewLens {
   severities: string;
   /** What a finding must show besides the changed line it points at. */
   bar: string;
+  /** The most severe level its findings keep, when the scale stops short of blocker. */
+  ceiling?: string;
+  /** Its bar is a quote of the text shown, so a finding of it is never plausible. */
+  neverPlausible?: boolean;
 }
 
 /** The three review lenses, each blind to the others (run via Promise.all). */
@@ -60,13 +71,21 @@ export const LENSES: readonly ReviewLens[] = [
       "the project states or the surrounding code follows",
     leaves: "what a formatter fixes, taste with no concrete cost, correctness and security (other lenses)",
     severities:
-      "never above medium: medium (a reader or maintainer will be misled or slowed), low (minor), " +
+      `never above ${STYLE_SEVERITY_CEILING}: medium (a reader or maintainer will be misled or slowed), low (minor), ` +
       "nit (a small break with the convention)",
     bar:
       "quote the convention the project states, or the neighbouring code, that the line breaks, and say " +
       "what it costs a reader or maintainer",
+    ceiling: STYLE_SEVERITY_CEILING,
+    neverPlausible: true,
   },
 ];
+
+/** `finding` held to the ceiling of `lens`: a level above it comes down to it. */
+export function withinCeiling(lens: ReviewLens, finding: Finding): Finding {
+  if (lens.ceiling === undefined) return finding;
+  return severityRank(finding.severity) < severityRank(lens.ceiling) ? { ...finding, severity: lens.ceiling } : finding;
+}
 
 export function lensKeys(): string[] {
   return LENSES.map((l) => l.key);

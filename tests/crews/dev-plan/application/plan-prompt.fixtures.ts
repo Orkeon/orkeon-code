@@ -2,6 +2,8 @@
 import { readFileSync } from "node:fs";
 
 import type { PlanPromptInput } from "../../../../src/crews/dev-plan/application/plan-prompt.ts";
+import { DESIGN_RULES } from "../../../../src/shared/domain/dev/design-rules.ts";
+import type { DesignRule } from "../../../../src/shared/domain/dev/design-rules.ts";
 
 export const MARK = "seen.add(a);";
 
@@ -47,9 +49,36 @@ export const PLAN_MARKERS: ReadonlyArray<[string, string]> = [
   ["19 design fields", "never leave the field empty"],
   ["20 ref anchor", "a ref anchor holds its ref and no path"],
   ["21 production anchor", "every step has a production anchor"],
-  ["22 reuse refs", "reuse lists inventory refs alone"],
   ["23 design row ids", "never a design rule id"],
+  ["24 a code file the inventory does not show", "existing only when the source names its path"],
+  ["25 a documentation step's test", "named by the repository's documentation command (else its test command) followed by what the step documents"],
+  ["25 two documentation tests never share a name", "so two documentation steps never share a name"],
 ];
+
+/** Each behaviour the head of the design-rules block states and the words that pin it. */
+export const RULES_HEAD_MARKERS: ReadonlyArray<[string, string]> = [
+  ["sets a rule aside when its condition is not met, the condition as the reason", "is set aside in nonApplicable with that condition as its reason"],
+  ["never adds an element to apply a rule", "applying a rule is never a reason to add an element"],
+];
+
+const ruleOf = (id: string): DesignRule => DESIGN_RULES.find((r) => r.id === id) as DesignRule;
+
+export interface RuleCloseCase { name: string; rule: DesignRule; close: string }
+
+/** A rule set aside under a condition, and one that never is: how each line closes. */
+export const RULE_CLOSE_CASES: readonly RuleCloseCase[] = [
+  { name: "closes a rule's line on the condition that sets it aside", rule: ruleOf("DDD-02"),
+    close: `, not when ${ruleOf("DDD-02").notApplicableWhen}.` },
+  { name: "closes the line of a rule with no such condition by saying it applies to every change it names",
+    rule: ruleOf("DDD-01"), close: "; it applies to every change it names." },
+];
+
+/** The block of design rules a prompt holds: from its head to the last rule line. */
+export function rulesBlockOf(text: string): string {
+  const start = text.indexOf("Design rules to classify");
+  const end = text.indexOf("\n", text.indexOf("\nPERF-01 — ") + 1);
+  return text.slice(start, end);
+}
 
 /** The host's vocabulary, as the provenance check reads it. */
 export function hostVocabulary(): RegExp[] {

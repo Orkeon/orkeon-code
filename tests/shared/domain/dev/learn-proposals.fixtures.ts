@@ -119,3 +119,13 @@ export const REPO_ACCEPT: readonly string[] = [
   "  file: CONTRIBUTING.md",
   "  + Every refusal a command prints has a test that makes it print.",
 ];
+
+/** A motif that takes a wrong line out of its owner and adds none. */
+export const REMOVES_MOTIF: Motif = {
+  ...REPO_MOTIF, id: "5c4d3e2f", status: "removes", linesRemoved: ["Refusals need no test."], linesAdded: [],
+};
+
+export const REMOVES_PATCH: readonly string[] = ["file: CONTRIBUTING.md", "- Refusals need no test."];
+
+/** FILE whose first axis holds REMOVES_MOTIF alone. */
+export const REMOVES_FILE: ProposalsFile = { ...FILE, axes: [{ ...FILE.axes[0], motifs: [REMOVES_MOTIF] }] };

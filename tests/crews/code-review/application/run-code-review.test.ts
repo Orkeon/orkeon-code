@@ -162,6 +162,30 @@ describe("runCodeReview — the diff the lenses read (F3-1, F3-7)", () => {
     deepStrictEqual(llm.extracts.map((e) => e.prompt), [buildLensPrompt(lens("correctness"), DIFF, 1, [])]);
   });
 
+  it("does not ask for the function-context diff when the plain diff is over the cap", async () => {
+    // Arrange
+    const { shell, deps } = reviewHarness();
+    shell.results["git diff --staged"] = { stdout: diffOf(MAX_REVIEW_DIFF_CHARS + 1) };
+
+    // Act
+    await runCodeReview({ lenses: "correctness" }, deps);
+
+    // Assert
+    assertOmits(shell.commands.join("\n"), ["--function-context"]);
+  });
+
+  it("asks for the function-context diff when the plain diff is at exactly the cap", async () => {
+    // Arrange
+    const { shell, deps } = reviewHarness();
+    shell.results["git diff --staged"] = { stdout: diffOf(MAX_REVIEW_DIFF_CHARS) };
+
+    // Act
+    await runCodeReview({ lenses: "correctness" }, deps);
+
+    // Assert
+    assertMentions(shell.commands.join("\n"), ["git diff --function-context --staged"]);
+  });
+
   it("says in the report how much of a long diff was not reviewed", async () => {
     // Arrange
     const { shell, files, deps } = reviewHarness();

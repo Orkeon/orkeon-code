@@ -5,7 +5,7 @@
 import type { PromptPair } from "../../../shared/domain/types.ts";
 import { INSTRUCTIONS_FILE_WRITTEN } from "../../../shared/domain/instructions-file.ts";
 import type { ProjectConventions } from "../domain/conventions.ts";
-import { cutMarker } from "../domain/existing-files.ts";
+import { cutLine } from "../../../shared/domain/project-manifests.ts";
 import type { ExistingFile } from "../domain/existing-files.ts";
 
 /** JSON schema for the convention-extract call. */
@@ -72,9 +72,10 @@ export function buildInstructionsFilePrompt(
       "show them.",
     "",
     "Keep what the existing instruction files say while it is still consistent with the configuration, " +
-      "merged into these sections: drop nothing that is still true. When such a fact is a long reference, " +
-      "would push a section past one screen or changes often, keeping it wins over the rules below: an existing " +
-      `file other than ${INSTRUCTIONS_FILE_WRITTEN} stays on disk, so name it as the file to read for that part; ` +
+      "merged into these sections: drop nothing that is still true, whatever its shape. The rules on what a " +
+      "section holds, above and below (no list, one screen, no long reference, no fact that changes often), apply " +
+      "to what you write new: a true fact of an existing file that breaks one, a secret aside, is kept anyway: an " +
+      `existing file other than ${INSTRUCTIONS_FILE_WRITTEN} stays on disk, so name it as the file to read for that part; ` +
       `what only ${INSTRUCTIONS_FILE_WRITTEN} says, since your file replaces it, is kept as it was under a last ` +
       "`## Reference` section.",
     "An existing file that ends with a `[… cut:` line was cut there, and a `[… cut:` line inside " +
@@ -92,7 +93,7 @@ export function buildInstructionsFilePrompt(
   ];
   if (packageMap.trim().length > 0) parts.push(`<package-map>\n${packageMap.trim()}\n</package-map>`);
   for (const f of existing) {
-    const marker = (f.cut ?? 0) > 0 ? `\n${cutMarker(f.cut ?? 0)}` : "";
+    const marker = (f.cut ?? 0) > 0 ? `\n${cutLine(f.cut ?? 0)}` : "";
     parts.push(`<existing file="${f.file}">\n${f.content.trim()}${marker}\n</existing>`);
   }
   if (readme.trim().length > 0) parts.push(`<readme>\n${readme.trim()}\n</readme>`);

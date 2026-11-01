@@ -56,14 +56,26 @@ export function cutDiff(diff: string, max: number): string {
   return diff.slice(0, max) + `\n[diff cut after ${max} characters: ${diff.length - max} characters left out]`;
 }
 
+/** A finding whose trigger the diff does not show: kept, marked plausible, with what would confirm it. */
+export const PLAUSIBLE_RULE =
+  "When what that asks for (the input, the caller) lies outside the shown text, still report the finding " +
+  "as plausible and name the file, caller or check that would confirm it; it is shown when the diff itself " +
+  "shows it. A suspicion with neither a shown trigger nor a check that would confirm it is not a finding.";
+
+/** The rule of a lens whose bar is a quote of the shown text (style): no quote, no finding. */
+export const NEVER_PLAUSIBLE_RULE =
+  "Such a finding is never plausible: when the convention or the neighbouring code it breaks is not in the " +
+  "text shown to you, there is no finding.";
+
 /**
  * Prompt for one review lens over the diff.
  *
  * A finding must point at a changed line and meet the lens's own bar (`lens.bar`),
  * ranked on the lens's own scale (`lens.severities`): a stated bar instead of a
  * "no false positives" absolute the model cannot meet. The lens sees the diff only,
- * so a finding whose trigger (an input, a caller, a convention) lies outside it is still reported,
- * marked `plausible` with what would confirm it, rather than dropped. The finding
+ * so a finding whose trigger (an input, a caller) lies outside it is still reported,
+ * marked `plausible` with what would confirm it, rather than dropped; a lens whose bar
+ * is a quote (style) has no plausible finding. The finding
  * opens with its claim, so two lenses quoting the same line do not read alike.
  * From pass 2 on (`/passes`), the prompt points the pass at where a first pass
  * tends not to look, and carries what the earlier passes already found, asking for
@@ -84,14 +96,11 @@ export function buildLensPrompt(
       `Leave aside ${lens.leaves}.`,
     "",
     "Report a finding only when you can point at a changed line, or for a removed line at the hunk that " +
-      `held it, and ${lens.bar}. When what that asks for (the input, the caller, the convention) lies ` +
-      "outside the shown text, still report the finding as plausible and name the file, caller or check " +
-      "that would confirm it; it is shown when the diff itself shows it. A suspicion with neither a shown " +
-      "trigger nor a check that would confirm it is not a finding. Each finding gives:",
+      `held it, and ${lens.bar}. ${lens.neverPlausible ? NEVER_PLAUSIBLE_RULE : PLAUSIBLE_RULE} Each finding gives:`,
     `- severity: ${lens.severities};`,
     "- file: the path as the diff shows it; line: the line number in the new version of the file;",
     "- finding: the claim first, in one sentence, then the line quoted after it, then what shows the problem;",
-    "- confidence: shown or plausible, as above;",
+    lens.neverPlausible ? "- confidence: shown;" : "- confidence: shown or plausible, as above;",
     "- suggestion: the fix, in a sentence;",
     `- category: ${lens.key}, or a narrower word for the kind of problem.`,
     `Most severe first, at most ${MAX_FINDINGS_PER_LENS} findings. An empty list is a valid answer.`,
