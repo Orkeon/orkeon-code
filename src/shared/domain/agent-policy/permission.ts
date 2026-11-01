@@ -241,7 +241,7 @@ export const TOOL_ARGUMENTS: Readonly<Record<string, readonly string[]>> = {
   flow_trace: ["from", "to", "direction", "max_depth", "edge_kinds", "include_all_paths", "max_paths"],
   dependency_graph: [
     "scope", "edge_kinds", "include_external", "root_fqn", "max_nodes", "include_mermaid", "include_dot",
-    "node_kinds",
+    "node_kinds", "max_cycles", "max_cycle_members",
   ],
   impact_analysis: ["target", "direction", "max_depth", "max_nodes"],
   package_summary: ["fqn", "include_public_exports", "include_dependencies", "max_exports"],

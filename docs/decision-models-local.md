@@ -18,7 +18,7 @@ injection and escalates from `small` to `large` when the answer does not hold.
 
 ## The runtime: source mode
 
-Liquid and Kev arrive with Orkeon #266, their stages fixed by #271, which the pin covers (`3860e9d`) and no release ships yet: the tool mode runs
+Liquid and Kev arrive with Orkeon #266, their stages fixed by #271, which the pin covers (`2e3ec51`) and no release ships yet: the tool mode runs
 the last release and the docker mode the last image, and neither knows `Orkeon:Liquid`, `Orkeon:Kev` nor
 `Orkeon:Decision:Provider`. Run Orkeon Code in source mode, on an Orkeon checkout at the pin or after it
 ([Getting started](getting-started.md#source-mode-an-orkeon-checkout)):
@@ -515,7 +515,7 @@ which is how to check that Orkeon Code really asks Kev: stop the server and ever
 ## See it work
 
 What follows was observed with `kev-0.8b` and `qwen3.5:2b` in Docker on an RTX 3080, Orkeon at `0ea39d9`; step 2
-counts the calls to Kev the way the pin (`3860e9d`) makes them, where a step that calls a tool is no longer judged
+counts the calls to Kev the way Orkeon makes them since #271 (`3860e9d`), where a step that calls a tool is no longer judged
 after the call. The log lines are the host's, as the run below prints them.
 
 1. **The start.** The host names the active provider:
