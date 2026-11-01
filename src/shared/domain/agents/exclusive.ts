@@ -1,8 +1,9 @@
 // An exclusive crew launch (`runCrewAsync(name, input, { exclusive: true })`, Orkeon #239): the runtime refuses
 // a crew whose previous exclusive launch is not terminal, before any LLM call, with a plain JS error naming the
 // running instance, `crew '<name>' already running (ticket <t>)`. The check and the registration are one step on
-// the host, so two lines typed in the same tick cannot both pass; the crew is free again as soon as that instance
-// completes, fails or is cancelled. A command reads the crew and the ticket off the refusal through
+// the host, so two lines typed in the same tick cannot both pass; the crew is free again once that instance's work has
+// ended: completed, failed, or stopped at its next cooperative checkpoint after a cancel (Orkeon #266), so a relaunch
+// right after a cancel may still be refused. A command reads the crew and the ticket off the refusal through
 // exclusiveRefusal and shows exclusiveLine, rather than failing on an unexplained throw. Pure.
 
 const REFUSAL = /crew '([^']+)' already running \(ticket ([^\s)]+)\)/i;

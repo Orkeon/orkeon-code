@@ -41,7 +41,7 @@ Les variables d'environnement préfixées `ORKEON_` l'emportent sur le fichier (
 | `Llm:ApiKeyEnvVar` | Nom de la variable d'environnement qui porte la clé. La clé elle-même ne va jamais dans le fichier |
 | `Llm:AvailableModels` | Les modèles que `/model` propose, pour en changer sans relancer |
 | `Llm:Temperature`, `Llm:MaxTokens`, `Llm:TimeoutSeconds` | Réglages de génération |
-| `Llm:MaxRateLimitWait` | La plus longue fenêtre de limite de débit qu'un appel attend avant d'échouer, `00:05:00` par défaut. Un 429, ou un 529 avec un en-tête de réinitialisation, attend que la fenêtre annoncée par le fournisseur (`Retry-After`, `retry-after-ms` en millisecondes comme l'envoient OpenAI et TypeSafe, ou les en-têtes de réinitialisation du fournisseur ; la plus longue l'emporte) se rouvre au lieu de faire échouer le tour ; une fenêtre plus longue fait échouer l'appel aussitôt avec `LlmRateLimitException`, l'attente dans son message. `00:00:00` n'attend rien |
+| `Llm:MaxRateLimitWait` | La plus longue fenêtre de limite de débit qu'un appel attend avant d'échouer, `00:05:00` par défaut. Un 429, ou un 529 avec un en-tête de réinitialisation, attend que la fenêtre annoncée par le fournisseur (`retry-after-ms` en millisecondes comme l'envoient OpenAI et TypeSafe, sinon `Retry-After`, comparé aux en-têtes de réinitialisation du fournisseur ; la plus longue l'emporte) se rouvre au lieu de faire échouer le tour ; une fenêtre plus longue fait échouer l'appel aussitôt avec `LlmRateLimitException`, l'attente dans son message. `00:00:00` n'attend rien |
 | `Llm:Profiles:<name>:MaxRateLimitWait` | La même borne pour un profil nommé de l'hôte, `00:05:00` par défaut |
 | `Llm:Thinking:Enabled` | Mode raisonnement, pour les fournisseurs qui en ont un |
 
@@ -55,7 +55,7 @@ Une option qu'un fournisseur ne peut pas honorer produit un avertissement, jamai
 `/context` en montrent la somme dans `cacheRead` et `cacheWrite` (`n/a` tant qu'aucun appel n'a rapporté le compte, jamais `0`, qui se lit comme mesuré : un runtime à partir d'Orkeon #254 omet un compte non rapporté, un plus ancien rapporte `0`). La durée de
 vie du cache est une option d'appel d'Orkeon, `orkeon:cache_ttl` (`5m` ou `1h`, d'après le réglage de cache d'un
 agent) : Anthropic l'honore, les fournisseurs compatibles OpenAI et Ollama journalisent qu'ils ne le peuvent pas.
-Orkeon Code n'en fixe aucune, chaque fournisseur garde donc sa durée par défaut. Anthropic ne met en cache que ce
+Orkeon Code n'en fixe aucune, chaque fournisseur garde donc sa durée par défaut (une écriture d'une heure coûterait deux fois le tarif du prompt, Orkeon #266). Anthropic ne met en cache que ce
 qu'une requête marque : chaque agent d'Orkeon Code marque son prompt système et ses définitions d'outils
 (`.cache({ systemPrompt: true, tools: true })`), un préfixe que ses prompts gardent identique d'un tour à l'autre, donc
 dès le deuxième appel d'une session `cacheRead` compte ce qu'Anthropic a servi depuis son cache. La demande de l'agent
@@ -75,7 +75,12 @@ prompt système d'un tour fait environ 2 250 tokens avant les schémas d'outils 
 `OLLAMA_CONTEXT_LENGTH=16384` sur le service Ollama, sinon le modèle perd en silence ses consignes et ses outils.
 
 **Un modèle de décision devant le LLM.** Orkeon peut placer un modèle de décision, Jev (le System One de TypeSafe,
-`jev-latest`), devant un modèle : un *profil de décision* (`Orkeon:Decision:Profiles:<nom>`) enveloppe un profil LLM
+`jev-latest`), devant un modèle. Depuis Orkeon #266, l'hôte sert un fournisseur de décision parmi trois, TypeSafe
+(`Orkeon:TypeSafe`, `TYPESAFE_API_KEY`), Liquid (`Orkeon:Liquid`, `LIQUID_API_KEY`) et Kev (`Orkeon:Kev`, un serveur
+local, jamais déduit) : `Orkeon:Decision:Provider` le nomme, sinon l'hôte le déduit de la seule section présente, ou de
+la seule clé définie quand aucune section ne l'est. Deux sections, ou deux clés sans section, refusent le démarrage, et
+la section de la garde d'entrée est `Orkeon:Decision:Guard` (un fichier de settings qui garde `Orkeon:TypeSafe:Guard`
+est refusé au démarrage). Un profil de décision fonctionne de la même façon quel que soit le fournisseur : un *profil de décision* (`Orkeon:Decision:Profiles:<nom>`) enveloppe un profil LLM
 nommé (`Llm:Profiles:<nom>`) d'étapes qui routent la requête vers le profil qui lui convient, la gardent (injection
 de prompt, les risques que vous nommez) ou vérifient la réponse et remontent vers un profil plus fort quand elle ne
 tient pas. [`config/appsettings.jev.example.json`](../../config/appsettings.jev.example.json) est l'exemple : la
