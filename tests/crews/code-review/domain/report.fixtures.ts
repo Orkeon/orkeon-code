@@ -9,3 +9,11 @@ export const NIT_AND_BLOCKER: readonly { lens: string; findings: Finding[] }[] =
 
 /** A finding with neither category nor line. */
 export const BARE_FINDING: Finding = { severity: "low", file: "c.ts", finding: "x", lens: "correctness" };
+
+/** A finding whose trigger lies outside the text the lens read. */
+export const PLAUSIBLE_FINDING: Finding = {
+  severity: "high", file: "d.ts", line: 4, category: "null-check", finding: "x may be null", confidence: "plausible",
+};
+
+/** A diff cut after 12 000 characters, 3 400 more not reviewed. */
+export const CUT = { shown: 12_000, leftOut: 3_400 };

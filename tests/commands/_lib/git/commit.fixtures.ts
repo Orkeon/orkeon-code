@@ -68,3 +68,10 @@ export const PUSH_PR_INPUT = {
   permissionMode: "acceptEdits", paths: [], push: true, pr: true,
   prAsked: true, githubTool: true, permissionRules: [gateLine(SESSION_RULE)],
 };
+
+/** What `/commit --yes --note "the reason"` hands the crew: the note, read as one text. */
+export const NOTED_INPUT = { permissionMode: "acceptEdits", paths: [], push: false, pr: false, note: "the reason", prAsked: false };
+
+/** The refusal of a `--note` with no text, the usage named. */
+export const NOTE_WITHOUT_TEXT_REFUSAL =
+  "✗ --note takes the reason as a text. Usage: /commit [--yes] [--push] [--pr] [--note <text>] [<path>...]";

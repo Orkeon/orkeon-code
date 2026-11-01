@@ -9,9 +9,8 @@
 // the assembled header, not on avoiding these reads.
 
 import type { Files, MemoryStore, SessionStore, Shell, Telemetry } from "../../../shared/application/ports.ts";
-import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import { readInstructionsFile } from "../../../shared/application/instructions-file.ts";
-import { ANSWER_LANGUAGE_CONFIG_KEY } from "../../../shared/domain/agent-policy/output-styles.ts";
+import { readLanguage } from "../../../shared/application/answer-language.ts";
 import { readJsonArray } from "../../../shared/application/session-state.ts";
 import {
   OUTPUT_STYLE_STATE_KEY, HOOKS_STATE_KEY,
@@ -27,15 +26,8 @@ import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 /** The project's instructions file (AGENTS.md, then CLAUDE.md), shared with the crews. */
 export { readInstructionsFile };
 
-/** The `answer.language` setting; "" when unset, unreadable or without a store. */
-export async function readLanguage(config: Pick<ConfigStore, "readValue"> | undefined): Promise<string> {
-  if (config === undefined) return "";
-  try {
-    return String((await config.readValue(ANSWER_LANGUAGE_CONFIG_KEY)).value ?? "").trim();
-  } catch {
-    return "";
-  }
-}
+/** The `answer.language` setting, shared with the commands that hand it to a crew. */
+export { readLanguage };
 
 /** Memory entries per category, read in one list call (best-effort: a store that cannot list yields none). */
 export async function readMemoryByCategory(memory: MemoryStore): Promise<Record<string, string[]>> {

@@ -102,6 +102,14 @@ export const SPLIT_CASES: readonly SplitCase[] = [
   { name: "reads a single quote that is never closed as a letter", line: `the '90s --voice x`, words: ["the", "'90s", "--voice", "x"] },
 ];
 
+/** Option words whose value is quoted right after the `=`, and the words they split into. */
+export const EQUALS_QUOTE_CASES: readonly SplitCase[] = [
+  { name: "keeps a double-quoted value after --flag= whole, its quotes dropped", line: `--note="two words" -y`, words: ["--note=two words", "-y"] },
+  { name: "keeps a single-quoted value after --flag= whole, its quotes dropped", line: `--note='it works' x`, words: ["--note=it works", "x"] },
+  { name: "reads a quote after --flag= that is never closed as a letter", line: `--note="two words`, words: [`--note="two`, "words"] },
+  { name: "leaves a quote after = in a word that is not an option alone", line: `a="b c"`, words: [`a="b`, `c"`] },
+];
+
 /** A line with an option given a quoted word. */
 export const QUOTED_LINE = `--then say "deadline" now`;
 

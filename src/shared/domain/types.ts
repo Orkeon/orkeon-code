@@ -18,6 +18,9 @@ export interface Finding {
   suggestion?: string;
   /** Which review lens surfaced it (correctness | security | style). */
   lens?: string;
+  /** Whether the diff shows what triggers it (`shown`), or the trigger lies outside the
+   *  text the lens read and the finding names what would confirm it (`plausible`). */
+  confidence?: "shown" | "plausible";
 }
 
 /** Detected build/test/lint conventions (project-init crew). */

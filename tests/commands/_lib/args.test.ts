@@ -21,7 +21,7 @@ import {
   RAW_TEXT_CASES,
   RAW_TOKENS_CASES,
   ROUND_TRIP_CASES,
-  SPLIT_CASES,
+  SPLIT_CASES, EQUALS_QUOTE_CASES,
   TYPED_COMMAND_CASES,
 } from "./args.fixtures.ts";
 import { assertRefused } from "./args.assertions.ts";
@@ -187,6 +187,21 @@ describe("parseToolCallArgs", () => {
     // Assert
     assertRefused(parsed, ["usage:"]);
   });
+});
+
+describe("splitWords: a quoted value after --flag=", () => {
+  for (const c of EQUALS_QUOTE_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { line, words } = c;
+
+      // Act
+      const texts = splitWords(line).map((w) => w.text);
+
+      // Assert
+      deepStrictEqual(texts, words);
+    });
+  }
 });
 
 describe("splitWords and commandLine", () => {

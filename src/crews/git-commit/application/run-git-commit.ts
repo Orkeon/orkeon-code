@@ -76,7 +76,9 @@ export async function runGitCommit(input: Record<string, unknown>, deps: GitComm
   const identity = await readIdentity(shell);
   if (!identity.ok) return identityStop(identity.detail, "/commit");
 
-  const tree = await inspectWorkTree(shell, files, { status, files: selection.files });
+  // The author's note (/commit --note) is the one reason the drafting model may state without the change showing it.
+  const note = typeof input.note === "string" ? input.note : undefined;
+  const tree = await inspectWorkTree(shell, files, { status, files: selection.files, note });
   const message = await draftCommitMessage({ llm: deps.llm, memory: deps.memory }, tree);
   const refusal = commitRefusal(message);
   if (refusal !== null) return `✗ refused: the drafted message flagged ${refusal}`;

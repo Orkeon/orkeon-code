@@ -162,18 +162,30 @@ export function buildCommitPlan(
   };
 }
 
-export interface CommitArgs { yes: boolean; push: boolean; pr: boolean; paths: string[] }
+export interface CommitArgs {
+  yes: boolean;
+  push: boolean;
+  pr: boolean;
+  paths: string[];
+  /** The author's reason for this commit (`--note <text>`), present only when given. */
+  note?: string;
+}
+
+const COMMIT_USAGE = "Usage: /commit [--yes] [--push] [--pr] [--note <text>] [<path>...]";
 
 /**
- * `/commit [--yes|-y] [--push] [--pr] [<path>...]`. `--pr` asks for the pull
- * request (Q-10) and so implies the push. An unknown flag is refused rather than
- * read as a path.
+ * `/commit [--yes|-y] [--push] [--pr] [--note <text>] [<path>...]`. `--pr` asks for
+ * the pull request (Q-10) and so implies the push. `--note` takes the next word, or
+ * the text after `--note=`; a missing or blank one, or a next word that starts with
+ * `-` (an option, never the note), is refused. An unknown flag is
+ * refused rather than read as a path.
  */
 export function parseCommitArgs(tokens: readonly unknown[]): { ok: true; args: CommitArgs } | { ok: false; text: string } {
   const args: CommitArgs = { yes: false, push: false, pr: false, paths: [] };
+  const words = (tokens ?? []).map((raw) => String(raw ?? "").trim());
   let options = true;
-  for (const raw of tokens ?? []) {
-    const t = String(raw ?? "").trim();
+  for (let i = 0; i < words.length; i++) {
+    const t = words[i];
     if (t.length === 0) continue;
     // `--` ends the options: what follows is a path, even one that starts with `-`.
     if (options && t === "--") { options = false; continue; }
@@ -182,7 +194,15 @@ export function parseCommitArgs(tokens: readonly unknown[]): { ok: true; args: C
     if (flag === "--yes" || flag === "-y") args.yes = true;
     else if (flag === "--push") args.push = true;
     else if (flag === "--pr") { args.pr = true; args.push = true; }
-    else if (t.startsWith("-")) return { ok: false, text: `✗ unknown option '${t}'. Usage: /commit [--yes] [--push] [--pr] [<path>...]` };
+    else if (flag === "--note" || flag.startsWith("--note=")) {
+      const next = words[i + 1];
+      const value = flag === "--note"
+        ? (next !== undefined && !next.startsWith("-") ? words[++i] : "")
+        : t.slice("--note=".length);
+      if (value.trim().length === 0) return { ok: false, text: `✗ --note takes the reason as a text. ${COMMIT_USAGE}` };
+      args.note = value.trim();
+    }
+    else if (t.startsWith("-")) return { ok: false, text: `✗ unknown option '${t}'. ${COMMIT_USAGE}` };
     else args.paths.push(t);
   }
   return { ok: true, args };

@@ -17,6 +17,19 @@ export const DIFF = "diff --git a/x.ts b/x.ts\n+bad()\n";
 export const HIGH: Finding = { severity: "high", file: "x.ts", line: 2, finding: "bad call" };
 export const LOW: Finding = { severity: "low", file: "y.ts", line: 1, finding: "nit" };
 
+/** The diff of DIFF with its enclosing function, short enough for the lenses. */
+export const FUNCTION_CONTEXT_DIFF = "diff --git a/x.ts b/x.ts\n function run() {\n+bad()\n }\n";
+
+/** A diff of `length` characters. */
+export const diffOf = (length: number): string => "diff --git a/x.ts b/x.ts\n".padEnd(length, "+");
+
+/** `count` findings, one per line of x.ts, the last ones the least severe. */
+export function findingsOnLines(count: number): Finding[] {
+  return Array.from({ length: count }, (_, i) => ({
+    severity: i < count - 2 ? "medium" : "nit", file: "x.ts", line: i + 1, finding: `fault ${i + 1}`,
+  }));
+}
+
 /** The fakes of every port, an LLM that finds nothing, and the deps built on them. */
 export function reviewHarness() {
   const shell = new FakeShell();

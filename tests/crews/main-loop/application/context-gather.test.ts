@@ -3,7 +3,7 @@
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 
-import { readInstructionsFile, readGauge, readHooks, readLanguage, readMemoryByCategory } from "../../../../src/crews/main-loop/application/context-gather.ts";
+import { readInstructionsFile, readGauge, readHooks, readMemoryByCategory } from "../../../../src/crews/main-loop/application/context-gather.ts";
 import { MAX_MEMORY_ENTRIES_PER_CATEGORY } from "../../../../src/crews/main-loop/domain/prompt-assembly.ts";
 import { HOOKS_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
 import { FakeFiles } from "../../../support/doubles/fake-files.ts";
@@ -11,7 +11,7 @@ import { FakeMemoryStore } from "../../../support/doubles/fake-memory-store.ts";
 import { FakeSessionStore } from "../../../support/doubles/fake-session-store.ts";
 import { FakeTelemetry } from "../../../support/doubles/fake-telemetry.ts";
 import {
-  CLAUDE_MD_FALLBACKS, NO_INSTRUCTIONS, NO_LANGUAGE, ZERO_GAUGE, languageStore,
+  CLAUDE_MD_FALLBACKS, NO_INSTRUCTIONS, ZERO_GAUGE,
 } from "./context-gather.fixtures.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 
@@ -54,32 +54,6 @@ describe("readInstructionsFile", () => {
 
       // Assert
       strictEqual(read, undefined);
-    });
-  }
-});
-
-describe("readLanguage", () => {
-  it("reads answer.language, trimmed", async () => {
-    // Arrange
-    const store = languageStore(" French ");
-
-    // Act
-    const language = await readLanguage(store);
-
-    // Assert
-    strictEqual(language, "French");
-  });
-
-  for (const c of NO_LANGUAGE) {
-    it(`is empty ${c.name}`, async () => {
-      // Arrange
-      const { store } = c;
-
-      // Act
-      const language = await readLanguage(store);
-
-      // Assert
-      strictEqual(language, "");
     });
   }
 });

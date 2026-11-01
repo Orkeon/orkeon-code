@@ -18,6 +18,24 @@ export async function collectDiff(scope: ReviewScope, shell: Shell): Promise<str
   return (await shell.run(`git diff ${scope.diffArgs}`)).stdout;
 }
 
+/** The same diff with each hunk's enclosing function (`git diff --function-context`). */
+export async function collectFunctionContextDiff(scope: ReviewScope, shell: Shell): Promise<string> {
+  return (await shell.run(`git diff --function-context ${scope.diffArgs}`)).stdout;
+}
+
+/** The diff the lenses read: the one with function context when it is there and holds
+ *  within `max` characters, so a lens sees the function around a change; else the
+ *  plain diff, cut later if it is still too long. Function context is 2.5-6 times the
+ *  plain diff, so most real diffs take the plain path. */
+export function chooseReviewDiff(
+  plain: string,
+  withFunctionContext: string,
+  max: number,
+): { diff: string; functionContext: boolean } {
+  const fits = withFunctionContext.trim().length > 0 && withFunctionContext.length <= max;
+  return fits ? { diff: withFunctionContext, functionContext: true } : { diff: plain, functionContext: false };
+}
+
 /** The changed file list for the scope. */
 export async function collectChangedFiles(scope: ReviewScope, shell: Shell): Promise<string[]> {
   return (await shell.run(`git diff ${scope.diffArgs} --name-only`)).stdout

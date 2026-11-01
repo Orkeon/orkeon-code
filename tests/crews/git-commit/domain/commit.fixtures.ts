@@ -39,6 +39,27 @@ export const PARSED_ARGS: readonly ParseCase[] = [
   { name: "--push alone", words: ["--push"], args: args({ push: true }) },
 ];
 
+/** Words carrying `--note` with its text, and what they read as. */
+export const NOTE_ARGS: readonly ParseCase[] = [
+  { name: "the next word", words: ["--note", "the reason", "src/a.ts"], args: args({ note: "the reason", paths: ["src/a.ts"] }) },
+  { name: "after --note=", words: ["--note=the reason", "--push"], args: args({ note: "the reason", push: true }) },
+  { name: "blanks around trimmed", words: ["--note", "  why  "], args: args({ note: "why" }) },
+];
+
+export interface NoteRefusalCase {
+  name: string;
+  words: string[];
+}
+
+/** `--note` with no text to take: last, followed by a word that starts with `-`, empty after `=`, or blank. */
+export const NOTE_WITHOUT_TEXT: readonly NoteRefusalCase[] = [
+  { name: "last word", words: ["--note"] },
+  { name: "followed by an option", words: ["--note", "--push"] },
+  { name: "followed by a short option", words: ["--note", "-y"] },
+  { name: "empty after =", words: ["--note="] },
+  { name: "blank", words: ["--note", "   "] },
+];
+
 export const CONFIRM_FLAGS: readonly string[] = ["--yes", "-y", "-Y", " --yes "];
 
 /** A status with a modified file, a rename, and two untracked files, one quoted. */

@@ -25,6 +25,7 @@ export const FINDINGS_SCHEMA = {
           line: { type: "number" },
           category: { type: "string" },
           finding: { type: "string" },
+          confidence: { type: "string", enum: ["shown", "plausible"] },
           suggestion: { type: "string" },
         },
         required: ["severity", "file", "finding"],
@@ -36,6 +37,11 @@ export const FINDINGS_SCHEMA = {
 
 /** How many already-found items a later pass is shown, so the prompt stays bounded. */
 export const MAX_PRIOR_FINDINGS_IN_PROMPT = 25;
+
+/** Where a first pass tends not to look: what a later pass is pointed at. */
+export const LATER_PASS_FOCUS =
+  "the deleted lines, the error and early-return paths, the boundaries (empty, zero, the last item) and " +
+  "the later hunks of a long file";
 
 /** Findings one lens may return in one pass: the worst ones, not a long tail. */
 export const MAX_FINDINGS_PER_LENS = 10;
@@ -53,13 +59,18 @@ export function cutDiff(diff: string, max: number): string {
 /**
  * Prompt for one review lens over the diff.
  *
- * A finding must point at a changed line and say what goes wrong for which input:
- * a stated bar instead of a "no false positives" absolute the model cannot meet.
- * From pass 2 on (`/passes`), the prompt carries what the earlier passes already
- * found and asks for what they MISSED — re-running the identical prompt would mostly
- * re-report the same items, dedup would collapse them, and the operator would have
- * paid for more calls to change nothing. `conventions` (the project's instructions
- * file) goes to the style lens only.
+ * A finding must point at a changed line and meet the lens's own bar (`lens.bar`),
+ * ranked on the lens's own scale (`lens.severities`): a stated bar instead of a
+ * "no false positives" absolute the model cannot meet. The lens sees the diff only,
+ * so a finding whose trigger (an input, a caller, a convention) lies outside it is still reported,
+ * marked `plausible` with what would confirm it, rather than dropped. The finding
+ * opens with its claim, so two lenses quoting the same line do not read alike.
+ * From pass 2 on (`/passes`), the prompt points the pass at where a first pass
+ * tends not to look, and carries what the earlier passes already found, asking for
+ * what they MISSED — re-running the identical prompt would mostly re-report the
+ * same items, dedup would collapse them, and the operator would have paid for more
+ * calls to change nothing. `conventions` (the project's instructions file) goes to
+ * the style lens only.
  */
 export function buildLensPrompt(
   lens: ReviewLens,
@@ -72,25 +83,28 @@ export function buildLensPrompt(
     `You review a code change through the ${lens.key} lens. Look for ${lens.looksFor}. ` +
       `Leave aside ${lens.leaves}.`,
     "",
-    "Report a finding only when you can point at a changed line and say what goes wrong, for which " +
-      "input or state; a suspicion the diff does not back is not a finding. Each finding gives:",
-    "- severity: blocker (breaks the build, loses data or opens a hole in normal use), high (a wrong " +
-      "result in a plausible case), medium (wrong in an edge case, or a maintenance cost with a concrete " +
-      "trigger), low (minor), nit (style only);",
+    "Report a finding only when you can point at a changed line, or for a removed line at the hunk that " +
+      `held it, and ${lens.bar}. When what that asks for (the input, the caller, the convention) lies ` +
+      "outside the shown text, still report the finding as plausible and name the file, caller or check " +
+      "that would confirm it; it is shown when the diff itself shows it. A suspicion with neither a shown " +
+      "trigger nor a check that would confirm it is not a finding. Each finding gives:",
+    `- severity: ${lens.severities};`,
     "- file: the path as the diff shows it; line: the line number in the new version of the file;",
-    "- finding: what is wrong, quoting the line, and the input or state that shows it;",
+    "- finding: the claim first, in one sentence, then the line quoted after it, then what shows the problem;",
+    "- confidence: shown or plausible, as above;",
     "- suggestion: the fix, in a sentence;",
     `- category: ${lens.key}, or a narrower word for the kind of problem.`,
     `Most severe first, at most ${MAX_FINDINGS_PER_LENS} findings. An empty list is a valid answer.`,
   ];
+  if (pass > 1) {
+    lines.push("", `This is review pass ${pass}. A first pass tends to skip ${LATER_PASS_FOCUS}: look there first.`);
+  }
   if (pass > 1 && priorFindings.length > 0) {
     const already = priorFindings
       .slice(0, MAX_PRIOR_FINDINGS_IN_PROMPT)
       .map((f) => `- ${f.file}:${f.line ?? "?"} — ${f.finding ?? ""}`);
     lines.push(
-      "",
-      `This is review pass ${pass}. These issues were already reported; do NOT repeat them, find what ` +
-        "they missed. Returning an empty list is a valid answer.",
+      "These issues were already reported; do NOT repeat them, find what they missed.",
       ...already,
     );
   }

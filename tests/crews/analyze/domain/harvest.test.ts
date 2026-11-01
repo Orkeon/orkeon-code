@@ -7,7 +7,7 @@ import { strictEqual, deepStrictEqual, ok } from "node:assert";
 import {
   MAX_ENTRY_PACKAGES, MAX_EXPORTS_PER_PACKAGE, MAX_LISTED_PACKAGES, displayFqn, edgeEndpointToPath, entryPackages,
   isTestPackage, packageCycles, rankExports, rankPackages, renderHarvest, selectPackages, SYNTHESIS_SYSTEM,
-  buildSynthesisUser,
+  buildSynthesisUser, MAX_SYNTHESIS_CONCEPTS,
 } from "../../../../src/crews/analyze/domain/harvest.ts";
 import {
   CYCLIC, CYCLIC_CYCLES, DISPLAY_CASES, ENDPOINTS, EXPORTS_IN_INDEX_ORDER, EXPORTS_RANKED, HOSTED, HOSTED_ENTRIES,
@@ -403,6 +403,44 @@ describe("the synthesis prompts", () => {
 
     // Assert
     assertMentions(user, ["the entry packages of the harvest", "naming its members when the harvest does"]);
+  });
+
+  it("bounds each part of the synthesis to a line per item, so a large harvest still fits a screen", () => {
+    // Arrange
+    const harvest = "X";
+
+    // Act
+    const user = buildSynthesisUser(harvest);
+
+    // Assert
+    assertMentions(user, [
+      "fits on one screen",
+      `one line per concept, at most about ${MAX_SYNTHESIS_CONCEPTS} concepts, those with the most symbols first`,
+      "one line per dependency group and one line per cycle",
+      "one line per entry package",
+    ]);
+  });
+
+  it("ends with the language to write in when the session sets one", () => {
+    // Arrange
+    const harvest = "X";
+
+    // Act
+    const user = buildSynthesisUser(harvest, "French");
+
+    // Assert
+    ok(user.endsWith("</harvest>\n\nWrite the analysis in French."), "the language closes the ask");
+  });
+
+  it("names no language when the session sets none", () => {
+    // Arrange
+    const harvest = "X";
+
+    // Act
+    const user = buildSynthesisUser(harvest);
+
+    // Assert
+    assertOmits(user, ["Write the analysis in"]);
   });
 
   it("asks to mark inferences", () => {

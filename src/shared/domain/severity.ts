@@ -18,27 +18,41 @@ export function severityRank(severity: string | undefined): number {
   return SEVERITY_ORDER[String(severity ?? "").toLowerCase()] ?? 9;
 }
 
-/** Stable dedup key: file + line + the first 40 chars of the finding text. */
+/** How many characters of the claim the dedup key keeps. */
+export const DEDUP_CLAIM_CHARS = 40;
+
+/** Stable dedup key: file + line + category (lower-cased, empty when absent) + the
+ *  start of the claim (the first {@link DEDUP_CLAIM_CHARS} characters of `finding`,
+ *  trimmed and lower-cased). The claim opens a finding, so two faults of one lens on
+ *  one line stay apart, while two lenses stating the same claim on it collapse. */
 export function findingDedupKey(f: Finding): string {
-  return `${f.file}:${f.line}:${(f.finding ?? "").slice(0, 40)}`;
+  const claim = String(f.finding ?? "").trim().toLowerCase().slice(0, DEDUP_CLAIM_CHARS);
+  return `${f.file}:${f.line}:${(f.category ?? "").toLowerCase()}:${claim}`;
 }
 
 /**
  * Merge lens results, drop duplicates (by {@link findingDedupKey}), and sort by
- * severity. Each input group carries its lens so the kept finding records which
- * lens surfaced it. Order-stable for equal severities (sort is stable in V8).
+ * severity. On a collision the most severe finding is kept (the first on a tie),
+ * so a blocker is never dropped behind a low on the same key. Each input group
+ * carries its lens so the kept finding records which lens surfaced it.
+ * Order-stable for equal severities (sort is stable in V8).
  */
 export function dedupAndRank(
   groups: ReadonlyArray<{ lens: string; findings: Finding[] }>,
 ): Finding[] {
-  const seen = new Set<string>();
+  const at = new Map<string, number>();
   const all: Finding[] = [];
   for (const g of groups) {
     for (const f of g.findings) {
       const key = findingDedupKey(f);
-      if (seen.has(key)) continue;
-      seen.add(key);
-      all.push({ ...f, lens: f.lens ?? g.lens });
+      const kept = { ...f, lens: f.lens ?? g.lens };
+      const index = at.get(key);
+      if (index === undefined) {
+        at.set(key, all.length);
+        all.push(kept);
+      } else if (severityRank(kept.severity) < severityRank(all[index].severity)) {
+        all[index] = kept;
+      }
     }
   }
   all.sort((a, b) => severityRank(a.severity) - severityRank(b.severity));

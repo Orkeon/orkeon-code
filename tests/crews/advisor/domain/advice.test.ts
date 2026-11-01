@@ -200,6 +200,59 @@ describe("the reviewer's brief and its material", () => {
     ok(p.user.startsWith("## Earlier turns\nuser: add input validation"), p.user);
   });
 
+  it("takes a reported action as reported unless the exchange contradicts it", () => {
+    // Arrange
+    // The reviewer sees no tool call: doubting every reported test run is the padding the brief forbids.
+    const exchange = LATER_EXCHANGE;
+
+    // Act
+    const system = buildAdvicePrompt(exchange, EARLIER).system;
+
+    // Assert
+    assertMentions(system, [
+      "is taken as reported unless the exchange contradicts it",
+      "only when nothing the answer says it did could support it",
+      "name the check that would settle it",
+    ]);
+  });
+
+  it("anchors each point on the quoted words of the answer and on what would settle it", () => {
+    // Arrange
+    const exchange = LATER_EXCHANGE;
+
+    // Act
+    const system = buildAdvicePrompt(exchange, EARLIER).system;
+
+    // Assert
+    assertMentions(system, [
+      "quotes the few words of the answer it targets",
+      "names the file, command or fact that would settle it",
+    ]);
+  });
+
+  it("asks for five points at most", () => {
+    // Arrange
+    const exchange = LATER_EXCHANGE;
+
+    // Act
+    const system = buildAdvicePrompt(exchange, EARLIER).system;
+
+    // Assert
+    assertMentions(system, ["worst first, five points at most"]);
+  });
+
+  it("names the earlier turns as context for the request's scope, not under review", () => {
+    // Arrange
+    const exchange = LATER_EXCHANGE;
+
+    // Act
+    const system = buildAdvicePrompt(exchange, EARLIER).system;
+
+    // Assert
+    assertMentions(system, ["The earlier turns, when given, are context for what the request covers", "not under review"]);
+    assertOmits(system, ["the final answer only"]);
+  });
+
   it("leaves the earlier turns out when there are none", () => {
     // Arrange
     const exchange = LATER_EXCHANGE;

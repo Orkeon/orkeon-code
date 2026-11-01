@@ -9,7 +9,7 @@ import {
 import type { CommitArgs } from "../../../../src/crews/git-commit/domain/commit.ts";
 import * as commitModule from "../../../../src/crews/git-commit/domain/commit.ts";
 import {
-  ABSENT_MODES, CONFIRM_FLAGS, CONVENTIONAL_SUBJECTS, FLAGGED_SECRET_PATHS, INPUT_FLAGS, NAMED_PATHS, NORMALIZED, ORDINARY_PATHS, PARSED_ARGS, READ_ONLY_MODES, REFUSALS,
+  ABSENT_MODES, CONFIRM_FLAGS, CONVENTIONAL_SUBJECTS, FLAGGED_SECRET_PATHS, INPUT_FLAGS, NAMED_PATHS, NORMALIZED, NOTE_ARGS, NOTE_WITHOUT_TEXT, ORDINARY_PATHS, PARSED_ARGS, READ_ONLY_MODES, REFUSALS,
   SECRET_PATHS, STATUS, WRITING_MODES, args,
 } from "./commit.fixtures.ts";
 import { assertMentions } from "../../../support/assertions/text.ts";
@@ -264,6 +264,34 @@ describe("parseCommitArgs", () => {
     // Assert
     deepStrictEqual(parsed, { ok: true, args: args({ push: true, paths: ["-odd.md", "--yes"] }) });
   });
+});
+
+describe("parseCommitArgs: --note", () => {
+  for (const c of NOTE_ARGS) {
+    it(`reads --note with its text as the author's note: ${c.name}`, () => {
+      // Arrange
+      const { words } = c;
+
+      // Act
+      const parsed = parseCommitArgs(words);
+
+      // Assert
+      deepStrictEqual(parsed, { ok: true, args: c.args });
+    });
+  }
+
+  for (const c of NOTE_WITHOUT_TEXT) {
+    it(`refuses --note without a text: ${c.name}`, () => {
+      // Arrange
+      const { words } = c;
+
+      // Act
+      const parsed = parseCommitArgs(words);
+
+      // Assert
+      ok(!parsed.ok && parsed.text.includes("--note takes the reason as a text"), JSON.stringify(parsed));
+    });
+  }
 });
 
 describe("the confirm flag (B-1)", () => {

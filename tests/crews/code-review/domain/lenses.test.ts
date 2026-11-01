@@ -7,8 +7,8 @@ import {
   LENSES, lensKeys, selectLenses, describeReviewPlan, resolveLensSelection,
 } from "../../../../src/crews/code-review/domain/lenses.ts";
 import { CONFIG_KEYS } from "../../../../src/shared/domain/config-schema.ts";
-import { UNSET_SETTINGS } from "./lenses.fixtures.ts";
-import { assertMentions } from "../../../support/assertions/text.ts";
+import { LENS_RULE_MARKERS, UNSET_SETTINGS } from "./lenses.fixtures.ts";
+import { assertMentions, assertOmits } from "../../../support/assertions/text.ts";
 
 describe("selectLenses", () => {
   for (const unset of UNSET_SETTINGS) {
@@ -95,6 +95,32 @@ describe("selectLenses", () => {
 
     // Assert
     deepStrictEqual(s.unknown, ["perf"]);
+  });
+});
+
+describe("each lens's own scale and bar", () => {
+  for (const c of LENS_RULE_MARKERS) {
+    it(c.name, () => {
+      // Arrange
+      const lens = LENSES.find((l) => l.key === c.key)!;
+
+      // Act
+      const text = lens[c.field];
+
+      // Assert
+      assertMentions(text, c.mentions);
+    });
+  }
+
+  it("gives the style lens no level above medium", () => {
+    // Arrange
+    const style = LENSES.find((l) => l.key === "style")!;
+
+    // Act
+    const scale = style.severities;
+
+    // Assert
+    assertOmits(scale, ["blocker (", "high ("]);
   });
 });
 

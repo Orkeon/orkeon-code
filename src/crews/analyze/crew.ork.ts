@@ -8,8 +8,9 @@
 // summaries itself, renders the harvest, and then — unless `raw` — makes ONE
 // synthesis call whose agent has NO tools.
 //
-// Triggered by:  /analyze [--raw] [--parallel N] [--rebuild]  →  script-host.runCrewAsync("analyze", { raw, parallel, rebuild })
-// Input (globalThis.inputs): { raw?: boolean; parallel?: number; rebuild?: boolean }
+// Triggered by:  /analyze [--raw] [--parallel N] [--rebuild]  →  script-host.runCrewAsync("analyze", { raw, parallel, rebuild, language })
+// Input (globalThis.inputs): { raw?: boolean; parallel?: number; rebuild?: boolean; language?: string }
+// (`language`: the session's `answer.language`, absent when unset; the synthesis is written in it.)
 
 import { CrewBuilder, publishCrew, inputs } from "../../shared/infrastructure/globals.ts";
 import { orkeonAgent, orkeonCodeIndex, orkeonProgress } from "../../shared/infrastructure/orkeon/wiring.ts";

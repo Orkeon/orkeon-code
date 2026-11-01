@@ -3,11 +3,16 @@
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok } from "node:assert";
 
-import { REVIEW_PROGRESS_LABEL, runCodeReview } from "../../../../src/crews/code-review/application/run-code-review.ts";
+import {
+  MAX_REPORT_FINDINGS, MAX_REVIEW_DIFF_CHARS, REVIEW_PROGRESS_LABEL, runCodeReview,
+} from "../../../../src/crews/code-review/application/run-code-review.ts";
 import { buildLensPrompt } from "../../../../src/crews/code-review/application/prompts.ts";
 import { LENSES, describeReviewPlan } from "../../../../src/crews/code-review/domain/lenses.ts";
 import { CONFIG_MAP_STATE_KEY, PASSES_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
-import { DIFF, HIGH, LOW, REPORT, lens, reviewHarness, twoPassLog, twoPassReview } from "./run-code-review.fixtures.ts";
+import {
+  DIFF, FUNCTION_CONTEXT_DIFF, HIGH, LOW, REPORT, diffOf, findingsOnLines, lens, reviewHarness, twoPassLog, twoPassReview,
+} from "./run-code-review.fixtures.ts";
+import { assertMentions, assertOmits } from "../../../support/assertions/text.ts";
 
 describe("runCodeReview — nothing to review", () => {
   it("reports an empty staged diff without reviewing", async () => {
@@ -114,5 +119,77 @@ describe("runCodeReview — a review", () => {
 
     // Assert
     deepStrictEqual(llm.extracts.map((e) => e.prompt), LENSES.map((l) => buildLensPrompt(l, DIFF, 1, [])));
+  });
+});
+
+describe("runCodeReview — the diff the lenses read (F3-1, F3-7)", () => {
+  it("gives the lenses the diff with function context when it fits the cap", async () => {
+    // Arrange
+    const { shell, llm, deps } = reviewHarness();
+    shell.results["git diff --staged"] = { stdout: DIFF };
+    shell.results["git diff --function-context --staged"] = { stdout: FUNCTION_CONTEXT_DIFF };
+
+    // Act
+    await runCodeReview({ lenses: "correctness" }, deps);
+
+    // Assert
+    deepStrictEqual(llm.extracts.map((e) => e.prompt), [buildLensPrompt(lens("correctness"), FUNCTION_CONTEXT_DIFF, 1, [])]);
+  });
+
+  it("gives the lenses the plain diff when the one with function context exceeds the cap", async () => {
+    // Arrange
+    const { shell, llm, deps } = reviewHarness();
+    shell.results["git diff --staged"] = { stdout: DIFF };
+    shell.results["git diff --function-context --staged"] = { stdout: diffOf(MAX_REVIEW_DIFF_CHARS + 1) };
+
+    // Act
+    await runCodeReview({ lenses: "correctness" }, deps);
+
+    // Assert
+    deepStrictEqual(llm.extracts.map((e) => e.prompt), [buildLensPrompt(lens("correctness"), DIFF, 1, [])]);
+  });
+
+  it("falls back to the plain diff when the function-context diff is empty", async () => {
+    // Arrange
+    const { shell, llm, deps } = reviewHarness();
+    shell.results["git diff --staged"] = { stdout: DIFF };
+    shell.results["git diff --function-context --staged"] = { stdout: "  \n" };
+
+    // Act
+    await runCodeReview({ lenses: "correctness" }, deps);
+
+    // Assert
+    deepStrictEqual(llm.extracts.map((e) => e.prompt), [buildLensPrompt(lens("correctness"), DIFF, 1, [])]);
+  });
+
+  it("says in the report how much of a long diff was not reviewed", async () => {
+    // Arrange
+    const { shell, files, deps } = reviewHarness();
+    shell.results["git diff --staged"] = { stdout: diffOf(MAX_REVIEW_DIFF_CHARS + 500) };
+
+    // Act
+    await runCodeReview({ lenses: "correctness" }, deps);
+
+    // Assert
+    assertMentions(files.writes[0].content, [
+      `- Diff: cut after ${MAX_REVIEW_DIFF_CHARS} characters, 500 characters not reviewed`,
+      "No issues found in the part reviewed.",
+    ]);
+  });
+});
+
+describe("runCodeReview — the report cap (F3-12)", () => {
+  it("keeps the most severe findings up to the cap and says how many were left out", async () => {
+    // Arrange
+    const { shell, files, llm, deps } = reviewHarness();
+    shell.results["git diff --staged"] = { stdout: DIFF };
+    llm.extractions = [{ findings: findingsOnLines(MAX_REPORT_FINDINGS + 2) }];
+
+    // Act
+    await runCodeReview({ lenses: "correctness" }, deps);
+
+    // Assert
+    assertMentions(files.writes[0].content, [`- Findings: ${MAX_REPORT_FINDINGS} (2 less severe left out)`, "fault 30"]);
+    assertOmits(files.writes[0].content, ["fault 31", "fault 32"]);
   });
 });
