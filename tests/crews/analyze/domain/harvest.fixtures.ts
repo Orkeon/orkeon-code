@@ -77,3 +77,58 @@ export const TEST_PACKAGE_CASES: readonly { readonly name: string; readonly test
   { name: "contests", test: false },
   { name: "attestation", test: false },
 ];
+
+/** Names of the index and how the harvest writes them. */
+export const DISPLAY_CASES: readonly { readonly name: string; readonly fqn: string; readonly shown: string }[] = [
+  { name: "writes a symbol relative to the checkout", fqn: `${WORKSPACE}/src/a.ts::F`, shown: "src/a.ts::F" },
+  { name: "writes a package by its name alone", fqn: `${WORKSPACE}::Orkeon.Domain`, shown: "Orkeon.Domain" },
+  { name: "leaves a name outside the checkout as it is", fqn: "/elsewhere/a.ts::F", shown: "/elsewhere/a.ts::F" },
+  { name: "leaves a path that only starts like the checkout as it is", fqn: `${WORKSPACE}2/a.ts`, shown: `${WORKSPACE}2/a.ts` },
+];
+
+/** A package read by package_summary: its dependencies by name, and whether it has an entry module. */
+export function readPackage(name: string, dependencies: string[] = [], entry = false): PackageSummary {
+  return {
+    fqn: `${WORKSPACE}::${name}`, name, files: 2, symbols: 4,
+    dependencies: dependencies.map((d) => `${WORKSPACE}::${d}`),
+    entryPoints: entry ? [`${WORKSPACE}/src/${name}/Program.cs`] : [],
+    exports: [],
+  };
+}
+
+/** Core, the API over it, the CLI over both, a tool alone and the tests of Core and of the CLI, each but Core
+ *  with an entry module: the entry packages are the CLI, whose tests depend on it, and the tool. */
+export const HOSTED: PackageSummary[] = [
+  readPackage("Core"),
+  readPackage("Api", ["Core"], true),
+  readPackage("Cli", ["Core", "Api"], true),
+  readPackage("Tool", [], true),
+  readPackage("Core.Tests", ["Core"], true),
+  readPackage("Cli.Tests", ["Cli"], true),
+];
+
+/** The fqns of the entry packages of HOSTED. */
+export const HOSTED_ENTRIES = [`${WORKSPACE}::Cli`, `${WORKSPACE}::Tool`];
+
+/** A → B → C → A, D → A, and E → E's neighbour F → E: two cycles. */
+export const CYCLIC: PackageSummary[] = [
+  readPackage("A", ["B"]),
+  readPackage("B", ["C"]),
+  readPackage("C", ["A"]),
+  readPackage("D", ["A"]),
+  readPackage("E", ["F"]),
+  readPackage("F", ["E", "Outside"]),
+];
+
+/** The cycles of CYCLIC, by fqn. */
+export const CYCLIC_CYCLES = [
+  [`${WORKSPACE}::A`, `${WORKSPACE}::B`, `${WORKSPACE}::C`],
+  [`${WORKSPACE}::E`, `${WORKSPACE}::F`],
+];
+
+/** `count` packages of the map, the largest first, whose last one is a small host nothing depends on. */
+export function rankedWithSmallHost(count: number): { ranked: MapEntry[]; scanned: PackageSummary[] } {
+  const scanned = Array.from({ length: count }, (_, i) => readPackage(`p${i}`, [], i === count - 1));
+  const ranked = scanned.map((p, i) => ({ fqn: p.fqn, name: p.name, kind: "package", children: count - i }));
+  return { ranked, scanned };
+}

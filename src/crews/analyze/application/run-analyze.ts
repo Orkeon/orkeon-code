@@ -7,11 +7,15 @@
 
 import type { CodeIndex, Llm, Logger, Progress } from "../../../shared/application/ports.ts";
 import { indexCacheNote, type PackageSummary } from "../../../shared/domain/code-intel-contract.ts";
-import { rankPackages, renderHarvest, SYNTHESIS_SYSTEM, buildSynthesisUser } from "../domain/harvest.ts";
+import {
+  rankPackages, renderHarvest, selectPackages, SYNTHESIS_SYSTEM, buildSynthesisUser,
+} from "../domain/harvest.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
-/** Packages summarized in the harvest, the largest first — beyond this a repo needs a narrower ask. */
+/** Packages summarized in the harvest, the entry packages and the largest — beyond this a repo needs a narrower ask. */
 export const MAX_PACKAGES = 15;
+/** Packages read for their dependencies and entry points, the largest first: one package_summary each. */
+export const MAX_SCANNED_PACKAGES = 200;
 /** Packages the L1 map is asked for: the tool returns 200 by default, in the store's order. */
 export const MAX_MAP_ENTRIES = 1000;
 /** Modules of the L2 graph: the whole graph of a large repository exceeds the script's memory budget. */
@@ -76,17 +80,22 @@ export async function runAnalyze(input: AnalyzeInputs, deps: AnalyzeDeps): Promi
     await progress.report(phase(3, "walking module dependencies"));
     const moduleGraph = await index.dependencyGraph("L2_Module", GRAPH_NODES);
     await progress.report(phase(4, "summarizing packages"));
-    const packages: PackageSummary[] = [];
-    for (const p of ranked.slice(0, MAX_PACKAGES)) {
-      packages.push(await index.packageSummary(p.fqn));
+    const scanned: PackageSummary[] = [];
+    for (const p of ranked.slice(0, MAX_SCANNED_PACKAGES)) {
+      scanned.push(await index.packageSummary(p.fqn));
+    }
+    if (ranked.length > MAX_SCANNED_PACKAGES) {
+      log.warn(`analyze: ${ranked.length - MAX_SCANNED_PACKAGES} package(s) beyond the cap of ${MAX_SCANNED_PACKAGES} not read`);
     }
     if (ranked.length > MAX_PACKAGES) {
       log.warn(`analyze: ${ranked.length - MAX_PACKAGES} package(s) beyond the cap of ${MAX_PACKAGES} not summarized`);
     }
+    const selected = new Set(selectPackages(ranked, scanned, MAX_PACKAGES));
 
     const harvest = renderHarvest({
-      packages,
-      unsummarized: ranked.slice(MAX_PACKAGES),
+      packages: scanned.filter((p) => selected.has(p.fqn)),
+      unsummarized: ranked.filter((p) => !selected.has(p.fqn)),
+      scanned,
       moduleGraph,
       graphCap: GRAPH_NODES,
       mapCap: MAX_MAP_ENTRIES,

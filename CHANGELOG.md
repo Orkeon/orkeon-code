@@ -831,6 +831,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`/analyze` names the entry points, the package dependencies and their cycles**: the harvest summarized the 15
+  largest packages, so the hosts (a CLI, a console app), small by nature, were left out and the analysis found one
+  entry point in a repository of 104 packages. Every package (up to 200) is now read with `package_summary`: the
+  harvest lists the entry packages (a `main`, `program` or `index` module, and no package of code depending on them: the tests of a host do not hide it), always
+  summarizes five of them, and gives the dependencies of every package read, with the cycles between packages named.
+  The module graph line no longer mixes counts: the edges are those of the sample, the cycles those of the whole
+  graph, which the index counts without naming their modules. Paths are written relative to the checkout
+  (`src/a.ts::F`, not `/workspace/src/a.ts::F`).
+
 - **The pin names Orkeon `main` again** (ADR 0013, 0014): `.orkeon-version` held `9c25b6c`, the last commit of
   the #271 branch, not its merge on `main`, so a source checkout of `main` could not be moved to it and every start
   in source mode warned that `ORKEON_SOURCE` was off the pin. The pin is `3860e9d`, the same tree.

@@ -3,13 +3,14 @@
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, rejects } from "node:assert";
 
-import { MAX_PACKAGES, PROGRESS_LABEL, runAnalyze } from "../../../../src/crews/analyze/application/run-analyze.ts";
+import { MAX_PACKAGES, MAX_SCANNED_PACKAGES, PROGRESS_LABEL, runAnalyze } from "../../../../src/crews/analyze/application/run-analyze.ts";
 import { SYNTHESIS_SYSTEM, buildSynthesisUser } from "../../../../src/crews/analyze/domain/harvest.ts";
 import {
   CACHE_LINES, NOTHING_INDEXED, PARALLEL_ABSENT, PARALLEL_ASKED, PARALLEL_REFUSED, RANKED_SUMMARIES, RAW_RUN_CALLS,
-  REBUILD_ASKED, REBUILD_NOT_ASKED, UNRANKED_L1, analyzeSetup, harvestOf,
+  REBUILD_ASKED, REBUILD_NOT_ASKED, UNRANKED_L1, analyzeSetup, harvestOf, withSmallHost,
 } from "./run-analyze.fixtures.ts";
 import { assertDefaultIndexing } from "./run-analyze.assertions.ts";
+import { assertMentions } from "../../../support/assertions/text.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 
 describe("runAnalyze", () => {
@@ -42,7 +43,7 @@ describe("runAnalyze", () => {
     deepStrictEqual(progress.released, [PROGRESS_LABEL]);
   });
 
-  it("synthesizes the harvest in one tool-less call, packages capped", async () => {
+  it("synthesizes the harvest in one tool-less call, every package read and the summaries capped", async () => {
     // Arrange
     const { index, llm, log, fqns, deps } = analyzeSetup(MAX_PACKAGES + 2);
     index.roots = 0;
@@ -53,7 +54,7 @@ describe("runAnalyze", () => {
 
     // Assert
     strictEqual(out, "the synthesis");
-    deepStrictEqual(index.calls.filter((c) => c.startsWith("packageSummary")).length, MAX_PACKAGES);
+    deepStrictEqual(index.calls.filter((c) => c.startsWith("packageSummary")).length, fqns.length);
     deepStrictEqual(llm.acts, [{
       prompt: buildSynthesisUser(harvestOf(fqns, MAX_PACKAGES)),
       request: { system: SYNTHESIS_SYSTEM, maxIterations: 1 },
@@ -74,6 +75,30 @@ describe("runAnalyze", () => {
 
     // Assert
     deepStrictEqual(index.calls.filter((c) => c.startsWith("packageSummary")), RANKED_SUMMARIES);
+  });
+
+  it("summarizes a small package with an entry module that nothing depends on", async () => {
+    // Arrange
+    const { index, deps } = analyzeSetup();
+    const host = withSmallHost(index);
+
+    // Act
+    const out = await runAnalyze({ raw: true }, deps);
+
+    // Assert
+    assertMentions(out, [`### \`${host}\``]);
+  });
+
+  it(`reads ${MAX_SCANNED_PACKAGES} packages at most, and says how many it left unread`, async () => {
+    // Arrange
+    const { index, log, deps } = analyzeSetup(MAX_SCANNED_PACKAGES + 3);
+
+    // Act
+    await runAnalyze({ raw: true }, deps);
+
+    // Assert
+    strictEqual(index.calls.filter((c) => c.startsWith("packageSummary")).length, MAX_SCANNED_PACKAGES);
+    assertMentions(log.lines.join("\n"), [`warn: analyze: 3 package(s) beyond the cap of ${MAX_SCANNED_PACKAGES} not read`]);
   });
 
   for (const c of CACHE_LINES) {
