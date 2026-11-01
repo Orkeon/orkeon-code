@@ -7,7 +7,8 @@ import { ok, strictEqual } from "node:assert";
 
 import { MAX_BRIEF_CHARS } from "../../../../src/shared/domain/agents/charter.ts";
 import { LEARN_INSTRUCTIONS, MAX_LEARN_PROMPT_CHARS, buildLearnPrompt, renderRowsTable } from "../../../../src/crews/dev-learn/application/learn-prompt.ts";
-import { HOST_WORDS, INPUT, LONG_ROW, MARKERS, PROBLEMS } from "./learn-prompt.fixtures.ts";
+import { BLOCK, BLOCK_TEXT, FULL_INPUT, HOST_WORDS, HUGE_BLOCK, INPUT, LONG_ROW, MARKERS, PROBLEMS } from "./learn-prompt.fixtures.ts";
+import { assertOwnerLinesCutFirst, assertOwnerLinesShown } from "./learn-prompt.assertions.ts";
 import { assertMentions, assertOmits } from "../../../support/assertions/text.ts";
 
 describe("LEARN_INSTRUCTIONS — one marker per behaviour", () => {
@@ -87,6 +88,39 @@ describe("buildLearnPrompt", () => {
 
     // Assert
     assertMentions(p, ["answer again", ...problems.map((problem) => `- ${problem}`)]);
+  });
+
+  it("renders the owner lines of each motif under the problems on the re-ask", () => {
+    // Arrange
+    const blocks = [BLOCK];
+
+    // Act
+    const p = buildLearnPrompt(INPUT, PROBLEMS, blocks);
+
+    // Assert
+    ok(p.endsWith(`- ${PROBLEMS[PROBLEMS.length - 1]}\n${BLOCK_TEXT}`), p.slice(-400));
+  });
+
+  it("cuts the owner lines first to stay within its budget", () => {
+    // Arrange
+    const blocks = [HUGE_BLOCK];
+
+    // Act
+    const p = buildLearnPrompt(INPUT, PROBLEMS, blocks);
+
+    // Assert
+    assertOwnerLinesCutFirst(p, PROBLEMS, HUGE_BLOCK);
+  });
+
+  it("cuts the last rows to keep the owner lines when the rows fill its budget", () => {
+    // Arrange
+    const blocks = [BLOCK];
+
+    // Act
+    const p = buildLearnPrompt(FULL_INPUT, PROBLEMS, blocks);
+
+    // Assert
+    assertOwnerLinesShown(p, BLOCK_TEXT);
   });
 
   it("shares its budget with the sub-agent briefs", () => {

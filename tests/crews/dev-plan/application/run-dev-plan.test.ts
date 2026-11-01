@@ -10,7 +10,7 @@ import { deepStrictEqual, ok, strictEqual } from "node:assert";
 import { runDevPlan } from "../../../../src/crews/dev-plan/application/run-dev-plan.ts";
 import { FakePrecedents, PRECEDENTS_SAMPLE } from "../../../support/doubles/fake-precedents.ts";
 import {
-  ANSWER, BLOCKED_END, CLEAR, CLEAR_SUMMARY, CODE, F1, F2, FEWER_BATCHES_TEXT, FOURTEEN_UNKNOWN_REUSE, INVENTORY, MAJOR_LINES,
+  ANSWER, B1S1, B2S1, BLOCKED_END, CLEAR, CLEAR_SUMMARY, CODE, F1, F2, FEWER_BATCHES_TEXT, FOURTEEN_UNKNOWN_REUSE, INVENTORY, MAJOR_LINES,
   NEXT_LINE, PJ, PLAN, REFUSALS, REVIEW_BLOCKING, REVIEW_MAJOR, STARTED_PLAN_TEXT, fixture, setup,
   withGoldenPlan, withThreeBatchPlan, written,
 } from "./run-dev-plan.fixtures.ts";
@@ -213,10 +213,10 @@ describe("runDevPlan — the planner's answer", () => {
     // Assert
     strictEqual(f.llm.extracts.length, 2);
     assertMentions(f.llm.extracts[1].prompt, [
-      "- B2 S1: docs/fr/commands.md does not exist",
-      "- B1 S1: src/shared/domain/memory-prune.ts exists: anchor it as existing, or by its ref",
+      `- ${B2S1}: docs/fr/commands.md does not exist`,
+      `- ${B1S1}: src/shared/domain/memory-prune.ts exists: anchor it as existing, or by its ref`,
     ]);
-    ok(text.startsWith("dev-plan: the plan was refused twice; nothing is written.\n  B1 S1: "), text);
+    ok(text.startsWith(`dev-plan: the plan was refused twice; nothing is written.\n  ${B1S1}: `), text);
     deepStrictEqual(written(f), []);
   });
 
@@ -232,7 +232,7 @@ describe("runDevPlan — the planner's answer", () => {
 
     // Assert
     strictEqual(f.llm.extracts.length, 2);
-    assertMentions(f.llm.extracts[1].prompt, ["- B2 S1: docs/fr/commands.md does not exist"]);
+    assertMentions(f.llm.extracts[1].prompt, [`- ${B2S1}: docs/fr/commands.md does not exist`]);
     assertListedOnce(listed, [`${WORKSPACE}/src/shared/domain`, `${WORKSPACE}/docs`, `${WORKSPACE}/docs/fr`]);
   });
 

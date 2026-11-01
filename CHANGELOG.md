@@ -83,6 +83,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   before asking, no longer asks a plan what code already checks (anchored paths, the order of batches sharing an
   anchor), reads a source file node first and settles a tie as Major in one condition. Agents without a shell are no
   longer told about scripts, and the shared reading rule asks for several known reads in one turn.
+- **`/dev-learn` proposes only what it has seen of the owner, and `/dev-plan` tells the model the limits it is held
+  to**: the learner was shown the owner files by path alone, yet asked to copy the lines it refined or replaced from
+  them, so a proposal could come with a patch removing a line the owner never had; the planner refused a plan on a
+  length or a batch count the model was never told, then asked again with problems such as `B1 S1` naming parts of an
+  answer that try never saw; its design-rules block named labels of the sheet and no field of the answer. A first
+  learner answer now only adds lines; code reads each owner, finds the lines its key term matches and the removed
+  lines it lacks, and asks again only when a new motif's subject is already there or a removed line is not, showing
+  those lines, where a motif may refine, replace or remove a line it sees (an answer refused on its shape still
+  spends the second try on that).
+  `removes` is a new motif status: it drops a wrong line with nothing added. A motif's `topic` is a slug of its cause
+  that reuses the slug of a refused motif, and each added line names what triggers it and the failure it prevents.
+  The plan's schema now says what each field holds wherever its name does not, with its limit, a problem names the batch by its name and the
+  step by its title, the rules block says when each rule does not apply and that applying one never adds an element, a
+  code file the inventory does not show is anchored `existing` only when the source names its path, and a
+  documentation step's test is named by the repository's documentation command, else its test command, followed by
+  what the step documents, so two documentation steps never share a name.
 - **The example settings widen the result cut of the graph and search tools** (`sub_graph`, `dependency_graph`,
   `codebase_search`, `symbol_detail`, `impact_analysis`, `flow_trace`, `codebase_map`, `package_summary`,
   `structural_search`) to 12 000 characters: their `truncated` and `cycles` fields come last in the JSON, so the

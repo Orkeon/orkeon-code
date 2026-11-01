@@ -10,6 +10,7 @@ import { FakeLogger } from "../../../support/doubles/fake-logger.ts";
 import { FakeSessionStore } from "../../../support/doubles/fake-session-store.ts";
 import { FakeShell } from "../../../support/doubles/fake-shell.ts";
 import { createConfigStore } from "../../../../src/shared/application/config-store.ts";
+import { motifLabel } from "../../../../src/crews/dev-learn/domain/learn-answer.ts";
 import { GIT_TOPLEVEL } from "../../../../src/shared/application/dev/resolve-work-folder.ts";
 import { ORKEON_IGNORE_PROBE, checkIgnoreCommand } from "../../../../src/shared/application/dev/load-dev-context.ts";
 import type { ProposalsFile } from "../../../../src/shared/domain/dev/learn-proposals.ts";
@@ -84,10 +85,60 @@ export const BACKLOG_LIST: readonly string[] = [
   "- keep: Each command returns a CommandView. (harness)",
 ];
 
-/** The fixture with an extraction keeping the first motif and dropping one. */
+/** The fixture with an extraction keeping the first motif, whose key term its owner lacks, and dropping one. */
 export function oneMotifProposed() {
   const f = setup();
-  f.llm.extractions = [{ motifs: [motif()], dropped: [{ title: "Vague", filter: "prevention", reason: "says nothing" }] }];
+  f.llm.extractions = [{
+    motifs: [motif({ key_term: "refusal test" })], dropped: [{ title: "Vague", filter: "prevention", reason: "says nothing" }],
+  }];
+  return f;
+}
+
+/** The line of CONTRIBUTING.md the key term 'refusal' finds, as the re-ask shows it. */
+export const OWNER_LINE = "CONTRIBUTING.md:3: A refusal is part of a command's contract.";
+
+/** The fixture whose first motif is new though its owner holds its key term, then refines the line found. */
+export function newMotifFoundInOwner() {
+  const f = setup();
+  f.llm.extractions = [
+    { motifs: [motif()] },
+    { motifs: [motif({ status: "refines", lines_removed: ["A refusal is part of a command's contract."] })] },
+  ];
+  return f;
+}
+
+/** How the problems name motif() as the first motif of an answer. */
+export const MOTIF_1 = motifLabel(1, "Refusal paths go untested");
+
+/** What the re-ask of newMotifFoundInOwner says: the problem naming the motif, then the owner lines found. */
+export const OWNER_LINES_REASK: readonly string[] = [
+  `- ${MOTIF_1}: 'refusal' is on 1 lines of CONTRIBUTING.md, shown below: keep status new only ` +
+    "for what they miss; else refine, replace or remove one of them, or drop the motif under novelty",
+  `\nOwner lines found for ${MOTIF_1} (CONTRIBUTING.md):\n${OWNER_LINE}`,
+];
+
+/** The fixture whose motif removes a line its owner lacks, then answers again the same. */
+export function removedLineNotInOwner() {
+  const f = setup();
+  f.llm.extractions = [{ motifs: [motif({ status: "replaces", lines_removed: ["A refusal is a contract."] })] }];
+  return f;
+}
+
+/** The problem the re-ask of removedLineNotInOwner carries, with the nearest line the key term found. */
+export const REMOVED_LINE_PROBLEM = `- ${MOTIF_1}: removed line not found in CONTRIBUTING.md: ` +
+  `"A refusal is a contract."; nearest: ${OWNER_LINE}`;
+
+/** The fixture whose motif's owner holds its key term, and whose re-ask answers a row it was never shown. */
+export function ownerLinesThenRefusedAnswer() {
+  const f = setup();
+  f.llm.extractions = [{ motifs: [motif()] }, { motifs: [motif({ status: "refines", rows: ["abc"] })] }];
+  return f;
+}
+
+/** The fixture whose motif's owner holds its key term, and whose re-ask does not parse. */
+export function ownerLinesThenBadAnswer() {
+  const f = setup();
+  f.llm.extractions = [{ motifs: [motif()] }, new Error("bad json")];
   return f;
 }
 

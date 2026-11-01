@@ -8,7 +8,7 @@ import { LIST_CAP, MAX_ANCHOR_FOLDERS, checkAnchorPaths } from "../../../../src/
 import type { AnchorListings } from "../../../../src/crews/dev-plan/application/anchor-paths.ts";
 import { FakeFiles } from "../../../support/doubles/fake-files.ts";
 import {
-  ANSWER, CREATE_ANCHORS_PRESENT_PROBLEMS, FORTY_FIVE_FOLDERS, answerWithExisting, repository,
+  ANSWER, B1S1, B2S1, CREATE_ANCHORS_PRESENT_PROBLEMS, FORTY_FIVE_FOLDERS, answerWithExisting, repository,
 } from "./anchor-paths.fixtures.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 
@@ -46,7 +46,7 @@ describe("checkAnchorPaths", () => {
     const problems = await checkAnchorPaths(files, ANSWER);
 
     // Assert
-    deepStrictEqual(problems, [`B2 S1: anchor "docs/fr/commands.md" not checked: its folder lists more than ${LIST_CAP} entries`]);
+    deepStrictEqual(problems, [`${B2S1}: anchor "docs/fr/commands.md" not checked: its folder lists more than ${LIST_CAP} entries`]);
   });
 
   it("lists each folder once, and a listing that throws reads as empty", async () => {
@@ -60,7 +60,7 @@ describe("checkAnchorPaths", () => {
     const problems = await checkAnchorPaths(files, ANSWER);
 
     // Assert
-    deepStrictEqual(problems, ["B2 S1: docs/fr/commands.md does not exist"]);
+    deepStrictEqual(problems, [`${B2S1}: docs/fr/commands.md does not exist`]);
     deepStrictEqual(files.listed, [`${WORKSPACE}/src/shared/domain`, `${WORKSPACE}/docs`, `${WORKSPACE}/docs/fr`]);
   });
 
@@ -73,7 +73,7 @@ describe("checkAnchorPaths", () => {
     const problems = await checkAnchorPaths(files, colon);
 
     // Assert
-    deepStrictEqual(problems, ['B1 S1: anchor path "docs/commands.md:12" holds ":"']);
+    deepStrictEqual(problems, [`${B1S1}: anchor path "docs/commands.md:12" holds ":"`]);
     deepStrictEqual(files.listed, []);
   });
 
@@ -105,6 +105,6 @@ describe("checkAnchorPaths", () => {
     ok(files.listed.length === MAX_ANCHOR_FOLDERS, `${files.listed.length}`);
     strictEqual(problems.length, 45);
     strictEqual(problems.filter((p) => p.endsWith("does not exist")).length, MAX_ANCHOR_FOLDERS);
-    deepStrictEqual(problems.slice(MAX_ANCHOR_FOLDERS), [40, 41, 42, 43, 44].map((i) => `B1 S1: anchor "d${i}/f.md" not checked: more than 40 folders`));
+    deepStrictEqual(problems.slice(MAX_ANCHOR_FOLDERS), [40, 41, 42, 43, 44].map((i) => `${B1S1}: anchor "d${i}/f.md" not checked: more than 40 folders`));
   });
 });

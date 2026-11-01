@@ -2,10 +2,16 @@
 import { readFileSync } from "node:fs";
 
 import { FakeFiles } from "../../../support/doubles/fake-files.ts";
+import { stepLabel } from "../../../../src/crews/dev-plan/domain/plan-answer.ts";
 import type { PlanAnswer } from "../../../../src/crews/dev-plan/domain/plan-answer.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 
 export const ANSWER = JSON.parse(readFileSync(new URL("../../../fixtures/dev/plan/answer.json", import.meta.url), "utf8")) as PlanAnswer;
+
+/** The labels the golden answer's steps get in a problem, built as the answer check builds them. */
+export const B1S1 = stepLabel(ANSWER.batches[0], 0, 0);
+const B1S2 = stepLabel(ANSWER.batches[0], 0, 1);
+export const B2S1 = stepLabel(ANSWER.batches[1], 1, 0);
 
 /** The repository the golden answer is right against (every folder listed in `listed`). */
 export function repository(): FakeFiles {
@@ -32,9 +38,9 @@ export function answerWithExisting(paths: readonly string[]): PlanAnswer {
 export const FORTY_FIVE_FOLDERS: readonly string[] = Array.from({ length: 45 }, (_, i) => `d${i}/f.md`);
 
 export const CREATE_ANCHORS_PRESENT_PROBLEMS: readonly string[] = [
-  "B1 S1: src/shared/domain/memory-prune.test.ts exists: anchor it as existing, or by its ref",
-  "B1 S1: src/shared/domain/memory-prune.ts exists: anchor it as existing, or by its ref",
-  "B1 S2: src/shared/domain/memory-prune.test.ts exists: anchor it as existing, or by its ref",
-  "B1 S2: src/shared/domain/memory-prune.ts exists: anchor it as existing, or by its ref",
-  "B2 S1: docs/fr/commands.md does not exist",
+  `${B1S1}: src/shared/domain/memory-prune.test.ts exists: anchor it as existing, or by its ref`,
+  `${B1S1}: src/shared/domain/memory-prune.ts exists: anchor it as existing, or by its ref`,
+  `${B1S2}: src/shared/domain/memory-prune.test.ts exists: anchor it as existing, or by its ref`,
+  `${B1S2}: src/shared/domain/memory-prune.ts exists: anchor it as existing, or by its ref`,
+  `${B2S1}: docs/fr/commands.md does not exist`,
 ];

@@ -8,10 +8,10 @@ export function assertEachInItsFamily(rules: readonly DesignRule[]): void {
   for (const r of rules) strictEqual(r.family, r.id.split("-")[0], `${r.id}: family ${r.family}`);
 }
 
-/** Each rule fills its behaviour, appliesWhen and records, and keeps its behaviour within 200 characters. */
+/** Each rule fills its behaviour and appliesWhen, and keeps its behaviour within 200 characters. */
 export function assertFieldsFilled(rules: readonly DesignRule[]): void {
   for (const r of rules) {
-    for (const v of [r.behaviour, r.appliesWhen, r.records]) ok(v.trim() !== "", `${r.id}: an empty field`);
+    for (const v of [r.behaviour, r.appliesWhen]) ok(v.trim() !== "", `${r.id}: an empty field`);
     ok(r.behaviour.length <= 200, `${r.id}: behaviour is ${r.behaviour.length} characters`);
   }
 }

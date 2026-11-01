@@ -4,6 +4,7 @@
 // listings only and writes nothing. Past the cap, or in a folder whose listing the entry cap
 // cut short, an existing anchor it cannot see is refused as not checked, never let through. Its problems join the answer's, for the one re-ask.
 import type { Files } from "../../../shared/application/ports.ts";
+import { stepLabel } from "../domain/plan-answer.ts";
 import type { AnchorRef, PlanAnswer } from "../domain/plan-answer.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
@@ -21,7 +22,8 @@ const folderOf = (path: string): string => {
 const nameOf = (path: string): string => path.slice(path.lastIndexOf("/") + 1);
 
 /**
- * `Bk Sj: <path> does not exist` / `Bk Sj: <path> exists: …` / `Bk Sj: anchor "<path>" not checked: …`,
+ * `<step>: <path> does not exist` / `<step>: <path> exists: …` / `<step>: anchor "<path>" not checked: …`, the step
+ * labelled as the answer check labels it (`B1 "<name>" S2 "<title>"`),
  * each once, in plan order. `listings` carries the folders already listed in this run, and gains the new ones.
  */
 export async function checkAnchorPaths(
@@ -49,7 +51,7 @@ export async function checkAnchorPaths(
       for (const a of anchors) {
         if ((a.kind !== "create" && a.kind !== "existing") || a.path === undefined) continue;
         const path = a.path.replace(/^\.\//, "");
-        const at = `B${k + 1} S${j + 1}`;
+        const at = stepLabel(batch, k, j);
         let problem: string | null = null;
         if (path.includes(":")) {
           problem = `${at}: anchor path "${path}" holds ":"`;

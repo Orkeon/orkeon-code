@@ -59,11 +59,11 @@ export interface PlanCheckContext {
 
 export const MAX_BATCHES = 8;
 const MAX_PROBLEMS = 60;
-const MAX_TITLE = 100;
-const MAX_TEST_NAME = 120;
-const MAX_SIGNATURE = 200;
-const MAX_FEATURE = 80;
-const MIN_NA_REASON = 10;
+export const MAX_TITLE = 100;
+export const MAX_TEST_NAME = 120;
+export const MAX_SIGNATURE = 200;
+export const MAX_FEATURE = 80;
+export const MIN_NA_REASON = 10;
 const BUILD_STEP = "Build and tests";
 const LEVELS: readonly TestLevel[] = ["unit", "integration", "pinned"];
 const LAYERS: readonly ElementLayer[] = ["domain", "application", "adapter", "test"];
@@ -78,61 +78,98 @@ const OWNER_PATH = /:\d|\//;
 
 const STRING = { type: "string" };
 const STRINGS = { type: "array", items: STRING };
-const objectOf = (properties: Record<string, object>): object =>
-  ({ type: "object", properties, required: Object.keys(properties) });
+/** A field of the schema with what it holds, in a few words: the runtime prints the schema whole after the prompt,
+ *  so a field whose name says what it holds goes without one. */
+const said = (schema: object, description: string): object => ({ ...schema, description });
+const text = (description: string): object => said(STRING, description);
+const texts = (description: string): object => said(STRINGS, description);
+const listOf = (items: object, description?: string): object =>
+  description === undefined ? { type: "array", items } : said({ type: "array", items }, description);
+const objectOf = (properties: Record<string, object>, description?: string): object => {
+  const schema = { type: "object", properties, required: Object.keys(properties) };
+  return description === undefined ? schema : said(schema, description);
+};
+/** An anchor; its fields are described once, on the anchors object, as the schema repeats it per list. */
 const ANCHOR = {
   type: "object",
-  properties: { kind: { type: "string", enum: [...KINDS] }, ref: STRING, path: STRING, member: STRING },
+  properties: {
+    kind: { type: "string", enum: [...KINDS] },
+    ref: STRING,
+    path: STRING,
+    member: STRING,
+  },
   required: ["kind"],
 };
-const ANCHORS = { type: "array", items: ANCHOR };
+const ANCHORS = listOf(ANCHOR);
 
 export const PLAN_ANSWER_SCHEMA: object = objectOf({
-  feature: STRING,
-  layers: STRINGS,
-  reuse: STRINGS,
+  feature: text(`Max ${MAX_FEATURE} chars`),
+  layers: texts("Folders touched"),
+  reuse: texts("I<n> refs alone"),
   outOfScope: STRINGS,
-  assumptions: STRINGS,
-  nonApplicable: { type: "array", items: objectOf({ id: { type: "string", enum: [...DESIGN_RULE_IDS] }, reason: STRING }) },
-  traceability: { type: "array", items: objectOf({ id: STRING, owners: STRINGS }) },
-  design: {
-    type: "array",
-    items: objectOf({ ids: STRINGS, aggregate: STRING, invariant: STRING, consistency: STRING, batch: { type: "integer" } }),
-  },
-  batches: {
-    type: "array",
-    items: objectOf({
-      name: STRING, intent: STRING, reason: STRING,
-      documentation: { type: "boolean" },
-      dependsOn: STRINGS,
-      design: objectOf({
-        appliedRules: STRINGS, aggregate: STRING, invariants: STRING, consistency: STRING, events: STRING, accessCost: STRING,
-      }),
-      decisions: STRINGS,
-      declarative: STRINGS,
-      steps: {
-        type: "array",
-        items: objectOf({
-          title: STRING,
-          tests: {
-            type: "array",
-            items: objectOf({
-              name: STRING, level: { type: "string", enum: [...LEVELS] }, project: STRING, ids: STRINGS, covers: STRINGS,
-            }),
-          },
-          note: STRING,
-          anchors: objectOf({ tests: ANCHORS, doubles: ANCHORS, production: ANCHORS }),
-        }),
-      },
-      buildScope: STRING,
-      testPolicy: objectOf({ fast: STRING, integration: STRING, notRun: STRING }),
-      elements: {
-        type: "array",
-        items: objectOf({ layer: { type: "string", enum: [...LAYERS] }, signature: STRING, rule: STRING }),
-      },
-    }),
-  },
-});
+  assumptions: texts("Assumed, never an open question answered"),
+  nonApplicable: listOf(objectOf({
+    id: { type: "string", enum: [...DESIGN_RULE_IDS] },
+    reason: text(`Stands alone, min ${MIN_NA_REASON} chars`),
+  }), "Rules no batch applies"),
+  traceability: listOf(objectOf({
+    id: STRING,
+    owners: texts("Type or member names, never a path"),
+  }), "One row per source id"),
+  design: listOf(objectOf({
+    ids: texts("Source UC/BR/CH ids"),
+    aggregate: STRING,
+    invariant: STRING,
+    consistency: STRING,
+    batch: said({ type: "integer" }, "1-based batch"),
+  })),
+  batches: listOf(objectOf({
+    name: STRING,
+    intent: text("What it delivers"),
+    reason: text("Why it is cut here"),
+    documentation: said({ type: "boolean" }, "Docs alone, no code"),
+    dependsOn: texts("F<n> of earlier batches, n its place from 1"),
+    design: objectOf({
+      appliedRules: STRINGS,
+      aggregate: STRING,
+      invariants: STRING,
+      consistency: STRING,
+      events: STRING,
+      accessCost: text("Storage or network reached"),
+    }, "All written; a sentence if none applies"),
+    decisions: texts("Choices made, why"),
+    declarative: texts("Pure declarations, no test of their own"),
+    steps: listOf(objectOf({
+      title: text(`Behaviour, max ${MAX_TITLE} chars`),
+      tests: listOf(objectOf({
+        name: text(`As the repository names tests, unique, max ${MAX_TEST_NAME} chars`),
+        level: said({ type: "string", enum: [...LEVELS] }, "pinned: one the brief pins"),
+        project: STRING,
+        ids: texts("UC/BR/CH ids it proves"),
+        covers: texts("U<n> rows characterised"),
+      })),
+      note: text("Empty or 2 lines: merged cycle, container"),
+      anchors: objectOf({
+        tests: ANCHORS,
+        doubles: ANCHORS,
+        production: ANCHORS,
+      }, "Files filled or created. kind ref: a shown entry, I<n> in ref; create: a new file, existing: an unindexed one, " +
+        "both by relative path; member: the one filled, omitted if new"),
+    }), "Behaviour steps; code adds the build"),
+    buildScope: text("Scope of the build step code adds"),
+    testPolicy: objectOf({
+      fast: STRING,
+      integration: STRING,
+      notRun: text("Not run, why"),
+    }, "Sheet test policy, a sentence each"),
+    elements: listOf(objectOf({
+      layer: { type: "string", enum: [...LAYERS] },
+      signature: text(`Max ${MAX_SIGNATURE} chars, never a body`),
+      rule: text("What it does or gains"),
+    })),
+  }), `At most ${MAX_BATCHES}, cut by behaviour`),
+}, "Text fields: one line (a note two), no |; no backtick in a test name, project, path, member or owner; " +
+  "no line opens with #, TDD:, |, - [ or >");
 
 // ---- rule 1: the shape --------------------------------------------------------------
 
@@ -388,9 +425,25 @@ function trimmed(a: PlanAnswer): PlanAnswer {
 type CellKind = "code" | "prose" | "note";
 interface Cell { where: string; field: string; value: string; kind: CellKind }
 
-const B = (k: number): string => `B${k + 1}`;
-const BS = (k: number, j: number): string => `B${k + 1} S${j + 1}`;
-const BST = (k: number, j: number, m: number): string => `B${k + 1} S${j + 1} T${m + 1}`;
+/** The longest batch name or step title a problem's label quotes: the re-ask names what the model wrote,
+ *  not only an index of an answer it no longer sees. */
+export const LABEL_QUOTE = 60;
+const quoted = (text: string): string => {
+  const one = text.replace(/\s+/g, " ").trim();
+  if (one === "") return "";
+  const chars = Array.from(one);
+  return ` "${chars.length > LABEL_QUOTE ? `${chars.slice(0, LABEL_QUOTE).join("")}…` : one}"`;
+};
+/** `B1 "<name>"`, the name left out when empty. */
+const batchLabel = (b: PlanBatch, k: number): string => `B${k + 1}${quoted(b.name)}`;
+/** `B1 "<name>" S2 "<title>"`; the anchor path check labels its problems the same way. */
+export const stepLabel = (b: PlanBatch, k: number, j: number): string => `${batchLabel(b, k)} S${j + 1}${quoted(b.steps[j]?.title ?? "")}`;
+const testLabel = (b: PlanBatch, k: number, j: number, m: number): string => `${stepLabel(b, k, j)} T${m + 1}`;
+/** `design row 2 (<first id>)`, the id left out when the row has none. */
+const designRow = (d: PlanAnswer["design"][number], i: number): string => {
+  const first = d.ids.find((id) => id !== "");
+  return `design row ${i + 1}${first === undefined ? "" : ` (${first})`}`;
+};
 
 function cellsOf(a: PlanAnswer): Cell[] {
   const cells: Cell[] = [];
@@ -402,13 +455,13 @@ function cellsOf(a: PlanAnswer): Cell[] {
   a.nonApplicable.forEach((n, i) => add("plan", `nonApplicable[${i}].reason`, n.reason, "prose"));
   a.traceability.forEach((t, i) => t.owners.forEach((o, j) => add("plan", `traceability[${i}].owners[${j}]`, o, "code")));
   a.design.forEach((d, i) => {
-    const where = `design row ${i + 1}`;
+    const where = designRow(d, i);
     add(where, "aggregate", d.aggregate, "code");
     add(where, "invariant", d.invariant, "prose");
     add(where, "consistency", d.consistency, "prose");
   });
   a.batches.forEach((b, k) => {
-    const where = B(k);
+    const where = batchLabel(b, k);
     for (const f of ["name", "intent", "reason", "buildScope"] as const) add(where, f, b[f], "prose");
     for (const f of ["aggregate", "invariants", "consistency", "events", "accessCost"] as const) add(where, `design.${f}`, b.design[f], "prose");
     for (const f of ["fast", "integration", "notRun"] as const) add(where, `testPolicy.${f}`, b.testPolicy[f], "prose");
@@ -419,7 +472,7 @@ function cellsOf(a: PlanAnswer): Cell[] {
       add(where, `elements[${i}].rule`, e.rule, "prose");
     });
     b.steps.forEach((s, j) => {
-      const at = BS(k, j);
+      const at = stepLabel(b, k, j);
       add(at, "title", s.title, "prose");
       add(at, "note", s.note, "note");
       for (const column of ["tests", "doubles", "production"] as const) {
@@ -429,8 +482,8 @@ function cellsOf(a: PlanAnswer): Cell[] {
         });
       }
       s.tests.forEach((t, m) => {
-        add(BST(k, j, m), "name", t.name, "code");
-        add(BST(k, j, m), "project", t.project, "code");
+        add(testLabel(b, k, j, m), "name", t.name, "code");
+        add(testLabel(b, k, j, m), "project", t.project, "code");
       });
     });
   });
@@ -488,7 +541,7 @@ function stepProblems(b: PlanBatch, k: number, ctx: PlanCheckContext, inventoryP
   const out: string[] = [];
   const titles = new Map<string, number>();
   b.steps.forEach((s, j) => {
-    const at = BS(k, j);
+    const at = stepLabel(b, k, j);
     // 5: the title.
     if (s.title === "") out.push(`${at}: the title is empty`);
     else if (s.title.length > MAX_TITLE) out.push(`${at}: the title is longer than ${MAX_TITLE} characters`);
@@ -499,7 +552,7 @@ function stepProblems(b: PlanBatch, k: number, ctx: PlanCheckContext, inventoryP
     // 6, 7: the tests.
     if (s.tests.length === 0) out.push(`${at}: no test`);
     s.tests.forEach((t, m) => {
-      const here = BST(k, j, m);
+      const here = testLabel(b, k, j, m);
       if (t.name === "") out.push(`${here}: the name is empty`);
       else if (t.name.length > MAX_TEST_NAME) out.push(`${here}: the name is longer than ${MAX_TEST_NAME} characters`);
       if (t.project === "") out.push(`${here}: the project is empty`);
@@ -526,7 +579,7 @@ function stepProblems(b: PlanBatch, k: number, ctx: PlanCheckContext, inventoryP
 
 function batchProblems(b: PlanBatch, k: number, ctx: PlanCheckContext, inventoryPaths: ReadonlySet<string>): string[] {
   const out: string[] = [];
-  const at = B(k);
+  const at = batchLabel(b, k);
   // 3: the fields a sheet prints.
   const fields: Array<[string, string]> = [
     ["name", b.name], ["intent", b.intent], ["reason", b.reason], ["buildScope", b.buildScope],
@@ -613,7 +666,7 @@ function sharedAnchorProblems(a: PlanAnswer, ctx: PlanCheckContext): string[] {
   for (let k = 0; k < paths.length; k++) {
     for (let m = k + 1; m < paths.length; m++) {
       const shared = [...paths[k]].filter((p) => paths[m].has(p)).sort();
-      if (shared.length > 0 && !before[m].has(k)) out.push(`${B(k)} and ${B(m)} share ${shared[0]} and neither depends on the other`);
+      if (shared.length > 0 && !before[m].has(k)) out.push(`${batchLabel(a.batches[k], k)} and ${batchLabel(a.batches[m], m)} share ${shared[0]} and neither depends on the other`);
     }
   }
   return out;
@@ -663,8 +716,8 @@ export function checkPlanAnswer(value: unknown, ctx: PlanCheckContext): Checked<
   a.batches.forEach((b, k) => b.steps.forEach((s, j) => s.tests.forEach((t, m) => {
     if (t.name === "") return;
     const first = names.get(t.name);
-    if (first !== undefined) problems.push(`${BST(k, j, m)}: the name repeats ${first}`);
-    else names.set(t.name, BST(k, j, m));
+    if (first !== undefined) problems.push(`${testLabel(b, k, j, m)}: the name repeats ${first}`);
+    else names.set(t.name, testLabel(b, k, j, m));
   })));
   const inventoryPaths = new Set(ctx.refPaths.values());
   a.batches.forEach((b, k) => problems.push(...batchProblems(b, k, ctx, inventoryPaths)));
@@ -675,8 +728,8 @@ export function checkPlanAnswer(value: unknown, ctx: PlanCheckContext): Checked<
   for (const ref of a.reuse) if (!ctx.shownRefs.has(ref)) problems.push(`reuse: ${ref} is not an inventory entry shown`);
   // 19: design rows.
   a.design.forEach((d, i) => {
-    if (d.batch < 1 || d.batch > a.batches.length) problems.push(`design row ${i + 1}: batch ${d.batch} is not a batch of the plan`);
-    for (const id of d.ids) if (!ctx.sourceIds.includes(id)) problems.push(`design row ${i + 1}: ${id} is not an id of the source`);
+    if (d.batch < 1 || d.batch > a.batches.length) problems.push(`${designRow(d, i)}: batch ${d.batch} is not a batch of the plan`);
+    for (const id of d.ids) if (!ctx.sourceIds.includes(id)) problems.push(`${designRow(d, i)}: ${id} is not an id of the source`);
   });
   problems.push(...changeProblems(a, ctx));
   if (problems.length > 0) return { ok: false, problems: capped(problems) };

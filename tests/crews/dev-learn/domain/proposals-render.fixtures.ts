@@ -95,3 +95,9 @@ export const CUT_CASES: readonly CutCase[] = [
   { name: "keeps a text of exactly max characters", text: "abcdef", max: 6, escaped: "abcdef" },
   { name: "cuts at max characters with an ellipsis", text: "abcdefg", max: 6, escaped: "abcde…" },
 ];
+
+/** FILE whose Test axis holds a second motif, 77b0d2aa, removing a line and adding none. */
+export function fileWithRemovesMotif(): ProposalsFile {
+  const second = { ...TEST_AXIS.motifs[0], id: "77b0d2aa", status: "removes" as const, linesRemoved: ["Old line."], linesAdded: [] };
+  return { ...FILE, axes: [{ ...TEST_AXIS, motifs: [TEST_AXIS.motifs[0], second] }] };
+}

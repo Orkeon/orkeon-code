@@ -7,8 +7,10 @@ import { ok, strictEqual } from "node:assert";
 
 import { DESIGN_RULE_IDS } from "../../../../src/shared/domain/dev/design-rules.ts";
 import { MAX_PLAN_PROMPT_CHARS, PLAN_INSTRUCTIONS, SOURCE_CHARS, buildPlanPrompt } from "../../../../src/crews/dev-plan/application/plan-prompt.ts";
-import { BRIEF, INPUT, INVENTORY_200, MARK, PLAN_MARKERS, SIXTY_ONE_PROBLEMS, hostVocabulary } from "./plan-prompt.fixtures.ts";
-import { assertDesignRuleLines, assertNoHostWord } from "./plan-prompt.assertions.ts";
+import {
+  BRIEF, INPUT, INVENTORY_200, MARK, PLAN_MARKERS, RULES_HEAD_MARKERS, RULE_CLOSE_CASES, SIXTY_ONE_PROBLEMS, hostVocabulary, rulesBlockOf,
+} from "./plan-prompt.fixtures.ts";
+import { assertDesignRuleLines, assertNoHostWord, assertRuleLineCloses } from "./plan-prompt.assertions.ts";
 import { assertMentions, assertOmits } from "../../../support/assertions/text.ts";
 
 describe("PLAN_INSTRUCTIONS — one marker per behaviour", () => {
@@ -46,6 +48,34 @@ describe("PLAN_INSTRUCTIONS — one marker per behaviour", () => {
     // Assert
     assertNoHostWord(text, vocabulary);
   });
+});
+
+describe("buildPlanPrompt — the design-rules block", () => {
+  for (const [behaviour, marker] of RULES_HEAD_MARKERS) {
+    it(behaviour, () => {
+      // Arrange
+      const input = INPUT;
+
+      // Act
+      const block = rulesBlockOf(buildPlanPrompt(input, []));
+
+      // Assert
+      assertMentions(block, [marker]);
+    });
+  }
+
+  for (const c of RULE_CLOSE_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { rule, close } = c;
+
+      // Act
+      const text = buildPlanPrompt(INPUT, []);
+
+      // Assert
+      assertRuleLineCloses(text, rule, close);
+    });
+  }
 });
 
 describe("buildPlanPrompt", () => {

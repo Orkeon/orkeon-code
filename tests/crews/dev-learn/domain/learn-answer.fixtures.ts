@@ -1,6 +1,8 @@
 // The answers checkLearnAnswer is tested on: a valid motif on the wire, the rows shown to the model, and one case per
 // refusal of the design's table.
-import { checkLearnAnswer } from "../../../../src/crews/dev-learn/domain/learn-answer.ts";
+import {
+  LABEL_TITLE_CHARS, MAX_LINES_PER_MOTIF, MAX_TOPIC_CHARS, checkLearnAnswer, motifLabel,
+} from "../../../../src/crews/dev-learn/domain/learn-answer.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 
 export const SHOWN = new Set(["c936075d95", "b983faad38", "3a59a45e69", "7b3b561c93"]);
@@ -62,37 +64,54 @@ export interface MotifCase {
   problem: string;
 }
 
+/** How the problems name motif() as the first motif of an answer. */
+export const AT = motifLabel(1, "Refusal paths go untested");
+/** What a motif of status new, refines or replaces must hold, and what a removes motif must. */
+const ADDS = `1 to ${MAX_LINES_PER_MOTIF} lines added and at most ${MAX_LINES_PER_MOTIF} removed`;
+const REMOVES = `removes takes out 1 to ${MAX_LINES_PER_MOTIF} lines and adds none`;
+const SIX = ["a", "b", "c", "d", "e", "f"];
+
 /** One motif refused, by the field that breaks it. */
 export const MOTIF_CASES: readonly MotifCase[] = [
   { name: "empty title", over: { title: "  " }, problem: "motif 1: title must be 1 to 80 characters" },
-  { name: "title over 80", over: { title: "x".repeat(81) }, problem: "motif 1: title must be 1 to 80 characters" },
-  { name: "topic not a slug", over: { topic: "Refusal Tests" }, problem: "motif 1: topic 'Refusal Tests' is not a kebab slug of at most 60 characters" },
-  { name: "topic over 60", over: { topic: "a".repeat(61) }, problem: `motif 1: topic '${"a".repeat(61)}' is not a kebab slug of at most 60 characters` },
-  { name: "rows empty", over: { rows: [] }, problem: "motif 1: rows is empty" },
-  { name: "row not shown", over: { rows: ["abc"] }, problem: "motif 1: row 'abc' is not one of the rows given" },
-  { name: "row twice", over: { rows: ["c936075d95", "c936075d95"] }, problem: "motif 1: row 'c936075d95' is listed twice" },
-  { name: "empty preventive line", over: { preventive_line: "" }, problem: "motif 1: preventive_line is empty" },
-  { name: "empty novelty", over: { novelty: " " }, problem: "motif 1: novelty is empty" },
-  { name: "empty key term", over: { key_term: "" }, problem: "motif 1: key_term is empty" },
-  { name: "absolute owner path", over: { owner_path: `${WORKSPACE}/CONTRIBUTING.md` }, problem: `motif 1: owner_path '${WORKSPACE}/CONTRIBUTING.md' is not a relative path` },
-  { name: "owner path with ..", over: { owner_path: "docs/../x.md" }, problem: "motif 1: owner_path 'docs/../x.md' is not a relative path" },
-  { name: "owner path with a backslash", over: { owner_path: "docs\\x.md" }, problem: "motif 1: owner_path 'docs\\x.md' is not a relative path" },
-  { name: "owner path with an edge space", over: { owner_path: " x.md" }, problem: "motif 1: owner_path ' x.md' is not a relative path" },
+  { name: "title over 80", over: { title: "x".repeat(81) }, problem: `${motifLabel(1, "x".repeat(81))}: title must be 1 to 80 characters` },
+  { name: "topic not a slug", over: { topic: "Refusal Tests" }, problem: `${AT}: topic 'Refusal Tests' is not a kebab slug of at most ${MAX_TOPIC_CHARS} characters` },
+  { name: "topic over its limit", over: { topic: "a".repeat(MAX_TOPIC_CHARS + 1) }, problem: `${AT}: topic '${"a".repeat(MAX_TOPIC_CHARS + 1)}' is not a kebab slug of at most ${MAX_TOPIC_CHARS} characters` },
+  { name: "rows empty", over: { rows: [] }, problem: `${AT}: rows is empty` },
+  { name: "row not shown", over: { rows: ["abc"] }, problem: `${AT}: row 'abc' is not one of the rows given` },
+  { name: "row twice", over: { rows: ["c936075d95", "c936075d95"] }, problem: `${AT}: row 'c936075d95' is listed twice` },
+  { name: "empty preventive line", over: { preventive_line: "" }, problem: `${AT}: preventive_line is empty` },
+  { name: "empty novelty", over: { novelty: " " }, problem: `${AT}: novelty is empty` },
+  { name: "empty key term", over: { key_term: "" }, problem: `${AT}: key_term is empty` },
+  { name: "absolute owner path", over: { owner_path: `${WORKSPACE}/CONTRIBUTING.md` }, problem: `${AT}: owner_path '${WORKSPACE}/CONTRIBUTING.md' is not a relative path` },
+  { name: "owner path with ..", over: { owner_path: "docs/../x.md" }, problem: `${AT}: owner_path 'docs/../x.md' is not a relative path` },
+  { name: "owner path with a backslash", over: { owner_path: "docs\\x.md" }, problem: `${AT}: owner_path 'docs\\x.md' is not a relative path` },
+  { name: "owner path with an edge space", over: { owner_path: " x.md" }, problem: `${AT}: owner_path ' x.md' is not a relative path` },
   {
     name: "repository owner under .claude/", over: { owner_path: ".claude/rules/x.md" },
-    problem: "motif 1: .claude/ is the harness's deployed copy: name the orkeon-workshop file with owner_kind harness",
+    problem: `${AT}: .claude/ is the harness's deployed copy: name the orkeon-workshop file with owner_kind harness`,
   },
   {
     name: "harness owner outside the packs", over: { owner_kind: "harness", owner_path: "CONTRIBUTING.md" },
-    problem: "motif 1: a harness owner is a file of the orkeon-workshop repository under .devcontainer/harness/packs/",
+    problem: `${AT}: a harness owner is a file of the orkeon-workshop repository under .devcontainer/harness/packs/`,
   },
-  { name: "no line added", over: { lines_added: [] }, problem: "motif 1: 1 to 5 lines added and at most 5 removed" },
-  { name: "six lines added", over: { lines_added: ["a", "b", "c", "d", "e", "f"] }, problem: "motif 1: 1 to 5 lines added and at most 5 removed" },
-  { name: "six lines removed", over: { lines_removed: ["a", "b", "c", "d", "e", "f"] }, problem: "motif 1: 1 to 5 lines added and at most 5 removed" },
-  { name: "a line over 300", over: { lines_added: ["x".repeat(301)] }, problem: "motif 1: each line is one line of at most 300 characters" },
-  { name: "a line holding a break", over: { lines_added: ["one\ntwo"] }, problem: "motif 1: each line is one line of at most 300 characters" },
-  { name: "refines with no removed line", over: { status: "refines" }, problem: "motif 1: refines needs the line it removes" },
-  { name: "replaces with no removed line", over: { status: "replaces", lines_removed: [] }, problem: "motif 1: replaces needs the line it removes" },
+  { name: "no line added", over: { lines_added: [] }, problem: `${AT}: ${ADDS}` },
+  { name: "six lines added", over: { lines_added: SIX }, problem: `${AT}: ${ADDS}` },
+  { name: "six lines removed", over: { lines_removed: SIX }, problem: `${AT}: ${ADDS}` },
+  { name: "removes with six lines removed", over: { status: "removes", lines_added: [], lines_removed: SIX }, problem: `${AT}: ${REMOVES}` },
+  { name: "a line over 300", over: { lines_added: ["x".repeat(301)] }, problem: `${AT}: each line is one line of at most 300 characters` },
+  { name: "a line holding a break", over: { lines_added: ["one\ntwo"] }, problem: `${AT}: each line is one line of at most 300 characters` },
+  { name: "refines with no removed line", over: { status: "refines" }, problem: `${AT}: refines needs the line it removes` },
+  { name: "replaces with no removed line", over: { status: "replaces", lines_removed: [] }, problem: `${AT}: replaces needs the line it removes` },
+  { name: "an unknown status", over: { status: "drops" }, problem: `${AT}: status must be new, refines, replaces or removes` },
+  {
+    name: "removes with a line added", over: { status: "removes", lines_removed: ["Old line."] },
+    problem: `${AT}: ${REMOVES}`,
+  },
+  {
+    name: "removes with no removed line", over: { status: "removes", lines_added: [], lines_removed: [" "] },
+    problem: `${AT}: ${REMOVES}`,
+  },
 ];
 
 /** Two motifs on the same rows, the second listing them in reverse order. */
@@ -104,4 +123,25 @@ export const SAME_ROWS_ANSWER = {
 export const THREE_BAD_MOTIFS = { motifs: [motif(), motif({ title: "", key_term: "" }), motif()] };
 
 /** The kinds, statuses and owner kinds the schema names, each a quoted word of it. */
-export const SCHEMA_WORDS: readonly string[] = ["test", "analyzer", "architecture-test", "gate", "rule", "new", "refines", "replaces", "repository", "harness"];
+export const SCHEMA_WORDS: readonly string[] = [
+  "test", "analyzer", "architecture-test", "gate", "rule", "new", "refines", "replaces", "removes", "repository", "harness",
+];
+
+/** A motif that takes a wrong line out of its owner and adds none. */
+export const REMOVES_ANSWER = { motifs: [motif({ status: "removes", lines_added: [], lines_removed: ["Old line."] })] };
+
+export interface LabelCase {
+  name: string;
+  title: string;
+  label: string;
+}
+
+/** How a problem names the second motif of an answer, by its title. */
+export const LABEL_CASES: readonly LabelCase[] = [
+  { name: "names a motif by its number and its title", title: "Refusal paths go untested", label: 'motif 2 "Refusal paths go untested"' },
+  { name: "names a motif without a title by its number alone", title: " ", label: "motif 2" },
+  {
+    name: `cuts a title at ${LABEL_TITLE_CHARS} characters then an ellipsis`, title: "t".repeat(LABEL_TITLE_CHARS + 5),
+    label: `motif 2 "${"t".repeat(LABEL_TITLE_CHARS)}…"`,
+  },
+];

@@ -3,12 +3,18 @@
 // of what is wrong with it, so the crew can ask once more. Pure, no IO.
 import type { Checked } from "../../../shared/domain/agents/charter.ts";
 import type { CheckKind, MotifStatus, OwnerKind } from "../../../shared/domain/dev/learn-proposals.ts";
-import { TOPIC_PATTERN } from "../../../shared/domain/shared-memory/refused.ts";
+import { MAX_TOPIC_CHARS, TOPIC_PATTERN } from "../../../shared/domain/shared-memory/refused.ts";
+
+export { MAX_TOPIC_CHARS };
 
 export const MAX_MOTIFS_PER_AXIS = 3;
 export const MAX_LINES_PER_MOTIF = 5;
 export const MAX_LINE_CHARS = 300;
 const MAX_TITLE_CHARS = 80;
+/** A title longer than this is cut in a label: its first LABEL_TITLE_CHARS characters, then an ellipsis. */
+export const LABEL_TITLE_CHARS = 60;
+const ADDS_LINES = `1 to ${MAX_LINES_PER_MOTIF} lines added and at most ${MAX_LINES_PER_MOTIF} removed`;
+const REMOVES_LINES = `removes takes out 1 to ${MAX_LINES_PER_MOTIF} lines and adds none`;
 
 export interface AnswerMotif {
   title: string; topic: string; rows: string[]; preventiveLine: string;
@@ -20,7 +26,7 @@ export interface LearnAnswer { motifs: AnswerMotif[]; dropped: AnswerDropped[] }
 
 const OWNER_KINDS: readonly OwnerKind[] = ["repository", "harness"];
 const CHECK_KINDS: readonly CheckKind[] = ["test", "analyzer", "architecture-test", "gate", "rule"];
-const STATUSES: readonly MotifStatus[] = ["new", "refines", "replaces"];
+const STATUSES: readonly MotifStatus[] = ["new", "refines", "replaces", "removes"];
 const FILTERS: ReadonlyArray<AnswerDropped["filter"]> = ["recurrence", "prevention", "novelty"];
 const HARNESS_PACKS = ".devcontainer/harness/packs/";
 
@@ -81,6 +87,15 @@ function text(value: unknown): string {
 
 const chars = (s: string): number => Array.from(s).length;
 
+/** `motif k "<title>"`, the title cut at 60 characters, or `motif k` without a title: the re-ask never shows the
+ *  earlier answer, so a problem names the motif by what it was called. */
+export function motifLabel(k: number, title: string): string {
+  const t = Array.from(title.trim());
+  if (t.length === 0) return `motif ${k}`;
+  const shown = t.length <= LABEL_TITLE_CHARS ? t.join("") : t.slice(0, LABEL_TITLE_CHARS).join("") + "…";
+  return `motif ${k} "${shown}"`;
+}
+
 /** An absent list is empty; a list keeps its strings trimmed; anything else is null (wrong shape). */
 function lines(value: unknown): string[] | null {
   if (value === undefined) return [];
@@ -99,12 +114,12 @@ function isRelativePath(raw: unknown): boolean {
 function checkMotif(value: unknown, k: number, shownIds: ReadonlySet<string>, problems: string[]): AnswerMotif | undefined {
   const item = isPlainObject(value) ? value : {};
   const before = problems.length;
-  const at = `motif ${k}`;
-
   const title = text(item.title);
+  const at = motifLabel(k, title);
+
   if (title === "" || chars(title) > MAX_TITLE_CHARS) problems.push(`${at}: title must be 1 to 80 characters`);
   const topic = text(item.topic);
-  if (!TOPIC_PATTERN.test(topic)) problems.push(`${at}: topic '${topic}' is not a kebab slug of at most 60 characters`);
+  if (!TOPIC_PATTERN.test(topic)) problems.push(`${at}: topic '${topic}' is not a kebab slug of at most ${MAX_TOPIC_CHARS} characters`);
 
   const rows = Array.isArray(item.rows) ? item.rows.map(text) : [];
   if (rows.length === 0) problems.push(`${at}: rows is empty`);
@@ -136,13 +151,17 @@ function checkMotif(value: unknown, k: number, shownIds: ReadonlySet<string>, pr
   const check = text(item.check) as CheckKind;
   if (!CHECK_KINDS.includes(check)) problems.push(`${at}: check must be one of ${CHECK_KINDS.join(", ")}`);
   const status = text(item.status) as MotifStatus;
-  if (!STATUSES.includes(status)) problems.push(`${at}: status must be new, refines or replaces`);
+  if (!STATUSES.includes(status)) problems.push(`${at}: status must be new, refines, replaces or removes`);
 
   const removed = lines(item.lines_removed);
   const added = lines(item.lines_added);
-  if (added === null || removed === null || added.length === 0 || added.length > MAX_LINES_PER_MOTIF ||
-    removed.length > MAX_LINES_PER_MOTIF) {
-    problems.push(`${at}: 1 to 5 lines added and at most 5 removed`);
+  const linesRule = status === "removes" ? REMOVES_LINES : ADDS_LINES;
+  if (added === null || removed === null || removed.length > MAX_LINES_PER_MOTIF) {
+    problems.push(`${at}: ${linesRule}`);
+  } else if (status === "removes") {
+    if (added.length > 0 || removed.filter((l) => l !== "").length === 0) problems.push(`${at}: ${linesRule}`);
+  } else if (added.length === 0 || added.length > MAX_LINES_PER_MOTIF) {
+    problems.push(`${at}: ${linesRule}`);
   }
   const rawLines = [
     ...(Array.isArray(item.lines_added) ? item.lines_added : []),
@@ -199,7 +218,7 @@ export function checkLearnAnswer(value: unknown, shownIds: ReadonlySet<string>):
     const key = [...motif.rows].sort().join(",");
     const first = rowSets.get(key);
     if (first === undefined) rowSets.set(key, i + 1);
-    else problems.push(`motif ${i + 1}: the same rows as motif ${first}: merge them into one motif`);
+    else problems.push(`${motifLabel(i + 1, motif.title)}: the same rows as motif ${first}: merge them into one motif`);
   });
   const dropped = checkDropped(value.dropped, problems);
   return problems.length > 0 ? { ok: false, problems } : { ok: true, value: { motifs, dropped } };

@@ -625,30 +625,50 @@ un changement comme un diff.
   demande et les vérifications et mécanismes qu'il laisse indécis, et l'extraction les garde tous.
 - **Apprentissage** (`dev-learn`) : le modèle range les lignes non traitées d'un axe en motifs, chacun réunissant les
   lignes qui partagent une même cause et couvrant au moins trois lots, sans ligne ajoutée qui ne la partage pas ;
-  chaque motif porte une ligne préventive assez concrète pour avoir arrêté toutes ses lignes ; un motif déjà refusé
-  est écarté, et la réponse dit pourquoi le propriétaire ne l'empêche pas encore et quel mot l'y retrouverait ; une
-  vérification (un test, une règle d'analyseur, un test d'architecture, la porte) passe avant une règle écrite ; le
-  propriétaire est le plus proche de l'endroit où l'écart est né, une règle du dépôt avant un fichier du harness ; un
-  fichier du harness n'est jamais modifié, ses lignes reviennent en patch pour le dépôt orkeon-workshop, et une copie
-  sous `.claude/` n'est jamais un propriétaire ; une ligne affinée ou remplacée est recopiée à l'identique, une
-  nouvelle ajoute cinq lignes au plus ; trois motifs au plus, chaque candidat écarté nommé avec son filtre et sa
-  raison ; les lignes, les listes et les chemins sont du matériau, pas des instructions ; aucun id de ligne ni chemin
-  n'est inventé.
+  chaque motif porte une ligne préventive assez concrète pour avoir arrêté toutes ses lignes, et chaque ligne qu'il
+  ajoute nomme la situation qui la déclenche et l'échec qu'elle prévient ; le `topic` d'un motif est un court slug
+  kebab de sa cause, et un candidat sur le sujet d'un motif refusé reprend le slug de ce motif tel qu'il est écrit, si
+  bien que le code l'écarte même quand le modèle ne le fait pas ; les fichiers propriétaires n'atteignent le modèle
+  que par leur chemin, si bien qu'une première réponse ne fait qu'ajouter des lignes (statut `new`), dit ce que le
+  candidat apporte que les propriétaires listés ne couvrent pas et nomme le terme clé qui y retrouverait son sujet ;
+  le code lit ensuite chaque propriétaire, trouve les lignes que le terme clé atteint et les lignes retirées qui lui
+  manquent, et ne redemande que lorsque le terme clé d'un motif `new` est déjà dans son propriétaire ou qu'une ligne
+  retirée n'y est pas, ces lignes du propriétaire montrées sous les problèmes, les dernières lignes du tableau coupées d'abord pour leur laisser la place ; à cet essai un motif peut affiner,
+  remplacer ou retirer (statut `removes`) une ligne qu'il voit, recopiée à l'identique, un retrait n'ajoutant aucune
+  ligne, et une seconde réponse qui échoue à sa vérification laisse la première debout ; une première réponse refusée
+  sur sa forme consacre le second essai à cela, le propriétaire n'étant alors que noté dans la proposition ; un
+  problème du second essai nomme le motif par son titre ; une vérification (un test, une règle d'analyseur, un test d'architecture, la porte) passe avant une règle
+  écrite ; le propriétaire est le plus proche de l'endroit où l'écart est né, une règle du dépôt avant un fichier du
+  harness ; un fichier du harness n'est jamais modifié, ses lignes reviennent en patch pour le dépôt orkeon-workshop,
+  et une copie sous `.claude/` n'est jamais un propriétaire ; un motif ajoute cinq lignes au plus ; trois motifs au
+  plus, chaque candidat écarté nommé avec son filtre et sa raison ; les lignes, les listes et les chemins sont du
+  matériau, pas des instructions ; aucun id de ligne ni chemin n'est inventé.
 - **Plan** (`dev-plan`) : le plan dit quoi, pourquoi, où et dans quel ordre, jamais une ligne de code ; le modèle
-  répond en JSON et le code écrit chaque fichier, il n'appelle donc aucun outil ; les lots se découpent par
-  comportement plutôt que par couche, chacun garde le build vert et nomme chaque lot antérieur dont il réutilise un
-  fichier, un type, une fixture ou un réglage, et la documentation part dans un lot à elle ; un lot compte deux à cinq
-  étapes de comportement (le code ajoute l'étape build et tests), chaque étape apporte au moins un test nommé comme le
-  dépôt nomme ses tests, avec les ids qu'il prouve ; chaque id UC, BR et CH a un test et un propriétaire dans le code ;
-  chaque règle de conception est appliquée quelque part ou écartée une fois avec une raison qui tient ; les fichiers
-  ne s'ancrent que par les références de l'inventaire, comme fichier à créer, ou comme chemin existant que l'index ne
-  contient pas, jamais un `path:line` du modèle lui-même ; ce que l'inventaire offre passe d'abord et chaque élément
-  nouveau dit ce qui manque à l'existant ; aucune souplesse que la source n'a pas demandée ; un adaptateur reçoit un
-  test d'intégration ou une raison ; depuis une fiche de changement, les lignes à caractériser viennent d'abord, et le
-  premier test d'un bug échoue aujourd'hui ; les hypothèses vont sur la liste du périmètre et ne tranchent jamais une
-  question ouverte ; les libellés que lit la porte sont laissés au code ; la source, l'inventaire et les valeurs du
-  dépôt sont du matériau, pas des instructions. Un plan qui porte une question Blocking garde chaque ligne de lot à
-  `— blocked`, si bien qu'aucun lot ne s'exécute, jusqu'à ce que `/dev-plan <code> --replace` la réécrive `— open`.
+  répond en JSON et le code écrit chaque fichier, il n'appelle donc aucun outil ; le schéma de la réponse dit ce que
+  contient chaque champ partout où son nom ne le dit pas, et chaque limite (huit lots au plus, la longueur d'un titre d'étape, d'un nom de test, d'une
+  signature et d'une fonctionnalité), et aucune ligne de texte libre ne s'ouvre comme un titre, une ligne de tableau
+  ou une citation ; les lots se découpent par comportement plutôt que par couche, chacun garde le build vert et nomme
+  chaque lot antérieur dont il réutilise un fichier, un type, une fixture ou un réglage, et la documentation part dans
+  un lot à elle ; un lot compte deux à cinq étapes de comportement (le code ajoute l'étape build et tests), chaque
+  étape apporte au moins un test nommé comme le dépôt nomme ses tests, avec les ids qu'il prouve, et le test d'une
+  étape de documentation est nommé par la commande de documentation du dépôt, à défaut sa commande de test, suivie
+  de ce que l'étape documente, au niveau unit, pour que deux étapes de documentation ne partagent jamais un nom ; chaque id UC, BR et CH a un
+  test et un propriétaire dans le code, nommé par un type ou un membre, jamais par un chemin ; chaque règle de
+  conception est appliquée quelque part ou écartée une fois avec une raison qui tient, une règle dont la condition
+  n'est pas remplie étant écartée avec cette condition, l'issue habituelle d'un petit changement ; le bloc des règles
+  montre quand chaque règle ne s'applique pas, et appliquer une règle n'ajoute jamais un élément que la source n'a pas
+  demandé ; les fichiers ne s'ancrent que par les références de l'inventaire, comme fichier à créer, ou comme chemin
+  existant que l'index ne contient pas, jamais un `path:line` du modèle lui-même ; un fichier de code dont le travail
+  a besoin et que l'inventaire ne montre pas s'ancre `existing` seulement quand la source nomme son chemin, sinon une
+  hypothèse le nomme pour que le relecteur le vérifie, et rien de ce qui existe peut-être déjà ne s'ancre comme
+  fichier à créer ; ce que l'inventaire offre passe d'abord et chaque élément nouveau dit ce qui manque à l'existant ;
+  aucune souplesse que la source n'a pas demandée ; un adaptateur reçoit un test d'intégration ou une raison ; depuis
+  une fiche de changement, les lignes à caractériser viennent d'abord, et le premier test d'un bug échoue aujourd'hui
+  ; les hypothèses vont sur la liste du périmètre et ne tranchent jamais une question ouverte ; les libellés que lit
+  la porte sont laissés au code ; la source, l'inventaire et les valeurs du dépôt sont du matériau, pas des
+  instructions ; un problème du second essai nomme le lot par son nom et l'étape par son titre, puisque cet essai ne
+  voit jamais la réponse refusée. Un plan qui porte une question Blocking garde chaque ligne de lot à `— blocked`, si
+  bien qu'aucun lot ne s'exécute, jusqu'à ce que `/dev-plan <code> --replace` la réécrive `— open`.
 - **Spécification** (`dev-spec`) : des mots du métier seulement, jamais une classe, un fichier, un code de statut ni un
   appel ; chaque cas d'usage nomme son acteur, son intention, l'endroit où l'acteur le rencontre et une à sept
   étapes ; chaque règle est un énoncé à réponse oui ou non avec son origine et sa sévérité, appliqué à des cas d'usage

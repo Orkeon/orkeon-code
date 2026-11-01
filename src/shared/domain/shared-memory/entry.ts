@@ -3,7 +3,7 @@
 // file lives in front-matter.ts; this module never reads or writes anything.
 
 import { secretLikePaths, secretPatternsIn } from "../secret-patterns.ts";
-import { TOPIC_PATTERN } from "./refused.ts";
+import { MAX_TOPIC_CHARS, TOPIC_PATTERN } from "./refused.ts";
 
 export const ENTRY_TYPES = ["decision", "code-structure", "method", "mistake"] as const;
 export type EntryType = (typeof ENTRY_TYPES)[number];
@@ -18,7 +18,6 @@ export const ENTRY_KEYS: readonly string[] = [
 export const ENTRY_SECTIONS = ["Context", "Content", "Evidence"] as const;
 export const MAX_TITLE_CHARS = 90;
 export const MAX_BODY_CHARS = 2_000;
-export const MAX_TOPIC_CHARS = 60;
 
 export interface MemoryEntry {
   id: string; type: EntryType; title: string; project: string; date: string; topic: string;

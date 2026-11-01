@@ -5,6 +5,7 @@
 // source; past the cap, this module cuts the source text first, then inventory lines
 // from the end.
 import { DESIGN_RULES } from "../../../shared/domain/dev/design-rules.ts";
+import type { DesignRule } from "../../../shared/domain/dev/design-rules.ts";
 import type { ChangeKind, SourceId, SourceKind } from "../../../shared/domain/dev/spec-format.ts";
 
 export interface PlanPromptInput {
@@ -40,6 +41,9 @@ export const PLAN_INSTRUCTIONS: string = [
     "new step.",
   "- Each step brings one test or more, named the way the repository already names its tests (the inventory shows " +
     "how), each with the ids it proves and the project it runs in.",
+  "- A documentation step's test is named by the repository's documentation command (else its test command) " +
+    "followed by what the step documents, at level unit, so two documentation steps never share a name; never " +
+    "invent a command.",
   "- A test's ids hold the UC, BR and CH ids it proves; its covers hold only the U<n> of the rows to characterise, " +
     "and stay empty from a specification.",
   "- Every UC, BR and CH id is carried by a test and has a code owner in traceability.",
@@ -65,6 +69,8 @@ export const PLAN_INSTRUCTIONS: string = [
     "existing). Never write a path:line of your own, and never a path under the work folder named below.",
   "- A ref anchor holds its ref and no path. Its member, when given, is the entry's own name: leave member out " +
     "to add a member to the entry.",
+  "- A code file the inventory does not show is existing only when the source names its path; otherwise an " +
+    "assumption names it and the nearest inventory ref anchors the step. Never create what may already exist.",
   "- Every step has a production anchor, and a test anchor unless its batch is documentation.",
   "- reuse lists inventory refs alone (I<n>).",
   "- The existing anchors of the whole plan sit in at most 40 distinct folders.",
@@ -85,11 +91,16 @@ const SOURCE_CUT = "[the rest of the source is cut]";
 
 const noDot = (text: string): string => text.trim().replace(/\.+$/, "");
 
+/** The close of a rule's line: when it is set aside, or that it never is for a change it names. */
+const notApplicable = (r: DesignRule): string =>
+  r.notApplicableWhen === "" ? "; it applies to every change it names." : `, not when ${noDot(r.notApplicableWhen)}.`;
+
 function rulesBlock(): string[] {
   return [
-    "Design rules to classify (each id applied on a batch or non-applicable with its reason):",
-    ...DESIGN_RULES.map((r) =>
-      `${r.id} — ${noDot(r.behaviour)}. Applies when ${noDot(r.appliesWhen)}. Records ${noDot(r.records)}.`),
+    "Design rules to classify: a rule whose condition is not met is set aside in nonApplicable with that condition " +
+      "as its reason, the usual outcome for a small change; applying a rule is never a reason to add an element the " +
+      "source did not ask for.",
+    ...DESIGN_RULES.map((r) => `${r.id} — ${noDot(r.behaviour)}. Applies when ${noDot(r.appliesWhen)}${notApplicable(r)}`),
   ];
 }
 

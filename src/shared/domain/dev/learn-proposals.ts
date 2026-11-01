@@ -12,7 +12,8 @@ export const PROPOSALS_MD = "PROPOSALS.md";
 
 export type OwnerKind = "repository" | "harness";
 export type CheckKind = "test" | "analyzer" | "architecture-test" | "gate" | "rule";
-export type MotifStatus = "new" | "refines" | "replaces";
+/** removes: the motif takes a wrong line out of its owner and adds none. */
+export type MotifStatus = "new" | "refines" | "replaces" | "removes";
 export interface Motif {
   id: string;                 // motifId(axis, rows): 8 hex digits; 10 for both on a collision in one file (L3-Q09)
   title: string; topic: string; rows: string[]; batches: string[];
@@ -50,7 +51,7 @@ const fieldPath = (at: string, key: string): string => (at === "" ? key : `${at}
 
 const OWNER_KINDS: readonly string[] = ["repository", "harness"];
 const CHECK_KINDS: readonly string[] = ["test", "analyzer", "architecture-test", "gate", "rule"];
-const STATUSES: readonly string[] = ["new", "refines", "replaces"];
+const STATUSES: readonly string[] = ["new", "refines", "replaces", "removes"];
 const FILTERS: readonly string[] = ["recurrence", "prevention", "novelty"];
 const OUTCOMES: readonly string[] = ["proposed", "no-motif", "no-proposal", "unchanged"];
 const MOTIF_ID = /^[0-9a-f]{8}([0-9a-f]{2})?$/;

@@ -7,7 +7,7 @@ import { OPERATIONS_TOOL, PATH_WRITE_TOOLS, UNSCOPED_WRITE_TOOLS } from "../agen
 import { sameToolName, shellCommandForms } from "../agent-policy/permission.ts";
 import type { PermissionRule } from "../agent-policy/permission.ts";
 import { normalisePath } from "../dev/call-guard.ts";
-import { MEMORY_DIR, TOPIC_PATTERN } from "./refused.ts";
+import { MAX_TOPIC_CHARS, MEMORY_DIR, TOPIC_PATTERN } from "./refused.ts";
 import type { EntryType } from "./entry.ts";
 import { WORKSPACE } from "../vfs.ts";
 
@@ -44,7 +44,7 @@ export function memoryDirProblem(value: string): string | undefined {
 
 /** For CONFIG_KEYS.problem: a project name is a kebab-case name, as the entries' ids start with it. */
 export function memoryProjectProblem(value: string): string | undefined {
-  return TOPIC_PATTERN.test(value) ? undefined : "a kebab-case name of at most 60 characters (e.g. 'orkeon-code')";
+  return TOPIC_PATTERN.test(value) ? undefined : `a kebab-case name of at most ${MAX_TOPIC_CHARS} characters (e.g. 'orkeon-code')`;
 }
 
 /** The RAG collection of a project's memory (one per project). */

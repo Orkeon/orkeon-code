@@ -4,10 +4,10 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
-import { LEARN_ANSWER_SCHEMA, checkLearnAnswer } from "../../../../src/crews/dev-learn/domain/learn-answer.ts";
+import { LEARN_ANSWER_SCHEMA, checkLearnAnswer, motifLabel } from "../../../../src/crews/dev-learn/domain/learn-answer.ts";
 import {
-  ANSWER_CASES, HARNESS_OWNER_ANSWER, MAPPED_ANSWER, MOTIF_CASES, SAME_ROWS_ANSWER, SCHEMA_WORDS, SHOWN, THREE_BAD_MOTIFS,
-  motif, problemsOf,
+  ANSWER_CASES, HARNESS_OWNER_ANSWER, LABEL_CASES, MAPPED_ANSWER, MOTIF_CASES, REMOVES_ANSWER, SAME_ROWS_ANSWER, SCHEMA_WORDS,
+  SHOWN, THREE_BAD_MOTIFS, motif, problemsOf,
 } from "./learn-answer.fixtures.ts";
 import { assertProblem, assertQuotesWords } from "./learn-answer.assertions.ts";
 
@@ -35,6 +35,18 @@ describe("checkLearnAnswer — a valid answer", () => {
     ok(r.ok);
     deepStrictEqual(r.value.dropped, [{ title: "Vague", filter: "prevention", reason: "a reminder stops nothing" }]);
     deepStrictEqual(r.value.motifs[0].linesRemoved, ["Old line."]);
+  });
+
+  it("accepts a motif that removes a line and adds none", () => {
+    // Arrange
+    const answer = REMOVES_ANSWER;
+
+    // Act
+    const r = checkLearnAnswer(answer, SHOWN);
+
+    // Assert
+    ok(r.ok);
+    deepStrictEqual([r.value.motifs[0].linesRemoved, r.value.motifs[0].linesAdded], [["Old line."], []]);
   });
 
   it("accepts an empty list of motifs", () => {
@@ -106,7 +118,7 @@ describe("checkLearnAnswer — each refusal", () => {
     const problems = problemsOf(answer);
 
     // Assert
-    deepStrictEqual(problems, ["motif 2: the same rows as motif 1: merge them into one motif"]);
+    deepStrictEqual(problems, ['motif 2 "Another title": the same rows as motif 1: merge them into one motif']);
   });
 
   it("collects every problem, numbered from 1, motif by motif", () => {
@@ -118,9 +130,25 @@ describe("checkLearnAnswer — each refusal", () => {
 
     // Assert
     deepStrictEqual(problems, [
-      "motif 2: title must be 1 to 80 characters", "motif 2: key_term is empty", "motif 3: the same rows as motif 1: merge them into one motif",
+      "motif 2: title must be 1 to 80 characters", "motif 2: key_term is empty",
+      'motif 3 "Refusal paths go untested": the same rows as motif 1: merge them into one motif',
     ]);
   });
+});
+
+describe("motifLabel", () => {
+  for (const c of LABEL_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { title } = c;
+
+      // Act
+      const label = motifLabel(2, title);
+
+      // Assert
+      strictEqual(label, c.label);
+    });
+  }
 });
 
 describe("LEARN_ANSWER_SCHEMA", () => {

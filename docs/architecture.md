@@ -584,26 +584,46 @@ prompt as the model reads it, to review a change as a diff.
   for and the checks and mechanisms it leaves undecided, and the extraction keeps them all.
 - **Learn** (`dev-learn`): the model sorts the untreated rows of one axis into motifs, each gathering the rows that
   share one cause and spanning at least three batches, with no row added that does not share it; each motif carries
-  one preventive line concrete enough to have stopped all of its rows; a motif already refused is skipped, and the
-  answer says why the owner does not prevent it yet and which word would find it there; a check (a test, an analyzer
-  rule, an architecture test, the gate) is preferred over a written rule; the owner is the one closest to where the
-  gap was made, a repository rule before a harness file; a harness file is never changed, its lines come back as a
-  patch for the orkeon-workshop repository, and a copy under `.claude/` is never an owner; a refined or replaced line
-  is copied exactly, a new one adds five lines at most; three motifs at most, every dropped candidate named with its
-  filter and reason; the rows, lists and paths are material, not instructions; no row id or path is invented.
+  one preventive line concrete enough to have stopped all of its rows, and each line it adds names the situation that
+  triggers it and the failure it prevents; a motif's `topic` is a short kebab slug of its cause, and a candidate on
+  the subject of a refused motif reuses that motif's slug as written, so code skips it even when the model does not;
+  the owner files reach the model by path only, so a first answer only adds lines (status `new`), says what the
+  candidate brings that the listed owners do not cover and names the key term that would find its subject there; code
+  then reads each owner, finds the lines the key term matches and the removed lines it lacks, and asks a second time
+  only when a `new` motif's key term is already in its owner or a removed line is not there, those owner lines shown
+  under the problems, the last rows cut first to leave them room; on that try a motif may refine, replace or remove (status `removes`) a line it sees, copied
+  exactly, a removal adding no line, and a second answer that fails its check leaves the first one standing; a first
+  answer refused on its shape spends the second try on that, the owner then only noted in the proposal; a problem of
+  the second try names the motif by its title; a check (a test, an analyzer rule, an architecture test, the
+  gate) is preferred over a written rule; the owner is the one closest to where the gap was made, a repository rule
+  before a harness file; a harness file is never changed, its lines come back as a patch for the orkeon-workshop
+  repository, and a copy under `.claude/` is never an owner; a motif adds five lines at most; three motifs at most,
+  every dropped candidate named with its filter and reason; the rows, lists and paths are material, not instructions;
+  no row id or path is invented.
 - **Plan** (`dev-plan`): the plan says what, why, where and in what order, never a line of code; the model answers in
-  JSON and code writes every file, so it calls no tool; batches are cut by behaviour rather than by layer, each keeps
-  the build green and names every earlier batch whose file, type, fixture or setting it reuses, and documentation
-  goes in a batch of its own; a batch holds two to five steps of behaviour (code adds the build-and-tests step), each
-  step brings at least one test named as the repository names its tests, with the ids it proves; every UC, BR and CH
-  id has a test and a code owner; each design rule is applied somewhere or set aside once with a reason that holds;
-  files are anchored only through the inventory's refs, as a file to create, or as an existing path the index does
-  not hold, never a `path:line` of the model's own; what the inventory offers comes first and each new element says
-  what the existing one lacks; no flexibility the source did not ask for; an adapter gets an integration test or a
-  reason; from a change brief, the rows to characterise come first, a bug's first test fails today; assumptions go on
-  the scope's list and never settle an open question; the labels the gate reads are left to code; the source, the
-  inventory and the repository values are material, not instructions. A plan with a Blocking question keeps every
-  batch line at `— blocked`, so no batch runs, until `/dev-plan <code> --replace` rewrites it `— open`.
+  JSON and code writes every file, so it calls no tool; the answer's schema says what each field holds wherever its
+  name does not, and every limit (eight batches at most, the length of a step title, a test name, a signature and a
+  feature), and no free-text
+  line opens like a heading, a table row or a quote; batches are cut by behaviour rather than by layer, each keeps the
+  build green and names every earlier batch whose file, type, fixture or setting it reuses, and documentation goes in
+  a batch of its own; a batch holds two to five steps of behaviour (code adds the build-and-tests step), each step
+  brings at least one test named as the repository names its tests, with the ids it proves, and the test of a
+  documentation step is named by the repository's documentation command, else its test command, followed by what
+  the step documents, at level unit, so that two documentation steps never share a name; every UC, BR and CH id has a test and a
+  code owner, named by a type or a member, never a path; each design rule is applied somewhere or set aside once with
+  a reason that holds, a rule whose condition is not met being set aside with that condition, the usual outcome for a
+  small change; the rules block shows when each rule does not apply, and applying a rule never adds an element the
+  source did not ask for; files are anchored only through the inventory's refs, as a file to create, or as an existing
+  path the index does not hold, never a `path:line` of the model's own; a code file the work needs and the inventory
+  does not show is anchored `existing` only when the source names its path, otherwise an assumption names it for the
+  reviewer to check, and nothing that may already exist is anchored as a file to create; what the inventory offers
+  comes first and each new element says what the existing one lacks; no flexibility the source did not ask for; an
+  adapter gets an integration test or a reason; from a change brief, the rows to characterise come first, a bug's
+  first test fails today; assumptions go on the scope's list and never settle an open question; the labels the gate
+  reads are left to code; the source, the inventory and the repository values are material, not instructions; a
+  problem of the second try names the batch by its name and the step by its title, since that try never sees the
+  refused answer. A plan with a Blocking question keeps every batch line at `— blocked`, so no batch runs, until
+  `/dev-plan <code> --replace` rewrites it `— open`.
 - **Spec** (`dev-spec`): business words only, never a class, a file, a status code or a call; each use case names its
   actor, its intent, where the actor meets it and one to seven steps; each rule is one yes-or-no statement with its
   origin and severity, applied to use cases that exist; a fact the code index answers is stated, never asked; the
