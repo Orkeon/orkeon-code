@@ -7,8 +7,12 @@ import { ok, strictEqual } from "node:assert";
 
 import { MAX_BRIEF_CHARS } from "../../../../src/shared/domain/agents/charter.ts";
 import { LEARN_INSTRUCTIONS, MAX_LEARN_PROMPT_CHARS, buildLearnPrompt, renderRowsTable } from "../../../../src/crews/dev-learn/application/learn-prompt.ts";
-import { BLOCK, BLOCK_TEXT, FULL_INPUT, HOST_WORDS, HUGE_BLOCK, INPUT, LONG_ROW, MARKERS, PROBLEMS } from "./learn-prompt.fixtures.ts";
-import { assertOwnerLinesCutFirst, assertOwnerLinesShown } from "./learn-prompt.assertions.ts";
+import {
+  BLOCK, BLOCK_TEXT, FULL_INPUT, HOST_WORDS, HUGE_BLOCK, INPUT, LONG_ROW, MANY_PROBLEMS, MARKERS, PROBLEMS, WORST_BLOCKS,
+} from "./learn-prompt.fixtures.ts";
+import {
+  assertEveryOwnerLineShown, assertOwnerLinesCutFirst, assertOwnerLinesShown, assertProblemsKept,
+} from "./learn-prompt.assertions.ts";
 import { assertMentions, assertOmits } from "../../../support/assertions/text.ts";
 
 describe("LEARN_INSTRUCTIONS — one marker per behaviour", () => {
@@ -101,7 +105,7 @@ describe("buildLearnPrompt", () => {
     ok(p.endsWith(`- ${PROBLEMS[PROBLEMS.length - 1]}\n${BLOCK_TEXT}`), p.slice(-400));
   });
 
-  it("cuts the owner lines first to stay within its budget", () => {
+  it("cuts the owner lines to the budget left after the rows", () => {
     // Arrange
     const blocks = [HUGE_BLOCK];
 
@@ -121,6 +125,28 @@ describe("buildLearnPrompt", () => {
 
     // Assert
     assertOwnerLinesShown(p, BLOCK_TEXT);
+  });
+
+  it("keeps every owner line of three full blocks under the longest harness destination", () => {
+    // Arrange
+    const blocks = WORST_BLOCKS;
+
+    // Act
+    const p = buildLearnPrompt(FULL_INPUT, PROBLEMS, blocks);
+
+    // Assert
+    assertEveryOwnerLineShown(p, blocks);
+  });
+
+  it("cuts the last rows to keep every problem when a re-ask shows no owner lines", () => {
+    // Arrange
+    const problems = MANY_PROBLEMS;
+
+    // Act
+    const p = buildLearnPrompt(FULL_INPUT, problems);
+
+    // Assert
+    assertProblemsKept(p, problems);
   });
 
   it("shares its budget with the sub-agent briefs", () => {

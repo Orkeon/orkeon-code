@@ -428,8 +428,9 @@ interface Cell { where: string; field: string; value: string; kind: CellKind }
 /** The longest batch name or step title a problem's label quotes: the re-ask names what the model wrote,
  *  not only an index of an answer it no longer sees. */
 export const LABEL_QUOTE = 60;
+/** A `"` of the text becomes `'`, so the quote it sits in ends where the name ends. */
 const quoted = (text: string): string => {
-  const one = text.replace(/\s+/g, " ").trim();
+  const one = text.replace(/\s+/g, " ").replace(/"/g, "'").trim();
   if (one === "") return "";
   const chars = Array.from(one);
   return ` "${chars.length > LABEL_QUOTE ? `${chars.slice(0, LABEL_QUOTE).join("")}…` : one}"`;

@@ -6,7 +6,7 @@
 import type { Files, Llm, Shell } from "../../../shared/application/ports.ts";
 import type { Finding } from "../../../shared/domain/types.ts";
 import { LENSES, FINDINGS_SCHEMA, buildLensPrompt } from "./prompts.ts";
-import type { ReviewLens } from "../domain/lenses.ts";
+import { withinCeiling, type ReviewLens } from "../domain/lenses.ts";
 import type { ReviewScope } from "../domain/scope.ts";
 
 // `resolveCommitRange` moved to ../domain/scope.ts with the rest of the pure
@@ -44,7 +44,7 @@ export async function collectChangedFiles(scope: ReviewScope, shell: Shell): Pro
 
 /**
  * Run one pass of the selected lenses concurrently; a lens that fails yields no
- * findings. `priorFindings` (pass ≥ 2) is what earlier passes already found;
+ * findings, and each finding is held to its lens's ceiling (style at most medium). `priorFindings` (pass ≥ 2) is what earlier passes already found;
  * `conventions` the project's instructions file, for the style lens.
  */
 export async function runLenses(
@@ -57,7 +57,10 @@ export async function runLenses(
 ): Promise<Array<{ lens: string; findings: Finding[] }>> {
   return await Promise.all(lenses.map((lens) =>
     llm.extract(buildLensPrompt(lens, diffSlice, pass, priorFindings, conventions), FINDINGS_SCHEMA)
-      .then((r) => ({ lens: lens.key, findings: ((r as { findings?: Finding[] } | null)?.findings ?? []) }))
+      .then((r) => ({
+        lens: lens.key,
+        findings: ((r as { findings?: Finding[] } | null)?.findings ?? []).map((f) => withinCeiling(lens, f)),
+      }))
       .catch(() => ({ lens: lens.key, findings: [] as Finding[] })),
   ));
 }

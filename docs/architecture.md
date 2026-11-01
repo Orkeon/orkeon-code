@@ -449,8 +449,8 @@ prompt as the model reads it, to review a change as a diff.
   an image its documentation and example settings give wins over one found on the web, and a value read nowhere is
   not given as a fact. The
   lines about writing, editing, the shell and the web appear only in the modes that offer those tools.
-- **Refusals**: a missing tool or a refused call is a decision of the mode or the user; change approach instead of
-  repeating the call.
+- **Refusals**: a tool not offered (the script tools are offered without being listed) or a refused call is a
+  decision of the mode or the user; change approach instead of repeating the call.
 - **Search**: route by file type: code goes to the index (`codebase_search`, exact identifiers and paraphrases
   alike); a name, a key or an exact text in any other file (configuration, data, documents) goes to `grep`, a `glob`
   to narrow, then `file_read`; a question of meaning over prose goes to `rag_search` on the `workspace-docs`
@@ -472,8 +472,8 @@ prompt as the model reads it, to review a change as a diff.
   cut to their tools. The preamble sends a question to the index before reading or scripting. To an agent that holds
   a shell, the rule on a result marked `truncated` adds that a narrower question beats a script over every file; the
   others, the reviewer and the auditor among them, are told to ask the index before reading. A
-  result marked `truncated` is a sample: the answer says so and the question is narrowed (a package, a `root_fqn`, a
-  `glob`). The bounded reading rule the dev readers share (`shared/domain/dev/reading-rule.ts`) asks for the reads
+  result marked `truncated` is a sample: the answer says so and the question is narrowed (a package, a `root_fqn` to
+  an agent holding `codebase_map` or `dependency_graph`, the tools that take it, a `glob`). The bounded reading rule the dev readers share (`shared/domain/dev/reading-rule.ts`) asks for the reads
   already known in one turn, since the runtime runs them together, and is the one place that forbids reading a whole
   file for its own sake.
 - **Project instructions**: the project's `AGENTS.md`, else its `CLAUDE.md`, verbatim, under a heading that names
@@ -484,9 +484,9 @@ prompt as the model reads it, to review a change as a diff.
 - **Preferences** (a `<system-reminder>`): the output style (`default` renders nothing; `concise` keeps a requested
   explanation, error output and safety warnings whole) and the answer language (the `answer.language` setting).
 - **Skills**: the attached playbooks, to apply to the task, each capped and marked when cut.
-- **Memory**: the notes saved at earlier compactions, introduced as true when written but possibly out of date
-  (never as coming from earlier sessions: typed memory lives in the runtime's process today, Orkeon #286): check that
-  what a note names still exists; the request wins.
+- **Memory**: the notes saved earlier (at a compaction or with `/memory add`), introduced as true when written but
+  possibly out of date (never as coming from earlier sessions: typed memory lives in the runtime's process today,
+  Orkeon #286): check that what a note names still exists; the request wins.
 - **Hooks**: what is declared, and that nothing runs it yet.
 - **History**: the earlier turns, oldest first, without the current request, possibly opened by a compaction
   summary, or by a `[compacted]` note saying that earlier turns were removed without one: its intro says a
@@ -513,7 +513,9 @@ prompt as the model reads it, to review a change as a diff.
   session and not only the last messages. The bare snip (the head and the recent messages) is `/compact --snip`, and
   the fallback when the summary comes back empty or its call fails: the buffer is then cut and a `[compacted]` message
   added, saying that earlier turns were removed without a summary and to ask the user for what is missing, so the
-  agent reads the gap as a gap; the outcome still counts as a failed compaction for the breaker.
+  agent reads the gap as a gap; the outcome still counts as a failed compaction for the breaker. A compaction at the
+  head of a turn keeps the request still waiting for its answer, with its `[turn-context]`, at the end of the rebuilt
+  buffer, after the summary and what comes back, so the answer stored next follows its request.
 - **Summary** (`shared/domain/compaction.ts`, `buildSummaryPrompt`): the summary replaces the history, so it is
   written for a reader who resumes cold: the request and how success is judged; the user's constraints and preferences
   still in force, close to their own words (above all an instruction to work differently), and what the user allowed
@@ -534,24 +536,25 @@ prompt as the model reads it, to review a change as a diff.
   conversation, in a category defined together with what does not belong there (`user`, `project`, `feedback` with its
   reason, `reference`); nothing the repository already records, no secret, nothing only a tool output or a pasted text
   claimed; when in doubt, leave it out; an empty list is a valid answer. The extraction receives today's date (the use
-  case reads the `Clock` port), so a relative date in the conversation becomes an absolute one in a memory.
+  case reads the `Clock` port; the UTC day, as the Environment line gives it), so a relative date in the conversation becomes an absolute one in a memory.
 - **Memory recap** (`[memories]`): the facts saved at the compaction that just happened, said so in the recap
   itself; the Memory block shows them from the next turn.
 
 ### Crew prompts
 
 - **Review** (`code-review`): each lens says what it looks for and what it leaves to the others. The diff carries
-  the enclosing function of each hunk when it fits the cap, the plain diff otherwise. A finding points at a changed
+  the enclosing function of each hunk when it fits the cap (asked for only when the plain diff fits), the plain diff
+  otherwise. A finding points at a changed
   line (for a removed line, the hunk that held it), opens with its claim and quotes the line after it, and carries a severity from its lens's own scale
   (drawn from `blocker`, `high`, `medium`, `low`, `nit`) and meets that lens's bar: correctness says what goes wrong for which
   input or state, and reads each removed or replaced line for what it guaranteed, pointing at the first new line of
   the hunk that held it (the new start of its `@@` header) and naming the removed line; security ranks by what an attacker needs and names the input the attacker controls; style never rises
-  above medium and reports only a convention or neighbouring code it can quote, with the cost to a reader. A finding
-  whose trigger the diff shows is `shown`; one whose trigger the bar asks for (the input, the caller, the
-  convention) lies outside the shown text is still reported as `plausible`, naming the file, caller or check that
+  above medium (the review brings a higher level down to medium) and reports only a convention or neighbouring code
+  it can quote, with the cost to a reader, so a style finding is never `plausible`. A finding
+  whose trigger the diff shows is `shown`; one whose trigger the bar asks for (the input, the caller) lies outside the shown text is still reported as `plausible`, naming the file, caller or check that
   would confirm it, and its heading says so; a suspicion with neither a shown trigger nor a check that would confirm
   it is not a finding. An empty list is a valid answer; the diff is material. Findings are merged by file, line,
-  category and the start of the claim, a collision keeping the most severe, and the merged report is capped, the most severe kept and the
+  category and the start of the claim, a collision keeping the most severe (at equal severity the `shown` one), and the merged report is capped, the most severe kept and the
   rest counted. A cut diff is said to be cut, with how much was not reviewed, and an empty report on it reads as
   covering the part reviewed only. A later pass is pointed at what a first pass skips: deleted lines, error and
   early-return paths, boundaries, the later hunks of a long file.
@@ -569,10 +572,10 @@ prompt as the model reads it, to review a change as a diff.
   the language, else the row is Minor at most; eight rows at most, the most severe first; it runs at most three narrow validations
   itself through `run_validation` when its crew offers it, else names them for code to run, never a whole suite, the
   test class of each taken from the diff or from `affected_tests` on the changed files, never from a guessed name; it
-  reads the capture one file at a time and the code only around the hunk it judges, with one look outside it for each
-  of two checks and nothing else (the guard or test that would refute a row, where a lost guarantee now lives), a
-  helper that may exist looked up with
-  `codebase_search` once, then read with `symbol_source` on the fqn the hit names; when the brief lists the
+  reads the capture one file at a time and the code only around the hunk it judges, with one look outside it, in a
+  module the diff touches or not, for each of three checks and nothing else (the guard or test that would refute a
+  row, where a lost guarantee now lives, and a helper that may exist, looked up with `codebase_search` once, then read
+  with `symbol_source` on the fqn the hit names); when the brief lists the
   project's files, it says whether the list is whole: a name absent from a whole list does not exist, past a cut `glob` with
   a pattern decides, and it never reads a guessed name nor a folder (its charter holds `glob` and `affected_tests`);
   the Precedents block of the brief is what the shared memory recalled, and `memory_recall`, when it is offered, is
@@ -586,14 +589,16 @@ prompt as the model reads it, to review a change as a diff.
   share one cause and spanning at least three batches, with no row added that does not share it; each motif carries
   one preventive line concrete enough to have stopped all of its rows, and each line it adds names the situation that
   triggers it and the failure it prevents; a motif's `topic` is a short kebab slug of its cause, and a candidate on
-  the subject of a refused motif reuses that motif's slug as written, so code skips it even when the model does not;
-  the owner files reach the model by path only, so a first answer only adds lines (status `new`), says what the
+  the subject of a refused motif reuses that motif's slug as written (a harness refusal is listed under the slug of
+  its text), so code skips it even when the model does not;
+  the owner files reach the model by path only, so a first answer only adds lines (status `new`; code refuses another status until owner lines are shown), says what the
   candidate brings that the listed owners do not cover and names the key term that would find its subject there; code
   then reads each owner, finds the lines the key term matches and the removed lines it lacks, and asks a second time
   only when a `new` motif's key term is already in its owner or a removed line is not there, those owner lines shown
-  under the problems, the last rows cut first to leave them room; on that try a motif may refine, replace or remove (status `removes`) a line it sees, copied
+  under the problems (a harness owner's under its orkeon-workshop path), the last rows cut first to leave them room and to fit the problems; on that try a motif may refine, replace or remove (status `removes`) a line it sees, copied
   exactly, a removal adding no line, and a second answer that fails its check leaves the first one standing; a first
-  answer refused on its shape spends the second try on that, the owner then only noted in the proposal; a problem of
+  answer refused on its shape spends the second try on that, the owner then only noted in the proposal, unless its only
+  fault is a status other than `new`, when that try also shows the owner lines of its motifs; a problem of
   the second try names the motif by its title; a check (a test, an analyzer rule, an architecture test, the
   gate) is preferred over a written rule; the owner is the one closest to where the gap was made, a repository rule
   before a harness file; a harness file is never changed, its lines come back as a patch for the orkeon-workshop
@@ -678,9 +683,10 @@ prompt as the model reads it, to review a change as a diff.
   see, the conventions a newcomer would get wrong; nothing invented. The configuration read is the manifest list
   both crews share (`shared/domain/project-manifests.ts`), the files that state commands first since the material
   is bounded: the manifests with scripts or targets (`package.json`, `pyproject.toml`, `Makefile`, `justfile`,
-  `Taskfile`, `Cargo.toml`, `go.mod`, `pom.xml`, `build.gradle*`, a `*.csproj` or `*.sln` at the top level), then the
-  content of the CI workflows (`.github/workflows/*`), then the rules (`tsconfig.json`, `.eslintrc*`,
-  `eslint.config.*`, `biome.json`, `ruff.toml`, `.editorconfig`), `CONTRIBUTING.md` last. Each file is cut at
+  `Taskfile.yml`, `Cargo.toml`, `go.mod`, `pom.xml`, `build.gradle`, `build.gradle.kts`, a `*.sln` or `*.csproj` at
+  the top level), then the content of the CI workflows (`.github/workflows/*`), then the rules (`tsconfig.json`,
+  `.eslintrc.json`, `.eslintrc.js`, `eslint.config.js`, `eslint.config.mjs`, `biome.json`, `ruff.toml`,
+  `.editorconfig`), `CONTRIBUTING.md` last; a name outside this list (`.eslintrc.yml`, `Taskfile.yaml`) is not read. Each file is cut at
   4 000 characters, its cut marked; the whole is bounded at 24 000 characters, whole files kept in that order and a
   closing line naming the files left out. A CI step is a valid source of a command. Each command is taken from the
   configuration first (the conventions extract, `runCommand` included), from an existing instruction file when the
@@ -694,13 +700,15 @@ prompt as the model reads it, to review a change as a diff.
     only what the existing files say of the architecture, or is left out. Without an index `/init` runs as before and starts no indexing.
   - *What the file leaves out*: lists of files, folders or packages, generic advice, secrets, the conventions of the
     language any agent already knows, long references or tutorials (the file to read is named instead), facts that
-    change often. A section fits on a screen. These rules give way to what an existing file says that is still true
-    (a secret aside): a long reference, a section past a screen or a fact that changes often found there is not
+    change often. A section fits on a screen. These rules, the list ban included, apply to what `/init` writes new
+    and give way to what an existing file says that is still true, whatever its shape (a secret aside): a list of
+    files or folders, a long reference, a section past a screen or a fact that changes often found there is not
     dropped; it is named by its file when that file stays on disk (any but `AGENTS.md`), and kept as it was under a
     last `## Reference` section when only `AGENTS.md`, the file replaced, says it.
   - *Existing files*: the existing instruction files (`AGENTS.md`, `CLAUDE.md`, `.cursorrules`,
-    `.github/copilot-instructions.md`) reach the model whole up to 40 000 characters each, and are merged, not lost.
-    A file above that bound is cut and the cut is marked in the material; the prompt says that a marked file was cut
+    `.github/copilot-instructions.md`) reach the model whole up to 40 000 characters each and 120 000 in all, and are
+    merged, not lost. A file above that bound is cut, a later file is cut to what is left of the total (nothing of it
+    shown once the total is spent), and each cut is marked in the material; the prompt says that a marked file was cut
     and that the model works from what it sees. The use case then does not overwrite: it writes the proposal to
     `AGENTS.proposed.md`, and the outcome says so and names the file that was cut, so nothing on disk is lost; it
     says `AGENTS.md` is left as it is, or not written when the project has none.
@@ -712,9 +720,11 @@ prompt as the model reads it, to review a change as a diff.
   among the manifests and cut like them; the skill prompt names these as the only sources of a command, so a Python, Go, Rust or .NET project gets steps with real
   commands, and a command no source shows stays forbidden. A verification skill has a fixed outline (prerequisites,
   steps with their commands, the expected signal, what to report).
-  - *Lifecycle*: a zone that keeps running (a server, a web UI) is started without blocking the step, waited on for
-    a stated readiness signal, and stopped at the end. A step that writes, deletes or calls the network points at a
-    scratch folder or a dry-run flag, or says it cannot be checked safely.
+  - *Lifecycle*: a zone that keeps running (a server, a web UI) is started only when the material shows how to start
+    it, to tell it is ready and to stop it: then it is started without blocking the step, waited on for a stated
+    readiness signal, and stopped at the end; else the step says the zone is not started and what would be needed to
+    start it. A step that writes, deletes or calls the network points at a scratch folder or a dry-run flag the
+    material shows, or says it cannot be checked safely.
   - *Failure shape*: `## Pass` names, beside the success signal, the one or two observations that mean failure.
   - *Verdict only*: the skill's `## Report` and the `/verify` request say that a failed check ends in a report with
     the quoted output; a fix is a separate request, so the loop never edits code to make a step pass.
@@ -722,7 +732,8 @@ prompt as the model reads it, to review a change as a diff.
   (relative to the checkout), takes the entry points from its entry packages, names the members of each cycle the
   harvest names, says what the harvest leaves out. Each of its three parts is bounded so the whole fits a screen: a
   line per concept, about ten concepts at most, the largest first; a line per dependency group and one per cycle; a
-  line per entry package; written in the session's `answer.language` when one is set.
+  line per entry package; written in the session's `answer.language` when one is set, the note that a part is not in
+  the harvest included.
 - **Advisor** (`advisor`): a second opinion that reports problems worst first and may say there is nothing to add.
   Since it sees no tool call, an action or a result the answer reports (a test run, a file read) is taken as reported
   unless the exchange contradicts it, and flagged only when nothing the answer says it did could support it, with
@@ -730,7 +741,8 @@ prompt as the model reads it, to review a change as a diff.
   or unsupported and names the file, command or fact that would settle it; five points at most. The earlier turns
   are context for the request's scope, not under review.
 - **Session summary** (`/summary`): where things stand first, then fixed headings, bounded, in the conversation's
-  language, from the history alone (the compacted turns included).
+  language, from the history alone (the compacted turns included: a summary is covered, a note of turns removed
+  without one is reported as a gap, never filled in).
 
 The prompts that apply instructions to material (the summary, the commit message, the second opinion, the
 instructions file, a verification skill) send the instructions as the system message and the material as the user

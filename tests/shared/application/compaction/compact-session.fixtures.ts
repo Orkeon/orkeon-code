@@ -11,22 +11,30 @@ import { FakeMemoryStore } from "../../../support/doubles/fake-memory-store.ts";
 import { FakeProgress } from "../../../support/doubles/fake-progress.ts";
 import { FakeSessionStore } from "../../../support/doubles/fake-session-store.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
+import { isoDay } from "../../../../src/shared/domain/iso-day.ts";
 
 export const ABOVE = { used: 199_000, window: 200_000 };
 export const BELOW = { used: 1_200, window: 200_000 };
 
+/** A buffer at the tail of a turn: it ends on the answer, so no request waits. */
 export const HISTORY: SessionMsg[] = [
   { role: "system", content: "head" },
   { role: "user", content: `fix ${WORKSPACE}/src/a.ts` },
+  { role: "system", content: "[tools] The tool calls of the answer below:\n- edit_file" },
   { role: "assistant", content: "done" },
-  { role: "user", content: "thanks" },
+];
+
+/** The request a turn stored before its head-of-turn compaction, its [turn-context] just before it. */
+export const PENDING_REQUEST: SessionMsg[] = [
+  { role: "user", content: "[turn-context] Context the turn-start checks added:\nsession resumed" },
+  { role: "user", content: "now add a test" },
 ];
 
 /** What the snip leaves of HISTORY: the head and the last message, the request in between removed. */
 export const SNIPPED: SessionMsg[] = [HISTORY[0], HISTORY[3]];
 
-/** The date FakeClock reads by default, as the extraction is given it. */
-export const TODAY = "2026-10-24";
+/** The date FakeClock reads by default, as the extraction is given it: its UTC day, as the Environment line. */
+export const TODAY = isoDay(new Date(new FakeClock().at));
 
 /** A session above the trigger with HISTORY, a model that answers, a clock, and every other port empty. */
 export function compactSetup() {
@@ -68,6 +76,15 @@ export function fullPipelineBuffer(): SessionMsg[] {
     buildMemoryRecapMessage([{ category: "project", content: "uses pnpm" }]),
     buildRestoredFileMessage(`${WORKSPACE}/src/a.ts`, "export const a = 1;"),
     buildRestoredSkillMessage(`${WORKSPACE}/skills/s.md`, "# Skill"),
+  ];
+}
+
+/** The buffer a head-of-turn compaction leaves: the summary and the memory recap, then the request still waiting. */
+export function pendingRequestBuffer(): SessionMsg[] {
+  return [
+    ...buildCompactedBuffer(HISTORY[0], "SUMMARY"),
+    buildMemoryRecapMessage([{ category: "project", content: "uses pnpm" }]),
+    ...PENDING_REQUEST,
   ];
 }
 

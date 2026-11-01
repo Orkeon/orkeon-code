@@ -1,4 +1,6 @@
 // Tool lists and expected mentions for the code-intel routing tests.
+import { NEXT_BATCH_REVIEWER_CHARTER, REVIEWER_TOOLS } from "../../../src/shared/domain/dev/reviewer-charter.ts";
+import { AUDITOR_TOOLS } from "../../../src/crews/dev-verify/domain/auditor-charter.ts";
 
 /** Every analysis tool the routing names: the main loop holds them all. */
 export const ALL_ROUTED_TOOLS: readonly string[] = [
@@ -22,17 +24,20 @@ export const SINGLE_TOOL_CASES: readonly { readonly tool: string; readonly menti
   { tool: "grep", mentions: ["`grep`", "`glob`", "output_mode"] },
 ];
 
-/** The reviewer's and the auditor's lists hold part of the tools: their text names none of the others. */
+/** The reviewer's and the auditor's lists, read from their charters, hold part of the tools: their text names none of
+ *  the others. */
 export const PARTIAL_LISTS: readonly { readonly name: string; readonly tools: readonly string[] }[] = [
-  {
-    name: "the reviewer's tools",
-    tools: [
-      "file_read", "node_outline", "node_read", "directory_read", "codebase_search", "structural_search",
-      "symbol_source", "symbol_detail", "impact_analysis",
-    ],
-  },
-  { name: "the next batch reviewer's tools", tools: ["file_read", "node_outline", "node_read", "codebase_search"] },
-  { name: "the auditor's tools", tools: ["file_read", "node_read", "codebase_search", "symbol_detail", "symbol_source"] },
+  { name: "the reviewer's tools", tools: [...REVIEWER_TOOLS] },
+  { name: "the next batch reviewer's tools", tools: [...NEXT_BATCH_REVIEWER_CHARTER.tools] },
+  { name: "the auditor's tools", tools: [...AUDITOR_TOOLS] },
+];
+
+/** `root_fqn` narrows a cut result only for an agent holding a tool that takes it (codebase_map, dependency_graph). */
+export const ROOT_FQN_CASES: readonly { readonly name: string; readonly tools: readonly string[]; readonly named: boolean }[] = [
+  { name: "names root_fqn to an agent holding codebase_map", tools: ["codebase_map"], named: true },
+  { name: "names root_fqn to an agent holding dependency_graph", tools: ["dependency_graph"], named: true },
+  { name: "never names root_fqn to the reviewer", tools: [...REVIEWER_TOOLS], named: false },
+  { name: "never names root_fqn to the auditor", tools: [...AUDITOR_TOOLS], named: false },
 ];
 
 /** The parameters the routing spells, per tool: the pinned contract must hold each one. */

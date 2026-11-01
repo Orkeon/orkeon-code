@@ -64,7 +64,8 @@ export function ownerSummary(motif: ReviewedMotif, path: string, match: OwnerMat
 }
 
 /** label: the motif as the problems name it (motifLabel). A new motif whose key term is in the owner, and a removed
- *  line the owner lacks, are problems; the owner lines go with them when the key term found any. */
+ *  line the owner lacks, are problems; the owner lines go with them, and with a motif whose status copies an owner
+ *  line, when the key term found any. path: the owner as the model names it, never the deployed copy read. */
 export function reviewOwner(label: string, motif: ReviewedMotif, path: string, match: OwnerMatch): OwnerReview {
   const { hits, missing } = match;
   const problems: string[] = [];
@@ -78,7 +79,7 @@ export function reviewOwner(label: string, motif: ReviewedMotif, path: string, m
       : `; '${motif.keyTerm}' finds no line there: give the motif status new`;
     problems.push(`${label}: removed line not found in ${path}: "${cut(line, REMOVED_SHOWN)}"${where}`);
   }
-  const block = problems.length > 0 && hits.length > 0
+  const block = (problems.length > 0 || motif.status !== "new") && hits.length > 0
     ? { label, path, lines: hits.slice(0, MAX_OWNER_LINES_PER_MOTIF).map((h) => shownLine(path, h)) }
     : null;
   return { summary: ownerSummary(motif, path, match), problems, block };

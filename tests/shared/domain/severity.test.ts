@@ -3,9 +3,9 @@
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 
-import { severityRank, findingDedupKey, dedupAndRank } from "../../../src/shared/domain/severity.ts";
+import { DEDUP_CLAIM_CHARS, severityRank, findingDedupKey, dedupAndRank } from "../../../src/shared/domain/severity.ts";
 import {
-  f, LENSES_WITH_DUPLICATE, LOW_THEN_BLOCKER_ON_ONE_KEY, RANK_ORDER, TIE_ON_ONE_KEY,
+  f, LENSES_WITH_DUPLICATE, LOW_THEN_BLOCKER_ON_ONE_KEY, PLAUSIBLE_THEN_SHOWN_ON_ONE_KEY, RANK_ORDER, TIE_ON_ONE_KEY,
   TWO_CATEGORIES_ON_ONE_LINE, TWO_CLAIMS_ON_ONE_LINE,
 } from "./severity.fixtures.ts";
 
@@ -69,20 +69,20 @@ describe("findingDedupKey", () => {
     strictEqual(key, "x.ts:9::boom");
   });
 
-  it("keeps the first 40 characters of the claim", () => {
+  it(`keeps the first ${DEDUP_CLAIM_CHARS} characters of the claim`, () => {
     // Arrange
-    const finding = f({ file: "x.ts", line: 9, finding: `${"a".repeat(40)}tail` });
+    const finding = f({ file: "x.ts", line: 9, finding: `${"a".repeat(DEDUP_CLAIM_CHARS)}tail` });
 
     // Act
     const key = findingDedupKey(finding);
 
     // Assert
-    strictEqual(key, `x.ts:9::${"a".repeat(40)}`);
+    strictEqual(key, `x.ts:9::${"a".repeat(DEDUP_CLAIM_CHARS)}`);
   });
 });
 
 describe("dedupAndRank", () => {
-  it("drops duplicates across lenses and ranks by severity", () => {
+  it("drops a finding of another lens with the same category and claim, and ranks by severity", () => {
     // Arrange
     const lenses = LENSES_WITH_DUPLICATE;
 
@@ -137,6 +137,17 @@ describe("dedupAndRank", () => {
 
     // Assert
     deepStrictEqual(out.map((x) => x.lens), ["correctness"]);
+  });
+
+  it("keeps the shown finding over a plausible one on a severity tie", () => {
+    // Arrange
+    const lenses = PLAUSIBLE_THEN_SHOWN_ON_ONE_KEY;
+
+    // Act
+    const out = dedupAndRank(lenses);
+
+    // Assert
+    deepStrictEqual(out.map((x) => x.confidence), ["shown"]);
   });
 
   it("attaches the surfacing lens", () => {

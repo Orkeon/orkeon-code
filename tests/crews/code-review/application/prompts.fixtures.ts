@@ -26,9 +26,19 @@ export const LATER_PASS_MARKERS: readonly string[] = [
 
 /** The rule that keeps a finding whose trigger the diff does not show, marked plausible. */
 export const PLAUSIBLE_RULE_MARKERS: readonly string[] = [
-  "When what that asks for (the input, the caller, the convention) lies outside the shown text",
+  "When what that asks for (the input, the caller) lies outside the shown text",
   "still report the finding as plausible",
   "name the file, caller or check that would confirm it",
   "it is shown when the diff itself shows it",
   "A suspicion with neither a shown trigger nor a check that would confirm it is not a finding",
 ];
+
+/** The style lens's rule: a finding quotes what it breaks, or there is none. */
+export const NEVER_PLAUSIBLE_MARKERS: readonly string[] = [
+  "Such a finding is never plausible",
+  "when the convention or the neighbouring code it breaks is not in the text shown to you, there is no finding",
+  "- confidence: shown;",
+];
+
+/** What the style lens's prompt must not carry: the plausible way out of its bar. */
+export const PLAUSIBLE_WAY_OUT: readonly string[] = ["still report the finding as plausible", "shown or plausible"];

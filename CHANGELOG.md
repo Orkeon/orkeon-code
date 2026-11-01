@@ -21,28 +21,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   behind a correctness low quoting the same line; a diff cut at the cap gave a clean "No issues found". The review now
   sends each hunk's enclosing function when it fits the cap, and a finding whose trigger lies outside the shown text
   is reported as plausible, its heading says so, naming the file or caller that would confirm it. Each lens has its
-  own severity scale and bar (security by what an attacker needs, style at most medium and only on a convention it
-  can quote), the correctness lens reads the removed lines, and a later pass is pointed at deleted lines, error paths,
-  boundaries and the later hunks of a long file. Findings merge by file, line and category, keeping the most severe;
-  the merged report is capped at 30, the rest counted; a cut diff is named in the report with how much was not
-  reviewed. The commit body is written only from what the change shows, the subject alone otherwise; a placeholder or
+  own severity scale and bar (security by what an attacker needs, style at most medium, a higher level brought down
+  to it, and only on a convention it can quote, never as plausible), the correctness lens reads the removed lines,
+  and a later pass is pointed at deleted lines, error paths, boundaries and the later hunks of a long file. Findings
+  merge by file, line, category and the start of the claim, keeping the most severe (the shown one at equal
+  severity); the merged report is capped at 30, the rest counted; a cut diff is named in the report with how much
+  was not reviewed. The commit body is written only from what the change shows, the subject alone otherwise; a placeholder or
   a test fixture no longer blocks the commit as a credential; a cut diff bounds what the body says. The second opinion
   of `/advisor` takes what the answer reports doing as reported unless the exchange contradicts it, anchors each point
   on the words it targets with what would settle it, five at most. The synthesis of `/analyze` is bounded part by
-  part so it fits a screen, and written in the session's `answer.language` when one is set.
+  part so it fits a screen, and written in the session's `answer.language` when one is set, its "not in the harvest"
+  note included.
 - **A compaction summarises the whole session instead of cutting it to the last messages**: the snip ran first and,
   once it had brought the buffer under the trigger, no summary was written, so `/compact <focus>` dropped the middle of
   the session and ignored the focus. Every compaction now writes its summary from the buffer as it stood before any
   cut. The bare cut stays for `/compact --snip` and when the summary fails, and then leaves a `[compacted]` note
   saying earlier turns were removed without a summary, placed after the head so the current request stays last
-  (repeated cuts add no second note); the history and the next summary read that note as a gap. The summary opens what remains with the step under way, keeps
+  (repeated cuts add no second note); the history and the next summary read that note as a gap. A compaction at the
+  head of a turn keeps that turn's request last, after the summary, so the answer stored next follows it. The summary opens what remains with the step under way, keeps
   what the user allowed or forbade with the scope they gave it, folds in an earlier summary, and still names every
   file it touched, knowing that only a few files come back after the cut.
-- **Memory**: the extraction knows today's date, so "next Thursday" becomes a date in a memory. The memory notes and
-  the `[memories]` recap are introduced as saved at compactions, true when written, no longer as notes from earlier
-  sessions (typed memory lives in the Orkeon process today, Orkeon #286). Asked to remember something, the assistant
+- **Memory**: the extraction knows today's date, so "next Thursday" becomes a date in a memory. The memory notes are
+  introduced as saved at a compaction or with `/memory add`, the `[memories]` recap as saved at the compaction, true
+  when written, no longer as notes from earlier sessions (typed memory lives in the Orkeon process today, Orkeon #286). Asked to remember something, the assistant
   says how it will be kept (the next compaction, or `/memory add` now) instead of claiming it is saved, and is told
-  that `memory_push` files a shared lesson, not that fact. The extraction's date is the user's local day.
+  that `memory_push` files a shared lesson, not that fact. The extraction's date is the UTC day the Environment line
+  gives.
 - **The prompts send each code question to the tool that answers it**: asked for every base class, the assistant
   wrote a shell script of regular expressions instead of asking Orkeon's index. The main loop, the reviewer and the
   auditor now get one line per question they can ask (the bases of a type, who extends it, its callers, a code shape
@@ -60,8 +64,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   history's markers without explaining each one, and names code files without their twenty-three extensions.
 - **`/init` no longer loses the tail of a long instructions file**: an existing `AGENTS.md`, `CLAUDE.md`,
   `.cursorrules` or `.github/copilot-instructions.md` was cut at 6 000 characters without a sign, then `AGENTS.md`
-  was overwritten. Each file now reaches the model whole up to 40 000 characters; above that the cut is marked and
-  the proposal is written to `AGENTS.proposed.md` instead, with the reason. When the workspace has a code index, the
+  was overwritten. Each file now reaches the model whole up to 40 000 characters (120 000 for all of them together);
+  above that the cut is marked and the proposal is written to `AGENTS.proposed.md` instead, with the reason, and an
+  existing instruction that is still true is kept whatever its shape. When the workspace has a code index, the
   Architecture section is drawn from its package map (without one, only what the existing files say of it is kept);
   `/init` reads the lint, formatter, CI workflow, `justfile`/`Taskfile`, JVM and .NET manifests and
   `CONTRIBUTING.md` beside the six it read (the files that state commands first, 24 000 characters in all, the files
@@ -88,9 +93,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   them, so a proposal could come with a patch removing a line the owner never had; the planner refused a plan on a
   length or a batch count the model was never told, then asked again with problems such as `B1 S1` naming parts of an
   answer that try never saw; its design-rules block named labels of the sheet and no field of the answer. A first
-  learner answer now only adds lines; code reads each owner, finds the lines its key term matches and the removed
+  learner answer now only adds lines (code refuses another status until owner lines are shown); code reads each owner, finds the lines its key term matches and the removed
   lines it lacks, and asks again only when a new motif's subject is already there or a removed line is not, showing
-  those lines, where a motif may refine, replace or remove a line it sees (an answer refused on its shape still
+  those lines (a harness owner's under its orkeon-workshop path), where a motif may refine, replace or remove a line it sees (an answer refused on its shape still
   spends the second try on that).
   `removes` is a new motif status: it drops a wrong line with nothing added. A motif's `topic` is a slug of its cause
   that reuses the slug of a refused motif, and each added line names what triggers it and the failure it prevents.

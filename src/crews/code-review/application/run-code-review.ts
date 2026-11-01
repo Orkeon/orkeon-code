@@ -66,7 +66,9 @@ export async function runCodeReview(input: CodeReviewInputs, deps: CodeReviewDep
       : "No changes to review (empty diff).";
     return what;
   }
-  const reviewed = chooseReviewDiff(diff, await collectFunctionContextDiff(scope, shell), MAX_REVIEW_DIFF_CHARS);
+  // Function context only lengthens a diff: over the cap already, it is not asked for.
+  const withContext = diff.length <= MAX_REVIEW_DIFF_CHARS ? await collectFunctionContextDiff(scope, shell) : "";
+  const reviewed = chooseReviewDiff(diff, withContext, MAX_REVIEW_DIFF_CHARS);
   const changed = await collectChangedFiles(scope, shell);
 
   // B-9: two settings that existed and were read by nothing until now —

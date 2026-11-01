@@ -48,7 +48,8 @@ export function indexWithOnePackage(): FakeCodeIndex {
 export const INSTRUCTIONS_RULES: Array<{ rule: string; marker: string }> = [
   { rule: "works from the visible part of a cut file", marker: "ends with a `[… cut:` line was cut there" },
   { rule: "reads a cut line inside the package map as the map cut there", marker: "a `[… cut:` line inside `<package-map>` means the map was cut there too: work from the part you see, never guess what follows" },
-  { rule: "keeps a true fact over a brevity rule", marker: "keeping it wins over the rules below" },
+  { rule: "keeps a true fact of an existing file whatever its shape", marker: "drop nothing that is still true, whatever its shape" },
+  { rule: "applies every shape rule, the list ban above included, to what it writes new, a secret aside", marker: "The rules on what a section holds, above and below (no list, one screen, no long reference, no fact that changes often), apply to what you write new: a true fact of an existing file that breaks one, a secret aside, is kept anyway" },
   { rule: "names an existing file that stays on disk instead of dropping its long part", marker: "an existing file other than AGENTS.md stays on disk, so name it as the file to read for that part" },
   { rule: "keeps what only AGENTS.md says under a Reference section", marker: "what only AGENTS.md says, since your file replaces it, is kept as it was under a last `## Reference` section" },
   { rule: "draws the Architecture section from the package map, the README and the existing files only", marker: "drawn from the package map, the README and the existing files only" },

@@ -15,6 +15,10 @@ const MAX_TITLE_CHARS = 80;
 export const LABEL_TITLE_CHARS = 60;
 const ADDS_LINES = `1 to ${MAX_LINES_PER_MOTIF} lines added and at most ${MAX_LINES_PER_MOTIF} removed`;
 const REMOVES_LINES = `removes takes out 1 to ${MAX_LINES_PER_MOTIF} lines and adds none`;
+/** Why a status other than new is refused on an answer given without owner lines: it copies a line it never saw. */
+export const SEEN_LINES_ONLY = (status: string): string =>
+  `${status} copies a line of its owner, and this answer was given without the owner lines: give status new, ` +
+  "or copy the line from the owner lines when they are shown";
 
 export interface AnswerMotif {
   title: string; topic: string; rows: string[]; preventiveLine: string;
@@ -87,10 +91,10 @@ function text(value: unknown): string {
 
 const chars = (s: string): number => Array.from(s).length;
 
-/** `motif k "<title>"`, the title cut at 60 characters, or `motif k` without a title: the re-ask never shows the
- *  earlier answer, so a problem names the motif by what it was called. */
+/** `motif k "<title>"`, the title cut at 60 characters, a `"` of it written `'`, or `motif k` without a title: the
+ *  re-ask never shows the earlier answer, so a problem names the motif by what it was called. */
 export function motifLabel(k: number, title: string): string {
-  const t = Array.from(title.trim());
+  const t = Array.from(title.trim().replace(/"/g, "'"));
   if (t.length === 0) return `motif ${k}`;
   const shown = t.length <= LABEL_TITLE_CHARS ? t.join("") : t.slice(0, LABEL_TITLE_CHARS).join("") + "…";
   return `motif ${k} "${shown}"`;
@@ -111,7 +115,9 @@ function isRelativePath(raw: unknown): boolean {
   return !p.split("/").includes("..");
 }
 
-function checkMotif(value: unknown, k: number, shownIds: ReadonlySet<string>, problems: string[]): AnswerMotif | undefined {
+function checkMotif(
+  value: unknown, k: number, shownIds: ReadonlySet<string>, ownerLinesShown: boolean, problems: string[],
+): AnswerMotif | undefined {
   const item = isPlainObject(value) ? value : {};
   const before = problems.length;
   const title = text(item.title);
@@ -152,6 +158,7 @@ function checkMotif(value: unknown, k: number, shownIds: ReadonlySet<string>, pr
   if (!CHECK_KINDS.includes(check)) problems.push(`${at}: check must be one of ${CHECK_KINDS.join(", ")}`);
   const status = text(item.status) as MotifStatus;
   if (!STATUSES.includes(status)) problems.push(`${at}: status must be new, refines, replaces or removes`);
+  else if (status !== "new" && !ownerLinesShown) problems.push(`${at}: ${SEEN_LINES_ONLY(status)}`);
 
   const removed = lines(item.lines_removed);
   const added = lines(item.lines_added);
@@ -202,8 +209,11 @@ function checkDropped(value: unknown, problems: string[]): AnswerDropped[] {
   return out;
 }
 
-/** shownIds: the ids handed to the model; an id outside them is a problem. */
-export function checkLearnAnswer(value: unknown, shownIds: ReadonlySet<string>): Checked<LearnAnswer> {
+/** shownIds: the ids handed to the model; an id outside them is a problem. ownerLinesShown: whether the prompt that
+ *  gave this answer showed owner lines; without them, a status other than new is a problem. */
+export function checkLearnAnswer(
+  value: unknown, shownIds: ReadonlySet<string>, ownerLinesShown: boolean,
+): Checked<LearnAnswer> {
   if (!isPlainObject(value)) return { ok: false, problems: ["the answer is not an object"] };
   if (!Array.isArray(value.motifs)) return { ok: false, problems: ["motifs must be a list"] };
   const problems: string[] = [];
@@ -212,7 +222,7 @@ export function checkLearnAnswer(value: unknown, shownIds: ReadonlySet<string>):
   // A motif's id hashes its axis and its rows: two motifs of one set of rows would share it, and one decision.
   const rowSets = new Map<string, number>();
   value.motifs.forEach((m, i) => {
-    const motif = checkMotif(m, i + 1, shownIds, problems);
+    const motif = checkMotif(m, i + 1, shownIds, ownerLinesShown, problems);
     if (!motif) return;
     motifs.push(motif);
     const key = [...motif.rows].sort().join(",");

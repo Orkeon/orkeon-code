@@ -7,6 +7,9 @@ import { INSTRUCTIONS_FILE_WRITTEN } from "../../../shared/domain/instructions-f
 /** Characters of each existing instruction file the model sees. */
 export const MAX_EXISTING_FILE_CHARS = 40_000;
 
+/** Characters of all the existing instruction files together: the later files are cut to what is left. */
+export const MAX_EXISTING_FILES_CHARS = 120_000;
+
 /** The file /init writes instead of INSTRUCTIONS_FILE_WRITTEN when the model saw an existing file cut. */
 export const PROPOSED_FILE = "AGENTS.proposed.md";
 
@@ -21,9 +24,19 @@ export function clipExisting(file: string, content: string, max = MAX_EXISTING_F
   return { file, content: content.slice(0, max), cut: content.length - max };
 }
 
-/** The line that closes the visible part of a cut file. */
-export function cutMarker(omitted: number): string {
-  return `[… cut: ${omitted} characters of this file not shown …]`;
+/** `found`, in its order, each file whole up to `perFile` characters and all of them up to `total`: a file past
+ *  either bound is cut to what is left, nothing of it shown once the total is spent. */
+export function clipExistingFiles(
+  found: readonly InstructionsFile[],
+  perFile = MAX_EXISTING_FILE_CHARS,
+  total = MAX_EXISTING_FILES_CHARS,
+): ExistingFile[] {
+  let left = total;
+  return found.map((f) => {
+    const clipped = clipExisting(f.file, f.content, Math.min(perFile, left));
+    left -= clipped.content.length;
+    return clipped;
+  });
 }
 
 /** The existing files the model saw cut. */
@@ -44,7 +57,7 @@ export function proposalNote(existing: readonly ExistingFile[]): string {
   if (cut.length === 0) return "";
   const [verb, whose] = cut.length > 1 ? ["are", "their"] : ["is", "its"];
   const kept = existing.some((f) => f.file === INSTRUCTIONS_FILE_WRITTEN) ? "left as it is" : "not written";
-  return `; ${INSTRUCTIONS_FILE_WRITTEN} ${kept}, since ${cut.join(", ")} ${verb} longer than ` +
-    `${MAX_EXISTING_FILE_CHARS} characters and the model saw only ${whose} start: review ${PROPOSED_FILE} and ` +
-    "merge it by hand";
+  return `; ${INSTRUCTIONS_FILE_WRITTEN} ${kept}, since ${cut.join(", ")} ${verb} cut (${MAX_EXISTING_FILE_CHARS} ` +
+    `characters shown of a file, ${MAX_EXISTING_FILES_CHARS} in all) and the model saw only ${whose} start: review ` +
+    `${PROPOSED_FILE} and merge it by hand`;
 }

@@ -13,7 +13,8 @@ import {
   AXIS_TEST_LIST, BACKLOG_LIST, BAD_AXES, CODE_DROPS, HEAD, HEAD_TWO_TREATED, OUT, OWNER_LINES_REASK, REMOVED_LINE_PROBLEM, T,
   THREE, badThenGoodAnswer, diskFull, earlierRunKeptNoMotif, motifsDroppedByCode, motifsRemovingAKeptLine,
   motifsWithAbsentOwners, newMotifFoundInOwner, noAxisOverThree, oneMotifProposed, ownerLinesThenBadAnswer, recorded,
-  removedLineNotInOwner, setup, twoFailedAnswers, MOTIF_1, ownerLinesThenRefusedAnswer,
+  removedLineNotInOwner, setup, twoFailedAnswers, MOTIF_1, ownerLinesThenRefusedAnswer, HARNESS_OWNER_LINES,
+  UNSEEN_REFINES_REASK, harnessOwnerHoldsKeyTerm, refinesBeforeOwnerLines, REFUSED_LISTED,
 } from "./run-dev-learn.fixtures.ts";
 import { assertNoClaudeWrite, writtenTestAxis } from "./run-dev-learn.assertions.ts";
 import { assertMentions } from "../../../support/assertions/text.ts";
@@ -83,7 +84,7 @@ describe("runDevLearn — proposals", () => {
 
     // Assert
     strictEqual(f.llm.extracts.length, 1);
-    assertMentions(f.llm.extracts[0].prompt, ["Axis: Test", ...Object.values(T), "- CONTRIBUTING.md", "- Rounding inside handlers"]);
+    assertMentions(f.llm.extracts[0].prompt, ["Axis: Test", ...Object.values(T), "- CONTRIBUTING.md"]);
     deepStrictEqual(f.files.writes.map((w) => w.path), [`${OUT}/proposals.json`, `${OUT}/PROPOSALS.md`]);
     deepStrictEqual(text.split("\n"), [
       HEAD,
@@ -100,6 +101,17 @@ describe("runDevLearn — proposals", () => {
       "'refusal test' not found in CONTRIBUTING.md");
     ok(f.files.files.get(`${OUT}/PROPOSALS.md`)?.startsWith("# Learn proposals — 2026-10-22\n"));
     assertNoClaudeWrite(f.files);
+  });
+
+  it("lists a harness refusal under the slug code matches it by", async () => {
+    // Arrange
+    const f = oneMotifProposed();
+
+    // Act
+    await runDevLearn({}, f.deps);
+
+    // Assert
+    assertMentions(f.llm.extracts[0].prompt, REFUSED_LISTED);
   });
 
   it("drops by code a motif over two batches, a refused topic and a harness-refused title", async () => {
@@ -170,7 +182,7 @@ describe("runDevLearn — proposals", () => {
     deepStrictEqual(writtenTestAxis(f.files).motifs.map((m) => m.reconcile), [
       "owner absent: docs/missing.md",
       "owner absent: .claude/skills/dev-verify/references/audit-axes.md",
-      "'absent-term' not found in CONTRIBUTING.md; removed line not found: A line nobody wrote.",
+      "'refusal' on 1 lines of CONTRIBUTING.md, first CONTRIBUTING.md:3; removed line not found: A line nobody wrote.",
     ]);
     assertNoClaudeWrite(f.files);
   });
@@ -298,6 +310,40 @@ describe("runDevLearn — the owner lines", () => {
     // Assert
     strictEqual(f.llm.extracts.length, 2);
     ok(writtenTestAxis(f.files).motifs[0].reconcile.endsWith("; the owner may already say it"));
+  });
+
+  it("shows a harness owner's lines under its orkeon-workshop path", async () => {
+    // Arrange
+    const f = harnessOwnerHoldsKeyTerm();
+
+    // Act
+    await runDevLearn({}, f.deps);
+
+    // Assert
+    assertMentions(f.llm.extracts[1].prompt, [HARNESS_OWNER_LINES]);
+  });
+
+  it("refuses a first answer that refines a line it was not shown, and asks again with the owner lines", async () => {
+    // Arrange
+    const f = refinesBeforeOwnerLines();
+
+    // Act
+    await runDevLearn({}, f.deps);
+
+    // Assert
+    assertMentions(f.llm.extracts[1].prompt, UNSEEN_REFINES_REASK);
+  });
+
+  it("keeps a refining answer given again once the owner lines are shown", async () => {
+    // Arrange
+    const f = refinesBeforeOwnerLines();
+
+    // Act
+    await runDevLearn({}, f.deps);
+
+    // Assert
+    const [m] = writtenTestAxis(f.files).motifs;
+    deepStrictEqual([m.status, m.linesRemoved], ["refines", ["A refusal is part of a command's contract."]]);
   });
 
   it("asks once when the code drops every motif the owner lines concern", async () => {

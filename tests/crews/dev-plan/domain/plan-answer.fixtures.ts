@@ -434,6 +434,10 @@ export const LABEL_CASES: readonly RuleCase[] = [
     edit: (a) => { a.batches[0].name = "Prune\nby age"; },
   },
   {
+    name: "writes a double quote of a name as a single one inside the label", problems: [`B1 "Prune 'old' entries": reason is empty`],
+    edit: (a) => { a.batches[0].name = 'Prune "old" entries'; a.batches[0].reason = ""; },
+  },
+  {
     name: `cuts a quoted name at ${LABEL_QUOTE} characters`, problems: [`B1 "${"n".repeat(LABEL_QUOTE)}…": reason is empty`],
     edit: (a) => { a.batches[0].name = "n".repeat(LABEL_QUOTE + 5); a.batches[0].reason = ""; },
   },

@@ -4,6 +4,7 @@
 
 import type { GraphSummary, MapEntry } from "../../../shared/domain/code-intel-contract.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
+import { cutLine } from "../../../shared/domain/project-manifests.ts";
 
 /** Characters of the rendered map, the cut marker aside. */
 export const MAX_PACKAGE_MAP_CHARS = 4_000;
@@ -67,6 +68,6 @@ export function renderPackageMap(entries: readonly MapEntry[], graph: GraphSumma
     size += line.length + 1;
   }
   const omitted = lines.slice(kept.length).reduce((n, l) => n + l.length + 1, 0);
-  if (omitted > 0) kept.push(`[… cut: ${omitted} characters of the package map not shown …]`);
+  if (omitted > 0) kept.push(cutLine(omitted, "the package map"));
   return kept.join("\n");
 }

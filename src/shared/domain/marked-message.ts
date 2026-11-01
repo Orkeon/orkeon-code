@@ -3,6 +3,7 @@
 // a bracket ("[bug] why does it fail?").
 import { COMPACTED_HEADER } from "./compaction.ts";
 import { TOOL_TRACE_MARKER } from "./tool-trace.ts";
+import type { SessionMsg } from "./types.ts";
 
 /** The marker of the stored message holding a turn's context lines; the header names it as material. */
 export const TURN_CONTEXT_MARKER = "[turn-context]";
@@ -15,4 +16,18 @@ const MARKERS: readonly string[] = [TURN_CONTEXT_MARKER, COMPACTED_MARKER, TOOL_
 /** Whether a stored message opens with one of the harness's markers. */
 export function isMarkedMessage(content: string): boolean {
   return MARKERS.some((m) => content.startsWith(m));
+}
+
+/** How many messages at the end of `messages` are the request still waiting for its answer: the last one when the
+ *  user typed it (a user message no marker opens), with the [turn-context] stored just before it; none when the buffer
+ *  ends on an answer or on a message of the harness. The first message, the head of the buffer, is never counted. */
+export function pendingRequestLength(messages: readonly SessionMsg[]): number {
+  const last = messages.length - 1;
+  if (last < 1 || !isTypedRequest(messages[last])) return 0;
+  const before = messages[last - 1];
+  return last >= 2 && before.role === "user" && String(before.content).startsWith(TURN_CONTEXT_MARKER) ? 2 : 1;
+}
+
+function isTypedRequest(message: SessionMsg): boolean {
+  return message.role === "user" && !isMarkedMessage(String(message.content));
 }

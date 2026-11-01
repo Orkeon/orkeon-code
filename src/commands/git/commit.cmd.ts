@@ -30,7 +30,7 @@ const session = orkeonSessionIo();
 
 defineAsyncCommand({
   name: "commit",
-  description: "Draft and create a conventional commit of the changed files or the paths named, the work folder left out unless named (confirms; --yes skips; --push pushes; --pr opens the PR; --note <text> says why).",
+  description: "Draft and create a conventional commit of the changes or the paths named, the work folder only if named (confirms; --yes skips; --push pushes; --pr opens the PR; --note \"<why>\", several words quoted).",
   maxConcurrent: 1,
   dispatch: async (args, ctx) => {
     const outcome = await runCommitCommand(rawTokens(args), {

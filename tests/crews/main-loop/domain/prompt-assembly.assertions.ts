@@ -34,3 +34,9 @@ export function assertSystemReminder(block: string): void {
   ok(block.startsWith("<system-reminder>"), `the block does not open a <system-reminder>: ${block}`);
   ok(block.endsWith("</system-reminder>"), `the block does not close its <system-reminder>: ${block}`);
 }
+
+/** `text` holds the wording `says` and not the one it replaced, `never`. */
+export function assertSaysInsteadOf(text: string, says: string, never: string, what = "the text"): void {
+  ok(text.includes(says), `${what} is missing ${JSON.stringify(says)}: ${text}`);
+  ok(!text.includes(never), `${what} still holds ${JSON.stringify(never)}: ${text}`);
+}

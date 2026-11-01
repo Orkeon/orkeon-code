@@ -3,9 +3,9 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
 import {
-  MAX_EXISTING_FILE_CHARS, clipExisting, cutMarker, instructionsTarget, proposalNote,
+  MAX_EXISTING_FILE_CHARS, MAX_EXISTING_FILES_CHARS, clipExisting, clipExistingFiles, instructionsTarget, proposalNote,
 } from "../../../../src/crews/project-init/domain/existing-files.ts";
-import { TARGETS } from "./existing-files.fixtures.ts";
+import { LEFT_FOR_THE_LAST, TARGETS, filesOverTheTotal } from "./existing-files.fixtures.ts";
 import { assertMentions } from "../../../support/assertions/text.ts";
 
 describe("clipExisting", () => {
@@ -32,16 +32,21 @@ describe("clipExisting", () => {
   });
 });
 
-describe("cutMarker", () => {
-  it("says how many characters of the file are not shown", () => {
+describe("clipExistingFiles", () => {
+  it(`cuts the later files to what is left of ${MAX_EXISTING_FILES_CHARS} characters in all`, () => {
     // Arrange
-    const omitted = 1234;
+    const found = filesOverTheTotal();
 
     // Act
-    const marker = cutMarker(omitted);
+    const clipped = clipExistingFiles(found);
 
     // Assert
-    strictEqual(marker, "[… cut: 1234 characters of this file not shown …]");
+    deepStrictEqual(clipped.map((f) => [f.content.length, f.cut]), [
+      [MAX_EXISTING_FILE_CHARS, undefined],
+      [MAX_EXISTING_FILE_CHARS, undefined],
+      [MAX_EXISTING_FILES_CHARS - 2 * MAX_EXISTING_FILE_CHARS - LEFT_FOR_THE_LAST, undefined],
+      [LEFT_FOR_THE_LAST, 5_000],
+    ]);
   });
 });
 
@@ -80,7 +85,7 @@ describe("proposalNote", () => {
     const note = proposalNote(existing);
 
     // Assert
-    assertMentions(note, ["AGENTS.md left as it is", "CLAUDE.md is longer than 40000 characters", "review AGENTS.proposed.md and merge it by hand"]);
+    assertMentions(note, ["AGENTS.md left as it is", `CLAUDE.md is cut (${MAX_EXISTING_FILE_CHARS} characters shown of a file, ${MAX_EXISTING_FILES_CHARS} in all)`, "review AGENTS.proposed.md and merge it by hand"]);
   });
 
   it("says AGENTS.md is not written when only CLAUDE.md exists and was cut", () => {
@@ -91,7 +96,7 @@ describe("proposalNote", () => {
     const note = proposalNote(existing);
 
     // Assert
-    assertMentions(note, ["; AGENTS.md not written, since CLAUDE.md is longer"]);
+    assertMentions(note, ["; AGENTS.md not written, since CLAUDE.md is cut"]);
   });
 
   it("names every cut file in the plural when two were cut", () => {
@@ -102,6 +107,6 @@ describe("proposalNote", () => {
     const note = proposalNote(existing);
 
     // Assert
-    assertMentions(note, ["since AGENTS.md, CLAUDE.md are longer than 40000 characters and the model saw only their start"]);
+    assertMentions(note, [`since AGENTS.md, CLAUDE.md are cut (${MAX_EXISTING_FILE_CHARS} characters shown of a file, ${MAX_EXISTING_FILES_CHARS} in all) and the model saw only their start`]);
   });
 });

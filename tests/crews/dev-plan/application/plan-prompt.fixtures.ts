@@ -49,7 +49,6 @@ export const PLAN_MARKERS: ReadonlyArray<[string, string]> = [
   ["19 design fields", "never leave the field empty"],
   ["20 ref anchor", "a ref anchor holds its ref and no path"],
   ["21 production anchor", "every step has a production anchor"],
-  ["22 reuse refs", "reuse lists inventory refs alone"],
   ["23 design row ids", "never a design rule id"],
   ["24 a code file the inventory does not show", "existing only when the source names its path"],
   ["25 a documentation step's test", "named by the repository's documentation command (else its test command) followed by what the step documents"],

@@ -37,8 +37,8 @@ export const REVIEW_CASES: readonly ReviewCase[] = [
   },
   { name: "a new motif whose key term the owner lacks raises nothing", motif: reviewed({ keyTerm: "fixture" }), problems: [], block: null },
   {
-    name: "a motif whose removed lines are all in the owner raises nothing",
-    motif: reviewed({ status: "refines", linesRemoved: [" Keep it short. "] }), problems: [], block: null,
+    name: "a motif whose removed lines are all in the owner raises no problem and shows the owner lines",
+    motif: reviewed({ status: "refines", linesRemoved: [" Keep it short. "] }), problems: [], block: REFUSAL_BLOCK,
   },
   {
     name: "a removed line the owner lacks names the nearest line the key term finds",

@@ -10,7 +10,7 @@ import { FakeLogger } from "../../../support/doubles/fake-logger.ts";
 import { FakeSessionStore } from "../../../support/doubles/fake-session-store.ts";
 import { FakeShell } from "../../../support/doubles/fake-shell.ts";
 import { createConfigStore } from "../../../../src/shared/application/config-store.ts";
-import { motifLabel } from "../../../../src/crews/dev-learn/domain/learn-answer.ts";
+import { SEEN_LINES_ONLY, motifLabel } from "../../../../src/crews/dev-learn/domain/learn-answer.ts";
 import { GIT_TOPLEVEL } from "../../../../src/shared/application/dev/resolve-work-folder.ts";
 import { ORKEON_IGNORE_PROBE, checkIgnoreCommand } from "../../../../src/shared/application/dev/load-dev-context.ts";
 import type { ProposalsFile } from "../../../../src/shared/domain/dev/learn-proposals.ts";
@@ -93,6 +93,11 @@ export function oneMotifProposed() {
   }];
   return f;
 }
+
+/** The refused motifs the prompt lists: the harness refusal under the slug code matches it by, the kept line as it is. */
+export const REFUSED_LISTED: readonly string[] = [
+  "- rounding-inside-handlers — Rounding inside handlers", "- keep: Each command returns a CommandView.",
+];
 
 /** The line of CONTRIBUTING.md the key term 'refusal' finds, as the re-ask shows it. */
 export const OWNER_LINE = "CONTRIBUTING.md:3: A refusal is part of a command's contract.";
@@ -191,20 +196,52 @@ export function twoFailedAnswers() {
   return f;
 }
 
-/** The fixture with motifs owned by an absent file, by the harness, and refining a line nobody wrote. */
+/** The fixture with motifs owned by an absent file, by the harness, and refining a line nobody wrote: the first
+ *  answer, refused for refining unseen, is given again once the owner lines are shown. */
 export function motifsWithAbsentOwners() {
   const f = setup();
-  f.llm.extractions = [{
+  const answer = {
     motifs: [
       motif({ owner_path: "docs/missing.md" }),
       motif({ title: "Harness rule", topic: "harness-rule", rows: [T.exports, T.invoices, T.ledger1],
         owner_kind: "harness", owner_path: ".devcontainer/harness/packs/dev/claude/skills/dev-verify/references/audit-axes.md" }),
-      motif({ title: "Refines", topic: "refines", rows: [T.exports, T.ledger1, T.ledger3], key_term: "absent-term",
+      motif({ title: "Refines", topic: "refines", rows: [T.exports, T.ledger1, T.ledger3],
         status: "refines", lines_removed: ["A line nobody wrote."] }),
     ],
-  }];
+  };
+  f.llm.extractions = [answer, answer];
   return f;
 }
+
+/** Where the harness owner of a motif sits in the orkeon-workshop repository, and its deployed copy. */
+export const HARNESS_OWNER = ".devcontainer/harness/packs/dev/claude/skills/dev-verify/references/audit-axes.md";
+const DEPLOYED_OWNER = `${WORKSPACE}/.claude/skills/dev-verify/references/audit-axes.md`;
+
+/** The fixture whose new motif is owned by a harness file whose deployed copy holds its key term. */
+export function harnessOwnerHoldsKeyTerm() {
+  const f = setup();
+  f.files.files.set(DEPLOYED_OWNER, "# Audit axes\n\nA refusal path has a test.\n");
+  f.llm.extractions = [{ motifs: [motif({ owner_kind: "harness", owner_path: HARNESS_OWNER })] }];
+  return f;
+}
+
+/** What the re-ask of harnessOwnerHoldsKeyTerm shows: the owner lines under the orkeon-workshop path. */
+export const HARNESS_OWNER_LINES = `\nOwner lines found for ${motifLabel(1, "Refusal paths go untested")} (${HARNESS_OWNER}):\n` +
+  `${HARNESS_OWNER}:3: A refusal path has a test.`;
+
+/** The fixture whose first answer refines a line of its owner, unseen, then refines it again with the lines shown. */
+export function refinesBeforeOwnerLines() {
+  const f = setup();
+  const refines = motif({ status: "refines", lines_removed: ["A refusal is part of a command's contract."] });
+  f.llm.extractions = [{ motifs: [refines] }, { motifs: [refines] }];
+  return f;
+}
+
+/** What the re-ask of refinesBeforeOwnerLines shows: the refusal of the unseen status, then the owner lines. */
+export const UNSEEN_REFINES_REASK: readonly string[] = [
+  `- ${motifLabel(1, "Refusal paths go untested")}: ${SEEN_LINES_ONLY("refines")}`,
+  `\nOwner lines found for ${motifLabel(1, "Refusal paths go untested")} (CONTRIBUTING.md):\n${OWNER_LINE}`,
+];
 
 /** An earlier run of 2026-10-20 that kept no motif for the Test axis's rows. */
 export const EARLIER_NO_MOTIF: ProposalsFile = {

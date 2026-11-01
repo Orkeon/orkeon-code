@@ -7,7 +7,8 @@ import { LENSES } from "../../../../src/crews/code-review/domain/lenses.ts";
 import { buildLensPrompt, cutDiff, FINDINGS_SCHEMA, MAX_PRIOR_FINDINGS_IN_PROMPT, SEVERITIES } from "../../../../src/crews/code-review/application/prompts.ts";
 import { SEVERITY_ORDER } from "../../../../src/shared/domain/severity.ts";
 import {
-  LATER_PASS_MARKERS, manyPriorFindings, OWN_BAR_LENSES, PLAUSIBLE_RULE_MARKERS, PRIOR_FINDINGS,
+  LATER_PASS_MARKERS, manyPriorFindings, NEVER_PLAUSIBLE_MARKERS, OWN_BAR_LENSES, PLAUSIBLE_RULE_MARKERS,
+  PLAUSIBLE_WAY_OUT, PRIOR_FINDINGS,
 } from "./prompts.fixtures.ts";
 import { assertOmits } from "./prompts.assertions.ts";
 import { assertMentions } from "../../../support/assertions/text.ts";
@@ -148,6 +149,28 @@ describe("buildLensPrompt — the finding contract", () => {
 
     // Assert
     assertMentions(p, PLAUSIBLE_RULE_MARKERS);
+  });
+
+  it("holds a style finding to a quote of the shown text, never plausible", () => {
+    // Arrange
+    const style = LENSES.find((l) => l.key === "style")!;
+
+    // Act
+    const p = buildLensPrompt(style, "DIFF");
+
+    // Assert
+    assertMentions(p, NEVER_PLAUSIBLE_MARKERS);
+  });
+
+  it("leaves the style lens no plausible finding", () => {
+    // Arrange
+    const style = LENSES.find((l) => l.key === "style")!;
+
+    // Act
+    const p = buildLensPrompt(style, "DIFF");
+
+    // Assert
+    assertOmits(p, PLAUSIBLE_WAY_OUT, "a style finding quotes the convention or there is none");
   });
 
   it("asks each finding for its confidence, shown or plausible", () => {

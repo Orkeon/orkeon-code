@@ -482,8 +482,8 @@ un changement comme un diff.
   sa documentation et ses réglages d'exemple donnent l'emporte sur une valeur trouvée sur le web, et une valeur lue
   nulle part n'est pas donnée comme un fait. Les lignes sur l'écriture, l'édition, le shell et le web
   n'apparaissent que dans les modes qui offrent ces outils.
-- **Refus** : un outil manquant ou un appel refusé est une décision du mode ou de l'utilisateur ; changer d'approche
-  au lieu de répéter l'appel.
+- **Refus** : un outil non offert (les outils de script sont offerts sans être listés) ou un appel refusé est une
+  décision du mode ou de l'utilisateur ; changer d'approche au lieu de répéter l'appel.
 - **Recherche** : router par type de fichier : le code va à l'index (`codebase_search`, identifiants exacts comme
   paraphrases) ; un nom, une clé ou un texte exact dans tout autre fichier (configuration, données, documents) va à
   `grep`, un `glob` pour resserrer, puis `file_read` ; une question de sens sur de la prose va à `rag_search` sur la
@@ -506,7 +506,8 @@ un changement comme un diff.
   script. À un agent qui a un shell, la règle d'un résultat marqué `truncated` ajoute qu'une question resserrée vaut
   mieux qu'un script sur tous les fichiers ; les autres, dont le reviewer et l'auditeur, apprennent à
   interroger l'index avant de lire. Un résultat marqué `truncated` est un échantillon : la réponse le dit et la
-  question est resserrée (un package, un `root_fqn`, un `glob`). La règle de lecture bornée que partagent les
+  question est resserrée (un package, un `root_fqn` pour un agent qui a `codebase_map` ou `dependency_graph`, les
+  outils qui le prennent, un `glob`). La règle de lecture bornée que partagent les
   lecteurs dev (`shared/domain/dev/reading-rule.ts`) demande en un seul tour les lectures déjà connues, puisque le
   runtime les lance ensemble, et c'est le seul endroit qui interdit de lire un fichier entier pour lui-même.
 - **Instructions du projet** : l'`AGENTS.md` du projet, sinon son `CLAUDE.md`, tel quel, sous un titre qui nomme le
@@ -518,9 +519,9 @@ un changement comme un diff.
   explication demandée, la sortie d'erreur et les avertissements de sécurité) et la langue des réponses (le réglage
   `answer.language`).
 - **Skills** : les guides attachés, à appliquer à la tâche, chacun plafonné et marqué quand il est coupé.
-- **Mémoire** : les notes sauvées aux compactions précédentes, présentées comme vraies quand elles ont été écrites
-  mais possiblement dépassées (jamais comme venant de sessions précédentes : la mémoire typée vit aujourd'hui dans le
-  processus du runtime, Orkeon #286) : vérifier que ce qu'une note nomme existe encore ; la requête l'emporte.
+- **Mémoire** : les notes sauvées plus tôt (à une compaction ou par `/memory add`), présentées comme vraies quand
+  elles ont été écrites mais possiblement dépassées (jamais comme venant de sessions précédentes : la mémoire typée
+  vit aujourd'hui dans le processus du runtime, Orkeon #286) : vérifier que ce qu'une note nomme existe encore ; la requête l'emporte.
 - **Hooks** : ce qui est déclaré, et que rien ne l'exécute encore.
 - **Historique** : les tours précédents, du plus ancien au plus récent, sans la requête courante, éventuellement
   ouverts par un résumé de compaction, ou par une note `[compacted]` disant que des tours antérieurs ont été retirés
@@ -550,7 +551,9 @@ un changement comme un diff.
   `/compact --snip`, et le repli quand le résumé revient vide ou que son appel échoue : le tampon est alors coupé et
   un message `[compacted]` ajouté, qui dit que des tours antérieurs ont été retirés sans résumé et de demander à
   l'utilisateur ce qui manque, pour que l'agent lise le trou comme un trou ; l'issue compte toujours comme une
-  compaction échouée pour le disjoncteur.
+  compaction échouée pour le disjoncteur. Une compaction en tête de tour garde la requête qui attend encore sa
+  réponse, avec son `[turn-context]`, à la fin du tampon reconstruit, après le résumé et ce qui revient, pour que la
+  réponse stockée ensuite suive sa requête.
 - **Résumé** (`shared/domain/compaction.ts`, `buildSummaryPrompt`) : le résumé remplace l'historique, il est donc
   écrit pour un lecteur qui reprend à froid : la requête et comment le succès se juge ; les contraintes et préférences
   de l'utilisateur encore en vigueur, proches de ses mots (avant tout une consigne de travailler autrement), et ce que
@@ -572,7 +575,8 @@ un changement comme un diff.
   au-delà de cette conversation, dans une catégorie définie avec ce qui n'y a pas sa place (`user`, `project`,
   `feedback` avec sa raison, `reference`) ; rien que le dépôt consigne déjà, aucun secret, rien que seule une sortie
   d'outil ou un texte collé affirmait ; dans le doute, s'abstenir ; une liste vide est une réponse valide.
-  L'extraction reçoit la date du jour (le cas d'usage lit le port `Clock`), pour qu'une date relative dans la
+  L'extraction reçoit la date du jour (le cas d'usage lit le port `Clock` ; le jour UTC, celui que donne la ligne
+  Environnement), pour qu'une date relative dans la
   conversation devienne une date absolue dans une mémoire.
 - **Rappel des mémoires** (`[memories]`) : les faits sauvés à la compaction qui vient d'avoir lieu, dit ainsi dans le
   rappel lui-même ; le bloc Mémoire les montre à partir du tour suivant.
@@ -580,18 +584,20 @@ un changement comme un diff.
 ### Les prompts des crews
 
 - **Revue** (`code-review`) : chaque angle dit ce qu'il cherche et ce qu'il laisse aux autres. Le diff porte la
-  fonction englobante de chaque bloc quand elle tient dans le plafond, le diff simple sinon. Un constat désigne une
+  fonction englobante de chaque bloc quand elle tient dans le plafond (demandée seulement quand le diff simple y
+  tient), le diff simple sinon. Un constat désigne une
   ligne changée (pour une ligne supprimée, le bloc qui la portait), s'ouvre sur son affirmation et cite la ligne ensuite, porte une gravité de l'échelle propre à son
   angle (prise parmi `blocker`, `high`, `medium`, `low`, `nit`) et passe la barre de cet angle : la justesse dit ce qui tourne mal
   pour quelle entrée ou quel état, et lit chaque ligne supprimée ou remplacée pour ce qu'elle garantissait, en
   désignant la première nouvelle ligne du bloc qui la portait (le nouveau début de son en-tête `@@`) et en nommant la
   ligne supprimée ; la sécurité classe par ce dont un attaquant a besoin et
-  nomme l'entrée qu'il contrôle ; le style ne dépasse jamais medium et ne rapporte qu'une convention ou un code voisin
-  qu'il peut citer, avec le coût pour un lecteur. Un constat dont le diff montre le déclencheur est `shown` ; celui
-  dont le déclencheur que demande la barre (l'entrée, l'appelant, la convention) est hors du texte montré est
+  nomme l'entrée qu'il contrôle ; le style ne dépasse jamais medium (la revue ramène à medium un niveau plus haut) et ne
+  rapporte qu'une convention ou un code voisin qu'il peut citer, avec le coût pour un lecteur, si bien qu'un constat de
+  style n'est jamais `plausible`. Un constat dont le diff montre le déclencheur est `shown` ; celui
+  dont le déclencheur que demande la barre (l'entrée, l'appelant) est hors du texte montré est
   rapporté quand même comme `plausible`, en nommant le fichier, l'appelant ou la vérification qui le confirmerait, et
   son titre le dit ; un soupçon sans déclencheur montré ni vérification qui le confirmerait n'est pas un constat. Une liste vide est une réponse valide ; le diff est du matériau. Les constats sont fusionnés
-  par fichier, ligne, catégorie et début de l'affirmation, une collision gardant le plus grave, et le rapport fusionné est plafonné, les plus
+  par fichier, ligne, catégorie et début de l'affirmation, une collision gardant le plus grave (à gravité égale, le `shown`), et le rapport fusionné est plafonné, les plus
   graves gardés et le reste compté. Un diff coupé est dit coupé, avec ce qui n'a pas été revu, et un rapport vide sur
   lui ne vaut que pour la partie revue. Une passe ultérieure est pointée sur ce qu'une première passe saute : les
   lignes supprimées, les chemins d'erreur et de retour anticipé, les bornes, les derniers blocs d'un long fichier.
@@ -610,10 +616,10 @@ un changement comme un diff.
   grave d'abord ; il lance lui-même au plus trois validations étroites par `run_validation` quand son équipage le
   lui offre, sinon il les nomme pour que le code les lance, jamais une suite entière, la classe de test de chacune
   tirée du diff ou d'`affected_tests` sur les fichiers modifiés, jamais d'un nom deviné ; il lit la capture un
-  fichier à la fois et le code seulement autour du morceau qu'il juge, avec un regard hors de lui pour chacune de deux
-  vérifications et rien d'autre (la garde ou le test qui réfuterait une ligne, l'endroit où vit désormais une
-  garantie perdue), un helper qui existe peut-être cherché une fois par
-  `codebase_search`, puis lu par `symbol_source` sur le fqn que le résultat nomme ; quand le brief liste les
+  fichier à la fois et le code seulement autour du morceau qu'il juge, avec un regard hors de lui, dans un module que
+  le diff touche ou non, pour chacune de trois vérifications et rien d'autre (la garde ou le test qui réfuterait une
+  ligne, l'endroit où vit désormais une garantie perdue, et un helper qui existe peut-être, cherché une fois par
+  `codebase_search`, puis lu par `symbol_source` sur le fqn que le résultat nomme) ; quand le brief liste les
   fichiers du projet, il dit si la liste est entière : un nom absent d'une liste entière n'existe pas, après une coupe `glob` avec
   un motif tranche, et il ne lit jamais un nom deviné ni un dossier (sa charte a `glob` et `affected_tests`) ; le
   bloc Precedents du brief est ce que la mémoire partagée a rappelé, et `memory_recall`, quand il est offert, ne
@@ -627,16 +633,17 @@ un changement comme un diff.
   lignes qui partagent une même cause et couvrant au moins trois lots, sans ligne ajoutée qui ne la partage pas ;
   chaque motif porte une ligne préventive assez concrète pour avoir arrêté toutes ses lignes, et chaque ligne qu'il
   ajoute nomme la situation qui la déclenche et l'échec qu'elle prévient ; le `topic` d'un motif est un court slug
-  kebab de sa cause, et un candidat sur le sujet d'un motif refusé reprend le slug de ce motif tel qu'il est écrit, si
+  kebab de sa cause, et un candidat sur le sujet d'un motif refusé reprend le slug de ce motif tel qu'il est écrit (un refus du harness est listé sous le slug de son texte), si
   bien que le code l'écarte même quand le modèle ne le fait pas ; les fichiers propriétaires n'atteignent le modèle
-  que par leur chemin, si bien qu'une première réponse ne fait qu'ajouter des lignes (statut `new`), dit ce que le
+  que par leur chemin, si bien qu'une première réponse ne fait qu'ajouter des lignes (statut `new` ; le code refuse un autre statut tant qu'aucune ligne du propriétaire n'est montrée), dit ce que le
   candidat apporte que les propriétaires listés ne couvrent pas et nomme le terme clé qui y retrouverait son sujet ;
   le code lit ensuite chaque propriétaire, trouve les lignes que le terme clé atteint et les lignes retirées qui lui
   manquent, et ne redemande que lorsque le terme clé d'un motif `new` est déjà dans son propriétaire ou qu'une ligne
-  retirée n'y est pas, ces lignes du propriétaire montrées sous les problèmes, les dernières lignes du tableau coupées d'abord pour leur laisser la place ; à cet essai un motif peut affiner,
+  retirée n'y est pas, ces lignes du propriétaire montrées sous les problèmes (celles d'un propriétaire du harness sous son chemin dans orkeon-workshop), les dernières lignes du tableau coupées d'abord pour leur laisser la place et pour tenir les problèmes ; à cet essai un motif peut affiner,
   remplacer ou retirer (statut `removes`) une ligne qu'il voit, recopiée à l'identique, un retrait n'ajoutant aucune
   ligne, et une seconde réponse qui échoue à sa vérification laisse la première debout ; une première réponse refusée
-  sur sa forme consacre le second essai à cela, le propriétaire n'étant alors que noté dans la proposition ; un
+  sur sa forme consacre le second essai à cela, le propriétaire n'étant alors que noté dans la proposition, sauf quand sa seule faute est un
+  statut autre que `new` : cet essai montre alors aussi les lignes du propriétaire de ses motifs ; un
   problème du second essai nomme le motif par son titre ; une vérification (un test, une règle d'analyseur, un test d'architecture, la porte) passe avant une règle
   écrite ; le propriétaire est le plus proche de l'endroit où l'écart est né, une règle du dépôt avant un fichier du
   harness ; un fichier du harness n'est jamais modifié, ses lignes reviennent en patch pour le dépôt orkeon-workshop,
@@ -729,10 +736,11 @@ un changement comme un diff.
   plusieurs fichiers pour voir, les conventions sur lesquelles un nouveau venu se tromperait ; rien d'inventé. La
   configuration lue est la liste de manifestes que les deux crews partagent (`shared/domain/project-manifests.ts`),
   les fichiers qui énoncent des commandes en premier puisque le matériau est borné : les manifestes à scripts ou à
-  cibles (`package.json`, `pyproject.toml`, `Makefile`, `justfile`, `Taskfile`, `Cargo.toml`, `go.mod`, `pom.xml`,
-  `build.gradle*`, un `*.csproj` ou `*.sln` à la racine), puis le contenu des workflows de CI (`.github/workflows/*`),
-  puis les règles (`tsconfig.json`, `.eslintrc*`, `eslint.config.*`, `biome.json`, `ruff.toml`, `.editorconfig`),
-  `CONTRIBUTING.md` en dernier. Chaque fichier est coupé à 4 000 caractères, sa coupe marquée ; l'ensemble est borné
+  cibles (`package.json`, `pyproject.toml`, `Makefile`, `justfile`, `Taskfile.yml`, `Cargo.toml`, `go.mod`,
+  `pom.xml`, `build.gradle`, `build.gradle.kts`, un `*.sln` ou `*.csproj` à la racine), puis le contenu des workflows
+  de CI (`.github/workflows/*`), puis les règles (`tsconfig.json`, `.eslintrc.json`, `.eslintrc.js`,
+  `eslint.config.js`, `eslint.config.mjs`, `biome.json`, `ruff.toml`, `.editorconfig`), `CONTRIBUTING.md` en
+  dernier ; un nom hors de cette liste (`.eslintrc.yml`, `Taskfile.yaml`) n'est pas lu. Chaque fichier est coupé à 4 000 caractères, sa coupe marquée ; l'ensemble est borné
   à 24 000 caractères, les fichiers gardés entiers dans cet ordre et une ligne finale nommant ceux laissés de côté.
   Une étape de CI est une source valable de commande. Chaque commande est prise d'abord dans la configuration
   (l'extraction des conventions, `runCommand` compris), dans un fichier d'instructions existant quand la
@@ -746,14 +754,17 @@ un changement comme un diff.
     indexation.
   - *Ce que le fichier laisse de côté* : les listes de fichiers, de dossiers ou de paquets, le conseil générique, les
     secrets, les conventions du langage que tout agent connaît déjà, les longues références ou tutoriels (le fichier à
-    lire est nommé à la place), les faits qui changent souvent. Une section tient sur un écran. Ces règles cèdent devant ce qu'un fichier
-    existant dit et qui est toujours vrai (hors secret) : une longue référence, une section qui dépasserait un écran
-    ou un fait qui change souvent qui s'y trouve n'est pas abandonné ; il est désigné par son fichier quand ce
+    lire est nommé à la place), les faits qui changent souvent. Une section tient sur un écran. Ces règles, l'interdit
+    des listes compris, s'appliquent à ce que `/init` écrit de neuf et cèdent devant ce qu'un fichier existant dit et
+    qui est toujours vrai, quelle qu'en soit la forme (hors secret) : une liste de fichiers ou de dossiers, une longue
+    référence, une section qui dépasserait un écran ou un fait qui change souvent qui s'y trouve n'est pas abandonné ; il est désigné par son fichier quand ce
     fichier reste sur le disque (tout autre que `AGENTS.md`), et gardé tel quel sous une dernière section
     `## Reference` quand seul `AGENTS.md`, le fichier remplacé, le dit.
   - *Fichiers existants* : les fichiers d'instructions existants (`AGENTS.md`, `CLAUDE.md`, `.cursorrules`,
-    `.github/copilot-instructions.md`) parviennent entiers au modèle jusqu'à 40 000 caractères chacun, et sont
-    fusionnés, pas perdus. Un fichier au-delà de cette borne est coupé et la coupe est marquée dans le matériau ; le
+    `.github/copilot-instructions.md`) parviennent entiers au modèle jusqu'à 40 000 caractères chacun et 120 000 en
+    tout, et sont fusionnés, pas perdus. Un fichier au-delà de cette borne est coupé, un fichier suivant est coupé à
+    ce qui reste du total (rien n'en est montré une fois le total épuisé), et chaque coupe est marquée dans le
+    matériau ; le
     prompt dit qu'un fichier marqué a été coupé et que le modèle travaille à partir de ce qu'il voit. Le cas d'usage
     n'écrase alors pas : il écrit la proposition dans `AGENTS.proposed.md`, et le résultat le dit et nomme le fichier
     coupé, si bien que rien n'est perdu sur le disque ; il dit que `AGENTS.md` est laissé tel quel, ou non écrit
@@ -767,10 +778,12 @@ un changement comme un diff.
   bien qu'un projet Python, Go, Rust ou .NET reçoit des étapes avec de vraies commandes, et qu'une commande qu'aucune
   source ne montre reste interdite. Une skill de vérification a un plan fixe (prérequis, étapes avec leurs commandes,
   le signal attendu, quoi rapporter).
-  - *Cycle de vie* : une zone qui reste en marche (un serveur, une interface web) est démarrée sans bloquer l'étape,
-    attendue jusqu'à un signal de disponibilité énoncé, et arrêtée à la fin. Une étape qui écrit, supprime ou appelle
-    le réseau vise un dossier jetable ou une option d'essai à blanc, ou dit qu'elle ne peut pas être vérifiée sans
-    risque.
+  - *Cycle de vie* : une zone qui reste en marche (un serveur, une interface web) n'est démarrée que quand le
+    matériau montre comment la démarrer, savoir qu'elle est prête et l'arrêter : elle est alors démarrée sans bloquer
+    l'étape, attendue jusqu'à un signal de disponibilité énoncé, et arrêtée à la fin ; sinon l'étape dit que la zone
+    n'est pas démarrée et ce qu'il faudrait pour la démarrer. Une étape qui écrit, supprime ou appelle le réseau vise
+    un dossier jetable ou une option d'essai à blanc que le matériau montre, ou dit qu'elle ne peut pas être vérifiée
+    sans risque.
   - *Forme de l'échec* : `## Pass` nomme, à côté du signal de succès, la ou les deux observations qui signifient
     l'échec.
   - *Le verdict seulement* : le `## Report` de la skill et la requête de `/verify` disent qu'une vérification qui
@@ -781,7 +794,7 @@ un changement comme un diff.
   que la récolte nomme, dit ce que la récolte laisse de côté. Chacune de ses trois parties est bornée pour que le tout
   tienne sur un écran : une ligne par concept, une dizaine de concepts au plus, les plus gros d'abord ; une ligne par
   groupe de dépendances et une par cycle ; une ligne par paquet d'entrée ; rédigée dans la langue `answer.language` de
-  la session quand elle est réglée.
+  la session quand elle est réglée, y compris la mention qu'une partie n'est pas dans la récolte.
 - **Advisor** (`advisor`) : un second avis qui rapporte les problèmes du pire au moindre et peut dire qu'il n'y a rien
   à ajouter. Comme il ne voit aucun appel d'outil, une action ou un résultat que la réponse rapporte (des tests lancés,
   un fichier lu) est pris tel que rapporté sauf si l'échange le contredit, et signalé seulement quand rien de ce que
@@ -790,7 +803,8 @@ un changement comme un diff.
   qui trancherait ; cinq points au plus. Les tours précédents sont du contexte pour la portée de la demande, pas
   l'objet de la revue.
 - **Résumé de session** (`/summary`) : où en sont les choses d'abord, puis des titres fixes, borné, dans la langue de
-  la conversation, à partir du seul historique (tours compactés compris).
+  la conversation, à partir du seul historique (tours compactés compris : un résumé est repris, une note de tours
+  retirés sans résumé est signalée comme un trou, jamais comblée).
 
 Les prompts qui appliquent des instructions à un matériau (le résumé, le message de commit, le second avis, le
 fichier d'instructions, une skill de vérification) envoient les instructions comme message système et le matériau

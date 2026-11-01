@@ -1,7 +1,8 @@
 // The material the learner's prompt is tested on, and the marker that pins each behaviour of its instructions.
 import type { LearnRow } from "../../../../src/shared/domain/shared-memory/verdict-rows.ts";
 import type { LearnPromptInput } from "../../../../src/crews/dev-learn/application/learn-prompt.ts";
-import { MAX_LINES_PER_MOTIF, MAX_TOPIC_CHARS, motifLabel } from "../../../../src/crews/dev-learn/domain/learn-answer.ts";
+import { MAX_LINES_PER_MOTIF, MAX_MOTIFS_PER_AXIS, MAX_TOPIC_CHARS, motifLabel } from "../../../../src/crews/dev-learn/domain/learn-answer.ts";
+import { MAX_OWNER_LINE_CHARS, MAX_OWNER_LINES_PER_MOTIF } from "../../../../src/crews/dev-learn/domain/owner-lines.ts";
 import type { OwnerLinesBlock } from "../../../../src/crews/dev-learn/domain/owner-lines.ts";
 
 /** A Major Test row of `batch`, its fields overridden by `over`. */
@@ -90,3 +91,18 @@ export const FULL_INPUT: LearnPromptInput = {
   ...INPUT,
   rows: Array.from({ length: 40 }, (_, i) => ({ ...LONG_ROW, id: `row${String(i).padStart(6, "0")}`, batch: `b/${"F".repeat(70)}${i}` })),
 };
+
+/** Fifteen problems of about 250 characters: three motifs of five removed lines the owner lacks. */
+export const MANY_PROBLEMS: readonly string[] = Array.from({ length: 15 }, (_, i) =>
+  `motif ${1 + (i % 3)}: removed line not found in CONTRIBUTING.md: "${"x".repeat(60)}"; nearest: CONTRIBUTING.md:${i}: ${"y".repeat(150)}`);
+
+/** The longest harness destination the learner is shown. */
+const LONGEST_DESTINATION = ".devcontainer/harness/packs/dev/claude/skills/dev-implement/references/common-rules.md";
+
+/** The most owner lines a re-ask can show: every motif's block full, each line at its cut under the longest
+ *  harness destination, with a five-digit line number, each label quoting a cut title. */
+export const WORST_BLOCKS: readonly OwnerLinesBlock[] = Array.from({ length: MAX_MOTIFS_PER_AXIS }, (_, k) => ({
+  label: motifLabel(k + 1, "t".repeat(70)), path: LONGEST_DESTINATION,
+  lines: Array.from({ length: MAX_OWNER_LINES_PER_MOTIF }, (_, i) =>
+    `${LONGEST_DESTINATION}:${10_000 + i}: ${"r".repeat(MAX_OWNER_LINE_CHARS)}`),
+}));

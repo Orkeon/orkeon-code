@@ -163,9 +163,10 @@ function describeTrust(tools: readonly string[]): string {
   lessons + ".";
 }
 
-/** How a refused or missing tool must be read — it rides with the tool list. */
+/** How a refused or missing tool must be read — it rides with the tool list. It speaks of a tool not offered, not of
+ *  one off the list: the script tools (`memory_recall`, `memory_push`) are offered without being listed. */
 const REFUSAL_NOTE =
-  "A tool missing from this list, or a call that comes back refused, is a decision of the " +
+  "A tool you are not offered, or a call that comes back refused, is a decision of the " +
   "permission mode or of the user: change your approach instead of repeating the call.";
 
 /** The tools that reach the web: the project's own sources come before them. */
@@ -286,7 +287,7 @@ export function buildStaticHeader(opts: {
 }
 
 const MEMORY_INTRO =
-  "Notes saved at earlier compactions, true when written but possibly out of date: check that " +
+  "Notes saved earlier (at a compaction or with /memory add), true when written but possibly out of date: check that " +
   "a file, function or flag a note names still exists before relying on it, and follow the " +
   "current request when they disagree.";
 

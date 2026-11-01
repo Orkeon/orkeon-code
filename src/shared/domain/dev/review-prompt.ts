@@ -9,7 +9,7 @@ import { NEXT_BATCH_REVIEWER_CHARTER, REVIEWER_TOOLS } from "./reviewer-charter.
 import { describeCodeIntelRouting } from "../code-intel-routing.ts";
 import { carry } from "./carried-text.ts";
 import type { CarriedText } from "./carried-text.ts";
-import { projectFileLines } from "./project-files.ts";
+import { PROJECT_LIST_RULE, projectFileLines } from "./project-files.ts";
 
 export type ReviewMode = "plan" | "spec" | "change" | "next-batch";
 
@@ -92,12 +92,6 @@ const NEXT_BATCH_FOCUS = [
   "that no closed batch's change opened is not yours to ask, whatever you think of the decision.",
 ];
 
-/** What the reviewer makes of the project's files, said only in a mode whose brief carries them (the next batch's). */
-const PROJECT_LIST_RULE = [
-  "When the brief lists the project's files, its last line says whether the list is whole: when it is, a name absent",
-  "from it does not exist; past a cut, glob with a pattern decides. Never open a name you guessed, nor a folder.",
-];
-
 /** The lookups the routing lines leave unsaid, each said only to a charter holding its tool: the source of a
  *  search hit, and a file by its name, left out where the project list already sends the reviewer to glob. */
 function lookupLines(tools: readonly string[], listed: boolean): string[] {
@@ -113,7 +107,7 @@ const closing = (tools: readonly string[], listed: boolean): string[] => [
   "",
   "Reading: open only what the files and their anchors point to, and of a source file only",
   "the node or the range that holds the line you cite.",
-  ...(listed ? PROJECT_LIST_RULE : []),
+  ...(listed ? [PROJECT_LIST_RULE] : []),
   ...lookupLines(tools, listed),
   NODE_READ_RULE,
   BOUNDED_READ_RULE,

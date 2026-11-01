@@ -56,9 +56,9 @@ export interface LearnPromptInput {
 
 /** One budget with the sub-agent briefs: MAX_BRIEF_CHARS of the charter. */
 export const MAX_LEARN_PROMPT_CHARS = 24_000;
-/** The room a re-ask keeps for its owner lines (3 motifs of 8 lines of about 200 characters): its last rows are
- *  cut first to leave it. */
-export const OWNER_LINES_RESERVE = 5_000;
+/** The room a re-ask keeps for its owner lines: 3 blocks of 8 lines cut at 160 characters under the longest harness
+ *  destination (86 characters) need about 6 700. Its last rows are cut first to leave it. */
+export const OWNER_LINES_RESERVE = 7_000;
 
 /** Where a harness owner may live, in the orkeon-workshop repository. */
 const HARNESS_DESTINATIONS: readonly string[] = [
@@ -122,19 +122,18 @@ function headOf(input: LearnPromptInput, problems: readonly string[]): string {
   return parts.join("\n");
 }
 
-/** ownerLines: on the re-ask, the owner lines code found for the problems. When it shows some, the last rows are
- *  cut until OWNER_LINES_RESERVE is left for them; the owner lines are then cut to stay within
- *  MAX_LEARN_PROMPT_CHARS. */
+/** ownerLines: on the re-ask, the owner lines code found for the problems. The last rows are cut until the head,
+ *  problems included, fits MAX_LEARN_PROMPT_CHARS, less OWNER_LINES_RESERVE when owner lines are shown; the owner
+ *  lines are then cut to stay within MAX_LEARN_PROMPT_CHARS. */
 export function buildLearnPrompt(
   input: LearnPromptInput, problems: readonly string[], ownerLines: readonly OwnerLinesBlock[] = [],
 ): string {
   const rows = [...input.rows];
   let head = headOf(input, problems);
-  if (ownerLines.some((b) => b.lines.length > 0)) {
-    while (rows.length > 0 && head.length > MAX_LEARN_PROMPT_CHARS - OWNER_LINES_RESERVE) {
-      rows.pop();
-      head = headOf({ ...input, rows }, problems);
-    }
+  const room = MAX_LEARN_PROMPT_CHARS - (ownerLines.some((b) => b.lines.length > 0) ? OWNER_LINES_RESERVE : 0);
+  while (rows.length > 0 && head.length > room) {
+    rows.pop();
+    head = headOf({ ...input, rows }, problems);
   }
   const owned = ownerLinesPart(fittedBlocks(ownerLines, MAX_LEARN_PROMPT_CHARS - head.length - 1));
   return owned.length === 0 ? head : [head, ...owned].join("\n");

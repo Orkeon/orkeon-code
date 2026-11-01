@@ -1,7 +1,7 @@
 // The answers checkLearnAnswer is tested on: a valid motif on the wire, the rows shown to the model, and one case per
 // refusal of the design's table.
 import {
-  LABEL_TITLE_CHARS, MAX_LINES_PER_MOTIF, MAX_TOPIC_CHARS, checkLearnAnswer, motifLabel,
+  LABEL_TITLE_CHARS, MAX_LINES_PER_MOTIF, MAX_TOPIC_CHARS, SEEN_LINES_ONLY, checkLearnAnswer, motifLabel,
 } from "../../../../src/crews/dev-learn/domain/learn-answer.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 
@@ -17,9 +17,10 @@ export const motif = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
-/** The problems checkLearnAnswer finds in `value`, none when it passes. */
-export const problemsOf = (value: unknown): string[] => {
-  const r = checkLearnAnswer(value, SHOWN);
+/** The problems checkLearnAnswer finds in `value` given with owner lines (unless `ownerLinesShown` is false), none
+ *  when it passes. */
+export const problemsOf = (value: unknown, ownerLinesShown = true): string[] => {
+  const r = checkLearnAnswer(value, SHOWN, ownerLinesShown);
   return r.ok ? [] : r.problems;
 };
 
@@ -114,6 +115,15 @@ export const MOTIF_CASES: readonly MotifCase[] = [
   },
 ];
 
+export interface UnseenStatusCase { name: string; over: Record<string, unknown>; problem: string }
+
+/** A motif of each status that copies an owner line, in an answer given without owner lines. */
+export const UNSEEN_STATUS_CASES: readonly UnseenStatusCase[] = (["refines", "replaces", "removes"] as const).map((status) => ({
+  name: `refuses status ${status} in an answer given without owner lines`,
+  over: { status, lines_removed: ["Old line."], ...(status === "removes" ? { lines_added: [] } : {}) },
+  problem: `${AT}: ${SEEN_LINES_ONLY(status)}`,
+}));
+
 /** Two motifs on the same rows, the second listing them in reverse order. */
 export const SAME_ROWS_ANSWER = {
   motifs: [motif(), motif({ title: "Another title", rows: [...(motif() as { rows: string[] }).rows].reverse() })],
@@ -140,6 +150,7 @@ export interface LabelCase {
 export const LABEL_CASES: readonly LabelCase[] = [
   { name: "names a motif by its number and its title", title: "Refusal paths go untested", label: 'motif 2 "Refusal paths go untested"' },
   { name: "names a motif without a title by its number alone", title: " ", label: "motif 2" },
+  { name: "writes a double quote of a title as a single one inside the label", title: 'Prune "old" entries', label: "motif 2 \"Prune 'old' entries\"" },
   {
     name: `cuts a title at ${LABEL_TITLE_CHARS} characters then an ellipsis`, title: "t".repeat(LABEL_TITLE_CHARS + 5),
     label: `motif 2 "${"t".repeat(LABEL_TITLE_CHARS)}…"`,

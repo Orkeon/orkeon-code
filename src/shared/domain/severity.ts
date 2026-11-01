@@ -24,16 +24,28 @@ export const DEDUP_CLAIM_CHARS = 40;
 /** Stable dedup key: file + line + category (lower-cased, empty when absent) + the
  *  start of the claim (the first {@link DEDUP_CLAIM_CHARS} characters of `finding`,
  *  trimmed and lower-cased). The claim opens a finding, so two faults of one lens on
- *  one line stay apart, while two lenses stating the same claim on it collapse. */
+ *  one line stay apart, while passes or lenses that give the same category and the
+ *  same claim opening collapse; each lens names its own category, so two lenses
+ *  rarely do. */
 export function findingDedupKey(f: Finding): string {
   const claim = String(f.finding ?? "").trim().toLowerCase().slice(0, DEDUP_CLAIM_CHARS);
   return `${f.file}:${f.line}:${(f.category ?? "").toLowerCase()}:${claim}`;
 }
 
+/** Whether `a` outranks `b` on one key: the more severe, or at equal severity a
+ *  `shown` over a finding that is not, so the report never calls plausible what a
+ *  pass showed. */
+function outranks(a: Finding, b: Finding): boolean {
+  const bySeverity = severityRank(a.severity) - severityRank(b.severity);
+  if (bySeverity !== 0) return bySeverity < 0;
+  return a.confidence === "shown" && b.confidence !== "shown";
+}
+
 /**
  * Merge lens results, drop duplicates (by {@link findingDedupKey}), and sort by
- * severity. On a collision the most severe finding is kept (the first on a tie),
- * so a blocker is never dropped behind a low on the same key. Each input group
+ * severity. On a collision the most severe finding is kept, at equal severity the
+ * `shown` one, else the first, so a blocker is never dropped behind a low on the
+ * same key. Each input group
  * carries its lens so the kept finding records which lens surfaced it.
  * Order-stable for equal severities (sort is stable in V8).
  */
@@ -50,7 +62,7 @@ export function dedupAndRank(
       if (index === undefined) {
         at.set(key, all.length);
         all.push(kept);
-      } else if (severityRank(kept.severity) < severityRank(all[index].severity)) {
+      } else if (outranks(kept, all[index])) {
         all[index] = kept;
       }
     }

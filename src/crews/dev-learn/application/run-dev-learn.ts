@@ -186,10 +186,12 @@ async function ownerFiles(files: Pick<Files, "list">, testsFolder: string | unde
   return out.slice(0, MAX_OWNERS);
 }
 
+/** Each refused motif under the slug code matches it by: its topic, or for a harness refusal the slug of its text
+ *  (topicOf); a line the harness keeps is listed as it is. */
 function refusedForPrompt(backlog: Backlog): string[] {
   return [...new Set([
     ...backlog.refused.map((m) => `${m.topic} — ${m.motif}`),
-    ...backlog.harness.refused,
+    ...backlog.harness.refused.map((t) => (KEEP.test(t) ? t : `${topicOf(t)} — ${t}`)),
   ])];
 }
 
@@ -239,9 +241,11 @@ function unchangedSince(previous: ProposalsFile | null, axis: string, shown: rea
 /** What the owner files say against a checked answer: the problems of a re-ask and the owner lines shown with them. */
 interface OwnerFindings { problems: string[]; blocks: OwnerLinesBlock[] }
 
-/** Two attempts. A first answer refused on shape spends the second on its problems, as before. A first answer that
- *  passes is reviewed against its owners; when they raise problems, the second attempt shows them with the owner
- *  lines, and a second answer that fails its check leaves the first one standing. */
+/** Two attempts. A first answer refused on shape spends the second on its problems, as before; when its only fault
+ *  is a status other than new, given before any owner line was shown, the second attempt also shows the owner
+ *  lines of its motifs. A first answer that passes is reviewed against its owners; when they raise problems, the
+ *  second attempt shows them with the owner lines, and a second answer that fails its check leaves the first one
+ *  standing. */
 async function ask(
   llm: Pick<Llm, "extract">, input: LearnPromptInput, shownIds: ReadonlySet<string>,
   review: (answer: LearnAnswer) => Promise<OwnerFindings>,
@@ -258,10 +262,16 @@ async function ask(
       problems = [`the answer did not parse: ${reasonOf(error)}`];
       continue;
     }
-    const checked = checkLearnAnswer(value, shownIds);
+    const checked = checkLearnAnswer(value, shownIds, blocks.some((b) => b.lines.length > 0));
     if (!checked.ok) {
       if (first !== null) return { ok: true, answer: first };
       problems = checked.problems;
+      const seen = attempt === 0 ? checkLearnAnswer(value, shownIds, true) : null;
+      if (seen?.ok) {
+        const findings = await review(seen.value);
+        problems = [...problems, ...findings.problems];
+        blocks = findings.blocks;
+      }
       continue;
     }
     if (attempt > 0) return { ok: true, answer: checked.value };
@@ -314,7 +324,8 @@ function filterMotifs(
 
 // ---- reconcile ----
 
-/** Reads a motif's owner file in the checkout (a harness owner through its deployed copy), each path once a run. */
+/** Reads a motif's owner file in the checkout (a harness owner through its deployed copy), each path once a run;
+ *  path: the file read. */
 function ownerReader(files: Pick<Files, "read">): (motif: AnswerMotif) => Promise<{ path: string; text: string | null }> {
   const texts = new Map<string, string | null>();
   return async (motif) => {
@@ -335,11 +346,12 @@ function ownerReader(files: Pick<Files, "read">): (motif: AnswerMotif) => Promis
 
 type OwnerRead = ReturnType<typeof ownerReader>;
 
-/** A kept motif against its owner: an absent owner is only said in the summary. */
+/** A kept motif against its owner: an absent owner (the file read) is only said in the summary; what the owner
+ *  holds is named under the owner's own path, a harness owner's in the orkeon-workshop repository. */
 async function reconcile(read: OwnerRead, { motif, k }: Kept): Promise<OwnerReview> {
   const { path, text } = await read(motif);
   if (text === null) return { summary: `owner absent: ${path}`, problems: [], block: null };
-  return reviewOwner(motifLabel(k, motif.title), motif, path, matchOwner(text, motif.keyTerm, motif.linesRemoved));
+  return reviewOwner(motifLabel(k, motif.title), motif, motif.owner.path, matchOwner(text, motif.keyTerm, motif.linesRemoved));
 }
 
 async function ownerFindings(read: OwnerRead, kept: readonly Kept[]): Promise<OwnerFindings> {

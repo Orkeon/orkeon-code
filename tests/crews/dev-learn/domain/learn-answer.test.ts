@@ -7,7 +7,7 @@ import { deepStrictEqual, ok, strictEqual } from "node:assert";
 import { LEARN_ANSWER_SCHEMA, checkLearnAnswer, motifLabel } from "../../../../src/crews/dev-learn/domain/learn-answer.ts";
 import {
   ANSWER_CASES, HARNESS_OWNER_ANSWER, LABEL_CASES, MAPPED_ANSWER, MOTIF_CASES, REMOVES_ANSWER, SAME_ROWS_ANSWER, SCHEMA_WORDS,
-  SHOWN, THREE_BAD_MOTIFS, motif, problemsOf,
+  SHOWN, THREE_BAD_MOTIFS, UNSEEN_STATUS_CASES, motif, problemsOf,
 } from "./learn-answer.fixtures.ts";
 import { assertProblem, assertQuotesWords } from "./learn-answer.assertions.ts";
 
@@ -17,7 +17,7 @@ describe("checkLearnAnswer — a valid answer", () => {
     const answer = { motifs: [motif()] };
 
     // Act
-    const r = checkLearnAnswer(answer, SHOWN);
+    const r = checkLearnAnswer(answer, SHOWN, true);
 
     // Assert
     ok(r.ok);
@@ -29,7 +29,7 @@ describe("checkLearnAnswer — a valid answer", () => {
     const answer = HARNESS_OWNER_ANSWER;
 
     // Act
-    const r = checkLearnAnswer(answer, SHOWN);
+    const r = checkLearnAnswer(answer, SHOWN, true);
 
     // Assert
     ok(r.ok);
@@ -42,11 +42,22 @@ describe("checkLearnAnswer — a valid answer", () => {
     const answer = REMOVES_ANSWER;
 
     // Act
-    const r = checkLearnAnswer(answer, SHOWN);
+    const r = checkLearnAnswer(answer, SHOWN, true);
 
     // Assert
     ok(r.ok);
     deepStrictEqual([r.value.motifs[0].linesRemoved, r.value.motifs[0].linesAdded], [["Old line."], []]);
+  });
+
+  it("accepts status new in an answer given without owner lines", () => {
+    // Arrange
+    const answer = { motifs: [motif()] };
+
+    // Act
+    const problems = problemsOf(answer, false);
+
+    // Assert
+    deepStrictEqual(problems, []);
   });
 
   it("accepts an empty list of motifs", () => {
@@ -85,6 +96,19 @@ describe("checkLearnAnswer — each refusal", () => {
 
       // Assert
       assertProblem(problems, c.problem);
+    });
+  }
+
+  for (const c of UNSEEN_STATUS_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const answer = { motifs: [motif(c.over)] };
+
+      // Act
+      const problems = problemsOf(answer, false);
+
+      // Assert
+      deepStrictEqual(problems, [c.problem]);
     });
   }
 

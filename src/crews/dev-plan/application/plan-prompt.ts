@@ -58,7 +58,6 @@ export const PLAN_INSTRUCTIONS: string = [
     "once in nonApplicable with a reason that stands on its own.",
   "- Prefer what the inventory already offers; for every new element, explain what the existing element lacks.",
   "- Add no flexibility the source did not request: no option, setting or extension point beyond it.",
-  "- An element is a signature, never a body.",
   "- A design row's ids are UC, BR or CH ids of the source, never a design rule id.",
   "- Every design field of a batch is written: when a batch raises no event or reaches no storage, say so in a " +
     "sentence, never leave the field empty.",
@@ -72,7 +71,6 @@ export const PLAN_INSTRUCTIONS: string = [
   "- A code file the inventory does not show is existing only when the source names its path; otherwise an " +
     "assumption names it and the nearest inventory ref anchors the step. Never create what may already exist.",
   "- Every step has a production anchor, and a test anchor unless its batch is documentation.",
-  "- reuse lists inventory refs alone (I<n>).",
   "- The existing anchors of the whole plan sit in at most 40 distinct folders.",
   "",
   "Scope:",

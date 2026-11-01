@@ -4,10 +4,10 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok } from "node:assert";
 
 import {
-  LENSES, lensKeys, selectLenses, describeReviewPlan, resolveLensSelection,
+  LENSES, lensKeys, selectLenses, describeReviewPlan, resolveLensSelection, STYLE_SEVERITY_CEILING, withinCeiling,
 } from "../../../../src/crews/code-review/domain/lenses.ts";
 import { CONFIG_KEYS } from "../../../../src/shared/domain/config-schema.ts";
-import { LENS_RULE_MARKERS, UNSET_SETTINGS } from "./lenses.fixtures.ts";
+import { CEILING_CASES, LENS_RULE_MARKERS, UNSET_SETTINGS } from "./lenses.fixtures.ts";
 import { assertMentions, assertOmits } from "../../../support/assertions/text.ts";
 
 describe("selectLenses", () => {
@@ -121,6 +121,32 @@ describe("each lens's own scale and bar", () => {
 
     // Assert
     assertOmits(scale, ["blocker (", "high ("]);
+  });
+});
+
+describe("withinCeiling", () => {
+  for (const c of CEILING_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const lens = LENSES.find((l) => l.key === c.key)!;
+
+      // Act
+      const kept = withinCeiling(lens, c.given);
+
+      // Assert
+      strictEqual(kept.severity, c.severity);
+    });
+  }
+
+  it("states the style ceiling in the style lens's scale", () => {
+    // Arrange
+    const style = LENSES.find((l) => l.key === "style")!;
+
+    // Act
+    const scale = style.severities;
+
+    // Assert
+    assertMentions(scale, [`never above ${STYLE_SEVERITY_CEILING}:`]);
   });
 });
 
