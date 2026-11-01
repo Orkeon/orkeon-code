@@ -12,7 +12,8 @@ import { PROJECT_FILES_HEADING } from "../../../../src/shared/domain/dev/project
 import { assertBefore, assertMentions, assertOmits } from "../../../support/assertions/text.ts";
 import { assertHolds, assertLacks, assertNoMarker } from "./review-prompt.assertions.ts";
 import {
-  ANSWER_ASKS, BARE_INPUT, BRIEF_PIECES, CARRIED_PIECES, CARRYING_INPUT, INPUT, MARK, MODE_FOCUS, NEXT_BATCH_FOCUS,
+  ANSWER_ASKS, BARE_INPUT, BRIEF_PIECES, CARRIED_PIECES, CARRYING_INPUT, INPUT, MARK, MODE_FOCUS, NEXT_BATCH_ABSENT_TOOLS,
+  NEXT_BATCH_FOCUS,
   NEXT_BATCH_INPUT, OVERFULL_INPUT, PLAN_BRIEF, PLAN_PAST_THE_ROOM, PROBLEM, REVIEW, SETTLED_PIECES, SPEC_INPUT,
   SYSTEM_MARKERS, TARGETS, promptMarkers,
 } from "./review-prompt.fixtures.ts";
@@ -265,6 +266,17 @@ describe("reviewSystem and buildReviewBrief — next-batch mode (/dev-batches)",
     // Assert
     assertHolds(system, NEXT_BATCH_FOCUS, "the next-batch system");
     ok(!system.includes("For a plan, ask in particular:"));
+  });
+
+  it("routes the next-batch reviewer to none of the tools its charter lacks", () => {
+    // Arrange
+    const mode = "next-batch";
+
+    // Act
+    const system = reviewSystem(mode);
+
+    // Assert
+    assertOmits(system, NEXT_BATCH_ABSENT_TOOLS);
   });
 
   it("names the plan and the closed batches in the brief", () => {

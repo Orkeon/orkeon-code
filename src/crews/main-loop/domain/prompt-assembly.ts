@@ -29,13 +29,16 @@ export const HISTORY_WINDOW = 50;
 export const MAX_MEMORY_ENTRIES_PER_CATEGORY = 10;
 
 import { describeSearchRouting } from "../../../shared/domain/search-routing.ts";
+import { describeCodeIntelRouting } from "../../../shared/domain/code-intel-routing.ts";
 import { NETWORK_READ_TOOLS } from "../../../shared/domain/agent-policy/permission.ts";
 
 /** Ceiling on the authored part of the static header (the instructions file not
  *  counted): every rule costs tokens on every request, so a new rule has to fit or
  *  replace an older one. Raised from 9 000 when the catalogue gained the tools of
- *  Orkeon #180 (their names alone take some 330 characters). */
-export const MAX_STATIC_HEADER_CHARS = 9_500;
+ *  Orkeon #180 (their names alone take some 330 characters), then from 9 500 for the
+ *  question-to-tool routing of code-intel-routing.ts: without it the model answered
+ *  "every base class" with a shell script of regular expressions instead of the index. */
+export const MAX_STATIC_HEADER_CHARS = 10_500;
 
 const IDENTITY_BLOCK =
   "You are Orkeon Code, a coding agent working on the project mounted at /workspace through " +
@@ -212,26 +215,21 @@ function describeToolRealities(tools: readonly string[]): string {
  */
 function describeSearchPlaybook(tools: readonly string[]): string {
   const lastResort = tools.includes("shell_command")
-    ? "- Shell `grep` is the LAST resort, for content no index covers.\n"
+    ? "- Shell `grep` is the LAST resort, for content no index nor tool covers.\n"
     : "- For content no index covers, find the file with `directory_read` and read it.\n";
   return (
     "## How to search\n" +
     "Route by FILE TYPE — the indexes cover disjoint ground, and querying the wrong one " +
     "returns a guaranteed-empty answer that reads as \"not found\":\n" +
     describeSearchRouting() + "\n" +
-    "- `codebase_search` is hybrid (vector and keyword): exact identifiers AND paraphrases " +
-    "both work (`match_origin` on each hit says why it ranked); read definitions with " +
-    "`symbol_source(fqn)`, callers/callees with `flow_trace` (Forward|Backward|Both). " +
-    "`rag_search`'s parameter is `question`.\n" +
-    "- Structure and dependencies in ONE call, not one flow_trace per symbol: " +
-    "`dependency_graph` (scope L1_Package|L2_Module|L3_Symbol), `impact_analysis(target)` " +
-    "for who breaks if a symbol changes, `package_summary(fqn)`, `symbol_detail(fqn)`, " +
-    "`sub_graph(seeds)`.\n" +
+    "- `codebase_search` matches exact identifiers AND paraphrases (`match_origin` on a hit " +
+    "says why it ranked); `rag_search`'s parameter is `question`.\n" +
+    describeCodeIntelRouting(tools) + "\n" +
     lastResort +
-    "- Code results are automatically fresh: edited files are reindexed before a search " +
-    "answers (`refreshed_files` on the response says when). Do not re-run " +
-    "`index_codebase` after edits. Ingested documents are NOT refreshed: re-run " +
-    "`rag_ingest` after editing a document you need to search again."
+    "- Code results are fresh: edited files are reindexed before a search answers " +
+    "(`refreshed_files` says when); do not re-run `index_codebase` after edits. Ingested " +
+    "documents are NOT refreshed: re-run `rag_ingest` after editing a document you need to " +
+    "search again."
   );
 }
 

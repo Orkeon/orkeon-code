@@ -76,17 +76,18 @@ export type FlowDirection = (typeof FLOW_DIRECTIONS)[number];
 export const CODE_INTEL_PARAMS = {
   index_codebase: ["root_path"],
   codebase_map: ["level", "include_metrics"],
-  codebase_search: ["query", "top_k"],
+  codebase_search: ["query", "top_k", "filter_kinds"],
   symbol_source: ["fqn"],
   flow_trace: ["fqn", "direction", "max_depth"],
-  // The analysis five — the subset each probe/command actually exercises.
+  // The analysis five — the subset each probe/command actually exercises, and the
+  // parameters code-intel-routing.ts names in the prompts (filter_kinds, edge_kinds, expand).
   // `scope` is a NodeLevel ("L1_Package" | "L2_Module" | "L3_Symbol"), the same
   // vocabulary codebase_map's `level` takes; `direction` reuses FLOW_DIRECTIONS.
   dependency_graph: ["scope", "max_nodes", "include_mermaid"],
   impact_analysis: ["target", "direction", "max_depth"],
   package_summary: ["fqn"],
-  sub_graph: ["seeds", "depth", "direction"],
-  symbol_detail: ["fqn", "include_signature"],
+  sub_graph: ["seeds", "depth", "direction", "edge_kinds"],
+  symbol_detail: ["fqn", "include_signature", "expand"],
 } as const;
 
 function num(raw: any, key: string): number {
