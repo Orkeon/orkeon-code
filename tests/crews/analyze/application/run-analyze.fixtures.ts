@@ -34,6 +34,7 @@ export function analyzeSetup(packageCount = 1) {
 export const harvestOf = (fqns: string[], summarized = fqns.length) => renderHarvest({
   packages: fqns.slice(0, summarized).map(summary),
   unsummarized: fqns.slice(summarized).map((fqn) => ({ fqn, name: fqn, kind: "package", children: 3 })),
+  scanned: fqns.map(summary),
   moduleGraph: GRAPH,
   graphCap: 200,
   mapCap: 1000,
@@ -50,6 +51,18 @@ export const UNRANKED_L1 = [
   { fqn: "pkg.Core.Tests", name: "Core.Tests", kind: "package", children: 50 },
   { fqn: "pkg.Core", name: "Core", kind: "package", children: 20 },
 ];
+
+/** An L1 map of 20 packages, the largest first, whose smallest is a host with an entry module nothing depends on. */
+export function withSmallHost(index: FakeCodeIndex): string {
+  const fqns = Array.from({ length: 20 }, (_, i) => `pkg.p${i}`);
+  index.maps.L1_Package = {
+    entries: fqns.map((fqn, i) => ({ fqn, name: fqn, kind: "package", children: 20 - i })), symbolCount: 0,
+  };
+  for (const fqn of fqns) index.packages[fqn] = summary(fqn);
+  const host = fqns[19];
+  index.packages[host] = { ...summary(host), entryPoints: [`${host}/Program.cs`] };
+  return host;
+}
 
 /** The packages summarized from UNRANKED_L1, in order. */
 export const RANKED_SUMMARIES = ["packageSummary pkg.Core", "packageSummary pkg.templates", "packageSummary pkg.Core.Tests"];

@@ -318,7 +318,7 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 | `project-init` | séquentiel | `/init` | Parcourt l'arborescence, détecte les conventions, écrit le fichier d'instructions |
 | `git-commit` | séquentiel | `/commit` | Rédige un commit conventionnel à partir du diff, commite après confirmation |
 | `code-review` | séquentiel | `/review` (`--lens` pour un seul angle, `--passes` pour les tours de ce lancement ; les alias `/security-review` et `/passes`) | Revue multi-angles des changements indexés, constats classés |
-| `analyze` | séquentiel | `/analyze` | Index, carte des paquets, graphe de dépendances, résumé des plus gros paquets, puis une synthèse (`--raw` saute le LLM) |
+| `analyze` | séquentiel | `/analyze` | Index, carte des paquets, graphe des modules, chaque paquet lu pour ses dépendances et ses modules d'entrée (un paquet dont seuls ses tests dépendent reste une entrée), résumé des paquets d'entrée et des plus gros, puis une synthèse (`--raw` saute le LLM) |
 | `session-compact` | séquentiel | `/compact` (`--snip` pour tronquer seulement), la compaction automatique | Sauve les faits durables en mémoire typée, coupe, puis résume le tampon s'il le faut encore |
 | `init-verifiers` | séquentiel | `/init-verifiers` | Détecte l'outillage de test, écrit des guides de vérification pour les zones non couvertes |
 | `advisor` | séquentiel, sans outil | `/advisor` | Un second avis sur la dernière réponse, par un autre modèle |
@@ -606,8 +606,9 @@ un changement comme un diff.
 - **Vérificateurs** (`init-verifiers`) : la classification de l'état de préparation définit chaque valeur et laisse
   vide ce qui est inconnu ; une skill de vérification a un plan fixe (prérequis, étapes avec leurs commandes, le signal
   attendu, quoi rapporter).
-- **Analyse** (`analyze`) : ne répond qu'à partir de la récolte, cite les symboles par FQN, dit ce que la récolte
-  laisse de côté.
+- **Analyse** (`analyze`) : ne répond qu'à partir de la récolte, cite les symboles et les paquets comme la récolte
+  les écrit (relatifs au checkout), tire les points d'entrée de ses paquets d'entrée, nomme les membres de chaque cycle
+  que la récolte nomme, dit ce que la récolte laisse de côté.
 - **Advisor** (`advisor`) : un second avis qui rapporte les problèmes du pire au moindre et peut dire qu'il n'y a rien
   à ajouter.
 - **Résumé de session** (`/summary`) : où en sont les choses d'abord, puis des titres fixes, borné, dans la langue de

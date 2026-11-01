@@ -308,7 +308,7 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 | `project-init` | sequential | `/init` | Scans the layout, detects conventions, writes the instructions file |
 | `git-commit` | sequential | `/commit` | Drafts a conventional commit from the diff, commits after confirmation |
 | `code-review` | sequential | `/review` (`--lens` for one lens, `--passes` for this run's rounds; the aliases `/security-review` and `/passes`) | Multi-lens review of the staged changes, ranked findings |
-| `analyze` | sequential | `/analyze` | Index, package map, dependency graph, the largest packages summarized, then a synthesis (`--raw` skips the LLM) |
+| `analyze` | sequential | `/analyze` | Index, package map, module graph, every package read for its dependencies and entry modules (a package only its tests depend on still starts the rest), the entry packages and the largest summarized, then a synthesis (`--raw` skips the LLM) |
 | `session-compact` | sequential | `/compact` (`--snip` to truncate only), automatic compaction | Saves durable facts to typed memory, snips, then summarises the buffer if still needed |
 | `init-verifiers` | sequential | `/init-verifiers` | Detects test tooling, writes verification playbooks for uncovered zones |
 | `advisor` | sequential, no tools | `/advisor` | A second opinion on the last answer from another model |
@@ -557,7 +557,9 @@ prompt as the model reads it, to review a change as a diff.
 - **Verifiers** (`init-verifiers`): the readiness classification defines each value and leaves an unknown empty; a
   verification skill has a fixed outline (prerequisites, steps with their commands, the expected signal, what to
   report).
-- **Analysis** (`analyze`): answers only from the harvest, cites symbols by FQN, says what the harvest leaves out.
+- **Analysis** (`analyze`): answers only from the harvest, cites symbols and packages as the harvest writes them
+  (relative to the checkout), takes the entry points from its entry packages, names the members of each cycle the
+  harvest names, says what the harvest leaves out.
 - **Advisor** (`advisor`): a second opinion that reports problems worst first and may say there is nothing to add.
 - **Session summary** (`/summary`): where things stand first, then fixed headings, bounded, in the conversation's
   language, from the history alone (the compacted turns included).
