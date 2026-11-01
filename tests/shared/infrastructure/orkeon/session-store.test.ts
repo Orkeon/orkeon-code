@@ -7,7 +7,7 @@ import { strictEqual, deepStrictEqual, rejects } from "node:assert";
 import { createSessionStore } from "../../../../src/shared/infrastructure/orkeon/session-store.ts";
 import { compactSession } from "../../../../src/shared/application/compaction/compact-session.ts";
 import { FakeTools } from "../../../support/doubles/fake-tools.ts";
-import { BUDGETS, FORCES, NOT_A_LIST, RESET_COUNTS, STATE_VALUES, compactionDeps } from "./session-store.fixtures.ts";
+import { BUDGETS, FORCES, NOT_A_LIST, RESET_COUNTS, SATURATED_BUDGET, STATE_VALUES, compactionDeps, storeWithoutAppend } from "./session-store.fixtures.ts";
 
 describe("createSessionStore — a failed read", () => {
   it("rethrows a failed read of the buffer with the tool's own message, without the runtime's wrapping", async () => {
@@ -92,6 +92,7 @@ describe("createSessionStore — messages", () => {
         // Arrange
         const tools = new FakeTools();
         tools.replies.sessionStore = { messages };
+        tools.replies.tokenBudget = SATURATED_BUDGET;
         const deps = compactionDeps(createSessionStore(tools));
 
         // Act
@@ -303,6 +304,21 @@ describe("createSessionStore — append", () => {
 
     // Assert
     await rejects(act, /session_store refused to append a '' message/);
+  });
+
+  it("appends by reading and rewriting the buffer on a runtime without append_message", async () => {
+    // Arrange
+    const tools = new FakeTools();
+    tools.replies.sessionStore = storeWithoutAppend;
+
+    // Act
+    await createSessionStore(tools).appendMessage("assistant", "done");
+
+    // Assert
+    deepStrictEqual(tools.inputsOf("sessionStore").slice(1), [
+      { operation: "read_messages" },
+      { operation: "write_messages", messages: [{ role: "user", content: "hi" }, { role: "assistant", content: "done" }] },
+    ]);
   });
 });
 

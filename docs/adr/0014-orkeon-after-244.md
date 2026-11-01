@@ -81,14 +81,19 @@ each with the typings edited by hand.
   and `/assistant` answers it as before. The d1 shim of the local decision models page no longer rewrites the yes or
   no questions (#268).
 - **An unreported count stays unreported**: the usage reader keeps a null cache or reasoning count null, and `/usage`
-  shows it `-`.
+  and `/context` show it `n/a`.
 
 ## Consequences
 
 - On a runtime before #244 the summary has no `cache` field: the line says nothing of a cache. On one before #242,
   `xhigh` and `max` fail the agent's build, as any unknown value did.
 - An agent's own `.cache(...)` wins over the host default `Llm:Cache`: a host cannot turn Orkeon Code's cache off
-  from its settings. On a runtime before #256, `.cache` does not exist and every agent fails its build.
+  from its settings. On a runtime before #256 (the `1.0.0-rc.6` release of the tool mode and of
+  `scripts/run-crew.sh`, the `orkeon-runners` image of the docker mode), the builder has no `.cache`: `profiledAgent`
+  requests the cache only where the builder has one, so the agents build there, without the prompt cache.
+- On a runtime before #263 (the same releases), `append_message` is unknown and the call throws: the session adapter
+  then adds the message by reading and rewriting the buffer, as before #263, and a `get_state` over several `keys`
+  that throws leaves each key read on its own (the state snapshot). The conversation is kept, at the old cost.
 - On a runtime before #271 a block arrives as a failure marker, read as an `LlmFailure`: the turn fails with the
   host's sentence, as it did before #47 was fixed.
 - The check made for this ADR: `npm run check` and the runtime smoke on `9c25b6c` in source mode.

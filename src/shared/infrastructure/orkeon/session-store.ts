@@ -37,7 +37,17 @@ export function createSessionStore(
       await sessionStore({ operation: "write_messages", messages });
     },
     async appendMessage(role, content) {
-      const resp = await sessionStore({ operation: "append_message", role, content });
+      let resp: unknown;
+      try {
+        resp = await sessionStore({ operation: "append_message", role, content });
+      } catch (e) {
+        // A runtime before Orkeon #263 (the rc.6 release, the tool and docker modes) has no append_message and
+        // throws: the message is added by reading and rewriting the buffer, as before #263.
+        if (role.trim() === "") throw e;
+        const stored = asArray(pick(await sessionStore({ operation: "read_messages" }), "messages", "Messages"));
+        await sessionStore({ operation: "write_messages", messages: [...stored, { role, content }] });
+        return;
+      }
       // A refused append (a blank role) says so, as a failed write would.
       if (pick(resp, "success", "Success") === false) throw new Error(`session_store refused to append a '${role}' message`);
     },

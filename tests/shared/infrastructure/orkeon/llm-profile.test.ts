@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, throws } from "node:assert";
 import { PROMPT_CACHE, profiledAgent } from "../../../../src/shared/infrastructure/orkeon/llm-profile.ts";
 import { assertBuiltOn } from "./llm-profile.assertions.ts";
-import { CACHE_CASES, factories } from "./llm-profile.fixtures.ts";
+import { CACHE_CASES, UNCACHED_CASES, factories } from "./llm-profile.fixtures.ts";
 
 describe("profiledAgent", () => {
   it("builds the agent on the profile the input names", () => {
@@ -39,6 +39,19 @@ describe("profiledAgent", () => {
 
       // Assert
       deepStrictEqual(builder.caches, [PROMPT_CACHE]);
+    });
+  }
+
+  for (const c of UNCACHED_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const host = factories(true, false);
+
+      // Act
+      const builder = profiledAgent(c.input, host);
+
+      // Assert
+      assertBuiltOn(host, builder, c.profiles);
     });
   }
 
