@@ -6,7 +6,7 @@
 
 ## Context
 
-The pin of ADR 0013 is `3fcfbbe` (Orkeon #240). Orkeon `main` then merged fifteen pull requests, up to `2e3ec51`
+The pin of ADR 0013 is `3fcfbbe` (Orkeon #240). Orkeon `main` then merged sixteen pull requests, up to `35b966b`
 (2026-11-01):
 
 - **#241**, an audit of Orkeon's documentation against its code: no change of the scripting surface.
@@ -60,15 +60,19 @@ The pin of ADR 0013 is `3fcfbbe` (Orkeon #240). Orkeon `main` then merged fiftee
   response carries `cycles` (`fqns`, `member_count`, `edge_kind`, the largest first), bounded by `max_cycles` and
   `max_cycle_members`, with `cycles_truncated`; an empty `edge_kinds` searches the cycles over the imports, the edges
   it draws. The typings gain these fields.
+- **#275**, a `[Flags]` enum of a tool request or response is written and read by name (#274): the `kind` of an edge
+  of `dependency_graph` and `sub_graph` was a number while the typings promised a string, and is now the snake_case
+  names joined by `, ` (`imports, calls`); `symbol_detail` accepts `expand: "members"`. Orkeon Code reads an edge's
+  kind as a string and nothing depends on its value.
 
 Three branches of Orkeon Code waited on these: `/effort xhigh|max`, `/analyze --parallel N` and `/analyze --rebuild`,
 each with the typings edited by hand.
 
 ## Decision
 
-- **The pin moves to `2e3ec51`** (`.orkeon-version`, `ORKEON_RUNTIME_COMMIT`), the typings are regenerated from a
+- **The pin moves to `35b966b`** (`.orkeon-version`, `ORKEON_RUNTIME_COMMIT`), the typings are regenerated from a
   checkout at it, the hand edits of the three branches give way to them.
-  `2e3ec51` is the squash merge of #273 on `main`. Before it the pin was `3860e9d`, the squash merge of #271, and
+  `35b966b` is the squash merge of #275 on `main`. Before it the pin was `3860e9d`, the squash merge of #271, and
   first named `9c25b6c`, the last commit of the #271
   branch: same tree, but not on `main`, so the launcher could not move a source checkout of `main` to it and warned
   at every start.
@@ -107,4 +111,4 @@ each with the typings edited by hand.
   that throws leaves each key read on its own (the state snapshot). The conversation is kept, at the old cost.
 - On a runtime before #271 a block arrives as a failure marker, read as an `LlmFailure`: the turn fails with the
   host's sentence, as it did before #47 was fixed.
-- The check made for this ADR: `npm run check` and the runtime smoke on `2e3ec51` in source mode.
+- The check made for this ADR: `npm run check` and the runtime smoke on `35b966b` in source mode.
