@@ -42,5 +42,9 @@ cycles and does not name their modules.
 - On `1.0.0-rc.6`, the turn is the one message it was, and the guard sees the dilution #276 described. A checkout of
   Orkeon between #256 and #277 has `.cache` and no `context`: it would drop the context. The launcher moves a source
   checkout to the pin, so only a checkout pinned by hand there meets it.
-- The check made for this ADR: `npm run check` and the runtime smoke on `549987d` in source mode. Not run live: a
-  guard judging a request behind a long history.
+- The check made for this ADR: `npm run check` and the runtime smoke on `549987d` in source mode, then a live run
+  (2026-11-01, Kev `kev-4b`, profile `guarded-test`): behind three turns of history, a direct injection is blocked at
+  0.71 and a hidden one at 0.59, two harmless requests pass, and the history and the git context still reach the
+  model.
+- The pin then follows Orkeon `main` to `c727c06` (Orkeon #278: a right click in the console input no longer flashes
+  the native context menu). Nothing of the scripting surface changes: the typings are the same.
