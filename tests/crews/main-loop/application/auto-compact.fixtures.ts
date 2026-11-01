@@ -1,7 +1,8 @@
 // The ports of the auto-compaction breaker over fakes, and the session states its counter is read from.
 import type { CompactOutcome } from "../../../../src/shared/domain/compact-outcome.ts";
 import { AUTOCOMPACT_BREAKER_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
-import { BREAKER_RUN_FIELD } from "../../../../src/crews/main-loop/application/auto-compact.ts";
+import { BREAKER_RUN_FIELD, turnCompaction } from "../../../../src/crews/main-loop/application/auto-compact.ts";
+import { FakeConfigStore } from "../../../support/doubles/fake-config-store.ts";
 import { FakeLogger } from "../../../support/doubles/fake-logger.ts";
 import { FakeRunState } from "../../../support/doubles/fake-run-state.ts";
 import { FakeSessionStore } from "../../../support/doubles/fake-session-store.ts";
@@ -65,3 +66,20 @@ export const ZERO_COUNTERS: readonly CounterCase[] = [
     expected: 0,
   },
 ];
+
+/** A turn's compaction over `config`, each attempt's trigger recorded in `triggers`. */
+export function turnCompactionSetup(trigger?: string) {
+  const config = new FakeConfigStore();
+  if (trigger !== undefined) config.values["compaction.trigger"] = trigger;
+  const triggers: (number | undefined)[] = [];
+  const compact = turnCompaction(config, async (t) => {
+    triggers.push(t);
+    return { status: "skipped" };
+  });
+  return { config, triggers, compact };
+}
+
+/** The head and the tail compactions of one turn, one after the other. */
+export async function headAndTail(compact: () => Promise<CompactOutcome>): Promise<CompactOutcome[]> {
+  return [await compact(), await compact()];
+}

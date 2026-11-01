@@ -18,6 +18,7 @@ import { isOutputStyle } from "../../../shared/domain/agent-policy/output-styles
 import { pressureTier } from "../../../shared/domain/compaction-thresholds.ts";
 import type { InstructionsFile } from "../../../shared/domain/instructions-file.ts";
 import { isCompactBoundary } from "../../../shared/domain/compaction.ts";
+import { isMarkedMessage } from "../../../shared/domain/marked-message.ts";
 
 /** Sliding window over the session history (what exceeds it is the compaction's job). */
 export const HISTORY_WINDOW = 50;
@@ -282,13 +283,31 @@ export function buildUserContextBlock(c: { cwd: string; date?: string; gitStatus
   return lines.join("\n");
 }
 
-/** Keep the LAST `max` messages (sliding window).
+/** Keep the LAST `max` requests and answers (sliding window), with the marked messages ([tools], [turn-context],
+ *  [compacted]) that sit between them and those just before the oldest one kept (its [turn-context], the summary of
+ *  the compacted turns): a turn that called a tool takes as much of the window as one that did not.
  *  NB: the default is resolved in the body, NOT as a default parameter —
  *  `max = HISTORY_WINDOW` in the signature trips a Jint NRE when the bundled
  *  call resumes from an await (identifier lookup in default-param position). */
 export function windowHistory(messages: SessionMsg[], max?: number): SessionMsg[] {
   const limit = max ?? HISTORY_WINDOW;
-  return messages.length <= limit ? messages : messages.slice(messages.length - limit);
+  if (limit <= 0) return [];
+  let counted = 0;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (!countsInWindow(messages[i])) continue;
+    counted += 1;
+    if (counted === limit) {
+      let start = i;
+      while (start > 0 && isMarkedMessage(String(messages[start - 1].content ?? ""))) start -= 1;
+      return messages.slice(start);
+    }
+  }
+  return messages;
+}
+
+/** A request or an answer: what the window counts. */
+function countsInWindow(m: SessionMsg): boolean {
+  return (m.role === "user" || m.role === "assistant") && !isMarkedMessage(String(m.content ?? ""));
 }
 
 /**

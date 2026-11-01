@@ -8,6 +8,7 @@
 // both events guard the turn, so a check that cannot run must not let the turn through.
 // The guards built in are below; /hooks declarations are not run here.
 import type { StartOutput } from "../../../shared/domain/session-start.ts";
+import { TURN_CONTEXT_MARKER } from "../../../shared/domain/marked-message.ts";
 
 export type ChainEvent = "turn-start" | "stop";
 
@@ -100,8 +101,7 @@ export const closingLineGuard: Guard<StopFacts> = {
 export const TURN_START_GUARDS: ReadonlyArray<Guard<TurnStartFacts>> = [sessionStartGuard];
 export const STOP_GUARDS: ReadonlyArray<Guard<StopFacts>> = [emptyAnswerGuard, closingLineGuard];
 
-/** The marker of the stored message holding a turn's context lines; the header names it as material. */
-export const TURN_CONTEXT_MARKER = "[turn-context]";
+export { TURN_CONTEXT_MARKER };
 
 /** The message stored before the request when the turn-start chain added context lines. */
 export function buildTurnContextMessage(lines: readonly string[]): string {

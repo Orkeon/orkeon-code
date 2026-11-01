@@ -106,3 +106,49 @@ export const CACHE_LINE_CASES: { name: string; cacheHitTokens: number | null; li
 export function reportWithModelCache(cacheHitTokens: number | null): UsageReport {
   return { ...USAGE_REPORT, byModel: USAGE_REPORT.byModel.map((m) => ({ ...m, cacheHitTokens })), byCommand: [] };
 }
+
+/** The cache columns and ratio /usage tables. */
+export interface CacheFigures {
+  cacheRead: number | "n/a";
+  cacheWrite: number | "n/a";
+  cacheRatio: string;
+}
+
+/** Where /usage takes the cache read and write: the host's account alone when it keeps one, `n/a` for what it did
+ *  not measure; the telemetry's sums only without an account. */
+export const CACHE_SOURCE_CASES: { name: string; stats: SessionStats; report?: UsageReport; expected: CacheFigures }[] = [
+  {
+    name: "takes the cache read and write from the host's account, over the telemetry",
+    stats: { cacheHitTokens: 5, cacheWriteTokens: 7 },
+    report: USAGE_REPORT,
+    expected: { cacheRead: 2000, cacheWrite: 0, cacheRatio: "0.67" },
+  },
+  {
+    name: "shows the cache read and write unreported, not the telemetry's, when the host's account did not measure them",
+    stats: { cacheHitTokens: 300, cacheWriteTokens: 7 },
+    report: { ...USAGE_REPORT, cacheHitTokens: null, cacheWriteTokens: null },
+    expected: { cacheRead: "n/a", cacheWrite: "n/a", cacheRatio: "n/a" },
+  },
+  {
+    name: "takes the cache read and write from the telemetry when the host keeps no account",
+    stats: { promptTokens: 3000, cacheHitTokens: 300, cacheWriteTokens: 7 },
+    expected: { cacheRead: 300, cacheWrite: 7, cacheRatio: "0.10" },
+  },
+];
+
+/** The total /usage tables without the host's account: in + out when the telemetry splits them, else its total. */
+export const LLM_TOKENS_CASES: { name: string; stats: SessionStats; llmTokens: number | "n/a" }[] = [
+  {
+    name: "totals the tokens sent and received, not a larger total that counts calls no model named",
+    stats: { totalTokens: 9500, promptTokens: 8000, completionTokens: 1000 }, llmTokens: 9000,
+  },
+  { name: "takes the telemetry's total when it does not split the tokens", stats: { totalTokens: 9500 }, llmTokens: 9500 },
+  { name: "shows the total unreported, not 0, when no source counts it", stats: {}, llmTokens: "n/a" },
+];
+
+/** The row /usage tables when the session and the telemetry both fail and the host keeps no account. */
+export const DEGRADED_ROW = {
+  usedTokens: 0, contextWindow: "(default 128000)", percentLeft: "100%", pressure: "ok", autocompactAt: "91424",
+  messages: "n/a", estTokens: "n/a", llmCalls: "n/a", llmInTokens: "n/a", llmOutTokens: "n/a", llmReasoningTokens: "n/a",
+  llmTokens: "n/a", costUsd: "n/a", cacheRead: "n/a", cacheWrite: "n/a", cacheRatio: "n/a",
+};

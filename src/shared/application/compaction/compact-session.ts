@@ -59,16 +59,18 @@ export async function compactSession(
   const withState = (o: CompactOutcome): CompactOutcome =>
     state === null ? o : { ...o, state: "path" in state ? { path: state.path } : { skipped: state.skipped } };
   try {
+    // The budget first: under the trigger the automatic run reads no message, so a turn does not pay a read of
+    // the whole buffer at its head and its tail.
+    const gated = force ? null : await session.readBudget();
+    if (gated !== null && !shouldCompact(gated.used, gated.window, opts.trigger))
+      return { status: "skipped", reason: "below trigger", usedTokens: gated.used };
     const raw = await session.readMessages();
     // 0. The state of the dev batch in progress goes to its file first, from files and
     //    git alone. /compact (force) refreshes it whatever the buffer holds.
     if (force) state = await writeState(deps, "manual");
     if (raw.stored.length <= MIN_COMPACTABLE)
       return withState({ status: "skipped", reason: "buffer too small" });
-
-    const { used, window } = await session.readBudget();
-    if (!force && !shouldCompact(used, window, opts.trigger))
-      return { status: "skipped", reason: "below trigger", usedTokens: used };
+    const { used } = gated ?? await session.readBudget();
     if (!force) state = await writeState(deps, "auto");
 
     // Progress: reported only past the threshold checks (a skipped compaction must

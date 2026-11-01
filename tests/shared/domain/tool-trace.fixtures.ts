@@ -101,3 +101,9 @@ export function call(tool: string, args = "", outcome = "ok"): ToolCallTrace {
 export function distinctCalls(count: number): ToolCallTrace[] {
   return Array.from({ length: count }, (_, i) => call("file_read", `path=f${i}`, "1 line"));
 }
+
+/** `distinct` calls, then `repeated` other calls made `times` times each: the repeated ones fall past the line cap. */
+export function repeatedCallsPastTheCap(distinct: number, repeated: number, times: number): ToolCallTrace[] {
+  const again = Array.from({ length: repeated }, (_, i) => call("file_read", `path=r${i}`, "1 line"));
+  return [...distinctCalls(distinct), ...Array.from({ length: times }, () => again).flat()];
+}

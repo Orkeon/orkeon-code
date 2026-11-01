@@ -64,8 +64,11 @@ l'emporte sur un réglage par défaut `Llm:Cache` de l'hôte.
 **Ce que compte `/usage`.** `usedTokens` et `estTokens` sont la taille de la conversation dans la fenêtre de contexte,
 estimée par l'hôte. Les colonnes `llm*` sont comptées par les fournisseurs sur tous les appels : `llmInTokens` envoyés,
 `llmOutTokens` reçus (`llmReasoningTokens` en fait partie), `llmTokens` leur somme. `cacheRead` et `cacheWrite` font
-partie de `llmInTokens`, et `cacheRatio` vaut `cacheRead / llmInTokens`. Un chiffre que l'hôte ne rapporte pas s'affiche
-`n/a`, de même qu'un ratio sur une lecture du cache non rapportée : un `0` mesuré s'affiche `0`.
+partie de `llmInTokens`, et `cacheRatio` vaut `cacheRead / llmInTokens` : tous viennent du compte d'usage de l'hôte
+quand il en tient un, sinon de `session_stats`, jamais l'un de chaque : un compte du cache que le compte d'usage n'a
+pas mesuré s'affiche `n/a`, même quand `session_stats` en a un. `/context` prend ses `cacheRead` et `cacheWrite` selon
+la même règle. Un chiffre que l'hôte ne rapporte pas s'affiche `n/a`, de même qu'un ratio sur une lecture du cache non
+rapportée : un `0` mesuré s'affiche `0`.
 
 Un modèle sur cette machine : [`config/appsettings.ollama.example.json`](../../config/appsettings.ollama.example.json)
 est l'exemple sur [Ollama](https://ollama.com) servant `qwen3.5:2b` (`ollama pull qwen3.5:2b` d'abord), sans clé et
@@ -91,7 +94,11 @@ ses agents, agents enfants des étapes dev compris, et le journal du lancement e
 clé rien ne change : les agents tournent sur le modèle par défaut de l'hôte, comme avant. Un nom que l'hôte ne
 déclare pas fait échouer le chargement du crew, son erreur listant les profils que l'hôte connaît ; un simple profil
 LLM marche de la même façon, sans modèle de décision devant. Le modèle par appel d'`/advisor` (`advisor.model`)
-s'applique toujours par-dessus le profil. Kev sur cette machine et Liquid, pas à pas, avec leurs exemples
+s'applique toujours par-dessus le profil. La surcharge de `/model`, elle, ne s'applique pas : sous un profil, les
+tours de l'assistant ne l'envoient pas (elle remplacerait le modèle du profil, et sur un profil de décision celui de
+sa cible de remontée aussi), et chaque tour journalise `/model override '<nom>' ignored: llm.profile <profil> is
+active` ; `/model show` nomme le profil, et `/model <nom>` enregistre la surcharge avec un avertissement, pour
+qu'elle s'applique de nouveau une fois `llm.profile` retiré. Kev sur cette machine et Liquid, pas à pas, avec leurs exemples
 [`config/appsettings.kev.example.json`](../../config/appsettings.kev.example.json) et
 [`config/appsettings.liquid.example.json`](../../config/appsettings.liquid.example.json) :
 [Modèles de décision en local](decision-models-local.md). Les étapes et leurs réglages sont dans

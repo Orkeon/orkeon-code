@@ -37,6 +37,7 @@ import {
 } from "../domain/turn-chains.ts";
 import type { Guard, StopFacts, TurnStartFacts } from "../domain/turn-chains.ts";
 import { readStartOutput } from "../../../shared/domain/session-start.ts";
+import { llmProfileOf } from "../../../shared/domain/llm-profile.ts";
 
 /** The crew's input, as launchMainLoop (/assistant, /summary, /transcribe --then, /voice send and --go) passes it. */
 export interface MainLoopInputs {
@@ -51,6 +52,9 @@ export interface MainLoopInputs {
   permissionRules?: unknown[];
   /** The extra tools the host registers ("search_issues:write"), filtered by launchMainLoop. */
   extraTools?: unknown[];
+  /** The session's `llm.profile`, as launchCrew hands it: every agent of the crew runs on it, and the
+   *  /model override is not sent under it (the profile names the model). */
+  llmProfile?: unknown;
   /** A tool call the launching command asks for before the turn ({ tool, args, label, as? }):
    *  /transcribe --then hands over the transcription this way, its result following the
    *  request under its label in the message the model reads and the session keeps;
@@ -240,6 +244,15 @@ async function stopChecked(
   }
 }
 
+/** The flags of a turn under the session's `llm.profile`: the profile names the model, so a /model override is
+ *  dropped and said once for the turn. Sent as the per-call model, it would replace the profile's own model, and a
+ *  decision profile's escalation target with it (the runtime patches the same call configuration onto both). */
+function underProfile(flags: BehaviorFlags, profile: string | null, log: Pick<Logger, "warn">): BehaviorFlags {
+  if (profile === null || flags.model === "") return flags;
+  log.warn(`/model override '${flags.model}' ignored: llm.profile ${profile} is active`);
+  return { ...flags, model: "" };
+}
+
 /** The state keys a turn reads, in ONE session_store call at its start (Orkeon #263): the behaviour flags, the
  *  output style, the hooks, the skills, the compaction breaker (read at the head and the tail) and the gate's
  *  warning. A key read and missing here costs its own call, as before. */
@@ -282,7 +295,7 @@ export async function runMainLoop(input: MainLoopInputs, loaded: LoadedCatalogue
 
   // B-9 / B-10: the persisted behavior flags, read ONCE per turn so prompt
   // assembly and the act() call cannot disagree about them mid-turn.
-  const flags = await readBehaviorFlags(session);
+  const flags = underProfile(await readBehaviorFlags(session), llmProfileOf(input as Record<string, unknown>), log);
 
   // turn-start: a refusal ends the turn before anything is stored or any model is
   // called; the context lines are stored just before the request, so this turn and
@@ -305,8 +318,9 @@ export async function runMainLoop(input: MainLoopInputs, loaded: LoadedCatalogue
   // no answer is stored, the tail compaction does not run (the breaker counts
   // compactions, not turns), and the run fails with the provider's error, which
   // /assistant shows. The user's message stays in the buffer.
-  // A call a decision stage blocked is a decision, not an outage: the turn ends
-  // with the block said, nothing stored after the user's message, the run not failed.
+  // A call a decision stage blocked (DecisionBlockedError) is a decision, not an outage: the turn ends
+  // with the block said, nothing stored after the user's message but the [tools] message of the calls that
+  // ran before it (an edit made on disk stays on record), the run not failed.
   // The calls of a head-of-turn compaction are not the answer's: the trace starts with the act.
   deps.trace?.take();
   let checked: { answer: string; cut: boolean };
@@ -315,7 +329,8 @@ export async function runMainLoop(input: MainLoopInputs, loaded: LoadedCatalogue
   } catch (error) {
     const block = decisionBlockOf(error);
     if (block === null) throw error;
-    deps.trace?.take();
+    const ran = deps.trace?.take() ?? null;
+    if (ran !== null) await appendTurn(session, "system", ran);
     const text = decisionBlockText(block);
     log.warn(text);
     return [warning, text].filter((part) => part !== null).join("\n\n");

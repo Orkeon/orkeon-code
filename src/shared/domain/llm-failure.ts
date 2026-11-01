@@ -8,7 +8,9 @@
 // last call without tools and resolved with that answer): the answer rides on the
 // error, so no caller reads a cut-short wrap-up as a finished answer, and the
 // readers of a spent budget (shared/domain/dev/step-budget.ts) see the `tokens`
-// dimension as they did when the runtime rejected. Pure, no IO.
+// dimension as they did when the runtime rejected. A call a decision stage of
+// the host blocked is no failure of the provider: the runtime rejects it with a
+// DecisionBlockedError (Orkeon #269), which decisionBlockOf reads. Pure, no IO.
 
 const MARKER = /^<undefined-llm:([\s\S]*)>$/;
 
@@ -35,28 +37,42 @@ export function llmFailureOf(text: unknown): LlmFailure | null {
   return failure;
 }
 
-/** A call a decision stage of the host blocked (a decision profile, `llm.profile`): which stage, of which profile, why. */
+/** A call a decision stage of the host blocked (a decision profile, `llm.profile`): which stage, of which profile,
+ *  the risk a guard matched, why. */
 export interface DecisionBlock {
   readonly stage: string;
   readonly profile: string;
-  readonly reason: string;
+  /** The risk a guard matched (`prompt_injection`); null for another stage. */
+  readonly risk: string | null;
+  /** Why the stage blocked the call; null when the stage gave no reason. */
+  readonly reason: string | null;
 }
 
-/** The host's sentence for a blocked call (Orkeon's DecisionLlmProvider), the only form a script receives until
- *  Orkeon passes the block as a typed failure (Orkeon #269). A fail-closed stage that failed is blocked the same way. */
-const DECISION_BLOCK = /^Blocked by the decision stage '([^']*)' of profile '([^']*)': ([\s\S]*)$/;
+/** The `errorType` of the runtime's DecisionBlockedError (Orkeon #269): `complete`, `chat`, `extract`, `decide`, `act`
+ *  and a `stream` iteration reject with it when a stage blocks the call, a fail-closed stage that failed included. */
+const DECISION_BLOCKED = "DecisionBlocked";
 
-/** The block an LlmFailure stands for; null for any other failure (an outage, a rate limit) or any other error. */
+function textField(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+/** The block a DecisionBlockedError carries; null for any other error (an LlmFailure, a rate limit) or value. */
 export function decisionBlockOf(error: unknown): DecisionBlock | null {
-  const e = error as { name?: unknown; detail?: unknown } | null | undefined;
-  if (e?.name !== "LlmFailure" || typeof e.detail !== "string") return null;
-  const m = DECISION_BLOCK.exec(e.detail);
-  return m === null ? null : { stage: m[1], profile: m[2], reason: m[3] };
+  if (typeof error !== "object" || error === null) return null;
+  const e = error as { errorType?: unknown; profile?: unknown; stage?: unknown; risk?: unknown; reason?: unknown };
+  if (e.errorType !== DECISION_BLOCKED) return null;
+  return {
+    stage: textField(e.stage) ?? "unknown",
+    profile: textField(e.profile) ?? "unknown",
+    risk: textField(e.risk),
+    reason: textField(e.reason),
+  };
 }
 
 /** What the user reads for a blocked request: a decision, not an outage, and what to do about it. */
 export function decisionBlockText(block: DecisionBlock): string {
-  return `Blocked by the decision profile '${block.profile}' (stage '${block.stage}'): ${block.reason}. ` +
+  const why = block.reason ?? (block.risk === null ? null : `the request matches the risk '${block.risk}'`);
+  return `Blocked by the decision profile '${block.profile}' (stage '${block.stage}')${why === null ? "" : `: ${why}`}. ` +
     "The model gave no answer; rephrase the request, or choose another profile with /config set llm.profile.";
 }
 

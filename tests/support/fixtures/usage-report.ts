@@ -1,4 +1,4 @@
-// The session's usage as the UsageReader port carries it, shared by the tests of /usage and /cost: one model, two
+// The session's usage as the UsageReader port carries it, shared by the tests of /usage: one model, two
 // commands (the second's call priced by nobody), and a report before any call.
 import type { UsageReport } from "../../../src/shared/application/ports.ts";
 

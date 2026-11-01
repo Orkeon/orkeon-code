@@ -13,7 +13,10 @@
 //     that provider serves ('claude-…' on a DeepSeek endpoint is a 4xx from the
 //     API, not a local error);
 //   - the preference is session state, so /clear drops it back to the
-//     boot model.
+//     boot model;
+//   - `llm.profile` wins: under a profile the loop does not send the override (the
+//     profile names the model, and a decision profile's escalation target would get
+//     it too), so `show` names the profile and a switch warns that it is not sent.
 //
 // Framework note (the B-10 verification step): `LlmConfigOverride` — the Domain
 // cascade vehicle — carries ResponseFormat/Temperature/MaxTokens/TopP/Thinking/
@@ -24,6 +27,8 @@
 
 import type { Logger, SessionMetadata, SessionStore, Telemetry } from "../../../shared/application/ports.ts";
 import { MODEL_PREFERENCE_STATE_KEY } from "../../../shared/domain/session-keys.ts";
+import type { ConfigStore } from "../../../shared/application/config-store.ts";
+import { readLlmProfile } from "../../../shared/application/llm-profile.ts";
 import {
   judgeModelChoice, renderModelList, NO_CATALOGUE_NOTE,
 } from "../../../shared/domain/model-catalog.ts";
@@ -32,6 +37,8 @@ import type { CommandView } from "../view.ts";
 export interface ModelDeps {
   session: Pick<SessionStore, "readState" | "writeState">;
   telemetry: Pick<Telemetry, "readMetadata">;
+  /** Where the session's `llm.profile` is read: under a profile, the override is not sent. */
+  config: Pick<ConfigStore, "readValue" | "readFile">;
   log: Pick<Logger, "warn">;
 }
 
@@ -61,16 +68,18 @@ export const NO_MODEL_REPORTED =
 
 /** `/model [show|list|reset|clear|<name>]`, from the command's raw tokens. */
 export async function runModel(tokens: string[], deps: ModelDeps): Promise<CommandView> {
-  const { session, telemetry, log } = deps;
+  const { session, telemetry, config, log } = deps;
   const first = (tokens[0] ?? "").toLowerCase();
 
   // `show` is explicit; a bare /model does the same thing.
   if (tokens.length === 0 || first === "show" || first === "list") {
-    const [{ boot, declared }, pref] = await Promise.all([
+    const [{ boot, declared }, pref, { profile }] = await Promise.all([
       readHostModels(telemetry),
       session.readState(MODEL_PREFERENCE_STATE_KEY).catch(() => null),
+      readLlmProfile(config),
     ]);
-    const effective = pref || boot;
+    // Under a profile no declared model of the host is the effective one: the profile names its own.
+    const effective = profile === null ? pref || boot : "";
     const catalogue = renderModelList(declared, effective);
 
     // `/model list` is the catalogue alone — the question is "what can I pick".
@@ -79,9 +88,9 @@ export async function runModel(tokens: string[], deps: ModelDeps): Promise<Comma
     }
 
     return {
-      text: `effective model for the next turn: ${effective || "(none — see below)"}\n` +
+      text: `effective model for the next turn: ${effectiveLine(effective, profile)}\n` +
         `  boot model      : ${boot || NO_MODEL_REPORTED}\n` +
-        `  session override: ${pref || "(none)"}\n` +
+        `  session override: ${pref ? (profile === null ? pref : `${pref} (not sent while llm.profile is set)`) : "(none)"}\n` +
         (catalogue ? `declared models (* = effective):\n${catalogue}\n` : `declared models: ${NO_CATALOGUE_NOTE}\n`) +
         "usage: /model <name> | /model list | /model reset | /model show",
     };
@@ -106,6 +115,14 @@ export async function runModel(tokens: string[], deps: ModelDeps): Promise<Comma
   const verdict = judgeModelChoice(declared, requested);
   if (verdict.warning) log.warn(verdict.warning);
   await session.writeState(MODEL_PREFERENCE_STATE_KEY, requested);
+  const { profile } = await readLlmProfile(config);
+  if (profile !== null) {
+    // Stored all the same: it applies again once the profile is unset.
+    const warning = `llm.profile ${profile} is active: the /model override '${requested}' is stored but not sent ` +
+      "while it is set (unset llm.profile to use it)";
+    log.warn(warning);
+    return { text: `model set to '${requested}' — ⚠ ${warning}.` };
+  }
   if (verdict.warning) {
     // Terse inline, full reason in the log: in the split-pane console the two land
     // in different panes, and repeating four lines verbatim next to themselves
@@ -120,4 +137,10 @@ export async function runModel(tokens: string[], deps: ModelDeps): Promise<Comma
       "It travels over the configured provider, so it must be a model that provider serves; " +
       "/clear (or /model reset) returns to the boot model.",
   };
+}
+
+/** The first line of `show`: the profile when one is set, else the effective model. */
+function effectiveLine(effective: string, profile: string | null): string {
+  if (profile !== null) return `the one llm.profile ${profile} names (the /model override does not apply)`;
+  return effective || "(none — see below)";
 }

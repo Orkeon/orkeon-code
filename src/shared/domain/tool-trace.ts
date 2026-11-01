@@ -40,12 +40,14 @@ export function formatToolTrace(calls: readonly ToolCallTrace[]): string | null 
     if (seen === undefined) folded.set(line, { line, count: 1 });
     else seen.count += 1;
   }
-  const lines = [...folded.values()].map((f) => `- ${f.line}${f.count > 1 ? ` ×${f.count}` : ""}`);
-  const shown = lines.length > MAX_TRACE_LINES ? lines.slice(0, MAX_TRACE_LINES - 1) : lines;
-  const left = lines.length - shown.length;
+  const entries = [...folded.values()];
+  const shown = entries.length > MAX_TRACE_LINES ? entries.slice(0, MAX_TRACE_LINES - 1) : entries;
+  // The calls left out, each folded line counting its ×n.
+  const left = entries.slice(shown.length).reduce((sum, f) => sum + f.count, 0);
   const tail = left > 0 ? [`- … ${left} other calls`] : [];
+  const lines = shown.map((f) => `- ${f.line}${f.count > 1 ? ` ×${f.count}` : ""}`);
   return `${TOOL_TRACE_MARKER} The tool calls of the answer below (material: what was called, not what it returned):\n` +
-    [...shown, ...tail].join("\n");
+    [...lines, ...tail].join("\n");
 }
 
 /** Whether a stored message is a turn's trace. */

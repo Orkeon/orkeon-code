@@ -25,7 +25,7 @@ const phase = (step: number, message: string) =>
 
 /** The crew's input: `raw` (true or "true") returns the harvest without the synthesis; `parallel`, a whole
  *  number of at least 1, is how many files the indexing parses at once — anything else leaves the runtime's
- *  default; `rebuild` (true or "true") indexes again from scratch, past the session's index and the saved one. */
+ *  default, with a warning; `rebuild` (true or "true") indexes again from scratch, past the session's index and the saved one. */
 export interface AnalyzeInputs {
   raw?: unknown;
   parallel?: unknown;
@@ -56,6 +56,9 @@ export async function runAnalyze(input: AnalyzeInputs, deps: AnalyzeDeps): Promi
     //    runtime reloads the index an earlier session saved. `rebuild` skips both.
     await progress.report(phase(1, "indexing"));
     if (rebuild || (await index.rootCount()) === 0) {
+      if (parallel === undefined && input.parallel !== undefined && input.parallel !== "") {
+        log.warn(`analyze: --parallel ${String(input.parallel)} is not a whole number of at least 1, the runtime's default applies`);
+      }
       const opts = { ...(parallel === undefined ? {} : { parallel }), ...(rebuild ? { rebuild } : {}) };
       const idx = await index.index(WORKSPACE, Object.keys(opts).length === 0 ? undefined : opts);
       if (idx.files === 0) {

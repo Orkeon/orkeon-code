@@ -11,6 +11,9 @@ import { MODEL_PREFERENCE_STATE_KEY } from "../../../../src/shared/domain/sessio
 import {
   DECLARED,
   NO_MODEL_SHOW_TEXT,
+  PROFILE_SHOW_TEXT,
+  PROFILE_SWITCHED_TEXT,
+  PROFILE_SWITCH_WARNING,
   SWITCHED_TEXT,
   UNDECLARED_TEXT,
   bootShowText,
@@ -51,6 +54,18 @@ describe("/model show", () => {
     // Assert
     strictEqual(lines[0], "effective model for the next turn: deepseek-chat");
     strictEqual(lines[2], "  session override: deepseek-chat");
+  });
+
+  it("names the llm.profile as what the next turn runs on, the override not applied", async () => {
+    // Arrange
+    const { session, run } = modelHarness("guarded");
+    session.state.set(MODEL_PREFERENCE_STATE_KEY, "deepseek-chat");
+
+    // Act
+    const view = await run("show");
+
+    // Assert
+    deepStrictEqual(view, { text: PROFILE_SHOW_TEXT });
   });
 
   it("says the host reports no model and declares none", async () => {
@@ -156,5 +171,27 @@ describe("/model <name>", () => {
     deepStrictEqual(view, { text: UNDECLARED_TEXT });
     strictEqual(session.state.get(MODEL_PREFERENCE_STATE_KEY), "claude x");
     deepStrictEqual(log.lines, [`warn: ${judgeModelChoice(DECLARED, "claude x").warning}`]);
+  });
+
+  it("stores the override under an llm.profile, saying inline that it is not sent", async () => {
+    // Arrange
+    const { session, run } = modelHarness("guarded");
+
+    // Act
+    const view = await run("deepseek-chat");
+
+    // Assert
+    deepStrictEqual([view, session.state.get(MODEL_PREFERENCE_STATE_KEY)], [{ text: PROFILE_SWITCHED_TEXT }, "deepseek-chat"]);
+  });
+
+  it("logs the override stored under an llm.profile as a warning", async () => {
+    // Arrange
+    const { log, run } = modelHarness("guarded");
+
+    // Act
+    await run("deepseek-chat");
+
+    // Assert
+    deepStrictEqual(log.lines, [`warn: ${PROFILE_SWITCH_WARNING}`]);
   });
 });

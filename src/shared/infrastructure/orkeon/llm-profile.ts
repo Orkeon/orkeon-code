@@ -6,7 +6,8 @@
 // the crew's load, as `llm.profile` does, listing the profiles the host knows. Every agent asks the provider to cache
 // its system prompt and its tool definitions (Orkeon #254): the prompts are assembled so that this prefix stays
 // byte-identical turn after turn. Only a provider whose cache is explicit (Anthropic) needs the request; the others
-// cache by their own rules.
+// cache by their own rules. A runtime before Orkeon #256 (the rc.6 release, the tool and docker modes) has no `cache`
+// on its builder: the agent is then built without the request rather than failing at the crew's load.
 
 import { llmProfileOf } from "../../domain/llm-profile.ts";
 
@@ -20,7 +21,8 @@ export interface AgentFactories {
 export const PROMPT_CACHE: LlmCacheOptions = { systemPrompt: true, tools: true };
 
 export function profiledAgent(input: Readonly<Record<string, unknown>>, factories: AgentFactories): any {
-  const builder = factories.agent().cache(PROMPT_CACHE);
+  const plain = factories.agent();
+  const builder = typeof plain.cache === "function" ? plain.cache(PROMPT_CACHE) : plain;
   const name = llmProfileOf(input);
   if (name === null) return builder;
   if (factories.profile === undefined) throw new Error(`llm.profile '${name}': this host declares no llm namespace, no profile can be applied`);

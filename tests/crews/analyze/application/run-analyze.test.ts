@@ -6,8 +6,10 @@ import { strictEqual, deepStrictEqual, rejects } from "node:assert";
 import { MAX_PACKAGES, PROGRESS_LABEL, runAnalyze } from "../../../../src/crews/analyze/application/run-analyze.ts";
 import { SYNTHESIS_SYSTEM, buildSynthesisUser } from "../../../../src/crews/analyze/domain/harvest.ts";
 import {
-  CACHE_LINES, NOTHING_INDEXED, RANKED_SUMMARIES, RAW_RUN_CALLS, UNRANKED_L1, analyzeSetup, harvestOf,
+  CACHE_LINES, NOTHING_INDEXED, PARALLEL_ABSENT, PARALLEL_ASKED, PARALLEL_REFUSED, RANKED_SUMMARIES, RAW_RUN_CALLS,
+  REBUILD_ASKED, REBUILD_NOT_ASKED, UNRANKED_L1, analyzeSetup, harvestOf,
 } from "./run-analyze.fixtures.ts";
+import { assertDefaultIndexing } from "./run-analyze.assertions.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 
 describe("runAnalyze", () => {
@@ -89,61 +91,75 @@ describe("runAnalyze", () => {
     });
   }
 
-  it("hands the indexing the parallelism asked for, as a number or its text", async () => {
-    for (const parallel of [4, "4"]) {
+  for (const c of PARALLEL_ASKED) {
+    it(`hands the indexing the parallelism asked for: ${c.name}`, async () => {
       // Arrange
       const { index, deps } = analyzeSetup();
       index.roots = 0;
 
       // Act
-      await runAnalyze({ parallel }, deps);
+      await runAnalyze({ parallel: c.value }, deps);
 
       // Assert
       deepStrictEqual(index.calls, ["rootCount", `index ${WORKSPACE} parallel=4`]);
-    }
-  });
+    });
+  }
 
-  it("leaves the runtime's default parallelism when none, or no whole number of at least 1, is asked", async () => {
-    for (const parallel of [undefined, 0, -2, 2.5, "x", ""]) {
+  for (const c of PARALLEL_ABSENT) {
+    it(`leaves the runtime's default parallelism without a warning when none is asked: ${c.name}`, async () => {
       // Arrange
-      const { index, deps } = analyzeSetup();
+      const { index, log, deps } = analyzeSetup();
       index.roots = 0;
 
       // Act
-      await runAnalyze({ parallel }, deps);
+      await runAnalyze({ parallel: c.value }, deps);
 
       // Assert
-      deepStrictEqual(index.calls, ["rootCount", `index ${WORKSPACE}`]);
-    }
-  });
+      assertDefaultIndexing(index.calls, log.lines, []);
+    });
+  }
 
-  it("indexes again from scratch on rebuild, even when the session holds an index", async () => {
-    for (const rebuild of [true, "true"]) {
+  for (const c of PARALLEL_REFUSED) {
+    it(`leaves the runtime's default parallelism and warns when no whole number of at least 1 is asked: ${c.name}`, async () => {
+      // Arrange
+      const { index, log, deps } = analyzeSetup();
+      index.roots = 0;
+
+      // Act
+      await runAnalyze({ parallel: c.value }, deps);
+
+      // Assert
+      assertDefaultIndexing(index.calls, log.lines, [c.line]);
+    });
+  }
+
+  for (const c of REBUILD_ASKED) {
+    it(`indexes again from scratch on rebuild, even when the session holds an index: ${c.name}`, async () => {
       // Arrange
       const { index, deps } = analyzeSetup();
       index.roots = 1;
 
       // Act
-      await runAnalyze({ rebuild, parallel: 2 }, deps);
+      await runAnalyze({ rebuild: c.value, parallel: 2 }, deps);
 
       // Assert
       deepStrictEqual(index.calls.slice(0, 1), [`index ${WORKSPACE} parallel=2 rebuild`]);
-    }
-  });
+    });
+  }
 
-  it("keeps the session's index when rebuild is not asked", async () => {
-    for (const rebuild of [undefined, false, "false", "x"]) {
+  for (const c of REBUILD_NOT_ASKED) {
+    it(`keeps the session's index when rebuild is not asked: ${c.name}`, async () => {
       // Arrange
       const { index, deps } = analyzeSetup();
       index.roots = 1;
 
       // Act
-      await runAnalyze({ rebuild }, deps);
+      await runAnalyze({ rebuild: c.value }, deps);
 
       // Assert
       deepStrictEqual(index.calls.filter((c) => c.startsWith("index ")), []);
-    }
-  });
+    });
+  }
 
   it("releases the progress slot when the index fails", async () => {
     // Arrange

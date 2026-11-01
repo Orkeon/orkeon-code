@@ -1,17 +1,22 @@
 // /context — the session's context in one row: metadata, buffer size, the tokens used against the
-// window, the pressure tier, the compaction boundaries, the prompt-cache tokens, and the tokens by
-// kind of entry when the host reports them (Orkeon #226). Lives under commands/_lib/ — the loader's
+// window, the pressure tier, the compaction boundaries, the prompt-cache tokens (from the host's usage
+// account when it keeps one, as /usage takes them), and the tokens by kind of entry when the host reports
+// them (Orkeon #226). A count the host does not report reads `n/a`, never 0. Lives under commands/_lib/ — the loader's
 // SearchPattern is "*.cmd.ts", so this file is never loaded as a command.
 
-import type { SessionMetadata, SessionStats, SessionStore, Telemetry, TokenBudget, TokenKinds } from "../../../shared/application/ports.ts";
+import type {
+  SessionMetadata, SessionStats, SessionStore, Telemetry, TokenBudget, TokenKinds, UsageReader,
+} from "../../../shared/application/ports.ts";
 import { DEFAULT_CONTEXT_WINDOW, percentLeft, pressureTier } from "../../../shared/domain/compaction-thresholds.ts";
 import { countCompactBoundaries } from "../../../shared/domain/compaction.ts";
-import { cacheColumns } from "./cache.ts";
+import { cacheColumns, shown } from "./cache.ts";
 import type { CommandView } from "../view.ts";
 
 export interface ContextDeps {
   session: Pick<SessionStore, "readBudget" | "readMessages">;
   telemetry: Pick<Telemetry, "readMetadata" | "readStats">;
+  /** The host's account; when it keeps one, the cache columns come from it alone. */
+  usage?: UsageReader;
 }
 
 /** The by-kind columns: one per kind the host reports, none for an older host. */
@@ -37,8 +42,8 @@ export async function runContext(deps: ContextDeps): Promise<CommandView> {
     table: [{
       title: md.title ?? "(untitled)",
       model: md.model ?? "?",
-      messages: md.messageCount ?? 0,
-      estTokens: md.estimatedTokens ?? 0,
+      messages: shown(md.messageCount),
+      estTokens: shown(md.estimatedTokens),
       usedTokens: used,
       window: window || DEFAULT_CONTEXT_WINDOW,
       remaining: Math.max(0, (window || DEFAULT_CONTEXT_WINDOW) - used),
@@ -46,7 +51,7 @@ export async function runContext(deps: ContextDeps): Promise<CommandView> {
       percentLeft: percentLeft(used, window) + "%",
       compactions: boundaries,
       ...kindColumns(budget.byKind),
-      ...cacheColumns(stats),
+      ...cacheColumns(stats, deps.usage?.report()),
     }],
   };
 }

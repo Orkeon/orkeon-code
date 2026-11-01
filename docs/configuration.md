@@ -61,8 +61,10 @@ The agent's request wins over a host default `Llm:Cache`.
 **What `/usage` counts.** `usedTokens` and `estTokens` are the conversation's size in the context window, estimated
 by the host. The `llm*` columns are counted by the providers over every call: `llmInTokens` sent, `llmOutTokens`
 received (`llmReasoningTokens` a part of them), `llmTokens` their sum. `cacheRead` and `cacheWrite` are parts of
-`llmInTokens`, and `cacheRatio` is `cacheRead / llmInTokens`. A figure the host does not report reads `n/a`, and so
-does a ratio over an unreported cache read: a measured `0` reads `0`.
+`llmInTokens`, and `cacheRatio` is `cacheRead / llmInTokens`: all of them come from the host's usage account when it
+keeps one, else from `session_stats`, never one from each: a cache count the account did not measure reads `n/a`,
+even when `session_stats` has one. `/context` takes its `cacheRead` and `cacheWrite` by the same rule. A figure the
+host does not report reads `n/a`, and so does a ratio over an unreported cache read: a measured `0` reads `0`.
 
 A model on this machine: [`config/appsettings.ollama.example.json`](../config/appsettings.ollama.example.json) is
 the example on [Ollama](https://ollama.com) serving `qwen3.5:2b` (`ollama pull qwen3.5:2b` first), no key and
@@ -87,7 +89,11 @@ profile `guarded` over them. The session key `llm.profile` names the profile the
 steps included, and the launch log and `/config list` show it. Without the key nothing changes: the agents run on the
 host's default model, as before. A name the host does not declare fails the crew's load, its error listing the
 profiles the host knows; a plain LLM profile works the same way, with no decision model in front. The per-call model
-of `/advisor` (`advisor.model`) still applies on top of the profile. Kev on this machine and Liquid, step by step,
+of `/advisor` (`advisor.model`) still applies on top of the profile. The `/model` override does not: under a profile
+the assistant's turns do not send it (it would replace the profile's model, and on a decision profile the model of
+its escalation target too), and each turn logs `/model override '<name>' ignored: llm.profile <profile> is active`;
+`/model show` names the profile, and `/model <name>` stores the override with a warning, to apply again once
+`llm.profile` is unset. Kev on this machine and Liquid, step by step,
 with their examples [`config/appsettings.kev.example.json`](../config/appsettings.kev.example.json) and
 [`config/appsettings.liquid.example.json`](../config/appsettings.liquid.example.json):
 [Decision models locally](decision-models-local.md). The stages and their settings are in

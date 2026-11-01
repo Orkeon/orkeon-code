@@ -64,3 +64,37 @@ export const CACHE_LINES: readonly { readonly name: string; readonly indexed: In
   { name: "a refresh", indexed: { files: 12, nodes: 40, edges: 0, statements: 0, errors: [], cache: "refreshed", reindexed: 3 },
     line: "info: analyze: indexed 12 file(s), 40 node(s); cache refreshed: 3 changed file(s) reindexed" },
 ];
+
+/** A parallelism asked as a number or as its text: the indexing gets 4. */
+export const PARALLEL_ASKED: readonly { readonly name: string; readonly value: unknown }[] = [
+  { name: "the number 4", value: 4 },
+  { name: "the text \"4\"", value: "4" },
+];
+
+/** No parallelism asked: the runtime's default, without a word. */
+export const PARALLEL_ABSENT: readonly { readonly name: string; readonly value: unknown }[] = [
+  { name: "none", value: undefined },
+  { name: "an empty text", value: "" },
+];
+
+/** A parallelism that is no whole number of at least 1: the runtime's default, and a warning naming the value. */
+export const PARALLEL_REFUSED: readonly { readonly name: string; readonly value: unknown; readonly line: string }[] = [
+  { name: "zero", value: 0, line: "warn: analyze: --parallel 0 is not a whole number of at least 1, the runtime's default applies" },
+  { name: "a negative number", value: -2, line: "warn: analyze: --parallel -2 is not a whole number of at least 1, the runtime's default applies" },
+  { name: "a fraction", value: 2.5, line: "warn: analyze: --parallel 2.5 is not a whole number of at least 1, the runtime's default applies" },
+  { name: "a text that is no number", value: "x", line: "warn: analyze: --parallel x is not a whole number of at least 1, the runtime's default applies" },
+];
+
+/** A rebuild asked as a boolean or as its text. */
+export const REBUILD_ASKED: readonly { readonly name: string; readonly value: unknown }[] = [
+  { name: "true", value: true },
+  { name: "the text \"true\"", value: "true" },
+];
+
+/** No rebuild asked, or a value that is not true. */
+export const REBUILD_NOT_ASKED: readonly { readonly name: string; readonly value: unknown }[] = [
+  { name: "none", value: undefined },
+  { name: "false", value: false },
+  { name: "the text \"false\"", value: "false" },
+  { name: "another text", value: "x" },
+];

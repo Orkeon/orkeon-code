@@ -356,14 +356,17 @@ Le corps de l'agent `main-loop` est la boucle (`crews/main-loop/application/run-
    sur le catalogue, chaque appel d'un tour du modèle dans l'ordre, sous le budget du crew et la garde de permission,
    et rend la réponse finale. Un appel du modèle qui échoue lève une `LlmFailure` : le tour ne stocke aucune réponse
    et échoue avec l'erreur du fournisseur. Un appel qu'une étape de décision de l'hôte a bloqué n'est pas une panne
-   mais une décision (`decisionBlockOf`, `shared/domain/llm-failure.ts`, lit la phrase de l'hôte en attendant le
-   blocage typé d'Orkeon #269) : le tour ne stocke rien après la requête, journalise un avertissement et répond le
+   mais une décision : le runtime la rejette avec une `DecisionBlockedError` typée (Orkeon #269), que
+   `decisionBlockOf` (`shared/domain/llm-failure.ts`) lit : le tour ne stocke rien après la requête sinon le message `[tools]` des appels
+   exécutés avant le blocage (une modification faite sur le disque reste consignée), journalise un avertissement et répond le
    blocage, son profil, son étape et sa raison, avec ce qu'il faut faire ; le run n'échoue pas.
 7. Ajouter le message `[tools]` du tour, puis la réponse. Le message est construit depuis l'`onToolResult` de l'act
-   (`shared/domain/tool-trace.ts`) : une ligne par appel, l'outil, ses arguments principaux coupés court (chemin,
+   (`shared/domain/tool-trace.ts`) et depuis les appels que l'`onToolCall` du crew lui-même a refusés (une erreur
+   `denied: <raison>`) : une ligne par appel, l'outil, ses arguments principaux coupés court (chemin,
    motif, glob, mode, commande…) et un résultat d'une ligne (un nombre, un code de sortie, une erreur, un parcours
-   coupé) ; les appels répétés regroupés en `×n`, vingt lignes au plus, jamais le contenu d'un fichier ni la sortie
-   d'une commande. Un tour qui n'a appelé aucun outil n'en enregistre pas. `/usage tools [texte]` liste ces messages
+   coupé) ; les appels répétés regroupés en `×n`, vingt lignes au plus, la dernière comptant les appels laissés de côté,
+   jamais le contenu d'un fichier ni la sortie d'une commande. Un appel que la garde de permission de l'hôte a refusé
+   n'atteint aucun des deux rappels et n'est pas tracé. Un tour qui n'a appelé aucun outil n'en enregistre pas. `/usage tools [texte]` liste ces messages
    sous leurs requêtes. Puis faire l'appel d'épilogue, s'il y en a un (`voice.reply on` : `speak` avec la réponse), un
    échec étant un avertissement ; compacter de nouveau si le tour a laissé le tampon saturé.
 
@@ -373,7 +376,12 @@ l'usage (`session_cost`, `session_stats`).
 
 Un tour lit les clés d'état dont il a besoin en un seul appel `get_state` à son début (`TURN_STATE_KEYS` dans
 `run-main-loop.ts`, servies par `shared/application/state-snapshot.ts` : une clé hors de la liste est lue seule), et
-range chaque message par `append_message`, qui ne renvoie ni ne réécrit le tampon (Orkeon #263).
+range chaque message par `append_message`, qui ne renvoie ni ne réécrit le tampon (Orkeon #263). Sur une release
+antérieure à #263 (les modes tool et docker), où ces deux appels lèvent une erreur, chaque clé est lue seule et le
+message est ajouté en lisant puis en réécrivant le tampon (`orkeon/session-store.ts`). Le tour lit le tampon une
+fois, pour son historique : ses compactions automatiques, en tête et en fin de tour, lisent d'abord le budget de
+tokens et ne lisent le tampon qu'au-delà du déclencheur (`compactSession`), et le réglage du déclencheur est lu une
+fois par tour (`crew.ork.ts`).
 
 ## L'assemblage du prompt
 
@@ -472,7 +480,11 @@ un changement comme un diff.
 - **Historique** : les tours précédents, du plus ancien au plus récent, sans la requête courante, éventuellement
   ouverts par un résumé de compaction ; il garde ce qui a été dit et, par tour, un message `[tools]` qui nomme les
   appels faits, pas leurs résultats, donc un fichier est relu avant d'être modifié ou cité, et une question sur la
-  façon dont une réponse précédente a été trouvée se répond depuis ce message, sans deviner.
+  façon dont une réponse précédente a été trouvée se répond depuis ce message, sans deviner. C'est une fenêtre sur
+  le tampon (`windowHistory`) : les 50 dernières requêtes et réponses (`HISTORY_WINDOW`), avec les messages
+  `[tools]` et `[turn-context]` qui se trouvent entre elles, qui n'y prennent pas de place, et les messages marqués
+  (`[turn-context]`, `[tools]`, le résumé `[compacted]`) juste avant la plus ancienne gardée, donc la fenêtre ne
+  sépare jamais une requête gardée de son contexte.
 - **Environnement** : le répertoire de travail, la date du jour, et le statut git tel qu'il était au début du tour.
 - **Jauge** (un `<system-reminder>`) : les tokens consommés rapportés à la fenêtre et le coût de la session. Au palier
   d'avertissement, finir l'étape en cours et cesser de lire de gros fichiers en entier ; au palier d'erreur, conclure

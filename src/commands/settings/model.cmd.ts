@@ -6,14 +6,15 @@
 import { rawTokens } from "../_lib/args.ts";
 import { runModel } from "../_lib/settings/model.ts";
 import { showView } from "../_lib/view.ts";
-import { orkeonSessionIo, orkeonTelemetry } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { orkeonConfigStore, orkeonSessionIo, orkeonTelemetry } from "../../shared/infrastructure/orkeon/wiring.ts";
 
 const session = orkeonSessionIo();
 const telemetry = orkeonTelemetry();
+const config = orkeonConfigStore();
 
 defineCommand({
   name: "model",
   description: "Show the effective model for the next turn, or switch it without relaunching.",
   handler: async (args, ctx) =>
-    showView(ctx, await runModel(rawTokens(args), { session, telemetry, log: ctx.log })),
+    showView(ctx, await runModel(rawTokens(args), { session, telemetry, config, log: ctx.log })),
 });

@@ -4,6 +4,7 @@ import { ERROR_THRESHOLD_BUFFER_TOKENS, WARNING_THRESHOLD_BUFFER_TOKENS } from "
 import { buildGaugeBlock, buildHistoryBlock, buildMemoryBlock, buildUserContextBlock } from "../../../../src/crews/main-loop/domain/prompt-assembly.ts";
 import type { PromptParts } from "../../../../src/crews/main-loop/domain/prompt-assembly.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
+import { COMPACTED_MARKER, TURN_CONTEXT_MARKER } from "../../../../src/shared/domain/marked-message.ts";
 
 /** Header options with an AGENTS.md of two lines. */
 export const AGENTS_HEADER_OPTS = { toolNames: ["file_read", "file_write"], instructions: { file: "AGENTS.md", content: "# Rules\nDo X." } };
@@ -91,6 +92,47 @@ export const REFUSAL_NOTE = "change your approach instead of repeating the call"
 export function userMessages(count: number): SessionMsg[] {
   return Array.from({ length: count }, (_, i) => ({ role: "user", content: `m${i}` }));
 }
+
+/** `count` turns that called a tool, each stored as its request, its [tools] message and its answer. */
+export function toolTurns(count: number): SessionMsg[] {
+  return Array.from({ length: count }, (_, i) => [
+    { role: "user", content: `q${i}` },
+    { role: "system", content: `[tools] The tool calls of the answer below (material: what was called, not what it returned):\n- grep(pattern=t${i}) → 1 matches` },
+    { role: "assistant", content: `a${i}` },
+  ]).flat();
+}
+
+/** A window over `messages` that keeps the marked messages just before the oldest message it counts. */
+export interface MarkedWindowCase {
+  name: string;
+  messages: SessionMsg[];
+  max: number;
+  expected: SessionMsg[];
+}
+
+const TURN_CONTEXT: SessionMsg = { role: "system", content: `${TURN_CONTEXT_MARKER} cwd: /workspace` };
+const COMPACTED: SessionMsg = { role: "system", content: `${COMPACTED_MARKER} the earlier turns, summarised` };
+
+export const MARKED_WINDOW_CASES: readonly MarkedWindowCase[] = [
+  {
+    name: "keeps the [turn-context] message of the oldest request it keeps",
+    messages: [{ role: "user", content: "q0" }, { role: "assistant", content: "a0" }, TURN_CONTEXT, { role: "user", content: "q1" }, { role: "assistant", content: "a1" }],
+    max: 2,
+    expected: [TURN_CONTEXT, { role: "user", content: "q1" }, { role: "assistant", content: "a1" }],
+  },
+  {
+    name: "keeps the [compacted] summary just before the oldest request it keeps",
+    messages: [COMPACTED, { role: "user", content: "q1" }, { role: "assistant", content: "a1" }],
+    max: 2,
+    expected: [COMPACTED, { role: "user", content: "q1" }, { role: "assistant", content: "a1" }],
+  },
+  {
+    name: "keeps the [tools] message of the oldest answer it keeps",
+    messages: toolTurns(2),
+    max: 1,
+    expected: toolTurns(2).slice(4),
+  },
+];
 
 export interface GaugeTierCase {
   name: string;

@@ -10,7 +10,7 @@ export const COMMAND_GROUPS: readonly string[] = ["session", "settings", "status
 
 // 48: seven commands folded into others, each a duplicate of an option or a sub-verb of another — /security-review
 //     (`--lens security`) and /passes into /review, /plan into /mode, /feedback and /memory-admit into /memory,
-//     /stats and /cost into /usage; the seven names stay as aliases (ADR 0011, round 2).
+//     /stats and /cost into /usage; five names stay as aliases, /stats and /cost retired (ADR 0011, round 2).
 // 55: /dev-change folded into /dev-spec (a kind), /dev-implement and /dev-verify into /dev-batches (F<n>, F<n> --audit);
 //     the three names stay as aliases (ADR 0011).
 // 58: /dev-batches added (L-7).

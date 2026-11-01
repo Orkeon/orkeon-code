@@ -4,7 +4,8 @@ import { describe, it } from "node:test";
 import { deepStrictEqual } from "node:assert";
 
 import { kindColumns } from "../../../../src/commands/_lib/status/context.ts";
-import { KINDS, contextHarness } from "./context.fixtures.ts";
+import { CONTEXT_CACHE_CASES, KINDS, contextHarness } from "./context.fixtures.ts";
+import { assertContextCache, assertContextSize } from "./context.assertions.ts";
 
 describe("kindColumns", () => {
   it("names one column per kind", () => {
@@ -74,8 +75,47 @@ describe("runContext", () => {
 
     // Assert
     deepStrictEqual(view.table, [{
-      title: "(untitled)", model: "?", messages: 0, estTokens: 0, usedTokens: 0, window: 128_000, remaining: 128_000,
+      title: "(untitled)", model: "?", messages: "n/a", estTokens: "n/a", usedTokens: 0, window: 128_000, remaining: 128_000,
       pressure: "ok", percentLeft: "100%", compactions: 0, cacheRead: "n/a", cacheWrite: "n/a",
     }]);
   });
+
+  it("shows the messages and the estimated tokens unreported, not 0, when the host does not report them", async () => {
+    // Arrange
+    const h = contextHarness();
+    h.telemetry.metadata = { title: "fix the gate" };
+
+    // Act
+    const view = await h.run();
+
+    // Assert
+    assertContextSize(view.table?.[0], { messages: "n/a", estTokens: "n/a" });
+  });
+
+  it("shows messages and estimated tokens measured at 0 as 0", async () => {
+    // Arrange
+    const h = contextHarness();
+    h.telemetry.metadata = { messageCount: 0, estimatedTokens: 0 };
+
+    // Act
+    const view = await h.run();
+
+    // Assert
+    assertContextSize(view.table?.[0], { messages: 0, estTokens: 0 });
+  });
+
+  for (const c of CONTEXT_CACHE_CASES) {
+    it(c.name, async () => {
+      // Arrange
+      const h = contextHarness();
+      h.telemetry.stats = c.stats;
+      h.usage.answer = c.report;
+
+      // Act
+      const view = await h.run();
+
+      // Assert
+      assertContextCache(view.table?.[0], c.expected);
+    });
+  }
 });

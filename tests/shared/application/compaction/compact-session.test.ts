@@ -45,6 +45,18 @@ describe("compactSession: nothing to compact", () => {
     deepStrictEqual(deps.session.snips, []);
   });
 
+  it("reads no message below the trigger when the run is threshold-gated", async () => {
+    // Arrange
+    const deps = compactSetup();
+    deps.session.budget = BELOW;
+
+    // Act
+    await compactSession({ force: false }, deps);
+
+    // Assert
+    strictEqual(deps.session.readMessagesCalls, 0);
+  });
+
   it("does not skip below the trigger when the run is forced", async () => {
     // Arrange
     const deps = compactSetup();

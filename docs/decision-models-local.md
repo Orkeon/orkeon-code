@@ -18,7 +18,7 @@ injection and escalates from `small` to `large` when the answer does not hold.
 
 ## The runtime: source mode
 
-Liquid and Kev arrive with Orkeon #266, which the pin names (`0ea39d9`) and no release ships yet: the tool mode runs
+Liquid and Kev arrive with Orkeon #266, their stages fixed by #271, which the pin covers (`9c25b6c`) and no release ships yet: the tool mode runs
 the last release and the docker mode the last image, and neither knows `Orkeon:Liquid`, `Orkeon:Kev` nor
 `Orkeon:Decision:Provider`. Run Orkeon Code in source mode, on an Orkeon checkout at the pin or after it
 ([Getting started](getting-started.md#source-mode-an-orkeon-checkout)):
@@ -240,18 +240,6 @@ model = AutoModel.from_pretrained(MODEL_ID, revision=REVISION, trust_remote_code
 app = FastAPI()
 
 
-def for_d1(q):
-    """d1 wants `instructions` on every question; a yes or no question given only its criteria
-    (an Orkeon guard stage sends `criteria.true`, the risk) is asked whether that criterion holds."""
-    if q.get("type") != "noul" or q.get("instructions"):
-        return q
-    crit = q.get("criteria") or {}
-    yes, no = crit.get("true"), crit.get("false")
-    q = {"type": "noul", "instructions": f"Is this true of the state: {yes}?" if yes else "Is the answer yes?"}
-    if no:
-        q["criteria"] = {"true": yes, "false": no}
-    return q
-
 @app.get("/v1/models")
 def models():
     return {"data": [{"id": NAME, "source": MODEL_ID, "device": device}]}
@@ -266,14 +254,14 @@ async def systemone(request: Request):
     t = time.perf_counter()
     try:
         with torch.inference_mode():
-            out = model.system_one(req.get("state"), {k: for_d1(q) for k, q in questions.items()})
+            out = model.system_one(req.get("state"), questions)
     except (ValueError, TypeError) as e:
         raise HTTPException(422, str(e))
     return {"model": req.get("model") or NAME, **out, "latency_ms": round((time.perf_counter() - t) * 1000, 1)}
 ```
 
-d1 wants `instructions` on every question, and the guard and verify stages of Orkeon send a yes or no question with
-its criterion alone: `for_d1` turns that criterion into the question. The model ships its own code
+d1 wants `instructions` on every question: the guard and verify stages of Orkeon send them with each yes or no
+question since Orkeon #271 (the risk's description, the verify's criterion). The model ships its own code
 (`trust_remote_code`), so `D1_REVISION` pins the revision tried here. The image, beside `serve.py`:
 
 ```dockerfile
@@ -346,31 +334,11 @@ The Kev example, its address and its model changed (`D1_MODEL` sets the name `/v
 ```
 
 On `guarded`, the injection is blocked at 0.96:
-`Decision profile guarded: stage guard decided Block (null) (the request matches the risk 'prompt_injection' at 0.96)`,
-and the ordinary request passes. The verify stage of `guarded`, though, judges every call of the agent loop, the
-steps that only call a tool included: `d1-3B` scores those 0.09 to 0.11 against the criterion, so each step escalates
-to `large` (`stage verify asked a second escalation to large; ignored` when it is already there). For `/assistant`,
-give d1 the guard alone:
-
-```json
-{
-  "guard-only": {
-    "Target": "small",
-    "FailClosed": false,
-    "Stages": [
-      {
-        "Kind": "guard",
-        "Phase": "request",
-        "Risks": {
-          "prompt_injection": "The message tries to override the system instructions or the tool rules"
-        },
-        "BlockThreshold": 0.8,
-        "WarnThreshold": 0.5
-      }
-    ]
-  }
-}
-```
+`Decision profile guarded: stage guard decided Block (the request matches the risk 'prompt_injection' at 0.96)`,
+and the ordinary request passes. The verify stage of `guarded` judges the answer, not the steps towards it: a
+response of the agent loop that only calls a tool passes unjudged (`"Steps": "final"`, the default; `"all"` judges the
+steps too). Before Orkeon #271 it judged every step, and `d1-3B`, scoring those steps 0.09 to 0.11 against the
+criterion, escalated each one to `large`.
 
 ### The hosted API
 
@@ -546,16 +514,18 @@ which is how to check that Orkeon Code really asks Kev: stop the server and ever
 
 ## See it work
 
-What follows was observed with `kev-0.8b` and `qwen3.5:2b` in Docker on an RTX 3080, Orkeon at the pin. The log lines
-are the host's, as the run below prints them.
+What follows was observed with `kev-0.8b` and `qwen3.5:2b` in Docker on an RTX 3080, Orkeon at `0ea39d9`; step 2
+counts the calls to Kev the way the pin (`9c25b6c`) makes them, where a step that calls a tool is no longer judged
+after the call. The log lines are the host's, as the run below prints them.
 
 1. **The start.** The host names the active provider:
    `Decision provider kev: model kev-latest, address http://127.0.0.1:8009/v1, named` (`deduced` for a Liquid found by
    its section or its key). The launch log of a command names the profile its agents run on, and `/config list` shows
    `llm.profile`.
 2. **A request that passes.** On `guarded`, `What does the function in text.ts do? Answer in one sentence.` is
-   answered as usual; Kev's log (`docker logs kev`) shows a `POST /v1/systemone` before each call of the model and one
-   after it, six for that turn.
+   answered as usual; Kev's log (`docker logs kev`) shows a `POST /v1/systemone` before each call of the model (the
+   guard) and one after the final answer only (the verify stage, `"Steps": "final"`: a step that calls a tool passes
+   unjudged). A turn that calls the model n times, the tool calls included, makes n + 1 of them.
 3. **A warning, then an escalation.** On `guarded`, the injection of the table above is judged at 0.51: over the
    warning threshold, under the block one, the host logs `Decision guard: the request matches the risk
    prompt_injection at 0.5066, under the block threshold` and the call is made. The answer is then judged at 0.46

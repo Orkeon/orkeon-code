@@ -21,13 +21,20 @@ export function createToolTrace(): ToolTrace {
   };
 }
 
-/** The callbacks given, each result recorded first: their verdicts and their context stand unchanged. */
+/** The callbacks given, each result recorded first, and each call they deny, which gets no result: their verdicts
+ *  and their context stand unchanged. A call the host's gate refuses reaches neither callback, and is not recorded. */
 export function tracedCallbacks(inner: Pick<ToolCallbacks, "forAct">, trace: Pick<ToolTrace, "record">): Pick<ToolCallbacks, "forAct"> {
   return {
     forAct(mode, gateEnabled) {
       const callbacks = inner.forAct(mode, gateEnabled);
       return {
-        onToolCall: callbacks.onToolCall,
+        async onToolCall(call) {
+          const verdict = await callbacks.onToolCall(call);
+          if (typeof verdict === "object" && verdict !== null && "deny" in verdict) {
+            try { trace.record(call.name, call.input, { error: `denied: ${verdict.deny}` }); } catch { /* the trace is best-effort */ }
+          }
+          return verdict;
+        },
         async onToolResult(call, result) {
           try { trace.record(call.name, call.input, result); } catch { /* the trace is best-effort */ }
           return callbacks.onToolResult(call, result);

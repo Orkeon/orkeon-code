@@ -85,7 +85,10 @@ from the line, the routing in its use case under `src/commands/_lib/<group>/`):
   cache ratio only `/stats` had.
 
 The reason is the one of part 2: each was a duplicate of an option or a sub-verb of another command, one more name to
-learn for nothing the other did not do. The seven names stay as aliases, so a line typed under one keeps working.
+learn for nothing the other did not do. The seven names stayed as aliases, so a line typed under one kept working.
+
+*Amended (2026-10-30, 87065f8, [Unreleased]):* `/stats` and `/cost` are retired with `/extra-usage`: no command
+answers them any more, and `/usage` alone shows the session's usage. The five other names stay as aliases.
 
 An alias does not share a quota with its command: the one-at-a-time is the crew's, not the command's. A command
 quota (`maxConcurrent: 1`) counts every line typed under any of the names, so it would refuse `/passes [n]` while a
