@@ -44,9 +44,10 @@ uv sync --extra serve
 uv run --extra serve python -m kev.serve --run jaredpalmer/kev-0.8b --port 8009
 ```
 
-`kev-0.8b` runs on a 4 GB GPU or any Apple Silicon Mac, and answers in about 0.3 s on an RTX 3080; `kev-4b` does not
-fit the 10 GB of that card (out of memory at load) and wants a 32 GB Mac or a data-centre GPU, as does `kev-9b`;
-`kev-27b` wants an 80 GB one. Without a GPU, `--device cpu` runs the small model, slowly. The server listens on
+`kev-0.8b` runs on a 4 GB GPU or any Apple Silicon Mac, and answers in about 0.3 s on an RTX 3080. `kev-4b` fits the
+10 GB of that card once its CUDA graphs are off (`KEV_CUDA_GRAPHS=0`): it takes 9.7 GB and answers in about 0.12 s,
+so the card holds no other model beside it. With the graphs on, their capture runs out of memory at load. `kev-9b`
+wants a 32 GB Mac or a data-centre GPU, `kev-27b` an 80 GB one. Without a GPU, `--device cpu` runs the small model, slowly. The server listens on
 `127.0.0.1` only unless `--host 0.0.0.0` says otherwise. Leave it running in its own terminal.
 
 The server refuses a state over 65,536 tokens with a 422, and the small models are validated up to 8,192. A guard
@@ -78,7 +79,12 @@ docker logs -f kev        # ready at "Uvicorn running on http://0.0.0.0:8009"
 
 `--host 0.0.0.0` is inside the container only: the port is published on `127.0.0.1`, so Orkeon reaches it at the
 default address and nothing outside the machine does. Without a GPU, drop `--gpus all` and add `--device cpu` after
-the model.
+the model. On a 10 GB card, `kev-4b` runs with its CUDA graphs off, in place of `kev-0.8b` (`docker stop kev` first):
+
+```bash
+docker run -d --name kev-4b --gpus all -e KEV_CUDA_GRAPHS=0 -p 127.0.0.1:8009:8009 \
+  -v kev-hf:/root/.cache/huggingface kev-local --run jaredpalmer/kev-4b
+```
 
 ### Check it answers
 
