@@ -2,7 +2,9 @@
 // and the texts it answers that run past a line.
 import { NO_MODEL_REPORTED, runModel } from "../../../../src/commands/_lib/settings/model.ts";
 import type { CommandView } from "../../../../src/commands/_lib/view.ts";
+import { createConfigStore, USER_CONFIG_FILE_PATH } from "../../../../src/shared/application/config-store.ts";
 import { renderModelList, NO_CATALOGUE_NOTE } from "../../../../src/shared/domain/model-catalog.ts";
+import { FakeFiles } from "../../../support/doubles/fake-files.ts";
 import { FakeLogger } from "../../../support/doubles/fake-logger.ts";
 import { FakeSessionStore } from "../../../support/doubles/fake-session-store.ts";
 import { FakeTelemetry } from "../../../support/doubles/fake-telemetry.ts";
@@ -11,13 +13,17 @@ export const USAGE = "usage: /model <name> | /model list | /model reset | /model
 
 export const DECLARED = ["kimi-k3", "deepseek-chat"];
 
-/** /model over a host booted on kimi-k3 that declares kimi-k3 and deepseek-chat. */
-export function modelHarness() {
+/** /model over a host booted on kimi-k3 that declares kimi-k3 and deepseek-chat; `profile`, when given, is the
+ *  `llm.profile` of the user settings. */
+export function modelHarness(profile?: string) {
   const session = new FakeSessionStore();
   const telemetry = new FakeTelemetry();
   telemetry.metadata = { model: "kimi-k3", availableModels: [...DECLARED] };
   const log = new FakeLogger();
-  const run = (...tokens: string[]): Promise<CommandView> => runModel(tokens, { session, telemetry, log });
+  const files = new FakeFiles();
+  if (profile !== undefined) files.files.set(USER_CONFIG_FILE_PATH, JSON.stringify({ "llm.profile": profile }));
+  const config = createConfigStore({ files, session });
+  const run = (...tokens: string[]): Promise<CommandView> => runModel(tokens, { session, telemetry, config, log });
   return { session, telemetry, log, run };
 }
 
@@ -45,3 +51,19 @@ export const SWITCHED_TEXT =
 export const UNDECLARED_TEXT =
   "model set to 'claude x' — ⚠ NOT among the models this host declares " +
   "(kimi-k3, deepseek-chat). Applied anyway; see the log. /model list to review.";
+
+/** What /model show answers on that host under the llm.profile `guarded`, with deepseek-chat stored by /model. */
+export const PROFILE_SHOW_TEXT =
+  "effective model for the next turn: the one llm.profile guarded names (the /model override does not apply)\n" +
+  "  boot model      : kimi-k3\n" +
+  "  session override: deepseek-chat (not sent while llm.profile is set)\n" +
+  `declared models (* = effective):\n${renderModelList(DECLARED, "")}\n` +
+  USAGE;
+
+/** The warning /model deepseek-chat logs under the llm.profile `guarded`. */
+export const PROFILE_SWITCH_WARNING =
+  "llm.profile guarded is active: the /model override 'deepseek-chat' is stored but not sent while it is set " +
+  "(unset llm.profile to use it)";
+
+/** What /model deepseek-chat answers under the llm.profile `guarded`. */
+export const PROFILE_SWITCHED_TEXT = `model set to 'deepseek-chat' — ⚠ ${PROFILE_SWITCH_WARNING}.`;

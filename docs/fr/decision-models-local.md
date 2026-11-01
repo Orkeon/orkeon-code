@@ -525,8 +525,9 @@ appel est bloqué.
 
 ## Le voir fonctionner
 
-Ce qui suit a été observé avec `kev-0.8b` et `qwen3.5:2b` dans Docker sur une RTX 3080, Orkeon à `0ea39d9`. Les lignes de
-journal sont celles de l'hôte, telles que l'exécution ci-dessous les affiche.
+Ce qui suit a été observé avec `kev-0.8b` et `qwen3.5:2b` dans Docker sur une RTX 3080, Orkeon à `0ea39d9` ;
+l'étape 2 compte les appels à Kev comme les fait le pin (`9c25b6c`), où une étape qui appelle un outil n'est plus
+jugée après l'appel. Les lignes de journal sont celles de l'hôte, telles que l'exécution ci-dessous les affiche.
 
 1. **Le démarrage.** L'hôte nomme le fournisseur actif :
    `Decision provider kev: model kev-latest, address http://127.0.0.1:8009/v1, named` (`deduced` pour un Liquid trouvé
@@ -534,7 +535,9 @@ journal sont celles de l'hôte, telles que l'exécution ci-dessous les affiche.
    `/config list` montre `llm.profile`.
 2. **Une requête qui passe.** Sur `guarded`, `What does the function in text.ts do? Answer in one sentence.` reçoit
    sa réponse comme d'habitude ; le journal de Kev (`docker logs kev`) montre un `POST /v1/systemone` avant chaque
-   appel du modèle et un après, six pour ce tour.
+   appel du modèle (la garde) et un après la réponse finale seulement (l'étape de vérification, `"Steps": "final"` :
+   une étape qui appelle un outil passe sans être jugée). Un tour qui appelle le modèle n fois, appels d'outils
+   compris, en fait n + 1.
 3. **Un avertissement, puis une remontée.** Sur `guarded`, l'injection du tableau ci-dessus est jugée à 0,51 :
    au-dessus du seuil d'avertissement, sous celui de blocage, l'hôte journalise `Decision guard: the request matches
    the risk prompt_injection at 0.5066, under the block threshold` et l'appel est fait. La réponse est ensuite jugée à

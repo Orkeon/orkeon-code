@@ -158,3 +158,9 @@ export function blockedRequest(): Error {
 export const BLOCKED_ANSWER =
   "Blocked by the decision profile 'guarded' (stage 'guard'): the request matches the risk 'prompt_injection' at 0.96. " +
   "The model gave no answer; rephrase the request, or choose another profile with /config set llm.profile.";
+
+/** A turn launched under the decision profile `guarded` (`llm.profile`), as launchCrew hands it the profile. */
+export const PROFILED_INPUT = { prompt: "go", permissionMode: "plan", llmProfile: "guarded" };
+
+/** The warning a turn under PROFILED_INPUT logs when /model stored `gpt-x`. */
+export const PROFILE_OVERRIDE_WARNING = "warn: /model override 'gpt-x' ignored: llm.profile guarded is active";

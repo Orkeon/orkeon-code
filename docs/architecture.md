@@ -345,13 +345,15 @@ The `main-loop` agent's body is the loop (`crews/main-loop/application/run-main-
    call of a model turn in order, under the crew budget and the permission gate, and returns the final answer. A
    failed model call throws an `LlmFailure`: the turn stores no answer and fails with the provider's error. A call a
    decision stage of the host blocked is no outage but a decision: the runtime rejects it with a typed
-   `DecisionBlockedError` (Orkeon #269), which `decisionBlockOf` (`shared/domain/llm-failure.ts`) reads: the turn stores nothing after the request, logs a
-   warning and answers the block, its profile, stage and reason, with what to do; the run does not fail.
+   `DecisionBlockedError` (Orkeon #269), which `decisionBlockOf` (`shared/domain/llm-failure.ts`) reads: the turn stores nothing after the request but the `[tools]` message of the calls
+   that ran before the block (an edit made on disk stays on record), logs a warning and answers the block, its profile, stage and reason, with what to do; the run does not fail.
 7. Append the turn's `[tools]` message, then the answer. The message is built from the act's `onToolResult`
-   (`shared/domain/tool-trace.ts`): one line per call, the tool, its main arguments cut short (path, pattern, glob,
+   (`shared/domain/tool-trace.ts`) and from the calls the crew's own `onToolCall` denied (an error `denied: <reason>`):
+   one line per call, the tool, its main arguments cut short (path, pattern, glob,
    mode, command…) and a one-line outcome (a count, an exit code, an error, a cut scan); repeated calls folded as
-   `×n`, at most twenty lines, never a file's content nor a command's output. A turn that called no tool stores
-   none. `/usage tools [text]` lists these messages under their requests. Then make the epilogue call, if any (`voice.reply on`: `speak` with the answer), a failure being a
+   `×n`, at most twenty lines, the last one counting the calls left out, never a file's content nor a command's
+   output. A call the host's permission gate refused reaches neither callback and is not traced. A turn that called
+   no tool stores none. `/usage tools [text]` lists these messages under their requests. Then make the epilogue call, if any (`voice.reply on`: `speak` with the answer), a failure being a
    warning; compact again if the turn left the buffer saturated.
 
 The session lives in the runtime: a conversation buffer (`session_store`, `session_snip`, `token_budget`), a state
@@ -360,7 +362,11 @@ bag (`get_state`/`set_state`), typed memory (`memory_store`: user, project, feed
 
 A turn reads the state keys it needs in one `get_state` call at its start (`TURN_STATE_KEYS` in `run-main-loop.ts`,
 answered by `shared/application/state-snapshot.ts`: a key outside the list is read alone), and stores each message
-with `append_message`, which neither returns nor rewrites the buffer (Orkeon #263).
+with `append_message`, which neither returns nor rewrites the buffer (Orkeon #263). On a release before #263 (the
+tool and docker modes), where both calls throw, each key is read alone and the message is added by reading and
+rewriting the buffer (`orkeon/session-store.ts`). The turn reads the buffer once, for its history: its automatic
+compactions, at the head and the tail, read the token budget first and the buffer only past the trigger
+(`compactSession`), and the trigger setting is read once per turn (`crew.ork.ts`).
 
 ## Prompt assembly
 
@@ -440,7 +446,9 @@ prompt as the model reads it, to review a change as a diff.
 - **History**: the earlier turns, oldest first, without the current request, possibly opened by a compaction
   summary; it keeps what was said and, per turn, a `[tools]` message naming the calls made, not their results, so a
   file is read again before it is edited or quoted, and a question about how an earlier answer was found is answered
-  from that message, not guessed.
+  from that message, not guessed. It is a window over the buffer (`windowHistory`): the last 50 requests and
+  answers (`HISTORY_WINDOW`), with the `[tools]` and `[turn-context]` messages between them, which take no room in
+  it.
 - **Environment**: the working directory, today's date, and the git status as it was when the turn began.
 - **Gauge** (a `<system-reminder>`): the tokens used against the window and the session cost. At the warning tier,
   finish the current step and stop reading whole large files; at the error tier, wrap up and suggest `/compact`.

@@ -5,7 +5,7 @@ import { deepStrictEqual, strictEqual } from "node:assert";
 import {
   formatToolTrace, isToolTrace, MAX_TRACE_LINES, TOOL_TRACE_MARKER, traceCall,
 } from "../../../src/shared/domain/tool-trace.ts";
-import { call, distinctCalls, TRACE_CASES } from "./tool-trace.fixtures.ts";
+import { call, distinctCalls, repeatedCallsPastTheCap, TRACE_CASES } from "./tool-trace.fixtures.ts";
 
 describe("traceCall", () => {
   for (const c of TRACE_CASES) {
@@ -68,6 +68,17 @@ describe("formatToolTrace", () => {
     // Assert
     const lines = message?.split("\n").slice(1) ?? [];
     deepStrictEqual([lines.length, lines.at(-1)], [MAX_TRACE_LINES, "- … 11 other calls"]);
+  });
+
+  it("counts the calls left out, not their folded lines", () => {
+    // Arrange
+    const calls = repeatedCallsPastTheCap(19, 3, 5);
+
+    // Act
+    const message = formatToolTrace(calls);
+
+    // Assert
+    strictEqual(message?.split("\n").at(-1), "- … 15 other calls");
   });
 });
 

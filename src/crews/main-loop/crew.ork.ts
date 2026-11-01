@@ -83,6 +83,12 @@ const coder = orkeonAgent()
     const trace = createToolTrace();
     const llm = createLlm(ctx.llm, tracedCallbacks(memoryGuardCallbacks(memoryDirOf(ports.config)), trace));
     const log = ctx.log;
+    // The compaction trigger setting, read once for the turn's head and tail compactions.
+    let trigger: Promise<number | undefined> | null = null;
+    const compactionTrigger = () => {
+      if (trigger === null) trigger = readCompactionTrigger(ports.config);
+      return trigger;
+    };
     return await runMainLoop(inputs(), loaded, {
       ...ports,
       llm,
@@ -91,7 +97,7 @@ const coder = orkeonAgent()
       run: createRunState(ctx),
       clock,
       compact: async () => compactSession(
-        { force: false, trigger: await readCompactionTrigger(ports.config) },
+        { force: false, trigger: await compactionTrigger() },
         orkeonCompactionDeps({ llm, log }, { ...ports, progress }, clock),
       ),
     });

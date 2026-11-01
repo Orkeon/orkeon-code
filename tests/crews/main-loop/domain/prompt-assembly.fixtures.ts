@@ -92,6 +92,15 @@ export function userMessages(count: number): SessionMsg[] {
   return Array.from({ length: count }, (_, i) => ({ role: "user", content: `m${i}` }));
 }
 
+/** `count` turns that called a tool, each stored as its request, its [tools] message and its answer. */
+export function toolTurns(count: number): SessionMsg[] {
+  return Array.from({ length: count }, (_, i) => [
+    { role: "user", content: `q${i}` },
+    { role: "system", content: `[tools] The tool calls of the answer below (material: what was called, not what it returned):\n- grep(pattern=t${i}) → 1 matches` },
+    { role: "assistant", content: `a${i}` },
+  ]).flat();
+}
+
 export interface GaugeTierCase {
   name: string;
   usedTokens: number;

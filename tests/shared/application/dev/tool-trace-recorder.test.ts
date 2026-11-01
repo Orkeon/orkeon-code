@@ -31,6 +31,20 @@ describe("tracedCallbacks", () => {
     // Assert
     deepStrictEqual(verdict, "allow");
   });
+
+  it("records a call the callbacks it wraps denied, with the reason", async () => {
+    // Arrange
+    const trace = createToolTrace();
+    const act = tracedCallbacks(memoryGuardCallbacks(async () => { throw new Error("no settings"); }), trace)
+      .forAct("default", true);
+
+    // Act
+    await act.onToolCall({ name: "file_write", input: { path: "a.ts" } });
+
+    // Assert
+    strictEqual(trace.take(), `${TOOL_TRACE_MARKER} The tool calls of the answer below (material: what was called, ` +
+      "not what it returned):\n- file_write(path=a.ts) → error: denied: the shared memory's guard failed: no settings");
+  });
 });
 
 describe("createToolTrace", () => {

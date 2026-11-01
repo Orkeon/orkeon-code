@@ -32,7 +32,7 @@ import {
   AGENTS_HEADER_OPTS, BEHAVIOUR_BLOCKS_IN_ORDER, BODY_BLOCKS_IN_ORDER, CLAUDE_HEADER_OPTS, EMPTY_HOOKS_CASES,
   EMPTY_SKILLS_CASES, GAUGE_TIER_CASES, HOOK_STEPS, INSTRUCTIONS_FILE_CASES, KEPT_BUFFER_CASES, LEGACY_PARTS,
   MARKED_PARTS, MARKED_PARTS_IN_ORDER, OUTPUT_STYLE_CASES, REFUSAL_NOTE, REPEATED_REQUEST_HISTORY, RULE_MARKERS,
-  UNCONFIGURED_PREFERENCES_CASES, builtParts, userMessages,
+  UNCONFIGURED_PREFERENCES_CASES, builtParts, toolTurns, userMessages,
 } from "./prompt-assembly.fixtures.ts";
 import { assertInOrder, assertLacks, assertMentions, assertSystemReminder } from "./prompt-assembly.assertions.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
@@ -358,6 +358,17 @@ describe("windowHistory", () => {
     strictEqual(windowed.length, HISTORY_WINDOW);
     strictEqual(windowed[windowed.length - 1]!.content, `m${HISTORY_WINDOW + 9}`);
     strictEqual(windowed[0]!.content, "m10");
+  });
+
+  it("counts only the requests and the answers, the [tools] messages between them kept", () => {
+    // Arrange
+    const turns = toolTurns(HISTORY_WINDOW / 2 + 5);
+
+    // Act
+    const windowed = windowHistory(turns);
+
+    // Assert
+    deepStrictEqual(windowed, turns.slice(15));
   });
 });
 

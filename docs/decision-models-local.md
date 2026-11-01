@@ -514,16 +514,18 @@ which is how to check that Orkeon Code really asks Kev: stop the server and ever
 
 ## See it work
 
-What follows was observed with `kev-0.8b` and `qwen3.5:2b` in Docker on an RTX 3080, Orkeon at `0ea39d9`. The log lines
-are the host's, as the run below prints them.
+What follows was observed with `kev-0.8b` and `qwen3.5:2b` in Docker on an RTX 3080, Orkeon at `0ea39d9`; step 2
+counts the calls to Kev the way the pin (`9c25b6c`) makes them, where a step that calls a tool is no longer judged
+after the call. The log lines are the host's, as the run below prints them.
 
 1. **The start.** The host names the active provider:
    `Decision provider kev: model kev-latest, address http://127.0.0.1:8009/v1, named` (`deduced` for a Liquid found by
    its section or its key). The launch log of a command names the profile its agents run on, and `/config list` shows
    `llm.profile`.
 2. **A request that passes.** On `guarded`, `What does the function in text.ts do? Answer in one sentence.` is
-   answered as usual; Kev's log (`docker logs kev`) shows a `POST /v1/systemone` before each call of the model and one
-   after it, six for that turn.
+   answered as usual; Kev's log (`docker logs kev`) shows a `POST /v1/systemone` before each call of the model (the
+   guard) and one after the final answer only (the verify stage, `"Steps": "final"`: a step that calls a tool passes
+   unjudged). A turn that calls the model n times, the tool calls included, makes n + 1 of them.
 3. **A warning, then an escalation.** On `guarded`, the injection of the table above is judged at 0.51: over the
    warning threshold, under the block one, the host logs `Decision guard: the request matches the risk
    prompt_injection at 0.5066, under the block threshold` and the call is made. The answer is then judged at 0.46
