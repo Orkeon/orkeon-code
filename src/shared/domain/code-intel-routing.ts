@@ -75,21 +75,28 @@ const BOUNDED_TOOLS: readonly string[] = [
   "codebase_map", "codebase_search", "dependency_graph", "grep", "structural_search", "sub_graph",
 ];
 
-const EXHAUSTIVENESS_RULE =
-  "A result marked `truncated` is a sample: say so in the answer, and narrow the question (one package, a " +
-  "`root_fqn`, a `glob`) to see the rest, rather than writing a script over every file.";
+/** The agent's shell, the tool a script over the files would run in: the rules speak of scripting only to its holder. */
+const SHELL_TOOL = "shell_command";
+
+/** The exhaustiveness rule; `shell` adds the script it replaces, for an agent that could write one. */
+function exhaustivenessRule(shell: boolean): string {
+  return "A result marked `truncated` is a sample: say so in the answer, and narrow the question (one package, a " +
+    `\`root_fqn\`, a \`glob\`) to see the rest${shell ? ", rather than writing a script over every file" : ""}.`;
+}
 
 /** The question-to-tool lines for an agent holding `tools`, one line each, then the exhaustiveness rule when it
- *  applies; empty when the agent holds none of the analysis tools. */
+ *  applies; empty when the agent holds none of the analysis tools. Scripting is named only to an agent holding the
+ *  shell. */
 export function describeCodeIntelRouting(tools: readonly string[]): string {
   const lines = ROUTING_LINES
     .filter((line) => line.tools.every((tool) => tools.includes(tool)))
     .map((line) => `- ${line.text}.`);
   if (lines.length === 0) return "";
   const bounded = BOUNDED_TOOLS.some((tool) => tools.includes(tool));
+  const shell = tools.includes(SHELL_TOOL);
   return [
-    "Ask the index before reading or scripting, by question:",
+    shell ? "Ask the index before reading or scripting, by question:" : "Ask the index before reading, by question:",
     ...lines,
-    ...(bounded ? [EXHAUSTIVENESS_RULE] : []),
+    ...(bounded ? [exhaustivenessRule(shell)] : []),
   ].join("\n");
 }

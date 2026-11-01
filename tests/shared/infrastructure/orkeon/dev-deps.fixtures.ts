@@ -4,6 +4,7 @@ import { FakeTools } from "../../../support/doubles/fake-tools.ts";
 import { FakeLogger } from "../../../support/doubles/fake-logger.ts";
 import { recorder } from "../../../support/fixtures/tool-recorder.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
+import { AUDITOR_TOOLS as AUDITOR_CHARTER_TOOLS } from "../../../../src/crews/dev-verify/domain/auditor-charter.ts";
 
 type Module = typeof import("../../../../src/shared/infrastructure/orkeon/dev-deps.ts");
 
@@ -45,7 +46,7 @@ export const QUOTING_BRIEF_ROOTED =
   `Step 1 of ${ROOT}/todo/prune/PRUNE-PLAN-F2.md: keep \`const WORKING_DIRECTORY = "${WORKSPACE}";\`\n\`\`\`diff\n+ cd ${WORKSPACE}\n\`\`\``;
 
 /** The tools verifyDeps offers the audit's act when the act names none. */
-export const AUDITOR_TOOLS = ["file_read", "node_read", "codebase_search", "symbol_detail", "symbol_source", "run_validation", "memory_recall"];
+export const AUDITOR_TOOLS = [...AUDITOR_CHARTER_TOOLS, "run_validation", "memory_recall"];
 
 /** The implementer's act under ROOT, its callbacks as the llm received them, and the logical paths reported written. */
 export async function rootedImplementerCallbacks() {

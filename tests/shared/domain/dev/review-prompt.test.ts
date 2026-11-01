@@ -9,6 +9,7 @@ import { ok, strictEqual } from "node:assert";
 import { MAX_REVIEW_REPLY_CHARS, buildReviewAnswerPrompt, buildReviewBrief, reviewSystem } from "../../../../src/shared/domain/dev/review-prompt.ts";
 import { MAX_BRIEF_CHARS } from "../../../../src/shared/domain/agents/charter.ts";
 import { PROJECT_FILES_HEADING } from "../../../../src/shared/domain/dev/project-files.ts";
+import { BOUNDED_READ_RULE, NODE_READ_RULE } from "../../../../src/shared/domain/dev/reading-rule.ts";
 import { assertBefore, assertMentions, assertOmits } from "../../../support/assertions/text.ts";
 import { assertHolds, assertLacks, assertNoMarker } from "./review-prompt.assertions.ts";
 import {
@@ -16,6 +17,8 @@ import {
   NEXT_BATCH_FOCUS,
   NEXT_BATCH_INPUT, OVERFULL_INPUT, PLAN_BRIEF, PLAN_PAST_THE_ROOM, PROBLEM, REVIEW, SETTLED_PIECES, SPEC_INPUT,
   SYSTEM_MARKERS, TARGETS, promptMarkers,
+  ALL_MODES, CODE_ANSWERED_ASKS, GLOB_LOOKUP, LOOKUP_MODES, MATERIAL_OF_THE_BRIEF, SYMBOL_SOURCE_LOOKUP, CODE_CHECKED_ANCHORS, LISTED_MODES, PROJECT_LIST_MARKER, REPEATED_WHOLE_FILE_BAN,
+  SECOND_TIE_CONDITION, SETTLED_BY_MATERIAL, TIE_RULE, UNCHECKED_ANCHOR_ASKS,
 } from "./review-prompt.fixtures.ts";
 
 describe("reviewSystem(\"plan\") — one marker per behaviour", () => {
@@ -374,5 +377,160 @@ describe("buildReviewBrief — what it says is in the brief", () => {
 
     // Assert
     ok(brief.includes("The plan: workbench/prune/PRUNE-PLAN.md\n"), brief.slice(0, 600));
+  });
+});
+
+describe("reviewSystem — what it asks and how it reads, in every mode", () => {
+  for (const mode of ALL_MODES) {
+    it(`asks no question the rest of the material already settles: ${mode}`, () => {
+      // Arrange
+      const marker = SETTLED_BY_MATERIAL;
+
+      // Act
+      const system = reviewSystem(mode);
+
+      // Assert
+      assertMentions(system, [marker]);
+    });
+  }
+
+  for (const mode of ALL_MODES) {
+    it(`weighs a hesitation as Major in one condition: ${mode}`, () => {
+      // Arrange
+      const rule = TIE_RULE;
+
+      // Act
+      const system = reviewSystem(mode);
+
+      // Assert
+      assertMentions(system, [rule]);
+      assertOmits(system, [SECOND_TIE_CONDITION]);
+    });
+  }
+
+  for (const mode of ALL_MODES) {
+    it(`reads a source file by node, then by bounded range: ${mode}`, () => {
+      // Arrange
+      const first = NODE_READ_RULE;
+
+      // Act
+      const system = reviewSystem(mode);
+
+      // Assert
+      assertBefore(system, first, BOUNDED_READ_RULE);
+    });
+  }
+
+  for (const mode of ALL_MODES) {
+    it(`leaves the whole-file ban to the shared reading rules: ${mode}`, () => {
+      // Arrange
+      const repeated = REPEATED_WHOLE_FILE_BAN;
+
+      // Act
+      const system = reviewSystem(mode);
+
+      // Assert
+      assertOmits(system, [repeated]);
+    });
+  }
+
+  for (const c of LISTED_MODES) {
+    it(`speaks of the project list only when its brief carries one: ${c.mode}`, () => {
+      // Arrange
+      const { mode, listed } = c;
+
+      // Act
+      const system = reviewSystem(mode);
+
+      // Assert
+      strictEqual(system.includes(PROJECT_LIST_MARKER), listed, `the ${mode} system`);
+    });
+  }
+});
+
+describe("reviewSystem — the lookups the routing leaves unsaid", () => {
+  for (const c of LOOKUP_MODES) {
+    it(`names symbol_source for a search hit only to a charter holding it: ${c.mode}`, () => {
+      // Arrange
+      const { mode, symbolSource } = c;
+
+      // Act
+      const system = reviewSystem(mode);
+
+      // Assert
+      strictEqual(system.includes(SYMBOL_SOURCE_LOOKUP), symbolSource, `the ${mode} system`);
+    });
+  }
+
+  for (const c of LOOKUP_MODES) {
+    it(`names glob for a file by its name once, the project list aside: ${c.mode}`, () => {
+      // Arrange
+      const { mode, glob } = c;
+
+      // Act
+      const system = reviewSystem(mode);
+
+      // Assert
+      strictEqual(system.includes(GLOB_LOOKUP), glob, `the ${mode} system`);
+    });
+  }
+
+  for (const mode of ALL_MODES) {
+    it(`looks for an answer in the other files of the brief: ${mode}`, () => {
+      // Arrange
+      const marker = MATERIAL_OF_THE_BRIEF;
+
+      // Act
+      const system = reviewSystem(mode);
+
+      // Assert
+      assertMentions(system, [marker]);
+    });
+  }
+
+  it("names no inventory in the next-batch system, whose brief carries none", () => {
+    // Arrange
+    const mode = "next-batch";
+
+    // Act
+    const system = reviewSystem(mode);
+
+    // Assert
+    assertOmits(system, ["inventory"]);
+  });
+});
+
+describe("reviewSystem(\"plan\") — what code checked before the review", () => {
+  it("says code already checked the anchored paths and the order of batches sharing an anchor", () => {
+    // Arrange
+    const mode = "plan";
+
+    // Act
+    const system = reviewSystem(mode);
+
+    // Assert
+    assertMentions(system, [CODE_CHECKED_ANCHORS]);
+  });
+
+  it("asks again none of what code answered, nor an access cost no tool of it measures", () => {
+    // Arrange
+    const mode = "plan";
+
+    // Act
+    const system = reviewSystem(mode);
+
+    // Assert
+    assertOmits(system, CODE_ANSWERED_ASKS);
+  });
+
+  it("keeps asking what no check of code sees", () => {
+    // Arrange
+    const mode = "plan";
+
+    // Act
+    const system = reviewSystem(mode);
+
+    // Assert
+    assertMentions(system, UNCHECKED_ANCHOR_ASKS);
   });
 });

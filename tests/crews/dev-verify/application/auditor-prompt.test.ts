@@ -10,7 +10,8 @@ import {
 import { MAX_BRIEF_CHARS } from "../../../../src/shared/domain/agents/charter.ts";
 import {
   CAPTURE_DIR, FIRST, FIVE_CAPTURE_FILES, HOST_WORDS, LONG_TABLE, MATERIAL, MAX_REPLY_CHARS_IN_ANSWER_PROMPT, PREVIOUS_GAP,
-  SHORT_SHEET, SUITE, SYSTEM_MARKERS, TABLE, bigBriefInput, briefInput, largestAnswer, longReports,
+  REMOVED_FROM_SYSTEM, SHARED_RULES, SHORT_SHEET, SUITE, SYSTEM_MARKERS, TABLE, auditorOwnWords, bigBriefInput, briefInput,
+  largestAnswer, longReports,
 } from "./auditor-prompt.fixtures.ts";
 import { assertWithinBrief } from "./auditor-prompt.assertions.ts";
 import { assertBefore, assertMentions, assertOmits } from "../../../support/assertions/text.ts";
@@ -28,6 +29,32 @@ describe("AUDITOR_SYSTEM — one marker per behaviour", () => {
 
       // Assert
       ok(holds, marker);
+    });
+  }
+
+  for (const [rule, text] of SHARED_RULES) {
+    it(`carries ${rule} whole`, () => {
+      // Arrange
+      const system = AUDITOR_SYSTEM;
+
+      // Act
+      const holds = system.includes(text);
+
+      // Assert
+      ok(holds, rule);
+    });
+  }
+
+  for (const [behaviour, gone] of REMOVED_FROM_SYSTEM) {
+    it(`says in its own words ${behaviour}`, () => {
+      // Arrange
+      const gones = [gone];
+
+      // Act
+      const own = auditorOwnWords();
+
+      // Assert
+      assertOmits(own, gones);
     });
   }
 
@@ -324,6 +351,17 @@ describe("buildAnswerPrompt", () => {
     assertMentions(p, ["invent nothing"]);
     ok(p.endsWith("Verdict VALID, no row."));
     assertOmits(p, ["refused"]);
+  });
+
+  it("takes the checks and the mechanisms left undecided", () => {
+    // Arrange
+    const reply = "Verdict VALID, no row.";
+
+    // Act
+    const p = buildAnswerPrompt(reply, []);
+
+    // Assert
+    assertMentions(p, ["mechanisms left undecided"]);
   });
 
   it("lists each problem to fix when given", () => {

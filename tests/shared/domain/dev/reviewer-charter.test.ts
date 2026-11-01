@@ -1,4 +1,4 @@
-// The reviewer's charter runs, offers its nine read tools and nothing that writes,
+// The reviewer's charter runs, offers its ten read tools and nothing that writes,
 // runs a command or builds the index. Run:
 //   node --test tests/shared/domain/dev/reviewer-charter.test.ts
 import { describe, it } from "node:test";
@@ -6,7 +6,7 @@ import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import { NEXT_BATCH_REVIEWER_CHARTER, REVIEWER_CHARTER, REVIEWER_TOOLS } from "../../../../src/shared/domain/dev/reviewer-charter.ts";
 import { charterCatalogue, charterProblems } from "../../../../src/shared/domain/agents/charter.ts";
-import { FORBIDDEN_TOOLS, FOUR_READ_TOOLS, NINE_READ_TOOLS } from "./reviewer-charter.fixtures.ts";
+import { FIVE_READ_TOOLS, FORBIDDEN_TOOLS, REVIEWER_CHARTERS, TEN_READ_TOOLS } from "./reviewer-charter.fixtures.ts";
 
 describe("REVIEWER_CHARTER", () => {
   it("can run", () => {
@@ -33,9 +33,9 @@ describe("REVIEWER_CHARTER", () => {
     strictEqual(maxIterations, expected.maxIterations);
   });
 
-  it("lists exactly the nine read tools", () => {
+  it("lists exactly the ten read tools", () => {
     // Arrange
-    const expected = NINE_READ_TOOLS;
+    const expected = TEN_READ_TOOLS;
 
     // Act
     const tools = REVIEWER_TOOLS;
@@ -44,7 +44,7 @@ describe("REVIEWER_CHARTER", () => {
     deepStrictEqual(tools, expected);
   });
 
-  it("offers exactly the nine read tools", () => {
+  it("offers exactly the ten read tools", () => {
     // Arrange
     const charter = REVIEWER_CHARTER;
 
@@ -95,7 +95,7 @@ describe("NEXT_BATCH_REVIEWER_CHARTER", () => {
     deepStrictEqual(disallowed, reviewer.disallowed);
   });
 
-  it("offers four read tools", () => {
+  it("offers five read tools", () => {
     // Arrange
     const charter = NEXT_BATCH_REVIEWER_CHARTER;
 
@@ -103,6 +103,32 @@ describe("NEXT_BATCH_REVIEWER_CHARTER", () => {
     const catalogue = charterCatalogue(charter);
 
     // Assert
-    deepStrictEqual(catalogue, FOUR_READ_TOOLS);
+    deepStrictEqual(catalogue, FIVE_READ_TOOLS);
+  });
+});
+
+describe("the reviewer's charters and the project list", () => {
+  for (const c of REVIEWER_CHARTERS) {
+    it(`offers glob, the tool a cut project list names: ${c.review}`, () => {
+      // Arrange
+      const tool = "glob";
+
+      // Act
+      const catalogue = charterCatalogue(c.charter);
+
+      // Assert
+      ok(catalogue.includes(tool), `the charter of ${c.review} lacks ${tool}`);
+    });
+  }
+
+  it("gives the next batch's review a subset of the plan review's tools", () => {
+    // Arrange
+    const plan = REVIEWER_TOOLS;
+
+    // Act
+    const absent = NEXT_BATCH_REVIEWER_CHARTER.tools.filter((tool) => !plan.includes(tool));
+
+    // Assert
+    deepStrictEqual(absent, []);
   });
 });

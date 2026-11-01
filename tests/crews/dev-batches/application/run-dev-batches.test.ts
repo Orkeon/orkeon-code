@@ -20,6 +20,7 @@ import {
 import { assertHasLine, assertLastLineStarting, assertLastLineWith, assertLineWith, assertNoLineWith } from "./run-dev-batches.assertions.ts";
 import { assertLineStarting, assertMentions } from "../../../support/assertions/text.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
+import { NEXT_BATCH_REVIEWER_CHARTER } from "../../../../src/shared/domain/dev/reviewer-charter.ts";
 
 describe("runDevBatches — a run", () => {
   it("records the run, logs the next batch launched and names it for its batch's chain with the dispatch's context", async () => {
@@ -330,7 +331,7 @@ describe("runDevBatches — back from a batch", () => {
     strictEqual(llm.acts.length, 0);
   });
 
-  it("hands the reviewer the next sheet and what the closed batch changed, four read tools and eight turns", async () => {
+  it("hands the reviewer the next sheet and what the closed batch changed, the next-batch charter's read tools and eight turns", async () => {
     // Arrange
     const { files, shell, deps } = setup();
     reopenF1(files);
@@ -349,7 +350,7 @@ describe("runDevBatches — back from a batch", () => {
     const { prompt, request } = llm.acts[0];
     assertMentions(prompt, F2_REVIEW_BRIEF);
     ok(prompt.indexOf("### workbench/demo/DEMO-PLAN.md\n```text\n") > prompt.indexOf("### what F1 changed"), prompt);
-    deepStrictEqual(request.tools, ["file_read", "node_outline", "node_read", "codebase_search"]);
+    deepStrictEqual(request.tools, NEXT_BATCH_REVIEWER_CHARTER.tools);
     strictEqual(request.maxIterations, 8);
     strictEqual(request.permissionMode, "plan");
   });

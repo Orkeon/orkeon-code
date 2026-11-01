@@ -8,10 +8,20 @@ export const LISTING = [
 
 export const PARSED: readonly string[] = ["package.json", "src/format.test.js", "src/math.js", "src/stats.js"];
 
-export interface LinesCase { name: string; files: readonly string[]; max?: number; expectedCount: number; last: string | null }
+export interface LinesCase { name: string; files: readonly string[]; max?: number; expectedCount: number }
 
 export const LINES_CASES: readonly LinesCase[] = [
-  { name: "lists nothing when no file is known", files: [], expectedCount: 0, last: null },
-  { name: "lists every file under the heading when they fit", files: PARSED, expectedCount: 5, last: "- src/stats.js" },
-  { name: "cuts the list at the bound and says how many are left", files: PARSED, max: 2, expectedCount: 4, last: "- … and 2 more: glob lists the rest" },
+  { name: "lists nothing when no file is known", files: [], expectedCount: 0 },
+  { name: "lists every file between the heading and the closing line when they fit", files: PARSED, expectedCount: 6 },
+  { name: "cuts the list at the bound and closes it with how many are left", files: PARSED, max: 2, expectedCount: 4 },
 ];
+
+export interface ClosingCase { name: string; max?: number; mentions: readonly string[] }
+
+export const CLOSING_CASES: readonly ClosingCase[] = [
+  { name: "closes a whole list saying a name absent from it does not exist", mentions: ["the list is whole", "a name absent from it does not exist"] },
+  { name: "closes a cut list saying a name absent above may still exist and glob lists it", max: 2, mentions: ["may still exist", "glob with a pattern lists them"] },
+];
+
+/** What the cut line says, in the words a reader acts on. */
+export const CUT_LINE_MENTIONS: readonly string[] = ["and 2 more", "may still exist", "glob with a pattern"];

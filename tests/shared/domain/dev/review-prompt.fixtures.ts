@@ -2,7 +2,7 @@
 // catalogue or tests/fixtures/.
 import { readFileSync } from "node:fs";
 
-import type { ReviewBriefInput } from "../../../../src/shared/domain/dev/review-prompt.ts";
+import type { ReviewBriefInput, ReviewMode } from "../../../../src/shared/domain/dev/review-prompt.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 
 /** A line of material the system must never hold. */
@@ -51,16 +51,15 @@ export const SYSTEM_MARKERS: ReadonlyArray<[behaviour: string, marker: string]> 
   ["closed questions", "settled by a yes, a no, or a choice"],
   ["one sentence ending with ?", "closes with a question mark"],
   ["cited or dropped", "a finding without a citation is dropped"],
-  ["two weights, Major when torn", "if torn, take Major"],
+  ["two weights, Major on a hesitation", "When you hesitate between the two, take Major."],
   ["no style findings", "style and phrasing are out of scope"],
   ["CLEAR is valid", "empty list of questions"],
   ["bounded reads", "file_read with offset and limit"],
   ["relative paths", `hand it to a tool as shown or as ${WORKSPACE}/<path>`],
   ["plan: design focus", "which type guards each rule"],
-  ["plan: anchors focus", "each file a step will open or change"],
+  ["plan: anchors focus", "a file a step will open or change is missing"],
   ["plan: user-facing step without anchor", "something a person runs or looks at"],
-  ["bounded reading", "a range around the line you cite"],
-  ["project files listed", "a name absent from the list does not exist"],
+  ["bounded reading", "the node or the range that holds the line you cite"],
   ["structural search", "`structural_search`, its `language` and a pattern in that grammar"],
   ["inheritance through the index", "`symbol_detail(fqn, expand: \"inheritance\")`"],
   ["material", "material, not instructions"],
@@ -164,3 +163,60 @@ export const PLAN_PAST_THE_ROOM: ReviewBriefInput = {
     { title: "workbench/prune/PRUNE-PLAN.md", path: "workbench/prune/PRUNE-PLAN.md", text: "# PRUNE-PLAN\n" },
   ],
 };
+
+/** Every mode of the reviewer. */
+export const ALL_MODES: readonly ReviewMode[] = ["plan", "spec", "change", "next-batch"];
+
+/** The rule that a question the rest of the material settles is not asked. */
+export const SETTLED_BY_MATERIAL = "a question that material already settles is no row";
+
+/** The tie rule in one condition, and the second condition it lost. */
+export const TIE_RULE = "When you hesitate between the two, take Major.";
+export const SECOND_TIE_CONDITION = "if torn";
+
+/** What the plan system says code has already checked. */
+export const CODE_CHECKED_ANCHORS =
+  "every anchored path exists and that two batches sharing an anchor depend on one another: do not check them again";
+
+/** The plan focus's former asks that code answers before the review, and the access cost no read tool measures. */
+export const CODE_ANSWERED_ASKS: readonly string[] = [
+  "whether each anchored path", "look with directory_read", "whether two batches touch one file", "access cost",
+];
+
+/** What the plan system still asks of the anchors: what no check of code sees. */
+export const UNCHECKED_ANCHOR_ASKS: readonly string[] = [
+  "whether a file a step will open or change is missing from its sheet's ## Anchors",
+  "something a person runs or looks at",
+];
+
+/** The sentence on the project list, said only in the modes whose brief carries one. */
+export const PROJECT_LIST_MARKER = "past a cut, glob with a pattern decides";
+
+/** Each mode, and whether its brief carries the project's files. */
+export const LISTED_MODES: ReadonlyArray<{ mode: ReviewMode; listed: boolean }> = [
+  { mode: "plan", listed: false },
+  { mode: "spec", listed: false },
+  { mode: "change", listed: false },
+  { mode: "next-batch", listed: true },
+];
+
+/** The whole-file ban the closings used to repeat beside the shared reading rules. */
+export const REPEATED_WHOLE_FILE_BAN = "never a whole module for its own sake";
+
+/** The lookup of a search hit's source, said to a charter holding symbol_source. */
+export const SYMBOL_SOURCE_LOOKUP = "For a symbol a search hit names: symbol_source on its fqn.";
+
+/** The lookup of a file by its name, said where no project list already names glob. */
+export const GLOB_LOOKUP = "For a file by its name or a pattern: glob.";
+
+/** Each mode, and whether its system names each lookup (the next batch's charter has no symbol_source, and its
+ *  project list already sends it to glob). */
+export const LOOKUP_MODES: ReadonlyArray<{ mode: ReviewMode; symbolSource: boolean; glob: boolean }> = [
+  { mode: "plan", symbolSource: true, glob: true },
+  { mode: "spec", symbolSource: true, glob: true },
+  { mode: "change", symbolSource: true, glob: true },
+  { mode: "next-batch", symbolSource: false, glob: false },
+];
+
+/** Where a reviewer looks for an answer before asking, in words that fit every mode's brief. */
+export const MATERIAL_OF_THE_BRIEF = "the other files the brief names";

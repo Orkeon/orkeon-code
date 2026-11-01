@@ -38,12 +38,12 @@ command's, and the model then works on the transcription under the turn's mode. 
 mode), and `--go` to a turn under the session's mode, chosen before the recording: no dictated prefix is read.
 `/say` reads aloud the same way, and so does the reading of each answer under `voice.reply on`, made by the
 main loop after the turn as the launching command's call. The audit of `/dev-batches` (`<code> F<n> --audit`) runs `git`, the pack's build and the test
-commands it accepts from its own code, in every mode; its auditor only reads, in `plan`, with five read tools.
+commands it accepts from its own code, in every mode; its auditor only reads, in `plan`, with seven read tools.
 `/dev-learn` reads the verdict files and both learning states. It writes only `<work>/learn-<date>/`,
 `.orkeon/dev-learn-state.json` and `refused.md` under `memory.dir`, never a file under `.claude/` nor the file a proposal
 names.
 `/dev-plan` reads the spec or change brief, the pack and the code index. It writes only `<work>/<code>/<CODE>-PLAN.md`,
-the batch sheets and `plan.json`, never a file under `.claude/`; its reviewer only reads, in `plan`, with nine read
+the batch sheets and `plan.json`, never a file under `.claude/`; its reviewer only reads, in `plan`, with ten read
 tools. `/dev-spec` reads the request (an issue through `gh issue view`), the pack and the code index,
 and writes only `<work>/<code>/SPEC-<code>.md`, or `CHANGE-<code>.md` and `repro-<code>.txt`; for a change brief it runs the
 reproduction or measure command, a narrow test command of the pack, from its own code, once the step's rule sets

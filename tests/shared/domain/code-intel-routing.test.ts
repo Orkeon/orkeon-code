@@ -7,9 +7,10 @@ import { describeCodeIntelRouting } from "../../../src/shared/domain/code-intel-
 import { CODE_INTEL_PARAMS } from "../../../src/shared/domain/code-intel-contract.ts";
 import { TOOL_ARGUMENTS } from "../../../src/shared/domain/agent-policy/permission.ts";
 import {
-  ALL_ROUTED_TOOLS, NO_ANALYSIS_TOOLS, PARTIAL_LISTS, PERMISSION_PINNED_PARAMS, ROUTED_PARAMS, SINGLE_TOOL_CASES,
+  ALL_ROUTED_TOOLS, NO_ANALYSIS_TOOLS, PARTIAL_LISTS, PERMISSION_PINNED_PARAMS, ROUTED_PARAMS, SHELL_WORDING_CASES,
+  SINGLE_TOOL_CASES,
 } from "./code-intel-routing.fixtures.ts";
-import { assertNamesOnlyGivenTools } from "./code-intel-routing.assertions.ts";
+import { assertNamesOnlyGivenTools, assertWording } from "./code-intel-routing.assertions.ts";
 import { assertMentions, assertOmits } from "../../support/assertions/text.ts";
 
 describe("describeCodeIntelRouting", () => {
@@ -52,7 +53,7 @@ describe("describeCodeIntelRouting", () => {
 
   it("calls a truncated result a sample and forbids the script over every file", () => {
     // Arrange
-    const tools = ["structural_search"];
+    const tools = ["structural_search", "shell_command"];
 
     // Act
     const text = describeCodeIntelRouting(tools);
@@ -60,6 +61,19 @@ describe("describeCodeIntelRouting", () => {
     // Assert
     assertMentions(text, ["`truncated` is a sample", "say so in the answer", "rather than writing a script"]);
   });
+
+  for (const c of SHELL_WORDING_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const tools = c.tools;
+
+      // Act
+      const text = describeCodeIntelRouting(tools);
+
+      // Assert
+      assertWording(text, c.mentions, c.omits);
+    });
+  }
 
   it("leaves the exhaustiveness rule out when no tool of the agent cuts its answer", () => {
     // Arrange

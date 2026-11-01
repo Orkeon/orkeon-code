@@ -4,7 +4,7 @@
 // schema. Pure text builders. The material — the plan, the source, the inventory —
 // goes in the brief only, never in the system message.
 
-import { BOUNDED_READ_RULE, KNOWN_TOOLS_RULE } from "./reading-rule.ts";
+import { BOUNDED_READ_RULE, KNOWN_TOOLS_RULE, NODE_READ_RULE } from "./reading-rule.ts";
 import { NEXT_BATCH_REVIEWER_CHARTER, REVIEWER_TOOLS } from "./reviewer-charter.ts";
 import { describeCodeIntelRouting } from "../code-intel-routing.ts";
 import { carry } from "./carried-text.ts";
@@ -29,12 +29,14 @@ const COMMON = [
   "- Write it as one sentence that closes with a question mark.",
   "- Cite where it comes from: a path:line you opened, or a section of the files (§ n, or a heading);",
   "  a finding without a citation is dropped, so a suspicion you cannot point at stays out of the list.",
+  "- Before asking, look for the answer in the rest of the material (the other files the brief names, the code):",
+  "  a question that material already settles is no row.",
   "",
   "Two weights:",
   "- Blocking: whatever the answer, it would reshape a use case, a rule, the data, a state, the scope or a design",
   "  choice, so the next step would have to guess.",
   "- Major: the answer moves an edge case, and a recorded assumption is enough to go on.",
-  "When unsure between the two: if torn, take Major.",
+  "When you hesitate between the two, take Major.",
   "",
   "Weigh substance only: style and phrasing are out of scope.",
   "Finding nothing is a fair outcome: an empty list of questions means you report CLEAR.",
@@ -44,10 +46,10 @@ const PLAN_FOCUS = [
   "",
   "For a plan, ask in particular:",
   "- which type guards each rule, whether each invariant really spares the code a check, whether one command persists",
-  "  two guardians, whether the stated access cost holds, whether an existing element is left unused, whether a",
-  "  not-applicable reason survives a second look, and whether an adapter goes without an integration test;",
-  "- whether each file a step will open or change is a row of its sheet's ## Anchors, whether each anchored path",
-  "  exists (look with directory_read), and whether two batches touch one file while neither depends on the other.",
+  "  two guardians, whether an existing element is left unused, whether a not-applicable reason survives a second",
+  "  look, and whether an adapter goes without an integration test;",
+  "- whether a file a step will open or change is missing from its sheet's ## Anchors. Code has already checked that",
+  "  every anchored path exists and that two batches sharing an anchor depend on one another: do not check them again.",
   "- A step on something a person runs or looks at (a command, a screen, a menu) whose sheet anchors no existing file",
   "  for it is Blocking.",
 ];
@@ -90,12 +92,30 @@ const NEXT_BATCH_FOCUS = [
   "that no closed batch's change opened is not yours to ask, whatever you think of the decision.",
 ];
 
-/** The closing of a plan or a next batch: the reading rule and the routing of the tools the mode's charter holds. */
-const closing = (tools: readonly string[]): string[] => [
+/** What the reviewer makes of the project's files, said only in a mode whose brief carries them (the next batch's). */
+const PROJECT_LIST_RULE = [
+  "When the brief lists the project's files, its last line says whether the list is whole: when it is, a name absent",
+  "from it does not exist; past a cut, glob with a pattern decides. Never open a name you guessed, nor a folder.",
+];
+
+/** The lookups the routing lines leave unsaid, each said only to a charter holding its tool: the source of a
+ *  search hit, and a file by its name, left out where the project list already sends the reviewer to glob. */
+function lookupLines(tools: readonly string[], listed: boolean): string[] {
+  const lines: string[] = [];
+  if (tools.includes("symbol_source")) lines.push("For a symbol a search hit names: symbol_source on its fqn.");
+  if (tools.includes("glob") && !listed) lines.push("For a file by its name or a pattern: glob.");
+  return lines;
+}
+
+/** The closing of a plan or a next batch: the reading rules, the project list when the mode's brief carries it,
+ *  and the routing of the tools the mode's charter holds. */
+const closing = (tools: readonly string[], listed: boolean): string[] => [
   "",
   "Reading: open only what the files and their anchors point to, and of a source file only",
-  "a range around the line you cite, never a whole module for its own sake. When the brief lists the project's",
-  "files, a name absent from the list does not exist: never open a name you guessed.",
+  "the node or the range that holds the line you cite.",
+  ...(listed ? PROJECT_LIST_RULE : []),
+  ...lookupLines(tools, listed),
+  NODE_READ_RULE,
   BOUNDED_READ_RULE,
   describeCodeIntelRouting(tools),
   KNOWN_TOOLS_RULE,
@@ -114,7 +134,9 @@ function sourceClosing(document: string, targets: string): string[] {
   return [
     "",
     "Reading: open only what the document and its inventory point to, and of a source file only",
-    "a range around the line you cite, never a whole module for its own sake.",
+    "the node or the range that holds the line you cite.",
+    ...lookupLines(REVIEWER_TOOLS, false),
+    NODE_READ_RULE,
     BOUNDED_READ_RULE,
     describeCodeIntelRouting(REVIEWER_TOOLS),
     KNOWN_TOOLS_RULE,
@@ -134,8 +156,8 @@ export function reviewSystem(mode: ReviewMode): string {
   if (mode === "change") {
     return [...COMMON, ...CHANGE_FOCUS, ...sourceClosing("brief", "the brief as a whole, or one CH- id")].join("\n");
   }
-  if (mode === "next-batch") return [...COMMON, ...NEXT_BATCH_FOCUS, ...closing(NEXT_BATCH_REVIEWER_CHARTER.tools)].join("\n");
-  return [...COMMON, ...PLAN_FOCUS, ...closing(REVIEWER_TOOLS)].join("\n");
+  if (mode === "next-batch") return [...COMMON, ...NEXT_BATCH_FOCUS, ...closing(NEXT_BATCH_REVIEWER_CHARTER.tools, true)].join("\n");
+  return [...COMMON, ...PLAN_FOCUS, ...closing(REVIEWER_TOOLS, false)].join("\n");
 }
 
 export interface ReviewBriefInput {

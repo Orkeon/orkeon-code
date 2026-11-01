@@ -43,13 +43,13 @@ le mode), et `--go` à un tour sous le mode de la session, choisi avant l'enregi
 `/say` lit à voix haute de la même façon, et de même la lecture de chaque réponse sous `voice.reply on`, faite par la
 boucle principale après le tour comme appel de la commande qui l'a lancée. L'audit de `/dev-batches` (`<code> F<n> --audit`) lance `git`, le build du
 pack et les commandes de test qu'il accepte depuis son propre code, dans tous les modes ; son auditeur ne fait que
-lire, en `plan`, avec cinq outils de lecture.
+lire, en `plan`, avec sept outils de lecture.
 `/dev-learn` lit les fichiers de verdict et les deux états d'apprentissage. Il n'écrit que `<work>/learn-<date>/`,
 `.orkeon/dev-learn-state.json` et `refused.md` sous `memory.dir`, jamais un fichier sous `.claude/` ni le fichier qu'une
 proposition nomme.
 `/dev-plan` lit la spec ou la fiche de changement, le pack et l'index du code. Il n'écrit que
 `<work>/<code>/<CODE>-PLAN.md`, les fiches de lot et `plan.json`, jamais un fichier sous `.claude/` ; son relecteur ne
-fait que lire, en `plan`, avec neuf outils de lecture. `/dev-spec` lit la demande (une issue par
+fait que lire, en `plan`, avec dix outils de lecture. `/dev-spec` lit la demande (une issue par
 `gh issue view`), le pack et l'index du code, et n'écrit que `<work>/<code>/SPEC-<code>.md`, ou `CHANGE-<code>.md`
 et `repro-<code>.txt` ; pour une fiche de changement il lance la commande de reproduction ou de mesure, une commande de test étroite du
 pack, depuis son propre code, une fois que les jeux de règles de l'étape l'autorisent. Un lot de `/dev-batches` (`<code> F<n>`) lance le

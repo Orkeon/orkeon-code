@@ -348,7 +348,7 @@ export async function renderCatalogue(): Promise<RenderedPrompt[]> {
     {
       id: "13", name: "dev-auditor", source: "src/crews/dev-verify/application/auditor-prompt.ts, domain/audit-answer.ts",
       callSite: "/dev-verify → crews/dev-verify → application/audit.ts",
-      call: "act in plan mode with four read tools, then extract (JSON schema); a second act after the validations",
+      call: "act in plan mode with seven read tools, run_validation and memory_recall when offered, then extract (JSON schema); a second act after the validations",
       inputs: "a two-row table, two capture paths, one previous gap (resume)",
       sections: [
         { title: "system", role: "system", text: AUDITOR_SYSTEM },
@@ -392,7 +392,7 @@ export async function renderCatalogue(): Promise<RenderedPrompt[]> {
     {
       id: "16", name: "dev-reviewer", source: "src/shared/domain/dev/review-prompt.ts, review-answer.ts",
       callSite: "/dev-plan → crews/dev-plan → application/run-dev-plan.ts (runSubAgent)",
-      call: "act in plan mode with six read tools, then extract (JSON schema), one re-ask over the same reply",
+      call: "act in plan mode with ten read tools, then extract (JSON schema), one re-ask over the same reply",
       inputs: "a plan folder with two sheets and three inventory entries",
       sections: [
         { title: "system, mode plan", role: "system", text: reviewSystem("plan") },

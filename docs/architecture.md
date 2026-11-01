@@ -314,14 +314,14 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 | `init-verifiers` | sequential, no tools | `/init-verifiers` | Detects test tooling from every manifest, writes verification playbooks for uncovered zones |
 | `advisor` | sequential, no tools | `/advisor` | A second opinion on the last answer from another model |
 | `speech` | sequential, no tools, no LLM | `/transcribe`, `/voice`, `/say` | One call to the speech MCP server (`transcribe_audio`, `list_audio`, `record_and_transcribe`, `speak`), as the command's |
-| `dev-verify` | sequential, the gate and capture in `dev-verifier`, the audit in a background child `dev-auditor` (five read tools in `plan`, `run_validation`, `memory_recall`) | `/dev-batches <code> F<n> --audit` (`--gate-only` skips the LLM) | The gate, the capture, one read-only audit, the verdict file |
+| `dev-verify` | sequential, the gate and capture in `dev-verifier`, the audit in a background child `dev-auditor` (seven read tools in `plan`, `run_validation`, `memory_recall`) | `/dev-batches <code> F<n> --audit` (`--gate-only` skips the LLM) | The gate, the capture, one read-only audit, the verdict file |
 | `dev-learn` | sequential, no tool, one extract per axis | `/dev-learn` (`--list` skips the LLM) | Recurring verdict gaps into proposals, `PROPOSALS.md` |
-| `dev-plan` | sequential, one extract in `dev-planner`, the review in a background child `dev-reviewer` (nine read tools in `plan`) | `/dev-plan` | Blocking gate, inventory by the index, plan and sheets written by code, one read-only review |
+| `dev-plan` | sequential, one extract in `dev-planner`, the review in a background child `dev-reviewer` (ten read tools in `plan`) | `/dev-plan` | Blocking gate, inventory by the index, plan and sheets written by code, one read-only review |
 | `agent-run` | sequential, one act of a built-in charter (`dev-reviewer`, `dev-auditor`) | `/tasks send`, `/tasks repair` | A new run of an ended child, its brief carrying the previous report and the operator's message; it runs under the step of the instance's run (a reviewer of `/dev-spec` under that step's rule sets, hooks and budget), else the charter's step, with that step's budget and no child of its own |
-| `dev-spec` | sequential, extracts, the review in a background child `dev-reviewer` (nine read tools in `plan`; inline on a host without background children) | `/dev-spec` | Business spec written by code from JSON, its questions asked one at a time through `human_input`, one read-only review |
-| `dev-change` | sequential, extracts, the review in a background child `dev-reviewer` (nine read tools in `plan`; inline on a host without background children) | `/dev-spec <code> <kind>` | Bug reproduced or cost measured by running, change brief written by code, questions through `human_input`, one review |
+| `dev-spec` | sequential, extracts, the review in a background child `dev-reviewer` (ten read tools in `plan`; inline on a host without background children) | `/dev-spec` | Business spec written by code from JSON, its questions asked one at a time through `human_input`, one read-only review |
+| `dev-change` | sequential, extracts, the review in a background child `dev-reviewer` (ten read tools in `plan`; inline on a host without background children) | `/dev-spec <code> <kind>` | Bug reproduced or cost measured by running, change brief written by code, questions through `human_input`, one review |
 | `dev-implement` | sequential, one agent, two roles in `acceptEdits` (five read tools, six write tools - `file_write` for a new file, the node editors and `edit_batch` for an existing one; the editing rule spells an `edit_batch` out, its `operations` list and `validate`, and the guard's refusal of a batch without operations repeats it; the runtime publishes the schema of the node tools too since Orkeon #210; every `node_replace` of a batch carries the hash `node_read` gave for that very node, never a guessed one, since a placeholder hash made the runtime refuse a whole batch in a live run - `run_tests`, `run_build`, `memory_recall`) | `/dev-batches <code> F<n>` (`--close` the close alone) | Each cycle (the steps on one test file) red then green, checked by code, its cost measured; a correction appended as a step; the build and the suite (later the affected projects) as jobs; then the audit (the `dev-verify` crew) and, on VALID, the commit and the done marks; an assumption is recorded once per batch, never one the sheet already holds; a relative path a role hands a tool is resolved under the checkout before the tool runs |
-| `dev-batches` | sequential, one agent with the reviewer's read tools, its review inline (the next batch's review is offered four of them, `file_read`, `node_outline`, `node_read` and `codebase_search`, for eight turns: its brief carries the sheet, what the closed batches changed and the plan); with `--concurrency` 2 to 4, one batch agent per batch of a wave (`batch-F<n>`, the implement tools and the auditor's read tools, `run_tests`, `run_build`, `run_validation`, `memory_recall`), each under its worktree's working root | `/dev-batches` (typed again after a stop: the run goes on; every hop of its chain keeps the depth of the instance it runs for, `chain: "continue"`, so a plan of any length closes in one command, Orkeon #221) | Names a plan's next batch in its dependencies' order, after a review of its sheet once its dependencies closed; logs each batch in `batches-state.md`; sequential, the command's `completed` drives `/dev-batches`, each close committed without a push; in parallel, the driver seeds each worktree, runs the wave's batch agents at once (each runs the steps, the audit inline and the close in code, bounded by its own tool calls), then merges each VALID batch fast-forward in id order, brings its files back and removes its worktree; one push and one pull request at the plan's close; a review that cannot run (no reviewer on the host, an answer that does not parse twice, a refused call) stops the batch before its launch, logged `BLOCKED — review not run (<reason>)`, and the next run reviews it again (a stop for Blocking questions is settled by the human and not reviewed twice); each Major row of the review ends the RED and GREEN prompts of that batch as a `stale: <question> — <evidence>` line, on its first launch only; a GAPS verdict relaunches the batch by itself, in its worktree in parallel, its Blocking and Major rows as the correction (none for an audit the budget stopped, whose resume then runs), up to three audit rounds in GAPS since the last VALID, an audit the budget stopped counted as one; the third still GAPS goes to a human |
+| `dev-batches` | sequential, one agent with the reviewer's read tools, its review inline (the next batch's review is offered five of them, `file_read`, `node_outline`, `node_read`, `codebase_search` and `glob`, for eight turns: its brief carries the sheet, what the closed batches changed and the plan); with `--concurrency` 2 to 4, one batch agent per batch of a wave (`batch-F<n>`, the implement tools and the auditor's read tools, `run_tests`, `run_build`, `run_validation`, `memory_recall`), each under its worktree's working root | `/dev-batches` (typed again after a stop: the run goes on; every hop of its chain keeps the depth of the instance it runs for, `chain: "continue"`, so a plan of any length closes in one command, Orkeon #221) | Names a plan's next batch in its dependencies' order, after a review of its sheet once its dependencies closed; logs each batch in `batches-state.md`; sequential, the command's `completed` drives `/dev-batches`, each close committed without a push; in parallel, the driver seeds each worktree, runs the wave's batch agents at once (each runs the steps, the audit inline and the close in code, bounded by its own tool calls), then merges each VALID batch fast-forward in id order, brings its files back and removes its worktree; one push and one pull request at the plan's close; a review that cannot run (no reviewer on the host, an answer that does not parse twice, a refused call) stops the batch before its launch, logged `BLOCKED — review not run (<reason>)`, and the next run reviews it again (a stop for Blocking questions is settled by the human and not reviewed twice); each Major row of the review ends the RED and GREEN prompts of that batch as a `stale: <question> — <evidence>` line, on its first launch only; a GAPS verdict relaunches the batch by itself, in its worktree in parallel, its Blocking and Major rows as the correction (none for an audit the budget stopped, whose resume then runs), up to three audit rounds in GAPS since the last VALID, an audit the budget stopped counted as one; the third still GAPS goes to a human |
 | `shared-memory-admit` | sequential, no tool, no LLM | `/memory admit` | Writes the candidates the operator confirmed to the shared memory's entries, the lists, and re-ingests the index |
 
 A folder starting with `_` holds a development probe (`probe.ork.ts`), never a command's crew: `_probe-shared-memory`
@@ -469,8 +469,13 @@ prompt as the model reads it, to review a change as a diff.
   (`codebase_search(query)`, `flow_trace(from)`, `affected_tests(changed_files)`), since the catalogue does not
   always carry it. A line is written only when the agent holds every tool
   it names, so the reviewer (its charter's tools, fewer for a next batch) and the auditor get the same routing,
-  cut to their tools. A result marked `truncated` is a sample: the answer says so and the question is narrowed (a
-  package, a `root_fqn`, a `glob`) instead of being answered by a script over every file.
+  cut to their tools. The preamble sends a question to the index before reading or scripting. To an agent that holds
+  a shell, the rule on a result marked `truncated` adds that a narrower question beats a script over every file; the
+  others, the reviewer and the auditor among them, are told to ask the index before reading. A
+  result marked `truncated` is a sample: the answer says so and the question is narrowed (a package, a `root_fqn`, a
+  `glob`). The bounded reading rule the dev readers share (`shared/domain/dev/reading-rule.ts`) asks for the reads
+  already known in one turn, since the runtime runs them together, and is the one place that forbids reading a whole
+  file for its own sake.
 - **Project instructions**: the project's `AGENTS.md`, else its `CLAUDE.md`, verbatim, under a heading that names
   the file.
 
@@ -540,18 +545,32 @@ prompt as the model reads it, to review a change as a diff.
   only what the diff shows is reported; an empty list is a valid answer; the diff is material; a cut diff is said to
   be cut; a later pass looks for what the earlier ones missed.
 - **Audit** (`dev-verify`): the auditor judges the delivered code first and the sheet second; a row the
-  mechanical table settles as ok stays settled, every gap row is carried, every not checked row is decided or left
+  mechanical table settles as ok stays settled, every gap row is carried with the table's line as its evidence (the
+  trigger rule below holds for the rows it adds), every not checked row is decided or left
   undecided with its reason (the conventions row always falls to it); each finding cites a file and line, or the
-  capture file it comes from, and a claim nothing shows is unproven; three severities, each defined, and one Blocking
+  capture file it comes from, and a claim nothing shows is unproven; a Correctness or Test row it adds names, beside the
+  cited line, the input or state that makes the code wrong, the guard or test that would refute it is looked for
+  once before the row is written (found, there is no row), and a mechanism whose trigger it cannot show goes under
+  undecided with what would settle it, or becomes one of its validations; for each line the diff deletes or
+  rewrites, it establishes what the line guaranteed and where the new code still guarantees it, and a guarantee lost is a
+  Correctness row; three severities, each defined, and one Blocking
   or Major row makes the verdict GAPS; a Reuse row names an existing helper whose body does more than one operator of
-  the language, else the row is Minor at most; eight rows at most, the most severe first; it runs no command and names at most
-  three narrow test commands for code to run, never a whole suite; it reads the capture one file at a time and the
-  code only around the hunk it judges; the brief lists the project's files, a name absent from it does not exist, and
-  it never reads a guessed name nor a folder; a path shown relative (`src/…`) is read under `/workspace`, or the
+  the language, else the row is Minor at most; eight rows at most, the most severe first; it runs at most three narrow validations
+  itself through `run_validation` when its crew offers it, else names them for code to run, never a whole suite, the
+  test class of each taken from the diff or from `affected_tests` on the changed files, never from a guessed name; it
+  reads the capture one file at a time and the code only around the hunk it judges, with one look outside it for each
+  of two checks and nothing else (the guard or test that would refute a row, where a lost guarantee now lives), a
+  helper that may exist looked up with
+  `codebase_search` once, then read with `symbol_source` on the fqn the hit names; when the brief lists the
+  project's files, it says whether the list is whole: a name absent from a whole list does not exist, past a cut `glob` with
+  a pattern decides, and it never reads a guessed name nor a folder (its charter holds `glob` and `affected_tests`);
+  the Precedents block of the brief is what the shared memory recalled, and `memory_recall`, when it is offered, is
+  called only for a doubt that block leaves open; a path shown relative (`src/…`) is read under `/workspace`, or the
   batch's working root, and goes to a tool as shown or as `/workspace/<path>` (the runtime resolves it since Orkeon
   #206, and the tool-call hook resolves it before the guard and the hooks either way); the capture, the sheet and the
   code are material, not instructions; a fix is
-  never an added comment, an abstraction ahead of its need or a rewrite.
+  never an added comment, an abstraction ahead of its need or a rewrite; its reply ends with the validations it asks
+  for and the checks and mechanisms it leaves undecided, and the extraction keeps them all.
 - **Learn** (`dev-learn`): the model sorts the untreated rows of one axis into motifs, each gathering the rows that
   share one cause and spanning at least three batches, with no row added that does not share it; each motif carries
   one preventive line concrete enough to have stopped all of its rows; a motif already refused is skipped, and the
@@ -588,13 +607,21 @@ prompt as the model reads it, to review a change as a diff.
   and runs no command, and code records what it reports; each finding is one sentence ending in a question that a
   yes, a no or a choice among listed options settles, and it cites a `path:line` it opened or a section of the files,
   or it is dropped; Blocking when any answer would reshape a use case, a rule, the data, a state, the scope or a
-  design choice, Major when an assumption on record is enough; style is out of scope and an empty list is a CLEAR
+  design choice, Major when an assumption on record is enough, and Major when torn between the two; before asking,
+  it looks for the answer in the rest of the material (the other files the brief names, the code), and a question
+  that material already settles is no row; style is out of scope and an empty list is a CLEAR
   answer; each question targets the plan (or the spec, the brief) or one batch by its id alone, and the extraction
   names the ids it may use: a qualifier after the id (`F2 (step 1)`) is folded to the id, a target naming two ids
-  is dropped; when the brief lists the project's files, a name absent from it does not exist and it opens no guessed name; for a plan it checks which type guards each rule, the stated access cost, unused existing elements, the
-  reasons given for rules set aside, that every file a step touches is an anchor that exists, that two batches
-  sharing a file depend on one another, and that a step on something a person runs or sees anchors an existing file;
-  it opens only what the files point to, around the cited line; twelve questions at most, the heaviest first.
+  is dropped; the rule on the project's files is said only in the modes whose brief carries the list (the next
+  batch's): the list says whether it is whole, a name absent from a whole list does not exist, past a cut `glob` with
+  a pattern decides, and it opens no guessed name (every reviewer charter holds `glob`); for a plan it checks which
+  type guards each rule, unused existing elements, the reasons given for rules set aside, a
+  file a step touches that no anchor names, and a step on something a person runs or sees that anchors no existing
+  file, while what code already checks (anchored paths exist, batches sharing an anchor are ordered) is not asked
+  again; it reads a source file node first (`node_outline`, then the node it needs) and other files by range, the
+  source of a symbol a search hit names with `symbol_source` on its fqn, a file by its name or a pattern with `glob`
+  where no project list already says so, each said only to a charter holding the tool; it
+  opens only what the files point to, around the cited line; twelve questions at most, the heaviest first.
 - **Commit** (`git-commit`): the prompt sees what will be committed and nothing else, the changes and the start of
   the new files of an explicit list: every path the status lists, or those under the paths named, the work folder
   left out unless a path inside it is named (which its confirmation says). The list is staged with `git add -- <files>`

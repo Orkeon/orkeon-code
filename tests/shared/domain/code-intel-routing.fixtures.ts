@@ -54,3 +54,24 @@ export const PERMISSION_PINNED_PARAMS: readonly { readonly tool: string; readonl
 
 /** Tools that give no analysis: no routing at all. */
 export const NO_ANALYSIS_TOOLS: readonly string[] = ["file_read", "file_write", "shell_command"];
+
+/** The preamble and the exhaustiveness rule speak of scripting only to an agent holding the shell. */
+export const SHELL_WORDING_CASES: readonly {
+  readonly name: string;
+  readonly tools: readonly string[];
+  readonly mentions: readonly string[];
+  readonly omits: readonly string[];
+}[] = [
+  {
+    name: "speaks of scripting in the preamble and the exhaustiveness rule to an agent holding the shell",
+    tools: ["structural_search", "shell_command"],
+    mentions: ["Ask the index before reading or scripting, by question:", "rather than writing a script over every file"],
+    omits: [],
+  },
+  {
+    name: "never speaks of scripting to an agent without the shell",
+    tools: ["structural_search", "file_read"],
+    mentions: ["Ask the index before reading, by question:", "to see the rest."],
+    omits: ["script"],
+  },
+];

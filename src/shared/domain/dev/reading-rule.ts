@@ -10,13 +10,14 @@ export const MAX_READ_LINES = 120;
 export const BOUNDED_READ_RULE =
   `Read a file by range: file_read with offset and limit, ${MAX_READ_LINES} lines at most per read, and the next range ` +
   "only while has_more says more follows and you need it; node_read for one symbol or one heading. Never read a whole " +
-  "file for its own sake. The project is mounted on /workspace: a path shown relative (src/…, workbench/…) is read " +
-  "under /workspace, or the batch's working root; hand it to a tool as shown or as /workspace/<path>.";
+  "file for its own sake. When you know several reads, ask for them in one turn: the runtime runs them together. The " +
+  "project is mounted on /workspace: a path shown relative (src/…, workbench/…) is read under /workspace, or the " +
+  "batch's working root; hand it to a tool as shown or as /workspace/<path>.";
 
 /** The reading rule of a source file, for an agent that holds the node readers: by node first. */
 export const NODE_READ_RULE =
   "Read a source file by node: node_outline for its members and headings, then node_read for the one you need (its " +
-  "text, its range and its sha256); file_read by range only for what no node covers. Never read a source file whole.";
+  "text, its range and its sha256); file_read by range only for what no node covers.";
 
 /** The shape of an edit_batch call, spelt out so that the rule and the guard's refusal of a batch without
  *  operations say the same thing (the runtime publishes the schema of the node tools too, since Orkeon #210). */

@@ -1,10 +1,11 @@
-// The auditor's charter runs, offers its five read tools and nothing that writes. Run:
+// The auditor's charter runs, offers its seven read tools and nothing that writes. Run:
 //   node --test tests/crews/dev-verify/domain/auditor-charter.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import { AUDITOR_CHARTER, AUDITOR_TOOLS } from "../../../../src/crews/dev-verify/domain/auditor-charter.ts";
 import { charterCatalogue, charterProblems } from "../../../../src/shared/domain/agents/charter.ts";
+import { assertOffers } from "./auditor-charter.assertions.ts";
 
 describe("AUDITOR_CHARTER", () => {
   it("can run", () => {
@@ -30,9 +31,11 @@ describe("AUDITOR_CHARTER", () => {
     strictEqual(mode, "plan");
   });
 
-  it("names exactly the five read tools", () => {
+  it("names exactly the seven read tools", () => {
     // Arrange
-    const expected = ["file_read", "node_read", "codebase_search", "symbol_detail", "symbol_source"];
+    const expected = [
+      "file_read", "node_read", "glob", "codebase_search", "symbol_detail", "symbol_source", "affected_tests",
+    ];
 
     // Act
     const tools = AUDITOR_TOOLS;
@@ -41,7 +44,7 @@ describe("AUDITOR_CHARTER", () => {
     deepStrictEqual(tools, expected);
   });
 
-  it("offers exactly the five read tools", () => {
+  it("offers exactly the seven read tools", () => {
     // Arrange
     const charter = AUDITOR_CHARTER;
 
@@ -50,6 +53,17 @@ describe("AUDITOR_CHARTER", () => {
 
     // Assert
     deepStrictEqual(catalogue, [...AUDITOR_TOOLS]);
+  });
+
+  it("offers glob and affected_tests, the tools its prompt sends it to", () => {
+    // Arrange
+    const sentTo = ["glob", "affected_tests"];
+
+    // Act
+    const catalogue = charterCatalogue(AUDITOR_CHARTER);
+
+    // Assert
+    assertOffers(catalogue, sentTo);
   });
 
   it("offers no shell, no write, no ingest", () => {
