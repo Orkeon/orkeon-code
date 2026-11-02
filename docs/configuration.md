@@ -110,7 +110,7 @@ Claude generation refuses one, and Orkeon sends only what the file sets.
 The agent calls tools through every provider: the runtime's tool loop (`ctx.llm.act`) reads the tool calls of the
 Anthropic and OpenAI formats, runs the read calls of a model turn up to `MaxParallelToolCalls` at once and the
 others one after the other, each call through the permission gate, and sends the results back in the provider's tool protocol. A tool result reaches the model cut at
-4000 characters, 32,000 for `file_read`.
+4000 characters, 32,000 for `file_read`, 12,000 for the analysis tools.
 
 ## Settings Orkeon Code relies on
 
@@ -125,7 +125,7 @@ others one after the other, each call through the permission gate, and sends the
 | `Orkeon:Tools:Shell:Confinement:Mode` | `Auto` (default: bubblewrap on Linux, Seatbelt on macOS, AppContainer on Windows, none inside a container), `None`, `Bubblewrap`, `Seatbelt` or `AppContainer`. Confined, each shell command runs under `bwrap` (Linux, tool and source modes), network off unless `Confinement:AllowNetwork`, programs outside the system directories listed in `Confinement:ReadOnlyPaths`. A command fails when it cannot be confined. The examples set `None`; a settings file without the key confines, outside a container. `/dev-batches --concurrency` above 1 works under Bubblewrap from a runtime that binds a linked worktree's git dir (Orkeon/orkeon#191); on an older one git fails inside a batch's worktree, and the run refuses itself in one line. Confined, the run's closing push reaches no remote (no network, `HOME=/tmp`, so no credentials): the run stays open with the `git push` command. Push it from a terminal, then the next `/dev-batches` closes the run without pushing again. See [SECURITY.md](../SECURITY.md) |
 | `Orkeon:Tools:Shell:Environment:SessionBus` | Whether a confined shell (bubblewrap, Seatbelt, AppContainer) receives the session bus, `DBUS_SESSION_BUS_ADDRESS`, which the keyring credential helper of `gh` needs; `false` by default, since through the bus a command can start a process outside the sandbox. An unconfined shell (`Confinement:Mode` `None`, the example settings) and the code sandbox receive it; `SSH_AUTH_SOCK` and `XDG_RUNTIME_DIR` reach every shell, so git reaches a private remote through the ssh agent (Orkeon #216) |
 | `Orkeon:Tools:Shell:Environment:Propagate` | Names of variables added to the shell's allow-list; a name holding a secret word (`KEY`, `TOKEN`, `SECRET`, `PASSWORD`, `PASSWD`, `PASS`, `CREDENTIAL`, `AUTH`, `PAT` as a whole segment), starting with `ORKEON_`, or whose value carries URL credentials is dropped with a warning (Orkeon #216) |
-| `Orkeon:Tools:ResultLimits:Limits:<tool>` | The cut of a tool's result, in characters: 4000, `file_read` 32000, `node_read` 256000, `shell_command` 10000; the examples set the graph and search tools (`sub_graph`, `dependency_graph`, `codebase_search`, `symbol_detail`…) to 12000, since their `truncated` and `cycles` fields come last in the JSON and the default cut removed them first. A cut result ends with `[... truncated, N chars omitted. …]`; the audit of `/dev-batches` reads that notice |
+| `Orkeon:Tools:ResultLimits:Limits:<tool>` | The cut of a tool's result, in characters: 4000, `file_read` 32000, `node_read` 256000, `shell_command` 10000, and 12000 for the twelve analysis tools (`dependency_graph`, `sub_graph`, `edge_list`, `codebase_search`, `symbol_detail`…; Orkeon #283), whose JSON puts `truncated`, the counts and the cursor first, so a cut result still says it is partial; a release before it cuts them at 4000, `truncated` last: set them to 12000 there. A cut result ends with `[... truncated, N chars omitted. …]`; the audit of `/dev-batches` reads that notice |
 | `Orkeon:Tools:ResultLimits:MaxParallelToolCalls` | The read calls of one model turn that run at once: 4 |
 | `Orkeon:Tools:GitHub:Token` | The token of the `github` tool, read once when the tool is registered (Orkeon #222); prefer the variable below to a token written in a settings file, which the examples leave out |
 | `Orkeon:Tools:GitHub:TokenVariable` | The environment variable the `github` tool reads its token from when `Token` is unset: `GITHUB_TOKEN` by default, then `GH_TOKEN`. The launcher's Docker mode hands `GITHUB_TOKEN`, `GH_TOKEN` and the variable named here to the container, each when it is set; the native modes inherit the environment. Without a token the tool's description says where to set it; a token shows as `***` in results and logs, and neither key takes a variable reference |
@@ -414,6 +414,16 @@ to an archive beside its own file, which the next start moves to the history, th
 conversation, its state and its title, and the next turn continues it. The line editor's history (the up arrow) is
 not kept.
 
+The typed memory (`/memory`, and the facts a compaction saves) is kept per project too, in
+`<Orkeon:Cli:Memory:RootDirectory>/<project>/memory.json` (Orkeon #286): `Orkeon:Cli:Memory:Persist` is `true` in the
+example settings, and the REPL turns it on when the key is absent; `orkeon run` keeps it only when the settings say
+so, and without it the memory ends with the process. The launcher sets `RootDirectory` to `/memory`, the `memory/`
+folder beside the sessions, outside the project, so neither git nor the file tools see it; `/clear` and a new session
+leave the memory in place, and `/memory delete` removes an entry. Without the launcher (`orkeon run`,
+`scripts/run-crew.sh`), the example settings name `/workspace/.orkeon/typed-memory`: the runtime's default,
+`/workspace/.orkeon/memory`, is the folder of the [shared memory](shared-memory.md), which the typed memory must not
+enter.
+
 `--llm-log` among the REPL arguments writes the LLM log to `<project state>/llm-logs`, never into the project;
 `--llm-log-path <folder>` is passed as given and wins over a bare `--llm-log`.
 
@@ -426,7 +436,7 @@ not kept.
 | `ORKEON_CODE_MODEL` | Model for this run |
 | `ORKEON_CODE_AUDIO_DIR` | Folder of audio and video files: turns [speech-to-text](#speech-to-text) on (tool and source modes) |
 | `ORKEON_CODE_VOICE` | `1`: opens the microphone to [`/voice`](#dictation) and the speaker to [`/say`](#speech-output) (with `ORKEON_CODE_AUDIO_DIR`) |
-| `ORKEON_CODE_STATE` | Where `/output`, `/tmp`, `/user-config` and the transcripts live (default `.crew-output/` in a clone, `<home>/projects/<project>` in an install); the [sessions](#sessions) go under its `projects/<project>/` |
+| `ORKEON_CODE_STATE` | Where `/output`, `/tmp`, `/user-config` and the transcripts live (default `.crew-output/` in a clone, `<home>/projects/<project>` in an install); the [sessions](#sessions) and the typed memory go under its `projects/<project>/` |
 | `ORKEON_CODE_SESSIONS_KEEP` | How many saved [sessions](#sessions) a project keeps (default 50) |
 | `ORKEON_CODE_HOME` | An install's own folder: its `appsettings.json`, its `trusted-folders.json`, its state and its demo repository (default `~/.orkeon-code`). A clone reads its `appsettings.json` and `trusted-folders.json` there too |
 | `ORKEON_CODE_IMAGE` | Another runtime image (docker mode) |
@@ -437,5 +447,6 @@ not kept.
 
 The launcher also exports `Orkeon__Security__PermissionGate__Enabled=true` and `Orkeon__Cli__Session__Persist=true` unless
 they are set already (the settings file still wins over them), `ORKEON_Orkeon__Cli__Session__SessionsDirectory=/sessions`
-(which wins over it), and, in tool and source modes, `ORKEON_ALLOW_EXTERNAL_MOUNTS=1`, so the REPL, started from
-the project, accepts the `/output`, `/tmp`, `/user-config`, `/sessions` and `/session-history` mounts of the state directory. `/permissions` says whether the gate is on.
+and `ORKEON_Orkeon__Cli__Memory__RootDirectory=/memory` (which win over it), and, in tool and source modes,
+`ORKEON_ALLOW_EXTERNAL_MOUNTS=1`, so the REPL, started from the project, accepts the `/output`, `/tmp`,
+`/user-config`, `/sessions`, `/session-history` and `/memory` mounts of the state directory. `/permissions` says whether the gate is on.

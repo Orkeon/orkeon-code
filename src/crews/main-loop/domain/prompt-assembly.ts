@@ -287,7 +287,7 @@ export function buildStaticHeader(opts: {
 }
 
 const MEMORY_INTRO =
-  "Notes saved earlier (at a compaction or with /memory add), true when written but possibly out of date: check that " +
+  "Notes saved earlier, in this session or a past one (at a compaction or with /memory add), true when written but possibly out of date: check that " +
   "a file, function or flag a note names still exists before relying on it, and follow the " +
   "current request when they disagree.";
 

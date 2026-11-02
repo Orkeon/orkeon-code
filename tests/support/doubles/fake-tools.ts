@@ -6,17 +6,18 @@
 // tools, PascalCase like the .NET-bridged ones.
 // Each tool carries the signature the generated typings declare (`OrkeonTools`,
 // src/crews/.orkeon/orkeon.d.ts): a parameter renamed on the .NET side fails here
-// as it fails the adapters.
+// as it fails the adapters. `release` plays the rc.6 release: edge_list (Orkeon #281) is then absent.
 
 type FakedTool = "fileRead" | "fileWrite" | "directoryRead" | "listMounts" | "shellCommand"
   | "sessionStore" | "sessionSnip" | "tokenBudget" | "sessionCost" | "sessionStats" | "memoryStore" | "progressReport"
   | "indexStatus" | "indexCodebase" | "codebaseMap" | "dependencyGraph" | "packageSummary"
-  | "codebaseSearch" | "symbolSource" | "impactAnalysis";
+  | "codebaseSearch" | "symbolSource" | "impactAnalysis" | "edgeList";
 
 /** The generated signature of one built-in tool. */
 type Tool<T extends FakedTool> = OrkeonTools[T];
 
-export class FakeTools implements Pick<OrkeonTools, FakedTool> {
+export class FakeTools implements Pick<OrkeonTools, Exclude<FakedTool, "edgeList">> {
+  release = false;
   replies: Partial<Record<FakedTool, unknown>> = {};
   calls: Array<{ tool: FakedTool; input: unknown }> = [];
 
@@ -54,4 +55,9 @@ export class FakeTools implements Pick<OrkeonTools, FakedTool> {
   codebaseSearch: Tool<"codebaseSearch"> = (input) => this.answer("codebaseSearch", input);
   symbolSource: Tool<"symbolSource"> = (input) => this.answer("symbolSource", input);
   impactAnalysis: Tool<"impactAnalysis"> = (input) => this.answer("impactAnalysis", input);
+
+  /** Absent on the release, as the runtime's tools namespace has no member for a tool it does not register. */
+  get edgeList(): Tool<"edgeList"> | undefined {
+    return this.release ? undefined : (input) => this.answer("edgeList", input);
+  }
 }

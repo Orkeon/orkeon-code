@@ -235,3 +235,20 @@ for (const name of examples.filter((name) => load(name).Orkeon?.Cli)) {
     assert.equal(settings.Orkeon.Cli.Session?.SessionsDirectory, undefined, "the launcher names the folder");
   });
 }
+
+// Orkeon #286: the typed memory persists per project, beside the session setting, so an `orkeon run` started with the
+// example keeps it too (the REPL alone turns it on when the key is absent). The folder is the launcher's, as for the
+// session: /memory, outside the project. The example names `/workspace/.orkeon/typed-memory`, outside the shared
+// memory's folder; the launcher's `/memory` wins.
+for (const name of examples.filter((name) => load(name).Orkeon?.Cli)) {
+  test(`${name} keeps the typed memory (Orkeon:Cli:Memory)`, () => {
+    // Arrange
+    const file = name;
+
+    // Act
+    const memory = load(file).Orkeon.Cli.Memory;
+
+    // Assert
+    assert.deepEqual(memory, { Persist: true, RootDirectory: "/workspace/.orkeon/typed-memory" });
+  });
+}

@@ -1,5 +1,6 @@
 // The inputs the command argument parsers are tested on, each case with what it parses to.
 import type { ParsedMemory } from "../../../src/commands/_lib/args.ts";
+import { SNIP_COMMAND_TURNS } from "../../../src/shared/domain/compaction-thresholds.ts";
 
 export interface MemoryArgsCase {
   name: string;
@@ -135,9 +136,9 @@ export const ROUND_TRIP_CASES: readonly { name: string; tokens: string[] }[] = [
 ];
 
 export const COMPACT_CASES: readonly { name: string; tokens: string[]; expected: { snip: number } | { focus: string } }[] = [
-  { name: "reads --snip with how many exchanges to keep", tokens: ["--snip", "5"], expected: { snip: 5 } },
-  { name: "keeps 3 exchanges for a --snip without a count", tokens: ["--snip"], expected: { snip: 3 } },
-  { name: "keeps 3 exchanges for a --snip whose count is not a number", tokens: ["--snip", "zero"], expected: { snip: 3 } },
+  { name: "reads --snip with how many turns to keep", tokens: ["--snip", "5"], expected: { snip: 5 } },
+  { name: "keeps SNIP_COMMAND_TURNS turns for a --snip without a count", tokens: ["--snip"], expected: { snip: SNIP_COMMAND_TURNS } },
+  { name: "keeps SNIP_COMMAND_TURNS turns for a --snip whose count is not a number", tokens: ["--snip", "zero"], expected: { snip: SNIP_COMMAND_TURNS } },
   { name: "reads anything else as the summary's focus", tokens: ["keep", "the", "test", "names"], expected: { focus: "keep the test names" } },
   { name: "reads no token as an empty focus", tokens: [], expected: { focus: "" } },
 ];

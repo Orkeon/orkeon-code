@@ -1,7 +1,10 @@
 // FakeSessionStore: the SessionStore port over a Map (the state bag) and a message
 // array (the buffer). `budget` is what readBudget answers, `snipped` what snip
 // answers (each snip lands in `snips`, and `messagesAfterSnip`, when set,
-// becomes the buffer); reset empties the buffer and setTitle sets `title`. A `failure`
+// becomes the buffer); with `cutsTurns`, snip cuts the buffer as session_snip does
+// instead (Orkeon #287: the head and the last N turns, a turn opening at each user
+// message; fewer turns than asked leave it untouched) and answers what it removed and
+// kept; reset empties the buffer and setTitle sets `title`. A `failure`
 // makes every call throw it, as a host without the session tools does; a
 // `readStateFailure` makes readState alone throw it (a state bag that cannot be
 // read, but can be written), a `writeStateFailure` writeState alone (one that
@@ -23,6 +26,7 @@ export class FakeSessionStore implements SessionStore {
   budget: TokenBudget = { used: 0, window: 0 };
   snipped: SnipResult = { removed: 0, retained: 0 };
   messagesAfterSnip: SessionMsg[] | null = null;
+  cutsTurns = false;
   snips: number[] = [];
   title: string | null = null;
   failure: Error | null = null;
@@ -69,8 +73,23 @@ export class FakeSessionStore implements SessionStore {
   async snip(retain: number): Promise<SnipResult> {
     this.check();
     this.snips.push(retain);
+    if (this.cutsTurns) return this.cutTurns(retain);
     if (this.messagesAfterSnip) this.messages = [...this.messagesAfterSnip];
     return this.snipped;
+  }
+
+  private cutTurns(turns: number): SnipResult {
+    const total = this.messages.length;
+    let tailStart = total;
+    let found = 0;
+    for (let i = total - 1; i >= 0 && found < turns; i--) {
+      if (this.messages[i].role.toLowerCase() !== "user") continue;
+      found++;
+      tailStart = i;
+    }
+    if (found < turns || tailStart <= 1) return { removed: 0, retained: total };
+    this.messages = [this.messages[0], ...this.messages.slice(tailStart)];
+    return { removed: total - this.messages.length, retained: this.messages.length };
   }
 
   async setTitle(title: string): Promise<void> {

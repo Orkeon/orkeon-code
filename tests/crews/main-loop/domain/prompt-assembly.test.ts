@@ -607,10 +607,10 @@ describe("buildMemoryBlock usage line", () => {
     const block = buildMemoryBlock(notes);
 
     // Assert
-    assertMentions(block, ["saved earlier (at a compaction or with /memory add)"], "the memory block");
+    assertMentions(block, ["(at a compaction or with /memory add)"], "the memory block");
   });
 
-  it("promises no notes from earlier sessions", () => {
+  it("says a note may come from a past session, the runtime keeping typed memory per project", () => {
     // Arrange
     const notes = { user: ["u1"] };
 
@@ -618,7 +618,7 @@ describe("buildMemoryBlock usage line", () => {
     const block = buildMemoryBlock(notes);
 
     // Assert
-    assertLacks(block, ["earlier sessions"], "the memory block");
+    assertMentions(block, ["saved earlier, in this session or a past one"], "the memory block");
   });
 
   it("introduces nothing when there are no notes", () => {

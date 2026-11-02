@@ -8,7 +8,7 @@
 // and `graphFailure` dependencyGraph alone. Every call lands in `calls` as
 // "<method> <arguments>".
 import type {
-  CodeIndex, CodeMap, CodeSearchHit, SymbolLocation,
+  CodeIndex, CodeMap, CodeSearchHit, MapLevel, SymbolLocation,
 } from "../../../src/shared/application/ports.ts";
 import type {
   GraphSummary, ImpactSummary, IndexSummary, PackageSummary,
@@ -44,12 +44,12 @@ export class FakeCodeIndex implements CodeIndex {
     return this.indexed;
   }
 
-  async map(level: string, withMetrics: boolean, maxEntries?: number): Promise<CodeMap> {
+  async map(level: MapLevel, withMetrics: boolean, maxEntries?: number): Promise<CodeMap> {
     this.record(`map ${level} ${withMetrics}${maxEntries === undefined ? "" : ` ${maxEntries}`}`);
     return this.maps[level] ?? { entries: [], symbolCount: 0 };
   }
 
-  async dependencyGraph(scope: string, maxNodes: number): Promise<GraphSummary> {
+  async dependencyGraph(scope: MapLevel, maxNodes: number): Promise<GraphSummary> {
     this.record(`dependencyGraph ${scope} ${maxNodes}`);
     if (this.graphFailure) throw this.graphFailure;
     return this.graph;

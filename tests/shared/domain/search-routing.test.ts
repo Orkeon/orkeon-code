@@ -109,11 +109,7 @@ describe("describeSearchRouting — the playbook renders THIS", () => {
     const text = describeSearchRouting(tools);
 
     // Assert
-    assertMentions(text, [
-      "codebase_search", "`grep`", "`file_read`", "rag_search", WORKSPACE_DOCS_COLLECTION,
-      // The one instruction that stops the wrong-tool retry loop:
-      "do not retry there",
-    ]);
+    assertMentions(text, ["codebase_search", "`grep`", "`file_read`", "rag_search", WORKSPACE_DOCS_COLLECTION]);
   });
 
   it("tells how to ingest where rag_ingest is offered, with the files to ingest, not only Markdown", () => {

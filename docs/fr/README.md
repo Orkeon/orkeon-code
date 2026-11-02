@@ -34,4 +34,5 @@ Les décisions sont consignées en ADR, en anglais : [0001 — ports, adaptateur
 [0012 — Orkeon main après #239, le lancement exclusif d'un crew](../adr/0012-orkeon-after-239.md),
 [0013 — l'épingle est un commit du main d'Orkeon, jamais une release](../adr/0013-pin-on-orkeon-commit.md),
 [0014 — Orkeon main après #244, niveaux d'effort, index parallèle et cache d'index](../adr/0014-orkeon-after-244.md),
-[0015 — Orkeon main après #276, le contexte à part de la requête](../adr/0015-orkeon-after-276.md).
+[0015 — Orkeon main après #276, le contexte à part de la requête](../adr/0015-orkeon-after-276.md),
+[0016 — Orkeon main après #280, la liste d'arêtes, des résultats d'analyse bornés et une mémoire persistée](../adr/0016-orkeon-after-280.md).

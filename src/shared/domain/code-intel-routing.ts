@@ -6,8 +6,9 @@
 // it and the parameter that makes it answer (the edge kind, the direction, the expansion), and nothing about a tool
 // the agent was not given: each line is emitted only when every tool it names is in the agent's list.
 //
-// Parameter names and values are Orkeon's wire names (snake_case; `inherits` stands for extends and implements on
-// the graph tools; `expand` takes lower-case flags). code-intel-contract.ts pins the parameter names.
+// Parameter names and values are Orkeon's wire names as its schemas publish them (snake_case; `inherits` stands for
+// extends and implements on the graph tools and edge_list; `expand` takes the PascalCase flags, `Inheritance` giving a
+// type's bases and what derives from it since Orkeon #280). code-intel-contract.ts pins the parameter names.
 
 /** One question and the tool that answers it: emitted when the agent holds every tool of `tools`. */
 interface RoutingLine {
@@ -30,13 +31,18 @@ const ROUTING_LINES: readonly RoutingLine[] = [
   },
   {
     tools: ["symbol_detail"],
-    text: "what a type extends and implements: `symbol_detail(fqn, expand: \"inheritance\")`; its callers: " +
-      "`expand: \"callers\"`",
+    text: "one type's bases and what derives from or implements it: `symbol_detail(fqn, expand: \"Inheritance\")`; " +
+      "its callers: `expand: \"Callers\"`",
   },
   {
     tools: ["sub_graph"],
-    text: "who extends or implements a type: `sub_graph(seeds: [fqn], direction: \"Backward\", " +
-      "edge_kinds: [\"inherits\"])`; who calls it: the same with `[\"calls\"]`",
+    text: "who calls or extends a symbol, over hops: `sub_graph(seeds: [fqn], direction: \"Backward\", " +
+      "edge_kinds: [\"calls\"])` or `[\"inherits\"]`",
+  },
+  {
+    tools: ["edge_list"],
+    text: "every edge of one kind, across the index or under a `root_fqn` (every base class, implementation or " +
+      "import): `edge_list(edge_kinds: [\"inherits\"])`, paged by `next_cursor`, `total` counts them",
   },
   {
     tools: ["flow_trace"],
@@ -57,8 +63,7 @@ const ROUTING_LINES: readonly RoutingLine[] = [
   },
   {
     tools: ["structural_search"],
-    text: "every place a code shape occurs (a class with a base, an await inside a loop): `structural_search`, its " +
-      "`language` and a pattern in that grammar (`$NAME` one node, `$$$NAME` several), each match with its symbol",
+    text: "every place a code shape occurs (an await inside a loop): `structural_search` with its `language`",
   },
   {
     tools: ["count_pattern"],
@@ -76,7 +81,7 @@ const BOUNDED_TOOLS: readonly string[] = [
 ];
 
 /** The analysis tools that take a `root_fqn`, the subtree they answer for: the rule names it only to their holder. */
-const ROOT_FQN_TOOLS: readonly string[] = ["codebase_map", "dependency_graph"];
+const ROOT_FQN_TOOLS: readonly string[] = ["codebase_map", "dependency_graph", "edge_list"];
 
 /** The agent's shell, the tool a script over the files would run in: the rules speak of scripting only to its holder. */
 const SHELL_TOOL = "shell_command";

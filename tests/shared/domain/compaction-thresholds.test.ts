@@ -124,7 +124,7 @@ describe("shouldCompact", () => {
 describe("the other limits", () => {
   it("holds the breaker, transcript, snip and file-restore values", () => {
     // Arrange
-    const expected = { breaker: 3, transcript: 48_000, snip: 5, filesToRestore: 5, perFile: 5_000 };
+    const expected = { breaker: 3, transcript: 48_000, snip: 2, filesToRestore: 5, perFile: 5_000 };
 
     // Act
     const limits = {

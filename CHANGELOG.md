@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the runtime pin moves to Orkeon main a685233 (#280, #282–#287)
+
+- The runtime pin moves to Orkeon `main` `a685233` (Orkeon #281, [ADR 0016](docs/adr/0016-orkeon-after-280.md)),
+  which closes #280 and the six issues Orkeon Code opened from its prompts audit: the analysis tools publish their
+  parameter schema (#282), put `truncated`, the counts and the cursor first, draw no mermaid unless asked and are
+  bounded at 12 000 characters (#283), their descriptions say which question they answer (#284), `extract` takes a
+  system prompt and messages (#285, not used yet), `memory_store` persists per project (#286) and `session_snip`
+  keeps whole turns (#287). The typings are regenerated from the pin, five of their doc comments patched by hand:
+  Orkeon's roll-up turns the escaped comment closer `*\/` into `*//` (Orkeon #288, opened 2026-11-02), so
+  `scripts/sync-typings.sh` is not run at this pin, and the pin moves again to the commit of Orkeon `main` that
+  fixes it.
+- **Code intelligence**: the main loop offers `edge_list` (Orkeon #280) in every mode, and its header sends "every
+  edge of one kind" (every base class, every implementation, every import of a package) there, across the index or
+  under a `root_fqn`, page by page with a `total`; `/doctor` counts it among the eleven code-intelligence tools and
+  `/permissions` knows its arguments; `1.0.0-rc.6` has no `edge_list`, so there the model is told the tool is unknown and
+  `/doctor` warns it is absent. The bases of one type and what derives from or implements it go to
+  `symbol_detail` with `expand: "Inheritance"`; `sub_graph` stays for who calls or extends a symbol over hops. The
+  search rules of the header leave to the tools' own descriptions what they now say: how `codebase_search` matches,
+  the pattern syntax of `structural_search`, and that the code index answers no `rag_search`.
+- **The example settings no longer set the graph and search tools' result cut to 12 000 characters**: it is the
+  runtime's default at the pin. On `1.0.0-rc.6` those tools are cut at 4 000 again; set
+  `Orkeon:Tools:ResultLimits:Limits:<tool>` to keep the wider cut there ([Configuration](docs/configuration.md)).
+- **`/compact --snip [N]` keeps the last N turns whole** (three by default): a turn is a request with its
+  `[turn-context]`, its tool traces and its answer, never split (Orkeon #287; N counted messages before). The fallback
+  of a summary that fails keeps the last two turns, and leaves a buffer that holds no more as it is. On `1.0.0-rc.6`,
+  whose `session_snip` counts messages, the adapter asks for the messages those turns hold, so the same tail is kept.
+- **Typed memory outlives the session**: `/memory` and the facts a compaction saves are kept per project and read
+  again at the next start (Orkeon #286). The example settings set `Orkeon:Cli:Memory:Persist: true` with
+  `/workspace/.orkeon/typed-memory` as the root (the runtime's default, `.orkeon/memory`, is the shared memory's
+  folder), and the launcher keeps the file outside the project, in the `memory/` folder beside the sessions (mounted
+  on `/memory`), where neither git nor the file tools see it; the Memory block says a note may come from a past session.
+- **A compaction replaces a stale memory instead of adding a contradicting one**: the extraction sees the known
+  entries by number, the most recent first, and names the one a new fact makes out of date, which is replaced in
+  place (`memory_store` `replace`).
+
 ### Removed
 
 - **`/stats`, `/cost` and `/extra-usage` are gone**: they were aliases of `/usage` and printed its view unchanged,
@@ -104,10 +139,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   code file the inventory does not show is anchored `existing` only when the source names its path, and a
   documentation step's test is named by the repository's documentation command, else its test command, followed by
   what the step documents, so two documentation steps never share a name.
-- **The example settings widen the result cut of the graph and search tools** (`sub_graph`, `dependency_graph`,
-  `codebase_search`, `symbol_detail`, `impact_analysis`, `flow_trace`, `codebase_map`, `package_summary`,
-  `structural_search`) to 12 000 characters: their `truncated` and `cycles` fields come last in the JSON, so the
-  default cut of 4 000 removed them before the nodes, and a cut result read as complete.
 - The runtime pin moves to Orkeon `main` `83cd91d` (Orkeon #277 to #279, [ADR 0015](docs/adr/0015-orkeon-after-276.md)).
   A right click in the console input no longer flashes the native context menu (#278); over SSH the console copies a
   keyboard selection and takes the terminal's paste (#279). The

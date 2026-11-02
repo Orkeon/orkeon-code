@@ -19,13 +19,14 @@
 // against payloads captured from that live run. If the framework renames a field,
 // a test fails instead of a probe quietly reporting zero.
 
-/** The ten tools the main-loop catalogue grants for code intelligence.
+/** The eleven tools the main-loop catalogue grants for code intelligence.
  *  The first five were pinned 2026-08-05; the analysis five (dependency_graph,
  *  impact_analysis, package_summary, sub_graph, symbol_detail) were pinned
- *  2026-08-06 from the extended probe's live run on the fixture. */
+ *  2026-08-06 from the extended probe's live run on the fixture; edge_list
+ *  (Orkeon #280) from its published schema. */
 export const CODE_INTEL_TOOLS = [
   "index_codebase", "codebase_map", "codebase_search", "symbol_source", "flow_trace",
-  "dependency_graph", "impact_analysis", "package_summary", "sub_graph", "symbol_detail",
+  "dependency_graph", "impact_analysis", "package_summary", "sub_graph", "symbol_detail", "edge_list",
 ] as const;
 
 // ── Hybrid search + lazy freshness (captured live 2026-08-05, post-hybrid) ──
@@ -49,9 +50,6 @@ export const MATCH_ORIGINS = ["hybrid", "vector", "bm25"] as const;
 
 /** `rag_search` request parameter names (verified live). */
 export const RAG_SEARCH_PARAMS = ["question", "collection", "top_n"] as const;
-
-/** The collection routing rag_search to the code index. */
-export const RAG_RAGGABLE_TREE_COLLECTION = "raggable-tree";
 
 /** Hit origin of one search hit; unknown/absent → "vector" (the pre-hybrid reading). */
 export function readMatchOrigin(hit: any): string {
@@ -88,6 +86,9 @@ export const CODE_INTEL_PARAMS = {
   package_summary: ["fqn"],
   sub_graph: ["seeds", "depth", "direction", "edge_kinds"],
   symbol_detail: ["fqn", "include_signature", "expand"],
+  // Every edge of the kinds across the index, or under root_fqn, page_size at a time (200, up to 1000); the
+  // response's next_cursor goes back as cursor until it is absent, and total counts them all (Orkeon #280).
+  edge_list: ["edge_kinds", "root_fqn", "page_size", "cursor"],
 } as const;
 
 function num(raw: any, key: string): number {

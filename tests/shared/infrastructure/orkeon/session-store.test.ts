@@ -7,7 +7,7 @@ import { strictEqual, deepStrictEqual, rejects } from "node:assert";
 import { createSessionStore } from "../../../../src/shared/infrastructure/orkeon/session-store.ts";
 import { compactSession } from "../../../../src/shared/application/compaction/compact-session.ts";
 import { FakeTools } from "../../../support/doubles/fake-tools.ts";
-import { BUDGETS, FORCES, NOT_A_LIST, RESET_COUNTS, SATURATED_BUDGET, STATE_VALUES, compactionDeps, operationsOf, storeFailingAppend, storeWithoutAppend } from "./session-store.fixtures.ts";
+import { BUDGETS, FORCES, NOT_A_LIST, RESET_COUNTS, SATURATED_BUDGET, STATE_VALUES, THREE_TURNS, compactionDeps, operationsOf, storeFailingAppend, storeWithoutAppend } from "./session-store.fixtures.ts";
 
 describe("createSessionStore — a failed read", () => {
   it("rethrows a failed read of the buffer with the tool's own message, without the runtime's wrapping", async () => {
@@ -145,7 +145,7 @@ describe("createSessionStore — reset, snip and title", () => {
     });
   }
 
-  it("snips to the retained exchanges and reads both counts", async () => {
+  it("asks session_snip for the turns to keep on a runtime that has edge_list, and reads both counts", async () => {
     // Arrange
     const tools = new FakeTools();
     tools.replies.sessionSnip = { RemovedCount: 12, RetainedCount: 7 };
@@ -156,6 +156,32 @@ describe("createSessionStore — reset, snip and title", () => {
     // Assert
     deepStrictEqual(counts, { removed: 12, retained: 7 });
     deepStrictEqual(tools.inputsOf("sessionSnip"), [{ retain_count: 3 }]);
+  });
+
+  it("asks session_snip for the messages the last turns hold on the release, which counts messages", async () => {
+    // Arrange
+    const tools = new FakeTools();
+    tools.release = true;
+    tools.replies.sessionStore = { messages: THREE_TURNS };
+
+    // Act
+    await createSessionStore(tools).snip(2);
+
+    // Assert
+    deepStrictEqual(tools.inputsOf("sessionSnip"), [{ retain_count: 5 }]);
+  });
+
+  it("leaves the buffer as it is on the release when it holds fewer turns than asked", async () => {
+    // Arrange
+    const tools = new FakeTools();
+    tools.release = true;
+    tools.replies.sessionStore = { messages: THREE_TURNS };
+
+    // Act
+    const counts = await createSessionStore(tools).snip(4);
+
+    // Assert
+    deepStrictEqual({ counts, snips: tools.inputsOf("sessionSnip") }, { counts: { removed: 0, retained: 9 }, snips: [] });
   });
 
   it("reads a snip's snake_case removed count, and an unreported retained count as 0", async () => {

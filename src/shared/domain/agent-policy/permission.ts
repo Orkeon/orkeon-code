@@ -20,6 +20,8 @@ export const READ_TOOLS = [
   // without them the model reconstructs a dependency view one flow_trace at a
   // time — dependency_graph/impact_analysis answer it in one call.
   "dependency_graph", "impact_analysis", "package_summary", "sub_graph", "symbol_detail",
+  // Every edge of one kind across the index or under a root, paged (Orkeon #280, ToolAccess.Read like sub_graph).
+  "edge_list",
   // RAG (host wired since the hybrid-search work): rag_search reads. rag_ingest is
   // an EDIT (the class below): it writes the knowledge index, never the workspace,
   // and the host gate classifies it so since Orkeon #126 — refused in plan and
@@ -247,6 +249,7 @@ export const TOOL_ARGUMENTS: Readonly<Record<string, readonly string[]>> = {
   package_summary: ["fqn", "include_public_exports", "include_dependencies", "max_exports"],
   sub_graph: ["seeds", "edge_kinds", "depth", "direction", "max_nodes", "include_mermaid", "node_kinds"],
   symbol_detail: ["fqn", "expand", "include_signature", "include_doc", "include_body_metrics", "max_children"],
+  edge_list: ["cursor", "edge_kinds", "page_size", "root_fqn"],
   rag_search: ["question", "top_k", "collection"],
   rag_ingest: ["collection", "sources", "chunking_strategy", "reindex", "prune"],
   http_api: ["url", "method", "headers", "body", "content_type"],
@@ -267,8 +270,8 @@ export const TOOL_ARGUMENTS: Readonly<Record<string, readonly string[]>> = {
   //    {query}, get_repo {owner, repo}; the tool reads the action case-insensitively, a rule does not.
   //  - batch_anchors.a and .b are {fqns, files}, for action "overlap"; "closure" takes fqns or files.
   //  - arrays or objects: rag_ingest.sources, access_cost.*, affected_tests.changed_files,
-  //    sub_graph.seeds|edge_kinds|node_kinds, structural_search.paths|rule, count_pattern.patterns,
-  //    statement_query.kinds|parent_fqns, incremental_reindex.changed_files|languages.
+  //    sub_graph.seeds|edge_kinds|node_kinds, edge_list.edge_kinds, structural_search.paths|rule,
+  //    count_pattern.patterns, statement_query.kinds|parent_fqns, incremental_reindex.changed_files|languages.
   glob: ["max_results", "path", "pattern"],
   grep: ["case_insensitive", "glob", "max_files", "max_results", "output_mode", "path", "pattern"],
   list_mounts: [],

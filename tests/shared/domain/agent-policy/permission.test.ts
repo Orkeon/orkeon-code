@@ -14,7 +14,7 @@ import { PERMISSION_MODES } from "../../../../src/shared/domain/permission-modes
 import {
   A2A_TOOLS, ALL_MODES, builtInToolInputs, CHECK_RULE_CASES, CHECK_RULE_OK_CASES, DECISION_CASES, DENY_FILE_WRITE,
   EXTRA_RULES, FORMAT_CASES, GIT_PUSH, GIT_RULE_TEXTS, GLOB_CASES, HOST_OPT_IN_TOOLS, MATCHES_RULE_CASES, NETWORK_MATRIX,
-  NOTE_NETWORK_CASES, NPM_TEST, ORKEON_180_EDITS, ORKEON_180_READS, PARSE_STORED_CASES, PLAN_RULES,
+  NOTE_NETWORK_CASES, NPM_TEST, ORKEON_180_EDITS, ORKEON_180_READS, ORKEON_280_READS, PARSE_STORED_CASES, PLAN_RULES,
   QUOTED_PATTERNS, READ_ONLY_CASES, READ_ONLY_MODES, READ_ONLY_TOOLSET_CASES, READ_PATTERN_CASES, READ_RULE_CASES,
   READER, RESOLVE_MODE_CASES, ROUND_TRIP_RULES, RULEABLE_TOOL_CASES, SAME_CALLS_CASES, SCRIPT_TOOL_ACCESS_CASES,
   SCRIPT_TOOLS_DECLARED, SCRIPT_TOOLS_FOR_CASES, SHELL_FORMS_CASES, SHELL_WORDS_CASES, TOOL_ARGUMENT_CASES,
@@ -291,6 +291,19 @@ describe("the tool lists", () => {
       // Assert
       assertOffered(t, ORKEON_180_READS, true, mode);
       assertOffered(t, ORKEON_180_EDITS, edits, mode);
+    });
+  }
+
+  for (const mode of PERMISSION_MODES) {
+    it(`offer the analysis read of Orkeon #280 in ${mode}`, () => {
+      // Arrange
+      const reads = ORKEON_280_READS;
+
+      // Act
+      const t = toolsetFor(mode);
+
+      // Assert
+      assertOffered(t, reads, true, mode);
     });
   }
 

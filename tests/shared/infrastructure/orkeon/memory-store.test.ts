@@ -32,6 +32,17 @@ describe("createMemoryStore — list", () => {
     deepStrictEqual(tools.inputsOf("memoryStore"), [{ operation: "list", category: undefined }]);
   });
 
+  it("asks for the newest entries first when the caller does", async () => {
+    // Arrange
+    const tools = new FakeTools();
+
+    // Act
+    await createMemoryStore(tools).list(undefined, { newestFirst: true });
+
+    // Assert
+    deepStrictEqual(tools.inputsOf("memoryStore"), [{ operation: "list", category: undefined, newest_first: true }]);
+  });
+
   it("reads PascalCase entries, a missing content as empty", async () => {
     // Arrange
     const tools = new FakeTools();
@@ -71,7 +82,7 @@ describe("createMemoryStore — list", () => {
   });
 });
 
-describe("createMemoryStore — add, get, remove", () => {
+describe("createMemoryStore — add, get, remove, replace", () => {
   it("adds an entry and reads back its id as text", async () => {
     // Arrange
     const tools = new FakeTools();
@@ -137,6 +148,31 @@ describe("createMemoryStore — add, get, remove", () => {
     // Assert
     strictEqual(removed, true);
     deepStrictEqual(tools.inputsOf("memoryStore"), [{ operation: "delete", id: 3 }]);
+  });
+
+  it("replaces an entry's content in place and reports the host's success", async () => {
+    // Arrange
+    const tools = new FakeTools();
+    tools.replies.memoryStore = { success: true };
+
+    // Act
+    const replaced = await createMemoryStore(tools).replace(3, "uses pnpm 9");
+
+    // Assert
+    strictEqual(replaced, true);
+    deepStrictEqual(tools.inputsOf("memoryStore"), [{ operation: "replace", id: 3, content: "uses pnpm 9" }]);
+  });
+
+  it("reports a replacement the host says failed", async () => {
+    // Arrange
+    const tools = new FakeTools();
+    tools.replies.memoryStore = { success: false, error: "no entry 3" };
+
+    // Act
+    const replaced = await createMemoryStore(tools).replace(3, "uses pnpm 9");
+
+    // Assert
+    strictEqual(replaced, false);
   });
 
   it("reports a removal the host says failed", async () => {

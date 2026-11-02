@@ -14,8 +14,10 @@ export function createMemoryStore(tools: Pick<OrkeonTools, "memoryStore">): Memo
   // One shape per operation (runtime-tools.ts): a misspelled operation fails here.
   const memoryStore = (input: MemoryStoreInput) => tools.memoryStore(input);
   return {
-    async list(category) {
-      const resp = await memoryStore({ operation: "list", category });
+    async list(category, options) {
+      // newest_first is sent only when asked: the input of a plain list stays what a release before #286 takes.
+      const order = options?.newestFirst ? { newest_first: true } : {};
+      const resp = await memoryStore({ operation: "list", category, ...order });
       const entries: any[] = pick(resp, "entries", "Entries") ?? [];
       return entries.map((e) => ({
         id: num(pick(e, "id", "Id")),
@@ -31,6 +33,9 @@ export function createMemoryStore(tools: Pick<OrkeonTools, "memoryStore">): Memo
     },
     async remove(id) {
       return Boolean(pick(await memoryStore({ operation: "delete", id }), "success", "Success"));
+    },
+    async replace(id, content) {
+      return Boolean(pick(await memoryStore({ operation: "replace", id, content }), "success", "Success"));
     },
   };
 }

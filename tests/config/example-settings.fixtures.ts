@@ -48,21 +48,11 @@ export const withoutCommentAndLlm = ({ _comment, Llm, ...rest }: Record<string, 
 /** The settings but for their comment, their Orkeon section and their MCP section. */
 export const withoutCommentOrkeonAndMcp = ({ _comment, Orkeon, MCP, ...rest }: Record<string, unknown>) => rest;
 
-/** The result cut the examples state, at the runtime's defaults. */
-/** The graph and search tools answer in JSON whose `truncated` and `cycles` fields come last: the runtime's cut of
- *  four thousand characters removed them first (Orkeon Code audit of 2026-11-01, F7-2). */
+/** The result cut the examples state, at the runtime's defaults: the analysis tools are bounded at 12 000 characters
+ *  by the runtime itself since Orkeon #283, so the examples no longer list them. */
 export const RESULT_LIMITS = {
   MaxParallelToolCalls: 4,
   Limits: {
     shell_command: 10000,
-    codebase_map: 12000,
-    codebase_search: 12000,
-    dependency_graph: 12000,
-    flow_trace: 12000,
-    impact_analysis: 12000,
-    package_summary: 12000,
-    structural_search: 12000,
-    sub_graph: 12000,
-    symbol_detail: 12000,
   },
 };

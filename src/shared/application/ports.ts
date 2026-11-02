@@ -22,6 +22,6 @@ export type { ModelOverride, CompleteRequest, ActRequest, Llm } from "./ports/ll
 export type { HumanInput } from "./ports/human.ts";
 export type { PendingApproval, PendingApprovals } from "./ports/approvals.ts";
 export type {
-  CodeMap, CodeSearchHit, SymbolLocation, CodeIndex, AnchorClosure, AnchorIndex, CostIndex, AffectedTests,
+  MapLevel, CodeMap, CodeSearchHit, SymbolLocation, CodeIndex, AnchorClosure, AnchorIndex, CostIndex, AffectedTests,
 } from "./ports/code-index.ts";
 export type { SharedHit, SharedIngest, SharedMemory } from "./ports/shared-memory.ts";

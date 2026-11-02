@@ -6,6 +6,10 @@ import type {
   GraphSummary, ImpactSummary, IndexSummary, MapEntry, PackageSummary,
 } from "../../domain/code-intel-contract.ts";
 
+/** A level of the code index that Orkeon Code reads: packages, modules or symbols (the runtime's
+ *  `codebase_map.level` and `dependency_graph.scope` take these among their own). */
+export type MapLevel = "L1_Package" | "L2_Module" | "L3_Symbol";
+
 /** One level of the code map: its entries, and the symbol total it reports. */
 export interface CodeMap {
   entries: MapEntry[];
@@ -45,9 +49,9 @@ export interface CodeIndex {
    *  earlier session saved. */
   index(root: string, opts?: { parallel?: number; rebuild?: boolean }): Promise<IndexSummary>;
   /** The map at `level`; `withMetrics` asks for the per-symbol metrics. */
-  map(level: string, withMetrics: boolean, maxEntries?: number): Promise<CodeMap>;
+  map(level: MapLevel, withMetrics: boolean, maxEntries?: number): Promise<CodeMap>;
   /** The dependency graph of `scope`, at most `maxNodes` nodes, without its mermaid rendering. */
-  dependencyGraph(scope: string, maxNodes: number): Promise<GraphSummary>;
+  dependencyGraph(scope: MapLevel, maxNodes: number): Promise<GraphSummary>;
   packageSummary(fqn: string): Promise<PackageSummary>;
   /** The hybrid code search: at most `topK` hits, best first. */
   search(query: string, topK: number): Promise<CodeSearchHit[]>;

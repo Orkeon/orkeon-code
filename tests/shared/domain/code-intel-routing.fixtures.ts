@@ -5,7 +5,7 @@ import { AUDITOR_TOOLS } from "../../../src/crews/dev-verify/domain/auditor-char
 /** Every analysis tool the routing names: the main loop holds them all. */
 export const ALL_ROUTED_TOOLS: readonly string[] = [
   "affected_tests", "codebase_map", "codebase_search", "count_pattern", "dependency_graph", "flow_trace", "grep",
-  "impact_analysis", "package_summary", "structural_search", "sub_graph", "symbol_detail",
+  "edge_list", "impact_analysis", "package_summary", "structural_search", "sub_graph", "symbol_detail",
 ];
 
 /** One tool given alone, and the call its line must spell out. */
@@ -13,13 +13,17 @@ export const SINGLE_TOOL_CASES: readonly { readonly tool: string; readonly menti
   { tool: "codebase_map", mentions: ["`codebase_map`", "`L1_Package`"] },
   { tool: "package_summary", mentions: ["`package_summary(fqn)`"] },
   { tool: "codebase_search", mentions: ["`codebase_search(query)`", "`filter_kinds: [\"Class\"]`"] },
-  { tool: "symbol_detail", mentions: ["expand: \"inheritance\"", "\"callers\""] },
-  { tool: "sub_graph", mentions: ["direction: \"Backward\"", "edge_kinds: [\"inherits\"]", "[\"calls\"]"] },
+  { tool: "symbol_detail", mentions: ["one type's bases", "derives from or implements it", "expand: \"Inheritance\"", "\"Callers\""] },
+  { tool: "sub_graph", mentions: ["over hops", "direction: \"Backward\"", "edge_kinds: [\"calls\"]", "[\"inherits\"]"] },
+  {
+    tool: "edge_list",
+    mentions: ["every edge of one kind", "under a `root_fqn`", "`edge_list(edge_kinds: [\"inherits\"])`", "`next_cursor`", "`total`"],
+  },
   { tool: "flow_trace", mentions: ["`flow_trace(from, direction)`", "`Backward`"] },
   { tool: "impact_analysis", mentions: ["`impact_analysis(target)`"] },
   { tool: "affected_tests", mentions: ["`affected_tests(changed_files)`", "`base`"] },
   { tool: "dependency_graph", mentions: ["`dependency_graph`", "`L2_Module`"] },
-  { tool: "structural_search", mentions: ["`structural_search`", "`language`", "`$NAME`", "`$$$NAME`"] },
+  { tool: "structural_search", mentions: ["every place a code shape occurs", "`structural_search` with its `language`"] },
   { tool: "count_pattern", mentions: ["`count_pattern`"] },
   { tool: "grep", mentions: ["`grep`", "`glob`", "output_mode"] },
 ];
@@ -32,10 +36,12 @@ export const PARTIAL_LISTS: readonly { readonly name: string; readonly tools: re
   { name: "the auditor's tools", tools: [...AUDITOR_TOOLS] },
 ];
 
-/** `root_fqn` narrows a cut result only for an agent holding a tool that takes it (codebase_map, dependency_graph). */
+/** `root_fqn` narrows a cut result only for an agent holding a tool that takes it (codebase_map, dependency_graph,
+ *  edge_list). */
 export const ROOT_FQN_CASES: readonly { readonly name: string; readonly tools: readonly string[]; readonly named: boolean }[] = [
   { name: "names root_fqn to an agent holding codebase_map", tools: ["codebase_map"], named: true },
   { name: "names root_fqn to an agent holding dependency_graph", tools: ["dependency_graph"], named: true },
+  { name: "names root_fqn to an agent holding edge_list", tools: ["edge_list"], named: true },
   { name: "never names root_fqn to the reviewer", tools: [...REVIEWER_TOOLS], named: false },
   { name: "never names root_fqn to the auditor", tools: [...AUDITOR_TOOLS], named: false },
 ];
@@ -50,6 +56,7 @@ export const ROUTED_PARAMS: readonly { readonly tool: string; readonly params: r
   { tool: "package_summary", params: ["fqn"] },
   { tool: "codebase_map", params: ["level"] },
   { tool: "dependency_graph", params: ["scope"] },
+  { tool: "edge_list", params: ["edge_kinds", "root_fqn"] },
 ];
 
 /** The parameters the routing spells for a tool outside the code-intel contract: the permission list pins them. */

@@ -44,7 +44,7 @@ What Orkeon Code does not do yet, in the order we expect to address it. Items ma
 ## Known issues
 
 - A tool result reaches the model cut at 4000 characters: 32,000 for `file_read`, 256,000 for `node_read`, 10,000 for
-  `shell_command`. The cut is set per tool by `Orkeon:Tools:ResultLimits` ([Configuration](configuration.md)).
+  `shell_command`, 12,000 for the analysis tools. The cut is set per tool by `Orkeon:Tools:ResultLimits` ([Configuration](configuration.md)).
 - `/tasks` monitors the children of `/dev-spec`, `/dev-plan` and `/dev-batches` only, through the session state: a stop waits for
   the crew's next look (about a second), and a send to an ended instance is a new run that knows the previous report
   only, not its context.

@@ -77,8 +77,7 @@ export function describeSearchRouting(tools: readonly string[]): string {
       "\"/workspace/docs/**/*.md\"]}`, then search again."
     : " The collection holds only what a writing session ingested: an empty answer there is no proof of absence.";
   return (
-    "- Code files: `codebase_search` (exact identifiers and paraphrases alike), then `symbol_source`/`flow_trace` " +
-    "on the hits. The code index cannot hold any other file, so do not retry there.\n" +
+    "- Code files: `codebase_search`, then `symbol_source`/`flow_trace` on the hits.\n" +
     "- Any other file (configuration, data, documents, other languages): a name, a key or an exact text with " +
     "`grep` (a `glob` narrows), then `file_read`; a question of meaning over prose with `rag_search` " +
     "(`question`, `collection: \"" + WORKSPACE_DOCS_COLLECTION + "\"`)." + ingest

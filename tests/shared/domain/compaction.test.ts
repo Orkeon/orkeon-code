@@ -20,10 +20,12 @@ import {
   sanitizeExtractedMemories,
   buildRestoredSkillMessage, buildRestoredStateMessage,
   clipTranscript, extractSummary, SUMMARY_OPEN, SUMMARY_CLOSE, SUMMARY_MAX_WORDS, COMPACTED_HEADER, buildRestoredFileNotice,
+  MEMORY_EXTRACTION_SCHEMA,
 } from "../../../src/shared/domain/compaction.ts";
 import { TRANSCRIPT_CAP_CHARS } from "../../../src/shared/domain/compaction-thresholds.ts";
 import { MAX_EXTRACTED_MEMORIES } from "../../../src/shared/domain/compaction-thresholds.ts";
 import {
+  EXTRACTION_WITH_REPLACES, KNOWN_WITH_IDS, REPLACES_KEPT,
   BOUNDARY_CASES, BUFFER_WITH_TWO_BOUNDARIES, EXTRACTION_WITH_INVALID, HEAD_MIDDLE_TAIL, MALFORMED_ROOTS,
   MEMORY_CATEGORIES, SUMMARY_PARTS, SUMMARY_REPLIES, TURNS_NAMING_FILES, TWENTY_FACTS, TWO_MEMORIES,
   URL_WORDS_THEN_PATHS, SUMMARY_RETURNS, SUMMARY_PERMISSION, SUMMARY_EARLIER, SUMMARY_SNIP_NOTE, SUMMARY_UNKNOWN, TODAY,
@@ -409,13 +411,26 @@ describe("buildMemoryExtractionPrompt", () => {
 
   it("lists the known memories so they are not repeated", () => {
     // Arrange
-    const known = ["uses pnpm"];
+    const known = [{ content: "uses pnpm" }];
 
     // Act
     const p = buildMemoryExtractionPrompt("t", known);
 
     // Assert
     assertMentions(p, ["Already in memory, do not repeat:\n- uses pnpm"]);
+  });
+
+  it("lists the known memories by their id and asks a new fact to name the one it makes out of date", () => {
+    // Arrange
+    const known = KNOWN_WITH_IDS;
+
+    // Act
+    const p = buildMemoryExtractionPrompt("t", known);
+
+    // Assert
+    assertMentions(p, [
+      "when a new fact makes one of these out of date, give its [number] as \"replaces\":\n- [4] uses npm\n- [9] releases on Fridays",
+    ]);
   });
 
   it("lists nothing when there are no known memories", () => {
@@ -475,6 +490,19 @@ describe("buildMemoryExtractionPrompt", () => {
 });
 
 
+describe("MEMORY_EXTRACTION_SCHEMA", () => {
+  it("offers each item an optional integer id of the entry it replaces", () => {
+    // Arrange
+    const item = MEMORY_EXTRACTION_SCHEMA.properties.items.items;
+
+    // Act
+    const replaces = { type: item.properties.replaces, required: item.required.includes("replaces" as never) };
+
+    // Assert
+    deepStrictEqual(replaces, { type: { type: "integer" }, required: false });
+  });
+});
+
 describe("sanitizeExtractedMemories", () => {
   it("rejects invalid categories and empty contents", () => {
     // Arrange
@@ -485,6 +513,17 @@ describe("sanitizeExtractedMemories", () => {
 
     // Assert
     deepStrictEqual(out, [{ category: "project", content: "uses pnpm" }]);
+  });
+
+  it("keeps the first claim on a listed entry as the one it replaces, and drops any other", () => {
+    // Arrange
+    const raw = EXTRACTION_WITH_REPLACES;
+
+    // Act
+    const out = sanitizeExtractedMemories(raw, KNOWN_WITH_IDS);
+
+    // Assert
+    deepStrictEqual(out, REPLACES_KEPT);
   });
 
   it("caps at MAX_EXTRACTED_MEMORIES", () => {

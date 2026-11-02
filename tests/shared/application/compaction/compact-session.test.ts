@@ -13,6 +13,7 @@ import { FakeSessionStore } from "../../../support/doubles/fake-session-store.ts
 import {
   ABOVE, BELOW, FULL_PIPELINE_LOG, FULL_PIPELINE_STEPS, HISTORY, SNIPPED, TODAY, TRIGGER_SETTINGS, WRITTEN, compactSetup,
   PENDING_REQUEST, failingSummarySetup, fullPipelineBuffer, pendingRequestBuffer, snipFallbackBuffer, withWorkflow,
+  LAST_TWO_TURNS_KEEP, THREE_TURNS, lastTwoTurnsSnipped, pendingTurnSnipped,
 } from "./compact-session.fixtures.ts";
 import { assertNoStatePointer, assertSnipFallback } from "./compact-session.assertions.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
@@ -170,7 +171,7 @@ describe("compactSession: the summary call", () => {
     ok(String(summary?.content).endsWith("\n1. The request: ship it"), String(summary?.content));
   });
 
-  it("lists what memory already holds in the extraction prompt", async () => {
+  it("lists what memory already holds in the extraction prompt, by id", async () => {
     // Arrange
     const deps = compactSetup();
     await deps.memory.add("project", "releases are cut from main");
@@ -179,7 +180,7 @@ describe("compactSession: the summary call", () => {
     await compactSession({ force: true }, deps);
 
     // Assert
-    ok(deps.llm.extracts[0].prompt.includes("- releases are cut from main"), deps.llm.extracts[0].prompt);
+    ok(deps.llm.extracts[0].prompt.includes("- [1] releases are cut from main"), deps.llm.extracts[0].prompt);
   });
 });
 
@@ -228,6 +229,44 @@ describe("compactSession: failures are outcomes", () => {
 
     // Assert
     deepStrictEqual(outcome, { status: "failed", reason: "model down" });
+  });
+
+  it("keeps the last two turns whole when the fallback snips the buffer, the notice right after the head", async () => {
+    // Arrange
+    const deps = failingSummarySetup(new Error("model down"));
+    deps.session.cutsTurns = true;
+
+    // Act
+    await compactSession({ force: true }, deps);
+
+    // Assert
+    deepStrictEqual(deps.session.messages, lastTwoTurnsSnipped());
+  });
+
+  it("keeps the request still waiting for its answer last when the fallback snips at the head of a turn", async () => {
+    // Arrange
+    const deps = failingSummarySetup(new Error("model down"));
+    deps.session.messages = [...THREE_TURNS, ...PENDING_REQUEST];
+    deps.session.cutsTurns = true;
+
+    // Act
+    await compactSession({ force: true }, deps);
+
+    // Assert
+    deepStrictEqual(deps.session.messages, pendingTurnSnipped());
+  });
+
+  it("does not snip a buffer that holds no more turns than the fallback keeps", async () => {
+    // Arrange
+    const deps = failingSummarySetup(new Error("model down"));
+    deps.session.messages = [...HISTORY];
+
+    // Act
+    const outcome = await compactSession({ force: true }, deps);
+
+    // Assert
+    deepStrictEqual(outcome, { status: "failed", reason: "model down" });
+    deepStrictEqual(deps.session.snips, []);
   });
 
   it("keeps the fallback when the snip removed turns but its notice could not be written, and logs it", async () => {
@@ -281,22 +320,50 @@ describe("compactSession: failures are outcomes", () => {
 });
 
 describe("/compact --snip and the compaction.trigger setting", () => {
-  it("snips to the head and the last messages, and says what it did", async () => {
+  it("asks the runtime for the turns that hold the last ones, their [turn-context] counted, and says what it did", async () => {
     // Arrange
     const session = new FakeSessionStore();
+    session.messages = [...THREE_TURNS];
     session.snipped = { removed: 12, retained: 4 };
+
+    // Act
+    const out = await snipBuffer(2, { session });
+
+    // Assert
+    strictEqual(out, "snipped: 12 removed, 4 kept.");
+    deepStrictEqual(session.snips, [LAST_TWO_TURNS_KEEP]);
+  });
+
+  it("keeps the last turns whole, the notice right after the head", async () => {
+    // Arrange
+    const session = new FakeSessionStore();
+    session.messages = [...THREE_TURNS];
+    session.cutsTurns = true;
+
+    // Act
+    await snipBuffer(2, { session });
+
+    // Assert
+    deepStrictEqual(session.messages, lastTwoTurnsSnipped());
+  });
+
+  it("leaves a buffer with no more turns than asked as it is, without a snip", async () => {
+    // Arrange
+    const session = new FakeSessionStore();
+    session.messages = [...HISTORY];
 
     // Act
     const out = await snipBuffer(3, { session });
 
     // Assert
-    strictEqual(out, "snipped: 12 removed, 4 kept.");
-    deepStrictEqual(session.snips, [3]);
+    strictEqual(out, "snipped: 0 removed, 4 kept.");
+    deepStrictEqual(session.snips, []);
   });
 
   it("leaves the notice that the turns removed were not summarised right after the head, the last message still last", async () => {
     // Arrange
     const session = new FakeSessionStore();
+    session.messages = [...HISTORY];
     session.snipped = { removed: 2, retained: 2 };
     session.messagesAfterSnip = SNIPPED;
 
@@ -310,6 +377,7 @@ describe("/compact --snip and the compaction.trigger setting", () => {
   it("does not add a second notice when one already follows the head", async () => {
     // Arrange
     const session = new FakeSessionStore();
+    session.messages = [...THREE_TURNS];
     session.snipped = { removed: 2, retained: 3 };
     session.messagesAfterSnip = snipFallbackBuffer();
 
@@ -388,6 +456,7 @@ describe("compactSession: step 0, the state of the dev batch in progress", () =>
   it("reports it when the summary fails and the buffer is snipped instead", async () => {
     // Arrange
     const { deps } = withWorkflow();
+    deps.session.messages = [...THREE_TURNS];
     deps.llm.completions = [new Error("model down")];
     deps.session.snipped = { removed: 2, retained: 2 };
 

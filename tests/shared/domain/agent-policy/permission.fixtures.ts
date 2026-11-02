@@ -80,6 +80,9 @@ export const ORKEON_180_READS: readonly string[] = [
   "statement_query", "complexity_report",
 ];
 
+/** The analysis tool of Orkeon #280, a read like sub_graph: offered in every mode. */
+export const ORKEON_280_READS: readonly string[] = ["edge_list"];
+
 /** The edit tools of Orkeon #180, offered only where the mode edits. */
 export const ORKEON_180_EDITS: readonly string[] = [
   "edit_file", "node_replace", "node_insert", "node_ensure", "edit_batch", "structural_rewrite", "github",
@@ -111,6 +114,7 @@ export const TOOL_ARGUMENT_CASES: readonly { tool: string; args: readonly string
   { tool: "spawn_agent", args: ["agent", "input"] },
   { tool: "shell_command", args: ["command", "working_directory", "timeout_seconds", "action", "job_id", "tail_lines"] },
   { tool: "file_write", args: ["path", "content", "encoding", "append", "create_backup"] },
+  { tool: "edge_list", args: ["cursor", "edge_kinds", "page_size", "root_fqn"] },
 ];
 
 export interface ScriptToolsForCase {

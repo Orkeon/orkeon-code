@@ -6,8 +6,8 @@
 // the prompt), then the files the conversation was working on and the attached
 // skills are read back. A request still waiting for its answer (the compaction at the head of a turn) stays last,
 // after all of them, so the answer that follows has its request before it. The deterministic snip (session_snip) is the fallback of a
-// summary that fails, and `/compact --snip`: either leaves a notice in the buffer
-// saying the earlier turns were removed without a summary.
+// summary that fails, and `/compact --snip`: it keeps the head and the last turns whole (runtimeTurnsToKeep), and
+// either leaves a notice in the buffer saying the earlier turns were removed without a summary.
 //
 // The pipeline runs on the ports of CompactDeps: both entry points wire the Orkeon
 // adapters and the running agent's model, log and clock. Memory extraction and the
@@ -34,6 +34,8 @@ import { restoreAttachedSkills, restoreRecentFiles } from "./restore-context.ts"
 import { WORKSPACE } from "../../domain/vfs.ts";
 import { isoDay } from "../../domain/iso-day.ts";
 import { pendingRequestLength } from "../../domain/marked-message.ts";
+import { runtimeTurnsToKeep } from "../../domain/snip-turns.ts";
+import type { SessionMsg } from "../../domain/types.ts";
 
 /** The ports the pipeline runs on. */
 export interface CompactDeps {
@@ -96,7 +98,7 @@ export async function compactSession(
       // 2. The summary, from the buffer as it stands: the prompt clips the transcript head and tail.
       await progress.report(compactPhase(2, "synthesizing the summary"));
       const summary = await summarise(llm, transcript, opts.focus);
-      if ("failure" in summary) return withState(await snipFallback(deps, summary.failure));
+      if ("failure" in summary) return withState(await snipFallback(deps, raw.messages, summary.failure));
       const buffer = buildCompactedBuffer(raw.stored[0], summary.text);
       if (memories.length > 0) buffer.push(buildMemoryRecapMessage(memories));
       // 3. Re-inject the recently-touched files so the agent keeps its working
@@ -147,13 +149,16 @@ async function summarise(llm: Llm, transcript: string, focus: string | undefined
   }
 }
 
-/** No summary: the buffer is snipped with a notice, and the compaction still fails (the breaker counts it). A snip
- *  that fails too, or removes nothing, leaves the failure of the summary as the reason and no fallback; a notice that
- *  cannot be written is logged, the fallback kept (the buffer was cut). */
-async function snipFallback(deps: CompactDeps, reason: string): Promise<CompactOutcome> {
+/** No summary: the buffer (`messages`, as just read) is snipped to its last turns with a notice, and the compaction
+ *  still fails (the breaker counts it). A snip that fails too, or removes nothing (no more turns than it keeps), leaves
+ *  the failure of the summary as the reason and no fallback; a notice that cannot be written is logged, the fallback
+ *  kept (the buffer was cut). */
+async function snipFallback(deps: CompactDeps, messages: readonly SessionMsg[], reason: string): Promise<CompactOutcome> {
+  const keep = runtimeTurnsToKeep(messages, SNIP_RETAIN_COUNT);
+  if (keep === null) return { status: "failed", reason };
   let removed: number;
   try {
-    ({ removed } = await deps.session.snip(SNIP_RETAIN_COUNT));
+    ({ removed } = await deps.session.snip(keep));
   } catch {
     return { status: "failed", reason };
   }
@@ -167,8 +172,8 @@ async function snipFallback(deps: CompactDeps, reason: string): Promise<CompactO
   return { status: "failed", reason, fallback: "snip" };
 }
 
-/** The notice that the turns a snip removed were not summarised, right after the head so that the current request
- *  stays last; none added when one already sits there (a second snip). */
+/** The notice that the turns a snip removed were not summarised, right after the head: the kept tail opens on a whole
+ *  turn and the current request stays last. None added when one already sits there (a second snip). */
 async function leaveSnipNotice(session: Pick<SessionStore, "readMessages" | "writeMessages">): Promise<void> {
   const { stored } = await session.readMessages();
   const notice = buildSnipNoticeMessage();
@@ -192,12 +197,16 @@ async function writeState(deps: CompactDeps, trigger: "manual" | "auto"): Promis
   }
 }
 
-/** `/compact --snip [N]`: the head and the last N messages kept, nothing summarised, a notice saying so. */
+/** `/compact --snip [N]`: the head and the last N turns kept whole, nothing summarised, a notice saying so. A buffer
+ *  with no more turns than that is left as it is. */
 export async function snipBuffer(
-  retain: number,
+  turns: number,
   deps: { session: Pick<SessionStore, "snip" | "readMessages" | "writeMessages"> },
 ): Promise<string> {
-  const { removed, retained } = await deps.session.snip(retain);
+  const { messages } = await deps.session.readMessages();
+  const keep = runtimeTurnsToKeep(messages, turns);
+  if (keep === null) return `snipped: 0 removed, ${messages.length} kept.`;
+  const { removed, retained } = await deps.session.snip(keep);
   if (removed > 0) await leaveSnipNotice(deps.session);
   return `snipped: ${removed} removed, ${retained} kept.`;
 }

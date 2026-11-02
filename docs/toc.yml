@@ -56,3 +56,7 @@
       href: adr/0013-pin-on-orkeon-commit.md
     - name: "ADR 0014: Orkeon main after #244, effort levels, a parallel index and an index cache"
       href: adr/0014-orkeon-after-244.md
+    - name: "ADR 0015: Orkeon main after #276, the context apart from the request"
+      href: adr/0015-orkeon-after-276.md
+    - name: "ADR 0016: Orkeon main after #280, the edge list, bounded analysis results and a persisted memory"
+      href: adr/0016-orkeon-after-280.md

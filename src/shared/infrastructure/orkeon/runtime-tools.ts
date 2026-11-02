@@ -39,9 +39,10 @@ export type SessionStoreInput = Fits<
 
 /** memory_store, one input shape per operation this code sends. */
 export type MemoryStoreInput = Fits<
-  | { operation: "list"; category?: string }
+  | { operation: "list"; category?: string; newest_first?: boolean }
   | { operation: "add"; category: string; content: string }
-  | { operation: "get" | "delete"; id: number },
+  | { operation: "get" | "delete"; id: number }
+  | { operation: "replace"; id: number; content: string },
   "memoryStore"
 >;
 

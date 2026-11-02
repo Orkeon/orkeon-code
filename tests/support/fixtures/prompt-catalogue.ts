@@ -266,7 +266,7 @@ export async function renderCatalogue(): Promise<RenderedPrompt[]> {
       callSite: "before each compaction → shared/application/compaction/extract-memories.ts",
       call: "extract (JSON schema)", inputs: "the sample transcript and one known memory",
       sections: [
-        { title: "prompt", role: "text", text: buildMemoryExtractionPrompt(TRANSCRIPT, ["Releases are cut from main only."]) },
+        { title: "prompt", role: "text", text: buildMemoryExtractionPrompt(TRANSCRIPT, [{ id: 7, content: "Releases are cut from main only." }]) },
         schema("schema", MEMORY_EXTRACTION_SCHEMA),
       ],
     },

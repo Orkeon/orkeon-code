@@ -47,7 +47,7 @@ demandent d'abord un changement dans [Orkeon](https://github.com/Orkeon/orkeon).
 ## Problèmes connus
 
 - Un résultat d'outil arrive au modèle coupé à 4000 caractères : 32 000 pour `file_read`, 256 000 pour `node_read`,
-  10 000 pour `shell_command`. La coupe se règle par outil avec `Orkeon:Tools:ResultLimits`
+  10 000 pour `shell_command`, 12 000 pour les outils d'analyse. La coupe se règle par outil avec `Orkeon:Tools:ResultLimits`
   ([Configuration](configuration.md)).
 - `/tasks` ne suit que les enfants de `/dev-spec`, `/dev-plan` et `/dev-batches`, par l'état de session : un arrêt attend le
   prochain regard du crew (environ une seconde), et un envoi à une instance finie est un nouveau run qui ne connaît
