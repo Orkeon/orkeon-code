@@ -76,6 +76,10 @@ npm ci && npm run typings && npm run check && bash scripts/smoke-runtime.sh --mo
 
 and a live session on the demo fixture (`/init`, `/assistant`, `/commit`, `/review`) before merging. Dependabot leaves esbuild alone for that reason.
 
+The major of `@types/node` follows the Node major the project runs on (`.nvmrc`, `engines.node` of `package.json`):
+newer typings would admit APIs absent at runtime. Dependabot keeps it to minor and patch bumps; the major moves by
+hand, with `.nvmrc`.
+
 ## Releasing
 
 1. Move the `[Unreleased]` entries of `CHANGELOG.md` under `## [x.y.z] - YYYY-MM-DD`.
