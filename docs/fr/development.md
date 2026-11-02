@@ -80,6 +80,10 @@ et une session réelle sur la
 fixture de démonstration (`/init`, `/assistant`, `/commit`, `/review`) avant de fusionner. Dependabot ne touche pas à
 esbuild pour cette raison.
 
+La majeure de `@types/node` suit la majeure de Node sur laquelle le projet tourne (`.nvmrc`, `engines.node` de
+`package.json`) : des typings plus récents admettraient des API absentes à l'exécution. Dependabot s'en tient aux
+montées mineures et de correctif ; la majeure se monte à la main, avec `.nvmrc`.
+
 ## Publier une release
 
 1. Déplacez les entrées `[Unreleased]` de `CHANGELOG.md` sous `## [x.y.z] - YYYY-MM-DD`.

@@ -3,6 +3,8 @@ updates:
   # Dev tooling. esbuild is NOT bumped by Dependabot: it is pinned to the version
   # Orkeon bundles with at the commit of .orkeon-version (Orkeon/orkeon tools/scripting-esbuild),
   # and moves only with that pin (see docs/development.md, "Upgrading Orkeon").
+  # The major of @types/node follows the Node major the project runs on (.nvmrc, engines.node):
+  # newer typings would admit APIs absent at runtime. It moves with .nvmrc, by hand.
   - package-ecosystem: npm
     directory: /
     schedule:
@@ -13,6 +15,8 @@ updates:
         update-types: [minor, patch]
     ignore:
       - dependency-name: esbuild
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   # GitHub Actions pins (40-character SHA + version comment).
   - package-ecosystem: github-actions
