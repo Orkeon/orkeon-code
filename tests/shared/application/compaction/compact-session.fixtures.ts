@@ -30,6 +30,33 @@ export const PENDING_REQUEST: SessionMsg[] = [
   { role: "user", content: "now add a test" },
 ];
 
+/** A buffer of three turns at the tail of the last one, the second opened by its [turn-context]. */
+export const THREE_TURNS: SessionMsg[] = [
+  { role: "system", content: "head" },
+  { role: "user", content: "read the spec" },
+  { role: "assistant", content: "read" },
+  { role: "user", content: "[turn-context] Context the turn-start checks added:\nbranch changed" },
+  { role: "user", content: "fix the parser" },
+  { role: "system", content: "[tools] The tool calls of the answer below:\n- edit_file" },
+  { role: "assistant", content: "fixed" },
+  { role: "user", content: "run the tests" },
+  { role: "assistant", content: "green" },
+];
+
+/** The runtime's turns that hold the last two turns of THREE_TURNS: two requests and the [turn-context] of the first. */
+export const LAST_TWO_TURNS_KEEP = 3;
+
+/** THREE_TURNS cut to its last two turns, whole, the notice that nothing was summarised right after the head. */
+export function lastTwoTurnsSnipped(): SessionMsg[] {
+  return [THREE_TURNS[0], buildSnipNoticeMessage(), ...THREE_TURNS.slice(3)];
+}
+
+/** THREE_TURNS with PENDING_REQUEST after it, cut to its last two turns: the last finished one, then the request still
+ *  waiting for its answer with its [turn-context], last; the notice right after the head. */
+export function pendingTurnSnipped(): SessionMsg[] {
+  return [THREE_TURNS[0], buildSnipNoticeMessage(), ...THREE_TURNS.slice(7), ...PENDING_REQUEST];
+}
+
 /** What the snip leaves of HISTORY: the head and the last message, the request in between removed. */
 export const SNIPPED: SessionMsg[] = [HISTORY[0], HISTORY[3]];
 
@@ -55,9 +82,11 @@ export function compactSetup() {
   return deps;
 }
 
-/** compactSetup() whose summary call answers `reply` (an Error is thrown), and whose snip leaves SNIPPED. */
+/** compactSetup() over THREE_TURNS whose summary call answers `reply` (an Error is thrown), and whose snip leaves
+ *  SNIPPED. */
 export function failingSummarySetup(reply: string | Error) {
   const deps = compactSetup();
+  deps.session.messages = [...THREE_TURNS];
   deps.llm.completions = [reply];
   deps.session.snipped = { removed: 2, retained: 2 };
   deps.session.messagesAfterSnip = SNIPPED;

@@ -9,6 +9,7 @@ import {
   B12_COMMANDS, COMMAND_GROUPS, COMMANDS_DIR, collect, E1_COMMANDS, EXPECTED_COMMAND_COUNT, FOLDED_ALIASES, LOADER_DEFAULT_CAP,
   RETIRED_NAMES, topLevelExports,
 } from "./command-surface.fixtures.ts";
+import { SNIP_COMMAND_TURNS } from "../../src/shared/domain/compaction-thresholds.ts";
 import {
   assertAliasesOf, assertCommandsPresent, assertNamesAbsent, assertInAGroup, assertKebabNames, assertNoNameConflict, assertNoTopLevelExport,
   assertOneNameEach, assertSlugsMatchNames,
@@ -184,5 +185,16 @@ describe("no top-level export in a *.cmd.ts (B-7 regression)", () => {
 
     // Assert
     ok(cmds.length >= EXPECTED_COMMAND_COUNT);
+  });
+
+  it("states the default of /compact --snip its parser applies", () => {
+    // Arrange
+    const cmds = collect();
+
+    // Act
+    const description = cmds.find((c) => c.name === "compact")?.description ?? "";
+
+    // Assert
+    ok(description.includes(`last N turns whole (${SNIP_COMMAND_TURNS} by default)`), `the /compact description names another default: ${description}`);
   });
 });

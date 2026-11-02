@@ -6,7 +6,7 @@ import { strictEqual, deepStrictEqual, ok } from "node:assert";
 
 import {
   CODE_INTEL_TOOLS, CODE_INTEL_PARAMS, FLOW_DIRECTIONS,
-  SEARCH_MODES, MATCH_ORIGINS, RAG_SEARCH_PARAMS, RAG_RAGGABLE_TREE_COLLECTION,
+  SEARCH_MODES, MATCH_ORIGINS, RAG_SEARCH_PARAMS,
   indexCacheNote, readIndexSummary, readMapEntries, readMapSymbolCount, readSearchHits,
   readSymbolSource, readFlowPathCount, firstSymbolFqn, readMatchOrigin, readRefreshedFiles,
   readGraph, readImpact, readPackageSummary, readSymbolDetail,
@@ -342,9 +342,9 @@ describe("the pinned request parameters", () => {
     deepStrictEqual(declared, tools);
   });
 
-  it("counts ten code-intel tools", () => {
+  it("counts eleven code-intel tools", () => {
     // Arrange
-    const expected = 10;
+    const expected = 11;
 
     // Act
     const count = CODE_INTEL_TOOLS.length;
@@ -603,17 +603,6 @@ describe("rag_search parameter names", () => {
     // Assert
     ok(params.includes("question"));
     ok(!params.includes("query"));
-  });
-
-  it("names the code-index collection", () => {
-    // Arrange
-    const expected = "raggable-tree";
-
-    // Act
-    const collection = RAG_RAGGABLE_TREE_COLLECTION;
-
-    // Assert
-    strictEqual(collection, expected);
   });
 });
 

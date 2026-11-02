@@ -5,6 +5,7 @@
 // the tool's own message, the runtime's wrapping gone (withToolMessage).
 
 import type { SessionMsg } from "../../domain/types.ts";
+import { messagesOfLastTurns } from "../../domain/snip-turns.ts";
 import type { SessionStore, StoredMessage, TokenBudget, TokenKinds } from "../../application/ports.ts";
 import type { SessionStoreInput } from "./runtime-tools.ts";
 import { asArray, pick, withToolMessage } from "./tool-results.ts";
@@ -26,11 +27,18 @@ function isUnknownOperation(error: unknown): boolean {
   return (error instanceof Error ? error.message : String(error)).includes(UNKNOWN_OPERATION);
 }
 
+/** Whether session_snip counts turns (Orkeon #287). It came in the same merge as edge_list (#281), which the rc.6
+ *  release, the tool and docker modes, lacks: there `retain_count` counts the messages kept after the head. A runtime
+ *  at the pin with no code-index tools registered reads as a release, and keeps more turns than asked, never fewer. */
+function snipCountsTurns(tools: { edgeList?: unknown }): boolean {
+  return typeof tools.edgeList === "function";
+}
+
 /** A reported count, as a number; absent reads as 0. */
 const count = (r: unknown, ...names: string[]): number => Number(pick(r, ...names) ?? 0);
 
 export function createSessionStore(
-  tools: Pick<OrkeonTools, "sessionStore" | "sessionSnip" | "tokenBudget">,
+  tools: Pick<OrkeonTools, "sessionStore" | "sessionSnip" | "tokenBudget"> & { edgeList?: unknown },
 ): SessionStore {
   // One shape per operation (runtime-tools.ts): a misspelled operation fails here.
   const sessionStore = (input: SessionStoreInput) => tools.sessionStore(input);
@@ -73,7 +81,16 @@ export function createSessionStore(
     async reset() {
       return count(await sessionStore({ operation: "reset" }), "removed_count", "removedCount", "RemovedCount");
     },
-    async snip(retain) {
+    async snip(turns) {
+      // retain_count counts turns since Orkeon #287; kept_from (where the kept tail began) is not read: nothing uses it.
+      // Before #287 it counts messages: the tail those turns hold is measured on the buffer, so the same tail is kept.
+      let retain = turns;
+      if (!snipCountsTurns(tools)) {
+        const stored = asArray(pick(await withToolMessage(() => sessionStore({ operation: "read_messages" })), "messages", "Messages"));
+        const tail = messagesOfLastTurns(normalizeMessages(stored), turns);
+        if (tail === null) return { removed: 0, retained: stored.length };
+        retain = tail;
+      }
       const resp = await tools.sessionSnip({ retain_count: retain });
       return {
         removed: count(resp, "removed_count", "removedCount", "RemovedCount"),

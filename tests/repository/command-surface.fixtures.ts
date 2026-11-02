@@ -41,6 +41,8 @@ export interface Cmd {
   /** The first of `names`, the command's primary name. */
   name: string;
   aliases: string[];
+  /** The static `description: "<literal>"`, decoded as the commands doc reads it; "" when there is none. */
+  description: string;
 }
 
 /** Every *.cmd.ts under `dir`, sorted by path. */
@@ -56,7 +58,8 @@ export function collect(dir = COMMANDS_DIR): Cmd[] {
     // helpers (toggleCommand) pass it through a `name:` field too.
     const names = [...src.matchAll(/name:\s*"([^"]+)"/g)].map((m) => m[1]);
     const aliases = [...(src.match(/aliases:\s*\[([^\]]*)\]/)?.[1] ?? "").matchAll(/"([^"]+)"/g)].map((m) => m[1]);
-    out.push({ file: f, names, name: names[0], aliases });
+    const raw = src.match(/\bdescription:\s*"((?:[^"\\]|\\.)*)"/)?.[1];
+    out.push({ file: f, names, name: names[0], aliases, description: raw === undefined ? "" : JSON.parse(`"${raw}"`) });
   }
   return out;
 }

@@ -8,7 +8,7 @@ import { orkeonConfigStore } from "../../shared/infrastructure/orkeon/wiring.ts"
 
 defineAsyncCommand({
   name: "compact",
-  description: "Compact the session buffer to free up context; text after it names what the summary must keep; --snip [N] only keeps the head and the last N messages (a turn is several).",
+  description: "Compact the session buffer to free up context; text after it names what the summary must keep; --snip [N] only keeps the head and the last N turns whole (3 by default).",
   maxConcurrent: 1,
   dispatch: async (args, ctx) =>
     launchCrew(await withLlmProfile({ crews: createCrewHost(ctx.services), log: ctx.log }, orkeonConfigStore()), "session-compact", parseCompactArgs(rawTokens(args))),

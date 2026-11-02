@@ -375,6 +375,7 @@ function Invoke-Setup([string] $target) {
 $savedEnv = @{}
 foreach ($name in @('ORKEON_Llm__Model', 'Orkeon__Security__PermissionGate__Enabled', 'Orkeon__Cli__Session__StartScript',
                     'Orkeon__Cli__Session__Persist', 'ORKEON_Orkeon__Cli__Session__SessionsDirectory',
+                    'ORKEON_Orkeon__Cli__Memory__RootDirectory',
                     'ORKEON_ESBUILD_PATH',
                     'ORKEON_ALLOW_EXTERNAL_MOUNTS', 'WHISPER_AUDIO_DIR', 'WHISPER_OUT_DIR',
                     'ORKEON_MCP__Servers__whisper__Transport', 'ORKEON_MCP__Servers__whisper__Command',
@@ -545,7 +546,10 @@ try {
   # files beside it: history/ and project.json.
   $sessions = Join-Path $projectState 'sessions'
   $history = Join-Path $projectState 'history'
-  New-Item -ItemType Directory -Force -Path $sessions, $history | Out-Null
+  # The typed memory (Orkeon #286) is kept beside them, in <RootDirectory>/<its slug>/memory.json on the /memory
+  # mount, outside the project so that neither git nor the file tools see it.
+  $memory = Join-Path $projectState 'memory'
+  New-Item -ItemType Directory -Force -Path $sessions, $history, $memory | Out-Null
   $runtimeSlug = if ($Mode -eq 'docker') { Get-ProjectSlug '/work/project' } else { $slug }
   $projectFile = Join-Path $projectState 'project.json'
   $now = [DateTime]::UtcNow.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", [System.Globalization.CultureInfo]::InvariantCulture)
@@ -642,6 +646,7 @@ try {
   # /sessions: the prefixed form wins over the settings file, since the archiving above reads that folder alone.
   if (-not $env:Orkeon__Cli__Session__Persist) { $env:Orkeon__Cli__Session__Persist = 'true' }
   $env:ORKEON_Orkeon__Cli__Session__SessionsDirectory = '/sessions'
+  $env:ORKEON_Orkeon__Cli__Memory__RootDirectory = '/memory'
 
   # Speech-to-text (optional): $env:ORKEON_CODE_AUDIO_DIR names the folder of audio and video files. The
   # Whisper MCP server (mcp/whisper), started by the REPL over stdio, reads it and writes into
@@ -735,13 +740,14 @@ try {
   }
 
   # An empty <settings> passes none: the REPL then reads Orkeon's own file. <projectState> as the REPL sees it: its
-  # sessions/ on /sessions, its history/ on /session-history (read-only, for /resume).
+  # sessions/ on /sessions, its history/ on /session-history (read-only, for /resume), its memory/ on /memory.
   function Get-ReplArgs($commands, $crews, $settings, $workspace, $output, $tmp, $userConfig, $projectState) {
     @('--runner=scripted-commands', '--commands-dir', $commands, '--crews-dir', $crews)
     if ($settings) { @('--settings', $settings) }
     @('--mount', "${workspace}:/workspace:rw", '--mount', "${output}:/output:rw", '--mount', "${tmp}:/tmp:rw",
       '--mount', "${userConfig}:/user-config:ro",
-      '--mount', "${projectState}/${sessionsSub}:/sessions:rw", '--mount', "${projectState}/history:/session-history:ro")
+      '--mount', "${projectState}/${sessionsSub}:/sessions:rw", '--mount', "${projectState}/history:/session-history:ro",
+      '--mount', "${projectState}/memory:/memory:rw")
   }
 
   # The exchange log (--llm-log) would land in ./llm-logs, the project: a bare --llm-log among the REPL's arguments
@@ -758,7 +764,8 @@ try {
                  '-e', "Orkeon__Security__PermissionGate__Enabled=$env:Orkeon__Security__PermissionGate__Enabled",
                  '-e', "Orkeon__Cli__Session__StartScript=$env:Orkeon__Cli__Session__StartScript",
                  '-e', "Orkeon__Cli__Session__Persist=$env:Orkeon__Cli__Session__Persist",
-                 '-e', 'ORKEON_Orkeon__Cli__Session__SessionsDirectory=/sessions')
+                 '-e', 'ORKEON_Orkeon__Cli__Session__SessionsDirectory=/sessions',
+                 '-e', 'ORKEON_Orkeon__Cli__Memory__RootDirectory=/memory')
     # The github tool's token (Orkeon #222): GITHUB_TOKEN, GH_TOKEN, or the variable Orkeon__Tools__GitHub__TokenVariable
     # names, each handed over only when set, with the setting itself so the runtime reads the same variable.
     $tokenVar = [Environment]::GetEnvironmentVariable('Orkeon__Tools__GitHub__TokenVariable')
@@ -809,8 +816,8 @@ try {
                            $Workspace (Join-Path $State 'output') (Join-Path $State 'tmp') $userConfigDir $projectState
   $Extra = @(Get-LlmLogArgs $projectState)
   # The REPL runs from the project. It reads its --commands-dir and --crews-dir wherever they are, and
-  # a --mount outside its working directory (/output, /tmp, /user-config, /sessions and /session-history, in the
-  # state directory, and an --llm-log-path there) under ORKEON_ALLOW_EXTERNAL_MOUNTS (Orkeon GAP-49). The six roots
+  # a --mount outside its working directory (/output, /tmp, /user-config, /sessions, /session-history and /memory, in
+  # the state directory, and an --llm-log-path there) under ORKEON_ALLOW_EXTERNAL_MOUNTS (Orkeon GAP-49). The seven roots
   # are distinct, and none is one the REPL keeps (/sandbox, /credentials, /llm-logs, /cli-commands..., /crews...).
   $env:ORKEON_ALLOW_EXTERNAL_MOUNTS = '1'
   Push-Location $Workspace

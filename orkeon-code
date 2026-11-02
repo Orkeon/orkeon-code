@@ -588,7 +588,10 @@ PROJECT_STATE="$STATE${PROJECT_REL:+/$PROJECT_REL}"
 # outside the project; the launcher keeps its own files beside it: history/ and project.json.
 SESSIONS="$PROJECT_STATE/sessions"
 HISTORY="$PROJECT_STATE/history"
-mkdir -p "$SESSIONS" "$HISTORY"
+# The typed memory (Orkeon #286) is kept beside them, in <RootDirectory>/<its slug>/memory.json on the /memory mount,
+# outside the project so that neither git nor the file tools see it.
+MEMORY="$PROJECT_STATE/memory"
+mkdir -p "$SESSIONS" "$HISTORY" "$MEMORY"
 if [ "$MODE" = docker ]; then RUNTIME_SLUG="$(project_slug /work/project)"; else RUNTIME_SLUG="$SLUG"; fi
 now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 first_seen="$(session_field "$PROJECT_STATE/project.json" firstSeen)"
@@ -686,6 +689,7 @@ export Orkeon__Cli__Session__StartScript="${Orkeon__Cli__Session__StartScript-/t
 # /sessions: the prefixed form wins over the settings file, since the archiving above reads that folder alone.
 export Orkeon__Cli__Session__Persist="${Orkeon__Cli__Session__Persist:-true}"
 export ORKEON_Orkeon__Cli__Session__SessionsDirectory=/sessions
+export ORKEON_Orkeon__Cli__Memory__RootDirectory=/memory
 
 # ── Speech-to-text (optional) ──────────────────────────────────────────────
 # ORKEON_CODE_AUDIO_DIR names the folder of audio and video files. The Whisper
@@ -771,12 +775,12 @@ fi
 # Sets ARGS. A function filling an array rather than mapfile: macOS ships bash 3.2.
 # An empty <settings> passes none: the REPL then reads Orkeon's own file.
 # <project state> is PROJECT_STATE as the REPL sees it: its sessions/ (side/<pid>/ beside an open start) on /sessions, its history/ on /session-history
-# (read-only, for /resume).
+# (read-only, for /resume), its memory/ on /memory.
 repl_args() { # <commands> <crews> <settings> <workspace> <output> <tmp> <user-config> <project state>
   ARGS=(--runner=scripted-commands --commands-dir "$1" --crews-dir "$2")
   if [ -n "$3" ]; then ARGS+=(--settings "$3"); fi
   ARGS+=(--mount "$4:/workspace:rw" --mount "$5:/output:rw" --mount "$6:/tmp:rw" --mount "$7:/user-config:ro"
-    --mount "$8/$SESSIONS_SUB:/sessions:rw" --mount "$8/history:/session-history:ro")
+    --mount "$8/$SESSIONS_SUB:/sessions:rw" --mount "$8/history:/session-history:ro" --mount "$8/memory:/memory:rw")
 }
 
 # The exchange log (--llm-log) would land in ./llm-logs, the project: a bare --llm-log among the REPL's
@@ -802,7 +806,8 @@ case "$MODE" in
       -e "Orkeon__Security__PermissionGate__Enabled=$Orkeon__Security__PermissionGate__Enabled"
       -e "Orkeon__Cli__Session__StartScript=$Orkeon__Cli__Session__StartScript"
       -e "Orkeon__Cli__Session__Persist=$Orkeon__Cli__Session__Persist"
-      -e ORKEON_Orkeon__Cli__Session__SessionsDirectory=/sessions)
+      -e ORKEON_Orkeon__Cli__Session__SessionsDirectory=/sessions
+      -e ORKEON_Orkeon__Cli__Memory__RootDirectory=/memory)
     # The github tool's token (Orkeon #222): GITHUB_TOKEN, GH_TOKEN, or the variable Orkeon__Tools__GitHub__TokenVariable
     # names, each handed over only when set, with the setting itself so the runtime reads the same variable.
     for v in ORKEON_Llm__ApiKey ORKEON_Llm__Model "$KEY_VAR" GITHUB_TOKEN GH_TOKEN \
@@ -877,9 +882,9 @@ case "$MODE" in
     fi
     # The REPL runs from the project. It reads its --commands-dir and --crews-dir
     # wherever they are, and a --mount outside its working directory (here /output,
-    # /tmp, /user-config, /sessions and /session-history, in the state directory, and
-    # an --llm-log-path there) under ORKEON_ALLOW_EXTERNAL_MOUNTS (Orkeon GAP-49). The
-    # six roots are distinct, and none is one the REPL keeps (/sandbox, /credentials,
+    # /tmp, /user-config, /sessions, /session-history and /memory, in the state directory,
+    # and an --llm-log-path there) under ORKEON_ALLOW_EXTERNAL_MOUNTS (Orkeon GAP-49). The
+    # seven roots are distinct, and none is one the REPL keeps (/sandbox, /credentials,
     # /llm-logs, /cli-commands..., /crews...).
     export ORKEON_ALLOW_EXTERNAL_MOUNTS=1
     repl_args "$ROOT/src/commands" "$ROOT/src/crews" "$([ "$RUNTIME_OWN" = 1 ] || echo "$SETTINGS")" \

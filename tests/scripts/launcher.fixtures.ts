@@ -14,6 +14,7 @@ export const GATE = "Orkeon__Security__PermissionGate__Enabled";
 export const START_SCRIPT = "Orkeon__Cli__Session__StartScript";
 export const PERSIST = "Orkeon__Cli__Session__Persist";
 export const SESSIONS_DIR = "ORKEON_Orkeon__Cli__Session__SessionsDirectory";
+export const MEMORY_DIR = "ORKEON_Orkeon__Cli__Memory__RootDirectory";
 
 /** A snippet a launcher must hold, and what it is for. */
 export type Mention = readonly [snippet: string, why: string];
@@ -245,7 +246,7 @@ export const mountRoots = (args: string[]) =>
 export const RESERVED = /^\/(sandbox|credentials|llm-logs|cli-commands|crews)/;
 
 /** The roots every start mounts, in order. */
-export const ROOTS = [WORKSPACE, "/output", "/tmp", "/user-config", "/sessions", "/session-history"];
+export const ROOTS = [WORKSPACE, "/output", "/tmp", "/user-config", "/sessions", "/session-history", "/memory"];
 
 /** The runtime's ProjectKey.Slug (Orkeon.Infrastructure/Session/ProjectKey.cs), pinned below to values the runtime
  *  computed: the last segment, each UTF-16 unit an ASCII letter or digit lowercased, else '-', then '-' and the first
@@ -267,6 +268,7 @@ export const toolModeArgs = (r: Run) => [
   "--mount", `${r.project}:${WORKSPACE}:rw`, "--mount", `${r.state}/output:/output:rw`, "--mount", `${r.state}/tmp:/tmp:rw`,
   "--mount", `${r.state}/user-config:/user-config:ro`,
   "--mount", `${projectState(r)}/sessions:/sessions:rw`, "--mount", `${projectState(r)}/history:/session-history:ro`,
+  "--mount", `${projectState(r)}/memory:/memory:rw`,
 ];
 
 /** The --mount argument of a read-write `root`. */
@@ -693,7 +695,7 @@ export const PS1_MODES: readonly Mention[] = [
 ];
 
 /** The variables orkeon-code.ps1 sets by name. */
-export const PS1_SET_VARIABLES = ["ORKEON_ALLOW_EXTERNAL_MOUNTS", "ORKEON_ESBUILD_PATH", "ORKEON_Llm__Model", GATE, START_SCRIPT, PERSIST, SESSIONS_DIR,
+export const PS1_SET_VARIABLES = ["ORKEON_ALLOW_EXTERNAL_MOUNTS", "ORKEON_ESBUILD_PATH", "ORKEON_Llm__Model", GATE, START_SCRIPT, PERSIST, SESSIONS_DIR, MEMORY_DIR,
   "WHISPER_AUDIO_DIR", "WHISPER_OUT_DIR", "WHISPER_MICROPHONE", "WHISPER_SPEAKER", "ORKEON_MCP__Servers__whisper__Transport",
   "ORKEON_MCP__Servers__whisper__Command", "ORKEON_MCP__Servers__whisper__TrustAnnotations", "UV_PROJECT_ENVIRONMENT"].sort();
 
@@ -766,6 +768,12 @@ export const PS1_SESSION_MOUNTS: readonly Mention[] = [
   ["if (-not $env:Orkeon__Cli__Session__Persist) { $env:Orkeon__Cli__Session__Persist = 'true' }", "persistence"],
   ["'-e', 'ORKEON_Orkeon__Cli__Session__SessionsDirectory=/sessions'", "docker mode"],
   ["$runtimeSlug = if ($Mode -eq 'docker') { Get-ProjectSlug '/work/project' } else { $slug }", "the runtime's slug"],
+];
+
+export const PS1_MEMORY_MOUNT: readonly Mention[] = [
+  [`'--mount', "\${projectState}/memory:/memory:rw"`, "the mount"],
+  ["$env:ORKEON_Orkeon__Cli__Memory__RootDirectory = '/memory'", "the folder"],
+  ["'-e', 'ORKEON_Orkeon__Cli__Memory__RootDirectory=/memory'", "docker mode"],
 ];
 
 export const PS1_SESSIONS: readonly Mention[] = [

@@ -18,10 +18,10 @@ import { dirname, join } from "node:path";
 import {
   ARCHIVE_VERSION, BASH_GATE, BLOCK, BUILDING_LINE, CODE_VERSION, CORRUPT_STORES, DEB_WRAPPER, DOTNET, CONSOLE_APP_DLL, ESBUILD, EXAMPLE_SETTINGS,
   EXAMPLE_SETTINGS_FILES, FOLLOWED_CHECKOUTS, GATE, KEPT_CHECKOUTS, KEEP_OUT_OF_RANGE, NO_FILE_SETTINGS, NOT_AT_THE_PIN, OLLAMA_AND_EXISTING, PERSIST, PINNED_SDK, PROJECT_NAMES, PS1_ARGS_LOOP,
-  PS1_CLONE_OR_INSTALL, PS1_DOCKER_TTY, PS1_FROM_PROJECT, PS1_GATE, PS1_MODES, PS1_SESSION_MOUNTS, PS1_SESSIONS, PS1_SET_VARIABLES,
+  PS1_CLONE_OR_INSTALL, PS1_DOCKER_TTY, PS1_FROM_PROJECT, PS1_GATE, PS1_MODES, PS1_MEMORY_MOUNT, PS1_SESSION_MOUNTS, PS1_SESSIONS, PS1_SET_VARIABLES,
   PS1_SETTINGS, PS1_SLUG, PS1_SPEECH, PS1_STORE_LAYOUT, PS1_SUBCOMMANDS, PS1_TRUST_CHECK, PS1_TRUST_REFUSAL, PS1_USER_SETTINGS,
   PS1_VERSION_LINES, PTY, PWSH, RESTORED_IN_FINALLY, RESTORED_NAMES, ROOTS, RUNTIME_SETTINGS, RUNTIME_SLUGS, RUNTIME_PIN, RUNTIME_REF,
-  SERVER_CASES, SERVER_LEFT_OUT, SESSIONS_DIR, SETTINGS_TEXT, SETTINGS_WITH_BLOCK, SLUG_PATHS, SPEECH_TOOL, START_SCRIPT, TOOL_REPL,
+  SERVER_CASES, SERVER_LEFT_OUT, MEMORY_DIR, SESSIONS_DIR, SETTINGS_TEXT, SETTINGS_WITH_BLOCK, SLUG_PATHS, SPEECH_TOOL, START_SCRIPT, TOOL_REPL,
   TOOL_START, USER_SETTINGS, WHISPER, audioEnv, bashOf, checkoutHead, ciStarts, corruptHome, crewSource, fullHistory, gitAt, launch, launchWithNode, orkeonCheckoutAtAnotherCommit, orkeonCheckoutBehindThePin,
   leftBeside, linkedFolder, modeStart, mostWhisperArgs, mountOf, mountRoots, namedProjectStart, nestedTrust, orkeonCheckout,
   pwshOf, read, recorder, removeScratch, runCrew, runPs1ThenPrint, scratchDir, scratchFolder, serverArgs, serverOf,
@@ -2006,6 +2006,20 @@ describe("orkeon-code, per-project state (LI-4)", () => {
     ok(r.stdout.includes(`  sessions : ${s.own}/sessions (fresh; --continue brings the last back, --resume lists them)`), r.stdout);
   });
 
+  it("mounts the project's memory on /memory beside the sessions and names it to the runtime, nothing in the project", () => {
+    // Arrange
+    const s = sessionScene();
+
+    // Act
+    const r = s.run([]);
+
+    // Assert
+    strictEqual(r.status, 0, r.stderr);
+    strictEqual(r.env.get(MEMORY_DIR), "/memory");
+    strictEqual(mountOf(r, "/memory"), `${s.own}/memory:/memory:rw`);
+    ok(!existsSync(join(s.project, ".orkeon")), "nothing written in the project");
+  });
+
   it("keeps a persistence value the user exported", () => {
     // Arrange
     const s = sessionScene();
@@ -2394,6 +2408,17 @@ describe("orkeon-code.ps1 keeps the state and the sessions as ./orkeon-code does
 
     // Assert
     assertMentions(script, PS1_SESSION_MOUNTS);
+  });
+
+  it("mounts /memory and names it to the runtime, in both modes", () => {
+    // Arrange
+    const launcher = "orkeon-code.ps1";
+
+    // Act
+    const script = read(launcher);
+
+    // Assert
+    assertMentions(script, PS1_MEMORY_MOUNT);
   });
 
   it("archives unless --continue, resumes by number or id, keeps 50, and steps aside for an open session", () => {

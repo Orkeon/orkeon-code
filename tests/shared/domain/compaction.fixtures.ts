@@ -63,6 +63,31 @@ export const URL_WORDS_THEN_PATHS = [
 export const MEMORY_CATEGORIES: readonly string[] = ["user", "project", "feedback", "reference"];
 
 /** An extraction with one valid item, an invalid category, a blank content and a missing one. */
+/** Two entries the store holds, as the extraction lists them. */
+export const KNOWN_WITH_IDS = [
+  { id: 4, category: "project", content: "uses npm" },
+  { id: 9, category: "project", content: "releases on Fridays" },
+];
+
+/** An extraction whose items name known entries they replace: a listed one, the same one again, an unknown one, and
+ *  a number that is no id. */
+export const EXTRACTION_WITH_REPLACES = {
+  items: [
+    { category: "project", content: "uses pnpm", replaces: 4 },
+    { category: "project", content: "uses pnpm 9", replaces: 4 },
+    { category: "project", content: "releases on Mondays", replaces: 12 },
+    { category: "project", content: "deploys from main", replaces: 9.5 },
+  ],
+};
+
+/** EXTRACTION_WITH_REPLACES as sanitized against KNOWN_WITH_IDS: only the first claim on a listed entry is kept. */
+export const REPLACES_KEPT = [
+  { category: "project", content: "uses pnpm", replaces: 4 },
+  { category: "project", content: "uses pnpm 9" },
+  { category: "project", content: "releases on Mondays" },
+  { category: "project", content: "deploys from main" },
+];
+
 export const EXTRACTION_WITH_INVALID = {
   items: [
     { category: "project", content: "uses pnpm" },

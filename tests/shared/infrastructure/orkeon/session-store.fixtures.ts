@@ -84,3 +84,11 @@ export function storeFailingAppend(message: string): (input: { operation: string
 export function operationsOf(inputs: unknown[]): string[] {
   return inputs.map((i) => (i as { operation: string }).operation);
 }
+
+/** A buffer of three turns after its head, as read_messages hands it on the release. */
+export const THREE_TURNS = [
+  { role: "user", content: "first request" },
+  { role: "user", content: "a" }, { role: "system", content: "[tools] edit_file" }, { role: "assistant", content: "done" },
+  { role: "user", content: "b" }, { role: "assistant", content: "done" },
+  { role: "user", content: "c" }, { role: "system", content: "[tools] shell_command" }, { role: "assistant", content: "done" },
+];

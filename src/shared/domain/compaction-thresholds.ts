@@ -51,9 +51,15 @@ export const MAX_CONSECUTIVE_FAILURES = 3;
  */
 export const TRANSCRIPT_CAP_CHARS = 48_000;
 
-/** Messages session_snip keeps when no summary is written (the fallback of a summary that failed, and the default of
- *  `/compact --snip`): the head anchor and the last messages, the current step's context. */
-export const SNIP_RETAIN_COUNT = 5;
+/** Turns the fallback of a failed summary keeps, besides the head: a turn is a user request with the tool traces and
+ *  the answer that follow it, kept whole (Orkeon #287). Two, below the runtime's default of three: the snip runs with
+ *  the window past the trigger, where three whole turns may free little; two keep the exchange a short reply answers
+ *  ("yes, do it") with the request still waiting at the head of a turn, about what the five messages kept before #287.
+ *  `/compact --snip` keeps SNIP_COMMAND_TURNS unless told otherwise. */
+export const SNIP_RETAIN_COUNT = 2;
+
+/** Turns `/compact --snip` keeps whole when it names no count: three, the runtime's own default (Orkeon #287). */
+export const SNIP_COMMAND_TURNS = 3;
 
 /** Facts extracted per compaction: a session yields a handful of durable facts;
  *  more is task state passing for memory. */

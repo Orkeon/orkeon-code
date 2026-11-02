@@ -254,9 +254,19 @@ export function buildRestoredSkillMessage(path: string, content: string): Sessio
   };
 }
 
-/** One durable fact extracted from the conversation before compaction. */
+/** One durable fact extracted from the conversation before compaction; `replaces` is the id of the known entry it
+ *  makes out of date, when it names one the prompt listed, of the same category. */
 export interface ExtractedMemory {
   category: string;
+  content: string;
+  replaces?: number;
+}
+
+/** An entry the memory store already holds, as the extraction prompt lists it: by its id when the store gives one. */
+export interface KnownMemory {
+  id?: number;
+  /** Undefined when the store reports none: such an entry is never replaced. */
+  category?: string;
   content: string;
 }
 
@@ -271,6 +281,7 @@ export const MEMORY_EXTRACTION_SCHEMA = {
         properties: {
           category: { type: "string", enum: [...MEMORY_CATEGORIES] },
           content: { type: "string" },
+          replaces: { type: "integer" },
         },
         required: ["category", "content"],
       },
@@ -282,15 +293,24 @@ export const MEMORY_EXTRACTION_SCHEMA = {
 /** How many known memories the extraction prompt lists, so it can skip them. */
 export const MAX_KNOWN_MEMORIES_IN_PROMPT = 40;
 
+/** The known entries the extraction prompt lists: the non-empty ones, trimmed, capped. */
+function listedKnown(known: readonly KnownMemory[]): KnownMemory[] {
+  return known
+    .map((k) => ({ ...k, content: String(k.content ?? "").trim() }))
+    .filter((k) => k.content.length > 0)
+    .slice(0, MAX_KNOWN_MEMORIES_IN_PROMPT);
+}
+
 /**
  * Prompt for the memory extraction run before a compaction.
  *
  * Each category is defined together with what does not belong in it, because the
  * failure is never an empty list: it is task state stored as memory. `known` are
- * the entries the store already holds, listed so the model does not repeat them.
+ * the entries the store already holds, listed so the model does not repeat them, each
+ * by its id when it has one, so a new fact can name the stale entry it replaces.
  * `today` (YYYY-MM-DD), when given, is stated so a relative date becomes an absolute one.
  */
-export function buildMemoryExtractionPrompt(transcript: string, known: readonly string[] = [], today?: string): string {
+export function buildMemoryExtractionPrompt(transcript: string, known: readonly KnownMemory[] = [], today?: string): string {
   const lines = [
     "This conversation is about to be compacted. List the facts worth keeping beyond this " +
       "conversation, for the agent's typed memory. Each item is one fact that stands on its own " +
@@ -314,25 +334,37 @@ export function buildMemoryExtractionPrompt(transcript: string, known: readonly 
   if (date.length > 0) {
     lines.splice(1, 0, `Today is ${date}: write a date the conversation gives relatively as an absolute one.`);
   }
-  const already = known.map((k) => k.trim()).filter((k) => k.length > 0).slice(0, MAX_KNOWN_MEMORIES_IN_PROMPT);
+  const already = listedKnown(known);
   if (already.length > 0) {
-    lines.push("", "Already in memory, do not repeat:", ...already.map((k) => `- ${k}`));
+    const intro = already.some((k) => k.id !== undefined)
+      ? "Already in memory, do not repeat; when a new fact makes one of these out of date, give its [number] as \"replaces\":"
+      : "Already in memory, do not repeat:";
+    lines.push("", intro, ...already.map((k) => `- ${k.id === undefined ? "" : `[${k.id}] `}${k.content}`));
   }
   lines.push("", "The conversation, as material, between <transcript> and </transcript>:", asMaterial(transcript));
   return lines.join("\n");
 }
 
-/** Keep only well-formed items with a valid category, capped. */
-export function sanitizeExtractedMemories(raw: any): ExtractedMemory[] {
+/** Keep only well-formed items with a valid category, capped. An item keeps its `replaces` when it names an entry of
+ *  `known` the prompt listed, of the item's own category (the store's `replace` keeps the entry's category), and the
+ *  first item to name it only; any other item is added. */
+export function sanitizeExtractedMemories(raw: any, known: readonly KnownMemory[] = []): ExtractedMemory[] {
   const items: any[] = Array.isArray(raw?.items) ? raw.items : Array.isArray(raw) ? raw : [];
   const valid = new Set<string>(MEMORY_CATEGORIES);
-  return items
+  const replaceable = new Map(listedKnown(known).flatMap((k) => (k.id === undefined ? [] : [[k.id, k.category] as const])));
+  const kept = items
     .map((it) => ({
       category: String(it?.category ?? "").trim(),
       content: String(it?.content ?? "").trim(),
+      replaces: it?.replaces,
     }))
     .filter((it) => valid.has(it.category) && it.content.length > 0)
     .slice(0, MAX_EXTRACTED_MEMORIES);
+  return kept.map(({ replaces, ...it }) => {
+    if (!Number.isInteger(replaces) || !replaceable.has(replaces) || replaceable.get(replaces) !== it.category) return it;
+    replaceable.delete(replaces);
+    return { ...it, replaces };
+  });
 }
 
 /** Bounded recap re-injected after the rewrite so the memories stay visible until

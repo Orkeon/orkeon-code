@@ -32,8 +32,9 @@ Le runtime exécute les sources sous des règles qui façonnent tout ce qui suit
 - **Le sac d'état de la session est le seul état partagé.** Commandes, crews et tours partagent ce que la session
   détient : le tampon de conversation et le sac d'état (`session_store`), vidés par `/clear`. Le fichier de settings
   (`/workspace/.orkeon/config.json`) est le stockage durable. La mémoire typée dure tant que le runtime la garde :
-  aujourd'hui le processus Orkeon, elle n'atteint donc pas une exécution suivante (Orkeon #286 demande sa
-  persistance).
+  par projet dans un fichier quand `Orkeon:Cli:Memory:Persist` est actif (le défaut du REPL, et celui des settings
+  d'exemple), elle atteint donc une exécution suivante ; sinon dans le processus Orkeon, avec lequel elle meurt
+  (Orkeon #286).
 - **Un crew se charge de façon synchrone et ne voit que ses `inputs`.** Sa portée module ne peut pas attendre : ce qui
   décide du catalogue d'outils (le mode, les outils supplémentaires, les règles de permission) est résolu par la
   commande qui lance le crew et lui parvient en entrée.
@@ -198,7 +199,7 @@ rend le texte, ou le message d'échec propre à l'outil sans l'enrobage du runti
 | `RuntimeInfoReader` | Le runtime qui exécute la commande : version, commit, canal (le service `runtime`, Orkeon #225) | `runtime-info.ts` | `fake-runtime-info.ts` |
 | `UsageReader` | L'usage LLM de la session, en tout, par modèle et par commande (le service `usage`, Orkeon #226) | `usage.ts` | `fake-usage-reader.ts` |
 | `Telemetry` | Les métadonnées, le coût et les statistiques de la session (`session_store`, `session_cost`, `session_stats`) | `telemetry.ts` | `fake-telemetry.ts` |
-| `MemoryStore` | La mémoire typée : lister, ajouter, lire, retirer (`memory_store`) | `memory-store.ts` | `fake-memory-store.ts` |
+| `MemoryStore` | La mémoire typée : lister, ajouter, lire, retirer, remplacer en place (`memory_store`) | `memory-store.ts` | `fake-memory-store.ts` |
 | `ToolCatalogue` | Les outils enregistrés sous leurs noms d'enregistrement, trouvés sans tenir compte de la casse comme Orkeon les trouve, pour les diagnostics et la vérification des outils supplémentaires (le service `tools` de `ctx.services` pour les noms, l'espace de noms `tools` pour les appels : `call` brut, `callText` décodé) | `tool-catalogue.ts` | `fake-tool-catalogue.ts` |
 | `CodeIndex` | L'index du code tel que `/analyze` le récolte et que `/init` en lit la carte des paquets (`index_status`, `index_codebase`, `codebase_map`, `dependency_graph`, `package_summary`) | `code-index.ts` | `fake-code-index.ts` |
 | `CostIndex` | Le coût d'accès que `/dev-batches` mesure : les racines indexées, le rafraîchissement des fichiers du lot, le rapport (`index_status`, `incremental_reindex`, `access_cost`) | `code-index.ts` | `fake-cost-index.ts` |
@@ -321,7 +322,7 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 | `git-commit` | séquentiel | `/commit` | Rédige un commit conventionnel à partir du diff, commite après confirmation |
 | `code-review` | séquentiel | `/review` (`--lens` pour un seul angle, `--passes` pour les tours de ce lancement ; les alias `/security-review` et `/passes`) | Revue multi-angles des changements indexés, constats classés |
 | `analyze` | séquentiel | `/analyze` | Index, carte des paquets, graphe des modules, chaque paquet lu pour ses dépendances et ses modules d'entrée (un paquet dont seuls ses tests dépendent reste une entrée), résumé des paquets d'entrée et des plus gros, puis une synthèse (`--raw` saute le LLM) |
-| `session-compact` | séquentiel | `/compact` (`--snip` pour tronquer seulement), la compaction automatique | Sauve les faits durables en mémoire typée, puis résume le tampon entier à sa place ; `--snip`, ou un résumé qui échoue, coupe seulement aux messages récents, avec un marqueur |
+| `session-compact` | séquentiel | `/compact` (`--snip` pour tronquer seulement), la compaction automatique | Sauve les faits durables en mémoire typée, puis résume le tampon entier à sa place ; `--snip`, ou un résumé qui échoue, coupe seulement aux derniers tours entiers, avec un marqueur |
 | `init-verifiers` | séquentiel, sans outil | `/init-verifiers` | Détecte l'outillage de test à partir de chaque manifeste, écrit des guides de vérification pour les zones non couvertes |
 | `advisor` | séquentiel, sans outil | `/advisor` | Un second avis sur la dernière réponse, par un autre modèle |
 | `speech` | séquentiel, sans outil, sans LLM | `/transcribe`, `/voice`, `/say` | Un appel au serveur MCP de parole (`transcribe_audio`, `list_audio`, `record_and_transcribe`, `speak`), au nom de la commande |
@@ -373,8 +374,9 @@ Le corps de l'agent `main-loop` est la boucle (`crews/main-loop/application/run-
    échec étant un avertissement ; compacter de nouveau si le tour a laissé le tampon saturé.
 
 La session vit dans le runtime : un tampon de conversation (`session_store`, `session_snip`, `token_budget`), un sac
-d'état (`get_state`/`set_state`), la mémoire typée (`memory_store` : user, project, feedback, reference) et le coût et
-l'usage (`session_cost`, `session_stats`).
+d'état (`get_state`/`set_state`), la mémoire typée (`memory_store` : user, project, feedback, reference ; gardée par
+projet dans un fichier quand `Orkeon:Cli:Memory:Persist` est actif, Orkeon #286) et le coût et l'usage
+(`session_cost`, `session_stats`).
 
 Un tour lit les clés d'état dont il a besoin en un seul appel `get_state` à son début (`TURN_STATE_KEYS` dans
 `run-main-loop.ts`, servies par `shared/application/state-snapshot.ts` : une clé hors de la liste est lue seule), et
@@ -484,8 +486,8 @@ un changement comme un diff.
   n'apparaissent que dans les modes qui offrent ces outils.
 - **Refus** : un outil non offert (les outils de script sont offerts sans être listés) ou un appel refusé est une
   décision du mode ou de l'utilisateur ; changer d'approche au lieu de répéter l'appel.
-- **Recherche** : router par type de fichier : le code va à l'index (`codebase_search`, identifiants exacts comme
-  paraphrases) ; un nom, une clé ou un texte exact dans tout autre fichier (configuration, données, documents) va à
+- **Recherche** : router par type de fichier : le code va à l'index (`codebase_search`, dont la description dit
+  qu'il cherche par les mots et par le sens) ; un nom, une clé ou un texte exact dans tout autre fichier (configuration, données, documents) va à
   `grep`, un `glob` pour resserrer, puis `file_read` ; une question de sens sur de la prose va à `rag_search` sur la
   collection `workspace-docs`, qui ne contient que ce qui y a été ingéré : les lignes qui disent d'ingérer, et de
   réingérer après avoir modifié un document, n'apparaissent que là où `rag_ingest` est offert ; un mode en lecture
@@ -495,19 +497,24 @@ un changement comme un diff.
   ne couvre se trouve avec `glob` et se lit.
 - **De la question à l'outil** (`shared/domain/code-intel-routing.ts`) : chaque sorte de question va à l'outil qui
   y répond, avec le paramètre qui le fait répondre : la forme du dépôt à `codebase_map`, un symbole à
-  `codebase_search` (`filter_kinds` pour un genre), ce qu'un type étend à `symbol_detail` avec `expand:
-  "inheritance"`, qui l'étend à `sub_graph` en remontant les arêtes `inherits`, les appelants, l'impact et les tests
+  `codebase_search` (`filter_kinds` pour un genre), les bases d'un type et ce qui en dérive ou l'implémente à
+  `symbol_detail` avec `expand: "Inheritance"` (les drapeaux tels que le schéma les écrit), qui appelle ou étend un
+  symbole sur plusieurs sauts à `sub_graph` en remontant les arêtes `calls` ou `inherits`, toutes les arêtes d'un
+  genre dans tout l'index ou sous un `root_fqn` (toutes les classes de base, implémentations ou imports) à
+  `edge_list` (Orkeon #280), page par page avec `next_cursor` et un `total`, les appelants, l'impact et les tests
   concernés à `symbol_detail`, `impact_analysis` et `affected_tests`, une forme de code dans tout le dépôt à
-  `structural_search`, un texte à `count_pattern` ou `grep`. Chaque ligne montre l'appel avec l'argument dont l'outil
-  a besoin (`codebase_search(query)`, `flow_trace(from)`, `affected_tests(changed_files)`), car le catalogue ne le
-  porte pas toujours. Une ligne n'est écrite que si l'agent a tous les
+  `structural_search` avec son `language` (la syntaxe du motif est dans la description de l'outil), un texte à
+  `count_pattern` ou `grep`. Chaque ligne montre l'appel avec l'argument dont l'outil a besoin
+  (`codebase_search(query)`, `flow_trace(from)`, `affected_tests(changed_files)`), les paramètres que publient les
+  schémas du runtime et rien de ce que la description de l'outil dit déjà. Une ligne n'est écrite que si l'agent a tous les
   outils qu'elle nomme : le reviewer (les outils de sa charte, moins pour un prochain lot) et l'auditeur reçoivent le
   même routage, réduit à leurs outils. Le préambule envoie une question à l'index avant de lire ou d'écrire un
   script. À un agent qui a un shell, la règle d'un résultat marqué `truncated` ajoute qu'une question resserrée vaut
   mieux qu'un script sur tous les fichiers ; les autres, dont le reviewer et l'auditeur, apprennent à
   interroger l'index avant de lire. Un résultat marqué `truncated` est un échantillon : la réponse le dit et la
-  question est resserrée (un package, un `root_fqn` pour un agent qui a `codebase_map` ou `dependency_graph`, les
-  outils qui le prennent, un `glob`). La règle de lecture bornée que partagent les
+  question est resserrée (un package, un `root_fqn` pour un agent qui a `codebase_map`, `dependency_graph` ou
+  `edge_list`, les outils qui le prennent, un `glob`) ; le runtime ne marque un résultat
+  `truncated` que s'il en existe plus qu'il n'en rend (Orkeon #283), ce qui en fait un échantillon. La règle de lecture bornée que partagent les
   lecteurs dev (`shared/domain/dev/reading-rule.ts`) demande en un seul tour les lectures déjà connues, puisque le
   runtime les lance ensemble, et c'est le seul endroit qui interdit de lire un fichier entier pour lui-même.
 - **Instructions du projet** : l'`AGENTS.md` du projet, sinon son `CLAUDE.md`, tel quel, sous un titre qui nomme le
@@ -519,9 +526,10 @@ un changement comme un diff.
   explication demandée, la sortie d'erreur et les avertissements de sécurité) et la langue des réponses (le réglage
   `answer.language`).
 - **Skills** : les guides attachés, à appliquer à la tâche, chacun plafonné et marqué quand il est coupé.
-- **Mémoire** : les notes sauvées plus tôt (à une compaction ou par `/memory add`), présentées comme vraies quand
-  elles ont été écrites mais possiblement dépassées (jamais comme venant de sessions précédentes : la mémoire typée
-  vit aujourd'hui dans le processus du runtime, Orkeon #286) : vérifier que ce qu'une note nomme existe encore ; la requête l'emporte.
+- **Mémoire** : les notes sauvées plus tôt, dans cette session ou une précédente (à une compaction ou par
+  `/memory add` ; le runtime garde la mémoire typée par projet quand sa persistance est active, Orkeon #286),
+  présentées comme vraies quand elles ont été écrites mais possiblement dépassées : vérifier que ce qu'une note nomme
+  existe encore ; la requête l'emporte.
 - **Hooks** : ce qui est déclaré, et que rien ne l'exécute encore.
 - **Historique** : les tours précédents, du plus ancien au plus récent, sans la requête courante, éventuellement
   ouverts par un résumé de compaction, ou par une note `[compacted]` disant que des tours antérieurs ont été retirés
@@ -547,9 +555,12 @@ un changement comme un diff.
 - **Chaîne** (`shared/application/compaction/compact-session.ts`) : toute compaction au-delà du seuil, et tout
   `/compact`, paie un appel de résumé. Le résumé est écrit depuis le tampon tel qu'il était avant toute coupe, la même
   transcription que lit l'extraction de mémoire (sa tête et sa queue gardées quand il faut la rogner), donc il voit
-  toute la session et pas seulement les derniers messages. La coupe seule (la tête et les messages récents) est
-  `/compact --snip`, et le repli quand le résumé revient vide ou que son appel échoue : le tampon est alors coupé et
-  un message `[compacted]` ajouté, qui dit que des tours antérieurs ont été retirés sans résumé et de demander à
+  toute la session et pas seulement les derniers messages. La coupe seule (la tête et les derniers tours, chacun
+  gardé entier : un tour est une requête avec son `[turn-context]`, ses traces d'outils et sa réponse) est
+  `/compact --snip` (trois tours sauf indication contraire), et le repli quand le résumé revient vide ou que son appel
+  échoue (deux tours, pour libérer la fenêtre, au-delà du seuil ; un tampon qui n'en tient pas plus est laissé tel
+  quel, et la compaction échoue sans repli) : le tampon est alors coupé et un message `[compacted]` ajouté juste après
+  la tête, avant les tours gardés, qui dit que des tours antérieurs ont été retirés sans résumé et de demander à
   l'utilisateur ce qui manque, pour que l'agent lise le trou comme un trou ; l'issue compte toujours comme une
   compaction échouée pour le disjoncteur. Une compaction en tête de tour garde la requête qui attend encore sa
   réponse, avec son `[turn-context]`, à la fin du tampon reconstruit, après le résumé et ce qui revient, pour que la
@@ -577,7 +588,10 @@ un changement comme un diff.
   d'outil ou un texte collé affirmait ; dans le doute, s'abstenir ; une liste vide est une réponse valide.
   L'extraction reçoit la date du jour (le cas d'usage lit le port `Clock` ; le jour UTC, celui que donne la ligne
   Environnement), pour qu'une date relative dans la
-  conversation devienne une date absolue dans une mémoire.
+  conversation devienne une date absolue dans une mémoire. Les entrées que la mémoire tient déjà sont listées par leur
+  numéro, les plus récentes d'abord, à ne pas répéter ; un fait nouveau qui en rend une dépassée la nomme (`replaces`), et le cas d'usage remplace
+  cette entrée en place (`replace` de `memory_store`), ou ajoute le fait quand le stockage refuse ; un numéro que la
+  liste ne montrait pas, ou nommé deux fois, est ignoré.
 - **Rappel des mémoires** (`[memories]`) : les faits sauvés à la compaction qui vient d'avoir lieu, dit ainsi dans le
   rappel lui-même ; le bloc Mémoire les montre à partir du tour suivant.
 
@@ -817,7 +831,7 @@ messages).
   disjoncteur conservé dans l'état de session pour qu'une compaction qui échoue ne boucle pas.
 - **`/compact [<focus>]`** passe les faits durables en mémoire typée, puis résume toute la session, le tampon tel
   qu'il était avant toute coupe ; le résumé garde un ensemble fixe de parties, pondéré vers le focus quand il y en a
-  un. La coupe seule (la tête plus les derniers messages) est `--snip`, et le repli d'un résumé qui échoue, marqué
+  un. La coupe seule (la tête plus les derniers tours entiers) est `--snip`, et le repli d'un résumé qui échoue, marqué
   dans le tampon. Les seuils et budgets sont dérivés dans `shared/domain/compaction-thresholds.ts`
   des faits dont ils dépendent (la coupe du runtime sur la lecture d'un fichier, la taille de réponse des settings
   d'exemple, le plafond de l'en-tête).

@@ -57,3 +57,7 @@
       href: ../adr/0013-pin-on-orkeon-commit.md
     - name: "ADR 0014 : Orkeon main après #244, niveaux d'effort, index parallèle et cache d'index (en anglais)"
       href: ../adr/0014-orkeon-after-244.md
+    - name: "ADR 0015 : Orkeon main après #276, le contexte à part de la requête (en anglais)"
+      href: ../adr/0015-orkeon-after-276.md
+    - name: "ADR 0016 : Orkeon main après #280, la liste d'arêtes, des résultats d'analyse bornés et une mémoire persistée (en anglais)"
+      href: ../adr/0016-orkeon-after-280.md

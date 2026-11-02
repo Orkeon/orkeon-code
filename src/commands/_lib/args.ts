@@ -3,6 +3,7 @@
 // memory.cmd.ts:12-37 and assistant.cmd.ts:9-13.
 
 import { MEMORY_CATEGORIES } from "../../shared/domain/agent-policy/memory-categories.ts";
+import { SNIP_COMMAND_TURNS } from "../../shared/domain/compaction-thresholds.ts";
 
 export type ParsedMemory =
   | { sub: "add"; category: string; content: string }
@@ -53,12 +54,12 @@ export function rawText(args: any): string {
   return ((args?.raw ?? []) as string[]).join(" ").trim();
 }
 
-/** `/compact [--snip [N] | <focus>]`: the snip-only path with how many messages to
- *  keep (3 by default), or the focus of the summary. */
+/** `/compact [--snip [N] | <focus>]`: the snip-only path with how many turns to
+ *  keep whole (SNIP_COMMAND_TURNS by default, as the runtime), or the focus of the summary. */
 export function parseCompactArgs(tokens: readonly string[]): { snip: number } | { focus: string } {
   if (tokens[0] === "--snip") {
     const n = Number(tokens[1]);
-    return { snip: Number.isInteger(n) && n > 0 ? n : 3 };
+    return { snip: Number.isInteger(n) && n > 0 ? n : SNIP_COMMAND_TURNS };
   }
   return { focus: tokens.join(" ").trim() };
 }

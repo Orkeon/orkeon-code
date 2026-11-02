@@ -59,8 +59,10 @@ export interface SessionStore {
   appendMessage(role: string, content: string): Promise<void>;
   /** Empty the conversation buffer; resolves to how many entries it removed. */
   reset(): Promise<number>;
-  /** Cut the buffer down to its head and its last `retain` messages (a turn is several messages). */
-  snip(retain: number): Promise<SnipResult>;
+  /** Cut the buffer down to its head and its last `turns` turns as the runtime counts them (Orkeon #287): a turn opens
+   *  at each user message, the stored [turn-context] included, and is never split. Fewer turns than asked, or none
+   *  after the head, leave the buffer untouched (0 removed). */
+  snip(turns: number): Promise<SnipResult>;
   setTitle(title: string): Promise<void>;
   /** A state value; null when unset. */
   readState(key: string): Promise<string | null>;

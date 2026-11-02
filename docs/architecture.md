@@ -30,8 +30,9 @@ The runtime runs the sources under rules that shape everything below:
   registry, a container or a cache shared by the commands and the crews cannot exist.
 - **The session state bag is the only shared state.** Commands, crews and turns share what the session holds: the
   conversation buffer and the state bag (`session_store`), cleared by `/clear`. The settings file
-  (`/workspace/.orkeon/config.json`) is the durable store. Typed memory lasts as long as the runtime keeps it: today
-  the Orkeon process, so it does not reach a later run (Orkeon #286 asks for its persistence).
+  (`/workspace/.orkeon/config.json`) is the durable store. Typed memory lasts as long as the runtime keeps it: per
+  project in a file when `Orkeon:Cli:Memory:Persist` is on (the REPL's default, and the example settings'), so it
+  reaches a later run; otherwise in the Orkeon process, which it dies with (Orkeon #286).
 - **A crew loads synchronously and sees only its `inputs`.** Its module scope cannot await: what decides the tool
   catalogue (the mode, the extra tools, the permission rules) is resolved by the launching command and reaches the
   crew as input.
@@ -190,7 +191,7 @@ the text, or the tool's own failure message without the runtime's wrapping, and 
 | `RuntimeInfoReader` | The runtime that runs the command: version, commit, channel (the `runtime` service, Orkeon #225) | `runtime-info.ts` | `fake-runtime-info.ts` |
 | `UsageReader` | The session's LLM usage, in total, by model and by command (the `usage` service, Orkeon #226) | `usage.ts` | `fake-usage-reader.ts` |
 | `Telemetry` | The session's metadata, cost and statistics (`session_store`, `session_cost`, `session_stats`) | `telemetry.ts` | `fake-telemetry.ts` |
-| `MemoryStore` | Typed memory: list, add, get, remove (`memory_store`) | `memory-store.ts` | `fake-memory-store.ts` |
+| `MemoryStore` | Typed memory: list, add, get, remove, replace in place (`memory_store`) | `memory-store.ts` | `fake-memory-store.ts` |
 | `ToolCatalogue` | The registered tools under their registered names, found case-insensitively as Orkeon finds them, for diagnostics and the extra tools' check (the `tools` service of `ctx.services` for the names, the `tools` namespace for the calls: `call` raw, `callText` decoded) | `tool-catalogue.ts` | `fake-tool-catalogue.ts` |
 | `CodeIndex` | The code index as `/analyze` harvests it and `/init` reads its package map (`index_status`, `index_codebase`, `codebase_map`, `dependency_graph`, `package_summary`) | `code-index.ts` | `fake-code-index.ts` |
 | `CostIndex` | The access cost `/dev-batches` measures: the indexed roots, the refresh of the batch's files, the report (`index_status`, `incremental_reindex`, `access_cost`) | `code-index.ts` | `fake-cost-index.ts` |
@@ -310,7 +311,7 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 | `git-commit` | sequential | `/commit` | Drafts a conventional commit from the diff, commits after confirmation |
 | `code-review` | sequential | `/review` (`--lens` for one lens, `--passes` for this run's rounds; the aliases `/security-review` and `/passes`) | Multi-lens review of the staged changes, ranked findings |
 | `analyze` | sequential | `/analyze` | Index, package map, module graph, every package read for its dependencies and entry modules (a package only its tests depend on still starts the rest), the entry packages and the largest summarized, then a synthesis (`--raw` skips the LLM) |
-| `session-compact` | sequential | `/compact` (`--snip` to truncate only), automatic compaction | Saves lasting facts to typed memory, then summarises the whole buffer in its place; `--snip`, or a summary that fails, only cuts to the recent messages, with a marker |
+| `session-compact` | sequential | `/compact` (`--snip` to truncate only), automatic compaction | Saves lasting facts to typed memory, then summarises the whole buffer in its place; `--snip`, or a summary that fails, only cuts to the last whole turns, with a marker |
 | `init-verifiers` | sequential, no tools | `/init-verifiers` | Detects test tooling from every manifest, writes verification playbooks for uncovered zones |
 | `advisor` | sequential, no tools | `/advisor` | A second opinion on the last answer from another model |
 | `speech` | sequential, no tools, no LLM | `/transcribe`, `/voice`, `/say` | One call to the speech MCP server (`transcribe_audio`, `list_audio`, `record_and_transcribe`, `speak`), as the command's |
@@ -358,8 +359,8 @@ The `main-loop` agent's body is the loop (`crews/main-loop/application/run-main-
    warning; compact again if the turn left the buffer saturated.
 
 The session lives in the runtime: a conversation buffer (`session_store`, `session_snip`, `token_budget`), a state
-bag (`get_state`/`set_state`), typed memory (`memory_store`: user, project, feedback, reference) and cost and usage
-(`session_cost`, `session_stats`).
+bag (`get_state`/`set_state`), typed memory (`memory_store`: user, project, feedback, reference; kept per project in
+a file when `Orkeon:Cli:Memory:Persist` is on, Orkeon #286) and cost and usage (`session_cost`, `session_stats`).
 
 A turn reads the state keys it needs in one `get_state` call at its start (`TURN_STATE_KEYS` in `run-main-loop.ts`,
 answered by `shared/application/state-snapshot.ts`: a key outside the list is read alone), and stores each message
@@ -451,8 +452,8 @@ prompt as the model reads it, to review a change as a diff.
   lines about writing, editing, the shell and the web appear only in the modes that offer those tools.
 - **Refusals**: a tool not offered (the script tools are offered without being listed) or a refused call is a
   decision of the mode or the user; change approach instead of repeating the call.
-- **Search**: route by file type: code goes to the index (`codebase_search`, exact identifiers and paraphrases
-  alike); a name, a key or an exact text in any other file (configuration, data, documents) goes to `grep`, a `glob`
+- **Search**: route by file type: code goes to the index (`codebase_search`, whose own description says it matches
+  words and meaning); a name, a key or an exact text in any other file (configuration, data, documents) goes to `grep`, a `glob`
   to narrow, then `file_read`; a question of meaning over prose goes to `rag_search` on the `workspace-docs`
   collection, which holds only what was ingested there: the lines that say to ingest, and to ingest again after
   editing a document, appear only where `rag_ingest` is offered; a read-only mode is told that an empty answer
@@ -462,18 +463,22 @@ prompt as the model reads it, to review a change as a diff.
   is not, a file no index covers is found with `glob` and read.
 - **Question to tool** (`shared/domain/code-intel-routing.ts`): each kind of question goes to the tool that answers
   it, with the parameter that makes it answer: the shape of the repository to `codebase_map`, a symbol to
-  `codebase_search` (`filter_kinds` for one kind), what a type extends to `symbol_detail` with `expand:
-  "inheritance"`, who extends it to `sub_graph` going backward over `inherits` edges, callers, impact and the tests
-  concerned to `symbol_detail`, `impact_analysis` and `affected_tests`, a code shape across the repository to
-  `structural_search`, a text to `count_pattern` or `grep`. Each line shows the call with the argument the tool needs
-  (`codebase_search(query)`, `flow_trace(from)`, `affected_tests(changed_files)`), since the catalogue does not
-  always carry it. A line is written only when the agent holds every tool
+  `codebase_search` (`filter_kinds` for one kind), one type's bases and what derives from or implements it to
+  `symbol_detail` with `expand: "Inheritance"` (the flags as the schema spells them), who calls or extends a symbol
+  over several hops to `sub_graph` going backward over `calls` or `inherits` edges, every edge of one kind across the
+  index or under a `root_fqn` (every base class, implementation or import) to `edge_list` (Orkeon #280), paged by
+  `next_cursor` with a `total`, callers, impact and the tests concerned to `symbol_detail`, `impact_analysis` and
+  `affected_tests`, a code shape across the repository to `structural_search` with its `language` (the pattern
+  syntax is the tool's own description), a text to `count_pattern` or `grep`. Each line shows the call with the
+  argument the tool needs (`codebase_search(query)`, `flow_trace(from)`, `affected_tests(changed_files)`), the
+  parameters the runtime's schemas publish and nothing the tool's own description already says. A line is written only when the agent holds every tool
   it names, so the reviewer (its charter's tools, fewer for a next batch) and the auditor get the same routing,
   cut to their tools. The preamble sends a question to the index before reading or scripting. To an agent that holds
   a shell, the rule on a result marked `truncated` adds that a narrower question beats a script over every file; the
   others, the reviewer and the auditor among them, are told to ask the index before reading. A
   result marked `truncated` is a sample: the answer says so and the question is narrowed (a package, a `root_fqn` to
-  an agent holding `codebase_map` or `dependency_graph`, the tools that take it, a `glob`). The bounded reading rule the dev readers share (`shared/domain/dev/reading-rule.ts`) asks for the reads
+  an agent holding `codebase_map`, `dependency_graph` or `edge_list`, the tools that take it, a `glob`); the runtime
+  marks a result `truncated` only when more exist than it returned (Orkeon #283), which is what makes it a sample. The bounded reading rule the dev readers share (`shared/domain/dev/reading-rule.ts`) asks for the reads
   already known in one turn, since the runtime runs them together, and is the one place that forbids reading a whole
   file for its own sake.
 - **Project instructions**: the project's `AGENTS.md`, else its `CLAUDE.md`, verbatim, under a heading that names
@@ -484,9 +489,9 @@ prompt as the model reads it, to review a change as a diff.
 - **Preferences** (a `<system-reminder>`): the output style (`default` renders nothing; `concise` keeps a requested
   explanation, error output and safety warnings whole) and the answer language (the `answer.language` setting).
 - **Skills**: the attached playbooks, to apply to the task, each capped and marked when cut.
-- **Memory**: the notes saved earlier (at a compaction or with `/memory add`), introduced as true when written but
-  possibly out of date (never as coming from earlier sessions: typed memory lives in the runtime's process today,
-  Orkeon #286): check that what a note names still exists; the request wins.
+- **Memory**: the notes saved earlier, in this session or a past one (at a compaction or with `/memory add`; the
+  runtime keeps typed memory per project when its persistence is on, Orkeon #286), introduced as true when written
+  but possibly out of date: check that what a note names still exists; the request wins.
 - **Hooks**: what is declared, and that nothing runs it yet.
 - **History**: the earlier turns, oldest first, without the current request, possibly opened by a compaction
   summary, or by a `[compacted]` note saying that earlier turns were removed without one: its intro says a
@@ -510,9 +515,11 @@ prompt as the model reads it, to review a change as a diff.
 - **Pipeline** (`shared/application/compaction/compact-session.ts`): every compaction past the trigger, and every
   `/compact`, pays one summary call. The summary is written from the buffer as it stood before any cut, the same
   transcript the memory extraction reads (its head and its tail kept when it must be clipped), so it sees the whole
-  session and not only the last messages. The bare snip (the head and the recent messages) is `/compact --snip`, and
-  the fallback when the summary comes back empty or its call fails: the buffer is then cut and a `[compacted]` message
-  added, saying that earlier turns were removed without a summary and to ask the user for what is missing, so the
+  session and not only the last messages. The bare snip (the head and the last turns, each kept whole: a turn is a
+  request with its `[turn-context]`, its tool traces and its answer) is `/compact --snip` (three turns unless told
+  otherwise), and the fallback when the summary comes back empty or its call fails (two turns, so that the window,
+  past the trigger, is freed; a buffer that holds no more is left as it is, and the compaction fails without a
+  fallback): the buffer is then cut and a `[compacted]` message added right after the head, before the kept turns, saying that earlier turns were removed without a summary and to ask the user for what is missing, so the
   agent reads the gap as a gap; the outcome still counts as a failed compaction for the breaker. A compaction at the
   head of a turn keeps the request still waiting for its answer, with its `[turn-context]`, at the end of the rebuilt
   buffer, after the summary and what comes back, so the answer stored next follows its request.
@@ -537,6 +544,9 @@ prompt as the model reads it, to review a change as a diff.
   reason, `reference`); nothing the repository already records, no secret, nothing only a tool output or a pasted text
   claimed; when in doubt, leave it out; an empty list is a valid answer. The extraction receives today's date (the use
   case reads the `Clock` port; the UTC day, as the Environment line gives it), so a relative date in the conversation becomes an absolute one in a memory.
+  The entries memory already holds are listed by their number, the most recent first, not to be repeated; a new fact that makes one of them
+  out of date names it (`replaces`), and the use case replaces that entry in place (`memory_store` `replace`), or adds
+  the fact when the store refuses; a number the list did not show, or named twice, is ignored.
 - **Memory recap** (`[memories]`): the facts saved at the compaction that just happened, said so in the recap
   itself; the Memory block shows them from the next turn.
 
@@ -754,7 +764,7 @@ message (`Llm.complete` with `system`, over the runtime's message-array call).
   circuit breaker kept in the session state so a failing compaction does not loop.
 - **`/compact [<focus>]`** moves the lasting facts into typed memory, then summarises the whole session, the buffer as
   it stood before any cut; the summary keeps a fixed set of parts, weighted toward the focus when one is given. The
-  bare snip (head plus the last messages) is `--snip`, and the fallback of a failed summary, marked in the buffer. The thresholds and budgets are derived in `shared/domain/compaction-thresholds.ts` from the
+  bare snip (head plus the last whole turns) is `--snip`, and the fallback of a failed summary, marked in the buffer. The thresholds and budgets are derived in `shared/domain/compaction-thresholds.ts` from the
   facts they depend on (the runtime's cut of a file read, the example settings' answer size, the header's ceiling).
 - **File restore** re-reads, after a compaction, the files the conversation was working on (whole, or named with a
   note to read them again when too large: never a cut copy), and the attached skills.
