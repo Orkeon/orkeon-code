@@ -7,17 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed — the runtime pin moves to Orkeon main a685233 (#280, #282–#287)
+### Changed — the runtime pin moves to Orkeon main c101cbd (#280, #282–#288)
 
-- The runtime pin moves to Orkeon `main` `a685233` (Orkeon #281, [ADR 0016](docs/adr/0016-orkeon-after-280.md)),
+- The runtime pin moves to Orkeon `main` `c101cbd` (Orkeon #281 and #289, [ADR 0016](docs/adr/0016-orkeon-after-280.md)),
   which closes #280 and the six issues Orkeon Code opened from its prompts audit: the analysis tools publish their
   parameter schema (#282), put `truncated`, the counts and the cursor first, draw no mermaid unless asked and are
   bounded at 12 000 characters (#283), their descriptions say which question they answer (#284), `extract` takes a
   system prompt and messages (#285, not used yet), `memory_store` persists per project (#286) and `session_snip`
-  keeps whole turns (#287). The typings are regenerated from the pin, five of their doc comments patched by hand:
-  Orkeon's roll-up turns the escaped comment closer `*\/` into `*//` (Orkeon #288, opened 2026-11-02), so
-  `scripts/sync-typings.sh` is not run at this pin, and the pin moves again to the commit of Orkeon `main` that
-  fixes it.
+  keeps whole turns (#287). The typings are regenerated from the pin with `scripts/sync-typings.sh`: Orkeon's
+  roll-up turned the escaped comment closer `*\/` into `*//` at `a685233` (Orkeon #288, opened and fixed by #289
+  on 2026-11-02), and now copies its typings byte for byte, indentation included.
 - **Code intelligence**: the main loop offers `edge_list` (Orkeon #280) in every mode, and its header sends "every
   edge of one kind" (every base class, every implementation, every import of a package) there, across the index or
   under a `root_fqn`, page by page with a `total`; `/doctor` counts it among the eleven code-intelligence tools and

@@ -7,13 +7,16 @@ import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 
 /** Each tool of `interface OrkeonBuiltInTools` (src/crews/.orkeon/orkeon.d.ts) with the depth-1 keys of
  *  its input: a ``/** `name` - …`` line, then `camel(input…{` and its keys until the brace closes, or
- *  `input?: Record<string, never>` for none. */
+ *  `input?: Record<string, never>` for none. The roll-up keeps the indentation of Orkeon's typings
+ *  (Orkeon #289), so the interface closes at its own indentation and nothing is read at column 0. */
 export function builtInToolInputs(): Map<string, string[]> {
   const text = readFileSync(new URL("../../../../src/crews/.orkeon/orkeon.d.ts", import.meta.url), "utf8");
-  const lines = text.slice(text.indexOf("interface OrkeonBuiltInTools {")).split("\n");
+  const start = text.indexOf("interface OrkeonBuiltInTools {");
+  const indent = /[ \t]*$/.exec(text.slice(0, start))?.[0] ?? "";
+  const lines = text.slice(start).split("\n");
   const tools = new Map<string, string[]>();
-  for (let i = 1; i < lines.length && lines[i] !== "}"; i++) {
-    const name = /^\/\*\* `([a-z_0-9]+)` - /.exec(lines[i])?.[1];
+  for (let i = 1; i < lines.length && lines[i].trimEnd() !== `${indent}}`; i++) {
+    const name = /^\s*\/\*\* `([a-z_0-9]+)` - /.exec(lines[i])?.[1];
     if (name === undefined) continue;
     const head = lines[++i];
     const keys: string[] = [];
@@ -21,7 +24,7 @@ export function builtInToolInputs(): Map<string, string[]> {
     if (!/\(input\??: \{$/.test(head.trimEnd())) continue;
     for (let depth = 1; ++i < lines.length;) {
       const line = lines[i];
-      if (depth === 1 && line.startsWith("}")) break;
+      if (depth === 1 && line.trimStart().startsWith("}")) break;
       if (/^\s*(\/\*\*|\*)/.test(line)) continue;
       const key = /^\s*([a-z_0-9]+)\??:/.exec(line)?.[1];
       if (depth === 1 && key !== undefined) keys.push(key);

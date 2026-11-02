@@ -31,8 +31,9 @@ Orkeon #281 (`a685233`, 2026-11-02, on `main`) closes all seven, and adds `edge_
 
 ## Decision
 
-- **The pin moves to `a685233`** (`a685233b5f7c83d475e18ebd62a03f091a04e7ed`), a merge commit of Orkeon `main`
-  (ADR 0013): `.orkeon-version`, the status meta, the issue template, the guides; the typings are regenerated from it.
+- **The pin moves to `c101cbd`** (`c101cbd6dd11701233a9e2db41bd91076601f582`), a merge commit of Orkeon `main`
+  (ADR 0013): `a685233` (#281) then `c101cbd` (#289, the typings roll-up fix below); `.orkeon-version`, the status
+  meta, the issue template, the guides; the typings are regenerated from it with `scripts/sync-typings.sh`.
 - **Orkeon Code adopts**:
   - the `edge_list` routing: a question about every edge of a kind across the project (who extends or implements
     what) goes to `edge_list`, under a `root_fqn` or not, paged by its cursor, and the inheritance of one symbol to
@@ -73,13 +74,14 @@ Orkeon #281 (`a685233`, 2026-11-02, on `main`) closes all seven, and adds `edge_
   pin's, and a release keeps the memory of one process. Its `session_snip` counts messages: the session adapter tells
   it by the absence of `edge_list` (they came in the same merge) and sends the number of messages the asked turns
   hold, measured on the buffer, so the release keeps the same tail as the pin.
-- **The typings of this pin do not parse as Orkeon generates them.** The roll-up of `Orkeon.Scripting.csproj` carries
-  each line as an MSBuild item, which turns the escaped comment closer `*\/` into `*//`: five doc comments (the
-  `glob` description, `structural_search.glob`, `structural_rewrite.glob`, `rag_ingest.sources` and a paths field of
-  the file tools) close early, and TypeScript stops at 577 errors. The five lines are patched by hand in
-  `src/crews/.orkeon/orkeon.d.ts`; `scripts/sync-typings.sh` would undo the patch, so it is not run at this pin. Orkeon
-  Code reported the roll-up to Orkeon as #288 (2026-11-02), and the pin moves again to the commit of Orkeon `main`
-  that fixes it, the typings then regenerated as they come.
-- Checks: `npm run check` green (7 316 tests, type check, 67/67 bundled, provenance strict, generated docs, docs
-  parity); `bash scripts/smoke-runtime.sh --mode source` on an Orkeon checkout at `a685233` plus the #288 fix
-  (`80779af3`): 48 commands loaded, 0 skipped, 0 conflicts, the `/memory` mount accepted.
+- **The typings of `a685233` did not parse as Orkeon generated them.** The roll-up of `Orkeon.Scripting.csproj`
+  carried each line as an MSBuild item, which turned the escaped comment closer `*\/` into `*//`: five doc comments
+  (the `glob` description, `structural_search.glob`, `structural_rewrite.glob`, `rag_ingest.sources` and a paths
+  field of the file tools) closed early, and TypeScript stopped at 577 errors. Orkeon Code reported it as Orkeon
+  #288 (2026-11-02); #289 fixed it the same day by copying `Typings/*.d.ts` byte for byte, and the pin moved to that
+  merge (`c101cbd`). The roll-up now keeps the indentation of Orkeon's typings, so the fixture that reads the tools
+  of `interface OrkeonBuiltInTools` for the permission tests finds the interface's closer at its own indentation
+  instead of column 0.
+- Checks: `npm run check` green (tests, type check, bundle, provenance strict, generated docs, docs parity);
+  `bash scripts/smoke-runtime.sh --mode source` on an Orkeon checkout at `c101cbd`: 48 commands loaded, 0 skipped,
+  0 conflicts, the `/memory` mount accepted.
