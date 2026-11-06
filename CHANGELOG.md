@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0-rc.1] - 2026-11-06
+
+First release candidate of 1.0.0, on Orkeon `main` `839818d`.
+
 ### Changed — the main loop writes on the console's main screen, the pin moves to Orkeon main 839818d (#291)
 
 - The runtime pin moves to Orkeon `main` `839818d` (Orkeon #291, [ADR 0018](docs/adr/0018-orkeon-after-291.md)), and the
@@ -1261,5 +1265,6 @@ First release as a standalone project, on Orkeon `1.0.0-rc.5`.
 - Checks: unit tests on Node's native type stripping, type check, bundle check with the runtime's esbuild flags,
   provenance gate, runtime smoke.
 
-[Unreleased]: https://github.com/Orkeon/orkeon-code/compare/v0.1.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Orkeon/orkeon-code/compare/v1.0.0-rc.1...HEAD
+[1.0.0-rc.1]: https://github.com/Orkeon/orkeon-code/releases/tag/v1.0.0-rc.1
 [0.1.0-alpha.1]: https://github.com/Orkeon/orkeon-code/releases/tag/v0.1.0-alpha.1

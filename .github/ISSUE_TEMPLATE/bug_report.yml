@@ -13,7 +13,7 @@ body:
     attributes:
       label: Orkeon Code version
       description: "Output of `/version` in the REPL, or the commit SHA."
-      placeholder: "e.g. 0.1.0-alpha.1"
+      placeholder: "e.g. 1.0.0-rc.1"
     validations:
       required: true
   - type: input

@@ -16,8 +16,8 @@ from a script, a scheduler or your own application. It reads, searches, edits an
 tool calls, and everything it can touch is declared: one mounted project, an allow-listed shell, a tool catalogue
 trimmed by the mode. Every command, crew and prompt is a source file: change it, or add yours.
 
-> **Status: alpha.** The loop, the crews and the permission modes work end to end against real LLMs. Expect rough
-> edges and breaking changes before 1.0.
+> **Status: release candidate.** The loop, the crews and the permission modes work end to end against real LLMs. Rough
+> edges and breaking changes remain possible before 1.0.
 
 ## What it does
 

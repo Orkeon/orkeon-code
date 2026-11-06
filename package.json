@@ -1,6 +1,6 @@
 {
   "name": "orkeon-code",
-  "version": "0.1.0-alpha.1",
+  "version": "1.0.0-rc.1",
   "description": "Agentic coding assistant in TypeScript on the Orkeon runtime. Pair with it in the terminal under permission modes, run it fully autonomous in a pipeline, or call its crews from your own application. Every command, crew and prompt is a source file you can change or add to.",
   "license": "MIT",
   "author": "Orkeon Contributors",

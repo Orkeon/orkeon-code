@@ -6,7 +6,7 @@
 // RELEASE_NOTES are pinned by tests/commands/_lib/status/meta.test.ts, which keeps them true.
 
 export const CLI_NAME = "orkeon-code";
-export const CLI_VERSION = "0.1.0-alpha.1";
+export const CLI_VERSION = "1.0.0-rc.1";
 export const CLI_BUILD = "source";
 /** The Orkeon runtime this version runs on: the commit of Orkeon's `main` pinned in .orkeon-version, which the
  *  launcher announces (tests/repository/version.test.ts keeps the two equal). A release tag is never the pin: the
@@ -26,7 +26,7 @@ export function isPinnedCommit(commit: string | null): boolean {
 export const RELEASE_NOTES = [
   `${CLI_NAME} ${CLI_VERSION} (${CLI_BUILD})`,
   "",
-  "First release as a standalone project.",
+  `First release candidate of 1.0.0, on Orkeon main ${ORKEON_RUNTIME_PIN}.`,
   "",
   "Crews: main-loop (the interactive loop behind /assistant), code-review, git-commit,",
   "       project-init, init-verifiers, session-compact, advisor, analyze, speech,",
