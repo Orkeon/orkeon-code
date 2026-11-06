@@ -76,8 +76,8 @@ machine instead, no key: `config/appsettings.ollama.example.json`, on Ollama ([C
 mode on the release's `orkeon-<version>-win-x64.zip` is the one for Windows; the path this project exercises is WSL
 with the bash launcher ([WSL tutorial](wsl-tutorial.md)).
 
-Orkeon Code is checked against Orkeon's sources at the commit in `.orkeon-version` (`c101cbd`, `main` after
-Orkeon/orkeon#281, which closes #280 and #282 to #287, 2026-11-02): the [source mode](#source-mode-an-orkeon-checkout) runs that commit, the reference
+Orkeon Code is checked against Orkeon's sources at the commit in `.orkeon-version` (`839818d`, `main` after
+Orkeon/orkeon#291, 2026-11-06): the [source mode](#source-mode-an-orkeon-checkout) runs that commit, the reference
 runtime; the [tool mode](#tool-mode-orkeon-repl-installed) (the Debian package on the apt `rc` channel, the release
 archives) runs the last release, `1.0.0-rc.6`, and the [docker mode](#docker-mode-nothing-to-install-but-docker)
 the last `orkeon-runners` image published, `1.0.0-rc.5` at this writing (no `1.0.0-rc.6` image is published), both
@@ -147,9 +147,9 @@ whose `global.json` pins another SDK still works. It needs the .NET 10 SDK, the 
 The checkout should sit at the commit of `.orkeon-version`, the one the commands were checked against. The launcher
 moves it there itself when nothing of yours is in the way: no tracked file changed, on `main` or detached, and behind
 the pin (fetched from `origin main` when missing). It then says `orkeon-code: ORKEON_SOURCE moved from <sha7> to the pin
-c101cbd.` and the build restores the solution. Otherwise (a branch of your own, uncommitted work, commits ahead of the
+839818d.` and the build restores the solution. Otherwise (a branch of your own, uncommitted work, commits ahead of the
 pin, or `ORKEON_SOURCE_FOLLOW_PIN=0`) it leaves the checkout alone, warns (`orkeon-code: warning: ORKEON_SOURCE is at
-<sha7>, the pin of .orkeon-version is c101cbd: the commands were checked against the pin.`) and runs anyway.
+<sha7>, the pin of .orkeon-version is 839818d: the commands were checked against the pin.`) and runs anyway.
 
 ## 4. First session
 
@@ -176,11 +176,12 @@ The banner prints the project, the settings and the mode. In the REPL:
 Text typed without a leading `/` is sent to `/assistant`. The full list: [Slash commands](commands.md).
 
 On a terminal the REPL is a split-pane TUI: the transcript, the prompt, and below it the tasks list (`↓` or `F4`)
-that names the background commands (`/dev-batches`, an `/assistant` run async). Each conversation
-thread has its own screen: selecting a task row displays that task's lines, selecting `main` the prompt's own, where
-the launched and finished lines of every task stay; the selected task is also the recipient of the next message. A
-task that ends keeps its row, with `✔ finished`, `✗ failed` or `⊘ cancelled` and its duration, and its screen stays
-readable until the host forgets it (Orkeon #217). `orkeon-code -- --ui plain` writes one stream instead, a task's
+that names the background commands (`/dev-batches`, `/analyze`). A prompt is the conversation: its text, tool calls,
+diffs and approvals land on the `main` screen, and the list stays empty until a command runs beside it. Each task has
+its own screen: selecting a task row displays that task's lines, selecting `main` the prompt's own, where the launched
+and finished lines of every task stay; the selected task is also the recipient of the next message. A task that ends
+leaves the list with its screen, unless you are reading that screen: it then stays, with `✔ finished`, `✗ failed` or
+`⊘ cancelled` and its duration, until you leave it. `orkeon-code -- --ui plain` writes one stream instead, a task's
 lines prefixed by its ticket (`[t1] `).
 
 ## 5. Optional: speech-to-text

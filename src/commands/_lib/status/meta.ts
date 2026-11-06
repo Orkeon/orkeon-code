@@ -6,13 +6,13 @@
 // RELEASE_NOTES are pinned by tests/commands/_lib/status/meta.test.ts, which keeps them true.
 
 export const CLI_NAME = "orkeon-code";
-export const CLI_VERSION = "0.1.0-alpha.1";
+export const CLI_VERSION = "1.0.0-rc.1";
 export const CLI_BUILD = "source";
 /** The Orkeon runtime this version runs on: the commit of Orkeon's `main` pinned in .orkeon-version, which the
  *  launcher announces (tests/repository/version.test.ts keeps the two equal). A release tag is never the pin: the
  *  commands are checked against the sources at this commit (ADR 0013). /status and /doctor compare it with the
  *  commit of the runtime that runs them, read from the host's `runtime` service (Orkeon #225). */
-export const ORKEON_RUNTIME_COMMIT = "c101cbd6dd11701233a9e2db41bd91076601f582";
+export const ORKEON_RUNTIME_COMMIT = "839818d6aedefd96954bc470d4cefa6541aec1ba";
 /** The pin as the launcher and the rows print it: its first seven characters. */
 export const ORKEON_RUNTIME_PIN = ORKEON_RUNTIME_COMMIT.slice(0, 7);
 
@@ -26,7 +26,7 @@ export function isPinnedCommit(commit: string | null): boolean {
 export const RELEASE_NOTES = [
   `${CLI_NAME} ${CLI_VERSION} (${CLI_BUILD})`,
   "",
-  "First release as a standalone project.",
+  `First release candidate of 1.0.0, on Orkeon main ${ORKEON_RUNTIME_PIN}.`,
   "",
   "Crews: main-loop (the interactive loop behind /assistant), code-review, git-commit,",
   "       project-init, init-verifiers, session-compact, advisor, analyze, speech,",

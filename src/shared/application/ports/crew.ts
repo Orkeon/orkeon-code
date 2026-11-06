@@ -10,6 +10,8 @@ export interface CrewLaunchOptions {
   chain?: "continue";
   /** The host refuses the crew while its previous exclusive launch is not terminal (Orkeon #239, domain/agents/exclusive.ts). */
   exclusive?: boolean;
+  /** The crew is the conversation: its text, calls and approvals land on the console's main screen, with no row in its list of tasks. */
+  onMain?: boolean;
 }
 
 /** The crews the host can run, by name. */

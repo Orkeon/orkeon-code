@@ -17,8 +17,8 @@ modifie et exécute le code de votre projet par appels d'outils, et tout ce qu'i
 monté, un shell sous liste blanche, un catalogue d'outils réduit selon le mode. Chaque commande, chaque crew et
 chaque prompt est un fichier source : modifiez-le, ou ajoutez le vôtre.
 
-> **Statut : alpha.** La boucle, les crews et les modes de permission fonctionnent de bout en bout sur de vrais LLM.
-> Attendez-vous à des aspérités et à des changements cassants avant la 1.0.
+> **Statut : release candidate.** La boucle, les crews et les modes de permission fonctionnent de bout en bout sur de vrais LLM.
+> Des aspérités et des changements cassants restent possibles avant la 1.0.
 
 ## Ce qu'il fait
 

@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0-rc.1] - 2026-11-06
+
+First release candidate of 1.0.0, on Orkeon `main` `839818d`.
+
+### Changed — the example settings drop weak RAG passages
+
+- The example settings set `Orkeon:Rag:Retrieval:MinScore` to 0.6, so a question the shared memory cannot
+  answer no longer brings back unrelated precedents. The floor applies to every RAG search, documents included, where
+  its effect has not been measured. An existing `config/appsettings.local.json` does not change: add the key to get it.
+
+### Changed — the main loop writes on the console's main screen, the pin moves to Orkeon main 839818d (#291)
+
+- The runtime pin moves to Orkeon `main` `839818d` (Orkeon #291, [ADR 0018](docs/adr/0018-orkeon-after-291.md)), and the
+  typings of the commands are regenerated from it.
+- A prompt now runs on the main screen of the split-pane console: its streamed text, tool calls, diffs and approvals
+  appear there. It takes no row in the list of tasks, so `main` shows only beside another running task, and an
+  interrupted prompt prints the console's own notice alone. `/verify`, `/summary`, `/voice` and `/transcribe --then` do
+  the same, and become an ordinary task when launched during a prompt.
+- A task that ended leaves the list with its screen, unless you are reading that screen.
+
+### Changed — the runtime pin moves to Orkeon main 3deabe1 (#290)
+
+- The runtime pin moves to Orkeon `main` `3deabe1` (Orkeon #290, [ADR 0017](docs/adr/0017-orkeon-after-290.md)): the
+  split-pane console gets styled text, a menu of commands on `/`, the calls of each step, file diffs, `context N%` and
+  palettes. A tool approval opens a panel on Yes, so Enter straight allows the call once and Esc denies. The main loop's
+  diffs and step calls show on its task's screen. The typings of the commands are regenerated from the pin.
+
 ### Changed — the runtime pin moves to Orkeon main c101cbd (#280, #282–#288)
 
 - The runtime pin moves to Orkeon `main` `c101cbd` (Orkeon #281 and #289, [ADR 0016](docs/adr/0016-orkeon-after-280.md)),
@@ -1244,5 +1271,6 @@ First release as a standalone project, on Orkeon `1.0.0-rc.5`.
 - Checks: unit tests on Node's native type stripping, type check, bundle check with the runtime's esbuild flags,
   provenance gate, runtime smoke.
 
-[Unreleased]: https://github.com/Orkeon/orkeon-code/compare/v0.1.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Orkeon/orkeon-code/compare/v1.0.0-rc.1...HEAD
+[1.0.0-rc.1]: https://github.com/Orkeon/orkeon-code/releases/tag/v1.0.0-rc.1
 [0.1.0-alpha.1]: https://github.com/Orkeon/orkeon-code/releases/tag/v0.1.0-alpha.1
