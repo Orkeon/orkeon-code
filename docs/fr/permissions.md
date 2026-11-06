@@ -125,6 +125,15 @@ partout où le catalogue les offre.
 catalogue l'offre avec les modifications de fichiers : jamais en `plan` ni en `dontAsk`, demandé en `default`, accepté
 en `acceptEdits`.
 
+`firefox` est un outil réseau : `plan` et `dontAsk` ne l'offrent jamais, puisque charger une page est une requête
+sortante. Là où il est offert, son `action` décide : `navigate`, `back`, `snapshot`, `read`, `find`, `search`, `tabs`,
+`new_tab` et `switch_tab` déclarent une lecture et s'exécutent sans question ; `screenshot` déclare une modification,
+donc `default` demande et `acceptEdits` accepte ; `click`, `type`, `press`, `evaluate`, `close_tab` et `close`
+déclarent une exécution et demandent. Sa propre politique d'URL refuse les adresses privées et de bouclage. Le texte
+d'une page arrive au modèle sans contrôle d'injection de prompt : la lecture d'une page non fiable appelle la même
+prudence que `web_scrape`, et un secret ne passe jamais par `type`, dont le texte reste dans la transcription. La mise
+en place est dans [Configuration](configuration.md#les-settings-dont-orkeon-code-dépend).
+
 `github` et `rag_eval` sont offerts avec les modifications de fichiers, dans les modes qui écrivent seulement, quoi
 que déclare un appel : `github` peut ouvrir une pull request, et `rag_eval` réingère un corpus dans une collection de
 l'index de connaissances, donc aucun des deux n'a sa place dans un mode qui promet que rien ne change. `http_api`

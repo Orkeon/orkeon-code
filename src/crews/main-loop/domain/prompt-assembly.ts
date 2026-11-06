@@ -166,7 +166,7 @@ function describeTrust(tools: readonly string[]): string {
 /** How a refused or missing tool must be read — it rides with the tool list. It speaks of a tool not offered, not of
  *  one off the list: the script tools (`memory_recall`, `memory_push`) are offered without being listed. */
 const REFUSAL_NOTE =
-  "A tool you are not offered, or a call that comes back refused, is a decision of the " +
+  "A tool you are not offered, or a call that is refused, is a decision of the " +
   "permission mode or of the user: change your approach instead of repeating the call.";
 
 /** The tools that reach the web: the project's own sources come before them. */

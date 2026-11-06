@@ -115,6 +115,15 @@ annotations say, once its server is trusted ([Extra tools](#extra-tools)). `web_
 edit — it writes the knowledge index, not the workspace — so the catalogue offers it with the file edits: never in
 `plan` or `dontAsk`, asked in `default`, accepted in `acceptEdits`.
 
+`firefox` is a network tool: `plan` and `dontAsk` never offer it, since loading a page is an outbound request. Where
+it is offered, its `action` decides: `navigate`, `back`, `snapshot`, `read`, `find`, `search`, `tabs`, `new_tab` and
+`switch_tab` declare a read and run without a question; `screenshot` declares an edit, so `default` asks and
+`acceptEdits` accepts; `click`, `type`, `press`, `evaluate`, `close_tab` and `close` declare an execute and ask. Its
+own URL policy refuses private and loopback addresses. The text of a page reaches the model unscreened for prompt
+injection, so a read of an untrusted page deserves the same care as `web_scrape`, and a secret never goes through
+`type`, whose text stays in the transcript. The setup is in
+[Configuration](configuration.md#settings-orkeon-code-relies-on).
+
 `github` and `rag_eval` are offered with the file edits, in the writing modes only, whatever a call declares:
 `github` can open a pull request, and `rag_eval` re-ingests a corpus into a collection of the knowledge index, so
 neither belongs to a mode that promises nothing changes. `http_api` stays out of `plan` and `dontAsk` for the reason

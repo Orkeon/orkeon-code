@@ -452,7 +452,7 @@ prompt as the model reads it, to review a change as a diff.
   content rewritten whole. The reads and searches that do not depend on each other go out in one message, since the
   runtime runs them at once; a call that needs an earlier result waits for it. `shell_command` runs an allow-list,
   and git may be read-only. Where a web tool is offered
-  (`web_search`, `http_api`, `web_scrape`, `scrape_element`), the project comes before the web: a port, a command or
+  (`web_search`, `http_api`, `web_scrape`, `scrape_element`, `firefox`), the project comes before the web: a port, a command or
   an image its documentation and example settings give wins over one found on the web, and a value read nowhere is
   not given as a fact. The
   lines about writing, editing, the shell and the web appear only in the modes that offer those tools.

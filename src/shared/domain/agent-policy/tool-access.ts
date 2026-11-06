@@ -3,7 +3,9 @@
 // reads for `list_issues`, `get_pr`, `search_repos` and `get_repo`, executes for `create_issue`, `create_pr` and an
 // unknown or missing action; `http_api` reads for `GET`, `HEAD`, `OPTIONS` and a missing method, executes for any
 // other method and for a read method that carries a body or a method-override header; `web_search` reads whatever
-// the call. The arguments are read as Orkeon reads them: a key matched case aside (`Method`, `BODY`), the action
+// the call; `firefox` reads for the actions that only look (FIREFOX_READ_ACTIONS), executes for any other and for a
+// missing one, its `screenshot` included: Orkeon declares that one an edit, which this table has no word for, and
+// execute is the answer that lets no more through. The arguments are read as Orkeon reads them: a key matched case aside (`Method`, `BODY`), the action
 // trimmed and compared case aside, the method compared case aside (an empty one is no read method), a body present
 // whatever its content, an empty string included, and the headers' names taken from an object or from a JSON string
 // holding one. `rag_eval` declares an edit whatever the call (it ingests its corpus and writes its reports), the
@@ -17,6 +19,11 @@ export type ToolAccess = "read" | "execute";
 
 /** The `github` actions Orkeon reads for. */
 export const GITHUB_READ_ACTIONS: readonly string[] = ["list_issues", "get_pr", "search_repos", "get_repo"];
+
+/** The `firefox` actions Orkeon reads for. */
+export const FIREFOX_READ_ACTIONS: readonly string[] = [
+  "navigate", "back", "snapshot", "read", "find", "search", "tabs", "new_tab", "switch_tab",
+];
 
 /** The `http_api` methods Orkeon reads for; a missing method is a GET. */
 export const HTTP_READ_METHODS: readonly string[] = ["GET", "HEAD", "OPTIONS"];
@@ -59,12 +66,19 @@ const carriesMethodOverride = (headers: unknown): boolean => {
   return headerNames(headers).some((name) => overrides.includes(name.toLowerCase()));
 };
 
+/** The tools whose access follows their `action`, with the actions that read. */
+const READ_ACTIONS_OF: Readonly<Record<string, readonly string[]>> = {
+  github: GITHUB_READ_ACTIONS,
+  firefox: FIREFOX_READ_ACTIONS,
+};
+
 /** The access Orkeon declares for this call; null when the tool declares one access whatever the call, as its class says. */
 export function declaredAccess(tool: string, input: unknown): ToolAccess | null {
   if (READ_WHATEVER_THE_CALL.includes(tool)) return "read";
-  if (tool === "github") {
+  const readActions = READ_ACTIONS_OF[tool];
+  if (readActions) {
     const action = field(input, "action");
-    return typeof action === "string" && GITHUB_READ_ACTIONS.includes(action.trim().toLowerCase()) ? "read" : "execute";
+    return typeof action === "string" && readActions.includes(action.trim().toLowerCase()) ? "read" : "execute";
   }
   if (tool === "http_api") {
     const method = field(input, "method");
