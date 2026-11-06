@@ -706,7 +706,9 @@ if [ -n "${ORKEON_CODE_AUDIO_DIR:-}" ]; then
     warn "ORKEON_CODE_AUDIO_DIR is ignored in docker mode: the Whisper server runs in tool and source modes (mcp/whisper/README.md)."
   elif grep -qi '"whisper"[[:space:]]*:' "$SETTINGS"; then
     warn "$SETTINGS declares a \"whisper\" MCP server: ORKEON_CODE_AUDIO_DIR is ignored, the settings file wins."
-  elif env | grep -q '^ORKEON_MCP__Servers__whisper__'; then
+  # compgen, not `env | grep -q`: grep leaves at the first match, env then dies on the closed pipe, and under pipefail
+  # the test is false although the variable is there.
+  elif compgen -e ORKEON_MCP__Servers__whisper__ >/dev/null; then
     warn "the environment declares a \"whisper\" MCP server (ORKEON_MCP__Servers__whisper__*): ORKEON_CODE_AUDIO_DIR is ignored, that declaration wins."
   elif ! UV="$(command -v uv)"; then
     warn "ORKEON_CODE_AUDIO_DIR is set but uv is not on PATH: speech-to-text is off (mcp/whisper/README.md, 'Install')."

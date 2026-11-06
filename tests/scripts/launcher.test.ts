@@ -17,7 +17,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } 
 import { dirname, join } from "node:path";
 import {
   ARCHIVE_VERSION, BASH_GATE, BLOCK, BUILDING_LINE, CODE_VERSION, CORRUPT_STORES, DEB_WRAPPER, DOTNET, CONSOLE_APP_DLL, ESBUILD, EXAMPLE_SETTINGS,
-  DOCKER_ENGINE_DOWN, EXAMPLE_SETTINGS_FILES, FOLLOWED_CHECKOUTS, GATE, KEPT_CHECKOUTS, KEEP_OUT_OF_RANGE, NO_FILE_SETTINGS, NOT_AT_THE_PIN, OLLAMA_AND_EXISTING, PERSIST, PINNED_SDK, PROJECT_NAMES, PS1_ARGS_LOOP,
+  DOCKER_ENGINE_DOWN, EXAMPLE_SETTINGS_FILES, FOLLOWED_CHECKOUTS, GATE, KEPT_CHECKOUTS, KEEP_OUT_OF_RANGE, LARGE_ENV, NO_FILE_SETTINGS, NOT_AT_THE_PIN, OLLAMA_AND_EXISTING, PERSIST, PINNED_SDK, PROJECT_NAMES, PS1_ARGS_LOOP,
   PS1_CLONE_OR_INSTALL, PS1_DOCKER_ENGINE, PS1_DOCKER_TTY, PS1_FROM_PROJECT, PS1_GATE, PS1_MODES, PS1_MEMORY_MOUNT, PS1_SESSION_MOUNTS, PS1_SESSIONS, PS1_SET_VARIABLES,
   PS1_SETTINGS, PS1_SLUG, PS1_SPEECH, PS1_STORE_LAYOUT, PS1_SUBCOMMANDS, PS1_TRUST_CHECK, PS1_TRUST_REFUSAL, PS1_USER_SETTINGS,
   PS1_VERSION_LINES, PTY, PWSH, RESTORED_IN_FINALLY, RESTORED_NAMES, ROOTS, RUNTIME_SETTINGS, RUNTIME_SLUGS, RUNTIME_PIN, RUNTIME_REF,
@@ -577,6 +577,17 @@ describe("orkeon-code, speech-to-text (ORKEON_CODE_AUDIO_DIR)", () => {
     // Assert
     ok(anyCase.stderr.includes('declares a "whisper" MCP server'), "the runtime reads the name case aside: " + anyCase.stderr);
     deepStrictEqual(whisperEnv(anyCase), []);
+  });
+
+  it("sees a server the environment declares in a large environment too", () => {
+    // Arrange
+    const env = audioEnv(scratchDir("orkeon-code-audio-"), { [`${WHISPER}Url`]: "http://host.docker.internal:8765/mcp", ...LARGE_ENV });
+
+    // Act
+    const r = launch({ args: ["--mode", "tool"], bin: SPEECH_TOOL, env });
+
+    // Assert
+    assertSays(r.stderr, ['the environment declares a "whisper" MCP server']);
   });
 
   it("leaves a server the environment declares as it was, and says why", () => {

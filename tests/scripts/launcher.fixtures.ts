@@ -309,6 +309,11 @@ export const whisperEnv = (r: Run) => [...r.env.keys()].filter((k) => k.startsWi
 export const audioEnv = (audio: string, extra: Record<string, string> = {}) =>
   ({ ...ESBUILD, ORKEON_CODE_AUDIO_DIR: audio, ...extra });
 
+/** Variables that make `env` write more than a pipe holds, as a large environment does. */
+export const LARGE_ENV: Record<string, string> = Object.fromEntries(
+  Array.from({ length: 8 }, (_, i) => [`PAD_${i}`, "x".repeat(100_000)]),
+);
+
 /** The server's arguments ORKEON_MCP__Servers__whisper__Args__<i> holds, for each index of `indices`. */
 export const whisperArgs = (r: Run, indices: number[]) => indices.map((i) => r.env.get(`${WHISPER}Args__${i}`));
 
