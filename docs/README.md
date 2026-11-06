@@ -36,4 +36,5 @@ Decisions are recorded as ADRs: [0001 — ports, adapters and entry points](adr/
 [0014 — Orkeon main after #244, effort levels, a parallel index and an index cache](adr/0014-orkeon-after-244.md),
 [0015 — Orkeon main after #276, the context apart from the request](adr/0015-orkeon-after-276.md),
 [0016 — Orkeon main after #280, the edge list, bounded analysis results and a persisted memory](adr/0016-orkeon-after-280.md),
-[0017 — Orkeon main after #290, a styled split-pane console](adr/0017-orkeon-after-290.md).
+[0017 — Orkeon main after #290, a styled split-pane console](adr/0017-orkeon-after-290.md),
+[0018 — Orkeon main after #291, the main loop on the main screen](adr/0018-orkeon-after-291.md).

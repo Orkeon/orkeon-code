@@ -188,6 +188,7 @@ export async function launchMainLoop(
       ...(epilogue ? { epilogue: epilogue.tool } : {}),
       ...(input.sessionStart ? { sessionStartLines: input.sessionStart.lines.length } : {}),
     },
+    { onMain: true },
   );
 }
 

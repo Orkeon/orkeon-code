@@ -76,8 +76,8 @@ Ollama ([Configuration](configuration.md#le-llm)).
 tool sur le `orkeon-<version>-win-x64.zip` de la release est celui de Windows ; la voie que ce projet pratique est WSL
 avec le lanceur bash ([tutoriel WSL](wsl-tutorial.md)).
 
-Orkeon Code est vérifié contre les sources d'Orkeon au commit de `.orkeon-version` (`3deabe1`, le `main` après
-Orkeon/orkeon#290, 2026-11-06) : le [mode source](#mode-source--un-checkout-dorkeon) exécute ce commit, le runtime de
+Orkeon Code est vérifié contre les sources d'Orkeon au commit de `.orkeon-version` (`839818d`, le `main` après
+Orkeon/orkeon#291, 2026-11-06) : le [mode source](#mode-source--un-checkout-dorkeon) exécute ce commit, le runtime de
 référence ; le [mode tool](#mode-tool--orkeon-repl-installé) (le paquet Debian sur le canal apt `rc`, les archives de
 release) exécute la dernière release, `1.0.0-rc.6`, et le [mode docker](#mode-docker--rien-à-installer-sauf-docker)
 la dernière image `orkeon-runners` publiée, `1.0.0-rc.5` à ce jour (aucune image `1.0.0-rc.6` n'est publiée), tous
@@ -148,9 +148,9 @@ ce checkout, ou `ORKEON_ESBUILD_PATH`.
 Le checkout devrait être au commit de `.orkeon-version`, celui contre lequel les commandes ont été vérifiées. Le
 lanceur l'y amène lui-même quand rien de vous n'est en jeu : aucun fichier suivi modifié, sur `main` ou détaché, et en
 retard sur le pin (récupéré depuis `origin main` s'il manque). Il dit alors `orkeon-code: ORKEON_SOURCE moved from
-<sha7> to the pin 3deabe1.` et le build restaure la solution. Sinon (une branche à vous, du travail non commité, des
+<sha7> to the pin 839818d.` et le build restaure la solution. Sinon (une branche à vous, du travail non commité, des
 commits en avance sur le pin, ou `ORKEON_SOURCE_FOLLOW_PIN=0`), il laisse le checkout tel quel, avertit
-(`orkeon-code: warning: ORKEON_SOURCE is at <sha7>, the pin of .orkeon-version is 3deabe1: the commands were checked
+(`orkeon-code: warning: ORKEON_SOURCE is at <sha7>, the pin of .orkeon-version is 839818d: the commands were checked
 against the pin.`) et lance quand même.
 
 ## 4. Première session
@@ -178,12 +178,14 @@ La bannière affiche le projet, les settings et le mode. Dans le REPL :
 Le texte saisi sans `/` initial est envoyé à `/assistant`. La liste complète : [Commandes](commands.md).
 
 Sur un terminal, le REPL est une TUI en deux volets : la transcription, l'invite, et dessous la liste des tâches (`↓`
-ou `F4`) qui nomme les commandes en arrière-plan (`/dev-batches`, un `/assistant` lancé en async).
-Chaque fil de conversation a son écran : sélectionner la ligne d'une tâche montre ses lignes, sélectionner `main`
-celles de l'invite, où restent les lignes de lancement et de fin de chaque tâche ; la tâche sélectionnée est aussi la
-destinataire du prochain message. Une tâche finie garde sa ligne, avec `✔ finished`, `✗ failed` ou `⊘ cancelled` et sa
-durée, et son écran reste lisible jusqu'à ce que l'hôte l'oublie (Orkeon #217). `orkeon-code -- --ui plain` écrit un
-seul flux à la place, les lignes d'une tâche préfixées de son ticket (`[t1] `).
+ou `F4`) qui nomme les commandes en arrière-plan (`/dev-batches`, `/analyze`). Une invite est la conversation : son
+texte, ses appels d'outils, ses diffs et ses approbations arrivent sur l'écran `main`, et la liste reste vide tant
+qu'aucune commande ne tourne à côté. Chaque tâche a son écran : sélectionner la ligne d'une tâche montre ses lignes,
+sélectionner `main` celles de l'invite, où restent les lignes de lancement et de fin de chaque tâche ; la tâche
+sélectionnée est aussi la destinataire du prochain message. Une tâche finie quitte la liste avec son écran, sauf si
+vous lisez cet écran : elle reste alors, avec `✔ finished`, `✗ failed` ou `⊘ cancelled` et sa durée, jusqu'à ce que
+vous le quittiez. `orkeon-code -- --ui plain` écrit un seul flux à la place, les lignes d'une tâche préfixées de son
+ticket (`[t1] `).
 
 ## 5. Optionnel : la transcription de la parole
 

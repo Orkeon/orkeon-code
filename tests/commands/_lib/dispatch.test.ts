@@ -202,6 +202,17 @@ describe("launchMainLoop", () => {
     strictEqual(crews.launches[0].input.llmProfile, "guarded");
   });
 
+  it("launches the main loop on the console's main screen", async () => {
+    // Arrange
+    const { crews, deps } = mainLoopDeps();
+
+    // Act
+    await launchMainLoop(deps, { prompt: "fix it", permissionMode: "plan" });
+
+    // Assert
+    deepStrictEqual(crews.launches[0].options, { onMain: true });
+  });
+
   it("hands the main loop no llmProfile when the session names none", async () => {
     // Arrange
     const { crews, deps } = mainLoopDeps();
@@ -260,6 +271,7 @@ describe("launchMainLoop", () => {
         permissionRules: ["deny file_write", "allow shell_command command=npm test*"],
         extraTools: [],
       },
+      options: { onMain: true },
     }]);
     deepStrictEqual(logged, [{
       message: "main-loop launched",

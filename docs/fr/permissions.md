@@ -96,7 +96,7 @@ REPL : `approve <tool>? [y] once / [s] session / [n] no`. `y` exécute l'appel, 
 suivants de cet outil sans demander jusqu'à la sortie du REPL, `n` le refuse, et le modèle lit le refus et s'adapte.
 Une ligne `/` exécute toujours sa commande pendant qu'une question attend.
 
-Une question venue d'une commande en arrière-plan (`/dev-batches`, un `/assistant` lancé en async)
+Une question venue d'une commande en arrière-plan (`/dev-batches`)
 nomme sa tâche : `? [t1] dev-batches: tool 'shell_command' requires approval (mode 'acceptEdits').`, l'appel, puis
 `approve shell_command for [t1]? [y] once / [s] session / [n] no`. Elle s'affiche dans la ligne de statut et sur la
 ligne de la tâche (`? waits for approval of shell_command`), et vous y répondez depuis l'invite principale, sans

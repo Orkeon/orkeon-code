@@ -88,7 +88,7 @@ refuses anything else without asking.
 without asking until the REPL exits, `n` refuses it, and the model reads the refusal and adapts. A `/` line still
 runs its command while a question waits.
 
-A question from a command running in the background (`/dev-batches`, an `/assistant` run async)
+A question from a command running in the background (`/dev-batches`)
 names its task: `? [t1] dev-batches: tool 'shell_command' requires approval (mode 'acceptEdits').`, the call, then
 `approve shell_command for [t1]? [y] once / [s] session / [n] no`. It shows on the status line and on the task's row
 (`? waits for approval of shell_command`), and you answer it from the main prompt, without opening the task. In the

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the main loop writes on the console's main screen, the pin moves to Orkeon main 839818d (#291)
+
+- The runtime pin moves to Orkeon `main` `839818d` (Orkeon #291, [ADR 0018](docs/adr/0018-orkeon-after-291.md)), and the
+  typings of the commands are regenerated from it.
+- A prompt now runs on the main screen of the split-pane console: its streamed text, tool calls, diffs and approvals
+  appear there. It takes no row in the list of tasks, so `main` shows only beside another running task, and an
+  interrupted prompt prints the console's own notice alone. `/verify`, `/summary`, `/voice` and `/transcribe --then` do
+  the same, and become an ordinary task when launched during a prompt.
+- A task that ended leaves the list with its screen, unless you are reading that screen.
+
 ### Changed — the runtime pin moves to Orkeon main 3deabe1 (#290)
 
 - The runtime pin moves to Orkeon `main` `3deabe1` (Orkeon #290, [ADR 0017](docs/adr/0017-orkeon-after-290.md)): the
