@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the runtime pin moves to Orkeon main 3deabe1 (#290)
+
+- The runtime pin moves to Orkeon `main` `3deabe1` (Orkeon #290, [ADR 0017](docs/adr/0017-orkeon-after-290.md)): the
+  split-pane console gets styled text, a menu of commands on `/`, the calls of each step, file diffs, `context N%` and
+  palettes. A tool approval opens a panel on Yes, so Enter straight allows the call once and Esc denies. The main loop's
+  diffs and step calls show on its task's screen. The typings of the commands are regenerated from the pin.
+
 ### Changed — the runtime pin moves to Orkeon main c101cbd (#280, #282–#288)
 
 - The runtime pin moves to Orkeon `main` `c101cbd` (Orkeon #281 and #289, [ADR 0016](docs/adr/0016-orkeon-after-280.md)),
