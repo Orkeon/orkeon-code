@@ -214,18 +214,15 @@ async function voiceReply(deps: Pick<MainLoopLaunchDeps, "config" | "catalogue" 
   return voiceReplyEpilogue(speak);
 }
 
-/** Write a crew-completion line: `<okPrefix><payload>` or `✗ <label> failed: …`; nothing for a success the console
- *  already streamed, or the answer would show twice (Orkeon #228). */
+/** Write a crew's completion: `<okPrefix><payload>` as a markdown block, or the line `✗ <label> failed: …`; nothing
+ *  for a success the console already streamed, or the answer would show twice (Orkeon #228). */
 export function writeCompleted(
-  out: { writeLine(text: string): void },
+  out: { writeLine(text: string): void; writeBlock(spec: { kind: "markdown"; text: string }): void },
   result: CrewCompletion,
   label: string,
   okPrefix = "",
 ): void {
   if (result.success && result.streamed === true) return;
-  out.writeLine(
-    result.success
-      ? okPrefix + result.payload
-      : "✗ " + label + " failed: " + (result.error ?? "unknown"),
-  );
+  if (result.success) out.writeBlock({ kind: "markdown", text: okPrefix + result.payload });
+  else out.writeLine("✗ " + label + " failed: " + (result.error ?? "unknown"));
 }

@@ -19,7 +19,7 @@ export type { MemoryEntry, MemoryStore } from "./ports/memory.ts";
 export type { ToolOutcome, ToolCatalogue, PermissionRules } from "./ports/tools.ts";
 export type { CrewHost, CrewLaunchOptions, ChildRuntime, Logger, RunState, CrewMemory } from "./ports/crew.ts";
 export type { ModelOverride, CompleteRequest, ActRequest, Llm } from "./ports/llm.ts";
-export type { HumanInput } from "./ports/human.ts";
+export type { ChoiceOption, ChoiceQuestion, Chooser, HumanInput } from "./ports/human.ts";
 export type { PendingApproval, PendingApprovals } from "./ports/approvals.ts";
 export type {
   MapLevel, CodeMap, CodeSearchHit, SymbolLocation, CodeIndex, AnchorClosure, AnchorIndex, CostIndex, AffectedTests,

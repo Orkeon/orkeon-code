@@ -8,6 +8,14 @@ import { FakeShell } from "../../../support/doubles/fake-shell.ts";
 /** The flags a diff reader actually uses. */
 export const READER_FLAGS: readonly string[] = ["--stat", "--name-only", "-p", "--word-diff"];
 
+/** The allowed options that answer with something other than a unified diff. */
+export const NOT_UNIFIED_FLAGS: readonly string[] = [
+  "--stat", "--name-only", "--name-status", "--numstat", "--shortstat", "--word-diff",
+];
+
+/** Options that keep a unified diff. */
+export const UNIFIED_TOKENS: readonly string[][] = [["-p"], ["--unified=5"]];
+
 export const PATHSPEC_CASES: readonly { name: string; tokens: string[]; args: string }[] = [
   { name: "a path alone", tokens: ["src/index.ts"], args: "-- src/index.ts" },
   { name: "a path after a flag", tokens: ["--stat", "src/"], args: "--stat -- src/" },

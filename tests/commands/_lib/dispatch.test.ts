@@ -546,37 +546,37 @@ describe("/mode plan, then a request without a mode: prefix", () => {
 });
 
 describe("writeCompleted", () => {
-  it("writes the payload of a success", () => {
+  it("writes the payload of a success as a markdown block", () => {
     // Arrange
-    const { lines, out } = lineSink();
+    const { blocks, out } = lineSink();
 
     // Act
     writeCompleted(out, { success: true, payload: "report written" }, "review");
 
     // Assert
-    deepStrictEqual(lines, ["report written"]);
+    deepStrictEqual(blocks, [{ kind: "markdown", text: "report written" }]);
   });
 
   it("writes the payload of a success after the prefix when there is one", () => {
     // Arrange
-    const { lines, out } = lineSink();
+    const { blocks, out } = lineSink();
 
     // Act
     writeCompleted(out, { success: true, payload: "abc123" }, "commit", "✓ committed ");
 
     // Assert
-    deepStrictEqual(lines, ["✓ committed abc123"]);
+    deepStrictEqual(blocks, [{ kind: "markdown", text: "✓ committed abc123" }]);
   });
 
   it("writes nothing for a success the console already streamed (Orkeon #228)", () => {
     // Arrange
-    const { lines, out } = lineSink();
+    const { lines, blocks, out } = lineSink();
 
     // Act
     writeCompleted(out, { success: true, payload: "the answer", streamed: true }, "assistant");
 
     // Assert
-    deepStrictEqual(lines, []);
+    deepStrictEqual([lines, blocks], [[], []]);
   });
 
   it("writes the failure even when the turn streamed", () => {

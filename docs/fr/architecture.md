@@ -118,7 +118,7 @@ de couche, ou bien c'est un point d'entrée, un cas d'usage de commande de `comm
 
 ```text
 src/
-├── commands/          48 *.cmd.ts (parse, wire, render) in eight functional folders: session, settings, status,
+├── commands/          49 *.cmd.ts (parse, wire, render) in eight functional folders: session, settings, status,
 │   │                  project, git, dev, memory, speech
 │   ├── _lib/          the use cases, in the folder of their commands: run<Name>(tokens, deps) → CommandView,
 │   │                  or dispatch<Name>(tokens, deps) → a ticket or a message when the command launches a
@@ -255,21 +255,26 @@ en retour. Le cas d'usage vit dans `commands/_lib/`, prend les ports qu'il lit (
 import { rawTokens } from "../_lib/args.ts";
 import { runMode } from "../_lib/settings/mode.ts";
 import { showView } from "../_lib/view.ts";
-import { orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { orkeonChooser, orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
 
 const session = orkeonSessionIo();
 
 defineCommand({
   name: "mode",
-  description: "Cycle, show or set the session-default permission mode of the assistant.",
-  handler: async (args, ctx) => showView(ctx, await runMode(rawTokens(args), { session, log: ctx.log })),
+  description: "Choose, show or set the session-default permission mode of the assistant.",
+  handler: async (args, ctx) =>
+    showView(ctx, await runMode(rawTokens(args), { session, log: ctx.log, chooser: orkeonChooser(ctx) })),
 });
 ```
 
-Un cas d'usage dont la commande écrit sa propre sortie (`/diff`) la place dans les `lines` de la vue, écrites avant le
-tableau et le message. Une commande async lance un crew à la place : `dispatch` rend
+Un cas d'usage dont la commande écrit sa propre sortie (`/diff`) la place dans les `lines` de la vue et, pour un diff
+unifié, dans son `diff`, un bloc typé que la console colore : les deux sont écrits avant le tableau et le message. Une
+commande qui propose un choix prend le port `Chooser` : sans argument, dans une console interactive, elle ouvre un
+panneau (`/model`, `/effort`, `/output-style`, `/mode`, `/theme`) et, sur un rejeu ou une console simple, garde son
+comportement en texte. Une commande async lance un crew à la place : `dispatch` rend
 `launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "<crew>", input)` (le ticket, de
-`_lib/dispatch.ts`) et `completed` imprime le résultat avec `writeCompleted`.
+`_lib/dispatch.ts`) et `completed` imprime le résultat avec `writeCompleted`, sous forme d'un bloc markdown que la console
+rend, un échec restant une ligne simple.
 
 **Un crew** construit ses agents, câble les adaptateurs à la portée module, construit ceux liés au contexte dans le
 corps de l'agent, et appelle son cas d'usage `application/run-<crew>.ts`, qui prend son entrée et ses ports.
@@ -890,7 +895,7 @@ contiennent la restauration et l'extraction de mémoire, `shared/domain/compacti
 ### Ajouter un mode de permission
 
 Un mode s'énonce une fois : une entrée de `PERMISSION_MODES` (`src/shared/domain/permission-modes.ts`, et
-`MODE_CYCLE` quand un `/mode` nu doit passer par lui) et une ligne de `MODE_POLICIES`
+`MODE_CYCLE` quand un `/mode` nu doit passer par lui sur une console sans panneau) et une ligne de `MODE_POLICIES`
 (`src/shared/domain/agent-policy/mode-policy.ts`) :
 
 | Mode | `readOnly` | `toolClasses` |

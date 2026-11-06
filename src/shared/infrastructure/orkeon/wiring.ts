@@ -16,7 +16,7 @@
 // namespace is not a tool call and is never refused.
 
 import type {
-  AnchorIndex, Clock, CodeIndex, CostIndex, Files, HumanInput, Llm, Logger, MemoryStore, Progress, SessionStore,
+  AnchorIndex, Chooser, Clock, CodeIndex, CostIndex, Files, HumanInput, Llm, Logger, MemoryStore, Progress, SessionStore,
   SharedMemory, Shell, ShellJobs, Telemetry, ToolCatalogue,
 } from "../../application/ports.ts";
 import type { CompactDeps } from "../../application/compaction/compact-session.ts";
@@ -31,6 +31,8 @@ import { profiledAgent, runtimeTakesActContext } from "./llm-profile.ts";
 import type { AgentFactories } from "./llm-profile.ts";
 import { createAnchorIndex, createCodeIndex, createCostIndex } from "./code-index.ts";
 import { createFiles } from "./files.ts";
+import { createChooser } from "./chooser.ts";
+import type { PromptConsole } from "./chooser.ts";
 import { createHumanInput } from "./human-input.ts";
 import { createMemoryStore } from "./memory-store.ts";
 import { createProgress } from "./progress.ts";
@@ -67,6 +69,9 @@ export const orkeonMemoryToolPorts = (tools: OrkeonTools = Tools, root?: string)
 });
 /** human_input: a question to the person at the terminal, never answered on their behalf. */
 export const orkeonHumanInput = (tools: OrkeonTools = Tools): HumanInput => createHumanInput(tools);
+
+/** The console's choice panel: built in a handler, from the `ctx` it receives. */
+export const orkeonChooser = (ctx: PromptConsole): Chooser => createChooser(ctx);
 /** The pull request opened with the github tool, under the session's mode and rules (W0-C). */
 export const orkeonPullRequestOpener = (policy: PullRequestPolicy, tools: OrkeonTools = Tools): PullRequestOpener =>
   createPullRequestOpener({ shell: orkeonShell(tools), github: createGitHubPullRequests(tools) }, policy);

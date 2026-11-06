@@ -9,6 +9,10 @@ export class FakeViewContext implements ViewContext<string> {
     this.calls.push(["writeLine", text]);
   }
 
+  writeBlock(spec: { kind: "diff"; text: string }): void {
+    this.calls.push(["writeBlock", spec]);
+  }
+
   table(rows: readonly object[]): void {
     this.calls.push(["table", rows]);
   }

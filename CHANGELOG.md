@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — panels for the session's settings, and `/theme`
+
+- In the console, `/model`, `/effort`, `/output-style` and `/mode` without an argument open a panel: arrows to move,
+  Enter to pick, Esc to leave with nothing changed. `/model` also moves the effort with the side arrows. On a replay or
+  a plain console, they answer in text as before: `/mode` cycles, the others show.
+- `/theme` shows or sets the console's palette (`dark`, `light`, `none`) for the session; the setting
+  `Orkeon:Cli:Tui:Theme` is the one it starts on.
+
+### Changed — the console renders a result as markdown, and colours `/diff`
+
+- A crew's result that did not stream (`/review`, `/commit`…) is written as markdown, which the console renders; other
+  consoles show its plain lines.
+- `/diff` gives a unified diff as a block the console colours. `--stat`, `--name-only`, `--name-status`, `--numstat`,
+  `--shortstat` and `--word-diff` stay plain text.
+
 ## [1.0.0-rc.1] - 2026-11-06
 
 First release candidate of 1.0.0, on Orkeon `main` `839818d`.

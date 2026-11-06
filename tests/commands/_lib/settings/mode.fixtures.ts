@@ -11,7 +11,7 @@ export const SET_NOTE = `(prompts without a "mode:" prefix now run in it; /clear
 export const STRIPPED = (mode: string): string =>
   `info: entering '${mode}': the edit, network and shell tools stripped from the catalogue`;
 
-export const MODE_USAGE = `usage: /mode [<${PERMISSION_MODES.join("|")}>|show] — bare /mode cycles; ` +
+export const MODE_USAGE = `usage: /mode [<${PERMISSION_MODES.join("|")}>|show] — bare /mode opens a panel, or cycles without one; ` +
   `an explicit "mode:" prefix on a prompt still wins.`;
 
 export const PLAN_ON = "plan mode ON — prompts without a \"mode:\" prefix now run read-only. /plan again to leave.";

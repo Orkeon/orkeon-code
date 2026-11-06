@@ -166,8 +166,16 @@ export async function planModeSession() {
   return { crews, files, config, session };
 }
 
-/** A sink for the lines writeCompleted writes. */
+/** A sink for the lines and the markdown blocks writeCompleted writes. */
 export function lineSink() {
   const lines: string[] = [];
-  return { lines, out: { writeLine: (line: string) => lines.push(line) } };
+  const blocks: { kind: string; text: string }[] = [];
+  return {
+    lines,
+    blocks,
+    out: {
+      writeLine: (line: string) => lines.push(line),
+      writeBlock: (block: { kind: string; text: string }) => blocks.push(block),
+    },
+  };
 }
