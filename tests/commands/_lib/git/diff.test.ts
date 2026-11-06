@@ -7,7 +7,9 @@ import { strictEqual, ok, deepStrictEqual } from "node:assert";
 import {
   planDiff, describeDiffScope, NO_CHANGES_MESSAGE, ALLOWED_DIFF_FLAGS,
 } from "../../../../src/commands/_lib/git/diff.ts";
-import { BAD_PATHSPECS, GIT_FAILURE_CASES, PATHSPEC_CASES, READER_FLAGS, diffHarness } from "./diff.fixtures.ts";
+import {
+  BAD_PATHSPECS, GIT_FAILURE_CASES, NOT_UNIFIED_FLAGS, PATHSPEC_CASES, READER_FLAGS, UNIFIED_TOKENS, diffHarness,
+} from "./diff.fixtures.ts";
 
 describe("/diff — planDiff", () => {
   it("passes the baseline's --staged flag", () => {
@@ -149,7 +151,7 @@ describe("/diff — planDiff", () => {
 });
 
 describe("/diff — runDiff", () => {
-  it("writes the scope then the diff, and closes without a message", async () => {
+  it("gives the scope as a line and the diff as a block, and closes without a message", async () => {
     // Arrange
     const { shell, run } = diffHarness({ "git diff --staged": { stdout: "diff --git a/x b/x\n" } });
 
@@ -157,7 +159,7 @@ describe("/diff — runDiff", () => {
     const view = await run("--staged");
 
     // Assert
-    deepStrictEqual(view, { lines: ["── staged changes", "diff --git a/x b/x\n"] });
+    deepStrictEqual(view, { lines: ["── staged changes"], diff: "diff --git a/x b/x\n" });
     deepStrictEqual(shell.commands, ["git diff --staged"]);
   });
 
@@ -182,12 +184,39 @@ describe("/diff — runDiff", () => {
 
     // Assert
     deepStrictEqual(view, {
-      lines: ["── working-tree changes since the last commit", "d"],
+      lines: ["── working-tree changes since the last commit"],
+      diff: "d",
       text: "1 argument(s) ignored — see the log.",
     });
     strictEqual(log.lines.length, 1);
     ok(log.lines[0].startsWith("warn: /diff ignored '--output=/tmp/x' — not an allowed diff option"));
   });
+
+  for (const flag of NOT_UNIFIED_FLAGS) {
+    it(`keeps what ${flag} answers as lines, since it is no unified diff`, async () => {
+      // Arrange
+      const { run } = diffHarness({ [`git diff ${flag}`]: { stdout: "a | 1 +" } });
+
+      // Act
+      const view = await run(flag);
+
+      // Assert
+      deepStrictEqual(view, { lines: ["── working-tree changes since the last commit", "a | 1 +"] });
+    });
+  }
+
+  for (const tokens of UNIFIED_TOKENS) {
+    it(`gives what ${tokens[0]} answers as a block`, async () => {
+      // Arrange
+      const { run } = diffHarness({ [`git diff ${tokens[0]}`]: { stdout: "@@" } });
+
+      // Act
+      const view = await run(...tokens);
+
+      // Assert
+      strictEqual(view.diff, "@@");
+    });
+  }
 
   for (const c of GIT_FAILURE_CASES) {
     it(c.name, async () => {

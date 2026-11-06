@@ -161,8 +161,9 @@ segment (`cp x .orkeon/mem*/entries/`) n'est pas lu : le shell le développe apr
 ## Choisir le mode
 
 - **Par requête** : préfixez le texte, `plan: explique la couche de cache`, `acceptEdits: corrige le test qui échoue`.
-- **Pour la session** : `/mode acceptEdits` ; `/mode` seul fait défiler `default`, `acceptEdits`, `plan` et
-  `bypassPermissions` (jamais `dontAsk` : on l'atteint par `/mode dontAsk`) ; `/plan`, un alias de `/mode`, bascule le mode plan.
+- **Pour la session** : `/mode acceptEdits` ; `/mode` seul ouvre un panneau des modes dans la console et, sur un rejeu ou une
+  console simple, fait défiler `default`, `acceptEdits`, `plan` et `bypassPermissions` (jamais `dontAsk` : on l'atteint
+  par `/mode dontAsk`) ; `/plan`, un alias de `/mode`, bascule le mode plan.
 - **À défaut** : sans l'un ni l'autre, le mode est `default`, ou celui fixé par
   `/config set permissions.fallback <mode>` (`--session` ne le garde que pour la session). Chaque tour qui utilise ce
   mode de repli dit quel mode s'est appliqué et d'où il venait.

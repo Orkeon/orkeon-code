@@ -131,6 +131,7 @@ others one after the other, each call through the permission gate, and sends the
 | `Orkeon:Tools:GitHub:Token` | The token of the `github` tool, read once when the tool is registered (Orkeon #222); prefer the variable below to a token written in a settings file, which the examples leave out |
 | `Orkeon:Tools:GitHub:TokenVariable` | The environment variable the `github` tool reads its token from when `Token` is unset: `GITHUB_TOKEN` by default, then `GH_TOKEN`. The launcher's Docker mode hands `GITHUB_TOKEN`, `GH_TOKEN` and the variable named here to the container, each when it is set; the native modes inherit the environment. Without a token the tool's description says where to set it; a token shows as `***` in results and logs, and neither key takes a variable reference |
 | `Orkeon:Cli:ConsoleStreaming:Enabled` | Streams the answer as it is generated. The example enables it; a command prints nothing more once the answer streamed (Orkeon #228). With `/dev-batches --concurrency` above 1, each batch's streamed answer comes line by line: on the plain console prefixed by its ticket (`[t2] `), the foreground answer alone as it arrives (Orkeon #211); in the TUI on the batch's own screen, without the prefix (Orkeon #217) |
+| `Orkeon:Cli:Tui:Theme` | The palette the split-pane console starts on: `dark`, `light` or `none`. `/theme` changes it for the session |
 | `Orkeon:Cli:ScriptCommands:MaxScripts` | Commands the loader keeps: 200 by default, above this project's command surface |
 | `RateLimiting:*` | Request rate limits towards the provider |
 

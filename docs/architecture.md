@@ -110,7 +110,7 @@ port.
 
 ```text
 src/
-├── commands/          48 *.cmd.ts (parse, wire, render) in eight functional folders: session, settings, status,
+├── commands/          49 *.cmd.ts (parse, wire, render) in eight functional folders: session, settings, status,
 │   │                  project, git, dev, memory, speech
 │   ├── _lib/          the use cases, in the folder of their commands: run<Name>(tokens, deps) → CommandView,
 │   │                  or dispatch<Name>(tokens, deps) → a ticket or a message when the command launches a
@@ -245,21 +245,25 @@ table and a closing message. `/mode`:
 import { rawTokens } from "../_lib/args.ts";
 import { runMode } from "../_lib/settings/mode.ts";
 import { showView } from "../_lib/view.ts";
-import { orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { orkeonChooser, orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
 
 const session = orkeonSessionIo();
 
 defineCommand({
   name: "mode",
-  description: "Cycle, show or set the session-default permission mode of the assistant.",
-  handler: async (args, ctx) => showView(ctx, await runMode(rawTokens(args), { session, log: ctx.log })),
+  description: "Choose, show or set the session-default permission mode of the assistant.",
+  handler: async (args, ctx) =>
+    showView(ctx, await runMode(rawTokens(args), { session, log: ctx.log, chooser: orkeonChooser(ctx) })),
 });
 ```
 
-A use case whose command writes its own output (`/diff`) puts it in the view's `lines`, written before the table and
-the message. An async command starts a crew instead: `dispatch` returns
+A use case whose command writes its own output (`/diff`) puts it in the view's `lines` and, for a unified diff, in its
+`diff`, a typed block the console colours: both are written before the table and the message. A command that offers a
+choice takes the `Chooser` port: without an argument, in an interactive console, it opens a panel (`/model`, `/effort`,
+`/output-style`, `/mode`, `/theme`), and on a replay or a plain console it keeps its text behaviour. An async command starts a crew instead: `dispatch` returns
 `launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "<crew>", input)` (the ticket, from
-`_lib/dispatch.ts`) and `completed` prints the result with `writeCompleted`.
+`_lib/dispatch.ts`) and `completed` prints the result with `writeCompleted`, as a markdown block the console renders, a failure as a plain
+line.
 
 **A crew** builds its agents, wires the adapters at module scope, builds the context-bound ones in the agent body,
 and calls its use case `application/run-<crew>.ts`, which takes its input and its ports. `/analyze`:
@@ -816,7 +820,7 @@ extraction, `shared/domain/compaction.ts` the prompts and buffers, `shared/domai
 ### Add a permission mode
 
 A mode is stated once: an entry of `PERMISSION_MODES` (`src/shared/domain/permission-modes.ts`, and `MODE_CYCLE`
-when bare `/mode` should cycle through it) and a row of `MODE_POLICIES`
+when bare `/mode` should cycle through it on a console without panels) and a row of `MODE_POLICIES`
 (`src/shared/domain/agent-policy/mode-policy.ts`):
 
 | Mode | `readOnly` | `toolClasses` |

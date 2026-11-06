@@ -1,11 +1,12 @@
 // The session-default permission mode: the mode a prompt runs in when it carries
 // no explicit "mode:" prefix, persisted in the session state bag (survives crew
-// runs; /clear restores "default"). /mode cycles, shows or sets it; typed by its
+// runs; /clear restores "default"). /mode offers, cycles, shows or sets it; typed by its
 // alias /plan, it toggles it in and out of plan.
 
-import type { Logger } from "../../../shared/application/ports.ts";
+import type { Chooser, Logger } from "../../../shared/application/ports.ts";
 import type { SessionIo } from "../../../shared/application/session-io.ts";
 import { PERMISSION_MODES, isPermissionMode, getNextPermissionMode } from "../../../shared/domain/permission-modes.ts";
+import type { PermissionMode } from "../../../shared/domain/permission-modes.ts";
 import { DEFAULT_MODE_STATE_KEY } from "../../../shared/domain/session-keys.ts";
 import { policyFor } from "../../../shared/domain/agent-policy/mode-policy.ts";
 import type { CommandView } from "../view.ts";
@@ -13,7 +14,18 @@ import type { CommandView } from "../view.ts";
 export interface ModeDeps {
   session: Pick<SessionIo, "resolveEffectiveSessionMode" | "readState" | "writeState">;
   log: Pick<Logger, "info">;
+  /** Where a bare /mode opens a panel, when it can. */
+  chooser?: Chooser;
 }
+
+/** What each mode lets a turn do, beside its name in the panel. */
+const MODE_DESCRIPTIONS: Record<PermissionMode, string> = {
+  default: "reads run, the rest asks",
+  acceptEdits: "reads and file edits run, the rest asks",
+  bypassPermissions: "every call runs, nothing asks",
+  plan: "read-only, no edit, network or shell tool",
+  dontAsk: "what would ask is denied",
+};
 
 /** Persist + announce a mode transition; logs the read-only catalogue strip (E-12). */
 async function applyMode(deps: ModeDeps, next: string, how: string): Promise<CommandView> {
@@ -27,12 +39,24 @@ async function applyMode(deps: ModeDeps, next: string, how: string): Promise<Com
   };
 }
 
-/** `/mode [<mode>|show]`, from the command's raw tokens. No argument CYCLES to the
+/** `/mode [<mode>|show]`, from the command's raw tokens. No argument opens a panel, or without one CYCLES to the
  *  next mode (E-12 — the original's Shift+Tab rotation); `show` displays without
  *  changing. Typed by its alias (`typed` "plan"), it toggles plan mode instead. */
 export async function runMode(tokens: string[], deps: ModeDeps, typed = "mode"): Promise<CommandView> {
   if (typed === "plan") return runPlanToggle(deps);
   const requested = (tokens[0] ?? "").trim();
+  if (!requested && deps.chooser?.interactive) {
+    const { mode: current } = await deps.session.resolveEffectiveSessionMode();
+    const answer = await deps.chooser.choose({
+      message: "Permission mode for this session",
+      options: PERMISSION_MODES.map((mode) => ({
+        value: mode,
+        description: MODE_DESCRIPTIONS[mode],
+        ...(mode === current ? { current: true } : {}),
+      })),
+    });
+    return answer ? applyMode(deps, answer.value, "set to") : { text: `permission mode unchanged: ${current}.` };
+  }
   if (!requested) {
     // E-12: bare /mode cycles default → acceptEdits → plan → bypassPermissions.
     // B-2: cycling starts from the EFFECTIVE mode, fallback included, so the
@@ -45,7 +69,7 @@ export async function runMode(tokens: string[], deps: ModeDeps, typed = "mode"):
     return {
       text: `session default permission mode: ${current}\n` +
         `  ↳ ${via}\n` +
-        `usage: /mode [<${PERMISSION_MODES.join("|")}>|show] — bare /mode cycles; ` +
+        `usage: /mode [<${PERMISSION_MODES.join("|")}>|show] — bare /mode opens a panel, or cycles without one; ` +
         `an explicit "mode:" prefix on a prompt still wins.`,
     };
   }

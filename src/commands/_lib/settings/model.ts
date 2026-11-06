@@ -25,14 +25,17 @@
 // be built from LlmConfig.Default() and REPLACE the provider's config wholesale,
 // which dropped the API key. Patched in Orkeon.Scripting (JsLlmFacade.ConfigFrom).
 
-import type { Logger, SessionMetadata, SessionStore, Telemetry } from "../../../shared/application/ports.ts";
-import { MODEL_PREFERENCE_STATE_KEY } from "../../../shared/domain/session-keys.ts";
+import type { Chooser, Logger, SessionMetadata, SessionStore, Telemetry } from "../../../shared/application/ports.ts";
+import { DEFAULT_EFFORT, EFFORT_LEVELS, providerEffort } from "../../../shared/domain/agent-policy/behavior-flags.ts";
+import { EFFORT_STATE_KEY, MODEL_PREFERENCE_STATE_KEY } from "../../../shared/domain/session-keys.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import { readLlmProfile } from "../../../shared/application/llm-profile.ts";
 import {
   judgeModelChoice, renderModelList, NO_CATALOGUE_NOTE,
 } from "../../../shared/domain/model-catalog.ts";
 import type { CommandView } from "../view.ts";
+import { optionsOf } from "./choices.ts";
+import { runEffort } from "./effort.ts";
 
 export interface ModelDeps {
   session: Pick<SessionStore, "readState" | "writeState">;
@@ -40,6 +43,8 @@ export interface ModelDeps {
   /** Where the session's `llm.profile` is read: under a profile, the override is not sent. */
   config: Pick<ConfigStore, "readValue" | "readFile">;
   log: Pick<Logger, "warn">;
+  /** Where a bare /model opens a panel, when it can and there is something to pick. */
+  chooser?: Chooser;
 }
 
 /**
@@ -80,6 +85,9 @@ export async function runModel(tokens: string[], deps: ModelDeps): Promise<Comma
     ]);
     // Under a profile no declared model of the host is the effective one: the profile names its own.
     const effective = profile === null ? pref || boot : "";
+    if (tokens.length === 0 && deps.chooser?.interactive && profile === null && declared.length > 0) {
+      return pickModel(deps, deps.chooser, { declared, effective, boot, override: pref ?? "" });
+    }
     const catalogue = renderModelList(declared, effective);
 
     // `/model list` is the catalogue alone — the question is "what can I pick".
@@ -137,6 +145,35 @@ export async function runModel(tokens: string[], deps: ModelDeps): Promise<Comma
       "It travels over the configured provider, so it must be a model that provider serves; " +
       "/clear (or /model reset) returns to the boot model.",
   };
+}
+
+/** The panel of a bare /model: the declared models, the boot model when an override hides it, and the session's
+ *  effort on the side arrows. Only what the answer changes is written, so opening it and pressing Enter turns no
+ *  provider thinking on. */
+async function pickModel(
+  deps: ModelDeps,
+  chooser: Chooser,
+  { declared, effective, boot, override }: { declared: string[]; effective: string; boot: string; override: string },
+): Promise<CommandView> {
+  const effort = providerEffort(await deps.session.readState(EFFORT_STATE_KEY).catch(() => null)) ?? DEFAULT_EFFORT;
+  const answer = await chooser.choose({
+    message: "Model for the next turns",
+    options: [
+      ...optionsOf(declared, effective),
+      ...(override ? [{ value: "reset", label: "Boot model", description: boot }] : []),
+    ],
+    control: { label: "Effort", values: EFFORT_LEVELS, value: effort },
+  });
+  if (!answer) return { text: "model unchanged." };
+
+  const texts: string[] = [];
+  if (answer.value.toLowerCase() !== effective.toLowerCase()) {
+    texts.push((await runModel([answer.value], { ...deps, chooser: undefined })).text ?? "");
+  }
+  if (answer.control && answer.control !== effort) {
+    texts.push((await runEffort([answer.control], { session: deps.session })).text ?? "");
+  }
+  return { text: texts.length > 0 ? texts.join("\n") : "model unchanged." };
 }
 
 /** The first line of `show`: the profile when one is set, else the effective model. */
