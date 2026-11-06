@@ -4,6 +4,7 @@ import { NO_MODEL_REPORTED, runModel } from "../../../../src/commands/_lib/setti
 import type { CommandView } from "../../../../src/commands/_lib/view.ts";
 import { createConfigStore, USER_CONFIG_FILE_PATH } from "../../../../src/shared/application/config-store.ts";
 import { renderModelList, NO_CATALOGUE_NOTE } from "../../../../src/shared/domain/model-catalog.ts";
+import { FakeChooser } from "../../../support/doubles/fake-chooser.ts";
 import { FakeFiles } from "../../../support/doubles/fake-files.ts";
 import { FakeLogger } from "../../../support/doubles/fake-logger.ts";
 import { FakeSessionStore } from "../../../support/doubles/fake-session-store.ts";
@@ -24,7 +25,10 @@ export function modelHarness(profile?: string) {
   if (profile !== undefined) files.files.set(USER_CONFIG_FILE_PATH, JSON.stringify({ "llm.profile": profile }));
   const config = createConfigStore({ files, session });
   const run = (...tokens: string[]): Promise<CommandView> => runModel(tokens, { session, telemetry, config, log });
-  return { session, telemetry, log, run };
+  const chooser = new FakeChooser();
+  const pick = (...tokens: string[]): Promise<CommandView> =>
+    runModel(tokens, { session, telemetry, config, log, chooser });
+  return { session, telemetry, log, run, chooser, pick };
 }
 
 /** What /model show answers on that host, without an override. */

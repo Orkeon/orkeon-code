@@ -7,14 +7,14 @@
 import { rawTokens, typedCommand } from "../_lib/args.ts";
 import { runMode } from "../_lib/settings/mode.ts";
 import { showView } from "../_lib/view.ts";
-import { orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { orkeonChooser, orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
 
 const session = orkeonSessionIo();
 
 defineCommand({
   name: "mode",
   aliases: ["plan"],
-  description: "Cycle, show or set the session-default permission mode of the assistant; /plan toggles plan mode (read-only).",
+  description: "Choose, show or set the session-default permission mode of the assistant; /plan toggles plan mode (read-only).",
   handler: async (args, ctx) =>
-    showView(ctx, await runMode(rawTokens(args), { session, log: ctx.log }, typedCommand(ctx.command?.rawInput, "mode"))),
+    showView(ctx, await runMode(rawTokens(args), { session, log: ctx.log, chooser: orkeonChooser(ctx) }, typedCommand(ctx.command?.rawInput, "mode"))),
 });

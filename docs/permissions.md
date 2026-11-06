@@ -149,8 +149,9 @@ opens), each operation of an `edit_batch`, the paths and the glob of a `structur
 ## Choosing the mode
 
 - **Per request**: prefix the text, `plan: explain the cache layer`, `acceptEdits: fix the failing test`.
-- **For the session**: `/mode acceptEdits`; bare `/mode` cycles through `default`, `acceptEdits`, `plan` and
-  `bypassPermissions` (never `dontAsk`: reach it with `/mode dontAsk`); `/plan`, an alias of `/mode`, toggles plan mode.
+- **For the session**: `/mode acceptEdits`; bare `/mode` opens a panel of the modes in the console, and on a replay or a plain
+  console cycles through `default`, `acceptEdits`, `plan` and `bypassPermissions` (never `dontAsk`: reach it with
+  `/mode dontAsk`); `/plan`, an alias of `/mode`, toggles plan mode.
 - **Fallback**: with neither, the mode is `default`, or the one set by `/config set permissions.fallback <mode>` (`--session` keeps it
   for the session only). Every
   turn that uses the fallback says which mode applied and where it came from.

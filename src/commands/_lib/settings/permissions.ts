@@ -173,7 +173,7 @@ async function renderShow(deps: PermissionsDeps, extras: ExtraToolsResolution): 
     `session default mode : ${mode} ${isReadOnly(mode) ? "(read-only)" : ""}`,
     `  ↳ source           : ${sessionDefault ? "set by /mode (session state)" : fallback.explanation}`,
     ...widened.fallback,
-    `modes                : ${PERMISSION_MODES.join(", ")} (bare /mode cycles)`,
+    `modes                : ${PERMISSION_MODES.join(", ")} (bare /mode opens a panel, or cycles without one)`,
     `tool catalogue       : ${[...decision.tools, ...memory].join(", ") || "(empty)"}`,
     `  ↳ withheld by mode : ${vocabulary.filter((t) => !offered.includes(t)).join(", ") || "(none)"}`,
     `  ↳ removed by rule  : ${[...decision.deniedByRule, ...memoryByMode.filter((t) => !memory.includes(t))].join(", ") || "(none)"}`,

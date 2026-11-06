@@ -7,8 +7,86 @@ import { strictEqual, deepStrictEqual } from "node:assert";
 import { runMode, togglePlanMode } from "../../../../src/commands/_lib/settings/mode.ts";
 import { PERMISSION_MODES, resolveFallbackMode } from "../../../../src/shared/domain/permission-modes.ts";
 import { DEFAULT_MODE_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
+import { FakeChooser } from "../../../support/doubles/fake-chooser.ts";
 import { LEAVING_PLAN, MODE_USAGE, modeDeps, NOT_PLAN, PLAN_OFF, PLAN_ON, SET_NOTE, STRIPPED } from "./mode.fixtures.ts";
 import { assertPlanToggled } from "./mode.assertions.ts";
+
+describe("/mode (bare) with a panel", () => {
+  it("offers every mode", async () => {
+    // Arrange
+    const { session, log } = modeDeps();
+    const chooser = new FakeChooser();
+
+    // Act
+    await runMode([], { session, log, chooser });
+
+    // Assert
+    deepStrictEqual(chooser.asked[0].options.map((o) => o.value), [...PERMISSION_MODES]);
+  });
+
+  it("marks the effective mode", async () => {
+    // Arrange
+    const { store, session, log } = modeDeps();
+    store.state.set(DEFAULT_MODE_STATE_KEY, "plan");
+    const chooser = new FakeChooser();
+
+    // Act
+    await runMode([], { session, log, chooser });
+
+    // Assert
+    deepStrictEqual(chooser.asked[0].options.filter((o) => o.current).map((o) => o.value), ["plan"]);
+  });
+
+  it("sets the mode picked", async () => {
+    // Arrange
+    const { store, session, log } = modeDeps();
+    const chooser = new FakeChooser();
+    chooser.answers = ["acceptEdits"];
+
+    // Act
+    await runMode([], { session, log, chooser });
+
+    // Assert
+    strictEqual(store.state.get(DEFAULT_MODE_STATE_KEY), "acceptEdits");
+  });
+
+  it("changes nothing when the person leaves", async () => {
+    // Arrange
+    const { store, session, log } = modeDeps();
+    const chooser = new FakeChooser();
+
+    // Act
+    const view = await runMode([], { session, log, chooser });
+
+    // Assert
+    deepStrictEqual([view.text, store.state.size], ["permission mode unchanged: default.", 0]);
+  });
+
+  it("cycles without a panel on a console that cannot open one", async () => {
+    // Arrange
+    const { store, session, log } = modeDeps();
+    const chooser = new FakeChooser();
+    chooser.interactive = false;
+
+    // Act
+    await runMode([], { session, log, chooser });
+
+    // Assert
+    deepStrictEqual([chooser.asked, store.state.get(DEFAULT_MODE_STATE_KEY)], [[], "acceptEdits"]);
+  });
+
+  it("opens no panel when typed as /plan, which toggles", async () => {
+    // Arrange
+    const { store, session, log } = modeDeps();
+    const chooser = new FakeChooser();
+
+    // Act
+    await runMode([], { session, log, chooser }, "plan");
+
+    // Assert
+    deepStrictEqual([chooser.asked, store.state.get(DEFAULT_MODE_STATE_KEY)], [[], "plan"]);
+  });
+});
 
 describe("/mode (bare) — cycles", () => {
   it("cycles from the effective mode, the fallback when /mode set none", async () => {

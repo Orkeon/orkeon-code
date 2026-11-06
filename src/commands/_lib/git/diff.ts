@@ -10,6 +10,8 @@ export interface DiffPlan {
   /** The git argument string, already assembled. */
   args: string;
   staged: boolean;
+  /** Whether git answers with a unified diff, which the console can colour, rather than a summary. */
+  unified: boolean;
   /** Tokens that were dropped, with the reason — never silently ignored. */
   rejected: Array<{ value: string; reason: string }>;
 }
@@ -28,6 +30,9 @@ export const ALLOWED_DIFF_FLAGS = [
   "--staged", "--cached", "--stat", "--name-only", "--name-status",
   "--numstat", "--shortstat", "-p", "--unified", "--word-diff",
 ];
+
+/** The allowed options under which git answers with something other than a unified diff. */
+const NOT_UNIFIED_FLAGS = ["--stat", "--name-only", "--name-status", "--numstat", "--shortstat", "--word-diff"];
 
 /** A pathspec: no leading dash, no shell metacharacter, no parent traversal. */
 const SAFE_PATHSPEC = /^[A-Za-z0-9._/\-*]+$/;
@@ -59,7 +64,8 @@ export function planDiff(tokens: readonly string[]): DiffPlan {
   const staged = flags.some((f) => f === "--staged" || f === "--cached");
   // `--` separates options from pathspecs, so a path that looks like a ref stays a path.
   const args = [...flags, ...(paths.length > 0 ? ["--", ...paths] : [])].join(" ");
-  return { args, staged, rejected };
+  const unified = !flags.some((f) => NOT_UNIFIED_FLAGS.includes(f.split("=")[0]));
+  return { args, staged, unified, rejected };
 }
 
 /** Baseline wording for an empty diff — a distinct sentence, not "(no output)". */
@@ -90,8 +96,9 @@ export async function runDiff(tokens: readonly string[], deps: DiffDeps): Promis
   if (out.trim().length === 0) {
     return { text: `${NO_CHANGES_MESSAGE} (${describeDiffScope(plan)})` };
   }
+  const scope = `── ${describeDiffScope(plan)}`;
   return {
-    lines: [`── ${describeDiffScope(plan)}`, out],
+    ...(plan.unified ? { lines: [scope], diff: out } : { lines: [scope, out] }),
     ...(plan.rejected.length > 0 ? { text: `${plan.rejected.length} argument(s) ignored — see the log.` } : {}),
   };
 }

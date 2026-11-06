@@ -54,4 +54,17 @@ describe("showView", () => {
       ["writeLine", "── staged changes"], ["writeLine", "diff --git a b"], ["continue", "1 argument(s) ignored"],
     ]);
   });
+
+  it("writes the diff as a typed block, after the lines and before the table", () => {
+    // Arrange
+    const ctx = new FakeViewContext();
+
+    // Act
+    showView(ctx, { lines: ["── staged changes"], diff: "@@ -1 +1 @@", table: [] });
+
+    // Assert
+    deepStrictEqual(ctx.calls, [
+      ["writeLine", "── staged changes"], ["writeBlock", { kind: "diff", text: "@@ -1 +1 @@" }], ["table", []], ["continue"],
+    ]);
+  });
 });

@@ -7,7 +7,8 @@ import { strictEqual, deepStrictEqual } from "node:assert";
 
 import { NO_MODEL_REPORTED } from "../../../../src/commands/_lib/settings/model.ts";
 import { judgeModelChoice, renderModelList, NO_CATALOGUE_NOTE } from "../../../../src/shared/domain/model-catalog.ts";
-import { MODEL_PREFERENCE_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
+import { DEFAULT_EFFORT, EFFORT_LEVELS } from "../../../../src/shared/domain/agent-policy/behavior-flags.ts";
+import { EFFORT_STATE_KEY, MODEL_PREFERENCE_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
 import {
   DECLARED,
   NO_MODEL_SHOW_TEXT,
@@ -19,6 +20,160 @@ import {
   bootShowText,
   modelHarness,
 } from "./model.fixtures.ts";
+
+describe("/model with a panel", () => {
+  it("offers the declared models with the effective one marked", async () => {
+    // Arrange
+    const { chooser, pick } = modelHarness();
+
+    // Act
+    await pick();
+
+    // Assert
+    deepStrictEqual(chooser.asked[0].options, [{ value: "kimi-k3", current: true }, { value: "deepseek-chat" }]);
+  });
+
+  it("offers the boot model once an override hides it", async () => {
+    // Arrange
+    const { session, chooser, pick } = modelHarness();
+    session.state.set(MODEL_PREFERENCE_STATE_KEY, "deepseek-chat");
+
+    // Act
+    await pick();
+
+    // Assert
+    deepStrictEqual(chooser.asked[0].options.at(-1), { value: "reset", label: "Boot model", description: "kimi-k3" });
+  });
+
+  it("gives the effort on the side arrows, the default when none is stored", async () => {
+    // Arrange
+    const { chooser, pick } = modelHarness();
+
+    // Act
+    await pick();
+
+    // Assert
+    deepStrictEqual(chooser.asked[0].control, { label: "Effort", values: EFFORT_LEVELS, value: DEFAULT_EFFORT });
+  });
+
+  it("switches to the model picked", async () => {
+    // Arrange
+    const { session, chooser, pick } = modelHarness();
+    chooser.answers = ["deepseek-chat"];
+
+    // Act
+    const view = await pick();
+
+    // Assert
+    deepStrictEqual([view.text, session.state.get(MODEL_PREFERENCE_STATE_KEY)], [SWITCHED_TEXT, "deepseek-chat"]);
+  });
+
+  it("clears the override when the boot model is picked", async () => {
+    // Arrange
+    const { session, chooser, pick } = modelHarness();
+    session.state.set(MODEL_PREFERENCE_STATE_KEY, "deepseek-chat");
+    chooser.answers = ["reset"];
+
+    // Act
+    await pick();
+
+    // Assert
+    strictEqual(session.state.get(MODEL_PREFERENCE_STATE_KEY), "");
+  });
+
+  it("stores the effort moved with the side arrows", async () => {
+    // Arrange
+    const { session, chooser, pick } = modelHarness();
+    chooser.answers = [{ value: "kimi-k3", control: "high" }];
+
+    // Act
+    await pick();
+
+    // Assert
+    strictEqual(session.state.get(EFFORT_STATE_KEY), "high");
+  });
+
+  it("stores no effort when the side arrows were left alone, so no provider thinking starts", async () => {
+    // Arrange
+    const { session, chooser, pick } = modelHarness();
+    chooser.answers = [{ value: "deepseek-chat", control: DEFAULT_EFFORT }];
+
+    // Act
+    await pick();
+
+    // Assert
+    strictEqual(session.state.has(EFFORT_STATE_KEY), false);
+  });
+
+  it("changes nothing when the model and the effort in force are confirmed", async () => {
+    // Arrange
+    const { session, chooser, pick } = modelHarness();
+    chooser.answers = [{ value: "kimi-k3", control: DEFAULT_EFFORT }];
+
+    // Act
+    const view = await pick();
+
+    // Assert
+    deepStrictEqual([view.text, session.state.size], ["model unchanged.", 0]);
+  });
+
+  it("changes nothing when the person leaves", async () => {
+    // Arrange
+    const { session, pick } = modelHarness();
+
+    // Act
+    const view = await pick();
+
+    // Assert
+    deepStrictEqual([view.text, session.state.size], ["model unchanged.", 0]);
+  });
+
+  it("opens no panel on a console that cannot open one", async () => {
+    // Arrange
+    const { chooser, pick } = modelHarness();
+    chooser.interactive = false;
+
+    // Act
+    const view = await pick();
+
+    // Assert
+    deepStrictEqual([chooser.asked, view.text], [[], bootShowText()]);
+  });
+
+  it("opens no panel when the host declares no model", async () => {
+    // Arrange
+    const { telemetry, chooser, pick } = modelHarness();
+    telemetry.metadata = { model: "kimi-k3", availableModels: [] };
+
+    // Act
+    await pick();
+
+    // Assert
+    strictEqual(chooser.asked.length, 0);
+  });
+
+  it("opens no panel under an llm.profile, where the override is not sent", async () => {
+    // Arrange
+    const { chooser, pick } = modelHarness("guarded");
+
+    // Act
+    await pick();
+
+    // Assert
+    strictEqual(chooser.asked.length, 0);
+  });
+
+  it("shows without a panel on an explicit show", async () => {
+    // Arrange
+    const { chooser, pick } = modelHarness();
+
+    // Act
+    await pick("show");
+
+    // Assert
+    strictEqual(chooser.asked.length, 0);
+  });
+});
 
 describe("/model show", () => {
   it("shows the boot model as effective, and the catalogue (the default sub-command)", async () => {

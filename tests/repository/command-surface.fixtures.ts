@@ -28,7 +28,8 @@ export const COMMAND_GROUPS: readonly string[] = ["session", "settings", "status
 // (it enforced nothing) and /onboarding (the native /help) are gone. Bumping this
 // deliberately: the count is the guard against a command silently failing to load,
 // so it must move only with a commit that adds or removes one.
-export const EXPECTED_COMMAND_COUNT = 48;
+// 49: /theme added, the console's palette for the session.
+export const EXPECTED_COMMAND_COUNT = 49;
 
 /** Orkeon's default cap on the command files the loader keeps (Orkeon:Cli:ScriptCommands:MaxScripts). */
 export const LOADER_DEFAULT_CAP = 200;
