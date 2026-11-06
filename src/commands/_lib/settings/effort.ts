@@ -1,4 +1,4 @@
-// /effort [<level>]: the session's reasoning-effort level. It picks the act() iteration ladder of every later
+// /effort [<level>|show]: the session's reasoning-effort level. It picks the act() iteration ladder of every later
 // /assistant turn and reaches the provider as `act({effort})`.
 import type { Chooser } from "../../../shared/application/ports.ts";
 import type { SessionIo } from "../../../shared/application/session-io.ts";
@@ -15,12 +15,13 @@ export interface EffortDeps {
   chooser?: Chooser;
 }
 
-/** `/effort [<level>]`, from the command's raw tokens. No argument opens a panel, or without one shows the level. */
+/** `/effort [<level>|show]`, from the command's raw tokens. No argument opens a panel, or without one shows the level,
+ *  as `show` does. */
 export async function runEffort(tokens: string[], deps: EffortDeps): Promise<CommandView> {
   const requested = (tokens[0] ?? "").toLowerCase();
-  if (!requested) {
+  if (!requested || requested === "show") {
     const stored = await deps.session.readState(EFFORT_STATE_KEY).catch(() => null);
-    if (deps.chooser?.interactive) {
+    if (!requested && deps.chooser?.interactive) {
       const answer = await deps.chooser.choose({
         message: "Reasoning effort for this session",
         options: LEVELS.map((level) => ({
@@ -28,8 +29,16 @@ export async function runEffort(tokens: string[], deps: EffortDeps): Promise<Com
           description: `${EFFORT_MAX_ITERATIONS[level]} act() iterations`,
         })),
       });
+      if (!answer) return { text: "reasoning effort unchanged." };
       // Confirming the level marked changes nothing: with none stored, it would turn the provider's thinking on.
-      if (!answer || answer.value === (stored ?? DEFAULT_EFFORT)) return { text: "reasoning effort unchanged." };
+      if (answer.value === (stored ?? DEFAULT_EFFORT)) {
+        return {
+          text: stored
+            ? "reasoning effort unchanged."
+            : "reasoning effort unchanged: no level is stored, so the provider's thinking stays off " +
+              `(/effort ${answer.value} turns it on).`,
+        };
+      }
       return runEffort([answer.value], { session: deps.session });
     }
     const level = stored ?? `${DEFAULT_EFFORT} (default)`;
@@ -37,11 +46,11 @@ export async function runEffort(tokens: string[], deps: EffortDeps): Promise<Com
     return {
       text: `reasoning effort: ${level}\nact() iterations per level: ${ladder}\n` +
         `provider thinking: ${stored ? `at '${stored}' (act effort)` : "not requested (no level stored)"}\n` +
-        `usage: /effort <${LEVELS.join("|")}>`,
+        `usage: /effort [<${LEVELS.join("|")}>|show]`,
     };
   }
   if (!LEVELS.includes(requested as (typeof LEVELS)[number])) {
-    return { text: `unknown level '${requested}' — expected one of: ${LEVELS.join(", ")}.` };
+    return { text: `unknown level '${requested}' — expected one of: ${LEVELS.join(", ")}, show.` };
   }
   await deps.session.writeState(EFFORT_STATE_KEY, requested);
   // Says what it buys: the iterations, and the provider's thinking at that level.

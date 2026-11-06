@@ -6,7 +6,7 @@
 // handler may wait): the speech crew prints the text, or, with --then, the
 // main loop runs the instruction on the transcription (commands/_lib/transcribe).
 import { rawTokens } from "../_lib/args.ts";
-import { writeCompleted } from "../_lib/dispatch.ts";
+import { writePlainCompleted } from "../_lib/dispatch.ts";
 import { dispatchTranscribe } from "../_lib/speech/transcribe.ts";
 import { createCrewHost } from "../../shared/infrastructure/orkeon/crew-host.ts";
 import { createPermissionRules } from "../../shared/infrastructure/orkeon/permission-rules.ts";
@@ -25,5 +25,5 @@ defineAsyncCommand({
       ...deps, catalogue: orkeonToolCatalogue(ctx.services), crews: createCrewHost(ctx.services),
       gate: createPermissionRules(ctx.services), log: ctx.log,
     }),
-  completed: (result, ctx) => writeCompleted(ctx, result, "transcribe"),
+  completed: (result, ctx) => writePlainCompleted(ctx, result, "transcribe"),
 });

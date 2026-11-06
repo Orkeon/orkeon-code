@@ -7,6 +7,20 @@ import {
   DARK_SHOW_TEXT, NO_PALETTES_TEXT, SET_LIGHT_TEXT, UNKNOWN_THEME_TEXT, themeHarness,
 } from "./theme.fixtures.ts";
 
+describe("/theme on a runtime without palettes", () => {
+  it("says so instead of calling what the runtime does not have", async () => {
+    // Arrange
+    const { console, run } = themeHarness();
+    console.theme = undefined;
+
+    // Act
+    const view = await run("dark");
+
+    // Assert
+    deepStrictEqual([view.text, console.asked], [NO_PALETTES_TEXT, []]);
+  });
+});
+
 describe("/theme without a panel", () => {
   it("shows the palette", async () => {
     // Arrange

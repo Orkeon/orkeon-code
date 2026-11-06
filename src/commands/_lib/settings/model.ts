@@ -147,7 +147,8 @@ export async function runModel(tokens: string[], deps: ModelDeps): Promise<Comma
   };
 }
 
-/** The panel of a bare /model: the declared models, the boot model when an override hides it, and the session's
+/** The panel of a bare /model: the declared models, the effective one when the host does not declare it (Enter must
+ *  not switch away from a model the list hides), the boot model when an override hides it, and the session's
  *  effort on the side arrows. Only what the answer changes is written, so opening it and pressing Enter turns no
  *  provider thinking on. */
 async function pickModel(
@@ -156,10 +157,12 @@ async function pickModel(
   { declared, effective, boot, override }: { declared: string[]; effective: string; boot: string; override: string },
 ): Promise<CommandView> {
   const effort = providerEffort(await deps.session.readState(EFFORT_STATE_KEY).catch(() => null)) ?? DEFAULT_EFFORT;
+  const isDeclared = !effective || declared.some((name) => name.toLowerCase() === effective.toLowerCase());
   const answer = await chooser.choose({
     message: "Model for the next turns",
     options: [
       ...optionsOf(declared, effective),
+      ...(isDeclared ? [] : [{ value: effective, current: true }]),
       ...(override ? [{ value: "reset", label: "Boot model", description: boot }] : []),
     ],
     control: { label: "Effort", values: EFFORT_LEVELS, value: effort },

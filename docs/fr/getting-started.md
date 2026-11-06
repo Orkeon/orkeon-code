@@ -109,8 +109,13 @@ puis `sudo apt install orkeon`. Une version candidate telle que `1.0.0-rc.6` est
 votre plateforme : `orkeon-<version>-linux-x64.tar.gz`, `-linux-arm64`, `-osx-x64`, `-osx-arm64`, ou, sous Windows,
 `orkeon-<version>-win-x64.zip` (la seule archive Windows qui porte `orkeon-repl` : le `.msi` est la CLI `orkeon` et
 Orkeon Studio, sans `orkeon-repl` ni `install.ps1`). Vérifiez-la avec le `SHA256SUMS` de la release, extrayez-la et
-lancez `./install.sh` (`install.ps1` sous Windows) : il installe dans `~/.local/lib/orkeon` et lie `orkeon-repl` dans
-`~/.local/bin`, sans `sudo`.
+lancez `./install.sh` : il installe dans `~/.local/lib/orkeon` et lie `orkeon-repl` dans
+`~/.local/bin`, sans `sudo`. Sous Windows, `install.ps1` installe dans `%LOCALAPPDATA%\Programs\Orkeon` et ajoute son
+dossier `bin` à votre `PATH` utilisateur.
+
+Une release a du retard sur le pin : pas de panneaux, `/theme` répond que la console n'a pas de palettes, et `/diff` et
+les résultats restent en texte brut. Pour avoir les fonctions du pin sous Windows, avec le SDK .NET installé, lancez
+`.\scripts\install-from-source.ps1 -AppSet full` depuis un clone d'Orkeon au pin ou plus récent.
 
 ```bash
 v=1.0.0-rc.6; rid=linux-x64       # the last release; or linux-arm64, osx-x64, osx-arm64

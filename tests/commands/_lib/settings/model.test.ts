@@ -33,6 +33,33 @@ describe("/model with a panel", () => {
     deepStrictEqual(chooser.asked[0].options, [{ value: "kimi-k3", current: true }, { value: "deepseek-chat" }]);
   });
 
+  it("offers and marks an effective model the host does not declare", async () => {
+    // Arrange
+    const { session, chooser, pick } = modelHarness();
+    session.state.set(MODEL_PREFERENCE_STATE_KEY, "my-custom");
+
+    // Act
+    await pick();
+
+    // Assert
+    deepStrictEqual(chooser.asked[0].options.slice(0, 3), [
+      { value: "kimi-k3" }, { value: "deepseek-chat" }, { value: "my-custom", current: true },
+    ]);
+  });
+
+  it("keeps an undeclared model when it is confirmed", async () => {
+    // Arrange
+    const { session, chooser, pick } = modelHarness();
+    session.state.set(MODEL_PREFERENCE_STATE_KEY, "my-custom");
+    chooser.answers = ["my-custom"];
+
+    // Act
+    const view = await pick();
+
+    // Assert
+    deepStrictEqual([view.text, session.state.get(MODEL_PREFERENCE_STATE_KEY)], ["model unchanged.", "my-custom"]);
+  });
+
   it("offers the boot model once an override hides it", async () => {
     // Arrange
     const { session, chooser, pick } = modelHarness();

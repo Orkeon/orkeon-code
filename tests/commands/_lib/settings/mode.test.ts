@@ -50,6 +50,19 @@ describe("/mode (bare) with a panel", () => {
     strictEqual(store.state.get(DEFAULT_MODE_STATE_KEY), "acceptEdits");
   });
 
+  it("stores nothing when the mode marked is confirmed, so a later fallback still applies", async () => {
+    // Arrange
+    const { store, session, log } = modeDeps();
+    const chooser = new FakeChooser();
+    chooser.answers = ["default"];
+
+    // Act
+    const view = await runMode([], { session, log, chooser });
+
+    // Assert
+    deepStrictEqual([view.text, store.state.size], ["permission mode unchanged: default.", 0]);
+  });
+
   it("changes nothing when the person leaves", async () => {
     // Arrange
     const { store, session, log } = modeDeps();

@@ -9,18 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added — panels for the session's settings, and `/theme`
 
-- In the console, `/model`, `/effort`, `/output-style` and `/mode` without an argument open a panel: arrows to move,
-  Enter to pick, Esc to leave with nothing changed. `/model` also moves the effort with the side arrows. On a replay or
-  a plain console, they answer in text as before: `/mode` cycles, the others show.
+- In the console, `/model`, `/effort`, `/output-style`, `/mode` and `/theme` without an argument open a panel: arrows
+  to move, Enter to pick, Esc to leave with nothing changed. `/model` also moves the effort with the side arrows. On a
+  replay or a plain console, they answer in text as before: `/mode` cycles, the others show.
+- `/effort show` shows the level without opening the panel.
 - `/theme` shows or sets the console's palette (`dark`, `light`, `none`) for the session; the setting
   `Orkeon:Cli:Tui:Theme` is the one it starts on.
 
 ### Changed — the console renders a result as markdown, and colours `/diff`
 
 - A crew's result that did not stream (`/review`, `/commit`…) is written as markdown, which the console renders; other
-  consoles show its plain lines.
+  consoles show its plain lines. What a program wrote and no model did (`/transcribe`, `/say`, `/memory admit`) stays
+  plain text.
 - `/diff` gives a unified diff as a block the console colours. `--stat`, `--name-only`, `--name-status`, `--numstat`,
-  `--shortstat` and `--word-diff` stay plain text.
+  `--shortstat` and `--word-diff` stay plain text, and so does a merge conflict's combined diff.
+- The main loop's answers may use a table to compare values.
+
+### Fixed — the panels and the blocks
+
+- In the tool and docker modes, whose runtime is a release older than the pin, `/review`, `/commit`, `/diff` and the
+  other commands that write a block would fail: they now write plain text. `/theme` says the console has no palettes.
+- Enter on the row a panel marks changes nothing: `/mode` no longer stores the mode a fallback gave, and `/model` lists
+  and keeps a model the host does not declare, instead of switching to the first one.
+- `/effort`, on the level it marks with none stored, says the provider's thinking stays off.
+- The `/mode` panel describes `bypassPermissions` and `dontAsk` as they behave.
 
 ### Fixed — the launchers say when the Docker engine is not running
 

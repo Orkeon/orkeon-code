@@ -184,6 +184,8 @@ the text, or the tool's own failure message without the runtime's wrapping, and 
 | `SharedMemory` | The RAG index of the [shared memory](shared-memory.md): search a collection, ingest with prune (the `rag` namespace, else `rag_search`, `rag_ingest`) | `shared-memory.ts` | `fake-shared-memory.ts` |
 | `ChildRuntime` | The children of a crew run: spawn one in the background, list, stop, read what it left (`ctx.spawnBackground`, the crew's `instances()`/`stop()`, its memory) | `child-agents.ts` | `fake-child-runtime.ts` |
 | `HumanInput` | A question to the person: a choice, a text, a multi-select; nobody answering is an answer of its own (`human_input`) | `human-input.ts` | `fake-human-input.ts` |
+| `Chooser` | A panel in the console: one option among several, with an optional control on the side arrows; `interactive` says whether one can open (`ctx.prompt`, `ctx.interactive`) | `chooser.ts` | `fake-chooser.ts` |
+| `ThemeConsole` | The console's palette for the session (`ctx.theme`, `ctx.setTheme`) | the command context itself | `fake-theme-console.ts` |
 | `Files` | Read, write and list by virtual path, the VFS mounts (`file_read`, `file_write`, `directory_read`, `list_mounts`) | `files.ts` | `fake-files.ts` |
 | `Progress` | The host's progress line, best effort (`progress_report`) | `progress.ts` | `fake-progress.ts` |
 | `SessionStore` | The conversation buffer, the state bag, the title, the snip, the token budget by kind (`session_store`, `session_snip`, `token_budget`) | `session-store.ts` | `fake-session-store.ts` |
@@ -263,7 +265,7 @@ choice takes the `Chooser` port: without an argument, in an interactive console,
 `/output-style`, `/mode`, `/theme`), and on a replay or a plain console it keeps its text behaviour. An async command starts a crew instead: `dispatch` returns
 `launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "<crew>", input)` (the ticket, from
 `_lib/dispatch.ts`) and `completed` prints the result with `writeCompleted`, as a markdown block the console renders, a failure as a plain
-line.
+line; what a program wrote and no model did (`/transcribe`, `/say`, `/memory admit`) goes through `writePlainCompleted`, as a line. On a release runtime, which has no `writeBlock`, a block is written as a line too.
 
 **A crew** builds its agents, wires the adapters at module scope, builds the context-bound ones in the agent body,
 and calls its use case `application/run-<crew>.ts`, which takes its input and its ports. `/analyze`:
@@ -409,7 +411,7 @@ prompt as the model reads it, to review a change as a diff.
   outward-facing action the request does not clearly call for is proposed in the answer, not performed, since some
   modes ask nobody first.
 - **Reporting**: the answer carries every result and opens with the outcome; when something failed or could not be
-  checked, the first sentence says so. Full sentences in the reader's terms, a format proportionate to the question,
+  checked, the first sentence says so. Full sentences in the reader's terms, a format proportionate to the question (tables for comparisons),
   code pointed at as `path:line`, file listings shown as trees, the user's language.
 - **Tone**: plain and direct; no praise, no filler apologies, no emoji, no narration of its own reasoning.
 - **Scope**: a request is a software task on the project. Do what was asked and nothing speculative (features,

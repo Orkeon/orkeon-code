@@ -12,6 +12,7 @@ import type { SessionIo } from "../../shared/application/session-io.ts";
 import { configuredNames, resolveExtraTools } from "../../shared/application/extra-tools.ts";
 import { readLlmProfile } from "../../shared/application/llm-profile.ts";
 import { syncPermissionRules } from "../../shared/application/permission-rules.ts";
+import { writeBlockOrLine } from "./view.ts";
 import { readMemoryDir } from "../../shared/application/shared-memory/memory-settings.ts";
 import { memoryWriteRules } from "../../shared/domain/shared-memory/layout.ts";
 import { formatRule } from "../../shared/domain/agent-policy/permission.ts";
@@ -214,15 +215,35 @@ async function voiceReply(deps: Pick<MainLoopLaunchDeps, "config" | "catalogue" 
   return voiceReplyEpilogue(speak);
 }
 
+/** The opening of a markdown block a prefix on the same line would turn into plain text. */
+const OPENS_ON_A_BLOCK = /^\s*(#{1,6}\s|```|~~~|[-*+]\s|\d+\.\s|>|\|)/;
+
+/** `<okPrefix><payload>`, the prefix on its own line when the payload opens on a block. */
+function prefixed(okPrefix: string, payload: string): string {
+  const inline = !okPrefix || okPrefix.endsWith("\n") || !OPENS_ON_A_BLOCK.test(payload);
+  return inline ? okPrefix + payload : `${okPrefix.trimEnd()}\n\n${payload}`;
+}
+
 /** Write a crew's completion: `<okPrefix><payload>` as a markdown block, or the line `✗ <label> failed: …`; nothing
  *  for a success the console already streamed, or the answer would show twice (Orkeon #228). */
 export function writeCompleted(
-  out: { writeLine(text: string): void; writeBlock(spec: { kind: "markdown"; text: string }): void },
+  out: { writeLine(text: string): void; writeBlock?(spec: { kind: "markdown"; text: string }): void },
   result: CrewCompletion,
   label: string,
   okPrefix = "",
 ): void {
   if (result.success && result.streamed === true) return;
-  if (result.success) out.writeBlock({ kind: "markdown", text: okPrefix + result.payload });
+  if (result.success) writeBlockOrLine(out, { kind: "markdown", text: prefixed(okPrefix, String(result.payload)) });
   else out.writeLine("✗ " + label + " failed: " + (result.error ?? "unknown"));
+}
+
+/** `writeCompleted` for what a program wrote and no model did: a transcript, a count. Markdown would change it (the
+ *  stars of `*.ts`, the underscores of `__init__.py`), so it stays a line. */
+export function writePlainCompleted(
+  out: { writeLine(text: string): void },
+  result: CrewCompletion,
+  label: string,
+): void {
+  if (result.success && result.streamed === true) return;
+  out.writeLine(result.success ? String(result.payload) : "✗ " + label + " failed: " + (result.error ?? "unknown"));
 }

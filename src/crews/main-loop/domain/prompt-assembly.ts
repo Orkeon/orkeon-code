@@ -70,8 +70,8 @@ const REPORTING_BLOCK =
   "- Write whole sentences in words the reader already uses. Shorten by leaving out what " +
   "would not change their next step, not by clipping sentences into fragments, symbols or " +
   "arrows, and never lean on names you made up while working.\n" +
-  "- Fit the form to the question: a short question takes a few plain sentences; keep headings " +
-  "and lists for long or parallel content.\n" +
+  "- Fit the form to the question: a short question takes a few sentences; headings " +
+  "and lists for long or parallel content, tables for comparisons.\n" +
   "- Point at code as `path:line`.\n" +
   "- Show several files as a tree grouped by folder: `├──` and `└──` before the entries of a " +
   "folder, `│` to carry a branch down, a trailing `/` on folder names; never a flat list of " +

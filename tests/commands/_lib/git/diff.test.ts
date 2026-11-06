@@ -8,7 +8,7 @@ import {
   planDiff, describeDiffScope, NO_CHANGES_MESSAGE, ALLOWED_DIFF_FLAGS,
 } from "../../../../src/commands/_lib/git/diff.ts";
 import {
-  BAD_PATHSPECS, GIT_FAILURE_CASES, NOT_UNIFIED_FLAGS, PATHSPEC_CASES, READER_FLAGS, UNIFIED_TOKENS, diffHarness,
+  BAD_PATHSPECS, COMBINED_DIFF, GIT_FAILURE_CASES, NOT_UNIFIED_FLAGS, PATHSPEC_CASES, READER_FLAGS, UNIFIED_TOKENS, diffHarness,
 } from "./diff.fixtures.ts";
 
 describe("/diff — planDiff", () => {
@@ -161,6 +161,17 @@ describe("/diff — runDiff", () => {
     // Assert
     deepStrictEqual(view, { lines: ["── staged changes"], diff: "diff --git a/x b/x\n" });
     deepStrictEqual(shell.commands, ["git diff --staged"]);
+  });
+
+  it("gives a merge conflict's combined diff as plain lines, which the block cannot number", async () => {
+    // Arrange
+    const { run } = diffHarness({ "git diff": { stdout: COMBINED_DIFF } });
+
+    // Act
+    const view = await run();
+
+    // Assert
+    deepStrictEqual([view.diff, view.lines?.[1]], [undefined, COMBINED_DIFF]);
   });
 
   it("says there is nothing to show, with the scope", async () => {
