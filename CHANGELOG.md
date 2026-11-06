@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 First release candidate of 1.0.0, on Orkeon `main` `839818d`.
 
+### Changed — the example settings drop weak RAG passages
+
+- The example settings set `Orkeon:Rag:Retrieval:MinScore` to 0.6, so a question the shared memory cannot
+  answer no longer brings back unrelated precedents. The floor applies to every RAG search, documents included, where
+  its effect has not been measured. An existing `config/appsettings.local.json` does not change: add the key to get it.
+
 ### Changed — the main loop writes on the console's main screen, the pin moves to Orkeon main 839818d (#291)
 
 - The runtime pin moves to Orkeon `main` `839818d` (Orkeon #291, [ADR 0018](docs/adr/0018-orkeon-after-291.md)), and the

@@ -88,7 +88,7 @@ hand, with `.nvmrc`.
 3. Run `bash scripts/check-shared-memory.sh` in a terminal (it asks for `rag_eval`): the shared memory's recall on
    its reference set must end on `check-shared-memory: thresholds met` (recall@5 >= 0.85, MRR >= 0.70). The question
    with no answer (q13) passes only when the runtime's settings give `Orkeon:Rag:Retrieval:MinScore`: without that
-   floor every query returns passages, q13 fails and so does the check.
+   floor every query returns passages, q13 fails and so does the check. The examples give 0.6.
 4. Merge, then tag `vx.y.z` on `main` and push the tag: `release.yml` checks that the tag matches, runs the checks
    and the strict provenance gate, and publishes the GitHub Release with the runnable archives
    (`orkeon-code-<v>.tar.gz` and `.zip`, what the installers fetch), `install.sh` and `install.ps1`, the source

@@ -92,7 +92,7 @@ montées mineures et de correctif ; la majeure se monte à la main, avec `.nvmrc
 3. Lancez `bash scripts/check-shared-memory.sh` dans un terminal (il demande `rag_eval`) : le rappel de la mémoire
    partagée sur son jeu de référence doit finir sur `check-shared-memory: thresholds met` (recall@5 >= 0.85, MRR >= 0.70).
    La question sans réponse (q13) ne passe que si les réglages du runtime donnent `Orkeon:Rag:Retrieval:MinScore` :
-   sans ce plancher, toute requête renvoie des passages, q13 échoue et la vérification aussi.
+   sans ce plancher, toute requête renvoie des passages, q13 échoue et la vérification aussi. Les exemples donnent 0,6.
 4. Fusionnez, puis taguez `vx.y.z` sur `main` et poussez le tag : `release.yml` vérifie que le tag correspond, lance
    les vérifications et la garde de provenance stricte, et publie la GitHub Release avec les archives exécutables
    (`orkeon-code-<v>.tar.gz` et `.zip`, ce que les installeurs téléchargent), `install.sh` et `install.ps1`, les
