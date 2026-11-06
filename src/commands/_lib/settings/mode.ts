@@ -22,9 +22,9 @@ export interface ModeDeps {
 const MODE_DESCRIPTIONS: Record<PermissionMode, string> = {
   default: "reads run, the rest asks",
   acceptEdits: "reads and file edits run, the rest asks",
-  bypassPermissions: "every call runs, nothing asks",
+  bypassPermissions: "every call runs but what a deny rule refuses",
   plan: "read-only, no edit, network or shell tool",
-  dontAsk: "what would ask is denied",
+  dontAsk: "local reads only, nothing asks",
 };
 
 /** Persist + announce a mode transition; logs the read-only catalogue strip (E-12). */
@@ -55,7 +55,9 @@ export async function runMode(tokens: string[], deps: ModeDeps, typed = "mode"):
         ...(mode === current ? { current: true } : {}),
       })),
     });
-    return answer ? applyMode(deps, answer.value, "set to") : { text: `permission mode unchanged: ${current}.` };
+    // Confirming the mode in force stores nothing: a fallback it came from stays free to change later.
+    if (!answer || answer.value === current) return { text: `permission mode unchanged: ${current}.` };
+    return applyMode(deps, answer.value, "set to");
   }
   if (!requested) {
     // E-12: bare /mode cycles default → acceptEdits → plan → bypassPermissions.

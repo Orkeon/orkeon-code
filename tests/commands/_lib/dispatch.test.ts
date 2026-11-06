@@ -8,7 +8,7 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual, throws } from "node:assert";
 
 import { parseAssistantInput } from "../../../src/commands/_lib/args.ts";
-import { launchCrew, launchMainLoop, withLlmProfile, writeCompleted } from "../../../src/commands/_lib/dispatch.ts";
+import { launchCrew, launchMainLoop, withLlmProfile, writeCompleted, writePlainCompleted } from "../../../src/commands/_lib/dispatch.ts";
 import { BREAKER_RUN_FIELD } from "../../../src/crews/main-loop/application/auto-compact.ts";
 import { loadCatalogue, runMainLoop } from "../../../src/crews/main-loop/application/run-main-loop.ts";
 import type { MainLoopInputs } from "../../../src/crews/main-loop/application/run-main-loop.ts";
@@ -44,6 +44,7 @@ import {
   UNREADABLE_VOICE_WARNINGS,
   crewDeps,
   lineSink,
+  linesOnlySink,
   mainLoopDeps,
   planModeSession,
   profiledCrewDeps,
@@ -545,6 +546,41 @@ describe("/mode plan, then a request without a mode: prefix", () => {
   });
 });
 
+describe("writePlainCompleted", () => {
+  it("writes the payload of a program as a line, so markdown leaves it alone", () => {
+    // Arrange
+    const { lines, blocks, out } = lineSink();
+
+    // Act
+    writePlainCompleted(out, { success: true, payload: "__init__.py and 2 * 3" }, "transcribe");
+
+    // Assert
+    deepStrictEqual([lines, blocks], [["__init__.py and 2 * 3"], []]);
+  });
+
+  it("writes nothing for a success the console already streamed", () => {
+    // Arrange
+    const { lines, out } = lineSink();
+
+    // Act
+    writePlainCompleted(out, { success: true, payload: "text", streamed: true }, "transcribe");
+
+    // Assert
+    deepStrictEqual(lines, []);
+  });
+
+  it("writes the failure as a line", () => {
+    // Arrange
+    const { lines, out } = lineSink();
+
+    // Act
+    writePlainCompleted(out, { success: false, error: "no audio" }, "transcribe");
+
+    // Assert
+    deepStrictEqual(lines, ["✗ transcribe failed: no audio"]);
+  });
+});
+
 describe("writeCompleted", () => {
   it("writes the payload of a success as a markdown block", () => {
     // Arrange
@@ -566,6 +602,28 @@ describe("writeCompleted", () => {
 
     // Assert
     deepStrictEqual(blocks, [{ kind: "markdown", text: "✓ committed abc123" }]);
+  });
+
+  it("puts the prefix on its own line when the payload opens on a block", () => {
+    // Arrange
+    const { blocks, out } = lineSink();
+
+    // Act
+    writeCompleted(out, { success: true, payload: "# Findings\n\n- one" }, "review", "✓ review → ");
+
+    // Assert
+    strictEqual(blocks[0].text, "✓ review →\n\n# Findings\n\n- one");
+  });
+
+  it("writes plain lines on a runtime without blocks", () => {
+    // Arrange
+    const { lines, out } = linesOnlySink();
+
+    // Act
+    writeCompleted(out, { success: true, payload: "report written" }, "review", "✓ ");
+
+    // Assert
+    deepStrictEqual(lines, ["✓ report written"]);
   });
 
   it("writes nothing for a success the console already streamed (Orkeon #228)", () => {

@@ -192,6 +192,8 @@ rend le texte, ou le message d'échec propre à l'outil sans l'enrobage du runti
 | `SharedMemory` | L'index RAG de la [mémoire partagée](shared-memory.md) : chercher dans une collection, indexer avec élagage (l'espace `rag`, sinon `rag_search`, `rag_ingest`) | `shared-memory.ts` | `fake-shared-memory.ts` |
 | `ChildRuntime` | Les enfants d'une exécution de crew : en lancer un en arrière-plan, lister, arrêter, lire ce qu'il a laissé (`ctx.spawnBackground`, `instances()`/`stop()` du crew, sa mémoire) | `child-agents.ts` | `fake-child-runtime.ts` |
 | `HumanInput` | Une question à la personne : un choix, un texte, une sélection multiple ; personne ne répondant est une réponse en soi (`human_input`) | `human-input.ts` | `fake-human-input.ts` |
+| `Chooser` | Un panneau dans la console : une option parmi plusieurs, avec un réglage facultatif sur les flèches latérales ; `interactive` dit si un panneau peut s'ouvrir (`ctx.prompt`, `ctx.interactive`) | `chooser.ts` | `fake-chooser.ts` |
+| `ThemeConsole` | La palette de la console pour la session (`ctx.theme`, `ctx.setTheme`) | le contexte de commande lui-même | `fake-theme-console.ts` |
 | `Files` | Lire, écrire et lister par chemin virtuel, les montages du VFS (`file_read`, `file_write`, `directory_read`, `list_mounts`) | `files.ts` | `fake-files.ts` |
 | `Progress` | La ligne de progression de l'hôte, au mieux (`progress_report`) | `progress.ts` | `fake-progress.ts` |
 | `SessionStore` | Le tampon de conversation, le sac d'état, le titre, la coupe, le budget de tokens par sorte (`session_store`, `session_snip`, `token_budget`) | `session-store.ts` | `fake-session-store.ts` |
@@ -274,7 +276,7 @@ panneau (`/model`, `/effort`, `/output-style`, `/mode`, `/theme`) et, sur un rej
 comportement en texte. Une commande async lance un crew à la place : `dispatch` rend
 `launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "<crew>", input)` (le ticket, de
 `_lib/dispatch.ts`) et `completed` imprime le résultat avec `writeCompleted`, sous forme d'un bloc markdown que la console
-rend, un échec restant une ligne simple.
+rend, un échec restant une ligne simple ; ce qu'un programme a écrit sans modèle (`/transcribe`, `/say`, `/memory admit`) passe par `writePlainCompleted`, en ligne. Sur un runtime publié, qui n'a pas `writeBlock`, un bloc s'écrit aussi en ligne.
 
 **Un crew** construit ses agents, câble les adaptateurs à la portée module, construit ceux liés au contexte dans le
 corps de l'agent, et appelle son cas d'usage `application/run-<crew>.ts`, qui prend son entrée et ses ports.
@@ -435,8 +437,7 @@ un changement comme un diff.
   une action destructrice ou tournée vers l'extérieur que la requête n'appelle pas clairement est proposée dans la
   réponse, pas exécutée, puisque certains modes ne demandent rien à personne.
 - **Compte rendu** : la réponse porte chaque résultat et s'ouvre sur l'issue ; quand quelque chose a échoué ou n'a pas
-  pu être vérifié, la première phrase le dit. Des phrases complètes dans les termes du lecteur, un format proportionné
-  à la question, le code désigné en `path:line`, les listes de fichiers montrées en arbres, la langue de l'utilisateur.
+  pu être vérifié, la première phrase le dit. Des phrases complètes dans les termes du lecteur, un format proportionné à la question (des tableaux pour les comparaisons), le code désigné en `path:line`, les listes de fichiers montrées en arbres, la langue de l'utilisateur.
 - **Ton** : simple et direct ; pas d'éloge, pas d'excuses de remplissage, pas d'emoji, pas de narration de son propre
   raisonnement.
 - **Périmètre** : une requête est une tâche logicielle sur le projet. Faire ce qui a été demandé et rien de

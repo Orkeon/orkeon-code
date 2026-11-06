@@ -4,7 +4,9 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { EFFORT_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
-import { effortHarness, NOTHING_STORED_TEXT, SET_HIGH_TEXT, UNKNOWN_LEVEL_TEXT } from "./effort.fixtures.ts";
+import {
+  effortHarness, NOTHING_STORED_TEXT, SET_HIGH_TEXT, THINKING_STAYS_OFF_TEXT, UNKNOWN_LEVEL_TEXT,
+} from "./effort.fixtures.ts";
 
 describe("/effort without a panel", () => {
   it("shows the default level and no provider thinking when no level is stored", async () => {
@@ -42,6 +44,18 @@ describe("/effort without a panel", () => {
 });
 
 describe("/effort with a panel", () => {
+  it("shows the level on an explicit show", async () => {
+    // Arrange
+    const { chooser, run } = effortHarness();
+    chooser.interactive = true;
+
+    // Act
+    const view = await run("show");
+
+    // Assert
+    deepStrictEqual([view.text, chooser.asked.length], [NOTHING_STORED_TEXT, 0]);
+  });
+
   it("offers the levels with the stored one marked", async () => {
     // Arrange
     const { session, chooser, run } = effortHarness();
@@ -90,7 +104,7 @@ describe("/effort with a panel", () => {
     const view = await run();
 
     // Assert
-    deepStrictEqual([view.text, session.state.size], ["reasoning effort unchanged.", 0]);
+    deepStrictEqual([view.text, session.state.size], [THINKING_STAYS_OFF_TEXT, 0]);
   });
 
   it("stores nothing when the person leaves", async () => {

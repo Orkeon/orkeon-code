@@ -1,17 +1,9 @@
 // /theme [<name>|show]: the console's palette for this session. The start palette is the setting Orkeon:Cli:Tui:Theme.
-import type { Chooser } from "../../../shared/application/ports.ts";
+import type { Chooser, ThemeConsole, ThemeName } from "../../../shared/application/ports.ts";
 import type { CommandView } from "../view.ts";
 import { optionsOf } from "./choices.ts";
 
-const THEMES = ["dark", "light", "none"] as const;
-type ThemeName = (typeof THEMES)[number];
-
-/** The part of the command context the palette goes through. */
-export interface ThemeConsole {
-  /** Null on a console without palettes. */
-  readonly theme: ThemeName | null;
-  setTheme(name: ThemeName): boolean;
-}
+const THEMES: readonly ThemeName[] = ["dark", "light", "none"];
 
 export interface ThemeDeps {
   console: ThemeConsole;
@@ -31,7 +23,7 @@ export async function runTheme(tokens: string[], deps: ThemeDeps): Promise<Comma
     return { text: `unknown theme '${requested}' — expected one of: ${THEMES.join(", ")}, show.` };
   }
   const current = console.theme;
-  if (current === null) return { text: NO_PALETTES };
+  if (!current) return { text: NO_PALETTES };
 
   if (isTheme(requested)) return setTheme(console, requested);
   if (!requested && chooser?.interactive) {

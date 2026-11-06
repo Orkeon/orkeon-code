@@ -23,6 +23,8 @@ export const PATHSPEC_CASES: readonly { name: string; tokens: string[]; args: st
 
 export const BAD_PATHSPECS: readonly string[] = ["../etc/passwd", "a;b", "$(id)", "a|b", "a b\tc"];
 
+export const COMBINED_DIFF = "diff --cc a.ts\n--- a/a.ts\n+++ b/a.ts\n@@@ -1,1 -1,1 +1,2 @@@\n  same\n+ ours\n";
+
 export interface DiffHarness {
   shell: FakeShell;
   log: FakeLogger;

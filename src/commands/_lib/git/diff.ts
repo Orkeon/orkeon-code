@@ -97,8 +97,10 @@ export async function runDiff(tokens: readonly string[], deps: DiffDeps): Promis
     return { text: `${NO_CHANGES_MESSAGE} (${describeDiffScope(plan)})` };
   }
   const scope = `── ${describeDiffScope(plan)}`;
+  // A merge conflict's combined diff (`@@@`, two columns of signs) is not the unified form the block numbers.
+  const unified = plan.unified && !/^@@@ /m.test(out);
   return {
-    ...(plan.unified ? { lines: [scope], diff: out } : { lines: [scope, out] }),
+    ...(unified ? { lines: [scope], diff: out } : { lines: [scope, out] }),
     ...(plan.rejected.length > 0 ? { text: `${plan.rejected.length} argument(s) ignored — see the log.` } : {}),
   };
 }

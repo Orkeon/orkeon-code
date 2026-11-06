@@ -436,6 +436,17 @@ describe("buildStaticHeader", () => {
     assertMentions(header, ["├──", "└──"], "the header");
     assertInOrder(header, ["## Reporting back", "├──", "## Tone"]);
   });
+
+  it("keeps tables for comparisons", () => {
+    // Arrange
+    const opts = { toolNames: ["file_read"] };
+
+    // Act
+    const header = buildStaticHeader(opts);
+
+    // Assert
+    assertInOrder(header, ["## Reporting back", "tables for comparisons", "## Tone"]);
+  });
 });
 
 describe("buildMemoryBlock", () => {
