@@ -758,7 +758,20 @@ try {
     foreach ($a in $Extra) { if ($a -ceq '--llm-log') { if (-not $named) { '--llm-log-path'; "$projectState/llm-logs" } } else { $a } }
   }
 
+  # Whether the Docker engine answers. Its own function, so the launcher's 'Stop' does not turn a warning on stderr
+  # into a failure.
+  function Test-DockerEngine {
+    $ErrorActionPreference = 'Continue'
+    & docker version --format '{{.Server.Version}}' 2>$null | Out-Null
+    $LASTEXITCODE -eq 0
+  }
+
   if ($Mode -eq 'docker') {
+    if (-not (Get-Command docker -ErrorAction SilentlyContinue)) { throw 'docker not found.' }
+    # `docker run` alone would answer with the pipe or the socket it could not open, and nothing about what to do.
+    if (-not (Test-DockerEngine)) {
+      throw 'The Docker engine does not answer: start Docker Desktop or the Docker service, then run orkeon-code again. Without Docker, install the orkeon-repl tool (docs/getting-started.md).'
+    }
     # Everything under the working directory /work. The image is multi-arch (linux/amd64, linux/arm64).
     $envArgs = @('-e', 'ORKEON_RUNNER=repl', '-e', 'HOME=/tmp', '-e', 'DOTNET_CLI_HOME=/tmp',
                  '-e', "Orkeon__Security__PermissionGate__Enabled=$env:Orkeon__Security__PermissionGate__Enabled",

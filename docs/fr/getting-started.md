@@ -136,6 +136,9 @@ REPL et esbuild ; l'image est construite pour `linux/amd64` et `linux/arm64`, et
 conteneur ; sous Linux, le conteneur tourne avec votre uid, si bien que les fichiers que l'agent écrit vous
 appartiennent. L'outil shell tourne dans le conteneur.
 
+Le lanceur vérifie que le moteur répond avant de démarrer le conteneur : si Docker Desktop ou le service Docker est
+arrêté, il le dit et ne démarre rien.
+
 ### Mode source : un checkout d'Orkeon
 
 `ORKEON_SOURCE=~/src/orkeon ./orkeon-code --mode source` construit `src/apps/Orkeon.ConsoleApp` dans ce checkout

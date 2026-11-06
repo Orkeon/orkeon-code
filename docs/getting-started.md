@@ -136,6 +136,9 @@ REPL and esbuild; the image is built for `linux/amd64` and `linux/arm64`, and Do
 container; on Linux the container runs with your uid, so the files the agent writes belong to you. The shell tool
 runs inside the container.
 
+The launcher checks that the engine answers before it starts the container: when Docker Desktop or the Docker service
+is stopped, it says so and starts nothing.
+
 ### Source mode: an Orkeon checkout
 
 `ORKEON_SOURCE=~/src/orkeon ./orkeon-code --mode source` builds `src/apps/Orkeon.ConsoleApp` in that checkout

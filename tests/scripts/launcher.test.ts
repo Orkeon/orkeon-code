@@ -17,8 +17,8 @@ import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } 
 import { dirname, join } from "node:path";
 import {
   ARCHIVE_VERSION, BASH_GATE, BLOCK, BUILDING_LINE, CODE_VERSION, CORRUPT_STORES, DEB_WRAPPER, DOTNET, CONSOLE_APP_DLL, ESBUILD, EXAMPLE_SETTINGS,
-  EXAMPLE_SETTINGS_FILES, FOLLOWED_CHECKOUTS, GATE, KEPT_CHECKOUTS, KEEP_OUT_OF_RANGE, NO_FILE_SETTINGS, NOT_AT_THE_PIN, OLLAMA_AND_EXISTING, PERSIST, PINNED_SDK, PROJECT_NAMES, PS1_ARGS_LOOP,
-  PS1_CLONE_OR_INSTALL, PS1_DOCKER_TTY, PS1_FROM_PROJECT, PS1_GATE, PS1_MODES, PS1_MEMORY_MOUNT, PS1_SESSION_MOUNTS, PS1_SESSIONS, PS1_SET_VARIABLES,
+  DOCKER_ENGINE_DOWN, EXAMPLE_SETTINGS_FILES, FOLLOWED_CHECKOUTS, GATE, KEPT_CHECKOUTS, KEEP_OUT_OF_RANGE, LARGE_ENV, NO_FILE_SETTINGS, NOT_AT_THE_PIN, OLLAMA_AND_EXISTING, PERSIST, PINNED_SDK, PROJECT_NAMES, PS1_ARGS_LOOP,
+  PS1_CLONE_OR_INSTALL, PS1_DOCKER_ENGINE, PS1_DOCKER_TTY, PS1_FROM_PROJECT, PS1_GATE, PS1_MODES, PS1_MEMORY_MOUNT, PS1_SESSION_MOUNTS, PS1_SESSIONS, PS1_SET_VARIABLES,
   PS1_SETTINGS, PS1_SLUG, PS1_SPEECH, PS1_STORE_LAYOUT, PS1_SUBCOMMANDS, PS1_TRUST_CHECK, PS1_TRUST_REFUSAL, PS1_USER_SETTINGS,
   PS1_VERSION_LINES, PTY, PWSH, RESTORED_IN_FINALLY, RESTORED_NAMES, ROOTS, RUNTIME_SETTINGS, RUNTIME_SLUGS, RUNTIME_PIN, RUNTIME_REF,
   SERVER_CASES, SERVER_LEFT_OUT, MEMORY_DIR, SESSIONS_DIR, SETTINGS_TEXT, SETTINGS_WITH_BLOCK, SLUG_PATHS, SPEECH_TOOL, START_SCRIPT, TOOL_REPL,
@@ -354,6 +354,31 @@ describe("orkeon-code, docker mode", () => {
   });
 });
 
+describe("orkeon-code, docker mode, an engine that does not answer", () => {
+  it("says to start Docker and fails", () => {
+    // Arrange
+    const bin = { docker: DOCKER_ENGINE_DOWN };
+
+    // Act
+    const r = launch({ args: ["--mode", "docker"], bin });
+
+    // Assert
+    strictEqual(r.status, 1, r.stderr);
+    assertSays(r.stderr, ["the Docker engine does not answer", "start Docker Desktop or the Docker service"]);
+  });
+
+  it("starts no container", () => {
+    // Arrange
+    const bin = { docker: DOCKER_ENGINE_DOWN };
+
+    // Act
+    const r = launch({ args: ["--mode", "docker"], bin });
+
+    // Assert
+    deepStrictEqual(r.args, []);
+  });
+});
+
 describe("orkeon-code, docker mode, the github tool's token (Orkeon #222)", () => {
   it("hands GITHUB_TOKEN and GH_TOKEN to the container when the operator exported them", () => {
     // Arrange
@@ -552,6 +577,17 @@ describe("orkeon-code, speech-to-text (ORKEON_CODE_AUDIO_DIR)", () => {
     // Assert
     ok(anyCase.stderr.includes('declares a "whisper" MCP server'), "the runtime reads the name case aside: " + anyCase.stderr);
     deepStrictEqual(whisperEnv(anyCase), []);
+  });
+
+  it("sees a server the environment declares in a large environment too", () => {
+    // Arrange
+    const env = audioEnv(scratchDir("orkeon-code-audio-"), { [`${WHISPER}Url`]: "http://host.docker.internal:8765/mcp", ...LARGE_ENV });
+
+    // Act
+    const r = launch({ args: ["--mode", "tool"], bin: SPEECH_TOOL, env });
+
+    // Assert
+    assertSays(r.stderr, ['the environment declares a "whisper" MCP server']);
   });
 
   it("leaves a server the environment declares as it was, and says why", () => {
@@ -967,6 +1003,18 @@ describe("orkeon-code.ps1 follows the same rules (read here; run below, where pw
     // Assert
     assertMentions(script, PS1_DOCKER_TTY);
     ok(!script.includes("docker run --rm -it"), "never -it whatever the input");
+  });
+
+  it("checks that the Docker engine answers before it runs the container", () => {
+    // Arrange
+    const launcher = "orkeon-code.ps1";
+
+    // Act
+    const script = read(launcher);
+
+    // Assert
+    assertMentions(script, PS1_DOCKER_ENGINE);
+    ok(script.indexOf("(Test-DockerEngine)") < script.indexOf("& docker run --rm"), "the check comes first");
   });
 
   it("refuses a mode it does not have, from the environment too, and answers --help and --demo", () => {

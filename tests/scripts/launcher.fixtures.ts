@@ -48,6 +48,9 @@ export function recorder(extra = ""): string {
   return `#!/bin/sh\n${extra}pwd > "$RECORD/cwd"\nprintf '%s\\n' "$@" > "$RECORD/args"\nenv > "$RECORD/env"\n`;
 }
 
+/** A docker whose client works and whose engine does not answer: `docker version` fails, as with Docker Desktop stopped. */
+export const DOCKER_ENGINE_DOWN = recorder('if [ "$1" = version ]; then echo "failed to connect to the docker API" >&2; exit 1; fi\n');
+
 /** The Debian package's /usr/bin/orkeon-repl, as scripts/package-deb.sh writes it, recording instead of exec. */
 export const DEB_WRAPPER = recorder(
   'ORKEON_HOME=/usr/lib/orkeon\nif [ -z "${ORKEON_ESBUILD_PATH:-}" ] && [ -x "$ORKEON_HOME/esbuild-bin/esbuild" ]; then\n' +
@@ -305,6 +308,11 @@ export const whisperEnv = (r: Run) => [...r.env.keys()].filter((k) => k.startsWi
 /** A tool-mode environment that turns speech-to-text on, on `audio`, with `extra` variables. */
 export const audioEnv = (audio: string, extra: Record<string, string> = {}) =>
   ({ ...ESBUILD, ORKEON_CODE_AUDIO_DIR: audio, ...extra });
+
+/** Variables that make `env` write more than a pipe holds, as a large environment does. */
+export const LARGE_ENV: Record<string, string> = Object.fromEntries(
+  Array.from({ length: 8 }, (_, i) => [`PAD_${i}`, "x".repeat(100_000)]),
+);
 
 /** The server's arguments ORKEON_MCP__Servers__whisper__Args__<i> holds, for each index of `indices`. */
 export const whisperArgs = (r: Run, indices: number[]) => indices.map((i) => r.env.get(`${WHISPER}Args__${i}`));
@@ -684,6 +692,14 @@ export const PS1_DOCKER_TTY: readonly Mention[] = [
   ["$ttyArgs = if ([Console]::IsInputRedirected -or [Console]::IsOutputRedirected) { @('-i') } else { @('-it') }", "-it on a tty only"],
   ["if ($IsLinux) { $userArgs = @('--user', \"$(& id -u):$(& id -g)\") }", "--user on Linux"],
   ["& docker run --rm @ttyArgs @userArgs @envArgs -w /work", "both passed"],
+];
+
+export const PS1_DOCKER_ENGINE: readonly Mention[] = [
+  ["if (-not (Get-Command docker -ErrorAction SilentlyContinue)) { throw 'docker not found.' }", "a missing docker named"],
+  ["& docker version --format '{{.Server.Version}}' 2>$null | Out-Null", "the engine asked, its stderr dropped"],
+  ["$ErrorActionPreference = 'Continue'", "a warning on stderr fails nothing"],
+  ["if (-not (Test-DockerEngine)) {", "the answer read"],
+  ["start Docker Desktop or the Docker service", "the message says what to do"],
 ];
 
 export const PS1_MODES: readonly Mention[] = [

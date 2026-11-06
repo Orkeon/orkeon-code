@@ -22,6 +22,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `/diff` gives a unified diff as a block the console colours. `--stat`, `--name-only`, `--name-status`, `--numstat`,
   `--shortstat` and `--word-diff` stay plain text.
 
+### Fixed — the launchers say when the Docker engine is not running
+
+- In Docker mode, `orkeon-code` and `orkeon-code.ps1` check that the engine answers before `docker run`. When it does
+  not, they say to start Docker Desktop or the Docker service, instead of showing the pipe or the socket Docker could
+  not open.
+- `orkeon-code` could miss a `whisper` server declared in the environment (`ORKEON_MCP__Servers__whisper__*`), depending
+  on the size of the environment, and then replaced that declaration with its own when `ORKEON_CODE_AUDIO_DIR` was set.
+
 ## [1.0.0-rc.1] - 2026-11-06
 
 First release candidate of 1.0.0, on Orkeon `main` `839818d`.
