@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — the launchers say when the Docker engine is not running
+
+- In Docker mode, `orkeon-code` and `orkeon-code.ps1` check that the engine answers before `docker run`. When it does
+  not, they say to start Docker Desktop or the Docker service, instead of showing the pipe or the socket Docker could
+  not open.
+
 ## [1.0.0-rc.1] - 2026-11-06
 
 First release candidate of 1.0.0, on Orkeon `main` `839818d`.

@@ -800,6 +800,9 @@ llm_log_args() { # <project state as the REPL sees it>
 case "$MODE" in
   docker)
     command -v docker >/dev/null 2>&1 || die "docker not found."
+    # `docker run` alone would answer with the pipe or the socket it could not open, and nothing about what to do.
+    docker version --format '{{.Server.Version}}' >/dev/null 2>&1 \
+      || die "the Docker engine does not answer: start Docker Desktop or the Docker service, then run orkeon-code again. Without Docker, install the orkeon-repl tool (docs/getting-started.md)."
     # Everything the REPL reads sits under its working directory /work. The
     # image is multi-arch (linux/amd64, linux/arm64): docker pulls the host's.
     env_args=(-e ORKEON_RUNNER=repl -e HOME=/tmp -e DOTNET_CLI_HOME=/tmp
