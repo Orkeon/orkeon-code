@@ -89,7 +89,9 @@ montées mineures et de correctif ; la majeure se monte à la main, avec `.nvmrc
 1. Déplacez les entrées `[Unreleased]` de `CHANGELOG.md` sous `## [x.y.z] - YYYY-MM-DD`.
 2. Montez `version` dans `package.json` et `CLI_VERSION` dans `src/commands/_lib/status/meta.ts` (le test les garde
    égaux), ainsi que les notes de release dans ce même fichier.
-3. Lancez `bash scripts/check-shared-memory.sh` dans un terminal (il demande `rag_eval`) : le rappel de la mémoire
+3. Lancez `ORKEON_SOURCE=<un checkout d'Orkeon au pin> bash scripts/check-shared-memory.sh` dans un terminal (il demande
+   `rag_eval` ; sans `ORKEON_SOURCE`, il lance l'outil plus ancien de `.config/dotnet-tools.json`, pas le pin, qui refuse
+   des réglages récents comme `Orkeon:Decision`) : le rappel de la mémoire
    partagée sur son jeu de référence doit finir sur `check-shared-memory: thresholds met` (recall@5 >= 0.85, MRR >= 0.70).
    La question sans réponse (q13) ne passe que si les réglages du runtime donnent `Orkeon:Rag:Retrieval:MinScore` :
    sans ce plancher, toute requête renvoie des passages, q13 échoue et la vérification aussi. Les exemples donnent 0,6.
