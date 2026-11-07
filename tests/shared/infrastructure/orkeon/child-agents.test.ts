@@ -12,21 +12,10 @@ import { FakeLogger } from "../../../support/doubles/fake-logger.ts";
 import { REVIEW_STEPS, STOPS, base, board, fakeRun, openReview, spec, ticking } from "./child-agents.fixtures.ts";
 
 describe("createChildRuntime", () => {
-  it("is null on a host without background children", () => {
-    // Arrange
-    const ctx = {} as any;
-
-    // Act
-    const runtime = createChildRuntime(ctx, {} as any);
-
-    // Assert
-    strictEqual(runtime, null);
-  });
-
   it("maps the crew's instances", () => {
     // Arrange
     const run = fakeRun();
-    const rt = createChildRuntime(run.ctx, run.crew)!;
+    const rt = createChildRuntime(run.ctx, run.crew);
     rt.spawn("dev-reviewer", "{}");
 
     // Act
@@ -40,7 +29,7 @@ describe("createChildRuntime", () => {
     it(`maps the crew's stop: ${JSON.stringify(c.id)} ${c.stopped ? "stopped" : "not stopped"}`, () => {
       // Arrange
       const run = fakeRun();
-      const rt = createChildRuntime(run.ctx, run.crew)!;
+      const rt = createChildRuntime(run.ctx, run.crew);
       rt.spawn("dev-reviewer", "{}");
 
       // Act
@@ -54,7 +43,7 @@ describe("createChildRuntime", () => {
   it("pauses on a receive with the timeout, and swallows the timeout", async () => {
     // Arrange
     const run = fakeRun();
-    const rt = createChildRuntime(run.ctx, run.crew)!;
+    const rt = createChildRuntime(run.ctx, run.crew);
     rt.spawn("dev-reviewer", "{}");
 
     // Act
@@ -67,7 +56,7 @@ describe("createChildRuntime", () => {
   it("maps the crew's memory", async () => {
     // Arrange
     const run = fakeRun();
-    const rt = createChildRuntime(run.ctx, run.crew)!;
+    const rt = createChildRuntime(run.ctx, run.crew);
     rt.spawn("dev-reviewer", "{}");
     await rt.pause(1000);
 
@@ -81,7 +70,7 @@ describe("createChildRuntime", () => {
   it("lets a pause fail on any error but the timeout", async () => {
     // Arrange
     const run = fakeRun();
-    const rt = createChildRuntime(run.ctx, run.crew)!;
+    const rt = createChildRuntime(run.ctx, run.crew);
     run.setReceiveError(new Error("cancelled"));
 
     // Act
@@ -169,18 +158,6 @@ describe("withChildAct", () => {
     deepStrictEqual(run.spawned.map(([, i]) => JSON.parse(String(i)).request.effort), ["low", "high"]);
   });
 
-  it("keeps the act inline, and says so, on a host without background children", async () => {
-    // Arrange
-    const log = new FakeLogger();
-    const llm = withChildAct(base(), {} as any, {} as any, { board: board(), clock: ticking(), log }, spec);
-
-    // Act
-    const reply = await llm.act("p", {});
-
-    // Assert
-    strictEqual(reply, "inline");
-    strictEqual(log.lines[0].startsWith("warn: dev-reviewer: this host runs no background child"), true);
-  });
 });
 
 describe("openChildAct", () => {

@@ -7,8 +7,7 @@
 // a time through human_input (each answer written before the next question), folds the answers into the body, then
 // has the read-only reviewer question the spec once. Unattended, the questions stay in the file: BLOCKED.
 // The reviewer's act runs in a background child, `dev-reviewer` (its charter: read tools only, plan mode), which
-// /tasks lists and stops while it runs, as /dev-plan's (A-3, approach A2); on a host without background children
-// it runs inline.
+// /tasks lists and stops while it runs, as /dev-plan's (A-3, approach A2).
 //
 // Input (globalThis.inputs): { code: string, request?: string (the brief, a path to it, or a revision request),
 //                              hooks?: the /hooks registry, effort?: "low" | "medium" | "high" | "xhigh" | "max" | null,

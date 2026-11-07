@@ -20,18 +20,6 @@ describe("showView", () => {
     deepStrictEqual(ctx.calls, [["table", [{ a: 1 }]], ["continue", "done"]]);
   });
 
-  it("writes the diff as a line on a runtime without blocks", () => {
-    // Arrange
-    const ctx = new FakeViewContext();
-    ctx.hasBlocks = false;
-
-    // Act
-    showView(ctx, { diff: "+ added" });
-
-    // Assert
-    deepStrictEqual(ctx.calls, [["writeLine", "+ added"], ["continue"]]);
-  });
-
   it("closes without a message when the view has none", () => {
     // Arrange
     const ctx = new FakeViewContext();

@@ -3,8 +3,8 @@
 import { describe, it } from "node:test";
 import { strictEqual } from "node:assert";
 
-import { messagesOfLastTurns, runtimeTurnsToKeep } from "../../../src/shared/domain/snip-turns.ts";
-import { KEEP_CASES, TAIL_CASES } from "./snip-turns.fixtures.ts";
+import { runtimeTurnsToKeep } from "../../../src/shared/domain/snip-turns.ts";
+import { KEEP_CASES } from "./snip-turns.fixtures.ts";
 
 describe("runtimeTurnsToKeep", () => {
   for (const c of KEEP_CASES) {
@@ -21,17 +21,3 @@ describe("runtimeTurnsToKeep", () => {
   }
 });
 
-describe("messagesOfLastTurns", () => {
-  for (const c of TAIL_CASES) {
-    it(c.name, () => {
-      // Arrange
-      const { messages, runtimeTurns } = c;
-
-      // Act
-      const tail = messagesOfLastTurns(messages, runtimeTurns);
-
-      // Assert
-      strictEqual(tail, c.tail);
-    });
-  }
-});

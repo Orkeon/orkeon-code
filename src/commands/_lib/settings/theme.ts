@@ -23,7 +23,7 @@ export async function runTheme(tokens: string[], deps: ThemeDeps): Promise<Comma
     return { text: `unknown theme '${requested}' — expected one of: ${THEMES.join(", ")}, show.` };
   }
   const current = console.theme;
-  if (!current) return { text: NO_PALETTES };
+  if (current === null) return { text: NO_PALETTES };
 
   if (isTheme(requested)) return setTheme(console, requested);
   if (!requested && chooser?.interactive) {

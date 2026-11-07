@@ -30,16 +30,3 @@ export function runtimeTurnsToKeep(messages: readonly SessionMsg[], turns: numbe
   return null;
 }
 
-/** How many messages hold the last `runtimeTurns` of the runtime's turns of `messages`, a turn opening at each user
- *  message after the head: the tail session_snip keeps on a runtime before Orkeon #287, whose `retain_count` counts
- *  messages after the head. null when the buffer holds fewer turns than that after its head. */
-export function messagesOfLastTurns(messages: readonly SessionMsg[], runtimeTurns: number): number | null {
-  if (runtimeTurns <= 0) return 0;
-  let users = 0;
-  for (let i = messages.length - 1; i >= 1; i--) {
-    if (!isUser(messages[i])) continue;
-    users++;
-    if (users === runtimeTurns) return messages.length - i;
-  }
-  return null;
-}

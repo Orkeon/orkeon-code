@@ -9,8 +9,7 @@
 // the answers in, then has the read-only reviewer question the brief once. Unattended: BLOCKED, questions in the file.
 // A new brief the model routes as a feature goes on as a spec in the same run (runDevSpec, over the same ports).
 // The reviewer's act runs in a background child, `dev-reviewer` (its charter: read tools only, plan mode), which
-// /tasks lists and stops while it runs, as /dev-plan's (A-3, approach A2); on a host without background children
-// it runs inline.
+// /tasks lists and stops while it runs, as /dev-plan's (A-3, approach A2).
 //
 // Input (globalThis.inputs): { code: string, kind?: "bug" | "refactor" | "perf", run?: string (the command to run),
 //                              text?: string (the origin of a new brief, or a revision request), hooks?: /hooks,

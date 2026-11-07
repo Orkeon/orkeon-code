@@ -19,25 +19,16 @@ export interface CommandView {
 /** The part of the command context a view is shown with. */
 export interface ViewContext<R> {
   writeLine(text: string): void;
-  writeBlock?(spec: { kind: "diff"; text: string }): void;
+  /** A typed block: the console colours it, a plain console shows its text as lines. */
+  writeBlock(spec: { kind: "diff"; text: string }): void;
   table(rows: readonly object[]): void;
   continue(message?: string): R;
-}
-
-/** A block the console renders; a release runtime (tool and docker modes, ADR 0013) has no `writeBlock`, and the text
- *  goes out plain, as a plain console shows it. */
-export function writeBlockOrLine<K extends string>(
-  out: { writeLine(text: string): void; writeBlock?(spec: { kind: K; text: string }): void },
-  spec: { kind: K; text: string },
-): void {
-  if (out.writeBlock) out.writeBlock(spec);
-  else out.writeLine(spec.text);
 }
 
 /** Write the lines and the diff, show the table, if any, then close with the message. */
 export function showView<R>(ctx: ViewContext<R>, view: CommandView): R {
   for (const line of view.lines ?? []) ctx.writeLine(line);
-  if (view.diff !== undefined) writeBlockOrLine(ctx, { kind: "diff", text: view.diff });
+  if (view.diff !== undefined) ctx.writeBlock({ kind: "diff", text: view.diff });
   if (view.table) ctx.table(view.table);
   return view.text === undefined ? ctx.continue() : ctx.continue(view.text);
 }

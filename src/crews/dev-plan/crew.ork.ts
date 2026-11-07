@@ -6,7 +6,7 @@
 // JSON (once more on a refused answer), writes <CODE>-PLAN.md, one sheet per batch and plan.json, then has the
 // read-only reviewer question the plan once. The reviewer's act runs in a background child, `dev-reviewer`
 // (the reviewer's charter: read tools only, plan mode), which /tasks lists and stops while it runs, and repairs by a new run once it has ended
-// (A-3, shared/application/agents/child-agent.ts); on a host without background children it runs inline.
+// (A-3, shared/application/agents/child-agent.ts).
 //
 // Input (globalThis.inputs): { source: string | null, replace?: boolean, hooks?: the /hooks registry,
 //                              effort?: "low" | "medium" | "high" | "xhigh" | "max" | null, concurrency?: number, maxInstances?: number }
