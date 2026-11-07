@@ -83,7 +83,7 @@ prompt système d'un tour fait environ 2 250 tokens avant les schémas d'outils 
 local, jamais déduit) : `Orkeon:Decision:Provider` le nomme, sinon l'hôte le déduit de la seule section présente, ou de
 la seule clé définie quand aucune section ne l'est. Deux sections, ou deux clés sans section, refusent le démarrage, et
 la section de la garde d'entrée est `Orkeon:Decision:Guard` (un fichier de settings qui garde `Orkeon:TypeSafe:Guard`
-est refusé au démarrage). Un profil de décision fonctionne de la même façon quel que soit le fournisseur : un *profil de décision* (`Orkeon:Decision:Profiles:<nom>`) enveloppe un profil LLM
+est refusé au démarrage comme clé inconnue, Orkeon #295). Un profil de décision fonctionne de la même façon quel que soit le fournisseur : un *profil de décision* (`Orkeon:Decision:Profiles:<nom>`) enveloppe un profil LLM
 nommé (`Llm:Profiles:<nom>`) d'étapes qui routent la requête vers le profil qui lui convient, la gardent (injection
 de prompt, les risques que vous nommez) ou vérifient la réponse et remontent vers un profil plus fort quand elle ne
 tient pas. [`config/appsettings.jev.example.json`](../../config/appsettings.jev.example.json) est l'exemple : la

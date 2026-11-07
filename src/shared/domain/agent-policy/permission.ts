@@ -275,7 +275,7 @@ export const TOOL_ARGUMENTS: Readonly<Record<string, readonly string[]>> = {
   //  - batch_anchors.a and .b are {fqns, files}, for action "overlap"; "closure" takes fqns or files.
   //  - arrays or objects: rag_ingest.sources, access_cost.*, affected_tests.changed_files,
   //    sub_graph.seeds|edge_kinds|node_kinds, edge_list.edge_kinds, structural_search.paths|rule,
-  //    count_pattern.patterns, statement_query.kinds|parent_fqns, incremental_reindex.changed_files|languages.
+  //    count_pattern.patterns, statement_query.kinds|parent_fqns, incremental_reindex.changed_files.
   glob: ["max_results", "path", "pattern"],
   grep: ["case_insensitive", "glob", "max_files", "max_results", "output_mode", "path", "pattern"],
   list_mounts: [],
@@ -287,7 +287,7 @@ export const TOOL_ARGUMENTS: Readonly<Record<string, readonly string[]>> = {
   documented_in: ["fqn"],
   documents_of: ["path"],
   structural_search: ["glob", "language", "max_files", "max_results", "paths", "pattern", "rule", "rule_file"],
-  incremental_reindex: ["changed_files", "enrich_with_llm", "from_commit", "languages", "root_path", "to_commit"],
+  incremental_reindex: ["changed_files", "from_commit", "root_path", "to_commit"],
   count_pattern: ["distinct_matches", "include_matches", "max_matches_returned", "multiline", "path", "patterns"],
   statement_query: ["kinds", "parent_fqns", "semantic_query", "top_k"],
   complexity_report: ["metric", "root_fqn", "top_n"],

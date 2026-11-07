@@ -12,7 +12,7 @@ export const CLI_BUILD = "source";
  *  launcher announces (tests/repository/version.test.ts keeps the two equal). A release tag is never the pin: the
  *  commands are checked against the sources at this commit (ADR 0013). /status and /doctor compare it with the
  *  commit of the runtime that runs them, read from the host's `runtime` service (Orkeon #225). */
-export const ORKEON_RUNTIME_COMMIT = "f978001a717e155243a090a1154d36740e0b3484";
+export const ORKEON_RUNTIME_COMMIT = "4e4106a988592dd05fd37187453fb9adf100a666";
 /** The pin as the launcher and the rows print it: its first seven characters. */
 export const ORKEON_RUNTIME_PIN = ORKEON_RUNTIME_COMMIT.slice(0, 7);
 
