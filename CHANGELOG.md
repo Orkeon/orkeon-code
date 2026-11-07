@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the pin moves to Orkeon `e598f8e`, the `firefox` browser can outlive the turn
+
+- The pin moves to Orkeon `main` `e598f8e` (Orkeon #297, [ADR 0021](docs/adr/0021-orkeon-after-297.md)), which
+  adds `Orkeon:Tools:Firefox:Lifetime`: `run`, the default, closes the browser with the agent's turn as before;
+  `host` keeps it open with its tabs and its profile from one turn to the next, one browser per profile, until
+  `close`, the window is closed by hand or the console stops. `close` takes a `profile` outside a turn. The typings
+  are regenerated from the pin.
+
 ### Changed — the pin moves to Orkeon `4e4106a`, the rc shims removed
 
 - The pin moves to Orkeon `main` `4e4106a` (Orkeon #295, [ADR 0020](docs/adr/0020-orkeon-after-295.md)), which

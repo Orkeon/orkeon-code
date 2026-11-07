@@ -18,7 +18,7 @@ injection and escalates from `small` to `large` when the answer does not hold.
 
 ## The runtime: source mode
 
-Liquid and Kev arrive with Orkeon #266, their stages fixed by #271, which the pin covers (`4e4106a`) and no release ships yet: the tool mode runs
+Liquid and Kev arrive with Orkeon #266, their stages fixed by #271, which the pin covers (`e598f8e`) and no release ships yet: the tool mode runs
 the last release and the docker mode the last image, and neither knows `Orkeon:Liquid`, `Orkeon:Kev` nor
 `Orkeon:Decision:Provider`. Run Orkeon Code in source mode, on an Orkeon checkout at the pin or after it
 ([Getting started](getting-started.md#source-mode-an-orkeon-checkout)):
