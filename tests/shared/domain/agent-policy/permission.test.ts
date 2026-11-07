@@ -85,7 +85,7 @@ describe("B-8 — the network-read class", () => {
     // matches by name and silently drops the rest, so a typo here would produce a
     // catalogue that looks wired and hands over nothing.
     // Arrange
-    const expected = ["http_api", "web_scrape", "scrape_element"];
+    const expected = ["http_api", "web_scrape", "scrape_element", "firefox"];
 
     // Act
     const names = NETWORK_READ_TOOLS;

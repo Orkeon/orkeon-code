@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — the `firefox` tool
+
+- The pin moves to Orkeon `f978001`, which brings `firefox`: the agent opens pages in the Firefox of the host, reads
+  them, clicks and types. `plan` and `dontAsk` never offer it. Elsewhere, reading a page runs without a question,
+  `screenshot` follows the file edits, and clicking, typing or running a script asks. The text of a page reaches the
+  model unscreened for prompt injection. It needs Firefox on the host and the source mode, since no release runtime
+  has the tool ([configuration](docs/configuration.md#settings-orkeon-code-relies-on)).
+
 ### Added — panels for the session's settings, and `/theme`
 
 - In the console, `/model`, `/effort`, `/output-style`, `/mode` and `/theme` without an argument open a panel: arrows

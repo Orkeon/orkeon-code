@@ -486,7 +486,7 @@ un changement comme un diff.
   réécrit en entier. Les lectures et recherches indépendantes les unes des autres partent dans un seul message,
   puisque le runtime les exécute ensemble ; un appel qui a besoin d'un résultat antérieur l'attend. `shell_command`
   applique une liste blanche, et git peut être en lecture seule. Là où un outil web est offert (`web_search`,
-  `http_api`, `web_scrape`, `scrape_element`), le projet passe avant le web : un port, une commande ou une image que
+  `http_api`, `web_scrape`, `scrape_element`, `firefox`), le projet passe avant le web : un port, une commande ou une image que
   sa documentation et ses réglages d'exemple donnent l'emporte sur une valeur trouvée sur le web, et une valeur lue
   nulle part n'est pas donnée comme un fait. Les lignes sur l'écriture, l'édition, le shell et le web
   n'apparaissent que dans les modes qui offrent ces outils.

@@ -118,6 +118,10 @@ export const TOOL_ARGUMENT_CASES: readonly { tool: string; args: readonly string
   { tool: "shell_command", args: ["command", "working_directory", "timeout_seconds", "action", "job_id", "tail_lines"] },
   { tool: "file_write", args: ["path", "content", "encoding", "append", "create_backup"] },
   { tool: "edge_list", args: ["cursor", "edge_kinds", "page_size", "root_fqn"] },
+  {
+    tool: "firefox",
+    args: ["action", "url", "node_id", "kind", "name", "query", "text", "key", "script", "save_to_path", "max_nodes", "offset", "tab", "profile"],
+  },
 ];
 
 export interface ScriptToolsForCase {
