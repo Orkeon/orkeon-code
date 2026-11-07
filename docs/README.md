@@ -40,4 +40,4 @@ Decisions are recorded as ADRs: [0001 — ports, adapters and entry points](adr/
 [0018 — Orkeon main after #291, the main loop on the main screen](adr/0018-orkeon-after-291.md),
 [0019 — Orkeon main after #293, the `firefox` tool](adr/0019-orkeon-after-293.md),
 [0020 — Orkeon main after #295, the rc shims removed](adr/0020-orkeon-after-295.md),
-[0021 — Orkeon main after #297, the `firefox` browser that outlives the run](adr/0021-orkeon-after-297.md).
+[0021 — Orkeon main after #298, the `firefox` browser that outlives the run](adr/0021-orkeon-after-298.md).

@@ -40,4 +40,4 @@ Les décisions sont consignées en ADR, en anglais : [0001 — ports, adaptateur
 [0018 — Orkeon main après #291, la boucle principale sur l'écran principal](../adr/0018-orkeon-after-291.md),
 [0019 — Orkeon main après #293, l'outil `firefox`](../adr/0019-orkeon-after-293.md),
 [0020 — Orkeon main après #295, les shims rc retirés](../adr/0020-orkeon-after-295.md),
-[0021 — Orkeon main après #297, le navigateur `firefox` qui survit au tour](../adr/0021-orkeon-after-297.md).
+[0021 — Orkeon main après #298, le navigateur `firefox` qui survit au tour](../adr/0021-orkeon-after-298.md).
