@@ -24,9 +24,8 @@ function isTimeout(error: unknown): boolean {
   return /timeout/i.test(`${e?.name ?? ""} ${e?.code ?? ""} ${e?.message ?? error}`);
 }
 
-/** The runtime's children for this run; null on a host without background children (the act then runs inline, A1). */
-export function createChildRuntime(ctx: ChildContext, crew: ChildCrew): ChildRuntime | null {
-  if (typeof ctx.spawnBackground !== "function" || typeof crew?.instances !== "function") return null;
+/** The runtime's children for this run. */
+export function createChildRuntime(ctx: ChildContext, crew: ChildCrew): ChildRuntime {
   return {
     spawn(agent, input) {
       ctx.spawnBackground(agent, input);
@@ -76,10 +75,7 @@ export interface ChildActSpec {
   builder: () => AgentBuilder;
 }
 
-/**
- * `base` with its act run by a background child (approach A2), or `base` itself, the act inline in
- * the same body (approach A1), when the host has no background children.
- */
+/** `base` with its act run by a background child (approach A2). */
 export function withChildAct(
   base: Llm,
   ctx: ChildContext & Pick<AgentContext, "crew" | "spawn">,
@@ -88,10 +84,6 @@ export function withChildAct(
   spec: ChildActSpec,
 ): Llm {
   const runtime = createChildRuntime(ctx, crew);
-  if (runtime === null) {
-    deps.log.warn(`${spec.agent}: this host runs no background child; the act runs inline in the step's own agent`);
-    return base;
-  }
   return {
     ...base,
     act(prompt: string, request: ActRequest) {

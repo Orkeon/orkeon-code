@@ -33,10 +33,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--shortstat` and `--word-diff` stay plain text, and so does a merge conflict's combined diff.
 - The main loop's answers may use a table to compare values.
 
-### Fixed — the panels and the blocks
+### Removed — the fallbacks for runtimes older than the pin
 
-- In the tool and docker modes, whose runtime is a release older than the pin, `/review`, `/commit`, `/diff` and the
-  other commands that write a block would fail: they now write plain text. `/theme` says the console has no palettes.
+- Orkeon Code assumes the runtime of its pin (ADR 0013) and no longer adapts to the releases before it. Gone: the
+  plain-text fallback of the blocks (`/review`, `/commit`, `/diff` wrote lines on a runtime without `writeBlock`),
+  `/theme` answering for a runtime without palettes, the session store rewriting the buffer on a runtime without
+  `append_message` and measuring a snip in messages on a runtime whose `session_snip` counted them (Orkeon #263,
+  #287), the main loop putting the turn's context in front of the request on a runtime whose `act()` did not read it
+  (Orkeon #277), an agent built without the prompt cache on a runtime without `.cache` (Orkeon #256), and the
+  reviewer's or auditor's act running inline on a host without background children. On such a runtime these commands
+  now fail where the feature is missing.
+
+### Fixed — the panels
+
 - Enter on the row a panel marks changes nothing: `/mode` no longer stores the mode a fallback gave, and `/model` lists
   and keeps a model the host does not declare, instead of switching to the first one.
 - `/effort`, on the level it marks with none stored, says the provider's thinking stays off.

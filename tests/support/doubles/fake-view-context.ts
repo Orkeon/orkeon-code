@@ -1,17 +1,16 @@
 // FakeViewContext: the command context showView renders into. Each call lands in `calls`, in order, as
-// [method, ...arguments]; `continue` answers "result". `hasBlocks` false plays a runtime without `writeBlock`.
+// [method, ...arguments]; `continue` answers "result".
 import type { ViewContext } from "../../../src/commands/_lib/view.ts";
 
 export class FakeViewContext implements ViewContext<string> {
   calls: unknown[][] = [];
-  hasBlocks = true;
 
   writeLine(text: string): void {
     this.calls.push(["writeLine", text]);
   }
 
-  get writeBlock(): ViewContext<string>["writeBlock"] {
-    return this.hasBlocks ? (spec) => void this.calls.push(["writeBlock", spec]) : undefined;
+  writeBlock(spec: { kind: "diff"; text: string }): void {
+    this.calls.push(["writeBlock", spec]);
   }
 
   table(rows: readonly object[]): void {

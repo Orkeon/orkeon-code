@@ -14,7 +14,7 @@ export interface MemoryEntry {
  *  keeps it per project (`Orkeon:Cli:Memory:Persist`, Orkeon #286). Every call throws when the store cannot answer. */
 export interface MemoryStore {
   /** The entries of one category, or of every category when none is named, in stored order, or the newest first
-   *  when `newestFirst` is set (Orkeon #286; a release before it keeps the stored order). */
+   *  when `newestFirst` is set (Orkeon #286). */
   list(category?: string, options?: { newestFirst?: boolean }): Promise<MemoryEntry[]>;
   /** Store an entry; resolves to its id as the host reports it, as text (`null` or
    *  `undefined` when it reports none): /memory add prints it as is. */

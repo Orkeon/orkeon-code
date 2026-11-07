@@ -44,7 +44,6 @@ import {
   UNREADABLE_VOICE_WARNINGS,
   crewDeps,
   lineSink,
-  linesOnlySink,
   mainLoopDeps,
   planModeSession,
   profiledCrewDeps,
@@ -613,17 +612,6 @@ describe("writeCompleted", () => {
 
     // Assert
     strictEqual(blocks[0].text, "✓ review →\n\n# Findings\n\n- one");
-  });
-
-  it("writes plain lines on a runtime without blocks", () => {
-    // Arrange
-    const { lines, out } = linesOnlySink();
-
-    // Act
-    writeCompleted(out, { success: true, payload: "report written" }, "review", "✓ ");
-
-    // Assert
-    deepStrictEqual(lines, ["✓ report written"]);
   });
 
   it("writes nothing for a success the console already streamed (Orkeon #228)", () => {

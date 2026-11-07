@@ -12,7 +12,6 @@ import type { SessionIo } from "../../shared/application/session-io.ts";
 import { configuredNames, resolveExtraTools } from "../../shared/application/extra-tools.ts";
 import { readLlmProfile } from "../../shared/application/llm-profile.ts";
 import { syncPermissionRules } from "../../shared/application/permission-rules.ts";
-import { writeBlockOrLine } from "./view.ts";
 import { readMemoryDir } from "../../shared/application/shared-memory/memory-settings.ts";
 import { memoryWriteRules } from "../../shared/domain/shared-memory/layout.ts";
 import { formatRule } from "../../shared/domain/agent-policy/permission.ts";
@@ -227,13 +226,13 @@ function prefixed(okPrefix: string, payload: string): string {
 /** Write a crew's completion: `<okPrefix><payload>` as a markdown block, or the line `✗ <label> failed: …`; nothing
  *  for a success the console already streamed, or the answer would show twice (Orkeon #228). */
 export function writeCompleted(
-  out: { writeLine(text: string): void; writeBlock?(spec: { kind: "markdown"; text: string }): void },
+  out: { writeLine(text: string): void; writeBlock(spec: { kind: "markdown"; text: string }): void },
   result: CrewCompletion,
   label: string,
   okPrefix = "",
 ): void {
   if (result.success && result.streamed === true) return;
-  if (result.success) writeBlockOrLine(out, { kind: "markdown", text: prefixed(okPrefix, String(result.payload)) });
+  if (result.success) out.writeBlock({ kind: "markdown", text: prefixed(okPrefix, String(result.payload)) });
   else out.writeLine("✗ " + label + " failed: " + (result.error ?? "unknown"));
 }
 

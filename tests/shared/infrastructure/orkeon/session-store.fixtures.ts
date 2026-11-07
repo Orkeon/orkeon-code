@@ -67,28 +67,3 @@ export const STATE_VALUES = [
   { name: "reads every key as null when the answer has no values", reply: { success: true }, expected: { a: null, missing: null } },
 ];
 
-/** session_store as a runtime before Orkeon #263 (the rc.6 release) answers it: `append_message` unknown, so the call
- *  throws; the buffer holds one message. */
-export function storeWithoutAppend(input: { operation: string }): unknown {
-  if (input.operation === "append_message") return new Error("tools.sessionStore failed: (no error message provided)");
-  if (input.operation === "read_messages") return { success: true, messages: [{ role: "user", content: "hi" }] };
-  return { success: true };
-}
-
-/** session_store whose `append_message` fails with `message`, an error other than an unknown operation's. */
-export function storeFailingAppend(message: string): (input: { operation: string }) => unknown {
-  return (input) => (input.operation === "append_message" ? new Error(message) : storeWithoutAppend(input));
-}
-
-/** The operations session_store received, in order. */
-export function operationsOf(inputs: unknown[]): string[] {
-  return inputs.map((i) => (i as { operation: string }).operation);
-}
-
-/** A buffer of three turns after its head, as read_messages hands it on the release. */
-export const THREE_TURNS = [
-  { role: "user", content: "first request" },
-  { role: "user", content: "a" }, { role: "system", content: "[tools] edit_file" }, { role: "assistant", content: "done" },
-  { role: "user", content: "b" }, { role: "assistant", content: "done" },
-  { role: "user", content: "c" }, { role: "system", content: "[tools] shell_command" }, { role: "assistant", content: "done" },
-];

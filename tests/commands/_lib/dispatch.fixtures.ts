@@ -167,12 +167,6 @@ export async function planModeSession() {
 }
 
 /** A sink for the lines and the markdown blocks writeCompleted writes. */
-/** A command context of a runtime that has no `writeBlock` (a release, ADR 0013). */
-export function linesOnlySink() {
-  const lines: string[] = [];
-  return { lines, out: { writeLine: (line: string) => lines.push(line) } };
-}
-
 export function lineSink() {
   const lines: string[] = [];
   const blocks: { kind: string; text: string }[] = [];

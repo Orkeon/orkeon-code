@@ -10,7 +10,7 @@
 // batches become candidates under memory.dir and /dev-learn is nudged at two (M-7).
 // A red gate or --gate-only returns the gate lines without any model call. The auditor's act runs in a
 // background child, `dev-auditor`, which /tasks lists and stops while it runs (A-3,
-// shared/application/agents/child-agent.ts); on a host without background children it runs inline.
+// shared/application/agents/child-agent.ts).
 //
 // Input (globalThis.inputs): { batch: "F<n>", plan?: string | null, mode?: "fast" | "full" | "resume", gateOnly?: boolean,
 //                              hooks?: the /hooks registry, effort?: "low" | "medium" | "high" | "xhigh" | "max" | null,
@@ -67,7 +67,7 @@ const verifier = orkeonAgent()
   .name("dev-verifier")
   .role(AUDITOR_CHARTER.role)
   .goal(AUDITOR_CHARTER.goal)
-  // The auditor's tools, for the inline audit on a host without background children.
+  // The auditor's tools.
   .tools(charterCatalogue(AUDITOR_CHARTER))
   .withAutonomousTool(runValidationTool(ToolBuilder, validationSlot))
   .withAutonomousTools(memoryRecallTools(ToolBuilder, bodyTools.memoryPorts(), memoryOn))

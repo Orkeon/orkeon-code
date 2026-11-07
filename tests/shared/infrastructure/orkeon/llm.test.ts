@@ -119,7 +119,7 @@ describe("createLlm — act with a context", () => {
     it(c.name, async () => {
       // Arrange
       const facade = new FakeLlmFacade();
-      const llm = createLlm(facade, undefined, c.contextApart === undefined ? {} : { contextApart: c.contextApart });
+      const llm = createLlm(facade);
 
       // Act
       await llm.act("p", { context: c.context });

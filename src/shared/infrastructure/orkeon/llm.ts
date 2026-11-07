@@ -15,9 +15,7 @@
 // (shared/application/dev/tool-callbacks.ts) as the second argument: each act then carries the
 // onToolCall/onToolResult built for its own mode. The request's `effort` is the runtime's
 // `act({effort})` as it is; the crew's own level, when it has one, fills a request that names none.
-// The request's `context` is the runtime's `act({context})` (Orkeon #276); a runtime that does not read
-// that option (the rc.6 release, the tool and docker modes) would drop it without a word, so there the
-// context is put back in front of the prompt, in one message, as it was before.
+// The request's `context` is the runtime's `act({context})` (Orkeon #276), a blank one left out.
 
 import type { ActRequest, CompleteRequest, Llm, ModelOverride } from "../../application/ports.ts";
 import type { PermissionMode } from "../../domain/permission-modes.ts";
@@ -25,7 +23,7 @@ import { budgetExhaustedAnswer, llmFailureOf } from "../../domain/llm-failure.ts
 import type { ToolCallbacks } from "../../application/dev/tool-callbacks.ts";
 
 /** The request as the callers fill it: its mode is one of PERMISSION_MODES, the
- *  five modes ActOptions names (`dontAsk` among them since Orkeon 1.0.0-rc.6). */
+ *  five modes ActOptions names. */
 type ModeActRequest = Omit<ActRequest, "permissionMode"> & { permissionMode?: PermissionMode };
 
 /** The runtime's per-call options for a model override; none without one. */
@@ -61,17 +59,13 @@ function answerOrThrow(text: string): string {
   return text;
 }
 
-/** What the adapter adds to every act: the crew's effort, and whether the runtime reads `act({context})`. */
-export interface LlmDefaults extends Pick<ActRequest, "effort"> {
-  /** False on a runtime before Orkeon #277: the context goes in front of the prompt. True when absent. */
-  contextApart?: boolean;
-}
+/** What the adapter adds to every act: the crew's effort. */
+export type LlmDefaults = Pick<ActRequest, "effort">;
 
-/** The prompt and request the runtime receives: the context apart when it reads it, else in front of the prompt. */
-function withContext(prompt: string, request: ActRequest, contextApart: boolean): { prompt: string; request: ActRequest } {
+/** The request the runtime receives: as given, a blank context left out. */
+function withContext(request: ActRequest): ActRequest {
   const { context, ...rest } = request;
-  if (context === undefined || context.trim().length === 0) return { prompt, request: rest };
-  return contextApart ? { prompt, request } : { prompt: context + "\n\n" + prompt, request: rest };
+  return context === undefined || context.trim().length === 0 ? rest : request;
 }
 
 export function createLlm(
@@ -90,8 +84,7 @@ export function createLlm(
       // The crew's effort (/effort, handed as an input) when the request names none.
       const effort = request.effort ?? defaults.effort;
       const withEffort = effort === undefined ? request : { ...request, effort };
-      const sent = withContext(prompt, withEffort, defaults.contextApart ?? true);
-      return answerOrThrow(answerOf(await llm.act(sent.prompt, actOptions(sent.request, callbacks, permissionGateEnabled()))));
+      return answerOrThrow(answerOf(await llm.act(prompt, actOptions(withContext(withEffort), callbacks, permissionGateEnabled()))));
     },
     async complete(prompt, request?: CompleteRequest) {
       // A system message needs the message-array call: `complete` takes a prompt only.

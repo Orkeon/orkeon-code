@@ -60,37 +60,3 @@ export const KEEP_CASES: readonly KeepCase[] = [
     keep: 0,
   },
 ];
-
-export interface TailCase {
-  name: string;
-  messages: SessionMsg[];
-  runtimeTurns: number;
-  tail: number | null;
-}
-
-export const TAIL_CASES: readonly TailCase[] = [
-  {
-    name: "counts the messages from the first kept user message to the end, its traces and answers included",
-    messages: [head, request("a"), trace, answer, request("b"), trace, answer, request("c"), answer],
-    runtimeTurns: 2,
-    tail: 5,
-  },
-  {
-    name: "counts a [turn-context] as the user message that opens one of the runtime's turns",
-    messages: [head, request("a"), answer, context, request("b"), trace, answer],
-    runtimeTurns: 2,
-    tail: 4,
-  },
-  {
-    name: "finds no tail when the buffer holds fewer of the runtime's turns than asked after its head",
-    messages: [head, request("a"), answer],
-    runtimeTurns: 2,
-    tail: null,
-  },
-  {
-    name: "keeps no message when no turn is asked",
-    messages: [head, request("a"), answer],
-    runtimeTurns: 0,
-    tail: 0,
-  },
-];

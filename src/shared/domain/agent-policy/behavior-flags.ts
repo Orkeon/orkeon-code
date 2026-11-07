@@ -20,7 +20,7 @@ export const DEFAULT_EFFORT: EffortLevel = "medium";
 /**
  * Iterations granted to `ctx.llm.act` per level.
  *
- * The ladder bounds the tool-calling loop. Since Orkeon 1.0.0-rc.6 the level also reaches the
+ * The ladder bounds the tool-calling loop. The level also reaches the
  * provider: `act({ effort })` and `AgentBuilder.effort()` turn its thinking on at that level (A-3).
  * Only a level `/effort` stored is forwarded (`providerEffort`): an unconfigured session sends none,
  * so it keeps the provider's own default and the 40 iterations it always had.

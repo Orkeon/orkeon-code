@@ -15,7 +15,7 @@ export function createMemoryStore(tools: Pick<OrkeonTools, "memoryStore">): Memo
   const memoryStore = (input: MemoryStoreInput) => tools.memoryStore(input);
   return {
     async list(category, options) {
-      // newest_first is sent only when asked: the input of a plain list stays what a release before #286 takes.
+      // newest_first is sent only when asked.
       const order = options?.newestFirst ? { newest_first: true } : {};
       const resp = await memoryStore({ operation: "list", category, ...order });
       const entries: any[] = pick(resp, "entries", "Entries") ?? [];
