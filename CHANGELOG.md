@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the pin moves to Orkeon `4e4106a`, the rc shims removed
+
+- The pin moves to Orkeon `main` `4e4106a` (Orkeon #295, [ADR 0020](docs/adr/0020-orkeon-after-295.md)), which
+  removes the compatibility shims the `1.0.0-rc.*` line had kept. `incremental_reindex` loses `languages` and
+  `enrich_with_llm`, so a rule naming them on it matches nothing; a settings file holding a retired key
+  (`Orkeon:TypeSafe:Guard`…) is refused as an unknown key, without a migration hint; an `index_codebase` cache built
+  before the pin is rebuilt once. The typings are regenerated from the pin.
+
 ### Added — the `firefox` tool
 
 - The pin moves to Orkeon `f978001`, which brings `firefox`: the agent opens pages in the Firefox of the host, reads
