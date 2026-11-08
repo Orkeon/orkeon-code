@@ -171,7 +171,10 @@ docs/memory`; omitted, `.orkeon/memory`; never under `.claude/` or `.git/`, neve
 `.orkeon/agent-memory`), `memory.project` (the project the entries name and the index collection
 `memory-<project>`, a kebab-case name; omitted, the `origin` remote's name, else `local`),
 `memory.autoAdmitAudited` (`true` or `false`, omitted = `false`: `/memory admit` admits a candidate an audit backs
-without asking), `review.lenses` (the lenses of `/review`, comma-separated among `correctness`, `security` and
+without asking), `paths.deny` and `paths.allow` (the paths no tool of the model reads or writes, and the only
+paths it may reach, comma-separated, in any spelling of the host, `/config set paths.deny /workspace/secrets,
+tests/fixtures/real`; matched on the virtual spelling, a deny winning, applied at the next start,
+[permissions](permissions.md#rules)), `review.lenses` (the lenses of `/review`, comma-separated among `correctness`, `security` and
 `style`; omitted, all three), `llm.profile` (the host profile every crew's agents run on, an LLM profile or a
 decision profile with Jev in front, `/config set llm.profile guarded`, [the LLM](#the-llm); omitted, the host's
 default model), `advisor.model` (the model of `/advisor`'s second opinion; omitted, the session's own,
@@ -183,9 +186,13 @@ and the agents these start, and nothing is sent while no level is stored. The le
 `xhigh` and `max`: Claude takes the five; a provider whose field does not know a level receives the highest it
 knows below it, and the runtime's log says so.
 
-`permissions.fallback`, `tools.extra`, `memory.autoAdmitAudited` and `dev.prAuto` set in the project file are narrowed by the `orkeonCode` block of the user
-settings (a project `true` over a user `false` or no value is dropped, with a warning): `/config set` writes such a value, then says, under "persisted", that it is ignored and where your own setting
+`permissions.fallback`, `tools.extra`, `memory.autoAdmitAudited`, `dev.prAuto` and `paths.allow` set in the project file are narrowed by the `orkeonCode` block of the user
+settings (a project `true` over a user `false` or no value is dropped, as is an allow entry outside the user's list, with a warning): `/config set` writes such a value, then says, under "persisted", that it is ignored and where your own setting
 goes, and `/doctor`'s row `settings: project file` names it. `/config set --session` is not narrowed.
+`paths.deny` set in the project file adds to the user's list instead. Both lists, with the host the launcher
+wrote to `/user-config/launch.json`, are read once at the start: `/doctor`'s row `host: paths` shows the host,
+each mount's base, the lists as they apply and every entry or file it could not use, and a change of `paths.*`
+applies at the next start.
 
 At the REPL's start the runtime runs the file its key `Orkeon:Cli:Session:StartScript` names, once, and puts what it
 prints before the first request you type. The launcher sets it to `/tmp/orkeon-code/session-start.ork.ts`, a copy of

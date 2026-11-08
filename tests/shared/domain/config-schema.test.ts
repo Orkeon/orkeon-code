@@ -9,7 +9,8 @@ import {
 import { PERMISSION_MODES } from "../../../src/shared/domain/permission-modes.ts";
 import {
   BLANK_VALUES, CLEAN_MAPS, CONSUMERS, FALLBACK_AGAINST_USER, LLM_PROFILE_VALUES, MEMORY_VALUES, NESTED_MAP, NON_STRING_VALUES,
-  NOT_NESTED_MAPS, PROJECT_MODES, READ_ONLY_TOOLS, REFUSED_MEMORY_DIRS, TOOLS_EXTRA_REFUSAL, TWIN_ENTRIES,
+  NOT_NESTED_MAPS, PATH_ALLOW_AGAINST_USER, PATH_LIST_VALUES, PROJECT_MODES, READ_ONLY_TOOLS, REFUSED_MEMORY_DIRS, TOOLS_EXTRA_REFUSAL,
+  TWIN_ENTRIES,
   UNDECLARED_MEMORY_KEYS, USER_GATED_KEYS, VALID_MEMORY_DIRS, VALID_TOOLS_EXTRA, WIDER_PROJECT_MODES,
 } from "./config-schema.fixtures.ts";
 import { assertUserFacingConsumer } from "./config-schema.assertions.ts";
@@ -784,4 +785,44 @@ describe("the shared memory's keys (M-2)", () => {
       deepStrictEqual(r, { key, value: "false", source: "file" });
     });
   }
+});
+
+describe("paths.deny and paths.allow", () => {
+  for (const c of PATH_LIST_VALUES) {
+    it(`judges a value on its notation alone: ${JSON.stringify(c.value)}`, () => {
+      // Arrange
+      const { value } = c;
+
+      // Act
+      const v = validateConfigEntry("paths.deny", value);
+
+      // Assert
+      strictEqual(v.ok, c.ok, v.reason);
+    });
+  }
+
+  for (const c of PATH_ALLOW_AGAINST_USER) {
+    it(`narrows a project's paths.allow by the user's: ${c.name}`, () => {
+      // Arrange
+      const { file, user } = c;
+
+      // Act
+      const r = resolveConfigEntry("paths.allow", file, {}, user);
+
+      // Assert
+      deepStrictEqual(r, c.expected);
+    });
+  }
+
+  it("adds a project's paths.deny to the user's", () => {
+    // Arrange
+    const file = { "paths.deny": "keys" };
+    const user = { "paths.deny": "/workspace/secrets" };
+
+    // Act
+    const r = resolveConfigEntry("paths.deny", file, {}, user);
+
+    // Assert
+    deepStrictEqual(r, { key: "paths.deny", value: "/workspace/secrets, keys", source: "file" });
+  });
 });

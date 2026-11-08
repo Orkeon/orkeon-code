@@ -1,7 +1,7 @@
 // The launchers' tests run: a scratch checkout holding a copy of each launcher, stand-ins on PATH that record how they
 // were started, the trust store and the session scenes they start on, and the snippets the PowerShell twin is read for.
 import { spawnSync } from "node:child_process";
-import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -167,6 +167,8 @@ export interface LaunchOptions {
   trusted?: boolean;
   /** Runs the launcher on a pseudo-terminal (`script`), these lines typed on it. */
   tty?: string;
+  /** The project folder's name under the scratch folder (`project` by default). */
+  projectName?: string;
 }
 
 /** Runs a copy of ./orkeon-code (or of ./orkeon-code.ps1, `shell: "pwsh"`, whose `args` are its own) with the given
@@ -175,7 +177,7 @@ export function launch(opts: LaunchOptions): Run {
   const base = scratchDir("orkeon-code-launcher-");
   const root = join(base, "checkout");
   const bin = join(base, "bin");
-  const project = join(base, "project");
+  const project = join(base, opts.projectName ?? "project");
   const state = join(base, "state");
   const record = join(base, "record");
   for (const dir of [root, bin, project, record, join(root, "scripts")]) mkdirSync(dir, { recursive: true });
@@ -685,7 +687,7 @@ export const PS1_USER_SETTINGS: readonly Mention[] = [
   ["Get-Content $Settings -Raw -Encoding UTF8", "read as UTF-8 by Windows PowerShell 5.1 too"],
   ["Remove-Item $userConfigFile", "written afresh at each start"],
   ["'/work/state/user-config'", "every mode"],
-  ["(Join-Path $State 'tmp') $userConfigDir", "every mode"],
+  ["(Join-Path $State 'tmp'), $userConfigDir", "every mode"],
 ];
 
 export const PS1_DOCKER_TTY: readonly Mention[] = [
@@ -804,4 +806,81 @@ export const PS1_SESSIONS: readonly Mention[] = [
   ["if ($resumeChoice -match '^[1-9][0-9]{0,3}$' -and [int] $resumeChoice -le $files.Count)", "a number, else an id"],
   ["another session is open on this project (pid $other)", "the lock"],
   ["if ($a -ceq '--llm-log') { if (-not $named) { '--llm-log-path'; \"$projectState/llm-logs\" } }", "--llm-log"],
+];
+
+// ── The host and the mounts' bases (launch.json) ────────────────────────────
+
+/** A mount of launch.json: its base as the posix side and as Windows spell it. */
+export interface LaunchMount { posix?: string; windows?: string | null }
+/** launch.json, as both launchers write it beside config.json. */
+export interface LaunchFile {
+  version: number; flavour: "posix" | "wsl" | "windows"; mode: string;
+  wsl?: { distro: string | null; automountRoot: string }; mounts: Record<string, LaunchMount>;
+}
+export const launchPath = (r: Run) => join(r.state, "user-config", "launch.json");
+export const launchFile = (r: Run): LaunchFile => JSON.parse(readFileSync(launchPath(r), "utf-8"));
+
+/** Each virtual root of the --mount arguments, with the physical base given for it. */
+export const mountBases = (args: string[]): Record<string, string> => Object.fromEntries(args.flatMap((a, i) => {
+  if (args[i - 1] !== "--mount") return [];
+  const rest = a.slice(0, a.lastIndexOf(":"));
+  return [[rest.slice(rest.lastIndexOf(":") + 1), rest.slice(0, rest.lastIndexOf(":"))]];
+}));
+
+/** /proc/version as a plain Linux and as WSL 2 write it (the launchers read ORKEON_CODE_PROC_VERSION in its place). */
+export const PROC_VERSION_LINUX = fileURLToPath(new URL("../fixtures/launcher/proc-version-linux.txt", import.meta.url));
+export const PROC_VERSION_WSL = fileURLToPath(new URL("../fixtures/launcher/proc-version-wsl2.txt", import.meta.url));
+export const ON_PLAIN_LINUX = { ORKEON_CODE_PROC_VERSION: PROC_VERSION_LINUX };
+
+/** The distribution the fake wslpath names, and where it says the drives are mounted. */
+export const FAKE_DISTRO = "Debian";
+export const FAKE_AUTOMOUNT = "/win";
+/** wslpath on a distribution named Debian whose drives sit under /win: `-u 'C:\'` and `-w <posix path>`. */
+export const FAKE_WSLPATH = String.raw`#!/bin/sh
+if [ "$1" = -u ]; then echo /win/c/; exit 0; fi
+printf '\\\\wsl.localhost\\Debian%s\n' "$(printf %s "$2" | tr / '\\')"
+`;
+/** What the fake wslpath answers for `base`. */
+export const fakeWindowsSpelling = (base: string) => String.raw`\\wsl.localhost\Debian` + base.replaceAll("/", "\\");
+/** A wslpath of the machine itself (a WSL host): a start "without wslpath" cannot be played there. */
+export const HOST_WSLPATH = existsSync("/usr/bin/wslpath") || existsSync("/bin/wslpath");
+
+/** The starts on a posix host: each writes flavour posix and the bases of its mounts. */
+export const POSIX_LAUNCHES: { name: string; mode: "tool" | "source"; audio: boolean }[] = [
+  { name: "a tool-mode start", mode: "tool", audio: false },
+  { name: "a source-mode start", mode: "source", audio: false },
+  { name: "a tool-mode start with speech-to-text on (/audio, /transcripts)", mode: "tool", audio: true },
+];
+
+/** The ways a WSL host is told, and the distribution launch.json then names. */
+export const WSL_LAUNCHES: { name: string; env: Record<string, string>; distro: string }[] = [
+  { name: "WSL_DISTRO_NAME set", env: { ...ON_PLAIN_LINUX, WSL_DISTRO_NAME: "Ubuntu" }, distro: "Ubuntu" },
+  { name: "a /proc/version that names Microsoft", env: { ORKEON_CODE_PROC_VERSION: PROC_VERSION_WSL }, distro: FAKE_DISTRO },
+];
+
+/** A project folder whose name JSON must escape. */
+export const QUOTED_PROJECT = String.raw`a "b" \c`;
+
+export const PS1_LAUNCH_FILE: readonly Mention[] = [
+  ["$file = Join-Path $userConfigDir 'launch.json'", "beside config.json"],
+  ["$launch = [ordered]@{ version = 1; flavour = $flavour; mode = $Mode }", "the version, the flavour and the mode first"],
+  ["elseif ($IsWindows -or $PSVersionTable.PSEdition -eq 'Desktop') { 'windows' }", "windows on Windows, 5.1 included"],
+  ["$flavour = if ($Mode -eq 'docker') { 'posix' }", "docker mode hides the host"],
+  ["$procVersion = if ($env:ORKEON_CODE_PROC_VERSION) { $env:ORKEON_CODE_PROC_VERSION } else { '/proc/version' }", "the tests' seam"],
+  ["elseif ($env:WSL_DISTRO_NAME -or", "WSL told by WSL_DISTRO_NAME"],
+  ["-match 'microsoft')) { 'wsl' }", "or by /proc/version, case aside"],
+  ["wslpath is not on PATH: $file gives no Windows spelling of the mounts.", "a missing wslpath said"],
+  ["& $wslpath.Source -u 'C:\\'", "the automount root from wslpath"],
+  ["'/etc/wsl.conf'", "else from wsl.conf"],
+  ["if (-not $automount) { $automount = '/mnt' }", "else /mnt"],
+  ["$pairs = @(Get-ReplArgs '' '' '' @hostMounts) + @($audioArgs)", "the bases given to --mount"],
+  ["$mount['windows'] = Get-WindowsBase $base", "the Windows spelling on Windows"],
+  ["[IO.Path]::GetFullPath(($path -replace '/', '\\'))", "absolute, backslashes"],
+  ["if ($full -match '^[A-Za-z]:\\\\$') { $full } else { $full.TrimEnd('\\', '/') }", "a drive root keeps its separator"],
+  ["$resolved.ProviderPath", "a UNC path by its provider"],
+  ["($launch | ConvertTo-Json -Depth 5 -Compress)", "compact JSON"],
+  ["[System.IO.File]::WriteAllText($file,", "UTF-8 without a BOM, never Set-Content"],
+  ["(New-Object System.Text.UTF8Encoding $false)", "UTF-8 without a BOM, never Set-Content"],
+  ["$hostMounts = @($Workspace, (Join-Path $State 'output'), (Join-Path $State 'tmp'), $userConfigDir, $projectState)", "the bases of tool mode"],
+  ["@hostMounts\n", "the REPL gets the same bases"],
 ];

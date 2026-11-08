@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Windows and WSL path spellings, path rules
+
+- Every spelling of a physical path of a mount (`C:\proj\src\a.ts`, `c:/Proj/src/a.ts`, `\\?\C:\…`, a UNC share,
+  `/mnt/c/proj/src/a.ts` under WSL, `\\wsl.localhost\<distro>\…`) is brought back to its virtual path
+  (`/workspace/src/a.ts`) in what you type, in the path fields and the shell words of the model's calls, and in what
+  comes back to the model and to the code (stdout, stderr, every tool result, a failed file call's message, the top
+  of a git checkout). The host is read from `/user-config/launch.json`, which both launchers write at every start: the
+  flavour (`posix`, `wsl`, `windows`), the distribution and the automount root under WSL, each mount's physical base
+  and, under WSL, its Windows spelling (`wslpath -w`). Docker mode writes a posix host without mounts; a posix host
+  with no Windows involvement changes nothing. Orkeon Code never spells a path physically for the runtime
+  ([ADR 0022](docs/adr/0022-host-path-spellings.md); [architecture](docs/architecture.md)).
+- `paths.deny` and `paths.allow`, two `/config` keys: the paths no tool of the model reads or writes, and the only
+  paths it may reach, as comma-separated entries in any spelling of the host (`/workspace/secrets, C:\proj\keys\*,
+  tests/fixtures/real`), matched on the virtual spelling without case on a Windows disk, a deny winning. A project
+  file adds denies and only narrows allows. The denies become rules of the gate, listed by `/permissions`; every
+  crew's callbacks refuse a covered call in any spelling, each operation of an `edit_batch`, what a folder reader
+  reaches and the words of a shell command read. A change applies at the next start.
+- The `/user-config` mount, where the launcher writes the user settings and `launch.json`, is closed to the model's
+  tools by built-in deny rules, beside the shared memory's ("the user configuration's guard" in `/permissions`).
+- `/doctor` gains the row `host: paths`: the host, each mount's base, the lists, and every entry or file it could not
+  use.
+- Known limit: the runtime's gate judges a model call on its raw spelling before the callback converts it; a call
+  spelled `C:\…` on a path tool is asked with that spelling in an interactive mode, refused before the conversion in
+  a mode that refuses what no rule covers. Orkeon #300 to #303 ask the runtime for the rest.
+
+### Documentation — the VFS and the host platform
+
+- `docs/architecture.md` (and its French twin) gains "The VFS and the host platform": the mounts the launchers
+  declare, how a virtual path resolves (ordinal mount prefix, `/` and `\` after it, `.`/`..` refused), what the
+  shell does on each platform (one `sh -s` on Linux and macOS, one process per command on Windows, cmd built-ins
+  through `cmd.exe`, no PowerShell), the operators refused everywhere, the path rewriting of a command line and of
+  its output, the confinement backend of each platform and what this project does not exercise on native Windows.
+
 ### Changed — the pin moves to Orkeon `b0fa31f`, the `firefox` browser can outlive the turn
 
 - The pin moves to Orkeon `main` `b0fa31f` (Orkeon #297 and #298, [ADR 0021](docs/adr/0021-orkeon-after-298.md)). #297

@@ -1,6 +1,6 @@
 // Checks on what the launchers hold and on what a launch left: its output, its mounts, the files it wrote.
-import { ok, strictEqual } from "node:assert";
-import { RESERVED, type Mention } from "./launcher.fixtures.ts";
+import { deepStrictEqual, ok, strictEqual } from "node:assert";
+import { RESERVED, type LaunchFile, type Mention } from "./launcher.fixtures.ts";
 
 /** `text` holds every snippet of `mentions`; each missing one is named by what it is for. */
 export function assertMentions(text: string, mentions: readonly Mention[]): void {
@@ -50,4 +50,33 @@ export function assertEveryLineHolds(lines: readonly string[], snippet: string, 
 /** Every folder of a store carries a UTC date to the second. */
 export function assertTrustedAtDates(folders: readonly { trustedAt: string }[]): void {
   ok(folders.every((f) => /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/.test(f.trustedAt)), JSON.stringify(folders));
+}
+
+/** `text` says `snippet` exactly once. */
+export function assertSaysOnce(text: string, snippet: string): void {
+  strictEqual(text.split(snippet).length - 1, 1, `${JSON.stringify(snippet)} once in: ${text}`);
+}
+
+/** launch.json names a posix host started in `mode`, and its mounts are the --mount bases, each as given. */
+export function assertPosixLaunch(file: LaunchFile, mode: string, bases: Record<string, string>): void {
+  ok(Object.keys(bases).length >= 7, `the --mount arguments: ${JSON.stringify(bases)}`);
+  deepStrictEqual([file.version, file.flavour, file.mode, file.wsl], [1, "posix", mode, undefined], "version 1, a posix host, no wsl block");
+  deepStrictEqual(file.mounts, Object.fromEntries(Object.entries(bases).map(([root, base]) => [root, { posix: base }])), "each base as given to --mount");
+}
+
+/** launch.json names a WSL host, its distribution and its drives' root, and each --mount base with its Windows spelling. */
+export function assertWslLaunch(
+  file: LaunchFile, bases: Record<string, string>, wsl: { distro: string; automountRoot: string }, spell: (base: string) => string,
+): void {
+  ok(Object.keys(bases).length >= 7, `the --mount arguments: ${JSON.stringify(bases)}`);
+  deepStrictEqual([file.version, file.flavour, file.wsl], [1, "wsl", wsl], "version 1, a WSL host, its distribution and drives");
+  deepStrictEqual(file.mounts, Object.fromEntries(Object.entries(bases).map(([root, base]) => [root, { posix: base, windows: spell(base) }])),
+    "each base as given to --mount, with its Windows spelling");
+}
+
+/** Every mount of launch.json has a posix base and a null Windows spelling. */
+export function assertNoWindowsSpelling(file: LaunchFile): void {
+  const mounts = Object.values(file.mounts);
+  ok(mounts.length >= 7, JSON.stringify(file.mounts));
+  ok(mounts.every((m) => typeof m.posix === "string" && m.windows === null), JSON.stringify(file.mounts));
 }

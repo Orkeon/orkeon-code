@@ -8,9 +8,12 @@ import { ok, strictEqual, deepStrictEqual } from "node:assert";
 import { FAIL, OLD_SESSIONS_DIR, PASS, WARN, runDoctor, versionRow } from "../../../../src/commands/_lib/status/doctor.ts";
 import { CLI_VERSION, ORKEON_RUNTIME_PIN } from "../../../../src/commands/_lib/status/meta.ts";
 import { CODE_INTEL_TOOLS } from "../../../../src/shared/domain/code-intel-contract.ts";
-import { CONFIG_FILE_PATH, createConfigStore } from "../../../../src/shared/application/config-store.ts";
+import { CONFIG_FILE_PATH, USER_CONFIG_FILE_PATH, createConfigStore } from "../../../../src/shared/application/config-store.ts";
+import { HOST_LAYOUT_FILE_PATH } from "../../../../src/shared/application/host-layout-store.ts";
 import { FakeSessionStore } from "../../../support/doubles/fake-session-store.ts";
-import { NO_MODEL_DETAIL, doctorHost, healthyTable, rowsOf } from "./doctor.fixtures.ts";
+import {
+  MALFORMED_HOST_DETAIL, NO_MODEL_DETAIL, WSL_HOST_DETAIL, WSL_LAUNCH, WSL_USER_SETTINGS, doctorHost, healthyTable, rowsOf,
+} from "./doctor.fixtures.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 
 describe("/doctor — a healthy host", () => {
@@ -298,5 +301,35 @@ describe("/doctor — the verdict", () => {
 
     // Assert
     strictEqual(view.text, "1 check(s) FAILED, 2 warning(s) — the host is not fully usable.");
+  });
+});
+
+describe("/doctor — the host's paths", () => {
+  it("names the layout of launch.json with each mount's base, and the lists canonical for that host", async () => {
+    // Arrange
+    const { shell, telemetry, catalogue, files } = doctorHost();
+    files.files.set(HOST_LAYOUT_FILE_PATH, WSL_LAUNCH);
+    files.files.set(USER_CONFIG_FILE_PATH, WSL_USER_SETTINGS);
+    const config = createConfigStore({ files, session: new FakeSessionStore() });
+
+    // Act
+    const view = await runDoctor({ shell, telemetry, catalogue, files, config });
+
+    // Assert
+    deepStrictEqual(rowsOf(view).get("host: paths"), { check: "host: paths", result: PASS, detail: WSL_HOST_DETAIL });
+  });
+
+  it("warns on a launch.json that is not JSON, the identity layout applying", async () => {
+    // Arrange
+    const { shell, telemetry, catalogue, files } = doctorHost();
+    files.files.set(HOST_LAYOUT_FILE_PATH, "{");
+    const config = createConfigStore({ files, session: new FakeSessionStore() });
+
+    // Act
+    const view = await runDoctor({ shell, telemetry, catalogue, files, config });
+
+    // Assert
+    deepStrictEqual(rowsOf(view).get("host: paths"), { check: "host: paths", result: WARN, detail: MALFORMED_HOST_DETAIL });
+    strictEqual(view.text, "all checks passed, 1 warning(s).");
   });
 });

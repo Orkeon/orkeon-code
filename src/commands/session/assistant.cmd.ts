@@ -17,7 +17,7 @@ import { launchMainLoop, writeCompleted } from "../_lib/dispatch.ts";
 import { createCrewHost } from "../../shared/infrastructure/orkeon/crew-host.ts";
 import { createPermissionRules } from "../../shared/infrastructure/orkeon/permission-rules.ts";
 import {
-  orkeonConfigStore, orkeonSessionIo, orkeonToolCatalogue,
+  orkeonConfigStore, orkeonHostContext, orkeonSessionIo, orkeonToolCatalogue,
 } from "../../shared/infrastructure/orkeon/wiring.ts";
 
 const deps = { session: orkeonSessionIo(), config: orkeonConfigStore() };
@@ -33,7 +33,7 @@ defineAsyncCommand({
     const { start } = splitStartOutput(String(ctx.command?.rawInput ?? ""));
     return await launchMainLoop({
       ...deps, catalogue: orkeonToolCatalogue(ctx.services), crews: createCrewHost(ctx.services),
-      gate: createPermissionRules(ctx.services), log: ctx.log,
+      gate: createPermissionRules(ctx.services), host: orkeonHostContext, log: ctx.log,
     }, { prompt, permissionMode, ...(start ? { sessionStart: start } : {}) });
   },
   completed: (result, ctx) => writeCompleted(ctx, result, "assistant"),

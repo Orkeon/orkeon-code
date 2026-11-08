@@ -74,7 +74,10 @@ Ollama ([Configuration](configuration.md#le-llm)).
 
 **Windows** : `orkeon-code.ps1` n'a ni mode source ni `--demo` (`-Mode` n'accepte que `docker` ou `tool`) : le mode
 tool sur le `orkeon-<version>-win-x64.zip` de la release est celui de Windows ; la voie que ce projet pratique est WSL
-avec le lanceur bash ([tutoriel WSL](wsl-tutorial.md)).
+avec le lanceur bash ([tutoriel WSL](wsl-tutorial.md)). Sur les deux, un chemin écrit comme le disque l'écrit
+(`C:\proj\src\a.ts`, `/mnt/c/proj/src/a.ts`) est lu comme son chemin `/workspace/…`, dans ce que vous tapez,
+dans les appels du modèle et dans ce qu'une commande imprime ([architecture](architecture.md#le-vfs-et-la-plateforme-hôte)) ;
+sous WSL un programme Windows n'est joignable que sans confinement, et reçoit encore des chemins `/mnt/c/…`.
 
 Orkeon Code est vérifié contre les sources d'Orkeon au commit de `.orkeon-version` (`b0fa31f`, le `main` après
 Orkeon/orkeon#298, 2026-11-07) : le [mode source](#mode-source--un-checkout-dorkeon) exécute ce commit, le runtime de

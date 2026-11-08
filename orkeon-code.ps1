@@ -750,6 +750,89 @@ try {
       '--mount', "${projectState}/memory:/memory:rw")
   }
 
+  # The physical folders of tool mode's mounts, in Get-ReplArgs order from <workspace>.
+  $hostMounts = @($Workspace, (Join-Path $State 'output'), (Join-Path $State 'tmp'), $userConfigDir, $projectState)
+
+  # A mount's base as Windows spells it: absolute, backslashes, no trailing separator but a drive root's (C:\); a UNC
+  # path resolved by its provider.
+  function Get-WindowsBase([string] $path) {
+    if ($path.StartsWith('\\') -or $path.StartsWith('//')) {
+      $resolved = Resolve-Path -LiteralPath $path -ErrorAction SilentlyContinue
+      if ($resolved) { $path = $resolved.ProviderPath }
+    }
+    $full = [IO.Path]::GetFullPath(($path -replace '/', '\'))
+    if ($full -match '^[A-Za-z]:\\$') { $full } else { $full.TrimEnd('\', '/') }
+  }
+
+  # launch.json, beside config.json on /user-config, as ./orkeon-code writes it: the host the REPL runs on (windows
+  # here, posix or wsl under pwsh elsewhere) and the physical base of each mount, the very string given to --mount,
+  # with its Windows spelling. Docker mode hides the host on purpose: posix, no mount. Rewritten at every start. What
+  # it reads beyond the rest of the launcher: WSL_DISTRO_NAME, and ORKEON_CODE_PROC_VERSION (the tests' /proc/version).
+  function Write-LaunchFile {
+    $ErrorActionPreference = 'Continue'
+    $file = Join-Path $userConfigDir 'launch.json'
+    $procVersion = if ($env:ORKEON_CODE_PROC_VERSION) { $env:ORKEON_CODE_PROC_VERSION } else { '/proc/version' }
+    $flavour = if ($Mode -eq 'docker') { 'posix' }
+               elseif ($IsWindows -or $PSVersionTable.PSEdition -eq 'Desktop') { 'windows' }
+               elseif ($env:WSL_DISTRO_NAME -or ((Test-Path -LiteralPath $procVersion) -and
+                       "$(Get-Content -LiteralPath $procVersion -Raw -ErrorAction SilentlyContinue)" -match 'microsoft')) { 'wsl' }
+               else { 'posix' }
+    $wslpath = $null
+    if ($flavour -eq 'wsl') {
+      $wslpath = Get-Command wslpath -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+      if (-not $wslpath) { Write-Warning "wslpath is not on PATH: $file gives no Windows spelling of the mounts." }
+    }
+    $launch = [ordered]@{ version = 1; flavour = $flavour; mode = $Mode }
+    if ($flavour -eq 'wsl') {
+      # The distribution: WSL_DISTRO_NAME, else the share of `wslpath -w /` (\\wsl.localhost\<distro>\ or \\wsl$\<distro>\).
+      $distro = $env:WSL_DISTRO_NAME
+      if (-not $distro -and $wslpath -and "$(& $wslpath.Source -w / 2>$null)" -match '^\\\\wsl(\.localhost|\$)\\([^\\]+)') {
+        $distro = $Matches[2]
+      }
+      # Where the Windows drives are mounted: `wslpath -u 'C:\'` less its /c, else [automount] root= of /etc/wsl.conf,
+      # else /mnt.
+      $automount = $null
+      $drive = if ($wslpath) { "$(& $wslpath.Source -u 'C:\' 2>$null)" } else { '' }
+      if ($drive) { $automount = $drive.TrimEnd('/') -replace '/c$', ''; if (-not $automount) { $automount = '/' } }
+      else {
+        $section = ''
+        foreach ($line in @(Get-Content -LiteralPath '/etc/wsl.conf' -ErrorAction SilentlyContinue)) {
+          if ($line -match '^\s*\[([^\]]*)\]') { $section = $Matches[1].Trim().ToLowerInvariant() }
+          elseif ($section -eq 'automount' -and $line -match '^\s*root\s*=\s*"?([^"]*?)"?\s*$' -and $Matches[1]) {
+            $automount = $Matches[1].TrimEnd('/'); if (-not $automount) { $automount = '/' }
+            break
+          }
+        }
+        if (-not $automount) { $automount = '/mnt' }
+      }
+      $launch['wsl'] = [ordered]@{ distro = $(if ($distro) { $distro } else { $null }); automountRoot = $automount }
+    }
+    $mounts = [ordered]@{}
+    if ($Mode -ne 'docker') {
+      $pairs = @(Get-ReplArgs '' '' '' @hostMounts) + @($audioArgs)
+      for ($i = 1; $i -lt $pairs.Count; $i++) {
+        if ($pairs[$i - 1] -cne '--mount' -or $pairs[$i] -notmatch '^(.*):([^:]+):([^:]+)$') { continue }
+        $base = $Matches[1]; $root = $Matches[2]
+        $mount = [ordered]@{}
+        if ($flavour -eq 'windows') { $mount['windows'] = Get-WindowsBase $base }
+        else {
+          $mount['posix'] = $base
+          if ($flavour -eq 'wsl') {
+            $spelled = if ($wslpath) { "$(& $wslpath.Source -w $base 2>$null)" } else { '' }
+            $mount['windows'] = $(if ($spelled) { $spelled } else { $null })
+          }
+        }
+        $mounts[$root] = $mount
+      }
+    }
+    $launch['mounts'] = $mounts
+    try {
+      # UTF-8 without a BOM on Windows PowerShell 5.1 too (Set-Content would write a BOM, or UTF-16).
+      [System.IO.File]::WriteAllText($file, ($launch | ConvertTo-Json -Depth 5 -Compress) + "`n", (New-Object System.Text.UTF8Encoding $false))
+    } catch { Write-Warning "Could not write $file." }
+  }
+  Write-LaunchFile
+
   # The exchange log (--llm-log) would land in ./llm-logs, the project: a bare --llm-log among the REPL's arguments
   # is sent to <projectState>/llm-logs instead; an explicit --llm-log-path is passed as given.
   function Get-LlmLogArgs($projectState) {
@@ -826,7 +909,7 @@ try {
     $env:ORKEON_ESBUILD_PATH = $found.FullName
   }
   $replArgs = Get-ReplArgs (Join-Path $Root 'src/commands') (Join-Path $Root 'src/crews') $(if ($runtimeOwn) { '' } else { $Settings }) `
-                           $Workspace (Join-Path $State 'output') (Join-Path $State 'tmp') $userConfigDir $projectState
+                           @hostMounts
   $Extra = @(Get-LlmLogArgs $projectState)
   # The REPL runs from the project. It reads its --commands-dir and --crews-dir wherever they are, and
   # a --mount outside its working directory (/output, /tmp, /user-config, /sessions, /session-history and /memory, in

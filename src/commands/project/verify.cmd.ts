@@ -9,7 +9,7 @@ import { buildVerifyRequest } from "../../shared/domain/verifiers.ts";
 import { createCrewHost } from "../../shared/infrastructure/orkeon/crew-host.ts";
 import { createPermissionRules } from "../../shared/infrastructure/orkeon/permission-rules.ts";
 import {
-  orkeonConfigStore, orkeonSessionIo, orkeonToolCatalogue,
+  orkeonConfigStore, orkeonHostContext, orkeonSessionIo, orkeonToolCatalogue,
 } from "../../shared/infrastructure/orkeon/wiring.ts";
 
 const deps = { session: orkeonSessionIo(), config: orkeonConfigStore() };
@@ -21,7 +21,7 @@ defineAsyncCommand({
   dispatch: async (args, ctx) =>
     await launchMainLoop({
       ...deps, catalogue: orkeonToolCatalogue(ctx.services), crews: createCrewHost(ctx.services),
-      gate: createPermissionRules(ctx.services), log: ctx.log,
+      gate: createPermissionRules(ctx.services), host: orkeonHostContext, log: ctx.log,
     }, { prompt: buildVerifyRequest(rawText(args)), permissionMode: null }),
   completed: (result, ctx) => writeCompleted(ctx, result, "verify"),
 });

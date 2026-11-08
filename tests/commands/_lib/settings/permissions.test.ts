@@ -13,14 +13,19 @@ import { MEMORY_TOOLS, RULEABLE_TOOLS, scriptToolAccess, toolsetFor } from "../.
 import { RULE_SETS } from "../../../../src/shared/domain/agent-policy/rule-sets.ts";
 import { resolveFallbackMode } from "../../../../src/shared/domain/permission-modes.ts";
 import { DEFAULT_MODE_STATE_KEY, PERMISSION_RULES_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
+import { secretsHost } from "../../../support/fixtures/host-context.ts";
+import { assertMentions } from "../../../support/assertions/text.ts";
 import {
   CALLBACK,
   GATE_OFF,
   GATE_ON,
   GATE_SETTING,
   GRAMMAR,
-  MEMORY_GATE,
+  BUILT_IN_GATE,
+  BUILT_IN_LINES,
   MEMORY_LINES,
+  SECRETS_LINES,
+  USER_CONFIG_LINES,
   NOT_A_RULE_TEXT,
   NO_GATE_RULES,
   NO_SUCH_RULE_CASES,
@@ -173,7 +178,8 @@ describe("/permissions show", () => {
 
     // Assert
     strictEqual(lines[7], "in the host gate     : deny file_write, deny http_api; the shared memory's guard: no tool of the " +
-      `model writes under .orkeon/memory/candidates or .orkeon/memory/entries (${MEMORY_LINES.length} rules)`);
+      `model writes under .orkeon/memory/candidates or .orkeon/memory/entries (${MEMORY_LINES.length} rules); ` +
+      `the user configuration's guard: no tool of the model reads or writes /user-config (${USER_CONFIG_LINES.length} rules)`);
     ok(!lines.includes(OTHER_RULES));
   });
 
@@ -251,7 +257,7 @@ describe("/permissions add", () => {
       text: `rule deny shell_command added.\ncatalogue for 'default': ${catalogue.join(", ")}`,
     });
     deepStrictEqual(rules(), ["deny shell_command"]);
-    deepStrictEqual(gate.calls, ["clear", "add deny shell_command", ...MEMORY_GATE]);
+    deepStrictEqual(gate.calls, ["clear", "add deny shell_command", ...BUILT_IN_GATE]);
   });
 
   it("stores a rule with an argument pattern, spaces included, and leaves the catalogue whole", async () => {
@@ -269,7 +275,7 @@ describe("/permissions add", () => {
     });
     // Every other stored entry is kept as written, the old `effect:tool` form included.
     deepStrictEqual(rules(), ["deny:file_write", "allow shell_command command=npm test*"]);
-    deepStrictEqual(gate.calls, ["clear", "add deny file_write", "add allow shell_command command=npm test*", ...MEMORY_GATE]);
+    deepStrictEqual(gate.calls, ["clear", "add deny file_write", "add allow shell_command command=npm test*", ...BUILT_IN_GATE]);
   });
 
   it("replaces the opposite effect on the same calls, and keeps rules on other calls of the tool", async () => {
@@ -351,7 +357,7 @@ describe("/permissions add", () => {
     // Assert
     strictEqual(lines[0], "rule allow shell_command command=npm test* added.");
     deepStrictEqual(rules(), ["allow shell_command command=npm test*"]);
-    deepStrictEqual(gate.calls, ["clear", "add allow shell_command command=npm test*", ...MEMORY_GATE]);
+    deepStrictEqual(gate.calls, ["clear", "add allow shell_command command=npm test*", ...BUILT_IN_GATE]);
   });
 });
 
@@ -395,7 +401,7 @@ describe("/permissions remove and clear", () => {
     // Assert
     deepStrictEqual(view, { text: "rule deny file_read removed." });
     deepStrictEqual(rules(), ["deny:shell_command"]);
-    deepStrictEqual(gate.list(), ["deny shell_command", ...MEMORY_LINES]);
+    deepStrictEqual(gate.list(), ["deny shell_command", ...BUILT_IN_LINES]);
   });
 
   it("refuses a text that is not a rule", async () => {
@@ -421,8 +427,8 @@ describe("/permissions remove and clear", () => {
     // Assert
     deepStrictEqual(view, { text: "all permission rules cleared (the mode decides alone)." });
     deepStrictEqual(rules(), []);
-    deepStrictEqual(gate.calls, ["clear", ...MEMORY_GATE]);
-    deepStrictEqual(gate.list(), MEMORY_LINES);
+    deepStrictEqual(gate.calls, ["clear", ...BUILT_IN_GATE]);
+    deepStrictEqual(gate.list(), BUILT_IN_LINES);
   });
 
   it("clears the session's rules and says so when the host keeps none", async () => {
@@ -504,7 +510,7 @@ describe("/permissions — the extra tools of tools.extra", () => {
     // Assert
     strictEqual(view.text!.split("\n")[0], "rule allow gone_tool added.");
     deepStrictEqual(rules(), ["deny search_issues query=secret*", "allow gone_tool"]);
-    deepStrictEqual(gate.list(), ["deny search_issues query=secret*", "allow gone_tool", ...MEMORY_LINES]);
+    deepStrictEqual(gate.list(), ["deny search_issues query=secret*", "allow gone_tool", ...BUILT_IN_LINES]);
   });
 
   it("refuses a rule on a tool tools.extra never listed, naming the configured ones", async () => {
@@ -555,7 +561,7 @@ describe("/permissions — the extra tools of tools.extra", () => {
     await run("add", "deny", "create_issue");
 
     // Assert
-    deepStrictEqual(gate.list(), ["deny create_issue", ...MEMORY_LINES]);
+    deepStrictEqual(gate.list(), ["deny create_issue", ...BUILT_IN_LINES]);
   });
 
   it("says a rule is dormant once its tool leaves tools.extra", async () => {
@@ -580,7 +586,7 @@ describe("/permissions — the extra tools of tools.extra", () => {
 
     // Assert
     deepStrictEqual(rules(), ["deny create_issue", "allow file_write"]);
-    deepStrictEqual(gate.list(), ["allow file_write", ...MEMORY_LINES]);
+    deepStrictEqual(gate.list(), ["allow file_write", ...BUILT_IN_LINES]);
   });
 
   it("shows a dormant rule apart, and says why", async () => {
@@ -620,7 +626,7 @@ describe("/permissions — the extra tools of tools.extra", () => {
 
     // Assert
     deepStrictEqual(rules(), ["deny create_issue"]);
-    deepStrictEqual(gate.list(), ["deny create_issue", ...MEMORY_LINES]);
+    deepStrictEqual(gate.list(), ["deny create_issue", ...BUILT_IN_LINES]);
   });
 
   it("removes a dormant rule by name", async () => {
@@ -650,7 +656,7 @@ describe("/permissions — the extra tools of tools.extra", () => {
 
     // Assert
     deepStrictEqual(rules(), []);
-    deepStrictEqual(gate.list(), MEMORY_LINES);
+    deepStrictEqual(gate.list(), BUILT_IN_LINES);
   });
 
   it("rewrites no rule away when tools.extra cannot be read, and says why the extra tools are unknown", async () => {
@@ -672,7 +678,7 @@ describe("/permissions — the extra tools of tools.extra", () => {
     deepStrictEqual(JSON.parse(store.state.get(PERMISSION_RULES_STATE_KEY)!), [
       "deny create_issue", "deny file_write", "deny http_api",
     ]);
-    deepStrictEqual(gate.list(), ["deny file_write", "deny http_api", ...MEMORY_LINES]);
+    deepStrictEqual(gate.list(), ["deny file_write", "deny http_api", ...BUILT_IN_LINES]);
   });
 });
 
@@ -803,5 +809,30 @@ describe("/permissions show: the host gate's state", () => {
 
     // Assert
     deepStrictEqual(lines.slice(18), GATE_SETTING);
+  });
+});
+
+describe("/permissions — the host's path lists", () => {
+  it("puts the deny rules of paths.deny in the gate after the built-in guards", async () => {
+    // Arrange
+    const { gate, run } = permissionsHarness(secretsHost);
+
+    // Act
+    await run("add", "deny", "http_api");
+
+    // Assert
+    deepStrictEqual(gate.list(), ["deny http_api", ...BUILT_IN_LINES, ...SECRETS_LINES]);
+  });
+
+  it("names paths.deny among the guards the gate holds", async () => {
+    // Arrange
+    const { run } = permissionsHarness(secretsHost);
+    await run("add", "deny", "http_api");
+
+    // Act
+    const lines = (await run("show")).text!.split("\n");
+
+    // Assert
+    assertMentions(lines[7], [`paths.deny: no tool of the model reads or writes /workspace/secrets (${SECRETS_LINES.length} rules)`]);
   });
 });

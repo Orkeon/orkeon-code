@@ -36,6 +36,8 @@ export function doctorHost() {
   const config = {
     readValue: async (key: string): Promise<ConfigResolution> =>
       ({ key, value: undefined, source: "unset", ...(ignored.has(key) ? { ignored: ignored.get(key) } : {}) }),
+    readFile: async () => ({ map: {}, malformed: false }),
+    readUserFile: async () => ({ map: {}, malformed: false }),
   };
   return { shell, telemetry, catalogue, files, runtime, ignored, deps: { shell, telemetry, catalogue, files, config, runtime } };
 }
@@ -58,6 +60,7 @@ export function healthyTable(): DoctorRow[] {
     { check: "tools: essential", result: PASS, detail: `${tools} registered, all ${ESSENTIAL_TOOLS.length} essentials present` },
     { check: "tools: code intelligence", result: PASS, detail: `all ${CODE_INTEL_TOOLS.length} present` },
     { check: "vfs: mounts", result: PASS, detail: `${WORKSPACE}(rw) /crews(ro)` },
+    { check: "host: paths", result: PASS, detail: NO_HOST_DETAIL },
     { check: "sessions: outside the project", result: PASS, detail: "nothing in .orkeon/sessions" },
     { check: "settings: project file", result: PASS, detail: "widens nothing" },
   ];
@@ -65,3 +68,18 @@ export function healthyTable(): DoctorRow[] {
 
 export const NO_MODEL_DETAIL =
   "the host reports NO model: expect every /assistant turn to no-op. Check the `Llm` section of the settings file.";
+
+/** The host row without a launch.json and without a list. */
+export const NO_HOST_DETAIL = "posix, no mount base: every path as the runtime spells it; no path list";
+
+/** A WSL launch.json, and the user settings whose lists it canonicalises (a Windows spelling, a relative path). */
+export const WSL_LAUNCH = JSON.stringify({
+  version: 1, flavour: "wsl", wsl: { distro: "Ubuntu", automountRoot: "/mnt" },
+  mounts: { "/workspace": { posix: "/mnt/c/proj", windows: "C:\\proj" }, "/output": { posix: "/home/me/out" } },
+});
+export const WSL_USER_SETTINGS = JSON.stringify({ "paths.deny": "C:\\proj\\secrets", "paths.allow": "src" });
+export const WSL_HOST_DETAIL =
+  "wsl (Ubuntu, drives under /mnt): /workspace = /mnt/c/proj (C:\\proj), /output = /home/me/out; deny: /workspace/secrets; allow: /workspace/src";
+
+/** The host row over a launch.json that is not JSON. */
+export const MALFORMED_HOST_DETAIL = `${NO_HOST_DETAIL}; ⚠ /user-config/launch.json is not JSON: no host layout applies`;

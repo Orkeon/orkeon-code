@@ -26,6 +26,9 @@ import {
   OUTPUT_STYLE_STATE_KEY, PASSES_STATE_KEY, PROACTIVE_STATE_KEY, SKILLS_STATE_KEY,
 } from "../../../shared/domain/session-keys.ts";
 import type { ToolTrace } from "../../../shared/application/dev/tool-trace-recorder.ts";
+import type { HostSource } from "../../../shared/application/host-context.ts";
+import { IDENTITY_HOST } from "../../../shared/domain/host-layout.ts";
+import { textToVirtual } from "../../../shared/domain/host-paths.ts";
 import { readBehaviorFlags } from "./context-gather.ts";
 import { autoCompactGuarded } from "./auto-compact.ts";
 import type { AutoCompactDeps } from "./auto-compact.ts";
@@ -172,6 +175,9 @@ export interface MainLoopDeps extends TurnContextDeps, Omit<AutoCompactDeps, "se
   trace?: Pick<ToolTrace, "take">;
   /** The guards of the two chains; absent, the built-in ones (domain/turn-chains). */
   chains?: { turnStart?: ReadonlyArray<Guard<TurnStartFacts>>; stop?: ReadonlyArray<Guard<StopFacts>> };
+  /** This run's host context (shared/application/host-context): the request's disk spellings come back to the VFS
+   *  before anything reads them; absent, the identity. */
+  host?: HostSource;
 }
 
 /** The request once the prelude's call answered (applyPrelude). */
@@ -266,7 +272,10 @@ const TURN_STATE_KEYS = [
 
 /** One turn: the answer, or why there was none. */
 export async function runMainLoop(input: MainLoopInputs, loaded: LoadedCatalogue, given: MainLoopDeps): Promise<string> {
-  const request = String(input.prompt ?? "").trim();
+  // A path the user typed as the disk spells it names the VFS path from here on, in the transcript too; what a
+  // fenced block quotes stays as typed.
+  const layout = given.host === undefined ? IDENTITY_HOST : (await given.host()).layout;
+  const request = textToVirtual(String(input.prompt ?? "").trim(), layout, { keepFenced: true });
   const prelude = parsePrelude(input.prelude);
   if (request.length === 0 && prelude?.as !== "request") return "No prompt provided.";
   // Every reader of the turn reads the state bag through this session: its keys come from one batch read.

@@ -8,6 +8,9 @@ import { RULEABLE_TOOLS, readRule } from "../../../../src/shared/domain/agent-po
 import type { PermissionRule } from "../../../../src/shared/domain/agent-policy/permission.ts";
 import { gateLine as memoryGateLine } from "../../../../src/shared/domain/agent-policy/permission.ts";
 import { DEFAULT_MEMORY_DIR, memoryWriteRules } from "../../../../src/shared/domain/shared-memory/layout.ts";
+import { pathListRules, userConfigRules } from "../../../../src/shared/domain/agent-policy/path-rules.ts";
+import type { HostSource } from "../../../../src/shared/application/host-context.ts";
+import { SECRETS_HOST } from "../../../support/fixtures/host-context.ts";
 import { PERMISSION_RULES_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
 import { FakeFiles } from "../../../support/doubles/fake-files.ts";
 import { FakePermissionRules } from "../../../support/doubles/fake-permission-rules.ts";
@@ -17,7 +20,13 @@ import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 
 /** The built-in denies every sync adds after the session's rules: no model tool writes the memory's candidates or entries. */
 export const MEMORY_LINES = memoryWriteRules(DEFAULT_MEMORY_DIR).map(memoryGateLine);
-export const MEMORY_GATE = MEMORY_LINES.map((line) => `add ${line}`);
+/** The built-in denies that close the whole /user-config mount to the model. */
+export const USER_CONFIG_LINES = userConfigRules().map(memoryGateLine);
+/** Every built-in deny a sync adds after the session's rules, in the gate's order. */
+export const BUILT_IN_LINES = [...MEMORY_LINES, ...USER_CONFIG_LINES];
+export const BUILT_IN_GATE = BUILT_IN_LINES.map((line) => `add ${line}`);
+/** The deny rules of SECRETS_HOST's paths.deny, as the gate lists them. */
+export const SECRETS_LINES = pathListRules(SECRETS_HOST.lists).map(memoryGateLine);
 
 export const NO_GATE_RULES =
   "⚠ the host keeps no session rules (orkeon-repl does): the gate decides each call from the mode alone.";
@@ -72,14 +81,15 @@ export const USAGE_TEXT =
   "remove <deny|allow> <tool> [<argument>=<pattern>] | list | clear";
 
 /** /permissions over fresh fakes, with readers and writers of the stored rules and of `tools.extra`. */
-export function permissionsHarness() {
+export function permissionsHarness(host?: HostSource) {
   const files = new FakeFiles();
   const store = new FakeSessionStore();
   const gate = new FakePermissionRules();
   const config = createConfigStore({ files, session: store });
   const session = createSessionIo({ store, config });
   const catalogue = new FakeToolCatalogue();
-  const run = (...tokens: string[]) => runPermissions(tokens, { session, gate, config, catalogue });
+  const run = (...tokens: string[]) =>
+    runPermissions(tokens, { session, gate, config, catalogue, ...(host === undefined ? {} : { host }) });
   const rules = (): unknown => JSON.parse(store.state.get(PERMISSION_RULES_STATE_KEY) ?? "null");
   const seedRules = (...stored: string[]) => store.state.set(PERMISSION_RULES_STATE_KEY, JSON.stringify(stored));
   /** Configures `tools.extra` in the user settings and registers `registered` with the host. */

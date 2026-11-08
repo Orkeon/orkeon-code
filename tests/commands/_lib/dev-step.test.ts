@@ -15,6 +15,9 @@ import { RULE_SET_IDS } from "../../../src/shared/domain/agent-policy/rule-sets.
 import { gateProblem } from "../../../src/shared/domain/dev/step-rules.ts";
 import { HOOKS_STATE_KEY } from "../../../src/shared/domain/session-keys.ts";
 import { FakeSessionStore } from "../../support/doubles/fake-session-store.ts";
+import { SECRETS_HOST, secretsHost } from "../../support/fixtures/host-context.ts";
+import { pathListRules } from "../../../src/shared/domain/agent-policy/path-rules.ts";
+import { gateLine } from "../../../src/shared/domain/agent-policy/permission.ts";
 import {
   ACTIVE_WORKFLOW_CASES,
   HOOKS_CASES,
@@ -90,9 +93,11 @@ describe("startDevStep", () => {
     strictEqual(deps.gate.calls[0], "clear");
     strictEqual(deps.gate.calls[1], "add allow shell_command command=npm test*");
     strictEqual(deps.gate.calls[2], "add deny shell_command command=*git add*");
-    // Then the shared memory's guard, 20 denies: no model tool writes its candidates or entries.
-    strictEqual(deps.gate.calls.length, 558);
+    // Then the built-in guards: the shared memory's 20 denies (no model tool writes its candidates or entries), and
+    // the 18 that close the /user-config mount.
+    strictEqual(deps.gate.calls.length, 576);
     strictEqual(deps.gate.calls[557], "add deny shell_command command=*.orkeon/memory/entries*");
+    strictEqual(deps.gate.calls[575], "add deny shell_command command=*/user-config*");
   });
 
   it("prints nothing when the facade does not say whether the gate is on, and still puts the sets in force", async () => {
@@ -106,7 +111,7 @@ describe("startDevStep", () => {
     // Assert
     assertStarted(start);
     deepStrictEqual(start.lines, []);
-    strictEqual(deps.gate.calls.length, 557);
+    strictEqual(deps.gate.calls.length, 575);
   });
 
   it("finds no gate problem when the facade does not say whether the gate is on", () => {
@@ -305,4 +310,19 @@ describe("writeModeRefusal", () => {
       ok(refusal?.includes(c.fragment), String(refusal));
     });
   }
+});
+
+describe("startDevStep — the host's path lists", () => {
+  it("puts the deny rules of the host's paths.deny in the gate, last", async () => {
+    // Arrange
+    const deps = stepDeps();
+    const secrets = pathListRules(SECRETS_HOST.lists);
+
+    // Act
+    await startDevStep("dev-plan", { ...deps, host: secretsHost });
+
+    // Assert
+    strictEqual(deps.gate.calls.length, 575 + secrets.length);
+    strictEqual(deps.gate.calls[deps.gate.calls.length - 1], `add ${gateLine(secrets[secrets.length - 1])}`);
+  });
 });

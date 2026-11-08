@@ -241,8 +241,16 @@ project_slug() ( # <path>
   printf '%s-%s\n' "$(printf '%s' "$out" | tr 'A-Z' 'a-z')" "${hash:0:12}"
 )
 
-# <string> as a JSON string, the trust store's escaping (\ and ").
-json_string() { local s="${1//\\/\\\\}"; printf '"%s"' "${s//\"/\\\"}"; }
+# <text> as a JSON string: \, " and every control character escaped. awk, not bash's ${s//}, whose backslashes in the
+# replacement differ from bash 3.2 to 5.2; bytes, not characters (LC_ALL=C), so UTF-8 passes as it is. No node, no jq.
+json_str() {
+  LC_ALL=C awk 'BEGIN {
+    s = ARGV[1]; for (i = 1; i < 32; i++) e[sprintf("%c", i)] = sprintf("\\u%04x", i)
+    e["\\"] = "\\\\"; e["\""] = "\\\""; e["\n"] = "\\n"; e["\t"] = "\\t"; e["\r"] = "\\r"
+    o = "\""; for (i = 1; i <= length(s); i++) { c = substr(s, i, 1); o = o ((c in e) ? e[c] : c) }
+    printf "%s\"", o
+  }' "$1"
+}
 
 # A string field of a session file as stored (its escapes unread), or nothing.
 session_field() { # <file> <field>
@@ -596,7 +604,7 @@ if [ "$MODE" = docker ]; then RUNTIME_SLUG="$(project_slug /work/project)"; else
 now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 first_seen="$(session_field "$PROJECT_STATE/project.json" firstSeen)"
 {
-  printf '{\n  "path": %s,\n  "slug": "%s",\n  "runtimeSlug": "%s",\n' "$(json_string "$WORKSPACE")" "$SLUG" "$RUNTIME_SLUG"
+  printf '{\n  "path": %s,\n  "slug": "%s",\n  "runtimeSlug": "%s",\n' "$(json_str "$WORKSPACE")" "$SLUG" "$RUNTIME_SLUG"
   printf '  "firstSeen": "%s",\n  "lastSeen": "%s"\n}\n' "${first_seen:-$now}" "$now"
 } > "$PROJECT_STATE/project.json.tmp.$$" && mv -f "$PROJECT_STATE/project.json.tmp.$$" "$PROJECT_STATE/project.json" \
   || die "could not write $PROJECT_STATE/project.json."
@@ -785,6 +793,74 @@ repl_args() { # <commands> <crews> <settings> <workspace> <output> <tmp> <user-c
     --mount "$8/$SESSIONS_SUB:/sessions:rw" --mount "$8/history:/session-history:ro" --mount "$8/memory:/memory:rw")
 }
 
+# The physical folders of the tool and source modes' mounts, in repl_args order from <workspace>.
+HOST_MOUNTS=("$WORKSPACE" "$STATE/output" "$STATE/tmp" "$USER_CONFIG_DIR" "$PROJECT_STATE")
+
+# launch.json, beside config.json on /user-config: the host the REPL runs on (posix, wsl or windows) and the physical
+# base of each mount, the very string given to --mount, with its Windows spelling under WSL (wslpath -w; null without
+# wslpath). Docker mode hides the host on purpose: posix, no mount. Rewritten at every start. What it reads beyond the
+# rest of the launcher: WSL_DISTRO_NAME, and ORKEON_CODE_PROC_VERSION (the tests' /proc/version), nothing else (V-04).
+host_flavour() {
+  if [ "$MODE" = docker ]; then echo posix
+  elif [ -n "${WSL_DISTRO_NAME:-}" ] || grep -qi microsoft "${ORKEON_CODE_PROC_VERSION:-/proc/version}" 2>/dev/null; then echo wsl
+  else echo posix; fi
+}
+# The distribution: WSL_DISTRO_NAME, else the share of `wslpath -w /` (\\wsl.localhost\<distro>\ or \\wsl$\<distro>\).
+wsl_distro() {
+  local root rest
+  if [ -n "${WSL_DISTRO_NAME:-}" ]; then printf '%s' "$WSL_DISTRO_NAME"; return; fi
+  root="$(wslpath -w / 2>/dev/null)" || return 0
+  case "$root" in '\\wsl.localhost\'*) rest="${root:16}" ;; '\\wsl$\'*) rest="${root:7}" ;; *) return 0 ;; esac
+  printf '%s' "${rest%%\\*}"
+}
+# Where the Windows drives are mounted: `wslpath -u 'C:\'` less its /c, else [automount] root= of /etc/wsl.conf, else /mnt.
+wsl_automount_root() {
+  local c root
+  if c="$(wslpath -u 'C:\' 2>/dev/null)" && [ -n "$c" ]; then
+    c="${c%/}"; c="${c%/c}"; printf '%s' "${c:-/}"; return
+  fi
+  root="$(awk -F= '/^[[:space:]]*\[/ { s = tolower($0) ~ /^[[:space:]]*\[automount\]/ }
+    s && $1 ~ /^[[:space:]]*root[[:space:]]*$/ { v = $2; sub(/^[[:space:]]*"?/, "", v); sub(/"?[[:space:]]*$/, "", v); print v; exit }' \
+    /etc/wsl.conf 2>/dev/null)"
+  if [ -n "$root" ]; then root="${root%/}"; printf '%s' "${root:-/}"; else printf '/mnt'; fi
+}
+write_launch_file() {
+  local flavour file="$USER_CONFIG_DIR/launch.json" mounts=() m prev="" rest base root w sep="" has_wslpath=0 distro
+  flavour="$(host_flavour)"
+  if [ "$MODE" != docker ]; then
+    repl_args "" "" "" "${HOST_MOUNTS[@]}"
+    for m in "${ARGS[@]}" ${AUDIO_ARGS[@]+"${AUDIO_ARGS[@]}"}; do
+      if [ "$prev" = --mount ]; then mounts+=("$m"); fi
+      prev="$m"
+    done
+  fi
+  if [ "$flavour" = wsl ]; then
+    if command -v wslpath >/dev/null 2>&1; then has_wslpath=1
+    else warn "wslpath is not on PATH: $file gives no Windows spelling of the mounts."; fi
+  fi
+  {
+    printf '{\n  "version": 1,\n  "flavour": %s,\n  "mode": %s,\n' "$(json_str "$flavour")" "$(json_str "$MODE")"
+    if [ "$flavour" = wsl ]; then
+      distro="$(wsl_distro)"
+      printf '  "wsl": { "distro": %s, "automountRoot": %s },\n' \
+        "$(if [ -n "$distro" ]; then json_str "$distro"; else echo null; fi)" "$(json_str "$(wsl_automount_root)")"
+    fi
+    printf '  "mounts": {'
+    for m in ${mounts[@]+"${mounts[@]}"}; do
+      rest="${m%:*}"; root="${rest##*:}"; base="${rest%:*}"
+      printf '%s\n    %s: { "posix": %s' "$sep" "$(json_str "$root")" "$(json_str "$base")"
+      if [ "$flavour" = wsl ]; then
+        if [ "$has_wslpath" = 1 ] && w="$(wslpath -w "$base" 2>/dev/null)" && [ -n "$w" ]; then
+          printf ', "windows": %s' "$(json_str "$w")"
+        else printf ', "windows": null'; fi
+      fi
+      printf ' }'; sep=,
+    done
+    if [ -n "$sep" ]; then printf '\n  }\n}\n'; else printf '}\n}\n'; fi
+  } > "$file.tmp.$$" && mv -f "$file.tmp.$$" "$file" || warn "could not write $file."
+}
+write_launch_file
+
 # The exchange log (--llm-log) would land in ./llm-logs, the project: a bare --llm-log among the REPL's
 # arguments is sent to <project state>/llm-logs instead; an explicit --llm-log-path is passed as given (a bare
 # --llm-log beside it is then dropped, since the runtime keeps the last path it reads).
@@ -893,7 +969,7 @@ case "$MODE" in
     # /llm-logs, /cli-commands..., /crews...).
     export ORKEON_ALLOW_EXTERNAL_MOUNTS=1
     repl_args "$ROOT/src/commands" "$ROOT/src/crews" "$([ "$RUNTIME_OWN" = 1 ] || echo "$SETTINGS")" \
-      "$WORKSPACE" "$STATE/output" "$STATE/tmp" "$USER_CONFIG_DIR" "$PROJECT_STATE"
+      "${HOST_MOUNTS[@]}"
     llm_log_args "$PROJECT_STATE"
     cd "$WORKSPACE"
     exec "${REPL[@]}" "${ARGS[@]}" ${AUDIO_ARGS[@]+"${AUDIO_ARGS[@]}"} ${EXTRA[@]+"${EXTRA[@]}"}

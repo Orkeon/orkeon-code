@@ -215,7 +215,7 @@ export const OPERATION_TOOLS: Readonly<Record<string, string>> = {
 };
 
 /** A deny on every call of each tool. */
-function denyWhole(tools: readonly string[]): PermissionRule[] {
+export function denyWhole(tools: readonly string[]): PermissionRule[] {
   return tools.map((tool): PermissionRule => ({ effect: "deny", tool }));
 }
 
@@ -229,7 +229,7 @@ const STATE_ENTRIES: readonly string[] = [
   "dev", "memory", "agent", "sessions", "hooks", "shared", "repo", "config", "state", "orkeon", "ORKEON_", "forge", "rag",
 ];
 
-function denyEach(tools: readonly string[], argument: string, patterns: readonly string[]): PermissionRule[] {
+export function denyEach(tools: readonly string[], argument: string, patterns: readonly string[]): PermissionRule[] {
   return tools.flatMap((tool) => denyAll(tool, argument, patterns));
 }
 

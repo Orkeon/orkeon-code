@@ -11,7 +11,9 @@ import { runTasks } from "../_lib/session/tasks.ts";
 import { createPendingApprovals } from "../../shared/infrastructure/orkeon/approvals.ts";
 import { createCrewHost } from "../../shared/infrastructure/orkeon/crew-host.ts";
 import { createPermissionRules } from "../../shared/infrastructure/orkeon/permission-rules.ts";
-import { orkeonClock, orkeonConfigStore, orkeonSessionIo, orkeonToolCatalogue } from "../../shared/infrastructure/orkeon/wiring.ts";
+import {
+  orkeonClock, orkeonConfigStore, orkeonHostContext, orkeonSessionIo, orkeonToolCatalogue,
+} from "../../shared/infrastructure/orkeon/wiring.ts";
 import { repairStep } from "../../shared/domain/agents/built-in-charters.ts";
 
 const deps = { session: orkeonSessionIo(), clock: orkeonClock() };
@@ -28,7 +30,7 @@ defineAsyncCommand({
     // A repair is a run of the instance's step: the gate must be on, its rule sets go in it, its /hooks with it.
     const step = repairStep(String(launch.input.charter ?? ""), launch.input.step);
     const start = await startDevStep(step, {
-      session: deps.session, config: orkeonConfigStore(), gate: createPermissionRules(ctx.services), catalogue: orkeonToolCatalogue(ctx.services),
+      session: deps.session, config: orkeonConfigStore(), gate: createPermissionRules(ctx.services), host: orkeonHostContext, catalogue: orkeonToolCatalogue(ctx.services),
     });
     if (!start.ok) {
       ctx.writeLine(start.line);

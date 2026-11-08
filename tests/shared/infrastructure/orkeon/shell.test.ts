@@ -5,8 +5,9 @@ import { deepStrictEqual, ok, rejects, strictEqual } from "node:assert";
 
 import { createShell } from "../../../../src/shared/infrastructure/orkeon/shell.ts";
 import { FakeTools } from "../../../support/doubles/fake-tools.ts";
-import { BAD_TIMEOUTS, COMPLETED_REPLIES, ROOT } from "./shell.fixtures.ts";
+import { BAD_TIMEOUTS, COMPLETED_REPLIES, DISK_COMMAND, DISK_REPLY, ROOT, ROOTED_DISK_REPLY, VIRTUAL_COMMAND, VIRTUAL_RESULT } from "./shell.fixtures.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
+import { windowsHost } from "../../../support/fixtures/host-context.ts";
 
 describe("createShell", () => {
   it(`runs the command in ${WORKSPACE}`, async () => {
@@ -170,5 +171,42 @@ describe("createShell — under a working root", () => {
 
     // Assert
     deepStrictEqual(tools.inputsOf("shellCommand"), [{ command: `cat ${WORKSPACE}/a`, working_directory: WORKSPACE }]);
+  });
+});
+
+describe("createShell — under a host", () => {
+  it("brings a command's disk spellings back to the VFS before the run", async () => {
+    // Arrange
+    const tools = new FakeTools();
+
+    // Act
+    await createShell(tools, undefined, windowsHost).run(DISK_COMMAND);
+
+    // Assert
+    deepStrictEqual(tools.inputsOf("shellCommand"), [{ command: VIRTUAL_COMMAND, working_directory: WORKSPACE }]);
+  });
+
+  it("brings the disk spellings of stdout and stderr back to the VFS", async () => {
+    // Arrange
+    const tools = new FakeTools();
+    tools.replies.shellCommand = DISK_REPLY;
+
+    // Act
+    const result = await createShell(tools, undefined, windowsHost).run("git status");
+
+    // Assert
+    deepStrictEqual(result, VIRTUAL_RESULT);
+  });
+
+  it(`brings a disk spelling under the root back to the checkout's ${WORKSPACE} path`, async () => {
+    // Arrange
+    const tools = new FakeTools();
+    tools.replies.shellCommand = ROOTED_DISK_REPLY;
+
+    // Act
+    const result = await createShell(tools, ROOT, windowsHost).run("git status");
+
+    // Assert
+    strictEqual(result.stdout, `${WORKSPACE}/src/a.ts: modified`);
   });
 });

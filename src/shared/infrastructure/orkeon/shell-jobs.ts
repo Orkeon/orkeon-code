@@ -9,10 +9,14 @@
 // node or interpreters, that run fails once and every later wait says false at once,
 // so the caller falls back to a blocking run.
 //
-// Given a batch's working root, the jobs run there, as the Shell adapter's commands do.
+// Given a batch's working root, the jobs run there, as the Shell adapter's commands do; given the host's context,
+// the command's and the tail's disk spellings come back to the VFS as the Shell adapter's do.
 
 import type { ShellJobs } from "../../application/ports.ts";
+import type { HostSource } from "../../application/host-context.ts";
 import { textFromRoot, textToRoot } from "../../domain/dev/path-rebase.ts";
+import { commandToVirtual, textToVirtual } from "../../domain/host-paths.ts";
+import { layoutOf } from "./host-context.ts";
 import { pick, shCode } from "./tool-results.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
 
@@ -25,13 +29,14 @@ const WAIT_SCRIPT_CONTENT =
 /** job_tail's own ceiling. */
 const MAX_TAIL_LINES = 500;
 
-export function createShellJobs(tools: Pick<OrkeonTools, "shellCommand" | "fileWrite">, root?: string): ShellJobs {
+export function createShellJobs(tools: Pick<OrkeonTools, "shellCommand" | "fileWrite">, root?: string, host?: HostSource): ShellJobs {
   const cwd = root ?? WORKSPACE;
   let waiter: "unknown" | "ready" | "absent" = "unknown";
   return {
     async start(command) {
       if (command.trim() === "") throw new Error("a shell job needs a command");
-      const r = await tools.shellCommand({ action: "start_job", command: textToRoot(command, root), working_directory: cwd });
+      const virtual = commandToVirtual(command, await layoutOf(host));
+      const r = await tools.shellCommand({ action: "start_job", command: textToRoot(virtual, root), working_directory: cwd });
       const id = String(pick(r, "job_id", "jobId", "JobId") ?? "");
       if (id === "") throw new Error(`start_job answered no job id for: ${command}`);
       return { id, log: String(pick(r, "output_path", "outputPath", "OutputPath") ?? "") };
@@ -46,7 +51,7 @@ export function createShellJobs(tools: Pick<OrkeonTools, "shellCommand" | "fileW
       const r = await tools.shellCommand({
         action: "job_tail", command: "", job_id: id, tail_lines: count, working_directory: cwd,
       });
-      return textFromRoot(String(pick(r, "tail", "Tail") ?? ""), root);
+      return textFromRoot(textToVirtual(String(pick(r, "tail", "Tail") ?? ""), await layoutOf(host)), root);
     },
     async wait(seconds) {
       if (!(Number.isInteger(seconds) && seconds >= 1)) {

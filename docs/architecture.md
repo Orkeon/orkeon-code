@@ -54,6 +54,107 @@ So each entry point is its own composition root: it builds the adapters it needs
 takes its dependencies as parameters. The ports are interfaces, erased from every bundle, and a test imports a use
 case in Node without touching a runtime global.
 
+## The VFS and the host platform
+
+Every path the code or the model writes is a virtual one: the runtime maps it to the disk, and the rules are the
+runtime's (Orkeon's `FileSystemRegistry`, `ShellCommandTool` and its shell sessions), not this project's. What
+follows is the contract the code and the prompts rely on; `src/shared/domain/vfs.ts` names the one mount they work
+in.
+
+- **The mounts come from the launcher.** `orkeon-code` and `orkeon-code.ps1` start the REPL with one
+  `--mount <physical>:<virtual>:<rights>` per root: `/workspace` (the project, read-write), `/output`, `/tmp`,
+  `/user-config` (read-only), `/sessions`, `/session-history` (read-only) and `/memory`. The model never sees a
+  physical path, on any platform: a `C:\proj\src\a.ts` or `/home/u/proj/src/a.ts` given to a file tool is refused
+  with the list of the mounts, and the prompts spell a project file `/workspace/<path>`.
+- **A virtual path resolves by its longest mount prefix**, compared ordinally: `/Workspace/x` matches nothing, on
+  Windows too. A relative path resolves under the agent's working root (`/workspace`, or the worktree of a batch of
+  `/dev-batches`). After the mount, `/` and `\` are both accepted by the file tools; the rest is appended to the
+  mount's physical base and normalised by the host, so `\` is a separator on Windows and a plain character elsewhere.
+  A `.` or `..` segment is refused for a working root and detected as a traversal elsewhere. The containment check
+  ignores the case on Windows only. Physical to virtual, a path under a mount comes back as `/<mount>/…` with every
+  `\` turned into `/`.
+- **The shell runs no shell on Windows.** On Linux and macOS, `shell_command` feeds one `sh -s` per run, each word
+  quoted so that the shell expands nothing. On Windows each command is its own process in a Job Object, started with
+  its arguments quoted one by one: the executable is looked up on the `PATH` only, never in the working directory,
+  as `.exe` then `.com`; a `.bat` or `.cmd` (so `npm`, `npx`) runs only in an unconfined session, through
+  `cmd.exe`; a cmd built-in (`echo`, `dir`, `type`, `cd`, `copy`, `del`, `mkdir`, `set`...) runs through
+  `cmd.exe /d /v:off /s /c` with every argument escaped, and `%` refused. PowerShell is never involved.
+- **The operators are refused everywhere**: `|`, `;`, `&&`, `>`, `$(`, backticks and line breaks fail the call before
+  anything runs, so no command of a crew pipes or chains. The default allowlist is `ls`, `cat`, `pwd`, `which`,
+  `grep`, `wc`, `echo`, a read-only `git`, and `dir`, `type`, `where`; on Windows the POSIX names exist only when
+  they are installed and on the `PATH`. `node`, `dotnet`, `npm`, `find` and the writing `git` need
+  `Orkeon:Tools:Shell:AllowInterpreters`, which the example settings turn on.
+- **The shell rewrites the paths of a command line.** An argument equal to a mount or starting with `<mount>/`, also
+  after a `key=`, becomes its physical path before the process starts, and needs Read for a read-only command, every
+  right for any other. Only `/` is accepted here: `/workspace\src` is passed as written. Stdout and stderr are
+  rewritten physical to virtual, `\` turned into `/` over the rest of the path, by an ordinal match: a tool that
+  re-cases a path (`c:\Proj\…`) escapes the rewrite and the model reads a disk path; a relative path a command
+  prints (`src\a.ts` from `dir`) keeps its `\`.
+- **Confinement follows the platform** (`Orkeon:Tools:Shell:Confinement`, `Auto`): bubblewrap on Linux, where the
+  process sees the mounts at their virtual paths; Seatbelt on macOS and an AppContainer on Windows 10 and later,
+  where it works on physical paths. Under the AppContainer, `TEMP`, `TMP` and `HOME` point into the container's
+  profile, the user's profile and the other drives are out of reach, and a program installed under the user's
+  profile is reached through `ReadOnlyPaths`. Inside a container there is no confinement. Environment variable names
+  compare without case on Windows.
+- **Windows is not the path this project exercises.** `orkeon-code.ps1` has the `tool` and `docker` modes only, no
+  source mode and no `--demo`; the checked path is WSL with the bash launcher ([tutorial](wsl-tutorial.md)). Run
+  natively, `/status` shows the platform as unavailable when `node` is absent or not allowed, and a command a crew
+  composes with an operator or a POSIX name that is not installed fails before it runs.
+
+What follows is this project's own layer over that contract (`src/shared/domain/host-layout.ts`, `host-paths.ts`,
+`agent-policy/path-rules.ts`, `src/shared/application/host-context.ts`; [ADR 0022](adr/0022-host-path-spellings.md)):
+whatever the runtime rewrites, the disk's own spellings come back to the code and to the model in what a program
+prints, in what the user types and in what the model writes.
+
+- **One canonical spelling.** Every spelling of a physical path of a mount is brought back to the virtual path with
+  `/` and no trailing separator, from the bases the host declares: `C:\proj\src\a.ts`, `C:/proj/src/a.ts`,
+  `c:\Proj\…` (the case of a drive is ignored), `\\?\C:\…`, a UNC share (`\\server\share\…`, `//server/share/…`),
+  `/mnt/<d>/…` under WSL, `\\wsl$\<distro>\…` and `\\wsl.localhost\<distro>\…` for the distribution the session
+  runs in, and a `\` after the mount when the host is not posix. A base is matched segment by segment: `/workspaces/x`
+  never matches `/workspace`, `mon repertoireX` never `mon repertoire`. Left as written: a relative path, a `.` or
+  `..`, a path under no mount or of another distribution, `/mnt/c` on a posix or Windows host, `C:` on a posix host,
+  `%VAR%`, `~`. In free text a path runs to the closing quote after an opening one, else to the first delimiter
+  (whitespace, a quote, a bracket, `,` `:` `;` `|`, a dot that ends a sentence), a Windows path going on over a space
+  while the next word still holds a `\`. On a posix host without a Windows base every function is the identity.
+- **The host comes from `/user-config/launch.json`**, which both launchers write at every start beside
+  `config.json`: `version` (1), `flavour` (`posix`, `wsl` or `windows`), `mode`, under WSL `wsl.distro` and
+  `wsl.automountRoot` (`WSL_DISTRO_NAME` or the share of `wslpath -w /`; `wslpath -u 'C:\'` or `[automount] root=` of
+  `/etc/wsl.conf`, else `/mnt`), and `mounts`, each with the very string given to `--mount` as `posix` and, under WSL,
+  its Windows spelling from `wslpath -w` (`null` without `wslpath`, with a warning: the code then derives `D:\x` from
+  `/mnt/d/x` itself). Docker mode writes a posix host with no mount: the host is hidden there on purpose. Absent,
+  malformed or of another version, the file gives the identity, and `/doctor`'s row `host: paths` says so. The layout
+  and the path lists are read once per run, by an infrastructure module every entry point binds over the global
+  tools; a change applies at the next start, and an adapter loaded alone (a test) finds the identity.
+- **Where the spellings are brought back.** Inbound, before the runtime: the file, shell and shell-job adapters
+  canonicalise the path or the words of the command they are given; the typed prompt is canonicalised, its fenced
+  blocks kept; and `hostCallbacks` (`src/shared/application/dev/tool-callbacks.ts`), the outermost layer of every
+  act's callbacks (`createLlm` wraps them, with or without callbacks of the crew's own), rewrites a model call's
+  `path`, `root_path`, `working_directory`, `paths`, the `path` of each operation of an `edit_batch` and the words of
+  a `shell_command`, as an `{ input }` the runtime gates again; a file's content, an edit's strings and a pattern are
+  never touched. Outbound: stdout and stderr, the top a `git rev-parse` prints (`C:/…` from git for Windows), the
+  message of a failed file call, and the text the model reads of every tool result (`{ context }` replaces it when a
+  spelling changed). The inner callbacks (a dev crew's, the trace, the post-tool hooks) see the canonical call and
+  the canonical result.
+- **Orkeon Code never spells a path physically for the runtime.** The runtime checks every mount-prefixed word of a
+  command against the VFS rights before it spells it for the process, and asks every right for a command outside its
+  read-only allowlist: a `C:\…` written by this project would skip that check. On native Windows the runtime spells
+  `/workspace/…` for the process. Under WSL a Windows program (`cmd.exe`, a Windows `dotnet.exe`, reachable without
+  confinement only) receives `/mnt/c/…` until the runtime learns the Windows spelling of a mount, an issue left to
+  Orkeon; what it prints comes back canonical in every case.
+- **The path lists** `paths.deny` and `paths.allow` ([permissions](permissions.md#rules)) match on the canonical
+  spelling, so a physical spelling, or another letter case on a Windows disk and under a drive of WSL, reaches the
+  same rule: the gate gets deny rules on the canonical spelling, listed by `/permissions`, and the callbacks refuse
+  every call the lists cover, in any spelling, before the crew's own callbacks. Built-in deny rules close the whole
+  `/user-config` mount to the model's tools, the physical bases of `launch.json` and the user settings inside; the
+  code reads it through the Files port, which the gate does not see.
+- **A limit the runtime sets.** The gate judges the raw input before `onToolCall` runs; only a rewritten `{ input }`
+  is gated again. A model call spelled `C:\…` on a path tool is judged once on that spelling: with no matching rule
+  an interactive mode asks with that spelling, then the canonical input is gated again; a mode that refuses what no
+  rule covers refuses before the conversion. A shell command is judged by the gate on its text and by the callbacks
+  on its canonical paths; every result is canonical. ADR 0022 names the four issues left to the runtime, Orkeon #300 to #303 (the cut at
+  a space and the case of the base in the shell's outbound rewrite, the Windows spelling of a mount under WSL, the
+  gate run after the callback); none is needed for what is above.
+
 ## Layers and the dependency rule
 
 | Layer | Where | Holds | Imports |

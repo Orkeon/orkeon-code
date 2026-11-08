@@ -1,6 +1,7 @@
 // The working root and the shell_command replies the createShellJobs tests run under.
 import { FakeTools } from "../../../support/doubles/fake-tools.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
+import { PROJECT_WIN } from "../../../support/fixtures/host-context.ts";
 
 export const ROOT = `${WORKSPACE}/.orkeon/worktrees/prune-F2`;
 
@@ -15,4 +16,12 @@ export function rootedTools(): FakeTools {
 /** The working directories of the shell_command calls `tools` received. */
 export function workingDirectories(tools: FakeTools): string[] {
   return (tools.inputsOf("shellCommand") as Array<{ working_directory: string }>).map((i) => i.working_directory);
+}
+
+/** FakeTools whose shell_command answers a tail naming a file as the Windows disk spells it, and any other action a running job j1. */
+export function diskTools(): FakeTools {
+  const tools = new FakeTools();
+  tools.replies.shellCommand = (input: { action?: string }) =>
+    input.action === "job_tail" ? { tail: `${PROJECT_WIN}\\src\\a.ts failed` } : { job_id: "j1", output_path: "/output/jobs/j1.log", status: "running", exit_code: 0 };
+  return tools;
 }

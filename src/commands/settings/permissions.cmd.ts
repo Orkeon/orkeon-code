@@ -9,7 +9,7 @@ import { runPermissions } from "../_lib/settings/permissions.ts";
 import { showView } from "../_lib/view.ts";
 import { createPermissionRules } from "../../shared/infrastructure/orkeon/permission-rules.ts";
 import {
-  orkeonConfigStore, orkeonSessionIo, orkeonToolCatalogue,
+  orkeonConfigStore, orkeonHostContext, orkeonSessionIo, orkeonToolCatalogue,
 } from "../../shared/infrastructure/orkeon/wiring.ts";
 
 const session = orkeonSessionIo();
@@ -20,6 +20,6 @@ defineCommand({
   description: "Show the permission surface; add, remove, list or clear the session's tool rules.",
   handler: async (args, ctx) =>
     showView(ctx, await runPermissions(rawTokens(args), {
-      session, gate: createPermissionRules(ctx.services), config, catalogue: orkeonToolCatalogue(ctx.services),
+      session, gate: createPermissionRules(ctx.services), host: orkeonHostContext, config, catalogue: orkeonToolCatalogue(ctx.services),
     })),
 });

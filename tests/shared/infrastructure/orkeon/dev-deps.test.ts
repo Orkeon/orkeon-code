@@ -12,6 +12,7 @@ import {
 import { assertAskedNames, assertRootPathsOnly } from "./dev-deps.assertions.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 import { recorder } from "../../../support/fixtures/tool-recorder.ts";
+import { PROJECT_GIT, windowsHost } from "../../../support/fixtures/host-context.ts";
 
 describe("implementDeps and verifyDeps", () => {
   it("implementDeps reads files through the body's tools", async () => {
@@ -342,5 +343,18 @@ describe("gitTopUnder", () => {
     // Assert
     deepStrictEqual(top, { exitCode: 0, top: ROOT });
     deepStrictEqual(tools.inputsOf("shellCommand")[0], { command: "git rev-parse --show-toplevel", working_directory: ROOT });
+  });
+
+  it("brings a top git for Windows spells with the drive back to the VFS, the root kept", async () => {
+    // Arrange
+    const m = await loadDevDeps();
+    const { ctx, tools } = context();
+    tools.replies.shellCommand = { stdout: `${PROJECT_GIT}/.orkeon/worktrees/prune-F2\n`, stderr: "", exit_code: 0, success: true };
+
+    // Act
+    const top = await m.gitTopUnder(ctx.tools, ROOT, windowsHost);
+
+    // Assert
+    deepStrictEqual(top, { exitCode: 0, top: ROOT });
   });
 });

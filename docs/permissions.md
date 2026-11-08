@@ -155,6 +155,34 @@ opens), each operation of an `edit_batch`, the paths and the glob of a `structur
 (`cp x .orkeon/mem*/entries/`) is not read: the shell expands it after every check. A crew without a callback (`/code-review`,
 `/advisor`) runs under the gate's rules alone.
 
+**The user configuration's guard.** In every mode the session also denies every tool of the model on the whole
+`/user-config` mount (the file readers and writers on `/user-config/*`, the folder readers on the mount, a
+`shell_command` naming it): the launcher writes there the user settings and `launch.json`, the physical base of each
+mount ([architecture](architecture.md#the-vfs-and-the-host-platform)), which the model never sees. The code reads
+them through its own port, which the gate does not see. `/permissions` lists these rules as "the user
+configuration's guard: no tool of the model reads or writes /user-config (N rules)".
+
+**The path lists.** `paths.deny` names the paths no tool of the model reads or writes, `paths.allow` the only paths
+it may reach; both are `/config` keys ([configuration](configuration.md#session-settings)), set by the user settings
+and the project file, applied at the next start:
+
+```text
+paths.deny:  /workspace/secrets, C:\proj\keys\*, tests/fixtures/real
+paths.allow: src, tests, /output
+```
+
+Entries are separated by commas (a path may hold spaces, written bare, no quotes); each is a virtual path, a physical
+spelling of a mount's base (`C:\…`, `/mnt/c/…`, `\\wsl$\…`) or a path relative to `/workspace`; `*` stands for any
+run of characters; a bare path covers itself and everything below it. The entries match on the canonical spelling,
+without case on a Windows disk, so no spelling bypasses them; an entry under no mount of this host is dropped and
+named by `/doctor`'s row `host: paths`. A deny wins over an allow; a non-empty allow refuses every path outside it,
+on every mount (a word of a shell command under no mount, `/dev/null`, is not judged). The deny entries become deny
+rules of the gate, listed by `/permissions` on their own line ("paths.deny: no tool of the model reads or writes …
+(N rules)"), and in every crew, the ones without callbacks of their own included, the host's callbacks refuse a call
+the lists cover in any spelling, each operation of an `edit_batch`, what a folder reader reaches and the words of a
+shell command read: "file_read on 'C:\proj\secrets\k' (/workspace/secrets/k) is refused by paths.deny
+'/workspace/secrets/*'". Best effort on a shell command: what a script reaches by itself is outside the check.
+
 ## Choosing the mode
 
 - **Per request**: prefix the text, `plan: explain the cache layer`, `acceptEdits: fix the failing test`.
@@ -477,7 +505,7 @@ to the session read-only, on `/user-config`:
 
 ```json
 {
-  "orkeonCode": { "permissions.fallback": "acceptEdits", "tools.extra": "search_issues:read, *" }
+  "orkeonCode": { "permissions.fallback": "acceptEdits", "tools.extra": "search_issues:read, *", "paths.deny": "C:\\proj\\secrets" }
 }
 ```
 
@@ -488,6 +516,10 @@ to the session read-only, on `/user-config`:
   declares validly (`evil:write, evil:read`) is dropped, not reported as invalid.
 - `memory.autoAdmitAudited` and `dev.prAuto` from the project apply as `true` only when the user settings say `true`
   too: admitting without asking and opening a pull request without asking come from the user.
+- `paths.deny` from the project adds to the user's list: the two are joined. `paths.allow` from the project only
+  narrows the user's: an entry outside every pattern of the user's list is dropped, with a warning (with no user
+  list, the project's stands). An entry in a physical spelling (`C:\…`) is kept as written and judged at the run,
+  on this host's mounts.
 - What the project file set and could not apply, `/permissions` names: `↳ ignored` under the mode, and a note for
   the tools not offered; `/doctor`'s row `settings: project file` names every such key. `/config set` of such a value
   still writes it, then says it is ignored. `/config set
@@ -516,7 +548,10 @@ runs the folder's hooks through the shell. Nothing of the folder is read or moun
 
 ## What no mode changes
 
-- File tools reach only the mounts: the project on `/workspace`, `/output`, `/tmp`, and `/user-config` (read-only).
+- File tools reach only the mounts: the project on `/workspace`, `/output` and `/tmp`; `/user-config` is the
+  code's alone, closed to the model's tools. A path in any spelling of the host (`C:\proj\src\a.ts`,
+  `/mnt/c/proj/src/a.ts`) is read as its virtual path.
+- `paths.deny` and `paths.allow` hold in every mode, `bypassPermissions` included, in every spelling.
 - The shell runs allow-listed commands only (`Orkeon:Tools:Shell` extends the list), with no shell operators. A
   command that can write (an interpreter, an added command) needs the write right on every path it names and on its
   working directory.

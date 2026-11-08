@@ -14,6 +14,8 @@ import { stepPrecedents } from "../../application/dev/step-precedents.ts";
 import { harvestAfterGaps } from "../../application/shared-memory/harvest-after-gaps.ts";
 import { memoryDirOf } from "../../application/shared-memory/memory-settings.ts";
 import { briefToRoot, mapStrings } from "../../domain/dev/path-rebase.ts";
+import { toVirtual } from "../../domain/host-paths.ts";
+import type { HostSource } from "../../application/host-context.ts";
 import { parseSessionRules } from "../../domain/git/pull-request.ts";
 import type { DevImplementDeps } from "../../../crews/dev-implement/application/run-dev-implement.ts";
 import type { DevVerifyDeps } from "../../../crews/dev-verify/application/run-dev-verify.ts";
@@ -32,8 +34,8 @@ import type { ToolCallbacks } from "../../application/dev/tool-callbacks.ts";
 import { createSpend, spendGuard } from "../../application/dev/spend.ts";
 import type { Spend } from "../../application/dev/spend.ts";
 import {
-  orkeonClock, orkeonConfigStore, orkeonCostIndex, orkeonFiles, orkeonMemoryToolPorts, orkeonPullRequestOpener,
-  orkeonSharedMemory, orkeonShell, orkeonShellJobs,
+  orkeonClock, orkeonConfigStore, orkeonCostIndex, orkeonFiles, orkeonHostContext, orkeonMemoryToolPorts,
+  orkeonPullRequestOpener, orkeonSharedMemory, orkeonShell, orkeonShellJobs,
 } from "./wiring.ts";
 
 /** What an agent body hands its deps: its own tools, model and log. */
@@ -89,10 +91,13 @@ export function batchAgentParts(builder: ToolBuilderFactory, opts: { root: strin
 }
 
 /** git's top as an agent under `root` sees it: the raw output, never mapped back to `/workspace`, so that a
- *  top other than the root shows (a parallel /dev-batches' probe, L8P-D11). A refused call throws. */
-export async function gitTopUnder(tools: Pick<OrkeonTools, "shellCommand">, root: string): Promise<{ exitCode: number; top: string }> {
+ *  top other than the root shows (a parallel /dev-batches' probe, L8P-D11); a top git spells as the disk does (git
+ *  for Windows prints `C:/...`, which the runtime's own rewrite misses) comes back to the VFS. A refused call throws. */
+export async function gitTopUnder(
+  tools: Pick<OrkeonTools, "shellCommand">, root: string, host: HostSource = orkeonHostContext,
+): Promise<{ exitCode: number; top: string }> {
   const r = await tools.shellCommand({ command: "git rev-parse --show-toplevel", working_directory: root });
-  return { exitCode: shCode(r), top: shOut(r).trim() };
+  return { exitCode: shCode(r), top: toVirtual(shOut(r).trim(), (await host()).layout) };
 }
 
 interface DevOptions {

@@ -13,6 +13,10 @@ import { OPERATIONS_TOOL } from "../../domain/agent-policy/rule-sets.ts";
 import { sameToolName } from "../../domain/agent-policy/permission.ts";
 import { memoryWriteRefusal } from "../../domain/shared-memory/layout.ts";
 import { mapStrings, textFromRoot } from "../../domain/dev/path-rebase.ts";
+import { callToVirtual, textToVirtual } from "../../domain/host-paths.ts";
+import { pathListRefusal } from "../../domain/agent-policy/path-rules.ts";
+import { isIdentityContext } from "../host-context.ts";
+import type { HostContext } from "../host-context.ts";
 import type { CallGuard, CallGuardSpec, ToolHook } from "../../domain/dev/call-guard.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
 import { judgeToolCall, memoryDenyText } from "./tool-call-policy.ts";
@@ -210,6 +214,46 @@ export function rootedCallbacks<C extends Pick<ToolCallbacks, "forAct">>(callbac
         },
         onToolResult: (call, result) => inner.onToolResult(logical(call), result),
       };
+    },
+  };
+}
+
+/**
+ * The outermost layer of every act's callbacks (createLlm wraps each act in it): the host's spellings and the
+ * user's path lists. Before the call, its path fields and its command are brought back to the canonical virtual
+ * spelling (host-paths.ts callToVirtual), the lists judge that spelling (path-rules.ts pathListRefusal), then
+ * `inner` sees the canonical call: an inner refusal stands; an inner `{ input }` is kept, canonicalised once more;
+ * an inner allow becomes `{ input }` when the spelling changed, so the runtime gates and runs the canonical call.
+ * After the call, every string of the result is read with its physical spellings canonicalised (textToVirtual)
+ * before `inner` sees it; an inner `{ context }` is canonicalised too; a result the spellings changed replaces
+ * what the model reads. The identity context (a posix host without mounts, no list) leaves `inner` as it is.
+ */
+export function hostCallbacks(inner: ActCallbacks | undefined, host: HostContext): ActCallbacks | undefined {
+  if (isIdentityContext(host)) return inner;
+  const { layout, lists } = host;
+  const canonicalInput = (name: string, input: unknown): unknown => callToVirtual(name, input, layout) ?? input;
+  return {
+    async onToolCall(call): Promise<ToolCallVerdict> {
+      const input = canonicalInput(call.name, call.input);
+      const why = pathListRefusal(lists, layout, call.name, input);
+      if (why !== null) return { deny: why };
+      const changed = input !== call.input;
+      if (inner === undefined) return changed ? { input } : "allow";
+      const verdict = await inner.onToolCall({ name: call.name, input });
+      if (typeof verdict === "object" && "deny" in verdict) return verdict;
+      if (typeof verdict === "object" && "input" in verdict) return { input: canonicalInput(call.name, verdict.input) };
+      return changed ? { input } : verdict;
+    },
+    async onToolResult(call, result) {
+      const mapped = mapStrings(result, (text) => textToVirtual(text, layout));
+      const shown = shownText(mapped);
+      const changed = shown !== shownText(result);
+      if (inner === undefined) return changed ? { context: shown } : undefined;
+      const answer = await inner.onToolResult({ name: call.name, input: canonicalInput(call.name, call.input) }, mapped);
+      if (answer !== undefined && answer !== null && typeof answer === "object" && typeof answer.context === "string") {
+        return { context: textToVirtual(answer.context, layout) };
+      }
+      return changed ? { context: shown } : undefined;
     },
   };
 }

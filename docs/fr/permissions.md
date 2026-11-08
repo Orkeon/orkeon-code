@@ -167,6 +167,36 @@ de fichiers insensible à la casse ouvre), chaque opération d'un `edit_batch`, 
 n'importe quelle casse (`cd .orkeon/memory && … > entries/x.md`, `.orkeon//memory/entries`). Un glob à la place d'un
 segment (`cp x .orkeon/mem*/entries/`) n'est pas lu : le shell le développe après tous les contrôles. Une crew sans callback (`/code-review`, `/advisor`) ne s'exécute que sous les règles de la garde.
 
+**La garde de la configuration de l'utilisateur.** Dans tous les modes, la session refuse aussi à chaque outil du
+modèle tout le mount `/user-config` (les lecteurs et les écrivains de fichiers sur `/user-config/*`, les lecteurs de
+dossiers sur le mount, un `shell_command` qui le nomme) : le lanceur y écrit les réglages de l'utilisateur et
+`launch.json`, la base physique de chaque mount ([architecture](architecture.md#le-vfs-et-la-plateforme-hôte)), que
+le modèle ne voit jamais. Le code les lit par son propre port, que la garde ne voit pas. `/permissions` liste ces
+règles comme "the user configuration's guard: no tool of the model reads or writes /user-config (N rules)".
+
+**Les listes de chemins.** `paths.deny` nomme les chemins qu'aucun outil du modèle ne lit ni n'écrit, `paths.allow`
+les seuls chemins qu'il peut atteindre ; ce sont deux clés de `/config` ([configuration](configuration.md#réglages-de-session)),
+réglées par les réglages de l'utilisateur et le fichier du projet, appliquées au démarrage suivant :
+
+```text
+paths.deny:  /workspace/secrets, C:\proj\keys\*, tests/fixtures/real
+paths.allow: src, tests, /output
+```
+
+Les entrées sont séparées par des virgules (un chemin peut contenir des espaces, écrit nu, sans guillemets) ;
+chacune est un chemin virtuel, une écriture physique de la base d'un mount (`C:\…`, `/mnt/c/…`, `\\wsl$\…`) ou un
+chemin relatif à `/workspace` ; `*` vaut pour toute suite de caractères ; un chemin nu couvre lui-même et tout ce
+qu'il contient. Les entrées se comparent sur l'écriture canonique, sans casse sur un disque Windows, donc aucune
+écriture ne les contourne ; une entrée sous aucun mount de cet hôte est écartée et nommée par la ligne `host: paths`
+de `/doctor`. Un deny l'emporte sur un allow ; un allow non vide refuse tout chemin hors de lui, sur chaque mount (un
+mot d'une commande shell sous aucun mount, `/dev/null`, n'est pas jugé). Les entrées deny deviennent des règles deny
+de la garde, listées par `/permissions` sur leur ligne ("paths.deny: no tool of the model reads or writes … (N
+rules)"), et dans chaque crew, ceux sans callbacks propres compris, les callbacks de l'hôte refusent un appel que les
+listes couvrent dans n'importe quelle écriture, chaque opération d'un `edit_batch`, ce qu'un lecteur de dossier
+atteint et les mots d'une commande shell lus : "file_read on 'C:\proj\secrets\k' (/workspace/secrets/k) is refused
+by paths.deny '/workspace/secrets/*'". Au mieux sur une commande shell : ce qu'un script atteint par lui-même échappe
+au contrôle.
+
 ## Choisir le mode
 
 - **Par requête** : préfixez le texte, `plan: explique la couche de cache`, `acceptEdits: corrige le test qui échoue`.
@@ -510,7 +540,7 @@ lanceur), que le lanceur remet à la session en lecture seule, sur `/user-config
 
 ```json
 {
-  "orkeonCode": { "permissions.fallback": "acceptEdits", "tools.extra": "search_issues:read, *" }
+  "orkeonCode": { "permissions.fallback": "acceptEdits", "tools.extra": "search_issues:read, *", "paths.deny": "C:\\proj\\secrets" }
 }
 ```
 
@@ -522,6 +552,10 @@ lanceur), que le lanceur remet à la session en lecture seule, sur `/user-config
   qui nomme un outil que le fichier du projet déclare aussi validement (`evil:write, evil:read`) est écartée, non signalée comme invalide.
 - `memory.autoAdmitAudited` et `dev.prAuto` venus du projet ne valent `true` que si les réglages de l'utilisateur
   disent `true` aussi : admettre sans demander et ouvrir une pull request sans demander viennent de l'utilisateur.
+- `paths.deny` venu du projet s'ajoute à la liste de l'utilisateur : les deux sont jointes. `paths.allow` venu du
+  projet ne fait que restreindre celle de l'utilisateur : une entrée hors de tous les motifs de la liste de
+  l'utilisateur est écartée, avec un avertissement (sans liste de l'utilisateur, celle du projet tient). Une entrée
+  en écriture physique (`C:\…`) est gardée telle quelle et jugée à l'exécution, sur les mounts de cet hôte.
 - Ce que le fichier du projet a réglé sans pouvoir l'appliquer, `/permissions` le nomme : `↳ ignored` sous le mode,
   et une note pour les outils non offerts ; la ligne `settings: project file` de `/doctor` nomme chacune de ces clés.
   `/config set` d'une telle valeur l'écrit quand même, puis dit qu'elle est ignorée. `/config set --session` appartient à l'utilisateur et n'est pas restreint.
@@ -551,8 +585,10 @@ que git exécute les hooks du dossier par le shell. Rien du dossier n'est lu ni 
 
 ## Ce qu'aucun mode ne change
 
-- Les outils de fichiers n'atteignent que les montages : le projet sur `/workspace`, `/output`, `/tmp`, et
-  `/user-config` (en lecture seule).
+- Les outils de fichiers n'atteignent que les montages : le projet sur `/workspace`, `/output` et `/tmp` ;
+  `/user-config` appartient au code seul, fermé aux outils du modèle. Un chemin dans n'importe quelle écriture de
+  l'hôte (`C:\proj\src\a.ts`, `/mnt/c/proj/src/a.ts`) est lu comme son chemin virtuel.
+- `paths.deny` et `paths.allow` tiennent dans tous les modes, `bypassPermissions` compris, dans toute écriture.
 - Le shell n'exécute que les commandes sous liste blanche (`Orkeon:Tools:Shell` étend la liste), sans opérateur de
   shell. Une commande qui peut écrire (un interpréteur, une commande ajoutée) a besoin du droit d'écriture sur chaque
   chemin qu'elle nomme et sur son répertoire de travail.

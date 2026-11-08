@@ -23,6 +23,7 @@ import { LLM_PROFILE_CONFIG_KEY, llmProfileProblem } from "./llm-profile.ts";
 import {
   MEMORY_AUTO_ADMIT_CONFIG_KEY, MEMORY_DIR_CONFIG_KEY, MEMORY_PROJECT_CONFIG_KEY, memoryDirProblem, memoryProjectProblem,
 } from "./shared-memory/layout.ts";
+import { PATHS_ALLOW_CONFIG_KEY, PATHS_DENY_CONFIG_KEY, narrowAllowValue, pathListProblem } from "./agent-policy/path-rules.ts";
 
 export interface ConfigKeySpec {
   key: string;
@@ -35,6 +36,10 @@ export interface ConfigKeySpec {
    *  one reads it — so `/config keys` can say what a setting changes. */
   consumedBy: string;
 }
+
+/** Who reads paths.deny and paths.allow. */
+const PATH_LISTS_CONSUMERS =
+  "/assistant, the dev steps and every other command that launches a crew (each act's calls), /permissions (the deny rules in the gate), /doctor";
 
 /**
  * The declared key space. Adding a key here is what makes it settable — and the
@@ -165,6 +170,24 @@ export const CONFIG_KEYS: readonly ConfigKeySpec[] = [
     allowed: ["true", "false"],
     consumedBy: "/memory-admit",
   },
+  {
+    key: PATHS_DENY_CONFIG_KEY,
+    description:
+      "Paths no tool of the model reads or writes, e.g. '/workspace/secrets, C:\\proj\\keys\\*, tests/fixtures/real': " +
+      "entries separated by commas, each a path of a mount in any spelling the host knows or a path under /workspace, " +
+      "'*' for any run of characters, a bare path covering what lies below it. Held on the canonical spelling, whatever " +
+      "spelling a call uses. The project file's entries add to the user's. Omitted = none.",
+    problem: pathListProblem,
+    consumedBy: PATH_LISTS_CONSUMERS,
+  },
+  {
+    key: PATHS_ALLOW_CONFIG_KEY,
+    description:
+      "The only paths the tools of the model may reach, in the notation of paths.deny; a deny wins over it. " +
+      "A project file may only narrow the user's list: an entry outside it is dropped. Omitted = every path of the mounts.",
+    problem: pathListProblem,
+    consumedBy: PATH_LISTS_CONSUMERS,
+  },
 ];
 
 /** Where an effective value came from: the session bag, the project's settings file
@@ -279,8 +302,28 @@ function narrowPrAuto(project: string, user: string | undefined): Narrowed {
   };
 }
 
-/** The project value as it applies over the user's: narrowed for the keys that widen. */
+/** The project's paths.deny adds to the user's: both apply, the effective value is the two lists. */
+function narrowPathDeny(project: string, user: string | undefined): Narrowed {
+  return { value: user === undefined ? project : `${user}, ${project}`, fallThrough: false };
+}
+
+/** The project's paths.allow: its entries within the user's list, the others set aside (narrowAllowValue); none kept,
+ *  the user's list applies. */
+function narrowPathAllow(project: string, user: string | undefined): Narrowed {
+  const { kept, dropped } = narrowAllowValue(project, user);
+  return {
+    value: kept.length > 0 ? kept.join(", ") : undefined,
+    fallThrough: kept.length === 0,
+    ...(dropped.length > 0
+      ? { ignored: { value: dropped.join(", "), reason: "the user settings allow nothing there (orkeonCode paths.allow); a project file may only narrow it" } }
+      : {}),
+  };
+}
+
+/** The project value as it applies over the user's: narrowed for the keys that widen, added for paths.deny. */
 function narrowProject(key: string, project: string, user: string | undefined): Narrowed {
+  if (key === PATHS_DENY_CONFIG_KEY) return narrowPathDeny(project, user);
+  if (key === PATHS_ALLOW_CONFIG_KEY) return narrowPathAllow(project, user);
   if (key === DEV_PR_AUTO_CONFIG_KEY) return narrowPrAuto(project, user);
   if (key === PERMISSION_FALLBACK_CONFIG_KEY) return narrowFallback(project, user);
   if (key === EXTRA_TOOLS_CONFIG_KEY) return narrowExtraTools(project, user);
@@ -345,8 +388,9 @@ export function validateConfigEntry(key: unknown, value: unknown): ValueVerdict 
  * the file value. The project file comes next, but widens nothing (QL-06): its
  * `permissions.fallback` applies only as default, plan or acceptEdits, its
  * `tools.extra` only for the tools the user settings list, its `dev.prAuto` and
- * `memory.autoAdmitAudited` 'true' only when the user settings say 'true'; what it
- * loses is returned as `ignored`. The user map is a required argument: a caller that forgets
+ * `memory.autoAdmitAudited` 'true' only when the user settings say 'true', its `paths.allow`
+ * only within the user's list; its `paths.deny` adds to the user's. What it loses is returned
+ * as `ignored`. The user map is a required argument: a caller that forgets
  * it must not read a project value unnarrowed. Unknown keys present in any map are
  * NOT returned — they can only be residue from before the schema existed, and
  * surfacing them as effective settings would suggest something reads them.
