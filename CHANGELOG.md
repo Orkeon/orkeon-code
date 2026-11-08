@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the pin moves to Orkeon `4357d82`, `onToolCall` before the gate
+
+- The pin moves to Orkeon `main` `4357d82` (Orkeon #299, #304 and #306, [ADR 0023](docs/adr/0023-orkeon-after-306.md)). The shell's outbound rewrite
+  now keeps a quoted path with spaces, matches a Windows base in any case and as `C:/…`, and under WSL hands a
+  Windows program the Windows spelling of a mount (`Orkeon:Tools:Shell:WindowsPaths`).
+- **The dev crews' callback runs before the host gate**, which judges the input it returns: a call spelled `C:\…` is
+  judged once on its canonical spelling. A `pre-tool` hook therefore runs also for a call the gate then refuses, and
+  before the gate asks you; a refused call comes back as a `DENIED:` result, which the `post-tool` hooks and the
+  tool trace see; a batch's tool-call budget counts such a call. A role's written files are now read from each
+  write's result, so a write the gate or you refused is no longer counted as the role's own. The typings are
+  regenerated from the pin: they say the new order (Orkeon #305) and lose the `{ context }` verdict of `onToolCall`
+  (#307), which this project never returned.
+- The input guard's settings section is now `Orkeon:Guardian:Llm`, fail-closed by default; a settings file still holding
+  `Orkeon:Decision:Guard` is refused at start. A project folder that is a link out of `/workspace` is no longer
+  readable through the mount. The runtime records the embedding model in `.orkeon/embedding-fingerprint.json` and
+  refuses to start when it changed, until the file is deleted.
+
 ### Added — Windows and WSL path spellings, path rules
 
 - Every spelling of a physical path of a mount (`C:\proj\src\a.ts`, `c:/Proj/src/a.ts`, `\\?\C:\…`, a UNC share,
@@ -30,7 +47,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   use.
 - Known limit: the runtime's gate judges a model call on its raw spelling before the callback converts it; a call
   spelled `C:\…` on a path tool is asked with that spelling in an interactive mode, refused before the conversion in
-  a mode that refuses what no rule covers. Orkeon #300 to #303 ask the runtime for the rest.
+  a mode that refuses what no rule covers. Orkeon #300 to #303 ask the runtime for the rest; lifted by Orkeon #304,
+  the entry above.
 
 ### Documentation — the VFS and the host platform
 

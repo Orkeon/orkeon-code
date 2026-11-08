@@ -34,8 +34,9 @@ mode :
 | `plan`, `dontAsk` | Lectures seulement |
 | `bypassPermissions` | Tout |
 
-Un act sans `permissionMode` tourne en `default`. Un hook `onToolCall` ne voit que les appels que la garde a
-autorisés, et un `"ask"` qu'il renvoie est vérifié à nouveau comme une modification en `default`, donc refusé ici.
+Un act sans `permissionMode` tourne en `default`. Un hook `onToolCall` tourne avant la garde, qui juge ensuite
+l'entrée qu'il renvoie ; un `"ask"` qu'il renvoie est jugé comme une modification en `default` une fois l'appel admis par
+le mode de l'act, donc refusé ici (les callbacks d'Orkeon Code ne demandent jamais).
 
 Ce qui borne un tour, quel que soit le mode :
 

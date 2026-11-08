@@ -539,21 +539,33 @@ declare global {
          */
         onDelta?: (delta: string) => void;
         /**
-         * Called before each tool call, after the permission gate allowed it. Answers `"allow"`
-         * (run it), `"ask"` (hand the call to the approval channel, as a default-mode edit
-         * would; a refusal denies), `{ deny: reason }` (block, the model reads `DENIED: <reason>`),
-         * `{ input }` (run with this input, gated again) or `{ context }`. A callback that throws
-         * denies the call with the exception message. Any other return value (nothing, `null`, a
+         * Called with each fragment of a tool call the model is building (when the provider supports
+         * SSE streaming): `index` is the call's position in the turn, `id` and `name` come on the
+         * fragment that carries them, `argumentsDelta` is a piece of the JSON arguments. Ollama sends
+         * a call whole, as one fragment. When the host enforces DLP, the arguments of each call are held
+         * until the call ends and arrive in one fragment, redacted. Keep it cheap.
+         */
+        onToolCallDelta?: (fragment: { index: number; id?: string; name?: string; argumentsDelta: string }) => void;
+        /**
+         * Called before each tool call, before the permission gate judges it. Answers `"allow"`
+         * (hand the call to the gate), `"ask"` (once the mode admits the call, hand it to the
+         * approval channel, as a default-mode edit would; a refusal denies), `{ deny: reason }`
+         * (block; the gate is not consulted, the model reads `DENIED: <reason>`) or `{ input }` (the
+         * input the gate judges, once, then runs with). A callback that throws denies the call with
+         * the exception message. Any other return value (nothing, `null`, a
          * non-object `input`, an unknown shape) denies the call; `"ask"` without a registered
          * permission gate denies too. The `act` call never rejects because of a returned value.
          */
         onToolCall?: (call: { name: string; input: unknown }) =>
-            "allow" | "ask" | { deny: string } | { input: unknown } | { context: string }
-            | Promise<"allow" | "ask" | { deny: string } | { input: unknown } | { context: string }>;
+            "allow" | "ask" | { deny: string } | { input: unknown }
+            | Promise<"allow" | "ask" | { deny: string } | { input: unknown }>;
         /**
          * Runs after each tool call, with the call and its result (the tool's JSON parsed, else
          * its text). A returned `{ context }` replaces the line the model is shown for that
-         * result; a void return leaves it. Runs on the script's thread.
+         * result; a void return leaves it. Runs on the script's thread. Through the host's
+         * invocation pipeline (the REPL, `orkeon run`) a call the guardian or the permission gate
+         * refused (an operator's refusal included) is a result too, `DENIED: …`; without it, and for
+         * a call `onToolCall` denied, a refused call never reaches this callback.
          */
         onToolResult?: (call: { name: string; input: unknown }, result: unknown) =>
             void | { context: string } | Promise<void | { context: string }>;
@@ -1432,6 +1444,16 @@ declare global {
         readonly expectedOutput: string;
     }
 
+    /** The shape of `taskBuilder().retry(...)`, the twin of a YAML task's `retry:` block. */
+    interface TaskRetrySpec {
+        /** How many times the task may run, the first run included (1 or more). */
+        attempts: number;
+        /** The base wait before a new attempt, in milliseconds (default 0). */
+        backoffMs?: number;
+        /** How the wait grows: `"fixed"` (default) or `"exponential"`. */
+        backoff?: "fixed" | "exponential";
+    }
+
     interface TaskBuilder<TIn = unknown, TOut = unknown> {
         name(value: string): this;
         description(value: string): this;
@@ -1471,6 +1493,17 @@ declare global {
          * once); the four other modes refuse the crew, naming the task.
          */
         asyncExecution(value?: boolean): this;
+        /**
+         * YAML parity `retry: {attempts, backoffMs, backoff}` — a failed attempt runs the WHOLE task
+         * again, tool calls included (nothing deduplicates a call that already succeeded: keep the
+         * task's tools idempotent), up to `attempts` runs in all, the first one included.
+         * `attempts` is required and at least 1; `backoffMs` (default 0) is the wait between runs,
+         * `backoff` how it grows: `"fixed"` (default) or `"exponential"` (doubling, capped at five
+         * minutes). Never retried: a cancellation, a refusal of the guardian, an exhausted budget.
+         * A decision task cannot have one. In `.process("graph")` it is the only retry: the mode has
+         * no retry loop of its own.
+         */
+        retry(spec: TaskRetrySpec): this;
         /**
          * YAML parity task-level `tools:` — names, `toolBuilder()` instances, or an
          * array mixing both. They ADD to the assigned agent's own tools, for this task
@@ -1545,6 +1578,84 @@ declare global {
     }
 
     function taskBuilder<TIn = unknown, TOut = unknown>(): TaskBuilder<TIn, TOut>;
+}
+
+export { };
+// Orkeon Scripting DSL — the `test` namespace
+// Declares the mocks and assertions a script reads under `orkeon run --test`: `test.mockLlm`,
+// `test.mockTool(...)`, `test.assertLlmCalled(...)` and `test.assertToolCalled(...)`.
+//
+// The global exists ONLY under `orkeon run --test`. A script run without the flag has no `test`:
+// referencing it fails with a ReferenceError, so a mock never hides in a production run. Under
+// `--test` the host's configured LLM (or the `mock` profile of `--llm-mock`) stays behind the mock:
+// a prompt an expectation of `test.mockLlm` fits is answered by it, any other prompt goes to the
+// configured provider.
+
+declare global {
+    /** What a mocked tool or model answers for the calls an expectation matched. */
+    interface MockLlmExpectation {
+        /**
+         * The answer: a string, an object carrying a `content` string, or any value (stringified as a
+         * last resort).
+         */
+        respond(response: string | { readonly content: string } | unknown): void;
+    }
+
+    /** `test.mockLlm`: opens expectations on the model the script runs on. */
+    interface MockLlmHandle {
+        /**
+         * Starts an expectation for prompts that contain the string (case ignored), or match the regular
+         * expression, of `{ prompt: ... }`. The first expectation that fits a prompt answers it. Complete
+         * it with `.respond(...)`.
+         */
+        when(matcher: string | { readonly prompt: string | RegExp }): MockLlmExpectation;
+    }
+
+    /** What one mocked tool returns for the calls an expectation matched. */
+    interface MockToolExpectation {
+        /** The value the tool returns for the matched calls. */
+        respond(response: unknown): void;
+    }
+
+    /** `test.mockTool(name)`: one mocked tool, created on first use. */
+    interface MockToolHandle {
+        /**
+         * Starts an expectation for calls whose parameters equal the object, key by key. Complete it with
+         * `.respond(...)`.
+         */
+        when(matcher: Readonly<Record<string, unknown>>): MockToolExpectation;
+
+        /** The value the tool returns when no expectation matches. */
+        respond(response: unknown): void;
+    }
+
+    /** The options of `test.assertLlmCalled`. */
+    interface AssertLlmCalledOptions {
+        /** The exact number of calls; left out, at least one is required. */
+        readonly times?: number;
+        /** Count only the calls whose prompt contains this text (case ignored). */
+        readonly with?: string;
+    }
+
+    /** The options of `test.assertToolCalled`. */
+    interface AssertToolCalledOptions {
+        /** The exact number of calls; left out, at least one is required. */
+        readonly times?: number;
+    }
+
+    namespace test {
+        /** Opens expectations on the model: `test.mockLlm.when("weather").respond("sunny")`. */
+        const mockLlm: MockLlmHandle;
+
+        /** The mocked tool named `name`, created on first use. */
+        function mockTool(name: string): MockToolHandle;
+
+        /** Throws when the model was not called as `options` says. */
+        function assertLlmCalled(options?: AssertLlmCalledOptions): void;
+
+        /** Throws when the mocked tool `name` was not called as `options` says, or is unknown. */
+        function assertToolCalled(name: string, options?: AssertToolCalledOptions): void;
+    }
 }
 
 export { };

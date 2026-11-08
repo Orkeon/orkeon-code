@@ -1,6 +1,6 @@
 # ADR 0022: one canonical spelling for the host's paths, and the path lists
 
-- **Status**: accepted
+- **Status**: accepted, amended by [ADR 0023](0023-orkeon-after-306.md): Orkeon #304 closed #300 to #303, #306 the typings
 - **Date**: 2026-11-08
 - **Extends**: [ADR 0001](0001-clean-architecture.md)
 
@@ -72,7 +72,7 @@ runs on the raw input before `onToolCall`, and only a rewritten `{ input }` is g
 
 - A posix host with no Windows involvement is untouched: the identity context wraps nothing, and the adapters pass
   the text as they received it.
-- A model call spelled `C:\…` on a path tool is judged by the gate once on that spelling (Orkeon #303): with no
+- (Superseded by ADR 0023: since Orkeon #304 the gate judges the canonical input once.) A model call spelled `C:\…` on a path tool is judged by the gate once on that spelling (Orkeon #303): with no
   matching rule an interactive mode asks with that spelling, then the canonical input is gated again; a mode that
   refuses what no rule covers refuses before the conversion. A shell command is judged by the gate on its text and
   by the callbacks on its canonical paths; every result is canonical.

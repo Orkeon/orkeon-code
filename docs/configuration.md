@@ -78,7 +78,7 @@ in front of a model. Since Orkeon #266 the host serves one decision provider amo
 `TYPESAFE_API_KEY`), Liquid (`Orkeon:Liquid`, `LIQUID_API_KEY`) and Kev (`Orkeon:Kev`, a local server, never deduced):
 `Orkeon:Decision:Provider` names it, otherwise the host deduces it from the one section present, or from the one key
 set when no section is. Two sections, or two keys and no section, refuse the start, and the input guard's section is
-`Orkeon:Decision:Guard` (a settings file still holding `Orkeon:TypeSafe:Guard` is refused at start as an unknown key, Orkeon #295). A decision
+`Orkeon:Guardian:Llm`, fail-closed by default (Orkeon #299; `Orkeon:Decision:Guard` and `Orkeon:TypeSafe:Guard` are refused at start as unknown keys). A decision
 profile works the same whatever the provider: a *decision profile* (`Orkeon:Decision:Profiles:<name>`) wraps a named LLM profile
 (`Llm:Profiles:<name>`) with stages that route the request to the profile that fits it, guard it (prompt injection,
 the risks you name) or verify the answer and escalate to a stronger profile when it does not hold.

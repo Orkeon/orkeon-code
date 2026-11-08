@@ -47,8 +47,10 @@ Le runtime exécute les sources sous des règles qui façonnent tout ce qui suit
 - **Un nom inconnu dans `.tools([...])` fait échouer le tour** : `act` lève `UnknownToolError` avant d'interroger le
   modèle, donc un catalogue ne nomme que des outils que l'hôte enregistre (les outils supplémentaires sont vérifiés
   contre eux au lancement).
-- **La garde de l'hôte passe d'abord.** Un hook `onToolCall` ne voit que les appels que la garde a autorisés ; un
-  `"ask"` qu'il renvoie est vérifié à nouveau comme une modification en mode `default`.
+- **`onToolCall` tourne avant la garde de l'hôte** (Orkeon #303). La garde juge une fois l'entrée que le callback
+  renvoie ; un `{ deny }` du callback ne l'atteint jamais, et un `"ask"` est jugé comme une modification en `default` une fois l'appel
+  admis par le mode de l'act. Le callback voit donc des appels que la garde refuse ensuite ; ceux-là reviennent au
+  modèle, et à `onToolResult`, comme un résultat `DENIED:`.
 - **Les appels de lecture d'un tour tournent ensemble.** `Orkeon:Tools:ResultLimits:MaxParallelToolCalls` (4) appels
   de lecture d'un même tour du modèle tournent en même temps ; tout autre appel tourne seul, l'un après l'autre.
 - **`spawn_agent` appartient à l'hôte.** L'hôte de scripts l'offre à chaque act ; le nommer dans `.tools([...])`, ou
@@ -139,7 +141,7 @@ qu'un programme imprime, dans ce que l'utilisateur tape et dans ce que le modèl
   conservés ; et `hostCallbacks` (`src/shared/application/dev/tool-callbacks.ts`), la couche la plus externe des
   callbacks de chaque act (`createLlm` les enveloppe, avec ou sans callbacks propres au crew), réécrit dans un appel du
   modèle `path`, `root_path`, `working_directory`, `paths`, le `path` de chaque opération d'un `edit_batch` et les
-  mots d'un `shell_command`, en un `{ input }` que le runtime contrôle à nouveau ; le contenu d'un fichier, les
+  mots d'un `shell_command`, en un `{ input }` que la garde du runtime juge ensuite ; le contenu d'un fichier, les
   chaînes d'une édition et un motif ne sont jamais touchés. En sortie : stdout et stderr, la racine qu'imprime un
   `git rev-parse` (`C:/…` par git pour Windows), le message d'un appel fichier échoué, et le texte que le modèle lit de
   chaque résultat d'outil (`{ context }` le remplace quand une écriture a changé). Les callbacks internes (ceux d'un
@@ -157,14 +159,11 @@ qu'un programme imprime, dans ce que l'utilisateur tape et dans ce que le modèl
   propres du crew. Des règles deny intégrées ferment tout le mount `/user-config` aux outils du modèle, les bases
   physiques de `launch.json` et les réglages de l'utilisateur dedans ; le code le lit par le port Files, que la garde
   ne voit pas.
-- **Une limite que fixe le runtime.** La garde juge l'entrée brute avant que `onToolCall` ne tourne ; seul un
-  `{ input }` réécrit est contrôlé à nouveau. Un appel du modèle écrit `C:\…` sur un outil à chemin est jugé une fois
-  sur cette écriture : sans règle qui corresponde, un mode interactif demande avec cette écriture, puis l'entrée
-  canonique est contrôlée à nouveau ; un mode qui refuse ce qu'aucune règle ne couvre refuse avant la conversion. Une
+- **La garde juge l'entrée canonique.** `onToolCall` tourne avant la garde (Orkeon #303, ADR 0023) : un appel du
+  modèle écrit `C:\…` sur un outil à chemin est d'abord converti, et la garde juge une fois l'entrée canonique. Une
   commande shell est jugée par la garde sur son texte et par les callbacks sur ses chemins canoniques ; chaque
-  résultat est canonique. L'ADR 0022 nomme les quatre issues laissées au runtime, Orkeon #300 à #303 (la coupure à un espace et la casse
-  de la base dans la réécriture de sortie du shell, l'écriture Windows d'un mount sous WSL, la garde après le
-  callback) ; aucune n'est nécessaire à ce qui précède.
+  résultat est canonique. Les quatre issues que l'ADR 0022 laissait au runtime, Orkeon #300 à #303, sont fermées par
+  Orkeon #304, que le pin couvre.
 
 ## Couches et règle de dépendance
 
@@ -483,8 +482,8 @@ Le corps de l'agent `main-loop` est la boucle (`crews/main-loop/application/run-
    `denied: <raison>`) : une ligne par appel, l'outil, ses arguments principaux coupés court (chemin,
    motif, glob, mode, commande…) et un résultat d'une ligne (un nombre, un code de sortie, une erreur, un parcours
    coupé) ; les appels répétés regroupés en `×n`, vingt lignes au plus, la dernière comptant les appels laissés de côté,
-   jamais le contenu d'un fichier ni la sortie d'une commande. Un appel que la garde de permission de l'hôte a refusé
-   n'atteint aucun des deux rappels et n'est pas tracé. Un tour qui n'a appelé aucun outil n'en enregistre pas. `/usage tools [texte]` liste ces messages
+   jamais le contenu d'un fichier ni la sortie d'une commande. Un appel que la garde de permission de l'hôte refuse
+   après `onToolCall` revient comme un résultat `DENIED:`, tracé comme un autre ; celui que le callback refuse n'a pas de résultat et est tracé comme refusé. Un tour qui n'a appelé aucun outil n'en enregistre pas. `/usage tools [texte]` liste ces messages
    sous leurs requêtes. Puis faire l'appel d'épilogue, s'il y en a un (`voice.reply on` : `speak` avec la réponse), un
    échec étant un avertissement ; compacter de nouveau si le tour a laissé le tampon saturé.
 

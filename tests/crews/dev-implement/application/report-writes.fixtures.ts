@@ -2,20 +2,34 @@
 
 export interface ToolCall { name: string; input: unknown }
 
-/** Callbacks that deny a call naming the path `deny`, and allow every other one. */
-export const inner = (deny: string) => ({
+/** Callbacks that allow every call, and whose onToolResult records what it receives and answers a context. */
+export const inner = (received: unknown[] = []) => ({
   forAct: (_mode: string, _gate: boolean | undefined) => ({
-    onToolCall: async (call: ToolCall): Promise<"allow" | { deny: string }> => ((call.input as { path?: string }).path === deny ? { deny: "no" } : "allow"),
-    onToolResult: async () => undefined,
+    onToolCall: async (_call: ToolCall): Promise<"allow" | { deny: string }> => "allow",
+    onToolResult: async (_call: ToolCall, result: unknown): Promise<{ context: string }> => { received.push(result); return { context: "seen" }; },
   }),
 });
 
-/** A write let through, a write denied (the callbacks deny `src/x.ts`), a read, then a write let through. */
-export const WRITE_DENY_READ_WRITE: readonly ToolCall[] = [
-  { name: "file_write", input: { path: "tests/a.test.ts" } },
-  { name: "edit_file", input: { path: "src/x.ts" } },
-  { name: "file_read", input: { path: "src/y.ts" } },
-  { name: "edit_file", input: { path: "src/z.ts" } },
+/** What the host answers for a call its gate refused, as the model and onToolResult read it. */
+export const GATE_REFUSAL = "DENIED: Blocked by the permission gate: deny edit_file path=src/x.ts";
+
+/** A write that ran, a write the gate refused, a read, then a write that ran. */
+export const WRITE_REFUSED_READ_WRITE: readonly { call: ToolCall; result: unknown }[] = [
+  { call: { name: "file_write", input: { path: "tests/a.test.ts" } }, result: { written: true } },
+  { call: { name: "edit_file", input: { path: "src/x.ts" } }, result: GATE_REFUSAL },
+  { call: { name: "file_read", input: { path: "src/y.ts" } }, result: "content" },
+  { call: { name: "edit_file", input: { path: "src/z.ts" } }, result: "ok" },
+];
+
+export interface RefusedCase { name: string; result: unknown; expected: boolean }
+
+/** Only the host's refusal, a `DENIED:` text, is one: a tool's own error ran the call, an object is a result. */
+export const REFUSED_CASES: readonly RefusedCase[] = [
+  { name: "is the gate's refusal", result: GATE_REFUSAL, expected: true },
+  { name: "is the guardian's refusal", result: "DENIED: Blocked by Guardian (ToolExecution): secret", expected: true },
+  { name: "is not a tool error", result: "ERROR: tool failed", expected: false },
+  { name: "is not a JSON result", result: { error: "not found" }, expected: false },
+  { name: "is not a text mentioning a denial", result: "the file says DENIED: nothing", expected: false },
 ];
 
 /** The three node editors, a node read, an edit_batch of mixed operations, and one whose operations are no list. */

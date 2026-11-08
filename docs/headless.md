@@ -31,8 +31,9 @@ Under `orkeon run` (`scripts/run-crew.sh`) the gate has no one to ask, and decid
 | `plan`, `dontAsk` | Reads only |
 | `bypassPermissions` | Everything |
 
-An act given no `permissionMode` runs in `default`. An `onToolCall` hook sees only the calls the gate allowed, and an
-`"ask"` it returns is checked again as an edit in `default`, so it is refused here.
+An act given no `permissionMode` runs in `default`. An `onToolCall` hook runs before the gate, which then judges the
+input it returns; an `"ask"` it returns is judged as an edit in `default` once the act's mode admits the call, so it is refused here
+(Orkeon Code's own callbacks never ask).
 
 What bounds a turn, whatever the mode:
 

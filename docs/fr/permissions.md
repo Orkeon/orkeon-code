@@ -11,12 +11,12 @@ agissent à deux niveaux, et une étape dev en ajoute un troisième :
    outil déclare (lecture, modification, exécution). Quand le mode dit de demander, il vous demande. La garde est
    `Orkeon:Security:PermissionGate:Enabled` : le lanceur l'active sauf si votre fichier de settings la désactive, et
    sans elle ni les modes ni les règles ne sont appliqués. Laissez-la active.
-3. **Le callback du crew**, dans les étapes dev seulement (`/dev-spec`, `/dev-plan` et `/dev-batches`, et l'agent que `/tasks repair` relance). Une fois l'appel permis par la garde, le
-   `onToolCall` du crew le contrôle à nouveau : les [jeux de règles](#jeux-de-règles-des-étapes-dev) de l'étape (et les
+3. **Le callback du crew**, dans les étapes dev seulement (`/dev-spec`, `/dev-plan` et `/dev-batches`, et l'agent que `/tasks repair` relance). Avant que la garde juge un appel (Orkeon #303), le
+   `onToolCall` du crew le contrôle : les [jeux de règles](#jeux-de-règles-des-étapes-dev) de l'étape (et les
    racines d'un rôle, pour les rôles d'un lot), `glob`, `grep` et `count_pattern` sur toute leur entrée, puis les
    [hooks](hooks.md) `pre-tool` ; après l'appel, les hooks `post-tool`. Il peut refuser un appel, jamais permettre un
-   appel que la garde a refusé. Un appel que la garde refuse, par une règle de la session ou par le mode, ne
-   l'atteint jamais. Quand l'hôte n'a pas de garde, le callback applique aussi lui-même le mode de l'act : lectures
+   appel que la garde refuse : la garde juge l'entrée qu'il renvoie, et un appel qu'elle refuse, par une règle de la
+   session ou par le mode, ne s'exécute pas, même si ses hooks `pre-tool` ont tourné, et revient comme un résultat `DENIED :`. Quand l'hôte n'a pas de garde, le callback applique aussi lui-même le mode de l'act : lectures
    seules en `plan`, `dontAsk` et `default`, les éditeurs de fichiers en plus en `acceptEdits`.
 
 **Ce que la garde ne voit pas.** Les commandes et les crews appellent aussi des outils depuis leur propre code, par
@@ -277,8 +277,8 @@ règles de la session. Une réponse `[s]` n'est pas une règle : `/permissions` 
 garde des jeux de règles qui leur sont propres
 juste avant le démarrage de leur crew (un `/tasks repair` lui remet ceux de l'étape du run de l'instance : un relecteur
 de `/dev-spec` est réparé sous les jeux, les hooks et le budget de cette étape, sinon sous l'étape
-de sa charte), et le callback du crew les contrôle à nouveau à chaque appel que la garde
-permet. Un appel que la garde refuse lit le refus de la garde ; celui que seul le callback refuse (un `glob` ou un
+de sa charte), et le callback du crew les contrôle à chaque appel, avant la
+garde. Un appel que la garde refuse lit le refus de la garde ; celui que seul le callback refuse (un `glob` ou un
 `grep` qui atteint un chemin refusé, un chemin écrit avec `./` ou `..`, chaque appel sous `orkeon run`) nomme la
 règle, son jeu et ce qu'il faut faire à la place. Un jeu est une liste de règles deny intégrée à Orkeon Code, la même dans tous
 les dépôts ; aucun réglage ne l'active ni ne le désactive. Chaque étape met en vigueur les cinq jeux :

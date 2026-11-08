@@ -1,4 +1,4 @@
-// What a dev crew's onToolCall decides for one call the host's gate allowed, over probes the callbacks build
+// What a dev crew's onToolCall decides for one call, before the host's gate judges it, over probes the callbacks build
 // (tool-callbacks.ts): the path resolved under the checkout first, then the shared memory's guard, then the crew's
 // guard (shared/domain/dev/call-guard.ts) told whether a file_write under a rewrite rule names a new file, then the
 // pre-tool hooks, stopped at the first that fails. It holds the order and the refusals' texts; what the probes read

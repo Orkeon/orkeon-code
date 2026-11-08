@@ -1,5 +1,5 @@
 // The dev crews' onToolCall and onToolResult (RT-04), built from a crew's inputs and handed to every act through
-// createLlm(ctx.llm, callbacks). The host's gate runs first and the callback sees only the calls it allowed: the
+// createLlm(ctx.llm, callbacks). The callback runs before the host's gate, which judges the input it returns (Orkeon #303): the
 // callback hands the call to the decision (tool-call-policy.ts) over probes built here: the memory folder read
 // once, the path a file_write under a rewrite rule names read once (a file the runtime says is not found is a new
 // one, which file_write may create), and the hooks run in the shell; it logs the decision's notes. After the call,

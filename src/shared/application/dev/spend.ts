@@ -3,7 +3,8 @@
 import type { ToolCallbacks } from "./tool-callbacks.ts";
 
 /** A batch's tool calls: counted, and refused once `limit` is reached. A call to a tool the act does not offer is
- *  refused by the runtime before `onToolCall` (Orkeon #193): it costs nothing here, the act's `maxIterations` bounds it. */
+ *  refused by the runtime before `onToolCall` (Orkeon #193): it costs nothing here, the act's `maxIterations` bounds it.
+ *  A call the host's gate refuses is counted: the gate judges after `onToolCall` (Orkeon #303). */
 export interface Spend {
   readonly limit: number;
   calls(): number;

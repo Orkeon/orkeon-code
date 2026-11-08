@@ -1,5 +1,5 @@
-// What a dev crew's onToolCall checks after the host's gate allowed a call, and the /hooks declarations it runs
-// around the call — pure, no IO. The host gate runs first and keeps the session's rules; this guard can only
+// What a dev crew's onToolCall checks before the host's gate judges a call, and the /hooks declarations it runs
+// around the call — pure, no IO. The host gate runs next, on the input it returns, and keeps the session's rules; this guard can only
 // refuse: the step's rule sets again (the only check of them under `orkeon run`, which keeps no session rules), the
 // role's roots and its rewrite rule, the whole input of the folder readers, each operation of an edit_batch as the
 // editor it stands for, and the act's mode when the host has no gate. The callbacks
@@ -239,7 +239,7 @@ function ruleVerdict(guard: CallGuard, entry: GuardRule, how: string): CallVerdi
 }
 
 /**
- * One call, after the host's gate allowed it: refused when the host has no gate and the act's mode does not let
+ * One call, before the host's gate judges it: refused when the host has no gate and the act's mode does not let
  * it through, when a deny rule of the guard covers its input, or when it reaches below a covered folder through
  * a pattern of a folder reader; otherwise allowed. Allow rules are never read: the guard cannot widen the gate.
  * The hooks are not run here (the callbacks run them after an allow).

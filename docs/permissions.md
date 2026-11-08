@@ -11,11 +11,11 @@ and a dev step adds a third:
    execute). When the mode says to ask, it asks you. The gate is `Orkeon:Security:PermissionGate:Enabled`: the
    launcher turns it on unless your settings file turns it off, and without it neither the modes nor the rules are
    enforced. Keep it on.
-3. **The crew's callback**, in the dev steps only (`/dev-spec`, `/dev-plan` and `/dev-batches`, and the agent `/tasks repair` starts again). Once the gate has allowed a call, the crew's
-   `onToolCall` checks it again: the step's [rule sets](#rule-sets-of-the-dev-steps) (and a role's roots, for the roles
+3. **The crew's callback**, in the dev steps only (`/dev-spec`, `/dev-plan` and `/dev-batches`, and the agent `/tasks repair` starts again). Before the gate judges a call (Orkeon #303), the crew's
+   `onToolCall` checks it: the step's [rule sets](#rule-sets-of-the-dev-steps) (and a role's roots, for the roles
    of a batch), `glob`, `grep` and `count_pattern` by their whole input, then the `pre-tool` [hooks](hooks.md); after
-   the call, the `post-tool` hooks. It can refuse a call, never allow one the gate refused. A call the gate refuses,
-   by a session rule or by the mode, never reaches it. When the host has no gate, the callback also applies the
+   the call, the `post-tool` hooks. It can refuse a call, never allow one the gate refuses: the gate judges the input
+   it returns, and a call it refuses, by a session rule or by the mode, does not run, though its `pre-tool` hooks ran, and comes back as a `DENIED:` result. When the host has no gate, the callback also applies the
    act's mode by itself: reads only in `plan`, `dontAsk` and `default`, the file editors too in `acceptEdits`.
 
 **What the gate does not see.** Commands and crews also call tools from their own code, through Orkeon's `tools`
@@ -258,7 +258,7 @@ rule: `/permissions` neither lists nor clears it.
 `/dev-spec`, `/dev-plan` and `/dev-batches` (unless `--audit --gate-only`) hand the gate
 rule sets of their own just before their crew
 starts (a `/tasks repair` hands it those of the step of the instance's run: a reviewer of `/dev-spec`
-is repaired under that step's sets, hooks and budget, else under its charter's step), and the crew's callback checks them again at each call the gate allows. A call the gate refuses reads the
+is repaired under that step's sets, hooks and budget, else under its charter's step), and the crew's callback checks them at each call, before the gate. A call the gate refuses reads the
 gate's own refusal; one only the callback refuses (a `glob` or `grep` reaching a refused path, a path written with
 `./` or `..`, every call under `orkeon run`) names the rule, its set and what to do instead. A set is a list of deny rules built into Orkeon Code, the same in every repository; no setting turns one on or
 off. Every step puts all five sets in force:

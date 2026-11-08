@@ -103,7 +103,7 @@ const builder = orkeonAgent()
     const clock = orkeonClock();
     return await runDevBatches(inputs(), {
       ...ports, log: ctx.log, clock,
-      // The host's gate first, then these callbacks: the dev rule sets again and the run's /hooks (a chained run
+      // These callbacks, then the host's gate on the input they return: the dev rule sets again and the run's /hooks (a chained run
       // reads them from its record, as it does the /effort). The reviewer only reads: the plan step's guard fits it.
       reviewerFor: (c) => createLlm(ctx.llm, devToolCallbacks({ step: "dev-plan", hooks: c.hooks }, { shell: ports.shell, log: ctx.log, memoryDir: memoryDirOf(ports.config) }),
         { effort: providerEffort(c.effort ?? undefined) }),
