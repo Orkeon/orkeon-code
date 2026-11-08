@@ -23,6 +23,8 @@ import type { CompactDeps } from "../../application/compaction/compact-session.t
 import { writeWorkflowState } from "../../application/workflow/workflow-state.ts";
 import { createConfigStore } from "../../application/config-store.ts";
 import type { ConfigStore } from "../../application/config-store.ts";
+import { readHostContext } from "../../application/host-context.ts";
+import { bindHostContext, orkeonHostContext } from "./host-context.ts";
 import { createSessionIo } from "../../application/session-io.ts";
 import type { SessionIo } from "../../application/session-io.ts";
 import type { ServiceLocator } from "../../../commands/.orkeon/orkeon-cli.d.ts";
@@ -51,9 +53,18 @@ import { createSharedMemory } from "./shared-memory.ts";
 /** The system clock: the one place the time is read, handed to the application as its Clock port. */
 export const orkeonClock = (): Clock => () => new Date();
 
-export const orkeonShell = (tools: OrkeonTools = Tools, root?: string): Shell => createShell(tools, root);
-export const orkeonShellJobs = (tools: OrkeonTools = Tools, root?: string): ShellJobs => createShellJobs(tools, root);
-export const orkeonFiles = (tools: OrkeonTools = Tools, root?: string): Files => createFiles(tools, root);
+// This run's host context (the layout of /user-config/launch.json, the paths.deny and paths.allow lists): read once,
+// at the first act or operation that needs it, over the global tools and a layout-less Files adapter (the file sits at
+// its virtual path, whatever the host). Bound here, in the module every entry point loads, so that llm.ts and the
+// adapters below find it; loaded alone in a test, they read the identity (orkeon/host-context.ts).
+bindHostContext(() => readHostContext(
+  createFiles(Tools), createConfigStore({ files: createFiles(Tools), session: createSessionStore(Tools) }),
+));
+export { orkeonHostContext };
+
+export const orkeonShell = (tools: OrkeonTools = Tools, root?: string): Shell => createShell(tools, root, orkeonHostContext);
+export const orkeonShellJobs = (tools: OrkeonTools = Tools, root?: string): ShellJobs => createShellJobs(tools, root, orkeonHostContext);
+export const orkeonFiles = (tools: OrkeonTools = Tools, root?: string): Files => createFiles(tools, root, orkeonHostContext);
 export const orkeonProgress = (tools: OrkeonTools = Tools): Progress => createProgress(tools);
 export const orkeonTelemetry = (tools: OrkeonTools = Tools): Telemetry => createTelemetry(tools);
 export const orkeonMemoryStore = (tools: OrkeonTools = Tools): MemoryStore => createMemoryStore(tools);

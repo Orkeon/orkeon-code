@@ -16,11 +16,18 @@
 // onToolCall/onToolResult built for its own mode. The request's `effort` is the runtime's
 // `act({effort})` as it is; the crew's own level, when it has one, fills a request that names none.
 // The request's `context` is the runtime's `act({context})` (Orkeon #276), a blank one left out.
+// Every act's callbacks, the crew's or none, sit inside the host's (hostCallbacks): under a host whose paths have
+// another spelling, or with path lists, a call's paths come back to the VFS and are judged before the crew's
+// callbacks see them, and every result's disk spellings come back before the model reads them. The host's context
+// is this run's (orkeon/host-context.ts), read at the first act; a test hands its own in the defaults.
 
 import type { ActRequest, CompleteRequest, Llm, ModelOverride } from "../../application/ports.ts";
 import type { PermissionMode } from "../../domain/permission-modes.ts";
 import { budgetExhaustedAnswer, llmFailureOf } from "../../domain/llm-failure.ts";
-import type { ToolCallbacks } from "../../application/dev/tool-callbacks.ts";
+import { hostCallbacks } from "../../application/dev/tool-callbacks.ts";
+import type { ActCallbacks, ToolCallbacks } from "../../application/dev/tool-callbacks.ts";
+import type { HostSource } from "../../application/host-context.ts";
+import { orkeonHostContext } from "./host-context.ts";
 
 /** The request as the callers fill it: its mode is one of PERMISSION_MODES, the
  *  five modes ActOptions names. */
@@ -31,15 +38,13 @@ function callOptions(override: ModelOverride | undefined): LlmCallOptions | unde
   return override?.model ? { llm: { model: override.model } } : undefined;
 }
 
-/** The runtime's act() options: the request as given (its `tools` subset copied), its model as the `llm` patch, and the crew's callbacks for
- *  the act's mode (`default` when the request names none, as the runtime reads it). */
-function actOptions(request: ActRequest, callbacks: Pick<ToolCallbacks, "forAct"> | undefined, gateEnabled: boolean | undefined): ActOptions {
+/** The runtime's act() options: the request as given (its `tools` subset copied), its model as the `llm` patch, and the
+ *  act's callbacks, when it has any. */
+function actOptions(request: ActRequest, callbacks: ActCallbacks | undefined): ActOptions {
   const { model, tools, ...given } = request as ModeActRequest;
   const rest = tools === undefined ? given : { ...given, tools: [...tools] };
   const options: ActOptions = model ? { ...rest, llm: { model } } : rest;
-  return callbacks === undefined
-    ? options
-    : { ...options, ...callbacks.forAct(request.permissionMode ?? "default", gateEnabled) };
+  return callbacks === undefined ? options : { ...options, ...callbacks };
 }
 
 /** The answer text of an act() result: its `output`; the result itself when it
@@ -59,8 +64,8 @@ function answerOrThrow(text: string): string {
   return text;
 }
 
-/** What the adapter adds to every act: the crew's effort. */
-export type LlmDefaults = Pick<ActRequest, "effort">;
+/** What the adapter adds to every act: the crew's effort, and the host's context (this run's when none is given). */
+export type LlmDefaults = Pick<ActRequest, "effort"> & { host?: HostSource };
 
 /** The request the runtime receives: as given, a blank context left out. */
 function withContext(request: ActRequest): ActRequest {
@@ -78,13 +83,18 @@ export function createLlm(
     const on = llm.permissionGate?.enabled;
     return on === true || on === false ? on : undefined;
   };
+  const host = defaults.host ?? orkeonHostContext;
   return {
     permissionGateEnabled,
     async act(prompt, request) {
       // The crew's effort (/effort, handed as an input) when the request names none.
       const effort = request.effort ?? defaults.effort;
       const withEffort = effort === undefined ? request : { ...request, effort };
-      return answerOrThrow(answerOf(await llm.act(prompt, actOptions(withContext(withEffort), callbacks, permissionGateEnabled()))));
+      // The crew's callbacks for the act's mode (`default` when the request names none, as the runtime reads it),
+      // inside the host's.
+      const own = callbacks?.forAct(request.permissionMode ?? "default", permissionGateEnabled());
+      const acts = hostCallbacks(own, await host());
+      return answerOrThrow(answerOf(await llm.act(prompt, actOptions(withContext(withEffort), acts))));
     },
     async complete(prompt, request?: CompleteRequest) {
       // A system message needs the message-array call: `complete` takes a prompt only.

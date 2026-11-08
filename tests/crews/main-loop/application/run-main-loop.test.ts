@@ -25,6 +25,7 @@ import {
 } from "./run-main-loop.assertions.ts";
 import { createToolTrace } from "../../../../src/shared/application/dev/tool-trace-recorder.ts";
 import { assertMentions } from "../../../support/assertions/text.ts";
+import { PROJECT_WIN, windowsHost } from "../../../support/fixtures/host-context.ts";
 
 describe("loadCatalogue", () => {
   it("builds the catalogue of the explicit mode, with the stored rules that parse", () => {
@@ -796,5 +797,31 @@ describe("runMainLoop — the turn-start and stop chains", () => {
 
     // Assert
     strictEqual(llm.acts.length, 1);
+  });
+});
+
+describe("runMainLoop — the request under the host's context", () => {
+  it("brings a path the user typed as the disk spells it back to the VFS, in the prompt and the transcript", async () => {
+    // Arrange
+    const { store, llm, deps } = turnSetup();
+
+    // Act
+    await runMainLoop({ prompt: `read ${PROJECT_WIN}\\src\\a.ts please` }, DEFAULT_LOADED, { ...deps, host: windowsHost });
+
+    // Assert
+    assertMentions(llm.acts[0].prompt, ["read /workspace/src/a.ts please"]);
+    ok(!llm.acts[0].prompt.includes(PROJECT_WIN), llm.acts[0].prompt);
+    strictEqual(store.messages[0].content, "read /workspace/src/a.ts please");
+  });
+
+  it("leaves the request as typed without a host", async () => {
+    // Arrange
+    const { llm, deps } = turnSetup();
+
+    // Act
+    await runMainLoop({ prompt: `read ${PROJECT_WIN}\\src\\a.ts` }, DEFAULT_LOADED, deps);
+
+    // Assert
+    assertMentions(llm.acts[0].prompt, [`read ${PROJECT_WIN}\\src\\a.ts`]);
   });
 });

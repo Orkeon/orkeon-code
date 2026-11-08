@@ -38,6 +38,7 @@ import {
   orkeonCompactionDeps,
   orkeonConfigStore,
   orkeonFiles,
+  orkeonHostContext,
   orkeonMemoryStore,
   orkeonMemoryToolPorts,
   orkeonProgress,
@@ -90,6 +91,7 @@ const coder = orkeonAgent()
       trace,
       run: createRunState(ctx),
       clock,
+      host: orkeonHostContext,
       compact: turnCompaction(ports.config, (trigger) => compactSession(
         { force: false, trigger },
         orkeonCompactionDeps({ llm, log }, { ...ports, progress }, clock),

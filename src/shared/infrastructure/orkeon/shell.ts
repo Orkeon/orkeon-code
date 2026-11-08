@@ -4,18 +4,24 @@
 // command stopped at that timeout (the typings give the field, not its meaning).
 // Given a batch's working root, the command runs there: its `/workspace` paths go
 // onto the root, and the root's paths of its output come back as `/workspace`, so the
-// callers keep naming the checkout `/workspace` (shared/domain/dev/path-rebase.ts).
+// callers keep naming the checkout `/workspace` (shared/domain/dev/path-rebase.ts). Given the host's context, a
+// path the command spells as the disk does comes back to the VFS before the run, and the disk spellings the process
+// printed come back the same way (shared/domain/host-paths.ts), the host's layer outside the root's.
 
 import type { Shell } from "../../application/ports.ts";
+import type { HostSource } from "../../application/host-context.ts";
 import { textFromRoot, textToRoot } from "../../domain/dev/path-rebase.ts";
+import { commandToVirtual, textToVirtual } from "../../domain/host-paths.ts";
+import { layoutOf } from "./host-context.ts";
 import { pick, shCode, shErr, shOut } from "./tool-results.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
 
-export function createShell(tools: Pick<OrkeonTools, "shellCommand">, root?: string): Shell {
+export function createShell(tools: Pick<OrkeonTools, "shellCommand">, root?: string, host?: HostSource): Shell {
   const cwd = root ?? WORKSPACE;
   return {
     async run(logical, options) {
-      const command = textToRoot(logical, root);
+      const layout = await layoutOf(host);
+      const command = textToRoot(commandToVirtual(logical, layout), root);
       const timeout = options?.timeoutSeconds;
       if (timeout !== undefined && !(Number.isInteger(timeout) && timeout >= 1)) {
         throw new Error(`a shell timeout is a whole number of seconds, at least 1: ${timeout}`);
@@ -24,7 +30,8 @@ export function createShell(tools: Pick<OrkeonTools, "shellCommand">, root?: str
         ? { command, working_directory: cwd }
         : { command, working_directory: cwd, timeout_seconds: timeout };
       const r = await tools.shellCommand(input);
-      const result = { stdout: textFromRoot(shOut(r), root), stderr: textFromRoot(shErr(r), root), exitCode: shCode(r) };
+      const back = (text: string) => textFromRoot(textToVirtual(text, layout), root);
+      const result = { stdout: back(shOut(r)), stderr: back(shErr(r)), exitCode: shCode(r) };
       return pick(r, "completed", "Completed") === false ? { ...result, timedOut: true } : result;
     },
   };

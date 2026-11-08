@@ -11,6 +11,9 @@ import {
 } from "../domain/agent-policy/path-rules.ts";
 import type { PathListValues, PathLists } from "../domain/agent-policy/path-rules.ts";
 
+/** How an adapter reads this run's context: once asked, at the first operation that needs it. */
+export type HostSource = () => Promise<HostContext>;
+
 export interface HostContext {
   layout: HostLayout;
   lists: PathLists;

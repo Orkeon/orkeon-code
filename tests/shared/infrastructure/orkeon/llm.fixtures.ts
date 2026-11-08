@@ -1,8 +1,10 @@
 // The schema, the act results, the requests and the facades the createLlm tests run on.
 import { createLlm } from "../../../../src/shared/infrastructure/orkeon/llm.ts";
-import type { ToolCallbacks } from "../../../../src/shared/application/dev/tool-callbacks.ts";
+import type { ActCallbacks, ToolCallbacks } from "../../../../src/shared/application/dev/tool-callbacks.ts";
+import type { HostSource } from "../../../../src/shared/application/host-context.ts";
 import type { EffortLevel } from "../../../../src/shared/domain/agent-policy/behavior-flags.ts";
 import { FakeLlmFacade } from "../../../support/doubles/fake-llm-facade.ts";
+import { PROJECT_WIN } from "../../../support/fixtures/host-context.ts";
 
 export const SCHEMA = { type: "object", properties: { findings: { type: "array" } } };
 
@@ -10,7 +12,7 @@ export const SCHEMA = { type: "object", properties: { findings: { type: "array" 
  * An Llm over a facade whose host says its gate is off, with tool callbacks recording the mode and the gate state
  * each act built them for.
  */
-export function llmWithCallbacks() {
+export function llmWithCallbacks(host?: HostSource) {
   const facade = Object.assign(new FakeLlmFacade(), { permissionGate: { enabled: false } });
   const asked: Array<[string, boolean | undefined]> = [];
   const onToolCall = async () => "allow" as const;
@@ -22,8 +24,17 @@ export function llmWithCallbacks() {
       return { onToolCall, onToolResult };
     },
   };
-  return { facade, asked, onToolCall, onToolResult, llm: createLlm(facade, callbacks) };
+  return { facade, asked, onToolCall, onToolResult, llm: createLlm(facade, callbacks, host === undefined ? {} : { host }) };
 }
+
+/** The callbacks of the first act the facade received. */
+export function actCallbacksOf(facade: FakeLlmFacade): ActCallbacks {
+  return facade.calls[0].args[1] as ActCallbacks;
+}
+
+/** A file_read spelled as the Windows disk does, and its VFS call. */
+export const DISK_READ = { name: "file_read", input: { path: `${PROJECT_WIN}\\src\\a.ts` } };
+export const VIRTUAL_READ = { name: "file_read", input: { path: "/workspace/src/a.ts" } };
 
 export interface AnswerCase {
   name: string;

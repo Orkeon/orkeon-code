@@ -6,8 +6,10 @@ import { strictEqual, deepStrictEqual, rejects } from "node:assert";
 import { createLlm } from "../../../../src/shared/infrastructure/orkeon/llm.ts";
 import { FakeLlmFacade } from "../../../support/doubles/fake-llm-facade.ts";
 import {
-  ACT_ANSWERS, ACT_FAILURE_MARKERS, COMPLETIONS, CONTEXT_CASES, EFFORTS, GATES, REQUESTS, SCHEMA, llmWithCallbacks,
+  ACT_ANSWERS, ACT_FAILURE_MARKERS, COMPLETIONS, CONTEXT_CASES, DISK_READ, EFFORTS, GATES, REQUESTS, SCHEMA, VIRTUAL_READ, actCallbacksOf,
+  llmWithCallbacks,
 } from "./llm.fixtures.ts";
+import { windowsHost } from "../../../support/fixtures/host-context.ts";
 
 describe("createLlm — act with the crew's tool callbacks", () => {
   it("adds the callbacks built for the act's mode, and what the host says of its gate", async () => {
@@ -32,6 +34,46 @@ describe("createLlm — act with the crew's tool callbacks", () => {
     // Assert
     deepStrictEqual(asked, [["default", false]]);
     deepStrictEqual(facade.calls.map((c) => c.args), [["p2", { onToolCall, onToolResult }]]);
+  });
+});
+
+describe("createLlm — act under the host's context", () => {
+  it("puts the crew's callbacks inside the host's: a call spelled as the disk does reaches the runtime canonical", async () => {
+    // Arrange
+    const { facade, llm } = llmWithCallbacks(windowsHost);
+    await llm.act("p", {});
+    const { onToolCall } = actCallbacksOf(facade);
+
+    // Act
+    const verdict = await onToolCall(DISK_READ);
+
+    // Assert
+    deepStrictEqual(verdict, { input: VIRTUAL_READ.input });
+  });
+
+  it("gives an act without callbacks the host's", async () => {
+    // Arrange
+    const facade = new FakeLlmFacade();
+    const llm = createLlm(facade, undefined, { host: windowsHost });
+
+    // Act
+    await llm.act("p", {});
+
+    // Assert
+    const { onToolCall, onToolResult } = actCallbacksOf(facade);
+    strictEqual(typeof onToolCall, "function");
+    strictEqual(typeof onToolResult, "function");
+  });
+
+  it("leaves an act without callbacks bare on the identity host", async () => {
+    // Arrange
+    const facade = new FakeLlmFacade();
+
+    // Act
+    await createLlm(facade).act("p", { permissionMode: "plan" });
+
+    // Assert
+    deepStrictEqual(facade.calls.map((c) => c.args), [["p", { permissionMode: "plan" }]]);
   });
 });
 

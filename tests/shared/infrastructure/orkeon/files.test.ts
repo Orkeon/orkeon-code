@@ -5,8 +5,9 @@ import { strictEqual, deepStrictEqual, rejects } from "node:assert";
 
 import { createFiles } from "../../../../src/shared/infrastructure/orkeon/files.ts";
 import { FakeTools } from "../../../support/doubles/fake-tools.ts";
-import { OTHER_CONTENTS, ROOT, ROOTED_CALLS } from "./files.fixtures.ts";
+import { DISK_CALLS, OTHER_CONTENTS, ROOT, ROOTED_CALLS } from "./files.fixtures.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
+import { PROJECT_WIN, windowsHost } from "../../../support/fixtures/host-context.ts";
 
 describe("createFiles — read", () => {
   it("reads `content`", async () => {
@@ -197,5 +198,45 @@ describe("createFiles — under a working root", () => {
 
     // Assert
     deepStrictEqual(tools.calls.map((c) => c.input), [{ path: `${WORKSPACE}/a`, content: "y" }]);
+  });
+});
+
+describe("createFiles — under a host", () => {
+  for (const c of DISK_CALLS) {
+    it(c.name, async () => {
+      // Arrange
+      const tools = new FakeTools();
+      tools.replies.fileRead = { content: "x" };
+
+      // Act
+      await c.call(createFiles(tools, undefined, windowsHost));
+
+      // Assert
+      strictEqual((tools.calls[0].input as { path: string }).path, c.path);
+    });
+  }
+
+  it("brings a disk spelling under the root back to the root's path", async () => {
+    // Arrange
+    const tools = new FakeTools();
+    tools.replies.fileRead = { content: "x" };
+
+    // Act
+    await createFiles(tools, ROOT, windowsHost).read(`${PROJECT_WIN}\\.orkeon\\worktrees\\prune-F2\\src\\a.ts`);
+
+    // Assert
+    deepStrictEqual(tools.inputsOf("fileRead"), [{ path: `${ROOT}/src/a.ts` }]);
+  });
+
+  it("brings the disk spellings of a failure's message back to the VFS", async () => {
+    // Arrange
+    const tools = new FakeTools();
+    tools.replies.fileRead = new Error(`File not found: ${PROJECT_WIN}\\src\\gone.ts`);
+
+    // Act
+    const act = createFiles(tools, undefined, windowsHost).read(`${WORKSPACE}/src/gone.ts`);
+
+    // Assert
+    await rejects(act, { message: `File not found: ${WORKSPACE}/src/gone.ts` });
   });
 });

@@ -5,8 +5,9 @@ import { deepStrictEqual, rejects, strictEqual } from "node:assert";
 
 import { createShellJobs, WAIT_SCRIPT } from "../../../../src/shared/infrastructure/orkeon/shell-jobs.ts";
 import { FakeTools } from "../../../support/doubles/fake-tools.ts";
-import { ROOT, rootedTools, workingDirectories } from "./shell-jobs.fixtures.ts";
+import { ROOT, diskTools, rootedTools, workingDirectories } from "./shell-jobs.fixtures.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
+import { PROJECT_WIN, windowsHost } from "../../../support/fixtures/host-context.ts";
 
 describe("createShellJobs", () => {
   it(`starts a job in ${WORKSPACE} and reads its id and log`, async () => {
@@ -181,5 +182,31 @@ describe("createShellJobs", () => {
     // Assert
     deepStrictEqual(workingDirectories(tools), [ROOT]);
     deepStrictEqual(tools.inputsOf("fileWrite").map((i) => (i as { path: string }).path), [`${ROOT}/${WAIT_SCRIPT}`]);
+  });
+});
+
+describe("createShellJobs — under a host", () => {
+  it("brings the command's disk spellings back to the VFS before the job starts", async () => {
+    // Arrange
+    const tools = diskTools();
+
+    // Act
+    await createShellJobs(tools, undefined, windowsHost).start(`dotnet test "${PROJECT_WIN}\\tests\\A.csproj"`);
+
+    // Assert
+    deepStrictEqual(tools.inputsOf("shellCommand"), [
+      { action: "start_job", command: `dotnet test "${WORKSPACE}/tests/A.csproj"`, working_directory: WORKSPACE },
+    ]);
+  });
+
+  it("brings the tail's disk spellings back to the VFS", async () => {
+    // Arrange
+    const tools = diskTools();
+
+    // Act
+    const tail = await createShellJobs(tools, undefined, windowsHost).tail("j1", 10);
+
+    // Assert
+    strictEqual(tail, `${WORKSPACE}/src/a.ts failed`);
   });
 });
