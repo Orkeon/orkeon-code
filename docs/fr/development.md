@@ -28,7 +28,7 @@ REPL et l'outil `orkeon` et lance le mode source, le runtime de référence : le
 seule réponse du modèle lue dans `tests/fixtures/llm-mock/git-commit.jsonl` et comparée au `HEAD` de la fixture. En
 local, `ORKEON_SOURCE=<un checkout d'Orkeon à l'épingle> bash scripts/smoke-runtime.sh --mode source` puis
 `ORKEON_CODE_MODE=source bash scripts/smoke-crew.sh` sont les mêmes vérifications. `orkeon run --validate` n'en fait pas
-partie : à l'épingle, il refuse les crews de ce projet ([ADR 0024](adr/0024-orkeon-after-299.md)).
+partie : à l'épingle, il refuse les crews de ce projet ([ADR 0024](../adr/0024-orkeon-after-299.md)).
 
 ## Lancer un crew seul
 
