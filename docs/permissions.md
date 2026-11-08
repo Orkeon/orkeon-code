@@ -132,7 +132,8 @@ GET runs without a question, and its URL can hold text the model read in the pro
 out denies the tool (`/permissions add deny http_api`, a deny rule holding in every mode), or works in `plan` or
 `dontAsk`, whose catalogue withholds it. The host offers `spawn_agent` to every act, whatever the
 catalogue: it is an edit, asked about in `default` and refused in `plan` and `dontAsk`. A rule may name it, and an
-allow rule on it holds in `dontAsk` too (`/permissions` warns when you add one).
+allow rule on it holds in `dontAsk` too (`/permissions` warns when you add one). The child it spawns runs under the
+stricter of its own mode and its spawner's (Orkeon #299); Orkeon Code's children name none, so they take the spawner's.
 
 The [shared memory](shared-memory.md)'s two tools are Orkeon Code's own, offered to the REPL's turns by mode:
 `memory_recall` declares a read and runs in every mode, `plan` and `dontAsk` included; `memory_push` declares an edit
@@ -466,7 +467,8 @@ tool declares it through its annotations, read only when its server is declared 
 (`MCP:Servers:<name>:TrustAnnotations`, false by default; Orkeon #219, #223): then `readOnlyHint: true` is a read, run
 without a question in every mode that offers the tool, `dontAsk` included, another annotation is an execute and no
 annotation a write, asked about in `default` and `acceptEdits`, refused in `plan` and `dontAsk`. Every tool of an
-untrusted server is a write, whatever it annotates. The speech server marks `transcribe_audio`, `list_audio` and
+untrusted server is a write, whatever it annotates. `MCP:Servers:<name>:Tools:Deny` keeps a server tool out before any
+of this: it is never registered ([Configuration](configuration.md#extra-tools-mcp-servers-and-plugins)). The speech server marks `transcribe_audio`, `list_audio` and
 `whisper_info` read-only, and the launchers and the example settings declare it trusted; `record_and_transcribe`,
 `speak` and `stop_speaking`, which open the microphone or the speaker, carry no annotation. For such a tool, in `dontAsk`, an allow rule lets it
 run (`/permissions add allow speak`); `plan` ignores allow rules. A plugin tool that declares read access runs

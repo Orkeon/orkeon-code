@@ -20,7 +20,9 @@ Choisissez-le par requête (`bypassPermissions: migre les tests vers node:test`)
 `orkeonCode` de vos réglages utilisateur : le `.orkeon/config.json` d'un projet ne pose que `default`, `plan` ou
 `acceptEdits`, [Permissions](permissions.md)). Dans le REPL, `default` et
 `acceptEdits` vous demandent avant un appel que le mode n'autorise pas d'emblée ; dans une exécution sans opérateur,
-personne ne répond, et la garde refuse ce qu'elle aurait demandé (le modèle lit `DENIED: …`). Donnez à une exécution
+personne ne répond, et la garde refuse ce qu'elle aurait demandé (le modèle lit `DENIED: …`), sauf si
+`Orkeon:Checkpointing:Enabled` est posé (éteint dans tous les exemples ; Orkeon #299) : la question est alors gardée et
+l'exécution s'arrête avec la sortie `75` ([plus bas](#en-un-coup-depuis-un-shell)). Donnez à une exécution
 sans opérateur un mode qui ne demande jamais : `bypassPermissions`, ou `plan` et `dontAsk` pour un travail en lecture
 seule ([Permissions](permissions.md)).
 
@@ -83,9 +85,15 @@ ORKEON_CODE_WORKSPACE=~/src/app bash scripts/run-crew.sh src/crews/main-loop/cre
 
 Le script monte le projet en lecture-écriture sur `/workspace` et un dossier de travail sur `/output`, comme le REPL.
 Le runner imprime le résultat du crew en JSON sur stdout et sort avec `0` quand le script s'est terminé, `1` sur une
-erreur de script, `2` sur une erreur du runtime, `130` quand il est annulé. Un appel que la garde refuse n'est pas une
-erreur : le modèle lit le refus comme résultat de l'outil et l'exécution sort quand même avec `0` ; lisez le JSON pour
-savoir ce qui a été fait. Les primitives de session existent aussi
+erreur de script, `2` sur une erreur du runtime, `130` quand il est annulé, `75` quand `Orkeon:Checkpointing:Enabled`
+est posé et que l'exécution s'est arrêtée sur une question (`run.finished` dit `waiting_for_input` avec un
+`requestId` ; `orkeon run --resume <id d'exécution> --input '<réponse>'` la poursuit, et `/state` et `/runs` sont les
+montages propres du runtime, jamais les vôtres). Sans points de reprise, un `human_input` sans opérateur reçoit la
+valeur par défaut qu'aucune option ne porte, que les crews lisent comme personne n'a répondu. Un appel que la garde
+refuse n'est pas une erreur : le modèle lit le refus comme résultat de l'outil et l'exécution sort quand même avec
+`0` ; lisez le JSON pour savoir ce qui a été fait. Un chemin du projet qui sort de `/workspace` par un lien (un cache de
+dépendances lié à un autre checkout) est refusé par les outils de fichiers (Orkeon #299) : montez ce dossier pour
+lui-même. Les primitives de session existent aussi
 dans une exécution indépendante, mais le tampon de conversation, le sac d'état et la mémoire typée démarrent vides et
 finissent avec le processus : une exécution est un tour.
 
@@ -122,8 +130,10 @@ ORKEON_CODE_WORKSPACE=~/src/app bash scripts/dev-run.sh dev-verify demo \
   `/dev-batches` relance de lui-même est suivi de sa ligne `relaunched` ; seul le troisième tour d'audit encore GAPS reste le dernier) ;
 - la même ligne qu'avant l'étape : rien n'a bougé, sortie `4`, jamais de boucle ;
 - `--max-steps` (10 par défaut) atteint : sortie `5` ;
-- une étape qui sort avec `1` ou `130` arrête la chaîne avec ce code ; une qui sort avec `2` et une limite de débit dans
-  son journal (`429`, `rate limit`) est relancée après `--wait` secondes, `--retries` fois, puis l'arrête avec `2`.
+- une étape qui sort avec `1` ou `130` arrête la chaîne avec ce code ; une qui sort avec `75` (une question gardée par
+  les points de reprise) l'arrête avec `3`, comme BLOCKED : un humain y répond ; une qui sort avec `2` et une limite de
+  débit dans son journal (`429`, `rate limit`) est relancée après `--wait` secondes, `--retries` fois, puis l'arrête
+  avec `2`.
 
 `--inputs` est obligatoire : les entrées propres au crew, que son `crew.ork.ts` nomme dans son en-tête. Chaque étape est
 un nouveau processus à la session vide : ce dont une étape a besoin (le lot, le plan) voyage dans ses entrées ou vit
@@ -147,7 +157,9 @@ Trois voies, de la plus simple :
 1. **Comme un processus, depuis n'importe quel langage.** Lancez `orkeon run <crew.ork.ts> --inputs <json>` avec
    l'outil `orkeon` ou l'image `orkeon-runners`, avec les montages et les settings que `scripts/run-crew.sh` passe, et
    lisez le JSON sur stdout. Le script est la référence pour la ligne de commande ; le code de sortie dit si le
-   résultat en est un.
+   résultat en est un. Avec `Orkeon:RunHistory:Enabled` (éteint pour `orkeon run` par défaut ; Orkeon #299), les
+   événements de chaque exécution sont gardés sous `/runs` (`Store` jsonl ou sqlite, `RetentionDays` 30), que
+   `orkeon runs list`, `show` et `tail` lisent.
 2. **Comme un service.** Le démon `orkeon-host` de l'archive de release d'Orkeon (une unité systemd, un service Windows
    ou un conteneur) héberge des dossiers de crews et expose chacun derrière un canal de chat et, sur option, comme
    une skill A2A : un `POST /a2a/tasks/send` dont le `skillId` est le nom du crew le lance sur l'entrée de la tâche. Un

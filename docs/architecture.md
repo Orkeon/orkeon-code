@@ -50,7 +50,8 @@ The runtime runs the sources under rules that shape everything below:
 - **The read calls of a turn run together.** `Orkeon:Tools:ResultLimits:MaxParallelToolCalls` (4) read calls of one
   model turn run at once; every other call runs alone, one after the other.
 - **`spawn_agent` is the host's own.** The script host offers it to every act; naming it in `.tools([...])`, or in
-  `act({ tools })`, throws `UnknownToolError`.
+  `act({ tools })`, throws `UnknownToolError`. A child runs under the stricter of its mode and its spawner's (Orkeon
+  #299); this project's children name none.
 
 So each entry point is its own composition root: it builds the adapters it needs and hands them to a use case that
 takes its dependencies as parameters. The ports are interfaces, erased from every bundle, and a test imports a use

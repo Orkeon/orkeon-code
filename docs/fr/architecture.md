@@ -54,7 +54,8 @@ Le runtime exécute les sources sous des règles qui façonnent tout ce qui suit
 - **Les appels de lecture d'un tour tournent ensemble.** `Orkeon:Tools:ResultLimits:MaxParallelToolCalls` (4) appels
   de lecture d'un même tour du modèle tournent en même temps ; tout autre appel tourne seul, l'un après l'autre.
 - **`spawn_agent` appartient à l'hôte.** L'hôte de scripts l'offre à chaque act ; le nommer dans `.tools([...])`, ou
-  dans `act({ tools })`, lève `UnknownToolError`.
+  dans `act({ tools })`, lève `UnknownToolError`. Un enfant tourne sous le plus strict de son mode et de celui de son
+  lanceur (Orkeon #299) ; les enfants de ce projet n'en nomment aucun.
 
 Chaque point d'entrée est donc sa propre racine de composition : il construit les adaptateurs dont il a besoin et les
 remet à un cas d'usage qui reçoit ses dépendances en paramètres. Les ports sont des interfaces, effacées de chaque

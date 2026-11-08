@@ -103,7 +103,13 @@ running the import again writes nothing new while its candidates are still there
 ## The tools
 
 `memory_recall` returns at most five admitted entries for a query, best first, with what they apply to and their file:
-it reads, and runs in every mode. `memory_push` writes a candidate, never an entry: it is offered only where the mode
+it reads, and runs in every mode. Keep the runtime's cognitive memory off (`Orkeon:CognitiveMemory:Enabled`, false by
+default; Orkeon #299): on, the runtime registers a host tool of the same name, `memory_recall`, which the gate's rules,
+`tools.extra` and `/debug-tool-call list` could not tell from this one; no crew of Orkeon Code declares `memory: true`,
+so nothing here needs it. The vectors of the index come from the runtime's embedding provider (`Orkeon:Embeddings`,
+which since Orkeon #299 also takes `mistral`, `azure-openai` and `gemini` as `Provider`, with `ApiKeyEnvVar`,
+`Endpoint` and `ApiVersion`); the runtime records the model in `.orkeon/embedding-fingerprint.json` and refuses to
+start when it changed ([Getting started](getting-started.md#what-the-agent-writes-in-your-project)). `memory_push` writes a candidate, never an entry: it is offered only where the mode
 edits, and asked about in `default` ([Permissions](permissions.md#modes)). Two concurrent pushes never lose one: a
 push that finds its candidate overwritten writes it again under the next id. In every mode, the file tools of the model
 that name one path are refused under `candidates/` and `entries/`: candidates come from `memory_push` and the harvests,

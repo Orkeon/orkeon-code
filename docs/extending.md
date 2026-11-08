@@ -96,8 +96,8 @@ a port and an adapter of `src/shared/infrastructure/orkeon/`. The recipe: [Add a
 
 **On the host.** The shell tool runs the commands of its allow-list: `Orkeon:Tools:Shell:ExtraAllowedCommands` adds
 the build tools of your projects, `AllowInterpreters` opens `node`, `dotnet`, `npm`... ([Configuration](configuration.md)).
-A tool written in C# is an Orkeon plugin (an assembly implementing `IOrkeonPlugin`); a tool served by an MCP server
-needs no code at all. The REPL connects the servers of `MCP:Servers` and loads the plugins of `Plugins`, and their
+A tool written in C# is an Orkeon plugin (a folder holding `plugin.json` and an assembly implementing `IOrkeonPlugin`;
+`dotnet new orkeon-plugin` scaffolds it); a tool served by an MCP server needs no code at all. The REPL connects the servers of `MCP:Servers` and loads the plugins of `Plugins`, and their
 tools join the assistant's catalogue once the session key `tools.extra` names them with their class
 (`<name>:read|write`) ([Configuration](configuration.md#extra-tools-mcp-servers-and-plugins)).
 

@@ -43,6 +43,7 @@ Les variables d'environnement préfixées `ORKEON_` l'emportent sur le fichier (
 | `Llm:Temperature`, `Llm:MaxTokens`, `Llm:TimeoutSeconds` | Réglages de génération |
 | `Llm:MaxRateLimitWait` | La plus longue fenêtre de limite de débit qu'un appel attend avant d'échouer, `00:05:00` par défaut. Un 429, ou un 529 avec un en-tête de réinitialisation, attend que la fenêtre annoncée par le fournisseur (`retry-after-ms` en millisecondes comme l'envoient OpenAI et TypeSafe, sinon `Retry-After`, comparé aux en-têtes de réinitialisation du fournisseur ; la plus longue l'emporte) se rouvre au lieu de faire échouer le tour ; une fenêtre plus longue fait échouer l'appel aussitôt avec `LlmRateLimitException`, l'attente dans son message. `00:00:00` n'attend rien |
 | `Llm:Profiles:<name>:MaxRateLimitWait` | La même borne pour un profil nommé de l'hôte, `00:05:00` par défaut |
+| `Llm:ModelCapabilities:<id du modèle>` | Ce qu'un modèle accepte (Orkeon #299) : `ReasoningEfforts`, les efforts qu'il prend (un `effort` qu'un modèle listé ne prend pas est abandonné avec un avertissement ; un modèle listé nulle part reçoit tout effort, avec un avertissement), `Vision`, `AudioInput`, `AudioOutput`. Sans la clé, la table propre du runtime s'applique |
 | `Llm:Thinking:Enabled` | Mode raisonnement, pour les fournisseurs qui en ont un |
 
 Orkeon reconnaît les fournisseurs natifs d'après le point d'accès et le modèle (OpenAI, Anthropic, Gemini, Mistral,
@@ -86,7 +87,10 @@ la section de la garde d'entrée est `Orkeon:Guardian:Llm`, fermée en cas d'éc
 et `Orkeon:TypeSafe:Guard` sont refusées au démarrage comme clés inconnues). Un profil de décision fonctionne de la même façon quel que soit le fournisseur : un *profil de décision* (`Orkeon:Decision:Profiles:<nom>`) enveloppe un profil LLM
 nommé (`Llm:Profiles:<nom>`) d'étapes qui routent la requête vers le profil qui lui convient, la gardent (injection
 de prompt, les risques que vous nommez) ou vérifient la réponse et remontent vers un profil plus fort quand elle ne
-tient pas. [`config/appsettings.jev.example.json`](../../config/appsettings.jev.example.json) est l'exemple : la
+tient pas. `Orkeon:Guardian:Llm:Phases` peut ajouter `Output` : elle juge la sortie d'une *tâche* de crew, en retenant
+ses deltas diffusés jusqu'au jugement, si bien que la réponse d'une tâche gardée s'affiche d'un coup à sa fin ;
+`ctx.llm.act`, sur lequel tourne chaque agent d'Orkeon Code, n'est pas jugé en sortie.
+[`config/appsettings.jev.example.json`](../../config/appsettings.jev.example.json) est l'exemple : la
 section `Orkeon:TypeSafe` (la clé dans `TYPESAFE_API_KEY`, jamais dans le fichier), deux profils LLM, `small` et
 `large`, et le profil de décision `guarded` par-dessus. La clé de session `llm.profile` nomme le profil sur lequel
 tournent les agents des commandes, `/config set llm.profile guarded` : chaque crew qu'une commande lance y construit
@@ -147,7 +151,8 @@ fin :
 
 - l'`ExecutionTimeout` du moteur de script ci-dessus, qui s'arrête pendant qu'une question vous attend ;
 - le budget propre du crew de la boucle principale, écrit dans son code (`src/crews/main-loop/crew.ork.ts`) : 200
-  appels d'outils, 700k tokens de contexte et 30 minutes de temps réel. Le contexte est compté une fois (Orkeon
+  appels d'outils, 700k tokens de contexte et 30 minutes de temps réel, qui s'arrête pendant qu'un appel d'outil attend
+  votre réponse (Orkeon #299). Le contexte est compté une fois (Orkeon
   #224) : chaque appel paie sa complétion plus ce dont son prompt a grandi, ou la part que le cache du fournisseur
   n'a pas servie, donc un tour de n appels sur un contexte de c tokens dépense environ c plus ses complétions, jamais
   tout son contexte à chaque appel. Cette horloge est celle d'Orkeon et, comme celle du moteur, elle s'arrête pendant
@@ -260,6 +265,18 @@ La classe décide quels modes proposent l'outil : `read` dans tous les modes, `w
 La [garde de permission](permissions.md#outils-supplémentaires) décide toujours de chaque appel. `/config set` refuse
 une entrée qui n'est pas dans la notation, qui nomme un outil intégré, ou qui nomme un outil deux fois.
 
+La déclaration d'un serveur (`MCP:Servers:<id>`, Orkeon #299) prend aussi `CallTimeout` (`00:01:00` par défaut : un
+appel qui le dépasse finit en erreur d'outil ; le [serveur vocal](#transcription-de-la-parole) reçoit 15 minutes) et
+`ConnectTimeout` (30 s) ; `Tools:Allow` et `Tools:Deny`, qui filtrent les outils du serveur avant leur enregistrement,
+si bien qu'un outil refusé est absent aussi pour `tools.extra`, qui le signale (ne refusez jamais
+`record_and_transcribe`, `speak` ni `stop_speaking` : `/voice` et `/say` les appellent) ; `Headers` (une valeur
+`env:VAR` lit la variable ; un en-tête de transport est refusé) et `Auth` (`Bearer`, `Basic`, ou OAuth 2 client
+credentials et device code, le secret lu dans une variable d'environnement, le code d'appareil affiché sur stderr) ;
+une `Url` qui porte des identifiants doit être https ou loopback. `Transport: Sse` est le transport Streamable HTTP :
+un serveur qui ne parle que le transport HTTP+SSE du 2024-11-05 ne se connecte plus. Un plugin est un dossier
+`<nom>/` sous le répertoire `Plugins`, qui tient `plugin.json` (`name`, `version`, `orkeonVersion`, `entryAssembly`,
+`tools`) à côté de son assembly ; une `.dll` à plat est refusée, et `dotnet new orkeon-plugin` crée le dossier.
+
 Par exemple, le serveur de parole que ce dépôt livre ([ci-dessous](#transcription-de-la-parole)) enregistre six
 outils, dont trois ont leur place dans la liste : `transcribe_audio`, `list_audio` et `whisper_info`. Les trois
 autres, `record_and_transcribe`, `speak` et `stop_speaking`, servent `/voice` et `/say` et en restent à l'écart. Une
@@ -291,7 +308,8 @@ export ORKEON_CODE_AUDIO_DIR=~/audio      # the folder of audio and video files
 Le lanceur monte alors ce dossier sur `/audio` (lecture seule) et `<state>/transcripts` sur `/transcripts` (lecture
 seule, `.crew-output/transcripts` par défaut), et déclare le serveur au REPL par l'environnement
 (`ORKEON_MCP__Servers__whisper__*`), de sorte qu'aucun fichier de settings ne nomme ce checkout. La bannière affiche
-une ligne `audio`.
+une ligne `audio`. Le dossier tient de vrais fichiers : un lien qui pointe hors de lui est refusé par les outils de
+fichiers (Orkeon #299).
 
 `/transcribe` est la voie directe : l'appel est celui de la commande, il n'a donc besoin d'aucun réglage et la garde
 ne demande rien.
