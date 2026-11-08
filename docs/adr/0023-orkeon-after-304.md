@@ -53,4 +53,4 @@ The pin of ADR 0021 is `b0fa31f`. Two merges followed on Orkeon `main` the same 
 - Checks: `npm run check` green; `bash scripts/smoke-runtime.sh --mode source` at `21b64c1`: 49 commands loaded, 0
   skipped, 0 conflicts. No model drove a call: the hook order and the `C:\…` conversion were not checked live.
 - The typings regenerated from the pin still say of `onToolCall` "after the permission gate allowed it" and of
-  `{ input }` "gated again": the runtime's own doc comment is stale (`JsLlmFacade.cs`), an issue to open on Orkeon.
+  `{ input }` "gated again": the runtime's own doc comment is stale (`context.d.ts`, `JsLlmFacade.cs`): Orkeon #305.
