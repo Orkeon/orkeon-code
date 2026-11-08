@@ -22,7 +22,7 @@ registry to their crew, and so does `/tasks repair` to the agent it starts again
    longer than 60 seconds or cannot run refuses the call: the model reads the hook's number, its command, its exit
    code and the first line it printed (its error output first), and the call does not run;
 3. the host gate judges the call, on the input the callback returns: a session rule or the mode may still refuse it,
-   or ask you; a refused call does not run;
+   or ask you; a refused call does not run, and the model reads `DENIED: …` as its result;
 4. the call runs;
 5. every `post-tool` hook runs, in order. One that fails adds a line to the result the model reads
    (`[post-tool hook #2 (node .orkeon/hooks/post.mjs file_write src/x.ts) exited 1: …]`); when they all exit 0, the
@@ -31,7 +31,8 @@ registry to their crew, and so does `/tasks repair` to the agent it starts again
 The time a hook runs counts in the step's time budget, at each call: keep hooks short.
 
 A `pre-tool` hook therefore also runs for a call the gate then refuses, a session deny rule among them, and before
-the gate asks you; a `post-tool` hook runs only after a call that ran. The assistant (`/assistant`) does
+the gate asks you; a `post-tool` hook runs on the result the model reads, the `DENIED:` of a refused call included,
+and never for a call the rule sets or a `pre-tool` hook refused. The assistant (`/assistant`) does
 not run them yet, and nothing runs a `stop` hook: `/hooks` stores them for later. Under `orkeon run`, a crew gets
 the same hooks from its `hooks` input (`--inputs '{"hooks":[{"event":"pre-tool","command":"…"}]}'`).
 

@@ -23,7 +23,8 @@ le registre à leur crew, comme `/tasks repair` à l'agent qu'il relance. Pour c
    dure plus de 60 secondes ou ne peut pas s'exécuter refuse l'appel : le modèle lit le numéro du hook, sa commande,
    son code de sortie et la première ligne qu'il a affichée (sa sortie d'erreur d'abord), et l'appel ne s'exécute pas ;
 3. la garde de l'hôte juge l'appel, sur l'entrée que renvoie le callback : une règle de la session ou le mode peut
-   encore le refuser, ou vous demander ; un appel refusé ne s'exécute pas ;
+   encore le refuser, ou vous demander ; un appel refusé ne s'exécute pas, et le modèle lit `DENIED : …` comme son
+   résultat ;
 4. l'appel s'exécute ;
 5. chaque hook `post-tool` s'exécute, dans l'ordre. Celui qui échoue ajoute une ligne au résultat que lit le modèle
    (`[post-tool hook #2 (node .orkeon/hooks/post.mjs file_write src/x.ts) exited 1: …]`) ; quand tous sortent avec 0,
@@ -32,7 +33,8 @@ le registre à leur crew, comme `/tasks repair` à l'agent qu'il relance. Pour c
 Le temps d'exécution d'un hook compte dans le budget de temps de l'étape, à chaque appel : gardez les hooks courts.
 
 Un hook `pre-tool` s'exécute donc aussi pour un appel que la garde refuse ensuite, une règle deny de la session
-comprise, et avant que la garde vous demande ; un hook `post-tool` ne s'exécute qu'après un appel exécuté. L'assistant
+comprise, et avant que la garde vous demande ; un hook `post-tool` s'exécute sur le résultat que lit le modèle, le
+`DENIED :` d'un appel refusé compris, et jamais pour un appel que les jeux de règles ou un hook `pre-tool` ont refusé. L'assistant
 (`/assistant`) ne les exécute pas encore, et rien n'exécute un hook `stop` : `/hooks` les garde pour plus tard. Sous
 `orkeon run`, un crew reçoit les mêmes hooks de son entrée `hooks`
 (`--inputs '{"hooks":[{"event":"pre-tool","command":"…"}]}'`).

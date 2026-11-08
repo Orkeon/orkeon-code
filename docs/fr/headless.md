@@ -35,8 +35,8 @@ mode :
 | `bypassPermissions` | Tout |
 
 Un act sans `permissionMode` tourne en `default`. Un hook `onToolCall` tourne avant la garde, qui juge ensuite
-l'entrée qu'il renvoie ; un `"ask"` qu'il renvoie est posé à l'opérateur une fois l'appel admis par le mode, donc
-refusé ici.
+l'entrée qu'il renvoie ; un `"ask"` qu'il renvoie est jugé comme une modification en `default` une fois l'appel admis par
+le mode de l'act, donc refusé ici (les callbacks d'Orkeon Code ne demandent jamais).
 
 Ce qui borne un tour, quel que soit le mode :
 

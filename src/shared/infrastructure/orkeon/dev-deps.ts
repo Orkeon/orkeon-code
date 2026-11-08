@@ -132,7 +132,7 @@ export function implementDeps(
     // The close's opener, for the context read at the launch (the chained close reads it from the batch record).
     openerFor: (pr) => orkeonPullRequestOpener({ mode: pr.permissionMode, rules: parseSessionRules(pr.permissionRules), asked: false }, ctx.tools),
     // Each role's act runs under its own callbacks, then the host's gate: the step's rule sets, the role's
-    // roots and the /hooks the command passed. `wrote` hears each write those callbacks let through; `writable`:
+    // roots and the /hooks the command passed. `wrote` hears each write that ran, from its result; `writable`:
     // the test author's stubs, which its own root denies leave open; `files`: the rewrite rule reads a write's path.
     roleLlm: (role, layout, wrote, writable) => rootedLlm(createLlm(ctx.llm, callbacks(
       { step: "dev-implement", role, layout, writable, hooks: opts.hooks, readTools: memoryReadTools(opts.memoryOn) }, wrote,

@@ -16,7 +16,7 @@ agissent à deux niveaux, et une étape dev en ajoute un troisième :
    racines d'un rôle, pour les rôles d'un lot), `glob`, `grep` et `count_pattern` sur toute leur entrée, puis les
    [hooks](hooks.md) `pre-tool` ; après l'appel, les hooks `post-tool`. Il peut refuser un appel, jamais permettre un
    appel que la garde refuse : la garde juge l'entrée qu'il renvoie, et un appel qu'elle refuse, par une règle de la
-   session ou par le mode, ne s'exécute pas, même si ses hooks `pre-tool` ont tourné. Quand l'hôte n'a pas de garde, le callback applique aussi lui-même le mode de l'act : lectures
+   session ou par le mode, ne s'exécute pas, même si ses hooks `pre-tool` ont tourné, et revient comme un résultat `DENIED :`. Quand l'hôte n'a pas de garde, le callback applique aussi lui-même le mode de l'act : lectures
    seules en `plan`, `dontAsk` et `default`, les éditeurs de fichiers en plus en `acceptEdits`.
 
 **Ce que la garde ne voit pas.** Les commandes et les crews appellent aussi des outils depuis leur propre code, par

@@ -31,15 +31,26 @@ The pin of ADR 0021 is `b0fa31f`. Two merges followed on Orkeon `main` the same 
   `C:\…` is converted, then judged once on its canonical spelling, so ADR 0022's limit is gone. The callback can
   still only refuse. The code, the guides (`architecture`, `permissions`, `hooks`, `headless`) and `/permissions`
   say so.
+- **No change to the tool classes**: no tool is added, removed or reclassified by the pin for this project.
 - **No setting is renamed in the examples**: none of them holds `Orkeon:Decision:Guard`; the configuration guide
   names the new section.
 
 ## Consequences
 
-- A `pre-tool` hook runs for a call the gate then refuses, and before the gate asks the operator; a `post-tool`
-  hook still runs only after a call that ran.
+- A `pre-tool` hook runs for a call the gate then refuses, and before the gate asks the operator. Through the host's
+  invocation pipeline (the REPL's and `orkeon run`'s), a refused call comes back to the model, and to `onToolResult`,
+  as a `DENIED:` result: the `post-tool` hooks run on it and the tool trace records it; a call the callback denies
+  gets no result.
+- The roles of `/dev-implement` reported a write on the callback's `"allow"`, which now comes before the gate: a write
+  the gate or the operator refused would have been the role's own, and one in the plan folder would have failed the
+  role. `report-writes.ts` now reports a write from its result, and none from a `DENIED:` one.
 - The tool-call budget of a `/dev-batches` batch counts a call the gate then refuses; the budget only gets stricter.
 - A folder of the project that is a link out of `/workspace` (a dependency cache linked to another checkout) is no
   longer readable through the mount; mount that folder of its own instead.
+- The runtime's embedding guard runs in the REPL: it records the embedding model under
+  `/workspace/.orkeon/embedding-fingerprint.json` and refuses to start when the model changed (exit 1), until the
+  file is deleted; the getting-started guide lists the file. Not checked live.
 - Checks: `npm run check` green; `bash scripts/smoke-runtime.sh --mode source` at `21b64c1`: 49 commands loaded, 0
   skipped, 0 conflicts. No model drove a call: the hook order and the `C:\…` conversion were not checked live.
+- The typings regenerated from the pin still say of `onToolCall` "after the permission gate allowed it" and of
+  `{ input }` "gated again": the runtime's own doc comment is stale (`JsLlmFacade.cs`), an issue to open on Orkeon.

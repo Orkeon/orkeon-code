@@ -220,7 +220,9 @@ it; in a linked worktree, whose `.git` is a file, the message goes to `.orkeon/O
 commit). The dev workflow adds `.orkeon/dev/` (each work's state files and logs), the work folder (`workbench/` by
 default, `dev.workDir`: specs, plans, batch sheets, verdicts), `.orkeon/worktrees/` (the worktrees of the batches),
 `.orkeon/dev-learn-state.json` (`/dev-learn`) and the [shared memory](shared-memory.md)'s folder (`.orkeon/memory/`
-unless `memory.dir` names another); the hook scripts you write (`.orkeon/hooks/` in the [examples](hooks.md)) are
+unless `memory.dir` names another); the runtime itself writes `.orkeon/embedding-fingerprint.json` (the embedding
+model the RAG's vectors came from: it refuses to start when the model changes, until the file is deleted or
+`Orkeon:Embeddings:FingerprintPath` names another); the hook scripts you write (`.orkeon/hooks/` in the [examples](hooks.md)) are
 yours. Add `.orkeon/` and `workbench/` to the project's `.gitignore` if you do not want to share them: `/dev-status`
 warns while they are not ignored. A shared memory meant for the team goes in a tracked folder (`memory.dir`,
 `docs/memory` for instance). Transcriptions go to the state

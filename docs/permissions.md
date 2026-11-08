@@ -15,7 +15,7 @@ and a dev step adds a third:
    `onToolCall` checks it: the step's [rule sets](#rule-sets-of-the-dev-steps) (and a role's roots, for the roles
    of a batch), `glob`, `grep` and `count_pattern` by their whole input, then the `pre-tool` [hooks](hooks.md); after
    the call, the `post-tool` hooks. It can refuse a call, never allow one the gate refuses: the gate judges the input
-   it returns, and a call it refuses, by a session rule or by the mode, does not run, though its `pre-tool` hooks ran. When the host has no gate, the callback also applies the
+   it returns, and a call it refuses, by a session rule or by the mode, does not run, though its `pre-tool` hooks ran, and comes back as a `DENIED:` result. When the host has no gate, the callback also applies the
    act's mode by itself: reads only in `plan`, `dontAsk` and `default`, the file editors too in `acceptEdits`.
 
 **What the gate does not see.** Commands and crews also call tools from their own code, through Orkeon's `tools`
