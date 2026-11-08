@@ -19,7 +19,9 @@ Choose it per request (`bypassPermissions: migrate the tests to node:test`), for
 block of your user settings: a project's `.orkeon/config.json` sets only `default`, `plan` or `acceptEdits`,
 [Permissions](permissions.md)). In the REPL, `default` and
 `acceptEdits` ask you before a call the mode does not allow outright; in a run without an operator nobody answers, and
-the gate refuses what it would have asked about (the model reads `DENIED: …`). Give an unattended run a mode that
+the gate refuses what it would have asked about (the model reads `DENIED: …`), unless `Orkeon:Checkpointing:Enabled`
+is set (off in every example; Orkeon #299): the question is then kept and the run stops with exit `75`
+([below](#one-shot-from-a-shell)). Give an unattended run a mode that
 never asks: `bypassPermissions`, or `plan` and `dontAsk` for read-only work ([Permissions](permissions.md)).
 
 Under `orkeon run` (`scripts/run-crew.sh`) the gate has no one to ask, and decides each call by the mode alone:
@@ -79,8 +81,14 @@ ORKEON_CODE_WORKSPACE=~/src/app bash scripts/run-crew.sh src/crews/main-loop/cre
 
 The script mounts the project read-write on `/workspace` and a scratch directory on `/output`, as the REPL does. The
 runner prints the crew's result as JSON on stdout and exits with `0` when the script completed, `1` on a script
-error, `2` on a runtime error, `130` when cancelled. A call the gate refuses is not an error: the model reads the
-refusal as the tool's result and the run still exits `0`, so read the JSON to know what was done. The session primitives exist in a standalone run too, but the
+error, `2` on a runtime error, `130` when cancelled, `75` when `Orkeon:Checkpointing:Enabled` is set and the run
+stopped on a question (`run.finished` says `waiting_for_input` with a `requestId`; `orkeon run --resume <run id>
+--input '<answer>'` continues it, and `/state` and `/runs` are the runtime's own mounts, never yours). Without
+checkpointing a headless `human_input` gets the default value no option holds, which the crews read as nobody
+answered. A call the gate refuses is not an error: the model reads the
+refusal as the tool's result and the run still exits `0`, so read the JSON to know what was done. A path of the project
+that leaves `/workspace` through a link (a dependency cache linked to another checkout) is refused by the file tools
+(Orkeon #299): mount that folder of its own. The session primitives exist in a standalone run too, but the
 conversation buffer, the state bag and the typed memory start empty and end with the process: one run is one turn.
 
 Every crew runs this way; its `crew.ork.ts` says in its header which `inputs` it reads (`code-review`:
@@ -114,7 +122,8 @@ ORKEON_CODE_WORKSPACE=~/src/app bash scripts/dev-run.sh dev-verify demo \
   itself is followed by its `relaunched` line; only the third audit round still GAPS stays last);
 - the same line as before the step: nothing moved, exit `4`, never a loop;
 - `--max-steps` (default 10) reached: exit `5`;
-- a step that exits `1` or `130` stops the chain with that code; one that exits `2` with a rate limit in its log
+- a step that exits `1` or `130` stops the chain with that code; one that exits `75` (a question kept by checkpointing)
+  stops it with `3`, as BLOCKED does: a human answers it; one that exits `2` with a rate limit in its log
   (`429`, `rate limit`) is run again after `--wait` seconds, `--retries` times, then stops it with `2`.
 
 `--inputs` is required: the crew's own inputs, which its `crew.ork.ts` names in its header. Each step is a new process
@@ -136,7 +145,9 @@ Three ways, from the simplest:
 
 1. **As a process, from any language.** Start `orkeon run <crew.ork.ts> --inputs <json>` with the `orkeon` tool or
    the `orkeon-runners` image, with the mounts and the settings `scripts/run-crew.sh` passes, and read the JSON on
-   stdout. The script is the reference for the command line; the exit code says whether the result is one.
+   stdout. The script is the reference for the command line; the exit code says whether the result is one. With
+   `Orkeon:RunHistory:Enabled` (off for `orkeon run` by default; Orkeon #299) each run's events are kept under `/runs`
+   (`Store` jsonl or sqlite, `RetentionDays` 30), which `orkeon runs list`, `show` and `tail` read.
 2. **As a service.** The `orkeon-host` daemon of the Orkeon release archive (a systemd unit, a Windows service or a
    container) hosts crew folders and exposes each one behind a chat channel and, opt-in, as an A2A skill: a
    `POST /a2a/tasks/send` whose `skillId` is the crew's name runs it on the task's input. A hosted `.ork.ts` crew

@@ -17,6 +17,7 @@
 # whole to the terminal: its last line is shown. <project> is ORKEON_CODE_WORKSPACE, else
 # the working directory. After each step:
 #   exit 130 (cancelled) or 1 (script error)        -> stop with that code
+#   exit 75 (a question kept by checkpointing)       -> exit 3 (a human answers it: orkeon run --resume)
 #   exit 2 with a rate limit in the log              -> wait --wait seconds (default 60) and
 #                                                       run it again, --retries times (default 2);
 #                                                       then stop with 2
@@ -119,6 +120,7 @@ while [ "$step" -lt "$max_steps" ]; do
     0) ;;
     130) echo "dev-run: cancelled"; exit 130 ;;
     1) echo "dev-run: the crew failed (script error): see the log"; exit 1 ;;
+    75) echo "dev-run: the step stopped on a question kept by checkpointing (exit 75): a human answers it (orkeon run --resume), see the log"; exit 3 ;;
     *) echo "dev-run: the run failed (exit $rc): see the log"; exit 2 ;;
   esac
   after="$(last_line)"

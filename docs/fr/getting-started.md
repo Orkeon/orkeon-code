@@ -224,7 +224,11 @@ git ne le suit pas ; dans un worktree lié, dont le `.git` est un fichier, le me
 `.orkeon/ORKEON_COMMITMSG`, supprimé après le commit). Le workflow dev ajoute `.orkeon/dev/` (les fichiers d'état et les journaux de chaque travail),
 le dossier de travail (`workbench/` par défaut, `dev.workDir` : specs, plans, fiches de lot, verdicts),
 `.orkeon/worktrees/` (les worktrees des lots), `.orkeon/dev-learn-state.json` (`/dev-learn`) et le dossier de la
-[mémoire partagée](shared-memory.md) (`.orkeon/memory/` sauf si `memory.dir` en nomme un autre) ; les scripts de hook
+[mémoire partagée](shared-memory.md) (`.orkeon/memory/` sauf si `memory.dir` en nomme un autre) ; le runtime lui-même
+écrit `.orkeon/embedding-fingerprint.json` (le modèle d'embeddings dont viennent les vecteurs du RAG : il refuse de
+démarrer quand le modèle change, jusqu'à ce que le fichier soit supprimé ou que `Orkeon:Embeddings:FingerprintPath` en
+nomme un autre), et `.orkeon/state` (les points de reprise et les questions gardées d'une exécution, seulement avec
+`Orkeon:Checkpointing:Enabled`, éteint dans tous les exemples ; Orkeon #299) ; les scripts de hook
 que vous écrivez (`.orkeon/hooks/` dans les [exemples](hooks.md)) sont les vôtres. Ajoutez `.orkeon/` et `workbench/`
 au `.gitignore` du projet si vous ne voulez pas les partager : `/dev-status` avertit tant qu'ils ne sont pas ignorés.
 Une mémoire partagée destinée à l'équipe va dans un dossier suivi (`memory.dir`, `docs/memory` par exemple). Les

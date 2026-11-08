@@ -41,6 +41,7 @@ Environment variables prefixed `ORKEON_` override the file (`__` separates secti
 | `Llm:Temperature`, `Llm:MaxTokens`, `Llm:TimeoutSeconds` | Generation settings |
 | `Llm:MaxRateLimitWait` | Longest rate-limit window a call waits out before it fails, `00:05:00` by default. A 429, or a 529 with a reset header, waits until the window the provider announces (`retry-after-ms` in milliseconds as OpenAI and TypeSafe send it, else `Retry-After`, compared with the provider's reset headers; the longest wins) resets instead of failing the turn; a window longer than this fails the call at once with `LlmRateLimitException`, the wait in its message. `00:00:00` waits for nothing |
 | `Llm:Profiles:<name>:MaxRateLimitWait` | The same bound for one named profile of the host, `00:05:00` by default |
+| `Llm:ModelCapabilities:<model id>` | What a model takes (Orkeon #299): `ReasoningEfforts`, the efforts it accepts (an `effort` a listed model does not take is dropped with a warning; a model listed nowhere gets every effort, with a warning), `Vision`, `AudioInput`, `AudioOutput`. Unset, the runtime's own table applies |
 | `Llm:Thinking:Enabled` | Reasoning mode, for the providers that have one |
 
 Orkeon recognises the native providers from the endpoint and the model (OpenAI, Anthropic, Gemini, Mistral, DeepSeek,
@@ -82,6 +83,9 @@ set when no section is. Two sections, or two keys and no section, refuse the sta
 profile works the same whatever the provider: a *decision profile* (`Orkeon:Decision:Profiles:<name>`) wraps a named LLM profile
 (`Llm:Profiles:<name>`) with stages that route the request to the profile that fits it, guard it (prompt injection,
 the risks you name) or verify the answer and escalate to a stronger profile when it does not hold.
+`Orkeon:Guardian:Llm:Phases` may add `Output`: it judges the output of a crew *task*, holding its streamed deltas until
+they are judged, so a guarded task's answer shows at once at its end; `ctx.llm.act`, which every agent of Orkeon Code
+runs on, is not judged on output.
 [`config/appsettings.jev.example.json`](../config/appsettings.jev.example.json) is the example: the `Orkeon:TypeSafe`
 section (the key in `TYPESAFE_API_KEY`, never in the file), two LLM profiles, `small` and `large`, and the decision
 profile `guarded` over them. The session key `llm.profile` names the profile the agents of the commands run on,
@@ -141,7 +145,8 @@ others one after the other, each call through the permission gate, and sends the
 
 - the script engine's `ExecutionTimeout` above, which stops while a question waits for you;
 - the main-loop crew's own budget, written in its code (`src/crews/main-loop/crew.ork.ts`): 200 tool calls, 700k
-  context tokens and 30 minutes of wall time. The context is counted once (Orkeon #224): each call charges its
+  context tokens and 30 minutes of wall time, which stops while a tool call waits for your answer (Orkeon #299). The
+  context is counted once (Orkeon #224): each call charges its
   completion plus what its prompt grew by, or the part of it the provider's cache did not serve, so a turn of n calls
   on a context of c tokens spends about c plus its completions, never its whole context again at each call. That
   clock is Orkeon's and, like the engine's, it stops while the gate waits for your answer: only the model's own work
@@ -247,6 +252,17 @@ The class decides which modes offer the tool: `read` in every mode, `write` in `
 [permission gate](permissions.md#extra-tools) still decides each call. `/config set` refuses an entry that is not the
 notation, that names a built-in tool, or that names a tool twice.
 
+A server's declaration (`MCP:Servers:<id>`, Orkeon #299) also takes `CallTimeout` (`00:01:00` by default: a call past
+it ends as a tool error; the [speech server](#speech-to-text) gets 15 minutes) and `ConnectTimeout` (30 s);
+`Tools:Allow` and `Tools:Deny`, which filter the server's tools before they are registered, so a denied tool is absent
+for `tools.extra` too, which warns of it (never deny `record_and_transcribe`, `speak` or `stop_speaking`: `/voice` and
+`/say` call them); `Headers` (a value `env:VAR` reads the variable; a transport header is refused) and `Auth` (`Bearer`,
+`Basic`, or OAuth 2 client credentials and device code, the secret read from an environment variable, the device code
+shown on stderr); a `Url` that carries credentials must be https or loopback. `Transport: Sse` is the Streamable HTTP
+transport: a server that speaks only the 2024-11-05 HTTP+SSE transport no longer connects. A plugin is a folder
+`<name>/` under the `Plugins` directory, holding `plugin.json` (`name`, `version`, `orkeonVersion`, `entryAssembly`,
+`tools`) beside its assembly; a flat `.dll` is refused, and `dotnet new orkeon-plugin` scaffolds the folder.
+
 For instance, the speech server this repository ships ([below](#speech-to-text)) registers six tools, three of
 which fit the list: `transcribe_audio`, `list_audio` and `whisper_info`. The other three, `record_and_transcribe`,
 `speak` and `stop_speaking`, serve `/voice` and `/say` and stay out of it. Once the server is connected:
@@ -276,7 +292,8 @@ export ORKEON_CODE_AUDIO_DIR=~/audio      # the folder of audio and video files
 
 The launcher then mounts that folder on `/audio` (read-only) and `<state>/transcripts` on `/transcripts`
 (read-only, `.crew-output/transcripts` by default), and declares the server to the REPL through the environment
-(`ORKEON_MCP__Servers__whisper__*`), so no settings file names this checkout. The banner shows an `audio` line.
+(`ORKEON_MCP__Servers__whisper__*`), so no settings file names this checkout. The banner shows an `audio` line. The
+folder holds real files: a link in it that points outside it is refused by the file tools (Orkeon #299).
 
 `/transcribe` is the direct way: the call is the command's, so it needs no setting and the gate asks nothing.
 

@@ -99,8 +99,9 @@ l'appelle, l'appel passe par un port et un adaptateur de `src/shared/infrastruct
 
 **Sur l'hôte.** L'outil shell exécute les commandes de sa liste blanche : `Orkeon:Tools:Shell:ExtraAllowedCommands`
 ajoute les outils de build de vos projets, `AllowInterpreters` ouvre `node`, `dotnet`, `npm`...
-([Configuration](configuration.md)). Un outil écrit en C# est un plugin Orkeon (un assembly qui implémente
-`IOrkeonPlugin`) ; un outil servi par un serveur MCP ne demande aucun code. Le REPL connecte les serveurs de
+([Configuration](configuration.md)). Un outil écrit en C# est un plugin Orkeon (un dossier qui tient `plugin.json`
+et un assembly qui implémente `IOrkeonPlugin` ; `dotnet new orkeon-plugin` le crée) ; un outil servi par un serveur MCP
+ne demande aucun code. Le REPL connecte les serveurs de
 `MCP:Servers` et charge les plugins de `Plugins`, et leurs outils rejoignent le catalogue de l'assistant dès que la clé
 de session `tools.extra` les nomme avec leur classe (`<name>:read|write`)
 ([Configuration](configuration.md#outils-supplémentaires--serveurs-mcp-et-plugins)).
