@@ -107,6 +107,65 @@ seul mount dans lequel ils travaillent.
   Lancé en natif, `/status` affiche la plateforme comme indisponible quand `node` est absent ou non autorisé, et une
   commande qu'un crew compose avec un opérateur ou un nom POSIX non installé échoue avant de tourner.
 
+Ce qui suit est la couche propre de ce projet sur ce contrat (`src/shared/domain/host-layout.ts`, `host-paths.ts`,
+`agent-policy/path-rules.ts`, `src/shared/application/host-context.ts` ; [ADR 0022](../adr/0022-host-path-spellings.md),
+en anglais) : quoi que le runtime réécrive, les écritures propres du disque reviennent au code et au modèle dans ce
+qu'un programme imprime, dans ce que l'utilisateur tape et dans ce que le modèle écrit.
+
+- **Une seule écriture canonique.** Toute écriture d'un chemin physique d'un mount est ramenée au chemin virtuel
+  avec des `/` et sans séparateur final, d'après les bases que l'hôte déclare : `C:\proj\src\a.ts`,
+  `C:/proj/src/a.ts`, `c:\Proj\…` (la casse d'un lecteur est ignorée), `\\?\C:\…`, un partage UNC
+  (`\\server\share\…`, `//server/share/…`), `/mnt/<d>/…` sous WSL, `\\wsl$\<distro>\…` et
+  `\\wsl.localhost\<distro>\…` pour la distribution où tourne la session, et un `\` après le mount quand l'hôte
+  n'est pas posix. Une base se compare segment par segment : `/workspaces/x` ne correspond jamais à `/workspace`,
+  `mon repertoireX` jamais à `mon repertoire`. Laissés tels quels : un chemin relatif, un `.` ou `..`, un chemin sous
+  aucun mount ou d'une autre distribution, `/mnt/c` sur un hôte posix ou Windows, `C:` sur un hôte posix, `%VAR%`,
+  `~`. Dans un texte libre, un chemin court jusqu'au guillemet fermant après un guillemet ouvrant, sinon jusqu'au
+  premier délimiteur (un blanc, un guillemet, une parenthèse, `,` `:` `;` `|`, un point qui termine une phrase), un
+  chemin Windows continuant par-delà un espace tant que le mot suivant porte encore un `\`. Sur un hôte posix sans
+  base Windows, chaque fonction est l'identité.
+- **L'hôte vient de `/user-config/launch.json`**, que les deux lanceurs écrivent à chaque démarrage à côté de
+  `config.json` : `version` (1), `flavour` (`posix`, `wsl` ou `windows`), `mode`, sous WSL `wsl.distro` et
+  `wsl.automountRoot` (`WSL_DISTRO_NAME` ou le partage de `wslpath -w /` ; `wslpath -u 'C:\'` ou le `[automount]
+  root=` de `/etc/wsl.conf`, sinon `/mnt`), et `mounts`, chacun avec la chaîne même donnée à `--mount` comme `posix`
+  et, sous WSL, son écriture Windows par `wslpath -w` (`null` sans `wslpath`, avec un avertissement : le code dérive
+  alors lui-même `D:\x` de `/mnt/d/x`). Le mode docker écrit un hôte posix sans mount : l'hôte y est caché à dessein.
+  Absent, malformé ou d'une autre version, le fichier donne l'identité, et la ligne `host: paths` de `/doctor` le dit.
+  La disposition et les listes de chemins sont lues une fois par exécution, par un module d'infrastructure que chaque
+  point d'entrée lie aux globaux du runtime ; un changement s'applique au démarrage suivant, et un adaptateur chargé
+  seul (un test) trouve l'identité.
+- **Où les écritures sont ramenées.** En entrée, avant le runtime : les adaptateurs fichiers, shell et jobs shell
+  canonisent le chemin ou les mots de la commande qu'on leur donne ; le prompt tapé est canonisé, ses blocs de code
+  conservés ; et `hostCallbacks` (`src/shared/application/dev/tool-callbacks.ts`), la couche la plus externe des
+  callbacks de chaque act (`createLlm` les enveloppe, avec ou sans callbacks propres au crew), réécrit dans un appel du
+  modèle `path`, `root_path`, `working_directory`, `paths`, le `path` de chaque opération d'un `edit_batch` et les
+  mots d'un `shell_command`, en un `{ input }` que le runtime contrôle à nouveau ; le contenu d'un fichier, les
+  chaînes d'une édition et un motif ne sont jamais touchés. En sortie : stdout et stderr, la racine qu'imprime un
+  `git rev-parse` (`C:/…` par git pour Windows), le message d'un appel fichier échoué, et le texte que le modèle lit de
+  chaque résultat d'outil (`{ context }` le remplace quand une écriture a changé). Les callbacks internes (ceux d'un
+  crew de dev, la trace, les hooks post-outil) voient l'appel canonique et le résultat canonique.
+- **Orkeon Code n'écrit jamais un chemin physique pour le runtime.** Le runtime vérifie chaque mot d'une commande
+  préfixé d'un mount contre les droits du VFS avant de l'écrire pour le processus, et demande tous les droits pour une
+  commande hors de son allowlist en lecture seule : un `C:\…` écrit par ce projet contournerait ce contrôle. Sous
+  Windows natif le runtime écrit `/workspace/…` pour le processus. Sous WSL, un programme Windows (`cmd.exe`, un
+  `dotnet.exe` Windows, joignable sans confinement seulement) reçoit `/mnt/c/…` tant que le runtime ne connaît pas
+  l'écriture Windows d'un mount, une issue laissée à Orkeon ; ce qu'il imprime revient canonique dans tous les cas.
+- **Les listes de chemins** `paths.deny` et `paths.allow` ([permissions](permissions.md#règles)) se comparent sur
+  l'écriture canonique, donc une écriture physique, ou une autre casse sur un disque Windows et sous un lecteur de
+  WSL, atteint la même règle : la garde reçoit des règles deny sur l'écriture canonique, listées par `/permissions`,
+  et les callbacks refusent chaque appel que les listes couvrent, dans n'importe quelle écriture, avant les callbacks
+  propres du crew. Des règles deny intégrées ferment tout le mount `/user-config` aux outils du modèle, les bases
+  physiques de `launch.json` et les réglages de l'utilisateur dedans ; le code le lit par le port Files, que la garde
+  ne voit pas.
+- **Une limite que fixe le runtime.** La garde juge l'entrée brute avant que `onToolCall` ne tourne ; seul un
+  `{ input }` réécrit est contrôlé à nouveau. Un appel du modèle écrit `C:\…` sur un outil à chemin est jugé une fois
+  sur cette écriture : sans règle qui corresponde, un mode interactif demande avec cette écriture, puis l'entrée
+  canonique est contrôlée à nouveau ; un mode qui refuse ce qu'aucune règle ne couvre refuse avant la conversion. Une
+  commande shell est jugée par la garde sur son texte et par les callbacks sur ses chemins canoniques ; chaque
+  résultat est canonique. L'ADR 0022 nomme les quatre issues laissées au runtime (la coupure à un espace et la casse
+  de la base dans la réécriture de sortie du shell, l'écriture Windows d'un mount sous WSL, la garde après le
+  callback) ; aucune n'est nécessaire à ce qui précède.
+
 ## Couches et règle de dépendance
 
 | Couche | Où | Contient | Importe |

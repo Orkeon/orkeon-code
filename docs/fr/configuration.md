@@ -178,7 +178,11 @@ la commande `gh pr create` à taper et disent pourquoi),
 docs/memory` ; omis, `.orkeon/memory` ; jamais sous `.claude/` ni `.git/`, jamais le `.orkeon/agent-memory` de la
 mémoire d'agent), `memory.project` (le projet que nomment les entrées et la collection d'index `memory-<project>`, un
 nom kebab-case ; omis, le nom du remote `origin`, sinon `local`), `memory.autoAdmitAudited` (`true` ou `false`, omis
-= `false` : `/memory admit` admet sans demander un candidat qu'un audit appuie), `review.lenses` (les angles de `/review`, séparés par des virgules parmi `correctness`,
+= `false` : `/memory admit` admet sans demander un candidat qu'un audit appuie), `paths.deny` et `paths.allow` (les chemins qu'aucun
+outil du modèle ne lit ni n'écrit, et les seuls qu'il peut atteindre, séparés par des virgules, dans n'importe
+quelle écriture de l'hôte, `/config set paths.deny /workspace/secrets, tests/fixtures/real` ; comparés sur
+l'écriture virtuelle, un deny l'emportant, appliqués au démarrage suivant, [permissions](permissions.md#règles)),
+`review.lenses` (les angles de `/review`, séparés par des virgules parmi `correctness`,
 `security` et `style` ; omis, les trois), `llm.profile` (le profil de l'hôte sur lequel tournent les agents de
 chaque crew, un profil LLM ou un profil de décision avec Jev devant, `/config set llm.profile guarded`,
 [le LLM](#le-llm) ; omis, le modèle par défaut de l'hôte), `advisor.model` (le modèle du second avis d'`/advisor` ;
@@ -191,9 +195,13 @@ l'act par `/assistant`, chaque étape dev (`/dev-spec`, `/dev-plan`,
 niveaux sont `low`, `medium`, `high`, `xhigh` et `max` : Claude prend les cinq ; un fournisseur dont le champ ne
 connaît pas un niveau reçoit le plus haut qu'il connaît en dessous, et le journal du runtime le dit.
 
-`permissions.fallback`, `tools.extra`, `memory.autoAdmitAudited` et `dev.prAuto` réglés dans le fichier du projet sont restreints par le bloc `orkeonCode` des
-réglages de l'utilisateur (un `true` du projet sur un `false` ou une absence chez l'utilisateur est écarté, avec un avertissement) : `/config set` écrit une telle valeur, puis dit, sous "persisted", qu'elle est ignorée et
+`permissions.fallback`, `tools.extra`, `memory.autoAdmitAudited`, `dev.prAuto` et `paths.allow` réglés dans le fichier du projet sont restreints par le bloc `orkeonCode` des
+réglages de l'utilisateur (un `true` du projet sur un `false` ou une absence chez l'utilisateur est écarté, comme une entrée allow hors de la liste de l'utilisateur, avec un avertissement) : `/config set` écrit une telle valeur, puis dit, sous "persisted", qu'elle est ignorée et
 où va votre propre réglage, et la ligne `settings: project file` de `/doctor` la nomme. `/config set --session` n'est pas restreint.
+`paths.deny` réglé dans le fichier du projet s'ajoute au contraire à la liste de l'utilisateur. Les deux listes,
+avec l'hôte que le lanceur a écrit dans `/user-config/launch.json`, sont lues une fois au démarrage : la ligne
+`host: paths` de `/doctor` montre l'hôte, la base de chaque mount, les listes telles qu'elles s'appliquent et
+chaque entrée ou fichier qu'elle n'a pu utiliser, et un changement de `paths.*` s'applique au démarrage suivant.
 
 Au démarrage du REPL, le runtime exécute une fois le fichier que nomme sa clé `Orkeon:Cli:Session:StartScript`, et
 place ce qu'il imprime avant la première requête que vous tapez. Le lanceur la règle sur

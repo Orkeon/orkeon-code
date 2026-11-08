@@ -74,7 +74,10 @@ machine instead, no key: `config/appsettings.ollama.example.json`, on Ollama ([C
 
 **Windows**: `orkeon-code.ps1` has no source mode and no `--demo` (`-Mode` takes `docker` or `tool` only): the tool
 mode on the release's `orkeon-<version>-win-x64.zip` is the one for Windows; the path this project exercises is WSL
-with the bash launcher ([WSL tutorial](wsl-tutorial.md)).
+with the bash launcher ([WSL tutorial](wsl-tutorial.md)). On both, a path spelled as the disk spells it
+(`C:\proj\src\a.ts`, `/mnt/c/proj/src/a.ts`) is read as its `/workspace/…` path, in what you type, in the
+model's calls and in what a command prints ([architecture](architecture.md#the-vfs-and-the-host-platform));
+under WSL a Windows program is reachable without confinement only, and still receives `/mnt/c/…` paths.
 
 Orkeon Code is checked against Orkeon's sources at the commit in `.orkeon-version` (`b0fa31f`, `main` after
 Orkeon/orkeon#298, 2026-11-07): the [source mode](#source-mode-an-orkeon-checkout) runs that commit, the reference
