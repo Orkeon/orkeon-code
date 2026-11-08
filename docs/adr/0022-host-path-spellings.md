@@ -63,16 +63,16 @@ runs on the raw input before `onToolCall`, and only a rewritten `{ input }` is g
 - **The `/user-config` mount is closed to the model**: built-in deny rules on its readers, writers, folder readers and
   on any shell command naming it, beside the shared memory's rules at the three sites that sync them, and the same
   refusal in the callbacks. The code reads it through the Files port, which the gate does not see.
-- **Four issues are left to the runtime**, drafted for the user to open on Orkeon: (a) the outbound rewrite of the
-  shell cuts a quoted path at its first space; (b) it matches the base ordinally, missing another case and `C:/…`;
-  (c) a mount has no Windows spelling under WSL, so a Windows program receives `/mnt/c/…`; (d) the gate runs before
+- **Four issues are left to the runtime**, opened on Orkeon the same day: #300, the outbound rewrite of the shell
+  cuts a quoted path at its first space; #301, it matches the base ordinally, missing another case and `C:/…`; #302,
+  a mount has no Windows spelling under WSL, so a Windows program receives `/mnt/c/…`; #303, the gate runs before
   `onToolCall`, so a canonicalised input is judged once on the raw spelling. None is needed for the above.
 
 ## Consequences
 
 - A posix host with no Windows involvement is untouched: the identity context wraps nothing, and the adapters pass
   the text as they received it.
-- A model call spelled `C:\…` on a path tool is judged by the gate once on that spelling (issue (d)): with no
+- A model call spelled `C:\…` on a path tool is judged by the gate once on that spelling (Orkeon #303): with no
   matching rule an interactive mode asks with that spelling, then the canonical input is gated again; a mode that
   refuses what no rule covers refuses before the conversion. A shell command is judged by the gate on its text and
   by the callbacks on its canonical paths; every result is canonical.

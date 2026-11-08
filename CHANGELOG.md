@@ -30,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   use.
 - Known limit: the runtime's gate judges a model call on its raw spelling before the callback converts it; a call
   spelled `C:\…` on a path tool is asked with that spelling in an interactive mode, refused before the conversion in
-  a mode that refuses what no rule covers. Four issues are drafted for Orkeon.
+  a mode that refuses what no rule covers. Orkeon #300 to #303 ask the runtime for the rest.
 
 ### Documentation — the VFS and the host platform
 

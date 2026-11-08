@@ -151,7 +151,7 @@ prints, in what the user types and in what the model writes.
   is gated again. A model call spelled `C:\…` on a path tool is judged once on that spelling: with no matching rule
   an interactive mode asks with that spelling, then the canonical input is gated again; a mode that refuses what no
   rule covers refuses before the conversion. A shell command is judged by the gate on its text and by the callbacks
-  on its canonical paths; every result is canonical. ADR 0022 names the four issues left to the runtime (the cut at
+  on its canonical paths; every result is canonical. ADR 0022 names the four issues left to the runtime, Orkeon #300 to #303 (the cut at
   a space and the case of the base in the shell's outbound rewrite, the Windows spelling of a mount under WSL, the
   gate run after the callback); none is needed for what is above.
 

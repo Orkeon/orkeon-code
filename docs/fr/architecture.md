@@ -162,7 +162,7 @@ qu'un programme imprime, dans ce que l'utilisateur tape et dans ce que le modèl
   sur cette écriture : sans règle qui corresponde, un mode interactif demande avec cette écriture, puis l'entrée
   canonique est contrôlée à nouveau ; un mode qui refuse ce qu'aucune règle ne couvre refuse avant la conversion. Une
   commande shell est jugée par la garde sur son texte et par les callbacks sur ses chemins canoniques ; chaque
-  résultat est canonique. L'ADR 0022 nomme les quatre issues laissées au runtime (la coupure à un espace et la casse
+  résultat est canonique. L'ADR 0022 nomme les quatre issues laissées au runtime, Orkeon #300 à #303 (la coupure à un espace et la casse
   de la base dans la réécriture de sortie du shell, l'écriture Windows d'un mount sous WSL, la garde après le
   callback) ; aucune n'est nécessaire à ce qui précède.
 
