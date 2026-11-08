@@ -27,10 +27,12 @@ import {
   pwshOf, read, recorder, removeScratch, runCrew, runPs1ThenPrint, scratchDir, scratchFolder, serverArgs, serverOf,
   sessionScene, slugOf, sourceModeCalls, sourceModeCallsRestoring, staleLock, startAgain, storeOf, storedFolders, tokenVarsForwarded, toolModeArgs, trustCli, trustOf, twoSessions,
   untrustedStart, upTo, userFile, variablesSaved, variablesSet, whisperArgNames, whisperArgs, whisperEnv, writtenSettings, historyIds,
+  FAKE_AUTOMOUNT, FAKE_WSLPATH, HOST_WSLPATH, ON_PLAIN_LINUX, POSIX_LAUNCHES, PS1_LAUNCH_FILE, QUOTED_PROJECT, WSL_LAUNCHES,
+  fakeWindowsSpelling, launchFile, mountBases,
 } from "./launcher.fixtures.ts";
 import {
   assertBefore, assertEveryLineHolds, assertFreeRoots, assertKeysNotKept, assertLacks, assertMentions, assertNoReservedRoot, assertSays,
-  assertTrustedAtDates,
+  assertTrustedAtDates, assertNoWindowsSpelling, assertPosixLaunch, assertSaysOnce, assertWslLaunch,
 } from "./launcher.assertions.ts";
 import { WORKSPACE } from "../../src/shared/domain/vfs.ts";
 
@@ -722,6 +724,101 @@ describe("orkeon-code, the user settings on /user-config", () => {
   });
 });
 
+// ── The host and the mounts' bases ──────────────────────────────────────────
+// launch.json, beside config.json on /user-config: the host the REPL runs on and the physical base of each mount, the
+// very string given to --mount, with its Windows spelling under WSL. ORKEON_CODE_PROC_VERSION stands for /proc/version.
+
+describe("orkeon-code, the host and the mounts' bases on /user-config (launch.json)", () => {
+  for (const c of POSIX_LAUNCHES) {
+    it(`${c.name} on a posix host writes flavour posix, each mount's posix base the one given to --mount`, () => {
+      // Arrange
+      const { bin, env } = modeStart(c.mode);
+      const audio: Record<string, string> = c.audio ? { ORKEON_CODE_AUDIO_DIR: scratchDir("orkeon-code-audio-") } : {};
+
+      // Act
+      const r = launch({ args: ["--mode", c.mode], bin: { ...bin, uv: "#!/bin/sh\n" }, env: { ...env, ...ON_PLAIN_LINUX, ...audio } });
+
+      // Assert
+      strictEqual(r.status, 0, r.stderr);
+      assertPosixLaunch(launchFile(r), c.mode, mountBases(r.args));
+    });
+  }
+
+  for (const c of WSL_LAUNCHES) {
+    it(`a WSL start told by ${c.name} writes flavour wsl, the distribution, the drives' root and each base's Windows spelling`, () => {
+      // Arrange
+      const bin = { ...TOOL_REPL, wslpath: FAKE_WSLPATH };
+
+      // Act
+      const r = launch({ args: ["--mode", "tool"], bin, env: { ...ESBUILD, ...c.env } });
+
+      // Assert
+      strictEqual(r.status, 0, r.stderr);
+      assertWslLaunch(launchFile(r), mountBases(r.args), { distro: c.distro, automountRoot: FAKE_AUTOMOUNT }, fakeWindowsSpelling);
+    });
+  }
+
+  it("a WSL start without wslpath writes a null Windows spelling for every mount", { skip: HOST_WSLPATH ? "this machine has a wslpath of its own" : false }, () => {
+    // Arrange
+    const env = { ...ESBUILD, ...ON_PLAIN_LINUX, WSL_DISTRO_NAME: "Ubuntu" };
+
+    // Act
+    const r = launch({ args: ["--mode", "tool"], bin: TOOL_REPL, env });
+
+    // Assert
+    strictEqual(r.status, 0, r.stderr);
+    assertNoWindowsSpelling(launchFile(r));
+  });
+
+  it("a WSL start without wslpath says so once", { skip: HOST_WSLPATH ? "this machine has a wslpath of its own" : false }, () => {
+    // Arrange
+    const env = { ...ESBUILD, ...ON_PLAIN_LINUX, WSL_DISTRO_NAME: "Ubuntu" };
+
+    // Act
+    const r = launch({ args: ["--mode", "tool"], bin: TOOL_REPL, env });
+
+    // Assert
+    strictEqual(r.status, 0, r.stderr);
+    assertSaysOnce(r.stderr, "wslpath is not on PATH");
+  });
+
+  it("docker mode writes the posix flavour and no mount, the host hidden even on WSL", () => {
+    // Arrange
+    const env = { WSL_DISTRO_NAME: "Ubuntu" };
+
+    // Act
+    const r = launch({ args: ["--mode", "docker"], bin: { docker: recorder(), wslpath: FAKE_WSLPATH }, env });
+
+    // Assert
+    strictEqual(r.status, 0, r.stderr);
+    deepStrictEqual(launchFile(r), { version: 1, flavour: "posix", mode: "docker", mounts: {} });
+  });
+
+  it("replaces a launch.json an earlier start left", () => {
+    // Arrange
+    const files = { "state/user-config/launch.json": '{ "version": 0, "stale": true }' };
+
+    // Act
+    const r = launch({ ...TOOL_START, env: { ...ESBUILD, ...ON_PLAIN_LINUX }, files });
+
+    // Assert
+    strictEqual(r.status, 0, r.stderr);
+    deepStrictEqual(Object.keys(launchFile(r)), ["version", "flavour", "mode", "mounts"]);
+  });
+
+  it("writes a project folder whose name holds quotes and a backslash as JSON reads it back", () => {
+    // Arrange
+    const projectName = QUOTED_PROJECT;
+
+    // Act
+    const r = launch({ ...TOOL_START, env: { ...ESBUILD, ...ON_PLAIN_LINUX }, projectName });
+
+    // Assert
+    strictEqual(r.status, 0, r.stderr);
+    strictEqual(launchFile(r).mounts["/workspace"].posix, r.project);
+  });
+});
+
 // ── A clone or an install ───────────────────────────────────────────────────
 // A `.git` beside the launcher is a clone: today's behaviour. Without it the launcher runs from an install (an
 // archive under ~/.local/lib/orkeon-code, or an npm prefix), whose folder it never writes to: its state, and the
@@ -982,6 +1079,17 @@ describe("orkeon-code.ps1 follows the same rules (read here; run below, where pw
     assertMentions(script, PS1_USER_SETTINGS);
   });
 
+  it("writes launch.json as ./orkeon-code does: the host, and each mount's base with its Windows spelling", () => {
+    // Arrange
+    const launcher = "orkeon-code.ps1";
+
+    // Act
+    const script = read(launcher);
+
+    // Assert
+    assertMentions(script, PS1_LAUNCH_FILE);
+  });
+
   it("keeps a one-word ORKEON_REPL argument an array (an if statement would unroll it into characters)", () => {
     // Arrange
     const launcher = "orkeon-code.ps1";
@@ -1079,6 +1187,18 @@ describe("orkeon-code.ps1, run where pwsh is installed", { skip: PWSH ? false : 
     strictEqual(r.status, 0, r.stderr + r.stdout);
     ok(r.args.includes(`${r.state}/user-config:/user-config:ro`), r.args.join(" "));
     deepStrictEqual(JSON.parse(readFileSync(join(r.state, "user-config", "config.json"), "utf-8")), settings.orkeonCode);
+  });
+
+  it("writes launch.json as ./orkeon-code does, a project folder with a space in its name spelled as given to --mount", () => {
+    // Arrange
+    const projectName = "my project";
+
+    // Act
+    const r = launch({ shell: "pwsh", args: ["-Mode", "tool"], bin: SPEECH_TOOL, env: { ...ESBUILD, ...ON_PLAIN_LINUX }, projectName });
+
+    // Assert
+    strictEqual(r.status, 0, r.stderr + r.stdout);
+    assertPosixLaunch(launchFile(r), "tool", mountBases(r.args));
   });
 
   for (const flag of ["--version", "-Version"]) {
