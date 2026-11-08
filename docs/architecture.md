@@ -54,6 +54,53 @@ So each entry point is its own composition root: it builds the adapters it needs
 takes its dependencies as parameters. The ports are interfaces, erased from every bundle, and a test imports a use
 case in Node without touching a runtime global.
 
+## The VFS and the host platform
+
+Every path the code or the model writes is a virtual one: the runtime maps it to the disk, and the rules are the
+runtime's (Orkeon's `FileSystemRegistry`, `ShellCommandTool` and its shell sessions), not this project's. What
+follows is the contract the code and the prompts rely on; `src/shared/domain/vfs.ts` names the one mount they work
+in.
+
+- **The mounts come from the launcher.** `orkeon-code` and `orkeon-code.ps1` start the REPL with one
+  `--mount <physical>:<virtual>:<rights>` per root: `/workspace` (the project, read-write), `/output`, `/tmp`,
+  `/user-config` (read-only), `/sessions`, `/session-history` (read-only) and `/memory`. The model never sees a
+  physical path, on any platform: a `C:\proj\src\a.ts` or `/home/u/proj/src/a.ts` given to a file tool is refused
+  with the list of the mounts, and the prompts spell a project file `/workspace/<path>`.
+- **A virtual path resolves by its longest mount prefix**, compared ordinally: `/Workspace/x` matches nothing, on
+  Windows too. A relative path resolves under the agent's working root (`/workspace`, or the worktree of a batch of
+  `/dev-batches`). After the mount, `/` and `\` are both accepted by the file tools; the rest is appended to the
+  mount's physical base and normalised by the host, so `\` is a separator on Windows and a plain character elsewhere.
+  A `.` or `..` segment is refused for a working root and detected as a traversal elsewhere. The containment check
+  ignores the case on Windows only. Physical to virtual, a path under a mount comes back as `/<mount>/…` with every
+  `\` turned into `/`.
+- **The shell runs no shell on Windows.** On Linux and macOS, `shell_command` feeds one `sh -s` per run, each word
+  quoted so that the shell expands nothing. On Windows each command is its own process in a Job Object, started with
+  its arguments quoted one by one: the executable is looked up on the `PATH` only, never in the working directory,
+  as `.exe` then `.com`; a `.bat` or `.cmd` (so `npm`, `npx`) runs only in an unconfined session, through
+  `cmd.exe`; a cmd built-in (`echo`, `dir`, `type`, `cd`, `copy`, `del`, `mkdir`, `set`...) runs through
+  `cmd.exe /d /v:off /s /c` with every argument escaped, and `%` refused. PowerShell is never involved.
+- **The operators are refused everywhere**: `|`, `;`, `&&`, `>`, `$(`, backticks and line breaks fail the call before
+  anything runs, so no command of a crew pipes or chains. The default allowlist is `ls`, `cat`, `pwd`, `which`,
+  `grep`, `wc`, `echo`, a read-only `git`, and `dir`, `type`, `where`; on Windows the POSIX names exist only when
+  they are installed and on the `PATH`. `node`, `dotnet`, `npm`, `find` and the writing `git` need
+  `Orkeon:Tools:Shell:AllowInterpreters`, which the example settings turn on.
+- **The shell rewrites the paths of a command line.** An argument equal to a mount or starting with `<mount>/`, also
+  after a `key=`, becomes its physical path before the process starts, and needs Read for a read-only command, every
+  right for any other. Only `/` is accepted here: `/workspace\src` is passed as written. Stdout and stderr are
+  rewritten physical to virtual, `\` turned into `/` over the rest of the path, by an ordinal match: a tool that
+  re-cases a path (`c:\Proj\…`) escapes the rewrite and the model reads a disk path; a relative path a command
+  prints (`src\a.ts` from `dir`) keeps its `\`.
+- **Confinement follows the platform** (`Orkeon:Tools:Shell:Confinement`, `Auto`): bubblewrap on Linux, where the
+  process sees the mounts at their virtual paths; Seatbelt on macOS and an AppContainer on Windows 10 and later,
+  where it works on physical paths. Under the AppContainer, `TEMP`, `TMP` and `HOME` point into the container's
+  profile, the user's profile and the other drives are out of reach, and a program installed under the user's
+  profile is reached through `ReadOnlyPaths`. Inside a container there is no confinement. Environment variable names
+  compare without case on Windows.
+- **Windows is not the path this project exercises.** `orkeon-code.ps1` has the `tool` and `docker` modes only, no
+  source mode and no `--demo`; the checked path is WSL with the bash launcher ([tutorial](wsl-tutorial.md)). Run
+  natively, `/status` shows the platform as unavailable when `node` is absent or not allowed, and a command a crew
+  composes with an operator or a POSIX name that is not installed fails before it runs.
+
 ## Layers and the dependency rule
 
 | Layer | Where | Holds | Imports |

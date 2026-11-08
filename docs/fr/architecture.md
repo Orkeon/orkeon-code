@@ -58,6 +58,55 @@ Chaque point d'entrée est donc sa propre racine de composition : il construit l
 remet à un cas d'usage qui reçoit ses dépendances en paramètres. Les ports sont des interfaces, effacées de chaque
 bundle, et un test importe un cas d'usage dans Node sans toucher à une globale du runtime.
 
+## Le VFS et la plateforme hôte
+
+Tout chemin que le code ou le modèle écrit est virtuel : le runtime le fait correspondre au disque, et les règles
+sont celles du runtime (le `FileSystemRegistry` d'Orkeon, `ShellCommandTool` et ses sessions shell), pas celles de ce
+projet. Ce qui suit est le contrat sur lequel le code et les prompts s'appuient ; `src/shared/domain/vfs.ts` nomme le
+seul mount dans lequel ils travaillent.
+
+- **Les mounts viennent du lanceur.** `orkeon-code` et `orkeon-code.ps1` démarrent le REPL avec un
+  `--mount <physique>:<virtuel>:<droits>` par racine : `/workspace` (le projet, en lecture-écriture), `/output`,
+  `/tmp`, `/user-config` (lecture seule), `/sessions`, `/session-history` (lecture seule) et `/memory`. Le modèle ne
+  voit jamais un chemin physique, sur aucune plateforme : un `C:\proj\src\a.ts` ou un `/home/u/proj/src/a.ts` donné à
+  un outil fichier est refusé avec la liste des mounts, et les prompts écrivent un fichier du projet
+  `/workspace/<path>`.
+- **Un chemin virtuel se résout par son plus long préfixe de mount**, comparé de façon ordinale : `/Workspace/x` ne
+  correspond à rien, sous Windows aussi. Un chemin relatif se résout sous la racine de travail de l'agent
+  (`/workspace`, ou le worktree d'un batch de `/dev-batches`). Après le mount, `/` et `\` sont tous deux acceptés par
+  les outils fichiers ; le reste est ajouté à la base physique du mount et normalisé par l'hôte, donc `\` est un
+  séparateur sous Windows et un simple caractère ailleurs. Un segment `.` ou `..` est refusé pour une racine de
+  travail et détecté comme une traversée ailleurs. Le contrôle de confinement ignore la casse sous Windows seulement.
+  Du physique au virtuel, un chemin sous un mount revient en `/<mount>/…` avec chaque `\` changé en `/`.
+- **Le shell ne lance aucun shell sous Windows.** Sous Linux et macOS, `shell_command` alimente un `sh -s` par
+  exécution, chaque mot cité pour que le shell n'étende rien. Sous Windows chaque commande est son propre processus
+  dans un Job Object, lancé avec ses arguments cités un à un : l'exécutable est cherché sur le `PATH` seulement,
+  jamais dans le dossier de travail, en `.exe` puis `.com` ; un `.bat` ou `.cmd` (donc `npm`, `npx`) ne tourne qu'en
+  session non confinée, via `cmd.exe` ; un builtin de cmd (`echo`, `dir`, `type`, `cd`, `copy`, `del`, `mkdir`,
+  `set`...) passe par `cmd.exe /d /v:off /s /c` avec chaque argument échappé, et `%` refusé. PowerShell n'intervient
+  jamais.
+- **Les opérateurs sont refusés partout** : `|`, `;`, `&&`, `>`, `$(`, les backticks et les sauts de ligne font
+  échouer l'appel avant toute exécution, donc aucune commande d'un crew ne pipe ni n'enchaîne. L'allowlist par défaut
+  est `ls`, `cat`, `pwd`, `which`, `grep`, `wc`, `echo`, un `git` en lecture seule, et `dir`, `type`, `where` ; sous
+  Windows les noms POSIX n'existent que s'ils sont installés et sur le `PATH`. `node`, `dotnet`, `npm`, `find` et le
+  `git` qui écrit demandent `Orkeon:Tools:Shell:AllowInterpreters`, que les settings d'exemple activent.
+- **Le shell réécrit les chemins d'une ligne de commande.** Un argument égal à un mount ou commençant par `<mount>/`,
+  aussi après un `clé=`, devient son chemin physique avant le lancement du processus, et demande Read pour une
+  commande en lecture seule, tous les droits pour toute autre. Seul `/` est accepté ici : `/workspace\src` est passé
+  tel quel. Stdout et stderr sont réécrits du physique au virtuel, `\` changé en `/` sur le reste du chemin, par une
+  comparaison ordinale : un outil qui change la casse d'un chemin (`c:\Proj\…`) échappe à la réécriture et le modèle
+  lit un chemin disque ; un chemin relatif qu'une commande imprime (`src\a.ts` depuis `dir`) garde ses `\`.
+- **Le confinement suit la plateforme** (`Orkeon:Tools:Shell:Confinement`, `Auto`) : bubblewrap sous Linux, où le
+  processus voit les mounts à leurs chemins virtuels ; Seatbelt sous macOS et un AppContainer sous Windows 10 et
+  suivants, où il travaille sur des chemins physiques. Sous l'AppContainer, `TEMP`, `TMP` et `HOME` pointent dans le
+  profil du conteneur, le profil de l'utilisateur et les autres disques sont hors de portée, et un programme installé
+  sous le profil de l'utilisateur est atteint via `ReadOnlyPaths`. Dans un conteneur il n'y a aucun confinement. Les
+  noms de variables d'environnement se comparent sans casse sous Windows.
+- **Windows n'est pas le chemin que ce projet exerce.** `orkeon-code.ps1` n'a que les modes `tool` et `docker`, pas
+  de mode source ni de `--demo` ; le chemin vérifié est WSL avec le lanceur bash ([tutoriel](wsl-tutorial.md)).
+  Lancé en natif, `/status` affiche la plateforme comme indisponible quand `node` est absent ou non autorisé, et une
+  commande qu'un crew compose avec un opérateur ou un nom POSIX non installé échoue avant de tourner.
+
 ## Couches et règle de dépendance
 
 | Couche | Où | Contient | Importe |

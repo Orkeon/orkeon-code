@@ -1,4 +1,5 @@
-// The mount of the Orkeon VFS the code works in (docs/architecture.md, "The VFS"): the project's checkout. Pure.
+// The mount of the Orkeon VFS the code works in (docs/architecture.md, "The VFS and the host platform"): the
+// project's checkout. Pure.
 
 /** The project's checkout: where the file tools name a project file `/workspace/<path>`, where the shell runs, and
  *  the root the code index holds every path under. */

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation — the VFS and the host platform
+
+- `docs/architecture.md` (and its French twin) gains "The VFS and the host platform": the mounts the launchers
+  declare, how a virtual path resolves (ordinal mount prefix, `/` and `\` after it, `.`/`..` refused), what the
+  shell does on each platform (one `sh -s` on Linux and macOS, one process per command on Windows, cmd built-ins
+  through `cmd.exe`, no PowerShell), the operators refused everywhere, the path rewriting of a command line and of
+  its output, the confinement backend of each platform and what this project does not exercise on native Windows.
+
 ### Changed — the pin moves to Orkeon `b0fa31f`, the `firefox` browser can outlive the turn
 
 - The pin moves to Orkeon `main` `b0fa31f` (Orkeon #297 and #298, [ADR 0021](docs/adr/0021-orkeon-after-298.md)). #297
