@@ -122,6 +122,7 @@ export const CLOSED_READINGS: readonly ExitCase[] = [
 export const HUMAN_DECISIONS: readonly ExitCase[] = [
   { name: "stops with 3 when a batch returned GAPS", plan: ["0|- 2026-10-24 09:00 F1 returned GAPS|"], status: 3 },
   { name: "stops with 3 when a batch stopped BLOCKED", plan: ["0|- 2026-10-24 09:00 F1 stopped BLOCKED|"], status: 3 },
+  { name: "stops with 3 when a step stopped on a question kept by checkpointing (exit 75)", plan: ["75||waiting_for_input"], status: 3 },
   { name: "goes on past an event that only mentions GAPS", plan: ["0|- 2026-10-24 09:00 F3 launched after GAPS fix|", CLOSED], status: 0 },
 ];
 

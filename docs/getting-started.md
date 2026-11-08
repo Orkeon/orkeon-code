@@ -222,7 +222,8 @@ default, `dev.workDir`: specs, plans, batch sheets, verdicts), `.orkeon/worktree
 `.orkeon/dev-learn-state.json` (`/dev-learn`) and the [shared memory](shared-memory.md)'s folder (`.orkeon/memory/`
 unless `memory.dir` names another); the runtime itself writes `.orkeon/embedding-fingerprint.json` (the embedding
 model the RAG's vectors came from: it refuses to start when the model changes, until the file is deleted or
-`Orkeon:Embeddings:FingerprintPath` names another); the hook scripts you write (`.orkeon/hooks/` in the [examples](hooks.md)) are
+`Orkeon:Embeddings:FingerprintPath` names another), and `.orkeon/state` (the checkpoints and kept questions of a run,
+only with `Orkeon:Checkpointing:Enabled`, off in every example; Orkeon #299); the hook scripts you write (`.orkeon/hooks/` in the [examples](hooks.md)) are
 yours. Add `.orkeon/` and `workbench/` to the project's `.gitignore` if you do not want to share them: `/dev-status`
 warns while they are not ignored. A shared memory meant for the team goes in a tracked folder (`memory.dir`,
 `docs/memory` for instance). Transcriptions go to the state

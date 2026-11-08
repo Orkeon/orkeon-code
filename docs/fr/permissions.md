@@ -144,6 +144,8 @@ du texte que le modèle a lu dans le projet : un projet qui ne doit rien envoyer
 dont le catalogue l'écarte. L'hôte offre `spawn_agent` à chaque act, quel
 que soit le catalogue : c'est une modification, demandée en `default` et refusée en `plan` et en `dontAsk`. Une règle
 peut le nommer, et une règle allow sur lui vaut aussi en `dontAsk` (`/permissions` avertit quand vous en ajoutez une).
+L'enfant qu'il lance tourne sous le plus strict de son propre mode et de celui de son lanceur (Orkeon #299) ; les
+enfants d'Orkeon Code n'en nomment aucun, ils prennent donc celui du lanceur.
 
 Les deux outils de la [mémoire partagée](shared-memory.md) sont à Orkeon Code, offerts aux tours du REPL selon le
 mode : `memory_recall` déclare une lecture et s'exécute dans tous les modes, `plan` et `dontAsk` compris ;
@@ -497,7 +499,9 @@ Un outil MCP le déclare par ses annotations, lues seulement quand son serveur e
 true` (`MCP:Servers:<name>:TrustAnnotations`, faux par défaut ; Orkeon #219, #223) : alors `readOnlyHint: true` est
 une lecture, exécutée sans question dans tous les modes qui offrent l'outil, `dontAsk` compris, une autre annotation
 est une exécution et l'absence d'annotation une écriture, demandées en `default` et en `acceptEdits`, refusées en
-`plan` et en `dontAsk`. Tout outil d'un serveur non déclaré de confiance est une écriture, quoi qu'il annote. Le
+`plan` et en `dontAsk`. Tout outil d'un serveur non déclaré de confiance est une écriture, quoi qu'il annote.
+`MCP:Servers:<name>:Tools:Deny` écarte un outil du serveur avant tout cela : il n'est jamais enregistré
+([Configuration](configuration.md#outils-supplémentaires--serveurs-mcp-et-plugins)). Le
 serveur de parole marque `transcribe_audio`, `list_audio` et `whisper_info` en lecture seule, et les lanceurs comme
 les exemples de settings le déclarent de confiance ; `record_and_transcribe`, `speak` et `stop_speaking`, qui ouvrent
 le micro ou le haut-parleur, ne portent aucune annotation. Pour un tel outil, en `dontAsk`, une règle allow le laisse s'exécuter (`/permissions add allow speak`) ;

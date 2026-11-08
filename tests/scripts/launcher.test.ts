@@ -529,6 +529,18 @@ describe("orkeon-code, speech-to-text (ORKEON_CODE_AUDIO_DIR)", () => {
     ok(openai.stdout.includes(", model whisper-1)"), openai.stdout);
   });
 
+  it("gives the server fifteen minutes per call, a dictation records up to 600 s then transcribes", () => {
+    // Arrange
+    const audio = scratchDir("orkeon-code-audio-");
+
+    // Act
+    const r = launch({ args: ["--mode", "tool"], bin: SPEECH_TOOL, env: audioEnv(audio) });
+
+    // Assert
+    strictEqual(r.status, 0, r.stderr);
+    strictEqual(r.env.get(`${WHISPER}CallTimeout`), "00:15:00", "the runtime's default, 60 s (Orkeon #299), ends a long call");
+  });
+
   it("changes nothing when the variable is not set", () => {
     // Arrange
     const env = ESBUILD;

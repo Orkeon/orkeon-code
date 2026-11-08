@@ -107,7 +107,14 @@ Rien n'est écrit sous `.claude/`.
 ## Les outils
 
 `memory_recall` renvoie au plus cinq entrées admises pour une requête, la meilleure d'abord, avec ce à quoi elles
-s'appliquent et leur fichier : il lit, et s'exécute dans tous les modes. `memory_push` écrit un candidat, jamais une
+s'appliquent et leur fichier : il lit, et s'exécute dans tous les modes. Laissez la mémoire cognitive du runtime
+éteinte (`Orkeon:CognitiveMemory:Enabled`, faux par défaut ; Orkeon #299) : allumée, le runtime enregistre un outil
+d'hôte du même nom, `memory_recall`, que les règles de la garde, `tools.extra` et `/debug-tool-call list` ne sauraient
+distinguer de celui-ci ; aucun crew d'Orkeon Code ne déclare `memory: true`, rien ici n'en a donc besoin. Les vecteurs
+de l'index viennent du fournisseur d'embeddings du runtime (`Orkeon:Embeddings`, qui depuis Orkeon #299 prend aussi
+`mistral`, `azure-openai` et `gemini` comme `Provider`, avec `ApiKeyEnvVar`, `Endpoint` et `ApiVersion`) ; le runtime
+note le modèle dans `.orkeon/embedding-fingerprint.json` et refuse de démarrer quand il a changé
+([Premiers pas](getting-started.md#ce-que-lagent-écrit-dans-votre-projet)). `memory_push` écrit un candidat, jamais une
 entrée : il n'est offert que là où le mode modifie, et fait l'objet d'une question en `default`
 ([Permissions](permissions.md#modes)). Deux push simultanés n'en perdent aucun : un push qui trouve son candidat
 écrasé l'écrit à nouveau sous l'id suivant. Dans tous les modes, les outils de fichier du modèle

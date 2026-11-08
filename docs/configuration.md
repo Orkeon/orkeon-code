@@ -41,6 +41,7 @@ Environment variables prefixed `ORKEON_` override the file (`__` separates secti
 | `Llm:Temperature`, `Llm:MaxTokens`, `Llm:TimeoutSeconds` | Generation settings |
 | `Llm:MaxRateLimitWait` | Longest rate-limit window a call waits out before it fails, `00:05:00` by default. A 429, or a 529 with a reset header, waits until the window the provider announces (`retry-after-ms` in milliseconds as OpenAI and TypeSafe send it, else `Retry-After`, compared with the provider's reset headers; the longest wins) resets instead of failing the turn; a window longer than this fails the call at once with `LlmRateLimitException`, the wait in its message. `00:00:00` waits for nothing |
 | `Llm:Profiles:<name>:MaxRateLimitWait` | The same bound for one named profile of the host, `00:05:00` by default |
+| `Llm:ModelCapabilities:<model id>` | What a model takes (Orkeon #299): `ReasoningEfforts`, the efforts it accepts (an `effort` a listed model does not take is dropped with a warning; a model listed nowhere gets every effort, with a warning), `Vision`, `AudioInput`, `AudioOutput`. Unset, the runtime's own table applies |
 | `Llm:Thinking:Enabled` | Reasoning mode, for the providers that have one |
 
 Orkeon recognises the native providers from the endpoint and the model (OpenAI, Anthropic, Gemini, Mistral, DeepSeek,
@@ -82,6 +83,9 @@ set when no section is. Two sections, or two keys and no section, refuse the sta
 profile works the same whatever the provider: a *decision profile* (`Orkeon:Decision:Profiles:<name>`) wraps a named LLM profile
 (`Llm:Profiles:<name>`) with stages that route the request to the profile that fits it, guard it (prompt injection,
 the risks you name) or verify the answer and escalate to a stronger profile when it does not hold.
+`Orkeon:Guardian:Llm:Phases` may add `Output`: it judges the output of a crew *task*, holding its streamed deltas until
+they are judged, so a guarded task's answer shows at once at its end; `ctx.llm.act`, which every agent of Orkeon Code
+runs on, is not judged on output.
 [`config/appsettings.jev.example.json`](../config/appsettings.jev.example.json) is the example: the `Orkeon:TypeSafe`
 section (the key in `TYPESAFE_API_KEY`, never in the file), two LLM profiles, `small` and `large`, and the decision
 profile `guarded` over them. The session key `llm.profile` names the profile the agents of the commands run on,
@@ -122,6 +126,7 @@ others one after the other, each call through the permission gate, and sends the
 | `Orkeon:Scripting:Limits:ExecutionTimeout`, `Orkeon:Scripting:Limits:MemoryLimitBytes` | The same limits for `orkeon run`, the tool `scripts/run-crew.sh` runs a crew with (30 seconds and 100 MB by default; the example sets 30 minutes and 2 GiB). `orkeon-repl` does not read them |
 | `Orkeon:Tools:Shell:AllowInterpreters` | Lets `shell_command` run interpreters (`node`, `dotnet`, `npm`...), needed to build and test most projects |
 | `Orkeon:Tools:Shell:ExtraAllowedCommands` | Commands added to the shell allow-list (`make`, `cargo`...) |
+| `Orkeon:Tools:Shell:WindowsPaths:<virtual path>` | Under WSL, the Windows spelling of a mount (`"/workspace": "C:\\proj"`): a Windows program (`cmd.exe`, `code.exe`, `git.exe` of Git for Windows) run by `shell_command` gets its arguments and results in that spelling, where a Linux program gets `/mnt/c/proj` (Orkeon #302). Unset, every program gets the Linux spelling |
 | `Orkeon:Tools:Shell:Confinement:Mode` | `Auto` (default: bubblewrap on Linux, Seatbelt on macOS, AppContainer on Windows, none inside a container), `None`, `Bubblewrap`, `Seatbelt` or `AppContainer`. Confined, each shell command runs under `bwrap` (Linux, tool and source modes), network off unless `Confinement:AllowNetwork`, programs outside the system directories listed in `Confinement:ReadOnlyPaths`. A command fails when it cannot be confined. The examples set `None`; a settings file without the key confines, outside a container. `/dev-batches --concurrency` above 1 works under Bubblewrap from a runtime that binds a linked worktree's git dir (Orkeon/orkeon#191); on an older one git fails inside a batch's worktree, and the run refuses itself in one line. Confined, the run's closing push reaches no remote (no network, `HOME=/tmp`, so no credentials): the run stays open with the `git push` command. Push it from a terminal, then the next `/dev-batches` closes the run without pushing again. See [SECURITY.md](../SECURITY.md) |
 | `Orkeon:Tools:Shell:Environment:SessionBus` | Whether a confined shell (bubblewrap, Seatbelt, AppContainer) receives the session bus, `DBUS_SESSION_BUS_ADDRESS`, which the keyring credential helper of `gh` needs; `false` by default, since through the bus a command can start a process outside the sandbox. An unconfined shell (`Confinement:Mode` `None`, the example settings) and the code sandbox receive it; `SSH_AUTH_SOCK` and `XDG_RUNTIME_DIR` reach every shell, so git reaches a private remote through the ssh agent (Orkeon #216) |
 | `Orkeon:Tools:Shell:Environment:Propagate` | Names of variables added to the shell's allow-list; a name holding a secret word (`KEY`, `TOKEN`, `SECRET`, `PASSWORD`, `PASSWD`, `PASS`, `CREDENTIAL`, `AUTH`, `PAT` as a whole segment), starting with `ORKEON_`, or whose value carries URL credentials is dropped with a warning (Orkeon #216) |
@@ -140,7 +145,8 @@ others one after the other, each call through the permission gate, and sends the
 
 - the script engine's `ExecutionTimeout` above, which stops while a question waits for you;
 - the main-loop crew's own budget, written in its code (`src/crews/main-loop/crew.ork.ts`): 200 tool calls, 700k
-  context tokens and 30 minutes of wall time. The context is counted once (Orkeon #224): each call charges its
+  context tokens and 30 minutes of wall time, which stops while a tool call waits for your answer (Orkeon #299). The
+  context is counted once (Orkeon #224): each call charges its
   completion plus what its prompt grew by, or the part of it the provider's cache did not serve, so a turn of n calls
   on a context of c tokens spends about c plus its completions, never its whole context again at each call. That
   clock is Orkeon's and, like the engine's, it stops while the gate waits for your answer: only the model's own work
@@ -246,6 +252,17 @@ The class decides which modes offer the tool: `read` in every mode, `write` in `
 [permission gate](permissions.md#extra-tools) still decides each call. `/config set` refuses an entry that is not the
 notation, that names a built-in tool, or that names a tool twice.
 
+A server's declaration (`MCP:Servers:<id>`, Orkeon #299) also takes `CallTimeout` (`00:01:00` by default: a call past
+it ends as a tool error; the [speech server](#speech-to-text) gets 15 minutes) and `ConnectTimeout` (30 s);
+`Tools:Allow` and `Tools:Deny`, which filter the server's tools before they are registered, so a denied tool is absent
+for `tools.extra` too, which warns of it (never deny `record_and_transcribe`, `speak` or `stop_speaking`: `/voice` and
+`/say` call them); `Headers` (a value `env:VAR` reads the variable; a transport header is refused) and `Auth` (`Bearer`,
+`Basic`, or OAuth 2 client credentials and device code, the secret read from an environment variable, the device code
+shown on stderr); a `Url` that carries credentials must be https or loopback. `Transport: Sse` is the Streamable HTTP
+transport: a server that speaks only the 2024-11-05 HTTP+SSE transport no longer connects. A plugin is a folder
+`<name>/` under the `Plugins` directory, holding `plugin.json` (`name`, `version`, `orkeonVersion`, `entryAssembly`,
+`tools`) beside its assembly; a flat `.dll` is refused, and `dotnet new orkeon-plugin` scaffolds the folder.
+
 For instance, the speech server this repository ships ([below](#speech-to-text)) registers six tools, three of
 which fit the list: `transcribe_audio`, `list_audio` and `whisper_info`. The other three, `record_and_transcribe`,
 `speak` and `stop_speaking`, serve `/voice` and `/say` and stay out of it. Once the server is connected:
@@ -275,7 +292,8 @@ export ORKEON_CODE_AUDIO_DIR=~/audio      # the folder of audio and video files
 
 The launcher then mounts that folder on `/audio` (read-only) and `<state>/transcripts` on `/transcripts`
 (read-only, `.crew-output/transcripts` by default), and declares the server to the REPL through the environment
-(`ORKEON_MCP__Servers__whisper__*`), so no settings file names this checkout. The banner shows an `audio` line.
+(`ORKEON_MCP__Servers__whisper__*`), so no settings file names this checkout. The banner shows an `audio` line. The
+folder holds real files: a link in it that points outside it is refused by the file tools (Orkeon #299).
 
 `/transcribe` is the direct way: the call is the command's, so it needs no setting and the gate asks nothing.
 
@@ -318,7 +336,11 @@ A short transcription comes back inline; a long one is written to `/transcripts/
 in `<name>.segments.json` and, above 30,000 characters, in parts `<name>.part-NN.txt` that `file_read` reads one at
 a time. The first transcription with a model downloads it (462 MB for `small`): `bash scripts/whisper-mcp-smoke.sh`
 with `WHISPER_MODEL=small` does it beforehand. A 45-minute recording takes about 7 minutes with `small` on a CPU,
-under 2 minutes on a laptop GPU, where `turbo` is the better model.
+under 2 minutes on a laptop GPU, where `turbo` is the better model. The runtime ends a server call that outlasts
+`MCP:Servers:whisper:CallTimeout` (60 s by default; Orkeon #299) with a tool error, although the server finishes and
+writes the transcript: the launchers export `ORKEON_MCP__Servers__whisper__CallTimeout=00:15:00` and the example
+settings set the same 15 minutes, which cover a dictation at its longest (`/voice --max 600`) and a long file on a
+CPU; a settings file of your own that declares the server needs the key too, or a dictation past 60 s fails.
 
 ### Dictation
 

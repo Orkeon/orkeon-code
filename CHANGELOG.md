@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — the speech server's call timeout
+
+- The runtime now ends an MCP server call after `MCP:Servers:<id>:CallTimeout`, 60 s by default (Orkeon #299), which
+  a dictation past a minute or a long transcription on a CPU exceeded: the launchers export
+  `ORKEON_MCP__Servers__whisper__CallTimeout=00:15:00` and the whisper example settings set the same 15 minutes. A
+  settings file of your own that declares the server needs the key ([Configuration](docs/configuration.md#speech-to-text)).
+- `Orkeon:Tools:Shell:WindowsPaths` (Orkeon #302) is described in the configuration guide and the WSL tutorial.
+
+### Documentation — what Orkeon #299 adds, adopted or set aside
+
+- The guides name the runtime's new keys where a user meets them ([ADR 0024](docs/adr/0024-orkeon-after-299.md)): an
+  MCP server's `CallTimeout`, `ConnectTimeout`, `Tools:Allow`/`Tools:Deny`, `Headers` and `Auth`, `Transport: Sse` as
+  Streamable HTTP, a plugin as a folder with `plugin.json`; `Llm:ModelCapabilities` (an effort a model does not take is
+  dropped); the guardian's `Output` phase, which judges crew tasks only; `Orkeon:CognitiveMemory` to keep off (its
+  `memory_recall` would share its name with the shared memory's tool); a `spawn_agent` child under the stricter mode;
+  the embedding providers `mistral`, `azure-openai`, `gemini`.
+- Headless: exit `75` and `orkeon run --resume <id> --input` under `Orkeon:Checkpointing:Enabled` (off in every
+  example), `/state` and `/runs` reserved, `Orkeon:RunHistory` and `orkeon runs`, the main loop's wall time that stops
+  while a tool call waits for your answer, a project path that leaves the mount through a link. `scripts/dev-run.sh`
+  stops a chain with `3` (a human decides) on a step that exits `75`.
+- Set aside, with the reason in the ADR: a task's `retry`, `onToolCallDelta`, the cognitive memory, `--resume`,
+  `mcp serve --crew`, `eval`, the host API, the LLM cassettes. Next: a crew turn without a key in CI, profile fallback.
+
 ### Changed — the pin moves to Orkeon `4357d82`, `onToolCall` before the gate
 
 - The pin moves to Orkeon `main` `4357d82` (Orkeon #299, #304 and #306, [ADR 0023](docs/adr/0023-orkeon-after-306.md)). The shell's outbound rewrite
