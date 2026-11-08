@@ -79,8 +79,8 @@ with the bash launcher ([WSL tutorial](wsl-tutorial.md)). On both, a path spelle
 model's calls and in what a command prints ([architecture](architecture.md#the-vfs-and-the-host-platform));
 under WSL a Windows program is reachable without confinement only, and still receives `/mnt/c/…` paths.
 
-Orkeon Code is checked against Orkeon's sources at the commit in `.orkeon-version` (`21b64c1`, `main` after
-Orkeon/orkeon#304, 2026-11-08): the [source mode](#source-mode-an-orkeon-checkout) runs that commit, the reference
+Orkeon Code is checked against Orkeon's sources at the commit in `.orkeon-version` (`4357d82`, `main` after
+Orkeon/orkeon#306, 2026-11-08): the [source mode](#source-mode-an-orkeon-checkout) runs that commit, the reference
 runtime; the [tool mode](#tool-mode-orkeon-repl-installed) (the Debian package on the apt `rc` channel, the release
 archives) runs the last release, `1.0.0-rc.6`, and the [docker mode](#docker-mode-nothing-to-install-but-docker)
 the last `orkeon-runners` image published, `1.0.0-rc.5` at this writing (no `1.0.0-rc.6` image is published), both
@@ -158,9 +158,9 @@ whose `global.json` pins another SDK still works. It needs the .NET 10 SDK, the 
 The checkout should sit at the commit of `.orkeon-version`, the one the commands were checked against. The launcher
 moves it there itself when nothing of yours is in the way: no tracked file changed, on `main` or detached, and behind
 the pin (fetched from `origin main` when missing). It then says `orkeon-code: ORKEON_SOURCE moved from <sha7> to the pin
-21b64c1.` and the build restores the solution. Otherwise (a branch of your own, uncommitted work, commits ahead of the
+4357d82.` and the build restores the solution. Otherwise (a branch of your own, uncommitted work, commits ahead of the
 pin, or `ORKEON_SOURCE_FOLLOW_PIN=0`) it leaves the checkout alone, warns (`orkeon-code: warning: ORKEON_SOURCE is at
-<sha7>, the pin of .orkeon-version is 21b64c1: the commands were checked against the pin.`) and runs anyway.
+<sha7>, the pin of .orkeon-version is 4357d82: the commands were checked against the pin.`) and runs anyway.
 
 ## 4. First session
 

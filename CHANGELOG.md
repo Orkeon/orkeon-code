@@ -7,9 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed — the pin moves to Orkeon `21b64c1`, `onToolCall` before the gate
+### Changed — the pin moves to Orkeon `4357d82`, `onToolCall` before the gate
 
-- The pin moves to Orkeon `main` `21b64c1` (Orkeon #299 and #304, [ADR 0023](docs/adr/0023-orkeon-after-304.md)). The shell's outbound rewrite
+- The pin moves to Orkeon `main` `4357d82` (Orkeon #299, #304 and #306, [ADR 0023](docs/adr/0023-orkeon-after-306.md)). The shell's outbound rewrite
   now keeps a quoted path with spaces, matches a Windows base in any case and as `C:/…`, and under WSL hands a
   Windows program the Windows spelling of a mount (`Orkeon:Tools:Shell:WindowsPaths`).
 - **The dev crews' callback runs before the host gate**, which judges the input it returns: a call spelled `C:\…` is
@@ -17,7 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   before the gate asks you; a refused call comes back as a `DENIED:` result, which the `post-tool` hooks and the
   tool trace see; a batch's tool-call budget counts such a call. A role's written files are now read from each
   write's result, so a write the gate or you refused is no longer counted as the role's own. The typings are
-  regenerated from the pin.
+  regenerated from the pin: they say the new order (Orkeon #305) and lose the `{ context }` verdict of `onToolCall`
+  (#307), which this project never returned.
 - The input guard's settings section is now `Orkeon:Guardian:Llm`, fail-closed by default; a settings file still holding
   `Orkeon:Decision:Guard` is refused at start. A project folder that is a link out of `/workspace` is no longer
   readable through the mount. The runtime records the embedding model in `.orkeon/embedding-fingerprint.json` and

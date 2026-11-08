@@ -1,4 +1,4 @@
-# ADR 0023: Orkeon main after #304, `onToolCall` before the gate and the FWK lots
+# ADR 0023: Orkeon main after #306, `onToolCall` before the gate and the FWK lots
 
 - **Status**: accepted
 - **Date**: 2026-11-08
@@ -6,7 +6,7 @@
 
 ## Context
 
-The pin of ADR 0021 is `b0fa31f`. Two merges followed on Orkeon `main` the same day:
+The pin of ADR 0021 is `b0fa31f`. Three merges followed on Orkeon `main` the same day:
 
 - **#299** (`b8ff145`), the 28 framework lots (FWK) and their reviews: MCP authentication and Streamable HTTP, the
   cognitive memory wired into the runners, checkpoints and durable human input, a retry per task (`retry:` replaces
@@ -19,13 +19,18 @@ The pin of ADR 0021 is `b0fa31f`. Two merges followed on Orkeon `main` the same 
   the Windows spelling of a mount under WSL for a Windows program) and #303: `ctx.llm.act` runs `onToolCall` first and
   consults the permission gate once, on the input the callback returns. Through the host's invocation pipeline the
   callback already ran before the gate since #299.
+- **#306** (`4357d82`) closes #305, opened from this project: the typings and the runtime's comments said the gate ran
+  before `onToolCall`; they now say the order above, and `onToolResult`'s says a call the gate or the guardian refused
+  reaches it as a `DENIED:` result through the host's invocation pipeline. It also closes #307: the `{ context }`
+  verdict of `onToolCall`, which the runtime accepted and ignored, is removed from the typings and denied as an
+  unknown shape. This project's callbacks never returned it (`ToolCallVerdict` is `allow`, `{ deny }` or `{ input }`).
 
 ## Decision
 
-- **The pin moves to `21b64c1`** (`21b64c1248954d9b42020b1cb92248846bc9cf87`), a merge commit of Orkeon `main`
+- **The pin moves to `4357d82`** (`4357d82c9aff67070592ddcf59d85f0666bb4094`), a merge commit of Orkeon `main`
   (ADR 0013); `.orkeon-version`, the status meta, the issue template, the guides; the typings are regenerated with
-  `scripts/sync-typings.sh` (additions only: `onToolCallDelta`, `taskBuilder().retry()`, the `test` namespace of
-  `orkeon run --test`).
+  `scripts/sync-typings.sh` (`onToolCallDelta`, `taskBuilder().retry()`, the `test` namespace of `orkeon run --test`; the
+  `{ context }` verdict gone from `onToolCall`).
 - **The callbacks keep their checks, their order changes.** The dev crews' `onToolCall` (rule sets, roots, the path
   lists of ADR 0022, the pre-tool hooks) now runs before the gate, which judges the input it returns: a call spelled
   `C:\…` is converted, then judged once on its canonical spelling, so ADR 0022's limit is gone. The callback can
@@ -50,7 +55,5 @@ The pin of ADR 0021 is `b0fa31f`. Two merges followed on Orkeon `main` the same 
 - The runtime's embedding guard runs in the REPL: it records the embedding model under
   `/workspace/.orkeon/embedding-fingerprint.json` and refuses to start when the model changed (exit 1), until the
   file is deleted; the getting-started guide lists the file. Not checked live.
-- Checks: `npm run check` green; `bash scripts/smoke-runtime.sh --mode source` at `21b64c1`: 49 commands loaded, 0
+- Checks: `npm run check` green; `bash scripts/smoke-runtime.sh --mode source` at `4357d82`: 49 commands loaded, 0
   skipped, 0 conflicts. No model drove a call: the hook order and the `C:\…` conversion were not checked live.
-- The typings regenerated from the pin still say of `onToolCall` "after the permission gate allowed it" and of
-  `{ input }` "gated again": the runtime's own doc comment is stale (`context.d.ts`, `JsLlmFacade.cs`): Orkeon #305.
