@@ -90,3 +90,29 @@ export const PARSE_CASES: readonly ParseCase[] = [
     ],
   },
 ];
+
+/** Layouts and their /doctor line. */
+export const DESCRIBE_CASES: readonly { readonly name: string; readonly layout: HostLayout; readonly line: string }[] = [
+  { name: "the identity", layout: IDENTITY, line: "posix, no mount base: every path as the runtime spells it" },
+  {
+    name: "WSL, each base in both spellings",
+    layout: WSL_PARSED,
+    line: "wsl (Ubuntu, drives under /mnt): /workspace = /mnt/c/ici est/mon repertoire (C:\\ici est\\mon repertoire), " +
+      "/output = /home/me/.orkeon-code/projects/x/output (\\\\wsl.localhost\\Ubuntu\\home\\me\\.orkeon-code\\projects\\x\\output)",
+  },
+  {
+    name: "native Windows",
+    layout: { flavour: "windows", automountRoot: "/mnt", mounts: [{ virtual: "/workspace", windows: "C:\\proj" }] },
+    line: "windows: /workspace = C:\\proj",
+  },
+  {
+    name: "a posix host whose bases are known",
+    layout: { flavour: "posix", automountRoot: "/mnt", mounts: [{ virtual: "/workspace", posix: "/home/me/proj" }] },
+    line: "posix: /workspace = /home/me/proj",
+  },
+  {
+    name: "WSL without the Windows spellings, the distribution unknown",
+    layout: { flavour: "wsl", automountRoot: "/mnt", mounts: [{ virtual: "/workspace", posix: "/mnt/c/proj" }] },
+    line: "wsl (distribution unknown, drives under /mnt): /workspace = /mnt/c/proj",
+  },
+];

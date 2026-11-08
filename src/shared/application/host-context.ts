@@ -26,6 +26,11 @@ export function isIdentityContext(host: HostContext): boolean {
   return isIdentityHost(host.layout) && host.lists.deny.length === 0 && host.lists.allow.length === 0;
 }
 
+/** The lists of a run's context, for a command's gate: none when no source is given. */
+export async function listsOf(host: HostSource | undefined): Promise<PathLists> {
+  return host === undefined ? EMPTY_PATH_LISTS : (await host()).lists;
+}
+
 export interface HostContextRead extends HostContext {
   /** The layout's problems, then the lists', each named for /doctor. */
   problems: string[];

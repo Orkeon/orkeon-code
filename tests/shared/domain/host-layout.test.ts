@@ -3,8 +3,8 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
-import { IDENTITY_HOST, isIdentityHost, parseHostLayout } from "../../../src/shared/domain/host-layout.ts";
-import { PARSE_CASES, WSL_PARSED } from "./host-layout.fixtures.ts";
+import { IDENTITY_HOST, describeHostLayout, isIdentityHost, parseHostLayout } from "../../../src/shared/domain/host-layout.ts";
+import { DESCRIBE_CASES, PARSE_CASES, WSL_PARSED } from "./host-layout.fixtures.ts";
 
 describe("parseHostLayout", () => {
   for (const c of PARSE_CASES) {
@@ -51,6 +51,21 @@ describe("isIdentityHost", () => {
 
       // Assert
       strictEqual(identity, c.expected);
+    });
+  }
+});
+
+describe("describeHostLayout", () => {
+  for (const c of DESCRIBE_CASES) {
+    it(`describes ${c.name} in a line`, () => {
+      // Arrange
+      const { layout } = c;
+
+      // Act
+      const line = describeHostLayout(layout);
+
+      // Assert
+      strictEqual(line, c.line);
     });
   }
 });

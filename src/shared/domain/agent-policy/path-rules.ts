@@ -22,6 +22,7 @@ import {
 } from "./rule-sets.ts";
 import { normalisePath, reachedPaths } from "../dev/call-guard.ts";
 import { textToVirtual, toVirtual } from "../host-paths.ts";
+import { IDENTITY_HOST } from "../host-layout.ts";
 import type { HostLayout } from "../host-layout.ts";
 import { MOUNT_POINTS, WORKSPACE } from "../vfs.ts";
 
@@ -86,12 +87,27 @@ function canonicalEntry(given: string, layout: HostLayout): { canonical?: string
   return { canonical: virtual };
 }
 
+/** The entries of a value as written: trimmed, the blanks left out. */
+const writtenEntries = (value: string): string[] => value.split(/[,\n]/).map((e) => e.trim()).filter((e) => e.length > 0);
+
+/** Why a value of paths.deny or paths.allow is refused by /config set, on its notation alone (which mount an entry
+ *  lies under is the run's to judge, with the host's layout): no entry, an entry holding a quote, one naming every path. */
+export function pathListProblem(value: string): string | undefined {
+  const entries = writtenEntries(value);
+  if (entries.length === 0) return `no entry (${PATH_ENTRY_RULE})`;
+  for (const entry of entries) {
+    if (/["'`]/.test(entry)) return `'${entry}' holds a quote: write the path bare, its spaces included (${PATH_ENTRY_RULE})`;
+    if (/^[\\/]?\*?[\\/]?$/.test(entry)) return `'${entry}' names every path (${PATH_ENTRY_RULE})`;
+  }
+  return undefined;
+}
+
 /** The patterns one canonical entry stands for: a bare path covers itself and what is below it. */
 const patternsOf = (canonical: string): string[] => canonical.includes("*") ? [canonical] : [canonical, `${canonical}/*`];
 
 /** The entries of one value, each canonical, in the order given; `problems` says what was left out and why. */
 export function parsePathEntries(value: unknown, layout: HostLayout): { entries: string[]; problems: string[] } {
-  const given = String(value ?? "").split(/[,\n]/).map((e) => e.trim()).filter((e) => e.length > 0);
+  const given = writtenEntries(String(value ?? ""));
   const entries: string[] = [];
   const problems: string[] = [];
   for (const entry of given) {
@@ -141,6 +157,31 @@ export function readPathLists(user: PathListValues, project: PathListValues, lay
   });
   const unique = (entries: string[]): string[] => [...new Set(entries.flatMap(patternsOf))];
   return { deny: unique([...userDeny, ...projectDeny]), allow: unique([...userAllow, ...projectAllow]), problems };
+}
+
+/**
+ * The project's paths.allow as it applies over the user's, judged without the host (the config schema's layering,
+ * /config list and /doctor): an entry within the user's list is kept as written, one outside it is dropped; an entry
+ * the identity host cannot read (a physical spelling) is kept, the run judges it with the layout. A user allowing
+ * nothing in particular keeps them all, as readPathLists does.
+ */
+export function narrowAllowValue(project: string, user: string | undefined): { kept: string[]; dropped: string[] } {
+  const userPatterns = user === undefined ? [] : parsePathEntries(user, IDENTITY_HOST).entries.flatMap(patternsOf);
+  if (userPatterns.length === 0) return { kept: writtenEntries(project), dropped: [] };
+  const kept: string[] = [];
+  const dropped: string[] = [];
+  for (const entry of writtenEntries(project)) {
+    const { canonical } = canonicalEntry(entry, IDENTITY_HOST);
+    const inside = canonical === undefined || userPatterns.some((p) => within(p, canonical, IDENTITY_HOST));
+    (inside ? kept : dropped).push(entry);
+  }
+  return { kept, dropped };
+}
+
+/** The entries of a list as a reader meets them: each canonical entry once, without the `<entry>/*` twin a bare entry
+ *  stands for. */
+export function listedEntries(patterns: readonly string[]): string[] {
+  return patterns.filter((p) => !(p.endsWith("/*") && patterns.includes(p.slice(0, -2))));
 }
 
 /** The spellings the gate may meet a canonical pattern in: itself, and relative to the project when under it. */

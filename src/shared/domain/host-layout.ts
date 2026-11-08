@@ -126,3 +126,18 @@ function escapeRegExp(text: string): string {
 export function isIdentityHost(layout: HostLayout): boolean {
   return layout.flavour === "posix" && layout.mounts.length === 0;
 }
+
+/** The layout in a line, for /doctor: the flavour, under WSL the distribution and the automount root, then each mount
+ *  with its base as the host spells it, the Windows spelling in parentheses under WSL when the launcher knew it. */
+export function describeHostLayout(layout: HostLayout): string {
+  const where = layout.flavour === "wsl"
+    ? `wsl (${layout.distro ?? "distribution unknown"}, drives under ${layout.automountRoot})`
+    : layout.flavour;
+  if (layout.mounts.length === 0) return `${where}, no mount base: every path as the runtime spells it`;
+  const bases = layout.mounts.map((m) => {
+    const base = layout.flavour === "windows" ? (m.windows ?? m.posix) : (m.posix ?? m.windows);
+    const other = layout.flavour === "wsl" && m.posix !== undefined && m.windows !== undefined ? ` (${m.windows})` : "";
+    return `${m.virtual} = ${base ?? "?"}${other}`;
+  });
+  return `${where}: ${bases.join(", ")}`;
+}

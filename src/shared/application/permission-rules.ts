@@ -19,6 +19,9 @@ import { readJsonArray, writeJson } from "./session-state.ts";
 import { formatRule, parseStoredRule, readRule, sameCalls } from "../domain/agent-policy/permission.ts";
 import type { PermissionRule } from "../domain/agent-policy/permission.ts";
 import { PERMISSION_RULES_STATE_KEY } from "../domain/session-keys.ts";
+import { memoryWriteRules } from "../domain/shared-memory/layout.ts";
+import { pathListRules, userConfigRules } from "../domain/agent-policy/path-rules.ts";
+import type { PathLists } from "../domain/agent-policy/path-rules.ts";
 
 /** The stored rules, sorted by what the session can do with them. */
 export interface StoredRules {
@@ -156,4 +159,11 @@ export async function syncStepRules(deps: {
   for (const rule of deps.rules) deps.gate.add(rule);
   for (const rule of builtIn) deps.gate.add(rule);
   return { ...stored, applied: true, step: [...deps.rules], builtIn, overridden };
+}
+
+/** The rules every sync puts in the gate after the session's: the shared memory's guard (no tool of the model writes
+ *  its candidates or entries), the whole /user-config mount closed, and the user's paths.deny on the canonical
+ *  spelling (agent-policy/path-rules.ts). */
+export function builtInRules(memoryDir: string, lists: PathLists): PermissionRule[] {
+  return [...memoryWriteRules(memoryDir), ...userConfigRules(), ...pathListRules(lists)];
 }

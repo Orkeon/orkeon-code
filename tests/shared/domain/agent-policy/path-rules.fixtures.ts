@@ -208,3 +208,32 @@ export const USER_CONFIG_COVERAGE: readonly CoverCase[] = [
   { name: "a project file", tool: "file_read", input: { path: "/workspace/x" }, covered: false },
   { name: "a shell command on the project", tool: "shell_command", input: { command: "npm test" }, covered: false },
 ];
+
+/** Values of a list key and what /config set says of their notation, undefined when taken. */
+export const PROBLEM_CASES: readonly { readonly value: string; readonly problem: string | undefined }[] = [
+  { value: "/workspace/secrets, C:\\proj\\keys\\*, tests/fixtures/real", problem: undefined },
+  { value: "/workspace/un dossier/avec espaces", problem: undefined },
+  { value: ", ,", problem: "no entry (entries separated by commas, each a path of a mount in any spelling or a path under /workspace, `*` for any run of characters)" },
+  { value: "\"C:\\a b\"", problem: "'\"C:\\a b\"' holds a quote: write the path bare, its spaces included (entries separated by commas, each a path of a mount in any spelling or a path under /workspace, `*` for any run of characters)" },
+  { value: "/workspace/x, /", problem: "'/' names every path (entries separated by commas, each a path of a mount in any spelling or a path under /workspace, `*` for any run of characters)" },
+  { value: "*", problem: "'*' names every path (entries separated by commas, each a path of a mount in any spelling or a path under /workspace, `*` for any run of characters)" },
+  { value: "/*", problem: "'/*' names every path (entries separated by commas, each a path of a mount in any spelling or a path under /workspace, `*` for any run of characters)" },
+];
+
+/** A project's paths.allow against the user's, judged without the host. */
+export const NARROW_CASES: readonly {
+  readonly name: string; readonly project: string; readonly user: string | undefined; readonly kept: string[]; readonly dropped: string[];
+}[] = [
+  { name: "every entry when the user sets none", project: "/output, src", user: undefined, kept: ["/output", "src"], dropped: [] },
+  { name: "the entries within the user's list, as written", project: "src/a, /output", user: "/workspace", kept: ["src/a"], dropped: ["/output"] },
+  { name: "an entry equal to the user's", project: "/workspace/src", user: "src", kept: ["/workspace/src"], dropped: [] },
+  { name: "a physical spelling the identity host cannot read", project: "C:\\x", user: "/workspace", kept: ["C:\\x"], dropped: [] },
+  { name: "every entry when the user's list holds only spellings the identity host cannot read", project: "/output", user: "C:\\x", kept: ["/output"], dropped: [] },
+];
+
+/** Canonical patterns and the entries a reader is shown. */
+export const LISTED_CASES: readonly { readonly name: string; readonly patterns: string[]; readonly listed: string[] }[] = [
+  { name: "a bare entry once, its /* twin left out", patterns: ["/workspace/secrets", "/workspace/secrets/*"], listed: ["/workspace/secrets"] },
+  { name: "a starred entry as written", patterns: ["/workspace/keys/*"], listed: ["/workspace/keys/*"] },
+  { name: "nothing from nothing", patterns: [], listed: [] },
+];

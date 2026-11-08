@@ -8,6 +8,8 @@ import { resolveFallbackMode } from "../../../src/shared/domain/permission-modes
 import { PERMISSION_RULES_STATE_KEY } from "../../../src/shared/domain/session-keys.ts";
 import { DEFAULT_MEMORY_DIR, memoryWriteRules } from "../../../src/shared/domain/shared-memory/layout.ts";
 import { gateLine as memoryGateLine } from "../../../src/shared/domain/agent-policy/permission.ts";
+import { pathListRules, userConfigRules } from "../../../src/shared/domain/agent-policy/path-rules.ts";
+import { SECRETS_HOST } from "../../support/fixtures/host-context.ts";
 import { FakeCrewHost } from "../../support/doubles/fake-crew-host.ts";
 import { FakeFiles } from "../../support/doubles/fake-files.ts";
 import { FakeLogger } from "../../support/doubles/fake-logger.ts";
@@ -18,7 +20,10 @@ import { WORKSPACE } from "../../../src/shared/domain/vfs.ts";
 
 /** The built-in denies every sync adds after the session's rules: no model tool writes the memory's candidates or entries. */
 const MEMORY_LINES = memoryWriteRules(DEFAULT_MEMORY_DIR).map(memoryGateLine);
-export const MEMORY_GATE = MEMORY_LINES.map((line) => `add ${line}`);
+/** Then the whole /user-config mount closed: every built-in deny, in the gate's order. */
+export const BUILT_IN_GATE = [...MEMORY_LINES, ...userConfigRules().map(memoryGateLine)].map((line) => `add ${line}`);
+/** The deny rules of SECRETS_HOST's paths.deny, as the gate receives them. */
+export const SECRETS_GATE = pathListRules(SECRETS_HOST.lists).map((rule) => `add ${memoryGateLine(rule)}`);
 
 /** The memory paths no model tool writes, absolute and relative. */
 export const MEMORY_PATHS: readonly string[] = [

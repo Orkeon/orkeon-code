@@ -6,9 +6,10 @@ import type { PermissionRules, SessionStore, ToolCatalogue } from "../../shared/
 import type { SessionIo } from "../../shared/application/session-io.ts";
 import type { ConfigStore } from "../../shared/application/config-store.ts";
 import { configuredNames, resolveExtraTools } from "../../shared/application/extra-tools.ts";
-import { syncStepRules } from "../../shared/application/permission-rules.ts";
+import { builtInRules, syncStepRules } from "../../shared/application/permission-rules.ts";
 import { readMemoryDir } from "../../shared/application/shared-memory/memory-settings.ts";
-import { memoryWriteRules } from "../../shared/domain/shared-memory/layout.ts";
+import { listsOf } from "../../shared/application/host-context.ts";
+import type { HostSource } from "../../shared/application/host-context.ts";
 import { readJsonArray } from "../../shared/application/session-state.ts";
 import { HOOKS_STATE_KEY } from "../../shared/domain/session-keys.ts";
 import { deniesEveryCall, formatRule } from "../../shared/domain/agent-policy/permission.ts";
@@ -27,6 +28,8 @@ export interface DevStepDeps {
   gate: PermissionRules;
   config: Pick<ConfigStore, "readValue" | "readFile">;
   catalogue: Pick<ToolCatalogue, "find">;
+  /** This run's host context, for its path lists (paths.deny in the gate); absent: no list. */
+  host?: HostSource;
 }
 
 export type DevStepStart =
@@ -53,7 +56,7 @@ export async function startDevStep(step: DevStep, deps: DevStepDeps): Promise<De
   const extras = await resolveExtraTools(deps);
   const sync = await syncStepRules({
     session: deps.session, gate: deps.gate, extraNames: configuredNames(extras), rules: stepRules(step),
-    builtIn: memoryWriteRules((await readMemoryDir(deps.config)).dir),
+    builtIn: builtInRules((await readMemoryDir(deps.config)).dir, await listsOf(deps.host)),
   });
   if (!sync.applied) {
     lines.push(`warning: the host keeps no session rules: /${stepCommand(step)}'s rule sets are not in the host's gate, the crew's callback alone checks them.`);

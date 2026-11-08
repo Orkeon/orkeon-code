@@ -4,11 +4,12 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
 import {
-  pathListRefusal, pathListRules, readPathLists, userConfigRules,
+  listedEntries, narrowAllowValue, pathListProblem, pathListRefusal, pathListRules, readPathLists, userConfigRules,
 } from "../../../../src/shared/domain/agent-policy/path-rules.ts";
 import { checkRule, formatRule, ruleDecision } from "../../../../src/shared/domain/agent-policy/permission.ts";
 import {
-  EMPTY, NONE, POSIX, READ_CASES, REFUSAL_CASES, SECRETS, SECRETS_RULE_COVERAGE, SRC_ONLY, USER_CONFIG_COVERAGE,
+  EMPTY, LISTED_CASES, NARROW_CASES, NONE, POSIX, PROBLEM_CASES, READ_CASES, REFUSAL_CASES, SECRETS, SECRETS_RULE_COVERAGE, SRC_ONLY,
+  USER_CONFIG_COVERAGE,
 } from "./path-rules.fixtures.ts";
 
 describe("readPathLists", () => {
@@ -113,4 +114,49 @@ describe("userConfigRules", () => {
     // Assert
     deepStrictEqual(checked, rules.map((rule) => ({ ok: true, rule })));
   });
+});
+
+describe("pathListProblem", () => {
+  for (const c of PROBLEM_CASES) {
+    it(`judges the notation of ${JSON.stringify(c.value)}`, () => {
+      // Arrange
+      const { value } = c;
+
+      // Act
+      const problem = pathListProblem(value);
+
+      // Assert
+      strictEqual(problem, c.problem);
+    });
+  }
+});
+
+describe("narrowAllowValue", () => {
+  for (const c of NARROW_CASES) {
+    it(`keeps of a project's paths.allow ${c.name}`, () => {
+      // Arrange
+      const { project, user } = c;
+
+      // Act
+      const narrowed = narrowAllowValue(project, user);
+
+      // Assert
+      deepStrictEqual(narrowed, { kept: c.kept, dropped: c.dropped });
+    });
+  }
+});
+
+describe("listedEntries", () => {
+  for (const c of LISTED_CASES) {
+    it(`shows ${c.name}`, () => {
+      // Arrange
+      const { patterns } = c;
+
+      // Act
+      const listed = listedEntries(patterns);
+
+      // Assert
+      deepStrictEqual(listed, c.listed);
+    });
+  }
 });

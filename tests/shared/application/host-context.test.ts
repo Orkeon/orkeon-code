@@ -3,7 +3,8 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
-import { IDENTITY_CONTEXT, isIdentityContext, readHostContext } from "../../../src/shared/application/host-context.ts";
+import { IDENTITY_CONTEXT, isIdentityContext, listsOf, readHostContext } from "../../../src/shared/application/host-context.ts";
+import { SECRETS_HOST, secretsHost } from "../../support/fixtures/host-context.ts";
 import type { HostContext } from "../../../src/shared/application/host-context.ts";
 import { CONTEXT_CASES, WINDOWS_LAYOUT, hostHarness } from "./host-context.fixtures.ts";
 
@@ -42,4 +43,28 @@ describe("isIdentityContext", () => {
       strictEqual(identity, c.expected);
     });
   }
+});
+
+describe("listsOf", () => {
+  it("gives no list without a source", async () => {
+    // Arrange
+    const host = undefined;
+
+    // Act
+    const lists = await listsOf(host);
+
+    // Assert
+    deepStrictEqual(lists, { deny: [], allow: [] });
+  });
+
+  it("gives the lists of the source's context", async () => {
+    // Arrange
+    const host = secretsHost;
+
+    // Act
+    const lists = await listsOf(host);
+
+    // Assert
+    deepStrictEqual(lists, SECRETS_HOST.lists);
+  });
 });

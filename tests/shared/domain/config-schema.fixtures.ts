@@ -1,4 +1,6 @@
 // Stored maps, values and expected resolutions for the /config key space tests.
+import type { ConfigResolution } from "../../../src/shared/domain/config-schema.ts";
+
 
 /** A layer of the configuration: the project file, the session bag or the user settings. */
 export type Layer = Record<string, unknown>;
@@ -20,6 +22,8 @@ export const CONSUMERS: Record<string, string> = {
   "memory.project": "/memory-admit, /assistant (the memory_recall and memory_push tools)",
   "memory.autoAdmitAudited": "/memory-admit",
   "llm.profile": "/assistant, /review, /commit, /advisor, /memory admit, the dev steps and every other command that launches a crew (the model its agents run on)",
+  "paths.deny": "/assistant, the dev steps and every other command that launches a crew (each act's calls), /permissions (the deny rules in the gate), /doctor",
+  "paths.allow": "/assistant, the dev steps and every other command that launches a crew (each act's calls), /permissions (the deny rules in the gate), /doctor",
 };
 
 /** llm.profile: one name, as the host's settings spell it; a path or a sentence is not one. */
@@ -139,3 +143,45 @@ export const MEMORY_VALUES: readonly { readonly key: string; readonly value: str
 
 /** Keys a project file sets true only when the user settings do (QL-06). */
 export const USER_GATED_KEYS: readonly string[] = ["dev.prAuto", "memory.autoAdmitAudited"];
+
+/** Values of paths.deny and paths.allow, and whether /config set takes them: the notation alone is judged. */
+export const PATH_LIST_VALUES: readonly { readonly value: string; readonly ok: boolean }[] = [
+  { value: "/workspace/secrets, C:\\proj\\keys\\*", ok: true },
+  { value: "tests/fixtures/real", ok: true },
+  { value: "/workspace/un dossier/avec espaces", ok: true },
+  { value: "\"C:\\a b\"", ok: false },
+  { value: "/", ok: false },
+  { value: "*", ok: false },
+  { value: ", ,", ok: false },
+];
+
+/** A project's paths.allow against the user's: within it kept, outside it set aside, the user's list applying when
+ *  nothing is kept; an entry the schema cannot read without the host is left to the run. */
+export const PATH_ALLOW_AGAINST_USER: readonly {
+  readonly name: string; readonly file: Layer; readonly user: Layer; readonly expected: ConfigResolution;
+}[] = [
+  {
+    name: "keeps the project's entries within the user's list, sets the others aside",
+    file: { "paths.allow": "/workspace/src, /output" }, user: { "paths.allow": "/workspace" },
+    expected: {
+      key: "paths.allow", value: "/workspace/src", source: "file",
+      ignored: { value: "/output", reason: "the user settings allow nothing there (orkeonCode paths.allow); a project file may only narrow it" },
+    },
+  },
+  {
+    name: "takes the project's list whole when the user allows nothing in particular",
+    file: { "paths.allow": "/output" }, user: {}, expected: { key: "paths.allow", value: "/output", source: "file" },
+  },
+  {
+    name: "falls back to the user's list when every project entry is outside it",
+    file: { "paths.allow": "/output" }, user: { "paths.allow": "/workspace/src" },
+    expected: {
+      key: "paths.allow", value: "/workspace/src", source: "user",
+      ignored: { value: "/output", reason: "the user settings allow nothing there (orkeonCode paths.allow); a project file may only narrow it" },
+    },
+  },
+  {
+    name: "keeps a physical spelling for the run to judge with the host's layout",
+    file: { "paths.allow": "C:\\x" }, user: { "paths.allow": "/workspace" }, expected: { key: "paths.allow", value: "C:\\x", source: "file" },
+  },
+];

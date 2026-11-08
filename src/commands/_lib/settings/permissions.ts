@@ -23,8 +23,13 @@ import type { SessionIo } from "../../../shared/application/session-io.ts";
 import { configuredNames, resolveExtraTools } from "../../../shared/application/extra-tools.ts";
 import type { ExtraToolsResolution } from "../../../shared/application/extra-tools.ts";
 import {
-  addPermissionRule, clearPermissionRules, readPermissionRules, removePermissionRule, syncPermissionRules,
+  addPermissionRule, builtInRules, clearPermissionRules, readPermissionRules, removePermissionRule, syncPermissionRules,
 } from "../../../shared/application/permission-rules.ts";
+import { listsOf } from "../../../shared/application/host-context.ts";
+import type { HostSource } from "../../../shared/application/host-context.ts";
+import {
+  USER_CONFIG_MOUNT, listedEntries, pathListRules, userConfigRules,
+} from "../../../shared/domain/agent-policy/path-rules.ts";
 import type { StoredRules } from "../../../shared/application/permission-rules.ts";
 import { readMemoryDir } from "../../../shared/application/shared-memory/memory-settings.ts";
 import { memoryWriteRules } from "../../../shared/domain/shared-memory/layout.ts";
@@ -58,6 +63,8 @@ export interface PermissionsDeps {
   config: Pick<ConfigStore, "readValue" | "readFile" | "readUserFile">;
   /** The tools the host registers: the catalogue offers the extra tools it has. */
   catalogue: Pick<ToolCatalogue, "find">;
+  /** This run's host context, for its path lists (paths.deny in the gate); absent: no list. */
+  host?: HostSource;
 }
 
 /** The mode a turn without a `mode:` prefix runs in: /mode's, else the fallback. */
@@ -142,9 +149,14 @@ async function renderShow(deps: PermissionsDeps, extras: ExtraToolsResolution): 
   // built-in rule sets (a dev step's), grouped.
   const sessionLines = rules.map(gateLine);
   const memoryDir = (await readMemoryDir(deps.config)).dir;
+  const lists = await listsOf(deps.host);
   const memoryLines = memoryWriteRules(memoryDir).map(gateLine);
+  const userConfigLines = userConfigRules().map(gateLine);
+  const pathLines = pathListRules(lists).map(gateLine);
+  const builtInLines = [...memoryLines, ...userConfigLines, ...pathLines];
   const all = gate.available() ? gate.list() : null;
-  const guarded = all === null ? [] : all.filter((l) => memoryLines.includes(l) && !sessionLines.includes(l));
+  const guarded = all === null ? [] : all.filter((l) => builtInLines.includes(l) && !sessionLines.includes(l));
+  const guardedOf = (lines: string[]): number => guarded.filter((l) => lines.includes(l)).length;
   const held = all === null ? null : all.filter((l) => !guarded.includes(l));
   const grouped = held === null ? null : heldRuleSets(held.filter((l) => !sessionLines.includes(l)));
   const setLines = new Set(held === null || grouped === null
@@ -154,9 +166,17 @@ async function renderShow(deps: PermissionsDeps, extras: ExtraToolsResolution): 
   const setParts = grouped !== null && grouped.sets.length > 0
     ? [`rule sets of the last dev step: ${grouped.sets.map((g) => `${g.id} (${g.count} rules)`).join(", ")}`]
     : [];
-  const guardParts = guarded.length > 0
-    ? [`the shared memory's guard: no tool of the model writes under ${memoryDir}/candidates or ${memoryDir}/entries (${guarded.length} rules)`]
-    : [];
+  const guardParts = [
+    ...(guardedOf(memoryLines) > 0
+      ? [`the shared memory's guard: no tool of the model writes under ${memoryDir}/candidates or ${memoryDir}/entries (${guardedOf(memoryLines)} rules)`]
+      : []),
+    ...(guardedOf(userConfigLines) > 0
+      ? [`the user configuration's guard: no tool of the model reads or writes ${USER_CONFIG_MOUNT} (${guardedOf(userConfigLines)} rules)`]
+      : []),
+    ...(guardedOf(pathLines) > 0
+      ? [`paths.deny: no tool of the model reads or writes ${listedEntries(lists.deny).join(", ")} (${guardedOf(pathLines)} rules)`]
+      : []),
+  ];
   const heldParts = plain === null ? [] : [...(plain.length > 0 ? [plain.join(", ")] : []), ...setParts, ...guardParts];
 
   // The shared memory's tools are the main loop's, offered by mode (memory_recall always, memory_push where the
@@ -241,7 +261,7 @@ export async function runPermissions(tokens: string[], deps: PermissionsDeps): P
   const ruleText = ruleTokens.join(" ");
   const extras = await resolveExtraTools(deps);
   const extraNames = configuredNames(extras);
-  const builtIn = memoryWriteRules((await readMemoryDir(deps.config)).dir);
+  const builtIn = builtInRules((await readMemoryDir(deps.config)).dir, await listsOf(deps.host));
   const sync = () => syncPermissionRules({ session, gate, extraNames, builtIn });
   switch ((sub ?? "show").toLowerCase()) {
     case "show":

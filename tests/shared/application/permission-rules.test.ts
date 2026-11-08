@@ -5,8 +5,12 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 
 import {
-  addPermissionRule, clearPermissionRules, readPermissionRules, removePermissionRule, syncPermissionRules, syncStepRules,
+  addPermissionRule, builtInRules, clearPermissionRules, readPermissionRules, removePermissionRule, syncPermissionRules,
+  syncStepRules,
 } from "../../../src/shared/application/permission-rules.ts";
+import { EMPTY_PATH_LISTS, pathListRules, userConfigRules } from "../../../src/shared/domain/agent-policy/path-rules.ts";
+import { memoryWriteRules } from "../../../src/shared/domain/shared-memory/layout.ts";
+import { SECRETS_HOST } from "../../support/fixtures/host-context.ts";
 import { PERMISSION_RULES_STATE_KEY } from "../../../src/shared/domain/session-keys.ts";
 import { FakePermissionRules } from "../../support/doubles/fake-permission-rules.ts";
 import { FakeSessionStore } from "../../support/doubles/fake-session-store.ts";
@@ -387,5 +391,29 @@ describe("syncStepRules", () => {
     deepStrictEqual(gate.calls, []);
     strictEqual(sync.applied, false);
     deepStrictEqual(sync.step, []);
+  });
+});
+
+describe("builtInRules", () => {
+  it("puts the shared memory's guard first, then the user configuration's, then the deny rules of paths.deny", () => {
+    // Arrange
+    const lists = SECRETS_HOST.lists;
+
+    // Act
+    const rules = builtInRules(".orkeon/memory", lists);
+
+    // Assert
+    deepStrictEqual(rules, [...memoryWriteRules(".orkeon/memory"), ...userConfigRules(), ...pathListRules(lists)]);
+  });
+
+  it("adds no path rule without a list", () => {
+    // Arrange
+    const lists = EMPTY_PATH_LISTS;
+
+    // Act
+    const rules = builtInRules(".orkeon/memory", lists);
+
+    // Assert
+    strictEqual(rules.length, memoryWriteRules(".orkeon/memory").length + userConfigRules().length);
   });
 });

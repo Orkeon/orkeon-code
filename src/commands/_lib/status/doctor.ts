@@ -21,6 +21,9 @@ import type {
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import { CODE_INTEL_TOOLS } from "../../../shared/domain/code-intel-contract.ts";
 import { knownConfigKeys } from "../../../shared/domain/config-schema.ts";
+import { readHostContext } from "../../../shared/application/host-context.ts";
+import { describeHostLayout } from "../../../shared/domain/host-layout.ts";
+import { listedEntries } from "../../../shared/domain/agent-policy/path-rules.ts";
 import { CLI_BUILD, CLI_NAME, CLI_VERSION, isPinnedCommit, ORKEON_RUNTIME_PIN } from "./meta.ts";
 import type { CommandView } from "../view.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
@@ -40,8 +43,10 @@ export interface DoctorDeps {
   shell: Shell;
   telemetry: Pick<Telemetry, "readMetadata">;
   catalogue: Pick<ToolCatalogue, "names">;
-  files: Pick<Files, "mounts" | "list">;
-  config: Pick<ConfigStore, "readValue">;
+  /** The mounts, the old sessions folder, and launch.json (the host's layout). */
+  files: Pick<Files, "mounts" | "list" | "read">;
+  /** What the project file could not widen, and the two settings files' path lists. */
+  config: Pick<ConfigStore, "readValue" | "readFile" | "readUserFile">;
   /** The running runtime's reader (Orkeon #225); absent, or answering nothing: the version row names the pin alone. */
   runtime?: RuntimeInfoReader;
 }
@@ -148,6 +153,21 @@ export async function runDoctor(deps: DoctorDeps): Promise<CommandView> {
   } catch (e: any) {
     rows.push({ check: "vfs: mounts", result: WARN, detail: `list_mounts unavailable: ${String(e?.message ?? e).split("\n")[0]}` });
   }
+
+  // 4b. The host the launcher described (launch.json) and the user's path lists, as every act's callbacks read them:
+  // the layout with each mount's base, the lists, and every entry or file they could not read.
+  const host = await readHostContext(files, deps.config);
+  const lists = [
+    ...(host.lists.deny.length > 0 ? [`deny: ${listedEntries(host.lists.deny).join(", ")}`] : []),
+    ...(host.lists.allow.length > 0 ? [`allow: ${listedEntries(host.lists.allow).join(", ")}`] : []),
+  ];
+  rows.push({
+    check: "host: paths",
+    result: host.problems.length === 0 ? PASS : WARN,
+    detail: [
+      describeHostLayout(host.layout), ...(lists.length > 0 ? lists : ["no path list"]), ...host.problems.map((p) => `⚠ ${p}`),
+    ].join("; "),
+  });
 
   // 5. Sessions left in the project: the runtime kept them in /workspace/.orkeon/sessions
   // before the launcher mounted /sessions outside the project (QL-04). Left alone, named here.

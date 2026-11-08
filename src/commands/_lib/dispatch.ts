@@ -11,9 +11,10 @@ import type { ConfigStore } from "../../shared/application/config-store.ts";
 import type { SessionIo } from "../../shared/application/session-io.ts";
 import { configuredNames, resolveExtraTools } from "../../shared/application/extra-tools.ts";
 import { readLlmProfile } from "../../shared/application/llm-profile.ts";
-import { syncPermissionRules } from "../../shared/application/permission-rules.ts";
+import { builtInRules, syncPermissionRules } from "../../shared/application/permission-rules.ts";
 import { readMemoryDir } from "../../shared/application/shared-memory/memory-settings.ts";
-import { memoryWriteRules } from "../../shared/domain/shared-memory/layout.ts";
+import { listsOf } from "../../shared/application/host-context.ts";
+import type { HostSource } from "../../shared/application/host-context.ts";
 import { formatRule } from "../../shared/domain/agent-policy/permission.ts";
 import { chainDepthLine, chainDepthRefusal } from "../../shared/domain/agents/chain.ts";
 import { exclusiveLine, exclusiveRefusal } from "../../shared/domain/agents/exclusive.ts";
@@ -114,6 +115,8 @@ export interface MainLoopLaunchDeps extends LaunchDeps {
   config: Pick<ConfigStore, "readValue" | "readFile">;
   catalogue: Pick<ToolCatalogue, "find">;
   gate: PermissionRules;
+  /** This run's host context, for its path lists (paths.deny in the gate); absent: no list. */
+  host?: HostSource;
 }
 
 /**
@@ -153,10 +156,10 @@ export async function launchMainLoop(
     log.warn(`${EXTRA_TOOLS_CONFIG_KEY} could not be read (${extras.unreadable}): no extra tool this turn`);
   }
 
-  const builtIn = memoryWriteRules((await readMemoryDir(deps.config)).dir);
+  const builtIn = builtInRules((await readMemoryDir(deps.config)).dir, await listsOf(deps.host));
   const sync = await syncPermissionRules({ session, gate: deps.gate, extraNames: configuredNames(extras), builtIn });
   for (const rule of sync.overridden) {
-    log.warn(`permission rule '${formatRule(rule)}' is left out of the gate: no tool of the model writes the shared memory's candidates or entries`);
+    log.warn(`permission rule '${formatRule(rule)}' is left out of the gate: a built-in rule denies the same calls (the shared memory's candidates and entries, the user configuration, paths.deny)`);
   }
   for (const rule of sync.dormant) {
     log.warn(

@@ -29,7 +29,7 @@ import { readPullRequestContext } from "../_lib/pr-context.ts";
 import { createCrewHost } from "../../shared/infrastructure/orkeon/crew-host.ts";
 import { createPermissionRules } from "../../shared/infrastructure/orkeon/permission-rules.ts";
 import {
-  orkeonConfigStore, orkeonFiles, orkeonSessionIo, orkeonShell, orkeonToolCatalogue,
+  orkeonConfigStore, orkeonFiles, orkeonHostContext, orkeonSessionIo, orkeonShell, orkeonToolCatalogue,
 } from "../../shared/infrastructure/orkeon/wiring.ts";
 import type { CommandRuntimeContext } from "../.orkeon/orkeon-cli.d.ts";
 
@@ -51,7 +51,7 @@ async function runDispatch(args: Parameters<typeof batchesLaunchInput>[0], ctx: 
   }
   // The batches run the dev-implement step: its rule sets and its two allow rules (run_tests, run_build).
   const start = await startDevStep("dev-implement", {
-    ...deps, gate: createPermissionRules(ctx.services), catalogue: orkeonToolCatalogue(ctx.services),
+    ...deps, gate: createPermissionRules(ctx.services), host: orkeonHostContext, catalogue: orkeonToolCatalogue(ctx.services),
   });
   if (!start.ok) {
     ctx.writeLine(start.line);

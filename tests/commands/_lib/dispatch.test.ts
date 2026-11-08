@@ -26,13 +26,15 @@ import { FakeRunState } from "../../support/doubles/fake-run-state.ts";
 import { FakeShell } from "../../support/doubles/fake-shell.ts";
 import { FakeTelemetry } from "../../support/doubles/fake-telemetry.ts";
 import { FakeToolCatalogue } from "../../support/doubles/fake-tool-catalogue.ts";
+import { secretsHost } from "../../support/fixtures/host-context.ts";
 import {
   CHAIN_LIMIT_ERROR, EXCLUSIVE_ERROR,
   FALLBACK_VIA,
   MCP_EXTRA_TOOLS,
   MCP_REGISTERED,
   MCP_UNREGISTERED_WARNING,
-  MEMORY_GATE,
+  BUILT_IN_GATE,
+  SECRETS_GATE,
   MEMORY_PATHS,
   MIXED_EXTRA_TOOLS,
   MIXED_EXTRA_TOOLS_WARNINGS,
@@ -259,7 +261,7 @@ describe("launchMainLoop", () => {
 
     // Assert
     deepStrictEqual(ticket, { ticket: "ticket-1" });
-    const handed = ["clear", "add deny file_write", "add allow shell_command command=npm test*", ...MEMORY_GATE];
+    const handed = ["clear", "add deny file_write", "add allow shell_command command=npm test*", ...BUILT_IN_GATE];
     deepStrictEqual(atLaunch.gate, handed);
     deepStrictEqual(gate.calls, handed);
     deepStrictEqual(crews.launches, [{
@@ -289,7 +291,7 @@ describe("launchMainLoop", () => {
       await launchMainLoop(deps, { prompt: "go", permissionMode: mode });
 
       // Assert
-      deepStrictEqual(atLaunch.gate, ["clear", "add allow file_write", ...MEMORY_GATE], mode);
+      deepStrictEqual(atLaunch.gate, ["clear", "add allow file_write", ...BUILT_IN_GATE], mode);
       assertMemoryGuarded(gate.rules, MEMORY_PATHS, mode);
     });
   }
@@ -363,7 +365,7 @@ describe("launchMainLoop", () => {
     await launchMainLoop(deps, { prompt: "summarise", permissionMode: "plan" });
 
     // Assert
-    deepStrictEqual(gate.calls, ["clear", ...MEMORY_GATE]);
+    deepStrictEqual(gate.calls, ["clear", ...BUILT_IN_GATE]);
     deepStrictEqual(crews.launches[0].input, {
       prompt: "summarise", permissionMode: "plan", permissionRules: [], extraTools: [],
     });
@@ -399,7 +401,7 @@ describe("launchMainLoop", () => {
     deepStrictEqual(crews.launches[0].input, {
       prompt: "go", permissionMode: "default", permissionRules: ["deny file_write"], extraTools: [],
     });
-    deepStrictEqual(gate.calls, ["clear", "add deny file_write", ...MEMORY_GATE]);
+    deepStrictEqual(gate.calls, ["clear", "add deny file_write", ...BUILT_IN_GATE]);
     deepStrictEqual(warned, UNREADABLE_EXTRA_TOOLS_WARNINGS);
     deepStrictEqual(JSON.parse(store.state.get(PERMISSION_RULES_STATE_KEY)!), ["deny create_issue", "deny file_write"]);
   });
@@ -424,7 +426,7 @@ describe("launchMainLoop", () => {
       permissionRules: ["deny gone_tool", "allow search_issues query=bug*"],
       extraTools: ["transcribe_audio:read", "search_issues:write"],
     });
-    deepStrictEqual(gate.calls, ["clear", "add deny gone_tool", "add allow search_issues query=bug*", ...MEMORY_GATE]);
+    deepStrictEqual(gate.calls, ["clear", "add deny gone_tool", "add allow search_issues query=bug*", ...BUILT_IN_GATE]);
     deepStrictEqual(warned, MIXED_EXTRA_TOOLS_WARNINGS);
     deepStrictEqual(logged[0].data, { ticket: "ticket-1", permissionMode: "default", permissionRules: 2, extraTools: 2 });
   });
@@ -656,5 +658,18 @@ describe("writeCompleted", () => {
 
     // Assert
     deepStrictEqual(lines, ["✗ analyze failed: unknown"]);
+  });
+});
+
+describe("launchMainLoop — the host's path lists", () => {
+  it("puts the deny rules of the host's paths.deny in the gate, after the built-in guards", async () => {
+    // Arrange
+    const { gate, deps } = mainLoopDeps();
+
+    // Act
+    await launchMainLoop({ ...deps, host: secretsHost }, { prompt: "go", permissionMode: null });
+
+    // Assert
+    deepStrictEqual(gate.calls, ["clear", ...BUILT_IN_GATE, ...SECRETS_GATE]);
   });
 });

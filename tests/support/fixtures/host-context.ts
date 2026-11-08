@@ -18,3 +18,12 @@ export const WINDOWS_HOST: HostContext = { layout: WINDOWS_LAYOUT, lists: { deny
 
 /** The source of WINDOWS_HOST, as an adapter reads it. */
 export const windowsHost: HostSource = async () => WINDOWS_HOST;
+
+/** The identity layout with /workspace/secrets denied: the lists alone, for the commands that put them in the gate. */
+export const SECRETS_HOST: HostContext = {
+  layout: { flavour: "posix", automountRoot: "/mnt", mounts: [] },
+  lists: { deny: ["/workspace/secrets", "/workspace/secrets/*"], allow: [] },
+};
+
+/** The source of SECRETS_HOST. */
+export const secretsHost: HostSource = async () => SECRETS_HOST;

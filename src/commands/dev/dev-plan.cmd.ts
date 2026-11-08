@@ -11,7 +11,7 @@ import { launchCrew, withLlmProfile, writeCompleted } from "../_lib/dispatch.ts"
 import { createCrewHost } from "../../shared/infrastructure/orkeon/crew-host.ts";
 import { createPermissionRules } from "../../shared/infrastructure/orkeon/permission-rules.ts";
 import {
-  orkeonConfigStore, orkeonFiles, orkeonSessionIo, orkeonShell, orkeonToolCatalogue,
+  orkeonConfigStore, orkeonFiles, orkeonHostContext, orkeonSessionIo, orkeonShell, orkeonToolCatalogue,
 } from "../../shared/infrastructure/orkeon/wiring.ts";
 
 const deps = { files: orkeonFiles(), shell: orkeonShell(), config: orkeonConfigStore(), session: orkeonSessionIo() };
@@ -35,7 +35,7 @@ defineAsyncCommand({
       return { refused: readOnly };
     }
     const start = await startDevStep("dev-plan", {
-      ...deps, gate: createPermissionRules(ctx.services), catalogue: orkeonToolCatalogue(ctx.services),
+      ...deps, gate: createPermissionRules(ctx.services), host: orkeonHostContext, catalogue: orkeonToolCatalogue(ctx.services),
     });
     if (!start.ok) {
       ctx.writeLine(start.line);
