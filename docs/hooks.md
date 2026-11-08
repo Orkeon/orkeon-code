@@ -14,21 +14,24 @@ They last until `/clear` or the end of the REPL, like the [permission rules](per
 ## Where they run
 
 The dev steps `/dev-spec`, `/dev-plan` and `/dev-batches` hand the
-registry to their crew, and so does `/tasks repair` to the agent it starts again. For each tool call the model makes in that crew, once the [host gate](permissions.md) has allowed it:
+registry to their crew, and so does `/tasks repair` to the agent it starts again. For each tool call the model makes in that crew, before the [host gate](permissions.md) judges it (Orkeon #303):
 
-1. the crew's callback checks the call again against the step's rule sets (and, for a role of a batch, against its
+1. the crew's callback checks the call against the step's rule sets (and, for a role of a batch, against its
    roots); a call they refuse runs no hook;
 2. every `pre-tool` hook runs, in the order of `/hooks list`; the first that exits with a code other than 0, runs
    longer than 60 seconds or cannot run refuses the call: the model reads the hook's number, its command, its exit
    code and the first line it printed (its error output first), and the call does not run;
-3. the call runs;
-4. every `post-tool` hook runs, in order. One that fails adds a line to the result the model reads
+3. the host gate judges the call, on the input the callback returns: a session rule or the mode may still refuse it,
+   or ask you; a refused call does not run;
+4. the call runs;
+5. every `post-tool` hook runs, in order. One that fails adds a line to the result the model reads
    (`[post-tool hook #2 (node .orkeon/hooks/post.mjs file_write src/x.ts) exited 1: …]`); when they all exit 0, the
    result is left as it is. A result that is not text reaches the model then as compact JSON, on one line.
 
 The time a hook runs counts in the step's time budget, at each call: keep hooks short.
 
-A call the gate refuses, a session deny rule among them, never reaches the hooks. The assistant (`/assistant`) does
+A `pre-tool` hook therefore also runs for a call the gate then refuses, a session deny rule among them, and before
+the gate asks you; a `post-tool` hook runs only after a call that ran. The assistant (`/assistant`) does
 not run them yet, and nothing runs a `stop` hook: `/hooks` stores them for later. Under `orkeon run`, a crew gets
 the same hooks from its `hooks` input (`--inputs '{"hooks":[{"event":"pre-tool","command":"…"}]}'`).
 

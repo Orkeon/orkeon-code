@@ -1,6 +1,6 @@
 # ADR 0022: one canonical spelling for the host's paths, and the path lists
 
-- **Status**: accepted
+- **Status**: accepted, amended by [ADR 0023](0023-orkeon-after-304.md): Orkeon #304 closed #300 to #303
 - **Date**: 2026-11-08
 - **Extends**: [ADR 0001](0001-clean-architecture.md)
 

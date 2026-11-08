@@ -52,7 +52,7 @@ const memoryOn = memoryRecallOn(inputs());
 const session = orkeonSessionIo();
 const effort = providerEffort(inputs().effort);
 const limits = instanceLimits(inputs());
-// The host's gate first, then these callbacks: the step's rule sets again and the /hooks the command passed.
+// These callbacks, then the host's gate on the input they return (Orkeon #303): the step's rule sets again and the /hooks the command passed.
 // memory_recall (the shared memory's precedents) declares `read`: named in readTools, as run_validation in dev-verify.
 const callbacksFor = (ctx: any) => devToolCallbacks(
   { step: "dev-plan", hooks: inputs().hooks, readTools: memoryReadTools(memoryOn) }, { shell: ports.shell, log: ctx.log, memoryDir: memoryDirOf(ports.config) },

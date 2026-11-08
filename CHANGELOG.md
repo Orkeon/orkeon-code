@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the pin moves to Orkeon `21b64c1`, `onToolCall` before the gate
+
+- The pin follows Orkeon `main` at `21b64c1` (#304, after the framework lots of #299). The shell's outbound rewrite
+  now keeps a quoted path with spaces, matches a Windows base in any case and as `C:/…`, and under WSL hands a
+  Windows program the Windows spelling of a mount (`Orkeon:Tools:Shell:WindowsPaths`).
+- **The dev crews' callback runs before the host gate**, which judges the input it returns: a call spelled `C:\…` is
+  judged once on its canonical spelling. A `pre-tool` hook therefore runs also for a call the gate then refuses, and
+  before the gate asks you; a batch's tool-call budget counts such a call ([ADR 0023](docs/adr/0023-orkeon-after-304.md)).
+- The input guard's settings section is now `Orkeon:Guardian:Llm`, fail-closed by default; a settings file still holding
+  `Orkeon:Decision:Guard` is refused at start. A project folder that is a link out of `/workspace` is no longer
+  readable through the mount.
+
 ### Added — Windows and WSL path spellings, path rules
 
 - Every spelling of a physical path of a mount (`C:\proj\src\a.ts`, `c:/Proj/src/a.ts`, `\\?\C:\…`, a UNC share,

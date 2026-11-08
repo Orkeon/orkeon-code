@@ -43,8 +43,9 @@ The runtime runs the sources under rules that shape everything below:
   `namespace`, no parameter property.
 - **An unknown name in `.tools([...])` fails the turn**: `act` throws `UnknownToolError` before the model is asked,
   so a catalogue names only tools the host registers (the extra tools are checked against them at launch).
-- **The host's gate runs first.** An `onToolCall` hook sees only the calls the gate allowed; an `"ask"` it returns is
-  checked again as an edit in the `default` mode.
+- **`onToolCall` runs before the host's gate** (Orkeon #303). The gate judges the input the callback returns, once; a
+  `{ deny }` from the callback never reaches it, and an `"ask"` is put to the operator once the mode admitted the call.
+  The callback therefore sees calls the gate then refuses.
 - **The read calls of a turn run together.** `Orkeon:Tools:ResultLimits:MaxParallelToolCalls` (4) read calls of one
   model turn run at once; every other call runs alone, one after the other.
 - **`spawn_agent` is the host's own.** The script host offers it to every act; naming it in `.tools([...])`, or in
@@ -147,13 +148,10 @@ prints, in what the user types and in what the model writes.
   every call the lists cover, in any spelling, before the crew's own callbacks. Built-in deny rules close the whole
   `/user-config` mount to the model's tools, the physical bases of `launch.json` and the user settings inside; the
   code reads it through the Files port, which the gate does not see.
-- **A limit the runtime sets.** The gate judges the raw input before `onToolCall` runs; only a rewritten `{ input }`
-  is gated again. A model call spelled `C:\…` on a path tool is judged once on that spelling: with no matching rule
-  an interactive mode asks with that spelling, then the canonical input is gated again; a mode that refuses what no
-  rule covers refuses before the conversion. A shell command is judged by the gate on its text and by the callbacks
-  on its canonical paths; every result is canonical. ADR 0022 names the four issues left to the runtime, Orkeon #300 to #303 (the cut at
-  a space and the case of the base in the shell's outbound rewrite, the Windows spelling of a mount under WSL, the
-  gate run after the callback); none is needed for what is above.
+- **The gate judges the canonical input.** `onToolCall` runs before the gate (Orkeon #303, ADR 0023): a model call
+  spelled `C:\…` on a path tool is converted first, and the gate judges the canonical input once. A shell command is
+  judged by the gate on its text and by the callbacks on its canonical paths; every result is canonical. The four
+  issues ADR 0022 left to the runtime, Orkeon #300 to #303, are closed by Orkeon #304, which the pin covers.
 
 ## Layers and the dependency rule
 

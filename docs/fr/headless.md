@@ -34,8 +34,9 @@ mode :
 | `plan`, `dontAsk` | Lectures seulement |
 | `bypassPermissions` | Tout |
 
-Un act sans `permissionMode` tourne en `default`. Un hook `onToolCall` ne voit que les appels que la garde a
-autorisés, et un `"ask"` qu'il renvoie est vérifié à nouveau comme une modification en `default`, donc refusé ici.
+Un act sans `permissionMode` tourne en `default`. Un hook `onToolCall` tourne avant la garde, qui juge ensuite
+l'entrée qu'il renvoie ; un `"ask"` qu'il renvoie est posé à l'opérateur une fois l'appel admis par le mode, donc
+refusé ici.
 
 Ce qui borne un tour, quel que soit le mode :
 

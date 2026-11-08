@@ -22,7 +22,7 @@ export function createToolTrace(): ToolTrace {
 }
 
 /** The callbacks given, each result recorded first, and each call they deny, which gets no result: their verdicts
- *  and their context stand unchanged. A call the host's gate refuses reaches neither callback, and is not recorded. */
+ *  and their context stand unchanged. A call the host's gate refuses after `onToolCall` (Orkeon #303) gets no result, and is not recorded. */
 export function tracedCallbacks(inner: Pick<ToolCallbacks, "forAct">, trace: Pick<ToolTrace, "record">): Pick<ToolCallbacks, "forAct"> {
   return {
     forAct(mode, gateEnabled) {

@@ -52,7 +52,7 @@ const memoryOn = memoryRecallOn(inputs());
 const effort = providerEffort(inputs().effort);
 const session = orkeonSessionIo();
 const limits = instanceLimits(inputs());
-// The host's gate first, then these callbacks: the step's rule sets again and the /hooks the command passed.
+// These callbacks, then the host's gate on the input they return (Orkeon #303): the step's rule sets again and the /hooks the command passed.
 const callbacksFor = (ctx: any) => devToolCallbacks(
   { step: "dev-spec", hooks: inputs().hooks, readTools: memoryReadTools(memoryOn) }, { shell: ports.shell, log: ctx.log, memoryDir: memoryDirOf(ports.config) },
 );

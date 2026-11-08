@@ -47,8 +47,9 @@ Le runtime exécute les sources sous des règles qui façonnent tout ce qui suit
 - **Un nom inconnu dans `.tools([...])` fait échouer le tour** : `act` lève `UnknownToolError` avant d'interroger le
   modèle, donc un catalogue ne nomme que des outils que l'hôte enregistre (les outils supplémentaires sont vérifiés
   contre eux au lancement).
-- **La garde de l'hôte passe d'abord.** Un hook `onToolCall` ne voit que les appels que la garde a autorisés ; un
-  `"ask"` qu'il renvoie est vérifié à nouveau comme une modification en mode `default`.
+- **`onToolCall` tourne avant la garde de l'hôte** (Orkeon #303). La garde juge une fois l'entrée que le callback
+  renvoie ; un `{ deny }` du callback ne l'atteint jamais, et un `"ask"` est posé à l'opérateur une fois l'appel admis
+  par le mode. Le callback voit donc des appels que la garde refuse ensuite.
 - **Les appels de lecture d'un tour tournent ensemble.** `Orkeon:Tools:ResultLimits:MaxParallelToolCalls` (4) appels
   de lecture d'un même tour du modèle tournent en même temps ; tout autre appel tourne seul, l'un après l'autre.
 - **`spawn_agent` appartient à l'hôte.** L'hôte de scripts l'offre à chaque act ; le nommer dans `.tools([...])`, ou
@@ -157,14 +158,11 @@ qu'un programme imprime, dans ce que l'utilisateur tape et dans ce que le modèl
   propres du crew. Des règles deny intégrées ferment tout le mount `/user-config` aux outils du modèle, les bases
   physiques de `launch.json` et les réglages de l'utilisateur dedans ; le code le lit par le port Files, que la garde
   ne voit pas.
-- **Une limite que fixe le runtime.** La garde juge l'entrée brute avant que `onToolCall` ne tourne ; seul un
-  `{ input }` réécrit est contrôlé à nouveau. Un appel du modèle écrit `C:\…` sur un outil à chemin est jugé une fois
-  sur cette écriture : sans règle qui corresponde, un mode interactif demande avec cette écriture, puis l'entrée
-  canonique est contrôlée à nouveau ; un mode qui refuse ce qu'aucune règle ne couvre refuse avant la conversion. Une
+- **La garde juge l'entrée canonique.** `onToolCall` tourne avant la garde (Orkeon #303, ADR 0023) : un appel du
+  modèle écrit `C:\…` sur un outil à chemin est d'abord converti, et la garde juge une fois l'entrée canonique. Une
   commande shell est jugée par la garde sur son texte et par les callbacks sur ses chemins canoniques ; chaque
-  résultat est canonique. L'ADR 0022 nomme les quatre issues laissées au runtime, Orkeon #300 à #303 (la coupure à un espace et la casse
-  de la base dans la réécriture de sortie du shell, l'écriture Windows d'un mount sous WSL, la garde après le
-  callback) ; aucune n'est nécessaire à ce qui précède.
+  résultat est canonique. Les quatre issues que l'ADR 0022 laissait au runtime, Orkeon #300 à #303, sont fermées par
+  Orkeon #304, que le pin couvre.
 
 ## Couches et règle de dépendance
 

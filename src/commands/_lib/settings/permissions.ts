@@ -213,7 +213,7 @@ async function renderShow(deps: PermissionsDeps, extras: ExtraToolsResolution): 
     "                          acceptEdits ask you: [y] once / [s] session / [n] no; a background",
     "                          command's question names its task (for [t1]), answered from the main prompt",
     "                       3) dev crews' callback (/dev-spec, /dev-plan, /dev-batches, a /tasks repair),",
-    "                          after the gate allowed a call:",
+    "                          before the gate of 2), which then judges the input it returns:",
     "                          the step's rule sets and a role's roots again, glob/grep/count_pattern by",
     "                          their whole input, the act's mode when the host has no gate, then the",
     "                          pre-tool and post-tool hooks (/hooks); it can refuse, never allow more",

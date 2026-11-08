@@ -52,7 +52,7 @@ const builder = orkeonAgent()
   .withAutonomousTools(memoryRecallTools(ToolBuilder, orkeonMemoryToolPorts, memoryOn))
   .maxIterations(charter.maxIterations)
   .body(async (_input: any, ctx: any) => {
-    // The host's gate first, then the callbacks of the charter's step: its rule sets and the /hooks /tasks passed.
+    // The callbacks of the charter's step, then the host's gate on their input: its rule sets and the /hooks /tasks passed.
     const callbacks = devToolCallbacks({ step, hooks: inputs().hooks, readTools: memoryReadTools(memoryOn) }, { shell, log: ctx.log, memoryDir: memoryDirOf(orkeonConfigStore()) });
     return await runAgentRun(inputs(), { llm: createLlm(ctx.llm, callbacks, { effort }), log: ctx.log, charters: CHARTERS });
   });

@@ -44,7 +44,7 @@ const limits = instanceLimits(inputs());
 const validationSlot = scriptToolSlot<ValidationCalls>();
 // memory_recall's ports: over the tools of the verifier's body (dev-deps.ts), never the global's.
 const bodyTools = agentTools();
-// The host's gate first, then these callbacks: the step's rule sets again and the /hooks the command passed,
+// These callbacks, then the host's gate on the input they return (Orkeon #303): the step's rule sets again and the /hooks the command passed,
 // over the tools of the body that acts (the verifier's, or the background auditor's own).
 const options = { hooks: inputs().hooks, effort, memoryOn };
 const callbacksFor = (ctx: any) => verifyCallbacks(ctx, options);

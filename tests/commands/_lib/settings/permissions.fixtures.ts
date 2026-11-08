@@ -34,7 +34,7 @@ export const NO_GATE_RULES =
 /** The third line of the enforcement block: the dev crews' tool callback. */
 export const CALLBACK = [
   "                       3) dev crews' callback (/dev-spec, /dev-plan, /dev-batches, a /tasks repair),",
-  "                          after the gate allowed a call:",
+  "                          before the gate of 2), which then judges the input it returns:",
   "                          the step's rule sets and a role's roots again, glob/grep/count_pattern by",
   "                          their whole input, the act's mode when the host has no gate, then the",
   "                          pre-tool and post-tool hooks (/hooks); it can refuse, never allow more",
