@@ -187,7 +187,7 @@ function joinPath(base: string | undefined, tail: string): string {
 
 /** The paths a folder reader reaches beyond its `path`: glob's pattern under it, grep's glob under it (or the
  *  whole folder), count_pattern's and directory_search's whole folder. */
-function reachedPaths(tool: string, input: Readonly<Record<string, unknown>>): string[] {
+export function reachedPaths(tool: string, input: Readonly<Record<string, unknown>>): string[] {
   const base = plainText(input.path);
   if (tool === "glob") {
     const pattern = plainText(input.pattern);
