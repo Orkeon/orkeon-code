@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — a crew turn without a key in CI
+
+- `scripts/smoke-crew.sh` runs `git-commit` through the runtime under `orkeon run --llm-mock` (Orkeon #299) on a fresh
+  copy of the demo fixture: the mock answers the crew's one LLM call from `tests/fixtures/llm-mock/git-commit.jsonl`, and
+  the fixture's `HEAD` must carry that subject over a clean tree. `runtime-smoke.yml` runs it after the REPL smoke, also
+  on a pull request that touches a crew, `src/shared/` or the mock answers ([Development](docs/development.md)).
+  `orkeon run --validate` stays out of CI: at the pin it refuses this project's crews
+  ([ADR 0024](docs/adr/0024-orkeon-after-299.md)).
+
 ### Fixed — the speech server's call timeout
 
 - The runtime now ends an MCP server call after `MCP:Servers:<id>:CallTimeout`, 60 s by default (Orkeon #299), which

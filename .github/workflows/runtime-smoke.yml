@@ -1,13 +1,15 @@
 # Runtime smoke: the real Orkeon REPL boots on the demo fixture and must load every
-# slash command (scripts/smoke-runtime.sh). No LLM is called.
+# slash command (scripts/smoke-runtime.sh); then one crew turn goes through the runtime,
+# git-commit under `orkeon run --llm-mock` on a fresh copy of the fixture
+# (scripts/smoke-crew.sh). No LLM is called, no key is needed.
 #
 # The runtime is Orkeon's sources at the commit pinned in .orkeon-version (ADR
 # 0013): the job checks them out, builds the REPL and runs the launcher's source
 # mode, the reference runtime of Orkeon Code. A release (the tool or the image)
 # is never the pin, so it is never what the smoke runs.
 #
-# Runs when the runtime pin, the launcher or this workflow changes, every week, and
-# on demand.
+# Runs when the runtime pin, the launcher, a smoke, a crew or this workflow changes,
+# every week, and on demand.
 name: Runtime smoke
 on:
   pull_request:
@@ -16,7 +18,13 @@ on:
       - '.orkeon-version'
       - 'orkeon-code'
       - 'scripts/smoke-runtime.sh'
+      - 'scripts/smoke-crew.sh'
+      - 'scripts/run-crew.sh'
+      - 'scripts/setup-fixture.sh'
+      - 'tests/fixtures/llm-mock/**'
       - 'src/commands/**'
+      - 'src/crews/**'
+      - 'src/shared/**'
       - '.github/workflows/runtime-smoke.yml'
   schedule:
     - cron: '41 5 * * 1'
@@ -54,11 +62,17 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - name: Restore Orkeon and install esbuild
+      - name: Restore Orkeon (the REPL and the orkeon tool) and install esbuild
         run: |
           dotnet restore .orkeon-source/src/apps/Orkeon.ConsoleApp --nologo
+          dotnet restore .orkeon-source/src/scripting/Orkeon.Scripting.Cli --nologo
           npm ci --no-audit --no-fund
       - name: Boot the REPL and load the command surface
         env:
           ORKEON_SOURCE: ${{ github.workspace }}/.orkeon-source
         run: bash scripts/smoke-runtime.sh --mode source
+      - name: Run git-commit under the mock model on a fresh fixture
+        env:
+          ORKEON_SOURCE: ${{ github.workspace }}/.orkeon-source
+          ORKEON_CODE_MODE: source
+        run: bash scripts/smoke-crew.sh
