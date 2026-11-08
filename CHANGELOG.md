@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — the speech server's call timeout
+
+- The runtime now ends an MCP server call after `MCP:Servers:<id>:CallTimeout`, 60 s by default (Orkeon #299), which
+  a dictation past a minute or a long transcription on a CPU exceeded: the launchers export
+  `ORKEON_MCP__Servers__whisper__CallTimeout=00:15:00` and the whisper example settings set the same 15 minutes. A
+  settings file of your own that declares the server needs the key ([Configuration](docs/configuration.md#speech-to-text)).
+- `Orkeon:Tools:Shell:WindowsPaths` (Orkeon #302) is described in the configuration guide and the WSL tutorial.
+
 ### Changed — the pin moves to Orkeon `4357d82`, `onToolCall` before the gate
 
 - The pin moves to Orkeon `main` `4357d82` (Orkeon #299, #304 and #306, [ADR 0023](docs/adr/0023-orkeon-after-306.md)). The shell's outbound rewrite

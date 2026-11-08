@@ -533,3 +533,7 @@ Expected: `Removed … ollama.service` at the `disable`, then nothing; `ollama -
   the same driver.
 - The PowerShell launcher (`orkeon-code.ps1`), native Windows: it has no source mode, and WSL with the bash launcher,
   as here, is the documented way.
+- Windows programs run by the assistant's shell from WSL (`code.exe`, `git.exe` of Git for Windows): they want a
+  Windows path, which `Orkeon:Tools:Shell:WindowsPaths` gives them for a mount
+  ([Configuration](configuration.md#settings-orkeon-code-relies-on)); the checkout here lives on ext4, which no Windows
+  spelling reaches except `\\wsl.localhost\<distro>\...`.

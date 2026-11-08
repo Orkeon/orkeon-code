@@ -730,6 +730,9 @@ if [ -n "${ORKEON_CODE_AUDIO_DIR:-}" ]; then
     # The gate reads a server's annotations (readOnlyHint on transcribe_audio, list_audio and whisper_info)
     # only when the server is trusted (Orkeon #223); untrusted, every tool of the server would be a write.
     export ORKEON_MCP__Servers__whisper__TrustAnnotations=true
+    # The runtime ends a server call after MCP:Servers:<id>:CallTimeout, 60 s by default (Orkeon #299):
+    # a dictation records up to /voice --max (600 s) then transcribes, and a long file on a CPU takes minutes.
+    export ORKEON_MCP__Servers__whisper__CallTimeout=00:15:00
     # ORKEON_CODE_VOICE=1 opens the microphone to /voice and the speaker to /say and
     # voice.reply: the server gets the `voice` extra (sounddevice), WHISPER_MICROPHONE=1
     # and WHISPER_SPEAKER=1; without it, it refuses to record and only writes what it

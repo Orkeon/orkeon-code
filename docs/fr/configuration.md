@@ -127,6 +127,7 @@ fournisseur. Un résultat d'outil parvient au modèle coupé à 4000 caractères
 | `Orkeon:Scripting:Limits:ExecutionTimeout`, `Orkeon:Scripting:Limits:MemoryLimitBytes` | Les mêmes limites pour `orkeon run`, l'outil avec lequel `scripts/run-crew.sh` lance un crew (30 secondes et 100 Mo par défaut ; l'exemple met 30 minutes et 2 Gio). `orkeon-repl` ne les lit pas |
 | `Orkeon:Tools:Shell:AllowInterpreters` | Laisse `shell_command` lancer des interpréteurs (`node`, `dotnet`, `npm`...), nécessaire pour construire et tester la plupart des projets |
 | `Orkeon:Tools:Shell:ExtraAllowedCommands` | Commandes ajoutées à la liste blanche du shell (`make`, `cargo`...) |
+| `Orkeon:Tools:Shell:WindowsPaths:<chemin virtuel>` | Sous WSL, l'écriture Windows d'un montage (`"/workspace": "C:\\proj"`) : un programme Windows (`cmd.exe`, `code.exe`, le `git.exe` de Git for Windows) lancé par `shell_command` reçoit ses arguments et ses résultats dans cette écriture, là où un programme Linux reçoit `/mnt/c/proj` (Orkeon #302). Sans la clé, tout programme reçoit l'écriture Linux |
 | `Orkeon:Tools:Shell:Confinement:Mode` | `Auto` (défaut : bubblewrap sous Linux, Seatbelt sous macOS, AppContainer sous Windows, aucun dans un conteneur), `None`, `Bubblewrap`, `Seatbelt` ou `AppContainer`. Confinée, chaque commande shell s'exécute sous `bwrap` (Linux, modes tool et source), réseau coupé sauf `Confinement:AllowNetwork`, les programmes hors des répertoires système à lister dans `Confinement:ReadOnlyPaths`. Une commande échoue quand elle ne peut pas être confinée. Les exemples mettent `None` ; un fichier de settings sans la clé confine, hors d'un conteneur. `/dev-batches --concurrency` au-delà de 1 fonctionne sous Bubblewrap avec un runtime qui monte le répertoire git d'un worktree lié (Orkeon/orkeon#191) ; avec un plus ancien, git échoue dans le worktree d'un lot, et l'exécution se refuse en une ligne. Confiné, le push de clôture n'atteint aucun remote (pas de réseau, `HOME=/tmp`, donc aucun identifiant) : l'exécution reste ouverte avec la commande `git push`. Poussez-la depuis un terminal, puis le `/dev-batches` suivant clôt l'exécution sans pousser de nouveau. Voir [SECURITY.md](../../SECURITY.md) |
 | `Orkeon:Tools:Shell:Environment:SessionBus` | Si un shell confiné (bubblewrap, Seatbelt, AppContainer) reçoit le bus de session, `DBUS_SESSION_BUS_ADDRESS`, dont le helper d'identifiants de `gh` adossé au trousseau a besoin ; `false` par défaut, puisque par le bus une commande peut lancer un processus hors du bac à sable. Un shell non confiné (`Confinement:Mode` `None`, les exemples de settings) et le bac à sable de code le reçoivent ; `SSH_AUTH_SOCK` et `XDG_RUNTIME_DIR` atteignent tout shell, donc git atteint un remote privé par l'agent ssh (Orkeon #216) |
 | `Orkeon:Tools:Shell:Environment:Propagate` | Noms de variables ajoutées à la liste blanche du shell ; un nom portant un mot de secret (`KEY`, `TOKEN`, `SECRET`, `PASSWORD`, `PASSWD`, `PASS`, `CREDENTIAL`, `AUTH`, `PAT` comme segment entier), commençant par `ORKEON_`, ou dont la valeur porte des identifiants d'URL est écarté avec un avertissement (Orkeon #216) |
@@ -336,7 +337,12 @@ horodatages dans `<name>.segments.json` et, au-delà de 30 000 caractères, en p
 `file_read` lit une à la fois. La première transcription avec un modèle le télécharge (462 Mo pour `small`) :
 `bash scripts/whisper-mcp-smoke.sh` avec `WHISPER_MODEL=small` le fait à l'avance. Un enregistrement de 45 minutes
 prend environ 7 minutes avec `small` sur un CPU, moins de 2 minutes sur le GPU d'un portable, où `turbo` est le
-meilleur modèle.
+meilleur modèle. Le runtime termine par une erreur d'outil un appel du serveur qui dépasse
+`MCP:Servers:whisper:CallTimeout` (60 s par défaut ; Orkeon #299), bien que le serveur finisse et écrive la
+transcription : les lanceurs exportent `ORKEON_MCP__Servers__whisper__CallTimeout=00:15:00` et les exemples de
+settings posent les mêmes 15 minutes, qui couvrent une dictée à son plus long (`/voice --max 600`) et un long fichier
+sur CPU ; un fichier de settings à vous qui déclare le serveur a besoin de la clé aussi, sinon une dictée au-delà de
+60 s échoue.
 
 ### Dictée
 

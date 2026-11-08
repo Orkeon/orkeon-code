@@ -182,7 +182,8 @@ Linux, the container reaches the host on the bridge address (`172.17.0.1` by def
 Never listen on `0.0.0.0`: Orkeon's HTTP transport sends no credentials, so the server has none to check, and every
 machine of the network could list and transcribe the audio folder.
 
-Two limits of Orkeon's HTTP transport: a call that lasts more than 100 s fails on the REPL's side (its HTTP client's
+Every transport bounds a call with `MCP:Servers:whisper:CallTimeout` (60 s by default; the launchers and the example
+settings set 15 minutes). Two limits of Orkeon's HTTP transport: a call that lasts more than 100 s fails on the REPL's side (its HTTP client's
 default timeout), although the server finishes and writes the transcript, so files whose transcription takes longer
 are for the stdio modes: about 10 minutes of audio on a CPU with `small`, about 35 minutes on a laptop GPU (45 minutes
 took 92 s with the server in one container, 117 s in another); and the transport sends no
