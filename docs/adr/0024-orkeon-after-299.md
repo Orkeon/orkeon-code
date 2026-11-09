@@ -60,6 +60,9 @@ the fixture's `HEAD` checked against it), run by `runtime-smoke.yml` after the R
 
 ## Consequences
 
+- The pin moves to `1a10f97` (`1a10f9765d7074dbe7c339b496320c20b929ad92`, Orkeon #309), the merge of `main` that
+  follows `4357d82`: it bumps Orkeon's `backstage` submodule only, so no runtime file nor typing changes and the checks
+  of ADR 0023 hold.
 - The guides (`configuration`, `permissions`, `extending`, `architecture`, `shared-memory`, `headless`,
   `getting-started`, EN and FR) name the new keys where a user meets them, each with its Orkeon issue; the examples
   gain no key besides the whisper `CallTimeout` until PR 4.
