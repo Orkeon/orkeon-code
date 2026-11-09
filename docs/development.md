@@ -12,16 +12,22 @@
 | `node scripts/check-docs-parity.mjs` | `docs/fr/` mirrors `docs/`: every page has its French twin, with the same heading levels, the same code blocks and tables of the same length, and the two `toc.yml` list the same pages | Node |
 | `npm run check` | All of the above | `npm ci` |
 | `bash scripts/smoke-runtime.sh [--mode ...]` | The real REPL loads every command (`N loaded, 0 skipped, 0 conflicts`) | a runtime |
+| `bash scripts/smoke-crew.sh` | `git-commit` commits on a fresh copy of the demo fixture under `orkeon run --llm-mock`: one crew turn through the runtime, no key, no network | a runtime, git |
 | `bash scripts/check-file-modes.sh` | Scripts are committed executable | git |
 | `node scripts/render-prompts.mjs <dir>` | Writes every prompt as the model reads it (`tests/support/fixtures/prompt-catalogue.ts`), to review a prompt change as a `diff -r` of two renders; `tests/repository/prompt-contract.test.ts` checks the same catalogue | Node 24 |
 
 CI (`.github/workflows/ci.yml`) runs, as separate steps on every pull request and push to `main`, the tests, the type
 check, the bundle check, the provenance gate, the two command pages up to date, the documentation parity and the file
-modes (that is `npm run check` plus the file modes). `runtime-smoke.yml` runs the smoke every Monday, on demand
-(`workflow_dispatch`), and on a pull request that touches `.orkeon-version`, `orkeon-code`, `scripts/smoke-runtime.sh`,
-`src/commands/**` or the workflow. The job checks Orkeon's sources out at the pin read from `.orkeon-version`, builds
-the REPL and runs the source mode, the reference runtime; locally,
-`ORKEON_SOURCE=<an Orkeon checkout at the pin> bash scripts/smoke-runtime.sh --mode source` is the same check.
+modes (that is `npm run check` plus the file modes). `runtime-smoke.yml` runs the two smokes every Monday, on demand (`workflow_dispatch`), and on a pull request that
+touches `.orkeon-version`, `orkeon-code`, a smoke script or what it runs (`scripts/run-crew.sh`, `scripts/setup-fixture.sh`,
+the mock answers under `tests/fixtures/llm-mock/`), `src/commands/**`, `src/crews/**`, `src/shared/**` or the workflow.
+The job checks Orkeon's sources out at the pin read from `.orkeon-version`, builds the REPL and the `orkeon` tool and runs
+the source mode, the reference runtime: the REPL loads every command, then `git-commit` commits on a fresh copy of the
+demo fixture under `--llm-mock` (`scripts/smoke-crew.sh`), the model's one answer read from
+`tests/fixtures/llm-mock/git-commit.jsonl` and checked against the fixture's `HEAD`. Locally,
+`ORKEON_SOURCE=<an Orkeon checkout at the pin> bash scripts/smoke-runtime.sh --mode source` then
+`ORKEON_CODE_MODE=source bash scripts/smoke-crew.sh` are the same checks. `orkeon run --validate` is not among them: at
+the pin it refuses this project's crews ([ADR 0024](adr/0024-orkeon-after-299.md)).
 
 ## Running a crew alone
 

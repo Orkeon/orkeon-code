@@ -92,8 +92,9 @@ that leaves `/workspace` through a link (a dependency cache linked to another ch
 conversation buffer, the state bag and the typed memory start empty and end with the process: one run is one turn.
 
 Every crew runs this way; its `crew.ork.ts` says in its header which `inputs` it reads (`code-review`:
-`{ files?, commit? }`; `advisor`: none). CI checks that every command and crew loads (`scripts/smoke-runtime.sh`);
-an unattended turn of `main-loop` against a model is exercised by hand, not by CI.
+`{ files?, commit? }`; `advisor`: none). CI checks that every command and crew loads (`scripts/smoke-runtime.sh`)
+and runs one turn of `git-commit` under a mock model (`scripts/smoke-crew.sh`); an unattended turn of `main-loop`
+against a model is exercised by hand, not by CI.
 
 ## A dev crew, step after step
 

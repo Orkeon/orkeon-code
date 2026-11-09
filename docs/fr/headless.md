@@ -99,7 +99,8 @@ finissent avec le processus : une exécution est un tour.
 
 Chaque crew se lance ainsi ; son `crew.ork.ts` dit dans son en-tête quels `inputs` il lit (`code-review` :
 `{ files?, commit? }` ; `advisor` : aucun). La CI vérifie que chaque commande et chaque crew se charge
-(`scripts/smoke-runtime.sh`) ; un tour sans opérateur de `main-loop` face à un modèle s'éprouve à la main, pas en CI.
+(`scripts/smoke-runtime.sh`) et lance un tour de `git-commit` face à un modèle simulé (`scripts/smoke-crew.sh`) ; un
+tour sans opérateur de `main-loop` face à un modèle s'éprouve à la main, pas en CI.
 
 ## Un crew de dev, étape après étape
 
