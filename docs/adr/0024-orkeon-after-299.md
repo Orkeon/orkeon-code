@@ -58,7 +58,7 @@ guide; `scripts/dev-run.sh` keeps its whole-process retry on a 429, now the step
 | `mcp serve --crew`, `eval run`/`bench`, the host API, A2A `input-required`, YAML `graph:`, `dotnet new` templates | this project serves nothing, runs no eval, hosts no API, has no YAML crew |
 | `Llm:ModelCapabilities:AudioInput` | a later option beside the whisper server |
 | cassettes (`--llm-record`/`--llm-replay`) | keyed on the system message: every prompt change re-records; the mock serves the smoke first |
-| `orkeon run --validate` on every crew | at the pin it refuses what `orkeon run` executes: `git-commit` ("At least one task is required", a crew whose work is its agents' bodies) and `main-loop` (`budget.contextTokens`, which the REPL accepts); with the type check on, a crew's `/// <reference path="../.orkeon/orkeon.d.ts" />` and the runtime's `/typecheck/orkeon.d.ts` declare every identifier twice (TS6200). To report to Orkeon; revisit when `--validate` loads a crew as `run` does |
+| `orkeon run --validate` on every crew | at the pin it refuses what `orkeon run` executes: `git-commit` ("At least one task is required", a crew whose work is its agents' bodies) and `main-loop` (`budget.contextTokens`, which the REPL accepts); with the type check on, a crew's `/// <reference path="../.orkeon/orkeon.d.ts" />` and the runtime's `/typecheck/orkeon.d.ts` declare every identifier twice (TS6200). To report to Orkeon; revisit when `--validate` loads a crew as `run` does; Orkeon #317 did, and [ADR 0025](0025-orkeon-after-317.md) adopts it |
 
 ## Consequences
 

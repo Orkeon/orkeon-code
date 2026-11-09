@@ -1,7 +1,8 @@
 # Runtime smoke: the real Orkeon REPL boots on the demo fixture and must load every
 # slash command (scripts/smoke-runtime.sh); then one crew turn goes through the runtime,
 # git-commit under `orkeon run --llm-mock` on a fresh copy of the fixture
-# (scripts/smoke-crew.sh). No LLM is called, no key is needed.
+# (scripts/smoke-crew.sh); then every crew passes `orkeon run --validate`, checked up to its
+# bundle and never run (scripts/smoke-validate.sh). No LLM is called, no key is needed.
 #
 # The runtime is Orkeon's sources at the commit pinned in .orkeon-version (ADR
 # 0013): the job checks them out, builds the REPL and runs the launcher's source
@@ -19,6 +20,7 @@ on:
       - 'orkeon-code'
       - 'scripts/smoke-runtime.sh'
       - 'scripts/smoke-crew.sh'
+      - 'scripts/smoke-validate.sh'
       - 'scripts/run-crew.sh'
       - 'scripts/setup-fixture.sh'
       - 'tests/fixtures/llm-mock/**'
@@ -76,3 +78,8 @@ jobs:
           ORKEON_SOURCE: ${{ github.workspace }}/.orkeon-source
           ORKEON_CODE_MODE: source
         run: bash scripts/smoke-crew.sh
+      - name: Validate every crew at the pin (orkeon run --validate)
+        env:
+          ORKEON_SOURCE: ${{ github.workspace }}/.orkeon-source
+          ORKEON_CODE_MODE: source
+        run: bash scripts/smoke-validate.sh
