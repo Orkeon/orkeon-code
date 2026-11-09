@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the decision examples fall back from `small` to `large`
+
+- `Llm:Profiles:small:Fallback: ["large"]` in the Jev, Kev and Liquid example settings: a call of `small` that fails in
+  a way a retry cannot cure (a transport error, a 5xx, a 429 once the retries are spent, a timeout) is made again on
+  `large` (Orkeon #299), each move an `llm.fallback` event. The configuration guide describes the key and its budget,
+  the local-models guide says what the decision profile sees of it ([ADR 0024](docs/adr/0024-orkeon-after-299.md)).
+
 ### Changed — the pin moves to Orkeon `1a10f97`
 
 - The pin moves to Orkeon `main` `1a10f97` (Orkeon #309), which only bumps Orkeon's `backstage` submodule after

@@ -1,11 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  commentKeysBelowRoot, listExamples, load, NAMED_DECISION_EXAMPLES, PROMISED_EXAMPLES, RESULT_LIMITS, withoutCommentAndLlm,
+  commentKeysBelowRoot, DECISION_EXAMPLES, listExamples, load, NAMED_DECISION_EXAMPLES, PROMISED_EXAMPLES, RESULT_LIMITS, withoutCommentAndLlm,
   withoutCommentOrkeonAndMcp, withoutCommentProfilesAndDecision,
 } from "./example-settings.fixtures.ts";
 import {
-  assertExamplesInclude, assertJevExampleKeyless, assertNamedDecisionExample, assertSameAsJevButProvider,
+  assertExamplesInclude, assertFallbacksKnown, assertJevExampleKeyless, assertNamedDecisionExample, assertSameAsJevButProvider,
   assertWhisperMounts,
 } from "./example-settings.assertions.ts";
 
@@ -250,5 +250,31 @@ for (const name of examples.filter((name) => load(name).Orkeon?.Cli)) {
 
     // Assert
     assert.deepEqual(memory, { Persist: true, RootDirectory: "/workspace/.orkeon/typed-memory" });
+  });
+}
+
+// A call of `small` that fails in a way a retry cannot cure (transport, 5xx, 429 after the retries, timeout) is
+// made again on `large` (Orkeon #299): the three decision examples say so, and name no profile they do not define.
+for (const file of DECISION_EXAMPLES) {
+  test(`${file} lets small fall back on large`, () => {
+    // Arrange
+    const settings = load(file);
+
+    // Act
+    const fallback = settings.Llm.Profiles.small.Fallback;
+
+    // Assert
+    assert.deepEqual(fallback, ["large"]);
+  });
+
+  test(`${file} names only its own profiles in a Fallback`, () => {
+    // Arrange
+    const name = file;
+
+    // Act
+    const settings = load(name);
+
+    // Assert
+    assertFallbacksKnown(settings, name);
   });
 }

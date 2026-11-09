@@ -43,7 +43,9 @@ example settings and the launchers set 15 minutes. `Orkeon:Tools:Shell:WindowsPa
 copy of the demo fixture (`scripts/smoke-crew.sh`, the model's one answer in `tests/fixtures/llm-mock/git-commit.jsonl`,
 the fixture's `HEAD` checked against it), run by `runtime-smoke.yml` after the REPL smoke.
 
-**Adopted next** (the plan's PR 4): `Llm:Profiles:small:Fallback: ["large"]` in the local-model examples.
+**Adopted** (the plan's PR 4): `Llm:Profiles:small:Fallback: ["large"]` in the Jev, Kev and Liquid examples, the key
+and `FallbackBudgetSeconds` in the configuration guide, the move the decision profile does not see in the local-models
+guide; `scripts/dev-run.sh` keeps its whole-process retry on a 429, now the step after the runtime's own.
 
 **Set aside**:
 

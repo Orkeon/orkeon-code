@@ -17,6 +17,11 @@ export const PROMISED_EXAMPLES: readonly string[] = [
   "appsettings.liquid.example.json",
 ];
 
+/** The examples on a decision profile: the Jev one and its two twins on another provider. */
+export const DECISION_EXAMPLES: readonly string[] = [
+  "appsettings.jev.example.json", "appsettings.kev.example.json", "appsettings.liquid.example.json",
+];
+
 /** The examples with a decision provider named in Orkeon:Decision:Provider: the file, the provider's section and
  *  key variable, and the name. */
 export const NAMED_DECISION_EXAMPLES = [

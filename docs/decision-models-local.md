@@ -14,7 +14,9 @@ machine, step by step, and shows them at work in Orkeon Code.
 
 Both examples are [`config/appsettings.jev.example.json`](../config/appsettings.jev.example.json) on another provider:
 the same two LLM profiles, `small` and `large`, and the same decision profile, `guarded`, which blocks a prompt
-injection and escalates from `small` to `large` when the answer does not hold.
+injection and escalates from `small` to `large` when the answer does not hold. In the three, `small` also falls back
+on `large` (`Llm:Profiles:small:Fallback`, Orkeon #299) when its endpoint fails or times out, a move the decision
+profile does not see: the escalation judges an answer, the fallback replaces a call that got none.
 
 ## The runtime: source mode
 
