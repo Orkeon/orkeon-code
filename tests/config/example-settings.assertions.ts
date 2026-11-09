@@ -48,3 +48,14 @@ export function assertSameAsJevButProvider(settings: any, jev: any, file: string
   assert.deepEqual(settings.Llm.Profiles, jev.Llm.Profiles, `${file}: its Llm:Profiles differ from the Jev example's`);
   assert.deepEqual(settings.Orkeon.Decision.Profiles, jev.Orkeon.Decision.Profiles, `${file}: its decision profiles differ from the Jev example's`);
 }
+
+/** Every profile a `Fallback` of the file names is an `Llm:Profiles` entry of the file, and no chain names its own
+ *  profile (the registry refuses both at the start). */
+export function assertFallbacksKnown(settings: any, file: string): void {
+  const profiles = settings.Llm.Profiles as Record<string, { Fallback?: string[] }>;
+  for (const [name, profile] of Object.entries(profiles)) {
+    const unknown = (profile.Fallback ?? []).filter((target) => target !== "default" && !profiles[target]);
+    assert.deepEqual(unknown, [], `${file}: Llm:Profiles:${name}:Fallback names profiles the file does not define: ${unknown.join(", ")}`);
+    assert.ok(!(profile.Fallback ?? []).includes(name), `${file}: Llm:Profiles:${name}:Fallback comes back to ${name}`);
+  }
+}

@@ -108,6 +108,8 @@ while [ "$step" -lt "$max_steps" ]; do
     rc=0; run_once "$log" || rc=$?
     echo "dev-run: step $step of $crew ($code): exit $rc, log ${log#"$project"/}"
     tail -n 1 "$log" 2>/dev/null | sed 's/^/  last line: /' || true
+    # A 429 inside a run is first the runtime's: Llm:MaxRetries, then the profile's Fallback chain (Orkeon #299) when
+    # the settings name one. This loop is the whole-process retry, for a step the runtime gave up on.
     if [ "$rc" = 2 ] && grep -qiE 'HTTP[ /0-9.]* 429|status( code)?[ :=]*429|too many requests|rate.?limit|LlmRateLimitException' "$log" && [ "$attempt" -lt "$retries" ]; then
       attempt=$((attempt + 1))
       echo "dev-run: rate limited; waiting ${wait_s}s before attempt $((attempt + 1))"

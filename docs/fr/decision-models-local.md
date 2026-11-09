@@ -14,7 +14,10 @@ deux sur votre machine, pas à pas, et les montre à l'œuvre dans Orkeon Code.
 
 Les deux exemples sont [`config/appsettings.jev.example.json`](../../config/appsettings.jev.example.json) sur un autre
 fournisseur : les deux mêmes profils LLM, `small` et `large`, et le même profil de décision, `guarded`, qui bloque une
-injection de prompt et remonte de `small` vers `large` quand la réponse ne tient pas.
+injection de prompt et remonte de `small` vers `large` quand la réponse ne tient pas. Dans les trois, `small` retombe
+aussi sur `large` (`Llm:Profiles:small:Fallback`, Orkeon #299) quand son point d'accès échoue ou dépasse son délai, un
+déplacement que le profil de décision ne voit pas : la remontée juge une réponse, le repli remplace un appel resté sans
+réponse.
 
 ## Le runtime : le mode source
 
