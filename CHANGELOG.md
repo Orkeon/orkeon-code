@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the pin moves to Orkeon `1a10f97`
+
+- The pin moves to Orkeon `main` `1a10f97` (Orkeon #309), which only bumps Orkeon's `backstage` submodule after
+  `4357d82`: no runtime file changes, the typings stay the same, the checks of
+  [ADR 0023](docs/adr/0023-orkeon-after-306.md) hold.
+
 ### Added — a crew turn without a key in CI
 
 - `scripts/smoke-crew.sh` runs `git-commit` through the runtime under `orkeon run --llm-mock` (Orkeon #299) on a fresh
