@@ -43,4 +43,5 @@ Decisions are recorded as ADRs: [0001 — ports, adapters and entry points](adr/
 [0021 — Orkeon main after #298, the `firefox` browser that outlives the run](adr/0021-orkeon-after-298.md),
 [0022 — one canonical spelling for the host's paths, and the path lists](adr/0022-host-path-spellings.md),
 [0023 — Orkeon main after #306, `onToolCall` before the gate and the FWK lots](adr/0023-orkeon-after-306.md),
-[0024 — what Orkeon #299 adds, adopted or set aside](adr/0024-orkeon-after-299.md).
+[0024 — what Orkeon #299 adds, adopted or set aside](adr/0024-orkeon-after-299.md),
+[0025 — Orkeon main after #317, `orkeon run --validate` on every crew](adr/0025-orkeon-after-317.md).

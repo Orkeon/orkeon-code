@@ -43,4 +43,5 @@ Les décisions sont consignées en ADR, en anglais : [0001 — ports, adaptateur
 [0021 — Orkeon main après #298, le navigateur `firefox` qui survit au tour](../adr/0021-orkeon-after-298.md),
 [0022 — une écriture canonique pour les chemins de l'hôte, et les listes de chemins](../adr/0022-host-path-spellings.md),
 [0023 — Orkeon main après #306, `onToolCall` avant la garde et les lots FWK](../adr/0023-orkeon-after-306.md),
-[0024 — ce qu'Orkeon #299 ajoute, adopté ou écarté](../adr/0024-orkeon-after-299.md).
+[0024 — ce qu'Orkeon #299 ajoute, adopté ou écarté](../adr/0024-orkeon-after-299.md),
+[0025 — Orkeon main après #317, `orkeon run --validate` sur chaque crew](../adr/0025-orkeon-after-317.md).

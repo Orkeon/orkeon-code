@@ -21,7 +21,7 @@ réponse.
 
 ## Le runtime : le mode source
 
-Liquid et Kev arrivent avec Orkeon #266, leurs étapes corrigées par #271, que le pin couvre (`1a10f97`) et qu'aucune release ne livre encore : le mode
+Liquid et Kev arrivent avec Orkeon #266, leurs étapes corrigées par #271, que le pin couvre (`7a4ef3d`) et qu'aucune release ne livre encore : le mode
 tool fait tourner la dernière release et le mode docker la dernière image, et aucun des deux ne connaît
 `Orkeon:Liquid`, `Orkeon:Kev` ni `Orkeon:Decision:Provider`. Lancez Orkeon Code en mode source, sur un checkout
 d'Orkeon au pin ou après ([Premiers pas](getting-started.md#mode-source--un-checkout-dorkeon)) :

@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the pin moves to Orkeon `7a4ef3d`
+
+- The pin moves to Orkeon `main` `7a4ef3d` (Orkeon #317, which closes #315 and #316, both opened from this project):
+  `orkeon run --validate` now judges a `.ork.ts` as `orkeon run` does, so a script whose source never assigns
+  `globalThis.crew` is checked up to its bundle and never run, and a crew's `/// <reference>` to a copy of the
+  typings identical to the runtime's no longer declares every identifier twice (TS6200). The typings do not change
+  ([ADR 0025](docs/adr/0025-orkeon-after-317.md)).
+
+### Added — every crew validated by the runtime in CI
+
+- `scripts/smoke-validate.sh` runs `orkeon run --validate` on every crew of `src/crews/` (the `_` probes left out):
+  the runtime resolves the example settings made keyless, builds its host and checks each script up to its bundle,
+  the version directive, the types over its own typings and esbuild, without running it; the smoke judges every
+  crew, names the ones that failed and fails with them. `runtime-smoke.yml` runs it after the crew smoke
+  ([Development](docs/development.md)).
+
 ### Changed — the decision examples fall back from `small` to `large`
 
 - `Llm:Profiles:small:Fallback: ["large"]` in the Jev, Kev and Liquid example settings: a call of `small` that fails in
@@ -26,8 +42,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   copy of the demo fixture: the mock answers the crew's one LLM call from `tests/fixtures/llm-mock/git-commit.jsonl`, and
   the fixture's `HEAD` must carry that subject over a clean tree. `runtime-smoke.yml` runs it after the REPL smoke, also
   on a pull request that touches a crew, `src/shared/` or the mock answers ([Development](docs/development.md)).
-  `orkeon run --validate` stays out of CI: at the pin it refuses this project's crews
-  ([ADR 0024](docs/adr/0024-orkeon-after-299.md)).
 
 ### Fixed — the speech server's call timeout
 

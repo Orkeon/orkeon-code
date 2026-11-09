@@ -20,7 +20,7 @@ profile does not see: the escalation judges an answer, the fallback replaces a c
 
 ## The runtime: source mode
 
-Liquid and Kev arrive with Orkeon #266, their stages fixed by #271, which the pin covers (`1a10f97`) and no release ships yet: the tool mode runs
+Liquid and Kev arrive with Orkeon #266, their stages fixed by #271, which the pin covers (`7a4ef3d`) and no release ships yet: the tool mode runs
 the last release and the docker mode the last image, and neither knows `Orkeon:Liquid`, `Orkeon:Kev` nor
 `Orkeon:Decision:Provider`. Run Orkeon Code in source mode, on an Orkeon checkout at the pin or after it
 ([Getting started](getting-started.md#source-mode-an-orkeon-checkout)):
