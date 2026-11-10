@@ -22,6 +22,10 @@ import { policyFor } from "../../shared/domain/agent-policy/mode-policy.ts";
 import { isPermissionMode } from "../../shared/domain/permission-modes.ts";
 import type { ActiveWorkflow } from "../../shared/domain/workflow/state-file.ts";
 import { writeActiveWorkflow } from "../../shared/application/workflow/workflow-state.ts";
+import {
+  batchNotRecorded, modeReadOnlyRefusal, modeUnknownRefusal, modeUnreadableRefusal, sessionRuleLeftOut,
+  stepRulesNotInGate,
+} from "./messages.ts";
 
 export interface DevStepDeps {
   session: Pick<SessionStore, "readState">;
@@ -58,12 +62,8 @@ export async function startDevStep(step: DevStep, deps: DevStepDeps): Promise<De
     session: deps.session, gate: deps.gate, extraNames: configuredNames(extras), rules: stepRules(step),
     builtIn: builtInRules((await readMemoryDir(deps.config)).dir, await listsOf(deps.host)),
   });
-  if (!sync.applied) {
-    lines.push(`warning: the host keeps no session rules: /${stepCommand(step)}'s rule sets are not in the host's gate, the crew's callback alone checks them.`);
-  }
-  for (const r of sync.overridden) {
-    lines.push(`warning: the session's rule '${formatRule(r)}' is left out of the gate during /${stepCommand(step)}: the step denies the same calls.`);
-  }
+  if (!sync.applied) lines.push(stepRulesNotInGate(stepCommand(step)));
+  for (const r of sync.overridden) lines.push(sessionRuleLeftOut(formatRule(r), stepCommand(step)));
   const hooks = await readJsonArray(deps.session, HOOKS_STATE_KEY);
   const memoryDenied = deniesEveryCall(gateRules(deps.gate), "memory_recall");
   return {
@@ -86,10 +86,10 @@ function gateRules(gate: PermissionRules) {
  * a step never writes on a mode it does not know); null when it may run. `writes` says what the step writes.
  */
 export function writeModeRefusal(mode: string, step: string, writes: string): string | null {
-  if (mode === "") return `✗ refused: the session mode could not be read, and /${stepCommand(step)} ${writes}: run it again`;
-  if (!isPermissionMode(mode)) return `✗ refused: the session mode ${mode} is not one Orkeon Code knows, and /${stepCommand(step)} ${writes}: /mode default, then run it again`;
+  if (mode === "") return modeUnreadableRefusal(stepCommand(step), writes);
+  if (!isPermissionMode(mode)) return modeUnknownRefusal(mode, stepCommand(step), writes);
   if (!policyFor(mode).readOnly) return null;
-  return `✗ refused: the session mode ${mode} is read-only, and /${stepCommand(step)} ${writes}: /mode default, then run it again`;
+  return modeReadOnlyRefusal(mode, stepCommand(step), writes);
 }
 
 /** writeModeRefusal over the session's effective mode, read here: a read that fails refuses. */
@@ -140,6 +140,6 @@ export async function markActiveWorkflow(
     return null;
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
-    return `warning: the batch in progress could not be recorded (${reason}): a compaction will write no state file for it.`;
+    return batchNotRecorded(reason);
   }
 }

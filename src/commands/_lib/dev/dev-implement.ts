@@ -20,6 +20,11 @@ import type { CrewCompletion, LaunchResult } from "../dispatch.ts";
 import { storedEffort } from "../effort.ts";
 import { readPullRequestContext } from "../pr-context.ts";
 import type { PullRequestContext } from "../pr-context.ts";
+import { VALID_LINE, WRITTEN_LINE } from "./markers.ts";
+import {
+  CLOSE_COMMITS, CONTEXT_NOT_READ_LINE, WRITES_COMMITS_PUSHES, batchChainFailed, closeFollows, couldNotBeLaunched, failedLine,
+  thenType,
+} from "./messages.ts";
 
 /** One batch of a plan, as `/dev-batches <code> F<n> [--close [--pr]] [— correction: <finding>]` reads it
  *  (dev-batches.ts parseDevBatchesArgs): the batch, its plan (a code or a `<path>/<CODE>-PLAN.md`, null to find it). */
@@ -27,9 +32,6 @@ export interface DevImplementArgs { batch: string; plan: string | null; close: b
 
 export interface ChainLaunch { crew: string; input: Record<string, unknown>; instead: string }
 export interface ChainStep { lines: string[]; launch?: ChainLaunch }
-
-const VALID_LINE = /^→ Batch (F\d+) VALID\./m;
-const WRITTEN_LINE = /^written: (\S+)\/([A-Za-z0-9][A-Za-z0-9._-]*)-VERIFY-(F\d+)\.md\b/m;
 
 /** What `completed` prints and launches for one answer of the chain. */
 export function chainStep(payload: string): ChainStep {
@@ -59,7 +61,7 @@ export function chainStep(payload: string): ChainStep {
   if (valid === null || written === null || valid[1] !== written[3]) return { lines };
   const plan = `${written[1]}/${written[2]}-PLAN.md`;
   return {
-    lines: [...lines, `→ the close follows: ${closeCommand(plan, valid[1])}`],
+    lines: [...lines, closeFollows(closeCommand(plan, valid[1]))],
     launch: { crew: "dev-implement", input: { batch: valid[1], plan, close: true }, instead: closeCommand(plan, valid[1]) },
   };
 }
@@ -82,7 +84,7 @@ export type DevImplementDispatch =
 /** One batch's dispatch, from its parsed arguments: the refusal, written, or the crew's input and the launch's details. */
 export async function runDevImplementDispatch(args: DevImplementArgs, deps: DevImplementDispatchDeps): Promise<DevImplementDispatch> {
   const prContext = await readPullRequestContext({ catalogue: deps.catalogue, rules: deps.gate, session: deps.session });
-  const line = writeModeRefusal(String(prContext.permissionMode ?? ""), "dev-batches", "writes files, commits and pushes");
+  const line = writeModeRefusal(String(prContext.permissionMode ?? ""), "dev-batches", WRITES_COMMITS_PUSHES);
   if (line !== null) {
     deps.write(line);
     return { refused: line };
@@ -117,11 +119,8 @@ export interface ChainHopDeps {
   context: () => Promise<PullRequestContext>;
 }
 
-/** The line a hop prints when the session's context could not be read again: the crew reads its record. */
-export const CONTEXT_NOT_READ_LINE = "⚠ the session's mode could not be read again: the context read at the launch applies";
-
 /** What the close writes, for the refusal of a read-only mode. */
-const CLOSE_WRITES = { step: "dev-batches", what: "commits (the close of the batch)" };
+const CLOSE_WRITES = { step: "dev-batches", what: CLOSE_COMMITS };
 
 /** The session's context now, or null when it cannot be read (a throw, an empty mode). */
 export async function freshContext(read: () => Promise<PullRequestContext>): Promise<PullRequestContext | null> {
@@ -152,7 +151,7 @@ export async function writingHop(
   const context = await freshContext(read);
   if (context === null) return { lines: [CONTEXT_NOT_READ_LINE], launch };
   const refusal = writeModeRefusal(context.permissionMode, writes.step, writes.what);
-  if (refusal !== null) return { lines: [refusal, `then type ${launch.instead}`] };
+  if (refusal !== null) return { lines: [refusal, thenType(launch.instead)] };
   return { lines: [], launch: { ...launch, input: withContext(launch.input, context) } };
 }
 
@@ -162,11 +161,11 @@ export async function writingHop(
  * the close then reads the session's context again (writingHop); the audit is launched as the crew named it.
  */
 export async function nextLaunch(result: CrewCompletion, deps: ChainHopDeps): Promise<ChainStep> {
-  if (!result.success) return { lines: [`✗ the batch's chain failed: ${result.error ?? "unknown"}`] };
+  if (!result.success) return { lines: [batchChainFailed(result.error ?? "unknown")] };
   const step = chainStep(String(result.payload ?? ""));
   if (step.launch === undefined) return step;
   const refusal = deps.reapply(step.launch.crew === "dev-verify" ? "dev-verify" : "dev-implement");
-  if (refusal !== null) return { lines: [...step.lines, `✗ ${refusal}`, `then type ${step.launch.instead}`] };
+  if (refusal !== null) return { lines: [...step.lines, failedLine(refusal), thenType(step.launch.instead)] };
   if (step.launch.crew !== "dev-implement") return step;
   const hop = await writingHop(step.launch, deps.context, CLOSE_WRITES);
   return hop.launch === undefined ? { lines: [...step.lines, ...hop.lines] } : { lines: [...step.lines, ...hop.lines], launch: hop.launch };
@@ -181,8 +180,8 @@ export function launchChained(
 ): string[] {
   try {
     const launched = run(launch.crew, launch.input, options);
-    return "refused" in launched ? [`✗ ${launched.refused}`, `then type ${launch.instead}`] : [];
+    return "refused" in launched ? [failedLine(launched.refused), thenType(launch.instead)] : [];
   } catch (e) {
-    return [`✗ ${launch.crew} could not be launched (${String((e as Error)?.message ?? e).split("\n")[0]}): type ${launch.instead}`];
+    return [couldNotBeLaunched(launch.crew, String((e as Error)?.message ?? e).split("\n")[0], launch.instead)];
   }
 }

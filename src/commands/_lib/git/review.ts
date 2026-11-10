@@ -10,6 +10,9 @@ import { MAX_PASSES, MIN_PASSES } from "../../../shared/domain/agent-policy/beha
 import { PASSES_STATE_KEY } from "../../../shared/domain/session-keys.ts";
 import { commandLine, splitWords } from "../args.ts";
 import type { CommandView } from "../view.ts";
+import {
+  defaultPasses, invalidPassCount, passesSet, passesShown, reviewLensTakes, reviewTakesValue, reviewUnknownOption,
+} from "./messages.ts";
 
 export const REVIEW_LENSES: readonly string[] = ["correctness", "security", "style"];
 
@@ -32,7 +35,7 @@ export type ReviewRoute =
 
 /** The refusal of a pass count that is not an integer from 1 to 5. */
 export function invalidPassesText(token: string): string {
-  return `invalid pass count '${token}' — expected an integer between ${MIN_PASSES} and ${MAX_PASSES}.`;
+  return invalidPassCount(token, MIN_PASSES, MAX_PASSES);
 }
 
 /** A pass count from 1 to 5, or null. */
@@ -69,10 +72,10 @@ export function parseReviewArgs(raw: readonly string[], typed: string): ReviewRo
       continue;
     }
     if (name !== "--commit" && name !== "--lens" && name !== "--passes") {
-      return { route: "refused", text: `review: unknown option '${token}' (--files, --commit, --lens, --passes)` };
+      return { route: "refused", text: reviewUnknownOption(token) };
     }
     const value = inline ?? (i + 1 < tokens.length && !tokens[i + 1].startsWith("--") ? tokens[++i] : "");
-    if (value === "") return { route: "refused", text: `review: ${name} takes a value` };
+    if (value === "") return { route: "refused", text: reviewTakesValue(name) };
     if (name === "--commit") commit = value;
     else if (name === "--lens") lens = value;
     else {
@@ -83,7 +86,7 @@ export function parseReviewArgs(raw: readonly string[], typed: string): ReviewRo
   }
   if (typed === "security-review") lens = "security";
   else if (lens !== "" && !REVIEW_LENSES.includes(lens)) {
-    return { route: "refused", text: `review: --lens takes ${REVIEW_LENSES.join(", ")}, not '${lens}'` };
+    return { route: "refused", text: reviewLensTakes(REVIEW_LENSES.join(", "), lens) };
   }
   return { route: "review", input: { files, commit, lenses: lens, ...(passes === undefined ? {} : { passes }) } };
 }
@@ -95,15 +98,12 @@ export interface PassesDeps {
 /** `/passes [n]`: the session's pass count shown, or set from 1 to 5 (session-scoped; /clear clears it). */
 export async function runPasses(token: string, deps: PassesDeps): Promise<CommandView> {
   if (token === "") {
-    const current = (await deps.session.readState(PASSES_STATE_KEY).catch(() => null)) ?? `${MIN_PASSES} (default)`;
-    return {
-      text: `reasoning passes: ${current}\n/review runs that many lens rounds.\n` +
-        `usage: /passes <${MIN_PASSES}-${MAX_PASSES}> (this session) or /review --passes <${MIN_PASSES}-${MAX_PASSES}> (one run)`,
-    };
+    const current = (await deps.session.readState(PASSES_STATE_KEY).catch(() => null)) ?? defaultPasses(MIN_PASSES);
+    return { text: passesShown(current, MIN_PASSES, MAX_PASSES) };
   }
   const n = passCount(token);
   if (n === null) return { text: invalidPassesText(token) };
   await deps.session.writeState(PASSES_STATE_KEY, String(n));
   // n rounds × 3 lenses is n × 3 LLM calls: say so, the cost is the operator's.
-  return { text: `reasoning passes set to ${n} — /review will make ${n * 3} lens calls per run (session-scoped; /clear clears it).` };
+  return { text: passesSet(n, n * 3) };
 }

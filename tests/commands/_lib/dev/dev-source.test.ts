@@ -6,7 +6,8 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, ok } from "node:assert";
 import { readFileSync } from "node:fs";
 
-import { DEV_SPEC_USAGE, parseDevSpecArgs } from "../../../../src/commands/_lib/dev/dev-source.ts";
+import { parseDevSpecArgs } from "../../../../src/commands/_lib/dev/dev-source.ts";
+import { DEV_SPEC_USAGE } from "../../../../src/commands/_lib/dev/messages.ts";
 import {
   ALIAS_READ_CASES,
   CHANGE_READ_CASES,

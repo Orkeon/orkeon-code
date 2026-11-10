@@ -6,12 +6,12 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
 import {
-  BATCHES_CHAIN, DEV_BATCHES_USAGE, batchesChainStep, batchesHopFailedLine, batchesLaunchInput, batchesModeRefusal, batchesNextLaunch,
+  BATCHES_CHAIN, batchesChainStep, batchesHopFailedLine, batchesLaunchInput, batchesModeRefusal, batchesNextLaunch,
   devBatchesCompleted, launchBatchesHop, launchCompletedHop, parseDevBatchesArgs, readChain, recordChain,
 } from "../../../../src/commands/_lib/dev/dev-batches.ts";
 import { DEV_BATCHES_CHAIN_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
 import { FakeSessionStore } from "../../../support/doubles/fake-session-store.ts";
-import { CONTEXT_NOT_READ_LINE } from "../../../../src/commands/_lib/dev/dev-implement.ts";
+import { CONTEXT_NOT_READ_LINE, DEV_BATCHES_USAGE } from "../../../../src/commands/_lib/dev/messages.ts";
 import { FakeCrewHost } from "../../../support/doubles/fake-crew-host.ts";
 import { FakeLogger } from "../../../support/doubles/fake-logger.ts";
 import { hopDeps } from "../../../support/fixtures/chain-hop.ts";

@@ -4,6 +4,7 @@
 
 import { MEMORY_CATEGORIES } from "../../shared/domain/agent-policy/memory-categories.ts";
 import { SNIP_COMMAND_TURNS } from "../../shared/domain/compaction-thresholds.ts";
+import { argumentsNotJson, argumentsNotObject, DEBUG_TOOL_CALL_USAGE, notAToolName } from "./messages.ts";
 
 export type ParsedMemory =
   | { sub: "add"; category: string; content: string }
@@ -171,10 +172,10 @@ export type ParsedToolCall =
 export function parseToolCallArgs(tokens: string[]): ParsedToolCall {
   const tool = String(tokens?.[0] ?? "").trim();
   if (tool.length === 0) {
-    return { ok: false, reason: "usage: /debug-tool-call <tool_name> [{\"arg\": \"value\"}]" };
+    return { ok: false, reason: DEBUG_TOOL_CALL_USAGE };
   }
   if (!/^[a-z][a-z0-9_]*$/i.test(tool)) {
-    return { ok: false, reason: `'${tool}' is not a tool name (expected snake_case, e.g. file_read)` };
+    return { ok: false, reason: notAToolName(tool) };
   }
 
   const payload = tokens.slice(1).join(" ").trim();
@@ -184,10 +185,10 @@ export function parseToolCallArgs(tokens: string[]): ParsedToolCall {
   try {
     parsed = JSON.parse(payload);
   } catch (e: any) {
-    return { ok: false, reason: `arguments are not valid JSON (${String(e?.message ?? e)}): ${payload}` };
+    return { ok: false, reason: argumentsNotJson(String(e?.message ?? e), payload) };
   }
   if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
-    return { ok: false, reason: `arguments must be a JSON OBJECT, got ${Array.isArray(parsed) ? "an array" : typeof parsed}` };
+    return { ok: false, reason: argumentsNotObject(Array.isArray(parsed) ? "an array" : typeof parsed) };
   }
   return { ok: true, tool, args: parsed as Record<string, unknown> };
 }

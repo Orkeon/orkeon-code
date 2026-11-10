@@ -5,6 +5,7 @@
 // tool callbacks check them again and run the /hooks the input carries.
 import { rawTokens } from "../_lib/args.ts";
 import { devPlanGate, parseDevPlanArgs } from "../_lib/dev/dev.ts";
+import { WRITES_FILES } from "../_lib/dev/messages.ts";
 import { readWriteModeRefusal, startDevStep } from "../_lib/dev-step.ts";
 import { storedEffort } from "../_lib/effort.ts";
 import { launchCrew, withLlmProfile, writeCompleted } from "../_lib/dispatch.ts";
@@ -29,7 +30,7 @@ defineAsyncCommand({
     const stop = await devPlanGate(parsed.args, deps);
     if (stop !== null) return { message: stop };
     // The crew writes files through its own port, which no mode gates: a read-only mode refuses it here.
-    const readOnly = await readWriteModeRefusal(deps.session, "dev-plan", "writes files");
+    const readOnly = await readWriteModeRefusal(deps.session, "dev-plan", WRITES_FILES);
     if (readOnly !== null) {
       ctx.writeLine(readOnly);
       return { refused: readOnly };

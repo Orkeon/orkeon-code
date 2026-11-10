@@ -3,9 +3,8 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
-import {
-  CONTEXT_NOT_READ_LINE, chainStep, launchChained, nextLaunch,
-} from "../../../../src/commands/_lib/dev/dev-implement.ts";
+import { chainStep, launchChained, nextLaunch } from "../../../../src/commands/_lib/dev/dev-implement.ts";
+import { CONTEXT_NOT_READ_LINE } from "../../../../src/commands/_lib/dev/messages.ts";
 import { writeModeRefusal } from "../../../../src/commands/_lib/dev-step.ts";
 import {
   AUDIT_LAUNCH,

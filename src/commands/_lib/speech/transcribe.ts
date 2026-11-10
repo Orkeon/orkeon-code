@@ -12,14 +12,15 @@ import type { PreludeCall } from "../../../shared/domain/prelude.ts";
 import { commandLine, isOption, optionValue, parseAssistantInput, splitWords } from "../args.ts";
 import { launchCrew, launchMainLoop, withLlmProfile } from "../dispatch.ts";
 import type { LaunchResult, MainLoopLaunchDeps } from "../dispatch.ts";
+import {
+  LIST_ALONE, NAME_A_FILE, PROMPT_NEEDS_WORDS, THEN_NEEDS_INSTRUCTION, TRANSCRIBE_USAGE, filesUnder, missingToolMessage,
+  needsLanguageCode, oneFileAtATime, transcriptionOf, unknownOption,
+} from "./messages.ts";
+import { transcriptionPreludeLabel } from "./prompts.ts";
 
 export const TRANSCRIBE_TOOL = "transcribe_audio";
 export const LIST_AUDIO_TOOL = "list_audio";
 export const AUDIO_ROOT = "/audio";
-
-export const TRANSCRIBE_USAGE =
-  'usage: /transcribe <file> [--lang <code>] [--prompt "<words>"] [--then "<instruction>"]\n' +
-  "       /transcribe --list";
 
 /** What /transcribe was asked: the listing of /audio, or one file. */
 export type TranscribeRequest =
@@ -50,43 +51,35 @@ export function parseTranscribeArgs(tokens: readonly string[]): ParsedTranscribe
   for (let i = 0; i < words.length; i++) {
     const word = words[i].text;
     if (!isOption(words[i])) {
-      if (word.trim().length === 0) return { ok: false, error: "name a file under /audio (/transcribe --list shows them)" };
-      if (file !== null) return { ok: false, error: `one file at a time (${file}, ${word}): quote a name that holds a space` };
+      if (word.trim().length === 0) return { ok: false, error: NAME_A_FILE };
+      if (file !== null) return { ok: false, error: oneFileAtATime(file, word) };
       file = word;
     } else if (word === "--list") {
       list = true;
     } else if (word === "--lang" || word === "--language") {
       const value = optionValue(words, i++);
-      if (value === null) return { ok: false, error: `${word} needs a language code (fr, en...)` };
+      if (value === null) return { ok: false, error: needsLanguageCode(word) };
       language = value;
     } else if (word === "--prompt") {
       const value = optionValue(words, i++);
-      if (value === null) return { ok: false, error: '--prompt needs the words the speech may contain, quoted ("Orkeon, Jint, MCP")' };
+      if (value === null) return { ok: false, error: PROMPT_NEEDS_WORDS };
       vocabulary = value;
     } else if (word === "--then") {
       // One quoted instruction loses its quotes; otherwise the rest is kept as typed, quotes included.
       const rest = words.slice(i + 1);
       then = (rest.length === 1 ? rest[0].text : line.slice(words[i].end)).trim();
-      if (then.length === 0) return { ok: false, error: "--then needs an instruction" };
+      if (then.length === 0) return { ok: false, error: THEN_NEEDS_INSTRUCTION };
       break;
     } else {
-      return { ok: false, error: `unknown option ${word}` };
+      return { ok: false, error: unknownOption(word) };
     }
   }
   if (list) {
-    if (file !== null || then !== null || language || vocabulary) return { ok: false, error: "--list takes no file and no option" };
+    if (file !== null || then !== null || language || vocabulary) return { ok: false, error: LIST_ALONE };
     return { ok: true, request: { kind: "list" } };
   }
-  if (file === null) return { ok: false, error: "name a file under /audio (/transcribe --list shows them)" };
+  if (file === null) return { ok: false, error: NAME_A_FILE };
   return { ok: true, request: { kind: "file", path: audioPath(file), language, vocabulary, then } };
-}
-
-/** The line that says what to do when the server's tools are not registered. */
-export function missingToolMessage(tool: string): string {
-  return (
-    `no registered tool '${tool}': the Whisper MCP server is not connected. Start orkeon-code with ` +
-    "ORKEON_CODE_AUDIO_DIR set (docs/configuration.md, Speech-to-text); /debug-tool-call list shows what this host registers."
-  );
 }
 
 /** The arguments of transcribe_audio for a file request (the server's parameter names). */
@@ -118,13 +111,13 @@ export async function dispatchTranscribe(
   const registered = deps.catalogue.find(wanted);
   if (registered === undefined) return { message: missingToolMessage(wanted) };
   if (request.kind === "list") {
-    return launchCrew(await withLlmProfile(deps, deps.config), "speech", { tool: registered, args: {}, label: `the files under ${AUDIO_ROOT}` });
+    return launchCrew(await withLlmProfile(deps, deps.config), "speech", { tool: registered, args: {}, label: filesUnder(AUDIO_ROOT) });
   }
   if (request.then === null) {
-    const call = transcribeCall(registered, request, `transcription of ${request.path}`);
+    const call = transcribeCall(registered, request, transcriptionOf(request.path));
     return launchCrew(await withLlmProfile(deps, deps.config), "speech", { ...call }, call.args);
   }
   const { prompt, permissionMode } = parseAssistantInput(request.then);
-  const prelude = transcribeCall(registered, request, `Transcription of ${request.path}, made by /transcribe before this request`);
+  const prelude = transcribeCall(registered, request, transcriptionPreludeLabel(request.path));
   return await launchMainLoop(deps, { prompt, permissionMode, prelude });
 }

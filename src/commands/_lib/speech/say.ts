@@ -15,11 +15,12 @@ import { SPEAK_TOOL } from "../../../shared/domain/speech.ts";
 import { commandLine, isOption, optionValue, splitWords } from "../args.ts";
 import { launchCrew, withLlmProfile } from "../dispatch.ts";
 import type { CommandLog, LaunchDeps, LaunchResult } from "../dispatch.ts";
-import { missingToolMessage } from "./transcribe.ts";
+import {
+  LAST_ANSWER_READ_ALOUD, NOTHING_TO_READ, SAY_USAGE, STOP_ALONE, STOPPED, TEXT_READ_ALOUD, VOICE_NEEDS_NAME, lastAnswerUnreadable,
+  missingToolMessage, toolFailed, unknownOption,
+} from "./messages.ts";
 
 export const STOP_TOOL = "stop_speaking";
-
-export const SAY_USAGE = "usage: /say [<text>] [--voice <voice>]\n       /say --stop";
 
 export type SayRequest = { kind: "stop" } | { kind: "say"; text: string; voice: string };
 
@@ -38,12 +39,12 @@ export function parseSayArgs(tokens: readonly string[]): ParsedSay {
       text.push(word);
     } else if (word === "--voice") {
       const value = optionValue(words, i++);
-      if (value === null) return { ok: false, error: "--voice needs a voice name (fr_FR-siwis-medium, en_US-lessac-medium...)" };
+      if (value === null) return { ok: false, error: VOICE_NEEDS_NAME };
       voice = value;
     } else if (word === "--stop") {
-      return { ok: false, error: "--stop takes nothing else" };
+      return { ok: false, error: STOP_ALONE };
     } else {
-      return { ok: false, error: `unknown option ${word}` };
+      return { ok: false, error: unknownOption(word) };
     }
   }
   return { ok: true, request: { kind: "say", text: text.join(" ").trim(), voice } };
@@ -75,7 +76,7 @@ export async function dispatchSay(tokens: readonly string[], deps: SayDeps): Pro
     const stop = deps.catalogue.find(STOP_TOOL);
     if (stop === undefined) return { message: missingToolMessage(STOP_TOOL) };
     const outcome = await deps.catalogue.callText(stop, {});
-    return { message: outcome.ok ? (outcome.text || "stopped") : `✗ ${STOP_TOOL}: ${outcome.failure}` };
+    return { message: outcome.ok ? (outcome.text || STOPPED) : toolFailed(STOP_TOOL, outcome.failure) };
   }
   const speak = deps.catalogue.find(SPEAK_TOOL);
   if (speak === undefined) return { message: missingToolMessage(SPEAK_TOOL) };
@@ -84,13 +85,13 @@ export async function dispatchSay(tokens: readonly string[], deps: SayDeps): Pro
     try {
       text = lastAnswer((await deps.session.readMessages()).messages);
     } catch (error) {
-      return { message: `cannot read the session's last answer: ${errorText(error)}` };
+      return { message: lastAnswerUnreadable(errorText(error)) };
     }
   }
-  if (!text) return { message: "nothing to read: give a text, or ask the assistant first (/say alone reads its last answer)" };
+  if (!text) return { message: NOTHING_TO_READ };
   const args: Record<string, unknown> = { text };
   if (request.voice) args.voice = request.voice;
-  return launchCrew(await withLlmProfile(deps, deps.config), "speech", { tool: speak, args, label: request.text ? "text read aloud" : "last answer read aloud" }, {
+  return launchCrew(await withLlmProfile(deps, deps.config), "speech", { tool: speak, args, label: request.text ? TEXT_READ_ALOUD : LAST_ANSWER_READ_ALOUD }, {
     characters: text.length, ...(request.voice ? { voice: request.voice } : {}),
   });
 }
