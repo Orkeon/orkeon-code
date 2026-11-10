@@ -10,6 +10,7 @@ import type { Llm } from "../ports.ts";
 import { MAX_BRIEF_CHARS, charterProblems } from "../../domain/agents/charter.ts";
 import type { Charter, Checked } from "../../domain/agents/charter.ts";
 import { readBudgetExhausted } from "../../domain/dev/step-budget.ts";
+import { answerDidNotParse, briefTooLong } from "./messages.ts";
 
 export interface SubAgentCall<T> {
   charter: Charter;
@@ -59,7 +60,7 @@ async function tryAnswer<T>(
   } catch (error) {
     const reason = failureOf(error);
     if (reason === "cancelled" || readBudgetExhausted(error) !== null) return { ok: false, reason, problems: [firstLine(error)] };
-    return { ok: false, problems: [`the answer did not parse: ${firstLine(error)}`] };
+    return { ok: false, problems: [answerDidNotParse(firstLine(error))] };
   }
   return call.check(value);
 }
@@ -71,7 +72,7 @@ export async function runSubAgent<T>(llm: Pick<Llm, "act" | "extract">, call: Su
   if (brief.length > MAX_BRIEF_CHARS) {
     return {
       ok: false, reason: "brief-too-long", reply: "",
-      problems: [`the brief is ${brief.length} characters, over ${MAX_BRIEF_CHARS}`],
+      problems: [briefTooLong(brief.length, MAX_BRIEF_CHARS)],
     };
   }
   let reply: string;

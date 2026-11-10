@@ -2,6 +2,7 @@
 // so the report shape can be snapshot-tested without a live LLM run.
 
 import type { Finding } from "../../../shared/domain/types.ts";
+import { diffCutLine, findingsLine, NO_ISSUES, NO_ISSUES_IN_PART_REVIEWED, REPORT_TITLE } from "./messages.ts";
 
 /** How much of the diff the lenses read: `shown` characters, `leftOut` not reviewed. */
 export interface ReportCut {
@@ -30,7 +31,7 @@ export function renderReport(
   findingsLeftOut = 0,
 ): string {
   const lines: string[] = [
-    `# Code Review Report`,
+    REPORT_TITLE,
     ``,
     `- Scope: \`${scope}\``,
     `- Files: ${fileCount}`,
@@ -38,14 +39,12 @@ export function renderReport(
     // artefact. Without it, a 3-pass review and a 1-pass review are told apart
     // only by the bill.
     ...(plan ? [`- Review: ${plan}`] : []),
-    ...(cut ? [`- Diff: cut after ${cut.shown} characters, ${cut.leftOut} characters not reviewed`] : []),
-    findingsLeftOut > 0
-      ? `- Findings: ${findings.length} (${findingsLeftOut} less severe left out)`
-      : `- Findings: ${findings.length}`,
+    ...(cut ? [diffCutLine(cut.shown, cut.leftOut)] : []),
+    findingsLine(findings.length, findingsLeftOut),
     ``,
   ];
   if (findings.length === 0) {
-    lines.push(cut ? "No issues found in the part reviewed." : "No issues found. ✅");
+    lines.push(cut ? NO_ISSUES_IN_PART_REVIEWED : NO_ISSUES);
   } else {
     for (const f of findings) {
       const plausible = f.confidence === "plausible" ? " (plausible)" : "";

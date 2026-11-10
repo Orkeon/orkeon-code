@@ -9,6 +9,10 @@
 import type { ActRequest, ChildRuntime, Logger, SessionStore } from "../ports.ts";
 import { INSTANCE_STATES, SNAPSHOT_HEARTBEAT_MS, parseRequest, requestKey, snapshotKey } from "../../domain/agents/instances.ts";
 import type { InstanceRecord, InstanceState, RunSnapshot } from "../../domain/agents/instances.ts";
+import {
+  CHILD_ENDED_WITHOUT_REPLY, CHILD_FAILED, STOPPED_BY_TASKS_STOP, instancesNotWritten, startedInBackground, tasksStopLine,
+  waitReturnedAtOnce,
+} from "./messages.ts";
 
 type StateBag = Pick<SessionStore, "readState" | "writeState">;
 
@@ -48,7 +52,7 @@ export function readChildOutcome(raw: unknown): ChildOutcome | undefined {
   const v = raw as Record<string, unknown> | null | undefined;
   if (v === null || typeof v !== "object") return undefined;
   if (v.ok === true && typeof v.reply === "string") return { ok: true, reply: v.reply };
-  if (v.ok === false) return { ok: false, error: typeof v.error === "string" ? v.error : "the child failed" };
+  if (v.ok === false) return { ok: false, error: typeof v.error === "string" ? v.error : CHILD_FAILED };
   return undefined;
 }
 
@@ -97,7 +101,7 @@ export function createChildBoard(deps: BoardDeps, run: { crew: string; step: str
       written = text;
       writtenAt = at;
     } catch (error) {
-      if (!warned) deps.log.warn(`${run.crew}: the agent instances could not be written for /tasks: ${firstLine(error)}`);
+      if (!warned) deps.log.warn(instancesNotWritten(run.crew, firstLine(error)));
       warned = true;
     }
   }
@@ -119,7 +123,7 @@ export function createChildBoard(deps: BoardDeps, run: { crew: string; step: str
     // Ids restart at a1 in every run: a stop meant for another run is dropped, never served here.
     if (request.run !== startedAt) return;
     record.stopRequested = runtime.stop(record.id) || undefined;
-    deps.log.info(`${run.crew}: /tasks stop ${record.id} (${record.agent})${record.stopRequested ? "" : ": it was no longer running"}`);
+    deps.log.info(tasksStopLine(run.crew, record.id, record.agent, record.stopRequested));
   }
 
   return {
@@ -197,7 +201,7 @@ export async function runChildAct(deps: ChildDeps, call: ChildCall): Promise<str
   };
   await resolveId();
   board.add(record);
-  log.info(`${call.agent} ${record.id || "?"} started in the background: ${call.task}`);
+  log.info(startedInBackground(call.agent, record.id || "?", call.task));
   let early = 0;
   try {
     for (;;) {
@@ -208,7 +212,7 @@ export async function runChildAct(deps: ChildDeps, call: ChildCall): Promise<str
       if (stopped && (outcome !== undefined || (row !== undefined && row.state !== "running"))) {
         // A stopped child's act rejects, and its body leaves that failure: the stop is what happened.
         record.state = "stopped";
-        record.error = "stopped by /tasks stop";
+        record.error = STOPPED_BY_TASKS_STOP;
         break;
       }
       if (outcome !== undefined) {
@@ -219,7 +223,7 @@ export async function runChildAct(deps: ChildDeps, call: ChildCall): Promise<str
       }
       if (row !== undefined && row.state !== "running") {
         record.state = asState(row.state);
-        record.error = "the child ended without leaving a reply";
+        record.error = CHILD_ENDED_WITHOUT_REPLY;
         break;
       }
       await board.serve(runtime);
@@ -230,7 +234,7 @@ export async function runChildAct(deps: ChildDeps, call: ChildCall): Promise<str
         early += 1;
         if (early >= MAX_EARLY_WAKES) {
           record.state = "failed";
-          record.error = `the wait for ${call.agent} returned at once ${early} times in a row`;
+          record.error = waitReturnedAtOnce(call.agent, early);
           runtime.stop(record.id);
           break;
         }

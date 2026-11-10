@@ -8,7 +8,7 @@ import { deepStrictEqual, strictEqual } from "node:assert";
 import {
   DICTATION_FILE, dispatchVoice, parseVoiceArgs, recordingNotice, renderVoiceCompletion,
 } from "../../../../src/commands/_lib/speech/voice.ts";
-import { missingToolMessage } from "../../../../src/commands/_lib/speech/transcribe.ts";
+import { missingToolMessage } from "../../../../src/commands/_lib/speech/messages.ts";
 import type { MainLoopInputs } from "../../../../src/crews/main-loop/application/run-main-loop.ts";
 import {
   ACCEPTED_CASES, COMPLETION_CASES, MAX_ZERO_MESSAGE, NO_DICTATION, NOTICE_CASES, REFUSED_CASES, voiceDeps,

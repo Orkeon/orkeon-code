@@ -10,6 +10,7 @@
 // directory by the host, so listing them from a stored copy would go stale the
 // moment a crew is added or renamed — the command merges the two at read time and
 // labels which is which.
+import { agentNeedsGoal, agentNeedsRole, DISCOVERED_IN_CREWS, invalidAgentName, shadowedByCrew } from "./messages.ts";
 
 /** A saved agent definition. Deliberately small: the fields an agent needs to run. */
 export interface SavedAgent {
@@ -42,13 +43,13 @@ export function validateSavedAgent(raw: {
   if (!NAME_RE.test(name)) {
     return {
       ok: false,
-      reason: `'${String(raw?.name ?? "")}' is not a valid agent name (lowercase letters, digits and '-', starting with a letter)`,
+      reason: invalidAgentName(String(raw?.name ?? "")),
     };
   }
   const role = String(raw?.role ?? "").trim();
   const goal = String(raw?.goal ?? "").trim();
-  if (role.length === 0) return { ok: false, reason: `agent '${name}' needs a role` };
-  if (goal.length === 0) return { ok: false, reason: `agent '${name}' needs a goal` };
+  if (role.length === 0) return { ok: false, reason: agentNeedsRole(name) };
+  if (goal.length === 0) return { ok: false, reason: agentNeedsGoal(name) };
 
   const tools = Array.isArray(raw?.tools)
     ? [...new Set(raw.tools.map((t: unknown) => String(t ?? "").trim()).filter((t: string) => t.length > 0))]
@@ -127,14 +128,14 @@ export function describeAgentRows(
   const rows = [...crews].sort().map((c) => ({
     name: c,
     kind: "crew (built-in)",
-    detail: "discovered in crews/ — read-only here",
+    detail: DISCOVERED_IN_CREWS,
   }));
   for (const a of agents) {
     rows.push({
       name: a.name,
       kind: "saved agent",
       detail: crewNames.has(a.name.toLowerCase())
-        ? `⚠ shadowed by the crew of the same name — never dispatched. ${a.role}`
+        ? shadowedByCrew(a.role)
         : `${a.role} — ${a.goal}${a.tools.length > 0 ? ` [tools: ${a.tools.join(", ")}]` : ""}`,
     });
   }

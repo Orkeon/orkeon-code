@@ -5,6 +5,10 @@
 // of their content. Pure, no IO: the file is read by the use case.
 import { foldText } from "../../../shared/domain/shared-memory/verdict-rows.ts";
 import type { AnswerMotif } from "./learn-answer.ts";
+import {
+  OWNER_MAY_SAY_IT, keyTermFindsNoLine, keyTermFound, keyTermNotFound, keyTermOnLines, nearestLine, removedNotFound,
+  removedNotFoundIn,
+} from "./messages.ts";
 
 export const MAX_OWNER_LINES_PER_MOTIF = 8;
 export const MAX_OWNER_LINE_CHARS = 160;
@@ -56,10 +60,10 @@ function nearest(hits: readonly OwnerHit[], line: string): OwnerHit {
 export function ownerSummary(motif: ReviewedMotif, path: string, match: OwnerMatch): string {
   const { hits } = match;
   let out = hits.length === 0
-    ? `'${motif.keyTerm}' not found in ${path}`
-    : `'${motif.keyTerm}' on ${hits.length} lines of ${path}, first ${path}:${hits[0].n}`;
-  if (motif.status === "new" && hits.length > 0) out += "; the owner may already say it";
-  for (const removed of match.missing) out += `; removed line not found: ${cut(removed, REMOVED_SHOWN)}`;
+    ? keyTermNotFound(motif.keyTerm, path)
+    : keyTermFound(motif.keyTerm, hits.length, path, hits[0].n);
+  if (motif.status === "new" && hits.length > 0) out += OWNER_MAY_SAY_IT;
+  for (const removed of match.missing) out += removedNotFound(cut(removed, REMOVED_SHOWN));
   return out;
 }
 
@@ -70,14 +74,13 @@ export function reviewOwner(label: string, motif: ReviewedMotif, path: string, m
   const { hits, missing } = match;
   const problems: string[] = [];
   if (motif.status === "new" && hits.length > 0) {
-    problems.push(`${label}: '${motif.keyTerm}' is on ${hits.length} lines of ${path}, shown below: keep status new only ` +
-      "for what they miss; else refine, replace or remove one of them, or drop the motif under novelty");
+    problems.push(keyTermOnLines(label, motif.keyTerm, hits.length, path));
   }
   for (const line of missing) {
     const where = hits.length > 0
-      ? `; nearest: ${shownLine(path, nearest(hits, line))}`
-      : `; '${motif.keyTerm}' finds no line there: give the motif status new`;
-    problems.push(`${label}: removed line not found in ${path}: "${cut(line, REMOVED_SHOWN)}"${where}`);
+      ? nearestLine(shownLine(path, nearest(hits, line)))
+      : keyTermFindsNoLine(motif.keyTerm);
+    problems.push(removedNotFoundIn(label, path, cut(line, REMOVED_SHOWN), where));
   }
   const block = (problems.length > 0 || motif.status !== "new") && hits.length > 0
     ? { label, path, lines: hits.slice(0, MAX_OWNER_LINES_PER_MOTIF).map((h) => shownLine(path, h)) }

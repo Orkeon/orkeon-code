@@ -6,6 +6,7 @@
 // which the command prints.
 import type { Logger, ToolCatalogue } from "../../../shared/application/ports.ts";
 import { nothingReturned, parsePrelude, toolFailure } from "../../../shared/domain/prelude.ts";
+import { NO_TOOL_TO_CALL } from "./messages.ts";
 
 /** The ports of the call. */
 export interface SpeechDeps {
@@ -16,7 +17,7 @@ export interface SpeechDeps {
 /** Make the call the input names and answer its text; a failed call throws the tool's message. */
 export async function runSpeech(input: unknown, deps: SpeechDeps): Promise<string> {
   const call = parsePrelude(input);
-  if (call === null) throw new Error("no tool to call: this crew is started by /transcribe, /voice or /say");
+  if (call === null) throw new Error(NO_TOOL_TO_CALL);
   deps.log.info(`${call.label}: ${call.tool}`);
   const outcome = await deps.tools.callText(call.tool, call.args);
   if (!outcome.ok) throw toolFailure(call.tool, outcome.failure);

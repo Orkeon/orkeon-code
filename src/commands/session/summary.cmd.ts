@@ -5,7 +5,7 @@
 // read, like any main-loop launch: the crew's turn prompt already embeds the
 // windowed history, so the model summarises exactly what the session holds.
 import { launchMainLoop, writeCompleted } from "../_lib/dispatch.ts";
-import { SUMMARY_PROMPT } from "../../shared/domain/session-summary.ts";
+import { SUMMARY_PROMPT } from "../../shared/domain/prompts.ts";
 import { createCrewHost } from "../../shared/infrastructure/orkeon/crew-host.ts";
 import { createPermissionRules } from "../../shared/infrastructure/orkeon/permission-rules.ts";
 import {

@@ -3,7 +3,8 @@
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok, rejects } from "node:assert";
 
-import { BUDGET_EXHAUSTED_LINE, loadCatalogue, runMainLoop } from "../../../../src/crews/main-loop/application/run-main-loop.ts";
+import { loadCatalogue, runMainLoop } from "../../../../src/crews/main-loop/application/run-main-loop.ts";
+import { BUDGET_EXHAUSTED_LINE } from "../../../../src/crews/main-loop/application/messages.ts";
 import type { LoadedCatalogue } from "../../../../src/crews/main-loop/application/run-main-loop.ts";
 import { BREAKER_RUN_FIELD } from "../../../../src/crews/main-loop/application/auto-compact.ts";
 import { buildStaticHeader } from "../../../../src/crews/main-loop/domain/prompt-assembly.ts";

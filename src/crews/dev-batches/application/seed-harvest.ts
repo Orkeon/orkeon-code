@@ -15,6 +15,7 @@ import type { Files } from "../../../shared/application/ports.ts";
 import { isCode } from "../../../shared/domain/dev/artefacts.ts";
 import type { WorktreePlace } from "../../../shared/domain/git/worktree.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
+import { changedSinceSeed, memoryDirOutside, notAWorkCode, notBroughtBack, tooManyToSeed, workFolderOutside } from "./messages.ts";
 
 export interface SeedTarget {
   place: WorktreePlace;
@@ -78,9 +79,9 @@ async function walk(files: Pick<Files, "read" | "list">, base: string, path: str
 
 function unsafe(target: SeedTarget): string | null {
   const relative = (p: string) => p !== "" && !p.startsWith("/") && !p.split("/").includes("..");
-  if (!relative(target.work)) return `the work folder '${target.work}' is not a folder of the checkout`;
-  if (!relative(target.memoryDir)) return `memory.dir '${target.memoryDir}' is not a folder of the checkout`;
-  if (!isCode(target.code)) return `'${target.code}' is not a work code`;
+  if (!relative(target.work)) return workFolderOutside(target.work);
+  if (!relative(target.memoryDir)) return memoryDirOutside(target.memoryDir);
+  if (!isCode(target.code)) return notAWorkCode(target.code);
   return null;
 }
 
@@ -104,7 +105,7 @@ export async function seedWorktree(
   const found = new Map<string, string>();
   for (const source of sources(target)) await walk(files, WORKSPACE, source, found);
   if (found.size > SEED_MAX_FILES) {
-    return { ok: false, line: `${target.place.path} not seeded: more than ${SEED_MAX_FILES} files to copy (the work folder, .orkeon/dev, the packs, memory.dir)` };
+    return { ok: false, line: tooManyToSeed(target.place.path, SEED_MAX_FILES) };
   }
   const snapshot = new Map<string, string>();
   try {
@@ -132,7 +133,7 @@ export async function harvestBatch(
 ): Promise<{ ok: true; brought: string[] } | { ok: false; brought: string[]; line: string }> {
   const brought: string[] = [];
   const refused = unsafe(target);
-  if (refused !== null) return { ok: false, brought, line: `⚠ ${target.batch}'s files not brought back from ${target.place.path}: ${refused}` };
+  if (refused !== null) return { ok: false, brought, line: notBroughtBack(target.batch, target.place.path, refused) };
   const found = new Map<string, string>();
   for (const source of [`${target.work}/${target.code}`, `.orkeon/dev/${target.code}`]) await walk(files, target.place.root, source, found);
   const kept: string[] = [];
@@ -150,12 +151,12 @@ export async function harvestBatch(
       brought.push(path);
     }
   } catch (e) {
-    return { ok: false, brought, line: `⚠ ${target.batch}'s files not brought back from ${target.place.path}: ${reasonOf(e)}` };
+    return { ok: false, brought, line: notBroughtBack(target.batch, target.place.path, reasonOf(e)) };
   }
   if (kept.length > 0) {
     return {
       ok: false, brought,
-      line: `⚠ ${target.batch}: ${kept.join(", ")} changed in the checkout since the seed: kept as they are, the batch's copies left in ${target.place.path}`,
+      line: changedSinceSeed(target.batch, kept.join(", "), target.place.path),
     };
   }
   return { ok: true, brought };

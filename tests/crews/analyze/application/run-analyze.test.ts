@@ -3,8 +3,10 @@
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, rejects } from "node:assert";
 
-import { MAX_PACKAGES, MAX_SCANNED_PACKAGES, PROGRESS_LABEL, runAnalyze } from "../../../../src/crews/analyze/application/run-analyze.ts";
-import { SYNTHESIS_SYSTEM, buildSynthesisUser } from "../../../../src/crews/analyze/domain/harvest.ts";
+import { MAX_PACKAGES, MAX_SCANNED_PACKAGES, runAnalyze } from "../../../../src/crews/analyze/application/run-analyze.ts";
+import { PROGRESS_LABEL } from "../../../../src/crews/analyze/application/messages.ts";
+import { buildSynthesisUser } from "../../../../src/crews/analyze/domain/harvest.ts";
+import { SYNTHESIS_SYSTEM } from "../../../../src/crews/analyze/domain/prompts.ts";
 import {
   CACHE_LINES, NOTHING_INDEXED, PARALLEL_ABSENT, PARALLEL_ASKED, PARALLEL_REFUSED, RANKED_SUMMARIES, RAW_RUN_CALLS,
   REBUILD_ASKED, REBUILD_NOT_ASKED, UNRANKED_L1, analyzeSetup, harvestOf, withSmallHost,

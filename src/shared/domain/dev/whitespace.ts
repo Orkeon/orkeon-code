@@ -1,6 +1,7 @@
 // The whitespace `git diff --check` refuses, put right by code in a file a role wrote: trailing
 // spaces or tabs at the end of a line, blank lines at the end of the file. A node insert at the end
 // of a module leaves a blank line after the last member; the gate would stop the batch for it. Pure.
+import { blankLinesAtEof, ONE_BLANK_LINE_AT_EOF, trailingWhitespace } from "./messages.ts";
 
 export interface TidyResult {
   text: string;
@@ -18,7 +19,7 @@ export function tidyWhitespace(text: string): TidyResult {
     if (clean !== line) trailing += 1;
     return clean;
   });
-  if (trailing > 0) fixed.push(`trailing whitespace on ${trailing} line${trailing === 1 ? "" : "s"}`);
+  if (trailing > 0) fixed.push(trailingWhitespace(trailing));
   const endsWithNewline = text.endsWith("\n");
   // The split's last element is "" when the text ends with a newline: the blank lines at EOF are the empty
   // elements before it.
@@ -28,7 +29,7 @@ export function tidyWhitespace(text: string): TidyResult {
     end -= 1;
     blank += 1;
   }
-  if (blank > 0) fixed.push(blank === 1 ? "a blank line at EOF removed" : `${blank} blank lines at EOF removed`);
+  if (blank > 0) fixed.push(blank === 1 ? ONE_BLANK_LINE_AT_EOF : blankLinesAtEof(blank));
   const body = stripped.slice(0, end).join("\n");
   return { text: endsWithNewline ? `${body}\n` : body, fixed };
 }

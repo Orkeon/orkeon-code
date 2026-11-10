@@ -10,6 +10,7 @@ import { parseRefused } from "../../domain/shared-memory/refused.ts";
 import { CANDIDATES_TITLE, INDEX_TITLE, candidatesList, entriesIndex } from "../../domain/shared-memory/candidates.ts";
 import { candidatePath } from "../../domain/shared-memory/layout.ts";
 import type { MemoryLayout } from "../../domain/shared-memory/layout.ts";
+import { notRefreshed } from "./messages.ts";
 
 /** How many files of one folder are read at most. */
 export const MAX_LISTED = 1_000;
@@ -85,7 +86,7 @@ export async function writeCandidateFile(files: Pick<Files, "write">, layout: Me
 async function writeGenerated(files: Pick<Files, "read" | "write">, path: string, title: string, text: string): Promise<string | null> {
   const previous = await readOrNull(files, path);
   if (previous !== null && previous.trim() !== "" && !previous.startsWith(title)) {
-    return `${path} not refreshed: it exists and is not the memory's (it does not start with '${title}')`;
+    return notRefreshed(path, title);
   }
   await files.write(path, text);
   return null;

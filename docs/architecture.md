@@ -219,7 +219,7 @@ src/
 │   │                  git/ (branch, commit, diff, review), memory/ (memory, memory-admit), session/ (export,
 │   │                  resume, tasks), settings/ (advisor, agents, config, hooks, mode, model, permissions,
 │   │                  session-config: the toggle commands, skills), speech/ (say, transcribe, voice),
-│   │                  status/ (cache, doctor, meta: version and release notes, status). At the root, what
+│   │                  status/ (cache, doctor, meta: version; messages: release notes, status). At the root, what
 │   │                  several families share: args.ts (arguments), dispatch.ts (crew launch, completion
 │   │                  line, main-loop launch), dev-step.ts, effort.ts, pr-context.ts, view.ts (CommandView,
 │   │                  showView)
@@ -449,7 +449,7 @@ The `main-loop` agent's body is the loop (`crews/main-loop/application/run-main-
 4. Read the behaviour flags once (`/effort`, `/passes` of `/review`, `/fast`, `/proactive`, `/output-style`).
 5. Append the user turn to the session buffer; compact first if the buffer is under pressure
    (`auto-compact.ts`).
-6. Assemble the prompt (below; `turn-prompt.ts` over the reads of `context-gather.ts`) and call the model's `act`
+6. Assemble the prompt (below; `application/prompts.ts` over the reads of `context-gather.ts`) and call the model's `act`
    (the `Llm` port over `ctx.llm.act()`): the runtime runs the model ⇄ tool calls cycle over the catalogue, every
    call of a model turn in order, under the crew budget and the permission gate, and returns the final answer. A
    failed model call throws an `LlmFailure`: the turn stores no answer and fails with the provider's error. A call a
@@ -861,6 +861,36 @@ The prompts that apply instructions to material (the summary, the commit message
 instructions file, a verification skill) send the instructions as the system message and the material as the user
 message (`Llm.complete` with `system`, over the runtime's message-array call).
 
+## Where text lives
+
+The natural-language text of `src/` lives apart from the logic that uses it
+([ADR 0026](adr/0026-text-isolation.md)), in up to three text files per layer folder, beside the modules that read
+them:
+
+| File | Holds | Read by |
+| --- | --- | --- |
+| `prompts.ts` | what a model reads: system prompts, instructions, tool descriptions | the module that builds the call |
+| `messages.ts` | what the user reads: usage, refusals, errors, status and report lines, hints | the module that renders or throws |
+| `markers.ts` | what a writer and a reader share: headings, verdict words, regular expressions over text | the writer and the parser |
+
+- A text file sits in the layer of its reader (`domain/`, `application/`, `shared/infrastructure/orkeon/`,
+  `commands/_lib/<group>/`): a domain module reads text from `domain/` only. The text of a `*.cmd.ts` goes to
+  `commands/_lib/<group>/messages.ts`, that of a `crew.ork.ts` to `crews/<crew>/application/messages.ts`.
+- A text with values in it is a function of those values, named after what it says. A text file past about 400 lines
+  may become a folder `prompts/<subject>.ts`.
+- Text files are TypeScript: the bundle loads no other kind of file.
+- What stays inline: identifiers, configuration keys, paths, shell commands, flags, the keys of a JSON schema, short
+  enumeration words, and the `description:` of a `*.cmd.ts`. The charters (`*-charter.ts`, `built-in-charters.ts`),
+  `design-rules.ts` and `reading-rule.ts` are text files under their own names.
+- A text file holds text only: constants and template functions (parameters in, text out; a ternary, an early return,
+  a `.map` or a `.join` to render a list). An `async` function, `await`, a loop, a `switch`, a `try`, a class, a
+  `let` or a `var`, and a value imported from a module that is neither a text file nor a domain module are logic: the
+  budget of a brief, a cut, a choice of what to carry go to a logic module beside the text file
+  (`crews/main-loop/application/turn-context.ts` beside `prompts.ts`). A type may be imported from anywhere.
+- `tests/repository/text-isolation.test.ts` checks both sides, reading `src/` once: it flags a literal of a logic
+  file that holds three words or more, or more than 60 characters with a space, and a construct of logic in a text
+  file; each exception is named with its file, its owner and its reason.
+
 ## Context management
 
 - **Automatic compaction** at the head and the tail of each turn when the buffer crosses its threshold, behind a
@@ -889,7 +919,7 @@ extraction, `shared/domain/compaction.ts` the prompts and buffers, `shared/domai
    it in `tests/commands/_lib/<group>/<name>.test.ts`, over the fakes. A helper that several groups share
    sits at the root of `_lib/`; a group never imports another one.
 3. Raise `EXPECTED_COMMAND_COUNT` in `tests/repository/command-surface.test.ts` and the command count of `RELEASE_NOTES` in
-   `src/commands/_lib/status/meta.ts` (pinned by `tests/commands/_lib/status/meta.test.ts`), then run `npm run docs:commands`.
+   `src/commands/_lib/status/messages.ts` (pinned by `tests/commands/_lib/status/messages.test.ts`), then run `npm run docs:commands`.
 
 ### Add a crew
 
@@ -899,7 +929,7 @@ extraction, `shared/domain/compaction.ts` the prompts and buffers, `shared/domai
    its `*.test.ts`; the use case test runs over the fakes.
 3. Start it from an async command (`launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "<name>",
    input)`), and name it in `RELEASE_NOTES`
-   (`tests/commands/_lib/status/meta.test.ts` checks that every crew folder is named there). A folder starting with `_` is a
+   (`tests/commands/_lib/status/messages.test.ts` checks that every crew folder is named there). A folder starting with `_` is a
    development probe (`probe.ork.ts`), never listed to users.
 
 ### Add a tool
@@ -943,7 +973,7 @@ the mode too (Orkeon classifies an unknown mode fail-closed). Update `mode-polic
    string when there is nothing to say, so a session that does not use it keeps a byte-identical prompt.
 2. Give it a field of `ContextParts` and its place in `assembleContext`'s fixed order; a block of the static header
    must hold no per-turn data, or the provider's cache breaks.
-3. Read its input in `application/context-gather.ts` (through the ports) and pass it in `application/turn-prompt.ts`;
+3. Read its input in `application/context-gather.ts` (through the ports) and pass it in `application/prompts.ts`;
    test the renderer in `prompt-assembly.test.ts` and the turn over the fakes.
 4. Specify the behaviour first, in "Prompt assembly" above, then write the text from it in this project's own words
    (CONTRIBUTING, "Original work only"); pin a marker phrase of each rule in the test, and run

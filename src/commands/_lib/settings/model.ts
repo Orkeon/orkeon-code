@@ -30,12 +30,16 @@ import { DEFAULT_EFFORT, EFFORT_LEVELS, providerEffort } from "../../../shared/d
 import { EFFORT_STATE_KEY, MODEL_PREFERENCE_STATE_KEY } from "../../../shared/domain/session-keys.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import { readLlmProfile } from "../../../shared/application/llm-profile.ts";
-import {
-  judgeModelChoice, renderModelList, NO_CATALOGUE_NOTE,
-} from "../../../shared/domain/model-catalog.ts";
+import { judgeModelChoice, renderModelList } from "../../../shared/domain/model-catalog.ts";
+import { NO_CATALOGUE_NOTE } from "../../../shared/domain/messages.ts";
 import type { CommandView } from "../view.ts";
 import { optionsOf } from "./choices.ts";
 import { runEffort } from "./effort.ts";
+import {
+  MODEL_CHOICE, MODEL_UNCHANGED, NO_EFFECTIVE_MODEL, OVERRIDE_CLEARED_NO_BOOT, declaredCatalogue, modelSet,
+  modelSetUndeclared, modelSetWarned, modelShown, overrideCleared, overrideNotSent, profileNamesModel,
+  profileWinsOverride,
+} from "./messages.ts";
 
 export interface ModelDeps {
   session: Pick<SessionStore, "readState" | "writeState">;
@@ -67,10 +71,6 @@ async function readHostModels(telemetry: ModelDeps["telemetry"]): Promise<{ boot
   };
 }
 
-export const NO_MODEL_REPORTED =
-  "not reported by the host — no LLM provider is registered, or the host predates the " +
-  "session-metadata fix. Turns will no-op: check that the settings file has an `Llm` section.";
-
 /** `/model [show|list|reset|clear|<name>]`, from the command's raw tokens. */
 export async function runModel(tokens: string[], deps: ModelDeps): Promise<CommandView> {
   const { session, telemetry, config, log } = deps;
@@ -92,25 +92,18 @@ export async function runModel(tokens: string[], deps: ModelDeps): Promise<Comma
 
     // `/model list` is the catalogue alone — the question is "what can I pick".
     if (first === "list") {
-      return { text: catalogue ? `declared models (* = effective):\n${catalogue}` : NO_CATALOGUE_NOTE };
+      return { text: catalogue ? declaredCatalogue(catalogue) : NO_CATALOGUE_NOTE };
     }
 
-    return {
-      text: `effective model for the next turn: ${effectiveLine(effective, profile)}\n` +
-        `  boot model      : ${boot || NO_MODEL_REPORTED}\n` +
-        `  session override: ${pref ? (profile === null ? pref : `${pref} (not sent while llm.profile is set)`) : "(none)"}\n` +
-        (catalogue ? `declared models (* = effective):\n${catalogue}\n` : `declared models: ${NO_CATALOGUE_NOTE}\n`) +
-        "usage: /model <name> | /model list | /model reset | /model show",
-    };
+    const override = pref ? (profile === null ? pref : overrideNotSent(pref)) : "(none)";
+    return { text: modelShown(effectiveLine(effective, profile), boot, override, catalogue, NO_CATALOGUE_NOTE) };
   }
 
   if (first === "reset" || first === "clear") {
     await session.writeState(MODEL_PREFERENCE_STATE_KEY, "");
     const { boot } = await readHostModels(telemetry);
     return {
-      text: boot
-        ? `model override cleared — turns go back to ${boot}.`
-        : `model override cleared. Boot model: ${NO_MODEL_REPORTED}`,
+      text: boot ? overrideCleared(boot) : OVERRIDE_CLEARED_NO_BOOT,
     };
   }
 
@@ -126,25 +119,17 @@ export async function runModel(tokens: string[], deps: ModelDeps): Promise<Comma
   const { profile } = await readLlmProfile(config);
   if (profile !== null) {
     // Stored all the same: it applies again once the profile is unset.
-    const warning = `llm.profile ${profile} is active: the /model override '${requested}' is stored but not sent ` +
-      "while it is set (unset llm.profile to use it)";
+    const warning = profileWinsOverride(profile, requested);
     log.warn(warning);
-    return { text: `model set to '${requested}' — ⚠ ${warning}.` };
+    return { text: modelSetWarned(requested, warning) };
   }
   if (verdict.warning) {
     // Terse inline, full reason in the log: in the split-pane console the two land
     // in different panes, and repeating four lines verbatim next to themselves
     // trains the eye to skip them.
-    return {
-      text: `model set to '${requested}' — ⚠ NOT among the models this host declares ` +
-        `(${declared.join(", ")}). Applied anyway; see the log. /model list to review.`,
-    };
+    return { text: modelSetUndeclared(requested, declared) };
   }
-  return {
-    text: `model set to '${requested}' — it applies from the next /assistant turn, no relaunch.\n` +
-      "It travels over the configured provider, so it must be a model that provider serves; " +
-      "/clear (or /model reset) returns to the boot model.",
-  };
+  return { text: modelSet(requested) };
 }
 
 /** The panel of a bare /model: the declared models, the effective one when the host does not declare it (Enter must
@@ -159,7 +144,7 @@ async function pickModel(
   const effort = providerEffort(await deps.session.readState(EFFORT_STATE_KEY).catch(() => null)) ?? DEFAULT_EFFORT;
   const isDeclared = !effective || declared.some((name) => name.toLowerCase() === effective.toLowerCase());
   const answer = await chooser.choose({
-    message: "Model for the next turns",
+    message: MODEL_CHOICE,
     options: [
       ...optionsOf(declared, effective),
       ...(isDeclared ? [] : [{ value: effective, current: true }]),
@@ -167,7 +152,7 @@ async function pickModel(
     ],
     control: { label: "Effort", values: EFFORT_LEVELS, value: effort },
   });
-  if (!answer) return { text: "model unchanged." };
+  if (!answer) return { text: MODEL_UNCHANGED };
 
   const texts: string[] = [];
   if (answer.value.toLowerCase() !== effective.toLowerCase()) {
@@ -176,11 +161,11 @@ async function pickModel(
   if (answer.control && answer.control !== effort) {
     texts.push((await runEffort([answer.control], { session: deps.session })).text ?? "");
   }
-  return { text: texts.length > 0 ? texts.join("\n") : "model unchanged." };
+  return { text: texts.length > 0 ? texts.join("\n") : MODEL_UNCHANGED };
 }
 
 /** The first line of `show`: the profile when one is set, else the effective model. */
 function effectiveLine(effective: string, profile: string | null): string {
-  if (profile !== null) return `the one llm.profile ${profile} names (the /model override does not apply)`;
-  return effective || "(none — see below)";
+  if (profile !== null) return profileNamesModel(profile);
+  return effective || NO_EFFECTIVE_MODEL;
 }

@@ -8,6 +8,10 @@ import type { ReviewLens } from "../domain/lenses.ts";
 export { LENSES, selectLenses, lensKeys, describeReviewPlan } from "../domain/lenses.ts";
 export type { ReviewLens, LensSelection } from "../domain/lenses.ts";
 
+/** The agent the code-review crew runs. */
+export const REVIEWER_ROLE = "Senior Code Reviewer";
+export const REVIEWER_GOAL = "Review changes across correctness, security, and style lenses and produce a ranked report.";
+
 /** The severity scale, worst first — the order shared/domain/severity.ts ranks by. */
 export const SEVERITIES = ["blocker", "high", "medium", "low", "nit"] as const;
 
@@ -35,9 +39,6 @@ export const FINDINGS_SCHEMA = {
   required: ["findings"],
 };
 
-/** How many already-found items a later pass is shown, so the prompt stays bounded. */
-export const MAX_PRIOR_FINDINGS_IN_PROMPT = 25;
-
 /** Where a first pass tends not to look: what a later pass is pointed at. */
 export const LATER_PASS_FOCUS =
   "the deleted lines, the error and early-return paths, the boundaries (empty, zero, the last item) and " +
@@ -46,15 +47,9 @@ export const LATER_PASS_FOCUS =
 /** Findings one lens may return in one pass: the worst ones, not a long tail. */
 export const MAX_FINDINGS_PER_LENS = 10;
 
-/** Characters of the project's instructions file shown to the style lens. */
-export const MAX_CONVENTIONS_CHARS = 3_000;
-
-/** The diff as the lenses read it: at most `max` characters, and a note saying how
- *  much was left out when it was cut, so a lens does not review what it cannot see. */
-export function cutDiff(diff: string, max: number): string {
-  if (diff.length <= max) return diff;
-  return diff.slice(0, max) + `\n[diff cut after ${max} characters: ${diff.length - max} characters left out]`;
-}
+/** The note closing a diff cut after `max` characters, `leftOut` of them left out. */
+export const diffCutNote = (max: number, leftOut: number): string =>
+  `\n[diff cut after ${max} characters: ${leftOut} characters left out]`;
 
 /** A finding whose trigger the diff does not show: kept, marked plausible, with what would confirm it. */
 export const PLAUSIBLE_RULE =
@@ -82,7 +77,7 @@ export const NEVER_PLAUSIBLE_RULE =
  * what they MISSED — re-running the identical prompt would mostly re-report the
  * same items, dedup would collapse them, and the operator would have paid for more
  * calls to change nothing. `conventions` (the project's instructions file) goes to
- * the style lens only.
+ * the style lens only. Both come already bounded by ./lens-material.ts.
  */
 export function buildLensPrompt(
   lens: ReviewLens,
@@ -109,15 +104,13 @@ export function buildLensPrompt(
     lines.push("", `This is review pass ${pass}. A first pass tends to skip ${LATER_PASS_FOCUS}: look there first.`);
   }
   if (pass > 1 && priorFindings.length > 0) {
-    const already = priorFindings
-      .slice(0, MAX_PRIOR_FINDINGS_IN_PROMPT)
-      .map((f) => `- ${f.file}:${f.line ?? "?"} — ${f.finding ?? ""}`);
+    const already = priorFindings.map((f) => `- ${f.file}:${f.line ?? "?"} — ${f.finding ?? ""}`);
     lines.push(
       "These issues were already reported; do NOT repeat them, find what they missed.",
       ...already,
     );
   }
-  const projectConventions = lens.key === "style" ? conventions.trim().slice(0, MAX_CONVENTIONS_CHARS) : "";
+  const projectConventions = lens.key === "style" ? conventions : "";
   if (projectConventions.length > 0) {
     lines.push("", "The project's own conventions, from its instructions file:", "<conventions>", projectConventions, "</conventions>");
   }

@@ -6,6 +6,7 @@
 // and the number follows; a number with no such reason does not belong here.
 //
 // Run tests: node --test src/shared/domain/compaction-thresholds.test.ts
+import { A_TOKEN_COUNT } from "./messages.ts";
 
 /** chars→tokens heuristic shared with the token_budget tool. */
 export const CHARS_PER_TOKEN = 4;
@@ -122,7 +123,7 @@ export function parseTokenCount(value: unknown): number | undefined {
 
 /** Why a compaction.trigger value is refused; undefined when it is a token count. */
 export function compactionTriggerProblem(value: string): string | undefined {
-  return parseTokenCount(value) === undefined ? "a token count such as 90000 or 90k" : undefined;
+  return parseTokenCount(value) === undefined ? A_TOKEN_COUNT : undefined;
 }
 
 /** Token count at which auto-compaction triggers for a given window: the

@@ -12,6 +12,7 @@ import {
   memoryCollection, memoryLayout, memoryProjectProblem,
 } from "../../domain/shared-memory/layout.ts";
 import type { MemoryLayout } from "../../domain/shared-memory/layout.ts";
+import { memoryDirSetAside } from "./messages.ts";
 
 export const GIT_REMOTE_ORIGIN = "git remote get-url origin";
 export const LOCAL_PROJECT = "local";
@@ -59,7 +60,7 @@ export async function readMemoryDir(config: Pick<ConfigStore, "readValue">): Pro
   const raw = await valueOf(config, MEMORY_DIR_CONFIG_KEY);
   if (raw === undefined) return { dir: DEFAULT_MEMORY_DIR };
   const check = checkMemoryDir(raw);
-  return check.ok ? { dir: check.dir } : { dir: DEFAULT_MEMORY_DIR, warning: `${MEMORY_DIR_CONFIG_KEY} '${raw}' set aside (${check.reason}): ${DEFAULT_MEMORY_DIR} applies` };
+  return check.ok ? { dir: check.dir } : { dir: DEFAULT_MEMORY_DIR, warning: memoryDirSetAside(MEMORY_DIR_CONFIG_KEY, raw, check.reason, DEFAULT_MEMORY_DIR) };
 }
 
 /** memory.dir as the guards read it: the folder alone, the warning left to the commands that print it. */

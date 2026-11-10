@@ -3,7 +3,7 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual } from "node:assert";
 
-import { DECIDE_LATER, NO_ANSWER } from "../../../../src/shared/infrastructure/orkeon/human-input.ts";
+import { DECIDE_LATER, NO_ANSWER } from "../../../../src/shared/infrastructure/orkeon/markers.ts";
 import { CHOICE_NOBODY, MULTI_NOBODY, TEXT_NOBODY, stub } from "./human-input.fixtures.ts";
 
 describe("createHumanInput — choice", () => {

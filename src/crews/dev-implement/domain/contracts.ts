@@ -8,6 +8,18 @@ import type { RepoPackCommands, RepoPackLayout } from "../../../shared/domain/de
 import { PLACEHOLDER, plainWords, valueProblem } from "../../../shared/domain/dev/test-commands.ts";
 import { BOUNDED_READ_RULE, NODE_EDIT_RULE, NODE_READ_RULE } from "../../../shared/domain/dev/reading-rule.ts";
 import type { AnchorRef, ImplementSheet, ImplementStep } from "./step-section.ts";
+import { CORRECTION_LABEL as CORRECTION, STALE_HEADING } from "./markers.ts";
+import { PACK_HAS_NO_CLASS_OR_PROJECT_TEST, PACK_HAS_NO_TEST_PROJECT, stepNamesNoTestFile } from "./messages.ts";
+import { SHELL_OPERATOR_OUTSIDE_QUOTES } from "../../../shared/domain/dev/messages.ts";
+import {
+  ANY_LEVEL_RULE, ASSUMPTION_RULE, CODE_ELEMENTS_LINE, FILES_HEADING, GREEN_ANSWER, IN_THIS_BRIEF_HEADING, INTEGRATION_LEVEL_RULE,
+  LEAST_CODE_RULE, NO_ID, NONE_LISTED, NONE_NAMED, ONE_TEST_PER_ROW_RULE, PRODUCTION_HEADING, READ_ONLY_NEVER_WRITE, RED_ANSWER,
+  RED_TESTS_HEADING, RULES_HEADING, SIGNATURE_STUB_AT_MOST, STUB_EXISTING, STUB_IMPORT_RULE, STUB_OF_EARLIER_RED, STUBBED_AT_RED,
+  TEST_FILE_EXISTING, TEST_FILE_IN_BRIEF, TEST_FILE_TO_CREATE, TESTS_TO_WRITE_HEADING, THE_TEST_FILES, UNIT_LEVEL_RULE,
+  WRITE_FAILING_TESTS_FOR_FINDING, appliedRulesLine, briefTitle, correctionOfFinding, doublesLine, greenRunRule, inThisBrief,
+  lastRedRun, memberRefLine, neverWriteTestRule, oneStep, productionLine, redRunRule, sheetLine, stepLabel, stepsOfOneBehaviour,
+  stubsRule, testFileLine, testFilesOnlyRule, testRow,
+} from "./prompts.ts";
 
 export type TestCommand = { ok: true; command: string } | { ok: false; reason: string };
 
@@ -30,25 +42,25 @@ function fill(template: string, values: { project: string; klass: string }): Tes
     if (problem !== null) return { ok: false, reason: `${hole}: ${problem}` };
   }
   const command = template.replace(PLACEHOLDER, (hole) => (/project/i.test(hole) ? values.project : values.klass));
-  return plainWords(command) ? { ok: true, command } : { ok: false, reason: "a shell operator outside double quotes" };
+  return plainWords(command) ? { ok: true, command } : { ok: false, reason: SHELL_OPERATOR_OUTSIDE_QUOTES };
 }
 
 /** The narrow command that runs the step's tests: `test_class`, else `test_project`; never the whole suite. */
 export function testCommandFor(commands: RepoPackCommands, step: ImplementStep): TestCommand {
   const file = testFileOf(step);
-  if (file === null) return { ok: false, reason: `step ${step.number} names no test file in ## Anchors` };
+  if (file === null) return { ok: false, reason: stepNamesNoTestFile(step.number) };
   const values = { project: step.tests[0]?.project ?? "", klass: classOf(file) };
   const byClass = commands.testClass?.trim();
   if (byClass) return fill(byClass, values);
   const byProject = commands.testProject?.trim();
   if (byProject) return fill(byProject, values);
-  return { ok: false, reason: "the pack has no commands.test_class or commands.test_project" };
+  return { ok: false, reason: PACK_HAS_NO_CLASS_OR_PROJECT_TEST };
 }
 
 /** `test_project` for one Project cell: the affected tests of a later run. */
 export function projectCommandFor(commands: RepoPackCommands, project: string): TestCommand {
   const byProject = commands.testProject?.trim();
-  if (!byProject) return { ok: false, reason: "the pack has no commands.test_project" };
+  if (!byProject) return { ok: false, reason: PACK_HAS_NO_TEST_PROJECT };
   return fill(byProject, { project, klass: project });
 }
 
@@ -82,8 +94,8 @@ export function existingStubsOf(step: ImplementStep): string[] {
 /** What a stub path is to the test author: a file to create, an existing one, or an earlier RED's stub. */
 function stubKind(step: ImplementStep, path: string): string {
   if (stubsOf(step).includes(path)) return "to create";
-  if (existingStubsOf(step).includes(path)) return "existing: only a declaration the new tests import and it lacks";
-  return "a stub an earlier RED of this cycle wrote";
+  if (existingStubsOf(step).includes(path)) return STUB_EXISTING;
+  return STUB_OF_EARLIER_RED;
 }
 
 /** Where the tests live, as the pack says: its test folder, and its test file patterns. */
@@ -92,59 +104,50 @@ function testsWhere(layout: RepoPackLayout): string {
     ...(layout.tests?.trim() ? [`under \`${layout.tests.trim()}\``] : []),
     ...(layout.testFiles ?? []).filter((p) => p.trim() !== "").map((p) => `\`${p.trim()}\``),
   ];
-  return parts.length === 0 ? "the test files" : parts.join(" or ");
+  return parts.length === 0 ? THE_TEST_FILES : parts.join(" or ");
 }
-
-const CORRECTION = /^Correction (C\d+) — (.*)$/;
-const ASSUMPTION_RULE = "A question that changes no scope, id or design decision is settled by you: say it as a line " +
-  "`Assumption: <what you assumed>`, only for a behaviour the plan leaves open (an error, a rounding, an edge), once. " +
-  "A test value, a stub's wording or a file's state is your choice or a fact, never an assumption. Never one the " +
-  "sheet's `## Assumptions` already holds, in any wording: the sheet is in your brief, and an assumption is recorded " +
-  "once per batch.";
 
 /** One anchor as a brief line; `shown` overrides the state it says (a file the sheet says to create, stubbed since). */
 function refLine(ref: AnchorRef, shown: string = ref.state): string {
   const at = ref.line === undefined ? ref.path : `${ref.path}:${ref.line}`;
-  if (ref.state === "member") return `\`${at}\` — \`${ref.member}\` (read that member with node_read, never the file whole)`;
+  if (ref.state === "member") return memberRefLine(at, ref.member);
   return `\`${at}\` — ${shown}`;
 }
 
 /** How the test author works on its test file: creates it whole when it is to create, else adds to it by node; one
  *  carried in the brief is not read again. */
 function testFileRule(state: string, inBrief: boolean): string {
-  if (inBrief) return "its text is in this brief (node_outline for the anchor at most): add the tests with node_insert inside its suite, never rewrite it whole";
-  return state === "to create"
-    ? "create it with file_write; once it exists, add to it by node"
-    : "read it by node (node_outline, then node_read), add the tests with node_insert inside its suite, never rewrite it whole";
+  if (inBrief) return TEST_FILE_IN_BRIEF;
+  return state === "to create" ? TEST_FILE_TO_CREATE : TEST_FILE_EXISTING;
 }
 
 function ids(step: ImplementStep): string {
-  return [...new Set(step.tests.flatMap((t) => t.ids))].join(", ") || "none named";
+  return [...new Set(step.tests.flatMap((t) => t.ids))].join(", ") || NONE_NAMED;
 }
 
 function levelRule(step: ImplementStep): string {
   const levels = new Set(step.tests.map((t) => t.level.toLowerCase()));
   const lines: string[] = [];
-  if (levels.has("unit")) lines.push("- unit: no IO; the ports are the doubles the Anchors row names, the builders it names reused, never a new double of the same port.");
-  if (levels.has("integration")) lines.push("- integration: the real adapter the test policy names, its fixture shared, nothing faked inside the adapter.");
-  return lines.length === 0 ? "- the level the table names" : lines.join("\n");
+  if (levels.has("unit")) lines.push(UNIT_LEVEL_RULE);
+  if (levels.has("integration")) lines.push(INTEGRATION_LEVEL_RULE);
+  return lines.length === 0 ? ANY_LEVEL_RULE : lines.join("\n");
 }
 
 function header(input: ContractInput, role: string, steps: readonly ImplementStep[] = [input.step]): string[] {
   const { sheet } = input;
   const what = steps.length === 1
-    ? `step ${steps[0].number}: ${steps[0].title}`
-    : `steps ${steps.map((s) => s.number).join(", ")} (one behaviour): ${steps.map((s) => s.title).join("; ")}`;
-  const allIds = [...new Set(steps.flatMap((s) => s.tests.flatMap((t) => t.ids)))].join(", ") || "none named";
+    ? oneStep(steps[0].number, steps[0].title)
+    : stepsOfOneBehaviour(steps.map((s) => s.number).join(", "), steps.map((s) => s.title).join("; "));
+  const allIds = [...new Set(steps.flatMap((s) => s.tests.flatMap((t) => t.ids)))].join(", ") || NONE_NAMED;
   return [
-    `# ${role} — ${input.code} batch ${sheet.batch ?? "?"}, ${what}`,
+    briefTitle(role, input.code, sheet.batch ?? "?", what),
     "",
-    `Sheet: \`${input.sheetPath}\` (do not edit it: code ticks its boxes). Ids: ${steps.length === 1 ? ids(steps[0]) : allIds}.`,
+    sheetLine(input.sheetPath, steps.length === 1 ? ids(steps[0]) : allIds),
   ];
 }
 
 function testsTable(step: ImplementStep): string[] {
-  return step.tests.map((t, i) => `${i + 1}. \`${t.name}\` — ${t.level}, project \`${t.project}\`, ${t.ids.join(", ") || "no id"}`);
+  return step.tests.map((t, i) => testRow(i + 1, t.name, t.level, t.project, t.ids.join(", ") || NO_ID));
 }
 
 /** The test author's brief: write the step's tests, all red, test files only. */
@@ -154,7 +157,7 @@ export const CARRIED_CONTRACT_CHARS = 12_000;
 /** The carried texts as a section of the brief (or nothing), and the files it holds whole. */
 function carriedSection(input: ContractInput): { lines: string[]; whole: ReadonlySet<string> } {
   const { blocks, whole } = carry(input.carried ?? [], CARRIED_CONTRACT_CHARS);
-  return { lines: blocks.length === 0 ? [] : ["", "## In this brief (do not open these files again)", ...blocks], whole };
+  return { lines: blocks.length === 0 ? [] : ["", IN_THIS_BRIEF_HEADING, ...blocks], whole };
 }
 
 export function redContract(input: ContractInput): string {
@@ -171,34 +174,33 @@ export function redContract(input: ContractInput): string {
   return [
     ...header(input, "RED"),
     "",
-    "## The tests to write",
+    TESTS_TO_WRITE_HEADING,
     ...(correction === null
       ? testsTable(step)
-      : [`A correction (${correction[1]}) of an audit's finding: ${correction[2]}`,
-        "Write the test (or tests) that fail on this finding today; the names are yours, in the style of the file."]),
+      : [correctionOfFinding(correction[1], correction[2]), WRITE_FAILING_TESTS_FOR_FINDING]),
     ...(step.note.length > 0 ? ["", ...step.note] : []),
     "",
-    "## Files",
-    `- test file: ${refLine(shownRef)} — ${testFileRule(testRef.state, testInBrief)}`,
-    `- shared doubles and builders: ${doubles === "" ? "none named" : doubles}`,
-    ...(step.anchor?.production ?? []).map((r) => `- production it will drive (${stubs.includes(r.path) ? "a signature stub at most" : "read only, never write"}): ${refLine(r)}`),
+    FILES_HEADING,
+    testFileLine(refLine(shownRef), testFileRule(testRef.state, testInBrief)),
+    doublesLine(doubles === "" ? NONE_NAMED : doubles),
+    ...(step.anchor?.production ?? []).map((r) => productionLine(stubs.includes(r.path) ? SIGNATURE_STUB_AT_MOST : READ_ONLY_NEVER_WRITE, refLine(r))),
     ...carried.lines,
     "",
-    "## Rules",
-    `- Write test files only (${testsWhere(layout)}): no production line; a test failing on a missing symbol is red.`,
+    RULES_HEADING,
+    testFilesOnlyRule(testsWhere(layout)),
     ...(stubs.length === 0 ? [] : [
-      `- The one exception: signature stubs, declarations that throw "not implemented" and hold no logic, in ${stubs.map((p) => `\`${p}\` (${stubKind(step, p)})`).join(", ")}.`,
-      "- A test whose import of a missing declaration fails the whole test file is not the red asked: stub the declaration, never work around the import.",
+      stubsRule(stubs.map((p) => `\`${p}\` (${stubKind(step, p)})`).join(", ")),
+      STUB_IMPORT_RULE,
     ]),
-    "- One test per row of the table, its name as written; the passing path first, then the refusals.",
+    ONE_TEST_PER_ROW_RULE,
     levelRule(step),
-    `- Run \`${input.testCommand}\` with run_tests once the tests are written: every new test must fail; the result lists the failed tests, so the log stays closed. Code runs it again after you.`,
+    redRunRule(input.testCommand),
     `- ${NODE_READ_RULE}`,
     `- ${BOUNDED_READ_RULE}`,
     `- ${NODE_EDIT_RULE}`,
     `- ${ASSUMPTION_RULE}`,
     "",
-    "Answer with the test names you wrote, the test file, and the reason each one fails.",
+    RED_ANSWER,
   ].join("\n");
 }
 
@@ -206,47 +208,44 @@ export function redContract(input: ContractInput): string {
 export function greenContract(input: ContractInput, red: { tail: string; log: string | null }): string {
   const { sheet, layout } = input;
   const steps = input.cycle !== undefined && input.cycle.length > 0 ? input.cycle : [input.step];
-  const elements = sheet.codeElements.length === 0 ? ["none listed"] : sheet.codeElements;
+  const elements = sheet.codeElements.length === 0 ? [NONE_LISTED] : sheet.codeElements;
   const testFiles = [...new Set(steps.map((s) => testFileOf(s) ?? "(none)"))];
   const production = steps.flatMap((s) => s.anchor?.production ?? []);
   const carried = carriedSection(input);
   // A production file to create exists once RED stubbed it: the brief carries it and says so.
   const shown = (r: AnchorRef): string => carried.whole.has(r.path)
-    ? `${refLine(r, r.state === "to create" ? "existing (stubbed at RED)" : r.state)}, in this brief`
+    ? inThisBrief(refLine(r, r.state === "to create" ? STUBBED_AT_RED : r.state))
     : refLine(r);
   const seen = new Set<string>();
   return [
     ...header(input, "GREEN", steps),
     "",
-    "## The red tests",
-    ...steps.flatMap((s) => [...(steps.length > 1 ? [`Step ${s.number} — ${s.title}:`] : []), ...testsTable(s)]),
-    `Test file (read only${testFiles.every((f) => carried.whole.has(f)) ? ", in this brief" : ""}): ${testFiles.map((f) => `\`${f}\``).join(", ")}. Last red run${red.log === null ? "" : ` (whole output: \`${red.log}\`)`}:`,
+    RED_TESTS_HEADING,
+    ...steps.flatMap((s) => [...(steps.length > 1 ? [stepLabel(s.number, s.title)] : []), ...testsTable(s)]),
+    lastRedRun(testFiles.every((f) => carried.whole.has(f)), testFiles.map((f) => `\`${f}\``).join(", "), red.log),
     "```",
     red.tail,
     "```",
     "",
-    "## Production",
+    PRODUCTION_HEADING,
     ...production.filter((r) => !seen.has(refLine(r)) && seen.add(refLine(r)) !== undefined).map((r) => `- ${shown(r)}`),
-    "Code elements of the batch:",
+    CODE_ELEMENTS_LINE,
     ...elements,
-    `Applied rules: ${sheet.appliedRules || "none named"}. Expected access cost: ${sheet.accessCost || "not stated"}.`,
+    appliedRulesLine(sheet.appliedRules, sheet.accessCost),
     ...carried.lines,
     "",
-    "## Rules",
-    `- Never write a test file (${testsWhere(layout)}): the tests are read-only to you.`,
-    "- The least code that turns these tests green; then refactor, and delete what that orphaned.",
-    `- Run \`${input.testCommand}\` with run_tests until it passes; run_build when the build is in doubt. Code runs the tests again after you.`,
+    RULES_HEADING,
+    neverWriteTestRule(testsWhere(layout)),
+    LEAST_CODE_RULE,
+    greenRunRule(input.testCommand),
     `- ${NODE_READ_RULE}`,
     `- ${BOUNDED_READ_RULE}`,
     `- ${NODE_EDIT_RULE}`,
     `- ${ASSUMPTION_RULE}`,
     "",
-    "Answer with the files you changed and one line `Cost: <reads> reads, <writes> writes; <where a port call sits in a loop, a lambda or a memory filter, or none>`.",
+    GREEN_ANSWER,
   ].join("\n");
 }
-
-/** The first line of the stale block: what the review of the batch left open once its dependencies merged. */
-export const STALE_HEADING = "Stale after the merged dependencies (the reviewer's open questions; settle each by the delivered value it names, or say why not):";
 
 /** The block that ends a role's prompt with the `stale:` lines the next batch's review handed the launch (its Major
  *  rows); "" without any. */

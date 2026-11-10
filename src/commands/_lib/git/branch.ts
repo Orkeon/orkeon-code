@@ -5,6 +5,9 @@
 
 import type { Logger, Shell } from "../../../shared/application/ports.ts";
 import type { CommandView } from "../view.ts";
+import {
+  andMore, branchRefusedLog, checkoutFailed, dirtyTreeRefusal, exitCode, looksLikeOption, notABranchName, switchedTo,
+} from "./messages.ts";
 
 /** True when `git status --porcelain` reported at least one changed path. */
 export function hasUncommittedChanges(porcelain: unknown): boolean {
@@ -34,12 +37,12 @@ export function planBranch(tokens: readonly string[]): BranchPlan {
   const name = String((tokens ?? [])[0] ?? "").trim();
   if (name.length === 0) return { action: "show" };
   if (name.startsWith("-")) {
-    return { action: "refuse", reason: `'${name}' looks like an option, not a branch name` };
+    return { action: "refuse", reason: looksLikeOption(name) };
   }
   if (!SAFE_BRANCH.test(name)) {
     return {
       action: "refuse",
-      reason: `'${name}' is not a plausible branch name (letters, digits, '.', '_', '/', '-')`,
+      reason: notABranchName(name),
     };
   }
   return { action: "checkout", branch: name };
@@ -55,11 +58,7 @@ export function planBranch(tokens: readonly string[]): BranchPlan {
 export function describeDirtyTreeRefusal(branch: string, porcelain: string): string {
   const changed = porcelain.split("\n").filter((l) => l.trim().length > 0);
   const shown = changed.slice(0, 5).map((l) => `  ${l.trim()}`).join("\n");
-  return (
-    `refusing to check out '${branch}': ${changed.length} uncommitted change(s) in the working tree.\n` +
-    `${shown}${changed.length > 5 ? `\n  … and ${changed.length - 5} more` : ""}\n` +
-    "Commit them (/commit) or stash them first — a checkout would either fail or carry them across."
-  );
+  return dirtyTreeRefusal(branch, changed.length, shown, changed.length > 5 ? andMore(changed.length - 5) : "");
 }
 
 export interface BranchDeps {
@@ -83,13 +82,13 @@ export async function runBranch(tokens: readonly string[], deps: BranchDeps): Pr
   const status = await shell.run("git status --porcelain");
   const porcelain = status.stdout;
   if (status.exitCode === 0 && hasUncommittedChanges(porcelain)) {
-    deps.log.warn(`/branch refused: uncommitted changes block the checkout of '${plan.branch}'`);
+    deps.log.warn(branchRefusedLog(plan.branch));
     return { text: describeDirtyTreeRefusal(plan.branch, porcelain) };
   }
 
   const r = await shell.run(`git checkout ${plan.branch}`);
   if (r.exitCode !== 0) {
-    return { text: `checkout failed: ${r.stderr.trim() || r.stdout.trim() || `exit code ${r.exitCode}`}` };
+    return { text: checkoutFailed(r.stderr.trim() || r.stdout.trim() || exitCode(r.exitCode)) };
   }
-  return { text: r.stderr.trim() || r.stdout.trim() || `switched to '${plan.branch}'` };
+  return { text: r.stderr.trim() || r.stdout.trim() || switchedTo(plan.branch) };
 }

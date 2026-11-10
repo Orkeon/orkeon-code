@@ -8,6 +8,12 @@ import { parseBatchSheet, parseGlobalPlan, unfencedLines } from "./plan-format.t
 import type { Line } from "./plan-format.ts";
 import { sheetFacts } from "./sheet-facts.ts";
 import { SHEET_ID_SOURCE } from "./trait-pattern.ts";
+import { ASSUMPTIONS_SECTION, BLOCKED_BATCH, BUILD_STEP } from "./markers.ts";
+import {
+  anchorRowsMismatch, assumptionsNotEmpty, batchesDiffer, buildStepHoldsTdd, dependsOnDiffers, designIdsNeither,
+  idOutsideBatch, lastStepIsNot, noAppliedRulesRow, noTestNamesIt, noTraceabilityRow, notASourceId, stepHasNoTdd,
+  stepOneMissing, stepOutOfOrder,
+} from "./messages.ts";
 
 /** The texts of a plan folder, as the gate reads them. */
 export interface PlanFolderTexts {
@@ -36,9 +42,6 @@ export interface SelfCheckInput {
 }
 export interface SelfCheckReport { ok: boolean; problems: string[] }
 
-const BUILD_STEP = "Build and tests";
-/** The one parse problem a reviewed plan may carry: a batch the review marked blocked. */
-const BLOCKED_BATCH = /^unknown batch line '### Batch F\d+ — .+ — blocked'$/;
 const SEPARATOR_ROW = /^\|[-: |]+\|?$/;
 
 const idsIn = (text: string): string[] => text.match(new RegExp(SHEET_ID_SOURCE, "g")) ?? [];
@@ -94,14 +97,14 @@ interface ReadSheet { id: string; name: string; text: string; lines: Line[] }
 
 function stepProblems(s: ReadSheet): string[] {
   const steps = parseBatchSheet(s.text).steps;
-  if (steps.length === 0) return [`${s.id}: step 1 is missing: the sheet has no step`];
+  if (steps.length === 0) return [stepOneMissing(s.id)];
   const out: string[] = [];
   steps.forEach((step, i) => {
     const last = i === steps.length - 1;
-    if (step.number !== i + 1) out.push(`${s.id}: step ${step.number} is numbered out of order (expected ${i + 1})`);
-    if (!last && step.tdd === null) out.push(`${s.id}: step ${step.number} has no TDD: line`);
-    if (last && step.title !== BUILD_STEP) out.push(`${s.id}: step ${step.number} is the last step and is not ${BUILD_STEP}`);
-    if (last && step.tdd !== null) out.push(`${s.id}: step ${step.number} is ${BUILD_STEP} and holds a TDD: line`);
+    if (step.number !== i + 1) out.push(stepOutOfOrder(s.id, step.number, i + 1));
+    if (!last && step.tdd === null) out.push(stepHasNoTdd(s.id, step.number));
+    if (last && step.title !== BUILD_STEP) out.push(lastStepIsNot(s.id, step.number, BUILD_STEP));
+    if (last && step.tdd !== null) out.push(buildStepHoldsTdd(s.id, step.number, BUILD_STEP));
   });
   return out;
 }
@@ -110,11 +113,11 @@ function anchorProblem(s: ReadSheet): string | null {
   const steps = parseBatchSheet(s.text).steps.length;
   const rows = dataRows(section(s.lines, "## Anchors") ?? []);
   const shaped = rows.length === steps && rows.every((cells, i) => cells[0].startsWith(`${i + 1} — `));
-  return shaped ? null : `${s.id}: ## Anchors has ${rows.length} rows for ${steps} steps`;
+  return shaped ? null : anchorRowsMismatch(s.id, rows.length, steps);
 }
 
 function assumptionsEmpty(s: ReadSheet): boolean {
-  const body = section(s.lines, "## Assumptions");
+  const body = section(s.lines, ASSUMPTIONS_SECTION);
   if (body === null) return false;
   const filled = body.map((l) => l.text.trim()).filter((t) => t !== "");
   return filled.length === 2 && filled[0].startsWith("|") && SEPARATOR_ROW.test(filled[1]);
@@ -140,13 +143,13 @@ export function planSelfCheck(input: SelfCheckInput): SelfCheckReport {
   // 3: every design id applied or not applicable.
   const texts = input.sheets.map((s) => s.text);
   const missing = missingDesignIds({ sheets: texts, plans: [input.plan.text], all: [input.plan.text, ...texts] });
-  if (missing.length > 0) problems.push(`design ids neither applied nor non-applicable: ${missing.join(", ")}`);
+  if (missing.length > 0) problems.push(designIdsNeither(missing));
   // 4: the same batches, in order.
   const summaryIds = global.summary.map((r) => r.id);
   const lineIds = global.batches.map((b) => b.id);
   const sheetIds = sheets.map((s) => s.id);
   if (summaryIds.join() !== lineIds.join() || lineIds.join() !== sheetIds.join()) {
-    problems.push(`batches differ: summary ${listed(summaryIds)}, plan lines ${listed(lineIds)}, sheets ${listed(sheetIds)}`);
+    problems.push(batchesDiffer(listed(summaryIds), listed(lineIds), listed(sheetIds)));
   }
   // 5: Depends on agrees between the summary and the sheet.
   sheets.forEach((s, i) => {
@@ -154,36 +157,36 @@ export function planSelfCheck(input: SelfCheckInput): SelfCheckReport {
     if (row === undefined) return;
     const a = listed(row.dependsOn);
     const b = listed(parsed[i].dependsOn);
-    if (a !== b) problems.push(`${s.id}: Depends on differs between the summary (${a}) and the sheet (${b})`);
+    if (a !== b) problems.push(dependsOnDiffers(s.id, a, b));
   });
   // 6: every source id has a traceability row.
   const traceRows = dataRows(section(unfencedLines(input.plan.text), "## 2. Traceability") ?? []);
   for (const id of input.sourceIds) {
     const re = new RegExp(`^${id}(?![0-9])`);
-    if (!traceRows.some((cells) => re.test(cells[0]))) problems.push(`${id}: no row of ## 2. Traceability`);
+    if (!traceRows.some((cells) => re.test(cells[0]))) problems.push(noTraceabilityRow(id));
   }
   // 7: every source id is named by some sheet's TDD sequence.
   const facts = sheets.map((s) => sheetFacts(s.text));
   const tested = new Set(facts.flatMap((f) => f.ids));
   for (const id of input.sourceIds) {
-    if (!tested.has(id)) problems.push(`${id}: no test of any sheet's ## TDD sequence names it`);
+    if (!tested.has(id)) problems.push(noTestNamesIt(id));
   }
   sheets.forEach((s, i) => {
     // 8: a sheet tests ids of the source only.
-    for (const id of facts[i].ids) if (!source.has(id)) problems.push(`${s.id}: ${id} is not an id of the source`);
+    for (const id of facts[i].ids) if (!source.has(id)) problems.push(notASourceId(s.id, id));
     // 9: behaviour steps 1..s, then the build step.
     problems.push(...stepProblems(s));
     // 10: one anchor row per step.
     const anchors = anchorProblem(s);
     if (anchors !== null) problems.push(anchors);
     // 11: an Applied rules row.
-    if (facts[i].appliedRulesRow === null) problems.push(`${s.id}: no Applied rules row`);
+    if (facts[i].appliedRulesRow === null) problems.push(noAppliedRulesRow(s.id));
     // 12: assumptions left empty.
-    if (!assumptionsEmpty(s)) problems.push(`${s.id}: ## Assumptions is not empty`);
+    if (!assumptionsEmpty(s)) problems.push(assumptionsNotEmpty(s.id));
     // 13: the TDD sequence names only the batch's ids.
     const own = new Set([...stepTableIds(section(s.lines, "## TDD sequence") ?? []), ...intentIds(s.lines)]);
     for (const id of facts[i].ids) {
-      if (!own.has(id)) problems.push(`${s.id}: ${id} appears in ## TDD sequence outside the batch's ids`);
+      if (!own.has(id)) problems.push(idOutsideBatch(s.id, id));
     }
   });
   return { ok: problems.length === 0, problems };

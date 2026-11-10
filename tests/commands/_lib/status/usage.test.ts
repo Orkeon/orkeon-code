@@ -3,10 +3,10 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
+import { runUsageCommand, usageBreakdown } from "../../../../src/commands/_lib/status/usage.ts";
 import {
-  NO_USAGE_SERVICE, USAGE_LEGEND, USAGE_SYNTAX, runUsageCommand, usageBreakdown,
-} from "../../../../src/commands/_lib/status/usage.ts";
-import { NO_TOOL_TRACE } from "../../../../src/commands/_lib/status/usage-tools.ts";
+  NO_TOOL_TRACE, NO_USAGE_SERVICE, USAGE_LEGEND, USAGE_SYNTAX,
+} from "../../../../src/commands/_lib/status/messages.ts";
 import { EMPTY_USAGE_REPORT, USAGE_REPORT } from "../../../support/fixtures/usage-report.ts";
 import {
   CACHE_LINE_CASES, CACHE_RATIO_CASES, CACHE_SOURCE_CASES, DEGRADED_ROW, IN_OUT_CASES, LLM_TOKENS_CASES, REPORT_BREAKDOWN,

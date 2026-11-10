@@ -4,7 +4,7 @@ import type { BatchOutcome, BatchRun, WaveRequest } from "../../../../src/crews/
 import { appendToLog } from "../../../../src/crews/dev-batches/domain/batches-log.ts";
 import { parseBatchesState } from "../../../../src/shared/domain/dev/batches-state.ts";
 import type { BatchesLogEntry } from "../../../../src/shared/domain/dev/batches-state.ts";
-import { AUDIT_UNFINISHED_GAP } from "../../../../src/shared/domain/dev/verdict-format.ts";
+import { AUDIT_UNFINISHED_GAP } from "../../../../src/shared/domain/dev/markers.ts";
 import { FakeFiles } from "../../../support/doubles/fake-files.ts";
 import { FakeShell } from "../../../support/doubles/fake-shell.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";

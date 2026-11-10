@@ -234,7 +234,7 @@ src/
 │   │                  git/ (branch, commit, diff, review), memory/ (memory, memory-admit), session/ (export,
 │   │                  resume, tasks), settings/ (advisor, agents, config, hooks, mode, model, permissions,
 │   │                  session-config: the toggle commands, skills), speech/ (say, transcribe, voice),
-│   │                  status/ (cache, doctor, meta: version and release notes, status). At the root, what
+│   │                  status/ (cache, doctor, meta: version; messages: release notes, status). At the root, what
 │   │                  several families share: args.ts (arguments), dispatch.ts (crew launch, completion
 │   │                  line, main-loop launch), dev-step.ts, effort.ts, pr-context.ts, view.ts (CommandView,
 │   │                  showView)
@@ -469,7 +469,7 @@ Le corps de l'agent `main-loop` est la boucle (`crews/main-loop/application/run-
 4. Lire les drapeaux de comportement une fois (`/effort`, `/passes` de `/review`, `/fast`, `/proactive`, `/output-style`).
 5. Ajouter le tour de l'utilisateur au tampon de session ; compacter d'abord si le tampon est sous pression
    (`auto-compact.ts`).
-6. Assembler le prompt (ci-dessous ; `turn-prompt.ts` au-dessus des lectures de `context-gather.ts`) et appeler l'`act`
+6. Assembler le prompt (ci-dessous ; `application/prompts.ts` au-dessus des lectures de `context-gather.ts`) et appeler l'`act`
    du modèle (le port `Llm` au-dessus de `ctx.llm.act()`) : le runtime fait tourner le cycle modèle ⇄ appels d'outils
    sur le catalogue, chaque appel d'un tour du modèle dans l'ordre, sous le budget du crew et la garde de permission,
    et rend la réponse finale. Un appel du modèle qui échoue lève une `LlmFailure` : le tour ne stocke aucune réponse
@@ -935,6 +935,39 @@ fichier d'instructions, une skill de vérification) envoient les instructions co
 comme message utilisateur (`Llm.complete` avec `system`, au-dessus de l'appel du runtime qui prend un tableau de
 messages).
 
+## Où vit le texte
+
+Le texte en langue naturelle de `src/` vit à part de la logique qui s'en sert
+([ADR 0026](../adr/0026-text-isolation.md)), dans au plus trois fichiers de texte par dossier de couche, à côté des
+modules qui les lisent :
+
+| Fichier | Contient | Lu par |
+| --- | --- | --- |
+| `prompts.ts` | ce qu'un modèle lit : prompts système, instructions, descriptions d'outils | le module qui construit l'appel |
+| `messages.ts` | ce que l'utilisateur lit : usage, refus, erreurs, lignes d'état et de rapport, indices | le module qui rend ou qui lève |
+| `markers.ts` | ce qu'un rédacteur et un lecteur partagent : titres, mots de verdict, expressions régulières sur du texte | le rédacteur et le parseur |
+
+- Un fichier de texte se range dans la couche de son lecteur (`domain/`, `application/`,
+  `shared/infrastructure/orkeon/`, `commands/_lib/<group>/`) : un module du domaine ne lit que du texte de `domain/`.
+  Le texte d'un `*.cmd.ts` va dans `commands/_lib/<group>/messages.ts`, celui d'un `crew.ork.ts` dans
+  `crews/<crew>/application/messages.ts`.
+- Un texte qui porte des valeurs est une fonction de ces valeurs, nommée d'après ce qu'il dit. Un fichier de texte de
+  plus de 400 lignes environ peut devenir un dossier `prompts/<sujet>.ts`.
+- Les fichiers de texte sont en TypeScript : le bundle ne charge aucune autre sorte de fichier.
+- Ce qui reste en ligne : les identifiants, les clés de configuration, les chemins, les commandes shell, les flags,
+  les clés d'un schéma JSON, les mots courts d'une énumération et le `description:` d'un `*.cmd.ts`. Les chartes
+  (`*-charter.ts`, `built-in-charters.ts`), `design-rules.ts` et `reading-rule.ts` sont des fichiers de texte sous
+  leur propre nom.
+- Un fichier de texte ne tient que du texte : des constantes et des fonctions gabarits (des paramètres en entrée, du
+  texte en sortie ; un ternaire, un retour anticipé, un `.map` ou un `.join` pour rendre une liste). Une fonction
+  `async`, `await`, une boucle, un `switch`, un `try`, une classe, un `let` ou un `var`, et une valeur importée d'un
+  module qui n'est ni un fichier de texte ni un module du domaine sont de la logique : le budget d'un brief, une
+  coupe, le choix de ce qui est porté vont dans un module de logique à côté du fichier de texte
+  (`crews/main-loop/application/turn-context.ts` à côté de `prompts.ts`). Un type s'importe de partout.
+- `tests/repository/text-isolation.test.ts` vérifie les deux côtés en lisant `src/` une fois : il signale un littéral
+  d'un fichier de logique qui compte trois mots ou plus, ou plus de 60 caractères avec une espace, et une construction
+  de logique dans un fichier de texte ; chaque exception est nommée avec son fichier, son propriétaire et sa raison.
+
 ## Gestion du contexte
 
 - **La compaction automatique** en tête et en queue de chaque tour quand le tampon franchit son seuil, derrière un
@@ -967,7 +1000,7 @@ contiennent la restauration et l'extraction de mémoire, `shared/domain/compacti
    services qu'elle lit ; la tester dans `tests/commands/_lib/<group>/<name>.test.ts`, au-dessus des fakes.
    Un utilitaire que plusieurs groupes partagent se place à la racine de `_lib/` ; un groupe n'importe jamais un autre.
 3. Augmenter `EXPECTED_COMMAND_COUNT` dans `tests/repository/command-surface.test.ts` et le nombre de commandes de
-   `RELEASE_NOTES` dans `src/commands/_lib/status/meta.ts` (épinglé par `tests/commands/_lib/status/meta.test.ts`), puis lancer
+   `RELEASE_NOTES` dans `src/commands/_lib/status/messages.ts` (épinglé par `tests/commands/_lib/status/messages.test.ts`), puis lancer
    `npm run docs:commands`.
 
 ### Ajouter un crew
@@ -979,7 +1012,7 @@ contiennent la restauration et l'extraction de mémoire, `shared/domain/compacti
    `domain/`, chacun avec son `*.test.ts` ; le test du cas d'usage tourne au-dessus des fakes.
 3. Le lancer depuis une commande async (`launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "<name>",
    input)`), et le nommer dans `RELEASE_NOTES`
-   (`tests/commands/_lib/status/meta.test.ts` vérifie que chaque dossier de crew y est nommé). Un dossier commençant par `_` est
+   (`tests/commands/_lib/status/messages.test.ts` vérifie que chaque dossier de crew y est nommé). Un dossier commençant par `_` est
    une sonde de développement (`probe.ork.ts`), jamais listée aux utilisateurs.
 
 ### Ajouter un outil
@@ -1026,7 +1059,7 @@ Mettre à jour `mode-policy.test.ts` et `docs/permissions.md`.
 2. Lui donner un champ de `ContextParts` et sa place dans l'ordre fixe d'`assembleContext` ; un bloc de l'en-tête
    statique ne doit contenir aucune donnée propre au tour, sinon le cache du fournisseur se rompt.
 3. Lire son entrée dans `application/context-gather.ts` (par les ports) et la passer dans
-   `application/turn-prompt.ts` ; tester la fonction de rendu dans `prompt-assembly.test.ts` et le tour au-dessus des
+   `application/prompts.ts` ; tester la fonction de rendu dans `prompt-assembly.test.ts` et le tour au-dessus des
    fakes.
 4. Spécifier le comportement d'abord, dans « L'assemblage du prompt » ci-dessus, puis en écrire le texte dans les mots
    propres de ce projet (CONTRIBUTING, « Original work only ») ; épingler une phrase-marqueur de chaque règle dans le

@@ -8,6 +8,8 @@
 // before the flags existed. Every default below is therefore the value that was hard-coded at
 // the call site (40 act iterations, one review pass, nothing dropped, no extra
 // clause), so turning a flag on is the only thing that changes anything.
+import { effortFlag } from "./messages.ts";
+import { PROACTIVE_CLAUSE } from "./prompts.ts";
 
 // ── /effort → the act() iteration ladder ─────────────────────────────────
 
@@ -99,14 +101,6 @@ export function fastModeDrops(fast: boolean): readonly DroppableBlock[] {
 
 // ── /proactive → the follow-up clause ────────────────────────────────────
 
-/**
- * Appended to the task block (last, with the request) rather than added as its
- * own context block: it is an instruction about the ANSWER's shape, and the
- * furthest thing from the task is the easiest for a model to lose.
- */
-export const PROACTIVE_CLAUSE =
-  "(Proactive mode: after the answer, suggest at most three concrete next steps under " +
-  "'Next steps'; leave the list out when the work is self-contained.)";
 
 export function proactiveSuffix(on: boolean): string {
   return on ? `\n\n${PROACTIVE_CLAUSE}` : "";
@@ -158,7 +152,7 @@ export function describeActiveFlags(flags: BehaviorFlags): string {
   const active: string[] = [];
   // A stored level, even `medium`, is named: it turns the provider's thinking on.
   if (flags.thinking !== null) {
-    active.push(`effort=${flags.effort} (act maxIterations=${EFFORT_MAX_ITERATIONS[flags.effort]}, provider thinking ${flags.thinking})`);
+    active.push(effortFlag(flags.effort, EFFORT_MAX_ITERATIONS[flags.effort], flags.thinking));
   }
   if (flags.passes !== DEFAULT_PASSES) active.push(`passes=${flags.passes}`);
   if (flags.fast) active.push(`fast=on (dropping ${FAST_MODE_DROPPED_BLOCKS.join(", ")})`);

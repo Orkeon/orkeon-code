@@ -6,6 +6,10 @@
 import type { Checked } from "../../../shared/domain/agents/charter.ts";
 import { MAX_QUESTIONS, QUESTION_SCHEMA, breaksCell, draftQuestionProblems } from "../../../shared/domain/dev/questions.ts";
 import type { DraftQuestion } from "../../../shared/domain/dev/questions.ts";
+import { NO_CONTEXT, NO_SUMMARY, NO_USE_CASE, OVERVIEW_IS_FLOWCHART, TECHNICAL, appliesToNamesIds, appliesToUnknown, businessPurity, cellSpansLines, dataImportanceIs, dataSourceIs, fieldSpansLines, noActor, noIntent, noOrigin, noWhere, scenarioSteps, severityIs, termUsedNowhere, tooManyRows, tooManyRules, tooManyUseCases } from "./messages.ts";
+import {
+  ANSWER_NOT_AN_OBJECT as NOT_AN_OBJECT, idNameOneLine, nameOneLine, rowIsEmpty, statementOneLine, TBD_WITHOUT_QUESTION, tooManyQuestions,
+} from "../../../shared/domain/dev/messages.ts";
 
 export interface SpecUseCase {
   name: string; actor: string; intent: string; frequency: string; where: string;
@@ -87,18 +91,6 @@ export const SPEC_ANSWER_SCHEMA: object = {
   ],
 };
 
-/** Words of a technical document, never of a business spec (the template's business purity). */
-const TECHNICAL: ReadonlyArray<[RegExp, string]> = [
-  [/`/, "a code mark (`)"],
-  [/\b[A-Za-z_][A-Za-z0-9_]*\(\)/, "a call such as name()"],
-  [/\b[\w-]+\.(ts|tsx|js|mjs|cs|py|java|go|rs|rb|php|json|ya?ml|sql|xml|csproj)\b/i, "a file name"],
-  [/\bHTTP\b|\b[1-5]\d\d (OK|Not Found|Bad Request|Unauthorized|Forbidden)\b/, "an HTTP status"],
-  [/\bexit code\b/i, "an exit code"],
-  [/\bstack trace\b/i, "a stack trace"],
-  [/\bendpoints?\b/i, "an endpoint"],
-  [/\b(class|interface|enum|DTO|repository pattern|framework)\b/, "a type or a framework"],
-];
-
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const text = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
 const list = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
@@ -169,50 +161,50 @@ function bodyTexts(a: SpecAnswer): string[] {
 function cellProblems(name: string, items: ReadonlyArray<Record<string, string>>, problems: string[]): void {
   items.forEach((row, i) => {
     for (const [key, value] of Object.entries(row)) {
-      if (breaksCell(value)) { problems.push(`${name} ${i + 1}: ${key} is one line, no '|'`); return; }
+      if (breaksCell(value)) { problems.push(cellSpansLines(name, i + 1, key)); return; }
     }
-    if (Object.values(row).every((v) => v === "")) problems.push(`${name} ${i + 1} is empty`);
+    if (Object.values(row).every((v) => v === "")) problems.push(rowIsEmpty(name, i + 1));
   });
 }
 
 export function checkSpecAnswer(value: unknown): Checked<SpecAnswer> {
-  if (!isObject(value)) return { ok: false, problems: ["the answer is not an object"] };
+  if (!isObject(value)) return { ok: false, problems: [NOT_AN_OBJECT] };
   const a = readSpecAnswer(value);
   const problems: string[] = [];
 
   if (a.name === "" || !oneLine(a.name) || a.name.length > MAX_NAME_CHARS || a.name.includes("—")) {
-    problems.push(`name: one line of at most ${MAX_NAME_CHARS} characters, no '—'`);
+    problems.push(nameOneLine(MAX_NAME_CHARS));
   }
-  if (a.summary === "") problems.push("summary: two or three sentences: what, for whom, why");
-  if (a.context === "") problems.push("context: the problem, for whom, the cost of doing nothing");
+  if (a.summary === "") problems.push(NO_SUMMARY);
+  if (a.context === "") problems.push(NO_CONTEXT);
 
-  if (a.useCases.length === 0) problems.push("useCases: at least one use case");
-  if (a.useCases.length > MAX_USE_CASES) problems.push(`useCases: at most ${MAX_USE_CASES}`);
+  if (a.useCases.length === 0) problems.push(NO_USE_CASE);
+  if (a.useCases.length > MAX_USE_CASES) problems.push(tooManyUseCases(MAX_USE_CASES));
   a.useCases.forEach((u, i) => {
     const id = useCaseId(i);
-    if (u.name === "" || !oneLine(u.name) || u.name.length > MAX_NAME_CHARS) problems.push(`${id}: the name is one line of at most ${MAX_NAME_CHARS} characters`);
-    if (u.actor === "") problems.push(`${id}: no actor`);
-    if (u.intent === "") problems.push(`${id}: no intent`);
-    if (u.where === "") problems.push(`${id}: no Where: the surface and the moment the actor meets it`);
+    if (u.name === "" || !oneLine(u.name) || u.name.length > MAX_NAME_CHARS) problems.push(idNameOneLine(id, MAX_NAME_CHARS));
+    if (u.actor === "") problems.push(noActor(id));
+    if (u.intent === "") problems.push(noIntent(id));
+    if (u.where === "") problems.push(noWhere(id));
     if (u.scenario.length === 0 || u.scenario.length > MAX_SCENARIO_STEPS) {
-      problems.push(`${id}: the nominal scenario has 1 to ${MAX_SCENARIO_STEPS} steps`);
+      problems.push(scenarioSteps(id, MAX_SCENARIO_STEPS));
     }
-    if ([u.actor, u.intent, u.frequency, u.where, ...u.scenario].some((t) => !oneLine(t))) problems.push(`${id}: a field or a step spans lines`);
+    if ([u.actor, u.intent, u.frequency, u.where, ...u.scenario].some((t) => !oneLine(t))) problems.push(fieldSpansLines(id));
   });
 
   const ucIds = new Set(a.useCases.map((_, i) => useCaseId(i)));
-  if (a.rules.length > MAX_RULES) problems.push(`rules: at most ${MAX_RULES}`);
+  if (a.rules.length > MAX_RULES) problems.push(tooManyRules(MAX_RULES));
   a.rules.forEach((r, i) => {
     const id = ruleId(i);
-    if (r.name === "" || !oneLine(r.name) || r.name.length > MAX_NAME_CHARS) problems.push(`${id}: the name is one line of at most ${MAX_NAME_CHARS} characters`);
+    if (r.name === "" || !oneLine(r.name) || r.name.length > MAX_NAME_CHARS) problems.push(idNameOneLine(id, MAX_NAME_CHARS));
     if (r.statement === "" || !oneLine(r.statement) || r.statement.length > MAX_STATEMENT_CHARS || r.statement.includes(" · ")) {
-      problems.push(`${id}: the statement is one testable line of at most ${MAX_STATEMENT_CHARS} characters`);
+      problems.push(statementOneLine(id, MAX_STATEMENT_CHARS));
     }
-    if (r.origin === "") problems.push(`${id}: no origin (regulation, standard, practice, product choice, existing behaviour)`);
-    if (!RULE_SEVERITIES.includes(r.severity)) problems.push(`${id}: severity is blocking, warning or informational`);
-    if (r.appliesTo.length === 0) problems.push(`${id}: appliesTo names UC-nn ids or cross-cutting`);
+    if (r.origin === "") problems.push(noOrigin(id));
+    if (!RULE_SEVERITIES.includes(r.severity)) problems.push(severityIs(id));
+    if (r.appliesTo.length === 0) problems.push(appliesToNamesIds(id));
     for (const t of r.appliesTo) {
-      if (t !== "cross-cutting" && !ucIds.has(t)) problems.push(`${id}: appliesTo '${t}' is no use case of the answer`);
+      if (t !== "cross-cutting" && !ucIds.has(t)) problems.push(appliesToUnknown(id, t));
     }
   });
 
@@ -223,30 +215,30 @@ export function checkSpecAnswer(value: unknown): Checked<SpecAnswer> {
   cellProblems("outOfScope", a.outOfScope, problems);
   cellProblems("assumptions", a.assumptions, problems);
   for (const d of a.data) {
-    if (d.source !== "" && !(DATA_SOURCES as readonly string[]).includes(d.source)) problems.push(`data '${d.datum}': source is ${DATA_SOURCES.join(", ")}`);
+    if (d.source !== "" && !(DATA_SOURCES as readonly string[]).includes(d.source)) problems.push(dataSourceIs(d.datum, DATA_SOURCES.join(", ")));
     if (d.importance !== "" && !(DATA_IMPORTANCE as readonly string[]).includes(d.importance)) {
-      problems.push(`data '${d.datum}': importance is ${DATA_IMPORTANCE.join(", ")}`);
+      problems.push(dataImportanceIs(d.datum, DATA_IMPORTANCE.join(", ")));
     }
   }
   for (const [name, n] of [["crossCutting", a.crossCutting.length], ["vocabulary", a.vocabulary.length], ["data", a.data.length]] as const) {
-    if (n > MAX_LIST) problems.push(`${name}: at most ${MAX_LIST} rows`);
+    if (n > MAX_LIST) problems.push(tooManyRows(name, MAX_LIST));
   }
   if (a.overview !== "" && (a.overview.includes("```") || !/^(flowchart|graph|stateDiagram)/.test(a.overview))) {
-    problems.push("overview: the lines of one mermaid flowchart, without the fence, or \"\"");
+    problems.push(OVERVIEW_IS_FLOWCHART);
   }
 
   const body = bodyTexts(a).join("\n");
   const lower = body.toLowerCase();
   for (const v of a.vocabulary) {
-    if (v.term !== "" && !lower.includes(v.term.toLowerCase())) problems.push(`vocabulary: '${v.term}' is used nowhere else`);
+    if (v.term !== "" && !lower.includes(v.term.toLowerCase())) problems.push(termUsedNowhere(v.term));
   }
-  if (/\bTBD\b/.test(body) && a.questions.length === 0) problems.push("a TBD in the body has no open question");
+  if (/\bTBD\b/.test(body) && a.questions.length === 0) problems.push(TBD_WITHOUT_QUESTION);
   for (const [pattern, what] of TECHNICAL) {
     const hit = bodyTexts(a).find((t) => pattern.test(t));
-    if (hit !== undefined) problems.push(`business purity: ${what} in "${hit.slice(0, 60)}"; say it in business words`);
+    if (hit !== undefined) problems.push(businessPurity(what, hit.slice(0, 60)));
   }
 
-  if (a.questions.length > MAX_QUESTIONS) problems.push(`questions: at most ${MAX_QUESTIONS}`);
+  if (a.questions.length > MAX_QUESTIONS) problems.push(tooManyQuestions(MAX_QUESTIONS));
   a.questions.forEach((q, i) => problems.push(...draftQuestionProblems(q, i + 1)));
 
   return problems.length > 0 ? { ok: false, problems } : { ok: true, value: a };

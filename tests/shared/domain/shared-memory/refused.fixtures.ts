@@ -1,5 +1,6 @@
 // The motifs, texts and remotes the refused motifs file is tested on.
-import { REFUSED_HEADER, appendRefused } from "../../../../src/shared/domain/shared-memory/refused.ts";
+import { appendRefused } from "../../../../src/shared/domain/shared-memory/refused.ts";
+import { REFUSED_HEADER } from "../../../../src/shared/domain/shared-memory/markers.ts";
 
 /** One refused motif of project orkeon-code. */
 export const motif = { topic: "refusal-paths-untested", project: "orkeon-code", date: "2026-10-22", motif: "Refusal paths go untested" };

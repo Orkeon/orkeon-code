@@ -12,7 +12,7 @@ import { GIT_TOPLEVEL } from "../../../../src/shared/application/dev/resolve-wor
 import { ORKEON_IGNORE_PROBE, checkIgnoreCommand } from "../../../../src/shared/application/dev/load-dev-context.ts";
 import type { ScriptToolSlot } from "../../../../src/shared/application/dev/script-tool-slot.ts";
 import { COST_NOT_WIRED, costSummary } from "../../../../src/shared/domain/dev/access-cost.ts";
-import { AUDIT_UNFINISHED_GAP } from "../../../../src/shared/domain/dev/verdict-format.ts";
+import { AUDIT_UNFINISHED_GAP } from "../../../../src/shared/domain/dev/markers.ts";
 import { excludePathspecs, gitMethodGrep } from "../../../../src/crews/dev-verify/domain/commands.ts";
 import type { ValidationRunner } from "../../../../src/crews/dev-verify/application/audit.ts";
 import { runDevVerify } from "../../../../src/crews/dev-verify/application/run-dev-verify.ts";

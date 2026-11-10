@@ -15,16 +15,13 @@ import { errorText, nothingReturned } from "../../../shared/domain/prelude.ts";
 import { commandLine, isOption, optionValue, parseAssistantInput, splitWords } from "../args.ts";
 import { launchCrew, launchMainLoop, withLlmProfile } from "../dispatch.ts";
 import type { CrewCompletion, LaunchResult, MainLoopLaunchDeps } from "../dispatch.ts";
-import { missingToolMessage } from "./transcribe.ts";
+import { DICTATION_NEXT, NOTHING_HEARD, PROMPT_NEEDS_WORDS, SEND_ALONE, VOICE_USAGE, cannotRead, dictationLine, missingToolMessage, needsLanguageCode, noDictationToSend, recordingLine, secondsBetween, unknownArgument, voiceFailed } from "./messages.ts";
+import { unknownOption } from "../messages.ts";
 
 export const RECORD_TOOL = "record_and_transcribe";
 export const DICTATION_FILE = "/transcripts/dictation.txt";
 const DEFAULT_MAX_SECONDS = 60;
 const DEFAULT_SILENCE_SECONDS = 2;
-
-export const VOICE_USAGE =
-  'usage: /voice [--go] [--lang <code>] [--prompt "<words>"] [--max <seconds>] [--silence <seconds>]\n' +
-  "       /voice send";
 
 export type VoiceRequest =
   | { kind: "record"; go: boolean; language: string; vocabulary: string; maxSeconds: number; silenceSeconds: number }
@@ -35,7 +32,7 @@ export type ParsedVoice = { ok: true; request: VoiceRequest } | { ok: false; err
 /** A number option within bounds, or the reason it is not one. */
 function seconds(option: string, value: string | null, min: number, max: number): number | string {
   const n = value === null ? Number.NaN : Number(value);
-  if (!Number.isFinite(n) || n < min || n > max) return `${option} takes seconds between ${min} and ${max}`;
+  if (!Number.isFinite(n) || n < min || n > max) return secondsBetween(option, min, max);
   return n;
 }
 
@@ -50,17 +47,17 @@ export function parseVoiceArgs(tokens: readonly string[]): ParsedVoice {
   for (let i = 0; i < words.length; i++) {
     const word = words[i].text;
     if (!isOption(words[i])) {
-      if (word === "send") return { ok: false, error: "send takes no option and no quotes: /voice send sends the last dictation" };
-      return { ok: false, error: `unknown argument ${word}` };
+      if (word === "send") return { ok: false, error: SEND_ALONE };
+      return { ok: false, error: unknownArgument(word) };
     } else if (word === "--go") {
       request.go = true;
     } else if (word === "--lang" || word === "--language") {
       const value = optionValue(words, i++);
-      if (value === null) return { ok: false, error: `${word} needs a language code (fr, en...)` };
+      if (value === null) return { ok: false, error: needsLanguageCode(word) };
       request.language = value;
     } else if (word === "--prompt") {
       const value = optionValue(words, i++);
-      if (value === null) return { ok: false, error: '--prompt needs the words the speech may contain, quoted ("Orkeon, Jint, MCP")' };
+      if (value === null) return { ok: false, error: PROMPT_NEEDS_WORDS };
       request.vocabulary = value;
     } else if (word === "--max" || word === "--silence") {
       const value = optionValue(words, i++);
@@ -69,7 +66,7 @@ export function parseVoiceArgs(tokens: readonly string[]): ParsedVoice {
       if (word === "--max") request.maxSeconds = parsed;
       else request.silenceSeconds = parsed;
     } else {
-      return { ok: false, error: `unknown option ${word}` };
+      return { ok: false, error: unknownOption(word) };
     }
   }
   return { ok: true, request };
@@ -85,8 +82,7 @@ export function recordArgs(request: Extract<VoiceRequest, { kind: "record" }>): 
 
 /** The line shown when the microphone opens. */
 export function recordingNotice(request: Extract<VoiceRequest, { kind: "record" }>): string {
-  return `🎙 recording: speak, then stay silent ${request.silenceSeconds} s to stop (${request.maxSeconds} s at most)` +
-    (request.go ? "; the text goes straight to the assistant" : "");
+  return recordingLine(request.silenceSeconds, request.maxSeconds, request.go);
 }
 
 /** What /voice reads and drives: the registered tools, the files (the last dictation, for
@@ -97,7 +93,7 @@ export type VoiceDeps = MainLoopLaunchDeps & {
   out: { writeLine(text: string): void };
 };
 
-const NOTHING_TO_SEND = `no dictation to send: /voice records one (it is kept in ${DICTATION_FILE})`;
+const NOTHING_TO_SEND = noDictationToSend(DICTATION_FILE);
 
 /** Launch what the request asks and return its ticket, or the message to show when it launches nothing. */
 export async function dispatchVoice(tokens: readonly string[], deps: VoiceDeps): Promise<LaunchResult | { message: string }> {
@@ -111,7 +107,7 @@ export async function dispatchVoice(tokens: readonly string[], deps: VoiceDeps):
     } catch (error) {
       // A missing file is the common case (no dictation yet); the runtime's read says so, as json-file.ts reads it.
       if (/not found|no such|does not exist/i.test(errorText(error))) return { message: NOTHING_TO_SEND };
-      return { message: `cannot read ${DICTATION_FILE}: ${errorText(error)}` };
+      return { message: cannotRead(DICTATION_FILE, errorText(error)) };
     }
     if (text.length === 0) return { message: NOTHING_TO_SEND };
     const { prompt, permissionMode } = parseAssistantInput(text);
@@ -135,12 +131,12 @@ export async function dispatchVoice(tokens: readonly string[], deps: VoiceDeps):
  * "script-host", and the crew's name as the intent).
  */
 export function renderVoiceCompletion(result: CrewCompletion & { agent?: string; intent?: string }): string[] {
-  if (!result.success) return [`✗ voice failed: ${result.error ?? "unknown"}`];
+  if (!result.success) return [voiceFailed(result.error ?? "unknown")];
   const payload = (result.payload ?? "").trim();
   if (result.intent !== "speech") return [payload];
   // The crew names the tool as the host registers it: compared case aside.
   if (payload.length === 0 || payload.toLowerCase() === nothingReturned(RECORD_TOOL).toLowerCase()) {
-    return ["nothing was heard: /voice records again"];
+    return [NOTHING_HEARD];
   }
-  return [`🎙 ${payload}`, "send it: /voice send · edit it: /assistant <text> · record again: /voice"];
+  return [dictationLine(payload), DICTATION_NEXT];
 }

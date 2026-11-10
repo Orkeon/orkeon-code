@@ -1,7 +1,7 @@
 // Buffers whose last turns runtimeTurnsToKeep counts as session_snip does.
 import type { SessionMsg } from "../../../src/shared/domain/types.ts";
-import { TURN_CONTEXT_MARKER } from "../../../src/shared/domain/marked-message.ts";
-import { TOOL_TRACE_MARKER } from "../../../src/shared/domain/tool-trace.ts";
+import { TURN_CONTEXT_MARKER } from "../../../src/shared/domain/markers.ts";
+import { TOOL_TRACE_MARKER } from "../../../src/shared/domain/markers.ts";
 
 const head: SessionMsg = { role: "user", content: "first request" };
 const context: SessionMsg = { role: "user", content: `${TURN_CONTEXT_MARKER} Context the turn-start checks added:\nsession resumed` };

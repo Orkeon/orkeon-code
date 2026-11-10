@@ -3,6 +3,7 @@
 
 import type { InstructionsFile } from "../../../shared/domain/instructions-file.ts";
 import { INSTRUCTIONS_FILE_WRITTEN } from "../../../shared/domain/instructions-file.ts";
+import { LEFT_AS_IT_IS, proposalNoteText } from "./messages.ts";
 
 /** Characters of each existing instruction file the model sees. */
 export const MAX_EXISTING_FILE_CHARS = 40_000;
@@ -56,8 +57,9 @@ export function proposalNote(existing: readonly ExistingFile[]): string {
   const cut = cutFiles(existing).map((f) => f.file);
   if (cut.length === 0) return "";
   const [verb, whose] = cut.length > 1 ? ["are", "their"] : ["is", "its"];
-  const kept = existing.some((f) => f.file === INSTRUCTIONS_FILE_WRITTEN) ? "left as it is" : "not written";
-  return `; ${INSTRUCTIONS_FILE_WRITTEN} ${kept}, since ${cut.join(", ")} ${verb} cut (${MAX_EXISTING_FILE_CHARS} ` +
-    `characters shown of a file, ${MAX_EXISTING_FILES_CHARS} in all) and the model saw only ${whose} start: review ` +
-    `${PROPOSED_FILE} and merge it by hand`;
+  const kept = existing.some((f) => f.file === INSTRUCTIONS_FILE_WRITTEN) ? LEFT_AS_IT_IS : "not written";
+  return proposalNoteText({
+    written: INSTRUCTIONS_FILE_WRITTEN, kept, cut: cut.join(", "), verb, whose,
+    maxFile: MAX_EXISTING_FILE_CHARS, maxAll: MAX_EXISTING_FILES_CHARS, proposed: PROPOSED_FILE,
+  });
 }

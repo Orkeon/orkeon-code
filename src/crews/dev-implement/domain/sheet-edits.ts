@@ -2,6 +2,9 @@
 // role settled mid-batch (rows `| H<n> | <text> | the user |` of `## Assumptions`), and at the close
 // the done marks - the sheet's title ` — done (<date>)`, the plan's `### Batch F<n> — <Name> — done (<date>)` and
 // its step boxes ticked. Each edit is idempotent. Pure, never throws.
+import {
+  ASSUMPTIONS_SECTION, ASSUMPTIONS_TABLE_HEAD as TABLE_HEAD, DECISIONS_SECTION,
+} from "../../../shared/domain/dev/markers.ts";
 import { parseBatchSheet, unfencedLines } from "../../../shared/domain/dev/plan-format.ts";
 
 /** An answer's way of saying it assumed nothing: `none`, `none needed — …`, `n/a`, `nothing`. */
@@ -18,8 +21,6 @@ export function assumptionsOf(answer: string): string[] {
   return out;
 }
 
-const TABLE_HEAD = ["| # | Assumption | To be validated by |", "|---|------------|--------------------|"];
-
 /** The sheet with each new assumption as an `H<n>` row of the `## Assumptions` table (`/dev-plan` renders it empty;
  *  the section created before `## Decisions`, else at the end), numbered after the rows it holds, the list lines of
  *  older sheets counted; an assumption already written is not written again. */
@@ -33,7 +34,7 @@ export function addAssumptions(text: string, assumptions: readonly string[]): { 
   const rows = added.map((a) => `| H${++n} | ${a} | the user |`);
   const raw = text.split("\n");
   const lines = unfencedLines(text);
-  const at = lines.findIndex((l) => l.text.trim() === "## Assumptions");
+  const at = lines.findIndex((l) => l.text.trim() === ASSUMPTIONS_SECTION);
   if (at >= 0) {
     const next = lines.slice(at + 1).find((l) => l.text.startsWith("## "));
     let end = next === undefined ? raw.length : next.line - 1;
@@ -44,8 +45,8 @@ export function addAssumptions(text: string, assumptions: readonly string[]): { 
     raw.splice(end, 0, ...(table ? rows : [...(body.length > 0 ? [""] : []), ...TABLE_HEAD, ...rows]));
     return { text: raw.join("\n"), added };
   }
-  const decisions = lines.find((l) => l.text.trim() === "## Decisions");
-  const block = ["## Assumptions", ...TABLE_HEAD, ...rows, ""];
+  const decisions = lines.find((l) => l.text.trim() === DECISIONS_SECTION);
+  const block = [ASSUMPTIONS_SECTION, ...TABLE_HEAD, ...rows, ""];
   if (decisions !== undefined) raw.splice(decisions.line - 1, 0, ...block);
   else raw.push(...(raw[raw.length - 1]?.trim() === "" ? [] : [""]), ...block);
   return { text: raw.join("\n"), added };

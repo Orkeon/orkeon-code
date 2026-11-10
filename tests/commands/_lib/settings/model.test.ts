@@ -5,8 +5,9 @@
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 
-import { NO_MODEL_REPORTED } from "../../../../src/commands/_lib/settings/model.ts";
-import { judgeModelChoice, renderModelList, NO_CATALOGUE_NOTE } from "../../../../src/shared/domain/model-catalog.ts";
+import { NO_MODEL_REPORTED } from "../../../../src/commands/_lib/settings/messages.ts";
+import { judgeModelChoice, renderModelList } from "../../../../src/shared/domain/model-catalog.ts";
+import { NO_CATALOGUE_NOTE } from "../../../../src/shared/domain/messages.ts";
 import { DEFAULT_EFFORT, EFFORT_LEVELS } from "../../../../src/shared/domain/agent-policy/behavior-flags.ts";
 import { EFFORT_STATE_KEY, MODEL_PREFERENCE_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
 import {

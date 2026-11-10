@@ -6,6 +6,8 @@
 import { MAX_BODY_CHARS, MAX_TITLE_CHARS, entryIdPrefix } from "./entry.ts";
 import type { MemoryEntry } from "./entry.ts";
 import { topicOf } from "./refused.ts";
+import { HOW_TO_APPLY_LABEL } from "./markers.ts";
+import { importedFrom } from "./prompts.ts";
 
 /** The harness's agent memory, relative to the project. */
 export const HARNESS_AGENT_MEMORY_DIR = ".claude/agent-memory";
@@ -98,7 +100,7 @@ export function parseAgentNote(text: string): AgentNote {
   };
   const note: AgentNote = { body };
   const why = pick("Why");
-  const how = pick("How to apply");
+  const how = pick(HOW_TO_APPLY_LABEL);
   if (why !== undefined) note.why = why;
   if (how !== undefined) note.howToApply = how;
   return note;
@@ -120,7 +122,7 @@ export function importedEntry(item: AgentMemoryItem, note: AgentNote | null, ctx
   const evidence = [`- \`${index}:${item.line}\``];
   if (note !== null && item.note !== undefined) evidence.push(`- \`${HARNESS_AGENT_MEMORY_DIR}/${ctx.agent}/${item.note}\``);
   const hook = cut(item.hook, MAX_SENTENCE_CHARS);
-  const head = ["## Context", `Imported from the harness agent memory of ${ctx.agent} (${index}, line ${item.line}).`];
+  const head = ["## Context", importedFrom(ctx.agent, index, item.line)];
   // Without a note the item itself is the content: it is not repeated here.
   if (note !== null && item.hook !== item.title) head.push(hook);
   const tail = ["", "## Evidence", ...evidence];

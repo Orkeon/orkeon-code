@@ -45,6 +45,7 @@ import { REVIEWER_CHARTER } from "../../shared/domain/dev/reviewer-charter.ts";
 import { STEP_BUDGETS } from "../../shared/domain/dev/step-budget.ts";
 import { stepPrecedents } from "../../shared/application/dev/step-precedents.ts";
 import { runDevSpec } from "./application/run-dev-spec.ts";
+import { SPEC_REVIEW_TASK, SPEC_WRITER_GOAL } from "./application/messages.ts";
 
 const ports = { shell: orkeonShell(), files: orkeonFiles(), config: orkeonConfigStore(), index: orkeonCodeIndex(), human: orkeonHumanInput() };
 // memory_recall is attached unless a session rule denies every call of it (the command says so).
@@ -73,7 +74,7 @@ const reviewer = () => {
 const builder = orkeonAgent()
   .name("dev-spec-writer")
   .role("Business analyst")
-  .goal("Write what a feature does and the rules it follows, in business words, and settle its open questions with the person")
+  .goal(SPEC_WRITER_GOAL)
   // The catalogue is the reviewer's: read tools only. The spec itself is an extract call, which offers none.
   .tools(charterCatalogue(REVIEWER_CHARTER))
   .withAutonomousTools(memoryRecallTools(ToolBuilder, orkeonMemoryToolPorts, memoryOn))
@@ -83,7 +84,7 @@ const builder = orkeonAgent()
     const child = openChildAct(
       createLlm(ctx.llm, callbacksFor(ctx), { effort }), ctx, crew, { state: session, clock, log: ctx.log, effort },
       { crew: "dev-spec", step: "dev-spec" },
-      { agent: REVIEWER_CHARTER.name, charter: REVIEWER_CHARTER.name, task: "review of the spec", builder: reviewer },
+      { agent: REVIEWER_CHARTER.name, charter: REVIEWER_CHARTER.name, task: SPEC_REVIEW_TASK, builder: reviewer },
     );
     try {
       // T1: the shared memory's precedents in the draft's prompt, unless memory_recall is denied.

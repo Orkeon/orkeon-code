@@ -19,8 +19,15 @@ import { readBudgetExhausted } from "../../../shared/domain/dev/step-budget.ts";
 import { checkValidation, validationLine } from "../../../shared/domain/dev/test-commands.ts";
 import { firstLine } from "../domain/text.ts";
 import { undecidedNotRun } from "../domain/verdict.ts";
-import type { AuditBriefInput, ValidationReport } from "./auditor-prompt.ts";
-import { AUDITOR_SYSTEM, buildAnswerPrompt, buildAuditBrief, buildValidationFollowUp } from "./auditor-prompt.ts";
+import type { AuditBriefInput, ValidationReport } from "./audit-brief.ts";
+import { AUDITOR_SYSTEM } from "./prompts.ts";
+import { buildAnswerPrompt, buildAuditBrief, buildValidationFollowUp } from "./audit-brief.ts";
+import { timedOutAfter } from "../domain/messages.ts";
+import {
+  blockedBudgetSpent, blockedCancelled, blockedModelFailed, blockedOther, blockedUnparsable, blockedUnwritable, failedCount,
+  MAKE_VALIDATION_PASS, namedAfterValidations, NO_PROBLEM_RECORDED, noVerdictWritten, notRunLine, notRunOutcome,
+  refusedOutcome, runByTheAudit, validationRed, validationsAlreadyRan,
+} from "./messages.ts";
 
 const VALIDATION_TIMEOUT_SECONDS = 300;
 
@@ -52,8 +59,8 @@ export function recordingRunner(inner: ValidationRunner): RecordingRunner {
       if (earlier !== undefined) return earlier;
       let run: ValidationRun;
       if (ran >= MAX_VALIDATIONS) {
-        const outcome = `refused: ${MAX_VALIDATIONS} validations already ran in this audit`;
-        run = { report: { command, outcome, tail: "" }, line: null, notRun: `\`${command}\` — ${outcome}` };
+        const outcome = validationsAlreadyRan(MAX_VALIDATIONS);
+        run = { report: { command, outcome, tail: "" }, line: null, notRun: notRunLine(command, outcome) };
       } else {
         ran += 1; // held while the command runs; given back when the inner runner refused it
         run = await inner.run(command);
@@ -81,20 +88,20 @@ export function shellValidationRunner(
       const check = checkValidation(cmd, commands);
       const reason = check.ok ? runGuards([ruleGuard], check.command) : check.reason;
       if (!check.ok || reason !== null) {
-        const outcome = `refused: ${reason}`;
-        return { report: { command: cmd, outcome, tail: "" }, line: null, notRun: `\`${cmd}\` — ${outcome}` };
+        const outcome = refusedOutcome(reason);
+        return { report: { command: cmd, outcome, tail: "" }, line: null, notRun: notRunLine(cmd, outcome) };
       }
       let result;
       try {
         result = await shell.run(check.command, { timeoutSeconds: VALIDATION_TIMEOUT_SECONDS });
       } catch (error) {
-        const outcome = `not run: ${reasonOf(error)}`;
-        return { report: { command: cmd, outcome, tail: "" }, line: null, notRun: `\`${cmd}\` — ${outcome}` };
+        const outcome = notRunOutcome(reasonOf(error));
+        return { report: { command: cmd, outcome, tail: "" }, line: null, notRun: notRunLine(cmd, outcome) };
       }
       const tail = outputTail(result.stdout, result.stderr);
       if (result.timedOut === true) {
-        const outcome = `timed out after ${VALIDATION_TIMEOUT_SECONDS} s`;
-        return { report: { command: cmd, outcome, tail }, line: null, notRun: `\`${cmd}\` — ${outcome}` };
+        const outcome = timedOutAfter(VALIDATION_TIMEOUT_SECONDS);
+        return { report: { command: cmd, outcome, tail }, line: null, notRun: notRunLine(cmd, outcome) };
       }
       const summary = testRunSummary(tail.split("\n"));
       const tests = summary.passed === null && summary.failed === null ? null : (summary.passed ?? 0) + (summary.failed ?? 0);
@@ -128,12 +135,12 @@ export function redRunRows(runs: readonly ValidationRun[]): AuditRow[] {
     if (exit === null) continue; // refused, not run or timed out: a Not run line already says so
     const failed = testRunSummary(report.tail.split("\n")).failed ?? 0;
     if (exit[1] === "0" && failed === 0) continue;
-    const counted = failed > 0 ? `, ${failed} failed` : "";
+    const counted = failed > 0 ? failedCount(failed) : "";
     rows.push({
       severity: "Blocking", axis: "Test",
-      gap: `a validation is red: ${report.outcome}${counted}`,
-      evidence: `\`${report.command}\` ${report.outcome}${counted}, run by the audit`,
-      fix: "make the validation pass",
+      gap: validationRed(report.outcome, counted),
+      evidence: runByTheAudit(report.command, report.outcome, counted),
+      fix: MAKE_VALIDATION_PASS,
     });
   }
   return rows;
@@ -156,14 +163,13 @@ async function blocked(
   try {
     await files.write(`${captureFolder}/${name}`, `${outcome.reply.trimEnd()}\n--- problems\n${outcome.problems.join("\n")}\n`);
   } catch (error) {
-    return { ok: false, text: `dev-verify: BLOCKED — ${captureShown}/${name} cannot be written (${reasonOf(error)})` };
+    return { ok: false, text: blockedUnwritable(`${captureShown}/${name}`, reasonOf(error)) };
   }
-  const first = outcome.problems[0] ?? "no problem recorded";
+  const first = outcome.problems[0] ?? NO_PROBLEM_RECORDED;
   if (outcome.reason === "unparsable") {
     return {
       ok: false,
-      text: `dev-verify: BLOCKED — the auditor's answer did not parse after one re-ask (${first}): ` +
-        `its replies are in ${captureShown}/${name}; no verdict written`,
+      text: blockedUnparsable(first, `${captureShown}/${name}`),
     };
   }
   const spent = outcome.reason === "model-failed" ? readBudgetExhausted(first) : null;
@@ -171,27 +177,27 @@ async function blocked(
     // The runs made before the budget ran out stand: the caller writes a verdict that says the audit did not finish.
     if (runs.length > 0) {
       const failed = await writeValidations(files, runs, captureFolder, captureShown);
-      if (failed !== null) return { ok: false, text: `${failed}; no verdict written` };
+      if (failed !== null) return { ok: false, text: noVerdictWritten(failed) };
     }
     return {
       ok: false,
-      text: `dev-verify: BLOCKED — the step's budget is spent (${spent}: ${first}): the capture stays in ${captureShown}/`,
+      text: blockedBudgetSpent(spent, first, captureShown),
       unfinished: { reason: `${spent}: ${first}`, validations: linesOf(runs), notRun: notRunsOf(runs) },
     };
   }
   if (outcome.reason === "cancelled") {
     return {
       ok: false,
-      text: `dev-verify: BLOCKED — the audit was cancelled (${first}): the capture stays in ${captureShown}/; no verdict written`,
+      text: blockedCancelled(first, captureShown),
     };
   }
   if (outcome.reason === "model-failed") {
     return {
       ok: false,
-      text: `dev-verify: BLOCKED — the model call failed (${first}): the capture stays in ${captureShown}/; no verdict written`,
+      text: blockedModelFailed(first, captureShown),
     };
   }
-  return { ok: false, text: `dev-verify: BLOCKED — ${first}; no verdict written` };
+  return { ok: false, text: blockedOther(first) };
 }
 
 /** The validations file: per command, `$ <command>`, the outcome, the tail. */
@@ -203,7 +209,7 @@ async function writeValidations(
     await files.write(`${captureFolder}/validations.txt`, `${log.join("\n\n")}\n`);
     return null;
   } catch (error) {
-    return `dev-verify: BLOCKED — ${captureShown}/validations.txt cannot be written (${reasonOf(error)})`;
+    return blockedUnwritable(`${captureShown}/validations.txt`, reasonOf(error));
   }
 }
 
@@ -247,7 +253,7 @@ export async function runAudit(
   }
   const late = answer.validations
     .filter((c) => !ranAlready(c))
-    .map((c) => `\`${c}\` — named after the validations had run`);
+    .map((c) => namedAfterValidations(c));
   return {
     ok: true,
     answer,

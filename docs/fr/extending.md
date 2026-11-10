@@ -35,7 +35,7 @@ defineCommand({
 La logique qui mérite un test va dans `src/commands/_lib/<group>/<name>.ts`, le dossier de sa commande,
 sous la forme `run<Name>(tokens, deps)`, ses deps un `Pick<>` des ports qu'elle lit, testée sur les fakes de `tests/support/doubles/`. Trois autres endroits bougent avec
 une nouvelle commande, et `npm run check` nomme celui que vous avez oublié : `tests/repository/command-surface.test.ts` épingle
-le nombre de commandes, `src/commands/_lib/status/meta.ts` l'énonce dans les notes de release, et `npm run docs:commands`
+le nombre de commandes, `src/commands/_lib/status/messages.ts` l'énonce dans les notes de release, et `npm run docs:commands`
 régénère [docs/fr/commands.md](commands.md). La recette : [Ajouter une commande](architecture.md#ajouter-une-commande).
 
 ## Un crew
@@ -119,7 +119,7 @@ prompt tel que le modèle le lit, et un changement se relit donc comme le diff d
   utilisateur (préférences, skills, mémoire, hooks, environnement, historique, jauge, requête) : une fonction de
   rendu `build<Name>Block` par bloc, un champ de `PromptParts`, une place dans l'ordre fixe d'`assemblePrompt`.
   L'entrée d'un bloc est lue dans `application/context-gather.ts`, par les ports, et passée dans
-  `application/turn-prompt.ts` ; les réglages qu'une session fixe (`/effort`, `/passes` de `/review`, `/fast`, `/proactive`,
+  `application/prompts.ts` ; les réglages qu'une session fixe (`/effort`, `/passes` de `/review`, `/fast`, `/proactive`,
   `/output-style`, `answer.language`) voyagent de la même façon.
 - **Compaction et mémoire.** `src/shared/domain/compaction.ts` tient les prompts de résumé et d'extraction de mémoire
   et les marqueurs que le modèle relit ensuite dans son historique ; `src/shared/application/compaction/` les exécute.

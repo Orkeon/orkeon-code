@@ -3,7 +3,7 @@
 // builder, on one set of sample inputs. Shared by tests/repository/prompt-contract.test.ts
 // (the rules every prompt keeps) and scripts/render-prompts.mjs (a render to read
 // and to diff when a prompt changes).
-import { buildTurnPrompt } from "../../../src/crews/main-loop/application/turn-prompt.ts";
+import { buildTurnPrompt } from "../../../src/crews/main-loop/application/turn-context.ts";
 import { PERMISSION_MODES } from "../../../src/shared/domain/permission-modes.ts";
 import { MEMORY_TOOLS, scriptToolsFor } from "../../../src/shared/domain/agent-policy/permission.ts";
 import { DEFAULT_BEHAVIOR_FLAGS } from "../../../src/shared/domain/agent-policy/behavior-flags.ts";
@@ -13,10 +13,14 @@ import {
   buildCompactedBuffer, buildMemoryExtractionPrompt, buildMemoryRecapMessage, buildRestoredFileMessage,
   buildRestoredFileNotice, buildRestoredSkillMessage, buildSummaryPrompt, buildTranscript, MEMORY_EXTRACTION_SCHEMA,
 } from "../../../src/shared/domain/compaction.ts";
-import { buildLensPrompt, cutDiff, FINDINGS_SCHEMA, LENSES } from "../../../src/crews/code-review/application/prompts.ts";
+import {
+  buildLensPrompt, FINDINGS_SCHEMA, LENSES,
+} from "../../../src/crews/code-review/application/prompts.ts";
+import { cutDiff } from "../../../src/crews/code-review/application/lens-material.ts";
 import { buildCommitPrompt } from "../../../src/crews/git-commit/application/draft.ts";
 import { buildAdvicePrompt } from "../../../src/crews/advisor/domain/advice.ts";
-import { SYNTHESIS_SYSTEM, buildSynthesisUser } from "../../../src/crews/analyze/domain/harvest.ts";
+import { buildSynthesisUser } from "../../../src/crews/analyze/domain/harvest.ts";
+import { SYNTHESIS_SYSTEM } from "../../../src/crews/analyze/domain/prompts.ts";
 import {
   READINESS_SCHEMA, buildReadinessPrompt, buildVerifierSkillPrompt, renderVerifierMaterial,
 } from "../../../src/crews/init-verifiers/application/prompts.ts";
@@ -25,23 +29,23 @@ import { renderPackageMap } from "../../../src/crews/project-init/domain/package
 import {
   CONVENTIONS_SCHEMA, buildConventionsPrompt, buildInstructionsFilePrompt,
 } from "../../../src/crews/project-init/application/prompts.ts";
-import { SUMMARY_PROMPT } from "../../../src/shared/domain/session-summary.ts";
+import { SUMMARY_PROMPT } from "../../../src/shared/domain/prompts.ts";
 import { buildVerifyRequest } from "../../../src/shared/domain/verifiers.ts";
 import { applyPrelude } from "../../../src/shared/domain/prelude.ts";
-import {
-  AUDITOR_SYSTEM, buildAnswerPrompt, buildAuditBrief, buildValidationFollowUp,
-} from "../../../src/crews/dev-verify/application/auditor-prompt.ts";
-import type { AuditBriefInput } from "../../../src/crews/dev-verify/application/auditor-prompt.ts";
+import { AUDITOR_SYSTEM } from "../../../src/crews/dev-verify/application/prompts.ts";
+import { buildAnswerPrompt, buildAuditBrief, buildValidationFollowUp } from "../../../src/crews/dev-verify/application/audit-brief.ts";
+import type { AuditBriefInput } from "../../../src/crews/dev-verify/application/audit-brief.ts";
 import { AUDIT_ANSWER_SCHEMA } from "../../../src/crews/dev-verify/domain/audit-answer.ts";
-import { buildLearnPrompt } from "../../../src/crews/dev-learn/application/learn-prompt.ts";
-import type { LearnPromptInput } from "../../../src/crews/dev-learn/application/learn-prompt.ts";
+import { buildLearnPrompt } from "../../../src/crews/dev-learn/application/learn-prompt-fit.ts";
+import type { LearnPromptInput } from "../../../src/crews/dev-learn/application/learn-prompt-fit.ts";
 import { LEARN_ANSWER_SCHEMA, motifLabel } from "../../../src/crews/dev-learn/domain/learn-answer.ts";
 import { matchOwner, reviewOwner } from "../../../src/crews/dev-learn/domain/owner-lines.ts";
-import { buildPlanPrompt } from "../../../src/crews/dev-plan/application/plan-prompt.ts";
-import type { PlanPromptInput } from "../../../src/crews/dev-plan/application/plan-prompt.ts";
+import { buildPlanPrompt } from "../../../src/crews/dev-plan/application/plan-prompt-fit.ts";
+import type { PlanPromptInput } from "../../../src/crews/dev-plan/application/plan-prompt-fit.ts";
 import { PLAN_ANSWER_SCHEMA } from "../../../src/crews/dev-plan/domain/plan-answer.ts";
 import { REVIEW_ANSWER_SCHEMA } from "../../../src/shared/domain/dev/review-answer.ts";
-import { buildReviewAnswerPrompt, buildReviewBrief, reviewSystem } from "../../../src/shared/domain/dev/review-prompt.ts";
+import { reviewSystem } from "../../../src/shared/domain/dev/prompts.ts";
+import { buildReviewAnswerPrompt, buildReviewBrief } from "../../../src/shared/domain/dev/review-brief.ts";
 import type { PromptPair } from "../../../src/shared/domain/types.ts";
 import { FakeClock } from "../doubles/fake-clock.ts";
 import { FakeShell } from "../doubles/fake-shell.ts";
@@ -235,7 +239,7 @@ export async function renderCatalogue(): Promise<RenderedPrompt[]> {
   return [
     {
       id: "01", name: "main-loop-system-header", source: "src/crews/main-loop/domain/prompt-assembly.ts",
-      callSite: "/assistant, free text, /summary, /verify → crews/main-loop → turn-prompt.ts → run-main-loop.ts runAct",
+      callSite: "/assistant, free text, /summary, /verify → crews/main-loop → turn-context.ts → run-main-loop.ts runAct",
       call: "act, the system message", inputs: "every permission mode; the sample instructions file for the last section",
       sections: [
         ...headers.map((h) => ({ title: `mode ${h.mode}`, role: "system" as const, text: h.system })),
@@ -271,7 +275,7 @@ export async function renderCatalogue(): Promise<RenderedPrompt[]> {
       ],
     },
     {
-      id: "05", name: "code-review-lenses", source: "src/crews/code-review/application/prompts.ts, domain/lenses.ts",
+      id: "05", name: "code-review-lenses", source: "src/crews/code-review/application/prompts.ts, lens-material.ts, domain/lenses.ts",
       callSite: "/review [--lens], /security-review → crews/code-review → application/review.ts",
       call: "extract (JSON schema), one call per lens and pass", inputs: "the sample diff; one prior finding; sample conventions",
       sections: [
@@ -284,7 +288,7 @@ export async function renderCatalogue(): Promise<RenderedPrompt[]> {
       ],
     },
     {
-      id: "06", name: "commit-message", source: "src/crews/git-commit/application/draft.ts",
+      id: "06", name: "commit-message", source: "src/crews/git-commit/application/draft.ts, application/prompts.ts",
       callSite: "/commit → crews/git-commit → draft.ts draftCommitMessage", call: "complete with a system message",
       inputs: "a modified file and an untracked one",
       sections: pair("commit", buildCommitPrompt({
@@ -293,7 +297,7 @@ export async function renderCatalogue(): Promise<RenderedPrompt[]> {
       })),
     },
     {
-      id: "07", name: "advisor-second-opinion", source: "src/crews/advisor/domain/advice.ts",
+      id: "07", name: "advisor-second-opinion", source: "src/crews/advisor/domain/advice.ts, domain/prompts.ts",
       callSite: "/advisor → crews/advisor → application/run-advisor.ts", call: "complete with a system message (the advisor model)",
       inputs: "the last exchange of the sample history and the turns before it",
       sections: pair("advice", buildAdvicePrompt(
@@ -302,7 +306,7 @@ export async function renderCatalogue(): Promise<RenderedPrompt[]> {
       )),
     },
     {
-      id: "08", name: "analyze-synthesis", source: "src/crews/analyze/domain/harvest.ts",
+      id: "08", name: "analyze-synthesis", source: "src/crews/analyze/domain/harvest.ts, domain/prompts.ts",
       callSite: "/analyze → crews/analyze → application/run-analyze.ts", call: "act with no tool, one iteration",
       inputs: "a three-line sample harvest",
       sections: [
@@ -332,7 +336,7 @@ export async function renderCatalogue(): Promise<RenderedPrompt[]> {
       ],
     },
     {
-      id: "11", name: "session-requests", source: "src/shared/domain/session-summary.ts, src/shared/domain/verifiers.ts",
+      id: "11", name: "session-requests", source: "src/shared/domain/prompts.ts, src/shared/domain/verifiers.ts",
       callSite: "/summary (plan mode) and /verify (the session's mode) → the main loop", call: "act, as the request",
       inputs: "none; the zone cli for /verify",
       sections: [
@@ -358,7 +362,7 @@ export async function renderCatalogue(): Promise<RenderedPrompt[]> {
       ],
     },
     {
-      id: "13", name: "dev-auditor", source: "src/crews/dev-verify/application/auditor-prompt.ts, domain/audit-answer.ts",
+      id: "13", name: "dev-auditor", source: "src/crews/dev-verify/application/prompts.ts, audit-brief.ts, domain/audit-answer.ts",
       callSite: "/dev-verify → crews/dev-verify → application/audit.ts",
       call: "act in plan mode with seven read tools, run_validation and memory_recall when offered, then extract (JSON schema); a second act after the validations",
       inputs: "a two-row table, two capture paths, one previous gap (resume)",
@@ -377,7 +381,7 @@ export async function renderCatalogue(): Promise<RenderedPrompt[]> {
       ],
     },
     {
-      id: "14", name: "dev-learn", source: "src/crews/dev-learn/application/learn-prompt.ts, domain/learn-answer.ts",
+      id: "14", name: "dev-learn", source: "src/crews/dev-learn/application/prompts.ts, application/learn-prompt-fit.ts, domain/learn-answer.ts",
       callSite: "/dev-learn [<axis>] → crews/dev-learn → application/run-dev-learn.ts",
       call: "extract (JSON schema), one call per eligible axis, one re-ask with the problems",
       inputs: "four rows of the Test axis over three batches, one refused motif, two owner files; on the re-ask, a new motif whose key term the owner holds",
@@ -391,7 +395,7 @@ export async function renderCatalogue(): Promise<RenderedPrompt[]> {
       ],
     },
     {
-      id: "15", name: "dev-plan", source: "src/crews/dev-plan/application/plan-prompt.ts, domain/plan-answer.ts",
+      id: "15", name: "dev-plan", source: "src/crews/dev-plan/application/prompts.ts, application/plan-prompt-fit.ts, domain/plan-answer.ts",
       callSite: "/dev-plan → crews/dev-plan → application/run-dev-plan.ts",
       call: "extract (JSON schema), once more with the problems of a refused answer or a failed self-check",
       inputs: "a two-rule spec with one use case, three inventory entries, a pack without build_test",
@@ -402,7 +406,7 @@ export async function renderCatalogue(): Promise<RenderedPrompt[]> {
       ],
     },
     {
-      id: "16", name: "dev-reviewer", source: "src/shared/domain/dev/review-prompt.ts, review-answer.ts",
+      id: "16", name: "dev-reviewer", source: "src/shared/domain/dev/prompts.ts, review-brief.ts, review-answer.ts",
       callSite: "/dev-plan → crews/dev-plan → application/run-dev-plan.ts (runSubAgent)",
       call: "act in plan mode with ten read tools, then extract (JSON schema), one re-ask over the same reply",
       inputs: "a plan folder with two sheets and three inventory entries",

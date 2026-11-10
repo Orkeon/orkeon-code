@@ -4,7 +4,8 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
-import { HOOKS_STATUS, runHooks } from "../../../../src/commands/_lib/settings/hooks.ts";
+import { runHooks } from "../../../../src/commands/_lib/settings/hooks.ts";
+import { HOOKS_STATUS } from "../../../../src/commands/_lib/settings/messages.ts";
 import { HOOKS_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
 import { FakeSessionStore } from "../../../support/doubles/fake-session-store.ts";
 import { HOOKED_STEPS, PRE_TOOL_HOOK, sessionWithHooks, stored } from "./hooks.fixtures.ts";

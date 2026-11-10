@@ -1,6 +1,6 @@
 // The demo verdict files and the verdicts written inline, for the verdict file parser.
 import { readFileSync } from "node:fs";
-import { AUDIT_UNFINISHED_GAP } from "../../../../src/shared/domain/dev/verdict-format.ts";
+import { AUDIT_UNFINISHED_GAP } from "../../../../src/shared/domain/dev/markers.ts";
 
 /** A file of the demo work folder. */
 export const demoFile = (name: string): string =>

@@ -4,6 +4,7 @@
 // file, and neither rewrites an existing source file whole (the rewrite rule): both read and edit by
 // node. Neither gets shell_command: tests and builds go through run_tests and run_build. Pure.
 import { BOUNDED_READ_RULE, KNOWN_TOOLS_RULE, NODE_EDIT_RULE, NODE_READ_RULE } from "../../../shared/domain/dev/reading-rule.ts";
+import { IMPLEMENTER_SYSTEM, TEST_AUTHOR_SYSTEM } from "./prompts.ts";
 
 export type RoleName = "test-author" | "implementer";
 
@@ -20,10 +21,7 @@ const WRITE_TOOLS = ["file_write", "edit_file", "node_replace", "node_insert", "
 export const TEST_AUTHOR: RoleSpec = {
   name: "test-author",
   system: [
-    "You are the test author of one step of a dev batch. You write the failing tests the brief names, in the test",
-    "file it names, and nothing else: no production line. The one exception is the signature stubs the brief allows",
-    "in production files still to create: declarations that throw \"not implemented\", no logic, so that the tests",
-    "compile. A test that fails on a missing symbol is red.",
+    ...TEST_AUTHOR_SYSTEM,
     NODE_READ_RULE,
     BOUNDED_READ_RULE,
     NODE_EDIT_RULE,
@@ -36,9 +34,7 @@ export const TEST_AUTHOR: RoleSpec = {
 export const IMPLEMENTER: RoleSpec = {
   name: "implementer",
   system: [
-    "You are the implementer of one step of a dev batch. You write the least production code that turns the red",
-    "tests of the brief green, then refactor and delete what that orphaned. Test files are read-only to you.",
-    "You end your answer with the step's Cost line.",
+    ...IMPLEMENTER_SYSTEM,
     NODE_READ_RULE,
     BOUNDED_READ_RULE,
     NODE_EDIT_RULE,

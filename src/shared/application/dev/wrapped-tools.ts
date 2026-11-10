@@ -14,6 +14,8 @@ import { buildCommandFor, coldTree, isRestore } from "../../domain/dev/build-com
 import { outputTail, runGuards, shellRuleGuard, stringArgument } from "../../domain/dev/tool-guards.ts";
 import { failedTests } from "../../domain/dev/test-output.ts";
 import type { Guard } from "../../domain/dev/tool-guards.ts";
+import { noRoleRestores } from "./prompts.ts";
+import { restoreNotRun } from "./messages.ts";
 
 export const RUN_TESTS_TIMEOUT_SECONDS = 600;
 export const RUN_BUILD_TIMEOUT_SECONDS = 900;
@@ -66,7 +68,7 @@ export function createWrappedTools(deps: { shell: Pick<Shell, "run">; files: Pic
   let runs = 0;
   let restoreTried = setup.restored === true; // the one restore of the step, whatever came of it
   const notRestore: Guard<string> = (command) =>
-    isRestore(command, setup.commands) ? `'${command}' restores: no role restores, the step did it once` : null;
+    isRestore(command, setup.commands) ? noRoleRestores(command) : null;
   const shellGuards: ReadonlyArray<Guard<string>> = [notRestore, shellRuleGuard(setup.rules)];
 
   async function writeLog(tool: string, text: string): Promise<string | null> {
@@ -125,7 +127,7 @@ export function createWrappedTools(deps: { shell: Pick<Shell, "run">; files: Pic
         const denied = shellRuleGuard(setup.rules)(restore);
         const restoring = denied === null ? await run(restore, RUN_BUILD_TIMEOUT_SECONDS) : denied;
         if (typeof restoring === "string") {
-          log.push(`restore not run: ${restoring}`);
+          log.push(restoreNotRun(restoring));
         } else {
           log.push(output(restore, restoring));
           if (restoring.exitCode === 0) {

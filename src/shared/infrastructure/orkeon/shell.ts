@@ -15,6 +15,7 @@ import { commandToVirtual, textToVirtual } from "../../domain/host-paths.ts";
 import { layoutOf } from "./host-context.ts";
 import { pick, shCode, shErr, shOut } from "./tool-results.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
+import { timeoutNotWholeSeconds } from "./messages.ts";
 
 export function createShell(tools: Pick<OrkeonTools, "shellCommand">, root?: string, host?: HostSource): Shell {
   const cwd = root ?? WORKSPACE;
@@ -24,7 +25,7 @@ export function createShell(tools: Pick<OrkeonTools, "shellCommand">, root?: str
       const command = textToRoot(commandToVirtual(logical, layout), root);
       const timeout = options?.timeoutSeconds;
       if (timeout !== undefined && !(Number.isInteger(timeout) && timeout >= 1)) {
-        throw new Error(`a shell timeout is a whole number of seconds, at least 1: ${timeout}`);
+        throw new Error(timeoutNotWholeSeconds(timeout));
       }
       const input = timeout === undefined
         ? { command, working_directory: cwd }

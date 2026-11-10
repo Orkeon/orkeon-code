@@ -3,6 +3,12 @@
 // template's columns (`| # | Severity | Question | Impact | Options |`), so spec-format.ts and the harness read
 // its severity as before; a decision row (`| # | Question | Answer | Date |`) records what was settled, in a section
 // of its own. Pure, no IO.
+import {
+  DECISIONS_HEADER, DECISIONS_HEADING, LEAVE_OPEN, OPEN_QUESTIONS_HEADER, OPEN_QUESTIONS_HEADING, RECOMMENDED_MARK,
+} from "./markers.ts";
+import {
+  impactOneLine, notAnOptionToList, optionCount, optionOneLine, questionOneLine, severityMustBe, twoOptionsSame,
+} from "./messages.ts";
 
 export type QuestionSeverity = "Blocking" | "Major";
 export const QUESTION_SEVERITIES: readonly QuestionSeverity[] = ["Blocking", "Major"];
@@ -12,11 +18,6 @@ export interface Question { id: string; severity: QuestionSeverity; question: st
 /** One settled question: the question as it was asked, the answer the person gave, the day. */
 export interface Decision { id: string; question: string; answer: string; date: string }
 
-export const OPEN_QUESTIONS_HEADER = ["| # | Severity | Question | Impact | Options |", "|---|---|---|---|---|"];
-export const DECISIONS_HEADER = ["| # | Question | Answer | Date |", "|---|---|---|---|"];
-/** The option a person picks to keep a question open; never written as an option of the file. */
-export const LEAVE_OPEN = "Leave it open";
-export const RECOMMENDED_MARK = " (recommended)";
 export const MAX_QUESTIONS = 12;
 export const MAX_OPTIONS = 4;
 const MAX_QUESTION_CHARS = 300;
@@ -102,9 +103,6 @@ function highest(ids: Iterable<string>): number {
   return max;
 }
 
-export const OPEN_QUESTIONS_HEADING = /^## .*Open questions/;
-export const DECISIONS_HEADING = /^## (\d+\. )?Decisions\s*$/;
-
 /** The open questions of a file, as written by questionRow or by hand: a row without a Q<n> id gets the next free
  *  one, a severity other than Blocking reads Major, a row without a question is skipped. */
 export function parseOpenQuestions(text: string, taken: Iterable<string> = []): Question[] {
@@ -147,24 +145,24 @@ export const QUESTION_SCHEMA: object = {
 /** What is wrong with question `k` of an answer: [] when it is one closed question fitting a row. */
 export function draftQuestionProblems(q: DraftQuestion, k: number): string[] {
   const problems: string[] = [];
-  if (!QUESTION_SEVERITIES.includes(q.severity as QuestionSeverity)) problems.push(`question ${k}: severity must be Blocking or Major`);
+  if (!QUESTION_SEVERITIES.includes(q.severity as QuestionSeverity)) problems.push(severityMustBe(k));
   const text = q.question.trim();
   if (text === "" || breaksCell(text) || text.length > MAX_QUESTION_CHARS || !text.endsWith("?")) {
-    problems.push(`question ${k}: one line of at most ${MAX_QUESTION_CHARS} characters ending with ?, no '|'`);
+    problems.push(questionOneLine(k, MAX_QUESTION_CHARS));
   }
-  if (breaksCell(q.impact) || q.impact.length > MAX_CELL_CHARS) problems.push(`question ${k}: the impact is one line, no '|'`);
+  if (breaksCell(q.impact) || q.impact.length > MAX_CELL_CHARS) problems.push(impactOneLine(k));
   if (q.options.length === 1 || q.options.length > MAX_OPTIONS) {
-    problems.push(`question ${k}: no option, or 2 to ${MAX_OPTIONS} options with the recommended one first`);
+    problems.push(optionCount(k, MAX_OPTIONS));
   }
   const seen = new Set<string>();
   for (const o of q.options) {
     const t = o.trim();
     if (t === "" || breaksCell(t) || t.includes(";") || t.length > MAX_OPTION_CHARS) {
-      problems.push(`question ${k}: an option is one line of at most ${MAX_OPTION_CHARS} characters, no ';' nor '|'`);
+      problems.push(optionOneLine(k, MAX_OPTION_CHARS));
       break;
     }
-    if (t.toLowerCase() === LEAVE_OPEN.toLowerCase()) { problems.push(`question ${k}: '${LEAVE_OPEN}' is not an option to list`); break; }
-    if (seen.has(t.toLowerCase())) { problems.push(`question ${k}: two options read the same`); break; }
+    if (t.toLowerCase() === LEAVE_OPEN.toLowerCase()) { problems.push(notAnOptionToList(k, LEAVE_OPEN)); break; }
+    if (seen.has(t.toLowerCase())) { problems.push(twoOptionsSame(k)); break; }
     seen.add(t.toLowerCase());
   }
   return problems;

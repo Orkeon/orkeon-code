@@ -4,24 +4,15 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok } from "node:assert";
 
 import {
-  COMPACT_BOUNDARY_MARKER,
-  MIN_COMPACTABLE,
-  buildCompactBoundaryMessage,
-  buildCompactedBuffer,
-  buildMemoryExtractionPrompt,
-  buildMemoryRecapMessage,
-  buildSnipNoticeMessage,
-  buildRestoredFileMessage,
-  buildSummaryPrompt,
-  buildTranscript,
-  countCompactBoundaries,
-  extractRecentFilePaths,
-  isCompactBoundary,
-  sanitizeExtractedMemories,
-  buildRestoredSkillMessage, buildRestoredStateMessage,
-  clipTranscript, extractSummary, SUMMARY_OPEN, SUMMARY_CLOSE, SUMMARY_MAX_WORDS, COMPACTED_HEADER, buildRestoredFileNotice,
-  MEMORY_EXTRACTION_SCHEMA,
+  MIN_COMPACTABLE, buildCompactBoundaryMessage, buildCompactedBuffer, buildMemoryExtractionPrompt,
+  buildMemoryRecapMessage, buildSnipNoticeMessage, buildRestoredFileMessage, buildSummaryPrompt, buildTranscript,
+  countCompactBoundaries, extractRecentFilePaths, isCompactBoundary, sanitizeExtractedMemories,
+  buildRestoredSkillMessage, buildRestoredStateMessage, clipTranscript, extractSummary, SUMMARY_MAX_WORDS,
+  buildRestoredFileNotice, MEMORY_EXTRACTION_SCHEMA,
 } from "../../../src/shared/domain/compaction.ts";
+import {
+  COMPACT_BOUNDARY_MARKER, SUMMARY_OPEN, SUMMARY_CLOSE, COMPACTED_HEADER,
+} from "../../../src/shared/domain/markers.ts";
 import { TRANSCRIPT_CAP_CHARS } from "../../../src/shared/domain/compaction-thresholds.ts";
 import { MAX_EXTRACTED_MEMORIES } from "../../../src/shared/domain/compaction-thresholds.ts";
 import {

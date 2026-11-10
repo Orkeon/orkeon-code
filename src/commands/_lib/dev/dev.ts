@@ -15,9 +15,10 @@ import type { BatchState, PlanBatch } from "../../../shared/domain/dev/plan-form
 import { lastVerdict, severityCounts } from "../../../shared/domain/dev/verdict-format.ts";
 import { readPlanSource, resolvePlanSource } from "../../../shared/application/dev/plan-source.ts";
 import { blockingStop } from "../../../shared/domain/dev/spec-format.ts";
+import { ACCEPT_NEEDS_ID, ACCEPT_REFUSE_ALONE, DEV_STATUS_USAGE, NOT_IN_THE_PLAN, NO_CODE_HERE, NO_SHEET, NO_VERDICT, REFUSED_MOTIF_TOO_LONG, REFUSE_NEEDS_TARGET, REPLACE_ONCE, devStatusCannotList, codesHere, holdsNoDevFile, learnUnknownOption, moreBatches, moreFoldersNotProbed, moreWarnings, noBatchLine, noCodeUnder, noFolder, notAProposalId, notAStatusCode, notAnAxis, oneAxisAtMost, oneSourceAtMost, packLine, planLine, planUnknownOption, sheetOpenTicks, validButOpen, warningLine, workFolderInMainWorktree, workFolderLine } from "./messages.ts";
+import { notASource as notACodeNorSource } from "../../../shared/application/dev/messages.ts";
 
 export type DevStatusDeps = DevContextDeps;
-export const DEV_STATUS_USAGE = "usage: /dev-status [<code>]";
 const MAX_BATCH_LINES = 20;
 export const MAX_WARNING_LINES = 5;
 export const MAX_LINE_CHARS = 160;
@@ -39,14 +40,14 @@ function cut(text: string, max: number): string {
 function contextLines(ctx: DevContext): string[] {
   const packShown = ctx.pack?.shown ?? null;
   return [
-    cut(`work folder: ${workFolderLabel(ctx.work, packShown)}`, MAX_LINE_CHARS),
-    cut(`pack: ${packShown ?? "none"}`, MAX_LINE_CHARS),
+    cut(workFolderLine(workFolderLabel(ctx.work, packShown)), MAX_LINE_CHARS),
+    cut(packLine(packShown ?? "none"), MAX_LINE_CHARS),
   ];
 }
 
 function warningLines(warnings: readonly string[], max: number): string[] {
-  const shown = warnings.slice(0, max).map((w) => cut(`warning: ${w}`, MAX_WARNING_CHARS));
-  if (warnings.length > max) shown.push(`… ${warnings.length - max} more warnings`);
+  const shown = warnings.slice(0, max).map((w) => cut(warningLine(w), MAX_WARNING_CHARS));
+  if (warnings.length > max) shown.push(moreWarnings(warnings.length - max));
   return shown;
 }
 
@@ -55,7 +56,7 @@ function refusal(ctx: DevContext, text: string): CommandView {
 }
 
 function stateText(batch: PlanBatch | undefined): string {
-  if (!batch) return "not in the plan";
+  if (!batch) return NOT_IN_THE_PLAN;
   const s: BatchState = batch.state;
   if (s.kind === "open") return "open";
   if (s.kind === "done") return `done ${s.date}`;
@@ -65,7 +66,7 @@ function stateText(batch: PlanBatch | undefined): string {
 function verdictText(code: DevCode, id: string): { text: string; valid: boolean } {
   let section = null;
   for (const v of code.verdicts) if (v.batch === id) section = lastVerdict(v.file) ?? section;
-  if (section === null || section.verdict === null) return { text: "no verdict", valid: false };
+  if (section === null || section.verdict === null) return { text: NO_VERDICT, valid: false };
   const head = [section.verdict, section.when, section.mode].filter((p) => p !== undefined && p !== "").join(" ");
   const counts = severityCounts(section);
   if (section.verdict === "VALID") {
@@ -104,14 +105,14 @@ function batchLines(code: DevCode): { ids: string[]; lines: string[]; warnings: 
       const n = p.behaviourSteps;
       parts.push(`sheet RED ${p.red}/${n} GREEN ${p.green}/${n} COST ${p.cost}/${n}`);
       if (batch?.state.kind === "done" && p.complete < n) {
-        warnings.push(`${id} is done in the plan but its sheet has open ticks (RED ${p.red}/${n})`);
+        warnings.push(sheetOpenTicks(id, p.red, n));
       }
     } else {
-      parts.push("no sheet");
+      parts.push(NO_SHEET);
     }
     const verdict = verdictText(code, id);
     parts.push(verdict.text);
-    if (verdict.valid && batch?.state.kind === "open") warnings.push(`${id} is VALID but the plan still says open`);
+    if (verdict.valid && batch?.state.kind === "open") warnings.push(validButOpen(id));
     const running = runningText(code, id);
     if (running !== null) parts.push(running);
     lines.push(cut(parts.join(" — "), MAX_LINE_CHARS));
@@ -119,7 +120,7 @@ function batchLines(code: DevCode): { ids: string[]; lines: string[]; warnings: 
   if (code.plan) {
     const planned = new Set(planBatches.map((b) => b.id));
     for (const f of [...code.sheets, ...code.verdicts]) {
-      if (!planned.has(f.batch)) warnings.push(`${f.name} has no batch line in the plan`);
+      if (!planned.has(f.batch)) warnings.push(noBatchLine(f.name));
     }
   }
   return { ids, lines, warnings };
@@ -132,7 +133,7 @@ function codeLine(code: DevCode): string {
     const p = code.plan.plan;
     const done = p.batches.filter((b) => b.state.kind === "done").length;
     const feature = p.feature === undefined ? "" : ` "${p.feature}"`;
-    plan = `plan ${code.plan.name}${feature} (${p.batches.length} batches, ${done} done)`;
+    plan = planLine(code.plan.name, feature, p.batches.length, done);
   }
   return cut(`code: ${code.shown}/ — ${what} — ${plan}`, MAX_LINE_CHARS);
 }
@@ -147,7 +148,7 @@ function renderDevStatus(ctx: DevContext, code: DevCode): string[] {
   const build = (maxBatches: number, maxWarnings: number): string[] => {
     const out = [...head, ...batches.lines.slice(0, maxBatches)];
     const hidden = batches.ids.slice(maxBatches);
-    if (hidden.length > 0) out.push(`… ${hidden.length} more batches (${hidden[0]} to ${hidden[hidden.length - 1]})`);
+    if (hidden.length > 0) out.push(moreBatches(hidden.length, hidden[0], hidden[hidden.length - 1]));
     return [...out, ...warningLines(warnings, maxWarnings)];
   };
   const full = build(MAX_BATCH_LINES, MAX_WARNING_LINES);
@@ -183,10 +184,10 @@ function codesLine(codes: readonly CodeSummary[]): string {
 function renderCodeList(ctx: DevContext, codes: readonly CodeSummary[], notProbed = 0): string[] {
   const lines = contextLines(ctx);
   if (codes.length === 0 && notProbed === 0) {
-    lines.push(`no code under ${ctx.work.folder}/ (a code is a folder holding SPEC-, CHANGE- or *-PLAN.md files)`);
+    lines.push(noCodeUnder(ctx.work.folder));
   } else {
     if (codes.length > 0) lines.push(codesLine(codes));
-    if (notProbed > 0) lines.push(`… ${notProbed} more folders not probed`);
+    if (notProbed > 0) lines.push(moreFoldersNotProbed(notProbed));
   }
   return [...lines, ...warningLines(ctx.warnings, MAX_WARNING_LINES)];
 }
@@ -197,11 +198,9 @@ export async function runDevStatus(tokens: readonly string[], deps: DevStatusDep
   const work = ctx.work;
   const code = tokens[0];
   if (code !== undefined && !isCode(code)) {
-    return refusal(ctx,
-      `dev-status: '${code}' is not a code: letters, digits, '.', '_' and '-', starting with a letter or a digit`);
+    return refusal(ctx, notAStatusCode(code));
   }
-  const mainWorktree =
-    `dev-status: the work folder ${work.folder} is in the main worktree, outside the mounts: run /dev-status from the main checkout`;
+  const mainWorktree = workFolderInMainWorktree(work.folder);
   if (work.outcome === "main-worktree") return refusal(ctx, mainWorktree);
 
   if (code === undefined) {
@@ -210,7 +209,7 @@ export async function runDevStatus(tokens: readonly string[], deps: DevStatusDep
       try {
         probe = await probeDevCodes(deps, work);
       } catch (e) {
-        return refusal(ctx, `dev-status: ${work.folder}/ cannot be listed (${messageOf(e).split("\n")[0]})`);
+        return refusal(ctx, devStatusCannotList(work.folder, messageOf(e).split("\n")[0]));
       }
     }
     return { lines: renderCodeList(ctx, probe.codes, probe.notProbed) };
@@ -220,10 +219,10 @@ export async function runDevStatus(tokens: readonly string[], deps: DevStatusDep
   if (lookup.found !== null) return { lines: renderDevStatus(ctx, lookup.found) };
   if (lookup.reason === "unreachable") return refusal(ctx, mainWorktree);
   if (lookup.reason === "empty") {
-    return refusal(ctx, `dev-status: ${work.folder}/${code}/ holds no SPEC-, CHANGE- or *-PLAN.md file`);
+    return refusal(ctx, holdsNoDevFile(work.folder, code));
   }
-  const here = lookup.codes.length > 0 ? `codes here: ${lookup.codes.join(", ")}` : "no code here";
-  return refusal(ctx, `dev-status: no folder ${work.folder}/${code}/ (${here})`);
+  const here = lookup.codes.length > 0 ? codesHere(lookup.codes.join(", ")) : NO_CODE_HERE;
+  return refusal(ctx, noFolder(work.folder, code, here));
 }
 
 // /dev-learn: the arguments, and the two decisions (--accept, --refuse). Proposing and
@@ -231,7 +230,6 @@ export async function runDevStatus(tokens: readonly string[], deps: DevStatusDep
 // reads and one or two writes, answered by the command itself through
 // shared/application/dev/learn-decision.ts (re-exported here). Nothing there edits the
 // file a proposal names: --accept prints the change to make.
-export const DEV_LEARN_USAGE = "usage: /dev-learn [<axis>] [--list] | --accept <id>[,<id>…] | --refuse <id | motif text>";
 export type DevLearnArgs =
   | { kind: "propose"; axis: string | null }
   | { kind: "list"; axis: string | null }
@@ -240,7 +238,7 @@ export type DevLearnArgs =
 
 const MAX_AXIS_CHARS = 40;
 const MAX_REFUSED_CHARS = 200;
-const ALONE = "dev-learn: --accept and --refuse each come alone";
+const ALONE = ACCEPT_REFUSE_ALONE;
 
 type DevLearnParse = { ok: true; args: DevLearnArgs } | { ok: false; text: string };
 
@@ -252,12 +250,12 @@ function parseAcceptIds(rest: readonly string[]): DevLearnParse {
       if (piece === "") continue;
       const id = piece.toLowerCase();
       if (!PROPOSAL_ID.test(id)) {
-        return { ok: false, text: `dev-learn: '${piece}' is not a proposal id (8 or 10 hex digits, from PROPOSALS.md)` };
+        return { ok: false, text: notAProposalId(piece) };
       }
       ids.push(id);
     }
   }
-  if (ids.length === 0) return { ok: false, text: "dev-learn: --accept needs at least one proposal id, e.g. --accept 3f2a9c1e" };
+  if (ids.length === 0) return { ok: false, text: ACCEPT_NEEDS_ID };
   return { ok: true, args: { kind: "accept", ids } };
 }
 
@@ -266,8 +264,8 @@ function parseRefuseTarget(rest: readonly string[]): DevLearnParse {
   const joined = rest.join(" ").trim();
   // An id is read as one whatever its case, as --accept reads it; the motif's words keep theirs.
   const target = PROPOSAL_ID.test(joined.toLowerCase()) ? joined.toLowerCase() : joined;
-  if (target === "") return { ok: false, text: "dev-learn: --refuse needs a proposal id or the motif's words" };
-  if (Array.from(target).length > MAX_REFUSED_CHARS) return { ok: false, text: "dev-learn: a refused motif is at most 200 characters" };
+  if (target === "") return { ok: false, text: REFUSE_NEEDS_TARGET };
+  if (Array.from(target).length > MAX_REFUSED_CHARS) return { ok: false, text: REFUSED_MOTIF_TOO_LONG };
   return { ok: true, args: { kind: "refuse", target } };
 }
 
@@ -284,11 +282,11 @@ export function parseDevLearnArgs(tokens: readonly string[]): DevLearnParse {
     if (tok === "--list") {
       list = true;
     } else if (tok.startsWith("--")) {
-      return { ok: false, text: `dev-learn: unknown option '${tok}' (--list, --accept, --refuse)` };
+      return { ok: false, text: learnUnknownOption(tok) };
     } else if (axis !== null) {
-      return { ok: false, text: `dev-learn: one axis at most, not '${axis}' and '${tok}'` };
+      return { ok: false, text: oneAxisAtMost(axis, tok) };
     } else if (tok.includes("|") || /[\r\n]/.test(tok) || Array.from(tok).length > MAX_AXIS_CHARS) {
-      return { ok: false, text: `dev-learn: '${tok}' is not an axis` };
+      return { ok: false, text: notAnAxis(tok) };
     } else {
       axis = tok;
     }
@@ -297,7 +295,6 @@ export function parseDevLearnArgs(tokens: readonly string[]): DevLearnParse {
 }
 
 // files and the review run in crews/dev-plan, which runs the same gate again.
-export const DEV_PLAN_USAGE = "usage: /dev-plan [<code> | <path>/SPEC-<code>.md | <path>/CHANGE-<code>.md] [--replace]";
 export interface DevPlanArgs { source: string | null; replace: boolean }
 export type DevPlanGateDeps = DevContextDeps;
 
@@ -312,15 +309,15 @@ export function parseDevPlanArgs(tokens: readonly string[]): { ok: true; args: D
   let replace = false;
   for (const tok of tokens) {
     if (tok === "--replace") {
-      if (replace) return { ok: false, text: "dev-plan: --replace once at most" };
+      if (replace) return { ok: false, text: REPLACE_ONCE };
       replace = true;
     } else if (tok.startsWith("--")) {
-      return { ok: false, text: `dev-plan: unknown option '${tok}' (only --replace)` };
+      return { ok: false, text: planUnknownOption(tok) };
     } else if (isCode(tok) || isSourcePath(tok)) {
-      if (source !== null) return { ok: false, text: `dev-plan: one source at most, not '${source}' and '${tok}'` };
+      if (source !== null) return { ok: false, text: oneSourceAtMost(source, tok) };
       source = tok;
     } else {
-      return { ok: false, text: `dev-plan: '${tok}' is neither a code nor a SPEC-<code>.md / CHANGE-<code>.md path` };
+      return { ok: false, text: notACodeNorSource(tok) };
     }
   }
   return { ok: true, args: { source, replace } };

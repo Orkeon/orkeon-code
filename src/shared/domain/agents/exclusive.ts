@@ -5,6 +5,7 @@
 // ended: completed, failed, or stopped at its next cooperative checkpoint after a cancel (Orkeon #266), so a relaunch
 // right after a cancel may still be refused. A command reads the crew and the ticket off the refusal through
 // exclusiveRefusal and shows exclusiveLine, rather than failing on an unexplained throw. Pure.
+import { alreadyRunning } from "./messages.ts";
 
 const REFUSAL = /crew '([^']+)' already running \(ticket ([^\s)]+)\)/i;
 
@@ -20,5 +21,5 @@ export function exclusiveRefusal(error: unknown): ExclusiveRefusal | null {
 
 /** The line a command shows for a crew refused because it already runs. */
 export function exclusiveLine(refusal: ExclusiveRefusal): string {
-  return `${refusal.crew} not launched: it is already running (ticket ${refusal.ticket}); wait for its result, then type the line again.`;
+  return alreadyRunning(refusal.crew, refusal.ticket);
 }

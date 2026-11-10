@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 import { memoryGuardCallbacks } from "../../../../src/shared/application/dev/tool-callbacks.ts";
 import { createToolTrace, tracedCallbacks } from "../../../../src/shared/application/dev/tool-trace-recorder.ts";
-import { TOOL_TRACE_MARKER } from "../../../../src/shared/domain/tool-trace.ts";
+import { TOOL_TRACE_MARKER } from "../../../../src/shared/domain/markers.ts";
 
 describe("tracedCallbacks", () => {
   it("records each result the act hands back", async () => {

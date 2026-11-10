@@ -4,6 +4,8 @@
 import type { Files } from "../../../shared/application/ports.ts";
 import { classifyArtefact, isCode } from "../../../shared/domain/dev/artefacts.ts";
 import { WORKSPACE, workspaceRelative } from "../../../shared/domain/vfs.ts";
+import { noSheetBeside, noSheetUnder, planHoldsNoSheet, severalSheets } from "./messages.ts";
+import { neitherCodeNorPlan } from "../../../shared/application/dev/messages.ts";
 
 const ENTRIES_PROBED = 50;
 const LIST_CAP = 500;
@@ -42,7 +44,7 @@ async function sheetsIn(files: Pick<Files, "list">, dir: string, batch: string):
 }
 
 function several(batch: string, sheets: readonly LocatedSheet[]): string {
-  return `several sheets for ${batch}: ${sheets.map((s) => `${s.dir}/${s.name}`).join(", ")}: name the plan, e.g. /dev-batches <code> ${batch}`;
+  return severalSheets(batch, sheets.map((s) => `${s.dir}/${s.name}`).join(", "));
 }
 
 /** The sheet, or why none is found. */
@@ -54,17 +56,17 @@ export async function locateSheet(
     for (const entry of (await listOrEmpty(files, `${WORKSPACE}/${work}`)).slice(0, ENTRIES_PROBED)) {
       found.push(...(await sheetsIn(files, `${work}/${entry}`, batch)));
     }
-    if (found.length === 0) return `no ${work}/*/*-PLAN-${batch}.md: name the plan, e.g. /dev-batches <code> ${batch}`;
+    if (found.length === 0) return noSheetUnder(work, batch);
     return found.length === 1 ? found[0] : several(batch, found);
   }
   if (isCode(plan)) {
     const found = await sheetsIn(files, `${work}/${plan}`, batch);
-    if (found.length === 0) return `${work}/${plan}/ holds no *-PLAN-${batch}.md`;
+    if (found.length === 0) return planHoldsNoSheet(`${work}/${plan}`, batch);
     if (found.length === 1) return found[0];
     const named = found.filter((s) => s.prefix === plan.toUpperCase());
     return named.length === 1 ? named[0] : several(batch, found);
   }
-  const neither = `'${plan}' is neither a code nor a <CODE>-PLAN.md path`;
+  const neither = neitherCodeNorPlan(plan);
   const relative = workspaceRelative(plan);
   const slash = relative.lastIndexOf("/");
   if (relative.startsWith("/") || relative.split("/").includes("..") || slash <= 0) return neither;
@@ -74,7 +76,7 @@ export async function locateSheet(
   try {
     await files.read(`${WORKSPACE}/${sheet.dir}/${sheet.name}`, 1);
   } catch {
-    return `no ${sheet.dir}/${sheet.name} beside ${relative}`;
+    return noSheetBeside(`${sheet.dir}/${sheet.name}`, relative);
   }
   return sheet;
 }

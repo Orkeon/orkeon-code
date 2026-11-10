@@ -6,6 +6,11 @@
 //
 // Run tests: node --test src/crews/_probe-shared-memory/domain/probe-verdict.test.ts
 
+import {
+  GOLDEN_NO_CASE, goldenKeyMissing, inlineListExpected, keptNoneSuperseded, notCaseField, notTopLevelKey,
+  PROBE_TABLE_HEADER, rendersNoBlock, supersededNeverKept, unknownCaseKey,
+} from "./messages.ts";
+
 export const RECALL_AT_5_MIN = 0.85;
 export const MRR_MIN = 0.7;
 export const EVAL_K = 5;
@@ -27,7 +32,7 @@ function scalar(raw: string): string {
 
 function list(raw: string, where: string): string[] {
   const text = raw.trim();
-  if (!text.startsWith("[") || !text.endsWith("]")) throw new Error(`${where}: an inline list [a, b] is expected`);
+  if (!text.startsWith("[") || !text.endsWith("]")) throw new Error(inlineListExpected(where));
   const inner = text.slice(1, -1).trim();
   return inner === "" ? [] : inner.split(",").map((item) => scalar(item)).filter((item) => item !== "");
 }
@@ -48,7 +53,7 @@ export function parseGolden(text: string): Golden {
     if (line.trim() === "" || line.trim().startsWith("#")) return;
     if (!inCases) {
       const m = /^([a-z_]+):(?: (.*))?$/.exec(line);
-      if (!m) throw new Error(`${where}: not a top-level key: value`);
+      if (!m) throw new Error(notTopLevelKey(where));
       if (m[1] === "cases" && (m[2] ?? "").trim() === "") { inCases = true; return; }
       top[m[1]] = scalar(m[2] ?? "");
       return;
@@ -60,17 +65,17 @@ export function parseGolden(text: string): Golden {
       return;
     }
     const field = /^ {4}([a-z_]+): (.*)$/.exec(line);
-    if (!field || current === null) throw new Error(`${where}: not a case field`);
+    if (!field || current === null) throw new Error(notCaseField(where));
     const c: GoldenCase = current;
     if (field[1] === "question") c.question = scalar(field[2]);
     else if (field[1] === "relevant") c.relevant = list(field[2], where);
     else if (field[1] === "tags") c.tags = list(field[2], where);
-    else throw new Error(`${where}: unknown case key '${field[1]}'`);
+    else throw new Error(unknownCaseKey(where, field[1]));
   });
   for (const key of ["name", "corpus", "collection"]) {
-    if ((top[key] ?? "") === "") throw new Error(`golden: '${key}' is missing`);
+    if ((top[key] ?? "") === "") throw new Error(goldenKeyMissing(key));
   }
-  if (cases.length === 0) throw new Error("golden: no case");
+  if (cases.length === 0) throw new Error(GOLDEN_NO_CASE);
   return { name: top.name, corpus: top.corpus, collection: top.collection, cases };
 }
 
@@ -148,22 +153,22 @@ export function probeRows(facts: ProbeFacts): ProbeRow[] {
   ];
   const s = facts.supersession;
   if ("error" in s) {
-    rows.push({ check: `${SUPERSESSION_CASE} superseded id never kept`, value: `error: ${s.error}`, threshold: "none kept", pass: false });
+    rows.push({ check: supersededNeverKept(SUPERSESSION_CASE), value: `error: ${s.error}`, threshold: "none kept", pass: false });
   } else {
     const kept = s.recalled.filter((id) => s.superseded.includes(id));
     rows.push({
-      check: `${SUPERSESSION_CASE} superseded id never kept`,
-      value: kept.length > 0 ? `kept ${kept.join(" ")}` : `kept ${s.recalled.length}, none superseded`,
+      check: supersededNeverKept(SUPERSESSION_CASE),
+      value: kept.length > 0 ? `kept ${kept.join(" ")}` : keptNoneSuperseded(s.recalled.length),
       threshold: "none kept",
       pass: s.superseded.length > 0 && kept.length === 0,
     });
   }
   const n = facts.negative;
   if ("error" in n) {
-    rows.push({ check: `${NEGATIVE_CASE} renders no block`, value: `error: ${n.error}`, threshold: "no block", pass: false });
+    rows.push({ check: rendersNoBlock(NEGATIVE_CASE), value: `error: ${n.error}`, threshold: "no block", pass: false });
   } else {
     rows.push({
-      check: `${NEGATIVE_CASE} renders no block`,
+      check: rendersNoBlock(NEGATIVE_CASE),
       value: n.block === "" ? "no block" : `block of ${n.recalled.length} (${n.recalled.join(" ")})`,
       threshold: "no block",
       pass: n.block === "",
@@ -176,7 +181,7 @@ export const VERDICT_PREFIX = "shared-memory probe:";
 
 /** The rows as a Markdown table, then one verdict line `shared-memory probe: PASS|FAIL`. */
 export function renderProbeTable(rows: readonly ProbeRow[]): string {
-  const lines = ["| Check | Value | Threshold | Result |", "|---|---|---|---|"];
+  const lines = [PROBE_TABLE_HEADER, "|---|---|---|---|"];
   for (const r of rows) lines.push(`| ${r.check} | ${r.value} | ${r.threshold} | ${r.pass ? "PASS" : "FAIL"} |`);
   lines.push("", `${VERDICT_PREFIX} ${rows.length > 0 && rows.every((r) => r.pass) ? "PASS" : "FAIL"}`);
   return lines.join("\n");

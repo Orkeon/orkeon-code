@@ -6,9 +6,11 @@ import { runSubAgent } from "../agents/run-sub-agent.ts";
 import { REVIEWER_CHARTER } from "../../domain/dev/reviewer-charter.ts";
 import { REVIEW_ANSWER_SCHEMA, checkReviewAnswer } from "../../domain/dev/review-answer.ts";
 import type { ReviewAnswer } from "../../domain/dev/review-answer.ts";
-import { buildReviewAnswerPrompt, buildReviewBrief, reviewSystem } from "../../domain/dev/review-prompt.ts";
+import { reviewSystem } from "../../domain/dev/prompts.ts";
+import { buildReviewAnswerPrompt, buildReviewBrief } from "../../domain/dev/review-brief.ts";
 import { numberQuestions, reviewDrafts, withQuestionSections } from "../../domain/dev/questions.ts";
 import type { RoundState } from "./question-round.ts";
+import { addedAsOpenQuestions, reviewCounts, reviewNotRun } from "./messages.ts";
 
 export interface SourceReviewRequest {
   mode: "spec" | "change";
@@ -54,10 +56,10 @@ export async function reviewSource(
 }
 
 export function reviewLine(outcome: SourceReviewOutcome): string {
-  if (!outcome.ran) return `review: not run (${outcome.reason})`;
+  if (!outcome.ran) return reviewNotRun(outcome.reason);
   const rows = outcome.review.rows;
   if (rows.length === 0) return `review: ${outcome.review.verdict}`;
   const blocking = rows.filter((r) => r.severity === "Blocking").length;
-  const kept = outcome.added.length === rows.length ? "" : `, ${outcome.added.length} added as open questions`;
-  return `review: ${outcome.review.verdict} — ${blocking} Blocking, ${rows.length - blocking} Major${kept}`;
+  const kept = outcome.added.length === rows.length ? "" : addedAsOpenQuestions(outcome.added.length);
+  return reviewCounts(outcome.review.verdict, blocking, rows.length - blocking, kept);
 }

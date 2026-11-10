@@ -5,7 +5,8 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
-import { NO_SWITCH, SHOWN_SESSIONS, chooseSaved, runResume } from "../../../../src/commands/_lib/session/resume.ts";
+import { SHOWN_SESSIONS, chooseSaved, runResume } from "../../../../src/commands/_lib/session/resume.ts";
+import { NO_SWITCH } from "../../../../src/commands/_lib/session/messages.ts";
 import { LOADED_SESSION_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
 import {
   ARCHIVE,

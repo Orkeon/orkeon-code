@@ -11,6 +11,7 @@
 import { parseStoredRule, ruleDecision } from "../agent-policy/permission.ts";
 import type { PermissionRule } from "../agent-policy/permission.ts";
 import { isPermissionMode } from "../permission-modes.ts";
+import { asksFirstNotAsked, denyRuleCovers, dontAskNeedsAllow, modeDoesNotRun } from "./messages.ts";
 
 /** The tool, and the action of its call. */
 export const GITHUB_TOOL = "github";
@@ -62,17 +63,16 @@ export function pullRequestPermission(req: {
   args: Readonly<Record<string, unknown>>;
 }): PrPermission {
   if (!isPermissionMode(req.mode) || req.mode === "plan") {
-    return { ok: false, reason: `mode '${req.mode}' does not run ${GITHUB_TOOL}` };
+    return { ok: false, reason: modeDoesNotRun(req.mode, GITHUB_TOOL) };
   }
   const rule = ruleDecision(req.rules, GITHUB_TOOL, req.args);
-  if (rule === "deny") return { ok: false, reason: `a deny rule of /permissions covers ${GITHUB_TOOL} ${GITHUB_CREATE_PR}` };
+  if (rule === "deny") return { ok: false, reason: denyRuleCovers(GITHUB_TOOL, GITHUB_CREATE_PR) };
   if (rule === "allow") return { ok: true };
-  if (req.mode === "dontAsk") return { ok: false, reason: `mode 'dontAsk' runs ${GITHUB_TOOL} only under an allow rule` };
+  if (req.mode === "dontAsk") return { ok: false, reason: dontAskNeedsAllow(GITHUB_TOOL) };
   if (req.mode === "bypassPermissions" || req.asked) return { ok: true };
   return {
     ok: false,
-    reason: `${GITHUB_TOOL} asks first in mode '${req.mode}' and this run did not ask: ` +
-      `'/permissions add ${GITHUB_ALLOW_RULE}' lets it open the pull request`,
+    reason: asksFirstNotAsked(GITHUB_TOOL, req.mode, GITHUB_ALLOW_RULE),
   };
 }
 

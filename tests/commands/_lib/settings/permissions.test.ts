@@ -7,7 +7,7 @@
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok } from "node:assert";
 
-import { PERMISSIONS_USAGE } from "../../../../src/commands/_lib/settings/permissions.ts";
+import { PERMISSIONS_USAGE } from "../../../../src/commands/_lib/settings/messages.ts";
 import { CONFIG_FILE_PATH, USER_CONFIG_FILE_PATH } from "../../../../src/shared/application/config-store.ts";
 import { MEMORY_TOOLS, RULEABLE_TOOLS, scriptToolAccess, toolsetFor } from "../../../../src/shared/domain/agent-policy/permission.ts";
 import { RULE_SETS } from "../../../../src/shared/domain/agent-policy/rule-sets.ts";

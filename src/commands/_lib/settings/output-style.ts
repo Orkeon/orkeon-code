@@ -7,6 +7,7 @@ import { OUTPUT_STYLES, isOutputStyle } from "../../../shared/domain/agent-polic
 import { OUTPUT_STYLE_STATE_KEY } from "../../../shared/domain/session-keys.ts";
 import type { CommandView } from "../view.ts";
 import { optionsOf } from "./choices.ts";
+import { OUTPUT_STYLE_CHOICE, OUTPUT_STYLE_UNCHANGED, outputStyleSet, outputStyleShown, unknownStyle } from "./messages.ts";
 
 export interface OutputStyleDeps {
   session: Pick<SessionIo, "readState" | "writeState">;
@@ -22,26 +23,17 @@ export async function runOutputStyle(tokens: string[], deps: OutputStyleDeps): P
 
   if (!requested && deps.chooser?.interactive) {
     const answer = await deps.chooser.choose({
-      message: "Answer style for this session",
+      message: OUTPUT_STYLE_CHOICE,
       options: optionsOf(OUTPUT_STYLES, current),
     });
-    return answer ? runOutputStyle([answer.value], { session: deps.session }) : { text: "output style unchanged." };
+    return answer ? runOutputStyle([answer.value], { session: deps.session }) : { text: OUTPUT_STYLE_UNCHANGED };
   }
   if (!requested || requested === "show") {
-    return {
-      text: `output style: ${current}\n` +
-        `usage: /output-style [<${OUTPUT_STYLES.join("|")}>|show]\n` +
-        (current === "default"
-          ? "the default adds no block to the prompt — an unconfigured session is byte-identical to before B-7."
-          : "the style is injected as a <system-reminder> below the cache boundary, so it never breaks the prefix cache."),
-    };
+    return { text: outputStyleShown(current, OUTPUT_STYLES) };
   }
   if (!isOutputStyle(requested)) {
-    return { text: `unknown style '${requested}' — expected one of: ${OUTPUT_STYLES.join(", ")}, show.` };
+    return { text: unknownStyle(requested, OUTPUT_STYLES) };
   }
   await deps.session.writeState(OUTPUT_STYLE_STATE_KEY, requested);
-  return {
-    text: `output style set to '${requested}' — it applies from the next /assistant turn ` +
-      "(/clear restores 'default').",
-  };
+  return { text: outputStyleSet(requested) };
 }

@@ -2,24 +2,10 @@
 // what exists instead of guessing a module's name and reading it. The list is git's (tracked and untracked files
 // alike, the ignored ones aside), the work folder and `.orkeon/` left out, bounded; its closing line says whether it
 // is whole (a name absent from it does not exist) or cut (glob with a pattern decides past the cut). Pure.
+import { PROJECT_FILES_HEADING, PROJECT_FILES_WHOLE_LINE, projectFilesCutLine } from "./prompts/brief-blocks.ts";
 
 /** The most files a brief lists; past it the count left out is said, and glob with a pattern finds the rest. */
 export const MAX_LISTED_FILES = 150;
-
-export const PROJECT_FILES_HEADING = "Project files (tracked and untracked, the work folder and .orkeon/ left out):";
-
-/** The closing line of a whole list. */
-export const PROJECT_FILES_WHOLE_LINE = "- (the list is whole: a name absent from it does not exist)";
-
-/** What a reader makes of the list, said only to an agent whose brief carries it: the closing line decides. */
-export const PROJECT_LIST_RULE =
-  "When the brief lists the project's files, its last line says whether the list is whole: when it is, a name absent " +
-  "from it does not exist; past a cut, glob with a pattern decides. Never open a name you guessed, nor a folder.";
-
-/** The closing line of a list cut at its bound, `left` files left out. */
-export function projectFilesCutLine(left: number): string {
-  return `- … and ${left} more: a name absent above may still exist; glob with a pattern lists them`;
-}
 
 /** git's listing (one path per line) as a sorted list without duplicates, the work folder and .orkeon/ left out. */
 export function parseTrackedFiles(stdout: string, work: string): string[] {

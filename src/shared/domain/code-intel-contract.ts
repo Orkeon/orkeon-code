@@ -18,6 +18,7 @@
 // So the readers live here, one per tool, with the field names pinned by tests
 // against payloads captured from that live run. If the framework renames a field,
 // a test fails instead of a probe quietly reporting zero.
+import { CACHE_BYPASSED, CACHE_HIT, CACHE_MISS, cacheRefreshed } from "./messages.ts";
 
 /** The eleven tools the main-loop catalogue grants for code intelligence.
  *  The first five were pinned 2026-08-05; the analysis five (dependency_graph,
@@ -130,10 +131,10 @@ export function readIndexSummary(raw: any): IndexSummary {
 export function indexCacheNote(idx: IndexSummary): string {
   switch (idx.cache) {
     case undefined: return "";
-    case "hit": return "cache hit: the index an earlier session saved, no file changed";
-    case "refreshed": return `cache refreshed: ${idx.reindexed ?? 0} changed file(s) reindexed`;
-    case "miss": return "cache miss: built, then saved";
-    case "bypassed": return "cache bypassed: rebuilt, then saved";
+    case "hit": return CACHE_HIT;
+    case "refreshed": return cacheRefreshed(idx.reindexed ?? 0);
+    case "miss": return CACHE_MISS;
+    case "bypassed": return CACHE_BYPASSED;
     default: return `cache ${idx.cache}`;
   }
 }

@@ -4,6 +4,7 @@
 
 import type { Files, Llm, Logger } from "../../../shared/application/ports.ts";
 import { readVerifierFacts, detectReadiness, authorVerifiers } from "./authoring.ts";
+import { authoredVerifiers, noVerifierGaps } from "./messages.ts";
 
 export interface InitVerifiersDeps {
   files: Files;
@@ -18,8 +19,8 @@ export async function runInitVerifiers(deps: InitVerifiersDeps): Promise<string>
 
   const zones: string[] = readiness?.zonesNeedingVerifier ?? [];
   if (zones.length === 0) {
-    return `No verifier gaps detected (types: ${(readiness?.appTypes ?? []).join(", ") || "unknown"}).`;
+    return noVerifierGaps((readiness?.appTypes ?? []).join(", ") || "unknown");
   }
   const written = await authorVerifiers(llm, zones, files, { material: facts.material, readiness });
-  return `✓ authored ${written} verifier skill(s) under /output/verifiers/ (zones: ${zones.join(", ")})`;
+  return authoredVerifiers(written, zones.join(", "));
 }

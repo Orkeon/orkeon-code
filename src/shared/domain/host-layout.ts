@@ -3,6 +3,10 @@
 // VFS mount, in the spellings the launcher knows. The code never learns these bases from the runtime, which hides
 // them (list_mounts answers virtual paths only): the launcher is the one holder. Without the file, or with one it
 // cannot read, the layout is IDENTITY_HOST and every conversion of host-paths.ts is the identity. Pure.
+import {
+  LAUNCH_MOUNTS_NOT_AN_OBJECT, LAUNCH_NOT_AN_OBJECT, launchFlavourIsNot, launchVersionIsNot, mountHasNoBases,
+  mountNoUsableBase, noMountBase, notAMountPoint, posixBaseNotAbsolute, windowsBaseNotADrive, wslWhere,
+} from "./messages.ts";
 
 export type HostFlavour = "posix" | "wsl" | "windows";
 
@@ -43,14 +47,14 @@ const FLAVOURS: readonly HostFlavour[] = ["posix", "wsl", "windows"];
 export function parseHostLayout(raw: unknown): { layout: HostLayout; problems: string[] } {
   const problems: string[] = [];
   if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
-    return { layout: IDENTITY_HOST, problems: ["launch.json is not an object"] };
+    return { layout: IDENTITY_HOST, problems: [LAUNCH_NOT_AN_OBJECT] };
   }
   const o = raw as Record<string, unknown>;
   if (o.version !== HOST_LAYOUT_VERSION) {
-    return { layout: IDENTITY_HOST, problems: [`launch.json version ${String(o.version)} is not ${HOST_LAYOUT_VERSION}`] };
+    return { layout: IDENTITY_HOST, problems: [launchVersionIsNot(String(o.version), HOST_LAYOUT_VERSION)] };
   }
   if (typeof o.flavour !== "string" || !FLAVOURS.includes(o.flavour as HostFlavour)) {
-    return { layout: IDENTITY_HOST, problems: [`launch.json flavour '${String(o.flavour)}' is not posix, wsl or windows`] };
+    return { layout: IDENTITY_HOST, problems: [launchFlavourIsNot(String(o.flavour))] };
   }
   const flavour = o.flavour as HostFlavour;
   const wsl = flavour === "wsl" && o.wsl !== null && typeof o.wsl === "object" ? (o.wsl as Record<string, unknown>) : {};
@@ -60,7 +64,7 @@ export function parseHostLayout(raw: unknown): { layout: HostLayout; problems: s
     : "/mnt";
   const mounts: MountBase[] = [];
   const plain = o.mounts !== null && typeof o.mounts === "object" && !Array.isArray(o.mounts);
-  if (o.mounts !== undefined && !plain) problems.push("launch.json mounts is not an object");
+  if (o.mounts !== undefined && !plain) problems.push(LAUNCH_MOUNTS_NOT_AN_OBJECT);
   const entries = plain ? Object.entries(o.mounts as Record<string, unknown>) : [];
   for (const [virtual, bases] of entries) {
     const mount = parseMount(virtual, bases, automountRoot, problems);
@@ -71,20 +75,20 @@ export function parseHostLayout(raw: unknown): { layout: HostLayout; problems: s
 
 function parseMount(virtual: string, bases: unknown, automountRoot: string, problems: string[]): MountBase | null {
   if (!/^\/[^/\\]+$/.test(virtual)) {
-    problems.push(`launch.json mount '${virtual}' is not a mount point`);
+    problems.push(notAMountPoint(virtual));
     return null;
   }
   if (bases === null || typeof bases !== "object" || Array.isArray(bases)) {
-    problems.push(`launch.json mount '${virtual}' has no bases`);
+    problems.push(mountHasNoBases(virtual));
     return null;
   }
   const b = bases as Record<string, unknown>;
   const posix = typeof b.posix === "string" ? normalisePosixBase(b.posix, automountRoot) : undefined;
   const windows = typeof b.windows === "string" ? normaliseWindowsBase(b.windows) : undefined;
-  if (typeof b.posix === "string" && posix === undefined) problems.push(`launch.json mount '${virtual}': posix base '${b.posix}' is not an absolute path`);
-  if (typeof b.windows === "string" && windows === undefined) problems.push(`launch.json mount '${virtual}': windows base '${b.windows}' is not a drive or UNC path`);
+  if (typeof b.posix === "string" && posix === undefined) problems.push(posixBaseNotAbsolute(virtual, b.posix));
+  if (typeof b.windows === "string" && windows === undefined) problems.push(windowsBaseNotADrive(virtual, b.windows));
   if (posix === undefined && windows === undefined) {
-    if (typeof b.posix !== "string" && typeof b.windows !== "string") problems.push(`launch.json mount '${virtual}' has no usable base`);
+    if (typeof b.posix !== "string" && typeof b.windows !== "string") problems.push(mountNoUsableBase(virtual));
     return null;
   }
   return { virtual, ...(posix === undefined ? {} : { posix }), ...(windows === undefined ? {} : { windows }) };
@@ -131,9 +135,9 @@ export function isIdentityHost(layout: HostLayout): boolean {
  *  with its base as the host spells it, the Windows spelling in parentheses under WSL when the launcher knew it. */
 export function describeHostLayout(layout: HostLayout): string {
   const where = layout.flavour === "wsl"
-    ? `wsl (${layout.distro ?? "distribution unknown"}, drives under ${layout.automountRoot})`
+    ? wslWhere(layout.distro ?? "distribution unknown", layout.automountRoot)
     : layout.flavour;
-  if (layout.mounts.length === 0) return `${where}, no mount base: every path as the runtime spells it`;
+  if (layout.mounts.length === 0) return noMountBase(where);
   const bases = layout.mounts.map((m) => {
     const base = layout.flavour === "windows" ? (m.windows ?? m.posix) : (m.posix ?? m.windows);
     const other = layout.flavour === "wsl" && m.posix !== undefined && m.windows !== undefined ? ` (${m.windows})` : "";

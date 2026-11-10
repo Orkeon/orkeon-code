@@ -23,9 +23,12 @@ import { errorText } from "../../shared/domain/prelude.ts";
 import type { EpilogueCall, PreludeCall } from "../../shared/domain/prelude.ts";
 import type { StartOutput } from "../../shared/domain/session-start.ts";
 import { SPEAK_TOOL, VOICE_REPLY_CONFIG_KEY, voiceReplyEpilogue, voiceReplyOn } from "../../shared/domain/speech.ts";
+import { EXTRA_TOOLS_CONFIG_KEY, formatExtraTool } from "../../shared/domain/agent-policy/extra-tools.ts";
+import { EXTRA_TOOL_ENTRY_RULE } from "../../shared/domain/agent-policy/messages.ts";
 import {
-  EXTRA_TOOLS_CONFIG_KEY, EXTRA_TOOL_ENTRY_RULE, formatExtraTool,
-} from "../../shared/domain/agent-policy/extra-tools.ts";
+  extraToolIgnored, extraToolMissing, extraToolsUnreadable, invalidPermissionEntries, NO_SESSION_RULES, ruleDormant,
+  ruleOverridden, voiceReplyNoSpeakTool, voiceReplyUnreadable,
+} from "./messages.ts";
 
 /** The command's log as the runtime hands it to a command: a line and its details. */
 export interface CommandLog {
@@ -143,33 +146,20 @@ export async function launchMainLoop(
   const permissionMode = resolved ? resolved.mode : input.permissionMode;
 
   const extras = await resolveExtraTools(deps);
-  for (const tool of extras.missing) {
-    log.warn(
-      `extra tool '${tool.name}' is not registered by the host and is left out ` +
-        "(its MCP server did not connect, its plugin did not load, or the name is mistyped)",
-    );
-  }
+  for (const tool of extras.missing) log.warn(extraToolMissing(tool.name));
   for (const entry of extras.invalid) {
-    log.warn(`${EXTRA_TOOLS_CONFIG_KEY}: '${entry}' is ignored (${EXTRA_TOOL_ENTRY_RULE})`);
+    log.warn(extraToolIgnored(EXTRA_TOOLS_CONFIG_KEY, entry, EXTRA_TOOL_ENTRY_RULE));
   }
   if (extras.unreadable !== undefined) {
-    log.warn(`${EXTRA_TOOLS_CONFIG_KEY} could not be read (${extras.unreadable}): no extra tool this turn`);
+    log.warn(extraToolsUnreadable(EXTRA_TOOLS_CONFIG_KEY, extras.unreadable));
   }
 
   const builtIn = builtInRules((await readMemoryDir(deps.config)).dir, await listsOf(deps.host));
   const sync = await syncPermissionRules({ session, gate: deps.gate, extraNames: configuredNames(extras), builtIn });
-  for (const rule of sync.overridden) {
-    log.warn(`permission rule '${formatRule(rule)}' is left out of the gate: a built-in rule denies the same calls (the shared memory's candidates and entries, the user configuration, paths.deny)`);
-  }
-  for (const rule of sync.dormant) {
-    log.warn(
-      `permission rule '${rule}' is dormant: ${EXTRA_TOOLS_CONFIG_KEY} does not list its tool, the gate does not get it`,
-    );
-  }
-  if (sync.invalid.length > 0) {
-    log.warn(`${sync.invalid.length} stored permission entr(ies) are not rules and were ignored`);
-  }
-  if (!sync.applied) log.warn("the host keeps no session rules: the gate decides each call from the mode alone");
+  for (const rule of sync.overridden) log.warn(ruleOverridden(formatRule(rule)));
+  for (const rule of sync.dormant) log.warn(ruleDormant(rule, EXTRA_TOOLS_CONFIG_KEY));
+  if (sync.invalid.length > 0) log.warn(invalidPermissionEntries(sync.invalid.length));
+  if (!sync.applied) log.warn(NO_SESSION_RULES);
   const epilogue = await voiceReply(deps);
   const profiled = deps.llmProfile === undefined ? await withLlmProfile(deps, deps.config) : deps;
   return launchCrew(
@@ -202,16 +192,13 @@ async function voiceReply(deps: Pick<MainLoopLaunchDeps, "config" | "catalogue" 
   try {
     value = (await deps.config.readValue(VOICE_REPLY_CONFIG_KEY)).value;
   } catch (error) {
-    deps.log.warn(`${VOICE_REPLY_CONFIG_KEY} could not be read (${errorText(error)}): the answer is not read aloud this turn`);
+    deps.log.warn(voiceReplyUnreadable(VOICE_REPLY_CONFIG_KEY, errorText(error)));
     return undefined;
   }
   if (!voiceReplyOn(value)) return undefined;
   const speak = deps.catalogue.find(SPEAK_TOOL);
   if (speak === undefined) {
-    deps.log.warn(
-      `${VOICE_REPLY_CONFIG_KEY} is on but the host registers no '${SPEAK_TOOL}': the answer is not read aloud ` +
-        "(start orkeon-code with ORKEON_CODE_AUDIO_DIR and ORKEON_CODE_VOICE=1)",
-    );
+    deps.log.warn(voiceReplyNoSpeakTool(VOICE_REPLY_CONFIG_KEY, SPEAK_TOOL));
     return undefined;
   }
   return voiceReplyEpilogue(speak);

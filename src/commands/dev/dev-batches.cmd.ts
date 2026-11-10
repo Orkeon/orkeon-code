@@ -22,6 +22,7 @@ import {
   parseDevBatchesArgs, recordChain, runDevVerifyDispatch,
 } from "../_lib/dev/dev-batches.ts";
 import { runDevImplementDispatch } from "../_lib/dev/dev-implement.ts";
+import { WRITES_COMMITS_PUSHES } from "../_lib/dev/messages.ts";
 import { reapplyStepRules, startDevStep, writeModeRefusal } from "../_lib/dev-step.ts";
 import { launchCrew, withLlmProfile } from "../_lib/dispatch.ts";
 import { storedEffort } from "../_lib/effort.ts";
@@ -43,7 +44,7 @@ const contextReader = (ctx: CommandRuntimeContext) => () => readPullRequestConte
 /** The run of a plan: the mode checked, the step started, what was read riding in the crew's input. */
 async function runDispatch(args: Parameters<typeof batchesLaunchInput>[0], ctx: CommandRuntimeContext) {
   const prContext = await contextReader(ctx)();
-  const line = writeModeRefusal(String(prContext.permissionMode ?? ""), "dev-batches", "writes files, commits and pushes")
+  const line = writeModeRefusal(String(prContext.permissionMode ?? ""), "dev-batches", WRITES_COMMITS_PUSHES)
     ?? batchesModeRefusal(args, String(prContext.permissionMode ?? ""));
   if (line !== null) {
     ctx.writeLine(line);

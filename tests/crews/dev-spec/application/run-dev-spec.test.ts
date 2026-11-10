@@ -8,7 +8,8 @@ import { deepStrictEqual, ok, rejects, strictEqual } from "node:assert";
 
 import { GIT_TOPLEVEL } from "../../../../src/shared/application/dev/resolve-work-folder.ts";
 import { parseDecisions, parseOpenQuestions } from "../../../../src/shared/domain/dev/questions.ts";
-import { DEV_SPEC_NEXT, runDevSpec } from "../../../../src/crews/dev-spec/application/run-dev-spec.ts";
+import { runDevSpec } from "../../../../src/crews/dev-spec/application/run-dev-spec.ts";
+import { DEV_SPEC_NEXT } from "../../../../src/crews/dev-spec/application/messages.ts";
 import { FakePrecedents, PRECEDENTS_SAMPLE } from "../../../support/doubles/fake-precedents.ts";
 import {
   ANSWER, CLEAR, CODE, GAPS_REVIEW, REQUEST, SPEC, devSpecSetup, folded, run, specWithQ1Decided,

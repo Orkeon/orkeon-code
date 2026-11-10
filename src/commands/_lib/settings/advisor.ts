@@ -8,6 +8,10 @@ import { CONFIG_FILE_PATH } from "../../../shared/application/config-store.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import type { Logger, SessionMetadata, Telemetry } from "../../../shared/application/ports.ts";
 import { judgeModelChoice } from "../../../shared/domain/model-catalog.ts";
+import {
+  ADVISOR_DISABLED, ADVISOR_UNSET, ADVISOR_USAGE, advisorModelLine, advisorSet, declaredModelsLine, refusingToOverwrite,
+  refusingUnparsed,
+} from "./messages.ts";
 
 const ADVISOR_KEY = "advisor.model";
 
@@ -37,22 +41,19 @@ export async function runAdvisorCommand(tokens: readonly string[], deps: Advisor
     const entry = await config.readValue(ADVISOR_KEY);
     const models = await declaredModels(telemetry);
     const lines = [
-      entry.value
-        ? `advisor model: ${entry.value}  [${entry.source}]`
-        : "advisor model: (unset) — /advisor review would ask the SESSION's own model, " +
-          "which makes it a self-review and worth much less.",
+      entry.value ? advisorModelLine(entry.value, entry.source) : ADVISOR_UNSET,
     ];
-    if (models.length > 0) lines.push(`declared models: ${models.join(", ")}`);
-    lines.push("usage: /advisor <model> | /advisor off | /advisor review");
+    if (models.length > 0) lines.push(declaredModelsLine(models));
+    lines.push(ADVISOR_USAGE);
     return { lines };
   }
 
   if (first === "off" || first === "disable" || first === "none") {
     const { map, malformed } = await config.readFile();
-    if (malformed) return { lines: [`refusing to write: ${CONFIG_FILE_PATH} could not be parsed.`] };
+    if (malformed) return { lines: [refusingUnparsed(CONFIG_FILE_PATH)] };
     delete map[ADVISOR_KEY];
     await config.writeFile(map);
-    return { lines: ["advisor model disabled — /advisor review falls back to the session's own model."] };
+    return { lines: [ADVISOR_DISABLED] };
   }
 
   // Anything else is the model name.
@@ -63,18 +64,12 @@ export async function runAdvisorCommand(tokens: readonly string[], deps: Advisor
   const { map, malformed } = await config.readFile();
   if (malformed) {
     return {
-      lines: [
-        `refusing to write: ${CONFIG_FILE_PATH} exists but could not be parsed, and overwriting ` +
-        "it would discard whatever it holds. Fix or delete it, then retry.",
-      ],
+      lines: [refusingToOverwrite(CONFIG_FILE_PATH)],
     };
   }
   map[ADVISOR_KEY] = requested;
   await config.writeFile(map);
   return {
-    lines: [
-      `advisor model set to '${requested}' — persisted in ${CONFIG_FILE_PATH}.` +
-      (verdict.warning ? "\n⚠ NOT among the models this host declares; see the log." : ""),
-    ],
+    lines: [advisorSet(requested, CONFIG_FILE_PATH, Boolean(verdict.warning))],
   };
 }

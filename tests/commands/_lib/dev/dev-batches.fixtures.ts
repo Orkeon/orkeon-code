@@ -1,7 +1,8 @@
 // The arguments /dev-batches is tested on in its three shapes (the run, one batch, one audit) and under its aliases,
 // the crew answers its chain step reads, and the checkout an audit's dispatch runs over (FakeSessionStore,
 // FakePermissionRules, FakeToolCatalogue, a config store on FakeFiles).
-import { DEV_BATCHES_USAGE, runDevVerifyDispatch } from "../../../../src/commands/_lib/dev/dev-batches.ts";
+import { runDevVerifyDispatch } from "../../../../src/commands/_lib/dev/dev-batches.ts";
+import { DEV_BATCHES_USAGE } from "../../../../src/commands/_lib/dev/messages.ts";
 import type { DevVerifyArgs, DevVerifyDispatch, parseDevBatchesArgs } from "../../../../src/commands/_lib/dev/dev-batches.ts";
 import type { DevImplementArgs } from "../../../../src/commands/_lib/dev/dev-implement.ts";
 import { createConfigStore, USER_CONFIG_FILE_PATH } from "../../../../src/shared/application/config-store.ts";

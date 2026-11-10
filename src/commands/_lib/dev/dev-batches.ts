@@ -28,15 +28,14 @@ import { workspaceRelative } from "../../../shared/domain/vfs.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import { launchCrew, withLlmProfile } from "../dispatch.ts";
 import type { CommandLog, CrewCompletion, LaunchDeps } from "../dispatch.ts";
-import { chainStep, freshContext, launchChained, nextLaunch, withContext, CONTEXT_NOT_READ_LINE } from "./dev-implement.ts";
+import { chainStep, freshContext, launchChained, nextLaunch, withContext } from "./dev-implement.ts";
 import type { ChainHopDeps, ChainLaunch, DevImplementArgs, DevImplementDispatchDeps } from "./dev-implement.ts";
 import { devVerifyStep, markActiveWorkflow, startDevStep, writeModeRefusal } from "../dev-step.ts";
 import { storedEffort } from "../effort.ts";
+import { AUDIT_OR_CORRECTION, A_CREW, CHAIN_FAILED_THEN, CONCURRENCY_NEEDS_NUMBER, CONTEXT_NOT_READ_LINE, CORRECTION_OR_CLOSE, DEV_BATCHES_USAGE, WRITES_COMMITS_PUSHES, auditFailed, auditUnknownOption, batchUnknownOption, batchesChainFailed, batchesChainStopped, chainNotKept, concurrencyNotWithBatch, correctionNamesBatch, correctionNamesFinding, devBatchesRefusal, goesWithAudit, namesItsBatch, namesItsBatchFirst, notAWorkCodeExplained, oneAuditMode, oneBatchAtMost, oneCodeAtMost, onePlanAtMost, prGoesWithClose, runUnknownOption, thenType } from "./messages.ts";
+import { neitherCodeNorPlan as notACodeNorPlan } from "../../../shared/application/dev/messages.ts";
+import { failedLine } from "../messages.ts";
 
-export const DEV_BATCHES_USAGE =
-  "usage: /dev-batches [<code>] [--pr] [--concurrency n] | <code> F<n> [--close [--pr]] [— correction: <finding>]" +
-  " | <code> F<n> --audit [fast | full | resume] [--gate-only]" +
-  "   (no code: the run in progress goes on; n from 1 to 4, above 1 in bypassPermissions; with F<n>, <code> may be a <path>/<CODE>-PLAN.md)";
 /** `concurrency` only when the option is typed: without it the run goes on as the plan's run in progress was (one at a
  *  time when none is); `--concurrency 1` goes back to one at a time. */
 export interface DevBatchesArgs { code: string | null; pr: boolean; concurrency?: number }
@@ -61,7 +60,7 @@ const CORRECTION_WORD = /^correction:?(.*)$/i;
 const BATCH_OPTIONS: readonly string[] = ["--close", "--audit", "--gate-only"];
 const isConcurrency = (tok: string): boolean => tok === "--concurrency" || tok.startsWith("--concurrency=");
 type Refusal = { ok: false; text: string };
-const refuse = (text: string): Refusal => ({ ok: false, text: `dev-batches: ${text}` });
+const refuse = (text: string): Refusal => ({ ok: false, text: devBatchesRefusal(text) });
 
 /** Splits `… — correction: <finding>` off the tokens: the ones before, and the finding (null without one). */
 function splitCorrection(tokens: readonly string[]): { before: string[]; finding: string | null } {
@@ -97,17 +96,17 @@ function parseRun(tokens: readonly string[]): DevBatchesParse {
     const tok = tokens[i];
     if (isConcurrency(tok)) {
       const value = tok === "--concurrency" ? tokens[++i] : tok.slice("--concurrency=".length);
-      if (value === undefined) return refuse("--concurrency needs a number");
+      if (value === undefined) return refuse(CONCURRENCY_NEEDS_NUMBER);
       const c = checkConcurrency(value);
       if (!c.ok) return refuse(c.line);
       concurrency = c.value;
       continue;
     }
     if (tok === "--pr") pr = true;
-    else if (BATCH_OPTIONS.includes(tok)) return refuse(`${tok} names its batch: /dev-batches <code> F<n> ${tok}`);
-    else if (tok.startsWith("-")) return refuse(`unknown option '${tok}' (--pr, --concurrency; with F<n>: --close, --audit)`);
-    else if (!isCode(tok)) return refuse(`'${tok}' is not a work code (a folder name of the work folder)`);
-    else if (code !== null) return refuse(`one code at most, not '${code}' and '${tok}'`);
+    else if (BATCH_OPTIONS.includes(tok)) return refuse(namesItsBatch(tok));
+    else if (tok.startsWith("-")) return refuse(runUnknownOption(tok));
+    else if (!isCode(tok)) return refuse(notAWorkCodeExplained(tok));
+    else if (code !== null) return refuse(oneCodeAtMost(code, tok));
     else code = tok;
   }
   const args = concurrency !== undefined ? { code, pr, concurrency } : { code, pr };
@@ -117,7 +116,7 @@ function parseRun(tokens: readonly string[]): DevBatchesParse {
 /** One batch: its plan, the close (`--pr` only with it), or a correction (never with the close). */
 function parseBatch(batch: string, rest: readonly string[], finding: string | null): DevBatchesParse {
   if (finding !== null && finding === "") {
-    return refuse(`a correction names its finding: ${correctionCommand("<code>", batch, "<the audit's gap>")}`);
+    return refuse(correctionNamesFinding(correctionCommand("<code>", batch, "<the audit's gap>")));
   }
   let plan: string | null = null;
   let close = false;
@@ -125,15 +124,15 @@ function parseBatch(batch: string, rest: readonly string[], finding: string | nu
   for (const tok of rest) {
     if (tok === "--close") close = true;
     else if (tok === "--pr") pr = true;
-    else if (AUDIT_MODES.includes(tok) || tok === "--gate-only") return refuse(`'${tok}' goes with --audit: /dev-batches <code> ${batch} --audit ${tok}`);
-    else if (tok.startsWith("-")) return refuse(`unknown option '${tok}' with ${batch} (--close, --pr, --audit)`);
+    else if (AUDIT_MODES.includes(tok) || tok === "--gate-only") return refuse(goesWithAudit(tok, batch));
+    else if (tok.startsWith("-")) return refuse(batchUnknownOption(tok, batch));
     else if (isCode(tok) || isPlanPath(tok, false)) {
-      if (plan !== null) return refuse(`one plan at most, not '${plan}' and '${tok}'`);
+      if (plan !== null) return refuse(onePlanAtMost(plan, tok));
       plan = tok;
-    } else return refuse(`'${tok}' is neither a code nor a <CODE>-PLAN.md path`);
+    } else return refuse(notACodeNorPlan(tok));
   }
-  if (pr && !close) return refuse(`with ${batch}, --pr goes with --close (the pull request is opened at the close)`);
-  if (close && finding !== null) return refuse("a correction runs the batch, --close commits it: one at a time");
+  if (pr && !close) return refuse(prGoesWithClose(batch));
+  if (close && finding !== null) return refuse(CORRECTION_OR_CLOSE);
   return { ok: true, route: "batch", args: { batch, plan, close, pr, correction: finding } };
 }
 
@@ -145,17 +144,17 @@ function parseAudit(batch: string, rest: readonly string[]): DevBatchesParse {
   let gateOnly = false;
   for (const tok of rest) {
     if (AUDIT_MODES.includes(tok)) {
-      if (mode !== null) return refuse(`one audit mode at most (fast, full or resume), not '${mode}' and '${tok}'`);
+      if (mode !== null) return refuse(oneAuditMode(mode, tok));
       mode = tok as DevVerifyMode;
     } else if (tok === "--gate-only") {
       gateOnly = true;
     } else if (tok.startsWith("-")) {
-      return refuse(`unknown option '${tok}' with --audit (only --gate-only)`);
+      return refuse(auditUnknownOption(tok));
     } else if (isCode(tok) || isPlanPath(tok, true)) {
-      if (plan !== null) return refuse(`one plan at most, not '${plan}' and '${tok}'`);
+      if (plan !== null) return refuse(onePlanAtMost(plan, tok));
       plan = tok;
     } else {
-      return refuse(`'${tok}' is neither a code nor a <CODE>-PLAN.md path`);
+      return refuse(notACodeNorPlan(tok));
     }
   }
   return { ok: true, route: "audit", args: { batch, plan, mode: mode ?? "fast", gateOnly } };
@@ -172,18 +171,18 @@ export function parseDevBatchesArgs(tokens: readonly string[], typed = "dev-batc
   const audit = typed === DEV_VERIFY_ALIAS || before.includes("--audit");
   if (at < 0) {
     if (typed === DEV_IMPLEMENT_ALIAS || typed === DEV_VERIFY_ALIAS) {
-      return tokens.length === 0 ? { ok: false, text: DEV_BATCHES_USAGE } : refuse(`/${typed} names its batch first: F<n>, e.g. F2`);
+      return tokens.length === 0 ? { ok: false, text: DEV_BATCHES_USAGE } : refuse(namesItsBatchFirst(typed));
     }
-    if (finding !== null) return refuse(`a correction names its batch: ${correctionCommand("<code>", "F<n>", "<finding>")}`);
+    if (finding !== null) return refuse(correctionNamesBatch(correctionCommand("<code>", "F<n>", "<finding>")));
     return parseRun(before);
   }
   const batch = before[at];
   const rest = [...before.slice(0, at), ...before.slice(at + 1)];
   const other = rest.find((t) => BATCH.test(t));
-  if (other !== undefined) return refuse(`one batch at most, not ${batch} and ${other}`);
-  if (rest.some(isConcurrency)) return refuse(`--concurrency runs a plan's batches: it does not go with ${batch}`);
+  if (other !== undefined) return refuse(oneBatchAtMost(batch, other));
+  if (rest.some(isConcurrency)) return refuse(concurrencyNotWithBatch(batch));
   if (!audit) return parseBatch(batch, rest, finding);
-  if (finding !== null) return refuse("--audit judges the batch, a correction runs it: one at a time");
+  if (finding !== null) return refuse(AUDIT_OR_CORRECTION);
   return parseAudit(batch, rest.filter((t) => t !== "--audit"));
 }
 
@@ -198,7 +197,7 @@ export function batchesLaunchInput(args: DevBatchesArgs, read: Record<string, un
 /** Above 1, the refusal of a session mode that asks before shell commands, before anything is launched. */
 export function batchesModeRefusal(args: DevBatchesArgs, mode: string): string | null {
   const line = concurrencyModeRefusal(args.concurrency ?? 1, mode);
-  return line === null ? null : `dev-batches: ${line}`;
+  return line === null ? null : devBatchesRefusal(line);
 }
 
 /** The lines of an answer handed back to the dev-batches crew. */
@@ -247,8 +246,7 @@ export function batchesChainStep(intent: string, payload: string): BatchesChainS
 /** Every hop of the run keeps the depth of the instance whose `completed` launches it (Orkeon #221). */
 export const BATCHES_CHAIN: CrewLaunchOptions = { chain: "continue" };
 
-const BATCHES_WRITES = { step: "dev-batches", what: "writes files, commits and pushes" };
-const CHAIN_FAILED_THEN = "then type /dev-batches: the run goes on from the first batch not done";
+const BATCHES_WRITES = { step: "dev-batches", what: WRITES_COMMITS_PUSHES };
 
 /**
  * What `completed` prints and launches for one answer of the run, the gate put back and, before a hop that writes
@@ -258,19 +256,19 @@ const CHAIN_FAILED_THEN = "then type /dev-batches: the run goes on from the firs
  */
 export async function batchesNextLaunch(result: CrewCompletion, deps: ChainHopDeps): Promise<BatchesChainStep> {
   if (!result.success) {
-    return { lines: [`✗ the dev-batches chain failed (${result.intent || "a crew"}): ${result.error ?? "unknown"}`, CHAIN_FAILED_THEN] };
+    return { lines: [batchesChainFailed(result.intent || A_CREW, result.error ?? "unknown"), CHAIN_FAILED_THEN] };
   }
   const step = batchesChainStep(String(result.intent ?? ""), String(result.payload ?? ""));
   if (step.launch === undefined) return step;
   const refusal = deps.reapply(step.launch.crew === "dev-verify" ? "dev-verify" : "dev-implement");
-  if (refusal !== null) return { lines: [...step.lines, `✗ ${refusal}`, `then type ${step.launch.instead}`] };
+  if (refusal !== null) return { lines: [...step.lines, failedLine(refusal), thenType(step.launch.instead)] };
   if (step.launch.crew === "dev-verify") return step;
   const context = await freshContext(deps.context);
   if (context === null) return { lines: [...step.lines, CONTEXT_NOT_READ_LINE], launch: step.launch };
   const concurrency = step.launch.crew === "dev-batches" && typeof step.launch.input.concurrency === "number" ? step.launch.input.concurrency : 1;
   const line = writeModeRefusal(context.permissionMode, BATCHES_WRITES.step, BATCHES_WRITES.what)
     ?? batchesModeRefusal({ code: null, pr: false, concurrency }, context.permissionMode);
-  if (line !== null) return { lines: [...step.lines, line.startsWith("✗") ? line : `✗ ${line}`, `then type ${step.launch.instead}`] };
+  if (line !== null) return { lines: [...step.lines, line.startsWith("✗") ? line : failedLine(line), thenType(step.launch.instead)] };
   return { lines: step.lines, launch: { ...step.launch, input: withContext(step.launch.input, context) } };
 }
 
@@ -281,7 +279,7 @@ export function launchBatchesHop(launch: ChainLaunch, deps: LaunchDeps): string[
 
 /** The line `completed` prints when a hop's own reading fails (the context read threw past the handler). */
 export function batchesHopFailedLine(error: unknown): string {
-  return `✗ the dev-batches chain stopped (${String((error as Error)?.message ?? error).split("\n")[0]}): ${CHAIN_FAILED_THEN}`;
+  return batchesChainStopped(String((error as Error)?.message ?? error).split("\n")[0]);
 }
 
 /** The chain a dispatch launched, kept in the session for `completed`: the run of a plan, one batch, one audit. */
@@ -299,7 +297,7 @@ export async function recordChain(session: Pick<SessionStore, "writeState">, cha
   } catch (error) {
     if (chain === "run") return null;
     const reason = String((error as Error)?.message ?? error).split("\n")[0];
-    return `dev-batches: the session could not keep which chain runs (${reason}): nothing was launched`;
+    return chainNotKept(reason);
   }
 }
 
@@ -326,7 +324,7 @@ export async function devBatchesCompleted(result: CrewCompletion, deps: BatchesC
   const chain = await readChain(deps.session, String(result.intent ?? ""));
   if (chain === "audit") {
     if (result.success && result.streamed === true) return { chain, lines: [] };
-    return { chain, lines: [result.success ? String(result.payload ?? "") : `✗ the audit failed: ${result.error ?? "unknown"}`] };
+    return { chain, lines: [result.success ? String(result.payload ?? "") : auditFailed(result.error ?? "unknown")] };
   }
   const step = chain === "batch" ? await nextLaunch(result, deps) : await batchesNextLaunch(result, deps);
   return { chain, ...step };

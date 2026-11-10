@@ -1,7 +1,8 @@
 // The harness /permissions runs over (the session service on FakeSessionStore, a config store on FakeFiles, the
 // host gate's rules on FakePermissionRules, the host's tools on FakeToolCatalogue), the lines it shows that run
 // past one, the refusals of `add`, and the sessions a dormant rule is tested in.
-import { PERMISSIONS_USAGE, runPermissions } from "../../../../src/commands/_lib/settings/permissions.ts";
+import { runPermissions } from "../../../../src/commands/_lib/settings/permissions.ts";
+import { PERMISSIONS_USAGE } from "../../../../src/commands/_lib/settings/messages.ts";
 import { USER_CONFIG_FILE_PATH, createConfigStore } from "../../../../src/shared/application/config-store.ts";
 import { createSessionIo } from "../../../../src/shared/application/session-io.ts";
 import { RULEABLE_TOOLS, readRule } from "../../../../src/shared/domain/agent-policy/permission.ts";

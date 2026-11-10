@@ -12,7 +12,9 @@
 // report success and change nothing.
 
 import { PERMISSION_FALLBACK_CONFIG_KEY, PERMISSION_MODES } from "./permission-modes.ts";
-import { EXTRA_TOOLS_CONFIG_KEY, extraToolsProblem, formatExtraTool, parseExtraTools } from "./agent-policy/extra-tools.ts";
+import {
+  EXTRA_TOOLS_CONFIG_KEY, extraToolsProblem, formatExtraTool, parseExtraTools,
+} from "./agent-policy/extra-tools.ts";
 import { sameToolName } from "./agent-policy/permission.ts";
 import { VOICE_REPLY_CONFIG_KEY } from "./speech.ts";
 import { ANSWER_LANGUAGE_CONFIG_KEY } from "./agent-policy/output-styles.ts";
@@ -23,7 +25,16 @@ import { LLM_PROFILE_CONFIG_KEY, llmProfileProblem } from "./llm-profile.ts";
 import {
   MEMORY_AUTO_ADMIT_CONFIG_KEY, MEMORY_DIR_CONFIG_KEY, MEMORY_PROJECT_CONFIG_KEY, memoryDirProblem, memoryProjectProblem,
 } from "./shared-memory/layout.ts";
-import { PATHS_ALLOW_CONFIG_KEY, PATHS_DENY_CONFIG_KEY, narrowAllowValue, pathListProblem } from "./agent-policy/path-rules.ts";
+import {
+  PATHS_ALLOW_CONFIG_KEY, PATHS_DENY_CONFIG_KEY, narrowAllowValue, pathListProblem,
+} from "./agent-policy/path-rules.ts";
+import {
+  ADVISOR_MODEL_DOC, ANSWER_LANGUAGE_DOC, AUTO_ADMIT_FROM_USER, COMMIT_REQUIRE_CONFIRM_DOC, COMPACTION_TRIGGER_DOC,
+  DEV_PR_AUTO_DOC, DEV_WORK_DIR_DOC, EXTRA_TOOLS_DOC, EXTRA_TOOLS_NOT_ALLOWED, invalidValue, LLM_PROFILE_DOC,
+  MEMORY_AUTO_ADMIT_DOC, MEMORY_DIR_DOC, MEMORY_PROJECT_DOC, needsAValue, notAllowedValue, PATHS_ALLOW_DOC,
+  PATHS_ALLOW_OUTSIDE_USER, PATHS_DENY_DOC, PERMISSION_FALLBACK_DOC, PR_AUTO_FROM_USER, PROJECT_FALLBACK_TOO_WIDE,
+  REVIEW_LENSES_DOC, SPINNER_VERBS_DOC, unknownConfigKey, VOICE_REPLY_DOC, widerThanUserFallback,
+} from "./messages.ts";
 
 export interface ConfigKeySpec {
   key: string;
@@ -37,10 +48,6 @@ export interface ConfigKeySpec {
   consumedBy: string;
 }
 
-/** Who reads paths.deny and paths.allow. */
-const PATH_LISTS_CONSUMERS =
-  "/assistant, the dev steps and every other command that launches a crew (each act's calls), /permissions (the deny rules in the gate), /doctor";
-
 /**
  * The declared key space. Adding a key here is what makes it settable — and the
  * point is that the list is short and every entry names its consumer. A key
@@ -49,144 +56,84 @@ const PATH_LISTS_CONSUMERS =
 export const CONFIG_KEYS: readonly ConfigKeySpec[] = [
   {
     key: PERMISSION_FALLBACK_CONFIG_KEY,
-    description:
-      "Permission mode for a session where neither /mode nor a 'mode:' prefix set one. " +
-      "Omitted = 'default' (asks on writes, like the original).",
+    ...PERMISSION_FALLBACK_DOC,
     allowed: PERMISSION_MODES,
-    consumedBy: "/assistant (main-loop crew), /commit, /mode, /permissions",
   },
   {
     key: "review.lenses",
-    description:
-      "Comma-separated review lenses for /review (correctness, security, style). " +
-      "Omitted = all three.",
-    consumedBy: "/review (code-review crew)",
+    ...REVIEW_LENSES_DOC,
   },
   {
     key: "advisor.model",
-    description:
-      "Model used for the secondary opinion of /advisor. Omitted = the session's own " +
-      "model, which makes the review a self-review and worth far less.",
-    consumedBy: "/advisor (advisor crew)",
+    ...ADVISOR_MODEL_DOC,
   },
   {
     key: LLM_PROFILE_CONFIG_KEY,
-    description:
-      "The host profile the agents of every crew run on: an LLM profile (Llm:Profiles:<name>) or a decision " +
-      "profile (Orkeon:Decision:Profiles:<name>, a decision model such as Jev in front of one), e.g. 'guarded'. " +
-      "A name the host does not declare fails the crew's load, listing the profiles it knows. Omitted = the host's " +
-      "default model.",
+    ...LLM_PROFILE_DOC,
     problem: llmProfileProblem,
-    consumedBy: "/assistant, /review, /commit, /advisor, /memory admit, the dev steps and every other command that launches a crew (the model its agents run on)",
   },
   {
     key: "commit.requireConfirm",
-    description:
-      "'false' lets /commit launch without a confirmation prompt. Omitted = 'true' " +
-      "(a confirmation is required; see B-1).",
+    ...COMMIT_REQUIRE_CONFIRM_DOC,
     allowed: ["true", "false"],
-    consumedBy: "/commit",
   },
   {
     key: "spinnerVerbs",
-    description:
-      "Comma-separated verbs the TUI status line rotates through while a turn runs " +
-      "(tweakcc vocabulary: 'thinking verbs'), e.g. 'Reticulating, Percolating'. " +
-      "Omitted = the built-in Orkeon gerunds.",
-    consumedBy: "the orkeon-repl TUI status line (read by the host)",
+    ...SPINNER_VERBS_DOC,
   },
   {
     key: EXTRA_TOOLS_CONFIG_KEY,
-    description:
-      "Tools of an MCP server or a plugin the assistant may use, e.g. 'transcribe_audio:read, " +
-      "search_issues': each <name>[:read|:write], write when the class is left out, so plan " +
-      "and dontAsk offer only the read ones. A name the host does not register is left out " +
-      "with a warning. Omitted = none.",
+    ...EXTRA_TOOLS_DOC,
     problem: extraToolsProblem,
-    consumedBy: "/assistant and /summary (the tools offered), /permissions (rules may name them)",
   },
   {
     key: VOICE_REPLY_CONFIG_KEY,
-    description:
-      "'on' reads every answer of the assistant aloud, through the speech MCP server's speak " +
-      "(the launcher's ORKEON_CODE_VOICE=1 opens the speaker); code blocks and tables are not read. " +
-      "Omitted = 'off'.",
+    ...VOICE_REPLY_DOC,
     allowed: ["on", "off"],
-    consumedBy: "/assistant, /summary, /transcribe --then, /voice send and /voice --go (each answer read aloud)",
   },
   {
     key: ANSWER_LANGUAGE_CONFIG_KEY,
-    description:
-      "The language the assistant answers in, e.g. 'French', unless the user writes in another one. " +
-      "Omitted = the language of each request.",
-    consumedBy: "/assistant, /summary, /transcribe --then, /voice send and /voice --go (the main loop's prompt)",
+    ...ANSWER_LANGUAGE_DOC,
   },
   {
     key: COMPACTION_TRIGGER_CONFIG_KEY,
-    description:
-      "The token count at which the automatic compaction runs, e.g. '90000' or '90k'. Omitted = the " +
-      "context window minus the room one turn needs.",
+    ...COMPACTION_TRIGGER_DOC,
     problem: compactionTriggerProblem,
-    consumedBy: "/assistant (the automatic compaction at the head and the tail of a turn), /usage",
   },
   {
     key: DEV_WORK_DIR_CONFIG_KEY,
-    description:
-      "The work folder of the dev workflow, relative to the checkout, e.g. 'backstage/tasks'. Omitted = the " +
-      "repository pack's layout.work, else 'workbench'. A folder absent from the checkout falls back to 'workbench'.",
+    ...DEV_WORK_DIR_DOC,
     problem: workFolderProblem,
-    consumedBy: "/dev-status (the work folder it reads), /commit (the work folder it leaves out)",
   },
   {
     key: DEV_PR_AUTO_CONFIG_KEY,
-    description:
-      "'true' asks /commit to open the pull request of a pushed branch, as --pr does: through the github tool when " +
-      "it is registered and the permission gate lets it, else the gh pr create command is printed. Omitted = 'false': " +
-      "the command is printed. Set in the user settings; a project file may only narrow it to 'false'.",
+    ...DEV_PR_AUTO_DOC,
     allowed: ["true", "false"],
-    consumedBy: "/commit (the pull request of the branch)",
   },
   {
     key: MEMORY_DIR_CONFIG_KEY,
-    description:
-      "The folder of the shared memory, relative to the project: its candidates, admitted entries and refused " +
-      "topics. Omitted = '.orkeon/memory'. Never the agent memory's '.orkeon/agent-memory'.",
+    ...MEMORY_DIR_DOC,
     problem: memoryDirProblem,
-    consumedBy: "/memory-admit, /assistant (the memory_recall and memory_push tools)",
   },
   {
     key: MEMORY_PROJECT_CONFIG_KEY,
-    description:
-      "The project name the shared memory's entries carry and its index is named after (memory-<project>), " +
-      "e.g. 'orkeon-code'. Omitted = the name of the origin remote, else 'local'.",
+    ...MEMORY_PROJECT_DOC,
     problem: memoryProjectProblem,
-    consumedBy: "/memory-admit, /assistant (the memory_recall and memory_push tools)",
   },
   {
     key: MEMORY_AUTO_ADMIT_CONFIG_KEY,
-    description:
-      "'true' lets /memory-admit admit a candidate an audit verdict backs without asking. Omitted = 'false': " +
-      "every candidate is confirmed. A project file may set it to 'true' only when the user settings do.",
+    ...MEMORY_AUTO_ADMIT_DOC,
     allowed: ["true", "false"],
-    consumedBy: "/memory-admit",
   },
   {
     key: PATHS_DENY_CONFIG_KEY,
-    description:
-      "Paths no tool of the model reads or writes, e.g. '/workspace/secrets, C:\\proj\\keys\\*, tests/fixtures/real': " +
-      "entries separated by commas, each a path of a mount in any spelling the host knows or a path under /workspace, " +
-      "'*' for any run of characters, a bare path covering what lies below it. Held on the canonical spelling, whatever " +
-      "spelling a call uses. The project file's entries add to the user's. Omitted = none.",
+    ...PATHS_DENY_DOC,
     problem: pathListProblem,
-    consumedBy: PATH_LISTS_CONSUMERS,
   },
   {
     key: PATHS_ALLOW_CONFIG_KEY,
-    description:
-      "The only paths the tools of the model may reach, in the notation of paths.deny; a deny wins over it. " +
-      "A project file may only narrow the user's list: an entry outside it is dropped. Omitted = every path of the mounts.",
+    ...PATHS_ALLOW_DOC,
     problem: pathListProblem,
-    consumedBy: PATH_LISTS_CONSUMERS,
   },
 ];
 
@@ -226,11 +173,10 @@ const modeWidth = (mode: string): number => MODE_WIDTH[mode] ?? MODE_WIDTH.defau
 function narrowFallback(project: string, user: string | undefined): Narrowed {
   const ignore = (reason: string): Narrowed => ({ value: undefined, fallThrough: true, ignored: { value: project, reason } });
   if (!PROJECT_FALLBACK_MODES.includes(project)) {
-    return ignore("a project file may set only default, plan or acceptEdits; another mode comes from the " +
-      "user settings (orkeonCode) or /mode");
+    return ignore(PROJECT_FALLBACK_TOO_WIDE);
   }
   if (user !== undefined && modeWidth(project) > modeWidth(user)) {
-    return ignore(`it is wider than the user settings' '${user}' (orkeonCode); a project file may only narrow it`);
+    return ignore(widerThanUserFallback(user));
   }
   return { value: project, fallThrough: false };
 }
@@ -272,7 +218,7 @@ function narrowExtraTools(project: string, user: string | undefined): Narrowed {
     value: value.length > 0 ? value.join(", ") : undefined,
     fallThrough: false,
     ...(dropped.length > 0
-      ? { ignored: { value: dropped.join(", "), reason: "the user settings do not allow (orkeonCode tools.extra, or *)" } }
+      ? { ignored: { value: dropped.join(", "), reason: EXTRA_TOOLS_NOT_ALLOWED } }
       : {}),
   };
 }
@@ -289,7 +235,7 @@ function narrowAutoAdmit(project: string, user: string | undefined): Narrowed {
   if (project !== "true" || user === "true") return { value: project, fallThrough: false };
   return {
     value: undefined, fallThrough: true,
-    ignored: { value: project, reason: "admitting without asking comes from the user settings (orkeonCode); a project file may only narrow it" },
+    ignored: { value: project, reason: AUTO_ADMIT_FROM_USER },
   };
 }
 
@@ -298,7 +244,7 @@ function narrowPrAuto(project: string, user: string | undefined): Narrowed {
   if (project !== "true" || user === "true") return { value: project, fallThrough: false };
   return {
     value: undefined, fallThrough: true,
-    ignored: { value: project, reason: "opening a pull request without asking comes from the user settings (orkeonCode); a project file may only narrow it" },
+    ignored: { value: project, reason: PR_AUTO_FROM_USER },
   };
 }
 
@@ -315,7 +261,7 @@ function narrowPathAllow(project: string, user: string | undefined): Narrowed {
     value: kept.length > 0 ? kept.join(", ") : undefined,
     fallThrough: kept.length === 0,
     ...(dropped.length > 0
-      ? { ignored: { value: dropped.join(", "), reason: "the user settings allow nothing there (orkeonCode paths.allow); a project file may only narrow it" } }
+      ? { ignored: { value: dropped.join(", "), reason: PATHS_ALLOW_OUTSIDE_USER } }
       : {}),
   };
 }
@@ -363,19 +309,19 @@ export function validateConfigEntry(key: unknown, value: unknown): ValueVerdict 
   if (!spec) {
     return {
       ok: false,
-      reason: `unknown config key '${String(key ?? "")}'. Valid keys: ${knownConfigKeys().join(", ")}`,
+      reason: unknownConfigKey(String(key ?? ""), knownConfigKeys()),
     };
   }
   const v = String(value ?? "").trim();
-  if (v.length === 0) return { ok: false, reason: `'${spec.key}' needs a value.` };
+  if (v.length === 0) return { ok: false, reason: needsAValue(spec.key) };
   if (spec.allowed && !spec.allowed.includes(v)) {
     return {
       ok: false,
-      reason: `'${v}' is not valid for '${spec.key}'. Allowed: ${spec.allowed.join(", ")}`,
+      reason: notAllowedValue(v, spec.key, spec.allowed),
     };
   }
   const problem = spec.problem?.(v);
-  if (problem !== undefined) return { ok: false, reason: `'${v}' is not valid for '${spec.key}': ${problem}` };
+  if (problem !== undefined) return { ok: false, reason: invalidValue(v, spec.key, problem) };
   return { ok: true, reason: "" };
 }
 

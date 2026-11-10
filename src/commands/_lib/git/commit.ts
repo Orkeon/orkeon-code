@@ -9,6 +9,9 @@ import { buildCommitPlan, isCommitPermitted, parseCommitArgs } from "../../../cr
 import { commandLine, splitWords } from "../args.ts";
 import { readPullRequestContext } from "../pr-context.ts";
 import type { PullRequestContext, PullRequestContextPorts } from "../pr-context.ts";
+import { COMMIT_CANCELLED, NO_ANSWER_REFUSAL, cannotPromptRefusal, commitApproved } from "./messages.ts";
+import { refusedLine } from "../../../shared/application/git/messages.ts";
+import { failedLine } from "../messages.ts";
 
 export interface CommitCommandDeps {
   session: Pick<SessionIo, "resolveEffectiveSessionMode">;
@@ -35,20 +38,13 @@ async function confirmOrRefuse(deps: Pick<CommitCommandDeps, "confirm" | "write"
   try {
     answer = await deps.confirm(question);
   } catch (e: any) {
-    return (
-      "refused: /commit needs a confirmation and this session cannot prompt " +
-      `(${String(e?.message ?? e)}). Re-run as '/commit --yes' if you intend to stage ` +
-      "and commit the changed files unattended."
-    );
+    return cannotPromptRefusal(String(e?.message ?? e));
   }
   if (answer === true) return null;
   if (typeof answer !== "boolean") {
-    return (
-      "refused: the confirmation prompt returned no answer (non-interactive session). " +
-      "Re-run as '/commit --yes' to stage and commit the changed files unattended."
-    );
+    return NO_ANSWER_REFUSAL;
   }
-  return "cancelled — nothing was staged and nothing was committed.";
+  return COMMIT_CANCELLED;
 }
 
 /** `/commit [--yes] [--push] [--pr] [--note <text>] [<path>…]`, from the command's raw tokens: the refusal, written,
@@ -65,7 +61,7 @@ export async function runCommitCommand(tokens: readonly string[], deps: CommitCo
 
   const permitted = isCommitPermitted(mode);
   if (!permitted.allowed) {
-    deps.write(`✗ refused: ${permitted.reason}`);
+    deps.write(refusedLine(permitted.reason));
     return { refused: permitted.reason };
   }
 
@@ -73,12 +69,12 @@ export async function runCommitCommand(tokens: readonly string[], deps: CommitCo
     const plan = buildCommitPlan({ push, pr, paths });
     const refusal = await confirmOrRefuse(deps, plan.notice, plan.question);
     if (refusal !== null) {
-      deps.write(`✗ ${refusal}`);
+      deps.write(failedLine(refusal));
       return { refused: refusal };
     }
   }
 
-  deps.log.info(`commit approved — permission mode '${mode}' (${via})`);
+  deps.log.info(commitApproved(mode, via));
   const context: PullRequestContext | null = pr || push ? await readPullRequestContext(deps.pr) : null;
   // A yes to a plan that named the pull request is the question the github call needs; --yes asked nothing.
   return {

@@ -4,12 +4,11 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok } from "node:assert";
 
 import {
-  EFFORT_LEVELS, EFFORT_MAX_ITERATIONS, DEFAULT_EFFORT, resolveEffort, maxIterationsFor, providerEffort,
-  MIN_PASSES, MAX_PASSES, DEFAULT_PASSES, resolvePasses,
-  FAST_MODE_DROPPED_BLOCKS, fastModeDrops,
-  PROACTIVE_CLAUSE, proactiveSuffix,
+  EFFORT_LEVELS, EFFORT_MAX_ITERATIONS, DEFAULT_EFFORT, resolveEffort, maxIterationsFor, providerEffort, MIN_PASSES,
+  MAX_PASSES, DEFAULT_PASSES, resolvePasses, FAST_MODE_DROPPED_BLOCKS, fastModeDrops, proactiveSuffix,
   DEFAULT_BEHAVIOR_FLAGS, resolveBehaviorFlags, describeActiveFlags,
 } from "../../../../src/shared/domain/agent-policy/behavior-flags.ts";
+import { PROACTIVE_CLAUSE } from "../../../../src/shared/domain/agent-policy/prompts.ts";
 import {
   EFFORT_JUNK, ESSENTIAL_BLOCKS, LEVEL_RUNGS, PASSES_JUNK, PASSES_OUT_OF_RANGE, PROVIDER_EFFORT_CASES, THINKING_CASES,
 } from "./behavior-flags.fixtures.ts";

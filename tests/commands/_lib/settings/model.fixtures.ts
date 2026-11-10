@@ -1,9 +1,11 @@
 // The harness /model runs over (FakeSessionStore, FakeTelemetry reporting kimi-k3 and a catalogue of two, FakeLogger),
 // and the texts it answers that run past a line.
-import { NO_MODEL_REPORTED, runModel } from "../../../../src/commands/_lib/settings/model.ts";
+import { runModel } from "../../../../src/commands/_lib/settings/model.ts";
+import { NO_MODEL_REPORTED } from "../../../../src/commands/_lib/settings/messages.ts";
 import type { CommandView } from "../../../../src/commands/_lib/view.ts";
 import { createConfigStore, USER_CONFIG_FILE_PATH } from "../../../../src/shared/application/config-store.ts";
-import { renderModelList, NO_CATALOGUE_NOTE } from "../../../../src/shared/domain/model-catalog.ts";
+import { renderModelList } from "../../../../src/shared/domain/model-catalog.ts";
+import { NO_CATALOGUE_NOTE } from "../../../../src/shared/domain/messages.ts";
 import { FakeChooser } from "../../../support/doubles/fake-chooser.ts";
 import { FakeFiles } from "../../../support/doubles/fake-files.ts";
 import { FakeLogger } from "../../../support/doubles/fake-logger.ts";

@@ -2,6 +2,7 @@
 // batch number. A batch's dependencies are its summary row's `Depends on`, else its sheet's. An
 // unknown dependency or a cycle refuses the plan. Pure.
 import { compareBatchIds } from "../../../shared/domain/dev/artefacts.ts";
+import { dependencyCycle, selfDependency } from "./messages.ts";
 
 export interface BatchNode {
   id: string;
@@ -21,12 +22,12 @@ export function waveOrder(batches: readonly BatchNode[]): WaveOrder {
   if (unknown.length > 0) return { ok: false, problem: `unknown dependency: ${unknown.join(", ")}` };
   const left = new Map(batches.map((b) => [b.id, new Set(b.dependsOn.filter((d) => d !== b.id))]));
   const self = batches.filter((b) => b.dependsOn.includes(b.id)).map((b) => b.id);
-  if (self.length > 0) return { ok: false, problem: `a batch depends on itself: ${self.join(", ")}` };
+  if (self.length > 0) return { ok: false, problem: selfDependency(self.join(", ")) };
   const order: string[] = [];
   while (left.size > 0) {
     const ready = [...left].filter(([, deps]) => deps.size === 0).map(([id]) => id).sort(compareBatchIds);
     if (ready.length === 0) {
-      return { ok: false, problem: `the dependencies form a cycle: ${[...left.keys()].sort(compareBatchIds).join(", ")}` };
+      return { ok: false, problem: dependencyCycle([...left.keys()].sort(compareBatchIds).join(", ")) };
     }
     const next = ready[0];
     order.push(next);

@@ -1,8 +1,9 @@
 // The answers checkLearnAnswer is tested on: a valid motif on the wire, the rows shown to the model, and one case per
 // refusal of the design's table.
 import {
-  LABEL_TITLE_CHARS, MAX_LINES_PER_MOTIF, MAX_TOPIC_CHARS, SEEN_LINES_ONLY, checkLearnAnswer, motifLabel,
+  LABEL_TITLE_CHARS, MAX_LINES_PER_MOTIF, MAX_TOPIC_CHARS, checkLearnAnswer, motifLabel,
 } from "../../../../src/crews/dev-learn/domain/learn-answer.ts";
+import { SEEN_LINES_ONLY } from "../../../../src/crews/dev-learn/domain/messages.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 
 export const SHOWN = new Set(["c936075d95", "b983faad38", "3a59a45e69", "7b3b561c93"]);

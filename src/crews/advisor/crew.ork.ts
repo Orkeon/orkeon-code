@@ -22,13 +22,14 @@ import { CrewBuilder, publishCrew } from "../../shared/infrastructure/globals.ts
 import { orkeonAgent, orkeonConfigStore, orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { runAdvisor } from "./application/run-advisor.ts";
+import { ADVISOR_GOAL, ADVISOR_ROLE } from "./application/prompts.ts";
 
 const ports = { config: orkeonConfigStore(), session: orkeonSessionIo() };
 
 const advisor = orkeonAgent()
   .name("advisor")
-  .role("Independent Reviewer")
-  .goal("Give a blunt second opinion on the last answer the coding agent produced.")
+  .role(ADVISOR_ROLE)
+  .goal(ADVISOR_GOAL)
   .maxIterations(1)
   .body(async (_input: any, ctx: any) =>
     await runAdvisor({ ...ports, llm: createLlm(ctx.llm), log: ctx.log }))

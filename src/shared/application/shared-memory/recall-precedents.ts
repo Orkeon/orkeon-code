@@ -9,6 +9,7 @@ import type { EntryType } from "../../domain/shared-memory/entry.ts";
 import { MAX_PRECEDENTS, RECALL_TOP_N, buildPrecedentsBlock } from "../../domain/shared-memory/precedents-block.ts";
 import type { Precedent } from "../../domain/shared-memory/precedents-block.ts";
 import type { MemoryLayout } from "../../domain/shared-memory/layout.ts";
+import { recallFailed } from "./messages.ts";
 
 export interface RecallDeps {
   memory: Pick<SharedMemory, "search">;
@@ -63,7 +64,7 @@ export async function recallPrecedents(
   try {
     return buildPrecedentsBlock((await recallEntries(deps, request)).precedents);
   } catch (error) {
-    deps.log.warn(`shared memory: recall failed, no precedents (${String((error as Error)?.message ?? error).split("\n")[0]})`);
+    deps.log.warn(recallFailed(String((error as Error)?.message ?? error).split("\n")[0]));
     return "";
   }
 }

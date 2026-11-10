@@ -7,9 +7,9 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import {
-  DEV_LEARN_USAGE, DEV_PLAN_USAGE, DEV_STATUS_USAGE, MAX_LINE_CHARS,
-  devPlanGate, parseDevLearnArgs, parseDevPlanArgs, runDevLearnDecision, runDevStatus,
+  MAX_LINE_CHARS, devPlanGate, parseDevLearnArgs, parseDevPlanArgs, runDevLearnDecision, runDevStatus,
 } from "../../../../src/commands/_lib/dev/dev.ts";
+import { DEV_LEARN_USAGE, DEV_PLAN_USAGE, DEV_STATUS_USAGE } from "../../../../src/commands/_lib/dev/messages.ts";
 import { serializeLearnState } from "../../../../src/shared/domain/dev/learn-state.ts";
 import {
   BLOCKED_GATE,

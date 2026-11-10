@@ -6,10 +6,13 @@
 import type { Chooser, Logger } from "../../../shared/application/ports.ts";
 import type { SessionIo } from "../../../shared/application/session-io.ts";
 import { PERMISSION_MODES, isPermissionMode, getNextPermissionMode } from "../../../shared/domain/permission-modes.ts";
-import type { PermissionMode } from "../../../shared/domain/permission-modes.ts";
 import { DEFAULT_MODE_STATE_KEY } from "../../../shared/domain/session-keys.ts";
 import { policyFor } from "../../../shared/domain/agent-policy/mode-policy.ts";
 import type { CommandView } from "../view.ts";
+import {
+  LEAVING_PLAN, MODE_CHOICE, MODE_DESCRIPTIONS, MODE_SET_TO, PLAN_OFF, PLAN_ON, enteringReadOnly, modeApplied,
+  modeCycled, modeShown, modeUnchanged, unknownMode,
+} from "./messages.ts";
 
 export interface ModeDeps {
   session: Pick<SessionIo, "resolveEffectiveSessionMode" | "readState" | "writeState">;
@@ -18,25 +21,13 @@ export interface ModeDeps {
   chooser?: Chooser;
 }
 
-/** What each mode lets a turn do, beside its name in the panel. */
-const MODE_DESCRIPTIONS: Record<PermissionMode, string> = {
-  default: "reads run, the rest asks",
-  acceptEdits: "reads and file edits run, the rest asks",
-  bypassPermissions: "every call runs but what a deny rule refuses",
-  plan: "read-only, no edit, network or shell tool",
-  dontAsk: "local reads only, nothing asks",
-};
-
 /** Persist + announce a mode transition; logs the read-only catalogue strip (E-12). */
 async function applyMode(deps: ModeDeps, next: string, how: string): Promise<CommandView> {
   await deps.session.writeState(DEFAULT_MODE_STATE_KEY, next);
   if (policyFor(next).readOnly) {
-    deps.log.info(`entering '${next}': the edit, network and shell tools stripped from the catalogue`);
+    deps.log.info(enteringReadOnly(next));
   }
-  return {
-    text: `session default permission mode ${how} '${next}' ` +
-      `(prompts without a "mode:" prefix now run in it; /clear restores 'default').`,
-  };
+  return { text: modeApplied(how, next) };
 }
 
 /** `/mode [<mode>|show]`, from the command's raw tokens. No argument opens a panel, or without one CYCLES to the
@@ -48,7 +39,7 @@ export async function runMode(tokens: string[], deps: ModeDeps, typed = "mode"):
   if (!requested && deps.chooser?.interactive) {
     const { mode: current } = await deps.session.resolveEffectiveSessionMode();
     const answer = await deps.chooser.choose({
-      message: "Permission mode for this session",
+      message: MODE_CHOICE,
       options: PERMISSION_MODES.map((mode) => ({
         value: mode,
         description: MODE_DESCRIPTIONS[mode],
@@ -56,29 +47,24 @@ export async function runMode(tokens: string[], deps: ModeDeps, typed = "mode"):
       })),
     });
     // Confirming the mode in force stores nothing: a fallback it came from stays free to change later.
-    if (!answer || answer.value === current) return { text: `permission mode unchanged: ${current}.` };
-    return applyMode(deps, answer.value, "set to");
+    if (!answer || answer.value === current) return { text: modeUnchanged(current) };
+    return applyMode(deps, answer.value, MODE_SET_TO);
   }
   if (!requested) {
     // E-12: bare /mode cycles default → acceptEdits → plan → bypassPermissions.
     // B-2: cycling starts from the EFFECTIVE mode, fallback included, so the
     // first press moves from what the session is actually running.
     const { mode: current } = await deps.session.resolveEffectiveSessionMode();
-    return applyMode(deps, getNextPermissionMode(current), `cycled ${current} →`);
+    return applyMode(deps, getNextPermissionMode(current), modeCycled(current));
   }
   if (requested === "show") {
     const { mode: current, via } = await deps.session.resolveEffectiveSessionMode();
-    return {
-      text: `session default permission mode: ${current}\n` +
-        `  ↳ ${via}\n` +
-        `usage: /mode [<${PERMISSION_MODES.join("|")}>|show] — bare /mode opens a panel, or cycles without one; ` +
-        `an explicit "mode:" prefix on a prompt still wins.`,
-    };
+    return { text: modeShown(current, via, PERMISSION_MODES) };
   }
   if (!isPermissionMode(requested)) {
-    return { text: `unknown mode '${requested}' — expected one of: ${PERMISSION_MODES.join(", ")}, show.` };
+    return { text: unknownMode(requested, PERMISSION_MODES) };
   }
-  return applyMode(deps, requested, "set to");
+  return applyMode(deps, requested, MODE_SET_TO);
 }
 
 // ── /plan — a TOGGLE, as the baseline specifies ───────────────────────────
@@ -89,14 +75,11 @@ async function runPlanToggle(deps: ModeDeps): Promise<CommandView> {
   const { mode, entering } = togglePlanMode(current);
   await deps.session.writeState(DEFAULT_MODE_STATE_KEY, mode);
   if (entering) {
-    deps.log.info("entering 'plan': the edit, network and shell tools stripped from the catalogue");
-    return { text: "plan mode ON — prompts without a \"mode:\" prefix now run read-only. /plan again to leave." };
+    deps.log.info(enteringReadOnly("plan"));
+    return { text: PLAN_ON };
   }
-  deps.log.info("leaving 'plan': session default back to 'default' (asks on writes)");
-  return {
-    text: "plan mode OFF — the session default is 'default' (asks on writes). " +
-      "It is NOT restored to whatever it was before /plan: use /mode to pick another.",
-  };
+  deps.log.info(LEAVING_PLAN);
+  return { text: PLAN_OFF };
 }
 
 /**

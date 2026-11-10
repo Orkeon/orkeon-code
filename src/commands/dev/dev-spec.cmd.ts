@@ -8,6 +8,7 @@
 // sets are put in it before the crew (_lib/dev-step.ts), and the crew's tool callbacks check them again and run the /hooks.
 import { rawTokens, typedCommand } from "../_lib/args.ts";
 import { parseDevSpecArgs } from "../_lib/dev/dev-source.ts";
+import { WRITES_FILES } from "../_lib/dev/messages.ts";
 import { readWriteModeRefusal, startDevStep } from "../_lib/dev-step.ts";
 import { launchCrew, withLlmProfile, writeCompleted } from "../_lib/dispatch.ts";
 import { storedEffort } from "../_lib/effort.ts";
@@ -32,7 +33,7 @@ defineAsyncCommand({
     }
     const crew = parsed.crew;
     // The crew writes files through its own port, which no mode gates: a read-only mode refuses it here.
-    const readOnly = await readWriteModeRefusal(deps.session, crew, "writes files");
+    const readOnly = await readWriteModeRefusal(deps.session, crew, WRITES_FILES);
     if (readOnly !== null) {
       ctx.writeLine(readOnly);
       return { refused: readOnly };

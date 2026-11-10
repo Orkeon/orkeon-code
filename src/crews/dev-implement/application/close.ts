@@ -14,16 +14,19 @@ import type { WorkFolder } from "../../../shared/application/dev/resolve-work-fo
 import { auditCommand, closeCommand, lastVerdict, parseVerdictFile } from "../../../shared/domain/dev/verdict-format.ts";
 import { parseBatchSheet } from "../../../shared/domain/dev/plan-format.ts";
 import type { RepoPack } from "../../../shared/domain/dev/repo-pack.ts";
-import { DEV_PR_AUTO_CONFIG_KEY, GIT_CURRENT_BRANCH_COMMAND, GIT_DEFAULT_BRANCH_COMMAND, parseDefaultBranch } from "../../../shared/domain/git/close.ts";
+import {
+  DEV_PR_AUTO_CONFIG_KEY, GIT_CURRENT_BRANCH_COMMAND, GIT_DEFAULT_BRANCH_COMMAND, parseDefaultBranch, shellQuote, workBranchFromPattern,
+} from "../../../shared/domain/git/close.ts";
 import type { PrSummary } from "../../../shared/domain/git/close.ts";
 import type { PermissionRule } from "../../../shared/domain/agent-policy/permission.ts";
 import { under } from "../domain/step-checks.ts";
 import { openSteps, parseImplementSheet } from "../domain/step-section.ts";
 import { markPlanBatchDone, markSheetDone } from "../domain/sheet-edits.ts";
-import { shellQuote, workBranchFromPattern } from "../../../shared/domain/git/close.ts";
 import { verdictMarkOf } from "./touched.ts";
 import type { LocatedSheet } from "./locate-sheet.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
+import { NO_CURRENT_BRANCH, branchExistsSwitchToIt, defaultBranchAsksWorkBranch, noBranchName, noFileRecorded, notAudited, notValid, planBatchMarkedDone, planNotFound, sheetMarkedDone, sheetNotMarkedDone, sheetUnreadableAtClose, switchFailed, tddBoxOpen, verdictNotRewritten } from "./messages.ts";
+import { branchCreated } from "../../../shared/application/git/messages.ts";
 
 export interface CloseInput {
   pack: RepoPack;
@@ -77,32 +80,32 @@ export async function closeDevBatch(
   try {
     verdictText = await deps.files.read(`${WORKSPACE}/${located.dir}/${verdictName}`);
   } catch {
-    return [`BLOCKED — close: no ${located.dir}/${verdictName}: the batch is audited first (${auditCommand(located.code, batch)})`];
+    return [notAudited(`${located.dir}/${verdictName}`, auditCommand(located.code, batch))];
   }
   const verdict = lastVerdict(parseVerdictFile(verdictText));
   if (verdict?.verdict !== "VALID") {
-    return [`BLOCKED — close: the last verdict of ${verdictName} is ${verdict?.verdict ?? "missing"}, not VALID: nothing is committed`];
+    return [notValid(verdictName, verdict?.verdict ?? "missing")];
   }
   if (input.touched.length === 0) {
-    return [`BLOCKED — close: no file recorded for ${batch} (.orkeon/dev/${located.code}/implement-${batch}.json): commit the batch with /commit <files>`];
+    return [noFileRecorded(batch, located.code)];
   }
   if (input.verdictMark === null || input.verdictMark === verdictMarkOf(verdictText)) {
-    return [`BLOCKED — close: ${verdictName} was not written since the last run of ${batch} changed the batch: audit it again (${auditCommand(located.code, batch)})`];
+    return [verdictNotRewritten(verdictName, batch, auditCommand(located.code, batch))];
   }
   let sheetText: string;
   try {
     sheetText = await deps.files.read(`${WORKSPACE}/${located.dir}/${located.name}`);
   } catch {
-    return [`BLOCKED — close: ${located.dir}/${located.name} cannot be read: nothing is committed`];
+    return [sheetUnreadableAtClose(`${located.dir}/${located.name}`)];
   }
   const open = openSteps(parseImplementSheet(sheetText)).map((s) => s.number);
   if (open.length > 0) {
-    return [`BLOCKED — close: step ${open.join(", ")} of ${located.name} still has a TDD box open: /dev-batches ${located.code} ${batch} first`];
+    return [tddBoxOpen(open.join(", "), located.name, located.code, batch)];
   }
 
   const current = await runGit(deps.shell, GIT_CURRENT_BRANCH_COMMAND);
   const branch = current.exitCode === 0 ? current.stdout.trim() : "";
-  if (branch === "") return ["BLOCKED — close: no current branch (a detached HEAD?): check out the work branch, then " + rerun];
+  if (branch === "") return [NO_CURRENT_BRANCH + rerun];
   const base = await runGit(deps.shell, GIT_DEFAULT_BRANCH_COMMAND);
   const defaultBranch = base.exitCode === 0 ? parseDefaultBranch(base.stdout) : null;
   const wanted = input.pack.contrib.branch?.trim();
@@ -110,9 +113,9 @@ export async function closeDevBatch(
   const notes: string[] = [];
   if (wanted && defaultBranch !== null && branch === defaultBranch) {
     const made = await createWorkBranch(deps.shell, wanted, located.code, batch);
-    if (!made.ok) return [`BLOCKED — close: ${branch} is the default branch and the pack asks for a work branch (${wanted}): ${made.reason}, then ${rerun}`];
+    if (!made.ok) return [defaultBranchAsksWorkBranch(branch, wanted, made.reason, rerun)];
     onBranch = made.branch;
-    notes.push(`✓ branch ${made.branch} created from ${branch} (contrib.branch ${wanted})`);
+    notes.push(branchCreated(made.branch, branch, wanted));
   }
 
   const parsed = parseBatchSheet(sheetText);
@@ -146,12 +149,12 @@ async function createWorkBranch(
   shell: Pick<Shell, "run">, pattern: string, code: string, batch: string,
 ): Promise<{ ok: true; branch: string } | { ok: false; reason: string }> {
   const name = workBranchName(pattern, code, batch);
-  if (name === null) return { ok: false, reason: `no branch name can be made from '${pattern}' (<prefix>/<slug>): create it` };
+  if (name === null) return { ok: false, reason: noBranchName(pattern) };
   const exists = await runGit(shell, `git rev-parse --verify --quiet ${shellQuote(`refs/heads/${name}`)}`);
-  if (exists.exitCode === 0) return { ok: false, reason: `the branch ${name} exists already: switch to it (git switch ${name})` };
+  if (exists.exitCode === 0) return { ok: false, reason: branchExistsSwitchToIt(name) };
   const made = await runGit(shell, `git switch -c ${shellQuote(name)}`);
   if (made.exitCode !== 0) {
-    return { ok: false, reason: `git switch -c ${name} failed (${(made.stderr || made.stdout).trim().split("\n")[0] || `exit ${made.exitCode}`}): create it` };
+    return { ok: false, reason: switchFailed(name, (made.stderr || made.stdout).trim().split("\n")[0] || `exit ${made.exitCode}`) };
   }
   return { ok: true, branch: name };
 }
@@ -165,19 +168,19 @@ async function markDone(files: Files, located: LocatedSheet, batch: string, shee
     const now = await files.read(sheetPath).catch(() => sheetText);
     const marked = markSheetDone(now, today);
     if (marked !== now) await files.write(sheetPath, marked);
-    out.push(`✓ ${located.name} marked done (${today})`);
+    out.push(sheetMarkedDone(located.name, today));
   } catch (e) {
-    out.push(`⚠ ${located.name} could not be marked done: ${String((e as Error)?.message ?? e).split("\n")[0]}`);
+    out.push(sheetNotMarkedDone(located.name, String((e as Error)?.message ?? e).split("\n")[0]));
   }
   try {
     const plan = await files.read(`${WORKSPACE}/${located.dir}/${planName}`);
     const marked = markPlanBatchDone(plan, batch, today);
     if (marked !== plan) {
       await files.write(`${WORKSPACE}/${located.dir}/${planName}`, marked);
-      out.push(`✓ ${planName}: batch ${batch} marked done`);
+      out.push(planBatchMarkedDone(planName, batch));
     }
   } catch {
-    out.push(`⚠ ${planName} not found beside the sheet: its batch ${batch} is not marked done`);
+    out.push(planNotFound(planName, batch));
   }
   return out;
 }

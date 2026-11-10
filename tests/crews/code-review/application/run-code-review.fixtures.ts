@@ -1,5 +1,5 @@
 // The ports of the code-review use case, their fakes wired, and the review it is expected to run.
-import { REVIEW_PROGRESS_LABEL } from "../../../../src/crews/code-review/application/run-code-review.ts";
+import { REVIEW_PROGRESS_LABEL } from "../../../../src/crews/code-review/application/messages.ts";
 import { FINDINGS_SCHEMA, buildLensPrompt } from "../../../../src/crews/code-review/application/prompts.ts";
 import { LENSES, type ReviewLens } from "../../../../src/crews/code-review/domain/lenses.ts";
 import { createConfigStore } from "../../../../src/shared/application/config-store.ts";

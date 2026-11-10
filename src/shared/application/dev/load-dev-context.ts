@@ -18,6 +18,8 @@ import type { VerdictFile } from "../../domain/dev/verdict-format.ts";
 import { parseBatchesState } from "../../domain/dev/batches-state.ts";
 import type { BatchesState } from "../../domain/dev/batches-state.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
+import { TODO_HOLDS_HARNESS_WORK, notIgnoredByGit, severalPlans, workDirUnreadable } from "./messages.ts";
+import { cannotBeRead } from "../messages.ts";
 
 export interface DevContextDeps {
   files: Pick<Files, "read" | "list">; shell: Pick<Shell, "run">; config: Pick<ConfigStore, "readValue">;
@@ -49,7 +51,7 @@ async function readWorkDirSetting(config: Pick<ConfigStore, "readValue">, warnin
   try {
     return (await config.readValue(DEV_WORK_DIR_CONFIG_KEY)).value;
   } catch (e) {
-    warnings.push(`${DEV_WORK_DIR_CONFIG_KEY} could not be read (${firstLine(e)}): the pack or the default decides`);
+    warnings.push(workDirUnreadable(DEV_WORK_DIR_CONFIG_KEY, firstLine(e)));
     return undefined;
   }
 }
@@ -68,7 +70,7 @@ async function checkIgnored(shell: Pick<Shell, "run">, work: WorkFolder, warning
   if (result.exitCode !== 0 && result.exitCode !== 1) return;
   const ignored = new Set(result.stdout.split(/\r?\n/).map((l) => l.trim()).filter((l) => l !== ""));
   for (const path of paths) {
-    if (!ignored.has(path)) warnings.push(`${path} is not ignored by git: add it to .gitignore (Orkeon Code never edits it)`);
+    if (!ignored.has(path)) warnings.push(notIgnoredByGit(path));
   }
 }
 
@@ -119,10 +121,7 @@ export async function loadDevContext(deps: DevContextDeps): Promise<DevContext> 
   if (request === null) {
     const named = (await harnessWorkDir(deps.files))?.trim().replace(/^\.\//, "").replace(/\/+$/, "");
     if (named !== DEFAULT_WORK_FOLDER && (await todoHoldsHarnessWork(deps.files))) {
-      warnings.push(
-        "todo/ holds harness artefacts and nothing names workbench/: set layout.work: workbench in the pack, " +
-          "or HARNESS_WORK_DIR=workbench in .claude/settings.local.json env (W-01)",
-      );
+      warnings.push(TODO_HOLDS_HARNESS_WORK);
     }
   }
   return { pack, work, warnings };
@@ -182,7 +181,7 @@ export async function loadDevCode(deps: Pick<DevContextDeps, "files">, work: Wor
     try {
       return await deps.files.read(`${folder}/${name}`);
     } catch (e) {
-      warnings.push(`${shown}/${name} cannot be read (${firstLine(e)})`);
+      warnings.push(cannotBeRead(`${shown}/${name}`, firstLine(e)));
       return null;
     }
   };
@@ -194,7 +193,7 @@ export async function loadDevCode(deps: Pick<DevContextDeps, "files">, work: Wor
   if (plans.length > 0) {
     const chosen = plans.find((p) => p.prefix.toUpperCase() === code.toUpperCase()) ?? plans[0];
     if (plans.length > 1) {
-      warnings.push(`several plans in ${shown}/: ${plans.map((p) => p.name).join(", ")}: ${chosen.name} is read`);
+      warnings.push(severalPlans(shown, plans.map((p) => p.name).join(", "), chosen.name));
     }
     const text = await read(chosen.name);
     if (text !== null) {

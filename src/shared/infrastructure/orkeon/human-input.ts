@@ -7,11 +7,7 @@
 // Enter); an empty `text` is no answer.
 import type { HumanInput } from "../../application/ports.ts";
 import { pick } from "./tool-results.ts";
-
-/** The default value no option holds: an answer equal to it came from no person. */
-export const NO_ANSWER = "(no answer)";
-/** The first option of a `multi`: picked by the auto-approver, it decides nothing. */
-export const DECIDE_LATER = "Decide later";
+import { DECIDE_LATER, NO_ANSWER } from "./markers.ts";
 
 type HumanInputTools = Partial<Pick<OrkeonTools, "humanInput">>;
 const NOBODY = { answered: false } as const;

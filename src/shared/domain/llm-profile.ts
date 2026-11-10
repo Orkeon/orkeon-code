@@ -4,6 +4,7 @@
 // in its input, under `llmProfile`; the crew's composition root builds every agent on it
 // (shared/infrastructure/orkeon/llm-profile.ts). Omitted, the agents run on the host's default model,
 // as they always did.
+import { PROFILE_NAME_EXPECTED, profileHoldsColon, profileHoldsSpace } from "./messages.ts";
 
 export const LLM_PROFILE_CONFIG_KEY = "llm.profile";
 /** The field of a crew input that carries the profile's name. */
@@ -12,9 +13,9 @@ export const LLM_PROFILE_INPUT_KEY = "llmProfile";
 /** Why a value is refused for `llm.profile`; undefined when it is a profile name. */
 export function llmProfileProblem(value: string): string | undefined {
   const name = value.trim();
-  if (name === "") return "a profile name is expected";
-  if (/\s/.test(name)) return `'${value}' holds a space: a profile is one name, as the host's settings spell it`;
-  if (name.includes(":")) return `'${value}' holds a colon: name the profile alone, not its settings path`;
+  if (name === "") return PROFILE_NAME_EXPECTED;
+  if (/\s/.test(name)) return profileHoldsSpace(value);
+  if (name.includes(":")) return profileHoldsColon(value);
   return undefined;
 }
 

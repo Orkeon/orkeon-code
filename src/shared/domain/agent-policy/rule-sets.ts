@@ -10,6 +10,10 @@
 import { gateLine, sameCalls } from "./permission.ts";
 import type { PermissionRule } from "./permission.ts";
 import { WORKSPACE, workspaceRelative } from "../vfs.ts";
+import {
+  GIT_READONLY_TITLE, INLINE_INTERPRETERS_TITLE, patternClimbsOut, patternOutside, patternWholeProject,
+  READ_NOISE_TITLE, rootClimbsOut, rootHoldsStar, rootOutside, rootWholeProject, SECRETS_TITLE, STATE_FILES_TITLE,
+} from "./messages.ts";
 
 export type RuleSetId = "git-readonly" | "inline-interpreters" | "read-noise" | "secrets" | "state-files";
 
@@ -236,7 +240,7 @@ export function denyEach(tools: readonly string[], argument: string, patterns: r
 export const RULE_SETS: Readonly<Record<RuleSetId, RuleSet>> = {
   "git-readonly": {
     id: "git-readonly",
-    title: "git commands that change the repository, its branches or its remotes",
+    title: GIT_READONLY_TITLE,
     rules: denyAll("shell_command", "command", [
       ...GIT_MUTATING_VERBS.flatMap(gitPatterns),
       // `-c key=value` sets a config for one command, and core.pager or core.sshCommand run a program.
@@ -245,7 +249,7 @@ export const RULE_SETS: Readonly<Record<RuleSetId, RuleSet>> = {
   },
   "inline-interpreters": {
     id: "inline-interpreters",
-    title: "code handed inline to an interpreter, which could run what the other rules refuse",
+    title: INLINE_INTERPRETERS_TITLE,
     // `*sh -c*` covers bash, sh, zsh, dash, ksh and fish behind a path or an `env`; `*sh -*c *` a flag cluster
     // (bash -xc), `*sh -* -c*` a flag before `-c`; the same for the other interpreters. `ssh -c <cipher>` is
     // refused too, a side effect of matching any word ending with `sh`. `python3.*` names a versioned python
@@ -261,7 +265,7 @@ export const RULE_SETS: Readonly<Record<RuleSetId, RuleSet>> = {
   },
   "read-noise": {
     id: "read-noise",
-    title: "reads under build outputs, version-control internals and installed packages",
+    title: READ_NOISE_TITLE,
     // Each folder twice: inside a path, and as the start of a path relative to the project.
     rules: denyEach(PATH_READ_TOOLS, "path", [
       "*/bin/*", "bin/*", "*/obj/*", "obj/*", "*/.git/*", ".git/*", "*/node_modules/*", "node_modules/*",
@@ -269,7 +273,7 @@ export const RULE_SETS: Readonly<Record<RuleSetId, RuleSet>> = {
   },
   secrets: {
     id: "secrets",
-    title: "a private key block or a token with a known prefix in written content",
+    title: SECRETS_TITLE,
     // The prefixes of SECRET_PATTERNS (secret-patterns.ts) a whole-content pattern can hold without refusing
     // ordinary text; the others need a check of the content itself. edit_batch's texts sit in its
     // operations, which the crews' callback reads as node_replace, node_insert or node_ensure texts.
@@ -284,7 +288,7 @@ export const RULE_SETS: Readonly<Record<RuleSetId, RuleSet>> = {
   },
   "state-files": {
     id: "state-files",
-    title: "files only Orkeon Code's own code writes",
+    title: STATE_FILES_TITLE,
     // Batch logs, batch states, verdicts and audit captures; the state folder's entries; the harness's deployed files.
     rules: [
       ...denyEach(PATH_WRITE_TOOLS, "path", [
@@ -320,10 +324,10 @@ function normaliseRoot(raw: string): string {
 }
 
 function rootProblem(raw: string, root: string): string | undefined {
-  if (root === "") return `root '${raw}' names the whole project: no rule`;
-  if (root.startsWith("/")) return `root '${raw}' is outside ${WORKSPACE}: no rule`;
-  if (root.split("/").includes("..")) return `root '${raw}' climbs out with '..': no rule`;
-  if (root.includes("*")) return `root '${raw}' holds '*': a rule on it would cover more than the folder`;
+  if (root === "") return rootWholeProject(raw);
+  if (root.startsWith("/")) return rootOutside(raw, WORKSPACE);
+  if (root.split("/").includes("..")) return rootClimbsOut(raw);
+  if (root.includes("*")) return rootHoldsStar(raw);
   return undefined;
 }
 
@@ -381,9 +385,9 @@ export function patternWriteRules(patterns: readonly string[]): PathRules {
   const seen = new Set<string>();
   for (const raw of patterns) {
     const pattern = normaliseRoot(raw);
-    if (pattern === "" || pattern === "*") { problems.push(`pattern '${raw}' covers the whole project: no rule`); continue; }
-    if (pattern.startsWith("/")) { problems.push(`pattern '${raw}' is outside ${WORKSPACE}: no rule`); continue; }
-    if (pattern.split("/").includes("..")) { problems.push(`pattern '${raw}' climbs out with '..': no rule`); continue; }
+    if (pattern === "" || pattern === "*") { problems.push(patternWholeProject(raw)); continue; }
+    if (pattern.startsWith("/")) { problems.push(patternOutside(raw, WORKSPACE)); continue; }
+    if (pattern.split("/").includes("..")) { problems.push(patternClimbsOut(raw)); continue; }
     if (seen.has(pattern)) continue;
     seen.add(pattern);
     rules.push(...denyEach(PATH_WRITE_TOOLS, "path", [`${WORKSPACE}/${pattern}`, pattern]));

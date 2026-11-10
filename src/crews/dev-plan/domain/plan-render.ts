@@ -9,7 +9,17 @@ import { packValue } from "../../../shared/domain/dev/repo-pack.ts";
 import type { RepoPack } from "../../../shared/domain/dev/repo-pack.ts";
 import type { ReviewAnswer, ReviewRow } from "../../../shared/domain/dev/review-answer.ts";
 import type { ChangeKind, SourceId, SourceKind } from "../../../shared/domain/dev/spec-format.ts";
+import {
+  ASSUMPTIONS_SECTION, ASSUMPTIONS_TABLE_HEAD, BUILD_STEP, DECISIONS_SECTION, OPEN_TDD_LINE, STEP_TESTS_TABLE_HEAD,
+} from "../../../shared/domain/dev/markers.ts";
 import type { InventoryEntry } from "./inventory-model.ts";
+import {
+  ANCHORS_HEADER, DESIGN_HEADER, PLAN_DESIGN_SECTION, PLAN_QUESTIONS_SECTION, PLAN_SUMMARY_SECTION, QUESTIONS_HEADER, SUMMARY_HEADER,
+  TRACE_HEADER, testPolicyBlock,
+} from "./markers.ts";
+import {
+  ANCHORS_LEAD, BUILD_STEP_BODY, DECLARATIVE_LEAD, NOT_IN_THE_PACK, NO_PACK_TAIL, TDD_PREAMBLE, blockedByQuestion, reviewMajor,
+} from "./messages.ts";
 import type { AnchorRef, ElementLayer, PlanAnswer, PlanBatch, PlanStep } from "./plan-answer.ts";
 
 export interface RenderInput {
@@ -26,7 +36,6 @@ export interface RenderInput {
 export interface RepoLines { commands: string; layout: string } // the two Scope lines' text after their label
 export interface RenderedPlan { plan: { name: string; text: string }; sheets: Array<{ name: string; text: string }> }
 
-const BUILD_STEP = "Build and tests";
 const NONE_DASH = "—";
 const COMMAND_KEYS = ["restore", "build", "build_test", "test_class", "test", "test_project", "test_integration"];
 const LAYOUT_KEYS = ["domain", "application", "infrastructure", "tests"];
@@ -34,16 +43,6 @@ const LAYER_LABELS: ReadonlyArray<[ElementLayer, string]> = [
   ["domain", "**Domain**"], ["application", "**Application**"], ["adapter", "**Adapters**"], ["test", "**Tests**"],
 ];
 const FAMILY_RANK: Record<string, number> = { BR: 0, CH: 1, UC: 2 };
-
-// The sentences of a rendered plan that are not format literals: this project's words.
-const TDD_PREAMBLE = [
-  "Tests lead: a step's production code starts only once its tests exist and fail. Within the step, write the",
-  "passing path first, then the refusals, then the integration checks.",
-];
-const DECLARATIVE_LEAD = "Pure declarations left without a test of their own (each one exercised by the test of its behaviour)";
-const BUILD_STEP_BODY = "No test of its own: it runs the scopes of `## Test policy and scopes`.";
-const ANCHORS_LEAD = "Paths copied by the implementation step; an existing one carries the line of the member it names, from the inventory of the plan run.";
-const MAJOR_TAIL = "Not settled by the plan run: answer it here before the first failing test of the step it concerns.";
 
 const noDot = (text: string): string => text.replace(/\.+$/, "");
 const code = (text: string): string => `\`${text}\``;
@@ -98,7 +97,7 @@ function placeReview(review: ReviewAnswer | null): ReviewPlacement {
 export function repoLines(pack: RepoPack | null, packShown: string | null): RepoLines & { absent: string[] } {
   const absent: string[] = [];
   const tail = pack === null
-    ? " — no repository pack: add .orkeon/repo.yaml"
+    ? NO_PACK_TAIL
     : ` — from ${code(packShown ?? ".orkeon/repo.yaml")}`;
   const valueOf = (key: string): string | undefined => {
     const v = pack === null ? undefined : packValue(pack, key);
@@ -108,7 +107,7 @@ export function repoLines(pack: RepoPack | null, packShown: string | null): Repo
   };
   const commands = COMMAND_KEYS.map((k) => {
     const v = valueOf(`commands.${k}`);
-    return v === undefined ? `${k} (not in the pack)` : `${k} ${code(v)}`;
+    return v === undefined ? `${k} ${NOT_IN_THE_PACK}` : `${k} ${code(v)}`;
   });
   const layout = LAYOUT_KEYS.flatMap((k) => {
     const v = valueOf(`layout.${k}`);
@@ -116,7 +115,7 @@ export function repoLines(pack: RepoPack | null, packShown: string | null): Repo
   });
   return {
     commands: `${commands.join(" · ")}${tail}`,
-    layout: `${layout.length === 0 ? "(not in the pack)" : layout.join(" · ")}${tail}`,
+    layout: `${layout.length === 0 ? NOT_IN_THE_PACK : layout.join(" · ")}${tail}`,
     absent,
   };
 }
@@ -160,7 +159,7 @@ function globalPlan(input: RenderInput, sheetNames: readonly string[], review: R
     return batches.length === 0 ? NONE_DASH : batches.join(", ");
   };
   const trace = [
-    "| Id | Code owner(s) | Batch |",
+    TRACE_HEADER,
     "|----|---------------|-------|",
     ...input.sourceIds.map((s) => {
       const owners = a.traceability.find((t) => t.id === s.id)?.owners ?? [];
@@ -168,12 +167,12 @@ function globalPlan(input: RenderInput, sheetNames: readonly string[], review: R
     }),
   ].join("\n");
   const design = [
-    "| Ids | Owning aggregate | Invariant and what it removes | Consistency | Batch |",
+    DESIGN_HEADER,
     "|-----|------------------|-------------------------------|-------------|-------|",
     ...a.design.map((d) => row([d.ids.join(", "), code(d.aggregate), d.invariant, d.consistency, `F${d.batch}`])),
   ].join("\n");
   const questions = review.questions.length === 0 ? null : [
-    "| # | Severity | Question | Evidence |",
+    QUESTIONS_HEADER,
     "|---|----------|----------|----------|",
     ...review.questions.map(({ n, row: r }) => row([String(n), r.severity, unlabelled(r.question), unlabelled(r.evidence)])),
   ].join("\n");
@@ -181,9 +180,9 @@ function globalPlan(input: RenderInput, sheetNames: readonly string[], review: R
   return blocks([
     `# ${p}-PLAN — ${a.feature}`,
     `> From ${code(input.sourceShown)}. Sheets: ${sheetNames.map(code).join(", ")}.`,
-    "## 0. Summary",
+    PLAN_SUMMARY_SECTION,
     [
-      "| Batch | Intent | Ids | Depends on | Reason |",
+      SUMMARY_HEADER,
       "|-------|--------|-----|------------|--------|",
       ...a.batches.map((b, k) => row([`F${k + 1}`, b.intent, ids(b), deps(b), b.reason])),
     ].join("\n"),
@@ -192,9 +191,9 @@ function globalPlan(input: RenderInput, sheetNames: readonly string[], review: R
     scope,
     "## 2. Traceability",
     trace,
-    "## 3. Design",
+    PLAN_DESIGN_SECTION,
     design,
-    questions === null ? null : "## 4. Open questions",
+    questions === null ? null : PLAN_QUESTIONS_SECTION,
     questions,
   ]);
 }
@@ -225,12 +224,11 @@ function anchorCell(anchors: readonly AnchorRef[], column: Column, inventory: Re
 function stepBlocks(s: PlanStep, j: number): string[] {
   const table = [
     `### Step ${j + 1} — ${s.title}`,
-    "| # | Test | Level | Project | Ids |",
-    "|---|------|-------|---------|-----|",
+    ...STEP_TESTS_TABLE_HEAD,
     ...s.tests.map((t, m) => row([String(m + 1), code(t.name), t.level, code(t.project), t.ids.length === 0 ? NONE_DASH : t.ids.join(", ")])),
   ].join("\n");
   const note = s.note === "" ? [] : [s.note.split("\n").map((l) => l.trimEnd()).join("\n")];
-  return [table, ...note, "TDD: RED [ ] GREEN [ ] COST [ ]"];
+  return [table, ...note, OPEN_TDD_LINE];
 }
 
 function sheet(input: RenderInput, b: PlanBatch, k: number, review: ReviewPlacement): string {
@@ -243,13 +241,13 @@ function sheet(input: RenderInput, b: PlanBatch, k: number, review: ReviewPlacem
   const blockedBy = review.blocked
     ? review.questions
       .filter(({ row: r }) => r.severity === "Blocking" && (r.target === id || r.target === "plan"))
-      .map(({ n }) => `- Blocked by question ${n} of ${p}-PLAN.md § 4 (${input.date})`)
+      .map(({ n }) => blockedByQuestion(n, p, input.date))
     : [];
   const decisions = [
     ...blockedBy,
     ...b.decisions.map((d) => `- ${input.date} — ${unlabelled(d)}`),
     ...review.majors(id).map((r) =>
-      `- ${input.date} — review (Major): ${unlabelled(r.question)} Evidence: ${unlabelled(noDot(r.evidence))}. ${MAJOR_TAIL}`),
+      reviewMajor(input.date, unlabelled(r.question), unlabelled(noDot(r.evidence)))),
   ];
 
   const s = b.steps.length;
@@ -258,7 +256,7 @@ function sheet(input: RenderInput, b: PlanBatch, k: number, review: ReviewPlacem
     return items.length === 0 ? [] : [label, ...items.map((e) => `- ${code(e.signature)} — ${e.rule}`)];
   });
   const anchors = [
-    "| Step | Test class / fixture | Shared doubles and builders | Production filled or created |",
+    ANCHORS_HEADER,
     "|------|----------------------|-----------------------------|------------------------------|",
     ...b.steps.map((st, j) => row([
       `${j + 1} — ${st.title}`,
@@ -285,15 +283,15 @@ function sheet(input: RenderInput, b: PlanBatch, k: number, review: ReviewPlacem
       row(["Events", b.design.events]),
       row(["Access cost", b.design.accessCost]),
     ].join("\n"),
-    decisions.length === 0 ? null : ["## Decisions", ...decisions].join("\n"),
+    decisions.length === 0 ? null : [DECISIONS_SECTION, ...decisions].join("\n"),
     ["## TDD sequence", ...TDD_PREAMBLE, `${DECLARATIVE_LEAD}: ${declarative}.`].join("\n"),
     ...b.steps.flatMap(stepBlocks),
     `### Step ${s + 1} — ${BUILD_STEP}\n${BUILD_STEP_BODY}`,
-    `## Test policy and scopes\n**Fast suite**: ${noDot(b.testPolicy.fast)}. **Integration**: ${noDot(b.testPolicy.integration)}. **Not run**: ${noDot(b.testPolicy.notRun)}.`,
+    testPolicyBlock(noDot(b.testPolicy.fast), noDot(b.testPolicy.integration), noDot(b.testPolicy.notRun)),
     ["## Code elements", ...elements].join("\n"),
     `## Anchors\n${ANCHORS_LEAD}`,
     anchors,
-    ["## Assumptions", "| # | Assumption | To be validated by |", "|---|------------|--------------------|"].join("\n"),
+    [ASSUMPTIONS_SECTION, ...ASSUMPTIONS_TABLE_HEAD].join("\n"),
   ]);
 }
 

@@ -35,7 +35,7 @@ defineCommand({
 Logic worth testing goes to `src/commands/_lib/<group>/<name>.ts`, the folder of its command, as
 `run<Name>(tokens, deps)`, its deps a `Pick<>` of the ports it reads, tested over the fakes of `tests/support/doubles/`. Three other places move with a new command, and
 `npm run check` names the one you forgot: `tests/repository/command-surface.test.ts` pins the count of commands,
-`src/commands/_lib/status/meta.ts` states it in the release notes, and `npm run docs:commands` regenerates
+`src/commands/_lib/status/messages.ts` states it in the release notes, and `npm run docs:commands` regenerates
 [docs/commands.md](commands.md). The recipe: [Add a command](architecture.md#add-a-command).
 
 ## A crew
@@ -112,7 +112,7 @@ the model reads it, so a change is reviewed as the diff of two renders.
   and what they can do, search playbook, the project's instructions file) and the user body (preferences, skills,
   memory, hooks, environment, history, gauge, request): one `build<Name>Block` renderer per block, a field of
   `PromptParts`, a place in `assemblePrompt`'s fixed order. A block's input is read in `application/context-gather.ts`,
-  through the ports, and passed in `application/turn-prompt.ts`; the flags a session sets (`/effort`, `/passes` of `/review`,
+  through the ports, and passed in `application/prompts.ts`; the flags a session sets (`/effort`, `/passes` of `/review`,
   `/fast`, `/proactive`, `/output-style`, `answer.language`) travel the same way.
 - **Compaction and memory.** `src/shared/domain/compaction.ts` holds the summary and memory-extraction prompts and
   the markers the model later reads in its history; `src/shared/application/compaction/` runs them.

@@ -5,8 +5,9 @@ import { describe, it } from "node:test";
 import { strictEqual, ok, deepStrictEqual } from "node:assert";
 
 import {
-  planDiff, describeDiffScope, NO_CHANGES_MESSAGE, ALLOWED_DIFF_FLAGS,
+  planDiff, describeDiffScope, ALLOWED_DIFF_FLAGS,
 } from "../../../../src/commands/_lib/git/diff.ts";
+import { NO_CHANGES_MESSAGE } from "../../../../src/commands/_lib/git/messages.ts";
 import {
   BAD_PATHSPECS, COMBINED_DIFF, GIT_FAILURE_CASES, NOT_UNIFIED_FLAGS, PATHSPEC_CASES, READER_FLAGS, UNIFIED_TOKENS, diffHarness,
 } from "./diff.fixtures.ts";

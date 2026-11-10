@@ -3,16 +3,21 @@
 // `## Anchors` row copied from the step it corrects, so that it runs as any step, RED first. The earlier steps
 // and their evidence stay as they are. A finding naming an id the sheet does not carry changes the scope: it is
 // refused and routed. Pure, never throws.
+import { OPEN_TDD_LINE, STEP_TESTS_TABLE_HEAD } from "../../../shared/domain/dev/markers.ts";
 import { unfencedLines } from "../../../shared/domain/dev/plan-format.ts";
 import { parseImplementSheet } from "./step-section.ts";
 import type { ImplementSheet, ImplementStep } from "./step-section.ts";
+import { CORRECTION_TITLE, correctionTitle } from "./markers.ts";
+import {
+  ANCHORS_HAVE_NO_ROW, CORRECTION_NAMES_NO_FINDING, NO_STEP_TO_CORRECT, SHEET_LACKS_TDD_OR_ANCHORS, correctionTestRow, correctsStep,
+  findingNamesUnknownIds,
+} from "./messages.ts";
 
 export type CorrectionEdit =
   | { ok: true; text: string; step: number; title: string; appended: boolean }
   | { ok: false; reason: string };
 
 const IDS = /\b[A-Z][A-Z0-9]*-[0-9]+\b/g;
-const CORRECTION_TITLE = /^Correction C(\d+) — (.*)$/;
 const MAX_FINDING = 200;
 
 /** The finding on one line, without the table's pipe, cut at 200 characters. */
@@ -47,17 +52,13 @@ const idPrefix = (id: string): string => id.replace(/-[0-9]+$/, "");
 /** The sheet with the correction appended; an open correction with the same finding is kept, not appended again. */
 export function addCorrection(text: string, findingRaw: string): CorrectionEdit {
   const finding = cleanFinding(findingRaw);
-  if (finding === "") return { ok: false, reason: "the correction names no finding: — correction: <finding>" };
+  if (finding === "") return { ok: false, reason: CORRECTION_NAMES_NO_FINDING };
   // The ids the steps carry; a token of the same prefix they do not carry is a new id (`UTF-8`, `SHA-256` are not).
   const carried = new Set(parseImplementSheet(text).steps.flatMap((s) => s.tests.flatMap((t) => t.ids)));
   const prefixes = new Set([...carried].map(idPrefix));
   const unknown = [...new Set(finding.match(IDS) ?? [])].filter((id) => prefixes.has(idPrefix(id)) && !carried.has(id));
   if (unknown.length > 0) {
-    return {
-      ok: false,
-      reason: `the finding names ${unknown.join(", ")}, which the sheet does not carry: a new id changes the scope ` +
-        "(/dev-spec <code> <kind> for the change, then /dev-plan), never a correction",
-    };
+    return { ok: false, reason: findingNamesUnknownIds(unknown) };
   }
   const sheet = parseImplementSheet(text);
   const corrections = sheet.steps.map((s) => CORRECTION_TITLE.exec(s.title)).filter((m): m is RegExpExecArray => m !== null);
@@ -66,10 +67,10 @@ export function addCorrection(text: string, findingRaw: string): CorrectionEdit 
   if (same !== undefined) return { ok: true, text, step: same.number, title: same.title, appended: false };
 
   const target = targetStep(sheet, finding);
-  if (target === null || target.anchor === null) return { ok: false, reason: "the sheet has no step with a test file to correct" };
+  if (target === null || target.anchor === null) return { ok: false, reason: NO_STEP_TO_CORRECT };
   const k = corrections.reduce((max, m) => Math.max(max, Number(m[1])), 0) + 1;
   const number = sheet.steps.reduce((max, s) => Math.max(max, s.number), 0) + 1;
-  const title = `Correction C${k} — ${finding}`;
+  const title = correctionTitle(k, finding);
   const base = target.tests[0];
   const ids = [...new Set(target.tests.flatMap((t) => t.ids))].join(", ") || "—";
 
@@ -77,19 +78,19 @@ export function addCorrection(text: string, findingRaw: string): CorrectionEdit 
   const lines = unfencedLines(text);
   const tdd = sectionEnd(lines, "## TDD sequence", raw.length);
   const anchors = sectionEnd(lines, "## Anchors", raw.length);
-  if (tdd === null || anchors === null) return { ok: false, reason: "the sheet lacks ## TDD sequence or ## Anchors" };
+  if (tdd === null || anchors === null) return { ok: false, reason: SHEET_LACKS_TDD_OR_ANCHORS };
   const lastRow = lines.filter((l) => l.line > anchors.start && l.line < anchors.end && l.text.startsWith("|")).pop();
-  if (lastRow === undefined) return { ok: false, reason: "the sheet's ## Anchors has no row" };
+  if (lastRow === undefined) return { ok: false, reason: ANCHORS_HAVE_NO_ROW };
 
   const cell = (refs: NonNullable<ImplementStep["anchor"]>["testFiles"]): string => refs.length === 0 ? "—"
     : refs.map((r) => `\`${r.line === undefined ? r.path : `${r.path}:${r.line}`}\` — ${r.state === "member" ? `\`${r.member}\`` : "existing"}`).join("; ");
   const anchorRow = `| ${number} — Correction C${k} | ${cell(target.anchor.testFiles)} | ${target.anchor.doubles || "—"} | ${cell(target.anchor.production)} |`;
   const stepBlock = [
     `### Step ${number} — ${title}`,
-    `Corrects step ${target.number} (${target.title}); its earlier evidence stays.`,
-    "| # | Test | Level | Project | Ids |", "|---|------|-------|---------|-----|",
-    `| 1 | \`C${k}: the test the author names\` | ${base?.level ?? "unit"} | \`${base?.project ?? ""}\` | ${ids} |`,
-    "TDD: RED [ ] GREEN [ ] COST [ ]", "",
+    correctsStep(target.number, target.title),
+    ...STEP_TESTS_TABLE_HEAD,
+    correctionTestRow(k, base?.level ?? "unit", base?.project ?? "", ids),
+    OPEN_TDD_LINE, "",
   ];
   // Anchors first (it may lie after the TDD sequence), so the TDD insertion point keeps its index.
   const out = [...raw];

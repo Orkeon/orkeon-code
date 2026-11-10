@@ -11,6 +11,7 @@
 // dimension as they did when the runtime rejected. A call a decision stage of
 // the host blocked is no failure of the provider: the runtime rejects it with a
 // DecisionBlockedError (Orkeon #269), which decisionBlockOf reads. Pure, no IO.
+import { BUDGET_EXHAUSTED_MESSAGE, blockedByDecisionProfile, matchesTheRisk, modelCallFailed } from "./messages.ts";
 
 const MARKER = /^<undefined-llm:([\s\S]*)>$/;
 
@@ -31,7 +32,7 @@ export function llmFailureOf(text: unknown): LlmFailure | null {
   const detail = m[1].length > MAX_DETAIL ? `${m[1].slice(0, MAX_DETAIL)}…` : m[1];
   // A plain Error with a name rather than a subclass: subclassing Error is not
   // something the bundles rely on anywhere else, in Jint or in Node.
-  const failure = new Error(`the model call failed: ${detail}`) as LlmFailure;
+  const failure = new Error(modelCallFailed(detail)) as LlmFailure;
   failure.name = "LlmFailure";
   failure.detail = detail;
   return failure;
@@ -71,9 +72,8 @@ export function decisionBlockOf(error: unknown): DecisionBlock | null {
 
 /** What the user reads for a blocked request: a decision, not an outage, and what to do about it. */
 export function decisionBlockText(block: DecisionBlock): string {
-  const why = block.reason ?? (block.risk === null ? null : `the request matches the risk '${block.risk}'`);
-  return `Blocked by the decision profile '${block.profile}' (stage '${block.stage}')${why === null ? "" : `: ${why}`}. ` +
-    "The model gave no answer; rephrase the request, or choose another profile with /config set llm.profile.";
+  const why = block.reason ?? (block.risk === null ? null : matchesTheRisk(block.risk));
+  return blockedByDecisionProfile(block.profile, block.stage, why);
 }
 
 /** The error an act whose token budget ran out throws: the wrap-up answer the model gave in its last call, and the
@@ -85,8 +85,6 @@ export interface BudgetExhaustedAnswer extends Error {
   answer: string;
 }
 
-/** What the error says: the runtime's words, so a reader of the message sees the dimension. */
-export const BUDGET_EXHAUSTED_MESSAGE = "Token budget exhausted: the model made its last call without tools, and its answer is cut short";
 
 /** The error carrying the wrap-up `answer` of an act that resolved with `budgetExhausted`. */
 export function budgetExhaustedAnswer(answer: string): BudgetExhaustedAnswer {

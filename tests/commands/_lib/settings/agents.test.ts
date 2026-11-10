@@ -4,7 +4,8 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
-import { AGENTS_FILE_PATH, AGENTS_USAGE, SAVED_AGENTS_NOTE } from "../../../../src/commands/_lib/settings/agents.ts";
+import { AGENTS_FILE_PATH } from "../../../../src/commands/_lib/settings/agents.ts";
+import { AGENTS_USAGE, SAVED_AGENTS_NOTE } from "../../../../src/commands/_lib/settings/messages.ts";
 import {
   INVALID_DEFINITION_CASES,
   MALFORMED_REFUSAL,

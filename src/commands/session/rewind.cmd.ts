@@ -3,6 +3,7 @@
 // trailing message up to AND INCLUDING the most recent user turn. Repeatable
 // to step further back (baseline 04 §/rewind — rewind session state).
 import { orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { NOTHING_TO_REWIND, rewound } from "../_lib/session/messages.ts";
 
 const session = orkeonSessionIo();
 
@@ -16,11 +17,9 @@ defineCommand({
       if (messages[i].role === "user") { lastUser = i; break; }
     }
     if (lastUser < 0)
-      return ctx.continue("nothing to rewind — no user turn in the buffer.");
+      return ctx.continue(NOTHING_TO_REWIND);
     const kept = messages.slice(0, lastUser);
     await session.writeMessages(kept);
-    return ctx.continue(
-      `rewound 1 exchange (${messages.length - kept.length} message(s) dropped, ${kept.length} kept).`,
-    );
+    return ctx.continue(rewound(messages.length - kept.length, kept.length));
   },
 });

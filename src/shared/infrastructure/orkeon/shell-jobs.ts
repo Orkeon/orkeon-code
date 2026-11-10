@@ -19,6 +19,7 @@ import { commandToVirtual, textToVirtual } from "../../domain/host-paths.ts";
 import { layoutOf } from "./host-context.ts";
 import { pick, shCode } from "./tool-results.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
+import { SHELL_JOB_NEEDS_COMMAND, noJobIdFor, waitNotWholeSeconds } from "./messages.ts";
 
 /** The waiting script, relative to /workspace, and its virtual path. */
 export const WAIT_SCRIPT = ".orkeon/dev/bin/wait.mjs";
@@ -34,11 +35,11 @@ export function createShellJobs(tools: Pick<OrkeonTools, "shellCommand" | "fileW
   let waiter: "unknown" | "ready" | "absent" = "unknown";
   return {
     async start(command) {
-      if (command.trim() === "") throw new Error("a shell job needs a command");
+      if (command.trim() === "") throw new Error(SHELL_JOB_NEEDS_COMMAND);
       const virtual = commandToVirtual(command, await layoutOf(host));
       const r = await tools.shellCommand({ action: "start_job", command: textToRoot(virtual, root), working_directory: cwd });
       const id = String(pick(r, "job_id", "jobId", "JobId") ?? "");
-      if (id === "") throw new Error(`start_job answered no job id for: ${command}`);
+      if (id === "") throw new Error(noJobIdFor(command));
       return { id, log: String(pick(r, "output_path", "outputPath", "OutputPath") ?? "") };
     },
     async status(id) {
@@ -55,7 +56,7 @@ export function createShellJobs(tools: Pick<OrkeonTools, "shellCommand" | "fileW
     },
     async wait(seconds) {
       if (!(Number.isInteger(seconds) && seconds >= 1)) {
-        throw new Error(`a wait is a whole number of seconds, at least 1: ${seconds}`);
+        throw new Error(waitNotWholeSeconds(seconds));
       }
       if (waiter === "absent") return false;
       try {

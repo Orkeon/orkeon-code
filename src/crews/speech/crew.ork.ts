@@ -15,6 +15,7 @@
 import { CrewBuilder, publishCrew, inputs } from "../../shared/infrastructure/globals.ts";
 import { orkeonAgent, orkeonToolCalls } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { runSpeech } from "./application/run-speech.ts";
+import { SPEAKER_GOAL } from "./application/prompts.ts";
 
 const tools = orkeonToolCalls();
 
@@ -24,7 +25,7 @@ const speaker = orkeonAgent()
   // NO tools on purpose: the call below is the command's, made through the tools
   // namespace, not offered to a model.
   .tools([])
-  .goal("Make the call to the speech server the command names and return its text.")
+  .goal(SPEAKER_GOAL)
   .body(async (_input: any, ctx: any) => await runSpeech(inputs(), { tools, log: ctx.log }))
   .build();
 

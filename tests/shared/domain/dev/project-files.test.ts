@@ -3,9 +3,8 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
-import {
-  PROJECT_FILES_HEADING, PROJECT_LIST_RULE, parseTrackedFiles, projectFileLines,
-} from "../../../../src/shared/domain/dev/project-files.ts";
+import { parseTrackedFiles, projectFileLines } from "../../../../src/shared/domain/dev/project-files.ts";
+import { PROJECT_FILES_HEADING, PROJECT_LIST_RULE } from "../../../../src/shared/domain/dev/prompts/brief-blocks.ts";
 import { CLOSING_CASES, CUT_LINE_MENTIONS, LINES_CASES, LISTING, LIST_RULE_CASES, PARSED } from "./project-files.fixtures.ts";
 import { assertMentions, assertOmits } from "../../../support/assertions/text.ts";
 

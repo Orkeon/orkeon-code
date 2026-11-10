@@ -8,6 +8,7 @@
 import type { MemoryStore } from "../../../shared/application/ports.ts";
 import { parseMemoryArgs } from "../args.ts";
 import type { CommandView } from "../view.ts";
+import { FEEDBACK_RECORDED, FEEDBACK_USAGE } from "./messages.ts";
 
 export interface MemoryDeps {
   memory: MemoryStore;
@@ -22,9 +23,9 @@ export function admitTokens(tokens: readonly string[], typed: string): string[] 
 
 /** `/feedback <text>`: a 'feedback' memory, the reply saying the agent replays it. */
 async function runFeedback(tokens: string[], deps: MemoryDeps): Promise<CommandView> {
-  if (tokens.join(" ").trim() === "") return { text: "usage: /feedback <what should change or keep happening>" };
+  if (tokens.join(" ").trim() === "") return { text: FEEDBACK_USAGE };
   await runMemory(["add", "feedback", ...tokens], deps);
-  return { text: "feedback recorded — the agent replays feedback memories on every /assistant turn." };
+  return { text: FEEDBACK_RECORDED };
 }
 
 /** `/memory [list|add|delete|get] …`, from the command's raw tokens; typed by its alias `feedback`, an add of a feedback. */

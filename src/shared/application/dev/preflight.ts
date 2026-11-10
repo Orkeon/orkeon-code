@@ -6,6 +6,7 @@
 import type { Shell } from "../ports.ts";
 import { readIdentity, runGit } from "../git/commit-files.ts";
 import { GIT_CURRENT_BRANCH_COMMAND, GIT_STATUS_COMMAND, changedPaths } from "../../domain/git/close.ts";
+import { BRANCH_NONE, PLAN_NONE, SHEETS_OK, changesOutsideWorkFolder, identityMissing, identityOk, noSheetFor } from "./messages.ts";
 
 export interface PreflightInput {
   /** The plan as the user reads it, `workbench/demo/DEMO-PLAN.md`; null when the code has none. */
@@ -34,12 +35,12 @@ export async function preflight(deps: { shell: Pick<Shell, "run"> }, input: Pref
   let ok = true;
   const fail = (line: string): void => { ok = false; lines.push(`preflight ✗ ${line}`); };
 
-  if (input.planShown === null) fail("plan: none in the code's folder: /dev-plan first");
+  if (input.planShown === null) fail(PLAN_NONE);
   else if (input.problems.length > 0) fail(`plan: ${input.problems.length} format problem(s): ${listed(input.problems)}`);
   else lines.push(`preflight ✓ plan: ${input.planShown} (${input.batches} batch(es))`);
 
-  if (input.missingSheets.length > 0) fail(`sheets: no sheet for ${input.missingSheets.join(", ")}`);
-  else lines.push("preflight ✓ sheets: one for every batch not done");
+  if (input.missingSheets.length > 0) fail(noSheetFor(input.missingSheets.join(", ")));
+  else lines.push(SHEETS_OK);
 
   if (!input.order.ok) fail(`order: ${input.order.problem}`);
   else lines.push(`preflight ✓ order: ${input.order.order.join(" → ") || "(no batch)"}`);
@@ -48,14 +49,13 @@ export async function preflight(deps: { shell: Pick<Shell, "run"> }, input: Pref
   // A Bubblewrap shell runs with HOME=/tmp and a cleared environment: only the repository's own
   // configuration reaches git there, so the hint names it.
   if (!identity.ok) {
-    fail(`git identity: ${identity.detail} (each batch's close commits): git config user.name and user.email in the repository ` +
-      "(a confined shell reads no --global file)");
+    fail(identityMissing(identity.detail));
   }
-  else lines.push(`preflight ✓ git identity: ${identity.ident.name} <${identity.ident.email}>`);
+  else lines.push(identityOk(identity.ident.name, identity.ident.email));
 
   const branch = await runGit(deps.shell, GIT_CURRENT_BRANCH_COMMAND);
   const name = branch.exitCode === 0 ? branch.stdout.trim() : "";
-  if (name === "") fail("branch: none checked out (a detached HEAD?): check out the work branch");
+  if (name === "") fail(BRANCH_NONE);
   else lines.push(`preflight ✓ branch: ${name}`);
 
   const status = await runGit(deps.shell, GIT_STATUS_COMMAND);
@@ -64,7 +64,7 @@ export async function preflight(deps: { shell: Pick<Shell, "run"> }, input: Pref
     const own = (p: string): boolean => p === work || p.startsWith(`${work}/`) || p.startsWith(".orkeon/");
     const others = changedPaths(status.stdout).filter((p) => !own(p));
     if (others.length > 0) {
-      lines.push(`preflight ⚠ tree: ${others.length} change(s) outside the work folder (${listed(others)}): a close commits only its batch's files`);
+      lines.push(changesOutsideWorkFolder(others.length, listed(others)));
     }
   }
   return { ok, lines };

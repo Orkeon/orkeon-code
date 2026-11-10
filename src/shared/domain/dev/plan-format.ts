@@ -1,6 +1,11 @@
 // Dev workflow plans: the global plan `<CODE>-PLAN.md` and its batch sheets
 // `<CODE>-PLAN-F<n>.md`, read line by line. Pure, no IO, never throws: a line that
 // looks like a format line but does not match becomes a FormatProblem.
+import {
+  ASSUMPTION_BULLET, ASSUMPTION_ROW, ASSUMPTIONS_SECTION, BATCH_LINE, BATCH_PREFIX, DEPENDS_ON, DONE_LINE, PLAN_TITLE, SHEET_TITLE,
+  STEP_BOX, STEP_HEADING, SUMMARY_HEADING, TDD_LINE,
+} from "./markers.ts";
+import { malformedSummaryRow, malformedTddLine, tddLineOutsideStep, twoTddLines, unknownBatchLine } from "./messages.ts";
 
 export interface FormatProblem { line: number; message: string }
 export type BatchState = { kind: "open" } | { kind: "done"; date: string } | { kind: "other"; text: string };
@@ -21,19 +26,7 @@ export interface BatchSheet {
 }
 export interface SheetProgress { behaviourSteps: number; red: number; green: number; cost: number; complete: number }
 
-const PLAN_TITLE = /^# (\S+)-PLAN — (.+)$/;
-const SUMMARY_HEADING = /^## 0\. Summary/;
-const BATCH_LINE = /^### Batch (F\d+) — (.+) — (open|done \((\d{4}-\d{2}-\d{2})\))$/;
-const BATCH_PREFIX = /^### Batch (F\d+) — (.*)$/;
-const STEP_BOX = /^- \[( |x|X)\] (\d+)\. (.*)$/;
-const SHEET_TITLE = /^# (\S+)-PLAN-(F\d+) — (.+?)( — done \((\d{4}-\d{2}-\d{2})\))?$/;
-const DEPENDS_ON = /\*\*Depends on\*\*: (.+)$/;
-const STEP_HEADING = /^### Step (\d+) — (.+)$/;
-const TDD_LINE = /^TDD: RED \[( |x|X)\] GREEN \[( |x|X)\] COST \[( |x|X)\]$/;
-const DONE_LINE = /^Done \((\d{4}-\d{2}-\d{2})\) — /;
 // A row of `## Assumptions`: the table's `| H<n> | <text> | <by> |`, or the list line written before it.
-const ASSUMPTION_ROW = /^\|\s*(H\d+)\s*\|(.*)\|(.*)\|\s*$/;
-const ASSUMPTION_BULLET = /^- (H\d+) — (.*) — to be validated by (.+)$/;
 
 export interface Line { text: string; line: number }
 
@@ -88,7 +81,7 @@ export function parseGlobalPlan(text: string): GlobalPlan {
           const state: BatchState = m[4] ? { kind: "done", date: m[4] } : { kind: "open" };
           batch = { id: m[1], name: m[2], state, steps: [], line };
         } else {
-          plan.problems.push({ line, message: `unknown batch line '${t}'` });
+          plan.problems.push({ line, message: unknownBatchLine(t) });
           const p = BATCH_PREFIX.exec(t);
           if (p) {
             const cut = p[2].lastIndexOf(" — ");
@@ -109,7 +102,7 @@ export function parseGlobalPlan(text: string): GlobalPlan {
       const cells = tableCells(t);
       if (cells && /^F\d+$/.test(cells[0])) {
         if (cells.length < 5) {
-          plan.problems.push({ line, message: `malformed summary row '${t}'` });
+          plan.problems.push({ line, message: malformedSummaryRow(t) });
           continue;
         }
         plan.summary.push({
@@ -130,7 +123,7 @@ export function parseBatchSheet(text: string): BatchSheet {
   for (const { text: t, line } of unfencedLines(text)) {
     if (t.startsWith("#")) {
       step = null;
-      if (t.startsWith("## ")) { inIntent = t === "## Intent"; inAssumptions = t === "## Assumptions"; }
+      if (t.startsWith("## ")) { inIntent = t === "## Intent"; inAssumptions = t === ASSUMPTIONS_SECTION; }
       const title = SHEET_TITLE.exec(t);
       if (title && sheet.prefix === undefined) {
         sheet.prefix = title[1];
@@ -154,9 +147,9 @@ export function parseBatchSheet(text: string): BatchSheet {
     }
     if (t.startsWith("TDD:")) {
       const m = TDD_LINE.exec(t);
-      if (!m) { sheet.problems.push({ line, message: `malformed TDD line '${t}'` }); continue; }
-      if (!step) { sheet.problems.push({ line, message: `TDD line outside a step '${t}'` }); continue; }
-      if (step.tdd !== null) { sheet.problems.push({ line, message: `step ${step.number} has two TDD: lines` }); continue; }
+      if (!m) { sheet.problems.push({ line, message: malformedTddLine(t) }); continue; }
+      if (!step) { sheet.problems.push({ line, message: tddLineOutsideStep(t) }); continue; }
+      if (step.tdd !== null) { sheet.problems.push({ line, message: twoTddLines(step.number) }); continue; }
       step.tdd = { red: tick(m[1]), green: tick(m[2]), cost: tick(m[3]), line };
       continue;
     }

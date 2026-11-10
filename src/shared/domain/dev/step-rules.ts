@@ -5,6 +5,7 @@ import { pathRules, patternWriteRules, rewriteRules, rulesOf } from "../agent-po
 import type { PathRules, RuleSetId } from "../agent-policy/rule-sets.ts";
 import type { PermissionRule } from "../agent-policy/permission.ts";
 import type { RepoPackLayout } from "./repo-pack.ts";
+import { GATE_ONLY_HINT, gateIsOff } from "./messages.ts";
 
 /** A dev step whose crew runs a model under the gate and its callback. */
 export type DevStep = "dev-verify" | "dev-plan" | "dev-spec" | "dev-change" | "dev-implement";
@@ -100,11 +101,9 @@ export interface GateProblem { refuse: boolean; line: string }
  *  command reports itself. */
 export function gateProblem(enabled: boolean | undefined, step: DevStep): GateProblem | null {
   if (enabled !== false) return null;
-  const gateOnly = step === "dev-verify" ? " /dev-batches <code> F<n> --audit --gate-only runs no model and needs no gate." : "";
+  const gateOnly = step === "dev-verify" ? GATE_ONLY_HINT : "";
   return {
     refuse: true,
-    line: `${step}: refused: the host's permission gate is off (${GATE_SETTING} is not true), so the step's rule ` +
-      `sets and its read-only mode would check nothing. The launcher turns the gate on unless a settings file turns ` +
-      `it off: remove that setting, restart the REPL and run /${stepCommand(step)} again.${gateOnly}`,
+    line: gateIsOff(step, GATE_SETTING, stepCommand(step), gateOnly),
   };
 }

@@ -23,6 +23,9 @@ import { judgeToolCall, memoryDenyText } from "./tool-call-policy.ts";
 import type { CallProbes, HookFailure, ToolCallVerdict } from "./tool-call-policy.ts";
 
 export type { HookFailure, ToolCallVerdict } from "./tool-call-policy.ts";
+import { memoryGuardFailed, mountCheckRefusedHook } from "./prompts.ts";
+import { couldNotRun as hookCouldNotRun } from "../messages.ts";
+import { postHooksFailed } from "./messages.ts";
 
 /** A hook is stopped after this many seconds, and refuses (pre) or is reported (post). */
 export const HOOK_TIMEOUT_SECONDS = 60;
@@ -66,7 +69,7 @@ export function memoryGuardCallbacks(memoryDir: () => Promise<string>): Pick<Too
             const why = memoryWriteRefusal(await dir(), call.name, call.input);
             return why === null ? "allow" : { deny: memoryDenyText(why) };
           } catch (e) {
-            return { deny: `the shared memory's guard failed: ${String((e as Error)?.message ?? e)}` };
+            return { deny: memoryGuardFailed(String((e as Error)?.message ?? e)) };
           }
         },
         async onToolResult() { return undefined; },
@@ -123,7 +126,7 @@ async function runHook(deps: ToolCallbackDeps, hook: ToolHook, tool: string, inp
   const command = hookCommand(hook, tool, input);
   const label = `${hook.event} hook #${hook.n} (${command})`;
   const refused = (denial: string): HookFailure =>
-    ({ by: "mount-check", text: `the runtime's mount check refused the command line of ${label}, which did not run: ${denial}` });
+    ({ by: "mount-check", text: mountCheckRefusedHook(label, denial) });
   try {
     const r = await deps.shell.run(command, { timeoutSeconds: HOOK_TIMEOUT_SECONDS });
     // A refused command line comes back not completed: read as a timeout, it would hide the refusal.
@@ -137,7 +140,7 @@ async function runHook(deps: ToolCallbackDeps, hook: ToolHook, tool: string, inp
     const message = String((e as Error)?.message ?? e);
     const denial = mountDenial(message);
     if (denial !== null) return refused(denial);
-    return { by: "hook", text: `${label} could not run: ${message.split("\n")[0]}` };
+    return { by: "hook", text: hookCouldNotRun(label, message.split("\n")[0]) };
   }
 }
 
@@ -177,7 +180,7 @@ export function createToolCallbacks(guard: CallGuard, deps: ToolCallbackDeps): T
             if (failed !== undefined) notes.push(`[${failed.text}]`);
           }
           if (notes.length === 0) return undefined;
-          deps.log?.warn(`${guard.step}: ${notes.length} post-tool hook(s) failed after ${call.name}`);
+          deps.log?.warn(postHooksFailed(guard.step, notes.length, call.name));
           return { context: [shownText(result), ...notes].join("\n") };
         },
       };

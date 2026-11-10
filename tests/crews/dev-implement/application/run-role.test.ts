@@ -6,7 +6,8 @@ import { deepStrictEqual } from "node:assert";
 import { FakeLlm } from "../../../support/doubles/fake-llm.ts";
 import { TEST_AUTHOR } from "../../../../src/crews/dev-implement/domain/roles.ts";
 import { runRole } from "../../../../src/crews/dev-implement/application/run-role.ts";
-import { BUDGET_EXHAUSTED_MESSAGE, budgetExhaustedAnswer } from "../../../../src/shared/domain/llm-failure.ts";
+import { budgetExhaustedAnswer } from "../../../../src/shared/domain/llm-failure.ts";
+import { BUDGET_EXHAUSTED_MESSAGE } from "../../../../src/shared/domain/messages.ts";
 
 describe("runRole", () => {
   it("acts with the role's tools, system and acceptEdits", async () => {

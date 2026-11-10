@@ -8,6 +8,10 @@ import type { ProjectConventions } from "../domain/conventions.ts";
 import { cutLine } from "../../../shared/domain/project-manifests.ts";
 import type { ExistingFile } from "../domain/existing-files.ts";
 
+/** The role and goal of the project-init agent. */
+export const SCANNER_ROLE = "Repository Onboarding Engineer";
+export const SCANNER_GOAL = "Understand a codebase's layout + conventions and write an AGENTS.md that future agents can rely on.";
+
 /** JSON schema for the convention-extract call. */
 export const CONVENTIONS_SCHEMA = {
   type: "object",
@@ -90,12 +94,12 @@ export function buildInstructionsFilePrompt(
   const parts = [
     `Top-level entries: ${names.slice(0, 60).join(", ")}`,
     `Detected from the configuration: ${JSON.stringify(detected)}`,
+    ...(packageMap.trim().length > 0 ? [`<package-map>\n${packageMap.trim()}\n</package-map>`] : []),
+    ...existing.map((f) => {
+      const marker = (f.cut ?? 0) > 0 ? `\n${cutLine(f.cut ?? 0)}` : "";
+      return `<existing file="${f.file}">\n${f.content.trim()}${marker}\n</existing>`;
+    }),
+    ...(readme.trim().length > 0 ? [`<readme>\n${readme.trim()}\n</readme>`] : []),
   ];
-  if (packageMap.trim().length > 0) parts.push(`<package-map>\n${packageMap.trim()}\n</package-map>`);
-  for (const f of existing) {
-    const marker = (f.cut ?? 0) > 0 ? `\n${cutLine(f.cut ?? 0)}` : "";
-    parts.push(`<existing file="${f.file}">\n${f.content.trim()}${marker}\n</existing>`);
-  }
-  if (readme.trim().length > 0) parts.push(`<readme>\n${readme.trim()}\n</readme>`);
   return { system, user: parts.join("\n\n") };
 }

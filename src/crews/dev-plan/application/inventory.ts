@@ -8,6 +8,10 @@ import { INVENTORY_CAPS, keepPath, layerOf } from "../domain/inventory-model.ts"
 import type { Inventory, InventoryEntry } from "../domain/inventory-model.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 import { indexCacheNote } from "../../../shared/domain/code-intel-contract.ts";
+import {
+  INDEX_EMPTY, anchorsFailed, callersAsked, closureTruncated, droppedOutside, entriesLocated, graphFailed, graphJoined,
+  indexCannotBeBuilt, indexStatus, searchFailedUnquoted, titlesNotSearched, titlesSearched as titlesSearchedLine,
+} from "./messages.ts";
 
 export interface InventoryRequest {
   titles: ReadonlyArray<{ id: string; title: string }>;  // source order: UC, BR, CH
@@ -46,7 +50,7 @@ async function search(
       const found = await index.search(t.title, INVENTORY_CAPS.topK);
       hits.push(found.filter((h) => keep(pathPart(h.fqn)) !== null));
     } catch (e) {
-      state.warnings.push(`search failed for ${t.id}: ${firstLine(e)}`);
+      state.warnings.push(searchFailedUnquoted(t.id, firstLine(e)));
       hits.push([]);
     }
   }
@@ -79,7 +83,7 @@ export async function buildInventory(
   const state = { calls: 0, warnings: [] as string[] };
   const refuse = (e: unknown) => ({
     ok: false as const,
-    text: `dev-plan: the code index cannot be built (${firstLine(e)}): anchors would be guesses, so no plan is written`,
+    text: indexCannotBeBuilt(firstLine(e)),
   });
 
   // 1. The index: present, or built now.
@@ -96,9 +100,9 @@ export async function buildInventory(
   } catch (e) {
     return refuse(e);
   }
-  log.info(`dev-plan: code index ${status}${note === "" ? "" : `; ${note}`}`);
+  log.info(indexStatus(status, note));
   if (status === "empty") {
-    state.warnings.push("the code index holds no file: every anchor is a path to create");
+    state.warnings.push(INDEX_EMPTY);
     return { ok: true, inventory: { entries: [], index: status, titlesSearched: 0, calls: state.calls, warnings: state.warnings } };
   }
 
@@ -107,10 +111,10 @@ export async function buildInventory(
   const titlesSearched = Math.min(request.titles.length, INVENTORY_CAPS.titles);
   if (request.titles.length > INVENTORY_CAPS.titles) {
     const left = request.titles.slice(INVENTORY_CAPS.titles);
-    state.warnings.push(`${left.length} titles not searched: ${left.map((t) => t.id).join(", ")}`);
+    state.warnings.push(titlesNotSearched(left.length, left.map((t) => t.id).join(", ")));
   }
   const kept = await search(index, request, keep, state);
-  log.info(`dev-plan: ${titlesSearched} titles searched, ${kept.length} symbols kept`);
+  log.info(titlesSearchedLine(titlesSearched, kept.length));
 
   // 3. Where each kept symbol lives; refs are given to the survivors, in discovery order.
   const order = new Map(request.titles.map((t, i) => [t.id, i]));
@@ -120,7 +124,7 @@ export async function buildInventory(
     try {
       const at = await index.symbolSource(k.fqn);
       const path = keep(at.path);
-      if (path === null) { state.warnings.push(`${k.fqn} dropped: ${at.path} is outside what a plan may anchor`); continue; }
+      if (path === null) { state.warnings.push(droppedOutside(k.fqn, at.path)); continue; }
       entries.push({
         ref: `I${entries.length + 1}`, fqn: k.fqn, name: nameOf(k.fqn), path,
         line: at.startLine, endLine: at.endLine, language: at.language, firstLine: at.firstLine,
@@ -132,7 +136,7 @@ export async function buildInventory(
       state.warnings.push(`${k.fqn} dropped: ${firstLine(e)}`);
     }
   }
-  log.info(`dev-plan: ${entries.length} entries located`);
+  log.info(entriesLocated(entries.length));
 
   if (entries.length > 0) {
     // 4. The callers and tests of the best entries: their closure without their own subtree.
@@ -143,13 +147,13 @@ export async function buildInventory(
         const closure = await anchors.closure([e.fqn]);
         const own = relative(e.fqn);
         e.callers = closure.nodes.map(relative).filter((n) => !inSubtree(n, own)).slice(0, INVENTORY_CAPS.callers);
-        if (closure.truncated) state.warnings.push(`closure of ${e.fqn} truncated`);
+        if (closure.truncated) state.warnings.push(closureTruncated(e.fqn));
         if (closure.unresolved.length > 0) state.warnings.push(`${e.fqn} unknown to batch_anchors`);
       } catch (err) {
-        state.warnings.push(`anchors failed for ${e.fqn}: ${firstLine(err)}`);
+        state.warnings.push(anchorsFailed(e.fqn, firstLine(err)));
       }
     }
-    log.info(`dev-plan: callers asked for ${best.length} entries`);
+    log.info(callersAsked(best.length));
 
     // 5. The modules each entry's file imports, from one module graph.
     state.calls++;
@@ -160,9 +164,9 @@ export async function buildInventory(
         const to = graph.edges.filter((edge) => fileOf(edge.from) === e.path).map((edge) => fileOf(edge.to));
         e.imports = [...new Set(to)].filter((p) => p !== e.path).slice(0, INVENTORY_CAPS.imports);
       }
-      log.info(`dev-plan: module graph of ${graph.edges.length} edges joined`);
+      log.info(graphJoined(graph.edges.length));
     } catch (e) {
-      state.warnings.push(`the module graph failed: ${firstLine(e)}`);
+      state.warnings.push(graphFailed(firstLine(e)));
     }
   }
 

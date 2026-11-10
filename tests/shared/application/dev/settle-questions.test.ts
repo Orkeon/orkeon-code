@@ -4,7 +4,8 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
-import { LEAVE_OPEN, parseDecisions } from "../../../../src/shared/domain/dev/questions.ts";
+import { parseDecisions } from "../../../../src/shared/domain/dev/questions.ts";
+import { LEAVE_OPEN } from "../../../../src/shared/domain/dev/markers.ts";
 import { settleQuestions } from "../../../../src/shared/application/dev/settle-questions.ts";
 import type { SettleDeps } from "../../../../src/shared/application/dev/settle-questions.ts";
 import { questionRound } from "../../../../src/shared/application/dev/question-round.ts";

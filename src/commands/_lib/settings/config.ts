@@ -16,9 +16,8 @@ import {
 import { CONFIG_FILE_PATH, USER_CONFIG_FILE_PATH } from "../../../shared/application/config-store.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import type { CommandView } from "../view.ts";
-
-export const CONFIG_USAGE =
-  "usage: /config [list|keys|get <key>|set [--session] <key> <value>|unset [--session] <key>]";
+import { CONFIG_GET_USAGE, CONFIG_UNSET_USAGE, CONFIG_USAGE, KEYS_NOTE, configFileLine, configFileMalformed, fileValueSet, keyNotInFile, keyRemoved, keyUnset, keyValue, nestedKeys, noSessionOverride, refusingToOverwrite, refusingUnparsed, sessionOverrideRemoved, sessionValueSet, unknownStoredKeys, userSettingsUnparsed, valueIgnored } from "./messages.ts";
+import { unknownConfigKey } from "../../../shared/domain/messages.ts";
 
 export interface ConfigDeps {
   config: ConfigStore;
@@ -39,21 +38,10 @@ export async function runConfig(tokens: string[], deps: ConfigDeps): Promise<Com
   switch ((sub ?? "list").toLowerCase()) {
     case "list": {
       const view = await config.readView();
-      const notes: string[] = [`file: ${CONFIG_FILE_PATH} — session overrides it until /clear.`];
-      if (view.unknown.length > 0) {
-        notes.push(
-          `⚠ stored but NOT in the key space (pre-B-6 residue, nothing reads them): ${view.unknown.join(", ")}`,
-        );
-      }
-      if (view.nested.length > 0) {
-        notes.push(
-          `⚠ written nested, so nothing reads them: ${view.nested.join(", ")} — a settings file holds each key flat ` +
-            `("${view.nested[0]}": …).`,
-        );
-      }
-      if (view.fileMalformed) {
-        notes.push(`⚠ ${CONFIG_FILE_PATH} could not be parsed — it is left untouched; fix or delete it.`);
-      }
+      const notes: string[] = [configFileLine(CONFIG_FILE_PATH)];
+      if (view.unknown.length > 0) notes.push(unknownStoredKeys(view.unknown));
+      if (view.nested.length > 0) notes.push(nestedKeys(view.nested));
+      if (view.fileMalformed) notes.push(configFileMalformed(CONFIG_FILE_PATH));
       return {
         table: view.entries.map((e) => ({ key: e.key, value: e.value ?? "(unset)", source: e.source })),
         text: notes.join("\n"),
@@ -67,19 +55,19 @@ export async function runConfig(tokens: string[], deps: ConfigDeps): Promise<Com
           allowed: s.allowed ? s.allowed.join(" | ") : "(any)",
           "read by": s.consumedBy,
         })),
-        text: "every key names its consumer — a key nothing reads is not settable.",
+        text: KEYS_NOTE,
       };
 
     case "get": {
-      if (!key) return { text: "usage: /config get <key>" };
+      if (!key) return { text: CONFIG_GET_USAGE };
       const spec = configKeySpec(key);
-      if (!spec) return { text: `unknown config key '${key}'. Valid keys: ${knownConfigKeys().join(", ")}` };
+      if (!spec) return { text: unknownConfigKey(key, knownConfigKeys()) };
       const view = await config.readView();
       const entry = view.entries.find((e) => e.key === key)!;
       return {
         text: entry.value === undefined
-          ? `${key} is unset (${spec.description})`
-          : `${key} = ${entry.value}  [${entry.source}]`,
+          ? keyUnset(key, spec.description)
+          : keyValue(key, entry.value, entry.source),
       };
     }
 
@@ -93,46 +81,38 @@ export async function runConfig(tokens: string[], deps: ConfigDeps): Promise<Com
         const map = await config.readSession();
         map[key] = value;
         await config.writeSession(map);
-        return { text: `${key} = ${value} [session] — overrides the file until /clear.` };
+        return { text: sessionValueSet(key, value) };
       }
       const { map, malformed } = await config.readFile();
       if (malformed) {
-        return {
-          text: `refusing to write: ${CONFIG_FILE_PATH} exists but could not be parsed, and overwriting it ` +
-            "would discard whatever it holds. Fix or delete it, then retry.",
-        };
+        return { text: refusingToOverwrite(CONFIG_FILE_PATH) };
       }
       map[key] = value;
       await config.writeFile(map);
-      const persisted = `${key} = ${value} [file] — persisted in ${CONFIG_FILE_PATH}.`;
+      const persisted = fileValueSet(key, value, CONFIG_FILE_PATH);
       // A project file widens nothing past the user settings (LI-6): the value is kept, and said to be set aside.
       const { map: user, malformed: userMalformed } = await config.readUserFile();
       const { ignored } = resolveConfigEntry(key, map, {}, user);
       if (ignored === undefined) return { text: persisted };
-      const unread = userMalformed
-        ? ` The user settings (${USER_CONFIG_FILE_PATH}) could not be parsed: none applies.`
-        : "";
-      return {
-        text: `${persisted}\n↳ ignored: '${ignored.value}': ${ignored.reason}.${unread} A setting of your own goes in ` +
-          "the orkeonCode block of the user settings file (the one the launcher reads).",
-      };
+      const unread = userMalformed ? userSettingsUnparsed(USER_CONFIG_FILE_PATH) : "";
+      return { text: valueIgnored(persisted, ignored.value, ignored.reason, unread) };
     }
 
     case "unset": {
-      if (!key) return { text: "usage: /config unset [--session] <key>" };
+      if (!key) return { text: CONFIG_UNSET_USAGE };
       if (useSession) {
         const map = await config.readSession();
-        if (!(key in map)) return { text: `${key} has no session override.` };
+        if (!(key in map)) return { text: noSessionOverride(key) };
         delete map[key];
         await config.writeSession(map);
-        return { text: `${key} session override removed (the file value applies again).` };
+        return { text: sessionOverrideRemoved(key) };
       }
       const { map, malformed } = await config.readFile();
-      if (malformed) return { text: `refusing to write: ${CONFIG_FILE_PATH} could not be parsed.` };
-      if (!(key in map)) return { text: `${key} is not set in ${CONFIG_FILE_PATH}.` };
+      if (malformed) return { text: refusingUnparsed(CONFIG_FILE_PATH) };
+      if (!(key in map)) return { text: keyNotInFile(key, CONFIG_FILE_PATH) };
       delete map[key];
       await config.writeFile(map);
-      return { text: `${key} removed from ${CONFIG_FILE_PATH}.` };
+      return { text: keyRemoved(key, CONFIG_FILE_PATH) };
     }
 
     default:

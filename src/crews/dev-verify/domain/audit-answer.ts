@@ -7,6 +7,10 @@ import type { Severity } from "../../../shared/domain/dev/verdict-format.ts";
 import { AXES } from "../../../shared/domain/dev/verdict-format.ts";
 import type { Axis } from "../../../shared/domain/dev/verdict-format.ts";
 import type { Checked } from "../../../shared/domain/agents/charter.ts";
+import { rowAxis, rowFieldEmpty, rowNoCitation, rowSeverity, tooManyValidations, UNDECIDED_NOT_LIST, undecidedIncomplete, VALIDATIONS_NOT_LIST, VERDICT_VALID_OR_GAPS } from "./messages.ts";
+import {
+  ANSWER_NOT_AN_OBJECT as ANSWER_NOT_OBJECT, atMostRows as tooManyRows, ROWS_MUST_BE_A_LIST as ROWS_NOT_LIST,
+} from "../../../shared/domain/dev/messages.ts";
 
 /** The axes live with the verdict format; re-exported for this crew's importers. */
 export { AXES };
@@ -95,30 +99,30 @@ function checkRow(value: unknown, k: number, problems: string[]): AuditRow | und
   const item = isPlainObject(value) ? value : {};
   const before = problems.length;
   const severity = text(item.severity);
-  if (!SEVERITY_ORDER.includes(severity as Severity)) problems.push(`row ${k}: severity must be Blocking, Major or Minor`);
+  if (!SEVERITY_ORDER.includes(severity as Severity)) problems.push(rowSeverity(k));
   const label = text(item.axis);
   const axis = axisOf(label);
-  if (axis === undefined) problems.push(`row ${k}: axis '${label}' is not one of ${AXES.join(", ")}`);
+  if (axis === undefined) problems.push(rowAxis(k, label, AXES.join(", ")));
   const fields = { gap: text(item.gap), evidence: text(item.evidence), fix: text(item.fix) };
   for (const [field, value] of Object.entries(fields)) {
-    if (value === "") problems.push(`row ${k}: ${field} is empty`);
+    if (value === "") problems.push(rowFieldEmpty(k, field));
   }
-  if (fields.evidence !== "" && !citesEvidence(fields.evidence)) problems.push(`row ${k}: evidence cites no path:line`);
+  if (fields.evidence !== "" && !citesEvidence(fields.evidence)) problems.push(rowNoCitation(k));
   if (problems.length > before || axis === undefined) return undefined;
   return { severity: severity as Severity, axis, ...fields };
 }
 
 export function checkAuditAnswer(value: unknown): Checked<AuditAnswer> {
-  if (!isPlainObject(value)) return { ok: false, problems: ["the answer is not an object"] };
+  if (!isPlainObject(value)) return { ok: false, problems: [ANSWER_NOT_OBJECT] };
   const problems: string[] = [];
   const verdict = text(value.verdict);
-  if (verdict !== "VALID" && verdict !== "GAPS") problems.push("verdict must be VALID or GAPS");
+  if (verdict !== "VALID" && verdict !== "GAPS") problems.push(VERDICT_VALID_OR_GAPS);
 
   const rows: AuditRow[] = [];
   if (!Array.isArray(value.rows)) {
-    problems.push("rows must be a list");
+    problems.push(ROWS_NOT_LIST);
   } else {
-    if (value.rows.length > MAX_ANSWER_ROWS) problems.push(`at most ${MAX_ANSWER_ROWS} rows, not ${value.rows.length}`);
+    if (value.rows.length > MAX_ANSWER_ROWS) problems.push(tooManyRows(MAX_ANSWER_ROWS, value.rows.length));
     value.rows.forEach((item, i) => {
       const checked = checkRow(item, i + 1, problems);
       if (checked) rows.push(checked);
@@ -127,20 +131,20 @@ export function checkAuditAnswer(value: unknown): Checked<AuditAnswer> {
 
   let validations: string[] = [];
   if (!Array.isArray(value.validations) || value.validations.some((v) => typeof v !== "string")) {
-    problems.push("validations must be a list of commands");
+    problems.push(VALIDATIONS_NOT_LIST);
   } else {
     validations = value.validations.map((v: string) => validationCommand(v));
-    if (validations.length > MAX_VALIDATIONS) problems.push(`at most ${MAX_VALIDATIONS} validations, not ${validations.length}`);
+    if (validations.length > MAX_VALIDATIONS) problems.push(tooManyValidations(MAX_VALIDATIONS, validations.length));
   }
 
   const undecided: Undecided[] = [];
   const items = value.undecided ?? [];
   if (!Array.isArray(items)) {
-    problems.push("undecided must be a list");
+    problems.push(UNDECIDED_NOT_LIST);
   } else {
     items.forEach((item, i) => {
       const entry = isPlainObject(item) ? { check: text(item.check), reason: text(item.reason) } : { check: "", reason: "" };
-      if (entry.check === "" || entry.reason === "") problems.push(`undecided ${i + 1}: check and reason are needed`);
+      if (entry.check === "" || entry.reason === "") problems.push(undecidedIncomplete(i + 1));
       else undecided.push(entry);
     });
   }

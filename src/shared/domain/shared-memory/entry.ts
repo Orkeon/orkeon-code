@@ -4,6 +4,12 @@
 
 import { secretLikePaths, secretPatternsIn } from "../secret-patterns.ts";
 import { MAX_TOPIC_CHARS, TOPIC_PATTERN } from "./refused.ts";
+import {
+  aMistakeNeeds, APPLIES_WHEN_EMPTY, BODY_SECTIONS_IN_ORDER, bodyTooLong, carriesProvenanceMarker, dateNotIso,
+  evidenceNamesSecret, forAMistakeOnly, idIsNot, itemNotAToken, looksLikeSecret, projectNotKebab, RATIONALE_EMPTY,
+  SOURCE_MUST_START, statusMustBeOneOf, SUPERSEDED_BY_EXACTLY, supersedesOtherProject, titleOneLine, topicNotKebab,
+  typeMustBeOneOf,
+} from "./messages.ts";
 
 export const ENTRY_TYPES = ["decision", "code-structure", "method", "mistake"] as const;
 export type EntryType = (typeof ENTRY_TYPES)[number];
@@ -92,52 +98,52 @@ export function entryProblems(entry: MemoryEntry, markers: readonly RegExp[] = [
   const typeOk = (ENTRY_TYPES as readonly string[]).includes(entry.type);
   const prefix = entryIdPrefix(entry.project, entry.type, entry.date);
   if (!KEBAB.test(entry.id) || !entry.id.startsWith(prefix) || !KEBAB.test(entry.id.slice(prefix.length))) {
-    problems.push(`id '${entry.id}' is not ${entry.project}-${entry.type}-${entry.date.replace(/-/g, "")}-<slug>`);
+    problems.push(idIsNot(entry.id, `${entry.project}-${entry.type}-${entry.date.replace(/-/g, "")}`));
   }
-  if (!typeOk) problems.push(`type must be one of ${ENTRY_TYPES.join(", ")}`);
+  if (!typeOk) problems.push(typeMustBeOneOf(ENTRY_TYPES.join(", ")));
   if (entry.title.length < 1 || entry.title.length > MAX_TITLE_CHARS || /[\r\n]/.test(entry.title)) {
-    problems.push(`title must be one line of 1 to ${MAX_TITLE_CHARS} characters`);
+    problems.push(titleOneLine(MAX_TITLE_CHARS));
   }
-  if (!KEBAB.test(entry.project)) problems.push(`project '${entry.project}' is not a kebab-case name`);
-  if (!isCalendarDate(entry.date)) problems.push(`date '${entry.date}' is not YYYY-MM-DD`);
+  if (!KEBAB.test(entry.project)) problems.push(projectNotKebab(entry.project));
+  if (!isCalendarDate(entry.date)) problems.push(dateNotIso(entry.date));
   if (!TOPIC_PATTERN.test(entry.topic)) {
-    problems.push(`topic '${entry.topic}' is not a kebab slug of at most ${MAX_TOPIC_CHARS} characters`);
+    problems.push(topicNotKebab(entry.topic, MAX_TOPIC_CHARS));
   }
-  if (!present(entry.appliesWhen)) problems.push("applies_when is empty");
-  if (!present(entry.rationale)) problems.push("rationale is empty");
+  if (!present(entry.appliesWhen)) problems.push(APPLIES_WHEN_EMPTY);
+  if (!present(entry.rationale)) problems.push(RATIONALE_EMPTY);
   const mistakeKeys: Array<[string, string | undefined]> = [
     ["correction", entry.correction], ["detection_signal", entry.detectionSignal],
   ];
   for (const [key, value] of mistakeKeys) {
-    if (entry.type === "mistake" && !present(value)) problems.push(`a mistake needs ${key}`);
-    if (entry.type !== "mistake" && present(value)) problems.push(`${key} is for a mistake only`);
+    if (entry.type === "mistake" && !present(value)) problems.push(aMistakeNeeds(key));
+    if (entry.type !== "mistake" && present(value)) problems.push(forAMistakeOnly(key));
   }
-  if (!SOURCE.test(entry.source)) problems.push("source must start with verdict:, audit: or human:");
+  if (!SOURCE.test(entry.source)) problems.push(SOURCE_MUST_START);
   if (!(ENTRY_STATUSES as readonly string[]).includes(entry.status)) {
-    problems.push(`status must be one of ${ENTRY_STATUSES.join(", ")}`);
+    problems.push(statusMustBeOneOf(ENTRY_STATUSES.join(", ")));
   }
   for (const id of entry.supersedes) {
-    if (!id.startsWith(`${entry.project}-`)) problems.push(`supersedes '${id}' is not an entry of project ${entry.project}`);
+    if (!id.startsWith(`${entry.project}-`)) problems.push(supersedesOtherProject(id, entry.project));
   }
   if ((entry.status === "superseded") !== present(entry.supersededBy)) {
-    problems.push("superseded_by is set exactly when status is superseded");
+    problems.push(SUPERSEDED_BY_EXACTLY);
   }
   for (const [key, items] of [["tags", entry.tags], ["stack", entry.stack]] as const) {
-    for (const item of items) if (!TOKEN.test(item)) problems.push(`${key} item '${item}' is not a lower-case token`);
+    for (const item of items) if (!TOKEN.test(item)) problems.push(itemNotAToken(key, item));
   }
-  if (!sectionsInOrder(entry.body)) problems.push("the body needs ## Context, ## Content and ## Evidence, in this order");
+  if (!sectionsInOrder(entry.body)) problems.push(BODY_SECTIONS_IN_ORDER);
   if (entry.body.length > MAX_BODY_CHARS) {
-    problems.push(`the body is ${entry.body.length} characters, over ${MAX_BODY_CHARS}`);
+    problems.push(bodyTooLong(entry.body.length, MAX_BODY_CHARS));
   }
-  for (const path of secretLikePaths(evidencePaths(entry.body))) problems.push(`evidence names a secret-like file: ${path}`);
+  for (const path of secretLikePaths(evidencePaths(entry.body))) problems.push(evidenceNamesSecret(path));
   const texts: Array<[string, string]> = [...entryValues(entry), ["body", entry.body]];
   for (const [key, text] of texts) {
-    for (const name of secretPatternsIn(text)) problems.push(`${key} looks like it holds a secret (${name})`);
+    for (const name of secretPatternsIn(text)) problems.push(looksLikeSecret(key, name));
   }
   for (const [key, text] of texts) {
     for (const marker of markers) {
       if (new RegExp(marker.source, marker.flags.replace(/[gy]/g, "")).test(text)) {
-        problems.push(`${key} carries a provenance marker (${marker.source})`);
+        problems.push(carriesProvenanceMarker(key, marker.source));
       }
     }
   }

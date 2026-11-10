@@ -6,9 +6,10 @@ import { strictEqual, deepStrictEqual, ok } from "node:assert";
 
 import {
   MAX_ENTRY_PACKAGES, MAX_EXPORTS_PER_PACKAGE, MAX_LISTED_PACKAGES, displayFqn, edgeEndpointToPath, entryPackages,
-  isTestPackage, packageCycles, rankExports, rankPackages, renderHarvest, selectPackages, SYNTHESIS_SYSTEM,
+  isTestPackage, packageCycles, rankExports, rankPackages, renderHarvest, selectPackages,
   buildSynthesisUser, MAX_SYNTHESIS_CONCEPTS,
 } from "../../../../src/crews/analyze/domain/harvest.ts";
+import { SYNTHESIS_SYSTEM } from "../../../../src/crews/analyze/domain/prompts.ts";
 import {
   CYCLIC, CYCLIC_CYCLES, DISPLAY_CASES, ENDPOINTS, EXPORTS_IN_INDEX_ORDER, EXPORTS_RANKED, HOSTED, HOSTED_ENTRIES,
   L1_ENTRIES, L1_RANKED, MODULE_GRAPH, NAMED_CYCLES_GRAPH, PACKAGE, SAMPLED_GRAPH, TEST_PACKAGE_CASES, mapPackages, packageExporting,

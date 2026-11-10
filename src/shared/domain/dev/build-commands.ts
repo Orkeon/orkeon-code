@@ -4,6 +4,7 @@
 // was never restored (a cold checkout or worktree), where the flag cannot succeed.
 import type { RepoPackCommands } from "./repo-pack.ts";
 import { PLACEHOLDER, plainWords, valueProblem } from "./test-commands.ts";
+import { buildTestPlaceholders, PACK_HAS_NO_BUILD, PACK_HAS_NO_BUILD_TEST, SHELL_OPERATOR_OUTSIDE_QUOTES } from "./messages.ts";
 
 export type BuildCommand = { ok: true; command: string; key: "commands.build" | "commands.build_test" } | { ok: false; reason: string };
 
@@ -11,20 +12,20 @@ export type BuildCommand = { ok: true; command: string; key: "commands.build" | 
 export function buildCommandFor(commands: RepoPackCommands, project?: string): BuildCommand {
   if (project === undefined) {
     const build = commands.build?.trim();
-    return build ? { ok: true, command: build, key: "commands.build" } : { ok: false, reason: "the pack has no commands.build" };
+    return build ? { ok: true, command: build, key: "commands.build" } : { ok: false, reason: PACK_HAS_NO_BUILD };
   }
   const template = commands.buildTest?.trim();
-  if (!template) return { ok: false, reason: "the pack has no commands.build_test to build one project" };
+  if (!template) return { ok: false, reason: PACK_HAS_NO_BUILD_TEST };
   const holes = template.match(PLACEHOLDER) ?? [];
   if (holes.length !== 1) {
-    return { ok: false, reason: `commands.build_test has ${holes.length} placeholders, not one: '${template}'` };
+    return { ok: false, reason: buildTestPlaceholders(holes.length, template) };
   }
   const problem = valueProblem(project);
   if (problem !== null) return { ok: false, reason: problem };
   const command = template.replace(PLACEHOLDER, project);
   return plainWords(command)
     ? { ok: true, command, key: "commands.build_test" }
-    : { ok: false, reason: "a shell operator outside double quotes" };
+    : { ok: false, reason: SHELL_OPERATOR_OUTSIDE_QUOTES };
 }
 
 /** Whether `command` is the pack's restore, or a restore by its verb (`dotnet restore`, `npm ci`, `npm install`). */

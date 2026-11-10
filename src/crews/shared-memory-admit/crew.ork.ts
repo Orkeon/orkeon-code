@@ -23,15 +23,16 @@ import {
 } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { readMemorySettings } from "../../shared/application/shared-memory/memory-settings.ts";
 import { admitEntries, admitReport, admittedCandidates } from "../../shared/application/shared-memory/admit-entries.ts";
+import { ADMITTER_GOAL, ADMITTER_ROLE } from "./application/prompts.ts";
 
 const ports = { files: orkeonFiles(), shell: orkeonShell(), config: orkeonConfigStore(), memory: orkeonSharedMemory() };
 
 const admitter = orkeonAgent()
   .name("memory-admitter")
-  .role("Shared memory keeper")
+  .role(ADMITTER_ROLE)
   // NO tools on purpose: every write is code's, decided by the operator in /memory-admit.
   .tools([])
-  .goal("Apply the admissions the operator confirmed, then re-index the shared memory.")
+  .goal(ADMITTER_GOAL)
   .body(async () => {
     const settings = await readMemorySettings(ports);
     const outcome = await admitEntries({ ...ports, clock: orkeonClock() }, settings, { admit: admittedCandidates(inputs()), refuse: [] });

@@ -3,6 +3,8 @@
 // when one is refused. Pure, no IO, never throws.
 import { sha1Hex } from "../sha1.ts";
 import { foldText } from "./verdict-rows.ts";
+import { notARefusedLine } from "./messages.ts";
+import { REFUSED_HEADER } from "./markers.ts";
 
 /** Orkeon Code's memory folder, relative to /workspace; M-2 makes it the default of memory.dir. */
 export const MEMORY_DIR = ".orkeon/memory";
@@ -12,8 +14,6 @@ export interface RefusedList { motifs: RefusedMotif[]; problems: Array<{ line: n
 /** The longest topic slug. */
 export const MAX_TOPIC_CHARS = 60;
 export const TOPIC_PATTERN: RegExp = new RegExp(`^(?=.{1,${MAX_TOPIC_CHARS}}$)[a-z0-9]+(?:-[a-z0-9]+)*$`);
-export const REFUSED_HEADER: string =
-  "One line per refused motif: topic | project | date | motif. /dev-learn leaves these topics out of its proposals.";
 
 const TITLE = "# Refused motifs";
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -57,7 +57,7 @@ export function parseRefused(text: string): RefusedList {
     const [topic, project, date] = parts.map((p) => p.trim());
     const motif = parts.slice(3).join(SEPARATOR).trim();
     if (parts.length < 4 || !TOPIC_PATTERN.test(topic) || !DATE.test(date)) {
-      list.problems.push({ line, message: `line ${line}: not "topic | project | date | motif"` });
+      list.problems.push({ line, message: notARefusedLine(line) });
       return;
     }
     list.motifs.push({ topic, project, date, motif, line });

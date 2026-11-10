@@ -5,6 +5,7 @@
 // the next /assistant turn skips the two ADVISORY prompt blocks, and skips
 // gathering them too. That is a real degradation, so the loop logs it.
 import { toggleCommand } from "../_lib/settings/session-config.ts";
+import { fastNote } from "../_lib/settings/messages.ts";
 import { orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { FAST_MODE_STATE_KEY } from "../../shared/domain/session-keys.ts";
 import { FAST_MODE_DROPPED_BLOCKS } from "../../shared/domain/agent-policy/behavior-flags.ts";
@@ -13,5 +14,5 @@ defineCommand(toggleCommand({
   name: "fast",
   description: "Toggle fast mode (drop the advisory prompt blocks for latency).",
   key: FAST_MODE_STATE_KEY,
-  note: `while on, /assistant turns omit the ${FAST_MODE_DROPPED_BLOCKS.join(" and ")} blocks`,
+  note: fastNote(FAST_MODE_DROPPED_BLOCKS),
 }, orkeonSessionIo()));

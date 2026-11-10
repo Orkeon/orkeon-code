@@ -19,6 +19,11 @@ import type { WorktreePlace } from "../../domain/git/worktree.ts";
 import { gitReason, runGit } from "./commit-files.ts";
 import { mergeFastForward } from "./merge-batch.ts";
 import type { MergeOutcome } from "./merge-batch.ts";
+import {
+  DETACHED_HEAD, branchExists, branchNotMerged, cannotGoThroughTheShell, mergedUnreadable, notAWorktreeNameExplained, orkeonNotIgnoredByGit,
+  notMergedNotAWorktreeName, notMergedVerdict, worktreeAndBranchRemoved, worktreeCreated, worktreeHoldsChanges, worktreeNotCreated,
+  worktreeNotOnBranch, worktreeNotRemoved, worktreeRemovedBranchKept, worktreeStateUnreadable,
+} from "./messages.ts";
 
 export type WorktreeOutcome =
   | { ok: true; place: WorktreePlace; line: string }
@@ -29,7 +34,7 @@ const refused = (line: string): { ok: false; line: string } => ({ ok: false, lin
 // A leading `-` would be read by git as an option (`--detach` for a base).
 function unsafeOf(values: readonly string[]): string | null {
   const bad = values.filter((v) => shellUnsafe(v) || v.startsWith("-"));
-  return bad.length === 0 ? null : `${bad.map((v) => `'${v}'`).join(", ")} cannot go through the shell`;
+  return bad.length === 0 ? null : cannotGoThroughTheShell(bad.map((v) => `'${v}'`).join(", "));
 }
 
 /** Creates worktree `name` on a new branch `branch` from `base`. */
@@ -37,19 +42,19 @@ export async function createBatchWorktree(
   shell: Pick<Shell, "run">, req: { name: string; branch: string; base: string },
 ): Promise<WorktreeOutcome> {
   const place = worktreePlace(req.name);
-  if (place === null) return refused(`'${req.name}' is not a worktree name (one folder: letters, digits, . _ -)`);
+  if (place === null) return refused(notAWorktreeNameExplained(req.name));
   const unsafe = unsafeOf([req.branch, req.base]);
   if (unsafe !== null) return refused(unsafe);
   const exists = await runGit(shell, gitBranchExists(req.branch));
-  if (exists.exitCode === 0) return refused(`branch ${req.branch} exists already: remove it or choose another name`);
+  if (exists.exitCode === 0) return refused(branchExists(req.branch));
   // Not ignored, the worktree would sit in the checkout's own status as an embedded repository.
   const ignored = await runGit(shell, gitIsIgnored(place.path));
   if (ignored.exitCode !== 0) {
-    return refused(`${place.path} is not ignored by git: add \`.orkeon/\` to .gitignore or .git/info/exclude first`);
+    return refused(orkeonNotIgnoredByGit(place.path));
   }
   const add = await runGit(shell, gitWorktreeAdd(place.path, req.branch, req.base));
-  if (add.exitCode !== 0) return { ok: false, line: `worktree ${place.path} not created: ${gitReason(add)}` };
-  return { ok: true, place, line: `✓ worktree ${place.path} on ${req.branch}, from ${req.base}` };
+  if (add.exitCode !== 0) return { ok: false, line: worktreeNotCreated(place.path, gitReason(add)) };
+  return { ok: true, place, line: worktreeCreated(place.path, req.branch, req.base) };
 }
 
 /** Removes worktree `name` and its branch once nothing in it is lost: no change, every commit in `into`. */
@@ -57,31 +62,31 @@ export async function removeBatchWorktree(
   shell: Pick<Shell, "run">, req: { name: string; branch: string; into: string },
 ): Promise<WorktreeOutcome> {
   const place = worktreePlace(req.name);
-  if (place === null) return refused(`'${req.name}' is not a worktree name (one folder: letters, digits, . _ -)`);
+  if (place === null) return refused(notAWorktreeNameExplained(req.name));
   const unsafe = unsafeOf([req.branch, req.into]);
   if (unsafe !== null) return refused(unsafe);
   const status = await runGit(shell, gitWorktreeStatus(place.path));
-  if (status.exitCode !== 0) return refused(`the state of ${place.path} could not be read (${gitReason(status)})`);
+  if (status.exitCode !== 0) return refused(worktreeStateUnreadable(place.path, gitReason(status)));
   const changed = status.stdout.split("\n").filter((l) => l.trim() !== "").length;
-  if (changed > 0) return refused(`${place.path} holds ${changed} uncommitted or untracked file(s): commit or discard them first`);
+  if (changed > 0) return refused(worktreeHoldsChanges(place.path, changed));
   // The worktree must stand on its branch: commits on another HEAD would go with it, the merge check not seeing them.
   const head = await runGit(shell, gitWorktreeHead(place.path));
   if (head.exitCode !== 0 || head.stdout.trim() !== `refs/heads/${req.branch}`) {
-    return refused(`${place.path} is not on ${req.branch} (${head.exitCode === 0 ? head.stdout.trim() : "a detached HEAD"}): check it out there first`);
+    return refused(worktreeNotOnBranch(place.path, req.branch, head.exitCode === 0 ? head.stdout.trim() : DETACHED_HEAD));
   }
   const merged = await runGit(shell, gitIsMergedInto(req.branch, req.into));
   if (merged.exitCode === 1) {
     const count = await runGit(shell, gitCommitsNotIn(req.branch, req.into));
     const n = count.exitCode === 0 ? count.stdout.trim() : "?";
-    return refused(`${req.branch} holds ${n} commit(s) not in ${req.into}: merge it first`);
+    return refused(branchNotMerged(req.branch, n, req.into));
   }
-  if (merged.exitCode !== 0) return refused(`whether ${req.branch} is merged into ${req.into} could not be read (${gitReason(merged)})`);
+  if (merged.exitCode !== 0) return refused(mergedUnreadable(req.branch, req.into, gitReason(merged)));
   const remove = await runGit(shell, gitWorktreeRemove(place.path));
-  if (remove.exitCode !== 0) return { ok: false, line: `worktree ${place.path} not removed: ${gitReason(remove)}` };
+  if (remove.exitCode !== 0) return { ok: false, line: worktreeNotRemoved(place.path, gitReason(remove)) };
   const branch = await runGit(shell, gitBranchDelete(req.branch));
   return branch.exitCode === 0
-    ? { ok: true, place, line: `✓ worktree ${place.path} and branch ${req.branch} removed` }
-    : { ok: true, place, line: `✓ worktree ${place.path} removed; branch ${req.branch} kept (${gitReason(branch)})` };
+    ? { ok: true, place, line: worktreeAndBranchRemoved(place.path, req.branch) }
+    : { ok: true, place, line: worktreeRemovedBranchKept(place.path, req.branch, gitReason(branch)) };
 }
 
 /** Merges a batch's branch into the work branch (`--ff-only`, rebased in its worktree when needed) on a VALID verdict only. */
@@ -89,9 +94,9 @@ export async function mergeValidBatch(
   shell: Pick<Shell, "run">, req: { batch: string; verdict: string | null; branch: string; workBranch: string; name: string },
 ): Promise<MergeOutcome> {
   if (req.verdict !== "VALID") {
-    return { merged: false, line: `not merged: ${req.batch}'s audit is ${req.verdict ?? "missing"}, not VALID`, handOver: [] };
+    return { merged: false, line: notMergedVerdict(req.batch, req.verdict ?? "missing"), handOver: [] };
   }
   const place = worktreePlace(req.name);
-  if (place === null) return { merged: false, line: `not merged: '${req.name}' is not a worktree name`, handOver: [] };
+  if (place === null) return { merged: false, line: notMergedNotAWorktreeName(req.name), handOver: [] };
   return mergeFastForward(shell, { ref: req.branch, workBranch: req.workBranch, worktree: place.path });
 }

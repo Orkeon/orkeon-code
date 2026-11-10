@@ -13,6 +13,7 @@
 //   unknown          → rag (the tree cannot parse it by construction; the RAG's
 //                      text loader reads any UTF-8 body, so it is the side with
 //                      a chance — and rag_ingest fails loudly instead of lying)
+import { RAG_NO_INGEST_HINT, ragIngestHint, searchRouting } from "./prompts.ts";
 
 /**
  * Extensions the RaggableTree parses — the union of the thirteen Tree-sitter
@@ -71,15 +72,6 @@ export function hasRagLoader(path: string): boolean {
  * cannot drift apart (the prompt renders THIS, tests pin THIS).
  */
 export function describeSearchRouting(tools: readonly string[]): string {
-  const ingest = tools.includes("rag_ingest")
-    ? " The collection holds nothing until ingested: when it returns nothing for files you KNOW exist, " +
-      "`rag_ingest {collection: \"" + WORKSPACE_DOCS_COLLECTION + "\", sources: [globs of those files, such as " +
-      "\"/workspace/docs/**/*.md\"]}`, then search again."
-    : " The collection holds only what a writing session ingested: an empty answer there is no proof of absence.";
-  return (
-    "- Code files: `codebase_search`, then `symbol_source`/`flow_trace` on the hits.\n" +
-    "- Any other file (configuration, data, documents, other languages): a name, a key or an exact text with " +
-    "`grep` (a `glob` narrows), then `file_read`; a question of meaning over prose with `rag_search` " +
-    "(`question`, `collection: \"" + WORKSPACE_DOCS_COLLECTION + "\"`)." + ingest
-  );
+  const ingest = tools.includes("rag_ingest") ? ragIngestHint(WORKSPACE_DOCS_COLLECTION) : RAG_NO_INGEST_HINT;
+  return searchRouting(WORKSPACE_DOCS_COLLECTION, ingest);
 }

@@ -8,6 +8,11 @@
 
 import { policyFor } from "./mode-policy.ts";
 import type { ToolClass } from "./mode-policy.ts";
+import {
+  argumentsNotKnown, hasNoArgument, modeDoesNotOffer, noToolARuleMayName, offeredToEveryAct, PLAN_IGNORES_ALLOW_RULES,
+  takesNoArgument,
+} from "./messages.ts";
+import { MAY_ACT_CLAUSE, READ_ONLY_CLAUSE } from "./prompts.ts";
 
 /** Read-side tools (inspection + the read-only RaggableTree index queries). */
 export const READ_TOOLS = [
@@ -120,10 +125,7 @@ export function toolsetFor(mode: string, extras: readonly ExtraTool[] = []): str
 
 /** The permission clause appended to the act() prompt. */
 export function permissionNote(mode: string): string {
-  const clause = isReadOnly(mode)
-    ? "Read-only: read and search the project, but MUST NOT modify files, run commands or fetch anything over the " +
-      "network; answer with an assessment or a plan."
-    : "You may edit files, run shell commands and fetch over the network; the host may ask the user before a call.";
+  const clause = isReadOnly(mode) ? READ_ONLY_CLAUSE : MAY_ACT_CLAUSE;
   return `(Permission mode: ${mode}. ${clause})`;
 }
 
@@ -356,14 +358,12 @@ function inertReason(mode: string, rule: PermissionRule, offered: readonly strin
   // The gate reads no allow rule in plan (ModePermissionGate): plan's promise of a
   // turn that changes nothing outranks the session's rules.
   if (mode === "plan") {
-    return "mode 'plan' ignores every allow rule: the gate decides each call from the mode, which runs reads " +
-      "and refuses the rest. Switch mode instead.";
+    return PLAN_IGNORES_ALLOW_RULES;
   }
   // An ACT_TOOLS tool reaches the gate from every act whatever the catalogue: the gate reads an allow
   // rule on it in every other mode, dontAsk included.
   if (!offered.includes(rule.tool) && !isActTool(rule.tool)) {
-    return `mode '${mode}' does not offer '${rule.tool}': an allow rule spares a question, ` +
-      "it does not hand a tool over. Switch mode instead.";
+    return modeDoesNotOffer(mode, rule.tool);
   }
   return undefined;
 }
@@ -470,7 +470,7 @@ export function checkRule(text: unknown, extraNames: readonly string[] = []): Ru
   const tool = ruleableTool(read.tool, extraNames);
   if (tool === undefined) {
     const tools = [...RULEABLE_TOOLS, ...extraNames].join(", ");
-    return { ok: false, reason: `'${read.tool}' is no tool a rule may name: one of ${tools}` };
+    return { ok: false, reason: noToolARuleMayName(read.tool, tools) };
   }
   const rule = { ...read, tool };
   // The gate reads an allow rule on an ACT_TOOLS tool in every mode but plan: say so, refuse nothing.
@@ -478,8 +478,7 @@ export function checkRule(text: unknown, extraNames: readonly string[] = []): Ru
     ? {
       ok: true,
       rule,
-      warning: `'${tool}' is offered to every act whatever the mode: an allow rule lets it run without asking in ` +
-        "dontAsk too.",
+      warning: offeredToEveryAct(tool),
     }
     : { ok: true, rule };
   if (rule.argument === undefined) return accepted;
@@ -488,16 +487,15 @@ export function checkRule(text: unknown, extraNames: readonly string[] = []): Ru
     return {
       ok: true,
       rule,
-      warning: `the arguments of '${tool}' are not known here (its MCP server or plugin declares them): the rule ` +
-        `matches a call only if '${tool}' takes an argument named exactly '${rule.argument}'.`,
+      warning: argumentsNotKnown(tool, rule.argument),
     };
   }
   if (known.includes(rule.argument)) return accepted;
   return {
     ok: false,
     reason: known.length === 0
-      ? `'${tool}' takes no argument: a rule on it covers every call`
-      : `'${tool}' has no argument '${rule.argument}': it takes ${known.join(", ")}`,
+      ? takesNoArgument(tool)
+      : hasNoArgument(tool, rule.argument, known),
   };
 }
 

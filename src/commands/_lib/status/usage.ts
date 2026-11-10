@@ -15,6 +15,9 @@ import {
 import { UNREPORTED, type Unreported, cacheColumns, shown } from "./cache.ts";
 import type { CommandView } from "../view.ts";
 import { runUsageTools, type UsageToolsDeps } from "./usage-tools.ts";
+import {
+  NO_COMMAND_USAGE, NO_MODEL_USAGE, NO_USAGE_SERVICE, USAGE_LEGEND, USAGE_SYNTAX, fromCache, unpricedCalls as unpricedCallsNote,
+} from "./messages.ts";
 
 export interface UsageDeps {
   session: Pick<SessionStore, "readBudget">;
@@ -24,9 +27,6 @@ export interface UsageDeps {
   usage?: UsageReader;
 }
 
-/** What a host without the usage service leaves the breakdown with. */
-export const NO_USAGE_SERVICE = "usage by model and command: not reported by this host (no usage service)";
-
 /** A cost as the breakdown shows it: unpriced when the host priced no call of the set. */
 export function costText(cost: number | null): string {
   return cost === null ? "cost unpriced" : `$${cost.toFixed(4)}`;
@@ -34,12 +34,12 @@ export function costText(cost: number | null): string {
 
 /** The lower-bound note, when some calls were priced by nobody. */
 export function unpricedNote(unpricedCalls: number): string | null {
-  return unpricedCalls > 0 ? `${unpricedCalls} call(s) unpriced: the cost is a lower bound` : null;
+  return unpricedCalls > 0 ? unpricedCallsNote(unpricedCalls) : null;
 }
 
 function spentText(s: UsageSpent): string {
   // A cache read no call reported is left out; one measured, 0 included, is named.
-  const cached = s.cacheHitTokens === null ? "" : ` (${s.cacheHitTokens} from the cache)`;
+  const cached = s.cacheHitTokens === null ? "" : fromCache(s.cacheHitTokens);
   return `${s.calls} call(s), ${s.promptTokens} prompt${cached}, ${s.completionTokens} completion, ${costText(s.cost)}`;
 }
 
@@ -56,23 +56,15 @@ function commandLine(c: CommandUsage): string {
 export function usageBreakdown(report: UsageReport | undefined): string {
   if (report === undefined) return NO_USAGE_SERVICE;
   const lines = [
-    report.byModel.length > 0 ? "by model:" : "by model: none named by the provider yet",
+    report.byModel.length > 0 ? "by model:" : NO_MODEL_USAGE,
     ...report.byModel.map(modelLine),
-    report.byCommand.length > 0 ? "by command:" : "by command: no command instance yet",
+    report.byCommand.length > 0 ? "by command:" : NO_COMMAND_USAGE,
     ...report.byCommand.map(commandLine),
   ];
   const note = unpricedNote(report.unpricedCalls);
   if (note !== null) lines.push(note);
   return lines.join("\n");
 }
-
-/** What the row's columns count, and which are estimates: the closing text opens with it. */
-export const USAGE_LEGEND = [
-  "usedTokens, estTokens: the conversation's size in the context window, estimated by the host.",
-  "llm*: counted by the providers over every call: llmInTokens sent, llmOutTokens received (llmReasoningTokens a part of",
-  "them), llmTokens = in + out. cacheRead and cacheWrite are parts of llmInTokens; cacheRatio = cacheRead / llmInTokens.",
-  "n/a: not reported, never a measured 0.",
-].join("\n");
 
 /** The share of the prompt tokens read from the cache, to two decimals; `n/a` when no call reported a cache read, or
  *  no prompt token is counted: an unmeasured cache never reads as a ratio of 0. */
@@ -127,9 +119,6 @@ export async function runUsage(deps: UsageDeps): Promise<CommandView> {
     text: `${USAGE_LEGEND}\n${usageBreakdown(report)}`,
   };
 }
-
-/** What a sub-verb /usage does not know answers. */
-export const USAGE_SYNTAX = "usage: /usage, or /usage tools [text] (the tool calls of this session's turns)";
 
 /** /usage with its tokens: the usage view bare, the session's tool calls after `tools`. */
 export async function runUsageCommand(tokens: readonly string[], deps: UsageDeps & UsageToolsDeps): Promise<CommandView> {

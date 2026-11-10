@@ -12,6 +12,11 @@ import {
   parseGitIdent, prBodyPath, prSlug, renderPrBody, shellUnsafe,
 } from "../../domain/git/close.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
+import {
+  MERGE_IN_PROGRESS, NOTHING_TO_COMMIT, NOT_PUSHED_DETACHED, NO_GITHUB_TOOL, TO_OPEN_IN_A_TERMINAL, bodyNotWritten, bodyOutsideMounts,
+  cannotGoThroughShell, commitMessageNotWritten, gitAddFailed, gitCommitFailed, noEmailInAnswer, notPushedUnsafeBranch,
+  pullRequestBody, pullRequestNotOpened, pullRequestOpened, pushRefused, refusedByRuntime, removeByHand,
+} from "./messages.ts";
 
 export type Step = { ok: true } | { ok: false; line: string };
 
@@ -24,7 +29,7 @@ export async function runGit(shell: Pick<Shell, "run">, command: string): Promis
   try {
     return await shell.run(command);
   } catch (e) {
-    return { stdout: "", stderr: `refused by the runtime: ${firstLine((e as Error)?.message ?? e)}`, exitCode: -1 };
+    return { stdout: "", stderr: refusedByRuntime(firstLine((e as Error)?.message ?? e)), exitCode: -1 };
   }
 }
 
@@ -42,7 +47,7 @@ export async function readIdentity(shell: Pick<Shell, "run">): Promise<IdentityC
   for (const command of [GIT_IDENT_COMMAND, GIT_COMMITTER_IDENT_COMMAND]) {
     const r = await runGit(shell, command);
     const ident = r.exitCode === 0 ? parseGitIdent(r.stdout) : null;
-    if (ident === null) return { ok: false, detail: r.exitCode === 0 ? `${command}: no email in its answer` : gitReason(r) };
+    if (ident === null) return { ok: false, detail: r.exitCode === 0 ? noEmailInAnswer(command) : gitReason(r) };
     author ??= ident;
   }
   return { ok: true, ident: author! };
@@ -61,13 +66,13 @@ export async function commitFiles(
   deps: { shell: Pick<Shell, "run">; files: Pick<Files, "write"> },
   req: { files: readonly string[]; status: string; message: string },
 ): Promise<CommitOutcome> {
-  if (req.files.length === 0) return { ok: false, line: "nothing to commit" };
+  if (req.files.length === 0) return { ok: false, line: NOTHING_TO_COMMIT };
   const unsafe = req.files.filter(shellUnsafe);
-  if (unsafe.length > 0) return { ok: false, line: `cannot go through the shell: ${unsafe.join(", ")}` };
+  if (unsafe.length > 0) return { ok: false, line: cannotGoThroughShell(unsafe.join(", ")) };
   for (const probe of GIT_IN_PROGRESS_PROBES) {
     const r = await runGit(deps.shell, probe);
     if (r.exitCode === 0 && r.stdout.trim().length > 0) {
-      return { ok: false, line: "a merge or a cherry-pick is in progress: conclude it with git commit in a terminal" };
+      return { ok: false, line: MERGE_IN_PROGRESS };
     }
   }
   // The message is written before anything is staged: a write that fails leaves the index as it was.
@@ -77,11 +82,11 @@ export async function commitFiles(
   const toAdd = req.files.filter((p) => !gone.includes(p));
   if (toAdd.length > 0) {
     const add = await runGit(deps.shell, gitAddCommand(toAdd));
-    if (add.exitCode !== 0) return { ok: false, line: `git add failed: ${gitReason(add)}` };
+    if (add.exitCode !== 0) return { ok: false, line: gitAddFailed(gitReason(add)) };
   }
   const commit = await runGit(deps.shell, gitCommitCommand(req.files, messageFile.path));
   const note = messageFile.path === COMMIT_MESSAGE_FALLBACK ? await removeFallback(deps.shell) : null;
-  if (commit.exitCode !== 0) return { ok: false, line: `git commit failed: ${gitReason(commit)}${note === null ? "" : `; ${note}`}` };
+  if (commit.exitCode !== 0) return { ok: false, line: gitCommitFailed(gitReason(commit), note) };
   const hash = (await runGit(deps.shell, GIT_HEAD_COMMAND)).stdout.trim();
   return note === null ? { ok: true, hash } : { ok: true, hash, note };
 }
@@ -89,7 +94,7 @@ export async function commitFiles(
 /** Removes the message written under `.orkeon/`; a removal that fails is said, never silent (the file holds the message). */
 async function removeFallback(shell: Pick<Shell, "run">): Promise<string | null> {
   const rm = await runGit(shell, `rm -f ${COMMIT_MESSAGE_FALLBACK}`);
-  return rm.exitCode === 0 ? null : `${COMMIT_MESSAGE_FALLBACK} could not be removed (${gitReason(rm)}): remove it by hand`;
+  return rm.exitCode === 0 ? null : removeByHand(COMMIT_MESSAGE_FALLBACK, gitReason(rm));
 }
 
 /** The message under `.git/`, else - a linked worktree, whose `.git` is a file - under `.orkeon/`. */
@@ -103,15 +108,15 @@ async function writeMessage(files: Pick<Files, "write">, message: string): Promi
       reason = firstLine((e as Error)?.message ?? e);
     }
   }
-  return { ok: false, line: `the commit message could not be written (${COMMIT_MESSAGE_FILE}, ${COMMIT_MESSAGE_FALLBACK}): ${reason}` };
+  return { ok: false, line: commitMessageNotWritten(COMMIT_MESSAGE_FILE, COMMIT_MESSAGE_FALLBACK, reason) };
 }
 
 /** `git push -u origin <branch>`; a refusal is said with git's line, nothing is forced. */
 export async function pushBranch(shell: Pick<Shell, "run">, branch: string): Promise<Step> {
-  if (branch.trim().length === 0) return { ok: false, line: "not pushed: no branch is checked out (detached HEAD)" };
-  if (shellUnsafe(branch)) return { ok: false, line: `not pushed: the branch name '${branch}' cannot go through the shell` };
+  if (branch.trim().length === 0) return { ok: false, line: NOT_PUSHED_DETACHED };
+  if (shellUnsafe(branch)) return { ok: false, line: notPushedUnsafeBranch(branch) };
   const r = await runGit(shell, gitPushCommand(branch));
-  return r.exitCode === 0 ? { ok: true } : { ok: false, line: `push refused, the commit stays local: ${gitReason(r)}` };
+  return r.exitCode === 0 ? { ok: true } : { ok: false, line: pushRefused(gitReason(r)) };
 }
 
 /** The remote's default branch, null when origin/HEAD is unset: never guessed. */
@@ -158,29 +163,29 @@ export async function handOverPullRequest(
   const lines: string[] = [];
   const body = renderPrBody(req.summary);
   if (req.work.vfsPath === null) {
-    lines.push(`the body could not be written (${req.work.folder} is outside the mounts): write ${bodyFile} first`);
+    lines.push(bodyOutsideMounts(req.work.folder, bodyFile));
   } else {
     // After the commit and the push: a body that cannot be written is said, never thrown.
     try {
       await deps.files.write(`${req.work.vfsPath.replace(/\/+$/, "")}/pr-${slug}/PR.md`, body);
-      lines.push(`pull request body: ${bodyFile}`);
+      lines.push(pullRequestBody(bodyFile));
     } catch (e) {
-      lines.push(`⚠ the body could not be written (${firstLine((e as Error)?.message ?? e)}): write ${bodyFile} first`);
+      lines.push(bodyNotWritten(firstLine((e as Error)?.message ?? e), bodyFile));
     }
   }
   const pr: PullRequest = { base: req.base, head: req.branch, title: req.title, bodyFile, body };
   if (req.open && req.pushed && deps.opener !== undefined) {
     try {
-      return [...lines, `✓ pull request opened: ${(await deps.opener.open(pr)).url}`];
+      return [...lines, pullRequestOpened((await deps.opener.open(pr)).url)];
     } catch (e) {
-      lines.push(`✗ the pull request was not opened: ${firstLine((e as Error)?.message ?? e)}`);
+      lines.push(pullRequestNotOpened(firstLine((e as Error)?.message ?? e)));
     }
   }
-  lines.push("to open the pull request, in a terminal:");
+  lines.push(TO_OPEN_IN_A_TERMINAL);
   if (!req.pushed) lines.push(`  ${gitPushCommand(req.branch)}`);
   lines.push(`  ${ghPrCreateCommand(pr)}`);
   if (req.open && deps.opener === undefined) {
-    lines.push("the pull request is opened here only through the github tool, which this host does not offer: run the command above");
+    lines.push(NO_GITHUB_TOOL);
   }
   return lines;
 }

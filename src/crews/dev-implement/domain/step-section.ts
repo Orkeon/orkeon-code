@@ -4,6 +4,8 @@
 // plan-format's unfenced lines, as the sheet is written by /dev-plan. Pure, never throws.
 import { parseBatchSheet, unfencedLines } from "../../../shared/domain/dev/plan-format.ts";
 import type { TddTicks } from "../../../shared/domain/dev/plan-format.ts";
+import { TEST_POLICY_SECTION } from "../../../shared/domain/dev/markers.ts";
+import { anchorsRowNamesMissingStep, stepNamesNoTestFile, tddLineWithoutTest } from "./messages.ts";
 
 export interface StepTest { name: string; level: string; project: string; ids: string[] }
 /** One path of an Anchors cell: `to create`, `existing`, or the member it names; its line when given. */
@@ -75,7 +77,7 @@ export function parseImplementSheet(text: string): ImplementSheet {
     codeElements: section(lines, "Code elements").filter((l) => l.trim() !== ""),
     appliedRules: designRow(section(lines, "Design"), "Applied rules"),
     accessCost: designRow(section(lines, "Design"), "Access cost"),
-    testPolicy: section(lines, "Test policy and scopes").filter((l) => l.trim() !== "").join("\n"),
+    testPolicy: section(lines, TEST_POLICY_SECTION).filter((l) => l.trim() !== "").join("\n"),
     problems: base.problems.map((p) => `line ${p.line}: ${p.message}`),
   };
   const ticks = new Map(base.steps.map((s) => [s.number, s.tdd]));
@@ -109,13 +111,13 @@ export function parseImplementSheet(text: string): ImplementSheet {
     const number = /^(\d+)\b/.exec(cells[0] ?? "");
     if (number === null || cells.length < 4) continue;
     const step = sheet.steps.find((s) => s.number === Number(number[1]));
-    if (step === undefined) { sheet.problems.push(`an Anchors row names step ${number[1]}, which the sheet lacks`); continue; }
+    if (step === undefined) { sheet.problems.push(anchorsRowNamesMissingStep(number[1])); continue; }
     step.anchor = { testFiles: anchorRefs(cells[1]), doubles: cells[2] === "—" ? "" : cells[2], production: anchorRefs(cells[3]) };
   }
   for (const s of sheet.steps) {
-    if (s.tdd !== null && s.tests.length === 0) sheet.problems.push(`step ${s.number} has a TDD line and no test`);
+    if (s.tdd !== null && s.tests.length === 0) sheet.problems.push(tddLineWithoutTest(s.number));
     if (s.tdd !== null && (s.anchor === null || s.anchor.testFiles.length === 0)) {
-      sheet.problems.push(`step ${s.number} names no test file in ## Anchors`);
+      sheet.problems.push(stepNamesNoTestFile(s.number));
     }
   }
   return sheet;

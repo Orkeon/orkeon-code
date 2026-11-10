@@ -5,6 +5,10 @@
 
 import { ENTRY_KEYS } from "./entry.ts";
 import type { EntryStatus, EntryType, MemoryEntry } from "./entry.ts";
+import {
+  BAD_QUOTED_VALUE, duplicateKey, FRONT_MATTER_NOT_CLOSED, FRONT_MATTER_NOT_OPENED, mustBeAList, mustBeText,
+  notKeyValue, valueIsOneLine,
+} from "./messages.ts";
 
 export type FlatValue = string | string[];
 export interface FrontMatter { fields: Array<{ key: string; value: FlatValue; line: number }>; body: string }
@@ -19,10 +23,10 @@ class ValueError extends Error {}
 function readQuoted(text: string, from: number): { value: string; next: number } {
   let i = from + 1;
   while (i < text.length && text[i] !== "\"") i += text[i] === "\\" ? 2 : 1;
-  if (i >= text.length) throw new ValueError("bad quoted value");
+  if (i >= text.length) throw new ValueError(BAD_QUOTED_VALUE);
   let value: unknown;
-  try { value = JSON.parse(text.slice(from, i + 1)); } catch { throw new ValueError("bad quoted value"); }
-  if (typeof value !== "string") throw new ValueError("bad quoted value");
+  try { value = JSON.parse(text.slice(from, i + 1)); } catch { throw new ValueError(BAD_QUOTED_VALUE); }
+  if (typeof value !== "string") throw new ValueError(BAD_QUOTED_VALUE);
   return { value, next: i + 1 };
 }
 
@@ -37,12 +41,12 @@ function parseList(inner: string): string[] {
       items.push(quoted.value);
       i = quoted.next;
       while (inner[i] === " ") i++;
-      if (i < inner.length && inner[i] !== ",") throw new ValueError("bad quoted value");
+      if (i < inner.length && inner[i] !== ",") throw new ValueError(BAD_QUOTED_VALUE);
     } else {
       const comma = inner.indexOf(",", i);
       const item = inner.slice(i, comma < 0 ? inner.length : comma).trim();
       if (/[[\]]/.test(item)) throw new ValueError("unclosed list");
-      if (item.includes("\"")) throw new ValueError("bad quoted value");
+      if (item.includes("\"")) throw new ValueError(BAD_QUOTED_VALUE);
       items.push(item);
       i = comma < 0 ? inner.length : comma;
     }
@@ -59,7 +63,7 @@ function parseValue(raw: string): FlatValue {
   }
   if (text.startsWith("\"")) {
     const quoted = readQuoted(text, 0);
-    if (quoted.next !== text.length) throw new ValueError("bad quoted value");
+    if (quoted.next !== text.length) throw new ValueError(BAD_QUOTED_VALUE);
     return quoted.value;
   }
   return text;
@@ -68,9 +72,9 @@ function parseValue(raw: string): FlatValue {
 export function parseFrontMatter(text: string): FrontMatterParse {
   const lines = String(text ?? "").split("\n");
   const strip = (line: string): string => line.replace(/\r$/, "");
-  if (strip(lines[0]) !== FENCE) return { ok: false, problems: ["line 1: the front matter must open with ---"] };
+  if (strip(lines[0]) !== FENCE) return { ok: false, problems: [FRONT_MATTER_NOT_OPENED] };
   const close = lines.findIndex((line, i) => i > 0 && strip(line) === FENCE);
-  if (close < 0) return { ok: false, problems: ["the front matter is not closed by ---"] };
+  if (close < 0) return { ok: false, problems: [FRONT_MATTER_NOT_CLOSED] };
   const problems: string[] = [];
   const fields: FrontMatter["fields"] = [];
   const seen = new Set<string>();
@@ -78,9 +82,9 @@ export function parseFrontMatter(text: string): FrontMatterParse {
     const raw = strip(lines[i]);
     const n = i + 1;
     const m = KEY_LINE.exec(raw);
-    if (!m) { problems.push(`line ${n}: '${raw}' is not key: value`); continue; }
+    if (!m) { problems.push(notKeyValue(n, raw)); continue; }
     const key = m[1];
-    if (seen.has(key)) { problems.push(`line ${n}: duplicate key '${key}'`); continue; }
+    if (seen.has(key)) { problems.push(duplicateKey(n, key)); continue; }
     seen.add(key);
     try {
       fields.push({ key, value: parseValue(m[2] ?? ""), line: n });
@@ -106,7 +110,7 @@ function writeValue(key: string, value: FlatValue): string {
   if (Array.isArray(value)) {
     return `[${value.map((item) => (itemNeedsQuotes(item) ? JSON.stringify(item) : item)).join(", ")}]`;
   }
-  if (/[\r\n]/.test(value)) throw new Error(`a front-matter value is one line: ${key}`);
+  if (/[\r\n]/.test(value)) throw new Error(valueIsOneLine(key));
   return needsQuotes(value) ? JSON.stringify(value) : value;
 }
 
@@ -128,9 +132,9 @@ export function entryFromFrontMatter(
     if (!ENTRY_KEYS.includes(key)) { problems.push(`unknown key '${key}'`); continue; }
     if (LIST_KEYS.has(key)) {
       if (Array.isArray(value)) lists[key] = value;
-      else problems.push(`${key} must be a list`);
+      else problems.push(mustBeAList(key));
     } else if (Array.isArray(value)) {
-      problems.push(`${key} must be text`);
+      problems.push(mustBeText(key));
     } else {
       text[key] = value;
     }

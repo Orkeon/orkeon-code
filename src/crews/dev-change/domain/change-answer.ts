@@ -7,6 +7,10 @@ import type { Checked } from "../../../shared/domain/agents/charter.ts";
 import type { ChangeKind } from "../../../shared/domain/dev/spec-format.ts";
 import { MAX_QUESTIONS, QUESTION_SCHEMA, breaksCell, draftQuestionProblems } from "../../../shared/domain/dev/questions.ts";
 import type { DraftQuestion } from "../../../shared/domain/dev/questions.ts";
+import { NO_CRITERION, NO_CHANGE_SUMMARY, PERF_NEEDS_NUMBER, REFACTOR_NEEDS_PIN, cellOneLine, noBehaviour, noDesign, noProof, severityIsBlockingOrWarning, tooManyCriteria, tooManyLines } from "./messages.ts";
+import {
+  ANSWER_NOT_AN_OBJECT as NOT_AN_OBJECT, idNameOneLine, nameOneLine, rowIsEmpty, statementOneLine, TBD_WITHOUT_QUESTION, tooManyQuestions,
+} from "../../../shared/domain/dev/messages.ts";
 
 export type CriterionSeverity = "blocking" | "warning";
 export interface ChangeCriterion { name: string; statement: string; proof: string; severity: CriterionSeverity }
@@ -96,51 +100,51 @@ function readChangeAnswer(value: unknown): ChangeAnswer {
 }
 
 export function checkChangeAnswer(value: unknown, kind: ChangeKind): Checked<ChangeAnswer> {
-  if (!isObject(value)) return { ok: false, problems: ["the answer is not an object"] };
+  if (!isObject(value)) return { ok: false, problems: [NOT_AN_OBJECT] };
   const a = readChangeAnswer(value);
   if (a.route === "feature") return { ok: true, value: a };
   const problems: string[] = [];
   const oneLine = (t: string): boolean => !/[\r\n]/.test(t);
   if (a.name === "" || !oneLine(a.name) || a.name.length > MAX_NAME_CHARS || a.name.includes("—")) {
-    problems.push(`name: one line of at most ${MAX_NAME_CHARS} characters, no '—'`);
+    problems.push(nameOneLine(MAX_NAME_CHARS));
   }
-  if (a.summary === "") problems.push("summary: what is wrong or costly, where it shows, why now");
-  if (a.criteria.length === 0) problems.push("criteria: at least one acceptance criterion");
-  if (a.criteria.length > MAX_CRITERIA) problems.push(`criteria: at most ${MAX_CRITERIA}`);
+  if (a.summary === "") problems.push(NO_CHANGE_SUMMARY);
+  if (a.criteria.length === 0) problems.push(NO_CRITERION);
+  if (a.criteria.length > MAX_CRITERIA) problems.push(tooManyCriteria(MAX_CRITERIA));
   a.criteria.forEach((c, i) => {
     const id = criterionId(i);
-    if (c.name === "" || !oneLine(c.name) || c.name.length > MAX_NAME_CHARS) problems.push(`${id}: the name is one line of at most ${MAX_NAME_CHARS} characters`);
+    if (c.name === "" || !oneLine(c.name) || c.name.length > MAX_NAME_CHARS) problems.push(idNameOneLine(id, MAX_NAME_CHARS));
     if (c.statement === "" || !oneLine(c.statement) || c.statement.length > MAX_STATEMENT_CHARS || c.statement.includes(" · ")) {
-      problems.push(`${id}: the statement is one testable line of at most ${MAX_STATEMENT_CHARS} characters`);
+      problems.push(statementOneLine(id, MAX_STATEMENT_CHARS));
     }
-    if (c.proof === "" || !oneLine(c.proof)) problems.push(`${id}: no proof (the test that reproduces, the measurement and its target, or "no observable behaviour changes")`);
-    if (!CRITERION_SEVERITIES.includes(c.severity)) problems.push(`${id}: severity is blocking or warning`);
+    if (c.proof === "" || !oneLine(c.proof)) problems.push(noProof(id));
+    if (!CRITERION_SEVERITIES.includes(c.severity)) problems.push(severityIsBlockingOrWarning(id));
   });
   if (kind === "perf" && !a.criteria.some((c) => /\d/.test(`${c.statement} ${c.proof}`))) {
-    problems.push("a performance change has a criterion with a number as its target");
+    problems.push(PERF_NEEDS_NUMBER);
   }
   if (kind === "refactor" && a.mustNotChange.length === 0) {
-    problems.push("a refactor names at least one behaviour that must not change, and the test pinning it or unpinned");
+    problems.push(REFACTOR_NEEDS_PIN);
   }
   const tables: Array<[string, ReadonlyArray<Record<string, string>>]> = [
     ["mustNotChange", a.mustNotChange], ["scope", a.scope], ["assumptions", a.assumptions],
   ];
   for (const [name, items] of tables) {
     items.forEach((row, i) => {
-      if (Object.values(row).some(breaksCell)) problems.push(`${name} ${i + 1}: every cell is one line, no '|'`);
-      if (Object.values(row).every((v) => v === "")) problems.push(`${name} ${i + 1} is empty`);
+      if (Object.values(row).some(breaksCell)) problems.push(cellOneLine(name, i + 1));
+      if (Object.values(row).every((v) => v === "")) problems.push(rowIsEmpty(name, i + 1));
     });
   }
-  a.mustNotChange.forEach((r, i) => { if (r.behaviour === "") problems.push(`mustNotChange ${i + 1}: no behaviour`); });
-  if (a.constraints.length > MAX_LIST || a.evidence.length > MAX_LIST) problems.push(`evidence and constraints: at most ${MAX_LIST} lines each`);
+  a.mustNotChange.forEach((r, i) => { if (r.behaviour === "") problems.push(noBehaviour(i + 1)); });
+  if (a.constraints.length > MAX_LIST || a.evidence.length > MAX_LIST) problems.push(tooManyLines(MAX_LIST));
   const all = [
     a.name, a.summary, ...a.evidence, a.suspected, ...a.criteria.flatMap((c) => [c.name, c.statement, c.proof]),
     ...a.scope.flatMap((s) => [s.in, s.out]), ...a.constraints,
   ];
   const design = all.find((t) => DESIGN.test(t));
-  if (design !== undefined) problems.push(`no design: "${design.slice(0, 60)}" names a new type, file, pattern or library; say what is observed and expected`);
-  if (/\bTBD\b/.test(all.join("\n")) && a.questions.length === 0) problems.push("a TBD in the body has no open question");
-  if (a.questions.length > MAX_QUESTIONS) problems.push(`questions: at most ${MAX_QUESTIONS}`);
+  if (design !== undefined) problems.push(noDesign(design.slice(0, 60)));
+  if (/\bTBD\b/.test(all.join("\n")) && a.questions.length === 0) problems.push(TBD_WITHOUT_QUESTION);
+  if (a.questions.length > MAX_QUESTIONS) problems.push(tooManyQuestions(MAX_QUESTIONS));
   a.questions.forEach((q, i) => problems.push(...draftQuestionProblems(q, i + 1)));
   return problems.length > 0 ? { ok: false, problems } : { ok: true, value: a };
 }

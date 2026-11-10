@@ -1,6 +1,8 @@
 // The outcome of one compaction attempt, and the line that reports it. Pure — no IO.
 // The pipeline (shared/application/compaction/) returns it, the main-loop circuit
 // breaker counts its status, and the session-compact crew prints its line.
+import { BUFFER_TOO_SMALL_TO_COMPACT, noStateFileWrittenOnNewLine, SNIPPED_INSTEAD, stateOfBatch } from "./messages.ts";
+import { BUFFER_TOO_SMALL } from "./markers.ts";
 
 /** Status of one compaction attempt; the main-loop circuit breaker counts the
  *  consecutive `failed` ones. */
@@ -27,7 +29,7 @@ export function formatOutcome(o: CompactOutcome): string {
 
 function stateLine(o: CompactOutcome): string {
   if (o.state === undefined) return "";
-  return "path" in o.state ? `\nstate of the batch in progress: ${o.state.path}` : `\nno state file written: ${o.state.skipped}`;
+  return "path" in o.state ? stateOfBatch(o.state.path) : noStateFileWrittenOnNewLine(o.state.skipped);
 }
 
 function outcomeLine(o: CompactOutcome): string {
@@ -36,9 +38,9 @@ function outcomeLine(o: CompactOutcome): string {
       return `✓ compacted ${o.before} → ${o.after} messages` +
         (o.usedTokens !== undefined ? ` (was ~${o.usedTokens} tokens)` : "");
     case "skipped":
-      return o.reason === "buffer too small" ? "Buffer too small to compact." : `Compaction skipped (${o.reason}).`;
+      return o.reason === BUFFER_TOO_SMALL ? BUFFER_TOO_SMALL_TO_COMPACT : `Compaction skipped (${o.reason}).`;
     default:
       return `Compaction failed: ${o.reason}` +
-        (o.fallback === "snip" ? "\nThe buffer was snipped instead: the earlier turns were removed without a summary." : "");
+        (o.fallback === "snip" ? SNIPPED_INSTEAD : "");
   }
 }

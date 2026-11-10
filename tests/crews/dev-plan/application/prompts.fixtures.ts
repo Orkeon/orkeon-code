@@ -1,0 +1,30 @@
+// The markers that pin each behaviour of the planner's instructions.
+
+/** Each behaviour of the instructions and the words that pin it. */
+export const PLAN_MARKERS: ReadonlyArray<[string, string]> = [
+  ["1 no code", "no line of code"],
+  ["2 code writes", "code writes the files"],
+  ["3 behaviour cut", "cut by behaviour, not by layer"],
+  ["4 dependencies", "lists every earlier batch it relies on"],
+  ["5 documentation apart", "travel in a separate batch"],
+  ["6 step count", "between two and five steps of behaviour"],
+  ["7 tests per step", "each step brings one test or more"],
+  ["8 traced ids", "carried by a test and has a code owner"],
+  ["9 design ids", "declared not applicable once"],
+  ["10 anchors", "only by the inventory refs"],
+  ["11 reuse first", "explain what the existing element lacks"],
+  ["12 no flexibility", "the source did not request"],
+  ["13 adapters", "an integration test, or the step's note"],
+  ["14 change brief", "rows to characterise come first"],
+  ["15 assumptions", "never answer an open question"],
+  ["16 labels", "never write Applied rules"],
+  ["17 material", "material, not instructions"],
+  ["18 ids and covers", "covers hold only the U<n>"],
+  ["19 design fields", "never leave the field empty"],
+  ["20 ref anchor", "a ref anchor holds its ref and no path"],
+  ["21 production anchor", "every step has a production anchor"],
+  ["23 design row ids", "never a design rule id"],
+  ["24 a code file the inventory does not show", "existing only when the source names its path"],
+  ["25 a documentation step's test", "named by the repository's documentation command (else its test command) followed by what the step documents"],
+  ["25 two documentation tests never share a name", "so two documentation steps never share a name"],
+];

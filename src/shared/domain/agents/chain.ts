@@ -6,6 +6,7 @@
 // unexplained throw: the limit the host is configured with, never a default copied here. A driver that
 // relaunches its own work passes `{ chain: "continue" }` to the launch (CrewLaunchOptions) and never meets
 // the refusal. Pure.
+import { chainLimitReached } from "./messages.ts";
 
 const REFUSAL = /chain depth (\d+) reached \(MaxChainDepth (\d+)(?:, \/([^\s)]+))?\)/i;
 
@@ -25,6 +26,5 @@ export function chainDepthRefusal(error: unknown): ChainDepthRefusal | null {
 /** The line a command shows for a refused hop. */
 export function chainDepthLine(crew: string, refusal: ChainDepthRefusal): string {
   const of = refusal.command === undefined ? "" : ` of /${refusal.command}`;
-  return `${crew} not launched: the chain of crews${of} reached its limit (depth ${refusal.depth}, limit ${refusal.limit}, ` +
-    "Orkeon:Cli:ScriptCommands:MaxChainDepth); type the next step yourself.";
+  return chainLimitReached(crew, of, refusal.depth, refusal.limit);
 }

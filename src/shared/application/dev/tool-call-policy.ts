@@ -9,6 +9,8 @@ import { resolvePathInput } from "../../domain/dev/path-args.ts";
 import { REWRITE_TOOL } from "../../domain/agent-policy/rule-sets.ts";
 import { sameToolName } from "../../domain/agent-policy/permission.ts";
 import { memoryWriteRefusal } from "../../domain/shared-memory/layout.ts";
+import { MEMORY_CONTEXT, MEMORY_GUARD, callbackFailed, hookMountCheckDeny, hookRefusedDeny } from "./prompts.ts";
+import { mountCheckRefusedPreHook, preHookRefused, relativePathResolved } from "./messages.ts";
 
 /** The runtime's verdict and result callbacks, as ActOptions types them (the subset the callbacks return): allow,
  *  deny, or allow with the call's input rewritten (a relative path resolved). */
@@ -31,9 +33,6 @@ export interface CallProbes {
 /** The verdict, and the lines the callbacks log for it (at info). */
 export interface CallJudgement { verdict: ToolCallVerdict; notes: string[] }
 
-const MEMORY_GUARD = "refused by the shared memory's guard";
-const MEMORY_CONTEXT = "The shared memory's candidates and entries are written by memory_push and /memory-admit only: do without this call.";
-
 /** The refusal of a write into the shared memory, `why` its reason (memoryWriteRefusal), without a step's name. */
 export function memoryDenyText(why: string): string {
   return `${MEMORY_GUARD}: ${why}\n${MEMORY_CONTEXT}`;
@@ -42,9 +41,8 @@ export function memoryDenyText(why: string): string {
 /** The refusal of a call a pre-tool hook stopped, led by the step's name. */
 function hookDenyText(step: string, failure: HookFailure): string {
   return failure.by === "mount-check"
-    ? `${step}: ${failure.text}\nThe call did not run: a hook's command line may name no path its ` +
-      "program may not write; ask the user to change the hook."
-    : `${step}: refused by ${failure.text}\nThe call did not run: change it, or ask the user to fix the hook.`;
+    ? hookMountCheckDeny(step, failure.text)
+    : hookRefusedDeny(step, failure.text);
 }
 
 export async function judgeToolCall(
@@ -58,7 +56,7 @@ export async function judgeToolCall(
     // (the runtime would resolve it too, after the guard: too late for the rules and the hooks).
     const resolved = resolvePathInput(call.name, call.input);
     const input = resolved ?? call.input;
-    if (resolved !== null) notes.push(`${guard.step}: ${call.name}: a relative path resolved under the checkout`);
+    if (resolved !== null) notes.push(relativePathResolved(guard.step, call.name));
     const dir = await probes.memoryDir();
     const memory = dir === null ? null : memoryWriteRefusal(dir, call.name, input);
     if (memory !== null) {
@@ -78,12 +76,12 @@ export async function judgeToolCall(
       const failed = await probes.runHook(hook, call.name, input);
       if (failed === undefined) continue;
       notes.push(failed.by === "mount-check"
-        ? `${guard.step}: the runtime's mount check refused pre-tool hook #${hook.n} for ${call.name}`
-        : `${guard.step}: pre-tool hook #${hook.n} refused ${call.name}`);
+        ? mountCheckRefusedPreHook(guard.step, hook.n, call.name)
+        : preHookRefused(guard.step, hook.n, call.name));
       return judged({ deny: hookDenyText(guard.step, failed) });
     }
     return judged(resolved === null ? "allow" : { input: resolved });
   } catch (e) {
-    return judged({ deny: `${guard.step}: the callback failed: ${String((e as Error)?.message ?? e)}` });
+    return judged({ deny: callbackFailed(guard.step, String((e as Error)?.message ?? e)) });
   }
 }

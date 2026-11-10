@@ -1,5 +1,6 @@
 // Secret detection, pure: the file names that usually hold a secret (used by /commit
 // before it stages anything) and the content patterns a stored text must never carry.
+import { AWS_ACCESS_KEY_ID, PRIVATE_KEY_BLOCK } from "./messages.ts";
 
 /** File names that usually hold a secret, and the safe variants of them. */
 const SECRET_EXTENSIONS = [".pem", ".key", ".p12", ".pfx", ".jks", ".keystore"];
@@ -27,8 +28,8 @@ export interface SecretPattern { name: string; re: RegExp }
 
 /** Content patterns: a text that matches one is refused, and the match itself is never echoed. */
 export const SECRET_PATTERNS: readonly SecretPattern[] = [
-  { name: "private key block", re: /-----BEGIN (?:[A-Z]+ )*PRIVATE KEY-----/ },
-  { name: "AWS access key id", re: /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/ },
+  { name: PRIVATE_KEY_BLOCK, re: /-----BEGIN (?:[A-Z]+ )*PRIVATE KEY-----/ },
+  { name: AWS_ACCESS_KEY_ID, re: /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/ },
   { name: "GitHub token", re: /\bgh[pousr]_[A-Za-z0-9]{36,}|\bgithub_pat_[A-Za-z0-9_]{22,}/ },
   { name: "Slack token", re: /\bxox[abposr]-[A-Za-z0-9-]{10,}/ },
   { name: "Google API key", re: /\bAIza[0-9A-Za-z_-]{35}/ },

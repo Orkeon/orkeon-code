@@ -7,6 +7,7 @@ import type { HumanInput } from "../ports.ts";
 import { withQuestionSections } from "../../domain/dev/questions.ts";
 import type { Decision, Question } from "../../domain/dev/questions.ts";
 import { settleQuestions } from "./settle-questions.ts";
+import { REWRITE_REFUSED, decisionsNotFolded } from "./messages.ts";
 
 export interface RoundState { text: string; open: Question[]; decisions: Decision[] }
 export type Folded = { ok: true; text: string; open: Question[] } | { ok: false; problems: string[] };
@@ -44,8 +45,7 @@ export async function questionRound(
       next = { ...next, text: folded.text, open: folded.open };
       await deps.write(folded.text);
     } else {
-      warnings.push(`the body does not say the decisions yet (${folded.problems[0] ?? "the rewrite was refused"}); ` +
-        "they are recorded under Decisions");
+      warnings.push(decisionsNotFolded(folded.problems[0] ?? REWRITE_REFUSED));
     }
   }
   return { state: next, made: settled.made, blocked: settled.blocked, warnings };

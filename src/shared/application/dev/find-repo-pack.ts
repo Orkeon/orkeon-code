@@ -7,6 +7,7 @@ import { parseRepoPack } from "../../domain/dev/repo-pack.ts";
 import type { RepoPack, RepoPackIssue } from "../../domain/dev/repo-pack.ts";
 import { formatYamlError } from "../../domain/dev/yaml-subset.ts";
 import { WORKSPACE, workspaceRelative } from "../../domain/vfs.ts";
+import { packIgnored, packUnreadable, severalPacks } from "./messages.ts";
 
 export const ORKEON_PACK_PATH = `${WORKSPACE}/.orkeon/repo.yaml`;
 export const HARNESS_PACKS_DIR = `${WORKSPACE}/.claude/harness/packs`;
@@ -40,12 +41,12 @@ function decide(path: string, origin: FoundPack["origin"], a: Exclude<Attempt, {
   const shown = shownOf(path);
   if (a.kind === "failed") {
     const first = messageOf(a.error).split("\n")[0];
-    warnings.push(`${shown} cannot be read (${first}): no repository pack is used`);
+    warnings.push(packUnreadable(shown, first));
     return { found: null, warnings };
   }
   const parsed = parseRepoPack(a.text);
   if (!parsed.ok) {
-    warnings.push(`${formatYamlError(shown, parsed.error)}: the repository pack is ignored`);
+    warnings.push(packIgnored(formatYamlError(shown, parsed.error)));
     return { found: null, warnings };
   }
   for (const issue of parsed.issues) warnings.push(`${shown}: ${issue.key}: ${issue.message}`);
@@ -69,7 +70,7 @@ export async function findRepoPack(files: Pick<Files, "read" | "list">): Promise
     const a = await attempt(files, path);
     if (a.kind === "absent") continue;
     if (packs.length > 1) {
-      warnings.push(`several repository packs are deployed (${packs.join(", ")}): ${shownOf(path)} is read`);
+      warnings.push(severalPacks(packs.join(", "), shownOf(path)));
     }
     return decide(path, "harness", a, warnings);
   }

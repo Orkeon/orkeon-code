@@ -1,6 +1,6 @@
 // Lines typed after /say, buffers it reads the last answer from, and the hosts it launches over.
-import { SAY_USAGE, type SayRequest } from "../../../../src/commands/_lib/speech/say.ts";
-import { missingToolMessage } from "../../../../src/commands/_lib/speech/transcribe.ts";
+import { type SayRequest } from "../../../../src/commands/_lib/speech/say.ts";
+import { SAY_USAGE, missingToolMessage } from "../../../../src/commands/_lib/speech/messages.ts";
 import { createConfigStore } from "../../../../src/shared/application/config-store.ts";
 import { FakeCrewHost } from "../../../support/doubles/fake-crew-host.ts";
 import { FakeFiles } from "../../../support/doubles/fake-files.ts";

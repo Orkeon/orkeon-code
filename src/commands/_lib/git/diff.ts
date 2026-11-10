@@ -5,6 +5,10 @@
 
 import type { Logger, Shell } from "../../../shared/application/ports.ts";
 import type { CommandView } from "../view.ts";
+import {
+  NOT_A_PATHSPEC, STAGED_CHANGES, WORKING_TREE_CHANGES, argumentsIgnored, diffFailed, diffIgnored, exitCode, noChanges,
+  notAnAllowedDiffOption, scopeLine,
+} from "./messages.ts";
 
 export interface DiffPlan {
   /** The git argument string, already assembled. */
@@ -50,12 +54,12 @@ export function planDiff(tokens: readonly string[]): DiffPlan {
       // `--unified=3` and `-U3` carry a value; compare on the option part.
       const head = token.split("=")[0];
       if (ALLOWED_DIFF_FLAGS.includes(head)) flags.push(token);
-      else rejected.push({ value: token, reason: `not an allowed diff option (allowed: ${ALLOWED_DIFF_FLAGS.join(" ")})` });
+      else rejected.push({ value: token, reason: notAnAllowedDiffOption(ALLOWED_DIFF_FLAGS.join(" ")) });
       continue;
     }
 
     if (!SAFE_PATHSPEC.test(token) || token.includes("..")) {
-      rejected.push({ value: token, reason: "not a plausible pathspec (letters, digits, '.', '_', '/', '-', '*'; no '..')" });
+      rejected.push({ value: token, reason: NOT_A_PATHSPEC });
       continue;
     }
     paths.push(token);
@@ -68,11 +72,8 @@ export function planDiff(tokens: readonly string[]): DiffPlan {
   return { args, staged, unified, rejected };
 }
 
-/** Baseline wording for an empty diff — a distinct sentence, not "(no output)". */
-export const NO_CHANGES_MESSAGE = "No changes to show.";
-
 export function describeDiffScope(plan: DiffPlan): string {
-  return plan.staged ? "staged changes" : "working-tree changes since the last commit";
+  return plan.staged ? STAGED_CHANGES : WORKING_TREE_CHANGES;
 }
 
 export interface DiffDeps {
@@ -84,23 +85,23 @@ export interface DiffDeps {
  *  each ignored token logged and counted in the closing message. */
 export async function runDiff(tokens: readonly string[], deps: DiffDeps): Promise<CommandView> {
   const plan = planDiff(tokens);
-  for (const r of plan.rejected) deps.log.warn(`/diff ignored '${r.value}' — ${r.reason}`);
+  for (const r of plan.rejected) deps.log.warn(diffIgnored(r.value, r.reason));
 
   const r = await deps.shell.run(`git diff ${plan.args}`.trim());
   if (r.exitCode !== 0) {
     const err = r.stderr.trim();
-    return { text: `git diff failed: ${err || `exit code ${r.exitCode}`}` };
+    return { text: diffFailed(err || exitCode(r.exitCode)) };
   }
 
   const out = r.stdout;
   if (out.trim().length === 0) {
-    return { text: `${NO_CHANGES_MESSAGE} (${describeDiffScope(plan)})` };
+    return { text: noChanges(describeDiffScope(plan)) };
   }
-  const scope = `── ${describeDiffScope(plan)}`;
+  const scope = scopeLine(describeDiffScope(plan));
   // A merge conflict's combined diff (`@@@`, two columns of signs) is not the unified form the block numbers.
   const unified = plan.unified && !/^@@@ /m.test(out);
   return {
     ...(unified ? { lines: [scope], diff: out } : { lines: [scope, out] }),
-    ...(plan.rejected.length > 0 ? { text: `${plan.rejected.length} argument(s) ignored — see the log.` } : {}),
+    ...(plan.rejected.length > 0 ? { text: argumentsIgnored(plan.rejected.length) } : {}),
   };
 }

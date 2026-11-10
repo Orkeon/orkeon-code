@@ -11,7 +11,7 @@ import { FakeSessionStore } from "../../../support/doubles/fake-session-store.ts
 import { FakeShell } from "../../../support/doubles/fake-shell.ts";
 import { createConfigStore } from "../../../../src/shared/application/config-store.ts";
 import { parseBatchesState } from "../../../../src/shared/domain/dev/batches-state.ts";
-import { AUDIT_UNFINISHED_GAP } from "../../../../src/shared/domain/dev/verdict-format.ts";
+import { AUDIT_UNFINISHED_GAP } from "../../../../src/shared/domain/dev/markers.ts";
 import {
   GIT_COMMITTER_IDENT_COMMAND, GIT_CURRENT_BRANCH_COMMAND, GIT_DEFAULT_BRANCH_COMMAND, GIT_HEAD_COMMAND, GIT_IDENT_COMMAND,
   gitPushCommand,

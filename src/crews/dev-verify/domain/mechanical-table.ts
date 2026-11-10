@@ -5,6 +5,12 @@ import type { AccessCost } from "../../../shared/domain/dev/access-cost.ts";
 import type { TraitMarker } from "../../../shared/domain/dev/trait-pattern.ts";
 import { isDesignRuleId } from "../../../shared/domain/dev/design-rules.ts";
 import type { TestRunSummary } from "./capture-sections.ts";
+import {
+  CHECK_APPLIED, CHECK_BUILD, CHECK_CONVENTIONS, CHECK_COST, CHECK_DESIGN_IDS, CHECK_METHODS, CHECK_SCOPE, CHECK_TEST_RUN,
+  CHECK_TICKED, CHECK_TRAITS,
+} from "./markers.ts";
+import { BUILD_RUN_GREEN, buildReused, buildRunRed, costGreen, designIdsEvidence, eachDesignRuleId, exitLine, idsCarriedAs, JUDGED_BY_AUDITOR, methodsAbsent, methodsFound, NO_APPLIED_RULES_ROW, NO_EXIT_LINE, NO_LAYOUT_ROOT, NO_TEST_METHOD, NO_TEST_ROOT, noSummaryLine, notComputed, noTestLog, ROW_CITES_NO_ID, scopeEvidence, SHEET_NAMES_NO_ID, shellRefused, TABLE_HEADER, tableTitle, TEST_ROOTS_NOT_SEARCHED, testRunEvidence, tickedNoneOpen, timedOutAfter, TRAITS_NOT_APPLICABLE, unknownDesignRuleIds } from "./messages.ts";
+import { PACK_HAS_NO_BUILD as NO_BUILD_COMMAND } from "../../../shared/domain/dev/messages.ts";
 
 export type CheckResult = "ok" | "gap" | "not checked";
 export interface TableRow { axis: string; check: string; result: CheckResult; evidence: string }
@@ -25,17 +31,6 @@ export interface TableInput {
   appliedRulesRow: string | null; appliedIds: readonly string[];
 }
 
-export const CHECK_BUILD = "capture `build`";
-export const CHECK_TRAITS = "ids carried by traits";
-export const CHECK_METHODS = "step-table methods in the test roots";
-export const CHECK_TEST_RUN = "last test run";
-export const CHECK_SCOPE = "changed files in the batch";
-export const CHECK_COST = "capture `cost`";
-export const CHECK_CONVENTIONS = "layer rules of the changed layers";
-export const CHECK_TICKED = "`TDD:` lines ticked";
-export const CHECK_DESIGN_IDS = "design ids classified";
-export const CHECK_APPLIED = "`Applied rules` ids are design-rule ids";
-
 function row(axis: string, check: string, result: CheckResult, evidence: string): TableRow {
   return { axis, check, result, evidence };
 }
@@ -50,33 +45,33 @@ function basename(path: string): string {
 
 function buildRow(build: BuildState): TableRow {
   switch (build.state) {
-    case "none": return row("Build", CHECK_BUILD, "not checked", "the pack has no commands.build");
-    case "reused": return row("Build", CHECK_BUILD, "ok", `\`exit: 0\` (reused ${basename(build.log)})`);
+    case "none": return row("Build", CHECK_BUILD, "not checked", NO_BUILD_COMMAND);
+    case "reused": return row("Build", CHECK_BUILD, "ok", buildReused(basename(build.log)));
     case "run":
       return build.exit === 0
-        ? row("Build", CHECK_BUILD, "ok", "`exit: 0` (run)")
-        : row("Build", CHECK_BUILD, "gap", `\`exit: ${build.exit}\`${build.why !== "" ? ` — ${build.why}` : ""}`);
-    case "timeout": return row("Build", CHECK_BUILD, "not checked", `timed out after ${build.seconds} s`);
-    case "refused": return row("Build", CHECK_BUILD, "not checked", `the shell refused it: ${build.message}`);
+        ? row("Build", CHECK_BUILD, "ok", BUILD_RUN_GREEN)
+        : row("Build", CHECK_BUILD, "gap", buildRunRed(build.exit, build.why));
+    case "timeout": return row("Build", CHECK_BUILD, "not checked", timedOutAfter(build.seconds));
+    case "refused": return row("Build", CHECK_BUILD, "not checked", shellRefused(build.message));
   }
 }
 
 function traitsRow(input: TableInput): TableRow {
   if (input.trait === null) {
     // Nothing to check: the pack carries ids in no trait, so the row is settled rather than left to the auditor's Not run.
-    return row("Test", CHECK_TRAITS, "ok", "not applicable: the pack has no tests.rule_trait or tests.trait_pattern");
+    return row("Test", CHECK_TRAITS, "ok", TRAITS_NOT_APPLICABLE);
   }
   if (input.ids.length === 0) {
-    return row("Test", CHECK_TRAITS, "not checked", "the sheet's `## TDD sequence` names no BR-/UC-/CH- id");
+    return row("Test", CHECK_TRAITS, "not checked", SHEET_NAMES_NO_ID);
   }
   const shown = input.trait.shown.split("<id>").join("…");
-  return row("Test", CHECK_TRAITS, "ok", `gate: ${input.ids.join(", ")} each carried as ${shown} — capture \`traits\``);
+  return row("Test", CHECK_TRAITS, "ok", idsCarriedAs(input.ids.join(", "), shown));
 }
 
 function methodsRow(input: TableInput): TableRow {
-  if (input.methods.length === 0) return row("Test", CHECK_METHODS, "not checked", "the step tables name no test method");
-  if (input.testRoots.length === 0) return row("Test", CHECK_METHODS, "not checked", "no test root in the pack's layout");
-  if (input.methodHits === null) return row("Test", CHECK_METHODS, "not checked", "the test roots were not searched");
+  if (input.methods.length === 0) return row("Test", CHECK_METHODS, "not checked", NO_TEST_METHOD);
+  if (input.testRoots.length === 0) return row("Test", CHECK_METHODS, "not checked", NO_TEST_ROOT);
+  if (input.methodHits === null) return row("Test", CHECK_METHODS, "not checked", TEST_ROOTS_NOT_SEARCHED);
   const absent: string[] = [];
   let first = "";
   let found = 0;
@@ -87,45 +82,44 @@ function methodsRow(input: TableInput): TableRow {
     if (first === "") first = hit.split(":").slice(0, 2).join(":");
   }
   if (absent.length === 0) {
-    return row("Test", CHECK_METHODS, "ok", `${found}/${input.methods.length} found (git grep --untracked), first \`${first}\``);
+    return row("Test", CHECK_METHODS, "ok", methodsFound(found, input.methods.length, first));
   }
-  return row("Test", CHECK_METHODS, "gap", `absent from ${input.testRoots.join(" ")}: ${ticks(absent)}`);
+  return row("Test", CHECK_METHODS, "gap", methodsAbsent(input.testRoots.join(" "), ticks(absent)));
 }
 
 function testRunRow(input: TableInput): TableRow {
-  if (input.testLog === null) return row("Test", CHECK_TEST_RUN, "not checked", `no test log in ${input.testLogLooked}`);
+  if (input.testLog === null) return row("Test", CHECK_TEST_RUN, "not checked", noTestLog(input.testLogLooked));
   const { name, summary } = input.testLog;
-  const exit = summary.exit === null ? "no `exit=` line" : `\`exit=${summary.exit}\``;
-  const evidence = `passed ${summary.passed ?? "-"}, failed ${summary.failed ?? "-"}, ${exit} — ${name}`;
+  const exit = summary.exit === null ? NO_EXIT_LINE : exitLine(summary.exit);
+  const evidence = testRunEvidence(String(summary.passed ?? "-"), String(summary.failed ?? "-"), exit, name);
   if ((summary.exit !== null && summary.exit !== 0) || (summary.failed !== null && summary.failed > 0)) {
     return row("Test", CHECK_TEST_RUN, "gap", evidence);
   }
   if (summary.exit === 0 || summary.passed !== null) return row("Test", CHECK_TEST_RUN, "ok", evidence);
-  return row("Test", CHECK_TEST_RUN, "not checked", `no summary line and no \`exit=\` in the tail of ${name}`);
+  return row("Test", CHECK_TEST_RUN, "not checked", noSummaryLine(name));
 }
 
 function scopeRow(roots: readonly string[]): TableRow {
-  if (roots.length === 0) return row("Scope", CHECK_SCOPE, "not checked", "the pack names no layout root");
-  return row("Scope", CHECK_SCOPE, "ok",
-    `gate: every changed file under ${roots.join(" ")}, the plan folder or named by the sheet — capture \`changed-files\``);
+  if (roots.length === 0) return row("Scope", CHECK_SCOPE, "not checked", NO_LAYOUT_ROOT);
+  return row("Scope", CHECK_SCOPE, "ok", scopeEvidence(roots.join(" ")));
 }
 
 /** The flagged calls the Cost row shows; cost.txt lists them all. */
 const FLAGGED_SHOWN = 12;
 
 function costRow(cost: AccessCost): TableRow {
-  if (cost.state === "not-computed") return row("Cost", CHECK_COST, "not checked", `not computed — ${cost.reason}`);
-  if (cost.exit === 0) return row("Cost", CHECK_COST, "ok", `\`exit: 0\` — ${cost.costLine}`);
+  if (cost.state === "not-computed") return row("Cost", CHECK_COST, "not checked", notComputed(cost.reason));
+  if (cost.exit === 0) return row("Cost", CHECK_COST, "ok", costGreen(cost.costLine));
   const more = cost.flagged.length > FLAGGED_SHOWN ? ` · … +${cost.flagged.length - FLAGGED_SHOWN}` : "";
   return row("Cost", CHECK_COST, "gap", `\`exit: 2\` ${cost.flagged.slice(0, FLAGGED_SHOWN).join(" · ")}${more}`.trimEnd());
 }
 
 function appliedRow(input: TableInput): TableRow {
-  if (input.appliedRulesRow === null) return row("Plan", CHECK_APPLIED, "gap", "the sheet has no `Applied rules` row");
+  if (input.appliedRulesRow === null) return row("Plan", CHECK_APPLIED, "gap", NO_APPLIED_RULES_ROW);
   const unknown = input.appliedIds.filter((id) => !isDesignRuleId(id));
-  if (unknown.length > 0) return row("Plan", CHECK_APPLIED, "gap", `unknown design-rule ids: ${ticks(unknown)}`);
-  if (input.appliedIds.length === 0) return row("Plan", CHECK_APPLIED, "ok", "the row cites no id");
-  return row("Plan", CHECK_APPLIED, "ok", `${input.appliedIds.join(", ")}, each a design-rule id`);
+  if (unknown.length > 0) return row("Plan", CHECK_APPLIED, "gap", unknownDesignRuleIds(ticks(unknown)));
+  if (input.appliedIds.length === 0) return row("Plan", CHECK_APPLIED, "ok", ROW_CITES_NO_ID);
+  return row("Plan", CHECK_APPLIED, "ok", eachDesignRuleId(input.appliedIds.join(", ")));
 }
 
 /** The 10 rows, in the order of § 2.4. */
@@ -137,10 +131,9 @@ export function mechanicalRows(input: TableInput): TableRow[] {
     testRunRow(input),
     scopeRow(input.roots),
     costRow(input.cost),
-    row("Conventions", CHECK_CONVENTIONS, "not checked", "judged pass (the auditor)"),
-    row("Plan", CHECK_TICKED, "ok", `gate: ${input.tickedLines} ticked, none open`),
-    row("Plan", CHECK_DESIGN_IDS, "ok",
-      `gate: every DDD-/APP-/PERF- id applied or on \`Non-applicable rules\` of ${input.planDirName}/`),
+    row("Conventions", CHECK_CONVENTIONS, "not checked", JUDGED_BY_AUDITOR),
+    row("Plan", CHECK_TICKED, "ok", tickedNoneOpen(input.tickedLines)),
+    row("Plan", CHECK_DESIGN_IDS, "ok", designIdsEvidence(input.planDirName)),
     appliedRow(input),
   ];
 }
@@ -153,9 +146,9 @@ export function escapeCell(text: string): string {
 /** The content of table.md (§ 3.3). */
 export function renderTable(batch: string, rows: readonly TableRow[]): string {
   const out = [
-    `# Mechanical audit — ${batch}`,
+    tableTitle(batch),
     "",
-    "| Axis | Check | Result | Evidence |",
+    TABLE_HEADER,
     "|------|-------|--------|----------|",
     ...rows.map((r) => `| ${r.axis} | ${escapeCell(r.check)} | ${r.result} | ${escapeCell(r.evidence)} |`),
   ];

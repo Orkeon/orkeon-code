@@ -1,5 +1,8 @@
 // Verification skills — where /init-verifiers writes them and how /verify asks the
 // main loop to follow them. Pure, no IO.
+import {
+  everyVerificationSkill, IF_THAT_FILE_IS_MISSING, IF_THERE_IS_NONE, verificationSkill, verifyRequest,
+} from "./prompts.ts";
 
 /** Where /init-verifiers writes one skill per zone, and where /verify reads them. */
 export const VERIFIERS_DIR = "/output/verifiers";
@@ -23,15 +26,8 @@ export function verifierPath(zone: string): string {
 export function buildVerifyRequest(zone: string): string {
   const z = zone.trim();
   const which = z.length > 0
-    ? `the verification skill ${verifierPath(z)}`
-    : `every verification skill under ${VERIFIERS_DIR}/, one after the other`;
-  const missing = z.length > 0 ? "If that file does not exist" : "If there is none";
-  return (
-    `Check that the project works by running it: follow ${which}, written by /init-verifiers, step by ` +
-    "step. Run each step's command, compare what you observe with the skill's Pass section, and report " +
-    "as its Report section says, quoting the output of a failure. A failed check ends in that report: a " +
-    "fix is a separate request, so never edit code to make a step pass. " +
-    `${missing}, say so and suggest ` +
-    "/init-verifiers instead of improvising a check."
-  );
+    ? verificationSkill(verifierPath(z))
+    : everyVerificationSkill(VERIFIERS_DIR);
+  const missing = z.length > 0 ? IF_THAT_FILE_IS_MISSING : IF_THERE_IS_NONE;
+  return verifyRequest(which, missing);
 }

@@ -8,6 +8,8 @@ import {
 import { EFFORT_STATE_KEY } from "../../../shared/domain/session-keys.ts";
 import type { CommandView } from "../view.ts";
 import { optionsOf } from "./choices.ts";
+import { EFFORT_CHOICE, EFFORT_UNCHANGED, actIterations, effortSet, effortShown, effortUnchangedNoneStored, unknownEffort } from "./messages.ts";
+import { markedDefault as defaultLevel } from "../messages.ts";
 
 export interface EffortDeps {
   session: Pick<SessionIo, "readState" | "writeState">;
@@ -23,40 +25,29 @@ export async function runEffort(tokens: string[], deps: EffortDeps): Promise<Com
     const stored = await deps.session.readState(EFFORT_STATE_KEY).catch(() => null);
     if (!requested && deps.chooser?.interactive) {
       const answer = await deps.chooser.choose({
-        message: "Reasoning effort for this session",
+        message: EFFORT_CHOICE,
         options: LEVELS.map((level) => ({
           ...optionsOf([level], stored ?? DEFAULT_EFFORT)[0],
-          description: `${EFFORT_MAX_ITERATIONS[level]} act() iterations`,
+          description: actIterations(EFFORT_MAX_ITERATIONS[level]),
         })),
       });
-      if (!answer) return { text: "reasoning effort unchanged." };
+      if (!answer) return { text: EFFORT_UNCHANGED };
       // Confirming the level marked changes nothing: with none stored, it would turn the provider's thinking on.
       if (answer.value === (stored ?? DEFAULT_EFFORT)) {
         return {
-          text: stored
-            ? "reasoning effort unchanged."
-            : "reasoning effort unchanged: no level is stored, so the provider's thinking stays off " +
-              `(/effort ${answer.value} turns it on).`,
+          text: stored ? EFFORT_UNCHANGED : effortUnchangedNoneStored(answer.value),
         };
       }
       return runEffort([answer.value], { session: deps.session });
     }
-    const level = stored ?? `${DEFAULT_EFFORT} (default)`;
+    const level = stored ?? defaultLevel(DEFAULT_EFFORT);
     const ladder = LEVELS.map((l) => `${l}=${EFFORT_MAX_ITERATIONS[l]}`).join(", ");
-    return {
-      text: `reasoning effort: ${level}\nact() iterations per level: ${ladder}\n` +
-        `provider thinking: ${stored ? `at '${stored}' (act effort)` : "not requested (no level stored)"}\n` +
-        `usage: /effort [<${LEVELS.join("|")}>|show]`,
-    };
+    return { text: effortShown(level, ladder, stored, LEVELS) };
   }
   if (!LEVELS.includes(requested as (typeof LEVELS)[number])) {
-    return { text: `unknown level '${requested}' — expected one of: ${LEVELS.join(", ")}, show.` };
+    return { text: unknownEffort(requested, LEVELS) };
   }
   await deps.session.writeState(EFFORT_STATE_KEY, requested);
   // Says what it buys: the iterations, and the provider's thinking at that level.
-  return {
-    text: `reasoning effort set to '${requested}' — the next /assistant turn gets ` +
-      `${EFFORT_MAX_ITERATIONS[requested as (typeof LEVELS)[number]]} act() iterations and the provider's ` +
-      `thinking at '${requested}' (act effort; the dev steps and their children too). Session-scoped; /clear clears it.`,
-  };
+  return { text: effortSet(requested, EFFORT_MAX_ITERATIONS[requested as (typeof LEVELS)[number]]) };
 }

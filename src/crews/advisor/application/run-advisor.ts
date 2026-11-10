@@ -5,6 +5,7 @@
 import type { Llm, Logger, SessionStore } from "../../../shared/application/ports.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import { lastExchange, buildAdvicePrompt, describeAdvisor, earlierTurns } from "../domain/advice.ts";
+import { NOTHING_TO_REVIEW_MESSAGE } from "./messages.ts";
 
 export interface AdvisorDeps {
   session: Pick<SessionStore, "readMessages">;
@@ -22,7 +23,7 @@ export async function runAdvisor(deps: AdvisorDeps): Promise<string> {
 
   const exchange = lastExchange(messages);
   if (!exchange) {
-    return "Nothing to review: the session buffer holds no assistant answer yet.";
+    return NOTHING_TO_REVIEW_MESSAGE;
   }
 
   const header = describeAdvisor(advisorModel);

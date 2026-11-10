@@ -5,11 +5,10 @@ import type { SessionMsg } from "../../../shared/domain/types.ts";
 import { isToolTrace } from "../../../shared/domain/tool-trace.ts";
 import { isMarkedMessage } from "../../../shared/domain/marked-message.ts";
 import type { CommandView } from "../view.ts";
+import { NO_TOOL_TRACE, noToolCallHolds } from "./messages.ts";
 
 /** A request is cut past this many characters on its line. */
 export const MAX_REQUEST_CHARS = 100;
-
-export const NO_TOOL_TRACE = "no tool call recorded in this session yet";
 
 export interface UsageToolsDeps {
   session: Pick<SessionStore, "readMessages">;
@@ -24,7 +23,7 @@ export async function runUsageTools(text: string, deps: UsageToolsDeps): Promise
   }
   const lines = toolTraceLines(messages, text.trim());
   if (lines.length > 0) return { lines };
-  return { text: text.trim().length === 0 ? NO_TOOL_TRACE : `no tool call holds '${text.trim()}' in this session` };
+  return { text: text.trim().length === 0 ? NO_TOOL_TRACE : noToolCallHolds(text.trim()) };
 }
 
 /** Each turn's request, then its calls, the calls holding `text` alone (case aside) when it is not empty. */

@@ -6,6 +6,10 @@
 import { parseYamlSubset } from "./yaml-subset.ts";
 import type { YamlError, YamlMap, YamlValue } from "./yaml-subset.ts";
 import { ruleTraitProblem, traitPatternProblem } from "./trait-pattern.ts";
+import {
+  expectedMapping, expectedString, LIST_FOUND_MAPPING, listHolding, noRepositoryPack, PACK_NOT_A_MAPPING, packHasNo,
+  testsAlsoSourceRoot,
+} from "./messages.ts";
 
 export interface RepoPackLayout {
   domain?: string; application?: string; infrastructure?: string; tests?: string; work?: string;
@@ -83,7 +87,7 @@ class Reader {
       if (!isMap(v)) {
         if (!this.reported.has(section)) {
           this.reported.add(section);
-          this.issues.push({ key: section, message: `expected a mapping, found a ${kindOf(v)}` });
+          this.issues.push({ key: section, message: expectedMapping(kindOf(v)) });
         }
         return false;
       }
@@ -96,7 +100,7 @@ class Reader {
     const v = lookup(this.document, key);
     if (v === undefined || v === null) return undefined;
     if (Array.isArray(v) || isMap(v)) {
-      this.issues.push({ key, message: `expected a string, found a ${kindOf(v)}` });
+      this.issues.push({ key, message: expectedString(kindOf(v)) });
       return undefined;
     }
     return String(v);
@@ -107,13 +111,13 @@ class Reader {
     const v = lookup(this.document, key);
     if (v === undefined || v === null) return [];
     if (isMap(v)) {
-      this.issues.push({ key, message: "expected a list of strings, found a mapping" });
+      this.issues.push({ key, message: LIST_FOUND_MAPPING });
       return [];
     }
     if (!Array.isArray(v)) return [String(v)];
     const bad = v.find((item) => item === null || typeof item === "object");
     if (bad !== undefined) {
-      this.issues.push({ key, message: `expected a list of strings, found a list holding a ${kindOf(bad)}` });
+      this.issues.push({ key, message: listHolding(kindOf(bad)) });
       return [];
     }
     return v.map((item) => String(item));
@@ -149,8 +153,7 @@ function checkTestsRoot(r: Reader, layout: RepoPackLayout): void {
   if (key === undefined) return;
   r.issues.push({
     key: "layout.tests",
-    message: `'${tests}' is also layout.${key}: the test author and the implementer would both be refused that folder; ` +
-      `drop layout.tests and name the test files with layout.test_files ("${tests}/*.test.ts")`,
+    message: testsAlsoSourceRoot(tests, key),
   });
 }
 
@@ -158,7 +161,7 @@ export function parseRepoPack(text: string): RepoPackParse {
   const parsed = parseYamlSubset(text);
   if (!parsed.ok) return parsed;
   const document = parsed.value;
-  if (!isMap(document)) return { ok: false, error: { line: 1, message: "the pack is not a mapping" } };
+  if (!isMap(document)) return { ok: false, error: { line: 1, message: PACK_NOT_A_MAPPING } };
   const r = new Reader(document);
   const pack: RepoPack = {
     layout: {
@@ -232,6 +235,6 @@ export function packValue(pack: RepoPack, key: string): string | readonly string
 
 export function missingPackKeyLine(key: string, packShown: string | null): string {
   return packShown === null
-    ? `no repository pack: add ${key} to .orkeon/repo.yaml`
-    : `the repository pack ${packShown} has no ${key}: add it there`;
+    ? noRepositoryPack(key)
+    : packHasNo(packShown, key);
 }

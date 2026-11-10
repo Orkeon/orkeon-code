@@ -1,6 +1,7 @@
 // The /voice lines with what each parses to, the deps dispatchVoice runs over (FakeCrewHost, FakeToolCatalogue
 // registering the names given, FakeFiles for the dictation, the lines written), and the completions it renders.
-import { DICTATION_FILE, VOICE_USAGE, recordingNotice, renderVoiceCompletion } from "../../../../src/commands/_lib/speech/voice.ts";
+import { DICTATION_FILE, recordingNotice, renderVoiceCompletion } from "../../../../src/commands/_lib/speech/voice.ts";
+import { VOICE_USAGE } from "../../../../src/commands/_lib/speech/messages.ts";
 import { createConfigStore } from "../../../../src/shared/application/config-store.ts";
 import { createSessionIo } from "../../../../src/shared/application/session-io.ts";
 import { FakeCrewHost } from "../../../support/doubles/fake-crew-host.ts";

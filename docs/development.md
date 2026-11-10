@@ -93,7 +93,7 @@ hand, with `.nvmrc`.
 
 1. Move the `[Unreleased]` entries of `CHANGELOG.md` under `## [x.y.z] - YYYY-MM-DD`.
 2. Bump `package.json` `version` and `CLI_VERSION` in `src/commands/_lib/status/meta.ts` (the test keeps them equal), and
-   the release notes in the same file.
+   the release notes (`RELEASE_NOTES`) in `src/commands/_lib/status/messages.ts`.
 3. Run `ORKEON_SOURCE=<an Orkeon checkout at the pin> bash scripts/check-shared-memory.sh` in a terminal (it asks for
    `rag_eval`; without `ORKEON_SOURCE` it runs the older tool of `.config/dotnet-tools.json`, not the pin, which refuses
    newer settings such as `Orkeon:Decision`): the shared memory's recall on

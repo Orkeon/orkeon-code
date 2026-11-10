@@ -15,6 +15,8 @@ import { writeCandidate } from "./push-candidate.ts";
 import { topicOf } from "../../domain/shared-memory/refused.ts";
 import { secretPatternsIn } from "../../domain/secret-patterns.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
+import { DECIDE_WITH_MEMORY_ADMIT, NO_CANDIDATE_WRITTEN, duplicatesSkipped, itemLooksLikeSecret, noAgentMemory, noteUnreadable } from "./messages.ts";
+import { cannotBeRead } from "../messages.ts";
 
 export const HARNESS_AGENT_MEMORY_ROOT = `${WORKSPACE}/${HARNESS_AGENT_MEMORY_DIR}`;
 
@@ -58,7 +60,7 @@ export async function importAgentMemory(
     try {
       index = await readOrNull(deps.files, `${folder}/${AGENT_MEMORY_INDEX}`);
     } catch (error) {
-      outcome.warnings.push(`${folder}/${AGENT_MEMORY_INDEX} cannot be read (${firstLine(error)})`);
+      outcome.warnings.push(cannotBeRead(`${folder}/${AGENT_MEMORY_INDEX}`, firstLine(error)));
       continue;
     }
     if (index === null) continue;
@@ -73,14 +75,14 @@ export async function importAgentMemory(
           note = text === null ? null : parseAgentNote(text.slice(0, MAX_NOTE_CHARS));
           if (text !== null) uncut += `\n${text}`;
         } catch (error) {
-          outcome.warnings.push(`${folder}/${item.note} cannot be read (${firstLine(error)}): the line alone is imported`);
+          outcome.warnings.push(noteUnreadable(`${folder}/${item.note}`, firstLine(error)));
         }
       }
       // The entry cuts the note and the line: a secret cut at the boundary would slip past entryProblems,
       // so the uncut text is scanned first.
       const secrets = secretPatternsIn(uncut);
       if (secrets.length > 0) {
-        outcome.refused.push({ agent, line: item.line, reason: `the item looks like it holds a secret (${secrets.join(", ")})` });
+        outcome.refused.push({ agent, line: item.line, reason: itemLooksLikeSecret(secrets.join(", ")) });
         continue;
       }
       const entry = importedEntry(item, note, { agent, project: memory.project, date });
@@ -103,15 +105,15 @@ export async function importAgentMemory(
 
 /** The lines the operator reads after an import. */
 export function importReport(outcome: ImportOutcome, root: string = HARNESS_AGENT_MEMORY_ROOT): string {
-  if (outcome.agents.length === 0) return `No harness agent memory in ${root} (no <agent>/${AGENT_MEMORY_INDEX}).`;
+  if (outcome.agents.length === 0) return noAgentMemory(root, AGENT_MEMORY_INDEX);
   const lines = outcome.agents.map((a) => `${root}/${a.agent}/${AGENT_MEMORY_INDEX}: ${a.entries} entr${a.entries === 1 ? "y" : "ies"}`);
-  lines.push(outcome.written.length === 0 ? "No candidate written."
+  lines.push(outcome.written.length === 0 ? NO_CANDIDATE_WRITTEN
     : `${outcome.written.length} candidate(s) written: ${outcome.written.map((w) => w.id).join(", ")}`);
   if (outcome.duplicates.length > 0) {
-    lines.push(`${outcome.duplicates.length} duplicate(s) skipped (topic already held): ${outcome.duplicates.map((d) => `${d.agent}:${d.line} ${d.topic}`).join(", ")}`);
+    lines.push(duplicatesSkipped(outcome.duplicates.length, outcome.duplicates.map((d) => `${d.agent}:${d.line} ${d.topic}`).join(", ")));
   }
   for (const r of outcome.refused) lines.push(`✗ ${r.agent}/${AGENT_MEMORY_INDEX}:${r.line}: ${r.reason}`);
   for (const w of outcome.warnings) lines.push(`warning: ${w}`);
-  if (outcome.written.length > 0) lines.push("Decide them with /memory-admit (each one is asked).");
+  if (outcome.written.length > 0) lines.push(DECIDE_WITH_MEMORY_ADMIT);
   return lines.join("\n");
 }

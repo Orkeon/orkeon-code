@@ -12,9 +12,10 @@ import { costSummary } from "../../../shared/domain/dev/access-cost.ts";
 import { classifyArtefact, isCode } from "../../../shared/domain/dev/artefacts.ts";
 import type { RepoPack } from "../../../shared/domain/dev/repo-pack.ts";
 import {
-  AUDIT_UNFINISHED_GAP, auditCommand, closeLine, correctionLine, isAuditUnfinishedGap, isUnfinishedSection, lastFinishedVerdict, lastVerdict,
-  parseVerdictFile,
+  auditCommand, closeLine, correctionLine, isAuditUnfinishedGap, isUnfinishedSection, lastFinishedVerdict,
+  lastVerdict, parseVerdictFile,
 } from "../../../shared/domain/dev/verdict-format.ts";
+import { AUDIT_UNFINISHED_GAP } from "../../../shared/domain/dev/markers.ts";
 import type { GapRow } from "../../../shared/domain/dev/verdict-format.ts";
 import { AXES } from "../domain/audit-answer.ts";
 import type { AuditRow, Axis } from "../domain/audit-answer.ts";
@@ -27,14 +28,24 @@ import { listProjectFiles } from "../../../shared/application/dev/project-files.
 import { outputTail, recordingRunner, runAudit, shellValidationRunner } from "./audit.ts";
 import type { UnfinishedAudit, ValidationRunner } from "./audit.ts";
 import { stepRules } from "../../../shared/domain/dev/step-rules.ts";
-import type { AuditBriefInput } from "./auditor-prompt.ts";
+import type { AuditBriefInput } from "./audit-brief.ts";
 import { writeCapture } from "./capture.ts";
-import { noPrecedents, precedentsLine, recallQuery, sheetTitle } from "../../../shared/application/dev/step-precedents.ts";
+import {
+  noPrecedents, precedentsLine, recallQuery, sheetTitle,
+} from "../../../shared/application/dev/step-precedents.ts";
 import type { StepPrecedents } from "../../../shared/application/dev/step-precedents.ts";
 import type { WorkFolder } from "../../../shared/application/dev/resolve-work-folder.ts";
 import { runGate } from "./run-gate.ts";
 import type { DevVerifyTarget } from "./run-gate.ts";
 import { WORKSPACE, workspaceRelative } from "../../../shared/domain/vfs.ts";
+import { timedOutAfter } from "../domain/messages.ts";
+import {
+  auditAgainFix, auditorDisagrees, BATCH_INPUT, failedCount, batchValid, blockedUnwritable, GATE_ONLY_DONE, GATE_ONLY_INPUT,
+  gapAppended, MAKE_SUITE_GREEN, MODE_INPUT, verifyNeitherCodeNorPlan, NO_EXIT_CODE_REPORTED, NO_TEST_COMMAND, verifyNoSheetBeside,
+  noSheetInPlan, noSheetInWork, VERIFY_NOT_IN_WORK_TREE, notRunLine, notUnderWork, PLAN_INPUT, RESUME_WHOLE_BATCH,
+  resumeEarlierGaps, resumeNeeds, runByFullAudit, runHeader, verifySeveralSheets, SUITE_TIMEOUT_FIX, suiteNotRun, suiteRed,
+  suiteTimedOut, unfinishedTail, verdictWritten, wholeSuite, workInMainWorktree, writtenUnfinished, wrongWorkTree,
+} from "./messages.ts";
 
 export interface DevVerifyInputs { batch?: unknown; plan?: unknown; mode?: unknown; gateOnly?: unknown }
 export interface DevVerifyDeps {
@@ -69,7 +80,7 @@ export function unfinishedRow(unfinished: UnfinishedAudit, captureShown: string,
     severity: "Blocking", axis: "Correctness",
     gap: AUDIT_UNFINISHED_GAP,
     evidence: `${unfinished.reason} — ${captureShown}/auditor-replies.txt`,
-    fix: `audit the batch again (${auditCommand("<code>", batch, "resume")}), or split it if it spends the budget again`,
+    fix: auditAgainFix(auditCommand("<code>", batch, "resume")),
   };
 }
 
@@ -108,14 +119,14 @@ function shown(path: string): string {
 
 function checkInputs(input: DevVerifyInputs): Checked | string {
   const { batch, plan, mode, gateOnly } = input;
-  if (typeof batch !== "string" || !/^F\d+$/.test(batch)) return "dev-verify: the input batch must be F<n>, e.g. F2";
+  if (typeof batch !== "string" || !/^F\d+$/.test(batch)) return BATCH_INPUT;
   if (plan !== undefined && plan !== null && (typeof plan !== "string" || plan === "")) {
-    return "dev-verify: the input plan must be a code or a <CODE>-PLAN.md path";
+    return PLAN_INPUT;
   }
   if (mode !== undefined && (typeof mode !== "string" || !MODES.includes(mode))) {
-    return "dev-verify: the input mode must be fast, full or resume";
+    return MODE_INPUT;
   }
-  if (gateOnly !== undefined && typeof gateOnly !== "boolean") return "dev-verify: the input gateOnly must be true or false";
+  if (gateOnly !== undefined && typeof gateOnly !== "boolean") return GATE_ONLY_INPUT;
   return {
     batch, plan: typeof plan === "string" ? plan : null, mode: (mode ?? "fast") as Mode, gateOnly: gateOnly === true,
   };
@@ -148,8 +159,7 @@ async function sheetsIn(files: Pick<Files, "list">, planDir: string, batch: stri
 }
 
 function several(batch: string, sheets: readonly Sheet[]): string {
-  return `dev-verify: several sheets for ${batch}: ${sheets.map((s) => `${s.planDir}/${s.name}`).join(", ")}: ` +
-    `name the plan, e.g. ${auditCommand("<code>", batch)}`;
+  return verifySeveralSheets(batch, sheets.map((s) => `${s.planDir}/${s.name}`).join(", "), auditCommand("<code>", batch));
 }
 
 /** The sheet the plan token names, or the refusal text. */
@@ -159,14 +169,14 @@ async function resolveSheet(files: Pick<Files, "read" | "list">, work: string, a
     const entries = (await listOrEmpty(files, `${WORKSPACE}/${work}`)).map(bare).sort(byName).slice(0, ENTRIES_PROBED);
     const found: Sheet[] = [];
     for (const entry of entries) found.push(...(await sheetsIn(files, `${work}/${entry}`, batch)));
-    if (found.length === 0) return `dev-verify: no ${work}/*/*-PLAN-${batch}.md: name the plan, e.g. ${auditCommand("<code>", batch)}`;
+    if (found.length === 0) return noSheetInWork(work, batch, auditCommand("<code>", batch));
     if (found.length > 1) return several(batch, found);
     return found[0];
   }
-  const neither = `dev-verify: '${plan}' is neither a code nor a <CODE>-PLAN.md path`;
+  const neither = verifyNeitherCodeNorPlan(plan);
   if (isCode(plan)) {
     const found = await sheetsIn(files, `${work}/${plan}`, batch);
-    if (found.length === 0) return `dev-verify: ${work}/${plan}/ holds no *-PLAN-${batch}.md`;
+    if (found.length === 0) return noSheetInPlan(work, plan, batch);
     if (found.length === 1) return found[0];
     const named = found.filter((s) => s.prefix === plan.toUpperCase());
     return named.length === 1 ? named[0] : several(batch, found);
@@ -176,7 +186,7 @@ async function resolveSheet(files: Pick<Files, "read" | "list">, work: string, a
   if (relative.startsWith("/") || relative.split("/").includes("..") || slash <= 0) return neither;
   // The capture and the verdict are written beside the plan: a plan outside the work folder would put them elsewhere.
   if (!relative.startsWith(`${work}/`) || relative.split("/").some((s) => s === "" || s === ".")) {
-    return `dev-verify: '${plan}' is not under the work folder ${work}/`;
+    return notUnderWork(plan, work);
   }
   const classified = classifyArtefact(relative.slice(slash + 1));
   if (classified === null || classified.kind !== "plan") return neither;
@@ -184,7 +194,7 @@ async function resolveSheet(files: Pick<Files, "read" | "list">, work: string, a
   try {
     await files.read(`${WORKSPACE}/${sheet.planDir}/${sheet.name}`);
   } catch {
-    return `dev-verify: no ${sheet.planDir}/${sheet.name} beside ${relative}`;
+    return verifyNoSheetBeside(`${sheet.planDir}/${sheet.name}`, relative);
   }
   return sheet;
 }
@@ -205,38 +215,38 @@ interface SuiteRun {
 async function runSuite(shell: Pick<Shell, "run">, pack: RepoPack | null): Promise<SuiteRun> {
   const command = pack?.commands.test;
   if (command === undefined || command.trim() === "") {
-    return { validation: null, notRun: "commands.test — the pack has none", row: null, brief: undefined };
+    return { validation: null, notRun: NO_TEST_COMMAND, row: null, brief: undefined };
   }
   let result;
   try {
     result = await shell.run(command, { timeoutSeconds: FULL_SUITE_TIMEOUT_SECONDS });
   } catch (error) {
-    return { validation: null, notRun: `\`${command}\` — not run: ${reasonOf(error)}`, row: null, brief: undefined };
+    return { validation: null, notRun: suiteNotRun(command, reasonOf(error)), row: null, brief: undefined };
   }
   const tail = outputTail(result.stdout, result.stderr);
   if (result.timedOut === true) {
-    const outcome = `timed out after ${FULL_SUITE_TIMEOUT_SECONDS} s`;
+    const outcome = timedOutAfter(FULL_SUITE_TIMEOUT_SECONDS);
     const row: AuditRow = {
       severity: "Major", axis: "Test",
-      gap: `the whole fast suite did not finish within ${FULL_SUITE_TIMEOUT_SECONDS} s`,
-      evidence: `\`${command}\` ${outcome}, run by the full audit`,
-      fix: "make the suite finish within its timeout, or run it by hand and record the outcome",
+      gap: suiteTimedOut(FULL_SUITE_TIMEOUT_SECONDS),
+      evidence: runByFullAudit(command, outcome),
+      fix: SUITE_TIMEOUT_FIX,
     };
-    return { validation: null, notRun: `\`${command}\` — ${outcome}`, row, brief: { command, outcome, tail } };
+    return { validation: null, notRun: notRunLine(command, outcome), row, brief: { command, outcome, tail } };
   }
   const exit = result.exitCode;
-  const exitText = exit === NO_EXIT_CODE ? "no exit code reported" : `exit ${exit}`;
+  const exitText = exit === NO_EXIT_CODE ? NO_EXIT_CODE_REPORTED : `exit ${exit}`;
   const summary = testRunSummary(tail.split("\n"));
   const failed = summary.failed ?? 0;
   const row: AuditRow | null = exit !== 0 || failed > 0
     ? {
       severity: "Blocking", axis: "Test",
-      gap: `the whole fast suite is red: ${exitText}${summary.failed === null ? "" : `, ${failed} failed`}`,
-      evidence: `\`${command}\` ${exitText}, run by the full audit`,
-      fix: "make the suite green",
+      gap: suiteRed(exitText, summary.failed === null ? "" : failedCount(failed)),
+      evidence: runByFullAudit(command, exitText),
+      fix: MAKE_SUITE_GREEN,
     }
     : null;
-  return { validation: `whole fast suite — ${exitText}`, notRun: null, row, brief: { command, outcome: exitText, tail } };
+  return { validation: wholeSuite(exitText), notRun: null, row, brief: { command, outcome: exitText, tail } };
 }
 
 function filesLine(changed: readonly string[], work: string): string {
@@ -251,15 +261,15 @@ async function toplevelRefusal(shell: Pick<Shell, "run">): Promise<string | null
   let top: string;
   try {
     const r = await shell.run(GIT_TOPLEVEL);
-    if (r.exitCode !== 0) return "dev-verify: not inside a git work tree";
+    if (r.exitCode !== 0) return VERIFY_NOT_IN_WORK_TREE;
     top = r.stdout.trim();
   } catch {
-    return "dev-verify: not inside a git work tree";
+    return VERIFY_NOT_IN_WORK_TREE;
   }
-  if (top === "") return "dev-verify: not inside a git work tree";
+  if (top === "") return VERIFY_NOT_IN_WORK_TREE;
   return top === WORKSPACE
     ? null
-    : `dev-verify: the git work tree is ${top}, not ${WORKSPACE}: run Orkeon Code at the top of the repository`;
+    : wrongWorkTree(top, WORKSPACE);
 }
 
 function target(ctx: DevContext, sheet: Sheet, batch: string): DevVerifyTarget {
@@ -281,13 +291,13 @@ export async function runDevVerify(input: DevVerifyInputs, deps: DevVerifyDeps):
   const done = (...lines: string[]): string => [...out, ...lines].join("\n");
   const work = ctx.work.folder;
   if (ctx.work.outcome === "main-worktree") {
-    return done(`dev-verify: the work folder ${work} is in the main worktree, outside the mounts: run the audit from the main checkout`);
+    return done(workInMainWorktree(work));
   }
 
   const sheet = await resolveSheet(deps.files, work, args);
   if (typeof sheet === "string") return done(sheet);
   const t = target(ctx, sheet, args.batch);
-  out.push(`batch ${args.batch} — sheet ${t.sheetShown} — mode ${args.mode} — work folder ${workFolderLabel(ctx.work, t.packShown)}`);
+  out.push(runHeader(args.batch, t.sheetShown, args.mode, workFolderLabel(ctx.work, t.packShown)));
 
   const verdictShown = `${t.planDirShown}/${verdictFileName(t.prefix, args.batch)}`;
   let previous: string | null = null;
@@ -298,7 +308,7 @@ export async function runDevVerify(input: DevVerifyInputs, deps: DevVerifyDeps):
     try {
       previous = await deps.files.read(`${WORKSPACE}/${verdictShown}`);
     } catch {
-      return done(`dev-verify: resume needs ${verdictShown}: run ${auditCommand(t.code, args.batch)} first`);
+      return done(resumeNeeds(verdictShown, auditCommand(t.code, args.batch)));
     }
     // An unfinished audit's row is no gap of the code: the resumed audit is not asked to judge it. After an audit the
     // budget stopped, the resume takes the gaps of the last audit that finished; with none, the whole batch is audited.
@@ -307,9 +317,9 @@ export async function runDevVerify(input: DevVerifyInputs, deps: DevVerifyDeps):
     const finished = last !== null && isUnfinishedSection(last) ? lastFinishedVerdict(parsed) : last;
     if (finished === null) {
       auditMode = "fast";
-      out.push("resume: no audit of this batch finished — the whole batch is audited (fast), the section appended");
+      out.push(RESUME_WHOLE_BATCH);
     } else {
-      if (finished !== last) out.push(`resume: the last audit did not finish — the gaps of the audit of ${finished.when ?? "before"} are resumed`);
+      if (finished !== last) out.push(resumeEarlierGaps(finished.when ?? "before"));
       previousGaps = finished.rows.filter((r) => !isAuditUnfinishedGap(r.gap)).map(auditRowOf);
     }
   }
@@ -318,7 +328,7 @@ export async function runDevVerify(input: DevVerifyInputs, deps: DevVerifyDeps):
   if (!gate.ok) return done(`dev-verify: ${gate.error}`);
   const report = gate.run.report;
   if (!report.green) return done(...report.lines);
-  if (args.gateOnly) return done(...report.lines, "dev-verify: --gate-only: the gate alone, no capture and no audit");
+  if (args.gateOnly) return done(...report.lines, GATE_ONLY_DONE);
   const greenLine = report.lines[report.lines.length - 1];
 
   const files = recordingWriter(deps.files);
@@ -365,9 +375,9 @@ export async function runDevVerify(input: DevVerifyInputs, deps: DevVerifyDeps):
         notRun: [...(suite?.notRun ? [suite.notRun] : []), ...unfinished.notRun],
       });
       await files.write(`${WORKSPACE}/${verdictShown}`, writeVerdictFile(previous, section.text, args.mode));
-      deps.log.info(`dev-verify: ${section.verdict} written to ${verdictShown} (the audit did not finish)`);
+      deps.log.info(writtenUnfinished(section.verdict, verdictShown));
       return done(greenLine, costLine, ...section.text.trimEnd().split("\n"),
-        `${audit.text}; ${section.verdict} written to ${verdictShown}: the audit did not finish`);
+        unfinishedTail(audit.text, section.verdict, verdictShown));
     }
 
     const answered = [...audit.answer.rows, ...audit.redRows, ...(suite?.row ? [suite.row] : [])];
@@ -378,17 +388,17 @@ export async function runDevVerify(input: DevVerifyInputs, deps: DevVerifyDeps):
       notRun: [...(suite?.notRun ? [suite.notRun] : []), ...audit.notRun],
     });
     if (audit.answer.verdict !== section.verdict) {
-      deps.log.warn(`the auditor said ${audit.answer.verdict}; the rows make it ${section.verdict}`);
+      deps.log.warn(auditorDisagrees(audit.answer.verdict, section.verdict));
     }
     await files.write(`${WORKSPACE}/${verdictShown}`, writeVerdictFile(previous, section.text, args.mode));
-    deps.log.info(`dev-verify: ${section.verdict} written to ${verdictShown}`);
+    deps.log.info(verdictWritten(section.verdict, verdictShown));
 
     const lines = [greenLine, costLine, ...section.text.trimEnd().split("\n"), `written: ${verdictShown} — capture: ${capture.folderShown}/`];
     const recalledLine = precedentsLine([recalled]);
     if (recalledLine !== "") lines.push(recalledLine);
     if (section.verdict === "VALID") {
       lines.push(
-        `→ Batch ${args.batch} VALID. The close commits the batch's files (run by itself when /dev-batches launched this audit):`,
+        batchValid(args.batch),
         closeLine(t.code, args.batch),
         filesLine(gate.run.changedFiles, work),
       );
@@ -396,14 +406,14 @@ export async function runDevVerify(input: DevVerifyInputs, deps: DevVerifyDeps):
       const first = section.shown[0];
       lines.push(
         correctionLine(t.code, args.batch, `${first.severity} ${first.axis}: ${cut(first.gap, MAX_GAP_CHARS)}`),
-        `  it appends the gap to the sheet as a new step and runs it; the audit follows by itself (${auditCommand(t.code, args.batch, "resume")})`,
+        gapAppended(auditCommand(t.code, args.batch, "resume")),
       );
       // M-7: the verdict is written; the harvest reads it with the others and can only add lines.
       if (deps.harvest !== undefined) lines.push(...await deps.harvest(ctx.work));
     }
     return done(...lines);
   } catch (error) {
-    if (error instanceof WriteFailure) return done(greenLine, `dev-verify: BLOCKED — ${shown(error.path)} cannot be written (${error.message})`);
+    if (error instanceof WriteFailure) return done(greenLine, blockedUnwritable(shown(error.path), error.message));
     throw error;
   }
 }

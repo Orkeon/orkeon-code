@@ -22,11 +22,15 @@ import type { Decision, Question } from "../../../shared/domain/dev/questions.ts
 import { parsePlanSource } from "../../../shared/domain/dev/spec-format.ts";
 import { SPEC_ANSWER_SCHEMA, checkSpecAnswer, ruleId, useCaseId } from "../domain/spec-answer.ts";
 import type { SpecAnswer } from "../domain/spec-answer.ts";
-import { SPEC_DECISIONS_SECTION, SPEC_QUESTIONS_SECTION, renderSpec, specFileName } from "../domain/spec-render.ts";
+import { renderSpec, specFileName } from "../domain/spec-render.ts";
+import { SPEC_DECISIONS_SECTION, SPEC_QUESTIONS_SECTION } from "../domain/markers.ts";
 import { noPrecedents, precedentsLine, recallQuery } from "../../../shared/application/dev/step-precedents.ts";
 import type { StepPrecedents } from "../../../shared/application/dev/step-precedents.ts";
-import { buildSpecPrompt } from "./spec-prompt.ts";
-import type { SpecPromptInput } from "./spec-prompt.ts";
+import { buildSpecPrompt } from "./spec-material.ts";
+import type { SpecPromptInput } from "./spec-material.ts";
+import { DEV_SPEC_NEXT, answerThem, blockedUnanswered, cannotBeReadNothingWritten, changeBriefExists, specNotWrittenAnswersKept, decisionsThisRun, newSpecNeedsBrief, refusedTwice, rendererDefect, stillBlocking } from "./messages.ts";
+import { PERMISSION_GATE_OFF } from "../../../shared/application/dev/messages.ts";
+import { answerDidNotParse } from "../../../shared/application/agents/messages.ts";
 
 export interface DevSpecInputs { code?: unknown; request?: unknown }
 export interface DevSpecDeps {
@@ -38,7 +42,6 @@ export interface DevSpecDeps {
 
 const STEP = "dev-spec";
 const HEADINGS = { questions: SPEC_QUESTIONS_SECTION, decisions: SPEC_DECISIONS_SECTION };
-export const DEV_SPEC_NEXT = "→ Next step, once you have validated the spec: /dev-plan {code}";
 
 interface Drafted { answer: SpecAnswer; text: string; open: Question[] }
 
@@ -52,7 +55,7 @@ async function askSpec(
     try {
       value = await deps.llm.extract(buildSpecPrompt(prompt, problems), SPEC_ANSWER_SCHEMA);
     } catch (e) {
-      problems = [`the answer did not parse: ${firstLine(e)}`];
+      problems = [answerDidNotParse(firstLine(e))];
       continue;
     }
     const checked = checkSpecAnswer(value);
@@ -63,7 +66,7 @@ async function askSpec(
     const ids = [...answer.useCases.map((_, i) => useCaseId(i)), ...answer.rules.map((_, i) => ruleId(i))];
     const self = sourceSelfCheck(text, "spec", { code: prompt.code, ids, open: questions, decisions });
     if (self.length > 0) {
-      deps.log.warn(`${STEP}: a checked answer rendered a spec that fails its self-check (a renderer defect): ${self[0]}`);
+      deps.log.warn(rendererDefect(STEP, self[0]));
       problems = self;
       continue;
     }
@@ -86,7 +89,7 @@ export async function runDevSpec(input: DevSpecInputs, deps: DevSpecDeps): Promi
 
   // 2. One source per code; an existing spec is revised.
   if (folder.names.includes(`CHANGE-${code}.md`)) {
-    return `${STEP}: ${folder.shown}/CHANGE-${code}.md exists: a code has one source; revise it with /dev-spec ${code} <its kind: bug, refactor or perf>, or pick another code`;
+    return changeBriefExists(STEP, folder.shown, code);
   }
   const spec = folder.file(specFileName(code));
   let existing: string | null = null;
@@ -94,13 +97,13 @@ export async function runDevSpec(input: DevSpecInputs, deps: DevSpecDeps): Promi
     try {
       existing = await deps.files.read(spec.vfs);
     } catch (e) {
-      return `${STEP}: ${spec.shown} cannot be read (${firstLine(e)}); nothing is written`;
+      return cannotBeReadNothingWritten(STEP, spec.shown, firstLine(e));
     }
   }
   const request = await readRequest(STEP, deps.files, typed);
   if ("refused" in request) return request.refused;
   if (existing === null && request.text === "") {
-    return `${STEP}: a new spec needs its brief: /dev-spec ${code} <what the feature does, for whom, why> (or a path to a .md file)`;
+    return newSpecNeedsBrief(STEP, code);
   }
 
   // 3. Inventory by code.
@@ -132,7 +135,7 @@ export async function runDevSpec(input: DevSpecInputs, deps: DevSpecDeps): Promi
         decisions: decisions0, fresh: [], inventory: inventoryText, precedents: recalled.block,
       }, (a) => numberQuestions(a.questions, decisions0, open0), decisions0);
       if (!drafted.ok) {
-        return [`${STEP}: the spec was refused twice; nothing is written.`, ...problemLines(drafted.problems)].join("\n");
+        return [refusedTwice(STEP), ...problemLines(drafted.problems)].join("\n");
       }
       state = { text: drafted.drafted.text, open: drafted.drafted.open, decisions: decisions0 };
       await write(state.text);
@@ -163,7 +166,7 @@ export async function runDevSpec(input: DevSpecInputs, deps: DevSpecDeps): Promi
         mode: "spec", whole: "spec", folder: folder.shown, fileShown: spec.shown, origin: request.from,
         inventory: inventoryText, ids, headings: HEADINGS,
       }, write);
-      if (deps.llm.permissionGateEnabled() === false) warnings.push("the host's permission gate is off; the reviewer was offered read tools only");
+      if (deps.llm.permissionGateEnabled() === false) warnings.push(PERMISSION_GATE_OFF);
       if (review.ran && review.added.length > 0) {
         state = review.state;
         const added = new Set(review.added);
@@ -180,7 +183,7 @@ export async function runDevSpec(input: DevSpecInputs, deps: DevSpecDeps): Promi
     const ids = parsed.ids.map((i) => i.id);
     const lines = [
       `${STEP}: ${spec.shown} ${verb} — ${plural(ids.length, "id", "ids")} (${ids.join(", ") || "none"})`,
-      `decisions this run: ${made.length === 0 ? "none" : made.map((d) => `${d.id} → ${d.answer}`).join("; ")}`,
+      decisionsThisRun(made.length === 0 ? "none" : made.map((d) => `${d.id} → ${d.answer}`).join("; ")),
       `open questions: ${openLine(state.open)}`,
       ...(review === null ? [] : [reviewLine(review)]),
       briefInventoryLine(inventory),
@@ -190,17 +193,17 @@ export async function runDevSpec(input: DevSpecInputs, deps: DevSpecDeps): Promi
     const blockingLeft = state.open.filter((q) => q.severity === "Blocking");
     if (blocked) {
       lines.push(
-        `${STEP}: BLOCKED — a question went unanswered; the open questions are in ${spec.shown} § 12.`,
-        `→ Answer them: /dev-spec ${code} in an interactive session, or edit the file; nothing was decided for you.`,
+        blockedUnanswered(STEP, spec.shown),
+        answerThem(code),
       );
     } else if (blockingLeft.length > 0) {
-      lines.push(`→ ${blockingLeft.map((q) => q.id).join(", ")} still Blocking: /dev-plan refuses the spec until settled: /dev-spec ${code}, or edit the file.`);
+      lines.push(stillBlocking(blockingLeft.map((q) => q.id).join(", "), code));
     } else {
       lines.push(DEV_SPEC_NEXT.replace("{code}", code));
     }
     return lines.join("\n");
   } catch (e) {
     if (!(e instanceof SourceWriteFailure)) throw e;
-    return `${STEP}: ${spec.shown} could not be written (${e.message}); the answers given so far are in the file when it was written before`;
+    return specNotWrittenAnswersKept(STEP, spec.shown, e.message);
   }
 }

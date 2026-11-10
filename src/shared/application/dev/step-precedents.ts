@@ -11,6 +11,7 @@ import { buildPrecedentsBlock } from "../../domain/shared-memory/precedents-bloc
 import { recallEntries } from "../shared-memory/recall-precedents.ts";
 import { readMemorySettings } from "../shared-memory/memory-settings.ts";
 import type { MemorySettings } from "../shared-memory/memory-settings.ts";
+import { namedRecallFailed } from "./messages.ts";
 
 /** T1 spec or change start, T2 plan start, T3 before a batch's red tests, T4 before the audit, T5 a correction. */
 export type RecallTrigger = "T1" | "T2" | "T3" | "T4" | "T5";
@@ -76,7 +77,7 @@ export function stepPrecedents(deps: StepPrecedentsDeps, options: { on: boolean 
       return block === "" ? NOTHING_RECALLED : { block, ids: recall.precedents.map((p) => p.entry.id) };
     } catch (error) {
       settings = null; // a failed read is tried again at the next trigger, not kept for the run
-      deps.log.warn(`shared memory: recall ${trigger} failed, no precedents (${firstLine(error)})`);
+      deps.log.warn(namedRecallFailed(trigger, firstLine(error)));
       return NOTHING_RECALLED;
     }
   };

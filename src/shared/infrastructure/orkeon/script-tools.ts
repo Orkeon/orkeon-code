@@ -24,6 +24,11 @@ import type { ScriptToolSlot } from "../../application/dev/script-tool-slot.ts";
 
 export { scriptToolSlot } from "../../application/dev/script-tool-slot.ts";
 export type { ScriptToolSlot } from "../../application/dev/script-tool-slot.ts";
+import {
+  COMMAND_REQUIRED, RUN_BUILD_DESCRIPTION, RUN_BUILD_PROJECT, RUN_TESTS_COMMAND, RUN_TESTS_DESCRIPTION, RUN_VALIDATION_COMMAND,
+  RUN_VALIDATION_DESCRIPTION, notSetUpForThisRun,
+} from "./prompts.ts";
+import { notOneOfOurTools } from "./messages.ts";
 
 /** The runtime's `toolBuilder`, or a test's. */
 export type ToolBuilderFactory = () => ToolBuilder<unknown, unknown>;
@@ -43,7 +48,7 @@ export function scriptTool(
   builder: ToolBuilderFactory, spec: ScriptToolSpec, handler: (input: unknown) => Promise<unknown>, root?: string,
 ): Tool<unknown, unknown> {
   const access = scriptToolAccess(spec.name);
-  if (access === undefined) throw new Error(`'${spec.name}' is not one of Orkeon Code's tools (SCRIPT_TOOLS)`);
+  if (access === undefined) throw new Error(notOneOfOurTools(spec.name));
   return builder()
     .name(spec.name)
     .description(spec.description)
@@ -61,7 +66,7 @@ export function scriptTool(
 }
 
 const notReady = (name: string) => ({
-  ok: false, refused: `${name} is not set up for this run (not bound yet, or two runs at once): name the command in your answer instead`,
+  ok: false, refused: notSetUpForThisRun(name),
 });
 
 const commandSchema = (what: string): JsonSchema => ({
@@ -77,12 +82,8 @@ export interface ValidationCalls {
 
 export const RUN_VALIDATION: ScriptToolSpec = {
   name: "run_validation",
-  description:
-    "Run one narrow test command of the repository pack (one test class, one test project, or the integration " +
-    "tests narrowed by a filter, exactly as the brief lists them, each <placeholder> filled with one plain value) " +
-    "and return its exit code and the tail of its output. Three per audit at most; never a whole suite, a build or " +
-    "an option of your own.",
-  schema: commandSchema("The command, one of the brief's validation commands with its placeholders filled."),
+  description: RUN_VALIDATION_DESCRIPTION,
+  schema: commandSchema(RUN_VALIDATION_COMMAND),
 };
 
 export function runValidationTool(builder: ToolBuilderFactory, slot: ScriptToolSlot<ValidationCalls>, root?: string): Tool<unknown, unknown> {
@@ -90,7 +91,7 @@ export function runValidationTool(builder: ToolBuilderFactory, slot: ScriptToolS
     const runner = slot.get();
     if (runner === undefined) return notReady(RUN_VALIDATION.name);
     const command = (input as { command?: unknown } | null)?.command;
-    if (typeof command !== "string" || command.trim() === "") return { ok: false, refused: "'command' is required" };
+    if (typeof command !== "string" || command.trim() === "") return { ok: false, refused: COMMAND_REQUIRED };
     const { report, line } = await runner.run(command);
     return { ok: line !== null, command: report.command, outcome: report.outcome, tail: report.tail };
   }, root);
@@ -98,22 +99,16 @@ export function runValidationTool(builder: ToolBuilderFactory, slot: ScriptToolS
 
 export const RUN_TESTS: ScriptToolSpec = {
   name: "run_tests",
-  description:
-    "Run one narrow test command of the repository pack (test_class, test_project, or test_integration with its " +
-    "filter), each <placeholder> filled with one plain relative value. Returns the exit code, the tail of the output " +
-    "and the path of the whole log. Never a whole suite, never a restore.",
-  schema: commandSchema("The pack's test command with its placeholders filled."),
+  description: RUN_TESTS_DESCRIPTION,
+  schema: commandSchema(RUN_TESTS_COMMAND),
 };
 
 export const RUN_BUILD: ScriptToolSpec = {
   name: "run_build",
-  description:
-    "Build with the repository pack's command: without project, commands.build; with project, commands.build_test " +
-    "for that test project. Never restores, except once on a tree that was never restored. Returns the exit code, " +
-    "whether it restored, the tail of the output and the path of the whole log.",
+  description: RUN_BUILD_DESCRIPTION,
   schema: {
     type: "object",
-    properties: { project: { type: "string", description: "The test project to build, a plain relative path; absent, the whole build." } },
+    properties: { project: { type: "string", description: RUN_BUILD_PROJECT } },
   },
 };
 

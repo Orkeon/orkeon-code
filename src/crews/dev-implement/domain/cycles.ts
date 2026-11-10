@@ -4,6 +4,7 @@
 // on its file is a cycle of one. Pure.
 import type { ImplementStep } from "./step-section.ts";
 import { testFileOf } from "./contracts.ts";
+import { NO_TEST_FILE } from "./messages.ts";
 
 export interface Cycle { steps: ImplementStep[]; testFile: string | null }
 
@@ -31,5 +32,5 @@ export function stepsLabel(steps: readonly ImplementStep[]): string {
 
 /** The line announcing the mapping, before the first RED. */
 export function cyclesLine(cycles: readonly Cycle[]): string {
-  return cycles.map((c, i) => `cycle ${i + 1}/${cycles.length} — ${stepsLabel(c.steps)} (${c.testFile ?? "no test file"})`).join("; ");
+  return cycles.map((c, i) => `cycle ${i + 1}/${cycles.length} — ${stepsLabel(c.steps)} (${c.testFile ?? NO_TEST_FILE})`).join("; ");
 }

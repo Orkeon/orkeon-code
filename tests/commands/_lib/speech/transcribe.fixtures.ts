@@ -1,6 +1,6 @@
 // The /transcribe lines with what each parses to, and the deps dispatchTranscribe runs over (FakeCrewHost,
 // FakeToolCatalogue registering the names given, a config store on FakeSessionStore).
-import { TRANSCRIBE_USAGE, missingToolMessage } from "../../../../src/commands/_lib/speech/transcribe.ts";
+import { TRANSCRIBE_USAGE, missingToolMessage } from "../../../../src/commands/_lib/speech/messages.ts";
 import { createConfigStore } from "../../../../src/shared/application/config-store.ts";
 import { createSessionIo } from "../../../../src/shared/application/session-io.ts";
 import { FakeCrewHost } from "../../../support/doubles/fake-crew-host.ts";

@@ -1,5 +1,6 @@
 // Buffers, replies and extracted memories for the compaction tests.
-import { buildCompactBoundaryMessage, COMPACT_BOUNDARY_MARKER } from "../../../src/shared/domain/compaction.ts";
+import { buildCompactBoundaryMessage } from "../../../src/shared/domain/compaction.ts";
+import { COMPACT_BOUNDARY_MARKER } from "../../../src/shared/domain/markers.ts";
 
 /** A transcript whose head, middle and tail are told apart: 100 H, 800 M, 300 T. */
 export const HEAD_MIDDLE_TAIL = "H".repeat(100) + "M".repeat(800) + "T".repeat(300);

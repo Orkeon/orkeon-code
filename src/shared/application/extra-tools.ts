@@ -12,6 +12,7 @@ import type { ConfigStore } from "./config-store.ts";
 import { EXTRA_TOOLS_CONFIG_KEY, parseExtraTools } from "../domain/agent-policy/extra-tools.ts";
 import type { ExtraToolsParse } from "../domain/agent-policy/extra-tools.ts";
 import type { ExtraTool } from "../domain/agent-policy/permission.ts";
+import { couldNotBeReadOrParsed } from "./messages.ts";
 
 /** The setting as read: its entries, or why it could not be read. */
 export interface ExtraToolsRead extends ExtraToolsParse {
@@ -26,7 +27,7 @@ export async function readExtraTools(config: Pick<ConfigStore, "readValue" | "re
   try {
     const { value, source } = await config.readValue(EXTRA_TOOLS_CONFIG_KEY);
     if (source === "unset" && (await config.readFile()).malformed) {
-      return { tools: [], invalid: [], unreadable: `${CONFIG_FILE_PATH} could not be read or parsed` };
+      return { tools: [], invalid: [], unreadable: couldNotBeReadOrParsed(CONFIG_FILE_PATH) };
     }
     return parseExtraTools(value);
   } catch (e: unknown) {

@@ -8,7 +8,11 @@ import type { Files, Llm, Shell } from "../../../shared/application/ports.ts";
 import { firstLine, readRequest } from "../../../shared/application/dev/source-step.ts";
 import type { RepoPackCommands } from "../../../shared/domain/dev/repo-pack.ts";
 import { checkValidation, plainWords } from "../../../shared/domain/dev/test-commands.ts";
-import { REPRO_SCHEMA, buildReproPrompt } from "./change-prompt.ts";
+import { REPRO_SCHEMA } from "./prompts.ts";
+import { buildReproPrompt } from "./change-material.ts";
+import { GLOB_OR_EXPANSION, MEASURES_THE_COST, PATH_OUT_OF_CHECKOUT, REPRODUCES_THE_BUG, SHELL_OPERATOR_AFTER_CLI, evidenceCouldNotRun, couldNotStart, didNotReproduce, issuePrintedNoJson, issueViewFailed, measuredFact, measurementFailed, noCommandPicked, ranOutOfTime, reproductionFact, runMayNotRun, runtimeRefused, wasKilled } from "./messages.ts";
+import { NOT_ONE_LINE } from "../../../shared/domain/dev/messages.ts";
+import { answerDidNotParse } from "../../../shared/application/agents/messages.ts";
 
 export const REPRO_TIMEOUT_SECONDS = 600;
 const MAX_COMMAND_CHARS = 400;
@@ -32,13 +36,13 @@ export async function readOrigin(step: string, deps: { shell: Pick<Shell, "run">
     if (r.exitCode !== 0) throw new Error((r.stderr || r.stdout).trim() || `exit ${r.exitCode}`);
     out = r.stdout;
   } catch (e) {
-    return { refused: `${step}: ${command} failed (${firstLine(e)}): sign gh in (gh auth login), or give the issue's text or a file instead` };
+    return { refused: issueViewFailed(step, command, firstLine(e)) };
   }
   try {
     const v = JSON.parse(out) as { number?: number; title?: string; body?: string; url?: string };
     return { text: [`#${v.number ?? issue[1]} ${v.title ?? ""}`.trim(), v.url ?? "", "", v.body ?? ""].join("\n").trim(), from: `issue #${issue[1]}` };
   } catch {
-    return { refused: `${step}: ${command} printed no JSON: give the issue's text or a file instead` };
+    return { refused: issuePrintedNoJson(step, command) };
   }
 }
 
@@ -58,18 +62,18 @@ const outOfCheckout = (value: string): boolean =>
 /** Why a command may not run, null when it may: a narrow test command of the pack, or the CLI and plain words. */
 export function commandProblem(command: string, commands: RepoPackCommands): string | null {
   const c = command.trim();
-  if (c === "" || /[\r\n]/.test(c) || c.length > MAX_COMMAND_CHARS) return "not one line of at most 400 characters";
+  if (c === "" || /[\r\n]/.test(c) || c.length > MAX_COMMAND_CHARS) return NOT_ONE_LINE;
   const cli = commands.cli?.trim() ?? "";
   if (cli !== "" && (c === cli || c.startsWith(`${cli} `))) {
-    if (!plainWords(c)) return "a shell operator after the CLI";
+    if (!plainWords(c)) return SHELL_OPERATOR_AFTER_CLI;
     const tail = c.slice(cli.length);
     let quoted = false;
     for (const ch of tail) {
       if (ch === '"') quoted = !quoted;
-      else if (/[$`]/.test(ch) || (!quoted && /[*?[\]{}]/.test(ch))) return "a glob or an expansion after the CLI";
+      else if (/[$`]/.test(ch) || (!quoted && /[*?[\]{}]/.test(ch))) return GLOB_OR_EXPANSION;
     }
     for (const word of tail.trim().split(/\s+/).filter((w) => w !== "")) {
-      if (pathValues(word.replace(/"/g, "")).some(outOfCheckout)) return "a path out of the checkout";
+      if (pathValues(word.replace(/"/g, "")).some(outOfCheckout)) return PATH_OUT_OF_CHECKOUT;
     }
     return null;
   }
@@ -91,7 +95,7 @@ export async function pickCommand(
   if (given !== "") {
     const problem = commandProblem(given, commands);
     return problem === null ? { command: given.trim() } : {
-      refused: `${step}: --run "${given}" may not run (${problem}): give a narrow test command of .orkeon/repo.yaml or the CLI with plain words`,
+      refused: runMayNotRun(step, given, problem),
     };
   }
   let problems: string[] = [];
@@ -101,15 +105,15 @@ export async function pickCommand(
       const v = await llm.extract(buildReproPrompt(kind, origin, packCommandList(commands), problems), REPRO_SCHEMA) as { command?: unknown };
       command = typeof v?.command === "string" ? v.command.trim() : "";
     } catch (e) {
-      problems = [`the answer did not parse: ${firstLine(e)}`];
+      problems = [answerDidNotParse(firstLine(e))];
       continue;
     }
     const problem = commandProblem(command, commands);
     if (problem === null) return { command };
     problems = [`'${command}': ${problem}`];
   }
-  const what = kind === "bug" ? "reproduces the bug" : "measures the cost";
-  return { refused: `${step}: no command that ${what} could be picked (${problems[0] ?? "none"}): give one with --run "<command>"` };
+  const what = kind === "bug" ? REPRODUCES_THE_BUG : MEASURES_THE_COST;
+  return { refused: noCommandPicked(step, what, problems[0] ?? "none") };
 }
 
 export async function runEvidence(shell: Pick<Shell, "run">, command: string, clock: () => Date): Promise<Ran> {
@@ -124,7 +128,7 @@ export async function runEvidence(shell: Pick<Shell, "run">, command: string, cl
     timedOut = r.timedOut === true;
     output = [r.stdout, r.stderr].filter((s) => s !== "").join("\n");
   } catch (e) {
-    output = `the runtime refused the command: ${firstLine(e)}`;
+    output = runtimeRefused(firstLine(e));
     refused = true;
   }
   const seconds = Math.round((clock().getTime() - start) / 100) / 10;
@@ -142,28 +146,26 @@ export function reproFile(ran: Ran, date: string): string {
 export function factLines(kind: "bug" | "perf", ran: Ran, fileName: string): string[] {
   const tail = ran.output.trimEnd().split(/\r?\n/).slice(-TAIL_LINES).map((l) => `  ${l.replace(/```/g, "'''")}`.trimEnd());
   const head = kind === "bug"
-    ? `- **Reproduction**: \`${ran.command}\` — exit ${ran.exitCode} after ${ran.seconds} s; the output is in ${fileName}`
-    : `- **Measured**: \`${ran.command}\` — ${ran.seconds} s wall time, exit ${ran.exitCode}; the output is in ${fileName}`;
+    ? reproductionFact(ran.command, ran.exitCode, ran.seconds, fileName)
+    : measuredFact(ran.command, ran.seconds, ran.exitCode, fileName);
   return ran.output.trim() === "" ? [head] : [head, "- **Observed** (last lines):", "", "  ```text", ...tail, "  ```"];
 }
 
 /** Why the run stops the step, null when it stands as evidence. */
 export function runStop(step: string, kind: "bug" | "perf", ran: Ran, shown: string): string | null {
-  if (ran.refused) return `${step}: \`${ran.command}\` could not run (${ran.output}); nothing else is written`;
-  if (ran.timedOut) return `${step}: \`${ran.command}\` ran out of its ${REPRO_TIMEOUT_SECONDS} s; nothing else is written (output in ${shown})`;
+  if (ran.refused) return evidenceCouldNotRun(step, ran.command, ran.output);
+  if (ran.timedOut) return ranOutOfTime(step, ran.command, REPRO_TIMEOUT_SECONDS, shown);
   if (kind === "bug" && NOT_RUN_EXITS.has(ran.exitCode)) {
-    return `${step}: \`${ran.command}\` could not start (exit ${ran.exitCode}: the command was not found or not executable); ` +
-      `nothing else is written (output in ${shown})`;
+    return couldNotStart(step, ran.command, ran.exitCode, shown);
   }
   if (kind === "bug" && ran.exitCode > 128) {
-    return `${step}: \`${ran.command}\` was killed (exit ${ran.exitCode}), which proves no failure; nothing else is written (output in ${shown})`;
+    return wasKilled(step, ran.command, ran.exitCode, shown);
   }
   if (kind === "bug" && ran.exitCode === 0) {
-    return `${step}: the bug did not reproduce: \`${ran.command}\` exited 0; nothing else is written (output in ${shown}). ` +
-      `Give the failing command with --run, or check the origin.`;
+    return didNotReproduce(step, ran.command, shown);
   }
   if (kind === "perf" && ran.exitCode !== 0) {
-    return `${step}: the measurement failed: \`${ran.command}\` exited ${ran.exitCode}; nothing else is written (output in ${shown})`;
+    return measurementFailed(step, ran.command, ran.exitCode, shown);
   }
   return null;
 }
