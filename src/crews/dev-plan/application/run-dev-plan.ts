@@ -35,6 +35,13 @@ import { noPrecedents, precedentsLine, recallQuery } from "../../../shared/appli
 import type { StepPrecedents } from "../../../shared/application/dev/step-precedents.ts";
 import { checkAnchorPaths } from "./anchor-paths.ts";
 import type { AnchorListings } from "./anchor-paths.ts";
+import {
+  BAD_INPUT_REPLACE, BAD_INPUT_SOURCE, BOTH_LINES, COMMANDS_LINE, END_LINE, GATE_OFF, REFUSED_TWICE, REVIEWED_FAILS_SELF_CHECK,
+  ROWS_NOT_WRITTEN, SETTLE_CHANGE, SETTLE_SPEC, answerDidNotParse, answerThem, batchIsDone, cannotBeRead, couldNotBeWritten,
+  everyBatch, fewerBatches, inventoryLine, namesNoId, noRoomForInventory, notInPack, planBlocked, planExists, planWritten,
+  recordsWorkDone, rendererDefect, reviewHead, reviewNotRun, runFromCheckout, stepIsTicked, tddLineTicked, titleNamesNoKind,
+  titleReadsDone, unreviewed,
+} from "./messages.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 export interface DevPlanInputs { source?: unknown; replace?: unknown }   // source: the token, null for none
@@ -46,8 +53,6 @@ export interface DevPlanDeps {
   precedents?: StepPrecedents;
 }
 export const PLAN_JSON = "plan.json";
-/** The last line of a plan ready to implement; `{command}` names the next step. */
-export const END_LINE = "→ Read and validate the plan. Then implement batch by batch: {command}";
 
 const MAX_SOURCE_TOKEN = 300;
 const MAX_WARNINGS = 5;
@@ -56,7 +61,6 @@ const LIST_CAP = 1000;
 const MIN_INVENTORY_CHARS = 2_000;
 /** Room kept for the problems of a re-ask when the inventory is sized to the prompt. */
 const REASK_RESERVE = 4_000;
-const GATE_OFF = "the host's permission gate is off; the reviewer was offered read tools only";
 
 const firstLine = (e: unknown): string => (e instanceof Error ? e.message : String(e)).split("\n")[0];
 const pad2 = (n: number): string => String(n).padStart(2, "0");
@@ -85,9 +89,9 @@ function placeOf(source: ResolvedSource): Place {
 function checkInputs(input: DevPlanInputs): { source: string | null; replace: boolean } | string {
   const { source, replace } = input;
   if (source !== undefined && source !== null && (typeof source !== "string" || source.length > MAX_SOURCE_TOKEN)) {
-    return "dev-plan: invalid crew input: source";
+    return BAD_INPUT_SOURCE;
   }
-  if (replace !== undefined && typeof replace !== "boolean") return "dev-plan: invalid crew input: replace";
+  if (replace !== undefined && typeof replace !== "boolean") return BAD_INPUT_REPLACE;
   const token = typeof source === "string" && source.trim() !== "" ? source.trim() : null;
   return { source: token, replace: replace === true };
 }
@@ -101,7 +105,7 @@ async function toplevelRefusal(shell: Pick<Shell, "run">): Promise<string | null
     top = "";
   }
   if (top === WORKSPACE) return null;
-  return `dev-plan: run from the checkout at ${WORKSPACE} (git reports ${top === "" ? "no work tree" : top})`;
+  return runFromCheckout(WORKSPACE, top);
 }
 
 function warningLines(warnings: readonly string[]): string[] {
@@ -125,17 +129,17 @@ function workDone(text: string, kind: "plan" | "sheet"): string | null {
   if (kind === "plan") {
     const plan = parseGlobalPlan(text);
     const done = plan.batches.find((b) => b.state.kind === "done");
-    if (done) return `batch ${done.id} is done`;
+    if (done) return batchIsDone(done.id);
     for (const b of plan.batches) {
       const box = b.steps.find((s) => s.done);
-      if (box) return `step ${box.number} of ${b.id} is ticked`;
+      if (box) return stepIsTicked(box.number, b.id);
     }
     return null;
   }
   const sheet = parseBatchSheet(text);
-  if (sheet.doneDate !== undefined) return `its title reads done (${sheet.doneDate})`;
+  if (sheet.doneDate !== undefined) return titleReadsDone(sheet.doneDate);
   const ticked = sheet.steps.find((s) => s.tdd !== null && (s.tdd.red || s.tdd.green || s.tdd.cost));
-  if (ticked) return `the TDD line of step ${ticked.number} is ticked`;
+  if (ticked) return tddLineTicked(ticked.number);
   return null;
 }
 
@@ -154,7 +158,7 @@ async function existingPlan(files: Files, place: Place, source: ResolvedSource, 
   if (!replace) {
     return {
       ok: false,
-      text: `dev-plan: ${place.shown(planName)} exists: /dev-plan ${source.code} --replace writes a new plan over it (nothing is merged)`,
+      text: planExists(place.shown(planName), source.code),
     };
   }
   const sheets: string[] = [];
@@ -164,13 +168,13 @@ async function existingPlan(files: Files, place: Place, source: ResolvedSource, 
     try {
       text = await files.read(place.vfs(a.name));
     } catch (e) {
-      return { ok: false, text: `dev-plan: ${place.shown(a.name)} cannot be read (${firstLine(e)}): nothing is replaced` };
+      return { ok: false, text: cannotBeRead(place.shown(a.name), firstLine(e)) };
     }
     const done = workDone(text, a.kind === "plan" ? "plan" : "sheet");
     if (done !== null) {
       return {
         ok: false,
-        text: `dev-plan: ${place.shown(a.name)} records work done (${done}): a started plan is never replaced; plan the rest as a new change`,
+        text: recordsWorkDone(place.shown(a.name), done),
       };
     }
     if (a.kind === "sheet") sheets.push(a.name);
@@ -194,7 +198,7 @@ async function askPlan(
     try {
       value = await deps.llm.extract(buildPlanPrompt(promptInput, problems), PLAN_ANSWER_SCHEMA);
     } catch (e) {
-      problems = [`the answer did not parse: ${firstLine(e)}`];
+      problems = [answerDidNotParse(firstLine(e))];
       continue;
     }
     const checked = checkPlanAnswer(value, checkCtx);
@@ -204,7 +208,7 @@ async function askPlan(
     const rendered = render(checked.value);
     const self = planSelfCheck({ plan: rendered.plan, sheets: rendered.sheets, sourceIds });
     if (!self.ok) {
-      deps.log.warn(`dev-plan: a checked answer rendered a plan that fails its self-check (a renderer defect): ${self.problems[0]}`);
+      deps.log.warn(rendererDefect(self.problems[0]));
       problems = self.problems;
       continue;
     }
@@ -243,7 +247,7 @@ function batchLines(rendered: RenderedPlan, answer: PlanAnswer): string[] {
 function nextCommand(answer: PlanAnswer, planShown: string, code: string): string {
   const first = `/dev-batches ${planShown} F1`;
   if (answer.batches.length < 2) return END_LINE.replace("{command}", first);
-  return END_LINE.replace("{command}", `${first}, or /dev-batches ${code} for every batch in their dependencies' order`);
+  return END_LINE.replace("{command}", everyBatch(first, code));
 }
 
 function reviewLines(review: ReviewAnswer): string[] {
@@ -257,16 +261,15 @@ function reviewLines(review: ReviewAnswer): string[] {
     places.add(r.target === "plan" ? "plan: § 4" : `${r.target}: under ## Decisions`);
   }
   return [
-    `review: ${review.verdict} — ${blocking} Blocking, ${majors} Major (${[...places].join("; ")})`,
+    reviewHead(review.verdict, blocking, majors, [...places].join("; ")),
     ...review.rows.map((r) => `  ${r.severity} ${r.target} — ${r.question} (${r.evidence})`),
   ];
 }
 
 function absentWarning(absent: readonly string[], planName: string, code: string): string[] {
   if (absent.length === 0) return [];
-  const where = absent.some((k) => k.startsWith("layout.")) ? "the Commands and Layout lines" : "the Commands line";
-  return [`${absent.join(", ")} not in the pack: fill them on ${where} of ${planName} § 1, or add them to ` +
-    `.orkeon/repo.yaml and run /dev-plan ${code} --replace`];
+  const where = absent.some((k) => k.startsWith("layout.")) ? BOTH_LINES : COMMANDS_LINE;
+  return [notInPack(absent.join(", "), where, planName, code)];
 }
 
 // ---- the run -----------------------------------------------------------------------
@@ -290,9 +293,9 @@ export async function runDevPlan(input: DevPlanInputs, deps: DevPlanDeps): Promi
   // 5. Blocking gate: nothing else is read.
   if (parsed.blocking.length > 0) return blockingStop(source.sourceShown, source.kind, source.code, parsed.blocking);
   // 6. Ids.
-  if (parsed.ids.length === 0) return `dev-plan: ${source.sourceShown} names no UC-, BR- or CH- id: nothing to trace`;
+  if (parsed.ids.length === 0) return namesNoId(source.sourceShown);
   if (source.kind === "change" && parsed.changeKind === undefined) {
-    return `dev-plan: ${source.sourceShown}: the title names no kind (bug, refactor or perf)`;
+    return titleNamesNoKind(source.sourceShown);
   }
   // 7. Existing plan.
   const place = placeOf(source);
@@ -328,8 +331,7 @@ export async function runDevPlan(input: DevPlanInputs, deps: DevPlanDeps): Promi
   const room = MAX_PLAN_PROMPT_CHARS - fixed - REASK_RESERVE;
   // Below the floor the prompt's cut would drop inventory lines the plan's check still counts as shown: refused.
   if (room < MIN_INVENTORY_CHARS) {
-    return `dev-plan: the prompt leaves no room for the inventory: its instructions, ids, commands and precedents take ${fixed} ` +
-      `of ${MAX_PLAN_PROMPT_CHARS} characters; nothing is written. Split the source, or run it again with fewer precedents.`;
+    return noRoomForInventory(fixed, MAX_PLAN_PROMPT_CHARS);
   }
   if (shownInventory.text.length > room) {
     shownInventory = renderInventory(inventory, room);
@@ -353,7 +355,7 @@ export async function runDevPlan(input: DevPlanInputs, deps: DevPlanDeps): Promi
   };
   const asked = await askPlan(deps, promptInput, checkCtx, (a) => renderPlan(renderInput(a, null)), sourceIds);
   if (!asked.ok) {
-    return ["dev-plan: the plan was refused twice; nothing is written.", ...problemLines(asked.problems)].join("\n");
+    return [REFUSED_TWICE, ...problemLines(asked.problems)].join("\n");
   }
   const { answer } = asked.planned;
   let rendered = asked.planned.rendered;
@@ -361,8 +363,7 @@ export async function runDevPlan(input: DevPlanInputs, deps: DevPlanDeps): Promi
   // 10b. A replace with fewer batches would leave stale sheets: refused before any write.
   if (existing.sheets.length > answer.batches.length) {
     const extra = existing.sheets.slice(answer.batches.length).map((n) => place.shown(n));
-    return `dev-plan: the new plan has ${answer.batches.length} batches and the previous one ${existing.sheets.length}; ` +
-      `Orkeon Code cannot delete a file: remove ${extra.join(", ")} by hand, then /dev-plan ${source.code} --replace. Nothing is written.`;
+    return fewerBatches(answer.batches.length, existing.sheets.length, extra.join(", "), source.code);
   }
 
   // 11. Write.
@@ -373,10 +374,10 @@ export async function runDevPlan(input: DevPlanInputs, deps: DevPlanDeps): Promi
     await writeOne(deps.files, place, PLAN_JSON, planJson(generated, source, inventory, answer, null));
   } catch (e) {
     const shown = e instanceof WriteFailure ? e.shown : "a file";
-    return `dev-plan: ${shown} could not be written (${firstLine(e)}); the files before it are written`;
+    return couldNotBeWritten(shown, firstLine(e));
   }
   const planShown = place.shown(rendered.plan.name);
-  deps.log.info(`dev-plan: ${planShown} and ${rendered.sheets.length} sheets written`);
+  deps.log.info(planWritten(planShown, rendered.sheets.length));
 
   // 12. Review.
   const warnings = [...ctx.warnings, ...inventory.warnings, ...absentWarning(repo.absent, rendered.plan.name, source.code)];
@@ -399,7 +400,7 @@ export async function runDevPlan(input: DevPlanInputs, deps: DevPlanDeps): Promi
   let review: ReviewAnswer | null = null;
   let reviewText: string[];
   if (!outcome.ok) {
-    reviewText = [`review: not run (${outcome.reason}: ${outcome.problems[0] ?? "no detail"})`];
+    reviewText = [reviewNotRun(outcome.reason, outcome.problems[0] ?? "no detail")];
   } else {
     review = outcome.value;
     reviewText = reviewLines(review);
@@ -409,9 +410,9 @@ export async function runDevPlan(input: DevPlanInputs, deps: DevPlanDeps): Promi
         const self = planSelfCheck({ plan: reviewed.plan, sheets: reviewed.sheets, sourceIds });
         if (!self.ok) {
           return [
-            `dev-plan: the reviewed plan fails its self-check; the files written before the review stay as they are.`,
+            REVIEWED_FAILS_SELF_CHECK,
             ...problemLines(self.problems),
-            "review rows that could not be written:",
+            ROWS_NOT_WRITTEN,
             ...review.rows.map((r) => `  ${r.severity} ${r.target} — ${r.question} (${r.evidence})`),
           ].join("\n");
         }
@@ -424,7 +425,7 @@ export async function runDevPlan(input: DevPlanInputs, deps: DevPlanDeps): Promi
       await writeOne(deps.files, place, PLAN_JSON, planJson(generated, source, inventory, answer, review));
     } catch (e) {
       const shown = e instanceof WriteFailure ? e.shown : "a file";
-      return `dev-plan: ${shown} could not be written (${firstLine(e)}); the files before it are written`;
+      return couldNotBeWritten(shown, firstLine(e));
     }
   }
 
@@ -434,20 +435,20 @@ export async function runDevPlan(input: DevPlanInputs, deps: DevPlanDeps): Promi
     `dev-plan: ${planShown} — ${plural(answer.batches.length, "batch", "batches")}, ${plural(sourceIds.length, "id", "ids")} traced (${ids})`,
     ...batchLines(rendered, answer),
     `files: ${[planShown, ...rendered.sheets.map((s) => s.name), PLAN_JSON].join(", ")}`,
-    `inventory: ${inventory.entries.length} entries from ${inventory.titlesSearched} titles (index ${inventory.index}, ${inventory.calls} calls)`,
+    inventoryLine(inventory.entries.length, inventory.titlesSearched, inventory.index, inventory.calls),
     ...reviewText,
     ...[precedentsLine([recalled])].filter((l) => l !== ""),
     ...warningLines(warnings),
   ];
   const blocking = review?.rows.filter((r) => r.severity === "Blocking").length ?? 0;
   if (blocking > 0) {
-    const settle = source.kind === "change" ? "the change brief: /dev-spec" : "the spec: /dev-spec";
+    const settle = source.kind === "change" ? SETTLE_CHANGE : SETTLE_SPEC;
     lines.push(
-      `dev-plan: the plan is blocked: ${plural(blocking, "Blocking question", "Blocking questions")} in ${planShown} § 4; every batch reads — blocked.`,
-      `→ Answer ${blocking === 1 ? "it" : "them"} in ${settle} ${source.code}${source.kind === "change" ? " <its kind>" : ""}, then /dev-plan ${source.code} --replace. Do not implement before.`,
+      planBlocked(plural(blocking, "Blocking question", "Blocking questions"), planShown),
+      answerThem(blocking === 1 ? "it" : "them", settle, source.code, source.kind === "change" ? " <its kind>" : ""),
     );
   } else if (!outcome.ok) {
-    lines.push(`→ The plan is written but unreviewed: read it closely before implementing, or /dev-plan ${source.code} --replace to plan and review again.`);
+    lines.push(unreviewed(source.code));
   } else {
     lines.push(nextCommand(answer, planShown, source.code));
   }

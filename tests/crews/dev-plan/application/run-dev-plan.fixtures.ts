@@ -16,7 +16,8 @@ import { ORKEON_IGNORE_PROBE, checkIgnoreCommand } from "../../../../src/shared/
 import { stepLabel } from "../../../../src/crews/dev-plan/domain/plan-answer.ts";
 import type { PlanAnswer } from "../../../../src/crews/dev-plan/domain/plan-answer.ts";
 import type { Inventory } from "../../../../src/crews/dev-plan/domain/inventory-model.ts";
-import { END_LINE, PLAN_JSON } from "../../../../src/crews/dev-plan/application/run-dev-plan.ts";
+import { END_LINE } from "../../../../src/crews/dev-plan/application/messages.ts";
+import { PLAN_JSON } from "../../../../src/crews/dev-plan/application/run-dev-plan.ts";
 import type { DevPlanInputs } from "../../../../src/crews/dev-plan/application/run-dev-plan.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 

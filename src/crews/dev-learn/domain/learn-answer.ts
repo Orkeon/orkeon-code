@@ -4,6 +4,11 @@
 import type { Checked } from "../../../shared/domain/agents/charter.ts";
 import type { CheckKind, MotifStatus, OwnerKind } from "../../../shared/domain/dev/learn-proposals.ts";
 import { MAX_TOPIC_CHARS, TOPIC_PATTERN } from "../../../shared/domain/shared-memory/refused.ts";
+import {
+  MOTIFS_MUST_BE_LIST, NOT_AN_OBJECT, SEEN_LINES_ONLY, addsLines, atProblem, checkIsOneOf, deployedCopy, droppedNeeds,
+  fieldEmpty, harnessOwnerUnder, lineLength, needsRemovedLine, ownerKindIs, ownerPathNotRelative, removesLines, rowNotGiven,
+  rowTwice, rowsEmpty, sameRows, statusIs, titleLength, tooManyMotifs, topicNotSlug,
+} from "./messages.ts";
 
 export { MAX_TOPIC_CHARS };
 
@@ -13,12 +18,8 @@ export const MAX_LINE_CHARS = 300;
 const MAX_TITLE_CHARS = 80;
 /** A title longer than this is cut in a label: its first LABEL_TITLE_CHARS characters, then an ellipsis. */
 export const LABEL_TITLE_CHARS = 60;
-const ADDS_LINES = `1 to ${MAX_LINES_PER_MOTIF} lines added and at most ${MAX_LINES_PER_MOTIF} removed`;
-const REMOVES_LINES = `removes takes out 1 to ${MAX_LINES_PER_MOTIF} lines and adds none`;
-/** Why a status other than new is refused on an answer given without owner lines: it copies a line it never saw. */
-export const SEEN_LINES_ONLY = (status: string): string =>
-  `${status} copies a line of its owner, and this answer was given without the owner lines: give status new, ` +
-  "or copy the line from the owner lines when they are shown";
+const ADDS_LINES = addsLines(MAX_LINES_PER_MOTIF);
+const REMOVES_LINES = removesLines(MAX_LINES_PER_MOTIF);
 
 export interface AnswerMotif {
   title: string; topic: string; rows: string[]; preventiveLine: string;
@@ -123,16 +124,16 @@ function checkMotif(
   const title = text(item.title);
   const at = motifLabel(k, title);
 
-  if (title === "" || chars(title) > MAX_TITLE_CHARS) problems.push(`${at}: title must be 1 to 80 characters`);
+  if (title === "" || chars(title) > MAX_TITLE_CHARS) problems.push(titleLength(at));
   const topic = text(item.topic);
-  if (!TOPIC_PATTERN.test(topic)) problems.push(`${at}: topic '${topic}' is not a kebab slug of at most ${MAX_TOPIC_CHARS} characters`);
+  if (!TOPIC_PATTERN.test(topic)) problems.push(topicNotSlug(at, topic, MAX_TOPIC_CHARS));
 
   const rows = Array.isArray(item.rows) ? item.rows.map(text) : [];
-  if (rows.length === 0) problems.push(`${at}: rows is empty`);
+  if (rows.length === 0) problems.push(rowsEmpty(at));
   const seen = new Set<string>();
   for (const id of rows) {
-    if (!shownIds.has(id)) problems.push(`${at}: row '${id}' is not one of the rows given`);
-    else if (seen.has(id)) problems.push(`${at}: row '${id}' is listed twice`);
+    if (!shownIds.has(id)) problems.push(rowNotGiven(at, id));
+    else if (seen.has(id)) problems.push(rowTwice(at, id));
     seen.add(id);
   }
 
@@ -140,25 +141,25 @@ function checkMotif(
   const novelty = text(item.novelty);
   const keyTerm = text(item.key_term);
   for (const [field, v] of [["preventive_line", preventiveLine], ["novelty", novelty], ["key_term", keyTerm]] as const) {
-    if (v === "") problems.push(`${at}: ${field} is empty`);
+    if (v === "") problems.push(fieldEmpty(at, field));
   }
 
   const kind = text(item.owner_kind) as OwnerKind;
   const path = typeof item.owner_path === "string" ? item.owner_path : "";
-  if (!OWNER_KINDS.includes(kind)) problems.push(`${at}: owner_kind must be repository or harness`);
+  if (!OWNER_KINDS.includes(kind)) problems.push(ownerKindIs(at));
   if (!isRelativePath(item.owner_path)) {
-    problems.push(`${at}: owner_path '${path}' is not a relative path`);
+    problems.push(ownerPathNotRelative(at, path));
   } else if (kind === "repository" && (path === ".claude" || path.startsWith(".claude/"))) {
-    problems.push(`${at}: .claude/ is the harness's deployed copy: name the orkeon-workshop file with owner_kind harness`);
+    problems.push(deployedCopy(at));
   } else if (kind === "harness" && !path.startsWith(HARNESS_PACKS)) {
-    problems.push(`${at}: a harness owner is a file of the orkeon-workshop repository under ${HARNESS_PACKS}`);
+    problems.push(harnessOwnerUnder(at, HARNESS_PACKS));
   }
 
   const check = text(item.check) as CheckKind;
-  if (!CHECK_KINDS.includes(check)) problems.push(`${at}: check must be one of ${CHECK_KINDS.join(", ")}`);
+  if (!CHECK_KINDS.includes(check)) problems.push(checkIsOneOf(at, CHECK_KINDS.join(", ")));
   const status = text(item.status) as MotifStatus;
-  if (!STATUSES.includes(status)) problems.push(`${at}: status must be new, refines, replaces or removes`);
-  else if (status !== "new" && !ownerLinesShown) problems.push(`${at}: ${SEEN_LINES_ONLY(status)}`);
+  if (!STATUSES.includes(status)) problems.push(statusIs(at));
+  else if (status !== "new" && !ownerLinesShown) problems.push(atProblem(at, SEEN_LINES_ONLY(status)));
 
   const removed = lines(item.lines_removed);
   const added = lines(item.lines_added);
@@ -175,10 +176,10 @@ function checkMotif(
     ...(Array.isArray(item.lines_removed) ? item.lines_removed : []),
   ];
   if (rawLines.some((l) => typeof l !== "string" || chars(l.trim()) > MAX_LINE_CHARS || /[\r\n]/.test(l.trim()))) {
-    problems.push(`${at}: each line is one line of at most 300 characters`);
+    problems.push(lineLength(at));
   }
   if ((status === "refines" || status === "replaces") && (removed ?? []).filter((l) => l !== "").length === 0) {
-    problems.push(`${at}: ${status} needs the line it removes`);
+    problems.push(needsRemovedLine(at, status));
   }
 
   if (problems.length > before) return undefined;
@@ -191,7 +192,7 @@ function checkMotif(
 function checkDropped(value: unknown, problems: string[]): AnswerDropped[] {
   if (value === undefined) return [];
   if (!Array.isArray(value)) {
-    problems.push("dropped 1: title, filter and reason are needed");
+    problems.push(droppedNeeds(1));
     return [];
   }
   const out: AnswerDropped[] = [];
@@ -201,7 +202,7 @@ function checkDropped(value: unknown, problems: string[]): AnswerDropped[] {
     const filter = text(item.filter) as AnswerDropped["filter"];
     const reason = text(item.reason);
     if (title === "" || reason === "" || !FILTERS.includes(filter)) {
-      problems.push(`dropped ${i + 1}: title, filter and reason are needed`);
+      problems.push(droppedNeeds(i + 1));
       return;
     }
     out.push({ title, filter, reason });
@@ -214,10 +215,10 @@ function checkDropped(value: unknown, problems: string[]): AnswerDropped[] {
 export function checkLearnAnswer(
   value: unknown, shownIds: ReadonlySet<string>, ownerLinesShown: boolean,
 ): Checked<LearnAnswer> {
-  if (!isPlainObject(value)) return { ok: false, problems: ["the answer is not an object"] };
-  if (!Array.isArray(value.motifs)) return { ok: false, problems: ["motifs must be a list"] };
+  if (!isPlainObject(value)) return { ok: false, problems: [NOT_AN_OBJECT] };
+  if (!Array.isArray(value.motifs)) return { ok: false, problems: [MOTIFS_MUST_BE_LIST] };
   const problems: string[] = [];
-  if (value.motifs.length > MAX_MOTIFS_PER_AXIS) problems.push(`at most 3 motifs, not ${value.motifs.length}`);
+  if (value.motifs.length > MAX_MOTIFS_PER_AXIS) problems.push(tooManyMotifs(value.motifs.length));
   const motifs: AnswerMotif[] = [];
   // A motif's id hashes its axis and its rows: two motifs of one set of rows would share it, and one decision.
   const rowSets = new Map<string, number>();
@@ -228,7 +229,7 @@ export function checkLearnAnswer(
     const key = [...motif.rows].sort().join(",");
     const first = rowSets.get(key);
     if (first === undefined) rowSets.set(key, i + 1);
-    else problems.push(`${motifLabel(i + 1, motif.title)}: the same rows as motif ${first}: merge them into one motif`);
+    else problems.push(sameRows(motifLabel(i + 1, motif.title), first));
   });
   const dropped = checkDropped(value.dropped, problems);
   return problems.length > 0 ? { ok: false, problems } : { ok: true, value: { motifs, dropped } };

@@ -6,10 +6,9 @@ import { decisionTable, questionTable } from "../../../shared/domain/dev/questio
 import type { Decision, Question } from "../../../shared/domain/dev/questions.ts";
 import { ruleId, useCaseId } from "./spec-answer.ts";
 import type { SpecAnswer } from "./spec-answer.ts";
+import { SPEC_COLUMNS, SPEC_DECISIONS_SECTION, SPEC_QUESTIONS_SECTION, SPEC_SECTIONS } from "./markers.ts";
 
 export const specFileName = (code: string): string => `SPEC-${code}.md`;
-export const SPEC_DECISIONS_SECTION = "## 13. Decisions";
-export const SPEC_QUESTIONS_SECTION = "## 12. Open questions";
 
 export interface SpecRenderInput { code: string; answer: SpecAnswer; open: readonly Question[]; decisions: readonly Decision[] }
 
@@ -53,22 +52,22 @@ export function renderSpec(input: SpecRenderInput): string {
   const a = input.answer;
   const lines: string[] = [`# ${input.code} — ${a.name}`, ""];
   if (a.summary !== "") lines.push(...a.summary.split(/\r?\n/).map((l) => `> ${l}`.trimEnd()), "");
-  lines.push(...section("## 1. Context", [a.context]));
-  lines.push(...section("## 2. Vocabulary", table(["Term", "Definition"], a.vocabulary.map((v) => [v.term, v.definition]))));
-  lines.push(...section("## 3. Overview", a.overview === "" ? [] : ["```mermaid", a.overview, "```"]));
-  lines.push("## 4. Use cases", "", ...useCaseBlock(a));
-  if (a.rules.length > 0) lines.push("## 5. Business rules", "", ...ruleBlock(a));
-  lines.push(...section("## 6. Data", table(
-    ["Datum", "Description", "Source", "Importance"], a.data.map((d) => [d.datum, d.description, d.source, d.importance]),
+  lines.push(...section(SPEC_SECTIONS.context, [a.context]));
+  lines.push(...section(SPEC_SECTIONS.vocabulary, table(SPEC_COLUMNS.vocabulary, a.vocabulary.map((v) => [v.term, v.definition]))));
+  lines.push(...section(SPEC_SECTIONS.overview, a.overview === "" ? [] : ["```mermaid", a.overview, "```"]));
+  lines.push(SPEC_SECTIONS.useCases, "", ...useCaseBlock(a));
+  if (a.rules.length > 0) lines.push(SPEC_SECTIONS.rules, "", ...ruleBlock(a));
+  lines.push(...section(SPEC_SECTIONS.data, table(
+    SPEC_COLUMNS.data, a.data.map((d) => [d.datum, d.description, d.source, d.importance]),
   )));
-  lines.push(...section("## 7. States and transitions", table(
-    ["State", "Event", "Next state", "Condition"], a.states.map((s) => [s.state, s.event, s.next, s.condition]),
+  lines.push(...section(SPEC_SECTIONS.states, table(
+    SPEC_COLUMNS.states, a.states.map((s) => [s.state, s.event, s.next, s.condition]),
   )));
-  lines.push(...section("## 8. Cross-cutting behaviours", a.crossCutting.map((c) => `- ${sentence(c)}`)));
-  lines.push(...section("## 9. Relations", table(["Upstream", "Downstream"], a.relations.map((r) => [r.upstream, r.downstream]))));
-  lines.push(...section("## 10. Out of scope", table(["Exclusion", "Reason"], a.outOfScope.map((r) => [r.exclusion, r.reason]))));
-  lines.push(...section("## 11. Assumptions", table(
-    ["#", "Assumption", "To be validated by"], a.assumptions.map((r, i) => [`A${i + 1}`, r.assumption, r.validatedBy]),
+  lines.push(...section(SPEC_SECTIONS.crossCutting, a.crossCutting.map((c) => `- ${sentence(c)}`)));
+  lines.push(...section(SPEC_SECTIONS.relations, table(SPEC_COLUMNS.relations, a.relations.map((r) => [r.upstream, r.downstream]))));
+  lines.push(...section(SPEC_SECTIONS.outOfScope, table(SPEC_COLUMNS.outOfScope, a.outOfScope.map((r) => [r.exclusion, r.reason]))));
+  lines.push(...section(SPEC_SECTIONS.assumptions, table(
+    SPEC_COLUMNS.assumptions, a.assumptions.map((r, i) => [`A${i + 1}`, r.assumption, r.validatedBy]),
   )));
   lines.push(...section(SPEC_QUESTIONS_SECTION, questionTable(input.open)));
   lines.push(...section(SPEC_DECISIONS_SECTION, decisionTable(input.decisions)));

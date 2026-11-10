@@ -30,6 +30,7 @@ import {
 } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { runDevLearn } from "./application/run-dev-learn.ts";
+import { LEARNER_GOAL } from "./application/messages.ts";
 
 const ports = { shell: orkeonShell(), files: orkeonFiles(), config: orkeonConfigStore(), human: orkeonHumanInput() };
 
@@ -38,7 +39,7 @@ const learner = orkeonAgent()
   .role("Recurring-gap analyst")
   // NO tools on purpose: one extract per axis, and every row it judges is in the prompt.
   .tools([])
-  .goal("Turn the gaps that audits keep finding into a few preventive lines, each with its owner file.")
+  .goal(LEARNER_GOAL)
   .body(async (_input: any, ctx: any) =>
     await runDevLearn(inputs(), { ...ports, llm: createLlm(ctx.llm), log: ctx.log, clock: orkeonClock() }))
   .build();

@@ -41,6 +41,7 @@ import { instanceLimits } from "../../shared/domain/agents/instances.ts";
 import { providerEffort } from "../../shared/domain/agent-policy/behavior-flags.ts";
 import { REVIEWER_CHARTER } from "../../shared/domain/dev/reviewer-charter.ts";
 import { runDevPlan } from "./application/run-dev-plan.ts";
+import { PLANNER_GOAL, REVIEW_TASK } from "./application/messages.ts";
 import { STEP_BUDGETS } from "../../shared/domain/dev/step-budget.ts";
 import { stepPrecedents } from "../../shared/application/dev/step-precedents.ts";
 
@@ -74,7 +75,7 @@ const reviewer = () => {
 const planner = orkeonAgent()
   .name("dev-planner")
   .role("Technical planner")
-  .goal("Turn a settled specification or change brief into batches a test-first implementation can follow")
+  .goal(PLANNER_GOAL)
   // The catalogue is the reviewer's: read tools only, for the inline review on a host without background
   // children. The plan itself is an extract call, which offers none.
   .tools(charterCatalogue(REVIEWER_CHARTER))
@@ -85,7 +86,7 @@ const planner = orkeonAgent()
     const child = openChildAct(
       createLlm(ctx.llm, callbacksFor(ctx), { effort }), ctx, crew, { state: session, clock, log: ctx.log, effort },
       { crew: "dev-plan", step: "dev-plan" },
-      { agent: REVIEWER_CHARTER.name, charter: REVIEWER_CHARTER.name, task: "review of the plan", builder: reviewer },
+      { agent: REVIEWER_CHARTER.name, charter: REVIEWER_CHARTER.name, task: REVIEW_TASK, builder: reviewer },
     );
     try {
       // T2: the shared memory's precedents in the planner's prompt, unless memory_recall is denied.

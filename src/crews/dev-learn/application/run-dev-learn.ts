@@ -37,6 +37,12 @@ import { MAX_LEARN_PROMPT_CHARS, buildLearnPrompt } from "./prompts.ts";
 import type { LearnPromptInput } from "./prompts.ts";
 import { readBacklog } from "./learn-backlog.ts";
 import type { Backlog } from "./learn-backlog.ts";
+import {
+  AXIS_TABLE_HEADER, BAD_INPUT_AXIS, BAD_INPUT_LIST, NOTHING_TO_DECIDE, NOTHING_UNTREATED, NOT_IN_WORK_TREE, REFUSED_IN_HARNESS,
+  REFUSE_EACH, REMOVED_LINE_KEPT, answerDidNotParse, axisUnchanged, blockedCannotWrite, decideQuestion, learnHead,
+  motifsProposed, noAxisEligible, noMotifKept, noProposalOnAxis, noWorkFolder, notAtTop, nothingUntreatedOnAxis,
+  proposalsWritten, underThreeBatches, workFolderOutsideMounts,
+} from "./messages.ts";
 import { WORKSPACE, workspaceRelative } from "../../../shared/domain/vfs.ts";
 
 export interface DevLearnInputs { axis?: unknown; list?: unknown }
@@ -88,11 +94,11 @@ function checkInputs(input: DevLearnInputs): Checked | string {
   let checkedAxis: string | null = null;
   if (axis !== undefined && axis !== null) {
     if (typeof axis !== "string" || axis.length < 1 || axis.length > 40 || /[|\r\n]/.test(axis)) {
-      return "dev-learn: bad input axis";
+      return BAD_INPUT_AXIS;
     }
     checkedAxis = axis;
   }
-  if (list !== undefined && typeof list !== "boolean") return "dev-learn: bad input list";
+  if (list !== undefined && typeof list !== "boolean") return BAD_INPUT_LIST;
   return { axis: checkedAxis, list: list === true };
 }
 
@@ -100,15 +106,15 @@ async function toplevelRefusal(shell: Pick<Shell, "run">): Promise<string | null
   let top: string;
   try {
     const r = await shell.run(GIT_TOPLEVEL);
-    if (r.exitCode !== 0) return "dev-learn: not inside a git work tree";
+    if (r.exitCode !== 0) return NOT_IN_WORK_TREE;
     top = r.stdout.trim();
   } catch {
-    return "dev-learn: not inside a git work tree";
+    return NOT_IN_WORK_TREE;
   }
-  if (top === "") return "dev-learn: not inside a git work tree";
+  if (top === "") return NOT_IN_WORK_TREE;
   return top === WORKSPACE
     ? null
-    : `dev-learn: the git work tree is ${top}, not ${WORKSPACE}: run Orkeon Code at the top of the repository`;
+    : notAtTop(top, WORKSPACE);
 }
 
 function warningLines(warnings: readonly string[]): string[] {
@@ -126,10 +132,10 @@ function batchesOf(rows: readonly LearnRow[]): string[] {
 }
 
 function headLine(work: WorkFolder, packShown: string | null, backlog: Backlog): string {
-  return `dev-learn — work folder ${workFolderLabel(work, packShown)} — ${backlog.untreated.length} untreated gaps across ` +
-    `${batchesOf(backlog.untreated).length} batches in ${backlog.files} verdict files (treated: ` +
-    `${backlog.orkeon.treated.length} by Orkeon Code, ${backlog.harness.treated.length} by the harness; ` +
-    `refused motifs: ${refusedCount(backlog)})`;
+  return learnHead(
+    workFolderLabel(work, packShown), backlog.untreated.length, batchesOf(backlog.untreated).length, backlog.files,
+    backlog.orkeon.treated.length, backlog.harness.treated.length, refusedCount(backlog),
+  );
 }
 
 // ---- --list ----
@@ -142,11 +148,11 @@ function axisTableLine(a: AxisBacklog): string {
 function listLines(backlog: Backlog, axes: readonly AxisBacklog[], axis: string | null): string[] {
   if (axis !== null) {
     const rows = axes.flatMap((a) => a.rows);
-    return rows.length === 0 ? [`dev-learn: nothing untreated on axis ${axis}`] : axisListing(rows);
+    return rows.length === 0 ? [nothingUntreatedOnAxis(axis)] : axisListing(rows);
   }
   const out = axes.length === 0
-    ? ["dev-learn: nothing untreated"]
-    : ["", "axis             gaps batches blocking", ...axes.map(axisTableLine)];
+    ? [NOTHING_UNTREATED]
+    : ["", AXIS_TABLE_HEADER, ...axes.map(axisTableLine)];
   const refused = [
     ...backlog.refused.map((m) => `- ${m.topic} — ${m.motif}`),
     ...backlog.harness.refused.map((t) => `- ${t} (harness)`),
@@ -259,7 +265,7 @@ async function ask(
       value = await llm.extract(buildLearnPrompt(input, problems, blocks), LEARN_ANSWER_SCHEMA);
     } catch (error) {
       if (first !== null) return { ok: true, answer: first };
-      problems = [`the answer did not parse: ${reasonOf(error)}`];
+      problems = [answerDidNotParse(reasonOf(error))];
       continue;
     }
     const checked = checkLearnAnswer(value, shownIds, blocks.some((b) => b.lines.length > 0));
@@ -309,12 +315,12 @@ function filterMotifs(
       continue;
     }
     if (harnessTexts.some((t) => foldText(t.trim()) === foldText(motif.title) || topicOf(t) === motif.topic)) {
-      dropped.push({ title: motif.title, filter: "novelty", reason: "refused in the harness's state" });
+      dropped.push({ title: motif.title, filter: "novelty", reason: REFUSED_IN_HARNESS });
       continue;
     }
     const linesRemoved = motif.linesRemoved.filter((l) => !keptLines.includes(foldText(l.trim())));
     if (motif.status !== "new" && linesRemoved.length === 0) {
-      dropped.push({ title: motif.title, filter: "novelty", reason: "its removed line is kept (harness refusal)" });
+      dropped.push({ title: motif.title, filter: "novelty", reason: REMOVED_LINE_KEPT });
       continue;
     }
     kept.push({ motif: { ...motif, linesRemoved }, batches, k: i + 1 });
@@ -376,12 +382,12 @@ function settleIds(axes: AxisProposal[]): void {
 }
 
 function axisOutcomeLine(a: AxisProposal): string {
-  if (a.outcome === "unchanged") return `axis ${a.axis} — unchanged since ${a.reason ?? "an earlier run"}: no call`;
+  if (a.outcome === "unchanged") return axisUnchanged(a.axis, a.reason);
   const head = `axis ${a.axis} — ${a.batches} batches: `;
   if (a.outcome === "proposed") {
-    return `${head}${a.motifs.length} motifs proposed (${a.motifs.map((m) => m.id).join(", ")}), ${a.dropped.length} dropped`;
+    return motifsProposed(head, a.motifs.length, a.motifs.map((m) => m.id).join(", "), a.dropped.length);
   }
-  if (a.outcome === "no-motif") return `${head}no motif kept, ${a.dropped.length} dropped`;
+  if (a.outcome === "no-motif") return noMotifKept(head, a.dropped.length);
   return `${head}no proposal (${a.reason ?? "no answer"})`;
 }
 
@@ -404,8 +410,7 @@ async function askDecisions(
     if (axis.motifs.length === 0) continue;
     const byOption = new Map(axis.motifs.map((m) => [motifOption(m), m.id]));
     const answer = await human.multi(
-      `dev-learn — axis ${axis.axis}: select the motifs to accept; the others are refused. ` +
-        `Decide later, or nothing selected, decides nothing (read ${shown} first)`,
+      decideQuestion(axis.axis, shown),
       [...byOption.keys()],
     );
     if (!answer.answered) continue;
@@ -429,11 +434,11 @@ export async function runDevLearn(input: DevLearnInputs, deps: DevLearnDeps): Pr
   const work = ctx.work;
   if (work.vfsPath === null) {
     return [...warningLines(ctx.warnings),
-      `dev-learn: the work folder ${work.folder} is in the main worktree, outside the mounts: run /dev-learn from the main checkout`,
+      workFolderOutsideMounts(work.folder),
     ].join("\n");
   }
   if (!work.exists) {
-    return [...warningLines(ctx.warnings), `dev-learn: no work folder ${work.folder}/: nothing to learn from`].join("\n");
+    return [...warningLines(ctx.warnings), noWorkFolder(work.folder)].join("\n");
   }
 
   // refused.md under memory.dir, as /memory-admit and memory_push read it; a value set aside is said.
@@ -450,11 +455,11 @@ export async function runDevLearn(input: DevLearnInputs, deps: DevLearnDeps): Pr
   const eligible = axes.filter((a) => a.batches.length >= MIN_MOTIF_BATCHES);
   if (args.axis !== null && eligible.length === 0) {
     const b = axes[0]?.batches.length ?? 0;
-    return done(`axis ${axes[0]?.axis ?? wanted} — ${b} batches, under the 3 a motif needs: nothing to propose`);
+    return done(underThreeBatches(`${axes[0]?.axis ?? wanted}`, b));
   }
   if (eligible.length === 0) {
     const named = axes.slice(0, MAX_AXES_NAMED).map((a) => `${a.axis} ${a.batches.length}`).join(", ");
-    return done(`dev-learn: no axis has untreated gaps in 3 batches or more (${named === "" ? "none" : named}): nothing written`);
+    return done(noAxisEligible(named === "" ? "none" : named));
   }
 
   const handled = eligible.slice(0, MAX_AXES_PER_RUN);
@@ -487,7 +492,7 @@ export async function runDevLearn(input: DevLearnInputs, deps: DevLearnDeps): Pr
     if (!asked.ok) {
       proposal.outcome = "no-proposal";
       proposal.reason = asked.problem;
-      deps.log.warn(`dev-learn: axis ${entry.axis}: no proposal (${asked.problem})`);
+      deps.log.warn(noProposalOnAxis(entry.axis, asked.problem));
       continue;
     }
     const { kept, dropped } = filterMotifs(asked.answer, rowsById, backlog);
@@ -528,9 +533,9 @@ export async function runDevLearn(input: DevLearnInputs, deps: DevLearnDeps): Pr
   } catch (error) {
     if (!(error instanceof WriteFailure)) throw error;
     const shown = workspaceRelative(error.path);
-    return done(`dev-learn: BLOCKED — ${shown} cannot be written (${error.message})`);
+    return done(blockedCannotWrite(shown, error.message));
   }
-  deps.log.info(`dev-learn: proposals written to ${work.folder}/${folder}/`);
+  deps.log.info(proposalsWritten(`${work.folder}/${folder}`));
 
   const lines = proposals.map(axisOutcomeLine);
   if (left.length > 0) lines.push(`next run: ${left.map((a) => a.axis).join(", ")}`);
@@ -544,10 +549,10 @@ export async function runDevLearn(input: DevLearnInputs, deps: DevLearnDeps): Pr
   if (ids.length > 0) {
     lines.push(
       `→ /dev-learn --accept ${ids.join(",")}`,
-      "  or /dev-learn --refuse <id> for each one you reject — read the lines first in PROPOSALS.md",
+      REFUSE_EACH,
     );
   } else if (decided.ids.size === 0) {
-    lines.push("→ nothing to decide: the axes return once new gaps arrive");
+    lines.push(NOTHING_TO_DECIDE);
   }
   return done(...lines);
 }

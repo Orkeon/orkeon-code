@@ -3,6 +3,7 @@
 // its lines), and the commands that decide. The file is read by people; proposals.json
 // beside it is the source the decisions read. Pure, no IO.
 import type { AxisProposal, Motif, ProposalsFile } from "../../../shared/domain/dev/learn-proposals.ts";
+import { MOTIF_TABLE_HEADER, NOTHING_TO_DECIDE, NO_MOTIF_KEPT, noProposal, notShown, proposalsHead, unchangedSince } from "./messages.ts";
 
 const TITLE_CELL = 80;
 const RECONCILE_CELL = 160;
@@ -45,17 +46,16 @@ function motifBlock(m: Motif): string[] {
 }
 
 function outcomeLine(a: AxisProposal): string {
-  if (a.outcome === "no-motif") return "No motif kept.";
-  if (a.outcome === "no-proposal") return `No proposal: the answer did not parse after one re-ask (${a.reason ?? "no reason given"}).`;
-  return `Unchanged since ${a.reason ?? "an earlier run"}: not asked again.`;
+  if (a.outcome === "no-motif") return NO_MOTIF_KEPT;
+  if (a.outcome === "no-proposal") return noProposal(a.reason);
+  return unchangedSince(a.reason);
 }
 
 function axisSection(a: AxisProposal): string[] {
   const out = [`## ${a.axis} — ${a.batches} batches, ${a.gaps} gaps`, ""];
   if (a.outcome === "proposed") {
     out.push(
-      "| Id | Motif | Batches | Status | Owner | Check | Reconcile |",
-      "|----|-------|---------|--------|-------|-------|-----------|",
+      ...MOTIF_TABLE_HEADER,
       ...a.motifs.map(tableRow),
     );
   } else {
@@ -63,7 +63,7 @@ function axisSection(a: AxisProposal): string[] {
   }
   const notes = [
     ...a.dropped.map((d) => `Dropped: ${d.title} — ${d.filter}: ${d.reason}`),
-    ...(a.hiddenRows > 0 ? [`Not shown to the model: ${a.hiddenRows} gaps (cap ${ROWS_CAP})`] : []),
+    ...(a.hiddenRows > 0 ? [notShown(a.hiddenRows, ROWS_CAP)] : []),
   ];
   if (notes.length > 0) out.push("", ...notes);
   if (a.outcome === "proposed") for (const m of a.motifs) out.push("", ...motifBlock(m));
@@ -72,7 +72,7 @@ function axisSection(a: AxisProposal): string[] {
 
 function decideSection(file: ProposalsFile): string[] {
   const ids = file.axes.flatMap((a) => (a.outcome === "proposed" ? a.motifs.map((m) => m.id) : []));
-  if (ids.length === 0) return ["## Decide", "", "Nothing to decide."];
+  if (ids.length === 0) return ["## Decide", "", NOTHING_TO_DECIDE];
   return [
     "## Decide", "",
     `${FENCE}text`,
@@ -87,8 +87,7 @@ export function renderProposals(file: ProposalsFile): string {
   const lines = [
     `# Learn proposals — ${file.date}`,
     "",
-    `Work folder \`${file.work}\`: ${r.gaps} untreated gaps across ${r.batches} batches in ${r.files} verdict files. ` +
-      `Treated before: ${r.treatedOrkeon} by Orkeon Code, ${r.treatedHarness} by the harness. Refused motifs: ${r.refused}.`,
+    proposalsHead(file.work, r.gaps, r.batches, r.files, r.treatedOrkeon, r.treatedHarness, r.refused),
   ];
   for (const a of file.axes) lines.push("", ...axisSection(a));
   lines.push("", ...decideSection(file));

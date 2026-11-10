@@ -6,6 +6,7 @@
 import type { Files } from "../../../shared/application/ports.ts";
 import { stepLabel } from "../domain/plan-answer.ts";
 import type { AnchorRef, PlanAnswer } from "../domain/plan-answer.ts";
+import { anchorPathColon, doesNotExist, existsAnchorIt, notCheckedEntries, notCheckedFolders } from "../domain/messages.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 export const MAX_ANCHOR_FOLDERS = 40;
@@ -54,18 +55,18 @@ export async function checkAnchorPaths(
         const at = stepLabel(batch, k, j);
         let problem: string | null = null;
         if (path.includes(":")) {
-          problem = `${at}: anchor path "${path}" holds ":"`;
+          problem = anchorPathColon(at, path);
         } else {
           const names = await listing(folderOf(path));
           if (names === null) {
-            if (a.kind === "existing") problem = `${at}: anchor "${path}" not checked: more than ${MAX_ANCHOR_FOLDERS} folders`;
+            if (a.kind === "existing") problem = notCheckedFolders(at, path, MAX_ANCHOR_FOLDERS);
           } else {
             const present = names.has(nameOf(path));
             // A listing the cap cut short may leave the name out: that is no proof it is absent.
             if (a.kind === "existing" && !present && names.size >= LIST_CAP) {
-              problem = `${at}: anchor "${path}" not checked: its folder lists more than ${LIST_CAP} entries`;
-            } else if (a.kind === "existing" && !present) problem = `${at}: ${path} does not exist`;
-            if (a.kind === "create" && present) problem = `${at}: ${path} exists: anchor it as existing, or by its ref`;
+              problem = notCheckedEntries(at, path, LIST_CAP);
+            } else if (a.kind === "existing" && !present) problem = doesNotExist(at, path);
+            if (a.kind === "create" && present) problem = existsAnchorIt(at, path);
           }
         }
         if (problem !== null && !seen.has(problem)) { seen.add(problem); problems.push(problem); }

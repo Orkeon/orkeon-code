@@ -10,7 +10,8 @@ import { FakePrecedents, PRECEDENTS_SAMPLE } from "../../../support/doubles/fake
 
 import { parseDecisions, parseOpenQuestions } from "../../../../src/shared/domain/dev/questions.ts";
 import { parsePlanSource } from "../../../../src/shared/domain/dev/spec-format.ts";
-import { DEV_CHANGE_NEXT, FEATURE_LINE, knownIn, runDevChange } from "../../../../src/crews/dev-change/application/run-dev-change.ts";
+import { knownIn, runDevChange } from "../../../../src/crews/dev-change/application/run-dev-change.ts";
+import { DEV_CHANGE_NEXT, FEATURE_LINE } from "../../../../src/crews/dev-change/application/messages.ts";
 import { REPRO_TIMEOUT_SECONDS, issueCommand } from "../../../../src/crews/dev-change/application/evidence.ts";
 import {
   BRIEF, CLEAR, CMD, CODE, ISSUE_42, KNOWN_BY_NAME, KNOWN_INDEX, OTHER_CLASSES, PACK, PARTS_OF_NAMES, PERF_ANSWER, REPRO,

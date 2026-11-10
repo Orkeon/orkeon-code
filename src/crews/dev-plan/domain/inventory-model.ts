@@ -3,6 +3,7 @@
 // the planner's prompt shows. Only an entry shown can become an anchor. The searches
 // themselves live in the application (inventory.ts); nothing here reads the index.
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
+import { INVENTORY_EMPTY, entriesLeftOut } from "./prompts.ts";
 
 export type InventoryLayer = "domain" | "application" | "infrastructure" | "tests" | "other";
 export interface InventoryEntry {
@@ -31,7 +32,6 @@ export const INVENTORY_CAPS = {
 
 const TOP = `${WORKSPACE}/`;
 const ALWAYS_EXCLUDED = [".claude", ".orkeon", "node_modules", ".git"];
-const EMPTY = "(the code index holds no symbol for these titles)";
 const DECLARATION = /\b(function|class|interface|type|enum|const|let|var|def|struct|record|trait|module|namespace|method)\b/;
 
 const asPrefix = (folder: string): string => {
@@ -78,7 +78,7 @@ function entryLine(e: InventoryEntry, lineChars: number): string {
 /** The lines the prompt shows, and the refs shown; entries past `maxChars` are counted, not shown. */
 export function renderInventory(inv: Inventory, maxChars: number): { text: string; shown: Set<string> } {
   const shown = new Set<string>();
-  if (inv.entries.length === 0) return { text: EMPTY, shown };
+  if (inv.entries.length === 0) return { text: INVENTORY_EMPTY, shown };
   const lines: string[] = [];
   let used = 0;
   for (const e of inv.entries) {
@@ -90,6 +90,6 @@ export function renderInventory(inv: Inventory, maxChars: number): { text: strin
     used += cost;
   }
   const left = inv.entries.length - lines.length;
-  if (left > 0) lines.push(`… ${left} entries left out: they cannot be anchors`);
+  if (left > 0) lines.push(entriesLeftOut(left));
   return { text: lines.join("\n"), shown };
 }

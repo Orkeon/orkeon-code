@@ -8,6 +8,18 @@
 import type { Checked } from "../../../shared/domain/agents/charter.ts";
 import { DESIGN_RULE_IDS } from "../../../shared/domain/dev/design-rules.ts";
 import type { ChangeKind, SourceKind } from "../../../shared/domain/dev/spec-format.ts";
+import { BUILD_STEP } from "../../../shared/domain/dev/markers.ts";
+import {
+  ANCHOR_KINDS, DESIGN_RULE_ID, ELEMENT_LAYERS, FEATURE_EMPTY, LAYERS_EMPTY, NOT_AN_OBJECT, TEST_LEVELS, anchorNeedsPath,
+  anchorNotShown, anchorPathColon, appliedAndNa, batchCount, cannotBeAnchored, docsAndCode, elementHoldsBody, elementTooLong,
+  featureTooLong, fieldEmpty, holdsBreak, holdsCodeBreak, holdsLabel, inInventory, memberIsNot, missingOrNot, moreProblems,
+  naTwice, naWithoutReason, nameEmpty, nameRepeats, nameTooLong, namesNoId, neitherAppliedNorNa, noCharacterisation,
+  noCodeElement, noCodeOwner, noProductionAnchor, noTest, noTestAnchor, noTestCarries, notBatchOfPlan, notDesignRuleId,
+  notEarlierBatch, notInFirstStep, notSourceId, notUnpinnedRow, ownerIsPath, pinnedNotInPlan, projectEmpty, refAnchorNeedsRef,
+  reuseNotShown, shareUnordered, startsWithMarker, stepCount, titleEmpty, titleIsBuildStep, titleRepeats, titleTooLong,
+  traceNotSourceId, traceTwice,
+} from "./messages.ts";
+import { PLAN_FIELDS } from "./prompts.ts";
 
 export type TestLevel = "unit" | "integration" | "pinned";
 export type ElementLayer = "domain" | "application" | "adapter" | "test";
@@ -64,7 +76,6 @@ export const MAX_TEST_NAME = 120;
 export const MAX_SIGNATURE = 200;
 export const MAX_FEATURE = 80;
 export const MIN_NA_REASON = 10;
-const BUILD_STEP = "Build and tests";
 const LEVELS: readonly TestLevel[] = ["unit", "integration", "pinned"];
 const LAYERS: readonly ElementLayer[] = ["domain", "application", "adapter", "test"];
 const KINDS: readonly AnchorKind[] = ["ref", "create", "existing"];
@@ -103,73 +114,71 @@ const ANCHOR = {
 const ANCHORS = listOf(ANCHOR);
 
 export const PLAN_ANSWER_SCHEMA: object = objectOf({
-  feature: text(`Max ${MAX_FEATURE} chars`),
-  layers: texts("Folders touched"),
-  reuse: texts("I<n> refs alone"),
+  feature: text(PLAN_FIELDS.feature(MAX_FEATURE)),
+  layers: texts(PLAN_FIELDS.layers),
+  reuse: texts(PLAN_FIELDS.reuse),
   outOfScope: STRINGS,
-  assumptions: texts("Assumed, never an open question answered"),
+  assumptions: texts(PLAN_FIELDS.assumptions),
   nonApplicable: listOf(objectOf({
     id: { type: "string", enum: [...DESIGN_RULE_IDS] },
-    reason: text(`Stands alone, min ${MIN_NA_REASON} chars`),
-  }), "Rules no batch applies"),
+    reason: text(PLAN_FIELDS.naReason(MIN_NA_REASON)),
+  }), PLAN_FIELDS.nonApplicable),
   traceability: listOf(objectOf({
     id: STRING,
-    owners: texts("Type or member names, never a path"),
-  }), "One row per source id"),
+    owners: texts(PLAN_FIELDS.owners),
+  }), PLAN_FIELDS.traceability),
   design: listOf(objectOf({
-    ids: texts("Source UC/BR/CH ids"),
+    ids: texts(PLAN_FIELDS.designIds),
     aggregate: STRING,
     invariant: STRING,
     consistency: STRING,
-    batch: said({ type: "integer" }, "1-based batch"),
+    batch: said({ type: "integer" }, PLAN_FIELDS.designBatch),
   })),
   batches: listOf(objectOf({
     name: STRING,
-    intent: text("What it delivers"),
-    reason: text("Why it is cut here"),
-    documentation: said({ type: "boolean" }, "Docs alone, no code"),
-    dependsOn: texts("F<n> of earlier batches, n its place from 1"),
+    intent: text(PLAN_FIELDS.intent),
+    reason: text(PLAN_FIELDS.reason),
+    documentation: said({ type: "boolean" }, PLAN_FIELDS.documentation),
+    dependsOn: texts(PLAN_FIELDS.dependsOn),
     design: objectOf({
       appliedRules: STRINGS,
       aggregate: STRING,
       invariants: STRING,
       consistency: STRING,
       events: STRING,
-      accessCost: text("Storage or network reached"),
-    }, "All written; a sentence if none applies"),
-    decisions: texts("Choices made, why"),
-    declarative: texts("Pure declarations, no test of their own"),
+      accessCost: text(PLAN_FIELDS.accessCost),
+    }, PLAN_FIELDS.batchDesign),
+    decisions: texts(PLAN_FIELDS.decisions),
+    declarative: texts(PLAN_FIELDS.declarative),
     steps: listOf(objectOf({
-      title: text(`Behaviour, max ${MAX_TITLE} chars`),
+      title: text(PLAN_FIELDS.stepTitle(MAX_TITLE)),
       tests: listOf(objectOf({
-        name: text(`As the repository names tests, unique, max ${MAX_TEST_NAME} chars`),
-        level: said({ type: "string", enum: [...LEVELS] }, "pinned: one the brief pins"),
+        name: text(PLAN_FIELDS.testName(MAX_TEST_NAME)),
+        level: said({ type: "string", enum: [...LEVELS] }, PLAN_FIELDS.level),
         project: STRING,
-        ids: texts("UC/BR/CH ids it proves"),
-        covers: texts("U<n> rows characterised"),
+        ids: texts(PLAN_FIELDS.testIds),
+        covers: texts(PLAN_FIELDS.covers),
       })),
-      note: text("Empty or 2 lines: merged cycle, container"),
+      note: text(PLAN_FIELDS.note),
       anchors: objectOf({
         tests: ANCHORS,
         doubles: ANCHORS,
         production: ANCHORS,
-      }, "Files filled or created. kind ref: a shown entry, I<n> in ref; create: a new file, existing: an unindexed one, " +
-        "both by relative path; member: the one filled, omitted if new"),
-    }), "Behaviour steps; code adds the build"),
-    buildScope: text("Scope of the build step code adds"),
+      }, PLAN_FIELDS.anchors),
+    }), PLAN_FIELDS.steps),
+    buildScope: text(PLAN_FIELDS.buildScope),
     testPolicy: objectOf({
       fast: STRING,
       integration: STRING,
-      notRun: text("Not run, why"),
-    }, "Sheet test policy, a sentence each"),
+      notRun: text(PLAN_FIELDS.notRun),
+    }, PLAN_FIELDS.testPolicy),
     elements: listOf(objectOf({
       layer: { type: "string", enum: [...LAYERS] },
-      signature: text(`Max ${MAX_SIGNATURE} chars, never a body`),
-      rule: text("What it does or gains"),
+      signature: text(PLAN_FIELDS.signature(MAX_SIGNATURE)),
+      rule: text(PLAN_FIELDS.rule),
     })),
-  }), `At most ${MAX_BATCHES}, cut by behaviour`),
-}, "Text fields: one line (a note two), no |; no backtick in a test name, project, path, member or owner; " +
-  "no line opens with #, TDD:, |, - [ or >");
+  }), PLAN_FIELDS.batches(MAX_BATCHES)),
+}, PLAN_FIELDS.answer);
 
 // ---- rule 1: the shape --------------------------------------------------------------
 
@@ -182,7 +191,7 @@ class Reader {
 
   private miss(field: string, type: string): void {
     const what = type.startsWith("one of") ? type : `${/^[aeiou]/.test(type) ? "an" : "a"} ${type}`;
-    this.problems.push(`${field} is missing or not ${what}`);
+    this.problems.push(missingOrNot(field, what));
   }
 
   str(o: Obj, key: string, at: string): string {
@@ -250,7 +259,7 @@ class Reader {
 
 function readAnswer(value: Obj, r: Reader): PlanAnswer {
   const anchor = (a: Obj, at: string): AnchorRef => {
-    const out: AnchorRef = { kind: r.oneOf(a, "kind", at, KINDS, "one of ref, create, existing") };
+    const out: AnchorRef = { kind: r.oneOf(a, "kind", at, KINDS, ANCHOR_KINDS) };
     const ref = r.optStr(a, "ref", at);
     const path = r.optStr(a, "path", at);
     const member = r.optStr(a, "member", at);
@@ -261,7 +270,7 @@ function readAnswer(value: Obj, r: Reader): PlanAnswer {
   };
   const test = (t: Obj, at: string): PlanTest => ({
     name: r.str(t, "name", at),
-    level: r.oneOf(t, "level", at, LEVELS, "one of unit, integration, pinned"),
+    level: r.oneOf(t, "level", at, LEVELS, TEST_LEVELS),
     project: r.str(t, "project", at),
     ids: r.strings(t, "ids", at),
     covers: r.strings(t, "covers", at),
@@ -305,7 +314,7 @@ function readAnswer(value: Obj, r: Reader): PlanAnswer {
       buildScope: r.str(b, "buildScope", at),
       testPolicy: { fast: r.str(policy, "fast", p), integration: r.str(policy, "integration", p), notRun: r.str(policy, "notRun", p) },
       elements: r.objects(b, "elements", at, (e, here) => ({
-        layer: r.oneOf(e, "layer", here, LAYERS, "one of domain, application, adapter, test"),
+        layer: r.oneOf(e, "layer", here, LAYERS, ELEMENT_LAYERS),
         signature: r.str(e, "signature", here),
         rule: r.str(e, "rule", here),
       })),
@@ -318,7 +327,7 @@ function readAnswer(value: Obj, r: Reader): PlanAnswer {
     outOfScope: r.strings(value, "outOfScope", ""),
     assumptions: r.strings(value, "assumptions", ""),
     nonApplicable: r.objects(value, "nonApplicable", "", (n, at) => ({
-      id: r.oneOf(n, "id", at, DESIGN_RULE_IDS, "design rule id"),
+      id: r.oneOf(n, "id", at, DESIGN_RULE_IDS, DESIGN_RULE_ID),
       reason: r.str(n, "reason", at),
     })),
     traceability: r.objects(value, "traceability", "", (t, at) => ({ id: r.str(t, "id", at), owners: r.strings(t, "owners", at) })),
@@ -495,14 +504,14 @@ function cellProblems(cells: readonly Cell[]): string[] {
   const out: string[] = [];
   for (const c of cells) {
     const head = `${c.where}: ${c.field}`;
-    if (c.kind === "code" && /[|`\r\n]/.test(c.value)) out.push(`${head} holds a |, a backtick or a line break`);
-    if (c.kind === "prose" && /[|\r\n]/.test(c.value)) out.push(`${head} holds a | or a line break`);
+    if (c.kind === "code" && /[|`\r\n]/.test(c.value)) out.push(holdsCodeBreak(head));
+    if (c.kind === "prose" && /[|\r\n]/.test(c.value)) out.push(holdsBreak(head));
     if (c.kind === "note" && (c.value.includes("|") || c.value.split(LINE_BREAK).length > 2)) {
-      out.push(`${head} holds a | or a line break`);
+      out.push(holdsBreak(head));
     }
-    if (LABELS.test(c.value)) out.push(`${head} holds the label Applied rules or Non-applicable rules`);
+    if (LABELS.test(c.value)) out.push(holdsLabel(head));
     if (c.value.split(LINE_BREAK).some((l) => LINE_MARKER.test(l.trimStart()))) {
-      out.push(`${head} starts a line with one of #, TDD:, |, - [, >`);
+      out.push(startsWithMarker(head));
     }
   }
   return out;
@@ -522,19 +531,19 @@ function pathOf(a: AnchorRef, ctx: PlanCheckContext): string | undefined {
 
 function anchorProblems(a: AnchorRef, at: string, ctx: PlanCheckContext, inventoryPaths: ReadonlySet<string>): string[] {
   if (a.kind === "ref") {
-    if (a.ref === undefined || a.path !== undefined) return [`${at}: a ref anchor needs a ref only`];
-    return ctx.shownRefs.has(a.ref) ? [] : [`${at}: anchor ${a.ref} is not an inventory entry shown`];
+    if (a.ref === undefined || a.path !== undefined) return [refAnchorNeedsRef(at)];
+    return ctx.shownRefs.has(a.ref) ? [] : [anchorNotShown(at, a.ref)];
   }
-  if (a.path === undefined || a.ref !== undefined) return [`${at}: ${a.kind === "existing" ? "an" : "a"} ${a.kind} anchor needs a path only`];
+  if (a.path === undefined || a.ref !== undefined) return [anchorNeedsPath(at, a.kind)];
   const path = a.path;
   const work = ctx.workFolder?.replace(/^\/+|\/+$/g, "");
   const banned = [".claude/", ".orkeon/", ...(work ? [`${work}/`] : [])];
   if (path === "" || path.startsWith("/") || /^[A-Za-z]:/.test(path) || path.includes("\\") || path.split("/").includes("..") ||
       banned.some((p) => path.startsWith(p))) {
-    return [`${at}: ${path} cannot be anchored there`];
+    return [cannotBeAnchored(at, path)];
   }
-  if (path.includes(":")) return [`${at}: anchor path "${path}" holds ":"`];
-  if (a.kind === "existing" && inventoryPaths.has(path)) return [`${at}: ${path} is in the inventory: use its ref`];
+  if (path.includes(":")) return [anchorPathColon(at, path)];
+  if (a.kind === "existing" && inventoryPaths.has(path)) return [inInventory(at, path)];
   return [];
 }
 
@@ -544,22 +553,22 @@ function stepProblems(b: PlanBatch, k: number, ctx: PlanCheckContext, inventoryP
   b.steps.forEach((s, j) => {
     const at = stepLabel(b, k, j);
     // 5: the title.
-    if (s.title === "") out.push(`${at}: the title is empty`);
-    else if (s.title.length > MAX_TITLE) out.push(`${at}: the title is longer than ${MAX_TITLE} characters`);
-    else if (s.title === BUILD_STEP) out.push(`${at}: the title is ${BUILD_STEP}, the step code adds`);
+    if (s.title === "") out.push(titleEmpty(at));
+    else if (s.title.length > MAX_TITLE) out.push(titleTooLong(at, MAX_TITLE));
+    else if (s.title === BUILD_STEP) out.push(titleIsBuildStep(at, BUILD_STEP));
     const first = titles.get(s.title);
-    if (s.title !== "" && first !== undefined) out.push(`${at}: the title repeats step ${first + 1}`);
+    if (s.title !== "" && first !== undefined) out.push(titleRepeats(at, first + 1));
     else titles.set(s.title, j);
     // 6, 7: the tests.
-    if (s.tests.length === 0) out.push(`${at}: no test`);
+    if (s.tests.length === 0) out.push(noTest(at));
     s.tests.forEach((t, m) => {
       const here = testLabel(b, k, j, m);
-      if (t.name === "") out.push(`${here}: the name is empty`);
-      else if (t.name.length > MAX_TEST_NAME) out.push(`${here}: the name is longer than ${MAX_TEST_NAME} characters`);
-      if (t.project === "") out.push(`${here}: the project is empty`);
-      for (const id of t.ids) if (!ctx.sourceIds.includes(id)) out.push(`${here}: ${id} is not an id of the source`);
-      for (const u of t.covers) if (!ctx.unpinned.includes(u)) out.push(`${here}: ${u} is not an unpinned row`);
-      if (t.ids.length === 0 && t.covers.length === 0) out.push(`${here}: names no id`);
+      if (t.name === "") out.push(nameEmpty(here));
+      else if (t.name.length > MAX_TEST_NAME) out.push(nameTooLong(here, MAX_TEST_NAME));
+      if (t.project === "") out.push(projectEmpty(here));
+      for (const id of t.ids) if (!ctx.sourceIds.includes(id)) out.push(notSourceId(here, id));
+      for (const u of t.covers) if (!ctx.unpinned.includes(u)) out.push(notUnpinnedRow(here, u));
+      if (t.ids.length === 0 && t.covers.length === 0) out.push(namesNoId(here));
     });
     // 13, 14, 26: each anchor.
     for (const a of allAnchors(s)) out.push(...anchorProblems(a, at, ctx, inventoryPaths));
@@ -568,12 +577,12 @@ function stepProblems(b: PlanBatch, k: number, ctx: PlanCheckContext, inventoryP
       const name = a.kind === "ref" && a.ref !== undefined ? ctx.refNames.get(a.ref) : undefined;
       if (name === undefined || a.member === undefined || a.member === "") continue;
       if (a.member !== name && a.member !== name.slice(name.lastIndexOf(".") + 1)) {
-        out.push(`${at}: anchor ${a.ref}: member "${a.member}" is not ${name}; leave member out to add a member to it`);
+        out.push(memberIsNot(at, a.ref, a.member, name));
       }
     }
     // 15: the columns a step needs.
-    if (!b.documentation && s.anchors.tests.length === 0) out.push(`${at}: no test anchor`);
-    if (s.anchors.production.length === 0) out.push(`${at}: no production anchor`);
+    if (!b.documentation && s.anchors.tests.length === 0) out.push(noTestAnchor(at));
+    if (s.anchors.production.length === 0) out.push(noProductionAnchor(at));
   });
   return out;
 }
@@ -588,31 +597,31 @@ function batchProblems(b: PlanBatch, k: number, ctx: PlanCheckContext, inventory
     ["design.aggregate", b.design.aggregate], ["design.invariants", b.design.invariants], ["design.consistency", b.design.consistency],
     ["design.events", b.design.events], ["design.accessCost", b.design.accessCost],
   ];
-  for (const [field, value] of fields) if (value === "") out.push(`${at}: ${field} is empty`);
+  for (const [field, value] of fields) if (value === "") out.push(fieldEmpty(at, field));
   // 4: the step count.
   const min = b.documentation ? 1 : 2;
   if (b.steps.length < min || b.steps.length > 5) {
-    out.push(`${at}: ${b.steps.length} behaviour steps; 2 to 5 (1 to 5 for documentation)`);
+    out.push(stepCount(at, b.steps.length));
   }
   out.push(...stepProblems(b, k, ctx, inventoryPaths));
   // 11: applied rules are design rule ids.
-  for (const id of b.design.appliedRules) if (!DESIGN_RULE_IDS.includes(id)) out.push(`${at}: ${id} is not a design rule id`);
+  for (const id of b.design.appliedRules) if (!DESIGN_RULE_IDS.includes(id)) out.push(notDesignRuleId(at, id));
   // 12: earlier batches only.
   for (const dep of b.dependsOn) {
     const m = /^F(\d+)$/.exec(dep);
-    if (m === null || Number(m[1]) < 1 || Number(m[1]) > k) out.push(`${at}: depends on ${dep}, which is not an earlier batch`);
+    if (m === null || Number(m[1]) < 1 || Number(m[1]) > k) out.push(notEarlierBatch(at, dep));
   }
   // 16: documentation stands alone (production paths).
   const production = b.steps.flatMap((s) => s.anchors.production).map((a) => pathOf(a, ctx)).filter((p): p is string => p !== undefined);
   const docs = production.filter(isDocPath);
   if ((docs.length > 0 && !b.documentation) || (b.documentation && docs.length < production.length)) {
-    out.push(`${at}: documentation and code in one batch`);
+    out.push(docsAndCode(at));
   }
   // 20, 21: the code elements.
-  if (!b.documentation && b.elements.length === 0) out.push(`${at}: no code element`);
+  if (!b.documentation && b.elements.length === 0) out.push(noCodeElement(at));
   b.elements.forEach((e, i) => {
-    if (e.signature.length > MAX_SIGNATURE) out.push(`${at}: element ${i + 1} is longer than ${MAX_SIGNATURE} characters`);
-    if (e.signature.includes("{")) out.push(`${at}: element ${i + 1} holds a body`);
+    if (e.signature.length > MAX_SIGNATURE) out.push(elementTooLong(at, i + 1, MAX_SIGNATURE));
+    if (e.signature.includes("{")) out.push(elementHoldsBody(at, i + 1));
   });
   return out;
 }
@@ -621,17 +630,17 @@ function traceProblems(a: PlanAnswer, ctx: PlanCheckContext): string[] {
   const out: string[] = [];
   // 8: every source id carried by a test.
   const carried = new Set(a.batches.flatMap((b) => b.steps.flatMap((s) => s.tests.flatMap((t) => t.ids))));
-  for (const id of ctx.sourceIds) if (!carried.has(id)) out.push(`${id}: no test carries it`);
+  for (const id of ctx.sourceIds) if (!carried.has(id)) out.push(noTestCarries(id));
   // 9: every source id owned by code.
   const rows = new Map<string, number>();
   for (const t of a.traceability) {
     // 28: an owner names a type or a member, never a path.
-    for (const o of t.owners) if (OWNER_PATH.test(o)) out.push(`traceability: owner "${o}" is a path, name the type or member`);
-    if (!ctx.sourceIds.includes(t.id)) { out.push(`traceability: ${t.id} is not an id of the source`); continue; }
-    if (rows.has(t.id)) { out.push(`traceability: ${t.id} appears twice`); continue; }
+    for (const o of t.owners) if (OWNER_PATH.test(o)) out.push(ownerIsPath(o));
+    if (!ctx.sourceIds.includes(t.id)) { out.push(traceNotSourceId(t.id)); continue; }
+    if (rows.has(t.id)) { out.push(traceTwice(t.id)); continue; }
     rows.set(t.id, t.owners.filter((o) => o !== "").length);
   }
-  for (const id of ctx.sourceIds) if ((rows.get(id) ?? 0) === 0) out.push(`${id}: no code owner`);
+  for (const id of ctx.sourceIds) if ((rows.get(id) ?? 0) === 0) out.push(noCodeOwner(id));
   return out;
 }
 
@@ -640,10 +649,10 @@ function designRuleProblems(a: PlanAnswer): string[] {
   const applied = new Set(a.batches.flatMap((b) => b.design.appliedRules));
   for (const id of DESIGN_RULE_IDS) {
     const na = a.nonApplicable.filter((n) => n.id === id);
-    if (applied.has(id) && na.length > 0) out.push(`${id}: applied and non-applicable`);
-    else if (!applied.has(id) && na.length === 0) out.push(`${id}: neither applied nor non-applicable`);
-    else if (na.length > 1) out.push(`${id}: non-applicable twice`);
-    else if (na.length === 1 && na[0].reason.length < MIN_NA_REASON) out.push(`${id}: N/A without a reason`);
+    if (applied.has(id) && na.length > 0) out.push(appliedAndNa(id));
+    else if (!applied.has(id) && na.length === 0) out.push(neitherAppliedNorNa(id));
+    else if (na.length > 1) out.push(naTwice(id));
+    else if (na.length === 1 && na[0].reason.length < MIN_NA_REASON) out.push(naWithoutReason(id));
   }
   return out;
 }
@@ -667,7 +676,7 @@ function sharedAnchorProblems(a: PlanAnswer, ctx: PlanCheckContext): string[] {
   for (let k = 0; k < paths.length; k++) {
     for (let m = k + 1; m < paths.length; m++) {
       const shared = [...paths[k]].filter((p) => paths[m].has(p)).sort();
-      if (shared.length > 0 && !before[m].has(k)) out.push(`${batchLabel(a.batches[k], k)} and ${batchLabel(a.batches[m], m)} share ${shared[0]} and neither depends on the other`);
+      if (shared.length > 0 && !before[m].has(k)) out.push(shareUnordered(batchLabel(a.batches[k], k), batchLabel(a.batches[m], m), shared[0]));
     }
   }
   return out;
@@ -680,44 +689,44 @@ function changeProblems(a: PlanAnswer, ctx: PlanCheckContext): string[] {
   // 22: every pinned behaviour keeps its pinned test.
   for (const name of ctx.pinned) {
     const n = name.trim();
-    if (!tests.some(({ t }) => t.level === "pinned" && t.name === n)) out.push(`pinned test ${n} is not in the plan`);
+    if (!tests.some(({ t }) => t.level === "pinned" && t.name === n)) out.push(pinnedNotInPlan(n));
   }
   // 23: every unpinned row gets a characterisation test, first in its batch.
   for (const u of ctx.unpinned) {
     const covering = tests.filter(({ t }) => t.covers.includes(u));
-    if (covering.length === 0) out.push(`${u}: no characterisation test`);
-    else if (!covering.some(({ first }) => first)) out.push(`${u}: its test is not in the first step`);
+    if (covering.length === 0) out.push(noCharacterisation(u));
+    else if (!covering.some(({ first }) => first)) out.push(notInFirstStep(u));
   }
   return out;
 }
 
 function capped(problems: readonly string[]): string[] {
   if (problems.length <= MAX_PROBLEMS) return [...problems];
-  return [...problems.slice(0, MAX_PROBLEMS), `… ${problems.length - MAX_PROBLEMS} more problems`];
+  return [...problems.slice(0, MAX_PROBLEMS), moreProblems(problems.length - MAX_PROBLEMS)];
 }
 
 export function checkPlanAnswer(value: unknown, ctx: PlanCheckContext): Checked<PlanAnswer> {
-  if (!isObj(value)) return { ok: false, problems: ["the answer is not an object"] };
+  if (!isObj(value)) return { ok: false, problems: [NOT_AN_OBJECT] };
   const reader = new Reader();
   const read = readAnswer(value, reader);
   if (reader.problems.length > 0) return { ok: false, problems: capped(reader.problems) };
   const a = mended(trimmed(read), ctx);
   const problems: string[] = [];
   // 24: the plan's own fields.
-  if (a.feature === "") problems.push("feature is empty");
-  else if (a.feature.length > MAX_FEATURE) problems.push(`feature is longer than ${MAX_FEATURE} characters`);
-  if (a.layers.filter((l) => l !== "").length === 0) problems.push("layers is empty");
+  if (a.feature === "") problems.push(FEATURE_EMPTY);
+  else if (a.feature.length > MAX_FEATURE) problems.push(featureTooLong(MAX_FEATURE));
+  if (a.layers.filter((l) => l !== "").length === 0) problems.push(LAYERS_EMPTY);
   problems.push(...cellProblems(cellsOf(a)));
   // 2: the batch count.
   if (a.batches.length < 1 || a.batches.length > MAX_BATCHES) {
-    problems.push(`between 1 and ${MAX_BATCHES} batches, not ${a.batches.length}`);
+    problems.push(batchCount(MAX_BATCHES, a.batches.length));
   }
   // 6: test names unique across the plan.
   const names = new Map<string, string>();
   a.batches.forEach((b, k) => b.steps.forEach((s, j) => s.tests.forEach((t, m) => {
     if (t.name === "") return;
     const first = names.get(t.name);
-    if (first !== undefined) problems.push(`${testLabel(b, k, j, m)}: the name repeats ${first}`);
+    if (first !== undefined) problems.push(nameRepeats(testLabel(b, k, j, m), first));
     else names.set(t.name, testLabel(b, k, j, m));
   })));
   const inventoryPaths = new Set(ctx.refPaths.values());
@@ -726,11 +735,11 @@ export function checkPlanAnswer(value: unknown, ctx: PlanCheckContext): Checked<
   problems.push(...designRuleProblems(a));
   problems.push(...sharedAnchorProblems(a, ctx));
   // 18: reuse names shown entries.
-  for (const ref of a.reuse) if (!ctx.shownRefs.has(ref)) problems.push(`reuse: ${ref} is not an inventory entry shown`);
+  for (const ref of a.reuse) if (!ctx.shownRefs.has(ref)) problems.push(reuseNotShown(ref));
   // 19: design rows.
   a.design.forEach((d, i) => {
-    if (d.batch < 1 || d.batch > a.batches.length) problems.push(`${designRow(d, i)}: batch ${d.batch} is not a batch of the plan`);
-    for (const id of d.ids) if (!ctx.sourceIds.includes(id)) problems.push(`${designRow(d, i)}: ${id} is not an id of the source`);
+    if (d.batch < 1 || d.batch > a.batches.length) problems.push(notBatchOfPlan(designRow(d, i), d.batch));
+    for (const id of d.ids) if (!ctx.sourceIds.includes(id)) problems.push(notSourceId(designRow(d, i), id));
   });
   problems.push(...changeProblems(a, ctx));
   if (problems.length > 0) return { ok: false, problems: capped(problems) };

@@ -26,16 +26,22 @@ import type { Decision, Question } from "../../../shared/domain/dev/questions.ts
 import { parsePlanSource } from "../../../shared/domain/dev/spec-format.ts";
 import type { ChangeKind } from "../../../shared/domain/dev/spec-format.ts";
 import { CHANGE_ANSWER_SCHEMA, checkChangeAnswer, criterionId, pinOnlyKnown } from "../domain/change-answer.ts";
-import {
-  CHANGE_DECISIONS_SECTION, CHANGE_QUESTIONS_SECTION, EVIDENCE_HEADING, ORIGIN_HEADING, changeFileName, originLines,
-  renderChange, reproFileName, sectionBody,
-} from "../domain/change-render.ts";
+import { changeFileName, originLines, renderChange, reproFileName, sectionBody } from "../domain/change-render.ts";
+import { CHANGE_DECISIONS_SECTION, CHANGE_QUESTIONS_SECTION, EVIDENCE_HEADING, ORIGIN_HEADING, SUSPECTED_CAUSE } from "../domain/markers.ts";
 import { noPrecedents, precedentsLine, recallQuery } from "../../../shared/application/dev/step-precedents.ts";
 import type { StepPrecedents } from "../../../shared/application/dev/step-precedents.ts";
 import { runDevSpec } from "../../dev-spec/application/run-dev-spec.ts";
 import { buildChangePrompt } from "./prompts.ts";
 import type { ChangePromptInput } from "./prompts.ts";
 import { factLines, pickCommand, readOrigin, reproFile, runEvidence, runStop } from "./evidence.ts";
+import {
+  DEV_CHANGE_NEXT, FEATURE_LINE, ROUTED_TO_SPEC, answerThem, blockedUnanswered, briefKeepsKind, deniedNothingWritten, evidenceLine,
+  invalidKind, mustNotChangeLine, nameTheKind, newBriefNeedsOrigin, newPromiseKept, refusedTwice, rendererDefect,
+  reproNotWritten, runIsForBugOrPerf, specExists, stillBlocking, titleNamesNoKind, unknownTest,
+} from "./messages.ts";
+import {
+  PERMISSION_GATE_OFF, answerDidNotParse, cannotBeRead, couldNotBeWritten, decisionsThisRun,
+} from "../../dev-spec/application/messages.ts";
 
 export interface DevChangeInputs { code?: unknown; kind?: unknown; run?: unknown; text?: unknown }
 export interface DevChangeDeps {
@@ -48,8 +54,6 @@ export interface DevChangeDeps {
 const STEP = "dev-change";
 const KINDS: readonly ChangeKind[] = ["bug", "refactor", "perf"];
 const HEADINGS = { questions: CHANGE_QUESTIONS_SECTION, decisions: CHANGE_DECISIONS_SECTION };
-export const DEV_CHANGE_NEXT = "→ Next step, once you have validated the brief: /dev-plan {code}";
-export const FEATURE_LINE = "→ a feature, not a change: the spec SPEC-{code}.md follows";
 
 type Drafted = { feature: true } | { feature: false; text: string; open: Question[]; unknown: string[] };
 
@@ -101,7 +105,7 @@ export async function runDevChange(input: DevChangeInputs, deps: DevChangeDeps):
   const code = inputCode(STEP, input.code);
   if (typeof code !== "string") return code.refused;
   const kindIn = inputText(STEP, "kind", input.kind);
-  if (typeof kindIn !== "string" || (kindIn !== "" && !KINDS.includes(kindIn as ChangeKind))) return `${STEP}: invalid crew input: kind`;
+  if (typeof kindIn !== "string" || (kindIn !== "" && !KINDS.includes(kindIn as ChangeKind))) return invalidKind(STEP);
   const given = inputText(STEP, "run", input.run);
   if (typeof given !== "string") return given.refused;
   const typed = inputText(STEP, "text", input.text);
@@ -114,7 +118,7 @@ export async function runDevChange(input: DevChangeInputs, deps: DevChangeDeps):
 
   // 2. One source per code; an existing brief is revised, its kind kept.
   if (folder.names.includes(`SPEC-${code}.md`)) {
-    return `${STEP}: ${folder.shown}/SPEC-${code}.md exists: a code has one source; revise it with /dev-spec ${code} (no kind), or pick another code`;
+    return specExists(STEP, folder.shown, code);
   }
   const brief = folder.file(changeFileName(code));
   let existing: string | null = null;
@@ -122,24 +126,24 @@ export async function runDevChange(input: DevChangeInputs, deps: DevChangeDeps):
     try {
       existing = await deps.files.read(brief.vfs);
     } catch (e) {
-      return `${STEP}: ${brief.shown} cannot be read (${firstLine(e)}); nothing is written`;
+      return cannotBeRead(STEP, brief.shown, firstLine(e));
     }
   }
   const fileKind = existing === null ? undefined : parsePlanSource(existing, "change").changeKind;
-  if (existing !== null && fileKind === undefined) return `${STEP}: ${brief.shown}: the title names no kind (bug, refactor or perf); fix the title first`;
+  if (existing !== null && fileKind === undefined) return titleNamesNoKind(STEP, brief.shown);
   if (fileKind !== undefined && kindIn !== "" && kindIn !== fileKind) {
-    return `${STEP}: ${brief.shown} is a ${fileKind} change: a brief keeps its kind; pick another code for a ${kindIn}`;
+    return briefKeepsKind(STEP, brief.shown, fileKind, kindIn);
   }
   const kind = (fileKind ?? kindIn) as ChangeKind | "";
-  if (kind === "") return `${STEP}: name the kind: /dev-spec ${code} bug|refactor|perf [--run "<command>"] <origin>`;
-  if (given !== "" && kind === "refactor") return `${STEP}: --run is for a bug or a perf change; a refactor is pinned by its tests`;
+  if (kind === "") return nameTheKind(STEP, code);
+  if (given !== "" && kind === "refactor") return runIsForBugOrPerf(STEP);
 
   // 3. The origin (a new brief) or the request (a revision).
   let originText = "";
   let originFrom = "";
   let request = "";
   if (existing === null) {
-    if (typed === "") return `${STEP}: a new brief needs its origin: /dev-spec ${code} ${kind} <#issue | path | text>`;
+    if (typed === "") return newBriefNeedsOrigin(STEP, code, kind);
     const origin = await readOrigin(STEP, deps, typed);
     if ("refused" in origin) return origin.refused;
     originText = origin.text;
@@ -152,19 +156,19 @@ export async function runDevChange(input: DevChangeInputs, deps: DevChangeDeps):
   // 4. Evidence by running, before anything else is written.
   const today = dateOf(deps.clock());
   const commands = ctx.pack?.pack.commands ?? {};
-  let facts: string[] = existing === null ? [] : sectionBody(existing, EVIDENCE_HEADING).filter((l) => !l.startsWith("- **Suspected cause**"));
+  let facts: string[] = existing === null ? [] : sectionBody(existing, EVIDENCE_HEADING).filter((l) => !l.startsWith(SUSPECTED_CAUSE));
   let ran: { command: string; seconds: number } | null = null;
   if (kind !== "refactor" && (existing === null || given !== "")) {
     const picked = await pickCommand(STEP, deps.llm, kind, given, originText, commands);
     if ("refused" in picked) return picked.refused;
     const denied = shellRuleGuard(stepRules("dev-change"))(picked.command);
-    if (denied !== null) return `${STEP}: ${denied}; nothing is written`;
+    if (denied !== null) return deniedNothingWritten(STEP, denied);
     const result = await runEvidence(deps.shell, picked.command, deps.clock);
     const repro = folder.file(reproFileName(code));
     try {
       await deps.files.write(repro.vfs, reproFile(result, today));
     } catch (e) {
-      return `${STEP}: ${repro.shown} could not be written (${firstLine(e)}); nothing else is written`;
+      return reproNotWritten(STEP, repro.shown, firstLine(e));
     }
     const stop = runStop(STEP, kind, result, repro.shown);
     if (stop !== null) return stop;
@@ -192,7 +196,7 @@ export async function runDevChange(input: DevChangeInputs, deps: DevChangeDeps):
       try {
         value = await deps.llm.extract(buildChangePrompt(prompt, problems), CHANGE_ANSWER_SCHEMA);
       } catch (e) {
-        problems = [`the answer did not parse: ${firstLine(e)}`];
+        problems = [answerDidNotParse(firstLine(e))];
         continue;
       }
       const checked = checkChangeAnswer(value, kind);
@@ -204,7 +208,7 @@ export async function runDevChange(input: DevChangeInputs, deps: DevChangeDeps):
       const ids = pinned.answer.criteria.map((_, i) => criterionId(i));
       const self = sourceSelfCheck(text, "change", { code, ids, open: questions, decisions });
       if (self.length > 0) {
-        deps.log.warn(`${STEP}: a checked answer rendered a brief that fails its self-check (a renderer defect): ${self[0]}`);
+        deps.log.warn(rendererDefect(STEP, self[0]));
         problems = self;
         continue;
       }
@@ -231,15 +235,15 @@ export async function runDevChange(input: DevChangeInputs, deps: DevChangeDeps):
         mode: existing === null ? "draft" : "revision", code, kind, origin: originText, facts: factsText, request,
         current: existing ?? "", decisions: decisions0, fresh: [], inventory: inventoryText, precedents: recalled.block,
       }, questionsOf(decisions0, open0), decisions0);
-      if (!asked.ok) return [`${STEP}: the brief was refused twice; nothing is written.`, ...problemLines(asked.problems)].join("\n");
+      if (!asked.ok) return [refusedTwice(STEP), ...problemLines(asked.problems)].join("\n");
       if (asked.drafted.feature) {
         // A new brief goes on as a spec in the same run, over the same ports; a brief that exists keeps its code.
         if (existing !== null) {
-          return `${STEP}: the request is a new promise, not a change of what exists; ${brief.shown} is kept: a feature takes a code of its own (/dev-spec <code> <brief>)`;
+          return newPromiseKept(STEP, brief.shown);
         }
         return [FEATURE_LINE.replace("{code}", code), await runDevSpec({ code, request: originText }, deps)].join("\n");
       }
-      warnings.push(...asked.drafted.unknown.map((n) => `'${n}' is no test the code index shows: its row reads unpinned`));
+      warnings.push(...asked.drafted.unknown.map(unknownTest));
       state = { text: asked.drafted.text, open: asked.drafted.open, decisions: decisions0 };
       await write(state.text);
       verb = existing === null ? "written" : "revised";
@@ -253,7 +257,7 @@ export async function runDevChange(input: DevChangeInputs, deps: DevChangeDeps):
         decisions: st.decisions, fresh, inventory: inventoryText, precedents: recalled.block,
       }, questionsOf(st.decisions, st.open), st.decisions);
       if (!r.ok) return { ok: false, problems: r.problems };
-      if (r.drafted.feature) return { ok: false, problems: ["the rewrite routed the brief to a spec"] };
+      if (r.drafted.feature) return { ok: false, problems: [ROUTED_TO_SPEC] };
       return { ok: true, text: r.drafted.text, open: r.drafted.open };
     };
     const round = { human: deps.human, today, label: `${STEP} ${code}`, headings: HEADINGS, write, fold };
@@ -269,7 +273,7 @@ export async function runDevChange(input: DevChangeInputs, deps: DevChangeDeps):
         mode: "change", whole: "brief", folder: folder.shown, fileShown: brief.shown, origin: originFrom,
         inventory: inventoryText, ids, headings: HEADINGS,
       }, write);
-      if (deps.llm.permissionGateEnabled() === false) warnings.push("the host's permission gate is off; the reviewer was offered read tools only");
+      if (deps.llm.permissionGateEnabled() === false) warnings.push(PERMISSION_GATE_OFF);
       if (review.ran && review.added.length > 0) {
         state = review.state;
         const added = new Set(review.added);
@@ -287,9 +291,9 @@ export async function runDevChange(input: DevChangeInputs, deps: DevChangeDeps):
     const unpinned = parsed.mustNotChange.filter((r) => r.pinnedBy === null).length;
     const lines = [
       `${STEP}: ${brief.shown} ${verb} — ${kind}, ${plural(ids.length, "criterion", "criteria")} (${ids.join(", ") || "none"})`,
-      ...(ran === null ? [] : [`evidence: \`${ran.command}\` (${ran.seconds} s), output in ${folder.shown}/${reproFileName(code)}`]),
-      `must not change: ${plural(parsed.mustNotChange.length, "row", "rows")}, ${unpinned} unpinned`,
-      `decisions this run: ${made.length === 0 ? "none" : made.map((d) => `${d.id} → ${d.answer}`).join("; ")}`,
+      ...(ran === null ? [] : [evidenceLine(ran.command, ran.seconds, `${folder.shown}/${reproFileName(code)}`)]),
+      mustNotChangeLine(plural(parsed.mustNotChange.length, "row", "rows"), unpinned),
+      decisionsThisRun(made.length === 0 ? "none" : made.map((d) => `${d.id} → ${d.answer}`).join("; ")),
       `open questions: ${openLine(state.open)}`,
       ...(review === null ? [] : [reviewLine(review)]),
       briefInventoryLine(inventory),
@@ -299,17 +303,17 @@ export async function runDevChange(input: DevChangeInputs, deps: DevChangeDeps):
     const blockingLeft = state.open.filter((q) => q.severity === "Blocking");
     if (blocked) {
       lines.push(
-        `${STEP}: BLOCKED — a question went unanswered; the open questions are in ${brief.shown} § 8.`,
-        `→ Answer them: /dev-spec ${code} ${kind} in an interactive session, or edit the file; nothing was decided for you.`,
+        blockedUnanswered(STEP, brief.shown),
+        answerThem(code, kind),
       );
     } else if (blockingLeft.length > 0) {
-      lines.push(`→ ${blockingLeft.map((q) => q.id).join(", ")} still Blocking: /dev-plan refuses the brief until settled: /dev-spec ${code} ${kind}, or edit the file.`);
+      lines.push(stillBlocking(blockingLeft.map((q) => q.id).join(", "), code, kind));
     } else {
       lines.push(DEV_CHANGE_NEXT.replace("{code}", code));
     }
     return lines.join("\n");
   } catch (e) {
     if (!(e instanceof SourceWriteFailure)) throw e;
-    return `${STEP}: ${brief.shown} could not be written (${e.message}); the answers given so far are in the file when it was written before`;
+    return couldNotBeWritten(STEP, brief.shown, e.message);
   }
 }
