@@ -7,6 +7,8 @@
 
 import type { Finding } from "../../../shared/domain/types.ts";
 import { severityRank } from "../../../shared/domain/severity.ts";
+import { lensesFrom } from "./messages.ts";
+import { CORRECTNESS_LENS, SECURITY_LENS, styleLens } from "./prompts.ts";
 
 /** The most severe level a style finding takes: its scale says it, and the review
  *  brings a higher one down to it, so style never outranks a correctness finding. */
@@ -30,52 +32,11 @@ export interface ReviewLens {
 
 /** The three review lenses, each blind to the others (run via Promise.all). */
 export const LENSES: readonly ReviewLens[] = [
-  {
-    key: "correctness",
-    looksFor:
-      "behaviour the change gets wrong: an inverted or incomplete condition, an off-by-one, a value used " +
-      "before it is set, a case the new code does not handle although its inputs allow it, a caller or a " +
-      "contract the change breaks, a resource left open, steps that race; and, for each removed or replaced " +
-      "line, what it guaranteed and whether the new code still does (such a finding points at the first " +
-      "new line of the hunk that held the removed line, the new start its @@ header gives, and names the " +
-      "removed line)",
-    leaves:
-      "style and naming, defensive checks for inputs the code cannot receive, security (another lens), " +
-      "performance unless the change makes something fail",
-    severities:
-      "blocker (breaks the build, loses data or opens a hole in normal use), high (a wrong result in a " +
-      "plausible case), medium (wrong in an edge case, or a maintenance cost with a concrete trigger), " +
-      "low (minor), nit (style only)",
-    bar: "say what goes wrong, for which input or state",
-  },
-  {
-    key: "security",
-    looksFor:
-      "a way in that the change opens: input reaching a shell, a query, a path or markup unescaped, a " +
-      "secret written into code, logs or output, an authorisation check missing or weakened, unsafe " +
-      "deserialisation, a file or network access wider than needed",
-    leaves:
-      "attacks with no input that reaches the code, a defence wished for code the diff does not touch, " +
-      "issues the change neither adds nor touches, style and plain bugs (other lenses)",
-    severities:
-      "ranked by what an attacker needs: blocker (no condition, open in normal use), high (open under " +
-      "specific conditions, such as a setting, a role or a timing), medium (a defence missing on a path " +
-      "the diff shows an input reaching, with no way in shown), low (minor)",
-    bar: "name the input an attacker controls, the path it takes to that line and what it gains them",
-  },
+  { key: "correctness", ...CORRECTNESS_LENS },
+  { key: "security", ...SECURITY_LENS },
   {
     key: "style",
-    looksFor:
-      "what makes the change harder to read or maintain: a misleading name, dead or duplicated code the " +
-      "change adds, a comment that restates the code or narrates the change, a break with the conventions " +
-      "the project states or the surrounding code follows",
-    leaves: "what a formatter fixes, taste with no concrete cost, correctness and security (other lenses)",
-    severities:
-      `never above ${STYLE_SEVERITY_CEILING}: medium (a reader or maintainer will be misled or slowed), low (minor), ` +
-      "nit (a small break with the convention)",
-    bar:
-      "quote the convention the project states, or the neighbouring code, that the line breaks, and say " +
-      "what it costs a reader or maintainer",
+    ...styleLens(STYLE_SEVERITY_CEILING),
     ceiling: STYLE_SEVERITY_CEILING,
     neverPlausible: true,
   },
@@ -188,6 +149,6 @@ export function describeReviewPlan(
   source: LensSource = "default",
 ): string {
   const plural = passes === 1 ? "pass" : "passes";
-  const via = source === "default" ? "" : ` (lenses from the ${source})`;
+  const via = source === "default" ? "" : lensesFrom(source);
   return `${passes} ${plural} × ${lenses.length} lens(es): ${lenses.map((l) => l.key).join(", ")}${via}`;
 }

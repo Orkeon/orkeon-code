@@ -9,6 +9,11 @@ import { SHEET_ID_SOURCE, idsInMatch } from "../../../shared/domain/dev/trait-pa
 import { missingDesignIds } from "../../../shared/domain/dev/plan-checks.ts";
 import type { PlanFolderTexts } from "../../../shared/domain/dev/plan-checks.ts";
 export type { PlanFolderTexts } from "../../../shared/domain/dev/plan-checks.ts";
+import {
+  DESIGN_IDS_CLASSIFIED, designIdsUnclassified, DIFF_CHECK_CLEAN, DIFF_CHECK_DIRTY, filesOutsideRoots, gateGreen, gateHeader,
+  gateRed, idsNotCarried, SCOPE_NO_ROOT, scopeInRoots, SHEET_CLOSED, SHEET_NOT_CLOSED, strayTraitIds, TRAITS_NO_ID,
+  TRAITS_NO_RULE, traitsCarried,
+} from "./messages.ts";
 
 export type GateLineKind = "ok" | "FAIL" | "note";
 export interface GateLine { kind: GateLineKind; text: string }
@@ -39,8 +44,8 @@ const note = (text: string): GateLine => ({ kind: "note", text });
 
 function checkClosed(facts: SheetFacts): GateLine {
   return facts.closed
-    ? ok("sheet: every step reads `TDD: RED [x] GREEN [x] COST [x]`")
-    : fail("sheet not closed: a `TDD:` line is still open, or none is ticked");
+    ? ok(SHEET_CLOSED)
+    : fail(SHEET_NOT_CLOSED);
 }
 
 function outsideFiles(input: GateInput): string[] {
@@ -66,19 +71,19 @@ export function runGateChecks(input: GateInput): GateReport {
 
   const missing = missingDesignIds(input.plan);
   checks.push(missing.length === 0
-    ? ok("design ids: all applied or non-applicable")
-    : fail(`design ids neither on an \`Applied rules\` row nor on \`Non-applicable rules\`:${missing.map((id) => ` ${id}`).join("")}`));
+    ? ok(DESIGN_IDS_CLASSIFIED)
+    : fail(designIdsUnclassified(missing)));
 
   let outside: string[] = [];
   if (input.roots.length === 0) {
-    checks.push(note("scope: the pack names no layout root, not checked"));
+    checks.push(note(SCOPE_NO_ROOT));
   } else {
     const roots = input.roots.join(" ");
     outside = outsideFiles(input);
     if (outside.length === 0) {
-      checks.push(ok(`scope: every changed file is under ${roots} or named by the sheet`));
+      checks.push(ok(scopeInRoots(roots)));
     } else {
-      checks.push(fail(`files changed outside ${roots} and absent from the sheet — name them under \`## Decisions\`, or restore them`));
+      checks.push(fail(filesOutsideRoots(roots)));
       for (const f of outside) checks.push(note(f));
     }
   }
@@ -86,34 +91,34 @@ export function runGateChecks(input: GateInput): GateReport {
   let untested: string[] = [];
   let stray: string[] = [];
   if (input.trait === null) {
-    checks.push(note("rule traits: the pack has no tests.rule_trait, not checked"));
+    checks.push(note(TRAITS_NO_RULE));
   } else if (input.facts.ids.length === 0) {
-    checks.push(note("rule traits: the sheet's `## TDD sequence` names no BR-/UC-/CH- id, nothing to check"));
+    checks.push(note(TRAITS_NO_ID));
   } else {
     const hits = input.traitHits ?? [];
     const carried = new Set(hits.flatMap(idsInMatch));
     untested = input.facts.ids.filter((id) => !carried.has(id));
     const shown = input.trait.shown;
     checks.push(untested.length === 0
-      ? ok(`rule traits: every id of the sheet is carried by a test, ${shown}`)
-      : fail(`ids of the sheet's TDD sequence that no test carries as ${shown}:${untested.map((id) => ` ${id}`).join("")}`));
+      ? ok(traitsCarried(shown))
+      : fail(idsNotCarried(shown, untested)));
     const known = knownIds(input.plan.all);
     const cited = [...new Set(hits.flatMap((h) => h.match(/(BR|UC|CH)-[0-9]+/g) ?? []))].sort();
     stray = cited.filter((id) => !known.has(id));
     if (stray.length > 0) {
-      checks.push(note(`traits citing an id absent from ${input.planDirAbsolute}/*.md:${stray.map((id) => ` ${id}`).join("")}`));
+      checks.push(note(strayTraitIds(input.planDirAbsolute, stray)));
     }
   }
 
   checks.push(input.diffCheckExit === 0
-    ? ok("git diff --check: clean")
-    : fail("git diff --check reports trailing whitespace or conflict markers"));
+    ? ok(DIFF_CHECK_CLEAN)
+    : fail(DIFF_CHECK_DIRTY));
 
   const green = !checks.some((c) => c.kind === "FAIL");
   const lines = [
-    `GATE — batch ${input.batch} — sheet ${input.sheetShown}`,
+    gateHeader(input.batch, input.sheetShown),
     ...checks.map(gateLineText),
-    green ? `GATE — batch ${input.batch}: GREEN` : `GATE — batch ${input.batch}: RED — fix and run again, no audit before`,
+    green ? gateGreen(input.batch) : gateRed(input.batch),
   ];
   return { green, lines, checks, missingDesignIds: missing, outside, untested, stray };
 }

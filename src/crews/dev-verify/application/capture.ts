@@ -12,7 +12,8 @@ import { measureAccessCost } from "../../../shared/application/dev/measure-acces
 import type { DevVerifyTarget, GateRun } from "./run-gate.ts";
 import { TREE_CODE_EXTENSIONS, extensionOf } from "../../../shared/domain/search-routing.ts";
 import type { BuildState, TableRow } from "../domain/mechanical-table.ts";
-import { CHECK_METHODS, mechanicalRows, renderTable } from "../domain/mechanical-table.ts";
+import { mechanicalRows, renderTable } from "../domain/mechanical-table.ts";
+import { CHECK_METHODS } from "../domain/markers.ts";
 import {
   MAX_CLASS_FILES, MAX_DIFF_FILES, TEST_TAIL_LINES, buildFailure, buildLogProblem, classesIn, diffBase, isTestFile,
   isTestRoot, splitSection, tailLines, testClassesLine, testRunSummary, traitsSection, typeNameOf,
@@ -22,6 +23,12 @@ import {
   UNQUOTABLE_SCOPE, findNewer, gitDiffTracked, gitDiffUntracked, gitMethodGrep, gitStatusShort, gitTestFilesNaming,
 } from "../domain/commands.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
+import {
+  BUILD_NOT_RUN, buildRefused, buildReusedLine, buildTimedOut, CANNOT_COMPARE_DATES, cannotCompareDates, captureTitle,
+  changedAfter, commandFailed, cutAtFiles, cutByRuntime, diffBeyondFirst, diffFailed, diffQuoteInPath, LOG_HOLDS_ERROR,
+  logMissing, logNotReused, NO_CHANGED_FILE, NO_CHANGED_SOURCE, NO_TEST_ROOT_GIVEN, NOT_A_PLAIN_WORD, noTestLog,
+  testLogEmpty,
+} from "./messages.ts";
 
 export const BUILD_TIMEOUT_SECONDS = 900;
 
@@ -48,7 +55,7 @@ function errorLine(error: unknown): string {
 }
 
 function notCaptured(command: string, error: unknown): string {
-  return `not captured: '${command}' failed (${errorLine(error)})`;
+  return commandFailed(command, errorLine(error));
 }
 
 
@@ -103,20 +110,20 @@ async function diffs(deps: Deps, target: DevVerifyTarget, gate: GateRun): Promis
   const entries: DiffEntry[] = [];
   const changed = gate.changedFiles.filter((f) => !f.startsWith(`${target.planDirShown}/`));
   for (const [i, path] of changed.entries()) {
-    if (i >= MAX_DIFF_FILES) { entries.push({ path, line: `${path} → no diff captured (beyond the first ${MAX_DIFF_FILES} files)`, added: null }); continue; }
+    if (i >= MAX_DIFF_FILES) { entries.push({ path, line: diffBeyondFirst(path, MAX_DIFF_FILES), added: null }); continue; }
     const command = gate.untrackedFiles.includes(path) ? gitDiffUntracked(path) : gitDiffTracked(path);
-    if (command === null) { entries.push({ path, line: `${path} → no diff captured (a quote in the path)`, added: null }); continue; }
+    if (command === null) { entries.push({ path, line: diffQuoteInPath(path), added: null }); continue; }
     let raw: string;
     try {
       raw = (await deps.shell.run(command)).stdout;
     } catch (error) {
-      entries.push({ path, line: `${path} → no diff captured ('${command}' failed (${errorLine(error)}))`, added: null });
+      entries.push({ path, line: diffFailed(path, command, errorLine(error)), added: null });
       continue;
     }
     const { kept: stdout, omitted } = runtimeCut(raw);
     const base = diffBase(i + 1);
     const lines = lineCount(stdout);
-    const doubt = omitted > 0 ? ` (cut by the runtime, ${omitted} characters omitted)` : "";
+    const doubt = omitted > 0 ? cutByRuntime(omitted) : "";
     entries.push({
       path, base,
       line: `${path} → ${base}.txt (${lines} lines)${doubt}`,
@@ -130,40 +137,40 @@ async function diffs(deps: Deps, target: DevVerifyTarget, gate: GateRun): Promis
 
 async function reuseProblem(deps: Deps, target: DevVerifyTarget, gate: GateRun, logShown: string): Promise<string | null> {
   const log = await readOrNull(deps.files, `${WORKSPACE}/${logShown}`);
-  if (log === null || log === "") return `log missing or empty: ${logShown}`;
-  if (buildLogProblem(log) !== null) return "the log holds an error";
+  if (log === null || log === "") return logMissing(logShown);
+  if (buildLogProblem(log) !== null) return LOG_HOLDS_ERROR;
   const paths = gate.changedFiles.filter((f) => !f.startsWith(`${target.planDirShown}/`));
   if (paths.length === 0) return null;
   const command = findNewer(paths, logShown);
-  if (command === null) return "the shell cannot compare dates: more than 200 files, or a path the shell cannot quote";
+  if (command === null) return CANNOT_COMPARE_DATES;
   let newer: string[];
   try {
     newer = stdoutLines((await deps.shell.run(command)).stdout);
   } catch (error) {
-    return `the shell cannot compare dates: ${errorLine(error)}`;
+    return cannotCompareDates(errorLine(error));
   }
-  return newer.length === 0 ? null : `changed after it:${newer.map((p) => ` ${p.replace(/^\.\//, "")}`).join("")}`;
+  return newer.length === 0 ? null : changedAfter(newer.map((p) => ` ${p.replace(/^\.\//, "")}`).join(""));
 }
 
 async function buildSection(deps: Deps, target: DevVerifyTarget, gate: GateRun): Promise<{ content: string; state: BuildState }> {
   const build = target.pack?.commands.build;
   if (build === undefined || build.trim() === "") {
-    return { content: text(["not run — the pack has no commands.build"]), state: { state: "none" } };
+    return { content: text([BUILD_NOT_RUN]), state: { state: "none" } };
   }
   const logShown = `${target.planDirShown}/logs/${target.batch}-build.txt`;
   const why = await reuseProblem(deps, target, gate, logShown);
   if (why === null) {
     return {
-      content: text([`command: ${build}`, `exit: 0 (reused ${logShown}: ends green, no changed file newer — one build per batch)`]),
+      content: text([`command: ${build}`, buildReusedLine(logShown)]),
       state: { state: "reused", log: logShown },
     };
   }
-  const head = [`log not reused (${why}): built again`, `command: ${build}`];
+  const head = [logNotReused(why), `command: ${build}`];
   try {
     const result = await deps.shell.run(build, { timeoutSeconds: BUILD_TIMEOUT_SECONDS });
     if (result.timedOut === true) {
       return {
-        content: text([...head, `exit: none — timed out after ${BUILD_TIMEOUT_SECONDS} s`]),
+        content: text([...head, buildTimedOut(BUILD_TIMEOUT_SECONDS)]),
         state: { state: "timeout", seconds: BUILD_TIMEOUT_SECONDS },
       };
     }
@@ -177,7 +184,7 @@ async function buildSection(deps: Deps, target: DevVerifyTarget, gate: GateRun):
     };
   } catch (error) {
     const message = errorLine(error);
-    return { content: text([...head, `not run — the shell refused it: ${message}`]), state: { state: "refused", message } };
+    return { content: text([...head, buildRefused(message)]), state: { state: "refused", message } };
   }
 }
 
@@ -192,8 +199,8 @@ async function testTail(deps: Deps, target: DevVerifyTarget): Promise<{ content:
     const tail = tailLines(content, TEST_TAIL_LINES);
     return { content: text([`file: ${shown}`, ...tail]), log: { name: basename(shown), summary: testRunSummary(tail) } };
   }
-  if (empty !== null) return { content: text([`missing or empty: ${empty}`]), log: null };
-  return { content: text([`no test log: neither ${candidates[0]} nor ${candidates[1]}`]), log: null };
+  if (empty !== null) return { content: text([testLogEmpty(empty)]), log: null };
+  return { content: text([noTestLog(candidates[0], candidates[1])]), log: null };
 }
 
 async function testClasses(deps: Deps, target: DevVerifyTarget, gate: GateRun, testRoots: readonly string[]): Promise<string> {
@@ -207,12 +214,12 @@ async function testClasses(deps: Deps, target: DevVerifyTarget, gate: GateRun, t
     if (test) {
       out.push(testClassesLine(path, classesIn(source), null));
     } else if (testRoots.length === 0) {
-      out.push(testClassesLine(path, null, null, "no test root given"));
+      out.push(testClassesLine(path, null, null, NO_TEST_ROOT_GIVEN));
     } else {
       const ext = path.slice(path.lastIndexOf(".") + 1);
       const command = gitTestFilesNaming(typeNameOf(path), testRoots, ext, gate.excludes);
       if (command === null) {
-        out.push(testClassesLine(path, null, null, "not searched (the name is not a plain word)"));
+        out.push(testClassesLine(path, null, null, NOT_A_PLAIN_WORD));
       } else {
         try {
           out.push(testClassesLine(path, null, stdoutLines((await deps.shell.run(command)).stdout).slice(0, TEST_FILES_SHOWN)));
@@ -222,9 +229,9 @@ async function testClasses(deps: Deps, target: DevVerifyTarget, gate: GateRun, t
       }
     }
     counted++;
-    if (counted >= MAX_CLASS_FILES) { out.push(`[cut at ${MAX_CLASS_FILES} files]`); break; }
+    if (counted >= MAX_CLASS_FILES) { out.push(cutAtFiles(MAX_CLASS_FILES)); break; }
   }
-  if (counted === 0) out.push("no changed source file");
+  if (counted === 0) out.push(NO_CHANGED_SOURCE);
   return text(out);
 }
 
@@ -257,7 +264,7 @@ export async function writeCapture(deps: Deps, target: DevVerifyTarget, gate: Ga
   await writer.section("status", statusText);
 
   const entries = await diffs(deps, target, gate);
-  await writer.section("changed-files", entries.length === 0 ? text(["no changed file"]) : text(entries.map((e) => e.line)));
+  await writer.section("changed-files", entries.length === 0 ? text([NO_CHANGED_FILE]) : text(entries.map((e) => e.line)));
   for (const e of entries) if (e.base !== undefined && e.content !== undefined) await writer.section(e.base, e.content);
 
   const build = await buildSection(deps, target, gate);
@@ -288,7 +295,7 @@ export async function writeCapture(deps: Deps, target: DevVerifyTarget, gate: Ga
   const manifest = text(["index.txt", "manifest.txt", ...writer.written.map((w) => w.name)]);
   await deps.files.write(`${folder}/manifest.txt`, manifest);
   const index = text([
-    `# Audit capture — batch ${target.batch}`,
+    captureTitle(target.batch),
     `sheet: ${target.sheetShown}`,
     `generated: ${when}`,
     "gate: green",

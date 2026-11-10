@@ -25,13 +25,14 @@ import {
 import { createCrewMemory } from "../../shared/infrastructure/orkeon/crew-memory.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { runGitCommit } from "./application/run-git-commit.ts";
+import { COMMITTER_GOAL, COMMITTER_ROLE } from "./application/prompts.ts";
 
 const ports = { shell: orkeonShell(), files: orkeonFiles(), config: orkeonConfigStore() };
 
 const committer = orkeonAgent()
   .name("git-committer")
-  .role("Commit Writer")
-  .goal("Inspect the working tree, draft a Conventional-Commits message, and commit safely.")
+  .role(COMMITTER_ROLE)
+  .goal(COMMITTER_GOAL)
   .tools(["shell_command"])
   .body(async (_input: any, ctx: any) =>
     await runGitCommit(inputs(), {

@@ -8,6 +8,10 @@ import type { ReviewLens } from "../domain/lenses.ts";
 export { LENSES, selectLenses, lensKeys, describeReviewPlan } from "../domain/lenses.ts";
 export type { ReviewLens, LensSelection } from "../domain/lenses.ts";
 
+/** The agent the code-review crew runs. */
+export const REVIEWER_ROLE = "Senior Code Reviewer";
+export const REVIEWER_GOAL = "Review changes across correctness, security, and style lenses and produce a ranked report.";
+
 /** The severity scale, worst first — the order shared/domain/severity.ts ranks by. */
 export const SEVERITIES = ["blocker", "high", "medium", "low", "nit"] as const;
 

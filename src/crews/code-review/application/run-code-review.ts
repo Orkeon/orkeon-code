@@ -16,6 +16,10 @@ import {
 } from "./review.ts";
 import { cutDiff } from "./prompts.ts";
 import { readInstructionsFile } from "../../../shared/application/instructions-file.ts";
+import {
+  NO_CHANGES, noChangesInPaths, passFindings, passProgress, reportWritten, REVIEW_PROGRESS_LABEL, reviewInputRefused,
+  reviewing, reviewPlan, unknownLens,
+} from "./messages.ts";
 
 /** The diff the lenses read, in characters: about 3 000 tokens, so three lenses per
  *  pass stay cheap; a longer diff is cut and says so. */
@@ -24,9 +28,6 @@ export const MAX_REVIEW_DIFF_CHARS = 12_000;
 /** The findings the merged report keeps, the most severe first: three lenses times
  *  several passes would otherwise reach dozens of items. */
 export const MAX_REPORT_FINDINGS = 30;
-
-/** Status-line headline of the /review progress. */
-export const REVIEW_PROGRESS_LABEL = "Reviewing changes";
 
 /** The crew's input: `files` and `commit` scope the diff, `lenses` narrows the review, `passes` sets its rounds. */
 export interface CodeReviewInputs extends ReviewInputs {
@@ -56,15 +57,12 @@ export async function runCodeReview(input: CodeReviewInputs, deps: CodeReviewDep
   // B-3: `files` used to be declared in the input contract and ignored — a
   // caller asking to review two paths got whatever was staged, silently.
   const scope = resolveReviewScope(input);
-  for (const r of scope.rejected) log.warn(`review input refused: '${r.value}' — ${r.reason}`);
-  log.info(`reviewing ${scope.describe}`);
+  for (const r of scope.rejected) log.warn(reviewInputRefused(r.value, r.reason));
+  log.info(reviewing(scope.describe));
 
   const diff = await collectDiff(scope, shell);
   if (diff.trim().length === 0) {
-    const what = scope.paths.length > 0
-      ? `No changes to review in the named path(s): ${scope.paths.join(", ")}.`
-      : "No changes to review (empty diff).";
-    return what;
+    return scope.paths.length > 0 ? noChangesInPaths(scope.paths.join(", ")) : NO_CHANGES;
   }
   // Function context only lengthens a diff: over the cap already, it is not asked for.
   const withContext = diff.length <= MAX_REVIEW_DIFF_CHARS ? await collectFunctionContextDiff(scope, shell) : "";
@@ -84,10 +82,10 @@ export async function runCodeReview(input: CodeReviewInputs, deps: CodeReviewDep
   // /security-review alias) and beats the standing `review.lenses` setting.
   const selection = resolveLensSelection({ input: input.lenses, config: lensSetting });
   for (const u of selection.unknown) {
-    log.warn(`unknown review lens '${u}' ignored (valid: correctness, security, style)`);
+    log.warn(unknownLens(u));
   }
   const plan = describeReviewPlan(selection.lenses, passes, selection.source);
-  log.info(`review plan — ${plan}`);
+  log.info(reviewPlan(plan));
 
   const diffSlice = cutDiff(reviewed.diff, MAX_REVIEW_DIFF_CHARS);
   const cut = reviewed.diff.length > MAX_REVIEW_DIFF_CHARS
@@ -103,12 +101,12 @@ export async function runCodeReview(input: CodeReviewInputs, deps: CodeReviewDep
     for (let pass = 1; pass <= passes; pass++) {
       await progress.report({
         label: REVIEW_PROGRESS_LABEL, step: pass, total: passes,
-        message: `pass ${pass} — ${selection.lenses.map((l) => l.key).join("/")}`,
+        message: passProgress(pass, selection.lenses.map((l) => l.key).join("/")),
       });
       const prior = dedupAndRank(results);
       const round = await runLenses(llm, diffSlice, selection.lenses, pass, prior, conventions);
       const added = round.reduce((n, r) => n + r.findings.length, 0);
-      if (passes > 1) log.info(`review pass ${pass}/${passes}: ${added} raw finding(s)`);
+      if (passes > 1) log.info(passFindings(pass, passes, added));
       results.push(...round);
     }
   } finally {
@@ -119,5 +117,5 @@ export async function runCodeReview(input: CodeReviewInputs, deps: CodeReviewDep
 
   const report = renderReport(scope.describe, changed.length, findings, plan, cut, ranked.length - findings.length);
   await writeReport(report, files);
-  return `/output/code-review-report.md (${findings.length} findings across ${changed.length} files, ${plan})`;
+  return reportWritten(findings.length, changed.length, plan);
 }

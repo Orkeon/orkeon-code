@@ -24,6 +24,7 @@ import {
 } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { runCodeReview } from "./application/run-code-review.ts";
+import { REVIEWER_GOAL, REVIEWER_ROLE } from "./application/prompts.ts";
 
 const ports = {
   shell: orkeonShell(),
@@ -35,8 +36,8 @@ const ports = {
 
 const reviewer = orkeonAgent()
   .name("code-reviewer")
-  .role("Senior Code Reviewer")
-  .goal("Review changes across correctness, security, and style lenses and produce a ranked report.")
+  .role(REVIEWER_ROLE)
+  .goal(REVIEWER_GOAL)
   .tools(["shell_command", "file_read"])
   .body(async (_input: any, ctx: any) =>
     await runCodeReview(inputs(), { ...ports, llm: createLlm(ctx.llm), log: ctx.log }))

@@ -3,22 +3,22 @@
 
 import { unwrapFences } from "../../../shared/domain/strip.ts";
 import { policyFor } from "../../../shared/domain/agent-policy/mode-policy.ts";
-
-const FALLBACK = "chore: update working tree";
+import { COMMIT_REFUSAL_PREFIX } from "./markers.ts";
+import {
+  changesUnder, commitNotice, commitQuestion, EVERY_CHANGE_LISTED, FALLBACK_COMMIT_MESSAGE, NO_PERMISSION_MODE,
+  NO_REASON_GIVEN, NOTE_NEEDS_TEXT, onBranch, readOnlyMode, unknownOption,
+} from "./messages.ts";
 
 /** Clean an LLM-drafted commit message: unwrap fences, trim, fall back if empty. */
 export function normalizeCommitMessage(raw: string): string {
   const msg = unwrapFences(String(raw ?? "")).trim();
-  return msg.length === 0 ? FALLBACK : msg;
+  return msg.length === 0 ? FALLBACK_COMMIT_MESSAGE : msg;
 }
-
-/** How the drafting model refuses: a reply starting with it is no message. */
-export const COMMIT_REFUSAL_PREFIX = "REFUSE:";
 
 /** The reason a drafted reply refuses to commit, or null when it is a message. */
 export function commitRefusal(message: string): string | null {
   const text = String(message ?? "").trim();
-  return text.startsWith(COMMIT_REFUSAL_PREFIX) ? text.slice(COMMIT_REFUSAL_PREFIX.length).trim() || "no reason given" : null;
+  return text.startsWith(COMMIT_REFUSAL_PREFIX) ? text.slice(COMMIT_REFUSAL_PREFIX.length).trim() || NO_REASON_GIVEN : null;
 }
 
 /** The paths a `git status --short` lists (the new path of a rename), quotes removed. */
@@ -89,18 +89,14 @@ export function isCommitPermitted(mode: unknown): CommitPermission {
   if (m.length === 0) {
     return {
       allowed: false,
-      reason:
-        "no permission mode reached the git-commit crew — refusing to stage and commit. " +
-        "The command must thread `permissionMode` in its crew inputs.",
+      reason: NO_PERMISSION_MODE,
     };
   }
   // The read-only modes (mode-policy.ts) must never reach a commit.
   if (policyFor(m).readOnly) {
     return {
       allowed: false,
-      reason:
-        `permission mode '${m}' is read-only — no staging, no commit. ` +
-        "Switch with /mode acceptEdits (or bypassPermissions) and re-run /commit.",
+      reason: readOnlyMode(m),
     };
   }
   return { allowed: true, reason: "" };
@@ -133,11 +129,9 @@ export function buildCommitPlan(
   opts: { branch?: string; push?: boolean; pr?: boolean; paths?: readonly string[] } = {},
 ): CommitPlan {
   const branch = (opts.branch ?? "").trim();
-  const where = branch.length > 0 ? ` on '${branch}'` : "";
+  const where = branch.length > 0 ? onBranch(branch) : "";
   const paths = opts.paths ?? [];
-  const what = paths.length > 0
-    ? `the changes under ${paths.join(", ")}`
-    : "EVERY change the status lists (untracked files included), the work folder left out";
+  const what = paths.length > 0 ? changesUnder(paths.join(", ")) : EVERY_CHANGE_LISTED;
   const steps = ["git add -- <files>", "git commit -F <drafted message> -- <files>"];
   const push = opts.push === true || opts.pr === true;
   if (push) steps.push("git push -u origin <branch>");
@@ -145,20 +139,8 @@ export function buildCommitPlan(
   if (opts.pr === true) steps.push("github create_pr");
   return {
     steps,
-    question: `Commit ${paths.length > 0 ? "the changes under the paths named" : "EVERY change"}${where}${push ? " and push" : ""}${opts.pr === true ? ", then open the pull request" : ""}?`,
-    notice: [
-      `/commit will, ${branch.length > 0 ? `on branch '${branch}'` : "on the current branch"}:`,
-      "  1. check that git has an identity (git var), and stop if it has none",
-      `  2. git add -- <files>    — ${what}`,
-      "  3. draft a Conventional-Commits message with the LLM",
-      "  4. git commit -F <that message> -- <files>   (changes staged elsewhere stay out)",
-      ...(opts.pr === true
-        ? ["  5. git push -u origin <branch>, then open the pull request with the github tool",
-          "     (or print the gh pr create command when it cannot)"]
-        : push ? ["  5. git push -u origin <branch>, then print the pull request command"] : []),
-      "A file that usually holds a secret (.env, a private key) stops it before step 2.",
-      "The message is drafted after this confirmation; it is echoed when the commit lands.",
-    ].join("\n"),
+    question: commitQuestion(paths.length > 0, where, push, opts.pr === true),
+    notice: commitNotice(branch, what, push, opts.pr === true).join("\n"),
   };
 }
 
@@ -170,8 +152,6 @@ export interface CommitArgs {
   /** The author's reason for this commit (`--note <text>`), present only when given. */
   note?: string;
 }
-
-const COMMIT_USAGE = "Usage: /commit [--yes] [--push] [--pr] [--note <text>] [<path>...]";
 
 /**
  * `/commit [--yes|-y] [--push] [--pr] [--note <text>] [<path>...]`. `--pr` asks for
@@ -199,10 +179,10 @@ export function parseCommitArgs(tokens: readonly unknown[]): { ok: true; args: C
       const value = flag === "--note"
         ? (next !== undefined && !next.startsWith("-") ? words[++i] : "")
         : t.slice("--note=".length);
-      if (value.trim().length === 0) return { ok: false, text: `✗ --note takes the reason as a text. ${COMMIT_USAGE}` };
+      if (value.trim().length === 0) return { ok: false, text: NOTE_NEEDS_TEXT };
       args.note = value.trim();
     }
-    else if (t.startsWith("-")) return { ok: false, text: `✗ unknown option '${t}'. ${COMMIT_USAGE}` };
+    else if (t.startsWith("-")) return { ok: false, text: unknownOption(t) };
     else args.paths.push(t);
   }
   return { ok: true, args };

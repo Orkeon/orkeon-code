@@ -4,13 +4,13 @@
 import type { AuditRow, Axis, Undecided } from "./audit-answer.ts";
 import { AXES, SEVERITY_ORDER } from "./audit-answer.ts";
 import type { TableRow } from "./mechanical-table.ts";
-import { CHECK_TEST_RUN } from "./mechanical-table.ts";
+import { CHECK_TEST_RUN, VERDICT_TABLE_HEADER } from "./markers.ts";
+import { buildIsRed, NO_VALIDATION } from "./messages.ts";
 import type { Severity, Verdict } from "../../../shared/domain/dev/verdict-format.ts";
 import { cut } from "./text.ts";
 
 export const MAX_VERDICT_ROWS = 8;
 const MAX_CELL_CHARS = 300;
-const NO_VALIDATION = "none — the capture's build and last test run stand";
 
 function two(n: number): string {
   return String(n).padStart(2, "0");
@@ -25,7 +25,7 @@ export function formatWhen(date: Date): string {
 function carried(row: TableRow): AuditRow {
   const fix = `see table.md: ${row.check}`;
   if (row.axis === "Build") {
-    return { severity: "Blocking", axis: "Correctness", gap: `the build is red: ${row.check}`, evidence: row.evidence, fix };
+    return { severity: "Blocking", axis: "Correctness", gap: buildIsRed(row.check), evidence: row.evidence, fix };
   }
   const axis: Axis = (AXES as readonly string[]).includes(row.axis) ? (row.axis as Axis) : "Correctness";
   const severity: Severity = row.axis === "Test" && row.check === CHECK_TEST_RUN ? "Blocking" : "Major";
@@ -100,7 +100,7 @@ export function renderVerdictSection(input: VerdictSectionInput): { text: string
   if (rows.length === 0) {
     out.push("None.");
   } else {
-    out.push("| Severity | Axis | Gap | Evidence | Expected fix |", "|----------|------|-----|----------|--------------|");
+    out.push(VERDICT_TABLE_HEADER, "|----------|------|-----|----------|--------------|");
     out.push(...rows.map(rowLine));
   }
   out.push(...overflow, "");

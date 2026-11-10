@@ -16,17 +16,18 @@ import { CrewBuilder, publishCrew, inputs } from "../../shared/infrastructure/gl
 import { orkeonAgent, orkeonCodeIndex, orkeonProgress } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { runAnalyze } from "./application/run-analyze.ts";
+import { ANALYST_GOAL, ANALYST_ROLE } from "./application/prompts.ts";
 
 const ports = { index: orkeonCodeIndex(), progress: orkeonProgress() };
 
 const analyst = orkeonAgent()
   .name("analyst")
-  .role("Codebase Analyst")
+  .role(ANALYST_ROLE)
   // NO tools on purpose: the synthesis act() must be a pure completion. The
   // deterministic phase calls the host tools directly through the CodeIndex
   // adapter, which does not go through the agent catalogue.
   .tools([])
-  .goal("Harvest the code index deterministically and synthesize business objects and dependencies.")
+  .goal(ANALYST_GOAL)
   .body(async (_input: any, ctx: any) =>
     await runAnalyze(inputs(), { ...ports, llm: createLlm(ctx.llm), log: ctx.log }))
   .build();

@@ -17,6 +17,10 @@ import { inspectWorkTree, draftCommitMessage, commitSelected, readStatus } from 
 import {
   commitRefusal, commitSubject, inputFlag, isCommitPermitted, namedPaths, secretLikePaths,
 } from "../domain/commit.ts";
+import {
+  commitRefusedLog, draftFlagged, noChangeUnder, NOTHING_OUTSIDE_WORK_FOLDER, NOTHING_TO_COMMIT, notThroughShell, pushed as pushedLine,
+  refused, secretRefused, workFolderLeftOut,
+} from "./messages.ts";
 
 export interface GitCommitDeps {
   shell: Shell;
@@ -46,31 +50,30 @@ export async function runGitCommit(input: Record<string, unknown>, deps: GitComm
   const mode = input.permissionMode;
   const permitted = isCommitPermitted(mode);
   if (!permitted.allowed) {
-    deps.log.warn(`git-commit refused: ${permitted.reason}`);
-    return `✗ refused: ${permitted.reason}`;
+    deps.log.warn(commitRefusedLog(permitted.reason));
+    return refused(permitted.reason);
   }
 
   const status = await readStatus(shell);
   if (status.trim().length === 0) {
-    return "Nothing to commit — working tree clean.";
+    return NOTHING_TO_COMMIT;
   }
   const dev = await loadDevContext({ files, shell, config });
   const selection = selectCommitFiles({
     status, workFolder: dev.work.folder, named: namedPaths(input.paths), namedWorkFolder: true,
   });
   const refusals = [
-    selection.unchanged.length > 0 ? `no change under ${selection.unchanged.join(", ")}` : "",
-    selection.unsafe.length > 0 ? `${selection.unsafe.join(", ")} cannot go through the shell (commit by hand)` : "",
+    selection.unchanged.length > 0 ? noChangeUnder(selection.unchanged.join(", ")) : "",
+    selection.unsafe.length > 0 ? notThroughShell(selection.unsafe.join(", ")) : "",
   ].filter((r) => r.length > 0);
-  if (refusals.length > 0) return `✗ refused: ${refusals.join("; ")}`;
+  if (refusals.length > 0) return refused(refusals.join("; "));
   const leftOut = selection.leftOut.length > 0
-    ? [`left out: ${selection.leftOut.length} file(s) of the work folder ${dev.work.folder}/`] : [];
-  if (selection.files.length === 0) return [...leftOut, "Nothing to commit outside the work folder."].join("\n");
+    ? [workFolderLeftOut(selection.leftOut.length, dev.work.folder)] : [];
+  if (selection.files.length === 0) return [...leftOut, NOTHING_OUTSIDE_WORK_FOLDER].join("\n");
   // A file that usually holds a secret stops the commit before any model call.
   const secrets = secretLikePaths(selection.files);
   if (secrets.length > 0) {
-    return `✗ refused: ${secrets.join(", ")} usually ${secrets.length === 1 ? "holds" : "hold"} a secret; ` +
-      "commit by hand if it is meant to be tracked, or add it to .gitignore";
+    return secretRefused(secrets.join(", "), secrets.length);
   }
   // git's own identity, before the draft: none, and nothing is spent or invented.
   const identity = await readIdentity(shell);
@@ -81,7 +84,7 @@ export async function runGitCommit(input: Record<string, unknown>, deps: GitComm
   const tree = await inspectWorkTree(shell, files, { status, files: selection.files, note });
   const message = await draftCommitMessage({ llm: deps.llm, memory: deps.memory }, tree);
   const refusal = commitRefusal(message);
-  if (refusal !== null) return `✗ refused: the drafted message flagged ${refusal}`;
+  if (refusal !== null) return draftFlagged(refusal);
   const committed = await commitSelected(tree, message, mode, { files: selection.files, status }, { shell, files });
   if (!committed.startsWith("✓")) return [...leftOut, committed].join("\n");
 
@@ -93,7 +96,7 @@ export async function runGitCommit(input: Record<string, unknown>, deps: GitComm
   if (push) {
     const step = await pushBranch(shell, tree.branch);
     pushed = step.ok;
-    lines.push(step.ok ? `✓ pushed ${tree.branch} to origin` : `✗ ${step.line}`);
+    lines.push(step.ok ? pushedLine(tree.branch) : `✗ ${step.line}`);
   }
   // The pull request is offered only when it was asked for: a push, --pr or dev.prAuto.
   const open = wantPr || (await prAuto(config));

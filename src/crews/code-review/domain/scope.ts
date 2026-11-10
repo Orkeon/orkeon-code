@@ -15,6 +15,8 @@
 // is REPORTED rather than dropped — a silently ignored path is the very defect
 // this item exists to fix.
 
+import { ABSOLUTE_PATH, ESCAPING_SEGMENT, IMPLAUSIBLE_REF, UNSAFE_PATH_CHARACTER } from "./messages.ts";
+
 /** Characters a git ref may contain here. Deliberately narrower than git's own rule. */
 const SAFE_REF = /^[A-Za-z0-9._/~^-]+$/;
 
@@ -53,19 +55,15 @@ function validatePaths(raw: unknown): { paths: string[]; rejected: Array<{ value
     const p = String(item ?? "").trim();
     if (p.length === 0) continue;
     if (p.startsWith("/")) {
-      rejected.push({ value: p, reason: "absolute path — review paths are repo-relative" });
+      rejected.push({ value: p, reason: ABSOLUTE_PATH });
       continue;
     }
     if (p.split("/").includes("..")) {
-      rejected.push({ value: p, reason: "'..' segment — would escape the repository" });
+      rejected.push({ value: p, reason: ESCAPING_SEGMENT });
       continue;
     }
     if (!SAFE_PATH.test(p)) {
-      rejected.push({
-        value: p,
-        reason: "contains a character that is unsafe in a shell argument " +
-          "(allowed: letters, digits, '.', '_', '-', '/')",
-      });
+      rejected.push({ value: p, reason: UNSAFE_PATH_CHARACTER });
       continue;
     }
     if (!paths.includes(p)) paths.push(p);
@@ -89,11 +87,7 @@ export function resolveReviewScope(inputs?: ReviewInputs | null): ReviewScope {
     if (SAFE_REF.test(commit)) {
       range = `${commit}~1..${commit}`;
     } else {
-      rejected.push({
-        value: commit,
-        reason: "not a plausible git ref (allowed: letters, digits, '.', '_', '-', '/', '~', '^') " +
-          "— reviewing the staged changes instead",
-      });
+      rejected.push({ value: commit, reason: IMPLAUSIBLE_REF });
     }
   }
 

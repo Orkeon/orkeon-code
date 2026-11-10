@@ -18,7 +18,8 @@ import {
 } from "../../../src/crews/code-review/application/prompts.ts";
 import { buildCommitPrompt } from "../../../src/crews/git-commit/application/draft.ts";
 import { buildAdvicePrompt } from "../../../src/crews/advisor/domain/advice.ts";
-import { SYNTHESIS_SYSTEM, buildSynthesisUser } from "../../../src/crews/analyze/domain/harvest.ts";
+import { buildSynthesisUser } from "../../../src/crews/analyze/domain/harvest.ts";
+import { SYNTHESIS_SYSTEM } from "../../../src/crews/analyze/domain/prompts.ts";
 import {
   READINESS_SCHEMA, buildReadinessPrompt, buildVerifierSkillPrompt, renderVerifierMaterial,
 } from "../../../src/crews/init-verifiers/application/prompts.ts";
@@ -286,7 +287,7 @@ export async function renderCatalogue(): Promise<RenderedPrompt[]> {
       ],
     },
     {
-      id: "06", name: "commit-message", source: "src/crews/git-commit/application/draft.ts",
+      id: "06", name: "commit-message", source: "src/crews/git-commit/application/draft.ts, application/prompts.ts",
       callSite: "/commit → crews/git-commit → draft.ts draftCommitMessage", call: "complete with a system message",
       inputs: "a modified file and an untracked one",
       sections: pair("commit", buildCommitPrompt({
@@ -295,7 +296,7 @@ export async function renderCatalogue(): Promise<RenderedPrompt[]> {
       })),
     },
     {
-      id: "07", name: "advisor-second-opinion", source: "src/crews/advisor/domain/advice.ts",
+      id: "07", name: "advisor-second-opinion", source: "src/crews/advisor/domain/advice.ts, domain/prompts.ts",
       callSite: "/advisor → crews/advisor → application/run-advisor.ts", call: "complete with a system message (the advisor model)",
       inputs: "the last exchange of the sample history and the turns before it",
       sections: pair("advice", buildAdvicePrompt(
@@ -304,7 +305,7 @@ export async function renderCatalogue(): Promise<RenderedPrompt[]> {
       )),
     },
     {
-      id: "08", name: "analyze-synthesis", source: "src/crews/analyze/domain/harvest.ts",
+      id: "08", name: "analyze-synthesis", source: "src/crews/analyze/domain/harvest.ts, domain/prompts.ts",
       callSite: "/analyze → crews/analyze → application/run-analyze.ts", call: "act with no tool, one iteration",
       inputs: "a three-line sample harvest",
       sections: [

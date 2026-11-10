@@ -2,6 +2,7 @@
 // model can read whole, and the small readings each section is made of (a build log, a
 // test tail, the classes of a test file). Pure.
 export { isTestFile, isTestRoot } from "../../../shared/domain/dev/access-cost.ts";
+import { cutNotCaptured, idsOfTheSheet, NO_CLASS_FOUND, TRAITS_NOT_CHECKED } from "./messages.ts";
 
 export const MAX_SECTION_CHARS = 32_000;
 export const SECTION_CUT_CHARS = 31_000;
@@ -39,7 +40,7 @@ export function splitSection(base: string, content: string): SectionFile[] {
     const part = rest.slice(0, end);
     rest = rest.slice(end);
     if (k === MAX_SECTION_PARTS) {
-      files.push({ name: partName(base, k), content: `${part}\n[cut: ${rest.length} more characters not captured]\n` });
+      files.push({ name: partName(base, k), content: `${part}${cutNotCaptured(rest.length)}` });
       return files;
     }
     files.push({ name: partName(base, k), content: `${part}\n[continued in ${partName(base, k + 1)}]\n` });
@@ -118,8 +119,8 @@ export function typeNameOf(path: string): string {
 
 /** The `traits` section: the marker, the sheet's ids, then the first 40 hits as `path:line text`. */
 export function traitsSection(marker: string | null, ids: readonly string[], hits: readonly string[] | null): string {
-  if (marker === null) return "not checked — the pack has no tests.rule_trait or tests.trait_pattern\n";
-  const out = [`marker: ${marker}`, `ids of the sheet: ${ids.join(" ")}`];
+  if (marker === null) return TRAITS_NOT_CHECKED;
+  const out = [`marker: ${marker}`, idsOfTheSheet(ids.join(" "))];
   for (const h of (hits ?? []).filter((x) => x !== "").slice(0, TRAIT_HIT_LINES)) out.push(h.replace(/:([0-9]*):/, ":$1 "));
   return `${out.join("\n")}\n`;
 }
@@ -131,7 +132,7 @@ export function traitsSection(marker: string | null, ids: readonly string[], hit
 export function testClassesLine(
   path: string, classes: readonly string[] | null, testFiles: readonly string[] | null, why?: string,
 ): string {
-  if (classes !== null) return `${path}: ${classes.length > 0 ? classes.join(", ") : "no class found"}`;
+  if (classes !== null) return `${path}: ${classes.length > 0 ? classes.join(", ") : NO_CLASS_FOUND}`;
   const found = testFiles === null ? (why ?? "none") : testFiles.length > 0 ? testFiles.join(", ") : "none";
   return `${path} -> tests naming ${typeNameOf(path)}: ${found}`;
 }

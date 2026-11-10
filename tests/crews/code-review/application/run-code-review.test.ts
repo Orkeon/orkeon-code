@@ -4,8 +4,9 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok } from "node:assert";
 
 import {
-  MAX_REPORT_FINDINGS, MAX_REVIEW_DIFF_CHARS, REVIEW_PROGRESS_LABEL, runCodeReview,
+  MAX_REPORT_FINDINGS, MAX_REVIEW_DIFF_CHARS, runCodeReview,
 } from "../../../../src/crews/code-review/application/run-code-review.ts";
+import { REVIEW_PROGRESS_LABEL } from "../../../../src/crews/code-review/application/messages.ts";
 import { buildLensPrompt } from "../../../../src/crews/code-review/application/prompts.ts";
 import { LENSES, describeReviewPlan } from "../../../../src/crews/code-review/domain/lenses.ts";
 import { CONFIG_MAP_STATE_KEY, PASSES_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";

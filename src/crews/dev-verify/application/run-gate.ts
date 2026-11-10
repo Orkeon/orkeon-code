@@ -15,6 +15,8 @@ import {
   GIT_CHANGED_TRACKED, GIT_DIFF_CHECK, UNQUOTABLE_SCOPE, buildOutputProblem, excludePathspecs, gitTraitGrep, gitUntracked,
 } from "../domain/commands.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
+import { gateGreen, gateHeader, gateRed } from "../domain/messages.ts";
+import { gateCouldNotRun, gateExit, outputCutByRuntime, planFileNotRead, sheetUnreadable } from "./messages.ts";
 
 const MAX_PLAN_ENTRIES = 500;
 const MAX_PLAN_FILES = 60;
@@ -72,15 +74,15 @@ async function runOrRefuse(
   try {
     result = await shell.run(command);
   } catch (error) {
-    throw new GateCommandError(`the gate could not run '${command}': ${errorLine(error)}`);
+    throw new GateCommandError(gateCouldNotRun(command, errorLine(error)));
   }
   if (result.exitCode !== -1 && !okExits.includes(result.exitCode)) {
     const why = firstLine(result.stderr);
-    throw new GateCommandError(`the gate could not run '${command}': exit ${result.exitCode}${why === "" ? "" : ` (${why})`}`);
+    throw new GateCommandError(gateExit(command, result.exitCode, why));
   }
   const { kept, omitted } = runtimeCut(result.stdout);
   const cut = omitted > 0
-    ? { kind: "FAIL" as const, text: `the output of '${command}' was cut by the runtime (${omitted} characters omitted): the list is incomplete, run the gate again on a smaller change` }
+    ? { kind: "FAIL" as const, text: outputCutByRuntime(command, omitted) }
     : null;
   return { stdout: kept, cut };
 }
@@ -91,9 +93,9 @@ function withChecks(report: GateReport, input: { batch: string; sheetShown: stri
   const checks = [...report.checks, ...extra];
   const green = !checks.some((c) => c.kind === "FAIL");
   const lines = [
-    `GATE — batch ${input.batch} — sheet ${input.sheetShown}`,
+    gateHeader(input.batch, input.sheetShown),
     ...checks.map(gateLineText),
-    green ? `GATE — batch ${input.batch}: GREEN` : `GATE — batch ${input.batch}: RED — fix and run again, no audit before`,
+    green ? gateGreen(input.batch) : gateRed(input.batch),
   ];
   return { ...report, green, lines, checks };
 }
@@ -113,7 +115,7 @@ async function planTexts(files: Pick<Files, "read" | "list">, planDir: string) {
   const md = names.filter((n) => n.endsWith(".md")).sort(byCodeUnit);
   const ordered = [...md.filter(isPlan), ...md.filter((n) => !isPlan(n))];
   for (const name of ordered.slice(MAX_PLAN_FILES)) {
-    warnings.push({ kind: "note", text: `plan folder: ${name} not read (beyond the first ${MAX_PLAN_FILES} .md files, *-PLAN*.md first)` });
+    warnings.push({ kind: "note", text: planFileNotRead(name, MAX_PLAN_FILES) });
   }
   for (const name of ordered.slice(0, MAX_PLAN_FILES)) {
     let text: string;
@@ -145,7 +147,7 @@ export async function runGate(
   try {
     sheet = await deps.files.read(`${WORKSPACE}/${target.sheetShown}`);
   } catch (error) {
-    return { ok: false, error: `the sheet ${target.sheetShown} cannot be read (${errorLine(error)})` };
+    return { ok: false, error: sheetUnreadable(target.sheetShown, errorLine(error)) };
   }
   const { texts: plan, warnings } = await planTexts(deps.files, `${WORKSPACE}/${target.planDirShown}`);
 

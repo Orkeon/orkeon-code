@@ -3,9 +3,10 @@
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok, rejects } from "node:assert";
 
-import { inspectWorkTree, commitSelected, buildCommitPrompt, draftCommitMessage, AUTHOR_NOTE_HEADING, MAX_COMMIT_DIFF_CHARS } from "../../../../src/crews/git-commit/application/draft.ts";
+import { inspectWorkTree, commitSelected, buildCommitPrompt, draftCommitMessage, MAX_COMMIT_DIFF_CHARS } from "../../../../src/crews/git-commit/application/draft.ts";
+import { AUTHOR_NOTE_HEADING } from "../../../../src/crews/git-commit/application/prompts.ts";
 import { GIT_STATUS_COMMAND } from "../../../../src/shared/domain/git/close.ts";
-import { COMMIT_REFUSAL_PREFIX } from "../../../../src/crews/git-commit/domain/commit.ts";
+import { COMMIT_REFUSAL_PREFIX } from "../../../../src/crews/git-commit/domain/markers.ts";
 import { normalizeCommitMessage } from "../../../../src/crews/git-commit/domain/commit.ts";
 import { FakeCrewMemory } from "../../../support/doubles/fake-crew-memory.ts";
 import { FakeFiles } from "../../../support/doubles/fake-files.ts";
