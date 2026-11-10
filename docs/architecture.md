@@ -883,8 +883,7 @@ them:
   enumeration words, and the `description:` of a `*.cmd.ts`. The charters (`*-charter.ts`, `built-in-charters.ts`),
   `design-rules.ts` and `reading-rule.ts` are text files under their own names.
 - `tests/repository/text-isolation.test.ts` flags a literal of a logic file that holds three words or more, or more
-  than 60 characters with a space; each exception is named with its file, its owner and its reason. Until the text
-  isolation is done, `tests/repository/text-isolation-baseline.ts` caps each file at the count it held.
+  than 60 characters with a space; each exception is named with its file, its owner and its reason.
 
 ## Context management
 
@@ -914,7 +913,7 @@ extraction, `shared/domain/compaction.ts` the prompts and buffers, `shared/domai
    it in `tests/commands/_lib/<group>/<name>.test.ts`, over the fakes. A helper that several groups share
    sits at the root of `_lib/`; a group never imports another one.
 3. Raise `EXPECTED_COMMAND_COUNT` in `tests/repository/command-surface.test.ts` and the command count of `RELEASE_NOTES` in
-   `src/commands/_lib/status/meta.ts` (pinned by `tests/commands/_lib/status/meta.test.ts`), then run `npm run docs:commands`.
+   `src/commands/_lib/status/messages.ts` (pinned by `tests/commands/_lib/status/meta.test.ts`), then run `npm run docs:commands`.
 
 ### Add a crew
 

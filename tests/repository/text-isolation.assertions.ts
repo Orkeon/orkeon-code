@@ -2,12 +2,9 @@
 import { deepStrictEqual } from "node:assert";
 import type { TextException } from "./text-isolation.ts";
 
-/** Every file holds no more prose literals than its baseline allows, and a file absent from the baseline none. */
-export function assertWithinBaseline(counts: Readonly<Record<string, number>>, baseline: Readonly<Record<string, number>>): void {
-  const over = Object.entries(counts)
-    .filter(([file, n]) => n > (baseline[file] ?? 0))
-    .map(([file, n]) => `${file}: ${n} prose literal(s), baseline ${baseline[file] ?? 0}: move the text to prompts.ts, messages.ts or markers.ts`);
-  deepStrictEqual(over, []);
+/** No logic file holds prose that no exception allows: each line names a literal to move. */
+export function assertNoProse(problems: readonly string[]): void {
+  deepStrictEqual(problems.map((p) => `${p}: move the text to prompts.ts, messages.ts or markers.ts`), []);
 }
 
 /** No exception is left that matches nothing: one that does must be removed. */

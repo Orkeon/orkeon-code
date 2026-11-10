@@ -2,7 +2,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { posix } from "node:path";
 import { fileURLToPath } from "node:url";
-import { textProblems } from "./text-isolation.ts";
+import { TEXT_EXCEPTIONS, textProblems } from "./text-isolation.ts";
 import type { TextException, TextLiteral } from "./text-isolation.ts";
 
 const ROOT = posix.join(posix.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -21,15 +21,9 @@ export function filesUnder(dir: string, acc: string[] = []): string[] {
 /** Every .ts file of src/ with its text. */
 export const srcFiles = () => filesUnder("src").map((file) => ({ file, text: readFileSync(posix.join(ROOT, file), "utf-8") }));
 
-/** The count of prose literals no exception allows, per file of src/ that holds one. */
-export function repositoryCounts(): Record<string, number> {
-  const counts: Record<string, number> = {};
-  for (const { file, text } of srcFiles()) {
-    const n = textProblems(file, text).length;
-    if (n > 0) counts[file] = n;
-  }
-  return counts;
-}
+/** The prose literals no exception allows, over the given files, one line each. */
+export const repositoryProblems = (files: readonly { file: string; text: string }[]) =>
+  files.flatMap(({ file, text }) => textProblems(file, text));
 
 /** Literals as `<line>:<owner>`, the text left out. */
 export const ownersOf = (literals: readonly TextLiteral[]) => literals.map((l) => `${l.line}:${l.owner}`);
@@ -107,3 +101,6 @@ export const COMMAND_FILE = "src/commands/dev/dev-plan.cmd.ts";
 
 /** An exception that names a property no source holds. */
 export const STALE_EXCEPTION: TextException = { file: "src/commands/**/*.cmd.ts", name: "summary", reason: "a test" };
+
+/** The exception of the command descriptions, the one a command file uses. */
+export const DESCRIPTION_EXCEPTION = TEXT_EXCEPTIONS.find((e) => e.name === "description") as TextException;

@@ -960,8 +960,7 @@ modules qui les lisent :
   leur propre nom.
 - `tests/repository/text-isolation.test.ts` signale un littéral d'un fichier de logique qui compte trois mots ou plus,
   ou plus de 60 caractères avec une espace ; chaque exception est nommée avec son fichier, son propriétaire et sa
-  raison. Tant que l'isolation du texte n'est pas finie, `tests/repository/text-isolation-baseline.ts` plafonne chaque
-  fichier au décompte qu'il avait.
+  raison.
 
 ## Gestion du contexte
 
@@ -995,7 +994,7 @@ contiennent la restauration et l'extraction de mémoire, `shared/domain/compacti
    services qu'elle lit ; la tester dans `tests/commands/_lib/<group>/<name>.test.ts`, au-dessus des fakes.
    Un utilitaire que plusieurs groupes partagent se place à la racine de `_lib/` ; un groupe n'importe jamais un autre.
 3. Augmenter `EXPECTED_COMMAND_COUNT` dans `tests/repository/command-surface.test.ts` et le nombre de commandes de
-   `RELEASE_NOTES` dans `src/commands/_lib/status/meta.ts` (épinglé par `tests/commands/_lib/status/meta.test.ts`), puis lancer
+   `RELEASE_NOTES` dans `src/commands/_lib/status/messages.ts` (épinglé par `tests/commands/_lib/status/meta.test.ts`), puis lancer
    `npm run docs:commands`.
 
 ### Ajouter un crew

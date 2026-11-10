@@ -1,14 +1,12 @@
-// Where the text of src/ lives (ADR 0026): no prose in a logic file beyond the named exceptions. A ratchet for now:
-// a file may hold the count text-isolation-baseline.ts gives it, never more.
+// Where the text of src/ lives (ADR 0026): no prose in a logic file beyond the named exceptions.
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
-import { TEXT_EXCEPTIONS, TEXT_FILES, textLiterals, textProblems, unusedExceptions } from "./text-isolation.ts";
-import { TEXT_BASELINE } from "./text-isolation-baseline.ts";
+import { TEXT_FILES, textLiterals, textProblems, unusedExceptions } from "./text-isolation.ts";
 import {
-  CODE_CASES, COMMAND_FILE, COMMAND_SOURCE, PROSE_CASES, SENTENCE_SOURCE, STALE_EXCEPTION, TEXT_FILE_CASES, ownersOf,
-  repositoryCounts, srcFiles,
+  CODE_CASES, COMMAND_FILE, COMMAND_SOURCE, DESCRIPTION_EXCEPTION, PROSE_CASES, SENTENCE_SOURCE, STALE_EXCEPTION, TEXT_FILE_CASES, ownersOf,
+  repositoryProblems, srcFiles,
 } from "./text-isolation.fixtures.ts";
-import { assertNoStaleException, assertWithinBaseline } from "./text-isolation.assertions.ts";
+import { assertNoProse, assertNoStaleException } from "./text-isolation.assertions.ts";
 
 describe("text isolation: the detector", () => {
   for (const c of [...PROSE_CASES, ...CODE_CASES]) {
@@ -86,7 +84,7 @@ describe("text isolation: the detector", () => {
     const files = [{ file: COMMAND_FILE, text: COMMAND_SOURCE }];
 
     // Act
-    const unused = unusedExceptions(files, [...TEXT_EXCEPTIONS, STALE_EXCEPTION]);
+    const unused = unusedExceptions(files, [DESCRIPTION_EXCEPTION, STALE_EXCEPTION]);
 
     // Assert
     deepStrictEqual(unused, [STALE_EXCEPTION]);
@@ -94,15 +92,15 @@ describe("text isolation: the detector", () => {
 });
 
 describe("text isolation: the repository", () => {
-  it("no file of src/ holds more prose than its baseline", () => {
+  it("no logic file of src/ holds prose beyond the named exceptions", () => {
     // Arrange
-    const baseline = TEXT_BASELINE;
+    const files = srcFiles();
 
     // Act
-    const counts = repositoryCounts();
+    const problems = repositoryProblems(files);
 
     // Assert
-    assertWithinBaseline(counts, baseline);
+    assertNoProse(problems);
   });
 
   it("every exception still matches a literal of src/", () => {

@@ -30,6 +30,11 @@ export const TEXT_EXCEPTIONS: readonly TextException[] = [
     name: "description",
     reason: "scripts/gen-commands-doc.mjs reads the description of each command from its *.cmd.ts",
   },
+  {
+    file: "src/shared/infrastructure/orkeon/shell-jobs.ts",
+    name: "WAIT_SCRIPT_CONTENT",
+    reason: "the JavaScript source of the wait script written under .orkeon/dev/bin, code rather than text",
+  },
 ];
 
 /** A word of prose: letters, at least two, lower case after the first (an identifier in camelCase or a constant in
