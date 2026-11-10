@@ -45,6 +45,9 @@ that breaks the rule; never weaken it to make a change pass, move the code inste
 - No import cycle. Relative imports name their `.ts` file. No `require()`, no Node API in `src/` outside tests.
 - Logic found in an entry point or an adapter is moved into domain (when pure) or application (when it orchestrates
   ports), then tested there.
+- Text is not logic ([ADR 0026](docs/adr/0026-text-isolation.md)): prose for the model goes to `prompts.ts`, for the
+  user to `messages.ts`, values a writer and a parser share to `markers.ts`, in the layer folder of the module that
+  reads it. `tests/repository/text-isolation.test.ts` flags prose left in a logic file.
 - Before adding a file, answer: is it pure (domain), does it orchestrate ports (application), does it touch the
   runtime (infrastructure)? Put it there, next to its siblings. Every runtime file of `src/` sits in a layer, or is
   an entry point, a command use case of `commands/_lib/` or a `.d.ts`.

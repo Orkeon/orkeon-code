@@ -8,7 +8,7 @@ import type { Files, Llm, Shell } from "../../../shared/application/ports.ts";
 import { firstLine, readRequest } from "../../../shared/application/dev/source-step.ts";
 import type { RepoPackCommands } from "../../../shared/domain/dev/repo-pack.ts";
 import { checkValidation, plainWords } from "../../../shared/domain/dev/test-commands.ts";
-import { REPRO_SCHEMA, buildReproPrompt } from "./change-prompt.ts";
+import { REPRO_SCHEMA, buildReproPrompt } from "./prompts.ts";
 
 export const REPRO_TIMEOUT_SECONDS = 600;
 const MAX_COMMAND_CHARS = 400;

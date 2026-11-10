@@ -1,16 +1,16 @@
 // The planner's prompt: each behaviour pinned by one marker, the design rules listed, the
 // material after the instructions, the re-ask with its problems before the material, the
 // cap and its cut order, and no host vocabulary. Run:
-//   node --test tests/crews/dev-plan/application/plan-prompt.test.ts
+//   node --test tests/crews/dev-plan/application/prompts.test.ts
 import { describe, it } from "node:test";
 import { ok, strictEqual } from "node:assert";
 
 import { DESIGN_RULE_IDS } from "../../../../src/shared/domain/dev/design-rules.ts";
-import { MAX_PLAN_PROMPT_CHARS, PLAN_INSTRUCTIONS, SOURCE_CHARS, buildPlanPrompt } from "../../../../src/crews/dev-plan/application/plan-prompt.ts";
+import { MAX_PLAN_PROMPT_CHARS, PLAN_INSTRUCTIONS, SOURCE_CHARS, buildPlanPrompt } from "../../../../src/crews/dev-plan/application/prompts.ts";
 import {
   BRIEF, INPUT, INVENTORY_200, MARK, PLAN_MARKERS, RULES_HEAD_MARKERS, RULE_CLOSE_CASES, SIXTY_ONE_PROBLEMS, hostVocabulary, rulesBlockOf,
-} from "./plan-prompt.fixtures.ts";
-import { assertDesignRuleLines, assertNoHostWord, assertRuleLineCloses } from "./plan-prompt.assertions.ts";
+} from "./prompts.fixtures.ts";
+import { assertDesignRuleLines, assertNoHostWord, assertRuleLineCloses } from "./prompts.assertions.ts";
 import { assertMentions, assertOmits } from "../../../support/assertions/text.ts";
 
 describe("PLAN_INSTRUCTIONS — one marker per behaviour", () => {

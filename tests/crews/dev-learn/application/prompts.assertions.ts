@@ -1,7 +1,7 @@
 // Checks on the learner's prompt.
 import { ok } from "node:assert";
 
-import { MAX_LEARN_PROMPT_CHARS } from "../../../../src/crews/dev-learn/application/learn-prompt.ts";
+import { MAX_LEARN_PROMPT_CHARS } from "../../../../src/crews/dev-learn/application/prompts.ts";
 import type { OwnerLinesBlock } from "../../../../src/crews/dev-learn/domain/owner-lines.ts";
 
 /** The prompt fits MAX_LEARN_PROMPT_CHARS and shows the owner lines whole. */

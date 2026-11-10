@@ -439,7 +439,7 @@ const importOf = (from: string, to: string): Import => ({ from, specifier: "./x.
 export const LAYER_IMPORT_CASES: readonly ImportCase[] = [
   {
     name: "refuses commands/_lib/ to application",
-    imp: importOf("src/crews/main-loop/application/turn-prompt.ts", "src/commands/_lib/args.ts"),
+    imp: importOf("src/crews/main-loop/application/prompts.ts", "src/commands/_lib/args.ts"),
     broken: [APPLICATION_RULE, OUT_OF_COMMANDS_RULE],
   },
   {

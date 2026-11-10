@@ -36,7 +36,7 @@ import { NEXT_BATCH_REVIEWER_CHARTER } from "../../../shared/domain/dev/reviewer
 import { charterCatalogue } from "../../../shared/domain/agents/charter.ts";
 import type { CarriedText } from "../../../shared/domain/dev/carried-text.ts";
 import { REVIEW_ANSWER_SCHEMA, checkReviewAnswer } from "../../../shared/domain/dev/review-answer.ts";
-import { buildReviewAnswerPrompt, buildReviewBrief, reviewSystem } from "../../../shared/domain/dev/review-prompt.ts";
+import { buildReviewAnswerPrompt, buildReviewBrief, reviewSystem } from "../../../shared/domain/dev/prompts.ts";
 import { parseSessionRules } from "../../../shared/domain/git/pull-request.ts";
 import { GIT_CURRENT_BRANCH_COMMAND, GIT_HEAD_COMMAND, shellQuote, workBranchFromPattern } from "../../../shared/domain/git/close.ts";
 import { policyFor } from "../../../shared/domain/agent-policy/mode-policy.ts";

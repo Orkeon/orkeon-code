@@ -1,7 +1,7 @@
 // MainLoop use case — one turn of the interactive loop: run in the mode the
 // launching command resolved, keep the session buffer, compact around the turn,
 // assemble the prompt (F4) and run the autonomous act() call. The turn's messages are
-// built by ./turn-prompt, the breaker by ./auto-compact; every dependency comes
+// built by ./prompts, the breaker by ./auto-compact; every dependency comes
 // in through the ports.
 
 import {
@@ -32,8 +32,8 @@ import { textToVirtual } from "../../../shared/domain/host-paths.ts";
 import { readBehaviorFlags } from "./context-gather.ts";
 import { autoCompactGuarded } from "./auto-compact.ts";
 import type { AutoCompactDeps } from "./auto-compact.ts";
-import { buildTurnPrompt } from "./turn-prompt.ts";
-import type { TurnContextDeps, TurnPrompt } from "./turn-prompt.ts";
+import { buildTurnPrompt } from "./prompts.ts";
+import type { TurnContextDeps, TurnPrompt } from "./prompts.ts";
 import {
   STOP_GUARDS, TURN_START_GUARDS, buildStopRetryPrompt, buildTurnContextMessage, readClosingLine, refusedTurnText,
   runChain,

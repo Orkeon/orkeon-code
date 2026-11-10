@@ -3,7 +3,7 @@
 // builder, on one set of sample inputs. Shared by tests/repository/prompt-contract.test.ts
 // (the rules every prompt keeps) and scripts/render-prompts.mjs (a render to read
 // and to diff when a prompt changes).
-import { buildTurnPrompt } from "../../../src/crews/main-loop/application/turn-prompt.ts";
+import { buildTurnPrompt } from "../../../src/crews/main-loop/application/prompts.ts";
 import { PERMISSION_MODES } from "../../../src/shared/domain/permission-modes.ts";
 import { MEMORY_TOOLS, scriptToolsFor } from "../../../src/shared/domain/agent-policy/permission.ts";
 import { DEFAULT_BEHAVIOR_FLAGS } from "../../../src/shared/domain/agent-policy/behavior-flags.ts";
@@ -30,18 +30,18 @@ import { buildVerifyRequest } from "../../../src/shared/domain/verifiers.ts";
 import { applyPrelude } from "../../../src/shared/domain/prelude.ts";
 import {
   AUDITOR_SYSTEM, buildAnswerPrompt, buildAuditBrief, buildValidationFollowUp,
-} from "../../../src/crews/dev-verify/application/auditor-prompt.ts";
-import type { AuditBriefInput } from "../../../src/crews/dev-verify/application/auditor-prompt.ts";
+} from "../../../src/crews/dev-verify/application/prompts.ts";
+import type { AuditBriefInput } from "../../../src/crews/dev-verify/application/prompts.ts";
 import { AUDIT_ANSWER_SCHEMA } from "../../../src/crews/dev-verify/domain/audit-answer.ts";
-import { buildLearnPrompt } from "../../../src/crews/dev-learn/application/learn-prompt.ts";
-import type { LearnPromptInput } from "../../../src/crews/dev-learn/application/learn-prompt.ts";
+import { buildLearnPrompt } from "../../../src/crews/dev-learn/application/prompts.ts";
+import type { LearnPromptInput } from "../../../src/crews/dev-learn/application/prompts.ts";
 import { LEARN_ANSWER_SCHEMA, motifLabel } from "../../../src/crews/dev-learn/domain/learn-answer.ts";
 import { matchOwner, reviewOwner } from "../../../src/crews/dev-learn/domain/owner-lines.ts";
-import { buildPlanPrompt } from "../../../src/crews/dev-plan/application/plan-prompt.ts";
-import type { PlanPromptInput } from "../../../src/crews/dev-plan/application/plan-prompt.ts";
+import { buildPlanPrompt } from "../../../src/crews/dev-plan/application/prompts.ts";
+import type { PlanPromptInput } from "../../../src/crews/dev-plan/application/prompts.ts";
 import { PLAN_ANSWER_SCHEMA } from "../../../src/crews/dev-plan/domain/plan-answer.ts";
 import { REVIEW_ANSWER_SCHEMA } from "../../../src/shared/domain/dev/review-answer.ts";
-import { buildReviewAnswerPrompt, buildReviewBrief, reviewSystem } from "../../../src/shared/domain/dev/review-prompt.ts";
+import { buildReviewAnswerPrompt, buildReviewBrief, reviewSystem } from "../../../src/shared/domain/dev/prompts.ts";
 import type { PromptPair } from "../../../src/shared/domain/types.ts";
 import { FakeClock } from "../doubles/fake-clock.ts";
 import { FakeShell } from "../doubles/fake-shell.ts";
@@ -235,7 +235,7 @@ export async function renderCatalogue(): Promise<RenderedPrompt[]> {
   return [
     {
       id: "01", name: "main-loop-system-header", source: "src/crews/main-loop/domain/prompt-assembly.ts",
-      callSite: "/assistant, free text, /summary, /verify → crews/main-loop → turn-prompt.ts → run-main-loop.ts runAct",
+      callSite: "/assistant, free text, /summary, /verify → crews/main-loop → prompts.ts → run-main-loop.ts runAct",
       call: "act, the system message", inputs: "every permission mode; the sample instructions file for the last section",
       sections: [
         ...headers.map((h) => ({ title: `mode ${h.mode}`, role: "system" as const, text: h.system })),
@@ -358,7 +358,7 @@ export async function renderCatalogue(): Promise<RenderedPrompt[]> {
       ],
     },
     {
-      id: "13", name: "dev-auditor", source: "src/crews/dev-verify/application/auditor-prompt.ts, domain/audit-answer.ts",
+      id: "13", name: "dev-auditor", source: "src/crews/dev-verify/application/prompts.ts, domain/audit-answer.ts",
       callSite: "/dev-verify → crews/dev-verify → application/audit.ts",
       call: "act in plan mode with seven read tools, run_validation and memory_recall when offered, then extract (JSON schema); a second act after the validations",
       inputs: "a two-row table, two capture paths, one previous gap (resume)",
@@ -377,7 +377,7 @@ export async function renderCatalogue(): Promise<RenderedPrompt[]> {
       ],
     },
     {
-      id: "14", name: "dev-learn", source: "src/crews/dev-learn/application/learn-prompt.ts, domain/learn-answer.ts",
+      id: "14", name: "dev-learn", source: "src/crews/dev-learn/application/prompts.ts, domain/learn-answer.ts",
       callSite: "/dev-learn [<axis>] → crews/dev-learn → application/run-dev-learn.ts",
       call: "extract (JSON schema), one call per eligible axis, one re-ask with the problems",
       inputs: "four rows of the Test axis over three batches, one refused motif, two owner files; on the re-ask, a new motif whose key term the owner holds",
@@ -391,7 +391,7 @@ export async function renderCatalogue(): Promise<RenderedPrompt[]> {
       ],
     },
     {
-      id: "15", name: "dev-plan", source: "src/crews/dev-plan/application/plan-prompt.ts, domain/plan-answer.ts",
+      id: "15", name: "dev-plan", source: "src/crews/dev-plan/application/prompts.ts, domain/plan-answer.ts",
       callSite: "/dev-plan → crews/dev-plan → application/run-dev-plan.ts",
       call: "extract (JSON schema), once more with the problems of a refused answer or a failed self-check",
       inputs: "a two-rule spec with one use case, three inventory entries, a pack without build_test",
@@ -402,7 +402,7 @@ export async function renderCatalogue(): Promise<RenderedPrompt[]> {
       ],
     },
     {
-      id: "16", name: "dev-reviewer", source: "src/shared/domain/dev/review-prompt.ts, review-answer.ts",
+      id: "16", name: "dev-reviewer", source: "src/shared/domain/dev/prompts.ts, review-answer.ts",
       callSite: "/dev-plan → crews/dev-plan → application/run-dev-plan.ts (runSubAgent)",
       call: "act in plan mode with ten read tools, then extract (JSON schema), one re-ask over the same reply",
       inputs: "a plan folder with two sheets and three inventory entries",

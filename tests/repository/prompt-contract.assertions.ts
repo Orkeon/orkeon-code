@@ -2,7 +2,7 @@
 import { ok } from "node:assert";
 import { MATERIAL_MARK } from "../support/fixtures/prompt-catalogue.ts";
 import type { RenderedPrompt } from "../support/fixtures/prompt-catalogue.ts";
-import type { TurnPrompt } from "../../src/crews/main-loop/application/turn-prompt.ts";
+import type { TurnPrompt } from "../../src/crews/main-loop/application/prompts.ts";
 import { IDENTIFIERS_WITH_DIGITS } from "./prompt-contract.fixtures.ts";
 
 /** Each header holds no digit but the playbook's scope identifiers, and stays within `ceiling` characters. */

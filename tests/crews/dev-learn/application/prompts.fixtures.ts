@@ -1,6 +1,6 @@
 // The material the learner's prompt is tested on, and the marker that pins each behaviour of its instructions.
 import type { LearnRow } from "../../../../src/shared/domain/shared-memory/verdict-rows.ts";
-import type { LearnPromptInput } from "../../../../src/crews/dev-learn/application/learn-prompt.ts";
+import type { LearnPromptInput } from "../../../../src/crews/dev-learn/application/prompts.ts";
 import { MAX_LINES_PER_MOTIF, MAX_MOTIFS_PER_AXIS, MAX_TOPIC_CHARS, motifLabel } from "../../../../src/crews/dev-learn/domain/learn-answer.ts";
 import { MAX_OWNER_LINE_CHARS, MAX_OWNER_LINES_PER_MOTIF } from "../../../../src/crews/dev-learn/domain/owner-lines.ts";
 import type { OwnerLinesBlock } from "../../../../src/crews/dev-learn/domain/owner-lines.ts";

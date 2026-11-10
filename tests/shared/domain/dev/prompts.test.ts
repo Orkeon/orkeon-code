@@ -2,16 +2,16 @@
 // marker, the material kept in the brief alone, the brief under the sub-agent cap,
 // the reply cut keeping its end. The sample is written here, never borrowed from
 // the prompt catalogue or the fixtures. Run:
-//   node --test tests/shared/domain/dev/review-prompt.test.ts
+//   node --test tests/shared/domain/dev/prompts.test.ts
 import { describe, it } from "node:test";
 import { ok, strictEqual } from "node:assert";
 
-import { MAX_REVIEW_REPLY_CHARS, buildReviewAnswerPrompt, buildReviewBrief, reviewSystem } from "../../../../src/shared/domain/dev/review-prompt.ts";
+import { MAX_REVIEW_REPLY_CHARS, buildReviewAnswerPrompt, buildReviewBrief, reviewSystem } from "../../../../src/shared/domain/dev/prompts.ts";
 import { MAX_BRIEF_CHARS } from "../../../../src/shared/domain/agents/charter.ts";
 import { PROJECT_FILES_HEADING } from "../../../../src/shared/domain/dev/project-files.ts";
 import { BOUNDED_READ_RULE, NODE_READ_RULE } from "../../../../src/shared/domain/dev/reading-rule.ts";
 import { assertBefore, assertMentions, assertOmits } from "../../../support/assertions/text.ts";
-import { assertHolds, assertLacks, assertNoMarker } from "./review-prompt.assertions.ts";
+import { assertHolds, assertLacks, assertNoMarker } from "./prompts.assertions.ts";
 import {
   ANSWER_ASKS, BARE_INPUT, BRIEF_PIECES, CARRIED_PIECES, CARRYING_INPUT, INPUT, MARK, MODE_FOCUS, NEXT_BATCH_ABSENT_TOOLS,
   NEXT_BATCH_FOCUS,
@@ -19,7 +19,7 @@ import {
   SYSTEM_MARKERS, TARGETS, promptMarkers,
   ALL_MODES, CODE_ANSWERED_ASKS, GLOB_LOOKUP, LOOKUP_MODES, MATERIAL_OF_THE_BRIEF, SYMBOL_SOURCE_LOOKUP, CODE_CHECKED_ANCHORS, LISTED_MODES, PROJECT_LIST_MARKER, REPEATED_WHOLE_FILE_BAN,
   SECOND_TIE_CONDITION, SETTLED_BY_MATERIAL, TIE_RULE, UNCHECKED_ANCHOR_ASKS,
-} from "./review-prompt.fixtures.ts";
+} from "./prompts.fixtures.ts";
 
 describe("reviewSystem(\"plan\") — one marker per behaviour", () => {
   for (const [behaviour, marker] of SYSTEM_MARKERS) {

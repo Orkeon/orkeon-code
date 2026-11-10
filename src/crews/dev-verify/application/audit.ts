@@ -19,8 +19,8 @@ import { readBudgetExhausted } from "../../../shared/domain/dev/step-budget.ts";
 import { checkValidation, validationLine } from "../../../shared/domain/dev/test-commands.ts";
 import { firstLine } from "../domain/text.ts";
 import { undecidedNotRun } from "../domain/verdict.ts";
-import type { AuditBriefInput, ValidationReport } from "./auditor-prompt.ts";
-import { AUDITOR_SYSTEM, buildAnswerPrompt, buildAuditBrief, buildValidationFollowUp } from "./auditor-prompt.ts";
+import type { AuditBriefInput, ValidationReport } from "./prompts.ts";
+import { AUDITOR_SYSTEM, buildAnswerPrompt, buildAuditBrief, buildValidationFollowUp } from "./prompts.ts";
 
 const VALIDATION_TIMEOUT_SECONDS = 300;
 

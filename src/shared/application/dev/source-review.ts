@@ -6,7 +6,7 @@ import { runSubAgent } from "../agents/run-sub-agent.ts";
 import { REVIEWER_CHARTER } from "../../domain/dev/reviewer-charter.ts";
 import { REVIEW_ANSWER_SCHEMA, checkReviewAnswer } from "../../domain/dev/review-answer.ts";
 import type { ReviewAnswer } from "../../domain/dev/review-answer.ts";
-import { buildReviewAnswerPrompt, buildReviewBrief, reviewSystem } from "../../domain/dev/review-prompt.ts";
+import { buildReviewAnswerPrompt, buildReviewBrief, reviewSystem } from "../../domain/dev/prompts.ts";
 import { numberQuestions, reviewDrafts, withQuestionSections } from "../../domain/dev/questions.ts";
 import type { RoundState } from "./question-round.ts";
 

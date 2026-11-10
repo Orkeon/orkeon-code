@@ -1,19 +1,19 @@
 // The auditor's prompts: each behaviour of the specification pinned by one marker,
 // the material kept out of the system message, the reply cut keeping its end. Run:
-//   node --test tests/crews/dev-verify/application/auditor-prompt.test.ts
+//   node --test tests/crews/dev-verify/application/prompts.test.ts
 import { describe, it } from "node:test";
 import { ok, strictEqual } from "node:assert";
 
 import {
   AUDITOR_SYSTEM, INLINE_CAPTURE_CHARS, INLINE_SHEET_CHARS, buildAnswerPrompt, buildAuditBrief, buildValidationFollowUp,
-} from "../../../../src/crews/dev-verify/application/auditor-prompt.ts";
+} from "../../../../src/crews/dev-verify/application/prompts.ts";
 import { MAX_BRIEF_CHARS } from "../../../../src/shared/domain/agents/charter.ts";
 import {
   CAPTURE_DIR, FIRST, FIVE_CAPTURE_FILES, HOST_WORDS, LONG_TABLE, MATERIAL, MAX_REPLY_CHARS_IN_ANSWER_PROMPT, PREVIOUS_GAP,
   REMOVED_FROM_SYSTEM, SHARED_RULES, SHORT_SHEET, SUITE, SYSTEM_MARKERS, TABLE, auditorOwnWords, bigBriefInput, briefInput,
   largestAnswer, longReports,
-} from "./auditor-prompt.fixtures.ts";
-import { assertWithinBrief } from "./auditor-prompt.assertions.ts";
+} from "./prompts.fixtures.ts";
+import { assertWithinBrief } from "./prompts.assertions.ts";
 import { assertBefore, assertMentions, assertOmits } from "../../../support/assertions/text.ts";
 import { PROJECT_FILES_HEADING } from "../../../../src/shared/domain/dev/project-files.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";

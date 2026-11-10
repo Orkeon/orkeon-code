@@ -1,18 +1,18 @@
 // The learner's prompt: each behaviour pinned by one marker, the material after the
 // instructions, the table cut as the harness cuts its cells, the re-ask with its
 // problems, and no host vocabulary. Run:
-//   node --test tests/crews/dev-learn/application/learn-prompt.test.ts
+//   node --test tests/crews/dev-learn/application/prompts.test.ts
 import { describe, it } from "node:test";
 import { ok, strictEqual } from "node:assert";
 
 import { MAX_BRIEF_CHARS } from "../../../../src/shared/domain/agents/charter.ts";
-import { LEARN_INSTRUCTIONS, MAX_LEARN_PROMPT_CHARS, buildLearnPrompt, renderRowsTable } from "../../../../src/crews/dev-learn/application/learn-prompt.ts";
+import { LEARN_INSTRUCTIONS, MAX_LEARN_PROMPT_CHARS, buildLearnPrompt, renderRowsTable } from "../../../../src/crews/dev-learn/application/prompts.ts";
 import {
   BLOCK, BLOCK_TEXT, FULL_INPUT, HOST_WORDS, HUGE_BLOCK, INPUT, LONG_ROW, MANY_PROBLEMS, MARKERS, PROBLEMS, WORST_BLOCKS,
-} from "./learn-prompt.fixtures.ts";
+} from "./prompts.fixtures.ts";
 import {
   assertEveryOwnerLineShown, assertOwnerLinesCutFirst, assertOwnerLinesShown, assertProblemsKept,
-} from "./learn-prompt.assertions.ts";
+} from "./prompts.assertions.ts";
 import { assertMentions, assertOmits } from "../../../support/assertions/text.ts";
 
 describe("LEARN_INSTRUCTIONS — one marker per behaviour", () => {

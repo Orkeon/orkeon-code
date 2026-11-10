@@ -25,8 +25,8 @@ import type { SpecAnswer } from "../domain/spec-answer.ts";
 import { SPEC_DECISIONS_SECTION, SPEC_QUESTIONS_SECTION, renderSpec, specFileName } from "../domain/spec-render.ts";
 import { noPrecedents, precedentsLine, recallQuery } from "../../../shared/application/dev/step-precedents.ts";
 import type { StepPrecedents } from "../../../shared/application/dev/step-precedents.ts";
-import { buildSpecPrompt } from "./spec-prompt.ts";
-import type { SpecPromptInput } from "./spec-prompt.ts";
+import { buildSpecPrompt } from "./prompts.ts";
+import type { SpecPromptInput } from "./prompts.ts";
 
 export interface DevSpecInputs { code?: unknown; request?: unknown }
 export interface DevSpecDeps {

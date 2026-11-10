@@ -1,6 +1,6 @@
 // The briefs, answers and markers the auditor's prompts are tested on.
-import type { AuditBriefInput, ValidationReport } from "../../../../src/crews/dev-verify/application/auditor-prompt.ts";
-import { AUDITOR_SYSTEM } from "../../../../src/crews/dev-verify/application/auditor-prompt.ts";
+import type { AuditBriefInput, ValidationReport } from "../../../../src/crews/dev-verify/application/prompts.ts";
+import { AUDITOR_SYSTEM } from "../../../../src/crews/dev-verify/application/prompts.ts";
 import type { AuditAnswer } from "../../../../src/crews/dev-verify/domain/audit-answer.ts";
 import { MAX_VALIDATIONS } from "../../../../src/crews/dev-verify/domain/audit-answer.ts";
 import { PROJECT_LIST_RULE } from "../../../../src/shared/domain/dev/project-files.ts";

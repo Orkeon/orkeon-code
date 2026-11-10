@@ -1,7 +1,7 @@
-// The planner inputs, the instruction markers and the host vocabulary the plan-prompt tests read.
+// The planner inputs, the instruction markers and the host vocabulary the dev-plan prompts tests read.
 import { readFileSync } from "node:fs";
 
-import type { PlanPromptInput } from "../../../../src/crews/dev-plan/application/plan-prompt.ts";
+import type { PlanPromptInput } from "../../../../src/crews/dev-plan/application/prompts.ts";
 import { DESIGN_RULES } from "../../../../src/shared/domain/dev/design-rules.ts";
 import type { DesignRule } from "../../../../src/shared/domain/dev/design-rules.ts";
 

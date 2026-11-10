@@ -469,7 +469,7 @@ Le corps de l'agent `main-loop` est la boucle (`crews/main-loop/application/run-
 4. Lire les drapeaux de comportement une fois (`/effort`, `/passes` de `/review`, `/fast`, `/proactive`, `/output-style`).
 5. Ajouter le tour de l'utilisateur au tampon de session ; compacter d'abord si le tampon est sous pression
    (`auto-compact.ts`).
-6. Assembler le prompt (ci-dessous ; `turn-prompt.ts` au-dessus des lectures de `context-gather.ts`) et appeler l'`act`
+6. Assembler le prompt (ci-dessous ; `application/prompts.ts` au-dessus des lectures de `context-gather.ts`) et appeler l'`act`
    du modèle (le port `Llm` au-dessus de `ctx.llm.act()`) : le runtime fait tourner le cycle modèle ⇄ appels d'outils
    sur le catalogue, chaque appel d'un tour du modèle dans l'ordre, sous le budget du crew et la garde de permission,
    et rend la réponse finale. Un appel du modèle qui échoue lève une `LlmFailure` : le tour ne stocke aucune réponse
@@ -935,6 +935,34 @@ fichier d'instructions, une skill de vérification) envoient les instructions co
 comme message utilisateur (`Llm.complete` avec `system`, au-dessus de l'appel du runtime qui prend un tableau de
 messages).
 
+## Où vit le texte
+
+Le texte en langue naturelle de `src/` vit à part de la logique qui s'en sert
+([ADR 0026](../adr/0026-text-isolation.md)), dans au plus trois fichiers de texte par dossier de couche, à côté des
+modules qui les lisent :
+
+| Fichier | Contient | Lu par |
+| --- | --- | --- |
+| `prompts.ts` | ce qu'un modèle lit : prompts système, instructions, descriptions d'outils | le module qui construit l'appel |
+| `messages.ts` | ce que l'utilisateur lit : usage, refus, erreurs, lignes d'état et de rapport, indices | le module qui rend ou qui lève |
+| `markers.ts` | ce qu'un rédacteur et un lecteur partagent : titres, mots de verdict, expressions régulières sur du texte | le rédacteur et le parseur |
+
+- Un fichier de texte se range dans la couche de son lecteur (`domain/`, `application/`,
+  `shared/infrastructure/orkeon/`, `commands/_lib/<group>/`) : un module du domaine ne lit que du texte de `domain/`.
+  Le texte d'un `*.cmd.ts` va dans `commands/_lib/<group>/messages.ts`, celui d'un `crew.ork.ts` dans
+  `crews/<crew>/application/messages.ts`.
+- Un texte qui porte des valeurs est une fonction de ces valeurs, nommée d'après ce qu'il dit. Un fichier de texte de
+  plus de 400 lignes environ peut devenir un dossier `prompts/<sujet>.ts`.
+- Les fichiers de texte sont en TypeScript : le bundle ne charge aucune autre sorte de fichier.
+- Ce qui reste en ligne : les identifiants, les clés de configuration, les chemins, les commandes shell, les flags,
+  les clés d'un schéma JSON, les mots courts d'une énumération et le `description:` d'un `*.cmd.ts`. Les chartes
+  (`*-charter.ts`, `built-in-charters.ts`), `design-rules.ts` et `reading-rule.ts` sont des fichiers de texte sous
+  leur propre nom.
+- `tests/repository/text-isolation.test.ts` signale un littéral d'un fichier de logique qui compte trois mots ou plus,
+  ou plus de 60 caractères avec une espace ; chaque exception est nommée avec son fichier, son propriétaire et sa
+  raison. Tant que l'isolation du texte n'est pas finie, `tests/repository/text-isolation-baseline.ts` plafonne chaque
+  fichier au décompte qu'il avait.
+
 ## Gestion du contexte
 
 - **La compaction automatique** en tête et en queue de chaque tour quand le tampon franchit son seuil, derrière un
@@ -1026,7 +1054,7 @@ Mettre à jour `mode-policy.test.ts` et `docs/permissions.md`.
 2. Lui donner un champ de `ContextParts` et sa place dans l'ordre fixe d'`assembleContext` ; un bloc de l'en-tête
    statique ne doit contenir aucune donnée propre au tour, sinon le cache du fournisseur se rompt.
 3. Lire son entrée dans `application/context-gather.ts` (par les ports) et la passer dans
-   `application/turn-prompt.ts` ; tester la fonction de rendu dans `prompt-assembly.test.ts` et le tour au-dessus des
+   `application/prompts.ts` ; tester la fonction de rendu dans `prompt-assembly.test.ts` et le tour au-dessus des
    fakes.
 4. Spécifier le comportement d'abord, dans « L'assemblage du prompt » ci-dessus, puis en écrire le texte dans les mots
    propres de ce projet (CONTRIBUTING, « Original work only ») ; épingler une phrase-marqueur de chaque règle dans le

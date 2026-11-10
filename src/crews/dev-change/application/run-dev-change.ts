@@ -33,8 +33,8 @@ import {
 import { noPrecedents, precedentsLine, recallQuery } from "../../../shared/application/dev/step-precedents.ts";
 import type { StepPrecedents } from "../../../shared/application/dev/step-precedents.ts";
 import { runDevSpec } from "../../dev-spec/application/run-dev-spec.ts";
-import { buildChangePrompt } from "./change-prompt.ts";
-import type { ChangePromptInput } from "./change-prompt.ts";
+import { buildChangePrompt } from "./prompts.ts";
+import type { ChangePromptInput } from "./prompts.ts";
 import { factLines, pickCommand, readOrigin, reproFile, runEvidence, runStop } from "./evidence.ts";
 
 export interface DevChangeInputs { code?: unknown; kind?: unknown; run?: unknown; text?: unknown }
