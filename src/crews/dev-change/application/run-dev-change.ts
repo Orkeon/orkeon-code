@@ -31,8 +31,8 @@ import { CHANGE_DECISIONS_SECTION, CHANGE_QUESTIONS_SECTION, EVIDENCE_HEADING, O
 import { noPrecedents, precedentsLine, recallQuery } from "../../../shared/application/dev/step-precedents.ts";
 import type { StepPrecedents } from "../../../shared/application/dev/step-precedents.ts";
 import { runDevSpec } from "../../dev-spec/application/run-dev-spec.ts";
-import { buildChangePrompt } from "./prompts.ts";
-import type { ChangePromptInput } from "./prompts.ts";
+import { buildChangePrompt } from "./change-material.ts";
+import type { ChangePromptInput } from "./change-material.ts";
 import { factLines, pickCommand, readOrigin, reproFile, runEvidence, runStop } from "./evidence.ts";
 import {
   DEV_CHANGE_NEXT, FEATURE_LINE, ROUTED_TO_SPEC, answerThem, blockedUnanswered, briefKeepsKind, deniedNothingWritten, evidenceLine,

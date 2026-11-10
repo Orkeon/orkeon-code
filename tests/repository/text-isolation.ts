@@ -2,7 +2,9 @@
 // (prompts.ts for the model, messages.ts for the user, markers.ts for the values a writer and a reader share), never
 // tangled with logic. This module finds the prose a logic file still holds: every string literal, and the static
 // parts of every template, that read as a sentence. Pure: the caller hands the source text, and each literal names
-// its line, its text and the declaration that holds it.
+// its line, its text and the declaration that holds it. The text files hold text only, constants and template
+// functions: textFileLogic finds the logic one still holds.
+import { posix } from "node:path";
 import ts from "typescript";
 
 /** A literal of a logic file that reads as prose, and the nearest named declaration, property or function around it. */
@@ -23,6 +25,13 @@ export function TEXT_FILES(file: string): boolean {
   return TEXT_BASENAMES.has(base) || base.endsWith("-charter.ts") || `/${file}`.includes("/prompts/");
 }
 
+/** A construct of a text file that is logic, and the nearest named declaration around it (for an import, the name
+ *  imported). */
+export interface LogicFinding { line: number; construct: string; owner: string }
+
+/** A file and what the guard found in it: the prose of a logic file, the logic of a text file. */
+export interface ScannedFile { file: string; literals: TextLiteral[]; logic: LogicFinding[] }
+
 /** The prose allowed inline, each with why. */
 export const TEXT_EXCEPTIONS: readonly TextException[] = [
   {
@@ -35,6 +44,20 @@ export const TEXT_EXCEPTIONS: readonly TextException[] = [
     name: "WAIT_SCRIPT_CONTENT",
     reason: "the JavaScript source of the wait script written under .orkeon/dev/bin, code rather than text",
   },
+];
+
+/** The logic allowed in a text file, each with why: `name` is the owner of the construct, or the name imported. */
+export const TEXT_FILE_EXCEPTIONS: readonly TextException[] = [
+  {
+    file: "src/commands/_lib/settings/messages.ts",
+    name: "USER_CONFIG_FILE_PATH",
+    reason: "the path of the user settings file a hint names, a constant of the config store in shared/application",
+  },
+  ...["CLI_BUILD", "CLI_NAME", "CLI_VERSION", "ORKEON_RUNTIME_PIN"].map((name) => ({
+    file: "src/commands/_lib/status/messages.ts",
+    name,
+    reason: "a build constant of commands/_lib/status/meta.ts the version line names",
+  })),
 ];
 
 /** A word of prose: letters, at least two, lower case after the first (an identifier in camelCase or a constant in
@@ -107,26 +130,114 @@ function globPattern(glob: string): RegExp {
   return new RegExp(`^${body.join("(?:.*/)?")}$`, "u");
 }
 
-/** The exception that allows a literal of a file, or null. */
-export function exceptionFor(file: string, literal: TextLiteral, exceptions: readonly TextException[] = TEXT_EXCEPTIONS): TextException | null {
-  return exceptions.find((e) => e.name === literal.owner && globPattern(e.file).test(file)) ?? null;
+/** The exception that allows what `owner` holds in a file, or null. */
+export function exceptionFor(file: string, owner: string, exceptions: readonly TextException[]): TextException | null {
+  return exceptions.find((e) => e.name === owner && globPattern(e.file).test(file)) ?? null;
 }
 
-/** The prose a logic file holds that no exception allows, one line each: `<file>:<line>: <owner>: <text>`. */
-export function textProblems(file: string, sourceText: string, exceptions: readonly TextException[] = TEXT_EXCEPTIONS): string[] {
-  return textLiterals(file, sourceText)
-    .filter((literal) => exceptionFor(file, literal, exceptions) === null)
+/** The prose of a logic file that no exception allows, one line each: `<file>:<line>: <owner>: <text>`. */
+export function proseProblems(file: string, literals: readonly TextLiteral[], exceptions: readonly TextException[] = TEXT_EXCEPTIONS): string[] {
+  return literals
+    .filter((literal) => exceptionFor(file, literal.owner, exceptions) === null)
     .map((l) => `${file}:${l.line}: ${l.owner}: ${JSON.stringify(l.text.length > 80 ? `${l.text.slice(0, 77)}...` : l.text)}`);
 }
 
-/** The exceptions no literal of the files matches any more: each must go. */
-export function unusedExceptions(files: readonly { file: string; text: string }[], exceptions: readonly TextException[] = TEXT_EXCEPTIONS): TextException[] {
+/** The prose a logic file holds that no exception allows, read from its source. */
+export function textProblems(file: string, sourceText: string, exceptions: readonly TextException[] = TEXT_EXCEPTIONS): string[] {
+  return proseProblems(file, textLiterals(file, sourceText), exceptions);
+}
+
+/** The logic of a text file that no exception allows, one line each: `<file>:<line>: <owner>: <construct>`. */
+export function logicProblems(file: string, logic: readonly LogicFinding[], exceptions: readonly TextException[] = TEXT_FILE_EXCEPTIONS): string[] {
+  return logic
+    .filter((finding) => exceptionFor(file, finding.owner, exceptions) === null)
+    .map((f) => `${file}:${f.line}: ${f.owner}: ${f.construct}`);
+}
+
+/** The exceptions that allow nothing among the owners found in the files: each must go. */
+export function unusedExceptions(owners: readonly { file: string; owner: string }[], exceptions: readonly TextException[]): TextException[] {
   const used = new Set<TextException>();
-  for (const { file, text } of files) {
-    for (const literal of textLiterals(file, text)) {
-      const exception = exceptionFor(file, literal, exceptions);
-      if (exception !== null) used.add(exception);
-    }
+  for (const { file, owner } of owners) {
+    const exception = exceptionFor(file, owner, exceptions);
+    if (exception !== null) used.add(exception);
   }
   return exceptions.filter((e) => !used.has(e));
+}
+
+// ── The text files: text only ──
+
+/** The statements and expressions that are logic wherever they stand in a text file. */
+const LOGIC_KINDS: ReadonlyMap<ts.SyntaxKind, string> = new Map([
+  [ts.SyntaxKind.ForStatement, "for"],
+  [ts.SyntaxKind.ForOfStatement, "for"],
+  [ts.SyntaxKind.ForInStatement, "for"],
+  [ts.SyntaxKind.WhileStatement, "while"],
+  [ts.SyntaxKind.DoStatement, "do"],
+  [ts.SyntaxKind.SwitchStatement, "switch"],
+  [ts.SyntaxKind.TryStatement, "try"],
+  [ts.SyntaxKind.ClassDeclaration, "class"],
+  [ts.SyntaxKind.ClassExpression, "class"],
+  [ts.SyntaxKind.AwaitExpression, "await"],
+]);
+
+/** Whether a module may lend a value to a text file: another text file, or a module of a domain/ folder. */
+function lendsValues(file: string, specifier: string): boolean {
+  if (!specifier.startsWith(".")) return false;
+  const target = posix.normalize(posix.join(posix.dirname(file), specifier));
+  return TEXT_FILES(target) || `/${target}`.includes("/domain/");
+}
+
+/** The names a declaration imports or re-exports as values: none for a type-only one. */
+function valueNames(node: ts.ImportDeclaration | ts.ExportDeclaration): string[] {
+  if (ts.isExportDeclaration(node)) {
+    if (node.isTypeOnly) return [];
+    if (node.exportClause === undefined || !ts.isNamedExports(node.exportClause)) return ["*"];
+    return node.exportClause.elements.filter((e) => !e.isTypeOnly).map((e) => e.name.text);
+  }
+  const clause = node.importClause;
+  if (clause === undefined) return ["(side effect)"];
+  if (clause.isTypeOnly) return [];
+  const bindings = clause.namedBindings;
+  return [
+    ...(clause.name === undefined ? [] : [clause.name.text]),
+    ...(bindings !== undefined && ts.isNamespaceImport(bindings) ? [bindings.name.text] : []),
+    ...(bindings !== undefined && ts.isNamedImports(bindings) ? bindings.elements.filter((e) => !e.isTypeOnly).map((e) => e.name.text) : []),
+  ];
+}
+
+/** Whether a node is an `async` function. */
+const isAsync = (node: ts.Node): boolean =>
+  ts.canHaveModifiers(node) && (ts.getModifiers(node) ?? []).some((m) => m.kind === ts.SyntaxKind.AsyncKeyword);
+
+/** The logic a text file holds: an `async` function, `await`, a loop (`for`, `while`, `do`), a `switch`, a `try`, a
+ *  class, a variable that changes (`let`, `var`), and a value imported from a module that is neither a text file nor a
+ *  module of a domain/ folder (a port, an application or infrastructure module, a command use case); a type imported
+ *  is no value. A text file holds constants and template functions only: parameters in, text out, a ternary, an early
+ *  return, a `.map` or a `.join` to render a list. A logic file has none of this to report. */
+export function textFileLogic(file: string, sourceText: string): LogicFinding[] {
+  if (file.endsWith(".d.ts") || !TEXT_FILES(file)) return [];
+  const source = parse(file, sourceText);
+  const found: LogicFinding[] = [];
+  const at = (node: ts.Node, construct: string, owner = nameOf(node) ?? ownerOf(node)): void => {
+    found.push({ line: source.getLineAndCharacterOfPosition(node.getStart()).line + 1, construct, owner });
+  };
+  const visit = (node: ts.Node): void => {
+    const kind = LOGIC_KINDS.get(node.kind);
+    if (kind !== undefined) at(node, kind);
+    if (isAsync(node)) at(node, "async");
+    if (ts.isVariableDeclarationList(node) && (node.flags & ts.NodeFlags.Let) !== 0) at(node, "let");
+    if (ts.isVariableDeclarationList(node) && (node.flags & ts.NodeFlags.BlockScoped) === 0) at(node, "var");
+    if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier !== undefined
+      && ts.isStringLiteral(node.moduleSpecifier) && !lendsValues(file, node.moduleSpecifier.text)) {
+      for (const name of valueNames(node)) at(node, `value imported from ${node.moduleSpecifier.text}`, name);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return found;
+}
+
+/** A file read once: the prose of a logic file, the logic of a text file. */
+export function scanFile(file: string, sourceText: string): ScannedFile {
+  return { file, literals: textLiterals(file, sourceText), logic: textFileLogic(file, sourceText) };
 }

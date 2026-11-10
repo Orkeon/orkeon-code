@@ -8,7 +8,8 @@ import type { Files, Llm, Shell } from "../../../shared/application/ports.ts";
 import { firstLine, readRequest } from "../../../shared/application/dev/source-step.ts";
 import type { RepoPackCommands } from "../../../shared/domain/dev/repo-pack.ts";
 import { checkValidation, plainWords } from "../../../shared/domain/dev/test-commands.ts";
-import { REPRO_SCHEMA, buildReproPrompt } from "./prompts.ts";
+import { REPRO_SCHEMA } from "./prompts.ts";
+import { buildReproPrompt } from "./change-material.ts";
 import {
   GLOB_OR_EXPANSION, MEASURES_THE_COST, NOT_ONE_LINE, PATH_OUT_OF_CHECKOUT, REPRODUCES_THE_BUG, SHELL_OPERATOR, couldNotRun,
   couldNotStart, didNotReproduce, issuePrintedNoJson, issueViewFailed, measuredFact, measurementFailed, noCommandPicked,

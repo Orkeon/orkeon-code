@@ -14,7 +14,7 @@ import { resolveLensSelection, describeReviewPlan } from "../domain/lenses.ts";
 import {
   chooseReviewDiff, collectDiff, collectChangedFiles, collectFunctionContextDiff, runLenses, writeReport,
 } from "./review.ts";
-import { cutDiff } from "./prompts.ts";
+import { cutDiff } from "./lens-material.ts";
 import { readInstructionsFile } from "../../../shared/application/instructions-file.ts";
 import {
   NO_CHANGES, noChangesInPaths, passFindings, passProgress, reportWritten, REVIEW_PROGRESS_LABEL, reviewInputRefused,

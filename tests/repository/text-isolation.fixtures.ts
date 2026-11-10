@@ -2,8 +2,8 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { posix } from "node:path";
 import { fileURLToPath } from "node:url";
-import { TEXT_EXCEPTIONS, textProblems } from "./text-isolation.ts";
-import type { TextException, TextLiteral } from "./text-isolation.ts";
+import { TEXT_EXCEPTIONS, TEXT_FILE_EXCEPTIONS, logicProblems, proseProblems, scanFile } from "./text-isolation.ts";
+import type { LogicFinding, ScannedFile, TextException, TextLiteral } from "./text-isolation.ts";
 
 const ROOT = posix.join(posix.dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -18,15 +18,106 @@ export function filesUnder(dir: string, acc: string[] = []): string[] {
   return acc;
 }
 
-/** Every .ts file of src/ with its text. */
-export const srcFiles = () => filesUnder("src").map((file) => ({ file, text: readFileSync(posix.join(ROOT, file), "utf-8") }));
+let scanned: readonly ScannedFile[] | null = null;
 
-/** The prose literals no exception allows, over the given files, one line each. */
-export const repositoryProblems = (files: readonly { file: string; text: string }[]) =>
-  files.flatMap(({ file, text }) => textProblems(file, text));
+/** Every .ts file of src/, read and parsed once for every test of the repository. */
+export function srcScan(): readonly ScannedFile[] {
+  scanned ??= filesUnder("src").map((file) => scanFile(file, readFileSync(posix.join(ROOT, file), "utf-8")));
+  return scanned;
+}
+
+/** The prose literals no exception allows, over the scanned files, one line each. */
+export const repositoryProse = (files: readonly ScannedFile[]) => files.flatMap((f) => proseProblems(f.file, f.literals));
+
+/** The logic of the text files no exception allows, over the scanned files, one line each. */
+export const repositoryLogic = (files: readonly ScannedFile[]) => files.flatMap((f) => logicProblems(f.file, f.logic));
+
+/** The owners of what the scanned files hold, each with its file: the literals of the logic files, or the logic of
+ *  the text files. */
+export const ownersIn = (files: readonly ScannedFile[], found: "literals" | "logic") =>
+  files.flatMap((f) => f[found].map((item) => ({ file: f.file, owner: item.owner })));
+
+/** The exceptions each list of the guard holds, with the kind of thing it allows. */
+export const EXCEPTION_LISTS = [
+  { found: "literals", exceptions: TEXT_EXCEPTIONS },
+  { found: "logic", exceptions: TEXT_FILE_EXCEPTIONS },
+] as const;
 
 /** Literals as `<line>:<owner>`, the text left out. */
 export const ownersOf = (literals: readonly TextLiteral[]) => literals.map((l) => `${l.line}:${l.owner}`);
+
+/** Logic found in a text file as `<line>:<construct>:<owner>`. */
+export const constructsOf = (logic: readonly LogicFinding[]) => logic.map((l) => `${l.line}:${l.construct}:${l.owner}`);
+
+interface LogicCase { name: string; source: string; expected: string[] }
+
+/** The file the logic cases stand in: a text file of an application folder. */
+export const LOGIC_CASE_FILE = "src/crews/dev-plan/application/prompts.ts";
+
+/** What a text file may not hold, as `<line>:<construct>:<owner>`. */
+export const LOGIC_CASES: readonly LogicCase[] = [
+  {
+    name: "flags an async function and its await",
+    source: "export async function brief(read: () => Promise<string>) {\n  return `read: ${await read()}`;\n}",
+    expected: ["1:async:brief", "2:await:brief"],
+  },
+  {
+    name: "flags a loop and a variable that changes",
+    source: "export function fit(rows: string[]) {\n  let room = 10;\n  for (const row of rows) room -= row.length;\n  return room;\n}",
+    expected: ["2:let:fit", "3:for:fit"],
+  },
+  { name: "flags a while loop", source: "export function f(n: number) {\n  while (n > 0) n--;\n  return n;\n}", expected: ["2:while:f"] },
+  {
+    name: "flags a switch and a try",
+    source: "export function f(k: string) {\n  switch (k) { default: }\n  try { return k; } catch { return \"\"; }\n}",
+    expected: ["2:switch:f", "3:try:f"],
+  },
+  { name: "flags a class", source: "export class Brief {}", expected: ["1:class:Brief"] },
+  { name: "flags a var", source: "export var count = 0;", expected: ["1:var:(module)"] },
+  {
+    name: "flags a value imported from an application module, by its name",
+    source: `import { carry, cut } from "./brief.ts";`,
+    expected: ["1:value imported from ./brief.ts:carry", "1:value imported from ./brief.ts:cut"],
+  },
+  {
+    name: "flags a value imported from a port or from infrastructure",
+    source: `import { NO_CLOCK } from "../../../shared/application/ports.ts";\nexport { tools } from "../../../shared/infrastructure/globals.ts";`,
+    expected: ["1:value imported from ../../../shared/application/ports.ts:NO_CLOCK", "2:value imported from ../../../shared/infrastructure/globals.ts:tools"],
+  },
+];
+
+/** What a text file may hold: text, and the values it renders. */
+export const TEXT_CASES: readonly LogicCase[] = [
+  {
+    name: "allows a constant and a template function with a ternary, a .map and a .join",
+    source: "export const HEADING = \"## Plan\";\nexport const steps = (s: string[], done: boolean) =>\n  [done ? \"done\" : \"open\", ...s.map((x) => `- ${x}`)].join(\"\\n\");",
+    expected: [],
+  },
+  {
+    name: "allows an early return in a template function",
+    source: "export function hint(name: string) {\n  if (name === \"\") return \"\";\n  return `see ${name}`;\n}",
+    expected: [],
+  },
+  {
+    name: "allows values from another text file and from a domain module",
+    source: `import { RULE } from "./markers.ts";\nimport { AXES } from "../domain/audit-answer.ts";\nimport { BOUNDED_READ_RULE } from "../../../shared/domain/dev/reading-rule.ts";`,
+    expected: [],
+  },
+  {
+    name: "allows a type imported from anywhere",
+    source: `import type { Clock } from "../../../shared/application/ports.ts";\nimport { type Shell } from "../../../shared/application/ports.ts";`,
+    expected: [],
+  },
+];
+
+/** A loop in a logic file: none of the text-file check's business. */
+export const LOOP_SOURCE = "export function f(rows: string[]) {\n  let n = 0;\n  for (const r of rows) n += r.length;\n  return n;\n}";
+
+/** A text file importing a value from an application module, and the exception that allows it. */
+export const EXCEPTED_IMPORT = {
+  file: "src/commands/_lib/settings/messages.ts",
+  source: `import { USER_CONFIG_FILE_PATH, OTHER } from "../../../shared/application/config-store.ts";`,
+};
 
 interface LiteralCase { name: string; source: string; expected: string[] }
 

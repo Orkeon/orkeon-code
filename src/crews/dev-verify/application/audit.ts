@@ -19,8 +19,9 @@ import { readBudgetExhausted } from "../../../shared/domain/dev/step-budget.ts";
 import { checkValidation, validationLine } from "../../../shared/domain/dev/test-commands.ts";
 import { firstLine } from "../domain/text.ts";
 import { undecidedNotRun } from "../domain/verdict.ts";
-import type { AuditBriefInput, ValidationReport } from "./prompts.ts";
-import { AUDITOR_SYSTEM, buildAnswerPrompt, buildAuditBrief, buildValidationFollowUp } from "./prompts.ts";
+import type { AuditBriefInput, ValidationReport } from "./audit-brief.ts";
+import { AUDITOR_SYSTEM } from "./prompts.ts";
+import { buildAnswerPrompt, buildAuditBrief, buildValidationFollowUp } from "./audit-brief.ts";
 import { timedOutAfter } from "../domain/messages.ts";
 import {
   blockedBudgetSpent, blockedCancelled, blockedModelFailed, blockedOther, blockedUnparsable, blockedUnwritable, failedCount,

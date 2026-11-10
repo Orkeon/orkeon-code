@@ -7,11 +7,6 @@ export const PRIOR_FINDINGS: readonly Finding[] = [
   { lens: "security", severity: "low", file: "b.ts", finding: "unvalidated input" },
 ];
 
-/** `count` prior findings, file `f<i>.ts` at line `i`. */
-export function manyPriorFindings(count: number): Finding[] {
-  return Array.from({ length: count }, (_, i) => ({ severity: "low", file: `f${i}.ts`, line: i, finding: `x${i}` }));
-}
-
 /** The lenses held to a bar of their own, not the correctness lens's input-or-state one. */
 export const OWN_BAR_LENSES: readonly string[] = ["security", "style"];
 

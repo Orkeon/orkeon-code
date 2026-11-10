@@ -28,7 +28,7 @@ import { listProjectFiles } from "../../../shared/application/dev/project-files.
 import { outputTail, recordingRunner, runAudit, shellValidationRunner } from "./audit.ts";
 import type { UnfinishedAudit, ValidationRunner } from "./audit.ts";
 import { stepRules } from "../../../shared/domain/dev/step-rules.ts";
-import type { AuditBriefInput } from "./prompts.ts";
+import type { AuditBriefInput } from "./audit-brief.ts";
 import { writeCapture } from "./capture.ts";
 import {
   noPrecedents, precedentsLine, recallQuery, sheetTitle,

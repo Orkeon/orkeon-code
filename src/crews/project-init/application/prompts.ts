@@ -94,12 +94,12 @@ export function buildInstructionsFilePrompt(
   const parts = [
     `Top-level entries: ${names.slice(0, 60).join(", ")}`,
     `Detected from the configuration: ${JSON.stringify(detected)}`,
+    ...(packageMap.trim().length > 0 ? [`<package-map>\n${packageMap.trim()}\n</package-map>`] : []),
+    ...existing.map((f) => {
+      const marker = (f.cut ?? 0) > 0 ? `\n${cutLine(f.cut ?? 0)}` : "";
+      return `<existing file="${f.file}">\n${f.content.trim()}${marker}\n</existing>`;
+    }),
+    ...(readme.trim().length > 0 ? [`<readme>\n${readme.trim()}\n</readme>`] : []),
   ];
-  if (packageMap.trim().length > 0) parts.push(`<package-map>\n${packageMap.trim()}\n</package-map>`);
-  for (const f of existing) {
-    const marker = (f.cut ?? 0) > 0 ? `\n${cutLine(f.cut ?? 0)}` : "";
-    parts.push(`<existing file="${f.file}">\n${f.content.trim()}${marker}\n</existing>`);
-  }
-  if (readme.trim().length > 0) parts.push(`<readme>\n${readme.trim()}\n</readme>`);
   return { system, user: parts.join("\n\n") };
 }

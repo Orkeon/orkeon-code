@@ -882,8 +882,14 @@ them:
 - What stays inline: identifiers, configuration keys, paths, shell commands, flags, the keys of a JSON schema, short
   enumeration words, and the `description:` of a `*.cmd.ts`. The charters (`*-charter.ts`, `built-in-charters.ts`),
   `design-rules.ts` and `reading-rule.ts` are text files under their own names.
-- `tests/repository/text-isolation.test.ts` flags a literal of a logic file that holds three words or more, or more
-  than 60 characters with a space; each exception is named with its file, its owner and its reason.
+- A text file holds text only: constants and template functions (parameters in, text out; a ternary, an early return,
+  a `.map` or a `.join` to render a list). An `async` function, `await`, a loop, a `switch`, a `try`, a class, a
+  `let` or a `var`, and a value imported from a module that is neither a text file nor a domain module are logic: the
+  budget of a brief, a cut, a choice of what to carry go to a logic module beside the text file
+  (`crews/main-loop/application/turn-context.ts` beside `prompts.ts`). A type may be imported from anywhere.
+- `tests/repository/text-isolation.test.ts` checks both sides, reading `src/` once: it flags a literal of a logic
+  file that holds three words or more, or more than 60 characters with a space, and a construct of logic in a text
+  file; each exception is named with its file, its owner and its reason.
 
 ## Context management
 

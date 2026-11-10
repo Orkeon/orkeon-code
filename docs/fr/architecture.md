@@ -958,9 +958,15 @@ modules qui les lisent :
   les clés d'un schéma JSON, les mots courts d'une énumération et le `description:` d'un `*.cmd.ts`. Les chartes
   (`*-charter.ts`, `built-in-charters.ts`), `design-rules.ts` et `reading-rule.ts` sont des fichiers de texte sous
   leur propre nom.
-- `tests/repository/text-isolation.test.ts` signale un littéral d'un fichier de logique qui compte trois mots ou plus,
-  ou plus de 60 caractères avec une espace ; chaque exception est nommée avec son fichier, son propriétaire et sa
-  raison.
+- Un fichier de texte ne tient que du texte : des constantes et des fonctions gabarits (des paramètres en entrée, du
+  texte en sortie ; un ternaire, un retour anticipé, un `.map` ou un `.join` pour rendre une liste). Une fonction
+  `async`, `await`, une boucle, un `switch`, un `try`, une classe, un `let` ou un `var`, et une valeur importée d'un
+  module qui n'est ni un fichier de texte ni un module du domaine sont de la logique : le budget d'un brief, une
+  coupe, le choix de ce qui est porté vont dans un module de logique à côté du fichier de texte
+  (`crews/main-loop/application/turn-context.ts` à côté de `prompts.ts`). Un type s'importe de partout.
+- `tests/repository/text-isolation.test.ts` vérifie les deux côtés en lisant `src/` une fois : il signale un littéral
+  d'un fichier de logique qui compte trois mots ou plus, ou plus de 60 caractères avec une espace, et une construction
+  de logique dans un fichier de texte ; chaque exception est nommée avec son fichier, son propriétaire et sa raison.
 
 ## Gestion du contexte
 

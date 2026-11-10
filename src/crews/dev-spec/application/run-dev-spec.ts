@@ -26,8 +26,8 @@ import { renderSpec, specFileName } from "../domain/spec-render.ts";
 import { SPEC_DECISIONS_SECTION, SPEC_QUESTIONS_SECTION } from "../domain/markers.ts";
 import { noPrecedents, precedentsLine, recallQuery } from "../../../shared/application/dev/step-precedents.ts";
 import type { StepPrecedents } from "../../../shared/application/dev/step-precedents.ts";
-import { buildSpecPrompt } from "./prompts.ts";
-import type { SpecPromptInput } from "./prompts.ts";
+import { buildSpecPrompt } from "./spec-material.ts";
+import type { SpecPromptInput } from "./spec-material.ts";
 import {
   DEV_SPEC_NEXT, PERMISSION_GATE_OFF, answerDidNotParse, answerThem, blockedUnanswered, cannotBeRead, changeBriefExists,
   couldNotBeWritten, decisionsThisRun, newSpecNeedsBrief, refusedTwice, rendererDefect, stillBlocking,

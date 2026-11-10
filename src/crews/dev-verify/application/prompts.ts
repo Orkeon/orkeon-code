@@ -1,15 +1,12 @@
 // The auditor's prompts: the behaviour specification it acts under (the system
 // message), the brief that hands it one batch's material, the follow-up that
 // returns the outputs of the validations it named, and the extraction prompt that
-// turns its reply into the answer's schema. Pure text builders. The material goes
+// turns its reply into the answer's schema. Pure text: ./audit-brief.ts assembles them. The material goes
 // in the user-side texts only, never in AUDITOR_SYSTEM.
 
 import { AXES, MAX_VALIDATIONS } from "../domain/audit-answer.ts";
-import type { AuditAnswer, AuditRow } from "../domain/audit-answer.ts";
-import { cut } from "../domain/text.ts";
-import { MAX_BRIEF_CHARS } from "../../../shared/domain/agents/charter.ts";
+import type { AuditRow } from "../domain/audit-answer.ts";
 import { BOUNDED_READ_RULE, KNOWN_TOOLS_RULE } from "../../../shared/domain/dev/reading-rule.ts";
-import { projectFileLines } from "../../../shared/domain/dev/project-files.ts";
 import { PROJECT_LIST_RULE } from "../../../shared/domain/dev/prompts/brief-blocks.ts";
 import { describeCodeIntelRouting } from "../../../shared/domain/code-intel-routing.ts";
 import { AUDITOR_TOOLS } from "../domain/auditor-charter.ts";
@@ -91,234 +88,122 @@ export const AUDITOR_SYSTEM = [
   "then the validations you ask for and the checks and mechanisms you leave undecided.",
 ].join("\n");
 
-/** One capture file and its text. */
-export interface CaptureText {
-  path: string;
-  text: string;
-}
+// ── The brief, the follow-up and the answer prompt: the text of each part, its choices made by ./audit-brief.ts ──
 
-/** The most capture text the brief carries; a file past it stays to read. */
-export const INLINE_CAPTURE_CHARS = 12_000;
+/** A gap row of an answer, as a brief lists it. */
+export const auditRowLine = (row: AuditRow): string =>
+  `- ${row.severity} · ${row.axis} · ${row.gap} · evidence: ${row.evidence} · fix: ${row.fix}`;
 
-/** The most sheet text the brief carries; a longer sheet stays to read. */
-export const INLINE_SHEET_CHARS = 6_000;
-/** What the brief keeps free under MAX_BRIEF_CHARS once the capture is in. */
-const BRIEF_MARGIN = 200;
-/** The capture files the brief stands for once every other one is in it: the index, the manifest, the table. */
-const CAPTURE_FRAME = /\/(?:index\.txt|manifest\.txt|table\.md)$/;
+/** The scope of an audit: the batch, the mode, the sheet and the rules applied. */
+export const auditScopeLines = (batch: string, mode: string, sheetPath: string, appliedRules: string): string[] => [
+  `Audit of batch ${batch}, mode ${mode}.`,
+  "",
+  mode === "resume"
+    ? "Scope: the previous gaps and what changed since."
+    : "Scope: the whole batch.",
+  `Sheet: ${sheetPath}`,
+  `Applied rules: ${appliedRules}`,
+];
 
-export interface AuditBriefInput {
-  mode: "fast" | "full" | "resume";
-  batch: string;
-  sheetPath: string;
-  /** The sheet's text, carried in the brief while it fits INLINE_SHEET_CHARS; absent or longer: read from sheetPath. */
-  sheetText?: string;
-  captureFiles: readonly string[];
-  /** The project's files (tracked and untracked, the work folder left out), listed so that the auditor guesses no
-   *  name; absent or empty: no list. */
-  projectFiles?: readonly string[];
-  /** The capture files' texts, table.md aside (the brief carries the table): each goes in the brief while it has
-   *  room, the rest stay to read. Absent: every capture file is to read. */
-  captureTexts?: readonly CaptureText[];
-  table: string;
-  appliedRules: string;
-  commands: { testClass?: string; testProject?: string; testIntegration?: string };
-  previousGaps: readonly AuditRow[] | null;
-  /** Under full: the whole fast suite as code ran it, before the audit. */
-  suite?: { command: string; outcome: string; tail: string };
-  /** The "## Precedents" block the step recalled (T4: mistakes whose signal to check), "" or absent when none. */
-  precedents?: string;
-}
+/** The repository's commands a validation may be built from. */
+export const validationCommandLines = (commands: { testClass?: string; testProject?: string; testIntegration?: string }): string[] => [
+  "Commands a validation may be built from:",
+  `- test class: ${commands.testClass ?? "none"}`,
+  `- test project: ${commands.testProject ?? "none"}`,
+  `- integration tests: ${commands.testIntegration ?? "none"}`,
+];
 
-function rowLine(row: AuditRow): string {
-  return `- ${row.severity} · ${row.axis} · ${row.gap} · evidence: ${row.evidence} · fix: ${row.fix}`;
-}
+const NO_OUTPUT = "(no output)";
 
-function scopeLines(input: AuditBriefInput): string[] {
+/** The run of the whole fast suite, before the audit. */
+export const fastSuiteLines = (suite: { command: string; outcome: string; tail: string }): string[] => [
+  "",
+  "The whole fast suite, as code ran it before this audit:",
+  `- command: ${suite.command}`,
+  `- outcome: ${suite.outcome}`,
+  "```text",
+  suite.tail.trimEnd() || NO_OUTPUT,
+  "```",
+];
+
+/** The gaps of the previous audit, each already rendered as a line. */
+export const previousGapsLines = (gaps: readonly string[]): string[] =>
+  ["", "The previous gaps:", ...(gaps.length ? gaps : ["- none recorded"])];
+
+/** The capture files the brief carries none of. */
+export const captureFilesToReadLines = (paths: readonly string[]): string[] =>
+  ["Capture files, to read one at a time:", ...paths.map((path) => `- ${path}`)];
+
+/** One capture file carried in the brief, under its name. */
+export const captureTextBlock = (name: string, text: string): string =>
+  [`### ${name}`, "```text", text.trimEnd(), "```"].join("\n");
+
+/** The capture files carried in the brief. */
+export const captureInBriefLines = (blocks: readonly string[]): string[] =>
+  ["The capture, in this brief (do not open these files again):", "", ...blocks];
+
+/** The capture files left to read once the brief is full. */
+export const captureLeftToReadLines = (paths: readonly string[]): string[] =>
+  ["Capture files left to read, one at a time:", ...paths.map((path) => `- ${path}`)];
+
+/** The sheet carried in the brief. */
+export const sheetInBriefLines = (text: string): string[] =>
+  ["The sheet, in this brief (do not open it again):", "```text", text, "```", ""];
+
+/** The mechanical table, last in the brief. */
+export const mechanicalTableLines = (table: string): string[] => ["", "The mechanical table (table.md):", "", table];
+
+/** The folder named when the capture has no file. */
+export const THE_CAPTURE_FOLDER = "the capture folder";
+
+/** The opening of the follow-up's first answer: where the first round's files are, the verdict, the rows to come. */
+export const firstAnswerLines = (folder: string, verdict: string): string[] => [
+  "",
+  `The capture files and the mechanical table are those of your first round, in ${folder}/: reopen them there when needed.`,
+  "",
+  "Your first answer:",
+  `- verdict: ${verdict}`,
+  "- rows:",
+];
+
+/** One validation as code ran it: the command, its outcome, its output. */
+export const validationReportSection = (command: string, outcome: string, tail: string): string =>
+  [`### ${command}`, `Outcome: ${outcome}`, "```text", tail || NO_OUTPUT, "```"].join("\n");
+
+/** The validations the first answer named. */
+export const validationsNamedLine = (validations: readonly string[]): string =>
+  `- validations named: ${validations.length ? validations.join(" ; ") : "none"}`;
+
+/** A check or a mechanism the first answer left undecided. */
+export const undecidedLine = (check: string, reason: string): string => `- undecided: ${check} — ${reason}`;
+
+/** The reports of the validations, then the ask for the final answer. */
+export const validationReportsLines = (sections: readonly string[]): string[] => [
+  "",
+  "The validations you named, as code ran them:",
+  "",
+  ...(sections.length ? sections : ["(none)"]),
+  "",
+  "Weigh these outputs against your rows and give the whole answer again; this answer is final: name no further validation.",
+];
+
+/** The rows of the first answer left out to fit the brief. */
+export const rowsLeftOutLine = (count: number): string => `  - … ${count} more rows left out to fit the brief`;
+
+/** The first answer held no row. */
+export const NO_ROWS_LINE = "  - none";
+
+/** The prompt that turns the plain-text audit into the answer's schema. */
+export function auditAnswerPrompt(text: string, problems: readonly string[]): string {
   return [
-    `Audit of batch ${input.batch}, mode ${input.mode}.`,
-    "",
-    input.mode === "resume"
-      ? "Scope: the previous gaps and what changed since."
-      : "Scope: the whole batch.",
-    `Sheet: ${input.sheetPath}`,
-    `Applied rules: ${input.appliedRules}`,
-  ];
-}
-
-function projectLines({ projectFiles }: AuditBriefInput): string[] {
-  const lines = projectFileLines(projectFiles ?? []);
-  return lines.length === 0 ? [] : ["", ...lines];
-}
-
-function commandLines({ commands }: AuditBriefInput): string[] {
-  return [
-    "Commands a validation may be built from:",
-    `- test class: ${commands.testClass ?? "none"}`,
-    `- test project: ${commands.testProject ?? "none"}`,
-    `- integration tests: ${commands.testIntegration ?? "none"}`,
-  ];
-}
-
-function suiteLines({ suite }: AuditBriefInput): string[] {
-  if (suite === undefined) return [];
-  return [
-    "",
-    "The whole fast suite, as code ran it before this audit:",
-    `- command: ${suite.command}`,
-    `- outcome: ${suite.outcome}`,
-    "```text",
-    suite.tail.trimEnd() || "(no output)",
-    "```",
-  ];
-}
-
-function previousLines(input: AuditBriefInput, line: (row: AuditRow) => string): string[] {
-  if (input.mode !== "resume") return [];
-  const gaps = input.previousGaps ?? [];
-  return ["", "The previous gaps:", ...(gaps.length ? gaps.map(line) : ["- none recorded"])];
-}
-
-function precedentLines({ precedents }: AuditBriefInput): string[] {
-  const block = (precedents ?? "").trimEnd();
-  return block === "" ? [] : ["", block];
-}
-
-/** The capture as the brief carries it: each text while there is room, then the files left to read. */
-function captureLines(input: AuditBriefInput, room: number): string[] {
-  if (input.captureTexts === undefined) {
-    return ["Capture files, to read one at a time:", ...input.captureFiles.map((path) => `- ${path}`)];
-  }
-  const blocks: string[] = [];
-  const carried = new Set<string>();
-  let left = Math.min(INLINE_CAPTURE_CHARS, room);
-  for (const { path, text } of input.captureTexts) {
-    const block = [`### ${path.slice(path.lastIndexOf("/") + 1)}`, "```text", text.trimEnd(), "```"].join("\n");
-    if (block.length + 1 > left) continue;
-    blocks.push(block);
-    carried.add(path);
-    left -= block.length + 1;
-  }
-  const toRead = input.captureFiles.filter((path) => !carried.has(path));
-  const lines = blocks.length > 0 ? ["The capture, in this brief (do not open these files again):", "", ...blocks] : [];
-  if (toRead.some((path) => !CAPTURE_FRAME.test(path))) {
-    lines.push(...(lines.length > 0 ? [""] : []), "Capture files left to read, one at a time:", ...toRead.map((path) => `- ${path}`));
-  }
-  return lines;
-}
-
-/** The sheet as the brief carries it, or nothing (left to read from its path). */
-function sheetLines(input: AuditBriefInput, room: number): string[] {
-  const text = input.sheetText?.trimEnd() ?? "";
-  if (text === "" || text.length > Math.min(INLINE_SHEET_CHARS, room)) return [];
-  return ["The sheet, in this brief (do not open it again):", "```text", text, "```", ""];
-}
-
-export function buildAuditBrief(input: AuditBriefInput): string {
-  const rest = [
-    "",
-    ...commandLines(input),
-    ...suiteLines(input),
-    ...previousLines(input, rowLine),
-    ...precedentLines(input),
-    "",
-    "The mechanical table (table.md):",
-    "",
-    input.table.trimEnd(),
-  ];
-  const head = [...scopeLines(input), ...projectLines(input)];
-  const sheet = sheetLines(input, MAX_BRIEF_CHARS - BRIEF_MARGIN - [...head, "", ...rest].join("\n").length);
-  const room = MAX_BRIEF_CHARS - BRIEF_MARGIN - [...head, "", ...sheet, ...rest].join("\n").length;
-  return [...head, "", ...sheet, ...captureLines(input, room), ...rest].join("\n");
-}
-
-export interface ValidationReport {
-  command: string;
-  /** "exit 0", "exit 1", "timed out after 300 s", "refused: <reason>", "not run: <reason>". */
-  outcome: string;
-  /** At most 15 lines and 1 500 characters of the output, stderr after stdout. */
-  tail: string;
-}
-
-/** The follow-up's caps: one row of the first answer, one report's tail, room kept for the closing lines. */
-const FOLLOW_UP_ROW_CHARS = 240;
-const FOLLOW_UP_TAIL_CHARS = 800;
-const FOLLOW_UP_MARGIN = 200;
-
-function folderOf(path: string): string {
-  const slash = path.lastIndexOf("/");
-  return slash > 0 ? path.slice(0, slash) : ".";
-}
-
-/**
- * The second brief: the first one without the capture index and the table (named by their
- * folder), the first answer with each row cut, and each report with its tail cut. Rows that
- * would take it past MAX_BRIEF_CHARS are left out and counted.
- */
-export function buildValidationFollowUp(input: AuditBriefInput, first: AuditAnswer, reports: readonly ValidationReport[]): string {
-  const capped = (row: AuditRow): string => cut(rowLine(row), FOLLOW_UP_ROW_CHARS);
-  const folder = input.captureFiles.length > 0 ? folderOf(input.captureFiles[0]) : "the capture folder";
-  const head = [
-    ...scopeLines(input),
-    "",
-    ...commandLines(input),
-    ...suiteLines(input),
-    ...previousLines(input, capped),
-    "",
-    `The capture files and the mechanical table are those of your first round, in ${folder}/: reopen them there when needed.`,
-    "",
-    "Your first answer:",
-    `- verdict: ${first.verdict}`,
-    "- rows:",
-  ];
-  const sections = reports.map((r) => [
-    `### ${r.command}`,
-    `Outcome: ${r.outcome}`,
-    "```text",
-    (r.tail.trimEnd().length > FOLLOW_UP_TAIL_CHARS ? `…${r.tail.trimEnd().slice(1 - FOLLOW_UP_TAIL_CHARS)}` : r.tail.trimEnd()) ||
-      "(no output)",
-    "```",
-  ].join("\n"));
-  const tail = [
-    `- validations named: ${first.validations.length ? first.validations.map((v) => cut(v, FOLLOW_UP_ROW_CHARS)).join(" ; ") : "none"}`,
-    ...first.undecided.map((u) => cut(`- undecided: ${u.check} — ${u.reason}`, FOLLOW_UP_ROW_CHARS)),
-    "",
-    "The validations you named, as code ran them:",
-    "",
-    ...(sections.length ? sections : ["(none)"]),
-    "",
-    "Weigh these outputs against your rows and give the whole answer again; this answer is final: name no further validation.",
-  ];
-  let room = MAX_BRIEF_CHARS - FOLLOW_UP_MARGIN - head.join("\n").length - tail.join("\n").length;
-  const rows: string[] = [];
-  for (const [i, row] of first.rows.entries()) {
-    const line = `  ${capped(row)}`;
-    if (line.length + 1 > room) {
-      rows.push(`  - … ${first.rows.length - i} more rows left out to fit the brief`);
-      break;
-    }
-    rows.push(line);
-    room -= line.length + 1;
-  }
-  if (first.rows.length === 0) rows.push("  - none");
-  return [...head, ...rows, ...tail].join("\n");
-}
-
-const MAX_REPLY_CHARS_IN_ANSWER_PROMPT = 12_000;
-
-export function buildAnswerPrompt(reply: string, problems: readonly string[]): string {
-  const text = reply.length > MAX_REPLY_CHARS_IN_ANSWER_PROMPT
-    ? `[earlier text cut]\n${reply.slice(-MAX_REPLY_CHARS_IN_ANSWER_PROMPT)}`
-    : reply;
-  const lines = [
     "Turn the audit below into the JSON answer. Take the verdict, the rows, the validations and the checks and",
     "mechanisms left undecided from the audit as written; invent nothing absent from it. A row's severity is Blocking,",
     `Major or Minor, its axis one of ${AXES.join(", ")}, and its evidence a path:line or a capture file. A validation`,
     "is the command alone, never wrapped in run_validation.",
-  ];
-  if (problems.length > 0) {
-    lines.push("", "The previous answer was refused; fix each of these:", ...problems.map((p) => `- ${p}`));
-  }
-  lines.push("", "The audit:", "", text);
-  return lines.join("\n");
+    ...(problems.length > 0 ? ["", "The previous answer was refused; fix each of these:", ...problems.map((p) => `- ${p}`)] : []),
+    "",
+    "The audit:",
+    "",
+    text,
+  ].join("\n");
 }

@@ -4,10 +4,10 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual, ok } from "node:assert";
 
 import { LENSES } from "../../../../src/crews/code-review/domain/lenses.ts";
-import { buildLensPrompt, cutDiff, FINDINGS_SCHEMA, MAX_PRIOR_FINDINGS_IN_PROMPT, SEVERITIES } from "../../../../src/crews/code-review/application/prompts.ts";
+import { buildLensPrompt, FINDINGS_SCHEMA, SEVERITIES } from "../../../../src/crews/code-review/application/prompts.ts";
 import { SEVERITY_ORDER } from "../../../../src/shared/domain/severity.ts";
 import {
-  LATER_PASS_MARKERS, manyPriorFindings, NEVER_PLAUSIBLE_MARKERS, OWN_BAR_LENSES, PLAUSIBLE_RULE_MARKERS,
+  LATER_PASS_MARKERS, NEVER_PLAUSIBLE_MARKERS, OWN_BAR_LENSES, PLAUSIBLE_RULE_MARKERS,
   PLAUSIBLE_WAY_OUT, PRIOR_FINDINGS,
 } from "./prompts.fixtures.ts";
 import { assertOmits } from "./prompts.assertions.ts";
@@ -101,18 +101,6 @@ describe("buildLensPrompt across passes", () => {
 
     // Assert
     assertOmits(p, ["A first pass tends to skip"]);
-  });
-
-  it("bounds the prior list so the prompt cannot grow without limit", () => {
-    // Arrange
-    const many = manyPriorFindings(100);
-
-    // Act
-    const p = buildLensPrompt(LENSES[0], "DIFF", 2, many);
-
-    // Assert
-    strictEqual(p.includes(`f${MAX_PRIOR_FINDINGS_IN_PROMPT}.ts`), false);
-    ok(p.includes(`f${MAX_PRIOR_FINDINGS_IN_PROMPT - 1}.ts`));
   });
 });
 
@@ -315,29 +303,5 @@ describe("FINDINGS_SCHEMA — confidence", () => {
 
     // Assert
     deepStrictEqual(item.properties.confidence, { type: "string", enum: ["shown", "plausible"] });
-  });
-});
-
-describe("cutDiff", () => {
-  it("leaves a short diff alone", () => {
-    // Arrange
-    const diff = "abc";
-
-    // Act
-    const cut = cutDiff(diff, 10);
-
-    // Assert
-    strictEqual(cut, "abc");
-  });
-
-  it("says how much of a long diff it left out", () => {
-    // Arrange
-    const diff = "abcdef";
-
-    // Act
-    const cut = cutDiff(diff, 4);
-
-    // Assert
-    strictEqual(cut, "abcd\n[diff cut after 4 characters: 2 characters left out]");
   });
 });

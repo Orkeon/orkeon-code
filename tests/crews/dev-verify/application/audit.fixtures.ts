@@ -3,7 +3,7 @@ import { FakeFiles } from "../../../support/doubles/fake-files.ts";
 import { FakeLlm } from "../../../support/doubles/fake-llm.ts";
 import { FakeShell } from "../../../support/doubles/fake-shell.ts";
 import type { RepoPackCommands } from "../../../../src/shared/domain/dev/repo-pack.ts";
-import type { AuditBriefInput } from "../../../../src/crews/dev-verify/application/prompts.ts";
+import type { AuditBriefInput } from "../../../../src/crews/dev-verify/application/audit-brief.ts";
 import { shellValidationRunner } from "../../../../src/crews/dev-verify/application/audit.ts";
 import type { RecordingRunner, ValidationRunner } from "../../../../src/crews/dev-verify/application/audit.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";

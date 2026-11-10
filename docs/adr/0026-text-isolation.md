@@ -68,3 +68,24 @@ Seven modules already held one crew's prompt and nothing else, each under its ow
   file.
 - A module that moves its text keeps its exported names; a name another folder imports stays as a re-export without
   text until the last lot points the importers at the text file.
+
+## Addendum: a text file holds text only
+
+The first guard exempts the text files by name, so logic written in one goes unseen: a prompt builder that ran ports
+in `Promise.all`, briefs that fit their parts to a budget in a loop, a cut kept in a `let`. The text file then holds
+the control flow the rule meant to keep apart.
+
+- **What a text file holds.** Constants and template functions: parameters in, text out, a ternary, an early return,
+  a `.map` or a `.join` to render a list. It imports values from other text files and from `domain/` modules only;
+  a type from anywhere.
+- **What is logic.** An `async` function, `await`, a loop (`for`, `while`, `do`), a `switch`, a `try`, a class, a
+  variable that changes (`let`, `var`), and a value imported from a port, an application or infrastructure module or a
+  command use case. The budget of a brief, a cut to a cap, the choice of what to carry go to a logic module beside the
+  text file, named after what it does (`turn-context.ts`, beside `crews/main-loop/application/prompts.ts`), which calls
+  the template functions and so holds no prose.
+- **The second check.** `tests/repository/text-isolation.test.ts` flags each such construct of a text file with its
+  line and its owner (the declaration around it, or the name imported). Its exceptions are named like those of the
+  prose, `{ file, name, reason }`, in `TEXT_FILE_EXCEPTIONS`, and one that matches nothing fails too. The guard reads
+  and parses `src/` once for all its repository checks.
+- **One text, one definition.** A message two folders show is written once, in the shared layer's `messages.ts`, and
+  imported; a value a writer and a parser share is one constant of a `markers.ts` both import.

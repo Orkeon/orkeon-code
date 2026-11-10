@@ -32,12 +32,12 @@ import { textToVirtual } from "../../../shared/domain/host-paths.ts";
 import { readBehaviorFlags } from "./context-gather.ts";
 import { autoCompactGuarded } from "./auto-compact.ts";
 import type { AutoCompactDeps } from "./auto-compact.ts";
-import { buildTurnPrompt } from "./prompts.ts";
+import { buildTurnPrompt } from "./turn-context.ts";
 import {
   BUDGET_EXHAUSTED_LINE, budgetRanOut, gateOffWarning, MODE_ORIGIN_BUILT_IN, modelOverrideIgnored, NO_PROMPT,
   nothingToSend, preludeRunning, rulesRemoved, ruleWithoutEffect, stopCheckRetryFailed, stopCheckSendsBack,
 } from "./messages.ts";
-import type { TurnContextDeps, TurnPrompt } from "./prompts.ts";
+import type { TurnContextDeps, TurnPrompt } from "./turn-context.ts";
 import {
   STOP_GUARDS, TURN_START_GUARDS, buildStopRetryPrompt, buildTurnContextMessage, readClosingLine, refusedTurnText,
   runChain,

@@ -1,4 +1,4 @@
-// Checks on the texts of the auditor's prompts.
+// Checks on the auditor's brief and follow-up: their size.
 import { ok } from "node:assert";
 import { MAX_BRIEF_CHARS } from "../../../../src/shared/domain/agents/charter.ts";
 

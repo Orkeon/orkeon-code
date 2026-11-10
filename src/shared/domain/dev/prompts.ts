@@ -7,17 +7,9 @@
 import { BOUNDED_READ_RULE, KNOWN_TOOLS_RULE, NODE_READ_RULE } from "./reading-rule.ts";
 import { NEXT_BATCH_REVIEWER_CHARTER, REVIEWER_TOOLS } from "./reviewer-charter.ts";
 import { describeCodeIntelRouting } from "../code-intel-routing.ts";
-import { carry } from "./carried-text.ts";
-import type { CarriedText } from "./carried-text.ts";
-import { projectFileLines } from "./project-files.ts";
 import { PROJECT_LIST_RULE } from "./prompts/brief-blocks.ts";
 
 export type ReviewMode = "plan" | "spec" | "change" | "next-batch";
-
-export const MAX_REVIEW_REPLY_CHARS = 12_000;
-
-/** The most carried text a review brief holds, in characters (MAX_BRIEF_CHARS less the brief's own lines). */
-export const CARRIED_REVIEW_CHARS = 18_000;
 
 const COMMON = [
   "You review a piece of development work before anyone builds it.",
@@ -155,70 +147,81 @@ export function reviewSystem(mode: ReviewMode): string {
   return [...COMMON, ...PLAN_FOCUS, ...closing(REVIEWER_TOOLS, false)].join("\n");
 }
 
-export interface ReviewBriefInput {
+/** A review brief with every choice made: what it says is in the brief, the inventory trimmed, the project list. */
+export interface ReviewBriefView {
   mode: ReviewMode;
-  /** The folder under review, relative ("workbench/prune"). */
+  /** The folder under review, ending with a slash. */
   folder: string;
-  /** The files to review, relative, in reading order. */
   files: readonly string[];
-  /** The spec or brief the work was planned from, relative; for a spec or a brief, its origin ("" when none). */
+  /** Whether the text of every file to review is carried in the brief. */
+  filesInBrief: boolean;
   source: string;
-  /** The inventory text: the plan's I<n> refs, the path:line rows of a spec or a brief. */
+  /** Whether the text of the source (the plan of a next batch) is carried in the brief. */
+  sourceInBrief: boolean;
+  /** The inventory, trimmed at its end. */
   inventory: string;
-  /** What a row may target. */
+  /** The carried texts, each under its title. */
+  blocks: readonly string[];
+  /** The lines of the project's files, none when there is no list. */
+  project: readonly string[];
   targets: readonly string[];
-  /** Texts carried in the brief, each under its title (next-batch: the batch's sheet, then what each closed batch
-   *  changed), so the reviewer opens no file for them; the whole room of CARRIED_REVIEW_CHARS for them. */
-  carried?: readonly CarriedText[];
-  /** The project's files (tracked and untracked, the work folder left out), listed so that the reviewer guesses no
-   *  name; absent or empty: no list. */
-  projectFiles?: readonly string[];
 }
 
-export function buildReviewBrief(input: ReviewBriefInput): string {
-  const folder = input.folder.endsWith("/") ? input.folder : `${input.folder}/`;
-  const { blocks, whole } = carry(input.carried ?? [], CARRIED_REVIEW_CHARS);
-  const inBrief = (file: string): boolean => whole.has(file);
-  const lines = [
-    `mode: ${input.mode} ${folder}`,
-    input.files.length > 0 && input.files.every(inBrief)
+const NO_ENTRY = "(no entry)";
+
+/** The lines of a review brief that depend on its mode: the source and the inventory, the carried texts. */
+function reviewBriefModeLines(view: ReviewBriefView): string[] {
+  if (view.mode === "plan") {
+    return [`Source it was planned from: ${view.source}`, "Inventory the plan's anchors were chosen from (I<n> refs):", view.inventory || NO_ENTRY];
+  }
+  if (view.mode === "next-batch") {
+    return [
+      `The plan: ${view.source}${view.sourceInBrief ? " (in this brief)" : ""}`,
+      "The batches closed before it, with their commits and files:",
+      view.inventory || NO_ENTRY,
+      ...(view.blocks.length > 0
+        ? ["", "In this brief, so that you open no file for them (the sheet, what each closed batch changed, then the plan):", "", ...view.blocks]
+        : []),
+    ];
+  }
+  return [
+    ...(view.source !== "" ? [`Origin of the request: ${view.source}`] : []),
+    "What the code index found for the request (path:line):",
+    view.inventory || NO_ENTRY,
+  ];
+}
+
+/** The brief that names the files to review, the source, the inventory and the targets. */
+export function reviewBrief(view: ReviewBriefView): string {
+  return [
+    `mode: ${view.mode} ${view.folder}`,
+    view.filesInBrief
       ? "Files to review, in this order (their text is in this brief: open none of them):"
       : "Files to review, in this order (read each by section, a heading at a time):",
-    ...input.files.map((file) => `- ${file}`),
-  ];
-  if (input.mode === "plan") {
-    lines.push(`Source it was planned from: ${input.source}`);
-    lines.push("Inventory the plan's anchors were chosen from (I<n> refs):", input.inventory.trimEnd() || "(no entry)");
-  } else if (input.mode === "next-batch") {
-    lines.push(`The plan: ${input.source}${inBrief(input.source) ? " (in this brief)" : ""}`);
-    lines.push("The batches closed before it, with their commits and files:", input.inventory.trimEnd() || "(no entry)");
-    if (blocks.length > 0) lines.push("", "In this brief, so that you open no file for them (the sheet, what each closed batch changed, then the plan):", "", ...blocks);
-  } else {
-    if (input.source !== "") lines.push(`Origin of the request: ${input.source}`);
-    lines.push("What the code index found for the request (path:line):", input.inventory.trimEnd() || "(no entry)");
-  }
-  const project = projectFileLines(input.projectFiles ?? []);
-  if (project.length > 0) lines.push("", ...project);
-  lines.push(`A row targets one of: ${input.targets.join(", ")}.`);
-  return lines.join("\n");
+    ...view.files.map((file) => `- ${file}`),
+    ...reviewBriefModeLines(view),
+    ...(view.project.length > 0 ? ["", ...view.project] : []),
+    `A row targets one of: ${view.targets.join(", ")}.`,
+  ].join("\n");
 }
 
-export function buildReviewAnswerPrompt(reply: string, problems: readonly string[], targets: readonly string[]): string {
-  const text = reply.length > MAX_REVIEW_REPLY_CHARS
-    ? `[earlier text cut]\n${reply.slice(-MAX_REVIEW_REPLY_CHARS)}`
-    : reply;
-  const lines = [
+/** A reply cut to its end, said so. */
+export const earlierTextCut = (tail: string): string => `[earlier text cut]\n${tail}`;
+
+/** The prompt that turns the plain-text review into the answer's schema. */
+export function reviewAnswerPrompt(text: string, problems: readonly string[], targets: readonly string[]): string {
+  return [
     "Turn the review below into the JSON answer. Take the rows from the review as written; invent no row it does not",
     "hold. The verdict follows the rows: GAPS when the review asks one question or more, CLEAR when it asks none,",
     "whatever word the review opens with. A row's severity is Blocking or Major; its question is one closed question",
     "ending with ?; its evidence is a path:line, a § n or a section heading; its target is the id alone, one of",
     `${targets.join(", ")} (never the id with a qualifier, such as "F2 (step 1)").`,
-  ];
-  if (problems.length > 0) {
-    lines.push("", "The previous answer was refused; fix each of these:", ...problems.map((p) => `- ${p}`));
-  }
-  lines.push("", "The review:", "", text);
-  return lines.join("\n");
+    ...(problems.length > 0 ? ["", "The previous answer was refused; fix each of these:", ...problems.map((p) => `- ${p}`)] : []),
+    "",
+    "The review:",
+    "",
+    text,
+  ].join("\n");
 }
 
 // ── The call guard of a dev step: what the model is told to do instead ──

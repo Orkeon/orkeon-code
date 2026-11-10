@@ -6,6 +6,7 @@
 import type { Files, Llm, Shell } from "../../../shared/application/ports.ts";
 import type { Finding } from "../../../shared/domain/types.ts";
 import { LENSES, FINDINGS_SCHEMA, buildLensPrompt } from "./prompts.ts";
+import { conventionsShown, priorFindingsShown } from "./lens-material.ts";
 import { withinCeiling, type ReviewLens } from "../domain/lenses.ts";
 import type { ReviewScope } from "../domain/scope.ts";
 
@@ -55,8 +56,10 @@ export async function runLenses(
   priorFindings: readonly Finding[] = [],
   conventions = "",
 ): Promise<Array<{ lens: string; findings: Finding[] }>> {
+  const shownFindings = priorFindingsShown(priorFindings);
+  const shownConventions = conventionsShown(conventions);
   return await Promise.all(lenses.map((lens) =>
-    llm.extract(buildLensPrompt(lens, diffSlice, pass, priorFindings, conventions), FINDINGS_SCHEMA)
+    llm.extract(buildLensPrompt(lens, diffSlice, pass, shownFindings, shownConventions), FINDINGS_SCHEMA)
       .then((r) => ({
         lens: lens.key,
         findings: ((r as { findings?: Finding[] } | null)?.findings ?? []).map((f) => withinCeiling(lens, f)),
