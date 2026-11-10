@@ -11,6 +11,7 @@
 import type { ToolCatalogue } from "../../application/ports.ts";
 import type { ServiceLocator } from "../../../commands/.orkeon/orkeon-cli.d.ts";
 import { asArray, pick, toolOutcome } from "./tool-results.ts";
+import { noRegisteredTool } from "./messages.ts";
 
 /** The service that hands out the registered tools. */
 const TOOLS = "tools";
@@ -50,7 +51,7 @@ function registeredNames(services: Pick<ServiceLocator, "get">): string[] {
 export function createToolCalls(tools: object): Pick<ToolCatalogue, "call" | "callText"> {
   const call = async (name: string, args: Record<string, unknown>): Promise<unknown> => {
     const fn = (tools as Record<string, unknown> | undefined)?.[toolMemberName(name)];
-    if (typeof fn !== "function") throw new Error(`no registered tool '${name}'`);
+    if (typeof fn !== "function") throw new Error(noRegisteredTool(name));
     return (fn as (input: Record<string, unknown>) => unknown)(args);
   };
   return { call, callText: (name, args) => toolOutcome(() => call(name, args)) };
@@ -63,7 +64,7 @@ export function createToolCatalogue(tools: object, services: Pick<ServiceLocator
   };
   const call = async (name: string, args: Record<string, unknown>): Promise<unknown> => {
     const registered = find(name);
-    if (registered === undefined) throw new Error(`no registered tool '${name}'`);
+    if (registered === undefined) throw new Error(noRegisteredTool(name));
     return createToolCalls(tools).call(registered, args);
   };
   return {

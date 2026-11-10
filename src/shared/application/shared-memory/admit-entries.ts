@@ -16,6 +16,11 @@ import { candidatePath, entryPath } from "../../domain/shared-memory/layout.ts";
 import type { MemoryLayout } from "../../domain/shared-memory/layout.ts";
 import { readOrNull, refreshCandidatesList, refreshIndexFile, refusedTopics, storedEntries } from "./memory-files.ts";
 import { sha1Hex } from "../../domain/sha1.ts";
+import {
+  CANDIDATE_CHANGED, NOTHING_TO_APPLY, NO_CANDIDATE_FILE, candidateUnreadable, fileHoldsId, indexStale, notACandidateAnyMore,
+  notMarkedSuperseded, refusedFileUnreadable, refusedNotWritten, statusNotCandidate, stillReadsAsCandidate, supersedesNoAdmitted,
+  topicWasRefused,
+} from "./messages.ts";
 
 export const DEFAULT_REFUSAL_MOTIF = "refused by /memory-admit";
 
@@ -66,14 +71,14 @@ async function candidate(
   try {
     text = await readOrNull(files, candidatePath(layout, id));
   } catch (error) {
-    return `its candidate file cannot be read (${firstLine(error)})`;
+    return candidateUnreadable(firstLine(error));
   }
-  if (text === null) return "no candidate file";
-  if (sha1 !== undefined && sha1Hex(text) !== sha1) return "its file changed since it was confirmed: run /memory-admit again";
+  if (text === null) return NO_CANDIDATE_FILE;
+  if (sha1 !== undefined && sha1Hex(text) !== sha1) return CANDIDATE_CHANGED;
   const parsed = parseEntry(text);
-  if (!parsed.ok) return `its file is not a candidate entry any more (${parsed.problems[0] ?? "decided already"})`;
-  if (parsed.entry.status !== "candidate") return `its status is ${parsed.entry.status}, not candidate`;
-  if (parsed.entry.id !== id) return `its file holds the id ${parsed.entry.id}`;
+  if (!parsed.ok) return notACandidateAnyMore(parsed.problems[0] ?? "decided already");
+  if (parsed.entry.status !== "candidate") return statusNotCandidate(parsed.entry.status);
+  if (parsed.entry.id !== id) return fileHoldsId(parsed.entry.id);
   return parsed.entry;
 }
 
@@ -87,10 +92,10 @@ async function admitOne(
   try {
     refused = await refusedTopics(deps.files, layout);
   } catch (error) {
-    outcome.failed.push(`${id}: ${layout.refused} cannot be read (${firstLine(error)})`);
+    outcome.failed.push(refusedFileUnreadable(id, layout.refused, firstLine(error)));
     return false;
   }
-  if (refused.has(found.topic)) { outcome.failed.push(`${id}: its topic '${found.topic}' was refused (refused.md)`); return false; }
+  if (refused.has(found.topic)) { outcome.failed.push(topicWasRefused(id, found.topic)); return false; }
   const entry: MemoryEntry = { ...found, status: "admitted" };
   const problems = [...entryProblems(entry), ...[admissionProblem(entry)].filter((p): p is string => p !== undefined)];
   if (problems.length > 0) { outcome.failed.push(`${id}: not admitted, ${problems.join("; ")}`); return false; }
@@ -107,11 +112,11 @@ async function admitOne(
     const stored = await storedEntries(deps.files, layout);
     for (const old of entry.supersedes) {
       const hit = stored.find((s) => s.entry.id === old && s.entry.status === "admitted");
-      if (hit === undefined) { outcome.warnings.push(`${id} supersedes ${old}, which is no admitted entry: left as it is`); continue; }
+      if (hit === undefined) { outcome.warnings.push(supersedesNoAdmitted(id, old)); continue; }
       try {
         await deps.files.write(hit.path, serializeEntry({ ...hit.entry, status: "superseded", supersededBy: id }));
       } catch (error) {
-        outcome.warnings.push(`${old} not marked superseded by ${id} (${firstLine(error)})`);
+        outcome.warnings.push(notMarkedSuperseded(old, id, firstLine(error)));
       }
     }
   }
@@ -129,7 +134,7 @@ async function refuseOne(
     const motif = decision.motif?.trim() || DEFAULT_REFUSAL_MOTIF;
     await deps.files.write(layout.refused, appendRefused(previous, { topic: found.topic, project: found.project, date: today, motif }));
   } catch (error) {
-    outcome.failed.push(`${decision.id}: ${layout.refused} not written (${firstLine(error)}), the candidate stays`);
+    outcome.failed.push(refusedNotWritten(decision.id, layout.refused, firstLine(error)));
     return;
   }
   outcome.refused.push(decision.id);
@@ -140,7 +145,7 @@ async function pointer(files: Pick<Files, "write">, layout: MemoryLayout, id: st
   try {
     await files.write(candidatePath(layout, id), text);
   } catch (error) {
-    outcome.warnings.push(`${candidatePath(layout, id)} still reads as a candidate (${firstLine(error)}): /memory-admit will say it is decided`);
+    outcome.warnings.push(stillReadsAsCandidate(candidatePath(layout, id), firstLine(error)));
   }
 }
 
@@ -160,7 +165,7 @@ export async function admitEntries(
       const report = await deps.memory.ingest(memory.collection, [memory.layout.entriesGlob], { prune: true });
       for (const error of report.errors) outcome.warnings.push(`index: ${error}`);
     } catch (error) {
-      outcome.warnings.push(`the index of ${memory.collection} is stale (${firstLine(error)}): the next admission re-ingests entries/`);
+      outcome.warnings.push(indexStale(memory.collection, firstLine(error)));
     }
   }
   return outcome;
@@ -173,5 +178,5 @@ export function admitReport(outcome: AdmitOutcome): string {
     ...outcome.refused.map((id) => `refused ${id}`),
     ...outcome.failed.map((line) => `not applied: ${line}`),
     ...outcome.warnings.map((line) => `warning: ${line}`),
-  ].join("\n") || "nothing to apply";
+  ].join("\n") || NOTHING_TO_APPLY;
 }

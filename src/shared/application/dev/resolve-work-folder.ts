@@ -11,6 +11,7 @@ import {
   DEFAULT_WORK_FOLDER, isSamePath, mainWorktreeOf, normalizeWorkDir,
 } from "../../domain/dev/work-folder.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
+import { absentFromCheckout, linkedWorktreeNote, notARelativeFolder } from "./messages.ts";
 
 export const GIT_WORKTREE_LIST = "git worktree list --porcelain";
 export const GIT_TOPLEVEL = "git rev-parse --show-toplevel";
@@ -88,7 +89,7 @@ export async function resolveWorkFolder(
   const check = normalizeWorkDir(request.value);
   if (!check.ok) {
     return fallback("invalid",
-      `${request.source} '${request.value}' is not a relative folder of the checkout (${check.reason}): ${DEFAULT_WORK_FOLDER}/ applies`);
+      notARelativeFolder(request.source, request.value, check.reason, DEFAULT_WORK_FOLDER));
   }
   const value = check.folder;
   if (value === "") return fallback("default", null);
@@ -101,7 +102,7 @@ export async function resolveWorkFolder(
     return { folder: value, vfsPath, outcome: "applied", request, exists: true, note: null };
   }
 
-  const absentNote = `${request.source} '${value}' is absent from the checkout: ${DEFAULT_WORK_FOLDER}/ applies`;
+  const absentNote = absentFromCheckout(request.source, value, DEFAULT_WORK_FOLDER);
   const porcelain = await gitStdout(deps.shell, GIT_WORKTREE_LIST);
   const toplevel = await gitStdout(deps.shell, GIT_TOPLEVEL);
   const main = porcelain === null ? null : mainWorktreeOf(porcelain);
@@ -118,7 +119,7 @@ export async function resolveWorkFolder(
     outcome: "main-worktree",
     request,
     exists: true,
-    note: `this checkout is a linked worktree: the work folder is the main worktree's ${folder}`,
+    note: linkedWorktreeNote(folder),
   };
 }
 

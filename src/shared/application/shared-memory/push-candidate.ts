@@ -12,6 +12,10 @@ import { candidatePath, entryPath } from "../../domain/shared-memory/layout.ts";
 import type { MemoryLayout } from "../../domain/shared-memory/layout.ts";
 import { secretLikePaths } from "../../domain/secret-patterns.ts";
 import { readOrNull, refreshCandidatesList, refusedTopics, writeCandidateFile } from "./memory-files.ts";
+import {
+  EVIDENCE_REQUIRED, admittedHoldsId, cannotBeRead, evidenceNamesSecret, nineHoldTheId, notAValidEntry, notWritable, overwroteTwice,
+  refusedUnreadableNothingWritten, topicNeverProposedAgain, typeMustBeOneOf,
+} from "./messages.ts";
 
 export interface PushInput {
   type: EntryType;
@@ -45,13 +49,13 @@ const list = (value: unknown): string[] =>
 export function readPushInput(input: unknown): { ok: true; input: PushInput } | { ok: false; refused: string } {
   const raw = (input !== null && typeof input === "object" ? input : {}) as Record<string, unknown>;
   const type = text(raw.type);
-  if (!(ENTRY_TYPES as readonly string[]).includes(type)) return { ok: false, refused: `type must be one of ${ENTRY_TYPES.join(", ")}` };
+  if (!(ENTRY_TYPES as readonly string[]).includes(type)) return { ok: false, refused: typeMustBeOneOf(ENTRY_TYPES.join(", ")) };
   const missing = ["title", "topic", "applies_when", "rationale"].filter((key) => text(raw[key]) === "");
   if (missing.length > 0) return { ok: false, refused: `${missing.join(", ")} required` };
   const evidence = list(raw.evidence);
-  if (evidence.length === 0) return { ok: false, refused: "evidence required: at least one path:line, commit or verdict file" };
+  if (evidence.length === 0) return { ok: false, refused: EVIDENCE_REQUIRED };
   const secret = secretLikePaths(evidence.flatMap((e) => e.split(/\s+/)).map((w) => w.replace(/:\d+$/, "")));
-  if (secret.length > 0) return { ok: false, refused: `evidence names a secret-like file: ${secret.join(", ")}` };
+  if (secret.length > 0) return { ok: false, refused: evidenceNamesSecret(secret.join(", ")) };
   const pushed: PushInput = {
     type: type as EntryType, title: text(raw.title), topic: text(raw.topic), appliesWhen: text(raw.applies_when),
     rationale: text(raw.rationale), evidence, tags: list(raw.tags).map((t) => t.toLowerCase()),
@@ -101,13 +105,13 @@ export async function writeCandidate(
 ): Promise<PushOutcome> {
   try {
     if ((await refusedTopics(deps.files, memory.layout)).has(entry.topic)) {
-      return { ok: false, refused: `topic '${entry.topic}' was refused (refused.md): it is never proposed again` };
+      return { ok: false, refused: topicNeverProposedAgain(entry.topic) };
     }
   } catch (error) {
-    return { ok: false, refused: `refused.md cannot be read (${firstLine(error)}): nothing was written` };
+    return { ok: false, refused: refusedUnreadableNothingWritten(firstLine(error)) };
   }
   const problems = entryProblems(entry);
-  if (problems.length > 0) return { ok: false, refused: `not a valid entry: ${problems.join("; ")}` };
+  if (problems.length > 0) return { ok: false, refused: notAValidEntry(problems.join("; ")) };
   // The Files port has no exclusive create: a concurrent push of the same title may write the same id between
   // freeId and the write. The candidate is read back, and a file another push overwrote is written again under the
   // next free id; a push whose write came last still wins its id (no lock without module state).
@@ -116,24 +120,24 @@ export async function writeCandidate(
     try {
       id = await freeId(deps.files, memory.layout, entry);
     } catch (error) {
-      return { ok: false, refused: `${memory.layout.candidates} cannot be read (${firstLine(error)})` };
+      return { ok: false, refused: cannotBeRead(memory.layout.candidates, firstLine(error)) };
     }
-    if (id === null) return { ok: false, refused: `nine candidates or entries already hold the id ${entry.id}` };
+    if (id === null) return { ok: false, refused: nineHoldTheId(entry.id) };
     if (id !== entry.id && (await readOrNull(deps.files, entryPath(memory.layout, entry.type, entry.id)).catch(() => null)) !== null) {
-      return { ok: false, refused: `an admitted entry already holds ${entry.id}: supersede it rather than push it again` };
+      return { ok: false, refused: admittedHoldsId(entry.id) };
     }
     let path: string;
     try {
       path = await writeCandidateFile(deps.files, memory.layout, { ...entry, id });
     } catch (error) {
-      return { ok: false, refused: `${memory.layout.candidates} is not writable (${firstLine(error)}): nothing was written` };
+      return { ok: false, refused: notWritable(memory.layout.candidates, firstLine(error)) };
     }
     const kept = await readOrNull(deps.files, path).catch(() => null);
     if (kept !== null && sameText(kept, serializeEntry({ ...entry, id, status: "candidate" })) === false) continue;
     const listed = await refreshCandidatesList(deps.files, memory.layout);
     return { ok: true, id, path, warnings: listed === null ? [] : [listed] };
   }
-  return { ok: false, refused: `another push overwrote ${entry.id} twice: nothing was kept, push again` };
+  return { ok: false, refused: overwroteTwice(entry.id) };
 }
 
 /** memory_push: the input read, the candidate built and written. */

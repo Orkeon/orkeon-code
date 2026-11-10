@@ -12,6 +12,7 @@ import type { ConfigStore } from "./config-store.ts";
 import { PERMISSION_FALLBACK_CONFIG_KEY, isPermissionMode, resolveFallbackMode } from "../domain/permission-modes.ts";
 import type { FallbackResolution } from "../domain/permission-modes.ts";
 import { DEFAULT_MODE_STATE_KEY } from "../domain/session-keys.ts";
+import { SESSION_DEFAULT_VIA_MODE } from "./messages.ts";
 
 export interface SessionIo extends SessionStore {
   /** The session-default permission mode set by /mode, or null when unset/invalid
@@ -76,7 +77,7 @@ export function createSessionIo(deps: {
     resolveSessionFallbackMode,
     async resolveEffectiveSessionMode() {
       const sessionDefault = await readDefaultPermissionMode();
-      if (sessionDefault) return { mode: sessionDefault, via: "session default via /mode" };
+      if (sessionDefault) return { mode: sessionDefault, via: SESSION_DEFAULT_VIA_MODE };
       const fallback = await resolveSessionFallbackMode();
       return { mode: fallback.mode, via: fallback.explanation };
     },

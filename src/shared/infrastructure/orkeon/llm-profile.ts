@@ -9,6 +9,7 @@
 // cache by their own rules.
 
 import { llmProfileOf } from "../../domain/llm-profile.ts";
+import { noLlmNamespace } from "./messages.ts";
 
 /** What building a profiled agent needs of the runtime: the agent builder and `llm.profile`, absent where the host declares no `llm`. */
 export interface AgentFactories {
@@ -23,6 +24,6 @@ export function profiledAgent(input: Readonly<Record<string, unknown>>, factorie
   const builder = factories.agent().cache(PROMPT_CACHE);
   const name = llmProfileOf(input);
   if (name === null) return builder;
-  if (factories.profile === undefined) throw new Error(`llm.profile '${name}': this host declares no llm namespace, no profile can be applied`);
+  if (factories.profile === undefined) throw new Error(noLlmNamespace(name));
   return builder.llm(factories.profile(name));
 }

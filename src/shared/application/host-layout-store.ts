@@ -5,6 +5,7 @@
 import type { Files } from "./ports.ts";
 import { IDENTITY_HOST, parseHostLayout } from "../domain/host-layout.ts";
 import type { HostLayout } from "../domain/host-layout.ts";
+import { notJsonNoHostLayout } from "./messages.ts";
 
 export const HOST_LAYOUT_FILE_PATH = "/user-config/launch.json";
 
@@ -31,7 +32,7 @@ export async function readHostLayout(files: Pick<Files, "read">): Promise<HostLa
   try {
     raw = JSON.parse(content);
   } catch {
-    return { layout: IDENTITY_HOST, problems: [`${HOST_LAYOUT_FILE_PATH} is not JSON: no host layout applies`], malformed: true };
+    return { layout: IDENTITY_HOST, problems: [notJsonNoHostLayout(HOST_LAYOUT_FILE_PATH)], malformed: true };
   }
   const { layout, problems } = parseHostLayout(raw);
   return { layout, problems, malformed: false };

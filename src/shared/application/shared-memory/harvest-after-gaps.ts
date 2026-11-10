@@ -17,6 +17,7 @@ import { harvestMistakes } from "./harvest-mistakes.ts";
 import { readMemorySettings } from "./memory-settings.ts";
 import { readOrNull } from "./memory-files.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
+import { UNTREATED_GAP, UNTREATED_GAPS, harvestFailed, harvestSkipped, learnNudgeLine, mistakesHarvested } from "./messages.ts";
 
 export interface AfterGapsDeps {
   files: Pick<Files, "read" | "write" | "list">;
@@ -40,8 +41,7 @@ async function untreatedRows(files: Pick<Files, "read">, rows: readonly LearnRow
 export function learnNudge(rows: readonly LearnRow[]): string {
   const batches = new Set(rows.map((r) => r.batch)).size;
   if (batches < NUDGE_BATCHES) return "";
-  return `→ ${plural(rows.length, "untreated verdict gap", "untreated verdict gaps")} across ${batches} batches: /dev-learn ` +
-    "turns those that recur into rules (in a fresh session).";
+  return learnNudgeLine(plural(rows.length, UNTREATED_GAP, UNTREATED_GAPS), batches);
 }
 
 /** The lines the verdict's end message adds: the candidates harvested, the nudge; none when there is nothing to say. */
@@ -55,18 +55,15 @@ export async function harvestAfterGaps(deps: AfterGapsDeps, work: Pick<WorkFolde
     const settings = await readMemorySettings(deps);
     for (const w of settings.warnings) deps.log.warn(`shared memory: ${w}`);
     const harvest = await harvestMistakes(deps, settings, rows);
-    for (const s of harvest.skipped) deps.log.warn(`shared memory: harvest: ${s}`);
+    for (const s of harvest.skipped) deps.log.warn(harvestSkipped(s));
     if (harvest.written.length > 0) {
-      lines.push(
-        `shared memory: ${plural(harvest.written.length, "mistake candidate", "mistake candidates")} harvested from the audits ` +
-          `(${harvest.written.join(", ")}) → /memory-admit decides each one.`,
-      );
+      lines.push(mistakesHarvested(plural(harvest.written.length, "mistake candidate", "mistake candidates"), harvest.written.join(", ")));
     }
     const nudge = learnNudge(await untreatedRows(deps.files, rows));
     if (nudge !== "") lines.push(nudge);
     return lines;
   } catch (error) {
-    deps.log.warn(`shared memory: harvest after the verdict failed (${firstLine(error)})`);
+    deps.log.warn(harvestFailed(firstLine(error)));
     return [];
   }
 }

@@ -36,6 +36,11 @@ import { isoDay } from "../../domain/iso-day.ts";
 import { pendingRequestLength } from "../../domain/marked-message.ts";
 import { runtimeTurnsToKeep } from "../../domain/snip-turns.ts";
 import type { SessionMsg } from "../../domain/types.ts";
+import { BUFFER_TOO_SMALL } from "../../domain/markers.ts";
+import {
+  PHASE_ATTACHED_SKILLS, PHASE_RECENT_FILES, PHASE_SUMMARY, SUMMARY_CAME_BACK_EMPTY, bufferWasSnipped, couldNotBeWritten,
+  filesReinjected, noStateFileWritten, skillsReinjected, snipNoticeNotWritten, snippedLine, stateNotWritten, stateWrittenTo,
+} from "./messages.ts";
 
 /** The ports the pipeline runs on. */
 export interface CompactDeps {
@@ -82,7 +87,7 @@ export async function compactSession(
     //    git alone. /compact (force) refreshes it whatever the buffer holds.
     if (force) state = await writeState(deps, "manual");
     if (raw.stored.length <= MIN_COMPACTABLE)
-      return withState({ status: "skipped", reason: "buffer too small" });
+      return withState({ status: "skipped", reason: BUFFER_TOO_SMALL });
     const { used } = gated ?? await session.readBudget();
     if (!force) state = await writeState(deps, "auto");
 
@@ -96,29 +101,29 @@ export async function compactSession(
       const memories = await extractMemories(llm, memory, transcript, isoDay(deps.clock()));
 
       // 2. The summary, from the buffer as it stands: the prompt clips the transcript head and tail.
-      await progress.report(compactPhase(2, "synthesizing the summary"));
+      await progress.report(compactPhase(2, PHASE_SUMMARY));
       const summary = await summarise(llm, transcript, opts.focus);
       if ("failure" in summary) return withState(await snipFallback(deps, raw.messages, summary.failure));
       const buffer = buildCompactedBuffer(raw.stored[0], summary.text);
       if (memories.length > 0) buffer.push(buildMemoryRecapMessage(memories));
       // 3. Re-inject the recently-touched files so the agent keeps its working
       //    context (paths harvested from the buffer before the compaction).
-      await progress.report(compactPhase(3, "restoring recent files"));
+      await progress.report(compactPhase(3, PHASE_RECENT_FILES));
       const restored = await restoreRecentFiles(files, raw.messages);
       if (restored.length > 0) {
         buffer.push(...restored);
-        note(log, `post-compaction restore: ${restored.length} file(s) re-injected`);
+        note(log, filesReinjected(restored.length));
       }
       // 4. Re-inject the ATTACHED SKILLS under their own budget. Files came
       //    back because the agent was touching them; skills come back because the
       //    operator attached them and expects them to outlive every compaction —
       //    which is exactly what "the agent forgot the rules" looks like when they
       //    do not.
-      await progress.report(compactPhase(4, "restoring attached skills"));
+      await progress.report(compactPhase(4, PHASE_ATTACHED_SKILLS));
       const skills = await restoreAttachedSkills(session, files);
       if (skills.length > 0) {
         buffer.push(...skills);
-        note(log, `post-compaction restore: ${skills.length} skill(s) re-injected`);
+        note(log, skillsReinjected(skills.length));
       }
       // 5. The pointer to the state file written at step 0, last: what to read first.
       if (state !== null && "path" in state) buffer.push(buildRestoredStateMessage(`${WORKSPACE}/${state.path}`, state.firstOpen));
@@ -143,7 +148,7 @@ async function summarise(llm: Llm, transcript: string, focus: string | undefined
     const prompt = buildSummaryPrompt(transcript, focus);
     const reply = await llm.complete(prompt.user, { system: prompt.system });
     const text = extractSummary(String(reply ?? ""));
-    return text.length === 0 ? { failure: "the summary came back empty" } : { text };
+    return text.length === 0 ? { failure: SUMMARY_CAME_BACK_EMPTY } : { text };
   } catch (e: any) {
     return { failure: String(e?.message ?? e) };
   }
@@ -166,9 +171,9 @@ async function snipFallback(deps: CompactDeps, messages: readonly SessionMsg[], 
   try {
     await leaveSnipNotice(deps.session);
   } catch (e: any) {
-    note(deps.log, `the notice of the snip could not be written: ${String(e?.message ?? e).split("\n")[0]}`);
+    note(deps.log, snipNoticeNotWritten(String(e?.message ?? e).split("\n")[0]));
   }
-  note(deps.log, `compaction path: no summary (${reason}), the buffer was snipped`);
+  note(deps.log, bufferWasSnipped(reason));
   return { status: "failed", reason, fallback: "snip" };
 }
 
@@ -187,13 +192,13 @@ async function writeState(deps: CompactDeps, trigger: "manual" | "auto"): Promis
   try {
     const state = await deps.workflow(trigger);
     if (state !== null) {
-      note(deps.log, "path" in state ? `state of the batch in progress written to ${state.path}` : `no state file written: ${state.skipped}`);
+      note(deps.log, "path" in state ? stateWrittenTo(state.path) : noStateFileWritten(state.skipped));
     }
     return state;
   } catch (e: any) {
     const reason = String(e?.message ?? e).split("\n")[0];
-    try { deps.log.warn(`the state of the batch in progress could not be written: ${reason}`); } catch { /* best-effort */ }
-    return { skipped: `it could not be written (${reason})` };
+    try { deps.log.warn(stateNotWritten(reason)); } catch { /* best-effort */ }
+    return { skipped: couldNotBeWritten(reason) };
   }
 }
 
@@ -205,10 +210,10 @@ export async function snipBuffer(
 ): Promise<string> {
   const { messages } = await deps.session.readMessages();
   const keep = runtimeTurnsToKeep(messages, turns);
-  if (keep === null) return `snipped: 0 removed, ${messages.length} kept.`;
+  if (keep === null) return snippedLine(0, messages.length);
   const { removed, retained } = await deps.session.snip(keep);
   if (removed > 0) await leaveSnipNotice(deps.session);
-  return `snipped: ${removed} removed, ${retained} kept.`;
+  return snippedLine(removed, retained);
 }
 
 /** The `compaction.trigger` setting as a token count; undefined when unset, invalid

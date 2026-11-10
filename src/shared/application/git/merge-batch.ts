@@ -11,6 +11,10 @@ import {
   GIT_CURRENT_BRANCH_COMMAND, gitMergeFfOnly, gitRebaseAbortIn, gitRebaseIn, isNotFastForward, shellUnsafe,
 } from "../../domain/git/close.ts";
 import { gitReason, runGit } from "./commit-files.ts";
+import {
+  DETACHED_HEAD, mergedFastForward, notMergedAfterRebase, notMergedCheckoutElsewhere, notMergedUnsafe, rebaseAbortFailed, rebaseStopped,
+  rebasedAndMerged,
+} from "./messages.ts";
 
 export type MergeOutcome =
   | { merged: true; rebased: boolean; line: string }
@@ -26,17 +30,17 @@ export async function mergeFastForward(
   const unsafe = [req.ref, req.workBranch, ...(req.worktree === undefined ? [] : [req.worktree])]
     .filter((v) => shellUnsafe(v) || v.startsWith("-"));
   if (unsafe.length > 0) {
-    return { merged: false, line: `not merged: ${unsafe.join(", ")} cannot go through the shell`, handOver: [merge] };
+    return { merged: false, line: notMergedUnsafe(unsafe.join(", ")), handOver: [merge] };
   }
   const current = (await runGit(shell, GIT_CURRENT_BRANCH_COMMAND)).stdout.trim();
   if (current !== req.workBranch) {
     return {
-      merged: false, line: `not merged: the checkout is on '${current || "a detached HEAD"}', not on ${req.workBranch}`,
+      merged: false, line: notMergedCheckoutElsewhere(current || DETACHED_HEAD, req.workBranch),
       handOver: [`git checkout ${req.workBranch}`, merge],
     };
   }
   const first = await runGit(shell, merge);
-  if (first.exitCode === 0) return { merged: true, rebased: false, line: `${req.ref} merged into ${req.workBranch} (fast-forward)` };
+  if (first.exitCode === 0) return { merged: true, rebased: false, line: mergedFastForward(req.ref, req.workBranch) };
   // Only a refusal for not being a fast-forward is cured by a rebase: a dirty tree or an unknown ref is said as it is.
   if (!isNotFastForward(first.stderr + first.stdout)) {
     return { merged: false, line: `not merged: ${gitReason(first)}`, handOver: [merge] };
@@ -52,12 +56,12 @@ export async function mergeFastForward(
   const rebased = await runGit(shell, rebase);
   if (rebased.exitCode !== 0) {
     const abort = await runGit(shell, gitRebaseAbortIn(req.worktree));
-    const aborted = abort.exitCode === 0 ? "rebase aborted" : `rebase --abort failed too: ${gitReason(abort)}`;
-    return { merged: false, line: `not merged, the rebase stopped (${gitReason(rebased)}); ${aborted}`, handOver: [rebase, merge] };
+    const aborted = abort.exitCode === 0 ? "rebase aborted" : rebaseAbortFailed(gitReason(abort));
+    return { merged: false, line: rebaseStopped(gitReason(rebased), aborted), handOver: [rebase, merge] };
   }
   const second = await runGit(shell, merge);
   if (second.exitCode === 0) {
-    return { merged: true, rebased: true, line: `${req.ref} rebased on ${req.workBranch} and merged (fast-forward)` };
+    return { merged: true, rebased: true, line: rebasedAndMerged(req.ref, req.workBranch) };
   }
-  return { merged: false, line: `not merged after the rebase: ${gitReason(second)}`, handOver: [merge] };
+  return { merged: false, line: notMergedAfterRebase(gitReason(second)), handOver: [merge] };
 }

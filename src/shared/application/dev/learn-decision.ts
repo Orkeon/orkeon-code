@@ -13,6 +13,10 @@ import type { LearnState } from "../../domain/dev/learn-state.ts";
 import { appendRefused, parseRefused, projectFromRemote, topicOf } from "../../domain/shared-memory/refused.ts";
 import { readRefusedFile } from "../shared-memory/memory-settings.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
+import {
+  alreadyDecided, alreadyRefused, axisDone, cannotBeListed, cannotBeRead, learnBlockedNotWritten, learnNoWorkFolder, learnOutsideMounts,
+  learnStateInvalid, learnStateLine, learnStateUnreadable, noProposal, refuseByWords, refusedLine, refusedUnreadable,
+} from "./messages.ts";
 
 export type DevLearnDecisionArgs = { kind: "accept"; ids: string[] } | { kind: "refuse"; target: string };
 export type DevLearnDecisionDeps = DevContextDeps & { files: Pick<Files, "read" | "list" | "write">; clock: () => Date };
@@ -68,7 +72,7 @@ export async function readProposals(files: Pick<Files, "read" | "list">, work: W
   try {
     names = await files.list(vfsPath, LEARN_LIST_CAP);
   } catch (e) {
-    lookup.warnings.push(`${work.folder}/ cannot be listed (${firstLineOf(e)})`);
+    lookup.warnings.push(cannotBeListed(work.folder, firstLineOf(e)));
     return lookup;
   }
   const folders = names.filter((n) => LEARN_FOLDER_PATTERN.test(n)).sort().reverse().slice(0, PROPOSALS_LOOKED_UP);
@@ -78,11 +82,11 @@ export async function readProposals(files: Pick<Files, "read" | "list">, work: W
     try {
       text = await files.read(`${vfsPath}/${folder}/${PROPOSALS_JSON}`);
     } catch (e) {
-      lookup.warnings.push(`${shown} cannot be read (${firstLineOf(e)})`);
+      lookup.warnings.push(cannotBeRead(shown, firstLineOf(e)));
       continue;
     }
     const parsed = parseProposalsFile(text);
-    if (!parsed.ok) lookup.warnings.push(`${shown} cannot be read (${parsed.problem})`);
+    if (!parsed.ok) lookup.warnings.push(cannotBeRead(shown, parsed.problem));
     else lookup.files.push({ folder, file: parsed.file });
   }
   return lookup;
@@ -104,7 +108,7 @@ function completeAxes(state: LearnState, touched: ReadonlyMap<string, AxisPropos
   for (const axis of touched.values()) {
     if (axis.motifs.length === 0 || !axis.motifs.every((m) => decisionOf(next, m.id) !== undefined)) continue;
     next = { ...next, treated: [...new Set([...next.treated, ...axis.shownRows])].sort() };
-    lines.push(`axis ${axis.axis} done: ${axis.shownRows.length} gaps marked treated`);
+    lines.push(axisDone(axis.axis, axis.shownRows.length));
   }
   return next;
 }
@@ -116,10 +120,10 @@ async function loadLearnState(files: Pick<Files, "read">): Promise<StateLoad> {
   try {
     text = await readOrNull(files, `${WORKSPACE}/${LEARN_STATE_FILE}`);
   } catch (e) {
-    return { ok: false, text: `dev-learn: ${LEARN_STATE_FILE} cannot be read (${firstLineOf(e)}): fix or delete it; nothing was written` };
+    return { ok: false, text: learnStateUnreadable(LEARN_STATE_FILE, firstLineOf(e)) };
   }
   const read = parseLearnState(text);
-  return read.ok ? { ok: true, state: read.state } : { ok: false, text: `dev-learn: ${read.problem}: fix or delete it; nothing was written` };
+  return read.ok ? { ok: true, state: read.state } : { ok: false, text: learnStateInvalid(read.problem) };
 }
 
 /** Writes the state; the BLOCKED text when the write throws, null when it went through. */
@@ -128,13 +132,13 @@ async function saveLearnState(files: Pick<Files, "write">, state: LearnState): P
     await files.write(`${WORKSPACE}/${LEARN_STATE_FILE}`, serializeLearnState(state));
     return null;
   } catch (e) {
-    return `dev-learn: BLOCKED — ${LEARN_STATE_FILE} cannot be written (${firstLineOf(e)})`;
+    return learnBlockedNotWritten(LEARN_STATE_FILE, firstLineOf(e));
   }
 }
 
 const notFoundText = (work: WorkFolder, id: string): string =>
-  `dev-learn: no proposal ${id} in the 10 newest ${work.folder}/learn-*/ folders`;
-const stateLine = (state: LearnState): string => `state: ${LEARN_STATE_FILE} — ${state.treated.length} gaps treated in all`;
+  noProposal(id, work.folder);
+const stateLine = (state: LearnState): string => learnStateLine(LEARN_STATE_FILE, state.treated.length);
 
 async function acceptMotifs(ids: readonly string[], lookup: ProposalsLookup, work: WorkFolder, deps: DevLearnDecisionDeps): Promise<string[]> {
   const load = await loadLearnState(deps.files);
@@ -149,7 +153,7 @@ async function acceptMotifs(ids: readonly string[], lookup: ProposalsLookup, wor
     if (found === null) {
       lines.push(notFoundText(work, id));
     } else if (earlier !== undefined) {
-      lines.push(`${id} was already ${earlier.decision} on ${earlier.date}`);
+      lines.push(alreadyDecided(id, earlier.decision, earlier.date));
     } else {
       const { motif, axis } = found;
       lines.push(...acceptLines(motif));
@@ -183,17 +187,17 @@ async function recordRefusal(topic: string, motifText: string, date: string, dep
   try {
     previous = await readOrNull(deps.files, path);
   } catch (e) {
-    return { ok: false, line: `dev-learn: ${refusedFile} cannot be read (${firstLineOf(e)}): nothing was written` };
+    return { ok: false, line: refusedUnreadable(refusedFile, firstLineOf(e)) };
   }
   const already = previous === null ? undefined : parseRefused(previous).motifs.find((m) => m.topic === topic);
-  if (already !== undefined) return { ok: true, line: `${topic} was already refused on ${already.date}` };
+  if (already !== undefined) return { ok: true, line: alreadyRefused(topic, already.date) };
   const project = await projectName(deps.shell);
   try {
     await deps.files.write(path, appendRefused(previous, { topic, project, date, motif: motifText }));
   } catch (e) {
-    return { ok: false, line: `dev-learn: BLOCKED — ${refusedFile} cannot be written (${firstLineOf(e)})` };
+    return { ok: false, line: learnBlockedNotWritten(refusedFile, firstLineOf(e)) };
   }
-  return { ok: true, line: `refused: ${topic} — left out of future proposals (${refusedFile})` };
+  return { ok: true, line: refusedLine(topic, refusedFile) };
 }
 
 async function refuseMotif(target: string, lookup: ProposalsLookup, work: WorkFolder, deps: DevLearnDecisionDeps): Promise<string[]> {
@@ -202,11 +206,11 @@ async function refuseMotif(target: string, lookup: ProposalsLookup, work: WorkFo
     return [(await recordRefusal(topicOf(target), target, date, deps)).line];
   }
   const found = findMotif(lookup, target);
-  if (found === null) return [`${notFoundText(work, target)} (to refuse a motif by its words, write more than an id)`];
+  if (found === null) return [refuseByWords(notFoundText(work, target))];
   const load = await loadLearnState(deps.files);
   if (!load.ok) return [load.text];
   const earlier = decisionOf(load.state, target);
-  if (earlier !== undefined) return [`${target} was already ${earlier.decision} on ${earlier.date}`];
+  if (earlier !== undefined) return [alreadyDecided(target, earlier.decision, earlier.date)];
   const { motif, axis } = found;
   const refusal = await recordRefusal(motif.topic, motif.title, date, deps);
   if (!refusal.ok) return [refusal.line];
@@ -225,9 +229,9 @@ export async function runDevLearnDecision(
   const ctx = await loadDevContext(deps);
   const work = ctx.work;
   if (work.vfsPath === null) {
-    return `dev-learn: the work folder ${work.folder} is in the main worktree, outside the mounts: run /dev-learn from the main checkout`;
+    return learnOutsideMounts(work.folder);
   }
-  if (!work.exists) return `dev-learn: no work folder ${work.folder}/: nothing to learn from`;
+  if (!work.exists) return learnNoWorkFolder(work.folder);
   const lookup = await readProposals(deps.files, work, work.vfsPath);
   const lines = args.kind === "accept"
     ? await acceptMotifs(args.ids, lookup, work, deps)

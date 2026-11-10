@@ -17,6 +17,7 @@ import { listDevCodes, loadDevCode, loadDevContext } from "../dev/load-dev-conte
 import type { CodeSheet, DevCode } from "../dev/load-dev-context.ts";
 import type { WorkFolder } from "../dev/resolve-work-folder.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
+import { gitStatusCouldNotRun, gitStatusFailed, noOpenSheetOf, noSheetOf, noWorkCode, workFolderUnreachable } from "./messages.ts";
 
 export async function readActiveWorkflow(session: Pick<SessionStore, "readState">): Promise<ActiveWorkflow | null> {
   return parseActiveWorkflow(await session.readState(WORKFLOW_ACTIVE_STATE_KEY));
@@ -51,9 +52,9 @@ async function findSheet(
 ): Promise<{ code: DevCode; sheet: CodeSheet } | { skipped: string }> {
   if (active.code !== null) {
     const lookup = await loadDevCode(deps, work, active.code);
-    if (lookup.found === null) return { skipped: `no work code '${active.code}' in ${work.folder}/ (${lookup.reason})` };
+    if (lookup.found === null) return { skipped: noWorkCode(active.code, work.folder, lookup.reason) };
     const any = lookup.found.sheets.find((s) => s.batch === active.phase);
-    if (any === undefined) return { skipped: `no sheet of ${active.phase} in ${lookup.found.shown}/` };
+    if (any === undefined) return { skipped: noSheetOf(active.phase, lookup.found.shown) };
     if (any.sheet.doneDate !== undefined) return { skipped: `${lookup.found.shown}/${any.name} is done (${any.sheet.doneDate})` };
     return { code: lookup.found, sheet: any };
   }
@@ -64,7 +65,7 @@ async function findSheet(
     const sheet = openSheet(lookup.found, active.phase);
     if (sheet !== undefined) return { code: lookup.found, sheet };
   }
-  return { skipped: `no open sheet of ${active.phase} in ${work.folder}/` };
+  return { skipped: noOpenSheetOf(active.phase, work.folder) };
 }
 
 /** The batch's events: Code's own log when there is one, else the log of the work code's
@@ -95,10 +96,10 @@ async function readReports(files: Pick<Files, "list">, folder: string, phase: st
 async function readTree(shell: Pick<Shell, "run">): Promise<{ lines: string[] } | { note: string }> {
   try {
     const r = await shell.run("git status --short");
-    if (r.exitCode !== 0) return { note: `git status failed: ${(r.stderr || r.stdout).trim().split("\n")[0] || `exit ${r.exitCode}`}` };
+    if (r.exitCode !== 0) return { note: gitStatusFailed((r.stderr || r.stdout).trim().split("\n")[0] || `exit ${r.exitCode}`) };
     return { lines: r.stdout.split(/\r?\n/).filter((l) => l.trim().length > 0) };
   } catch (error) {
-    return { note: `git status could not run: ${error instanceof Error ? error.message : String(error)}` };
+    return { note: gitStatusCouldNotRun(error instanceof Error ? error.message : String(error)) };
   }
 }
 
@@ -112,7 +113,7 @@ export async function writeWorkflowState(
   const active = await readActiveWorkflow(deps.session);
   if (active === null) return null;
   const { work } = await loadDevContext(deps);
-  if (work.vfsPath === null) return { skipped: `the work folder ${work.folder}/ cannot be reached` };
+  if (work.vfsPath === null) return { skipped: workFolderUnreachable(work.folder) };
   const found = await findSheet(deps, work, active);
   if ("skipped" in found) return found;
 

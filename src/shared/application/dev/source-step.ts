@@ -10,6 +10,10 @@ import type { Decision, Question } from "../../domain/dev/questions.ts";
 import { parsePlanSource } from "../../domain/dev/spec-format.ts";
 import type { SourceKind } from "../../domain/dev/spec-format.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
+import {
+  DECISIONS_DO_NOT_READ_BACK, NO_WORK_TREE, idsReadBack, invalidCode, invalidInput, openQuestionsReadBack, outsideCheckout, runFromCheckout,
+  stepCannotRead, titleDoesNotReadCode, workFolderOutsideMounts,
+} from "./messages.ts";
 
 export const MAX_CODE_CHARS = 64;
 export const MAX_REQUEST_CHARS = 20_000;
@@ -54,14 +58,14 @@ export function problemLines(problems: readonly string[]): string[] {
 
 /** The code of the inputs, or the refusal. */
 export function inputCode(step: string, value: unknown): string | { refused: string } {
-  if (typeof value !== "string" || value.length > MAX_CODE_CHARS || !isCode(value)) return { refused: `${step}: invalid crew input: code` };
+  if (typeof value !== "string" || value.length > MAX_CODE_CHARS || !isCode(value)) return { refused: invalidCode(step) };
   return value;
 }
 
 /** A free text input: "" when absent, the refusal when it is not a string or too long. */
 export function inputText(step: string, name: string, value: unknown): string | { refused: string } {
   if (value === undefined || value === null) return "";
-  if (typeof value !== "string" || value.length > MAX_REQUEST_CHARS) return { refused: `${step}: invalid crew input: ${name}` };
+  if (typeof value !== "string" || value.length > MAX_REQUEST_CHARS) return { refused: invalidInput(step, name) };
   return value.trim();
 }
 
@@ -74,7 +78,7 @@ export async function toplevelRefusal(step: string, shell: Pick<Shell, "run">): 
     top = "";
   }
   if (top === WORKSPACE) return null;
-  return `${step}: run from the checkout at ${WORKSPACE} (git reports ${top === "" ? "no work tree" : top})`;
+  return runFromCheckout(step, WORKSPACE, top === "" ? NO_WORK_TREE : top);
 }
 
 export interface CodeFolder {
@@ -89,7 +93,7 @@ export interface CodeFolder {
 /** The code's folder under the work folder and the names it holds ([] when it does not exist yet). */
 export async function codeFolder(step: string, files: Pick<Files, "list">, work: WorkFolder, code: string): Promise<CodeFolder | { refused: string }> {
   if (work.vfsPath === null) {
-    return { refused: `${step}: the work folder ${work.folder} is outside the checkout's mounts: run from the main worktree` };
+    return { refused: workFolderOutsideMounts(step, work.folder) };
   }
   const vfs = `${work.vfsPath}/${code}`;
   const shown = `${work.folder}/${code}`;
@@ -110,14 +114,14 @@ export async function readRequest(step: string, files: Pick<Files, "read">, requ
   if (!PATH_TOKEN.test(request)) return { text: request, from: "" };
   const relative = request.startsWith(`${WORKSPACE}/`) ? request.slice(WORKSPACE.length + 1) : request.replace(/^\.\//, "");
   if (relative.startsWith("/") || relative.split("/").includes("..")) {
-    return { refused: `${step}: ${request} is outside the checkout: give a path under ${WORKSPACE}` };
+    return { refused: outsideCheckout(step, request, WORKSPACE) };
   }
   try {
     const text = await files.read(`${WORKSPACE}/${relative}`, MAX_REQUEST_CHARS);
     if (text.trim() === "") return { refused: `${step}: ${relative} is empty` };
     return { text, from: relative };
   } catch (e) {
-    return { refused: `${step}: ${relative} cannot be read (${firstLine(e)})` };
+    return { refused: stepCannotRead(step, relative, firstLine(e)) };
   }
 }
 
@@ -130,15 +134,15 @@ export function sourceSelfCheck(
 ): string[] {
   const parsed = parsePlanSource(text, kind);
   const problems = parsed.problems.map((p) => `line ${p.line}: ${p.message}`);
-  if (parsed.code !== expect.code) problems.push(`the title does not read the code ${expect.code}`);
+  if (parsed.code !== expect.code) problems.push(titleDoesNotReadCode(expect.code));
   const read = parsed.ids.map((i) => i.id).join(",");
   if (read !== expect.ids.join(",")) {
-    problems.push(`the ids read back are ${read || "none"}, not ${expect.ids.join(",")}`);
+    problems.push(idsReadBack(read || "none", expect.ids.join(",")));
   }
   if (parsed.openQuestions.length !== expect.open.length) {
-    problems.push(`${parsed.openQuestions.length} open questions read back, ${expect.open.length} written`);
+    problems.push(openQuestionsReadBack(parsed.openQuestions.length, expect.open.length));
   }
-  if (parseDecisions(text).length !== expect.decisions.length) problems.push("the decisions do not read back");
+  if (parseDecisions(text).length !== expect.decisions.length) problems.push(DECISIONS_DO_NOT_READ_BACK);
   return problems;
 }
 

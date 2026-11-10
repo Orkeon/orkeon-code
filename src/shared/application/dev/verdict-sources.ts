@@ -6,6 +6,7 @@ import type { Files } from "../ports.ts";
 import type { WorkFolder } from "./resolve-work-folder.ts";
 import { LEARN_FILE } from "../../domain/shared-memory/verdict-rows.ts";
 import type { VerdictSource } from "../../domain/shared-memory/verdict-rows.ts";
+import { cannotBeRead, folderListsTooMany, workListsTooMany } from "./messages.ts";
 
 export const WORK_LIST_CAP = 1000;
 export const FOLDER_LIST_CAP = 500;
@@ -31,18 +32,18 @@ export async function readVerdictSources(
   for (const code of entries.map(bare).filter((e) => e !== "" && !e.startsWith("."))) {
     const names = (await listOrEmpty(files, `${work.vfsPath}/${code}`, FOLDER_LIST_CAP)).map(bare);
     if (names.length >= FOLDER_LIST_CAP) {
-      warnings.push(`${work.folder}/${code}/ lists ${FOLDER_LIST_CAP} entries or more: later files are not read`);
+      warnings.push(folderListsTooMany(`${work.folder}/${code}`, FOLDER_LIST_CAP));
     }
     for (const name of names.filter((n) => LEARN_FILE.test(n))) {
       try {
         sources.push({ code, name, text: await files.read(`${work.vfsPath}/${code}/${name}`) });
       } catch (error) {
-        warnings.push(`${work.folder}/${code}/${name} cannot be read (${firstLine(error)})`);
+        warnings.push(cannotBeRead(`${work.folder}/${code}/${name}`, firstLine(error)));
       }
     }
   }
   if (entries.length >= WORK_LIST_CAP) {
-    warnings.push(`${work.folder}/ lists ${WORK_LIST_CAP} entries or more: later folders are not read`);
+    warnings.push(workListsTooMany(work.folder, WORK_LIST_CAP));
   }
   return { sources, warnings };
 }

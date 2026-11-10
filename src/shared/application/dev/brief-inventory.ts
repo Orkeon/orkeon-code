@@ -5,6 +5,8 @@
 import type { CodeIndex } from "../ports.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
 import { indexCacheNote } from "../../domain/code-intel-contract.ts";
+import { indexUnavailable, inventoryLine, searchFailed } from "./messages.ts";
+import { INDEX_FOUND_NOTHING } from "./prompts.ts";
 
 export interface BriefInventoryEntry { path: string; line: number; name: string }
 export interface BriefInventory {
@@ -67,7 +69,7 @@ export async function briefInventory(index: CodeIndex, request: BriefInventoryRe
       if (note !== "") out.cache = note;
     }
   } catch (e) {
-    out.warnings.push(`the code index is not available (${firstLine(e)}): the draft has no inventory`);
+    out.warnings.push(indexUnavailable(firstLine(e)));
     return out;
   }
   const excluded = excludedBy(request.excluded);
@@ -79,7 +81,7 @@ export async function briefInventory(index: CodeIndex, request: BriefInventoryRe
       out.calls++;
       hits = await index.search(phrase, BRIEF_INVENTORY_CAPS.topK);
     } catch (e) {
-      out.warnings.push(`search failed for '${phrase}': ${firstLine(e)}`);
+      out.warnings.push(searchFailed(phrase, firstLine(e)));
       continue;
     }
     for (const hit of hits) {
@@ -104,10 +106,10 @@ export async function briefInventory(index: CodeIndex, request: BriefInventoryRe
 /** The inventory's line of a draft's end message: its entries, its index calls, what the index cache did. */
 export function briefInventoryLine(inventory: BriefInventory): string {
   const cache = inventory.cache === undefined ? "" : `; ${inventory.cache}`;
-  return `inventory: ${inventory.entries.length} entries (${inventory.calls} index calls${cache})`;
+  return inventoryLine(inventory.entries.length, inventory.calls, cache);
 }
 
 export function renderBriefInventory(inventory: BriefInventory): string {
-  if (inventory.entries.length === 0) return "(the index found nothing for this request)";
+  if (inventory.entries.length === 0) return INDEX_FOUND_NOTHING;
   return inventory.entries.map((e) => `- ${e.path}${e.line > 0 ? `:${e.line}` : ""} — ${e.name}`).join("\n");
 }

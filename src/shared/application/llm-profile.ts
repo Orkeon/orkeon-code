@@ -5,6 +5,7 @@
 import type { ConfigStore } from "./config-store.ts";
 import { CONFIG_FILE_PATH } from "./config-store.ts";
 import { LLM_PROFILE_CONFIG_KEY, llmProfileProblem } from "../domain/llm-profile.ts";
+import { couldNotBeReadOrParsed, llmProfileRejected, llmProfileUnreadable } from "./messages.ts";
 
 export interface LlmProfileRead {
   /** The profile every agent of the crew runs on; null when the session names none. */
@@ -17,12 +18,12 @@ export async function readLlmProfile(config: Pick<ConfigStore, "readValue" | "re
   try {
     const { value, source } = await config.readValue(LLM_PROFILE_CONFIG_KEY);
     if (source === "unset" && (await config.readFile()).malformed) {
-      return unreadable(`${CONFIG_FILE_PATH} could not be read or parsed`);
+      return unreadable(couldNotBeReadOrParsed(CONFIG_FILE_PATH));
     }
     if (typeof value !== "string") return { profile: null };
     const problem = llmProfileProblem(value);
     if (problem !== undefined) {
-      return { profile: null, warning: `${LLM_PROFILE_CONFIG_KEY}: ${problem}; the host's default model this launch` };
+      return { profile: null, warning: llmProfileRejected(LLM_PROFILE_CONFIG_KEY, problem) };
     }
     return { profile: value.trim() };
   } catch (e: unknown) {
@@ -31,5 +32,5 @@ export async function readLlmProfile(config: Pick<ConfigStore, "readValue" | "re
 }
 
 function unreadable(why: string): LlmProfileRead {
-  return { profile: null, warning: `${LLM_PROFILE_CONFIG_KEY} could not be read (${why}): the host's default model this launch` };
+  return { profile: null, warning: llmProfileUnreadable(LLM_PROFILE_CONFIG_KEY, why) };
 }

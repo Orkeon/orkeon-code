@@ -8,6 +8,7 @@ import type { SessionMsg } from "../../domain/types.ts";
 import type { SessionStore, StoredMessage, TokenBudget, TokenKinds } from "../../application/ports.ts";
 import type { SessionStoreInput } from "./runtime-tools.ts";
 import { asArray, pick, withToolMessage } from "./tool-results.ts";
+import { sessionStoreRefusedAppend } from "./messages.ts";
 
 /** The `{ role, content }` view of stored entries, for transcripts and history. */
 function normalizeMessages(stored: StoredMessage[]): SessionMsg[] {
@@ -39,7 +40,7 @@ export function createSessionStore(
     async appendMessage(role, content) {
       const resp = await sessionStore({ operation: "append_message", role, content });
       // A refused append (a blank role) says so, as a failed write would.
-      if (pick(resp, "success", "Success") === false) throw new Error(`session_store refused to append a '${role}' message`);
+      if (pick(resp, "success", "Success") === false) throw new Error(sessionStoreRefusedAppend(role));
     },
     async reset() {
       return count(await sessionStore({ operation: "reset" }), "removed_count", "removedCount", "RemovedCount");

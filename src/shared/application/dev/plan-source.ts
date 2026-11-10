@@ -9,6 +9,10 @@ import { classifyArtefact, isCode } from "../../domain/dev/artefacts.ts";
 import { parsePlanSource } from "../../domain/dev/spec-format.ts";
 import type { PlanSource, SourceKind } from "../../domain/dev/spec-format.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
+import {
+  SOURCE_UNDER_CLAUDE, bothSpecAndChange, neitherSpecNorChange, noSourceToPlan, notASource, planOutsideWorkspace, planSourceUnreadable,
+  severalCodes,
+} from "./messages.ts";
 
 export interface ResolvedSource {
   kind: SourceKind;
@@ -41,14 +45,14 @@ async function byCode(files: Pick<Files, "list">, work: WorkFolder, vfsPath: str
   const spec = names.includes(`SPEC-${code}.md`);
   const change = names.includes(`CHANGE-${code}.md`);
   const shown = `${work.folder}/${code}`;
-  if (spec && change) return refuse(`dev-plan: ${shown}/ holds both SPEC-${code}.md and CHANGE-${code}.md: name the file`);
-  if (!spec && !change) return refuse(`dev-plan: ${shown}/ holds no SPEC-${code}.md nor CHANGE-${code}.md`);
+  if (spec && change) return refuse(bothSpecAndChange(shown, code));
+  if (!spec && !change) return refuse(neitherSpecNorChange(shown, code));
   return resolved(spec ? "spec" : "change", code, shown, spec ? `SPEC-${code}.md` : `CHANGE-${code}.md`);
 }
 
 /** A path relative to the checkout, or under /workspace/, naming a spec or a brief. */
 function byPath(token: string): Resolution {
-  const notSource = refuse(`dev-plan: '${token}' is neither a code nor a SPEC-<code>.md / CHANGE-<code>.md path`);
+  const notSource = refuse(notASource(token));
   let relative = token.replace(/^\.\//, "");
   if (relative.startsWith("/")) {
     if (!relative.startsWith(`${WORKSPACE}/`)) return notSource;
@@ -61,7 +65,7 @@ function byPath(token: string): Resolution {
   const artefact = classifyArtefact(fileName);
   if (artefact === null || (artefact.kind !== "spec" && artefact.kind !== "change") || !isCode(artefact.prefix)) return notSource;
   if (segments[0] === ".claude") {
-    return refuse("dev-plan: a source under .claude/ is the harness's own: copy it to the work folder first");
+    return refuse(SOURCE_UNDER_CLAUDE);
   }
   return resolved(artefact.kind, artefact.prefix, segments.slice(0, -1).join("/"), fileName);
 }
@@ -76,7 +80,7 @@ export async function resolvePlanSource(
   files: Pick<Files, "list" | "read">, work: WorkFolder, token: string | null,
 ): Promise<{ ok: true; source: ResolvedSource } | { ok: false; text: string }> {
   if (work.vfsPath === null) {
-    return refuse(`dev-plan: the work folder ${work.folder} is outside ${WORKSPACE}: run /dev-plan from the main worktree`);
+    return refuse(planOutsideWorkspace(work.folder, WORKSPACE));
   }
   if (token !== null && looksLikePath(token)) return byPath(token);
   if (token !== null) {
@@ -90,10 +94,10 @@ export async function resolvePlanSource(
     codes = [];
   }
   if (codes.length === 0) {
-    return refuse(`dev-plan: no SPEC- or CHANGE- file without a plan in ${work.folder}/: name one, e.g. /dev-plan <code>`);
+    return refuse(noSourceToPlan(work.folder));
   }
   if (codes.length > 1) {
-    return refuse(`dev-plan: several codes could be planned (${codes.join(", ")}): name one, e.g. /dev-plan ${codes[0]}`);
+    return refuse(severalCodes(codes.join(", "), codes[0]));
   }
   return byCode(files, work, work.vfsPath, codes[0]);
 }
@@ -106,7 +110,7 @@ export async function readPlanSource(
   try {
     text = await files.read(`${WORKSPACE}/${source.sourceShown}`, MAX_SOURCE_CHARS);
   } catch (e) {
-    return { ok: false, text: `dev-plan: ${source.sourceShown} cannot be read (${firstLine(e)})` };
+    return { ok: false, text: planSourceUnreadable(source.sourceShown, firstLine(e)) };
   }
   return { ok: true, text, parsed: parsePlanSource(text, source.kind) };
 }

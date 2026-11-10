@@ -12,6 +12,7 @@ import { createChildBoard, instanceKey, parseChildInput, runChildAct } from "../
 import type { BoardDeps, ChildBoard } from "../../application/agents/child-agent.ts";
 import { createLlm } from "./llm.ts";
 import type { ToolCallbacks } from "../../application/dev/tool-callbacks.ts";
+import { CHILD_INPUT_NOT_A_CALL } from "./messages.ts";
 
 type ChildContext = Pick<AgentContext, "spawnBackground" | "memory" | "receive">;
 type ChildCrew = Pick<Crew, "instances" | "stop">;
@@ -53,7 +54,7 @@ export function childAgentBody(
 ): (input: unknown, ctx: AgentContext) => Promise<string> {
   return async (input, ctx) => {
     const call = parseChildInput(input);
-    if (call === null) throw new Error("child agent: its input is not a child call");
+    if (call === null) throw new Error(CHILD_INPUT_NOT_A_CALL);
     // The parent cannot match the runtime's rows by agent name (they hold the agent's id): say which instance this is.
     if (typeof ctx.instanceId === "string") await ctx.memory.crew.store(instanceKey(call.key), ctx.instanceId).catch(() => undefined);
     try {

@@ -8,6 +8,7 @@ import type { MemoryLayout } from "../../domain/shared-memory/layout.ts";
 import { pendingCandidates, refusedTopics, storedEntries } from "./memory-files.ts";
 import { writeCandidate } from "./push-candidate.ts";
 import type { PushDeps } from "./push-candidate.ts";
+import { mistakeAlreadyHeld, refusedUnreadableNothingHarvested } from "./messages.ts";
 
 export interface HarvestOutcome {
   written: string[];
@@ -23,7 +24,7 @@ export async function harvestMistakes(
   try {
     refused = await refusedTopics(deps.files, memory.layout);
   } catch (error) {
-    outcome.skipped.push(`refused.md cannot be read (${String((error as Error)?.message ?? error).split("\n")[0]}): nothing harvested`);
+    outcome.skipped.push(refusedUnreadableNothingHarvested(String((error as Error)?.message ?? error).split("\n")[0]));
     return outcome;
   }
   const date = deps.clock().toISOString().slice(0, 10);
@@ -33,7 +34,7 @@ export async function harvestMistakes(
     .filter((s) => s.entry.type === "mistake").map((s) => s.entry.topic));
   for (const candidate of plan.candidates) {
     if (held.has(candidate.topic)) {
-      outcome.skipped.push(`${candidate.topic}: a mistake candidate or entry already holds it`);
+      outcome.skipped.push(mistakeAlreadyHeld(candidate.topic));
       continue;
     }
     const pushed = await writeCandidate(deps, memory, candidate);

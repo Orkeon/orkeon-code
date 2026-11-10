@@ -1,5 +1,6 @@
 // The stand-in of tools.humanInput the createHumanInput tests drive, and the replies read as nobody answering.
-import { DECIDE_LATER, NO_ANSWER, createHumanInput } from "../../../../src/shared/infrastructure/orkeon/human-input.ts";
+import { createHumanInput } from "../../../../src/shared/infrastructure/orkeon/human-input.ts";
+import { DECIDE_LATER, NO_ANSWER } from "../../../../src/shared/infrastructure/orkeon/markers.ts";
 
 type HumanInput = ReturnType<typeof createHumanInput>;
 

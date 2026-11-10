@@ -19,6 +19,9 @@ import {
   commitFiles, defaultBranch, gitReason, handOverPullRequest, pushBranch, readIdentity, runGit,
 } from "../git/commit-files.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
+import {
+  NOTHING_TO_COMMIT_LINE, gitStatusFailedLine, leftOutWorkFolder, noChangeToCommit, notCommittedUnsafe, pushDeniedByRule, pushedToOrigin,
+} from "./messages.ts";
 
 export interface CloseBatchRequest {
   /** The files the batch touched, from its sheet and its roles' diffs. */
@@ -50,15 +53,15 @@ export async function closeBatch(
   if (!identity.ok) return { committed: false, lines: [identityStop(identity.detail, req.rerun)] };
 
   const status = await runGit(deps.shell, GIT_STATUS_COMMAND);
-  if (status.exitCode !== 0) return { committed: false, lines: [`✗ git status failed: ${gitReason(status)}`] };
+  if (status.exitCode !== 0) return { committed: false, lines: [gitStatusFailedLine(gitReason(status))] };
   const selection = selectCommitFiles({ status: status.stdout, workFolder: req.work.folder, named: req.touched });
   const notes: string[] = [];
-  if (selection.inWorkFolder.length > 0) notes.push(`left out (the work folder is never committed): ${selection.inWorkFolder.join(", ")}`);
-  if (selection.unchanged.length > 0) notes.push(`no change to commit: ${selection.unchanged.join(", ")}`);
+  if (selection.inWorkFolder.length > 0) notes.push(leftOutWorkFolder(selection.inWorkFolder.join(", ")));
+  if (selection.unchanged.length > 0) notes.push(noChangeToCommit(selection.unchanged.join(", ")));
   if (selection.unsafe.length > 0) {
-    return { committed: false, lines: [...notes, `✗ not committed: ${selection.unsafe.join(", ")} cannot go through the shell; commit by hand`] };
+    return { committed: false, lines: [...notes, notCommittedUnsafe(selection.unsafe.join(", "))] };
   }
-  if (selection.files.length === 0) return { committed: false, lines: [...notes, "✗ nothing to commit"] };
+  if (selection.files.length === 0) return { committed: false, lines: [...notes, NOTHING_TO_COMMIT_LINE] };
 
   const commit = await commitFiles(deps, { files: selection.files, status: status.stdout, message: req.message });
   if (!commit.ok) return { committed: false, lines: [...notes, `✗ ${commit.line}`] };
@@ -67,12 +70,12 @@ export async function closeBatch(
   if (!req.push) return { committed: true, hash: commit.hash, lines };
   const pushCommand = gitPushCommand(req.branch);
   if (req.rules !== undefined && ruleDecision(req.rules, "shell_command", { command: pushCommand, working_directory: WORKSPACE }) === "deny") {
-    lines.push(`✗ not pushed: a session rule denies '${pushCommand}'; the commit stays local`);
+    lines.push(pushDeniedByRule(pushCommand));
     return { committed: true, hash: commit.hash, lines };
   }
 
   const pushed = await pushBranch(deps.shell, req.branch);
-  lines.push(pushed.ok ? `✓ pushed ${req.branch} to origin` : `✗ ${pushed.line}`);
+  lines.push(pushed.ok ? pushedToOrigin(req.branch) : `✗ ${pushed.line}`);
   const base = await defaultBranch(deps.shell);
   if (base !== null && base === req.branch) return { committed: true, hash: commit.hash, lines };
   lines.push(...await handOverPullRequest(deps, {

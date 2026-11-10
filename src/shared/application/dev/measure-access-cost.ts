@@ -7,6 +7,7 @@ import type { AccessCost } from "../../domain/dev/access-cost.ts";
 import { COST_NOT_WIRED, isTestFile, isTestRoot, measuredCost, notComputed, notIndexed, nothingChanged, receiversArgument, underRoots } from "../../domain/dev/access-cost.ts";
 import type { RepoPack } from "../../domain/dev/repo-pack.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
+import { NO_READABLE_REPORT, accessCostErrorJudgeFromDiff, reindexErrorJudgeFromDiff, toolFailedJudgeFromDiff } from "./prompts.ts";
 
 const firstLine = (text: string): string => (text.split("\n")[0] ?? "").trim();
 
@@ -19,7 +20,7 @@ export function costRoots(pack: RepoPack | null): string[] {
 }
 
 function failed(tool: string, error: unknown): AccessCost {
-  return notComputed(`${tool} failed (${firstLine(error instanceof Error ? error.message : String(error))}); judge the Cost axis from the diff`);
+  return notComputed(toolFailedJudgeFromDiff(tool, firstLine(error instanceof Error ? error.message : String(error))));
 }
 
 function normalRoot(root: string): string {
@@ -49,7 +50,7 @@ export async function measureAccessCost(
 
   try {
     const errors = await index.refresh(WORKSPACE, files);
-    if (errors.length > 0) return notComputed(`incremental_reindex: ${firstLine(errors[0])}; judge the Cost axis from the diff`);
+    if (errors.length > 0) return notComputed(reindexErrorJudgeFromDiff(firstLine(errors[0])));
   } catch (error) {
     return failed("incremental_reindex", error);
   }
@@ -60,8 +61,8 @@ export async function measureAccessCost(
   } catch (error) {
     return failed("access_cost", error);
   }
-  if (answer.errors.length > 0) return notComputed(`access_cost: ${firstLine(answer.errors[0])}; judge the Cost axis from the diff`);
-  if (answer.report === null) return notComputed("access_cost returned no readable report; judge the Cost axis from the diff");
+  if (answer.errors.length > 0) return notComputed(accessCostErrorJudgeFromDiff(firstLine(answer.errors[0])));
+  if (answer.report === null) return notComputed(NO_READABLE_REPORT);
 
   const added = new Map(changed.map((f) => [`${WORKSPACE}/${f.path}`, f.added] as const));
   return measuredCost(answer.report, added);
