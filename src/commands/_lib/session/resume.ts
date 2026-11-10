@@ -11,6 +11,10 @@
 import type { Clock, Files, SessionMessages, SessionStore, SessionSwitch } from "../../../shared/application/ports.ts";
 import { LOADED_SESSION_STATE_KEY } from "../../../shared/domain/session-keys.ts";
 import type { CommandView } from "../view.ts";
+import {
+  EMPTY_BUFFER, HOW_TO_RESUME, NOTHING_TO_LOAD, NO_SAVED_SESSIONS, NO_SWITCH, ambiguousSession, bufferTail,
+  historyNotMountedToList, historyNotMountedToLoad, loadFailed, noSavedSession, savedSessionsHeader, sessionLoaded,
+} from "./messages.ts";
 
 /** Where the launcher mounts the project's saved sessions. */
 export const HISTORY_ROOT = "/session-history";
@@ -32,16 +36,6 @@ export type SessionRow = { id: string; saved: string; title: string; messages: s
 
 /** `<yyyymmddTHHMMSSZ>-<id>.json`, as the launcher names a saved session. */
 const SAVED_NAME = /^(\d{8}T\d{6}Z)-(.+)\.json$/;
-
-/** What the listing says under the table. */
-export const HOW_TO_RESUME =
-  "`/resume <number or id>` brings one back in place of this session, which is archived; " +
-  "`orkeon-code --resume <id>` does the same at start, `orkeon-code --continue` brings back the session you quit.";
-
-/** What a host that does not persist the session leaves `/resume <n|id>` with. */
-export const NO_SWITCH =
-  "cannot switch in place: the REPL runs without a persisted session (Orkeon:Cli:Session:Persist off); " +
-  "quit (/exit), then start `orkeon-code --resume <id>`.";
 
 /** `20261024T101500Z` as `2026-10-24 10:15 UTC`. */
 function savedAt(stamp: string): string {
@@ -92,8 +86,8 @@ export function chooseSaved(names: readonly string[], choice: string): { name: s
   }
   const matches = names.filter((name) => idOf(name).startsWith(choice));
   if (matches.length === 1) return { name: matches[0] };
-  if (matches.length > 1) return { refused: `more than one saved session starts with '${choice}': give more of its id.` };
-  return { refused: `no saved session '${choice}' (/resume lists them).` };
+  if (matches.length > 1) return { refused: ambiguousSession(choice) };
+  return { refused: noSavedSession(choice) };
 }
 
 /** Load `name` in place: the session of now archived beside its own file first, then the swap. */
@@ -107,13 +101,10 @@ async function loadSaved(deps: ResumeDeps, name: string): Promise<CommandView> {
     await deps.switch.save(archive);
     const count = await deps.switch.load(`${HISTORY_ROOT}/${name}`);
     await deps.session.writeState(LOADED_SESSION_STATE_KEY, name).catch(() => undefined);
-    return {
-      text: `loaded ${id} (${count} message(s)): the next turn continues it. ` +
-        `The session you left is archived at ${archive}; the next start of orkeon-code moves it to the history.`,
-    };
+    return { text: sessionLoaded(id, count, archive) };
   } catch (e: any) {
     const reason = String(e?.message ?? e).split("\n")[0];
-    return { text: `could not load ${id}: ${reason}. This session is unchanged${archive ? `; its archive ${archive} stays` : ""}.` };
+    return { text: loadFailed(id, reason, archive) };
   }
 }
 
@@ -123,8 +114,8 @@ export async function runResume(deps: ResumeDeps, choice?: string): Promise<Comm
   const wanted = choice?.trim() ?? "";
 
   if (wanted.length > 0) {
-    if (names === null) return { text: `no saved session to load: ${HISTORY_ROOT} is not mounted (start the REPL with orkeon-code).` };
-    if (names.length === 0) return { text: "no saved session to load: this project has none yet." };
+    if (names === null) return { text: historyNotMountedToLoad(HISTORY_ROOT) };
+    if (names.length === 0) return { text: NOTHING_TO_LOAD };
     const chosen = chooseSaved(names, wanted);
     return "refused" in chosen ? { text: chosen.refused } : loadSaved(deps, chosen.name);
   }
@@ -132,9 +123,9 @@ export async function runResume(deps: ResumeDeps, choice?: string): Promise<Comm
   const lines: string[] = [];
   let table: SessionRow[] | undefined;
   if (names === null) {
-    lines.push(`no saved sessions to list: ${HISTORY_ROOT} is not mounted (start the REPL with orkeon-code).`);
+    lines.push(historyNotMountedToList(HISTORY_ROOT));
   } else if (names.length === 0) {
-    lines.push("no saved session for this project yet: the next start of orkeon-code keeps this one.");
+    lines.push(NO_SAVED_SESSIONS);
   } else {
     const loadedFrom = await deps.session.readState(LOADED_SESSION_STATE_KEY).catch(() => null);
     table = [];
@@ -144,7 +135,7 @@ export async function runResume(deps: ResumeDeps, choice?: string): Promise<Comm
     }
     const more = names.length - table.length;
     lines.push(
-      `${names.length} saved session(s) of this project, newest first${more > 0 ? ` (${more} more: orkeon-code --resume lists them all)` : ""}.`,
+      savedSessionsHeader(names.length, more),
       HOW_TO_RESUME,
     );
   }
@@ -154,7 +145,7 @@ export async function runResume(deps: ResumeDeps, choice?: string): Promise<Comm
   const tail = messages.slice(-TAIL_TURNS)
     .map((m) => `  ${m.role}: ${m.content.slice(0, 200)}${m.content.length > 200 ? "…" : ""}`);
   const text = messages.length === 0
-    ? "this session's buffer is empty."
-    : `this session: ${messages.length} message(s) in the buffer. Last turns:\n${tail.join("\n")}`;
+    ? EMPTY_BUFFER
+    : bufferTail(messages.length, tail);
   return { lines, table, text };
 }

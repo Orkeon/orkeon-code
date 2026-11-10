@@ -8,6 +8,7 @@ import type {
 } from "../../../shared/application/ports.ts";
 import { MEMORY_CATEGORIES } from "../../../shared/domain/agent-policy/memory-categories.ts";
 import type { CommandView } from "../view.ts";
+import { EMPTY_SESSION_BUFFER, exported } from "./messages.ts";
 
 export interface ExportInputs {
   messages: ReadonlyArray<{ role?: unknown; content?: unknown }>;
@@ -54,7 +55,7 @@ export function renderSessionExport(i: ExportInputs): string {
 
   out.push("## Conversation", "");
   if (i.messages.length === 0) {
-    out.push("_(the session buffer is empty)_", "");
+    out.push(EMPTY_SESSION_BUFFER, "");
   } else {
     for (const m of i.messages) {
       out.push(`**${String(m.role ?? "?")}:** ${String(m.content ?? "")}`, "");
@@ -100,5 +101,5 @@ export async function runExport(tokens: readonly string[], deps: ExportDeps): Pr
 
   await deps.files.write(path, md);
   const memoryCount = Object.values(memory).reduce((n, v) => n + v.length, 0);
-  return { text: `exported → ${path} (${messages.length} message(s), ${memoryCount} memory entr(y/ies), cost included)` };
+  return { text: exported(path, messages.length, memoryCount) };
 }

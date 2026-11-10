@@ -4,7 +4,9 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
-import { ANSWER_TEXT, DEFAULT_REPAIR_NOTE, REPAIR_CREW, TASKS_USAGE } from "../../../../src/commands/_lib/session/tasks.ts";
+import { REPAIR_CREW } from "../../../../src/commands/_lib/session/tasks.ts";
+import { ANSWER_TEXT, TASKS_USAGE } from "../../../../src/commands/_lib/session/messages.ts";
+import { DEFAULT_REPAIR_NOTE } from "../../../../src/commands/_lib/session/prompts.ts";
 import { requestKey, snapshotKey } from "../../../../src/shared/domain/agents/instances.ts";
 import { EFFORT_STATE_KEY, TASKS_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
 import { APPROVAL_LINE, EMPTY_TEXT, approval, record, tasksHarness } from "./tasks.fixtures.ts";

@@ -9,6 +9,9 @@
 // payload is unreachable, which is precisely when one wants it. /output is a
 // mounted volume, so the file is retrievable from outside the container.
 import { orkeonFiles, orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
+import {
+  LAST_OUTPUT_HEADER, NO_ASSISTANT_OUTPUT, alsoInFile, copyNotWritten, selectToCopy,
+} from "../_lib/session/messages.ts";
 
 const session = orkeonSessionIo();
 const files = orkeonFiles();
@@ -23,22 +26,20 @@ defineCommand({
     const { messages } = await session.readMessages().catch(() => ({ stored: [], messages: [] }));
     for (let i = messages.length - 1; i >= 0; i--) {
       if (messages[i].role === "assistant") {
-        ctx.writeLine("── last assistant output (full) ──");
+        ctx.writeLine(LAST_OUTPUT_HEADER);
         ctx.writeLine(messages[i].content);
         // The file write is best-effort: losing it must not cost the re-print,
         // which is the path that works at an interactive terminal.
         let written = "";
         try {
           await files.write(COPY_FILE_PATH, messages[i].content);
-          written = ` It is also in ${COPY_FILE_PATH} (mounted volume).`;
+          written = alsoInFile(COPY_FILE_PATH);
         } catch (e: any) {
-          ctx.log.warn(`/copy could not write ${COPY_FILE_PATH}: ${String(e?.message ?? e).split("\n")[0]}`);
+          ctx.log.warn(copyNotWritten(COPY_FILE_PATH, String(e?.message ?? e).split("\n")[0]));
         }
-        return ctx.continue(
-          `(select in your terminal to copy — headless REPL has no OS clipboard)${written}`,
-        );
+        return ctx.continue(selectToCopy(written));
       }
     }
-    return ctx.continue("no assistant output in the buffer yet.");
+    return ctx.continue(NO_ASSISTANT_OUTPUT);
   },
 });

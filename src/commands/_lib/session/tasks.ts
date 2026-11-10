@@ -18,12 +18,12 @@ import {
 import type { InstanceRequest, Located, RunSnapshot } from "../../../shared/domain/agents/instances.ts";
 import { storedEffort } from "../effort.ts";
 import type { CommandView } from "../view.ts";
-
-export const TASKS_USAGE =
-  "usage: /tasks [list | add <subject> | done <n> | clear | show <id> | stop <id> | send <id> <message> | repair <id> [note]]";
-
-/** The note a repair carries when the operator gives none. */
-export const DEFAULT_REPAIR_NOTE = "Check your previous report against the brief again and correct what is wrong or missing.";
+import {
+  INSTANCE_VERBS, NO_TASKS, TASKS_ADD_USAGE, TASKS_SEND_USAGE, TASKS_USAGE, WAITING_FOR_APPROVAL, ANSWER_TEXT,
+  repairByNewRun, repairWhileRunning, requestAlreadyWaiting, stopAsked, taskAdded, taskDone, tasksCleared,
+  tasksDoneUsage, waitsForApproval,
+} from "./messages.ts";
+import { DEFAULT_REPAIR_NOTE } from "./prompts.ts";
 
 /** The crew that repairs an instance by a new run. */
 export const REPAIR_CREW = "agent-run";
@@ -34,9 +34,6 @@ export interface TasksDeps {
   /** The tool approvals waiting for the operator, as the host shows them. */
   approvals: PendingApprovals;
 }
-
-/** What to do with an approval listed: the answers the main prompt takes. */
-export const ANSWER_TEXT = "answer it from the main prompt: [y] once / [s] session / [n] no";
 
 /** What the entry point shows, and the crew it launches for a repair. */
 export interface TasksOutcome {
@@ -60,7 +57,7 @@ async function readSnapshots({ session, clock }: TasksDeps): Promise<RunSnapshot
 
 /** One approval as the list shows it: the task's ticket and command (the status line's words), the tool, the input. */
 const approvalLine = (a: PendingApproval): string =>
-  `${a.taskId === null ? "no task" : `${a.taskId} ${a.command ?? "?"}`}: waits for approval of ${a.tool} · ${a.input}`;
+  waitsForApproval(a.taskId === null ? "no task" : `${a.taskId} ${a.command ?? "?"}`, a.tool, a.input);
 
 /** The approvals waiting, as lines; a host whose read fails shows none. */
 function approvalLines({ approvals }: TasksDeps): string[] {
@@ -76,17 +73,17 @@ async function list(tasks: Task[], deps: TasksDeps): Promise<TasksOutcome> {
   const waiting = approvalLines(deps);
   const taskLines = tasks.map((t, i) => `#${i + 1} [${t.done ? "done" : "open"}] ${t.subject}`);
   if (rows.length === 0 && waiting.length === 0) {
-    if (tasks.length === 0) return { view: { text: "no tasks and no agent instances. usage: /tasks add <subject>" } };
+    if (tasks.length === 0) return { view: { text: NO_TASKS } };
     return { view: { table: tasks.map((t, i) => ({ n: i + 1, status: t.done ? "done" : "open", subject: t.subject })) } };
   }
   const lines = [tasks.length === 0 ? "tasks: none" : "tasks:", ...taskLines];
-  if (waiting.length > 0) lines.push("waiting for approval:", ...waiting);
+  if (waiting.length > 0) lines.push(WAITING_FOR_APPROVAL, ...waiting);
   if (rows.length === 0) return { view: { lines, text: ANSWER_TEXT } };
   return {
     view: {
       lines: [...lines, "agent instances:"],
       table: rows,
-      text: "/tasks show <id> · stop <id> · send <id> <message> · repair <id> [note]",
+      text: INSTANCE_VERBS,
     },
   };
 }
@@ -103,7 +100,7 @@ async function locate(deps: TasksDeps, id: string | undefined): Promise<{ ok: tr
 async function leaveRequest(deps: TasksDeps, l: Located, request: InstanceRequest): Promise<string | null> {
   const key = requestKey(l.snapshot.crew, l.record.id);
   if (parseRequest(await deps.session.readState(key).catch(() => null))?.run === request.run) {
-    return `${ref(l)}: a request the crew has not read yet is already waiting; /tasks show ${l.record.id} once it has`;
+    return requestAlreadyWaiting(ref(l), l.record.id);
   }
   await deps.session.writeState(key, JSON.stringify(request));
   return null;
@@ -112,7 +109,7 @@ async function leaveRequest(deps: TasksDeps, l: Located, request: InstanceReques
 async function repair(deps: TasksDeps, l: Located, message: string): Promise<TasksOutcome> {
   return {
     view: {
-      lines: [`${ref(l)} has ended: a new run of ${l.record.charter} answers, with the previous report in its brief (not its live context).`],
+      lines: [repairByNewRun(ref(l), l.record.charter)],
     },
     launch: {
       crew: REPAIR_CREW,
@@ -134,21 +131,21 @@ export async function runTasks(tokens: readonly string[], deps: TasksDeps): Prom
       return list(tasks, deps);
     case "add": {
       const subject = rest.join(" ");
-      if (!subject) return { view: { text: "usage: /tasks add <subject>" } };
+      if (!subject) return { view: { text: TASKS_ADD_USAGE } };
       tasks.push({ subject, done: false });
       await writeJson(deps.session, TASKS_STATE_KEY, tasks);
-      return { view: { text: `task #${tasks.length} added: ${subject}` } };
+      return { view: { text: taskAdded(tasks.length, subject) } };
     }
     case "done": {
       const n = Number(rest[0]);
-      if (!Number.isInteger(n) || n < 1 || n > tasks.length) return { view: { text: `usage: /tasks done <1-${tasks.length || 1}>` } };
+      if (!Number.isInteger(n) || n < 1 || n > tasks.length) return { view: { text: tasksDoneUsage(tasks.length || 1) } };
       tasks[n - 1].done = true;
       await writeJson(deps.session, TASKS_STATE_KEY, tasks);
-      return { view: { text: `task #${n} done: ${tasks[n - 1].subject}` } };
+      return { view: { text: taskDone(n, tasks[n - 1].subject) } };
     }
     case "clear":
       await writeJson(deps.session, TASKS_STATE_KEY, []);
-      return { view: { text: `task list cleared (${tasks.length} removed).` } };
+      return { view: { text: tasksCleared(tasks.length) } };
     case "show": {
       const l = await locate(deps, rest[0]);
       return l.ok ? { view: { lines: describeInstance(l.found) } } : { view: l.view };
@@ -159,13 +156,13 @@ export async function runTasks(tokens: readonly string[], deps: TasksDeps): Prom
       const verdict = stopVerdict(l.found);
       if (!verdict.ok) return { view: { text: verdict.text } };
       const waiting = await leaveRequest(deps, l.found, { action: "stop", run: l.found.snapshot.startedAt, at: deps.clock().toISOString() });
-      return { view: { text: waiting ?? `stop asked for ${ref(l.found)}: the crew ends it at its next look (about a second); /tasks shows it` } };
+      return { view: { text: waiting ?? stopAsked(ref(l.found)) } };
     }
     case "send": {
       const l = await locate(deps, rest[0]);
       if (!l.ok) return { view: l.view };
       const message = rest.slice(1).join(" ").trim();
-      if (!message) return { view: { text: "usage: /tasks send <id> <message>" } };
+      if (!message) return { view: { text: TASKS_SEND_USAGE } };
       const verdict = sendVerdict(l.found);
       if (verdict.kind === "refused") return { view: { text: verdict.text } };
       return repair(deps, l.found, message);
@@ -174,7 +171,7 @@ export async function runTasks(tokens: readonly string[], deps: TasksDeps): Prom
       const l = await locate(deps, rest[0]);
       if (!l.ok) return { view: l.view };
       if (l.found.record.state === "running") {
-        return { view: { text: `${ref(l.found)} is running: a repair is for an ended instance (/tasks stop ${l.found.record.id} first)` } };
+        return { view: { text: repairWhileRunning(ref(l.found), l.found.record.id) } };
       }
       return repair(deps, l.found, rest.slice(1).join(" ").trim() || DEFAULT_REPAIR_NOTE);
     }

@@ -4,7 +4,7 @@
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok } from "node:assert";
 
-import { CONFIG_USAGE } from "../../../../src/commands/_lib/settings/config.ts";
+import { CONFIG_USAGE } from "../../../../src/commands/_lib/settings/messages.ts";
 import { CONFIG_FILE_PATH } from "../../../../src/shared/application/config-store.ts";
 import { CONFIG_KEYS, configKeySpec, knownConfigKeys } from "../../../../src/shared/domain/config-schema.ts";
 import {

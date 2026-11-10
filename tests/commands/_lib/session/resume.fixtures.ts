@@ -1,5 +1,6 @@
 // Saved sessions and buffers /resume reads.
-import { HISTORY_ROOT, HOW_TO_RESUME } from "../../../../src/commands/_lib/session/resume.ts";
+import { HISTORY_ROOT } from "../../../../src/commands/_lib/session/resume.ts";
+import { HOW_TO_RESUME } from "../../../../src/commands/_lib/session/messages.ts";
 import { FakeClock } from "../../../support/doubles/fake-clock.ts";
 import { FakeSessionSwitch } from "../../../support/doubles/fake-session-switch.ts";
 import { FakeFiles } from "../../../support/doubles/fake-files.ts";

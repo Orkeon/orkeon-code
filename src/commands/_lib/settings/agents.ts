@@ -27,15 +27,13 @@ import type { SavedAgent } from "../../../shared/domain/agent-registry.ts";
 import { builtInCharterRows } from "../../../shared/domain/agents/built-in-charters.ts";
 import type { CommandView } from "../view.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
+import {
+  AGENTS_USAGE, SAVED_AGENTS_NOTE, agentRemoved, agentSaved, agentsFileLine, builtInCrewNotRemovable,
+  builtInCrewNotSaved, droppedAgents, fileLeftUntouched, noSavedAgent, noSavedAgentListHint, refusingToOverwrite,
+  refusingUnparsed, savedAgentShown, withAgentsUsage,
+} from "./messages.ts";
 
 export const AGENTS_FILE_PATH = `${WORKSPACE}/.orkeon/agents.json`;
-
-export const AGENTS_USAGE =
-  "usage: /agents [list] | add <name> <role> | <goal> | remove <name> | show <name>";
-
-/** What the listing says of the saved agents, and of what runs instead. */
-export const SAVED_AGENTS_NOTE =
-  "saved agents are storage only — no command runs one; the built-in charters run as children of /dev-spec, /dev-plan and /dev-batches (/tasks).";
 
 export interface AgentsDeps {
   files: Pick<Files, "read" | "write">;
@@ -71,11 +69,9 @@ export async function runAgents(tokens: string[], deps: AgentsDeps): Promise<Com
   switch (sub) {
     case "list": {
       const { agents, dropped, malformed } = await readRegistry(files);
-      const notes = [`file: ${AGENTS_FILE_PATH} (survives /clear)`];
-      if (dropped.length > 0) {
-        notes.push(`⚠ ${dropped.length} stored entr(y/ies) ignored — missing role or goal: ${dropped.join(", ")}`);
-      }
-      if (malformed) notes.push(`⚠ ${AGENTS_FILE_PATH} could not be parsed; it is left untouched.`);
+      const notes = [agentsFileLine(AGENTS_FILE_PATH)];
+      if (dropped.length > 0) notes.push(droppedAgents(dropped));
+      if (malformed) notes.push(fileLeftUntouched(AGENTS_FILE_PATH));
       notes.push(SAVED_AGENTS_NOTE);
       return { table: [...describeAgentRows(crews, agents), ...builtInCharterRows()], text: notes.join("\n") };
     }
@@ -85,15 +81,12 @@ export async function runAgents(tokens: string[], deps: AgentsDeps): Promise<Com
       const { agents } = await readRegistry(files);
       const found = agents.find((a) => a.name === name);
       if (found) {
-        return {
-          text: `${found.name}\n  role : ${found.role}\n  goal : ${found.goal}\n` +
-            `  tools: ${found.tools.length > 0 ? found.tools.join(", ") : "(inherited from the crew)"}`,
-        };
+        return { text: savedAgentShown(found.name, found.role, found.goal, found.tools) };
       }
       if (crews.some((c) => c.toLowerCase() === name)) {
-        return { text: `'${name}' is a built-in crew (crews/${name}/), not a saved agent — see its crew.ork.ts.` };
+        return { text: builtInCrewNotSaved(name) };
       }
-      return { text: `no saved agent '${name}'. /agents list shows what there is.` };
+      return { text: noSavedAgentListHint(name) };
     }
 
     case "add":
@@ -109,18 +102,15 @@ export async function runAgents(tokens: string[], deps: AgentsDeps): Promise<Com
         role: headTokens.join(" "),
         goal: goalParts.join("|").trim(),
       });
-      if (!verdict.ok) return { text: `${verdict.reason}\n${AGENTS_USAGE}` };
+      if (!verdict.ok) return { text: withAgentsUsage(verdict.reason) };
 
       const { agents, malformed } = await readRegistry(files);
       if (malformed) {
-        return {
-          text: `refusing to write: ${AGENTS_FILE_PATH} exists but could not be parsed, and overwriting ` +
-            "it would discard whatever it holds. Fix or delete it, then retry.",
-        };
+        return { text: refusingToOverwrite(AGENTS_FILE_PATH) };
       }
       const { agents: next, replaced } = upsertAgent(agents, verdict.agent);
       await writeRegistry(files, next);
-      return { text: `agent '${verdict.agent.name}' ${replaced ? "replaced" : "saved"} in ${AGENTS_FILE_PATH}.` };
+      return { text: agentSaved(verdict.agent.name, replaced, AGENTS_FILE_PATH) };
     }
 
     case "remove":
@@ -128,17 +118,17 @@ export async function runAgents(tokens: string[], deps: AgentsDeps): Promise<Com
       const name = String(tokens[1] ?? "").trim();
       if (name.length === 0) return { text: AGENTS_USAGE };
       const { agents, malformed } = await readRegistry(files);
-      if (malformed) return { text: `refusing to write: ${AGENTS_FILE_PATH} could not be parsed.` };
+      if (malformed) return { text: refusingUnparsed(AGENTS_FILE_PATH) };
       const { agents: next, removed } = removeAgent(agents, name);
       if (!removed) {
         return {
           text: crews.some((c) => c.toLowerCase() === name.toLowerCase())
-            ? `'${name}' is a built-in crew — it is not stored here and cannot be removed with /agents.`
-            : `no saved agent '${name}'.`,
+            ? builtInCrewNotRemovable(name)
+            : noSavedAgent(name),
         };
       }
       await writeRegistry(files, next);
-      return { text: `agent '${name}' removed from ${AGENTS_FILE_PATH}.` };
+      return { text: agentRemoved(name, AGENTS_FILE_PATH) };
     }
 
     default:

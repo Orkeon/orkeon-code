@@ -17,6 +17,11 @@ import { admitEntries, admitReport } from "../../../shared/application/shared-me
 import { admissionProblem, asksConfirmation } from "../../../shared/domain/shared-memory/gate.ts";
 import { candidatesList } from "../../../shared/domain/shared-memory/candidates.ts";
 import { importAgentMemory, importReport } from "../../../shared/application/shared-memory/import-agent-memory.ts";
+import {
+  ADMITTED_UNASKED, HEADLESS, IMPORT_TAKES_NOTHING, LEFT_AS_CANDIDATE, LIST_TAKES_NOTHING, NOTHING_ADMITTED,
+  NO_INGESTION_ON_REFUSAL, REFUSE_USAGE, admitQuestion, motifTooLong, noPendingCandidate, notACandidateId, notPending,
+  stoppedAt, unknownAdmitOption,
+} from "./messages.ts";
 
 /** The crew that writes an admission, launched exclusively: the host refuses an admission while the previous one is
  *  still being written, so two never write the shared memory side by side; the list, a refusal and the import launch
@@ -34,21 +39,21 @@ export type MemoryAdmitArgs =
 
 export function parseMemoryAdmitArgs(tokens: readonly string[]): { ok: true; args: MemoryAdmitArgs } | { ok: false; text: string } {
   if (tokens[0] === "--list") {
-    return tokens.length === 1 ? { ok: true, args: { kind: "list" } } : { ok: false, text: "memory-admit: --list takes nothing else" };
+    return tokens.length === 1 ? { ok: true, args: { kind: "list" } } : { ok: false, text: LIST_TAKES_NOTHING };
   }
   if (tokens[0] === "--import") {
-    return tokens.length === 1 ? { ok: true, args: { kind: "import" } } : { ok: false, text: "memory-admit: --import takes nothing else" };
+    return tokens.length === 1 ? { ok: true, args: { kind: "import" } } : { ok: false, text: IMPORT_TAKES_NOTHING };
   }
   if (tokens[0] === "--refuse") {
     const id = tokens[1];
-    if (id === undefined || !ID.test(id)) return { ok: false, text: "memory-admit: --refuse <id> [<motif>]: the id of a pending candidate" };
+    if (id === undefined || !ID.test(id)) return { ok: false, text: REFUSE_USAGE };
     const motif = tokens.slice(2).join(" ").replace(/\s+/g, " ").trim();
-    if (Array.from(motif).length > MAX_MOTIF_CHARS) return { ok: false, text: `memory-admit: a motif of at most ${MAX_MOTIF_CHARS} characters` };
+    if (Array.from(motif).length > MAX_MOTIF_CHARS) return { ok: false, text: motifTooLong(MAX_MOTIF_CHARS) };
     return { ok: true, args: motif === "" ? { kind: "refuse", id } : { kind: "refuse", id, motif } };
   }
   for (const tok of tokens) {
-    if (tok.startsWith("--")) return { ok: false, text: `memory-admit: unknown option '${tok}' (--list, --refuse, --import)` };
-    if (!ID.test(tok)) return { ok: false, text: `memory-admit: '${tok}' is not a candidate id` };
+    if (tok.startsWith("--")) return { ok: false, text: unknownAdmitOption(tok) };
+    if (!ID.test(tok)) return { ok: false, text: notACandidateId(tok) };
   }
   return { ok: true, args: { kind: "admit", ids: [...new Set(tokens)] } };
 }
@@ -84,17 +89,10 @@ function candidateNotice(c: StoredEntry): string {
   return [...lines, ...body.map((l) => `  | ${l}`)].join("\n");
 }
 
-const HEADLESS = "refused: /memory-admit asks before admitting and this session cannot prompt: no asked candidate was admitted. " +
-  "Run it in an interactive session (an audited candidate admits unasked when memory.autoAdmitAudited is true).";
-
 /** No answer: the questions left are refused, the admissions already made - unasked or confirmed - still go. */
 function headless(admit: Confirmed[], settings: MemorySettings, why: string): MemoryAdmitResult {
   return admit.length === 0 ? { refused: why } : { admit, settings, refusedQuestions: why };
 }
-
-/** A question cancelled after another was answered: the session can prompt, the person stopped. */
-const stoppedAt = (id: string): string =>
-  `refused: the question about ${id} got no answer: it and the candidates after it stay candidates. Run /memory-admit again for them.`;
 
 export async function runMemoryAdmit(args: MemoryAdmitArgs, deps: MemoryAdmitDeps, io: MemoryAdmitIo): Promise<MemoryAdmitResult> {
   const settings = await readMemorySettings(deps);
@@ -105,28 +103,28 @@ export async function runMemoryAdmit(args: MemoryAdmitArgs, deps: MemoryAdmitDep
   }
   const pending = await pendingCandidates(deps.files, settings.layout);
   if (args.kind === "list") {
-    return { message: pending.length === 0 ? `No pending candidate in ${settings.layout.candidates}.` : candidatesList(pending.map((c) => c.entry)).trimEnd() };
+    return { message: pending.length === 0 ? noPendingCandidate(settings.layout.candidates) : candidatesList(pending.map((c) => c.entry)).trimEnd() };
   }
   if (args.kind === "refuse") {
-    const outcome = await admitEntries({ ...deps, memory: { ingest: async () => { throw new Error("no ingestion on a refusal"); } } },
+    const outcome = await admitEntries({ ...deps, memory: { ingest: async () => { throw new Error(NO_INGESTION_ON_REFUSAL); } } },
       settings, { admit: [], refuse: [{ id: args.id, ...(args.motif === undefined ? {} : { motif: args.motif }) }] });
     return outcome.refused.length > 0 ? { message: admitReport(outcome) } : { refused: admitReport(outcome) };
   }
   const chosen: StoredEntry[] = [];
   for (const id of args.ids) {
     const hit = pending.find((c) => c.entry.id === id);
-    if (hit === undefined) io.writeLine(`${id}: not a pending candidate (/memory-admit --list)`);
+    if (hit === undefined) io.writeLine(notPending(id));
     else chosen.push(hit);
   }
   const asked = args.ids.length === 0 ? pending : chosen;
-  if (asked.length === 0) return { message: args.ids.length === 0 ? `No pending candidate in ${settings.layout.candidates}.` : "Nothing admitted." };
+  if (asked.length === 0) return { message: args.ids.length === 0 ? noPendingCandidate(settings.layout.candidates) : NOTHING_ADMITTED };
   const admit: Confirmed[] = [];
   const confirmed = (c: StoredEntry): Confirmed => ({ id: c.entry.id, sha1: sha1Hex(c.text) });
   // The admissions that need no question first: a session that cannot prompt still applies them.
   const unasked = asked.filter((c) => admissionProblem(c.entry) === undefined && !asksConfirmation(c.entry, settings.autoAdmitAudited));
   for (const c of unasked) {
     io.writeLine(candidateNotice(c));
-    io.writeLine("  admitted without a question (audited, memory.autoAdmitAudited is true)");
+    io.writeLine(ADMITTED_UNASKED);
     admit.push(confirmed(c));
   }
   let answered = false;
@@ -136,7 +134,7 @@ export async function runMemoryAdmit(args: MemoryAdmitArgs, deps: MemoryAdmitDep
     if (problem !== undefined) { io.writeLine(`  not admissible: ${problem}`); continue; }
     let answer: unknown;
     try {
-      answer = await io.confirm(`Admit ${c.entry.id} into the shared memory?`);
+      answer = await io.confirm(admitQuestion(c.entry.id));
     } catch {
       answer = undefined;
     }
@@ -144,7 +142,7 @@ export async function runMemoryAdmit(args: MemoryAdmitArgs, deps: MemoryAdmitDep
     if (typeof answer !== "boolean") return headless(admit, settings, answered ? stoppedAt(c.entry.id) : HEADLESS);
     answered = true;
     if (answer) admit.push(confirmed(c));
-    else io.writeLine("  left as a candidate");
+    else io.writeLine(LEFT_AS_CANDIDATE);
   }
-  return admit.length === 0 ? { message: "Nothing admitted." } : { admit, settings };
+  return admit.length === 0 ? { message: NOTHING_ADMITTED } : { admit, settings };
 }

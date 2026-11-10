@@ -1,5 +1,6 @@
 // The registry files, refusals and the harness the /agents tests run over (FakeFiles, FakeCrewHost).
-import { AGENTS_FILE_PATH, AGENTS_USAGE, SAVED_AGENTS_NOTE, runAgents } from "../../../../src/commands/_lib/settings/agents.ts";
+import { AGENTS_FILE_PATH, runAgents } from "../../../../src/commands/_lib/settings/agents.ts";
+import { AGENTS_USAGE, SAVED_AGENTS_NOTE } from "../../../../src/commands/_lib/settings/messages.ts";
 import type { CommandView } from "../../../../src/commands/_lib/view.ts";
 import { describeAgentRows } from "../../../../src/shared/domain/agent-registry.ts";
 import { builtInCharterRows } from "../../../../src/shared/domain/agents/built-in-charters.ts";

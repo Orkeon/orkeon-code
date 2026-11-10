@@ -5,7 +5,8 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual, ok } from "node:assert";
 import { readFileSync } from "node:fs";
 
-import { CLI_VERSION, isPinnedCommit, RELEASE_NOTES } from "../../../../src/commands/_lib/status/meta.ts";
+import { CLI_VERSION, isPinnedCommit } from "../../../../src/commands/_lib/status/meta.ts";
+import { RELEASE_NOTES } from "../../../../src/commands/_lib/status/messages.ts";
 import { commandCount, crewNames, META_SOURCE, PINNED_COMMIT_CASES } from "./meta.fixtures.ts";
 
 describe("B-11 audit — the metadata that had gone stale", () => {

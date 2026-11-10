@@ -7,7 +7,11 @@
 import type {
   CrewHost, RuntimeInfo, RuntimeInfoReader, SessionCost, SessionMetadata, SessionStats, SessionStore, Shell, Telemetry,
 } from "../../../shared/application/ports.ts";
-import { CLI_BUILD, CLI_NAME, CLI_VERSION, isPinnedCommit, ORKEON_RUNTIME_PIN } from "./meta.ts";
+import { CLI_BUILD, CLI_NAME, CLI_VERSION, isPinnedCommit } from "./meta.ts";
+import {
+  MODEL_UNREPORTED, RUNTIME_PIN_ONLY, UNREPORTED_BY_HOST, UPDATE_NOTE, hostDefaultProvider, runtimeNotPinned,
+  runtimePinned,
+} from "./messages.ts";
 import type { CommandView } from "../view.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
@@ -34,17 +38,12 @@ export interface StatusInputs {
  *  .orkeon-version, or the pin alone when the host names no runtime (Orkeon #225). A runtime that reports no commit
  *  is not the pin. */
 export function runtimeRow(runtime: RuntimeInfo | undefined): string {
-  if (runtime === undefined) return `Orkeon ${ORKEON_RUNTIME_PIN} (the commit pinned by .orkeon-version)`;
+  if (runtime === undefined) return RUNTIME_PIN_ONLY;
   const found = `Orkeon ${runtime.version}${runtime.commit ? `+${runtime.commit}` : ""} (${runtime.channel})`;
   return isPinnedCommit(runtime.commit)
-    ? `${found}, the pin of .orkeon-version`
-    : `${found}, NOT the pin ${ORKEON_RUNTIME_PIN} of .orkeon-version`;
+    ? runtimePinned(found)
+    : runtimeNotPinned(found);
 }
-
-/** How Orkeon Code is updated: there is no self-update channel. */
-export const UPDATE_NOTE =
-  "no self-update: update the orkeon-code checkout (git pull, or a newer release archive) and relaunch; " +
-  "the Orkeon runtime it runs on is pinned to a commit of Orkeon's main by its .orkeon-version";
 
 /**
  * The `/status` rows.
@@ -62,9 +61,9 @@ export function buildStatusRows(i: StatusInputs): Array<{ field: string; value: 
   const cost = Number(i.costUsd ?? 0) || 0;
 
   return [
-    { field: "model", value: String(i.model ?? "").trim() || "(unreported by the host — see /model)" },
+    { field: "model", value: String(i.model ?? "").trim() || MODEL_UNREPORTED },
     // The host's default provider: a turn on another profile runs on that profile's.
-    { field: "provider", value: String(i.provider ?? "").trim() ? `${String(i.provider).trim()} (the host's default)` : "(unreported by the host)" },
+    { field: "provider", value: String(i.provider ?? "").trim() ? hostDefaultProvider(String(i.provider).trim()) : UNREPORTED_BY_HOST },
     { field: "workspace", value: String(i.workspace ?? WORKSPACE) },
     { field: "session", value: String(i.title ?? "").trim() || "(untitled)" },
     { field: "messages", value: String(Number(i.messages ?? 0) || 0) },

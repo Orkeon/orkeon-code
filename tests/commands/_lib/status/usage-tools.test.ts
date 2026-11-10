@@ -3,7 +3,8 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual } from "node:assert";
 
-import { NO_TOOL_TRACE, runUsageTools, toolTraceLines } from "../../../../src/commands/_lib/status/usage-tools.ts";
+import { runUsageTools, toolTraceLines } from "../../../../src/commands/_lib/status/usage-tools.ts";
+import { NO_TOOL_TRACE } from "../../../../src/commands/_lib/status/messages.ts";
 import { FakeSessionStore } from "../../../support/doubles/fake-session-store.ts";
 import { ALL_TRACE_LINES, BRACKETED_REQUEST_SESSION, TRACED_SESSION } from "./usage-tools.fixtures.ts";
 

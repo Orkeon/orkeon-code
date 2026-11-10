@@ -24,9 +24,15 @@ import { knownConfigKeys } from "../../../shared/domain/config-schema.ts";
 import { readHostContext } from "../../../shared/application/host-context.ts";
 import { describeHostLayout } from "../../../shared/domain/host-layout.ts";
 import { listedEntries } from "../../../shared/domain/agent-policy/path-rules.ts";
-import { CLI_BUILD, CLI_NAME, CLI_VERSION, isPinnedCommit, ORKEON_RUNTIME_PIN } from "./meta.ts";
+import { CLI_BUILD, CLI_NAME, CLI_VERSION, isPinnedCommit } from "./meta.ts";
 import type { CommandView } from "../view.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
+import {
+  ALL_CHECKS_PASSED, CHECK_CODE_INTEL, CHECK_LLM_CATALOGUE, CHECK_LLM_MODEL, CHECK_PROJECT_FILE, CHECK_SESSIONS,
+  NO_AVAILABLE_MODELS, NO_MODEL, NO_PATH_LIST, checksFailed, checksPassedWarned, codeIntelAbsent, essentialsPresent,
+  modelNotPinged, oldSessionsLeft, projectSettingIgnored, versionNoRuntime, versionNotPinned, versionPinned,
+  workspaceNotWritable,
+} from "./messages.ts";
 
 /** Tools the coding agent cannot work without — absence is a FAIL, not a note. */
 export const ESSENTIAL_TOOLS = ["file_read", "file_write", "shell_command", "directory_read", "session_store"];
@@ -62,18 +68,16 @@ export function versionRow(runtime: RuntimeInfo | undefined): DoctorRow {
     return {
       check: "version",
       result: PASS,
-      detail: `${CODE_VERSION_DETAIL}; Orkeon expected at commit ${ORKEON_RUNTIME_PIN} (.orkeon-version), the host names no runtime: ` +
-        "orkeon-code --version in a terminal says the one found",
+      detail: versionNoRuntime(CODE_VERSION_DETAIL),
     };
   }
   const found = `Orkeon ${runtime.version}${runtime.commit ? `+${runtime.commit}` : ""} (${runtime.channel})`;
   return isPinnedCommit(runtime.commit)
-    ? { check: "version", result: PASS, detail: `${CODE_VERSION_DETAIL}; ${found}, the pin of .orkeon-version` }
+    ? { check: "version", result: PASS, detail: versionPinned(CODE_VERSION_DETAIL, found) }
     : {
       check: "version",
       result: WARN,
-      detail: `${CODE_VERSION_DETAIL}; ${found} runs, commit ${ORKEON_RUNTIME_PIN} expected (.orkeon-version): ` +
-        "the commands were checked against the pin",
+      detail: versionNotPinned(CODE_VERSION_DETAIL, found),
     };
 }
 
@@ -102,18 +106,14 @@ export async function runDoctor(deps: DoctorDeps): Promise<CommandView> {
   const model = (md.model ?? "").trim();
   const declared = md.availableModels ?? [];
   rows.push({
-    check: "llm: model configured",
+    check: CHECK_LLM_MODEL,
     result: model ? PASS : FAIL,
-    detail: model
-      ? `${model} (not pinged — a reachability test costs a real call)`
-      : "the host reports NO model: expect every /assistant turn to no-op. Check the `Llm` section of the settings file.",
+    detail: model ? modelNotPinged(model) : NO_MODEL,
   });
   rows.push({
-    check: "llm: declared catalogue",
+    check: CHECK_LLM_CATALOGUE,
     result: declared.length > 0 ? PASS : WARN,
-    detail: declared.length > 0
-      ? declared.join(", ")
-      : "no Llm:AvailableModels — /model cannot offer a choice or flag an unserved name",
+    detail: declared.length > 0 ? declared.join(", ") : NO_AVAILABLE_MODELS,
   });
 
   // 3. Tool catalogue.
@@ -123,16 +123,16 @@ export async function runDoctor(deps: DoctorDeps): Promise<CommandView> {
     check: "tools: essential",
     result: missingEssential.length === 0 ? PASS : FAIL,
     detail: missingEssential.length === 0
-      ? `${available.size} registered, all ${ESSENTIAL_TOOLS.length} essentials present`
+      ? essentialsPresent(available.size, ESSENTIAL_TOOLS.length)
       : `MISSING: ${missingEssential.join(", ")}`,
   });
   const missingIntel = CODE_INTEL_TOOLS.filter((t) => !available.has(t));
   rows.push({
-    check: "tools: code intelligence",
+    check: CHECK_CODE_INTEL,
     result: missingIntel.length === 0 ? PASS : WARN,
     detail: missingIntel.length === 0
       ? `all ${CODE_INTEL_TOOLS.length} present`
-      : `absent: ${missingIntel.join(", ")} — the agent falls back to reading files`,
+      : codeIntelAbsent(missingIntel),
   });
 
   // 4. VFS mounts — /workspace read-write is the precondition for everything.
@@ -148,7 +148,7 @@ export async function runDoctor(deps: DoctorDeps): Promise<CommandView> {
       // /workspace read-WRITE is the precondition for everything the agent does;
       // a read-only mount would fail every edit with a permissions error later.
       detail: (described.join(" ") || "(none)") +
-        (hasWorkspace ? "" : `  ← ${WORKSPACE} is missing or not writable`),
+        (hasWorkspace ? "" : workspaceNotWritable(WORKSPACE)),
     });
   } catch (e: any) {
     rows.push({ check: "vfs: mounts", result: WARN, detail: `list_mounts unavailable: ${String(e?.message ?? e).split("\n")[0]}` });
@@ -165,7 +165,7 @@ export async function runDoctor(deps: DoctorDeps): Promise<CommandView> {
     check: "host: paths",
     result: host.problems.length === 0 ? PASS : WARN,
     detail: [
-      describeHostLayout(host.layout), ...(lists.length > 0 ? lists : ["no path list"]), ...host.problems.map((p) => `⚠ ${p}`),
+      describeHostLayout(host.layout), ...(lists.length > 0 ? lists : [NO_PATH_LIST]), ...host.problems.map((p) => `⚠ ${p}`),
     ].join("; "),
   });
 
@@ -173,22 +173,21 @@ export async function runDoctor(deps: DoctorDeps): Promise<CommandView> {
   // before the launcher mounted /sessions outside the project (QL-04). Left alone, named here.
   const inProject = await files.list(OLD_SESSIONS_DIR, 1).catch((): string[] => []);
   rows.push({
-    check: "sessions: outside the project",
+    check: CHECK_SESSIONS,
     result: inProject.length === 0 ? PASS : WARN,
     detail: inProject.length === 0
       ? "nothing in .orkeon/sessions"
-      : `${OLD_SESSIONS_DIR} holds sessions of an older start, left alone: sessions now live in the launcher's state folder, outside the project ` +
-        "(orkeon-code --resume lists them); delete the folder once you no longer need it",
+      : oldSessionsLeft(OLD_SESSIONS_DIR),
   });
 
   // 6. What the project file set and could not widen (QL-06): said here as /permissions says it.
   const ignored: string[] = [];
   for (const key of knownConfigKeys()) {
     const r = await deps.config.readValue(key).catch(() => undefined);
-    if (r?.ignored !== undefined) ignored.push(`the project file sets ${key} '${r.ignored.value}': ignored, ${r.ignored.reason}`);
+    if (r?.ignored !== undefined) ignored.push(projectSettingIgnored(key, r.ignored.value, r.ignored.reason));
   }
   rows.push({
-    check: "settings: project file",
+    check: CHECK_PROJECT_FILE,
     result: ignored.length === 0 ? PASS : WARN,
     detail: ignored.length === 0 ? "widens nothing" : ignored.join("; "),
   });
@@ -198,9 +197,9 @@ export async function runDoctor(deps: DoctorDeps): Promise<CommandView> {
   return {
     table: rows,
     text: failed > 0
-      ? `${failed} check(s) FAILED, ${warned} warning(s) — the host is not fully usable.`
+      ? checksFailed(failed, warned)
       : warned > 0
-        ? `all checks passed, ${warned} warning(s).`
-        : "all checks passed.",
+        ? checksPassedWarned(warned)
+        : ALL_CHECKS_PASSED,
   };
 }

@@ -5,7 +5,7 @@
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 
-import { NO_MODEL_REPORTED } from "../../../../src/commands/_lib/settings/model.ts";
+import { NO_MODEL_REPORTED } from "../../../../src/commands/_lib/settings/messages.ts";
 import { judgeModelChoice, renderModelList } from "../../../../src/shared/domain/model-catalog.ts";
 import { NO_CATALOGUE_NOTE } from "../../../../src/shared/domain/messages.ts";
 import { DEFAULT_EFFORT, EFFORT_LEVELS } from "../../../../src/shared/domain/agent-policy/behavior-flags.ts";
