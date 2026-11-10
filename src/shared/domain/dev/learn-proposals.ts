@@ -2,6 +2,7 @@
 // `<work>/learn-<date>/proposals.json` for --accept and --refuse to read, and the lines
 // those print. A decision applies nothing: it prints the change to make. Pure, no IO.
 import { sha1Hex } from "../sha1.ts";
+import { acceptedHarness, acceptedRepository, hasTheWrongShape, THE_TOP_LEVEL } from "./messages.ts";
 
 export const LEARN_FOLDER_PATTERN: RegExp = /^learn-\d{4}-\d{2}-\d{2}$/;
 export function learnFolderName(date: string): string {
@@ -128,7 +129,7 @@ export function parseProposalsFile(text: string): { ok: true; file: ProposalsFil
     return { ok: false, problem: `not JSON (${(e instanceof Error ? e.message : String(e)).split("\n")[0]})` };
   }
   try {
-    const o = obj(raw, "the top level");
+    const o = obj(raw, THE_TOP_LEVEL);
     if (o.version !== 1) throw new Shape("version");
     const read = obj(o.read, "read");
     const counts = Object.fromEntries(READ_KEYS.map((k) => [k, count(read, k, "read")])) as ProposalsFile["read"];
@@ -138,7 +139,7 @@ export function parseProposalsFile(text: string): { ok: true; file: ProposalsFil
     };
     return { ok: true, file };
   } catch (e) {
-    if (e instanceof Shape) return { ok: false, problem: `${e.message} has the wrong shape` };
+    if (e instanceof Shape) return { ok: false, problem: hasTheWrongShape(e.message) };
     throw e;
   }
 }
@@ -169,7 +170,7 @@ export function patchLines(motif: Motif): string[] {
 /** The lines printed for a motif: the patch for a harness owner, the change to make for a repository owner. */
 export function acceptLines(motif: Motif): string[] {
   const head = motif.owner.kind === "harness"
-    ? `accepted ${motif.id} — ${motif.title}: a harness file is never edited here; apply this in the orkeon-workshop repository:`
-    : `accepted ${motif.id} — ${motif.title}: ${motif.owner.path} is not edited by /dev-learn; make the change in a batch (/dev-spec <code> refactor, or by hand):`;
+    ? acceptedHarness(motif.id, motif.title)
+    : acceptedRepository(motif.id, motif.title, motif.owner.path);
   return [head, ...patchLines(motif).map((l) => `  ${l}`)];
 }

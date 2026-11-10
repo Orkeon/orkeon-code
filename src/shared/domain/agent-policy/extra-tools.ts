@@ -12,12 +12,10 @@
 
 import { builtInTool, sameToolName } from "./permission.ts";
 import type { ExtraTool } from "./permission.ts";
+import { EXTRA_TOOL_ENTRY_RULE, NAMES_NO_TOOL } from "./messages.ts";
 
 /** The /config key that lists them. */
 export const EXTRA_TOOLS_CONFIG_KEY = "tools.extra";
-
-/** What an entry must be, for messages. */
-export const EXTRA_TOOL_ENTRY_RULE = "each entry is <name>[:read|:write], a tool that is not built in, named once";
 
 /** A tool name as the host registers it: letters, digits, `_`, `-`, `.`. */
 const TOOL_NAME = /^[A-Za-z0-9_][A-Za-z0-9_.-]*$/;
@@ -65,5 +63,5 @@ export function extraToolsProblem(value: string): string | undefined {
   if (invalid.length > 0) {
     return `${EXTRA_TOOL_ENTRY_RULE}; not: ${invalid.join(", ")}`;
   }
-  return tools.length === 0 ? "it names no tool" : undefined;
+  return tools.length === 0 ? NAMES_NO_TOOL : undefined;
 }

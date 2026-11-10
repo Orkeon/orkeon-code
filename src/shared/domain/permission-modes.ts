@@ -3,6 +3,7 @@
 // default resolution). Mirrors the modes understood by the C# ModePermissionGate.
 //
 // Run tests: node --test src/shared/domain/permission-modes.test.ts
+import { builtInFallback, fallbackNotAMode, SANDBOXED_POSTURE } from "./messages.ts";
 
 // `dontAsk` (E-3): the 5th external mode of the original — denies every write
 // fail-closed WITHOUT asking. Catalogue-wise it is read-only like `plan`; the
@@ -58,9 +59,7 @@ export function resolveFallbackMode(configured: unknown): FallbackResolution {
     return {
       mode: FALLBACK_PERMISSION_MODE,
       source: "built-in",
-      explanation:
-        `built-in default '${FALLBACK_PERMISSION_MODE}' (asks on writes, like the original) — ` +
-        `set '${PERMISSION_FALLBACK_CONFIG_KEY}' to change it`,
+      explanation: builtInFallback(FALLBACK_PERMISSION_MODE, PERMISSION_FALLBACK_CONFIG_KEY),
     };
   }
   if (!isPermissionMode(raw)) {
@@ -68,10 +67,7 @@ export function resolveFallbackMode(configured: unknown): FallbackResolution {
       mode: FALLBACK_PERMISSION_MODE,
       source: "config-invalid",
       rejected: raw,
-      explanation:
-        `'${PERMISSION_FALLBACK_CONFIG_KEY}' is '${raw}', which is not a permission mode — ` +
-        `IGNORED, running the built-in '${FALLBACK_PERMISSION_MODE}'. ` +
-        `Expected one of: ${PERMISSION_MODES.join(", ")}`,
+      explanation: fallbackNotAMode(PERMISSION_FALLBACK_CONFIG_KEY, raw, FALLBACK_PERMISSION_MODE, PERMISSION_MODES.join(", ")),
     };
   }
   return {
@@ -80,7 +76,7 @@ export function resolveFallbackMode(configured: unknown): FallbackResolution {
     explanation:
       `'${PERMISSION_FALLBACK_CONFIG_KEY}' = '${raw}'` +
       (raw === SANDBOX_FALLBACK_PERMISSION_MODE
-        ? " — sandboxed posture: the container/VFS is the security boundary, approvals never stall a session"
+        ? SANDBOXED_POSTURE
         : ""),
   };
 }

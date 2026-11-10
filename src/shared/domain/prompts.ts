@@ -199,3 +199,22 @@ export const truncatedIsASample = (narrowers: string, shell: boolean): string =>
 /** The line that opens the routing: scripting named only to the shell's holder. */
 export const ASK_INDEX_BEFORE_SCRIPTING = "Ask the index before reading or scripting, by question:";
 export const ASK_INDEX_BEFORE_READING = "Ask the index before reading, by question:";
+
+// ── Project manifests, the verification request ─────────────────────────
+
+export const cutNotShown = (omitted: number, what: string): string => `[… cut: ${omitted} characters of ${what} not shown …]`;
+export const filesLeftOut = (count: number, max: number, paths: string): string =>
+  `[… cut: ${count} file(s) left out, over ${max} characters: ${paths} …]`;
+export const sessionStartLinesLeftOut = (n: number): string => `(${n} more line(s) left out)`;
+
+export const verificationSkill = (path: string): string => `the verification skill ${path}`;
+export const everyVerificationSkill = (dir: string): string => `every verification skill under ${dir}/, one after the other`;
+export const IF_THAT_FILE_IS_MISSING = "If that file does not exist";
+export const IF_THERE_IS_NONE = "If there is none";
+export const verifyRequest = (which: string, missing: string): string =>
+  `Check that the project works by running it: follow ${which}, written by /init-verifiers, step by ` +
+  "step. Run each step's command, compare what you observe with the skill's Pass section, and report " +
+  "as its Report section says, quoting the output of a failure. A failed check ends in that report: a " +
+  "fix is a separate request, so never edit code to make a step pass. " +
+  `${missing}, say so and suggest ` +
+  "/init-verifiers instead of improvising a check.";

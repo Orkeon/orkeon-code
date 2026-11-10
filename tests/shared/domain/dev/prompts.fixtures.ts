@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 
 import type { ReviewBriefInput, ReviewMode } from "../../../../src/shared/domain/dev/prompts.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
-import { PROJECT_LIST_RULE } from "../../../../src/shared/domain/dev/project-files.ts";
+import { PROJECT_LIST_RULE } from "../../../../src/shared/domain/dev/prompts/brief-blocks.ts";
 
 /** A line of material the system must never hold. */
 export const MARK = "probe-material-line";

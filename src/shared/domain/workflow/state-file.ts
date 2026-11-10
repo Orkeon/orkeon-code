@@ -10,6 +10,11 @@
 // `First open:` line and its header's date).
 import type { BatchSheet } from "../dev/plan-format.ts";
 import { isCode } from "../dev/artefacts.ts";
+import {
+  earlierLinesLeftOut, eventsHeading, moreLinesLeftOut, NO_OPEN_STEP, NO_STEP_WITH_TDD, readThisFirst,
+  reportsHeading, REWRITTEN_AT_EVERY_COMPACTION, stateFileTitle, STEPS_HEADING, TICK_NOTHING_UNOBSERVED,
+  WORKING_TREE_HEADING,
+} from "./prompts.ts";
 
 /** Code's own state folder, in the project. */
 export const DEV_STATE_DIR = ".orkeon/dev";
@@ -110,31 +115,31 @@ export interface StateFacts {
 export function renderStateFile(f: StateFacts): string {
   const first = firstOpenStep(f.steps);
   const out: string[] = [
-    `# State of batch ${f.phase} of ${f.code} — written at ${f.at} before a ${f.trigger} compaction`,
+    stateFileTitle(f.phase, f.code, f.at, f.trigger),
     "",
-    `> Read this file first after a compaction. The sheet is \`${f.sheet}\`: resume at its first open step, and`,
-    "> tick nothing that was not observed. A report listed below came back already: do not ask for it again.",
-    "> Rewritten at every compaction; Orkeon Code never commits it.",
+    readThisFirst(f.sheet),
+    TICK_NOTHING_UNOBSERVED,
+    REWRITTEN_AT_EVERY_COMPACTION,
     "",
-    "## Steps of the sheet (TDD lines)",
+    STEPS_HEADING,
     "",
   ];
-  if (f.steps.length === 0) out.push("(the sheet has no step with a TDD line)");
+  if (f.steps.length === 0) out.push(NO_STEP_WITH_TDD);
   for (const s of f.steps) out.push(`- ${s.label}: ${s.tdd}`);
-  out.push("", first === null ? "No open step: every TDD line is ticked." : `First open: ${first}`, "");
-  out.push(`## Events of ${f.phase} in \`${batchesStatePath(f.code)}\``, "");
+  out.push("", first === null ? NO_OPEN_STEP : `First open: ${first}`, "");
+  out.push(eventsHeading(f.phase, batchesStatePath(f.code)), "");
   const events = f.events.slice(-MAX_EVENT_LINES).map(boundLine);
-  if (f.events.length > MAX_EVENT_LINES) out.push(`(${f.events.length - MAX_EVENT_LINES} earlier line(s) left out)`);
+  if (f.events.length > MAX_EVENT_LINES) out.push(earlierLinesLeftOut(f.events.length - MAX_EVENT_LINES));
   out.push(...(events.length === 0 ? ["(none)"] : events), "");
-  out.push(`## Reports recorded for ${f.phase}`, "");
+  out.push(reportsHeading(f.phase), "");
   out.push(...(f.reports.length === 0 ? ["(none)"] : f.reports.map((r) => `- ${boundLine(r)}`)), "");
-  out.push("## Working tree (`git status --short`)", "");
+  out.push(WORKING_TREE_HEADING, "");
   if ("note" in f.tree) {
     out.push(`(${f.tree.note})`);
   } else {
     const shown = f.tree.lines.slice(0, MAX_TREE_LINES).map(boundLine);
     out.push("```text", ...(shown.length === 0 ? ["(clean)"] : shown), "```");
-    if (f.tree.lines.length > MAX_TREE_LINES) out.push(`(${f.tree.lines.length - MAX_TREE_LINES} more line(s) left out)`);
+    if (f.tree.lines.length > MAX_TREE_LINES) out.push(moreLinesLeftOut(f.tree.lines.length - MAX_TREE_LINES));
   }
   return out.join("\n") + "\n";
 }

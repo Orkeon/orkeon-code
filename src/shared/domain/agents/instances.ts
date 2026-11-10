@@ -6,6 +6,11 @@
 
 import { AGENT_INSTANCES_STATE_PREFIX, AGENT_REQUEST_STATE_PREFIX } from "../session-keys.ts";
 import { MAX_BRIEF_CHARS } from "./charter.ts";
+import {
+  namesAnInstanceOf, noAgentInstance, nothingToStop, RUN_STOPPED_ANSWERING, RUNNING_NO_LONGER_ANSWERING,
+  RUNNING_NOT_ANSWERING, RUNNING_STOP_ASKED, runNoLongerAnswers, runOfStarted, sendRefusedWhileRunning,
+} from "./messages.ts";
+import { CUT_MARK, noReport, REPAIR_INSTRUCTION, repairOpening } from "./prompts.ts";
 
 export const INSTANCE_STATES = ["running", "completed", "failed", "stopped"] as const;
 export type InstanceState = (typeof INSTANCE_STATES)[number];
@@ -124,7 +129,7 @@ export function settleSnapshot(s: RunSnapshot, now: Date): RunSnapshot {
   if (!s.open || (Number.isFinite(age) && age <= SNAPSHOT_STALE_MS)) return s;
   return {
     ...s, serving: false, open: false,
-    instances: s.instances.map((r) => r.state !== "running" ? r : { ...r, state: "failed", error: "its run stopped answering" }),
+    instances: s.instances.map((r) => r.state !== "running" ? r : { ...r, state: "failed", error: RUN_STOPPED_ANSWERING }),
   };
 }
 
@@ -159,11 +164,11 @@ export function locateInstance(snapshots: readonly RunSnapshot[], ref: string): 
       ? []
       : snapshot.instances.filter((r) => r.id === id && id !== "").map((record) => ({ snapshot, record })));
   if (found.length === 1) return { ok: true, found: found[0] };
-  if (found.length === 0) return { ok: false, text: `no agent instance '${ref}': /tasks lists them` };
+  if (found.length === 0) return { ok: false, text: noAgentInstance(ref) };
   return {
     ok: false,
-    text: `'${ref}' names an instance of ${found.map((f) => f.snapshot.crew).join(" and ")}: write ${found
-      .map((f) => `${f.snapshot.crew}:${id}`).join(" or ")}`,
+    text: namesAnInstanceOf(ref, found.map((f) => f.snapshot.crew).join(" and "),
+      found.map((f) => `${f.snapshot.crew}:${id}`).join(" or ")),
   };
 }
 
@@ -171,8 +176,8 @@ const label = (l: Located): string => `${l.snapshot.crew}:${l.record.id}`;
 
 /** Whether /tasks may ask the crew to stop the instance: only a running one, of a run still answering. */
 export function stopVerdict(l: Located): { ok: true } | { ok: false; text: string } {
-  if (l.record.state !== "running") return { ok: false, text: `${label(l)} is ${l.record.state}: there is nothing to stop` };
-  if (!l.snapshot.serving) return { ok: false, text: `${label(l)}: its run no longer answers; it ends with the run` };
+  if (l.record.state !== "running") return { ok: false, text: nothingToStop(label(l), l.record.state) };
+  if (!l.snapshot.serving) return { ok: false, text: runNoLongerAnswers(label(l)) };
   return { ok: true };
 }
 
@@ -183,12 +188,10 @@ export function stopVerdict(l: Located): { ok: true } | { ok: false; text: strin
  */
 export function sendVerdict(l: Located): { kind: "refused"; text: string } | { kind: "repair" } {
   if (l.record.state === "running") {
-    return { kind: "refused", text: `${label(l)} is running: a send is refused until it ends (/tasks stop ${l.record.id} ends it)` };
+    return { kind: "refused", text: sendRefusedWhileRunning(label(l), l.record.id) };
   }
   return { kind: "repair" };
 }
-
-const CUT_MARK = "[… the start is left out]\n";
 
 /** The tail of `s` within `max` characters, the cut said in front. */
 function tail(s: string, max: number): string {
@@ -203,8 +206,8 @@ function tail(s: string, max: number): string {
  */
 export function buildRepairBrief(record: InstanceRecord, message: string): string {
   const head = [
-    `This is a new run of ${record.charter}, repairing instance ${record.id || "?"} of an ended run: you do not have its context,`,
-    "only what follows. Answer the operator's message below, then give the whole report again in the shape the previous brief asked for.",
+    repairOpening(record.charter, record.id || "?"),
+    REPAIR_INSTRUCTION,
     "",
     "## Operator's message",
     message.trim(),
@@ -212,7 +215,7 @@ export function buildRepairBrief(record: InstanceRecord, message: string): strin
     "## Previous report",
     "",
   ].join("\n");
-  const report = record.reply ?? `(none: the instance ${record.state}${record.error ? `: ${record.error}` : ""})`;
+  const report = record.reply ?? noReport(record.state, record.error ? `: ${record.error}` : "");
   const briefHeading = "\n\n## Previous brief\n";
   const forReport = MAX_BRIEF_CHARS - head.length - briefHeading.length;
   const keptReport = tail(report, Math.max(0, forReport));
@@ -228,9 +231,9 @@ export function instanceRows(snapshots: readonly RunSnapshot[]): Array<Record<st
     id: r.id || "?",
     crew: s.crew,
     agent: r.agent,
-    state: r.stopRequested && r.state === "running" ? "running (stop asked)" : r.state,
+    state: r.stopRequested && r.state === "running" ? RUNNING_STOP_ASKED : r.state,
     task: r.task,
-    run: s.serving ? "answering" : s.open ? "running, not answering" : "ended",
+    run: s.serving ? "answering" : s.open ? RUNNING_NOT_ANSWERING : "ended",
   })));
 }
 
@@ -241,7 +244,7 @@ export function describeInstance(l: Located): string[] {
     `${label(l)} — ${r.agent} (${r.charter}), ${r.state}${r.stopRequested && r.state === "running" ? ", stop asked" : ""}`,
     `task: ${r.task}`,
     `started ${r.startedAt}${r.endedAt ? `, ended ${r.endedAt}` : ""}${r.effort ? `, effort ${r.effort}` : ""}`,
-    `run of ${s.crew} started ${s.startedAt}: ${s.serving ? "answering /tasks" : s.open ? "running, no longer answering" : "ended"}`,
+    runOfStarted(s.crew, s.startedAt, s.serving ? "answering /tasks" : s.open ? RUNNING_NO_LONGER_ANSWERING : "ended"),
   ];
   if (r.error) lines.push(`error: ${r.error}`);
   if (r.reply) lines.push("report:", r.reply);

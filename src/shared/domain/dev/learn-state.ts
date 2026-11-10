@@ -1,6 +1,7 @@
 // The /dev-learn state: the verdict rows already treated and the decision taken on each
 // motif. Orkeon Code keeps its own file; the harness's file is only read, so a row the
 // harness treated is not proposed again here. Pure, no IO.
+import { fieldHasTheWrongShape, THE_TOP_LEVEL } from "./messages.ts";
 
 /** Orkeon Code's own /dev-learn state, relative to /workspace (temp/04:172-175). */
 export const LEARN_STATE_FILE = ".orkeon/dev-learn-state.json";
@@ -42,14 +43,14 @@ function decisionRecord(v: unknown): DecisionRecord | null {
 export function parseLearnState(text: string | null): StateRead<LearnState> {
   if (text === null) return { ok: true, state: emptyLearnState() };
   const wrong = (field: string): StateRead<LearnState> =>
-    ({ ok: false, problem: `${LEARN_STATE_FILE}: ${field} has the wrong shape` });
+    ({ ok: false, problem: fieldHasTheWrongShape(LEARN_STATE_FILE, field) });
   let raw: unknown;
   try {
     raw = JSON.parse(text);
   } catch (e) {
     return { ok: false, problem: `${LEARN_STATE_FILE} is not JSON (${firstLine(e)})` };
   }
-  if (!isRecord(raw)) return wrong("the top level");
+  if (!isRecord(raw)) return wrong(THE_TOP_LEVEL);
   if (raw.version !== 1) return wrong("version");
   if (!isStringList(raw.treated)) return wrong("treated");
   if (!Array.isArray(raw.decisions)) return wrong("decisions");

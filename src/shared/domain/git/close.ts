@@ -2,6 +2,7 @@
 // explicit list, never the work folder), the command lines that commit, push and
 // merge them, and the pull request body and command handed over. Pure: nothing
 // here runs a command; shared/application/git runs these lines through the Shell port.
+import { ASSUMPTIONS_HEADING, ASSUMPTIONS_TABLE_HEAD, FILES_PER_LAYER_HEADING, noIdentityStop } from "./messages.ts";
 
 /** Q-10's switch: `true` asks the close to open the pull request itself. Omitted = false. */
 export const DEV_PR_AUTO_CONFIG_KEY = "dev.prAuto";
@@ -46,7 +47,7 @@ export const IDENTITY_HANDOVER: readonly string[] = [
 /** The stop when git has no identity: git's reason, then the two commands, one per line. Never an invented identity. */
 export function identityStop(detail: string, rerun: string): string {
   return [
-    `✗ stopped: git has no identity for the commit (${detail}). Set one in a terminal, then re-run ${rerun}:`,
+    noIdentityStop(detail, rerun),
     ...IDENTITY_HANDOVER.map((c) => `  ${c}`),
   ].join("\n");
 }
@@ -250,16 +251,16 @@ export function renderPrBody(s: PrSummary): string {
     .map((l) => `- ${l.layer}: ${l.paths.map((p) => `\`${p}\``).join(", ")}`);
   const validations = (s.validations ?? []).map((v) => `- ${v}`);
   const assumptions = (s.assumptions ?? []).length === 0 ? [NONE] : [
-    "| Id | Assumption | To be validated by |",
+    ASSUMPTIONS_TABLE_HEAD,
     "|----|------------|--------------------|",
     ...(s.assumptions ?? []).map((a) => `| ${a.id} | ${a.assumption} | ${a.by} |`),
   ];
   const text = (v: string | undefined): string => (v ?? "").trim() || NONE;
   return [
     "## Batch", "", text(s.batch), "",
-    "## Files, per layer", "", ...(layers.length > 0 ? layers : [NONE]), "",
+    FILES_PER_LAYER_HEADING, "", ...(layers.length > 0 ? layers : [NONE]), "",
     "## Validations", "", ...(validations.length > 0 ? validations : [NONE]), "",
-    "## Assumptions to validate", "", ...assumptions, "",
+    ASSUMPTIONS_HEADING, "", ...assumptions, "",
     "## Audit", "", text(s.audit), "",
     "## Not run", "", text(s.notRun), "",
   ].join("\n");

@@ -25,14 +25,14 @@ import { textToVirtual, toVirtual } from "../host-paths.ts";
 import { IDENTITY_HOST } from "../host-layout.ts";
 import type { HostLayout } from "../host-layout.ts";
 import { MOUNT_POINTS, WORKSPACE } from "../vfs.ts";
+import {
+  holdsAQuote, namesEveryPath, namesEveryPathNoRule, outsideAllow, outsideUserList, PATH_ENTRY_RULE, refusedByDeny,
+  refusedOwnMount, underNoMount,
+} from "./messages.ts";
 
 /** The /config keys. */
 export const PATHS_DENY_CONFIG_KEY = "paths.deny";
 export const PATHS_ALLOW_CONFIG_KEY = "paths.allow";
-
-/** What an entry must be, for messages. */
-export const PATH_ENTRY_RULE =
-  "entries separated by commas, each a path of a mount in any spelling or a path under /workspace, `*` for any run of characters";
 
 /** The mount Orkeon Code keeps to itself: config.json and launch.json, the physical bases inside. */
 export const USER_CONFIG_MOUNT = "/user-config";
@@ -79,10 +79,10 @@ function onMount(path: string, layout: HostLayout): boolean {
 function canonicalEntry(given: string, layout: HostLayout): { canonical?: string; problem?: string } {
   const relative = !given.startsWith("/") && !windowsSpelled(given);
   const virtual = normalisePath(toVirtual(relative ? `${WORKSPACE}/${given}` : given, layout));
-  if (!virtual.startsWith("/")) return { problem: `'${given}' is under no mount of this host: no rule` };
-  if (virtual === "/") return { problem: `'${given}' names every path: no rule` };
+  if (!virtual.startsWith("/")) return { problem: underNoMount(given) };
+  if (virtual === "/") return { problem: namesEveryPathNoRule(given) };
   if (layout.flavour === "wsl" && underAutomount(virtual, layout)) {
-    return { problem: `'${given}' is under no mount of this host: no rule` };
+    return { problem: underNoMount(given) };
   }
   return { canonical: virtual };
 }
@@ -96,8 +96,8 @@ export function pathListProblem(value: string): string | undefined {
   const entries = writtenEntries(value);
   if (entries.length === 0) return `no entry (${PATH_ENTRY_RULE})`;
   for (const entry of entries) {
-    if (/["'`]/.test(entry)) return `'${entry}' holds a quote: write the path bare, its spaces included (${PATH_ENTRY_RULE})`;
-    if (/^[\\/]?\*?[\\/]?$/.test(entry)) return `'${entry}' names every path (${PATH_ENTRY_RULE})`;
+    if (/["'`]/.test(entry)) return holdsAQuote(entry, PATH_ENTRY_RULE);
+    if (/^[\\/]?\*?[\\/]?$/.test(entry)) return namesEveryPath(entry, PATH_ENTRY_RULE);
   }
   return undefined;
 }
@@ -152,7 +152,7 @@ export function readPathLists(user: PathListValues, project: PathListValues, lay
   const userAllow = read(user.allow, PATHS_ALLOW_CONFIG_KEY, "user");
   const projectAllow = read(project.allow, PATHS_ALLOW_CONFIG_KEY, "project").filter((entry) => {
     const kept = userAllow.length === 0 || userAllow.some((u) => patternsOf(u).some((p) => within(p, entry, layout)));
-    if (!kept) problems.push(`${PATHS_ALLOW_CONFIG_KEY} (project): '${entry}' is outside the user's list; a project file may only narrow it`);
+    if (!kept) problems.push(outsideUserList(PATHS_ALLOW_CONFIG_KEY, entry));
     return kept;
   });
   const unique = (entries: string[]): string[] => [...new Set(entries.flatMap(patternsOf))];
@@ -289,11 +289,11 @@ export function pathListRefusal(lists: PathLists, layout: HostLayout, tool: stri
   const named = namedPaths(tool, args, layout);
   for (const path of named) {
     const builtIn = BUILT_IN_DENIES.find((p) => within(p, path.canonical, layout));
-    if (builtIn !== undefined) return `${tool} on ${spelled(path)} is refused: ${USER_CONFIG_MOUNT} is Orkeon Code's own`;
+    if (builtIn !== undefined) return refusedOwnMount(tool, spelled(path), USER_CONFIG_MOUNT);
     const deny = lists.deny.find((p) => within(p, path.canonical, layout));
-    if (deny !== undefined) return `${tool} on ${spelled(path)} is refused by ${PATHS_DENY_CONFIG_KEY} '${deny}'`;
+    if (deny !== undefined) return refusedByDeny(tool, spelled(path), PATHS_DENY_CONFIG_KEY, deny);
   }
   if (lists.allow.length === 0) return null;
   const outside = named.find((path) => path.unmounted !== true && !lists.allow.some((p) => within(p, path.canonical, layout)));
-  return outside === undefined ? null : `${tool} on ${spelled(outside)} is outside ${PATHS_ALLOW_CONFIG_KEY}`;
+  return outside === undefined ? null : outsideAllow(tool, spelled(outside), PATHS_ALLOW_CONFIG_KEY);
 }

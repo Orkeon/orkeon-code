@@ -13,6 +13,7 @@
 // silent for a different reason (the operator would think the model is gone).
 // Same rule as `review.lenses`: an unrecognised entry is reported and the
 // operation proceeds.
+import { modelNotDeclared } from "./messages.ts";
 
 /** Nothing declared. Means UNKNOWN — never "no model is available". */
 export const NO_DECLARED_MODELS: readonly string[] = [];
@@ -58,10 +59,7 @@ export function judgeModelChoice(models: readonly string[], name: string): Model
   }
   return {
     accepted: true,
-    warning:
-      `'${name}' is not among the models this host declares (${models.join(", ")}). ` +
-      "Setting it anyway — the list comes from Llm:AvailableModels in the settings and may be " +
-      "incomplete. If the provider does not serve it, the next turn fails with an API error.",
+    warning: modelNotDeclared(name, models.join(", ")),
   };
 }
 
@@ -79,8 +77,3 @@ export function renderModelList(
     .map((m) => `  ${m.toLowerCase() === active ? "*" : " "} ${m}`)
     .join("\n");
 }
-
-/** Why the list is empty — the two cases an operator can act on. */
-export const NO_CATALOGUE_NOTE =
-  "no models declared. Add `\"AvailableModels\": [\"…\"]` to the `Llm` section of the settings " +
-  "file (or Llm__AvailableModels=a,b in the environment) and /model can offer the choice.";

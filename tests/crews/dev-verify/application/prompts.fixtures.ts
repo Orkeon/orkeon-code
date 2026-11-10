@@ -3,7 +3,7 @@ import type { AuditBriefInput, ValidationReport } from "../../../../src/crews/de
 import { AUDITOR_SYSTEM } from "../../../../src/crews/dev-verify/application/prompts.ts";
 import type { AuditAnswer } from "../../../../src/crews/dev-verify/domain/audit-answer.ts";
 import { MAX_VALIDATIONS } from "../../../../src/crews/dev-verify/domain/audit-answer.ts";
-import { PROJECT_LIST_RULE } from "../../../../src/shared/domain/dev/project-files.ts";
+import { PROJECT_LIST_RULE } from "../../../../src/shared/domain/dev/prompts/brief-blocks.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 import { BOUNDED_READ_RULE, KNOWN_TOOLS_RULE } from "../../../../src/shared/domain/dev/reading-rule.ts";
 import { describeCodeIntelRouting } from "../../../../src/shared/domain/code-intel-routing.ts";

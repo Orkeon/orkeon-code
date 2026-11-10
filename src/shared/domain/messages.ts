@@ -183,3 +183,70 @@ export const notAllowedValue = (value: string, key: string, allowed: readonly st
   `'${value}' is not valid for '${key}'. Allowed: ${allowed.join(", ")}`;
 export const invalidValue = (value: string, key: string, problem: string): string =>
   `'${value}' is not valid for '${key}': ${problem}`;
+
+// ── Saved agents ────────────────────────────────────────────────────────
+
+export const invalidAgentName = (name: string): string =>
+  `'${name}' is not a valid agent name (lowercase letters, digits and '-', starting with a letter)`;
+export const agentNeedsRole = (name: string): string => `agent '${name}' needs a role`;
+export const agentNeedsGoal = (name: string): string => `agent '${name}' needs a goal`;
+export const DISCOVERED_IN_CREWS = "discovered in crews/ — read-only here";
+export const shadowedByCrew = (role: string): string => `⚠ shadowed by the crew of the same name — never dispatched. ${role}`;
+
+// ── Compaction outcome and trigger ──────────────────────────────────────
+
+export const stateOfBatch = (path: string): string => `\nstate of the batch in progress: ${path}`;
+export const noStateFileWritten = (skipped: string): string => `\nno state file written: ${skipped}`;
+export const BUFFER_TOO_SMALL_TO_COMPACT = "Buffer too small to compact.";
+export const SNIPPED_INSTEAD = "\nThe buffer was snipped instead: the earlier turns were removed without a summary.";
+export const A_TOKEN_COUNT = "a token count such as 90000 or 90k";
+
+// ── The host layout (launch.json) ───────────────────────────────────────
+
+export const LAUNCH_NOT_AN_OBJECT = "launch.json is not an object";
+export const launchVersionIsNot = (version: string, expected: number | string): string =>
+  `launch.json version ${version} is not ${expected}`;
+export const launchFlavourIsNot = (flavour: string): string => `launch.json flavour '${flavour}' is not posix, wsl or windows`;
+export const LAUNCH_MOUNTS_NOT_AN_OBJECT = "launch.json mounts is not an object";
+export const notAMountPoint = (virtual: string): string => `launch.json mount '${virtual}' is not a mount point`;
+export const mountHasNoBases = (virtual: string): string => `launch.json mount '${virtual}' has no bases`;
+export const posixBaseNotAbsolute = (virtual: string, base: string): string =>
+  `launch.json mount '${virtual}': posix base '${base}' is not an absolute path`;
+export const windowsBaseNotADrive = (virtual: string, base: string): string =>
+  `launch.json mount '${virtual}': windows base '${base}' is not a drive or UNC path`;
+export const mountNoUsableBase = (virtual: string): string => `launch.json mount '${virtual}' has no usable base`;
+export const wslWhere = (distro: string, root: string): string => `wsl (${distro}, drives under ${root})`;
+export const noMountBase = (where: string): string => `${where}, no mount base: every path as the runtime spells it`;
+
+// ── The LLM profile, the model catalogue ────────────────────────────────
+
+export const PROFILE_NAME_EXPECTED = "a profile name is expected";
+export const profileHoldsSpace = (value: string): string =>
+  `'${value}' holds a space: a profile is one name, as the host's settings spell it`;
+export const profileHoldsColon = (value: string): string => `'${value}' holds a colon: name the profile alone, not its settings path`;
+export const modelNotDeclared = (name: string, models: string): string =>
+  `'${name}' is not among the models this host declares (${models}). ` +
+  "Setting it anyway — the list comes from Llm:AvailableModels in the settings and may be " +
+  "incomplete. If the provider does not serve it, the next turn fails with an API error.";
+
+/** Why the list is empty — the two cases an operator can act on. */
+export const NO_CATALOGUE_NOTE =
+  "no models declared. Add `\"AvailableModels\": [\"…\"]` to the `Llm` section of the settings " +
+  "file (or Llm__AvailableModels=a,b in the environment) and /model can offer the choice.";
+
+// ── The fallback permission mode ────────────────────────────────────────
+
+export const builtInFallback = (mode: string, key: string): string =>
+  `built-in default '${mode}' (asks on writes, like the original) — ` +
+  `set '${key}' to change it`;
+export const fallbackNotAMode = (key: string, raw: string, mode: string, modes: string): string =>
+  `'${key}' is '${raw}', which is not a permission mode — ` +
+  `IGNORED, running the built-in '${mode}'. ` +
+  `Expected one of: ${modes}`;
+export const SANDBOXED_POSTURE = " — sandboxed posture: the container/VFS is the security boundary, approvals never stall a session";
+
+// ── Secret patterns, speech ─────────────────────────────────────────────
+
+export const PRIVATE_KEY_BLOCK = "private key block";
+export const AWS_ACCESS_KEY_ID = "AWS access key id";
+export const REPLY_READ_ALOUD = "Reply read aloud";

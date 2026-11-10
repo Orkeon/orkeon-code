@@ -10,6 +10,10 @@ import { normalisePath } from "../dev/call-guard.ts";
 import { MAX_TOPIC_CHARS, MEMORY_DIR, TOPIC_PATTERN } from "./refused.ts";
 import type { EntryType } from "./entry.ts";
 import { WORKSPACE } from "../vfs.ts";
+import {
+  AN_EMPTY_FOLDER, notAMemoryFolder, notAProjectName, theAgentMemoryFolder, theShellCommand, withTheGlob,
+  writesUnderMemory,
+} from "./messages.ts";
 
 export const MEMORY_DIR_CONFIG_KEY = "memory.dir";
 export const MEMORY_PROJECT_CONFIG_KEY = "memory.project";
@@ -25,13 +29,13 @@ const within = (inner: string, outer: string): boolean => inner === outer || inn
 export function checkMemoryDir(raw: string): { ok: true; dir: string } | { ok: false; reason: string } {
   const check = normalizeWorkDir(raw);
   if (!check.ok) return { ok: false, reason: check.reason };
-  if (check.folder === "") return { ok: false, reason: "an empty folder" };
+  if (check.folder === "") return { ok: false, reason: AN_EMPTY_FOLDER };
   // normalizeWorkDir compares the first segment as written; a case-insensitive file system (macOS, Windows)
   // reads `.Claude/` as the harness's folder.
   const first = check.folder.split("/")[0].toLowerCase();
   if (first === ".claude" || first === ".git") return { ok: false, reason: "under .claude/ or .git/" };
   if (within(check.folder, AGENT_MEMORY_DIR) || within(AGENT_MEMORY_DIR, check.folder)) {
-    return { ok: false, reason: `the agent memory's folder ${AGENT_MEMORY_DIR} (the two stay apart)` };
+    return { ok: false, reason: theAgentMemoryFolder(AGENT_MEMORY_DIR) };
   }
   return { ok: true, dir: check.folder };
 }
@@ -39,12 +43,12 @@ export function checkMemoryDir(raw: string): { ok: true; dir: string } | { ok: f
 /** For CONFIG_KEYS.problem: undefined when valid, else the reason. */
 export function memoryDirProblem(value: string): string | undefined {
   const check = checkMemoryDir(value);
-  return check.ok ? undefined : `'${value}' is not a folder of the project for the memory: ${check.reason}`;
+  return check.ok ? undefined : notAMemoryFolder(value, check.reason);
 }
 
 /** For CONFIG_KEYS.problem: a project name is a kebab-case name, as the entries' ids start with it. */
 export function memoryProjectProblem(value: string): string | undefined {
-  return TOPIC_PATTERN.test(value) ? undefined : `a kebab-case name of at most ${MAX_TOPIC_CHARS} characters (e.g. 'orkeon-code')`;
+  return TOPIC_PATTERN.test(value) ? undefined : notAProjectName(MAX_TOPIC_CHARS);
 }
 
 /** The RAG collection of a project's memory (one per project). */
@@ -133,8 +137,7 @@ const literalHead = (glob: string): string => {
 export function memoryWriteRefusal(dir: string, tool: string, input: unknown): string | null {
   const args = input !== null && typeof input === "object" && !Array.isArray(input) ? input as Readonly<Record<string, unknown>> : {};
   const folders = MEMORY_LEAVES.map((leaf) => resolvedLower(`${dir}/${leaf}`));
-  const said = (what: string): string =>
-    `${what} writes under ${dir}/candidates/ or ${dir}/entries/: a candidate comes from memory_push, an entry from /memory-admit`;
+  const said = (what: string): string => writesUnderMemory(what, dir);
   const under = (path: unknown): boolean => typeof path === "string" && path.trim() !== ""
     && folders.some((f) => inside(resolvedLower(path.trim()), f));
   if (PATH_WRITE_TOOLS.some((t) => sameToolName(t, tool))) return under(args.path) ? said(`${tool} on '${String(args.path)}'`) : null;
@@ -155,7 +158,7 @@ export function memoryWriteRefusal(dir: string, tool: string, input: unknown): s
       if (!folders.some((f) => f.startsWith(`${resolved}/`))) continue;
       const head = glob === null ? `${resolved}/` : resolvedLower(`${resolved}/${literalHead(glob)}`) + (literalHead(glob).endsWith("/") ? "/" : "");
       if (folders.some((f) => `${f}/`.startsWith(head) || head.startsWith(`${f}/`))) {
-        return said(`${tool} on '${base}'${glob === null ? "" : ` with the glob '${glob}'`}`);
+        return said(`${tool} on '${base}'${glob === null ? "" : withTheGlob(glob)}`);
       }
     }
     return null;
@@ -177,7 +180,7 @@ export function memoryWriteRefusal(dir: string, tool: string, input: unknown): s
       return true;
     };
     const hit = shellCommandForms(args.command).some((form) => MEMORY_LEAVES.some((leaf) => reaches(form.toLowerCase(), leaf)));
-    return hit ? said(`the shell command '${args.command}'`) : null;
+    return hit ? said(theShellCommand(args.command)) : null;
   }
   return null;
 }

@@ -197,3 +197,38 @@ export const concurrencyModeAsks = (n: number, mode: string): string =>
 export const concurrencyGitFails = (n: number): string =>
   `concurrency ${n} refused: git does not work inside a worktree under this shell confinement (Tools:Shell:Confinement:Mode)` +
   "; a runtime from Orkeon/orkeon#191 on binds a linked worktree's git dir: update it, or run with --concurrency 1";
+
+// ── Build commands, tool arguments, whitespace, work folder ─────────────
+
+export const PACK_HAS_NO_BUILD = "the pack has no commands.build";
+export const PACK_HAS_NO_BUILD_TEST = "the pack has no commands.build_test to build one project";
+export const buildTestPlaceholders = (holes: number, template: string): string =>
+  `commands.build_test has ${holes} placeholders, not one: '${template}'`;
+export const stepRulesDenyShell = (command: string): string => `the rules of this step deny the shell command '${command}'`;
+export const argumentNotAString = (key: string): string => `'${key}' is not a string`;
+export const argumentNotOneLine = (key: string, max: number): string => `'${key}' is not one line of at most ${max} characters`;
+export const trailingWhitespace = (lines: number): string => `trailing whitespace on ${lines} line${lines === 1 ? "" : "s"}`;
+export const ONE_BLANK_LINE_AT_EOF = "a blank line at EOF removed";
+export const blankLinesAtEof = (blank: number): string => `${blank} blank lines at EOF removed`;
+export const AN_ABSOLUTE_PATH = "an absolute path";
+export const AN_EMPTY_SEGMENT = "an empty segment";
+export const notARelativeFolder = (value: string, reason: string): string =>
+  `'${value}' is not a relative folder of the checkout: ${reason}`;
+
+// ── /dev-learn ──────────────────────────────────────────────────────────
+
+export const THE_TOP_LEVEL = "the top level";
+export const hasTheWrongShape = (what: string): string => `${what} has the wrong shape`;
+export const fieldHasTheWrongShape = (file: string, field: string): string => `${file}: ${field} has the wrong shape`;
+export const acceptedHarness = (id: string, title: string): string =>
+  `accepted ${id} — ${title}: a harness file is never edited here; apply this in the orkeon-workshop repository:`;
+export const acceptedRepository = (id: string, title: string, path: string): string =>
+  `accepted ${id} — ${title}: ${path} is not edited by /dev-learn; make the change in a batch (/dev-spec <code> refactor, or by hand):`;
+
+// ── The permission gate of a dev step ───────────────────────────────────
+
+export const GATE_ONLY_HINT = " /dev-batches <code> F<n> --audit --gate-only runs no model and needs no gate.";
+export const gateIsOff = (step: string, setting: string, command: string, gateOnly: string): string =>
+  `${step}: refused: the host's permission gate is off (${setting} is not true), so the step's rule ` +
+  `sets and its read-only mode would check nothing. The launcher turns the gate on unless a settings file turns ` +
+  `it off: remove that setting, restart the REPL and run /${command} again.${gateOnly}`;

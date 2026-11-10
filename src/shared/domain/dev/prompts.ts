@@ -9,7 +9,8 @@ import { NEXT_BATCH_REVIEWER_CHARTER, REVIEWER_TOOLS } from "./reviewer-charter.
 import { describeCodeIntelRouting } from "../code-intel-routing.ts";
 import { carry } from "./carried-text.ts";
 import type { CarriedText } from "./carried-text.ts";
-import { PROJECT_LIST_RULE, projectFileLines } from "./project-files.ts";
+import { projectFileLines } from "./project-files.ts";
+import { PROJECT_LIST_RULE } from "./prompts/brief-blocks.ts";
 
 export type ReviewMode = "plan" | "spec" | "change" | "next-batch";
 

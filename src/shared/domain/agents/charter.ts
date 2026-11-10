@@ -6,6 +6,9 @@
 import type { PermissionMode } from "../permission-modes.ts";
 import { catalogueFor } from "../agent-policy/permission.ts";
 import { policyFor } from "../agent-policy/mode-policy.ts";
+import {
+  charterIterations, charterModeCanWrite, charterNameNotKebab, charterNoToolLeft, charterToolNotOffered,
+} from "./messages.ts";
 
 /** A check's outcome: the value, or what is wrong with it. */
 export type Checked<T> = { ok: true; value: T } | { ok: false; problems: string[] };
@@ -43,19 +46,19 @@ export function charterCatalogue(charter: Charter): string[] {
 export function charterProblems(charter: Charter): string[] {
   const { name, mode, maxIterations } = charter;
   const problems: string[] = [];
-  if (!CHARTER_NAME.test(name)) problems.push(`charter name '${name}' is not a kebab-case name of 2 to 40 characters`);
+  if (!CHARTER_NAME.test(name)) problems.push(charterNameNotKebab(name));
   if (!policyFor(mode).readOnly) {
-    problems.push(`charter ${name}: mode ${mode} can write; a sub-agent runs read-only (plan or dontAsk) for now`);
+    problems.push(charterModeCanWrite(name, mode));
   }
   const offered = new Set(offeredIn(mode));
   for (const tool of charter.tools) {
-    if (!offered.has(tool)) problems.push(`charter ${name}: ${tool} is not offered in mode ${mode}`);
+    if (!offered.has(tool)) problems.push(charterToolNotOffered(name, tool, mode));
   }
   if (charterCatalogue(charter).length === 0) {
-    problems.push(`charter ${name}: no tool left once the mode and the disallowed list apply`);
+    problems.push(charterNoToolLeft(name));
   }
   if (!(Number.isInteger(maxIterations) && maxIterations >= 1 && maxIterations <= MAX_CHARTER_ITERATIONS)) {
-    problems.push(`charter ${name}: maxIterations ${maxIterations} is not between 1 and 80`);
+    problems.push(charterIterations(name, maxIterations));
   }
   return problems;
 }

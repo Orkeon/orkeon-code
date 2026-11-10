@@ -5,6 +5,7 @@ import { ENTRY_TYPES } from "./entry.ts";
 import type { EntryType, MemoryEntry } from "./entry.ts";
 import { MIN_MOTIF_BATCHES } from "./verdict-rows.ts";
 import { batchesOf } from "./candidates.ts";
+import { auditedMistakeBatches, SOURCE_NOT_KNOWN, sourceAdmits } from "./messages.ts";
 
 export type SourceKind = "verdict" | "audit" | "human";
 
@@ -27,13 +28,13 @@ export function sourceKind(source: string): SourceKind | undefined {
 /** Why the entry's source cannot admit its type; undefined when it can. */
 export function admissionProblem(entry: Pick<MemoryEntry, "type" | "source">): string | undefined {
   const kind = sourceKind(entry.source);
-  if (kind === undefined) return "its source is not verdict:, audit: or human:";
+  if (kind === undefined) return SOURCE_NOT_KNOWN;
   const types = ADMITTED_TYPES_BY_SOURCE[kind];
-  if (!types.includes(entry.type)) return `${kind === "audit" ? "an" : "a"} ${kind}: source admits ${types.join(" or ")}, not ${entry.type}`;
+  if (!types.includes(entry.type)) return sourceAdmits(kind, types.join(" or "), entry.type);
   if (kind === "audit" && entry.type === "mistake") {
     const batches = batchesOf(entry.source);
     const n = batches === "-" ? 0 : Number(batches);
-    if (n < MISTAKE_MIN_BATCHES) return `an audited mistake names ${MISTAKE_MIN_BATCHES} batches' verdict files at least, this one ${n}`;
+    if (n < MISTAKE_MIN_BATCHES) return auditedMistakeBatches(MISTAKE_MIN_BATCHES, n);
   }
   return undefined;
 }

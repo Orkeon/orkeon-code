@@ -7,6 +7,7 @@ import type { PermissionRule } from "../agent-policy/permission.ts";
 import { ruleDecision, shellCommandForms } from "../agent-policy/permission.ts";
 import { gitConfigSets, holdsGitReadonly } from "../agent-policy/rule-sets.ts";
 import { WORKSPACE } from "../vfs.ts";
+import { argumentNotAString, argumentNotOneLine, stepRulesDenyShell } from "./messages.ts";
 
 /** One check of a call: the reason it is refused, or null when it passes. */
 export type Guard<T> = (call: T) => string | null;
@@ -33,7 +34,7 @@ export function shellRuleGuard(rules: readonly PermissionRule[]): Guard<string> 
     shellCommandForms(command).some((form) =>
       ruleDecision(rules, "shell_command", { command: form, working_directory: WORKSPACE }) === "deny")
       || (gitConfig && gitConfigSets(command))
-      ? `the rules of this step deny the shell command '${command}'`
+      ? stepRulesDenyShell(command)
       : null;
 }
 
@@ -46,9 +47,9 @@ export function stringArgument(input: unknown, key: string, required: boolean): 
   if (value === undefined || value === null || value === "") {
     return required ? { refused: `'${key}' is required` } : {};
   }
-  if (typeof value !== "string") return { refused: `'${key}' is not a string` };
+  if (typeof value !== "string") return { refused: argumentNotAString(key) };
   if (/[\r\n]/.test(value) || value.length > MAX_ARGUMENT_CHARS) {
-    return { refused: `'${key}' is not one line of at most ${MAX_ARGUMENT_CHARS} characters` };
+    return { refused: argumentNotOneLine(key, MAX_ARGUMENT_CHARS) };
   }
   return { value: value.trim() };
 }

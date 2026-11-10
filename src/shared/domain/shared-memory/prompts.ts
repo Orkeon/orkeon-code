@@ -15,3 +15,14 @@ export const morePrecedentsNotShown = (n: number): string => `${n} more preceden
 
 /** The line that opens a topic whose precedents disagree across projects. */
 export const topicDisagrees = (topic: string): string => `Topic ${topic} — projects disagree:`;
+
+// ── The text of a harvested or imported entry ───────────────────────────
+
+export const importedFrom = (agent: string, index: string, line: number): string =>
+  `Imported from the harness agent memory of ${agent} (${index}, line ${line}).`;
+export const harvestedFrom = (rows: number, batches: number): string => `Harvested from ${rows} audit rows of ${batches} batches.`;
+export const moreRows = (n: number): string => `- and ${n} more rows`;
+export const auditedOnAxis = (axis: string): string => `a batch is audited on the ${axis} axis`;
+export const flaggedInBatches = (n: number, batches: string): string => `the audit flagged it in ${n} batches: ${batches}`;
+export const SEE_EXPECTED_FIX = "see the expected fix of the rows under Evidence";
+export const auditRowOnAxis = (axis: string, gap: string): string => `an audit row on the ${axis} axis: ${gap}`;

@@ -3,6 +3,7 @@
 // request applies (the config key before the pack's layout.work), and the two
 // readings of git output the resolution needs. Nothing here touches a file or
 // runs a command; resolve-work-folder.ts does, through the ports.
+import { AN_ABSOLUTE_PATH, AN_EMPTY_SEGMENT, notARelativeFolder } from "./messages.ts";
 
 export const DEFAULT_WORK_FOLDER = "workbench";
 export const DEV_WORK_DIR_CONFIG_KEY = "dev.workDir";
@@ -22,8 +23,8 @@ export function normalizeWorkDir(raw: string): WorkDirCheck {
   }
   if (w === "") return { ok: true, folder: "" };
   const parts = w.split("/");
-  if (w.startsWith("/")) return { ok: false, reason: "an absolute path" };
-  if (w.includes("//")) return { ok: false, reason: "an empty segment" };
+  if (w.startsWith("/")) return { ok: false, reason: AN_ABSOLUTE_PATH };
+  if (w.includes("//")) return { ok: false, reason: AN_EMPTY_SEGMENT };
   if (parts.includes("..") || parts.includes(".")) return { ok: false, reason: "a '..' or '.' segment" };
   if (parts[0] === ".claude" || parts[0] === ".git") return { ok: false, reason: "under .claude/ or .git/" };
   if (NON_PRINTABLE.test(w)) return { ok: false, reason: "a non-printable character" };
@@ -33,7 +34,7 @@ export function normalizeWorkDir(raw: string): WorkDirCheck {
 /** For CONFIG_KEYS.problem: undefined when valid, else the reason. */
 export function workFolderProblem(value: string): string | undefined {
   const check = normalizeWorkDir(value);
-  return check.ok ? undefined : `'${value}' is not a relative folder of the checkout: ${check.reason}`;
+  return check.ok ? undefined : notARelativeFolder(value, check.reason);
 }
 
 export type WorkDirSource = "dev.workDir" | "layout.work";

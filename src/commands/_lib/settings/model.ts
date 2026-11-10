@@ -30,9 +30,8 @@ import { DEFAULT_EFFORT, EFFORT_LEVELS, providerEffort } from "../../../shared/d
 import { EFFORT_STATE_KEY, MODEL_PREFERENCE_STATE_KEY } from "../../../shared/domain/session-keys.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import { readLlmProfile } from "../../../shared/application/llm-profile.ts";
-import {
-  judgeModelChoice, renderModelList, NO_CATALOGUE_NOTE,
-} from "../../../shared/domain/model-catalog.ts";
+import { judgeModelChoice, renderModelList } from "../../../shared/domain/model-catalog.ts";
+import { NO_CATALOGUE_NOTE } from "../../../shared/domain/messages.ts";
 import type { CommandView } from "../view.ts";
 import { optionsOf } from "./choices.ts";
 import { runEffort } from "./effort.ts";

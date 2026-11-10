@@ -8,6 +8,7 @@
 //
 // An entry starting with `*` (`*.csproj`) names no file: it matches the top-level entries ending with the
 // rest (`App.csproj`), which only a listing of the workspace root shows, since Files.read takes a path.
+import { cutNotShown, filesLeftOut } from "./prompts.ts";
 
 /**
  * The manifests that state commands (scripts, targets, tasks), relative to the workspace root, in read
@@ -55,12 +56,12 @@ export const MAX_MANIFESTS_MATERIAL_CHARS = 24_000;
 
 /** The line that closes the visible part of a manifest (or a section) cut at its bound. */
 export function cutLine(omitted: number, what = "this file"): string {
-  return `[… cut: ${omitted} characters of ${what} not shown …]`;
+  return cutNotShown(omitted, what);
 }
 
 /** The line that ends the manifests material when files were left out of it, naming them. */
 export function leftOutLine(paths: readonly string[], max = MAX_MANIFESTS_MATERIAL_CHARS): string {
-  return `[… cut: ${paths.length} file(s) left out, over ${max} characters: ${paths.join(", ")} …]`;
+  return filesLeftOut(paths.length, max, paths.join(", "));
 }
 
 /** The folder of the CI workflows, relative to the workspace root. */

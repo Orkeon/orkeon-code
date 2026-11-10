@@ -4,9 +4,9 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, ok } from "node:assert";
 
 import {
-  normalizeModelList, isDeclaredModel, judgeModelChoice, renderModelList,
-  NO_CATALOGUE_NOTE, NO_DECLARED_MODELS,
+  normalizeModelList, isDeclaredModel, judgeModelChoice, renderModelList, NO_DECLARED_MODELS,
 } from "../../../src/shared/domain/model-catalog.ts";
+import { NO_CATALOGUE_NOTE } from "../../../src/shared/domain/messages.ts";
 import { NOT_LISTS } from "./model-catalog.fixtures.ts";
 import { assertMentions } from "../../support/assertions/text.ts";
 

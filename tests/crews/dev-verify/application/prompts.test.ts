@@ -15,7 +15,7 @@ import {
 } from "./prompts.fixtures.ts";
 import { assertWithinBrief } from "./prompts.assertions.ts";
 import { assertBefore, assertMentions, assertOmits } from "../../../support/assertions/text.ts";
-import { PROJECT_FILES_HEADING } from "../../../../src/shared/domain/dev/project-files.ts";
+import { PROJECT_FILES_HEADING } from "../../../../src/shared/domain/dev/prompts/brief-blocks.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 
 describe("AUDITOR_SYSTEM — one marker per behaviour", () => {

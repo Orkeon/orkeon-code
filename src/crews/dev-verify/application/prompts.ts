@@ -9,7 +9,8 @@ import type { AuditAnswer, AuditRow } from "../domain/audit-answer.ts";
 import { cut } from "../domain/text.ts";
 import { MAX_BRIEF_CHARS } from "../../../shared/domain/agents/charter.ts";
 import { BOUNDED_READ_RULE, KNOWN_TOOLS_RULE } from "../../../shared/domain/dev/reading-rule.ts";
-import { PROJECT_LIST_RULE, projectFileLines } from "../../../shared/domain/dev/project-files.ts";
+import { projectFileLines } from "../../../shared/domain/dev/project-files.ts";
+import { PROJECT_LIST_RULE } from "../../../shared/domain/dev/prompts/brief-blocks.ts";
 import { describeCodeIntelRouting } from "../../../shared/domain/code-intel-routing.ts";
 import { AUDITOR_TOOLS } from "../domain/auditor-charter.ts";
 

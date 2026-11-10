@@ -8,7 +8,7 @@ import { ok, strictEqual } from "node:assert";
 
 import { MAX_REVIEW_REPLY_CHARS, buildReviewAnswerPrompt, buildReviewBrief, reviewSystem } from "../../../../src/shared/domain/dev/prompts.ts";
 import { MAX_BRIEF_CHARS } from "../../../../src/shared/domain/agents/charter.ts";
-import { PROJECT_FILES_HEADING } from "../../../../src/shared/domain/dev/project-files.ts";
+import { PROJECT_FILES_HEADING } from "../../../../src/shared/domain/dev/prompts/brief-blocks.ts";
 import { BOUNDED_READ_RULE, NODE_READ_RULE } from "../../../../src/shared/domain/dev/reading-rule.ts";
 import { assertBefore, assertMentions, assertOmits } from "../../../support/assertions/text.ts";
 import { assertHolds, assertLacks, assertNoMarker } from "./prompts.assertions.ts";

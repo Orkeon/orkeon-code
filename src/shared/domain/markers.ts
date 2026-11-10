@@ -22,3 +22,9 @@ export const TURN_CONTEXT_MARKER = "[turn-context]";
 
 /** The marker of a turn's tool trace; the header names it as material. */
 export const TOOL_TRACE_MARKER = "[tools]";
+
+/** The reason a compaction is skipped when the buffer holds too little to summarise. */
+export const BUFFER_TOO_SMALL = "buffer too small";
+
+/** The line that closes the output of the session start script. */
+export const SESSION_START_END_MARKER = "\n[End of session start script]";

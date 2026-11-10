@@ -23,9 +23,8 @@ import { errorText } from "../../shared/domain/prelude.ts";
 import type { EpilogueCall, PreludeCall } from "../../shared/domain/prelude.ts";
 import type { StartOutput } from "../../shared/domain/session-start.ts";
 import { SPEAK_TOOL, VOICE_REPLY_CONFIG_KEY, voiceReplyEpilogue, voiceReplyOn } from "../../shared/domain/speech.ts";
-import {
-  EXTRA_TOOLS_CONFIG_KEY, EXTRA_TOOL_ENTRY_RULE, formatExtraTool,
-} from "../../shared/domain/agent-policy/extra-tools.ts";
+import { EXTRA_TOOLS_CONFIG_KEY, formatExtraTool } from "../../shared/domain/agent-policy/extra-tools.ts";
+import { EXTRA_TOOL_ENTRY_RULE } from "../../shared/domain/agent-policy/messages.ts";
 
 /** The command's log as the runtime hands it to a command: a line and its details. */
 export interface CommandLog {
