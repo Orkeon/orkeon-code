@@ -49,6 +49,7 @@ import { outcomeOf, runBatchChain } from "./application/run-wave.ts";
 import type { BatchRun } from "./application/run-wave.ts";
 import type { BatchesContext } from "./application/run-dev-batches.ts";
 import { runDevBatches } from "./application/run-dev-batches.ts";
+import { DEV_BATCHES_GOAL, PROBE_GOAL, batchAgentGoal } from "./application/prompts.ts";
 
 const effort = providerEffort(inputs().effort);
 // A batch agent writes and audits: the implementer's tools and the auditor's read tools.
@@ -70,7 +71,7 @@ function batchAgent(run: BatchRun, context: BatchesContext) {
   const builder = orkeonAgent()
     .name(`batch-${run.batch}`)
     .role("Batch runner")
-    .goal(`Run batch ${run.batch} of ${run.code} test-first under its worktree, audit it and commit it there`)
+    .goal(batchAgentGoal(run.batch, run.code))
     .workingRoot(run.root)
     .tools(BATCH_TOOLS)
     .withAutonomousTools(tools)
@@ -92,7 +93,7 @@ function batchAgent(run: BatchRun, context: BatchesContext) {
 const builder = orkeonAgent()
   .name("dev-batches")
   .role("Batch driver")
-  .goal("Run a plan's batches in the order their dependencies allow, and close the plan with one pull request")
+  .goal(DEV_BATCHES_GOAL)
   // The reviewer's read tools, for the review of the next batch; the rest is code's.
   .tools(charterCatalogue(REVIEWER_CHARTER))
   .maxIterations(REVIEWER_CHARTER.maxIterations)
@@ -120,7 +121,7 @@ const builder = orkeonAgent()
         const probe = orkeonAgent()
           .name(`probe-${root.slice(root.lastIndexOf("/") + 1)}`)
           .role("Worktree probe")
-          .goal("Say git's top under the worktree")
+          .goal(PROBE_GOAL)
           .workingRoot(root)
           .tools(["shell_command"])
           .body(async (_i: any, pctx: any) => JSON.stringify(await gitTopUnder(pctx.tools, root)));

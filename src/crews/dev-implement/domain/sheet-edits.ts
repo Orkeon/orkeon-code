@@ -3,6 +3,7 @@
 // the done marks - the sheet's title ` — done (<date>)`, the plan's `### Batch F<n> — <Name> — done (<date>)` and
 // its step boxes ticked. Each edit is idempotent. Pure, never throws.
 import { parseBatchSheet, unfencedLines } from "../../../shared/domain/dev/plan-format.ts";
+import { ASSUMPTIONS_TABLE_HEAD as TABLE_HEAD } from "./markers.ts";
 
 /** An answer's way of saying it assumed nothing: `none`, `none needed — …`, `n/a`, `nothing`. */
 const NO_ASSUMPTION = /^(?:none|n\/a|nothing)\b/i;
@@ -17,8 +18,6 @@ export function assumptionsOf(answer: string): string[] {
   }
   return out;
 }
-
-const TABLE_HEAD = ["| # | Assumption | To be validated by |", "|---|------------|--------------------|"];
 
 /** The sheet with each new assumption as an `H<n>` row of the `## Assumptions` table (`/dev-plan` renders it empty;
  *  the section created before `## Decisions`, else at the end), numbered after the rows it holds, the list lines of

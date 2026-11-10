@@ -57,6 +57,18 @@ import type { PrContext } from "./touched.ts";
 import { closeDevBatch } from "./close.ts";
 import { BATCHES_ACTIVE_RECORD, batchesRunCode } from "../../../shared/domain/dev/batches-state.ts";
 import { WORKSPACE, workspaceRelative } from "../../../shared/domain/vfs.ts";
+import { askCostLine } from "./prompts.ts";
+import {
+  BUILD_NOT_RUN, FAILURE_NOT_CHECKED, NO_PRODUCTION_CHANGED, NO_REPOSITORY_PACK, NO_TEST_LAYOUT, SHEET_PUT_BACK, TEST_NOT_RUN,
+  WHOLE_SUITE_EVERY_TEST, WHOLE_SUITE_NO_TEST_PROJECT, affectedDone, affectedExited, affectedRefused, affectedStillRunning, andMore,
+  assumptionsNotWritten, assumptionsWritten, batchGreen, batchIsFn, blockedLine, buildDone, buildExited, buildRefused,
+  buildStillRunning, cannotBeRead, correctionAppended, correctionProblem, correctionStillOpen, costDone, costFlagged, costMeasured,
+  costNotComputed, gapsRoundsWarned, graphAdded, graphNotRead, graphProjectsLeftOut, greenDone, indexNotIndexed, indexNotRefreshed,
+  indexRefreshed, indexReindexFailed, notPushedInRun, notRun, readOnlyMode, readOnlyModeAtClose, redDone, restoreCouldNotRun,
+  restored, restoreExited, restoreNoVerdict, restoreRefused, restoreStillRunning, roleChangedPlanFolder, runTitle, sheetMalformed,
+  sheetNotPutBack, sheetNotWritten, shownLog, stepActProblem, testDone, testExited, testRefused, testStillRunning, whitespaceFixed,
+  whitespaceNotWritten, wholeSuiteUnplaced, workFolderOutsideMounts,
+} from "./messages.ts";
 
 export interface DevImplementInputs {
   batch?: unknown; plan?: unknown; close?: unknown; pr?: unknown; push?: unknown;
@@ -118,7 +130,7 @@ const GAPS_ROUNDS_WARNED = 2;
 
 const answer = (lines: string[], next?: ImplementAnswer["next"]): string =>
   JSON.stringify(next === undefined ? { lines } : { lines, next });
-const blocked = (lines: string[], line: string): string => answer([...lines, `BLOCKED — ${line}`]);
+const blocked = (lines: string[], line: string): string => answer([...lines, blockedLine(line)]);
 const reasonOf = (e: unknown): string => String((e as Error)?.message ?? e).split("\n")[0];
 
 interface Run {
@@ -174,7 +186,7 @@ async function writeSheet(run: Run, text: string): Promise<string | null> {
   try {
     await run.deps.files.write(run.sheetPath, text);
   } catch (e) {
-    return `the sheet could not be written: ${reasonOf(e)}`;
+    return sheetNotWritten(reasonOf(e));
   }
   run.sheetText = text;
   return null;
@@ -201,8 +213,8 @@ async function keepAssumptions(run: Run, text: string): Promise<void> {
   if (added.length === 0) return;
   const failed = await writeSheet(run, next);
   run.lines.push(failed === null
-    ? `assumption${added.length === 1 ? "" : "s"} written to ## Assumptions, to be validated by the user: ${added.join("; ")}`
-    : `⚠ assumptions not written (${failed}): ${added.join("; ")}`);
+    ? assumptionsWritten(added)
+    : assumptionsNotWritten(failed, added));
 }
 
 /** A path a write tool named, relative to /workspace. */
@@ -221,9 +233,9 @@ async function sheetPutBack(run: Run): Promise<string | null> {
   if (now === run.sheetText) return null;
   try {
     await run.deps.files.write(run.sheetPath, run.sheetText);
-    return "the sheet was changed by the role, and put back";
+    return SHEET_PUT_BACK;
   } catch (e) {
-    return `the sheet was changed by the role and could not be put back: ${reasonOf(e)}`;
+    return sheetNotPutBack(reasonOf(e));
   }
 }
 
@@ -244,7 +256,7 @@ async function act(
     .filter((p) => under(p, run.planFolder) && !under(p, run.planLogs)).sort();
   const putBack = await sheetPutBack(run);
   if (planChanges.length > 0 || putBack !== null) {
-    return `${role} changed the plan folder (${planChanges.join(", ") || run.located.name}): the sheet and the plan are code's own${putBack === null ? "" : `; ${putBack}`}`;
+    return roleChangedPlanFolder(role, planChanges.join(", ") || run.located.name, putBack);
   }
   if (!said.ok) return said.reason;
   if (!after.ok) return after.problem;
@@ -272,9 +284,9 @@ async function tidyChanged(run: Run, changed: readonly string[]): Promise<void> 
     if (tidy.fixed.length === 0) continue;
     try {
       await run.deps.files.write(`${WORKSPACE}/${path}`, tidy.text);
-      run.lines.push(`whitespace ✓ — ${path}: ${tidy.fixed.join(", ")}`);
+      run.lines.push(whitespaceFixed(path, tidy.fixed));
     } catch (error) {
-      run.lines.push(`⚠ whitespace — ${path}: ${tidy.fixed.join(", ")}, not written (${error instanceof Error ? error.message.split("\n")[0] : String(error)})`);
+      run.lines.push(whitespaceNotWritten(path, tidy.fixed, error instanceof Error ? error.message.split("\n")[0] : String(error)));
     }
   }
 }
@@ -322,13 +334,13 @@ async function costFiles(run: Run, paths: readonly string[]): Promise<CostFile[]
 /** The measured cost of the cycle's production changes, after its stated Cost line passed: a problem when the
  *  measure flags a port call or a memory filter on an added line; else the line it adds to the run's. */
 async function measuredCost(run: Run, production: readonly string[]): Promise<{ problem: string } | { line: string }> {
-  if (production.length === 0) return { line: "measured: not computed — no production file changed in this run" };
+  if (production.length === 0) return { line: NO_PRODUCTION_CHANGED };
   const cost = await measureAccessCost(run.deps.costIndex, run.pack, [], await costFiles(run, production), run.isTest);
-  if (cost.state === "not-computed") return { line: `measured: not computed — ${cost.reason}` };
+  if (cost.state === "not-computed") return { line: costNotComputed(cost.reason) };
   if (cost.exit === 2) {
-    return { problem: `measured ${cost.costLine}; flagged: ${cost.flagged.join("; ")} — back to /dev-plan (the design names the access, the code cannot move it)` };
+    return { problem: costFlagged(cost.costLine, cost.flagged) };
   }
-  return { line: `measured: ${cost.costLine}` };
+  return { line: costMeasured(cost.costLine) };
 }
 
 /** The step's `to create` production paths that are still to create: neither written in this run nor present in the
@@ -401,31 +413,31 @@ async function runCycle(run: Run, cycle: Cycle): Promise<string | null> {
     const t3 = await recallForRed(run, step);
     const carried = await carriedFor(run, [testFileOf(step)]);
     const done = await act(run, "test-author", withPrecedents(redContract({ ...contractInput(run, step, command.command, carried), stubs }), [t3, run.correction, run.stale]), stubs);
-    if (typeof done === "string") return `step ${step.number} RED: ${done}`;
+    if (typeof done === "string") return stepActProblem(step.number, "RED", done);
     run.ran.push(step);
     const earlier = before;
     red = await run.tools.runTests({ command: command.command });
     const problem = redProblem(done.changed, run.isTest, observedRun(red), stubs);
-    if (problem !== null) return `step ${step.number} RED: ${problem}${logOf(red)}`;
+    if (problem !== null) return stepActProblem(step.number, "RED", `${problem}${logOf(red)}`);
     // A later step of the cycle: its file failed already, so its own tests must add a failure.
     const added = earlier !== null && red.ok ? addedFailure(earlier, red.tail) : "ok";
-    if (typeof added === "object") return `step ${step.number} RED: ${added.problem}${logOf(red)}`;
+    if (typeof added === "object") return stepActProblem(step.number, "RED", `${added.problem}${logOf(red)}`);
     done.changed.forEach((p) => { run.touched.add(p); if (!run.isTest(p)) production.add(p); });
     const failed = await tick(run, step, "RED");
-    if (failed !== null) return `step ${step.number} RED: ${failed}`;
+    if (failed !== null) return stepActProblem(step.number, "RED", failed);
     before = red.ok ? red.tail : null;
     await recordRedCount(run, step, red.ok ? failureCount(red.tail) : null);
     const wroteStubs = done.changed.filter((p) => !run.isTest(p));
     wroteStubs.forEach((p) => stubbed.add(p));
-    const unchecked = added === "unknown" ? " (its own failure not checked: the run's tail shows no failure count)" : "";
-    run.lines.push(`step ${step.number} RED ✓ — ${done.changed.filter(run.isTest).join(", ")}${wroteStubs.length === 0 ? "" : ` (stubs: ${wroteStubs.join(", ")})`}${unchecked}`);
+    const unchecked = added === "unknown" ? FAILURE_NOT_CHECKED : "";
+    run.lines.push(redDone(step.number, done.changed.filter(run.isTest).join(", "), wroteStubs, unchecked));
   }
 
   let costText: string | null = null;
   const green = steps.filter((s) => !s.tdd?.green);
   if (green.length > 0) {
     red ??= await run.tools.runTests({ command: command.command });
-    const redTail = red.ok ? { tail: red.tail, log: red.log } : { tail: `(not run: ${red.refused})`, log: null };
+    const redTail = red.ok ? { tail: red.tail, log: red.log } : { tail: notRun(red.refused), log: null };
     const greenLabel = stepsLabel(green);
     // The production files too: a stub RED wrote, an existing module, so that GREEN opens none of them.
     const productionFiles = green.flatMap((s) => (s.anchor?.production ?? []).filter((r) => r.state !== "member").map((r) => r.path));
@@ -439,7 +451,7 @@ async function runCycle(run: Run, cycle: Cycle): Promise<string | null> {
     done.changed.forEach((p) => { run.touched.add(p); production.add(p); });
     const failed = await tickAll(run, green, "GREEN");
     if (failed !== null) return `${greenLabel} GREEN: ${failed}`;
-    run.lines.push(`${greenLabel} GREEN ✓ — ${done.changed.join(", ") || "no file changed"}`);
+    run.lines.push(greenDone(greenLabel, done.changed.join(", ")));
     costText = done.text;
   }
 
@@ -449,8 +461,7 @@ async function runCycle(run: Run, cycle: Cycle): Promise<string | null> {
     let cost = readCost(costText ?? "");
     if (!cost.ok && cost.line === undefined) {
       const asked = await askLine(run.deps.roleLlm("implementer", run.pack.layout, run.wrote, []), IMPLEMENTER,
-        `${label[0].toUpperCase()}${label.slice(1)} of ${run.located.code} ${run.sheet.batch}: answer with one line only, ` +
-        "`Cost: <reads> reads, <writes> writes; <where a port call sits in a loop, a lambda or a memory filter, or none>`.");
+        askCostLine(`${label[0].toUpperCase()}${label.slice(1)}`, run.located.code, run.sheet.batch));
       if (!asked.ok) return `${costLabel} COST: ${asked.reason}`;
       cost = readCost(asked.text);
     }
@@ -459,16 +470,16 @@ async function runCycle(run: Run, cycle: Cycle): Promise<string | null> {
     if ("problem" in measured) return `${costLabel} COST: ${measured.problem}`;
     const failed = await tickAll(run, costed, "COST");
     if (failed !== null) return `${costLabel} COST: ${failed}`;
-    run.lines.push(`${costLabel} COST ✓ — ${cost.line}; ${measured.line}`);
+    run.lines.push(costDone(costLabel, cost.line, measured.line));
   }
   return null;
 }
 
 function logOf(run: WrappedRun): string {
-  return run.ok && run.log !== null ? ` (log: ${run.log.replace(`${WORKSPACE}/`, "")})` : "";
+  return run.ok && run.log !== null ? shownLog(run.log.replace(`${WORKSPACE}/`, "")) : "";
 }
 
-const shownPath = (path: string | null): string => (path === null ? "" : ` (log: ${path.replace(`${WORKSPACE}/`, "")})`);
+const shownPath = (path: string | null): string => (path === null ? "" : shownLog(path.replace(`${WORKSPACE}/`, "")));
 
 /** The pack's restore, once, before any act: true when it ran green, null when the pack has none. */
 async function restore(
@@ -477,23 +488,23 @@ async function restore(
   const command = run.pack.commands.restore?.trim();
   if (!command) return { restored: false };
   const refusal = shellRuleGuard(stepRules("dev-implement"))(command);
-  if (refusal !== null) return { problem: `restore: ${refusal}` };
+  if (refusal !== null) return { problem: restoreRefused(refusal) };
   let r;
   try {
     r = await run.deps.shell.run(command, { timeoutSeconds: RESTORE_TIMEOUT_SECONDS });
   } catch (e) {
-    return { problem: `restore: '${command}' could not run: ${reasonOf(e)}` };
+    return { problem: restoreCouldNotRun(command, reasonOf(e)) };
   }
   const log = `${run.logFolder}/${batch}-restore.txt`;
   const output = [r.stdout.trimEnd(), r.stderr.trimEnd()].filter((t) => t !== "").join("\n");
   try {
-    await run.deps.files.write(log, logText(command, r.timedOut === true ? [`still running after ${RESTORE_TIMEOUT_SECONDS} s: no verdict`] : [], output, r.timedOut === true ? NO_VERDICT_EXIT : r.exitCode));
+    await run.deps.files.write(log, logText(command, r.timedOut === true ? [restoreNoVerdict(RESTORE_TIMEOUT_SECONDS)] : [], output, r.timedOut === true ? NO_VERDICT_EXIT : r.exitCode));
   } catch {
     // the log is a help, never a verdict
   }
-  if (r.timedOut === true) return { problem: `restore: '${command}' still running after ${RESTORE_TIMEOUT_SECONDS} s` };
-  if (r.exitCode !== 0) return { problem: `restore: '${command}' exited ${r.exitCode}${shownPath(log)}` };
-  run.lines.push(`restored once: ${command}`);
+  if (r.timedOut === true) return { problem: restoreStillRunning(command, RESTORE_TIMEOUT_SECONDS) };
+  if (r.exitCode !== 0) return { problem: restoreExited(command, r.exitCode, shownPath(log)) };
+  run.lines.push(restored(command));
   return { restored: true };
 }
 
@@ -542,19 +553,19 @@ async function refreshIndex(run: Run): Promise<boolean> {
   try {
     const roots = (await index.roots()).map((r) => (r.length > 1 ? r.replace(/\/+$/, "") : r));
     if (!roots.includes(WORKSPACE)) {
-      run.lines.push(`index: not refreshed — ${WORKSPACE} is not indexed`);
+      run.lines.push(indexNotIndexed(WORKSPACE));
       return false;
     }
     const errors = await index.refresh(WORKSPACE, files);
     if (errors.length > 0) {
-      run.lines.push(`index: not refreshed — incremental_reindex: ${reasonOf(errors[0])}`);
+      run.lines.push(indexReindexFailed(reasonOf(errors[0])));
       return false;
     }
   } catch (e) {
-    run.lines.push(`index: not refreshed — ${reasonOf(e)}`);
+    run.lines.push(indexNotRefreshed(reasonOf(e)));
     return false;
   }
-  run.lines.push(`index: ${files.length} file${files.length === 1 ? "" : "s"} of ${run.sheet.batch} refreshed`);
+  run.lines.push(indexRefreshed(files.length, run.sheet.batch));
   return true;
 }
 
@@ -567,7 +578,7 @@ async function graphAffected(run: Run): Promise<AffectedTests | null> {
     // Relative to the indexed root: affected_tests looks each file up as `<root>/<file>`, an absolute path never resolves.
     return await index.affected([...run.touched].sort());
   } catch (e) {
-    run.lines.push(`affected tests: the graph was not read — ${reasonOf(e)}; the sheet's projects alone`);
+    run.lines.push(graphNotRead(reasonOf(e)));
     return null;
   }
 }
@@ -581,74 +592,74 @@ async function suites(run: Run, suiteGreen: boolean): Promise<SuiteResult> {
   // The tree changed whatever the build says: the index is refreshed first, so a red build leaves no stale graph.
   const indexed = await refreshIndex(run);
   const build = run.pack.commands.build?.trim();
-  if (!build) run.lines.push("build: not run — the pack has no commands.build");
+  if (!build) run.lines.push(BUILD_NOT_RUN);
   else {
     const refusal = guard(build);
-    if (refusal !== null) return { problem: `build: ${refusal}` };
+    if (refusal !== null) return { problem: buildRefused(refusal) };
     const outcome = await oneSuite(run, "build", build, `${run.logFolder}/${batch}-build.txt`);
     if (outcome.status === "not-run") return { problem: outcome.reason };
-    if (outcome.status === "running") return { problem: `build still running after ${outcome.seconds} s${shownPath(outcome.log)}` };
-    if (outcome.status === "failed") return { problem: `build: '${build}' exited ${outcome.exit}${shownPath(outcome.log)}\n${outcome.tail}` };
-    run.lines.push(`build ✓ — ${build}${outcome.how === "blocking" ? " (run blocking)" : ""}${shownPath(outcome.log)}`);
+    if (outcome.status === "running") return { problem: buildStillRunning(outcome.seconds, shownPath(outcome.log)) };
+    if (outcome.status === "failed") return { problem: buildExited(build, outcome.exit, shownPath(outcome.log), outcome.tail) };
+    run.lines.push(buildDone(build, outcome.how === "blocking", shownPath(outcome.log)));
   }
 
   const graph = suiteGreen && indexed ? await graphAffected(run) : null;
   const affected = suiteGreen && graph?.all !== true ? affectedCommands(run, graph?.projects ?? []) : null;
   if (affected !== null && affected.leftOut.length > 0) {
-    run.lines.push(`affected tests: the graph's projects left out, no command can be named for them — ${affected.leftOut.join("; ")}`);
+    run.lines.push(graphProjectsLeftOut(affected.leftOut));
   }
   if (affected !== null) {
     const texts: string[] = [];
     let exit = 0;
     for (const command of affected.commands) {
       const refusal = guard(command);
-      if (refusal !== null) return { problem: `affected tests: ${refusal}` };
+      if (refusal !== null) return { problem: affectedRefused(refusal) };
       const outcome = await oneSuite(run, "affected tests", command, null);
       if (outcome.status === "not-run") return { problem: outcome.reason };
       texts.push(outcome.text.trimEnd());
       if (outcome.status === "running") {
         await writeLogQuietly(run, affectedLog, `${texts.join("\n")}\n`);
-        return { problem: `affected tests still running after ${outcome.seconds} s${shownPath(affectedLog)}` };
+        return { problem: affectedStillRunning(outcome.seconds, shownPath(affectedLog)) };
       }
       if (outcome.status === "failed") {
         if (exit === 0) exit = outcome.exit;
         await writeLogQuietly(run, affectedLog, `${texts.join("\n")}\nexit=${exit}\n`);
-        return { problem: `affected tests: '${command}' exited ${outcome.exit}${shownPath(affectedLog)}\n${outcome.tail}` };
+        return { problem: affectedExited(command, outcome.exit, shownPath(affectedLog), outcome.tail) };
       }
     }
     await writeLogQuietly(run, affectedLog, `${texts.join("\n")}\nexit=${exit}\n`);
     const byGraph = graph === null ? ""
-      : `; the graph added ${affected.fromGraph.length === 0 ? "no project" : affected.fromGraph.join(", ")}${graph.classes.length === 0 ? "" : ` (${graph.classes.length} test class${graph.classes.length === 1 ? "" : "es"} reached)`}`;
-    run.lines.push(`affected tests ✓ — ${affected.commands.join("; ")} (the whole suite went green once for ${batch}${byGraph})${shownPath(affectedLog)}`);
+      : graphAdded(affected.fromGraph, graph.classes.length);
+    run.lines.push(affectedDone(affected.commands, batch, byGraph, shownPath(affectedLog)));
     return { ok: true, whole: false };
   }
 
   const test = run.pack.commands.test?.trim();
   if (!test) {
-    run.lines.push("test: not run — the pack has no commands.test");
+    run.lines.push(TEST_NOT_RUN);
     return { ok: true, whole: false };
   }
   const refusal = guard(test);
-  if (refusal !== null) return { problem: `test: ${refusal}` };
+  if (refusal !== null) return { problem: testRefused(refusal) };
   // A whole-suite run empties the affected log: the audit then reads this one.
   await writeLogQuietly(run, affectedLog, "");
   const outcome = await oneSuite(run, "test", test, `${run.logFolder}/${batch}-test.txt`);
   if (outcome.status === "not-run") return { problem: outcome.reason };
-  if (outcome.status === "running") return { problem: `test still running after ${outcome.seconds} s${shownPath(outcome.log)}` };
-  if (outcome.status === "failed") return { problem: `test: '${test}' exited ${outcome.exit}${shownPath(outcome.log)}\n${outcome.tail}` };
+  if (outcome.status === "running") return { problem: testStillRunning(outcome.seconds, shownPath(outcome.log)) };
+  if (outcome.status === "failed") return { problem: testExited(test, outcome.exit, shownPath(outcome.log), outcome.tail) };
   const again = !suiteGreen ? ""
     : graph?.all === true && graph.unresolved.length > 0
-      ? ` (the whole suite again: the graph could not place ${cutList(graph.unresolved)})`
-    : graph?.all === true ? " (the whole suite again: the graph reaches every test from these changes)"
-    : " (the whole suite again: the pack has no commands.test_project)";
-  run.lines.push(`test ✓ — ${test}${outcome.how === "blocking" ? " (run blocking)" : ""}${again}${shownPath(outcome.log)}`);
+      ? wholeSuiteUnplaced(cutList(graph.unresolved))
+    : graph?.all === true ? WHOLE_SUITE_EVERY_TEST
+    : WHOLE_SUITE_NO_TEST_PROJECT;
+  run.lines.push(testDone(test, outcome.how === "blocking", again, shownPath(outcome.log)));
   return { ok: true, whole: true };
 }
 
 /** At most three paths, then how many more. */
 function cutList(paths: readonly string[]): string {
   const shown = paths.slice(0, 3).join(", ");
-  return paths.length > 3 ? `${shown} and ${paths.length - 3} more` : shown;
+  return paths.length > 3 ? andMore(shown, paths.length - 3) : shown;
 }
 
 async function writeLogQuietly(run: Run, path: string, text: string): Promise<void> {
@@ -673,18 +684,18 @@ async function verdictState(files: Pick<Files, "read">, path: string): Promise<{
 
 export async function runDevImplement(input: DevImplementInputs, deps: DevImplementDeps): Promise<string> {
   const batch = String(input.batch ?? "").trim();
-  if (!BATCH.test(batch)) return blocked([], `the batch is F<n>, e.g. /dev-batches <code> F1: got '${batch}'`);
+  if (!BATCH.test(batch)) return blocked([], batchIsFn(batch));
   const plan = typeof input.plan === "string" && input.plan.trim() !== "" ? input.plan.trim() : null;
   const inputContext = prContextOf(input);
   const mode = typeof input.permissionMode === "string" ? input.permissionMode.trim() : "";
   if (mode !== "" && policyFor(mode).readOnly) {
-    return blocked([], `the session mode ${mode} is read-only: /dev-batches writes files and commits (/mode default, then run it again)`);
+    return blocked([], readOnlyMode(mode));
   }
 
   const context = await loadDevContext({ files: deps.files, shell: deps.shell, config: deps.config });
   const lines = context.warnings.slice(0, 5).map((w) => `⚠ ${w}`);
-  if (context.pack === null) return blocked(lines, "no repository pack (.orkeon/repo.yaml): its layout and commands drive the steps");
-  if (context.work.vfsPath === null) return blocked(lines, `the work folder ${context.work.folder} is outside the mounts`);
+  if (context.pack === null) return blocked(lines, NO_REPOSITORY_PACK);
+  if (context.work.vfsPath === null) return blocked(lines, workFolderOutsideMounts(context.work.folder));
   const pack = context.pack.pack;
 
   const located = await locateSheet(deps.files, context.work.folder, batch, plan);
@@ -698,13 +709,13 @@ export async function runDevImplement(input: DevImplementInputs, deps: DevImplem
     const pr = inputContext ?? record.pr;
     const closeMode = pr?.permissionMode.trim() ?? "";
     if (closeMode !== "" && policyFor(closeMode).readOnly) {
-      return blocked(lines, `the session mode ${closeMode} (read at the launch) is read-only: the close commits (/mode default, then ${closeCommand(located.code, batch)})`);
+      return blocked(lines, readOnlyModeAtClose(closeMode, closeCommand(located.code, batch)));
     }
     const opener = pr !== null && pr.githubTool ? deps.openerFor?.(pr) : undefined;
     // A batch of a /dev-batches run in progress is committed, never pushed, even when its close is typed (after a
     // GAPS stop, a refused hop): the run's own close pushes the plan's branch once.
     const inRun = input.push !== false && batchesRunCode(await deps.files.read(BATCHES_ACTIVE_RECORD).catch(() => "")) === located.code;
-    if (inRun) lines.push(`not pushed: /dev-batches ${located.code} is in progress, its close pushes the plan's branch once`);
+    if (inRun) lines.push(notPushedInRun(located.code));
     return answer([...lines, ...await closeDevBatch({ ...deps, opener }, {
       pack, work: context.work, located, batch, touched: record.touched, verdictMark: record.verdictMark,
       openPr: input.pr === true, push: input.push !== false && !inRun, today: isoDay(deps.clock()),
@@ -713,13 +724,13 @@ export async function runDevImplement(input: DevImplementInputs, deps: DevImplem
   }
 
   if (!hasTestLayout(pack.layout)) {
-    return blocked(lines, "the pack gives neither layout.tests nor layout.test_files: code cannot tell a test file from a production one");
+    return blocked(lines, NO_TEST_LAYOUT);
   }
   let sheetText: string;
   try {
     sheetText = await deps.files.read(sheetPath);
   } catch (e) {
-    return blocked(lines, `${located.dir}/${located.name} cannot be read: ${reasonOf(e)}`);
+    return blocked(lines, cannotBeRead(`${located.dir}/${located.name}`, reasonOf(e)));
   }
   const verdictPath = `${WORKSPACE}/${located.dir}/${located.prefix}-VERIFY-${batch}.md`;
   const verdicts = await verdictState(deps.files, verdictPath);
@@ -727,30 +738,30 @@ export async function runDevImplement(input: DevImplementInputs, deps: DevImplem
   const finding = typeof input.correction === "string" ? input.correction.trim() : "";
   if (finding !== "") {
     const edit = addCorrection(sheetText, finding);
-    if (!edit.ok) return blocked(lines, `correction: ${edit.reason}`);
+    if (!edit.ok) return blocked(lines, correctionProblem(edit.reason));
     if (edit.appended) {
       try {
         await deps.files.write(sheetPath, edit.text);
       } catch (e) {
-        return blocked(lines, `correction: the sheet could not be written: ${reasonOf(e)}`);
+        return blocked(lines, correctionProblem(sheetNotWritten(reasonOf(e))));
       }
-      lines.push(`correction appended to ${located.name} as step ${edit.step} — ${edit.title}`);
+      lines.push(correctionAppended(located.name, edit.step, edit.title));
     } else {
-      lines.push(`correction still open as step ${edit.step} — ${edit.title}: run again, nothing appended`);
+      lines.push(correctionStillOpen(edit.step, edit.title));
     }
     sheetText = edit.text;
     if (verdicts.gapsRounds >= GAPS_ROUNDS_WARNED) {
-      lines.push(`⚠ ${verdicts.gapsRounds} audit rounds in GAPS: the third still GAPS goes to a human`);
+      lines.push(gapsRoundsWarned(verdicts.gapsRounds));
     }
   }
   const sheet = parseImplementSheet(sheetText);
-  if (sheet.problems.length > 0) return blocked(lines, `the sheet is malformed: ${sheet.problems.join("; ")}`);
+  if (sheet.problems.length > 0) return blocked(lines, sheetMalformed(sheet.problems));
 
   const logFolder = `${context.work.vfsPath}/${located.code}/logs`;
   const written = new Set<string>();
   const wrote = (path: string): void => { if (path.trim() !== "") written.add(workspacePath(path)); };
   const pr = inputContext ?? record.pr;
-  const runLines = [...lines, `dev-implement ${batch} (${located.code}): ${located.dir}/${located.name}`];
+  const runLines = [...lines, runTitle(batch, located.code, `${located.dir}/${located.name}`)];
   const open = openSteps(sheet);
   let restored = false;
   if (open.length > 0) {
@@ -799,7 +810,7 @@ export async function runDevImplement(input: DevImplementInputs, deps: DevImplem
   if (recalledLine !== "") run.lines.push(recalledLine);
   const planArg = plan ?? located.code;
   const auditMode = verdicts.last === "GAPS" ? "resume" : "fast";
-  run.lines.push(`→ Batch ${batch}: every step ticked, the build and the tests green. The audit follows: ${auditCommand(planArg, batch, auditMode)}`);
+  run.lines.push(batchGreen(batch, auditCommand(planArg, batch, auditMode)));
   return answer(run.lines, {
     crew: "dev-verify",
     input: {

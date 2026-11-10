@@ -4,6 +4,7 @@
 import type { BatchesLogEntry } from "../../../shared/domain/dev/batches-state.ts";
 import { batchesStatePath } from "../../../shared/domain/workflow/state-file.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
+import { REVIEW_NOT_RUN } from "./markers.ts";
 
 export type BatchEvent = "launched" | "relaunched" | "returned" | "merged" | "stopped";
 
@@ -42,9 +43,6 @@ export function lastEntryOf(entries: readonly BatchesLogEntry[], batch: string):
   for (let i = entries.length - 1; i >= 0; i--) if (entries[i].batch === batch) return entries[i];
   return undefined;
 }
-
-/** The detail that opens a stop because the next batch's review could not run (G1). */
-export const REVIEW_NOT_RUN = "BLOCKED — review not run";
 
 /** True when the batch's review is still owed before its launch: the batch has no entry yet, or its last entry is a
  *  stop because the review could not run. A stop for Blocking questions settles the review: the human settled them. */

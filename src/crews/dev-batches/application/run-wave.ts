@@ -26,6 +26,11 @@ import { harvestBatch, seedWorktree } from "./seed-harvest.ts";
 import type { SeedSnapshot, SeedTarget } from "./seed-harvest.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 import {
+  BATCH_ANSWERED_NOTHING, HASH_NOT_READ, IT_ANSWERED_NOTHING, LOG_UNWRITABLE, NO_CORRECTION_RESUMES, batchAgentAnswered,
+  branchNotOnWorktree, budgetStop, closeStop, doneBeforeStop, gapsRoundsHuman, logUnwritableNotRelaunched, noVerdictWritten,
+  notAWorktreeName, planNotMarked, relaunchedAfterGaps, stateNotIgnored, stayInWorktree, worktreeKept, worktreeMade,
+} from "./messages.ts";
+import {
   GAPS_ROUNDS_MAX, gapsFinding, gapsRoundsOf, isNextStepLine, parseCorrectionLine, parseVerdictFile,
 } from "../../../shared/domain/dev/verdict-format.ts";
 
@@ -69,7 +74,7 @@ export function outcomeOf(batch: string, answered: unknown): BatchOutcome {
   } catch {
     // Not the chain's JSON.
   }
-  return { batch, verdict: "BLOCKED", lines: [`BLOCKED — the batch agent answered: ${text.split("\n")[0]}`], spent: 0 };
+  return { batch, verdict: "BLOCKED", lines: [batchAgentAnswered(text.split("\n")[0])], spent: 0 };
 }
 
 export interface WaveDeps {
@@ -131,13 +136,12 @@ const stop = (lines: string[], line: string): WaveResult => ({ lines: [...lines,
 
 /** The line naming a kept worktree: a suite run on the main checkout may glob into it. */
 export function keptLine(place: WorktreePlace): string {
-  return `  worktree ${place.path} kept: a test suite run on the checkout may find its files until it is removed (git worktree remove ${place.path})`;
+  return worktreeKept(place.path);
 }
 
 /** The line saying where a stopped batch is and the exact command that relaunches it there. */
 export function resumeLine(req: Pick<WaveRequest, "code" | "concurrency">, batch: string, place: WorktreePlace, correction?: string): string {
-  return `→ ${batch}'s code, sheet and verdict stay in ${place.path}: /dev-batches ${req.code} --concurrency ${req.concurrency} relaunches it there` +
-    (correction === undefined ? "" : `, its correction first (${correction})`);
+  return stayInWorktree(batch, place.path, req.code, req.concurrency, correction);
 }
 
 const CORRECTION = /— correction: (.+)$/;
@@ -150,7 +154,7 @@ async function placeOf(shell: Pick<Shell, "run">, req: WaveRequest, batch: strin
   const name = batchWorktreeName(req.code, batch);
   const branch = batchBranch(req.code, batch);
   const place = worktreePlace(name);
-  if (place === null) return { ok: false, line: `'${name}' is not a worktree name` };
+  if (place === null) return { ok: false, line: notAWorktreeName(name) };
   const entries = req.book.entries();
   const last = lastEntryOf(entries, batch);
   const reopened = last !== undefined;
@@ -166,7 +170,7 @@ async function placeOf(shell: Pick<Shell, "run">, req: WaveRequest, batch: strin
   }
   const head = await runGit(shell, gitWorktreeHead(place.path));
   if (head.exitCode !== 0 || head.stdout.trim() !== `refs/heads/${branch}`) {
-    return { ok: false, line: `branch ${branch} exists but ${place.path} is not on it (${head.exitCode === 0 ? head.stdout.trim() : gitReason(head)}): remove the branch or check it out there` };
+    return { ok: false, line: branchNotOnWorktree(branch, place.path, head.exitCode === 0 ? head.stdout.trim() : gitReason(head)) };
   }
   return { ok: true, slot: { batch, place, branch, made: false, reopened: true, done: false, ...extra } };
 }
@@ -186,7 +190,7 @@ async function markPlanDone(files: Pick<Files, "read" | "write">, req: WaveReque
     if (marked !== plan) await files.write(path, marked);
     return [];
   } catch (e) {
-    return [`⚠ ${name}: batch ${batch} not marked done (${reasonOf(e)})`];
+    return [planNotMarked(name, batch, reasonOf(e))];
   }
 }
 
@@ -232,7 +236,7 @@ function blockedDetail(outcome: BatchOutcome): string {
   const said = outcome.lines.map((l) => l.trim()).find((l) => /^(stopped )?BLOCKED\b/.test(l));
   if (said !== undefined) return `BLOCKED — ${said.replace(/^(stopped )?BLOCKED\s*—?\s*/, "")}`;
   const first = outcome.lines.map((l) => l.trim()).find((l) => l !== "");
-  return `BLOCKED — ${first ?? "the batch answered nothing"}`;
+  return `BLOCKED — ${first ?? BATCH_ANSWERED_NOTHING}`;
 }
 
 export async function runWave(req: WaveRequest, deps: WaveDeps): Promise<WaveResult> {
@@ -244,7 +248,7 @@ export async function runWave(req: WaveRequest, deps: WaveDeps): Promise<WaveRes
   // 0. The dev state a worktree is seeded with must be ignored by git, or no worktree could be removed clean.
   const state = `.orkeon/dev/${req.code}`;
   if (req.wave.length > 0 && (await runGit(deps.shell, gitIsIgnored(state))).exitCode !== 0) {
-    return stop(lines, `BLOCKED — worktree: ${state} is not ignored by git: a parallel run needs .orkeon/ ignored (.gitignore or .git/info/exclude); or run with --concurrency 1`);
+    return stop(lines, stateNotIgnored(state));
   }
 
   // 1. The worktrees, made or reused; the probe under the first one.
@@ -252,7 +256,7 @@ export async function runWave(req: WaveRequest, deps: WaveDeps): Promise<WaveRes
     const placed = await placeOf(deps.shell, req, batch);
     if (!placed.ok) return stop(lines, `BLOCKED — worktree: ${placed.line}`);
     slots.push(placed.slot);
-    if (placed.slot.made) lines.push(`✓ worktree ${placed.slot.place.path} on ${placed.slot.branch}, from ${req.workBranch}`);
+    if (placed.slot.made) lines.push(worktreeMade(placed.slot.place.path, placed.slot.branch, req.workBranch));
   }
   const refused = slots.length === 0 ? null : await probeRefusal(deps, req, slots[0].place);
   if (refused !== null) {
@@ -277,9 +281,9 @@ export async function runWave(req: WaveRequest, deps: WaveDeps): Promise<WaveRes
     req.book.add(eventLine(req.clock(), slot.batch, event, `${slot.place.name} audits ${req.audits(slot.batch)}`));
     lines.push(`→ ${slot.batch} ${event} in ${slot.place.path}`);
   }
-  for (const slot of slots.filter((s) => s.done)) lines.push(`${slot.batch}: done and committed in ${slot.place.path} before the run stopped`);
+  for (const slot of slots.filter((s) => s.done)) lines.push(doneBeforeStop(slot.batch, slot.place.path));
   const unsaved = running.length === 0 ? null : await req.book.save();
-  if (unsaved !== null) return stop([...lines, unsaved], `BLOCKED — the log must be writable before a launch`);
+  if (unsaved !== null) return stop([...lines, unsaved], LOG_UNWRITABLE);
 
   // 3. Every batch at once; a rejected run is a stop of its batch alone. A GAPS verdict whose audit rounds in GAPS
   //    are fewer than GAPS_ROUNDS_MAX runs the batch again at once in its worktree, the verdict's rows as the correction
@@ -302,19 +306,19 @@ export async function runWave(req: WaveRequest, deps: WaveDeps): Promise<WaveRes
       if (text === null || parseVerdictFile(text).sections.at(-1)?.verdict !== "GAPS") return outcome;
       const rounds = gapsRoundsOf(text);
       if (rounds >= GAPS_ROUNDS_MAX || round >= GAPS_ROUNDS_MAX) {
-        slot.said.push(`${slot.batch}: ${rounds} audit rounds in GAPS, a human decides`);
+        slot.said.push(gapsRoundsHuman(slot.batch, rounds));
         return outcome;
       }
       const finding = gapsFinding(text);
       const fix = finding === undefined ? "" : ` — correction: ${finding}`;
       req.book.add(eventLine(req.clock(), slot.batch, "returned", `GAPS${fix}`));
       req.book.add(eventLine(req.clock(), slot.batch, "relaunched", `${slot.place.name} audits ${parseVerdictFile(text).sections.length}, round ${rounds + 1}${fix}`));
-      slot.said.push(`${slot.batch} returned GAPS: relaunched in ${slot.place.path}, audit round ${rounds + 1} of ${GAPS_ROUNDS_MAX}` +
-        (finding === undefined ? " (no correction: its audit resumes)" : fix));
+      slot.said.push(relaunchedAfterGaps(slot.batch, slot.place.path, rounds + 1, GAPS_ROUNDS_MAX) +
+        (finding === undefined ? NO_CORRECTION_RESUMES : fix));
       if (deps.afterGaps !== undefined) slot.said.push(...await deps.afterGaps(`${slot.place.root}/${req.work}`));
       const unsaved = await req.book.save();
       if (unsaved !== null) {
-        slot.said.push(unsaved, `BLOCKED — the log must be writable before a launch: ${slot.batch} not relaunched`);
+        slot.said.push(unsaved, logUnwritableNotRelaunched(slot.batch));
         return outcome;
       }
       correction = finding;
@@ -350,7 +354,7 @@ export async function runWave(req: WaveRequest, deps: WaveDeps): Promise<WaveRes
         continue;
       }
       const tip = await runGit(deps.shell, `git rev-parse --verify ${shellQuote(`refs/heads/${slot.branch}`)}`);
-      const hash = tip.exitCode === 0 && tip.stdout.trim() !== "" ? tip.stdout.trim() : outcome.hash ?? "(hash not read)";
+      const hash = tip.exitCode === 0 && tip.stdout.trim() !== "" ? tip.stdout.trim() : outcome.hash ?? HASH_NOT_READ;
       req.book.add(eventLine(req.clock(), slot.batch, "returned", "VALID"));
       req.book.add(eventLine(req.clock(), slot.batch, "merged", hash));
       await harvest();
@@ -411,7 +415,7 @@ export async function runBatchChain(run: BatchRun, launch: Readonly<Record<strin
   const answer = (verdict: BatchOutcome["verdict"], extra: string[] = [], hash?: string): BatchOutcome =>
     ({ batch: run.batch, verdict, ...(hash === undefined ? {} : { hash }), lines: [...lines, ...extra], spent: chain.spend.calls() });
   const spent = (): BatchOutcome | null =>
-    chain.spend.exhausted() ? answer("BLOCKED", [`stopped BLOCKED — budget: ${chain.spend.limit} tool calls`]) : null;
+    chain.spend.exhausted() ? answer("BLOCKED", [budgetStop(chain.spend.limit)]) : null;
 
   const implemented = parsed(await chain.implement({
     ...launch, batch: run.batch, ...(run.steps !== undefined ? { steps: run.steps } : {}),
@@ -430,10 +434,10 @@ export async function runBatchChain(run: BatchRun, launch: Readonly<Record<strin
   const written = WRITTEN.exec(verified);
   if (written === null || written[1] !== run.batch) {
     const trimmed = verified.split("\n").map((l) => l.trim()).filter((l) => l !== "");
-    const last = trimmed.at(-1) ?? "it answered nothing";
+    const last = trimmed.at(-1) ?? IT_ANSWERED_NOTHING;
     // The gate's RED names only its own line: the checks that failed say why.
     const fails = trimmed.filter((l) => l.startsWith("FAIL ")).map((l) => l.slice(5));
-    return answer("BLOCKED", [`stopped BLOCKED — dev-verify wrote no verdict: ${last}${fails.length === 0 ? "" : ` (${fails.join("; ")})`}`]);
+    return answer("BLOCKED", [noVerdictWritten(last, fails)]);
   }
   const rest = verified.slice(written.index + written[0].length);
   if (!new RegExp(`^→ Batch ${run.batch} VALID\\.`, "m").test(rest)) {
@@ -446,5 +450,5 @@ export async function runBatchChain(run: BatchRun, launch: Readonly<Record<strin
   const hash = COMMITTED.exec(closed.lines.join("\n"))?.[1];
   if (hash !== undefined) return answer("VALID", [], hash);
   const failed = closed.lines.map((l) => l.trim()).find((l) => l.startsWith("✗"));
-  return spent() ?? answer("BLOCKED", [`BLOCKED — close: ${failed?.replace(/^✗\s*/, "") ?? "the batch was not committed"}`]);
+  return spent() ?? answer("BLOCKED", [closeStop(failed?.replace(/^✗\s*/, ""))]);
 }

@@ -23,6 +23,10 @@ import {
 import type { PrSummary } from "../../../shared/domain/git/close.ts";
 import { gitBranchExists } from "../../../shared/domain/git/worktree.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
+import {
+  BEFORE_THIS_RUN, closeNoBranch, closeOnDefault, committedOnDefault, committedOnDefaultWanted, onOriginAlready, planBatches,
+  pushDenied, pushedToOrigin, runStaysOpen,
+} from "./messages.ts";
 
 export interface MergedBatch { batch: string; hash: string }
 
@@ -105,8 +109,8 @@ export function planSummary(input: PlanCloseInput, files: readonly string[]): Pr
     notRun.push(...verdict.notRun.map((v) => `${batch}: ${v}`));
   }
   return {
-    batch: `${plan?.plan.prefix ?? input.code.toUpperCase()} — ${feature}: batches ${ids.join(", ") || "none"}, ` +
-      `from \`${dev.shown}/${plan?.name ?? "?"}\`, one commit each (${input.merged.map((m) => `${m.batch} ${m.hash || "before this run"}`).join(", ")}).`,
+    batch: planBatches(plan?.plan.prefix ?? input.code.toUpperCase(), feature, ids.join(", ") || "none", `${dev.shown}/${plan?.name ?? "?"}`,
+      input.merged.map((m) => `${m.batch} ${m.hash || BEFORE_THIS_RUN}`).join(", ")),
     layers: filesPerLayer(input.pack, files),
     validations,
     assumptions,
@@ -122,7 +126,7 @@ export async function closePlan(
   const current = await runGit(deps.shell, GIT_CURRENT_BRANCH_COMMAND);
   const branch = current.exitCode === 0 ? current.stdout.trim() : "";
   if (branch === "") {
-    return { closed: false, lines: [`✗ close: no current branch (a detached HEAD?): check out the work branch, then /dev-batches ${input.code}`] };
+    return { closed: false, lines: [closeNoBranch(input.code)] };
   }
   const base = await defaultBranch(deps.shell);
   if (base !== null && base === branch) {
@@ -133,15 +137,14 @@ export async function closePlan(
     if (wanted && work !== null && (await runGit(deps.shell, gitBranchExists(work))).exitCode === 0) {
       return {
         closed: false,
-        lines: [`✗ close: ${branch} is the default branch and the pack asks for a work branch (${wanted}): ` +
-          `git switch ${work}, then /dev-batches ${input.code}`],
+        lines: [closeOnDefault(branch, wanted, work, input.code)],
       };
     }
     return {
       closed: true,
       lines: [
-        ...(wanted ? [`⚠ the pack asks for a work branch (${wanted}), but the batches are committed on ${branch}`] : []),
-        `✓ every batch is committed on ${branch}, the default branch: no pull request; pushing it is yours (${gitPushCommand(branch)})`,
+        ...(wanted ? [committedOnDefaultWanted(wanted, branch)] : []),
+        committedOnDefault(branch, gitPushCommand(branch)),
       ],
     };
   }
@@ -154,14 +157,14 @@ export async function closePlan(
   const check = await runGit(deps.shell, gitPushedCheckCommand(branch));
   if (check.exitCode === 0 && isPushed(check.stdout)) {
     pushed = true;
-    lines.push(`✓ ${branch} is on origin already`);
+    lines.push(onOriginAlready(branch));
   } else if (ruleDecision(input.rules, "shell_command", { command: pushCommand, working_directory: WORKSPACE }) === "deny") {
-    lines.push(`✗ not pushed: a session rule denies '${pushCommand}'; the commits stay local`);
+    lines.push(pushDenied(pushCommand));
   } else {
     const push = await pushBranch(deps.shell, branch);
     pushed = push.ok;
     closed = push.ok;
-    lines.push(push.ok ? `✓ pushed ${branch} to origin` : `✗ ${push.line}`);
+    lines.push(push.ok ? pushedToOrigin(branch) : `✗ ${push.line}`);
   }
   const files = await filesOf(deps.shell, input.merged);
   const summary = planSummary(input, files);
@@ -174,8 +177,7 @@ export async function closePlan(
     },
   ));
   if (!closed) {
-    lines.push(`the run stays open: /dev-batches ${input.code} tries the push again; a confined shell reaches no ` +
-      `remote, so push from a terminal (${pushCommand}), then /dev-batches ${input.code} closes the run`);
+    lines.push(runStaysOpen(input.code, pushCommand));
   }
   return { closed, lines };
 }

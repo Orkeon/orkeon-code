@@ -29,6 +29,7 @@ import { providerEffort } from "../../shared/domain/agent-policy/behavior-flags.
 import { implementBudget } from "./domain/implement-budget.ts";
 import { CREW_TOOLS } from "./domain/roles.ts";
 import { implementInputs, runDevImplement } from "./application/run-dev-implement.ts";
+import { DEV_IMPLEMENT_GOAL } from "./application/prompts.ts";
 
 // run_tests and run_build: built here, bound by the body to the run's wrapped tools (its pack, its rules, its logs).
 const toolSlot = scriptToolSlot<WrappedTools>();
@@ -42,7 +43,7 @@ const memoryOn = memoryRecallOn(inputs());
 const builder = orkeonAgent()
   .name("dev-implement")
   .role("Batch implementer")
-  .goal("Run the steps of one batch sheet test-first: red tests by the test author, then the least code that turns them green")
+  .goal(DEV_IMPLEMENT_GOAL)
   .tools([...CREW_TOOLS])
   .withAutonomousTool(runTestsTool(ToolBuilder, toolSlot))
   .withAutonomousTool(runBuildTool(ToolBuilder, toolSlot))

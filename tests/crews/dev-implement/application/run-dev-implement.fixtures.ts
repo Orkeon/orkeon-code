@@ -17,7 +17,7 @@ import type {
 import type { AccessCostReport } from "../../../../src/shared/domain/dev/access-cost.ts";
 import { GIT_IDENT_COMMAND } from "../../../../src/shared/domain/git/close.ts";
 import { AUDIT_UNFINISHED_GAP } from "../../../../src/shared/domain/dev/markers.ts";
-import { STALE_HEADING } from "../../../../src/crews/dev-implement/domain/contracts.ts";
+import { STALE_HEADING } from "../../../../src/crews/dev-implement/domain/markers.ts";
 import { STATUS_COMMAND } from "../../../../src/crews/dev-implement/application/observe.ts";
 import { touchedPath } from "../../../../src/crews/dev-implement/application/touched.ts";
 import type { ImplementAnswer } from "../../../../src/crews/dev-implement/application/run-dev-implement.ts";
