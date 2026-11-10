@@ -5,6 +5,11 @@
 // mode the global plan or one of its batches) and cites where it comes from.
 
 import type { Checked } from "../agents/charter.ts";
+import {
+  ANSWER_NOT_AN_OBJECT, atMostRows, QUESTION_EMPTY, QUESTION_NO_MARK, questionLongerThan, ROWS_MUST_BE_A_LIST,
+  rowEvidenceCitesNothing, rowEvidenceEmpty, rowOneClosedQuestion, rowRepeats, rowSeverityMustBe, rowTargetNotOneOf,
+  rowTwoTargets, VERDICT_CLEAR_OR_GAPS,
+} from "./messages.ts";
 
 export type ReviewSeverity = "Blocking" | "Major";
 export interface ReviewRow { severity: ReviewSeverity; question: string; evidence: string; target: string }
@@ -87,9 +92,9 @@ export function targetId(target: string, targets: readonly string[]): { id: stri
 
 /** Why a question is not one closed question fitting a table cell, or undefined when it is. */
 function questionFault(question: string): string | undefined {
-  if (question === "") return "it is empty";
-  if (question.length > MAX_QUESTION_CHARS) return `it is longer than ${MAX_QUESTION_CHARS} characters`;
-  if (!question.endsWith("?")) return "it does not end with ?";
+  if (question === "") return QUESTION_EMPTY;
+  if (question.length > MAX_QUESTION_CHARS) return questionLongerThan(MAX_QUESTION_CHARS);
+  if (!question.endsWith("?")) return QUESTION_NO_MARK;
   return undefined;
 }
 
@@ -101,36 +106,36 @@ function checkRow(value: unknown, k: number, ctx: ReviewCheckContext, problems: 
   const item = isPlainObject(value) ? value : {};
   const before = problems.length;
   const severity = text(item.severity);
-  if (!SEVERITIES.includes(severity as ReviewSeverity)) problems.push(`row ${k}: severity must be Blocking or Major`);
+  if (!SEVERITIES.includes(severity as ReviewSeverity)) problems.push(rowSeverityMustBe(k));
   const question = cell(text(item.question));
   const fault = questionFault(question);
-  if (fault !== undefined) problems.push(`row ${k}: the question must be one closed question ending with ? (${fault})`);
+  if (fault !== undefined) problems.push(rowOneClosedQuestion(k, fault));
   const evidence = cell(text(item.evidence));
-  if (evidence === "") problems.push(`row ${k}: evidence is empty`);
-  else if (!citesSource(evidence)) problems.push(`row ${k}: evidence cites no path:line, § section or heading`);
+  if (evidence === "") problems.push(rowEvidenceEmpty(k));
+  else if (!citesSource(evidence)) problems.push(rowEvidenceCitesNothing(k));
   const named = text(item.target);
   const target = targetId(named, ctx.targets);
-  if (target === null) problems.push(`row ${k}: target '${named}' is not one of ${targetList(ctx.targets)}`);
-  else if ("two" in target) problems.push(`row ${k}: target '${named}' names two targets`);
+  if (target === null) problems.push(rowTargetNotOneOf(k, named, targetList(ctx.targets)));
+  else if ("two" in target) problems.push(rowTwoTargets(k, named));
   if (problems.length > before || target === null || "two" in target) return undefined;
   return { severity: severity as ReviewSeverity, question, evidence, target: target.id };
 }
 
 export function checkReviewAnswer(value: unknown, ctx: ReviewCheckContext): Checked<ReviewAnswer> {
-  if (!isPlainObject(value)) return { ok: false, problems: ["the answer is not an object"] };
+  if (!isPlainObject(value)) return { ok: false, problems: [ANSWER_NOT_AN_OBJECT] };
   const problems: string[] = [];
   const said = text(value.verdict);
-  if (said !== "CLEAR" && said !== "GAPS") problems.push("verdict must be CLEAR or GAPS");
+  if (said !== "CLEAR" && said !== "GAPS") problems.push(VERDICT_CLEAR_OR_GAPS);
 
   const rows: ReviewRow[] = [];
   // The rows are the substance: the verdict follows them. A review that opens with "CLEAR" and then asks two
   // questions is GAPS, whatever word the extraction copied.
   let verdict: ReviewAnswer["verdict"] = said === "GAPS" ? "GAPS" : "CLEAR";
   if (!Array.isArray(value.rows)) {
-    problems.push("rows must be a list");
+    problems.push(ROWS_MUST_BE_A_LIST);
   } else {
     verdict = value.rows.length > 0 ? "GAPS" : "CLEAR";
-    if (value.rows.length > MAX_REVIEW_ROWS) problems.push(`at most ${MAX_REVIEW_ROWS} rows, not ${value.rows.length}`);
+    if (value.rows.length > MAX_REVIEW_ROWS) problems.push(atMostRows(MAX_REVIEW_ROWS, value.rows.length));
     const seen = new Map<string, number>();
     value.rows.forEach((item, i) => {
       const k = i + 1;
@@ -138,7 +143,7 @@ export function checkReviewAnswer(value: unknown, ctx: ReviewCheckContext): Chec
       const question = isPlainObject(item) ? text(item.question) : "";
       if (question !== "") {
         const first = seen.get(fold(question));
-        if (first !== undefined) problems.push(`row ${k}: repeats row ${first}`);
+        if (first !== undefined) problems.push(rowRepeats(k, first));
         else seen.set(fold(question), k);
       }
       if (checked) rows.push(checked);

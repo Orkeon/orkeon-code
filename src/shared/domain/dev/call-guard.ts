@@ -17,6 +17,14 @@ import type { RepoPackLayout } from "./repo-pack.ts";
 import { matchesAny, relativePath } from "./test-paths.ts";
 import { EDIT_BATCH_SHAPE } from "./reading-rule.ts";
 import { WORKSPACE } from "../vfs.ts";
+import {
+  editBatchRefused, NO_LIST_OF_OPERATIONS, notRunInMode, operationNamesNoPath, operationUnknownKind, packGivesNo,
+  refusedByRule, rewriteRuleOrigin, rootsOrigin, ruleSetOrigin, validateNotRun, whichPathCanReach, whichPathReaches,
+} from "./messages.ts";
+import {
+  CHANGE_EXISTING_SOURCE_BY_NODE, opensNoSourceOrTest, refusedDuringStep, USE_READ_TOOLS, USE_READ_TOOLS_AND_EDITORS,
+  USE_VALIDATE_PARSE, writesOutsideRootsOnly,
+} from "./prompts.ts";
 
 /** One /hooks declaration the callbacks run; `n` is its number in /hooks list. */
 export interface ToolHook { n: number; event: "pre-tool" | "post-tool"; command: string }
@@ -77,7 +85,7 @@ export function buildCallGuard(spec: CallGuardSpec): CallGuard {
     const own = roleRules(role, spec.layout ?? {});
     for (const rule of own.rules) rules.push({ rule, origin: { kind: "role", role, access } });
     for (const rule of own.rewrite) rules.push({ rule, origin: { kind: "rewrite", role } });
-    problems.push(...own.problems, ...own.missing.map((key) => `the pack gives no ${key}: no rule on it`));
+    problems.push(...own.problems, ...own.missing.map(packGivesNo));
     if (access === "write") writable.push(...own.writable);
     if (role === "test-author") stubs.push(...(spec.writable ?? []).map(relativePath).filter((p) => p !== ""));
   }
@@ -142,11 +150,8 @@ function modeVerdict(guard: CallGuard, tool: string, input: unknown, mode: strin
   const known = ["default", "acceptEdits", "plan", "dontAsk"].includes(mode) ? mode : "default";
   return {
     allow: false,
-    reason: `${guard.step}: '${tool}' is not run in mode '${known}': the host has no permission gate, so the crew's ` +
-      `callback applies the mode itself`,
-    context: known === "acceptEdits"
-      ? "Use the read tools and the file editors only."
-      : "Use the read tools only.",
+    reason: notRunInMode(guard.step, tool, known),
+    context: known === "acceptEdits" ? USE_READ_TOOLS_AND_EDITORS : USE_READ_TOOLS,
   };
 }
 
@@ -215,25 +220,22 @@ function reachesBelow(rule: PermissionRule, joined: string): boolean {
 }
 
 function originText(origin: GuardRule["origin"]): string {
-  if (origin.kind === "set") return `the rule set ${origin.id}`;
-  return origin.kind === "rewrite" ? `the ${origin.role}'s rewrite rule` : `the ${origin.role}'s roots`;
+  if (origin.kind === "set") return ruleSetOrigin(origin.id);
+  return origin.kind === "rewrite" ? rewriteRuleOrigin(origin.role) : rootsOrigin(origin.role);
 }
 
 function contextOf(guard: CallGuard, origin: GuardRule["origin"]): string {
-  if (origin.kind === "set") return `${RULE_SETS[origin.id].title} are refused during /${stepCommand(guard.step)}: do without this call.`;
-  if (origin.kind === "rewrite") {
-    return "This source file exists: change it by node (node_read for its sha256, then node_replace, node_insert or " +
-      "node_ensure) or with edit_file, never by writing it whole; file_write only creates a file.";
-  }
+  if (origin.kind === "set") return refusedDuringStep(RULE_SETS[origin.id].title, stepCommand(guard.step));
+  if (origin.kind === "rewrite") return CHANGE_EXISTING_SOURCE_BY_NODE;
   return origin.access === "read"
-    ? `The ${origin.role} opens no source or test file by its path: work from the batch sheet and the plan.`
-    : `The ${origin.role} writes outside these roots only: ${origin.role === "implementer" ? "leave the tests as they are" : "write the tests, no source file"}.`;
+    ? opensNoSourceOrTest(origin.role)
+    : writesOutsideRootsOnly(origin.role, origin.role === "implementer");
 }
 
 function ruleVerdict(guard: CallGuard, entry: GuardRule, how: string): CallVerdict {
   return {
     allow: false,
-    reason: `${guard.step}: refused by '${formatRule(entry.rule)}' of ${originText(entry.origin)}${how}`,
+    reason: refusedByRule(guard.step, formatRule(entry.rule), originText(entry.origin), how),
     context: contextOf(guard, entry.origin),
   };
 }
@@ -279,11 +281,11 @@ export function checkToolCall(
     for (const entry of guard.rules) {
       if (entry.rule.argument !== "path" || leftWritable(guard, entry, joined)) continue;
       if (matchesRule(entry.rule, tool, { ...args, path: joined })) {
-        return ruleVerdict(guard, entry, `, which '${joined}' reaches`);
+        return ruleVerdict(guard, entry, whichPathReaches(joined));
       }
       if (entry.origin.kind === "role" && entry.origin.access === "read" && sameToolName(entry.rule.tool, tool)
         && reachesBelow(entry.rule, joined)) {
-        return ruleVerdict(guard, entry, `, which '${joined}' can reach`);
+        return ruleVerdict(guard, entry, whichPathCanReach(joined));
       }
     }
   }
@@ -297,7 +299,7 @@ export interface ActFacts { mode: string; gateEnabled: boolean | undefined; newF
 const BATCH_SHAPE = `Give ${EDIT_BATCH_SHAPE}.`;
 
 function batchRefusal(guard: CallGuard, why: string, context = BATCH_SHAPE): CallVerdict {
-  return { allow: false, reason: `${guard.step}: edit_batch refused: ${why}`, context };
+  return { allow: false, reason: editBatchRefused(guard.step, why), context };
 }
 
 /** An edit_batch, operation by operation: each is checked as the editor its `kind` stands for (OPERATION_TOOLS), with
@@ -307,19 +309,18 @@ function batchRefusal(guard: CallGuard, why: string, context = BATCH_SHAPE): Cal
 function checkOperations(guard: CallGuard, args: Readonly<Record<string, unknown>>, act: ActFacts): CallVerdict {
   const validate = args.validate;
   if (validate !== undefined && validate !== null && String(validate).trim().toLowerCase() !== "parse") {
-    return batchRefusal(guard, `validate '${String(validate)}' is not run in a dev step`,
-      "Use validate \"parse\" (the default); the build is run_build's, with the pack's command.");
+    return batchRefusal(guard, validateNotRun(String(validate)), USE_VALIDATE_PARSE);
   }
   const operations = args.operations;
-  if (!Array.isArray(operations) || operations.length === 0) return batchRefusal(guard, "no list of operations");
+  if (!Array.isArray(operations) || operations.length === 0) return batchRefusal(guard, NO_LIST_OF_OPERATIONS);
   for (const [i, raw] of operations.entries()) {
     const op = raw !== null && typeof raw === "object" && !Array.isArray(raw) ? raw as Readonly<Record<string, unknown>> : null;
     const kind = typeof op?.kind === "string" ? op.kind.trim() : "";
     const editor = Object.entries(OPERATION_TOOLS).find(([k]) => sameToolName(k, kind))?.[1];
     if (op === null || typeof op.path !== "string" || op.path.trim() === "") {
-      return batchRefusal(guard, `operation ${i + 1} names no path`);
+      return batchRefusal(guard, operationNamesNoPath(i + 1));
     }
-    if (editor === undefined) return batchRefusal(guard, `operation ${i + 1} has the unknown kind '${kind}'`);
+    if (editor === undefined) return batchRefusal(guard, operationUnknownKind(i + 1, kind));
     const verdict = checkToolCall(guard, editor, op, { mode: act.mode, gateEnabled: act.gateEnabled });
     if (!verdict.allow) {
       return { allow: false, reason: `${verdict.reason} (edit_batch operation ${i + 1}, ${kind} on '${op.path}')`, context: verdict.context };

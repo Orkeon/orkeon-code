@@ -219,3 +219,18 @@ export function buildReviewAnswerPrompt(reply: string, problems: readonly string
   lines.push("", "The review:", "", text);
   return lines.join("\n");
 }
+
+// ── The call guard of a dev step: what the model is told to do instead ──
+
+export const USE_READ_TOOLS_AND_EDITORS = "Use the read tools and the file editors only.";
+export const USE_READ_TOOLS = "Use the read tools only.";
+export const refusedDuringStep = (title: string, command: string): string =>
+  `${title} are refused during /${command}: do without this call.`;
+export const CHANGE_EXISTING_SOURCE_BY_NODE =
+  "This source file exists: change it by node (node_read for its sha256, then node_replace, node_insert or " +
+  "node_ensure) or with edit_file, never by writing it whole; file_write only creates a file.";
+export const opensNoSourceOrTest = (role: string): string =>
+  `The ${role} opens no source or test file by its path: work from the batch sheet and the plan.`;
+export const writesOutsideRootsOnly = (role: string, implementer: boolean): string =>
+  `The ${role} writes outside these roots only: ${implementer ? "leave the tests as they are" : "write the tests, no source file"}.`;
+export const USE_VALIDATE_PARSE = "Use validate \"parse\" (the default); the build is run_build's, with the pack's command.";

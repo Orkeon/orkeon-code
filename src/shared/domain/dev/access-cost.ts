@@ -4,6 +4,11 @@
 // A port call, or an in-memory filter, inside a loop or a lambda blocks only on an added line, as
 // `access-cost.py --diff` does. Pure.
 import { WORKSPACE, workspaceRelative } from "../vfs.ts";
+import {
+  backToDesign, CODE_INDEX_EMPTY, codeIndexHolds, costLine, costNotComputed, cutAtLines, MEMORY_FILTER_ON_AWAITED,
+  NO_CODE_INDEX_WIRED, NO_MEMBER_INDEXED, noChangedFile, noneAwaitsAPort, notIndexedReason, PORTS_IN_A_LAMBDA,
+  PORTS_IN_A_LOOP, PORTS_OUTSIDE_LOOPS,
+} from "./messages.ts";
 
 export type AccessCost =
   | { state: "not-computed"; reason: string }
@@ -29,7 +34,7 @@ export function isTestFile(path: string, testRoots: readonly string[]): boolean 
 /** The cost when the crew wires no code index. */
 export const COST_NOT_WIRED: AccessCost = {
   state: "not-computed",
-  reason: "the crew wires no code index; judge the Cost axis from the diff",
+  reason: NO_CODE_INDEX_WIRED,
 };
 
 export function notComputed(reason: string): AccessCost {
@@ -38,8 +43,8 @@ export function notComputed(reason: string): AccessCost {
 
 /** No `/workspace` root in the index: the use case says so itself, the tool would answer an empty report. */
 export function notIndexed(roots: readonly string[]): AccessCost {
-  const holds = roots.length === 0 ? "the code index is empty" : `the code index holds ${roots.join(", ")}, not ${WORKSPACE}`;
-  return notComputed(`not indexed — ${holds}: run /analyze, then audit the batch again; judge the Cost axis from the diff`);
+  const holds = roots.length === 0 ? CODE_INDEX_EMPTY : codeIndexHolds(roots, WORKSPACE);
+  return notComputed(notIndexedReason(holds));
 }
 
 /**
@@ -144,9 +149,8 @@ function fileOf(fqn: string): string {
 
 /** The `Cost` line of access-cost.py:261. */
 export function costLineOf(reads: number, writes: number, blocking: number): string {
-  const verdict = blocking === 0 ? "none" : `${blocking} - back to design`;
-  return `Cost: ${plural(reads, "read")} + ${plural(writes, "write")} through ports outside loops; ` +
-    `in a loop, a lambda or a memory filter: ${verdict}`;
+  const verdict = blocking === 0 ? "none" : backToDesign(blocking);
+  return costLine(plural(reads, "read"), plural(writes, "write"), verdict);
 }
 
 /**
@@ -183,15 +187,15 @@ export function measuredCost(report: AccessCostReport, added: ReadonlyMap<string
       if (blocks) flagged.push(`${member} L${f.line} ${f.method} memory filter`);
     }
     detail.push(`[${member}]`);
-    show("Ports outside loops", flat);
-    show("Ports in a loop", loop);
-    show("Ports in a lambda", lambda);
-    show("Memory filter on an awaited result", filters);
+    show(PORTS_OUTSIDE_LOOPS, flat);
+    show(PORTS_IN_A_LOOP, loop);
+    show(PORTS_IN_A_LAMBDA, lambda);
+    show(MEMORY_FILTER_ON_AWAITED, filters);
   }
   if (detail.length === 0) {
     detail.push(report.members.length === 0
-      ? "no member of the changed files in the code index"
-      : `${plural(report.members.length, "member")}, none awaits a port or filters in memory`);
+      ? NO_MEMBER_INDEXED
+      : noneAwaitsAPort(plural(report.members.length, "member")));
   }
   return {
     state: "measured",
@@ -205,12 +209,12 @@ export function measuredCost(report: AccessCostReport, added: ReadonlyMap<string
 /** A batch that changes no file under the cost roots: nothing to measure, nothing blocks. */
 export function nothingChanged(roots: readonly string[]): AccessCost {
   const where = roots.length === 0 ? "" : ` under ${roots.join(" ")}`;
-  return { state: "measured", exit: 0, flagged: [], costLine: costLineOf(0, 0, 0), detail: `no changed file${where}\n` };
+  return { state: "measured", exit: 0, flagged: [], costLine: costLineOf(0, 0, 0), detail: noChangedFile(where) };
 }
 
 /** The line the command prints under the gate's green line. */
 export function costSummary(cost: AccessCost): string {
-  return cost.state === "measured" ? cost.costLine : `Cost: not computed — ${cost.reason}`;
+  return cost.state === "measured" ? cost.costLine : costNotComputed(cost.reason);
 }
 
 const DETAIL_LINES = 60;
@@ -220,7 +224,7 @@ export function costSection(cost: AccessCost): string {
   const detail = cost.detail.split("\n");
   if (detail.length > 0 && detail[detail.length - 1] === "") detail.pop();
   const out = [`exit: ${cost.exit}`, ...detail.slice(0, DETAIL_LINES)];
-  if (detail.length > DETAIL_LINES) out.push(`[cut at ${DETAIL_LINES} lines]`);
+  if (detail.length > DETAIL_LINES) out.push(cutAtLines(DETAIL_LINES));
   out.push(cost.costLine);
   return `${out.join("\n")}\n`;
 }

@@ -5,6 +5,9 @@
 // scalars, single- and double-quoted scalars on one line, plain scalars on one line,
 // comments, the folded block `>-`, and the YAML 1.1 scalar types (null, boolean,
 // decimal integer, float). Pure: no runtime global, never throws.
+import {
+  ambiguousDate, ambiguousNumber, onlyFoldedBlock, plainCannotStartWith, unknownEscape, YAML_PROBLEMS as MSG,
+} from "./messages.ts";
 
 export type YamlScalar = string | number | boolean | null;
 export type YamlValue = YamlScalar | YamlValue[] | YamlMap;
@@ -16,27 +19,6 @@ export type YamlParse = { ok: true; value: YamlValue } | { ok: false; error: Yam
 export function formatYamlError(path: string, error: YamlError): string {
   return `${path}:${error.line}: ${error.message}`;
 }
-
-const MSG = {
-  tab: "a tab in the indentation",
-  tabInLine: "a tab outside quotes and comments",
-  marker: "a document marker is not supported",
-  anchor: "anchors, aliases and tags are not supported",
-  flowMap: "a flow mapping is not supported",
-  flowOpen: "a flow sequence must close on its line",
-  flowNested: "a nested flow sequence is not supported",
-  flowAfter: "text after a closing bracket",
-  flowEmpty: "an empty item in a flow sequence",
-  moreIndented: "a more-indented line inside a folded block is not supported",
-  quoteOpen: "a quoted scalar must close on its line",
-  quoteAfter: "text after a closing quote",
-  colon: "': ' inside a plain value: quote it",
-  key: "a mapping key must be a plain name",
-  indent: "bad indentation (a value continued on the next line is not supported)",
-  itemForKey: "a sequence item where a mapping key was expected",
-  keyForItem: "a mapping key where a sequence item was expected",
-  nestedItem: "a nested sequence item on one line is not supported",
-} as const;
 
 class YamlStop {
   readonly line: number;
@@ -76,8 +58,8 @@ function typePlain(v: string, no: number): YamlScalar {
   if (FLOAT.test(v)) return Number(v.replace(/_/g, "")) || 0;
   if (INF.test(v)) return v.startsWith("-") ? -Infinity : Infinity;
   if (NAN.test(v)) return Number.NaN;
-  if (AMBIGUOUS.some((re) => re.test(v))) throw new YamlStop(no, `an ambiguous number '${v}': quote it`);
-  if (DATE.test(v)) throw new YamlStop(no, `an ambiguous date '${v}': quote it`);
+  if (AMBIGUOUS.some((re) => re.test(v))) throw new YamlStop(no, ambiguousNumber(v));
+  if (DATE.test(v)) throw new YamlStop(no, ambiguousDate(v));
   return v;
 }
 
@@ -103,7 +85,7 @@ function readQuoted(text: string, no: number): { value: string; end: number } {
         const e = text[i + 1];
         const map: Record<string, string> = { '"': '"', "\\": "\\", "/": "/", n: "\n", t: "\t" };
         if (e === undefined || !(e in map)) {
-          throw new YamlStop(no, `an unknown escape '\\${e ?? ""}' in a double-quoted scalar`);
+          throw new YamlStop(no, unknownEscape(e ?? ""));
         }
         out += map[e];
         i += 2;
@@ -148,7 +130,7 @@ const RESERVED_START = /^(?:[%@`|>]|\?(?:\s|$))/;
 function plainScalar(raw: string, no: number): YamlScalar {
   const cut = raw.search(/\s#/);
   const v = (cut < 0 ? raw : raw.slice(0, cut)).trimEnd();
-  if (RESERVED_START.test(v)) throw new YamlStop(no, `a plain value cannot start with '${v[0]}': quote it`);
+  if (RESERVED_START.test(v)) throw new YamlStop(no, plainCannotStartWith(v[0]));
   if (/:(\s|$)/.test(v)) throw new YamlStop(no, MSG.colon);
   return typePlain(v, no);
 }
@@ -344,7 +326,7 @@ class Parser {
     const indicator = blockIndicator(rest);
     if (indicator !== null) {
       if (indicator !== ">-") {
-        throw new YamlStop(no, `only the folded block '>-' is supported, not '${indicator}'`);
+        throw new YamlStop(no, onlyFoldedBlock(indicator));
       }
       return this.folded(parentIndent, no);
     }

@@ -2,6 +2,10 @@
 // a trait name (tests.rule_trait) and, optionally, a one-line pattern (tests.trait_pattern)
 // holding <id> once and <name> at most once; the pattern compiles to the POSIX ERE that
 // git grep -E runs over the test roots. Pure.
+import {
+  PATTERN_ANGLES, PATTERN_EMPTY, PATTERN_NO_PIPE, PATTERN_NO_SINGLE_QUOTE, PATTERN_NO_TAB_OR_BREAK, PATTERN_ONE_ID,
+  PATTERN_ONE_NAME, PATTERN_TOO_LONG, PATTERN_TOO_SHORT, TRAIT_NAME_CHARS,
+} from "./messages.ts";
 
 export const DEFAULT_TRAIT_PATTERN = '[Trait("<name>", "<id>")]';
 /** The sheet ids the gate checks (AC:166). */
@@ -26,20 +30,20 @@ function count(text: string, token: string): number {
 }
 
 export function ruleTraitProblem(name: string): string | undefined {
-  return /^[A-Za-z0-9_-]+$/.test(name) ? undefined : "a trait name takes letters, digits, '_' and '-'";
+  return /^[A-Za-z0-9_-]+$/.test(name) ? undefined : TRAIT_NAME_CHARS;
 }
 
 export function traitPatternProblem(pattern: string): string | undefined {
-  if (pattern.trim() === "") return "the pattern is empty";
-  if (pattern.length > 80) return "the pattern is longer than 80 characters";
-  if (/[\t\r\n]/.test(pattern)) return "a tab or a line break is not allowed";
-  if (pattern.includes("'")) return "a single quote is not allowed";
-  if (pattern.includes("|")) return "a '|' is not allowed: the runtime's shell refuses it";
-  if (count(pattern, ID_TOKEN) !== 1) return "the pattern must hold <id> exactly once";
-  if (count(pattern, NAME_TOKEN) > 1) return "the pattern may hold <name> once at most";
+  if (pattern.trim() === "") return PATTERN_EMPTY;
+  if (pattern.length > 80) return PATTERN_TOO_LONG;
+  if (/[\t\r\n]/.test(pattern)) return PATTERN_NO_TAB_OR_BREAK;
+  if (pattern.includes("'")) return PATTERN_NO_SINGLE_QUOTE;
+  if (pattern.includes("|")) return PATTERN_NO_PIPE;
+  if (count(pattern, ID_TOKEN) !== 1) return PATTERN_ONE_ID;
+  if (count(pattern, NAME_TOKEN) > 1) return PATTERN_ONE_NAME;
   const rest = pattern.split(ID_TOKEN).join("").split(NAME_TOKEN).join("");
-  if (/[<>]/.test(rest)) return "'<' and '>' may only enclose <id> and <name>";
-  if (rest.replace(/\s/g, "").length < 2) return "the pattern needs at least two characters around <id>";
+  if (/[<>]/.test(rest)) return PATTERN_ANGLES;
+  if (rest.replace(/\s/g, "").length < 2) return PATTERN_TOO_SHORT;
   return undefined;
 }
 

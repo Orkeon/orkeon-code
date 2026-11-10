@@ -3,6 +3,10 @@
 // one plain relative value and nothing appended - never the whole suite, never a build, never an
 // option or a shell operator. Pure.
 import type { RepoPackCommands } from "./repo-pack.ts";
+import {
+  AS_THE_PACK_NAMES_IT, INTEGRATION_WITHOUT_FILTER, NOT_A_PACK_TEST_COMMAND, NOT_ONE_LINE, nothingMayFollow,
+  PACK_HAS_NO_TEST_COMMAND, SHELL_OPERATOR, validationLineText, valueHoldsDotDot, valueNotPlain,
+} from "./messages.ts";
 
 export type ValidationCheck =
   | { ok: true; command: string; key: "commands.test_class" | "commands.test_project" | "commands.test_integration"; scope: string }
@@ -36,8 +40,8 @@ function templateSource(template: string): string {
 
 /** Why a placeholder value is refused, or null when it is one plain relative value. */
 export function valueProblem(value: string): string | null {
-  if (value.split("/").includes("..")) return `the value '${value}' holds a '..' segment`;
-  if (!PLAIN_VALUE.test(value)) return `the value '${value}' is not one plain relative name`;
+  if (value.split("/").includes("..")) return valueHoldsDotDot(value);
+  if (!PLAIN_VALUE.test(value)) return valueNotPlain(value);
   return null;
 }
 
@@ -46,8 +50,8 @@ type Key = "commands.test_class" | "commands.test_project" | "commands.test_inte
 export function checkValidation(command: string, commands: RepoPackCommands): ValidationCheck {
   const c = command.trim();
   const refuse = (reason: string): ValidationCheck => ({ ok: false, command: c, reason });
-  if (c === "" || /[\r\n]/.test(c) || c.length > MAX_COMMAND_CHARS) return refuse("not one line of at most 400 characters");
-  if (!plainWords(c)) return refuse("a shell operator outside double quotes");
+  if (c === "" || /[\r\n]/.test(c) || c.length > MAX_COMMAND_CHARS) return refuse(NOT_ONE_LINE);
+  if (!plainWords(c)) return refuse(SHELL_OPERATOR);
 
   const templates: Array<[Key, string | undefined]> = [
     ["commands.test_class", commands.testClass],
@@ -55,7 +59,7 @@ export function checkValidation(command: string, commands: RepoPackCommands): Va
     ["commands.test_integration", commands.testIntegration],
   ];
   if (templates.every(([, t]) => t === undefined || t.trim() === "")) {
-    return refuse("the pack has no test_class, test_project or test_integration");
+    return refuse(PACK_HAS_NO_TEST_COMMAND);
   }
   let bareIntegration = false;
   let problem: string | null = null;
@@ -71,20 +75,20 @@ export function checkValidation(command: string, commands: RepoPackCommands): Va
       return { ok: true, command: c, key, scope: scopeOf(values) };
     }
     const suffixed = new RegExp(`^${source} (.+)$`).exec(c);
-    if (suffixed) problem ??= `nothing may follow the pack's command: '${suffixed[suffixed.length - 1]}'`;
+    if (suffixed) problem ??= nothingMayFollow(suffixed[suffixed.length - 1]);
   }
   if (problem !== null) return refuse(problem);
   return refuse(bareIntegration
-    ? "test_integration without a filter is a whole suite"
-    : "not one of the pack's test_class, test_project or test_integration commands");
+    ? INTEGRATION_WITHOUT_FILTER
+    : NOT_A_PACK_TEST_COMMAND);
 }
 
 function scopeOf(values: readonly string[]): string {
   const named = values.join(", ");
-  return named === "" ? "as the pack names it" : named;
+  return named === "" ? AS_THE_PACK_NAMES_IT : named;
 }
 
 /** `\`<command>\` — exit <n>, scope <scope>, <count> tests` (SK:72); count "not counted" when unknown. */
 export function validationLine(command: string, exit: number, scope: string, tests: number | null): string {
-  return `\`${command}\` — exit ${exit}, scope ${scope}, ${tests === null ? "not counted" : tests} tests`;
+  return validationLineText(command, exit, scope, tests === null ? "not counted" : tests);
 }
