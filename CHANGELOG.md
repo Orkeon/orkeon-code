@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the pin moves to Orkeon `f5813a1`
+
+- The pin moves to Orkeon `main` `f5813a1` (Orkeon #318, the Studio UX review, and #319, the Sonar reliability bugs
+  and code smells, same messages and same behaviour): nothing this project uses changes, the typings regenerated
+  from that commit are identical ([ADR 0025](docs/adr/0025-orkeon-after-317.md) still describes the runtime).
+
 ### Changed — the pin moves to Orkeon `7a4ef3d`
 
 - The pin moves to Orkeon `main` `7a4ef3d` (Orkeon #317, which closes #315 and #316, both opened from this project):
