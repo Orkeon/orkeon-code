@@ -29,13 +29,15 @@ import {
   EVAL_K, NEGATIVE_CASE, SUPERSESSION_CASE, parseGolden, probeRows, renderProbeTable, retrievalScores,
 } from "./domain/probe-verdict.ts";
 import type { GoldenCase, ProbeFacts } from "./domain/probe-verdict.ts";
+import { goldenHasNoCase } from "./domain/messages.ts";
+import { PROBE_GOAL, PROBE_ROLE } from "./domain/prompts.ts";
 
 const message = (error: unknown): string => String((error as Error)?.message ?? error).split("\n")[0];
 
 const probe = AgentBuilder()
   .name("probe")
-  .role("Shared-memory recall probe")
-  .goal("Evaluate the shared memory's recall on its reference set and report PASS or FAIL per threshold.")
+  .role(PROBE_ROLE)
+  .goal(PROBE_GOAL)
   // No tool for a model: the body calls rag_eval and the RAG itself, and makes no model call.
   .tools([])
   .body(async () => {
@@ -47,7 +49,7 @@ const probe = AgentBuilder()
     memory.collection = golden.collection;
     const caseOf = (id: string): GoldenCase => {
       const found = golden.cases.find((c) => c.id === id);
-      if (found === undefined) throw new Error(`golden.yaml has no case ${id}`);
+      if (found === undefined) throw new Error(goldenHasNoCase(id));
       return found;
     };
     const recalledIds = async (question: string) =>

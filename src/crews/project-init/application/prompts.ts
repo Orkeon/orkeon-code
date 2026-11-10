@@ -8,6 +8,10 @@ import type { ProjectConventions } from "../domain/conventions.ts";
 import { cutLine } from "../../../shared/domain/project-manifests.ts";
 import type { ExistingFile } from "../domain/existing-files.ts";
 
+/** The role and goal of the project-init agent. */
+export const SCANNER_ROLE = "Repository Onboarding Engineer";
+export const SCANNER_GOAL = "Understand a codebase's layout + conventions and write an AGENTS.md that future agents can rely on.";
+
 /** JSON schema for the convention-extract call. */
 export const CONVENTIONS_SCHEMA = {
   type: "object",

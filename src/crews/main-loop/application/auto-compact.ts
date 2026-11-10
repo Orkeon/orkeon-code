@@ -9,6 +9,7 @@ import { AUTOCOMPACT_BREAKER_STATE_KEY } from "../../../shared/domain/session-ke
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import { readCompactionTrigger } from "../../../shared/application/compaction/compact-session.ts";
 import { isBreakerOpen, nextFailureCount } from "../domain/autocompact.ts";
+import { autoCompactSuppressed } from "./messages.ts";
 
 /** A turn's threshold-gated compaction: `compactAt` runs it at the `compaction.trigger` setting, read once, at the
  *  turn's first compaction, and shared by its head and its tail compactions (undefined: the computed trigger). */
@@ -64,7 +65,7 @@ export async function writeBreakerFailures(deps: Pick<AutoCompactDeps, "session"
 export async function autoCompactGuarded(deps: AutoCompactDeps): Promise<void> {
   const failures = await readBreakerFailures(deps);
   if (isBreakerOpen(failures)) {
-    deps.log.warn(`auto-compact suppressed (breaker open after ${failures} consecutive failures)`);
+    deps.log.warn(autoCompactSuppressed(failures));
     return;
   }
   const outcome = await deps.compact();

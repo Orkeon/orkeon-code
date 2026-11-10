@@ -7,6 +7,10 @@ import type { PromptPair, TestReadiness } from "../../../shared/domain/types.ts"
 /** The program kinds the classification may name. */
 export const APP_TYPES = ["cli", "web", "api", "library"] as const;
 
+/** The role and goal of the init-verifiers agent. */
+export const AUTHOR_ROLE = "QA Tooling Engineer";
+export const AUTHOR_GOAL = "Detect how this project is tested and author verification skills for any zone missing one.";
+
 /** JSON schema for the test-readiness classification. */
 export const READINESS_SCHEMA = {
   type: "object",

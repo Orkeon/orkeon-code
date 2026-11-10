@@ -26,11 +26,12 @@ import {
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { compactSession, snipBuffer } from "../../shared/application/compaction/compact-session.ts";
 import { formatOutcome } from "../../shared/domain/compact-outcome.ts";
+import { COMPACTOR_GOAL, COMPACTOR_ROLE } from "./application/prompts.ts";
 
 const compactor = orkeonAgent()
   .name("session-compactor")
-  .role("Context Window Manager")
-  .goal("Summarise the conversation buffer into a compact form that preserves decisions, code, and open tasks.")
+  .role(COMPACTOR_ROLE)
+  .goal(COMPACTOR_GOAL)
   // file_read: after a compaction, the files the conversation was working on are read back.
   .tools(["session_store", "session_snip", "token_budget", "memory_store", "file_read"])
   .body(async (_input: any, ctx: any) => {

@@ -33,6 +33,10 @@ import { readBehaviorFlags } from "./context-gather.ts";
 import { autoCompactGuarded } from "./auto-compact.ts";
 import type { AutoCompactDeps } from "./auto-compact.ts";
 import { buildTurnPrompt } from "./prompts.ts";
+import {
+  BUDGET_EXHAUSTED_LINE, budgetRanOut, gateOffWarning, MODE_ORIGIN_BUILT_IN, modelOverrideIgnored, NO_PROMPT,
+  nothingToSend, preludeRunning, rulesRemoved, ruleWithoutEffect, stopCheckRetryFailed, stopCheckSendsBack,
+} from "./messages.ts";
 import type { TurnContextDeps, TurnPrompt } from "./prompts.ts";
 import {
   STOP_GUARDS, TURN_START_GUARDS, buildStopRetryPrompt, buildTurnContextMessage, readClosingLine, refusedTurnText,
@@ -112,7 +116,7 @@ export function loadCatalogue(input: MainLoopInputs): LoadedCatalogue {
 /** Where the mode of the turn came from, when the request did not name it. */
 function modeOrigin(input: MainLoopInputs): string | null {
   if (typeof input.permissionModeVia === "string" && input.permissionModeVia.length > 0) return input.permissionModeVia;
-  return input.permissionMode == null ? "no mode given at launch, built-in 'default'" : null;
+  return input.permissionMode == null ? MODE_ORIGIN_BUILT_IN : null;
 }
 
 /** Append one turn to the session buffer (best-effort — continuity across runs).
@@ -182,7 +186,7 @@ export interface MainLoopDeps extends TurnContextDeps, Omit<AutoCompactDeps, "se
 
 /** The request once the prelude's call answered (applyPrelude). */
 async function withPreludeResult(request: string, prelude: PreludeCall, deps: Pick<MainLoopDeps, "tools" | "log">): Promise<string> {
-  deps.log.info(`${prelude.label}: ${prelude.tool}, before the turn`);
+  deps.log.info(preludeRunning(prelude.label, prelude.tool));
   const outcome = await deps.tools.callText(prelude.tool, prelude.args);
   if (!outcome.ok) throw toolFailure(prelude.tool, outcome.failure);
   return applyPrelude(request, prelude, outcome.text);
@@ -208,16 +212,10 @@ async function gateWarning(mode: string, deps: Pick<MainLoopDeps, "llm" | "sessi
   if (mode === "bypassPermissions" || deps.llm.permissionGateEnabled() !== false) return null;
   if (await deps.session.readState(GATE_WARNED_KEY) !== null) return null;
   await deps.session.writeState(GATE_WARNED_KEY, "1");
-  const text = "⚠ the host's permission gate is off (Orkeon:Security:PermissionGate:Enabled is not true): " +
-    `mode '${mode}' and the session's rules check nothing, every tool call runs. /permissions shows it.`;
+  const text = gateOffWarning(mode);
   deps.log.warn(text);
   return text;
 }
-
-/** The line shown under an answer the token budget cut short (Orkeon #218, the context counted once since #224):
- *  the model's last call, made without tools once the crew's budget was spent. */
-export const BUDGET_EXHAUSTED_LINE =
-  "⚠ the turn stopped on its token budget: the answer above is the model's wrap-up, made without tools, and may be cut short";
 
 /** The answer of a turn, and whether the token budget cut it short. */
 interface TurnAnswer { answer: string; cut: boolean }
@@ -237,18 +235,18 @@ async function stopChecked(
   } catch (error) {
     const exhausted = budgetExhaustedAnswerOf(error);
     if (exhausted === null) throw error;
-    deps.log.warn(`the token budget ran out: the model's wrap-up is the answer (${errorText(error)})`);
+    deps.log.warn(budgetRanOut(errorText(error)));
     return { answer: exhausted.answer, cut: true };
   }
   const stop = runChain("stop", deps.chains?.stop ?? STOP_GUARDS, { request, answer, closingLine });
   if (stop.refusedBy === undefined) return { answer, cut: false };
-  deps.log.info(`stop check '${stop.refusedBy}': the answer goes back once (${stop.reason})`);
+  deps.log.info(stopCheckSendsBack(stop.refusedBy, String(stop.reason)));
   try {
     return { answer: await runAct(deps, { ...turn, request: buildStopRetryPrompt(turn.request, answer, stop.reason ?? "") }, mode, flags), cut: false };
   } catch (error) {
     // A retry that fails (a provider error) never costs the turn an answer it had: the first one stands, said.
     if (answer.trim().length === 0) throw error;
-    deps.log.warn(`stop check '${stop.refusedBy}': the retry failed (${errorText(error)}); the first answer stands`);
+    deps.log.warn(stopCheckRetryFailed(stop.refusedBy, errorText(error)));
     return { answer, cut: false };
   }
 }
@@ -258,7 +256,7 @@ async function stopChecked(
  *  decision profile's escalation target with it (the runtime patches the same call configuration onto both). */
 function underProfile(flags: BehaviorFlags, profile: string | null, log: Pick<Logger, "warn">): BehaviorFlags {
   if (profile === null || flags.model === "") return flags;
-  log.warn(`/model override '${flags.model}' ignored: llm.profile ${profile} is active`);
+  log.warn(modelOverrideIgnored(flags.model, profile));
   return { ...flags, model: "" };
 }
 
@@ -277,7 +275,7 @@ export async function runMainLoop(input: MainLoopInputs, loaded: LoadedCatalogue
   const layout = given.host === undefined ? IDENTITY_HOST : (await given.host()).layout;
   const request = textToVirtual(String(input.prompt ?? "").trim(), layout, { keepFenced: true });
   const prelude = parsePrelude(input.prelude);
-  if (request.length === 0 && prelude?.as !== "request") return "No prompt provided.";
+  if (request.length === 0 && prelude?.as !== "request") return NO_PROMPT;
   // Every reader of the turn reads the state bag through this session: its keys come from one batch read.
   const session: SessionIo = { ...given.session, ...await stateSnapshot(given.session, TURN_STATE_KEYS) };
   const deps: MainLoopDeps = { ...given, session };
@@ -285,7 +283,7 @@ export async function runMainLoop(input: MainLoopInputs, loaded: LoadedCatalogue
   // The prelude runs first, as the launching command's call (the gate does not ask):
   // a failure fails the run before any message is stored or any model is called.
   const prompt = prelude === null ? request : await withPreludeResult(request, prelude, deps);
-  if (prompt.length === 0) return `Nothing to send: ${prelude?.label ?? "the request"} came back empty.`;
+  if (prompt.length === 0) return nothingToSend(prelude?.label ?? "the request");
 
   // The mode the catalogue was built for: the "mode:" prefix, else the session
   // default set by /mode, else the fallback (B-2 — built-in 'default' like the
@@ -300,9 +298,9 @@ export async function runMainLoop(input: MainLoopInputs, loaded: LoadedCatalogue
   // short of a tool is indistinguishable from a mode that never had it.
   const { catalogue } = loaded;
   if (catalogue.deniedByRule.length > 0) {
-    log.warn(`permission rules removed: ${catalogue.deniedByRule.join(", ")}`);
+    log.warn(rulesRemoved(catalogue.deniedByRule.join(", ")));
   }
-  for (const r of catalogue.inert) log.warn(`permission rule without effect: ${r.reason}`);
+  for (const r of catalogue.inert) log.warn(ruleWithoutEffect(r.reason));
   const warning = await gateWarning(mode, deps);
 
   // B-9 / B-10: the persisted behavior flags, read ONCE per turn so prompt

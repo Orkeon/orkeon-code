@@ -13,13 +13,14 @@ import { CrewBuilder, publishCrew } from "../../shared/infrastructure/globals.ts
 import { orkeonAgent, orkeonFiles } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { runInitVerifiers } from "./application/run-init-verifiers.ts";
+import { AUTHOR_GOAL, AUTHOR_ROLE } from "./application/prompts.ts";
 
 const files = orkeonFiles();
 
 const author = orkeonAgent()
   .name("verifier-author")
-  .role("QA Tooling Engineer")
-  .goal("Detect how this project is tested and author verification skills for any zone missing one.")
+  .role(AUTHOR_ROLE)
+  .goal(AUTHOR_GOAL)
   .tools([])
   .body(async (_input: any, ctx: any) =>
     await runInitVerifiers({ files, llm: createLlm(ctx.llm), log: ctx.log }))

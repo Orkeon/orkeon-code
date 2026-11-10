@@ -13,6 +13,7 @@ import { MAX_MAP_PACKAGES, renderPackageMap } from "../domain/package-map.ts";
 import { CONVENTIONS_SCHEMA, buildConventionsPrompt, buildInstructionsFilePrompt } from "./prompts.ts";
 import { INSTRUCTIONS_FILE_WRITTEN } from "../../../shared/domain/instructions-file.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
+import { CLAUDE_MD_MERGED, codeIndexSilent, CONVENTION_EXTRACT_FAILED, wroteInstructions } from "./messages.ts";
 
 /** The instruction files /init reads and merges: its own, an older CLAUDE.md, and
  *  the ones other assistants keep. */
@@ -45,7 +46,7 @@ export async function detectConventions(
   try {
     return (await deps.llm.extract(buildConventionsPrompt(configText), CONVENTIONS_SCHEMA)) as ProjectConventions;
   } catch {
-    deps.log.warn("convention extract failed; continuing with package.json scripts only");
+    deps.log.warn(CONVENTION_EXTRACT_FAILED);
     return fallbackConventions(blobs["package.json"] ?? "{}");
   }
 }
@@ -83,7 +84,7 @@ export async function readPackageMap(deps: { index?: CodeIndex; log: Logger }): 
     const graph = await index.dependencyGraph("L1_Package", MAX_MAP_PACKAGES);
     return renderPackageMap(map.entries, graph);
   } catch (e) {
-    deps.log.warn(`init: the code index did not answer (${e instanceof Error ? e.message : String(e)}); no package map`);
+    deps.log.warn(codeIndexSilent(e instanceof Error ? e.message : String(e)));
     return "";
   }
 }
@@ -116,7 +117,7 @@ export async function writeInstructionsFile(
   await files.write(path, content);
   const proposal = proposalNote(existing);
   const merged = proposal === "" && existing.some((f) => f.file === "CLAUDE.md") && !existing.some((f) => f.file === INSTRUCTIONS_FILE_WRITTEN)
-    ? "; CLAUDE.md merged and kept, the assistant now reads AGENTS.md first"
+    ? CLAUDE_MD_MERGED
     : "";
-  return `✓ wrote ${path} (${content.length} bytes; build='${detected?.buildCommand ?? "?"}', test='${detected?.testCommand ?? "?"}')${merged}${proposal}`;
+  return wroteInstructions(path, content.length, detected?.buildCommand ?? "?", detected?.testCommand ?? "?", `${merged}${proposal}`);
 }

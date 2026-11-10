@@ -55,6 +55,7 @@ import { memoryDirOf } from "../../shared/application/shared-memory/memory-setti
 import { createRunState } from "../../shared/infrastructure/orkeon/run-state.ts";
 import { compactSession } from "../../shared/application/compaction/compact-session.ts";
 import { loadCatalogue, runMainLoop } from "./application/run-main-loop.ts";
+import { CODER_GOAL, CODER_ROLE } from "./application/prompts.ts";
 import { BREAKER_RUN_FIELD, turnCompaction } from "./application/auto-compact.ts";
 
 // The tool catalogue is decided at load time (module scope is synchronous), from
@@ -70,8 +71,8 @@ const ports = {
 
 const coder = orkeonAgent()
   .name("coder")
-  .role("Interactive Coding Agent")
-  .goal("Understand a coding request, explore/edit/run code via tool-calling under permission, and answer.")
+  .role(CODER_ROLE)
+  .goal(CODER_GOAL)
   .tools(loaded.catalogue.tools)
   // The shared memory's tools the mode offers (memory_recall always, memory_push where it edits), attached, not named.
   .withAutonomousTools(memoryTools(ToolBuilder, orkeonMemoryToolPorts, loaded.mode, loaded.scriptTools))

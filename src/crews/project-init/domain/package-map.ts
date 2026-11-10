@@ -5,6 +5,7 @@
 import type { GraphSummary, MapEntry } from "../../../shared/domain/code-intel-contract.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 import { cutLine } from "../../../shared/domain/project-manifests.ts";
+import { PACKAGE_MAP_LABEL, packageMapHeader } from "./prompts.ts";
 
 /** Characters of the rendered map, the cut marker aside. */
 export const MAX_PACKAGE_MAP_CHARS = 4_000;
@@ -52,8 +53,7 @@ function packageLines(entries: readonly MapEntry[], graph: GraphSummary): string
 /** The header of the map: the count of packages, and that the map stops at MAX_MAP_PACKAGES when it
  *  reached it, since the project may hold more. */
 function header(count: number): string {
-  const bound = count >= MAX_MAP_PACKAGES ? `, the map shows at most ${MAX_MAP_PACKAGES} packages` : "";
-  return `${count} package(s)${bound}, each with the packages it depends on:`;
+  return packageMapHeader(count, count >= MAX_MAP_PACKAGES ? MAX_MAP_PACKAGES : null);
 }
 
 /** The package map as material, at most `max` characters and a marker line when cut; "" with no package. */
@@ -68,6 +68,6 @@ export function renderPackageMap(entries: readonly MapEntry[], graph: GraphSumma
     size += line.length + 1;
   }
   const omitted = lines.slice(kept.length).reduce((n, l) => n + l.length + 1, 0);
-  if (omitted > 0) kept.push(cutLine(omitted, "the package map"));
+  if (omitted > 0) kept.push(cutLine(omitted, PACKAGE_MAP_LABEL));
   return kept.join("\n");
 }

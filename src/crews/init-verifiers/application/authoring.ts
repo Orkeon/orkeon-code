@@ -13,6 +13,7 @@ import { manifestsAsMaterial, readConfigFiles } from "../../../shared/applicatio
 import type { ManifestText } from "../../../shared/application/project-manifests.ts";
 import { READINESS_SCHEMA, buildReadinessPrompt, buildVerifierSkillPrompt, renderVerifierMaterial } from "./prompts.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
+import { READINESS_EXTRACT_FAILED } from "./messages.ts";
 
 /** What the crew reads of the project: the top-level names, package.json for the fallback, the rendered material. */
 export interface VerifierFacts {
@@ -66,7 +67,7 @@ export async function detectReadiness(
   try {
     return (await deps.llm.extract(buildReadinessPrompt(facts.names, facts.material), READINESS_SCHEMA)) as TestReadiness;
   } catch {
-    deps.log.warn("readiness extract failed; falling back to a package.json heuristic");
+    deps.log.warn(READINESS_EXTRACT_FAILED);
     return fallbackReadiness(facts.pkg);
   }
 }
