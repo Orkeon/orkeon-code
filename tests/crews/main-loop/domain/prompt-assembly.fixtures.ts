@@ -1,10 +1,15 @@
 // The inputs prompt assembly is tested on: header options, rule markers, histories, parts and case tables.
 import type { SessionMsg } from "../../../../src/shared/domain/types.ts";
-import { ERROR_THRESHOLD_BUFFER_TOKENS, WARNING_THRESHOLD_BUFFER_TOKENS } from "../../../../src/shared/domain/compaction-thresholds.ts";
-import { buildGaugeBlock, buildHistoryBlock, buildMemoryBlock, buildUserContextBlock } from "../../../../src/crews/main-loop/domain/prompt-assembly.ts";
+import {
+  ERROR_THRESHOLD_BUFFER_TOKENS, WARNING_THRESHOLD_BUFFER_TOKENS,
+} from "../../../../src/shared/domain/compaction-thresholds.ts";
+import {
+  buildGaugeBlock, buildHistoryBlock, buildMemoryBlock, buildUserContextBlock,
+} from "../../../../src/crews/main-loop/domain/prompt-assembly.ts";
 import type { ContextParts } from "../../../../src/crews/main-loop/domain/prompt-assembly.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
-import { COMPACTED_MARKER, TURN_CONTEXT_MARKER } from "../../../../src/shared/domain/marked-message.ts";
+import { COMPACTED_MARKER } from "../../../../src/shared/domain/marked-message.ts";
+import { TURN_CONTEXT_MARKER } from "../../../../src/shared/domain/markers.ts";
 
 /** Header options with an AGENTS.md of two lines. */
 export const AGENTS_HEADER_OPTS = { toolNames: ["file_read", "file_write"], instructions: { file: "AGENTS.md", content: "# Rules\nDo X." } };

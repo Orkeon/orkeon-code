@@ -2,6 +2,7 @@
 // `## TDD sequence`, the test methods of its step tables, its `Applied rules` row and its
 // `TDD:` lines. Line-based, as the harness's greps read the file. Pure.
 import { SHEET_ID_SOURCE } from "./trait-pattern.ts";
+import { APPLIED_ROW, OPEN_BOX, TICKED_TDD_LINE } from "./markers.ts";
 
 export interface SheetFacts {
   ids: string[];                  // ids of `## TDD sequence`, sorted, unique (AC:166)
@@ -12,9 +13,6 @@ export interface SheetFacts {
   closed: boolean;                // check 1 (AC:119)
 }
 
-const TICKED = "TDD: RED [x] GREEN [x] COST [x]";
-const OPEN_BOX = /(RED|GREEN|COST) \[ \]/;
-const APPLIED_ROW = /^\| *Applied rules *\|/;
 const SEPARATOR_ROW = /^\|[-: |]+$/;
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
@@ -71,7 +69,7 @@ export function sheetFacts(sheet: string): SheetFacts {
   const ids = unique(section.flatMap((l) => l.match(new RegExp(SHEET_ID_SOURCE, "g")) ?? [])).sort();
   const appliedRulesRow = lines.find((l) => APPLIED_ROW.test(l)) ?? null;
   const afterLabel = appliedRulesRow === null ? "" : appliedRulesRow.slice(appliedRulesRow.indexOf("Applied rules") + "Applied rules".length);
-  const tickedLines = lines.filter((l) => l.includes(TICKED)).length;
+  const tickedLines = lines.filter((l) => l.includes(TICKED_TDD_LINE)).length;
   return {
     ids,
     methods: stepMethods(section),

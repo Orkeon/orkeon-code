@@ -10,70 +10,18 @@
 // extends and implements on the graph tools and edge_list; `expand` takes the PascalCase flags, `Inheritance` giving a
 // type's bases and what derives from it since Orkeon #280). code-intel-contract.ts pins the parameter names.
 
+import {
+  ASK_INDEX_BEFORE_READING, ASK_INDEX_BEFORE_SCRIPTING, CODE_INTEL_ROUTING_TEXT, truncatedIsASample,
+} from "./prompts.ts";
+
 /** One question and the tool that answers it: emitted when the agent holds every tool of `tools`. */
 interface RoutingLine {
   readonly tools: readonly string[];
   readonly text: string;
 }
 
-const ROUTING_LINES: readonly RoutingLine[] = [
-  {
-    tools: ["codebase_map"],
-    text: "the repository's shape: `codebase_map` (level `L1_Package` first)",
-  },
-  {
-    tools: ["package_summary"],
-    text: "what one package holds and exposes: `package_summary(fqn)`",
-  },
-  {
-    tools: ["codebase_search"],
-    text: "a symbol by name or meaning: `codebase_search(query)`, `filter_kinds: [\"Class\"]` for one kind",
-  },
-  {
-    tools: ["symbol_detail"],
-    text: "one type's bases and what derives from or implements it: `symbol_detail(fqn, expand: \"Inheritance\")`; " +
-      "its callers: `expand: \"Callers\"`",
-  },
-  {
-    tools: ["sub_graph"],
-    text: "who calls or extends a symbol, over hops: `sub_graph(seeds: [fqn], direction: \"Backward\", " +
-      "edge_kinds: [\"calls\"])` or `[\"inherits\"]`",
-  },
-  {
-    tools: ["edge_list"],
-    text: "every edge of one kind, across the index or under a `root_fqn` (every base class, implementation or " +
-      "import): `edge_list(edge_kinds: [\"inherits\"])`, paged by `next_cursor`, `total` counts them",
-  },
-  {
-    tools: ["flow_trace"],
-    text: "a call chain over several hops from one symbol: `flow_trace(from, direction)`, `Forward`, `Backward` " +
-      "or `Both`",
-  },
-  {
-    tools: ["impact_analysis"],
-    text: "what breaks if a symbol changes: `impact_analysis(target)`",
-  },
-  {
-    tools: ["affected_tests"],
-    text: "the tests a change concerns: `affected_tests(changed_files)`, or `base` for a git ref",
-  },
-  {
-    tools: ["dependency_graph"],
-    text: "how packages or modules depend on each other: `dependency_graph` (scope `L1_Package`, `L2_Module`)",
-  },
-  {
-    tools: ["structural_search"],
-    text: "every place a code shape occurs (an await inside a loop): `structural_search` with its `language`",
-  },
-  {
-    tools: ["count_pattern"],
-    text: "how many times a text occurs in a file: `count_pattern`",
-  },
-  {
-    tools: ["grep"],
-    text: "a text across many files: `grep` with a `glob` (`output_mode: \"count\"` for how many)",
-  },
-];
+const ROUTING_LINES: readonly RoutingLine[] = (Object.keys(CODE_INTEL_ROUTING_TEXT) as (keyof typeof CODE_INTEL_ROUTING_TEXT)[])
+  .map((tool) => ({ tools: [tool], text: CODE_INTEL_ROUTING_TEXT[tool] }));
 
 /** The analysis tools whose answer can be cut: an agent holding one gets the exhaustiveness rule. */
 const BOUNDED_TOOLS: readonly string[] = [
@@ -90,8 +38,7 @@ const SHELL_TOOL = "shell_command";
  *  the parameter that narrows to a subtree, for an agent holding a tool that takes it. */
 function exhaustivenessRule(shell: boolean, rootFqn: boolean): string {
   const narrowers = ["one package", ...(rootFqn ? ["a `root_fqn`"] : []), "a `glob`"].join(", ");
-  return `A result marked \`truncated\` is a sample: say so in the answer, and narrow the question (${narrowers}) to ` +
-    `see the rest${shell ? ", rather than writing a script over every file" : ""}.`;
+  return truncatedIsASample(narrowers, shell);
 }
 
 /** The question-to-tool lines for an agent holding `tools`, one line each, then the exhaustiveness rule when it
@@ -106,7 +53,7 @@ export function describeCodeIntelRouting(tools: readonly string[]): string {
   const shell = tools.includes(SHELL_TOOL);
   const rootFqn = ROOT_FQN_TOOLS.some((tool) => tools.includes(tool));
   return [
-    shell ? "Ask the index before reading or scripting, by question:" : "Ask the index before reading, by question:",
+    shell ? ASK_INDEX_BEFORE_SCRIPTING : ASK_INDEX_BEFORE_READING,
     ...lines,
     ...(bounded ? [exhaustivenessRule(shell, rootFqn)] : []),
   ].join("\n");

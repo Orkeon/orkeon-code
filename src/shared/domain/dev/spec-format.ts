@@ -5,6 +5,12 @@
 // The gate keeps the harness's own line test and adds a reading by the Severity column,
 // so it is never less strict than the harness.
 import type { FormatProblem } from "./plan-format.ts";
+import {
+  BLOCKING_CELL, BRIEF_TITLE, ID_HEADING, MUST_NOT_CHANGE, OPEN_QUESTIONS_HEADING, SPEC_TITLE, STATEMENT,
+} from "./markers.ts";
+import {
+  blockingQuestionsOpen, BRIEF_TITLE_NAMES_NO_KIND, duplicatedId, idInChangeBrief, settleThemFirst,
+} from "./messages.ts";
 
 export type SourceKind = "spec" | "change";
 export type ChangeKind = "bug" | "refactor" | "perf";
@@ -21,14 +27,7 @@ export interface PlanSource {
   problems: FormatProblem[];
 }
 
-const OPEN_QUESTIONS = /^## .*Open questions/;
-const MUST_NOT_CHANGE = /^## (\d+\. )?What must not change/;
-const BLOCKING_CELL = /\| *Blocking *\|/;
 const SEPARATOR_ROW = /^\|?[-: |]+$/;
-const ID_HEADING = /^#{3,4} (UC|BR|CH)-(\d+)\s*[—:-]\s*(.+)$/;
-const SPEC_TITLE = /^# (\S+) — (.+)$/;
-const BRIEF_TITLE = /^# (\S+) — (.+) — (bug|refactor|perf)\s*$/;
-const STATEMENT = "**Statement**";
 const MAX_STATEMENT = 200;
 const MAX_SHOWN_ROW = 200;
 const MAX_SHOWN_ROWS = 8;
@@ -72,7 +71,7 @@ function tableRows(section: ReadonlyArray<{ text: string; line: number }>): Tabl
 }
 
 function openQuestions(lines: readonly string[]): OpenQuestion[] {
-  return tableRows(sectionLines(lines, OPEN_QUESTIONS)).map((r) => {
+  return tableRows(sectionLines(lines, OPEN_QUESTIONS_HEADING)).map((r) => {
     const column = r.header.indexOf("Severity");
     return { line: r.line, raw: r.text, severity: column >= 0 ? (r.cells[column] ?? "") : "", cells: r.cells };
   });
@@ -81,7 +80,7 @@ function openQuestions(lines: readonly string[]): OpenQuestion[] {
 /** The gate alone, run before any other read: the raw lines that stop a plan. */
 export function blockingRows(text: string): OpenQuestion[] {
   const lines = linesOf(text);
-  const section = sectionLines(lines, OPEN_QUESTIONS);
+  const section = sectionLines(lines, OPEN_QUESTIONS_HEADING);
   const bySeverity = new Map<number, OpenQuestion>();
   for (const q of openQuestions(lines)) if (plain(q.severity).toLowerCase() === "blocking") bySeverity.set(q.line, q);
   const out: OpenQuestion[] = [];
@@ -118,9 +117,9 @@ function readIds(lines: readonly string[], kind: SourceKind, problems: FormatPro
     if (!m) return;
     const id = `${m[1]}-${m[2]}`;
     const line = i + 1;
-    if (seen.has(id)) { problems.push({ line, message: `duplicated id ${id}` }); return; }
+    if (seen.has(id)) { problems.push({ line, message: duplicatedId(id) }); return; }
     seen.add(id);
-    if (kind === "change" && m[1] !== "CH") { problems.push({ line, message: `${id} in a change brief` }); return; }
+    if (kind === "change" && m[1] !== "CH") { problems.push({ line, message: idInChangeBrief(id) }); return; }
     if (kind === "spec" && m[1] === "CH") return;
     ids.push({ id, title: m[3].trim(), statement: statementOf(lines, i + 1), line });
   });
@@ -161,7 +160,7 @@ export function parsePlanSource(text: string, kind: SourceKind): PlanSource {
       source.code = plainTitle[1]; source.name = plainTitle[2];
     }
     if (kind === "change" && !brief) {
-      problems.push({ line: titleIndex + 1, message: "the brief's title names no kind (bug, refactor or perf)" });
+      problems.push({ line: titleIndex + 1, message: BRIEF_TITLE_NAMES_NO_KIND });
     }
   }
   source.ids = readIds(lines, kind, problems);
@@ -175,9 +174,9 @@ export function blockingStop(shown: string, kind: SourceKind, code: string, rows
   const shownRows = rows.slice(0, MAX_SHOWN_ROWS).map((r) => `  ${r.raw.trim().slice(0, MAX_SHOWN_ROW)}`);
   const more = rows.length > MAX_SHOWN_ROWS ? [`  … ${rows.length - MAX_SHOWN_ROWS} more`] : [];
   return [
-    `dev-plan: ${shown} has ${rows.length} open Blocking question(s); no plan is written.`,
+    blockingQuestionsOpen(shown, rows.length),
     ...shownRows,
     ...more,
-    `→ Settle them first: ${settle} ${code}${kind === "change" ? " <its kind: bug, refactor or perf>" : ""}, or edit the file; then /dev-plan ${code}.`,
+    settleThemFirst(settle, code, kind === "change"),
   ].join("\n");
 }

@@ -13,7 +13,9 @@ import {
   buildCompactedBuffer, buildMemoryExtractionPrompt, buildMemoryRecapMessage, buildRestoredFileMessage,
   buildRestoredFileNotice, buildRestoredSkillMessage, buildSummaryPrompt, buildTranscript, MEMORY_EXTRACTION_SCHEMA,
 } from "../../../src/shared/domain/compaction.ts";
-import { buildLensPrompt, cutDiff, FINDINGS_SCHEMA, LENSES } from "../../../src/crews/code-review/application/prompts.ts";
+import {
+  buildLensPrompt, cutDiff, FINDINGS_SCHEMA, LENSES,
+} from "../../../src/crews/code-review/application/prompts.ts";
 import { buildCommitPrompt } from "../../../src/crews/git-commit/application/draft.ts";
 import { buildAdvicePrompt } from "../../../src/crews/advisor/domain/advice.ts";
 import { SYNTHESIS_SYSTEM, buildSynthesisUser } from "../../../src/crews/analyze/domain/harvest.ts";
@@ -25,7 +27,7 @@ import { renderPackageMap } from "../../../src/crews/project-init/domain/package
 import {
   CONVENTIONS_SCHEMA, buildConventionsPrompt, buildInstructionsFilePrompt,
 } from "../../../src/crews/project-init/application/prompts.ts";
-import { SUMMARY_PROMPT } from "../../../src/shared/domain/session-summary.ts";
+import { SUMMARY_PROMPT } from "../../../src/shared/domain/prompts.ts";
 import { buildVerifyRequest } from "../../../src/shared/domain/verifiers.ts";
 import { applyPrelude } from "../../../src/shared/domain/prelude.ts";
 import {
@@ -332,7 +334,7 @@ export async function renderCatalogue(): Promise<RenderedPrompt[]> {
       ],
     },
     {
-      id: "11", name: "session-requests", source: "src/shared/domain/session-summary.ts, src/shared/domain/verifiers.ts",
+      id: "11", name: "session-requests", source: "src/shared/domain/prompts.ts, src/shared/domain/verifiers.ts",
       callSite: "/summary (plan mode) and /verify (the session's mode) → the main loop", call: "act, as the request",
       inputs: "none; the zone cli for /verify",
       sections: [

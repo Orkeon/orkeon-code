@@ -3,7 +3,8 @@
 // the request, so one turn of this harness can be two of the runtime's. The cut asks for as many of the runtime's turns
 // as the last turns of this harness hold, so none of them loses its [turn-context].
 
-import { TURN_CONTEXT_MARKER, isMarkedMessage } from "./marked-message.ts";
+import { isMarkedMessage } from "./marked-message.ts";
+import { TURN_CONTEXT_MARKER } from "./markers.ts";
 import type { SessionMsg } from "./types.ts";
 
 const isUser = (m: SessionMsg): boolean => String(m.role).toLowerCase() === "user";

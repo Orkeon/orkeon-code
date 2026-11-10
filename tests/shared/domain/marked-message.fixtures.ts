@@ -1,5 +1,6 @@
 // The stored messages a marker opens, and the typed ones that only open with a bracket.
-import { COMPACTED_HEADER, buildSnipNoticeMessage } from "../../../src/shared/domain/compaction.ts";
+import { buildSnipNoticeMessage } from "../../../src/shared/domain/compaction.ts";
+import { COMPACTED_HEADER } from "../../../src/shared/domain/markers.ts";
 import type { SessionMsg } from "../../../src/shared/domain/types.ts";
 
 export const MARKED_CASES: { name: string; content: string; marked: boolean }[] = [

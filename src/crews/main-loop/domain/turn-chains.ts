@@ -8,7 +8,7 @@
 // both events guard the turn, so a check that cannot run must not let the turn through.
 // The guards built in are below; /hooks declarations are not run here.
 import type { StartOutput } from "../../../shared/domain/session-start.ts";
-import { TURN_CONTEXT_MARKER } from "../../../shared/domain/marked-message.ts";
+import { TURN_CONTEXT_MARKER } from "../../../shared/domain/markers.ts";
 
 export type ChainEvent = "turn-start" | "stop";
 

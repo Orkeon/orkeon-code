@@ -11,10 +11,12 @@ import { FakeShellJobs } from "../../../support/doubles/fake-shell-jobs.ts";
 import type { FakePrecedents } from "../../../support/doubles/fake-precedents.ts";
 import { createConfigStore } from "../../../../src/shared/application/config-store.ts";
 import { GIT_TOPLEVEL } from "../../../../src/shared/application/dev/resolve-work-folder.ts";
-import type { ActRequest, AffectedTests, Clock, CostIndex, ShellResult } from "../../../../src/shared/application/ports.ts";
+import type {
+  ActRequest, AffectedTests, Clock, CostIndex, ShellResult,
+} from "../../../../src/shared/application/ports.ts";
 import type { AccessCostReport } from "../../../../src/shared/domain/dev/access-cost.ts";
 import { GIT_IDENT_COMMAND } from "../../../../src/shared/domain/git/close.ts";
-import { AUDIT_UNFINISHED_GAP } from "../../../../src/shared/domain/dev/verdict-format.ts";
+import { AUDIT_UNFINISHED_GAP } from "../../../../src/shared/domain/dev/markers.ts";
 import { STALE_HEADING } from "../../../../src/crews/dev-implement/domain/contracts.ts";
 import { STATUS_COMMAND } from "../../../../src/crews/dev-implement/application/observe.ts";
 import { touchedPath } from "../../../../src/crews/dev-implement/application/touched.ts";

@@ -1,7 +1,7 @@
-// The /summary request. Run: node --test tests/shared/domain/session-summary.test.ts
+// The prompts of shared/domain. Run: node --test tests/shared/domain/prompts.test.ts
 import { describe, it } from "node:test";
 
-import { SUMMARY_PROMPT } from "../../../src/shared/domain/session-summary.ts";
+import { SUMMARY_PROMPT } from "../../../src/shared/domain/prompts.ts";
 import { assertMentions } from "../../support/assertions/text.ts";
 
 describe("SUMMARY_PROMPT", () => {

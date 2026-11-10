@@ -4,7 +4,8 @@
 // before the next question is asked. When nobody answers (an unattended run, an empty text) the asking stops at
 // once: nothing is decided on anyone's behalf, the questions stay in the file and the step reads BLOCKED.
 import type { HumanInput } from "../ports.ts";
-import { LEAVE_OPEN, askingOrder, decide, questionPrompt } from "../../domain/dev/questions.ts";
+import { askingOrder, decide, questionPrompt } from "../../domain/dev/questions.ts";
+import { LEAVE_OPEN } from "../../domain/dev/markers.ts";
 import type { Decision, Question } from "../../domain/dev/questions.ts";
 
 export interface SettleDeps {

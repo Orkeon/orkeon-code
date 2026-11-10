@@ -2,12 +2,13 @@
 // resume appends one). Pure, no IO, never throws. Gap rows are cut as the harness's
 // learning script cuts them, so both read the same rows from the same file.
 import type { FormatProblem } from "./plan-format.ts";
+import {
+  AUDIT_UNFINISHED_GAP, CLOSE_LINE, CORRECTION_LINE, MEASURE_LINE, NOT_RUN_LINE, VALIDATIONS_LINE, VERDICT_HEADING,
+  VERDICT_TITLE,
+} from "./markers.ts";
+import { malformedGapRow, unknownSeverity, unknownVerdictLine, unknownVerdictTitle } from "./messages.ts";
 
 export type Verdict = "VALID" | "GAPS";
-
-/** The gap of the row dev-verify writes when the step's budget stopped the audit: not a finding of the code, so
- *  neither the learning harvest nor a resumed audit takes it as one. Its reason goes in the evidence. */
-export const AUDIT_UNFINISHED_GAP = "the audit did not finish: the step's budget ran out";
 
 export function isAuditUnfinishedGap(gap: string): boolean {
   return gap.trim() === AUDIT_UNFINISHED_GAP;
@@ -26,11 +27,6 @@ export interface VerdictSection {
 }
 export interface VerdictFile { sections: VerdictSection[]; problems: FormatProblem[] }
 
-const TITLE = /^# (\S+)-VERIFY-(F\d+) — (\d{4}-\d{2}-\d{2} \d{2}:\d{2}) — (\S+)$/;
-const VERDICT = /^##\s+Verdict\s+—\s+(VALID|GAPS)\s*$/;
-const VALIDATIONS = /^Validations: (.+)$/;
-const NOT_RUN = /^Not run: (.+)$/;
-const MEASURE = /^Measure: (.+)$/;
 const SEVERITIES: ReadonlySet<string> = new Set(["Blocking", "Major", "Minor"]);
 
 function emptySection(line: number): VerdictSection {
@@ -46,29 +42,29 @@ export function parseVerdictFile(text: string): VerdictFile {
     const line = i + 1;
     if (t.startsWith("#")) {
       inside = false;
-      const title = TITLE.exec(t);
+      const title = VERDICT_TITLE.exec(t);
       if (title) {
         section = { ...emptySection(line), prefix: title[1], batch: title[2], when: title[3], mode: title[4] };
         file.sections.push(section);
         return;
       }
-      const v = VERDICT.exec(t);
+      const v = VERDICT_HEADING.exec(t);
       if (v) {
         if (!section || section.verdict !== null) { section = emptySection(line); file.sections.push(section); }
         section.verdict = v[1] as Verdict;
         inside = true;
         return;
       }
-      if (/-VERIFY-/.test(t) && t.startsWith("# ")) file.problems.push({ line, message: `unknown verdict title '${t}'` });
-      else if (/^##\s+Verdict\b/.test(t)) file.problems.push({ line, message: `unknown verdict line '${t}'` });
+      if (/-VERIFY-/.test(t) && t.startsWith("# ")) file.problems.push({ line, message: unknownVerdictTitle(t) });
+      else if (/^##\s+Verdict\b/.test(t)) file.problems.push({ line, message: unknownVerdictLine(t) });
       return;
     }
     if (!section) return;
     const current: VerdictSection = section;
     let m: RegExpExecArray | null;
-    if ((m = VALIDATIONS.exec(t))) { current.validations.push(m[1]); return; }
-    if ((m = NOT_RUN.exec(t))) { current.notRun.push(m[1]); return; }
-    if ((m = MEASURE.exec(t))) { current.measure = m[1]; return; }
+    if ((m = VALIDATIONS_LINE.exec(t))) { current.validations.push(m[1]); return; }
+    if ((m = NOT_RUN_LINE.exec(t))) { current.notRun.push(m[1]); return; }
+    if ((m = MEASURE_LINE.exec(t))) { current.measure = m[1]; return; }
     if (!inside) return;
     if (t.trim() === "None.") { current.none = true; return; }
     const s = t.trim();
@@ -77,8 +73,8 @@ export function parseVerdictFile(text: string): VerdictFile {
     if (!s.startsWith("|") && !(s.includes("|") && SEVERITIES.has(s.slice(0, s.indexOf("|")).trim()))) return;
     const cells = s.replace(/^\|+/, "").replace(/\|+$/, "").split("|").map((c) => c.trim());
     if (cells[0] === "Severity" || /^-+$/.test(cells[0].replace(/:/g, ""))) return;
-    if (!SEVERITIES.has(cells[0])) { file.problems.push({ line, message: `unknown severity '${cells[0]}'` }); return; }
-    if (cells.length < 5) { file.problems.push({ line, message: `malformed gap row '${s}'` }); return; }
+    if (!SEVERITIES.has(cells[0])) { file.problems.push({ line, message: unknownSeverity(cells[0]) }); return; }
+    if (cells.length < 5) { file.problems.push({ line, message: malformedGapRow(s) }); return; }
     current.rows.push({
       severity: cells[0] as Severity, axis: cells[1], gap: cells.slice(2, -2).join(" | "),
       evidence: cells[cells.length - 2], expectedFix: cells[cells.length - 1], line,
@@ -153,9 +149,6 @@ export const auditCommand = (code: string, batch: string, mode?: "fast" | "full"
 export const correctionLine = (code: string, batch: string, finding: string): string => `→ ${correctionCommand(code, batch, finding)}`;
 /** The line a VALID verdict ends on: the close to run. */
 export const closeLine = (code: string, batch: string): string => `→ ${closeCommand(code, batch)}`;
-
-const CORRECTION_LINE = /^\s*→ \/dev-batches (\S+) (F\d+) — correction: (.+)$/m;
-const CLOSE_LINE = /^\s*→ \/dev-batches (\S+) (F\d+) --close\s*$/;
 
 /** The first correction line of `text`: its code, batch and finding; null when it holds none. */
 export function parseCorrectionLine(text: string): { code: string; batch: string; finding: string } | null {

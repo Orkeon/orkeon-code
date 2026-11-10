@@ -12,9 +12,10 @@ import { costSummary } from "../../../shared/domain/dev/access-cost.ts";
 import { classifyArtefact, isCode } from "../../../shared/domain/dev/artefacts.ts";
 import type { RepoPack } from "../../../shared/domain/dev/repo-pack.ts";
 import {
-  AUDIT_UNFINISHED_GAP, auditCommand, closeLine, correctionLine, isAuditUnfinishedGap, isUnfinishedSection, lastFinishedVerdict, lastVerdict,
-  parseVerdictFile,
+  auditCommand, closeLine, correctionLine, isAuditUnfinishedGap, isUnfinishedSection, lastFinishedVerdict,
+  lastVerdict, parseVerdictFile,
 } from "../../../shared/domain/dev/verdict-format.ts";
+import { AUDIT_UNFINISHED_GAP } from "../../../shared/domain/dev/markers.ts";
 import type { GapRow } from "../../../shared/domain/dev/verdict-format.ts";
 import { AXES } from "../domain/audit-answer.ts";
 import type { AuditRow, Axis } from "../domain/audit-answer.ts";
@@ -29,7 +30,9 @@ import type { UnfinishedAudit, ValidationRunner } from "./audit.ts";
 import { stepRules } from "../../../shared/domain/dev/step-rules.ts";
 import type { AuditBriefInput } from "./prompts.ts";
 import { writeCapture } from "./capture.ts";
-import { noPrecedents, precedentsLine, recallQuery, sheetTitle } from "../../../shared/application/dev/step-precedents.ts";
+import {
+  noPrecedents, precedentsLine, recallQuery, sheetTitle,
+} from "../../../shared/application/dev/step-precedents.ts";
 import type { StepPrecedents } from "../../../shared/application/dev/step-precedents.ts";
 import type { WorkFolder } from "../../../shared/application/dev/resolve-work-folder.ts";
 import { runGate } from "./run-gate.ts";

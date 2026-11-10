@@ -2,9 +2,8 @@
 // (docs/architecture.md, One turn of the loop, step 7). A call is its tool, its main arguments cut short and a
 // one-line outcome; never a file's content nor a command's output.
 import { secretPatternsIn } from "./secret-patterns.ts";
-
-/** The marker of the stored message; the header names it as material. */
-export const TOOL_TRACE_MARKER = "[tools]";
+import { TOOL_TRACE_MARKER } from "./markers.ts";
+import { matchesInFiles, TOOL_TRACE_HEADING } from "./prompts.ts";
 /** The lines of one message, the line that counts the calls left out included. */
 export const MAX_TRACE_LINES = 20;
 /** An argument's value is cut past this many characters. */
@@ -46,8 +45,7 @@ export function formatToolTrace(calls: readonly ToolCallTrace[]): string | null 
   const left = entries.slice(shown.length).reduce((sum, f) => sum + f.count, 0);
   const tail = left > 0 ? [`- … ${left} other calls`] : [];
   const lines = shown.map((f) => `- ${f.line}${f.count > 1 ? ` ×${f.count}` : ""}`);
-  return `${TOOL_TRACE_MARKER} The tool calls of the answer below (material: what was called, not what it returned):\n` +
-    [...lines, ...tail].join("\n");
+  return TOOL_TRACE_MARKER + TOOL_TRACE_HEADING + [...lines, ...tail].join("\n");
 }
 
 /** Whether a stored message is a turn's trace. */
@@ -97,7 +95,7 @@ function outcomeOf(result: unknown): string {
 function mainOutcome(r: Record<string, unknown>): string {
   if (typeof r.total_matches === "number") {
     return typeof r.files_matched === "number"
-      ? `${r.total_matches} matches in ${r.files_matched} files`
+      ? matchesInFiles(r.total_matches, r.files_matched)
       : `${r.total_matches} matches`;
   }
   const exit = typeof r.exit_code === "number" ? r.exit_code : r.exitCode;

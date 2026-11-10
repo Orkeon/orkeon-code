@@ -2,9 +2,8 @@
 //   node --test tests/shared/domain/tool-trace.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
-import {
-  formatToolTrace, isToolTrace, MAX_TRACE_LINES, TOOL_TRACE_MARKER, traceCall,
-} from "../../../src/shared/domain/tool-trace.ts";
+import { formatToolTrace, isToolTrace, MAX_TRACE_LINES, traceCall } from "../../../src/shared/domain/tool-trace.ts";
+import { TOOL_TRACE_MARKER } from "../../../src/shared/domain/markers.ts";
 import { call, distinctCalls, repeatedCallsPastTheCap, TRACE_CASES } from "./tool-trace.fixtures.ts";
 
 describe("traceCall", () => {

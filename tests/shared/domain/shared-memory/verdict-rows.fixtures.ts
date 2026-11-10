@@ -4,7 +4,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { AUDIT_UNFINISHED_GAP } from "../../../../src/shared/domain/dev/verdict-format.ts";
+import { AUDIT_UNFINISHED_GAP } from "../../../../src/shared/domain/dev/markers.ts";
 import { LEARN_FILE } from "../../../../src/shared/domain/shared-memory/verdict-rows.ts";
 import type { LearnRow, VerdictSource } from "../../../../src/shared/domain/shared-memory/verdict-rows.ts";
 
