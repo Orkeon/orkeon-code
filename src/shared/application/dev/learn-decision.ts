@@ -13,10 +13,8 @@ import type { LearnState } from "../../domain/dev/learn-state.ts";
 import { appendRefused, parseRefused, projectFromRemote, topicOf } from "../../domain/shared-memory/refused.ts";
 import { readRefusedFile } from "../shared-memory/memory-settings.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
-import {
-  alreadyDecided, alreadyRefused, axisDone, cannotBeListed, cannotBeRead, learnBlockedNotWritten, learnNoWorkFolder, learnOutsideMounts,
-  learnStateInvalid, learnStateLine, learnStateUnreadable, noProposal, refuseByWords, refusedLine, refusedUnreadable,
-} from "./messages.ts";
+import { alreadyDecided, alreadyRefused, axisDone, cannotBeListed, learnBlockedNotWritten, learnNoWorkFolder, learnOutsideMounts, learnStateInvalid, learnStateLine, learnStateUnreadable, noProposalInNewestFolders, refuseByWords, refusedLeftOut, refusedUnreadable } from "./messages.ts";
+import { cannotBeRead } from "../messages.ts";
 
 export type DevLearnDecisionArgs = { kind: "accept"; ids: string[] } | { kind: "refuse"; target: string };
 export type DevLearnDecisionDeps = DevContextDeps & { files: Pick<Files, "read" | "list" | "write">; clock: () => Date };
@@ -137,7 +135,7 @@ async function saveLearnState(files: Pick<Files, "write">, state: LearnState): P
 }
 
 const notFoundText = (work: WorkFolder, id: string): string =>
-  noProposal(id, work.folder);
+  noProposalInNewestFolders(id, work.folder);
 const stateLine = (state: LearnState): string => learnStateLine(LEARN_STATE_FILE, state.treated.length);
 
 async function acceptMotifs(ids: readonly string[], lookup: ProposalsLookup, work: WorkFolder, deps: DevLearnDecisionDeps): Promise<string[]> {
@@ -197,7 +195,7 @@ async function recordRefusal(topic: string, motifText: string, date: string, dep
   } catch (e) {
     return { ok: false, line: learnBlockedNotWritten(refusedFile, firstLineOf(e)) };
   }
-  return { ok: true, line: refusedLine(topic, refusedFile) };
+  return { ok: true, line: refusedLeftOut(topic, refusedFile) };
 }
 
 async function refuseMotif(target: string, lookup: ProposalsLookup, work: WorkFolder, deps: DevLearnDecisionDeps): Promise<string[]> {

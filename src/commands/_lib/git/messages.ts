@@ -25,8 +25,6 @@ export const NO_ANSWER_REFUSAL =
   "refused: the confirmation prompt returned no answer (non-interactive session). " +
   "Re-run as '/commit --yes' to stage and commit the changed files unattended.";
 export const COMMIT_CANCELLED = "cancelled — nothing was staged and nothing was committed.";
-export const refusedLine = (reason: string) => `✗ refused: ${reason}`;
-export const failedLine = (reason: string) => `✗ ${reason}`;
 export const commitApproved = (mode: string, via: string) => `commit approved — permission mode '${mode}' (${via})`;
 
 // /diff
@@ -49,7 +47,6 @@ export const reviewUnknownOption = (token: string) =>
   `review: unknown option '${token}' (--files, --commit, --lens, --passes)`;
 export const reviewTakesValue = (name: string) => `review: ${name} takes a value`;
 export const reviewLensTakes = (lenses: string, lens: string) => `review: --lens takes ${lenses}, not '${lens}'`;
-export const defaultPasses = (min: number) => `${min} (default)`;
 export const passesShown = (current: string, min: number, max: number) =>
   `reasoning passes: ${current}\n/review runs that many lens rounds.\n` +
   `usage: /passes <${min}-${max}> (this session) or /review --passes <${min}-${max}> (one run)`;

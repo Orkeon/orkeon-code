@@ -196,7 +196,7 @@ export const shadowedByCrew = (role: string): string => `⚠ shadowed by the cre
 // ── Compaction outcome and trigger ──────────────────────────────────────
 
 export const stateOfBatch = (path: string): string => `\nstate of the batch in progress: ${path}`;
-export const noStateFileWritten = (skipped: string): string => `\nno state file written: ${skipped}`;
+export const noStateFileWrittenOnNewLine = (skipped: string): string => `\nno state file written: ${skipped}`;
 export const BUFFER_TOO_SMALL_TO_COMPACT = "Buffer too small to compact.";
 export const SNIPPED_INSTEAD = "\nThe buffer was snipped instead: the earlier turns were removed without a summary.";
 export const A_TOKEN_COUNT = "a token count such as 90000 or 90k";

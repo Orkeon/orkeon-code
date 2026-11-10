@@ -35,13 +35,13 @@ import { buildChangePrompt } from "./change-material.ts";
 import type { ChangePromptInput } from "./change-material.ts";
 import { factLines, pickCommand, readOrigin, reproFile, runEvidence, runStop } from "./evidence.ts";
 import {
-  DEV_CHANGE_NEXT, FEATURE_LINE, ROUTED_TO_SPEC, answerThem, blockedUnanswered, briefKeepsKind, deniedNothingWritten, evidenceLine,
-  invalidKind, mustNotChangeLine, nameTheKind, newBriefNeedsOrigin, newPromiseKept, refusedTwice, rendererDefect,
-  reproNotWritten, runIsForBugOrPerf, specExists, stillBlocking, titleNamesNoKind, unknownTest,
+  DEV_CHANGE_NEXT, FEATURE_LINE, ROUTED_TO_SPEC, answerBriefQuestions, briefBlockedUnanswered, briefKeepsKind, deniedNothingWritten, evidenceLine,
+  invalidKind, mustNotChangeLine, nameTheKind, newBriefNeedsOrigin, newPromiseKept, briefRefusedTwice, briefRendererDefect,
+  reproNotWritten, runIsForBugOrPerf, specExists, briefStillBlocking, titleNamesNoKind, unknownTest,
 } from "./messages.ts";
-import {
-  PERMISSION_GATE_OFF, answerDidNotParse, cannotBeRead, couldNotBeWritten, decisionsThisRun,
-} from "../../dev-spec/application/messages.ts";
+import { cannotBeReadNothingWritten, specNotWrittenAnswersKept, decisionsThisRun } from "../../dev-spec/application/messages.ts";
+import { PERMISSION_GATE_OFF } from "../../../shared/application/dev/messages.ts";
+import { answerDidNotParse } from "../../../shared/application/agents/messages.ts";
 
 export interface DevChangeInputs { code?: unknown; kind?: unknown; run?: unknown; text?: unknown }
 export interface DevChangeDeps {
@@ -126,7 +126,7 @@ export async function runDevChange(input: DevChangeInputs, deps: DevChangeDeps):
     try {
       existing = await deps.files.read(brief.vfs);
     } catch (e) {
-      return cannotBeRead(STEP, brief.shown, firstLine(e));
+      return cannotBeReadNothingWritten(STEP, brief.shown, firstLine(e));
     }
   }
   const fileKind = existing === null ? undefined : parsePlanSource(existing, "change").changeKind;
@@ -208,7 +208,7 @@ export async function runDevChange(input: DevChangeInputs, deps: DevChangeDeps):
       const ids = pinned.answer.criteria.map((_, i) => criterionId(i));
       const self = sourceSelfCheck(text, "change", { code, ids, open: questions, decisions });
       if (self.length > 0) {
-        deps.log.warn(rendererDefect(STEP, self[0]));
+        deps.log.warn(briefRendererDefect(STEP, self[0]));
         problems = self;
         continue;
       }
@@ -235,7 +235,7 @@ export async function runDevChange(input: DevChangeInputs, deps: DevChangeDeps):
         mode: existing === null ? "draft" : "revision", code, kind, origin: originText, facts: factsText, request,
         current: existing ?? "", decisions: decisions0, fresh: [], inventory: inventoryText, precedents: recalled.block,
       }, questionsOf(decisions0, open0), decisions0);
-      if (!asked.ok) return [refusedTwice(STEP), ...problemLines(asked.problems)].join("\n");
+      if (!asked.ok) return [briefRefusedTwice(STEP), ...problemLines(asked.problems)].join("\n");
       if (asked.drafted.feature) {
         // A new brief goes on as a spec in the same run, over the same ports; a brief that exists keeps its code.
         if (existing !== null) {
@@ -303,17 +303,17 @@ export async function runDevChange(input: DevChangeInputs, deps: DevChangeDeps):
     const blockingLeft = state.open.filter((q) => q.severity === "Blocking");
     if (blocked) {
       lines.push(
-        blockedUnanswered(STEP, brief.shown),
-        answerThem(code, kind),
+        briefBlockedUnanswered(STEP, brief.shown),
+        answerBriefQuestions(code, kind),
       );
     } else if (blockingLeft.length > 0) {
-      lines.push(stillBlocking(blockingLeft.map((q) => q.id).join(", "), code, kind));
+      lines.push(briefStillBlocking(blockingLeft.map((q) => q.id).join(", "), code, kind));
     } else {
       lines.push(DEV_CHANGE_NEXT.replace("{code}", code));
     }
     return lines.join("\n");
   } catch (e) {
     if (!(e instanceof SourceWriteFailure)) throw e;
-    return couldNotBeWritten(STEP, brief.shown, e.message);
+    return specNotWrittenAnswersKept(STEP, brief.shown, e.message);
   }
 }

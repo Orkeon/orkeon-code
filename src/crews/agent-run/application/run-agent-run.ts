@@ -5,7 +5,7 @@
 import type { Llm, Logger } from "../../../shared/application/ports.ts";
 import { MAX_BRIEF_CHARS } from "../../../shared/domain/agents/charter.ts";
 import type { Charter } from "../../../shared/domain/agents/charter.ts";
-import { briefTooLong, charterRunning, EMPTY_BRIEF, unknownCharter } from "./messages.ts";
+import { agentRunBriefTooLong, charterRunning, EMPTY_BRIEF, unknownCharter } from "./messages.ts";
 
 export interface AgentRunInputs {
   charter?: unknown;
@@ -30,7 +30,7 @@ export async function runAgentRun(input: AgentRunInputs, deps: AgentRunDeps): Pr
   const brief = String(input?.brief ?? "").trim();
   if (brief === "") throw new Error(EMPTY_BRIEF);
   if (brief.length > MAX_BRIEF_CHARS) {
-    throw new Error(briefTooLong(brief.length, MAX_BRIEF_CHARS));
+    throw new Error(agentRunBriefTooLong(brief.length, MAX_BRIEF_CHARS));
   }
   const system = String(input?.system ?? "");
   deps.log.info(charterRunning(charter.name, charter.mode));

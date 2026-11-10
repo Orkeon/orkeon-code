@@ -11,7 +11,7 @@ import {
   DEFAULT_WORK_FOLDER, isSamePath, mainWorktreeOf, normalizeWorkDir,
 } from "../../domain/dev/work-folder.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
-import { absentFromCheckout, linkedWorktreeNote, notARelativeFolder } from "./messages.ts";
+import { absentFromCheckout, linkedWorktreeNote, notARelativeFolderFallback } from "./messages.ts";
 
 export const GIT_WORKTREE_LIST = "git worktree list --porcelain";
 export const GIT_TOPLEVEL = "git rev-parse --show-toplevel";
@@ -89,7 +89,7 @@ export async function resolveWorkFolder(
   const check = normalizeWorkDir(request.value);
   if (!check.ok) {
     return fallback("invalid",
-      notARelativeFolder(request.source, request.value, check.reason, DEFAULT_WORK_FOLDER));
+      notARelativeFolderFallback(request.source, request.value, check.reason, DEFAULT_WORK_FOLDER));
   }
   const value = check.folder;
   if (value === "") return fallback("default", null);

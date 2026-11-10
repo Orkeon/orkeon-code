@@ -2,7 +2,7 @@
 // explicit list, never the work folder), the command lines that commit, push and
 // merge them, and the pull request body and command handed over. Pure: nothing
 // here runs a command; shared/application/git runs these lines through the Shell port.
-import { ASSUMPTIONS_HEADING, ASSUMPTIONS_TABLE_HEAD, FILES_PER_LAYER_HEADING, noIdentityStop } from "./messages.ts";
+import { ASSUMPTIONS_HEADING, ASSUMPTIONS_BY_ID_HEAD, FILES_PER_LAYER_HEADING, noIdentityStop } from "./messages.ts";
 
 /** Q-10's switch: `true` asks the close to open the pull request itself. Omitted = false. */
 export const DEV_PR_AUTO_CONFIG_KEY = "dev.prAuto";
@@ -251,7 +251,7 @@ export function renderPrBody(s: PrSummary): string {
     .map((l) => `- ${l.layer}: ${l.paths.map((p) => `\`${p}\``).join(", ")}`);
   const validations = (s.validations ?? []).map((v) => `- ${v}`);
   const assumptions = (s.assumptions ?? []).length === 0 ? [NONE] : [
-    ASSUMPTIONS_TABLE_HEAD,
+    ASSUMPTIONS_BY_ID_HEAD,
     "|----|------------|--------------------|",
     ...(s.assumptions ?? []).map((a) => `| ${a.id} | ${a.assumption} | ${a.by} |`),
   ];

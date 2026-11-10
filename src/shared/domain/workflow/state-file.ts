@@ -10,11 +10,8 @@
 // `First open:` line and its header's date).
 import type { BatchSheet } from "../dev/plan-format.ts";
 import { isCode } from "../dev/artefacts.ts";
-import {
-  earlierLinesLeftOut, eventsHeading, moreLinesLeftOut, NO_OPEN_STEP, NO_STEP_WITH_TDD, readThisFirst,
-  reportsHeading, REWRITTEN_AT_EVERY_COMPACTION, stateFileTitle, STEPS_HEADING, TICK_NOTHING_UNOBSERVED,
-  WORKING_TREE_HEADING,
-} from "./prompts.ts";
+import { earlierLinesLeftOut, eventsHeading, NO_OPEN_STEP, NO_STEP_WITH_TDD, readThisFirst, reportsHeading, REWRITTEN_AT_EVERY_COMPACTION, stateFileTitle, STEPS_HEADING, TICK_NOTHING_UNOBSERVED, WORKING_TREE_HEADING } from "./prompts.ts";
+import { moreLinesLeftOut } from "../prompts.ts";
 
 /** Code's own state folder, in the project. */
 export const DEV_STATE_DIR = ".orkeon/dev";

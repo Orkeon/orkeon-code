@@ -41,3 +41,8 @@ export const notAToolName = (tool: string) => `'${tool}' is not a tool name (exp
 export const argumentsNotJson = (reason: string, payload: string) =>
   `arguments are not valid JSON (${reason}): ${payload}`;
 export const argumentsNotObject = (got: string) => `arguments must be a JSON OBJECT, got ${got}`;
+
+// Shared by several command groups
+export const failedLine = (reason: string) => `✗ ${reason}`;
+export const unknownOption = (word: string) => `unknown option ${word}`;
+export const markedDefault = (value: number | string) => `${value} (default)`;

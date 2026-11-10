@@ -12,7 +12,7 @@ export const NO_REASON_GIVEN = "no reason given";
 export const NO_PERMISSION_MODE =
   "no permission mode reached the git-commit crew — refusing to stage and commit. " +
   "The command must thread `permissionMode` in its crew inputs.";
-export const readOnlyMode = (mode: string): string =>
+export const readOnlyNoCommit = (mode: string): string =>
   `permission mode '${mode}' is read-only — no staging, no commit. ` +
   "Switch with /mode acceptEdits (or bypassPermissions) and re-run /commit.";
 
@@ -45,4 +45,4 @@ export const commitNotice = (branch: string, what: string, push: boolean, pr: bo
 
 export const COMMIT_USAGE = "Usage: /commit [--yes] [--push] [--pr] [--note <text>] [<path>...]";
 export const NOTE_NEEDS_TEXT = `✗ --note takes the reason as a text. ${COMMIT_USAGE}`;
-export const unknownOption = (option: string): string => `✗ unknown option '${option}'. ${COMMIT_USAGE}`;
+export const unknownCommitOption = (option: string): string => `✗ unknown option '${option}'. ${COMMIT_USAGE}`;

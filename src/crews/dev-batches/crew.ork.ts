@@ -49,7 +49,7 @@ import { outcomeOf, runBatchChain } from "./application/run-wave.ts";
 import type { BatchRun } from "./application/run-wave.ts";
 import type { BatchesContext } from "./application/run-dev-batches.ts";
 import { runDevBatches } from "./application/run-dev-batches.ts";
-import { DEV_BATCHES_GOAL, PROBE_GOAL, batchAgentGoal } from "./application/prompts.ts";
+import { DEV_BATCHES_GOAL, GIT_TOP_PROBE_GOAL, batchAgentGoal } from "./application/prompts.ts";
 
 const effort = providerEffort(inputs().effort);
 // A batch agent writes and audits: the implementer's tools and the auditor's read tools.
@@ -121,7 +121,7 @@ const builder = orkeonAgent()
         const probe = orkeonAgent()
           .name(`probe-${root.slice(root.lastIndexOf("/") + 1)}`)
           .role("Worktree probe")
-          .goal(PROBE_GOAL)
+          .goal(GIT_TOP_PROBE_GOAL)
           .workingRoot(root)
           .tools(["shell_command"])
           .body(async (_i: any, pctx: any) => JSON.stringify(await gitTopUnder(pctx.tools, root)));

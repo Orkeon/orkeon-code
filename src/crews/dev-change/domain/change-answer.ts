@@ -7,11 +7,10 @@ import type { Checked } from "../../../shared/domain/agents/charter.ts";
 import type { ChangeKind } from "../../../shared/domain/dev/spec-format.ts";
 import { MAX_QUESTIONS, QUESTION_SCHEMA, breaksCell, draftQuestionProblems } from "../../../shared/domain/dev/questions.ts";
 import type { DraftQuestion } from "../../../shared/domain/dev/questions.ts";
+import { NO_CRITERION, NO_CHANGE_SUMMARY, PERF_NEEDS_NUMBER, REFACTOR_NEEDS_PIN, cellOneLine, noBehaviour, noDesign, noProof, severityIsBlockingOrWarning, tooManyCriteria, tooManyLines } from "./messages.ts";
 import {
-  NOT_AN_OBJECT, NO_CRITERION, NO_SUMMARY, PERF_NEEDS_NUMBER, REFACTOR_NEEDS_PIN, TBD_WITHOUT_QUESTION, cellOneLine, idNameOneLine,
-  nameOneLine, noBehaviour, noDesign, noProof, rowIsEmpty, severityIs, statementOneLine, tooManyCriteria, tooManyLines,
-  tooManyQuestions,
-} from "./messages.ts";
+  ANSWER_NOT_AN_OBJECT as NOT_AN_OBJECT, idNameOneLine, nameOneLine, rowIsEmpty, statementOneLine, TBD_WITHOUT_QUESTION, tooManyQuestions,
+} from "../../../shared/domain/dev/messages.ts";
 
 export type CriterionSeverity = "blocking" | "warning";
 export interface ChangeCriterion { name: string; statement: string; proof: string; severity: CriterionSeverity }
@@ -109,7 +108,7 @@ export function checkChangeAnswer(value: unknown, kind: ChangeKind): Checked<Cha
   if (a.name === "" || !oneLine(a.name) || a.name.length > MAX_NAME_CHARS || a.name.includes("—")) {
     problems.push(nameOneLine(MAX_NAME_CHARS));
   }
-  if (a.summary === "") problems.push(NO_SUMMARY);
+  if (a.summary === "") problems.push(NO_CHANGE_SUMMARY);
   if (a.criteria.length === 0) problems.push(NO_CRITERION);
   if (a.criteria.length > MAX_CRITERIA) problems.push(tooManyCriteria(MAX_CRITERIA));
   a.criteria.forEach((c, i) => {
@@ -119,7 +118,7 @@ export function checkChangeAnswer(value: unknown, kind: ChangeKind): Checked<Cha
       problems.push(statementOneLine(id, MAX_STATEMENT_CHARS));
     }
     if (c.proof === "" || !oneLine(c.proof)) problems.push(noProof(id));
-    if (!CRITERION_SEVERITIES.includes(c.severity)) problems.push(severityIs(id));
+    if (!CRITERION_SEVERITIES.includes(c.severity)) problems.push(severityIsBlockingOrWarning(id));
   });
   if (kind === "perf" && !a.criteria.some((c) => /\d/.test(`${c.statement} ${c.proof}`))) {
     problems.push(PERF_NEEDS_NUMBER);

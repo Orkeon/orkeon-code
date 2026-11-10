@@ -9,7 +9,8 @@ import { PLACEHOLDER, plainWords, valueProblem } from "../../../shared/domain/de
 import { BOUNDED_READ_RULE, NODE_EDIT_RULE, NODE_READ_RULE } from "../../../shared/domain/dev/reading-rule.ts";
 import type { AnchorRef, ImplementSheet, ImplementStep } from "./step-section.ts";
 import { CORRECTION_LABEL as CORRECTION, STALE_HEADING } from "./markers.ts";
-import { PACK_HAS_NO_TEST_COMMAND, PACK_HAS_NO_TEST_PROJECT, SHELL_OPERATOR_OUTSIDE_QUOTES, stepNamesNoTestFile } from "./messages.ts";
+import { PACK_HAS_NO_CLASS_OR_PROJECT_TEST, PACK_HAS_NO_TEST_PROJECT, stepNamesNoTestFile } from "./messages.ts";
+import { SHELL_OPERATOR_OUTSIDE_QUOTES } from "../../../shared/domain/dev/messages.ts";
 import {
   ANY_LEVEL_RULE, ASSUMPTION_RULE, CODE_ELEMENTS_LINE, FILES_HEADING, GREEN_ANSWER, IN_THIS_BRIEF_HEADING, INTEGRATION_LEVEL_RULE,
   LEAST_CODE_RULE, NO_ID, NONE_LISTED, NONE_NAMED, ONE_TEST_PER_ROW_RULE, PRODUCTION_HEADING, READ_ONLY_NEVER_WRITE, RED_ANSWER,
@@ -53,7 +54,7 @@ export function testCommandFor(commands: RepoPackCommands, step: ImplementStep):
   if (byClass) return fill(byClass, values);
   const byProject = commands.testProject?.trim();
   if (byProject) return fill(byProject, values);
-  return { ok: false, reason: PACK_HAS_NO_TEST_COMMAND };
+  return { ok: false, reason: PACK_HAS_NO_CLASS_OR_PROJECT_TEST };
 }
 
 /** `test_project` for one Project cell: the affected tests of a later run. */

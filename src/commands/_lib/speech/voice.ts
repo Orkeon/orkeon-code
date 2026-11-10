@@ -15,10 +15,8 @@ import { errorText, nothingReturned } from "../../../shared/domain/prelude.ts";
 import { commandLine, isOption, optionValue, parseAssistantInput, splitWords } from "../args.ts";
 import { launchCrew, launchMainLoop, withLlmProfile } from "../dispatch.ts";
 import type { CrewCompletion, LaunchResult, MainLoopLaunchDeps } from "../dispatch.ts";
-import {
-  DICTATION_NEXT, NOTHING_HEARD, PROMPT_NEEDS_WORDS, SEND_ALONE, VOICE_USAGE, cannotRead, dictationLine, missingToolMessage,
-  needsLanguageCode, nothingToSend, recordingLine, secondsBetween, unknownArgument, unknownOption, voiceFailed,
-} from "./messages.ts";
+import { DICTATION_NEXT, NOTHING_HEARD, PROMPT_NEEDS_WORDS, SEND_ALONE, VOICE_USAGE, cannotRead, dictationLine, missingToolMessage, needsLanguageCode, noDictationToSend, recordingLine, secondsBetween, unknownArgument, voiceFailed } from "./messages.ts";
+import { unknownOption } from "../messages.ts";
 
 export const RECORD_TOOL = "record_and_transcribe";
 export const DICTATION_FILE = "/transcripts/dictation.txt";
@@ -95,7 +93,7 @@ export type VoiceDeps = MainLoopLaunchDeps & {
   out: { writeLine(text: string): void };
 };
 
-const NOTHING_TO_SEND = nothingToSend(DICTATION_FILE);
+const NOTHING_TO_SEND = noDictationToSend(DICTATION_FILE);
 
 /** Launch what the request asks and return its ticket, or the message to show when it launches nothing. */
 export async function dispatchVoice(tokens: readonly string[], deps: VoiceDeps): Promise<LaunchResult | { message: string }> {

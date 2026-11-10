@@ -86,3 +86,21 @@ export const CLOSE_LINE = /^\s*→ \/dev-batches (\S+) (F\d+) --close\s*$/;
 /** The gap of the row dev-verify writes when the step's budget stopped the audit: not a finding of the code, so
  *  neither the learning harvest nor a resumed audit takes it as one. Its reason goes in the evidence. */
 export const AUDIT_UNFINISHED_GAP = "the audit did not finish: the step's budget ran out";
+
+/** The opening of the line dev-verify writes when a batch is VALID; /dev-batches looks for it in the audit's output. */
+export const batchValidOpening = (batch: string): string => `→ Batch ${batch} VALID.`;
+/** The VALID line of a batch, at the start of a line of dev-verify's output. */
+export const batchValidLine = (batch: string): RegExp =>
+  new RegExp("^" + batchValidOpening(batch).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "m");
+
+// ── Written by /dev-plan's sheet, read and edited by /dev-implement ─────────
+
+export const ASSUMPTIONS_SECTION = "## Assumptions";
+export const ASSUMPTIONS_TABLE_HEAD = ["| # | Assumption | To be validated by |", "|---|------------|--------------------|"];
+export const DECISIONS_SECTION = "## Decisions";
+/** The TDD line of a step not yet run: TDD_LINE reads it, OPEN_BOX finds its boxes. */
+export const OPEN_TDD_LINE = "TDD: RED [ ] GREEN [ ] COST [ ]";
+/** The name of the sheet's test policy section, after its `## `. */
+export const TEST_POLICY_SECTION = "Test policy and scopes";
+/** The head of a step's test table, in a sheet and in a correction step. */
+export const STEP_TESTS_TABLE_HEAD = ["| # | Test | Level | Project | Ids |", "|---|------|-------|---------|-----|"];

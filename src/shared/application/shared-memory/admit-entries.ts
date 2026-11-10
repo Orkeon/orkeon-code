@@ -16,11 +16,8 @@ import { candidatePath, entryPath } from "../../domain/shared-memory/layout.ts";
 import type { MemoryLayout } from "../../domain/shared-memory/layout.ts";
 import { readOrNull, refreshCandidatesList, refreshIndexFile, refusedTopics, storedEntries } from "./memory-files.ts";
 import { sha1Hex } from "../../domain/sha1.ts";
-import {
-  CANDIDATE_CHANGED, NOTHING_TO_APPLY, NO_CANDIDATE_FILE, candidateUnreadable, fileHoldsId, indexStale, notACandidateAnyMore,
-  notMarkedSuperseded, refusedFileUnreadable, refusedNotWritten, statusNotCandidate, stillReadsAsCandidate, supersedesNoAdmitted,
-  topicWasRefused,
-} from "./messages.ts";
+import { CANDIDATE_CHANGED, NOTHING_TO_APPLY, NO_CANDIDATE_FILE, candidateUnreadable, fileHoldsId, indexStale, notACandidateAnyMore, notMarkedSuperseded, refusedNotWritten, statusNotCandidate, stillReadsAsCandidate, supersedesNoAdmitted, topicWasRefused } from "./messages.ts";
+import { prefixedCannotBeRead as refusedFileUnreadable } from "../messages.ts";
 
 export const DEFAULT_REFUSAL_MOTIF = "refused by /memory-admit";
 

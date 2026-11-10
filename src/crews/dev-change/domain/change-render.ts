@@ -2,6 +2,7 @@
 // empty section left out. § 1 (the origin, quoted) and the facts of § 2 (the reproduction or the measurement that
 // ran) are code's and carried over from the file on a revision or a fold; the model adds its own facts after them.
 // A criterion carries a `- **Statement**:` line first, which spec-format.ts reads for /dev-plan. Pure, no IO.
+import { STATEMENT } from "../../../shared/domain/dev/markers.ts";
 import { decisionTable, questionTable } from "../../../shared/domain/dev/questions.ts";
 import type { Decision, Question } from "../../../shared/domain/dev/questions.ts";
 import type { ChangeKind } from "../../../shared/domain/dev/spec-format.ts";
@@ -60,7 +61,7 @@ export function renderChange(input: ChangeRenderInput): string {
   lines.push(...section(CHANGE_SECTIONS.evidence, [...input.facts, ...(input.facts.length > 0 && own.length + suspected.length > 0 ? [""] : []), ...own, ...suspected]));
   lines.push(CHANGE_SECTIONS.acceptance, "");
   a.criteria.forEach((c, i) => {
-    lines.push(`### ${criterionId(i)} — ${c.name}`, `- **Statement**: ${c.statement} · **Proof**: ${c.proof} · **Severity**: ${c.severity}`, "");
+    lines.push(`### ${criterionId(i)} — ${c.name}`, `- ${STATEMENT}: ${c.statement} · **Proof**: ${c.proof} · **Severity**: ${c.severity}`, "");
   });
   lines.push(...section(CHANGE_SECTIONS.mustNotChange, table(
     CHANGE_COLUMNS.mustNotChange, a.mustNotChange.map((r) => [r.behaviour, r.pinnedBy === "unpinned" ? "unpinned" : `\`${r.pinnedBy}\``]),

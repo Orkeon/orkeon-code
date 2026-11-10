@@ -23,10 +23,8 @@ import {
 import type { PrSummary } from "../../../shared/domain/git/close.ts";
 import { gitBranchExists } from "../../../shared/domain/git/worktree.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
-import {
-  BEFORE_THIS_RUN, closeNoBranch, closeOnDefault, committedOnDefault, committedOnDefaultWanted, onOriginAlready, planBatches,
-  pushDenied, pushedToOrigin, runStaysOpen,
-} from "./messages.ts";
+import { BEFORE_THIS_RUN, closeNoBranch, closeOnDefault, committedOnDefault, committedOnDefaultWanted, onOriginAlready, planBatches, pushDenied, runStaysOpen } from "./messages.ts";
+import { pushedToOrigin } from "../../../shared/application/git/messages.ts";
 
 export interface MergedBatch { batch: string; hash: string }
 

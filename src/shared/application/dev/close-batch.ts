@@ -19,9 +19,8 @@ import {
   commitFiles, defaultBranch, gitReason, handOverPullRequest, pushBranch, readIdentity, runGit,
 } from "../git/commit-files.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
-import {
-  NOTHING_TO_COMMIT_LINE, gitStatusFailedLine, leftOutWorkFolder, noChangeToCommit, notCommittedUnsafe, pushDeniedByRule, pushedToOrigin,
-} from "./messages.ts";
+import { NOTHING_TO_COMMIT_LINE, gitStatusFailedLine, leftOutWorkFolder, noChangeToCommit, notCommittedUnsafe, pushDeniedByRule } from "./messages.ts";
+import { pushedToOrigin } from "../git/messages.ts";
 
 export interface CloseBatchRequest {
   /** The files the batch touched, from its sheet and its roles' diffs. */

@@ -1,7 +1,7 @@
 // The outcome of one compaction attempt, and the line that reports it. Pure — no IO.
 // The pipeline (shared/application/compaction/) returns it, the main-loop circuit
 // breaker counts its status, and the session-compact crew prints its line.
-import { BUFFER_TOO_SMALL_TO_COMPACT, noStateFileWritten, SNIPPED_INSTEAD, stateOfBatch } from "./messages.ts";
+import { BUFFER_TOO_SMALL_TO_COMPACT, noStateFileWrittenOnNewLine, SNIPPED_INSTEAD, stateOfBatch } from "./messages.ts";
 import { BUFFER_TOO_SMALL } from "./markers.ts";
 
 /** Status of one compaction attempt; the main-loop circuit breaker counts the
@@ -29,7 +29,7 @@ export function formatOutcome(o: CompactOutcome): string {
 
 function stateLine(o: CompactOutcome): string {
   if (o.state === undefined) return "";
-  return "path" in o.state ? stateOfBatch(o.state.path) : noStateFileWritten(o.state.skipped);
+  return "path" in o.state ? stateOfBatch(o.state.path) : noStateFileWrittenOnNewLine(o.state.skipped);
 }
 
 function outcomeLine(o: CompactOutcome): string {

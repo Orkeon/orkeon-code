@@ -16,7 +16,7 @@ export const NO_GATE_RULES =
 
 export const EVERY_CALL = "every call";
 
-export const extraToolsUnreadable = (reason: string): string =>
+export const extraToolsUnreadableWarning = (reason: string): string =>
   `⚠ ${EXTRA_TOOLS_CONFIG_KEY} could not be read (${reason}): no extra tool is known, and the ` +
   "rules on extra tools are dormant.";
 
@@ -38,7 +38,7 @@ export const nestedKey = (key: string): string =>
   `⚠ ${key} is written nested in a settings file ({"${key.split(".")[0]}": {…}}), so nothing reads it: ` +
   `write it flat, "${key}": ….`;
 
-export const extraToolIgnored = (value: string, reason: string): string =>
+export const extraToolNotOffered = (value: string, reason: string): string =>
   `⚠ ${EXTRA_TOOLS_CONFIG_KEY} of the project file names ${value}, which ${reason}: ` +
   "not offered.";
 
@@ -158,7 +158,6 @@ export const EFFORT_UNCHANGED = "reasoning effort unchanged.";
 export const effortUnchangedNoneStored = (level: string): string =>
   "reasoning effort unchanged: no level is stored, so the provider's thinking stays off " +
   `(/effort ${level} turns it on).`;
-export const defaultLevel = (level: string): string => `${level} (default)`;
 export const effortShown = (level: string, ladder: string, stored: string | null, levels: readonly string[]): string =>
   `reasoning effort: ${level}\nact() iterations per level: ${ladder}\n` +
   `provider thinking: ${stored ? `at '${stored}' (act effort)` : "not requested (no level stored)"}\n` +
@@ -230,8 +229,6 @@ export const configFileMalformed = (path: string): string =>
   `⚠ ${path} could not be parsed — it is left untouched; fix or delete it.`;
 export const KEYS_NOTE = "every key names its consumer — a key nothing reads is not settable.";
 export const CONFIG_GET_USAGE = "usage: /config get <key>";
-export const unknownConfigKey = (key: string, keys: readonly string[]): string =>
-  `unknown config key '${key}'. Valid keys: ${keys.join(", ")}`;
 export const keyUnset = (key: string, description: string): string => `${key} is unset (${description})`;
 export const keyValue = (key: string, value: string, source: string): string => `${key} = ${value}  [${source}]`;
 export const sessionValueSet = (key: string, value: string): string =>

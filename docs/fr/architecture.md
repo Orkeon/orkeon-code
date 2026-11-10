@@ -234,7 +234,7 @@ src/
 │   │                  git/ (branch, commit, diff, review), memory/ (memory, memory-admit), session/ (export,
 │   │                  resume, tasks), settings/ (advisor, agents, config, hooks, mode, model, permissions,
 │   │                  session-config: the toggle commands, skills), speech/ (say, transcribe, voice),
-│   │                  status/ (cache, doctor, meta: version and release notes, status). At the root, what
+│   │                  status/ (cache, doctor, meta: version; messages: release notes, status). At the root, what
 │   │                  several families share: args.ts (arguments), dispatch.ts (crew launch, completion
 │   │                  line, main-loop launch), dev-step.ts, effort.ts, pr-context.ts, view.ts (CommandView,
 │   │                  showView)
@@ -1000,7 +1000,7 @@ contiennent la restauration et l'extraction de mémoire, `shared/domain/compacti
    services qu'elle lit ; la tester dans `tests/commands/_lib/<group>/<name>.test.ts`, au-dessus des fakes.
    Un utilitaire que plusieurs groupes partagent se place à la racine de `_lib/` ; un groupe n'importe jamais un autre.
 3. Augmenter `EXPECTED_COMMAND_COUNT` dans `tests/repository/command-surface.test.ts` et le nombre de commandes de
-   `RELEASE_NOTES` dans `src/commands/_lib/status/messages.ts` (épinglé par `tests/commands/_lib/status/meta.test.ts`), puis lancer
+   `RELEASE_NOTES` dans `src/commands/_lib/status/messages.ts` (épinglé par `tests/commands/_lib/status/messages.test.ts`), puis lancer
    `npm run docs:commands`.
 
 ### Ajouter un crew
@@ -1012,7 +1012,7 @@ contiennent la restauration et l'extraction de mémoire, `shared/domain/compacti
    `domain/`, chacun avec son `*.test.ts` ; le test du cas d'usage tourne au-dessus des fakes.
 3. Le lancer depuis une commande async (`launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "<name>",
    input)`), et le nommer dans `RELEASE_NOTES`
-   (`tests/commands/_lib/status/meta.test.ts` vérifie que chaque dossier de crew y est nommé). Un dossier commençant par `_` est
+   (`tests/commands/_lib/status/messages.test.ts` vérifie que chaque dossier de crew y est nommé). Un dossier commençant par `_` est
    une sonde de développement (`probe.ork.ts`), jamais listée aux utilisateurs.
 
 ### Ajouter un outil

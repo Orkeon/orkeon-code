@@ -9,10 +9,13 @@ import { packValue } from "../../../shared/domain/dev/repo-pack.ts";
 import type { RepoPack } from "../../../shared/domain/dev/repo-pack.ts";
 import type { ReviewAnswer, ReviewRow } from "../../../shared/domain/dev/review-answer.ts";
 import type { ChangeKind, SourceId, SourceKind } from "../../../shared/domain/dev/spec-format.ts";
-import { BUILD_STEP } from "../../../shared/domain/dev/markers.ts";
+import {
+  ASSUMPTIONS_SECTION, ASSUMPTIONS_TABLE_HEAD, BUILD_STEP, DECISIONS_SECTION, OPEN_TDD_LINE, STEP_TESTS_TABLE_HEAD,
+} from "../../../shared/domain/dev/markers.ts";
 import type { InventoryEntry } from "./inventory-model.ts";
 import {
-  ANCHORS_HEADER, ASSUMPTIONS_HEADER, DESIGN_HEADER, QUESTIONS_HEADER, SUMMARY_HEADER, TESTS_HEADER, TRACE_HEADER, testPolicyBlock,
+  ANCHORS_HEADER, DESIGN_HEADER, PLAN_DESIGN_SECTION, PLAN_QUESTIONS_SECTION, PLAN_SUMMARY_SECTION, QUESTIONS_HEADER, SUMMARY_HEADER,
+  TRACE_HEADER, testPolicyBlock,
 } from "./markers.ts";
 import {
   ANCHORS_LEAD, BUILD_STEP_BODY, DECLARATIVE_LEAD, NOT_IN_THE_PACK, NO_PACK_TAIL, TDD_PREAMBLE, blockedByQuestion, reviewMajor,
@@ -177,7 +180,7 @@ function globalPlan(input: RenderInput, sheetNames: readonly string[], review: R
   return blocks([
     `# ${p}-PLAN — ${a.feature}`,
     `> From ${code(input.sourceShown)}. Sheets: ${sheetNames.map(code).join(", ")}.`,
-    "## 0. Summary",
+    PLAN_SUMMARY_SECTION,
     [
       SUMMARY_HEADER,
       "|-------|--------|-----|------------|--------|",
@@ -188,9 +191,9 @@ function globalPlan(input: RenderInput, sheetNames: readonly string[], review: R
     scope,
     "## 2. Traceability",
     trace,
-    "## 3. Design",
+    PLAN_DESIGN_SECTION,
     design,
-    questions === null ? null : "## 4. Open questions",
+    questions === null ? null : PLAN_QUESTIONS_SECTION,
     questions,
   ]);
 }
@@ -221,12 +224,11 @@ function anchorCell(anchors: readonly AnchorRef[], column: Column, inventory: Re
 function stepBlocks(s: PlanStep, j: number): string[] {
   const table = [
     `### Step ${j + 1} — ${s.title}`,
-    TESTS_HEADER,
-    "|---|------|-------|---------|-----|",
+    ...STEP_TESTS_TABLE_HEAD,
     ...s.tests.map((t, m) => row([String(m + 1), code(t.name), t.level, code(t.project), t.ids.length === 0 ? NONE_DASH : t.ids.join(", ")])),
   ].join("\n");
   const note = s.note === "" ? [] : [s.note.split("\n").map((l) => l.trimEnd()).join("\n")];
-  return [table, ...note, "TDD: RED [ ] GREEN [ ] COST [ ]"];
+  return [table, ...note, OPEN_TDD_LINE];
 }
 
 function sheet(input: RenderInput, b: PlanBatch, k: number, review: ReviewPlacement): string {
@@ -281,7 +283,7 @@ function sheet(input: RenderInput, b: PlanBatch, k: number, review: ReviewPlacem
       row(["Events", b.design.events]),
       row(["Access cost", b.design.accessCost]),
     ].join("\n"),
-    decisions.length === 0 ? null : ["## Decisions", ...decisions].join("\n"),
+    decisions.length === 0 ? null : [DECISIONS_SECTION, ...decisions].join("\n"),
     ["## TDD sequence", ...TDD_PREAMBLE, `${DECLARATIVE_LEAD}: ${declarative}.`].join("\n"),
     ...b.steps.flatMap(stepBlocks),
     `### Step ${s + 1} — ${BUILD_STEP}\n${BUILD_STEP_BODY}`,
@@ -289,7 +291,7 @@ function sheet(input: RenderInput, b: PlanBatch, k: number, review: ReviewPlacem
     ["## Code elements", ...elements].join("\n"),
     `## Anchors\n${ANCHORS_LEAD}`,
     anchors,
-    ["## Assumptions", ASSUMPTIONS_HEADER, "|---|------------|--------------------|"].join("\n"),
+    [ASSUMPTIONS_SECTION, ...ASSUMPTIONS_TABLE_HEAD].join("\n"),
   ]);
 }
 

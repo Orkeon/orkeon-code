@@ -3,9 +3,8 @@
 
 // ── Test commands (contracts.ts) ────────────────────────────────────────────
 
-export const SHELL_OPERATOR_OUTSIDE_QUOTES = "a shell operator outside double quotes";
 export const stepNamesNoTestFile = (step: number): string => `step ${step} names no test file in ## Anchors`;
-export const PACK_HAS_NO_TEST_COMMAND = "the pack has no commands.test_class or commands.test_project";
+export const PACK_HAS_NO_CLASS_OR_PROJECT_TEST = "the pack has no commands.test_class or commands.test_project";
 export const PACK_HAS_NO_TEST_PROJECT = "the pack has no commands.test_project";
 
 // ── Corrections (correction.ts) ─────────────────────────────────────────────

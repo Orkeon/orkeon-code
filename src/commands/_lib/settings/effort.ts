@@ -8,10 +8,8 @@ import {
 import { EFFORT_STATE_KEY } from "../../../shared/domain/session-keys.ts";
 import type { CommandView } from "../view.ts";
 import { optionsOf } from "./choices.ts";
-import {
-  EFFORT_CHOICE, EFFORT_UNCHANGED, actIterations, defaultLevel, effortSet, effortShown, effortUnchangedNoneStored,
-  unknownEffort,
-} from "./messages.ts";
+import { EFFORT_CHOICE, EFFORT_UNCHANGED, actIterations, effortSet, effortShown, effortUnchangedNoneStored, unknownEffort } from "./messages.ts";
+import { markedDefault as defaultLevel } from "../messages.ts";
 
 export interface EffortDeps {
   session: Pick<SessionIo, "readState" | "writeState">;

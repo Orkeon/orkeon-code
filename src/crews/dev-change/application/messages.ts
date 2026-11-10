@@ -4,9 +4,9 @@
 
 // ── The crew ────────────────────────────────────────────────────────────
 
-export const WRITER_GOAL =
+export const CHANGE_WRITER_GOAL =
   "Write what is wrong or costly in code that exists, the evidence that shows it and what must survive, and settle its open questions with the person";
-export const REVIEW_TASK = "review of the brief";
+export const BRIEF_REVIEW_TASK = "review of the brief";
 
 // ── The run ─────────────────────────────────────────────────────────────
 
@@ -28,9 +28,9 @@ export const newBriefNeedsOrigin = (step: string, code: string, kind: string): s
 export const deniedNothingWritten = (step: string, denied: string): string => `${step}: ${denied}; nothing is written`;
 export const reproNotWritten = (step: string, shown: string, why: string): string =>
   `${step}: ${shown} could not be written (${why}); nothing else is written`;
-export const rendererDefect = (step: string, first: string): string =>
+export const briefRendererDefect = (step: string, first: string): string =>
   `${step}: a checked answer rendered a brief that fails its self-check (a renderer defect): ${first}`;
-export const refusedTwice = (step: string): string => `${step}: the brief was refused twice; nothing is written.`;
+export const briefRefusedTwice = (step: string): string => `${step}: the brief was refused twice; nothing is written.`;
 export const newPromiseKept = (step: string, shown: string): string =>
   `${step}: the request is a new promise, not a change of what exists; ${shown} is kept: a feature takes a code of its own (/dev-spec <code> <brief>)`;
 export const unknownTest = (name: string): string => `'${name}' is no test the code index shows: its row reads unpinned`;
@@ -38,11 +38,11 @@ export const ROUTED_TO_SPEC = "the rewrite routed the brief to a spec";
 export const evidenceLine = (command: string, seconds: number, shown: string): string =>
   `evidence: \`${command}\` (${seconds} s), output in ${shown}`;
 export const mustNotChangeLine = (rows: string, unpinned: number): string => `must not change: ${rows}, ${unpinned} unpinned`;
-export const blockedUnanswered = (step: string, shown: string): string =>
+export const briefBlockedUnanswered = (step: string, shown: string): string =>
   `${step}: BLOCKED — a question went unanswered; the open questions are in ${shown} § 8.`;
-export const answerThem = (code: string, kind: string): string =>
+export const answerBriefQuestions = (code: string, kind: string): string =>
   `→ Answer them: /dev-spec ${code} ${kind} in an interactive session, or edit the file; nothing was decided for you.`;
-export const stillBlocking = (ids: string, code: string, kind: string): string =>
+export const briefStillBlocking = (ids: string, code: string, kind: string): string =>
   `→ ${ids} still Blocking: /dev-plan refuses the brief until settled: /dev-spec ${code} ${kind}, or edit the file.`;
 
 // ── The evidence ────────────────────────────────────────────────────────
@@ -51,8 +51,7 @@ export const issueViewFailed = (step: string, command: string, why: string): str
   `${step}: ${command} failed (${why}): sign gh in (gh auth login), or give the issue's text or a file instead`;
 export const issuePrintedNoJson = (step: string, command: string): string =>
   `${step}: ${command} printed no JSON: give the issue's text or a file instead`;
-export const NOT_ONE_LINE = "not one line of at most 400 characters";
-export const SHELL_OPERATOR = "a shell operator after the CLI";
+export const SHELL_OPERATOR_AFTER_CLI = "a shell operator after the CLI";
 export const GLOB_OR_EXPANSION = "a glob or an expansion after the CLI";
 export const PATH_OUT_OF_CHECKOUT = "a path out of the checkout";
 export const runMayNotRun = (step: string, given: string, problem: string): string =>
@@ -66,7 +65,7 @@ export const reproductionFact = (command: string, exit: number, seconds: number,
   `- **Reproduction**: \`${command}\` — exit ${exit} after ${seconds} s; the output is in ${fileName}`;
 export const measuredFact = (command: string, seconds: number, exit: number, fileName: string): string =>
   `- **Measured**: \`${command}\` — ${seconds} s wall time, exit ${exit}; the output is in ${fileName}`;
-export const couldNotRun = (step: string, command: string, output: string): string =>
+export const evidenceCouldNotRun = (step: string, command: string, output: string): string =>
   `${step}: \`${command}\` could not run (${output}); nothing else is written`;
 export const ranOutOfTime = (step: string, command: string, seconds: number, shown: string): string =>
   `${step}: \`${command}\` ran out of its ${seconds} s; nothing else is written (output in ${shown})`;

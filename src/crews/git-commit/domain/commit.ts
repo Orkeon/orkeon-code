@@ -6,7 +6,7 @@ import { policyFor } from "../../../shared/domain/agent-policy/mode-policy.ts";
 import { COMMIT_REFUSAL_PREFIX } from "./markers.ts";
 import {
   changesUnder, commitNotice, commitQuestion, EVERY_CHANGE_LISTED, FALLBACK_COMMIT_MESSAGE, NO_PERMISSION_MODE,
-  NO_REASON_GIVEN, NOTE_NEEDS_TEXT, onBranch, readOnlyMode, unknownOption,
+  NO_REASON_GIVEN, NOTE_NEEDS_TEXT, onBranch, readOnlyNoCommit, unknownCommitOption,
 } from "./messages.ts";
 
 /** Clean an LLM-drafted commit message: unwrap fences, trim, fall back if empty. */
@@ -96,7 +96,7 @@ export function isCommitPermitted(mode: unknown): CommitPermission {
   if (policyFor(m).readOnly) {
     return {
       allowed: false,
-      reason: readOnlyMode(m),
+      reason: readOnlyNoCommit(m),
     };
   }
   return { allowed: true, reason: "" };
@@ -182,7 +182,7 @@ export function parseCommitArgs(tokens: readonly unknown[]): { ok: true; args: C
       if (value.trim().length === 0) return { ok: false, text: NOTE_NEEDS_TEXT };
       args.note = value.trim();
     }
-    else if (t.startsWith("-")) return { ok: false, text: unknownOption(t) };
+    else if (t.startsWith("-")) return { ok: false, text: unknownCommitOption(t) };
     else args.paths.push(t);
   }
   return { ok: true, args };

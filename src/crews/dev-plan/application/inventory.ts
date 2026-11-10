@@ -10,7 +10,7 @@ import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 import { indexCacheNote } from "../../../shared/domain/code-intel-contract.ts";
 import {
   INDEX_EMPTY, anchorsFailed, callersAsked, closureTruncated, droppedOutside, entriesLocated, graphFailed, graphJoined,
-  indexCannotBeBuilt, indexStatus, searchFailed, titlesNotSearched, titlesSearched as titlesSearchedLine,
+  indexCannotBeBuilt, indexStatus, searchFailedUnquoted, titlesNotSearched, titlesSearched as titlesSearchedLine,
 } from "./messages.ts";
 
 export interface InventoryRequest {
@@ -50,7 +50,7 @@ async function search(
       const found = await index.search(t.title, INVENTORY_CAPS.topK);
       hits.push(found.filter((h) => keep(pathPart(h.fqn)) !== null));
     } catch (e) {
-      state.warnings.push(searchFailed(t.id, firstLine(e)));
+      state.warnings.push(searchFailedUnquoted(t.id, firstLine(e)));
       hits.push([]);
     }
   }

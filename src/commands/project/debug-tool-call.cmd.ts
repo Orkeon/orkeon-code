@@ -18,7 +18,7 @@
 // tool actually returned, so shaping the output would remove its only value.
 import { rawTokens, parseToolCallArgs } from "../_lib/args.ts";
 import { orkeonClock, orkeonToolCatalogue } from "../../shared/infrastructure/orkeon/wiring.ts";
-import { noRegisteredTool, toolCatalogue } from "../_lib/project/messages.ts";
+import { noRegisteredToolSeeList, toolCatalogue } from "../_lib/project/messages.ts";
 
 defineCommand({
   name: "debug-tool-call",
@@ -40,7 +40,7 @@ defineCommand({
     // Orkeon finds a tool case-insensitively: the call and its header use the registered name.
     const tool = catalogue.find(parsed.tool);
     if (tool === undefined) {
-      return ctx.continue(noRegisteredTool(parsed.tool));
+      return ctx.continue(noRegisteredToolSeeList(parsed.tool));
     }
 
     const clock = orkeonClock();
@@ -49,7 +49,7 @@ defineCommand({
       const result = await catalogue.call(tool, parsed.args);
       ctx.writeLine(`── ${tool} ← ${JSON.stringify(parsed.args)} (${clock().getTime() - started} ms)`);
       // JSON.stringify, not a table: a tool result is an arbitrary shape and this
-      // command is here to show it as it is, nesting and casing included.
+      // command is here to show it is, nesting and casing included.
       ctx.writeLine(JSON.stringify(result, null, 2));
       return ctx.continue();
     } catch (e: any) {

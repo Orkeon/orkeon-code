@@ -6,7 +6,7 @@ export const noIdentityStop = (detail: string, rerun: string): string =>
 
 // ── The body of a pull request ──────────────────────────────────────────
 
-export const ASSUMPTIONS_TABLE_HEAD = "| Id | Assumption | To be validated by |";
+export const ASSUMPTIONS_BY_ID_HEAD = "| Id | Assumption | To be validated by |";
 export const FILES_PER_LAYER_HEADING = "## Files, per layer";
 export const ASSUMPTIONS_HEADING = "## Assumptions to validate";
 

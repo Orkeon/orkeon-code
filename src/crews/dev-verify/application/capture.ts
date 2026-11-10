@@ -20,13 +20,14 @@ import {
 } from "../domain/capture-sections.ts";
 import type { TestRunSummary } from "../domain/capture-sections.ts";
 import {
-  UNQUOTABLE_SCOPE, findNewer, gitDiffTracked, gitDiffUntracked, gitMethodGrep, gitStatusShort, gitTestFilesNaming,
+  findNewer, gitDiffTracked, gitDiffUntracked, gitMethodGrep, gitStatusShort, gitTestFilesNaming,
 } from "../domain/commands.ts";
+import { UNQUOTABLE_SCOPE_REASON } from "../domain/messages.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 import {
-  BUILD_NOT_RUN, buildRefused, buildReusedLine, buildTimedOut, CANNOT_COMPARE_DATES, cannotCompareDates, captureTitle,
-  changedAfter, commandFailed, cutAtFiles, cutByRuntime, diffBeyondFirst, diffFailed, diffQuoteInPath, LOG_HOLDS_ERROR,
-  logMissing, logNotReused, NO_CHANGED_FILE, NO_CHANGED_SOURCE, NO_TEST_ROOT_GIVEN, NOT_A_PLAIN_WORD, noTestLog,
+  BUILD_NOT_RUN, buildNotRunShellRefused, buildReusedLine, buildTimedOut, CANNOT_COMPARE_DATES, cannotCompareDates, captureTitle,
+  changedAfter, commandFailed, cutAtFiles, cutByRuntime, diffBeyondFirst, noDiffCaptured, diffQuoteInPath, LOG_HOLDS_ERROR,
+  logMissing, logNotReused, NO_CHANGED_FILE, NO_CHANGED_SOURCE, NO_TEST_ROOT_GIVEN, NOT_A_PLAIN_WORD, noTestLogEither,
   testLogEmpty,
 } from "./messages.ts";
 
@@ -117,7 +118,7 @@ async function diffs(deps: Deps, target: DevVerifyTarget, gate: GateRun): Promis
     try {
       raw = (await deps.shell.run(command)).stdout;
     } catch (error) {
-      entries.push({ path, line: diffFailed(path, command, errorLine(error)), added: null });
+      entries.push({ path, line: noDiffCaptured(path, command, errorLine(error)), added: null });
       continue;
     }
     const { kept: stdout, omitted } = runtimeCut(raw);
@@ -184,7 +185,7 @@ async function buildSection(deps: Deps, target: DevVerifyTarget, gate: GateRun):
     };
   } catch (error) {
     const message = errorLine(error);
-    return { content: text([...head, buildRefused(message)]), state: { state: "refused", message } };
+    return { content: text([...head, buildNotRunShellRefused(message)]), state: { state: "refused", message } };
   }
 }
 
@@ -200,7 +201,7 @@ async function testTail(deps: Deps, target: DevVerifyTarget): Promise<{ content:
     return { content: text([`file: ${shown}`, ...tail]), log: { name: basename(shown), summary: testRunSummary(tail) } };
   }
   if (empty !== null) return { content: text([testLogEmpty(empty)]), log: null };
-  return { content: text([noTestLog(candidates[0], candidates[1])]), log: null };
+  return { content: text([noTestLogEither(candidates[0], candidates[1])]), log: null };
 }
 
 async function testClasses(deps: Deps, target: DevVerifyTarget, gate: GateRun, testRoots: readonly string[]): Promise<string> {
@@ -240,7 +241,7 @@ async function methodHits(
 ): Promise<{ hits: string[] | null; failure: string | null }> {
   if (gate.facts.methods.length === 0 || testRoots.length === 0) return { hits: null, failure: null };
   const command = gitMethodGrep(gate.facts.methods, testRoots, gate.excludes);
-  if (command === null) return { hits: null, failure: UNQUOTABLE_SCOPE };
+  if (command === null) return { hits: null, failure: UNQUOTABLE_SCOPE_REASON };
   try {
     return { hits: stdoutLines((await deps.shell.run(command)).stdout), failure: null };
   } catch (error) {

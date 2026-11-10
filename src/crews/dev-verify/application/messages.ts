@@ -1,6 +1,8 @@
 // The text dev-verify's use case shows the user: the gate's refusals, the audit's outcomes and BLOCKED lines, the
 // capture's notes, and the lines of the run.
 
+import { batchValidOpening } from "../../../shared/domain/dev/markers.ts";
+
 // ── The gate ────────────────────────────────────────────────────────────────
 
 export const gateCouldNotRun = (command: string, why: string): string => `the gate could not run '${command}': ${why}`;
@@ -43,7 +45,7 @@ export const namedAfterValidations = (command: string): string => `\`${command}\
 export const commandFailed = (command: string, why: string): string => `not captured: '${command}' failed (${why})`;
 export const diffBeyondFirst = (path: string, max: number): string => `${path} → no diff captured (beyond the first ${max} files)`;
 export const diffQuoteInPath = (path: string): string => `${path} → no diff captured (a quote in the path)`;
-export const diffFailed = (path: string, command: string, why: string): string =>
+export const noDiffCaptured = (path: string, command: string, why: string): string =>
   `${path} → no diff captured ('${command}' failed (${why}))`;
 export const cutByRuntime = (omitted: number): string => ` (cut by the runtime, ${omitted} characters omitted)`;
 export const logMissing = (log: string): string => `log missing or empty: ${log}`;
@@ -56,9 +58,9 @@ export const buildReusedLine = (log: string): string =>
   `exit: 0 (reused ${log}: ends green, no changed file newer — one build per batch)`;
 export const logNotReused = (why: string): string => `log not reused (${why}): built again`;
 export const buildTimedOut = (seconds: number): string => `exit: none — timed out after ${seconds} s`;
-export const buildRefused = (message: string): string => `not run — the shell refused it: ${message}`;
+export const buildNotRunShellRefused = (message: string): string => `not run — the shell refused it: ${message}`;
 export const testLogEmpty = (log: string): string => `missing or empty: ${log}`;
-export const noTestLog = (first: string, second: string): string => `no test log: neither ${first} nor ${second}`;
+export const noTestLogEither = (first: string, second: string): string => `no test log: neither ${first} nor ${second}`;
 export const NO_TEST_ROOT_GIVEN = "no test root given";
 export const NOT_A_PLAIN_WORD = "not searched (the name is not a plain word)";
 export const cutAtFiles = (max: number): string => `[cut at ${max} files]`;
@@ -74,16 +76,16 @@ export const BATCH_INPUT = "dev-verify: the input batch must be F<n>, e.g. F2";
 export const PLAN_INPUT = "dev-verify: the input plan must be a code or a <CODE>-PLAN.md path";
 export const MODE_INPUT = "dev-verify: the input mode must be fast, full or resume";
 export const GATE_ONLY_INPUT = "dev-verify: the input gateOnly must be true or false";
-export const severalSheets = (batch: string, sheets: string, command: string): string =>
+export const verifySeveralSheets = (batch: string, sheets: string, command: string): string =>
   `dev-verify: several sheets for ${batch}: ${sheets}: ` +
   `name the plan, e.g. ${command}`;
 export const noSheetInWork = (work: string, batch: string, command: string): string =>
   `dev-verify: no ${work}/*/*-PLAN-${batch}.md: name the plan, e.g. ${command}`;
-export const neitherCodeNorPlan = (plan: string): string => `dev-verify: '${plan}' is neither a code nor a <CODE>-PLAN.md path`;
+export const verifyNeitherCodeNorPlan = (plan: string): string => `dev-verify: '${plan}' is neither a code nor a <CODE>-PLAN.md path`;
 export const noSheetInPlan = (work: string, plan: string, batch: string): string =>
   `dev-verify: ${work}/${plan}/ holds no *-PLAN-${batch}.md`;
 export const notUnderWork = (plan: string, work: string): string => `dev-verify: '${plan}' is not under the work folder ${work}/`;
-export const noSheetBeside = (sheet: string, plan: string): string => `dev-verify: no ${sheet} beside ${plan}`;
+export const verifyNoSheetBeside = (sheet: string, plan: string): string => `dev-verify: no ${sheet} beside ${plan}`;
 export const NO_TEST_COMMAND = "commands.test — the pack has none";
 export const suiteNotRun = (command: string, why: string): string => `\`${command}\` — not run: ${why}`;
 export const suiteTimedOut = (seconds: number): string => `the whole fast suite did not finish within ${seconds} s`;
@@ -93,7 +95,7 @@ export const NO_EXIT_CODE_REPORTED = "no exit code reported";
 export const suiteRed = (exitText: string, counted: string): string => `the whole fast suite is red: ${exitText}${counted}`;
 export const MAKE_SUITE_GREEN = "make the suite green";
 export const wholeSuite = (exitText: string): string => `whole fast suite — ${exitText}`;
-export const NOT_IN_WORK_TREE = "dev-verify: not inside a git work tree";
+export const VERIFY_NOT_IN_WORK_TREE = "dev-verify: not inside a git work tree";
 export const wrongWorkTree = (top: string, workspace: string): string =>
   `dev-verify: the git work tree is ${top}, not ${workspace}: run Orkeon Code at the top of the repository`;
 export const workInMainWorktree = (work: string): string =>
@@ -112,6 +114,6 @@ export const unfinishedTail = (text: string, verdict: string, path: string): str
 export const auditorDisagrees = (said: string, made: string): string => `the auditor said ${said}; the rows make it ${made}`;
 export const verdictWritten = (verdict: string, path: string): string => `dev-verify: ${verdict} written to ${path}`;
 export const batchValid = (batch: string): string =>
-  `→ Batch ${batch} VALID. The close commits the batch's files (run by itself when /dev-batches launched this audit):`;
+  `${batchValidOpening(batch)} The close commits the batch's files (run by itself when /dev-batches launched this audit):`;
 export const gapAppended = (command: string): string =>
   `  it appends the gap to the sheet as a new step and runs it; the audit follows by itself (${command})`;

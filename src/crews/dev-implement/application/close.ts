@@ -14,21 +14,19 @@ import type { WorkFolder } from "../../../shared/application/dev/resolve-work-fo
 import { auditCommand, closeCommand, lastVerdict, parseVerdictFile } from "../../../shared/domain/dev/verdict-format.ts";
 import { parseBatchSheet } from "../../../shared/domain/dev/plan-format.ts";
 import type { RepoPack } from "../../../shared/domain/dev/repo-pack.ts";
-import { DEV_PR_AUTO_CONFIG_KEY, GIT_CURRENT_BRANCH_COMMAND, GIT_DEFAULT_BRANCH_COMMAND, parseDefaultBranch } from "../../../shared/domain/git/close.ts";
+import {
+  DEV_PR_AUTO_CONFIG_KEY, GIT_CURRENT_BRANCH_COMMAND, GIT_DEFAULT_BRANCH_COMMAND, parseDefaultBranch, shellQuote, workBranchFromPattern,
+} from "../../../shared/domain/git/close.ts";
 import type { PrSummary } from "../../../shared/domain/git/close.ts";
 import type { PermissionRule } from "../../../shared/domain/agent-policy/permission.ts";
 import { under } from "../domain/step-checks.ts";
 import { openSteps, parseImplementSheet } from "../domain/step-section.ts";
 import { markPlanBatchDone, markSheetDone } from "../domain/sheet-edits.ts";
-import { shellQuote, workBranchFromPattern } from "../../../shared/domain/git/close.ts";
 import { verdictMarkOf } from "./touched.ts";
 import type { LocatedSheet } from "./locate-sheet.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
-import {
-  NO_CURRENT_BRANCH, branchCreated, branchExists, defaultBranchAsksWorkBranch, noBranchName, noFileRecorded, notAudited, notValid,
-  planBatchMarkedDone, planNotFound, sheetMarkedDone, sheetNotMarkedDone, sheetUnreadableAtClose, switchFailed, tddBoxOpen,
-  verdictNotRewritten,
-} from "./messages.ts";
+import { NO_CURRENT_BRANCH, branchExistsSwitchToIt, defaultBranchAsksWorkBranch, noBranchName, noFileRecorded, notAudited, notValid, planBatchMarkedDone, planNotFound, sheetMarkedDone, sheetNotMarkedDone, sheetUnreadableAtClose, switchFailed, tddBoxOpen, verdictNotRewritten } from "./messages.ts";
+import { branchCreated } from "../../../shared/application/git/messages.ts";
 
 export interface CloseInput {
   pack: RepoPack;
@@ -153,7 +151,7 @@ async function createWorkBranch(
   const name = workBranchName(pattern, code, batch);
   if (name === null) return { ok: false, reason: noBranchName(pattern) };
   const exists = await runGit(shell, `git rev-parse --verify --quiet ${shellQuote(`refs/heads/${name}`)}`);
-  if (exists.exitCode === 0) return { ok: false, reason: branchExists(name) };
+  if (exists.exitCode === 0) return { ok: false, reason: branchExistsSwitchToIt(name) };
   const made = await runGit(shell, `git switch -c ${shellQuote(name)}`);
   if (made.exitCode !== 0) {
     return { ok: false, reason: switchFailed(name, (made.stderr || made.stdout).trim().split("\n")[0] || `exit ${made.exitCode}`) };

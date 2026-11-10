@@ -13,4 +13,3 @@ export const eventsHeading = (phase: string, path: string): string => `## Events
 export const earlierLinesLeftOut = (n: number): string => `(${n} earlier line(s) left out)`;
 export const reportsHeading = (phase: string): string => `## Reports recorded for ${phase}`;
 export const WORKING_TREE_HEADING = "## Working tree (`git status --short`)";
-export const moreLinesLeftOut = (n: number): string => `(${n} more line(s) left out)`;

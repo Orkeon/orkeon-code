@@ -14,7 +14,6 @@ export const callbackFailed = (step: string, reason: string): string => `${step}
 export const memoryGuardFailed = (reason: string): string => `the shared memory's guard failed: ${reason}`;
 export const mountCheckRefusedHook = (label: string, denial: string): string =>
   `the runtime's mount check refused the command line of ${label}, which did not run: ${denial}`;
-export const hookCouldNotRun = (label: string, reason: string): string => `${label} could not run: ${reason}`;
 
 // spend.ts, wrapped-tools.ts
 export const budgetSpent = (limit: number): string =>

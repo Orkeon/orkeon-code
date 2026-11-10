@@ -2,6 +2,7 @@
 // template (sections 1 to 12) with a section 13 of decisions, a section left out when it has nothing to say (the
 // numbers stay the template's, so a reader and /dev-plan find each section where they expect it). A use case and a
 // rule carry a `- **Statement**:` line first, which spec-format.ts reads for /dev-plan. Pure, no IO.
+import { STATEMENT } from "../../../shared/domain/dev/markers.ts";
 import { decisionTable, questionTable } from "../../../shared/domain/dev/questions.ts";
 import type { Decision, Question } from "../../../shared/domain/dev/questions.ts";
 import { ruleId, useCaseId } from "./spec-answer.ts";
@@ -22,7 +23,7 @@ const sentence = (t: string): string => (t === "" || /[.!?]$/.test(t) ? t : `${t
 
 function useCaseBlock(a: SpecAnswer): string[] {
   return a.useCases.flatMap((u, i) => {
-    const head = [`**Statement**: ${u.intent}`, `**Actor**: ${u.actor}`];
+    const head = [`${STATEMENT}: ${u.intent}`, `**Actor**: ${u.actor}`];
     if (u.frequency !== "") head.push(`**Frequency**: ${u.frequency}`);
     const lines = [`### ${useCaseId(i)} — ${u.name}`, `- ${head.join(" · ")}`, `- **Where**: ${u.where}`, "- **Nominal scenario**:"];
     u.scenario.forEach((s, k) => lines.push(`  ${k + 1}. ${s}`));
@@ -39,7 +40,7 @@ function ruleBlock(a: SpecAnswer): string[] {
     const applies = r.appliesTo.join(", ");
     const lines = [
       `### ${ruleId(i)} — ${r.name}`,
-      `- **Statement**: ${r.statement} · **Origin**: ${r.origin} · **Severity**: ${r.severity}`,
+      `- ${STATEMENT}: ${r.statement} · **Origin**: ${r.origin} · **Severity**: ${r.severity}`,
       `- **Applies to**: ${applies}`,
     ];
     if (r.example !== "") lines.push(`- **Example**: ${r.example}`);

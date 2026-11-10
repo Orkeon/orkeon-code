@@ -16,11 +16,8 @@ import {
 import { CONFIG_FILE_PATH, USER_CONFIG_FILE_PATH } from "../../../shared/application/config-store.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import type { CommandView } from "../view.ts";
-import {
-  CONFIG_GET_USAGE, CONFIG_UNSET_USAGE, CONFIG_USAGE, KEYS_NOTE, configFileLine, configFileMalformed, fileValueSet,
-  keyNotInFile, keyRemoved, keyUnset, keyValue, nestedKeys, noSessionOverride, refusingToOverwrite, refusingUnparsed,
-  sessionOverrideRemoved, sessionValueSet, unknownConfigKey, unknownStoredKeys, userSettingsUnparsed, valueIgnored,
-} from "./messages.ts";
+import { CONFIG_GET_USAGE, CONFIG_UNSET_USAGE, CONFIG_USAGE, KEYS_NOTE, configFileLine, configFileMalformed, fileValueSet, keyNotInFile, keyRemoved, keyUnset, keyValue, nestedKeys, noSessionOverride, refusingToOverwrite, refusingUnparsed, sessionOverrideRemoved, sessionValueSet, unknownStoredKeys, userSettingsUnparsed, valueIgnored } from "./messages.ts";
+import { unknownConfigKey } from "../../../shared/domain/messages.ts";
 
 export interface ConfigDeps {
   config: ConfigStore;

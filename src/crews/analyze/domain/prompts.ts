@@ -41,7 +41,7 @@ export const NO_MODULE_CYCLE = "Cycles in the whole module graph: none.";
 export const moduleCyclesUnnamed = (count: number): string =>
   `Cycles in the whole module graph: ${count} ⚠ — the index counts them, it does not name their modules.`;
 export const largestNamed = (named: number): string => ` (the ${named} largest named)`;
-export const andMore = (more: number): string => `, and ${more} more`;
+export const andMoreAfterComma = (more: number): string => `, and ${more} more`;
 export const cycleModules = (count: number, members: string, more: string): string =>
   `- ${count} modules: ${members}${more}`;
 export const moduleCyclesHeading = (count: number, shown: string): string =>

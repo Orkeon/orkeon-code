@@ -12,10 +12,10 @@ import { gateLineText, runGateChecks } from "../domain/gate.ts";
 import type { SheetFacts } from "../domain/sheet-facts.ts";
 import { sheetFacts } from "../domain/sheet-facts.ts";
 import {
-  GIT_CHANGED_TRACKED, GIT_DIFF_CHECK, UNQUOTABLE_SCOPE, buildOutputProblem, excludePathspecs, gitTraitGrep, gitUntracked,
+  GIT_CHANGED_TRACKED, GIT_DIFF_CHECK, buildOutputProblem, excludePathspecs, gitTraitGrep, gitUntracked,
 } from "../domain/commands.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
-import { gateGreen, gateHeader, gateRed } from "../domain/messages.ts";
+import { gateGreen, gateHeader, gateRed, UNQUOTABLE_SCOPE_REASON } from "../domain/messages.ts";
 import { gateCouldNotRun, gateExit, outputCutByRuntime, planFileNotRead, sheetUnreadable } from "./messages.ts";
 
 const MAX_PLAN_ENTRIES = 500;
@@ -166,7 +166,7 @@ export async function runGate(
     if (trait !== null && facts.ids.length > 0) {
       const command = gitTraitGrep(trait.ere, roots.length > 0 ? roots : ["."], excludes);
       if (command === null) {
-        extra.push({ kind: "FAIL", text: `rule traits: ${UNQUOTABLE_SCOPE}` });
+        extra.push({ kind: "FAIL", text: `rule traits: ${UNQUOTABLE_SCOPE_REASON}` });
       } else {
         // git grep exits 1 when nothing matches.
         const grep = await runOrRefuse(deps.shell, command, [0, 1]);

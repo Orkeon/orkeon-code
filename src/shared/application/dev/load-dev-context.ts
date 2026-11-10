@@ -18,7 +18,8 @@ import type { VerdictFile } from "../../domain/dev/verdict-format.ts";
 import { parseBatchesState } from "../../domain/dev/batches-state.ts";
 import type { BatchesState } from "../../domain/dev/batches-state.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
-import { TODO_HOLDS_HARNESS_WORK, cannotBeRead, notIgnoredByGit, severalPlans, workDirUnreadable } from "./messages.ts";
+import { TODO_HOLDS_HARNESS_WORK, notIgnoredByGit, severalPlans, workDirUnreadable } from "./messages.ts";
+import { cannotBeRead } from "../messages.ts";
 
 export interface DevContextDeps {
   files: Pick<Files, "read" | "list">; shell: Pick<Shell, "run">; config: Pick<ConfigStore, "readValue">;

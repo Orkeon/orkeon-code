@@ -4,7 +4,7 @@
 // was never restored (a cold checkout or worktree), where the flag cannot succeed.
 import type { RepoPackCommands } from "./repo-pack.ts";
 import { PLACEHOLDER, plainWords, valueProblem } from "./test-commands.ts";
-import { buildTestPlaceholders, PACK_HAS_NO_BUILD, PACK_HAS_NO_BUILD_TEST, SHELL_OPERATOR } from "./messages.ts";
+import { buildTestPlaceholders, PACK_HAS_NO_BUILD, PACK_HAS_NO_BUILD_TEST, SHELL_OPERATOR_OUTSIDE_QUOTES } from "./messages.ts";
 
 export type BuildCommand = { ok: true; command: string; key: "commands.build" | "commands.build_test" } | { ok: false; reason: string };
 
@@ -25,7 +25,7 @@ export function buildCommandFor(commands: RepoPackCommands, project?: string): B
   const command = template.replace(PLACEHOLDER, project);
   return plainWords(command)
     ? { ok: true, command, key: "commands.build_test" }
-    : { ok: false, reason: SHELL_OPERATOR };
+    : { ok: false, reason: SHELL_OPERATOR_OUTSIDE_QUOTES };
 }
 
 /** Whether `command` is the pack's restore, or a restore by its verb (`dotnet restore`, `npm ci`, `npm install`). */

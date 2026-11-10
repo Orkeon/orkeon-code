@@ -32,13 +32,9 @@ import { chainStep, freshContext, launchChained, nextLaunch, withContext } from 
 import type { ChainHopDeps, ChainLaunch, DevImplementArgs, DevImplementDispatchDeps } from "./dev-implement.ts";
 import { devVerifyStep, markActiveWorkflow, startDevStep, writeModeRefusal } from "../dev-step.ts";
 import { storedEffort } from "../effort.ts";
-import {
-  AUDIT_OR_CORRECTION, A_CREW, CHAIN_FAILED_THEN, CONCURRENCY_NEEDS_NUMBER, CONTEXT_NOT_READ_LINE, CORRECTION_OR_CLOSE, DEV_BATCHES_USAGE,
-  WRITES_COMMITS_PUSHES, auditFailed, auditUnknownOption, batchUnknownOption, batchesChainFailed, batchesChainStopped,
-  chainNotKept, concurrencyNotWithBatch, correctionNamesBatch, correctionNamesFinding, devBatchesRefusal, failedLine,
-  goesWithAudit, namesItsBatch, namesItsBatchFirst, notACodeNorPlan, notAWorkCode, oneAuditMode, oneBatchAtMost,
-  oneCodeAtMost, onePlanAtMost, prGoesWithClose, runUnknownOption, thenType,
-} from "./messages.ts";
+import { AUDIT_OR_CORRECTION, A_CREW, CHAIN_FAILED_THEN, CONCURRENCY_NEEDS_NUMBER, CONTEXT_NOT_READ_LINE, CORRECTION_OR_CLOSE, DEV_BATCHES_USAGE, WRITES_COMMITS_PUSHES, auditFailed, auditUnknownOption, batchUnknownOption, batchesChainFailed, batchesChainStopped, chainNotKept, concurrencyNotWithBatch, correctionNamesBatch, correctionNamesFinding, devBatchesRefusal, goesWithAudit, namesItsBatch, namesItsBatchFirst, notAWorkCodeExplained, oneAuditMode, oneBatchAtMost, oneCodeAtMost, onePlanAtMost, prGoesWithClose, runUnknownOption, thenType } from "./messages.ts";
+import { neitherCodeNorPlan as notACodeNorPlan } from "../../../shared/application/dev/messages.ts";
+import { failedLine } from "../messages.ts";
 
 /** `concurrency` only when the option is typed: without it the run goes on as the plan's run in progress was (one at a
  *  time when none is); `--concurrency 1` goes back to one at a time. */
@@ -109,7 +105,7 @@ function parseRun(tokens: readonly string[]): DevBatchesParse {
     if (tok === "--pr") pr = true;
     else if (BATCH_OPTIONS.includes(tok)) return refuse(namesItsBatch(tok));
     else if (tok.startsWith("-")) return refuse(runUnknownOption(tok));
-    else if (!isCode(tok)) return refuse(notAWorkCode(tok));
+    else if (!isCode(tok)) return refuse(notAWorkCodeExplained(tok));
     else if (code !== null) return refuse(oneCodeAtMost(code, tok));
     else code = tok;
   }

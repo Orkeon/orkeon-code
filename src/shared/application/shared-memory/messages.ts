@@ -8,7 +8,6 @@ export const CANDIDATE_CHANGED = "its file changed since it was confirmed: run /
 export const notACandidateAnyMore = (problem: string): string => `its file is not a candidate entry any more (${problem})`;
 export const statusNotCandidate = (status: string): string => `its status is ${status}, not candidate`;
 export const fileHoldsId = (id: string): string => `its file holds the id ${id}`;
-export const refusedFileUnreadable = (id: string, path: string, reason: string): string => `${id}: ${path} cannot be read (${reason})`;
 export const topicWasRefused = (id: string, topic: string): string => `${id}: its topic '${topic}' was refused (refused.md)`;
 export const supersedesNoAdmitted = (id: string, old: string): string =>
   `${id} supersedes ${old}, which is no admitted entry: left as it is`;
@@ -37,9 +36,8 @@ export const refusedUnreadableNothingHarvested = (reason: string): string => `re
 export const mistakeAlreadyHeld = (topic: string): string => `${topic}: a mistake candidate or entry already holds it`;
 
 // import-agent-memory.ts
-export const cannotBeRead = (path: string, reason: string): string => `${path} cannot be read (${reason})`;
 export const noteUnreadable = (path: string, reason: string): string => `${path} cannot be read (${reason}): the line alone is imported`;
-export const looksLikeSecret = (patterns: string): string => `the item looks like it holds a secret (${patterns})`;
+export const itemLooksLikeSecret = (patterns: string): string => `the item looks like it holds a secret (${patterns})`;
 export const noAgentMemory = (root: string, index: string): string => `No harness agent memory in ${root} (no <agent>/${index}).`;
 export const NO_CANDIDATE_WRITTEN = "No candidate written.";
 export const duplicatesSkipped = (count: number, list: string): string =>
@@ -54,9 +52,7 @@ export const memoryDirSetAside = (key: string, raw: string, reason: string, dir:
 export const recallFailed = (reason: string): string => `shared memory: recall failed, no precedents (${reason})`;
 
 // push-candidate.ts: the refusals of memory_push
-export const typeMustBeOneOf = (types: string): string => `type must be one of ${types}`;
 export const EVIDENCE_REQUIRED = "evidence required: at least one path:line, commit or verdict file";
-export const evidenceNamesSecret = (paths: string): string => `evidence names a secret-like file: ${paths}`;
 export const topicNeverProposedAgain = (topic: string): string =>
   `topic '${topic}' was refused (refused.md): it is never proposed again`;
 export const refusedUnreadableNothingWritten = (reason: string): string => `refused.md cannot be read (${reason}): nothing was written`;

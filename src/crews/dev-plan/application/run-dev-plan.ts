@@ -36,13 +36,9 @@ import { noPrecedents, precedentsLine, recallQuery } from "../../../shared/appli
 import type { StepPrecedents } from "../../../shared/application/dev/step-precedents.ts";
 import { checkAnchorPaths } from "./anchor-paths.ts";
 import type { AnchorListings } from "./anchor-paths.ts";
-import {
-  BAD_INPUT_REPLACE, BAD_INPUT_SOURCE, BOTH_LINES, COMMANDS_LINE, END_LINE, GATE_OFF, REFUSED_TWICE, REVIEWED_FAILS_SELF_CHECK,
-  ROWS_NOT_WRITTEN, SETTLE_CHANGE, SETTLE_SPEC, answerDidNotParse, answerThem, batchIsDone, cannotBeRead, couldNotBeWritten,
-  everyBatch, fewerBatches, inventoryLine, namesNoId, noRoomForInventory, notInPack, planBlocked, planExists, planWritten,
-  recordsWorkDone, rendererDefect, reviewHead, reviewNotRun, runFromCheckout, stepIsTicked, tddLineTicked, titleNamesNoKind,
-  titleReadsDone, unreviewed,
-} from "./messages.ts";
+import { BAD_INPUT_REPLACE, BAD_INPUT_SOURCE, BOTH_LINES, COMMANDS_LINE, END_LINE, REFUSED_TWICE, REVIEWED_FAILS_SELF_CHECK, ROWS_NOT_WRITTEN, SETTLE_CHANGE, SETTLE_SPEC, answerThenReplan, batchIsDone, planCannotBeReadNothingReplaced, planFileNotWritten, everyBatch, fewerBatches, inventoryFromTitles, namesNoTraceableId, noRoomForInventory, notInPack, planBlocked, planExists, planWritten, recordsWorkDone, planRendererDefect, reviewHead, reviewNotRunWithCause, planRunFromCheckout, stepIsTicked, tddLineTicked, planTitleNamesNoKind, titleReadsDone, unreviewed } from "./messages.ts";
+import { PERMISSION_GATE_OFF as GATE_OFF } from "../../../shared/application/dev/messages.ts";
+import { answerDidNotParse } from "../../../shared/application/agents/messages.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 export interface DevPlanInputs { source?: unknown; replace?: unknown }   // source: the token, null for none
@@ -106,7 +102,7 @@ async function toplevelRefusal(shell: Pick<Shell, "run">): Promise<string | null
     top = "";
   }
   if (top === WORKSPACE) return null;
-  return runFromCheckout(WORKSPACE, top);
+  return planRunFromCheckout(WORKSPACE, top);
 }
 
 function warningLines(warnings: readonly string[]): string[] {
@@ -169,7 +165,7 @@ async function existingPlan(files: Files, place: Place, source: ResolvedSource, 
     try {
       text = await files.read(place.vfs(a.name));
     } catch (e) {
-      return { ok: false, text: cannotBeRead(place.shown(a.name), firstLine(e)) };
+      return { ok: false, text: planCannotBeReadNothingReplaced(place.shown(a.name), firstLine(e)) };
     }
     const done = workDone(text, a.kind === "plan" ? "plan" : "sheet");
     if (done !== null) {
@@ -209,7 +205,7 @@ async function askPlan(
     const rendered = render(checked.value);
     const self = planSelfCheck({ plan: rendered.plan, sheets: rendered.sheets, sourceIds });
     if (!self.ok) {
-      deps.log.warn(rendererDefect(self.problems[0]));
+      deps.log.warn(planRendererDefect(self.problems[0]));
       problems = self.problems;
       continue;
     }
@@ -294,9 +290,9 @@ export async function runDevPlan(input: DevPlanInputs, deps: DevPlanDeps): Promi
   // 5. Blocking gate: nothing else is read.
   if (parsed.blocking.length > 0) return blockingStop(source.sourceShown, source.kind, source.code, parsed.blocking);
   // 6. Ids.
-  if (parsed.ids.length === 0) return namesNoId(source.sourceShown);
+  if (parsed.ids.length === 0) return namesNoTraceableId(source.sourceShown);
   if (source.kind === "change" && parsed.changeKind === undefined) {
-    return titleNamesNoKind(source.sourceShown);
+    return planTitleNamesNoKind(source.sourceShown);
   }
   // 7. Existing plan.
   const place = placeOf(source);
@@ -375,7 +371,7 @@ export async function runDevPlan(input: DevPlanInputs, deps: DevPlanDeps): Promi
     await writeOne(deps.files, place, PLAN_JSON, planJson(generated, source, inventory, answer, null));
   } catch (e) {
     const shown = e instanceof WriteFailure ? e.shown : "a file";
-    return couldNotBeWritten(shown, firstLine(e));
+    return planFileNotWritten(shown, firstLine(e));
   }
   const planShown = place.shown(rendered.plan.name);
   deps.log.info(planWritten(planShown, rendered.sheets.length));
@@ -401,7 +397,7 @@ export async function runDevPlan(input: DevPlanInputs, deps: DevPlanDeps): Promi
   let review: ReviewAnswer | null = null;
   let reviewText: string[];
   if (!outcome.ok) {
-    reviewText = [reviewNotRun(outcome.reason, outcome.problems[0] ?? "no detail")];
+    reviewText = [reviewNotRunWithCause(outcome.reason, outcome.problems[0] ?? "no detail")];
   } else {
     review = outcome.value;
     reviewText = reviewLines(review);
@@ -426,7 +422,7 @@ export async function runDevPlan(input: DevPlanInputs, deps: DevPlanDeps): Promi
       await writeOne(deps.files, place, PLAN_JSON, planJson(generated, source, inventory, answer, review));
     } catch (e) {
       const shown = e instanceof WriteFailure ? e.shown : "a file";
-      return couldNotBeWritten(shown, firstLine(e));
+      return planFileNotWritten(shown, firstLine(e));
     }
   }
 
@@ -436,7 +432,7 @@ export async function runDevPlan(input: DevPlanInputs, deps: DevPlanDeps): Promi
     `dev-plan: ${planShown} — ${plural(answer.batches.length, "batch", "batches")}, ${plural(sourceIds.length, "id", "ids")} traced (${ids})`,
     ...batchLines(rendered, answer),
     `files: ${[planShown, ...rendered.sheets.map((s) => s.name), PLAN_JSON].join(", ")}`,
-    inventoryLine(inventory.entries.length, inventory.titlesSearched, inventory.index, inventory.calls),
+    inventoryFromTitles(inventory.entries.length, inventory.titlesSearched, inventory.index, inventory.calls),
     ...reviewText,
     ...[precedentsLine([recalled])].filter((l) => l !== ""),
     ...warningLines(warnings),
@@ -446,7 +442,7 @@ export async function runDevPlan(input: DevPlanInputs, deps: DevPlanDeps): Promi
     const settle = source.kind === "change" ? SETTLE_CHANGE : SETTLE_SPEC;
     lines.push(
       planBlocked(plural(blocking, "Blocking question", "Blocking questions"), planShown),
-      answerThem(blocking === 1 ? "it" : "them", settle, source.code, source.kind === "change" ? " <its kind>" : ""),
+      answerThenReplan(blocking === 1 ? "it" : "them", settle, source.code, source.kind === "change" ? " <its kind>" : ""),
     );
   } else if (!outcome.ok) {
     lines.push(unreviewed(source.code));

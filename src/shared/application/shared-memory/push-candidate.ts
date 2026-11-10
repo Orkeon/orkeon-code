@@ -12,10 +12,9 @@ import { candidatePath, entryPath } from "../../domain/shared-memory/layout.ts";
 import type { MemoryLayout } from "../../domain/shared-memory/layout.ts";
 import { secretLikePaths } from "../../domain/secret-patterns.ts";
 import { readOrNull, refreshCandidatesList, refusedTopics, writeCandidateFile } from "./memory-files.ts";
-import {
-  EVIDENCE_REQUIRED, admittedHoldsId, cannotBeRead, evidenceNamesSecret, nineHoldTheId, notAValidEntry, notWritable, overwroteTwice,
-  refusedUnreadableNothingWritten, topicNeverProposedAgain, typeMustBeOneOf,
-} from "./messages.ts";
+import { EVIDENCE_REQUIRED, admittedHoldsId, nineHoldTheId, notAValidEntry, notWritable, overwroteTwice, refusedUnreadableNothingWritten, topicNeverProposedAgain } from "./messages.ts";
+import { evidenceNamesSecret, typeMustBeOneOf } from "../../domain/shared-memory/messages.ts";
+import { cannotBeRead } from "../messages.ts";
 
 export interface PushInput {
   type: EntryType;

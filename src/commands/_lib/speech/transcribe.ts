@@ -12,10 +12,8 @@ import type { PreludeCall } from "../../../shared/domain/prelude.ts";
 import { commandLine, isOption, optionValue, parseAssistantInput, splitWords } from "../args.ts";
 import { launchCrew, launchMainLoop, withLlmProfile } from "../dispatch.ts";
 import type { LaunchResult, MainLoopLaunchDeps } from "../dispatch.ts";
-import {
-  LIST_ALONE, NAME_A_FILE, PROMPT_NEEDS_WORDS, THEN_NEEDS_INSTRUCTION, TRANSCRIBE_USAGE, filesUnder, missingToolMessage,
-  needsLanguageCode, oneFileAtATime, transcriptionOf, unknownOption,
-} from "./messages.ts";
+import { LIST_ALONE, NAME_A_FILE, PROMPT_NEEDS_WORDS, THEN_NEEDS_INSTRUCTION, TRANSCRIBE_USAGE, filesUnder, missingToolMessage, needsLanguageCode, oneFileAtATime, transcriptionOf } from "./messages.ts";
+import { unknownOption } from "../messages.ts";
 import { transcriptionPreludeLabel } from "./prompts.ts";
 
 export const TRANSCRIBE_TOOL = "transcribe_audio";

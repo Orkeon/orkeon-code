@@ -17,6 +17,7 @@ import { createBatchWorktree, mergeValidBatch, removeBatchWorktree } from "../..
 import { concurrencyGitRefusal } from "../../../shared/domain/dev/batches-concurrency.ts";
 import type { BatchesLogEntry } from "../../../shared/domain/dev/batches-state.ts";
 import { parseBatchSheet } from "../../../shared/domain/dev/plan-format.ts";
+import { batchValidLine } from "../../../shared/domain/dev/markers.ts";
 import { batchBranch, batchWorktreeName, gitBranchExists, gitCommitsNotIn, gitIsIgnored, gitIsMergedInto, gitWorktreeHead, worktreePlace } from "../../../shared/domain/git/worktree.ts";
 import type { WorktreePlace } from "../../../shared/domain/git/worktree.ts";
 import { shellQuote } from "../../../shared/domain/git/close.ts";
@@ -25,11 +26,8 @@ import { eventLine, lastEntryOf } from "../domain/batches-log.ts";
 import { harvestBatch, seedWorktree } from "./seed-harvest.ts";
 import type { SeedSnapshot, SeedTarget } from "./seed-harvest.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
-import {
-  BATCH_ANSWERED_NOTHING, HASH_NOT_READ, IT_ANSWERED_NOTHING, LOG_UNWRITABLE, NO_CORRECTION_RESUMES, batchAgentAnswered,
-  branchNotOnWorktree, budgetStop, closeStop, doneBeforeStop, gapsRoundsHuman, logUnwritableNotRelaunched, noVerdictWritten,
-  notAWorktreeName, planNotMarked, relaunchedAfterGaps, stateNotIgnored, stayInWorktree, worktreeKept, worktreeMade,
-} from "./messages.ts";
+import { BATCH_ANSWERED_NOTHING, HASH_NOT_READ, IT_ANSWERED_NOTHING, LOG_UNWRITABLE, NO_CORRECTION_RESUMES, batchAgentAnswered, branchNotOnWorktree, budgetStop, closeStop, doneBeforeStop, gapsRoundsHuman, logUnwritableNotRelaunched, stoppedNoVerdict, notAWorktreeName, planNotMarked, relaunchedAfterGaps, stateNotIgnored, stayInWorktree, worktreeKept } from "./messages.ts";
+import { worktreeCreated as worktreeMade } from "../../../shared/application/git/messages.ts";
 import {
   GAPS_ROUNDS_MAX, gapsFinding, gapsRoundsOf, isNextStepLine, parseCorrectionLine, parseVerdictFile,
 } from "../../../shared/domain/dev/verdict-format.ts";
@@ -437,10 +435,10 @@ export async function runBatchChain(run: BatchRun, launch: Readonly<Record<strin
     const last = trimmed.at(-1) ?? IT_ANSWERED_NOTHING;
     // The gate's RED names only its own line: the checks that failed say why.
     const fails = trimmed.filter((l) => l.startsWith("FAIL ")).map((l) => l.slice(5));
-    return answer("BLOCKED", [noVerdictWritten(last, fails)]);
+    return answer("BLOCKED", [stoppedNoVerdict(last, fails)]);
   }
   const rest = verified.slice(written.index + written[0].length);
-  if (!new RegExp(`^→ Batch ${run.batch} VALID\\.`, "m").test(rest)) {
+  if (!batchValidLine(run.batch).test(rest)) {
     const correction = parseCorrectionLine(rest)?.finding;
     return { ...answer("GAPS"), ...(correction === undefined ? {} : { correction }) };
   }

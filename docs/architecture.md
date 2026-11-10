@@ -219,7 +219,7 @@ src/
 │   │                  git/ (branch, commit, diff, review), memory/ (memory, memory-admit), session/ (export,
 │   │                  resume, tasks), settings/ (advisor, agents, config, hooks, mode, model, permissions,
 │   │                  session-config: the toggle commands, skills), speech/ (say, transcribe, voice),
-│   │                  status/ (cache, doctor, meta: version and release notes, status). At the root, what
+│   │                  status/ (cache, doctor, meta: version; messages: release notes, status). At the root, what
 │   │                  several families share: args.ts (arguments), dispatch.ts (crew launch, completion
 │   │                  line, main-loop launch), dev-step.ts, effort.ts, pr-context.ts, view.ts (CommandView,
 │   │                  showView)
@@ -919,7 +919,7 @@ extraction, `shared/domain/compaction.ts` the prompts and buffers, `shared/domai
    it in `tests/commands/_lib/<group>/<name>.test.ts`, over the fakes. A helper that several groups share
    sits at the root of `_lib/`; a group never imports another one.
 3. Raise `EXPECTED_COMMAND_COUNT` in `tests/repository/command-surface.test.ts` and the command count of `RELEASE_NOTES` in
-   `src/commands/_lib/status/messages.ts` (pinned by `tests/commands/_lib/status/meta.test.ts`), then run `npm run docs:commands`.
+   `src/commands/_lib/status/messages.ts` (pinned by `tests/commands/_lib/status/messages.test.ts`), then run `npm run docs:commands`.
 
 ### Add a crew
 
@@ -929,7 +929,7 @@ extraction, `shared/domain/compaction.ts` the prompts and buffers, `shared/domai
    its `*.test.ts`; the use case test runs over the fakes.
 3. Start it from an async command (`launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "<name>",
    input)`), and name it in `RELEASE_NOTES`
-   (`tests/commands/_lib/status/meta.test.ts` checks that every crew folder is named there). A folder starting with `_` is a
+   (`tests/commands/_lib/status/messages.test.ts` checks that every crew folder is named there). A folder starting with `_` is a
    development probe (`probe.ork.ts`), never listed to users.
 
 ### Add a tool

@@ -178,7 +178,7 @@ export const PATTERN_TOO_SHORT = "the pattern needs at least two characters arou
 export const valueHoldsDotDot = (value: string): string => `the value '${value}' holds a '..' segment`;
 export const valueNotPlain = (value: string): string => `the value '${value}' is not one plain relative name`;
 export const NOT_ONE_LINE = "not one line of at most 400 characters";
-export const SHELL_OPERATOR = "a shell operator outside double quotes";
+export const SHELL_OPERATOR_OUTSIDE_QUOTES = "a shell operator outside double quotes";
 export const PACK_HAS_NO_TEST_COMMAND = "the pack has no test_class, test_project or test_integration";
 export const nothingMayFollow = (rest: string): string => `nothing may follow the pack's command: '${rest}'`;
 export const INTEGRATION_WITHOUT_FILTER = "test_integration without a filter is a whole suite";
@@ -232,3 +232,13 @@ export const gateIsOff = (step: string, setting: string, command: string, gateOn
   `${step}: refused: the host's permission gate is off (${setting} is not true), so the step's rule ` +
   `sets and its read-only mode would check nothing. The launcher turns the gate on unless a settings file turns ` +
   `it off: remove that setting, restart the REPL and run /${command} again.${gateOnly}`;
+
+// The self-checks shared by the spec, the brief, the plan and the learning
+export const rowIsEmpty = (name: string, row: number): string => `${name} ${row} is empty`;
+export const fieldEmpty = (at: string, field: string): string => `${at}: ${field} is empty`;
+export const nameOneLine = (max: number): string => `name: one line of at most ${max} characters, no '—'`;
+export const idNameOneLine = (id: string, max: number): string => `${id}: the name is one line of at most ${max} characters`;
+export const statementOneLine = (id: string, max: number): string =>
+  `${id}: the statement is one testable line of at most ${max} characters`;
+export const TBD_WITHOUT_QUESTION = "a TBD in the body has no open question";
+export const tooManyQuestions = (max: number): string => `questions: at most ${max}`;

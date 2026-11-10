@@ -9,13 +9,8 @@ import {
   CHECK_APPLIED, CHECK_BUILD, CHECK_CONVENTIONS, CHECK_COST, CHECK_DESIGN_IDS, CHECK_METHODS, CHECK_SCOPE, CHECK_TEST_RUN,
   CHECK_TICKED, CHECK_TRAITS,
 } from "./markers.ts";
-import {
-  BUILD_RUN_GREEN, buildReused, buildRunRed, costGreen, designIdsEvidence, eachDesignRuleId, exitLine, idsCarriedAs,
-  JUDGED_BY_AUDITOR, methodsAbsent, methodsFound, NO_APPLIED_RULES_ROW, NO_BUILD_COMMAND, NO_EXIT_LINE, NO_LAYOUT_ROOT,
-  NO_TEST_METHOD, NO_TEST_ROOT, noSummaryLine, notComputed, noTestLog, ROW_CITES_NO_ID, scopeEvidence, SHEET_NAMES_NO_ID,
-  shellRefused, TABLE_HEADER, tableTitle, TEST_ROOTS_NOT_SEARCHED, testRunEvidence, tickedNoneOpen, timedOutAfter,
-  TRAITS_NOT_APPLICABLE, unknownDesignRuleIds,
-} from "./messages.ts";
+import { BUILD_RUN_GREEN, buildReused, buildRunRed, costGreen, designIdsEvidence, eachDesignRuleId, exitLine, idsCarriedAs, JUDGED_BY_AUDITOR, methodsAbsent, methodsFound, NO_APPLIED_RULES_ROW, NO_EXIT_LINE, NO_LAYOUT_ROOT, NO_TEST_METHOD, NO_TEST_ROOT, noSummaryLine, notComputed, noTestLog, ROW_CITES_NO_ID, scopeEvidence, SHEET_NAMES_NO_ID, shellRefused, TABLE_HEADER, tableTitle, TEST_ROOTS_NOT_SEARCHED, testRunEvidence, tickedNoneOpen, timedOutAfter, TRAITS_NOT_APPLICABLE, unknownDesignRuleIds } from "./messages.ts";
+import { PACK_HAS_NO_BUILD as NO_BUILD_COMMAND } from "../../../shared/domain/dev/messages.ts";
 
 export type CheckResult = "ok" | "gap" | "not checked";
 export interface TableRow { axis: string; check: string; result: CheckResult; evidence: string }

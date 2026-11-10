@@ -14,7 +14,6 @@ export const noChangeToCommit = (paths: string): string => `no change to commit:
 export const notCommittedUnsafe = (paths: string): string => `✗ not committed: ${paths} cannot go through the shell; commit by hand`;
 export const NOTHING_TO_COMMIT_LINE = "✗ nothing to commit";
 export const pushDeniedByRule = (command: string): string => `✗ not pushed: a session rule denies '${command}'; the commit stays local`;
-export const pushedToOrigin = (branch: string): string => `✓ pushed ${branch} to origin`;
 
 // find-repo-pack.ts
 export const packUnreadable = (path: string, reason: string): string => `${path} cannot be read (${reason}): no repository pack is used`;
@@ -23,18 +22,17 @@ export const severalPacks = (packs: string, path: string): string => `several re
 
 // learn-decision.ts
 export const cannotBeListed = (folder: string, reason: string): string => `${folder}/ cannot be listed (${reason})`;
-export const cannotBeRead = (path: string, reason: string): string => `${path} cannot be read (${reason})`;
 export const axisDone = (axis: string, count: number): string => `axis ${axis} done: ${count} gaps marked treated`;
 export const learnStateUnreadable = (file: string, reason: string): string =>
   `dev-learn: ${file} cannot be read (${reason}): fix or delete it; nothing was written`;
 export const learnStateInvalid = (problem: string): string => `dev-learn: ${problem}: fix or delete it; nothing was written`;
 export const learnBlockedNotWritten = (file: string, reason: string): string => `dev-learn: BLOCKED — ${file} cannot be written (${reason})`;
-export const noProposal = (id: string, folder: string): string => `dev-learn: no proposal ${id} in the 10 newest ${folder}/learn-*/ folders`;
+export const noProposalInNewestFolders = (id: string, folder: string): string => `dev-learn: no proposal ${id} in the 10 newest ${folder}/learn-*/ folders`;
 export const learnStateLine = (file: string, treated: number): string => `state: ${file} — ${treated} gaps treated in all`;
 export const alreadyDecided = (id: string, decision: string, date: string): string => `${id} was already ${decision} on ${date}`;
 export const refusedUnreadable = (file: string, reason: string): string => `dev-learn: ${file} cannot be read (${reason}): nothing was written`;
 export const alreadyRefused = (topic: string, date: string): string => `${topic} was already refused on ${date}`;
-export const refusedLine = (topic: string, file: string): string => `refused: ${topic} — left out of future proposals (${file})`;
+export const refusedLeftOut = (topic: string, file: string): string => `refused: ${topic} — left out of future proposals (${file})`;
 export const refuseByWords = (notFound: string): string => `${notFound} (to refuse a motif by its words, write more than an id)`;
 export const learnOutsideMounts = (folder: string): string =>
   `dev-learn: the work folder ${folder} is in the main worktree, outside the mounts: run /dev-learn from the main checkout`;
@@ -83,7 +81,7 @@ export const decisionsNotFolded = (problem: string): string =>
 export const EMPTY_ANSWER_LEAVES_OPEN = "\n(an empty answer leaves the questions in the file)";
 
 // resolve-work-folder.ts
-export const notARelativeFolder = (source: string, value: string, reason: string, fallback: string): string =>
+export const notARelativeFolderFallback = (source: string, value: string, reason: string, fallback: string): string =>
   `${source} '${value}' is not a relative folder of the checkout (${reason}): ${fallback}/ applies`;
 export const absentFromCheckout = (source: string, value: string, fallback: string): string =>
   `${source} '${value}' is absent from the checkout: ${fallback}/ applies`;
@@ -102,18 +100,17 @@ export const invalidInput = (step: string, name: string): string => `${step}: in
 export const NO_WORK_TREE = "no work tree";
 export const runFromCheckout = (step: string, workspace: string, top: string): string =>
   `${step}: run from the checkout at ${workspace} (git reports ${top})`;
-export const workFolderOutsideMounts = (step: string, folder: string): string =>
+export const workFolderOutsideCheckoutMounts = (step: string, folder: string): string =>
   `${step}: the work folder ${folder} is outside the checkout's mounts: run from the main worktree`;
 export const outsideCheckout = (step: string, request: string, workspace: string): string =>
   `${step}: ${request} is outside the checkout: give a path under ${workspace}`;
-export const stepCannotRead = (step: string, path: string, reason: string): string => `${step}: ${path} cannot be read (${reason})`;
 export const titleDoesNotReadCode = (code: string): string => `the title does not read the code ${code}`;
 export const idsReadBack = (read: string, expected: string): string => `the ids read back are ${read}, not ${expected}`;
 export const openQuestionsReadBack = (read: number, written: number): string => `${read} open questions read back, ${written} written`;
 export const DECISIONS_DO_NOT_READ_BACK = "the decisions do not read back";
 
 // step-precedents.ts, tool-call-policy.ts, tool-callbacks.ts
-export const recallFailed = (trigger: string, reason: string): string => `shared memory: recall ${trigger} failed, no precedents (${reason})`;
+export const namedRecallFailed = (trigger: string, reason: string): string => `shared memory: recall ${trigger} failed, no precedents (${reason})`;
 export const relativePathResolved = (step: string, tool: string): string => `${step}: ${tool}: a relative path resolved under the checkout`;
 export const mountCheckRefusedPreHook = (step: string, n: number, tool: string): string =>
   `${step}: the runtime's mount check refused pre-tool hook #${n} for ${tool}`;
@@ -129,3 +126,7 @@ export const workListsTooMany = (folder: string, cap: number): string =>
 
 // wrapped-tools.ts
 export const restoreNotRun = (reason: string): string => `restore not run: ${reason}`;
+
+// Shared by the dev crews
+export const neitherCodeNorPlan = (plan: string): string => `'${plan}' is neither a code nor a <CODE>-PLAN.md path`;
+export const PERMISSION_GATE_OFF = "the host's permission gate is off; the reviewer was offered read tools only";

@@ -13,7 +13,7 @@ import type {
 } from "../../../shared/domain/code-intel-contract.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 import {
-  andMore, atLeast, cycleModules, dependsOn, ENTRY_POINTS_LABEL, entryPackagesSection, HARVEST_TITLE, languageLine,
+  andMoreAfterComma, atLeast, cycleModules, dependsOn, ENTRY_POINTS_LABEL, entryPackagesSection, HARVEST_TITLE, languageLine,
   largestNamed, MODULE_DEPENDENCIES_HEADING, moduleCyclesHeading, moduleCyclesUnnamed, moduleGraphSample, moduleGraphSize,
   morePackagesOmitted, NO_ENTRY_PACKAGE, NO_MODULE_CYCLE, NO_PACKAGE_CYCLE, NO_PACKAGE_DEPENDENCY, OTHER_PACKAGES_HEADING,
   packageCyclesHeading, packageDependenciesSection, packageHeading, packagesHeading, pathsRelativeTo, publicExports,
@@ -203,7 +203,7 @@ function renderModuleCycles(g: GraphSummary): string {
   }
   const shown = g.cycles.length < g.cycleCount ? largestNamed(g.cycles.length) : "";
   const lines = g.cycles.map((c) => {
-    const more = c.memberCount > c.members.length ? andMore(c.memberCount - c.members.length) : "";
+    const more = c.memberCount > c.members.length ? andMoreAfterComma(c.memberCount - c.members.length) : "";
     return cycleModules(c.memberCount, c.members.map(code).join(", "), more);
   });
   return [moduleCyclesHeading(g.cycleCount, shown), ...lines].join("\n");

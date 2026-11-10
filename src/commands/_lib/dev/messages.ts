@@ -3,7 +3,6 @@
 
 // A chain of crews (dev-implement.ts, dev-batches.ts)
 export const thenType = (command: string) => `then type ${command}`;
-export const failedLine = (reason: string) => `✗ ${reason}`;
 export const closeFollows = (command: string) => `→ the close follows: ${command}`;
 /** The line a hop prints when the session's context could not be read again: the crew reads its record. */
 export const CONTEXT_NOT_READ_LINE = "⚠ the session's mode could not be read again: the context read at the launch applies";
@@ -24,7 +23,7 @@ export const CONCURRENCY_NEEDS_NUMBER = "--concurrency needs a number";
 export const namesItsBatch = (option: string) => `${option} names its batch: /dev-batches <code> F<n> ${option}`;
 export const runUnknownOption = (option: string) =>
   `unknown option '${option}' (--pr, --concurrency; with F<n>: --close, --audit)`;
-export const notAWorkCode = (token: string) => `'${token}' is not a work code (a folder name of the work folder)`;
+export const notAWorkCodeExplained = (token: string) => `'${token}' is not a work code (a folder name of the work folder)`;
 export const oneCodeAtMost = (code: string, token: string) => `one code at most, not '${code}' and '${token}'`;
 export const correctionNamesFinding = (command: string) => `a correction names its finding: ${command}`;
 export const goesWithAudit = (token: string, batch: string) =>
@@ -32,7 +31,6 @@ export const goesWithAudit = (token: string, batch: string) =>
 export const batchUnknownOption = (option: string, batch: string) =>
   `unknown option '${option}' with ${batch} (--close, --pr, --audit)`;
 export const onePlanAtMost = (plan: string, token: string) => `one plan at most, not '${plan}' and '${token}'`;
-export const notACodeNorPlan = (token: string) => `'${token}' is neither a code nor a <CODE>-PLAN.md path`;
 export const prGoesWithClose = (batch: string) =>
   `with ${batch}, --pr goes with --close (the pull request is opened at the close)`;
 export const CORRECTION_OR_CLOSE = "a correction runs the batch, --close commits it: one at a time";
@@ -61,7 +59,6 @@ export const RUN_NEEDS_KIND =
   "--run goes with a kind: bug (the command that reproduces it) or perf (the command that measures it); a feature is a spec and runs nothing";
 export const withUsage = (text: string, usage: string) => `${text}\n${usage}`;
 export const notASpecCode = (word: string) => `'${word}' is not a code (letters, digits, '.', '_', '-')`;
-export const unknownOption = (word: string) => `unknown option ${word}`;
 export const RUN_NEEDS_COMMAND = "--run needs the command, quoted";
 export const RUN_BEFORE_TEXT = "--run comes before the text";
 
@@ -88,7 +85,7 @@ export const notAStatusCode = (code: string) =>
   `dev-status: '${code}' is not a code: letters, digits, '.', '_' and '-', starting with a letter or a digit`;
 export const workFolderInMainWorktree = (folder: string) =>
   `dev-status: the work folder ${folder} is in the main worktree, outside the mounts: run /dev-status from the main checkout`;
-export const cannotBeListed = (folder: string, reason: string) => `dev-status: ${folder}/ cannot be listed (${reason})`;
+export const devStatusCannotList = (folder: string, reason: string) => `dev-status: ${folder}/ cannot be listed (${reason})`;
 export const holdsNoDevFile = (folder: string, code: string) =>
   `dev-status: ${folder}/${code}/ holds no SPEC-, CHANGE- or *-PLAN.md file`;
 export const codesHere = (codes: string) => `codes here: ${codes}`;
@@ -113,5 +110,3 @@ export const REPLACE_ONCE = "dev-plan: --replace once at most";
 export const planUnknownOption = (token: string) => `dev-plan: unknown option '${token}' (only --replace)`;
 export const oneSourceAtMost = (source: string, token: string) =>
   `dev-plan: one source at most, not '${source}' and '${token}'`;
-export const notACodeNorSource = (token: string) =>
-  `dev-plan: '${token}' is neither a code nor a SPEC-<code>.md / CHANGE-<code>.md path`;

@@ -29,7 +29,6 @@ export const gateRed = (batch: string): string => `GATE — batch ${batch}: RED 
 
 // ── The mechanical table ────────────────────────────────────────────────────
 
-export const NO_BUILD_COMMAND = "the pack has no commands.build";
 export const buildReused = (log: string): string => `\`exit: 0\` (reused ${log})`;
 export const BUILD_RUN_GREEN = "`exit: 0` (run)";
 export const buildRunRed = (exit: number, why: string): string => `\`exit: ${exit}\`${why !== "" ? ` — ${why}` : ""}`;
@@ -86,10 +85,7 @@ export const rowSeverity = (k: number): string => `row ${k}: severity must be Bl
 export const rowAxis = (k: number, label: string, axes: string): string => `row ${k}: axis '${label}' is not one of ${axes}`;
 export const rowFieldEmpty = (k: number, field: string): string => `row ${k}: ${field} is empty`;
 export const rowNoCitation = (k: number): string => `row ${k}: evidence cites no path:line`;
-export const ANSWER_NOT_OBJECT = "the answer is not an object";
 export const VERDICT_VALID_OR_GAPS = "verdict must be VALID or GAPS";
-export const ROWS_NOT_LIST = "rows must be a list";
-export const tooManyRows = (max: number, count: number): string => `at most ${max} rows, not ${count}`;
 export const VALIDATIONS_NOT_LIST = "validations must be a list of commands";
 export const tooManyValidations = (max: number, count: number): string => `at most ${max} validations, not ${count}`;
 export const UNDECIDED_NOT_LIST = "undecided must be a list";

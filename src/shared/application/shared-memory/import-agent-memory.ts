@@ -15,9 +15,8 @@ import { writeCandidate } from "./push-candidate.ts";
 import { topicOf } from "../../domain/shared-memory/refused.ts";
 import { secretPatternsIn } from "../../domain/secret-patterns.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
-import {
-  DECIDE_WITH_MEMORY_ADMIT, NO_CANDIDATE_WRITTEN, cannotBeRead, duplicatesSkipped, looksLikeSecret, noAgentMemory, noteUnreadable,
-} from "./messages.ts";
+import { DECIDE_WITH_MEMORY_ADMIT, NO_CANDIDATE_WRITTEN, duplicatesSkipped, itemLooksLikeSecret, noAgentMemory, noteUnreadable } from "./messages.ts";
+import { cannotBeRead } from "../messages.ts";
 
 export const HARNESS_AGENT_MEMORY_ROOT = `${WORKSPACE}/${HARNESS_AGENT_MEMORY_DIR}`;
 
@@ -83,7 +82,7 @@ export async function importAgentMemory(
       // so the uncut text is scanned first.
       const secrets = secretPatternsIn(uncut);
       if (secrets.length > 0) {
-        outcome.refused.push({ agent, line: item.line, reason: looksLikeSecret(secrets.join(", ")) });
+        outcome.refused.push({ agent, line: item.line, reason: itemLooksLikeSecret(secrets.join(", ")) });
         continue;
       }
       const entry = importedEntry(item, note, { agent, project: memory.project, date });

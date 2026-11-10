@@ -8,7 +8,7 @@ export function unknownCharter(name: string, known: string): string {
 export const EMPTY_BRIEF = "agent-run: the brief is empty";
 
 /** The error of a brief over the size a charter takes. */
-export function briefTooLong(length: number, max: number): string {
+export function agentRunBriefTooLong(length: number, max: number): string {
   return `agent-run: the brief is ${length} characters, over ${max}`;
 }
 

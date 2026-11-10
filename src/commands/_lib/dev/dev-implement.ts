@@ -21,10 +21,8 @@ import { storedEffort } from "../effort.ts";
 import { readPullRequestContext } from "../pr-context.ts";
 import type { PullRequestContext } from "../pr-context.ts";
 import { VALID_LINE, WRITTEN_LINE } from "./markers.ts";
-import {
-  CLOSE_COMMITS, CONTEXT_NOT_READ_LINE, WRITES_COMMITS_PUSHES, batchChainFailed, closeFollows, couldNotBeLaunched, failedLine,
-  thenType,
-} from "./messages.ts";
+import { CLOSE_COMMITS, CONTEXT_NOT_READ_LINE, WRITES_COMMITS_PUSHES, batchChainFailed, closeFollows, couldNotBeLaunched, thenType } from "./messages.ts";
+import { failedLine } from "../messages.ts";
 
 /** One batch of a plan, as `/dev-batches <code> F<n> [--close [--pr]] [— correction: <finding>]` reads it
  *  (dev-batches.ts parseDevBatchesArgs): the batch, its plan (a code or a `<path>/<CODE>-PLAN.md`, null to find it). */

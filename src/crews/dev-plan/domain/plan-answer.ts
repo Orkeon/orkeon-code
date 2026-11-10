@@ -9,16 +9,10 @@ import type { Checked } from "../../../shared/domain/agents/charter.ts";
 import { DESIGN_RULE_IDS } from "../../../shared/domain/dev/design-rules.ts";
 import type { ChangeKind, SourceKind } from "../../../shared/domain/dev/spec-format.ts";
 import { BUILD_STEP } from "../../../shared/domain/dev/markers.ts";
+import { ANCHOR_KINDS, DESIGN_RULE_ID, ELEMENT_LAYERS, FEATURE_EMPTY, LAYERS_EMPTY, TEST_LEVELS, anchorNeedsPath, anchorNotShown, anchorPathColon, appliedAndNa, batchCount, cannotBeAnchored, docsAndCode, elementHoldsBody, elementTooLong, featureTooLong, holdsBreak, holdsCodeBreak, holdsLabel, inInventory, memberIsNot, missingOrNot, moreProblems, naTwice, naWithoutReason, nameEmpty, nameRepeats, nameTooLong, namesNoId, neitherAppliedNorNa, noCharacterisation, noCodeElement, noCodeOwner, noProductionAnchor, noTest, noTestAnchor, noTestCarries, notBatchOfPlan, notDesignRuleId, notEarlierBatch, notInFirstStep, notUnpinnedRow, ownerIsPath, pinnedNotInPlan, projectEmpty, refAnchorNeedsRef, reuseNotShown, shareUnordered, startsWithMarker, stepCount, titleEmpty, titleIsBuildStep, titleRepeats, titleTooLong, traceNotSourceId, traceTwice } from "./messages.ts";
 import {
-  ANCHOR_KINDS, DESIGN_RULE_ID, ELEMENT_LAYERS, FEATURE_EMPTY, LAYERS_EMPTY, NOT_AN_OBJECT, TEST_LEVELS, anchorNeedsPath,
-  anchorNotShown, anchorPathColon, appliedAndNa, batchCount, cannotBeAnchored, docsAndCode, elementHoldsBody, elementTooLong,
-  featureTooLong, fieldEmpty, holdsBreak, holdsCodeBreak, holdsLabel, inInventory, memberIsNot, missingOrNot, moreProblems,
-  naTwice, naWithoutReason, nameEmpty, nameRepeats, nameTooLong, namesNoId, neitherAppliedNorNa, noCharacterisation,
-  noCodeElement, noCodeOwner, noProductionAnchor, noTest, noTestAnchor, noTestCarries, notBatchOfPlan, notDesignRuleId,
-  notEarlierBatch, notInFirstStep, notSourceId, notUnpinnedRow, ownerIsPath, pinnedNotInPlan, projectEmpty, refAnchorNeedsRef,
-  reuseNotShown, shareUnordered, startsWithMarker, stepCount, titleEmpty, titleIsBuildStep, titleRepeats, titleTooLong,
-  traceNotSourceId, traceTwice,
-} from "./messages.ts";
+  ANSWER_NOT_AN_OBJECT as NOT_AN_OBJECT, fieldEmpty, notASourceId as notSourceId,
+} from "../../../shared/domain/dev/messages.ts";
 import { PLAN_FIELDS } from "./prompts.ts";
 
 export type TestLevel = "unit" | "integration" | "pinned";

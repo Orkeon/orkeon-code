@@ -16,22 +16,16 @@ export const TECHNICAL: ReadonlyArray<[RegExp, string]> = [
 // ── The problems of a spec answer ───────────────────────────────────────
 
 export const cellSpansLines = (name: string, row: number, key: string): string => `${name} ${row}: ${key} is one line, no '|'`;
-export const rowIsEmpty = (name: string, row: number): string => `${name} ${row} is empty`;
-export const NOT_AN_OBJECT = "the answer is not an object";
-export const nameOneLine = (max: number): string => `name: one line of at most ${max} characters, no '—'`;
 export const NO_SUMMARY = "summary: two or three sentences: what, for whom, why";
 export const NO_CONTEXT = "context: the problem, for whom, the cost of doing nothing";
 export const NO_USE_CASE = "useCases: at least one use case";
 export const tooManyUseCases = (max: number): string => `useCases: at most ${max}`;
-export const idNameOneLine = (id: string, max: number): string => `${id}: the name is one line of at most ${max} characters`;
 export const noActor = (id: string): string => `${id}: no actor`;
 export const noIntent = (id: string): string => `${id}: no intent`;
 export const noWhere = (id: string): string => `${id}: no Where: the surface and the moment the actor meets it`;
 export const scenarioSteps = (id: string, max: number): string => `${id}: the nominal scenario has 1 to ${max} steps`;
 export const fieldSpansLines = (id: string): string => `${id}: a field or a step spans lines`;
 export const tooManyRules = (max: number): string => `rules: at most ${max}`;
-export const statementOneLine = (id: string, max: number): string =>
-  `${id}: the statement is one testable line of at most ${max} characters`;
 export const noOrigin = (id: string): string =>
   `${id}: no origin (regulation, standard, practice, product choice, existing behaviour)`;
 export const severityIs = (id: string): string => `${id}: severity is blocking, warning or informational`;
@@ -42,6 +36,4 @@ export const dataImportanceIs = (datum: string, importance: string): string => `
 export const tooManyRows = (name: string, max: number): string => `${name}: at most ${max} rows`;
 export const OVERVIEW_IS_FLOWCHART = "overview: the lines of one mermaid flowchart, without the fence, or \"\"";
 export const termUsedNowhere = (term: string): string => `vocabulary: '${term}' is used nowhere else`;
-export const TBD_WITHOUT_QUESTION = "a TBD in the body has no open question";
 export const businessPurity = (what: string, hit: string): string => `business purity: ${what} in "${hit}"; say it in business words`;
-export const tooManyQuestions = (max: number): string => `questions: at most ${max}`;

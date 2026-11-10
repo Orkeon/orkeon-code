@@ -2,7 +2,7 @@
 // `<CODE>-PLAN-F<n>.md`, read line by line. Pure, no IO, never throws: a line that
 // looks like a format line but does not match becomes a FormatProblem.
 import {
-  ASSUMPTION_BULLET, ASSUMPTION_ROW, BATCH_LINE, BATCH_PREFIX, DEPENDS_ON, DONE_LINE, PLAN_TITLE, SHEET_TITLE,
+  ASSUMPTION_BULLET, ASSUMPTION_ROW, ASSUMPTIONS_SECTION, BATCH_LINE, BATCH_PREFIX, DEPENDS_ON, DONE_LINE, PLAN_TITLE, SHEET_TITLE,
   STEP_BOX, STEP_HEADING, SUMMARY_HEADING, TDD_LINE,
 } from "./markers.ts";
 import { malformedSummaryRow, malformedTddLine, tddLineOutsideStep, twoTddLines, unknownBatchLine } from "./messages.ts";
@@ -123,7 +123,7 @@ export function parseBatchSheet(text: string): BatchSheet {
   for (const { text: t, line } of unfencedLines(text)) {
     if (t.startsWith("#")) {
       step = null;
-      if (t.startsWith("## ")) { inIntent = t === "## Intent"; inAssumptions = t === "## Assumptions"; }
+      if (t.startsWith("## ")) { inIntent = t === "## Intent"; inAssumptions = t === ASSUMPTIONS_SECTION; }
       const title = SHEET_TITLE.exec(t);
       if (title && sheet.prefix === undefined) {
         sheet.prefix = title[1];

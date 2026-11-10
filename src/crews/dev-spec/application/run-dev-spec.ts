@@ -28,10 +28,9 @@ import { noPrecedents, precedentsLine, recallQuery } from "../../../shared/appli
 import type { StepPrecedents } from "../../../shared/application/dev/step-precedents.ts";
 import { buildSpecPrompt } from "./spec-material.ts";
 import type { SpecPromptInput } from "./spec-material.ts";
-import {
-  DEV_SPEC_NEXT, PERMISSION_GATE_OFF, answerDidNotParse, answerThem, blockedUnanswered, cannotBeRead, changeBriefExists,
-  couldNotBeWritten, decisionsThisRun, newSpecNeedsBrief, refusedTwice, rendererDefect, stillBlocking,
-} from "./messages.ts";
+import { DEV_SPEC_NEXT, answerThem, blockedUnanswered, cannotBeReadNothingWritten, changeBriefExists, specNotWrittenAnswersKept, decisionsThisRun, newSpecNeedsBrief, refusedTwice, rendererDefect, stillBlocking } from "./messages.ts";
+import { PERMISSION_GATE_OFF } from "../../../shared/application/dev/messages.ts";
+import { answerDidNotParse } from "../../../shared/application/agents/messages.ts";
 
 export interface DevSpecInputs { code?: unknown; request?: unknown }
 export interface DevSpecDeps {
@@ -98,7 +97,7 @@ export async function runDevSpec(input: DevSpecInputs, deps: DevSpecDeps): Promi
     try {
       existing = await deps.files.read(spec.vfs);
     } catch (e) {
-      return cannotBeRead(STEP, spec.shown, firstLine(e));
+      return cannotBeReadNothingWritten(STEP, spec.shown, firstLine(e));
     }
   }
   const request = await readRequest(STEP, deps.files, typed);
@@ -205,6 +204,6 @@ export async function runDevSpec(input: DevSpecInputs, deps: DevSpecDeps): Promi
     return lines.join("\n");
   } catch (e) {
     if (!(e instanceof SourceWriteFailure)) throw e;
-    return couldNotBeWritten(STEP, spec.shown, e.message);
+    return specNotWrittenAnswersKept(STEP, spec.shown, e.message);
   }
 }

@@ -7,10 +7,10 @@ import type { Severity } from "../../../shared/domain/dev/verdict-format.ts";
 import { AXES } from "../../../shared/domain/dev/verdict-format.ts";
 import type { Axis } from "../../../shared/domain/dev/verdict-format.ts";
 import type { Checked } from "../../../shared/domain/agents/charter.ts";
+import { rowAxis, rowFieldEmpty, rowNoCitation, rowSeverity, tooManyValidations, UNDECIDED_NOT_LIST, undecidedIncomplete, VALIDATIONS_NOT_LIST, VERDICT_VALID_OR_GAPS } from "./messages.ts";
 import {
-  ANSWER_NOT_OBJECT, ROWS_NOT_LIST, rowAxis, rowFieldEmpty, rowNoCitation, rowSeverity, tooManyRows, tooManyValidations,
-  UNDECIDED_NOT_LIST, undecidedIncomplete, VALIDATIONS_NOT_LIST, VERDICT_VALID_OR_GAPS,
-} from "./messages.ts";
+  ANSWER_NOT_AN_OBJECT as ANSWER_NOT_OBJECT, atMostRows as tooManyRows, ROWS_MUST_BE_A_LIST as ROWS_NOT_LIST,
+} from "../../../shared/domain/dev/messages.ts";
 
 /** The axes live with the verdict format; re-exported for this crew's importers. */
 export { AXES };

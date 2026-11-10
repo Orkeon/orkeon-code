@@ -205,7 +205,7 @@ export const ASK_INDEX_BEFORE_READING = "Ask the index before reading, by questi
 export const cutNotShown = (omitted: number, what: string): string => `[… cut: ${omitted} characters of ${what} not shown …]`;
 export const filesLeftOut = (count: number, max: number, paths: string): string =>
   `[… cut: ${count} file(s) left out, over ${max} characters: ${paths} …]`;
-export const sessionStartLinesLeftOut = (n: number): string => `(${n} more line(s) left out)`;
+export const moreLinesLeftOut = (n: number): string => `(${n} more line(s) left out)`;
 
 export const verificationSkill = (path: string): string => `the verification skill ${path}`;
 export const everyVerificationSkill = (dir: string): string => `every verification skill under ${dir}/, one after the other`;

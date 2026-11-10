@@ -27,7 +27,7 @@ import { batchWaves, sheetAnchorPaths } from "../domain/batch-waves.ts";
 import { runWave } from "./run-wave.ts";
 import { batchWorktreeName, worktreePlace } from "../../../shared/domain/git/worktree.ts";
 import type { BatchOutcome, BatchRun } from "./run-wave.ts";
-import { parseBatchesState } from "../../../shared/domain/dev/batches-state.ts";
+import { BATCHES_ACTIVE_RECORD, parseBatchesState } from "../../../shared/domain/dev/batches-state.ts";
 import type { BatchesLogEntry } from "../../../shared/domain/dev/batches-state.ts";
 import {
   GAPS_ROUNDS_MAX, closeCommand, correctionCommand, gapsFinding, gapsRoundsOf, isUnfinishedSection, lastVerdict,
@@ -44,19 +44,13 @@ import { policyFor } from "../../../shared/domain/agent-policy/mode-policy.ts";
 import { nextBatch, waveOrder } from "../domain/wave-order.ts";
 import type { BatchNode } from "../domain/wave-order.ts";
 import { appendToLog, batchesLogPath, closedLine, eventLine, lastEntryOf, reviewPending } from "../domain/batches-log.ts";
-import { CLOSE_STOP, REVIEW_NOT_RUN } from "../domain/markers.ts";
+import { REVIEW_NOT_RUN } from "../domain/markers.ts";
+import { CLOSE_STOP } from "../../dev-implement/domain/markers.ts";
 import { changedTitle } from "./prompts.ts";
-import {
-  CHAIN_ANSWERED_NOTHING, FILES_NOT_READ, HASH_NOT_READ, NO_REVIEWER, NO_RUN_TO_GO_ON, backOnBranch, closeStop, concurrencyRefused,
-  detachedHead, doneAndCommitted, everyBatchDone, everyBatchDoneArrow, humanDecidesAgain, humanDecidesClose, humanDecidesCorrection,
-  humanDecidesStops, keptByParallelRun, launchLine, logNotWritten, logUnwritableThen, nextWaveFollows, noBranchFromPattern, noPlanUnder,
-  notAWorkCodeBlocked, notMarkedDone, preflightBlocked, readOnlyMode, recordNotWritten, relaunchedRound, resumeAudit, reviewGaps,
-  reviewNotRun, runGoesOn, runInProgress, settleBlocking, validNotCommitted, waitForChain, wavesUnreadable, workBranchCreated,
-  workOutsideMounts,
-} from "./messages.ts";
+import { CHAIN_ANSWERED_NOTHING, FILES_NOT_READ, HASH_NOT_READ, NO_REVIEWER, NO_RUN_TO_GO_ON, backOnBranch, closeStop, concurrencyRefused, detachedHead, doneAndCommitted, everyBatchDone, everyBatchDoneArrow, humanDecidesAgain, humanDecidesClose, humanDecidesCorrection, humanDecidesStops, keptByParallelRun, launchLine, logNotWritten, logUnwritableThen, nextWaveFollows, noBranchFromPattern, noPlanUnder, notAWorkCodeBlocked, notMarkedDone, preflightBlocked, blockedReadOnlyMode, recordNotWritten, relaunchedRound, resumeAudit, reviewGaps, batchReviewNotRun, runGoesOn, runInProgress, settleBlocking, validNotCommitted, waitForChain, wavesUnreadable, workOutsideMounts } from "./messages.ts";
+import { branchCreated as workBranchCreated } from "../../../shared/application/git/messages.ts";
 import type { BatchEvent } from "../domain/batches-log.ts";
 import { closePlan } from "./plan-close.ts";
-import { BATCHES_ACTIVE_RECORD } from "../../../shared/domain/dev/batches-state.ts";
 import type { MergedBatch } from "./plan-close.ts";
 import { WORKSPACE, workspaceRelative } from "../../../shared/domain/vfs.ts";
 import { listProjectFiles } from "../../../shared/application/dev/project-files.ts";
@@ -392,7 +386,7 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
   }
   const mode = context.permissionMode.trim();
   if (mode !== "" && policyFor(mode).readOnly) {
-    return answer([...lines, readOnlyMode(mode, code)]);
+    return answer([...lines, blockedReadOnlyMode(mode, code)]);
   }
   // The value the run names (a typed --concurrency 1 included: back to one at a time); none, the value of the plan's
   // run in progress, typed or chained (a refused hop typed again goes on as it was); else one.
@@ -592,7 +586,7 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
     // A review that cannot run closes the gate: the batch is not launched, and the next run reviews it again.
     const notRun = (reason: string): Promise<string> => {
       book.add(eventLine(now(), id, "stopped", `${REVIEW_NOT_RUN} (${reason})`));
-      return finish([...lines, reviewNotRun(id, reason, code)]);
+      return finish([...lines, batchReviewNotRun(id, reason, code)]);
     };
     const reviewer = deps.reviewerFor?.(context);
     if (reviewer === undefined) return notRun(NO_REVIEWER);

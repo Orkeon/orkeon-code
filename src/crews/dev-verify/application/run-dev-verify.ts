@@ -41,9 +41,9 @@ import { WORKSPACE, workspaceRelative } from "../../../shared/domain/vfs.ts";
 import { timedOutAfter } from "../domain/messages.ts";
 import {
   auditAgainFix, auditorDisagrees, BATCH_INPUT, failedCount, batchValid, blockedUnwritable, GATE_ONLY_DONE, GATE_ONLY_INPUT,
-  gapAppended, MAKE_SUITE_GREEN, MODE_INPUT, neitherCodeNorPlan, NO_EXIT_CODE_REPORTED, NO_TEST_COMMAND, noSheetBeside,
-  noSheetInPlan, noSheetInWork, NOT_IN_WORK_TREE, notRunLine, notUnderWork, PLAN_INPUT, RESUME_WHOLE_BATCH,
-  resumeEarlierGaps, resumeNeeds, runByFullAudit, runHeader, severalSheets, SUITE_TIMEOUT_FIX, suiteNotRun, suiteRed,
+  gapAppended, MAKE_SUITE_GREEN, MODE_INPUT, verifyNeitherCodeNorPlan, NO_EXIT_CODE_REPORTED, NO_TEST_COMMAND, verifyNoSheetBeside,
+  noSheetInPlan, noSheetInWork, VERIFY_NOT_IN_WORK_TREE, notRunLine, notUnderWork, PLAN_INPUT, RESUME_WHOLE_BATCH,
+  resumeEarlierGaps, resumeNeeds, runByFullAudit, runHeader, verifySeveralSheets, SUITE_TIMEOUT_FIX, suiteNotRun, suiteRed,
   suiteTimedOut, unfinishedTail, verdictWritten, wholeSuite, workInMainWorktree, writtenUnfinished, wrongWorkTree,
 } from "./messages.ts";
 
@@ -159,7 +159,7 @@ async function sheetsIn(files: Pick<Files, "list">, planDir: string, batch: stri
 }
 
 function several(batch: string, sheets: readonly Sheet[]): string {
-  return severalSheets(batch, sheets.map((s) => `${s.planDir}/${s.name}`).join(", "), auditCommand("<code>", batch));
+  return verifySeveralSheets(batch, sheets.map((s) => `${s.planDir}/${s.name}`).join(", "), auditCommand("<code>", batch));
 }
 
 /** The sheet the plan token names, or the refusal text. */
@@ -173,7 +173,7 @@ async function resolveSheet(files: Pick<Files, "read" | "list">, work: string, a
     if (found.length > 1) return several(batch, found);
     return found[0];
   }
-  const neither = neitherCodeNorPlan(plan);
+  const neither = verifyNeitherCodeNorPlan(plan);
   if (isCode(plan)) {
     const found = await sheetsIn(files, `${work}/${plan}`, batch);
     if (found.length === 0) return noSheetInPlan(work, plan, batch);
@@ -194,7 +194,7 @@ async function resolveSheet(files: Pick<Files, "read" | "list">, work: string, a
   try {
     await files.read(`${WORKSPACE}/${sheet.planDir}/${sheet.name}`);
   } catch {
-    return noSheetBeside(`${sheet.planDir}/${sheet.name}`, relative);
+    return verifyNoSheetBeside(`${sheet.planDir}/${sheet.name}`, relative);
   }
   return sheet;
 }
@@ -261,12 +261,12 @@ async function toplevelRefusal(shell: Pick<Shell, "run">): Promise<string | null
   let top: string;
   try {
     const r = await shell.run(GIT_TOPLEVEL);
-    if (r.exitCode !== 0) return NOT_IN_WORK_TREE;
+    if (r.exitCode !== 0) return VERIFY_NOT_IN_WORK_TREE;
     top = r.stdout.trim();
   } catch {
-    return NOT_IN_WORK_TREE;
+    return VERIFY_NOT_IN_WORK_TREE;
   }
-  if (top === "") return NOT_IN_WORK_TREE;
+  if (top === "") return VERIFY_NOT_IN_WORK_TREE;
   return top === WORKSPACE
     ? null
     : wrongWorkTree(top, WORKSPACE);

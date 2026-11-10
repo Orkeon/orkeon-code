@@ -17,10 +17,8 @@ import { inspectWorkTree, draftCommitMessage, commitSelected, readStatus } from 
 import {
   commitRefusal, commitSubject, inputFlag, isCommitPermitted, namedPaths, secretLikePaths,
 } from "../domain/commit.ts";
-import {
-  commitRefusedLog, draftFlagged, noChangeUnder, NOTHING_OUTSIDE_WORK_FOLDER, NOTHING_TO_COMMIT, notThroughShell, pushed as pushedLine,
-  refused, secretRefused, workFolderLeftOut,
-} from "./messages.ts";
+import { commitRefusedLog, draftFlagged, noChangeUnder, NOTHING_OUTSIDE_WORK_FOLDER, NOTHING_TO_COMMIT_CLEAN_TREE, notThroughShell, secretRefused, workFolderLeftOut } from "./messages.ts";
+import { pushedToOrigin as pushedLine, refusedLine as refused } from "../../../shared/application/git/messages.ts";
 
 export interface GitCommitDeps {
   shell: Shell;
@@ -56,7 +54,7 @@ export async function runGitCommit(input: Record<string, unknown>, deps: GitComm
 
   const status = await readStatus(shell);
   if (status.trim().length === 0) {
-    return NOTHING_TO_COMMIT;
+    return NOTHING_TO_COMMIT_CLEAN_TREE;
   }
   const dev = await loadDevContext({ files, shell, config });
   const selection = selectCommitFiles({

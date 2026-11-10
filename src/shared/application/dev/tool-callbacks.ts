@@ -23,7 +23,8 @@ import { judgeToolCall, memoryDenyText } from "./tool-call-policy.ts";
 import type { CallProbes, HookFailure, ToolCallVerdict } from "./tool-call-policy.ts";
 
 export type { HookFailure, ToolCallVerdict } from "./tool-call-policy.ts";
-import { hookCouldNotRun, memoryGuardFailed, mountCheckRefusedHook } from "./prompts.ts";
+import { memoryGuardFailed, mountCheckRefusedHook } from "./prompts.ts";
+import { couldNotRun as hookCouldNotRun } from "../messages.ts";
 import { postHooksFailed } from "./messages.ts";
 
 /** A hook is stopped after this many seconds, and refuses (pre) or is reported (post). */

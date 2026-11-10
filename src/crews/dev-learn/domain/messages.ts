@@ -15,7 +15,6 @@ export const topicNotSlug = (at: string, topic: string, max: number): string =>
 export const rowsEmpty = (at: string): string => `${at}: rows is empty`;
 export const rowNotGiven = (at: string, id: string): string => `${at}: row '${id}' is not one of the rows given`;
 export const rowTwice = (at: string, id: string): string => `${at}: row '${id}' is listed twice`;
-export const fieldEmpty = (at: string, field: string): string => `${at}: ${field} is empty`;
 export const ownerKindIs = (at: string): string => `${at}: owner_kind must be repository or harness`;
 export const ownerPathNotRelative = (at: string, path: string): string => `${at}: owner_path '${path}' is not a relative path`;
 export const deployedCopy = (at: string): string =>
@@ -28,7 +27,6 @@ export const atProblem = (at: string, problem: string): string => `${at}: ${prob
 export const lineLength = (at: string): string => `${at}: each line is one line of at most 300 characters`;
 export const needsRemovedLine = (at: string, status: string): string => `${at}: ${status} needs the line it removes`;
 export const droppedNeeds = (k: number): string => `dropped ${k}: title, filter and reason are needed`;
-export const NOT_AN_OBJECT = "the answer is not an object";
 export const MOTIFS_MUST_BE_LIST = "motifs must be a list";
 export const tooManyMotifs = (count: number): string => `at most 3 motifs, not ${count}`;
 export const sameRows = (label: string, first: number): string => `${label}: the same rows as motif ${first}: merge them into one motif`;

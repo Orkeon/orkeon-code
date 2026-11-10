@@ -12,7 +12,6 @@ export const VOICE_USAGE =
   "       /voice send";
 
 // The refusals of a bad line
-export const unknownOption = (word: string) => `unknown option ${word}`;
 export const unknownArgument = (word: string) => `unknown argument ${word}`;
 export const VOICE_NEEDS_NAME = "--voice needs a voice name (fr_FR-siwis-medium, en_US-lessac-medium...)";
 export const STOP_ALONE = "--stop takes nothing else";
@@ -51,7 +50,7 @@ export const transcriptionOf = (path: string) => `transcription of ${path}`;
 export const recordingLine = (silenceSeconds: number, maxSeconds: number, go: boolean) =>
   `🎙 recording: speak, then stay silent ${silenceSeconds} s to stop (${maxSeconds} s at most)` +
   (go ? "; the text goes straight to the assistant" : "");
-export const nothingToSend = (file: string) => `no dictation to send: /voice records one (it is kept in ${file})`;
+export const noDictationToSend = (file: string) => `no dictation to send: /voice records one (it is kept in ${file})`;
 export const cannotRead = (file: string, reason: string) => `cannot read ${file}: ${reason}`;
 export const voiceFailed = (error: string) => `✗ voice failed: ${error}`;
 export const NOTHING_HEARD = "nothing was heard: /voice records again";

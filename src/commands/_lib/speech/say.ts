@@ -15,10 +15,8 @@ import { SPEAK_TOOL } from "../../../shared/domain/speech.ts";
 import { commandLine, isOption, optionValue, splitWords } from "../args.ts";
 import { launchCrew, withLlmProfile } from "../dispatch.ts";
 import type { CommandLog, LaunchDeps, LaunchResult } from "../dispatch.ts";
-import {
-  LAST_ANSWER_READ_ALOUD, NOTHING_TO_READ, SAY_USAGE, STOP_ALONE, STOPPED, TEXT_READ_ALOUD, VOICE_NEEDS_NAME, lastAnswerUnreadable,
-  missingToolMessage, toolFailed, unknownOption,
-} from "./messages.ts";
+import { LAST_ANSWER_READ_ALOUD, NOTHING_TO_READ, SAY_USAGE, STOP_ALONE, STOPPED, TEXT_READ_ALOUD, VOICE_NEEDS_NAME, lastAnswerUnreadable, missingToolMessage, toolFailed } from "./messages.ts";
+import { unknownOption } from "../messages.ts";
 
 export const STOP_TOOL = "stop_speaking";
 

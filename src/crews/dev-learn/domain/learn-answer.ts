@@ -4,11 +4,8 @@
 import type { Checked } from "../../../shared/domain/agents/charter.ts";
 import type { CheckKind, MotifStatus, OwnerKind } from "../../../shared/domain/dev/learn-proposals.ts";
 import { MAX_TOPIC_CHARS, TOPIC_PATTERN } from "../../../shared/domain/shared-memory/refused.ts";
-import {
-  MOTIFS_MUST_BE_LIST, NOT_AN_OBJECT, SEEN_LINES_ONLY, addsLines, atProblem, checkIsOneOf, deployedCopy, droppedNeeds,
-  fieldEmpty, harnessOwnerUnder, lineLength, needsRemovedLine, ownerKindIs, ownerPathNotRelative, removesLines, rowNotGiven,
-  rowTwice, rowsEmpty, sameRows, statusIs, titleLength, tooManyMotifs, topicNotSlug,
-} from "./messages.ts";
+import { MOTIFS_MUST_BE_LIST, SEEN_LINES_ONLY, addsLines, atProblem, checkIsOneOf, deployedCopy, droppedNeeds, harnessOwnerUnder, lineLength, needsRemovedLine, ownerKindIs, ownerPathNotRelative, removesLines, rowNotGiven, rowTwice, rowsEmpty, sameRows, statusIs, titleLength, tooManyMotifs, topicNotSlug } from "./messages.ts";
+import { ANSWER_NOT_AN_OBJECT as NOT_AN_OBJECT, fieldEmpty } from "../../../shared/domain/dev/messages.ts";
 
 export { MAX_TOPIC_CHARS };
 

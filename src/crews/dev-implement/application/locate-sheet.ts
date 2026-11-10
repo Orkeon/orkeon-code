@@ -4,7 +4,8 @@
 import type { Files } from "../../../shared/application/ports.ts";
 import { classifyArtefact, isCode } from "../../../shared/domain/dev/artefacts.ts";
 import { WORKSPACE, workspaceRelative } from "../../../shared/domain/vfs.ts";
-import { neitherCodeNorPlan, noSheetBeside, noSheetUnder, planHoldsNoSheet, severalSheets } from "./messages.ts";
+import { noSheetBeside, noSheetUnder, planHoldsNoSheet, severalSheets } from "./messages.ts";
+import { neitherCodeNorPlan } from "../../../shared/application/dev/messages.ts";
 
 const ENTRIES_PROBED = 50;
 const LIST_CAP = 500;

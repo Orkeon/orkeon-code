@@ -20,7 +20,7 @@ import { gitReason, runGit } from "./commit-files.ts";
 import { mergeFastForward } from "./merge-batch.ts";
 import type { MergeOutcome } from "./merge-batch.ts";
 import {
-  DETACHED_HEAD, branchExists, branchNotMerged, cannotGoThroughTheShell, mergedUnreadable, notAWorktreeName, notIgnoredByGit,
+  DETACHED_HEAD, branchExists, branchNotMerged, cannotGoThroughTheShell, mergedUnreadable, notAWorktreeNameExplained, orkeonNotIgnoredByGit,
   notMergedNotAWorktreeName, notMergedVerdict, worktreeAndBranchRemoved, worktreeCreated, worktreeHoldsChanges, worktreeNotCreated,
   worktreeNotOnBranch, worktreeNotRemoved, worktreeRemovedBranchKept, worktreeStateUnreadable,
 } from "./messages.ts";
@@ -42,7 +42,7 @@ export async function createBatchWorktree(
   shell: Pick<Shell, "run">, req: { name: string; branch: string; base: string },
 ): Promise<WorktreeOutcome> {
   const place = worktreePlace(req.name);
-  if (place === null) return refused(notAWorktreeName(req.name));
+  if (place === null) return refused(notAWorktreeNameExplained(req.name));
   const unsafe = unsafeOf([req.branch, req.base]);
   if (unsafe !== null) return refused(unsafe);
   const exists = await runGit(shell, gitBranchExists(req.branch));
@@ -50,7 +50,7 @@ export async function createBatchWorktree(
   // Not ignored, the worktree would sit in the checkout's own status as an embedded repository.
   const ignored = await runGit(shell, gitIsIgnored(place.path));
   if (ignored.exitCode !== 0) {
-    return refused(notIgnoredByGit(place.path));
+    return refused(orkeonNotIgnoredByGit(place.path));
   }
   const add = await runGit(shell, gitWorktreeAdd(place.path, req.branch, req.base));
   if (add.exitCode !== 0) return { ok: false, line: worktreeNotCreated(place.path, gitReason(add)) };
@@ -62,7 +62,7 @@ export async function removeBatchWorktree(
   shell: Pick<Shell, "run">, req: { name: string; branch: string; into: string },
 ): Promise<WorktreeOutcome> {
   const place = worktreePlace(req.name);
-  if (place === null) return refused(notAWorktreeName(req.name));
+  if (place === null) return refused(notAWorktreeNameExplained(req.name));
   const unsafe = unsafeOf([req.branch, req.into]);
   if (unsafe !== null) return refused(unsafe);
   const status = await runGit(shell, gitWorktreeStatus(place.path));

@@ -10,12 +10,9 @@ import type { RepoPackCommands } from "../../../shared/domain/dev/repo-pack.ts";
 import { checkValidation, plainWords } from "../../../shared/domain/dev/test-commands.ts";
 import { REPRO_SCHEMA } from "./prompts.ts";
 import { buildReproPrompt } from "./change-material.ts";
-import {
-  GLOB_OR_EXPANSION, MEASURES_THE_COST, NOT_ONE_LINE, PATH_OUT_OF_CHECKOUT, REPRODUCES_THE_BUG, SHELL_OPERATOR, couldNotRun,
-  couldNotStart, didNotReproduce, issuePrintedNoJson, issueViewFailed, measuredFact, measurementFailed, noCommandPicked,
-  ranOutOfTime, reproductionFact, runMayNotRun, runtimeRefused, wasKilled,
-} from "./messages.ts";
-import { answerDidNotParse } from "../../dev-spec/application/messages.ts";
+import { GLOB_OR_EXPANSION, MEASURES_THE_COST, PATH_OUT_OF_CHECKOUT, REPRODUCES_THE_BUG, SHELL_OPERATOR_AFTER_CLI, evidenceCouldNotRun, couldNotStart, didNotReproduce, issuePrintedNoJson, issueViewFailed, measuredFact, measurementFailed, noCommandPicked, ranOutOfTime, reproductionFact, runMayNotRun, runtimeRefused, wasKilled } from "./messages.ts";
+import { NOT_ONE_LINE } from "../../../shared/domain/dev/messages.ts";
+import { answerDidNotParse } from "../../../shared/application/agents/messages.ts";
 
 export const REPRO_TIMEOUT_SECONDS = 600;
 const MAX_COMMAND_CHARS = 400;
@@ -68,7 +65,7 @@ export function commandProblem(command: string, commands: RepoPackCommands): str
   if (c === "" || /[\r\n]/.test(c) || c.length > MAX_COMMAND_CHARS) return NOT_ONE_LINE;
   const cli = commands.cli?.trim() ?? "";
   if (cli !== "" && (c === cli || c.startsWith(`${cli} `))) {
-    if (!plainWords(c)) return SHELL_OPERATOR;
+    if (!plainWords(c)) return SHELL_OPERATOR_AFTER_CLI;
     const tail = c.slice(cli.length);
     let quoted = false;
     for (const ch of tail) {
@@ -156,7 +153,7 @@ export function factLines(kind: "bug" | "perf", ran: Ran, fileName: string): str
 
 /** Why the run stops the step, null when it stands as evidence. */
 export function runStop(step: string, kind: "bug" | "perf", ran: Ran, shown: string): string | null {
-  if (ran.refused) return couldNotRun(step, ran.command, ran.output);
+  if (ran.refused) return evidenceCouldNotRun(step, ran.command, ran.output);
   if (ran.timedOut) return ranOutOfTime(step, ran.command, REPRO_TIMEOUT_SECONDS, shown);
   if (kind === "bug" && NOT_RUN_EXITS.has(ran.exitCode)) {
     return couldNotStart(step, ran.command, ran.exitCode, shown);

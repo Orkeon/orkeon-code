@@ -3,7 +3,7 @@
 // path and its source. Pure, no IO. The command reads it off its raw input (the
 // command's tokens never hold it); the main loop renders its lines as context of that
 // turn. The source is dropped: the model needs what the script found, not its code.
-import { sessionStartLinesLeftOut } from "./prompts.ts";
+import { moreLinesLeftOut } from "./prompts.ts";
 import { SESSION_START_END_MARKER as END_MARKER } from "./markers.ts";
 
 /** The start script's output, as the main loop receives it in its inputs. */
@@ -28,7 +28,7 @@ function bounded(line: string): string {
 function boundedLines(stdout: string): string[] {
   const lines = stdout.split(/\r?\n/).map((l) => l.trimEnd()).filter((l) => l.trim().length > 0);
   if (lines.length <= MAX_START_LINES) return lines.map(bounded);
-  return [...lines.slice(0, MAX_START_LINES).map(bounded), sessionStartLinesLeftOut(lines.length - MAX_START_LINES)];
+  return [...lines.slice(0, MAX_START_LINES).map(bounded), moreLinesLeftOut(lines.length - MAX_START_LINES)];
 }
 
 /**

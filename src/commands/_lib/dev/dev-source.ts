@@ -6,9 +6,8 @@
 // revision of a brief (the crew checks it).
 import { commandLine, isOption, splitWords } from "../args.ts";
 import { isCode } from "../../../shared/domain/dev/artefacts.ts";
-import {
-  DEV_SPEC_USAGE, RUN_BEFORE_TEXT, RUN_NEEDS_COMMAND, RUN_NEEDS_KIND, notASpecCode, unknownOption, withUsage,
-} from "./messages.ts";
+import { DEV_SPEC_USAGE, RUN_BEFORE_TEXT, RUN_NEEDS_COMMAND, RUN_NEEDS_KIND, notASpecCode, withUsage } from "./messages.ts";
+import { unknownOption } from "../messages.ts";
 
 export interface DevSpecArgs { code: string; request: string }
 export interface DevChangeArgs { code: string; kind: string; run: string; text: string }

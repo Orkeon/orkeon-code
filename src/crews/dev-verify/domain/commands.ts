@@ -4,7 +4,7 @@
 // cannot be quoted, or when a list it needs is left empty once the unquotable entries are
 // dropped; its caller says the item is not captured. Pure.
 
-import { buildOutputsNotPaths, UNQUOTABLE_SCOPE_REASON } from "./messages.ts";
+import { buildOutputsNotPaths } from "./messages.ts";
 
 const PLAIN_WORD = /^[A-Za-z0-9_./@+,:=-]+$/;
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
@@ -47,8 +47,6 @@ function words(values: readonly string[]): string[] | null {
   return values.length > 0 && out.length === 0 ? null : out;
 }
 
-/** The reason a caller gives when a builder returned null for an unquotable list. */
-export const UNQUOTABLE_SCOPE = UNQUOTABLE_SCOPE_REASON;
 
 export function gitUntracked(excludes: readonly string[]): string {
   return line(["git ls-files --others --exclude-standard -- .", excludes]);

@@ -46,9 +46,9 @@ export const notMergedAfterRebase = (reason: string): string => `not merged afte
 
 // batch-worktree.ts
 export const cannotGoThroughTheShell = (values: string): string => `${values} cannot go through the shell`;
-export const notAWorktreeName = (name: string): string => `'${name}' is not a worktree name (one folder: letters, digits, . _ -)`;
+export const notAWorktreeNameExplained = (name: string): string => `'${name}' is not a worktree name (one folder: letters, digits, . _ -)`;
 export const branchExists = (branch: string): string => `branch ${branch} exists already: remove it or choose another name`;
-export const notIgnoredByGit = (path: string): string =>
+export const orkeonNotIgnoredByGit = (path: string): string =>
   `${path} is not ignored by git: add \`.orkeon/\` to .gitignore or .git/info/exclude first`;
 export const worktreeNotCreated = (path: string, reason: string): string => `worktree ${path} not created: ${reason}`;
 export const worktreeCreated = (path: string, branch: string, base: string): string => `✓ worktree ${path} on ${branch}, from ${base}`;
@@ -67,3 +67,9 @@ export const worktreeRemovedBranchKept = (path: string, branch: string, reason: 
   `✓ worktree ${path} removed; branch ${branch} kept (${reason})`;
 export const notMergedVerdict = (batch: string, verdict: string): string => `not merged: ${batch}'s audit is ${verdict}, not VALID`;
 export const notMergedNotAWorktreeName = (name: string): string => `not merged: '${name}' is not a worktree name`;
+
+// Shared by the crews that branch and push
+export const refusedLine = (reason: string) => `✗ refused: ${reason}`;
+export const branchCreated = (branch: string, from: string, pattern: string): string =>
+  `✓ branch ${branch} created from ${from} (contrib.branch ${pattern})`;
+export const pushedToOrigin = (branch: string): string => `✓ pushed ${branch} to origin`;

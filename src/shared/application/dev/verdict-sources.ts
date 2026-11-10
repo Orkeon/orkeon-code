@@ -6,7 +6,8 @@ import type { Files } from "../ports.ts";
 import type { WorkFolder } from "./resolve-work-folder.ts";
 import { LEARN_FILE } from "../../domain/shared-memory/verdict-rows.ts";
 import type { VerdictSource } from "../../domain/shared-memory/verdict-rows.ts";
-import { cannotBeRead, folderListsTooMany, workListsTooMany } from "./messages.ts";
+import { folderListsTooMany, workListsTooMany } from "./messages.ts";
+import { cannotBeRead } from "../messages.ts";
 
 export const WORK_LIST_CAP = 1000;
 export const FOLDER_LIST_CAP = 500;

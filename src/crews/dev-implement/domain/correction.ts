@@ -3,10 +3,11 @@
 // `## Anchors` row copied from the step it corrects, so that it runs as any step, RED first. The earlier steps
 // and their evidence stay as they are. A finding naming an id the sheet does not carry changes the scope: it is
 // refused and routed. Pure, never throws.
+import { OPEN_TDD_LINE, STEP_TESTS_TABLE_HEAD } from "../../../shared/domain/dev/markers.ts";
 import { unfencedLines } from "../../../shared/domain/dev/plan-format.ts";
 import { parseImplementSheet } from "./step-section.ts";
 import type { ImplementSheet, ImplementStep } from "./step-section.ts";
-import { CORRECTION_TITLE, STEP_TESTS_TABLE_HEAD, correctionTitle } from "./markers.ts";
+import { CORRECTION_TITLE, correctionTitle } from "./markers.ts";
 import {
   ANCHORS_HAVE_NO_ROW, CORRECTION_NAMES_NO_FINDING, NO_STEP_TO_CORRECT, SHEET_LACKS_TDD_OR_ANCHORS, correctionTestRow, correctsStep,
   findingNamesUnknownIds,
@@ -89,7 +90,7 @@ export function addCorrection(text: string, findingRaw: string): CorrectionEdit 
     correctsStep(target.number, target.title),
     ...STEP_TESTS_TABLE_HEAD,
     correctionTestRow(k, base?.level ?? "unit", base?.project ?? "", ids),
-    "TDD: RED [ ] GREEN [ ] COST [ ]", "",
+    OPEN_TDD_LINE, "",
   ];
   // Anchors first (it may lie after the TDD sequence), so the TDD insertion point keeps its index.
   const out = [...raw];

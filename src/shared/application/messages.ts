@@ -7,3 +7,8 @@ export const llmProfileRejected = (key: string, problem: string): string =>
 export const llmProfileUnreadable = (key: string, why: string): string =>
   `${key} could not be read (${why}): the host's default model this launch`;
 export const SESSION_DEFAULT_VIA_MODE = "session default via /mode";
+
+// Shared by several application folders
+export const cannotBeRead = (path: string, reason: string): string => `${path} cannot be read (${reason})`;
+export const prefixedCannotBeRead = (prefix: string, path: string, reason: string): string => `${prefix}: ${path} cannot be read (${reason})`;
+export const couldNotRun = (command: string, reason: string): string => `${command} could not run: ${reason}`;

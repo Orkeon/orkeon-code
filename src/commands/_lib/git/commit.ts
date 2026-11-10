@@ -9,7 +9,9 @@ import { buildCommitPlan, isCommitPermitted, parseCommitArgs } from "../../../cr
 import { commandLine, splitWords } from "../args.ts";
 import { readPullRequestContext } from "../pr-context.ts";
 import type { PullRequestContext, PullRequestContextPorts } from "../pr-context.ts";
-import { COMMIT_CANCELLED, NO_ANSWER_REFUSAL, cannotPromptRefusal, commitApproved, failedLine, refusedLine } from "./messages.ts";
+import { COMMIT_CANCELLED, NO_ANSWER_REFUSAL, cannotPromptRefusal, commitApproved } from "./messages.ts";
+import { refusedLine } from "../../../shared/application/git/messages.ts";
+import { failedLine } from "../messages.ts";
 
 export interface CommitCommandDeps {
   session: Pick<SessionIo, "resolveEffectiveSessionMode">;

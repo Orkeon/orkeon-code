@@ -8,7 +8,7 @@ import { parseBatchSheet, parseGlobalPlan, unfencedLines } from "./plan-format.t
 import type { Line } from "./plan-format.ts";
 import { sheetFacts } from "./sheet-facts.ts";
 import { SHEET_ID_SOURCE } from "./trait-pattern.ts";
-import { BLOCKED_BATCH, BUILD_STEP } from "./markers.ts";
+import { ASSUMPTIONS_SECTION, BLOCKED_BATCH, BUILD_STEP } from "./markers.ts";
 import {
   anchorRowsMismatch, assumptionsNotEmpty, batchesDiffer, buildStepHoldsTdd, dependsOnDiffers, designIdsNeither,
   idOutsideBatch, lastStepIsNot, noAppliedRulesRow, noTestNamesIt, noTraceabilityRow, notASourceId, stepHasNoTdd,
@@ -117,7 +117,7 @@ function anchorProblem(s: ReadSheet): string | null {
 }
 
 function assumptionsEmpty(s: ReadSheet): boolean {
-  const body = section(s.lines, "## Assumptions");
+  const body = section(s.lines, ASSUMPTIONS_SECTION);
   if (body === null) return false;
   const filled = body.map((l) => l.text.trim()).filter((t) => t !== "");
   return filled.length === 2 && filled[0].startsWith("|") && SEPARATOR_ROW.test(filled[1]);

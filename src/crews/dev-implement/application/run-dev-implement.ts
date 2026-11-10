@@ -59,11 +59,11 @@ import { BATCHES_ACTIVE_RECORD, batchesRunCode } from "../../../shared/domain/de
 import { WORKSPACE, workspaceRelative } from "../../../shared/domain/vfs.ts";
 import { askCostLine } from "./prompts.ts";
 import {
-  BUILD_NOT_RUN, FAILURE_NOT_CHECKED, NO_PRODUCTION_CHANGED, NO_REPOSITORY_PACK, NO_TEST_LAYOUT, SHEET_PUT_BACK, TEST_NOT_RUN,
-  WHOLE_SUITE_EVERY_TEST, WHOLE_SUITE_NO_TEST_PROJECT, affectedDone, affectedExited, affectedRefused, affectedStillRunning, andMore,
+  BUILD_LINE_NOT_RUN, FAILURE_NOT_CHECKED, NO_PRODUCTION_CHANGED, NO_REPOSITORY_PACK, NO_TEST_LAYOUT, SHEET_PUT_BACK, TEST_NOT_RUN,
+  WHOLE_SUITE_EVERY_TEST, WHOLE_SUITE_NO_TEST_PROJECT, affectedDone, affectedExited, affectedRefused, affectedStillRunning, firstAndMore,
   assumptionsNotWritten, assumptionsWritten, batchGreen, batchIsFn, blockedLine, buildDone, buildExited, buildRefused,
-  buildStillRunning, cannotBeRead, correctionAppended, correctionProblem, correctionStillOpen, costDone, costFlagged, costMeasured,
-  costNotComputed, gapsRoundsWarned, graphAdded, graphNotRead, graphProjectsLeftOut, greenDone, indexNotIndexed, indexNotRefreshed,
+  buildStillRunning, cannotBeReadColonReason, correctionAppended, correctionProblem, correctionStillOpen, costDone, costFlagged, costMeasured,
+  measuredNotComputed, gapsRoundsWarned, graphAdded, graphNotRead, graphProjectsLeftOut, greenDone, indexNotIndexed, indexNotRefreshed,
   indexRefreshed, indexReindexFailed, notPushedInRun, notRun, readOnlyMode, readOnlyModeAtClose, redDone, restoreCouldNotRun,
   restored, restoreExited, restoreNoVerdict, restoreRefused, restoreStillRunning, roleChangedPlanFolder, runTitle, sheetMalformed,
   sheetNotPutBack, sheetNotWritten, shownLog, stepActProblem, testDone, testExited, testRefused, testStillRunning, whitespaceFixed,
@@ -336,7 +336,7 @@ async function costFiles(run: Run, paths: readonly string[]): Promise<CostFile[]
 async function measuredCost(run: Run, production: readonly string[]): Promise<{ problem: string } | { line: string }> {
   if (production.length === 0) return { line: NO_PRODUCTION_CHANGED };
   const cost = await measureAccessCost(run.deps.costIndex, run.pack, [], await costFiles(run, production), run.isTest);
-  if (cost.state === "not-computed") return { line: costNotComputed(cost.reason) };
+  if (cost.state === "not-computed") return { line: measuredNotComputed(cost.reason) };
   if (cost.exit === 2) {
     return { problem: costFlagged(cost.costLine, cost.flagged) };
   }
@@ -592,7 +592,7 @@ async function suites(run: Run, suiteGreen: boolean): Promise<SuiteResult> {
   // The tree changed whatever the build says: the index is refreshed first, so a red build leaves no stale graph.
   const indexed = await refreshIndex(run);
   const build = run.pack.commands.build?.trim();
-  if (!build) run.lines.push(BUILD_NOT_RUN);
+  if (!build) run.lines.push(BUILD_LINE_NOT_RUN);
   else {
     const refusal = guard(build);
     if (refusal !== null) return { problem: buildRefused(refusal) };
@@ -659,7 +659,7 @@ async function suites(run: Run, suiteGreen: boolean): Promise<SuiteResult> {
 /** At most three paths, then how many more. */
 function cutList(paths: readonly string[]): string {
   const shown = paths.slice(0, 3).join(", ");
-  return paths.length > 3 ? andMore(shown, paths.length - 3) : shown;
+  return paths.length > 3 ? firstAndMore(shown, paths.length - 3) : shown;
 }
 
 async function writeLogQuietly(run: Run, path: string, text: string): Promise<void> {
@@ -730,7 +730,7 @@ export async function runDevImplement(input: DevImplementInputs, deps: DevImplem
   try {
     sheetText = await deps.files.read(sheetPath);
   } catch (e) {
-    return blocked(lines, cannotBeRead(`${located.dir}/${located.name}`, reasonOf(e)));
+    return blocked(lines, cannotBeReadColonReason(`${located.dir}/${located.name}`, reasonOf(e)));
   }
   const verdictPath = `${WORKSPACE}/${located.dir}/${located.prefix}-VERIFY-${batch}.md`;
   const verdicts = await verdictState(deps.files, verdictPath);

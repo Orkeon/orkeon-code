@@ -37,12 +37,11 @@ import { MAX_LEARN_PROMPT_CHARS, buildLearnPrompt } from "./learn-prompt-fit.ts"
 import type { LearnPromptInput } from "./learn-prompt-fit.ts";
 import { readBacklog } from "./learn-backlog.ts";
 import type { Backlog } from "./learn-backlog.ts";
+import { AXIS_TABLE_HEADER, BAD_INPUT_AXIS, BAD_INPUT_LIST, NOTHING_TO_DECIDE_UNTIL_NEW_GAPS, NOTHING_UNTREATED, LEARN_NOT_IN_WORK_TREE, REFUSED_IN_HARNESS, REFUSE_EACH, REMOVED_LINE_KEPT, axisUnchanged, decideQuestion, learnHead, motifsProposed, noAxisEligible, noMotifKept, noProposalOnAxis, notAtTop, nothingUntreatedOnAxis, proposalsWritten, underThreeBatches } from "./messages.ts";
+import { answerDidNotParse } from "../../../shared/application/agents/messages.ts";
 import {
-  AXIS_TABLE_HEADER, BAD_INPUT_AXIS, BAD_INPUT_LIST, NOTHING_TO_DECIDE, NOTHING_UNTREATED, NOT_IN_WORK_TREE, REFUSED_IN_HARNESS,
-  REFUSE_EACH, REMOVED_LINE_KEPT, answerDidNotParse, axisUnchanged, blockedCannotWrite, decideQuestion, learnHead,
-  motifsProposed, noAxisEligible, noMotifKept, noProposalOnAxis, noWorkFolder, notAtTop, nothingUntreatedOnAxis,
-  proposalsWritten, underThreeBatches, workFolderOutsideMounts,
-} from "./messages.ts";
+  learnBlockedNotWritten as blockedCannotWrite, learnNoWorkFolder as noWorkFolder, learnOutsideMounts as workFolderOutsideMounts,
+} from "../../../shared/application/dev/messages.ts";
 import { WORKSPACE, workspaceRelative } from "../../../shared/domain/vfs.ts";
 
 export interface DevLearnInputs { axis?: unknown; list?: unknown }
@@ -106,12 +105,12 @@ async function toplevelRefusal(shell: Pick<Shell, "run">): Promise<string | null
   let top: string;
   try {
     const r = await shell.run(GIT_TOPLEVEL);
-    if (r.exitCode !== 0) return NOT_IN_WORK_TREE;
+    if (r.exitCode !== 0) return LEARN_NOT_IN_WORK_TREE;
     top = r.stdout.trim();
   } catch {
-    return NOT_IN_WORK_TREE;
+    return LEARN_NOT_IN_WORK_TREE;
   }
-  if (top === "") return NOT_IN_WORK_TREE;
+  if (top === "") return LEARN_NOT_IN_WORK_TREE;
   return top === WORKSPACE
     ? null
     : notAtTop(top, WORKSPACE);
@@ -552,7 +551,7 @@ export async function runDevLearn(input: DevLearnInputs, deps: DevLearnDeps): Pr
       REFUSE_EACH,
     );
   } else if (decided.ids.size === 0) {
-    lines.push(NOTHING_TO_DECIDE);
+    lines.push(NOTHING_TO_DECIDE_UNTIL_NEW_GAPS);
   }
   return done(...lines);
 }

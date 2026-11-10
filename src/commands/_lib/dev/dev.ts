@@ -15,13 +15,8 @@ import type { BatchState, PlanBatch } from "../../../shared/domain/dev/plan-form
 import { lastVerdict, severityCounts } from "../../../shared/domain/dev/verdict-format.ts";
 import { readPlanSource, resolvePlanSource } from "../../../shared/application/dev/plan-source.ts";
 import { blockingStop } from "../../../shared/domain/dev/spec-format.ts";
-import {
-  ACCEPT_NEEDS_ID, ACCEPT_REFUSE_ALONE, DEV_STATUS_USAGE, NOT_IN_THE_PLAN, NO_CODE_HERE, NO_SHEET, NO_VERDICT,
-  REFUSED_MOTIF_TOO_LONG, REFUSE_NEEDS_TARGET, REPLACE_ONCE, cannotBeListed, codesHere, holdsNoDevFile, learnUnknownOption,
-  moreBatches, moreFoldersNotProbed, moreWarnings, noBatchLine, noCodeUnder, noFolder, notACodeNorSource, notAProposalId,
-  notAStatusCode, notAnAxis, oneAxisAtMost, oneSourceAtMost, packLine, planLine, planUnknownOption, sheetOpenTicks,
-  validButOpen, warningLine, workFolderInMainWorktree, workFolderLine,
-} from "./messages.ts";
+import { ACCEPT_NEEDS_ID, ACCEPT_REFUSE_ALONE, DEV_STATUS_USAGE, NOT_IN_THE_PLAN, NO_CODE_HERE, NO_SHEET, NO_VERDICT, REFUSED_MOTIF_TOO_LONG, REFUSE_NEEDS_TARGET, REPLACE_ONCE, devStatusCannotList, codesHere, holdsNoDevFile, learnUnknownOption, moreBatches, moreFoldersNotProbed, moreWarnings, noBatchLine, noCodeUnder, noFolder, notAProposalId, notAStatusCode, notAnAxis, oneAxisAtMost, oneSourceAtMost, packLine, planLine, planUnknownOption, sheetOpenTicks, validButOpen, warningLine, workFolderInMainWorktree, workFolderLine } from "./messages.ts";
+import { notASource as notACodeNorSource } from "../../../shared/application/dev/messages.ts";
 
 export type DevStatusDeps = DevContextDeps;
 const MAX_BATCH_LINES = 20;
@@ -214,7 +209,7 @@ export async function runDevStatus(tokens: readonly string[], deps: DevStatusDep
       try {
         probe = await probeDevCodes(deps, work);
       } catch (e) {
-        return refusal(ctx, cannotBeListed(work.folder, messageOf(e).split("\n")[0]));
+        return refusal(ctx, devStatusCannotList(work.folder, messageOf(e).split("\n")[0]));
       }
     }
     return { lines: renderCodeList(ctx, probe.codes, probe.notProbed) };

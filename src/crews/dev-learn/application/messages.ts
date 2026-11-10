@@ -9,12 +9,9 @@ export const LEARNER_GOAL = "Turn the gaps that audits keep finding into a few p
 
 export const BAD_INPUT_AXIS = "dev-learn: bad input axis";
 export const BAD_INPUT_LIST = "dev-learn: bad input list";
-export const NOT_IN_WORK_TREE = "dev-learn: not inside a git work tree";
+export const LEARN_NOT_IN_WORK_TREE = "dev-learn: not inside a git work tree";
 export const notAtTop = (top: string, workspace: string): string =>
   `dev-learn: the git work tree is ${top}, not ${workspace}: run Orkeon Code at the top of the repository`;
-export const workFolderOutsideMounts = (folder: string): string =>
-  `dev-learn: the work folder ${folder} is in the main worktree, outside the mounts: run /dev-learn from the main checkout`;
-export const noWorkFolder = (folder: string): string => `dev-learn: no work folder ${folder}/: nothing to learn from`;
 
 // ── The head line and the listing ───────────────────────────────────────
 
@@ -31,7 +28,6 @@ export const AXIS_TABLE_HEADER = "axis             gaps batches blocking";
 
 // ── The model call and the filters ──────────────────────────────────────
 
-export const answerDidNotParse = (why: string): string => `the answer did not parse: ${why}`;
 export const REFUSED_IN_HARNESS = "refused in the harness's state";
 export const REMOVED_LINE_KEPT = "its removed line is kept (harness refusal)";
 
@@ -50,7 +46,6 @@ export const underThreeBatches = (axis: string, batches: number): string =>
 export const noAxisEligible = (named: string): string =>
   `dev-learn: no axis has untreated gaps in 3 batches or more (${named}): nothing written`;
 export const noProposalOnAxis = (axis: string, problem: string): string => `dev-learn: axis ${axis}: no proposal (${problem})`;
-export const blockedCannotWrite = (shown: string, why: string): string => `dev-learn: BLOCKED — ${shown} cannot be written (${why})`;
 export const proposalsWritten = (shown: string): string => `dev-learn: proposals written to ${shown}/`;
 export const REFUSE_EACH = "  or /dev-learn --refuse <id> for each one you reject — read the lines first in PROPOSALS.md";
-export const NOTHING_TO_DECIDE = "→ nothing to decide: the axes return once new gaps arrive";
+export const NOTHING_TO_DECIDE_UNTIL_NEW_GAPS = "→ nothing to decide: the axes return once new gaps arrive";

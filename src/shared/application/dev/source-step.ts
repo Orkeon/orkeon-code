@@ -10,10 +10,8 @@ import type { Decision, Question } from "../../domain/dev/questions.ts";
 import { parsePlanSource } from "../../domain/dev/spec-format.ts";
 import type { SourceKind } from "../../domain/dev/spec-format.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
-import {
-  DECISIONS_DO_NOT_READ_BACK, NO_WORK_TREE, idsReadBack, invalidCode, invalidInput, openQuestionsReadBack, outsideCheckout, runFromCheckout,
-  stepCannotRead, titleDoesNotReadCode, workFolderOutsideMounts,
-} from "./messages.ts";
+import { DECISIONS_DO_NOT_READ_BACK, NO_WORK_TREE, idsReadBack, invalidCode, invalidInput, openQuestionsReadBack, outsideCheckout, runFromCheckout, titleDoesNotReadCode, workFolderOutsideCheckoutMounts } from "./messages.ts";
+import { prefixedCannotBeRead as stepCannotRead } from "../messages.ts";
 
 export const MAX_CODE_CHARS = 64;
 export const MAX_REQUEST_CHARS = 20_000;
@@ -93,7 +91,7 @@ export interface CodeFolder {
 /** The code's folder under the work folder and the names it holds ([] when it does not exist yet). */
 export async function codeFolder(step: string, files: Pick<Files, "list">, work: WorkFolder, code: string): Promise<CodeFolder | { refused: string }> {
   if (work.vfsPath === null) {
-    return { refused: workFolderOutsideMounts(step, work.folder) };
+    return { refused: workFolderOutsideCheckoutMounts(step, work.folder) };
   }
   const vfs = `${work.vfsPath}/${code}`;
   const shown = `${work.folder}/${code}`;

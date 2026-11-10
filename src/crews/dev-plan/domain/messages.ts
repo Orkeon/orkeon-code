@@ -8,7 +8,6 @@ export const ANCHOR_KINDS = "one of ref, create, existing";
 export const TEST_LEVELS = "one of unit, integration, pinned";
 export const ELEMENT_LAYERS = "one of domain, application, adapter, test";
 export const DESIGN_RULE_ID = "design rule id";
-export const NOT_AN_OBJECT = "the answer is not an object";
 export const moreProblems = (count: number): string => `… ${count} more problems`;
 
 // ── The cells ───────────────────────────────────────────────────────────
@@ -35,7 +34,6 @@ export const noTest = (at: string): string => `${at}: no test`;
 export const nameEmpty = (at: string): string => `${at}: the name is empty`;
 export const nameTooLong = (at: string, max: number): string => `${at}: the name is longer than ${max} characters`;
 export const projectEmpty = (at: string): string => `${at}: the project is empty`;
-export const notSourceId = (at: string, id: string): string => `${at}: ${id} is not an id of the source`;
 export const notUnpinnedRow = (at: string, row: string): string => `${at}: ${row} is not an unpinned row`;
 export const namesNoId = (at: string): string => `${at}: names no id`;
 export const memberIsNot = (at: string, ref: string | undefined, member: string, name: string): string =>
@@ -45,7 +43,6 @@ export const noProductionAnchor = (at: string): string => `${at}: no production 
 
 // ── The batches ─────────────────────────────────────────────────────────
 
-export const fieldEmpty = (at: string, field: string): string => `${at}: ${field} is empty`;
 export const stepCount = (at: string, count: number): string =>
   `${at}: ${count} behaviour steps; 2 to 5 (1 to 5 for documentation)`;
 export const notDesignRuleId = (at: string, id: string): string => `${at}: ${id} is not a design rule id`;

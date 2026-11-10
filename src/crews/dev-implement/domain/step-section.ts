@@ -4,7 +4,7 @@
 // plan-format's unfenced lines, as the sheet is written by /dev-plan. Pure, never throws.
 import { parseBatchSheet, unfencedLines } from "../../../shared/domain/dev/plan-format.ts";
 import type { TddTicks } from "../../../shared/domain/dev/plan-format.ts";
-import { TEST_POLICY_SECTION } from "./markers.ts";
+import { TEST_POLICY_SECTION } from "../../../shared/domain/dev/markers.ts";
 import { anchorsRowNamesMissingStep, stepNamesNoTestFile, tddLineWithoutTest } from "./messages.ts";
 
 export interface StepTest { name: string; level: string; project: string; ids: string[] }

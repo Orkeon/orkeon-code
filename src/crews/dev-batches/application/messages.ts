@@ -1,7 +1,7 @@
 // The lines /dev-batches shows: its status and report lines, its BLOCKED reasons, the stops it logs and the lines of
 // the plan's close (ADR 0026).
 
-import { CLOSE_STOP } from "../domain/markers.ts";
+import { CLOSE_STOP } from "../../dev-implement/domain/markers.ts";
 
 // ── Shared by the run and its waves ─────────────────────────────────────────
 
@@ -17,15 +17,13 @@ export const CHAIN_ANSWERED_NOTHING = "the chain answered nothing";
 export const noBranchFromPattern = (wanted: string): string =>
   `no branch name can be made from contrib.branch '${wanted}' (<prefix>/<slug>): create the work branch`;
 export const backOnBranch = (name: string): string => `✓ back on ${name}, the run's branch`;
-export const workBranchCreated = (name: string, branch: string, wanted: string): string =>
-  `✓ branch ${name} created from ${branch} (contrib.branch ${wanted})`;
 export const FILES_NOT_READ = "(files not read)";
 export const notAWorkCodeBlocked = (code: string): string => `BLOCKED — '${code}' is not a work code (a folder name of the work folder)`;
 export const runInProgress = (active: string, record: string, code: string): string =>
   `BLOCKED — the run of ${active} is in progress (${record}): ` +
   `take it to its close (/dev-batches ${active}), or delete that file to drop it, then /dev-batches ${code}`;
 export const NO_RUN_TO_GO_ON = "no /dev-batches run to go on with: /dev-batches <code>";
-export const readOnlyMode = (mode: string, code: string): string =>
+export const blockedReadOnlyMode = (mode: string, code: string): string =>
   `BLOCKED — the session mode ${mode} is read-only: the batches write files and commit (/mode default, then /dev-batches ${code})`;
 export const concurrencyRefused = (parallel: number): string =>
   `BLOCKED — concurrency ${parallel} refused: no batch agents on this host; run with --concurrency 1`;
@@ -53,7 +51,7 @@ export const everyBatchDone = (code: string, log: string): string => `${code}: e
 export const everyBatchDoneArrow = (code: string, log: string): string => `→ ${code}: every batch done, the run closed (${log})`;
 export const preflightBlocked = (code: string): string => `BLOCKED — preflight: settle each ✗ above, then /dev-batches ${code}`;
 export const wavesUnreadable = (code: string): string => `BLOCKED — the plan's waves could not be read, then /dev-batches ${code}`;
-export const reviewNotRun = (id: string, reason: string, code: string): string =>
+export const batchReviewNotRun = (id: string, reason: string, code: string): string =>
   `→ ${id} not launched: the review could not run (${reason}); /dev-batches ${code} reviews it again`;
 export const NO_REVIEWER = "no reviewer on this host";
 export const reviewGaps = (id: string, blocking: number, major: number): string => `review of ${id}: GAPS — ${blocking} Blocking, ${major} Major`;
@@ -85,7 +83,6 @@ export const planNotMarked = (name: string, batch: string, reason: string): stri
 export const BATCH_ANSWERED_NOTHING = "the batch answered nothing";
 export const stateNotIgnored = (state: string): string =>
   `BLOCKED — worktree: ${state} is not ignored by git: a parallel run needs .orkeon/ ignored (.gitignore or .git/info/exclude); or run with --concurrency 1`;
-export const worktreeMade = (path: string, branch: string, from: string): string => `✓ worktree ${path} on ${branch}, from ${from}`;
 export const doneBeforeStop = (batch: string, path: string): string => `${batch}: done and committed in ${path} before the run stopped`;
 export const gapsRoundsHuman = (batch: string, rounds: number): string => `${batch}: ${rounds} audit rounds in GAPS, a human decides`;
 export const relaunchedAfterGaps = (batch: string, path: string, round: number, max: number): string =>
@@ -94,7 +91,7 @@ export const NO_CORRECTION_RESUMES = " (no correction: its audit resumes)";
 export const logUnwritableNotRelaunched = (batch: string): string => `${LOG_UNWRITABLE}: ${batch} not relaunched`;
 export const budgetStop = (limit: number): string => `stopped BLOCKED — budget: ${limit} tool calls`;
 export const IT_ANSWERED_NOTHING = "it answered nothing";
-export const noVerdictWritten = (last: string, fails: readonly string[]): string =>
+export const stoppedNoVerdict = (last: string, fails: readonly string[]): string =>
   `stopped BLOCKED — dev-verify wrote no verdict: ${last}${fails.length === 0 ? "" : ` (${fails.join("; ")})`}`;
 
 // ── The seed and the harvest (seed-harvest.ts) ──────────────────────────────
@@ -125,7 +122,6 @@ export const committedOnDefault = (branch: string, push: string): string =>
   `✓ every batch is committed on ${branch}, the default branch: no pull request; pushing it is yours (${push})`;
 export const onOriginAlready = (branch: string): string => `✓ ${branch} is on origin already`;
 export const pushDenied = (command: string): string => `✗ not pushed: a session rule denies '${command}'; the commits stay local`;
-export const pushedToOrigin = (branch: string): string => `✓ pushed ${branch} to origin`;
 export const runStaysOpen = (code: string, push: string): string =>
   `the run stays open: /dev-batches ${code} tries the push again; a confined shell reaches no ` +
   `remote, so push from a terminal (${push}), then /dev-batches ${code} closes the run`;

@@ -6,12 +6,10 @@
 import type { Checked } from "../../../shared/domain/agents/charter.ts";
 import { MAX_QUESTIONS, QUESTION_SCHEMA, breaksCell, draftQuestionProblems } from "../../../shared/domain/dev/questions.ts";
 import type { DraftQuestion } from "../../../shared/domain/dev/questions.ts";
+import { NO_CONTEXT, NO_SUMMARY, NO_USE_CASE, OVERVIEW_IS_FLOWCHART, TECHNICAL, appliesToNamesIds, appliesToUnknown, businessPurity, cellSpansLines, dataImportanceIs, dataSourceIs, fieldSpansLines, noActor, noIntent, noOrigin, noWhere, scenarioSteps, severityIs, termUsedNowhere, tooManyRows, tooManyRules, tooManyUseCases } from "./messages.ts";
 import {
-  NOT_AN_OBJECT, NO_CONTEXT, NO_SUMMARY, NO_USE_CASE, OVERVIEW_IS_FLOWCHART, TBD_WITHOUT_QUESTION, TECHNICAL, appliesToNamesIds,
-  appliesToUnknown, businessPurity, cellSpansLines, dataImportanceIs, dataSourceIs, fieldSpansLines, idNameOneLine, nameOneLine,
-  noActor, noIntent, noOrigin, noWhere, rowIsEmpty, scenarioSteps, severityIs, statementOneLine, termUsedNowhere,
-  tooManyQuestions, tooManyRows, tooManyRules, tooManyUseCases,
-} from "./messages.ts";
+  ANSWER_NOT_AN_OBJECT as NOT_AN_OBJECT, idNameOneLine, nameOneLine, rowIsEmpty, statementOneLine, TBD_WITHOUT_QUESTION, tooManyQuestions,
+} from "../../../shared/domain/dev/messages.ts";
 
 export interface SpecUseCase {
   name: string; actor: string; intent: string; frequency: string; where: string;

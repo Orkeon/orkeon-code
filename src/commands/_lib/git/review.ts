@@ -10,9 +10,8 @@ import { MAX_PASSES, MIN_PASSES } from "../../../shared/domain/agent-policy/beha
 import { PASSES_STATE_KEY } from "../../../shared/domain/session-keys.ts";
 import { commandLine, splitWords } from "../args.ts";
 import type { CommandView } from "../view.ts";
-import {
-  defaultPasses, invalidPassCount, passesSet, passesShown, reviewLensTakes, reviewTakesValue, reviewUnknownOption,
-} from "./messages.ts";
+import { invalidPassCount, passesSet, passesShown, reviewLensTakes, reviewTakesValue, reviewUnknownOption } from "./messages.ts";
+import { markedDefault as defaultPasses } from "../messages.ts";
 
 export const REVIEW_LENSES: readonly string[] = ["correctness", "security", "style"];
 

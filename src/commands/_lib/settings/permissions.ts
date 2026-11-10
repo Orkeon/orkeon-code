@@ -50,7 +50,7 @@ import {
   ALL_RULES_CLEARED, DORMANT_NOT_LISTED, ENFORCEMENT_LINES, EVERY_CALL, GATE_HOLDS_OTHER_RULES, GATE_HOLDS_RULE_SETS,
   GATE_OFF_LINES, GATE_ON_LINES, GATE_UNKNOWN_LINES, HOST_KEEPS_NO_RULES, INVALID_RULE_GRAMMAR, NO_GATE_RULES,
   NO_PERMISSION_RULES, PERMISSIONS_USAGE, SET_BY_MODE, USER_SETTINGS_UNREADABLE, catalogueOfMode, dormantRule,
-  extraToolIgnored, extraToolsUnreadable, fallbackIgnored, inertRule, invalidRule, invalidStoredEntries, memoryGuard,
+  extraToolNotOffered, extraToolsUnreadableWarning, fallbackIgnored, inertRule, invalidRule, invalidStoredEntries, memoryGuard,
   modesLine, nestedKey, noSuchRule, pathsDenyGuard, ruleAdded, ruleNoEffect, ruleRemoved, ruleSetsOfLastStep,
   userConfigGuard, sessionDefaultLine, sourceLine, toolCatalogueLine, withheldLine, removedLine, extraToolsLine,
   sessionRulesLine, hostGateLine,
@@ -88,7 +88,7 @@ function storedNotes(stored: StoredRules, extras: ExtraToolsResolution): string[
   return [
     ...(extras.unreadable === undefined
       ? []
-      : [extraToolsUnreadable(extras.unreadable)]),
+      : [extraToolsUnreadableWarning(extras.unreadable)]),
     ...stored.dormant.map(dormantRule),
     ...(stored.invalid.length > 0 ? [invalidStoredEntries(stored.invalid)] : []),
   ];
@@ -116,7 +116,7 @@ async function widenedNotes(config: PermissionsDeps["config"]): Promise<{ fallba
     notes: [
       ...(user.malformed ? [USER_SETTINGS_UNREADABLE] : []),
       ...nested.map(nestedKey),
-      ...(extra?.ignored === undefined ? [] : [extraToolIgnored(extra.ignored.value, extra.ignored.reason)]),
+      ...(extra?.ignored === undefined ? [] : [extraToolNotOffered(extra.ignored.value, extra.ignored.reason)]),
     ],
   };
 }

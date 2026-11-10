@@ -5,7 +5,7 @@
 import type { RepoPackCommands } from "./repo-pack.ts";
 import {
   AS_THE_PACK_NAMES_IT, INTEGRATION_WITHOUT_FILTER, NOT_A_PACK_TEST_COMMAND, NOT_ONE_LINE, nothingMayFollow,
-  PACK_HAS_NO_TEST_COMMAND, SHELL_OPERATOR, validationLineText, valueHoldsDotDot, valueNotPlain,
+  PACK_HAS_NO_TEST_COMMAND, SHELL_OPERATOR_OUTSIDE_QUOTES, validationLineText, valueHoldsDotDot, valueNotPlain,
 } from "./messages.ts";
 
 export type ValidationCheck =
@@ -51,7 +51,7 @@ export function checkValidation(command: string, commands: RepoPackCommands): Va
   const c = command.trim();
   const refuse = (reason: string): ValidationCheck => ({ ok: false, command: c, reason });
   if (c === "" || /[\r\n]/.test(c) || c.length > MAX_COMMAND_CHARS) return refuse(NOT_ONE_LINE);
-  if (!plainWords(c)) return refuse(SHELL_OPERATOR);
+  if (!plainWords(c)) return refuse(SHELL_OPERATOR_OUTSIDE_QUOTES);
 
   const templates: Array<[Key, string | undefined]> = [
     ["commands.test_class", commands.testClass],

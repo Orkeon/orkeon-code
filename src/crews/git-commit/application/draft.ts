@@ -7,7 +7,8 @@ import { normalizeCommitMessage, commitSubject, isCommitPermitted, untrackedPath
 import { GIT_STATUS_COMMAND, changedPaths, gitDiffCommand } from "../../../shared/domain/git/close.ts";
 import { commitFiles } from "../../../shared/application/git/commit-files.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
-import { committed, refused } from "./messages.ts";
+import { committed } from "./messages.ts";
+import { refusedLine as refused } from "../../../shared/application/git/messages.ts";
 import {
   authorNotePart, branchPart, COMMIT_SYSTEM, cutNote, diffPart, NEW_FILES_LABEL, newFilePart, recentHistoryPart, statusPart,
 } from "./prompts.ts";
