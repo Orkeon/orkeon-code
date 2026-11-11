@@ -166,6 +166,26 @@ commits en avance sur l'épingle, ou `ORKEON_SOURCE_FOLLOW_PIN=0`), il laisse le
 (`orkeon-code: warning: ORKEON_SOURCE is at <sha7>, the pin of .orkeon-version is 206b562: the commands were checked
 against the pin.`) et lance quand même.
 
+### Aucun runtime sur la machine : celui qu'Orkeon Code télécharge
+
+Un paquet dont la release a publié des archives du runtime les nomme dans `.orkeon-runtime` : les sept caractères de
+l'épingle dont elles sont construites, leur adresse et un SHA-256 par plateforme (`linux-x64`, `linux-arm64`,
+`osx-x64`, `osx-arm64`). Sans `orkeon-repl`, sans Docker et sans `ORKEON_SOURCE`, le lanceur bash propose alors de
+télécharger ce runtime :
+
+- Il pose la question une fois, dans le terminal, et télécharge dans `~/.orkeon-code/runtime/<id>/` (environ
+  120 Mo), nulle part ailleurs : pas de `sudo`, rien d'ajouté à votre `PATH`.
+- L'archive est vérifiée contre la somme que porte le paquet ; un téléchargement qui diffère est supprimé et rien ne
+  démarre.
+- Sans terminal, rien n'est téléchargé et le lanceur sort avec le code 3. `ORKEON_CODE_RUNTIME_DOWNLOAD=1` donne
+  l'accord d'avance, pour un pipeline.
+- `orkeon-code runtime install` télécharge sans ouvrir de session, `orkeon-code runtime remove` supprime le dossier.
+
+Une fois téléchargé, ce runtime tourne en mode tool et passe avant Docker ; un `orkeon-repl` de votre `PATH` passe
+toujours en premier. Un paquet plus récent télécharge son propre runtime à son premier démarrage et supprime l'ancien.
+Dans un checkout, `.orkeon-runtime` ne nomme rien : utilisez le mode source. `orkeon-code.ps1` ne télécharge pas de
+runtime.
+
 ## 4. Première session
 
 ```bash

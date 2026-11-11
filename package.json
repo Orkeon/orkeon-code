@@ -32,6 +32,7 @@
     "mcp/whisper/uv.lock",
     "mcp/whisper/README.md",
     ".orkeon-version",
+    ".orkeon-runtime",
     "NOTICE.md"
   ],
   "engines": {

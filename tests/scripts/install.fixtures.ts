@@ -72,7 +72,7 @@ export const archiveEntries = () => run("tar", ["-tzvf", archive()]).stdout.spli
   .map((l) => ({ mode: l.split(/\s+/)[0], path: l.split(/\s+/).pop()! }));
 
 /** What runs, each path from the archive's root folder. */
-export const RUNNABLE_FILES = ["orkeon-code", "orkeon-code.ps1", ".orkeon-version", "package.json", "LICENSE.md", "NOTICE.md",
+export const RUNNABLE_FILES = ["orkeon-code", "orkeon-code.ps1", ".orkeon-version", ".orkeon-runtime", "package.json", "LICENSE.md", "NOTICE.md",
   "config/appsettings.example.json", "scripts/setup-fixture.sh", "scripts/install.sh", "scripts/install.ps1",
   "src/commands/status/doctor.cmd.ts", "mcp/whisper/whisper_mcp.py"];
 
