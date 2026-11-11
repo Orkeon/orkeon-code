@@ -32,7 +32,7 @@ trimmed by the mode. Every command, crew and prompt is a source file: change it,
   catalogue once `tools.extra` names them ([Configuration](docs/configuration.md#extra-tools-mcp-servers-and-plugins)).
 - **Speech-to-text**: a Whisper MCP server ships in `mcp/whisper/`; `ORKEON_CODE_AUDIO_DIR` turns it on, and the
   assistant transcribes voice notes, meetings and screen recordings on your machine; `/voice` dictates a request
-  and `/say` reads aloud ([Configuration](docs/configuration.md#speech-to-text)).
+  and `/say` reads aloud ([Configuration](docs/speech.md#speech-to-text)).
 - **Crews for the recurring jobs**: `/init` (describe the project for the agent), `/commit` (a conventional commit
   from the diff), `/review` (multi-lens code review; `--lens security` for the security lens alone), `/analyze` (deterministic
   codebase analysis), `/compact` and `/summary` (context management), `/init-verifiers`, `/advisor`.
@@ -142,6 +142,7 @@ are written in English only.
 | [Getting started](docs/getting-started.md) | Docker, tool and source modes, first session |
 | [WSL tutorial](docs/wsl-tutorial.md) | Speech and a local model on WSL2, on the GPU, step by step |
 | [Configuration](docs/configuration.md) | LLM providers, settings file, environment variables |
+| [Speech](docs/speech.md) | Transcribing a file, dictating a request, reading an answer aloud |
 | [Decision models](docs/decision-models.md) | What Orkeon Code asks a decision model: pruning a long turn, routing a crew, suggesting skills, with what was measured |
 | [Decision models locally](docs/decision-models-local.md) | Kev on this machine and Liquid, step by step, with decision profiles to try |
 | [Permissions](docs/permissions.md) | Modes, rules, what the agent can touch |

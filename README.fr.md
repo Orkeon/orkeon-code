@@ -35,7 +35,7 @@ chaque prompt est un fichier source : modifiez-le, ou ajoutez le vôtre.
   ([Configuration](docs/fr/configuration.md#outils-supplémentaires--serveurs-mcp-et-plugins)).
 - **La transcription de la parole** : un serveur MCP Whisper est livré dans `mcp/whisper/` ; `ORKEON_CODE_AUDIO_DIR`
   l'active, et l'assistant transcrit notes vocales, réunions et vidéos d'écran sur votre machine ; `/voice` dicte une
-  requête et `/say` lit à voix haute ([Configuration](docs/fr/configuration.md#transcription-de-la-parole)).
+  requête et `/say` lit à voix haute ([Configuration](docs/fr/speech.md#transcription-de-la-parole)).
 - **Des crews pour les tâches récurrentes** : `/init` (décrire le projet pour l'agent), `/commit` (un commit
   conventionnel tiré du diff), `/review` (revue de code multi-angles ; `--lens security` pour le seul angle sécurité), `/analyze`
   (analyse déterministe du code), `/compact` et `/summary` (gestion du contexte), `/init-verifiers`, `/advisor`.
@@ -148,6 +148,7 @@ La documentation est publiée en français et en anglais, en site consultable, a
 | [Premiers pas](docs/fr/getting-started.md) | Modes docker, tool et source, première session |
 | [Tutoriel WSL](docs/fr/wsl-tutorial.md) | La voix et un modèle local sous WSL2, sur le GPU, pas à pas |
 | [Configuration](docs/fr/configuration.md) | Fournisseurs LLM, fichier de settings, variables d'environnement |
+| [Voix](docs/fr/speech.md) | Transcrire un fichier, dicter une requête, lire une réponse à voix haute |
 | [Modèles de décision](docs/fr/decision-models.md) | Ce qu'Orkeon Code demande à un modèle de décision : élaguer un long tour, router un crew, suggérer des skills, avec ce qui a été mesuré |
 | [Modèles de décision en local](docs/fr/decision-models-local.md) | Kev sur cette machine et Liquid, pas à pas, avec des profils de décision à essayer |
 | [Permissions](docs/fr/permissions.md) | Modes, règles, ce que l'agent peut toucher |

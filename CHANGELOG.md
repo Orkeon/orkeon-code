@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — Configuration is a reference page, and speech has a page of its own
+
+- [Configuration](docs/configuration.md) lists the session keys in a table (key, value when omitted, effect), gives
+  the prompt cache, what `/usage` counts, the decision model in front of the LLM and the length of a turn their own
+  headings, and keeps one sentence per table cell, the rest listed under the table.
+- [Speech](docs/speech.md), a new page, takes speech-to-text, dictation and speech output.
+
 ### Changed — the Architecture page is four pages
 
 - [Architecture](docs/architecture.md) keeps the two halves, the runtime constraints, the VFS, the layers, the ports,

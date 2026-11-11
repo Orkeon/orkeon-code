@@ -6,6 +6,8 @@
   href: wsl-tutorial.md
 - name: Configuration
   href: configuration.md
+- name: Speech
+  href: speech.md
 - name: Decision models
   href: decision-models.md
 - name: Decision models locally

@@ -210,7 +210,7 @@ export ORKEON_CODE_AUDIO_DIR=~/audio
 
 then, in the REPL: `/transcribe --list`, then `/transcribe daily.m4a --then "list the tasks I mention"`. With
 `ORKEON_CODE_VOICE=1` exported too, `/voice` dictates a request and `/say` reads the last answer aloud. Details,
-models, backends and how the model calls the tools itself: [Configuration](configuration.md#speech-to-text).
+models, backends and how the model calls the tools itself: [Configuration](speech.md#speech-to-text).
 
 ## What the agent writes in your project
 

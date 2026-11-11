@@ -9,6 +9,7 @@ Start with [Getting started](getting-started.md); the [README](../README.md) giv
 | [Getting started](getting-started.md) | Docker, tool and source modes, first session |
 | [WSL tutorial](wsl-tutorial.md) | Speech and a local model on WSL2, on the GPU, step by step |
 | [Configuration](configuration.md) | LLM providers, settings file, environment variables |
+| [Speech](speech.md) | Transcribing a file, dictating a request, reading an answer aloud |
 | [Decision models](decision-models.md) | What Orkeon Code asks a decision model: pruning a long turn, routing a crew, suggesting skills, with what was measured |
 | [Decision models locally](decision-models-local.md) | Kev on this machine and Liquid, step by step, with decision profiles to try |
 | [Permissions](permissions.md) | Modes, rules, what the agent can touch |

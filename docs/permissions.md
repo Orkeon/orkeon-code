@@ -540,7 +540,7 @@ The speech server marks `transcribe_audio`, `list_audio` and `whisper_info` read
 example settings declare it trusted. `record_and_transcribe`, `speak` and `stop_speaking`, which open the microphone
 or the speaker, carry no annotation. For such a tool, in `dontAsk`, an allow rule lets it run
 (`/permissions add allow speak`); `plan` ignores allow rules. `/transcribe` asks nothing either: its call is the
-command's ([Configuration](configuration.md#speech-to-text)).
+command's ([Configuration](speech.md#speech-to-text)).
 
 ### Rules on extra tools
 

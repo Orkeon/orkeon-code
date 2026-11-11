@@ -568,7 +568,7 @@ Le serveur de la voix marque `transcribe_audio`, `list_audio` et `whisper_info` 
 comme les settings d'exemple le déclarent de confiance. `record_and_transcribe`, `speak` et `stop_speaking`, qui
 ouvrent le micro ou le haut-parleur, ne portent aucune annotation. Pour un tel outil, en `dontAsk`, une règle allow
 le laisse s'exécuter (`/permissions add allow speak`) ; `plan` ignore les règles allow. `/transcribe` ne demande rien
-non plus : son appel est celui de la commande ([Configuration](configuration.md#transcription-de-la-parole)).
+non plus : son appel est celui de la commande ([Configuration](speech.md#transcription-de-la-parole)).
 
 ### Les règles sur les outils supplémentaires
 
