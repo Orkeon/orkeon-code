@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the documentation's navigation is grouped by reader
+
+- The navigation and the documentation's index group the pages under Use, Reference, Extend and contribute, and
+  Decisions.
+- The ADRs have one index, [docs/adr/README.md](docs/adr/README.md), in two tables: the design decisions, and the
+  moves of the pin. The navigation lists the design decisions and that index; the sentence of twenty-seven links is
+  gone from the documentation's index.
+
 ### Changed — Configuration is a reference page, and speech has a page of its own
 
 - [Configuration](docs/configuration.md) lists the session keys in a table (key, value when omitted, effect), gives
