@@ -117,6 +117,19 @@ describe("createLlm — act", () => {
     deepStrictEqual(facade.calls.map((c) => c.args), [["p", { maxIterations: 5, tools: ["file_read", "run_tests"] }]]);
   });
 
+  it("hands the runtime an act's context pressure callback and its settings as they are", async () => {
+    // Arrange
+    const facade = new FakeLlmFacade();
+    const onContextPressure = async () => ({});
+    const contextPressure = { thresholdTokens: 80_000, keepRecent: 6, headChars: 300 };
+
+    // Act
+    await createLlm(facade).act("p", { onContextPressure, contextPressure });
+
+    // Assert
+    deepStrictEqual(facade.calls.map((c) => c.args), [["p", { onContextPressure, contextPressure }]]);
+  });
+
   it("lets a failing call reject", async () => {
     // Arrange
     const facade = new FakeLlmFacade();

@@ -1,5 +1,6 @@
 // The model port: the agentic call, the completion and the extraction, with their per-call settings.
 // Types only, re-exported by ../ports.ts.
+import type { ContextPressure, PressureSettings, PruneVerdict } from "../../domain/context-prune.ts";
 
 /** What one model call may change, for that call only. */
 export interface ModelOverride {
@@ -33,6 +34,12 @@ export interface ActRequest extends ModelOverride {
   effort?: "low" | "medium" | "high" | "xhigh" | "max";
   /** The agent's tools offered for this call (a role's subset); all of them when absent. */
   tools?: readonly string[];
+  /** Asked by the runtime before a model turn once the loop's messages pass `contextPressure.thresholdTokens`
+   *  (Orkeon #327): the older results of the read tools that ran, answered by call id. A call left out keeps its
+   *  result; a callback that throws prunes nothing. Absent: nothing is pruned. */
+  onContextPressure?: (pressure: ContextPressure) => Promise<Record<string, PruneVerdict> | void>;
+  /** When `onContextPressure` runs and what a `head` verdict keeps; the runtime's defaults when absent. */
+  contextPressure?: PressureSettings;
 }
 
 /** The model, as the crews call it. Every call throws when the host's provider

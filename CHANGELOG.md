@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — the decision model prunes a turn's stale tool results
+
+- `/config set compaction.prune on` lets the host's decision model, whichever provider serves it, prune the tool loop
+  of a turn in progress: past 40 % of the context window, an older result of a read tool that the request no longer
+  needs is removed, or cut to its first 300 characters when only its beginning matters, and the runtime leaves a
+  line that says to run the call again (Orkeon #327). Off by default; without a decision model, or when it does not
+  answer, nothing is pruned ([architecture](docs/architecture.md#compaction-and-memory),
+  [ADR 0027](docs/adr/0027-decision-model-optimisations.md)).
+
+### Changed — the pin moves to Orkeon `206b562`
+
+- The pin moves to Orkeon `main` `206b562` (Orkeon #329, which closes #327, opened from this project): the tool loop
+  of `act` takes `onContextPressure`, a callback that runs once the loop's messages pass a threshold and answers
+  `keep`, `head` or `drop` for each older result of a read tool; `compaction.prune`, above, is what uses it
+  ([ADR 0027](docs/adr/0027-decision-model-optimisations.md)). The same range holds Orkeon #325 (the host's cost
+  budget is enforced: `BudgetExhaustedError` gains the `cost` dimension, which a host sets with
+  `Orkeon:CostTracking:DefaultCrewBudget`, absent from the example settings; a dev step now reads a spent cost
+  budget as a spent budget, not as an ordinary failure), #328 (a 429 for an exhausted balance fails at once
+  instead of being retried), the new default models of seven providers (a profile that names its model is
+  untouched), #324 (the sources now build as `1.0.0`; no `v1.0.0` tag is published yet, so the tool and docker
+  modes still run `1.0.0-rc.6` and `1.0.0-rc.5`), #323 and #326 (Orkeon Studio and two submodules leave the
+  repository).
+
 ### Changed — the pin moves to Orkeon `f5813a1`
 
 - The pin moves to Orkeon `main` `f5813a1` (Orkeon #318, the Studio UX review, and #319, the Sonar reliability bugs

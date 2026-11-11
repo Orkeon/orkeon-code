@@ -4,7 +4,8 @@
 // a plain failure, only its message is left, and the runtime's messages name the dimension
 // (AgentExecutionBudget.cs). Pure.
 
-export type BudgetDimension = "toolCalls" | "delegationDepth" | "wallTime" | "tokens" | "spawnedAgents";
+/** `cost` is the host's own budget (`Orkeon:CostTracking:DefaultCrewBudget`), no step sets it. */
+export type BudgetDimension = "toolCalls" | "delegationDepth" | "wallTime" | "tokens" | "spawnedAgents" | "cost";
 
 export interface StepBudget {
   toolCalls: number;
@@ -48,7 +49,7 @@ export function repairBudget(step: keyof typeof STEP_BUDGETS): StepBudget {
   return { ...STEP_BUDGETS[step], delegationDepth: 0 };
 }
 
-const DIMENSIONS: readonly BudgetDimension[] = ["toolCalls", "delegationDepth", "wallTime", "tokens", "spawnedAgents"];
+const DIMENSIONS: readonly BudgetDimension[] = ["toolCalls", "delegationDepth", "wallTime", "tokens", "spawnedAgents", "cost"];
 
 /** The runtime's messages, by dimension. */
 const MESSAGES: ReadonlyArray<[BudgetDimension, RegExp]> = [
@@ -57,6 +58,7 @@ const MESSAGES: ReadonlyArray<[BudgetDimension, RegExp]> = [
   ["wallTime", /wall time exceeded/i],
   ["delegationDepth", /delegation depth \d+ exceeds max/i],
   ["spawnedAgents", /exceeded \d+ spawned sub-agents/i],
+  ["cost", /cost budget spent/i],
 ];
 
 /** The dimension a spent budget names: the error's own `dimension`, else its message; null for any other failure. */

@@ -283,6 +283,7 @@ the text, or the tool's own failure message without the runtime's wrapping, and 
 | `Shell` | Shell commands in `/workspace` (`shell_command`) | `shell.ts` | `fake-shell.ts` |
 | `ShellJobs` | A long command run detached, its status, the tail of its log, and a wait between two looks (`shell_command` `start_job`, `job_status`, `job_tail`) | `shell-jobs.ts` | `fake-shell-jobs.ts` |
 | `SharedMemory` | The RAG index of the [shared memory](shared-memory.md): search a collection, ingest with prune (the `rag` namespace, else `rag_search`, `rag_ingest`) | `shared-memory.ts` | `fake-shared-memory.ts` |
+| `DecisionModel` | The host's decision model, asked typed questions about a state: one option among described ones, a level on a scale, the probability of a yes; no model, a failed call and an unreadable answer are all `null`, so the caller does what it did without one (`system_one_decide`, registered when the settings configure a decision provider, whichever it is) | `decision-model.ts` | `fake-decision-model.ts` |
 | `ChildRuntime` | The children of a crew run: spawn one in the background, list, stop, read what it left (`ctx.spawnBackground`, the crew's `instances()`/`stop()`, its memory) | `child-agents.ts` | `fake-child-runtime.ts` |
 | `HumanInput` | A question to the person: a choice, a text, a multi-select; nobody answering is an answer of its own (`human_input`) | `human-input.ts` | `fake-human-input.ts` |
 | `Chooser` | A panel in the console: one option among several, with an optional control on the side arrows; `interactive` says whether one can open (`ctx.prompt`, `ctx.interactive`) | `chooser.ts` | `fake-chooser.ts` |
@@ -307,7 +308,8 @@ the text, or the tool's own failure message without the runtime's wrapping, and 
 | `Logger` | The command's or the crew's log | none: `ctx.log` is passed as is | `fake-logger.ts` |
 
 **Wiring.** `wiring.ts` binds the adapters that read the `tools` global (`orkeonShell()`, `orkeonFiles()`,
-`orkeonProgress()`, `orkeonTelemetry()`, `orkeonMemoryStore()`, `orkeonCodeIndex()`, `orkeonToolCalls()`, the calls
+`orkeonProgress()`, `orkeonTelemetry()`, `orkeonMemoryStore()`, `orkeonCodeIndex()`, `orkeonDecisionModel()`,
+`orkeonToolCalls()`, the calls
 of a crew by a name its command found, and `orkeonToolCatalogue(ctx.services)`, which a handler builds, as the
 registered names come from its context) and the
 services built on them (`orkeonConfigStore()`, `orkeonSessionIo()`). The adapters of what the context carries
@@ -626,6 +628,22 @@ prompt as the model reads it, to review a change as a diff.
   agent reads the gap as a gap; the outcome still counts as a failed compaction for the breaker. A compaction at the
   head of a turn keeps the request still waiting for its answer, with its `[turn-context]`, at the end of the rebuilt
   buffer, after the summary and what comes back, so the answer stored next follows its request.
+- **Pruning the tool loop** (`shared/domain/context-prune.ts`, `shared/application/compaction/prune-context.ts`,
+  [ADR 0027](adr/0027-decision-model-optimisations.md)): the tool results of a turn in progress live in the
+  runtime's loop, never in the session buffer, so no compaction reaches them. With `compaction.prune` on and a decision
+  model on the host, the main loop's act carries the runtime's `onContextPressure` (Orkeon #327): once the loop's
+  messages pass 40 % of the window, the runtime offers the older results of the read tools that ran, the last 6
+  messages left out. A result of 600 characters or less is kept without asking. For the others the decision model
+  reads the request and the calls (tool, input, size, age; never a result's content) and answers two yes/no
+  questions per call, 8 calls per request and 24 per pressure, oldest first: is the result still needed, and is it
+  needed whole. Under 0.5 on the first the result is removed, under 0.5 on the second it is cut to its first 300
+  characters, else it stays; the runtime leaves a line that says what was cut and to run the call again. The
+  requests of one pressure are sent together. A verdict answered to the runtime settles a call for the rest of the
+  loop, `keep` included, and a call without one is offered again: a small result is answered `keep`, a result
+  judged needed is left unanswered and judged again once 8 more model turns have passed. Each act has its own
+  binding, the act a stop check asks for included. It fails open: the setting off or unreadable, no decision model
+  (a warning) or a model that does not answer (a warning, and no more question in that act) prune nothing. A log
+  line says what each pressure judged, removed and cut.
 - **Summary** (`shared/domain/compaction.ts`, `buildSummaryPrompt`): the summary replaces the history, so it is
   written for a reader who resumes cold: the request and how success is judged; the user's constraints and preferences
   still in force, close to their own words (above all an instruction to work differently), and what the user allowed

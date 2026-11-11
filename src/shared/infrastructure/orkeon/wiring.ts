@@ -16,8 +16,8 @@
 // namespace is not a tool call and is never refused.
 
 import type {
-  AnchorIndex, Chooser, Clock, CodeIndex, CostIndex, Files, HumanInput, Llm, Logger, MemoryStore, Progress, SessionStore,
-  SharedMemory, Shell, ShellJobs, Telemetry, ToolCatalogue,
+  AnchorIndex, Chooser, Clock, CodeIndex, CostIndex, DecisionModel, Files, HumanInput, Llm, Logger, MemoryStore, Progress,
+  SessionStore, SharedMemory, Shell, ShellJobs, Telemetry, ToolCatalogue,
 } from "../../application/ports.ts";
 import type { CompactDeps } from "../../application/compaction/compact-session.ts";
 import { writeWorkflowState } from "../../application/workflow/workflow-state.ts";
@@ -47,6 +47,7 @@ import { createPullRequestOpener } from "../../application/git/open-pull-request
 import type { PullRequestPolicy } from "../../application/git/open-pull-request.ts";
 import type { PullRequestOpener } from "../../application/git/commit-files.ts";
 import { createToolCalls, createToolCatalogue } from "./tool-catalogue.ts";
+import { createDecisionModel } from "./decision-model.ts";
 import type { MemoryToolPorts } from "./memory-tools.ts";
 import { createSharedMemory } from "./shared-memory.ts";
 
@@ -93,6 +94,8 @@ export const orkeonToolCatalogue = (services: Pick<ServiceLocator, "get">): Tool
 /** The calls alone, by registered name: for a crew, which gets no `tools` service. */
 export const orkeonToolCalls = (tools: OrkeonTools = Tools): Pick<ToolCatalogue, "call" | "callText"> =>
   createToolCalls(tools);
+/** The host's decision model, when its settings configure one: absent, every question is left unanswered. */
+export const orkeonDecisionModel = (tools: OrkeonTools = Tools): DecisionModel => createDecisionModel(tools);
 const orkeonSessionStore = (tools: OrkeonTools = Tools): SessionStore => createSessionStore(tools);
 
 /** The /config store: the settings file, overridden by the session bag. */

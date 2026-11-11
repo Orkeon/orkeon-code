@@ -26,3 +26,4 @@ export type {
   MapLevel, CodeMap, CodeSearchHit, SymbolLocation, CodeIndex, AnchorClosure, AnchorIndex, CostIndex, AffectedTests,
 } from "./ports/code-index.ts";
 export type { SharedHit, SharedIngest, SharedMemory } from "./ports/shared-memory.ts";
+export type { DecisionModel } from "./ports/decision.ts";

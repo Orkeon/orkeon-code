@@ -298,6 +298,7 @@ rend le texte, ou le message d'échec propre à l'outil sans l'enrobage du runti
 | `Shell` | Les commandes shell dans `/workspace` (`shell_command`) | `shell.ts` | `fake-shell.ts` |
 | `ShellJobs` | Une commande longue lancée détachée, son état, la fin de son journal, et une attente entre deux regards (`shell_command` `start_job`, `job_status`, `job_tail`) | `shell-jobs.ts` | `fake-shell-jobs.ts` |
 | `SharedMemory` | L'index RAG de la [mémoire partagée](shared-memory.md) : chercher dans une collection, indexer avec élagage (l'espace `rag`, sinon `rag_search`, `rag_ingest`) | `shared-memory.ts` | `fake-shared-memory.ts` |
+| `DecisionModel` | Le modèle de décision du host, auquel on pose des questions typées sur un état : une option parmi des options décrites, un niveau sur une échelle, la probabilité d'un oui ; pas de modèle, un appel en échec et une réponse illisible valent tous `null`, et l'appelant fait alors ce qu'il faisait sans modèle (`system_one_decide`, enregistré quand les réglages configurent un fournisseur de décision, quel qu'il soit) | `decision-model.ts` | `fake-decision-model.ts` |
 | `ChildRuntime` | Les enfants d'une exécution de crew : en lancer un en arrière-plan, lister, arrêter, lire ce qu'il a laissé (`ctx.spawnBackground`, `instances()`/`stop()` du crew, sa mémoire) | `child-agents.ts` | `fake-child-runtime.ts` |
 | `HumanInput` | Une question à la personne : un choix, un texte, une sélection multiple ; personne ne répondant est une réponse en soi (`human_input`) | `human-input.ts` | `fake-human-input.ts` |
 | `Chooser` | Un panneau dans la console : une option parmi plusieurs, avec un réglage facultatif sur les flèches latérales ; `interactive` dit si un panneau peut s'ouvrir (`ctx.prompt`, `ctx.interactive`) | `chooser.ts` | `fake-chooser.ts` |
@@ -322,7 +323,8 @@ rend le texte, ou le message d'échec propre à l'outil sans l'enrobage du runti
 | `Logger` | Le log de la commande ou du crew | aucun : `ctx.log` est passé tel quel | `fake-logger.ts` |
 
 **Câblage.** `wiring.ts` lie les adaptateurs qui lisent la globale `tools` (`orkeonShell()`, `orkeonFiles()`,
-`orkeonProgress()`, `orkeonTelemetry()`, `orkeonMemoryStore()`, `orkeonCodeIndex()`, `orkeonToolCalls()`, les appels
+`orkeonProgress()`, `orkeonTelemetry()`, `orkeonMemoryStore()`, `orkeonCodeIndex()`, `orkeonDecisionModel()`,
+`orkeonToolCalls()`, les appels
 d'un crew par un nom que sa commande a trouvé, et `orkeonToolCatalogue(ctx.services)`, qu'un handler construit,
 puisque les noms enregistrés viennent de son contexte) et les
 services bâtis sur eux (`orkeonConfigStore()`, `orkeonSessionIo()`). Les adaptateurs de ce que le contexte transporte
@@ -675,6 +677,23 @@ un changement comme un diff.
   compaction échouée pour le disjoncteur. Une compaction en tête de tour garde la requête qui attend encore sa
   réponse, avec son `[turn-context]`, à la fin du tampon reconstruit, après le résumé et ce qui revient, pour que la
   réponse stockée ensuite suive sa requête.
+- **Élagage de la boucle d'outils** (`shared/domain/context-prune.ts`,
+  `shared/application/compaction/prune-context.ts`, [ADR 0027](../adr/0027-decision-model-optimisations.md)) : les
+  résultats d'outils d'un tour en cours vivent dans la boucle du runtime, jamais dans le tampon de session, aucune
+  compaction ne les atteint donc. Avec `compaction.prune` à `on` et un modèle de décision sur le host, l'act de la
+  boucle principale porte le `onContextPressure` du runtime (Orkeon #327) : dès que les messages de la boucle
+  dépassent 40 % de la fenêtre, le runtime propose les anciens résultats des outils de lecture qui ont tourné, les
+  6 derniers messages exclus. Un résultat de 600 caractères ou moins est gardé sans question. Pour les autres, le
+  modèle de décision lit la demande et les appels (outil, entrée, taille, âge ; jamais le contenu d'un résultat) et
+  répond à deux questions oui/non par appel, 8 appels par requête et 24 par pression, les plus anciens d'abord : le
+  résultat sert-il encore, et sert-il en entier. Sous 0,5 à la première le résultat est retiré, sous 0,5 à la
+  seconde il est coupé à ses 300 premiers caractères, sinon il reste ; le runtime laisse une ligne qui dit ce qui a
+  été coupé et de relancer l'appel. Les requêtes d'une pression partent ensemble. Un verdict rendu au runtime règle
+  un appel pour le reste de la boucle, `keep` compris, et un appel sans verdict est proposé de nouveau : un petit
+  résultat reçoit `keep`, un résultat jugé utile reste sans verdict et est rejugé une fois 8 tours de modèle de
+  plus passés. Chaque act a sa propre liaison, celui que demande un contrôle de fin compris. L'élagage échoue ouvert : le réglage éteint ou illisible, pas de modèle de décision (un
+  avertissement) ou un modèle qui ne répond pas (un avertissement, et plus aucune question dans cet act) n'élaguent
+  rien. Une ligne du journal dit ce que chaque pression a jugé, retiré et coupé.
 - **Résumé** (`shared/domain/compaction.ts`, `buildSummaryPrompt`) : le résumé remplace l'historique, il est donc
   écrit pour un lecteur qui reprend à froid : la requête et comment le succès se juge ; les contraintes et préférences
   de l'utilisateur encore en vigueur, proches de ses mots (avant tout une consigne de travailler autrement), et ce que

@@ -218,3 +218,16 @@ export const verifyRequest = (which: string, missing: string): string =>
   "fix is a separate request, so never edit code to make a step pass. " +
   `${missing}, say so and suggest ` +
   "/init-verifiers instead of improvising a check.";
+
+// ── Pruning the tool loop: what the decision model reads ────────────────
+
+export const pruneStateText = (request: string, calls: string): string =>
+  `Request the assistant is working on:\n${request}\n\nEarlier tool calls of this work, oldest first. ` +
+  `Each result can be had again by running the call again:\n${calls}`;
+export const pruneCallLine = (n: number, tool: string, input: string, chars: number, age: number): string =>
+  `${n}. ${tool} ${input}, a result of ${chars} characters, ${age} model turn(s) ago`;
+export const PRUNE_JUDGE_THE_CALL = "Does the following description hold for the numbered tool call of the text?";
+export const pruneStillNeeded = (n: number): string =>
+  `The result of call ${n} is still needed to finish the request: later steps rely on what it showed.`;
+export const pruneNeededWhole = (n: number): string =>
+  `The whole result of call ${n} is needed, not its first lines only: its details matter for the request.`;
