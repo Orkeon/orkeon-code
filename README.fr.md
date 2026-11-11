@@ -56,23 +56,10 @@ chaque prompt est un fichier source : modifiez-le, ou ajoutez le vôtre.
 ## Démarrage rapide
 
 Il faut le runtime Orkeon et une clé d'API pour un fournisseur LLM pris en charge par Orkeon (tout point d'accès
-compatible OpenAI, Anthropic...). Orkeon Code est vérifié contre les sources d'Orkeon au commit de `.orkeon-version` ;
-les releases le font tourner aussi, en retard sur cette épingle. Chacun de ces trois fait tourner Orkeon Code :
-
-- **`orkeon-repl`** de la dernière release, `1.0.0-rc.6`, du paquet Debian/Ubuntu `orkeon` (amd64 et arm64 ; une release candidate est publiée sur le canal
-  apt `rc`, le canal `stable` par défaut ne porte que les versions finales) ou de
-  l'[archive de release d'Orkeon](https://github.com/Orkeon/orkeon/releases) de votre plateforme (Linux x64 et arm64,
-  macOS x64 et arm64, `.zip` Windows x64), autonome : aucun .NET à installer ;
-- **Docker** : la dernière image `orkeon-runners` publiée (amd64 et arm64 ; `1.0.0-rc.5`, l'image `1.0.0-rc.6` n'est
-  pas publiée), rien d'autre à installer ;
-- **un checkout d'Orkeon** à l'épingle, le runtime de référence : `ORKEON_SOURCE=<checkout> ./orkeon-code --mode source`.
-
-**Windows** : `orkeon-code.ps1` n'a ni mode source ni `--demo` (`-Mode` accepte `docker` ou `tool`) : le mode tool sur
-le `orkeon-<version>-win-x64.zip` de la release est celui de Windows ; la voie que ce projet pratique est WSL avec le
-lanceur bash ([tutoriel](docs/fr/wsl-tutorial.md)).
-
-Orkeon Code lui-même s'installe depuis une release (`install.sh`, `install.ps1`) ou depuis npm (`npm install -g
-orkeon-code@next`), ou tourne depuis un clone comme ci-dessous. Détails : [Premiers pas](docs/fr/getting-started.md).
+compatible OpenAI, Anthropic...). Le runtime s'obtient par une release (`orkeon-repl`), par une image Docker ou
+depuis un checkout d'Orkeon ; sous Windows, la voie que ce projet pratique est WSL
+([tutoriel](docs/fr/wsl-tutorial.md)). Le choix du runtime, ses versions et ses canaux, et les façons d'installer
+Orkeon Code lui-même sont dans [Premiers pas](docs/fr/getting-started.md). Depuis un clone :
 
 ```bash
 git clone https://github.com/Orkeon/orkeon-code.git ~/orkeon-code

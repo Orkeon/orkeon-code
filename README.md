@@ -52,23 +52,10 @@ trimmed by the mode. Every command, crew and prompt is a source file: change it,
 ## Quick start
 
 You need the Orkeon runtime and an API key for an LLM provider Orkeon supports (any OpenAI-compatible endpoint,
-Anthropic...). Orkeon Code is checked against Orkeon's sources at the commit of `.orkeon-version`; the releases run
-it too, behind that pin. Any of these runs Orkeon Code:
-
-- **`orkeon-repl`** of the last release, `1.0.0-rc.6`, from the `orkeon` Debian/Ubuntu package (amd64 and arm64; a release candidate is published on the
-  apt `rc` channel, the default `stable` channel carries finals only) or from the
-  [Orkeon release archive](https://github.com/Orkeon/orkeon/releases) of your platform (Linux x64 and arm64, macOS x64
-  and arm64, Windows x64 `.zip`), self-contained: no .NET to install;
-- **Docker**: the last `orkeon-runners` image published (amd64 and arm64; `1.0.0-rc.5`, the `1.0.0-rc.6` image is not
-  published), nothing else to install;
-- **an Orkeon checkout** at the pin, the reference runtime: `ORKEON_SOURCE=<checkout> ./orkeon-code --mode source`.
-
-**Windows**: `orkeon-code.ps1` has no source mode and no `--demo` (`-Mode` takes `docker` or `tool`): the tool mode on
-the release's `orkeon-<version>-win-x64.zip` is the one for Windows; the path this project exercises is WSL with the
-bash launcher ([tutorial](docs/wsl-tutorial.md)).
-
-Orkeon Code itself installs from a release (`install.sh`, `install.ps1`) or from npm (`npm install -g
-orkeon-code@next`), or runs from a clone as below. Details: [Getting started](docs/getting-started.md).
+Anthropic...). The runtime comes as a release (`orkeon-repl`), as a Docker image or from an Orkeon checkout; on
+Windows, the path this project exercises is WSL ([tutorial](docs/wsl-tutorial.md)). Which runtime to pick, its
+versions and channels, and the ways to install Orkeon Code itself are in
+[Getting started](docs/getting-started.md). From a clone:
 
 ```bash
 git clone https://github.com/Orkeon/orkeon-code.git ~/orkeon-code
