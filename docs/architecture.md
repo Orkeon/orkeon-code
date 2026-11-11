@@ -628,6 +628,19 @@ prompt as the model reads it, to review a change as a diff.
   agent reads the gap as a gap; the outcome still counts as a failed compaction for the breaker. A compaction at the
   head of a turn keeps the request still waiting for its answer, with its `[turn-context]`, at the end of the rebuilt
   buffer, after the summary and what comes back, so the answer stored next follows its request.
+- **Pruning the tool loop** (`shared/domain/context-prune.ts`, `shared/application/compaction/prune-context.ts`,
+  [ADR 0027](adr/0027-decision-model-optimisations.md)): the tool results of a turn in progress live in the
+  runtime's loop, never in the session buffer, so no compaction reaches them. With `compact.prune` on and a decision
+  model on the host, the main loop's act carries the runtime's `onContextPressure` (Orkeon #327): once the loop's
+  messages pass 40 % of the window, the runtime offers the older results of the read tools that ran, the last 6
+  messages left out. A result of 600 characters or less is kept without asking. For the others the decision model
+  reads the request and the calls (tool, input, size, age; never a result's content) and answers two yes/no
+  questions per call, 8 calls per request and 24 per pressure, oldest first: is the result still needed, and is it
+  needed whole. Under 0.5 on the first the result is removed, under 0.5 on the second it is cut to its first 300
+  characters, else it stays; the runtime leaves a line that says what was cut and to run the call again. A verdict
+  settles a call for the rest of the loop, and a call without one is offered again. It fails open: the setting off
+  or unreadable, no decision model (a warning) or a model that does not answer (a warning, and no more question in
+  that act) prune nothing. A log line says what each pressure judged, removed and cut.
 - **Summary** (`shared/domain/compaction.ts`, `buildSummaryPrompt`): the summary replaces the history, so it is
   written for a reader who resumes cold: the request and how success is judged; the user's constraints and preferences
   still in force, close to their own words (above all an instruction to work differently), and what the user allowed

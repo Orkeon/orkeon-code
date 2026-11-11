@@ -41,6 +41,7 @@ import {
   orkeonHostContext,
   orkeonMemoryStore,
   orkeonMemoryToolPorts,
+  orkeonDecisionModel,
   orkeonProgress,
   orkeonSessionIo,
   orkeonShell,
@@ -55,6 +56,7 @@ import { memoryDirOf } from "../../shared/application/shared-memory/memory-setti
 import { createRunState } from "../../shared/infrastructure/orkeon/run-state.ts";
 import { compactSession } from "../../shared/application/compaction/compact-session.ts";
 import { loadCatalogue, runMainLoop } from "./application/run-main-loop.ts";
+import { contextPruning } from "../../shared/application/compaction/prune-context.ts";
 import { CODER_GOAL, CODER_ROLE } from "./application/prompts.ts";
 import { BREAKER_RUN_FIELD, turnCompaction } from "./application/auto-compact.ts";
 
@@ -93,6 +95,7 @@ const coder = orkeonAgent()
       run: createRunState(ctx),
       clock,
       host: orkeonHostContext,
+      prune: (request) => contextPruning({ config: ports.config, decision: orkeonDecisionModel(), session: ports.session, log }, request),
       compact: turnCompaction(ports.config, (trigger) => compactSession(
         { force: false, trigger },
         orkeonCompactionDeps({ llm, log }, { ...ports, progress }, clock),

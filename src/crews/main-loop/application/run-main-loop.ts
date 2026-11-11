@@ -4,6 +4,7 @@
 // built by ./prompts, the breaker by ./auto-compact; every dependency comes
 // in through the ports.
 
+import type { ContextPruning } from "../../../shared/application/compaction/prune-context.ts";
 import {
   MEMORY_TOOLS, catalogueFor, parseStoredRule, resolvePermissionMode, scriptToolsFor,
 } from "../../../shared/domain/agent-policy/permission.ts";
@@ -144,6 +145,7 @@ export async function runAct(
   turn: TurnPrompt,
   mode: string,
   flags: BehaviorFlags = DEFAULT_BEHAVIOR_FLAGS,
+  pruning: ContextPruning = {},
 ): Promise<string> {
   const active = describeActiveFlags(flags);
   // Anything off-default is announced: a turn that stops after 10 iterations, or
@@ -166,6 +168,8 @@ export async function runAct(
     // (ActOptions.context, Orkeon #276): a decision guard judges the request alone.
     context: turn.context,
     model: flags.model,
+    // The pruning of the loop's stale tool results, when the session turned it on (compact.prune).
+    ...pruning,
   });
 }
 
@@ -182,6 +186,9 @@ export interface MainLoopDeps extends TurnContextDeps, Omit<AutoCompactDeps, "se
   /** This run's host context (shared/application/host-context): the request's disk spellings come back to the VFS
    *  before anything reads them; absent, the identity. */
   host?: HostSource;
+  /** What the act carries to prune its loop's stale tool results (shared/application/compaction/prune-context),
+   *  for the request it works on; absent, nothing is pruned. */
+  prune?: (request: string) => Promise<ContextPruning>;
 }
 
 /** The request once the prelude's call answered (applyPrelude). */
@@ -227,11 +234,11 @@ interface TurnAnswer { answer: string; cut: boolean }
  *  through no stop check: a second act would meet the same spent budget. */
 async function stopChecked(
   deps: Pick<MainLoopDeps, "llm" | "log" | "chains">, turn: TurnPrompt, mode: string, flags: BehaviorFlags,
-  request: string, closingLine: string | null,
+  request: string, closingLine: string | null, pruning: ContextPruning,
 ): Promise<TurnAnswer> {
   let answer: string;
   try {
-    answer = await runAct(deps, turn, mode, flags);
+    answer = await runAct(deps, turn, mode, flags, pruning);
   } catch (error) {
     const exhausted = budgetExhaustedAnswerOf(error);
     if (exhausted === null) throw error;
@@ -242,7 +249,7 @@ async function stopChecked(
   if (stop.refusedBy === undefined) return { answer, cut: false };
   deps.log.info(stopCheckSendsBack(stop.refusedBy, String(stop.reason)));
   try {
-    return { answer: await runAct(deps, { ...turn, request: buildStopRetryPrompt(turn.request, answer, stop.reason ?? "") }, mode, flags), cut: false };
+    return { answer: await runAct(deps, { ...turn, request: buildStopRetryPrompt(turn.request, answer, stop.reason ?? "") }, mode, flags, pruning), cut: false };
   } catch (error) {
     // A retry that fails (a provider error) never costs the turn an answer it had: the first one stands, said.
     if (answer.trim().length === 0) throw error;
@@ -333,9 +340,10 @@ export async function runMainLoop(input: MainLoopInputs, loaded: LoadedCatalogue
   // ran before it (an edit made on disk stays on record), the run not failed.
   // The calls of a head-of-turn compaction are not the answer's: the trace starts with the act.
   deps.trace?.take();
+  const pruning = deps.prune === undefined ? {} : await deps.prune(prompt);
   let checked: { answer: string; cut: boolean };
   try {
-    checked = await stopChecked(deps, assembled, mode, flags, prompt, readClosingLine(input.closingLine));
+    checked = await stopChecked(deps, assembled, mode, flags, prompt, readClosingLine(input.closingLine), pruning);
   } catch (error) {
     const block = decisionBlockOf(error);
     if (block === null) throw error;

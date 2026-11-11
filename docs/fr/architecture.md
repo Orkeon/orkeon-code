@@ -677,6 +677,21 @@ un changement comme un diff.
   compaction échouée pour le disjoncteur. Une compaction en tête de tour garde la requête qui attend encore sa
   réponse, avec son `[turn-context]`, à la fin du tampon reconstruit, après le résumé et ce qui revient, pour que la
   réponse stockée ensuite suive sa requête.
+- **Élagage de la boucle d'outils** (`shared/domain/context-prune.ts`,
+  `shared/application/compaction/prune-context.ts`, [ADR 0027](../adr/0027-decision-model-optimisations.md)) : les
+  résultats d'outils d'un tour en cours vivent dans la boucle du runtime, jamais dans le tampon de session, aucune
+  compaction ne les atteint donc. Avec `compact.prune` à `on` et un modèle de décision sur le host, l'act de la
+  boucle principale porte le `onContextPressure` du runtime (Orkeon #327) : dès que les messages de la boucle
+  dépassent 40 % de la fenêtre, le runtime propose les anciens résultats des outils de lecture qui ont tourné, les
+  6 derniers messages exclus. Un résultat de 600 caractères ou moins est gardé sans question. Pour les autres, le
+  modèle de décision lit la demande et les appels (outil, entrée, taille, âge ; jamais le contenu d'un résultat) et
+  répond à deux questions oui/non par appel, 8 appels par requête et 24 par pression, les plus anciens d'abord : le
+  résultat sert-il encore, et sert-il en entier. Sous 0,5 à la première le résultat est retiré, sous 0,5 à la
+  seconde il est coupé à ses 300 premiers caractères, sinon il reste ; le runtime laisse une ligne qui dit ce qui a
+  été coupé et de relancer l'appel. Un verdict règle un appel pour le reste de la boucle, et un appel sans verdict
+  est proposé de nouveau. L'élagage échoue ouvert : le réglage éteint ou illisible, pas de modèle de décision (un
+  avertissement) ou un modèle qui ne répond pas (un avertissement, et plus aucune question dans cet act) n'élaguent
+  rien. Une ligne du journal dit ce que chaque pression a jugé, retiré et coupé.
 - **Résumé** (`shared/domain/compaction.ts`, `buildSummaryPrompt`) : le résumé remplace l'historique, il est donc
   écrit pour un lecteur qui reprend à froid : la requête et comment le succès se juge ; les contraintes et préférences
   de l'utilisateur encore en vigueur, proches de ses mots (avant tout une consigne de travailler autrement), et ce que

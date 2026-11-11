@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — the decision model prunes a turn's stale tool results
+
+- `/config set compact.prune on` lets the host's decision model, whichever provider serves it, prune the tool loop
+  of a turn in progress: past 40 % of the context window, an older result of a read tool that the request no longer
+  needs is removed, or cut to its first 300 characters when only its beginning matters, and the runtime leaves a
+  line that says to run the call again (Orkeon #327). Off by default; without a decision model, or when it does not
+  answer, nothing is pruned ([architecture](docs/architecture.md#compaction-and-memory),
+  [ADR 0027](docs/adr/0027-decision-model-optimisations.md)).
+
 ### Changed — the pin moves to Orkeon `206b562`
 
 - The pin moves to Orkeon `main` `206b562` (Orkeon #329, which closes #327, opened from this project): the tool loop

@@ -19,7 +19,7 @@ import { budgetExhaustedAnswer, llmFailureOf } from "../../../../src/shared/doma
 import {
   BARE_TURN_CONTEXT, BLOCKED_ANSWER, blockedRequest, DEFAULT_LOADED, DENYING_CHAINS, DICTATION, EXPLICIT_PLAN, EXTRAS, EXTRA_RULES, EXTRA_TOOLS_INPUT, PARSED_RULES,
   REQUEST_WITH_TRANSCRIPT, RULED_CATALOGUE, SCRIPT_TOOLS_CASES, SESSION_START, SILENT_GATES, SPEAK, SPEAKER_FAILURE,
-  STORED_RULES, TRANSCRIPT, TRANSCRIPTION_PRELUDE, turnSetup, PROFILED_INPUT, PROFILE_OVERRIDE_WARNING,
+  PRUNING, STORED_RULES, TRANSCRIPT, TRANSCRIPTION_PRELUDE, turnSetup, PROFILED_INPUT, PROFILE_OVERRIDE_WARNING,
 } from "./run-main-loop.fixtures.ts";
 import {
   assertGateWarningBefore, assertLogged, assertLoggedLike, assertPromptEndsWith, assertToolTraceMessage,
@@ -824,5 +824,37 @@ describe("runMainLoop — the request under the host's context", () => {
 
     // Assert
     assertMentions(llm.acts[0].prompt, [`read ${PROJECT_WIN}\\src\\a.ts`]);
+  });
+});
+
+describe("runMainLoop — the pruning of the tool loop (compact.prune)", () => {
+  it("hands the act what the pruning binds for the turn's request", async () => {
+    // Arrange
+    const { deps, llm } = turnSetup();
+    const asked: string[] = [];
+    const prune = async (request: string) => {
+      asked.push(request);
+      return PRUNING;
+    };
+
+    // Act
+    await runMainLoop({ prompt: "rename the port" }, DEFAULT_LOADED, { ...deps, prune });
+
+    // Assert
+    deepStrictEqual(
+      [asked, llm.acts[0].request.contextPressure, llm.acts[0].request.onContextPressure],
+      [["rename the port"], PRUNING.contextPressure, PRUNING.onContextPressure],
+    );
+  });
+
+  it("sends an act without a pressure callback when nothing binds the pruning", async () => {
+    // Arrange
+    const { deps, llm } = turnSetup();
+
+    // Act
+    await runMainLoop({ prompt: "rename the port" }, DEFAULT_LOADED, deps);
+
+    // Assert
+    strictEqual("onContextPressure" in llm.acts[0].request, false);
   });
 });

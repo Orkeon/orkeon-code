@@ -19,6 +19,7 @@ import { sameToolName } from "./agent-policy/permission.ts";
 import { VOICE_REPLY_CONFIG_KEY } from "./speech.ts";
 import { ANSWER_LANGUAGE_CONFIG_KEY } from "./agent-policy/output-styles.ts";
 import { COMPACTION_TRIGGER_CONFIG_KEY, compactionTriggerProblem } from "./compaction-thresholds.ts";
+import { PRUNE_CONFIG_KEY } from "./context-prune.ts";
 import { DEV_WORK_DIR_CONFIG_KEY, workFolderProblem } from "./dev/work-folder.ts";
 import { DEV_PR_AUTO_CONFIG_KEY } from "./git/close.ts";
 import { LLM_PROFILE_CONFIG_KEY, llmProfileProblem } from "./llm-profile.ts";
@@ -32,7 +33,7 @@ import {
   ADVISOR_MODEL_DOC, ANSWER_LANGUAGE_DOC, AUTO_ADMIT_FROM_USER, COMMIT_REQUIRE_CONFIRM_DOC, COMPACTION_TRIGGER_DOC,
   DEV_PR_AUTO_DOC, DEV_WORK_DIR_DOC, EXTRA_TOOLS_DOC, EXTRA_TOOLS_NOT_ALLOWED, invalidValue, LLM_PROFILE_DOC,
   MEMORY_AUTO_ADMIT_DOC, MEMORY_DIR_DOC, MEMORY_PROJECT_DOC, needsAValue, notAllowedValue, PATHS_ALLOW_DOC,
-  PATHS_ALLOW_OUTSIDE_USER, PATHS_DENY_DOC, PERMISSION_FALLBACK_DOC, PR_AUTO_FROM_USER, PROJECT_FALLBACK_TOO_WIDE,
+  PATHS_ALLOW_OUTSIDE_USER, PATHS_DENY_DOC, PERMISSION_FALLBACK_DOC, PR_AUTO_FROM_USER, PRUNE_DOC, PROJECT_FALLBACK_TOO_WIDE,
   REVIEW_LENSES_DOC, SPINNER_VERBS_DOC, unknownConfigKey, VOICE_REPLY_DOC, widerThanUserFallback,
 } from "./messages.ts";
 
@@ -99,6 +100,11 @@ export const CONFIG_KEYS: readonly ConfigKeySpec[] = [
     key: COMPACTION_TRIGGER_CONFIG_KEY,
     ...COMPACTION_TRIGGER_DOC,
     problem: compactionTriggerProblem,
+  },
+  {
+    key: PRUNE_CONFIG_KEY,
+    ...PRUNE_DOC,
+    allowed: ["on", "off"],
   },
   {
     key: DEV_WORK_DIR_CONFIG_KEY,
