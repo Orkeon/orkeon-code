@@ -1,5 +1,5 @@
 // Checks on what one main-loop turn sent the model, logged and answered.
-import { ok } from "node:assert";
+import { deepStrictEqual, ok } from "node:assert";
 
 /** The prompt the model read ends with `tail`. */
 export function assertPromptEndsWith(prompt: string, tail: string): void {
@@ -27,3 +27,12 @@ export function assertToolTraceMessage(content: string, line: string): void {
   ok(content.startsWith("[tools]"), `the message is no [tools] trace:\n${content}`);
   ok(content.split("\n").slice(1).includes(line), `the trace has no line '${line}':\n${content}`);
 }
+
+/** The suggestion was asked for the request with the attached path, and its skill follows the attached one in the context. */
+export function assertSuggestedAfterAttached(context: string, asked: ReadonlyArray<{ request: string; attached: readonly string[] }>): void {
+  deepStrictEqual(asked, [{ request: "cut the release", attached: ["/workspace/docs/attached.md"] }], "the suggestion was not asked once, for the request and the attached path");
+  const attachedAt = context.indexOf("ATTACHED BODY");
+  const suggestedAt = context.indexOf("### /workspace/.orkeon/skills/release.md\nSUGGESTED BODY");
+  ok(attachedAt >= 0 && suggestedAt > attachedAt, `the suggested skill does not follow the attached one:\n${context.slice(0, 600)}`);
+}
+

@@ -41,6 +41,9 @@ export interface TurnContextDeps {
   config?: Pick<ConfigStore, "readValue">;
   /** The time now: the environment block carries its UTC day. */
   clock: Clock;
+  /** The skills suggested for the request (shared/application/skills/suggest-skills), given the paths already
+   *  attached; absent, none is suggested. */
+  suggest?: (request: string, attached: readonly string[]) => Promise<AttachedSkill[]>;
 }
 
 /** One act() turn's messages: the byte-stable system prompt, the volatile context, the request. */
@@ -83,6 +86,8 @@ export async function buildTurnPrompt(
     wantAdvisory ? readAttachedSkills(session, files) : Promise.resolve([] as AttachedSkill[]),
     readLanguage(deps.config),
   ]);
+  // The skills that fit this request join the ones a person attached, after them, for this turn only.
+  const suggested = wantAdvisory && deps.suggest !== undefined ? await deps.suggest(prompt, skills.map((skill) => skill.path)) : [];
   const today = isoDay(deps.clock());
 
   return {
@@ -91,7 +96,7 @@ export async function buildTurnPrompt(
       // All volatile, all in the context. An unconfigured session renders none
       // of the optional blocks.
       preferences: buildPreferencesBlock({ outputStyle, language }),
-      skills: buildSkillsBlock(skills),
+      skills: buildSkillsBlock([...skills, ...suggested]),
       memory: buildMemoryBlock(memory),
       hooks: buildHooksBlock(hooks),
       userContext: buildUserContextBlock({ ...git, date: today }),

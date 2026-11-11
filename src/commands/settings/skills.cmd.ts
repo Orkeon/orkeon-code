@@ -5,13 +5,13 @@
 import { rawTokens } from "../_lib/args.ts";
 import { runSkills } from "../_lib/settings/skills.ts";
 import { showView } from "../_lib/view.ts";
-import { orkeonFiles, orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { orkeonConfigStore, orkeonDecisionModel, orkeonFiles, orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
 
 const session = orkeonSessionIo();
 const files = orkeonFiles();
 
 defineCommand({
   name: "skills",
-  description: "List, attach or detach skill files (workspace markdown playbooks).",
-  handler: async (args, ctx) => showView(ctx, await runSkills(rawTokens(args), { session, files })),
+  description: "List, attach or detach skill files (workspace markdown playbooks); suggest on|off|why: the ones a turn is suggested.",
+  handler: async (args, ctx) => showView(ctx, await runSkills(rawTokens(args), { session, files, config: orkeonConfigStore(), decision: orkeonDecisionModel() })),
 });

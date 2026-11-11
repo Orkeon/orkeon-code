@@ -19,10 +19,10 @@ import { budgetExhaustedAnswer, llmFailureOf } from "../../../../src/shared/doma
 import {
   BARE_TURN_CONTEXT, BLOCKED_ANSWER, blockedRequest, DEFAULT_LOADED, DENYING_CHAINS, DICTATION, EXPLICIT_PLAN, EXTRAS, EXTRA_RULES, EXTRA_TOOLS_INPUT, PARSED_RULES,
   REQUEST_WITH_TRANSCRIPT, RULED_CATALOGUE, SCRIPT_TOOLS_CASES, SESSION_START, SILENT_GATES, SPEAK, SPEAKER_FAILURE,
-  PRUNING, pruneBinding, STORED_RULES, TRANSCRIPT, TRANSCRIPTION_PRELUDE, turnSetup, PROFILED_INPUT, PROFILE_OVERRIDE_WARNING,
+  PRUNING, pruneBinding, STORED_RULES, SUGGESTED_SKILL, TRANSCRIPT, TRANSCRIPTION_PRELUDE, turnSetup, PROFILED_INPUT, PROFILE_OVERRIDE_WARNING,
 } from "./run-main-loop.fixtures.ts";
 import {
-  assertGateWarningBefore, assertLogged, assertLoggedLike, assertPromptEndsWith, assertToolTraceMessage,
+  assertGateWarningBefore, assertLogged, assertSuggestedAfterAttached, assertLoggedLike, assertPromptEndsWith, assertToolTraceMessage,
 } from "./run-main-loop.assertions.ts";
 import { createToolTrace } from "../../../../src/shared/application/dev/tool-trace-recorder.ts";
 import { assertMentions } from "../../../support/assertions/text.ts";
@@ -870,3 +870,24 @@ describe("runMainLoop — the pruning of the tool loop (compaction.prune)", () =
     strictEqual("onContextPressure" in llm.acts[0].request, false);
   });
 });
+
+describe("runMainLoop — the skills suggested for the turn (skills.suggest)", () => {
+  it("puts a suggested skill in the turn's attached skills, after the ones attached", async () => {
+    // Arrange
+    const { deps, llm, store } = turnSetup();
+    store.state.set("skills_attached", JSON.stringify(["/workspace/docs/attached.md"]));
+    deps.files.files.set("/workspace/docs/attached.md", "ATTACHED BODY");
+    const asked: Array<{ request: string; attached: readonly string[] }> = [];
+    const suggest = async (request: string, attached: readonly string[]) => {
+      asked.push({ request, attached });
+      return [SUGGESTED_SKILL];
+    };
+
+    // Act
+    await runMainLoop({ prompt: "cut the release" }, DEFAULT_LOADED, { ...deps, suggest });
+
+    // Assert
+    assertSuggestedAfterAttached(llm.acts[0].request.context ?? "", asked);
+  });
+});
+

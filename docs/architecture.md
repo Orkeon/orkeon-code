@@ -646,6 +646,28 @@ is picked at each launch of `/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-learn
   kept in the session for `/route why`. `/route on|off` sets `route.agents` for the session; bare, it says where the
   routing stands.
 
+### Suggesting skills for a turn
+
+`shared/domain/skills/shortlist.ts`, `shared/application/skills/suggest-skills.ts`
+([ADR 0027](adr/0027-decision-model-optimisations.md)). A skill is a markdown playbook; `/skills attach` puts one
+in every turn until it is detached. With `skills.suggest` on and a decision model on the host, each turn of the main
+loop is also suggested the project's skills that fit its request:
+
+- **The skills**: the `.md` files of `.orkeon/skills/`, then the `SKILL.md` of each folder of `.claude/skills/`, 24
+  at most, in name order. A skill's name and description are those of its front matter (`name:`,
+  `description:`), else its first heading and the first line of text; the description is cut at 300 characters. A
+  file that cannot be read or is blank, and a skill a person attached, are left out.
+- **The question**: the decision model reads the request (2 000 characters at most) and makes one choice among the
+  skills, each told by one line, and the option that none fits.
+- **The picks**: the skills whose share of the model's probability reaches 0.3, the largest first, 3 at most; none
+  when the model chose that none fits. Their whole files join the turn's « Attached skills » block after the
+  attached ones, under the same cap of 4 000 characters each, for that turn only: nothing is attached, and the
+  block is in the turn's context, never in the system prompt, so the prompt cache holds.
+- **It fails open**: the setting off or unreadable, `/fast` (which reads no skill), no decision model (a warning),
+  no skill folder and a model that does not answer suggest nothing. A log line names the skills suggested, and what
+  the last turn was suggested is kept in the session for `/skills suggest why`. `/skills suggest on|off` sets
+  `skills.suggest` for the session; bare, it says where the suggestion stands.
+
 ### Compaction and memory
 
 - **Pipeline** (`shared/application/compaction/compact-session.ts`): every compaction past the trigger, and every

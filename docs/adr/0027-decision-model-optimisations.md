@@ -86,3 +86,8 @@ names. A script reaches it as a member of the `tools` namespace.
   bar on the model's own confidence figure; two commands were routed to `small`, two left to the session, and a
   plan described as a rewrite across modules was not sent to `large`. Its effect on cost and quality is not
   measured.
+- The suggestion of skills needed a place to find them, which the plan had not: `/skills` lists what a person
+  attached, not what a project holds. The skills are the `.md` files of `.orkeon/skills/` and the `SKILL.md` of the
+  folders of `.claude/skills/`, the layout another assistant's skills already have, so a repository that keeps
+  them is served without a copy. Not measured, and not run against a live decision model yet: a choice among up
+  to 25 options is the question a small model is least likely to answer well.

@@ -1,5 +1,7 @@
 // The playbook /skills attaches, and the session and files it runs over.
 import { SKILLS_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
+import { FakeConfigStore } from "../../../support/doubles/fake-config-store.ts";
+import { FakeDecisionModel } from "../../../support/doubles/fake-decision-model.ts";
 import { FakeFiles } from "../../../support/doubles/fake-files.ts";
 import { FakeSessionStore } from "../../../support/doubles/fake-session-store.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
@@ -25,3 +27,17 @@ export const OUT_OF_RANGE: readonly { name: string; attached: readonly string[] 
   { name: "a number past the last", attached: [SKILL, OTHER_SKILL], n: "3", text: "usage: /skills detach <1-2>" },
   { name: "a word", attached: [SKILL, OTHER_SKILL], n: "x", text: "usage: /skills detach <1-2>" },
 ];
+
+/** skillsDeps with the settings and the decision model `/skills suggest` reads. */
+export function suggestDeps() {
+  const config = new FakeConfigStore();
+  const decision = new FakeDecisionModel();
+  return { ...skillsDeps(), config, decision };
+}
+
+export const SUGGEST_STATUS_OFF =
+  "skills.suggest: off; skills read from .orkeon/skills/*.md and .claude/skills/*/SKILL.md; decision model: present.";
+export const SUGGEST_ON = "skills.suggest: on for this session; /clear clears it.";
+export const SUGGEST_ON_NO_MODEL =
+  "skills.suggest: on for this session (the host has no decision model: none is suggested until it has one); /clear clears it.";
+export const LAST_SUGGESTION = JSON.stringify({ offered: 3, picks: [{ path: SKILL, share: 0.8 }] });

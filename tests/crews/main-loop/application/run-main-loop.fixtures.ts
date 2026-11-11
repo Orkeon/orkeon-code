@@ -184,3 +184,7 @@ export function pruneBinding() {
   };
   return { prune, asked };
 }
+
+/** A skill a suggestion hands a turn. */
+export const SUGGESTED_SKILL = { path: "/workspace/.orkeon/skills/release.md", content: "SUGGESTED BODY" };
+

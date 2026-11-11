@@ -39,7 +39,7 @@ Les descriptions sont celles que le REPL affiche, lues dans `src/commands/*/*.cm
 | `/permissions` | sync | Show the permission surface; add, remove, list or clear the session's tool rules. |
 | `/proactive` | sync | Toggle proactive follow-up suggestions from the assistant. |
 | `/route` | sync | Show, turn on or off the routing of crews to the cheapest LLM profile that fits (why: the last choices). |
-| `/skills` | sync | List, attach or detach skill files (workspace markdown playbooks). |
+| `/skills` | sync | List, attach or detach skill files (workspace markdown playbooks); suggest on\|off\|why: the ones a turn is suggested. |
 | `/theme` | sync | Show or set the console's palette for this session (dark\|light\|none). |
 
 ## État et consommation

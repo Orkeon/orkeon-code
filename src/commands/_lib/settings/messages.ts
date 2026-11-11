@@ -339,7 +339,18 @@ export const skillAttached = (path: string, count: number): string =>
   `skill attached: ${path} (${count} attached; /clear clears).`;
 export const skillsDetachUsage = (max: number): string => `usage: /skills detach <1-${max}>`;
 export const skillDetached = (path: unknown): string => `skill detached: ${path}`;
-export const SKILLS_USAGE = "usage: /skills [list|attach <path>|detach <n>]";
+export const SKILLS_USAGE = "usage: /skills [list|attach <path>|detach <n>|suggest [on|off|why]]";
+export const SKILLS_SUGGEST_USAGE = "usage: /skills suggest [on|off|why]";
+export const NOTHING_SUGGESTED_YET = "no skill was suggested yet in this session.";
+export const suggestStatus = (on: boolean, model: boolean): string =>
+  `skills.suggest: ${on ? "on" : "off"}; skills read from .orkeon/skills/*.md and .claude/skills/*/SKILL.md; decision model: ${model ? "present" : "absent, none is suggested"}.`;
+export const suggestSet = (on: boolean, model: boolean): string =>
+  on
+    ? `skills.suggest: on for this session${model ? "" : " (the host has no decision model: none is suggested until it has one)"}; /clear clears it.`
+    : "skills.suggest: off for this session; /clear clears it.";
+export const noSkillFit = (offered: number): string => `the last turn was offered ${offered} skill(s): none fit its request.`;
+export const skillsOffered = (offered: number): string => `suggested to the last turn, among ${offered} skill(s).`;
+export const suggestedSkill = (path: string, share: number): string => `${path} (${share.toFixed(2)})`;
 
 // /theme
 
