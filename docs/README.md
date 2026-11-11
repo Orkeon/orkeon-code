@@ -12,6 +12,7 @@ Start with [Getting started](getting-started.md); the [README](../README.md) giv
 | [Decision models](decision-models.md) | What Orkeon Code asks a decision model: pruning a long turn, routing a crew, suggesting skills, with what was measured |
 | [Decision models locally](decision-models-local.md) | Kev on this machine and Liquid, step by step, with decision profiles to try |
 | [Permissions](permissions.md) | Modes, rules, what the agent can touch |
+| [Permissions reference](permissions-reference.md) | The order of the checks, what a rule reads, every rule of the dev steps' rule sets |
 | [Hooks](hooks.md) | Your commands around the model's tool calls in the dev steps |
 | [Shared memory](shared-memory.md) | Admitted decisions, structures, methods and mistakes the agents recall |
 | [Slash commands](commands.md) | The full list (generated) |

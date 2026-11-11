@@ -145,6 +145,7 @@ are written in English only.
 | [Decision models](docs/decision-models.md) | What Orkeon Code asks a decision model: pruning a long turn, routing a crew, suggesting skills, with what was measured |
 | [Decision models locally](docs/decision-models-local.md) | Kev on this machine and Liquid, step by step, with decision profiles to try |
 | [Permissions](docs/permissions.md) | Modes, rules, what the agent can touch |
+| [Permissions reference](docs/permissions-reference.md) | The order of the checks, what a rule reads, every rule of the dev steps' rule sets |
 | [Hooks](docs/hooks.md) | Your commands around the model's tool calls in the dev steps |
 | [Shared memory](docs/shared-memory.md) | Admitted decisions, structures, methods and mistakes the agents recall |
 | [Slash commands](docs/commands.md) | The full list (generated) |

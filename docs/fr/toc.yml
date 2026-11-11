@@ -13,6 +13,8 @@
   href: decision-models-local.md
 - name: Permissions
   href: permissions.md
+- name: Référence des permissions
+  href: permissions-reference.md
 - name: Mémoire partagée
   href: shared-memory.md
 - name: Hooks

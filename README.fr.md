@@ -151,6 +151,7 @@ La documentation est publiée en français et en anglais, en site consultable, a
 | [Modèles de décision](docs/fr/decision-models.md) | Ce qu'Orkeon Code demande à un modèle de décision : élaguer un long tour, router un crew, suggérer des skills, avec ce qui a été mesuré |
 | [Modèles de décision en local](docs/fr/decision-models-local.md) | Kev sur cette machine et Liquid, pas à pas, avec des profils de décision à essayer |
 | [Permissions](docs/fr/permissions.md) | Modes, règles, ce que l'agent peut toucher |
+| [Référence des permissions](docs/fr/permissions-reference.md) | L'ordre des contrôles, ce que lit une règle, chaque règle des jeux des étapes dev |
 | [Hooks](docs/fr/hooks.md) | Vos commandes autour des appels d'outils du modèle dans les étapes dev |
 | [Mémoire partagée](docs/fr/shared-memory.md) | Décisions, structures, méthodes et erreurs admises que les agents rappellent |
 | [Commandes](docs/fr/commands.md) | La liste complète (générée) |

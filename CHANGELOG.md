@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the Permissions page is cut into titled sections, with a reference page beside it
+
+- [Permissions](docs/permissions.md) opens on the three levels a tool call goes through, drawn, then keeps to what
+  the user observes and sets: the modes, the questions, the rules, the guards that hold in every mode, what the gate
+  does not see (one table row per command), the rule sets of the dev steps, the extra tools. Its warnings are
+  callouts, its lists of keys and cases are tables, and no paragraph runs over a hundred words.
+- [Permissions reference](docs/permissions-reference.md), a new page, holds the mechanism: the order of the checks,
+  what a rule reads, every rule of the five rule sets and what the crews' callback reads beyond the gate.
+- The page said `/commit`'s merge and rebase for batches in worktrees were not wired; they are.
+
 ### Fixed — figures and lists of the documentation that contradicted each other
 
 - The README gave the main loop a budget of 400k tokens; it is 700k context tokens, as the other pages say.
