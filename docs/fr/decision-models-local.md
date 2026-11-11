@@ -581,8 +581,51 @@ ORKEON_CODE_SETTINGS=config/appsettings.local.json ORKEON_CODE_WORKSPACE=/tmp/ke
 Un profil de décision, c'est le host qui interroge le modèle de décision. Orkeon Code l'interroge aussi, pour une
 chose à ce jour : `/config set compaction.prune on` lui fait juger les résultats d'outils périmés d'un tour en cours,
 quel que soit le fournisseur qui le sert ([architecture](architecture.md#compaction-et-mémoire)). Il ne faut rien
-de plus que le fournisseur configuré plus haut, et aucun profil ; c'est éteint par défaut, et pas encore mesuré
-avec les petits modèles.
+de plus que le fournisseur configuré plus haut, et aucun profil ; c'est éteint par défaut.
+
+### Une mesure : un tour, avec et sans
+
+Une exécution de chaque, le 2026-11-11 : `glm-5.3-flashx` (Z.AI) répond, `jev-latest` (le Jev hébergé de TypeSafe)
+décide, les sources d'Orkeon à l'épingle. Le tour, en mode `plan`, lit les 26 plus grosses pages de cette
+documentation, un `file_read` chacune, puis doit citer le titre du premier fichier et du dernier et dire ce qu'ils
+ont en commun : la plupart des résultats sont du poids mort, deux ne le sont pas.
+
+| | Élagage éteint | Élagage allumé | Économie |
+| --- | ---: | ---: | ---: |
+| Tokens d'entrée du tour | 168 481 | 44 652 | 73,5 % |
+| Plus gros appel au modèle, en tokens | 156 420 | 32 484 | 79,2 % |
+| Appels au modèle | 2 | 2 | |
+| Temps passé dans les appels au modèle | 15,5 s | 8,0 s | 48,6 % |
+| Requêtes au modèle de décision | 0 | 3 | |
+| Temps de ces requêtes, cumulé (la plus lente) | | 0,54 s (0,20 s) | |
+| Le tour entier | 25,4 s | 17,7 s | 30,2 % |
+
+Le modèle a demandé les 26 lectures dans son premier appel. Avant le second, la boucle dépassait 40 % de la
+fenêtre : 20 résultats ont été proposés (les 6 derniers messages sont épargnés), envoyés au modèle de décision en
+3 requêtes parties ensemble, et 15 ont été retirés, 4 coupés à leurs 300 premiers caractères et 1 gardé, environ
+107 000 tokens libérés. Les deux réponses citent les deux mêmes titres : le résultat du premier fichier est passé
+entier. Net des 0,2 s du modèle de décision, le tour a passé 7,3 s de moins dans le modèle.
+
+Le même tour interrogé sur son seul dernier fichier a vu ses 20 résultats retirés (environ 115 000 tokens) et a
+répondu juste, en 57 515 tokens d'entrée ; son jumeau sans élagage n'a pas été lancé.
+
+Ce que cela ne montre pas : c'est une exécution par cas, et un modèle qui lit un fichier par appel au lieu de tous
+d'un coup dépense ses tokens autrement ; la demande dit quels fichiers comptent, le cas facile pour le juge ; le
+Jev hébergé est le seul juge mesuré, une sonde de `kev-0.8b` sur quatre appels a répondu à chaque question entre
+0,42 et 0,69, trop près du seuil de 0,5 pour s'y fier.
+
+Pour la refaire, avec des réglages qui nomment un modèle et un fournisseur de décision, dans un projet dont le
+`.orkeon/config.json` contient `{ "compaction.prune": "on" }` (puis `"off"`) :
+
+```bash
+ORKEON_CODE_MODE=source ORKEON_SOURCE=~/src/orkeon ORKEON_CODE_WORKSPACE=<the project> \
+  bash scripts/run-crew.sh src/crews/main-loop/crew.ork.ts --trust \
+  --inputs '{"prompt": "<a request that reads many large files>", "permissionMode": "plan"}' > run.log 2>&1
+grep -o "context pruning: [^\"]*\|call used [0-9]* tokens\|HttpClient\.[A-Za-z]*\.LogicalHandler\[101\] End[^-]*ms" run.log
+```
+
+Le premier motif est la ligne de chaque pression, le deuxième les tokens de chaque appel au modèle, le troisième
+le temps de chaque requête, celles du modèle et celles du modèle de décision (la ligne nomme le client).
 
 ## Quand ça ne marche pas
 

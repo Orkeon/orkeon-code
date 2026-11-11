@@ -567,7 +567,51 @@ ORKEON_CODE_SETTINGS=config/appsettings.local.json ORKEON_CODE_WORKSPACE=/tmp/ke
 A decision profile is the host asking the decision model. Orkeon Code asks it too, for one thing so far:
 `/config set compaction.prune on` has it judge the stale tool results of a turn in progress, whichever provider
 serves it ([architecture](architecture.md#compaction-and-memory)). It needs nothing more than the provider
-configured above, and no profile; it is off by default, and has not been measured against the small models yet.
+configured above, and no profile; it is off by default.
+
+### A measure: one turn, with and without
+
+One run of each, on 2026-11-11: `glm-5.3-flashx` (Z.AI) answers, `jev-latest` (TypeSafe's hosted Jev) decides,
+Orkeon's sources at the pin. The turn, in `plan` mode, reads the 26 largest pages of this documentation, one
+`file_read` each, then must quote the title of the first file and of the last and say what they have in common:
+most results are dead weight, two are not.
+
+| | Pruning off | Pruning on | Saved |
+| --- | ---: | ---: | ---: |
+| Input tokens of the turn | 168,481 | 44,652 | 73.5 % |
+| Largest model call, in tokens | 156,420 | 32,484 | 79.2 % |
+| Model calls | 2 | 2 | |
+| Time spent in the model's calls | 15.5 s | 8.0 s | 48.6 % |
+| Requests to the decision model | 0 | 3 | |
+| Time of those requests, summed (the slowest) | | 0.54 s (0.20 s) | |
+| The whole turn | 25.4 s | 17.7 s | 30.2 % |
+
+The model asked for the 26 reads in its first call. Before the second, the loop stood past 40 % of the window:
+20 results were offered (the last 6 messages are spared), sent to the decision model in 3 requests that ran
+together, and 15 were removed, 4 cut to their first 300 characters and 1 kept, about 107,000 tokens freed. Both
+answers quote the same two titles: the first file's result came through whole. Net of the decision model's 0.2 s,
+the turn spent 7.3 s less in the model.
+
+The same turn asked about its last file only had all 20 results removed (about 115,000 tokens) and answered
+rightly, in 57,515 input tokens; its twin without pruning was not run.
+
+What this does not show: it is one run per case, and a model that reads one file per call instead of all at once
+spends its tokens differently; the request says which files matter, which is the easy case for the judge; the
+hosted Jev was the only judge measured, a probe of `kev-0.8b` on four calls answered every question between 0.42
+and 0.69, too close to the 0.5 threshold to trust.
+
+To run it again, with settings that name a model and a decision provider, in a project whose
+`.orkeon/config.json` holds `{ "compaction.prune": "on" }` (then `"off"`):
+
+```bash
+ORKEON_CODE_MODE=source ORKEON_SOURCE=~/src/orkeon ORKEON_CODE_WORKSPACE=<the project> \
+  bash scripts/run-crew.sh src/crews/main-loop/crew.ork.ts --trust \
+  --inputs '{"prompt": "<a request that reads many large files>", "permissionMode": "plan"}' > run.log 2>&1
+grep -o "context pruning: [^\"]*\|call used [0-9]* tokens\|HttpClient\.[A-Za-z]*\.LogicalHandler\[101\] End[^-]*ms" run.log
+```
+
+The first pattern is the line of each pressure, the second the tokens of each model call, the third the time of
+each request, the model's and the decision model's (the line names the client).
 
 ## When it does not work
 

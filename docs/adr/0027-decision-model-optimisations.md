@@ -70,6 +70,8 @@ names. A script reaches it as a member of the `tools` namespace.
   outcome, `/compact --prune` and `/compact --stats`. The buffer holds no tool result (one line per call), so
   none of that exists: the pruning runs in the loop, and a log line says what each pressure judged, removed and
   cut. Only the main loop's act carries it; the sub-agents of the dev crews do not.
-- Not yet checked against a live decision model: that `system_one_decide` answers under each provider as its
-  sources say, and how well a small model answers 16 questions in one request (the host's validator caps the
-  state's size, not the number of questions).
+- Checked live on 2026-11-11 with the hosted Jev and with `kev-0.8b`: `system_one_decide` answers under both
+  providers and its probabilities reach the script as numbers. One measured turn saved 73.5 % of its input tokens
+  ([decision models, locally](../decision-models-local.md#a-measure-one-turn-with-and-without)). Not established:
+  the judgement of the small open-weights models (the probe of `kev-0.8b` answered every question close to 0.5),
+  and Liquid, which was not tried.
