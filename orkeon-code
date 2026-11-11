@@ -40,6 +40,9 @@
 #           dotnet tool), or ORKEON_REPL="<command line>" (e.g. "dotnet /opt/orkeon/Orkeon.ConsoleApp.dll")
 #   docker  ghcr.io/orkeon/orkeon-runners:latest (the last release, not the pin), nothing else to install
 #   source  an Orkeon checkout named by ORKEON_SOURCE, built there with `dotnet build`, run from the project
+# With none of them, an install downloads the runtime of its pin once, after asking, into ~/.orkeon-code/runtime
+# (tool mode from then on): `orkeon-code runtime install` does it without starting, ORKEON_CODE_RUNTIME_DOWNLOAD=1
+# answers yes where there is no terminal, `orkeon-code runtime remove` deletes it.
 #
 # Settings: --settings, else ORKEON_CODE_SETTINGS, else config/appsettings.local.json (a clone),
 # else ~/.orkeon-code/appsettings.json, else ${XDG_CONFIG_HOME:-~/.config}/orkeon-code/appsettings.json
@@ -82,6 +85,63 @@ CODE_HOME="${ORKEON_CODE_HOME:-$HOME/.orkeon-code}"
 
 die() { echo "orkeon-code: $*" >&2; exit 1; }
 warn() { echo "orkeon-code: warning: $*" >&2; }
+
+# ── The runtime downloaded at the first start (ADR 0028) ───────────────────
+# .orkeon-runtime names the archives published for this package: an id, their folder, a SHA-256 per platform. An
+# empty id (a checkout) means there is none. The archive is extracted where it is kept and runs from there.
+RUNTIME_HOME="$CODE_HOME/runtime"
+runtime_field() { # <key>
+  [ -f "$ROOT/.orkeon-runtime" ] || return 0
+  sed -n "s/^$1=//p" "$ROOT/.orkeon-runtime" 2>/dev/null | head -n 1 | tr -d '[:space:]'
+}
+RUNTIME_ID="$(runtime_field id)"
+RUNTIME_REPL="$RUNTIME_HOME/${RUNTIME_ID:-none}/bin/orkeon-repl"
+runtime_downloaded() { [ -n "$RUNTIME_ID" ] && [ -x "$RUNTIME_REPL" ]; }
+
+# The platform as the archives name it; 1 when no archive is built for it.
+runtime_platform() {
+  local os arch
+  case "$(uname -s)" in Linux) os=linux ;; Darwin) os=osx ;; *) return 1 ;; esac
+  case "$(uname -m)" in x86_64|amd64) arch=x64 ;; aarch64|arm64) arch=arm64 ;; *) return 1 ;; esac
+  echo "$os-$arch"
+}
+
+sha256() { if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1"; else shasum -a 256 "$1"; fi | cut -d ' ' -f 1; }
+
+# Downloads the runtime of .orkeon-runtime into $RUNTIME_HOME/<id>, checked against the sum the package carries,
+# and removes the runtimes of earlier packages. Nothing is asked: the callers do.
+download_runtime() {
+  local platform sum name work found other
+  [ -n "$RUNTIME_ID" ] || die "this checkout names no runtime to download (.orkeon-runtime): use Docker, orkeon-repl or ORKEON_SOURCE (see docs/getting-started.md)."
+  platform="$(runtime_platform)" && sum="$(runtime_field "$platform")" && [ -n "$sum" ] \
+    || die "no Orkeon runtime is published for this platform ($(uname -s) $(uname -m)): install Docker, or the orkeon-repl tool (see docs/getting-started.md)."
+  name="orkeon-runtime-$RUNTIME_ID-$platform.tar.gz"
+  work="$RUNTIME_HOME/.$RUNTIME_ID.new"
+  rm -rf "$work"
+  mkdir -p "$work"
+  echo "orkeon-code: downloading $(runtime_field url)/$name" >&2
+  if command -v curl >/dev/null 2>&1; then curl -fSL "$([ -t 2 ] && echo --progress-bar || echo -s)" -o "$work/$name" "$(runtime_field url)/$name"
+  elif command -v wget >/dev/null 2>&1; then wget -q -O "$work/$name" "$(runtime_field url)/$name"
+  else rm -rf "$work"; die "neither curl nor wget found: the runtime cannot be downloaded."
+  fi || { rm -rf "$work"; die "the download of $name failed: nothing installed."; }
+  if [ "$(sha256 "$work/$name")" != "$sum" ]; then
+    rm -rf "$work"
+    die "checksum mismatch for $name (.orkeon-runtime says $sum): the download was deleted, nothing installed."
+  fi
+  mkdir "$work/tree"
+  tar -xzf "$work/$name" -C "$work/tree" || { rm -rf "$work"; die "$name cannot be extracted: nothing installed."; }
+  # The archive holds bin/orkeon-repl, at its root or in one folder.
+  found="$(find "$work/tree" -maxdepth 3 -path '*/bin/orkeon-repl' -type f | head -n 1)"
+  [ -n "$found" ] || { rm -rf "$work"; die "$name holds no bin/orkeon-repl: nothing installed."; }
+  chmod 0755 "$found"
+  rm -rf "$RUNTIME_HOME/${RUNTIME_ID:?}"
+  mv "$(dirname "$(dirname "$found")")" "$RUNTIME_HOME/$RUNTIME_ID"
+  rm -rf "$work"
+  for other in "$RUNTIME_HOME"/*; do
+    if [ -d "$other" ] && [ "$other" != "$RUNTIME_HOME/$RUNTIME_ID" ]; then rm -rf "$other"; fi
+  done
+  echo "orkeon-code: Orkeon $RUNTIME_ID installed in $RUNTIME_HOME/$RUNTIME_ID (orkeon-code runtime remove deletes it)." >&2
+}
 
 # Moves the Orkeon checkout of ORKEON_SOURCE from <head> to the pin, when nothing of the user's is in the way: no
 # change to a tracked file, on main or detached, <head> an ancestor of the pin (fetched from origin's main when
@@ -128,8 +188,10 @@ runtime_found() { # <forced mode or empty>
     elif v="$(dpkg-query -W -f='${Version}' orkeon 2>/dev/null)" && [ -n "$v" ]; then echo "$v ($repl, the orkeon package)"
     else echo "unknown ($repl_bin)"
     fi
+  elif runtime_downloaded; then echo "$RUNTIME_ID (downloaded, $RUNTIME_HOME/$RUNTIME_ID)"
   elif command -v docker >/dev/null 2>&1; then echo "image $IMAGE (docker mode, not pulled)"
   elif [ -n "${ORKEON_SOURCE:-}" ]; then source_found
+  elif [ -n "$RUNTIME_ID" ]; then echo "none yet ($RUNTIME_ID is downloaded at the first start)"
   else echo "none (see docs/getting-started.md)"
   fi
 }
@@ -401,6 +463,41 @@ fi
 case "${XDG_CONFIG_HOME:-}" in /*) CONFIG_BASE="$XDG_CONFIG_HOME" ;; *) CONFIG_BASE="$HOME/.config" ;; esac
 HOME_SETTINGS="$CODE_HOME/appsettings.json"
 LEGACY_SETTINGS="$CONFIG_BASE/orkeon-code/appsettings.json"
+# Has the runtime downloaded, once: asked on the terminal, taken as agreed with ORKEON_CODE_RUNTIME_DOWNLOAD=1,
+# refused without a terminal (3) and on a no (DECLINED), like the folder trust.
+ensure_runtime() {
+  local answer
+  runtime_downloaded && return 0
+  if [ "${ORKEON_CODE_RUNTIME_DOWNLOAD:-}" != 1 ]; then
+    if [ ! -t 0 ]; then
+      echo "orkeon-code: no Orkeon runtime found, and there is no terminal to ask in before downloading one. Run" \
+        "'orkeon-code runtime install' once, or set ORKEON_CODE_RUNTIME_DOWNLOAD=1." >&2
+      exit 3
+    fi
+    {
+      echo "orkeon-code: no Orkeon runtime found on this machine."
+      echo "  Orkeon $RUNTIME_ID can be downloaded once (about 120 MB) into $RUNTIME_HOME."
+      printf '[y] download  [n] quit: '
+    } >&2
+    read -r answer || answer=""
+    case "$(lowered "$answer")" in
+      y|yes) ;;
+      *) echo "orkeon-code: nothing downloaded, nothing started." >&2; exit "$DECLINED" ;;
+    esac
+  fi
+  download_runtime
+}
+if [ "${1:-}" = runtime ]; then
+  case "${2:-}" in
+    install)
+      if runtime_downloaded; then echo "orkeon-code: Orkeon $RUNTIME_ID is already in $RUNTIME_HOME/$RUNTIME_ID."; exit 0; fi
+      download_runtime; exit 0 ;;
+    remove)
+      rm -rf "$RUNTIME_HOME"; echo "orkeon-code: no downloaded runtime left in $RUNTIME_HOME."; exit 0 ;;
+    *) die "usage: orkeon-code runtime install | remove" ;;
+  esac
+fi
+
 # What `orkeon init` writes and the REPL reads when no --settings is given (RunnerSettings.GetGlobalSettingsPath).
 RUNTIME_SETTINGS="$CONFIG_BASE/Orkeon/appsettings.json"
 
@@ -573,11 +670,19 @@ export Orkeon__Security__PermissionGate__Enabled="${Orkeon__Security__Permission
 
 # ── Mode ───────────────────────────────────────────────────────────────────
 if [ -z "$MODE" ]; then
-  if [ -n "${ORKEON_REPL:-}" ] || command -v orkeon-repl >/dev/null 2>&1; then MODE=tool
+  if [ -n "${ORKEON_REPL:-}" ] || command -v orkeon-repl >/dev/null 2>&1 || runtime_downloaded; then MODE=tool
   elif command -v docker >/dev/null 2>&1; then MODE=docker
   elif [ -n "${ORKEON_SOURCE:-}" ]; then MODE=source
+  elif [ -n "$RUNTIME_ID" ]; then MODE=tool
   else die "no Orkeon runtime found: install Docker, or the orkeon-repl tool, or set ORKEON_SOURCE (see docs/getting-started.md)."
   fi
+fi
+# The tool mode with no orkeon-repl of the user's runs the downloaded runtime, fetched now when it is missing: before
+# any state is made, so a refusal leaves nothing behind.
+OWN_RUNTIME=0
+if [ "$MODE" = tool ] && [ -z "${ORKEON_REPL:-}" ] && ! command -v orkeon-repl >/dev/null 2>&1 && [ -n "$RUNTIME_ID" ]; then
+  ensure_runtime
+  OWN_RUNTIME=1
 fi
 
 # ── State and sessions ─────────────────────────────────────────────────────
@@ -916,7 +1021,9 @@ case "$MODE" in
     ;;
   tool|source)
     if [ "$MODE" = tool ]; then
-      if [ -n "${ORKEON_REPL:-}" ]; then read -r -a REPL <<< "$ORKEON_REPL"; else REPL=(orkeon-repl); fi
+      if [ -n "${ORKEON_REPL:-}" ]; then read -r -a REPL <<< "$ORKEON_REPL"
+      elif [ "$OWN_RUNTIME" = 1 ]; then REPL=("$RUNTIME_REPL")
+      else REPL=(orkeon-repl); fi
       command -v "${REPL[0]}" >/dev/null 2>&1 || die "${REPL[0]} not found (see docs/getting-started.md, 'Tool mode')."
     else
       [ -n "${ORKEON_SOURCE:-}" ] && [ -d "$ORKEON_SOURCE/src/apps/Orkeon.ConsoleApp" ] \

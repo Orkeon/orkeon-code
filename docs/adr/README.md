@@ -16,6 +16,7 @@ How the code is laid out, how the prompts are written, how the dev steps and the
 | [0022](0022-host-path-spellings.md) | One canonical spelling for the host's paths, and the path lists |
 | [0026](0026-text-isolation.md) | Text apart from logic, by kind and by layer |
 | [0027](0027-decision-model-optimisations.md) | The decision model asked by Orkeon Code: prune, route, suggest |
+| [0028](0028-runtime-downloaded-at-first-start.md) | The runtime of the pin, downloaded at the first start |
 
 ## Moves of the pin
 

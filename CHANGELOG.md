@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — the launcher downloads the runtime when the machine has none
+
+- With neither `orkeon-repl`, Docker nor `ORKEON_SOURCE`, the bash launcher offers to download the Orkeon runtime
+  its package names in `.orkeon-runtime`, into `~/.orkeon-code/runtime/<id>/`, checked against the SHA-256 the
+  package carries, and runs it in tool mode ([ADR 0028](docs/adr/0028-runtime-downloaded-at-first-start.md)).
+- It asks once on the terminal; without one it exits with 3, unless `ORKEON_CODE_RUNTIME_DOWNLOAD=1` agreed.
+- `orkeon-code runtime install` and `orkeon-code runtime remove`; `--version` names a downloaded runtime.
+- No package names a runtime yet: the release workflow that builds the archives of the pin comes next, and
+  `orkeon-code.ps1` after it.
+
 ### Changed — the documentation describes the state at the pin, in one vocabulary
 
 - The Orkeon issue numbers leave the prose of the documentation, with the sentences that depended on a version of

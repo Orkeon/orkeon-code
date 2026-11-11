@@ -1,0 +1,10 @@
+# The Orkeon runtime the launcher downloads at the first start when the machine has none (ADR 0028).
+# id: the seven characters of the pin the archives were built from; url: the folder holding
+# orkeon-runtime-<id>-<platform>.tar.gz; then one SHA-256 per platform. The release workflow fills this file
+# before it publishes; in a checkout the id is empty, and nothing is downloaded.
+id=
+url=
+linux-x64=
+linux-arm64=
+osx-x64=
+osx-arm64=

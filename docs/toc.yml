@@ -62,3 +62,5 @@
       href: adr/0026-text-isolation.md
     - name: "ADR 0027: The decision model asked by Orkeon Code: prune, route, suggest"
       href: adr/0027-decision-model-optimisations.md
+    - name: "ADR 0028: The runtime of the pin, downloaded at the first start"
+      href: adr/0028-runtime-downloaded-at-first-start.md

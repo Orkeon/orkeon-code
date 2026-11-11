@@ -163,6 +163,25 @@ the pin (fetched from `origin main` when missing). It then says `orkeon-code: OR
 pin, or `ORKEON_SOURCE_FOLLOW_PIN=0`) it leaves the checkout alone, warns (`orkeon-code: warning: ORKEON_SOURCE is at
 <sha7>, the pin of .orkeon-version is 206b562: the commands were checked against the pin.`) and runs anyway.
 
+### No runtime on the machine: the one Orkeon Code downloads
+
+A package whose release published runtime archives names them in `.orkeon-runtime`: the seven characters of the pin
+they were built from, their address and one SHA-256 per platform (`linux-x64`, `linux-arm64`, `osx-x64`,
+`osx-arm64`). With neither `orkeon-repl`, Docker nor `ORKEON_SOURCE`, the bash launcher then offers to download that
+runtime:
+
+- It asks once, on the terminal, and downloads into `~/.orkeon-code/runtime/<id>/` (about 120 MB), nowhere else: no
+  `sudo`, nothing added to your `PATH`.
+- The archive is checked against the sum the package carries; a download that differs is deleted and nothing starts.
+- Without a terminal nothing is downloaded and the launcher exits with 3. `ORKEON_CODE_RUNTIME_DOWNLOAD=1` agrees in
+  advance, for a pipeline.
+- `orkeon-code runtime install` downloads without starting a session, `orkeon-code runtime remove` deletes the
+  folder.
+
+Once downloaded, this runtime runs in tool mode and comes before Docker; an `orkeon-repl` on your `PATH` still comes
+first. A newer package downloads its own runtime at its first start and removes the older one. In a checkout
+`.orkeon-runtime` names nothing: use the source mode. `orkeon-code.ps1` does not download a runtime.
+
 ## 4. First session
 
 ```bash

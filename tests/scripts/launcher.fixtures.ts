@@ -169,6 +169,8 @@ export interface LaunchOptions {
   tty?: string;
   /** The project folder's name under the scratch folder (`project` by default). */
   projectName?: string;
+  /** The folders of PATH after the stand-ins (`/usr/bin:/bin` by default): one without Docker, for instance. */
+  systemPath?: string;
 }
 
 /** Runs a copy of ./orkeon-code (or of ./orkeon-code.ps1, `shell: "pwsh"`, whose `args` are its own) with the given
@@ -182,7 +184,7 @@ export function launch(opts: LaunchOptions): Run {
   const record = join(base, "record");
   for (const dir of [root, bin, project, record, join(root, "scripts")]) mkdirSync(dir, { recursive: true });
   for (const [name, content] of Object.entries(opts.projectFiles ?? {})) writeFileSync(join(project, name), content);
-  for (const file of ["orkeon-code", "orkeon-code.ps1", ".orkeon-version", "package.json", "scripts/setup-fixture.sh", "scripts/session-start.ork.ts"]) {
+  for (const file of ["orkeon-code", "orkeon-code.ps1", ".orkeon-version", ".orkeon-runtime", "package.json", "scripts/setup-fixture.sh", "scripts/session-start.ork.ts"]) {
     copyFileSync(fileURLToPath(new URL(`../../${file}`, import.meta.url)), join(root, file));
   }
   if (!opts.install) mkdirSync(join(root, ".git"));
@@ -212,7 +214,7 @@ export function launch(opts: LaunchOptions): Run {
     encoding: "utf-8",
     input: opts.tty,
     env: {
-      PATH: `${bin}:/usr/bin:/bin`, HOME: base, ...(opts.bare ? {} : { ORKEON_CODE_STATE: state }), RECORD: record, ...opts.env,
+      PATH: `${bin}:${opts.systemPath ?? "/usr/bin:/bin"}`, HOME: base, ...(opts.bare ? {} : { ORKEON_CODE_STATE: state }), RECORD: record, ...opts.env,
     },
   });
   const recorded = (name: string) => { try { return readFileSync(join(record, name), "utf-8"); } catch { return ""; } };

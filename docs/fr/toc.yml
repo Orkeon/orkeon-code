@@ -63,3 +63,5 @@
       href: ../adr/0026-text-isolation.md
     - name: "ADR 0027 : Le modèle de décision interrogé par Orkeon Code : élaguer, router, suggérer (en anglais)"
       href: ../adr/0027-decision-model-optimisations.md
+    - name: "ADR 0028 : Le runtime de l'épingle, téléchargé au premier démarrage (en anglais)"
+      href: ../adr/0028-runtime-downloaded-at-first-start.md
