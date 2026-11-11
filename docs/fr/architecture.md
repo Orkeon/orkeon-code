@@ -17,8 +17,8 @@ Trois pages prolongent celle-ci : [Le déroulement d'un tour](turn.md) suit une 
 | Les crews (`src/crews/<name>/crew.ork.ts`) | Le moteur de script (Jint) et le bundler (esbuild) qui les exécutent |
 | Les prompts, l'analyse syntaxique, les décisions (`domain/`, `application/`) | Les outils (fichiers, shell, git, intelligence de code, web, session, mémoire) |
 | Le catalogue de permissions par mode, les règles de la session | La garde de permission qui confronte chaque appel d'outil du modèle (`act`) aux règles et au mode, et interroge l'opérateur |
-| | Le VFS : `/workspace`, `/output`, `/tmp`, `/crews` et `/cli-commands` en lecture seule |
-| | Les fournisseurs LLM, le streaming, le décompte des coûts et des tokens |
+|  | Le VFS : `/workspace`, `/output`, `/tmp`, `/crews` et `/cli-commands` en lecture seule |
+|  | Les fournisseurs LLM, le streaming, le décompte des coûts et des tokens |
 
 ## Les contraintes du runtime
 
@@ -78,6 +78,8 @@ sont celles du runtime (le `FileSystemRegistry` d'Orkeon, `ShellCommandTool` et 
 projet. Ce qui suit est le contrat sur lequel le code et les prompts s'appuient ; `src/shared/domain/vfs.ts` nomme le
 seul mount dans lequel ils travaillent.
 
+### Le contrat du runtime
+
 - **Les mounts viennent du lanceur.** `orkeon-code` et `orkeon-code.ps1` démarrent le REPL avec un
   `--mount <physique>:<virtuel>:<droits>` par racine : `/workspace` (le projet, en lecture-écriture), `/output`,
   `/tmp`, `/user-config` (lecture seule), `/sessions`, `/session-history` (lecture seule) et `/memory`. Le modèle ne
@@ -85,30 +87,36 @@ seul mount dans lequel ils travaillent.
   un outil fichier est refusé avec la liste des mounts, et les prompts écrivent un fichier du projet
   `/workspace/<path>`.
 - **Un chemin virtuel se résout par son plus long préfixe de mount**, comparé de façon ordinale : `/Workspace/x` ne
-  correspond à rien, sous Windows aussi. Un chemin relatif se résout sous la racine de travail de l'agent
-  (`/workspace`, ou le worktree d'un batch de `/dev-batches`). Après le mount, `/` et `\` sont tous deux acceptés par
-  les outils fichiers ; le reste est ajouté à la base physique du mount et normalisé par l'hôte, donc `\` est un
-  séparateur sous Windows et un simple caractère ailleurs. Un segment `.` ou `..` est refusé pour une racine de
-  travail et détecté comme une traversée ailleurs. Le contrôle de confinement ignore la casse sous Windows seulement.
-  Du physique au virtuel, un chemin sous un mount revient en `/<mount>/…` avec chaque `\` changé en `/`.
+  correspond à rien, sous Windows aussi.
+  - Un chemin relatif se résout sous la racine de travail de l'agent (`/workspace`, ou le worktree d'un batch de
+    `/dev-batches`).
+  - Après le mount, `/` et `\` sont tous deux acceptés par les outils fichiers.
+  - Le reste est ajouté à la base physique du mount et normalisé par l'hôte, donc `\` est un séparateur sous Windows
+    et un simple caractère ailleurs.
+  - Un segment `.` ou `..` est refusé pour une racine de travail et détecté comme une traversée ailleurs.
+  - Le contrôle de confinement ignore la casse sous Windows seulement.
+  - Du physique au virtuel, un chemin sous un mount revient en `/<mount>/…` avec chaque `\` changé en `/`.
 - **Le shell ne lance aucun shell sous Windows.** Sous Linux et macOS, `shell_command` alimente un `sh -s` par
-  exécution, chaque mot cité pour que le shell n'étende rien. Sous Windows chaque commande est son propre processus
-  dans un Job Object, lancé avec ses arguments cités un à un : l'exécutable est cherché sur le `PATH` seulement,
-  jamais dans le dossier de travail, en `.exe` puis `.com` ; un `.bat` ou `.cmd` (donc `npm`, `npx`) ne tourne qu'en
-  session non confinée, via `cmd.exe` ; un builtin de cmd (`echo`, `dir`, `type`, `cd`, `copy`, `del`, `mkdir`,
-  `set`...) passe par `cmd.exe /d /v:off /s /c` avec chaque argument échappé, et `%` refusé. PowerShell n'intervient
-  jamais.
+  exécution, chaque mot cité pour que le shell n'étende rien.
+  - Sous Windows chaque commande est son propre processus dans un Job Object, lancé avec ses arguments cités un à un
+    : l'exécutable est cherché sur le `PATH` seulement, jamais dans le dossier de travail, en `.exe` puis `.com`.
+  - Un `.bat` ou `.cmd` (donc `npm`, `npx`) ne tourne qu'en session non confinée, via `cmd.exe`.
+  - Un builtin de cmd (`echo`, `dir`, `type`, `cd`, `copy`, `del`, `mkdir`, `set`...) passe par `cmd.exe /d /v:off
+    /s /c` avec chaque argument échappé, et `%` refusé.
+  - PowerShell n'intervient jamais.
 - **Les opérateurs sont refusés partout** : `|`, `;`, `&&`, `>`, `$(`, les backticks et les sauts de ligne font
   échouer l'appel avant toute exécution, donc aucune commande d'un crew ne pipe ni n'enchaîne. L'allowlist par défaut
   est `ls`, `cat`, `pwd`, `which`, `grep`, `wc`, `echo`, un `git` en lecture seule, et `dir`, `type`, `where` ; sous
   Windows les noms POSIX n'existent que s'ils sont installés et sur le `PATH`. `node`, `dotnet`, `npm`, `find` et le
   `git` qui écrit demandent `Orkeon:Tools:Shell:AllowInterpreters`, que les settings d'exemple activent.
-- **Le shell réécrit les chemins d'une ligne de commande.** Un argument égal à un mount ou commençant par `<mount>/`,
-  aussi après un `clé=`, devient son chemin physique avant le lancement du processus, et demande Read pour une
-  commande en lecture seule, tous les droits pour toute autre. Seul `/` est accepté ici : `/workspace\src` est passé
-  tel quel. Stdout et stderr sont réécrits du physique au virtuel, `\` changé en `/` sur le reste du chemin, par une
-  comparaison ordinale : un outil qui change la casse d'un chemin (`c:\Proj\…`) échappe à la réécriture et le modèle
-  lit un chemin disque ; un chemin relatif qu'une commande imprime (`src\a.ts` depuis `dir`) garde ses `\`.
+- **Le shell réécrit les chemins d'une ligne de commande.** Un argument égal à un mount ou commençant par
+  `<mount>/`, aussi après un `clé=`, devient son chemin physique avant le lancement du processus, et demande Read
+  pour une commande en lecture seule, tous les droits pour toute autre.
+  - Seul `/` est accepté ici : `/workspace\src` est passé tel quel.
+  - Stdout et stderr sont réécrits du physique au virtuel, `\` changé en `/` sur le reste du chemin, par une
+    comparaison ordinale : un outil qui change la casse d'un chemin (`c:\Proj\…`) échappe à la réécriture et le
+    modèle lit un chemin disque.
+  - Un chemin relatif qu'une commande imprime (`src\a.ts` depuis `dir`) garde ses `\`.
 - **Le confinement suit la plateforme** (`Orkeon:Tools:Shell:Confinement`, `Auto`) : bubblewrap sous Linux, où le
   processus voit les mounts à leurs chemins virtuels ; Seatbelt sous macOS et un AppContainer sous Windows 10 et
   suivants, où il travaille sur des chemins physiques. Sous l'AppContainer, `TEMP`, `TMP` et `HOME` pointent dans le
@@ -120,6 +128,8 @@ seul mount dans lequel ils travaillent.
   Lancé en natif, `/status` affiche la plateforme comme indisponible quand `node` est absent ou non autorisé, et une
   commande qu'un crew compose avec un opérateur ou un nom POSIX non installé échoue avant de tourner.
 
+### La couche propre à Orkeon Code
+
 Ce qui suit est la couche propre de ce projet sur ce contrat (`src/shared/domain/host-layout.ts`, `host-paths.ts`,
 `agent-policy/path-rules.ts`, `src/shared/application/host-context.ts` ; [ADR 0022](../adr/0022-host-path-spellings.md),
 en anglais) : quoi que le runtime réécrive, les écritures propres du disque reviennent au code et au modèle dans ce
@@ -130,46 +140,55 @@ qu'un programme imprime, dans ce que l'utilisateur tape et dans ce que le modèl
   `C:/proj/src/a.ts`, `c:\Proj\…` (la casse d'un lecteur est ignorée), `\\?\C:\…`, un partage UNC
   (`\\server\share\…`, `//server/share/…`), `/mnt/<d>/…` sous WSL, `\\wsl$\<distro>\…` et
   `\\wsl.localhost\<distro>\…` pour la distribution où tourne la session, et un `\` après le mount quand l'hôte
-  n'est pas posix. Une base se compare segment par segment : `/workspaces/x` ne correspond jamais à `/workspace`,
-  `mon repertoireX` jamais à `mon repertoire`. Laissés tels quels : un chemin relatif, un `.` ou `..`, un chemin sous
-  aucun mount ou d'une autre distribution, `/mnt/c` sur un hôte posix ou Windows, `C:` sur un hôte posix, `%VAR%`,
-  `~`. Dans un texte libre, un chemin court jusqu'au guillemet fermant après un guillemet ouvrant, sinon jusqu'au
-  premier délimiteur (un blanc, un guillemet, une parenthèse, `,` `:` `;` `|`, un point qui termine une phrase), un
-  chemin Windows continuant par-delà un espace tant que le mot suivant porte encore un `\`. Sur un hôte posix sans
-  base Windows, chaque fonction est l'identité.
+  n'est pas posix.
+  - Une base se compare segment par segment : `/workspaces/x` ne correspond jamais à `/workspace`, `mon repertoireX`
+    jamais à `mon repertoire`.
+  - Laissés tels quels : un chemin relatif, un `.` ou `..`, un chemin sous aucun mount ou d'une autre distribution,
+    `/mnt/c` sur un hôte posix ou Windows, `C:` sur un hôte posix, `%VAR%`, `~`.
+  - Dans un texte libre, un chemin court jusqu'au guillemet fermant après un guillemet ouvrant, sinon jusqu'au
+    premier délimiteur (un blanc, un guillemet, une parenthèse, `,` `:` `;` `|`, un point qui termine une phrase),
+    un chemin Windows continuant par-delà un espace tant que le mot suivant porte encore un `\`.
+  - Sur un hôte posix sans base Windows, chaque fonction est l'identité.
 - **L'hôte vient de `/user-config/launch.json`**, que les deux lanceurs écrivent à chaque démarrage à côté de
   `config.json` : `version` (1), `flavour` (`posix`, `wsl` ou `windows`), `mode`, sous WSL `wsl.distro` et
   `wsl.automountRoot` (`WSL_DISTRO_NAME` ou le partage de `wslpath -w /` ; `wslpath -u 'C:\'` ou le `[automount]
   root=` de `/etc/wsl.conf`, sinon `/mnt`), et `mounts`, chacun avec la chaîne même donnée à `--mount` comme `posix`
   et, sous WSL, son écriture Windows par `wslpath -w` (`null` sans `wslpath`, avec un avertissement : le code dérive
-  alors lui-même `D:\x` de `/mnt/d/x`). Le mode docker écrit un hôte posix sans mount : l'hôte y est caché à dessein.
-  Absent, malformé ou d'une autre version, le fichier donne l'identité, et la ligne `host: paths` de `/doctor` le dit.
-  La disposition et les listes de chemins sont lues une fois par exécution, par un module d'infrastructure que chaque
-  point d'entrée lie aux globaux du runtime ; un changement s'applique au démarrage suivant, et un adaptateur chargé
-  seul (un test) trouve l'identité.
+  alors lui-même `D:\x` de `/mnt/d/x`).
+  - Le mode docker écrit un hôte posix sans mount : l'hôte y est caché à dessein.
+  - Absent, malformé ou d'une autre version, le fichier donne l'identité, et la ligne `host: paths` de `/doctor` le
+    dit.
+  - La disposition et les listes de chemins sont lues une fois par exécution, par un module d'infrastructure que
+    chaque point d'entrée lie aux globaux du runtime.
+  - Un changement s'applique au démarrage suivant, et un adaptateur chargé seul (un test) trouve l'identité.
 - **Où les écritures sont ramenées.** En entrée, avant le runtime : les adaptateurs fichiers, shell et jobs shell
-  canonisent le chemin ou les mots de la commande qu'on leur donne ; le prompt tapé est canonisé, ses blocs de code
-  conservés ; et `hostCallbacks` (`src/shared/application/dev/tool-callbacks.ts`), la couche la plus externe des
-  callbacks de chaque act (`createLlm` les enveloppe, avec ou sans callbacks propres au crew), réécrit dans un appel du
-  modèle `path`, `root_path`, `working_directory`, `paths`, le `path` de chaque opération d'un `edit_batch` et les
-  mots d'un `shell_command`, en un `{ input }` que la garde du runtime juge ensuite ; le contenu d'un fichier, les
-  chaînes d'une édition et un motif ne sont jamais touchés. En sortie : stdout et stderr, la racine qu'imprime un
-  `git rev-parse` (`C:/…` par git pour Windows), le message d'un appel fichier échoué, et le texte que le modèle lit de
-  chaque résultat d'outil (`{ context }` le remplace quand une écriture a changé). Les callbacks internes (ceux d'un
-  crew de dev, la trace, les hooks post-outil) voient l'appel canonique et le résultat canonique.
+  canonisent le chemin ou les mots de la commande qu'on leur donne.
+  - Le prompt tapé est canonisé, ses blocs de code conservés.
+  - Et `hostCallbacks` (`src/shared/application/dev/tool-callbacks.ts`), la couche la plus externe des callbacks de
+    chaque act (`createLlm` les enveloppe, avec ou sans callbacks propres au crew), réécrit dans un appel du modèle
+    `path`, `root_path`, `working_directory`, `paths`, le `path` de chaque opération d'un `edit_batch` et les mots
+    d'un `shell_command`, en un `{ input }` que la garde du runtime juge ensuite.
+  - Le contenu d'un fichier, les chaînes d'une édition et un motif ne sont jamais touchés.
+  - En sortie : stdout et stderr, la racine qu'imprime un `git rev-parse` (`C:/…` par git pour Windows), le message
+    d'un appel fichier échoué, et le texte que le modèle lit de chaque résultat d'outil (`{ context }` le remplace
+    quand une écriture a changé).
+  - Les callbacks internes (ceux d'un crew de dev, la trace, les hooks post-outil) voient l'appel canonique et le
+    résultat canonique.
 - **Orkeon Code n'écrit jamais un chemin physique pour le runtime.** Le runtime vérifie chaque mot d'une commande
-  préfixé d'un mount contre les droits du VFS avant de l'écrire pour le processus, et demande tous les droits pour une
-  commande hors de son allowlist en lecture seule : un `C:\…` écrit par ce projet contournerait ce contrôle. Sous
-  Windows natif le runtime écrit `/workspace/…` pour le processus. Sous WSL, un programme Windows (`cmd.exe`, un
-  `dotnet.exe` Windows, joignable sans confinement seulement) reçoit `/mnt/c/…` tant que le runtime ne connaît pas
-  l'écriture Windows d'un mount, une issue laissée à Orkeon ; ce qu'il imprime revient canonique dans tous les cas.
+  préfixé d'un mount contre les droits du VFS avant de l'écrire pour le processus, et demande tous les droits pour
+  une commande hors de son allowlist en lecture seule : un `C:\…` écrit par ce projet contournerait ce contrôle.
+  - Sous Windows natif le runtime écrit `/workspace/…` pour le processus.
+  - Sous WSL, un programme Windows (`cmd.exe`, un `dotnet.exe` Windows, joignable sans confinement seulement) reçoit
+    `/mnt/c/…` tant que le runtime ne connaît pas l'écriture Windows d'un mount, une issue laissée à Orkeon.
+  - Ce qu'il imprime revient canonique dans tous les cas.
 - **Les listes de chemins** `paths.deny` et `paths.allow` ([permissions](permissions.md#règles)) se comparent sur
   l'écriture canonique, donc une écriture physique, ou une autre casse sur un disque Windows et sous un lecteur de
   WSL, atteint la même règle : la garde reçoit des règles deny sur l'écriture canonique, listées par `/permissions`,
-  et les callbacks refusent chaque appel que les listes couvrent, dans n'importe quelle écriture, avant les callbacks
-  propres du crew. Des règles deny intégrées ferment tout le mount `/user-config` aux outils du modèle, les bases
-  physiques de `launch.json` et les réglages de l'utilisateur dedans ; le code le lit par le port Files, que la garde
-  ne voit pas.
+  et les callbacks refusent chaque appel que les listes couvrent, dans n'importe quelle écriture, avant les
+  callbacks propres du crew.
+  - Des règles deny intégrées ferment tout le mount `/user-config` aux outils du modèle, les bases physiques de
+    `launch.json` et les réglages de l'utilisateur dedans.
+  - Le code le lit par le port Files, que la garde ne voit pas.
 - **La garde juge l'entrée canonique.** `onToolCall` tourne avant la garde (Orkeon #303, ADR 0023) : un appel du
   modèle écrit `C:\…` sur un outil à chemin est d'abord converti, et la garde juge une fois l'entrée canonique. Une
   commande shell est jugée par la garde sur son texte et par les callbacks sur ses chemins canoniques ; chaque
@@ -185,6 +204,8 @@ qu'un programme imprime, dans ce que l'utilisateur tape et dans ce que le modèl
 | infrastructure | `src/shared/infrastructure/` | `globals.ts`, les adaptateurs Orkeon des ports, `wiring.ts` | tout ce qui est plus intérieur |
 | cas d'usage des commandes | `src/commands/_lib/` | Les cas d'usage dans un dossier par famille de commandes (`dev/`, `git/`, `settings/`...), `run<Name>(tokens, deps)` → une vue au-dessus des ports qu'on lui remet ; à la racine, les utilitaires que les familles partagent | tout sauf `shared/infrastructure/` |
 | points d'entrée | `src/commands/<group>/*.cmd.ts`, `src/crews/<name>/crew.ork.ts` | Analysent l'entrée, câblent les adaptateurs, appellent un cas d'usage, rendent | tout |
+
+### Ce que contrôle le test d'architecture
 
 `tests/repository/architecture.test.ts` analyse chaque import de `src/` et des tests qui en sont le miroir sous `tests/`
 (statique, réexport, de type seul et dynamique) et échoue sur tout import qui enfreint l'une de ces règles ; il n'y a
@@ -244,7 +265,7 @@ src/
 │   │                  git/ (branch, commit, diff, review), memory/ (memory, memory-admit), session/ (export,
 │   │                  resume, tasks), settings/ (advisor, agents, config, hooks, mode, model, permissions,
 │   │                  session-config: the toggle commands, skills), speech/ (say, transcribe, voice),
-│   │                  status/ (cache, doctor, meta: version; messages: release notes, status). At the root, what
+│   │                  status/ (cache, doctor, meta: version ; messages: release notes, status). At the root, what
 │   │                  several families share: args.ts (arguments), dispatch.ts (crew launch, completion
 │   │                  line, main-loop launch), dev-step.ts, effort.ts, pr-context.ts, view.ts (CommandView,
 │   │                  showView)
@@ -265,7 +286,7 @@ src/
                        runtime-tools.ts (the tool inputs), wiring.ts
 tests/
 ├── crews/             the tests of src/, mirroring it: src/<path>/<m>.ts is tested by tests/<path>/<m>.test.ts,
-├── shared/            its <m>.fixtures.ts and <m>.assertions.ts beside it; src/ holds runtime code only
+├── shared/            its <m>.fixtures.ts and <m>.assertions.ts beside it ; src/ holds runtime code only
 ├── commands/
 ├── support/           what several test files share, never imported by runtime code:
 │   ├── doubles/       the test doubles (Fake*), one per port
@@ -279,6 +300,8 @@ tests/
 └── config/            the example settings
 mcp/whisper/           the speech MCP server, Python run by uv: whisper_mcp.py, tests/, samples/, smoke.py
 ```
+
+### Où vivent les tests
 
 Les tests de `src/` en sont le miroir sous `tests/` : `src/<path>/<m>.ts` est testé par `tests/<path>/<m>.test.ts`,
 ses `.fixtures.ts` et `.assertions.ts` à côté du test ; les points d'entrée ne contiennent aucune logique qui vaille un test unitaire et sont couverts par la vérification de bundle et le smoke du
@@ -308,7 +331,7 @@ rend le texte, ou le message d'échec propre à l'outil sans l'enrobage du runti
 | `Shell` | Les commandes shell dans `/workspace` (`shell_command`) | `shell.ts` | `fake-shell.ts` |
 | `ShellJobs` | Une commande longue lancée détachée, son état, la fin de son journal, et une attente entre deux regards (`shell_command` `start_job`, `job_status`, `job_tail`) | `shell-jobs.ts` | `fake-shell-jobs.ts` |
 | `SharedMemory` | L'index RAG de la [mémoire partagée](shared-memory.md) : chercher dans une collection, indexer avec élagage (l'espace `rag`, sinon `rag_search`, `rag_ingest`) | `shared-memory.ts` | `fake-shared-memory.ts` |
-| `DecisionModel` | Le modèle de décision du host, auquel on pose des questions typées sur un état : une option parmi des options décrites, un niveau sur une échelle, la probabilité d'un oui ; pas de modèle, un appel en échec et une réponse illisible valent tous `null`, et l'appelant fait alors ce qu'il faisait sans modèle (`system_one_decide`, enregistré quand les réglages configurent un fournisseur de décision, quel qu'il soit) | `decision-model.ts` | `fake-decision-model.ts` |
+| `DecisionModel` | Le modèle de décision du host, auquel on pose des questions typées sur un état : une option parmi des options décrites, un niveau sur une échelle, la probabilité d'un oui | `decision-model.ts` | `fake-decision-model.ts` |
 | `ChildRuntime` | Les enfants d'une exécution de crew : en lancer un en arrière-plan, lister, arrêter, lire ce qu'il a laissé (`ctx.spawnBackground`, `instances()`/`stop()` du crew, sa mémoire) | `child-agents.ts` | `fake-child-runtime.ts` |
 | `HumanInput` | Une question à la personne : un choix, un texte, une sélection multiple ; personne ne répondant est une réponse en soi (`human_input`) | `human-input.ts` | `fake-human-input.ts` |
 | `Chooser` | Un panneau dans la console : une option parmi plusieurs, avec un réglage facultatif sur les flèches latérales ; `interactive` dit si un panneau peut s'ouvrir (`ctx.prompt`, `ctx.interactive`) | `chooser.ts` | `fake-chooser.ts` |
@@ -332,24 +355,36 @@ rend le texte, ou le message d'échec propre à l'outil sans l'enrobage du runti
 | `Clock` | L'heure courante (`ports/clock.ts`), la seule lecture de l'horloge hors de `shared/infrastructure/` | `wiring.ts` (`orkeonClock()`) | `fake-clock.ts` |
 | `Logger` | Le log de la commande ou du crew | aucun : `ctx.log` est passé tel quel | `fake-logger.ts` |
 
-**Câblage.** `wiring.ts` lie les adaptateurs qui lisent la globale `tools` (`orkeonShell()`, `orkeonFiles()`,
-`orkeonProgress()`, `orkeonTelemetry()`, `orkeonMemoryStore()`, `orkeonCodeIndex()`, `orkeonDecisionModel()`,
-`orkeonToolCalls()`, les appels
-d'un crew par un nom que sa commande a trouvé, et `orkeonToolCatalogue(ctx.services)`, qu'un handler construit,
-puisque les noms enregistrés viennent de son contexte) et les
-services bâtis sur eux (`orkeonConfigStore()`, `orkeonSessionIo()`). Les adaptateurs de ce que le contexte transporte
-sont construits par le point d'entrée à partir du contexte qu'il reçoit : `createLlm(ctx.llm)`, `createRunState(ctx)`,
-`createCrewMemory(ctx)`, `createCrewHost(ctx.services)` et `createPermissionRules(ctx.services)` (une commande async
-remet les deux derniers à `launchCrew` ou `launchMainLoop` avec son log). Chaque adaptateur prend l'objet du runtime en
-paramètre, si bien que son propre test l'exécute au-dessus d'un substitut : `fake-tools.ts` (la globale `tools`),
-`fake-llm-facade.ts` (`ctx.llm`), `fake-agent-context.ts` (`ctx.state`, `ctx.memory`), `fake-script-host.ts` (le
-service script-host), `fake-permissions-facade.ts` (le service permissions).
-`orkeonClock()` est l'horloge du code exécuté : un point d'entrée la remet à ce qui date un enregistrement ou
-mesure une attente, là où un test remet une `FakeClock`.
-`orkeonCompactionDeps(ctx, ports, clock)` rassemble les ports du pipeline de compaction, pour `/compact` comme pour la
-compaction automatique de la boucle principale.
+Ce que le tableau laisse de côté :
 
-**Les services** (`src/shared/application/`) sont bâtis au-dessus des ports et partagés par les commandes et les
+- **`DecisionModel`**, à quoi il sert :
+  - Pas de modèle, un appel en échec et une réponse illisible valent tous `null`, et l'appelant fait alors ce qu'il
+    faisait sans modèle (`system_one_decide`, enregistré quand les réglages configurent un fournisseur de décision,
+    quel qu'il soit).
+
+### Câblage
+
+- `wiring.ts` lie les adaptateurs qui lisent la globale `tools` (`orkeonShell()`, `orkeonFiles()`,
+  `orkeonProgress()`, `orkeonTelemetry()`, `orkeonMemoryStore()`, `orkeonCodeIndex()`, `orkeonDecisionModel()`,
+  `orkeonToolCalls()`, les appels d'un crew par un nom que sa commande a trouvé, et
+  `orkeonToolCatalogue(ctx.services)`, qu'un handler construit, puisque les noms enregistrés viennent de son
+  contexte) et les services bâtis sur eux (`orkeonConfigStore()`, `orkeonSessionIo()`).
+- Les adaptateurs de ce que le contexte transporte sont construits par le point d'entrée à partir du contexte qu'il
+  reçoit : `createLlm(ctx.llm)`, `createRunState(ctx)`, `createCrewMemory(ctx)`, `createCrewHost(ctx.services)` et
+  `createPermissionRules(ctx.services)` (une commande async remet les deux derniers à `launchCrew` ou
+  `launchMainLoop` avec son log).
+- Chaque adaptateur prend l'objet du runtime en paramètre, si bien que son propre test l'exécute au-dessus d'un
+  substitut : `fake-tools.ts` (la globale `tools`), `fake-llm-facade.ts` (`ctx.llm`), `fake-agent-context.ts`
+  (`ctx.state`, `ctx.memory`), `fake-script-host.ts` (le service script-host), `fake-permissions-facade.ts` (le
+  service permissions).
+- `orkeonClock()` est l'horloge du code exécuté : un point d'entrée la remet à ce qui date un enregistrement ou
+  mesure une attente, là où un test remet une `FakeClock`.
+- `orkeonCompactionDeps(ctx, ports, clock)` rassemble les ports du pipeline de compaction, pour `/compact` comme
+  pour la compaction automatique de la boucle principale.
+
+### Les services
+
+Les services (`src/shared/application/`) sont bâtis au-dessus des ports et partagés par les commandes et les
 crews : `session-io.ts` (le tampon plus le mode de permission dans lequel une session tourne), `config-store.ts`
 (`/config` : le fichier de settings surchargé par le sac d'état), `session-state.ts` (des valeurs JSON dans le sac
 d'état), `json-file.ts` (des fichiers JSON, protégés contre un contenu invalide), `attached-skills.ts` (le registre de
@@ -357,14 +392,18 @@ d'état), `json-file.ts` (des fichiers JSON, protégés contre un contenu invali
 avec la garde de l'hôte), `extra-tools.ts` (le réglage `tools.extra` confronté aux outils enregistrés) et
 `compaction/` (le pipeline de compaction).
 
-**Les jeux de règles** (`src/shared/domain/agent-policy/rule-sets.ts`) sont des règles deny qu'Orkeon Code livre comme
-données, dans la syntaxe de `/permissions` : `git-readonly`, `inline-interpreters`, `read-noise`, `secrets`,
-`state-files`. `src/shared/domain/dev/step-rules.ts` dit quelle étape dev détient quels jeux. La commande de l'étape
-vérifie que la garde de l'hôte est active, puis `syncStepRules` (`permission-rules.ts`) remet à la garde les règles
-de la session suivies de celles de l'étape, sans ranger ces dernières. Le prochain tour `/assistant` ne lui remet que
-les règles de la session. La fonction pure `matchesRule`, à côté de l'analyseur de règles, reproduit la façon dont la
-garde lit une règle. Les tests s'en servent, et s'en serviront plus tard les outils qu'Orkeon Code enveloppe autour
-d'un outil intégré, dont la garde ne voit pas les propres appels.
+### Les jeux de règles
+
+- Les jeux de règles (`src/shared/domain/agent-policy/rule-sets.ts`) sont des règles deny qu'Orkeon Code livre comme
+  données, dans la syntaxe de `/permissions` : `git-readonly`, `inline-interpreters`, `read-noise`, `secrets`,
+  `state-files`.
+- `src/shared/domain/dev/step-rules.ts` dit quelle étape dev détient quels jeux.
+- La commande de l'étape vérifie que la garde de l'hôte est active, puis `syncStepRules` (`permission-rules.ts`)
+  remet à la garde les règles de la session suivies de celles de l'étape, sans ranger ces dernières.
+- Le prochain tour `/assistant` ne lui remet que les règles de la session.
+- La fonction pure `matchesRule`, à côté de l'analyseur de règles, reproduit la façon dont la garde lit une règle.
+- Les tests s'en servent, et s'en serviront plus tard les outils qu'Orkeon Code enveloppe autour d'un outil intégré,
+  dont la garde ne voit pas les propres appels.
 
 ## Points d'entrée
 
@@ -389,14 +428,17 @@ defineCommand({
 });
 ```
 
-Un cas d'usage dont la commande écrit sa propre sortie (`/diff`) la place dans les `lines` de la vue et, pour un diff
-unifié, dans son `diff`, un bloc typé que la console colore : les deux sont écrits avant le tableau et le message. Une
-commande qui propose un choix prend le port `Chooser` : sans argument, dans une console interactive, elle ouvre un
-panneau (`/model`, `/effort`, `/output-style`, `/mode`, `/theme`) et, sur un rejeu ou une console simple, garde son
-comportement en texte. Une commande async lance un crew à la place : `dispatch` rend
-`launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "<crew>", input)` (le ticket, de
-`_lib/dispatch.ts`) et `completed` imprime le résultat avec `writeCompleted`, sous forme d'un bloc markdown que la console
-rend, un échec restant une ligne simple ; ce qu'un programme a écrit sans modèle (`/transcribe`, `/say`, `/memory admit`) passe par `writePlainCompleted`, en ligne.
+- Un cas d'usage dont la commande écrit sa propre sortie (`/diff`) la place dans les `lines` de la vue et, pour un
+  diff unifié, dans son `diff`, un bloc typé que la console colore : les deux sont écrits avant le tableau et le
+  message.
+- Une commande qui propose un choix prend le port `Chooser` : sans argument, dans une console interactive, elle
+  ouvre un panneau (`/model`, `/effort`, `/output-style`, `/mode`, `/theme`) et, sur un rejeu ou une console simple,
+  garde son comportement en texte.
+- Une commande async lance un crew à la place : `dispatch` rend `launchCrew({ crews: createCrewHost(ctx.services),
+  log: ctx.log }, "<crew>", input)` (le ticket, de `_lib/dispatch.ts`) et `completed` imprime le résultat avec
+  `writeCompleted`, sous forme d'un bloc markdown que la console rend, un échec restant une ligne simple.
+- Ce qu'un programme a écrit sans modèle (`/transcribe`, `/say`, `/memory admit`) passe par `writePlainCompleted`,
+  en ligne.
 
 **Un crew** construit ses agents, câble les adaptateurs à la portée module, construit ceux liés au contexte dans le
 corps de l'agent, et appelle son cas d'usage `application/run-<crew>.ts`, qui prend son entrée et ses ports.
@@ -424,13 +466,13 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 
 ```text
 /assistant fix the parser
-  └─ assistant.cmd.ts         defineAsyncCommand: parses the "mode:" prefix; launchMainLoop resolves the
+  └─ assistant.cmd.ts         defineAsyncCommand: parses the "mode:" prefix ; launchMainLoop resolves the
        │                      session's mode, checks tools.extra, hands the rules to the gate
        └─ script-host.runCrewAsync("main-loop", { prompt, permissionMode, permissionModeVia,
                                                   permissionRules, extraTools, prelude?, epilogue? })
             └─ /crews/main-loop/crew.ork.ts   (the first --crews-dir holding <name>/crew.ork.ts)
                  └─ agent .body(): one turn of the loop (below)
-       ◀─ ticket; the REPL prints the result when the crew completes
+       ◀─ ticket ; the REPL prints the result when the crew completes
 ```
 
 - Une **commande synchrone** (`defineCommand`) répond aussitôt : settings, état de session, vues git.
@@ -456,12 +498,44 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 | `dev-verify` | séquentiel, la porte et la capture dans `dev-verifier`, l'audit dans un enfant d'arrière-plan `dev-auditor` (sept outils de lecture en `plan`, `run_validation`, `memory_recall`) | `/dev-batches <code> F<n> --audit` (`--gate-only` saute le LLM) | La porte, la capture, un audit en lecture seule, le fichier de verdict |
 | `dev-learn` | séquentiel, sans outil, un extract par axe | `/dev-learn` (`--list` saute le LLM) | Les écarts de verdict qui reviennent, changés en propositions, `PROPOSALS.md` |
 | `dev-plan` | séquentiel, un extract dans `dev-planner`, la revue dans un enfant d'arrière-plan `dev-reviewer` (dix outils de lecture en `plan`) | `/dev-plan` | Porte des questions Blocking, inventaire par l'index, plan et fiches écrits par le code, une revue en lecture seule |
-| `agent-run` | séquentiel, un act d'une charte intégrée (`dev-reviewer`, `dev-auditor`) | `/tasks send`, `/tasks repair` | Un nouveau run d'un enfant fini, son brief portant le rapport précédent et le message de l'opérateur ; il tourne sous l'étape du run de l'instance (un relecteur de `/dev-spec` sous les jeux de règles, les hooks et le budget de cette étape), sinon sous l'étape de la charte, avec le budget de cette étape et aucun enfant à lui |
+| `agent-run` | séquentiel, un act d'une charte intégrée (`dev-reviewer`, `dev-auditor`) | `/tasks send`, `/tasks repair` | Un nouveau run d'un enfant fini, son brief portant le rapport précédent et le message de l'opérateur |
 | `dev-spec` | séquentiel, des extracts, la revue dans un enfant d'arrière-plan `dev-reviewer` (dix outils de lecture en `plan`) | `/dev-spec` | Spécification métier écrite par le code depuis le JSON, ses questions posées une à une par `human_input`, une revue en lecture seule |
 | `dev-change` | séquentiel, des extracts, la revue dans un enfant d'arrière-plan `dev-reviewer` (dix outils de lecture en `plan`) | `/dev-spec <code> <kind>` | Bug reproduit ou coût mesuré en exécutant, fiche de changement écrite par le code, questions par `human_input`, une revue |
-| `dev-implement` | séquentiel, un agent, deux rôles en `acceptEdits` (cinq outils de lecture, six d'écriture - `file_write` pour un nouveau fichier, les éditeurs de nœuds et `edit_batch` pour un fichier existant ; la règle d'édition épelle un `edit_batch`, sa liste `operations` et `validate`, et le refus par la garde d'un lot sans opérations le répète ; le runtime publie aussi le schéma des outils de nœud depuis Orkeon #210 ; chaque `node_replace` d'un lot porte le hash que `node_read` a donné pour ce nœud précis, jamais un hash deviné, un hash factice ayant fait refuser un lot entier par le runtime dans un run live - `run_tests`, `run_build`, `memory_recall`) | `/dev-batches <code> F<n>` (`--close` : la clôture seule) | Chaque cycle (les étapes d'un même fichier de test) rouge puis vert, vérifié par le code, son coût mesuré ; une correction ajoutée en étape ; le build et la suite (ensuite les projets touchés) en jobs ; puis l'audit (le crew `dev-verify`) et, sur VALID, le commit et les marques « fait » ; une hypothèse est consignée une fois par lot, jamais une que la fiche porte déjà ; un chemin relatif qu'un rôle passe à un outil est résolu sous le checkout avant l'outil |
-| `dev-batches` | séquentiel, un agent avec les outils de lecture du relecteur, sa revue en ligne (la revue du prochain lot se voit offrir cinq d'entre eux, `file_read`, `node_outline`, `node_read`, `codebase_search` et `glob`, pour huit tours : son brief porte la fiche, ce que les lots clos ont changé et le plan) ; avec `--concurrency` de 2 à 4, un agent de lot par lot d'une vague (`batch-F<n>`, les outils d'implémentation et les outils de lecture de l'auditeur, `run_tests`, `run_build`, `run_validation`, `memory_recall`), chacun sous la racine de travail de son worktree | `/dev-batches` (retapée après un arrêt : l'exécution reprend ; chaque saut de sa chaîne garde la profondeur de l'instance pour laquelle il tourne, `chain: "continue"`, si bien qu'un plan de n'importe quelle longueur se clôt en une commande, Orkeon #221) | Désigne le lot suivant d'un plan dans l'ordre de ses dépendances, après une revue de sa fiche une fois ses dépendances closes ; consigne chaque lot dans `batches-state.md` ; en séquentiel, le `completed` de la commande enchaîne `/dev-batches`, chaque clôture commitée sans push ; en parallèle, le pilote amorce chaque worktree, lance à la fois les agents de lot de la vague (chacun exécute les étapes, l'audit en ligne et la clôture dans son code, borné par ses propres appels d'outils), puis fusionne en avance rapide chaque lot VALID dans l'ordre des ids, en rapatrie les fichiers et retire son worktree ; un push et une pull request à la clôture du plan ; une revue qui ne peut pas tourner (aucun relecteur sur l'hôte, une réponse illisible deux fois, un appel refusé) arrête le lot avant son lancement, consigné `BLOCKED — review not run (<raison>)`, et l'exécution suivante le revoit (un arrêt pour des questions Blocking est tranché par l'humain et pas revu deux fois) ; chaque ligne Major de la revue termine les prompts RED et GREEN de ce lot en une ligne `stale: <question> — <preuve>`, à son premier lancement seulement ; un verdict GAPS relance le lot de lui-même, dans son worktree en parallèle, ses lignes Blocking et Major pour correction (aucune pour un audit que le budget a arrêté, dont la reprise tourne alors), jusqu'à trois tours d'audit en GAPS depuis le dernier VALID, un audit arrêté par le budget compté pour un ; le troisième encore GAPS revient à un humain |
+| `dev-implement` | séquentiel, un agent, deux rôles en `acceptEdits` (cinq outils de lecture, six d'écriture - `file_write` pour un nouveau fichier, les éditeurs de nœuds et `edit_batch` pour un fichier existant ; la règle d'édition épelle un `edit_batch`, sa liste `operations` et `validate`, et le refus par la garde d'un lot sans opérations le répète ; le runtime publie aussi le schéma des outils de nœud depuis Orkeon #210 ; chaque `node_replace` d'un lot porte le hash que `node_read` a donné pour ce nœud précis, jamais un hash deviné, un hash factice ayant fait refuser un lot entier par le runtime dans un run live - `run_tests`, `run_build`, `memory_recall`) | `/dev-batches <code> F<n>` (`--close` : la clôture seule) | Chaque cycle (les étapes d'un même fichier de test) rouge puis vert, vérifié par le code, son coût mesuré |
+| `dev-batches` | Séquentiel, un agent avec les outils de lecture du relecteur, sa revue en ligne (la revue du prochain lot se voit offrir cinq d'entre eux, `file_read`, `node_outline`, `node_read`, `codebase_search` et `glob`, pour huit tours : son brief porte la fiche, ce que les lots clos ont changé et le plan) | `/dev-batches` (retapée après un arrêt : l'exécution reprend ; chaque saut de sa chaîne garde la profondeur de l'instance pour laquelle il tourne, `chain: "continue"`, si bien qu'un plan de n'importe quelle longueur se clôt en une commande, Orkeon #221) | Désigne le lot suivant d'un plan dans l'ordre de ses dépendances, après une revue de sa fiche une fois ses dépendances closes |
 | `shared-memory-admit` | séquentiel, sans outil, sans LLM | `/memory admit` | Écrit dans les entrées de la mémoire partagée les candidats que l'opérateur a confirmés, les listes, et réindexe |
+
+### Les crews en détail
+
+- **`agent-run`**, ce qu'il fait :
+  - Il tourne sous l'étape du run de l'instance (un relecteur de `/dev-spec` sous les jeux de règles, les hooks et
+    le budget de cette étape), sinon sous l'étape de la charte, avec le budget de cette étape et aucun enfant à lui.
+- **`dev-implement`**, ce qu'il fait :
+  - Une correction ajoutée en étape.
+  - Le build et la suite (ensuite les projets touchés) en jobs.
+  - Puis l'audit (le crew `dev-verify`) et, sur VALID, le commit et les marques « fait ».
+  - Une hypothèse est consignée une fois par lot, jamais une que la fiche porte déjà.
+  - Un chemin relatif qu'un rôle passe à un outil est résolu sous le checkout avant l'outil.
+- **`dev-batches`**, processus :
+  - Avec `--concurrency` de 2 à 4, un agent de lot par lot d'une vague (`batch-F<n>`, les outils d'implémentation et
+    les outils de lecture de l'auditeur, `run_tests`, `run_build`, `run_validation`, `memory_recall`), chacun sous
+    la racine de travail de son worktree.
+- **`dev-batches`**, ce qu'il fait :
+  - Consigne chaque lot dans `batches-state.md`.
+  - En séquentiel, le `completed` de la commande enchaîne `/dev-batches`, chaque clôture commitée sans push.
+  - En parallèle, le pilote amorce chaque worktree, lance à la fois les agents de lot de la vague (chacun exécute
+    les étapes, l'audit en ligne et la clôture dans son code, borné par ses propres appels d'outils), puis fusionne
+    en avance rapide chaque lot VALID dans l'ordre des ids, en rapatrie les fichiers et retire son worktree.
+  - Un push et une pull request à la clôture du plan.
+  - Une revue qui ne peut pas tourner (aucun relecteur sur l'hôte, une réponse illisible deux fois, un appel refusé)
+    arrête le lot avant son lancement, consigné `BLOCKED — review not run (<raison>)`, et l'exécution suivante le
+    revoit (un arrêt pour des questions Blocking est tranché par l'humain et pas revu deux fois).
+  - Chaque ligne Major de la revue termine les prompts RED et GREEN de ce lot en une ligne `stale: <question> —
+    <preuve>`, à son premier lancement seulement.
+  - Un verdict GAPS relance le lot de lui-même, dans son worktree en parallèle, ses lignes Blocking et Major pour
+    correction (aucune pour un audit que le budget a arrêté, dont la reprise tourne alors), jusqu'à trois tours
+    d'audit en GAPS depuis le dernier VALID, un audit arrêté par le budget compté pour un.
+  - Le troisième encore GAPS revient à un humain.
 
 Un dossier commençant par `_` contient une sonde de développement (`probe.ork.ts`), jamais l'équipe d'une commande :
 `_probe-shared-memory` mesure le rappel de la mémoire partagée sur un jeu de référence, lancée par
@@ -491,11 +565,12 @@ modules qui les lisent :
   (`*-charter.ts`, `built-in-charters.ts`), `design-rules.ts` et `reading-rule.ts` sont des fichiers de texte sous
   leur propre nom.
 - Un fichier de texte ne tient que du texte : des constantes et des fonctions gabarits (des paramètres en entrée, du
-  texte en sortie ; un ternaire, un retour anticipé, un `.map` ou un `.join` pour rendre une liste). Une fonction
-  `async`, `await`, une boucle, un `switch`, un `try`, une classe, un `let` ou un `var`, et une valeur importée d'un
-  module qui n'est ni un fichier de texte ni un module du domaine sont de la logique : le budget d'un brief, une
-  coupe, le choix de ce qui est porté vont dans un module de logique à côté du fichier de texte
-  (`crews/main-loop/application/turn-context.ts` à côté de `prompts.ts`). Un type s'importe de partout.
+  texte en sortie ; un ternaire, un retour anticipé, un `.map` ou un `.join` pour rendre une liste).
+  - Une fonction `async`, `await`, une boucle, un `switch`, un `try`, une classe, un `let` ou un `var`, et une
+    valeur importée d'un module qui n'est ni un fichier de texte ni un module du domaine sont de la logique : le
+    budget d'un brief, une coupe, le choix de ce qui est porté vont dans un module de logique à côté du fichier de
+    texte (`crews/main-loop/application/turn-context.ts` à côté de `prompts.ts`).
+  - Un type s'importe de partout.
 - `tests/repository/text-isolation.test.ts` vérifie les deux côtés en lisant `src/` une fois : il signale un littéral
   d'un fichier de logique qui compte trois mots ou plus, ou plus de 60 caractères avec une espace, et une construction
   de logique dans un fichier de texte ; chaque exception est nommée avec son fichier, son propriétaire et sa raison.
