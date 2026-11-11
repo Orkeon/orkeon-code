@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `/route on` (the setting `route.agents`) lets the host's decision model pick, at each launch of `/dev-spec`,
   `/dev-change`, `/dev-plan`, `/dev-learn`, `/review`, `/analyze`, `/commit`, `/init` and `/init-verifiers`, the
   profile of `route.ladder` (`small,large` by default, cheapest first) the crew runs on: never above the session's
-  `llm.profile`, and at least the profile a rule of `.orkeon/route-rules.json` sets for the crew or for a path the
+  `llm.profile` (a session without one has the whole ladder), and at least the profile a rule of `.orkeon/route-rules.json` sets for the crew or for a path the
   command names. `/route` says where the routing stands, `/route why` shows the last five choices. Off by default;
   without a decision model, when it does not answer or is not sure, the session's profile stands
   ([architecture](docs/architecture.md#routing-a-crew-to-a-profile),

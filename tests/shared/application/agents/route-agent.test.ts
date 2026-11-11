@@ -108,6 +108,18 @@ describe("routeAgent", () => {
     deepStrictEqual([profile, log.lines], [null, [NO_ANSWER_LINE]]);
   });
 
+  it("keeps the session's profile when the decision model throws", async () => {
+    // Arrange
+    const { deps, decision } = routeSetup();
+    decision.failure = new Error("connection refused");
+
+    // Act
+    const profile = await routeAgent(deps, TASK, "large");
+
+    // Assert
+    strictEqual(profile, "large");
+  });
+
   it("keeps the choice in the session, for /route why", async () => {
     // Arrange
     const { deps, session } = routeSetup();

@@ -14,8 +14,9 @@ export const ROUTE_AGENTS_CONFIG_KEY = "route.agents";
 export const ROUTE_LADDER_CONFIG_KEY = "route.ladder";
 /** The ladder of the example settings: their two profiles. */
 export const DEFAULT_LADDER: readonly string[] = ["small", "large"];
-/** The confidence under which the model's pick is not followed: a pick barely ahead of the other rung is a coin toss,
- *  and the session's profile is what the user chose. */
+/** The probability of its pick under which the model is not followed: between two rungs, a pick under 0.6 is barely
+ *  ahead of the other, and the session's profile is what the user chose. The probability is the one the answer gives
+ *  the option picked; the answer's `confidence` is a figure of the provider's own, read only when that one is absent. */
 export const ROUTE_MIN_CONFIDENCE = 0.6;
 /** The command, as the decision model reads it, in characters: cut in the middle, its start and its end kept. */
 export const ROUTE_BRIEF_CHARS = 4_000;
@@ -92,25 +93,28 @@ export function parseRouteRules(text: string): RouteRules {
   return typeof raw === "object" && raw !== null && !Array.isArray(raw) ? { paths: section("paths"), crews: section("crews") } : NO_ROUTE_RULES;
 }
 
-/** A path as the rules compare it: no `/workspace/` nor `./` in front, no slash at the end. */
+/** A path as the rules compare it: slashes one way, no `/workspace/` nor `./` in front, no slash at the end. */
 function bare(path: string): string {
-  return path.replace(/^\/workspace\//, "").replace(/^\.\//, "").replace(/\/+$/, "");
+  return path.replace(/\\/g, "/").replace(/^\/workspace\//, "").replace(/^\.\//, "").replace(/\/+$/, "");
 }
 
-/** The words of a command that look like paths. */
-function pathsIn(brief: string): string[] {
-  return (brief.match(/[\w.@~-]*\/[\w.@~/-]*|[\w-]+\.[A-Za-z]\w*/g) ?? []).map(bare).filter((path) => path.length > 0);
+/** The words of a command, as paths: quotes and the punctuation around a word dropped. */
+function wordsOf(brief: string): string[] {
+  return brief.split(/\s+/).map((word) => bare(word.replace(/^["'`(]+|["'`),;:]+$/g, ""))).filter((word) => word.length > 0);
 }
 
-/** The rung the rules ask for at least: the crew's own, and for each path the command names, the rule of its closest
- *  ancestor; the highest of them. 0 when no rule applies; a rule naming a profile outside the ladder is ignored. */
+/** The rung the rules ask for at least: the crew's own, and for each word of the command that is a rule's path or lies
+ *  under it, the rule of its closest ancestor; the highest of them. 0 when no rule applies; a rule naming a profile
+ *  outside the ladder, or whose path is empty once written bare (`/`, `./`), is ignored. */
 export function routeFloor(rules: RouteRules, crew: string, brief: string, ladder: readonly string[]): number {
   let floor = Math.max(0, ladder.indexOf(rules.crews[crew] ?? ""));
-  const prefixes = Object.keys(rules.paths).map((prefix) => ({ prefix: bare(prefix), profile: rules.paths[prefix] }));
-  for (const path of pathsIn(brief)) {
+  const prefixes = Object.keys(rules.paths)
+    .map((prefix) => ({ prefix: bare(prefix), profile: rules.paths[prefix] }))
+    .filter(({ prefix }) => prefix.length > 0);
+  for (const word of wordsOf(brief)) {
     const closest = prefixes
-      .filter(({ prefix }) => path === prefix || path.startsWith(`${prefix}/`))
-      .sort((a, b) => b.prefix.length - a.prefix.length)[0];
+      .filter(({ prefix }) => word === prefix || word.startsWith(`${prefix}/`))
+      .sort((x, y) => y.prefix.length - x.prefix.length)[0];
     if (closest !== undefined) floor = Math.max(floor, ladder.indexOf(closest.profile));
   }
   return floor;
@@ -144,14 +148,19 @@ export function routable(sessionProfile: string | null, ladder: readonly string[
 }
 
 /** The profile of a launch: the model's pick when it is sure enough, raised to the floor, never above the session's
- *  own rung. Without an answer, or under the confidence, the session's profile. */
+ *  own rung. Without an answer, or under the bar, the session's profile; a session on the host's default model then
+ *  takes the floor's rung when a rule sets one, since the rule is the project's own word. A session on a profile
+ *  outside the ladder keeps it. */
 export function routeOf(
   answers: DecisionAnswers | null, ladder: readonly string[], sessionProfile: string | null, floor: number,
 ): RouteChoice {
+  if (sessionProfile !== null && !ladder.includes(sessionProfile)) return { profile: sessionProfile, reason: "ceiling" };
+  const unrouted = (reason: RouteReason): RouteChoice =>
+    sessionProfile === null && floor > 0 ? { profile: ladder[floor], reason: "floor" } : { profile: sessionProfile, reason };
   const answer = answers?.[ROUTE_QUESTION];
-  if (answer?.type !== "choice" || !ladder.includes(answer.choice)) return { profile: sessionProfile, reason: "no-answer" };
-  const told = { picked: answer.choice, confidence: answer.confidence };
-  if (answer.confidence < ROUTE_MIN_CONFIDENCE) return { profile: sessionProfile, reason: "low-confidence", ...told };
+  if (answer?.type !== "choice" || !ladder.includes(answer.choice)) return unrouted("no-answer");
+  const told = { picked: answer.choice, confidence: answer.probabilities[answer.choice] ?? answer.confidence };
+  if (told.confidence < ROUTE_MIN_CONFIDENCE) return { ...unrouted("low-confidence"), ...told };
   const ceiling = sessionProfile === null ? ladder.length - 1 : ladder.indexOf(sessionProfile);
   const picked = ladder.indexOf(answer.choice);
   const raised = Math.max(picked, floor);

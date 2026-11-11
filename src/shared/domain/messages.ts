@@ -121,7 +121,8 @@ export const SKILLS_SUGGEST_DOC: ConfigKeyDoc = {
 export const ROUTE_AGENTS_DOC: ConfigKeyDoc = {
   description:
     "'on' lets the host's decision model pick, at each launch of a crew, the cheapest profile of route.ladder that " +
-    "fits the command; never one above the session's llm.profile, and the floors of .orkeon/route-rules.json apply. " +
+    "fits the command; never one above the session's llm.profile (without one, any rung), and the floors of " +
+    ".orkeon/route-rules.json apply. A rung the host does not declare leaves the session's profile. " +
     "Needs a decision provider on the host; without one the session's profile stands. Omitted = 'off'.",
   consumedBy: "/route, and the commands that launch a crew routed by it (/dev-spec, /dev-change, /dev-plan, /dev-learn, /review, /analyze, /commit, /init, /init-verifiers)",
 };

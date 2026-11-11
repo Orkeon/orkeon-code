@@ -671,18 +671,24 @@ décision sur le host, ce profil est choisi à chaque lancement de `/dev-spec`, 
 `/dev-learn`, `/review`, `/analyze`, `/commit`, `/init` et `/init-verifiers` :
 
 - **L'échelle** : `route.ladder` ordonne les profils LLM du host, du moins cher au plus cher (`small,large` si
-  omis). Un profil que le host ne déclare pas fait échouer le crew à son chargement, comme `llm.profile` : l'échelle
-  nomme des profils de `Llm:Profiles`.
+  omis) : des noms de `Llm:Profiles`. Une commande ne peut pas lire les profils du host, rien ne vérifie donc
+  l'échelle à l'avance : un lancement routé porte aussi le profil de la session, et un crew routé vers un barreau
+  que le host ne déclare pas est construit sur celui-ci, comme sans routage.
 - **La question** : le modèle de décision lit le nom du crew et la commande telle que tapée (coupée en son milieu
   au-delà de 4 000 caractères) et fait un choix parmi les barreaux, le premier décrit comme suffisant pour une
   recherche ou une tâche entièrement spécifiée, le dernier comme nécessaire pour une conception ou un changement
-  sur plusieurs modules. Sous une confiance de 0,6, ou sans réponse, le profil de la session reste.
+  sur plusieurs modules. Le choix est suivi quand la probabilité que la réponse lui donne atteint 0,6 (le chiffre
+  `confidence` de la réponse, dont le sens est propre à chaque fournisseur, n'est lu que si aucune probabilité ne
+  revient). En dessous, sans réponse ou quand le modèle lève une erreur, le profil de la session reste.
 - **Le plancher** : `.orkeon/route-rules.json`, `{ "paths": { "<préfixe>": "<profil>" }, "crews": { "<crew>":
-  "<profil>" } }`. La règle du crew, et pour chaque chemin que la commande nomme la règle de son ancêtre le plus
-  proche, relèvent le choix à ce barreau au moins. Un fichier absent, illisible ou mal formé, et une règle nommant
-  un profil hors de l'échelle, ne relèvent rien.
+  "<profil>" } }`. La règle du crew, et pour chaque mot de la commande qui est le chemin d'une règle ou se trouve
+  dessous (`src/billing`, `src\billing\tax.ts`, `/workspace/src/billing/tax.ts`) la règle de son ancêtre le plus
+  proche, relèvent le choix à ce barreau au moins. Une session sur le modèle par défaut du host prend le barreau
+  du plancher même quand le modèle n'a pas été suivi. Un fichier absent, illisible ou mal formé, une règle nommant
+  un profil hors de l'échelle et une règle sur l'espace de travail lui-même (`/`, `./`) ne relèvent rien.
 - **Le plafond** : jamais au-dessus du barreau de la session ; il l'emporte sur un plancher. Une session sans
-  `llm.profile` dispose de toute l'échelle. Une session sur un profil hors de l'échelle (un profil de décision qui
+  `llm.profile` dispose de toute l'échelle : routé, un lancement peut alors tourner sur un modèle plus cher que
+  celui par défaut du host. Une session sur un profil hors de l'échelle (un profil de décision qui
   garde ses requêtes) n'est pas routée : elle garde ce profil.
 - **Ce qui n'est pas routé** : la boucle principale (`/assistant` : son cache de prompt suit un modèle),
   `/compact`, `/memory admit`, les crews de parole, `/advisor` (il a son propre modèle), `/dev-batches` et
@@ -690,7 +696,9 @@ décision sur le host, ce profil est choisi à chaque lancement de `/dev-spec`, 
   de l'agent, pas un profil. L'effort de raisonnement reste celui de `/effort`.
 - **Le routage échoue ouvert** : le réglage éteint ou illisible, pas de modèle de décision (un avertissement) et un
   modèle qui ne répond pas laissent le profil de la session. Chaque lancement routé écrit une ligne de journal avec
-  le profil et la raison, et les 5 derniers sont gardés dans la session pour `/route why`. `/route on|off` règle
+  le profil et la raison, et les 5 derniers sont gardés dans la session pour `/route why` ; le choix est fait avant
+  le lancement, un lancement que le host refuse ensuite (un crew déjà en cours) a donc quand même interrogé le
+  modèle et figure dans la liste. `/route on|off` règle
   `route.agents` pour la session ; nu, il dit où en est le routage.
 
 ### Suggérer des skills pour un tour

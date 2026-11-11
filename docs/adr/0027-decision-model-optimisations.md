@@ -82,8 +82,9 @@ names. A script reaches it as a member of the `tools` namespace.
   model; the host's own `route` stage of a decision profile does that job for a request. The decision model reads
   the command as typed, which says little for a command without arguments (`/init`): the floors by crew are there
   for it. Probed live on `kev-0.8b` (four commands, 2026-11-11): the choice comes back with a confidence that
-  is not the probability of the option picked (0.24 for a pick between two options), so the 0.6 threshold is a
-  bar on the model's own confidence figure; two commands were routed to `small`, two left to the session, and a
+  is not the probability of the option picked (0.24 for a pick between two options), a figure each provider
+  defines; the 0.6 bar is therefore read on the probability the answer gives its pick. Under the first reading,
+  two commands were routed to `small`, two left to the session, and a
   plan described as a rewrite across modules was not sent to `large`. Its effect on cost and quality is not
   measured.
 - The suggestion of skills needed a place to find them, which the plan had not: `/skills` lists what a person

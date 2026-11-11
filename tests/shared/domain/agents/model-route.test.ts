@@ -8,7 +8,7 @@ import {
   routeState, withRecord,
 } from "../../../../src/shared/domain/agents/model-route.ts";
 import {
-  FLOOR_CASES, LADDER, LADDER_CASES, LADDER_PROBLEM_CASES, LONG_BRIEF, ROUTABLE_CASES, ROUTE_CASES, RULES, RULES_TEXT_CASES, record,
+  FLOOR_CASES, LADDER, LADDER_CASES, LADDER_PROBLEM_CASES, LONG_BRIEF, ROOT_RULES, ROUTABLE_CASES, ROUTE_CASES, RULES, RULES_TEXT_CASES, record,
 } from "./model-route.fixtures.ts";
 
 describe("routeOn", () => {
@@ -84,6 +84,19 @@ describe("routeFloor", () => {
       strictEqual(floor, c.floor);
     });
   }
+});
+
+describe("routeFloor, a rule on the root", () => {
+  it("ignores a rule whose path is the workspace itself", () => {
+    // Arrange
+    const rules = ROOT_RULES;
+
+    // Act
+    const floor = routeFloor(rules, "project-init", "/init", LADDER);
+
+    // Assert
+    strictEqual(floor, 0);
+  });
 });
 
 describe("routeState", () => {

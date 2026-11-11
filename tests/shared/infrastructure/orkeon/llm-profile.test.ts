@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, throws } from "node:assert";
 import { PROMPT_CACHE, profiledAgent } from "../../../../src/shared/infrastructure/orkeon/llm-profile.ts";
 import { assertBuiltOn } from "./llm-profile.assertions.ts";
-import { CACHE_CASES, factories } from "./llm-profile.fixtures.ts";
+import { CACHE_CASES, FALLBACK_CASES, factories } from "./llm-profile.fixtures.ts";
 
 describe("profiledAgent", () => {
   it("builds the agent on the profile the input names", () => {
@@ -27,6 +27,30 @@ describe("profiledAgent", () => {
 
     // Assert
     assertBuiltOn(host, builder, []);
+  });
+
+  for (const c of FALLBACK_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const host = factories(true, ["small"]);
+
+      // Act
+      const builder = profiledAgent(c.input, host);
+
+      // Assert
+      assertBuiltOn(host, builder, c.profiles);
+    });
+  }
+
+  it("still fails the load for an unknown profile that was not routed", () => {
+    // Arrange
+    const host = factories(true, ["small"]);
+
+    // Act
+    const act = () => profiledAgent({ llmProfile: "small" }, host);
+
+    // Assert
+    throws(act, /unknown LLM profile 'small'/);
   });
 
   for (const c of CACHE_CASES) {
