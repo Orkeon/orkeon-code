@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the pin moves to Orkeon `206b562`
+
+- The pin moves to Orkeon `main` `206b562` (Orkeon #329, which closes #327, opened from this project): the tool loop
+  of `act` takes `onContextPressure`, a callback that runs once the loop's messages pass a threshold and answers
+  `keep`, `head` or `drop` for each older result of a read tool. Nothing uses it yet. The same range holds Orkeon
+  #325 (the host's cost budget is enforced: `BudgetExhaustedError` gains the `cost` dimension, which a host sets
+  with `Orkeon:CostTracking:DefaultCrewBudget`, absent from the example settings), the new default models of seven
+  providers (a profile that names its model is untouched) and Orkeon Studio leaving for its own repository.
+
 ### Changed — the pin moves to Orkeon `f5813a1`
 
 - The pin moves to Orkeon `main` `f5813a1` (Orkeon #318, the Studio UX review, and #319, the Sonar reliability bugs
