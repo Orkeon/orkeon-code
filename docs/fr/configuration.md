@@ -492,8 +492,7 @@ Sans terminal, `--resume` seul affiche la liste et sort avec le code 2. Les 50 s
 restent (`ORKEON_CODE_SESSIONS_KEEP`, de 1 à 9999) ; une session sans message n'est pas gardée. Un second démarrage
 pendant qu'une session est ouverte sur le même projet avertit, laisse l'ouverte en paix et garde la sienne à côté,
 dans l'historique dès le démarrage suivant. Dans le REPL, `/resume` liste les sessions gardées (le lanceur monte
-`history/` en lecture seule sur `/session-history`) et `/resume <numéro ou id>` en ramène une sur place (Orkeon
-#227) : la session en cours est enregistrée dans une archive à côté de son propre fichier, que le démarrage suivant
+`history/` en lecture seule sur `/session-history`) et `/resume <numéro ou id>` en ramène une sur place : la session en cours est enregistrée dans une archive à côté de son propre fichier, que le démarrage suivant
 passe dans l'historique, puis celle choisie remplace la conversation, son état et son titre, et le tour suivant la
 continue. L'historique de l'éditeur de ligne (la flèche du haut) n'est pas gardé.
 

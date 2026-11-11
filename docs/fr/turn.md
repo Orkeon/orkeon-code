@@ -77,8 +77,7 @@ le fichier d'instructions du projet. Il ne contient aucun nombre et aucune donn�
 octets restent identiques d'un tour à l'autre pour un mode donné et que les fournisseurs peuvent le mettre en cache ;
 `MAX_STATIC_HEADER_CHARS` plafonne la partie rédigée.
 
-**Le contexte**, envoyé comme un message utilisateur à part après le message système (`ActOptions.context`, Orkeon
-#276), dans un ordre fixe du bloc le plus stable au plus volatil, pour que le cache de préfixe d'un fournisseur s'y
+**Le contexte**, envoyé comme un message utilisateur à part après le message système (`ActOptions.context`), dans un ordre fixe du bloc le plus stable au plus volatil, pour que le cache de préfixe d'un fournisseur s'y
 enfonce aussi loin qu'il le peut : les préférences de session, les skills attachées, la mémoire, les hooks déclarés,
 la fenêtre d'historique sans la requête courante, l'environnement (répertoire de travail, date, statut git), la jauge
 de contexte avec son palier de pression.
