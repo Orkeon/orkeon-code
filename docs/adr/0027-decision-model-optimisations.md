@@ -90,10 +90,16 @@ names. A script reaches it as a member of the `tools` namespace.
 - The suggestion of skills needed a place to find them, which the plan had not: `/skills` lists what a person
   attached, not what a project holds. The skills are the `.md` files of `.orkeon/skills/` and the `SKILL.md` of the
   folders of `.claude/skills/`, the layout another assistant's skills already have, so a repository that keeps
-  them is served without a copy. Not measured, and not run against a live decision model yet: a choice among up
-  to 25 options is the question a small model is least likely to answer well.
+  them is served without a copy. Not measured. A choice among up to 25 options is the question a small model is least likely to answer well.
 - A suggested skill is a file of the repository a model picked, not one a person chose. The turn therefore reads
   it apart from the attached skills, as reference material under the request and the rules, and a skill marked
   `disable-model-invocation: true` is never offered. What still bounds a hostile file: the setting is off by
   default, three files of 4 000 characters at most, and the decision model must pick it; a description written to
   be picked for every request is not defended against.
+- Probed live on `kev-0.8b` over the real adapters (2026-11-11, after the review): of five skills, the one kept
+  for a person was not offered; a release request got the release skill (0.92), a flaky test the flaky-tests
+  skill (0.75), a question about a function none; a request to add a column to a table got none either, where the
+  migration skill fitted. The routing, its bar now on the pick's probability, sent `/commit` and a question to
+  `small` and a plan named as a rewrite across modules to `large`, each at 0.61 to 0.65: right on the three, and
+  barely over the bar of 0.6. Four requests and three commands on one small model show that the path works end to
+  end, not how often it is right.
