@@ -29,7 +29,7 @@ export const INSTRUCTIONS_FILE_CASES: readonly InstructionsFileCase[] = [
 ];
 
 /**
- * The order of docs/architecture.md, "Prompt assembly": who the agent is, how it reports, then how it works, then
+ * The order of docs/turn.md, "Prompt assembly": who the agent is, how it reports, then how it works, then
  * what it may trust, then its tools. All unconditional, so byte-stability per mode is unchanged by their presence.
  */
 export const BEHAVIOUR_BLOCKS_IN_ORDER: readonly string[] = [

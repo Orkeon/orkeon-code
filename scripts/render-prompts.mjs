@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Render every LLM-facing prompt of Orkeon Code as the model reads it, to review a
-// prompt change as a diff (docs/architecture.md, "Prompt assembly"; ADR 0003).
+// prompt change as a diff (docs/turn.md, "Prompt assembly"; ADR 0003).
 //
 //   node scripts/render-prompts.mjs <dir>        e.g. temp/prompts/before, then temp/prompts/after
 //   diff -r temp/prompts/before temp/prompts/after

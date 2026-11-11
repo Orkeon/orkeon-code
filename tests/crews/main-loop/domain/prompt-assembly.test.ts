@@ -2,7 +2,7 @@
 // the static header (the SYSTEM prompt, sent via ActOptions.system) must be
 // byte-stable across turns, and the volatile blocks all live in the USER body
 // assembleContext() produces. The rule markers pin the behaviour specification of
-// docs/architecture.md, "Prompt assembly".
+// docs/turn.md, "Prompt assembly".
 // Run: node --test tests/crews/main-loop/domain/prompt-assembly.test.ts
 
 import { describe, it } from "node:test";

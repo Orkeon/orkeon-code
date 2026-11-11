@@ -155,7 +155,10 @@ La documentation est publiée en français et en anglais, en site consultable, a
 | [Hooks](docs/fr/hooks.md) | Vos commandes autour des appels d'outils du modèle dans les étapes dev |
 | [Mémoire partagée](docs/fr/shared-memory.md) | Décisions, structures, méthodes et erreurs admises que les agents rappellent |
 | [Commandes](docs/fr/commands.md) | La liste complète (générée) |
-| [Architecture](docs/fr/architecture.md) | Couches, ports, crews, la boucle, l'assemblage du prompt, recettes |
+| [Architecture](docs/fr/architecture.md) | Couches, ports, points d'entrée, le VFS, les crews |
+| [Le déroulement d'un tour](docs/fr/turn.md) | La boucle, l'assemblage du prompt, le routage, la suggestion de skills, la compaction |
+| [Les prompts des crews](docs/fr/crew-prompts.md) | Le comportement d'après lequel le prompt de chaque crew est écrit |
+| [Recettes](docs/fr/recipes.md) | Ajouter une commande, un crew, un outil, un mode, un bloc de prompt, une clé de configuration, un port |
 | [Exécutions autonomes et embarquées](docs/fr/headless.md) | Tours sans opérateur, lancement en un coup, planificateurs et CI, votre application |
 | [Étendre](docs/fr/extending.md) | Commandes, crews, outils, prompts, modes, vos propres dossiers, les limites |
 | [Développement](docs/fr/development.md) | Tests, vérifications, typings, montée de version d'Orkeon, release |

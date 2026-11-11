@@ -149,7 +149,10 @@ are written in English only.
 | [Hooks](docs/hooks.md) | Your commands around the model's tool calls in the dev steps |
 | [Shared memory](docs/shared-memory.md) | Admitted decisions, structures, methods and mistakes the agents recall |
 | [Slash commands](docs/commands.md) | The full list (generated) |
-| [Architecture](docs/architecture.md) | Layers, ports, crews, the loop, prompt assembly, recipes |
+| [Architecture](docs/architecture.md) | Layers, ports, entry points, the VFS, crews |
+| [How a turn runs](docs/turn.md) | The loop, prompt assembly, routing, skill suggestion, compaction |
+| [Crew prompts](docs/crew-prompts.md) | The behaviour each crew's prompt is written from |
+| [Recipes](docs/recipes.md) | Add a command, a crew, a tool, a mode, a prompt block, a config key, a port |
 | [Autonomous and embedded runs](docs/headless.md) | Unattended turns, one-shot runs, schedulers and CI, your application |
 | [Extending](docs/extending.md) | Commands, crews, tools, prompts, modes, your own directories, the limits |
 | [Development](docs/development.md) | Tests, checks, typings, upgrading Orkeon, releasing |

@@ -13,9 +13,9 @@ does not answer, Orkeon Code does what it did before.
 
 | What | Turn it on | The decision model decides | Details |
 |---|---|---|---|
-| Pruning a long turn | `/config set compaction.prune on` | which older tool results a turn in progress no longer needs | [architecture](architecture.md#compaction-and-memory) |
-| Routing a crew | `/route on` | the cheapest LLM profile that fits the command | [architecture](architecture.md#routing-a-crew-to-a-profile) |
-| Suggesting skills | `/skills suggest on` | the project's skills that fit the request of a turn | [architecture](architecture.md#suggesting-skills-for-a-turn) |
+| Pruning a long turn | `/config set compaction.prune on` | which older tool results a turn in progress no longer needs | [architecture](turn.md#compaction-and-memory) |
+| Routing a crew | `/route on` | the cheapest LLM profile that fits the command | [architecture](turn.md#routing-a-crew-to-a-profile) |
+| Suggesting skills | `/skills suggest on` | the project's skills that fit the request of a turn | [architecture](turn.md#suggesting-skills-for-a-turn) |
 
 The measures below are of 2026-11-11: `jev-latest` (the hosted Jev) decides, `glm-5.3-flashx` (Z.AI) answers,
 Orkeon's sources at the pin. The reasons behind each choice are in

@@ -21,7 +21,7 @@ Orkeon Code's prompts were in two states before the first release.
 
 ## Decision
 
-- **Behaviour first.** `docs/architecture.md`, "Prompt assembly", specifies what each prompt must produce, rule by
+- **Behaviour first.** `docs/turn.md`, "Prompt assembly", and `docs/crew-prompts.md` specify what each prompt must produce, rule by
   rule. The text is written from that specification, in this project's own words. Published agent prompts and the
   documentation of other assistants are read to learn which behaviours matter, never as text to reuse.
 - **Pin the behaviour.** Every rule has a marker phrase a test pins. `tests/prompt-contract.test.ts` (now `tests/repository/prompt-contract.test.ts`) renders every

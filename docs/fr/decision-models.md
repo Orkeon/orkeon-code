@@ -14,9 +14,9 @@ ouverte : sans modèle de décision, ou quand il ne répond pas, Orkeon Code fai
 
 | Quoi | L'allumer | Le modèle de décision décide | Détails |
 |---|---|---|---|
-| Élaguer un long tour | `/config set compaction.prune on` | quels anciens résultats d'outils un tour en cours n'a plus besoin de garder | [architecture](architecture.md#compaction-et-mémoire) |
-| Router un crew | `/route on` | le profil LLM le moins cher qui convient à la commande | [architecture](architecture.md#router-un-crew-vers-un-profil) |
-| Suggérer des skills | `/skills suggest on` | les skills du projet qui conviennent à la demande d'un tour | [architecture](architecture.md#suggérer-des-skills-pour-un-tour) |
+| Élaguer un long tour | `/config set compaction.prune on` | quels anciens résultats d'outils un tour en cours n'a plus besoin de garder | [architecture](turn.md#compaction-et-mémoire) |
+| Router un crew | `/route on` | le profil LLM le moins cher qui convient à la commande | [architecture](turn.md#router-un-crew-vers-un-profil) |
+| Suggérer des skills | `/skills suggest on` | les skills du projet qui conviennent à la demande d'un tour | [architecture](turn.md#suggérer-des-skills-pour-un-tour) |
 
 Les mesures ci-dessous sont du 2026-11-11 : `jev-latest` (le Jev hébergé) décide, `glm-5.3-flashx` (Z.AI) répond,
 les sources d'Orkeon à l'épingle. Les raisons de chaque choix sont dans

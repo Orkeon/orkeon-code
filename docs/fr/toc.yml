@@ -23,6 +23,12 @@
   href: commands.md
 - name: Architecture
   href: architecture.md
+- name: Le déroulement d'un tour
+  href: turn.md
+- name: Les prompts des crews
+  href: crew-prompts.md
+- name: Recettes
+  href: recipes.md
 - name: Exécutions autonomes et embarquées
   href: headless.md
 - name: Étendre

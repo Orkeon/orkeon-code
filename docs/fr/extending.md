@@ -5,7 +5,7 @@ crew un dossier, un prompt une chaîne avec son test sous `tests/`, un mode de p
 de build de votre côté : le runtime bundle les sources avec esbuild et les exécute dans Jint au démarrage du REPL, et
 un changement est donc actif au prochain démarrage. Cette page liste les points d'extension, ce que chacun touche, et
 où sont les limites. Les couches, les ports et les recettes pas à pas sont dans
-[Architecture](architecture.md#recettes) ; les règles de code dans [CONTRIBUTING.md](../../CONTRIBUTING.md).
+[Architecture](recipes.md) ; les règles de code dans [CONTRIBUTING.md](../../CONTRIBUTING.md).
 
 ## Une commande
 
@@ -36,7 +36,7 @@ La logique qui mérite un test va dans `src/commands/_lib/<group>/<name>.ts`, le
 sous la forme `run<Name>(tokens, deps)`, ses deps un `Pick<>` des ports qu'elle lit, testée sur les fakes de `tests/support/doubles/`. Trois autres endroits bougent avec
 une nouvelle commande, et `npm run check` nomme celui que vous avez oublié : `tests/repository/command-surface.test.ts` épingle
 le nombre de commandes, `src/commands/_lib/status/messages.ts` l'énonce dans les notes de release, et `npm run docs:commands`
-régénère [docs/fr/commands.md](commands.md). La recette : [Ajouter une commande](architecture.md#ajouter-une-commande).
+régénère [docs/fr/commands.md](commands.md). La recette : [Ajouter une commande](recipes.md#ajouter-une-commande).
 
 ## Un crew
 
@@ -58,7 +58,7 @@ Un dossier qui commence par `_` est une sonde de développement, jamais listée 
 crew seul avec `bash scripts/run-crew.sh src/crews/<name>/crew.ork.ts --inputs '{...}'`
 ([Exécutions autonomes et embarquées](headless.md)) ; la vérification de bundle (`npm run bundle:check`) prouve qu'il
 bundle avec les options du runtime et sans aucune API Node. La recette :
-[Ajouter un crew](architecture.md#ajouter-un-crew).
+[Ajouter un crew](recipes.md#ajouter-un-crew).
 
 ## Vos propres crews et commandes, hors du checkout
 
@@ -95,7 +95,7 @@ const wordCount = toolBuilder<{ text: string }, { words: number }>()
 dans `src/shared/domain/agent-policy/permission.ts` (`READ_TOOLS`, `NETWORK_READ_TOOLS`, ou les classes d'édition et
 de shell) : la table des politiques de mode décide quels modes le confient au modèle. Quand du code applicatif
 l'appelle, l'appel passe par un port et un adaptateur de `src/shared/infrastructure/orkeon/`. La recette :
-[Ajouter un outil](architecture.md#ajouter-un-outil).
+[Ajouter un outil](recipes.md#ajouter-un-outil).
 
 **Sur l'hôte.** L'outil shell exécute les commandes de sa liste blanche : `Orkeon:Tools:Shell:ExtraAllowedCommands`
 ajoute les outils de build de vos projets, `AllowInterpreters` ouvre `node`, `dotnet`, `npm`...
@@ -109,7 +109,7 @@ de session `tools.extra` les nomme avec leur classe (`<name>:read|write`)
 ## Prompts et comportement
 
 Chaque prompt est écrit d'après une spécification de comportement,
-[Architecture](architecture.md#lassemblage-du-prompt), dans les mots propres de ce projet
+[Architecture](turn.md#lassemblage-du-prompt), dans les mots propres de ce projet
 ([ADR 0003](../adr/0003-prompts-from-a-behaviour-specification.md), en anglais) : changez d'abord la spécification,
 puis le texte, puis les phrases-marqueurs que son test épingle. `node scripts/render-prompts.mjs <dir>` écrit chaque
 prompt tel que le modèle le lit, et un changement se relit donc comme le diff de deux rendus.
@@ -127,7 +127,7 @@ prompt tel que le modèle le lit, et un changement se relit donc comme le diff d
   domaine) et ont leurs propres tests.
 
 `npm run check:provenance` refuse les marqueurs du matériau d'un autre produit, et `tests/repository/prompt-contract.test.ts`
-vérifie chaque prompt rendu. La recette : [Ajouter un bloc de prompt](architecture.md#ajouter-un-bloc-de-prompt).
+vérifie chaque prompt rendu. La recette : [Ajouter un bloc de prompt](recipes.md#ajouter-un-bloc-de-prompt).
 
 ## Modes de permission
 
@@ -139,14 +139,14 @@ lecture seule de `plan` et de `dontAsk`. Les cinq noms de modes sont aussi connu
 nom inconnu comme `default` (fail-closed) : changer ce qu'un mode propose est un changement TypeScript, ajouter un
 sixième mode est aussi un changement du runtime. Les règles de la session, sur un outil ou sur ses arguments
 (`/permissions add allow shell_command command=npm test*`), sont celles de la garde de l'hôte et ne demandent aucun
-code. La recette : [Ajouter un mode de permission](architecture.md#ajouter-un-mode-de-permission).
+code. La recette : [Ajouter un mode de permission](recipes.md#ajouter-un-mode-de-permission).
 
 ## Modèles et settings
 
 Tout point d'accès compatible OpenAI, choisi dans le fichier de settings (`Llm:BaseUrl`, `Llm:Model`) ; `/model`
 bascule parmi `Llm:AvailableModels` sans relancer ; les variables d'environnement `ORKEON_*` l'emportent sur n'importe
 quelle clé ([Configuration](configuration.md)). Une nouvelle clé de session est une ligne de l'espace de clés déclaré
-([Ajouter une clé de configuration](architecture.md#ajouter-une-clé-de-configuration)).
+([Ajouter une clé de configuration](recipes.md#ajouter-une-clé-de-configuration)).
 
 ## Les limites
 

@@ -123,7 +123,8 @@ The convention is Orkeon's (`tests/` of github.com/Orkeon/orkeon), adapted to `n
 - `docs/` and `docs/fr/` change together, as do `README.md` and `README.fr.md` (the docs parity check).
 - Prompts and documentation are written in this project's own words (`npm run check:provenance`). A prompt change
   follows [ADR 0003](docs/adr/0003-prompts-from-a-behaviour-specification.md): the behaviour in
-  `docs/architecture.md` first, then the text, then a marker per rule in its test.
+  `docs/turn.md` (the main loop) or `docs/crew-prompts.md` (a crew) first, then the text, then a marker per rule in
+  its test.
 - Never commit a key: secrets live in `config/*.local.json` (ignored) and keys in the environment.
 
 ## Map
@@ -135,5 +136,5 @@ src/
 └── shared/     domain/ · application/ (ports.ts + ports/, services) · infrastructure/ (globals.ts, orkeon/ adapters, wiring.ts)
 tests/          crews/ · shared/ · commands/ (the tests of src/, mirroring it) · support/ (doubles/, fixtures/, assertions/ shared across tests) · fixtures/ (file-like texts) · repository/ · scripts/ · config/
 mcp/whisper/    the speech MCP server (Python, uv)
-docs/           architecture.md, adr/ (0001 clean architecture), commands.md, fr/ (the French twins)
+docs/           architecture.md, turn.md and crew-prompts.md (the prompts' behaviour), recipes.md, adr/ (0001 clean architecture), commands.md, fr/ (the French twins)
 ```

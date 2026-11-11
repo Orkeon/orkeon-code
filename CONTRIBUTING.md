@@ -57,8 +57,9 @@ Every runtime file of `src/` sits in a layer, or is an entry point, a command us
 `.d.ts`: before adding a file, decide whether it is pure (domain), orchestrates ports (application) or touches the
 runtime (infrastructure), and put it there, next to its siblings.
 
-The ports, the adapters and the recipes (add a command, a crew, a tool, a permission mode, a prompt block, a config
-key, a port) are in [docs/architecture.md](docs/architecture.md); the decision behind the layering in
+The ports and the adapters are in [docs/architecture.md](docs/architecture.md), the recipes (add a command, a crew, a
+tool, a permission mode, a prompt block, a config key, a port) in [docs/recipes.md](docs/recipes.md); the decision
+behind the layering in
 [ADR 0001](docs/adr/0001-clean-architecture.md).
 
 Runtime rules, enforced by the bundle check:
@@ -144,7 +145,7 @@ https://github.com/Piebald-AI/claude-code-system-prompts. Read it to understand 
 then write the block in this project's own words; the provenance gate accepts this link and no other marker.
 
 A prompt change follows [ADR 0003](docs/adr/0003-prompts-from-a-behaviour-specification.md): the behaviour first, in
-`docs/architecture.md` ("Prompt assembly"), then the text, then a marker phrase per rule in its test; render the
+`docs/turn.md` ("Prompt assembly", the main loop) or `docs/crew-prompts.md` (a crew), then the text, then a marker phrase per rule in its test; render the
 prompts before and after (`node scripts/render-prompts.mjs <dir>`) and read the diff. The baseline is empty and CI
 runs the gate with `--strict`, so an adapted text cannot come back.
 

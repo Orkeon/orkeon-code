@@ -16,7 +16,10 @@ Start with [Getting started](getting-started.md); the [README](../README.md) giv
 | [Hooks](hooks.md) | Your commands around the model's tool calls in the dev steps |
 | [Shared memory](shared-memory.md) | Admitted decisions, structures, methods and mistakes the agents recall |
 | [Slash commands](commands.md) | The full list (generated) |
-| [Architecture](architecture.md) | Layers, ports, crews, the loop, prompt assembly, recipes |
+| [Architecture](architecture.md) | Layers, ports, entry points, the VFS, crews |
+| [How a turn runs](turn.md) | The loop, prompt assembly, routing, skill suggestion, compaction |
+| [Crew prompts](crew-prompts.md) | The behaviour each crew's prompt is written from |
+| [Recipes](recipes.md) | Add a command, a crew, a tool, a mode, a prompt block, a config key, a port |
 | [Autonomous and embedded runs](headless.md) | Unattended turns, one-shot runs, schedulers and CI, your application |
 | [Extending](extending.md) | Commands, crews, tools, prompts, modes, your own directories, the limits |
 | [Development](development.md) | Tests, checks, typings, upgrading Orkeon, releasing |

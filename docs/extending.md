@@ -4,7 +4,7 @@ Everything the agent says and does on the TypeScript side is a source file of th
 a crew is a folder, a prompt is a string with its test under `tests/`, a permission mode is a row of a table. There is no
 build step on your side: the runtime bundles the sources with esbuild and runs them in Jint when the REPL starts, so a
 change is live at the next start. This page lists the extension points, what each one touches, and where the limits
-are. The layers, the ports and the step-by-step recipes are in [Architecture](architecture.md#recipes); the coding
+are. The layers, the ports and the step-by-step recipes are in [Architecture](recipes.md); the coding
 rules in [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## A slash command
@@ -36,7 +36,7 @@ Logic worth testing goes to `src/commands/_lib/<group>/<name>.ts`, the folder of
 `run<Name>(tokens, deps)`, its deps a `Pick<>` of the ports it reads, tested over the fakes of `tests/support/doubles/`. Three other places move with a new command, and
 `npm run check` names the one you forgot: `tests/repository/command-surface.test.ts` pins the count of commands,
 `src/commands/_lib/status/messages.ts` states it in the release notes, and `npm run docs:commands` regenerates
-[docs/commands.md](commands.md). The recipe: [Add a command](architecture.md#add-a-command).
+[docs/commands.md](commands.md). The recipe: [Add a command](recipes.md#add-a-command).
 
 ## A crew
 
@@ -57,7 +57,7 @@ the files as written.
 A folder starting with `_` is a development probe, never listed to users. Run any crew alone with
 `bash scripts/run-crew.sh src/crews/<name>/crew.ork.ts --inputs '{...}'`
 ([Autonomous and embedded runs](headless.md)); the bundle check (`npm run bundle:check`) proves it bundles with the
-runtime's flags and without any Node API. The recipe: [Add a crew](architecture.md#add-a-crew).
+runtime's flags and without any Node API. The recipe: [Add a crew](recipes.md#add-a-crew).
 
 ## Your own crews and commands, outside the checkout
 
@@ -92,7 +92,7 @@ const wordCount = toolBuilder<{ text: string }, { words: number }>()
 **A tool of the runtime.** Check the name the host registers (`/debug-tool-call list`), then add it to its class in
 `src/shared/domain/agent-policy/permission.ts` (`READ_TOOLS`, `NETWORK_READ_TOOLS`, or the edit and shell classes):
 the mode-policy table decides which modes hand it to the model. When application code calls it, the call goes through
-a port and an adapter of `src/shared/infrastructure/orkeon/`. The recipe: [Add a tool](architecture.md#add-a-tool).
+a port and an adapter of `src/shared/infrastructure/orkeon/`. The recipe: [Add a tool](recipes.md#add-a-tool).
 
 **On the host.** The shell tool runs the commands of its allow-list: `Orkeon:Tools:Shell:ExtraAllowedCommands` adds
 the build tools of your projects, `AllowInterpreters` opens `node`, `dotnet`, `npm`... ([Configuration](configuration.md)).
@@ -103,7 +103,7 @@ tools join the assistant's catalogue once the session key `tools.extra` names th
 
 ## Prompts and behaviour
 
-Every prompt is written from a behaviour specification, [Architecture](architecture.md#prompt-assembly), in this
+Every prompt is written from a behaviour specification, [Architecture](turn.md#prompt-assembly), in this
 project's own words ([ADR 0003](adr/0003-prompts-from-a-behaviour-specification.md)): change the specification first,
 then the text, then the marker phrases its test pins. `node scripts/render-prompts.mjs <dir>` writes every prompt as
 the model reads it, so a change is reviewed as the diff of two renders.
@@ -120,7 +120,7 @@ the model reads it, so a change is reviewed as the diff of two renders.
   have their own tests.
 
 `npm run check:provenance` refuses the markers of another product's material, and `tests/repository/prompt-contract.test.ts`
-checks every rendered prompt. The recipe: [Add a prompt block](architecture.md#add-a-prompt-block).
+checks every rendered prompt. The recipe: [Add a prompt block](recipes.md#add-a-prompt-block).
 
 ## Permission modes
 
@@ -131,14 +131,14 @@ mode follows; the type check refuses a mode without its row; the tests pin the r
 `dontAsk`. The five mode names are also known to the host gate, which treats an unknown name as `default`
 (fail-closed): changing what a mode offers is a TypeScript change, adding a sixth mode is a runtime change too. The
 session's rules, on a tool or on its arguments (`/permissions add allow shell_command command=npm test*`), are the
-host gate's and need no code. The recipe: [Add a permission mode](architecture.md#add-a-permission-mode).
+host gate's and need no code. The recipe: [Add a permission mode](recipes.md#add-a-permission-mode).
 
 ## Models and settings
 
 Any OpenAI-compatible endpoint, chosen in the settings file (`Llm:BaseUrl`, `Llm:Model`); `/model` switches among
 `Llm:AvailableModels` without relaunching; `ORKEON_*` environment variables override any key
 ([Configuration](configuration.md)). A new session key is a line of the declared key space
-([Add a config key](architecture.md#add-a-config-key)).
+([Add a config key](recipes.md#add-a-config-key)).
 
 ## The limits
 

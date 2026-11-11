@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the Architecture page is four pages
+
+- [Architecture](docs/architecture.md) keeps the two halves, the runtime constraints, the VFS, the layers, the ports,
+  the entry points and the crews. [How a turn runs](docs/turn.md) takes the loop, the prompt assembly, the routing,
+  the skill suggestion and the compaction; [Crew prompts](docs/crew-prompts.md) the behaviour each crew's prompt is
+  written from; [Recipes](docs/recipes.md) the steps of the common changes. The section titles are unchanged; the
+  comments, `CLAUDE.md`, `CONTRIBUTING.md` and ADR 0003 name the new files.
+- The account of the three probes is gone; what they established reads as runtime constraints.
+
 ### Changed — the Permissions page is cut into titled sections, with a reference page beside it
 
 - [Permissions](docs/permissions.md) opens on the three levels a tool call goes through, drawn, then keeps to what

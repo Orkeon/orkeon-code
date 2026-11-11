@@ -22,6 +22,12 @@
   href: commands.md
 - name: Architecture
   href: architecture.md
+- name: How a turn runs
+  href: turn.md
+- name: Crew prompts
+  href: crew-prompts.md
+- name: Recipes
+  href: recipes.md
 - name: Autonomous and embedded runs
   href: headless.md
 - name: Extending

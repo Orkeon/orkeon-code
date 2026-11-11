@@ -1,5 +1,5 @@
 // The trace of a turn's tool calls: the history keeps what was said, and this message says which calls produced it
-// (docs/architecture.md, One turn of the loop, step 7). A call is its tool, its main arguments cut short and a
+// (docs/turn.md, One turn of the loop, step 7). A call is its tool, its main arguments cut short and a
 // one-line outcome; never a file's content nor a command's output.
 import { secretPatternsIn } from "./secret-patterns.ts";
 import { TOOL_TRACE_MARKER } from "./markers.ts";

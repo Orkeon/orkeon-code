@@ -1,5 +1,5 @@
 // The prompts of shared/domain: the text the model reads (ADR 0026). The compaction prompts are written from the
-// specification in docs/architecture.md, "Compaction and memory"; the session requests from "Crew prompts".
+// specification in docs/turn.md, "Compaction and memory"; the session requests from docs/crew-prompts.md.
 
 // ── Compaction: the summary ─────────────────────────────────────────────
 

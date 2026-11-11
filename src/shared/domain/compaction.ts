@@ -2,7 +2,7 @@
 // the memory extraction), the markers the model later reads in its history, and
 // the buffer rewrite. Shared by /compact and the main loop's automatic compaction
 // (shared/application/compaction/). The prompt text is written from the
-// specification in docs/architecture.md, "Compaction and memory".
+// specification in docs/turn.md, "Compaction and memory".
 //
 // Run tests: node --test src/shared/domain/compaction.test.ts
 
