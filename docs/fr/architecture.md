@@ -226,7 +226,7 @@ de couche, ou bien c'est un point d'entrée, un cas d'usage de commande de `comm
 
 ```text
 src/
-├── commands/          49 *.cmd.ts (parse, wire, render) in eight functional folders: session, settings, status,
+├── commands/          50 *.cmd.ts (parse, wire, render) in eight functional folders: session, settings, status,
 │   │                  project, git, dev, memory, speech
 │   ├── _lib/          the use cases, in the folder of their commands: run<Name>(tokens, deps) → CommandView,
 │   │                  or dispatch<Name>(tokens, deps) → a ticket or a message when the command launches a
@@ -661,6 +661,75 @@ un changement comme un diff.
   permission du mode (lecture seule : livrer une
   évaluation ou un plan ; sinon l'hôte peut demander avant un appel), puis la clause proactive quand `/proactive` est
   activé.
+
+### Router un crew vers un profil
+
+`shared/domain/agents/model-route.ts`, `shared/application/agents/route-agent.ts`
+([ADR 0027](../adr/0027-decision-model-optimisations.md)). Les agents d'un crew tournent tous sur un profil du
+host, le `llm.profile` de la session, choisi à la construction du crew. Avec `route.agents` à `on` et un modèle de
+décision sur le host, ce profil est choisi à chaque lancement de `/dev-spec`, `/dev-change`, `/dev-plan`,
+`/dev-learn`, `/review`, `/analyze`, `/commit`, `/init` et `/init-verifiers` :
+
+- **L'échelle** : `route.ladder` ordonne les profils LLM du host, du moins cher au plus cher (`small,large` si
+  omis) : des noms de `Llm:Profiles`. Une commande ne peut pas lire les profils du host, rien ne vérifie donc
+  l'échelle à l'avance : un lancement routé porte aussi le profil de la session, et un crew routé vers un barreau
+  que le host ne déclare pas est construit sur celui-ci, comme sans routage.
+- **La question** : le modèle de décision lit le nom du crew et la commande telle que tapée (coupée en son milieu
+  au-delà de 4 000 caractères) et fait un choix parmi les barreaux, le premier décrit comme suffisant pour une
+  recherche ou une tâche entièrement spécifiée, le dernier comme nécessaire pour une conception ou un changement
+  sur plusieurs modules. Le choix est suivi quand la probabilité que la réponse lui donne atteint 0,6 (le chiffre
+  `confidence` de la réponse, dont le sens est propre à chaque fournisseur, n'est lu que si aucune probabilité ne
+  revient). En dessous, sans réponse ou quand le modèle lève une erreur, le profil de la session reste.
+- **Le plancher** : `.orkeon/route-rules.json`, `{ "paths": { "<préfixe>": "<profil>" }, "crews": { "<crew>":
+  "<profil>" } }`. La règle du crew, et pour chaque mot de la commande qui est le chemin d'une règle ou se trouve
+  dessous (`src/billing`, `src\billing\tax.ts`, `/workspace/src/billing/tax.ts`) la règle de son ancêtre le plus
+  proche, relèvent le choix à ce barreau au moins. Une session sur le modèle par défaut du host prend le barreau
+  du plancher même quand le modèle n'a pas été suivi. Un fichier absent, illisible ou mal formé, une règle nommant
+  un profil hors de l'échelle et une règle sur l'espace de travail lui-même (`/`, `./`) ne relèvent rien.
+- **Le plafond** : jamais au-dessus du barreau de la session ; il l'emporte sur un plancher. Une session sans
+  `llm.profile` dispose de toute l'échelle : routé, un lancement peut alors tourner sur un modèle plus cher que
+  celui par défaut du host. Une session sur un profil hors de l'échelle (un profil de décision qui
+  garde ses requêtes) n'est pas routée : elle garde ce profil.
+- **Ce qui n'est pas routé** : la boucle principale (`/assistant` : son cache de prompt suit un modèle),
+  `/compact`, `/memory admit`, les crews de parole, `/advisor` (il a son propre modèle), `/dev-batches` et
+  `/tasks` ; et, dans un crew, les acts de ses sous-agents, car le `act` du runtime prend un modèle du fournisseur
+  de l'agent, pas un profil. L'effort de raisonnement reste celui de `/effort`.
+- **Le routage échoue ouvert** : le réglage éteint ou illisible, pas de modèle de décision (un avertissement) et un
+  modèle qui ne répond pas laissent le profil de la session. Chaque lancement routé écrit une ligne de journal avec
+  le profil et la raison, et les 5 derniers sont gardés dans la session pour `/route why` ; le choix est fait avant
+  le lancement, un lancement que le host refuse ensuite (un crew déjà en cours) a donc quand même interrogé le
+  modèle et figure dans la liste. `/route on|off` règle
+  `route.agents` pour la session ; nu, il dit où en est le routage.
+
+### Suggérer des skills pour un tour
+
+`shared/domain/skills/shortlist.ts`, `shared/application/skills/suggest-skills.ts`
+([ADR 0027](../adr/0027-decision-model-optimisations.md)). Un skill est une fiche markdown ; `/skills attach` en met
+une dans chaque tour jusqu'à ce qu'elle soit détachée. Avec `skills.suggest` à `on` et un modèle de décision sur le
+host, chaque tour de la boucle principale se voit aussi suggérer les skills du projet qui conviennent à sa demande :
+
+- **Les skills** : les fichiers `.md` de `.orkeon/skills/`, puis le `SKILL.md` de chaque dossier de
+  `.claude/skills/`, chaque dossier par ordre de nom, 24 au plus. Le nom et la description d'un skill sont ceux de
+  son en-tête (`name:`, `description:`, une valeur repliée comprise), sinon son premier titre et la première ligne
+  de texte hors d'un bloc de code ; la description est coupée à 300 caractères. Laissés de côté : un fichier
+  illisible ou vide, un skill attaché par une personne (quelle que soit l'écriture de son chemin), et un skill que
+  son en-tête réserve à l'invocation par une personne (`disable-model-invocation: true`).
+- **La question** : le modèle de décision lit la demande (2 000 caractères au plus) et fait un choix parmi les
+  skills, chacun dit en une ligne, et l'option qu'aucun ne convient.
+- **Les retenus** : les skills dont la part de probabilité du modèle atteint 0,3, le plus grand d'abord, 3 au plus ;
+  aucun quand le modèle a choisi qu'aucun ne convient. La question est un seul choix, des skills qui conviennent
+  tous se partagent donc la probabilité : quatre qui conviennent autant n'atteignent rien.
+- **Ce que le tour lit** : les fichiers retenus, entiers, sous le plafond de 4 000 caractères chacun, dans un bloc à
+  eux après les skills attachés, « Suggested skills ». Son ouverture dit qu'un classifieur les a choisis, que
+  l'opérateur ne les a pas attachés, et que ce sont des documents de référence dont les instructions passent après
+  la demande et les règles : un fichier du dépôt ne parle pas avec la voix de l'opérateur parce qu'un modèle l'a
+  choisi. Pour ce tour seulement : rien n'est attaché, et le bloc est dans le contexte du tour, jamais dans le
+  prompt système, le cache de prompt tient donc.
+- **La suggestion échoue ouverte** : le réglage éteint ou illisible, `/fast` (qui ne lit aucun skill), pas de modèle
+  de décision (un avertissement), pas de dossier de skills et un modèle qui ne répond pas ou lève une erreur ne suggèrent rien. Une
+  ligne du journal nomme les skills suggérés, et ce qui a été suggéré au dernier tour est gardé dans la session pour
+  `/skills suggest why`. `/skills suggest on|off` règle `skills.suggest` pour la session ; nu, il dit où en est la
+  suggestion.
 
 ### Compaction et mémoire
 

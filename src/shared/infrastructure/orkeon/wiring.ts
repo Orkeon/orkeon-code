@@ -97,6 +97,10 @@ export const orkeonToolCalls = (tools: OrkeonTools = Tools): Pick<ToolCatalogue,
 /** The host's decision model, when its settings configure one: absent, every question is left unanswered. */
 export const orkeonDecisionModel = (tools: OrkeonTools = Tools): DecisionModel => createDecisionModel(tools);
 const orkeonSessionStore = (tools: OrkeonTools = Tools): SessionStore => createSessionStore(tools);
+/** What routing a crew's launch reads besides the settings and the log (shared/application/agents/route-agent.ts). */
+export const orkeonRouting = (tools: OrkeonTools = Tools) => ({
+  decision: orkeonDecisionModel(tools), files: orkeonFiles(tools), session: orkeonSessionStore(tools),
+});
 
 /** The /config store: the settings file, overridden by the session bag. */
 export const orkeonConfigStore = (tools: OrkeonTools = Tools, root?: string): ConfigStore =>

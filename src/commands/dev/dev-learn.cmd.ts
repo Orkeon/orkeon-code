@@ -4,9 +4,9 @@
 // few reads and one write, answered here.
 import { rawTokens } from "../_lib/args.ts";
 import { parseDevLearnArgs, runDevLearnDecision } from "../_lib/dev/dev.ts";
-import { launchCrew, withLlmProfile, writeCompleted } from "../_lib/dispatch.ts";
+import { launchCrew, withRoutedProfile, writeCompleted } from "../_lib/dispatch.ts";
 import { createCrewHost } from "../../shared/infrastructure/orkeon/crew-host.ts";
-import { orkeonClock, orkeonConfigStore, orkeonFiles, orkeonShell } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { orkeonClock, orkeonConfigStore, orkeonFiles, orkeonRouting, orkeonShell } from "../../shared/infrastructure/orkeon/wiring.ts";
 
 const deps = { files: orkeonFiles(), shell: orkeonShell(), config: orkeonConfigStore(), clock: orkeonClock() };
 
@@ -22,7 +22,7 @@ defineAsyncCommand({
     }
     const a = parsed.args;
     if (a.kind === "accept" || a.kind === "refuse") return { message: await runDevLearnDecision(a, deps) };
-    return launchCrew(await withLlmProfile({ crews: createCrewHost(ctx.services), log: ctx.log }, orkeonConfigStore()), "dev-learn",
+    return launchCrew(await withRoutedProfile({ crews: createCrewHost(ctx.services), log: ctx.log }, orkeonConfigStore(), orkeonRouting(), { crew: "dev-learn", brief: String(ctx.command?.rawInput ?? "") }), "dev-learn",
       { axis: a.axis, list: a.kind === "list" });
   },
   completed: (result, ctx) => writeCompleted(ctx, result, "dev-learn"),

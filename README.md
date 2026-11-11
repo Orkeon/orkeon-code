@@ -47,7 +47,7 @@ trimmed by the mode. Every command, crew and prompt is a source file: change it,
 - **Context management**: automatic compaction with a circuit breaker, a `/compact` that summarises the whole session
   (the snip is `/compact --snip`, or the fallback of a failed summary), file restore after compaction, context
   pressure tiers, typed memory held by the Orkeon process (`/memory`).
-- **49 slash commands** in all: [docs/commands.md](docs/commands.md).
+- **50 slash commands** in all: [docs/commands.md](docs/commands.md).
 
 ## Quick start
 

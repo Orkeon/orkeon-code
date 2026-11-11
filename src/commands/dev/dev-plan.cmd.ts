@@ -8,12 +8,10 @@ import { devPlanGate, parseDevPlanArgs } from "../_lib/dev/dev.ts";
 import { WRITES_FILES } from "../_lib/dev/messages.ts";
 import { readWriteModeRefusal, startDevStep } from "../_lib/dev-step.ts";
 import { storedEffort } from "../_lib/effort.ts";
-import { launchCrew, withLlmProfile, writeCompleted } from "../_lib/dispatch.ts";
+import { launchCrew, withRoutedProfile, writeCompleted } from "../_lib/dispatch.ts";
 import { createCrewHost } from "../../shared/infrastructure/orkeon/crew-host.ts";
 import { createPermissionRules } from "../../shared/infrastructure/orkeon/permission-rules.ts";
-import {
-  orkeonConfigStore, orkeonFiles, orkeonHostContext, orkeonSessionIo, orkeonShell, orkeonToolCatalogue,
-} from "../../shared/infrastructure/orkeon/wiring.ts";
+import { orkeonConfigStore, orkeonFiles, orkeonHostContext, orkeonRouting, orkeonSessionIo, orkeonShell, orkeonToolCatalogue } from "../../shared/infrastructure/orkeon/wiring.ts";
 
 const deps = { files: orkeonFiles(), shell: orkeonShell(), config: orkeonConfigStore(), session: orkeonSessionIo() };
 
@@ -45,7 +43,7 @@ defineAsyncCommand({
     for (const line of start.lines) ctx.writeLine(line);
     const details = { ruleSets: start.sets.join(" "), rules: start.rules, hooks: start.hooks.length };
     return launchCrew(
-      await withLlmProfile({ crews: createCrewHost(ctx.services), log: ctx.log }, orkeonConfigStore()), "dev-plan",
+      await withRoutedProfile({ crews: createCrewHost(ctx.services), log: ctx.log }, orkeonConfigStore(), orkeonRouting(), { crew: "dev-plan", brief: String(ctx.command?.rawInput ?? "") }), "dev-plan",
       { ...parsed.args, ...start.input, effort: await storedEffort(deps.session) }, details,
     );
   },

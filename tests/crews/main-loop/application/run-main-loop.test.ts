@@ -13,16 +13,16 @@ import {
   DEFAULT_BEHAVIOR_FLAGS, describeActiveFlags, maxIterationsFor, resolveBehaviorFlags,
 } from "../../../../src/shared/domain/agent-policy/behavior-flags.ts";
 import {
-  AUTOCOMPACT_BREAKER_STATE_KEY, DEFAULT_MODE_STATE_KEY, EFFORT_STATE_KEY, MODEL_PREFERENCE_STATE_KEY,
+  AUTOCOMPACT_BREAKER_STATE_KEY, DEFAULT_MODE_STATE_KEY, EFFORT_STATE_KEY, FAST_MODE_STATE_KEY, MODEL_PREFERENCE_STATE_KEY,
 } from "../../../../src/shared/domain/session-keys.ts";
 import { budgetExhaustedAnswer, llmFailureOf } from "../../../../src/shared/domain/llm-failure.ts";
 import {
   BARE_TURN_CONTEXT, BLOCKED_ANSWER, blockedRequest, DEFAULT_LOADED, DENYING_CHAINS, DICTATION, EXPLICIT_PLAN, EXTRAS, EXTRA_RULES, EXTRA_TOOLS_INPUT, PARSED_RULES,
   REQUEST_WITH_TRANSCRIPT, RULED_CATALOGUE, SCRIPT_TOOLS_CASES, SESSION_START, SILENT_GATES, SPEAK, SPEAKER_FAILURE,
-  PRUNING, pruneBinding, STORED_RULES, TRANSCRIPT, TRANSCRIPTION_PRELUDE, turnSetup, PROFILED_INPUT, PROFILE_OVERRIDE_WARNING,
+  attachSkill, PRUNING, pruneBinding, STORED_RULES, suggestBinding, TRANSCRIPT, TRANSCRIPTION_PRELUDE, turnSetup, PROFILED_INPUT, PROFILE_OVERRIDE_WARNING,
 } from "./run-main-loop.fixtures.ts";
 import {
-  assertGateWarningBefore, assertLogged, assertLoggedLike, assertPromptEndsWith, assertToolTraceMessage,
+  assertGateWarningBefore, assertLogged, assertSuggestedApart, assertLoggedLike, assertPromptEndsWith, assertToolTraceMessage,
 } from "./run-main-loop.assertions.ts";
 import { createToolTrace } from "../../../../src/shared/application/dev/tool-trace-recorder.ts";
 import { assertMentions } from "../../../support/assertions/text.ts";
@@ -868,5 +868,33 @@ describe("runMainLoop — the pruning of the tool loop (compaction.prune)", () =
 
     // Assert
     strictEqual("onContextPressure" in llm.acts[0].request, false);
+  });
+});
+
+describe("runMainLoop — the skills suggested for the turn (skills.suggest)", () => {
+  it("puts a suggested skill in a block of its own, after the attached ones and not as the operator's", async () => {
+    // Arrange
+    const { deps, llm, store } = turnSetup();
+    attachSkill(store, deps.files);
+    const { suggest, asked } = suggestBinding();
+
+    // Act
+    await runMainLoop({ prompt: "cut the release" }, DEFAULT_LOADED, { ...deps, suggest });
+
+    // Assert
+    assertSuggestedApart(llm.acts[0].request.context ?? "", asked);
+  });
+
+  it("asks for no suggestion under /fast, which reads no skill", async () => {
+    // Arrange
+    const { deps, store } = turnSetup();
+    store.state.set(FAST_MODE_STATE_KEY, "true");
+    const { suggest, asked } = suggestBinding();
+
+    // Act
+    await runMainLoop({ prompt: "cut the release" }, DEFAULT_LOADED, { ...deps, suggest });
+
+    // Assert
+    deepStrictEqual(asked, []);
   });
 });

@@ -11,6 +11,7 @@ import { gateLine as memoryGateLine } from "../../../src/shared/domain/agent-pol
 import { pathListRules, userConfigRules } from "../../../src/shared/domain/agent-policy/path-rules.ts";
 import { SECRETS_HOST } from "../../support/fixtures/host-context.ts";
 import { FakeCrewHost } from "../../support/doubles/fake-crew-host.ts";
+import { FakeDecisionModel } from "../../support/doubles/fake-decision-model.ts";
 import { FakeFiles } from "../../support/doubles/fake-files.ts";
 import { FakeLogger } from "../../support/doubles/fake-logger.ts";
 import { FakePermissionRules } from "../../support/doubles/fake-permission-rules.ts";
@@ -59,6 +60,17 @@ export function profiledCrewDeps(value?: string) {
   if (value !== undefined) files.files.set(USER_CONFIG_FILE_PATH, JSON.stringify({ "llm.profile": value }));
   const config = createConfigStore({ files, session: new FakeSessionStore() });
   return { ...base, config };
+}
+
+/** crewDeps over the user settings `settings`, with what routing reads: a decision model that picks `small`. */
+export function routedCrewDeps(settings: Record<string, string>) {
+  const base = crewDeps();
+  const files = new FakeFiles();
+  files.files.set(USER_CONFIG_FILE_PATH, JSON.stringify(settings));
+  const session = new FakeSessionStore();
+  const decision = new FakeDecisionModel();
+  decision.answers = { profile: { type: "choice", choice: "small", confidence: 0.9, probabilities: { small: 0.9 } } };
+  return { ...base, config: createConfigStore({ files, session }), routing: { decision, files, session } };
 }
 
 export const NOT_A_PROFILE_WARNING = "llm.profile: 'a b' holds a space: a profile is one name, as the host's settings spell it; the host's default model this launch";

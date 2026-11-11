@@ -43,8 +43,8 @@ names. A script reaches it as a member of the `tools` namespace.
     the runtime's `onContextPressure` (Orkeon #327, asked for by this ADR's first draft); the summary of the
     buffer is untouched. A verdict answered to the runtime is final for the loop, so a result judged needed is
     left unanswered and judged again later;
-  - *routing the agents* (`route.agents`, `route.ladder`): a crew or a sub-agent gets the cheapest profile of the
-    ladder that fits its task, never one above the session's;
+  - *routing the agents* (`route.agents`, `route.ladder`): at its launch a crew gets the cheapest profile of the
+    ladder that fits the command, raised to the floor a rule of the project sets, never above the session's;
   - *suggesting skills* (`skills.suggest`): the few skills that fit the request join the turn's attached skills, for
     that turn.
 - **Names say the feature, never the provider.** No command, key, file, message nor identifier carries the name of a
@@ -75,3 +75,31 @@ names. A script reaches it as a member of the `tools` namespace.
   ([decision models, locally](../decision-models-local.md#a-measure-one-turn-with-and-without)). Not established:
   the judgement of the small open-weights models (the probe of `kev-0.8b` answered every question close to 0.5),
   and Liquid, which was not tried.
+- The routing as first planned is narrower than what was built. Planned: a profile and an effort for each crew and
+  each sub-agent. Built: a profile for a crew, at its launch. A sub-agent's act cannot change profile (the
+  runtime's `act` takes a model of the agent's provider): routing those acts waits for the runtime. The effort is
+  left to `/effort`, one setting with one owner. The main loop is not routed, so that its prompt cache keeps one
+  model; the host's own `route` stage of a decision profile does that job for a request. The decision model reads
+  the command as typed, which says little for a command without arguments (`/init`): the floors by crew are there
+  for it. Probed live on `kev-0.8b` (four commands, 2026-11-11): the choice comes back with a confidence that
+  is not the probability of the option picked (0.24 for a pick between two options), a figure each provider
+  defines; the 0.6 bar is therefore read on the probability the answer gives its pick. Under the first reading,
+  two commands were routed to `small`, two left to the session, and a
+  plan described as a rewrite across modules was not sent to `large`. Its effect on cost and quality is not
+  measured.
+- The suggestion of skills needed a place to find them, which the plan had not: `/skills` lists what a person
+  attached, not what a project holds. The skills are the `.md` files of `.orkeon/skills/` and the `SKILL.md` of the
+  folders of `.claude/skills/`, the layout another assistant's skills already have, so a repository that keeps
+  them is served without a copy. Not measured. A choice among up to 25 options is the question a small model is least likely to answer well.
+- A suggested skill is a file of the repository a model picked, not one a person chose. The turn therefore reads
+  it apart from the attached skills, as reference material under the request and the rules, and a skill marked
+  `disable-model-invocation: true` is never offered. What still bounds a hostile file: the setting is off by
+  default, three files of 4 000 characters at most, and the decision model must pick it; a description written to
+  be picked for every request is not defended against.
+- Probed live on `kev-0.8b` over the real adapters (2026-11-11, after the review): of five skills, the one kept
+  for a person was not offered; a release request got the release skill (0.92), a flaky test the flaky-tests
+  skill (0.75), a question about a function none; a request to add a column to a table got none either, where the
+  migration skill fitted. The routing, its bar now on the pick's probability, sent `/commit` and a question to
+  `small` and a plan named as a rewrite across modules to `large`, each at 0.61 to 0.65: right on the three, and
+  barely over the bar of 0.6. Four requests and three commands on one small model show that the path works end to
+  end, not how often it is right.

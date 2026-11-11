@@ -564,10 +564,13 @@ ORKEON_CODE_SETTINGS=config/appsettings.local.json ORKEON_CODE_WORKSPACE=/tmp/ke
 
 ## Pruning a long turn with it
 
-A decision profile is the host asking the decision model. Orkeon Code asks it too, for one thing so far:
+A decision profile is the host asking the decision model. Orkeon Code asks it too, for three things so far. The first:
 `/config set compaction.prune on` has it judge the stale tool results of a turn in progress, whichever provider
 serves it ([architecture](architecture.md#compaction-and-memory)). It needs nothing more than the provider
-configured above, and no profile; it is off by default.
+configured above, and no profile; it is off by default. `/route on` is the second: at the launch of a crew it picks
+the cheapest LLM profile that fits the command ([architecture](architecture.md#routing-a-crew-to-a-profile)).
+`/skills suggest on` is the third: each turn gets the project's skills that fit its request
+([architecture](architecture.md#suggesting-skills-for-a-turn)).
 
 ### A measure: one turn, with and without
 

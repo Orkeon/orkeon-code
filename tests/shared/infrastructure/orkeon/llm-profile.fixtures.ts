@@ -20,14 +20,25 @@ export class RecordingAgentBuilder {
 /** A config as `llm.profile(name)` answers it. */
 export const profileConfig = (name: string): LlmConfig => ({ provider: "host", profile: name, model: "", with: () => profileConfig(name) });
 
-export function factories(withProfile = true): AgentFactories & { built: RecordingAgentBuilder[] } {
+export function factories(withProfile = true, unknown: readonly string[] = []): AgentFactories & { built: RecordingAgentBuilder[] } {
   const built: RecordingAgentBuilder[] = [];
+  const profile = (name: string): LlmConfig => {
+    if (unknown.includes(name)) throw new Error(`unknown LLM profile '${name}'`);
+    return profileConfig(name);
+  };
   return {
     built,
     agent: () => { const builder = new RecordingAgentBuilder(); built.push(builder); return builder; },
-    profile: withProfile ? profileConfig : undefined,
+    profile: withProfile ? profile : undefined,
   };
 }
+
+/** What a routed crew input builds on, the host declaring no profile `small`. */
+export const FALLBACK_CASES: { name: string; input: Record<string, unknown>; profiles: string[] }[] = [
+  { name: "builds a routed agent on the routed profile when the host declares it", input: { llmProfile: "large", llmProfileFallback: "" }, profiles: ["large"] },
+  { name: "falls back on the session's profile when the host does not declare the routed one", input: { llmProfile: "small", llmProfileFallback: "large" }, profiles: ["large"] },
+  { name: "falls back on the host's default model when the session named no profile", input: { llmProfile: "small", llmProfileFallback: "" }, profiles: [] },
+];
 
 /** The inputs every agent requests the prompt cache on: a profile named, or none. */
 export const CACHE_CASES: { name: string; input: Record<string, unknown> }[] = [

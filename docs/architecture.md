@@ -211,7 +211,7 @@ port.
 
 ```text
 src/
-├── commands/          49 *.cmd.ts (parse, wire, render) in eight functional folders: session, settings, status,
+├── commands/          50 *.cmd.ts (parse, wire, render) in eight functional folders: session, settings, status,
 │   │                  project, git, dev, memory, speech
 │   ├── _lib/          the use cases, in the folder of their commands: run<Name>(tokens, deps) → CommandView,
 │   │                  or dispatch<Name>(tokens, deps) → a ticket or a message when the command launches a
@@ -614,6 +614,72 @@ prompt as the model reads it, to review a change as a diff.
   permission note of the mode (read-only: deliver an
   assessment or a plan; otherwise the host may ask before a call), then the proactive clause when `/proactive` is
   on.
+
+### Routing a crew to a profile
+
+`shared/domain/agents/model-route.ts`, `shared/application/agents/route-agent.ts`
+([ADR 0027](adr/0027-decision-model-optimisations.md)). A crew's agents all run on one host profile, the session's
+`llm.profile`, chosen when the crew is built. With `route.agents` on and a decision model on the host, that profile
+is picked at each launch of `/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-learn`, `/review`, `/analyze`, `/commit`,
+`/init` and `/init-verifiers`:
+
+- **The ladder**: `route.ladder` orders the host's LLM profiles, cheapest first (`small,large` when omitted): names
+  of `Llm:Profiles`. A command cannot read the host's profiles, so nothing checks the ladder beforehand: a routed
+  launch also carries the session's profile, and a crew routed to a rung the host does not declare is built on
+  that one, as without routing.
+- **The question**: the decision model reads the crew's name and the command as typed (cut in its middle past 4 000
+  characters) and makes one choice among the rungs, the first described as enough for a lookup or a fully specified
+  task, the last as needed for a design or a change across modules. The pick is followed when the probability the
+  answer gives it reaches 0.6 (the answer's own `confidence` figure, whose meaning is each provider's, is read
+  only when no probability comes back). Under it, without an answer or when the model throws, the session's
+  profile stands.
+- **The floor**: `.orkeon/route-rules.json`, `{ "paths": { "<prefix>": "<profile>" }, "crews": { "<crew>":
+  "<profile>" } }`. The crew's own rule, and for each word of the command that is a rule's path or lies under it
+  (`src/billing`, `src\billing\tax.ts`, `/workspace/src/billing/tax.ts`) the rule of its closest ancestor, raise
+  the pick to at least that rung. A session on the host's default model takes the floor's rung even when the
+  model was not followed. A file absent, unreadable or malformed, a rule naming a profile outside the ladder and a
+  rule on the workspace itself (`/`, `./`) raise nothing.
+- **The ceiling**: never above the session's own rung; it wins over a floor. A session without `llm.profile` has the
+  whole ladder: routed, a launch may then run on a dearer model than the host's default. A session on a profile outside the ladder (a decision profile that guards its requests) is not
+  routed: it keeps that profile.
+- **What is not routed**: the main loop (`/assistant`: its prompt cache follows one model), `/compact`, `/memory
+  admit`, the speech crews, `/advisor` (it has its own model), `/dev-batches` and `/tasks`; and, inside a crew, the
+  acts of its sub-agents, since the runtime's `act` takes a model of the agent's provider, not a profile. The
+  reasoning effort stays `/effort`'s.
+- **It fails open**: the setting off or unreadable, no decision model (a warning) and a model that does not answer
+  leave the session's profile. Each routed launch writes a log line with the profile and why, and the last 5 are
+  kept in the session for `/route why`; the choice is made before the launch, so a launch the host then refuses (a
+  crew already running) has still asked the model and is listed. `/route on|off` sets `route.agents` for the session; bare, it says where the
+  routing stands.
+
+### Suggesting skills for a turn
+
+`shared/domain/skills/shortlist.ts`, `shared/application/skills/suggest-skills.ts`
+([ADR 0027](adr/0027-decision-model-optimisations.md)). A skill is a markdown playbook; `/skills attach` puts one
+in every turn until it is detached. With `skills.suggest` on and a decision model on the host, each turn of the main
+loop is also suggested the project's skills that fit its request:
+
+- **The skills**: the `.md` files of `.orkeon/skills/`, then the `SKILL.md` of each folder of `.claude/skills/`, each
+  folder in name order, 24 at most. A skill's name and description are those of its front matter (`name:`,
+  `description:`, a folded value included), else its first heading and the first line of text outside a code
+  fence; the description is cut at 300 characters. Left out: a file that cannot be read or is blank, a skill a
+  person attached (whatever the spelling of its path), and a skill its front matter keeps for a person to invoke
+  (`disable-model-invocation: true`).
+- **The question**: the decision model reads the request (2 000 characters at most) and makes one choice among the
+  skills, each told by one line, and the option that none fits.
+- **The picks**: the skills whose share of the model's probability reaches 0.3, the largest first, 3 at most; none
+  when the model chose that none fits. The question is one choice, so skills that all fit split the probability:
+  four that fit equally reach none.
+- **What the turn reads**: the picked files, whole, under the cap of 4 000 characters each, in a block of their own
+  after the attached skills, « Suggested skills ». Its opening says that a classifier picked them, that the
+  operator did not attach them, and that they are reference material whose instructions the request and the
+  rules outrank: a file of the repository does not speak with the operator's voice because a model picked it. For
+  that turn only: nothing is attached, and the block is in the turn's context, never in the system prompt, so the
+  prompt cache holds.
+- **It fails open**: the setting off or unreadable, `/fast` (which reads no skill), no decision model (a warning),
+  no skill folder and a model that does not answer or throws suggest nothing. A log line names the skills suggested, and what
+  the last turn was suggested is kept in the session for `/skills suggest why`. `/skills suggest on|off` sets
+  `skills.suggest` for the session; bare, it says where the suggestion stands.
 
 ### Compaction and memory
 

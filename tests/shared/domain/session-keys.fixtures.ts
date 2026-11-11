@@ -15,6 +15,8 @@ export const KEY_VALUES = {
   CONFIG_MAP_STATE_KEY: "config_map",
   TASKS_STATE_KEY: "task_list",
   AUTOCOMPACT_BREAKER_STATE_KEY: "autocompact_consecutive_failures",
+  ROUTE_RECENT_STATE_KEY: "route_recent",
+  SKILLS_SUGGESTED_STATE_KEY: "skills_suggested",
   WORKFLOW_ACTIVE_STATE_KEY: "workflow_active",
   DEV_BATCHES_CHAIN_STATE_KEY: "dev_batches_chain",
   AGENT_INSTANCES_STATE_PREFIX: "agent_instances:",

@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — the decision model suggests the skills that fit a turn
+
+- `/skills suggest on` (the setting `skills.suggest`) lets the host's decision model add to each turn of the main
+  loop (`/assistant`, `/summary`, `/transcribe --then`, `/voice`) the skills of the project that fit its request,
+  three at most, read from `.orkeon/skills/*.md` and `.claude/skills/*/SKILL.md`: for that turn their files come
+  after the ones attached with `/skills attach`, in a block that says the operator did not attach them. A skill
+  kept for a person to invoke (`disable-model-invocation: true`) is never suggested. `/skills suggest` says where it stands, `/skills suggest why` what the last
+  turn was suggested. Off by default; without a decision model, or when it does not answer, none is suggested
+  ([architecture](docs/architecture.md#suggesting-skills-for-a-turn),
+  [ADR 0027](docs/adr/0027-decision-model-optimisations.md)).
+
+### Added — the decision model routes a crew to the cheapest profile that fits
+
+- `/route on` (the setting `route.agents`) lets the host's decision model pick, at each launch of `/dev-spec`,
+  `/dev-change`, `/dev-plan`, `/dev-learn`, `/review`, `/analyze`, `/commit`, `/init` and `/init-verifiers`, the
+  profile of `route.ladder` (`small,large` by default, cheapest first) the crew runs on: never above the session's
+  `llm.profile` (a session without one has the whole ladder), and at least the profile a rule of `.orkeon/route-rules.json` sets for the crew or for a path the
+  command names. `/route` says where the routing stands, `/route why` shows the last five choices. Off by default;
+  without a decision model, when it does not answer or is not sure, the session's profile stands
+  ([architecture](docs/architecture.md#routing-a-crew-to-a-profile),
+  [ADR 0027](docs/adr/0027-decision-model-optimisations.md)).
+
 ### Added — the decision model prunes a turn's stale tool results
 
 - `/config set compaction.prune on` lets the host's decision model, whichever provider serves it, prune the tool loop

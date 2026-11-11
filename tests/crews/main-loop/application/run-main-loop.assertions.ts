@@ -1,5 +1,5 @@
 // Checks on what one main-loop turn sent the model, logged and answered.
-import { ok } from "node:assert";
+import { deepStrictEqual, ok } from "node:assert";
 
 /** The prompt the model read ends with `tail`. */
 export function assertPromptEndsWith(prompt: string, tail: string): void {
@@ -26,4 +26,16 @@ export function assertGateWarningBefore(text: string, answer: string): void {
 export function assertToolTraceMessage(content: string, line: string): void {
   ok(content.startsWith("[tools]"), `the message is no [tools] trace:\n${content}`);
   ok(content.split("\n").slice(1).includes(line), `the trace has no line '${line}':\n${content}`);
+}
+
+/** The suggestion was asked once, with the request and the attached path; in the context, the attached skill sits under
+ *  the operator's heading and the suggested one after it, under the heading that says the operator did not attach it. */
+export function assertSuggestedApart(context: string, asked: ReadonlyArray<{ request: string; attached: readonly string[] }>): void {
+  deepStrictEqual(
+    asked.map((a) => a.attached), [["/workspace/docs/attached.md"]],
+    "the suggestion was not asked once, with the attached path",
+  );
+  const marks = ["## Attached skills", "ATTACHED BODY", "## Suggested skills", "the operator did not attach them", "SUGGESTED BODY"];
+  const at = marks.map((mark) => context.indexOf(mark));
+  ok(at.every((position, i) => position >= 0 && (i === 0 || position > at[i - 1])), `the context does not hold, in order, ${marks.join(" | ")}:\n${context.slice(0, 900)}`);
 }
