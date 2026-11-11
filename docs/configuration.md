@@ -41,8 +41,8 @@ Environment variables prefixed `ORKEON_` override the file (`__` separates secti
 | `Llm:Temperature`, `Llm:MaxTokens`, `Llm:TimeoutSeconds` | Generation settings |
 | `Llm:MaxRateLimitWait` | Longest rate-limit window a call waits out before it fails, `00:05:00` by default |
 | `Llm:Profiles:<name>:MaxRateLimitWait` | The same bound for one named profile of the host, `00:05:00` by default |
-| `Llm:Profiles:<name>:Fallback`, `Llm:Profiles:<name>:FallbackBudgetSeconds` | The profiles a call of `<name>` moves to, in order, when it fails in a way a retry cannot cure (Orkeon #299): a transport error, a 5xx, a 429 once the retries are spent, a timeout |
-| `Llm:ModelCapabilities:<model id>` | What a model takes (Orkeon #299): `ReasoningEfforts`, the efforts it accepts (an `effort` a listed model does not take is dropped with a warning; a model listed nowhere gets every effort, with a warning), `Vision`, `AudioInput`, `AudioOutput` |
+| `Llm:Profiles:<name>:Fallback`, `Llm:Profiles:<name>:FallbackBudgetSeconds` | The profiles a call of `<name>` moves to, in order, when it fails in a way a retry cannot cure: a transport error, a 5xx, a 429 once the retries are spent, a timeout |
+| `Llm:ModelCapabilities:<model id>` | What a model takes: `ReasoningEfforts`, the efforts it accepts (an `effort` a listed model does not take is dropped with a warning; a model listed nowhere gets every effort, with a warning), `Vision`, `AudioInput`, `AudioOutput` |
 | `Llm:Thinking:Enabled` | Reasoning mode, for the providers that have one |
 
 What the table leaves out:
@@ -76,12 +76,11 @@ An option a provider cannot honour produces a warning, never a silent drop.
 - A provider that caches the prompt (DeepSeek and OpenAI by themselves, Anthropic with `cache_control`) reports the
   tokens read from its cache and written to it.
 - Orkeon keeps them per model and `/usage` and `/context` show their sum in `cacheRead` and `cacheWrite` (`n/a`
-  while no call reported the count, never `0`, which reads as measured: a runtime from Orkeon #254 on leaves an
-  unreported count out, an older one reports `0`).
+  while no call reported the count, never `0`, which reads as measured: the runtime leaves an unreported count out).
 - The cache's lifetime is a per-call option of Orkeon, `orkeon:cache_ttl` (`5m` or `1h`, from an agent's cache
   setting): Anthropic honours it, the OpenAI-compatible providers and Ollama log that they cannot.
 - Orkeon Code sets none, so each provider keeps its own default lifetime (a 1-hour write would cost twice the prompt
-  rate, Orkeon #266).
+  rate).
 - Anthropic caches only what a request marks: every agent of Orkeon Code marks its system prompt and its tool
   definitions (`.cache({ systemPrompt: true, tools: true })`), a prefix its prompts keep identical turn after turn,
   so from a session's second call `cacheRead` counts what Anthropic served from its cache.
@@ -107,12 +106,12 @@ on the Ollama service, or the model silently loses its instructions and its tool
 ### A decision model in front of the LLM
 
 - Orkeon can put a decision model, Jev (TypeSafe's System One, `jev-latest`), in front of a model.
-- Since Orkeon #266 the host serves one decision provider among three, TypeSafe (`Orkeon:TypeSafe`,
+- The host serves one decision provider among three, TypeSafe (`Orkeon:TypeSafe`,
   `TYPESAFE_API_KEY`), Liquid (`Orkeon:Liquid`, `LIQUID_API_KEY`) and Kev (`Orkeon:Kev`, a local server, never
   deduced): `Orkeon:Decision:Provider` names it, otherwise the host deduces it from the one section present, or from
   the one key set when no section is.
 - Two sections, or two keys and no section, refuse the start, and the input guard's section is
-  `Orkeon:Guardian:Llm`, fail-closed by default (Orkeon #299; `Orkeon:Decision:Guard` and `Orkeon:TypeSafe:Guard`
+  `Orkeon:Guardian:Llm`, fail-closed by default (`Orkeon:Decision:Guard` and `Orkeon:TypeSafe:Guard`
   are refused at start as unknown keys).
 - A decision profile works the same whatever the provider: a *decision profile* (`Orkeon:Decision:Profiles:<name>`)
   wraps a named LLM profile (`Llm:Profiles:<name>`) with stages that route the request to the profile that fits it,
@@ -166,16 +165,16 @@ others one after the other, each call through the permission gate, and sends the
 | `Orkeon:Scripting:Limits:ExecutionTimeout`, `Orkeon:Scripting:Limits:MemoryLimitBytes` | The same limits for `orkeon run`, the tool `scripts/run-crew.sh` runs a crew with (30 seconds and 100 MB by default; the example sets 30 minutes and 2 GiB). `orkeon-repl` does not read them |
 | `Orkeon:Tools:Shell:AllowInterpreters` | Lets `shell_command` run interpreters (`node`, `dotnet`, `npm`...), needed to build and test most projects |
 | `Orkeon:Tools:Shell:ExtraAllowedCommands` | Commands added to the shell allow-list (`make`, `cargo`...) |
-| `Orkeon:Tools:Shell:WindowsPaths:<virtual path>` | Under WSL, the Windows spelling of a mount (`"/workspace": "C:\\proj"`): a Windows program (`cmd.exe`, `code.exe`, `git.exe` of Git for Windows) run by `shell_command` gets its arguments and results in that spelling, where a Linux program gets `/mnt/c/proj` (Orkeon #302) |
+| `Orkeon:Tools:Shell:WindowsPaths:<virtual path>` | Under WSL, the Windows spelling of a mount (`"/workspace": "C:\\proj"`): a Windows program (`cmd.exe`, `code.exe`, `git.exe` of Git for Windows) run by `shell_command` gets its arguments and results in that spelling, where a Linux program gets `/mnt/c/proj` |
 | `Orkeon:Tools:Shell:Confinement:Mode` | `Auto` (default: bubblewrap on Linux, Seatbelt on macOS, AppContainer on Windows, none inside a container), `None`, `Bubblewrap`, `Seatbelt` or `AppContainer` |
 | `Orkeon:Tools:Shell:Environment:SessionBus` | Whether a confined shell (bubblewrap, Seatbelt, AppContainer) receives the session bus, `DBUS_SESSION_BUS_ADDRESS`, which the keyring credential helper of `gh` needs |
 | `Orkeon:Tools:Shell:Environment:Propagate` | Names of variables added to the shell's allow-list |
 | `Orkeon:Tools:ResultLimits:Limits:<tool>` | The cut of a tool's result, in characters |
 | `Orkeon:Tools:ResultLimits:MaxParallelToolCalls` | The read calls of one model turn that run at once: 4 |
 | `Orkeon:Rag:Retrieval:MinScore` | The score under which a passage is dropped, for every RAG search and not only the shared memory |
-| `Orkeon:Tools:GitHub:Token` | The token of the `github` tool, read once when the tool is registered (Orkeon #222); prefer the variable below to a token written in a settings file, which the examples leave out |
+| `Orkeon:Tools:GitHub:Token` | The token of the `github` tool, read once when the tool is registered; prefer the variable below to a token written in a settings file, which the examples leave out |
 | `Orkeon:Tools:GitHub:TokenVariable` | The environment variable the `github` tool reads its token from when `Token` is unset: `GITHUB_TOKEN` by default, then `GH_TOKEN` |
-| `Orkeon:Tools:Firefox:*` | The `firefox` tool (Orkeon #293), which drives the Firefox of the host over WebDriver BiDi, with nothing to download |
+| `Orkeon:Tools:Firefox:*` | The `firefox` tool, which drives the Firefox of the host over WebDriver BiDi, with nothing to download |
 | `Orkeon:Cli:ConsoleStreaming:Enabled` | Streams the answer as it is generated |
 | `Orkeon:Cli:Tui:Theme` | The palette the split-pane console starts on: `dark`, `light` or `none`; without it `dark`, or `none` under `NO_COLOR`. Any other value refuses the start. `/theme` changes it for the session |
 | `Orkeon:Cli:ScriptCommands:MaxScripts` | Commands the loader keeps: 200 by default, above this project's command surface |
@@ -185,12 +184,12 @@ What the table leaves out:
 
 - **`Orkeon:Tools:ResultLimits:Limits:<tool>`**:
   - 4000, `file_read` 32000, `node_read` 256000, `shell_command` 10000, and 12000 for the twelve analysis tools
-    (`dependency_graph`, `sub_graph`, `edge_list`, `codebase_search`, `symbol_detail`…; Orkeon #283), whose JSON
+    (`dependency_graph`, `sub_graph`, `edge_list`, `codebase_search`, `symbol_detail`…), whose JSON
     puts `truncated`, the counts and the cursor first, so a cut result still says it is partial.
 - **`Orkeon:Tools:Firefox:*`**:
   - `ExecutablePath` when it is not on the `PATH`, `Headless` to hide its window, which shows by default (without a
     display it starts headless), `Profile`, `AllowedProfiles` and `DeniedProfiles` for a profile other than the
-    disposable one, `Lifetime` (Orkeon #297): `run` by default, the browser closes with the agent's turn.
+    disposable one, `Lifetime`: `run` by default, the browser closes with the agent's turn.
 - **`Orkeon:Security:PermissionGate:Enabled` = `true`**:
   - The launcher turns it on unless the settings file says otherwise.
   - Without it no call is checked and the modes only shape the catalogue.
@@ -208,7 +207,7 @@ What the table leaves out:
   - The examples set `None`.
   - A settings file without the key confines, outside a container.
   - `/dev-batches --concurrency` above 1 works under Bubblewrap from a runtime that binds a linked worktree's git
-    dir (Orkeon/orkeon#191).
+    dir.
   - On an older one git fails inside a batch's worktree, and the run refuses itself in one line.
   - Confined, the run's closing push reaches no remote (no network, `HOME=/tmp`, so no credentials): the run stays
     open with the `git push` command.
@@ -218,11 +217,11 @@ What the table leaves out:
   - `false` by default, since through the bus a command can start a process outside the sandbox.
   - An unconfined shell (`Confinement:Mode` `None`, the example settings) and the code sandbox receive it.
   - `SSH_AUTH_SOCK` and `XDG_RUNTIME_DIR` reach every shell, so git reaches a private remote through the ssh agent
-    (Orkeon #216).
+   .
 - **`Orkeon:Tools:Shell:Environment:Propagate`**:
   - A name holding a secret word (`KEY`, `TOKEN`, `SECRET`, `PASSWORD`, `PASSWD`, `PASS`, `CREDENTIAL`, `AUTH`,
     `PAT` as a whole segment), starting with `ORKEON_`, or whose value carries URL credentials is dropped with a
-    warning (Orkeon #216).
+    warning.
 - **`Orkeon:Tools:ResultLimits:Limits:<tool>`**:
   - A release before it cuts them at 4000, `truncated` last: set them to 12000 there.
   - A cut result ends with `[... truncated, N chars omitted. …]`.
@@ -247,10 +246,10 @@ What the table leaves out:
     Firefox.
 - **`Orkeon:Cli:ConsoleStreaming:Enabled`**:
   - The example enables it.
-  - A command prints nothing more once the answer streamed (Orkeon #228).
+  - A command prints nothing more once the answer streamed.
   - With `/dev-batches --concurrency` above 1, each batch's streamed answer comes line by line: on the plain console
-    prefixed by its ticket (`[t2] `), the foreground answer alone as it arrives (Orkeon #211).
-  - In the TUI on the batch's own screen, without the prefix (Orkeon #217).
+    prefixed by its ticket (`[t2] `), the foreground answer alone as it arrives.
+  - In the TUI on the batch's own screen, without the prefix.
 
 ### How long a turn may last
 
@@ -258,15 +257,15 @@ What the table leaves out:
 
 - the script engine's `ExecutionTimeout` above, which stops while a question waits for you;
 - The main-loop crew's own budget, written in its code (`src/crews/main-loop/crew.ork.ts`): 200 tool calls, 700k
-  context tokens and 30 minutes of wall time, which stops while a tool call waits for your answer (Orkeon #299).
-  - The context is counted once (Orkeon #224): each call charges its completion plus what its prompt grew by, or the
+  context tokens and 30 minutes of wall time, which stops while a tool call waits for your answer.
+  - The context is counted once: each call charges its completion plus what its prompt grew by, or the
     part of it the provider's cache did not serve, so a turn of n calls on a context of c tokens spends about c plus
     its completions, never its whole context again at each call.
   - That clock is Orkeon's and, like the engine's, it stops while the gate waits for your answer: only the model's
     own work counts, and a question left unanswered does not end the turn.
   - When the context tokens reach the limit the turn runs no further tool: the model makes one last call without
     tools, its answer is shown under a line saying the turn stopped on its budget, and only a last call that fails
-    or answers nothing ends the turn in an error (Orkeon #218).
+    or answers nothing ends the turn in an error.
   - A tool-call or wall-time limit still ends it in an error.
 
 `Orkeon:Cli:ScriptHost:RunCrewTimeout` (10 minutes by default) bounds only a crew a command waits for (`runCrew`);
@@ -415,7 +414,7 @@ The class decides which modes offer the tool: `read` in every mode, `write` in `
 [permission gate](permissions.md#extra-tools) still decides each call. `/config set` refuses an entry that is not the
 notation, that names a built-in tool, or that names a tool twice.
 
-- A server's declaration (`MCP:Servers:<id>`, Orkeon #299) also takes `CallTimeout` (`00:01:00` by default: a call
+- A server's declaration (`MCP:Servers:<id>`) also takes `CallTimeout` (`00:01:00` by default: a call
   past it ends as a tool error; the [speech server](speech.md#speech-to-text) gets 15 minutes) and `ConnectTimeout`
   (30 s).
 - `Tools:Allow` and `Tools:Deny`, which filter the server's tools before they are registered, so a denied tool is
@@ -452,8 +451,7 @@ The REPL saves the conversation after each turn and when it ends (`Orkeon:Cli:Se
 settings), and the launcher keeps it outside the project: in `~/.orkeon-code/projects/<project>/` once installed,
 `.crew-output/projects/<project>/` in a clone, `<ORKEON_CODE_STATE>/projects/<project>/` when that variable is set.
 `<project>` is the folder's name and a short hash of its path, so two projects of the same name never share it;
-`project.json` there names the path. Nothing is written under the project's `.orkeon/sessions` any more (`/doctor`
-warns when an older start left sessions there).
+`project.json` there names the path. Nothing is written under the project's `.orkeon/sessions`: `/doctor` warns when it finds sessions there.
 
 | Start | What it brings back |
 |---|---|
@@ -468,13 +466,13 @@ warns when an older start left sessions there).
 - A second start while a session is open on the same project warns, leaves the open one alone and keeps its own
   beside it, in the history from the next start.
 - Inside the REPL, `/resume` lists the saved sessions (the launcher mounts `history/` read-only on
-  `/session-history`) and `/resume <number or id>` brings one back in place (Orkeon #227): the session of now is
+  `/session-history`) and `/resume <number or id>` brings one back in place: the session of now is
   saved to an archive beside its own file, which the next start moves to the history, then the chosen one replaces
   the conversation, its state and its title, and the next turn continues it.
 - The line editor's history (the up arrow) is not kept.
 
 - The typed memory (`/memory`, and the facts a compaction saves) is kept per project too, in
-  `<Orkeon:Cli:Memory:RootDirectory>/<project>/memory.json` (Orkeon #286): `Orkeon:Cli:Memory:Persist` is `true` in
+  `<Orkeon:Cli:Memory:RootDirectory>/<project>/memory.json`: `Orkeon:Cli:Memory:Persist` is `true` in
   the example settings, and the REPL turns it on when the key is absent.
 - `orkeon run` keeps it only when the settings say so, and without it the memory ends with the process.
 - The launcher sets `RootDirectory` to `/memory`, the `memory/` folder beside the sessions, outside the project, so

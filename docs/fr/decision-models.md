@@ -1,15 +1,15 @@
 # Modèles de décision : ce qu'Orkeon Code leur demande
 
 Un modèle de décision répond à des questions typées (oui ou non, un choix, un score) par des probabilités et
-n'écrit aucun texte : un petit modèle, rapide et peu cher à côté du LLM qui répond. Le host en sert un par un
+n'écrit aucun texte : un petit modèle, rapide et peu cher à côté du LLM qui répond. Le runtime en sert un par un
 fournisseur de décision, le Jev hébergé de TypeSafe, le Kev à poids ouverts, ou le d1 de Liquid
 ([Configuration](configuration.md#le-llm) ; [Modèles de décision en local](decision-models-local.md) installe Kev
 et Liquid sur votre machine).
 
-Il sert de deux façons. Le host l'emploie par un *profil de décision*, qui garde une requête, la route ou vérifie
-sa réponse : ce sont les réglages du host, et les deux pages ci-dessus en traitent. Orkeon Code lui pose aussi
+Il sert de deux façons. Le runtime l'emploie par un *profil de décision*, qui garde une requête, la route ou vérifie
+sa réponse : ce sont les réglages du runtime, et les deux pages ci-dessus en traitent. Orkeon Code lui pose aussi
 trois questions de son cru, que couvre cette page. Chacune est un réglage, éteint par défaut, qui marche avec le
-fournisseur que le host configure, quel qu'il soit, et ne demande aucun profil de décision. Chacune échoue
+fournisseur que le runtime configure, quel qu'il soit, et ne demande aucun profil de décision. Chacune échoue
 ouverte : sans modèle de décision, ou quand il ne répond pas, Orkeon Code fait ce qu'il faisait avant.
 
 | Quoi | L'allumer | Le modèle de décision décide | Détails |
@@ -56,7 +56,7 @@ Un second essai, sur le seul dernier fichier du tour, n'a pas de jumeau auquel l
 
 ## Router un crew
 
-Les agents d'un crew tournent tous sur un profil LLM du host, celui de la session. Avec `route.agents` à `on`, au
+Les agents d'un crew tournent tous sur un profil LLM du runtime, celui de la session. Avec `route.agents` à `on`, au
 lancement de `/dev-spec` (et son alias `/dev-change`), `/dev-plan`, `/dev-learn`, `/review`, `/analyze`, `/commit`, `/init` et
 `/init-verifiers`, le modèle de décision lit la commande et choisit un profil de `route.ladder` (`small,large` si
 omis, du moins cher au plus cher). Le choix est suivi quand sa probabilité atteint 0,6, il est relevé au plancher
@@ -65,7 +65,7 @@ profil de la session. `/route why` montre les cinq derniers choix.
 
 ### Mesuré : douze commandes
 
-Une exécution, la session sur le modèle par défaut du host, l'échelle `small,large`. « Attendu » est le jugement
+Une exécution, la session sur le modèle par défaut du runtime, l'échelle `small,large`. « Attendu » est le jugement
 de l'auteur sur chaque commande.
 
 | Commande | Attendu | Choisi | Probabilité |

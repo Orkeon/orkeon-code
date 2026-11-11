@@ -20,7 +20,7 @@ export ORKEON_CODE_AUDIO_DIR=~/audio      # the folder of audio and video files
 The launcher then mounts that folder on `/audio` (read-only) and `<state>/transcripts` on `/transcripts`
 (read-only, `.crew-output/transcripts` by default), and declares the server to the REPL through the environment
 (`ORKEON_MCP__Servers__whisper__*`), so no settings file names this checkout. The banner shows an `audio` line. The
-folder holds real files: a link in it that points outside it is refused by the file tools (Orkeon #299).
+folder holds real files: a link in it that points outside it is refused by the file tools.
 
 `/transcribe` is the direct way: the call is the command's, so it needs no setting and the gate asks nothing.
 
@@ -54,7 +54,7 @@ request such as `transcribe /audio/daily.m4a and list the tasks I mention`, once
 `transcribe_audio` `write`, or leave it out and use `/transcribe`. The server marks `transcribe_audio`, `list_audio`
 and `whisper_info` read-only (`readOnlyHint`), which the permission gate reads once the server is declared trusted
 (`TrustAnnotations: true`, exported by the launchers as `ORKEON_MCP__Servers__whisper__TrustAnnotations` and set in
-the example settings; Orkeon #219, #223): they run without a question in every mode that offers them, `dontAsk`
+the example settings): they run without a question in every mode that offers them, `dontAsk`
 included; `record_and_transcribe`, `speak` and `stop_speaking`
 carry no annotation, so the gate asks about them in `default` and `acceptEdits` and refuses them in `plan` and
 `dontAsk` ([Permissions](permissions.md#extra-tools)).
@@ -66,7 +66,7 @@ carry no annotation, so the gate asks about them in `default` and `acceptEdits` 
   `WHISPER_MODEL=small` does it beforehand.
 - A 45-minute recording takes about 7 minutes with `small` on a CPU, under 2 minutes on a laptop GPU, where `turbo`
   is the better model.
-- The runtime ends a server call that outlasts `MCP:Servers:whisper:CallTimeout` (60 s by default; Orkeon #299) with
+- The runtime ends a server call that outlasts `MCP:Servers:whisper:CallTimeout` (60 s by default) with
   a tool error, although the server finishes and writes the transcript: the launchers export
   `ORKEON_MCP__Servers__whisper__CallTimeout=00:15:00` and the example settings set the same 15 minutes, which cover
   a dictation at its longest (`/voice --max 600`) and a long file on a CPU.

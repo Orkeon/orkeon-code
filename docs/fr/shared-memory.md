@@ -114,12 +114,11 @@ règle de session qui refuse `memory_recall` coupe aussi ces rappels.
 
 - `memory_recall` renvoie au plus cinq entrées admises pour une requête, la meilleure d'abord, avec ce à quoi elles
   s'appliquent et leur fichier : il lit, et s'exécute dans tous les modes.
-- Laissez la mémoire cognitive du runtime éteinte (`Orkeon:CognitiveMemory:Enabled`, faux par défaut ; Orkeon #299) :
+- Laissez la mémoire cognitive du runtime éteinte (`Orkeon:CognitiveMemory:Enabled`, faux par défaut) :
   allumée, le runtime enregistre un outil d'hôte du même nom, `memory_recall`, que les règles de la garde,
   `tools.extra` et `/debug-tool-call list` ne sauraient distinguer de celui-ci.
 - Aucun crew d'Orkeon Code ne déclare `memory: true`, rien ici n'en a donc besoin.
-- Les vecteurs de l'index viennent du fournisseur d'embeddings du runtime (`Orkeon:Embeddings`, qui depuis Orkeon
-  #299 prend aussi `mistral`, `azure-openai` et `gemini` comme `Provider`, avec `ApiKeyEnvVar`, `Endpoint` et
+- Les vecteurs de l'index viennent du fournisseur d'embeddings du runtime (`Orkeon:Embeddings`, qui prend aussi `mistral`, `azure-openai` et `gemini` comme `Provider`, avec `ApiKeyEnvVar`, `Endpoint` et
   `ApiVersion`).
 - Le runtime note le modèle dans `.orkeon/embedding-fingerprint.json` et refuse de démarrer quand il a changé
   ([Premiers pas](getting-started.md#ce-que-lagent-écrit-dans-votre-projet)).
@@ -134,3 +133,11 @@ règle de session qui refuse `memory_recall` coupe aussi ces rappels.
   `structural_rewrite`, un `cd`).
 - Une entrée que le modèle rappelle est un précédent, pas une consigne : la demande, les instructions du projet et
   le code tel qu'il est priment sur elle.
+
+## Voir aussi
+
+- [Permissions](permissions.md#la-protection-de-la-mémoire-partagée) : la protection qui tient les outils de
+  fichiers du modèle hors des dossiers de la mémoire.
+- [Configuration](configuration.md#réglages-de-session) : `memory.dir`, `memory.project` et
+  `memory.autoAdmitAudited`.
+- [Hooks](hooks.md) : vos commandes autour des appels d'outils des étapes dev.

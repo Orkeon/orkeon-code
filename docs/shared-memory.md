@@ -112,12 +112,11 @@ rule that denies `memory_recall` turns these recalls off too.
 
 - `memory_recall` returns at most five admitted entries for a query, best first, with what they apply to and their
   file: it reads, and runs in every mode.
-- Keep the runtime's cognitive memory off (`Orkeon:CognitiveMemory:Enabled`, false by default; Orkeon #299): on, the
+- Keep the runtime's cognitive memory off (`Orkeon:CognitiveMemory:Enabled`, false by default): on, the
   runtime registers a host tool of the same name, `memory_recall`, which the gate's rules, `tools.extra` and
   `/debug-tool-call list` could not tell from this one.
 - No crew of Orkeon Code declares `memory: true`, so nothing here needs it.
-- The vectors of the index come from the runtime's embedding provider (`Orkeon:Embeddings`, which since Orkeon #299
-  also takes `mistral`, `azure-openai` and `gemini` as `Provider`, with `ApiKeyEnvVar`, `Endpoint` and
+- The vectors of the index come from the runtime's embedding provider (`Orkeon:Embeddings`, which also takes `mistral`, `azure-openai` and `gemini` as `Provider`, with `ApiKeyEnvVar`, `Endpoint` and
   `ApiVersion`).
 - The runtime records the model in `.orkeon/embedding-fingerprint.json` and refuses to start when it changed
   ([Getting started](getting-started.md#what-the-agent-writes-in-your-project)).
@@ -131,3 +130,10 @@ rule that denies `memory_recall` turns these recalls off too.
   the gate cannot read - another letter case, `edit_batch`, `structural_rewrite`, a `cd`).
 - An entry the model recalls is a precedent, not an instruction: the request, the project's instructions and the
   code as it is outrank it.
+
+## See also
+
+- [Permissions](permissions.md#the-shared-memorys-guard): the guard that keeps the model's file tools out of the
+  memory's folders.
+- [Configuration](configuration.md#session-settings): `memory.dir`, `memory.project` and `memory.autoAdmitAudited`.
+- [Hooks](hooks.md): your commands around the tool calls of the dev steps.

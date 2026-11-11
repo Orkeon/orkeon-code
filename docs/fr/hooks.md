@@ -15,14 +15,14 @@ Ils durent jusqu'à `/clear` ou la fin du REPL, comme les [règles de permission
 ## Où ils s'exécutent
 
 Les étapes dev `/dev-spec`, `/dev-plan` et `/dev-batches` remettent
-le registre à leur crew, comme `/tasks repair` à l'agent qu'il relance. Pour chaque appel d'outil que le modèle fait dans ce crew, avant que la [garde de l'hôte](permissions.md) le juge (Orkeon #303) :
+le registre à leur crew, comme `/tasks repair` à l'agent qu'il relance. Pour chaque appel d'outil que le modèle fait dans ce crew, avant que la [garde du runtime](permissions.md) le juge :
 
 1. le callback du crew contrôle l'appel avec les jeux de règles de l'étape (et, pour un rôle d'un lot, avec
    ses racines) ; un appel qu'ils refusent n'exécute aucun hook ;
 2. chaque hook `pre-tool` s'exécute, dans l'ordre de `/hooks list` ; le premier qui sort avec un code autre que 0,
    dure plus de 60 secondes ou ne peut pas s'exécuter refuse l'appel : le modèle lit le numéro du hook, sa commande,
    son code de sortie et la première ligne qu'il a affichée (sa sortie d'erreur d'abord), et l'appel ne s'exécute pas ;
-3. la garde de l'hôte juge l'appel, sur l'entrée que renvoie le callback : une règle de la session ou le mode peut
+3. la garde du runtime juge l'appel, sur l'entrée que renvoie le callback : une règle de la session ou le mode peut
    encore le refuser, ou vous demander ; un appel refusé ne s'exécute pas, et le modèle lit `DENIED : …` comme son
    résultat ;
 4. l'appel s'exécute ;
@@ -78,3 +78,10 @@ peut pas vous demander : une approbation demandée au milieu d'un tour de crew p
 décide seul. Il ne voit pas les appels qu'une commande ou un crew fait depuis son propre code (les commandes git de
 l'audit d'un lot, son build et ses tests), ni les appels internes d'un outil qu'Orkeon Code définit, qui contrôlent leurs
 propres chemins.
+
+## Voir aussi
+
+- [Permissions](permissions.md) : la garde et les jeux de règles à côté desquels un hook s'exécute.
+- [Référence des permissions](permissions-reference.md#lordre-des-contrôles) : la place des hooks dans l'ordre des
+  contrôles.
+- [Mémoire partagée](shared-memory.md) : ce que les étapes dev rappellent avant d'agir.

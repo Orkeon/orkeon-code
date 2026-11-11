@@ -38,7 +38,7 @@ fait. Les règles du code sont dans [CONTRIBUTING.md](../../CONTRIBUTING.md) (en
   `ORKEON_CODE_MODE=source bash scripts/smoke-crew.sh` et `ORKEON_CODE_MODE=source bash scripts/smoke-validate.sh`
   sont les mêmes vérifications.
 - Le runtime juge un crew de ce projet comme un script procédural, puisqu'aucun n'assigne `globalThis.crew` dans sa
-  propre source : `--validate` le bundle et ne l'exécute jamais (Orkeon #316, [ADR
+  propre source : `--validate` le bundle et ne l'exécute jamais ([ADR
   0025](../adr/0025-orkeon-after-317.md)).
 
 ## Lancer un crew seul
@@ -86,7 +86,7 @@ vit en quatre endroits qui doivent concorder (`tests/repository/version.test.ts`
    le contrôle).
 
 `.config/dotnet-tools.json` nomme la dernière release de `orkeon.scripting.cli`, pour le repli sur l'outil des typings
-et de `scripts/run-crew.sh` : il ne suit plus l'épingle. Puis :
+et de `scripts/run-crew.sh` : il ne suit pas l'épingle. Puis :
 
 ```bash
 export ORKEON_SOURCE=<an Orkeon checkout at the pin>
@@ -106,8 +106,8 @@ montées mineures et de correctif ; la majeure se monte à la main, avec `.nvmrc
 1. Déplacez les entrées `[Unreleased]` de `CHANGELOG.md` sous `## [x.y.z] - YYYY-MM-DD`.
 2. Montez `version` dans `package.json` et `CLI_VERSION` dans `src/commands/_lib/status/meta.ts` (le test les garde
    égaux), ainsi que les notes de release (`RELEASE_NOTES`) dans `src/commands/_lib/status/messages.ts`.
-3. Lancez `ORKEON_SOURCE=<un checkout d'Orkeon au pin> bash scripts/check-shared-memory.sh` dans un terminal (il demande
-   `rag_eval` ; sans `ORKEON_SOURCE`, il lance l'outil plus ancien de `.config/dotnet-tools.json`, pas le pin, qui refuse
+3. Lancez `ORKEON_SOURCE=<un checkout d'Orkeon à l'épingle> bash scripts/check-shared-memory.sh` dans un terminal (il demande
+   `rag_eval` ; sans `ORKEON_SOURCE`, il lance l'outil plus ancien de `.config/dotnet-tools.json`, pas l'épingle, qui refuse
    des réglages récents comme `Orkeon:Decision`) : le rappel de la mémoire
    partagée sur son jeu de référence doit finir sur `check-shared-memory: thresholds met` (recall@5 >= 0.85, MRR >= 0.70).
    La question sans réponse (q13) ne passe que si les réglages du runtime donnent `Orkeon:Rag:Retrieval:MinScore` :

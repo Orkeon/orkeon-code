@@ -15,23 +15,23 @@ et les montre à l'œuvre dans Orkeon Code.
 Les deux exemples sont [`config/appsettings.jev.example.json`](../../config/appsettings.jev.example.json) sur un autre
 fournisseur : les deux mêmes profils LLM, `small` et `large`, et le même profil de décision, `guarded`, qui bloque une
 injection de prompt et remonte de `small` vers `large` quand la réponse ne tient pas. Dans les trois, `small` retombe
-aussi sur `large` (`Llm:Profiles:small:Fallback`, Orkeon #299) quand son point d'accès échoue ou dépasse son délai, un
+aussi sur `large` (`Llm:Profiles:small:Fallback`) quand son point d'accès échoue ou dépasse son délai, un
 déplacement que le profil de décision ne voit pas : la remontée juge une réponse, le repli remplace un appel resté sans
 réponse.
 
 ## Le runtime : le mode source
 
-Liquid et Kev arrivent avec Orkeon #266, leurs étapes corrigées par #271, que le pin couvre (`206b562`) et qu'aucune release ne livre encore : le mode
+L'épingle (`206b562`) sert Liquid et Kev, et aucune release ne les livre encore : le mode
 tool fait tourner la dernière release et le mode docker la dernière image, et aucun des deux ne connaît
 `Orkeon:Liquid`, `Orkeon:Kev` ni `Orkeon:Decision:Provider`. Lancez Orkeon Code en mode source, sur un checkout
-d'Orkeon au pin ou après ([Premiers pas](getting-started.md#mode-source--un-checkout-dorkeon)) :
+d'Orkeon à l'épingle ou après ([Premiers pas](getting-started.md#mode-source--un-checkout-dorkeon)) :
 
 ```bash
 export ORKEON_SOURCE=~/src/orkeon
 ./orkeon-code --mode source --settings config/appsettings.local.json
 ```
 
-Le lanceur amène de lui-même un checkout propre au pin (`ORKEON_SOURCE_FOLLOW_PIN=0` le désactive).
+Le lanceur amène de lui-même un checkout propre à l'épingle (`ORKEON_SOURCE_FOLLOW_PIN=0` le désactive).
 
 ## Kev sur cette machine
 
@@ -176,7 +176,7 @@ nomme un autre. La partie de l'exemple qui règle le modèle de décision :
 }
 ```
 
-`Provider` doit nommer `kev` : l'hôte déduit TypeSafe ou Liquid de leur section, jamais Kev, et une section
+`Provider` doit nommer `kev` : le runtime déduit TypeSafe ou Liquid de leur section, jamais Kev, et une section
 `Orkeon:Kev` seule est ignorée avec un avertissement au démarrage. Puis, dans le REPL, placez les agents sur le profil
 de décision :
 
@@ -228,7 +228,7 @@ export KEV_API_KEY=$(openssl rand -hex 24)
 uv run --extra serve python -m kev.serve --run jaredpalmer/kev-0.8b --port 8009
 ```
 
-Exportez le même `KEV_API_KEY` dans le shell qui lance Orkeon Code. Avec une clé, l'hôte refuse une adresse `http`
+Exportez le même `KEV_API_KEY` dans le shell qui lance Orkeon Code. Avec une clé, le runtime refuse une adresse `http`
 qui n'est pas cette machine (`localhost`, `127.0.0.0/8`, `::1`) : un Kev sur une autre machine se joint en `https`.
 
 ## Liquid
@@ -281,7 +281,7 @@ async def systemone(request: Request):
 ```
 
 d1 veut des `instructions` sur chaque question : les étapes de garde et de vérification d'Orkeon les envoient avec
-chaque question oui ou non depuis Orkeon #271 (la description du risque, le critère de la vérification). Le modèle
+chaque question oui ou non (la description du risque, le critère de la vérification). Le modèle
 livre son propre code (`trust_remote_code`), donc `D1_REVISION` fige la révision essayée ici. L'image, à côté de
 `serve.py` :
 
@@ -358,8 +358,7 @@ Sur `guarded`, l'injection est bloquée à 0,96 :
 `Decision profile guarded: stage guard decided Block (the request matches the risk 'prompt_injection' at 0.96)`,
 et la requête ordinaire passe. L'étape de vérification de `guarded` juge la réponse, pas les étapes qui y mènent :
 une réponse de la boucle de l'agent qui ne fait qu'appeler un outil passe sans être jugée (`"Steps": "final"`, la
-valeur par défaut ; `"all"` juge aussi les étapes). Avant Orkeon #271 elle jugeait chaque étape, et `d1-3B`, qui les
-notait de 0,09 à 0,11 contre le critère, faisait remonter chacune sur `large`.
+valeur par défaut ; `"all"` juge aussi les étapes). Quand chaque étape est jugée, `d1-3B` les note de 0,09 à 0,11 contre le critère et fait passer chacune sur `large`.
 
 ### L'API hébergée
 
@@ -414,7 +413,7 @@ cp config/appsettings.liquid.example.json config/appsettings.local.json
 }
 ```
 
-`Provider` peut être omis avec Liquid : l'hôte le déduit de la seule section `Orkeon:Liquid`, ou de `LIQUID_API_KEY`
+`Provider` peut être omis avec Liquid : le runtime le déduit de la seule section `Orkeon:Liquid`, ou de `LIQUID_API_KEY`
 seule quand aucune section de fournisseur n'est présente. Nommez-le tout de même quand `TYPESAFE_API_KEY` est aussi
 exportée : deux clés sans section refusent le démarrage. Puis `/config set llm.profile guarded`, comme pour Kev.
 
@@ -539,10 +538,9 @@ appel est bloqué.
 ## Le voir fonctionner
 
 Ce qui suit a été observé avec `kev-0.8b` et `qwen3.5:2b` dans Docker sur une RTX 3080, Orkeon à `0ea39d9` ;
-l'étape 2 compte les appels à Kev comme les fait Orkeon depuis #271 (`3860e9d`), où une étape qui appelle un outil n'est plus
-jugée après l'appel. Les lignes de journal sont celles de l'hôte, telles que l'exécution ci-dessous les affiche.
+l'étape 2 compte les appels à Kev comme les fait Orkeon à `3860e9d`, où une étape qui appelle un outil n'est pas jugée après l'appel. Les lignes de journal sont celles du runtime, telles que l'exécution ci-dessous les affiche.
 
-1. **Le démarrage.** L'hôte nomme le fournisseur actif :
+1. **Le démarrage.** Le runtime nomme le fournisseur actif :
    `Decision provider kev: model kev-latest, address http://127.0.0.1:8009/v1, named` (`deduced` pour un Liquid trouvé
    par sa section ou sa clé). Le journal de lancement d'une commande nomme le profil sur lequel tournent ses agents, et
    `/config list` montre `llm.profile`.
@@ -552,7 +550,7 @@ jugée après l'appel. Les lignes de journal sont celles de l'hôte, telles que 
    une étape qui appelle un outil passe sans être jugée). Un tour qui appelle le modèle n fois, appels d'outils
    compris, en fait n + 1.
 3. **Un avertissement, puis une remontée.** Sur `guarded`, l'injection du tableau ci-dessus est jugée à 0,51 :
-   au-dessus du seuil d'avertissement, sous celui de blocage, l'hôte journalise `Decision guard: the request matches
+   au-dessus du seuil d'avertissement, sous celui de blocage, le runtime journalise `Decision guard: the request matches
    the risk prompt_injection at 0.5066, under the block threshold` et l'appel est fait. La réponse est ensuite jugée à
    0,46 contre le critère, sous 0,6 : `Decision profile guarded: stage verify decided Escalate large (the answer holds
    at 0.46, under 0.6)`, et `large` répond à nouveau.
@@ -581,7 +579,7 @@ ORKEON_CODE_SETTINGS=config/appsettings.local.json ORKEON_CODE_WORKSPACE=/tmp/ke
 
 ## Ce qu'Orkeon Code lui demande lui-même
 
-Un profil de décision, c'est le host qui interroge le modèle de décision. Orkeon Code l'interroge aussi, sans rien
+Un profil de décision, c'est le runtime qui interroge le modèle de décision. Orkeon Code l'interroge aussi, sans rien
 de plus que le fournisseur configuré plus haut, et sans aucun profil : élaguer un long tour, router un crew vers
 le profil le moins cher qui convient, suggérer les skills qui conviennent à une demande.
 [Modèles de décision](decision-models.md) dit comment allumer chacun et ce qui a été mesuré.
@@ -595,14 +593,14 @@ le profil le moins cher qui convient, suggérer les skills qui conviennent à un
 | `Both TypeSafe and Liquid are configured for the decision model; name one with Orkeon:Decision:Provider.` | Deux sections, ou deux clés exportées et aucune section | Nommer le fournisseur |
 | `Orkeon:Kev:BaseUrl '…' is not an absolute http or https address.` | Une adresse sans `http://` | `http://127.0.0.1:8009/v1` |
 | `… is neither https nor a loopback address: the API key would travel in clear to another machine.` | Une clé avec un Kev distant en `http` | `https`, ou pas de clé |
-| Un setting que l'hôte ne connaît pas, au démarrage | Un runtime antérieur à Orkeon #266 : mode tool ou docker | `--mode source` sur un checkout au pin |
+| Un setting que le runtime ne connaît pas, au démarrage | Un runtime plus ancien que l'épingle : mode tool ou docker | `--mode source` sur un checkout à l'épingle |
 | `Orkeon:Decision:Profiles:guarded: no decision model is registered; name a provider in Orkeon:Decision:Provider …` | Un profil de décision demandé sans fournisseur actif, y compris une section Kev sans `Provider` | Nommer le fournisseur |
 | `kev could not be reached at http://127.0.0.1:8009/v1: Connection refused` | Le serveur ne tourne pas ou écoute sur un autre port | Le démarrer, ou régler `Orkeon:Kev:BaseUrl` |
 | `No liquid API key: set the environment variable LIQUID_API_KEY, or Orkeon:Liquid:ApiKey.` | `LIQUID_API_KEY` pas exportée dans le shell qui a lancé Orkeon Code | L'exporter, puis relancer |
 | `{"error":{"message":"Invalid API key provided.", … "code":"invalid_api_key"}}` de `curl`, un `401` | Une clé Liquid fausse | Une clé de la console de Liquid |
 | Un `422` de Kev | Un état de plus de 65 536 tokens, ou un type de question qu'il ne prend pas | `KEV_TRUNCATE_STATES=1` |
 | La garde avertit mais ne bloque jamais | `kev-0.8b` répond sous le `BlockThreshold` | `guarded-small`, ou un modèle plus grand |
-| Le chargement du crew échoue en listant les profils que l'hôte connaît | `llm.profile` nomme un profil que les settings ne déclarent pas | `/config set llm.profile guarded`, ou ajouter le profil |
+| Le chargement du crew échoue en listant les profils que le runtime connaît | `llm.profile` nomme un profil que les settings ne déclarent pas | `/config set llm.profile guarded`, ou ajouter le profil |
 
 Les étapes, leurs réglages et les tâches de décision sont décrits en entier dans
 [les modèles de décision d'Orkeon](https://github.com/Orkeon/orkeon/blob/main/docs/architecture/decision-models.md).

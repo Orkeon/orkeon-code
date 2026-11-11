@@ -228,7 +228,7 @@ models, backends and how the model calls the tools itself: [Configuration](speec
 - The runtime itself writes `.orkeon/embedding-fingerprint.json` (the embedding model the RAG's vectors came from:
   it refuses to start when the model changes, until the file is deleted or `Orkeon:Embeddings:FingerprintPath` names
   another), and `.orkeon/state` (the checkpoints and kept questions of a run, only with
-  `Orkeon:Checkpointing:Enabled`, off in every example; Orkeon #299).
+  `Orkeon:Checkpointing:Enabled`, off in every example).
 - The hook scripts you write (`.orkeon/hooks/` in the [examples](hooks.md)) are yours.
 - Add `.orkeon/` and `workbench/` to the project's `.gitignore` if you do not want to share them: `/dev-status`
   warns while they are not ignored.

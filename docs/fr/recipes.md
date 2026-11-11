@@ -33,7 +33,7 @@ sert chaque point d'extension, dans [Étendre](extending.md).
 1. Vérifier le nom que le runtime enregistre (`/debug-tool-call list`) : un nom inconnu dans `.tools([...])` fait
    échouer chaque appel `act` de l'agent. Un outil d'un serveur MCP ou d'un plugin ne demande aucun code :
    l'utilisateur le liste dans `tools.extra` (`shared/domain/agent-policy/extra-tools.ts`), et la commande qui lance
-   l'offre si l'hôte l'enregistre.
+   l'offre si le runtime l'enregistre.
 2. Pour la boucle principale, l'ajouter à sa classe dans `src/shared/domain/agent-policy/permission.ts` (`READ_TOOLS`,
    `NETWORK_READ_TOOLS`, ou les classes d'édition et de shell) : la table des politiques de mode décide quels modes le
    remettent au modèle. Mettre à jour `permission.test.ts`, et `docs/permissions.md` quand la surface d'un mode
@@ -61,7 +61,7 @@ Un mode s'énonce une fois : une entrée de `PERMISSION_MODES` (`src/shared/doma
 `MODE_POLICIES` est typé par la liste des modes, donc le contrôle de types refuse un mode sans sa ligne. Le
 catalogue de la boucle principale et sa note de permission, le refus de `/commit` dans un mode en lecture seule et
 l'annonce de `/mode` lisent la ligne ; `/mode` et les valeurs permises de `permissions.fallback` lisent la liste. La
-garde de permission de l'hôte doit aussi connaître le mode (Orkeon classe un mode inconnu comme fermé par défaut).
+garde de permission du runtime doit aussi connaître le mode (Orkeon classe un mode inconnu comme fermé par défaut).
 Mettre à jour `mode-policy.test.ts` et `docs/permissions.md`.
 
 ## Ajouter un bloc de prompt

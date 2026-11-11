@@ -48,7 +48,7 @@ régénère [docs/fr/commands.md](commands.md). La recette : [Ajouter une comman
 - La commande qui le lance le nomme, `launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "<name>",
   input)`, et `input` arrive au crew comme `inputs()`.
 - Un crew qui ne doit pas tourner deux fois à la fois est lancé avec `{ exclusive: true }` en cinquième argument, et
-  l'hôte refuse le second lancement avec le ticket en cours (`/review`, `/memory admit`).
+  le runtime refuse le second lancement avec le ticket en cours (`/review`, `/memory admit`).
 - Les imports sont relatifs et portent leur extension `.ts`, parce que le runtime bundle chaque point d'entrée à
   partir des fichiers tels qu'ils sont écrits.
 
@@ -84,7 +84,7 @@ les fichiers vont donc dans le checkout.
 
  `toolBuilder()` déclare un nom, une description, un schéma JSON et un `execute` qui s'exécute dans le script ;
 `.withAutonomousTool(tool)` sur l'agent le confie au modèle, et `ctx.llm.act` le propose comme un outil intégré. Le
-catalogue de permissions de `main-loop` liste les outils de l'hôte par leur nom et ignore tout d'un outil construit
+catalogue de permissions de `main-loop` liste les outils du runtime par leur nom et ignore tout d'un outil construit
 : décidez dans le crew, d'après le mode, de l'attacher ou non.
 
 ```ts
@@ -98,7 +98,7 @@ const wordCount = toolBuilder<{ text: string }, { words: number }>()
 
 ### Un outil du runtime
 
- Vérifiez le nom que l'hôte enregistre (`/debug-tool-call list`), puis ajoutez-le à sa classe dans
+ Vérifiez le nom que le runtime enregistre (`/debug-tool-call list`), puis ajoutez-le à sa classe dans
 `src/shared/domain/agent-policy/permission.ts` (`READ_TOOLS`, `NETWORK_READ_TOOLS`, ou les classes d'édition et de
 shell) : la table des politiques de mode décide quels modes le confient au modèle. Quand du code applicatif
 l'appelle, l'appel passe par un port et un adaptateur de `src/shared/infrastructure/orkeon/`. La recette : [Ajouter
@@ -145,11 +145,11 @@ vérifie chaque prompt rendu. La recette : [Ajouter un bloc de prompt](recipes.m
 - Déplacez un outil d'une classe à une autre et chaque mode suit.
 - Le contrôle de types refuse un mode sans sa ligne.
 - Les tests épinglent la promesse de lecture seule de `plan` et de `dontAsk`.
-- Les cinq noms de modes sont aussi connus de la garde de l'hôte, qui traite un nom inconnu comme `default`
+- Les cinq noms de modes sont aussi connus de la garde du runtime, qui traite un nom inconnu comme `default`
   (fail-closed) : changer ce qu'un mode propose est un changement TypeScript, ajouter un sixième mode est aussi un
   changement du runtime.
 - Les règles de la session, sur un outil ou sur ses arguments (`/permissions add allow shell_command command=npm
-  test*`), sont celles de la garde de l'hôte et ne demandent aucun code.
+  test*`), sont celles de la garde du runtime et ne demandent aucun code.
 - La recette : [Ajouter un mode de permission](recipes.md#ajouter-un-mode-de-permission).
 
 ## Modèles et settings
@@ -166,9 +166,9 @@ quelle clé ([Configuration](configuration.md)). Une nouvelle clé de session es
   crew.
 - Le code applicatif ne touche jamais le runtime : il reçoit des ports, et `tests/repository/architecture.test.ts` fait échouer
   tout import, et tout usage d'une globale du runtime, qui casse la règle de dépendance.
-- `.tools([...])` nomme des outils de l'hôte, et un nom inconnu fait échouer chaque appel `act` de l'agent avant que
+- `.tools([...])` nomme des outils du runtime, et un nom inconnu fait échouer chaque appel `act` de l'agent avant que
   le modèle soit sollicité : un outil qui manque au runtime ne peut pas être ajouté d'ici. `/debug-tool-call list`
-  montre ce que l'hôte propose.
+  montre ce que le runtime propose.
 - Un résultat d'outil arrive au modèle tronqué à 4000 caractères, avec une coupe plus large pour certains outils
   (`Orkeon:Tools:ResultLimits`, [Configuration](configuration.md)).
 - Les hooks déclarés (`/hooks`) s'exécutent autour des appels d'outils des étapes dev, pas dans `/assistant`, et aucun

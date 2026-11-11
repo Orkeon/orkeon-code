@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the documentation describes the state at the pin, in one vocabulary
+
+- The Orkeon issue numbers leave the prose of the documentation, with the sentences that depended on a version of
+  the runtime; the ADRs keep them.
+- The French pages keep one word per notion: « runtime » for Orkeon and « machine hôte » for the computer,
+  « épingle », « liste blanche », « tokens », « sans opérateur ».
+- Hooks, Shared memory and Autonomous and embedded runs end on a "See also".
+- `CONTRIBUTING.md` gains "Writing the documentation": the rules of form these pages now follow, the shape of each
+  kind of page, and the French glossary.
+
 ### Changed — a shorter quick start, and the long paragraphs of the guides broken up
 
 - The README's quick start keeps the commands and one paragraph; the runtime's versions and channels are in

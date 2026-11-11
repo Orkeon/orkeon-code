@@ -21,7 +21,7 @@ Le lanceur monte alors ce dossier sur `/audio` (lecture seule) et `<state>/trans
 seule, `.crew-output/transcripts` par défaut), et déclare le serveur au REPL par l'environnement
 (`ORKEON_MCP__Servers__whisper__*`), de sorte qu'aucun fichier de settings ne nomme ce checkout. La bannière affiche
 une ligne `audio`. Le dossier tient de vrais fichiers : un lien qui pointe hors de lui est refusé par les outils de
-fichiers (Orkeon #299).
+fichiers.
 
 `/transcribe` est la voie directe : l'appel est celui de la commande, il n'a donc besoin d'aucun réglage et la garde
 ne demande rien.
@@ -58,8 +58,7 @@ peut aussi appeler les outils lui-même, dans une requête telle que
   côté et utilisez `/transcribe`.
 - Le serveur marque `transcribe_audio`, `list_audio` et `whisper_info` en lecture seule (`readOnlyHint`), ce que la
   garde de permission lit une fois le serveur déclaré de confiance (`TrustAnnotations: true`, exporté par les
-  lanceurs en `ORKEON_MCP__Servers__whisper__TrustAnnotations` et posé dans les exemples de settings ; Orkeon #219,
-  #223) : ils s'exécutent sans question dans tous les modes qui les offrent, `dontAsk` compris.
+  lanceurs en `ORKEON_MCP__Servers__whisper__TrustAnnotations` et posé dans les exemples de settings) : ils s'exécutent sans question dans tous les modes qui les offrent, `dontAsk` compris.
 - `record_and_transcribe`, `speak` et `stop_speaking` ne portent aucune annotation, donc la garde vous demande en
   `default` et en `acceptEdits` et les refuse en `plan` et en `dontAsk`
   ([Permissions](permissions.md#outils-supplémentaires)).
@@ -72,7 +71,7 @@ peut aussi appeler les outils lui-même, dans une requête telle que
 - Un enregistrement de 45 minutes prend environ 7 minutes avec `small` sur un CPU, moins de 2 minutes sur le GPU
   d'un portable, où `turbo` est le meilleur modèle.
 - Le runtime termine par une erreur d'outil un appel du serveur qui dépasse `MCP:Servers:whisper:CallTimeout` (60 s
-  par défaut ; Orkeon #299), bien que le serveur finisse et écrive la transcription : les lanceurs exportent
+  par défaut), bien que le serveur finisse et écrive la transcription : les lanceurs exportent
   `ORKEON_MCP__Servers__whisper__CallTimeout=00:15:00` et les exemples de settings posent les mêmes 15 minutes, qui
   couvrent une dictée à son plus long (`/voice --max 600`) et un long fichier sur CPU.
 - Un fichier de settings à vous qui déclare le serveur a besoin de la clé aussi, sinon une dictée au-delà de 60 s
@@ -160,5 +159,5 @@ optionnel, et ne l'importe jamais.
   premier REPL démarre sans le serveur (`MCP server 'whisper' could not be connected: no answer within 30 s`), et
   les suivants aussi tant que l'environnement n'est pas résolu.
 - En mode docker, un serveur `Stdio` tourne dans le conteneur, qui n'a ni uv ni le modèle : la variable y est ignorée,
-  avec un avertissement. Le serveur peut tourner sur l'hôte en HTTP à la place, pour des fichiers transcrits en moins
+  avec un avertissement. Le serveur peut tourner sur la machine hôte en HTTP à la place, pour des fichiers transcrits en moins
   de 100 s ([mcp/whisper/README.md](../../mcp/whisper/README.md#docker-mode-the-server-on-the-host)).

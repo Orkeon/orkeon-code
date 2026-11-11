@@ -25,7 +25,7 @@ The `main-loop` agent's body is the loop (`crews/main-loop/application/run-main-
    every call of a model turn in order, under the crew budget and the permission gate, and returns the final answer.
    - A failed model call throws an `LlmFailure`: the turn stores no answer and fails with the provider's error.
    - A call a decision stage of the host blocked is no outage but a decision: the runtime rejects it with a typed
-     `DecisionBlockedError` (Orkeon #269), which `decisionBlockOf` (`shared/domain/llm-failure.ts`) reads: the turn
+     `DecisionBlockedError`, which `decisionBlockOf` (`shared/domain/llm-failure.ts`) reads: the turn
      stores nothing after the request but the `[tools]` message of the calls that ran before the block (an edit made
      on disk stays on record), logs a warning and answers the block, its profile, stage and reason, with what to do.
    - The run does not fail.
@@ -48,11 +48,11 @@ The `main-loop` agent's body is the loop (`crews/main-loop/application/run-main-
 
 The session lives in the runtime: a conversation buffer (`session_store`, `session_snip`, `token_budget`), a state
 bag (`get_state`/`set_state`), typed memory (`memory_store`: user, project, feedback, reference; kept per project in
-a file when `Orkeon:Cli:Memory:Persist` is on, Orkeon #286) and cost and usage (`session_cost`, `session_stats`).
+a file when `Orkeon:Cli:Memory:Persist` is on) and cost and usage (`session_cost`, `session_stats`).
 
 A turn reads the state keys it needs in one `get_state` call at its start (`TURN_STATE_KEYS` in `run-main-loop.ts`,
 answered by `shared/application/state-snapshot.ts`: a key outside the list is read alone), and stores each message
-with `append_message`, which neither returns nor rewrites the buffer (Orkeon #263). The turn reads the buffer once, for its history: its automatic
+with `append_message`, which neither returns nor rewrites the buffer. The turn reads the buffer once, for its history: its automatic
 compactions, at the head and the tail, read the token budget first and the buffer only past the trigger
 (`compactSession`), and the trigger setting is read once per turn (`crew.ork.ts`).
 
@@ -65,7 +65,7 @@ cannot do, the search playbook when the search tools are offered, and the projec
 number and no per-turn data, so its bytes stay identical from turn to turn for a given mode and providers can cache
 it; `MAX_STATIC_HEADER_CHARS` caps the authored part.
 
-**The context**, sent as a user message of its own after the system message (`ActOptions.context`, Orkeon #276), in a
+**The context**, sent as a user message of its own after the system message (`ActOptions.context`), in a
 fixed order from the most stable block to the most volatile, so a provider's prefix cache reaches as far into it as
 it can: session preferences, attached skills, memory, declared hooks, the history window without the current
 request, the environment (working directory, date, git status), the context gauge with its pressure tier.
@@ -185,7 +185,7 @@ prompt as the model reads it, to review a change as a diff.
   - A result marked `truncated` is a sample: the answer says so and the question is narrowed (a package, a
     `root_fqn` to an agent holding `codebase_map`, `dependency_graph` or `edge_list`, the tools that take it, a
     `glob`).
-  - The runtime marks a result `truncated` only when more exist than it returned (Orkeon #283), which is what makes
+  - The runtime marks a result `truncated` only when more exist than it returned, which is what makes
     it a sample.
   - The bounded reading rule the dev readers share (`shared/domain/dev/reading-rule.ts`) asks for the reads already
     known in one turn, since the runtime runs them together, and is the one place that forbids reading a whole file
@@ -213,7 +213,7 @@ prompt as the model reads it, to review a change as a diff.
   explanation, error output and safety warnings whole) and the answer language (the `answer.language` setting).
 - **Skills**: the attached playbooks, to apply to the task, each capped and marked when cut.
 - **Memory**: the notes saved earlier, in this session or a past one (at a compaction or with `/memory add`; the
-  runtime keeps typed memory per project when its persistence is on, Orkeon #286), introduced as true when written
+  runtime keeps typed memory per project when its persistence is on), introduced as true when written
   but possibly out of date: check that what a note names still exists; the request wins.
 - **Hooks**: what is declared, and that nothing runs it yet.
 - **History**:
@@ -330,7 +330,7 @@ Code: `shared/domain/context-prune.ts`, `shared/application/compaction/prune-con
 - The tool results of a turn in progress live in the runtime's loop, never in the session buffer, so no compaction
   reaches them.
 - With `compaction.prune` on and a decision model on the host, the main loop's act carries the runtime's
-  `onContextPressure` (Orkeon #327): once the loop's messages pass 40 % of the window, the runtime offers the older
+  `onContextPressure`: once the loop's messages pass 40 % of the window, the runtime offers the older
   results of the read tools that ran, the last 6 messages left out.
 - A result of 600 characters or less is kept without asking.
 - For the others the decision model reads the request and the calls (tool, input, size, age; never a result's

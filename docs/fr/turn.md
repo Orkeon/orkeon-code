@@ -27,8 +27,8 @@ Le corps de l'agent `main-loop` est la boucle (`crews/main-loop/application/run-
    garde de permission, et rend la réponse finale.
    - Un appel du modèle qui échoue lève une `LlmFailure` : le tour ne stocke aucune réponse et échoue avec l'erreur
      du fournisseur.
-   - Un appel qu'une étape de décision de l'hôte a bloqué n'est pas une panne mais une décision : le runtime la
-     rejette avec une `DecisionBlockedError` typée (Orkeon #269), que `decisionBlockOf`
+   - Un appel qu'une étape de décision du runtime a bloqué n'est pas une panne mais une décision : le runtime la
+     rejette avec une `DecisionBlockedError` typée, que `decisionBlockOf`
      (`shared/domain/llm-failure.ts`) lit : le tour ne stocke rien après la requête sinon le message `[tools]` des
      appels exécutés avant le blocage (une modification faite sur le disque reste consignée), journalise un
      avertissement et répond le blocage, son profil, son étape et sa raison, avec ce qu'il faut faire.
@@ -40,7 +40,7 @@ Le corps de l'agent `main-loop` est la boucle (`crews/main-loop/application/run-
      nombre, un code de sortie, une erreur, un parcours coupé).
    - Les appels répétés regroupés en `×n`, vingt lignes au plus, la dernière comptant les appels laissés de côté,
      jamais le contenu d'un fichier ni la sortie d'une commande.
-   - Un appel que la garde de permission de l'hôte refuse après `onToolCall` revient comme un résultat `DENIED:`,
+   - Un appel que la garde de permission du runtime refuse après `onToolCall` revient comme un résultat `DENIED:`,
      tracé comme un autre.
    - Celui que le callback refuse n'a pas de résultat et est tracé comme refusé.
    - Un tour qui n'a appelé aucun outil n'en enregistre pas.
@@ -53,12 +53,12 @@ Le corps de l'agent `main-loop` est la boucle (`crews/main-loop/application/run-
 
 La session vit dans le runtime : un tampon de conversation (`session_store`, `session_snip`, `token_budget`), un sac
 d'état (`get_state`/`set_state`), la mémoire typée (`memory_store` : user, project, feedback, reference ; gardée par
-projet dans un fichier quand `Orkeon:Cli:Memory:Persist` est actif, Orkeon #286) et le coût et l'usage
+projet dans un fichier quand `Orkeon:Cli:Memory:Persist` est actif) et le coût et l'usage
 (`session_cost`, `session_stats`).
 
 Un tour lit les clés d'état dont il a besoin en un seul appel `get_state` à son début (`TURN_STATE_KEYS` dans
 `run-main-loop.ts`, servies par `shared/application/state-snapshot.ts` : une clé hors de la liste est lue seule), et
-range chaque message par `append_message`, qui ne renvoie ni ne réécrit le tampon (Orkeon #263). Le tour lit le tampon une
+range chaque message par `append_message`, qui ne renvoie ni ne réécrit le tampon. Le tour lit le tampon une
 fois, pour son historique : ses compactions automatiques, en tête et en fin de tour, lisent d'abord le budget de
 tokens et ne lisent le tampon qu'au-delà du déclencheur (`compactSession`), et le réglage du déclencheur est lu une
 fois par tour (`crew.ork.ts`).
@@ -123,7 +123,7 @@ un changement comme un diff.
 - **Demander** : l'utilisateur ne peut pas répondre pendant le tour, donc une question le termine. Ne demander que
   quand deux lectures mènent à un travail matériellement différent, ou quand la prochaine étape est destructrice ou
   sort du projet ; sinon énoncer l'hypothèse et continuer, et quand un point bloque vraiment, finir le reste et
-  terminer par cette question. Une confirmation obtenue par l'hôte couvre cet appel-là.
+  terminer par cette question. Une confirmation obtenue par le runtime couvre cet appel-là.
 - **Vérification** : après un changement, lancer la vérification la plus étroite que le projet nomme, puis la plus
   large quand elle est peu coûteuse ; corriger la cause d'un échec, jamais affaiblir ni sauter la vérification ; ne
   revendiquer un succès que sur une sortie vue dans le tour, citer un échec, et dire ce qui n'a pas pu être vérifié
@@ -206,7 +206,7 @@ un changement comme un diff.
   - Un résultat marqué `truncated` est un échantillon : la réponse le dit et la question est resserrée (un package,
     un `root_fqn` pour un agent qui a `codebase_map`, `dependency_graph` ou `edge_list`, les outils qui le prennent,
     un `glob`).
-  - Le runtime ne marque un résultat `truncated` que s'il en existe plus qu'il n'en rend (Orkeon #283), ce qui en
+  - Le runtime ne marque un résultat `truncated` que s'il en existe plus qu'il n'en rend, ce qui en
     fait un échantillon.
   - La règle de lecture bornée que partagent les lecteurs dev (`shared/domain/dev/reading-rule.ts`) demande en un
     seul tour les lectures déjà connues, puisque le runtime les lance ensemble, et c'est le seul endroit qui
@@ -235,7 +235,7 @@ un changement comme un diff.
   `answer.language`).
 - **Skills** : les guides attachés, à appliquer à la tâche, chacun plafonné et marqué quand il est coupé.
 - **Mémoire** : les notes sauvées plus tôt, dans cette session ou une précédente (à une compaction ou par
-  `/memory add` ; le runtime garde la mémoire typée par projet quand sa persistance est active, Orkeon #286),
+  `/memory add` ; le runtime garde la mémoire typée par projet quand sa persistance est active),
   présentées comme vraies quand elles ont été écrites mais possiblement dépassées : vérifier que ce qu'une note nomme
   existe encore ; la requête l'emporte.
 - **Hooks** : ce qui est déclaré, et que rien ne l'exécute encore.
@@ -257,21 +257,21 @@ un changement comme un diff.
   et suggérer `/compact`.
 - **Requête** (le dernier message, à part des blocs ci-dessus) : la requête sous son propre titre, puis la note de
   permission du mode (lecture seule : livrer une
-  évaluation ou un plan ; sinon l'hôte peut demander avant un appel), puis la clause proactive quand `/proactive` est
+  évaluation ou un plan ; sinon le runtime peut demander avant un appel), puis la clause proactive quand `/proactive` est
   activé.
 
 ## Router un crew vers un profil
 
 `shared/domain/agents/model-route.ts`, `shared/application/agents/route-agent.ts`
 ([ADR 0027](../adr/0027-decision-model-optimisations.md)). Les agents d'un crew tournent tous sur un profil du
-host, le `llm.profile` de la session, choisi à la construction du crew. Avec `route.agents` à `on` et un modèle de
-décision sur le host, ce profil est choisi à chaque lancement de `/dev-spec` (et son alias `/dev-change`), `/dev-plan`,
+runtime, le `llm.profile` de la session, choisi à la construction du crew. Avec `route.agents` à `on` et un modèle de
+décision sur le runtime, ce profil est choisi à chaque lancement de `/dev-spec` (et son alias `/dev-change`), `/dev-plan`,
 `/dev-learn`, `/review`, `/analyze`, `/commit`, `/init` et `/init-verifiers` :
 
-- **L'échelle** : `route.ladder` ordonne les profils LLM du host, du moins cher au plus cher (`small,large` si
-  omis) : des noms de `Llm:Profiles`. Une commande ne peut pas lire les profils du host, rien ne vérifie donc
+- **L'échelle** : `route.ladder` ordonne les profils LLM du runtime, du moins cher au plus cher (`small,large` si
+  omis) : des noms de `Llm:Profiles`. Une commande ne peut pas lire les profils du runtime, rien ne vérifie donc
   l'échelle à l'avance : un lancement routé porte aussi le profil de la session, et un crew routé vers un barreau
-  que le host ne déclare pas est construit sur celui-ci, comme sans routage.
+  que le runtime ne déclare pas est construit sur celui-ci, comme sans routage.
 - **La question** :
   - Le modèle de décision lit le nom du crew et la commande telle que tapée (coupée en son milieu au-delà de 4 000
     caractères) et fait un choix parmi les barreaux, le premier décrit comme suffisant pour une recherche ou une
@@ -283,12 +283,12 @@ décision sur le host, ce profil est choisi à chaque lancement de `/dev-spec` (
 - **Le plancher** : `.orkeon/route-rules.json`, `{ "paths": { "<préfixe>": "<profil>" }, "crews": { "<crew>":
   "<profil>" } }`. La règle du crew, et pour chaque mot de la commande qui est le chemin d'une règle ou se trouve
   dessous (`src/billing`, `src\billing\tax.ts`, `/workspace/src/billing/tax.ts`) la règle de son ancêtre le plus
-  proche, relèvent le choix à ce barreau au moins. Une session sur le modèle par défaut du host prend le barreau
+  proche, relèvent le choix à ce barreau au moins. Une session sur le modèle par défaut du runtime prend le barreau
   du plancher même quand le modèle n'a pas été suivi. Un fichier absent, illisible ou mal formé, une règle nommant
   un profil hors de l'échelle et une règle sur l'espace de travail lui-même (`/`, `./`) ne relèvent rien.
 - **Le plafond** : jamais au-dessus du barreau de la session ; il l'emporte sur un plancher. Une session sans
   `llm.profile` dispose de toute l'échelle : routé, un lancement peut alors tourner sur un modèle plus cher que
-  celui par défaut du host. Une session sur un profil hors de l'échelle (un profil de décision qui
+  celui par défaut du runtime. Une session sur un profil hors de l'échelle (un profil de décision qui
   garde ses requêtes) n'est pas routée : elle garde ce profil.
 - **Ce qui n'est pas routé** : la boucle principale (`/assistant` : son cache de prompt suit un modèle),
   `/compact`, `/memory admit`, les crews de parole, `/advisor` (il a son propre modèle), `/dev-batches` et
@@ -299,7 +299,7 @@ décision sur le host, ce profil est choisi à chaque lancement de `/dev-spec` (
     laissent le profil de la session.
   - Chaque lancement routé écrit une ligne de journal avec le profil et la raison, et les 5 derniers sont gardés
     dans la session pour `/route why`.
-  - Le choix est fait avant le lancement, un lancement que le host refuse ensuite (un crew déjà en cours) a donc
+  - Le choix est fait avant le lancement, un lancement que le runtime refuse ensuite (un crew déjà en cours) a donc
     quand même interrogé le modèle et figure dans la liste.
   - `/route on|off` règle `route.agents` pour la session.
   - Nu, il dit où en est le routage.
@@ -309,7 +309,7 @@ décision sur le host, ce profil est choisi à chaque lancement de `/dev-spec` (
 `shared/domain/skills/shortlist.ts`, `shared/application/skills/suggest-skills.ts`
 ([ADR 0027](../adr/0027-decision-model-optimisations.md)). Un skill est une fiche markdown ; `/skills attach` en met
 une dans chaque tour jusqu'à ce qu'elle soit détachée. Avec `skills.suggest` à `on` et un modèle de décision sur le
-host, chaque tour de la boucle principale se voit aussi suggérer les skills du projet qui conviennent à sa demande :
+runtime, chaque tour de la boucle principale se voit aussi suggérer les skills du projet qui conviennent à sa demande :
 
 - **Les skills** : les fichiers `.md` de `.orkeon/skills/`, puis le `SKILL.md` de chaque dossier de
   `.claude/skills/`, chaque dossier par ordre de nom, 24 au plus. Le nom et la description d'un skill sont ceux de
@@ -364,8 +364,8 @@ Code : `shared/domain/context-prune.ts`, `shared/application/compaction/prune-co
 
 - Les résultats d'outils d'un tour en cours vivent dans la boucle du runtime, jamais dans le tampon de session,
   aucune compaction ne les atteint donc.
-- Avec `compaction.prune` à `on` et un modèle de décision sur le host, l'act de la boucle principale porte le
-  `onContextPressure` du runtime (Orkeon #327) : dès que les messages de la boucle dépassent 40 % de la fenêtre, le
+- Avec `compaction.prune` à `on` et un modèle de décision sur le runtime, l'act de la boucle principale porte le
+  `onContextPressure` du runtime : dès que les messages de la boucle dépassent 40 % de la fenêtre, le
   runtime propose les anciens résultats des outils de lecture qui ont tourné, les 6 derniers messages exclus.
 - Un résultat de 600 caractères ou moins est gardé sans question.
 - Pour les autres, le modèle de décision lit la demande et les appels (outil, entrée, taille, âge ; jamais le contenu

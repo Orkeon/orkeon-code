@@ -550,12 +550,12 @@ Attendu : `Removed … ollama.service` au `disable`, puis rien ; `ollama --versi
 
 - L'API d'OpenAI (`WHISPER_BACKEND=openai`, `TTS_BACKEND=openai`) : l'audio ou le texte quittent la machine, et il
   faut une clé `OPENAI_API_KEY` ; rien ici n'en a besoin.
-- Le mode docker du lanceur : le serveur vocal y tourne sur l'hôte, en HTTP, sans micro
+- Le mode docker du lanceur : le serveur vocal y tourne sur la machine hôte, en HTTP, sans micro
   ([mcp/whisper/README.md](../../mcp/whisper/README.md#docker-mode-the-server-on-the-host)). Le mode `tool` de ce
   tutoriel est le plus simple et le seul où `/voice` et `/say` ont le micro et le haut-parleur.
 - Ollama installé côté Windows plutôt que dans la distribution : de WSL, `localhost:11434` ne le joint qu'avec le
   réseau en miroir (`networkingMode=mirrored` dans `.wslconfig`) ou un `OLLAMA_HOST=0.0.0.0` côté Windows et
-  l'adresse de l'hôte dans `BaseUrl` ; l'étape 8 installe Ollama dans la distribution, où il voit le GPU par le
+  l'adresse de la machine hôte dans `BaseUrl` ; l'étape 8 installe Ollama dans la distribution, où il voit le GPU par le
   même pilote.
 - Le lanceur PowerShell (`orkeon-code.ps1`), Windows natif : il n'a pas de mode source, et WSL avec le lanceur bash,
   comme ici, est la voie documentée.

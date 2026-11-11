@@ -36,7 +36,7 @@ The runtime runs the sources under rules that shape everything below:
   conversation buffer and the state bag (`session_store`), cleared by `/clear`. The settings file
   (`/workspace/.orkeon/config.json`) is the durable store. Typed memory lasts as long as the runtime keeps it: per
   project in a file when `Orkeon:Cli:Memory:Persist` is on (the REPL's default, and the example settings'), so it
-  reaches a later run; otherwise in the Orkeon process, which it dies with (Orkeon #286).
+  reaches a later run; otherwise in the Orkeon process, which it dies with.
 - **A crew loads synchronously and sees only its `inputs`.** Its module scope cannot await: what decides the tool
   catalogue (the mode, the extra tools, the permission rules) is resolved by the launching command and reaches the
   crew as input.
@@ -47,7 +47,7 @@ The runtime runs the sources under rules that shape everything below:
   `namespace`, no parameter property.
 - **An unknown name in `.tools([...])` fails the turn**: `act` throws `UnknownToolError` before the model is asked,
   so a catalogue names only tools the host registers (the extra tools are checked against them at launch).
-- **`onToolCall` runs before the host's gate** (Orkeon #303). The gate judges the input the callback returns, once; a
+- **`onToolCall` runs before the host's gate**. The gate judges the input the callback returns, once; a
   `{ deny }` from the callback never reaches it, and an `"ask"` is judged as an edit in `default` once the act's mode admits the call.
   The callback therefore sees calls the gate then refuses; those come back to the model, and to `onToolResult`, as a
   `DENIED:` result.
@@ -179,10 +179,9 @@ prints, in what the user types and in what the model writes.
   - Built-in deny rules close the whole `/user-config` mount to the model's tools, the physical bases of
     `launch.json` and the user settings inside.
   - The code reads it through the Files port, which the gate does not see.
-- **The gate judges the canonical input.** `onToolCall` runs before the gate (Orkeon #303, ADR 0023): a model call
+- **The gate judges the canonical input.** `onToolCall` runs before the gate (ADR 0023): a model call
   spelled `C:\…` on a path tool is converted first, and the gate judges the canonical input once. A shell command is
-  judged by the gate on its text and by the callbacks on its canonical paths; every result is canonical. The four
-  issues ADR 0022 left to the runtime, Orkeon #300 to #303, are closed by Orkeon #304, which the pin covers.
+  judged by the gate on its text and by the callbacks on its canonical paths; every result is canonical. The runtime issues ADR 0022 left open are closed at the pin.
 
 ## Layers and the dependency rule
 
@@ -324,9 +323,9 @@ the text, or the tool's own failure message without the runtime's wrapping, and 
 | `Files` | Read, write and list by virtual path, the VFS mounts (`file_read`, `file_write`, `directory_read`, `list_mounts`) | `files.ts` | `fake-files.ts` |
 | `Progress` | The host's progress line, best effort (`progress_report`) | `progress.ts` | `fake-progress.ts` |
 | `SessionStore` | The conversation buffer, the state bag, the title, the snip, the token budget by kind (`session_store`, `session_snip`, `token_budget`) | `session-store.ts` | `fake-session-store.ts` |
-| `SessionSwitch` | The session saved now, a saved one loaded in place (the `session` service, Orkeon #227) | `session-switch.ts` | `fake-session-switch.ts` |
-| `RuntimeInfoReader` | The runtime that runs the command: version, commit, channel (the `runtime` service, Orkeon #225) | `runtime-info.ts` | `fake-runtime-info.ts` |
-| `UsageReader` | The session's LLM usage, in total, by model and by command (the `usage` service, Orkeon #226) | `usage.ts` | `fake-usage-reader.ts` |
+| `SessionSwitch` | The session saved now, a saved one loaded in place (the `session` service) | `session-switch.ts` | `fake-session-switch.ts` |
+| `RuntimeInfoReader` | The runtime that runs the command: version, commit, channel (the `runtime` service) | `runtime-info.ts` | `fake-runtime-info.ts` |
+| `UsageReader` | The session's LLM usage, in total, by model and by command (the `usage` service) | `usage.ts` | `fake-usage-reader.ts` |
 | `Telemetry` | The session's metadata, cost and statistics (`session_store`, `session_cost`, `session_stats`) | `telemetry.ts` | `fake-telemetry.ts` |
 | `MemoryStore` | Typed memory: list, add, get, remove, replace in place (`memory_store`) | `memory-store.ts` | `fake-memory-store.ts` |
 | `ToolCatalogue` | The registered tools under their registered names, found case-insensitively as Orkeon finds them, for diagnostics and the extra tools' check (the `tools` service of `ctx.services` for the names, the `tools` namespace for the calls: `call` raw, `callText` decoded) | `tool-catalogue.ts` | `fake-tool-catalogue.ts` |
@@ -463,7 +462,7 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 
 | Crew | Process | Started by | What it does |
 |---|---|---|---|
-| `main-loop` | autonomous, budget 200 tool calls / 1800 s / 700k context tokens (the context counted once, Orkeon #224) | `/assistant`, free text, `/summary`, `/verify`, `/transcribe --then`, `/voice send` and `--go` | The interactive loop |
+| `main-loop` | autonomous, budget 200 tool calls / 1800 s / 700k context tokens (the context counted once) | `/assistant`, free text, `/summary`, `/verify`, `/transcribe --then`, `/voice send` and `--go` | The interactive loop |
 | `project-init` | sequential, no tools (the index read through the `CodeIndex` port) | `/init` | Scans the layout, detects conventions, reads the package map when an index exists, writes the instructions file (a proposal beside it when an existing file was cut) |
 | `git-commit` | sequential | `/commit` | Drafts a conventional commit from the diff, commits after confirmation |
 | `code-review` | sequential | `/review` (`--lens` for one lens, `--passes` for this run's rounds; the aliases `/security-review` and `/passes`) | Multi-lens review of the staged changes, ranked findings |
@@ -478,8 +477,8 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 | `agent-run` | sequential, one act of a built-in charter (`dev-reviewer`, `dev-auditor`) | `/tasks send`, `/tasks repair` | A new run of an ended child, its brief carrying the previous report and the operator's message |
 | `dev-spec` | sequential, extracts, the review in a background child `dev-reviewer` (ten read tools in `plan`) | `/dev-spec` | Business spec written by code from JSON, its questions asked one at a time through `human_input`, one read-only review |
 | `dev-change` | sequential, extracts, the review in a background child `dev-reviewer` (ten read tools in `plan`) | `/dev-spec <code> <kind>` | Bug reproduced or cost measured by running, change brief written by code, questions through `human_input`, one review |
-| `dev-implement` | sequential, one agent, two roles in `acceptEdits` (five read tools, six write tools - `file_write` for a new file, the node editors and `edit_batch` for an existing one; the editing rule spells an `edit_batch` out, its `operations` list and `validate`, and the guard's refusal of a batch without operations repeats it; the runtime publishes the schema of the node tools too since Orkeon #210; every `node_replace` of a batch carries the hash `node_read` gave for that very node, never a guessed one, since a placeholder hash made the runtime refuse a whole batch in a live run - `run_tests`, `run_build`, `memory_recall`) | `/dev-batches <code> F<n>` (`--close` the close alone) | Each cycle (the steps on one test file) red then green, checked by code, its cost measured |
-| `dev-batches` | Sequential, one agent with the reviewer's read tools, its review inline (the next batch's review is offered five of them, `file_read`, `node_outline`, `node_read`, `codebase_search` and `glob`, for eight turns: its brief carries the sheet, what the closed batches changed and the plan) | `/dev-batches` (typed again after a stop: the run goes on; every hop of its chain keeps the depth of the instance it runs for, `chain: "continue"`, so a plan of any length closes in one command, Orkeon #221) | Names a plan's next batch in its dependencies' order, after a review of its sheet once its dependencies closed |
+| `dev-implement` | sequential, one agent, two roles in `acceptEdits` (five read tools, six write tools - `file_write` for a new file, the node editors and `edit_batch` for an existing one; the editing rule spells an `edit_batch` out, its `operations` list and `validate`, and the guard's refusal of a batch without operations repeats it; the runtime publishes the schema of the node tools too; every `node_replace` of a batch carries the hash `node_read` gave for that very node, never a guessed one, since a placeholder hash made the runtime refuse a whole batch in a live run - `run_tests`, `run_build`, `memory_recall`) | `/dev-batches <code> F<n>` (`--close` the close alone) | Each cycle (the steps on one test file) red then green, checked by code, its cost measured |
+| `dev-batches` | Sequential, one agent with the reviewer's read tools, its review inline (the next batch's review is offered five of them, `file_read`, `node_outline`, `node_read`, `codebase_search` and `glob`, for eight turns: its brief carries the sheet, what the closed batches changed and the plan) | `/dev-batches` (typed again after a stop: the run goes on; every hop of its chain keeps the depth of the instance it runs for, `chain: "continue"`, so a plan of any length closes in one command) | Names a plan's next batch in its dependencies' order, after a review of its sheet once its dependencies closed |
 | `shared-memory-admit` | sequential, no tool, no LLM | `/memory admit` | Writes the candidates the operator confirmed to the shared memory's entries, the lists, and re-ingests the index |
 
 ### The crews in detail

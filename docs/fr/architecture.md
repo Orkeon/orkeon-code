@@ -38,7 +38,7 @@ Le runtime exécute les sources sous des règles qui façonnent tout ce qui suit
   (`/workspace/.orkeon/config.json`) est le stockage durable. La mémoire typée dure tant que le runtime la garde :
   par projet dans un fichier quand `Orkeon:Cli:Memory:Persist` est actif (le défaut du REPL, et celui des settings
   d'exemple), elle atteint donc une exécution suivante ; sinon dans le processus Orkeon, avec lequel elle meurt
-  (Orkeon #286).
+ .
 - **Un crew se charge de façon synchrone et ne voit que ses `inputs`.** Sa portée module ne peut pas attendre : ce qui
   décide du catalogue d'outils (le mode, les outils supplémentaires, les règles de permission) est résolu par la
   commande qui lance le crew et lui parvient en entrée.
@@ -49,17 +49,17 @@ Le runtime exécute les sources sous des règles qui façonnent tout ce qui suit
 - **Du TypeScript effaçable seulement** (`erasableSyntaxOnly`) : Node exécute les tests en supprimant les types, donc
   pas d'`enum`, pas de `namespace`, pas de propriété de paramètre.
 - **Un nom inconnu dans `.tools([...])` fait échouer le tour** : `act` lève `UnknownToolError` avant d'interroger le
-  modèle, donc un catalogue ne nomme que des outils que l'hôte enregistre (les outils supplémentaires sont vérifiés
+  modèle, donc un catalogue ne nomme que des outils que le runtime enregistre (les outils supplémentaires sont vérifiés
   contre eux au lancement).
-- **`onToolCall` tourne avant la garde de l'hôte** (Orkeon #303). La garde juge une fois l'entrée que le callback
+- **`onToolCall` tourne avant la garde du runtime**. La garde juge une fois l'entrée que le callback
   renvoie ; un `{ deny }` du callback ne l'atteint jamais, et un `"ask"` est jugé comme une modification en `default` une fois l'appel
   admis par le mode de l'act. Le callback voit donc des appels que la garde refuse ensuite ; ceux-là reviennent au
   modèle, et à `onToolResult`, comme un résultat `DENIED:`.
 - **Les appels de lecture d'un tour tournent ensemble.** `Orkeon:Tools:ResultLimits:MaxParallelToolCalls` (4) appels
   de lecture d'un même tour du modèle tournent en même temps ; tout autre appel tourne seul, l'un après l'autre.
-- **`spawn_agent` appartient à l'hôte.** L'hôte de scripts l'offre à chaque act ; le nommer dans `.tools([...])`, ou
+- **`spawn_agent` appartient au runtime.** L'hôte de scripts l'offre à chaque act ; le nommer dans `.tools([...])`, ou
   dans `act({ tools })`, lève `UnknownToolError`. Un enfant tourne sous le plus strict de son mode et de celui de son
-  lanceur (Orkeon #299) ; les enfants de ce projet n'en nomment aucun.
+  lanceur ; les enfants de ce projet n'en nomment aucun.
 - **Les outils d'intelligence du code sont fixés par un contrat.** Chaque nom d'outil et chaque champ qu'utilisent
   les adaptateurs a été relevé sur des appels réels, et `shared/domain/code-intel-contract.ts` et son test les fixent.
 - **L'index n'a pas besoin d'une liste de langages.** `index_codebase` puis `codebase_map` fonctionnent de bout en
@@ -189,11 +189,10 @@ qu'un programme imprime, dans ce que l'utilisateur tape et dans ce que le modèl
   - Des règles deny intégrées ferment tout le mount `/user-config` aux outils du modèle, les bases physiques de
     `launch.json` et les réglages de l'utilisateur dedans.
   - Le code le lit par le port Files, que la garde ne voit pas.
-- **La garde juge l'entrée canonique.** `onToolCall` tourne avant la garde (Orkeon #303, ADR 0023) : un appel du
+- **La garde juge l'entrée canonique.** `onToolCall` tourne avant la garde (ADR 0023) : un appel du
   modèle écrit `C:\…` sur un outil à chemin est d'abord converti, et la garde juge une fois l'entrée canonique. Une
   commande shell est jugée par la garde sur son texte et par les callbacks sur ses chemins canoniques ; chaque
-  résultat est canonique. Les quatre issues que l'ADR 0022 laissait au runtime, Orkeon #300 à #303, sont fermées par
-  Orkeon #304, que le pin couvre.
+  résultat est canonique. Les issues du runtime que l'ADR 0022 laissait ouvertes sont fermées à l'épingle.
 
 ## Couches et règle de dépendance
 
@@ -331,24 +330,24 @@ rend le texte, ou le message d'échec propre à l'outil sans l'enrobage du runti
 | `Shell` | Les commandes shell dans `/workspace` (`shell_command`) | `shell.ts` | `fake-shell.ts` |
 | `ShellJobs` | Une commande longue lancée détachée, son état, la fin de son journal, et une attente entre deux regards (`shell_command` `start_job`, `job_status`, `job_tail`) | `shell-jobs.ts` | `fake-shell-jobs.ts` |
 | `SharedMemory` | L'index RAG de la [mémoire partagée](shared-memory.md) : chercher dans une collection, indexer avec élagage (l'espace `rag`, sinon `rag_search`, `rag_ingest`) | `shared-memory.ts` | `fake-shared-memory.ts` |
-| `DecisionModel` | Le modèle de décision du host, auquel on pose des questions typées sur un état : une option parmi des options décrites, un niveau sur une échelle, la probabilité d'un oui | `decision-model.ts` | `fake-decision-model.ts` |
+| `DecisionModel` | Le modèle de décision du runtime, auquel on pose des questions typées sur un état : une option parmi des options décrites, un niveau sur une échelle, la probabilité d'un oui | `decision-model.ts` | `fake-decision-model.ts` |
 | `ChildRuntime` | Les enfants d'une exécution de crew : en lancer un en arrière-plan, lister, arrêter, lire ce qu'il a laissé (`ctx.spawnBackground`, `instances()`/`stop()` du crew, sa mémoire) | `child-agents.ts` | `fake-child-runtime.ts` |
 | `HumanInput` | Une question à la personne : un choix, un texte, une sélection multiple ; personne ne répondant est une réponse en soi (`human_input`) | `human-input.ts` | `fake-human-input.ts` |
 | `Chooser` | Un panneau dans la console : une option parmi plusieurs, avec un réglage facultatif sur les flèches latérales ; `interactive` dit si un panneau peut s'ouvrir (`ctx.prompt`, `ctx.interactive`) | `chooser.ts` | `fake-chooser.ts` |
 | `ThemeConsole` | La palette de la console pour la session (`ctx.theme`, `ctx.setTheme`) | le contexte de commande lui-même | `fake-theme-console.ts` |
 | `Files` | Lire, écrire et lister par chemin virtuel, les montages du VFS (`file_read`, `file_write`, `directory_read`, `list_mounts`) | `files.ts` | `fake-files.ts` |
-| `Progress` | La ligne de progression de l'hôte, au mieux (`progress_report`) | `progress.ts` | `fake-progress.ts` |
+| `Progress` | La ligne de progression du runtime, au mieux (`progress_report`) | `progress.ts` | `fake-progress.ts` |
 | `SessionStore` | Le tampon de conversation, le sac d'état, le titre, la coupe, le budget de tokens par sorte (`session_store`, `session_snip`, `token_budget`) | `session-store.ts` | `fake-session-store.ts` |
-| `SessionSwitch` | La session enregistrée maintenant, une session gardée chargée sur place (le service `session`, Orkeon #227) | `session-switch.ts` | `fake-session-switch.ts` |
-| `RuntimeInfoReader` | Le runtime qui exécute la commande : version, commit, canal (le service `runtime`, Orkeon #225) | `runtime-info.ts` | `fake-runtime-info.ts` |
-| `UsageReader` | L'usage LLM de la session, en tout, par modèle et par commande (le service `usage`, Orkeon #226) | `usage.ts` | `fake-usage-reader.ts` |
+| `SessionSwitch` | La session enregistrée maintenant, une session gardée chargée sur place (le service `session`) | `session-switch.ts` | `fake-session-switch.ts` |
+| `RuntimeInfoReader` | Le runtime qui exécute la commande : version, commit, canal (le service `runtime`) | `runtime-info.ts` | `fake-runtime-info.ts` |
+| `UsageReader` | L'usage LLM de la session, en tout, par modèle et par commande (le service `usage`) | `usage.ts` | `fake-usage-reader.ts` |
 | `Telemetry` | Les métadonnées, le coût et les statistiques de la session (`session_store`, `session_cost`, `session_stats`) | `telemetry.ts` | `fake-telemetry.ts` |
 | `MemoryStore` | La mémoire typée : lister, ajouter, lire, retirer, remplacer en place (`memory_store`) | `memory-store.ts` | `fake-memory-store.ts` |
 | `ToolCatalogue` | Les outils enregistrés sous leurs noms d'enregistrement, trouvés sans tenir compte de la casse comme Orkeon les trouve, pour les diagnostics et la vérification des outils supplémentaires (le service `tools` de `ctx.services` pour les noms, l'espace de noms `tools` pour les appels : `call` brut, `callText` décodé) | `tool-catalogue.ts` | `fake-tool-catalogue.ts` |
 | `CodeIndex` | L'index du code tel que `/analyze` le récolte et que `/init` en lit la carte des paquets (`index_status`, `index_codebase`, `codebase_map`, `dependency_graph`, `package_summary`) | `code-index.ts` | `fake-code-index.ts` |
 | `CostIndex` | Le coût d'accès que `/dev-batches` mesure : les racines indexées, le rafraîchissement des fichiers du lot, le rapport (`index_status`, `incremental_reindex`, `access_cost`) | `code-index.ts` | `fake-cost-index.ts` |
 | `CrewHost` | Lister et lancer des crews (le service `script-host`, `ctx.services`) | `crew-host.ts` | `fake-crew-host.ts` |
-| `PermissionRules` | Les règles de session de la garde de permission de l'hôte : ajouter, effacer, lister (le service `permissions`, `ctx.services`) | `permission-rules.ts` | `fake-permission-rules.ts` |
+| `PermissionRules` | Les règles de session de la garde de permission du runtime : ajouter, effacer, lister (le service `permissions`, `ctx.services`) | `permission-rules.ts` | `fake-permission-rules.ts` |
 | `Llm` | Le modèle : `act` (la boucle d'outils), `complete`, `extract` (`ctx.llm` de l'agent en cours) ; un `act` ou un `complete` qui échoue lève une `LlmFailure` | `llm.ts` | `fake-llm.ts` |
 | `RunState` | L'état propre de l'agent en cours, pour une exécution de crew (`ctx.state`) | `run-state.ts` | `fake-run-state.ts` |
 | `CrewMemory` | La mémoire clé/valeur du crew en cours, partagée par ses agents le temps d'une exécution (`ctx.memory.crew`) | `crew-memory.ts` | `fake-crew-memory.ts` |
@@ -389,7 +388,7 @@ crews : `session-io.ts` (le tampon plus le mode de permission dans lequel une se
 (`/config` : le fichier de settings surchargé par le sac d'état), `session-state.ts` (des valeurs JSON dans le sac
 d'état), `json-file.ts` (des fichiers JSON, protégés contre un contenu invalide), `attached-skills.ts` (le registre de
 `/skills` avec le contenu de chaque fichier), `permission-rules.ts` (les règles de la session et leur synchronisation
-avec la garde de l'hôte), `extra-tools.ts` (le réglage `tools.extra` confronté aux outils enregistrés) et
+avec la garde du runtime), `extra-tools.ts` (le réglage `tools.extra` confronté aux outils enregistrés) et
 `compaction/` (le pipeline de compaction).
 
 ### Les jeux de règles
@@ -398,7 +397,7 @@ avec la garde de l'hôte), `extra-tools.ts` (le réglage `tools.extra` confront�
   données, dans la syntaxe de `/permissions` : `git-readonly`, `inline-interpreters`, `read-noise`, `secrets`,
   `state-files`.
 - `src/shared/domain/dev/step-rules.ts` dit quelle étape dev détient quels jeux.
-- La commande de l'étape vérifie que la garde de l'hôte est active, puis `syncStepRules` (`permission-rules.ts`)
+- La commande de l'étape vérifie que la garde du runtime est active, puis `syncStepRules` (`permission-rules.ts`)
   remet à la garde les règles de la session suivies de celles de l'étape, sans ranger ces dernières.
 - Le prochain tour `/assistant` ne lui remet que les règles de la session.
 - La fonction pure `matchesRule`, à côté de l'analyseur de règles, reproduit la façon dont la garde lit une règle.
@@ -486,7 +485,7 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 
 | Crew | Processus | Lancé par | Ce qu'il fait |
 |---|---|---|---|
-| `main-loop` | autonome, budget 200 appels d'outils / 1800 s / 700k tokens de contexte (le contexte compté une fois, Orkeon #224) | `/assistant`, le texte libre, `/summary`, `/verify`, `/transcribe --then`, `/voice send` et `--go` | La boucle interactive |
+| `main-loop` | autonome, budget 200 appels d'outils / 1800 s / 700k tokens de contexte (le contexte compté une fois) | `/assistant`, le texte libre, `/summary`, `/verify`, `/transcribe --then`, `/voice send` et `--go` | La boucle interactive |
 | `project-init` | séquentiel, sans outil (l'index lu par le port `CodeIndex`) | `/init` | Parcourt l'arborescence, détecte les conventions, lit la carte des paquets quand un index existe, écrit le fichier d'instructions (une proposition à côté quand un fichier existant a été coupé) |
 | `git-commit` | séquentiel | `/commit` | Rédige un commit conventionnel à partir du diff, commite après confirmation |
 | `code-review` | séquentiel | `/review` (`--lens` pour un seul angle, `--passes` pour les tours de ce lancement ; les alias `/security-review` et `/passes`) | Revue multi-angles des changements indexés, constats classés |
@@ -501,8 +500,8 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 | `agent-run` | séquentiel, un act d'une charte intégrée (`dev-reviewer`, `dev-auditor`) | `/tasks send`, `/tasks repair` | Un nouveau run d'un enfant fini, son brief portant le rapport précédent et le message de l'opérateur |
 | `dev-spec` | séquentiel, des extracts, la revue dans un enfant d'arrière-plan `dev-reviewer` (dix outils de lecture en `plan`) | `/dev-spec` | Spécification métier écrite par le code depuis le JSON, ses questions posées une à une par `human_input`, une revue en lecture seule |
 | `dev-change` | séquentiel, des extracts, la revue dans un enfant d'arrière-plan `dev-reviewer` (dix outils de lecture en `plan`) | `/dev-spec <code> <kind>` | Bug reproduit ou coût mesuré en exécutant, fiche de changement écrite par le code, questions par `human_input`, une revue |
-| `dev-implement` | séquentiel, un agent, deux rôles en `acceptEdits` (cinq outils de lecture, six d'écriture - `file_write` pour un nouveau fichier, les éditeurs de nœuds et `edit_batch` pour un fichier existant ; la règle d'édition épelle un `edit_batch`, sa liste `operations` et `validate`, et le refus par la garde d'un lot sans opérations le répète ; le runtime publie aussi le schéma des outils de nœud depuis Orkeon #210 ; chaque `node_replace` d'un lot porte le hash que `node_read` a donné pour ce nœud précis, jamais un hash deviné, un hash factice ayant fait refuser un lot entier par le runtime dans un run live - `run_tests`, `run_build`, `memory_recall`) | `/dev-batches <code> F<n>` (`--close` : la clôture seule) | Chaque cycle (les étapes d'un même fichier de test) rouge puis vert, vérifié par le code, son coût mesuré |
-| `dev-batches` | Séquentiel, un agent avec les outils de lecture du relecteur, sa revue en ligne (la revue du prochain lot se voit offrir cinq d'entre eux, `file_read`, `node_outline`, `node_read`, `codebase_search` et `glob`, pour huit tours : son brief porte la fiche, ce que les lots clos ont changé et le plan) | `/dev-batches` (retapée après un arrêt : l'exécution reprend ; chaque saut de sa chaîne garde la profondeur de l'instance pour laquelle il tourne, `chain: "continue"`, si bien qu'un plan de n'importe quelle longueur se clôt en une commande, Orkeon #221) | Désigne le lot suivant d'un plan dans l'ordre de ses dépendances, après une revue de sa fiche une fois ses dépendances closes |
+| `dev-implement` | séquentiel, un agent, deux rôles en `acceptEdits` (cinq outils de lecture, six d'écriture - `file_write` pour un nouveau fichier, les éditeurs de nœuds et `edit_batch` pour un fichier existant ; la règle d'édition épelle un `edit_batch`, sa liste `operations` et `validate`, et le refus par la garde d'un lot sans opérations le répète ; le runtime publie aussi le schéma des outils de nœud ; chaque `node_replace` d'un lot porte le hash que `node_read` a donné pour ce nœud précis, jamais un hash deviné, un hash factice ayant fait refuser un lot entier par le runtime dans un run live - `run_tests`, `run_build`, `memory_recall`) | `/dev-batches <code> F<n>` (`--close` : la clôture seule) | Chaque cycle (les étapes d'un même fichier de test) rouge puis vert, vérifié par le code, son coût mesuré |
+| `dev-batches` | Séquentiel, un agent avec les outils de lecture du relecteur, sa revue en ligne (la revue du prochain lot se voit offrir cinq d'entre eux, `file_read`, `node_outline`, `node_read`, `codebase_search` et `glob`, pour huit tours : son brief porte la fiche, ce que les lots clos ont changé et le plan) | `/dev-batches` (retapée après un arrêt : l'exécution reprend ; chaque saut de sa chaîne garde la profondeur de l'instance pour laquelle il tourne, `chain: "continue"`, si bien qu'un plan de n'importe quelle longueur se clôt en une commande) | Désigne le lot suivant d'un plan dans l'ordre de ses dépendances, après une revue de sa fiche une fois ses dépendances closes |
 | `shared-memory-admit` | séquentiel, sans outil, sans LLM | `/memory admit` | Écrit dans les entrées de la mémoire partagée les candidats que l'opérateur a confirmés, les listes, et réindexe |
 
 ### Les crews en détail
@@ -527,7 +526,7 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
     les étapes, l'audit en ligne et la clôture dans son code, borné par ses propres appels d'outils), puis fusionne
     en avance rapide chaque lot VALID dans l'ordre des ids, en rapatrie les fichiers et retire son worktree.
   - Un push et une pull request à la clôture du plan.
-  - Une revue qui ne peut pas tourner (aucun relecteur sur l'hôte, une réponse illisible deux fois, un appel refusé)
+  - Une revue qui ne peut pas tourner (aucun relecteur sur le runtime, une réponse illisible deux fois, un appel refusé)
     arrête le lot avant son lancement, consigné `BLOCKED — review not run (<raison>)`, et l'exécution suivante le
     revoit (un arrêt pour des questions Blocking est tranché par l'humain et pas revu deux fois).
   - Chaque ligne Major de la revue termine les prompts RED et GREEN de ce lot en une ligne `stale: <question> —

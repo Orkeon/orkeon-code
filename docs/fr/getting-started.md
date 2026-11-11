@@ -86,7 +86,7 @@ sous WSL un programme Windows n'est joignable que sans confinement, et reçoit e
   exécute la dernière release, `1.0.0-rc.6`, et le [mode docker](#mode-docker--rien-à-installer-sauf-docker) la
   dernière image `orkeon-runners` publiée, `1.0.0-rc.5` à ce jour (aucune image `1.0.0-rc.6` n'est publiée), tous
   deux en retard sur l'épingle, et `/status` le dit ([ADR 0013](../adr/0013-pin-on-orkeon-commit.md)).
-- La release porte ce que les ADR 0004 à 0009 ont repris du `main` d'Orkeon : l'état de la garde de l'hôte
+- La release porte ce que les ADR 0004 à 0009 ont repris du `main` d'Orkeon : l'état de la garde du runtime
   (`/permissions`), les outils intégrés typés et les limites de résultat par outil ([ADR
   0004](../adr/0004-orkeon-after-180.md)), les outils de fichiers qui résolvent un chemin relatif sous `/workspace`
   ou la racine de l'agent, et les approbations en attente qu'une commande lit (`/tasks`) ([ADR
@@ -118,9 +118,9 @@ lancez `./install.sh` : il installe dans `~/.local/lib/orkeon` et lie `orkeon-re
 `~/.local/bin`, sans `sudo`. Sous Windows, `install.ps1` installe dans `%LOCALAPPDATA%\Programs\Orkeon` et ajoute son
 dossier `bin` à votre `PATH` utilisateur.
 
-Une release a du retard sur le pin : pas de panneaux, `/theme` répond que la console n'a pas de palettes, et `/diff` et
-les résultats restent en texte brut. Pour avoir les fonctions du pin sous Windows, avec le SDK .NET installé, lancez
-`.\scripts\install-from-source.ps1 -AppSet full` depuis un clone d'Orkeon au pin ou plus récent.
+Une release a du retard sur l'épingle : pas de panneaux, `/theme` répond que la console n'a pas de palettes, et `/diff` et
+les résultats restent en texte brut. Pour avoir les fonctions de l'épingle sous Windows, avec le SDK .NET installé, lancez
+`.\scripts\install-from-source.ps1 -AppSet full` depuis un clone d'Orkeon à l'épingle ou plus récent.
 
 ```bash
 v=1.0.0-rc.6; rid=linux-x64       # the last release; or linux-arm64, osx-x64, osx-arm64
@@ -160,9 +160,9 @@ ce checkout, ou `ORKEON_ESBUILD_PATH`.
 
 Le checkout devrait être au commit de `.orkeon-version`, celui contre lequel les commandes ont été vérifiées. Le
 lanceur l'y amène lui-même quand rien de vous n'est en jeu : aucun fichier suivi modifié, sur `main` ou détaché, et en
-retard sur le pin (récupéré depuis `origin main` s'il manque). Il dit alors `orkeon-code: ORKEON_SOURCE moved from
+retard sur l'épingle (récupéré depuis `origin main` s'il manque). Il dit alors `orkeon-code: ORKEON_SOURCE moved from
 <sha7> to the pin 206b562.` et le build restaure la solution. Sinon (une branche à vous, du travail non commité, des
-commits en avance sur le pin, ou `ORKEON_SOURCE_FOLLOW_PIN=0`), il laisse le checkout tel quel, avertit
+commits en avance sur l'épingle, ou `ORKEON_SOURCE_FOLLOW_PIN=0`), il laisse le checkout tel quel, avertit
 (`orkeon-code: warning: ORKEON_SOURCE is at <sha7>, the pin of .orkeon-version is 206b562: the commands were checked
 against the pin.`) et lance quand même.
 

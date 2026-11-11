@@ -21,7 +21,7 @@ jusqu'au bout sans poser de question :
   `acceptEdits`, [Permissions](permissions.md)).
 - Dans le REPL, `default` et `acceptEdits` vous demandent avant un appel que le mode n'autorise pas d'emblée.
 - Dans une exécution sans opérateur, personne ne répond, et la garde refuse ce qu'elle aurait demandé (le modèle lit
-  `DENIED: …`), sauf si `Orkeon:Checkpointing:Enabled` est posé (éteint dans tous les exemples ; Orkeon #299) : la
+  `DENIED: …`), sauf si `Orkeon:Checkpointing:Enabled` est posé (éteint dans tous les exemples) : la
   question est alors gardée et l'exécution s'arrête avec la sortie `75` ([plus bas](#en-un-coup-depuis-un-shell)).
 - Donnez à une exécution sans opérateur un mode qui ne demande jamais : `bypassPermissions`, ou `plan` et `dontAsk`
   pour un travail en lecture seule ([Permissions](permissions.md)).
@@ -43,10 +43,10 @@ le mode de l'act, donc refusé ici (les callbacks d'Orkeon Code ne demandent jam
 Ce qui borne un tour, quel que soit le mode :
 
 - le budget du crew `main-loop` : 200 appels d'outils, 30 minutes, 700k tokens de contexte (le contexte compté une
-  fois, Orkeon #224), 40 itérations de la boucle ;
+  fois), 40 itérations de la boucle ;
 - le délai d'exécution des scripts dans les settings : `Orkeon:Cli:ScriptCommands:Limits` pour le REPL,
   `Orkeon:Scripting:Limits` pour l'outil `orkeon` d'une exécution indépendante (30 minutes chacun dans l'exemple) ;
-- la garde de l'hôte (`Orkeon:Security:PermissionGate:Enabled`), qui confronte chaque appel au mode derrière le
+- la garde du runtime (`Orkeon:Security:PermissionGate:Enabled`), qui confronte chaque appel au mode derrière le
   catalogue ;
 - les montages : le projet sur `/workspace`, les montages de travail `/output` et `/tmp`, rien d'autre ;
 - la liste blanche du shell dans les settings.
@@ -100,7 +100,7 @@ ORKEON_CODE_WORKSPACE=~/src/app bash scripts/run-crew.sh src/crews/main-loop/cre
   l'exécution sort quand même avec `0`.
 - Lisez le JSON pour savoir ce qui a été fait.
 - Un chemin du projet qui sort de `/workspace` par un lien (un cache de dépendances lié à un autre checkout) est
-  refusé par les outils de fichiers (Orkeon #299) : montez ce dossier pour lui-même.
+  refusé par les outils de fichiers : montez ce dossier pour lui-même.
 - Les primitives de session existent aussi dans une exécution indépendante, mais le tampon de conversation, le sac
   d'état et la mémoire typée démarrent vides et finissent avec le processus : une exécution est un tour.
 
@@ -170,7 +170,7 @@ Trois voies, de la plus simple :
 1. **Comme un processus, depuis n'importe quel langage.** Lancez `orkeon run <crew.ork.ts> --inputs <json>` avec
    l'outil `orkeon` ou l'image `orkeon-runners`, avec les montages et les settings que `scripts/run-crew.sh` passe, et
    lisez le JSON sur stdout. Le script est la référence pour la ligne de commande ; le code de sortie dit si le
-   résultat en est un. Avec `Orkeon:RunHistory:Enabled` (éteint pour `orkeon run` par défaut ; Orkeon #299), les
+   résultat en est un. Avec `Orkeon:RunHistory:Enabled` (éteint pour `orkeon run` par défaut), les
    événements de chaque exécution sont gardés sous `/runs` (`Store` jsonl ou sqlite, `RetentionDays` 30), que
    `orkeon runs list`, `show` et `tail` lisent.
 2. **Comme un service.** Le démon `orkeon-host` de l'archive de release d'Orkeon (une unité systemd, un service Windows
@@ -185,4 +185,10 @@ Trois voies, de la plus simple :
    l'API C# du builder, qui ne charge pas de scripts. Suivi dans la [Feuille de route](roadmap.md) (runtime).
 
 Quelle que soit la voie, la portée de l'agent est la même : les montages que vous lui donnez, la liste blanche du shell
-dans les settings, le mode de permission de l'entrée, et la garde de l'hôte derrière eux.
+dans les settings, le mode de permission de l'entrée, et la garde du runtime derrière eux.
+
+## Voir aussi
+
+- [Permissions](permissions.md) : ce que chaque mode laisse un tour toucher, et ce qu'aucun mode ne change.
+- [Configuration](configuration.md#les-settings-dont-orkeon-code-dépend) : les budgets et les limites d'un tour.
+- [SECURITY.md](../../SECURITY.md) (en anglais) : ce qui confine le shell dans chaque mode de lancement.

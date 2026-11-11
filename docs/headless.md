@@ -20,7 +20,7 @@ without a question:
   [Permissions](permissions.md)).
 - In the REPL, `default` and `acceptEdits` ask you before a call the mode does not allow outright.
 - In a run without an operator nobody answers, and the gate refuses what it would have asked about (the model reads
-  `DENIED: …`), unless `Orkeon:Checkpointing:Enabled` is set (off in every example; Orkeon #299): the question is
+  `DENIED: …`), unless `Orkeon:Checkpointing:Enabled` is set (off in every example): the question is
   then kept and the run stops with exit `75` ([below](#one-shot-from-a-shell)).
 - Give an unattended run a mode that never asks: `bypassPermissions`, or `plan` and `dontAsk` for read-only work
   ([Permissions](permissions.md)).
@@ -40,8 +40,7 @@ input it returns; an `"ask"` it returns is judged as an edit in `default` once t
 
 What bounds a turn, whatever the mode:
 
-- the crew budget of `main-loop`: 200 tool calls, 30 minutes, 700k context tokens (the context counted once,
-  Orkeon #224), 40 iterations of the loop;
+- the crew budget of `main-loop`: 200 tool calls, 30 minutes, 700k context tokens (the context counted once), 40 iterations of the loop;
 - the script timeout of the settings: `Orkeon:Cli:ScriptCommands:Limits` for the REPL, `Orkeon:Scripting:Limits` for
   the `orkeon` tool of a standalone run (30 minutes each in the example);
 - the host gate (`Orkeon:Security:PermissionGate:Enabled`), which checks every call against the mode behind the
@@ -95,7 +94,7 @@ ORKEON_CODE_WORKSPACE=~/src/app bash scripts/run-crew.sh src/crews/main-loop/cre
 - A call the gate refuses is not an error: the model reads the refusal as the tool's result and the run still exits
   `0`, so read the JSON to know what was done.
 - A path of the project that leaves `/workspace` through a link (a dependency cache linked to another checkout) is
-  refused by the file tools (Orkeon #299): mount that folder of its own.
+  refused by the file tools: mount that folder of its own.
 - The session primitives exist in a standalone run too, but the conversation buffer, the state bag and the typed
   memory start empty and end with the process: one run is one turn.
 
@@ -160,7 +159,7 @@ Three ways, from the simplest:
 1. **As a process, from any language.** Start `orkeon run <crew.ork.ts> --inputs <json>` with the `orkeon` tool or
    the `orkeon-runners` image, with the mounts and the settings `scripts/run-crew.sh` passes, and read the JSON on
    stdout. The script is the reference for the command line; the exit code says whether the result is one. With
-   `Orkeon:RunHistory:Enabled` (off for `orkeon run` by default; Orkeon #299) each run's events are kept under `/runs`
+   `Orkeon:RunHistory:Enabled` (off for `orkeon run` by default) each run's events are kept under `/runs`
    (`Store` jsonl or sqlite, `RetentionDays` 30), which `orkeon runs list`, `show` and `tail` read.
 2. **As a service.** The `orkeon-host` daemon of the Orkeon release archive (a systemd unit, a Windows service or a
    container) hosts crew folders and exposes each one behind a chat channel and, opt-in, as an A2A skill: a
@@ -174,3 +173,9 @@ Three ways, from the simplest:
 
 Whatever the path, the agent's reach is the same: the mounts you give it, the shell allow-list of the settings, the
 permission mode of the input, and the host gate behind them.
+
+## See also
+
+- [Permissions](permissions.md): what each mode lets a turn touch, and what no mode changes.
+- [Configuration](configuration.md#settings-orkeon-code-relies-on): the budgets and the limits of a turn.
+- [SECURITY.md](../SECURITY.md): what confines the shell in each launch mode.

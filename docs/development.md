@@ -37,7 +37,7 @@ runtime's typings come from, how the pin on Orkeon moves, and how a release is c
   `ORKEON_CODE_MODE=source bash scripts/smoke-crew.sh` and `ORKEON_CODE_MODE=source bash scripts/smoke-validate.sh`
   are the same checks.
 - The runtime judges a crew of this project as a procedural script, since none assigns `globalThis.crew` in its own
-  source: `--validate` bundles it and never runs it (Orkeon #316, [ADR 0025](adr/0025-orkeon-after-317.md)).
+  source: `--validate` bundles it and never runs it ([ADR 0025](adr/0025-orkeon-after-317.md)).
 
 ## Running a crew alone
 
@@ -83,7 +83,7 @@ four places that must agree (`tests/repository/version.test.ts` checks the first
    checks it).
 
 `.config/dotnet-tools.json` names the last release of `orkeon.scripting.cli`, for the tool fallback of the typings and
-of `scripts/run-crew.sh`: it no longer follows the pin. Then:
+of `scripts/run-crew.sh`: it does not follow the pin. Then:
 
 ```bash
 export ORKEON_SOURCE=<an Orkeon checkout at the pin>
