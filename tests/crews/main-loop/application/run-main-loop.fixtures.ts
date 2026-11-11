@@ -187,4 +187,20 @@ export function pruneBinding() {
 
 /** A skill a suggestion hands a turn. */
 export const SUGGESTED_SKILL = { path: "/workspace/.orkeon/skills/release.md", content: "SUGGESTED BODY" };
+export const ATTACHED_SKILL = { path: "/workspace/docs/attached.md", content: "ATTACHED BODY" };
 
+/** Attaches ATTACHED_SKILL to the session, its file in place. */
+export function attachSkill(store: FakeSessionStore, files: FakeFiles): void {
+  store.state.set("skills_attached", JSON.stringify([ATTACHED_SKILL.path]));
+  files.files.set(ATTACHED_SKILL.path, ATTACHED_SKILL.content);
+}
+
+/** The `suggest` of a turn's ports: SUGGESTED_SKILL for every request, `asked` listing what it was asked. */
+export function suggestBinding() {
+  const asked: Array<{ request: string; attached: readonly string[] }> = [];
+  const suggest = async (request: string, attached: readonly string[]) => {
+    asked.push({ request, attached });
+    return [SUGGESTED_SKILL];
+  };
+  return { suggest, asked };
+}

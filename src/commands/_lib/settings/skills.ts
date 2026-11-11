@@ -40,7 +40,8 @@ async function runSuggest(word: string, deps: SkillsDeps): Promise<CommandView> 
   const { config, decision } = deps;
   if (config === undefined || decision === undefined) return { text: SKILLS_SUGGEST_USAGE };
   if (word === "") {
-    return { text: suggestStatus(suggestOn((await config.readValue(SKILLS_SUGGEST_CONFIG_KEY)).value), decision.available()) };
+    const value = await config.readValue(SKILLS_SUGGEST_CONFIG_KEY).then((read) => read.value).catch(() => undefined);
+    return { text: suggestStatus(suggestOn(value), decision.available()) };
   }
   if (word === "why") {
     const last = lastSuggestion(await deps.session.readState(SKILLS_SUGGESTED_STATE_KEY).catch(() => null));

@@ -3,8 +3,8 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
-import { shortlistOf, shortlistQuestion, skillCard, suggestOn, suggestState } from "../../../../src/shared/domain/skills/shortlist.ts";
-import { CARDS, CARD_CASES, LONG_HEAD, PICK_CASES } from "./shortlist.fixtures.ts";
+import { offerable, shortlistOf, shortlistQuestion, skillCard, skillKey, suggestOn, suggestState } from "../../../../src/shared/domain/skills/shortlist.ts";
+import { CARDS, CARD_CASES, KEY_CASES, LONG_HEAD, OFFERABLE_CASES, PICK_CASES } from "./shortlist.fixtures.ts";
 
 describe("suggestOn", () => {
   for (const c of [{ value: "on", on: true }, { value: " On ", on: true }, { value: "off", on: false }, { value: undefined, on: false }]) {
@@ -45,6 +45,36 @@ describe("skillCard", () => {
     // Assert
     strictEqual(card.description, `${"d".repeat(300)}...`);
   });
+});
+
+describe("offerable", () => {
+  for (const c of OFFERABLE_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const head = c.head;
+
+      // Act
+      const may = offerable(head);
+
+      // Assert
+      strictEqual(may, c.offerable);
+    });
+  }
+});
+
+describe("skillKey", () => {
+  for (const c of KEY_CASES) {
+    it(`reads ${JSON.stringify(c.path)} as ${c.key}`, () => {
+      // Arrange
+      const path = c.path;
+
+      // Act
+      const key = skillKey(path);
+
+      // Assert
+      strictEqual(key, c.key);
+    });
+  }
 });
 
 describe("suggestState", () => {

@@ -14,10 +14,13 @@ export const CLAUDE_SKILLS_DIR = ".claude/skills";
 export const CLAUDE_SKILL_FILE = "SKILL.md";
 /** Skills suggested for one turn at most: each may add 4 000 characters to the turn (the skills block's cap). */
 export const SUGGEST_MAX_PICKS = 3;
-/** The share of the model's probability from which a skill is suggested: three skills at most can reach it. */
+/** The share of the model's probability from which a skill is suggested: three skills at most can reach it. The
+ *  question is one choice, so skills that all fit split the probability: four that fit equally reach none. */
 export const SUGGEST_MIN_SHARE = 0.3;
-/** Skills offered to the decision model in one question, in listing order: past it the options crowd each other out. */
+/** Skills offered to the decision model in one question, in name order: past it the options crowd each other out. */
 export const SUGGEST_MAX_CANDIDATES = 24;
+/** Entries read of a skills folder before its skills are picked out: a folder holds other files too. */
+export const SKILLS_LISTING_MAX = 200;
 /** What is read of a skill file to find its name and description. */
 export const SKILL_HEAD_CHARS = 2_000;
 /** A skill's description, as the decision model reads it. */
@@ -57,30 +60,63 @@ function nameOfPath(path: string): string {
   return file === CLAUDE_SKILL_FILE ? parts[parts.length - 2] ?? file : file.replace(/\.md$/i, "");
 }
 
-function frontmatter(head: string): Record<string, string> | null {
-  const match = /^---\r?\n([\s\S]*?)\r?\n---/.exec(head);
-  if (match === null) return null;
+/** The fields of a file's front matter, a folded or literal value (`description: >`) read from its indented lines;
+ *  null when the file opens with none. A front matter the head cuts short is read as far as it goes. */
+function frontmatter(head: string): { fields: Record<string, string>; body: string } | null {
+  const lines = head.split(/\r?\n/);
+  if (lines[0]?.trim() !== "---") return null;
   const fields: Record<string, string> = {};
-  for (const line of match[1].split(/\r?\n/)) {
-    const field = /^([A-Za-z][\w-]*):\s*(.*)$/.exec(line);
-    if (field !== null) fields[field[1].toLowerCase()] = field[2].trim().replace(/^["']|["']$/g, "");
+  let i = 1;
+  for (; i < lines.length && lines[i].trim() !== "---"; i += 1) {
+    const field = /^([A-Za-z][\w-]*):\s*(.*)$/.exec(lines[i]);
+    if (field === null) continue;
+    let value = field[2].trim();
+    if (/^[>|][+-]?$/.test(value)) {
+      const folded: string[] = [];
+      while (i + 1 < lines.length && /^\s+\S/.test(lines[i + 1])) folded.push(lines[(i += 1)].trim());
+      value = folded.join(" ");
+    }
+    fields[field[1].toLowerCase()] = value.replace(/^["']|["']$/g, "");
   }
-  return fields;
+  return { fields, body: lines.slice(i + 1).join("\n") };
+}
+
+/** The lines of a body outside its code fences, trimmed. */
+function prose(body: string): string[] {
+  const out: string[] = [];
+  let fenced = false;
+  for (const line of body.split(/\r?\n/).map((l) => l.trim())) {
+    if (/^(```|~~~)/.test(line)) fenced = !fenced;
+    else if (!fenced) out.push(line);
+  }
+  return out;
+}
+
+/** Whether the model may be offered a skill: not one its front matter keeps for a person to invoke
+ *  (`disable-model-invocation: true`, the mark other assistants' skills carry). */
+export function offerable(head: string): boolean {
+  return frontmatter(head.replace(/^\uFEFF/, ""))?.fields["disable-model-invocation"]?.toLowerCase() !== "true";
 }
 
 /** A skill's card from the head of its file: the `name` and `description` of its front matter; else its first
- *  heading and the first paragraph under it. A missing name is the path's; a missing description is empty. */
+ *  heading and the first line of text under it, code fences left out. A missing name is the path's; a missing
+ *  description is empty. */
 export function skillCard(path: string, head: string): SkillCard {
-  const fields = frontmatter(head);
-  const body = fields === null ? head : head.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "");
-  const lines = body.split(/\r?\n/).map((line) => line.trim());
+  const text = head.replace(/^\uFEFF/, "");
+  const front = frontmatter(text);
+  const lines = prose(front === null ? text : front.body);
   const heading = lines.find((line) => /^#{1,6}\s+\S/.test(line))?.replace(/^#+\s+/, "");
-  const paragraph = lines.find((line) => line.length > 0 && !line.startsWith("#")) ?? "";
+  const paragraph = lines.find((line) => line.length > 0 && !line.startsWith("#") && line !== "---") ?? "";
   return {
     path,
-    name: fields?.name || heading || nameOfPath(path),
-    description: cut((fields?.description || paragraph).replace(/\s+/g, " "), SKILL_DESCRIPTION_CHARS),
+    name: front?.fields.name || heading || nameOfPath(path),
+    description: cut((front?.fields.description || paragraph).replace(/\s+/g, " "), SKILL_DESCRIPTION_CHARS),
   };
+}
+
+/** A skill's path as two spellings of it compare: no `/workspace/` nor `./` in front. */
+export function skillKey(path: string): string {
+  return path.trim().replace(/^\/workspace\//, "").replace(/^\.\//, "");
 }
 
 const option = (n: number): string => `s${n}`;

@@ -27,6 +27,49 @@ export const CARD_CASES: readonly { readonly name: string; readonly path: string
     head: "---\ndescription: Cut a release\n---\n",
     expected: { path: "/workspace/.claude/skills/release/SKILL.md", name: "release", description: "Cut a release" },
   },
+  {
+    name: "reads a folded description from its indented lines",
+    path: "/workspace/.claude/skills/release/SKILL.md",
+    head: "---\nname: release\ndescription: >\n  Cut a release:\n  changelog, tag, notes\nother: x\n---\n",
+    expected: { path: "/workspace/.claude/skills/release/SKILL.md", name: "release", description: "Cut a release: changelog, tag, notes" },
+  },
+  {
+    name: "reads a front matter after a byte order mark",
+    path: "/workspace/.claude/skills/release/SKILL.md",
+    head: "\uFEFF---\nname: release\ndescription: Cut a release\n---\n",
+    expected: { path: "/workspace/.claude/skills/release/SKILL.md", name: "release", description: "Cut a release" },
+  },
+  {
+    name: "reads a front matter the head cuts short as far as it goes",
+    path: "/workspace/.claude/skills/release/SKILL.md",
+    head: "---\nname: release\ndescription: Cut a release\nallowed-tools: Rea",
+    expected: { path: "/workspace/.claude/skills/release/SKILL.md", name: "release", description: "Cut a release" },
+  },
+  {
+    name: "gives an empty description to an empty front matter with nothing under it",
+    path: "/workspace/.orkeon/skills/empty.md",
+    head: "---\n---\n",
+    expected: { path: "/workspace/.orkeon/skills/empty.md", name: "empty", description: "" },
+  },
+  {
+    name: "reads no heading nor description inside a code fence",
+    path: "/workspace/.orkeon/skills/deploy.md",
+    head: "```bash\n# not a title\nmake deploy\n```\n# Deploy\nShip the build.",
+    expected: { path: "/workspace/.orkeon/skills/deploy.md", name: "Deploy", description: "Ship the build." },
+  },
+];
+
+export const OFFERABLE_CASES: readonly { readonly name: string; readonly head: string; readonly offerable: boolean }[] = [
+  { name: "offers a skill without a front matter", head: "# Release\nCut a release.", offerable: true },
+  { name: "offers a skill whose front matter does not keep it for a person", head: "---\nname: release\n---\n", offerable: true },
+  { name: "does not offer a skill kept for a person to invoke", head: "---\nname: release\ndisable-model-invocation: true\n---\n", offerable: false },
+  { name: "offers a skill that says false", head: "---\ndisable-model-invocation: false\n---\n", offerable: true },
+];
+
+export const KEY_CASES: readonly { readonly path: string; readonly key: string }[] = [
+  { path: "/workspace/.orkeon/skills/a.md", key: ".orkeon/skills/a.md" },
+  { path: "./.orkeon/skills/a.md", key: ".orkeon/skills/a.md" },
+  { path: " .orkeon/skills/a.md ", key: ".orkeon/skills/a.md" },
 ];
 
 export const LONG_HEAD = `# Long\n${"d".repeat(400)}`;

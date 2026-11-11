@@ -113,7 +113,8 @@ export const PRUNE_DOC: ConfigKeyDoc = {
 export const SKILLS_SUGGEST_DOC: ConfigKeyDoc = {
   description:
     "'on' lets the host's decision model add to a turn the skills of the project that fit its request, three at " +
-    "most, among .orkeon/skills/*.md and .claude/skills/*/SKILL.md; the skills attached with /skills stay. Needs a " +
+    "most, among .orkeon/skills/*.md and .claude/skills/*/SKILL.md, as reference material and never one kept for a " +
+    "person to invoke; the skills attached with /skills stay. Needs a " +
     "decision provider on the host; without one none is suggested. Omitted = 'off'.",
   consumedBy: "/skills suggest, /assistant, /summary, /transcribe --then, /voice send and /voice --go (the turn's attached skills)",
 };

@@ -28,11 +28,14 @@ export function assertToolTraceMessage(content: string, line: string): void {
   ok(content.split("\n").slice(1).includes(line), `the trace has no line '${line}':\n${content}`);
 }
 
-/** The suggestion was asked for the request with the attached path, and its skill follows the attached one in the context. */
-export function assertSuggestedAfterAttached(context: string, asked: ReadonlyArray<{ request: string; attached: readonly string[] }>): void {
-  deepStrictEqual(asked, [{ request: "cut the release", attached: ["/workspace/docs/attached.md"] }], "the suggestion was not asked once, for the request and the attached path");
-  const attachedAt = context.indexOf("ATTACHED BODY");
-  const suggestedAt = context.indexOf("### /workspace/.orkeon/skills/release.md\nSUGGESTED BODY");
-  ok(attachedAt >= 0 && suggestedAt > attachedAt, `the suggested skill does not follow the attached one:\n${context.slice(0, 600)}`);
+/** The suggestion was asked once, with the request and the attached path; in the context, the attached skill sits under
+ *  the operator's heading and the suggested one after it, under the heading that says the operator did not attach it. */
+export function assertSuggestedApart(context: string, asked: ReadonlyArray<{ request: string; attached: readonly string[] }>): void {
+  deepStrictEqual(
+    asked.map((a) => a.attached), [["/workspace/docs/attached.md"]],
+    "the suggestion was not asked once, with the attached path",
+  );
+  const marks = ["## Attached skills", "ATTACHED BODY", "## Suggested skills", "the operator did not attach them", "SUGGESTED BODY"];
+  const at = marks.map((mark) => context.indexOf(mark));
+  ok(at.every((position, i) => position >= 0 && (i === 0 || position > at[i - 1])), `the context does not hold, in order, ${marks.join(" | ")}:\n${context.slice(0, 900)}`);
 }
-

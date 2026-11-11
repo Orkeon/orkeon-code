@@ -16,6 +16,7 @@ import {
   withoutCurrentRequest,
   buildPreferencesBlock,
   buildSkillsBlock,
+  buildSuggestedSkillsBlock,
   buildHooksBlock,
 } from "../domain/prompt-assembly.ts";
 import {
@@ -86,7 +87,7 @@ export async function buildTurnPrompt(
     wantAdvisory ? readAttachedSkills(session, files) : Promise.resolve([] as AttachedSkill[]),
     readLanguage(deps.config),
   ]);
-  // The skills that fit this request join the ones a person attached, after them, for this turn only.
+  // The skills that fit this request come after the ones a person attached, in a block of their own, for this turn only.
   const suggested = wantAdvisory && deps.suggest !== undefined ? await deps.suggest(prompt, skills.map((skill) => skill.path)) : [];
   const today = isoDay(deps.clock());
 
@@ -96,7 +97,7 @@ export async function buildTurnPrompt(
       // All volatile, all in the context. An unconfigured session renders none
       // of the optional blocks.
       preferences: buildPreferencesBlock({ outputStyle, language }),
-      skills: buildSkillsBlock([...skills, ...suggested]),
+      skills: [buildSkillsBlock(skills), buildSuggestedSkillsBlock(suggested)].filter((block) => block.length > 0).join("\n\n"),
       memory: buildMemoryBlock(memory),
       hooks: buildHooksBlock(hooks),
       userContext: buildUserContextBlock({ ...git, date: today }),

@@ -92,3 +92,8 @@ names. A script reaches it as a member of the `tools` namespace.
   folders of `.claude/skills/`, the layout another assistant's skills already have, so a repository that keeps
   them is served without a copy. Not measured, and not run against a live decision model yet: a choice among up
   to 25 options is the question a small model is least likely to answer well.
+- A suggested skill is a file of the repository a model picked, not one a person chose. The turn therefore reads
+  it apart from the attached skills, as reference material under the request and the rules, and a skill marked
+  `disable-model-invocation: true` is never offered. What still bounds a hostile file: the setting is off by
+  default, three files of 4 000 characters at most, and the decision model must pick it; a description written to
+  be picked for every request is not defended against.

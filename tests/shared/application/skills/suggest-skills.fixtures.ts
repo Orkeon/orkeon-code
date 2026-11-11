@@ -43,3 +43,14 @@ export const OFFERED = {
 export const NO_MODEL_WARNING =
   "warn: skills.suggest is on and the host has no decision model: no skill is suggested (set Orkeon:Decision:Provider, or Orkeon:TypeSafe)";
 export const SUGGESTED_LINE = `info: skills suggested for this turn: ${RELEASE}`;
+
+export const USER_ONLY = "/workspace/.claude/skills/deploy/SKILL.md";
+export const USER_ONLY_TEXT = "---\nname: deploy\ndescription: Deploy to production\ndisable-model-invocation: true\n---\nRun the deploy.";
+
+/** A project's own folder holding 30 skills and 10 other files, listed out of order. */
+export function manySkills(files: FakeFiles): void {
+  const names = Array.from({ length: 30 }, (_, i) => `skill-${String(30 - i).padStart(2, "0")}.md`);
+  files.listings.set("/workspace/.orkeon/skills", [...Array.from({ length: 10 }, (_, i) => `note-${i}.txt`), ...names]);
+  for (const name of names) files.files.set(`/workspace/.orkeon/skills/${name}`, `# ${name}\nA skill.`);
+}
+

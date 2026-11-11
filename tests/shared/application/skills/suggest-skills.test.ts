@@ -5,7 +5,8 @@ import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { suggestSkills } from "../../../../src/shared/application/skills/suggest-skills.ts";
 import {
-  MIGRATION, NO_MODEL_WARNING, OFFERED, RELEASE, RELEASE_TEXT, REQUEST, REVIEW, SUGGESTED_LINE, chose, suggestSetup,
+  MIGRATION, NO_MODEL_WARNING, OFFERED, RELEASE, RELEASE_TEXT, REQUEST, REVIEW, SUGGESTED_LINE, USER_ONLY, USER_ONLY_TEXT, chose,
+  manySkills, suggestSetup,
 } from "./suggest-skills.fixtures.ts";
 
 describe("suggestSkills", () => {
@@ -65,6 +66,55 @@ describe("suggestSkills", () => {
 
     // Assert
     deepStrictEqual(Object.values(decision.asked[0].questions.skill.criteria).length, 3);
+  });
+
+  it("leaves out a skill attached under another spelling of its path", async () => {
+    // Arrange
+    const { deps, decision } = suggestSetup();
+
+    // Act
+    await suggestSkills(deps, REQUEST, ["./.orkeon/skills/migration.md"]);
+
+    // Assert
+    deepStrictEqual(Object.keys(decision.asked[0].questions.skill.criteria), ["s1", "s2", "none"]);
+  });
+
+  it("never offers a skill kept for a person to invoke", async () => {
+    // Arrange
+    const { deps, decision, files } = suggestSetup();
+    files.listings.set("/workspace/.claude/skills", ["deploy", "review"]);
+    files.files.set(USER_ONLY, USER_ONLY_TEXT);
+
+    // Act
+    await suggestSkills(deps, REQUEST, []);
+
+    // Assert
+    deepStrictEqual(decision.asked[0].questions.skill.criteria, OFFERED);
+  });
+
+  it("offers the first 24 skills in name order, whatever else the folder holds", async () => {
+    // Arrange
+    const { deps, decision, files } = suggestSetup();
+    manySkills(files);
+
+    // Act
+    await suggestSkills(deps, REQUEST, []);
+
+    // Assert
+    const criteria = Object.values(decision.asked[0].questions.skill.criteria);
+    deepStrictEqual([criteria.length, criteria[0], criteria[23]], [25, "skill-01.md: A skill.", "skill-24.md: A skill."]);
+  });
+
+  it("suggests nothing when the decision model throws", async () => {
+    // Arrange
+    const { deps, decision } = suggestSetup();
+    decision.failure = new Error("connection refused");
+
+    // Act
+    const skills = await suggestSkills(deps, REQUEST, []);
+
+    // Assert
+    deepStrictEqual(skills, []);
   });
 
   it("asks nothing when the project has no skill file", async () => {
