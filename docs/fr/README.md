@@ -4,47 +4,42 @@ La documentation d'Orkeon Code, publiée en site consultable à <https://orkeon.
 Commencez par [Premiers pas](getting-started.md) ; le [README](../../README.fr.md) fait la visite. Les mêmes
 pages existent [en anglais](../README.md).
 
+## Utiliser
+
 | | |
 |---|---|
 | [Premiers pas](getting-started.md) | Modes docker, tool et source, première session |
 | [Tutoriel WSL](wsl-tutorial.md) | La voix et un modèle local sous WSL2, sur le GPU, pas à pas |
-| [Configuration](configuration.md) | Fournisseurs LLM, fichier de settings, variables d'environnement |
-| [Modèles de décision](decision-models.md) | Ce qu'Orkeon Code demande à un modèle de décision : élaguer un long tour, router un crew, suggérer des skills, avec ce qui a été mesuré |
-| [Modèles de décision en local](decision-models-local.md) | Kev sur cette machine et Liquid, pas à pas, avec des profils de décision à essayer |
 | [Permissions](permissions.md) | Modes, règles, ce que l'agent peut toucher |
 | [Hooks](hooks.md) | Vos commandes autour des appels d'outils du modèle dans les étapes dev |
 | [Mémoire partagée](shared-memory.md) | Décisions, structures, méthodes et erreurs admises que les agents rappellent |
-| [Commandes](commands.md) | La liste complète (générée) |
-| [Architecture](architecture.md) | Couches, ports, crews, la boucle, l'assemblage du prompt, recettes |
+| [Voix](speech.md) | Transcrire un fichier, dicter une requête, lire une réponse à voix haute |
+| [Modèles de décision](decision-models.md) | Ce qu'Orkeon Code demande à un modèle de décision : élaguer un long tour, router un crew, suggérer des skills, avec ce qui a été mesuré |
+| [Modèles de décision en local](decision-models-local.md) | Kev sur cette machine et Liquid, pas à pas, avec des profils de décision à essayer |
 | [Exécutions autonomes et embarquées](headless.md) | Tours sans opérateur, lancement en un coup, planificateurs et CI, votre application |
+
+## Référence
+
+| | |
+|---|---|
+| [Configuration](configuration.md) | Fournisseurs LLM, fichier de settings, variables d'environnement |
+| [Commandes](commands.md) | La liste complète (générée) |
+| [Référence des permissions](permissions-reference.md) | L'ordre des contrôles, ce que lit une règle, chaque règle des jeux des étapes dev |
+
+## Étendre et contribuer
+
+| | |
+|---|---|
 | [Étendre](extending.md) | Commandes, crews, outils, prompts, modes, vos propres dossiers, les limites |
+| [Architecture](architecture.md) | Couches, ports, points d'entrée, le VFS, les crews |
+| [Le déroulement d'un tour](turn.md) | La boucle, l'assemblage du prompt, le routage, la suggestion de skills, la compaction |
+| [Les prompts des crews](crew-prompts.md) | Le comportement d'après lequel le prompt de chaque crew est écrit |
+| [Recettes](recipes.md) | Ajouter une commande, un crew, un outil, un mode, un bloc de prompt, une clé de configuration, un port |
 | [Développement](development.md) | Tests, vérifications, typings, montée de version d'Orkeon, release |
 | [Feuille de route](roadmap.md) | Ce qui manque et ce qui vient |
 
-Les décisions sont consignées en ADR, en anglais : [0001 — ports, adaptateurs et points d'entrée](../adr/0001-clean-architecture.md),
-[0002 — Orkeon 1.0.0-rc.6 seulement](../adr/0002-orkeon-rc6.md),
-[0003 — les prompts d'après une spécification de comportement](../adr/0003-prompts-from-a-behaviour-specification.md),
-[0004 — Orkeon main après #180, sur l'épinglage rc.6](../adr/0004-orkeon-after-180.md),
-[0005 — Orkeon main après #206, sur l'épinglage rc.6](../adr/0005-orkeon-after-206.md),
-[0006 — Orkeon main après #213, sur l'épinglage rc.6](../adr/0006-orkeon-after-213.md),
-[0007 — Orkeon main après #217, sur l'épinglage rc.6](../adr/0007-orkeon-after-217.md),
-[0008 — Orkeon main après #223, sur l'épinglage rc.6](../adr/0008-orkeon-after-223.md),
-[0009 — Orkeon main après #230, sur l'épinglage rc.6](../adr/0009-orkeon-after-230.md),
-[0010 — Orkeon main après #234, sur l'épinglage rc.6, désormais une release](../adr/0010-orkeon-after-234.md),
-[0011 — les portes d'une exécution sans surveillance, et cinq commandes dev au lieu de huit](../adr/0011-dev-gates-and-surface.md),
-[0012 — Orkeon main après #239, le lancement exclusif d'un crew](../adr/0012-orkeon-after-239.md),
-[0013 — l'épingle est un commit du main d'Orkeon, jamais une release](../adr/0013-pin-on-orkeon-commit.md),
-[0014 — Orkeon main après #244, niveaux d'effort, index parallèle et cache d'index](../adr/0014-orkeon-after-244.md),
-[0015 — Orkeon main après #276, le contexte à part de la requête](../adr/0015-orkeon-after-276.md),
-[0016 — Orkeon main après #280, la liste d'arêtes, des résultats d'analyse bornés et une mémoire persistée](../adr/0016-orkeon-after-280.md),
-[0017 — Orkeon main après #290, une console à volets stylée](../adr/0017-orkeon-after-290.md),
-[0018 — Orkeon main après #291, la boucle principale sur l'écran principal](../adr/0018-orkeon-after-291.md),
-[0019 — Orkeon main après #293, l'outil `firefox`](../adr/0019-orkeon-after-293.md),
-[0020 — Orkeon main après #295, les shims rc retirés](../adr/0020-orkeon-after-295.md),
-[0021 — Orkeon main après #298, le navigateur `firefox` qui survit au tour](../adr/0021-orkeon-after-298.md),
-[0022 — une écriture canonique pour les chemins de l'hôte, et les listes de chemins](../adr/0022-host-path-spellings.md),
-[0023 — Orkeon main après #306, `onToolCall` avant la garde et les lots FWK](../adr/0023-orkeon-after-306.md),
-[0024 — ce qu'Orkeon #299 ajoute, adopté ou écarté](../adr/0024-orkeon-after-299.md),
-[0025 — Orkeon main après #317, `orkeon run --validate` sur chaque crew](../adr/0025-orkeon-after-317.md),
-[0026 — le texte à part de la logique, par nature et par couche](../adr/0026-text-isolation.md),
-[0027 — le modèle de décision interrogé par Orkeon Code : élaguer, router, suggérer](../adr/0027-decision-model-optimisations.md).
+## Décisions
+
+Les décisions sont consignées en ADR, en anglais. L'[index des décisions](../adr/README.md) les présente en deux
+groupes : les décisions de conception, et les déplacements de l'épingle, dont chacun dit ce qu'un runtime Orkeon
+plus récent change pour Orkeon Code.

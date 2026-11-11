@@ -7,6 +7,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the documentation describes the state at the pin, in one vocabulary
+
+- The Orkeon issue numbers leave the prose of the documentation, with the sentences that depended on a version of
+  the runtime; the ADRs keep them.
+- The French pages keep one word per notion: « runtime » for Orkeon and « machine hôte » for the computer,
+  « épingle », « liste blanche », « tokens », « sans opérateur ».
+- Hooks, Shared memory and Autonomous and embedded runs end on a "See also".
+- `CONTRIBUTING.md` gains "Writing the documentation": the rules of form these pages now follow, the shape of each
+  kind of page, and the French glossary.
+
+### Changed — a shorter quick start, and the long paragraphs of the guides broken up
+
+- The README's quick start keeps the commands and one paragraph; the runtime's versions and channels are in
+  [Getting started](docs/getting-started.md) alone.
+- [Development](docs/development.md) opens on what it covers. In the autonomous-runs, shared-memory,
+  getting-started, extending, development and WSL pages, a paragraph over 120 words lists its sentences, a bullet
+  over 100 words its clauses, and a table cell keeps one sentence.
+
+### Changed — the documentation's navigation is grouped by reader
+
+- The navigation and the documentation's index group the pages under Use, Reference, Extend and contribute, and
+  Decisions.
+- The ADRs have one index, [docs/adr/README.md](docs/adr/README.md), in two tables: the design decisions, and the
+  moves of the pin. The navigation lists the design decisions and that index; the sentence of twenty-seven links is
+  gone from the documentation's index.
+
+### Changed — Configuration is a reference page, and speech has a page of its own
+
+- [Configuration](docs/configuration.md) lists the session keys in a table (key, value when omitted, effect), gives
+  the prompt cache, what `/usage` counts, the decision model in front of the LLM and the length of a turn their own
+  headings, and keeps one sentence per table cell, the rest listed under the table.
+- [Speech](docs/speech.md), a new page, takes speech-to-text, dictation and speech output.
+
+### Changed — the Architecture page is four pages
+
+- [Architecture](docs/architecture.md) keeps the two halves, the runtime constraints, the VFS, the layers, the ports,
+  the entry points and the crews. [How a turn runs](docs/turn.md) takes the loop, the prompt assembly, the routing,
+  the skill suggestion and the compaction; [Crew prompts](docs/crew-prompts.md) the behaviour each crew's prompt is
+  written from; [Recipes](docs/recipes.md) the steps of the common changes. The section titles are unchanged; the
+  comments, `CLAUDE.md`, `CONTRIBUTING.md` and ADR 0003 name the new files.
+- The account of the three probes is gone; what they established reads as runtime constraints.
+
+### Changed — the Permissions page is cut into titled sections, with a reference page beside it
+
+- [Permissions](docs/permissions.md) opens on the three levels a tool call goes through, drawn, then keeps to what
+  the user observes and sets: the modes, the questions, the rules, the guards that hold in every mode, what the gate
+  does not see (one table row per command), the rule sets of the dev steps, the extra tools. Its warnings are
+  callouts, its lists of keys and cases are tables, and no paragraph runs over a hundred words.
+- [Permissions reference](docs/permissions-reference.md), a new page, holds the mechanism: the order of the checks,
+  what a rule reads, every rule of the five rule sets and what the crews' callback reads beyond the gate.
+- The page said `/commit`'s merge and rebase for batches in worktrees were not wired; they are.
+
+### Fixed — figures and lists of the documentation that contradicted each other
+
+- The README gave the main loop a budget of 400k tokens; it is 700k context tokens, as the other pages say.
+- The README's documentation table lists [Decision models](docs/decision-models.md) and
+  [Decision models locally](docs/decision-models-local.md), as the documentation's own index does.
+- `/dev-change` is named for what it is, an alias of `/dev-spec` with a kind, where the routing lists its commands.
+- [Permissions](docs/permissions.md) said "all six" of the three commands it had just named.
+- [Decision models](docs/decision-models.md) told one measure twice; [Decision models locally](docs/decision-models-local.md)
+  links to the definition of a decision model instead of repeating it.
+
 ### Added — a documentation page on what Orkeon Code asks a decision model
 
 - [Decision models](docs/decision-models.md) gathers the three uses (pruning a long turn, routing a crew, suggesting

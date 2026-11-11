@@ -1,22 +1,22 @@
 # Modèles de décision : ce qu'Orkeon Code leur demande
 
 Un modèle de décision répond à des questions typées (oui ou non, un choix, un score) par des probabilités et
-n'écrit aucun texte : un petit modèle, rapide et peu cher à côté du LLM qui répond. Le host en sert un par un
+n'écrit aucun texte : un petit modèle, rapide et peu cher à côté du LLM qui répond. Le runtime en sert un par un
 fournisseur de décision, le Jev hébergé de TypeSafe, le Kev à poids ouverts, ou le d1 de Liquid
 ([Configuration](configuration.md#le-llm) ; [Modèles de décision en local](decision-models-local.md) installe Kev
 et Liquid sur votre machine).
 
-Il sert de deux façons. Le host l'emploie par un *profil de décision*, qui garde une requête, la route ou vérifie
-sa réponse : ce sont les réglages du host, et les deux pages ci-dessus en traitent. Orkeon Code lui pose aussi
+Il sert de deux façons. Le runtime l'emploie par un *profil de décision*, qui garde une requête, la route ou vérifie
+sa réponse : ce sont les réglages du runtime, et les deux pages ci-dessus en traitent. Orkeon Code lui pose aussi
 trois questions de son cru, que couvre cette page. Chacune est un réglage, éteint par défaut, qui marche avec le
-fournisseur que le host configure, quel qu'il soit, et ne demande aucun profil de décision. Chacune échoue
+fournisseur que le runtime configure, quel qu'il soit, et ne demande aucun profil de décision. Chacune échoue
 ouverte : sans modèle de décision, ou quand il ne répond pas, Orkeon Code fait ce qu'il faisait avant.
 
 | Quoi | L'allumer | Le modèle de décision décide | Détails |
 |---|---|---|---|
-| Élaguer un long tour | `/config set compaction.prune on` | quels anciens résultats d'outils un tour en cours n'a plus besoin de garder | [architecture](architecture.md#compaction-et-mémoire) |
-| Router un crew | `/route on` | le profil LLM le moins cher qui convient à la commande | [architecture](architecture.md#router-un-crew-vers-un-profil) |
-| Suggérer des skills | `/skills suggest on` | les skills du projet qui conviennent à la demande d'un tour | [architecture](architecture.md#suggérer-des-skills-pour-un-tour) |
+| Élaguer un long tour | `/config set compaction.prune on` | quels anciens résultats d'outils un tour en cours n'a plus besoin de garder | [architecture](turn.md#compaction-et-mémoire) |
+| Router un crew | `/route on` | le profil LLM le moins cher qui convient à la commande | [architecture](turn.md#router-un-crew-vers-un-profil) |
+| Suggérer des skills | `/skills suggest on` | les skills du projet qui conviennent à la demande d'un tour | [architecture](turn.md#suggérer-des-skills-pour-un-tour) |
 
 Les mesures ci-dessous sont du 2026-11-11 : `jev-latest` (le Jev hébergé) décide, `glm-5.3-flashx` (Z.AI) répond,
 les sources d'Orkeon à l'épingle. Les raisons de chaque choix sont dans
@@ -51,13 +51,13 @@ fenêtre : 20 résultats ont été proposés (les 6 derniers messages sont épar
 107 000 tokens libérés. Les deux réponses citent les deux mêmes titres : le résultat du premier fichier est passé
 entier. Net des 0,2 s du modèle de décision, le tour a passé 7,3 s de moins dans le modèle.
 
-Le même tour interrogé sur son seul dernier fichier a vu ses 20 résultats retirés (environ 115 000 tokens) et a
-répondu juste, en 57 515 tokens d'entrée ; son jumeau sans élagage n'a pas été lancé.
+Un second essai, sur le seul dernier fichier du tour, n'a pas de jumeau auquel le comparer : il figure sous
+[Ce que ces mesures ne montrent pas](#ce-que-ces-mesures-ne-montrent-pas).
 
 ## Router un crew
 
-Les agents d'un crew tournent tous sur un profil LLM du host, celui de la session. Avec `route.agents` à `on`, au
-lancement de `/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-learn`, `/review`, `/analyze`, `/commit`, `/init` et
+Les agents d'un crew tournent tous sur un profil LLM du runtime, celui de la session. Avec `route.agents` à `on`, au
+lancement de `/dev-spec` (et son alias `/dev-change`), `/dev-plan`, `/dev-learn`, `/review`, `/analyze`, `/commit`, `/init` et
 `/init-verifiers`, le modèle de décision lit la commande et choisit un profil de `route.ladder` (`small,large` si
 omis, du moins cher au plus cher). Le choix est suivi quand sa probabilité atteint 0,6, il est relevé au plancher
 que `.orkeon/route-rules.json` fixe pour le crew ou pour un chemin que la commande nomme, et ne dépasse jamais le
@@ -65,7 +65,7 @@ profil de la session. `/route why` montre les cinq derniers choix.
 
 ### Mesuré : douze commandes
 
-Une exécution, la session sur le modèle par défaut du host, l'échelle `small,large`. « Attendu » est le jugement
+Une exécution, la session sur le modèle par défaut du runtime, l'échelle `small,large`. « Attendu » est le jugement
 de l'auteur sur chaque commande.
 
 | Commande | Attendu | Choisi | Probabilité |
@@ -142,13 +142,14 @@ requêtes du tour élagué ont pris 0,54 s cumulées et sont parties ensemble (0
 
 ## Les mêmes questions sur un petit modèle local
 
-`kev-0.8b`, le plus petit Kev à poids ouverts, sur les mêmes douze demandes et douze commandes : neuf skills sur
-douze (trois qui convenaient n'ont pas été suggérés, aucun ne l'a été à tort, celui réservé à une personne n'a
-jamais été proposé), huit routes sur douze (trois choix sous le seuil, le profil de la session est donc resté ;
-une revue de style envoyée vers `large`), 79 ms par requête sur cette machine. Ses probabilités sont proches des
-seuils (0,52 à 0,82 pour les skills, 0,60 à 0,85 pour les routes) là où celles du Jev hébergé sont proches de 1.
-Sur les questions d'élagage, une sonde de quatre appels a répondu entre 0,42 et 0,69, trop près du seuil de 0,5
-pour s'y fier.
+- `kev-0.8b`, le plus petit Kev à poids ouverts, sur les mêmes douze demandes et douze commandes : neuf skills sur
+  douze (trois qui convenaient n'ont pas été suggérés, aucun ne l'a été à tort, celui réservé à une personne n'a
+  jamais été proposé), huit routes sur douze (trois choix sous le seuil, le profil de la session est donc resté ; une
+  revue de style envoyée vers `large`), 79 ms par requête sur cette machine.
+- Ses probabilités sont proches des seuils (0,52 à 0,82 pour les skills, 0,60 à 0,85 pour les routes) là où celles
+  du Jev hébergé sont proches de 1.
+- Sur les questions d'élagage, une sonde de quatre appels a répondu entre 0,42 et 0,69, trop près du seuil de 0,5
+  pour s'y fier.
 
 ## Ce que ces mesures ne montrent pas
 

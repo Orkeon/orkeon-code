@@ -35,7 +35,7 @@ chaque prompt est un fichier source : modifiez-le, ou ajoutez le vôtre.
   ([Configuration](docs/fr/configuration.md#outils-supplémentaires--serveurs-mcp-et-plugins)).
 - **La transcription de la parole** : un serveur MCP Whisper est livré dans `mcp/whisper/` ; `ORKEON_CODE_AUDIO_DIR`
   l'active, et l'assistant transcrit notes vocales, réunions et vidéos d'écran sur votre machine ; `/voice` dicte une
-  requête et `/say` lit à voix haute ([Configuration](docs/fr/configuration.md#transcription-de-la-parole)).
+  requête et `/say` lit à voix haute ([Configuration](docs/fr/speech.md#transcription-de-la-parole)).
 - **Des crews pour les tâches récurrentes** : `/init` (décrire le projet pour l'agent), `/commit` (un commit
   conventionnel tiré du diff), `/review` (revue de code multi-angles ; `--lens security` pour le seul angle sécurité), `/analyze`
   (analyse déterministe du code), `/compact` et `/summary` (gestion du contexte), `/init-verifiers`, `/advisor`.
@@ -56,23 +56,10 @@ chaque prompt est un fichier source : modifiez-le, ou ajoutez le vôtre.
 ## Démarrage rapide
 
 Il faut le runtime Orkeon et une clé d'API pour un fournisseur LLM pris en charge par Orkeon (tout point d'accès
-compatible OpenAI, Anthropic...). Orkeon Code est vérifié contre les sources d'Orkeon au commit de `.orkeon-version` ;
-les releases le font tourner aussi, en retard sur cette épingle. Chacun de ces trois fait tourner Orkeon Code :
-
-- **`orkeon-repl`** de la dernière release, `1.0.0-rc.6`, du paquet Debian/Ubuntu `orkeon` (amd64 et arm64 ; une release candidate est publiée sur le canal
-  apt `rc`, le canal `stable` par défaut ne porte que les versions finales) ou de
-  l'[archive de release d'Orkeon](https://github.com/Orkeon/orkeon/releases) de votre plateforme (Linux x64 et arm64,
-  macOS x64 et arm64, `.zip` Windows x64), autonome : aucun .NET à installer ;
-- **Docker** : la dernière image `orkeon-runners` publiée (amd64 et arm64 ; `1.0.0-rc.5`, l'image `1.0.0-rc.6` n'est
-  pas publiée), rien d'autre à installer ;
-- **un checkout d'Orkeon** à l'épingle, le runtime de référence : `ORKEON_SOURCE=<checkout> ./orkeon-code --mode source`.
-
-**Windows** : `orkeon-code.ps1` n'a ni mode source ni `--demo` (`-Mode` accepte `docker` ou `tool`) : le mode tool sur
-le `orkeon-<version>-win-x64.zip` de la release est celui de Windows ; la voie que ce projet pratique est WSL avec le
-lanceur bash ([tutoriel](docs/fr/wsl-tutorial.md)).
-
-Orkeon Code lui-même s'installe depuis une release (`install.sh`, `install.ps1`) ou depuis npm (`npm install -g
-orkeon-code@next`), ou tourne depuis un clone comme ci-dessous. Détails : [Premiers pas](docs/fr/getting-started.md).
+compatible OpenAI, Anthropic...). Le runtime s'obtient par une release (`orkeon-repl`), par une image Docker ou
+depuis un checkout d'Orkeon ; sous Windows, la voie que ce projet pratique est WSL
+([tutoriel](docs/fr/wsl-tutorial.md)). Le choix du runtime, ses versions et ses canaux, et les façons d'installer
+Orkeon Code lui-même sont dans [Premiers pas](docs/fr/getting-started.md). Depuis un clone :
 
 ```bash
 git clone https://github.com/Orkeon/orkeon-code.git ~/orkeon-code
@@ -120,7 +107,7 @@ Le REPL est une façon de lancer les crews, pas la seule.
   `/mode` pour la session ; en mode `default`, le runtime vous demande avant une modification, une commande ou un
   appel réseau.
 - **Autonome** : en `bypassPermissions`, la boucle mène une tâche jusqu'au bout sans poser de question, sous un budget
-  (200 appels d'outils, 30 minutes, 400k tokens) et la garde de l'hôte. `scripts/run-crew.sh` lance le même crew en un
+  (200 appels d'outils, 30 minutes, 700k tokens de contexte) et la garde du runtime. `scripts/run-crew.sh` lance le même crew en un
   coup depuis un shell, une ligne de cron ou un job de CI, et imprime son résultat en JSON.
 - **Embarqué** : une application lance l'outil `orkeon` (nuget.org) ou l'image `orkeon-runners` sur un crew et lit le
   JSON ; le démon `orkeon-host` d'Orkeon peut héberger les crews derrière un canal de chat ou un point d'accès A2A.
@@ -148,11 +135,18 @@ La documentation est publiée en français et en anglais, en site consultable, a
 | [Premiers pas](docs/fr/getting-started.md) | Modes docker, tool et source, première session |
 | [Tutoriel WSL](docs/fr/wsl-tutorial.md) | La voix et un modèle local sous WSL2, sur le GPU, pas à pas |
 | [Configuration](docs/fr/configuration.md) | Fournisseurs LLM, fichier de settings, variables d'environnement |
+| [Voix](docs/fr/speech.md) | Transcrire un fichier, dicter une requête, lire une réponse à voix haute |
+| [Modèles de décision](docs/fr/decision-models.md) | Ce qu'Orkeon Code demande à un modèle de décision : élaguer un long tour, router un crew, suggérer des skills, avec ce qui a été mesuré |
+| [Modèles de décision en local](docs/fr/decision-models-local.md) | Kev sur cette machine et Liquid, pas à pas, avec des profils de décision à essayer |
 | [Permissions](docs/fr/permissions.md) | Modes, règles, ce que l'agent peut toucher |
+| [Référence des permissions](docs/fr/permissions-reference.md) | L'ordre des contrôles, ce que lit une règle, chaque règle des jeux des étapes dev |
 | [Hooks](docs/fr/hooks.md) | Vos commandes autour des appels d'outils du modèle dans les étapes dev |
 | [Mémoire partagée](docs/fr/shared-memory.md) | Décisions, structures, méthodes et erreurs admises que les agents rappellent |
 | [Commandes](docs/fr/commands.md) | La liste complète (générée) |
-| [Architecture](docs/fr/architecture.md) | Couches, ports, crews, la boucle, l'assemblage du prompt, recettes |
+| [Architecture](docs/fr/architecture.md) | Couches, ports, points d'entrée, le VFS, les crews |
+| [Le déroulement d'un tour](docs/fr/turn.md) | La boucle, l'assemblage du prompt, le routage, la suggestion de skills, la compaction |
+| [Les prompts des crews](docs/fr/crew-prompts.md) | Le comportement d'après lequel le prompt de chaque crew est écrit |
+| [Recettes](docs/fr/recipes.md) | Ajouter une commande, un crew, un outil, un mode, un bloc de prompt, une clé de configuration, un port |
 | [Exécutions autonomes et embarquées](docs/fr/headless.md) | Tours sans opérateur, lancement en un coup, planificateurs et CI, votre application |
 | [Étendre](docs/fr/extending.md) | Commandes, crews, outils, prompts, modes, vos propres dossiers, les limites |
 | [Développement](docs/fr/development.md) | Tests, vérifications, typings, montée de version d'Orkeon, release |

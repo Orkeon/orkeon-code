@@ -57,8 +57,9 @@ Every runtime file of `src/` sits in a layer, or is an entry point, a command us
 `.d.ts`: before adding a file, decide whether it is pure (domain), orchestrates ports (application) or touches the
 runtime (infrastructure), and put it there, next to its siblings.
 
-The ports, the adapters and the recipes (add a command, a crew, a tool, a permission mode, a prompt block, a config
-key, a port) are in [docs/architecture.md](docs/architecture.md); the decision behind the layering in
+The ports and the adapters are in [docs/architecture.md](docs/architecture.md), the recipes (add a command, a crew, a
+tool, a permission mode, a prompt block, a config key, a port) in [docs/recipes.md](docs/recipes.md); the decision
+behind the layering in
 [ADR 0001](docs/adr/0001-clean-architecture.md).
 
 Runtime rules, enforced by the bundle check:
@@ -129,6 +130,55 @@ uv run --project mcp/whisper pytest mcp/whisper   # the Whisper MCP server, a fa
 `runtime-smoke.yml` runs it in CI (not `ci.yml`). Both workflows run on pushes and pull requests to `main`: a pull
 request stacked on another branch gets no check until it is retargeted to `main`.
 
+## Writing the documentation
+
+`docs/` and `docs/fr/` are written to be read, not only to be exact. The parity check keeps the two languages in the
+same shape; these rules keep that shape readable.
+
+- **One idea per paragraph, under 100 words; a bullet under 60.** Past that: a titled sub-section, a list or a table.
+- **A sentence under 40 words**, with one parenthesis at most. An exception is a sentence of its own, or a row of a
+  "Case / Behaviour" table.
+- **A list of keys or commands is a table**: key, value when omitted, effect. A cell holds one sentence; the rest
+  goes under the table.
+- **No run-in title in bold.** A subject that deserves a label deserves a heading, hence an anchor. Bold is for the
+  label of a bullet and for a term at its definition.
+- **No section over 600 words without a sub-heading.**
+- **The state at the pin, in the present tense.** No "since", "now", "no longer", "the old", and no sentence that
+  depends on a version of the runtime. An Orkeon issue number stays out of the prose: when the source matters, link
+  the ADR.
+- **One source per fact.** A budget, the table of the modes, a definition live in one page; the others say it in a
+  sentence and link. No count written by hand unless a script generates or checks it.
+- **Use apart from mechanism.** A user page says what the user observes and sets; how it works goes to a reference
+  or architecture page, linked.
+- **Warnings in callouts** (`> [!WARNING]`, `> [!NOTE]`), the same in both languages.
+- **The French page is written as French**, not sentence for sentence: the parity check reads the headings, the code
+  blocks and the tables, never the sentences.
+
+Each kind of page has its shape: a *guide* (goal, prerequisites, numbered steps with what you must see,
+troubleshooting, limits), a *concept* page (definition, diagram, common use, special cases, limits, "See also"), a
+*reference* (legend, tables, no narrative), a *contributor* page (role, diagram, rules, recipes).
+
+The French pages keep one word per notion:
+
+| Notion | French term | Not |
+|---|---|---|
+| a key and its value | réglage | |
+| the `appsettings` file | fichier de settings | |
+| Orkeon, which runs Orkeon Code | runtime | hôte, host |
+| the computer | machine hôte | host |
+| the unit an LLM counts | token | jeton (kept for a credential) |
+| the commit of Orkeon the code is checked against | épingle | pin |
+| the commands the shell may run | liste blanche | allowlist |
+| the check of a tool call | garde | gate |
+| a run nobody watches | sans opérateur | headless, sans surveillance |
+| the `bypassPermissions` mode | autonome | |
+| where an LLM is reached | point d'accès | endpoint |
+| who serves a model | fournisseur | provider |
+| a crew | un crew | une crew |
+
+Identifiers of the code stay as they are. After a page is changed, run `npm run check`, then
+`scripts/build-docs-site.sh`, which fails on a broken link or anchor.
+
 ## Original work only
 
 Orkeon Code was designed by studying how agentic coding tools behave. Behaviour can be studied; text cannot be
@@ -144,7 +194,7 @@ https://github.com/Piebald-AI/claude-code-system-prompts. Read it to understand 
 then write the block in this project's own words; the provenance gate accepts this link and no other marker.
 
 A prompt change follows [ADR 0003](docs/adr/0003-prompts-from-a-behaviour-specification.md): the behaviour first, in
-`docs/architecture.md` ("Prompt assembly"), then the text, then a marker phrase per rule in its test; render the
+`docs/turn.md` ("Prompt assembly", the main loop) or `docs/crew-prompts.md` (a crew), then the text, then a marker phrase per rule in its test; render the
 prompts before and after (`node scripts/render-prompts.mjs <dir>`) and read the diff. The baseline is empty and CI
 runs the gate with `--strict`, so an adapted text cannot come back.
 

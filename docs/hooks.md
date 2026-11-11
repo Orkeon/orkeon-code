@@ -14,7 +14,7 @@ They last until `/clear` or the end of the REPL, like the [permission rules](per
 ## Where they run
 
 The dev steps `/dev-spec`, `/dev-plan` and `/dev-batches` hand the
-registry to their crew, and so does `/tasks repair` to the agent it starts again. For each tool call the model makes in that crew, before the [host gate](permissions.md) judges it (Orkeon #303):
+registry to their crew, and so does `/tasks repair` to the agent it starts again. For each tool call the model makes in that crew, before the [host gate](permissions.md) judges it:
 
 1. the crew's callback checks the call against the step's rule sets (and, for a role of a batch, against its
    roots); a call they refuse runs no hook;
@@ -73,3 +73,10 @@ It cannot allow a call the gate or the rule sets refuse, nor change the call's i
 asked in the middle of a crew's turn may not be answered, so a hook decides on its own. It does not see the calls a
 command or a crew makes from its own code (the git commands of a batch's audit, its build and tests), nor the inner
 calls of a tool Orkeon Code defines, which check their own paths.
+
+## See also
+
+- [Permissions](permissions.md): the gate and the rule sets a hook runs beside.
+- [Permissions reference](permissions-reference.md#the-order-of-the-checks): where the hooks sit in the order of the
+  checks.
+- [Shared memory](shared-memory.md): what the dev steps recall before they act.

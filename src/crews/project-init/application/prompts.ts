@@ -1,5 +1,5 @@
 // Prompt + schema builders for project-init (/init). Pure strings — no IO. Written
-// from docs/architecture.md, "Crew prompts": evidence only, the existing
+// from docs/crew-prompts.md: evidence only, the existing
 // instruction files merged rather than lost, nothing a newcomer could not check.
 
 import type { PromptPair } from "../../../shared/domain/types.ts";

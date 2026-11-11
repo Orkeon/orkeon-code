@@ -1,5 +1,5 @@
 // Prompt + schema builders for init-verifiers. Pure strings — no IO. Written from
-// docs/architecture.md, "Crew prompts": every value defined, every command taken
+// docs/crew-prompts.md: every value defined, every command taken
 // from the project's own facts, every skill ending on a signal one can observe.
 
 import type { PromptPair, TestReadiness } from "../../../shared/domain/types.ts";

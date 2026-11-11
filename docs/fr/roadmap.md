@@ -13,7 +13,7 @@ demandent d'abord un changement dans [Orkeon](https://github.com/Orkeon/orkeon).
 - **Lanceur en un coup.** `orkeon-code --run "<request>"` : un tour sans opérateur avec les modes, les settings et
   les montages d'une session, depuis le lanceur lui-même plutôt que `scripts/run-crew.sh`
   ([Exécutions autonomes et embarquées](headless.md)).
-- **Intégration en processus.** Orkeon livre sa couche de scripting en paquet `Orkeon.Scripting` (Orkeon #229) : une
+- **Intégration en processus.** Orkeon livre sa couche de scripting en paquet `Orkeon.Scripting` : une
   application .NET exécute un `crew.ork.ts` par `ICrewScriptRunner` sans lancer un processus. Ce qui reste est à nous :
   un exemple d'hôte qui exécute ainsi les crews d'Orkeon Code, et les crews éprouvés sous le démon `orkeon-host`.
 - **Les hooks dans l'assistant.** Les hooks `pre-tool` et `post-tool` s'exécutent autour des appels d'outils du modèle

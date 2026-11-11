@@ -1,5 +1,10 @@
 # Développement
 
+Cette page s'adresse à qui modifie Orkeon Code : les vérifications qu'un changement doit passer, comment lancer un
+crew seul, d'où viennent les typings du runtime, comment l'épingle sur Orkeon se déplace, et comment une release se
+fait. Les règles du code sont dans [CONTRIBUTING.md](../../CONTRIBUTING.md) (en anglais), son organisation dans
+[Architecture](architecture.md).
+
 ## Les vérifications
 
 | Commande | Ce qu'elle prouve | Il faut |
@@ -17,21 +22,24 @@
 | `bash scripts/check-file-modes.sh` | Les scripts sont commités exécutables | git |
 | `node scripts/render-prompts.mjs <dir>` | Écrit chaque prompt tel que le modèle le lit (`tests/support/fixtures/prompt-catalogue.ts`), pour relire un changement de prompt comme un `diff -r` de deux rendus ; `tests/repository/prompt-contract.test.ts` contrôle le même catalogue | Node 24 |
 
-La CI (`.github/workflows/ci.yml`) lance, en étapes séparées à chaque pull request et à chaque push sur `main`, les
-tests, le contrôle de types, la vérification de bundle, la garde de provenance, les deux pages des commandes à jour,
-la parité de la documentation et les modes de fichiers (soit `npm run check` plus les modes de fichiers).
-`runtime-smoke.yml` lance les trois smokes chaque lundi, à la demande (`workflow_dispatch`), et sur une pull request qui
-touche `.orkeon-version`, `orkeon-code`, un script de smoke ou ce qu'il lance (`scripts/run-crew.sh`,
-`scripts/setup-fixture.sh`, les réponses simulées sous `tests/fixtures/llm-mock/`), `src/commands/**`, `src/crews/**`,
-`src/shared/**` ou le workflow. Le job extrait les sources d'Orkeon à l'épingle lue dans `.orkeon-version`, construit le
-REPL et l'outil `orkeon` et lance le mode source, le runtime de référence : le REPL charge chaque commande, puis
-`git-commit` committe sur une copie neuve de la fixture de démonstration sous `--llm-mock` (`scripts/smoke-crew.sh`), la
-seule réponse du modèle lue dans `tests/fixtures/llm-mock/git-commit.jsonl` et comparée au `HEAD` de la fixture, puis chaque crew passe `orkeon run
---validate` (`scripts/smoke-validate.sh`). En local, `ORKEON_SOURCE=<un checkout d'Orkeon à l'épingle> bash
-scripts/smoke-runtime.sh --mode source`, puis `ORKEON_CODE_MODE=source bash scripts/smoke-crew.sh` et
-`ORKEON_CODE_MODE=source bash scripts/smoke-validate.sh` sont les mêmes vérifications. Le runtime juge un crew de ce
-projet comme un script procédural, puisqu'aucun n'assigne `globalThis.crew` dans sa propre source : `--validate` le
-bundle et ne l'exécute jamais (Orkeon #316, [ADR 0025](../adr/0025-orkeon-after-317.md)).
+- La CI (`.github/workflows/ci.yml`) lance, en étapes séparées à chaque pull request et à chaque push sur `main`,
+  les tests, le contrôle de types, la vérification de bundle, la garde de provenance, les deux pages des commandes à
+  jour, la parité de la documentation et les modes de fichiers (soit `npm run check` plus les modes de fichiers).
+- `runtime-smoke.yml` lance les trois smokes chaque lundi, à la demande (`workflow_dispatch`), et sur une pull
+  request qui touche `.orkeon-version`, `orkeon-code`, un script de smoke ou ce qu'il lance (`scripts/run-crew.sh`,
+  `scripts/setup-fixture.sh`, les réponses simulées sous `tests/fixtures/llm-mock/`), `src/commands/**`,
+  `src/crews/**`, `src/shared/**` ou le workflow.
+- Le job extrait les sources d'Orkeon à l'épingle lue dans `.orkeon-version`, construit le REPL et l'outil `orkeon`
+  et lance le mode source, le runtime de référence : le REPL charge chaque commande, puis `git-commit` committe sur
+  une copie neuve de la fixture de démonstration sous `--llm-mock` (`scripts/smoke-crew.sh`), la seule réponse du
+  modèle lue dans `tests/fixtures/llm-mock/git-commit.jsonl` et comparée au `HEAD` de la fixture, puis chaque crew
+  passe `orkeon run --validate` (`scripts/smoke-validate.sh`).
+- En local, `ORKEON_SOURCE=<un checkout d'Orkeon à l'épingle> bash scripts/smoke-runtime.sh --mode source`, puis
+  `ORKEON_CODE_MODE=source bash scripts/smoke-crew.sh` et `ORKEON_CODE_MODE=source bash scripts/smoke-validate.sh`
+  sont les mêmes vérifications.
+- Le runtime juge un crew de ce projet comme un script procédural, puisqu'aucun n'assigne `globalThis.crew` dans sa
+  propre source : `--validate` le bundle et ne l'exécute jamais ([ADR
+  0025](../adr/0025-orkeon-after-317.md)).
 
 ## Lancer un crew seul
 
@@ -78,7 +86,7 @@ vit en quatre endroits qui doivent concorder (`tests/repository/version.test.ts`
    le contrôle).
 
 `.config/dotnet-tools.json` nomme la dernière release de `orkeon.scripting.cli`, pour le repli sur l'outil des typings
-et de `scripts/run-crew.sh` : il ne suit plus l'épingle. Puis :
+et de `scripts/run-crew.sh` : il ne suit pas l'épingle. Puis :
 
 ```bash
 export ORKEON_SOURCE=<an Orkeon checkout at the pin>
@@ -98,8 +106,8 @@ montées mineures et de correctif ; la majeure se monte à la main, avec `.nvmrc
 1. Déplacez les entrées `[Unreleased]` de `CHANGELOG.md` sous `## [x.y.z] - YYYY-MM-DD`.
 2. Montez `version` dans `package.json` et `CLI_VERSION` dans `src/commands/_lib/status/meta.ts` (le test les garde
    égaux), ainsi que les notes de release (`RELEASE_NOTES`) dans `src/commands/_lib/status/messages.ts`.
-3. Lancez `ORKEON_SOURCE=<un checkout d'Orkeon au pin> bash scripts/check-shared-memory.sh` dans un terminal (il demande
-   `rag_eval` ; sans `ORKEON_SOURCE`, il lance l'outil plus ancien de `.config/dotnet-tools.json`, pas le pin, qui refuse
+3. Lancez `ORKEON_SOURCE=<un checkout d'Orkeon à l'épingle> bash scripts/check-shared-memory.sh` dans un terminal (il demande
+   `rag_eval` ; sans `ORKEON_SOURCE`, il lance l'outil plus ancien de `.config/dotnet-tools.json`, pas l'épingle, qui refuse
    des réglages récents comme `Orkeon:Decision`) : le rappel de la mémoire
    partagée sur son jeu de référence doit finir sur `check-shared-memory: thresholds met` (recall@5 >= 0.85, MRR >= 0.70).
    La question sans réponse (q13) ne passe que si les réglages du runtime donnent `Orkeon:Rag:Retrieval:MinScore` :

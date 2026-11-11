@@ -32,7 +32,7 @@ trimmed by the mode. Every command, crew and prompt is a source file: change it,
   catalogue once `tools.extra` names them ([Configuration](docs/configuration.md#extra-tools-mcp-servers-and-plugins)).
 - **Speech-to-text**: a Whisper MCP server ships in `mcp/whisper/`; `ORKEON_CODE_AUDIO_DIR` turns it on, and the
   assistant transcribes voice notes, meetings and screen recordings on your machine; `/voice` dictates a request
-  and `/say` reads aloud ([Configuration](docs/configuration.md#speech-to-text)).
+  and `/say` reads aloud ([Configuration](docs/speech.md#speech-to-text)).
 - **Crews for the recurring jobs**: `/init` (describe the project for the agent), `/commit` (a conventional commit
   from the diff), `/review` (multi-lens code review; `--lens security` for the security lens alone), `/analyze` (deterministic
   codebase analysis), `/compact` and `/summary` (context management), `/init-verifiers`, `/advisor`.
@@ -52,23 +52,10 @@ trimmed by the mode. Every command, crew and prompt is a source file: change it,
 ## Quick start
 
 You need the Orkeon runtime and an API key for an LLM provider Orkeon supports (any OpenAI-compatible endpoint,
-Anthropic...). Orkeon Code is checked against Orkeon's sources at the commit of `.orkeon-version`; the releases run
-it too, behind that pin. Any of these runs Orkeon Code:
-
-- **`orkeon-repl`** of the last release, `1.0.0-rc.6`, from the `orkeon` Debian/Ubuntu package (amd64 and arm64; a release candidate is published on the
-  apt `rc` channel, the default `stable` channel carries finals only) or from the
-  [Orkeon release archive](https://github.com/Orkeon/orkeon/releases) of your platform (Linux x64 and arm64, macOS x64
-  and arm64, Windows x64 `.zip`), self-contained: no .NET to install;
-- **Docker**: the last `orkeon-runners` image published (amd64 and arm64; `1.0.0-rc.5`, the `1.0.0-rc.6` image is not
-  published), nothing else to install;
-- **an Orkeon checkout** at the pin, the reference runtime: `ORKEON_SOURCE=<checkout> ./orkeon-code --mode source`.
-
-**Windows**: `orkeon-code.ps1` has no source mode and no `--demo` (`-Mode` takes `docker` or `tool`): the tool mode on
-the release's `orkeon-<version>-win-x64.zip` is the one for Windows; the path this project exercises is WSL with the
-bash launcher ([tutorial](docs/wsl-tutorial.md)).
-
-Orkeon Code itself installs from a release (`install.sh`, `install.ps1`) or from npm (`npm install -g
-orkeon-code@next`), or runs from a clone as below. Details: [Getting started](docs/getting-started.md).
+Anthropic...). The runtime comes as a release (`orkeon-repl`), as a Docker image or from an Orkeon checkout; on
+Windows, the path this project exercises is WSL ([tutorial](docs/wsl-tutorial.md)). Which runtime to pick, its
+versions and channels, and the ways to install Orkeon Code itself are in
+[Getting started](docs/getting-started.md). From a clone:
 
 ```bash
 git clone https://github.com/Orkeon/orkeon-code.git ~/orkeon-code
@@ -114,7 +101,7 @@ The REPL is one way to run the crews, not the only one.
 - **Interactive**: `./orkeon-code` on your project. `plan:` to ask, `acceptEdits:` to let it edit, `/mode` for the
   session; in `default` mode the runtime asks you before an edit, a command or a network call.
 - **Autonomous**: in `bypassPermissions` the loop runs a task to the end without a question, under a budget (200 tool
-  calls, 30 minutes, 400k tokens) and the host gate. `scripts/run-crew.sh` runs the same crew in one shot from a shell, a
+  calls, 30 minutes, 700k context tokens) and the host gate. `scripts/run-crew.sh` runs the same crew in one shot from a shell, a
   cron line or a CI job, and prints its result as JSON.
 - **Embedded**: an application starts the `orkeon` tool (nuget.org) or the `orkeon-runners` image on a crew and reads
   the JSON; Orkeon's `orkeon-host` daemon can host the crews behind a chat channel or an A2A endpoint. In-process
@@ -142,11 +129,18 @@ are written in English only.
 | [Getting started](docs/getting-started.md) | Docker, tool and source modes, first session |
 | [WSL tutorial](docs/wsl-tutorial.md) | Speech and a local model on WSL2, on the GPU, step by step |
 | [Configuration](docs/configuration.md) | LLM providers, settings file, environment variables |
+| [Speech](docs/speech.md) | Transcribing a file, dictating a request, reading an answer aloud |
+| [Decision models](docs/decision-models.md) | What Orkeon Code asks a decision model: pruning a long turn, routing a crew, suggesting skills, with what was measured |
+| [Decision models locally](docs/decision-models-local.md) | Kev on this machine and Liquid, step by step, with decision profiles to try |
 | [Permissions](docs/permissions.md) | Modes, rules, what the agent can touch |
+| [Permissions reference](docs/permissions-reference.md) | The order of the checks, what a rule reads, every rule of the dev steps' rule sets |
 | [Hooks](docs/hooks.md) | Your commands around the model's tool calls in the dev steps |
 | [Shared memory](docs/shared-memory.md) | Admitted decisions, structures, methods and mistakes the agents recall |
 | [Slash commands](docs/commands.md) | The full list (generated) |
-| [Architecture](docs/architecture.md) | Layers, ports, crews, the loop, prompt assembly, recipes |
+| [Architecture](docs/architecture.md) | Layers, ports, entry points, the VFS, crews |
+| [How a turn runs](docs/turn.md) | The loop, prompt assembly, routing, skill suggestion, compaction |
+| [Crew prompts](docs/crew-prompts.md) | The behaviour each crew's prompt is written from |
+| [Recipes](docs/recipes.md) | Add a command, a crew, a tool, a mode, a prompt block, a config key, a port |
 | [Autonomous and embedded runs](docs/headless.md) | Unattended turns, one-shot runs, schedulers and CI, your application |
 | [Extending](docs/extending.md) | Commands, crews, tools, prompts, modes, your own directories, the limits |
 | [Development](docs/development.md) | Tests, checks, typings, upgrading Orkeon, releasing |

@@ -10,7 +10,7 @@
 // volatile goes in the context.
 //
 // The text of every block is written from the behaviour specification in
-// docs/architecture.md, "Prompt assembly" (ADR 0003).
+// docs/turn.md, "Prompt assembly" (ADR 0003).
 //
 // Run tests: node --test tests/crews/main-loop/domain/prompt-assembly.test.ts
 

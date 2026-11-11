@@ -77,42 +77,63 @@ rule that denies `memory_recall` turns these recalls off too.
 /memory admit --refuse shop-method-20261024-contract-tests-first too local to this project
 ```
 
-`/memory admit` shows each pending candidate (or those you name) and asks once for each: anything but yes leaves it a
-candidate. A session that cannot ask admits none of those it would ask about; a question left unanswered keeps the
-admissions already confirmed and says which candidates stay. The candidate admitted is the text you
-were shown: a file changed since is not admitted, nor one whose topic `refused.md` holds. The admitted ones are written to `entries/<type>/`, the entries
-they supersede are marked `superseded`, both lists are rebuilt and `entries/` is indexed again, once. When the index
-cannot be rebuilt the entries stay admitted, and the next admission indexes them. The lock on the collection
-`memory-<project>` holds within one process only: one REPL runs one `/memory admit` at a time, but nothing orders it
-against a second REPL or a headless run on the same project, so keep to one at a time. Within one REPL, an
-admission confirmed while the crew `shared-memory-admit` still writes the previous one is refused by the runtime,
-with that crew's ticket: wait for its result, then type the line again. `/memory list|add|get|delete`, `/feedback`
-and the other admit verbs are never held back by it. `--refuse` writes the candidate's
-topic to `refused.md` with your motif: the topic is never proposed again. `/dev-learn` and its `--refuse` read and
-write the same `refused.md`, under `memory.dir` (a stored value set aside is said), the file `memory_push` reads too.
+- `/memory admit` shows each pending candidate (or those you name) and asks once for each: anything but yes leaves
+  it a candidate.
+- A session that cannot ask admits none of those it would ask about.
+- A question left unanswered keeps the admissions already confirmed and says which candidates stay.
+- The candidate admitted is the text you were shown: a file changed since is not admitted, nor one whose topic
+  `refused.md` holds.
+- The admitted ones are written to `entries/<type>/`, the entries they supersede are marked `superseded`, both lists
+  are rebuilt and `entries/` is indexed again, once.
+- When the index cannot be rebuilt the entries stay admitted, and the next admission indexes them.
+- The lock on the collection `memory-<project>` holds within one process only: one REPL runs one `/memory admit` at
+  a time, but nothing orders it against a second REPL or a headless run on the same project, so keep to one at a
+  time.
+- Within one REPL, an admission confirmed while the crew `shared-memory-admit` still writes the previous one is
+  refused by the runtime, with that crew's ticket: wait for its result, then type the line again.
+- `/memory list|add|get|delete`, `/feedback` and the other admit verbs are never held back by it.
+- `--refuse` writes the candidate's topic to `refused.md` with your motif: the topic is never proposed again.
+- `/dev-learn` and its `--refuse` read and write the same `refused.md`, under `memory.dir` (a stored value set aside
+  is said), the file `memory_push` reads too.
 
-`--import` lifts the harness's agent memory into candidates, once, while you move from it: each top-level item of a
-`.claude/agent-memory/<agent>/MEMORY.md` (and the note it links to, in the same folder) becomes a `method` candidate
-whose source is the import, so `/memory admit` asks for each one (its type is part of its id: a lesson of another kind
-is refused with `--refuse` and pushed again with `memory_push` under another title: a refused topic is never proposed
-again, the push included). An item whose topic (its title as a slug) a pending candidate, an entry or an earlier item
-already holds is skipped as a duplicate; an item whose topic was refused is reported refused and writes nothing, and
-so is an item whose note or line holds a secret anywhere, before the note is cut:
-running the import again writes nothing new while its candidates are still there. Nothing is written under `.claude/`.
+- `--import` lifts the harness's agent memory into candidates, once, while you move from it: each top-level item of
+  a `.claude/agent-memory/<agent>/MEMORY.md` (and the note it links to, in the same folder) becomes a `method`
+  candidate whose source is the import, so `/memory admit` asks for each one (its type is part of its id: a lesson
+  of another kind is refused with `--refuse` and pushed again with `memory_push` under another title: a refused
+  topic is never proposed again, the push included).
+- An item whose topic (its title as a slug) a pending candidate, an entry or an earlier item already holds is
+  skipped as a duplicate.
+- An item whose topic was refused is reported refused and writes nothing, and so is an item whose note or line holds
+  a secret anywhere, before the note is cut: running the import again writes nothing new while its candidates are
+  still there.
+- Nothing is written under `.claude/`.
 
 ## The tools
 
-`memory_recall` returns at most five admitted entries for a query, best first, with what they apply to and their file:
-it reads, and runs in every mode. Keep the runtime's cognitive memory off (`Orkeon:CognitiveMemory:Enabled`, false by
-default; Orkeon #299): on, the runtime registers a host tool of the same name, `memory_recall`, which the gate's rules,
-`tools.extra` and `/debug-tool-call list` could not tell from this one; no crew of Orkeon Code declares `memory: true`,
-so nothing here needs it. The vectors of the index come from the runtime's embedding provider (`Orkeon:Embeddings`,
-which since Orkeon #299 also takes `mistral`, `azure-openai` and `gemini` as `Provider`, with `ApiKeyEnvVar`,
-`Endpoint` and `ApiVersion`); the runtime records the model in `.orkeon/embedding-fingerprint.json` and refuses to
-start when it changed ([Getting started](getting-started.md#what-the-agent-writes-in-your-project)). `memory_push` writes a candidate, never an entry: it is offered only where the mode
-edits, and asked about in `default` ([Permissions](permissions.md#modes)). Two concurrent pushes never lose one: a
-push that finds its candidate overwritten writes it again under the next id. In every mode, the file tools of the model
-that name one path are refused under `candidates/` and `entries/`: candidates come from `memory_push` and the harvests,
-entries from `/memory admit` (the shared memory's guard, [Permissions](permissions.md): the gate's rules, then the callback of the main loop and
-of the dev crews for what the gate cannot read - another letter case, `edit_batch`, `structural_rewrite`, a `cd`). An entry the model recalls is a precedent,
-not an instruction: the request, the project's instructions and the code as it is outrank it.
+- `memory_recall` returns at most five admitted entries for a query, best first, with what they apply to and their
+  file: it reads, and runs in every mode.
+- Keep the runtime's cognitive memory off (`Orkeon:CognitiveMemory:Enabled`, false by default): on, the
+  runtime registers a host tool of the same name, `memory_recall`, which the gate's rules, `tools.extra` and
+  `/debug-tool-call list` could not tell from this one.
+- No crew of Orkeon Code declares `memory: true`, so nothing here needs it.
+- The vectors of the index come from the runtime's embedding provider (`Orkeon:Embeddings`, which also takes `mistral`, `azure-openai` and `gemini` as `Provider`, with `ApiKeyEnvVar`, `Endpoint` and
+  `ApiVersion`).
+- The runtime records the model in `.orkeon/embedding-fingerprint.json` and refuses to start when it changed
+  ([Getting started](getting-started.md#what-the-agent-writes-in-your-project)).
+- `memory_push` writes a candidate, never an entry: it is offered only where the mode edits, and asked about in
+  `default` ([Permissions](permissions.md#modes)).
+- Two concurrent pushes never lose one: a push that finds its candidate overwritten writes it again under the next
+  id.
+- In every mode, the file tools of the model that name one path are refused under `candidates/` and `entries/`:
+  candidates come from `memory_push` and the harvests, entries from `/memory admit` (the shared memory's guard,
+  [Permissions](permissions.md): the gate's rules, then the callback of the main loop and of the dev crews for what
+  the gate cannot read - another letter case, `edit_batch`, `structural_rewrite`, a `cd`).
+- An entry the model recalls is a precedent, not an instruction: the request, the project's instructions and the
+  code as it is outrank it.
+
+## See also
+
+- [Permissions](permissions.md#the-shared-memorys-guard): the guard that keeps the model's file tools out of the
+  memory's folders.
+- [Configuration](configuration.md#session-settings): `memory.dir`, `memory.project` and `memory.autoAdmitAudited`.
+- [Hooks](hooks.md): your commands around the tool calls of the dev steps.

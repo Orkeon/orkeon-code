@@ -1,5 +1,5 @@
 // The text of the main-loop turn: the blocks of the static header and of the volatile context that
-// prompt-assembly.ts orders, joins and caps. Written from the behaviour specification in docs/architecture.md,
+// prompt-assembly.ts orders, joins and caps. Written from the behaviour specification in docs/turn.md,
 // "Prompt assembly" (ADR 0003).
 
 // ── Static header ────────────────────────────────────────────────────────

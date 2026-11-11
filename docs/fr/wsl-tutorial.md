@@ -228,11 +228,12 @@ Attendu : `handshake + list_tools: … s, tools: list_audio, record_and_transcri
 transcribe_audio, whisper_info`, le rapport de `whisper_info`, la transcription contenant « dérive », puis la phrase
 de Piper retranscrite (« synthèse vocale » avec `small`). Ordre de grandeur de `small` sur CPU : 6 × le temps réel.
 
-**Sur le GPU.** Sous WSL, aucun pilote NVIDIA ne s'installe dans Linux : celui de Windows suffit, et l'extra `cuda`
-du serveur apporte cuBLAS et cuDNN en roues Python (environ 2,5 Go au premier appel), que le serveur précharge
-lui-même : ni CUDA Toolkit, ni `LD_LIBRARY_PATH`. `turbo` (`large-v3-turbo`, 1,6 Go à télécharger) est le meilleur
-modèle sur un GPU de 8 Go : il écrit juste les noms propres que `small` déforme (`small` tient en 1,3 Go de mémoire
-vidéo).
+### Sur le GPU
+
+ Sous WSL, aucun pilote NVIDIA ne s'installe dans Linux : celui de Windows suffit, et l'extra `cuda` du serveur
+apporte cuBLAS et cuDNN en roues Python (environ 2,5 Go au premier appel), que le serveur précharge lui-même : ni
+CUDA Toolkit, ni `LD_LIBRARY_PATH`. `turbo` (`large-v3-turbo`, 1,6 Go à télécharger) est le meilleur modèle sur un
+GPU de 8 Go : il écrit juste les noms propres que `small` déforme (`small` tient en 1,3 Go de mémoire vidéo).
 
 ```bash
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
@@ -335,15 +336,17 @@ TTS_BASE_URL TTS_MODEL TTS_VOICE`. Arrêter le serveur : `docker stop speaches`.
 
 ## 8. Option : Qwen en local avec Ollama
 
-Le modèle de langue des sections 4 à 6 est distant (DeepSeek, une clé). [Ollama](https://ollama.com) en fait tourner
-un sur le GPU, sans clé et sans que rien ne quitte la machine ; Orkeon le reconnaît à son port (`11434`) et lui parle
-en natif (`/api/chat`, appels d'outils compris). Ce tutoriel prend **`qwen3.5:2b`** : 2,7 Go, fenêtre de 256K,
-outils, raisonnement et vision, qui tient à côté de Whisper `turbo` dans les 8 Go de la carte (environ 3 Go chargé).
-Le plus petit Qwen de la bibliothèque, `qwen2.5:0.5b` (398 Mo), vérifie la plomberie (Orkeon ↔ Ollama, les appels
-d'outils natifs, le GPU partagé) mais pas grand-chose d'autre ; `qwen3:8b` (5,2 Go), avec lequel Orkeon Code a été
-validé, ne tient plus à côté de `turbo` (section 9). Un autre Qwen, ce sont les mêmes commandes avec son nom : le
-tableau dit lesquels tiennent. Les Qwen de la bibliothèque Ollama en octobre 2026 (taille du tag par défaut, fenêtre
-annoncée ; tous savent appeler des outils, `qwen3` et au-delà raisonnent, `qwen3.5` et au-delà voient les images) :
+- Le modèle de langue des sections 4 à 6 est distant (DeepSeek, une clé). [Ollama](https://ollama.com) en fait
+  tourner un sur le GPU, sans clé et sans que rien ne quitte la machine.
+- Orkeon le reconnaît à son port (`11434`) et lui parle en natif (`/api/chat`, appels d'outils compris).
+- Ce tutoriel prend **`qwen3.5:2b`** : 2,7 Go, fenêtre de 256K, outils, raisonnement et vision, qui tient à côté de
+  Whisper `turbo` dans les 8 Go de la carte (environ 3 Go chargé).
+- Le plus petit Qwen de la bibliothèque, `qwen2.5:0.5b` (398 Mo), vérifie la plomberie (Orkeon ↔ Ollama, les appels
+  d'outils natifs, le GPU partagé) mais pas grand-chose d'autre.
+- `qwen3:8b` (5,2 Go), avec lequel Orkeon Code a été validé, ne tient plus à côté de `turbo` (section 9).
+- Un autre Qwen, ce sont les mêmes commandes avec son nom : le tableau dit lesquels tiennent.
+- Les Qwen de la bibliothèque Ollama en octobre 2026 (taille du tag par défaut, fenêtre annoncée ; tous savent
+  appeler des outils, `qwen3` et au-delà raisonnent, `qwen3.5` et au-delà voient les images) :
 
 | Modèle | Mo | Fenêtre | À côté de `turbo` (8 Go) |
 |---|---|---|---|
@@ -368,9 +371,10 @@ annoncée ; tous savent appeler des outils, `qwen3` et au-delà raisonnent, `qwe
 
 `qwen2.5-coder` existe aux mêmes tailles que `qwen2.5` (0.5b à 32b, 32K), entraîné pour le code.
 
-**Ollama dans la distribution.** Pas d'autre pilote que celui de Windows : l'installeur reconnaît WSL2 et saute
-l'installation du pilote NVIDIA. Ollama déjà installé (`ollama --version` répond) : l'installeur le met à jour, rien
-d'autre.
+### Ollama dans la distribution
+
+ Pas d'autre pilote que celui de Windows : l'installeur reconnaît WSL2 et saute l'installation du pilote NVIDIA.
+Ollama déjà installé (`ollama --version` répond) : l'installeur le met à jour, rien d'autre.
 
 ```bash
 curl -fsSL https://ollama.com/install.sh | sh
@@ -382,10 +386,12 @@ Attendu : `>>> Installing ollama to /usr/local`, la création de l'utilisateur e
 `WARNING: systemd is not running` veut dire une distribution sans systemd : activez-le (`[boot]` `systemd=true` dans
 `/etc/wsl.conf`, puis `wsl --shutdown` côté Windows), ou lancez `ollama serve &` dans ce terminal à chaque session.
 
-**La fenêtre de contexte.** Ollama sert chaque modèle avec 4 096 tokens par défaut, et Orkeon ne l'élargit pas par
-requête (il n'envoie pas `num_ctx`). Le prompt système d'Orkeon Code en fait déjà environ 2 250, avant les schémas des
-outils et la conversation : au-delà de la fenêtre, Ollama tronque le début du prompt sans erreur, et le modèle perd
-ses consignes et ses outils. Le service reçoit donc 16 384 tokens, par un drop-in systemd :
+### La fenêtre de contexte
+
+ Ollama sert chaque modèle avec 4 096 tokens par défaut, et Orkeon ne l'élargit pas par requête (il n'envoie pas
+`num_ctx`). Le prompt système d'Orkeon Code en fait déjà environ 2 250, avant les schémas des outils et la
+conversation : au-delà de la fenêtre, Ollama tronque le début du prompt sans erreur, et le modèle perd ses consignes
+et ses outils. Le service reçoit donc 16 384 tokens, par un drop-in systemd :
 
 ```bash
 sudo mkdir -p /etc/systemd/system/ollama.service.d && printf '[Service]\nEnvironment="OLLAMA_CONTEXT_LENGTH=16384"\n' | sudo tee /etc/systemd/system/ollama.service.d/context.conf >/dev/null && sudo systemctl daemon-reload && sudo systemctl restart ollama && systemctl show ollama -p Environment
@@ -404,8 +410,10 @@ Attendu : le téléchargement (2,7 Go, une fois), `Paris` après quelques lignes
 de répondre), puis une ligne `qwen3.5:2b … 100% GPU` (le modèle reste chargé 5 minutes après le dernier appel).
 `100% CPU`, ou un partage `xx%/yy% CPU/GPU`, voudrait dire que le pilote n'est pas vu (section 9).
 
-**Les réglages d'Orkeon Code.** Deux exemples tout prêts dans le dépôt, pour un second fichier à côté de celui de
-la section 4 (un `.local.json` reste hors git) :
+### Les réglages d'Orkeon Code
+
+ Deux exemples tout prêts dans le dépôt, pour un second fichier à côté de celui de la section 4 (un `.local.json`
+reste hors git) :
 
 - [config/appsettings.ollama-whisper.example.json](../../config/appsettings.ollama-whisper.example.json), **la voie
   validée** : `appsettings.example.json` dont la section `Llm` vise Ollama (`qwen3.5:2b` sur
@@ -438,9 +446,10 @@ Attendu la première fois : `Preparing packages`, les deux roues NVIDIA qui se t
 un `real` de plusieurs minutes ; relancée, elle revient en quelques secondes sans rien imprimer. Le smoke de la
 section 5, lancé dans ce clone, prépare le même environnement et télécharge `turbo` en plus.
 
-**Dans le REPL.** Les variables de la section 6 ne servent plus, le fichier porte tout ; encore exportées, le
-lanceur dit `declares a "whisper" MCP server: ORKEON_CODE_AUDIO_DIR is ignored, the settings file wins`, sans
-conséquence.
+### Dans le REPL
+
+ Les variables de la section 6 ne servent plus, le fichier porte tout ; encore exportées, le lanceur dit `declares a
+"whisper" MCP server: ORKEON_CODE_AUDIO_DIR is ignored, the settings file wins`, sans conséquence.
 
 ```bash
 ./orkeon-code --mode tool --demo --settings config/appsettings.ollama.local.json
@@ -472,10 +481,10 @@ pour l'en empêcher).
 | `apt-get update` : `NO_PUBKEY` | La clé manque ou n'est pas au bon format : refaire les trois lignes de la clé (étape 3) |
 | `apt-get update` : `Conflicting distribution` | La ligne `Suites:` a été modifiée au-delà du nom du canal |
 | `apt-get install orkeon` : `Unable to locate package orkeon` | La source n'est pas sur `raw/apt/rc/` (`stable` ne porte que les versions finales, et il n'y en a pas encore) |
-| `/doctor` : `toolchain: node ❌`, ou `toolchain: dotnet ❌ 10.0.2xx [/usr/share/dotnet/sdk]` | Le mode `tool` n'a besoin ni de l'un ni de l'autre : le paquet embarque son esbuild, et rien n'appelle `dotnet`. Pour les passer au vert quand même : node à la version de `.nvmrc` (nodesource ou nvm) ; pour dotnet, le `global.json` du dépôt demande le SDK `10.0.300` ou une bande supérieure (`latestFeature`) et la distribution a une bande plus ancienne : `sudo apt-get install --only-upgrade dotnet-sdk-10.0` (le dépôt apt de Microsoft, `/usr/share/dotnet`) |
+| `/doctor` : `toolchain: node ❌`, ou `toolchain: dotnet ❌ 10.0.2xx [/usr/share/dotnet/sdk]` | Le mode `tool` n'a besoin ni de l'un ni de l'autre : le paquet embarque son esbuild, et rien n'appelle `dotnet` |
 | Pas de ligne `audio` dans le bandeau | Le lanceur a dit pourquoi : `uv` absent du `PATH`, un serveur `whisper` déjà déclaré dans les réglages ou l'environnement, mode docker |
 | `whisper-mcp-smoke: uv not found. Install it: …` | L'étape 4 n'a pas été faite, ou la section 10 est passée par là, ou le terminal date d'avant l'installation : `source ~/.local/bin/env` ; sinon `curl -LsSf https://astral.sh/uv/install.sh \| sh && source ~/.local/bin/env` |
-| `MCP server 'whisper' could not be connected: no answer within 30 s` au démarrage, puis `no registered tool 'whisper_info'` | Orkeon donne 30 s au serveur pour répondre ; le premier `uv run` du clone résout l'environnement (roues CUDA, minutes). Préparez l'environnement hors du REPL : le smoke (section 5), ou la commande déclarée lancée une fois à la main avec `< /dev/null` (section 8) ; relancez ensuite |
+| `MCP server 'whisper' could not be connected: no answer within 30 s` au démarrage, puis `no registered tool 'whisper_info'` | Orkeon donne 30 s au serveur pour répondre |
 | `MCP server 'whisper' could not be connected: …` avec un chemin | Un chemin du fichier de réglages est faux : `Command` (`~/.local/bin/uv`), `--project` et le script (`~/orkeon-code/mcp/whisper`), les deux dossiers en double dans `Mounts` et `Env` |
 | `fail: … Failed to start MCP server process` | `uv` n'est pas sur le `PATH` du REPL : `source ~/.local/bin/env` puis relancer |
 | `Library libcublas.so.12 is not found` | `WHISPER_DEVICE=cuda` sans l'extra `cuda` : le lanceur et le smoke l'ajoutent seuls sur `WHISPER_DEVICE=cuda` ; un serveur déclaré à la main veut `--extra cuda` |
@@ -491,6 +500,19 @@ pour l'en empêcher).
 | Le modèle local ignore ses consignes ou ses outils ; `journalctl -u ollama \| grep truncat` montre `truncating input prompt` | La fenêtre de 4 096 tokens par défaut : `systemctl show ollama -p Environment` doit contenir `OLLAMA_CONTEXT_LENGTH=16384` (section 8) |
 | `ollama ps` : `100% CPU` | Le pilote Windows n'est pas vu d'Ollama : `nvidia-smi` dans WSL, `journalctl -u ollama \| grep -i cuda` ; mettre à jour le pilote côté Windows, `wsl --shutdown` |
 | Un Qwen de 8 milliards (`qwen3:8b`, 5,2 Go) en plus de `turbo` sur le GPU | Ensemble ils approchent les 8 Go : le modèle de langue déborde sur le CPU (`ollama ps` : `xx%/yy% CPU/GPU`) ; prendre `small` pour Whisper, ou un Qwen plus petit (section 8) |
+
+Ce que le tableau laisse de côté :
+
+- **`/doctor` : `toolchain: node ❌`, ou `toolchain: dotnet ❌ 10.0.2xx [/usr/share/dotnet/sdk]`** :
+  - Pour les passer au vert quand même : node à la version de `.nvmrc` (nodesource ou nvm).
+  - Pour dotnet, le `global.json` du dépôt demande le SDK `10.0.300` ou une bande supérieure (`latestFeature`) et la
+    distribution a une bande plus ancienne : `sudo apt-get install --only-upgrade dotnet-sdk-10.0` (le dépôt apt de
+    Microsoft, `/usr/share/dotnet`).
+- **`MCP server 'whisper' could not be connected: no answer within 30 s` au démarrage, puis `no registered tool 'whisper_info'`** :
+  - Le premier `uv run` du clone résout l'environnement (roues CUDA, minutes).
+  - Préparez l'environnement hors du REPL : le smoke (section 5), ou la commande déclarée lancée une fois à la main
+    avec `< /dev/null` (section 8).
+  - Relancez ensuite.
 
 ## 10. Tout retirer
 
@@ -528,12 +550,12 @@ Attendu : `Removed … ollama.service` au `disable`, puis rien ; `ollama --versi
 
 - L'API d'OpenAI (`WHISPER_BACKEND=openai`, `TTS_BACKEND=openai`) : l'audio ou le texte quittent la machine, et il
   faut une clé `OPENAI_API_KEY` ; rien ici n'en a besoin.
-- Le mode docker du lanceur : le serveur vocal y tourne sur l'hôte, en HTTP, sans micro
+- Le mode docker du lanceur : le serveur vocal y tourne sur la machine hôte, en HTTP, sans micro
   ([mcp/whisper/README.md](../../mcp/whisper/README.md#docker-mode-the-server-on-the-host)). Le mode `tool` de ce
   tutoriel est le plus simple et le seul où `/voice` et `/say` ont le micro et le haut-parleur.
 - Ollama installé côté Windows plutôt que dans la distribution : de WSL, `localhost:11434` ne le joint qu'avec le
   réseau en miroir (`networkingMode=mirrored` dans `.wslconfig`) ou un `OLLAMA_HOST=0.0.0.0` côté Windows et
-  l'adresse de l'hôte dans `BaseUrl` ; l'étape 8 installe Ollama dans la distribution, où il voit le GPU par le
+  l'adresse de la machine hôte dans `BaseUrl` ; l'étape 8 installe Ollama dans la distribution, où il voit le GPU par le
   même pilote.
 - Le lanceur PowerShell (`orkeon-code.ps1`), Windows natif : il n'a pas de mode source, et WSL avec le lanceur bash,
   comme ici, est la voie documentée.

@@ -1,10 +1,10 @@
 # Trying the decision models locally: Kev and Liquid
 
-A decision model answers typed questions (yes or no, a choice, a score) with probabilities and writes no text. Orkeon
-puts one in front of an LLM through a *decision profile*: it guards the request, routes it to the profile that fits
-or checks the answer and escalates to a stronger profile ([Configuration](configuration.md#the-llm)). Since Orkeon
-#266 the host serves three decision providers on the same "System One" wire; this page sets up two of them on your
-machine, step by step, and shows them at work in Orkeon Code.
+Orkeon puts a decision model ([what it is, and what Orkeon Code asks it](decision-models.md)) in front of an LLM
+through a *decision profile*: it guards the request, routes it to the profile that fits or checks the answer and
+escalates to a stronger profile ([Configuration](configuration.md#the-llm)). The host serves three decision providers
+on the same "System One" wire; this page sets up two of them on your machine, step by step, and shows them at work
+in Orkeon Code.
 
 | Provider | Where it runs | Key | Default model | Example settings |
 |---|---|---|---|---|
@@ -15,12 +15,12 @@ machine, step by step, and shows them at work in Orkeon Code.
 Both examples are [`config/appsettings.jev.example.json`](../config/appsettings.jev.example.json) on another provider:
 the same two LLM profiles, `small` and `large`, and the same decision profile, `guarded`, which blocks a prompt
 injection and escalates from `small` to `large` when the answer does not hold. In the three, `small` also falls back
-on `large` (`Llm:Profiles:small:Fallback`, Orkeon #299) when its endpoint fails or times out, a move the decision
+on `large` (`Llm:Profiles:small:Fallback`) when its endpoint fails or times out, a move the decision
 profile does not see: the escalation judges an answer, the fallback replaces a call that got none.
 
 ## The runtime: source mode
 
-Liquid and Kev arrive with Orkeon #266, their stages fixed by #271, which the pin covers (`206b562`) and no release ships yet: the tool mode runs
+The pin (`206b562`) serves Liquid and Kev, and no release ships them yet: the tool mode runs
 the last release and the docker mode the last image, and neither knows `Orkeon:Liquid`, `Orkeon:Kev` nor
 `Orkeon:Decision:Provider`. Run Orkeon Code in source mode, on an Orkeon checkout at the pin or after it
 ([Getting started](getting-started.md#source-mode-an-orkeon-checkout)):
@@ -269,7 +269,7 @@ async def systemone(request: Request):
 ```
 
 d1 wants `instructions` on every question: the guard and verify stages of Orkeon send them with each yes or no
-question since Orkeon #271 (the risk's description, the verify's criterion). The model ships its own code
+question (the risk's description, the verify's criterion). The model ships its own code
 (`trust_remote_code`), so `D1_REVISION` pins the revision tried here. The image, beside `serve.py`:
 
 ```dockerfile
@@ -345,8 +345,7 @@ On `guarded`, the injection is blocked at 0.96:
 `Decision profile guarded: stage guard decided Block (the request matches the risk 'prompt_injection' at 0.96)`,
 and the ordinary request passes. The verify stage of `guarded` judges the answer, not the steps towards it: a
 response of the agent loop that only calls a tool passes unjudged (`"Steps": "final"`, the default; `"all"` judges the
-steps too). Before Orkeon #271 it judged every step, and `d1-3B`, scoring those steps 0.09 to 0.11 against the
-criterion, escalated each one to `large`.
+steps too). Judging every step, `d1-3B` scored those steps 0.09 to 0.11 against the criterion and escalated each one to `large`.
 
 ### The hosted API
 
@@ -523,8 +522,7 @@ which is how to check that Orkeon Code really asks Kev: stop the server and ever
 ## See it work
 
 What follows was observed with `kev-0.8b` and `qwen3.5:2b` in Docker on an RTX 3080, Orkeon at `0ea39d9`; step 2
-counts the calls to Kev the way Orkeon makes them since #271 (`3860e9d`), where a step that calls a tool is no longer judged
-after the call. The log lines are the host's, as the run below prints them.
+counts the calls to Kev the way Orkeon makes them at `3860e9d`, where a step that calls a tool is not judged after the call. The log lines are the host's, as the run below prints them.
 
 1. **The start.** The host names the active provider:
    `Decision provider kev: model kev-latest, address http://127.0.0.1:8009/v1, named` (`deduced` for a Liquid found by
@@ -578,7 +576,7 @@ was measured.
 | `Both TypeSafe and Liquid are configured for the decision model; name one with Orkeon:Decision:Provider.` | Two sections, or two keys exported and no section | Name the provider |
 | `Orkeon:Kev:BaseUrl '…' is not an absolute http or https address.` | An address without `http://` | `http://127.0.0.1:8009/v1` |
 | `… is neither https nor a loopback address: the API key would travel in clear to another machine.` | A key with a remote `http` Kev | `https`, or no key |
-| A setting the host does not know, at start | A runtime before Orkeon #266: tool or docker mode | `--mode source` on a checkout at the pin |
+| A setting the host does not know, at start | A runtime older than the pin: tool or docker mode | `--mode source` on a checkout at the pin |
 | `Orkeon:Decision:Profiles:guarded: no decision model is registered; name a provider in Orkeon:Decision:Provider …` | A decision profile asked for while no provider is active, a Kev section without `Provider` included | Name the provider |
 | `kev could not be reached at http://127.0.0.1:8009/v1: Connection refused` | The server is not running or listens on another port | Start it, or set `Orkeon:Kev:BaseUrl` |
 | `No liquid API key: set the environment variable LIQUID_API_KEY, or Orkeon:Liquid:ApiKey.` | `LIQUID_API_KEY` not exported in the shell that started Orkeon Code | Export it, then relaunch |
