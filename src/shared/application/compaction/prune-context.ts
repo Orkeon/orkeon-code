@@ -1,4 +1,4 @@
-// The pruning of a turn's tool loop, bound for one act (ADR 0027): with `compact.prune` on and a decision model on
+// The pruning of a turn's tool loop, bound for one act (ADR 0027): with `compaction.prune` on and a decision model on
 // the host, the act carries a callback the runtime asks once its loop passes 40 % of the window. The callback keeps
 // the small results without asking, has the decision model judge the others by batches, oldest first, and answers
 // the runtime's verdicts; a result judged needed is left unanswered and judged again once it has aged. It fails

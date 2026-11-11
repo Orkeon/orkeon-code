@@ -168,7 +168,7 @@ export async function runAct(
     // (ActOptions.context, Orkeon #276): a decision guard judges the request alone.
     context: turn.context,
     model: flags.model,
-    // The pruning of the loop's stale tool results, when the session turned it on (compact.prune).
+    // The pruning of the loop's stale tool results, when the session turned it on (compaction.prune).
     ...pruning,
   });
 }

@@ -680,7 +680,7 @@ un changement comme un diff.
 - **Élagage de la boucle d'outils** (`shared/domain/context-prune.ts`,
   `shared/application/compaction/prune-context.ts`, [ADR 0027](../adr/0027-decision-model-optimisations.md)) : les
   résultats d'outils d'un tour en cours vivent dans la boucle du runtime, jamais dans le tampon de session, aucune
-  compaction ne les atteint donc. Avec `compact.prune` à `on` et un modèle de décision sur le host, l'act de la
+  compaction ne les atteint donc. Avec `compaction.prune` à `on` et un modèle de décision sur le host, l'act de la
   boucle principale porte le `onContextPressure` du runtime (Orkeon #327) : dès que les messages de la boucle
   dépassent 40 % de la fenêtre, le runtime propose les anciens résultats des outils de lecture qui ont tourné, les
   6 derniers messages exclus. Un résultat de 600 caractères ou moins est gardé sans question. Pour les autres, le

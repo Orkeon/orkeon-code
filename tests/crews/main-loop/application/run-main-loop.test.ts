@@ -827,7 +827,7 @@ describe("runMainLoop — the request under the host's context", () => {
   });
 });
 
-describe("runMainLoop — the pruning of the tool loop (compact.prune)", () => {
+describe("runMainLoop — the pruning of the tool loop (compaction.prune)", () => {
   it("hands the act what the pruning binds for the turn's request", async () => {
     // Arrange
     const { deps, llm } = turnSetup();

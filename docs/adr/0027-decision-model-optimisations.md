@@ -37,7 +37,7 @@ names. A script reaches it as a member of the `tools` namespace.
   left out, a choice outside the options asked, a probability outside [0, 1]) are all `null`, and never an exception.
   A use case that gets `null` does exactly what it did before this ADR.
 - **Three uses, each off until its session key turns it on**, each delivered on its own:
-  - *pruning the context* (`compact.prune`): inside a turn's tool loop, past a share of the window, the older
+  - *pruning the context* (`compaction.prune`): inside a turn's tool loop, past a share of the window, the older
     results of the read tools are judged, the large ones and a bounded number at a time, and kept, cut down to
     their head or removed. The results live in the runtime's loop and never in the session buffer, so this rides
     the runtime's `onContextPressure` (Orkeon #327, asked for by this ADR's first draft); the summary of the

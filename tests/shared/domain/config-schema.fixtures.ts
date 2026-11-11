@@ -16,7 +16,7 @@ export const CONSUMERS: Record<string, string> = {
   "voice.reply": "/assistant, /summary, /transcribe --then, /voice send and /voice --go (each answer read aloud)",
   "answer.language": "/assistant, /summary, /transcribe --then, /voice send and /voice --go (the main loop's prompt)",
   "compaction.trigger": "/assistant (the automatic compaction at the head and the tail of a turn), /usage",
-  "compact.prune": "/assistant, /summary, /transcribe --then, /voice send and /voice --go (the tool results of a turn in progress)",
+  "compaction.prune": "/assistant, /summary, /transcribe --then, /voice send and /voice --go (the tool results of a turn in progress)",
   "dev.workDir": "/dev-status (the work folder it reads), /commit (the work folder it leaves out)",
   "dev.prAuto": "/commit (the pull request of the branch)",
   "memory.dir": "/memory-admit, /assistant (the memory_recall and memory_push tools)",

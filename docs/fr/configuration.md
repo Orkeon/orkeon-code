@@ -173,8 +173,8 @@ par exemple `permissions.fallback` (le mode utilisé quand ni un préfixe ni `/m
 (ci-dessous), `voice.reply` ([synthèse vocale](#synthèse-vocale)), `answer.language` (la langue dans laquelle
 l'assistant répond, `/config set answer.language French`, sauf si une requête est écrite dans une autre),
 `compaction.trigger` (le nombre de tokens auquel la compaction automatique se déclenche,
-`/config set compaction.trigger 90k` ; omis, la fenêtre moins la place dont un tour a besoin), `compact.prune` (`on` ou `off`, omis = `off` : le modèle de
-décision du host élague les résultats d'outils périmés d'un tour en cours, `/config set compact.prune on` ; il faut un
+`/config set compaction.trigger 90k` ; omis, la fenêtre moins la place dont un tour a besoin), `compaction.prune` (`on` ou `off`, omis = `off` : le modèle de
+décision du host élague les résultats d'outils périmés d'un tour en cours, `/config set compaction.prune on` ; il faut un
 [fournisseur de décision](decision-models-local.md) sur le host, voir
 [l'architecture](architecture.md#compaction-et-mémoire)), `dev.workDir` (le
 dossier de travail que lisent et écrivent les étapes dev, `/dev-status` et `/dev-learn` compris, relatif au checkout, `/config set dev.workDir backstage/tasks` ; omis, le

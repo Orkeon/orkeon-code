@@ -166,8 +166,8 @@ Inside the REPL, `/config` lists, reads and writes the session keys (stored in t
 one), `tools.extra` (below), `voice.reply` ([speech output](#speech-output)), `answer.language` (the language the
 assistant answers in, `/config set answer.language French`, unless a request is written in another one),
 `compaction.trigger` (the token count at which the automatic compaction runs, `/config set compaction.trigger 90k`;
-omitted, the window minus the room one turn needs), `compact.prune` (`on` or `off`, omitted = `off`: the host's
-decision model prunes the stale tool results of a turn in progress, `/config set compact.prune on`; it needs a
+omitted, the window minus the room one turn needs), `compaction.prune` (`on` or `off`, omitted = `off`: the host's
+decision model prunes the stale tool results of a turn in progress, `/config set compaction.prune on`; it needs a
 [decision provider](decision-models-local.md) on the host, see
 [the architecture](architecture.md#compaction-and-memory)), `dev.workDir` (the work folder the dev steps read and write, `/dev-status` and `/dev-learn` included,
 relative to the checkout, `/config set dev.workDir backstage/tasks`; omitted, the repository pack's `layout.work`, else

@@ -11,7 +11,7 @@ export const REQUEST = "Rename the port";
 /** The ports with the pruning on, a decision model present and a window of 200 000 tokens. */
 export function pruneSetup(setting: string | null = "on") {
   const config = new FakeConfigStore();
-  if (setting !== null) config.values["compact.prune"] = setting;
+  if (setting !== null) config.values["compaction.prune"] = setting;
   const decision = new FakeDecisionModel();
   const session = new FakeSessionStore();
   session.budget = { used: 90_000, window: 200_000 };

@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added — the decision model prunes a turn's stale tool results
 
-- `/config set compact.prune on` lets the host's decision model, whichever provider serves it, prune the tool loop
+- `/config set compaction.prune on` lets the host's decision model, whichever provider serves it, prune the tool loop
   of a turn in progress: past 40 % of the context window, an older result of a read tool that the request no longer
   needs is removed, or cut to its first 300 characters when only its beginning matters, and the runtime leaves a
   line that says to run the call again (Orkeon #327). Off by default; without a decision model, or when it does not
@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The pin moves to Orkeon `main` `206b562` (Orkeon #329, which closes #327, opened from this project): the tool loop
   of `act` takes `onContextPressure`, a callback that runs once the loop's messages pass a threshold and answers
-  `keep`, `head` or `drop` for each older result of a read tool; `compact.prune`, above, is what uses it
+  `keep`, `head` or `drop` for each older result of a read tool; `compaction.prune`, above, is what uses it
   ([ADR 0027](docs/adr/0027-decision-model-optimisations.md)). The same range holds Orkeon #325 (the host's cost
   budget is enforced: `BudgetExhaustedError` gains the `cost` dimension, which a host sets with
   `Orkeon:CostTracking:DefaultCrewBudget`, absent from the example settings; a dev step now reads a spent cost

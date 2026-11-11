@@ -13,7 +13,7 @@ import {
 
 describe("contextPruning", () => {
   for (const setting of ["off", null]) {
-    it(`adds nothing to the act when compact.prune is ${setting ?? "unset"}`, async () => {
+    it(`adds nothing to the act when compaction.prune is ${setting ?? "unset"}`, async () => {
       // Arrange
       const { deps } = pruneSetup(setting);
 

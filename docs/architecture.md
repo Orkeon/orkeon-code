@@ -630,7 +630,7 @@ prompt as the model reads it, to review a change as a diff.
   buffer, after the summary and what comes back, so the answer stored next follows its request.
 - **Pruning the tool loop** (`shared/domain/context-prune.ts`, `shared/application/compaction/prune-context.ts`,
   [ADR 0027](adr/0027-decision-model-optimisations.md)): the tool results of a turn in progress live in the
-  runtime's loop, never in the session buffer, so no compaction reaches them. With `compact.prune` on and a decision
+  runtime's loop, never in the session buffer, so no compaction reaches them. With `compaction.prune` on and a decision
   model on the host, the main loop's act carries the runtime's `onContextPressure` (Orkeon #327): once the loop's
   messages pass 40 % of the window, the runtime offers the older results of the read tools that ran, the last 6
   messages left out. A result of 600 characters or less is kept without asking. For the others the decision model

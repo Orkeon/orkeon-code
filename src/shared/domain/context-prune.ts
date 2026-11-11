@@ -11,7 +11,7 @@ import { CHARS_PER_TOKEN } from "./compaction-thresholds.ts";
 import { PRUNE_JUDGE_THE_CALL, pruneCallLine, pruneNeededWhole, pruneStateText, pruneStillNeeded } from "./prompts.ts";
 
 /** The setting that turns the pruning on: `on`, anything else is off. */
-export const PRUNE_CONFIG_KEY = "compact.prune";
+export const PRUNE_CONFIG_KEY = "compaction.prune";
 
 /** The share of the window from which the loop's results are judged. The loop's messages never enter the session
  *  buffer, so no compaction relieves them: past the window the provider refuses the call. Under half the window,
